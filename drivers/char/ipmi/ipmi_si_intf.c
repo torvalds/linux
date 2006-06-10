@@ -1184,20 +1184,20 @@ static void port_outl(struct si_sm_io *io, unsigned int offset,
 static void port_cleanup(struct smi_info *info)
 {
 	unsigned int addr = info->io.addr_data;
-	int          mapsize;
+	int          idx;
 
 	if (addr) {
-		mapsize = ((info->io_size * info->io.regspacing)
-			   - (info->io.regspacing - info->io.regsize));
-
-		release_region (addr, mapsize);
+	  	for (idx = 0; idx < info->io_size; idx++) {
+			release_region(addr + idx * info->io.regspacing,
+				       info->io.regsize);
+		}
 	}
 }
 
 static int port_setup(struct smi_info *info)
 {
 	unsigned int addr = info->io.addr_data;
-	int          mapsize;
+	int          idx;
 
 	if (!addr)
 		return -ENODEV;
@@ -1225,16 +1225,22 @@ static int port_setup(struct smi_info *info)
 		return -EINVAL;
 	}
 
-	/* Calculate the total amount of memory to claim.  This is an
-	 * unusual looking calculation, but it avoids claiming any
-	 * more memory than it has to.  It will claim everything
-	 * between the first address to the end of the last full
-	 * register. */
-	mapsize = ((info->io_size * info->io.regspacing)
-		   - (info->io.regspacing - info->io.regsize));
-
-	if (request_region(addr, mapsize, DEVICE_NAME) == NULL)
-		return -EIO;
+	/* Some BIOSes reserve disjoint I/O regions in their ACPI
+	 * tables.  This causes problems when trying to register the
+	 * entire I/O region.  Therefore we must register each I/O
+	 * port separately.
+	 */
+  	for (idx = 0; idx < info->io_size; idx++) {
+		if (request_region(addr + idx * info->io.regspacing,
+				   info->io.regsize, DEVICE_NAME) == NULL) {
+			/* Undo allocations */
+			while (idx--) {
+				release_region(addr + idx * info->io.regspacing,
+					       info->io.regsize);
+			}
+			return -EIO;
+		}
+	}
 	return 0;
 }
 
@@ -2198,11 +2204,11 @@ static inline void wait_for_timer_and_thread(struct smi_info *smi_info)
 	}
 }
 
-static struct ipmi_default_vals
+static __devinitdata struct ipmi_default_vals
 {
 	int type;
 	int port;
-} __devinit ipmi_defaults[] =
+} ipmi_defaults[] =
 {
 	{ .type = SI_KCS, .port = 0xca2 },
 	{ .type = SI_SMIC, .port = 0xca9 },

@@ -110,5 +110,16 @@ struct fsl_usb2_platform_data {
 #define FSL_USB2_PORT0_ENABLED	0x00000001
 #define FSL_USB2_PORT1_ENABLED	0x00000002
 
+struct fsl_spi_platform_data {
+	u32 	initial_spmode;	/* initial SPMODE value */
+	u16	bus_num;
+
+	/* board specific information */
+	u16	max_chipselect;
+	void	(*activate_cs)(u8 cs, u8 polarity);
+	void	(*deactivate_cs)(u8 cs, u8 polarity);
+	u32	sysclk;
+};
+
 #endif				/* _FSL_DEVICE_H_ */
 #endif				/* __KERNEL__ */

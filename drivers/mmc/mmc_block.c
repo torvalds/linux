@@ -175,6 +175,7 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 		brq.data.timeout_ns = card->csd.tacc_ns * 10;
 		brq.data.timeout_clks = card->csd.tacc_clks * 10;
 		brq.data.blksz_bits = md->block_bits;
+		brq.data.blksz = 1 << md->block_bits;
 		brq.data.blocks = req->nr_sectors >> (md->block_bits - 9);
 		brq.stop.opcode = MMC_STOP_TRANSMISSION;
 		brq.stop.arg = 0;
@@ -187,6 +188,12 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 			brq.cmd.opcode = MMC_WRITE_BLOCK;
 			brq.data.flags |= MMC_DATA_WRITE;
 			brq.data.blocks = 1;
+
+			/*
+			 * Scale up the timeout by the r2w factor
+			 */
+			brq.data.timeout_ns <<= card->csd.r2w_factor;
+			brq.data.timeout_clks <<= card->csd.r2w_factor;
 		}
 
 		if (brq.data.blocks > 1) {
@@ -346,7 +353,7 @@ static struct mmc_blk_data *mmc_blk_alloc(struct mmc_card *card)
 			 */
 			printk(KERN_ERR "%s: unable to select block size for "
 				"writing (rb%u wb%u rp%u wp%u)\n",
-				md->disk->disk_name,
+				mmc_card_id(card),
 				1 << card->csd.read_blkbits,
 				1 << card->csd.write_blkbits,
 				card->csd.read_partial,

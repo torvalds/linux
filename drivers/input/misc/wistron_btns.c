@@ -273,6 +273,18 @@ static struct key_entry keymap_fs_amilo_pro_v2000[] = {
 	{ KE_END,  0 }
 };
 
+static struct key_entry keymap_fujitsu_n3510[] = {
+	{ KE_KEY, 0x11, KEY_PROG1 },
+	{ KE_KEY, 0x12, KEY_PROG2 },
+	{ KE_KEY, 0x36, KEY_WWW },
+	{ KE_KEY, 0x31, KEY_MAIL },
+	{ KE_KEY, 0x71, KEY_STOPCD },
+	{ KE_KEY, 0x72, KEY_PLAYPAUSE },
+	{ KE_KEY, 0x74, KEY_REWIND },
+	{ KE_KEY, 0x78, KEY_FORWARD },
+	{ KE_END, 0 }
+};
+
 static struct key_entry keymap_wistron_ms2141[] = {
 	{ KE_KEY,  0x11, KEY_PROG1 },
 	{ KE_KEY,  0x12, KEY_PROG2 },
@@ -306,6 +318,16 @@ static struct key_entry keymap_acer_travelmate_240[] = {
 	{ KE_END, 0 }
 };
 
+static struct key_entry keymap_aopen_1559as[] = {
+	{ KE_KEY,  0x01, KEY_HELP },
+	{ KE_KEY,  0x06, KEY_PROG3 },
+	{ KE_KEY,  0x11, KEY_PROG1 },
+	{ KE_KEY,  0x12, KEY_PROG2 },
+	{ KE_WIFI, 0x30, 0 },
+	{ KE_KEY,  0x31, KEY_MAIL },
+	{ KE_KEY,  0x36, KEY_WWW },
+};
+
 /*
  * If your machine is not here (which is currently rather likely), please send
  * a list of buttons and their key codes (reported when loading this module
@@ -320,6 +342,24 @@ static struct dmi_system_id dmi_ids[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "AMILO Pro V2000"),
 		},
 		.driver_data = keymap_fs_amilo_pro_v2000
+	},
+	{
+		.callback = dmi_matched,
+		.ident = "Fujitsu-Siemens Amilo M7400",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "AMILO M        "),
+		},
+		.driver_data = keymap_fs_amilo_pro_v2000
+	},
+	{
+		.callback = dmi_matched,
+		.ident = "Fujitsu N3510",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "N3510"),
+		},
+		.driver_data = keymap_fujitsu_n3510
 	},
 	{
 		.callback = dmi_matched,
@@ -338,6 +378,15 @@ static struct dmi_system_id dmi_ids[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "TravelMate 240"),
 		},
 		.driver_data = keymap_acer_travelmate_240
+	},
+        {
+		.callback = dmi_matched,
+		.ident = "AOpen 1559AS",
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_NAME, "E2U"),
+			DMI_MATCH(DMI_BOARD_NAME, "E2U"),
+		},
+		.driver_data = keymap_aopen_1559as
 	},
 	{ NULL, }
 };

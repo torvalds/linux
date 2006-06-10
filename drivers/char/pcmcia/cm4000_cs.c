@@ -149,7 +149,7 @@ struct cm4000_dev {
 #define	ZERO_DEV(dev)  						\
 	memset(&dev->atr_csum,0,				\
 		sizeof(struct cm4000_dev) - 			\
-		/*link*/ sizeof(struct pcmcia_device) - 	\
+		/*link*/ sizeof(struct pcmcia_device *) - 	\
 		/*node*/ sizeof(dev_node_t) - 			\
 		/*atr*/ MAX_ATR*sizeof(char) - 			\
 		/*rbuf*/ 512*sizeof(char) - 			\
@@ -1981,15 +1981,17 @@ static int __init cmm_init(void)
 	if (!cmm_class)
 		return -1;
 
-	rc = pcmcia_register_driver(&cm4000_driver);
-	if (rc < 0)
-		return rc;
-
 	major = register_chrdev(0, DEVICE_NAME, &cm4000_fops);
 	if (major < 0) {
 		printk(KERN_WARNING MODULE_NAME
 			": could not get major number\n");
 		return -1;
+	}
+
+	rc = pcmcia_register_driver(&cm4000_driver);
+	if (rc < 0) {
+		unregister_chrdev(major, DEVICE_NAME);
+		return rc;
 	}
 
 	return 0;

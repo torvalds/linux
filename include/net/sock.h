@@ -279,7 +279,7 @@ static inline int sk_unhashed(const struct sock *sk)
 
 static inline int sk_hashed(const struct sock *sk)
 {
-	return sk->sk_node.pprev != NULL;
+	return !sk_unhashed(sk);
 }
 
 static __inline__ void sk_node_init(struct hlist_node *node)
@@ -454,6 +454,7 @@ static inline void sk_stream_set_owner_r(struct sk_buff *skb, struct sock *sk)
 
 static inline void sk_stream_free_skb(struct sock *sk, struct sk_buff *skb)
 {
+	skb_truesize_check(skb);
 	sock_set_flag(sk, SOCK_QUEUE_SHRUNK);
 	sk->sk_wmem_queued   -= skb->truesize;
 	sk->sk_forward_alloc += skb->truesize;

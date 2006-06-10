@@ -665,9 +665,7 @@ static int de_thread(struct task_struct *tsk)
 	 * and to assume its PID:
 	 */
 	if (!thread_group_leader(current)) {
-		struct task_struct *parent;
 		struct dentry *proc_dentry1, *proc_dentry2;
-		unsigned long ptrace;
 
 		/*
 		 * Wait for the thread group leader to be a zombie.
@@ -704,22 +702,6 @@ static int de_thread(struct task_struct *tsk)
 		 * two threads with a switched PID, and release
 		 * the former thread group leader:
 		 */
-		ptrace = leader->ptrace;
-		parent = leader->parent;
-		if (unlikely(ptrace) && unlikely(parent == current)) {
-			/*
-			 * Joker was ptracing his own group leader,
-			 * and now he wants to be his own parent!
-			 * We can't have that.
-			 */
-			ptrace = 0;
-		}
-
-		ptrace_unlink(current);
-		ptrace_unlink(leader);
-		remove_parent(current);
-		remove_parent(leader);
-
 
 		/* Become a process group leader with the old leader's pid.
 		 * Note: The old leader also uses thispid until release_task
@@ -730,10 +712,8 @@ static int de_thread(struct task_struct *tsk)
 		attach_pid(current, PIDTYPE_PID,  current->pid);
 		attach_pid(current, PIDTYPE_PGID, current->signal->pgrp);
 		attach_pid(current, PIDTYPE_SID,  current->signal->session);
-		list_add_tail(&current->tasks, &init_task.tasks);
+		list_add_tail_rcu(&current->tasks, &init_task.tasks);
 
-		current->parent = current->real_parent = leader->real_parent;
-		leader->parent = leader->real_parent = child_reaper;
 		current->group_leader = current;
 		leader->group_leader = current;
 
@@ -741,13 +721,6 @@ static int de_thread(struct task_struct *tsk)
 		detach_pid(leader, PIDTYPE_PGID);
 		detach_pid(leader, PIDTYPE_SID);
 		list_del_init(&leader->tasks);
-
-		add_parent(current);
-		add_parent(leader);
-		if (ptrace) {
-			current->ptrace = ptrace;
-			__ptrace_link(current, parent);
-		}
 
 		current->exit_signal = SIGCHLD;
 

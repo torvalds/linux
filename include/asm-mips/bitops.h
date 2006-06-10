@@ -467,64 +467,56 @@ static inline unsigned long __ffs(unsigned long word)
 }
 
 /*
+ * fls - find last bit set.
+ * @word: The word to search
+ *
+ * This is defined the same way as ffs.
+ * Note fls(0) = 0, fls(1) = 1, fls(0x80000000) = 32.
+ */
+static inline int fls(int word)
+{
+	__asm__ ("clz %0, %1" : "=r" (word) : "r" (word));
+
+	return 32 - word;
+}
+
+#if defined(CONFIG_64BIT) && defined(CONFIG_CPU_MIPS64)
+static inline int fls64(__u64 word)
+{
+	__asm__ ("dclz %0, %1" : "=r" (word) : "r" (word));
+
+	return 64 - word;
+}
+#else
+#include <asm-generic/bitops/fls64.h>
+#endif
+
+/*
  * ffs - find first bit set.
  * @word: The word to search
  *
- * Returns 1..SZLONG
- * Returns 0 if no bit exists
+ * This is defined the same way as
+ * the libc and compiler builtin ffs routines, therefore
+ * differs in spirit from the above ffz (man ffs).
  */
-
-static inline unsigned long ffs(unsigned long word)
+static inline int ffs(int word)
 {
 	if (!word)
 		return 0;
 
-	return __ffs(word) + 1;
-}
-
-/*
- * ffz - find first zero in word.
- * @word: The word to search
- *
- * Undefined if no zero exists, so code should check against ~0UL first.
- */
-static inline unsigned long ffz(unsigned long word)
-{
-	return __ffs (~word);
-}
-
-/*
- * fls - find last bit set.
- * @word: The word to search
- *
- * Returns 1..SZLONG
- * Returns 0 if no bit exists
- */
-static inline unsigned long fls(unsigned long word)
-{
-#ifdef CONFIG_CPU_MIPS32
-	__asm__ ("clz %0, %1" : "=r" (word) : "r" (word));
-
-	return 32 - word;
-#endif
-
-#ifdef CONFIG_CPU_MIPS64
-	__asm__ ("dclz %0, %1" : "=r" (word) : "r" (word));
-
-	return 64 - word;
-#endif
+	return fls(word & -word);
 }
 
 #else
 
 #include <asm-generic/bitops/__ffs.h>
 #include <asm-generic/bitops/ffs.h>
-#include <asm-generic/bitops/ffz.h>
 #include <asm-generic/bitops/fls.h>
+#include <asm-generic/bitops/fls64.h>
 
 #endif /*defined(CONFIG_CPU_MIPS32) || defined(CONFIG_CPU_MIPS64) */
 
-#include <asm-generic/bitops/fls64.h>
+#include <asm-generic/bitops/ffz.h>
 #include <asm-generic/bitops/find.h>
 
 #ifdef __KERNEL__

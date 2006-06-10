@@ -36,6 +36,7 @@
 #include <linux/nodemask.h>
 
 struct vm_area_struct;
+struct mm_struct;
 
 #ifdef CONFIG_NUMA
 

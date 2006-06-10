@@ -60,15 +60,15 @@ rtc_ds1742_get_time(void)
 	unsigned long flags;
 
 	spin_lock_irqsave(&rtc_lock, flags);
-	CMOS_WRITE(RTC_READ, RTC_CONTROL);
-	second = BCD2BIN(CMOS_READ(RTC_SECONDS) & RTC_SECONDS_MASK);
-	minute = BCD2BIN(CMOS_READ(RTC_MINUTES));
-	hour = BCD2BIN(CMOS_READ(RTC_HOURS));
-	day = BCD2BIN(CMOS_READ(RTC_DATE));
-	month = BCD2BIN(CMOS_READ(RTC_MONTH));
-	year = BCD2BIN(CMOS_READ(RTC_YEAR));
-	century = BCD2BIN(CMOS_READ(RTC_CENTURY) & RTC_CENTURY_MASK);
-	CMOS_WRITE(0, RTC_CONTROL);
+	rtc_write(RTC_READ, RTC_CONTROL);
+	second = BCD2BIN(rtc_read(RTC_SECONDS) & RTC_SECONDS_MASK);
+	minute = BCD2BIN(rtc_read(RTC_MINUTES));
+	hour = BCD2BIN(rtc_read(RTC_HOURS));
+	day = BCD2BIN(rtc_read(RTC_DATE));
+	month = BCD2BIN(rtc_read(RTC_MONTH));
+	year = BCD2BIN(rtc_read(RTC_YEAR));
+	century = BCD2BIN(rtc_read(RTC_CENTURY) & RTC_CENTURY_MASK);
+	rtc_write(0, RTC_CONTROL);
 	spin_unlock_irqrestore(&rtc_lock, flags);
 
 	year += century * 100;
@@ -87,16 +87,16 @@ rtc_ds1742_set_time(unsigned long t)
 	unsigned long flags;
 
 	spin_lock_irqsave(&rtc_lock, flags);
-	CMOS_WRITE(RTC_READ, RTC_CONTROL);
-	cmos_second = (u8)(CMOS_READ(RTC_SECONDS) & RTC_SECONDS_MASK);
-	cmos_minute = (u8)CMOS_READ(RTC_MINUTES);
-	cmos_hour = (u8)CMOS_READ(RTC_HOURS);
-	cmos_day = (u8)CMOS_READ(RTC_DATE);
-	cmos_month = (u8)CMOS_READ(RTC_MONTH);
-	cmos_year = (u8)CMOS_READ(RTC_YEAR);
-	cmos_century = CMOS_READ(RTC_CENTURY) & RTC_CENTURY_MASK;
+	rtc_write(RTC_READ, RTC_CONTROL);
+	cmos_second = (u8)(rtc_read(RTC_SECONDS) & RTC_SECONDS_MASK);
+	cmos_minute = (u8)rtc_read(RTC_MINUTES);
+	cmos_hour = (u8)rtc_read(RTC_HOURS);
+	cmos_day = (u8)rtc_read(RTC_DATE);
+	cmos_month = (u8)rtc_read(RTC_MONTH);
+	cmos_year = (u8)rtc_read(RTC_YEAR);
+	cmos_century = rtc_read(RTC_CENTURY) & RTC_CENTURY_MASK;
 
-	CMOS_WRITE(RTC_WRITE, RTC_CONTROL);
+	rtc_write(RTC_WRITE, RTC_CONTROL);
 
 	/* convert */
 	to_tm(t, &tm);
@@ -104,18 +104,18 @@ rtc_ds1742_set_time(unsigned long t)
 	/* check each field one by one */
 	year = BIN2BCD(tm.tm_year - EPOCH);
 	if (year != cmos_year) {
-		CMOS_WRITE(year,RTC_YEAR);
+		rtc_write(year,RTC_YEAR);
 	}
 
 	month = BIN2BCD(tm.tm_mon);
 	if (month != (cmos_month & 0x1f)) {
-		CMOS_WRITE((month & 0x1f) | (cmos_month & ~0x1f),RTC_MONTH);
+		rtc_write((month & 0x1f) | (cmos_month & ~0x1f),RTC_MONTH);
 	}
 
 	day = BIN2BCD(tm.tm_mday);
 	if (day != cmos_day) {
 
-		CMOS_WRITE(day, RTC_DATE);
+		rtc_write(day, RTC_DATE);
 	}
 
 	if (cmos_hour & 0x40) {
@@ -130,20 +130,20 @@ rtc_ds1742_set_time(unsigned long t)
 		/* 24 hour format */
 		hour = BIN2BCD(tm.tm_hour) & 0x3f;
 	}
-	if (hour != cmos_hour) CMOS_WRITE(hour, RTC_HOURS);
+	if (hour != cmos_hour) rtc_write(hour, RTC_HOURS);
 
 	minute = BIN2BCD(tm.tm_min);
 	if (minute !=  cmos_minute) {
-		CMOS_WRITE(minute, RTC_MINUTES);
+		rtc_write(minute, RTC_MINUTES);
 	}
 
 	second = BIN2BCD(tm.tm_sec);
 	if (second !=  cmos_second) {
-		CMOS_WRITE(second & RTC_SECONDS_MASK,RTC_SECONDS);
+		rtc_write(second & RTC_SECONDS_MASK,RTC_SECONDS);
 	}
 
 	/* RTC_CENTURY and RTC_CONTROL share same address... */
-	CMOS_WRITE(cmos_century, RTC_CONTROL);
+	rtc_write(cmos_century, RTC_CONTROL);
 	spin_unlock_irqrestore(&rtc_lock, flags);
 
 	return 0;
@@ -163,9 +163,9 @@ rtc_ds1742_init(unsigned long base)
 	rtc_mips_set_time = rtc_ds1742_set_time;
 
 	/* clear oscillator stop bit */
-	CMOS_WRITE(RTC_READ, RTC_CONTROL);
-	cmos_second = (u8)(CMOS_READ(RTC_SECONDS) & RTC_SECONDS_MASK);
-	CMOS_WRITE(RTC_WRITE, RTC_CONTROL);
-	CMOS_WRITE(cmos_second, RTC_SECONDS); /* clear msb */
-	CMOS_WRITE(0, RTC_CONTROL);
+	rtc_write(RTC_READ, RTC_CONTROL);
+	cmos_second = (u8)(rtc_read(RTC_SECONDS) & RTC_SECONDS_MASK);
+	rtc_write(RTC_WRITE, RTC_CONTROL);
+	rtc_write(cmos_second, RTC_SECONDS); /* clear msb */
+	rtc_write(0, RTC_CONTROL);
 }

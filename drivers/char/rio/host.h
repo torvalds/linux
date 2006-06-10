@@ -33,12 +33,6 @@
 #ifndef __rio_host_h__
 #define __rio_host_h__
 
-#ifdef SCCS_LABELS
-#ifndef lint
-static char *_host_h_sccs_ = "@(#)host.h	1.2";
-#endif
-#endif
-
 /*
 ** the host structure - one per host card in the system.
 */
@@ -77,9 +71,6 @@ struct Host {
 #define RC_STARTUP            1
 #define RC_RUNNING            2
 #define RC_STUFFED            3
-#define RC_SOMETHING          4
-#define RC_SOMETHING_NEW      5
-#define RC_SOMETHING_ELSE     6
 #define RC_READY              7
 #define RUN_STATE             7
 /*

@@ -19,5 +19,4 @@ int request_firmware_nowait(
 	void (*cont)(const struct firmware *fw, void *context));
 
 void release_firmware(const struct firmware *fw);
-void register_firmware(const char *name, const u8 *data, size_t size);
 #endif

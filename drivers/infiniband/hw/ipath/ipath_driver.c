@@ -116,10 +116,9 @@ static int __devinit ipath_init_one(struct pci_dev *,
 #define PCI_DEVICE_ID_INFINIPATH_PE800 0x10
 
 static const struct pci_device_id ipath_pci_tbl[] = {
-	{PCI_DEVICE(PCI_VENDOR_ID_PATHSCALE,
-		    PCI_DEVICE_ID_INFINIPATH_HT)},
-	{PCI_DEVICE(PCI_VENDOR_ID_PATHSCALE,
-		    PCI_DEVICE_ID_INFINIPATH_PE800)},
+	{ PCI_DEVICE(PCI_VENDOR_ID_PATHSCALE, PCI_DEVICE_ID_INFINIPATH_HT) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_PATHSCALE, PCI_DEVICE_ID_INFINIPATH_PE800) },
+	{ 0, }
 };
 
 MODULE_DEVICE_TABLE(pci, ipath_pci_tbl);
@@ -418,9 +417,19 @@ static int __devinit ipath_init_one(struct pci_dev *pdev,
 
 	ret = pci_set_dma_mask(pdev, DMA_64BIT_MASK);
 	if (ret) {
-		dev_info(&pdev->dev, "pci_set_dma_mask unit %u "
-			 "fails: %d\n", dd->ipath_unit, ret);
-		goto bail_regions;
+		/*
+		 * if the 64 bit setup fails, try 32 bit.  Some systems
+		 * do not setup 64 bit maps on systems with 2GB or less
+		 * memory installed.
+		 */
+		ret = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
+		if (ret) {
+			dev_info(&pdev->dev, "pci_set_dma_mask unit %u "
+				 "fails: %d\n", dd->ipath_unit, ret);
+			goto bail_regions;
+		}
+		else
+			ipath_dbg("No 64bit DMA mask, used 32 bit mask\n");
 	}
 
 	pci_set_master(pdev);
@@ -1729,7 +1738,7 @@ void ipath_free_pddata(struct ipath_devdata *dd, u32 port, int freehdrq)
 	}
 }
 
-int __init infinipath_init(void)
+static int __init infinipath_init(void)
 {
 	int ret;
 
@@ -1896,19 +1905,19 @@ static void __exit infinipath_cleanup(void)
 			} else
 				ipath_dbg("irq is 0, not doing free_irq "
 					  "for unit %u\n", dd->ipath_unit);
+
+			/*
+			 * we check for NULL here, because it's outside
+			 * the kregbase check, and we need to call it
+			 * after the free_irq.  Thus it's possible that
+			 * the function pointers were never initialized.
+			 */
+			if (dd->ipath_f_cleanup)
+				/* clean up chip-specific stuff */
+				dd->ipath_f_cleanup(dd);
+
 			dd->pcidev = NULL;
 		}
-
-		/*
-		 * we check for NULL here, because it's outside the kregbase
-		 * check, and we need to call it after the free_irq.  Thus
-		 * it's possible that the function pointers were never
-		 * initialized.
-		 */
-		if (dd->ipath_f_cleanup)
-			/* clean up chip-specific stuff */
-			dd->ipath_f_cleanup(dd);
-
 		spin_lock_irqsave(&ipath_devs_lock, flags);
 	}
 
@@ -1949,7 +1958,7 @@ int ipath_reset_device(int unit)
 	}
 
 	if (dd->ipath_pd)
-		for (i = 1; i < dd->ipath_portcnt; i++) {
+		for (i = 1; i < dd->ipath_cfgports; i++) {
 			if (dd->ipath_pd[i] && dd->ipath_pd[i]->port_cnt) {
 				ipath_dbg("unit %u port %d is in use "
 					  "(PID %u cmd %s), can't reset\n",

@@ -139,8 +139,10 @@ typedef struct { unsigned long pgprot; } pgprot_t;
 
 #define pfn_to_kaddr(pfn)	__va((pfn) << PAGE_SHIFT)
 
+#ifndef CONFIG_SPARSEMEM
 #ifndef CONFIG_NEED_MULTIPLE_NODES
 #define pfn_valid(pfn)		((pfn) < max_mapnr)
+#endif
 #endif
 
 #define virt_to_page(kaddr)	pfn_to_page(__pa(kaddr) >> PAGE_SHIFT)

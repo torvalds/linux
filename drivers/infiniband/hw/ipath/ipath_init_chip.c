@@ -53,13 +53,19 @@ MODULE_PARM_DESC(cfgports, "Set max number of ports to use");
 
 /*
  * Number of buffers reserved for driver (layered drivers and SMA
- * send).  Reserved at end of buffer list.
+ * send).  Reserved at end of buffer list.   Initialized based on
+ * number of PIO buffers if not set via module interface.
+ * The problem with this is that it's global, but we'll use different
+ * numbers for different chip types.  So the default value is not
+ * very useful.  I've redefined it for the 1.3 release so that it's
+ * zero unless set by the user to something else, in which case we
+ * try to respect it.
  */
-static ushort ipath_kpiobufs = 32;
+static ushort ipath_kpiobufs;
 
 static int ipath_set_kpiobufs(const char *val, struct kernel_param *kp);
 
-module_param_call(kpiobufs, ipath_set_kpiobufs, param_get_uint,
+module_param_call(kpiobufs, ipath_set_kpiobufs, param_get_ushort,
 		  &ipath_kpiobufs, S_IWUSR | S_IRUGO);
 MODULE_PARM_DESC(kpiobufs, "Set number of PIO buffers for driver");
 
@@ -531,8 +537,11 @@ static int init_housekeeping(struct ipath_devdata *dd,
 	 * Don't clear ipath_flags as 8bit mode was set before
 	 * entering this func. However, we do set the linkstate to
 	 * unknown, so we can watch for a transition.
+	 * PRESENT is set because we want register reads to work,
+	 * and the kernel infrastructure saw it in config space;
+	 * We clear it if we have failures.
 	 */
-	dd->ipath_flags |= IPATH_LINKUNK;
+	dd->ipath_flags |= IPATH_LINKUNK | IPATH_PRESENT;
 	dd->ipath_flags &= ~(IPATH_LINKACTIVE | IPATH_LINKARMED |
 			     IPATH_LINKDOWN | IPATH_LINKINIT);
 
@@ -560,6 +569,7 @@ static int init_housekeeping(struct ipath_devdata *dd,
 	    || (dd->ipath_uregbase & 0xffffffff) == 0xffffffff) {
 		ipath_dev_err(dd, "Register read failures from chip, "
 			      "giving up initialization\n");
+		dd->ipath_flags &= ~IPATH_PRESENT;
 		ret = -ENODEV;
 		goto done;
 	}
@@ -682,16 +692,14 @@ int ipath_init_chip(struct ipath_devdata *dd, int reinit)
 	 */
 	dd->ipath_pioavregs = ALIGN(val, sizeof(u64) * BITS_PER_BYTE / 2)
 		/ (sizeof(u64) * BITS_PER_BYTE / 2);
-	if (!ipath_kpiobufs)	/* have to have at least 1, for SMA */
-		kpiobufs = ipath_kpiobufs = 1;
-	else if ((dd->ipath_piobcnt2k + dd->ipath_piobcnt4k) <
-		 (dd->ipath_cfgports * IPATH_MIN_USER_PORT_BUFCNT)) {
-		dev_info(&dd->pcidev->dev, "Too few PIO buffers (%u) "
-			 "for %u ports to have %u each!\n",
-			 dd->ipath_piobcnt2k + dd->ipath_piobcnt4k,
-			 dd->ipath_cfgports, IPATH_MIN_USER_PORT_BUFCNT);
-		kpiobufs = 1;	/* reserve just the minimum for SMA/ether */
-	} else
+	if (ipath_kpiobufs == 0) {
+		/* not set by user, or set explictly to default  */
+		if ((dd->ipath_piobcnt2k + dd->ipath_piobcnt4k) > 128)
+			kpiobufs = 32;
+		else
+			kpiobufs = 16;
+	}
+	else
 		kpiobufs = ipath_kpiobufs;
 
 	if (kpiobufs >
@@ -871,7 +879,6 @@ int ipath_init_chip(struct ipath_devdata *dd, int reinit)
 
 done:
 	if (!ret) {
-		ipath_get_guid(dd);
 		*dd->ipath_statusp |= IPATH_STATUS_CHIP_PRESENT;
 		if (!dd->ipath_f_intrsetup(dd)) {
 			/* now we can enable all interrupts from the chip */

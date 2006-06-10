@@ -127,7 +127,7 @@
  *             sure which should go first, but I bet it won't make much
  *             difference if we are running VLANs.  The good news is that
  *             this protocol won't be in the list unless compiled in, so
- *             the average user (w/out VLANs) will not be adversly affected.
+ *             the average user (w/out VLANs) will not be adversely affected.
  *             --BLG
  *
  *		0800	IP
@@ -149,7 +149,7 @@ static struct list_head ptype_base[16];	/* 16 way hashed list */
 static struct list_head ptype_all;		/* Taps */
 
 /*
- * The @dev_base list is protected by @dev_base_lock and the rtln
+ * The @dev_base list is protected by @dev_base_lock and the rtnl
  * semaphore.
  *
  * Pure readers hold dev_base_lock for reading.
@@ -193,7 +193,7 @@ static inline struct hlist_head *dev_index_hash(int ifindex)
  *	Our notifier list
  */
 
-static BLOCKING_NOTIFIER_HEAD(netdev_chain);
+static RAW_NOTIFIER_HEAD(netdev_chain);
 
 /*
  *	Device drivers call our routines to queue packets here. We empty the
@@ -641,10 +641,12 @@ int dev_valid_name(const char *name)
  *	@name: name format string
  *
  *	Passed a format string - eg "lt%d" it will try and find a suitable
- *	id. Not efficient for many devices, not called a lot. The caller
- *	must hold the dev_base or rtnl lock while allocating the name and
- *	adding the device in order to avoid duplicates. Returns the number
- *	of the unit assigned or a negative errno code.
+ *	id. It scans list of devices to build up a free map, then chooses
+ *	the first empty slot. The caller must hold the dev_base or rtnl lock
+ *	while allocating the name and adding the device in order to avoid
+ *	duplicates.
+ *	Limited to bits_per_byte * page size devices (ie 32K on most platforms).
+ *	Returns the number of the unit assigned or a negative errno code.
  */
 
 int dev_alloc_name(struct net_device *dev, const char *name)
@@ -736,7 +738,7 @@ int dev_change_name(struct net_device *dev, char *newname)
 	if (!err) {
 		hlist_del(&dev->name_hlist);
 		hlist_add_head(&dev->name_hlist, dev_name_hash(dev->name));
-		blocking_notifier_call_chain(&netdev_chain,
+		raw_notifier_call_chain(&netdev_chain,
 				NETDEV_CHANGENAME, dev);
 	}
 
@@ -744,14 +746,14 @@ int dev_change_name(struct net_device *dev, char *newname)
 }
 
 /**
- *	netdev_features_change - device changes fatures
+ *	netdev_features_change - device changes features
  *	@dev: device to cause notification
  *
  *	Called to indicate a device has changed features.
  */
 void netdev_features_change(struct net_device *dev)
 {
-	blocking_notifier_call_chain(&netdev_chain, NETDEV_FEAT_CHANGE, dev);
+	raw_notifier_call_chain(&netdev_chain, NETDEV_FEAT_CHANGE, dev);
 }
 EXPORT_SYMBOL(netdev_features_change);
 
@@ -766,7 +768,7 @@ EXPORT_SYMBOL(netdev_features_change);
 void netdev_state_change(struct net_device *dev)
 {
 	if (dev->flags & IFF_UP) {
-		blocking_notifier_call_chain(&netdev_chain,
+		raw_notifier_call_chain(&netdev_chain,
 				NETDEV_CHANGE, dev);
 		rtmsg_ifinfo(RTM_NEWLINK, dev, 0);
 	}
@@ -864,7 +866,7 @@ int dev_open(struct net_device *dev)
 		/*
 		 *	... and announce new interface.
 		 */
-		blocking_notifier_call_chain(&netdev_chain, NETDEV_UP, dev);
+		raw_notifier_call_chain(&netdev_chain, NETDEV_UP, dev);
 	}
 	return ret;
 }
@@ -887,7 +889,7 @@ int dev_close(struct net_device *dev)
 	 *	Tell people we are going down, so that they can
 	 *	prepare to death, when device is still operating.
 	 */
-	blocking_notifier_call_chain(&netdev_chain, NETDEV_GOING_DOWN, dev);
+	raw_notifier_call_chain(&netdev_chain, NETDEV_GOING_DOWN, dev);
 
 	dev_deactivate(dev);
 
@@ -924,7 +926,7 @@ int dev_close(struct net_device *dev)
 	/*
 	 * Tell people we are down
 	 */
-	blocking_notifier_call_chain(&netdev_chain, NETDEV_DOWN, dev);
+	raw_notifier_call_chain(&netdev_chain, NETDEV_DOWN, dev);
 
 	return 0;
 }
@@ -955,7 +957,7 @@ int register_netdevice_notifier(struct notifier_block *nb)
 	int err;
 
 	rtnl_lock();
-	err = blocking_notifier_chain_register(&netdev_chain, nb);
+	err = raw_notifier_chain_register(&netdev_chain, nb);
 	if (!err) {
 		for (dev = dev_base; dev; dev = dev->next) {
 			nb->notifier_call(nb, NETDEV_REGISTER, dev);
@@ -983,7 +985,7 @@ int unregister_netdevice_notifier(struct notifier_block *nb)
 	int err;
 
 	rtnl_lock();
-	err = blocking_notifier_chain_unregister(&netdev_chain, nb);
+	err = raw_notifier_chain_unregister(&netdev_chain, nb);
 	rtnl_unlock();
 	return err;
 }
@@ -994,12 +996,12 @@ int unregister_netdevice_notifier(struct notifier_block *nb)
  *      @v:   pointer passed unmodified to notifier function
  *
  *	Call all network notifier blocks.  Parameters and return value
- *	are as for blocking_notifier_call_chain().
+ *	are as for raw_notifier_call_chain().
  */
 
 int call_netdevice_notifiers(unsigned long val, void *v)
 {
-	return blocking_notifier_call_chain(&netdev_chain, val, v);
+	return raw_notifier_call_chain(&netdev_chain, val, v);
 }
 
 /* When > 0 there are consumers of rx skb time stamps */
@@ -2196,7 +2198,7 @@ int netdev_set_master(struct net_device *slave, struct net_device *master)
  *	@dev: device
  *	@inc: modifier
  *
- *	Add or remove promsicuity from a device. While the count in the device
+ *	Add or remove promiscuity from a device. While the count in the device
  *	remains above zero the interface remains promiscuous. Once it hits zero
  *	the device reverts back to normal filtering operation. A negative inc
  *	value is used to drop promiscuity on the device.
@@ -2308,7 +2310,7 @@ int dev_change_flags(struct net_device *dev, unsigned flags)
 	if (dev->flags & IFF_UP &&
 	    ((old_flags ^ dev->flags) &~ (IFF_UP | IFF_PROMISC | IFF_ALLMULTI |
 					  IFF_VOLATILE)))
-		blocking_notifier_call_chain(&netdev_chain,
+		raw_notifier_call_chain(&netdev_chain,
 				NETDEV_CHANGE, dev);
 
 	if ((flags ^ dev->gflags) & IFF_PROMISC) {
@@ -2353,7 +2355,7 @@ int dev_set_mtu(struct net_device *dev, int new_mtu)
 	else
 		dev->mtu = new_mtu;
 	if (!err && dev->flags & IFF_UP)
-		blocking_notifier_call_chain(&netdev_chain,
+		raw_notifier_call_chain(&netdev_chain,
 				NETDEV_CHANGEMTU, dev);
 	return err;
 }
@@ -2370,7 +2372,7 @@ int dev_set_mac_address(struct net_device *dev, struct sockaddr *sa)
 		return -ENODEV;
 	err = dev->set_mac_address(dev, sa);
 	if (!err)
-		blocking_notifier_call_chain(&netdev_chain,
+		raw_notifier_call_chain(&netdev_chain,
 				NETDEV_CHANGEADDR, dev);
 	return err;
 }
@@ -2427,7 +2429,7 @@ static int dev_ifsioc(struct ifreq *ifr, unsigned int cmd)
 				return -EINVAL;
 			memcpy(dev->broadcast, ifr->ifr_hwaddr.sa_data,
 			       min(sizeof ifr->ifr_hwaddr.sa_data, (size_t) dev->addr_len));
-			blocking_notifier_call_chain(&netdev_chain,
+			raw_notifier_call_chain(&netdev_chain,
 					    NETDEV_CHANGEADDR, dev);
 			return 0;
 
@@ -2698,7 +2700,8 @@ int dev_ioctl(unsigned int cmd, void __user *arg)
 				/* If command is `set a parameter', or
 				 * `get the encoding parameters', check if
 				 * the user has the right to do it */
-				if (IW_IS_SET(cmd) || cmd == SIOCGIWENCODE) {
+				if (IW_IS_SET(cmd) || cmd == SIOCGIWENCODE
+				    || cmd == SIOCGIWENCODEEXT) {
 					if (!capable(CAP_NET_ADMIN))
 						return -EPERM;
 				}
@@ -2775,6 +2778,8 @@ int register_netdevice(struct net_device *dev)
 
 	BUG_ON(dev_boot_phase);
 	ASSERT_RTNL();
+
+	might_sleep();
 
 	/* When net_device's are persistent, this will be fatal. */
 	BUG_ON(dev->reg_state != NETREG_UNINITIALIZED);
@@ -2862,6 +2867,11 @@ int register_netdevice(struct net_device *dev)
 	if (!dev->rebuild_header)
 		dev->rebuild_header = default_rebuild_header;
 
+	ret = netdev_register_sysfs(dev);
+	if (ret)
+		goto out_err;
+	dev->reg_state = NETREG_REGISTERED;
+
 	/*
 	 *	Default initial state at registry is that the
 	 *	device is present.
@@ -2877,14 +2887,11 @@ int register_netdevice(struct net_device *dev)
 	hlist_add_head(&dev->name_hlist, head);
 	hlist_add_head(&dev->index_hlist, dev_index_hash(dev->ifindex));
 	dev_hold(dev);
-	dev->reg_state = NETREG_REGISTERING;
 	write_unlock_bh(&dev_base_lock);
 
 	/* Notify protocols, that a new device appeared. */
-	blocking_notifier_call_chain(&netdev_chain, NETDEV_REGISTER, dev);
+	raw_notifier_call_chain(&netdev_chain, NETDEV_REGISTER, dev);
 
-	/* Finish registration after unlock */
-	net_set_todo(dev);
 	ret = 0;
 
 out:
@@ -2960,7 +2967,7 @@ static void netdev_wait_allrefs(struct net_device *dev)
 			rtnl_lock();
 
 			/* Rebroadcast unregister notification */
-			blocking_notifier_call_chain(&netdev_chain,
+			raw_notifier_call_chain(&netdev_chain,
 					    NETDEV_UNREGISTER, dev);
 
 			if (test_bit(__LINK_STATE_LINKWATCH_PENDING,
@@ -3007,7 +3014,7 @@ static void netdev_wait_allrefs(struct net_device *dev)
  *
  * We are invoked by rtnl_unlock() after it drops the semaphore.
  * This allows us to deal with problems:
- * 1) We can create/delete sysfs objects which invoke hotplug
+ * 1) We can delete sysfs objects which invoke hotplug
  *    without deadlocking with linkwatch via keventd.
  * 2) Since we run with the RTNL semaphore not held, we can sleep
  *    safely in order to wait for the netdev refcnt to drop to zero.
@@ -3016,8 +3023,6 @@ static DEFINE_MUTEX(net_todo_run_mutex);
 void netdev_run_todo(void)
 {
 	struct list_head list = LIST_HEAD_INIT(list);
-	int err;
-
 
 	/* Need to guard against multiple cpu's getting out of order. */
 	mutex_lock(&net_todo_run_mutex);
@@ -3040,40 +3045,29 @@ void netdev_run_todo(void)
 			= list_entry(list.next, struct net_device, todo_list);
 		list_del(&dev->todo_list);
 
-		switch(dev->reg_state) {
-		case NETREG_REGISTERING:
-			dev->reg_state = NETREG_REGISTERED;
-			err = netdev_register_sysfs(dev);
-			if (err)
-				printk(KERN_ERR "%s: failed sysfs registration (%d)\n",
-				       dev->name, err);
-			break;
-
-		case NETREG_UNREGISTERING:
-			netdev_unregister_sysfs(dev);
-			dev->reg_state = NETREG_UNREGISTERED;
-
-			netdev_wait_allrefs(dev);
-
-			/* paranoia */
-			BUG_ON(atomic_read(&dev->refcnt));
-			BUG_TRAP(!dev->ip_ptr);
-			BUG_TRAP(!dev->ip6_ptr);
-			BUG_TRAP(!dev->dn_ptr);
-
-
-			/* It must be the very last action, 
-			 * after this 'dev' may point to freed up memory.
-			 */
-			if (dev->destructor)
-				dev->destructor(dev);
-			break;
-
-		default:
+		if (unlikely(dev->reg_state != NETREG_UNREGISTERING)) {
 			printk(KERN_ERR "network todo '%s' but state %d\n",
 			       dev->name, dev->reg_state);
-			break;
+			dump_stack();
+			continue;
 		}
+
+		netdev_unregister_sysfs(dev);
+		dev->reg_state = NETREG_UNREGISTERED;
+
+		netdev_wait_allrefs(dev);
+
+		/* paranoia */
+		BUG_ON(atomic_read(&dev->refcnt));
+		BUG_TRAP(!dev->ip_ptr);
+		BUG_TRAP(!dev->ip6_ptr);
+		BUG_TRAP(!dev->dn_ptr);
+
+		/* It must be the very last action,
+		 * after this 'dev' may point to freed up memory.
+		 */
+		if (dev->destructor)
+			dev->destructor(dev);
 	}
 
 out:
@@ -3130,7 +3124,7 @@ EXPORT_SYMBOL(alloc_netdev);
 void free_netdev(struct net_device *dev)
 {
 #ifdef CONFIG_SYSFS
-	/*  Compatiablity with error handling in drivers */
+	/*  Compatibility with error handling in drivers */
 	if (dev->reg_state == NETREG_UNINITIALIZED) {
 		kfree((char *)dev - dev->padded);
 		return;
@@ -3215,7 +3209,7 @@ int unregister_netdevice(struct net_device *dev)
 	/* Notify protocols, that we are about to destroy
 	   this device. They should clean all the things.
 	*/
-	blocking_notifier_call_chain(&netdev_chain, NETDEV_UNREGISTER, dev);
+	raw_notifier_call_chain(&netdev_chain, NETDEV_UNREGISTER, dev);
 	
 	/*
 	 *	Flush the multicast chain

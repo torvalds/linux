@@ -231,6 +231,14 @@ asmlinkage long parisc_fadvise64_64(int fd,
 			(loff_t)high_len << 32 | low_len, advice);
 }
 
+asmlinkage long parisc_sync_file_range(int fd,
+			u32 hi_off, u32 lo_off, u32 hi_nbytes, u32 lo_nbytes,
+			unsigned int flags)
+{
+	return sys_sync_file_range(fd, (loff_t)hi_off << 32 | lo_off,
+			(loff_t)hi_nbytes << 32 | lo_nbytes, flags);
+}
+
 asmlinkage unsigned long sys_alloc_hugepages(int key, unsigned long addr, unsigned long len, int prot, int flag)
 {
 	return -ENOMEM;

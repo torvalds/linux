@@ -271,6 +271,18 @@ __setup("enable_8254_timer", setup_enable_8254_timer);
 #include <linux/pci_ids.h>
 #include <linux/pci.h>
 
+
+#ifdef CONFIG_ACPI
+
+static int nvidia_hpet_detected __initdata;
+
+static int __init nvidia_hpet_check(unsigned long phys, unsigned long size)
+{
+	nvidia_hpet_detected = 1;
+	return 0;
+}
+#endif
+
 /* Temporary Hack. Nvidia and VIA boards currently only work with IO-APIC
    off. Check for an Nvidia or VIA PCI bridge and turn it off.
    Use pci direct infrastructure because this runs before the PCI subsystem. 
@@ -317,11 +329,19 @@ void __init check_ioapic(void)
 					return;
 				case PCI_VENDOR_ID_NVIDIA:
 #ifdef CONFIG_ACPI
-					/* All timer overrides on Nvidia
-				           seem to be wrong. Skip them. */
-					acpi_skip_timer_override = 1;
-					printk(KERN_INFO 
-	     "Nvidia board detected. Ignoring ACPI timer override.\n");
+					/*
+					 * All timer overrides on Nvidia are
+					 * wrong unless HPET is enabled.
+					 */
+					nvidia_hpet_detected = 0;
+					acpi_table_parse(ACPI_HPET,
+							nvidia_hpet_check);
+					if (nvidia_hpet_detected == 0) {
+						acpi_skip_timer_override = 1;
+						printk(KERN_INFO "Nvidia board "
+						    "detected. Ignoring ACPI "
+						    "timer override.\n");
+					}
 #endif
 					/* RED-PEN skip them on mptables too? */
 					return;
@@ -1777,6 +1797,8 @@ static inline void unlock_ExtINT_logic(void)
 	spin_unlock_irqrestore(&ioapic_lock, flags);
 }
 
+int timer_uses_ioapic_pin_0;
+
 /*
  * This code may look a bit paranoid, but it's supposed to cooperate with
  * a wide range of boards and BIOS bugs.  Fortunately only the timer IRQ
@@ -1813,6 +1835,9 @@ static inline void check_timer(void)
 	apic1 = find_isa_irq_apic(0, mp_INT);
 	pin2  = ioapic_i8259.pin;
 	apic2 = ioapic_i8259.apic;
+
+	if (pin1 == 0)
+		timer_uses_ioapic_pin_0 = 1;
 
 	apic_printk(APIC_VERBOSE,KERN_INFO "..TIMER: vector=0x%02X apic1=%d pin1=%d apic2=%d pin2=%d\n",
 		vector, apic1, pin1, apic2, pin2);

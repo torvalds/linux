@@ -356,73 +356,13 @@ asmlinkage int sys32_llseek(unsigned int fd, unsigned int offset_high,
 asmlinkage ssize_t sys32_pread(unsigned int fd, char __user * buf,
 			       size_t count, u32 unused, u64 a4, u64 a5)
 {
-	ssize_t ret;
-	struct file * file;
-	ssize_t (*read)(struct file *, char __user *, size_t, loff_t *);
-	loff_t pos;
-
-	ret = -EBADF;
-	file = fget(fd);
-	if (!file)
-		goto bad_file;
-	if (!(file->f_mode & FMODE_READ))
-		goto out;
-	pos = merge_64(a4, a5);
-	ret = rw_verify_area(READ, file, &pos, count);
-	if (ret < 0)
-		goto out;
-	ret = -EINVAL;
-	if (!file->f_op || !(read = file->f_op->read))
-		goto out;
-	if (pos < 0)
-		goto out;
-	ret = -ESPIPE;
-	if (!(file->f_mode & FMODE_PREAD))
-		goto out;
-	ret = read(file, buf, count, &pos);
-	if (ret > 0)
-		dnotify_parent(file->f_dentry, DN_ACCESS);
-out:
-	fput(file);
-bad_file:
-	return ret;
+	return sys_pread64(fd, buf, count, merge_64(a4, a5));
 }
 
 asmlinkage ssize_t sys32_pwrite(unsigned int fd, const char __user * buf,
 			        size_t count, u32 unused, u64 a4, u64 a5)
 {
-	ssize_t ret;
-	struct file * file;
-	ssize_t (*write)(struct file *, const char __user *, size_t, loff_t *);
-	loff_t pos;
-
-	ret = -EBADF;
-	file = fget(fd);
-	if (!file)
-		goto bad_file;
-	if (!(file->f_mode & FMODE_WRITE))
-		goto out;
-	pos = merge_64(a4, a5);
-	ret = rw_verify_area(WRITE, file, &pos, count);
-	if (ret < 0)
-		goto out;
-	ret = -EINVAL;
-	if (!file->f_op || !(write = file->f_op->write))
-		goto out;
-	if (pos < 0)
-		goto out;
-
-	ret = -ESPIPE;
-	if (!(file->f_mode & FMODE_PWRITE))
-		goto out;
-
-	ret = write(file, buf, count, &pos);
-	if (ret > 0)
-		dnotify_parent(file->f_dentry, DN_MODIFY);
-out:
-	fput(file);
-bad_file:
-	return ret;
+	return sys_pwrite64(fd, buf, count, merge_64(a4, a5));
 }
 
 asmlinkage int sys32_sched_rr_get_interval(compat_pid_t pid,
@@ -1180,6 +1120,16 @@ asmlinkage ssize_t sys32_readahead(int fd, u32 pad0, u64 a2, u64 a3,
                                    size_t count)
 {
 	return sys_readahead(fd, merge_64(a2, a3), count);
+}
+
+asmlinkage long sys32_sync_file_range(int fd, int __pad,
+	unsigned long a2, unsigned long a3,
+	unsigned long a4, unsigned long a5,
+	int flags)
+{
+	return sys_sync_file_range(fd,
+			merge_64(a2, a3), merge_64(a4, a5),
+			flags);
 }
 
 /* Argument list sizes for sys_socketcall */

@@ -41,7 +41,7 @@
 /* Not static, because we don't want the compiler removing it */
 const char ipath_verbs_version[] = "ipath_verbs " IPATH_IDSTR;
 
-unsigned int ib_ipath_qp_table_size = 251;
+static unsigned int ib_ipath_qp_table_size = 251;
 module_param_named(qp_table_size, ib_ipath_qp_table_size, uint, S_IRUGO);
 MODULE_PARM_DESC(qp_table_size, "QP table size");
 
@@ -87,7 +87,7 @@ const enum ib_wc_opcode ib_ipath_wc_opcode[] = {
 /*
  * System image GUID.
  */
-__be64 sys_image_guid;
+static __be64 sys_image_guid;
 
 /**
  * ipath_copy_sge - copy data to SGE memory
@@ -449,7 +449,6 @@ static void ipath_ib_timer(void *arg)
 {
 	struct ipath_ibdev *dev = (struct ipath_ibdev *) arg;
 	struct ipath_qp *resend = NULL;
-	struct ipath_qp *rnr = NULL;
 	struct list_head *last;
 	struct ipath_qp *qp;
 	unsigned long flags;
@@ -465,32 +464,18 @@ static void ipath_ib_timer(void *arg)
 	last = &dev->pending[dev->pending_index];
 	while (!list_empty(last)) {
 		qp = list_entry(last->next, struct ipath_qp, timerwait);
-		if (last->next == LIST_POISON1 ||
-		    last->next != &qp->timerwait ||
-		    qp->timerwait.prev != last) {
-			INIT_LIST_HEAD(last);
-		} else {
-			list_del(&qp->timerwait);
-			qp->timerwait.prev = (struct list_head *) resend;
-			resend = qp;
-			atomic_inc(&qp->refcount);
-		}
+		list_del_init(&qp->timerwait);
+		qp->timer_next = resend;
+		resend = qp;
+		atomic_inc(&qp->refcount);
 	}
 	last = &dev->rnrwait;
 	if (!list_empty(last)) {
 		qp = list_entry(last->next, struct ipath_qp, timerwait);
 		if (--qp->s_rnr_timeout == 0) {
 			do {
-				if (last->next == LIST_POISON1 ||
-				    last->next != &qp->timerwait ||
-				    qp->timerwait.prev != last) {
-					INIT_LIST_HEAD(last);
-					break;
-				}
-				list_del(&qp->timerwait);
-				qp->timerwait.prev =
-					(struct list_head *) rnr;
-				rnr = qp;
+				list_del_init(&qp->timerwait);
+				tasklet_hi_schedule(&qp->s_task);
 				if (list_empty(last))
 					break;
 				qp = list_entry(last->next, struct ipath_qp,
@@ -530,8 +515,7 @@ static void ipath_ib_timer(void *arg)
 	spin_unlock_irqrestore(&dev->pending_lock, flags);
 
 	/* XXX What if timer fires again while this is running? */
-	for (qp = resend; qp != NULL;
-	     qp = (struct ipath_qp *) qp->timerwait.prev) {
+	for (qp = resend; qp != NULL; qp = qp->timer_next) {
 		struct ib_wc wc;
 
 		spin_lock_irqsave(&qp->s_lock, flags);
@@ -545,9 +529,6 @@ static void ipath_ib_timer(void *arg)
 		if (atomic_dec_and_test(&qp->refcount))
 			wake_up(&qp->wait);
 	}
-	for (qp = rnr; qp != NULL;
-	     qp = (struct ipath_qp *) qp->timerwait.prev)
-		tasklet_hi_schedule(&qp->s_task);
 }
 
 /**
@@ -556,9 +537,9 @@ static void ipath_ib_timer(void *arg)
  *
  * This is called from ipath_intr() at interrupt level when a PIO buffer is
  * available after ipath_verbs_send() returned an error that no buffers were
- * available.  Return 0 if we consumed all the PIO buffers and we still have
+ * available.  Return 1 if we consumed all the PIO buffers and we still have
  * QPs waiting for buffers (for now, just do a tasklet_hi_schedule and
- * return one).
+ * return zero).
  */
 static int ipath_ib_piobufavail(void *arg)
 {
@@ -573,13 +554,13 @@ static int ipath_ib_piobufavail(void *arg)
 	while (!list_empty(&dev->piowait)) {
 		qp = list_entry(dev->piowait.next, struct ipath_qp,
 				piowait);
-		list_del(&qp->piowait);
+		list_del_init(&qp->piowait);
 		tasklet_hi_schedule(&qp->s_task);
 	}
 	spin_unlock_irqrestore(&dev->pending_lock, flags);
 
 bail:
-	return 1;
+	return 0;
 }
 
 static int ipath_query_device(struct ib_device *ibdev,
@@ -970,6 +951,7 @@ static void *ipath_register_ib_device(int unit, struct ipath_devdata *dd)
 	idev->dd = dd;
 
 	strlcpy(dev->name, "ipath%d", IB_DEVICE_NAME_MAX);
+	dev->owner = THIS_MODULE;
 	dev->node_guid = ipath_layer_get_guid(dd);
 	dev->uverbs_abi_ver = IPATH_UVERBS_ABI_VERSION;
 	dev->uverbs_cmd_mask =
@@ -1110,7 +1092,7 @@ static void ipath_unregister_ib_device(void *arg)
 	ib_dealloc_device(ibdev);
 }
 
-int __init ipath_verbs_init(void)
+static int __init ipath_verbs_init(void)
 {
 	return ipath_verbs_register(ipath_register_ib_device,
 				    ipath_unregister_ib_device,
@@ -1118,33 +1100,33 @@ int __init ipath_verbs_init(void)
 				    ipath_ib_timer);
 }
 
-void __exit ipath_verbs_cleanup(void)
+static void __exit ipath_verbs_cleanup(void)
 {
 	ipath_verbs_unregister();
 }
 
 static ssize_t show_rev(struct class_device *cdev, char *buf)
 {
-        struct ipath_ibdev *dev =
-                container_of(cdev, struct ipath_ibdev, ibdev.class_dev);
-        int vendor, boardrev, majrev, minrev;
+	struct ipath_ibdev *dev =
+		container_of(cdev, struct ipath_ibdev, ibdev.class_dev);
+	int vendor, boardrev, majrev, minrev;
 
-        ipath_layer_query_device(dev->dd, &vendor, &boardrev,
-                                 &majrev, &minrev);
-        return sprintf(buf, "%d.%d\n", majrev, minrev);
+	ipath_layer_query_device(dev->dd, &vendor, &boardrev,
+				 &majrev, &minrev);
+	return sprintf(buf, "%d.%d\n", majrev, minrev);
 }
 
 static ssize_t show_hca(struct class_device *cdev, char *buf)
 {
-        struct ipath_ibdev *dev =
-                container_of(cdev, struct ipath_ibdev, ibdev.class_dev);
-        int ret;
+	struct ipath_ibdev *dev =
+		container_of(cdev, struct ipath_ibdev, ibdev.class_dev);
+	int ret;
 
-        ret = ipath_layer_get_boardname(dev->dd, buf, 128);
-        if (ret < 0)
-                goto bail;
-        strcat(buf, "\n");
-        ret = strlen(buf);
+	ret = ipath_layer_get_boardname(dev->dd, buf, 128);
+	if (ret < 0)
+		goto bail;
+	strcat(buf, "\n");
+	ret = strlen(buf);
 
 bail:
 	return ret;
@@ -1152,40 +1134,40 @@ bail:
 
 static ssize_t show_stats(struct class_device *cdev, char *buf)
 {
-        struct ipath_ibdev *dev =
-                container_of(cdev, struct ipath_ibdev, ibdev.class_dev);
-        int i;
-        int len;
+	struct ipath_ibdev *dev =
+		container_of(cdev, struct ipath_ibdev, ibdev.class_dev);
+	int i;
+	int len;
 
-        len = sprintf(buf,
-                      "RC resends  %d\n"
-                      "RC QACKs    %d\n"
-                      "RC ACKs     %d\n"
-                      "RC SEQ NAKs %d\n"
-                      "RC RDMA seq %d\n"
-                      "RC RNR NAKs %d\n"
-                      "RC OTH NAKs %d\n"
-                      "RC timeouts %d\n"
-                      "RC RDMA dup %d\n"
-                      "piobuf wait %d\n"
-                      "no piobuf   %d\n"
-                      "PKT drops   %d\n"
-                      "WQE errs    %d\n",
-                      dev->n_rc_resends, dev->n_rc_qacks, dev->n_rc_acks,
-                      dev->n_seq_naks, dev->n_rdma_seq, dev->n_rnr_naks,
-                      dev->n_other_naks, dev->n_timeouts,
-                      dev->n_rdma_dup_busy, dev->n_piowait,
-                      dev->n_no_piobuf, dev->n_pkt_drops, dev->n_wqe_errs);
-        for (i = 0; i < ARRAY_SIZE(dev->opstats); i++) {
+	len = sprintf(buf,
+		      "RC resends  %d\n"
+		      "RC no QACK  %d\n"
+		      "RC ACKs     %d\n"
+		      "RC SEQ NAKs %d\n"
+		      "RC RDMA seq %d\n"
+		      "RC RNR NAKs %d\n"
+		      "RC OTH NAKs %d\n"
+		      "RC timeouts %d\n"
+		      "RC RDMA dup %d\n"
+		      "piobuf wait %d\n"
+		      "no piobuf   %d\n"
+		      "PKT drops   %d\n"
+		      "WQE errs    %d\n",
+		      dev->n_rc_resends, dev->n_rc_qacks, dev->n_rc_acks,
+		      dev->n_seq_naks, dev->n_rdma_seq, dev->n_rnr_naks,
+		      dev->n_other_naks, dev->n_timeouts,
+		      dev->n_rdma_dup_busy, dev->n_piowait,
+		      dev->n_no_piobuf, dev->n_pkt_drops, dev->n_wqe_errs);
+	for (i = 0; i < ARRAY_SIZE(dev->opstats); i++) {
 		const struct ipath_opcode_stats *si = &dev->opstats[i];
 
-                if (!si->n_packets && !si->n_bytes)
-                        continue;
-                len += sprintf(buf + len, "%02x %llu/%llu\n", i,
+		if (!si->n_packets && !si->n_bytes)
+			continue;
+		len += sprintf(buf + len, "%02x %llu/%llu\n", i,
 			       (unsigned long long) si->n_packets,
-                               (unsigned long long) si->n_bytes);
-        }
-        return len;
+			       (unsigned long long) si->n_bytes);
+	}
+	return len;
 }
 
 static CLASS_DEVICE_ATTR(hw_rev, S_IRUGO, show_rev, NULL);
@@ -1194,25 +1176,25 @@ static CLASS_DEVICE_ATTR(board_id, S_IRUGO, show_hca, NULL);
 static CLASS_DEVICE_ATTR(stats, S_IRUGO, show_stats, NULL);
 
 static struct class_device_attribute *ipath_class_attributes[] = {
-        &class_device_attr_hw_rev,
-        &class_device_attr_hca_type,
-        &class_device_attr_board_id,
-        &class_device_attr_stats
+	&class_device_attr_hw_rev,
+	&class_device_attr_hca_type,
+	&class_device_attr_board_id,
+	&class_device_attr_stats
 };
 
 static int ipath_verbs_register_sysfs(struct ib_device *dev)
 {
-        int i;
+	int i;
 	int ret;
 
-        for (i = 0; i < ARRAY_SIZE(ipath_class_attributes); ++i)
-                if (class_device_create_file(&dev->class_dev,
-                                             ipath_class_attributes[i])) {
-                        ret = 1;
+	for (i = 0; i < ARRAY_SIZE(ipath_class_attributes); ++i)
+		if (class_device_create_file(&dev->class_dev,
+					     ipath_class_attributes[i])) {
+			ret = 1;
 			goto bail;
 		}
 
-        ret = 0;
+	ret = 0;
 
 bail:
 	return ret;

@@ -1,8 +1,8 @@
 VERSION = 2
 PATCHLEVEL = 6
 SUBLEVEL = 17
-EXTRAVERSION =-rc1
-NAME=Sliding Snow Leopard
+EXTRAVERSION =-rc6
+NAME=Crazed Snow-Weasel
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"
@@ -344,16 +344,14 @@ scripts_basic:
 scripts/basic/%: scripts_basic ;
 
 PHONY += outputmakefile
-# outputmakefile generate a Makefile to be placed in output directory, if
-# using a seperate output directory. This allows convinient use
-# of make in output directory
+# outputmakefile generates a Makefile in the output directory, if using a
+# separate output directory. This allows convenient use of make in the
+# output directory.
 outputmakefile:
-	$(Q)if test ! $(srctree) -ef $(objtree); then \
-	$(CONFIG_SHELL) $(srctree)/scripts/mkmakefile              \
-	    $(srctree) $(objtree) $(VERSION) $(PATCHLEVEL)         \
-	    > $(objtree)/Makefile;                                 \
-	    echo '  GEN    $(objtree)/Makefile';                   \
-	fi
+ifneq ($(KBUILD_SRC),)
+	$(Q)$(CONFIG_SHELL) $(srctree)/scripts/mkmakefile \
+	    $(srctree) $(objtree) $(VERSION) $(PATCHLEVEL)
+endif
 
 # To make sure we do not include .config for any of the *config targets
 # catch them early, and hand them over to scripts/kconfig/Makefile
@@ -796,8 +794,8 @@ prepare2: prepare3 outputmakefile
 prepare1: prepare2 include/linux/version.h include/asm \
                    include/config/MARKER
 ifneq ($(KBUILD_MODULES),)
-	$(Q)rm -rf $(MODVERDIR)
 	$(Q)mkdir -p $(MODVERDIR)
+	$(Q)rm -f $(MODVERDIR)/*
 endif
 
 archprepare: prepare1 scripts_basic
@@ -1086,8 +1084,8 @@ else # KBUILD_EXTMOD
 KBUILD_MODULES := 1
 PHONY += crmodverdir
 crmodverdir:
-	$(Q)rm -rf $(MODVERDIR)
 	$(Q)mkdir -p $(MODVERDIR)
+	$(Q)rm -f $(MODVERDIR)/*
 
 PHONY += $(objtree)/Module.symvers
 $(objtree)/Module.symvers:

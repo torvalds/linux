@@ -38,10 +38,10 @@ static void icedcc_putc(int ch)
 		if (--i < 0)
 			return;
 
-		asm("mrc p14, 0, %0, c0, c0, 0" : "=r" (status));
+		asm volatile ("mrc p14, 0, %0, c0, c0, 0" : "=r" (status));
 	} while (status & 2);
 
-	asm("mcr p15, 0, %0, c1, c0, 0" : : "r" (ch));
+	asm("mcr p14, 0, %0, c1, c0, 0" : : "r" (ch));
 }
 
 #define putc(ch)	icedcc_putc(ch)

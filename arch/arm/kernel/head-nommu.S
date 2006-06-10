@@ -20,10 +20,9 @@
 #include <asm/mach-types.h>
 #include <asm/procinfo.h>
 #include <asm/ptrace.h>
-#include <asm/constants.h>
+#include <asm/asm-offsets.h>
+#include <asm/thread_info.h>
 #include <asm/system.h>
-
-#define PROCINFO_INITFUNC       12
 
 /*
  * Kernel startup entry point.
@@ -79,5 +78,6 @@ __after_proc_init:
 
 	mov	pc, r13				@ clear the BSS and jump
 						@ to start_kernel
+	.ltorg
 
 #include "head-common.S"

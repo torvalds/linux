@@ -4,6 +4,8 @@ config CASIO_E55
 	select DMA_NONCOHERENT
 	select IRQ_CPU
 	select ISA
+	select SYS_HAS_CPU_VR41XX
+	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 
 config IBM_WORKPAD
@@ -12,6 +14,8 @@ config IBM_WORKPAD
 	select DMA_NONCOHERENT
 	select IRQ_CPU
 	select ISA
+	select SYS_HAS_CPU_VR41XX
+	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 
 config NEC_CMBVR4133
@@ -21,6 +25,9 @@ config NEC_CMBVR4133
 	select DMA_NONCOHERENT
 	select IRQ_CPU
 	select HW_HAS_PCI
+	select SYS_HAS_CPU_VR41XX
+	select SYS_SUPPORTS_32BIT_KERNEL
+	select SYS_SUPPORTS_LITTLE_ENDIAN
 
 config ROCKHOPPER
 	bool "Support for Rockhopper baseboard"
@@ -34,6 +41,8 @@ config TANBAC_TB022X
 	select DMA_NONCOHERENT
 	select HW_HAS_PCI
 	select IRQ_CPU
+	select SYS_HAS_CPU_VR41XX
+	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	help
 	  The TANBAC VR4131 multichip module(TB0225) and
@@ -65,6 +74,8 @@ config VICTOR_MPC30X
 	select DMA_NONCOHERENT
 	select HW_HAS_PCI
 	select IRQ_CPU
+	select SYS_HAS_CPU_VR41XX
+	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 
 config ZAO_CAPCELLA
@@ -73,6 +84,8 @@ config ZAO_CAPCELLA
 	select DMA_NONCOHERENT
 	select HW_HAS_PCI
 	select IRQ_CPU
+	select SYS_HAS_CPU_VR41XX
+	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 
 config PCI_VR41XX

@@ -58,7 +58,7 @@ rtc_dev_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 	unsigned long data;
 	ssize_t ret;
 
-	if (count < sizeof(unsigned long))
+	if (count != sizeof(unsigned int) && count < sizeof(unsigned long))
 		return -EINVAL;
 
 	add_wait_queue(&rtc->irq_queue, &wait);
@@ -90,11 +90,16 @@ rtc_dev_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 	if (ret == 0) {
 		/* Check for any data updates */
 		if (rtc->ops->read_callback)
-			data = rtc->ops->read_callback(rtc->class_dev.dev, data);
+			data = rtc->ops->read_callback(rtc->class_dev.dev,
+						       data);
 
-		ret = put_user(data, (unsigned long __user *)buf);
-		if (ret == 0)
-			ret = sizeof(unsigned long);
+		if (sizeof(int) != sizeof(long) &&
+		    count == sizeof(unsigned int))
+			ret = put_user(data, (unsigned int __user *)buf) ?:
+				sizeof(unsigned int);
+		else
+			ret = put_user(data, (unsigned long __user *)buf) ?:
+				sizeof(unsigned long);
 	}
 	return ret;
 }
@@ -136,13 +141,13 @@ static int rtc_dev_ioctl(struct inode *inode, struct file *file,
 	/* try the driver's ioctl interface */
 	if (ops->ioctl) {
 		err = ops->ioctl(class_dev->dev, cmd, arg);
-		if (err != -EINVAL)
+		if (err != -ENOIOCTLCMD)
 			return err;
 	}
 
 	/* if the driver does not provide the ioctl interface
 	 * or if that particular ioctl was not implemented
-	 * (-EINVAL), we will try to emulate here.
+	 * (-ENOIOCTLCMD), we will try to emulate here.
 	 */
 
 	switch (cmd) {
@@ -228,7 +233,7 @@ static int rtc_dev_ioctl(struct inode *inode, struct file *file,
 		break;
 
 	default:
-		err = -EINVAL;
+		err = -ENOTTY;
 		break;
 	}
 

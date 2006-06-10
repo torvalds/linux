@@ -25,8 +25,9 @@ Who:	Adrian Bunk <bunk@stusta.de>
 
 ---------------------------
 
-What:	drivers depending on OBSOLETE_OSS_DRIVER
-When:	January 2006
+What:	drivers that were depending on OBSOLETE_OSS_DRIVER
+        (config options already removed)
+When:	before 2.6.19
 Why:	OSS drivers with ALSA replacements
 Who:	Adrian Bunk <bunk@stusta.de>
 
@@ -53,6 +54,15 @@ Why:	Deprecated in favour of the new ioctl-based rawiso interface, which is
 	more efficient.  You should really be using libraw1394 for raw1394
 	access anyway.
 Who:	Jody McIntyre <scjody@steamballoon.com>
+
+---------------------------
+
+What:	sbp2: module parameter "force_inquiry_hack"
+When:	July 2006
+Why:	Superceded by parameter "workarounds". Both parameters are meant to be
+	used ad-hoc and for single devices only, i.e. not in modprobe.conf,
+	therefore the impact of this feature replacement should be low.
+Who:	Stefan Richter <stefanr@s5r6.in-berlin.de>
 
 ---------------------------
 

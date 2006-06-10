@@ -71,6 +71,12 @@
  * requirement amounts to two 16K buffers, size configurable by a parameter.
  * Support is included for both full-speed and high-speed operation.
  *
+ * Note that the driver is slightly non-portable in that it assumes a
+ * single memory/DMA buffer will be useable for bulk-in, bulk-out, and
+ * interrupt-in endpoints.  With most device controllers this isn't an
+ * issue, but there may be some with hardware restrictions that prevent
+ * a buffer from being used by more than one endpoint.
+ *
  * Module options:
  *
  *	file=filename[,filename...]
@@ -108,6 +114,14 @@
  * setting are not allowed when the medium is loaded.
  *
  * This gadget driver is heavily based on "Gadget Zero" by David Brownell.
+ * The driver's SCSI command interface was based on the "Information
+ * technology - Small Computer System Interface - 2" document from
+ * X3T9.2 Project 375D, Revision 10L, 7-SEP-93, available at
+ * <http://www.t10.org/ftp/t10/drafts/s2/s2-r10l.pdf>.  The single exception
+ * is opcode 0x23 (READ FORMAT CAPACITIES), which was based on the
+ * "Universal Serial Bus Mass Storage Class UFI Command Specification"
+ * document, Revision 1.0, December 14, 1998, available at
+ * <http://www.usb.org/developers/devclass_docs/usbmass-ufi10.pdf>.
  */
 
 
@@ -334,11 +348,9 @@ MODULE_LICENSE("Dual BSD/GPL");
 
 #define MAX_LUNS	8
 
-	/* Arggh!  There should be a module_param_array_named macro! */
-static char		*file[MAX_LUNS];
-static int		ro[MAX_LUNS];
-
 static struct {
+	char		*file[MAX_LUNS];
+	int		ro[MAX_LUNS];
 	int		num_filenames;
 	int		num_ros;
 	unsigned int	nluns;
@@ -370,10 +382,11 @@ static struct {
 	};
 
 
-module_param_array(file, charp, &mod_data.num_filenames, S_IRUGO);
+module_param_array_named(file, mod_data.file, charp, &mod_data.num_filenames,
+		S_IRUGO);
 MODULE_PARM_DESC(file, "names of backing files or devices");
 
-module_param_array(ro, bool, &mod_data.num_ros, S_IRUGO);
+module_param_array_named(ro, mod_data.ro, bool, &mod_data.num_ros, S_IRUGO);
 MODULE_PARM_DESC(ro, "true to force read-only");
 
 module_param_named(luns, mod_data.nluns, uint, S_IRUGO);
@@ -1795,6 +1808,7 @@ static int do_write(struct fsg_dev *fsg)
 			 * the bulk-out maxpacket size */
 			bh->outreq->length = bh->bulk_out_intended_length =
 					amount;
+			bh->outreq->short_not_ok = 1;
 			start_transfer(fsg, fsg->bulk_out, bh->outreq,
 					&bh->outreq_busy, &bh->state);
 			fsg->next_buffhd_to_fill = bh->next;
@@ -2398,6 +2412,7 @@ static int throw_away_data(struct fsg_dev *fsg)
 			 * the bulk-out maxpacket size */
 			bh->outreq->length = bh->bulk_out_intended_length =
 					amount;
+			bh->outreq->short_not_ok = 1;
 			start_transfer(fsg, fsg->bulk_out, bh->outreq,
 					&bh->outreq_busy, &bh->state);
 			fsg->next_buffhd_to_fill = bh->next;
@@ -3029,6 +3044,7 @@ static int get_next_command(struct fsg_dev *fsg)
 
 		/* Queue a request to read a Bulk-only CBW */
 		set_bulk_out_req_length(fsg, bh, USB_BULK_CB_WRAP_LEN);
+		bh->outreq->short_not_ok = 1;
 		start_transfer(fsg, fsg->bulk_out, bh->outreq,
 				&bh->outreq_busy, &bh->state);
 
@@ -3859,7 +3875,7 @@ static int __init fsg_bind(struct usb_gadget *gadget)
 
 	for (i = 0; i < fsg->nluns; ++i) {
 		curlun = &fsg->luns[i];
-		curlun->ro = ro[i];
+		curlun->ro = mod_data.ro[i];
 		curlun->dev.parent = &gadget->dev;
 		curlun->dev.driver = &fsg_driver.driver;
 		dev_set_drvdata(&curlun->dev, fsg);
@@ -3876,8 +3892,9 @@ static int __init fsg_bind(struct usb_gadget *gadget)
 			kref_get(&fsg->ref);
 		}
 
-		if (file[i] && *file[i]) {
-			if ((rc = open_backing_file(curlun, file[i])) != 0)
+		if (mod_data.file[i] && *mod_data.file[i]) {
+			if ((rc = open_backing_file(curlun,
+					mod_data.file[i])) != 0)
 				goto out;
 		} else if (!mod_data.removable) {
 			ERROR(fsg, "no file given for LUN%d\n", i);
@@ -3953,6 +3970,9 @@ static int __init fsg_bind(struct usb_gadget *gadget)
 	for (i = 0; i < NUM_BUFFERS; ++i) {
 		struct fsg_buffhd	*bh = &fsg->buffhds[i];
 
+		/* Allocate for the bulk-in endpoint.  We assume that
+		 * the buffer will also work with the bulk-out (and
+		 * interrupt-in) endpoint. */
 		bh->buf = usb_ep_alloc_buffer(fsg->bulk_in, mod_data.buflen,
 				&bh->dma, GFP_KERNEL);
 		if (!bh->buf)

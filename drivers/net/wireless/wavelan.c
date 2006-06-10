@@ -4306,7 +4306,7 @@ out:
  * Insertion of the module
  * I'm now quite proud of the multi-device support.
  */
-int init_module(void)
+int __init init_module(void)
 {
 	int ret = -EIO;		/* Return error if no cards found */
 	int i;

@@ -738,7 +738,8 @@ static void send_mad_adapter_info(struct ibmvscsi_host_data *hostdata)
 {
 	struct viosrp_adapter_info *req;
 	struct srp_event_struct *evt_struct;
-	
+	dma_addr_t addr;
+
 	evt_struct = get_event_struct(&hostdata->pool);
 	if (!evt_struct) {
 		printk(KERN_ERR "ibmvscsi: couldn't allocate an event "
@@ -756,10 +757,10 @@ static void send_mad_adapter_info(struct ibmvscsi_host_data *hostdata)
 	
 	req->common.type = VIOSRP_ADAPTER_INFO_TYPE;
 	req->common.length = sizeof(hostdata->madapter_info);
-	req->buffer = dma_map_single(hostdata->dev,
-				     &hostdata->madapter_info,
-				     sizeof(hostdata->madapter_info),
-				     DMA_BIDIRECTIONAL);
+	req->buffer = addr = dma_map_single(hostdata->dev,
+					    &hostdata->madapter_info,
+					    sizeof(hostdata->madapter_info),
+					    DMA_BIDIRECTIONAL);
 
 	if (dma_mapping_error(req->buffer)) {
 		printk(KERN_ERR
@@ -769,8 +770,13 @@ static void send_mad_adapter_info(struct ibmvscsi_host_data *hostdata)
 		return;
 	}
 	
-	if (ibmvscsi_send_srp_event(evt_struct, hostdata))
+	if (ibmvscsi_send_srp_event(evt_struct, hostdata)) {
 		printk(KERN_ERR "ibmvscsi: couldn't send ADAPTER_INFO_REQ!\n");
+		dma_unmap_single(hostdata->dev,
+				 addr,
+				 sizeof(hostdata->madapter_info),
+				 DMA_BIDIRECTIONAL);
+	}
 };
 
 /**
@@ -1258,6 +1264,7 @@ static int ibmvscsi_do_host_config(struct ibmvscsi_host_data *hostdata,
 {
 	struct viosrp_host_config *host_config;
 	struct srp_event_struct *evt_struct;
+	dma_addr_t addr;
 	int rc;
 
 	evt_struct = get_event_struct(&hostdata->pool);
@@ -1278,8 +1285,9 @@ static int ibmvscsi_do_host_config(struct ibmvscsi_host_data *hostdata,
 	memset(host_config, 0x00, sizeof(*host_config));
 	host_config->common.type = VIOSRP_HOST_CONFIG_TYPE;
 	host_config->common.length = length;
-	host_config->buffer = dma_map_single(hostdata->dev, buffer, length,
-					    DMA_BIDIRECTIONAL);
+	host_config->buffer = addr = dma_map_single(hostdata->dev, buffer,
+						    length,
+						    DMA_BIDIRECTIONAL);
 
 	if (dma_mapping_error(host_config->buffer)) {
 		printk(KERN_ERR
@@ -1290,11 +1298,9 @@ static int ibmvscsi_do_host_config(struct ibmvscsi_host_data *hostdata,
 
 	init_completion(&evt_struct->comp);
 	rc = ibmvscsi_send_srp_event(evt_struct, hostdata);
-	if (rc == 0) {
+	if (rc == 0)
 		wait_for_completion(&evt_struct->comp);
-		dma_unmap_single(hostdata->dev, host_config->buffer,
-				 length, DMA_BIDIRECTIONAL);
-	}
+	dma_unmap_single(hostdata->dev, addr, length, DMA_BIDIRECTIONAL);
 
 	return rc;
 }

@@ -500,11 +500,6 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 	if (file->f_op != &fuse_dev_operations)
 		return -EINVAL;
 
-	/* Setting file->private_data can't race with other mount()
-	   instances, since BKL is held for ->get_sb() */
-	if (file->private_data)
-		return -EINVAL;
-
 	fc = new_conn();
 	if (!fc)
 		return -ENOMEM;
@@ -540,6 +535,12 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 	if (err)
 		goto err_free_req;
 
+	/* Setting file->private_data can't race with other mount()
+	   instances, since BKL is held for ->get_sb() */
+	err = -EINVAL;
+	if (file->private_data)
+		goto err_kobject_del;
+
 	sb->s_root = root_dentry;
 	fc->mounted = 1;
 	fc->connected = 1;
@@ -556,6 +557,8 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 
 	return 0;
 
+ err_kobject_del:
+	kobject_del(&fc->kobj);
  err_free_req:
 	fuse_request_free(init_req);
  err_put_root:

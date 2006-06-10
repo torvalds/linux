@@ -128,6 +128,7 @@ void kobject_init(struct kobject * kobj)
 {
 	kref_init(&kobj->kref);
 	INIT_LIST_HEAD(&kobj->entry);
+	init_waitqueue_head(&kobj->poll);
 	kobj->kset = kset_get(kobj->kset);
 }
 
@@ -197,14 +198,14 @@ int kobject_add(struct kobject * kobj)
 
 		/* be noisy on error issues */
 		if (error == -EEXIST)
-			printk("kobject_add failed for %s with -EEXIST, "
+			pr_debug("kobject_add failed for %s with -EEXIST, "
 			       "don't try to register things with the "
 			       "same name in the same directory.\n",
 			       kobject_name(kobj));
 		else
-			printk("kobject_add failed for %s (%d)\n",
+			pr_debug("kobject_add failed for %s (%d)\n",
 			       kobject_name(kobj), error);
-		dump_stack();
+		/* dump_stack(); */
 	}
 
 	return error;
@@ -421,7 +422,6 @@ struct kobject *kobject_add_dir(struct kobject *parent, const char *name)
 
 	return k;
 }
-EXPORT_SYMBOL_GPL(kobject_add_dir);
 
 /**
  *	kset_init - initialize a kset for use
@@ -568,7 +568,7 @@ int subsys_create_file(struct subsystem * s, struct subsys_attribute * a)
  *	@s:	subsystem.
  *	@a:	attribute desciptor.
  */
-
+#if 0
 void subsys_remove_file(struct subsystem * s, struct subsys_attribute * a)
 {
 	if (subsys_get(s)) {
@@ -576,6 +576,7 @@ void subsys_remove_file(struct subsystem * s, struct subsys_attribute * a)
 		subsys_put(s);
 	}
 }
+#endif  /*  0  */
 
 EXPORT_SYMBOL(kobject_init);
 EXPORT_SYMBOL(kobject_register);
@@ -587,10 +588,7 @@ EXPORT_SYMBOL(kobject_del);
 
 EXPORT_SYMBOL(kset_register);
 EXPORT_SYMBOL(kset_unregister);
-EXPORT_SYMBOL(kset_find_obj);
 
-EXPORT_SYMBOL(subsystem_init);
 EXPORT_SYMBOL(subsystem_register);
 EXPORT_SYMBOL(subsystem_unregister);
 EXPORT_SYMBOL(subsys_create_file);
-EXPORT_SYMBOL(subsys_remove_file);

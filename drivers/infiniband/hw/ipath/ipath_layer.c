@@ -46,13 +46,15 @@
 /* Acquire before ipath_devs_lock. */
 static DEFINE_MUTEX(ipath_layer_mutex);
 
+static int ipath_verbs_registered;
+
 u16 ipath_layer_rcv_opcode;
+
 static int (*layer_intr)(void *, u32);
 static int (*layer_rcv)(void *, void *, struct sk_buff *);
 static int (*layer_rcv_lid)(void *, void *);
 static int (*verbs_piobufavail)(void *);
 static void (*verbs_rcv)(void *, void *, void *, u32);
-int ipath_verbs_registered;
 
 static void *(*layer_add_one)(int, struct ipath_devdata *);
 static void (*layer_remove_one)(void *);
@@ -586,6 +588,8 @@ void ipath_verbs_unregister(void)
 	verbs_rcv = NULL;
 	verbs_timer_cb = NULL;
 
+	ipath_verbs_registered = 0;
+
 	mutex_unlock(&ipath_layer_mutex);
 }
 
@@ -868,12 +872,13 @@ static void copy_io(u32 __iomem *piobuf, struct ipath_sge_state *ss,
 		update_sge(ss, len);
 		length -= len;
 	}
+	/* Update address before sending packet. */
+	update_sge(ss, length);
 	/* must flush early everything before trigger word */
 	ipath_flush_wc();
 	__raw_writel(last, piobuf);
 	/* be sure trigger word is written */
 	ipath_flush_wc();
-	update_sge(ss, length);
 }
 
 /**
@@ -939,17 +944,18 @@ int ipath_verbs_send(struct ipath_devdata *dd, u32 hdrwords,
 	if (likely(ss->num_sge == 1 && len <= ss->sge.length &&
 		   !((unsigned long)ss->sge.vaddr & (sizeof(u32) - 1)))) {
 		u32 w;
+		u32 *addr = (u32 *) ss->sge.vaddr;
 
+		/* Update address before sending packet. */
+		update_sge(ss, len);
 		/* Need to round up for the last dword in the packet. */
 		w = (len + 3) >> 2;
-		__iowrite32_copy(piobuf, ss->sge.vaddr, w - 1);
+		__iowrite32_copy(piobuf, addr, w - 1);
 		/* must flush early everything before trigger word */
 		ipath_flush_wc();
-		__raw_writel(((u32 *) ss->sge.vaddr)[w - 1],
-			     piobuf + w - 1);
+		__raw_writel(addr[w - 1], piobuf + w - 1);
 		/* be sure trigger word is written */
 		ipath_flush_wc();
-		update_sge(ss, len);
 		ret = 0;
 		goto bail;
 	}

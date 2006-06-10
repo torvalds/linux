@@ -29,6 +29,11 @@
 #define MAX_TEXT_EVENT		1000	/* Max event string length */
 #define ACPI_TCPA_SIG		"TCPA"	/* 0x41504354 /'TCPA' */
 
+enum bios_platform_class {
+	BIOS_CLIENT = 0x00,
+	BIOS_SERVER = 0x01,
+};
+
 struct tpm_bios_log {
 	void *bios_event_log;
 	void *bios_event_log_end;
@@ -36,9 +41,18 @@ struct tpm_bios_log {
 
 struct acpi_tcpa {
 	struct acpi_table_header hdr;
-	u16 reserved;
-	u32 log_max_len __attribute__ ((packed));
-	u32 log_start_addr __attribute__ ((packed));
+	u16 platform_class;
+	union {
+		struct client_hdr {
+			u32 log_max_len __attribute__ ((packed));
+			u64 log_start_addr __attribute__ ((packed));
+		} client;
+		struct server_hdr {
+			u16 reserved;
+			u64 log_max_len __attribute__ ((packed));
+			u64 log_start_addr __attribute__ ((packed));
+		} server;
+	};
 };
 
 struct tcpa_event {
@@ -91,6 +105,12 @@ static const char* tcpa_event_type_strings[] = {
 	"Non-Host Info"
 };
 
+struct tcpa_pc_event {
+	u32 event_id;
+	u32 event_size;
+	u8 event_data[0];
+};
+
 enum tcpa_pc_event_ids {
 	SMBIOS = 1,
 	BIS_CERT,
@@ -100,14 +120,15 @@ enum tcpa_pc_event_ids {
 	NVRAM,
 	OPTION_ROM_EXEC,
 	OPTION_ROM_CONFIG,
-	OPTION_ROM_MICROCODE,
+	OPTION_ROM_MICROCODE = 10,
 	S_CRTM_VERSION,
 	S_CRTM_CONTENTS,
 	POST_CONTENTS,
+	HOST_TABLE_OF_DEVICES,
 };
 
 static const char* tcpa_pc_event_id_strings[] = {
-	""
+	"",
 	"SMBIOS",
 	"BIS Certificate",
 	"POST BIOS ",
@@ -116,10 +137,12 @@ static const char* tcpa_pc_event_id_strings[] = {
 	"NVRAM",
 	"Option ROM",
 	"Option ROM config",
-	"Option ROM microcode",
+	"",
+	"Option ROM microcode ",
 	"S-CRTM Version",
-	"S-CRTM Contents",
-	"S-CRTM POST Contents",
+	"S-CRTM Contents ",
+	"POST Contents ",
+	"Table of Devices",
 };
 
 /* returns pointer to start of pos. entry of tcg log */
@@ -191,7 +214,7 @@ static int get_event_name(char *dest, struct tcpa_event *event,
 	const char *name = "";
 	char data[40] = "";
 	int i, n_len = 0, d_len = 0;
-	u32 event_id;
+	struct tcpa_pc_event *pc_event;
 
 	switch(event->event_type) {
 	case PREBOOT:
@@ -220,31 +243,32 @@ static int get_event_name(char *dest, struct tcpa_event *event,
 		}
 		break;
 	case EVENT_TAG:
-		event_id = be32_to_cpu(*((u32 *)event_entry));
+		pc_event = (struct tcpa_pc_event *)event_entry;
 
 		/* ToDo Row data -> Base64 */
 
-		switch (event_id) {
+		switch (pc_event->event_id) {
 		case SMBIOS:
 		case BIS_CERT:
 		case CMOS:
 		case NVRAM:
 		case OPTION_ROM_EXEC:
 		case OPTION_ROM_CONFIG:
-		case OPTION_ROM_MICROCODE:
 		case S_CRTM_VERSION:
-		case S_CRTM_CONTENTS:
-		case POST_CONTENTS:
-			name = tcpa_pc_event_id_strings[event_id];
+			name = tcpa_pc_event_id_strings[pc_event->event_id];
 			n_len = strlen(name);
 			break;
+		/* hash data */
 		case POST_BIOS_ROM:
 		case ESCD:
-			name = tcpa_pc_event_id_strings[event_id];
+		case OPTION_ROM_MICROCODE:
+		case S_CRTM_CONTENTS:
+		case POST_CONTENTS:
+			name = tcpa_pc_event_id_strings[pc_event->event_id];
 			n_len = strlen(name);
 			for (i = 0; i < 20; i++)
-				d_len += sprintf(data, "%02x",
-						event_entry[8 + i]);
+				d_len += sprintf(&data[2*i], "%02x",
+						pc_event->event_data[i]);
 			break;
 		default:
 			break;
@@ -260,51 +284,12 @@ static int get_event_name(char *dest, struct tcpa_event *event,
 
 static int tpm_binary_bios_measurements_show(struct seq_file *m, void *v)
 {
+	struct tcpa_event *event = v;
+	char *data = v;
+	int i;
 
-	char *eventname;
-	char data[4];
-	u32 help;
-	int i, len;
-	struct tcpa_event *event = (struct tcpa_event *) v;
-	unsigned char *event_entry =
-	    (unsigned char *) (v + sizeof(struct tcpa_event));
-
-	eventname = kmalloc(MAX_TEXT_EVENT, GFP_KERNEL);
-	if (!eventname) {
-		printk(KERN_ERR "%s: ERROR - No Memory for event name\n ",
-		       __func__);
-		return -ENOMEM;
-	}
-
-	/* 1st: PCR used is in little-endian format (4 bytes) */
-	help = le32_to_cpu(event->pcr_index);
-	memcpy(data, &help, 4);
-	for (i = 0; i < 4; i++)
+	for (i = 0; i < sizeof(struct tcpa_event) + event->event_size; i++)
 		seq_putc(m, data[i]);
-
-	/* 2nd: SHA1 (20 bytes) */
-	for (i = 0; i < 20; i++)
-		seq_putc(m, event->pcr_value[i]);
-
-	/* 3rd: event type identifier (4 bytes) */
-	help = le32_to_cpu(event->event_type);
-	memcpy(data, &help, 4);
-	for (i = 0; i < 4; i++)
-		seq_putc(m, data[i]);
-
-	len = 0;
-
-	len += get_event_name(eventname, event, event_entry);
-
-	/* 4th:  filename <= 255 + \'0' delimiter */
-	if (len > TCG_EVENT_NAME_LEN_MAX)
-		len = TCG_EVENT_NAME_LEN_MAX;
-
-	for (i = 0; i < len; i++)
-		seq_putc(m, eventname[i]);
-
-	/* 5th: delimiter */
-	seq_putc(m, '\0');
 
 	return 0;
 }
@@ -353,6 +338,7 @@ static int tpm_ascii_bios_measurements_show(struct seq_file *m, void *v)
 	/* 4th: eventname <= max + \'0' delimiter */
 	seq_printf(m, " %s\n", eventname);
 
+	kfree(eventname);
 	return 0;
 }
 
@@ -376,6 +362,7 @@ static int read_log(struct tpm_bios_log *log)
 	struct acpi_tcpa *buff;
 	acpi_status status;
 	struct acpi_table_header *virt;
+	u64 len, start;
 
 	if (log->bios_event_log != NULL) {
 		printk(KERN_ERR
@@ -396,27 +383,37 @@ static int read_log(struct tpm_bios_log *log)
 		return -EIO;
 	}
 
-	if (buff->log_max_len == 0) {
+	switch(buff->platform_class) {
+	case BIOS_SERVER:
+		len = buff->server.log_max_len;
+		start = buff->server.log_start_addr;
+		break;
+	case BIOS_CLIENT:
+	default:
+		len = buff->client.log_max_len;
+		start = buff->client.log_start_addr;
+		break;
+	}
+	if (!len) {
 		printk(KERN_ERR "%s: ERROR - TCPA log area empty\n", __func__);
 		return -EIO;
 	}
 
 	/* malloc EventLog space */
-	log->bios_event_log = kmalloc(buff->log_max_len, GFP_KERNEL);
+	log->bios_event_log = kmalloc(len, GFP_KERNEL);
 	if (!log->bios_event_log) {
-		printk
-		    ("%s: ERROR - Not enough  Memory for BIOS measurements\n",
-		     __func__);
+		printk("%s: ERROR - Not enough  Memory for BIOS measurements\n",
+			__func__);
 		return -ENOMEM;
 	}
 
-	log->bios_event_log_end = log->bios_event_log + buff->log_max_len;
+	log->bios_event_log_end = log->bios_event_log + len;
 
-	acpi_os_map_memory(buff->log_start_addr, buff->log_max_len, (void *) &virt);
+	acpi_os_map_memory(start, len, (void *) &virt);
 
-	memcpy(log->bios_event_log, virt, buff->log_max_len);
+	memcpy(log->bios_event_log, virt, len);
 
-	acpi_os_unmap_memory(virt, buff->log_max_len);
+	acpi_os_unmap_memory(virt, len);
 	return 0;
 }
 

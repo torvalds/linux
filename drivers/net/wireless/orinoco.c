@@ -390,7 +390,7 @@ static struct iw_statistics *orinoco_get_wireless_stats(struct net_device *dev)
 		}
 	} else {
 		struct {
-			__le16 qual, signal, noise;
+			__le16 qual, signal, noise, unused;
 		} __attribute__ ((packed)) cq;
 
 		err = HERMES_READ_RECORD(hw, USER_BAP,
@@ -812,7 +812,6 @@ static void orinoco_rx_monitor(struct net_device *dev, u16 rxfid,
 	if (datalen > IEEE80211_DATA_LEN + 12) {
 		printk(KERN_DEBUG "%s: oversized monitor frame, "
 		       "data length = %d\n", dev->name, datalen);
-		err = -EIO;
 		stats->rx_length_errors++;
 		goto update_stats;
 	}
@@ -821,8 +820,7 @@ static void orinoco_rx_monitor(struct net_device *dev, u16 rxfid,
 	if (!skb) {
 		printk(KERN_WARNING "%s: Cannot allocate skb for monitor frame\n",
 		       dev->name);
-		err = -ENOMEM;
-		goto drop;
+		goto update_stats;
 	}
 
 	/* Copy the 802.11 header to the skb */

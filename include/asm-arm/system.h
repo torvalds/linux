@@ -127,6 +127,12 @@ static inline int cpu_is_xsc3(void)
 }
 #endif
 
+#if !defined(CONFIG_CPU_XSCALE) && !defined(CONFIG_CPU_XSC3)
+#define	cpu_is_xscale()	0
+#else
+#define	cpu_is_xscale()	1
+#endif
+
 #define set_cr(x)					\
 	__asm__ __volatile__(				\
 	"mcr	p15, 0, %0, c1, c0, 0	@ set CR"	\

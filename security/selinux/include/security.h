@@ -29,12 +29,7 @@
 #define POLICYDB_VERSION_MIN   POLICYDB_VERSION_BASE
 #define POLICYDB_VERSION_MAX   POLICYDB_VERSION_AVTAB
 
-#ifdef CONFIG_SECURITY_SELINUX_BOOTPARAM
 extern int selinux_enabled;
-#else
-#define selinux_enabled 1
-#endif
-
 extern int selinux_mls_enabled;
 
 int security_load_policy(void * data, size_t len);

@@ -15,6 +15,7 @@
 #include <linux/seqlock.h>
 #include <linux/nodemask.h>
 #include <asm/atomic.h>
+#include <asm/page.h>
 
 /* Free memory management - zoned buddy allocator.  */
 #ifndef CONFIG_FORCE_MAX_ZONEORDER
@@ -22,6 +23,7 @@
 #else
 #define MAX_ORDER CONFIG_FORCE_MAX_ZONEORDER
 #endif
+#define MAX_ORDER_NR_PAGES (1 << (MAX_ORDER - 1))
 
 struct free_area {
 	struct list_head	free_list;

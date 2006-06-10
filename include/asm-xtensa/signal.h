@@ -118,9 +118,9 @@ typedef struct {
  * SA_INTERRUPT is also used by the irq handling routines.
  * SA_SHIRQ is for shared interrupt support on PCI and EISA.
  */
-#define SA_PROBE		SA_ONESHOT
 #define SA_SAMPLE_RANDOM	SA_RESTART
 #define SA_SHIRQ		0x04000000
+#define SA_PROBEIRQ		0x08000000
 #endif
 
 #define SIG_BLOCK          0	/* for blocking signals */

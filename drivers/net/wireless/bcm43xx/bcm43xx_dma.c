@@ -196,8 +196,9 @@ static int alloc_ringmemory(struct bcm43xx_dmaring *ring)
 	}
 	if (ring->dmabase + BCM43xx_DMA_RINGMEMSIZE > BCM43xx_DMA_BUSADDRMAX) {
 		printk(KERN_ERR PFX ">>>FATAL ERROR<<<  DMA RINGMEMORY >1G "
-				    "(0x%08x, len: %lu)\n",
-		       ring->dmabase, BCM43xx_DMA_RINGMEMSIZE);
+				    "(0x%llx, len: %lu)\n",
+				(unsigned long long)ring->dmabase,
+				BCM43xx_DMA_RINGMEMSIZE);
 		dma_free_coherent(dev, BCM43xx_DMA_RINGMEMSIZE,
 				  ring->vbase, ring->dmabase);
 		return -ENOMEM;
@@ -307,8 +308,8 @@ static int setup_rx_descbuffer(struct bcm43xx_dmaring *ring,
 		unmap_descbuffer(ring, dmaaddr, ring->rx_buffersize, 0);
 		dev_kfree_skb_any(skb);
 		printk(KERN_ERR PFX ">>>FATAL ERROR<<<  DMA RX SKB >1G "
-				    "(0x%08x, len: %u)\n",
-		       dmaaddr, ring->rx_buffersize);
+				    "(0x%llx, len: %u)\n",
+			(unsigned long long)dmaaddr, ring->rx_buffersize);
 		return -ENOMEM;
 	}
 	meta->skb = skb;
@@ -623,25 +624,28 @@ err_destroy_tx0:
 static u16 generate_cookie(struct bcm43xx_dmaring *ring,
 			   int slot)
 {
-	u16 cookie = 0x0000;
+	u16 cookie = 0xF000;
 
 	/* Use the upper 4 bits of the cookie as
 	 * DMA controller ID and store the slot number
-	 * in the lower 12 bits
+	 * in the lower 12 bits.
+	 * Note that the cookie must never be 0, as this
+	 * is a special value used in RX path.
 	 */
 	switch (ring->mmio_base) {
 	default:
 		assert(0);
 	case BCM43xx_MMIO_DMA1_BASE:
+		cookie = 0xA000;
 		break;
 	case BCM43xx_MMIO_DMA2_BASE:
-		cookie = 0x1000;
+		cookie = 0xB000;
 		break;
 	case BCM43xx_MMIO_DMA3_BASE:
-		cookie = 0x2000;
+		cookie = 0xC000;
 		break;
 	case BCM43xx_MMIO_DMA4_BASE:
-		cookie = 0x3000;
+		cookie = 0xD000;
 		break;
 	}
 	assert(((u16)slot & 0xF000) == 0x0000);
@@ -659,16 +663,16 @@ struct bcm43xx_dmaring * parse_cookie(struct bcm43xx_private *bcm,
 	struct bcm43xx_dmaring *ring = NULL;
 
 	switch (cookie & 0xF000) {
-	case 0x0000:
+	case 0xA000:
 		ring = dma->tx_ring0;
 		break;
-	case 0x1000:
+	case 0xB000:
 		ring = dma->tx_ring1;
 		break;
-	case 0x2000:
+	case 0xC000:
 		ring = dma->tx_ring2;
 		break;
-	case 0x3000:
+	case 0xD000:
 		ring = dma->tx_ring3;
 		break;
 	default:
@@ -729,8 +733,8 @@ static int dma_tx_fragment(struct bcm43xx_dmaring *ring,
 	if (unlikely(meta->dmaaddr + skb->len > BCM43xx_DMA_BUSADDRMAX)) {
 		return_slot(ring, slot);
 		printk(KERN_ERR PFX ">>>FATAL ERROR<<<  DMA TX SKB >1G "
-				    "(0x%08x, len: %u)\n",
-		       meta->dmaaddr, skb->len);
+				    "(0x%llx, len: %u)\n",
+			(unsigned long long)meta->dmaaddr, skb->len);
 		return -ENOMEM;
 	}
 
@@ -838,8 +842,18 @@ static void dma_rx(struct bcm43xx_dmaring *ring,
 		/* We received an xmit status. */
 		struct bcm43xx_hwxmitstatus *hw = (struct bcm43xx_hwxmitstatus *)skb->data;
 		struct bcm43xx_xmitstatus stat;
+		int i = 0;
 
 		stat.cookie = le16_to_cpu(hw->cookie);
+		while (stat.cookie == 0) {
+			if (unlikely(++i >= 10000)) {
+				assert(0);
+				break;
+			}
+			udelay(2);
+			barrier();
+			stat.cookie = le16_to_cpu(hw->cookie);
+		}
 		stat.flags = hw->flags;
 		stat.cnt1 = hw->cnt1;
 		stat.cnt2 = hw->cnt2;

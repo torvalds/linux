@@ -528,6 +528,7 @@ void sb1_cache_init(void)
 	flush_cache_page = sb1_flush_cache_page;
 
 	flush_cache_sigtramp = sb1_flush_cache_sigtramp;
+	local_flush_data_cache_page = (void *) sb1_nop;
 	flush_data_cache_page = (void *) sb1_nop;
 
 	/* Full flush */

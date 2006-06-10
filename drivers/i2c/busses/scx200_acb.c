@@ -133,6 +133,9 @@ static void scx200_acb_machine(struct scx200_acb_iface *iface, u8 status)
 
 		outb(inb(ACBCTL1) | ACBCTL1_STOP, ACBCTL1);
 		outb(ACBST_STASTR | ACBST_NEGACK, ACBST);
+
+		/* Reset the status register */
+		outb(0, ACBST);
 		return;
 	}
 
@@ -228,6 +231,10 @@ static void scx200_acb_poll(struct scx200_acb_iface *iface)
 	timeout = jiffies + POLL_TIMEOUT;
 	while (time_before(jiffies, timeout)) {
 		status = inb(ACBST);
+
+		/* Reset the status register to avoid the hang */
+		outb(0, ACBST);
+
 		if ((status & (ACBST_SDAST|ACBST_BER|ACBST_NEGACK)) != 0) {
 			scx200_acb_machine(iface, status);
 			return;
@@ -415,7 +422,6 @@ static int  __init scx200_acb_create(const char *text, int base, int index)
 	struct scx200_acb_iface *iface;
 	struct i2c_adapter *adapter;
 	int rc;
-	char description[64];
 
 	iface = kzalloc(sizeof(*iface), GFP_KERNEL);
 	if (!iface) {
@@ -434,10 +440,7 @@ static int  __init scx200_acb_create(const char *text, int base, int index)
 
 	mutex_init(&iface->mutex);
 
-	snprintf(description, sizeof(description), "%s ACCESS.bus [%s]",
-		 text, adapter->name);
-
-	if (request_region(base, 8, description) == 0) {
+	if (!request_region(base, 8, adapter->name)) {
 		printk(KERN_ERR NAME ": can't allocate io 0x%x-0x%x\n",
 			base, base + 8-1);
 		rc = -EBUSY;
@@ -488,7 +491,7 @@ static struct pci_device_id divil_pci[] = {
 
 #define MSR_LBAR_SMB		0x5140000B
 
-static int scx200_add_cs553x(void)
+static __init int scx200_add_cs553x(void)
 {
 	u32	low, hi;
 	u32	smb_base;
@@ -524,6 +527,9 @@ static int __init scx200_acb_init(void)
 	} else if (pci_dev_present(divil_pci))
 		rc = scx200_add_cs553x();
 
+	/* If at least one bus was created, init must succeed */
+	if (scx200_acb_list)
+		return 0;
 	return rc;
 }
 

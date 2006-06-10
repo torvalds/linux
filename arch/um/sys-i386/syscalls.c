@@ -99,11 +99,12 @@ long sys_ipc (uint call, int first, int second,
 
 	switch (call) {
 	case SEMOP:
-		return sys_semtimedop(first, (struct sembuf *) ptr, second,
-				      NULL);
+		return sys_semtimedop(first, (struct sembuf __user *) ptr,
+				      second, NULL);
 	case SEMTIMEDOP:
-		return sys_semtimedop(first, (struct sembuf *) ptr, second,
-				      (const struct timespec *) fifth);
+		return sys_semtimedop(first, (struct sembuf __user *) ptr,
+				      second,
+				      (const struct timespec __user *) fifth);
 	case SEMGET:
 		return sys_semget (first, second, third);
 	case SEMCTL: {

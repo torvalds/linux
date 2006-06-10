@@ -220,7 +220,6 @@ void __init kgdb_config (void)
 				generic_putDebugChar (*s++);
 		}
 
-		kgdb_enabled = 1;
 		/* Breakpoint is invoked after interrupts are initialised */
 	}
 }
@@ -338,6 +337,7 @@ void __init prom_init(void)
 	case MIPS_REVISION_CORID_CORE_MSC:
 	case MIPS_REVISION_CORID_CORE_FPGA2:
 	case MIPS_REVISION_CORID_CORE_FPGA3:
+	case MIPS_REVISION_CORID_CORE_24K:
 	case MIPS_REVISION_CORID_CORE_EMUL_MSC:
 		_pcictrl_msc = (unsigned long)ioremap(MIPS_MSC01_PCI_REG_BASE, 0x2000);
 

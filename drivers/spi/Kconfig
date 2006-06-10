@@ -75,10 +75,44 @@ config SPI_BUTTERFLY
 	  inexpensive battery powered microcontroller evaluation board.
 	  This same cable can be used to flash new firmware.
 
+config SPI_MPC83xx
+	tristate "Freescale MPC83xx SPI controller"
+	depends on SPI_MASTER && PPC_83xx && EXPERIMENTAL
+	select SPI_BITBANG
+	help
+	  This enables using the Freescale MPC83xx SPI controller in master
+	  mode.
+
+	  Note, this driver uniquely supports the SPI controller on the MPC83xx
+	  family of PowerPC processors.  The MPC83xx uses a simple set of shift
+	  registers for data (opposed to the CPM based descriptor model).
+
+config SPI_PXA2XX
+	tristate "PXA2xx SSP SPI master"
+	depends on SPI_MASTER && ARCH_PXA && EXPERIMENTAL
+	help
+	  This enables using a PXA2xx SSP port as a SPI master controller.
+	  The driver can be configured to use any SSP port and additional
+	  documentation can be found a Documentation/spi/pxa2xx.
+
+config SPI_S3C24XX_GPIO
+	tristate "Samsung S3C24XX series SPI by GPIO"
+	depends on SPI_MASTER && ARCH_S3C2410 && SPI_BITBANG && EXPERIMENTAL
+	help
+	  SPI driver for Samsung S3C24XX series ARM SoCs using
+	  GPIO lines to provide the SPI bus. This can be used where
+	  the inbuilt hardware cannot provide the transfer mode, or
+	  where the board is using non hardware connected pins.
 #
 # Add new SPI master controllers in alphabetical order above this line
 #
 
+
+config SPI_S3C24XX
+	tristate "Samsung S3C24XX series SPI"
+	depends on SPI_MASTER && ARCH_S3C2410 && EXPERIMENTAL
+	help
+	  SPI driver for Samsung S3C24XX series ARM SoCs
 
 #
 # There are lots of SPI device types, with sensors and memory

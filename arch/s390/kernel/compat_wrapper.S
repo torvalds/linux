@@ -1608,3 +1608,53 @@ compat_sys_ppoll_wrapper:
 sys_unshare_wrapper:
 	llgfr	%r2,%r2			# unsigned long
 	jg	sys_unshare
+
+	.globl compat_sys_set_robust_list_wrapper
+compat_sys_set_robust_list_wrapper:
+	llgtr	%r2,%r2			# struct compat_robust_list_head *
+	llgfr	%r3,%r3			# size_t
+	jg	compat_sys_set_robust_list
+
+	.globl compat_sys_get_robust_list_wrapper
+compat_sys_get_robust_list_wrapper:
+	lgfr	%r2,%r2			# int
+	llgtr	%r3,%r3			# compat_uptr_t_t *
+	llgtr	%r4,%r4			# compat_size_t *
+	jg	compat_sys_get_robust_list
+
+	.globl sys_splice_wrapper
+sys_splice_wrapper:
+	lgfr	%r2,%r2			# int
+	llgtr	%r3,%r3			# loff_t *
+	lgfr	%r4,%r4			# int
+	llgtr	%r5,%r5			# loff_t *
+	llgfr	%r6,%r6			# size_t
+	llgf	%r0,164(%r15)		# unsigned int
+	stg	%r0,160(%r15)
+	jg	sys_splice
+
+	.globl	sys_sync_file_range_wrapper
+sys_sync_file_range_wrapper:
+	lgfr	%r2,%r2			# int
+	sllg	%r3,%r3,32		# get high word of 64bit loff_t
+	or	%r3,%r4			# get low word of 64bit loff_t
+	sllg	%r4,%r5,32		# get high word of 64bit loff_t
+	or	%r4,%r6			# get low word of 64bit loff_t
+	llgf	%r5,164(%r15)		# unsigned int
+	jg	sys_sync_file_range
+
+	.globl	sys_tee_wrapper
+sys_tee_wrapper:
+	lgfr	%r2,%r2			# int
+	lgfr	%r3,%r3			# int
+	llgfr	%r4,%r4			# size_t
+	llgfr	%r5,%r5			# unsigned int
+	jg	sys_tee
+
+	.globl compat_sys_vmsplice_wrapper
+compat_sys_vmsplice_wrapper:
+	lgfr	%r2,%r2			# int
+	llgtr	%r3,%r3			# compat_iovec *
+	llgfr	%r4,%r4			# unsigned int
+	llgfr	%r5,%r5			# unsigned int
+	jg	compat_sys_vmsplice

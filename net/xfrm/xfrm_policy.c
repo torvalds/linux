@@ -57,12 +57,12 @@ int xfrm_register_type(struct xfrm_type *type, unsigned short family)
 		return -EAFNOSUPPORT;
 	typemap = afinfo->type_map;
 
-	write_lock(&typemap->lock);
+	write_lock_bh(&typemap->lock);
 	if (likely(typemap->map[type->proto] == NULL))
 		typemap->map[type->proto] = type;
 	else
 		err = -EEXIST;
-	write_unlock(&typemap->lock);
+	write_unlock_bh(&typemap->lock);
 	xfrm_policy_put_afinfo(afinfo);
 	return err;
 }
@@ -78,12 +78,12 @@ int xfrm_unregister_type(struct xfrm_type *type, unsigned short family)
 		return -EAFNOSUPPORT;
 	typemap = afinfo->type_map;
 
-	write_lock(&typemap->lock);
+	write_lock_bh(&typemap->lock);
 	if (unlikely(typemap->map[type->proto] != type))
 		err = -ENOENT;
 	else
 		typemap->map[type->proto] = NULL;
-	write_unlock(&typemap->lock);
+	write_unlock_bh(&typemap->lock);
 	xfrm_policy_put_afinfo(afinfo);
 	return err;
 }
@@ -1251,7 +1251,7 @@ int xfrm_policy_register_afinfo(struct xfrm_policy_afinfo *afinfo)
 		return -EINVAL;
 	if (unlikely(afinfo->family >= NPROTO))
 		return -EAFNOSUPPORT;
-	write_lock(&xfrm_policy_afinfo_lock);
+	write_lock_bh(&xfrm_policy_afinfo_lock);
 	if (unlikely(xfrm_policy_afinfo[afinfo->family] != NULL))
 		err = -ENOBUFS;
 	else {
@@ -1268,7 +1268,7 @@ int xfrm_policy_register_afinfo(struct xfrm_policy_afinfo *afinfo)
 			afinfo->garbage_collect = __xfrm_garbage_collect;
 		xfrm_policy_afinfo[afinfo->family] = afinfo;
 	}
-	write_unlock(&xfrm_policy_afinfo_lock);
+	write_unlock_bh(&xfrm_policy_afinfo_lock);
 	return err;
 }
 EXPORT_SYMBOL(xfrm_policy_register_afinfo);
@@ -1280,7 +1280,7 @@ int xfrm_policy_unregister_afinfo(struct xfrm_policy_afinfo *afinfo)
 		return -EINVAL;
 	if (unlikely(afinfo->family >= NPROTO))
 		return -EAFNOSUPPORT;
-	write_lock(&xfrm_policy_afinfo_lock);
+	write_lock_bh(&xfrm_policy_afinfo_lock);
 	if (likely(xfrm_policy_afinfo[afinfo->family] != NULL)) {
 		if (unlikely(xfrm_policy_afinfo[afinfo->family] != afinfo))
 			err = -EINVAL;
@@ -1294,7 +1294,7 @@ int xfrm_policy_unregister_afinfo(struct xfrm_policy_afinfo *afinfo)
 			afinfo->garbage_collect = NULL;
 		}
 	}
-	write_unlock(&xfrm_policy_afinfo_lock);
+	write_unlock_bh(&xfrm_policy_afinfo_lock);
 	return err;
 }
 EXPORT_SYMBOL(xfrm_policy_unregister_afinfo);

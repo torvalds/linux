@@ -59,7 +59,7 @@ static __init void do_uml_initcalls(void)
 	initcall_t *call;
 
 	call = &__uml_initcall_start;
-	while (call < &__uml_initcall_end){;
+	while (call < &__uml_initcall_end){
 		(*call)();
 		call++;
 	}
@@ -72,6 +72,34 @@ static void last_ditch_exit(int sig)
 	signal(SIGHUP, SIG_DFL);
 	uml_cleanup();
 	exit(1);
+}
+
+#define UML_LIB_PATH	":/usr/lib/uml"
+
+static void setup_env_path(void)
+{
+	char *new_path = NULL;
+	char *old_path = NULL;
+	int path_len = 0;
+
+	old_path = getenv("PATH");
+	/* if no PATH variable is set or it has an empty value
+	 * just use the default + /usr/lib/uml
+	 */
+	if (!old_path || (path_len = strlen(old_path)) == 0) {
+		putenv("PATH=:/bin:/usr/bin/" UML_LIB_PATH);
+		return;
+	}
+
+	/* append /usr/lib/uml to the existing path */
+	path_len += strlen("PATH=" UML_LIB_PATH) + 1;
+	new_path = malloc(path_len);
+	if (!new_path) {
+		perror("coudn't malloc to set a new PATH");
+		return;
+	}
+	snprintf(new_path, path_len, "PATH=%s" UML_LIB_PATH, old_path);
+	putenv(new_path);
 }
 
 extern int uml_exitcode;
@@ -113,6 +141,8 @@ int main(int argc, char **argv, char **envp)
 	linux_prog = argv[0];
 
 	set_stklim();
+
+	setup_env_path();
 
 	new_argv = malloc((argc + 1) * sizeof(char *));
 	if(new_argv == NULL){

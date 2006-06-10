@@ -227,17 +227,19 @@ struct sbp2_status_block {
 #define SBP2_SW_VERSION_ENTRY					0x00010483
 
 /*
- * Other misc defines
- */
-#define SBP2_128KB_BROKEN_FIRMWARE				0xa0b800
-
-/*
  * SCSI specific stuff
  */
 
 #define SBP2_MAX_SG_ELEMENT_LENGTH	0xf000
 #define SBP2_MAX_SECTORS		255	/* Max sectors supported */
 #define SBP2_MAX_CMDS			8	/* This should be safe */
+
+/* Flags for detected oddities and brokeness */
+#define SBP2_WORKAROUND_128K_MAX_TRANS	0x1
+#define SBP2_WORKAROUND_INQUIRY_36	0x2
+#define SBP2_WORKAROUND_MODE_SENSE_8	0x4
+#define SBP2_WORKAROUND_FIX_CAPACITY	0x8
+#define SBP2_WORKAROUND_OVERRIDE	0x100
 
 /* This is the two dma types we use for cmd_dma below */
 enum cmd_dma_types {
@@ -267,10 +269,6 @@ struct sbp2_command_info {
 	int dma_dir;
 
 };
-
-/* A list of flags for detected oddities and brokeness. */
-#define SBP2_BREAKAGE_128K_MAX_TRANSFER		0x1
-#define SBP2_BREAKAGE_INQUIRY_HACK		0x2
 
 struct sbp2scsi_host_info;
 
@@ -345,7 +343,7 @@ struct scsi_id_instance_data {
 	struct Scsi_Host *scsi_host;
 
 	/* Device specific workarounds/brokeness */
-	u32 workarounds;
+	unsigned workarounds;
 };
 
 /* Sbp2 host data structure (one per IEEE1394 host) */

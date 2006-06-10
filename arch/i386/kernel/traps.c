@@ -130,9 +130,8 @@ static inline int print_addr_and_symbol(unsigned long addr, char *log_lvl,
 	print_symbol("%s", addr);
 
 	printed = (printed + 1) % CONFIG_STACK_BACKTRACE_COLS;
-
 	if (printed)
-		printk("  ");
+		printk(" ");
 	else
 		printk("\n");
 
@@ -212,7 +211,6 @@ static void show_stack_log_lvl(struct task_struct *task, unsigned long *esp,
 	}
 
 	stack = esp;
-	printk(log_lvl);
 	for(i = 0; i < kstack_depth_to_print; i++) {
 		if (kstack_end(stack))
 			break;

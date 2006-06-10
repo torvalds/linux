@@ -141,7 +141,7 @@ __ioremap_pfn(unsigned long pfn, unsigned long offset, size_t size,
  		return NULL;
  	addr = (unsigned long)area->addr;
  	if (remap_area_pages(addr, pfn, size, flags)) {
- 		vfree((void *)addr);
+ 		vunmap((void *)addr);
  		return NULL;
  	}
  	return (void __iomem *) (offset + (char *)addr);
@@ -173,7 +173,7 @@ EXPORT_SYMBOL(__ioremap);
 
 void __iounmap(void __iomem *addr)
 {
-	vfree((void *) (PAGE_MASK & (unsigned long) addr));
+	vunmap((void *)(PAGE_MASK & (unsigned long)addr));
 }
 EXPORT_SYMBOL(__iounmap);
 

@@ -59,9 +59,6 @@ int sysctl_tcp_tso_win_divisor = 3;
 int sysctl_tcp_mtu_probing = 0;
 int sysctl_tcp_base_mss = 512;
 
-EXPORT_SYMBOL(sysctl_tcp_mtu_probing);
-EXPORT_SYMBOL(sysctl_tcp_base_mss);
-
 static void update_send_head(struct sock *sk, struct tcp_sock *tp,
 			     struct sk_buff *skb)
 {
@@ -468,7 +465,7 @@ static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, int clone_it, 
 	TCP_INC_STATS(TCP_MIB_OUTSEGS);
 
 	err = icsk->icsk_af_ops->queue_xmit(skb, 0);
-	if (unlikely(err <= 0))
+	if (likely(err <= 0))
 		return err;
 
 	tcp_enter_cwr(sk);
@@ -536,6 +533,7 @@ int tcp_fragment(struct sock *sk, struct sk_buff *skb, u32 len, unsigned int mss
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *buff;
 	int nsize, old_factor;
+	int nlen;
 	u16 flags;
 
 	BUG_ON(len > skb->len);
@@ -554,7 +552,11 @@ int tcp_fragment(struct sock *sk, struct sk_buff *skb, u32 len, unsigned int mss
 	buff = sk_stream_alloc_skb(sk, nsize, GFP_ATOMIC);
 	if (buff == NULL)
 		return -ENOMEM; /* We'll just try again later. */
+
 	sk_charge_skb(sk, buff);
+	nlen = skb->len - len - nsize;
+	buff->truesize += nlen;
+	skb->truesize -= nlen;
 
 	/* Correct the sequence numbers. */
 	TCP_SKB_CB(buff)->seq = TCP_SKB_CB(skb)->seq + len;
@@ -640,7 +642,7 @@ int tcp_fragment(struct sock *sk, struct sk_buff *skb, u32 len, unsigned int mss
  * eventually). The difference is that pulled data not copied, but
  * immediately discarded.
  */
-static unsigned char *__pskb_trim_head(struct sk_buff *skb, int len)
+static void __pskb_trim_head(struct sk_buff *skb, int len)
 {
 	int i, k, eat;
 
@@ -665,7 +667,6 @@ static unsigned char *__pskb_trim_head(struct sk_buff *skb, int len)
 	skb->tail = skb->data;
 	skb->data_len -= len;
 	skb->len = skb->data_len;
-	return skb->tail;
 }
 
 int tcp_trim_head(struct sock *sk, struct sk_buff *skb, u32 len)
@@ -674,12 +675,11 @@ int tcp_trim_head(struct sock *sk, struct sk_buff *skb, u32 len)
 	    pskb_expand_head(skb, 0, 0, GFP_ATOMIC))
 		return -ENOMEM;
 
-	if (len <= skb_headlen(skb)) {
+	/* If len == headlen, we avoid __skb_pull to preserve alignment. */
+	if (unlikely(len < skb_headlen(skb)))
 		__skb_pull(skb, len);
-	} else {
-		if (__pskb_trim_head(skb, len-skb_headlen(skb)) == NULL)
-			return -ENOMEM;
-	}
+	else
+		__pskb_trim_head(skb, len - skb_headlen(skb));
 
 	TCP_SKB_CB(skb)->seq += len;
 	skb->ip_summed = CHECKSUM_HW;
@@ -1040,7 +1040,8 @@ static int tso_fragment(struct sock *sk, struct sk_buff *skb, unsigned int len, 
 	if (unlikely(buff == NULL))
 		return -ENOMEM;
 
-	buff->truesize = nlen;
+	sk_charge_skb(sk, buff);
+	buff->truesize += nlen;
 	skb->truesize -= nlen;
 
 	/* Correct the sequence numbers. */

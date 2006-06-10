@@ -207,11 +207,6 @@ typedef unsigned int kmem_bufctl_t;
 #define	BUFCTL_ACTIVE	(((kmem_bufctl_t)(~0U))-2)
 #define	SLAB_LIMIT	(((kmem_bufctl_t)(~0U))-3)
 
-/* Max number of objs-per-slab for caches which use off-slab slabs.
- * Needed to avoid a possible looping condition in cache_grow().
- */
-static unsigned long offslab_limit;
-
 /*
  * struct slab
  *
@@ -700,6 +695,14 @@ static enum {
 	FULL
 } g_cpucache_up;
 
+/*
+ * used by boot code to determine if it can use slab based allocator
+ */
+int slab_is_available(void)
+{
+	return g_cpucache_up == FULL;
+}
+
 static DEFINE_PER_CPU(struct work_struct, reap_work);
 
 static void free_block(struct kmem_cache *cachep, void **objpp, int len,
@@ -979,7 +982,8 @@ static void __drain_alien_cache(struct kmem_cache *cachep,
 		 * That way we could avoid the overhead of putting the objects
 		 * into the free lists and getting them back later.
 		 */
-		transfer_objects(rl3->shared, ac, ac->limit);
+		if (rl3->shared)
+			transfer_objects(rl3->shared, ac, ac->limit);
 
 		free_block(cachep, ac->entry, ac->avail, node);
 		ac->avail = 0;
@@ -1036,7 +1040,7 @@ static inline void free_alien_cache(struct array_cache **ac_ptr)
 
 #endif
 
-static int __devinit cpuup_callback(struct notifier_block *nfb,
+static int cpuup_callback(struct notifier_block *nfb,
 				    unsigned long action, void *hcpu)
 {
 	long cpu = (long)hcpu;
@@ -1345,12 +1349,6 @@ void __init kmem_cache_init(void)
 					ARCH_KMALLOC_MINALIGN,
 					ARCH_KMALLOC_FLAGS|SLAB_PANIC,
 					NULL, NULL);
-		}
-
-		/* Inc off-slab bufctl limit until the ceiling is hit. */
-		if (!(OFF_SLAB(sizes->cs_cachep))) {
-			offslab_limit = sizes->cs_size - sizeof(struct slab);
-			offslab_limit /= sizeof(kmem_bufctl_t);
 		}
 
 		sizes->cs_dmacachep = kmem_cache_create(names->name_dma,
@@ -1771,6 +1769,7 @@ static void set_up_list3s(struct kmem_cache *cachep, int index)
 static size_t calculate_slab_order(struct kmem_cache *cachep,
 			size_t size, size_t align, unsigned long flags)
 {
+	unsigned long offslab_limit;
 	size_t left_over = 0;
 	int gfporder;
 
@@ -1782,9 +1781,18 @@ static size_t calculate_slab_order(struct kmem_cache *cachep,
 		if (!num)
 			continue;
 
-		/* More than offslab_limit objects will cause problems */
-		if ((flags & CFLGS_OFF_SLAB) && num > offslab_limit)
-			break;
+		if (flags & CFLGS_OFF_SLAB) {
+			/*
+			 * Max number of objs-per-slab for caches which
+			 * use off-slab slabs. Needed to avoid a possible
+			 * looping condition in cache_grow().
+			 */
+			offslab_limit = size - sizeof(struct slab);
+			offslab_limit /= sizeof(kmem_bufctl_t);
+
+ 			if (num > offslab_limit)
+				break;
+		}
 
 		/* Found something acceptable - save it away */
 		cachep->num = num;
@@ -2191,11 +2199,14 @@ static void drain_cpu_caches(struct kmem_cache *cachep)
 	check_irq_on();
 	for_each_online_node(node) {
 		l3 = cachep->nodelists[node];
-		if (l3) {
+		if (l3 && l3->alien)
+			drain_alien_cache(cachep, l3->alien);
+	}
+
+	for_each_online_node(node) {
+		l3 = cachep->nodelists[node];
+		if (l3)
 			drain_array(cachep, l3, l3->shared, 1, node);
-			if (l3->alien)
-				drain_alien_cache(cachep, l3->alien);
-		}
 	}
 }
 

@@ -1486,13 +1486,13 @@ ch_action_iofatal(fsm_instance * fi, int event, void *arg)
 	}
 }
 
-static void 
+static void
 ch_action_reinit(fsm_instance *fi, int event, void *arg)
 {
  	struct channel *ch = (struct channel *)arg;
  	struct net_device *dev = ch->netdev;
  	struct ctc_priv *privptr = dev->priv;
- 
+
 	DBF_TEXT(trace, 4, __FUNCTION__);
  	ch_action_iofatal(fi, event, arg);
  	fsm_addtimer(&privptr->restart_timer, 1000, DEV_EVENT_RESTART, dev);
@@ -1624,7 +1624,7 @@ less_than(char *id1, char *id2)
 	}
 	dev1 = simple_strtoul(id1, &id1, 16);
 	dev2 = simple_strtoul(id2, &id2, 16);
-	
+
 	return (dev1 < dev2);
 }
 
@@ -1895,7 +1895,7 @@ ctc_irq_handler(struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 			    irb->scsw.dstat);
 		return;
 	}
-	
+
 	priv = ((struct ccwgroup_device *)cdev->dev.driver_data)
 		->dev.driver_data;
 
@@ -1909,7 +1909,7 @@ ctc_irq_handler(struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 			   "device %s\n", cdev->dev.bus_id);
 		return;
 	}
-	
+
 	dev = (struct net_device *) (ch->netdev);
 	if (dev == NULL) {
 		ctc_pr_crit("ctc: ctc_irq_handler dev=NULL bus_id=%s, ch=0x%p\n",
@@ -2008,12 +2008,12 @@ dev_action_stop(fsm_instance * fi, int event, void *arg)
 		fsm_event(ch->fsm, CH_EVENT_STOP, ch);
 	}
 }
-static void 
+static void
 dev_action_restart(fsm_instance *fi, int event, void *arg)
 {
 	struct net_device *dev = (struct net_device *)arg;
 	struct ctc_priv *privptr = dev->priv;
-	
+
 	DBF_TEXT(trace, 3, __FUNCTION__);
 	ctc_pr_debug("%s: Restarting\n", dev->name);
 	dev_action_stop(fi, event, arg);
@@ -2193,7 +2193,7 @@ transmit_skb(struct channel *ch, struct sk_buff *skb)
 
 	DBF_TEXT(trace, 5, __FUNCTION__);
 	/* we need to acquire the lock for testing the state
-	 * otherwise we can have an IRQ changing the state to 
+	 * otherwise we can have an IRQ changing the state to
 	 * TXIDLE after the test but before acquiring the lock.
 	 */
 	spin_lock_irqsave(&ch->collect_lock, saveflags);
@@ -2393,7 +2393,7 @@ ctc_tx(struct sk_buff *skb, struct net_device * dev)
 
 	/**
 	 * If channels are not running, try to restart them
-	 * and throw away packet. 
+	 * and throw away packet.
 	 */
 	if (fsm_getstate(privptr->fsm) != DEV_STATE_RUNNING) {
 		fsm_event(privptr->fsm, DEV_EVENT_START, dev);
@@ -2738,7 +2738,7 @@ ctc_remove_files(struct device *dev)
 /**
  * Add ctc specific attributes.
  * Add ctc private data.
- * 
+ *
  * @param cgdev pointer to ccwgroup_device just added
  *
  * @returns 0 on success, !0 on failure.
@@ -2869,7 +2869,7 @@ ctc_new_device(struct ccwgroup_device *cgdev)
 	DBF_TEXT(setup, 3, buffer);
 
 	type = get_channel_type(&cgdev->cdev[0]->id);
-	
+
 	snprintf(read_id, CTC_ID_SIZE, "ch-%s", cgdev->cdev[0]->dev.bus_id);
 	snprintf(write_id, CTC_ID_SIZE, "ch-%s", cgdev->cdev[1]->dev.bus_id);
 
@@ -2907,7 +2907,7 @@ ctc_new_device(struct ccwgroup_device *cgdev)
 		    channel_get(type, direction == READ ? read_id : write_id,
 				direction);
 		if (privptr->channel[direction] == NULL) {
-			if (direction == WRITE) 
+			if (direction == WRITE)
 				channel_free(privptr->channel[READ]);
 
 			ctc_free_netdevice(dev, 1);
@@ -2955,7 +2955,7 @@ ctc_shutdown_device(struct ccwgroup_device *cgdev)
 {
 	struct ctc_priv *priv;
 	struct net_device *ndev;
-		
+
 	DBF_TEXT(setup, 3, __FUNCTION__);
 	pr_debug("%s() called\n", __FUNCTION__);
 

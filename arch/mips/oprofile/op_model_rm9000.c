@@ -126,7 +126,7 @@ static void rm9000_exit(void)
 	free_irq(rm9000_perfcount_irq, NULL);
 }
 
-struct op_mips_model op_model_rm9000 = {
+struct op_mips_model op_model_rm9000_ops = {
 	.reg_setup	= rm9000_reg_setup,
 	.cpu_setup	= rm9000_cpu_setup,
 	.init		= rm9000_init,

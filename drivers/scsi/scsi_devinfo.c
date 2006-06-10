@@ -56,6 +56,8 @@ static struct {
 	{"DENON", "DRD-25X", "V", BLIST_NOLUN},			/* locks up */
 	{"HITACHI", "DK312C", "CM81", BLIST_NOLUN},	/* responds to all lun */
 	{"HITACHI", "DK314C", "CR21", BLIST_NOLUN},	/* responds to all lun */
+	{"IBM", "2104-DU3", NULL, BLIST_NOLUN},		/* locks up */
+	{"IBM", "2104-TU3", NULL, BLIST_NOLUN},		/* locks up */
 	{"IMS", "CDD521/10", "2.06", BLIST_NOLUN},	/* locks up */
 	{"MAXTOR", "XT-3280", "PR02", BLIST_NOLUN},	/* locks up */
 	{"MAXTOR", "XT-4380S", "B3C", BLIST_NOLUN},	/* locks up */
@@ -165,6 +167,7 @@ static struct {
 	{"HP", "HSV100", NULL, BLIST_REPORTLUN2 | BLIST_NOSTARTONADD},
 	{"HP", "C1557A", NULL, BLIST_FORCELUN},
 	{"HP", "C3323-300", "4269", BLIST_NOTQ},
+	{"HP", "C5713A", NULL, BLIST_NOREPORTLUN},
 	{"IBM", "AuSaV1S2", NULL, BLIST_FORCELUN},
 	{"IBM", "ProFibre 4000R", "*", BLIST_SPARSELUN | BLIST_LARGELUN},
 	{"IBM", "2105", NULL, BLIST_RETRY_HWERROR},

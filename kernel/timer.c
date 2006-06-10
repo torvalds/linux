@@ -541,6 +541,22 @@ found:
 	}
 	spin_unlock(&base->lock);
 
+	/*
+	 * It can happen that other CPUs service timer IRQs and increment
+	 * jiffies, but we have not yet got a local timer tick to process
+	 * the timer wheels.  In that case, the expiry time can be before
+	 * jiffies, but since the high-resolution timer here is relative to
+	 * jiffies, the default expression when high-resolution timers are
+	 * not active,
+	 *
+	 *   time_before(MAX_JIFFY_OFFSET + jiffies, expires)
+	 *
+	 * would falsely evaluate to true.  If that is the case, just
+	 * return jiffies so that we can immediately fire the local timer
+	 */
+	if (time_before(expires, jiffies))
+		return jiffies;
+
 	if (time_before(hr_expires, expires))
 		return hr_expires;
 
@@ -1314,7 +1330,7 @@ static void __devinit migrate_timers(int cpu)
 }
 #endif /* CONFIG_HOTPLUG_CPU */
 
-static int __devinit timer_cpu_notify(struct notifier_block *self, 
+static int timer_cpu_notify(struct notifier_block *self,
 				unsigned long action, void *hcpu)
 {
 	long cpu = (long)hcpu;
@@ -1334,7 +1350,7 @@ static int __devinit timer_cpu_notify(struct notifier_block *self,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block __devinitdata timers_nb = {
+static struct notifier_block timers_nb = {
 	.notifier_call	= timer_cpu_notify,
 };
 

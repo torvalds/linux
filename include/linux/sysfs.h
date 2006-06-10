@@ -74,6 +74,7 @@ struct sysfs_dirent {
 	umode_t			s_mode;
 	struct dentry		* s_dentry;
 	struct iattr		* s_iattr;
+	atomic_t		s_event;
 };
 
 #define SYSFS_ROOT		0x0001
@@ -117,6 +118,7 @@ int sysfs_remove_bin_file(struct kobject * kobj, struct bin_attribute * attr);
 
 int sysfs_create_group(struct kobject *, const struct attribute_group *);
 void sysfs_remove_group(struct kobject *, const struct attribute_group *);
+void sysfs_notify(struct kobject * k, char *dir, char *attr);
 
 #else /* CONFIG_SYSFS */
 
@@ -183,6 +185,10 @@ static inline int sysfs_create_group(struct kobject * k, const struct attribute_
 static inline void sysfs_remove_group(struct kobject * k, const struct attribute_group * g)
 {
 	;
+}
+
+static inline void sysfs_notify(struct kobject * k, char *dir, char *attr)
+{
 }
 
 #endif /* CONFIG_SYSFS */

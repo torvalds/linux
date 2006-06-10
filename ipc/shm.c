@@ -13,6 +13,8 @@
  * Shared /dev/zero support, Kanoj Sarcar <kanoj@sgi.com>
  * Move the mm functionality over to mm/shmem.c, Christoph Rohland <cr@sap.com>
  *
+ * support for audit of ipc object properties and permission changes
+ * Dustin Kirkland <dustin.kirkland@us.ibm.com>
  */
 
 #include <linux/config.h>
@@ -162,6 +164,8 @@ static int shm_mmap(struct file * file, struct vm_area_struct * vma)
 	ret = shmem_mmap(file, vma);
 	if (ret == 0) {
 		vma->vm_ops = &shm_vm_ops;
+		if (!(vma->vm_flags & VM_WRITE))
+			vma->vm_flags &= ~VM_MAYWRITE;
 		shm_inc(file->f_dentry->d_inode->i_ino);
 	}
 
@@ -540,6 +544,10 @@ asmlinkage long sys_shmctl (int shmid, int cmd, struct shmid_ds __user *buf)
 		if(err)
 			goto out_unlock;
 
+		err = audit_ipc_obj(&(shp->shm_perm));
+		if (err)
+			goto out_unlock;
+
 		if (!capable(CAP_IPC_LOCK)) {
 			err = -EPERM;
 			if (current->euid != shp->shm_perm.uid &&
@@ -592,6 +600,10 @@ asmlinkage long sys_shmctl (int shmid, int cmd, struct shmid_ds __user *buf)
 		if(err)
 			goto out_unlock_up;
 
+		err = audit_ipc_obj(&(shp->shm_perm));
+		if (err)
+			goto out_unlock_up;
+
 		if (current->euid != shp->shm_perm.uid &&
 		    current->euid != shp->shm_perm.cuid && 
 		    !capable(CAP_SYS_ADMIN)) {
@@ -625,11 +637,14 @@ asmlinkage long sys_shmctl (int shmid, int cmd, struct shmid_ds __user *buf)
 		err=-EINVAL;
 		if(shp==NULL)
 			goto out_up;
-		if ((err = audit_ipc_perms(0, setbuf.uid, setbuf.gid,
-					setbuf.mode, &(shp->shm_perm))))
-			goto out_unlock_up;
 		err = shm_checkid(shp,shmid);
 		if(err)
+			goto out_unlock_up;
+		err = audit_ipc_obj(&(shp->shm_perm));
+		if (err)
+			goto out_unlock_up;
+		err = audit_ipc_set_perm(0, setbuf.uid, setbuf.gid, setbuf.mode, &(shp->shm_perm));
+		if (err)
 			goto out_unlock_up;
 		err=-EPERM;
 		if (current->euid != shp->shm_perm.uid &&

@@ -320,8 +320,10 @@
 #define __NR_get_robust_list	312
 #define __NR_splice		313
 #define __NR_sync_file_range	314
+#define __NR_tee		315
+#define __NR_vmsplice		316
 
-#define NR_syscalls 315
+#define NR_syscalls 317
 
 /*
  * user-visible error numbers are in the range -1 - -128: see

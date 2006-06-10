@@ -29,21 +29,21 @@ int os_waiting_for_events(struct irq_fd *active_fds)
 	int i, n, err;
 
 	n = poll(pollfds, pollfds_num, 0);
-	if(n < 0){
+	if (n < 0) {
 		err = -errno;
-		if(errno != EINTR)
+		if (errno != EINTR)
 			printk("sigio_handler: os_waiting_for_events:"
 			       " poll returned %d, errno = %d\n", n, errno);
 		return err;
 	}
 
-	if(n == 0)
+	if (n == 0)
 		return 0;
 
 	irq_fd = active_fds;
 
-	for(i = 0; i < pollfds_num; i++){
-		if(pollfds[i].revents != 0){
+	for (i = 0; i < pollfds_num; i++) {
+		if (pollfds[i].revents != 0) {
 			irq_fd->current_events = pollfds[i].revents;
 			pollfds[i].fd = -1;
 		}
@@ -54,7 +54,7 @@ int os_waiting_for_events(struct irq_fd *active_fds)
 
 int os_isatty(int fd)
 {
-	return(isatty(fd));
+	return isatty(fd);
 }
 
 int os_create_pollfd(int fd, int events, void *tmp_pfd, int size_tmpfds)
@@ -65,7 +65,7 @@ int os_create_pollfd(int fd, int events, void *tmp_pfd, int size_tmpfds)
 			return((pollfds_size + 1) * sizeof(pollfds[0]));
 		}
 
-		if(pollfds != NULL){
+		if (pollfds != NULL) {
 			memcpy(tmp_pfd, pollfds,
 			       sizeof(pollfds[0]) * pollfds_size);
 			/* remove old pollfds */
@@ -73,18 +73,15 @@ int os_create_pollfd(int fd, int events, void *tmp_pfd, int size_tmpfds)
 		}
 		pollfds = tmp_pfd;
 		pollfds_size++;
-	} else {
-		/* remove not used tmp_pfd */
-		if (tmp_pfd != NULL)
-			kfree(tmp_pfd);
-	}
+	} else
+		kfree(tmp_pfd);	/* remove not used tmp_pfd */
 
-	pollfds[pollfds_num] = ((struct pollfd) { .fd 	= fd,
-						  .events 	= events,
-						  .revents 	= 0 });
+	pollfds[pollfds_num] = ((struct pollfd) { .fd		= fd,
+						  .events	= events,
+						  .revents	= 0 });
 	pollfds_num++;
 
-	return(0);
+	return 0;
 }
 
 void os_free_irq_by_cb(int (*test)(struct irq_fd *, void *), void *arg,
@@ -94,11 +91,11 @@ void os_free_irq_by_cb(int (*test)(struct irq_fd *, void *), void *arg,
 	int i = 0;
 
 	prev = &active_fds;
-	while(*prev != NULL){
-		if((*test)(*prev, arg)){
+	while (*prev != NULL) {
+		if ((*test)(*prev, arg)) {
 			struct irq_fd *old_fd = *prev;
-			if((pollfds[i].fd != -1) &&
-			   (pollfds[i].fd != (*prev)->fd)){
+			if ((pollfds[i].fd != -1) &&
+			    (pollfds[i].fd != (*prev)->fd)) {
 				printk("os_free_irq_by_cb - mismatch between "
 				       "active_fds and pollfds, fd %d vs %d\n",
 				       (*prev)->fd, pollfds[i].fd);
@@ -110,7 +107,6 @@ void os_free_irq_by_cb(int (*test)(struct irq_fd *, void *), void *arg,
 			/* This moves the *whole* array after pollfds[i]
 			 * (though it doesn't spot as such)!
 			 */
-
 			memmove(&pollfds[i], &pollfds[i + 1],
 			       (pollfds_num - i) * sizeof(pollfds[0]));
 			if(*last_irq_ptr2 == &old_fd->next)
@@ -129,10 +125,9 @@ void os_free_irq_by_cb(int (*test)(struct irq_fd *, void *), void *arg,
 	return;
 }
 
-
 int os_get_pollfd(int i)
 {
-	return(pollfds[i].fd);
+	return pollfds[i].fd;
 }
 
 void os_set_pollfd(int i, int fd)
@@ -151,8 +146,10 @@ void init_irq_signals(int on_sigstack)
 	int flags;
 
 	flags = on_sigstack ? SA_ONSTACK : 0;
-	if(timer_irq_inited) h = (__sighandler_t) alarm_handler;
-	else h = boot_timer_handler;
+	if (timer_irq_inited)
+		h = (__sighandler_t)alarm_handler;
+	else
+		h = boot_timer_handler;
 
 	set_handler(SIGVTALRM, h, flags | SA_RESTART,
 		    SIGUSR1, SIGIO, SIGWINCH, SIGALRM, -1);

@@ -146,9 +146,11 @@ int cx88_risc_buffer(struct pci_dev *pci, struct btcx_riscmem *risc,
 		fields++;
 
 	/* estimate risc mem: worst case is one write per page border +
-	   one write per scan line + syncs + jump (all 2 dwords) */
-	instructions  = (bpl * lines * fields) / PAGE_SIZE + lines * fields;
-	instructions += 3 + 4;
+	   one write per scan line + syncs + jump (all 2 dwords).  Padding
+	   can cause next bpl to start close to a page border.  First DMA
+	   region may be smaller than PAGE_SIZE */
+	instructions  = fields * (1 + ((bpl + padding) * lines) / PAGE_SIZE + lines);
+	instructions += 2;
 	if ((rc = btcx_riscmem_alloc(pci,risc,instructions*8)) < 0)
 		return rc;
 
@@ -176,9 +178,11 @@ int cx88_risc_databuffer(struct pci_dev *pci, struct btcx_riscmem *risc,
 	int rc;
 
 	/* estimate risc mem: worst case is one write per page border +
-	   one write per scan line + syncs + jump (all 2 dwords) */
-	instructions  = (bpl * lines) / PAGE_SIZE + lines;
-	instructions += 3 + 4;
+	   one write per scan line + syncs + jump (all 2 dwords).  Here
+	   there is no padding and no sync.  First DMA region may be smaller
+	   than PAGE_SIZE */
+	instructions  = 1 + (bpl * lines) / PAGE_SIZE + lines;
+	instructions += 1;
 	if ((rc = btcx_riscmem_alloc(pci,risc,instructions*8)) < 0)
 		return rc;
 

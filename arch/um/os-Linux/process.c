@@ -190,7 +190,7 @@ int os_unmap_memory(void *addr, int len)
 }
 
 #ifndef MADV_REMOVE
-#define MADV_REMOVE	0x5		/* remove these pages & resources */
+#define MADV_REMOVE KERNEL_MADV_REMOVE
 #endif
 
 int os_drop_memory(void *addr, int length)
@@ -206,29 +206,36 @@ int os_drop_memory(void *addr, int length)
 int can_drop_memory(void)
 {
 	void *addr;
-	int fd;
+	int fd, ok = 0;
 
 	printk("Checking host MADV_REMOVE support...");
 	fd = create_mem_file(UM_KERN_PAGE_SIZE);
 	if(fd < 0){
 		printk("Creating test memory file failed, err = %d\n", -fd);
-		return 0;
+		goto out;
 	}
 
 	addr = mmap64(NULL, UM_KERN_PAGE_SIZE, PROT_READ | PROT_WRITE,
-		      MAP_PRIVATE, fd, 0);
+		      MAP_SHARED, fd, 0);
 	if(addr == MAP_FAILED){
 		printk("Mapping test memory file failed, err = %d\n", -errno);
-		return 0;
+		goto out_close;
 	}
 
 	if(madvise(addr, UM_KERN_PAGE_SIZE, MADV_REMOVE) != 0){
 		printk("MADV_REMOVE failed, err = %d\n", -errno);
-		return 0;
+		goto out_unmap;
 	}
 
 	printk("OK\n");
-	return 1;
+	ok = 1;
+
+out_unmap:
+	munmap(addr, UM_KERN_PAGE_SIZE);
+out_close:
+	close(fd);
+out:
+	return ok;
 }
 
 void init_new_thread_stack(void *sig_stack, void (*usr1_handler)(int))
@@ -266,11 +273,11 @@ void init_new_thread_signals(int altstack)
 
 int run_kernel_thread(int (*fn)(void *), void *arg, void **jmp_ptr)
 {
-	sigjmp_buf buf;
+	jmp_buf buf;
 	int n, enable;
 
 	*jmp_ptr = &buf;
-	n = UML_SIGSETJMP(&buf, enable);
+	n = UML_SETJMP(&buf, enable);
 	if(n != 0)
 		return(n);
 	(*fn)(arg);

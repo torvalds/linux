@@ -51,11 +51,12 @@ ieee80211softmac_assoc(struct ieee80211softmac_device *mac, struct ieee80211soft
 	spin_lock_irqsave(&mac->lock, flags);
 	mac->associnfo.associating = 1;
 	mac->associated = 0; /* just to make sure */
-	spin_unlock_irqrestore(&mac->lock, flags);
 
 	/* Set a timer for timeout */
 	/* FIXME: make timeout configurable */
-	schedule_delayed_work(&mac->associnfo.timeout, 5 * HZ);
+	if (likely(mac->running))
+		schedule_delayed_work(&mac->associnfo.timeout, 5 * HZ);
+	spin_unlock_irqrestore(&mac->lock, flags);
 }
 
 void
@@ -101,6 +102,7 @@ ieee80211softmac_disassoc(struct ieee80211softmac_device *mac, u16 reason)
 	/* Do NOT clear bssvalid as that will break ieee80211softmac_assoc_work! */
 	mac->associated = 0;
 	mac->associnfo.associating = 0;
+	ieee80211softmac_call_events_locked(mac, IEEE80211SOFTMAC_EVENT_DISASSOCIATED, NULL);
 	spin_unlock_irqrestore(&mac->lock, flags);
 }
 
@@ -143,6 +145,12 @@ network_matches_request(struct ieee80211softmac_device *mac, struct ieee80211_ne
 	if (!we_support_all_basic_rates(mac, net->rates_ex, net->rates_ex_len))
 		return 0;
 
+	/* assume that users know what they're doing ...
+	 * (note we don't let them select a net we're incompatible with) */
+	if (mac->associnfo.bssfixed) {
+		return !memcmp(mac->associnfo.bssid, net->bssid, ETH_ALEN);
+	}
+
 	/* if 'ANY' network requested, take any that doesn't have privacy enabled */
 	if (mac->associnfo.req_essid.len == 0 
 	    && !(net->capability & WLAN_CAPABILITY_PRIVACY))
@@ -175,7 +183,7 @@ ieee80211softmac_assoc_work(void *d)
 		ieee80211softmac_disassoc(mac, WLAN_REASON_DISASSOC_STA_HAS_LEFT);
 
 	/* try to find the requested network in our list, if we found one already */
-	if (mac->associnfo.bssvalid)
+	if (mac->associnfo.bssvalid || mac->associnfo.bssfixed)
 		found = ieee80211softmac_get_network_by_bssid(mac, mac->associnfo.bssid);	
 	
 	/* Search the ieee80211 networks for this network if we didn't find it by bssid,
@@ -240,19 +248,25 @@ ieee80211softmac_assoc_work(void *d)
 			if (ieee80211softmac_start_scan(mac))
 				dprintk(KERN_INFO PFX "Associate: failed to initiate scan. Is device up?\n");
 			return;
-		}
-		else {
+		} else {
 			spin_lock_irqsave(&mac->lock, flags);
 			mac->associnfo.associating = 0;
 			mac->associated = 0;
 			spin_unlock_irqrestore(&mac->lock, flags);
 
 			dprintk(KERN_INFO PFX "Unable to find matching network after scan!\n");
+			/* reset the retry counter for the next user request since we
+			 * break out and don't reschedule ourselves after this point. */
+			mac->associnfo.scan_retry = IEEE80211SOFTMAC_ASSOC_SCAN_RETRY_LIMIT;
 			ieee80211softmac_call_events(mac, IEEE80211SOFTMAC_EVENT_ASSOCIATE_NET_NOT_FOUND, NULL);
 			return;
 		}
 	}
-	
+
+	/* reset the retry counter for the next user request since we
+	 * now found a net and will try to associate to it, but not
+	 * schedule this function again. */
+	mac->associnfo.scan_retry = IEEE80211SOFTMAC_ASSOC_SCAN_RETRY_LIMIT;
 	mac->associnfo.bssvalid = 1;
 	memcpy(mac->associnfo.bssid, found->bssid, ETH_ALEN);
 	/* copy the ESSID for displaying it */
@@ -306,6 +320,9 @@ ieee80211softmac_handle_assoc_response(struct net_device * dev,
 	u16 status = le16_to_cpup(&resp->status);
 	struct ieee80211softmac_network *network = NULL;
 	unsigned long flags;
+
+	if (unlikely(!mac->running))
+		return -ENODEV;
 	
 	spin_lock_irqsave(&mac->lock, flags);
 
@@ -364,15 +381,22 @@ ieee80211softmac_handle_disassoc(struct net_device * dev,
 {
 	struct ieee80211softmac_device *mac = ieee80211_priv(dev);
 	unsigned long flags;
+
+	if (unlikely(!mac->running))
+		return -ENODEV;
+
 	if (memcmp(disassoc->header.addr2, mac->associnfo.bssid, ETH_ALEN))
 		return 0;
+
 	if (memcmp(disassoc->header.addr1, mac->dev->dev_addr, ETH_ALEN))
 		return 0;
+
 	dprintk(KERN_INFO PFX "got disassoc frame\n");
 	netif_carrier_off(dev);
 	spin_lock_irqsave(&mac->lock, flags);
 	mac->associnfo.bssvalid = 0;
 	mac->associated = 0;
+	ieee80211softmac_call_events_locked(mac, IEEE80211SOFTMAC_EVENT_DISASSOCIATED, NULL);
 	schedule_work(&mac->associnfo.work);
 	spin_unlock_irqrestore(&mac->lock, flags);
 	
@@ -386,11 +410,15 @@ ieee80211softmac_handle_reassoc_req(struct net_device * dev,
 	struct ieee80211softmac_device *mac = ieee80211_priv(dev);
 	struct ieee80211softmac_network *network;
 
+	if (unlikely(!mac->running))
+		return -ENODEV;
+
 	network = ieee80211softmac_get_network_by_bssid(mac, resp->header.addr3);
 	if (!network) {
 		dprintkl(KERN_INFO PFX "reassoc request from unknown network\n");
 		return 0;
 	}
-	ieee80211softmac_assoc(mac, network);
+	schedule_work(&mac->associnfo.work);
+
 	return 0;
 }

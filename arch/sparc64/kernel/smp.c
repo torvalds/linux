@@ -1264,7 +1264,6 @@ void __init smp_tick_init(void)
 	boot_cpu_id = hard_smp_processor_id();
 	current_tick_offset = timer_tick_offset;
 
-	cpu_set(boot_cpu_id, cpu_online_map);
 	prof_counter(boot_cpu_id) = prof_multiplier(boot_cpu_id) = 1;
 }
 
@@ -1345,18 +1344,6 @@ void __init smp_setup_cpu_possible_map(void)
 
 void __devinit smp_prepare_boot_cpu(void)
 {
-	int cpu = hard_smp_processor_id();
-
-	if (cpu >= NR_CPUS) {
-		prom_printf("Serious problem, boot cpu id >= NR_CPUS\n");
-		prom_halt();
-	}
-
-	current_thread_info()->cpu = cpu;
-	__local_per_cpu_offset = __per_cpu_offset(cpu);
-
-	cpu_set(smp_processor_id(), cpu_online_map);
-	cpu_set(smp_processor_id(), phys_cpu_present_map);
 }
 
 int __devinit __cpu_up(unsigned int cpu)
@@ -1433,4 +1420,7 @@ void __init setup_per_cpu_areas(void)
 
 	for (i = 0; i < NR_CPUS; i++, ptr += size)
 		memcpy(ptr, __per_cpu_start, __per_cpu_end - __per_cpu_start);
+
+	/* Setup %g5 for the boot cpu.  */
+	__local_per_cpu_offset = __per_cpu_offset(smp_processor_id());
 }

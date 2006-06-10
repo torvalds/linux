@@ -213,6 +213,10 @@ extern int dir_notify_enable;
 #define FIBMAP	   _IO(0x00,1)	/* bmap access */
 #define FIGETBSZ   _IO(0x00,2)	/* get the block size used for bmap */
 
+#define SYNC_FILE_RANGE_WAIT_BEFORE	1
+#define SYNC_FILE_RANGE_WRITE		2
+#define SYNC_FILE_RANGE_WAIT_AFTER	4
+
 #ifdef __KERNEL__
 
 #include <linux/linkage.h>
@@ -758,9 +762,6 @@ extern int fcntl_setlease(unsigned int fd, struct file *filp, long arg);
 extern int fcntl_getlease(struct file *filp);
 
 /* fs/sync.c */
-#define SYNC_FILE_RANGE_WAIT_BEFORE	1
-#define SYNC_FILE_RANGE_WRITE		2
-#define SYNC_FILE_RANGE_WAIT_AFTER	4
 extern int do_sync_file_range(struct file *file, loff_t offset, loff_t endbyte,
 			unsigned int flags);
 
@@ -1039,8 +1040,8 @@ struct file_operations {
 	int (*check_flags)(int);
 	int (*dir_notify)(struct file *filp, unsigned long arg);
 	int (*flock) (struct file *, int, struct file_lock *);
-	ssize_t (*splice_write)(struct pipe_inode_info *, struct file *, size_t, unsigned int);
-	ssize_t (*splice_read)(struct file *, struct pipe_inode_info *, size_t, unsigned int);
+	ssize_t (*splice_write)(struct pipe_inode_info *, struct file *, loff_t *, size_t, unsigned int);
+	ssize_t (*splice_read)(struct file *, loff_t *, struct pipe_inode_info *, size_t, unsigned int);
 };
 
 struct inode_operations {
@@ -1613,13 +1614,13 @@ extern void do_generic_mapping_read(struct address_space *mapping,
 				    loff_t *, read_descriptor_t *, read_actor_t);
 
 /* fs/splice.c */
-extern ssize_t generic_file_splice_read(struct file *,
+extern ssize_t generic_file_splice_read(struct file *, loff_t *,
 		struct pipe_inode_info *, size_t, unsigned int);
 extern ssize_t generic_file_splice_write(struct pipe_inode_info *,
-		struct file *, size_t, unsigned int);
+		struct file *, loff_t *, size_t, unsigned int);
 extern ssize_t generic_splice_sendpage(struct pipe_inode_info *pipe,
-		struct file *out, size_t len, unsigned int flags);
-extern long do_splice_direct(struct file *in, struct file *out,
+		struct file *out, loff_t *, size_t len, unsigned int flags);
+extern long do_splice_direct(struct file *in, loff_t *ppos, struct file *out,
 		size_t len, unsigned int flags);
 
 extern void

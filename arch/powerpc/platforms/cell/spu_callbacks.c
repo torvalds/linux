@@ -258,6 +258,7 @@ void *spu_syscall_table[] = {
 	[__NR_futex]			sys_futex,
 	[__NR_sched_setaffinity]	sys_sched_setaffinity,
 	[__NR_sched_getaffinity]	sys_sched_getaffinity,
+	[224]				sys_ni_syscall,
 	[__NR_tuxcall]			sys_ni_syscall,
 	[226]				sys_ni_syscall,
 	[__NR_io_setup]			sys_io_setup,
@@ -317,20 +318,35 @@ void *spu_syscall_table[] = {
 	[__NR_ppoll]			sys_ni_syscall, /* sys_ppoll */
 	[__NR_unshare]			sys_unshare,
 	[__NR_splice]			sys_splice,
+	[__NR_tee]			sys_tee,
+	[__NR_vmsplice]			sys_vmsplice,
+	[__NR_openat]			sys_openat,
+	[__NR_mkdirat]			sys_mkdirat,
+	[__NR_mknodat]			sys_mknodat,
+	[__NR_fchownat]			sys_fchownat,
+	[__NR_futimesat]		sys_futimesat,
+	[__NR_newfstatat]		sys_newfstatat,
+	[__NR_unlinkat]			sys_unlinkat,
+	[__NR_renameat]			sys_renameat,
+	[__NR_linkat]			sys_linkat,
+	[__NR_symlinkat]		sys_symlinkat,
+	[__NR_readlinkat]		sys_readlinkat,
+	[__NR_fchmodat]			sys_fchmodat,
+	[__NR_faccessat]		sys_faccessat,
+	[__NR_get_robust_list]		sys_get_robust_list,
+	[__NR_set_robust_list]		sys_set_robust_list,
 };
 
 long spu_sys_callback(struct spu_syscall_block *s)
 {
 	long (*syscall)(u64 a1, u64 a2, u64 a3, u64 a4, u64 a5, u64 a6);
 
-	BUILD_BUG_ON(ARRAY_SIZE(spu_syscall_table) != __NR_syscalls);
-
-	syscall = spu_syscall_table[s->nr_ret];
-
-	if (s->nr_ret >= __NR_syscalls) {
+	if (s->nr_ret >= ARRAY_SIZE(spu_syscall_table)) {
 		pr_debug("%s: invalid syscall #%ld", __FUNCTION__, s->nr_ret);
 		return -ENOSYS;
 	}
+
+	syscall = spu_syscall_table[s->nr_ret];
 
 #ifdef DEBUG
 	print_symbol(KERN_DEBUG "SPU-syscall %s:", (unsigned long)syscall);

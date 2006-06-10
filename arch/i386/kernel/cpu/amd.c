@@ -207,6 +207,8 @@ static void __init init_amd(struct cpuinfo_x86 *c)
 		set_bit(X86_FEATURE_K7, c->x86_capability); 
 		break;
 	}
+	if (c->x86 >= 6)
+		set_bit(X86_FEATURE_FXSAVE_LEAK, c->x86_capability);
 
 	display_cacheinfo(c);
 

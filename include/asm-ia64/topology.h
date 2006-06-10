@@ -23,6 +23,11 @@
 #define PENALTY_FOR_NODE_WITH_CPUS 255
 
 /*
+ * Distance above which we begin to use zone reclaim
+ */
+#define RECLAIM_DISTANCE 15
+
+/*
  * Returns the number of the node containing CPU 'cpu'
  */
 #define cpu_to_node(cpu) (int)(cpu_to_node_map[cpu])

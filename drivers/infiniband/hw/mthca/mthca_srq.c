@@ -241,7 +241,7 @@ int mthca_alloc_srq(struct mthca_dev *dev, struct mthca_pd *pd,
 		goto err_out_mailbox;
 
 	spin_lock_init(&srq->lock);
-	atomic_set(&srq->refcount, 1);
+	srq->refcount = 1;
 	init_waitqueue_head(&srq->wait);
 
 	if (mthca_is_memfree(dev))
@@ -308,6 +308,17 @@ err_out:
 	return err;
 }
 
+static inline int get_srq_refcount(struct mthca_dev *dev, struct mthca_srq *srq)
+{
+	int c;
+
+	spin_lock_irq(&dev->srq_table.lock);
+	c = srq->refcount;
+	spin_unlock_irq(&dev->srq_table.lock);
+
+	return c;
+}
+
 void mthca_free_srq(struct mthca_dev *dev, struct mthca_srq *srq)
 {
 	struct mthca_mailbox *mailbox;
@@ -329,10 +340,10 @@ void mthca_free_srq(struct mthca_dev *dev, struct mthca_srq *srq)
 	spin_lock_irq(&dev->srq_table.lock);
 	mthca_array_clear(&dev->srq_table.srq,
 			  srq->srqn & (dev->limits.num_srqs - 1));
+	--srq->refcount;
 	spin_unlock_irq(&dev->srq_table.lock);
 
-	atomic_dec(&srq->refcount);
-	wait_event(srq->wait, !atomic_read(&srq->refcount));
+	wait_event(srq->wait, !get_srq_refcount(dev, srq));
 
 	if (!srq->ibsrq.uobject) {
 		mthca_free_srq_buf(dev, srq);
@@ -414,7 +425,7 @@ void mthca_srq_event(struct mthca_dev *dev, u32 srqn,
 	spin_lock(&dev->srq_table.lock);
 	srq = mthca_array_get(&dev->srq_table.srq, srqn & (dev->limits.num_srqs - 1));
 	if (srq)
-		atomic_inc(&srq->refcount);
+		++srq->refcount;
 	spin_unlock(&dev->srq_table.lock);
 
 	if (!srq) {
@@ -431,8 +442,10 @@ void mthca_srq_event(struct mthca_dev *dev, u32 srqn,
 	srq->ibsrq.event_handler(&event, srq->ibsrq.srq_context);
 
 out:
-	if (atomic_dec_and_test(&srq->refcount))
+	spin_lock(&dev->srq_table.lock);
+	if (!--srq->refcount)
 		wake_up(&srq->wait);
+	spin_unlock(&dev->srq_table.lock);
 }
 
 /*
@@ -477,26 +490,7 @@ int mthca_tavor_post_srq_recv(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
 
 	first_ind = srq->first_free;
 
-	for (nreq = 0; wr; ++nreq, wr = wr->next) {
-		if (unlikely(nreq == MTHCA_TAVOR_MAX_WQES_PER_RECV_DB)) {
-			nreq = 0;
-
-			doorbell[0] = cpu_to_be32(first_ind << srq->wqe_shift);
-			doorbell[1] = cpu_to_be32(srq->srqn << 8);
-
-			/*
-			 * Make sure that descriptors are written
-			 * before doorbell is rung.
-			 */
-			wmb();
-
-			mthca_write64(doorbell,
-				      dev->kar + MTHCA_RECEIVE_DOORBELL,
-				      MTHCA_GET_DOORBELL_LOCK(&dev->doorbell_lock));
-
-			first_ind = srq->first_free;
-		}
-
+	for (nreq = 0; wr; wr = wr->next) {
 		ind = srq->first_free;
 
 		if (ind < 0) {
@@ -556,6 +550,26 @@ int mthca_tavor_post_srq_recv(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
 
 		srq->wrid[ind]  = wr->wr_id;
 		srq->first_free = next_ind;
+
+		++nreq;
+		if (unlikely(nreq == MTHCA_TAVOR_MAX_WQES_PER_RECV_DB)) {
+			nreq = 0;
+
+			doorbell[0] = cpu_to_be32(first_ind << srq->wqe_shift);
+			doorbell[1] = cpu_to_be32(srq->srqn << 8);
+
+			/*
+			 * Make sure that descriptors are written
+			 * before doorbell is rung.
+			 */
+			wmb();
+
+			mthca_write64(doorbell,
+				      dev->kar + MTHCA_RECEIVE_DOORBELL,
+				      MTHCA_GET_DOORBELL_LOCK(&dev->doorbell_lock));
+
+			first_ind = srq->first_free;
+		}
 	}
 
 	if (likely(nreq)) {

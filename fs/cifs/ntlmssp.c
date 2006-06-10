@@ -121,6 +121,20 @@ CIFS_SessSetup(unsigned int xid, struct cifsSesInfo *ses, const int type,
 	}
 
 
+	/* copy session key */
+
+	/* if Unicode, align strings to two byte boundary */
+
+	/* copy user name */ /* BB Do we need to special case null user name? */
+
+	/* copy domain name */
+
+	/* copy Linux version */
+
+	/* copy network operating system name */
+
+	/* update bcc and smb buffer length */
+
 /*	rc = SendReceive2(xid, ses, iov, num_iovecs, &resp_buf_type, 0); */
 	/* SMB request buf freed in SendReceive2 */
 

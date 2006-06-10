@@ -178,9 +178,9 @@ static int sa1100_rtc_open(struct device *dev)
 	return 0;
 
  fail_pi:
-	free_irq(IRQ_RTCAlrm, NULL);
+	free_irq(IRQ_RTCAlrm, dev);
  fail_ai:
-	free_irq(IRQ_RTC1Hz, NULL);
+	free_irq(IRQ_RTC1Hz, dev);
  fail_ui:
 	return ret;
 }
@@ -247,7 +247,7 @@ static int sa1100_rtc_ioctl(struct device *dev, unsigned int cmd,
 		rtc_freq = arg;
 		return 0;
 	}
-	return -EINVAL;
+	return -ENOIOCTLCMD;
 }
 
 static int sa1100_rtc_read_time(struct device *dev, struct rtc_time *tm)
@@ -295,7 +295,7 @@ static int sa1100_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 
 static int sa1100_rtc_proc(struct device *dev, struct seq_file *seq)
 {
-	seq_printf(seq, "trim/divider\t: 0x%08x\n", RTTR);
+	seq_printf(seq, "trim/divider\t: 0x%08lx\n", RTTR);
 	seq_printf(seq, "alarm_IRQ\t: %s\n",
 			(RTSR & RTSR_ALE) ? "yes" : "no" );
 	seq_printf(seq, "update_IRQ\t: %s\n",

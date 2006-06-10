@@ -10,7 +10,7 @@
  *   Copyright 2001 MontaVista Software Inc.
  *   Author: Jun Sun, jsun@mvista.com or jsun@junsun.net
  *
- *   Copyright (C) 2000, 2001 Ralf Baechle (ralf@gnu.org)
+ *   Copyright (C) 2000, 01, 06 Ralf Baechle (ralf@linux-mips.org)
  *
  *  This program is free software; you can redistribute  it and/or modify it
  *  under  the terms of  the GNU General  Public License as published by the
@@ -38,8 +38,37 @@
 #include <linux/types.h>
 #include <asm/irq_cpu.h>
 #include <asm/mipsregs.h>
+#include <asm/time.h>
 
-extern asmlinkage void jaguar_handle_int(void);
+asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
+{
+	unsigned int pending = read_c0_cause() & read_c0_status();
+
+	if (pending & STATUSF_IP0)
+		do_IRQ(0, regs);
+	else if (pending & STATUSF_IP1)
+		do_IRQ(1, regs);
+	else if (pending & STATUSF_IP2)
+		do_IRQ(2, regs);
+	else if (pending & STATUSF_IP3)
+		do_IRQ(3, regs);
+	else if (pending & STATUSF_IP4)
+		do_IRQ(4, regs);
+	else if (pending & STATUSF_IP5)
+		do_IRQ(5, regs);
+	else if (pending & STATUSF_IP6)
+		do_IRQ(6, regs);
+	else if (pending & STATUSF_IP7)
+		ll_timer_interrupt(7, regs);
+	else {
+		/*
+		 * Now look at the extended interrupts
+		 */
+		pending = (read_c0_cause() & (read_c0_intcontrol() << 8)) >> 16;
+		if (pending & STATUSF_IP8)
+			ll_mv64340_irq(regs);
+	}
+}
 
 static struct irqaction cascade_mv64340 = {
 	no_action, SA_INTERRUPT, CPU_MASK_NONE, "MV64340-Cascade", NULL, NULL
@@ -53,8 +82,6 @@ void __init arch_init_irq(void)
 	 */
 	clear_c0_status(ST0_IM);
 
-	/* Sets the first-level interrupt dispatcher. */
-	set_except_vector(0, jaguar_handle_int);
 	mips_cpu_irq_init(0);
 	rm7k_cpu_irq_init(8);
 

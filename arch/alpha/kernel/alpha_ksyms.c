@@ -182,7 +182,6 @@ EXPORT_SYMBOL(smp_num_cpus);
 EXPORT_SYMBOL(smp_call_function);
 EXPORT_SYMBOL(smp_call_function_on_cpu);
 EXPORT_SYMBOL(_atomic_dec_and_lock);
-EXPORT_SYMBOL(cpu_present_mask);
 #endif /* CONFIG_SMP */
 
 /*

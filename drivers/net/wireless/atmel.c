@@ -3463,6 +3463,7 @@ static void atmel_command_irq(struct atmel_private *priv)
 	u8 status = atmel_rmem8(priv, atmel_co(priv, CMD_BLOCK_STATUS_OFFSET));
 	u8 command = atmel_rmem8(priv, atmel_co(priv, CMD_BLOCK_COMMAND_OFFSET));
 	int fast_scan;
+	union iwreq_data wrqu;
 
 	if (status == CMD_STATUS_IDLE ||
 	    status == CMD_STATUS_IN_PROGRESS)
@@ -3487,6 +3488,7 @@ static void atmel_command_irq(struct atmel_private *priv)
 			atmel_scan(priv, 1);
 		} else {
 			int bss_index = retrieve_bss(priv);
+			int notify_scan_complete = 1;
 			if (bss_index != -1) {
 				atmel_join_bss(priv, bss_index);
 			} else if (priv->operating_mode == IW_MODE_ADHOC &&
@@ -3495,8 +3497,14 @@ static void atmel_command_irq(struct atmel_private *priv)
 			} else {
 				priv->fast_scan = !fast_scan;
 				atmel_scan(priv, 1);
+				notify_scan_complete = 0;
 			}
 			priv->site_survey_state = SITE_SURVEY_COMPLETED;
+			if (notify_scan_complete) {
+				wrqu.data.length = 0;
+				wrqu.data.flags = 0;
+				wireless_send_event(priv->dev, SIOCGIWSCAN, &wrqu, NULL);
+			}
 		}
 		break;
 
@@ -3509,6 +3517,9 @@ static void atmel_command_irq(struct atmel_private *priv)
 		priv->site_survey_state = SITE_SURVEY_COMPLETED;
 		if (priv->station_is_associated) {
 			atmel_enter_state(priv, STATION_STATE_READY);
+			wrqu.data.length = 0;
+			wrqu.data.flags = 0;
+			wireless_send_event(priv->dev, SIOCGIWSCAN, &wrqu, NULL);
 		} else {
 			atmel_scan(priv, 1);
 		}

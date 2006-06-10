@@ -170,8 +170,8 @@ config IP_NF_PPTP
 	  Documentation/modules.txt.  If unsure, say `N'.
 
 config IP_NF_H323
-	tristate  'H.323 protocol support'
-	depends on IP_NF_CONNTRACK
+	tristate  'H.323 protocol support (EXPERIMENTAL)'
+	depends on IP_NF_CONNTRACK && EXPERIMENTAL
 	help
 	  H.323 is a VoIP signalling protocol from ITU-T. As one of the most
 	  important VoIP protocols, it is widely used by voice hardware and
@@ -345,7 +345,7 @@ config IP_NF_TARGET_LOG
 	  To compile it as a module, choose M here.  If unsure, say N.
 
 config IP_NF_TARGET_ULOG
-	tristate "ULOG target support (OBSOLETE)"
+	tristate "ULOG target support"
 	depends on IP_NF_IPTABLES
 	---help---
 

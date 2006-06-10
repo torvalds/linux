@@ -2,7 +2,7 @@
  * arch/parisc/mm/ioremap.c
  *
  * (C) Copyright 1995 1996 Linus Torvalds
- * (C) Copyright 2001 Helge Deller <deller@gmx.de>
+ * (C) Copyright 2001-2006 Helge Deller <deller@gmx.de>
  * (C) Copyright 2005 Kyle McMartin <kyle@parisc-linux.org>
  */
 
@@ -138,6 +138,7 @@ void __iomem * __ioremap(unsigned long phys_addr, unsigned long size, unsigned l
 	if ((phys_addr >= 0x00080000 && end < 0x000fffff) ||
 	    (phys_addr >= 0x00500000 && end < 0x03bfffff)) {
 		phys_addr |= F_EXTEND(0xfc000000);
+		flags |= _PAGE_NO_CACHE;
 	}
 #endif
 

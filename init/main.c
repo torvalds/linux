@@ -582,7 +582,7 @@ static void __init do_initcalls(void)
 
 		result = (*call)();
 
-		if (result && (result != -ENODEV || initcall_debug)) {
+		if (result && result != -ENODEV && initcall_debug) {
 			sprintf(msgbuf, "error code %d", result);
 			msg = msgbuf;
 		}

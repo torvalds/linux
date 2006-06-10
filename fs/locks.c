@@ -446,15 +446,14 @@ static struct lock_manager_operations lease_manager_ops = {
  */
 static int lease_init(struct file *filp, int type, struct file_lock *fl)
  {
+	if (assign_type(fl, type) != 0)
+		return -EINVAL;
+
 	fl->fl_owner = current->files;
 	fl->fl_pid = current->tgid;
 
 	fl->fl_file = filp;
 	fl->fl_flags = FL_LEASE;
-	if (assign_type(fl, type) != 0) {
-		locks_free_lock(fl);
-		return -EINVAL;
-	}
 	fl->fl_start = 0;
 	fl->fl_end = OFFSET_MAX;
 	fl->fl_ops = NULL;
@@ -466,16 +465,19 @@ static int lease_init(struct file *filp, int type, struct file_lock *fl)
 static int lease_alloc(struct file *filp, int type, struct file_lock **flp)
 {
 	struct file_lock *fl = locks_alloc_lock();
-	int error;
+	int error = -ENOMEM;
 
 	if (fl == NULL)
-		return -ENOMEM;
+		goto out;
 
 	error = lease_init(filp, type, fl);
-	if (error)
-		return error;
+	if (error) {
+		locks_free_lock(fl);
+		fl = NULL;
+	}
+out:
 	*flp = fl;
-	return 0;
+	return error;
 }
 
 /* Check if two locks overlap each other.
@@ -1372,6 +1374,7 @@ static int __setlease(struct file *filp, long arg, struct file_lock **flp)
 		goto out;
 
 	if (my_before != NULL) {
+		*flp = *my_before;
 		error = lease->fl_lmops->fl_change(my_before, arg);
 		goto out;
 	}
@@ -2230,7 +2233,12 @@ void steal_locks(fl_owner_t from)
 
 	lock_kernel();
 	j = 0;
-	rcu_read_lock();
+
+	/*
+	 * We are not taking a ref to the file structures, so
+	 * we need to acquire ->file_lock.
+	 */
+	spin_lock(&files->file_lock);
 	fdt = files_fdtable(files);
 	for (;;) {
 		unsigned long set;
@@ -2248,7 +2256,7 @@ void steal_locks(fl_owner_t from)
 			set >>= 1;
 		}
 	}
-	rcu_read_unlock();
+	spin_unlock(&files->file_lock);
 	unlock_kernel();
 }
 EXPORT_SYMBOL(steal_locks);

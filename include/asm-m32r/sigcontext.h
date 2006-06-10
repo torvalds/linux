@@ -32,6 +32,8 @@ struct sigcontext {
 #elif defined(CONFIG_ISA_M32R2) || defined(CONFIG_ISA_M32R)
 	unsigned long sc_acch;
 	unsigned long sc_accl;
+	unsigned long sc_dummy_acc1h;
+	unsigned long sc_dummy_acc1l;
 #else
 #error unknown isa configuration
 #endif

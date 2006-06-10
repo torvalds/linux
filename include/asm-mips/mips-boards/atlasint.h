@@ -62,23 +62,4 @@
 #define ATLASINT_RES31		(ATLASINT_BASE+31)
 #define ATLASINT_END		(ATLASINT_BASE+31)
 
-/*
- * Atlas registers are memory mapped on 64-bit aligned boundaries and
- * only word access are allowed.
- */
-struct atlas_ictrl_regs {
-        volatile unsigned int intraw;
-        int dummy1;
-        volatile unsigned int intseten;
-        int dummy2;
-        volatile unsigned int intrsten;
-        int dummy3;
-        volatile unsigned int intenable;
-        int dummy4;
-        volatile unsigned int intstatus;
-        int dummy5;
-};
-
-extern void atlasint_init(void);
-
 #endif /* !(_MIPS_ATLASINT_H) */

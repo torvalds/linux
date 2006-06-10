@@ -757,10 +757,6 @@ static int __init apic_set_verbosity(char *str)
 		apic_verbosity = APIC_DEBUG;
 	else if (strcmp("verbose", str) == 0)
 		apic_verbosity = APIC_VERBOSE;
-	else
-		printk(KERN_WARNING "APIC Verbosity level %s not recognised"
-				" use apic=verbose or apic=debug\n", str);
-
 	return 1;
 }
 
@@ -1345,6 +1341,14 @@ int __init APIC_init_uniprocessor (void)
 
 	connect_bsp_APIC();
 
+	/*
+	 * Hack: In case of kdump, after a crash, kernel might be booting
+	 * on a cpu with non-zero lapic id. But boot_cpu_physical_apicid
+	 * might be zero if read from MP tables. Get it from LAPIC.
+	 */
+#ifdef CONFIG_CRASH_DUMP
+	boot_cpu_physical_apicid = GET_APIC_ID(apic_read(APIC_ID));
+#endif
 	phys_cpu_present_map = physid_mask_of_physid(boot_cpu_physical_apicid);
 
 	setup_local_APIC();

@@ -1774,8 +1774,6 @@ static int pcnet32_open(struct net_device *dev)
 		lp->rx_dma_addr[i] = 0;
 	}
 
-	pcnet32_free_ring(dev);
-
 	/*
 	 * Switch back to 16bit mode to avoid problems with dumb
 	 * DOS packet driver after a warm reboot

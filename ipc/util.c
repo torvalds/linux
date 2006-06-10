@@ -10,6 +10,8 @@
  *	      Manfred Spraul <manfred@colorfullife.com>
  * Oct 2002 - One lock per IPC id. RCU ipc_free for lock-free grow_ary().
  *            Mingming Cao <cmm@us.ibm.com>
+ * Mar 2006 - support for audit of ipc object properties
+ *            Dustin Kirkland <dustin.kirkland@us.ibm.com>
  */
 
 #include <linux/config.h>
@@ -27,6 +29,7 @@
 #include <linux/workqueue.h>
 #include <linux/seq_file.h>
 #include <linux/proc_fs.h>
+#include <linux/audit.h>
 
 #include <asm/unistd.h>
 
@@ -183,8 +186,7 @@ static int grow_ary(struct ipc_ids* ids, int newsize)
 	if(new == NULL)
 		return size;
 	new->size = newsize;
-	memcpy(new->p, ids->entries->p, sizeof(struct kern_ipc_perm *)*size +
-					sizeof(struct ipc_id_ary));
+	memcpy(new->p, ids->entries->p, sizeof(struct kern_ipc_perm *)*size);
 	for(i=size;i<newsize;i++) {
 		new->p[i] = NULL;
 	}
@@ -465,8 +467,10 @@ void ipc_rcu_putref(void *ptr)
  
 int ipcperms (struct kern_ipc_perm *ipcp, short flag)
 {	/* flag will most probably be 0 or S_...UGO from <linux/stat.h> */
-	int requested_mode, granted_mode;
+	int requested_mode, granted_mode, err;
 
+	if (unlikely((err = audit_ipc_obj(ipcp))))
+		return err;
 	requested_mode = (flag >> 6) | (flag >> 3) | flag;
 	granted_mode = ipcp->mode;
 	if (current->euid == ipcp->cuid || current->euid == ipcp->uid)

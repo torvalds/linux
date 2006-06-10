@@ -1,13 +1,30 @@
 #ifndef _PARISC_PAGE_H
 #define _PARISC_PAGE_H
 
-/* PAGE_SHIFT determines the page size */
-#define PAGE_SHIFT	12
-#define PAGE_SIZE	(1UL << PAGE_SHIFT)
-#define PAGE_MASK	(~(PAGE_SIZE-1))
+#if !defined(__KERNEL__)
+/* this is for userspace applications (4k page size) */
+# define PAGE_SHIFT	12	/* 4k */
+# define PAGE_SIZE	(1UL << PAGE_SHIFT)
+# define PAGE_MASK	(~(PAGE_SIZE-1))
+#endif
+
 
 #ifdef __KERNEL__
 #include <linux/config.h>
+
+#if defined(CONFIG_PARISC_PAGE_SIZE_4KB)
+# define PAGE_SHIFT	12	/* 4k */
+#elif defined(CONFIG_PARISC_PAGE_SIZE_16KB)
+# define PAGE_SHIFT	14	/* 16k */
+#elif defined(CONFIG_PARISC_PAGE_SIZE_64KB)
+# define PAGE_SHIFT	16	/* 64k */
+#else
+# error "unknown default kernel page size"
+#endif
+#define PAGE_SIZE	(1UL << PAGE_SHIFT)
+#define PAGE_MASK	(~(PAGE_SIZE-1))
+
+
 #ifndef __ASSEMBLY__
 
 #include <asm/types.h>

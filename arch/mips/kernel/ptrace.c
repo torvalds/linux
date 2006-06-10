@@ -248,9 +248,19 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			break;
 		case FPC_EIR: {	/* implementation / version register */
 			unsigned int flags;
+#ifdef CONFIG_MIPS_MT_SMTC
+			unsigned int irqflags;
+			unsigned int mtflags;
+#endif /* CONFIG_MIPS_MT_SMTC */
 
 			if (!cpu_has_fpu)
 				break;
+
+#ifdef CONFIG_MIPS_MT_SMTC
+			/* Read-modify-write of Status must be atomic */
+			local_irq_save(irqflags);
+			mtflags = dmt();
+#endif /* CONFIG_MIPS_MT_SMTC */
 
 			preempt_disable();
 			if (cpu_has_mipsmt) {
@@ -266,6 +276,10 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 				__asm__ __volatile__("cfc1\t%0,$0": "=r" (tmp));
 				write_c0_status(flags);
 			}
+#ifdef CONFIG_MIPS_MT_SMTC
+			emt(mtflags);
+			local_irq_restore(irqflags);
+#endif /* CONFIG_MIPS_MT_SMTC */
 			preempt_enable();
 			break;
 		}
@@ -469,7 +483,7 @@ static inline int audit_arch(void)
 asmlinkage void do_syscall_trace(struct pt_regs *regs, int entryexit)
 {
 	if (unlikely(current->audit_context) && entryexit)
-		audit_syscall_exit(current, AUDITSC_RESULT(regs->regs[2]),
+		audit_syscall_exit(AUDITSC_RESULT(regs->regs[2]),
 		                   regs->regs[2]);
 
 	if (!(current->ptrace & PT_PTRACED))
@@ -493,7 +507,7 @@ asmlinkage void do_syscall_trace(struct pt_regs *regs, int entryexit)
 	}
  out:
 	if (unlikely(current->audit_context) && !entryexit)
-		audit_syscall_entry(current, audit_arch(), regs->regs[2],
+		audit_syscall_entry(audit_arch(), regs->regs[2],
 				    regs->regs[4], regs->regs[5],
 				    regs->regs[6], regs->regs[7]);
 }

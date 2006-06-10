@@ -66,9 +66,9 @@
 #define EXT_INTC1_REQ1 5 /* IP 5 */
 #define MIPS_TIMER_IP  7 /* IP 7 */
 
-extern asmlinkage void au1000_IRQ(void);
 extern void set_debug_traps(void);
 extern irq_cpustat_t irq_stat [NR_CPUS];
+extern void mips_timer_interrupt(struct pt_regs *regs);
 
 static void setup_local_irq(unsigned int irq, int type, int int_req);
 static unsigned int startup_irq(unsigned int irq);
@@ -446,7 +446,6 @@ void __init arch_init_irq(void)
 	extern int au1xxx_ic0_nr_irqs;
 
 	cp0_status = read_c0_status();
-	set_except_vector(0, au1000_IRQ);
 
 	/* Initialize interrupt controllers to a safe state.
 	*/
@@ -661,3 +660,21 @@ restore_au1xxx_intctl(void)
 	au_writel(sleep_intctl_mask[0], IC0_MASKSET); au_sync();
 }
 #endif /* CONFIG_PM */
+
+asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
+{
+	unsigned int pending = read_c0_status() & read_c0_cause() & ST0_IM;
+
+	if (pending & CAUSEF_IP7)
+		mips_timer_interrupt(regs);
+	else if (pending & CAUSEF_IP2)
+		intc0_req0_irqdispatch(regs);
+	else if (pending & CAUSEF_IP3)
+		intc0_req1_irqdispatch(regs);
+	else if (pending & CAUSEF_IP4)
+		intc1_req0_irqdispatch(regs);
+	else if (pending  & CAUSEF_IP5)
+		intc1_req1_irqdispatch(regs);
+	else
+		spurious_interrupt(regs);
+}

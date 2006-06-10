@@ -1500,20 +1500,18 @@ uart_block_til_ready(struct file *filp, struct uart_state *state)
 static struct uart_state *uart_get(struct uart_driver *drv, int line)
 {
 	struct uart_state *state;
+	int ret = 0;
 
-	mutex_lock(&port_mutex);
 	state = drv->state + line;
 	if (mutex_lock_interruptible(&state->mutex)) {
-		state = ERR_PTR(-ERESTARTSYS);
-		goto out;
+		ret = -ERESTARTSYS;
+		goto err;
 	}
 
 	state->count++;
-	if (!state->port) {
-		state->count--;
-		mutex_unlock(&state->mutex);
-		state = ERR_PTR(-ENXIO);
-		goto out;
+	if (!state->port || state->port->flags & UPF_DEAD) {
+		ret = -ENXIO;
+		goto err_unlock;
 	}
 
 	if (!state->info) {
@@ -1531,15 +1529,17 @@ static struct uart_state *uart_get(struct uart_driver *drv, int line)
 			tasklet_init(&state->info->tlet, uart_tasklet_action,
 				     (unsigned long)state);
 		} else {
-			state->count--;
-			mutex_unlock(&state->mutex);
-			state = ERR_PTR(-ENOMEM);
+			ret = -ENOMEM;
+			goto err_unlock;
 		}
 	}
-
- out:
-	mutex_unlock(&port_mutex);
 	return state;
+
+ err_unlock:
+	state->count--;
+	mutex_unlock(&state->mutex);
+ err:
+	return ERR_PTR(ret);
 }
 
 /*
@@ -1907,9 +1907,12 @@ uart_set_options(struct uart_port *port, struct console *co,
 static void uart_change_pm(struct uart_state *state, int pm_state)
 {
 	struct uart_port *port = state->port;
-	if (port->ops->pm)
-		port->ops->pm(port, pm_state, state->pm_state);
-	state->pm_state = pm_state;
+
+	if (state->pm_state != pm_state) {
+		if (port->ops->pm)
+			port->ops->pm(port, pm_state, state->pm_state);
+		state->pm_state = pm_state;
+	}
 }
 
 int uart_suspend_port(struct uart_driver *drv, struct uart_port *port)
@@ -2085,45 +2088,6 @@ uart_configure_port(struct uart_driver *drv, struct uart_state *state,
 	}
 }
 
-/*
- * This reverses the effects of uart_configure_port, hanging up the
- * port before removal.
- */
-static void
-uart_unconfigure_port(struct uart_driver *drv, struct uart_state *state)
-{
-	struct uart_port *port = state->port;
-	struct uart_info *info = state->info;
-
-	if (info && info->tty)
-		tty_vhangup(info->tty);
-
-	mutex_lock(&state->mutex);
-
-	state->info = NULL;
-
-	/*
-	 * Free the port IO and memory resources, if any.
-	 */
-	if (port->type != PORT_UNKNOWN)
-		port->ops->release_port(port);
-
-	/*
-	 * Indicate that there isn't a port here anymore.
-	 */
-	port->type = PORT_UNKNOWN;
-
-	/*
-	 * Kill the tasklet, and free resources.
-	 */
-	if (info) {
-		tasklet_kill(&info->tlet);
-		kfree(info);
-	}
-
-	mutex_unlock(&state->mutex);
-}
-
 static struct tty_operations uart_ops = {
 	.open		= uart_open,
 	.close		= uart_close,
@@ -2270,6 +2234,7 @@ int uart_add_one_port(struct uart_driver *drv, struct uart_port *port)
 	state = drv->state + port->line;
 
 	mutex_lock(&port_mutex);
+	mutex_lock(&state->mutex);
 	if (state->port) {
 		ret = -EINVAL;
 		goto out;
@@ -2304,7 +2269,13 @@ int uart_add_one_port(struct uart_driver *drv, struct uart_port *port)
 	    port->cons && !(port->cons->flags & CON_ENABLED))
 		register_console(port->cons);
 
+	/*
+	 * Ensure UPF_DEAD is not set.
+	 */
+	port->flags &= ~UPF_DEAD;
+
  out:
+	mutex_unlock(&state->mutex);
 	mutex_unlock(&port_mutex);
 
 	return ret;
@@ -2322,6 +2293,7 @@ int uart_add_one_port(struct uart_driver *drv, struct uart_port *port)
 int uart_remove_one_port(struct uart_driver *drv, struct uart_port *port)
 {
 	struct uart_state *state = drv->state + port->line;
+	struct uart_info *info;
 
 	BUG_ON(in_interrupt());
 
@@ -2332,11 +2304,48 @@ int uart_remove_one_port(struct uart_driver *drv, struct uart_port *port)
 	mutex_lock(&port_mutex);
 
 	/*
+	 * Mark the port "dead" - this prevents any opens from
+	 * succeeding while we shut down the port.
+	 */
+	mutex_lock(&state->mutex);
+	port->flags |= UPF_DEAD;
+	mutex_unlock(&state->mutex);
+
+	/*
 	 * Remove the devices from devfs
 	 */
 	tty_unregister_device(drv->tty_driver, port->line);
 
-	uart_unconfigure_port(drv, state);
+	info = state->info;
+	if (info && info->tty)
+		tty_vhangup(info->tty);
+
+	/*
+	 * All users of this port should now be disconnected from
+	 * this driver, and the port shut down.  We should be the
+	 * only thread fiddling with this port from now on.
+	 */
+	state->info = NULL;
+
+	/*
+	 * Free the port IO and memory resources, if any.
+	 */
+	if (port->type != PORT_UNKNOWN)
+		port->ops->release_port(port);
+
+	/*
+	 * Indicate that there isn't a port here anymore.
+	 */
+	port->type = PORT_UNKNOWN;
+
+	/*
+	 * Kill the tasklet, and free resources.
+	 */
+	if (info) {
+		tasklet_kill(&info->tlet);
+		kfree(info);
+	}
+
 	state->port = NULL;
 	mutex_unlock(&port_mutex);
 

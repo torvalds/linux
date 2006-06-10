@@ -88,34 +88,34 @@ void __kprobes arch_remove_kprobe(struct kprobe *p)
 	mutex_unlock(&kprobe_mutex);
 }
 
-static inline void prepare_singlestep(struct kprobe *p, struct pt_regs *regs)
+static void __kprobes prepare_singlestep(struct kprobe *p, struct pt_regs *regs)
 {
-	kprobe_opcode_t insn = *p->ainsn.insn;
-
 	regs->msr |= MSR_SE;
 
-	/* single step inline if it is a trap variant */
-	if (is_trap(insn))
-		regs->nip = (unsigned long)p->addr;
-	else
-		regs->nip = (unsigned long)p->ainsn.insn;
+	/*
+	 * On powerpc we should single step on the original
+	 * instruction even if the probed insn is a trap
+	 * variant as values in regs could play a part in
+	 * if the trap is taken or not
+	 */
+	regs->nip = (unsigned long)p->ainsn.insn;
 }
 
-static inline void save_previous_kprobe(struct kprobe_ctlblk *kcb)
+static void __kprobes save_previous_kprobe(struct kprobe_ctlblk *kcb)
 {
 	kcb->prev_kprobe.kp = kprobe_running();
 	kcb->prev_kprobe.status = kcb->kprobe_status;
 	kcb->prev_kprobe.saved_msr = kcb->kprobe_saved_msr;
 }
 
-static inline void restore_previous_kprobe(struct kprobe_ctlblk *kcb)
+static void __kprobes restore_previous_kprobe(struct kprobe_ctlblk *kcb)
 {
 	__get_cpu_var(current_kprobe) = kcb->prev_kprobe.kp;
 	kcb->kprobe_status = kcb->prev_kprobe.status;
 	kcb->kprobe_saved_msr = kcb->prev_kprobe.saved_msr;
 }
 
-static inline void set_current_kprobe(struct kprobe *p, struct pt_regs *regs,
+static void __kprobes set_current_kprobe(struct kprobe *p, struct pt_regs *regs,
 				struct kprobe_ctlblk *kcb)
 {
 	__get_cpu_var(current_kprobe) = p;
@@ -141,7 +141,7 @@ void __kprobes arch_prepare_kretprobe(struct kretprobe *rp,
 	}
 }
 
-static inline int kprobe_handler(struct pt_regs *regs)
+static int __kprobes kprobe_handler(struct pt_regs *regs)
 {
 	struct kprobe *p;
 	int ret = 0;
@@ -334,7 +334,7 @@ static void __kprobes resume_execution(struct kprobe *p, struct pt_regs *regs)
 		regs->nip = (unsigned long)p->addr + 4;
 }
 
-static inline int post_kprobe_handler(struct pt_regs *regs)
+static int __kprobes post_kprobe_handler(struct pt_regs *regs)
 {
 	struct kprobe *cur = kprobe_running();
 	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
@@ -370,7 +370,7 @@ out:
 	return 1;
 }
 
-static inline int kprobe_fault_handler(struct pt_regs *regs, int trapnr)
+static int __kprobes kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 {
 	struct kprobe *cur = kprobe_running();
 	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();

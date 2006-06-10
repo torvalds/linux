@@ -113,13 +113,13 @@ struct ppc_sys_spec ppc_sys_specs[] = {
 		.ppc_sys_name	= "8248",
 		.mask		= 0x0000ff00,
 		.value		= 0x00000c00,
-		.num_devices	= 11,
+		.num_devices	= 12,
 		.device_list = (enum ppc_sys_devices[])
 		{
 			MPC82xx_CPM_FCC1, MPC82xx_CPM_FCC2, MPC82xx_CPM_SCC1,
-			MPC82xx_CPM_SCC2, MPC82xx_CPM_SCC3, MPC82xx_CPM_SMC1,
-			MPC82xx_CPM_SMC2, MPC82xx_CPM_SPI, MPC82xx_CPM_I2C,
-			MPC82xx_CPM_USB, MPC82xx_SEC1,
+			MPC82xx_CPM_SCC2, MPC82xx_CPM_SCC3, MPC82xx_CPM_SCC4,
+			MPC82xx_CPM_SMC1, MPC82xx_CPM_SMC2, MPC82xx_CPM_SPI,
+			MPC82xx_CPM_I2C, MPC82xx_CPM_USB, MPC82xx_SEC1,
 		},
 	},
 	{
@@ -139,13 +139,13 @@ struct ppc_sys_spec ppc_sys_specs[] = {
 		.ppc_sys_name	= "8272",
 		.mask		= 0x0000ff00,
 		.value		= 0x00000c00,
-		.num_devices	= 11,
+		.num_devices	= 12,
 		.device_list = (enum ppc_sys_devices[])
 		{
 			MPC82xx_CPM_FCC1, MPC82xx_CPM_FCC2, MPC82xx_CPM_SCC1,
-			MPC82xx_CPM_SCC2, MPC82xx_CPM_SCC3, MPC82xx_CPM_SMC1,
-			MPC82xx_CPM_SMC2, MPC82xx_CPM_SPI, MPC82xx_CPM_I2C,
-			MPC82xx_CPM_USB, MPC82xx_SEC1,
+			MPC82xx_CPM_SCC2, MPC82xx_CPM_SCC3, MPC82xx_CPM_SCC4,
+			MPC82xx_CPM_SMC1, MPC82xx_CPM_SMC2, MPC82xx_CPM_SPI,
+			MPC82xx_CPM_I2C, MPC82xx_CPM_USB, MPC82xx_SEC1,
 		},
 	},
 	/* below is a list of the 8280 family of processors */

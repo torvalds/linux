@@ -92,7 +92,7 @@ void __restore_processor_state(struct saved_context *ctxt)
 	write_cr4(ctxt->cr4);
 	write_cr3(ctxt->cr3);
 	write_cr2(ctxt->cr2);
-	write_cr2(ctxt->cr0);
+	write_cr0(ctxt->cr0);
 
 	/*
 	 * now restore the descriptor tables to their proper values

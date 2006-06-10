@@ -651,7 +651,7 @@ void __init mem_init(void)
  * Specifically, in the case of x86, we will always add
  * memory to the highmem for now.
  */
-#ifdef CONFIG_HOTPLUG_MEMORY
+#ifdef CONFIG_MEMORY_HOTPLUG
 #ifndef CONFIG_NEED_MULTIPLE_NODES
 int add_memory(u64 start, u64 size)
 {

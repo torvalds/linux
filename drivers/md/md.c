@@ -163,8 +163,18 @@ void md_new_event(mddev_t *mddev)
 {
 	atomic_inc(&md_event_count);
 	wake_up(&md_event_waiters);
+	sysfs_notify(&mddev->kobj, NULL, "sync_action");
 }
 EXPORT_SYMBOL_GPL(md_new_event);
+
+/* Alternate version that can be called from interrupts
+ * when calling sysfs_notify isn't needed.
+ */
+void md_new_event_inintr(mddev_t *mddev)
+{
+	atomic_inc(&md_event_count);
+	wake_up(&md_event_waiters);
+}
 
 /*
  * Enables to iterate over all existing md arrays
@@ -276,11 +286,6 @@ static mddev_t * mddev_find(dev_t unit)
 static inline int mddev_lock(mddev_t * mddev)
 {
 	return mutex_lock_interruptible(&mddev->reconfig_mutex);
-}
-
-static inline void mddev_lock_uninterruptible(mddev_t * mddev)
-{
-	mutex_lock(&mddev->reconfig_mutex);
 }
 
 static inline int mddev_trylock(mddev_t * mddev)
@@ -2256,7 +2261,7 @@ action_store(mddev_t *mddev, const char *page, size_t len)
 	} else {
 		if (cmd_match(page, "check"))
 			set_bit(MD_RECOVERY_CHECK, &mddev->recovery);
-		else if (cmd_match(page, "repair"))
+		else if (!cmd_match(page, "repair"))
 			return -EINVAL;
 		set_bit(MD_RECOVERY_REQUESTED, &mddev->recovery);
 		set_bit(MD_RECOVERY_SYNC, &mddev->recovery);
@@ -2457,9 +2462,11 @@ md_attr_show(struct kobject *kobj, struct attribute *attr, char *page)
 
 	if (!entry->show)
 		return -EIO;
-	mddev_lock(mddev);
-	rv = entry->show(mddev, page);
-	mddev_unlock(mddev);
+	rv = mddev_lock(mddev);
+	if (!rv) {
+		rv = entry->show(mddev, page);
+		mddev_unlock(mddev);
+	}
 	return rv;
 }
 
@@ -2473,9 +2480,11 @@ md_attr_store(struct kobject *kobj, struct attribute *attr,
 
 	if (!entry->store)
 		return -EIO;
-	mddev_lock(mddev);
-	rv = entry->store(mddev, page, length);
-	mddev_unlock(mddev);
+	rv = mddev_lock(mddev);
+	if (!rv) {
+		rv = entry->store(mddev, page, length);
+		mddev_unlock(mddev);
+	}
 	return rv;
 }
 
@@ -4149,7 +4158,7 @@ void md_error(mddev_t *mddev, mdk_rdev_t *rdev)
 	set_bit(MD_RECOVERY_INTR, &mddev->recovery);
 	set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
 	md_wakeup_thread(mddev->thread);
-	md_new_event(mddev);
+	md_new_event_inintr(mddev);
 }
 
 /* seq_file implementation /proc/mdstat */
@@ -4340,8 +4349,9 @@ static int md_seq_show(struct seq_file *seq, void *v)
 		return 0;
 	}
 
-	if (mddev_lock(mddev)!=0) 
+	if (mddev_lock(mddev) < 0)
 		return -EINTR;
+
 	if (mddev->pers || mddev->raid_disks || !list_empty(&mddev->disks)) {
 		seq_printf(seq, "%s : %sactive", mdname(mddev),
 						mddev->pers ? "" : "in");
@@ -5027,8 +5037,10 @@ static int md_notify_reboot(struct notifier_block *this,
 		printk(KERN_INFO "md: stopping all md devices.\n");
 
 		ITERATE_MDDEV(mddev,tmp)
-			if (mddev_trylock(mddev))
+			if (mddev_trylock(mddev)) {
 				do_md_stop (mddev, 1);
+				mddev_unlock(mddev);
+			}
 		/*
 		 * certain more exotic SCSI devices are known to be
 		 * volatile wrt too early system reboots. While the

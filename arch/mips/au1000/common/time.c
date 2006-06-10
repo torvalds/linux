@@ -116,6 +116,7 @@ void mips_timer_interrupt(struct pt_regs *regs)
 
 null:
 	ack_r4ktimer(0);
+	irq_exit();
 }
 
 #ifdef CONFIG_PM

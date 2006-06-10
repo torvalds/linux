@@ -23,7 +23,7 @@ sys_call_table:
 /*10*/  .long sys_unlink, sunos_execv, sys_chdir, sys_chown16, sys_mknod
 /*15*/	.long sys_chmod, sys_lchown16, sparc_brk, sys_nis_syscall, sys_lseek
 /*20*/	.long sys_getpid, sys_capget, sys_capset, sys_setuid16, sys_getuid16
-/*25*/	.long sys_time, sys_ptrace, sys_alarm, sys_sigaltstack, sys_pause
+/*25*/	.long sys_vmsplice, sys_ptrace, sys_alarm, sys_sigaltstack, sys_pause
 /*30*/	.long sys_utime, sys_lchown, sys_fchown, sys_access, sys_nice
 /*35*/	.long sys_chown, sys_sync, sys_kill, sys_newstat, sys_sendfile
 /*40*/	.long sys_newlstat, sys_dup, sys_pipe, sys_times, sys_getuid
@@ -75,10 +75,11 @@ sys_call_table:
 /*265*/	.long sys_timer_delete, sys_timer_create, sys_nis_syscall, sys_io_setup, sys_io_destroy
 /*270*/	.long sys_io_submit, sys_io_cancel, sys_io_getevents, sys_mq_open, sys_mq_unlink
 /*275*/	.long sys_mq_timedsend, sys_mq_timedreceive, sys_mq_notify, sys_mq_getsetattr, sys_waitid
-/*280*/	.long sys_ni_syscall, sys_add_key, sys_request_key, sys_keyctl, sys_openat
+/*280*/	.long sys_tee, sys_add_key, sys_request_key, sys_keyctl, sys_openat
 /*285*/	.long sys_mkdirat, sys_mknodat, sys_fchownat, sys_futimesat, sys_fstatat64
 /*290*/	.long sys_unlinkat, sys_renameat, sys_linkat, sys_symlinkat, sys_readlinkat
 /*295*/	.long sys_fchmodat, sys_faccessat, sys_pselect6, sys_ppoll, sys_unshare
+/*300*/	.long sys_set_robust_list, sys_get_robust_list
 
 #ifdef CONFIG_SUNOS_EMUL
 	/* Now the SunOS syscall table. */
@@ -190,6 +191,6 @@ sunos_sys_table:
 /*290*/	.long sunos_nosys, sunos_nosys, sunos_nosys
 	.long sunos_nosys, sunos_nosys, sunos_nosys
 	.long sunos_nosys, sunos_nosys, sunos_nosys
-	.long sunos_nosys
+	.long sunos_nosys, sunos_nosys, sunos_nosys
 
 #endif

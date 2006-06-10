@@ -68,7 +68,7 @@
 
 #include "usbatm.h"
 
-#define EAGLEUSBVERSION "ueagle 1.2"
+#define EAGLEUSBVERSION "ueagle 1.3"
 
 
 /*
@@ -243,7 +243,7 @@ enum {
 #define BULK_TIMEOUT 300
 #define CTRL_TIMEOUT 1000
 
-#define ACK_TIMEOUT msecs_to_jiffies(1500)
+#define ACK_TIMEOUT msecs_to_jiffies(3000)
 
 #define UEA_INTR_IFACE_NO 	0
 #define UEA_US_IFACE_NO		1
@@ -314,6 +314,10 @@ struct cmv {
 	 ((d) & 0xff) << 16 |						\
 	 ((a) & 0xff) << 8  |						\
 	 ((b) & 0xff))
+#define GETSA1(a) ((a >> 8) & 0xff)
+#define GETSA2(a) (a & 0xff)
+#define GETSA3(a) ((a >> 24) & 0xff)
+#define GETSA4(a) ((a >> 16) & 0xff)
 
 #define SA_CNTL MAKESA('C', 'N', 'T', 'L')
 #define SA_DIAG MAKESA('D', 'I', 'A', 'G')
@@ -728,11 +732,12 @@ bad2:
 	uea_err(INS_TO_USBDEV(sc), "sending DSP block %u failed\n", i);
 	return;
 bad1:
-	uea_err(INS_TO_USBDEV(sc), "invalid DSP page %u requested\n",pageno);
+	uea_err(INS_TO_USBDEV(sc), "invalid DSP page %u requested\n", pageno);
 }
 
 static inline void wake_up_cmv_ack(struct uea_softc *sc)
 {
+	BUG_ON(sc->cmv_ack);
 	sc->cmv_ack = 1;
 	wake_up(&sc->cmv_ack_wait);
 }
@@ -742,6 +747,9 @@ static inline int wait_cmv_ack(struct uea_softc *sc)
 	int ret = wait_event_timeout(sc->cmv_ack_wait,
 						   sc->cmv_ack, ACK_TIMEOUT);
 	sc->cmv_ack = 0;
+
+	uea_dbg(INS_TO_USBDEV(sc), "wait_event_timeout : %d ms\n",
+			jiffies_to_msecs(ret));
 
 	if (ret < 0)
 		return ret;
@@ -791,6 +799,12 @@ static int uea_cmv(struct uea_softc *sc,
 	struct cmv cmv;
 	int ret;
 
+	uea_enters(INS_TO_USBDEV(sc));
+	uea_vdbg(INS_TO_USBDEV(sc), "Function : %d-%d, Address : %c%c%c%c, "
+			"offset : 0x%04x, data : 0x%08x\n",
+			FUNCTION_TYPE(function), FUNCTION_SUBTYPE(function),
+			GETSA1(address), GETSA2(address), GETSA3(address),
+			GETSA4(address), offset, data);
 	/* we send a request, but we expect a reply */
 	sc->cmv_function = function | 0x2;
 	sc->cmv_idx++;
@@ -808,7 +822,9 @@ static int uea_cmv(struct uea_softc *sc,
 	ret = uea_request(sc, UEA_SET_BLOCK, UEA_MPTX_START, CMV_SIZE, &cmv);
 	if (ret < 0)
 		return ret;
-	return wait_cmv_ack(sc);
+	ret = wait_cmv_ack(sc);
+	uea_leaves(INS_TO_USBDEV(sc));
+	return ret;
 }
 
 static inline int uea_read_cmv(struct uea_softc *sc,
@@ -922,7 +938,7 @@ static int uea_stat(struct uea_softc *sc)
 	 * we check the status again in order to detect the failure earlier
 	 */
 	if (sc->stats.phy.flags) {
-		uea_dbg(INS_TO_USBDEV(sc), "Stat flag = %d\n",
+		uea_dbg(INS_TO_USBDEV(sc), "Stat flag = 0x%x\n",
 		       sc->stats.phy.flags);
 		return 0;
 	}
@@ -1063,7 +1079,13 @@ static int uea_start_reset(struct uea_softc *sc)
 	uea_enters(INS_TO_USBDEV(sc));
 	uea_info(INS_TO_USBDEV(sc), "(re)booting started\n");
 
+	/* mask interrupt */
 	sc->booting = 1;
+	/* We need to set this here because, a ack timeout could have occured,
+	 * but before we start the reboot, the ack occurs and set this to 1.
+	 * So we will failed to wait Ready CMV.
+	 */
+	sc->cmv_ack = 0;
 	UPDATE_ATM_STAT(signal, ATM_PHY_SIG_LOST);
 
 	/* reset statistics */
@@ -1089,6 +1111,7 @@ static int uea_start_reset(struct uea_softc *sc)
 
 	msleep(1000);
 	sc->cmv_function = MAKEFUNCTION(ADSLDIRECTIVE, MODEMREADY);
+	/* demask interrupt */
 	sc->booting = 0;
 
 	/* start loading DSP */
@@ -1100,6 +1123,8 @@ static int uea_start_reset(struct uea_softc *sc)
 	ret = wait_cmv_ack(sc);
 	if (ret < 0)
 		return ret;
+
+	uea_vdbg(INS_TO_USBDEV(sc), "Ready CMV received\n");
 
 	/* Enter in R-IDLE (cmv) until instructed otherwise */
 	ret = uea_write_cmv(sc, SA_CNTL, 0, 1);
@@ -1121,6 +1146,7 @@ static int uea_start_reset(struct uea_softc *sc)
 	}
 	/* Enter in R-ACT-REQ */
 	ret = uea_write_cmv(sc, SA_CNTL, 0, 2);
+	uea_vdbg(INS_TO_USBDEV(sc), "Entering in R-ACT-REQ state\n");
 out:
 	release_firmware(cmvs_fw);
 	sc->reset = 0;
@@ -1235,6 +1261,7 @@ static void uea_dispatch_cmv(struct uea_softc *sc, struct cmv* cmv)
 
 	if (cmv->bFunction == MAKEFUNCTION(ADSLDIRECTIVE, MODEMREADY)) {
 		wake_up_cmv_ack(sc);
+		uea_leaves(INS_TO_USBDEV(sc));
 		return;
 	}
 
@@ -1249,6 +1276,7 @@ static void uea_dispatch_cmv(struct uea_softc *sc, struct cmv* cmv)
 	sc->data = sc->data << 16 | sc->data >> 16;
 
 	wake_up_cmv_ack(sc);
+	uea_leaves(INS_TO_USBDEV(sc));
 	return;
 
 bad2:
@@ -1256,12 +1284,14 @@ bad2:
 			"Function : %d, Subfunction : %d\n",
 			FUNCTION_TYPE(cmv->bFunction),
 			FUNCTION_SUBTYPE(cmv->bFunction));
+	uea_leaves(INS_TO_USBDEV(sc));
 	return;
 
 bad1:
 	uea_err(INS_TO_USBDEV(sc), "invalid cmv received, "
 			"wPreamble %d, bDirection %d\n",
 			le16_to_cpu(cmv->wPreamble), cmv->bDirection);
+	uea_leaves(INS_TO_USBDEV(sc));
 }
 
 /*
@@ -1346,7 +1376,7 @@ static int uea_boot(struct uea_softc *sc)
 	if (ret < 0) {
 		uea_err(INS_TO_USBDEV(sc),
 		       "urb submition failed with error %d\n", ret);
-		goto err1;
+		goto err;
 	}
 
 	sc->kthread = kthread_run(uea_kthread, sc, "ueagle-atm");
@@ -1360,10 +1390,10 @@ static int uea_boot(struct uea_softc *sc)
 
 err2:
 	usb_kill_urb(sc->urb_int);
-err1:
-	kfree(intr);
 err:
 	usb_free_urb(sc->urb_int);
+	sc->urb_int = NULL;
+	kfree(intr);
 	uea_leaves(INS_TO_USBDEV(sc));
 	return -ENOMEM;
 }
@@ -1508,7 +1538,7 @@ static ssize_t read_##name(struct device *dev, 			\
 	int ret = -ENODEV; 					\
 	struct uea_softc *sc; 					\
  								\
-	mutex_lock(&uea_mutex); 					\
+	mutex_lock(&uea_mutex); 				\
 	sc = dev_to_uea(dev);					\
 	if (!sc) 						\
 		goto out; 					\
@@ -1516,7 +1546,7 @@ static ssize_t read_##name(struct device *dev, 			\
 	if (reset)						\
 		sc->stats.phy.name = 0;				\
 out: 								\
-	mutex_unlock(&uea_mutex); 					\
+	mutex_unlock(&uea_mutex); 				\
 	return ret; 						\
 } 								\
 								\
@@ -1643,7 +1673,7 @@ static int uea_bind(struct usbatm_data *usbatm, struct usb_interface *intf,
 
 	sc = kzalloc(sizeof(struct uea_softc), GFP_KERNEL);
 	if (!sc) {
-		uea_err(INS_TO_USBDEV(sc), "uea_init: not enough memory !\n");
+		uea_err(usb, "uea_init: not enough memory !\n");
 		return -ENOMEM;
 	}
 

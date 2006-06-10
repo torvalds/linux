@@ -589,7 +589,7 @@ static int sw_connect(struct gameport *gameport, struct gameport_driver *drv)
 	struct sw *sw;
 	struct input_dev *input_dev;
 	int i, j, k, l;
-	int err;
+	int err = 0;
 	unsigned char *buf = NULL;	/* [SW_LENGTH] */
 	unsigned char *idbuf = NULL;	/* [SW_LENGTH] */
 	unsigned char m = 1;
@@ -776,7 +776,10 @@ static int sw_connect(struct gameport *gameport, struct gameport_driver *drv)
 			goto fail4;
 	}
 
-	return 0;
+ out:	kfree(buf);
+	kfree(idbuf);
+
+	return err;
 
  fail4:	input_free_device(sw->dev[i]);
  fail3:	while (--i >= 0)
@@ -784,9 +787,7 @@ static int sw_connect(struct gameport *gameport, struct gameport_driver *drv)
  fail2:	gameport_close(gameport);
  fail1:	gameport_set_drvdata(gameport, NULL);
 	kfree(sw);
-	kfree(buf);
-	kfree(idbuf);
-	return err;
+	goto out;
 }
 
 static void sw_disconnect(struct gameport *gameport)

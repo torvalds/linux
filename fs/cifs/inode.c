@@ -722,9 +722,7 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, int mode)
 	cifs_sb = CIFS_SB(inode->i_sb);
 	pTcon = cifs_sb->tcon;
 
-	mutex_lock(&inode->i_sb->s_vfs_rename_mutex);
 	full_path = build_path_from_dentry(direntry);
-	mutex_unlock(&inode->i_sb->s_vfs_rename_mutex);
 	if (full_path == NULL) {
 		FreeXid(xid);
 		return -ENOMEM;
@@ -807,9 +805,7 @@ int cifs_rmdir(struct inode *inode, struct dentry *direntry)
 	cifs_sb = CIFS_SB(inode->i_sb);
 	pTcon = cifs_sb->tcon;
 
-	mutex_lock(&inode->i_sb->s_vfs_rename_mutex);
 	full_path = build_path_from_dentry(direntry);
-	mutex_unlock(&inode->i_sb->s_vfs_rename_mutex);
 	if (full_path == NULL) {
 		FreeXid(xid);
 		return -ENOMEM;
@@ -1141,9 +1137,7 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 			rc = 0;
 	}
 		
-	mutex_lock(&direntry->d_sb->s_vfs_rename_mutex);
 	full_path = build_path_from_dentry(direntry);
-	mutex_unlock(&direntry->d_sb->s_vfs_rename_mutex);
 	if (full_path == NULL) {
 		FreeXid(xid);
 		return -ENOMEM;

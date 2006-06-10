@@ -48,7 +48,41 @@
 #include <asm/mipsregs.h>
 #include <asm/system.h>
 
-extern asmlinkage void ocelot_handle_int(void);
+asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
+{
+	unsigned int pending = read_c0_cause() & read_c0_status();
+
+	if (pending & STATUSF_IP2)
+		do_IRQ(2, regs);
+	else if (pending & STATUSF_IP3)
+		do_IRQ(3, regs);
+	else if (pending & STATUSF_IP4)
+		do_IRQ(4, regs);
+	else if (pending & STATUSF_IP5)
+		do_IRQ(5, regs);
+	else if (pending & STATUSF_IP6)
+		do_IRQ(6, regs);
+	else if (pending & STATUSF_IP7)
+		do_IRQ(7, regs);
+	else {
+		/*
+		 * Now look at the extended interrupts
+		 */
+		pending = (read_c0_cause() & (read_c0_intcontrol() << 8)) >> 16;
+
+		if (pending & STATUSF_IP8)
+			do_IRQ(8, regs);
+		else if (pending & STATUSF_IP9)
+			do_IRQ(9, regs);
+		else if (pending & STATUSF_IP10)
+			do_IRQ(10, regs);
+		else if (pending & STATUSF_IP11)
+			do_IRQ(11, regs);
+		else
+			spurious_interrupt(regs);
+	}
+}
+
 extern void gt64240_irq_init(void);
 
 void __init arch_init_irq(void)
@@ -60,8 +94,6 @@ void __init arch_init_irq(void)
 	clear_c0_status(ST0_IM);
 	local_irq_disable();
 
-	/* Sets the first-level interrupt dispatcher. */
-	set_except_vector(0, ocelot_handle_int);
 	mips_cpu_irq_init(0);
 	rm7k_cpu_irq_init(8);
 

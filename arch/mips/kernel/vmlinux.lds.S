@@ -2,7 +2,7 @@
 #include <asm/asm-offsets.h>
 #include <asm-generic/vmlinux.lds.h>
 
-#undef mips		/* CPP really sucks for this job  */
+#undef mips
 #define mips mips
 OUTPUT_ARCH(mips)
 ENTRY(kernel_entry)
@@ -151,23 +151,13 @@ SECTIONS
 
   /* This is the MIPS specific mdebug section.  */
   .mdebug : { *(.mdebug) }
-  /* These are needed for ELF backends which have not yet been
-     converted to the new style linker.  */
-  .stab 0 : { *(.stab) }
-  .stabstr 0 : { *(.stabstr) }
-  /* DWARF debug sections.
-     Symbols in the .debug DWARF section are relative to the beginning of the
-     section so we begin .debug at 0.  It's not clear yet what needs to happen
-     for the others.   */
-  .debug          0 : { *(.debug) }
-  .debug_srcinfo  0 : { *(.debug_srcinfo) }
-  .debug_aranges  0 : { *(.debug_aranges) }
-  .debug_pubnames 0 : { *(.debug_pubnames) }
-  .debug_sfnames  0 : { *(.debug_sfnames) }
-  .line           0 : { *(.line) }
+
+  STABS_DEBUG
+
+  DWARF_DEBUG
+
   /* These must appear regardless of  .  */
   .gptab.sdata : { *(.gptab.data) *(.gptab.sdata) }
   .gptab.sbss : { *(.gptab.bss) *(.gptab.sbss) }
-  .comment : { *(.comment) }
   .note : { *(.note) }
 }

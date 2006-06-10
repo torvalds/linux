@@ -101,7 +101,6 @@ void set_irq_affinity_info (unsigned int irq, int hwid, int redir)
 
 	if (irq < NR_IRQS) {
 		irq_affinity[irq] = mask;
-		set_irq_info(irq, mask);
 		irq_redir[irq] = (char) (redir & 0xff);
 	}
 }

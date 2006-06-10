@@ -433,8 +433,7 @@ struct net_device
 
 	/* register/unregister state machine */
 	enum { NETREG_UNINITIALIZED=0,
-	       NETREG_REGISTERING,	/* called register_netdevice */
-	       NETREG_REGISTERED,	/* completed register todo */
+	       NETREG_REGISTERED,	/* completed register_netdevice */
 	       NETREG_UNREGISTERING,	/* called unregister_netdevice */
 	       NETREG_UNREGISTERED,	/* completed unregister todo */
 	       NETREG_RELEASED,		/* called free_netdev */
@@ -506,6 +505,8 @@ struct net_device
 
 	/* class/net/name entry */
 	struct class_device	class_dev;
+	/* space for optional statistics and wireless sysfs groups */
+	struct attribute_group  *sysfs_groups[3];
 };
 
 #define	NETDEV_ALIGN		32

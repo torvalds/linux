@@ -911,7 +911,6 @@ static inline int pid_alive(struct task_struct *p)
 extern void free_task(struct task_struct *tsk);
 #define get_task_struct(tsk) do { atomic_inc(&(tsk)->usage); } while(0)
 
-extern void __put_task_struct_cb(struct rcu_head *rhp);
 extern void __put_task_struct(struct task_struct *t);
 
 static inline void put_task_struct(struct task_struct *t)
@@ -1193,8 +1192,7 @@ extern void wait_task_inactive(task_t * p);
 #define remove_parent(p)	list_del_init(&(p)->sibling)
 #define add_parent(p)		list_add_tail(&(p)->sibling,&(p)->parent->children)
 
-#define next_task(p)	list_entry((p)->tasks.next, struct task_struct, tasks)
-#define prev_task(p)	list_entry((p)->tasks.prev, struct task_struct, tasks)
+#define next_task(p)	list_entry(rcu_dereference((p)->tasks.next), struct task_struct, tasks)
 
 #define for_each_process(p) \
 	for (p = &init_task ; (p = next_task(p)) != &init_task ; )

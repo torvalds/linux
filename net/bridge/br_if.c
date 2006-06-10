@@ -300,34 +300,22 @@ int br_add_bridge(const char *name)
 	rtnl_lock();
 	if (strchr(dev->name, '%')) {
 		ret = dev_alloc_name(dev, dev->name);
-		if (ret < 0)
-			goto err1;
+		if (ret < 0) {
+			free_netdev(dev);
+			goto out;
+		}
 	}
 
 	ret = register_netdevice(dev);
 	if (ret)
-		goto err2;
-
-	/* network device kobject is not setup until
-	 * after rtnl_unlock does it's hotplug magic.
-	 * so hold reference to avoid race.
-	 */
-	dev_hold(dev);
-	rtnl_unlock();
+		goto out;
 
 	ret = br_sysfs_addbr(dev);
-	dev_put(dev);
-
-	if (ret) 
-		unregister_netdev(dev);
+	if (ret)
+		unregister_netdevice(dev);
  out:
-	return ret;
-
- err2:
-	free_netdev(dev);
- err1:
 	rtnl_unlock();
-	goto out;
+	return ret;
 }
 
 int br_del_bridge(const char *name)

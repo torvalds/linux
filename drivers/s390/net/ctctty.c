@@ -130,7 +130,7 @@ ctc_tty_readmodem(ctc_tty_info *info)
 	if ((tty = info->tty)) {
 		if (info->mcr & UART_MCR_RTS) {
 			struct sk_buff *skb;
-			
+
 			if ((skb = skb_dequeue(&info->rx_queue))) {
 				int len = skb->len;
 				tty_insert_flip_string(tty, skb->data, len);
@@ -328,7 +328,7 @@ ctc_tty_inject(ctc_tty_info *info, char c)
 {
 	int skb_res;
 	struct sk_buff *skb;
-	
+
 	DBF_TEXT(trace, 4, __FUNCTION__);
 	if (ctc_tty_shuttingdown)
 		return;
@@ -497,7 +497,7 @@ ctc_tty_write(struct tty_struct *tty, const u_char * buf, int count)
 		c = (count < CTC_TTY_XMIT_SIZE) ? count : CTC_TTY_XMIT_SIZE;
 		if (c <= 0)
 			break;
-		
+
 		skb_res = info->netdev->hard_header_len + sizeof(info->mcr) +
 			+ sizeof(__u32);
 		skb = dev_alloc_skb(skb_res + c);
@@ -828,7 +828,7 @@ ctc_tty_block_til_ready(struct tty_struct *tty, struct file *filp, ctc_tty_info 
 	if (tty_hung_up_p(filp) ||
 	    (info->flags & CTC_ASYNC_CLOSING)) {
 		if (info->flags & CTC_ASYNC_CLOSING)
-			wait_event(info->close_wait, 
+			wait_event(info->close_wait,
 				   !(info->flags & CTC_ASYNC_CLOSING));
 #ifdef MODEM_DO_RESTART
 		if (info->flags & CTC_ASYNC_HUP_NOTIFY)
@@ -1247,7 +1247,7 @@ ctc_tty_unregister_netdev(struct net_device *dev) {
 void
 ctc_tty_cleanup(void) {
 	unsigned long saveflags;
-	
+
 	DBF_TEXT(trace, 2, __FUNCTION__);
 	spin_lock_irqsave(&ctc_tty_lock, saveflags);
 	ctc_tty_shuttingdown = 1;

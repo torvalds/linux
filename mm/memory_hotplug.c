@@ -69,12 +69,16 @@ int __add_pages(struct zone *zone, unsigned long phys_start_pfn,
 	for (i = 0; i < nr_pages; i += PAGES_PER_SECTION) {
 		err = __add_section(zone, phys_start_pfn + i);
 
-		if (err)
+		/* We want to keep adding the rest of the
+		 * sections if the first ones already exist
+		 */
+		if (err && (err != -EEXIST))
 			break;
 	}
 
 	return err;
 }
+EXPORT_SYMBOL_GPL(__add_pages);
 
 static void grow_zone_span(struct zone *zone,
 		unsigned long start_pfn, unsigned long end_pfn)
@@ -87,8 +91,8 @@ static void grow_zone_span(struct zone *zone,
 	if (start_pfn < zone->zone_start_pfn)
 		zone->zone_start_pfn = start_pfn;
 
-	if (end_pfn > old_zone_end_pfn)
-		zone->spanned_pages = end_pfn - zone->zone_start_pfn;
+	zone->spanned_pages = max(old_zone_end_pfn, end_pfn) -
+				zone->zone_start_pfn;
 
 	zone_span_writeunlock(zone);
 }
@@ -102,8 +106,8 @@ static void grow_pgdat_span(struct pglist_data *pgdat,
 	if (start_pfn < pgdat->node_start_pfn)
 		pgdat->node_start_pfn = start_pfn;
 
-	if (end_pfn > old_pgdat_end_pfn)
-		pgdat->node_spanned_pages = end_pfn - pgdat->node_start_pfn;
+	pgdat->node_spanned_pages = max(old_pgdat_end_pfn, end_pfn) -
+					pgdat->node_start_pfn;
 }
 
 int online_pages(unsigned long pfn, unsigned long nr_pages)

@@ -228,10 +228,7 @@ struct ib_mad_agent *ib_register_mad_agent(struct ib_device *device,
 				goto error1;
 		}
 		/* Make sure class supplied is consistent with RMPP */
-		if (ib_is_mad_class_rmpp(mad_reg_req->mgmt_class)) {
-			if (!rmpp_version)
-				goto error1;
-		} else {
+		if (!ib_is_mad_class_rmpp(mad_reg_req->mgmt_class)) {
 			if (rmpp_version)
 				goto error1;
 		}
@@ -355,7 +352,7 @@ struct ib_mad_agent *ib_register_mad_agent(struct ib_device *device,
 	INIT_WORK(&mad_agent_priv->local_work, local_completions,
 		   mad_agent_priv);
 	atomic_set(&mad_agent_priv->refcount, 1);
-	init_waitqueue_head(&mad_agent_priv->wait);
+	init_completion(&mad_agent_priv->comp);
 
 	return &mad_agent_priv->agent;
 
@@ -470,7 +467,7 @@ struct ib_mad_agent *ib_register_mad_snoop(struct ib_device *device,
 	mad_snoop_priv->agent.qp = port_priv->qp_info[qpn].qp;
 	mad_snoop_priv->agent.port_num = port_num;
 	mad_snoop_priv->mad_snoop_flags = mad_snoop_flags;
-	init_waitqueue_head(&mad_snoop_priv->wait);
+	init_completion(&mad_snoop_priv->comp);
 	mad_snoop_priv->snoop_index = register_snoop_agent(
 						&port_priv->qp_info[qpn],
 						mad_snoop_priv);
@@ -488,6 +485,18 @@ error1:
 	return ret;
 }
 EXPORT_SYMBOL(ib_register_mad_snoop);
+
+static inline void deref_mad_agent(struct ib_mad_agent_private *mad_agent_priv)
+{
+	if (atomic_dec_and_test(&mad_agent_priv->refcount))
+		complete(&mad_agent_priv->comp);
+}
+
+static inline void deref_snoop_agent(struct ib_mad_snoop_private *mad_snoop_priv)
+{
+	if (atomic_dec_and_test(&mad_snoop_priv->refcount))
+		complete(&mad_snoop_priv->comp);
+}
 
 static void unregister_mad_agent(struct ib_mad_agent_private *mad_agent_priv)
 {
@@ -512,9 +521,8 @@ static void unregister_mad_agent(struct ib_mad_agent_private *mad_agent_priv)
 	flush_workqueue(port_priv->wq);
 	ib_cancel_rmpp_recvs(mad_agent_priv);
 
-	atomic_dec(&mad_agent_priv->refcount);
-	wait_event(mad_agent_priv->wait,
-		   !atomic_read(&mad_agent_priv->refcount));
+	deref_mad_agent(mad_agent_priv);
+	wait_for_completion(&mad_agent_priv->comp);
 
 	kfree(mad_agent_priv->reg_req);
 	ib_dereg_mr(mad_agent_priv->agent.mr);
@@ -532,9 +540,8 @@ static void unregister_mad_snoop(struct ib_mad_snoop_private *mad_snoop_priv)
 	atomic_dec(&qp_info->snoop_count);
 	spin_unlock_irqrestore(&qp_info->snoop_lock, flags);
 
-	atomic_dec(&mad_snoop_priv->refcount);
-	wait_event(mad_snoop_priv->wait,
-		   !atomic_read(&mad_snoop_priv->refcount));
+	deref_snoop_agent(mad_snoop_priv);
+	wait_for_completion(&mad_snoop_priv->comp);
 
 	kfree(mad_snoop_priv);
 }
@@ -603,8 +610,7 @@ static void snoop_send(struct ib_mad_qp_info *qp_info,
 		spin_unlock_irqrestore(&qp_info->snoop_lock, flags);
 		mad_snoop_priv->agent.snoop_handler(&mad_snoop_priv->agent,
 						    send_buf, mad_send_wc);
-		if (atomic_dec_and_test(&mad_snoop_priv->refcount))
-			wake_up(&mad_snoop_priv->wait);
+		deref_snoop_agent(mad_snoop_priv);
 		spin_lock_irqsave(&qp_info->snoop_lock, flags);
 	}
 	spin_unlock_irqrestore(&qp_info->snoop_lock, flags);
@@ -629,8 +635,7 @@ static void snoop_recv(struct ib_mad_qp_info *qp_info,
 		spin_unlock_irqrestore(&qp_info->snoop_lock, flags);
 		mad_snoop_priv->agent.recv_handler(&mad_snoop_priv->agent,
 						   mad_recv_wc);
-		if (atomic_dec_and_test(&mad_snoop_priv->refcount))
-			wake_up(&mad_snoop_priv->wait);
+		deref_snoop_agent(mad_snoop_priv);
 		spin_lock_irqsave(&qp_info->snoop_lock, flags);
 	}
 	spin_unlock_irqrestore(&qp_info->snoop_lock, flags);
@@ -971,8 +976,7 @@ void ib_free_send_mad(struct ib_mad_send_buf *send_buf)
 
 	free_send_rmpp_list(mad_send_wr);
 	kfree(send_buf->mad);
-	if (atomic_dec_and_test(&mad_agent_priv->refcount))
-		wake_up(&mad_agent_priv->wait);
+	deref_mad_agent(mad_agent_priv);
 }
 EXPORT_SYMBOL(ib_free_send_mad);
 
@@ -1760,8 +1764,7 @@ static void ib_mad_complete_recv(struct ib_mad_agent_private *mad_agent_priv,
 		mad_recv_wc = ib_process_rmpp_recv_wc(mad_agent_priv,
 						      mad_recv_wc);
 		if (!mad_recv_wc) {
-			if (atomic_dec_and_test(&mad_agent_priv->refcount))
-				wake_up(&mad_agent_priv->wait);
+			deref_mad_agent(mad_agent_priv);
 			return;
 		}
 	}
@@ -1773,8 +1776,7 @@ static void ib_mad_complete_recv(struct ib_mad_agent_private *mad_agent_priv,
 		if (!mad_send_wr) {
 			spin_unlock_irqrestore(&mad_agent_priv->lock, flags);
 			ib_free_recv_mad(mad_recv_wc);
-			if (atomic_dec_and_test(&mad_agent_priv->refcount))
-				wake_up(&mad_agent_priv->wait);
+			deref_mad_agent(mad_agent_priv);
 			return;
 		}
 		ib_mark_mad_done(mad_send_wr);
@@ -1793,8 +1795,7 @@ static void ib_mad_complete_recv(struct ib_mad_agent_private *mad_agent_priv,
 	} else {
 		mad_agent_priv->agent.recv_handler(&mad_agent_priv->agent,
 						   mad_recv_wc);
-		if (atomic_dec_and_test(&mad_agent_priv->refcount))
-			wake_up(&mad_agent_priv->wait);
+		deref_mad_agent(mad_agent_priv);
 	}
 }
 
@@ -2024,8 +2025,7 @@ void ib_mad_complete_send_wr(struct ib_mad_send_wr_private *mad_send_wr,
 						   mad_send_wc);
 
 	/* Release reference on agent taken when sending */
-	if (atomic_dec_and_test(&mad_agent_priv->refcount))
-		wake_up(&mad_agent_priv->wait);
+	deref_mad_agent(mad_agent_priv);
 	return;
 done:
 	spin_unlock_irqrestore(&mad_agent_priv->lock, flags);

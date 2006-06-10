@@ -180,7 +180,7 @@ static u32 vfp_emulate_instruction(u32 inst, u32 fpscr, struct pt_regs *regs)
 		 * emulate it.
 		 */
 	}
-	return exceptions;
+	return exceptions & ~VFP_NAN_FLAG;
 }
 
 /*
@@ -245,7 +245,7 @@ void VFP9_bounce(u32 trigger, u32 fpexc, struct pt_regs *regs)
 	 */
 	barrier();
 	trigger = fmrx(FPINST2);
-	fpscr = fmrx(FPSCR);
+	orig_fpscr = fpscr = fmrx(FPSCR);
 
  emulate:
 	exceptions = vfp_emulate_instruction(trigger, fpscr, regs);

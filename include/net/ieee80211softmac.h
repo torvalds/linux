@@ -96,10 +96,13 @@ struct ieee80211softmac_assoc_info {
 	 *
 	 * bssvalid is true if we found a matching network
 	 * and saved it's BSSID into the bssid above.
+	 *
+	 * bssfixed is used for SIOCSIWAP.
 	 */
 	u8 static_essid:1,
 	   associating:1,
-	   bssvalid:1;
+	   bssvalid:1,
+	   bssfixed:1;
 
 	/* Scan retries remaining */
 	int scan_retry;
@@ -201,7 +204,8 @@ struct ieee80211softmac_device {
 	
 	/* couple of flags */
 	u8 scanning:1, /* protects scanning from being done multiple times at once */
-	   associated:1;
+	   associated:1,
+	   running:1;
 	
 	struct ieee80211softmac_scaninfo *scaninfo;
 	struct ieee80211softmac_assoc_info associnfo;
@@ -267,8 +271,9 @@ extern void ieee80211softmac_stop(struct net_device *dev);
 #define IEEE80211SOFTMAC_EVENT_AUTH_FAILED		5
 #define IEEE80211SOFTMAC_EVENT_AUTH_TIMEOUT		6
 #define IEEE80211SOFTMAC_EVENT_ASSOCIATE_NET_NOT_FOUND	7
+#define IEEE80211SOFTMAC_EVENT_DISASSOCIATED		8
 /* keep this updated! */
-#define IEEE80211SOFTMAC_EVENT_LAST			7
+#define IEEE80211SOFTMAC_EVENT_LAST			8
 /*
  * If you want to be notified of certain events, you can call
  * ieee80211softmac_notify[_atomic] with

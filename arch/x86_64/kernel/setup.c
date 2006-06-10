@@ -571,17 +571,28 @@ static inline void copy_edd(void)
 #endif
 
 #define EBDA_ADDR_POINTER 0x40E
-static void __init reserve_ebda_region(void)
+
+unsigned __initdata ebda_addr;
+unsigned __initdata ebda_size;
+
+static void discover_ebda(void)
 {
-	unsigned int addr;
-	/** 
+	/*
 	 * there is a real-mode segmented pointer pointing to the 
 	 * 4K EBDA area at 0x40E
 	 */
-	addr = *(unsigned short *)phys_to_virt(EBDA_ADDR_POINTER);
-	addr <<= 4;
-	if (addr)
-		reserve_bootmem_generic(addr, PAGE_SIZE);
+	ebda_addr = *(unsigned short *)EBDA_ADDR_POINTER;
+	ebda_addr <<= 4;
+
+	ebda_size = *(unsigned short *)(unsigned long)ebda_addr;
+
+	/* Round EBDA up to pages */
+	if (ebda_size == 0)
+		ebda_size = 1;
+	ebda_size <<= 10;
+	ebda_size = round_up(ebda_size + (ebda_addr & ~PAGE_MASK), PAGE_SIZE);
+	if (ebda_size > 64*1024)
+		ebda_size = 64*1024;
 }
 
 void __init setup_arch(char **cmdline_p)
@@ -627,6 +638,8 @@ void __init setup_arch(char **cmdline_p)
 
 	check_efer();
 
+	discover_ebda();
+
 	init_memory_mapping(0, (end_pfn_map << PAGE_SHIFT));
 
 	dmi_scan_machine();
@@ -669,7 +682,8 @@ void __init setup_arch(char **cmdline_p)
 	reserve_bootmem_generic(0, PAGE_SIZE);
 
 	/* reserve ebda region */
-	reserve_ebda_region();
+	if (ebda_addr)
+		reserve_bootmem_generic(ebda_addr, ebda_size);
 
 #ifdef CONFIG_SMP
 	/*
@@ -930,6 +944,10 @@ static int __init init_amd(struct cpuinfo_x86 *c)
 	if (c->x86 == 15 && ((level >= 0x0f48 && level < 0x0f50) || level >= 0x0f58))
 		set_bit(X86_FEATURE_REP_GOOD, &c->x86_capability);
 
+	/* Enable workaround for FXSAVE leak */
+	if (c->x86 >= 6)
+		set_bit(X86_FEATURE_FXSAVE_LEAK, &c->x86_capability);
+
 	r = get_model_name(c);
 	if (!r) { 
 		switch (c->x86) { 
@@ -1033,7 +1051,7 @@ static void srat_detect_node(void)
 	   for now. */
 	node = apicid_to_node[hard_smp_processor_id()];
 	if (node == NUMA_NO_NODE)
-		node = 0;
+		node = first_node(node_online_map);
 	numa_set_node(cpu, node);
 
 	if (acpi_numa > 0)
@@ -1422,3 +1440,22 @@ struct seq_operations cpuinfo_op = {
 	.show =	show_cpuinfo,
 };
 
+#ifdef CONFIG_INPUT_PCSPKR
+#include <linux/platform_device.h>
+static __init int add_pcspkr(void)
+{
+	struct platform_device *pd;
+	int ret;
+
+	pd = platform_device_alloc("pcspkr", -1);
+	if (!pd)
+		return -ENOMEM;
+
+	ret = platform_device_add(pd);
+	if (ret)
+		platform_device_put(pd);
+
+	return ret;
+}
+device_initcall(add_pcspkr);
+#endif

@@ -1662,6 +1662,8 @@ static void tcp_update_scoreboard(struct sock *sk, struct tcp_sock *tp)
 			if (!(TCP_SKB_CB(skb)->sacked&TCPCB_TAGBITS)) {
 				TCP_SKB_CB(skb)->sacked |= TCPCB_LOST;
 				tp->lost_out += tcp_skb_pcount(skb);
+				if (IsReno(tp))
+					tcp_remove_reno_sacks(sk, tp, tcp_skb_pcount(skb) + 1);
 
 				/* clear xmit_retrans hint */
 				if (tp->retransmit_skb_hint &&
@@ -4559,7 +4561,6 @@ discard:
 
 EXPORT_SYMBOL(sysctl_tcp_ecn);
 EXPORT_SYMBOL(sysctl_tcp_reordering);
-EXPORT_SYMBOL(sysctl_tcp_abc);
 EXPORT_SYMBOL(tcp_parse_options);
 EXPORT_SYMBOL(tcp_rcv_established);
 EXPORT_SYMBOL(tcp_rcv_state_process);

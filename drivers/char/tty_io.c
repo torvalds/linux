@@ -398,7 +398,7 @@ int tty_insert_flip_string_flags(struct tty_struct *tty,
 	while (unlikely(size > copied));
 	return copied;
 }
-EXPORT_SYMBOL_GPL(tty_insert_flip_string_flags);
+EXPORT_SYMBOL(tty_insert_flip_string_flags);
 
 void tty_schedule_flip(struct tty_struct *tty)
 {
@@ -2723,7 +2723,11 @@ static void __do_SAK(void *arg)
 		}
 		task_lock(p);
 		if (p->files) {
-			rcu_read_lock();
+			/*
+			 * We don't take a ref to the file, so we must
+			 * hold ->file_lock instead.
+			 */
+			spin_lock(&p->files->file_lock);
 			fdt = files_fdtable(p->files);
 			for (i=0; i < fdt->max_fds; i++) {
 				filp = fcheck_files(p->files, i);
@@ -2734,11 +2738,11 @@ static void __do_SAK(void *arg)
 					printk(KERN_NOTICE "SAK: killed process %d"
 					    " (%s): fd#%d opened to the tty\n",
 					    p->pid, p->comm, i);
-					send_sig(SIGKILL, p, 1);
+					force_sig(SIGKILL, p);
 					break;
 				}
 			}
-			rcu_read_unlock();
+			spin_unlock(&p->files->file_lock);
 		}
 		task_unlock(p);
 	} while_each_thread(g, p);

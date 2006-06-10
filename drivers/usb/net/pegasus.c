@@ -262,7 +262,7 @@ static int set_register(pegasus_t * pegasus, __u16 indx, __u8 data)
 	usb_fill_control_urb(pegasus->ctrl_urb, pegasus->usb,
 			     usb_sndctrlpipe(pegasus->usb, 0),
 			     (char *) &pegasus->dr,
-			     &tmp, 1, ctrl_callback, pegasus);
+			     tmp, 1, ctrl_callback, pegasus);
 
 	add_wait_queue(&pegasus->ctrl_wait, &wait);
 	set_current_state(TASK_UNINTERRUPTIBLE);
@@ -318,6 +318,8 @@ static int read_mii_word(pegasus_t * pegasus, __u8 phy, __u8 indx, __u16 * regd)
 	set_register(pegasus, PhyCtrl, (indx | PHY_READ));
 	for (i = 0; i < REG_TIMEOUT; i++) {
 		ret = get_registers(pegasus, PhyCtrl, 1, data);
+		if (ret == -ESHUTDOWN)
+			goto fail;
 		if (data[0] & PHY_DONE)
 			break;
 	}
@@ -326,6 +328,7 @@ static int read_mii_word(pegasus_t * pegasus, __u8 phy, __u8 indx, __u16 * regd)
 		*regd = le16_to_cpu(regdi);
 		return ret;
 	}
+fail:
 	if (netif_msg_drv(pegasus))
 		dev_warn(&pegasus->intf->dev, "fail %s\n", __FUNCTION__);
 
@@ -354,12 +357,15 @@ static int write_mii_word(pegasus_t * pegasus, __u8 phy, __u8 indx, __u16 regd)
 	set_register(pegasus, PhyCtrl, (indx | PHY_WRITE));
 	for (i = 0; i < REG_TIMEOUT; i++) {
 		ret = get_registers(pegasus, PhyCtrl, 1, data);
+		if (ret == -ESHUTDOWN)
+			goto fail;
 		if (data[0] & PHY_DONE)
 			break;
 	}
 	if (i < REG_TIMEOUT)
 		return ret;
 
+fail:
 	if (netif_msg_drv(pegasus))
 		dev_warn(&pegasus->intf->dev, "fail %s\n", __FUNCTION__);
 	return -ETIMEDOUT;
@@ -387,6 +393,8 @@ static int read_eprom_word(pegasus_t * pegasus, __u8 index, __u16 * retdata)
 		ret = get_registers(pegasus, EpromCtrl, 1, &tmp);
 		if (tmp & EPROM_DONE)
 			break;
+		if (ret == -ESHUTDOWN)
+			goto fail;
 	}
 	if (i < REG_TIMEOUT) {
 		ret = get_registers(pegasus, EpromData, 2, &retdatai);
@@ -394,6 +402,7 @@ static int read_eprom_word(pegasus_t * pegasus, __u8 index, __u16 * retdata)
 		return ret;
 	}
 
+fail:
 	if (netif_msg_drv(pegasus))
 		dev_warn(&pegasus->intf->dev, "fail %s\n", __FUNCTION__);
 	return -ETIMEDOUT;
@@ -433,12 +442,15 @@ static int write_eprom_word(pegasus_t * pegasus, __u8 index, __u16 data)
 
 	for (i = 0; i < REG_TIMEOUT; i++) {
 		ret = get_registers(pegasus, EpromCtrl, 1, &tmp);
+		if (ret == -ESHUTDOWN)
+			goto fail;
 		if (tmp & EPROM_DONE)
 			break;
 	}
 	disable_eprom_write(pegasus);
 	if (i < REG_TIMEOUT)
 		return ret;
+fail:
 	if (netif_msg_drv(pegasus))
 		dev_warn(&pegasus->intf->dev, "fail %s\n", __FUNCTION__);
 	return -ETIMEDOUT;
@@ -1378,9 +1390,8 @@ static int pegasus_suspend (struct usb_interface *intf, pm_message_t message)
 	struct pegasus *pegasus = usb_get_intfdata(intf);
 	
 	netif_device_detach (pegasus->net);
+	cancel_delayed_work(&pegasus->carrier_check);
 	if (netif_running(pegasus->net)) {
-		cancel_delayed_work(&pegasus->carrier_check);
-
 		usb_kill_urb(pegasus->rx_urb);
 		usb_kill_urb(pegasus->intr_urb);
 	}
@@ -1400,10 +1411,9 @@ static int pegasus_resume (struct usb_interface *intf)
 		pegasus->intr_urb->status = 0;
 		pegasus->intr_urb->actual_length = 0;
 		intr_callback(pegasus->intr_urb, NULL);
-
-		queue_delayed_work(pegasus_workqueue, &pegasus->carrier_check,
-					CARRIER_CHECK_DELAY);
 	}
+	queue_delayed_work(pegasus_workqueue, &pegasus->carrier_check,
+				CARRIER_CHECK_DELAY);
 	return 0;
 }
 

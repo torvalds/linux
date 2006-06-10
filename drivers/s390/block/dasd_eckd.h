@@ -228,26 +228,36 @@ struct dasd_eckd_confdata {
 		unsigned char HDA_manufacturer[3];
 		unsigned char HDA_location[2];
 		unsigned char HDA_seqno[12];
-		__u16 ID;
+		__u8 ID;
+		__u8 unit_addr;
 	} __attribute__ ((packed)) ned1;
-	struct {
+	union {
 		struct {
-			unsigned char identifier:2;
-			unsigned char token_id:1;
-			unsigned char sno_valid:1;
-			unsigned char subst_sno:1;
-			unsigned char recNED:1;
-			unsigned char emuNED:1;
-			unsigned char reserved:1;
-		} __attribute__ ((packed)) flags;
-		__u8 descriptor;
-		__u8 reserved[2];
-		unsigned char dev_type[6];
-		unsigned char dev_model[3];
-		unsigned char DASD_manufacturer[3];
-		unsigned char DASD_location[2];
-		unsigned char DASD_seqno[12];
-		__u16 ID;
+			struct {
+				unsigned char identifier:2;
+				unsigned char token_id:1;
+				unsigned char sno_valid:1;
+				unsigned char subst_sno:1;
+				unsigned char recNED:1;
+				unsigned char emuNED:1;
+				unsigned char reserved:1;
+			} __attribute__ ((packed)) flags;
+			__u8 descriptor;
+			__u8 reserved[2];
+			unsigned char dev_type[6];
+			unsigned char dev_model[3];
+			unsigned char DASD_manufacturer[3];
+			unsigned char DASD_location[2];
+			unsigned char DASD_seqno[12];
+			__u16 ID;
+		} __attribute__ ((packed)) ned;
+		struct {
+			unsigned char flags;            /* byte  0    */
+			unsigned char res2[7];          /* byte  1- 7 */
+			unsigned char sua_flags;	/* byte  8    */
+			__u8 base_unit_addr;            /* byte  9    */
+			unsigned char res3[22];	        /* byte 10-31 */
+		} __attribute__ ((packed)) sneq;
 	} __attribute__ ((packed)) ned2;
 	struct {
 		struct {

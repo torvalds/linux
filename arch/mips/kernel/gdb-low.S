@@ -54,9 +54,11 @@
 		 */
 		mfc0	k0, CP0_CAUSE
 		andi	k0, k0, 0x7c
-		add	k1, k1, k0
-		PTR_L	k0, saved_vectors(k1)
-		jr	k0
+#ifdef CONFIG_64BIT
+		dsll	k0, k0, 1
+#endif
+		PTR_L	k1, saved_vectors(k0)
+		jr	k1
 		nop
 1:
 		move	k0, sp
@@ -283,11 +285,33 @@
  */
 
 3:
+#ifdef CONFIG_MIPS_MT_SMTC
+		/* Read-modify write of Status must be atomic */
+		mfc0	t2, CP0_TCSTATUS
+		ori	t1, t2, TCSTATUS_IXMT
+		mtc0	t1, CP0_TCSTATUS
+		andi	t2, t2, TCSTATUS_IXMT
+		ehb
+		DMT	9				# dmt	t1
+		jal	mips_ihb
+		nop
+#endif /* CONFIG_MIPS_MT_SMTC */
 		mfc0	t0, CP0_STATUS
 		ori	t0, 0x1f
 		xori	t0, 0x1f
 		mtc0	t0, CP0_STATUS
-
+#ifdef CONFIG_MIPS_MT_SMTC
+        	andi    t1, t1, VPECONTROL_TE
+        	beqz    t1, 9f
+		nop
+        	EMT					# emt
+9:
+		mfc0	t1, CP0_TCSTATUS
+		xori	t1, t1, TCSTATUS_IXMT
+		or	t1, t1, t2
+		mtc0	t1, CP0_TCSTATUS
+		ehb
+#endif /* CONFIG_MIPS_MT_SMTC */
 		LONG_L	v0, GDB_FR_STATUS(sp)
 		LONG_L	v1, GDB_FR_EPC(sp)
 		mtc0	v0, CP0_STATUS

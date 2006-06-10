@@ -69,6 +69,9 @@ void output_ptreg_defines(void)
 	offset("#define PT_BVADDR ", struct pt_regs, cp0_badvaddr);
 	offset("#define PT_STATUS ", struct pt_regs, cp0_status);
 	offset("#define PT_CAUSE  ", struct pt_regs, cp0_cause);
+#ifdef CONFIG_MIPS_MT_SMTC
+	offset("#define PT_TCSTATUS  ", struct pt_regs, cp0_tcstatus);
+#endif /* CONFIG_MIPS_MT_SMTC */
 	size("#define PT_SIZE   ", struct pt_regs);
 	linefeed;
 }
@@ -269,8 +272,8 @@ void output_sc_defines(void)
 	text("/* Linux sigcontext offsets. */");
 	offset("#define SC_REGS       ", struct sigcontext, sc_regs);
 	offset("#define SC_FPREGS     ", struct sigcontext, sc_fpregs);
-	offset("#define SC_MDHI       ", struct sigcontext, sc_hi);
-	offset("#define SC_MDLO       ", struct sigcontext, sc_lo);
+	offset("#define SC_MDHI       ", struct sigcontext, sc_mdhi);
+	offset("#define SC_MDLO       ", struct sigcontext, sc_mdlo);
 	offset("#define SC_PC         ", struct sigcontext, sc_pc);
 	offset("#define SC_FPC_CSR    ", struct sigcontext, sc_fpc_csr);
 	linefeed;

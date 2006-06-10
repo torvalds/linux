@@ -1341,6 +1341,9 @@ static int __devinit sonypi_probe(struct platform_device *dev)
 	else if ((pcidev = pci_get_device(PCI_VENDOR_ID_INTEL,
 					  PCI_DEVICE_ID_INTEL_ICH6_1, NULL)))
 		sonypi_device.model = SONYPI_DEVICE_MODEL_TYPE3;
+	else if ((pcidev = pci_get_device(PCI_VENDOR_ID_INTEL,
+					  PCI_DEVICE_ID_INTEL_ICH7_1, NULL)))
+		sonypi_device.model = SONYPI_DEVICE_MODEL_TYPE3;
 	else
 		sonypi_device.model = SONYPI_DEVICE_MODEL_TYPE2;
 

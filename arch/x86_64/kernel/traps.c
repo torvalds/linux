@@ -30,6 +30,7 @@
 #include <linux/moduleparam.h>
 #include <linux/nmi.h>
 #include <linux/kprobes.h>
+#include <linux/kexec.h>
 
 #include <asm/system.h>
 #include <asm/uaccess.h>
@@ -101,6 +102,8 @@ static inline void preempt_conditional_cli(struct pt_regs *regs)
 {
 	if (regs->eflags & X86_EFLAGS_IF)
 		local_irq_disable();
+	/* Make sure to not schedule here because we could be running
+	   on an exception stack. */
 	preempt_enable_no_resched();
 }
 
@@ -384,6 +387,7 @@ void out_of_line_bug(void)
 
 static DEFINE_SPINLOCK(die_lock);
 static int die_owner = -1;
+static unsigned int die_nest_count;
 
 unsigned __kprobes long oops_begin(void)
 {
@@ -398,6 +402,7 @@ unsigned __kprobes long oops_begin(void)
 		else
 			spin_lock(&die_lock);
 	}
+	die_nest_count++;
 	die_owner = cpu;
 	console_verbose();
 	bust_spinlocks(1);
@@ -408,7 +413,13 @@ void __kprobes oops_end(unsigned long flags)
 { 
 	die_owner = -1;
 	bust_spinlocks(0);
-	spin_unlock_irqrestore(&die_lock, flags);
+	die_nest_count--;
+	if (die_nest_count)
+		/* We still own the lock */
+		local_irq_restore(flags);
+	else
+		/* Nest count reaches zero, release the lock. */
+		spin_unlock_irqrestore(&die_lock, flags);
 	if (panic_on_oops)
 		panic("Oops");
 }
@@ -433,6 +444,8 @@ void __kprobes __die(const char * str, struct pt_regs * regs, long err)
 	printk(KERN_ALERT "RIP ");
 	printk_address(regs->rip); 
 	printk(" RSP <%016lx>\n", regs->rsp); 
+	if (kexec_should_crash(current))
+		crash_kexec(regs);
 }
 
 void die(const char * str, struct pt_regs * regs, long err)
@@ -455,10 +468,14 @@ void __kprobes die_nmi(char *str, struct pt_regs *regs)
 	 */
 	printk(str, safe_smp_processor_id());
 	show_registers(regs);
+	if (kexec_should_crash(current))
+		crash_kexec(regs);
 	if (panic_on_timeout || panic_on_oops)
 		panic("nmi watchdog");
 	printk("console shuts up ...\n");
 	oops_end(flags);
+	nmi_exit();
+	local_irq_enable();
 	do_exit(SIGSEGV);
 }
 
@@ -467,8 +484,6 @@ static void __kprobes do_trap(int trapnr, int signr, char *str,
 			      siginfo_t *info)
 {
 	struct task_struct *tsk = current;
-
-	conditional_sti(regs);
 
 	tsk->thread.error_code = error_code;
 	tsk->thread.trap_no = trapnr;
@@ -506,6 +521,7 @@ asmlinkage void do_##name(struct pt_regs * regs, long error_code) \
 	if (notify_die(DIE_TRAP, str, regs, error_code, trapnr, signr) \
 							== NOTIFY_STOP) \
 		return; \
+	conditional_sti(regs);						\
 	do_trap(trapnr, signr, str, regs, error_code, NULL); \
 }
 
@@ -520,6 +536,7 @@ asmlinkage void do_##name(struct pt_regs * regs, long error_code) \
 	if (notify_die(DIE_TRAP, str, regs, error_code, trapnr, signr) \
 							== NOTIFY_STOP) \
 		return; \
+	conditional_sti(regs);						\
 	do_trap(trapnr, signr, str, regs, error_code, &info); \
 }
 
@@ -533,7 +550,17 @@ DO_ERROR(10, SIGSEGV, "invalid TSS", invalid_TSS)
 DO_ERROR(11, SIGBUS,  "segment not present", segment_not_present)
 DO_ERROR_INFO(17, SIGBUS, "alignment check", alignment_check, BUS_ADRALN, 0)
 DO_ERROR(18, SIGSEGV, "reserved", reserved)
-DO_ERROR(12, SIGBUS,  "stack segment", stack_segment)
+
+/* Runs on IST stack */
+asmlinkage void do_stack_segment(struct pt_regs *regs, long error_code)
+{
+	if (notify_die(DIE_TRAP, "stack segment", regs, error_code,
+			12, SIGBUS) == NOTIFY_STOP)
+		return;
+	preempt_conditional_sti(regs);
+	do_trap(12, SIGBUS, "stack segment", regs, error_code, NULL);
+	preempt_conditional_cli(regs);
+}
 
 asmlinkage void do_double_fault(struct pt_regs * regs, long error_code)
 {
@@ -667,8 +694,9 @@ asmlinkage void __kprobes do_int3(struct pt_regs * regs, long error_code)
 	if (notify_die(DIE_INT3, "int3", regs, error_code, 3, SIGTRAP) == NOTIFY_STOP) {
 		return;
 	}
+	preempt_conditional_sti(regs);
 	do_trap(3, SIGTRAP, "int3", regs, error_code, NULL);
-	return;
+	preempt_conditional_cli(regs);
 }
 
 /* Help handler running on IST stack to switch back to user stack

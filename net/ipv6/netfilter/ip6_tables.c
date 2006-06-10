@@ -288,19 +288,6 @@ ip6t_do_table(struct sk_buff **pskb,
 	table_base = (void *)private->entries[smp_processor_id()];
 	e = get_entry(table_base, private->hook_entry[hook]);
 
-#ifdef CONFIG_NETFILTER_DEBUG
-	/* Check noone else using our table */
-	if (((struct ip6t_entry *)table_base)->comefrom != 0xdead57ac
-	    && ((struct ip6t_entry *)table_base)->comefrom != 0xeeeeeeec) {
-		printk("ASSERT: CPU #%u, %s comefrom(%p) = %X\n",
-		       smp_processor_id(),
-		       table->name,
-		       &((struct ip6t_entry *)table_base)->comefrom,
-		       ((struct ip6t_entry *)table_base)->comefrom);
-	}
-	((struct ip6t_entry *)table_base)->comefrom = 0x57acc001;
-#endif
-
 	/* For return from builtin chain */
 	back = get_entry(table_base, private->underflow[hook]);
 
@@ -1116,7 +1103,7 @@ do_add_counters(void __user *user, unsigned int len)
 
 	write_lock_bh(&t->lock);
 	private = t->private;
-	if (private->number != paddc->num_counters) {
+	if (private->number != tmp.num_counters) {
 		ret = -EINVAL;
 		goto unlock_up_free;
 	}

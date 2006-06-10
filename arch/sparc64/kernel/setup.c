@@ -220,7 +220,7 @@ char reboot_command[COMMAND_LINE_SIZE];
 
 static struct pt_regs fake_swapper_regs = { { 0, }, 0, 0, 0, 0 };
 
-static void __init per_cpu_patch(void)
+void __init per_cpu_patch(void)
 {
 	struct cpuid_patch_entry *p;
 	unsigned long ver;
@@ -280,7 +280,7 @@ static void __init per_cpu_patch(void)
 	}
 }
 
-static void __init sun4v_patch(void)
+void __init sun4v_patch(void)
 {
 	struct sun4v_1insn_patch_entry *p1;
 	struct sun4v_2insn_patch_entry *p2;
@@ -315,6 +315,15 @@ static void __init sun4v_patch(void)
 	}
 }
 
+#ifdef CONFIG_SMP
+void __init boot_cpu_id_too_large(int cpu)
+{
+	prom_printf("Serious problem, boot cpu id (%d) >= NR_CPUS (%d)\n",
+		    cpu, NR_CPUS);
+	prom_halt();
+}
+#endif
+
 void __init setup_arch(char **cmdline_p)
 {
 	/* Initialize PROM console and command line. */
@@ -331,16 +340,6 @@ void __init setup_arch(char **cmdline_p)
 #elif defined(CONFIG_PROM_CONSOLE)
 	conswitchp = &prom_con;
 #endif
-
-	/* Work out if we are starfire early on */
-	check_if_starfire();
-
-	/* Now we know enough to patch the get_cpuid sequences
-	 * used by trap code.
-	 */
-	per_cpu_patch();
-
-	sun4v_patch();
 
 	boot_flags_init(*cmdline_p);
 

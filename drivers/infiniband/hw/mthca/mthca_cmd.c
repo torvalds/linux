@@ -182,7 +182,7 @@ struct mthca_cmd_context {
 	u8                status;
 };
 
-static int fw_cmd_doorbell = 1;
+static int fw_cmd_doorbell = 0;
 module_param(fw_cmd_doorbell, int, 0644);
 MODULE_PARM_DESC(fw_cmd_doorbell, "post FW commands through doorbell page if nonzero "
 		 "(and supported by FW)");

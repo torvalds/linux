@@ -586,7 +586,7 @@ static struct ocfs2_net_wait_ctxt *ocfs2_new_net_wait_ctxt(unsigned int response
 {
 	struct ocfs2_net_wait_ctxt *w;
 
-	w = kcalloc(1, sizeof(*w), GFP_KERNEL);
+	w = kcalloc(1, sizeof(*w), GFP_NOFS);
 	if (!w) {
 		mlog_errno(-ENOMEM);
 		goto bail;
@@ -749,7 +749,7 @@ static struct ocfs2_vote_msg * ocfs2_new_vote_request(struct ocfs2_super *osb,
 
 	BUG_ON(!ocfs2_is_valid_vote_request(type));
 
-	request = kcalloc(1, sizeof(*request), GFP_KERNEL);
+	request = kcalloc(1, sizeof(*request), GFP_NOFS);
 	if (!request) {
 		mlog_errno(-ENOMEM);
 	} else {
@@ -1129,7 +1129,7 @@ static int ocfs2_handle_vote_message(struct o2net_msg *msg,
 	struct ocfs2_super *osb = data;
 	struct ocfs2_vote_work *work;
 
-	work = kmalloc(sizeof(struct ocfs2_vote_work), GFP_KERNEL);
+	work = kmalloc(sizeof(struct ocfs2_vote_work), GFP_NOFS);
 	if (!work) {
 		status = -ENOMEM;
 		mlog_errno(status);

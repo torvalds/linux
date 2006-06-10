@@ -296,29 +296,7 @@ static void __init check_ptrace(void)
 	check_sysemu();
 }
 
-extern int create_tmp_file(unsigned long long len);
-
-static void check_tmpexec(void)
-{
-	void *addr;
-	int err, fd = create_tmp_file(UM_KERN_PAGE_SIZE);
-
-	addr = mmap(NULL, UM_KERN_PAGE_SIZE,
-		    PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE, fd, 0);
-	printf("Checking PROT_EXEC mmap in /tmp...");
-	fflush(stdout);
-	if(addr == MAP_FAILED){
-		err = errno;
-		perror("failed");
-		if(err == EPERM)
-			printf("/tmp must be not mounted noexec\n");
-		exit(1);
-	}
-	printf("OK\n");
-	munmap(addr, UM_KERN_PAGE_SIZE);
-
-	close(fd);
-}
+extern void check_tmpexec(void);
 
 void os_early_checks(void)
 {

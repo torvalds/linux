@@ -220,6 +220,7 @@ static void e1000_restore_vlan(struct e1000_adapter *adapter);
 static int e1000_suspend(struct pci_dev *pdev, pm_message_t state);
 static int e1000_resume(struct pci_dev *pdev);
 #endif
+static void e1000_shutdown(struct pci_dev *pdev);
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
 /* for netdump / net console */
@@ -235,8 +236,9 @@ static struct pci_driver e1000_driver = {
 	/* Power Managment Hooks */
 #ifdef CONFIG_PM
 	.suspend  = e1000_suspend,
-	.resume   = e1000_resume
+	.resume   = e1000_resume,
 #endif
+	.shutdown = e1000_shutdown
 };
 
 MODULE_AUTHOR("Intel Corporation, <linux.nics@intel.com>");
@@ -3517,7 +3519,7 @@ e1000_clean_rx_irq(struct e1000_adapter *adapter,
 	buffer_info = &rx_ring->buffer_info[i];
 
 	while (rx_desc->status & E1000_RXD_STAT_DD) {
-		struct sk_buff *skb, *next_skb;
+		struct sk_buff *skb;
 		u8 status;
 #ifdef CONFIG_E1000_NAPI
 		if (*work_done >= work_to_do)
@@ -3535,8 +3537,6 @@ e1000_clean_rx_irq(struct e1000_adapter *adapter,
 		prefetch(next_rxd);
 
 		next_buffer = &rx_ring->buffer_info[i];
-		next_skb = next_buffer->skb;
-		prefetch(next_skb->data - NET_IP_ALIGN);
 
 		cleaned = TRUE;
 		cleaned_count++;
@@ -3666,7 +3666,7 @@ e1000_clean_rx_irq_ps(struct e1000_adapter *adapter,
 	struct e1000_buffer *buffer_info, *next_buffer;
 	struct e1000_ps_page *ps_page;
 	struct e1000_ps_page_dma *ps_page_dma;
-	struct sk_buff *skb, *next_skb;
+	struct sk_buff *skb;
 	unsigned int i, j;
 	uint32_t length, staterr;
 	int cleaned_count = 0;
@@ -3695,8 +3695,6 @@ e1000_clean_rx_irq_ps(struct e1000_adapter *adapter,
 		prefetch(next_rxd);
 
 		next_buffer = &rx_ring->buffer_info[i];
-		next_skb = next_buffer->skb;
-		prefetch(next_skb->data - NET_IP_ALIGN);
 
 		cleaned = TRUE;
 		cleaned_count++;
@@ -3768,6 +3766,7 @@ e1000_clean_rx_irq_ps(struct e1000_adapter *adapter,
 			ps_page->ps_page[j] = NULL;
 			skb->len += length;
 			skb->data_len += length;
+			skb->truesize += length;
 		}
 
 copydone:
@@ -4610,6 +4609,12 @@ e1000_resume(struct pci_dev *pdev)
 	return 0;
 }
 #endif
+
+static void e1000_shutdown(struct pci_dev *pdev)
+{
+	e1000_suspend(pdev, PMSG_SUSPEND);
+}
+
 #ifdef CONFIG_NET_POLL_CONTROLLER
 /*
  * Polling 'interrupt' - used by things like netconsole to send skbs

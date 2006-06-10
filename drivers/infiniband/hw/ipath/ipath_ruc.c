@@ -435,7 +435,7 @@ void ipath_no_bufs_available(struct ipath_qp *qp, struct ipath_ibdev *dev)
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->pending_lock, flags);
-	if (qp->piowait.next == LIST_POISON1)
+	if (list_empty(&qp->piowait))
 		list_add_tail(&qp->piowait, &dev->piowait);
 	spin_unlock_irqrestore(&dev->pending_lock, flags);
 	/*
@@ -531,19 +531,12 @@ int ipath_post_rc_send(struct ipath_qp *qp, struct ib_send_wr *wr)
 	}
 	wqe->wr.num_sge = j;
 	qp->s_head = next;
-	/*
-	 * Wake up the send tasklet if the QP is not waiting
-	 * for an RNR timeout.
-	 */
-	next = qp->s_rnr_timeout;
 	spin_unlock_irqrestore(&qp->s_lock, flags);
 
-	if (next == 0) {
-		if (qp->ibqp.qp_type == IB_QPT_UC)
-			ipath_do_uc_send((unsigned long) qp);
-		else
-			ipath_do_rc_send((unsigned long) qp);
-	}
+	if (qp->ibqp.qp_type == IB_QPT_UC)
+		ipath_do_uc_send((unsigned long) qp);
+	else
+		ipath_do_rc_send((unsigned long) qp);
 
 	ret = 0;
 

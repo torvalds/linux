@@ -112,10 +112,6 @@ static unsigned long alloc_iommu(int size)
 static void free_iommu(unsigned long offset, int size)
 { 
 	unsigned long flags;
-	if (size == 1) { 
-		clear_bit(offset, iommu_gart_bitmap); 
-		return;
-	}
 	spin_lock_irqsave(&iommu_bitmap_lock, flags);
 	__clear_bit_string(iommu_gart_bitmap, offset, size);
 	spin_unlock_irqrestore(&iommu_bitmap_lock, flags);
@@ -635,11 +631,17 @@ static int __init pci_iommu_init(void)
 		printk(KERN_INFO "PCI-DMA: Disabling IOMMU.\n");
 		if (end_pfn > MAX_DMA32_PFN) {
 			printk(KERN_ERR "WARNING more than 4GB of memory "
-					"but IOMMU not compiled in.\n"
-			       KERN_ERR "WARNING 32bit PCI may malfunction.\n"
-			       KERN_ERR "You might want to enable "
-					"CONFIG_GART_IOMMU\n");
+					"but IOMMU not available.\n"
+			       KERN_ERR "WARNING 32bit PCI may malfunction.\n");
 		}
+		return -1;
+	}
+
+	i = 0;
+	for_all_nb(dev)
+		i++;
+	if (i > MAX_NB) {
+		printk(KERN_ERR "PCI-GART: Too many northbridges (%ld). Disabled\n", i);
 		return -1;
 	}
 

@@ -280,10 +280,13 @@ static int inline rt6_check_neigh(struct rt6_info *rt)
 {
 	struct neighbour *neigh = rt->rt6i_nexthop;
 	int m = 0;
-	if (neigh) {
+	if (rt->rt6i_flags & RTF_NONEXTHOP ||
+	    !(rt->rt6i_flags & RTF_GATEWAY))
+		m = 1;
+	else if (neigh) {
 		read_lock_bh(&neigh->lock);
 		if (neigh->nud_state & NUD_VALID)
-			m = 1;
+			m = 2;
 		read_unlock_bh(&neigh->lock);
 	}
 	return m;
@@ -292,15 +295,18 @@ static int inline rt6_check_neigh(struct rt6_info *rt)
 static int rt6_score_route(struct rt6_info *rt, int oif,
 			   int strict)
 {
-	int m = rt6_check_dev(rt, oif);
+	int m, n;
+		
+	m = rt6_check_dev(rt, oif);
 	if (!m && (strict & RT6_SELECT_F_IFACE))
 		return -1;
 #ifdef CONFIG_IPV6_ROUTER_PREF
 	m |= IPV6_DECODE_PREF(IPV6_EXTRACT_PREF(rt->rt6i_flags)) << 2;
 #endif
-	if (rt6_check_neigh(rt))
+	n = rt6_check_neigh(rt);
+	if (n > 1)
 		m |= 16;
-	else if (strict & RT6_SELECT_F_REACHABLE)
+	else if (!n && strict & RT6_SELECT_F_REACHABLE)
 		return -1;
 	return m;
 }
@@ -317,7 +323,7 @@ static struct rt6_info *rt6_select(struct rt6_info **head, int oif,
 		  __FUNCTION__, head, head ? *head : NULL, oif);
 
 	for (rt = rt0, metric = rt0->rt6i_metric;
-	     rt && rt->rt6i_metric == metric;
+	     rt && rt->rt6i_metric == metric && (!last || rt != rt0);
 	     rt = rt->u.next) {
 		int m;
 
@@ -343,9 +349,12 @@ static struct rt6_info *rt6_select(struct rt6_info **head, int oif,
 	    (strict & RT6_SELECT_F_REACHABLE) &&
 	    last && last != rt0) {
 		/* no entries matched; do round-robin */
+		static spinlock_t lock = SPIN_LOCK_UNLOCKED;
+		spin_lock(&lock);
 		*head = rt0->u.next;
 		rt0->u.next = last->u.next;
 		last->u.next = rt0;
+		spin_unlock(&lock);
 	}
 
 	RT6_TRACE("%s() => %p, score=%d\n",

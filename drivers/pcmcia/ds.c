@@ -236,11 +236,11 @@ static void pcmcia_check_driver(struct pcmcia_driver *p_drv)
 /**
  * pcmcia_load_firmware - load CIS from userspace if device-provided is broken
  * @dev - the pcmcia device which needs a CIS override
- * @filename - requested filename in /lib/firmware/cis/
+ * @filename - requested filename in /lib/firmware/
  *
  * This uses the in-kernel firmware loading mechanism to use a "fake CIS" if
  * the one provided by the card is broken. The firmware files reside in
- * /lib/firmware/cis/ in userspace.
+ * /lib/firmware/ in userspace.
  */
 static int pcmcia_load_firmware(struct pcmcia_device *dev, char * filename)
 {
@@ -298,9 +298,6 @@ static inline int pcmcia_load_firmware(struct pcmcia_device *dev, char * filenam
  *
  * Registers a PCMCIA driver with the PCMCIA bus core.
  */
-static int pcmcia_device_probe(struct device *dev);
-static int pcmcia_device_remove(struct device * dev);
-
 int pcmcia_register_driver(struct pcmcia_driver *driver)
 {
 	if (!driver)
@@ -400,7 +397,7 @@ static int pcmcia_device_probe(struct device * dev)
 	 * call which will then check whether there are two
 	 * pseudo devices, and if not, add the second one.
 	 */
-	did = (struct pcmcia_device_id *) p_dev->dev.driver_data;
+	did = p_dev->dev.driver_data;
 	if (did && (did->match_flags & PCMCIA_DEV_ID_MATCH_DEVICE_NO) &&
 	    (p_dev->socket->device_count == 1) && (p_dev->device_no == 0))
 		pcmcia_add_pseudo_device(p_dev->socket);
@@ -448,7 +445,6 @@ static void pcmcia_card_remove(struct pcmcia_socket *s, struct pcmcia_device *le
 	return;
 }
 
-
 static int pcmcia_device_remove(struct device * dev)
 {
 	struct pcmcia_device *p_dev;
@@ -463,7 +459,7 @@ static int pcmcia_device_remove(struct device * dev)
 	 * pseudo multi-function card, we need to unbind
 	 * all devices
 	 */
-	did = (struct pcmcia_device_id *) p_dev->dev.driver_data;
+	did = p_dev->dev.driver_data;
 	if (did && (did->match_flags & PCMCIA_DEV_ID_MATCH_DEVICE_NO) &&
 	    (p_dev->socket->device_count != 0) &&
 	    (p_dev->device_no == 0))
@@ -475,6 +471,8 @@ static int pcmcia_device_remove(struct device * dev)
 
 	if (p_drv->remove)
 	       	p_drv->remove(p_dev);
+
+	p_dev->dev_node = NULL;
 
 	/* check for proper unloading */
 	if (p_dev->_irq || p_dev->_io || p_dev->_locked)
@@ -628,7 +626,7 @@ struct pcmcia_device * pcmcia_device_add(struct pcmcia_socket *s, unsigned int f
 		}
 
 	/* Add to the list in pcmcia_bus_socket */
-	list_add_tail(&p_dev->socket_device_list, &s->devices_list);
+	list_add(&p_dev->socket_device_list, &s->devices_list);
 
 	spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
 
@@ -1144,6 +1142,12 @@ static int pcmcia_bus_suspend(struct pcmcia_socket *skt)
 static int ds_event(struct pcmcia_socket *skt, event_t event, int priority)
 {
 	struct pcmcia_socket *s = pcmcia_get_socket(skt);
+
+	if (!s) {
+		printk(KERN_ERR "PCMCIA obtaining reference to socket %p " \
+			"failed, event 0x%x lost!\n", skt, event);
+		return -ENODEV;
+	}
 
 	ds_dbg(1, "ds_event(0x%06x, %d, 0x%p)\n",
 	       event, priority, skt);

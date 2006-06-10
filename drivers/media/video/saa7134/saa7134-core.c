@@ -548,6 +548,8 @@ static irqreturn_t saa7134_irq(int irq, void *dev_id, struct pt_regs *regs)
 		if (report & SAA7134_IRQ_REPORT_GPIO16) {
 			switch (dev->has_remote) {
 				case SAA7134_REMOTE_GPIO:
+					if (!dev->remote)
+						break;
 					if  (dev->remote->mask_keydown & 0x10000) {
 						saa7134_input_irq(dev);
 					}
@@ -564,6 +566,8 @@ static irqreturn_t saa7134_irq(int irq, void *dev_id, struct pt_regs *regs)
 		if (report & SAA7134_IRQ_REPORT_GPIO18) {
 			switch (dev->has_remote) {
 				case SAA7134_REMOTE_GPIO:
+					if (!dev->remote)
+						break;
 					if ((dev->remote->mask_keydown & 0x40000) ||
 					    (dev->remote->mask_keyup & 0x40000)) {
 						saa7134_input_irq(dev);
@@ -676,7 +680,7 @@ static int saa7134_hwinit2(struct saa7134_dev *dev)
 		SAA7134_IRQ2_INTE_PE      |
 		SAA7134_IRQ2_INTE_AR;
 
-	if (dev->has_remote == SAA7134_REMOTE_GPIO) {
+	if (dev->has_remote == SAA7134_REMOTE_GPIO && dev->remote) {
 		if (dev->remote->mask_keydown & 0x10000)
 			irq2_mask |= SAA7134_IRQ2_INTE_GPIO16;
 		else if (dev->remote->mask_keydown & 0x40000)

@@ -56,10 +56,6 @@ void ptrace_untrace(task_t *child)
 			signal_wake_up(child, 1);
 		}
 	}
-	if (child->signal->flags & SIGNAL_GROUP_EXIT) {
-		sigaddset(&child->pending.signal, SIGKILL);
-		signal_wake_up(child, 1);
-	}
 	spin_unlock(&child->sighand->siglock);
 }
 
@@ -81,7 +77,8 @@ void __ptrace_unlink(task_t *child)
 		add_parent(child);
 	}
 
-	ptrace_untrace(child);
+	if (child->state == TASK_TRACED)
+		ptrace_untrace(child);
 }
 
 /*
@@ -151,12 +148,34 @@ int ptrace_may_attach(struct task_struct *task)
 int ptrace_attach(struct task_struct *task)
 {
 	int retval;
-	task_lock(task);
+
 	retval = -EPERM;
 	if (task->pid <= 1)
-		goto bad;
+		goto out;
 	if (task->tgid == current->tgid)
-		goto bad;
+		goto out;
+
+repeat:
+	/*
+	 * Nasty, nasty.
+	 *
+	 * We want to hold both the task-lock and the
+	 * tasklist_lock for writing at the same time.
+	 * But that's against the rules (tasklist_lock
+	 * is taken for reading by interrupts on other
+	 * cpu's that may have task_lock).
+	 */
+	task_lock(task);
+	local_irq_disable();
+	if (!write_trylock(&tasklist_lock)) {
+		local_irq_enable();
+		task_unlock(task);
+		do {
+			cpu_relax();
+		} while (!write_can_lock(&tasklist_lock));
+		goto repeat;
+	}
+
 	/* the same process cannot be attached many times */
 	if (task->ptrace & PT_PTRACED)
 		goto bad;
@@ -169,17 +188,15 @@ int ptrace_attach(struct task_struct *task)
 				      ? PT_ATTACHED : 0);
 	if (capable(CAP_SYS_PTRACE))
 		task->ptrace |= PT_PTRACE_CAP;
-	task_unlock(task);
 
-	write_lock_irq(&tasklist_lock);
 	__ptrace_link(task, current);
-	write_unlock_irq(&tasklist_lock);
 
 	force_sig_specific(SIGSTOP, task);
-	return 0;
 
 bad:
+	write_unlock_irq(&tasklist_lock);
 	task_unlock(task);
+out:
 	return retval;
 }
 
@@ -420,21 +437,22 @@ int ptrace_request(struct task_struct *child, long request,
  */
 int ptrace_traceme(void)
 {
-	int ret;
+	int ret = -EPERM;
 
 	/*
 	 * Are we already being traced?
 	 */
-	if (current->ptrace & PT_PTRACED)
-		return -EPERM;
-	ret = security_ptrace(current->parent, current);
-	if (ret)
-		return -EPERM;
-	/*
-	 * Set the ptrace bit in the process ptrace flags.
-	 */
-	current->ptrace |= PT_PTRACED;
-	return 0;
+	task_lock(current);
+	if (!(current->ptrace & PT_PTRACED)) {
+		ret = security_ptrace(current->parent, current);
+		/*
+		 * Set the ptrace bit in the process ptrace flags.
+		 */
+		if (!ret)
+			current->ptrace |= PT_PTRACED;
+	}
+	task_unlock(current);
+	return ret;
 }
 
 /**

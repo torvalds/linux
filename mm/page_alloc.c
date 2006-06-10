@@ -39,6 +39,7 @@
 #include <linux/mempolicy.h>
 
 #include <asm/tlbflush.h>
+#include <asm/div64.h>
 #include "internal.h"
 
 /*
@@ -232,11 +233,13 @@ static inline void prep_zero_page(struct page *page, int order, gfp_t gfp_flags)
  * zone->lock is already acquired when we use these.
  * So, we don't need atomic page->flags operations here.
  */
-static inline unsigned long page_order(struct page *page) {
+static inline unsigned long page_order(struct page *page)
+{
 	return page_private(page);
 }
 
-static inline void set_page_order(struct page *page, int order) {
+static inline void set_page_order(struct page *page, int order)
+{
 	set_page_private(page, order);
 	__SetPageBuddy(page);
 }
@@ -299,9 +302,9 @@ static inline int page_is_buddy(struct page *page, int order)
 
 	if (PageBuddy(page) && page_order(page) == order) {
 		BUG_ON(page_count(page) != 0);
-               return 1;
+		return 1;
 	}
-       return 0;
+	return 0;
 }
 
 /*
@@ -948,7 +951,7 @@ restart:
 		goto got_pg;
 
 	do {
-		if (cpuset_zone_allowed(*z, gfp_mask))
+		if (cpuset_zone_allowed(*z, gfp_mask|__GFP_HARDWALL))
 			wakeup_kswapd(*z, order);
 	} while (*(++z));
 
@@ -967,7 +970,8 @@ restart:
 		alloc_flags |= ALLOC_HARDER;
 	if (gfp_mask & __GFP_HIGH)
 		alloc_flags |= ALLOC_HIGH;
-	alloc_flags |= ALLOC_CPUSET;
+	if (wait)
+		alloc_flags |= ALLOC_CPUSET;
 
 	/*
 	 * Go through the zonelist again. Let __GFP_HIGH and allocations
@@ -1960,7 +1964,7 @@ static inline void free_zone_pagesets(int cpu)
 	}
 }
 
-static int __cpuinit pageset_cpuup_callback(struct notifier_block *nfb,
+static int pageset_cpuup_callback(struct notifier_block *nfb,
 		unsigned long action,
 		void *hcpu)
 {
@@ -2121,14 +2125,22 @@ static void __init alloc_node_mem_map(struct pglist_data *pgdat)
 #ifdef CONFIG_FLAT_NODE_MEM_MAP
 	/* ia64 gets its own node_mem_map, before this, without bootmem */
 	if (!pgdat->node_mem_map) {
-		unsigned long size;
+		unsigned long size, start, end;
 		struct page *map;
 
-		size = (pgdat->node_spanned_pages + 1) * sizeof(struct page);
+		/*
+		 * The zone's endpoints aren't required to be MAX_ORDER
+		 * aligned but the node_mem_map endpoints must be in order
+		 * for the buddy allocator to function correctly.
+		 */
+		start = pgdat->node_start_pfn & ~(MAX_ORDER_NR_PAGES - 1);
+		end = pgdat->node_start_pfn + pgdat->node_spanned_pages;
+		end = ALIGN(end, MAX_ORDER_NR_PAGES);
+		size =  (end - start) * sizeof(struct page);
 		map = alloc_remap(pgdat->node_id, size);
 		if (!map)
 			map = alloc_bootmem_node(pgdat, size);
-		pgdat->node_mem_map = map;
+		pgdat->node_mem_map = map + (pgdat->node_start_pfn - start);
 	}
 #ifdef CONFIG_FLATMEM
 	/*
@@ -2564,9 +2576,11 @@ void setup_per_zone_pages_min(void)
 	}
 
 	for_each_zone(zone) {
-		unsigned long tmp;
+		u64 tmp;
+
 		spin_lock_irqsave(&zone->lru_lock, flags);
-		tmp = (pages_min * zone->present_pages) / lowmem_pages;
+		tmp = (u64)pages_min * zone->present_pages;
+		do_div(tmp, lowmem_pages);
 		if (is_highmem(zone)) {
 			/*
 			 * __GFP_HIGH and PF_MEMALLOC allocations usually don't
@@ -2593,8 +2607,8 @@ void setup_per_zone_pages_min(void)
 			zone->pages_min = tmp;
 		}
 
-		zone->pages_low   = zone->pages_min + tmp / 4;
-		zone->pages_high  = zone->pages_min + tmp / 2;
+		zone->pages_low   = zone->pages_min + (tmp >> 2);
+		zone->pages_high  = zone->pages_min + (tmp >> 1);
 		spin_unlock_irqrestore(&zone->lru_lock, flags);
 	}
 

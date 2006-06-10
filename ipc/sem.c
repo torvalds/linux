@@ -61,6 +61,9 @@
  * (c) 2001 Red Hat Inc <alan@redhat.com>
  * Lockless wakeup
  * (c) 2003 Manfred Spraul <manfred@colorfullife.com>
+ *
+ * support for audit of ipc object properties and permission changes
+ * Dustin Kirkland <dustin.kirkland@us.ibm.com>
  */
 
 #include <linux/config.h>
@@ -820,6 +823,11 @@ static int semctl_down(int semid, int semnum, int cmd, int version, union semun 
 		goto out_unlock;
 	}	
 	ipcp = &sma->sem_perm;
+
+	err = audit_ipc_obj(ipcp);
+	if (err)
+		goto out_unlock;
+
 	if (current->euid != ipcp->cuid && 
 	    current->euid != ipcp->uid && !capable(CAP_SYS_ADMIN)) {
 	    	err=-EPERM;
@@ -836,7 +844,8 @@ static int semctl_down(int semid, int semnum, int cmd, int version, union semun 
 		err = 0;
 		break;
 	case IPC_SET:
-		if ((err = audit_ipc_perms(0, setbuf.uid, setbuf.gid, setbuf.mode, ipcp)))
+		err = audit_ipc_set_perm(0, setbuf.uid, setbuf.gid, setbuf.mode, ipcp);
+		if (err)
 			goto out_unlock;
 		ipcp->uid = setbuf.uid;
 		ipcp->gid = setbuf.gid;

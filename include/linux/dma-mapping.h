@@ -14,6 +14,7 @@ enum dma_data_direction {
 };
 
 #define DMA_64BIT_MASK	0xffffffffffffffffULL
+#define DMA_48BIT_MASK	0x0000ffffffffffffULL
 #define DMA_40BIT_MASK	0x000000ffffffffffULL
 #define DMA_39BIT_MASK	0x0000007fffffffffULL
 #define DMA_32BIT_MASK	0x00000000ffffffffULL

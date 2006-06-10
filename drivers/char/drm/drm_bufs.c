@@ -386,7 +386,6 @@ int drm_rmmap_locked(drm_device_t *dev, drm_local_map_t *map)
 
 	return 0;
 }
-EXPORT_SYMBOL(drm_rmmap_locked);
 
 int drm_rmmap(drm_device_t *dev, drm_local_map_t *map)
 {
@@ -398,7 +397,6 @@ int drm_rmmap(drm_device_t *dev, drm_local_map_t *map)
 
 	return ret;
 }
-EXPORT_SYMBOL(drm_rmmap);
 
 /* The rmmap ioctl appears to be unnecessary.  All mappings are torn down on
  * the last close of the device, and this is necessary for cleanup when things
@@ -1053,7 +1051,7 @@ static int drm_addbufs_sg(drm_device_t * dev, drm_buf_desc_t * request)
 	return 0;
 }
 
-int drm_addbufs_fb(drm_device_t * dev, drm_buf_desc_t * request)
+static int drm_addbufs_fb(drm_device_t * dev, drm_buf_desc_t * request)
 {
 	drm_device_dma_t *dma = dev->dma;
 	drm_buf_entry_t *entry;
@@ -1212,7 +1210,6 @@ int drm_addbufs_fb(drm_device_t * dev, drm_buf_desc_t * request)
 	atomic_dec(&dev->buf_alloc);
 	return 0;
 }
-EXPORT_SYMBOL(drm_addbufs_fb);
 
 
 /**

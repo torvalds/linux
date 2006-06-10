@@ -275,6 +275,7 @@ static void ipoib_ib_handle_wc(struct net_device *dev,
 		spin_lock_irqsave(&priv->tx_lock, flags);
 		++priv->tx_tail;
 		if (netif_queue_stopped(dev) &&
+		    test_bit(IPOIB_FLAG_ADMIN_UP, &priv->flags) &&
 		    priv->tx_head - priv->tx_tail <= ipoib_sendq_size >> 1)
 			netif_wake_queue(dev);
 		spin_unlock_irqrestore(&priv->tx_lock, flags);

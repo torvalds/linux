@@ -99,7 +99,7 @@ config CPU_FREQ_GOV_USERSPACE
 	  Enable this cpufreq governor when you either want to set the
 	  CPU frequency manually or when an userspace program shall
 	  be able to set the CPU dynamically, like on LART 
-	  <http://www.lart.tudelft.nl/>
+	  <http://www.lartmaker.nl/>.
 
 	  For details, take a look at <file:Documentation/cpu-freq/>.
 

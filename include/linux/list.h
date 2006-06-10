@@ -619,7 +619,7 @@ static inline void hlist_del_rcu(struct hlist_node *n)
 
 static inline void hlist_del_init(struct hlist_node *n)
 {
-	if (n->pprev)  {
+	if (!hlist_unhashed(n)) {
 		__hlist_del(n);
 		INIT_HLIST_NODE(n);
 	}

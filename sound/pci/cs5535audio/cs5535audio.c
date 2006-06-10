@@ -45,7 +45,7 @@ static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;
 static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;
 
-static struct pci_device_id snd_cs5535audio_ids[] = {
+static struct pci_device_id snd_cs5535audio_ids[] __devinitdata = {
 	{ PCI_VENDOR_ID_NS, PCI_DEVICE_ID_NS_CS5535_AUDIO,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0, },
 	{ PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_CS5536_AUDIO,

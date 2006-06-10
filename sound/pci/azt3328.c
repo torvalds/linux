@@ -216,7 +216,7 @@ struct snd_azf3328 {
 	int irq;
 };
 
-static const struct pci_device_id snd_azf3328_ids[] = {
+static const struct pci_device_id snd_azf3328_ids[] __devinitdata = {
 	{ 0x122D, 0x50DC, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },   /* PCI168/3328 */
 	{ 0x122D, 0x80DA, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },   /* 3328 */
 	{ 0, }

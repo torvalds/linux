@@ -267,6 +267,8 @@ int move_addr_to_user(void *kaddr, int klen, void __user *uaddr, int __user *ule
 		return -EINVAL;
 	if(len)
 	{
+		if (audit_sockaddr(klen, kaddr))
+			return -ENOMEM;
 		if(copy_to_user(uaddr,kaddr,len))
 			return -EFAULT;
 	}
@@ -490,6 +492,7 @@ static struct socket *sockfd_lookup_light(int fd, int *err, int *fput_needed)
 	struct file *file;
 	struct socket *sock;
 
+	*err = -EBADF;
 	file = fget_light(fd, fput_needed);
 	if (file) {
 		sock = sock_from_file(file, err);

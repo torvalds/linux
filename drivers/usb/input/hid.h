@@ -533,3 +533,8 @@ static inline int hid_ff_event(struct hid_device *hid, struct input_dev *input,
 		return hid->ff_event(hid, input, type, code, value);
 	return -ENOSYS;
 }
+
+int hid_lgff_init(struct hid_device* hid);
+int hid_tmff_init(struct hid_device* hid);
+int hid_pid_init(struct hid_device* hid);
+

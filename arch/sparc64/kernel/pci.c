@@ -419,6 +419,7 @@ void pcibios_resource_to_bus(struct pci_dev *pdev, struct pci_bus_region *region
 	region->start = res->start - zero_res.start;
 	region->end = res->end - zero_res.start;
 }
+EXPORT_SYMBOL(pcibios_resource_to_bus);
 
 void pcibios_bus_to_resource(struct pci_dev *pdev, struct resource *res,
 			     struct pci_bus_region *region)

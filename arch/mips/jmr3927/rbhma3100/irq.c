@@ -77,8 +77,6 @@ static int jmr3927_gen_iack(void)
 }
 #endif
 
-extern asmlinkage void jmr3927_IRQ(void);
-
 #define irc_dlevel	0
 #define irc_elevel	1
 
@@ -262,7 +260,7 @@ void jmr3927_spurious(struct pt_regs *regs)
 	       regs->cp0_cause, regs->cp0_epc, regs->regs[31]);
 }
 
-void jmr3927_irc_irqdispatch(struct pt_regs *regs)
+asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
 {
 	int irq;
 
@@ -397,8 +395,6 @@ void __init arch_init_irq(void)
 	tx3927_ircptr->imr = irc_elevel;
 
 	jmr3927_irq_init(NR_ISA_IRQS);
-
-	set_except_vector(0, jmr3927_IRQ);
 
 	/* setup irq space */
 	add_tb_irq_space(&jmr3927_isac_irqspace);

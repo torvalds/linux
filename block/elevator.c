@@ -121,16 +121,16 @@ static struct elevator_type *elevator_get(const char *name)
 	return e;
 }
 
-static int elevator_attach(request_queue_t *q, struct elevator_queue *eq)
+static void *elevator_init_queue(request_queue_t *q, struct elevator_queue *eq)
 {
-	int ret = 0;
+	return eq->ops->elevator_init_fn(q, eq);
+}
 
+static void elevator_attach(request_queue_t *q, struct elevator_queue *eq,
+			   void *data)
+{
 	q->elevator = eq;
-
-	if (eq->ops->elevator_init_fn)
-		ret = eq->ops->elevator_init_fn(q, eq);
-
-	return ret;
+	eq->elevator_data = data;
 }
 
 static char chosen_elevator[16];
@@ -181,6 +181,7 @@ int elevator_init(request_queue_t *q, char *name)
 	struct elevator_type *e = NULL;
 	struct elevator_queue *eq;
 	int ret = 0;
+	void *data;
 
 	INIT_LIST_HEAD(&q->queue_head);
 	q->last_merge = NULL;
@@ -202,10 +203,13 @@ int elevator_init(request_queue_t *q, char *name)
 	if (!eq)
 		return -ENOMEM;
 
-	ret = elevator_attach(q, eq);
-	if (ret)
+	data = elevator_init_queue(q, eq);
+	if (!data) {
 		kobject_put(&eq->kobj);
+		return -ENOMEM;
+	}
 
+	elevator_attach(q, eq, data);
 	return ret;
 }
 
@@ -333,6 +337,7 @@ void elv_insert(request_queue_t *q, struct request *rq, int where)
 {
 	struct list_head *pos;
 	unsigned ordseq;
+	int unplug_it = 1;
 
 	blk_add_trace_rq(q, rq, BLK_TA_INSERT);
 
@@ -399,6 +404,11 @@ void elv_insert(request_queue_t *q, struct request *rq, int where)
 		}
 
 		list_add_tail(&rq->queuelist, pos);
+		/*
+		 * most requeues happen because of a busy condition, don't
+		 * force unplug of the queue for that case.
+		 */
+		unplug_it = 0;
 		break;
 
 	default:
@@ -407,7 +417,7 @@ void elv_insert(request_queue_t *q, struct request *rq, int where)
 		BUG();
 	}
 
-	if (blk_queue_plugged(q)) {
+	if (unplug_it && blk_queue_plugged(q)) {
 		int nrq = q->rq.count[READ] + q->rq.count[WRITE]
 			- q->in_flight;
 
@@ -716,13 +726,16 @@ int elv_register_queue(struct request_queue *q)
 	return error;
 }
 
+static void __elv_unregister_queue(elevator_t *e)
+{
+	kobject_uevent(&e->kobj, KOBJ_REMOVE);
+	kobject_del(&e->kobj);
+}
+
 void elv_unregister_queue(struct request_queue *q)
 {
-	if (q) {
-		elevator_t *e = q->elevator;
-		kobject_uevent(&e->kobj, KOBJ_REMOVE);
-		kobject_del(&e->kobj);
-	}
+	if (q)
+		__elv_unregister_queue(q->elevator);
 }
 
 int elv_register(struct elevator_type *e)
@@ -774,6 +787,7 @@ EXPORT_SYMBOL_GPL(elv_unregister);
 static int elevator_switch(request_queue_t *q, struct elevator_type *new_e)
 {
 	elevator_t *old_elevator, *e;
+	void *data;
 
 	/*
 	 * Allocate new elevator
@@ -781,6 +795,12 @@ static int elevator_switch(request_queue_t *q, struct elevator_type *new_e)
 	e = elevator_alloc(new_e);
 	if (!e)
 		return 0;
+
+	data = elevator_init_queue(q, e);
+	if (!data) {
+		kobject_put(&e->kobj);
+		return 0;
+	}
 
 	/*
 	 * Turn on BYPASS and drain all requests w/ elevator private data
@@ -800,19 +820,19 @@ static int elevator_switch(request_queue_t *q, struct elevator_type *new_e)
 		elv_drain_elevator(q);
 	}
 
-	spin_unlock_irq(q->queue_lock);
-
 	/*
-	 * unregister old elevator data
+	 * Remember old elevator.
 	 */
-	elv_unregister_queue(q);
 	old_elevator = q->elevator;
 
 	/*
 	 * attach and start new elevator
 	 */
-	if (elevator_attach(q, e))
-		goto fail;
+	elevator_attach(q, e, data);
+
+	spin_unlock_irq(q->queue_lock);
+
+	__elv_unregister_queue(old_elevator);
 
 	if (elv_register_queue(q))
 		goto fail_register;
@@ -831,7 +851,6 @@ fail_register:
 	 */
 	elevator_exit(e);
 	e = NULL;
-fail:
 	q->elevator = old_elevator;
 	elv_register_queue(q);
 	clear_bit(QUEUE_FLAG_ELVSWITCH, &q->queue_flags);
@@ -895,10 +914,8 @@ ssize_t elv_iosched_show(request_queue_t *q, char *name)
 EXPORT_SYMBOL(elv_dispatch_sort);
 EXPORT_SYMBOL(elv_add_request);
 EXPORT_SYMBOL(__elv_add_request);
-EXPORT_SYMBOL(elv_requeue_request);
 EXPORT_SYMBOL(elv_next_request);
 EXPORT_SYMBOL(elv_dequeue_request);
 EXPORT_SYMBOL(elv_queue_empty);
-EXPORT_SYMBOL(elv_completed_request);
 EXPORT_SYMBOL(elevator_exit);
 EXPORT_SYMBOL(elevator_init);
