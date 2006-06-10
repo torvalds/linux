@@ -42,11 +42,7 @@ unsigned long _SDR1;
 
 union ubat {			/* BAT register values to be loaded */
 	BAT	bat;
-#ifdef CONFIG_PPC64BRIDGE
-	u64	word[2];
-#else
 	u32	word[2];
-#endif
 } BATS[4][2];			/* 4 pairs of IBAT, DBAT */
 
 struct batrange {		/* stores address ranges mapped by BATs */
@@ -220,15 +216,9 @@ void __init MMU_init_hw(void)
 
 	if ( ppc_md.progress ) ppc_md.progress("hash:enter", 0x105);
 
-#ifdef CONFIG_PPC64BRIDGE
-#define LG_HPTEG_SIZE	7		/* 128 bytes per HPTEG */
-#define SDR1_LOW_BITS	(lg_n_hpteg - 11)
-#define MIN_N_HPTEG	2048		/* min 256kB hash table */
-#else
 #define LG_HPTEG_SIZE	6		/* 64 bytes per HPTEG */
 #define SDR1_LOW_BITS	((n_hpteg - 1) >> 10)
 #define MIN_N_HPTEG	1024		/* min 64kB hash table */
-#endif
 
 	/*
 	 * Allow 1 HPTE (1/8 HPTEG) for each page of memory.

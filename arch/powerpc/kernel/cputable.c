@@ -189,17 +189,11 @@ struct cpu_spec	cpu_specs[] = {
 		.oprofile_type		= PPC_OPROFILE_POWER4,
 		.platform		= "ppc970",
 	},
-#endif /* CONFIG_PPC64 */
-#if defined(CONFIG_PPC64) || defined(CONFIG_POWER4)
 	{	/* PPC970FX */
 		.pvr_mask		= 0xffff0000,
 		.pvr_value		= 0x003c0000,
 		.cpu_name		= "PPC970FX",
-#ifdef CONFIG_PPC32
-		.cpu_features		= CPU_FTRS_970_32,
-#else
 		.cpu_features		= CPU_FTRS_PPC970,
-#endif
 		.cpu_user_features	= COMMON_USER_POWER4 |
 			PPC_FEATURE_HAS_ALTIVEC_COMP,
 		.icache_bsize		= 128,
@@ -210,8 +204,6 @@ struct cpu_spec	cpu_specs[] = {
 		.oprofile_type		= PPC_OPROFILE_POWER4,
 		.platform		= "ppc970",
 	},
-#endif /* defined(CONFIG_PPC64) || defined(CONFIG_POWER4) */
-#ifdef CONFIG_PPC64
 	{	/* PPC970MP */
 		.pvr_mask		= 0xffff0000,
 		.pvr_value		= 0x00440000,
