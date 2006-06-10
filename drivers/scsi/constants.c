@@ -13,9 +13,9 @@
 #include <linux/kernel.h>
 
 #include <scsi/scsi.h>
+#include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_host.h>
-#include <scsi/scsi_request.h>
 #include <scsi/scsi_eh.h>
 #include <scsi/scsi_dbg.h>
 
@@ -1260,16 +1260,6 @@ void scsi_print_sense(const char *devclass, struct scsi_cmnd *cmd)
 	__scsi_print_sense(name, cmd->sense_buffer, SCSI_SENSE_BUFFERSIZE);
 }
 EXPORT_SYMBOL(scsi_print_sense);
-
-void scsi_print_req_sense(const char *devclass, struct scsi_request *sreq)
-{
-	const char *name = devclass;
-
-	if (sreq->sr_request->rq_disk)
-		name = sreq->sr_request->rq_disk->disk_name;
-	__scsi_print_sense(name, sreq->sr_sense_buffer, SCSI_SENSE_BUFFERSIZE);
-}
-EXPORT_SYMBOL(scsi_print_req_sense);
 
 void scsi_print_command(struct scsi_cmnd *cmd)
 {

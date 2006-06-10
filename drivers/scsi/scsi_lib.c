@@ -19,12 +19,12 @@
 #include <linux/hardirq.h>
 
 #include <scsi/scsi.h>
+#include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_dbg.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_driver.h>
 #include <scsi/scsi_eh.h>
 #include <scsi/scsi_host.h>
-#include <scsi/scsi_request.h>
 
 #include "scsi_priv.h"
 #include "scsi_logging.h"
@@ -83,7 +83,7 @@ static void scsi_unprep_request(struct request *req)
 	struct scsi_cmnd *cmd = req->special;
 
 	req->flags &= ~REQ_DONTPREP;
-	req->special = (req->flags & REQ_SPECIAL) ? cmd->sc_request : NULL;
+	req->special = NULL;
 
 	scsi_put_command(cmd);
 }
@@ -160,72 +160,6 @@ int scsi_queue_insert(struct scsi_cmnd *cmd, int reason)
 
 	return 0;
 }
-
-/*
- * Function:    scsi_do_req
- *
- * Purpose:     Queue a SCSI request
- *
- * Arguments:   sreq	  - command descriptor.
- *              cmnd      - actual SCSI command to be performed.
- *              buffer    - data buffer.
- *              bufflen   - size of data buffer.
- *              done      - completion function to be run.
- *              timeout   - how long to let it run before timeout.
- *              retries   - number of retries we allow.
- *
- * Lock status: No locks held upon entry.
- *
- * Returns:     Nothing.
- *
- * Notes:	This function is only used for queueing requests for things
- *		like ioctls and character device requests - this is because
- *		we essentially just inject a request into the queue for the
- *		device.
- *
- *		In order to support the scsi_device_quiesce function, we
- *		now inject requests on the *head* of the device queue
- *		rather than the tail.
- */
-void scsi_do_req(struct scsi_request *sreq, const void *cmnd,
-		 void *buffer, unsigned bufflen,
-		 void (*done)(struct scsi_cmnd *),
-		 int timeout, int retries)
-{
-	/*
-	 * If the upper level driver is reusing these things, then
-	 * we should release the low-level block now.  Another one will
-	 * be allocated later when this request is getting queued.
-	 */
-	__scsi_release_request(sreq);
-
-	/*
-	 * Our own function scsi_done (which marks the host as not busy,
-	 * disables the timeout counter, etc) will be called by us or by the
-	 * scsi_hosts[host].queuecommand() function needs to also call
-	 * the completion function for the high level driver.
-	 */
-	memcpy(sreq->sr_cmnd, cmnd, sizeof(sreq->sr_cmnd));
-	sreq->sr_bufflen = bufflen;
-	sreq->sr_buffer = buffer;
-	sreq->sr_allowed = retries;
-	sreq->sr_done = done;
-	sreq->sr_timeout_per_command = timeout;
-
-	if (sreq->sr_cmd_len == 0)
-		sreq->sr_cmd_len = COMMAND_SIZE(sreq->sr_cmnd[0]);
-
-	/*
-	 * head injection *required* here otherwise quiesce won't work
-	 *
-	 * Because users of this function are apt to reuse requests with no
-	 * modification, we have to sanitise the request flags here
-	 */
-	sreq->sr_request->flags &= ~REQ_DONTPREP;
-	blk_insert_request(sreq->sr_device->request_queue, sreq->sr_request,
-		       	   1, sreq);
-}
-EXPORT_SYMBOL(scsi_do_req);
 
 /**
  * scsi_execute - insert request and wait for the result
@@ -1300,15 +1234,7 @@ static int scsi_prep_fn(struct request_queue *q, struct request *req)
 	 * at request->cmd, as this tells us the real story.
 	 */
 	if (req->flags & REQ_SPECIAL && req->special) {
-		struct scsi_request *sreq = req->special;
-
-		if (sreq->sr_magic == SCSI_REQ_MAGIC) {
-			cmd = scsi_get_command(sreq->sr_device, GFP_ATOMIC);
-			if (unlikely(!cmd))
-				goto defer;
-			scsi_init_cmd_from_req(cmd, sreq);
-		} else
-			cmd = req->special;
+		cmd = req->special;
 	} else if (req->flags & (REQ_CMD | REQ_BLOCK_PC)) {
 
 		if(unlikely(specials_only) && !(req->flags & REQ_SPECIAL)) {

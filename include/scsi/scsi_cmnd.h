@@ -9,7 +9,6 @@
 struct request;
 struct scatterlist;
 struct scsi_device;
-struct scsi_request;
 
 
 /* embedded in scsi_cmnd */
@@ -29,13 +28,8 @@ struct scsi_pointer {
 };
 
 struct scsi_cmnd {
-	int     sc_magic;
-
 	struct scsi_device *device;
-	struct scsi_request *sc_request;
-
 	struct list_head list;  /* scsi_cmnd participates in queue lists */
-
 	struct list_head eh_entry; /* entry for the host eh_cmd_q */
 	int eh_eflags;		/* Used by error handlr */
 	void (*done) (struct scsi_cmnd *);	/* Mid-level done function */

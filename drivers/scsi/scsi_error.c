@@ -26,13 +26,13 @@
 #include <linux/delay.h>
 
 #include <scsi/scsi.h>
+#include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_dbg.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_eh.h>
 #include <scsi/scsi_transport.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_ioctl.h>
-#include <scsi/scsi_request.h>
 
 #include "scsi_priv.h"
 #include "scsi_logging.h"
@@ -1671,8 +1671,6 @@ scsi_reset_provider(struct scsi_device *dev, int flag)
 	scmd->cmd_len			= 0;
 
 	scmd->sc_data_direction		= DMA_BIDIRECTIONAL;
-	scmd->sc_request		= NULL;
-	scmd->sc_magic			= SCSI_CMND_MAGIC;
 
 	init_timer(&scmd->eh_timeout);
 
@@ -1768,14 +1766,6 @@ int scsi_normalize_sense(const u8 *sense_buffer, int sb_len,
 	return 1;
 }
 EXPORT_SYMBOL(scsi_normalize_sense);
-
-int scsi_request_normalize_sense(struct scsi_request *sreq,
-				 struct scsi_sense_hdr *sshdr)
-{
-	return scsi_normalize_sense(sreq->sr_sense_buffer,
-			sizeof(sreq->sr_sense_buffer), sshdr);
-}
-EXPORT_SYMBOL(scsi_request_normalize_sense);
 
 int scsi_command_normalize_sense(struct scsi_cmnd *cmd,
 				 struct scsi_sense_hdr *sshdr)

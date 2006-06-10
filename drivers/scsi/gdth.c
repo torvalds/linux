@@ -716,8 +716,8 @@ static void gdth_scsi_done(struct scsi_cmnd *scp)
 {
     TRACE2(("gdth_scsi_done()\n"));
 
-    if (scp->sc_request)
-        complete((struct completion *)scp->sc_request);
+    if (scp->request)
+        complete((struct completion *)scp->request);
 }
 
 int __gdth_execute(struct scsi_device *sdev, gdth_cmd_str *gdtcmd, char *cmnd,
@@ -732,8 +732,8 @@ int __gdth_execute(struct scsi_device *sdev, gdth_cmd_str *gdtcmd, char *cmnd,
         return -ENOMEM;
     memset(scp, 0, sizeof(*scp));
     scp->device = sdev;
-    /* use sc_request field to save the ptr. to completion struct. */
-    scp->sc_request = (struct scsi_request *)&wait;
+    /* use request field to save the ptr. to completion struct. */
+    scp->request = (struct request *)&wait;
     scp->timeout_per_command = timeout*HZ;
     scp->request_buffer = gdtcmd;
     scp->cmd_len = 12;
