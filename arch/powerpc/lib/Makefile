@@ -2,6 +2,10 @@
 # Makefile for ppc-specific library files..
 #
 
+ifeq ($(CONFIG_PPC64),y)
+EXTRA_CFLAGS		+= -mno-minimal-toc
+endif
+
 ifeq ($(CONFIG_PPC_MERGE),y)
 obj-y			:= string.o strcase.o
 obj-$(CONFIG_PPC32)	+= div64.o copy_32.o checksum_32.o

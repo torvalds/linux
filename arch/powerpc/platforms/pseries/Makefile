@@ -1,3 +1,7 @@
+ifeq ($(CONFIG_PPC64),y)
+EXTRA_CFLAGS		+= -mno-minimal-toc
+endif
+
 obj-y			:= pci.o lpar.o hvCall.o nvram.o reconfig.o \
 			   setup.o iommu.o ras.o rtasd.o pci_dlpar.o \
 			   firmware.o
