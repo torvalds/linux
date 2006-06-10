@@ -227,8 +227,10 @@ struct pci_controller * pcibios_alloc_controller(struct device_node *dev)
 	pci_setup_pci_controller(phb);
 	phb->arch_data = dev;
 	phb->is_dynamic = mem_init_done;
-	if (dev)
+	if (dev) {
+		PHB_SET_NODE(phb, of_node_to_nid(dev));
 		add_linux_pci_domain(dev, phb);
+	}
 	return phb;
 }
 
@@ -1415,3 +1417,12 @@ long sys_pciconfig_iobase(long which, unsigned long in_bus,
 
 	return -EOPNOTSUPP;
 }
+
+#ifdef CONFIG_NUMA
+int pcibus_to_node(struct pci_bus *bus)
+{
+	struct pci_controller *phb = pci_bus_to_host(bus);
+	return phb->node;
+}
+EXPORT_SYMBOL(pcibus_to_node);
+#endif
