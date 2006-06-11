@@ -456,16 +456,18 @@ typedef union _ring_type {
 /* General driver defaults */
 #define NV_WATCHDOG_TIMEO	(5*HZ)
 
-#define RX_RING		128
-#define TX_RING		256
+#define RX_RING_DEFAULT		128
+#define TX_RING_DEFAULT		256
+#define RX_RING_MIN		128
+#define TX_RING_MIN		64
+#define RING_MAX_DESC_VER_1	1024
+#define RING_MAX_DESC_VER_2_3	16384
 /*
- * If your nic mysteriously hangs then try to reduce the limits
- * to 1/0: It might be required to set NV_TX_LASTPACKET in the
- * last valid ring entry. But this would be impossible to
- * implement - probably a disassembly error.
+ * Difference between the get and put pointers for the tx ring.
+ * This is used to throttle the amount of data outstanding in the
+ * tx ring.
  */
-#define TX_LIMIT_STOP	255
-#define TX_LIMIT_START	254
+#define TX_LIMIT_DIFFERENCE	1
 
 /* rx/tx mac addr + type + vlan + align + slack*/
 #define NV_RX_HEADERS		(64)
@@ -577,13 +579,14 @@ struct fe_priv {
 	 */
 	ring_type rx_ring;
 	unsigned int cur_rx, refill_rx;
-	struct sk_buff *rx_skbuff[RX_RING];
-	dma_addr_t rx_dma[RX_RING];
+	struct sk_buff **rx_skbuff;
+	dma_addr_t *rx_dma;
 	unsigned int rx_buf_sz;
 	unsigned int pkt_limit;
 	struct timer_list oom_kick;
 	struct timer_list nic_poll;
 	u32 nic_poll_irq;
+	int rx_ring_size;
 
 	/* media detection workaround.
 	 * Locking: Within irq hander or disable_irq+spin_lock(&np->lock);
@@ -595,10 +598,13 @@ struct fe_priv {
 	 */
 	ring_type tx_ring;
 	unsigned int next_tx, nic_tx;
-	struct sk_buff *tx_skbuff[TX_RING];
-	dma_addr_t tx_dma[TX_RING];
-	unsigned int tx_dma_len[TX_RING];
+	struct sk_buff **tx_skbuff;
+	dma_addr_t *tx_dma;
+	unsigned int *tx_dma_len;
 	u32 tx_flags;
+	int tx_ring_size;
+	int tx_limit_start;
+	int tx_limit_stop;
 
 	/* vlan fields */
 	struct vlan_group *vlangrp;
@@ -704,7 +710,7 @@ static void setup_hw_rings(struct net_device *dev, int rxtx_flags)
 			writel((u32) cpu_to_le64(np->ring_addr), base + NvRegRxRingPhysAddr);
 		}
 		if (rxtx_flags & NV_SETUP_TX_RING) {
-			writel((u32) cpu_to_le64(np->ring_addr + RX_RING*sizeof(struct ring_desc)), base + NvRegTxRingPhysAddr);
+			writel((u32) cpu_to_le64(np->ring_addr + np->rx_ring_size*sizeof(struct ring_desc)), base + NvRegTxRingPhysAddr);
 		}
 	} else {
 		if (rxtx_flags & NV_SETUP_RX_RING) {
@@ -712,10 +718,35 @@ static void setup_hw_rings(struct net_device *dev, int rxtx_flags)
 			writel((u32) (cpu_to_le64(np->ring_addr) >> 32), base + NvRegRxRingPhysAddrHigh);
 		}
 		if (rxtx_flags & NV_SETUP_TX_RING) {
-			writel((u32) cpu_to_le64(np->ring_addr + RX_RING*sizeof(struct ring_desc_ex)), base + NvRegTxRingPhysAddr);
-			writel((u32) (cpu_to_le64(np->ring_addr + RX_RING*sizeof(struct ring_desc_ex)) >> 32), base + NvRegTxRingPhysAddrHigh);
+			writel((u32) cpu_to_le64(np->ring_addr + np->rx_ring_size*sizeof(struct ring_desc_ex)), base + NvRegTxRingPhysAddr);
+			writel((u32) (cpu_to_le64(np->ring_addr + np->rx_ring_size*sizeof(struct ring_desc_ex)) >> 32), base + NvRegTxRingPhysAddrHigh);
 		}
 	}
+}
+
+static void free_rings(struct net_device *dev)
+{
+	struct fe_priv *np = get_nvpriv(dev);
+
+	if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2) {
+		if(np->rx_ring.orig)
+			pci_free_consistent(np->pci_dev, sizeof(struct ring_desc) * (np->rx_ring_size + np->tx_ring_size),
+					    np->rx_ring.orig, np->ring_addr);
+	} else {
+		if (np->rx_ring.ex)
+			pci_free_consistent(np->pci_dev, sizeof(struct ring_desc_ex) * (np->rx_ring_size + np->tx_ring_size),
+					    np->rx_ring.ex, np->ring_addr);
+	}
+	if (np->rx_skbuff)
+		kfree(np->rx_skbuff);
+	if (np->rx_dma)
+		kfree(np->rx_dma);
+	if (np->tx_skbuff)
+		kfree(np->tx_skbuff);
+	if (np->tx_dma)
+		kfree(np->tx_dma);
+	if (np->tx_dma_len)
+		kfree(np->tx_dma_len);
 }
 
 static int using_multi_irqs(struct net_device *dev)
@@ -1056,7 +1087,7 @@ static int nv_alloc_rx(struct net_device *dev)
 	while (np->cur_rx != refill_rx) {
 		struct sk_buff *skb;
 
-		nr = refill_rx % RX_RING;
+		nr = refill_rx % np->rx_ring_size;
 		if (np->rx_skbuff[nr] == NULL) {
 
 			skb = dev_alloc_skb(np->rx_buf_sz + NV_RX_ALLOC_PAD);
@@ -1085,7 +1116,7 @@ static int nv_alloc_rx(struct net_device *dev)
 		refill_rx++;
 	}
 	np->refill_rx = refill_rx;
-	if (np->cur_rx - refill_rx == RX_RING)
+	if (np->cur_rx - refill_rx == np->rx_ring_size)
 		return 1;
 	return 0;
 }
@@ -1124,9 +1155,9 @@ static void nv_init_rx(struct net_device *dev)
 	struct fe_priv *np = netdev_priv(dev);
 	int i;
 
-	np->cur_rx = RX_RING;
+	np->cur_rx = np->rx_ring_size;
 	np->refill_rx = 0;
-	for (i = 0; i < RX_RING; i++)
+	for (i = 0; i < np->rx_ring_size; i++)
 		if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2)
 			np->rx_ring.orig[i].FlagLen = 0;
 	        else
@@ -1139,7 +1170,7 @@ static void nv_init_tx(struct net_device *dev)
 	int i;
 
 	np->next_tx = np->nic_tx = 0;
-	for (i = 0; i < TX_RING; i++) {
+	for (i = 0; i < np->tx_ring_size; i++) {
 		if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2)
 			np->tx_ring.orig[i].FlagLen = 0;
 	        else
@@ -1184,7 +1215,7 @@ static void nv_drain_tx(struct net_device *dev)
 	struct fe_priv *np = netdev_priv(dev);
 	unsigned int i;
 
-	for (i = 0; i < TX_RING; i++) {
+	for (i = 0; i < np->tx_ring_size; i++) {
 		if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2)
 			np->tx_ring.orig[i].FlagLen = 0;
 		else
@@ -1198,7 +1229,7 @@ static void nv_drain_rx(struct net_device *dev)
 {
 	struct fe_priv *np = netdev_priv(dev);
 	int i;
-	for (i = 0; i < RX_RING; i++) {
+	for (i = 0; i < np->rx_ring_size; i++) {
 		if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2)
 			np->rx_ring.orig[i].FlagLen = 0;
 		else
@@ -1230,8 +1261,8 @@ static int nv_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	u32 tx_flags = 0;
 	u32 tx_flags_extra = (np->desc_ver == DESC_VER_1 ? NV_TX_LASTPACKET : NV_TX2_LASTPACKET);
 	unsigned int fragments = skb_shinfo(skb)->nr_frags;
-	unsigned int nr = (np->next_tx - 1) % TX_RING;
-	unsigned int start_nr = np->next_tx % TX_RING;
+	unsigned int nr = (np->next_tx - 1) % np->tx_ring_size;
+	unsigned int start_nr = np->next_tx % np->tx_ring_size;
 	unsigned int i;
 	u32 offset = 0;
 	u32 bcnt;
@@ -1247,7 +1278,7 @@ static int nv_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	spin_lock_irq(&np->lock);
 
-	if ((np->next_tx - np->nic_tx + entries - 1) > TX_LIMIT_STOP) {
+	if ((np->next_tx - np->nic_tx + entries - 1) > np->tx_limit_stop) {
 		spin_unlock_irq(&np->lock);
 		netif_stop_queue(dev);
 		return NETDEV_TX_BUSY;
@@ -1256,7 +1287,7 @@ static int nv_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* setup the header buffer */
 	do {
 		bcnt = (size > NV_TX2_TSO_MAX_SIZE) ? NV_TX2_TSO_MAX_SIZE : size;
-		nr = (nr + 1) % TX_RING;
+		nr = (nr + 1) % np->tx_ring_size;
 
 		np->tx_dma[nr] = pci_map_single(np->pci_dev, skb->data + offset, bcnt,
 						PCI_DMA_TODEVICE);
@@ -1283,7 +1314,7 @@ static int nv_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		do {
 			bcnt = (size > NV_TX2_TSO_MAX_SIZE) ? NV_TX2_TSO_MAX_SIZE : size;
-			nr = (nr + 1) % TX_RING;
+			nr = (nr + 1) % np->tx_ring_size;
 
 			np->tx_dma[nr] = pci_map_page(np->pci_dev, frag->page, frag->page_offset+offset, bcnt,
 						      PCI_DMA_TODEVICE);
@@ -1365,7 +1396,7 @@ static void nv_tx_done(struct net_device *dev)
 	struct sk_buff *skb;
 
 	while (np->nic_tx != np->next_tx) {
-		i = np->nic_tx % TX_RING;
+		i = np->nic_tx % np->tx_ring_size;
 
 		if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2)
 			Flags = le32_to_cpu(np->tx_ring.orig[i].FlagLen);
@@ -1410,7 +1441,7 @@ static void nv_tx_done(struct net_device *dev)
 		nv_release_txskb(dev, i);
 		np->nic_tx++;
 	}
-	if (np->next_tx - np->nic_tx < TX_LIMIT_START)
+	if (np->next_tx - np->nic_tx < np->tx_limit_start)
 		netif_wake_queue(dev);
 }
 
@@ -1447,7 +1478,7 @@ static void nv_tx_timeout(struct net_device *dev)
 					readl(base + i + 24), readl(base + i + 28));
 		}
 		printk(KERN_INFO "%s: Dumping tx ring\n", dev->name);
-		for (i=0;i<TX_RING;i+= 4) {
+		for (i=0;i<np->tx_ring_size;i+= 4) {
 			if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2) {
 				printk(KERN_INFO "%03x: %08x %08x // %08x %08x // %08x %08x // %08x %08x\n",
 				       i,
@@ -1563,10 +1594,10 @@ static void nv_rx_process(struct net_device *dev)
 		struct sk_buff *skb;
 		int len;
 		int i;
-		if (np->cur_rx - np->refill_rx >= RX_RING)
+		if (np->cur_rx - np->refill_rx >= np->rx_ring_size)
 			break;	/* we scanned the whole ring - do not continue */
 
-		i = np->cur_rx % RX_RING;
+		i = np->cur_rx % np->rx_ring_size;
 		if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2) {
 			Flags = le32_to_cpu(np->rx_ring.orig[i].FlagLen);
 			len = nv_descr_getlength(&np->rx_ring.orig[i], np->desc_ver);
@@ -1755,18 +1786,15 @@ static int nv_change_mtu(struct net_device *dev, int new_mtu)
 		nv_drain_rx(dev);
 		nv_drain_tx(dev);
 		/* reinit driver view of the rx queue */
-		nv_init_rx(dev);
-		nv_init_tx(dev);
-		/* alloc new rx buffers */
 		set_bufsize(dev);
-		if (nv_alloc_rx(dev)) {
+		if (nv_init_ring(dev)) {
 			if (!np->in_shutdown)
 				mod_timer(&np->oom_kick, jiffies + OOM_REFILL);
 		}
 		/* reinit nic view of the rx queue */
 		writel(np->rx_buf_sz, base + NvRegOffloadConfig);
 		setup_hw_rings(dev, NV_SETUP_RX_RING | NV_SETUP_TX_RING);
-		writel( ((RX_RING-1) << NVREG_RINGSZ_RXSHIFT) + ((TX_RING-1) << NVREG_RINGSZ_TXSHIFT),
+		writel( ((np->rx_ring_size-1) << NVREG_RINGSZ_RXSHIFT) + ((np->tx_ring_size-1) << NVREG_RINGSZ_TXSHIFT),
 			base + NvRegRingSizes);
 		pci_push(base);
 		writel(NVREG_TXRXCTL_KICK|np->txrxctl_bits, get_hwbase(dev) + NvRegTxRxControl);
@@ -2685,6 +2713,149 @@ static int nv_set_tso(struct net_device *dev, u32 value)
 		return -EOPNOTSUPP;
 }
 
+static void nv_get_ringparam(struct net_device *dev, struct ethtool_ringparam* ring)
+{
+	struct fe_priv *np = netdev_priv(dev);
+
+	ring->rx_max_pending = (np->desc_ver == DESC_VER_1) ? RING_MAX_DESC_VER_1 : RING_MAX_DESC_VER_2_3;
+	ring->rx_mini_max_pending = 0;
+	ring->rx_jumbo_max_pending = 0;
+	ring->tx_max_pending = (np->desc_ver == DESC_VER_1) ? RING_MAX_DESC_VER_1 : RING_MAX_DESC_VER_2_3;
+
+	ring->rx_pending = np->rx_ring_size;
+	ring->rx_mini_pending = 0;
+	ring->rx_jumbo_pending = 0;
+	ring->tx_pending = np->tx_ring_size;
+}
+
+static int nv_set_ringparam(struct net_device *dev, struct ethtool_ringparam* ring)
+{
+	struct fe_priv *np = netdev_priv(dev);
+	u8 __iomem *base = get_hwbase(dev);
+	u8 *rxtx_ring, *rx_skbuff, *tx_skbuff, *rx_dma, *tx_dma, *tx_dma_len;
+	dma_addr_t ring_addr;
+
+	if (ring->rx_pending < RX_RING_MIN ||
+	    ring->tx_pending < TX_RING_MIN ||
+	    ring->rx_mini_pending != 0 ||
+	    ring->rx_jumbo_pending != 0 ||
+	    (np->desc_ver == DESC_VER_1 &&
+	     (ring->rx_pending > RING_MAX_DESC_VER_1 ||
+	      ring->tx_pending > RING_MAX_DESC_VER_1)) ||
+	    (np->desc_ver != DESC_VER_1 &&
+	     (ring->rx_pending > RING_MAX_DESC_VER_2_3 ||
+	      ring->tx_pending > RING_MAX_DESC_VER_2_3))) {
+		return -EINVAL;
+	}
+
+	/* allocate new rings */
+	if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2) {
+		rxtx_ring = pci_alloc_consistent(np->pci_dev,
+					    sizeof(struct ring_desc) * (ring->rx_pending + ring->tx_pending),
+					    &ring_addr);
+	} else {
+		rxtx_ring = pci_alloc_consistent(np->pci_dev,
+					    sizeof(struct ring_desc_ex) * (ring->rx_pending + ring->tx_pending),
+					    &ring_addr);
+	}
+	rx_skbuff = kmalloc(sizeof(struct sk_buff*) * ring->rx_pending, GFP_KERNEL);
+	rx_dma = kmalloc(sizeof(dma_addr_t) * ring->rx_pending, GFP_KERNEL);
+	tx_skbuff = kmalloc(sizeof(struct sk_buff*) * ring->tx_pending, GFP_KERNEL);
+	tx_dma = kmalloc(sizeof(dma_addr_t) * ring->tx_pending, GFP_KERNEL);
+	tx_dma_len = kmalloc(sizeof(unsigned int) * ring->tx_pending, GFP_KERNEL);
+	if (!rxtx_ring || !rx_skbuff || !rx_dma || !tx_skbuff || !tx_dma || !tx_dma_len) {
+		/* fall back to old rings */
+		if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2) {
+			if(rxtx_ring)
+				pci_free_consistent(np->pci_dev, sizeof(struct ring_desc) * (ring->rx_pending + ring->tx_pending),
+						    rxtx_ring, ring_addr);
+		} else {
+			if (rxtx_ring)
+				pci_free_consistent(np->pci_dev, sizeof(struct ring_desc_ex) * (ring->rx_pending + ring->tx_pending),
+						    rxtx_ring, ring_addr);
+		}
+		if (rx_skbuff)
+			kfree(rx_skbuff);
+		if (rx_dma)
+			kfree(rx_dma);
+		if (tx_skbuff)
+			kfree(tx_skbuff);
+		if (tx_dma)
+			kfree(tx_dma);
+		if (tx_dma_len)
+			kfree(tx_dma_len);
+		goto exit;
+	}
+
+	if (netif_running(dev)) {
+		nv_disable_irq(dev);
+		spin_lock_bh(&dev->xmit_lock);
+		spin_lock(&np->lock);
+		/* stop engines */
+		nv_stop_rx(dev);
+		nv_stop_tx(dev);
+		nv_txrx_reset(dev);
+		/* drain queues */
+		nv_drain_rx(dev);
+		nv_drain_tx(dev);
+		/* delete queues */
+		free_rings(dev);
+	}
+
+	/* set new values */
+	np->rx_ring_size = ring->rx_pending;
+	np->tx_ring_size = ring->tx_pending;
+	np->tx_limit_stop = ring->tx_pending - TX_LIMIT_DIFFERENCE;
+	np->tx_limit_start = ring->tx_pending - TX_LIMIT_DIFFERENCE - 1;
+	if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2) {
+		np->rx_ring.orig = (struct ring_desc*)rxtx_ring;
+		np->tx_ring.orig = &np->rx_ring.orig[np->rx_ring_size];
+	} else {
+		np->rx_ring.ex = (struct ring_desc_ex*)rxtx_ring;
+		np->tx_ring.ex = &np->rx_ring.ex[np->rx_ring_size];
+	}
+	np->rx_skbuff = (struct sk_buff**)rx_skbuff;
+	np->rx_dma = (dma_addr_t*)rx_dma;
+	np->tx_skbuff = (struct sk_buff**)tx_skbuff;
+	np->tx_dma = (dma_addr_t*)tx_dma;
+	np->tx_dma_len = (unsigned int*)tx_dma_len;
+	np->ring_addr = ring_addr;
+
+	memset(np->rx_skbuff, 0, sizeof(struct sk_buff*) * np->rx_ring_size);
+	memset(np->rx_dma, 0, sizeof(dma_addr_t) * np->rx_ring_size);
+	memset(np->tx_skbuff, 0, sizeof(struct sk_buff*) * np->tx_ring_size);
+	memset(np->tx_dma, 0, sizeof(dma_addr_t) * np->tx_ring_size);
+	memset(np->tx_dma_len, 0, sizeof(unsigned int) * np->tx_ring_size);
+
+	if (netif_running(dev)) {
+		/* reinit driver view of the queues */
+		set_bufsize(dev);
+		if (nv_init_ring(dev)) {
+			if (!np->in_shutdown)
+				mod_timer(&np->oom_kick, jiffies + OOM_REFILL);
+		}
+
+		/* reinit nic view of the queues */
+		writel(np->rx_buf_sz, base + NvRegOffloadConfig);
+		setup_hw_rings(dev, NV_SETUP_RX_RING | NV_SETUP_TX_RING);
+		writel( ((np->rx_ring_size-1) << NVREG_RINGSZ_RXSHIFT) + ((np->tx_ring_size-1) << NVREG_RINGSZ_TXSHIFT),
+			base + NvRegRingSizes);
+		pci_push(base);
+		writel(NVREG_TXRXCTL_KICK|np->txrxctl_bits, get_hwbase(dev) + NvRegTxRxControl);
+		pci_push(base);
+
+		/* restart engines */
+		nv_start_rx(dev);
+		nv_start_tx(dev);
+		spin_unlock(&np->lock);
+		spin_unlock_bh(&dev->xmit_lock);
+		nv_enable_irq(dev);
+	}
+	return 0;
+exit:
+	return -ENOMEM;
+}
+
 static struct ethtool_ops ops = {
 	.get_drvinfo = nv_get_drvinfo,
 	.get_link = ethtool_op_get_link,
@@ -2698,6 +2869,8 @@ static struct ethtool_ops ops = {
 	.get_perm_addr = ethtool_op_get_perm_addr,
 	.get_tso = ethtool_op_get_tso,
 	.set_tso = nv_set_tso,
+	.get_ringparam = nv_get_ringparam,
+	.set_ringparam = nv_set_ringparam,
 };
 
 static void nv_vlan_rx_register(struct net_device *dev, struct vlan_group *grp)
@@ -2904,7 +3077,7 @@ static int nv_open(struct net_device *dev)
 
 	/* 4) give hw rings */
 	setup_hw_rings(dev, NV_SETUP_RX_RING | NV_SETUP_TX_RING);
-	writel( ((RX_RING-1) << NVREG_RINGSZ_RXSHIFT) + ((TX_RING-1) << NVREG_RINGSZ_TXSHIFT),
+	writel( ((np->rx_ring_size-1) << NVREG_RINGSZ_RXSHIFT) + ((np->tx_ring_size-1) << NVREG_RINGSZ_TXSHIFT),
 		base + NvRegRingSizes);
 
 	/* 5) continue setup */
@@ -3187,21 +3360,38 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 
 	dev->irq = pci_dev->irq;
 
+	np->rx_ring_size = RX_RING_DEFAULT;
+	np->tx_ring_size = TX_RING_DEFAULT;
+	np->tx_limit_stop = np->tx_ring_size - TX_LIMIT_DIFFERENCE;
+	np->tx_limit_start = np->tx_ring_size - TX_LIMIT_DIFFERENCE - 1;
+
 	if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2) {
 		np->rx_ring.orig = pci_alloc_consistent(pci_dev,
-					sizeof(struct ring_desc) * (RX_RING + TX_RING),
+					sizeof(struct ring_desc) * (np->rx_ring_size + np->tx_ring_size),
 					&np->ring_addr);
 		if (!np->rx_ring.orig)
 			goto out_unmap;
-		np->tx_ring.orig = &np->rx_ring.orig[RX_RING];
+		np->tx_ring.orig = &np->rx_ring.orig[np->rx_ring_size];
 	} else {
 		np->rx_ring.ex = pci_alloc_consistent(pci_dev,
-					sizeof(struct ring_desc_ex) * (RX_RING + TX_RING),
+					sizeof(struct ring_desc_ex) * (np->rx_ring_size + np->tx_ring_size),
 					&np->ring_addr);
 		if (!np->rx_ring.ex)
 			goto out_unmap;
-		np->tx_ring.ex = &np->rx_ring.ex[RX_RING];
+		np->tx_ring.ex = &np->rx_ring.ex[np->rx_ring_size];
 	}
+	np->rx_skbuff = kmalloc(sizeof(struct sk_buff*) * np->rx_ring_size, GFP_KERNEL);
+	np->rx_dma = kmalloc(sizeof(dma_addr_t) * np->rx_ring_size, GFP_KERNEL);
+	np->tx_skbuff = kmalloc(sizeof(struct sk_buff*) * np->tx_ring_size, GFP_KERNEL);
+	np->tx_dma = kmalloc(sizeof(dma_addr_t) * np->tx_ring_size, GFP_KERNEL);
+	np->tx_dma_len = kmalloc(sizeof(unsigned int) * np->tx_ring_size, GFP_KERNEL);
+	if (!np->rx_skbuff || !np->rx_dma || !np->tx_skbuff || !np->tx_dma || !np->tx_dma_len)
+		goto out_freering;
+	memset(np->rx_skbuff, 0, sizeof(struct sk_buff*) * np->rx_ring_size);
+	memset(np->rx_dma, 0, sizeof(dma_addr_t) * np->rx_ring_size);
+	memset(np->tx_skbuff, 0, sizeof(struct sk_buff*) * np->tx_ring_size);
+	memset(np->tx_dma, 0, sizeof(dma_addr_t) * np->tx_ring_size);
+	memset(np->tx_dma_len, 0, sizeof(unsigned int) * np->tx_ring_size);
 
 	dev->open = nv_open;
 	dev->stop = nv_close;
@@ -3323,7 +3513,7 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 	if (i == 33) {
 		printk(KERN_INFO "%s: open: Could not find a valid PHY.\n",
 		       pci_name(pci_dev));
-		goto out_freering;
+		goto out_error;
 	}
 
 	/* reset it */
@@ -3337,7 +3527,7 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 	err = register_netdev(dev);
 	if (err) {
 		printk(KERN_INFO "forcedeth: unable to register netdev: %d\n", err);
-		goto out_freering;
+		goto out_error;
 	}
 	printk(KERN_INFO "%s: forcedeth.c: subsystem: %05x:%04x bound to %s\n",
 			dev->name, pci_dev->subsystem_vendor, pci_dev->subsystem_device,
@@ -3345,14 +3535,10 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 
 	return 0;
 
-out_freering:
-	if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2)
-		pci_free_consistent(np->pci_dev, sizeof(struct ring_desc) * (RX_RING + TX_RING),
-				    np->rx_ring.orig, np->ring_addr);
-	else
-		pci_free_consistent(np->pci_dev, sizeof(struct ring_desc_ex) * (RX_RING + TX_RING),
-				    np->rx_ring.ex, np->ring_addr);
+out_error:
 	pci_set_drvdata(pci_dev, NULL);
+out_freering:
+	free_rings(dev);
 out_unmap:
 	iounmap(get_hwbase(dev));
 out_relreg:
@@ -3368,15 +3554,11 @@ out:
 static void __devexit nv_remove(struct pci_dev *pci_dev)
 {
 	struct net_device *dev = pci_get_drvdata(pci_dev);
-	struct fe_priv *np = netdev_priv(dev);
 
 	unregister_netdev(dev);
 
 	/* free all structures */
-	if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2)
-		pci_free_consistent(np->pci_dev, sizeof(struct ring_desc) * (RX_RING + TX_RING), np->rx_ring.orig, np->ring_addr);
-	else
-		pci_free_consistent(np->pci_dev, sizeof(struct ring_desc_ex) * (RX_RING + TX_RING), np->rx_ring.ex, np->ring_addr);
+	free_rings(dev);
 	iounmap(get_hwbase(dev));
 	pci_release_regions(pci_dev);
 	pci_disable_device(pci_dev);
