@@ -544,15 +544,19 @@ static unsigned int cinergyt2_poll (struct file *file, struct poll_table_struct 
 {
 	struct dvb_device *dvbdev = file->private_data;
 	struct cinergyt2 *cinergyt2 = dvbdev->priv;
+       unsigned int mask = 0;
 
 	if (cinergyt2->disconnect_pending || mutex_lock_interruptible(&cinergyt2->sem))
 		return -ERESTARTSYS;
 
 	poll_wait(file, &cinergyt2->poll_wq, wait);
 
+       if (cinergyt2->pending_fe_events != 0)
+	       mask |= (POLLIN | POLLRDNORM | POLLPRI);
+
 	mutex_unlock(&cinergyt2->sem);
 
-	return (POLLIN | POLLRDNORM | POLLPRI);
+       return mask;
 }
 
 
