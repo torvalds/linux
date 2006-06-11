@@ -334,6 +334,7 @@ void ata_port_wait_eh(struct ata_port *ap)
 		schedule();
 		spin_lock_irqsave(&ap->host_set->lock, flags);
 	}
+	finish_wait(&ap->eh_wait_q, &wait);
 
 	spin_unlock_irqrestore(&ap->host_set->lock, flags);
 
