@@ -1289,7 +1289,7 @@ static void read_dump(const char *fname, unsigned int kernel)
 		if (!(modname = strchr(symname, '\t')))
 			goto fail;
 		*modname++ = '\0';
-		if (!(export = strchr(modname, '\t')))
+		if ((export = strchr(modname, '\t')) != NULL)
 			*export++ = '\0';
 
 		crc = strtoul(line, &d, 16);
