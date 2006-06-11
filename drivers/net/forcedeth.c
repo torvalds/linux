@@ -519,6 +519,9 @@ typedef union _ring_type {
 #define NV_PAUSEFRAME_TX_CAPABLE 0x0002
 #define NV_PAUSEFRAME_RX_ENABLE  0x0004
 #define NV_PAUSEFRAME_TX_ENABLE  0x0008
+#define NV_PAUSEFRAME_RX_REQ     0x0010
+#define NV_PAUSEFRAME_TX_REQ     0x0020
+#define NV_PAUSEFRAME_AUTONEG    0x0040
 
 /* MSI/MSI-X defines */
 #define NV_MSI_X_MAX_VECTORS  8
@@ -1868,16 +1871,16 @@ static void nv_set_multicast(struct net_device *dev)
 	u8 __iomem *base = get_hwbase(dev);
 	u32 addr[2];
 	u32 mask[2];
-	u32 pff;
+	u32 pff = readl(base + NvRegPacketFilterFlags) & NVREG_PFF_PAUSE_RX;
 
 	memset(addr, 0, sizeof(addr));
 	memset(mask, 0, sizeof(mask));
 
 	if (dev->flags & IFF_PROMISC) {
 		printk(KERN_NOTICE "%s: Promiscuous mode enabled.\n", dev->name);
-		pff = NVREG_PFF_PROMISC;
+		pff |= NVREG_PFF_PROMISC;
 	} else {
-		pff = NVREG_PFF_MYADDR;
+		pff |= NVREG_PFF_MYADDR;
 
 		if (dev->flags & IFF_ALLMULTI || dev->mc_list) {
 			u32 alwaysOff[2];
@@ -1922,6 +1925,35 @@ static void nv_set_multicast(struct net_device *dev)
 	spin_unlock_irq(&np->lock);
 }
 
+void nv_update_pause(struct net_device *dev, u32 pause_flags)
+{
+	struct fe_priv *np = netdev_priv(dev);
+	u8 __iomem *base = get_hwbase(dev);
+
+	np->pause_flags &= ~(NV_PAUSEFRAME_TX_ENABLE | NV_PAUSEFRAME_RX_ENABLE);
+
+	if (np->pause_flags & NV_PAUSEFRAME_RX_CAPABLE) {
+		u32 pff = readl(base + NvRegPacketFilterFlags) & ~NVREG_PFF_PAUSE_RX;
+		if (pause_flags & NV_PAUSEFRAME_RX_ENABLE) {
+			writel(pff|NVREG_PFF_PAUSE_RX, base + NvRegPacketFilterFlags);
+			np->pause_flags |= NV_PAUSEFRAME_RX_ENABLE;
+		} else {
+			writel(pff, base + NvRegPacketFilterFlags);
+		}
+	}
+	if (np->pause_flags & NV_PAUSEFRAME_TX_CAPABLE) {
+		u32 regmisc = readl(base + NvRegMisc1) & ~NVREG_MISC1_PAUSE_TX;
+		if (pause_flags & NV_PAUSEFRAME_TX_ENABLE) {
+			writel(NVREG_TX_PAUSEFRAME_ENABLE,  base + NvRegTxPauseFrame);
+			writel(regmisc|NVREG_MISC1_PAUSE_TX, base + NvRegMisc1);
+			np->pause_flags |= NV_PAUSEFRAME_TX_ENABLE;
+		} else {
+			writel(NVREG_TX_PAUSEFRAME_DISABLE,  base + NvRegTxPauseFrame);
+			writel(regmisc, base + NvRegMisc1);
+		}
+	}
+}
+
 /**
  * nv_update_linkspeed: Setup the MAC according to the link partner
  * @dev: Network device to be configured
@@ -1944,7 +1976,7 @@ static int nv_update_linkspeed(struct net_device *dev)
 	int newdup = np->duplex;
 	int mii_status;
 	int retval = 0;
-	u32 control_1000, status_1000, phyreg;
+	u32 control_1000, status_1000, phyreg, pause_flags;
 
 	/* BMSR_LSTATUS is latched, read it twice:
 	 * we want the current value.
@@ -1990,6 +2022,11 @@ static int nv_update_linkspeed(struct net_device *dev)
 		goto set_speed;
 	}
 
+	adv = mii_rw(dev, np->phyaddr, MII_ADVERTISE, MII_READ);
+	lpa = mii_rw(dev, np->phyaddr, MII_LPA, MII_READ);
+	dprintk(KERN_DEBUG "%s: nv_update_linkspeed: PHY advertises 0x%04x, lpa 0x%04x.\n",
+				dev->name, adv, lpa);
+
 	retval = 1;
 	if (np->gigabit == PHY_GIGABIT) {
 		control_1000 = mii_rw(dev, np->phyaddr, MII_CTRL1000, MII_READ);
@@ -2004,11 +2041,6 @@ static int nv_update_linkspeed(struct net_device *dev)
 			goto set_speed;
 		}
 	}
-
-	adv = mii_rw(dev, np->phyaddr, MII_ADVERTISE, MII_READ);
-	lpa = mii_rw(dev, np->phyaddr, MII_LPA, MII_READ);
-	dprintk(KERN_DEBUG "%s: nv_update_linkspeed: PHY advertises 0x%04x, lpa 0x%04x.\n",
-				dev->name, adv, lpa);
 
 	/* FIXME: handle parallel detection properly */
 	adv_lpa = lpa & adv;
@@ -2068,55 +2100,45 @@ set_speed:
 	writel(np->linkspeed, base + NvRegLinkSpeed);
 	pci_push(base);
 
-	/* setup pause frame based on advertisement and link partner */
-	np->pause_flags &= ~(NV_PAUSEFRAME_TX_ENABLE | NV_PAUSEFRAME_RX_ENABLE);
-
+	pause_flags = 0;
+	/* setup pause frame */
 	if (np->duplex != 0) {
-		adv_pause = adv & (ADVERTISE_PAUSE_CAP| ADVERTISE_PAUSE_ASYM);
-		lpa_pause = lpa & (LPA_PAUSE_CAP| LPA_PAUSE_ASYM);
+		if (np->autoneg && np->pause_flags & NV_PAUSEFRAME_AUTONEG) {
+			adv_pause = adv & (ADVERTISE_PAUSE_CAP| ADVERTISE_PAUSE_ASYM);
+			lpa_pause = lpa & (LPA_PAUSE_CAP| LPA_PAUSE_ASYM);
 
-		switch (adv_pause) {
-		case (ADVERTISE_PAUSE_CAP):
-			if (lpa_pause & LPA_PAUSE_CAP) {
-				np->pause_flags |= NV_PAUSEFRAME_TX_ENABLE | NV_PAUSEFRAME_RX_ENABLE;
+			switch (adv_pause) {
+			case (ADVERTISE_PAUSE_CAP):
+				if (lpa_pause & LPA_PAUSE_CAP) {
+					pause_flags |= NV_PAUSEFRAME_RX_ENABLE;
+					if (np->pause_flags & NV_PAUSEFRAME_TX_REQ)
+						pause_flags |= NV_PAUSEFRAME_TX_ENABLE;
+				}
+				break;
+			case (ADVERTISE_PAUSE_ASYM):
+				if (lpa_pause == (LPA_PAUSE_CAP| LPA_PAUSE_ASYM))
+				{
+					pause_flags |= NV_PAUSEFRAME_TX_ENABLE;
+				}
+				break;
+			case (ADVERTISE_PAUSE_CAP| ADVERTISE_PAUSE_ASYM):
+				if (lpa_pause & LPA_PAUSE_CAP)
+				{
+					pause_flags |=  NV_PAUSEFRAME_RX_ENABLE;
+					if (np->pause_flags & NV_PAUSEFRAME_TX_REQ)
+						pause_flags |= NV_PAUSEFRAME_TX_ENABLE;
+				}
+				if (lpa_pause == LPA_PAUSE_ASYM)
+				{
+					pause_flags |= NV_PAUSEFRAME_RX_ENABLE;
+				}
+				break;
 			}
-			break;
-		case (ADVERTISE_PAUSE_ASYM):
-			if (lpa_pause == (LPA_PAUSE_CAP| LPA_PAUSE_ASYM))
-			{
-				np->pause_flags |= NV_PAUSEFRAME_TX_ENABLE;
-			}
-			break;
-		case (ADVERTISE_PAUSE_CAP| ADVERTISE_PAUSE_ASYM):
-			if (lpa_pause & LPA_PAUSE_CAP)
-			{
-				np->pause_flags |= NV_PAUSEFRAME_TX_ENABLE | NV_PAUSEFRAME_RX_ENABLE;
-			}
-			if (lpa_pause == LPA_PAUSE_ASYM)
-			{
-				np->pause_flags |= NV_PAUSEFRAME_RX_ENABLE;
-			}
-			break;
-		}
-	}
-
-	if (np->pause_flags & NV_PAUSEFRAME_RX_CAPABLE) {
-		u32 pff = readl(base + NvRegPacketFilterFlags) & ~NVREG_PFF_PAUSE_RX;
-		if (np->pause_flags & NV_PAUSEFRAME_RX_ENABLE)
-			writel(pff|NVREG_PFF_PAUSE_RX, base + NvRegPacketFilterFlags);
-		else
-			writel(pff, base + NvRegPacketFilterFlags);
-	}
-	if (np->pause_flags & NV_PAUSEFRAME_TX_CAPABLE) {
-		u32 regmisc = readl(base + NvRegMisc1) & ~NVREG_MISC1_PAUSE_TX;
-		if (np->pause_flags & NV_PAUSEFRAME_TX_ENABLE) {
-			writel(NVREG_TX_PAUSEFRAME_ENABLE,  base + NvRegTxPauseFrame);
-			writel(regmisc|NVREG_MISC1_PAUSE_TX, base + NvRegMisc1);
 		} else {
-			writel(NVREG_TX_PAUSEFRAME_DISABLE,  base + NvRegTxPauseFrame);
-			writel(regmisc, base + NvRegMisc1);
+			pause_flags = np->pause_flags;
 		}
 	}
+	nv_update_pause(dev, pause_flags);
 
 	return retval;
 }
@@ -2597,11 +2619,15 @@ static int nv_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 		if (ecmd->advertising & ADVERTISED_10baseT_Half)
 			adv |= ADVERTISE_10HALF;
 		if (ecmd->advertising & ADVERTISED_10baseT_Full)
-			adv |= ADVERTISE_10FULL | ADVERTISE_PAUSE_CAP | ADVERTISE_PAUSE_ASYM;
+			adv |= ADVERTISE_10FULL;
 		if (ecmd->advertising & ADVERTISED_100baseT_Half)
 			adv |= ADVERTISE_100HALF;
 		if (ecmd->advertising & ADVERTISED_100baseT_Full)
-			adv |= ADVERTISE_100FULL | ADVERTISE_PAUSE_CAP | ADVERTISE_PAUSE_ASYM;
+			adv |= ADVERTISE_100FULL;
+		if (np->pause_flags & NV_PAUSEFRAME_RX_REQ)  /* for rx we set both advertisments but disable tx pause */
+			adv |=  ADVERTISE_PAUSE_CAP | ADVERTISE_PAUSE_ASYM;
+		if (np->pause_flags & NV_PAUSEFRAME_TX_REQ)
+			adv |=  ADVERTISE_PAUSE_ASYM;
 		mii_rw(dev, np->phyaddr, MII_ADVERTISE, adv);
 
 		if (np->gigabit == PHY_GIGABIT) {
@@ -2626,11 +2652,20 @@ static int nv_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 		if (ecmd->speed == SPEED_10 && ecmd->duplex == DUPLEX_HALF)
 			adv |= ADVERTISE_10HALF;
 		if (ecmd->speed == SPEED_10 && ecmd->duplex == DUPLEX_FULL)
-			adv |= ADVERTISE_10FULL | ADVERTISE_PAUSE_CAP | ADVERTISE_PAUSE_ASYM;
+			adv |= ADVERTISE_10FULL;
 		if (ecmd->speed == SPEED_100 && ecmd->duplex == DUPLEX_HALF)
 			adv |= ADVERTISE_100HALF;
 		if (ecmd->speed == SPEED_100 && ecmd->duplex == DUPLEX_FULL)
-			adv |= ADVERTISE_100FULL | ADVERTISE_PAUSE_CAP | ADVERTISE_PAUSE_ASYM;
+			adv |= ADVERTISE_100FULL;
+		np->pause_flags &= ~(NV_PAUSEFRAME_AUTONEG|NV_PAUSEFRAME_RX_ENABLE|NV_PAUSEFRAME_TX_ENABLE);
+		if (np->pause_flags & NV_PAUSEFRAME_RX_REQ) {/* for rx we set both advertisments but disable tx pause */
+			adv |=  ADVERTISE_PAUSE_CAP | ADVERTISE_PAUSE_ASYM;
+			np->pause_flags |= NV_PAUSEFRAME_RX_ENABLE;
+		}
+		if (np->pause_flags & NV_PAUSEFRAME_TX_REQ) {
+			adv |=  ADVERTISE_PAUSE_ASYM;
+			np->pause_flags |= NV_PAUSEFRAME_TX_ENABLE;
+		}
 		mii_rw(dev, np->phyaddr, MII_ADVERTISE, adv);
 		np->fixed_mode = adv;
 
@@ -2856,6 +2891,86 @@ exit:
 	return -ENOMEM;
 }
 
+static void nv_get_pauseparam(struct net_device *dev, struct ethtool_pauseparam* pause)
+{
+	struct fe_priv *np = netdev_priv(dev);
+
+	pause->autoneg = (np->pause_flags & NV_PAUSEFRAME_AUTONEG) != 0;
+	pause->rx_pause = (np->pause_flags & NV_PAUSEFRAME_RX_ENABLE) != 0;
+	pause->tx_pause = (np->pause_flags & NV_PAUSEFRAME_TX_ENABLE) != 0;
+}
+
+static int nv_set_pauseparam(struct net_device *dev, struct ethtool_pauseparam* pause)
+{
+	struct fe_priv *np = netdev_priv(dev);
+	int adv, bmcr;
+
+	if ((!np->autoneg && np->duplex == 0) ||
+	    (np->autoneg && !pause->autoneg && np->duplex == 0)) {
+		printk(KERN_INFO "%s: can not set pause settings when forced link is in half duplex.\n",
+		       dev->name);
+		return -EINVAL;
+	}
+	if (pause->tx_pause && !(np->pause_flags & NV_PAUSEFRAME_TX_CAPABLE)) {
+		printk(KERN_INFO "%s: hardware does not support tx pause frames.\n", dev->name);
+		return -EINVAL;
+	}
+
+	netif_carrier_off(dev);
+	if (netif_running(dev)) {
+		nv_disable_irq(dev);
+		spin_lock_bh(&dev->xmit_lock);
+		spin_lock(&np->lock);
+		/* stop engines */
+		nv_stop_rx(dev);
+		nv_stop_tx(dev);
+		spin_unlock(&np->lock);
+		spin_unlock_bh(&dev->xmit_lock);
+	}
+
+	np->pause_flags &= ~(NV_PAUSEFRAME_RX_REQ|NV_PAUSEFRAME_TX_REQ);
+	if (pause->rx_pause)
+		np->pause_flags |= NV_PAUSEFRAME_RX_REQ;
+	if (pause->tx_pause)
+		np->pause_flags |= NV_PAUSEFRAME_TX_REQ;
+
+	if (np->autoneg && pause->autoneg) {
+		np->pause_flags |= NV_PAUSEFRAME_AUTONEG;
+
+		adv = mii_rw(dev, np->phyaddr, MII_ADVERTISE, MII_READ);
+		adv &= ~(ADVERTISE_PAUSE_CAP | ADVERTISE_PAUSE_ASYM);
+		if (np->pause_flags & NV_PAUSEFRAME_RX_REQ) /* for rx we set both advertisments but disable tx pause */
+			adv |=  ADVERTISE_PAUSE_CAP | ADVERTISE_PAUSE_ASYM;
+		if (np->pause_flags & NV_PAUSEFRAME_TX_REQ)
+			adv |=  ADVERTISE_PAUSE_ASYM;
+		mii_rw(dev, np->phyaddr, MII_ADVERTISE, adv);
+
+		if (netif_running(dev))
+			printk(KERN_INFO "%s: link down.\n", dev->name);
+		bmcr = mii_rw(dev, np->phyaddr, MII_BMCR, MII_READ);
+		bmcr |= (BMCR_ANENABLE | BMCR_ANRESTART);
+		mii_rw(dev, np->phyaddr, MII_BMCR, bmcr);
+	} else {
+		np->pause_flags &= ~(NV_PAUSEFRAME_AUTONEG|NV_PAUSEFRAME_RX_ENABLE|NV_PAUSEFRAME_TX_ENABLE);
+		if (pause->rx_pause)
+			np->pause_flags |= NV_PAUSEFRAME_RX_ENABLE;
+		if (pause->tx_pause)
+			np->pause_flags |= NV_PAUSEFRAME_TX_ENABLE;
+
+		if (!netif_running(dev))
+			nv_update_linkspeed(dev);
+		else
+			nv_update_pause(dev, np->pause_flags);
+	}
+
+	if (netif_running(dev)) {
+		nv_start_rx(dev);
+		nv_start_tx(dev);
+		nv_enable_irq(dev);
+	}
+	return 0;
+}
+
 static struct ethtool_ops ops = {
 	.get_drvinfo = nv_get_drvinfo,
 	.get_link = ethtool_op_get_link,
@@ -2871,6 +2986,8 @@ static struct ethtool_ops ops = {
 	.set_tso = nv_set_tso,
 	.get_ringparam = nv_get_ringparam,
 	.set_ringparam = nv_set_ringparam,
+	.get_pauseparam = nv_get_pauseparam,
+	.set_pauseparam = nv_set_pauseparam,
 };
 
 static void nv_vlan_rx_register(struct net_device *dev, struct vlan_group *grp)
@@ -3346,9 +3463,9 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 		np->msi_flags |= NV_MSI_X_CAPABLE;
 	}
 
-	np->pause_flags = NV_PAUSEFRAME_RX_CAPABLE;
+	np->pause_flags = NV_PAUSEFRAME_RX_CAPABLE | NV_PAUSEFRAME_RX_REQ | NV_PAUSEFRAME_AUTONEG;
 	if (id->driver_data & DEV_HAS_PAUSEFRAME_TX) {
-		np->pause_flags |= NV_PAUSEFRAME_TX_CAPABLE;
+		np->pause_flags |= NV_PAUSEFRAME_TX_CAPABLE | NV_PAUSEFRAME_TX_REQ;
 	}
 
 
