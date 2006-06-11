@@ -4,7 +4,7 @@
 #	  This options adds support for userspace processes upto 16TB size.
 #	  Normally the limit is just .5TB.
 
-config SGI_SN0_N_MODE
+config SGI_SN_N_MODE
 	bool "IP27 N-Mode"
 	depends on SGI_IP27
 	help

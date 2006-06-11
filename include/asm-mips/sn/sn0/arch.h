@@ -57,9 +57,9 @@
 /*
  * Slot constants for SN0
  */
-#ifdef CONFIG_SGI_SN0_N_MODE
+#ifdef CONFIG_SGI_SN_N_MODE
 #define MAX_MEM_SLOTS   16                      /* max slots per node */
-#else /* !CONFIG_SGI_SN0_N_MODE, assume M_MODE */
+#else /* !CONFIG_SGI_SN_N_MODE, assume M_MODE */
 #define MAX_MEM_SLOTS   32                      /* max slots per node */
 #endif /* defined(N_MODE) */
 

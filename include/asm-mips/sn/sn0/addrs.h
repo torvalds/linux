@@ -49,7 +49,7 @@
  * so for now we just use defines bracketed by an ifdef.
  */
 
-#ifdef CONFIG_SGI_SN0_N_MODE
+#ifdef CONFIG_SGI_SN_N_MODE
 
 #define NODE_SIZE_BITS		31
 #define BWIN_SIZE_BITS		28
@@ -63,7 +63,7 @@
 #define BDDIR_UPPER_MASK	(UINT64_CAST 0x7ffff << 10)
 #define BDECC_UPPER_MASK	(UINT64_CAST 0x3ffffff << 3)
 
-#else /* !defined(CONFIG_SGI_SN0_N_MODE), assume that M-mode is desired */
+#else /* !defined(CONFIG_SGI_SN_N_MODE), assume that M-mode is desired */
 
 #define NODE_SIZE_BITS		32
 #define BWIN_SIZE_BITS		29
@@ -77,7 +77,7 @@
 #define BDDIR_UPPER_MASK	(UINT64_CAST 0xfffff << 10)
 #define BDECC_UPPER_MASK	(UINT64_CAST 0x7ffffff << 3)
 
-#endif /* !defined(CONFIG_SGI_SN0_N_MODE) */
+#endif /* !defined(CONFIG_SGI_SN_N_MODE) */
 
 #define NODE_ADDRSPACE_SIZE	(UINT64_CAST 1 << NODE_SIZE_BITS)
 
