@@ -2502,6 +2502,139 @@ static irqreturn_t nv_nic_irq_other(int foo, void *data, struct pt_regs *regs)
 	return IRQ_RETVAL(i);
 }
 
+static void set_msix_vector_map(struct net_device *dev, u32 vector, u32 irqmask)
+{
+	u8 __iomem *base = get_hwbase(dev);
+	int i;
+	u32 msixmap = 0;
+
+	/* Each interrupt bit can be mapped to a MSIX vector (4 bits).
+	 * MSIXMap0 represents the first 8 interrupts and MSIXMap1 represents
+	 * the remaining 8 interrupts.
+	 */
+	for (i = 0; i < 8; i++) {
+		if ((irqmask >> i) & 0x1) {
+			msixmap |= vector << (i << 2);
+		}
+	}
+	writel(readl(base + NvRegMSIXMap0) | msixmap, base + NvRegMSIXMap0);
+
+	msixmap = 0;
+	for (i = 0; i < 8; i++) {
+		if ((irqmask >> (i + 8)) & 0x1) {
+			msixmap |= vector << (i << 2);
+		}
+	}
+	writel(readl(base + NvRegMSIXMap1) | msixmap, base + NvRegMSIXMap1);
+}
+
+static int nv_request_irq(struct net_device *dev)
+{
+	struct fe_priv *np = get_nvpriv(dev);
+	u8 __iomem *base = get_hwbase(dev);
+	int ret = 1;
+	int i;
+
+	if (np->msi_flags & NV_MSI_X_CAPABLE) {
+		for (i = 0; i < (np->msi_flags & NV_MSI_X_VECTORS_MASK); i++) {
+			np->msi_x_entry[i].entry = i;
+		}
+		if ((ret = pci_enable_msix(np->pci_dev, np->msi_x_entry, (np->msi_flags & NV_MSI_X_VECTORS_MASK))) == 0) {
+			np->msi_flags |= NV_MSI_X_ENABLED;
+			if (optimization_mode == NV_OPTIMIZATION_MODE_THROUGHPUT) {
+				/* Request irq for rx handling */
+				if (request_irq(np->msi_x_entry[NV_MSI_X_VECTOR_RX].vector, &nv_nic_irq_rx, SA_SHIRQ, dev->name, dev) != 0) {
+					printk(KERN_INFO "forcedeth: request_irq failed for rx %d\n", ret);
+					pci_disable_msix(np->pci_dev);
+					np->msi_flags &= ~NV_MSI_X_ENABLED;
+					goto out_err;
+				}
+				/* Request irq for tx handling */
+				if (request_irq(np->msi_x_entry[NV_MSI_X_VECTOR_TX].vector, &nv_nic_irq_tx, SA_SHIRQ, dev->name, dev) != 0) {
+					printk(KERN_INFO "forcedeth: request_irq failed for tx %d\n", ret);
+					pci_disable_msix(np->pci_dev);
+					np->msi_flags &= ~NV_MSI_X_ENABLED;
+					goto out_free_rx;
+				}
+				/* Request irq for link and timer handling */
+				if (request_irq(np->msi_x_entry[NV_MSI_X_VECTOR_OTHER].vector, &nv_nic_irq_other, SA_SHIRQ, dev->name, dev) != 0) {
+					printk(KERN_INFO "forcedeth: request_irq failed for link %d\n", ret);
+					pci_disable_msix(np->pci_dev);
+					np->msi_flags &= ~NV_MSI_X_ENABLED;
+					goto out_free_tx;
+				}
+				/* map interrupts to their respective vector */
+				writel(0, base + NvRegMSIXMap0);
+				writel(0, base + NvRegMSIXMap1);
+				set_msix_vector_map(dev, NV_MSI_X_VECTOR_RX, NVREG_IRQ_RX_ALL);
+				set_msix_vector_map(dev, NV_MSI_X_VECTOR_TX, NVREG_IRQ_TX_ALL);
+				set_msix_vector_map(dev, NV_MSI_X_VECTOR_OTHER, NVREG_IRQ_OTHER);
+			} else {
+				/* Request irq for all interrupts */
+				if (request_irq(np->msi_x_entry[NV_MSI_X_VECTOR_ALL].vector, &nv_nic_irq, SA_SHIRQ, dev->name, dev) != 0) {
+					printk(KERN_INFO "forcedeth: request_irq failed %d\n", ret);
+					pci_disable_msix(np->pci_dev);
+					np->msi_flags &= ~NV_MSI_X_ENABLED;
+					goto out_err;
+				}
+
+				/* map interrupts to vector 0 */
+				writel(0, base + NvRegMSIXMap0);
+				writel(0, base + NvRegMSIXMap1);
+			}
+		}
+	}
+	if (ret != 0 && np->msi_flags & NV_MSI_CAPABLE) {
+		if ((ret = pci_enable_msi(np->pci_dev)) == 0) {
+			np->msi_flags |= NV_MSI_ENABLED;
+			if (request_irq(np->pci_dev->irq, &nv_nic_irq, SA_SHIRQ, dev->name, dev) != 0) {
+				printk(KERN_INFO "forcedeth: request_irq failed %d\n", ret);
+				pci_disable_msi(np->pci_dev);
+				np->msi_flags &= ~NV_MSI_ENABLED;
+				goto out_err;
+			}
+
+			/* map interrupts to vector 0 */
+			writel(0, base + NvRegMSIMap0);
+			writel(0, base + NvRegMSIMap1);
+			/* enable msi vector 0 */
+			writel(NVREG_MSI_VECTOR_0_ENABLED, base + NvRegMSIIrqMask);
+		}
+	}
+	if (ret != 0) {
+		if (request_irq(np->pci_dev->irq, &nv_nic_irq, SA_SHIRQ, dev->name, dev) != 0)
+			goto out_err;
+	}
+
+	return 0;
+out_free_tx:
+	free_irq(np->msi_x_entry[NV_MSI_X_VECTOR_TX].vector, dev);
+out_free_rx:
+	free_irq(np->msi_x_entry[NV_MSI_X_VECTOR_RX].vector, dev);
+out_err:
+	return 1;
+}
+
+static void nv_free_irq(struct net_device *dev)
+{
+	struct fe_priv *np = get_nvpriv(dev);
+	int i;
+
+	if (np->msi_flags & NV_MSI_X_ENABLED) {
+		for (i = 0; i < (np->msi_flags & NV_MSI_X_VECTORS_MASK); i++) {
+			free_irq(np->msi_x_entry[i].vector, dev);
+		}
+		pci_disable_msix(np->pci_dev);
+		np->msi_flags &= ~NV_MSI_X_ENABLED;
+	} else {
+		free_irq(np->pci_dev->irq, dev);
+		if (np->msi_flags & NV_MSI_ENABLED) {
+			pci_disable_msi(np->pci_dev);
+			np->msi_flags &= ~NV_MSI_ENABLED;
+		}
+	}
+}
+
 static void nv_do_nic_poll(unsigned long data)
 {
 	struct net_device *dev = (struct net_device *) data;
@@ -3318,139 +3451,6 @@ static void nv_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 {
 	/* nothing to do */
 };
-
-static void set_msix_vector_map(struct net_device *dev, u32 vector, u32 irqmask)
-{
-	u8 __iomem *base = get_hwbase(dev);
-	int i;
-	u32 msixmap = 0;
-
-	/* Each interrupt bit can be mapped to a MSIX vector (4 bits).
-	 * MSIXMap0 represents the first 8 interrupts and MSIXMap1 represents
-	 * the remaining 8 interrupts.
-	 */
-	for (i = 0; i < 8; i++) {
-		if ((irqmask >> i) & 0x1) {
-			msixmap |= vector << (i << 2);
-		}
-	}
-	writel(readl(base + NvRegMSIXMap0) | msixmap, base + NvRegMSIXMap0);
-
-	msixmap = 0;
-	for (i = 0; i < 8; i++) {
-		if ((irqmask >> (i + 8)) & 0x1) {
-			msixmap |= vector << (i << 2);
-		}
-	}
-	writel(readl(base + NvRegMSIXMap1) | msixmap, base + NvRegMSIXMap1);
-}
-
-static int nv_request_irq(struct net_device *dev)
-{
-	struct fe_priv *np = get_nvpriv(dev);
-	u8 __iomem *base = get_hwbase(dev);
-	int ret = 1;
-	int i;
-
-	if (np->msi_flags & NV_MSI_X_CAPABLE) {
-		for (i = 0; i < (np->msi_flags & NV_MSI_X_VECTORS_MASK); i++) {
-			np->msi_x_entry[i].entry = i;
-		}
-		if ((ret = pci_enable_msix(np->pci_dev, np->msi_x_entry, (np->msi_flags & NV_MSI_X_VECTORS_MASK))) == 0) {
-			np->msi_flags |= NV_MSI_X_ENABLED;
-			if (optimization_mode == NV_OPTIMIZATION_MODE_THROUGHPUT) {
-				/* Request irq for rx handling */
-				if (request_irq(np->msi_x_entry[NV_MSI_X_VECTOR_RX].vector, &nv_nic_irq_rx, SA_SHIRQ, dev->name, dev) != 0) {
-					printk(KERN_INFO "forcedeth: request_irq failed for rx %d\n", ret);
-					pci_disable_msix(np->pci_dev);
-					np->msi_flags &= ~NV_MSI_X_ENABLED;
-					goto out_err;
-				}
-				/* Request irq for tx handling */
-				if (request_irq(np->msi_x_entry[NV_MSI_X_VECTOR_TX].vector, &nv_nic_irq_tx, SA_SHIRQ, dev->name, dev) != 0) {
-					printk(KERN_INFO "forcedeth: request_irq failed for tx %d\n", ret);
-					pci_disable_msix(np->pci_dev);
-					np->msi_flags &= ~NV_MSI_X_ENABLED;
-					goto out_free_rx;
-				}
-				/* Request irq for link and timer handling */
-				if (request_irq(np->msi_x_entry[NV_MSI_X_VECTOR_OTHER].vector, &nv_nic_irq_other, SA_SHIRQ, dev->name, dev) != 0) {
-					printk(KERN_INFO "forcedeth: request_irq failed for link %d\n", ret);
-					pci_disable_msix(np->pci_dev);
-					np->msi_flags &= ~NV_MSI_X_ENABLED;
-					goto out_free_tx;
-				}
-				/* map interrupts to their respective vector */
-				writel(0, base + NvRegMSIXMap0);
-				writel(0, base + NvRegMSIXMap1);
-				set_msix_vector_map(dev, NV_MSI_X_VECTOR_RX, NVREG_IRQ_RX_ALL);
-				set_msix_vector_map(dev, NV_MSI_X_VECTOR_TX, NVREG_IRQ_TX_ALL);
-				set_msix_vector_map(dev, NV_MSI_X_VECTOR_OTHER, NVREG_IRQ_OTHER);
-			} else {
-				/* Request irq for all interrupts */
-				if (request_irq(np->msi_x_entry[NV_MSI_X_VECTOR_ALL].vector, &nv_nic_irq, SA_SHIRQ, dev->name, dev) != 0) {
-					printk(KERN_INFO "forcedeth: request_irq failed %d\n", ret);
-					pci_disable_msix(np->pci_dev);
-					np->msi_flags &= ~NV_MSI_X_ENABLED;
-					goto out_err;
-				}
-
-				/* map interrupts to vector 0 */
-				writel(0, base + NvRegMSIXMap0);
-				writel(0, base + NvRegMSIXMap1);
-			}
-		}
-	}
-	if (ret != 0 && np->msi_flags & NV_MSI_CAPABLE) {
-		if ((ret = pci_enable_msi(np->pci_dev)) == 0) {
-			np->msi_flags |= NV_MSI_ENABLED;
-			if (request_irq(np->pci_dev->irq, &nv_nic_irq, SA_SHIRQ, dev->name, dev) != 0) {
-				printk(KERN_INFO "forcedeth: request_irq failed %d\n", ret);
-				pci_disable_msi(np->pci_dev);
-				np->msi_flags &= ~NV_MSI_ENABLED;
-				goto out_err;
-			}
-
-			/* map interrupts to vector 0 */
-			writel(0, base + NvRegMSIMap0);
-			writel(0, base + NvRegMSIMap1);
-			/* enable msi vector 0 */
-			writel(NVREG_MSI_VECTOR_0_ENABLED, base + NvRegMSIIrqMask);
-		}
-	}
-	if (ret != 0) {
-		if (request_irq(np->pci_dev->irq, &nv_nic_irq, SA_SHIRQ, dev->name, dev) != 0)
-			goto out_err;
-	}
-
-	return 0;
-out_free_tx:
-	free_irq(np->msi_x_entry[NV_MSI_X_VECTOR_TX].vector, dev);
-out_free_rx:
-	free_irq(np->msi_x_entry[NV_MSI_X_VECTOR_RX].vector, dev);
-out_err:
-	return 1;
-}
-
-static void nv_free_irq(struct net_device *dev)
-{
-	struct fe_priv *np = get_nvpriv(dev);
-	int i;
-
-	if (np->msi_flags & NV_MSI_X_ENABLED) {
-		for (i = 0; i < (np->msi_flags & NV_MSI_X_VECTORS_MASK); i++) {
-			free_irq(np->msi_x_entry[i].vector, dev);
-		}
-		pci_disable_msix(np->pci_dev);
-		np->msi_flags &= ~NV_MSI_X_ENABLED;
-	} else {
-		free_irq(np->pci_dev->irq, dev);
-		if (np->msi_flags & NV_MSI_ENABLED) {
-			pci_disable_msi(np->pci_dev);
-			np->msi_flags &= ~NV_MSI_ENABLED;
-		}
-	}
-}
 
 static int nv_open(struct net_device *dev)
 {
