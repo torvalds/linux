@@ -2492,17 +2492,19 @@ static int nv_set_wol(struct net_device *dev, struct ethtool_wolinfo *wolinfo)
 {
 	struct fe_priv *np = netdev_priv(dev);
 	u8 __iomem *base = get_hwbase(dev);
+	u32 flags = 0;
 
-	spin_lock_irq(&np->lock);
 	if (wolinfo->wolopts == 0) {
-		writel(0, base + NvRegWakeUpFlags);
 		np->wolenabled = 0;
-	}
-	if (wolinfo->wolopts & WAKE_MAGIC) {
-		writel(NVREG_WAKEUPFLAGS_ENABLE, base + NvRegWakeUpFlags);
+	} else if (wolinfo->wolopts & WAKE_MAGIC) {
 		np->wolenabled = 1;
+		flags = NVREG_WAKEUPFLAGS_ENABLE;
 	}
-	spin_unlock_irq(&np->lock);
+	if (netif_running(dev)) {
+		spin_lock_irq(&np->lock);
+		writel(flags, base + NvRegWakeUpFlags);
+		spin_unlock_irq(&np->lock);
+	}
 	return 0;
 }
 
@@ -3284,7 +3286,8 @@ static int nv_open(struct net_device *dev)
 			base + NvRegAdapterControl);
 	writel(NVREG_MIISPEED_BIT8|NVREG_MIIDELAY, base + NvRegMIISpeed);
 	writel(NVREG_UNKSETUP4_VAL, base + NvRegUnknownSetupReg4);
-	writel(NVREG_WAKEUPFLAGS_VAL, base + NvRegWakeUpFlags);
+	if (np->wolenabled)
+		writel(NVREG_WAKEUPFLAGS_ENABLE , base + NvRegWakeUpFlags);
 
 	i = readl(base + NvRegPowerState);
 	if ( (i & NVREG_POWERSTATE_POWEREDUP) == 0)
