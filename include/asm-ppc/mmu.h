@@ -24,8 +24,10 @@ extern phys_addr_t fixup_bigphys_addr(phys_addr_t, phys_addr_t);
 #define PHYS_FMT	"%16Lx"
 #endif
 
-/* Default "unsigned long" context */
-typedef unsigned long mm_context_t;
+typedef struct {
+	unsigned long id;
+	unsigned long vdso_base;
+} mm_context_t;
 
 /* Hardware Page Table Entry */
 typedef struct _PTE {
