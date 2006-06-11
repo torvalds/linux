@@ -36,8 +36,9 @@ ieee80211softmac_auth_req(struct ieee80211softmac_device *mac,
 	struct ieee80211softmac_auth_queue_item *auth;
 	unsigned long flags;
 	
-	if (net->authenticating)
+	if (net->authenticating || net->authenticated)
 		return 0;
+	net->authenticating = 1;
 
 	/* Add the network if it's not already added */
 	ieee80211softmac_add_network(mac, net);
@@ -92,7 +93,6 @@ ieee80211softmac_auth_queue(void *data)
 			return;
 		}
 		net->authenticated = 0;
-		net->authenticating = 1;
 		/* add a timeout call so we eventually give up waiting for an auth reply */
 		schedule_delayed_work(&auth->work, IEEE80211SOFTMAC_AUTH_TIMEOUT);
 		auth->retry--;

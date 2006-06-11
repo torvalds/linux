@@ -104,6 +104,7 @@ struct ieee80211softmac_assoc_info {
 	 */
 	u8 static_essid:1,
 	   associating:1,
+	   assoc_wait:1,
 	   bssvalid:1,
 	   bssfixed:1;
 
