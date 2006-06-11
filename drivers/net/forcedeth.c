@@ -2516,9 +2516,17 @@ static int nv_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 	if (!netif_running(dev)) {
 		/* We do not track link speed / duplex setting if the
 		 * interface is disabled. Force a link check */
-		nv_update_linkspeed(dev);
+		if (nv_update_linkspeed(dev)) {
+			if (!netif_carrier_ok(dev))
+				netif_carrier_on(dev);
+		} else {
+			if (netif_carrier_ok(dev))
+				netif_carrier_off(dev);
+		}
 	}
-	switch(np->linkspeed & (NVREG_LINKSPEED_MASK)) {
+
+	if (netif_carrier_ok(dev)) {
+		switch(np->linkspeed & (NVREG_LINKSPEED_MASK)) {
 		case NVREG_LINKSPEED_10:
 			ecmd->speed = SPEED_10;
 			break;
@@ -2528,10 +2536,14 @@ static int nv_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 		case NVREG_LINKSPEED_1000:
 			ecmd->speed = SPEED_1000;
 			break;
+		}
+		ecmd->duplex = DUPLEX_HALF;
+		if (np->duplex)
+			ecmd->duplex = DUPLEX_FULL;
+	} else {
+		ecmd->speed = -1;
+		ecmd->duplex = -1;
 	}
-	ecmd->duplex = DUPLEX_HALF;
-	if (np->duplex)
-		ecmd->duplex = DUPLEX_FULL;
 
 	ecmd->autoneg = np->autoneg;
 
@@ -2539,23 +2551,20 @@ static int nv_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 	if (np->autoneg) {
 		ecmd->advertising |= ADVERTISED_Autoneg;
 		adv = mii_rw(dev, np->phyaddr, MII_ADVERTISE, MII_READ);
-	} else {
-		adv = np->fixed_mode;
+		if (adv & ADVERTISE_10HALF)
+			ecmd->advertising |= ADVERTISED_10baseT_Half;
+		if (adv & ADVERTISE_10FULL)
+			ecmd->advertising |= ADVERTISED_10baseT_Full;
+		if (adv & ADVERTISE_100HALF)
+			ecmd->advertising |= ADVERTISED_100baseT_Half;
+		if (adv & ADVERTISE_100FULL)
+			ecmd->advertising |= ADVERTISED_100baseT_Full;
+		if (np->gigabit == PHY_GIGABIT) {
+			adv = mii_rw(dev, np->phyaddr, MII_CTRL1000, MII_READ);
+			if (adv & ADVERTISE_1000FULL)
+				ecmd->advertising |= ADVERTISED_1000baseT_Full;
+		}
 	}
-	if (adv & ADVERTISE_10HALF)
-		ecmd->advertising |= ADVERTISED_10baseT_Half;
-	if (adv & ADVERTISE_10FULL)
-		ecmd->advertising |= ADVERTISED_10baseT_Full;
-	if (adv & ADVERTISE_100HALF)
-		ecmd->advertising |= ADVERTISED_100baseT_Half;
-	if (adv & ADVERTISE_100FULL)
-		ecmd->advertising |= ADVERTISED_100baseT_Full;
-	if (np->autoneg && np->gigabit == PHY_GIGABIT) {
-		adv = mii_rw(dev, np->phyaddr, MII_CTRL1000, MII_READ);
-		if (adv & ADVERTISE_1000FULL)
-			ecmd->advertising |= ADVERTISED_1000baseT_Full;
-	}
-
 	ecmd->supported = (SUPPORTED_Autoneg |
 		SUPPORTED_10baseT_Half | SUPPORTED_10baseT_Full |
 		SUPPORTED_100baseT_Half | SUPPORTED_100baseT_Full |
@@ -2607,7 +2616,18 @@ static int nv_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 		return -EINVAL;
 	}
 
-	spin_lock_irq(&np->lock);
+	netif_carrier_off(dev);
+	if (netif_running(dev)) {
+		nv_disable_irq(dev);
+		spin_lock_bh(&dev->xmit_lock);
+		spin_lock(&np->lock);
+		/* stop engines */
+		nv_stop_rx(dev);
+		nv_stop_tx(dev);
+		spin_unlock(&np->lock);
+		spin_unlock_bh(&dev->xmit_lock);
+	}
+
 	if (ecmd->autoneg == AUTONEG_ENABLE) {
 		int adv, bmcr;
 
@@ -2638,6 +2658,8 @@ static int nv_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 			mii_rw(dev, np->phyaddr, MII_CTRL1000, adv);
 		}
 
+		if (netif_running(dev))
+			printk(KERN_INFO "%s: link down.\n", dev->name);
 		bmcr = mii_rw(dev, np->phyaddr, MII_BMCR, MII_READ);
 		bmcr |= (BMCR_ANENABLE | BMCR_ANRESTART);
 		mii_rw(dev, np->phyaddr, MII_BMCR, bmcr);
@@ -2676,20 +2698,30 @@ static int nv_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 		}
 
 		bmcr = mii_rw(dev, np->phyaddr, MII_BMCR, MII_READ);
-		bmcr |= ~(BMCR_ANENABLE|BMCR_SPEED100|BMCR_FULLDPLX);
-		if (adv & (ADVERTISE_10FULL|ADVERTISE_100FULL))
+		bmcr &= ~(BMCR_ANENABLE|BMCR_SPEED100|BMCR_SPEED1000|BMCR_FULLDPLX);
+		if (np->fixed_mode & (ADVERTISE_10FULL|ADVERTISE_100FULL))
 			bmcr |= BMCR_FULLDPLX;
-		if (adv & (ADVERTISE_100HALF|ADVERTISE_100FULL))
+		if (np->fixed_mode & (ADVERTISE_100HALF|ADVERTISE_100FULL))
 			bmcr |= BMCR_SPEED100;
 		mii_rw(dev, np->phyaddr, MII_BMCR, bmcr);
-
-		if (netif_running(dev)) {
+		if (np->phy_oui == PHY_OUI_MARVELL) {
+			/* reset the phy */
+			if (phy_reset(dev)) {
+				printk(KERN_INFO "%s: phy reset failed\n", dev->name);
+				return -EINVAL;
+			}
+		} else if (netif_running(dev)) {
 			/* Wait a bit and then reconfigure the nic. */
 			udelay(10);
 			nv_linkchange(dev);
 		}
 	}
-	spin_unlock_irq(&np->lock);
+
+	if (netif_running(dev)) {
+		nv_start_rx(dev);
+		nv_start_tx(dev);
+		nv_enable_irq(dev);
+	}
 
 	return 0;
 }
@@ -2721,19 +2753,35 @@ static int nv_nway_reset(struct net_device *dev)
 	struct fe_priv *np = netdev_priv(dev);
 	int ret;
 
-	spin_lock_irq(&np->lock);
 	if (np->autoneg) {
 		int bmcr;
+
+		netif_carrier_off(dev);
+		if (netif_running(dev)) {
+			nv_disable_irq(dev);
+			spin_lock_bh(&dev->xmit_lock);
+			spin_lock(&np->lock);
+			/* stop engines */
+			nv_stop_rx(dev);
+			nv_stop_tx(dev);
+			spin_unlock(&np->lock);
+			spin_unlock_bh(&dev->xmit_lock);
+			printk(KERN_INFO "%s: link down.\n", dev->name);
+		}
 
 		bmcr = mii_rw(dev, np->phyaddr, MII_BMCR, MII_READ);
 		bmcr |= (BMCR_ANENABLE | BMCR_ANRESTART);
 		mii_rw(dev, np->phyaddr, MII_BMCR, bmcr);
 
+		if (netif_running(dev)) {
+			nv_start_rx(dev);
+			nv_start_tx(dev);
+			nv_enable_irq(dev);
+		}
 		ret = 0;
 	} else {
 		ret = -EINVAL;
 	}
-	spin_unlock_irq(&np->lock);
 
 	return ret;
 }
