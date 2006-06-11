@@ -275,13 +275,12 @@ int jffs2_garbage_collect_pass(struct jffs2_sb_info *c)
 	 * We can decide whether this node is inode or xattr by ic->class.     */
 	if (ic->class == RAWNODE_CLASS_XATTR_DATUM
 	    || ic->class == RAWNODE_CLASS_XATTR_REF) {
-		BUG_ON(raw->next_in_ino != (void *)ic);
 		spin_unlock(&c->erase_completion_lock);
 
 		if (ic->class == RAWNODE_CLASS_XATTR_DATUM) {
-			ret = jffs2_garbage_collect_xattr_datum(c, (struct jffs2_xattr_datum *)ic);
+			ret = jffs2_garbage_collect_xattr_datum(c, (struct jffs2_xattr_datum *)ic, raw);
 		} else {
-			ret = jffs2_garbage_collect_xattr_ref(c, (struct jffs2_xattr_ref *)ic);
+			ret = jffs2_garbage_collect_xattr_ref(c, (struct jffs2_xattr_ref *)ic, raw);
 		}
 		goto release_sem;
 	}

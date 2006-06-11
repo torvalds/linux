@@ -16,6 +16,7 @@
 
 #define JFFS2_XFLAGS_HOT	(0x01)	/* This datum is HOT */
 #define JFFS2_XFLAGS_BIND	(0x02)	/* This datum is not reclaimed */
+#define JFFS2_XFLAGS_INVALID	(0x80)	/* This datum contains crc error */
 
 struct jffs2_xattr_datum
 {
@@ -23,7 +24,7 @@ struct jffs2_xattr_datum
 	struct jffs2_raw_node_ref *node;
 	uint8_t class;
 	uint8_t flags;
-	uint16_t xprefix;			/* see JFFS2_XATTR_PREFIX_* */
+	uint16_t xprefix;		/* see JFFS2_XATTR_PREFIX_* */
 
 	struct list_head xindex;	/* chained from c->xattrindex[n] */
 	uint32_t refcnt;		/* # of xattr_ref refers this */
@@ -47,6 +48,7 @@ struct jffs2_xattr_ref
 	uint8_t flags;		/* Currently unused */
 	u16 unused;
 
+	uint32_t xseqno;
 	union {
 		struct jffs2_inode_cache *ic;	/* reference to jffs2_inode_cache */
 		uint32_t ino;			/* only used in scanning/building  */
@@ -57,6 +59,34 @@ struct jffs2_xattr_ref
 	};
 	struct jffs2_xattr_ref *next;		/* chained from ic->xref_list */
 };
+
+#define XDATUM_DELETE_MARKER	(0xffffffff)
+#define XREF_DELETE_MARKER	(0x00000001)
+static inline int is_xattr_datum_dead(struct jffs2_xattr_datum *xd)
+{
+	return (xd->version == XDATUM_DELETE_MARKER);
+}
+
+static inline void set_xattr_datum_dead(struct jffs2_xattr_datum *xd)
+{
+	xd->version = XDATUM_DELETE_MARKER;
+}
+
+static inline int is_xattr_ref_dead(struct jffs2_xattr_ref *ref)
+{
+	return ((ref->xseqno & XREF_DELETE_MARKER) != 0);
+}
+
+static inline void set_xattr_ref_dead(struct jffs2_xattr_ref *ref)
+{
+	ref->xseqno |= XREF_DELETE_MARKER;
+}
+
+static inline void clr_xattr_ref_dead(struct jffs2_xattr_ref *ref)
+{
+	ref->xseqno &= ~XREF_DELETE_MARKER;
+}
+
 
 #ifdef CONFIG_JFFS2_FS_XATTR
 
@@ -70,9 +100,13 @@ extern struct jffs2_xattr_datum *jffs2_setup_xattr_datum(struct jffs2_sb_info *c
 extern void jffs2_xattr_delete_inode(struct jffs2_sb_info *c, struct jffs2_inode_cache *ic);
 extern void jffs2_xattr_free_inode(struct jffs2_sb_info *c, struct jffs2_inode_cache *ic);
 
-extern int jffs2_garbage_collect_xattr_datum(struct jffs2_sb_info *c, struct jffs2_xattr_datum *xd);
-extern int jffs2_garbage_collect_xattr_ref(struct jffs2_sb_info *c, struct jffs2_xattr_ref *ref);
+extern int jffs2_garbage_collect_xattr_datum(struct jffs2_sb_info *c, struct jffs2_xattr_datum *xd,
+					     struct jffs2_raw_node_ref *raw);
+extern int jffs2_garbage_collect_xattr_ref(struct jffs2_sb_info *c, struct jffs2_xattr_ref *ref,
+					   struct jffs2_raw_node_ref *raw);
 extern int jffs2_verify_xattr(struct jffs2_sb_info *c);
+extern void jffs2_release_xattr_datum(struct jffs2_sb_info *c, struct jffs2_xattr_datum *xd);
+extern void jffs2_release_xattr_ref(struct jffs2_sb_info *c, struct jffs2_xattr_ref *ref);
 
 extern int do_jffs2_getxattr(struct inode *inode, int xprefix, const char *xname,
 			     char *buffer, size_t size);
