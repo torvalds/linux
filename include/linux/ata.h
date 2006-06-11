@@ -40,6 +40,8 @@ enum {
 	ATA_MAX_DEVICES		= 2,	/* per bus/port */
 	ATA_MAX_PRD		= 256,	/* we could make these 256/256 */
 	ATA_SECT_SIZE		= 512,
+	ATA_MAX_SECTORS		= 256,
+	ATA_MAX_SECTORS_LBA48	= 65535,/* TODO: 65536? */
 
 	ATA_ID_WORDS		= 256,
 	ATA_ID_SERNO_OFS	= 10,
