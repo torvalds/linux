@@ -1707,14 +1707,16 @@ static void nv_rx_process(struct net_device *dev)
 					}
 				}
 			}
-			Flags &= NV_RX2_CHECKSUMMASK;
-			if (Flags == NV_RX2_CHECKSUMOK1 ||
-					Flags == NV_RX2_CHECKSUMOK2 ||
-					Flags == NV_RX2_CHECKSUMOK3) {
-				dprintk(KERN_DEBUG "%s: hw checksum hit!.\n", dev->name);
-				np->rx_skbuff[i]->ip_summed = CHECKSUM_UNNECESSARY;
-			} else {
-				dprintk(KERN_DEBUG "%s: hwchecksum miss!.\n", dev->name);
+			if (np->txrxctl_bits & NVREG_TXRXCTL_RXCHECK) {
+				Flags &= NV_RX2_CHECKSUMMASK;
+				if (Flags == NV_RX2_CHECKSUMOK1 ||
+				    Flags == NV_RX2_CHECKSUMOK2 ||
+				    Flags == NV_RX2_CHECKSUMOK3) {
+					dprintk(KERN_DEBUG "%s: hw checksum hit!.\n", dev->name);
+					np->rx_skbuff[i]->ip_summed = CHECKSUM_UNNECESSARY;
+				} else {
+					dprintk(KERN_DEBUG "%s: hwchecksum miss!.\n", dev->name);
+				}
 			}
 		}
 		/* got a valid packet - forward it to the network core */
@@ -3021,6 +3023,67 @@ static int nv_set_pauseparam(struct net_device *dev, struct ethtool_pauseparam* 
 	return 0;
 }
 
+static u32 nv_get_rx_csum(struct net_device *dev)
+{
+	struct fe_priv *np = netdev_priv(dev);
+	return (np->txrxctl_bits & NVREG_TXRXCTL_RXCHECK) != 0;
+}
+
+static int nv_set_rx_csum(struct net_device *dev, u32 data)
+{
+	struct fe_priv *np = netdev_priv(dev);
+	u8 __iomem *base = get_hwbase(dev);
+	int retcode = 0;
+
+	if (np->driver_data & DEV_HAS_CHECKSUM) {
+
+		if (((np->txrxctl_bits & NVREG_TXRXCTL_RXCHECK) && data) ||
+		    (!(np->txrxctl_bits & NVREG_TXRXCTL_RXCHECK) && !data)) {
+			/* already set or unset */
+			return 0;
+		}
+
+		if (data) {
+			np->txrxctl_bits |= NVREG_TXRXCTL_RXCHECK;
+		} else if (!(np->vlanctl_bits & NVREG_VLANCONTROL_ENABLE)) {
+			np->txrxctl_bits &= ~NVREG_TXRXCTL_RXCHECK;
+		} else {
+			printk(KERN_INFO "Can not disable rx checksum if vlan is enabled\n");
+			return -EINVAL;
+		}
+
+		if (netif_running(dev)) {
+			spin_lock_irq(&np->lock);
+			writel(np->txrxctl_bits, base + NvRegTxRxControl);
+			spin_unlock_irq(&np->lock);
+		}
+	} else {
+		return -EINVAL;
+	}
+
+	return retcode;
+}
+
+static int nv_set_tx_csum(struct net_device *dev, u32 data)
+{
+	struct fe_priv *np = netdev_priv(dev);
+
+	if (np->driver_data & DEV_HAS_CHECKSUM)
+		return ethtool_op_set_tx_hw_csum(dev, data);
+	else
+		return -EOPNOTSUPP;
+}
+
+static int nv_set_sg(struct net_device *dev, u32 data)
+{
+	struct fe_priv *np = netdev_priv(dev);
+
+	if (np->driver_data & DEV_HAS_CHECKSUM)
+		return ethtool_op_set_sg(dev, data);
+	else
+		return -EOPNOTSUPP;
+}
+
 static struct ethtool_ops ops = {
 	.get_drvinfo = nv_get_drvinfo,
 	.get_link = ethtool_op_get_link,
@@ -3038,6 +3101,12 @@ static struct ethtool_ops ops = {
 	.set_ringparam = nv_set_ringparam,
 	.get_pauseparam = nv_get_pauseparam,
 	.set_pauseparam = nv_set_pauseparam,
+	.get_rx_csum = nv_get_rx_csum,
+	.set_rx_csum = nv_set_rx_csum,
+	.get_tx_csum = ethtool_op_get_tx_csum,
+	.set_tx_csum = nv_set_tx_csum,
+	.get_sg = ethtool_op_get_sg,
+	.set_sg = nv_set_sg,
 };
 
 static void nv_vlan_rx_register(struct net_device *dev, struct vlan_group *grp)
