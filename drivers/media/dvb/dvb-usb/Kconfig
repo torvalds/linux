@@ -88,6 +88,7 @@ config DVB_USB_CXUSB
 	select DVB_CX22702
 	select DVB_LGDT330X
 	select DVB_MT352
+	select DVB_ZL10353
 	help
 	  Say Y here to support the Conexant USB2.0 hybrid reference design.
 	  Currently, only DVB and ATSC modes are supported, analog mode

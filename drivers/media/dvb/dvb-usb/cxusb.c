@@ -30,6 +30,7 @@
 #include "lg_h06xf.h"
 #include "mt352.h"
 #include "mt352_priv.h"
+#include "zl10353.h"
 
 /* debug */
 int dvb_usb_cxusb_debug;
@@ -346,6 +347,10 @@ static struct mt352_config cxusb_dee1601_config = {
 	.demod_init    = cxusb_dee1601_demod_init,
 };
 
+static struct zl10353_config cxusb_zl10353_dee1601_config = {
+	.demod_address = 0x0f,
+};
+
 static struct mt352_config cxusb_mt352_config = {
 	/* used in both lgz201 and th7579 */
 	.demod_address = 0x0f,
@@ -443,7 +448,8 @@ static int cxusb_dee1601_frontend_attach(struct dvb_usb_device *d)
 
 	cxusb_ctrl_msg(d,CMD_DIGITAL, NULL, 0, NULL, 0);
 
-	if ((d->fe = mt352_attach(&cxusb_dee1601_config, &d->i2c_adap)) != NULL)
+	if (((d->fe = mt352_attach(&cxusb_dee1601_config, &d->i2c_adap)) != NULL) ||
+	    ((d->fe = zl10353_attach(&cxusb_zl10353_dee1601_config, &d->i2c_adap)) != NULL))
 		return 0;
 
 	return -EIO;
