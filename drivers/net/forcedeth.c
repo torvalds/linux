@@ -108,6 +108,7 @@
  *	0.53: 19 Mar 2006: Fix init from low power mode and add hw reset.
  *	0.54: 21 Mar 2006: Fix spin locks for multi irqs and cleanup.
  *	0.55: 22 Mar 2006: Add flow control (pause frame).
+ *	0.56: 22 Mar 2006: Additional ethtool config and moduleparam support.
  *
  * Known bugs:
  * We suspect that on some hardware no TX done interrupts are generated.
@@ -119,7 +120,7 @@
  * DEV_NEED_TIMERIRQ will not harm you on sane hardware, only generating a few
  * superfluous timer interrupts from the nic.
  */
-#define FORCEDETH_VERSION		"0.55"
+#define FORCEDETH_VERSION		"0.56"
 #define DRV_NAME			"forcedeth"
 
 #include <linux/module.h>
