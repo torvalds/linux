@@ -61,6 +61,7 @@ void
 ieee80211softmac_assoc_timeout(void *d)
 {
 	struct ieee80211softmac_device *mac = (struct ieee80211softmac_device *)d;
+	struct ieee80211softmac_network *n;
 	unsigned long flags;
 
 	spin_lock_irqsave(&mac->lock, flags);
@@ -73,11 +74,12 @@ ieee80211softmac_assoc_timeout(void *d)
 	mac->associnfo.associating = 0;
 	mac->associnfo.bssvalid = 0;
 	mac->associated = 0;
+
+	n = ieee80211softmac_get_network_by_bssid_locked(mac, mac->associnfo.bssid);
 	spin_unlock_irqrestore(&mac->lock, flags);
 
 	dprintk(KERN_INFO PFX "assoc request timed out!\n");
-	/* FIXME: we need to know the network here. that requires a bit of restructuring */
-	ieee80211softmac_call_events(mac, IEEE80211SOFTMAC_EVENT_ASSOCIATE_TIMEOUT, NULL);
+	ieee80211softmac_call_events(mac, IEEE80211SOFTMAC_EVENT_ASSOCIATE_TIMEOUT, n);
 }
 
 void
