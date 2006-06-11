@@ -165,6 +165,7 @@
 #define DEV_HAS_MSI_X           0x0080  /* device supports MSI-X */
 #define DEV_HAS_POWER_CNTRL     0x0100  /* device supports power savings */
 #define DEV_HAS_PAUSEFRAME_TX   0x0200  /* device supports tx pause frames */
+#define DEV_HAS_STATISTICS      0x0400  /* device supports hw statistics */
 
 enum {
 	NvRegIrqStatus = 0x000,
@@ -333,6 +334,33 @@ enum {
 #define NVREG_POWERSTATE_D1		0x0001
 #define NVREG_POWERSTATE_D2		0x0002
 #define NVREG_POWERSTATE_D3		0x0003
+	NvRegTxCnt = 0x280,
+	NvRegTxZeroReXmt = 0x284,
+	NvRegTxOneReXmt = 0x288,
+	NvRegTxManyReXmt = 0x28c,
+	NvRegTxLateCol = 0x290,
+	NvRegTxUnderflow = 0x294,
+	NvRegTxLossCarrier = 0x298,
+	NvRegTxExcessDef = 0x29c,
+	NvRegTxRetryErr = 0x2a0,
+	NvRegRxFrameErr = 0x2a4,
+	NvRegRxExtraByte = 0x2a8,
+	NvRegRxLateCol = 0x2ac,
+	NvRegRxRunt = 0x2b0,
+	NvRegRxFrameTooLong = 0x2b4,
+	NvRegRxOverflow = 0x2b8,
+	NvRegRxFCSErr = 0x2bc,
+	NvRegRxFrameAlignErr = 0x2c0,
+	NvRegRxLenErr = 0x2c4,
+	NvRegRxUnicast = 0x2c8,
+	NvRegRxMulticast = 0x2cc,
+	NvRegRxBroadcast = 0x2d0,
+	NvRegTxDef = 0x2d4,
+	NvRegTxFrame = 0x2d8,
+	NvRegRxCnt = 0x2dc,
+	NvRegTxPause = 0x2e0,
+	NvRegRxPause = 0x2e4,
+	NvRegRxDropFrame = 0x2e8,
 	NvRegVlanControl = 0x300,
 #define NVREG_VLANCONTROL_ENABLE	0x2000
 	NvRegMSIXMap0 = 0x3e0,
@@ -481,6 +509,7 @@ typedef union _ring_type {
 #define OOM_REFILL	(1+HZ/20)
 #define POLL_WAIT	(1+HZ/100)
 #define LINK_TIMEOUT	(3*HZ)
+#define STATS_INTERVAL	(10*HZ)
 
 /*
  * desc_ver values:
@@ -536,6 +565,75 @@ typedef union _ring_type {
 #define NV_MSI_X_VECTOR_TX    0x1
 #define NV_MSI_X_VECTOR_OTHER 0x2
 
+/* statistics */
+struct nv_ethtool_str {
+	char name[ETH_GSTRING_LEN];
+};
+
+static const struct nv_ethtool_str nv_estats_str[] = {
+	{ "tx_bytes" },
+	{ "tx_zero_rexmt" },
+	{ "tx_one_rexmt" },
+	{ "tx_many_rexmt" },
+	{ "tx_late_collision" },
+	{ "tx_fifo_errors" },
+	{ "tx_carrier_errors" },
+	{ "tx_excess_deferral" },
+	{ "tx_retry_error" },
+	{ "tx_deferral" },
+	{ "tx_packets" },
+	{ "tx_pause" },
+	{ "rx_frame_error" },
+	{ "rx_extra_byte" },
+	{ "rx_late_collision" },
+	{ "rx_runt" },
+	{ "rx_frame_too_long" },
+	{ "rx_over_errors" },
+	{ "rx_crc_errors" },
+	{ "rx_frame_align_error" },
+	{ "rx_length_error" },
+	{ "rx_unicast" },
+	{ "rx_multicast" },
+	{ "rx_broadcast" },
+	{ "rx_bytes" },
+	{ "rx_pause" },
+	{ "rx_drop_frame" },
+	{ "rx_packets" },
+	{ "rx_errors_total" }
+};
+
+struct nv_ethtool_stats {
+	u64 tx_bytes;
+	u64 tx_zero_rexmt;
+	u64 tx_one_rexmt;
+	u64 tx_many_rexmt;
+	u64 tx_late_collision;
+	u64 tx_fifo_errors;
+	u64 tx_carrier_errors;
+	u64 tx_excess_deferral;
+	u64 tx_retry_error;
+	u64 tx_deferral;
+	u64 tx_packets;
+	u64 tx_pause;
+	u64 rx_frame_error;
+	u64 rx_extra_byte;
+	u64 rx_late_collision;
+	u64 rx_runt;
+	u64 rx_frame_too_long;
+	u64 rx_over_errors;
+	u64 rx_crc_errors;
+	u64 rx_frame_align_error;
+	u64 rx_length_error;
+	u64 rx_unicast;
+	u64 rx_multicast;
+	u64 rx_broadcast;
+	u64 rx_bytes;
+	u64 rx_pause;
+	u64 rx_drop_frame;
+	u64 rx_packets;
+	u64 rx_errors_total;
+};
+
 /*
  * SMP locking:
  * All hardware access under dev->priv->lock, except the performance
@@ -554,6 +652,7 @@ struct fe_priv {
 	/* General data:
 	 * Locking: spin_lock(&np->lock); */
 	struct net_device_stats stats;
+	struct nv_ethtool_stats estats;
 	int in_shutdown;
 	u32 linkspeed;
 	int duplex;
@@ -588,6 +687,7 @@ struct fe_priv {
 	unsigned int pkt_limit;
 	struct timer_list oom_kick;
 	struct timer_list nic_poll;
+	struct timer_list stats_poll;
 	u32 nic_poll_irq;
 	int rx_ring_size;
 
@@ -2471,6 +2571,56 @@ static void nv_poll_controller(struct net_device *dev)
 }
 #endif
 
+static void nv_do_stats_poll(unsigned long data)
+{
+	struct net_device *dev = (struct net_device *) data;
+	struct fe_priv *np = netdev_priv(dev);
+	u8 __iomem *base = get_hwbase(dev);
+
+	np->estats.tx_bytes += readl(base + NvRegTxCnt);
+	np->estats.tx_zero_rexmt += readl(base + NvRegTxZeroReXmt);
+	np->estats.tx_one_rexmt += readl(base + NvRegTxOneReXmt);
+	np->estats.tx_many_rexmt += readl(base + NvRegTxManyReXmt);
+	np->estats.tx_late_collision += readl(base + NvRegTxLateCol);
+	np->estats.tx_fifo_errors += readl(base + NvRegTxUnderflow);
+	np->estats.tx_carrier_errors += readl(base + NvRegTxLossCarrier);
+	np->estats.tx_excess_deferral += readl(base + NvRegTxExcessDef);
+	np->estats.tx_retry_error += readl(base + NvRegTxRetryErr);
+	np->estats.tx_deferral += readl(base + NvRegTxDef);
+	np->estats.tx_packets += readl(base + NvRegTxFrame);
+	np->estats.tx_pause += readl(base + NvRegTxPause);
+	np->estats.rx_frame_error += readl(base + NvRegRxFrameErr);
+	np->estats.rx_extra_byte += readl(base + NvRegRxExtraByte);
+	np->estats.rx_late_collision += readl(base + NvRegRxLateCol);
+	np->estats.rx_runt += readl(base + NvRegRxRunt);
+	np->estats.rx_frame_too_long += readl(base + NvRegRxFrameTooLong);
+	np->estats.rx_over_errors += readl(base + NvRegRxOverflow);
+	np->estats.rx_crc_errors += readl(base + NvRegRxFCSErr);
+	np->estats.rx_frame_align_error += readl(base + NvRegRxFrameAlignErr);
+	np->estats.rx_length_error += readl(base + NvRegRxLenErr);
+	np->estats.rx_unicast += readl(base + NvRegRxUnicast);
+	np->estats.rx_multicast += readl(base + NvRegRxMulticast);
+	np->estats.rx_broadcast += readl(base + NvRegRxBroadcast);
+	np->estats.rx_bytes += readl(base + NvRegRxCnt);
+	np->estats.rx_pause += readl(base + NvRegRxPause);
+	np->estats.rx_drop_frame += readl(base + NvRegRxDropFrame);
+	np->estats.rx_packets =
+		np->estats.rx_unicast +
+		np->estats.rx_multicast +
+		np->estats.rx_broadcast;
+	np->estats.rx_errors_total =
+		np->estats.rx_crc_errors +
+		np->estats.rx_over_errors +
+		np->estats.rx_frame_error +
+		(np->estats.rx_frame_align_error - np->estats.rx_extra_byte) +
+		np->estats.rx_late_collision +
+		np->estats.rx_runt +
+		np->estats.rx_frame_too_long;
+
+	if (!np->in_shutdown)
+		mod_timer(&np->stats_poll, jiffies + STATS_INTERVAL);
+}
+
 static void nv_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
 	struct fe_priv *np = netdev_priv(dev);
@@ -3084,6 +3234,35 @@ static int nv_set_sg(struct net_device *dev, u32 data)
 		return -EOPNOTSUPP;
 }
 
+static int nv_get_stats_count(struct net_device *dev)
+{
+	struct fe_priv *np = netdev_priv(dev);
+
+	if (np->driver_data & DEV_HAS_STATISTICS)
+		return (sizeof(struct nv_ethtool_stats)/sizeof(u64));
+	else
+		return 0;
+}
+
+static void nv_get_ethtool_stats(struct net_device *dev, struct ethtool_stats *estats, u64 *buffer)
+{
+	struct fe_priv *np = netdev_priv(dev);
+
+	/* update stats */
+	nv_do_stats_poll((unsigned long)dev);
+
+	memcpy(buffer, &np->estats, nv_get_stats_count(dev)*sizeof(u64));
+}
+
+static void nv_get_strings(struct net_device *dev, u32 stringset, u8 *buffer)
+{
+	switch (stringset) {
+	case ETH_SS_STATS:
+		memcpy(buffer, &nv_estats_str, nv_get_stats_count(dev)*sizeof(struct nv_ethtool_str));
+		break;
+	}
+}
+
 static struct ethtool_ops ops = {
 	.get_drvinfo = nv_get_drvinfo,
 	.get_link = ethtool_op_get_link,
@@ -3107,6 +3286,9 @@ static struct ethtool_ops ops = {
 	.set_tx_csum = nv_set_tx_csum,
 	.get_sg = ethtool_op_get_sg,
 	.set_sg = nv_set_sg,
+	.get_strings = nv_get_strings,
+	.get_stats_count = nv_get_stats_count,
+	.get_ethtool_stats = nv_get_ethtool_stats,
 };
 
 static void nv_vlan_rx_register(struct net_device *dev, struct vlan_group *grp)
@@ -3409,6 +3591,11 @@ static int nv_open(struct net_device *dev)
 	}
 	if (oom)
 		mod_timer(&np->oom_kick, jiffies + OOM_REFILL);
+
+	/* start statistics timer */
+	if (np->driver_data & DEV_HAS_STATISTICS)
+		mod_timer(&np->stats_poll, jiffies + STATS_INTERVAL);
+
 	spin_unlock_irq(&np->lock);
 
 	return 0;
@@ -3429,6 +3616,7 @@ static int nv_close(struct net_device *dev)
 
 	del_timer_sync(&np->oom_kick);
 	del_timer_sync(&np->nic_poll);
+	del_timer_sync(&np->stats_poll);
 
 	netif_stop_queue(dev);
 	spin_lock_irq(&np->lock);
@@ -3488,6 +3676,9 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 	init_timer(&np->nic_poll);
 	np->nic_poll.data = (unsigned long) dev;
 	np->nic_poll.function = &nv_do_nic_poll;	/* timer handler */
+	init_timer(&np->stats_poll);
+	np->stats_poll.data = (unsigned long) dev;
+	np->stats_poll.function = &nv_do_stats_poll;	/* timer handler */
 
 	err = pci_enable_device(pci_dev);
 	if (err) {
@@ -3502,7 +3693,7 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 	if (err < 0)
 		goto out_disable;
 
-	if (id->driver_data & (DEV_HAS_VLAN|DEV_HAS_MSI_X|DEV_HAS_POWER_CNTRL))
+	if (id->driver_data & (DEV_HAS_VLAN|DEV_HAS_MSI_X|DEV_HAS_POWER_CNTRL|DEV_HAS_STATISTICS))
 		np->register_size = NV_PCI_REGSZ_VER2;
 	else
 		np->register_size = NV_PCI_REGSZ_VER1;
@@ -3858,11 +4049,11 @@ static struct pci_device_id pci_tbl[] = {
 	},
 	{	/* MCP55 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_14),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_VLAN|DEV_HAS_MSI|DEV_HAS_MSI_X|DEV_HAS_POWER_CNTRL|DEV_HAS_PAUSEFRAME_TX,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_VLAN|DEV_HAS_MSI|DEV_HAS_MSI_X|DEV_HAS_POWER_CNTRL|DEV_HAS_PAUSEFRAME_TX|DEV_HAS_STATISTICS,
 	},
 	{	/* MCP55 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_15),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_VLAN|DEV_HAS_MSI|DEV_HAS_MSI_X|DEV_HAS_POWER_CNTRL|DEV_HAS_PAUSEFRAME_TX,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_VLAN|DEV_HAS_MSI|DEV_HAS_MSI_X|DEV_HAS_POWER_CNTRL|DEV_HAS_PAUSEFRAME_TX|DEV_HAS_STATISTICS,
 	},
 	{0,},
 };
