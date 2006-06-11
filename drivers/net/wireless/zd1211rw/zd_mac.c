@@ -197,6 +197,8 @@ int zd_mac_stop(struct net_device *netdev)
 	struct zd_mac *mac = zd_netdev_mac(netdev);
 	struct zd_chip *chip = &mac->chip;
 
+	netif_stop_queue(netdev);
+
 	/*
 	 * The order here deliberately is a little different from the open()
 	 * method, since we need to make sure there is no opportunity for RX
