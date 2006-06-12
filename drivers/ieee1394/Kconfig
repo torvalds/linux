@@ -128,8 +128,17 @@ config IEEE1394_SBP2
 	  1394 bus.  SBP-2 devices include harddrives and DVD devices.
 
 config IEEE1394_SBP2_PHYS_DMA
-	bool "Enable Phys DMA support for SBP2 (Debug)"
-	depends on IEEE1394 && IEEE1394_SBP2
+	bool "Enable replacement for physical DMA in SBP2"
+	depends on IEEE1394 && IEEE1394_SBP2 && EXPERIMENTAL
+	help
+	  This builds sbp2 for use with non-OHCI host adapters which do not
+	  support physical DMA or for when ohci1394 is run with phys_dma=0.
+	  Physical DMA is data movement without assistence of the drivers'
+	  interrupt handlers.  This option includes the interrupt handlers
+	  that are required in absence of this hardware feature.
+
+	  This option is buggy and currently broken on some architectures.
+	  If unsure, say N.
 
 config IEEE1394_ETH1394
 	tristate "Ethernet over 1394"
