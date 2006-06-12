@@ -334,8 +334,8 @@ static int i801_block_transaction(union i2c_smbus_data *data, char read_write,
 		/* We will always wait for a fraction of a second! */
 		timeout = 0;
 		do {
-			temp = inb_p(SMBHSTSTS);
 			msleep(1);
+			temp = inb_p(SMBHSTSTS);
 		}
 		    while ((!(temp & 0x80))
 			   && (timeout++ < MAX_TIMEOUT));
@@ -393,8 +393,8 @@ static int i801_block_transaction(union i2c_smbus_data *data, char read_write,
 		/* wait for INTR bit as advised by Intel */
 		timeout = 0;
 		do {
-			temp = inb_p(SMBHSTSTS);
 			msleep(1);
+			temp = inb_p(SMBHSTSTS);
 		} while ((!(temp & 0x02))
 			   && (timeout++ < MAX_TIMEOUT));
 
