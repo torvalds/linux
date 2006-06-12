@@ -285,9 +285,9 @@ static int check_selfids(struct hpsb_host *host)
 
 static void build_speed_map(struct hpsb_host *host, int nodecount)
 {
-	u8 speedcap[nodecount];
 	u8 cldcnt[nodecount];
 	u8 *map = host->speed_map;
+	u8 *speedcap = host->speed;
 	struct selfid *sid;
 	struct ext_selfid *esid;
 	int i, j, n;
@@ -354,6 +354,11 @@ static void build_speed_map(struct hpsb_host *host, int nodecount)
 			}
 		}
 	}
+
+	/* assume maximum speed for 1394b PHYs, nodemgr will correct it */
+	for (n = 0; n < nodecount; n++)
+		if (speedcap[n] == 3)
+			speedcap[n] = IEEE1394_SPEED_MAX;
 }
 
 
@@ -554,11 +559,10 @@ int hpsb_send_packet(struct hpsb_packet *packet)
 		return 0;
 	}
 
-	if (packet->type == hpsb_async && packet->node_id != ALL_NODES) {
+	if (packet->type == hpsb_async &&
+	    NODEID_TO_NODE(packet->node_id) != ALL_NODES)
 		packet->speed_code =
-			host->speed_map[NODEID_TO_NODE(host->node_id) * 64
-				       + NODEID_TO_NODE(packet->node_id)];
-	}
+			host->speed[NODEID_TO_NODE(packet->node_id)];
 
 	dump_packet("send packet", packet->header, packet->header_size, packet->speed_code);
 

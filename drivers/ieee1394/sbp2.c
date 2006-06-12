@@ -1664,10 +1664,8 @@ static int sbp2_max_speed_and_size(struct scsi_id_instance_data *scsi_id)
 
 	SBP2_DEBUG_ENTER();
 
-	/* Initial setting comes from the hosts speed map */
 	scsi_id->speed_code =
-	    hi->host->speed_map[NODEID_TO_NODE(hi->host->node_id) * 64 +
-				NODEID_TO_NODE(scsi_id->ne->nodeid)];
+	    hi->host->speed[NODEID_TO_NODE(scsi_id->ne->nodeid)];
 
 	/* Bump down our speed if the user requested it */
 	if (scsi_id->speed_code > max_speed) {

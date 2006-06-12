@@ -502,10 +502,8 @@ static void ether1394_reset_priv (struct net_device *dev, int set_mtu)
 
 	/* Determine speed limit */
 	for (i = 0; i < host->node_count; i++)
-		if (max_speed > host->speed_map[NODEID_TO_NODE(host->node_id) *
-						64 + i])
-			max_speed = host->speed_map[NODEID_TO_NODE(host->node_id) *
-						    64 + i];
+		if (max_speed > host->speed[i])
+			max_speed = host->speed[i];
 	priv->bc_sspd = max_speed;
 
 	/* We'll use our maxpayload as the default mtu */

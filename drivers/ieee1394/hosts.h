@@ -30,12 +30,13 @@ struct hpsb_host {
 
 	unsigned char iso_listen_count[64];
 
-	int node_count; /* number of identified nodes on this bus */
-	int selfid_count; /* total number of SelfIDs received */
-	int nodes_active; /* number of nodes that are actually active */
+	int node_count;     /* number of identified nodes on this bus */
+	int selfid_count;   /* total number of SelfIDs received */
+	int nodes_active;   /* number of nodes with active link layer */
+	u8 speed[63];       /* speed between each node and local node */
 
-	nodeid_t node_id; /* node ID of this host */
-	nodeid_t irm_id; /* ID of this bus' isochronous resource manager */
+	nodeid_t node_id;   /* node ID of this host */
+	nodeid_t irm_id;    /* ID of this bus' isochronous resource manager */
 	nodeid_t busmgr_id; /* ID of this bus' bus manager */
 
 	/* this nodes state */
