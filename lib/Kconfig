@@ -23,6 +23,14 @@ config CRC16
 	  the kernel tree does. Such modules that use library CRC16
 	  functions require M here.
 
+config CRC_ITU_T
+	tristate "CRC ITU-T V.41 functions"
+	help
+	  This option is provided for the case where no in-kernel-tree
+	  modules require CRC ITU-T V.41 functions, but a module built outside
+	  the kernel tree does. Such modules that use library CRC ITU-T V.41
+	  functions require M here.
+
 config CRC32
 	tristate "CRC32 functions"
 	default y
