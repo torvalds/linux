@@ -127,10 +127,12 @@ MODULE_PARM_DESC(max_sectors, "Change max sectors per I/O supported (default = "
  * talking to a single sbp2 device at the same time (filesystem coherency,
  * etc.). If you're running an sbp2 device that supports multiple logins,
  * and you're either running read-only filesystems or some sort of special
- * filesystem supporting multiple hosts (one such filesystem is OpenGFS,
- * see opengfs.sourceforge.net for more info), then set exclusive_login
- * to zero. Note: The Oxsemi OXFW911 sbp2 chipset supports up to four
- * concurrent logins.
+ * filesystem supporting multiple hosts, e.g. OpenGFS, Oracle Cluster
+ * File System, or Lustre, then set exclusive_login to zero.
+ *
+ * So far only bridges from Oxford Semiconductor are known to support
+ * concurrent logins. Depending on firmware, four or two concurrent logins
+ * are possible on OXFW911 and newer Oxsemi bridges.
  */
 static int exclusive_login = 1;
 module_param(exclusive_login, int, 0644);
@@ -1214,13 +1216,11 @@ static int sbp2_query_logins(struct scsi_id_instance_data *scsi_id)
 	SBP2_DEBUG("length_max_logins = %x",
 		   (unsigned int)scsi_id->query_logins_response->length_max_logins);
 
-	SBP2_DEBUG("Query logins to SBP-2 device successful");
-
 	max_logins = RESPONSE_GET_MAX_LOGINS(scsi_id->query_logins_response->length_max_logins);
-	SBP2_DEBUG("Maximum concurrent logins supported: %d", max_logins);
+	SBP2_INFO("Maximum concurrent logins supported: %d", max_logins);
 
 	active_logins = RESPONSE_GET_ACTIVE_LOGINS(scsi_id->query_logins_response->length_max_logins);
-	SBP2_DEBUG("Number of active logins: %d", active_logins);
+	SBP2_INFO("Number of active logins: %d", active_logins);
 
 	if (active_logins >= max_logins) {
 		return -EIO;
