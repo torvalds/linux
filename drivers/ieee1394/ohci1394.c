@@ -580,6 +580,7 @@ static void ohci_initialize(struct ti_ohci *ohci)
 		  OHCI1394_isochRx |
 		  OHCI1394_isochTx |
 		  OHCI1394_postedWriteErr |
+		  OHCI1394_cycleTooLong |
 		  OHCI1394_cycleInconsistent);
 
 	/* Enable link */
@@ -2385,6 +2386,15 @@ static irqreturn_t ohci_irq_handler(int irq, void *dev_id,
 	if (event & OHCI1394_postedWriteErr) {
 		PRINT(KERN_ERR, "physical posted write error");
 		/* no recovery strategy yet, had to involve protocol drivers */
+	}
+	if (event & OHCI1394_cycleTooLong) {
+		if(printk_ratelimit())
+			PRINT(KERN_WARNING, "isochronous cycle too long");
+		else
+			DBGMSG("OHCI1394_cycleTooLong");
+		reg_write(ohci, OHCI1394_LinkControlSet,
+			  OHCI1394_LinkControl_CycleMaster);
+		event &= ~OHCI1394_cycleTooLong;
 	}
 	if (event & OHCI1394_cycleInconsistent) {
 		/* We subscribe to the cycleInconsistent event only to
