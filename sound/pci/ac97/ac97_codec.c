@@ -1236,7 +1236,8 @@ static int snd_ac97_mixer_build(struct snd_ac97 * ac97)
 	ac97->regs[AC97_CENTER_LFE_MASTER] = 0x8080;
 
 	/* build center controls */
-	if (snd_ac97_try_volume_mix(ac97, AC97_CENTER_LFE_MASTER)) {
+	if ((snd_ac97_try_volume_mix(ac97, AC97_CENTER_LFE_MASTER)) 
+		&& !(ac97->flags & AC97_AD_MULTI)) {
 		if ((err = snd_ctl_add(card, snd_ac97_cnew(&snd_ac97_controls_center[0], ac97))) < 0)
 			return err;
 		if ((err = snd_ctl_add(card, kctl = snd_ac97_cnew(&snd_ac97_controls_center[1], ac97))) < 0)
@@ -1248,7 +1249,8 @@ static int snd_ac97_mixer_build(struct snd_ac97 * ac97)
 	}
 
 	/* build LFE controls */
-	if (snd_ac97_try_volume_mix(ac97, AC97_CENTER_LFE_MASTER+1)) {
+	if ((snd_ac97_try_volume_mix(ac97, AC97_CENTER_LFE_MASTER+1))
+		&& !(ac97->flags & AC97_AD_MULTI)) {
 		if ((err = snd_ctl_add(card, snd_ac97_cnew(&snd_ac97_controls_lfe[0], ac97))) < 0)
 			return err;
 		if ((err = snd_ctl_add(card, kctl = snd_ac97_cnew(&snd_ac97_controls_lfe[1], ac97))) < 0)
@@ -1260,7 +1262,8 @@ static int snd_ac97_mixer_build(struct snd_ac97 * ac97)
 	}
 
 	/* build surround controls */
-	if (snd_ac97_try_volume_mix(ac97, AC97_SURROUND_MASTER)) {
+	if ((snd_ac97_try_volume_mix(ac97, AC97_SURROUND_MASTER)) 
+		&& !(ac97->flags & AC97_AD_MULTI)) {
 		/* Surround Master (0x38) is with stereo mutes */
 		if ((err = snd_ac97_cmix_new_stereo(card, "Surround Playback", AC97_SURROUND_MASTER, 1, ac97)) < 0)
 			return err;
