@@ -552,7 +552,7 @@ static unsigned int cinergyt2_poll (struct file *file, struct poll_table_struct 
 	poll_wait(file, &cinergyt2->poll_wq, wait);
 
        if (cinergyt2->pending_fe_events != 0)
-	       mask |= (POLLIN | POLLRDNORM | POLLPRI);
+		mask |= (POLLIN | POLLRDNORM | POLLPRI);
 
 	mutex_unlock(&cinergyt2->sem);
 
