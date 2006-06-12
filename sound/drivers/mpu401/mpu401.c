@@ -160,8 +160,9 @@ static int __devinit snd_mpu401_pnp(int dev, struct pnp_dev *device,
 		return -ENODEV;
 	}
 	if (pnp_port_len(device, 0) < IO_EXTENT) {
-		snd_printk(KERN_ERR "PnP port length is %ld, expected %d\n",
-			   pnp_port_len(device, 0), IO_EXTENT);
+		snd_printk(KERN_ERR "PnP port length is %llu, expected %d\n",
+			   (unsigned long long)pnp_port_len(device, 0),
+			   IO_EXTENT);
 		return -ENODEV;
 	}
 	port[dev] = pnp_port_start(device, 0);
