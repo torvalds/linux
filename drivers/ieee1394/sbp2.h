@@ -52,7 +52,7 @@ struct sbp2_command_orb {
 	u32 data_descriptor_lo;
 	u32 misc;
 	u8 cdb[12];
-};
+} __attribute__((packed));
 
 #define SBP2_LOGIN_REQUEST		0x0
 #define SBP2_QUERY_LOGINS_REQUEST	0x1
@@ -80,7 +80,7 @@ struct sbp2_login_orb {
 	u32 passwd_resp_lengths;
 	u32 status_fifo_hi;
 	u32 status_fifo_lo;
-};
+} __attribute__((packed));
 
 #define RESPONSE_GET_LOGIN_ID(value)            (value & 0xffff)
 #define RESPONSE_GET_LENGTH(value)              ((value >> 16) & 0xffff)
@@ -91,7 +91,7 @@ struct sbp2_login_response {
 	u32 command_block_agent_hi;
 	u32 command_block_agent_lo;
 	u32 reconnect_hold;
-};
+} __attribute__((packed));
 
 #define ORB_SET_LOGIN_ID(value)                 (value & 0xffff)
 
@@ -106,7 +106,7 @@ struct sbp2_query_logins_orb {
 	u32 reserved_resp_length;
 	u32 status_fifo_hi;
 	u32 status_fifo_lo;
-};
+} __attribute__((packed));
 
 #define RESPONSE_GET_MAX_LOGINS(value)          (value & 0xffff)
 #define RESPONSE_GET_ACTIVE_LOGINS(value)       ((RESPONSE_GET_LENGTH(value) - 4) / 12)
@@ -116,7 +116,7 @@ struct sbp2_query_logins_response {
 	u32 misc_IDs;
 	u32 initiator_misc_hi;
 	u32 initiator_misc_lo;
-};
+} __attribute__((packed));
 
 struct sbp2_reconnect_orb {
 	u32 reserved1;
@@ -127,7 +127,7 @@ struct sbp2_reconnect_orb {
 	u32 reserved5;
 	u32 status_fifo_hi;
 	u32 status_fifo_lo;
-};
+} __attribute__((packed));
 
 struct sbp2_logout_orb {
 	u32 reserved1;
@@ -138,7 +138,7 @@ struct sbp2_logout_orb {
 	u32 reserved5;
 	u32 status_fifo_hi;
 	u32 status_fifo_lo;
-};
+} __attribute__((packed));
 
 #define PAGE_TABLE_SET_SEGMENT_BASE_HI(value)   (value & 0xffff)
 #define PAGE_TABLE_SET_SEGMENT_LENGTH(value)    ((value & 0xffff) << 16)
@@ -146,7 +146,7 @@ struct sbp2_logout_orb {
 struct sbp2_unrestricted_page_table {
 	u32 length_segment_base_hi;
 	u32 segment_base_lo;
-};
+} __attribute__((packed));
 
 #define RESP_STATUS_REQUEST_COMPLETE		0x0
 #define RESP_STATUS_TRANSPORT_FAILURE		0x1
@@ -191,7 +191,7 @@ struct sbp2_status_block {
 	u32 ORB_offset_hi_misc;
 	u32 ORB_offset_lo;
 	u8 command_set_dependent[24];
-};
+} __attribute__((packed));
 
 /*
  * Miscellaneous SBP2 related config rom defines
