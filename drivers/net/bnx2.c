@@ -1820,7 +1820,7 @@ reuse_rx:
 		skb->protocol = eth_type_trans(skb, bp->dev);
 
 		if ((len > (bp->dev->mtu + ETH_HLEN)) &&
-			(htons(skb->protocol) != 0x8100)) {
+			(ntohs(skb->protocol) != 0x8100)) {
 
 			dev_kfree_skb_irq(skb);
 			goto next_rx;
@@ -4310,7 +4310,7 @@ bnx2_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		ip_tcp_len = (skb->nh.iph->ihl << 2) + sizeof(struct tcphdr);
 
 		skb->nh.iph->check = 0;
-		skb->nh.iph->tot_len = ntohs(mss + ip_tcp_len + tcp_opt_len);
+		skb->nh.iph->tot_len = htons(mss + ip_tcp_len + tcp_opt_len);
 		skb->h.th->check =
 			~csum_tcpudp_magic(skb->nh.iph->saddr,
 					    skb->nh.iph->daddr,
