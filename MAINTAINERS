@@ -2063,6 +2063,12 @@ M:      adaplas@pol.net
 L:      linux-fbdev-devel@lists.sourceforge.net
 S:      Maintained
 
+OPENCORES I2C BUS DRIVER
+P:	Peter Korsgaard
+M:	jacmet@sunsite.dk
+L:	lm-sensors@lm-sensors.org
+S:	Maintained
+
 ORACLE CLUSTER FILESYSTEM 2 (OCFS2)
 P:	Mark Fasheh
 M:	mark.fasheh@oracle.com

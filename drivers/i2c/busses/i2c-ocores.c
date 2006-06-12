@@ -38,8 +38,8 @@ struct ocores_i2c {
 #define OCI2C_PREHIGH		1
 #define OCI2C_CONTROL		2
 #define OCI2C_DATA		3
-#define OCI2C_CMD		4
-#define OCI2C_STATUS		4
+#define OCI2C_CMD		4 /* write only */
+#define OCI2C_STATUS		4 /* read only, same address as OCI2C_CMD */
 
 #define OCI2C_CTRL_IEN		0x40
 #define OCI2C_CTRL_EN		0x80
@@ -209,8 +209,6 @@ static struct i2c_adapter ocores_adapter = {
 	.name		= "i2c-ocores",
 	.class		= I2C_CLASS_HWMON,
 	.algo		= &ocores_algorithm,
-	.timeout	= 2,
-	.retries	= 1,
 };
 
 
