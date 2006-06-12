@@ -177,6 +177,8 @@ typedef __u64 __bitwise __be64;
 
 #ifdef __KERNEL__
 typedef unsigned __bitwise__ gfp_t;
+
+typedef unsigned long resource_size_t;
 #endif
 
 struct ustat {
