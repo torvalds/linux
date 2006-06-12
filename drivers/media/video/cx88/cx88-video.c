@@ -1847,9 +1847,9 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 	pci_read_config_byte(pci_dev, PCI_CLASS_REVISION, &dev->pci_rev);
 	pci_read_config_byte(pci_dev, PCI_LATENCY_TIMER,  &dev->pci_lat);
 	printk(KERN_INFO "%s/0: found at %s, rev: %d, irq: %d, "
-	       "latency: %d, mmio: 0x%lx\n", core->name,
+	       "latency: %d, mmio: 0x%llx\n", core->name,
 	       pci_name(pci_dev), dev->pci_rev, pci_dev->irq,
-	       dev->pci_lat,pci_resource_start(pci_dev,0));
+	       dev->pci_lat,(unsigned long long)pci_resource_start(pci_dev,0));
 
 	pci_set_master(pci_dev);
 	if (!pci_dma_supported(pci_dev,0xffffffff)) {

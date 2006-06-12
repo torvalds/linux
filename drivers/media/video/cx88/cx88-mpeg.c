@@ -420,9 +420,9 @@ int cx8802_init_common(struct cx8802_dev *dev)
 	pci_read_config_byte(dev->pci, PCI_CLASS_REVISION, &dev->pci_rev);
 	pci_read_config_byte(dev->pci, PCI_LATENCY_TIMER,  &dev->pci_lat);
 	printk(KERN_INFO "%s/2: found at %s, rev: %d, irq: %d, "
-	       "latency: %d, mmio: 0x%lx\n", dev->core->name,
+	       "latency: %d, mmio: 0x%llx\n", dev->core->name,
 	       pci_name(dev->pci), dev->pci_rev, dev->pci->irq,
-	       dev->pci_lat,pci_resource_start(dev->pci,0));
+	       dev->pci_lat,(unsigned long long)pci_resource_start(dev->pci,0));
 
 	/* initialize driver struct */
 	spin_lock_init(&dev->slock);
