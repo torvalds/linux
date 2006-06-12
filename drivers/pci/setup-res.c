@@ -40,8 +40,9 @@ pci_update_resource(struct pci_dev *dev, struct resource *res, int resno)
 
 	pcibios_resource_to_bus(dev, &region, res);
 
-	pr_debug("  got res [%lx:%lx] bus [%lx:%lx] flags %lx for "
-		 "BAR %d of %s\n", res->start, res->end,
+	pr_debug("  got res [%llx:%llx] bus [%lx:%lx] flags %lx for "
+		 "BAR %d of %s\n", (unsigned long long)res->start,
+		 (unsigned long long)res->end,
 		 region.start, region.end, res->flags, resno, pci_name(dev));
 
 	new = region.start | (res->flags & PCI_REGION_FLAG_MASK);
@@ -104,10 +105,12 @@ pci_claim_resource(struct pci_dev *dev, int resource)
 		err = insert_resource(root, res);
 
 	if (err) {
-		printk(KERN_ERR "PCI: %s region %d of %s %s [%lx:%lx]\n",
-		       root ? "Address space collision on" :
-			      "No parent found for",
-		       resource, dtype, pci_name(dev), res->start, res->end);
+		printk(KERN_ERR "PCI: %s region %d of %s %s [%llx:%llx]\n",
+			root ? "Address space collision on" :
+				"No parent found for",
+			resource, dtype, pci_name(dev),
+			(unsigned long long)res->start,
+			(unsigned long long)res->end);
 	}
 
 	return err;
@@ -145,9 +148,11 @@ int pci_assign_resource(struct pci_dev *dev, int resno)
 	}
 
 	if (ret) {
-		printk(KERN_ERR "PCI: Failed to allocate %s resource #%d:%lx@%lx for %s\n",
-		       res->flags & IORESOURCE_IO ? "I/O" : "mem",
-		       resno, size, res->start, pci_name(dev));
+		printk(KERN_ERR "PCI: Failed to allocate %s resource "
+			"#%d:%llx@%llx for %s\n",
+			res->flags & IORESOURCE_IO ? "I/O" : "mem",
+			resno, (unsigned long long)size,
+			(unsigned long long)res->start, pci_name(dev));
 	} else if (resno < PCI_BRIDGE_RESOURCES) {
 		pci_update_resource(dev, res, resno);
 	}
@@ -213,8 +218,9 @@ pdev_sort_resources(struct pci_dev *dev, struct resource_list *head)
 			continue;
 		if (!r_align) {
 			printk(KERN_WARNING "PCI: Ignore bogus resource %d "
-					    "[%lx:%lx] of %s\n",
-					    i, r->start, r->end, pci_name(dev));
+				"[%llx:%llx] of %s\n",
+				i, (unsigned long long)r->start,
+				(unsigned long long)r->end, pci_name(dev));
 			continue;
 		}
 		r_align = (i < PCI_BRIDGE_RESOURCES) ? r_align + 1 : r->start;
