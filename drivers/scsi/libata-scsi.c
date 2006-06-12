@@ -3005,14 +3005,16 @@ static int ata_scsi_user_scan(struct Scsi_Host *shost, unsigned int channel,
 }
 
 /**
- *      ata_scsi_dev_rescan - initiate scsi_rescan_device()
- *      @data: Pointer to ATA port to perform scsi_rescan_device()
+ *	ata_scsi_dev_rescan - initiate scsi_rescan_device()
+ *	@data: Pointer to ATA port to perform scsi_rescan_device()
  *
- *      After ATA pass thru (SAT) commands are executed successfully,
- *      libata need to propagate the changes to SCSI layer.
+ *	After ATA pass thru (SAT) commands are executed successfully,
+ *	libata need to propagate the changes to SCSI layer.  This
+ *	function must be executed from ata_aux_wq such that sdev
+ *	attach/detach don't race with rescan.
  *
- *      LOCKING:
- *      Kernel thread context (may sleep).
+ *	LOCKING:
+ *	Kernel thread context (may sleep).
  */
 void ata_scsi_dev_rescan(void *data)
 {
@@ -3023,8 +3025,7 @@ void ata_scsi_dev_rescan(void *data)
 	for (i = 0; i < ATA_MAX_DEVICES; i++) {
 		dev = &ap->device[i];
 
-		if (ata_dev_enabled(dev))
+		if (ata_dev_enabled(dev) && dev->sdev)
 			scsi_rescan_device(&(dev->sdev->sdev_gendev));
 	}
 }
-
