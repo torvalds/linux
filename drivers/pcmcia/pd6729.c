@@ -642,7 +642,8 @@ static int __devinit pd6729_pci_probe(struct pci_dev *dev,
 		goto err_out_free_mem;
 
 	printk(KERN_INFO "pd6729: Cirrus PD6729 PCI to PCMCIA Bridge "
-		"at 0x%lx on irq %d\n",	pci_resource_start(dev, 0), dev->irq);
+		"at 0x%llx on irq %d\n",
+		(unsigned long long)pci_resource_start(dev, 0), dev->irq);
  	/*
 	 * Since we have no memory BARs some firmware may not
 	 * have had PCI_COMMAND_MEMORY enabled, yet the device needs it.
