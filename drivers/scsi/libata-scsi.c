@@ -1306,6 +1306,17 @@ static void ata_scsi_qc_complete(struct ata_queued_cmd *qc)
 	u8 *cdb = cmd->cmnd;
  	int need_sense = (qc->err_mask != 0);
 
+	/* We snoop the SET_FEATURES - Write Cache ON/OFF command, and
+	 * schedule EH_REVALIDATE operation to update the IDENTIFY DEVICE
+	 * cache
+	 */
+	if (!need_sense && (qc->tf.command == ATA_CMD_SET_FEATURES) &&
+	    ((qc->tf.feature == SETFEATURES_WC_ON) ||
+	     (qc->tf.feature == SETFEATURES_WC_OFF))) {
+		qc->ap->eh_info.action |= ATA_EH_REVALIDATE;
+		ata_port_schedule_eh(qc->ap);
+	}
+
 	/* For ATA pass thru (SAT) commands, generate a sense block if
 	 * user mandated it or if there's an error.  Note that if we
 	 * generate because the user forced us to, a check condition
@@ -2992,3 +3003,28 @@ static int ata_scsi_user_scan(struct Scsi_Host *shost, unsigned int channel,
 
 	return rc;
 }
+
+/**
+ *      ata_scsi_dev_rescan - initiate scsi_rescan_device()
+ *      @data: Pointer to ATA port to perform scsi_rescan_device()
+ *
+ *      After ATA pass thru (SAT) commands are executed successfully,
+ *      libata need to propagate the changes to SCSI layer.
+ *
+ *      LOCKING:
+ *      Kernel thread context (may sleep).
+ */
+void ata_scsi_dev_rescan(void *data)
+{
+	struct ata_port *ap = data;
+	struct ata_device *dev;
+	unsigned int i;
+
+	for (i = 0; i < ATA_MAX_DEVICES; i++) {
+		dev = &ap->device[i];
+
+		if (ata_dev_enabled(dev))
+			scsi_rescan_device(&(dev->sdev->sdev_gendev));
+	}
+}
+

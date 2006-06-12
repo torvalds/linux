@@ -1554,6 +1554,9 @@ static int ata_eh_revalidate_and_attach(struct ata_port *ap,
 			if (rc)
 				break;
 
+			/* schedule the scsi_rescan_device() here */
+			queue_work(ata_aux_wq, &(ap->scsi_rescan_task));
+
 			ehc->i.action &= ~ATA_EH_REVALIDATE;
 		} else if (dev->class == ATA_DEV_UNKNOWN &&
 			   ehc->tries[dev->devno] &&
