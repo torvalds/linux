@@ -3547,6 +3547,7 @@ static int ohci1394_pci_resume (struct pci_dev *pdev)
 	}
 #endif /* CONFIG_PPC_PMAC */
 
+	pci_restore_state(pdev);
 	pci_enable_device(pdev);
 
 	return 0;
@@ -3565,6 +3566,8 @@ static int ohci1394_pci_suspend (struct pci_dev *pdev, pm_message_t state)
 			pmac_call_feature(PMAC_FTR_1394_ENABLE, of_node, 0, 0);
 	}
 #endif
+
+	pci_save_state(pdev);
 
 	return 0;
 }
