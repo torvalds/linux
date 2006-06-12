@@ -5293,6 +5293,7 @@ int ata_device_add(const struct ata_probe_ent *ent)
 	unsigned int count = 0, i;
 	struct device *dev = ent->dev;
 	struct ata_host_set *host_set;
+	int rc;
 
 	DPRINTK("ENTER\n");
 	/* alloc a container for our list of ATA ports (buses) */
@@ -5344,9 +5345,13 @@ int ata_device_add(const struct ata_probe_ent *ent)
 		goto err_free_ret;
 
 	/* obtain irq, that is shared between channels */
-	if (request_irq(ent->irq, ent->port_ops->irq_handler, ent->irq_flags,
-			DRV_NAME, host_set))
+	rc = request_irq(ent->irq, ent->port_ops->irq_handler, ent->irq_flags,
+			 DRV_NAME, host_set);
+	if (rc) {
+		dev_printk(KERN_ERR, dev, "irq %lu request failed: %d\n",
+			   ent->irq, rc);
 		goto err_out;
+	}
 
 	/* perform each probe synchronously */
 	DPRINTK("probe begin\n");
