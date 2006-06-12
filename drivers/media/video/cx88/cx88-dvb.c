@@ -562,6 +562,26 @@ static int dvb_register(struct cx8802_dev *dev)
 		}
 #endif
 		break;
+	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_DUAL:
+#ifdef HAVE_MT352
+		/* The tin box says DEE1601, but it seems to be DTT7579
+		 * compatible, with a slightly different MT352 AGC gain. */
+		dev->dvb.frontend = mt352_attach(&dvico_fusionhdtv_dual,
+						 &dev->core->i2c_adap);
+		if (dev->dvb.frontend != NULL) {
+			dvb_pll_attach(dev->dvb.frontend, 0x61, &dev->core->i2c_adap, &dvb_pll_thomson_dtt7579);
+			break;
+		}
+#endif
+#ifdef HAVE_ZL10353
+		/* ZL10353 replaces MT352 on later cards */
+		dev->dvb.frontend = zl10353_attach(&dvico_fusionhdtv_plus_v1_1,
+						   &dev->core->i2c_adap);
+		if (dev->dvb.frontend != NULL) {
+			dvb_pll_attach(dev->dvb.frontend, 0x61, &dev->core->i2c_adap, &dvb_pll_thomson_dtt7579);
+		}
+#endif
+		break;
 #endif /* HAVE_MT352 || HAVE_ZL10353 */
 #ifdef HAVE_MT352
 	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T1:
@@ -594,27 +614,6 @@ static int dvb_register(struct cx8802_dev *dev)
 #endif
 		break;
 #endif
-#if defined(HAVE_MT352) || defined(HAVE_ZL10353)
-	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_DUAL:
-#ifdef HAVE_MT352
-		/* The tin box says DEE1601, but it seems to be DTT7579
-		 * compatible, with a slightly different MT352 AGC gain. */
-		dev->dvb.frontend = mt352_attach(&dvico_fusionhdtv_dual,
-						 &dev->core->i2c_adap);
-		if (dev->dvb.frontend != NULL) {
-			dvb_pll_attach(dev->dvb.frontend, 0x61, &dev->core->i2c_adap, &dvb_pll_thomson_dtt7579);
-			break;
-		}
-#endif
-#ifdef HAVE_ZL10353
-		/* ZL10353 replaces MT352 on later cards */
-		dev->dvb.frontend = zl10353_attach(&dvico_fusionhdtv_plus_v1_1, &dev->core->i2c_adap);
-		if (dev->dvb.frontend != NULL) {
-			dvb_pll_attach(dev->dvb.frontend, 0x61, &dev->core->i2c_adap, &dvb_pll_thomson_dtt7579);
-		}
-#endif
-		break;
-#endif /* HAVE_MT352 || HAVE_ZL10353 */
 #ifdef HAVE_ZL10353
 	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_HYBRID:
 		dev->core->pll_addr = 0x61;
