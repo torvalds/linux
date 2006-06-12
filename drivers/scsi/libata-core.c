@@ -5181,7 +5181,15 @@ static void ata_host_init(struct ata_port *ap, struct Scsi_Host *host,
 	ap->hw_sata_spd_limit = UINT_MAX;
 	ap->active_tag = ATA_TAG_POISON;
 	ap->last_ctl = 0xFF;
-	ap->msg_enable = ATA_MSG_DRV;
+
+#if defined(ATA_VERBOSE_DEBUG)
+	/* turn on all debugging levels */
+	ap->msg_enable = 0x00FF;
+#elif defined(ATA_DEBUG)
+	ap->msg_enable = ATA_MSG_DRV | ATA_MSG_INFO | ATA_MSG_CTL | ATA_MSG_WARN | ATA_MSG_ERR;
+#else 
+	ap->msg_enable = ATA_MSG_DRV | ATA_MSG_ERR;
+#endif
 
 	INIT_WORK(&ap->port_task, NULL, NULL);
 	INIT_WORK(&ap->hotplug_task, ata_scsi_hotplug, ap);
