@@ -301,7 +301,7 @@ u64 hpsb_allocate_and_register_addrspace(struct hpsb_highlevel *hl,
 {
 	struct hpsb_address_serve *as, *a1, *a2;
 	struct list_head *entry;
-	u64 retval = ~0ULL;
+	u64 retval = CSR1212_INVALID_ADDR_SPACE;
 	unsigned long flags;
 	u64 align_mask = ~(alignment - 1);
 
@@ -314,9 +314,10 @@ u64 hpsb_allocate_and_register_addrspace(struct hpsb_highlevel *hl,
 
 	/* default range,
 	 * avoids controller's posted write area (see OHCI 1.1 clause 1.5) */
-	if (start == ~0ULL && end == ~0ULL) {
+	if (start == CSR1212_INVALID_ADDR_SPACE &&
+	    end   == CSR1212_INVALID_ADDR_SPACE) {
 		start = host->middle_addr_space;
-		end = CSR1212_ALL_SPACE_END;
+		end   = CSR1212_ALL_SPACE_END;
 	}
 
 	if (((start|end) & ~align_mask) || (start >= end) || (end > 0x1000000000000ULL)) {
@@ -360,7 +361,7 @@ u64 hpsb_allocate_and_register_addrspace(struct hpsb_highlevel *hl,
 
 	write_unlock_irqrestore(&addr_space_lock, flags);
 
-	if (retval == ~0ULL) {
+	if (retval == CSR1212_INVALID_ADDR_SPACE) {
 		kfree(as);
 	}
 

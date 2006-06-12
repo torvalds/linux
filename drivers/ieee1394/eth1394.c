@@ -367,7 +367,7 @@ static int eth1394_probe(struct device *dev)
 	spin_lock_init(&node_info->pdg.lock);
 	INIT_LIST_HEAD(&node_info->pdg.list);
 	node_info->pdg.sz = 0;
-	node_info->fifo = ETHER1394_INVALID_ADDR;
+	node_info->fifo = CSR1212_INVALID_ADDR_SPACE;
 
 	ud->device.driver_data = node_info;
 	new_node->ud = ud;
@@ -566,13 +566,11 @@ static void ether1394_add_host (struct hpsb_host *host)
 	if (!(host->config_roms & HPSB_CONFIG_ROM_ENTRY_IP1394))
 		return;
 
-	fifo_addr = hpsb_allocate_and_register_addrspace(&eth1394_highlevel,
-							 host,
-							 &addr_ops,
-							 ETHER1394_REGION_ADDR_LEN,
-							 ETHER1394_REGION_ADDR_LEN,
-							 -1, -1);
-	if (fifo_addr == ~0ULL)
+	fifo_addr = hpsb_allocate_and_register_addrspace(
+			&eth1394_highlevel, host, &addr_ops,
+			ETHER1394_REGION_ADDR_LEN, ETHER1394_REGION_ADDR_LEN,
+			CSR1212_INVALID_ADDR_SPACE, CSR1212_INVALID_ADDR_SPACE);
+	if (fifo_addr == CSR1212_INVALID_ADDR_SPACE)
 		goto out;
 
 	/* We should really have our own alloc_hpsbdev() function in
@@ -1686,7 +1684,7 @@ static int ether1394_tx (struct sk_buff *skb, struct net_device *dev)
 			goto fail;
 		}
 		node_info = (struct eth1394_node_info*)node->ud->device.driver_data;
-		if (node_info->fifo == ETHER1394_INVALID_ADDR) {
+		if (node_info->fifo == CSR1212_INVALID_ADDR_SPACE) {
 			ret = -EAGAIN;
 			goto fail;
 		}

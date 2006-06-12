@@ -794,7 +794,7 @@ static struct scsi_id_instance_data *sbp2_alloc_device(struct unit_directory *ud
 	scsi_id->ud = ud;
 	scsi_id->speed_code = IEEE1394_SPEED_100;
 	scsi_id->max_payload_size = sbp2_speedto_max_payload[IEEE1394_SPEED_100];
-	scsi_id->status_fifo_addr = ~0ULL;
+	scsi_id->status_fifo_addr = CSR1212_INVALID_ADDR_SPACE;
 	atomic_set(&scsi_id->sbp2_login_complete, 0);
 	INIT_LIST_HEAD(&scsi_id->sbp2_command_orb_inuse);
 	INIT_LIST_HEAD(&scsi_id->sbp2_command_orb_completed);
@@ -848,7 +848,7 @@ static struct scsi_id_instance_data *sbp2_alloc_device(struct unit_directory *ud
 			&sbp2_highlevel, ud->ne->host, &sbp2_ops,
 			sizeof(struct sbp2_status_block), sizeof(quadlet_t),
 			ud->ne->host->low_addr_space, CSR1212_ALL_SPACE_END);
-	if (scsi_id->status_fifo_addr == ~0ULL) {
+	if (scsi_id->status_fifo_addr == CSR1212_INVALID_ADDR_SPACE) {
 		SBP2_ERR("failed to allocate status FIFO address range");
 		goto failed_alloc;
 	}
@@ -1090,9 +1090,9 @@ static void sbp2_remove_device(struct scsi_id_instance_data *scsi_id)
 		SBP2_DMA_FREE("single query logins data");
 	}
 
-	if (scsi_id->status_fifo_addr != ~0ULL)
+	if (scsi_id->status_fifo_addr != CSR1212_INVALID_ADDR_SPACE)
 		hpsb_unregister_addrspace(&sbp2_highlevel, hi->host,
-			scsi_id->status_fifo_addr);
+					  scsi_id->status_fifo_addr);
 
 	scsi_id->ud->device.driver_data = NULL;
 
