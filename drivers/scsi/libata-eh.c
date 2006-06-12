@@ -1680,6 +1680,10 @@ static int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 	down_xfermask = 0;
 	rc = 0;
 
+	/* if UNLOADING, finish immediately */
+	if (ap->flags & ATA_FLAG_UNLOADING)
+		goto out;
+
 	/* skip EH if possible. */
 	if (ata_eh_skip_recovery(ap))
 		ehc->i.action = 0;
