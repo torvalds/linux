@@ -553,7 +553,8 @@ static void ohci_initialize(struct ti_ohci *ohci)
 	 * register content.
 	 * To actually enable physical responses is the job of our interrupt
 	 * handler which programs the physical request filter. */
-	reg_write(ohci, OHCI1394_PhyUpperBound, 0x01000000);
+	reg_write(ohci, OHCI1394_PhyUpperBound,
+		  OHCI1394_PHYS_UPPER_BOUND_PROGRAMMED >> 16);
 
 	DBGMSG("physUpperBoundOffset=%08x",
 	       reg_read(ohci, OHCI1394_PhyUpperBound));
@@ -3413,6 +3414,14 @@ static int __devinit ohci1394_pci_probe(struct pci_dev *dev,
 	host->csr.cyc_clk_acc = 100;  /* how do we determine clk accuracy? */
 	host->csr.max_rec = (reg_read(ohci, OHCI1394_BusOptions) >> 12) & 0xf;
 	host->csr.lnk_spd = reg_read(ohci, OHCI1394_BusOptions) & 0x7;
+
+	if (phys_dma) {
+		host->low_addr_space =
+			(u64) reg_read(ohci, OHCI1394_PhyUpperBound) << 16;
+		if (!host->low_addr_space)
+			host->low_addr_space = OHCI1394_PHYS_UPPER_BOUND_FIXED;
+	}
+	host->middle_addr_space = OHCI1394_MIDDLE_ADDRESS_SPACE;
 
 	/* Tell the highlevel this host is ready */
 	if (hpsb_add_host(host))
