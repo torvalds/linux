@@ -22,6 +22,7 @@ struct westwood {
 	u32    accounted;
 	u32    rtt;
 	u32    rtt_min;          /* minimum observed RTT */
+	u8     first_ack;        /* flag which infers that this is the first ack */
 };
 
 
@@ -52,6 +53,7 @@ static void tcp_westwood_init(struct sock *sk)
 	w->rtt_min = w->rtt = TCP_WESTWOOD_INIT_RTT;
 	w->rtt_win_sx = tcp_time_stamp;
 	w->snd_una = tcp_sk(sk)->snd_una;
+	w->first_ack = 1;
 }
 
 /*
@@ -90,6 +92,15 @@ static void westwood_update_window(struct sock *sk)
 {
 	struct westwood *w = inet_csk_ca(sk);
 	s32 delta = tcp_time_stamp - w->rtt_win_sx;
+
+	/* Initialise w->snd_una with the first acked sequence number in order
+	 * to fix mismatch between tp->snd_una and w->snd_una for the first
+	 * bandwidth sample
+	 */
+        if (w->first_ack) {
+		w->snd_una = tcp_sk(sk)->snd_una;
+		w->first_ack = 0;
+	}
 
 	/*
 	 * See if a RTT-window has passed.
@@ -180,7 +191,7 @@ static void tcp_westwood_event(struct sock *sk, enum tcp_ca_event event)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct westwood *w = inet_csk_ca(sk);
-
+	
 	switch(event) {
 	case CA_EVENT_FAST_ACK:
 		westwood_fast_bw(sk);
