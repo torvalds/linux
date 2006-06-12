@@ -14,9 +14,6 @@
 #define kvaddr_to_nid(kvaddr)	pa_to_nid(__pa(kvaddr))
 #define pfn_to_nid(pfn)		pa_to_nid((pfn) << PAGE_SHIFT)
 
-/* XXX: FIXME -- wli */
-#define kern_addr_valid(addr)	(0)
-
 #endif /* CONFIG_DISCONTIGMEM */
 
 #endif /* _ASM_MMZONE_H_ */
