@@ -522,6 +522,7 @@ struct ata_port {
 
 	struct work_struct	port_task;
 	struct work_struct	hotplug_task;
+	struct work_struct	scsi_rescan_task;
 
 	unsigned int		hsm_task_state;
 
