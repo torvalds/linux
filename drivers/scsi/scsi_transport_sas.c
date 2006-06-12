@@ -748,6 +748,18 @@ static void sas_end_device_release(struct device *dev)
 }
 
 /**
+ * sas_rphy_initialize - common rphy intialization
+ * @rphy:	rphy to initialise
+ *
+ * Used by both sas_end_device_alloc() and sas_expander_alloc() to
+ * initialise the common rphy component of each.
+ */
+static void sas_rphy_initialize(struct sas_rphy *rphy)
+{
+	INIT_LIST_HEAD(&rphy->list);
+}
+
+/**
  * sas_end_device_alloc - allocate an rphy for an end device
  *
  * Allocates an SAS remote PHY structure, connected to @parent.
@@ -771,6 +783,7 @@ struct sas_rphy *sas_end_device_alloc(struct sas_phy *parent)
 	sprintf(rdev->rphy.dev.bus_id, "end_device-%d:%d-%d",
 		shost->host_no, parent->port_identifier, parent->number);
 	rdev->rphy.identify.device_type = SAS_END_DEVICE;
+	sas_rphy_initialize(&rdev->rphy);
 	transport_setup_device(&rdev->rphy.dev);
 
 	return &rdev->rphy;
@@ -809,6 +822,7 @@ struct sas_rphy *sas_expander_alloc(struct sas_phy *parent,
 	sprintf(rdev->rphy.dev.bus_id, "expander-%d:%d",
 		shost->host_no, rdev->rphy.scsi_target_id);
 	rdev->rphy.identify.device_type = type;
+	sas_rphy_initialize(&rdev->rphy);
 	transport_setup_device(&rdev->rphy.dev);
 
 	return &rdev->rphy;
