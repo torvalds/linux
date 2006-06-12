@@ -2112,33 +2112,6 @@ static unsigned int sbp2_status_to_sense_data(unchar *sbp2_status, unchar *sense
 }
 
 /*
- * This function is called after a command is completed, in order to do any necessary SBP-2
- * response data translations for the SCSI stack
- */
-static void sbp2_check_sbp2_response(struct scsi_id_instance_data *scsi_id,
-				     struct scsi_cmnd *SCpnt)
-{
-	u8 *scsi_buf = SCpnt->request_buffer;
-
-	SBP2_DEBUG_ENTER();
-
-	if (SCpnt->cmnd[0] == INQUIRY && (SCpnt->cmnd[1] & 3) == 0) {
-		/*
-		 * Make sure data length is ok. Minimum length is 36 bytes
-		 */
-		if (scsi_buf[4] == 0) {
-			scsi_buf[4] = 36 - 5;
-		}
-
-		/*
-		 * Fix ansi revision and response data format
-		 */
-		scsi_buf[2] |= 2;
-		scsi_buf[3] = (scsi_buf[3] & 0xf0) | 2;
-	}
-}
-
-/*
  * This function deals with status writes from the SBP-2 device
  */
 static int sbp2_handle_status_write(struct hpsb_host *host, int nodeid, int destid,
@@ -2474,13 +2447,6 @@ static void sbp2scsi_complete_command(struct scsi_id_instance_data *scsi_id,
 	default:
 		SBP2_ERR("Unsupported SCSI status = %x", scsi_status);
 		SCpnt->result = DID_ERROR << 16;
-	}
-
-	/*
-	 * Take care of any sbp2 response data mucking here (RBC stuff, etc.)
-	 */
-	if (SCpnt->result == DID_OK << 16) {
-		sbp2_check_sbp2_response(scsi_id, SCpnt);
 	}
 
 	/*

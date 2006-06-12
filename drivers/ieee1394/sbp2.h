@@ -395,9 +395,8 @@ static int sbp2_link_orb_command(struct scsi_id_instance_data *scsi_id,
 static int sbp2_send_command(struct scsi_id_instance_data *scsi_id,
 			     struct scsi_cmnd *SCpnt,
 			     void (*done)(struct scsi_cmnd *));
-static unsigned int sbp2_status_to_sense_data(unchar *sbp2_status, unchar *sense_data);
-static void sbp2_check_sbp2_response(struct scsi_id_instance_data *scsi_id,
-				     struct scsi_cmnd *SCpnt);
+static unsigned int sbp2_status_to_sense_data(unchar *sbp2_status,
+					      unchar *sense_data);
 static void sbp2_parse_unit_directory(struct scsi_id_instance_data *scsi_id,
 				      struct unit_directory *ud);
 static int sbp2_set_busy_timeout(struct scsi_id_instance_data *scsi_id);
