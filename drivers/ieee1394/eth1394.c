@@ -933,7 +933,7 @@ static inline u16 ether1394_parse_encap(struct sk_buff *skb,
 		*(u32*)arp_ptr = arp1394->sip;	/* move sender IP addr */
 		arp_ptr += arp->ar_pln;		/* skip over sender IP addr */
 
-		if (arp->ar_op == 1)
+		if (arp->ar_op == htons(ARPOP_REQUEST))
 			/* just set ARP req target unique ID to 0 */
 			*((u64*)arp_ptr) = 0;
 		else
@@ -1393,7 +1393,7 @@ static inline void ether1394_arp_to_1394arp(struct sk_buff *skb,
 /* We need to encapsulate the standard header with our own. We use the
  * ethernet header's proto for our own. */
 static inline unsigned int ether1394_encapsulate_prep(unsigned int max_payload,
-						      int proto,
+						      __be16 proto,
 						      union eth1394_hdr *hdr,
 						      u16 dg_size, u16 dgl)
 {
@@ -1624,7 +1624,7 @@ static int ether1394_tx (struct sk_buff *skb, struct net_device *dev)
 	gfp_t kmflags = in_interrupt() ? GFP_ATOMIC : GFP_KERNEL;
 	struct eth1394hdr *eth;
 	struct eth1394_priv *priv = netdev_priv(dev);
-	int proto;
+	__be16 proto;
 	unsigned long flags;
 	nodeid_t dest_node;
 	eth1394_tx_type tx_type;
