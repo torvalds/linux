@@ -981,8 +981,10 @@ void ata_qc_complete_internal(struct ata_queued_cmd *qc)
  *
  *	LOCKING:
  *	None.  Should be called with kernel context, might sleep.
+ *
+ *	RETURNS:
+ *	Zero on success, AC_ERR_* mask on failure
  */
-
 unsigned ata_exec_internal(struct ata_device *dev,
 			   struct ata_taskfile *tf, const u8 *cdb,
 			   int dma_dir, void *buf, unsigned int buflen)
