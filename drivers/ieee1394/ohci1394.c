@@ -3462,23 +3462,12 @@ static void ohci1394_pci_remove(struct pci_dev *pdev)
 	case OHCI_INIT_HAVE_TXRX_BUFFERS__MAYBE:
 		/* The ohci_soft_reset() stops all DMA contexts, so we
 		 * dont need to do this.  */
-		/* Free AR dma */
 		free_dma_rcv_ctx(&ohci->ar_req_context);
 		free_dma_rcv_ctx(&ohci->ar_resp_context);
-
-		/* Free AT dma */
 		free_dma_trm_ctx(&ohci->at_req_context);
 		free_dma_trm_ctx(&ohci->at_resp_context);
-
-		/* Free IR dma */
 		free_dma_rcv_ctx(&ohci->ir_legacy_context);
-
-		/* Free IT dma */
 		free_dma_trm_ctx(&ohci->it_legacy_context);
-
-		/* Free IR legacy dma */
-		free_dma_rcv_ctx(&ohci->ir_legacy_context);
-
 
 	case OHCI_INIT_HAVE_SELFID_BUFFER:
 		pci_free_consistent(ohci->dev, OHCI1394_SI_DMA_BUF_SIZE,
