@@ -5621,8 +5621,12 @@ void ata_pci_remove_one (struct pci_dev *pdev)
 {
 	struct device *dev = pci_dev_to_dev(pdev);
 	struct ata_host_set *host_set = dev_get_drvdata(dev);
+	struct ata_host_set *host_set2 = host_set->next;
 
 	ata_host_set_remove(host_set);
+	if (host_set2)
+		ata_host_set_remove(host_set2);
+
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
 	dev_set_drvdata(dev, NULL);

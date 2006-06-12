@@ -1076,10 +1076,21 @@ int ata_pci_init_one (struct pci_dev *pdev, struct ata_port_info **port_info,
 
 	/* FIXME: check ata_device_add return */
 	if (legacy_mode) {
-		if (legacy_mode & (1 << 0))
+		struct device *dev = &pdev->dev;
+		struct ata_host_set *host_set = NULL;
+
+		if (legacy_mode & (1 << 0)) {
 			ata_device_add(probe_ent);
-		if (legacy_mode & (1 << 1))
+			host_set = dev_get_drvdata(dev);
+		}
+
+		if (legacy_mode & (1 << 1)) {
 			ata_device_add(probe_ent2);
+			if (host_set) {
+				host_set->next = dev_get_drvdata(dev);
+				dev_set_drvdata(dev, host_set);
+			}
+		}
 	} else
 		ata_device_add(probe_ent);
 

@@ -356,7 +356,8 @@ struct ata_host_set {
 	unsigned long		flags;
 	int			simplex_claimed;	/* Keep seperate in case we
 							   ever need to do this locked */
-	struct ata_port *	ports[0];
+	struct ata_host_set	*next;		/* for legacy mode */
+	struct ata_port		*ports[0];
 };
 
 struct ata_queued_cmd {
