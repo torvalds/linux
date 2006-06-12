@@ -208,7 +208,7 @@ _sparc_ioremap(struct resource *res, u32 bus, u32 pa, int sz)
 	pa &= PAGE_MASK;
 	sparc_mapiorange(bus, pa, res->start, res->end - res->start + 1);
 
-	return (void __iomem *) (res->start + offset);
+	return (void __iomem *)(unsigned long)(res->start + offset);
 }
 
 /*
@@ -325,7 +325,7 @@ void *sbus_alloc_consistent(struct sbus_dev *sdev, long len, u32 *dma_addrp)
 		res->name = sdev->prom_name;
 	}
 
-	return (void *)res->start;
+	return (void *)(unsigned long)res->start;
 
 err_noiommu:
 	release_resource(res);

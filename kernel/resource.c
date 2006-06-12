@@ -151,8 +151,8 @@ __initcall(ioresources_init);
 /* Return the conflict entry if you can't request it */
 static struct resource * __request_resource(struct resource *root, struct resource *new)
 {
-	unsigned long start = new->start;
-	unsigned long end = new->end;
+	resource_size_t start = new->start;
+	resource_size_t end = new->end;
 	struct resource *tmp, **p;
 
 	if (end < start)
@@ -236,11 +236,10 @@ EXPORT_SYMBOL(release_resource);
  * Find empty slot in the resource tree given range and alignment.
  */
 static int find_resource(struct resource *root, struct resource *new,
-			 unsigned long size,
-			 unsigned long min, unsigned long max,
-			 unsigned long align,
+			 resource_size_t size, resource_size_t min,
+			 resource_size_t max, resource_size_t align,
 			 void (*alignf)(void *, struct resource *,
-					unsigned long, unsigned long),
+					resource_size_t, resource_size_t),
 			 void *alignf_data)
 {
 	struct resource *this = root->child;
@@ -282,11 +281,10 @@ static int find_resource(struct resource *root, struct resource *new,
  * Allocate empty slot in the resource tree given range and alignment.
  */
 int allocate_resource(struct resource *root, struct resource *new,
-		      unsigned long size,
-		      unsigned long min, unsigned long max,
-		      unsigned long align,
+		      resource_size_t size, resource_size_t min,
+		      resource_size_t max, resource_size_t align,
 		      void (*alignf)(void *, struct resource *,
-				     unsigned long, unsigned long),
+				     resource_size_t, resource_size_t),
 		      void *alignf_data)
 {
 	int err;
@@ -378,10 +376,10 @@ EXPORT_SYMBOL(insert_resource);
  * arguments.  Returns -EBUSY if it can't fit.  Existing children of
  * the resource are assumed to be immutable.
  */
-int adjust_resource(struct resource *res, unsigned long start, unsigned long size)
+int adjust_resource(struct resource *res, resource_size_t start, resource_size_t size)
 {
 	struct resource *tmp, *parent = res->parent;
-	unsigned long end = start + size - 1;
+	resource_size_t end = start + size - 1;
 	int result = -EBUSY;
 
 	write_lock(&resource_lock);
@@ -428,7 +426,9 @@ EXPORT_SYMBOL(adjust_resource);
  *
  * Release-region releases a matching busy region.
  */
-struct resource * __request_region(struct resource *parent, unsigned long start, unsigned long n, const char *name)
+struct resource * __request_region(struct resource *parent,
+				   resource_size_t start, resource_size_t n,
+				   const char *name)
 {
 	struct resource *res = kzalloc(sizeof(*res), GFP_KERNEL);
 
@@ -464,7 +464,8 @@ struct resource * __request_region(struct resource *parent, unsigned long start,
 
 EXPORT_SYMBOL(__request_region);
 
-int __check_region(struct resource *parent, unsigned long start, unsigned long n)
+int __check_region(struct resource *parent, resource_size_t start,
+			resource_size_t n)
 {
 	struct resource * res;
 
@@ -479,10 +480,11 @@ int __check_region(struct resource *parent, unsigned long start, unsigned long n
 
 EXPORT_SYMBOL(__check_region);
 
-void __release_region(struct resource *parent, unsigned long start, unsigned long n)
+void __release_region(struct resource *parent, resource_size_t start,
+			resource_size_t n)
 {
 	struct resource **p;
-	unsigned long end;
+	resource_size_t end;
 
 	p = &parent->child;
 	end = start + n - 1;
