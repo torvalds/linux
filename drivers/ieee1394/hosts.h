@@ -73,6 +73,8 @@ struct hpsb_host {
 	unsigned int config_roms;
 
 	struct list_head addr_space;
+	u64 low_addr_space;	/* upper bound of physical DMA area */
+	u64 middle_addr_space;	/* upper bound of posted write area */
 };
 
 

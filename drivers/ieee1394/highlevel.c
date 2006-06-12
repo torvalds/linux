@@ -312,8 +312,10 @@ u64 hpsb_allocate_and_register_addrspace(struct hpsb_highlevel *hl,
 		return retval;
 	}
 
+	/* default range,
+	 * avoids controller's posted write area (see OHCI 1.1 clause 1.5) */
 	if (start == ~0ULL && end == ~0ULL) {
-		start = CSR1212_ALL_SPACE_BASE + 0xffff00000000ULL;  /* ohci1394.c limit */
+		start = host->middle_addr_space;
 		end = CSR1212_ALL_SPACE_END;
 	}
 
