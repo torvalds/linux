@@ -129,7 +129,7 @@ config IEEE1394_SBP2
 
 config IEEE1394_SBP2_PHYS_DMA
 	bool "Enable replacement for physical DMA in SBP2"
-	depends on IEEE1394 && IEEE1394_SBP2 && EXPERIMENTAL
+	depends on IEEE1394 && IEEE1394_SBP2 && EXPERIMENTAL && (X86_32 || PPC_32)
 	help
 	  This builds sbp2 for use with non-OHCI host adapters which do not
 	  support physical DMA or for when ohci1394 is run with phys_dma=0.
