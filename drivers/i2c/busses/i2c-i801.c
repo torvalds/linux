@@ -66,7 +66,7 @@
 #define SMBAUXCTL	(13 + i801_smba)	/* ICH4 only */
 
 /* PCI Address Constants */
-#define SMBBA		0x020
+#define SMBBAR		4
 #define SMBHSTCFG	0x040
 #define SMBREV		0x008
 
@@ -97,7 +97,7 @@ static int i801_transaction(void);
 static int i801_block_transaction(union i2c_smbus_data *data, char read_write,
 				  int command, int hwpec);
 
-static unsigned short i801_smba;
+static unsigned long i801_smba;
 static struct pci_driver i801_driver;
 static struct pci_dev *I801_dev;
 static int isich4;
@@ -105,6 +105,7 @@ static int isich4;
 static int __devinit i801_setup(struct pci_dev *dev)
 {
 	unsigned char temp;
+	int err;
 
 	I801_dev = dev;
 	if ((dev->device == PCI_DEVICE_ID_INTEL_82801DB_3) ||
@@ -114,19 +115,28 @@ static int __devinit i801_setup(struct pci_dev *dev)
 	else
 		isich4 = 0;
 
+	err = pci_enable_device(dev);
+	if (err) {
+		dev_err(&dev->dev, "Failed to enable SMBus device (%d)\n",
+			err);
+		goto exit;
+	}
+
 	/* Determine the address of the SMBus area */
-	pci_read_config_word(I801_dev, SMBBA, &i801_smba);
-	i801_smba &= 0xfff0;
+	i801_smba = pci_resource_start(dev, SMBBAR);
 	if (!i801_smba) {
 		dev_err(&dev->dev, "SMBus base address uninitialized, "
 			"upgrade BIOS\n");
-		return -ENODEV;
+		err = -ENODEV;
+		goto exit_disable;
 	}
 
-	if (!request_region(i801_smba, (isich4 ? 16 : 8), i801_driver.name)) {
-		dev_err(&dev->dev, "I801_smb region 0x%x already in use!\n",
-			i801_smba);
-		return -EBUSY;
+	err = pci_request_region(dev, SMBBAR, i801_driver.name);
+	if (err) {
+		dev_err(&dev->dev, "Failed to request SMBus region "
+			"0x%lx-0x%lx\n", i801_smba,
+			pci_resource_end(dev, SMBBAR));
+		goto exit_disable;
 	}
 
 	pci_read_config_byte(I801_dev, SMBHSTCFG, &temp);
@@ -147,6 +157,11 @@ static int __devinit i801_setup(struct pci_dev *dev)
 	dev_dbg(&dev->dev, "I801_smba = 0x%X\n", i801_smba);
 
 	return 0;
+
+exit_disable:
+	pci_disable_device(dev);
+exit:
+	return err;
 }
 
 static int i801_transaction(void)
@@ -521,14 +536,15 @@ static int __devinit i801_probe(struct pci_dev *dev, const struct pci_device_id 
 	i801_adapter.dev.parent = &dev->dev;
 
 	snprintf(i801_adapter.name, I2C_NAME_SIZE,
-		"SMBus I801 adapter at %04x", i801_smba);
+		"SMBus I801 adapter at %04lx", i801_smba);
 	return i2c_add_adapter(&i801_adapter);
 }
 
 static void __devexit i801_remove(struct pci_dev *dev)
 {
 	i2c_del_adapter(&i801_adapter);
-	release_region(i801_smba, (isich4 ? 16 : 8));
+	pci_release_region(dev, SMBBAR);
+	pci_disable_device(dev);
 }
 
 static struct pci_driver i801_driver = {
