@@ -107,10 +107,6 @@ static int i801_setup(struct pci_dev *dev)
 	int error_return = 0;
 	unsigned char temp;
 
-	/* Note: we keep on searching until we have found 'function 3' */
-	if(PCI_FUNC(dev->devfn) != 3)
-		return -ENODEV;
-
 	I801_dev = dev;
 	if ((dev->device == PCI_DEVICE_ID_INTEL_82801DB_3) ||
 	    (dev->device == PCI_DEVICE_ID_INTEL_82801EB_3) ||
