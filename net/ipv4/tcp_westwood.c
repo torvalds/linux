@@ -40,6 +40,7 @@ struct westwood {
 	u32    rtt;
 	u32    rtt_min;          /* minimum observed RTT */
 	u8     first_ack;        /* flag which infers that this is the first ack */
+	u8     reset_rtt_min;    /* Reset RTT min to next RTT sample*/
 };
 
 
@@ -67,6 +68,7 @@ static void tcp_westwood_init(struct sock *sk)
         w->bw_est = 0;
         w->accounted = 0;
         w->cumul_ack = 0;
+	w->reset_rtt_min = 1;
 	w->rtt_min = w->rtt = TCP_WESTWOOD_INIT_RTT;
 	w->rtt_win_sx = tcp_time_stamp;
 	w->snd_una = tcp_sk(sk)->snd_una;
@@ -142,6 +144,16 @@ static void westwood_update_window(struct sock *sk)
 	}
 }
 
+static inline void update_rtt_min(struct westwood *w)
+{
+	if (w->reset_rtt_min) {
+		w->rtt_min = w->rtt;
+		w->reset_rtt_min = 0;	
+	} else
+		w->rtt_min = min(w->rtt, w->rtt_min);
+}
+
+
 /*
  * @westwood_fast_bw
  * It is called when we are in fast path. In particular it is called when
@@ -157,7 +169,7 @@ static inline void westwood_fast_bw(struct sock *sk)
 
 	w->bk += tp->snd_una - w->snd_una;
 	w->snd_una = tp->snd_una;
-	w->rtt_min = min(w->rtt, w->rtt_min);
+	update_rtt_min(w);
 }
 
 /*
@@ -226,12 +238,14 @@ static void tcp_westwood_event(struct sock *sk, enum tcp_ca_event event)
 
 	case CA_EVENT_FRTO:
 		tp->snd_ssthresh = tcp_westwood_bw_rttmin(sk);
+ 		/* Update RTT_min when next ack arrives */
+		w->reset_rtt_min = 1;
 		break;
 
 	case CA_EVENT_SLOW_ACK:
 		westwood_update_window(sk);
 		w->bk += westwood_acked_count(sk);
-		w->rtt_min = min(w->rtt, w->rtt_min);
+		update_rtt_min(w);
 		break;
 
 	default:
