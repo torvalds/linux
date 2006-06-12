@@ -847,7 +847,7 @@ static struct scsi_id_instance_data *sbp2_alloc_device(struct unit_directory *ud
 	scsi_id->status_fifo_addr = hpsb_allocate_and_register_addrspace(
 			&sbp2_highlevel, ud->ne->host, &sbp2_ops,
 			sizeof(struct sbp2_status_block), sizeof(quadlet_t),
-			0x010000000000ULL, CSR1212_ALL_SPACE_END);
+			ud->ne->host->low_addr_space, CSR1212_ALL_SPACE_END);
 	if (scsi_id->status_fifo_addr == ~0ULL) {
 		SBP2_ERR("failed to allocate status FIFO address range");
 		goto failed_alloc;
