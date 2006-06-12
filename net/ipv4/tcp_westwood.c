@@ -1,7 +1,24 @@
 /*
- * TCP Westwood+
+ * TCP Westwood+: end-to-end bandwidth estimation for TCP
  *
- *	Angelo Dell'Aera:	TCP Westwood+ support
+ *      Angelo Dell'Aera: author of the first version of TCP Westwood+ in Linux 2.4
+ *
+ * Support at http://c3lab.poliba.it/index.php/Westwood
+ * Main references in literature:
+ *
+ * - Mascolo S, Casetti, M. Gerla et al.
+ *   "TCP Westwood: bandwidth estimation for TCP" Proc. ACM Mobicom 2001
+ *
+ * - A. Grieco, s. Mascolo
+ *   "Performance evaluation of New Reno, Vegas, Westwood+ TCP" ACM Computer
+ *     Comm. Review, 2004
+ *
+ * - A. Dell'Aera, L. Grieco, S. Mascolo.
+ *   "Linux 2.4 Implementation of Westwood+ TCP with Rate-Halving :
+ *    A Performance Evaluation Over the Internet" (ICC 2004), Paris, June 2004
+ *
+ * Westwood+ employs end-to-end bandwidth measurement to set cwnd and
+ * ssthresh after packet loss. The probing phase is as the original Reno.
  */
 
 #include <linux/config.h>
@@ -93,7 +110,7 @@ static void westwood_update_window(struct sock *sk)
 	struct westwood *w = inet_csk_ca(sk);
 	s32 delta = tcp_time_stamp - w->rtt_win_sx;
 
-	/* Initialise w->snd_una with the first acked sequence number in order
+	/* Initialize w->snd_una with the first acked sequence number in order
 	 * to fix mismatch between tp->snd_una and w->snd_una for the first
 	 * bandwidth sample
 	 */
@@ -191,7 +208,7 @@ static void tcp_westwood_event(struct sock *sk, enum tcp_ca_event event)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct westwood *w = inet_csk_ca(sk);
-	
+
 	switch(event) {
 	case CA_EVENT_FAST_ACK:
 		westwood_fast_bw(sk);
