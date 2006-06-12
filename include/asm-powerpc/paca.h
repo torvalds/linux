@@ -79,9 +79,6 @@ struct paca_struct {
 	u64 exmc[10];		/* used for machine checks */
 	u64 exslb[10];		/* used for SLB/segment table misses
  				 * on the linear mapping */
-#ifdef CONFIG_PPC_64K_PAGES
-	pgd_t *pgdir;
-#endif /* CONFIG_PPC_64K_PAGES */
 
 	mm_context_t context;
 	u16 slb_cache[SLB_CACHE_ENTRIES];

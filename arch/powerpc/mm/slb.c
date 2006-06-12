@@ -122,9 +122,6 @@ void switch_slb(struct task_struct *tsk, struct mm_struct *mm)
 
 	get_paca()->slb_cache_ptr = 0;
 	get_paca()->context = mm->context;
-#ifdef CONFIG_PPC_64K_PAGES
-	get_paca()->pgdir = mm->pgd;
-#endif /* CONFIG_PPC_64K_PAGES */
 
 	/*
 	 * preload some userspace segments into the SLB.
