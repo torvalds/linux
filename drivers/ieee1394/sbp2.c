@@ -306,8 +306,9 @@ static const struct {
 	u32 model_id;
 	unsigned workarounds;
 } sbp2_workarounds_table[] = {
-	/* TSB42AA9 */ {
+	/* DViCO Momobay CX-1 with TSB42AA9 bridge */ {
 		.firmware_revision	= 0x002800,
+		.model_id		= 0x001010,
 		.workarounds		= SBP2_WORKAROUND_INQUIRY_36 |
 					  SBP2_WORKAROUND_MODE_SENSE_8,
 	},
