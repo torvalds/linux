@@ -344,7 +344,25 @@ static void sil_host_intr(struct ata_port *ap, u32 bmdma2)
 	u8 status;
 
 	if (unlikely(bmdma2 & SIL_DMA_SATA_IRQ)) {
-		ata_ehi_hotplugged(&ap->eh_info);
+		u32 serror;
+
+		/* SIEN doesn't mask SATA IRQs on some 3112s.  Those
+		 * controllers continue to assert IRQ as long as
+		 * SError bits are pending.  Clear SError immediately.
+		 */
+		serror = sil_scr_read(ap, SCR_ERROR);
+		sil_scr_write(ap, SCR_ERROR, serror);
+
+		/* Trigger hotplug and accumulate SError only if the
+		 * port isn't already frozen.  Otherwise, PHY events
+		 * during hardreset makes controllers with broken SIEN
+		 * repeat probing needlessly.
+		 */
+		if (!(ap->flags & ATA_FLAG_FROZEN)) {
+			ata_ehi_hotplugged(&ap->eh_info);
+			ap->eh_info.serror |= serror;
+		}
+
 		goto freeze;
 	}
 
