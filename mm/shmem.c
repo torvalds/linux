@@ -1780,6 +1780,7 @@ static int shmem_rmdir(struct inode *dir, struct dentry *dentry)
 	if (!simple_empty(dentry))
 		return -ENOTEMPTY;
 
+	dentry->d_inode->i_nlink--;
 	dir->i_nlink--;
 	return shmem_unlink(dir, dentry);
 }
