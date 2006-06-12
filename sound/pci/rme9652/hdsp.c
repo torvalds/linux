@@ -3169,9 +3169,10 @@ snd_hdsp_proc_read(struct snd_info_entry *entry, struct snd_info_buffer *buffer)
 	char *clock_source;
 	int x;
 
-	if (hdsp_check_for_iobox (hdsp))
+	if (hdsp_check_for_iobox (hdsp)) {
 		snd_iprintf(buffer, "No I/O box connected.\nPlease connect one and upload firmware.\n");
 		return;
+        }
 
 	if (hdsp_check_for_firmware(hdsp, 0)) {
 		if (hdsp->state & HDSP_FirmwareCached) {
