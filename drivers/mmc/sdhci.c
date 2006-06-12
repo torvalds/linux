@@ -1073,7 +1073,7 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 	tasklet_init(&host->finish_tasklet,
 		sdhci_tasklet_finish, (unsigned long)host);
 
-	setup_timer(&host->timer, sdhci_timeout_timer, (int)host);
+	setup_timer(&host->timer, sdhci_timeout_timer, (long)host);
 
 	ret = request_irq(host->irq, sdhci_irq, SA_SHIRQ,
 		host->slot_descr, host);
