@@ -34,9 +34,6 @@
 #include <net/irda/irda.h>
 #include <net/irda/irda_device.h>      /* struct irlap_cb */
 
-#define PATCH_FILE_SIZE_MAX     65536
-#define PATCH_FILE_SIZE_MIN     80
-
 #define RX_COPY_THRESHOLD 200
 #define IRDA_USB_MAX_MTU 2051
 #define IRDA_USB_SPEED_MTU 64		/* Weird, but work like this */
@@ -107,14 +104,15 @@
 #define IUC_SMALL_PKT	0x10	/* Device doesn't behave with big Rx packets */
 #define IUC_MAX_WINDOW	0x20	/* Device underestimate the Rx window */
 #define IUC_MAX_XBOFS	0x40	/* Device need more xbofs than advertised */
-#define IUC_STIR_4210	0x80	/* SigmaTel 4210/4220/4116 VFIR */
+#define IUC_STIR421X	0x80	/* SigmaTel 4210/4220/4116 VFIR */
 
 /* USB class definitions */
 #define USB_IRDA_HEADER            0x01
 #define USB_CLASS_IRDA             0x02 /* USB_CLASS_APP_SPEC subclass */
 #define USB_DT_IRDA                0x21
-#define USB_IRDA_SIGMATEL_HEADER   0x03
-#define IU_SIGMATEL_MAX_RX_URBS    (IU_MAX_ACTIVE_RX_URBS + USB_IRDA_SIGMATEL_HEADER)
+#define USB_IRDA_STIR421X_HEADER   0x03
+#define IU_SIGMATEL_MAX_RX_URBS    (IU_MAX_ACTIVE_RX_URBS + \
+                                    USB_IRDA_STIR421X_HEADER)
 
 struct irda_class_desc {
 	__u8  bLength;
