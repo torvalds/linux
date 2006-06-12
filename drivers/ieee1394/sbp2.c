@@ -794,12 +794,12 @@ static struct scsi_id_instance_data *sbp2_alloc_device(struct unit_directory *ud
 	scsi_id->ud = ud;
 	scsi_id->speed_code = IEEE1394_SPEED_100;
 	scsi_id->max_payload_size = sbp2_speedto_max_payload[IEEE1394_SPEED_100];
+	scsi_id->status_fifo_addr = ~0ULL;
 	atomic_set(&scsi_id->sbp2_login_complete, 0);
 	INIT_LIST_HEAD(&scsi_id->sbp2_command_orb_inuse);
 	INIT_LIST_HEAD(&scsi_id->sbp2_command_orb_completed);
 	INIT_LIST_HEAD(&scsi_id->scsi_list);
 	spin_lock_init(&scsi_id->sbp2_command_orb_lock);
-	scsi_id->sbp2_lun = 0;
 
 	ud->device.driver_data = scsi_id;
 
@@ -1090,7 +1090,7 @@ static void sbp2_remove_device(struct scsi_id_instance_data *scsi_id)
 		SBP2_DMA_FREE("single query logins data");
 	}
 
-	if (scsi_id->status_fifo_addr)
+	if (scsi_id->status_fifo_addr != ~0ULL)
 		hpsb_unregister_addrspace(&sbp2_highlevel, hi->host,
 			scsi_id->status_fifo_addr);
 
