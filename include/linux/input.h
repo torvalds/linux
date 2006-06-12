@@ -345,6 +345,8 @@ struct input_absinfo {
 #define KEY_SAVE		234
 #define KEY_DOCUMENTS		235
 
+#define KEY_BATTERY		236
+
 #define KEY_UNKNOWN		240
 
 #define BTN_MISC		0x100
@@ -577,14 +579,9 @@ struct input_absinfo {
  * Switch events
  */
 
-#define SW_0			0x00
-#define SW_1			0x01
-#define SW_2			0x02
-#define SW_3			0x03
-#define SW_4			0x04
-#define SW_5			0x05
-#define SW_6			0x06
-#define SW_7			0x07
+#define SW_LID			0x00  /* set = lid shut */
+#define SW_TABLET_MODE		0x01  /* set = tablet mode */
+#define SW_HEADPHONE_INSERT	0x02  /* set = inserted */
 #define SW_MAX			0x0f
 
 /*

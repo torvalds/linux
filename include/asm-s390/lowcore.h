@@ -98,8 +98,8 @@
 #define __LC_KERNEL_ASCE		0xD58
 #define __LC_USER_ASCE			0xD60
 #define __LC_PANIC_STACK                0xD68
-#define __LC_CPUID                      0xD90
-#define __LC_CPUADDR                    0xD98
+#define __LC_CPUID			0xD80
+#define __LC_CPUADDR			0xD88
 #define __LC_IPLDEV                     0xDB8
 #define __LC_JIFFY_TIMER		0xDC0
 #define __LC_CURRENT			0xDD8

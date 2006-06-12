@@ -2615,6 +2615,18 @@ static int nv_nway_reset(struct net_device *dev)
 	return ret;
 }
 
+#ifdef NETIF_F_TSO
+static int nv_set_tso(struct net_device *dev, u32 value)
+{
+	struct fe_priv *np = netdev_priv(dev);
+
+	if ((np->driver_data & DEV_HAS_CHECKSUM))
+		return ethtool_op_set_tso(dev, value);
+	else
+		return value ? -EOPNOTSUPP : 0;
+}
+#endif
+
 static struct ethtool_ops ops = {
 	.get_drvinfo = nv_get_drvinfo,
 	.get_link = ethtool_op_get_link,
@@ -2626,6 +2638,10 @@ static struct ethtool_ops ops = {
 	.get_regs = nv_get_regs,
 	.nway_reset = nv_nway_reset,
 	.get_perm_addr = ethtool_op_get_perm_addr,
+#ifdef NETIF_F_TSO
+	.get_tso = ethtool_op_get_tso,
+	.set_tso = nv_set_tso
+#endif
 };
 
 static void nv_vlan_rx_register(struct net_device *dev, struct vlan_group *grp)

@@ -31,7 +31,6 @@ setup_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc)
 	save_gp_reg(31);
 #undef save_gp_reg
 
-#ifdef CONFIG_32BIT
 	err |= __put_user(regs->hi, &sc->sc_mdhi);
 	err |= __put_user(regs->lo, &sc->sc_mdlo);
 	if (cpu_has_dsp) {
@@ -43,20 +42,6 @@ setup_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc)
 		err |= __put_user(mflo3(), &sc->sc_lo3);
 		err |= __put_user(rddsp(DSP_MASK), &sc->sc_dsp);
 	}
-#endif
-#ifdef CONFIG_64BIT
-	err |= __put_user(regs->hi, &sc->sc_hi[0]);
-	err |= __put_user(regs->lo, &sc->sc_lo[0]);
-	if (cpu_has_dsp) {
-		err |= __put_user(mfhi1(), &sc->sc_hi[1]);
-		err |= __put_user(mflo1(), &sc->sc_lo[1]);
-		err |= __put_user(mfhi2(), &sc->sc_hi[2]);
-		err |= __put_user(mflo2(), &sc->sc_lo[2]);
-		err |= __put_user(mfhi3(), &sc->sc_hi[3]);
-		err |= __put_user(mflo3(), &sc->sc_lo[3]);
-		err |= __put_user(rddsp(DSP_MASK), &sc->sc_dsp);
-	}
-#endif
 
 	err |= __put_user(!!used_math(), &sc->sc_used_math);
 
@@ -92,7 +77,6 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc)
 	current_thread_info()->restart_block.fn = do_no_restart_syscall;
 
 	err |= __get_user(regs->cp0_epc, &sc->sc_pc);
-#ifdef CONFIG_32BIT
 	err |= __get_user(regs->hi, &sc->sc_mdhi);
 	err |= __get_user(regs->lo, &sc->sc_mdlo);
 	if (cpu_has_dsp) {
@@ -104,20 +88,6 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc)
 		err |= __get_user(treg, &sc->sc_lo3); mtlo3(treg);
 		err |= __get_user(treg, &sc->sc_dsp); wrdsp(treg, DSP_MASK);
 	}
-#endif
-#ifdef CONFIG_64BIT
-	err |= __get_user(regs->hi, &sc->sc_hi[0]);
-	err |= __get_user(regs->lo, &sc->sc_lo[0]);
-	if (cpu_has_dsp) {
-		err |= __get_user(treg, &sc->sc_hi[1]); mthi1(treg);
-		err |= __get_user(treg, &sc->sc_lo[1]); mthi1(treg);
-		err |= __get_user(treg, &sc->sc_hi[2]); mthi2(treg);
-		err |= __get_user(treg, &sc->sc_lo[2]); mthi2(treg);
-		err |= __get_user(treg, &sc->sc_hi[3]); mthi3(treg);
-		err |= __get_user(treg, &sc->sc_lo[3]); mthi3(treg);
-		err |= __get_user(treg, &sc->sc_dsp); wrdsp(treg, DSP_MASK);
-	}
-#endif
 
 #define restore_gp_reg(i) do {						\
 	err |= __get_user(regs->regs[i], &sc->sc_regs[i]);		\

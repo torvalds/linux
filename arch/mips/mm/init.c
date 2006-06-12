@@ -227,7 +227,7 @@ void __init mem_init(void)
 	for (tmp = 0; tmp < max_low_pfn; tmp++)
 		if (page_is_ram(tmp)) {
 			ram++;
-			if (PageReserved(mem_map+tmp))
+			if (PageReserved(pfn_to_page(tmp)))
 				reservedpages++;
 		}
 

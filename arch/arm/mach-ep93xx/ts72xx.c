@@ -111,21 +111,21 @@ static void __init ts72xx_map_io(void)
 	}
 }
 
-static unsigned char ts72xx_rtc_readb(unsigned long addr)
+static unsigned char ts72xx_rtc_readbyte(unsigned long addr)
 {
 	__raw_writeb(addr, TS72XX_RTC_INDEX_VIRT_BASE);
 	return __raw_readb(TS72XX_RTC_DATA_VIRT_BASE);
 }
 
-static void ts72xx_rtc_writeb(unsigned char value, unsigned long addr)
+static void ts72xx_rtc_writebyte(unsigned char value, unsigned long addr)
 {
 	__raw_writeb(addr, TS72XX_RTC_INDEX_VIRT_BASE);
 	__raw_writeb(value, TS72XX_RTC_DATA_VIRT_BASE);
 }
 
 static struct m48t86_ops ts72xx_rtc_ops = {
-	.readb			= ts72xx_rtc_readb,
-	.writeb			= ts72xx_rtc_writeb,
+	.readbyte		= ts72xx_rtc_readbyte,
+	.writebyte		= ts72xx_rtc_writebyte,
 };
 
 static struct platform_device ts72xx_rtc_device = {

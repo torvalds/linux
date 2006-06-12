@@ -245,9 +245,9 @@ static void corgikbd_hinge_timer(unsigned long data)
 		if (hinge_count >= HINGE_STABLE_COUNT) {
 			spin_lock_irqsave(&corgikbd_data->lock, flags);
 
-			input_report_switch(corgikbd_data->input, SW_0, ((sharpsl_hinge_state & CORGI_SCP_SWA) != 0));
-			input_report_switch(corgikbd_data->input, SW_1, ((sharpsl_hinge_state & CORGI_SCP_SWB) != 0));
-			input_report_switch(corgikbd_data->input, SW_2, (READ_GPIO_BIT(CORGI_GPIO_AK_INT) != 0));
+			input_report_switch(corgikbd_data->input, SW_LID, ((sharpsl_hinge_state & CORGI_SCP_SWA) != 0));
+			input_report_switch(corgikbd_data->input, SW_TABLET_MODE, ((sharpsl_hinge_state & CORGI_SCP_SWB) != 0));
+			input_report_switch(corgikbd_data->input, SW_HEADPHONE_INSERT, (READ_GPIO_BIT(CORGI_GPIO_AK_INT) != 0));
 			input_sync(corgikbd_data->input);
 
 			spin_unlock_irqrestore(&corgikbd_data->lock, flags);
@@ -340,9 +340,9 @@ static int __init corgikbd_probe(struct platform_device *pdev)
 	for (i = 0; i < ARRAY_SIZE(corgikbd_keycode); i++)
 		set_bit(corgikbd->keycode[i], input_dev->keybit);
 	clear_bit(0, input_dev->keybit);
-	set_bit(SW_0, input_dev->swbit);
-	set_bit(SW_1, input_dev->swbit);
-	set_bit(SW_2, input_dev->swbit);
+	set_bit(SW_LID, input_dev->swbit);
+	set_bit(SW_TABLET_MODE, input_dev->swbit);
+	set_bit(SW_HEADPHONE_INSERT, input_dev->swbit);
 
 	input_register_device(corgikbd->input);
 

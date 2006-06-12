@@ -170,7 +170,7 @@ config S3C2410_PM_DEBUG
 	depends on ARCH_S3C2410 && PM
 	help
 	  Say Y here if you want verbose debugging from the PM Suspend and
-	  Resume code. See `Documentation/arm/Samsing-S3C24XX/Suspend.txt`
+	  Resume code. See <file:Documentation/arm/Samsung-S3C24XX/Suspend.txt>
 	  for more information.
 
 config S3C2410_PM_CHECK

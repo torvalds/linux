@@ -577,6 +577,8 @@ acpi_processor_register_performance(struct acpi_processor_performance
 		return_VALUE(-EBUSY);
 	}
 
+	WARN_ON(!performance);
+
 	pr->performance = performance;
 
 	if (acpi_processor_get_performance_info(pr)) {
@@ -609,7 +611,8 @@ acpi_processor_unregister_performance(struct acpi_processor_performance
 		return_VOID;
 	}
 
-	kfree(pr->performance->states);
+	if (pr->performance)
+		kfree(pr->performance->states);
 	pr->performance = NULL;
 
 	acpi_cpufreq_remove_file(pr);

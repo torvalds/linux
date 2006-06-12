@@ -2040,6 +2040,7 @@ static void mv_phy_reset(struct ata_port *ap)
 static void mv_eng_timeout(struct ata_port *ap)
 {
 	struct ata_queued_cmd *qc;
+	unsigned long flags;
 
 	ata_port_printk(ap, KERN_ERR, "Entering mv_eng_timeout\n");
 	DPRINTK("All regs @ start of eng_timeout\n");
@@ -2051,8 +2052,10 @@ static void mv_eng_timeout(struct ata_port *ap)
 	       ap->host_set->mmio_base, ap, qc, qc->scsicmd,
 	       &qc->scsicmd->cmnd);
 
+	spin_lock_irqsave(&ap->host_set->lock, flags);
 	mv_err_intr(ap, 0);
 	mv_stop_and_reset(ap);
+	spin_unlock_irqrestore(&ap->host_set->lock, flags);
 
 	WARN_ON(!(qc->flags & ATA_QCFLAG_ACTIVE));
 	if (qc->flags & ATA_QCFLAG_ACTIVE) {

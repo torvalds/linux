@@ -642,7 +642,7 @@ int tcp_fragment(struct sock *sk, struct sk_buff *skb, u32 len, unsigned int mss
  * eventually). The difference is that pulled data not copied, but
  * immediately discarded.
  */
-static unsigned char *__pskb_trim_head(struct sk_buff *skb, int len)
+static void __pskb_trim_head(struct sk_buff *skb, int len)
 {
 	int i, k, eat;
 
@@ -667,7 +667,6 @@ static unsigned char *__pskb_trim_head(struct sk_buff *skb, int len)
 	skb->tail = skb->data;
 	skb->data_len -= len;
 	skb->len = skb->data_len;
-	return skb->tail;
 }
 
 int tcp_trim_head(struct sock *sk, struct sk_buff *skb, u32 len)
@@ -676,12 +675,11 @@ int tcp_trim_head(struct sock *sk, struct sk_buff *skb, u32 len)
 	    pskb_expand_head(skb, 0, 0, GFP_ATOMIC))
 		return -ENOMEM;
 
-	if (len <= skb_headlen(skb)) {
+	/* If len == headlen, we avoid __skb_pull to preserve alignment. */
+	if (unlikely(len < skb_headlen(skb)))
 		__skb_pull(skb, len);
-	} else {
-		if (__pskb_trim_head(skb, len-skb_headlen(skb)) == NULL)
-			return -ENOMEM;
-	}
+	else
+		__pskb_trim_head(skb, len - skb_headlen(skb));
 
 	TCP_SKB_CB(skb)->seq += len;
 	skb->ip_summed = CHECKSUM_HW;

@@ -599,18 +599,128 @@ struct pci_iommu_ops pci_sun4v_iommu_ops = {
 
 /* SUN4V PCI configuration space accessors. */
 
-static inline int pci_sun4v_out_of_range(struct pci_pbm_info *pbm, unsigned int bus, unsigned int device, unsigned int func)
+struct pdev_entry {
+	struct pdev_entry	*next;
+	u32			devhandle;
+	unsigned int		bus;
+	unsigned int		device;
+	unsigned int		func;
+};
+
+#define PDEV_HTAB_SIZE	16
+#define PDEV_HTAB_MASK	(PDEV_HTAB_SIZE - 1)
+static struct pdev_entry *pdev_htab[PDEV_HTAB_SIZE];
+
+static inline unsigned int pdev_hashfn(u32 devhandle, unsigned int bus, unsigned int device, unsigned int func)
 {
-	if (bus == pbm->pci_first_busno) {
-		if (device == 0 && func == 0)
-			return 0;
-		return 1;
+	unsigned int val;
+
+	val = (devhandle ^ (devhandle >> 4));
+	val ^= bus;
+	val ^= device;
+	val ^= func;
+
+	return val & PDEV_HTAB_MASK;
+}
+
+static int pdev_htab_add(u32 devhandle, unsigned int bus, unsigned int device, unsigned int func)
+{
+	struct pdev_entry *p = kmalloc(sizeof(*p), GFP_KERNEL);
+	struct pdev_entry **slot;
+
+	if (!p)
+		return -ENOMEM;
+
+	slot = &pdev_htab[pdev_hashfn(devhandle, bus, device, func)];
+	p->next = *slot;
+	*slot = p;
+
+	p->devhandle = devhandle;
+	p->bus = bus;
+	p->device = device;
+	p->func = func;
+
+	return 0;
+}
+
+/* Recursively descend into the OBP device tree, rooted at toplevel_node,
+ * looking for a PCI device matching bus and devfn.
+ */
+static int obp_find(struct linux_prom_pci_registers *pregs, int toplevel_node, unsigned int bus, unsigned int devfn)
+{
+	toplevel_node = prom_getchild(toplevel_node);
+
+	while (toplevel_node != 0) {
+		int ret = obp_find(pregs, toplevel_node, bus, devfn);
+
+		if (ret != 0)
+			return ret;
+
+		ret = prom_getproperty(toplevel_node, "reg", (char *) pregs,
+				       sizeof(*pregs) * PROMREG_MAX);
+		if (ret == 0 || ret == -1)
+			goto next_sibling;
+
+		if (((pregs[0].phys_hi >> 16) & 0xff) == bus &&
+		    ((pregs[0].phys_hi >> 8) & 0xff) == devfn)
+			break;
+
+	next_sibling:
+		toplevel_node = prom_getsibling(toplevel_node);
 	}
 
+	return toplevel_node;
+}
+
+static int pdev_htab_populate(struct pci_pbm_info *pbm)
+{
+	struct linux_prom_pci_registers pr[PROMREG_MAX];
+	u32 devhandle = pbm->devhandle;
+	unsigned int bus;
+
+	for (bus = pbm->pci_first_busno; bus <= pbm->pci_last_busno; bus++) {
+		unsigned int devfn;
+
+		for (devfn = 0; devfn < 256; devfn++) {
+			unsigned int device = PCI_SLOT(devfn);
+			unsigned int func = PCI_FUNC(devfn);
+
+			if (obp_find(pr, pbm->prom_node, bus, devfn)) {
+				int err = pdev_htab_add(devhandle, bus,
+							device, func);
+				if (err)
+					return err;
+			}
+		}
+	}
+
+	return 0;
+}
+
+static struct pdev_entry *pdev_find(u32 devhandle, unsigned int bus, unsigned int device, unsigned int func)
+{
+	struct pdev_entry *p;
+
+	p = pdev_htab[pdev_hashfn(devhandle, bus, device, func)];
+	while (p) {
+		if (p->devhandle == devhandle &&
+		    p->bus == bus &&
+		    p->device == device &&
+		    p->func == func)
+			break;
+
+		p = p->next;
+	}
+
+	return p;
+}
+
+static inline int pci_sun4v_out_of_range(struct pci_pbm_info *pbm, unsigned int bus, unsigned int device, unsigned int func)
+{
 	if (bus < pbm->pci_first_busno ||
 	    bus > pbm->pci_last_busno)
 		return 1;
-	return 0;
+	return pdev_find(pbm->devhandle, bus, device, func) == NULL;
 }
 
 static int pci_sun4v_read_pci_cfg(struct pci_bus *bus_dev, unsigned int devfn,
@@ -1063,6 +1173,8 @@ static void pci_sun4v_pbm_init(struct pci_controller_info *p, int prom_node, u32
 
 	pci_sun4v_get_bus_range(pbm);
 	pci_sun4v_iommu_init(pbm);
+
+	pdev_htab_populate(pbm);
 }
 
 void sun4v_pci_init(int node, char *model_name)

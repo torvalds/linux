@@ -1648,17 +1648,17 @@ static void as_exit_queue(elevator_t *e)
  * initialize elevator private data (as_data), and alloc a arq for
  * each request on the free lists
  */
-static int as_init_queue(request_queue_t *q, elevator_t *e)
+static void *as_init_queue(request_queue_t *q, elevator_t *e)
 {
 	struct as_data *ad;
 	int i;
 
 	if (!arq_pool)
-		return -ENOMEM;
+		return NULL;
 
 	ad = kmalloc_node(sizeof(*ad), GFP_KERNEL, q->node);
 	if (!ad)
-		return -ENOMEM;
+		return NULL;
 	memset(ad, 0, sizeof(*ad));
 
 	ad->q = q; /* Identify what queue the data belongs to */
@@ -1667,7 +1667,7 @@ static int as_init_queue(request_queue_t *q, elevator_t *e)
 				GFP_KERNEL, q->node);
 	if (!ad->hash) {
 		kfree(ad);
-		return -ENOMEM;
+		return NULL;
 	}
 
 	ad->arq_pool = mempool_create_node(BLKDEV_MIN_RQ, mempool_alloc_slab,
@@ -1675,7 +1675,7 @@ static int as_init_queue(request_queue_t *q, elevator_t *e)
 	if (!ad->arq_pool) {
 		kfree(ad->hash);
 		kfree(ad);
-		return -ENOMEM;
+		return NULL;
 	}
 
 	/* anticipatory scheduling helpers */
@@ -1696,14 +1696,13 @@ static int as_init_queue(request_queue_t *q, elevator_t *e)
 	ad->antic_expire = default_antic_expire;
 	ad->batch_expire[REQ_SYNC] = default_read_batch_expire;
 	ad->batch_expire[REQ_ASYNC] = default_write_batch_expire;
-	e->elevator_data = ad;
 
 	ad->current_batch_expires = jiffies + ad->batch_expire[REQ_SYNC];
 	ad->write_batch_count = ad->batch_expire[REQ_ASYNC] / 10;
 	if (ad->write_batch_count < 2)
 		ad->write_batch_count = 2;
 
-	return 0;
+	return ad;
 }
 
 /*

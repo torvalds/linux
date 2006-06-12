@@ -1264,7 +1264,6 @@ void __init smp_tick_init(void)
 	boot_cpu_id = hard_smp_processor_id();
 	current_tick_offset = timer_tick_offset;
 
-	cpu_set(boot_cpu_id, cpu_online_map);
 	prof_counter(boot_cpu_id) = prof_multiplier(boot_cpu_id) = 1;
 }
 
@@ -1286,6 +1285,40 @@ int setup_profiling_timer(unsigned int multiplier)
 	spin_unlock_irqrestore(&prof_setup_lock, flags);
 
 	return 0;
+}
+
+static void __init smp_tune_scheduling(void)
+{
+	int instance, node;
+	unsigned int def, smallest = ~0U;
+
+	def = ((tlb_type == hypervisor) ?
+	       (3 * 1024 * 1024) :
+	       (4 * 1024 * 1024));
+
+	instance = 0;
+	while (!cpu_find_by_instance(instance, &node, NULL)) {
+		unsigned int val;
+
+		val = prom_getintdefault(node, "ecache-size", def);
+		if (val < smallest)
+			smallest = val;
+
+		instance++;
+	}
+
+	/* Any value less than 256K is nonsense.  */
+	if (smallest < (256U * 1024U))
+		smallest = 256 * 1024;
+
+	max_cache_size = smallest;
+
+	if (smallest < 1U * 1024U * 1024U)
+		printk(KERN_INFO "Using max_cache_size of %uKB\n",
+		       smallest / 1024U);
+	else
+		printk(KERN_INFO "Using max_cache_size of %uMB\n",
+		       smallest / 1024U / 1024U);
 }
 
 /* Constrain the number of cpus to max_cpus.  */
@@ -1323,6 +1356,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	}
 
 	smp_store_cpu_info(boot_cpu_id);
+	smp_tune_scheduling();
 }
 
 /* Set this up early so that things like the scheduler can init
@@ -1345,18 +1379,6 @@ void __init smp_setup_cpu_possible_map(void)
 
 void __devinit smp_prepare_boot_cpu(void)
 {
-	int cpu = hard_smp_processor_id();
-
-	if (cpu >= NR_CPUS) {
-		prom_printf("Serious problem, boot cpu id >= NR_CPUS\n");
-		prom_halt();
-	}
-
-	current_thread_info()->cpu = cpu;
-	__local_per_cpu_offset = __per_cpu_offset(cpu);
-
-	cpu_set(smp_processor_id(), cpu_online_map);
-	cpu_set(smp_processor_id(), phys_cpu_present_map);
 }
 
 int __devinit __cpu_up(unsigned int cpu)
@@ -1433,4 +1455,7 @@ void __init setup_per_cpu_areas(void)
 
 	for (i = 0; i < NR_CPUS; i++, ptr += size)
 		memcpy(ptr, __per_cpu_start, __per_cpu_end - __per_cpu_start);
+
+	/* Setup %g5 for the boot cpu.  */
+	__local_per_cpu_offset = __per_cpu_offset(smp_processor_id());
 }

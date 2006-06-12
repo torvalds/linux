@@ -65,16 +65,15 @@ noop_latter_request(request_queue_t *q, struct request *rq)
 	return list_entry(rq->queuelist.next, struct request, queuelist);
 }
 
-static int noop_init_queue(request_queue_t *q, elevator_t *e)
+static void *noop_init_queue(request_queue_t *q, elevator_t *e)
 {
 	struct noop_data *nd;
 
 	nd = kmalloc(sizeof(*nd), GFP_KERNEL);
 	if (!nd)
-		return -ENOMEM;
+		return NULL;
 	INIT_LIST_HEAD(&nd->queue);
-	e->elevator_data = nd;
-	return 0;
+	return nd;
 }
 
 static void noop_exit_queue(elevator_t *e)

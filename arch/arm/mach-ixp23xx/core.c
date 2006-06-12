@@ -178,8 +178,12 @@ static int ixp23xx_irq_set_type(unsigned int irq, unsigned int type)
 
 static void ixp23xx_irq_mask(unsigned int irq)
 {
-	volatile unsigned long *intr_reg = IXP23XX_INTR_EN1 + (irq / 32);
+	volatile unsigned long *intr_reg;
 
+	if (irq >= 56)
+		irq += 8;
+
+	intr_reg = IXP23XX_INTR_EN1 + (irq / 32);
 	*intr_reg &= ~(1 << (irq % 32));
 }
 
@@ -199,17 +203,25 @@ static void ixp23xx_irq_ack(unsigned int irq)
  */
 static void ixp23xx_irq_level_unmask(unsigned int irq)
 {
-	volatile unsigned long *intr_reg = IXP23XX_INTR_EN1 + (irq / 32);
+	volatile unsigned long *intr_reg;
 
 	ixp23xx_irq_ack(irq);
 
+	if (irq >= 56)
+		irq += 8;
+
+	intr_reg = IXP23XX_INTR_EN1 + (irq / 32);
 	*intr_reg |= (1 << (irq % 32));
 }
 
 static void ixp23xx_irq_edge_unmask(unsigned int irq)
 {
-	volatile unsigned long *intr_reg = IXP23XX_INTR_EN1 + (irq / 32);
+	volatile unsigned long *intr_reg;
 
+	if (irq >= 56)
+		irq += 8;
+
+	intr_reg = IXP23XX_INTR_EN1 + (irq / 32);
 	*intr_reg |= (1 << (irq % 32));
 }
 
