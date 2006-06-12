@@ -82,10 +82,16 @@ static inline u32 westwood_do_filter(u32 a, u32 b)
 	return (((7 * a) + b) >> 3);
 }
 
-static inline void westwood_filter(struct westwood *w, u32 delta)
+static void westwood_filter(struct westwood *w, u32 delta)
 {
-	w->bw_ns_est = westwood_do_filter(w->bw_ns_est, w->bk / delta);
-	w->bw_est = westwood_do_filter(w->bw_est, w->bw_ns_est);
+	/* If the filter is empty fill it with the first sample of bandwidth  */
+	if (w->bw_ns_est == 0 && w->bw_est == 0) {
+		w->bw_ns_est = w->bk / delta;
+		w->bw_est = w->bw_ns_est;
+	} else {
+		w->bw_ns_est = westwood_do_filter(w->bw_ns_est, w->bk / delta);
+		w->bw_est = westwood_do_filter(w->bw_est, w->bw_ns_est);
+	}
 }
 
 /*
