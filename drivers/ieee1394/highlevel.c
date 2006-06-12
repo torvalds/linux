@@ -210,6 +210,8 @@ static int highlevel_for_each_host_reg(struct hpsb_host *host, void *__data)
 
 void hpsb_register_highlevel(struct hpsb_highlevel *hl)
 {
+	unsigned long flags;
+
         INIT_LIST_HEAD(&hl->addr_list);
 	INIT_LIST_HEAD(&hl->host_info_list);
 
@@ -219,9 +221,9 @@ void hpsb_register_highlevel(struct hpsb_highlevel *hl)
         list_add_tail(&hl->hl_list, &hl_drivers);
 	up_write(&hl_drivers_sem);
 
-	write_lock(&hl_irqs_lock);
+	write_lock_irqsave(&hl_irqs_lock, flags);
 	list_add_tail(&hl->irq_list, &hl_irqs);
-	write_unlock(&hl_irqs_lock);
+	write_unlock_irqrestore(&hl_irqs_lock, flags);
 
 	if (hl->add_host)
 		nodemgr_for_each_host(hl, highlevel_for_each_host_reg);
@@ -282,9 +284,11 @@ static int highlevel_for_each_host_unreg(struct hpsb_host *host, void *__data)
 
 void hpsb_unregister_highlevel(struct hpsb_highlevel *hl)
 {
-	write_lock(&hl_irqs_lock);
+	unsigned long flags;
+
+	write_lock_irqsave(&hl_irqs_lock, flags);
 	list_del(&hl->irq_list);
-	write_unlock(&hl_irqs_lock);
+	write_unlock_irqrestore(&hl_irqs_lock, flags);
 
 	down_write(&hl_drivers_sem);
         list_del(&hl->hl_list);
@@ -517,42 +521,45 @@ void highlevel_remove_host(struct hpsb_host *host)
 
 void highlevel_host_reset(struct hpsb_host *host)
 {
+	unsigned long flags;
         struct hpsb_highlevel *hl;
 
-	read_lock(&hl_irqs_lock);
+	read_lock_irqsave(&hl_irqs_lock, flags);
 	list_for_each_entry(hl, &hl_irqs, irq_list) {
                 if (hl->host_reset)
                         hl->host_reset(host);
         }
-	read_unlock(&hl_irqs_lock);
+	read_unlock_irqrestore(&hl_irqs_lock, flags);
 }
 
 void highlevel_iso_receive(struct hpsb_host *host, void *data, size_t length)
 {
+	unsigned long flags;
         struct hpsb_highlevel *hl;
         int channel = (((quadlet_t *)data)[0] >> 8) & 0x3f;
 
-        read_lock(&hl_irqs_lock);
+        read_lock_irqsave(&hl_irqs_lock, flags);
 	list_for_each_entry(hl, &hl_irqs, irq_list) {
                 if (hl->iso_receive)
                         hl->iso_receive(host, channel, data, length);
         }
-        read_unlock(&hl_irqs_lock);
+        read_unlock_irqrestore(&hl_irqs_lock, flags);
 }
 
 void highlevel_fcp_request(struct hpsb_host *host, int nodeid, int direction,
 			   void *data, size_t length)
 {
+	unsigned long flags;
         struct hpsb_highlevel *hl;
         int cts = ((quadlet_t *)data)[0] >> 4;
 
-        read_lock(&hl_irqs_lock);
+        read_lock_irqsave(&hl_irqs_lock, flags);
 	list_for_each_entry(hl, &hl_irqs, irq_list) {
                 if (hl->fcp_request)
                         hl->fcp_request(host, nodeid, direction, cts, data,
 					length);
         }
-        read_unlock(&hl_irqs_lock);
+        read_unlock_irqrestore(&hl_irqs_lock, flags);
 }
 
 int highlevel_read(struct hpsb_host *host, int nodeid, void *data,
