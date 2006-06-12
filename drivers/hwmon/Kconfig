@@ -1,5 +1,5 @@
 #
-# I2C Sensor chip drivers configuration
+# Hardware monitoring chip drivers configuration
 #
 
 menu "Hardware Monitoring support"
