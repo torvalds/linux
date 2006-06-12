@@ -569,7 +569,9 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 	} else
 		server->capabilities &= ~CAP_EXTENDED_SECURITY;
 
+#ifdef CONFIG_CIFS_WEAK_PW_HASH
 signing_check:
+#endif
 	if(sign_CIFS_PDUs == FALSE) {        
 		if(server->secMode & SECMODE_SIGN_REQUIRED)
 			cERROR(1,("Server requires "
