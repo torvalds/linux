@@ -1556,8 +1556,6 @@ static int ata_eh_revalidate_and_attach(struct ata_port *ap,
 
 			/* schedule the scsi_rescan_device() here */
 			queue_work(ata_aux_wq, &(ap->scsi_rescan_task));
-
-			ehc->i.action &= ~ATA_EH_REVALIDATE;
 		} else if (dev->class == ATA_DEV_UNKNOWN &&
 			   ehc->tries[dev->devno] &&
 			   ata_class_enabled(ehc->classes[dev->devno])) {
@@ -1578,7 +1576,9 @@ static int ata_eh_revalidate_and_attach(struct ata_port *ap,
 		}
 	}
 
-	if (rc)
+	if (rc == 0)
+		ehc->i.action &= ~ATA_EH_REVALIDATE;
+	else
 		*r_failed_dev = dev;
 
 	DPRINTK("EXIT\n");
