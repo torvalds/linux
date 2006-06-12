@@ -590,11 +590,11 @@ static void ohci_initialize(struct ti_ohci *ohci)
 	buf = reg_read(ohci, OHCI1394_Version);
 	sprintf (irq_buf, "%d", ohci->dev->irq);
 	PRINT(KERN_INFO, "OHCI-1394 %d.%d (PCI): IRQ=[%s]  "
-	      "MMIO=[%lx-%lx]  Max Packet=[%d]  IR/IT contexts=[%d/%d]",
+	      "MMIO=[%llx-%llx]  Max Packet=[%d]  IR/IT contexts=[%d/%d]",
 	      ((((buf) >> 16) & 0xf) + (((buf) >> 20) & 0xf) * 10),
 	      ((((buf) >> 4) & 0xf) + ((buf) & 0xf) * 10), irq_buf,
-	      pci_resource_start(ohci->dev, 0),
-	      pci_resource_start(ohci->dev, 0) + OHCI1394_REGISTER_SIZE - 1,
+	      (unsigned long long)pci_resource_start(ohci->dev, 0),
+	      (unsigned long long)pci_resource_start(ohci->dev, 0) + OHCI1394_REGISTER_SIZE - 1,
 	      ohci->max_packet_size,
 	      ohci->nb_iso_rcv_ctx, ohci->nb_iso_xmit_ctx);
 
@@ -3270,15 +3270,16 @@ static int __devinit ohci1394_pci_probe(struct pci_dev *dev,
 	 * clearly says it's 2kb, so this shouldn't be a problem. */
 	ohci_base = pci_resource_start(dev, 0);
 	if (pci_resource_len(dev, 0) < OHCI1394_REGISTER_SIZE)
-		PRINT(KERN_WARNING, "PCI resource length of %lx too small!",
-		      pci_resource_len(dev, 0));
+		PRINT(KERN_WARNING, "PCI resource length of 0x%llx too small!",
+		      (unsigned long long)pci_resource_len(dev, 0));
 
 	/* Seems PCMCIA handles this internally. Not sure why. Seems
 	 * pretty bogus to force a driver to special case this.  */
 #ifndef PCMCIA
 	if (!request_mem_region (ohci_base, OHCI1394_REGISTER_SIZE, OHCI1394_DRIVER_NAME))
-		FAIL(-ENOMEM, "MMIO resource (0x%lx - 0x%lx) unavailable",
-		     ohci_base, ohci_base + OHCI1394_REGISTER_SIZE);
+		FAIL(-ENOMEM, "MMIO resource (0x%llx - 0x%llx) unavailable",
+			(unsigned long long)ohci_base,
+			(unsigned long long)ohci_base + OHCI1394_REGISTER_SIZE);
 #endif
 	ohci->init_state = OHCI_INIT_HAVE_MEM_REGION;
 
