@@ -49,11 +49,11 @@ Who:	Paul E. McKenney <paulmck@us.ibm.com>
 ---------------------------
 
 What:	raw1394: requests of type RAW1394_REQ_ISO_SEND, RAW1394_REQ_ISO_LISTEN
-When:	November 2005
+When:	November 2006
 Why:	Deprecated in favour of the new ioctl-based rawiso interface, which is
 	more efficient.  You should really be using libraw1394 for raw1394
 	access anyway.
-Who:	Jody McIntyre <scjody@steamballoon.com>
+Who:	Jody McIntyre <scjody@modernduck.com>
 
 ---------------------------
 
