@@ -564,7 +564,7 @@ static long aac_compat_do_ioctl(struct aac_dev *dev, unsigned cmd, unsigned long
 		
 		f = compat_alloc_user_space(sizeof(*f));
 		ret = 0;
-		if (clear_user(f, sizeof(*f)) != sizeof(*f))
+		if (clear_user(f, sizeof(*f)))
 			ret = -EFAULT;
 		if (copy_in_user(f, (void __user *)arg, sizeof(struct fib_ioctl) - sizeof(u32)))
 			ret = -EFAULT;
