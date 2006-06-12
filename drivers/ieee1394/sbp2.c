@@ -1649,6 +1649,8 @@ static void sbp2_parse_unit_directory(struct scsi_id_instance_data *scsi_id,
 	}
 }
 
+#define SBP2_PAYLOAD_TO_BYTES(p) (1 << ((p) + 2))
+
 /*
  * This function is called in order to determine the max speed and packet
  * size we can use in our ORBs. Note, that we (the driver and host) only
@@ -1661,6 +1663,7 @@ static void sbp2_parse_unit_directory(struct scsi_id_instance_data *scsi_id,
 static int sbp2_max_speed_and_size(struct scsi_id_instance_data *scsi_id)
 {
 	struct sbp2scsi_host_info *hi = scsi_id->hi;
+	u8 payload;
 
 	SBP2_DEBUG_ENTER();
 
@@ -1676,15 +1679,22 @@ static int sbp2_max_speed_and_size(struct scsi_id_instance_data *scsi_id)
 
 	/* Payload size is the lesser of what our speed supports and what
 	 * our host supports.  */
-	scsi_id->max_payload_size =
-	    min(sbp2_speedto_max_payload[scsi_id->speed_code],
-		(u8) (hi->host->csr.max_rec - 1));
+	payload = min(sbp2_speedto_max_payload[scsi_id->speed_code],
+		      (u8) (hi->host->csr.max_rec - 1));
+
+	/* If physical DMA is off, work around limitation in ohci1394:
+	 * packet size must not exceed PAGE_SIZE */
+	if (scsi_id->ne->host->low_addr_space < (1ULL << 32))
+		while (SBP2_PAYLOAD_TO_BYTES(payload) + 24 > PAGE_SIZE &&
+		       payload)
+			payload--;
 
 	HPSB_DEBUG("Node " NODE_BUS_FMT ": Max speed [%s] - Max payload [%u]",
 		   NODE_BUS_ARGS(hi->host, scsi_id->ne->nodeid),
 		   hpsb_speedto_str[scsi_id->speed_code],
-		   1 << ((u32) scsi_id->max_payload_size + 2));
+		   SBP2_PAYLOAD_TO_BYTES(payload));
 
+	scsi_id->max_payload_size = payload;
 	return 0;
 }
 
