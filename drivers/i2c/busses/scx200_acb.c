@@ -384,7 +384,7 @@ static struct i2c_algorithm scx200_acb_algorithm = {
 static struct scx200_acb_iface *scx200_acb_list;
 static DECLARE_MUTEX(scx200_acb_list_mutex);
 
-static int scx200_acb_probe(struct scx200_acb_iface *iface)
+static __init int scx200_acb_probe(struct scx200_acb_iface *iface)
 {
 	u8 val;
 
