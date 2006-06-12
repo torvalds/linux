@@ -819,7 +819,9 @@ _sparc_io_get_info(char *buf, char **start, off_t fpos, int length, int *eof,
 		if (p + 32 >= e)	/* Better than nothing */
 			break;
 		if ((nm = r->name) == 0) nm = "???";
-		p += sprintf(p, "%08lx-%08lx: %s\n", r->start, r->end, nm);
+		p += sprintf(p, "%016llx-%016llx: %s\n",
+				(unsigned long long)r->start,
+				(unsigned long long)r->end, nm);
 	}
 
 	return p-buf;
