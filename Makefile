@@ -1,8 +1,8 @@
 VERSION = 2
 PATCHLEVEL = 6
 SUBLEVEL = 17
-EXTRAVERSION =-rc5
-NAME=Lordi Rules
+EXTRAVERSION =-rc6
+NAME=Crazed Snow-Weasel
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"

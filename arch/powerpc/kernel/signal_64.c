@@ -184,6 +184,8 @@ static long restore_sigcontext(struct pt_regs *regs, sigset_t *set, int sig,
 	err |= __get_user(v_regs, &sc->v_regs);
 	if (err)
 		return err;
+	if (v_regs && !access_ok(VERIFY_READ, v_regs, 34 * sizeof(vector128)))
+		return -EFAULT;
 	/* Copy 33 vec registers (vr0..31 and vscr) from the stack */
 	if (v_regs != 0 && (msr & MSR_VEC) != 0)
 		err |= __copy_from_user(current->thread.vr, v_regs,

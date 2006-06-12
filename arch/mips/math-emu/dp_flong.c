@@ -29,7 +29,9 @@
 
 ieee754dp ieee754dp_flong(s64 x)
 {
-	COMPXDP;
+	u64 xm;
+	int xe;
+	int xs;
 
 	CLEARCX;
 

@@ -70,7 +70,15 @@ extern unsigned long zero_page_mask;
 #define ZERO_PAGE(vaddr) \
 	(virt_to_page(empty_zero_page + (((unsigned long)(vaddr)) & zero_page_mask)))
 
-#define __HAVE_ARCH_MULTIPLE_ZERO_PAGE
+#define __HAVE_ARCH_MOVE_PTE
+#define move_pte(pte, prot, old_addr, new_addr)				\
+({									\
+ 	pte_t newpte = (pte);						\
+	if (pte_present(pte) && pfn_valid(pte_pfn(pte)) &&		\
+			pte_page(pte) == ZERO_PAGE(old_addr))		\
+		newpte = mk_pte(ZERO_PAGE(new_addr), (prot));		\
+	newpte;								\
+})
 
 extern void paging_init(void);
 
@@ -345,8 +353,9 @@ static inline pgprot_t pgprot_noncached(pgprot_t _prot)
 #if defined(CONFIG_64BIT_PHYS_ADDR) && defined(CONFIG_CPU_MIPS32_R1)
 static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 {
-	pte.pte_low &= _PAGE_CHG_MASK;
-	pte.pte_low |= pgprot_val(newprot);
+	pte.pte_low  &= _PAGE_CHG_MASK;
+	pte.pte_high &= ~0x3f;
+	pte.pte_low  |= pgprot_val(newprot);
 	pte.pte_high |= pgprot_val(newprot) & 0x3f;
 	return pte;
 }

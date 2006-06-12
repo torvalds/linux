@@ -389,11 +389,19 @@ static int __init pSeries_probe_hypertas(unsigned long node,
 
 static int __init pSeries_probe(void)
 {
+	unsigned long root = of_get_flat_dt_root();
  	char *dtype = of_get_flat_dt_prop(of_get_flat_dt_root(),
  					  "device_type", NULL);
  	if (dtype == NULL)
  		return 0;
  	if (strcmp(dtype, "chrp"))
+		return 0;
+
+	/* Cell blades firmware claims to be chrp while it's not. Until this
+	 * is fixed, we need to avoid those here.
+	 */
+	if (of_flat_dt_is_compatible(root, "IBM,CPBW-1.0") ||
+	    of_flat_dt_is_compatible(root, "IBM,CBEA"))
 		return 0;
 
 	DBG("pSeries detected, looking for LPAR capability...\n");

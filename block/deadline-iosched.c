@@ -613,24 +613,24 @@ static void deadline_exit_queue(elevator_t *e)
  * initialize elevator private data (deadline_data), and alloc a drq for
  * each request on the free lists
  */
-static int deadline_init_queue(request_queue_t *q, elevator_t *e)
+static void *deadline_init_queue(request_queue_t *q, elevator_t *e)
 {
 	struct deadline_data *dd;
 	int i;
 
 	if (!drq_pool)
-		return -ENOMEM;
+		return NULL;
 
 	dd = kmalloc_node(sizeof(*dd), GFP_KERNEL, q->node);
 	if (!dd)
-		return -ENOMEM;
+		return NULL;
 	memset(dd, 0, sizeof(*dd));
 
 	dd->hash = kmalloc_node(sizeof(struct list_head)*DL_HASH_ENTRIES,
 				GFP_KERNEL, q->node);
 	if (!dd->hash) {
 		kfree(dd);
-		return -ENOMEM;
+		return NULL;
 	}
 
 	dd->drq_pool = mempool_create_node(BLKDEV_MIN_RQ, mempool_alloc_slab,
@@ -638,7 +638,7 @@ static int deadline_init_queue(request_queue_t *q, elevator_t *e)
 	if (!dd->drq_pool) {
 		kfree(dd->hash);
 		kfree(dd);
-		return -ENOMEM;
+		return NULL;
 	}
 
 	for (i = 0; i < DL_HASH_ENTRIES; i++)
@@ -653,8 +653,7 @@ static int deadline_init_queue(request_queue_t *q, elevator_t *e)
 	dd->writes_starved = writes_starved;
 	dd->front_merges = 1;
 	dd->fifo_batch = fifo_batch;
-	e->elevator_data = dd;
-	return 0;
+	return dd;
 }
 
 static void deadline_put_request(request_queue_t *q, struct request *rq)

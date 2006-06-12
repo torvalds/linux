@@ -1061,7 +1061,7 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, unsigned long nr_pages,
 loop_again:
 	total_scanned = 0;
 	nr_reclaimed = 0;
-	sc.may_writepage = !laptop_mode,
+	sc.may_writepage = !laptop_mode;
 	sc.nr_mapped = read_page_state(nr_mapped);
 
 	inc_page_state(pageoutrun);

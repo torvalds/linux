@@ -149,7 +149,7 @@ void serial_set(int channel, unsigned long baud)
 #else
 	/*
 	 * Note: Set baud rate, hardcoded here for rate of 115200
-	 * since became unsure of above "buad rate" algorithm (??).
+	 * since became unsure of above "baud rate" algorithm (??).
 	 */
 	outreg(channel, LCR, 0x83);
 	outreg(channel, DLM, 0x00);	// See note above

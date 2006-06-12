@@ -21,7 +21,7 @@
 #include "skas.h"
 
 static int copy_sc_from_user_skas(struct pt_regs *regs,
-                                 struct sigcontext *from)
+                                 struct sigcontext __user *from)
 {
        int err = 0;
 
@@ -54,7 +54,8 @@ static int copy_sc_from_user_skas(struct pt_regs *regs,
        return(err);
 }
 
-int copy_sc_to_user_skas(struct sigcontext *to, struct _fpstate *to_fp,
+int copy_sc_to_user_skas(struct sigcontext __user *to,
+			 struct _fpstate __user *to_fp,
 			 struct pt_regs *regs, unsigned long mask,
 			 unsigned long sp)
 {
@@ -106,10 +107,11 @@ int copy_sc_to_user_skas(struct sigcontext *to, struct _fpstate *to_fp,
 #endif
 
 #ifdef CONFIG_MODE_TT
-int copy_sc_from_user_tt(struct sigcontext *to, struct sigcontext *from,
+int copy_sc_from_user_tt(struct sigcontext *to, struct sigcontext __user *from,
 			 int fpsize)
 {
-	struct _fpstate *to_fp, *from_fp;
+	struct _fpstate *to_fp;
+	struct _fpstate __user *from_fp;
 	unsigned long sigs;
 	int err;
 
@@ -124,13 +126,14 @@ int copy_sc_from_user_tt(struct sigcontext *to, struct sigcontext *from,
 	return(err);
 }
 
-int copy_sc_to_user_tt(struct sigcontext *to, struct _fpstate *fp,
+int copy_sc_to_user_tt(struct sigcontext __user *to, struct _fpstate __user *fp,
 		       struct sigcontext *from, int fpsize, unsigned long sp)
 {
-	struct _fpstate *to_fp, *from_fp;
+	struct _fpstate __user *to_fp;
+	struct _fpstate *from_fp;
 	int err;
 
-	to_fp = (fp ? fp : (struct _fpstate *) (to + 1));
+	to_fp = (fp ? fp : (struct _fpstate __user *) (to + 1));
 	from_fp = from->fpstate;
 	err = copy_to_user(to, from, sizeof(*to));
 	/* The SP in the sigcontext is the updated one for the signal
@@ -158,7 +161,8 @@ static int copy_sc_from_user(struct pt_regs *to, void __user *from)
        return(ret);
 }
 
-static int copy_sc_to_user(struct sigcontext *to, struct _fpstate *fp,
+static int copy_sc_to_user(struct sigcontext __user *to,
+			   struct _fpstate __user *fp,
 			   struct pt_regs *from, unsigned long mask,
 			   unsigned long sp)
 {
@@ -169,7 +173,7 @@ static int copy_sc_to_user(struct sigcontext *to, struct _fpstate *fp,
 
 struct rt_sigframe
 {
-       char *pretcode;
+       char __user *pretcode;
        struct ucontext uc;
        struct siginfo info;
 };
@@ -188,7 +192,7 @@ int setup_signal_stack_si(unsigned long stack_top, int sig,
 
 	frame = (struct rt_sigframe __user *)
 		round_down(stack_top - sizeof(struct rt_sigframe), 16) - 8;
-        frame = (struct rt_sigframe *) ((unsigned long) frame - 128);
+        frame = (struct rt_sigframe __user *) ((unsigned long) frame - 128);
 
 	if (!access_ok(VERIFY_WRITE, fp, sizeof(struct _fpstate)))
 		goto out;
