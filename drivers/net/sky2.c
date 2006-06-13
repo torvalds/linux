@@ -2181,7 +2181,7 @@ static int sky2_poll(struct net_device *dev0, int *budget)
 	u32 status = sky2_read32(hw, B0_Y2_SP_EISR);
 
 	if (!~status)
-		return 0;
+		goto out;
 
 	if (status & Y2_IS_HW_ERR)
 		sky2_hw_intr(hw);
@@ -2219,7 +2219,7 @@ static int sky2_poll(struct net_device *dev0, int *budget)
 
 	if (sky2_more_work(hw))
 		return 1;
-
+out:
 	netif_rx_complete(dev0);
 
 	sky2_read32(hw, B0_Y2_SP_LISR);
