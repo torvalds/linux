@@ -110,7 +110,8 @@ static unsigned short snd_cs5535audio_codec_read(struct cs5535audio *cs5535au,
 		udelay(1);
 	} while (--timeout);
 	if (!timeout)
-		snd_printk(KERN_ERR "Failure reading cs5535 codec\n");
+		snd_printk(KERN_ERR "Failure reading codec reg 0x%x,"
+					"Last value=0x%x\n", reg, val);
 
 	return (unsigned short) val;
 }
