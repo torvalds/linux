@@ -151,11 +151,9 @@ struct request {
 	void *elevator_private;
 	void *completion_data;
 
-	unsigned short ioprio;
-
 	int rq_status;	/* should split this into a few status bits */
-	struct gendisk *rq_disk;
 	int errors;
+	struct gendisk *rq_disk;
 	unsigned long start_time;
 
 	/* Number of scatter-gather DMA addr+len pairs after
@@ -170,8 +168,9 @@ struct request {
 	 */
 	unsigned short nr_hw_segments;
 
+	unsigned short ioprio;
+
 	int tag;
-	char *buffer;
 
 	int ref_count;
 	request_queue_t *q;
@@ -179,6 +178,7 @@ struct request {
 
 	struct completion *waiting;
 	void *special;
+	char *buffer;
 
 	/*
 	 * when request is used as a packet command carrier
@@ -187,9 +187,8 @@ struct request {
 	unsigned char cmd[BLK_MAX_CDB];
 
 	unsigned int data_len;
-	void *data;
-
 	unsigned int sense_len;
+	void *data;
 	void *sense;
 
 	unsigned int timeout;
