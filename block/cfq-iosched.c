@@ -123,8 +123,6 @@ struct cfq_data {
 	 */
 	struct hlist_head *crq_hash;
 
-	unsigned int max_queued;
-
 	mempool_t *crq_pool;
 
 	int rq_in_driver;
@@ -1910,7 +1908,6 @@ static inline int
 __cfq_may_queue(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 		struct task_struct *task, int rw)
 {
-#if 1
 	if ((cfq_cfqq_wait_request(cfqq) || cfq_cfqq_must_alloc(cfqq)) &&
 	    !cfq_cfqq_must_alloc_slice(cfqq)) {
 		cfq_mark_cfqq_must_alloc_slice(cfqq);
@@ -1918,39 +1915,6 @@ __cfq_may_queue(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 	}
 
 	return ELV_MQUEUE_MAY;
-#else
-	if (!cfqq || task->flags & PF_MEMALLOC)
-		return ELV_MQUEUE_MAY;
-	if (!cfqq->allocated[rw] || cfq_cfqq_must_alloc(cfqq)) {
-		if (cfq_cfqq_wait_request(cfqq))
-			return ELV_MQUEUE_MUST;
-
-		/*
-		 * only allow 1 ELV_MQUEUE_MUST per slice, otherwise we
-		 * can quickly flood the queue with writes from a single task
-		 */
-		if (rw == READ || !cfq_cfqq_must_alloc_slice(cfqq)) {
-			cfq_mark_cfqq_must_alloc_slice(cfqq);
-			return ELV_MQUEUE_MUST;
-		}
-
-		return ELV_MQUEUE_MAY;
-	}
-	if (cfq_class_idle(cfqq))
-		return ELV_MQUEUE_NO;
-	if (cfqq->allocated[rw] >= cfqd->max_queued) {
-		struct io_context *ioc = get_io_context(GFP_ATOMIC);
-		int ret = ELV_MQUEUE_NO;
-
-		if (ioc && ioc->nr_batch_requests)
-			ret = ELV_MQUEUE_MAY;
-
-		put_io_context(ioc);
-		return ret;
-	}
-
-	return ELV_MQUEUE_MAY;
-#endif
 }
 
 static int cfq_may_queue(request_queue_t *q, int rw, struct bio *bio)
@@ -1979,16 +1943,13 @@ static int cfq_may_queue(request_queue_t *q, int rw, struct bio *bio)
 static void cfq_check_waiters(request_queue_t *q, struct cfq_queue *cfqq)
 {
 	struct cfq_data *cfqd = q->elevator->elevator_data;
-	struct request_list *rl = &q->rq;
 
-	if (cfqq->allocated[READ] <= cfqd->max_queued || cfqd->rq_starved) {
+	if (unlikely(cfqd->rq_starved)) {
+		struct request_list *rl = &q->rq;
+
 		smp_mb();
 		if (waitqueue_active(&rl->wait[READ]))
 			wake_up(&rl->wait[READ]);
-	}
-
-	if (cfqq->allocated[WRITE] <= cfqd->max_queued || cfqd->rq_starved) {
-		smp_mb();
 		if (waitqueue_active(&rl->wait[WRITE]))
 			wake_up(&rl->wait[WRITE]);
 	}
@@ -2277,9 +2238,6 @@ static void *cfq_init_queue(request_queue_t *q, elevator_t *e)
 		INIT_HLIST_HEAD(&cfqd->cfq_hash[i]);
 
 	cfqd->queue = q;
-
-	cfqd->max_queued = q->nr_requests / 4;
-	q->nr_batching = cfq_queued;
 
 	init_timer(&cfqd->idle_slice_timer);
 	cfqd->idle_slice_timer.function = cfq_idle_slice_timer;
