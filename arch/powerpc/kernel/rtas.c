@@ -593,8 +593,30 @@ out:
 static int rtas_ibm_suspend_me(struct rtas_args *args)
 {
 	int i;
+	long state;
+	long rc;
+	unsigned long dummy;
 
 	struct rtas_suspend_me_data data;
+
+	/* Make sure the state is valid */
+	rc = plpar_hcall(H_VASI_STATE,
+			 ((u64)args->args[0] << 32) | args->args[1],
+			 0, 0, 0,
+			 &state, &dummy, &dummy);
+
+	if (rc) {
+		printk(KERN_ERR "rtas_ibm_suspend_me: vasi_state returned %ld\n",rc);
+		return rc;
+	} else if (state == H_VASI_ENABLED) {
+		args->args[args->nargs] = RTAS_NOT_SUSPENDABLE;
+		return 0;
+	} else if (state != H_VASI_SUSPENDING) {
+		printk(KERN_ERR "rtas_ibm_suspend_me: vasi_state returned state %ld\n",
+		       state);
+		args->args[args->nargs] = -1;
+		return 0;
+	}
 
 	data.waiting = 1;
 	data.args = args;

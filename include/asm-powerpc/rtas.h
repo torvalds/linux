@@ -24,6 +24,7 @@
 #define RTAS_RMOBUF_MAX (64 * 1024)
 
 /* RTAS return status codes */
+#define RTAS_NOT_SUSPENDABLE	-9004
 #define RTAS_BUSY		-2    /* RTAS Busy */
 #define RTAS_EXTENDED_DELAY_MIN	9900
 #define RTAS_EXTENDED_DELAY_MAX	9905
