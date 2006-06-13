@@ -133,6 +133,14 @@ UNUSUAL_DEV(  0x0420, 0x0001, 0x0100, 0x0100,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_IGNORE_RESIDUE ),
 
+/* Reported by Jiri Slaby <jirislaby@gmail.com> and
+ * Rene C. Castberg <Rene@Castberg.org> */
+UNUSUAL_DEV(  0x0421, 0x0446, 0x0100, 0x0100,
+		"Nokia",
+		"N80",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_IGNORE_RESIDUE | US_FL_FIX_CAPACITY ),
+
 /* Reported by Olaf Hering <olh@suse.de> from novell bug #105878 */
 UNUSUAL_DEV(  0x0424, 0x0fdc, 0x0210, 0x0210,
 		"SMSC",
