@@ -29,9 +29,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/kernel.h>
-#include <linux/input.h>
-#include <linux/usb.h>
-#include <linux/usb_input.h>
+#include <linux/usb/input.h>
 
 #undef DEBUG
 

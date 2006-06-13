@@ -33,9 +33,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/module.h>
-#include <linux/usb.h>
-#include <linux/input.h>
-#include <linux/usb_input.h>
+#include <linux/usb/input.h>
 
 /* Apple has powerbooks which have the keyboard with different Product IDs */
 #define APPLE_VENDOR_ID		0x05AC
