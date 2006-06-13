@@ -963,7 +963,7 @@ static struct snd_kcontrol_new ad1983_mixers[] = {
 	},
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = SNDRV_CTL_NAME_IEC958("",PLAYBACK,NONE) "Route",
+		.name = SNDRV_CTL_NAME_IEC958("",PLAYBACK,NONE) "Source",
 		.info = ad1983_spdif_route_info,
 		.get = ad1983_spdif_route_get,
 		.put = ad1983_spdif_route_put,
@@ -1103,7 +1103,7 @@ static struct snd_kcontrol_new ad1981_mixers[] = {
 	/* identical with AD1983 */
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = SNDRV_CTL_NAME_IEC958("",PLAYBACK,NONE) "Route",
+		.name = SNDRV_CTL_NAME_IEC958("",PLAYBACK,NONE) "Source",
 		.info = ad1983_spdif_route_info,
 		.get = ad1983_spdif_route_get,
 		.put = ad1983_spdif_route_put,
@@ -1349,6 +1349,14 @@ static struct snd_kcontrol_new ad1981_thinkpad_mixers[] = {
 		.get = ad198x_mux_enum_get,
 		.put = ad198x_mux_enum_put,
 	},
+	/* identical with AD1983 */
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = SNDRV_CTL_NAME_IEC958("",PLAYBACK,NONE) "Source",
+		.info = ad1983_spdif_route_info,
+		.get = ad1983_spdif_route_get,
+		.put = ad1983_spdif_route_put,
+	},
 	{ } /* end */
 };
 
@@ -1422,7 +1430,6 @@ static int patch_ad1981(struct hda_codec *codec)
 		break;
 	case AD1981_THINKPAD:
 		spec->mixers[0] = ad1981_thinkpad_mixers;
-		spec->multiout.dig_out_nid = 0;
 		spec->input_mux = &ad1981_thinkpad_capture_source;
 		break;
 	}
