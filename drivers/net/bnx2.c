@@ -5642,7 +5642,9 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 		}
 	}
 
-	if (CHIP_NUM(bp) == CHIP_NUM_5708)
+	if ((CHIP_ID(bp) == CHIP_ID_5708_A0) ||
+	    (CHIP_ID(bp) == CHIP_ID_5708_B0) ||
+	    (CHIP_ID(bp) == CHIP_ID_5708_B1))
 		bp->flags |= NO_WOL_FLAG;
 
 	if (CHIP_ID(bp) == CHIP_ID_5706_A0) {
