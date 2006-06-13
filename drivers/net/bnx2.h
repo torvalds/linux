@@ -3750,7 +3750,12 @@ struct l2_fhdr {
 #define DMA_READ_CHANS	5
 #define DMA_WRITE_CHANS	3
 
-#define BCM_PAGE_BITS	12
+/* Use CPU native page size up to 16K for the ring sizes.  */
+#if (PAGE_SHIFT > 14)
+#define BCM_PAGE_BITS	14
+#else
+#define BCM_PAGE_BITS	PAGE_SHIFT
+#endif
 #define BCM_PAGE_SIZE	(1 << BCM_PAGE_BITS)
 
 #define TX_DESC_CNT  (BCM_PAGE_SIZE / sizeof(struct tx_bd))
@@ -3773,7 +3778,7 @@ struct l2_fhdr {
 
 #define RX_RING_IDX(x) ((x) & bp->rx_max_ring_idx)
 
-#define RX_RING(x) (((x) & ~MAX_RX_DESC_CNT) >> 8)
+#define RX_RING(x) (((x) & ~MAX_RX_DESC_CNT) >> (BCM_PAGE_BITS - 4))
 #define RX_IDX(x) ((x) & MAX_RX_DESC_CNT)
 
 /* Context size. */

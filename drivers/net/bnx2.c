@@ -32,6 +32,7 @@
 #include <asm/irq.h>
 #include <linux/delay.h>
 #include <asm/byteorder.h>
+#include <asm/page.h>
 #include <linux/time.h>
 #include <linux/ethtool.h>
 #include <linux/mii.h>
