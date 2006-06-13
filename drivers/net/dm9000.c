@@ -559,6 +559,13 @@ dm9000_probe(struct platform_device *pdev)
 	for (i = 0; i < 6; i++)
 		ndev->dev_addr[i] = db->srom[i];
 
+	if (!is_valid_ether_addr(ndev->dev_addr)) {
+		/* try reading from mac */
+
+		for (i = 0; i < 6; i++)
+			ndev->dev_addr[i] = ior(db, i+DM9000_PAR);
+	}
+
 	if (!is_valid_ether_addr(ndev->dev_addr))
 		printk("%s: Invalid ethernet MAC address.  Please "
 		       "set using ifconfig\n", ndev->name);
