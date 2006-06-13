@@ -768,7 +768,7 @@ dm9000_stop(struct net_device *ndev)
  * receive the packet to upper layer, free the transmitted packet
  */
 
-void
+static void
 dm9000_tx_done(struct net_device *dev, board_info_t * db)
 {
 	int tx_status = ior(db, DM9000_NSR);	/* Got TX status */
@@ -1188,13 +1188,14 @@ dm9000_drv_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver dm9000_driver = {
+	.driver	= {
+		.name    = "dm9000",
+		.owner	 = THIS_MODULE,
+	},
 	.probe   = dm9000_probe,
 	.remove  = dm9000_drv_remove,
 	.suspend = dm9000_drv_suspend,
 	.resume  = dm9000_drv_resume,
-	.driver	= {
-		.name	= "dm9000",
-	},
 };
 
 static int __init
