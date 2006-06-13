@@ -231,6 +231,7 @@ struct statistics_block {
 	u32 stat_GenStat13;
 	u32 stat_GenStat14;
 	u32 stat_GenStat15;
+	u32 stat_FwRxDrop;
 };
 
 
@@ -3480,6 +3481,8 @@ struct l2_fhdr {
 #define BNX2_COM_COMQ_FTQ_CTL_CUR_DEPTH			 (0x3ffL<<22)
 
 #define BNX2_COM_SCRATCH				0x00120000
+
+#define BNX2_FW_RX_DROP_COUNT				 0x00120084
 
 
 /*

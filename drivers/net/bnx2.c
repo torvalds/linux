@@ -4034,6 +4034,8 @@ bnx2_timer(unsigned long data)
 	msg = (u32) ++bp->fw_drv_pulse_wr_seq;
 	REG_WR_IND(bp, bp->shmem_base + BNX2_DRV_PULSE_MB, msg);
 
+	bp->stats_blk->stat_FwRxDrop = REG_RD_IND(bp, BNX2_FW_RX_DROP_COUNT);
+
 	if ((bp->phy_flags & PHY_SERDES_FLAG) &&
 	    (CHIP_NUM(bp) == CHIP_NUM_5706)) {
 
@@ -4503,6 +4505,10 @@ bnx2_get_stats(struct net_device *dev)
 		+
 		net_stats->tx_aborted_errors +
 		net_stats->tx_carrier_errors;
+
+	net_stats->rx_missed_errors =
+		(unsigned long) (stats_blk->stat_IfInMBUFDiscards +
+		stats_blk->stat_FwRxDrop);
 
 	return net_stats;
 }
@@ -4986,7 +4992,7 @@ bnx2_set_rx_csum(struct net_device *dev, u32 data)
 	return 0;
 }
 
-#define BNX2_NUM_STATS 45
+#define BNX2_NUM_STATS 46
 
 static struct {
 	char string[ETH_GSTRING_LEN];
@@ -5036,6 +5042,7 @@ static struct {
 	{ "rx_mac_ctrl_frames" },
 	{ "rx_filtered_packets" },
 	{ "rx_discards" },
+	{ "rx_fw_discards" },
 };
 
 #define STATS_OFFSET32(offset_name) (offsetof(struct statistics_block, offset_name) / 4)
@@ -5086,6 +5093,7 @@ static const unsigned long bnx2_stats_offset_arr[BNX2_NUM_STATS] = {
     STATS_OFFSET32(stat_MacControlFramesReceived),                    
     STATS_OFFSET32(stat_IfInFramesL2FilterDiscards),                  
     STATS_OFFSET32(stat_IfInMBUFDiscards),                            
+    STATS_OFFSET32(stat_FwRxDrop),
 };
 
 /* stat_IfHCInBadOctets and stat_Dot3StatsCarrierSenseErrors are
@@ -5096,7 +5104,7 @@ static u8 bnx2_5706_stats_len_arr[BNX2_NUM_STATS] = {
 	4,0,4,4,4,4,4,4,4,4,
 	4,4,4,4,4,4,4,4,4,4,
 	4,4,4,4,4,4,4,4,4,4,
-	4,4,4,4,4,
+	4,4,4,4,4,4,
 };
 
 static u8 bnx2_5708_stats_len_arr[BNX2_NUM_STATS] = {
@@ -5104,7 +5112,7 @@ static u8 bnx2_5708_stats_len_arr[BNX2_NUM_STATS] = {
 	4,4,4,4,4,4,4,4,4,4,
 	4,4,4,4,4,4,4,4,4,4,
 	4,4,4,4,4,4,4,4,4,4,
-	4,4,4,4,4,
+	4,4,4,4,4,4,
 };
 
 #define BNX2_NUM_TESTS 6
