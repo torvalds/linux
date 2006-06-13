@@ -3442,6 +3442,7 @@ static int sky2_suspend(struct pci_dev *pdev, pm_message_t state)
 		}
 	}
 
+	sky2_write32(hw, B0_IMSK, 0);
 	pci_save_state(pdev);
 	sky2_set_power_state(hw, pstate);
 	return 0;
@@ -3459,6 +3460,8 @@ static int sky2_resume(struct pci_dev *pdev)
 	err = sky2_reset(hw);
 	if (err)
 		goto out;
+
+	sky2_write32(hw, B0_IMSK, Y2_IS_BASE);
 
 	for (i = 0; i < hw->ports; i++) {
 		struct net_device *dev = hw->dev[i];
