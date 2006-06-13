@@ -404,8 +404,8 @@ int pcibios_enable_device(struct pci_dev *, int mask);
 char *pcibios_setup (char *str);
 
 /* Used only when drivers/pci/setup.c is used */
-void pcibios_align_resource(void *, struct resource *,
-			    unsigned long, unsigned long);
+void pcibios_align_resource(void *, struct resource *, resource_size_t,
+				resource_size_t);
 void pcibios_update_irq(struct pci_dev *, int irq);
 
 /* Generic PCI functions used internally */
@@ -532,10 +532,10 @@ void pci_release_region(struct pci_dev *, int);
 
 /* drivers/pci/bus.c */
 int pci_bus_alloc_resource(struct pci_bus *bus, struct resource *res,
-			   unsigned long size, unsigned long align,
-			   unsigned long min, unsigned int type_mask,
+			   resource_size_t size, resource_size_t align,
+			   resource_size_t min, unsigned int type_mask,
 			   void (*alignf)(void *, struct resource *,
-					  unsigned long, unsigned long),
+					  resource_size_t, resource_size_t),
 			   void *alignf_data);
 void pci_enable_bridges(struct pci_bus *bus);
 
@@ -730,7 +730,8 @@ static inline char *pci_name(struct pci_dev *pdev)
  */
 #ifndef HAVE_ARCH_PCI_RESOURCE_TO_USER
 static inline void pci_resource_to_user(const struct pci_dev *dev, int bar,
-                const struct resource *rsrc, u64 *start, u64 *end)
+                const struct resource *rsrc, resource_size_t *start,
+		resource_size_t *end)
 {
 	*start = rsrc->start;
 	*end = rsrc->end;

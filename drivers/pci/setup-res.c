@@ -121,7 +121,7 @@ int pci_assign_resource(struct pci_dev *dev, int resno)
 {
 	struct pci_bus *bus = dev->bus;
 	struct resource *res = dev->resource + resno;
-	unsigned long size, min, align;
+	resource_size_t size, min, align;
 	int ret;
 
 	size = res->end - res->start + 1;
@@ -209,7 +209,7 @@ pdev_sort_resources(struct pci_dev *dev, struct resource_list *head)
 	for (i = 0; i < PCI_NUM_RESOURCES; i++) {
 		struct resource *r;
 		struct resource_list *list, *tmp;
-		unsigned long r_align;
+		resource_size_t r_align;
 
 		r = &dev->resource[i];
 		r_align = r->end - r->start;
@@ -225,7 +225,7 @@ pdev_sort_resources(struct pci_dev *dev, struct resource_list *head)
 		}
 		r_align = (i < PCI_BRIDGE_RESOURCES) ? r_align + 1 : r->start;
 		for (list = head; ; list = list->next) {
-			unsigned long align = 0;
+			resource_size_t align = 0;
 			struct resource_list *ln = list->next;
 			int idx;
 

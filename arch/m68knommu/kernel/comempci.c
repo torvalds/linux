@@ -357,7 +357,8 @@ void pcibios_fixup_bus(struct pci_bus *b)
 
 /*****************************************************************************/
 
-void pcibios_align_resource(void *data, struct resource *res, unsigned long size, unsigned long align)
+void pcibios_align_resource(void *data, struct resource *res,
+				resource_size_t size, resource_size_t align)
 {
 }
 
