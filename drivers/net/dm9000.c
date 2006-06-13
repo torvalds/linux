@@ -410,10 +410,7 @@ dm9000_probe(struct platform_device *pdev)
 	if (pdev->num_resources < 2) {
 		ret = -ENODEV;
 		goto out;
-	}
-
-	switch (pdev->num_resources) {
-	case 2:
+	} else if (pdev->num_resources == 2) {
 		base = pdev->resource[0].start;
 
 		if (!request_mem_region(base, 4, ndev->name)) {
@@ -423,17 +420,16 @@ dm9000_probe(struct platform_device *pdev)
 
 		ndev->base_addr = base;
 		ndev->irq = pdev->resource[1].start;
-		db->io_addr = (void *)base;
-		db->io_data = (void *)(base + 4);
+		db->io_addr = (void __iomem *)base;
+		db->io_data = (void __iomem *)(base + 4);
 
-		break;
-
-	case 3:
+	} else {
 		db->addr_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 		db->data_res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 		db->irq_res  = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 
-		if (db->addr_res == NULL || db->data_res == NULL) {
+		if (db->addr_res == NULL || db->data_res == NULL ||
+		    db->irq_res == NULL) {
 			printk(KERN_ERR PFX "insufficient resources\n");
 			ret = -ENOENT;
 			goto out;
@@ -482,7 +478,6 @@ dm9000_probe(struct platform_device *pdev)
 
 		/* ensure at least we have a default set of IO routines */
 		dm9000_set_io(db, iosize);
-
 	}
 
 	/* check to see if anything is being over-ridden */
