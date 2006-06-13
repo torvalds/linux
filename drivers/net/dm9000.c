@@ -665,7 +665,6 @@ dm9000_init_dm9000(struct net_device *dev)
 	db->tx_pkt_cnt = 0;
 	db->queue_pkt_len = 0;
 	dev->trans_start = 0;
-	spin_lock_init(&db->lock);
 }
 
 /*
