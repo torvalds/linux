@@ -187,12 +187,11 @@ static u16 gm_phy_read(struct sky2_hw *hw, unsigned port, u16 reg)
 	return v;
 }
 
-static int sky2_set_power_state(struct sky2_hw *hw, pci_power_t state)
+static void sky2_set_power_state(struct sky2_hw *hw, pci_power_t state)
 {
 	u16 power_control;
 	u32 reg1;
 	int vaux;
-	int ret = 0;
 
 	pr_debug("sky2_set_power_state %d\n", state);
 	sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_ON);
@@ -275,12 +274,10 @@ static int sky2_set_power_state(struct sky2_hw *hw, pci_power_t state)
 		break;
 	default:
 		printk(KERN_ERR PFX "Unknown power state %d\n", state);
-		ret = -1;
 	}
 
 	sky2_pci_write16(hw, hw->pm_cap + PCI_PM_CTRL, power_control);
 	sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_OFF);
-	return ret;
 }
 
 static void sky2_phy_reset(struct sky2_hw *hw, unsigned port)
@@ -3428,6 +3425,10 @@ static int sky2_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct sky2_hw *hw = pci_get_drvdata(pdev);
 	int i;
+	pci_power_t pstate = pci_choose_state(pdev, state);
+
+	if (!(pstate == PCI_D3hot || pstate == PCI_D3cold))
+		return -EINVAL;
 
 	for (i = 0; i < 2; i++) {
 		struct net_device *dev = hw->dev[i];
@@ -3442,7 +3443,8 @@ static int sky2_suspend(struct pci_dev *pdev, pm_message_t state)
 	}
 
 	pci_save_state(pdev);
-	return sky2_set_power_state(hw, pci_choose_state(pdev, state));
+	sky2_set_power_state(hw, pstate);
+	return 0;
 }
 
 static int sky2_resume(struct pci_dev *pdev)
@@ -3452,9 +3454,7 @@ static int sky2_resume(struct pci_dev *pdev)
 
 	pci_restore_state(pdev);
 	pci_enable_wake(pdev, PCI_D0, 0);
-	err = sky2_set_power_state(hw, PCI_D0);
-	if (err)
-		goto out;
+	sky2_set_power_state(hw, PCI_D0);
 
 	err = sky2_reset(hw);
 	if (err)
