@@ -49,7 +49,7 @@
 #include <asm/unaligned.h>
 
 #include <linux/usb_ch9.h>
-#include <linux/usb_cdc.h>
+#include <linux/usb/cdc.h>
 #include <linux/usb_gadget.h>
 
 #include <linux/random.h>

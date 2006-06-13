@@ -31,7 +31,7 @@
 #include <linux/workqueue.h>
 #include <linux/mii.h>
 #include <linux/usb.h>
-#include <linux/usb_cdc.h>
+#include <linux/usb/cdc.h>
 
 #include "usbnet.h"
 

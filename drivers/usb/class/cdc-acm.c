@@ -63,7 +63,7 @@
 #include <linux/mutex.h>
 #include <asm/uaccess.h>
 #include <linux/usb.h>
-#include <linux/usb_cdc.h>
+#include <linux/usb/cdc.h>
 #include <asm/byteorder.h>
 #include <asm/unaligned.h>
 #include <linux/list.h>
