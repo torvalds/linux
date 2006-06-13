@@ -2161,6 +2161,13 @@ static void sky2_descriptor_error(struct sky2_hw *hw, unsigned port,
 /* If idle then force a fake soft NAPI poll once a second
  * to work around cases where sharing an edge triggered interrupt.
  */
+static inline void sky2_idle_start(struct sky2_hw *hw)
+{
+	if (idle_timeout > 0)
+		mod_timer(&hw->idle_timer,
+			  jiffies + msecs_to_jiffies(idle_timeout));
+}
+
 static void sky2_idle(unsigned long arg)
 {
 	struct sky2_hw *hw = (struct sky2_hw *) arg;
@@ -3350,9 +3357,7 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 	sky2_write32(hw, B0_IMSK, Y2_IS_BASE);
 
 	setup_timer(&hw->idle_timer, sky2_idle, (unsigned long) hw);
-	if (idle_timeout > 0)
-		mod_timer(&hw->idle_timer,
-			  jiffies + msecs_to_jiffies(idle_timeout));
+	sky2_idle_start(hw);
 
 	pci_set_drvdata(pdev, hw);
 
@@ -3430,6 +3435,8 @@ static int sky2_suspend(struct pci_dev *pdev, pm_message_t state)
 	if (!(pstate == PCI_D3hot || pstate == PCI_D3cold))
 		return -EINVAL;
 
+	del_timer_sync(&hw->idle_timer);
+
 	for (i = 0; i < hw->ports; i++) {
 		struct net_device *dev = hw->dev[i];
 
@@ -3472,10 +3479,12 @@ static int sky2_resume(struct pci_dev *pdev)
 				printk(KERN_ERR PFX "%s: could not up: %d\n",
 				       dev->name, err);
 				dev_close(dev);
-				break;
+				goto out;
 			}
 		}
 	}
+
+	sky2_idle_start(hw);
 out:
 	return err;
 }
