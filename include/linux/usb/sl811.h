@@ -14,13 +14,13 @@ struct sl811_platform_data {
 	u8		power;
 
 	/* sl811 relies on an external source of VBUS current */
-	void 		(*port_power)(struct device *dev, int is_on);
+	void		(*port_power)(struct device *dev, int is_on);
 
 	/* pulse sl811 nRST (probably with a GPIO) */
-	void 		(*reset)(struct device *dev);
+	void		(*reset)(struct device *dev);
 
 	// some boards need something like these:
- 	// int 		(*check_overcurrent)(struct device *dev);
- 	// void 	(*clock_enable)(struct device *dev, int is_on);
+	// int		(*check_overcurrent)(struct device *dev);
+	// void		(*clock_enable)(struct device *dev, int is_on);
 };
 
