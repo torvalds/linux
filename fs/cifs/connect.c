@@ -367,21 +367,21 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 			continue;
 		if (bigbuf == NULL) {
 			bigbuf = cifs_buf_get();
-			if(bigbuf == NULL) {
-				cERROR(1,("No memory for large SMB response"));
+			if (!bigbuf) {
+				cERROR(1, ("No memory for large SMB response"));
 				msleep(3000);
 				/* retry will check if exiting */
 				continue;
 			}
-		} else if(isLargeBuf) {
-			/* we are reusing a dirtry large buf, clear its start */
+		} else if (isLargeBuf) {
+			/* we are reusing a dirty large buf, clear its start */
 			memset(bigbuf, 0, sizeof (struct smb_hdr));
 		}
 
 		if (smallbuf == NULL) {
 			smallbuf = cifs_small_buf_get();
-			if(smallbuf == NULL) {
-				cERROR(1,("No memory for SMB response"));
+			if (!smallbuf) {
+				cERROR(1, ("No memory for SMB response"));
 				msleep(1000);
 				/* retry will check if exiting */
 				continue;
@@ -401,12 +401,12 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 		    kernel_recvmsg(csocket, &smb_msg,
 				 &iov, 1, 4, 0 /* BB see socket.h flags */);
 
-		if(server->tcpStatus == CifsExiting) {
+		if (server->tcpStatus == CifsExiting) {
 			break;
 		} else if (server->tcpStatus == CifsNeedReconnect) {
-			cFYI(1,("Reconnect after server stopped responding"));
+			cFYI(1, ("Reconnect after server stopped responding"));
 			cifs_reconnect(server);
-			cFYI(1,("call to reconnect done"));
+			cFYI(1, ("call to reconnect done"));
 			csocket = server->ssocket;
 			continue;
 		} else if ((length == -ERESTARTSYS) || (length == -EAGAIN)) {
@@ -415,15 +415,15 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 				tcpStatus CifsNeedReconnect if server hung */
 			continue;
 		} else if (length <= 0) {
-			if(server->tcpStatus == CifsNew) {
-				cFYI(1,("tcp session abend after SMBnegprot"));
+			if (server->tcpStatus == CifsNew) {
+				cFYI(1, ("tcp session abend after SMBnegprot"));
 				/* some servers kill the TCP session rather than
 				   returning an SMB negprot error, in which
 				   case reconnecting here is not going to help,
 				   and so simply return error to mount */
 				break;
 			}
-			if(length == -EINTR) { 
+			if (!try_to_freeze() && (length == -EINTR)) {
 				cFYI(1,("cifsd thread killed"));
 				break;
 			}

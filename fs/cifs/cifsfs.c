@@ -905,7 +905,7 @@ static int cifs_dnotify_thread(void * dummyarg)
 	struct cifsSesInfo *ses;
 
 	do {
-		if(try_to_freeze())
+		if (try_to_freeze())
 			continue;
 		set_current_state(TASK_INTERRUPTIBLE);
 		schedule_timeout(15*HZ);
