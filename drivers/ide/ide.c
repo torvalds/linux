@@ -1226,7 +1226,7 @@ static int generic_ide_suspend(struct device *dev, pm_message_t state)
 	memset(&args, 0, sizeof(args));
 	rq.flags = REQ_PM_SUSPEND;
 	rq.special = &args;
-	rq.pm = &rqpm;
+	rq.end_io_data = &rqpm;
 	rqpm.pm_step = ide_pm_state_start_suspend;
 	rqpm.pm_state = state.event;
 
@@ -1245,7 +1245,7 @@ static int generic_ide_resume(struct device *dev)
 	memset(&args, 0, sizeof(args));
 	rq.flags = REQ_PM_RESUME;
 	rq.special = &args;
-	rq.pm = &rqpm;
+	rq.end_io_data = &rqpm;
 	rqpm.pm_step = ide_pm_state_start_resume;
 	rqpm.pm_state = PM_EVENT_ON;
 

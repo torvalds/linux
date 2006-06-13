@@ -196,11 +196,6 @@ struct request {
 	int retries;
 
 	/*
-	 * For Power Management requests
-	 */
-	struct request_pm_state *pm;
-
-	/*
 	 * completion callback. end_io_data should be folded in with waiting
 	 */
 	rq_end_io_fn *end_io;
