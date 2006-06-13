@@ -2183,6 +2183,9 @@ static int sky2_poll(struct net_device *dev0, int *budget)
 	int work_done = 0;
 	u32 status = sky2_read32(hw, B0_Y2_SP_EISR);
 
+	if (!~status)
+		return 0;
+
 	if (status & Y2_IS_HW_ERR)
 		sky2_hw_intr(hw);
 
@@ -3438,6 +3441,7 @@ static int sky2_suspend(struct pci_dev *pdev, pm_message_t state)
 		}
 	}
 
+	pci_save_state(pdev);
 	return sky2_set_power_state(hw, pci_choose_state(pdev, state));
 }
 

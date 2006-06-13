@@ -353,8 +353,9 @@ static inline pgprot_t pgprot_noncached(pgprot_t _prot)
 #if defined(CONFIG_64BIT_PHYS_ADDR) && defined(CONFIG_CPU_MIPS32_R1)
 static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 {
-	pte.pte_low &= _PAGE_CHG_MASK;
-	pte.pte_low |= pgprot_val(newprot);
+	pte.pte_low  &= _PAGE_CHG_MASK;
+	pte.pte_high &= ~0x3f;
+	pte.pte_low  |= pgprot_val(newprot);
 	pte.pte_high |= pgprot_val(newprot) & 0x3f;
 	return pte;
 }

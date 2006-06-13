@@ -19,20 +19,22 @@ static inline void __delay(unsigned long loops)
 {
 	if (sizeof(long) == 4)
 		__asm__ __volatile__ (
-		".set\tnoreorder\n"
-		"1:\tbnez\t%0,1b\n\t"
-		"subu\t%0,1\n\t"
-		".set\treorder"
+		"	.set	noreorder				\n"
+		"	.align	3					\n"
+		"1:	bnez	%0, 1b					\n"
+		"	subu	%0, 1					\n"
+		"	.set	reorder					\n"
 		: "=r" (loops)
 		: "0" (loops));
 	else if (sizeof(long) == 8)
 		__asm__ __volatile__ (
-		".set\tnoreorder\n"
-		"1:\tbnez\t%0,1b\n\t"
-		"dsubu\t%0,1\n\t"
-		".set\treorder"
-		:"=r" (loops)
-		:"0" (loops));
+		"	.set	noreorder				\n"
+		"	.align	3					\n"
+		"1:	bnez	%0, 1b					\n"
+		"	dsubu	%0, 1					\n"
+		"	.set	reorder					\n"
+		: "=r" (loops)
+		: "0" (loops));
 }
 
 
