@@ -3217,7 +3217,7 @@ static int __devinit ohci1394_pci_probe(struct pci_dev *dev,
 {
 	struct hpsb_host *host;
 	struct ti_ohci *ohci;	/* shortcut to currently handled device */
-	unsigned long ohci_base;
+	resource_size_t ohci_base;
 
         if (pci_enable_device(dev))
 		FAIL(-ENXIO, "Failed to enable OHCI hardware");

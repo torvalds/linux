@@ -1823,7 +1823,7 @@ static int cp_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct cp_private *cp;
 	int rc;
 	void __iomem *regs;
-	long pciaddr;
+	resource_size_t pciaddr;
 	unsigned int addr_len, i, pci_using_dac;
 	u8 pci_rev;
 
