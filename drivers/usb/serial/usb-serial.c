@@ -305,7 +305,7 @@ exit:
 static int serial_write_room (struct tty_struct *tty) 
 {
 	struct usb_serial_port *port = tty->driver_data;
-	int retval = -EINVAL;
+	int retval = -ENODEV;
 
 	if (!port)
 		goto exit;
@@ -327,7 +327,7 @@ exit:
 static int serial_chars_in_buffer (struct tty_struct *tty) 
 {
 	struct usb_serial_port *port = tty->driver_data;
-	int retval = -EINVAL;
+	int retval = -ENODEV;
 
 	if (!port)
 		goto exit;
@@ -497,19 +497,18 @@ static int serial_tiocmget (struct tty_struct *tty, struct file *file)
 	struct usb_serial_port *port = tty->driver_data;
 
 	if (!port)
-		goto exit;
+		return -ENODEV;
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
 	if (!port->open_count) {
 		dbg("%s - port not open", __FUNCTION__);
-		goto exit;
+		return -ENODEV;
 	}
 
 	if (port->serial->type->tiocmget)
 		return port->serial->type->tiocmget(port, file);
 
-exit:
 	return -EINVAL;
 }
 
@@ -519,19 +518,18 @@ static int serial_tiocmset (struct tty_struct *tty, struct file *file,
 	struct usb_serial_port *port = tty->driver_data;
 
 	if (!port)
-		goto exit;
+		return -ENODEV;
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
 	if (!port->open_count) {
 		dbg("%s - port not open", __FUNCTION__);
-		goto exit;
+		return -ENODEV;
 	}
 
 	if (port->serial->type->tiocmset)
 		return port->serial->type->tiocmset(port, file, set, clear);
 
-exit:
 	return -EINVAL;
 }
 
