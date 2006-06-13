@@ -35,10 +35,8 @@
 #define cpu_has_nofpuex		0
 #define cpu_has_64bits		1
 
-#define cpu_has_subset_pcaches	0	/* No S-cache on R5000 I think ...  */
 #define cpu_dcache_line_size()	32
 #define cpu_icache_line_size()	32
-#define cpu_scache_line_size()	0	/* No S-cache on R5000 I think ...  */
 
 #define cpu_has_mips32r1	0
 #define cpu_has_mips32r2	0

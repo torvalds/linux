@@ -21,8 +21,11 @@
 #include <linux/fb.h>
 #include <linux/tty.h>
 
+#ifdef CONFIG_ARC
 #include <asm/arc/types.h>
 #include <asm/sgialib.h>
+#endif
+
 #include <asm/bcache.h>
 #include <asm/bootinfo.h>
 #include <asm/io.h>
@@ -72,8 +75,7 @@ static inline void sni_pcimt_detect(void)
 
 static void __init sni_display_setup(void)
 {
-#ifdef CONFIG_VT
-#if defined(CONFIG_VGA_CONSOLE)
+#if defined(CONFIG_VT) && defined(CONFIG_VGA_CONSOLE) && defined(CONFIG_ARC)
 	struct screen_info *si = &screen_info;
 	DISPLAY_STATUS *di;
 
@@ -87,7 +89,6 @@ static void __init sni_display_setup(void)
 		si->orig_video_isVGA	= VIDEO_TYPE_VGAC;
 		si->orig_video_points	= 16;
 	}
-#endif
 #endif
 }
 
