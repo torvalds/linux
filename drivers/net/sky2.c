@@ -3430,7 +3430,7 @@ static int sky2_suspend(struct pci_dev *pdev, pm_message_t state)
 	if (!(pstate == PCI_D3hot || pstate == PCI_D3cold))
 		return -EINVAL;
 
-	for (i = 0; i < 2; i++) {
+	for (i = 0; i < hw->ports; i++) {
 		struct net_device *dev = hw->dev[i];
 
 		if (dev) {
@@ -3460,7 +3460,7 @@ static int sky2_resume(struct pci_dev *pdev)
 	if (err)
 		goto out;
 
-	for (i = 0; i < 2; i++) {
+	for (i = 0; i < hw->ports; i++) {
 		struct net_device *dev = hw->dev[i];
 		if (dev && netif_running(dev)) {
 			netif_device_attach(dev);
