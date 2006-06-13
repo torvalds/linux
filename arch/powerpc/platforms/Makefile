@@ -14,3 +14,4 @@ obj-$(CONFIG_PPC_PSERIES)	+= pseries/
 obj-$(CONFIG_PPC_ISERIES)	+= iseries/
 obj-$(CONFIG_PPC_MAPLE)		+= maple/
 obj-$(CONFIG_PPC_CELL)		+= cell/
+obj-$(CONFIG_EMBEDDED6xx)	+= embedded6xx/

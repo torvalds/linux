@@ -336,7 +336,7 @@ config PPC_ISERIES
 
 config EMBEDDED6xx
 	bool "Embedded 6xx/7xx/7xxx-based board"
-	depends on PPC32 && BROKEN
+	depends on PPC32 && (BROKEN||BROKEN_ON_SMP)
 
 config APUS
 	bool "Amiga-APUS"
@@ -436,7 +436,8 @@ config U3_DART
 	default n
 
 config MPIC
-	depends on PPC_PSERIES || PPC_PMAC || PPC_MAPLE || PPC_CHRP
+	depends on PPC_PSERIES || PPC_PMAC || PPC_MAPLE || PPC_CHRP \
+			       || MPC7448HPC2
 	bool
 	default y
 
@@ -821,7 +822,8 @@ config MCA
 	bool
 
 config PCI
-	bool "PCI support" if 40x || CPM2 || PPC_83xx || PPC_85xx || PPC_86xx || PPC_MPC52xx || (EMBEDDED && PPC_ISERIES)
+	bool "PCI support" if 40x || CPM2 || PPC_83xx || PPC_85xx || PPC_MPC52xx || (EMBEDDED && PPC_ISERIES) \
+				  || MPC7448HPC2
 	default y if !40x && !CPM2 && !8xx && !APUS && !PPC_83xx && !PPC_85xx && !PPC_86xx
 	default PCI_PERMEDIA if !4xx && !CPM2 && !8xx && APUS
 	default PCI_QSPAN if !4xx && !CPM2 && 8xx
