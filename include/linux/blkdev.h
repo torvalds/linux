@@ -241,6 +241,7 @@ enum rq_flag_bits {
 	__REQ_PM_RESUME,	/* resume request */
 	__REQ_PM_SHUTDOWN,	/* shutdown request */
 	__REQ_ORDERED_COLOR,	/* is before or after barrier */
+	__REQ_RW_SYNC,		/* request is sync (O_DIRECT) */
 	__REQ_NR_BITS,		/* stops here */
 };
 
@@ -270,6 +271,7 @@ enum rq_flag_bits {
 #define REQ_PM_RESUME	(1 << __REQ_PM_RESUME)
 #define REQ_PM_SHUTDOWN	(1 << __REQ_PM_SHUTDOWN)
 #define REQ_ORDERED_COLOR	(1 << __REQ_ORDERED_COLOR)
+#define REQ_RW_SYNC	(1 << __REQ_RW_SYNC)
 
 /*
  * State information carried for REQ_PM_SUSPEND and REQ_PM_RESUME

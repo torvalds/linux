@@ -2827,6 +2827,9 @@ static void init_request_from_bio(struct request *req, struct bio *bio)
 	if (unlikely(bio_barrier(bio)))
 		req->flags |= (REQ_HARDBARRIER | REQ_NOMERGE);
 
+	if (bio_sync(bio))
+		req->flags |= REQ_RW_SYNC;
+
 	req->errors = 0;
 	req->hard_sector = req->sector = bio->bi_sector;
 	req->hard_nr_sectors = req->nr_sectors = bio_sectors(bio);

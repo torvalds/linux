@@ -941,12 +941,11 @@ static inline void put_task_struct(struct task_struct *t)
 #define PF_KSWAPD	0x00040000	/* I am kswapd */
 #define PF_SWAPOFF	0x00080000	/* I am in swapoff */
 #define PF_LESS_THROTTLE 0x00100000	/* Throttle me less: I clean memory */
-#define PF_SYNCWRITE	0x00200000	/* I am doing a sync write */
-#define PF_BORROWED_MM	0x00400000	/* I am a kthread doing use_mm */
-#define PF_RANDOMIZE	0x00800000	/* randomize virtual address space */
-#define PF_SWAPWRITE	0x01000000	/* Allowed to write to swap */
-#define PF_SPREAD_PAGE	0x04000000	/* Spread page cache over cpuset */
-#define PF_SPREAD_SLAB	0x08000000	/* Spread some slab caches over cpuset */
+#define PF_BORROWED_MM	0x00200000	/* I am a kthread doing use_mm */
+#define PF_RANDOMIZE	0x00400000	/* randomize virtual address space */
+#define PF_SWAPWRITE	0x00800000	/* Allowed to write to swap */
+#define PF_SPREAD_PAGE	0x01000000	/* Spread page cache over cpuset */
+#define PF_SPREAD_SLAB	0x02000000	/* Spread some slab caches over cpuset */
 #define PF_MEMPOLICY	0x10000000	/* Non-default NUMA mempolicy */
 
 /*

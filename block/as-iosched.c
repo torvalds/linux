@@ -1339,7 +1339,7 @@ static void as_add_request(request_queue_t *q, struct request *rq)
 	arq->state = AS_RQ_NEW;
 
 	if (rq_data_dir(arq->request) == READ
-			|| current->flags&PF_SYNCWRITE)
+			|| (arq->request->flags & REQ_RW_SYNC))
 		arq->is_sync = 1;
 	else
 		arq->is_sync = 0;

@@ -277,8 +277,6 @@ static struct cfq_queue *cfq_find_cfq_hash(struct cfq_data *, unsigned int, unsi
 static void cfq_dispatch_insert(request_queue_t *, struct cfq_rq *);
 static struct cfq_queue *cfq_get_queue(struct cfq_data *cfqd, unsigned int key, struct task_struct *tsk, gfp_t gfp_mask);
 
-#define process_sync(tsk)	((tsk)->flags & PF_SYNCWRITE)
-
 /*
  * lots of deadline iosched dupes, can be abstracted later...
  */
@@ -334,7 +332,7 @@ static int cfq_queue_empty(request_queue_t *q)
 
 static inline pid_t cfq_queue_pid(struct task_struct *task, int rw)
 {
-	if (rw == READ || process_sync(task))
+	if (rw == READ || rw == WRITE_SYNC)
 		return task->pid;
 
 	return CFQ_KEY_ASYNC;
