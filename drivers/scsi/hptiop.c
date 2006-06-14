@@ -504,19 +504,10 @@ static int hptiop_queuecommand(struct scsi_cmnd *scp,
 	BUG_ON(!done);
 	scp->scsi_done = done;
 
-	/*
-	 * hptiop_shutdown will flash controller cache.
-	 */
-	if (scp->cmnd[0] == SYNCHRONIZE_CACHE)  {
-		scp->result = DID_OK<<16;
-		goto cmd_done;
-	}
-
 	_req = get_req(hba);
 	if (_req == NULL) {
 		dprintk("hptiop_queuecmd : no free req\n");
-		scp->result = DID_BUS_BUSY << 16;
-		goto cmd_done;
+		return SCSI_MLQUEUE_HOST_BUSY;
 	}
 
 	_req->scp = scp;
@@ -1429,6 +1420,8 @@ static void hptiop_remove(struct pci_dev *pcidev)
 
 	dprintk("scsi%d: hptiop_remove\n", hba->host->host_no);
 
+	scsi_remove_host(host);
+
 	spin_lock(&hptiop_hba_list_lock);
 	list_del_init(&hba->link);
 	spin_unlock(&hptiop_hba_list_lock);
@@ -1448,7 +1441,6 @@ static void hptiop_remove(struct pci_dev *pcidev)
 	pci_set_drvdata(hba->pcidev, NULL);
 	pci_disable_device(hba->pcidev);
 
-	scsi_remove_host(host);
 	scsi_host_put(host);
 }
 
