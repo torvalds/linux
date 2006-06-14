@@ -218,7 +218,7 @@ static int __init ms02nv_init_one(ulong addr)
 	fixsize = (size - (fixaddr - addr)) & ~(PAGE_SIZE - 1);
 	mp->uaddr = phys_to_virt(fixaddr);
 
-	mtd->type = MTD_GENERIC_TYPE;
+	mtd->type = MTD_RAM;
 	mtd->flags = MTD_CAP_RAM;
 	mtd->size = fixsize;
 	mtd->name = (char *)ms02nv_name;

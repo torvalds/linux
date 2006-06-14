@@ -103,7 +103,7 @@ int mtdram_init_device(struct mtd_info *mtd, void *mapped_address,
 
 	/* Setup the MTD structure */
 	mtd->name = name;
-	mtd->type = MTD_GENERIC_TYPE;
+	mtd->type = MTD_RAM;
 	mtd->flags = MTD_CAP_RAM;
 	mtd->size = size;
 	mtd->writesize = 1;

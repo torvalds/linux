@@ -64,7 +64,7 @@ static struct mtd_info *map_ram_probe(struct map_info *map)
 	map->fldrv = &mapram_chipdrv;
 	mtd->priv = map;
 	mtd->name = map->name;
-	mtd->type = MTD_GENERIC_TYPE;
+	mtd->type = MTD_RAM;
 	mtd->size = map->size;
 	mtd->erase = mapram_erase;
 	mtd->read = mapram_read;

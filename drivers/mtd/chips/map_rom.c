@@ -40,7 +40,7 @@ static struct mtd_info *map_rom_probe(struct map_info *map)
 	map->fldrv = &maprom_chipdrv;
 	mtd->priv = map;
 	mtd->name = map->name;
-	mtd->type = MTD_GENERIC_TYPE;
+	mtd->type = MTD_ROM;
 	mtd->size = map->size;
 	mtd->read = maprom_read;
 	mtd->write = maprom_write;

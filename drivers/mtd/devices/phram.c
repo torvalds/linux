@@ -149,7 +149,7 @@ static int register_device(char *name, unsigned long start, unsigned long len)
 	new->mtd.read = phram_read;
 	new->mtd.write = phram_write;
 	new->mtd.owner = THIS_MODULE;
-	new->mtd.type = MTD_GENERIC_TYPE;
+	new->mtd.type = MTD_RAM;
 	new->mtd.erasesize = PAGE_SIZE;
 
 	ret = -EAGAIN;
