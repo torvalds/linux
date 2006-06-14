@@ -4,6 +4,9 @@ extern void usb_create_sysfs_dev_files (struct usb_device *dev);
 extern void usb_remove_sysfs_dev_files (struct usb_device *dev);
 extern void usb_create_sysfs_intf_files (struct usb_interface *intf);
 extern void usb_remove_sysfs_intf_files (struct usb_interface *intf);
+extern void usb_create_ep_files(struct kobject *parent, struct usb_host_endpoint *endpoint,
+				struct usb_device *udev);
+extern void usb_remove_ep_files(struct usb_host_endpoint *endpoint);
 
 extern void usb_disable_endpoint (struct usb_device *dev, unsigned int epaddr);
 extern void usb_disable_interface (struct usb_device *dev,
