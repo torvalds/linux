@@ -1323,17 +1323,12 @@ cfq_alloc_io_context(struct cfq_data *cfqd, gfp_t gfp_mask)
 	struct cfq_io_context *cic = kmem_cache_alloc(cfq_ioc_pool, gfp_mask);
 
 	if (cic) {
-		RB_CLEAR(&cic->rb_node);
-		cic->key = NULL;
-		cic->cfqq[ASYNC] = NULL;
-		cic->cfqq[SYNC] = NULL;
+		memset(cic, 0, sizeof(*cic));
+		RB_CLEAR_COLOR(&cic->rb_node);
 		cic->last_end_request = jiffies;
-		cic->ttime_total = 0;
-		cic->ttime_samples = 0;
-		cic->ttime_mean = 0;
+		INIT_LIST_HEAD(&cic->queue_list);
 		cic->dtor = cfq_free_io_context;
 		cic->exit = cfq_exit_io_context;
-		INIT_LIST_HEAD(&cic->queue_list);
 		atomic_inc(&ioc_count);
 	}
 
