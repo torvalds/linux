@@ -1649,7 +1649,7 @@ static void tcp_update_scoreboard(struct sock *sk, struct tcp_sock *tp)
 	 * Hence, we can detect timed out packets during fast
 	 * retransmit without falling to slow start.
 	 */
-	if (tcp_head_timedout(sk, tp)) {
+	if (!IsReno(tp) && tcp_head_timedout(sk, tp)) {
 		struct sk_buff *skb;
 
 		skb = tp->scoreboard_skb_hint ? tp->scoreboard_skb_hint
@@ -1662,8 +1662,6 @@ static void tcp_update_scoreboard(struct sock *sk, struct tcp_sock *tp)
 			if (!(TCP_SKB_CB(skb)->sacked&TCPCB_TAGBITS)) {
 				TCP_SKB_CB(skb)->sacked |= TCPCB_LOST;
 				tp->lost_out += tcp_skb_pcount(skb);
-				if (IsReno(tp))
-					tcp_remove_reno_sacks(sk, tp, tcp_skb_pcount(skb) + 1);
 
 				/* clear xmit_retrans hint */
 				if (tp->retransmit_skb_hint &&
