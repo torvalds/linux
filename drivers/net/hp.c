@@ -444,7 +444,7 @@ static void cleanup_card(struct net_device *dev)
 	release_region(dev->base_addr - NIC_OFFSET, HP_IO_EXTENT);
 }
 
-void
+void __exit
 cleanup_module(void)
 {
 	int this_dev;

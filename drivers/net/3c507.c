@@ -940,7 +940,7 @@ int __init init_module(void)
 	return IS_ERR(dev_3c507) ? PTR_ERR(dev_3c507) : 0;
 }
 
-void
+void __exit
 cleanup_module(void)
 {
 	struct net_device *dev = dev_3c507;

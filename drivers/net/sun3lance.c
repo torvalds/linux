@@ -945,7 +945,7 @@ static void set_multicast_list( struct net_device *dev )
 
 static struct net_device *sun3lance_dev;
 
-int init_module(void)
+int __init init_module(void)
 {
 	sun3lance_dev = sun3lance_probe(-1);
 	if (IS_ERR(sun3lance_dev))
@@ -953,7 +953,7 @@ int init_module(void)
 	return 0;
 }
 
-void cleanup_module(void)
+void __exit cleanup_module(void)
 {
 	unregister_netdev(sun3lance_dev);
 #ifdef CONFIG_SUN3

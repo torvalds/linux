@@ -184,7 +184,7 @@ static int m147lance_close(struct net_device *dev)
 MODULE_LICENSE("GPL");
 
 static struct net_device *dev_mvme147_lance;
-int init_module(void)
+int __init init_module(void)
 {
 	dev_mvme147_lance = mvme147lance_probe(-1);
 	if (IS_ERR(dev_mvme147_lance))
@@ -192,7 +192,7 @@ int init_module(void)
 	return 0;
 }
 
-void cleanup_module(void)
+void __exit cleanup_module(void)
 {
 	struct m147lance_private *lp = dev_mvme147_lance->priv;
 	unregister_netdev(dev_mvme147_lance);

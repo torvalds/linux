@@ -750,7 +750,7 @@ int __init init_module(void)
 	return 0;
 }
 
-void cleanup_module(void)
+void __exit cleanup_module(void)
 {
 	unregister_netdev(dev_seeq);
 	release_region(dev_seeq->base_addr, SEEQ8005_IO_EXTENT);
