@@ -47,6 +47,7 @@ int add_mtd_device(struct mtd_info *mtd)
 {
 	int i;
 
+	BUG_ON(mtd->writesize == 0);
 	mutex_lock(&mtd_table_mutex);
 
 	for (i=0; i < MAX_MTD_DEVICES; i++)

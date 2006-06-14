@@ -236,6 +236,7 @@ struct mtd_info *cfi_cmdset_0002(struct map_info *map, int primary)
 	mtd->resume  = cfi_amdstd_resume;
 	mtd->flags   = MTD_CAP_NORFLASH;
 	mtd->name    = map->name;
+	mtd->writesize = 1;
 
 	if (cfi->cfi_mode==CFI_MODE_CFI){
 		unsigned char bootloc;

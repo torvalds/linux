@@ -730,6 +730,7 @@ static struct mtd_info *amd_flash_probe(struct map_info *map)
 		offset += dev_size;
 	}
 	mtd->type = MTD_NORFLASH;
+	mtd->writesize = 1;
 	mtd->flags = MTD_CAP_NORFLASH;
 	mtd->name = map->name;
 	mtd->erase = amd_flash_erase;

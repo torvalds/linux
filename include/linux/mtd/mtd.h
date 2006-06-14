@@ -110,9 +110,12 @@ struct mtd_info {
 	 * information below if they desire
 	 */
 	u_int32_t erasesize;
-	/* Smallest availlable size for writing to the device.  For NAND,
-	 * this is the page size, for some NOR chips, the size of ECC
-	 * covered blocks.
+	/* Minimal writable flash unit size. In case of NOR flash it is 1 (even
+	 * though individual bits can be cleared), in case of NAND flash it is
+	 * one NAND page (or half, or one-fourths of it), in case of ECC-ed NOR
+	 * it is of ECC block size, etc. It is illegal to have writesize = 0.
+	 * Any driver registering a struct mtd_info must ensure a writesize of
+	 * 1 or larger.
 	 */
 	u_int32_t writesize;
 
