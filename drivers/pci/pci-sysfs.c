@@ -45,6 +45,28 @@ pci_config_attr(class, "0x%06x\n");
 pci_config_attr(irq, "%u\n");
 pci_config_attr(is_enabled, "%u\n");
 
+static ssize_t broken_parity_status_show(struct device *dev,
+					 struct device_attribute *attr,
+					 char *buf)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	return sprintf (buf, "%u\n", pdev->broken_parity_status);
+}
+
+static ssize_t broken_parity_status_store(struct device *dev,
+					  struct device_attribute *attr,
+					  const char *buf, size_t count)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	ssize_t consumed = -EINVAL;
+
+	if ((count > 0) && (*buf == '0' || *buf == '1')) {
+		pdev->broken_parity_status = *buf == '1' ? 1 : 0;
+		consumed = count;
+	}
+	return consumed;
+}
+
 static ssize_t local_cpus_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {		
@@ -122,6 +144,8 @@ struct device_attribute pci_dev_attrs[] = {
 	__ATTR_RO(local_cpus),
 	__ATTR_RO(modalias),
 	__ATTR(enable, 0600, is_enabled_show, is_enabled_store),
+	__ATTR(broken_parity_status,(S_IRUGO|S_IWUSR),
+		broken_parity_status_show,broken_parity_status_store),
 	__ATTR_NULL,
 };
 
