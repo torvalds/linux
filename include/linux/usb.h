@@ -40,6 +40,8 @@ struct usb_driver;
  * Devices may also have class-specific or vendor-specific descriptors.
  */
 
+struct ep_device;
+
 /**
  * struct usb_host_endpoint - host-side endpoint descriptor and queue
  * @desc: descriptor for this endpoint, wMaxPacketSize in native byteorder
@@ -57,7 +59,7 @@ struct usb_host_endpoint {
 	struct usb_endpoint_descriptor	desc;
 	struct list_head		urb_list;
 	void				*hcpriv;
-	struct kobject			*kobj;	/* For sysfs info */
+	struct ep_device 		*ep_dev;	/* For sysfs info */
 
 	unsigned char *extra;   /* Extra descriptors */
 	int extralen;
