@@ -690,6 +690,14 @@ ctl_table ipv4_table[] = {
 		.proc_handler	= &proc_dointvec
 	},
 #endif
+	{
+		.ctl_name	= NET_TCP_SLOW_START_AFTER_IDLE,
+		.procname	= "tcp_slow_start_after_idle",
+		.data		= &sysctl_tcp_slow_start_after_idle,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec
+	},
 	{ .ctl_name = 0 }
 };
 
