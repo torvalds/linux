@@ -545,7 +545,7 @@ static int hptiop_queuecommand(struct scsi_cmnd *scp,
 	req->header.context = cpu_to_le32(IOPMU_QUEUE_ADDR_HOST_BIT |
 							(u32)_req->index);
 	req->header.context_hi32 = 0;
-	req->dataxfer_length = cpu_to_le32(scp->bufflen);
+	req->dataxfer_length = cpu_to_le32(scp->request_bufflen);
 	req->channel = scp->device->channel;
 	req->target = scp->device->id;
 	req->lun = scp->device->lun;
