@@ -1388,10 +1388,9 @@ static inline void changed_ioprio(struct cfq_io_context *cic)
 			}
 		}
 		cfqq = cic->cfqq[SYNC];
-		if (cfqq) {
+		if (cfqq)
 			cfq_mark_cfqq_prio_changed(cfqq);
-			cfq_init_prio_data(cfqq);
-		}
+
 		spin_unlock(cfqd->queue->queue_lock);
 	}
 }
