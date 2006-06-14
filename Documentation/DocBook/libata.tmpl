@@ -169,6 +169,22 @@ void (*tf_read) (struct ata_port *ap, struct ata_taskfile *tf);
 
 	</sect2>
 
+	<sect2><title>PIO data read/write</title>
+	<programlisting>
+void (*data_xfer) (struct ata_device *, unsigned char *, unsigned int, int);
+	</programlisting>
+
+	<para>
+All bmdma-style drivers must implement this hook.  This is the low-level
+operation that actually copies the data bytes during a PIO data
+transfer.
+Typically the driver
+will choose one of ata_pio_data_xfer_noirq(), ata_pio_data_xfer(), or
+ata_mmio_data_xfer().
+	</para>
+
+	</sect2>
+
 	<sect2><title>ATA command execute</title>
 	<programlisting>
 void (*exec_command)(struct ata_port *ap, struct ata_taskfile *tf);
@@ -204,11 +220,10 @@ command.
 	<programlisting>
 u8   (*check_status)(struct ata_port *ap);
 u8   (*check_altstatus)(struct ata_port *ap);
-u8   (*check_err)(struct ata_port *ap);
 	</programlisting>
 
 	<para>
-	Reads the Status/AltStatus/Error ATA shadow register from
+	Reads the Status/AltStatus ATA shadow register from
 	hardware.  On some hardware, reading the Status register has
 	the side effect of clearing the interrupt condition.
 	Most drivers for taskfile-based hardware use
@@ -266,23 +281,6 @@ void (*set_mode) (struct ata_port *ap);
 	mode_filter hook instead.
 	</para>
 	</warning>
-
-	</sect2>
-
-	<sect2><title>Reset ATA bus</title>
-	<programlisting>
-void (*phy_reset) (struct ata_port *ap);
-	</programlisting>
-
-	<para>
-	The very first step in the probe phase.  Actions vary depending
-	on the bus type, typically.  After waking up the device and probing
-	for device presence (PATA and SATA), typically a soft reset
-	(SRST) will be performed.  Drivers typically use the helper
-	functions ata_bus_reset() or sata_phy_reset() for this hook.
-	Many SATA drivers use sata_phy_reset() or call it from within
-	their own phy_reset() functions.
-	</para>
 
 	</sect2>
 
@@ -354,16 +352,74 @@ int (*qc_issue) (struct ata_queued_cmd *qc);
 
 	</sect2>
 
-	<sect2><title>Timeout (error) handling</title>
+	<sect2><title>Exception and probe handling (EH)</title>
 	<programlisting>
 void (*eng_timeout) (struct ata_port *ap);
+void (*phy_reset) (struct ata_port *ap);
 	</programlisting>
 
 	<para>
-This is a high level error handling function, called from the
-error handling thread, when a command times out.  Most newer
-hardware will implement its own error handling code here.  IDE BMDMA
-drivers may use the helper function ata_eng_timeout().
+Deprecated.  Use ->error_handler() instead.
+	</para>
+
+	<programlisting>
+void (*freeze) (struct ata_port *ap);
+void (*thaw) (struct ata_port *ap);
+	</programlisting>
+
+	<para>
+ata_port_freeze() is called when HSM violations or some other
+condition disrupts normal operation of the port.  A frozen port
+is not allowed to perform any operation until the port is
+thawed, which usually follows a successful reset.
+	</para>
+
+	<para>
+The optional ->freeze() callback can be used for freezing the port
+hardware-wise (e.g. mask interrupt and stop DMA engine).  If a
+port cannot be frozen hardware-wise, the interrupt handler
+must ack and clear interrupts unconditionally while the port
+is frozen.
+	</para>
+	<para>
+The optional ->thaw() callback is called to perform the opposite of ->freeze():
+prepare the port for normal operation once again.  Unmask interrupts,
+start DMA engine, etc.
+	</para>
+
+	<programlisting>
+void (*error_handler) (struct ata_port *ap);
+	</programlisting>
+
+	<para>
+->error_handler() is a driver's hook into probe, hotplug, and recovery
+and other exceptional conditions.  The primary responsibility of an
+implementation is to call ata_do_eh() or ata_bmdma_drive_eh() with a set
+of EH hooks as arguments:
+	</para>
+
+	<para>
+'prereset' hook (may be NULL) is called during an EH reset, before any other actions
+are taken.
+	</para>
+
+	<para>
+'postreset' hook (may be NULL) is called after the EH reset is performed.  Based on
+existing conditions, severity of the problem, and hardware capabilities,
+	</para>
+
+	<para>
+Either 'softreset' (may be NULL) or 'hardreset' (may be NULL) will be
+called to perform the low-level EH reset.
+	</para>
+
+	<programlisting>
+void (*post_internal_cmd) (struct ata_queued_cmd *qc);
+	</programlisting>
+
+	<para>
+Perform any hardware-specific actions necessary to finish processing
+after executing a probe-time or EH-time command via ata_exec_internal().
 	</para>
 
 	</sect2>

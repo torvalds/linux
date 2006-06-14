@@ -3496,7 +3496,7 @@ void swap_buf_le16(u16 *buf, unsigned int buf_words)
 
 /**
  *	ata_mmio_data_xfer - Transfer data by MMIO
- *	@dev: device for this I/O
+ *	@adev: device for this I/O
  *	@buf: data buffer
  *	@buflen: buffer length
  *	@write_data: read/write
