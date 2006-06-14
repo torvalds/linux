@@ -237,6 +237,8 @@ bailout_module_put:
 	module_put(serial->type->driver.owner);
 bailout_mutex_unlock:
 	port->open_count = 0;
+	tty->driver_data = NULL;
+	port->tty = NULL;
 	mutex_unlock(&port->mutex);
 bailout_kref_put:
 	usb_serial_put(serial);
