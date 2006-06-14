@@ -352,8 +352,8 @@ struct pdc_cache_cf {		/* for PDC_CACHE  (I/D-caches) */
 		cc_wt	: 1,	/* 0 = WT-Dcache, 1 = WB-Dcache */
 		cc_sh	: 2,	/* 0 = separate I/D-cache, else shared I/D-cache */
 		cc_cst  : 3,	/* 0 = incoherent D-cache, 1=coherent D-cache */
-		cc_pad1 : 5,	/* reserved */
-		cc_assoc: 8;	/* associativity of I/D-cache */
+		cc_pad1 : 10,	/* reserved */
+		cc_hv   : 3;	/* hversion dependent */
 };
 
 struct pdc_tlb_cf {		/* for PDC_CACHE (I/D-TLB's) */
