@@ -32,7 +32,6 @@
 #include "recovery.h"
 #include "rgrp.h"
 #include "super.h"
-#include "unlinked.h"
 #include "sys.h"
 #include "util.h"
 
@@ -79,10 +78,6 @@ static struct gfs2_sbd *init_sbd(struct super_block *sb)
 	INIT_LIST_HEAD(&sdp->sd_jindex_list);
 	spin_lock_init(&sdp->sd_jindex_spin);
 	mutex_init(&sdp->sd_jindex_mutex);
-
-	INIT_LIST_HEAD(&sdp->sd_unlinked_list);
-	spin_lock_init(&sdp->sd_unlinked_spin);
-	mutex_init(&sdp->sd_unlinked_mutex);
 
 	INIT_LIST_HEAD(&sdp->sd_quota_list);
 	spin_lock_init(&sdp->sd_quota_spin);
@@ -248,19 +243,19 @@ static int init_locking(struct gfs2_sbd *sdp, struct gfs2_holder *mount_gh,
 
 	return 0;
 
- fail_trans:
+fail_trans:
 	gfs2_glock_put(sdp->sd_trans_gl);
 
- fail_rename:
+fail_rename:
 	gfs2_glock_put(sdp->sd_rename_gl);
 
- fail_live:
+fail_live:
 	gfs2_glock_dq_uninit(&sdp->sd_live_gh);
 
- fail_mount:
+fail_mount:
 	gfs2_glock_dq_uninit(mount_gh);
 
- fail:
+fail:
 	while (sdp->sd_glockd_num--)
 		kthread_stop(sdp->sd_glockd_process[sdp->sd_glockd_num]);
 
@@ -269,28 +264,10 @@ static int init_locking(struct gfs2_sbd *sdp, struct gfs2_holder *mount_gh,
 	return error;
 }
 
-static struct inode *gfs2_lookup_root(struct gfs2_sbd *sdp,
-				      const struct gfs2_inum *inum)
+static struct inode *gfs2_lookup_root(struct super_block *sb,
+				      struct gfs2_inum *inum)
 {
-        int error;
-	struct gfs2_glock *gl;
-	struct gfs2_inode *ip;
-	struct inode *inode;
-
-	error = gfs2_glock_get(sdp, inum->no_addr, &gfs2_inode_glops,
-			       CREATE, &gl);
-        if (!error) {
-               	error = gfs2_inode_get(gl, inum, CREATE, &ip);
-		if (!error) {
-			gfs2_inode_min_init(ip, DT_DIR);
-			inode = gfs2_ip2v(ip);
-			gfs2_inode_put(ip);
-			gfs2_glock_put(gl);
-			return inode;
-		}
-                gfs2_glock_put(gl);
-        }
-        return ERR_PTR(error);
+	return gfs2_inode_lookup(sb, inum, DT_DIR);
 }
 
 static int init_sb(struct gfs2_sbd *sdp, int silent, int undo)
@@ -305,8 +282,7 @@ static int init_sb(struct gfs2_sbd *sdp, int silent, int undo)
 		return 0;
 	}
 	
-	error = gfs2_glock_nq_num(sdp,
-				 GFS2_SB_LOCK, &gfs2_meta_glops,
+	error = gfs2_glock_nq_num(sdp, GFS2_SB_LOCK, &gfs2_meta_glops,
 				 LM_ST_SHARED, 0, &sb_gh);
 	if (error) {
 		fs_err(sdp, "can't acquire superblock glock: %d\n", error);
@@ -345,7 +321,7 @@ static int init_sb(struct gfs2_sbd *sdp, int silent, int undo)
 	inum = &sdp->sd_sb.sb_root_dir;
 	if (sb->s_type == &gfs2meta_fs_type)
 		inum = &sdp->sd_sb.sb_master_dir;
-	inode = gfs2_lookup_root(sdp, inum);
+	inode = gfs2_lookup_root(sb, inum);
 	if (IS_ERR(inode)) {
 		error = PTR_ERR(inode);
 		fs_err(sdp, "can't read in root inode: %d\n", error);
@@ -382,7 +358,7 @@ static int init_journal(struct gfs2_sbd *sdp, int undo)
 		fs_err(sdp, "can't lookup journal index: %d\n", error);
 		return PTR_ERR(sdp->sd_jindex);
 	}
-	ip = sdp->sd_jindex->u.generic_ip;
+	ip = GFS2_I(sdp->sd_jindex);
 	set_bit(GLF_STICKY, &ip->i_gl->gl_flags);
 
 	/* Load in the journal index special file */
@@ -413,8 +389,7 @@ static int init_journal(struct gfs2_sbd *sdp, int undo)
 		}
 		sdp->sd_jdesc = gfs2_jdesc_find(sdp, sdp->sd_lockstruct.ls_jid);
 
-		error = gfs2_glock_nq_num(sdp,
-					  sdp->sd_lockstruct.ls_jid,
+		error = gfs2_glock_nq_num(sdp, sdp->sd_lockstruct.ls_jid,
 					  &gfs2_journal_glops,
 					  LM_ST_EXCLUSIVE, LM_FLAG_NOEXP,
 					  &sdp->sd_journal_gh);
@@ -423,9 +398,8 @@ static int init_journal(struct gfs2_sbd *sdp, int undo)
 			goto fail_jindex;
 		}
 
-		ip = sdp->sd_jdesc->jd_inode->u.generic_ip;
-		error = gfs2_glock_nq_init(ip->i_gl,
-					   LM_ST_SHARED,
+		ip = GFS2_I(sdp->sd_jdesc->jd_inode);
+		error = gfs2_glock_nq_init(ip->i_gl, LM_ST_SHARED,
 					   LM_FLAG_NOEXP | GL_EXACT,
 					   &sdp->sd_jinode_gh);
 		if (error) {
@@ -509,7 +483,7 @@ static int init_inodes(struct gfs2_sbd *sdp, int undo)
 	if (undo)
 		goto fail_qinode;
 
-	inode = gfs2_lookup_root(sdp, &sdp->sd_sb.sb_master_dir);
+	inode = gfs2_lookup_root(sdp->sd_vfs, &sdp->sd_sb.sb_master_dir);
 	if (IS_ERR(inode)) {
 		error = PTR_ERR(inode);
 		fs_err(sdp, "can't read in master directory: %d\n", error);
@@ -545,7 +519,7 @@ static int init_inodes(struct gfs2_sbd *sdp, int undo)
 		fs_err(sdp, "can't get resource index inode: %d\n", error);
 		goto fail_statfs;
 	}
-	ip = sdp->sd_rindex->u.generic_ip;
+	ip = GFS2_I(sdp->sd_rindex);
 	set_bit(GLF_STICKY, &ip->i_gl->gl_flags);
 	sdp->sd_rindex_vn = ip->i_gl->gl_vn - 1;
 
@@ -614,14 +588,6 @@ static int init_per_node(struct gfs2_sbd *sdp, int undo)
 		goto fail_ir_i;
 	}
 
-	sprintf(buf, "unlinked_tag%u", sdp->sd_jdesc->jd_jid);
-	sdp->sd_ut_inode = gfs2_lookup_simple(pn, buf);
-	if (IS_ERR(sdp->sd_ut_inode)) {
-		error = PTR_ERR(sdp->sd_ut_inode);
-		fs_err(sdp, "can't find local \"ut\" file: %d\n", error);
-		goto fail_sc_i;
-	}
-
 	sprintf(buf, "quota_change%u", sdp->sd_jdesc->jd_jid);
 	sdp->sd_qc_inode = gfs2_lookup_simple(pn, buf);
 	if (IS_ERR(sdp->sd_qc_inode)) {
@@ -633,7 +599,7 @@ static int init_per_node(struct gfs2_sbd *sdp, int undo)
 	iput(pn);
 	pn = NULL;
 
-	ip = sdp->sd_ir_inode->u.generic_ip;
+	ip = GFS2_I(sdp->sd_ir_inode);
 	error = gfs2_glock_nq_init(ip->i_gl,
 				   LM_ST_EXCLUSIVE, 0,
 				   &sdp->sd_ir_gh);
@@ -642,7 +608,7 @@ static int init_per_node(struct gfs2_sbd *sdp, int undo)
 		goto fail_qc_i;
 	}
 
-	ip = sdp->sd_sc_inode->u.generic_ip;
+	ip = GFS2_I(sdp->sd_sc_inode);
 	error = gfs2_glock_nq_init(ip->i_gl,
 				   LM_ST_EXCLUSIVE, 0,
 				   &sdp->sd_sc_gh);
@@ -651,16 +617,7 @@ static int init_per_node(struct gfs2_sbd *sdp, int undo)
 		goto fail_ir_gh;
 	}
 
-	ip = sdp->sd_ut_inode->u.generic_ip;
-	error = gfs2_glock_nq_init(ip->i_gl,
-				   LM_ST_EXCLUSIVE, 0,
-				   &sdp->sd_ut_gh);
-	if (error) {
-		fs_err(sdp, "can't lock local \"ut\" file: %d\n", error);
-		goto fail_sc_gh;
-	}
-
-	ip = sdp->sd_qc_inode->u.generic_ip;
+	ip = GFS2_I(sdp->sd_qc_inode);
 	error = gfs2_glock_nq_init(ip->i_gl,
 				   LM_ST_EXCLUSIVE, 0,
 				   &sdp->sd_qc_gh);
@@ -675,9 +632,7 @@ static int init_per_node(struct gfs2_sbd *sdp, int undo)
 	gfs2_glock_dq_uninit(&sdp->sd_qc_gh);
 
  fail_ut_gh:
-	gfs2_glock_dq_uninit(&sdp->sd_ut_gh);
 
- fail_sc_gh:
 	gfs2_glock_dq_uninit(&sdp->sd_sc_gh);
 
  fail_ir_gh:
@@ -687,9 +642,7 @@ static int init_per_node(struct gfs2_sbd *sdp, int undo)
 	iput(sdp->sd_qc_inode);
 
  fail_ut_i:
-	iput(sdp->sd_ut_inode);
 
- fail_sc_i:
 	iput(sdp->sd_sc_inode);
 
  fail_ir_i:
@@ -707,7 +660,7 @@ static int init_threads(struct gfs2_sbd *sdp, int undo)
 	int error = 0;
 
 	if (undo)
-		goto fail_inoded;
+		goto fail_quotad;
 
 	sdp->sd_log_flush_time = jiffies;
 	sdp->sd_jindex_refresh_time = jiffies;
@@ -731,25 +684,13 @@ static int init_threads(struct gfs2_sbd *sdp, int undo)
 	}
 	sdp->sd_quotad_process = p;
 
-	p = kthread_run(gfs2_inoded, sdp, "gfs2_inoded");
-	error = IS_ERR(p);
-	if (error) {
-		fs_err(sdp, "can't start inoded thread: %d\n", error);
-		goto fail_quotad;
-	}
-	sdp->sd_inoded_process = p;
-
 	return 0;
 
- fail_inoded:
-	kthread_stop(sdp->sd_inoded_process);
 
- fail_quotad:
+fail_quotad:
 	kthread_stop(sdp->sd_quotad_process);
-
- fail:
+fail:
 	kthread_stop(sdp->sd_logd_process);
-	
 	return error;
 }
 

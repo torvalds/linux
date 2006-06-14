@@ -109,7 +109,7 @@ int gfs2_consist_i(struct gfs2_sbd *sdp, int cluster_wide, const char *function,
 int gfs2_consist_inode_i(struct gfs2_inode *ip, int cluster_wide,
 			 const char *function, char *file, unsigned int line)
 {
-	struct gfs2_sbd *sdp = ip->i_sbd;
+	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	int rv;
 	rv = gfs2_lm_withdraw(sdp,
 		"GFS2: fsid=%s: fatal: filesystem consistency error\n"

@@ -1,11 +1,11 @@
 /*
-* Copyright (C) Sistina Software, Inc.  1997-2003 All rights reserved.
-* Copyright (C) 2004-2005 Red Hat, Inc.  All rights reserved.
-*
-* This copyrighted material is made available to anyone wishing to use,
-* modify, copy, or redistribute it subject to the terms and conditions
-* of the GNU General Public License v.2.
-*/
+ * Copyright (C) Sistina Software, Inc.  1997-2003 All rights reserved.
+ * Copyright (C) 2004-2006 Red Hat, Inc.  All rights reserved.
+ *
+ * This copyrighted material is made available to anyone wishing to use,
+ * modify, copy, or redistribute it subject to the terms and conditions
+ * of the GNU General Public License v.2.
+ */
 
 #ifndef __GFS2_ONDISK_DOT_H__
 #define __GFS2_ONDISK_DOT_H__
@@ -36,7 +36,6 @@
 #define GFS2_FORMAT_LB		1000
 #define GFS2_FORMAT_EA		1600
 #define GFS2_FORMAT_ED		1700
-#define GFS2_FORMAT_UT		1300
 #define GFS2_FORMAT_QC		1400
 /* These are format numbers for entities contained in files */
 #define GFS2_FORMAT_RI		1100
@@ -80,7 +79,6 @@ static inline int gfs2_inum_equal(const struct gfs2_inum *ino1,
 #define GFS2_METATYPE_LB	12
 #define GFS2_METATYPE_EA	10
 #define GFS2_METATYPE_ED	11
-#define GFS2_METATYPE_UT	13
 #define GFS2_METATYPE_QC	14
 
 struct gfs2_meta_header {
@@ -158,7 +156,7 @@ struct gfs2_rindex {
 
 #define GFS2_BLKST_FREE		0
 #define GFS2_BLKST_USED		1
-#define GFS2_BLKST_INVALID	2
+#define GFS2_BLKST_UNLINKED	2
 #define GFS2_BLKST_DINODE	3
 
 #define GFS2_RGF_JOURNAL	0x00000001
@@ -397,20 +395,6 @@ struct gfs2_statfs_change {
 };
 
 /*
- * Unlinked Tag
- * Describes an allocated inode that isn't linked into
- * the directory tree and might need to be deallocated.
- */
-
-#define GFS2_UTF_UNINIT		0x00000001
-
-struct gfs2_unlinked_tag {
-	struct gfs2_inum ut_inum;
-	__be32 ut_flags;	/* GFS2_UTF_... */
-	__u32 __pad;
-};
-
-/*
  * Quota change
  * Describes an allocation change for a particular
  * user or group.
@@ -445,8 +429,6 @@ extern void gfs2_inum_range_in(struct gfs2_inum_range *ir, char *buf);
 extern void gfs2_inum_range_out(struct gfs2_inum_range *ir, char *buf);
 extern void gfs2_statfs_change_in(struct gfs2_statfs_change *sc, char *buf);
 extern void gfs2_statfs_change_out(struct gfs2_statfs_change *sc, char *buf);
-extern void gfs2_unlinked_tag_in(struct gfs2_unlinked_tag *ut, char *buf);
-extern void gfs2_unlinked_tag_out(struct gfs2_unlinked_tag *ut, char *buf);
 extern void gfs2_quota_change_in(struct gfs2_quota_change *qc, char *buf);
 
 /* Printing functions */

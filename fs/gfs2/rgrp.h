@@ -45,6 +45,7 @@ void gfs2_free_data(struct gfs2_inode *ip, uint64_t bstart, uint32_t blen);
 void gfs2_free_meta(struct gfs2_inode *ip, uint64_t bstart, uint32_t blen);
 void gfs2_free_uninit_di(struct gfs2_rgrpd *rgd, uint64_t blkno);
 void gfs2_free_di(struct gfs2_rgrpd *rgd, struct gfs2_inode *ip);
+void gfs2_unlink_di(struct inode *inode);
 
 struct gfs2_rgrp_list {
 	unsigned int rl_rgrps;

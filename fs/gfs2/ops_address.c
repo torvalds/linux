@@ -81,7 +81,6 @@ int gfs2_get_block(struct inode *inode, sector_t lblock,
 static int get_block_noalloc(struct inode *inode, sector_t lblock,
 			     struct buffer_head *bh_result, int create)
 {
-	struct gfs2_inode *ip = inode->u.generic_ip;
 	int new = 0;
 	uint64_t dblock;
 	int error;
@@ -93,7 +92,7 @@ static int get_block_noalloc(struct inode *inode, sector_t lblock,
 
 	if (dblock)
 		map_bh(bh_result, inode->i_sb, dblock);
-	else if (gfs2_assert_withdraw(ip->i_sbd, !create))
+	else if (gfs2_assert_withdraw(GFS2_SB(inode), !create))
 		error = -EIO;
 	if (boundary)
 		set_buffer_boundary(bh_result);
@@ -114,8 +113,8 @@ static int get_block_noalloc(struct inode *inode, sector_t lblock,
 static int gfs2_writepage(struct page *page, struct writeback_control *wbc)
 {
 	struct inode *inode = page->mapping->host;
-	struct gfs2_inode *ip = page->mapping->host->u.generic_ip;
-	struct gfs2_sbd *sdp = ip->i_sbd;
+	struct gfs2_inode *ip = GFS2_I(page->mapping->host);
+	struct gfs2_sbd *sdp = GFS2_SB(page->mapping->host);
 	loff_t i_size = i_size_read(inode);
 	pgoff_t end_index = i_size >> PAGE_CACHE_SHIFT;
 	unsigned offset;
@@ -216,8 +215,8 @@ static int stuffed_readpage(struct gfs2_inode *ip, struct page *page)
 
 static int gfs2_readpage(struct file *file, struct page *page)
 {
-	struct gfs2_inode *ip = page->mapping->host->u.generic_ip;
-	struct gfs2_sbd *sdp = ip->i_sbd;
+	struct gfs2_inode *ip = GFS2_I(page->mapping->host);
+	struct gfs2_sbd *sdp = GFS2_SB(page->mapping->host);
 	struct gfs2_holder gh;
 	int error;
 
@@ -271,8 +270,8 @@ static int gfs2_readpages(struct file *file, struct address_space *mapping,
 			  struct list_head *pages, unsigned nr_pages)
 {
 	struct inode *inode = mapping->host;
-	struct gfs2_inode *ip = inode->u.generic_ip;
-	struct gfs2_sbd *sdp = ip->i_sbd;
+	struct gfs2_inode *ip = GFS2_I(inode);
+	struct gfs2_sbd *sdp = GFS2_SB(inode);
 	struct gfs2_holder gh;
 	unsigned page_idx;
 	int ret;
@@ -345,8 +344,8 @@ out_unlock:
 static int gfs2_prepare_write(struct file *file, struct page *page,
 			      unsigned from, unsigned to)
 {
-	struct gfs2_inode *ip = page->mapping->host->u.generic_ip;
-	struct gfs2_sbd *sdp = ip->i_sbd;
+	struct gfs2_inode *ip = GFS2_I(page->mapping->host);
+	struct gfs2_sbd *sdp = GFS2_SB(page->mapping->host);
 	unsigned int data_blocks, ind_blocks, rblocks;
 	int alloc_required;
 	int error = 0;
@@ -440,8 +439,8 @@ static int gfs2_commit_write(struct file *file, struct page *page,
 			     unsigned from, unsigned to)
 {
 	struct inode *inode = page->mapping->host;
-	struct gfs2_inode *ip = inode->u.generic_ip;
-	struct gfs2_sbd *sdp = ip->i_sbd;
+	struct gfs2_inode *ip = GFS2_I(inode);
+	struct gfs2_sbd *sdp = GFS2_SB(inode);
 	int error = -EOPNOTSUPP;
 	struct buffer_head *dibh;
 	struct gfs2_alloc *al = &ip->i_alloc;;
@@ -520,7 +519,7 @@ fail_nounlock:
 
 static sector_t gfs2_bmap(struct address_space *mapping, sector_t lblock)
 {
-	struct gfs2_inode *ip = mapping->host->u.generic_ip;
+	struct gfs2_inode *ip = GFS2_I(mapping->host);
 	struct gfs2_holder i_gh;
 	sector_t dblock = 0;
 	int error;
@@ -594,7 +593,7 @@ static ssize_t gfs2_direct_IO_write(struct kiocb *iocb, const struct iovec *iov,
 {
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file->f_mapping->host;
-	struct gfs2_inode *ip = inode->u.generic_ip;
+	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_holder gh;
 	int rv;
 
@@ -641,8 +640,8 @@ static ssize_t gfs2_direct_IO(int rw, struct kiocb *iocb,
 {
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file->f_mapping->host;
-	struct gfs2_inode *ip = inode->u.generic_ip;
-	struct gfs2_sbd *sdp = ip->i_sbd;
+	struct gfs2_inode *ip = GFS2_I(inode);
+	struct gfs2_sbd *sdp = GFS2_SB(inode);
 
 	if (rw == WRITE)
 		return gfs2_direct_IO_write(iocb, iov, offset, nr_segs);

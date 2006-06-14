@@ -33,7 +33,6 @@ struct gfs2_inode;
 struct gfs2_file;
 struct gfs2_revoke;
 struct gfs2_revoke_replay;
-struct gfs2_unlinked;
 struct gfs2_quota_data;
 struct gfs2_log_buf;
 struct gfs2_trans;
@@ -245,16 +244,12 @@ struct gfs2_inode {
 	struct inode i_inode;
 	struct gfs2_inum i_num;
 
-	atomic_t i_count;
 	unsigned long i_flags;		/* GIF_... */
 
 	uint64_t i_vn;
-	struct gfs2_dinode i_di;
+	struct gfs2_dinode i_di; /* To be replaced by ref to block */
 
-	struct gfs2_glock *i_gl;
-	struct gfs2_sbd *i_sbd;
-	struct inode *i_vnode;
-
+	struct gfs2_glock *i_gl; /* Move into i_gh? */
 	struct gfs2_holder i_iopen_gh;
 	struct gfs2_holder i_gh; /* for prepare/commit_write only */
 	struct gfs2_alloc i_alloc;
@@ -262,16 +257,25 @@ struct gfs2_inode {
 
 	spinlock_t i_spin;
 	struct rw_semaphore i_rw_mutex;
-
 	unsigned int i_greedy;
 	unsigned long i_last_pfault;
 
 	struct buffer_head *i_cache[GFS2_MAX_META_HEIGHT];
 };
 
+/*
+ * Since i_inode is the first element of struct gfs2_inode,
+ * this is effectively a cast.
+ */
 static inline struct gfs2_inode *GFS2_I(struct inode *inode)
 {
 	return container_of(inode, struct gfs2_inode, i_inode);
+}
+
+/* To be removed? */
+static inline struct gfs2_sbd *GFS2_SB(struct inode *inode)
+{
+	return inode->i_sb->s_fs_info;
 }
 
 enum {
@@ -293,18 +297,6 @@ struct gfs2_revoke_replay {
 	struct list_head rr_list;
 	uint64_t rr_blkno;
 	unsigned int rr_where;
-};
-
-enum {
-	ULF_LOCKED		= 0,
-};
-
-struct gfs2_unlinked {
-	struct list_head ul_list;
-	unsigned int ul_count;
-	struct gfs2_unlinked_tag ul_ut;
-	unsigned long ul_flags;		/* ULF_... */
-	unsigned int ul_slot;
 };
 
 enum {
@@ -436,7 +428,6 @@ struct gfs2_tune {
 	unsigned int gt_recoverd_secs;
 	unsigned int gt_logd_secs;
 	unsigned int gt_quotad_secs;
-	unsigned int gt_inoded_secs;
 
 	unsigned int gt_quota_simul_sync; /* Max quotavals to sync at once */
 	unsigned int gt_quota_warn_period; /* Secs between quota warn msgs */
@@ -495,7 +486,6 @@ struct gfs2_sbd {
 	uint32_t sd_hash_bsize;	/* sizeof(exhash block) */
 	uint32_t sd_hash_bsize_shift;
 	uint32_t sd_hash_ptrs;	/* Number of pointers in a hash block */
-	uint32_t sd_ut_per_block;
 	uint32_t sd_qc_per_block;
 	uint32_t sd_max_dirres;	/* Max blocks needed to add a directory entry */
 	uint32_t sd_max_height;	/* Max height of a file's metadata tree */
@@ -527,7 +517,6 @@ struct gfs2_sbd {
 	struct inode *sd_statfs_inode;
 	struct inode *sd_ir_inode;
 	struct inode *sd_sc_inode;
-	struct inode *sd_ut_inode;
 	struct inode *sd_qc_inode;
 	struct inode *sd_rindex;
 	struct inode *sd_quota_inode;
@@ -569,7 +558,6 @@ struct gfs2_sbd {
 
 	struct gfs2_holder sd_ir_gh;
 	struct gfs2_holder sd_sc_gh;
-	struct gfs2_holder sd_ut_gh;
 	struct gfs2_holder sd_qc_gh;
 
 	/* Daemon stuff */
@@ -578,20 +566,8 @@ struct gfs2_sbd {
 	struct task_struct *sd_recoverd_process;
 	struct task_struct *sd_logd_process;
 	struct task_struct *sd_quotad_process;
-	struct task_struct *sd_inoded_process;
 	struct task_struct *sd_glockd_process[GFS2_GLOCKD_MAX];
 	unsigned int sd_glockd_num;
-
-	/* Unlinked inode stuff */
-
-	struct list_head sd_unlinked_list;
-	atomic_t sd_unlinked_count;
-	spinlock_t sd_unlinked_spin;
-	struct mutex sd_unlinked_mutex;
-
-	unsigned int sd_unlinked_slots;
-	unsigned int sd_unlinked_chunks;
-	unsigned char **sd_unlinked_bitmap;
 
 	/* Quota stuff */
 

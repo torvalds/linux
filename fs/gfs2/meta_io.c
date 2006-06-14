@@ -91,9 +91,6 @@ static void stuck_releasepage(struct buffer_head *bh)
 		fs_warn(sdp, "ip = %llu %llu\n",
 			(unsigned long long)ip->i_num.no_formal_ino,
 			(unsigned long long)ip->i_num.no_addr);
-		fs_warn(sdp, "ip->i_count = %d, ip->i_vnode = %s\n",
-			atomic_read(&ip->i_count),
-			(ip->i_vnode) ? "!NULL" : "NULL");
 
 		for (x = 0; x < GFS2_MAX_META_HEIGHT; x++)
 			fs_warn(sdp, "ip->i_cache[%u] = %s\n",
@@ -567,7 +564,6 @@ void gfs2_attach_bufdata(struct gfs2_glock *gl, struct buffer_head *bh,
 
 	bd = kmem_cache_alloc(gfs2_bufdata_cachep, GFP_NOFS | __GFP_NOFAIL),
 	memset(bd, 0, sizeof(struct gfs2_bufdata));
-
 	bd->bd_bh = bh;
 	bd->bd_gl = gl;
 
@@ -664,7 +660,7 @@ void gfs2_unpin(struct gfs2_sbd *sdp, struct buffer_head *bh,
 
 void gfs2_meta_wipe(struct gfs2_inode *ip, uint64_t bstart, uint32_t blen)
 {
-	struct gfs2_sbd *sdp = ip->i_sbd;
+	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct inode *aspace = ip->i_gl->gl_aspace;
 	struct buffer_head *bh;
 
@@ -770,7 +766,7 @@ int gfs2_meta_indirect_buffer(struct gfs2_inode *ip, int height, uint64_t num,
 		if (new)
 			meta_prep_new(bh);
 		else {
-			error = gfs2_meta_reread(ip->i_sbd, bh,
+			error = gfs2_meta_reread(GFS2_SB(&ip->i_inode), bh,
 						 DIO_START | DIO_WAIT);
 			if (error) {
 				brelse(bh);
@@ -797,7 +793,7 @@ int gfs2_meta_indirect_buffer(struct gfs2_inode *ip, int height, uint64_t num,
 	}
 
 	if (new) {
-		if (gfs2_assert_warn(ip->i_sbd, height)) {
+		if (gfs2_assert_warn(GFS2_SB(&ip->i_inode), height)) {
 			brelse(bh);
 			return -EIO;
 		}
@@ -805,7 +801,7 @@ int gfs2_meta_indirect_buffer(struct gfs2_inode *ip, int height, uint64_t num,
 		gfs2_metatype_set(bh, GFS2_METATYPE_IN, GFS2_FORMAT_IN);
 		gfs2_buffer_clear_tail(bh, sizeof(struct gfs2_meta_header));
 
-	} else if (gfs2_metatype_check(ip->i_sbd, bh,
+	} else if (gfs2_metatype_check(GFS2_SB(&ip->i_inode), bh,
 			     (height) ? GFS2_METATYPE_IN : GFS2_METATYPE_DI)) {
 		brelse(bh);
 		return -EIO;

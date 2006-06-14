@@ -136,7 +136,7 @@ int gfs2_unstuff_dinode(struct gfs2_inode *ip, gfs2_unstuffer_t unstuffer,
 
 static unsigned int calc_tree_height(struct gfs2_inode *ip, uint64_t size)
 {
-	struct gfs2_sbd *sdp = ip->i_sbd;
+	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	uint64_t *arr;
 	unsigned int max, height;
 
@@ -169,7 +169,7 @@ static unsigned int calc_tree_height(struct gfs2_inode *ip, uint64_t size)
 
 static int build_height(struct inode *inode, unsigned height)
 {
-	struct gfs2_inode *ip = inode->u.generic_ip;
+	struct gfs2_inode *ip = GFS2_I(inode);
 	unsigned new_height = height - ip->i_di.di_height;
 	struct buffer_head *dibh;
 	struct buffer_head *blocks[GFS2_MAX_META_HEIGHT];
@@ -283,7 +283,7 @@ static int build_height(struct inode *inode, unsigned height)
 static void find_metapath(struct gfs2_inode *ip, uint64_t block,
 			  struct metapath *mp)
 {
-	struct gfs2_sbd *sdp = ip->i_sbd;
+	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	uint64_t b = block;
 	unsigned int i;
 
@@ -382,8 +382,8 @@ static struct buffer_head *gfs2_block_pointers(struct inode *inode, u64 lblock,
 					       int *boundary,
 					       struct metapath *mp)
 {
-	struct gfs2_inode *ip = inode->u.generic_ip;
-	struct gfs2_sbd *sdp = ip->i_sbd;
+	struct gfs2_inode *ip = GFS2_I(inode);
+	struct gfs2_sbd *sdp = GFS2_SB(inode);
 	struct buffer_head *bh;
 	int create = *new;
 	unsigned int bsize;
@@ -446,7 +446,7 @@ out:
 
 static inline void bmap_lock(struct inode *inode, int create)
 {
-	struct gfs2_inode *ip = inode->u.generic_ip;
+	struct gfs2_inode *ip = GFS2_I(inode);
 	if (create)
 		down_write(&ip->i_rw_mutex);
 	else
@@ -455,7 +455,7 @@ static inline void bmap_lock(struct inode *inode, int create)
 
 static inline void bmap_unlock(struct inode *inode, int create)
 {
-	struct gfs2_inode *ip = inode->u.generic_ip;
+	struct gfs2_inode *ip = GFS2_I(inode);
 	if (create)
 		up_write(&ip->i_rw_mutex);
 	else
@@ -481,8 +481,8 @@ int gfs2_block_map(struct inode *inode, u64 lblock, int *new, u64 *dblock, int *
 
 int gfs2_extent_map(struct inode *inode, u64 lblock, int *new, u64 *dblock, unsigned *extlen)
 {
-	struct gfs2_inode *ip = inode->u.generic_ip;
-	struct gfs2_sbd *sdp = ip->i_sbd;
+	struct gfs2_inode *ip = GFS2_I(inode);
+	struct gfs2_sbd *sdp = GFS2_SB(inode);
 	struct metapath mp;
 	struct buffer_head *bh;
 	int boundary;
@@ -541,7 +541,7 @@ static int recursive_scan(struct gfs2_inode *ip, struct buffer_head *dibh,
 			  uint64_t block, int first, block_call_t bc,
 			  void *data)
 {
-	struct gfs2_sbd *sdp = ip->i_sbd;
+	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct buffer_head *bh = NULL;
 	uint64_t *top, *bottom;
 	uint64_t bn;
@@ -609,8 +609,8 @@ static int do_strip(struct gfs2_inode *ip, struct buffer_head *dibh,
 		    struct buffer_head *bh, uint64_t *top, uint64_t *bottom,
 		    unsigned int height, void *data)
 {
-	struct strip_mine *sm = (struct strip_mine *)data;
-	struct gfs2_sbd *sdp = ip->i_sbd;
+	struct strip_mine *sm = data;
+	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct gfs2_rgrp_list rlist;
 	uint64_t bn, bstart;
 	uint32_t blen;
@@ -756,7 +756,7 @@ static int do_strip(struct gfs2_inode *ip, struct buffer_head *dibh,
 
 static int do_grow(struct gfs2_inode *ip, uint64_t size)
 {
-	struct gfs2_sbd *sdp = ip->i_sbd;
+	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct gfs2_alloc *al;
 	struct buffer_head *dibh;
 	unsigned int h;
@@ -795,7 +795,7 @@ static int do_grow(struct gfs2_inode *ip, uint64_t size)
 		h = calc_tree_height(ip, size);
 		if (ip->i_di.di_height < h) {
 			down_write(&ip->i_rw_mutex);
-			error = build_height(ip->i_vnode, h);
+			error = build_height(&ip->i_inode, h);
 			up_write(&ip->i_rw_mutex);
 			if (error)
 				goto out_end_trans;
@@ -830,7 +830,7 @@ static int do_grow(struct gfs2_inode *ip, uint64_t size)
 
 static int trunc_start(struct gfs2_inode *ip, uint64_t size)
 {
-	struct gfs2_sbd *sdp = ip->i_sbd;
+	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct buffer_head *dibh;
 	int journaled = gfs2_is_jdata(ip);
 	int error;
@@ -854,7 +854,7 @@ static int trunc_start(struct gfs2_inode *ip, uint64_t size)
 
 	} else {
 		if (size & (uint64_t)(sdp->sd_sb.sb_bsize - 1))
-			error = gfs2_block_truncate_page(ip->i_vnode->i_mapping);
+			error = gfs2_block_truncate_page(ip->i_inode.i_mapping);
 
 		if (!error) {
 			ip->i_di.di_size = size;
@@ -883,7 +883,7 @@ static int trunc_dealloc(struct gfs2_inode *ip, uint64_t size)
 	if (!size)
 		lblock = 0;
 	else
-		lblock = (size - 1) >> ip->i_sbd->sd_sb.sb_bsize_shift;
+		lblock = (size - 1) >> GFS2_SB(&ip->i_inode)->sd_sb.sb_bsize_shift;
 
 	find_metapath(ip, lblock, &mp);
 	gfs2_alloc_get(ip);
@@ -911,7 +911,7 @@ static int trunc_dealloc(struct gfs2_inode *ip, uint64_t size)
 
 static int trunc_end(struct gfs2_inode *ip)
 {
-	struct gfs2_sbd *sdp = ip->i_sbd;
+	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct buffer_head *dibh;
 	int error;
 
@@ -990,7 +990,7 @@ int gfs2_truncatei(struct gfs2_inode *ip, uint64_t size)
 {
 	int error;
 
-	if (gfs2_assert_warn(ip->i_sbd, S_ISREG(ip->i_di.di_mode)))
+	if (gfs2_assert_warn(GFS2_SB(&ip->i_inode), S_ISREG(ip->i_di.di_mode)))
 		return -EINVAL;
 
 	if (size > ip->i_di.di_size)
@@ -1027,7 +1027,7 @@ int gfs2_file_dealloc(struct gfs2_inode *ip)
 void gfs2_write_calc_reserv(struct gfs2_inode *ip, unsigned int len,
 			    unsigned int *data_blocks, unsigned int *ind_blocks)
 {
-	struct gfs2_sbd *sdp = ip->i_sbd;
+	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	unsigned int tmp;
 
 	if (gfs2_is_dir(ip)) {
@@ -1057,7 +1057,7 @@ void gfs2_write_calc_reserv(struct gfs2_inode *ip, unsigned int len,
 int gfs2_write_alloc_required(struct gfs2_inode *ip, uint64_t offset,
 			      unsigned int len, int *alloc_required)
 {
-	struct gfs2_sbd *sdp = ip->i_sbd;
+	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	uint64_t lblock, lblock_stop, dblock;
 	uint32_t extlen;
 	int new = 0;
@@ -1088,7 +1088,7 @@ int gfs2_write_alloc_required(struct gfs2_inode *ip, uint64_t offset,
 	}
 
 	for (; lblock < lblock_stop; lblock += extlen) {
-		error = gfs2_extent_map(ip->i_vnode, lblock, &new, &dblock, &extlen);
+		error = gfs2_extent_map(&ip->i_inode, lblock, &new, &dblock, &extlen);
 		if (error)
 			return error;
 

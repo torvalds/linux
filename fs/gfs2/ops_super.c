@@ -19,6 +19,7 @@
 #include <linux/kthread.h>
 #include <linux/delay.h>
 #include <linux/gfs2_ondisk.h>
+#include <linux/crc32.h>
 
 #include "gfs2.h"
 #include "lm_interface.h"
@@ -36,6 +37,10 @@
 #include "super.h"
 #include "sys.h"
 #include "util.h"
+#include "trans.h"
+#include "dir.h"
+#include "eattr.h"
+#include "bmap.h"
 
 /**
  * gfs2_write_inode - Make sure the inode is stable on the disk
@@ -47,12 +52,15 @@
 
 static int gfs2_write_inode(struct inode *inode, int sync)
 {
-	struct gfs2_inode *ip = inode->u.generic_ip;
+	struct gfs2_inode *ip = GFS2_I(inode);
 
-	if (current->flags & PF_MEMALLOC)
-		return 0;
-	if (ip && sync)
-		gfs2_log_flush(ip->i_gl->gl_sbd, ip->i_gl);
+	/* Check this is a "normal" inode */
+	if (inode->u.generic_ip) {
+		if (current->flags & PF_MEMALLOC)
+			return 0;
+		if (sync)
+			gfs2_log_flush(ip->i_gl->gl_sbd, ip->i_gl);
+	}
 
 	return 0;
 }
@@ -78,7 +86,6 @@ static void gfs2_put_super(struct super_block *sb)
 		gfs2_glock_dq_uninit(&sdp->sd_freeze_gh);
 	mutex_unlock(&sdp->sd_freeze_lock);
 
-	kthread_stop(sdp->sd_inoded_process);
 	kthread_stop(sdp->sd_quotad_process);
 	kthread_stop(sdp->sd_logd_process);
 	kthread_stop(sdp->sd_recoverd_process);
@@ -110,11 +117,9 @@ static void gfs2_put_super(struct super_block *sb)
 		gfs2_glock_dq_uninit(&sdp->sd_jinode_gh);
 		gfs2_glock_dq_uninit(&sdp->sd_ir_gh);
 		gfs2_glock_dq_uninit(&sdp->sd_sc_gh);
-		gfs2_glock_dq_uninit(&sdp->sd_ut_gh);
 		gfs2_glock_dq_uninit(&sdp->sd_qc_gh);
 		iput(sdp->sd_ir_inode);
 		iput(sdp->sd_sc_inode);
-		iput(sdp->sd_ut_inode);
 		iput(sdp->sd_qc_inode);
 	}
 
@@ -274,16 +279,20 @@ static int gfs2_remount_fs(struct super_block *sb, int *flags, char *data)
 
 static void gfs2_clear_inode(struct inode *inode)
 {
-	struct gfs2_inode *ip = inode->u.generic_ip;
-
-	if (ip) {
-		spin_lock(&ip->i_spin);
-		ip->i_vnode = NULL;
-		inode->u.generic_ip = NULL;
-		spin_unlock(&ip->i_spin);
-
+	/* This tells us its a "real" inode and not one which only
+	 * serves to contain an address space (see rgrp.c, meta_io.c)
+	 * which therefore doesn't have its own glocks.
+	 */
+	if (inode->u.generic_ip) {
+		struct gfs2_inode *ip = GFS2_I(inode);
+		gfs2_glock_inode_squish(inode);
+		gfs2_assert(inode->i_sb->s_fs_info, ip->i_gl->gl_state == LM_ST_UNLOCKED);
+		ip->i_gl->gl_object = NULL;
 		gfs2_glock_schedule_for_reclaim(ip->i_gl);
-		gfs2_inode_put(ip);
+		gfs2_glock_put(ip->i_gl);
+		ip->i_gl = NULL;
+		if (ip->i_iopen_gh.gh_gl)
+			gfs2_glock_dq_uninit(&ip->i_iopen_gh);
 	}
 }
 
@@ -361,6 +370,70 @@ static int gfs2_show_options(struct seq_file *s, struct vfsmount *mnt)
 	return 0;
 }
 
+/* 
+ * We have to (at the moment) hold the inodes main lock to cover
+ * the gap between unlocking the shared lock on the iopen lock and
+ * taking the exclusive lock. I'd rather do a shared -> exclusive
+ * conversion on the iopen lock, but we can change that later. This
+ * is safe, just less efficient.
+ */
+static void gfs2_delete_inode(struct inode *inode)
+{
+	struct gfs2_sbd *sdp = inode->i_sb->s_fs_info;
+	struct gfs2_inode *ip = GFS2_I(inode);
+	struct gfs2_holder gh;
+	int error;
+
+	if (!inode->u.generic_ip)
+		goto out;
+
+	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, LM_FLAG_TRY_1CB | GL_NOCACHE, &gh);
+	if (unlikely(error)) {
+		gfs2_glock_dq_uninit(&ip->i_iopen_gh);
+		goto out;
+	}
+
+	gfs2_glock_dq(&ip->i_iopen_gh);
+	gfs2_holder_reinit(LM_ST_EXCLUSIVE, LM_FLAG_TRY_1CB | GL_NOCACHE, &ip->i_iopen_gh);
+	error = gfs2_glock_nq(&ip->i_iopen_gh);
+	if (error)
+		goto out_uninit;
+
+	if (S_ISDIR(ip->i_di.di_mode) &&
+	    (ip->i_di.di_flags & GFS2_DIF_EXHASH)) {
+		error = gfs2_dir_exhash_dealloc(ip);
+		if (error)
+			goto out_unlock;
+	}
+
+	if (ip->i_di.di_eattr) {
+		error = gfs2_ea_dealloc(ip);
+		if (error)
+			goto out_unlock;
+	}
+
+	if (!gfs2_is_stuffed(ip)) {
+		error = gfs2_file_dealloc(ip);
+		if (error)
+			goto out_unlock;
+	}
+
+	error = gfs2_dinode_dealloc(ip);
+
+out_unlock:
+	gfs2_glock_dq(&ip->i_iopen_gh);
+out_uninit:
+	gfs2_holder_uninit(&ip->i_iopen_gh);
+	gfs2_glock_dq_uninit(&gh);
+	if (error)
+		fs_warn(sdp, "gfs2_delete_inode: %d\n", error);
+out:
+	truncate_inode_pages(&inode->i_data, 0);
+	clear_inode(inode);
+}
+
+
+
 static struct inode *gfs2_alloc_inode(struct super_block *sb)
 {
 	struct gfs2_sbd *sdp = sb->s_fs_info;
@@ -370,8 +443,6 @@ static struct inode *gfs2_alloc_inode(struct super_block *sb)
 	if (ip) {
 		ip->i_flags = 0;
 		ip->i_gl = NULL;
-		ip->i_sbd = sdp;
-		ip->i_vnode = &ip->i_inode;
 		ip->i_greedy = gfs2_tune_get(sdp, gt_greedy_default);
 		ip->i_last_pfault = jiffies;
 	}
@@ -387,6 +458,7 @@ struct super_operations gfs2_super_ops = {
 	.alloc_inode = gfs2_alloc_inode,
 	.destroy_inode = gfs2_destroy_inode,
 	.write_inode = gfs2_write_inode,
+	.delete_inode = gfs2_delete_inode,
 	.put_super = gfs2_put_super,
 	.write_super = gfs2_write_super,
 	.write_super_lockfs = gfs2_write_super_lockfs,

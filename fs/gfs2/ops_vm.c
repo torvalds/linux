@@ -38,15 +38,15 @@ static void pfault_be_greedy(struct gfs2_inode *ip)
 	ip->i_last_pfault = jiffies;
 	spin_unlock(&ip->i_spin);
 
-	gfs2_inode_hold(ip);
+	igrab(&ip->i_inode);
 	if (gfs2_glock_be_greedy(ip->i_gl, time))
-		gfs2_inode_put(ip);
+		iput(&ip->i_inode);
 }
 
 static struct page *gfs2_private_nopage(struct vm_area_struct *area,
 					unsigned long address, int *type)
 {
-	struct gfs2_inode *ip = area->vm_file->f_mapping->host->u.generic_ip;
+	struct gfs2_inode *ip = GFS2_I(area->vm_file->f_mapping->host);
 	struct gfs2_holder i_gh;
 	struct page *result;
 	int error;
@@ -69,7 +69,7 @@ static struct page *gfs2_private_nopage(struct vm_area_struct *area,
 
 static int alloc_page_backing(struct gfs2_inode *ip, struct page *page)
 {
-	struct gfs2_sbd *sdp = ip->i_sbd;
+	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	unsigned long index = page->index;
 	uint64_t lblock = index << (PAGE_CACHE_SHIFT -
 				    sdp->sd_sb.sb_bsize_shift);
@@ -114,7 +114,7 @@ static int alloc_page_backing(struct gfs2_inode *ip, struct page *page)
 		unsigned int extlen;
 		int new = 1;
 
-		error = gfs2_extent_map(ip->i_vnode, lblock, &new, &dblock, &extlen);
+		error = gfs2_extent_map(&ip->i_inode, lblock, &new, &dblock, &extlen);
 		if (error)
 			goto out_trans;
 
@@ -142,7 +142,7 @@ static int alloc_page_backing(struct gfs2_inode *ip, struct page *page)
 static struct page *gfs2_sharewrite_nopage(struct vm_area_struct *area,
 					   unsigned long address, int *type)
 {
-	struct gfs2_inode *ip = area->vm_file->f_mapping->host->u.generic_ip;
+	struct gfs2_inode *ip = GFS2_I(area->vm_file->f_mapping->host);
 	struct gfs2_holder i_gh;
 	struct page *result = NULL;
 	unsigned long index = ((address - area->vm_start) >> PAGE_CACHE_SHIFT) +

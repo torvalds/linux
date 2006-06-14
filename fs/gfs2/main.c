@@ -29,8 +29,6 @@ static void gfs2_init_inode_once(void *foo, kmem_cache_t *cachep, unsigned long 
 	if ((flags & (SLAB_CTOR_VERIFY|SLAB_CTOR_CONSTRUCTOR)) ==
 	    SLAB_CTOR_CONSTRUCTOR) {
 		inode_init_once(&ip->i_inode);
-		atomic_set(&ip->i_count, 0);
-		ip->i_vnode = &ip->i_inode;
 		spin_lock_init(&ip->i_spin);
 		init_rwsem(&ip->i_rw_mutex);
 		memset(ip->i_cache, 0, sizeof(ip->i_cache));

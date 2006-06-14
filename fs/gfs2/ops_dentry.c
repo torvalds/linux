@@ -38,8 +38,8 @@
 static int gfs2_drevalidate(struct dentry *dentry, struct nameidata *nd)
 {
 	struct dentry *parent = dget_parent(dentry);
-	struct gfs2_sbd *sdp = parent->d_inode->i_sb->s_fs_info;
-	struct gfs2_inode *dip = parent->d_inode->u.generic_ip;
+	struct gfs2_sbd *sdp = GFS2_SB(parent->d_inode);
+	struct gfs2_inode *dip = GFS2_I(parent->d_inode);
 	struct inode *inode = dentry->d_inode;
 	struct gfs2_holder d_gh;
 	struct gfs2_inode *ip;
@@ -71,7 +71,7 @@ static int gfs2_drevalidate(struct dentry *dentry, struct nameidata *nd)
 		goto fail_gunlock;
 	}
 
-	ip = inode->u.generic_ip;
+	ip = GFS2_I(inode);
 
 	if (!gfs2_inum_equal(&ip->i_num, &inum))
 		goto invalid_gunlock;

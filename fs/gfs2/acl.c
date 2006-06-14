@@ -73,7 +73,7 @@ int gfs2_acl_validate_set(struct gfs2_inode *ip, int access,
 
 int gfs2_acl_validate_remove(struct gfs2_inode *ip, int access)
 {
-	if (!ip->i_sbd->sd_args.ar_posix_acl)
+	if (!GFS2_SB(&ip->i_inode)->sd_args.ar_posix_acl)
 		return -EOPNOTSUPP;
 	if (current->fsuid != ip->i_di.di_uid && !capable(CAP_FOWNER))
 		return -EPERM;
@@ -160,7 +160,7 @@ int gfs2_check_acl_locked(struct inode *inode, int mask)
 	struct posix_acl *acl = NULL;
 	int error;
 
-	error = acl_get(inode->u.generic_ip, ACL_ACCESS, &acl, NULL, NULL, NULL);
+	error = acl_get(GFS2_I(inode), ACL_ACCESS, &acl, NULL, NULL, NULL);
 	if (error)
 		return error;
 
@@ -175,7 +175,7 @@ int gfs2_check_acl_locked(struct inode *inode, int mask)
 
 int gfs2_check_acl(struct inode *inode, int mask)
 {
-	struct gfs2_inode *ip = inode->u.generic_ip;
+	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_holder i_gh;
 	int error;
 
@@ -192,7 +192,7 @@ int gfs2_check_acl(struct inode *inode, int mask)
 
 static int munge_mode(struct gfs2_inode *ip, mode_t mode)
 {
-	struct gfs2_sbd *sdp = ip->i_sbd;
+	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct buffer_head *dibh;
 	int error;
 
@@ -217,7 +217,7 @@ static int munge_mode(struct gfs2_inode *ip, mode_t mode)
 
 int gfs2_acl_create(struct gfs2_inode *dip, struct gfs2_inode *ip)
 {
-	struct gfs2_sbd *sdp = dip->i_sbd;
+	struct gfs2_sbd *sdp = GFS2_SB(&dip->i_inode);
 	struct posix_acl *acl = NULL, *clone;
 	struct gfs2_ea_request er;
 	mode_t mode = ip->i_di.di_mode;

@@ -25,7 +25,6 @@
 #include "quota.h"
 #include "recovery.h"
 #include "super.h"
-#include "unlinked.h"
 #include "util.h"
 
 /* This uses schedule_timeout() instead of msleep() because it's good for
@@ -189,32 +188,6 @@ int gfs2_quotad(void *data)
 		gfs2_quota_scan(sdp);
 
 		t = gfs2_tune_get(sdp, gt_quotad_secs) * HZ;
-		schedule_timeout_interruptible(t);
-	}
-
-	return 0;
-}
-
-/**
- * gfs2_inoded - Deallocate unlinked inodes
- * @sdp: Pointer to GFS2 superblock
- *
- */
-
-int gfs2_inoded(void *data)
-{
-	struct gfs2_sbd *sdp = data;
-	unsigned long t;
-	int error;
-
-	while (!kthread_should_stop()) {
-		error = gfs2_unlinked_dealloc(sdp);
-		if (error &&
-		    error != -EROFS &&
-		    !test_bit(SDF_SHUTDOWN, &sdp->sd_flags))
-			fs_err(sdp, "inoded: error = %d\n", error);
-
-		t = gfs2_tune_get(sdp, gt_inoded_secs) * HZ;
 		schedule_timeout_interruptible(t);
 	}
 

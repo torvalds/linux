@@ -17,7 +17,6 @@
 #define RES_LEAF	1
 #define RES_RG_BIT	2
 #define RES_EATTR	1
-#define RES_UNLINKED	1
 #define RES_STATFS	1
 #define RES_QUOTA	2
 

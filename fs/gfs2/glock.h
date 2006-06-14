@@ -88,9 +88,6 @@ void gfs2_holder_uninit(struct gfs2_holder *gh);
 void gfs2_glock_xmote_th(struct gfs2_glock *gl, unsigned int state, int flags);
 void gfs2_glock_drop_th(struct gfs2_glock *gl);
 
-void gfs2_glmutex_lock(struct gfs2_glock *gl);
-void gfs2_glmutex_unlock(struct gfs2_glock *gl);
-
 int gfs2_glock_nq(struct gfs2_holder *gh);
 int gfs2_glock_poll(struct gfs2_holder *gh);
 int gfs2_glock_wait(struct gfs2_holder *gh);
@@ -110,6 +107,7 @@ void gfs2_glock_dq_uninit_m(unsigned int num_gh, struct gfs2_holder *ghs);
 void gfs2_glock_prefetch_num(struct gfs2_sbd *sdp, uint64_t number,
 			     struct gfs2_glock_operations *glops,
 			     unsigned int state, int flags);
+void gfs2_glock_inode_squish(struct inode *inode);
 
 /**
  * gfs2_glock_nq_init - intialize a holder and enqueue it on a glock
@@ -143,7 +141,6 @@ void gfs2_lvb_unhold(struct gfs2_glock *gl);
 
 void gfs2_glock_cb(lm_fsdata_t *fsdata, unsigned int type, void *data);
 
-void gfs2_try_toss_inode(struct gfs2_sbd *sdp, struct gfs2_inum *inum);
 void gfs2_iopen_go_callback(struct gfs2_glock *gl, unsigned int state);
 
 void gfs2_glock_schedule_for_reclaim(struct gfs2_glock *gl);

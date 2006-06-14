@@ -38,20 +38,17 @@ void gfs2_pte_inval(struct gfs2_glock *gl)
 	struct inode *inode;
 
 	ip = gl->gl_object;
+	inode = &ip->i_inode;
 	if (!ip || !S_ISREG(ip->i_di.di_mode))
 		return;
 
 	if (!test_bit(GIF_PAGED, &ip->i_flags))
 		return;
 
-	inode = gfs2_ip2v_lookup(ip);
-	if (inode) {
-		unmap_shared_mapping_range(inode->i_mapping, 0, 0);
-		iput(inode);
+	unmap_shared_mapping_range(inode->i_mapping, 0, 0);
 
-		if (test_bit(GIF_SW_PAGED, &ip->i_flags))
-			set_bit(GLF_DIRTY, &gl->gl_flags);
-	}
+	if (test_bit(GIF_SW_PAGED, &ip->i_flags))
+		set_bit(GLF_DIRTY, &gl->gl_flags);
 
 	clear_bit(GIF_SW_PAGED, &ip->i_flags);
 }
@@ -68,19 +65,12 @@ void gfs2_page_inval(struct gfs2_glock *gl)
 	struct inode *inode;
 
 	ip = gl->gl_object;
+	inode = &ip->i_inode;
 	if (!ip || !S_ISREG(ip->i_di.di_mode))
 		return;
 
-	inode = gfs2_ip2v_lookup(ip);
-	if (inode) {
-		struct address_space *mapping = inode->i_mapping;
-
-		truncate_inode_pages(mapping, 0);
-		gfs2_assert_withdraw(ip->i_sbd, !mapping->nrpages);
-
-		iput(inode);
-	}
-
+	truncate_inode_pages(inode->i_mapping, 0);
+	gfs2_assert_withdraw(GFS2_SB(&ip->i_inode), !inode->i_mapping->nrpages);
 	clear_bit(GIF_PAGED, &ip->i_flags);
 }
 
@@ -97,32 +87,30 @@ void gfs2_page_sync(struct gfs2_glock *gl, int flags)
 {
 	struct gfs2_inode *ip;
 	struct inode *inode;
+	struct address_space *mapping;
+	int error = 0;
 
 	ip = gl->gl_object;
+	inode = &ip->i_inode;
 	if (!ip || !S_ISREG(ip->i_di.di_mode))
 		return;
 
-	inode = gfs2_ip2v_lookup(ip);
-	if (inode) {
-		struct address_space *mapping = inode->i_mapping;
-		int error = 0;
+	mapping = inode->i_mapping;
 
-		if (flags & DIO_START)
-			filemap_fdatawrite(mapping);
-		if (!error && (flags & DIO_WAIT))
-			error = filemap_fdatawait(mapping);
+	if (flags & DIO_START)
+		filemap_fdatawrite(mapping);
+	if (!error && (flags & DIO_WAIT))
+		error = filemap_fdatawait(mapping);
 
-		/* Put back any errors cleared by filemap_fdatawait()
-		   so they can be caught by someone who can pass them
-		   up to user space. */
+	/* Put back any errors cleared by filemap_fdatawait()
+	   so they can be caught by someone who can pass them
+	   up to user space. */
 
-		if (error == -ENOSPC)
-			set_bit(AS_ENOSPC, &mapping->flags);
-		else if (error)
-			set_bit(AS_EIO, &mapping->flags);
+	if (error == -ENOSPC)
+		set_bit(AS_ENOSPC, &mapping->flags);
+	else if (error)
+		set_bit(AS_EIO, &mapping->flags);
 
-		iput(inode);
-	}
 }
 
 /**
@@ -138,8 +126,8 @@ void gfs2_page_sync(struct gfs2_glock *gl, int flags)
 int gfs2_unstuffer_page(struct gfs2_inode *ip, struct buffer_head *dibh,
 			uint64_t block, void *private)
 {
-	struct gfs2_sbd *sdp = ip->i_sbd;
-	struct inode *inode = ip->i_vnode;
+	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
+	struct inode *inode = &ip->i_inode;
 	struct page *page = (struct page *)private;
 	struct buffer_head *bh;
 	int release = 0;
@@ -193,8 +181,8 @@ int gfs2_unstuffer_page(struct gfs2_inode *ip, struct buffer_head *dibh,
 int gfs2_block_truncate_page(struct address_space *mapping)
 {
 	struct inode *inode = mapping->host;
-	struct gfs2_inode *ip = inode->u.generic_ip;
-	struct gfs2_sbd *sdp = ip->i_sbd;
+	struct gfs2_inode *ip = GFS2_I(inode);
+	struct gfs2_sbd *sdp = GFS2_SB(inode);
 	loff_t from = inode->i_size;
 	unsigned long index = from >> PAGE_CACHE_SHIFT;
 	unsigned offset = from & (PAGE_CACHE_SIZE-1);

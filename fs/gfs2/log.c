@@ -213,6 +213,9 @@ static uint64_t log_bmap(struct gfs2_sbd *sdp, unsigned int lbn)
 	int bdy;
 
 	error = gfs2_block_map(sdp->sd_jdesc->jd_inode, lbn, &new, &dbn, &bdy);
+	if (!(!error && dbn)) {
+		printk(KERN_INFO "error=%d, dbn=%llu lbn=%u", error, dbn, lbn);
+	}
 	gfs2_assert_withdraw(sdp, !error && dbn);
 
 	return dbn;

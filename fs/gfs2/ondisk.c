@@ -293,23 +293,6 @@ void gfs2_statfs_change_out(struct gfs2_statfs_change *sc, char *buf)
 	str->sc_dinodes = cpu_to_be64(sc->sc_dinodes);
 }
 
-void gfs2_unlinked_tag_in(struct gfs2_unlinked_tag *ut, char *buf)
-{
-	struct gfs2_unlinked_tag *str = (struct gfs2_unlinked_tag *)buf;
-
-	gfs2_inum_in(&ut->ut_inum, buf);
-	ut->ut_flags = be32_to_cpu(str->ut_flags);
-}
-
-void gfs2_unlinked_tag_out(struct gfs2_unlinked_tag *ut, char *buf)
-{
-	struct gfs2_unlinked_tag *str = (struct gfs2_unlinked_tag *)buf;
-
-	gfs2_inum_out(&ut->ut_inum, buf);
-	str->ut_flags = cpu_to_be32(ut->ut_flags);
-	str->__pad = 0;
-}
-
 void gfs2_quota_change_in(struct gfs2_quota_change *qc, char *buf)
 {
 	struct gfs2_quota_change *str = (struct gfs2_quota_change *)buf;

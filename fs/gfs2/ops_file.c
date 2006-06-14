@@ -105,7 +105,7 @@ static int gfs2_read_actor(read_descriptor_t *desc, struct page *page,
 int gfs2_internal_read(struct gfs2_inode *ip, struct file_ra_state *ra_state,
 		       char *buf, loff_t *pos, unsigned size)
 {
-	struct inode *inode = ip->i_vnode;
+	struct inode *inode = &ip->i_inode;
 	read_descriptor_t desc;
 	desc.written = 0;
 	desc.arg.buf = buf;
@@ -131,7 +131,7 @@ int gfs2_internal_read(struct gfs2_inode *ip, struct file_ra_state *ra_state,
 
 static loff_t gfs2_llseek(struct file *file, loff_t offset, int origin)
 {
-	struct gfs2_inode *ip = file->f_mapping->host->u.generic_ip;
+	struct gfs2_inode *ip = GFS2_I(file->f_mapping->host);
 	struct gfs2_holder i_gh;
 	loff_t error;
 
@@ -178,7 +178,7 @@ static ssize_t __gfs2_file_aio_read(struct kiocb *iocb,
 				    unsigned long nr_segs, loff_t *ppos)
 {
 	struct file *filp = iocb->ki_filp;
-	struct gfs2_inode *ip = filp->f_mapping->host->u.generic_ip;
+	struct gfs2_inode *ip = GFS2_I(filp->f_mapping->host);
 	struct gfs2_holder gh;
 	ssize_t retval;
 	unsigned long seg;
@@ -361,13 +361,13 @@ static int filldir_reg_func(void *opaque, const char *name, unsigned int length,
 static int readdir_reg(struct file *file, void *dirent, filldir_t filldir)
 {
 	struct inode *dir = file->f_mapping->host;
-	struct gfs2_inode *dip = dir->u.generic_ip;
+	struct gfs2_inode *dip = GFS2_I(dir);
 	struct filldir_reg fdr;
 	struct gfs2_holder d_gh;
 	uint64_t offset = file->f_pos;
 	int error;
 
-	fdr.fdr_sbd = dip->i_sbd;
+	fdr.fdr_sbd = GFS2_SB(dir);
 	fdr.fdr_prefetch = 1;
 	fdr.fdr_filldir = filldir;
 	fdr.fdr_opaque = dirent;
@@ -451,8 +451,8 @@ static int filldir_bad_func(void *opaque, const char *name, unsigned int length,
 static int readdir_bad(struct file *file, void *dirent, filldir_t filldir)
 {
 	struct inode *dir = file->f_mapping->host;
-	struct gfs2_inode *dip = dir->u.generic_ip;
-	struct gfs2_sbd *sdp = dip->i_sbd;
+	struct gfs2_inode *dip = GFS2_I(dir);
+	struct gfs2_sbd *sdp = GFS2_SB(dir);
 	struct filldir_reg fdr;
 	unsigned int entries, size;
 	struct filldir_bad *fdb;
@@ -561,7 +561,7 @@ static const u32 gfs2_to_iflags[32] = {
 static int gfs2_get_flags(struct file *filp, u32 __user *ptr)
 {
 	struct inode *inode = filp->f_dentry->d_inode;
-	struct gfs2_inode *ip = inode->u.generic_ip;
+	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_holder gh;
 	int error;
 	u32 iflags;
@@ -601,8 +601,8 @@ static int gfs2_get_flags(struct file *filp, u32 __user *ptr)
 static int do_gfs2_set_flags(struct file *filp, u32 reqflags, u32 mask)
 {
 	struct inode *inode = filp->f_dentry->d_inode;
-	struct gfs2_inode *ip = inode->u.generic_ip;
-	struct gfs2_sbd *sdp = ip->i_sbd;
+	struct gfs2_inode *ip = GFS2_I(inode);
+	struct gfs2_sbd *sdp = GFS2_SB(inode);
 	struct buffer_head *bh;
 	struct gfs2_holder gh;
 	int error;
@@ -693,7 +693,7 @@ static long gfs2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 static int gfs2_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	struct gfs2_inode *ip = file->f_mapping->host->u.generic_ip;
+	struct gfs2_inode *ip = GFS2_I(file->f_mapping->host);
 	struct gfs2_holder i_gh;
 	int error;
 
@@ -728,7 +728,7 @@ static int gfs2_mmap(struct file *file, struct vm_area_struct *vma)
 
 static int gfs2_open(struct inode *inode, struct file *file)
 {
-	struct gfs2_inode *ip = inode->u.generic_ip;
+	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_holder i_gh;
 	struct gfs2_file *fp;
 	int error;
@@ -739,7 +739,7 @@ static int gfs2_open(struct inode *inode, struct file *file)
 
 	mutex_init(&fp->f_fl_mutex);
 
-	gfs2_assert_warn(ip->i_sbd, !file->private_data);
+	gfs2_assert_warn(GFS2_SB(inode), !file->private_data);
 	file->private_data = fp;
 
 	if (S_ISREG(ip->i_di.di_mode)) {
@@ -808,7 +808,7 @@ static int gfs2_close(struct inode *inode, struct file *file)
 
 static int gfs2_fsync(struct file *file, struct dentry *dentry, int datasync)
 {
-	struct gfs2_inode *ip = dentry->d_inode->u.generic_ip;
+	struct gfs2_inode *ip = GFS2_I(dentry->d_inode);
 
 	gfs2_log_flush(ip->i_gl->gl_sbd, ip->i_gl);
 
@@ -826,8 +826,8 @@ static int gfs2_fsync(struct file *file, struct dentry *dentry, int datasync)
 
 static int gfs2_lock(struct file *file, int cmd, struct file_lock *fl)
 {
-	struct gfs2_inode *ip = file->f_mapping->host->u.generic_ip;
-	struct gfs2_sbd *sdp = ip->i_sbd;
+	struct gfs2_inode *ip = GFS2_I(file->f_mapping->host);
+	struct gfs2_sbd *sdp = GFS2_SB(file->f_mapping->host);
 	struct lm_lockname name =
 		{ .ln_number = ip->i_num.no_addr,
 		  .ln_type = LM_TYPE_PLOCK };
@@ -881,7 +881,7 @@ static int do_flock(struct file *file, int cmd, struct file_lock *fl)
 {
 	struct gfs2_file *fp = file->private_data;
 	struct gfs2_holder *fl_gh = &fp->f_fl_gh;
-	struct gfs2_inode *ip = file->f_dentry->d_inode->u.generic_ip;
+	struct gfs2_inode *ip = GFS2_I(file->f_dentry->d_inode);
 	struct gfs2_glock *gl;
 	unsigned int state;
 	int flags;
@@ -901,7 +901,7 @@ static int do_flock(struct file *file, int cmd, struct file_lock *fl)
 				     &(struct file_lock){.fl_type = F_UNLCK});		
 		gfs2_glock_dq_uninit(fl_gh);
 	} else {
-		error = gfs2_glock_get(ip->i_sbd,
+		error = gfs2_glock_get(GFS2_SB(&ip->i_inode),
 				      ip->i_num.no_addr, &gfs2_flock_glops,
 				      CREATE, &gl);
 		if (error)
@@ -918,7 +918,7 @@ static int do_flock(struct file *file, int cmd, struct file_lock *fl)
 			error = -EAGAIN;
 	} else {
 		error = flock_lock_file_wait(file, fl);
-		gfs2_assert_warn(ip->i_sbd, !error);
+		gfs2_assert_warn(GFS2_SB(&ip->i_inode), !error);
 	}
 
  out:
@@ -950,8 +950,8 @@ static void do_unflock(struct file *file, struct file_lock *fl)
 
 static int gfs2_flock(struct file *file, int cmd, struct file_lock *fl)
 {
-	struct gfs2_inode *ip = file->f_mapping->host->u.generic_ip;
-	struct gfs2_sbd *sdp = ip->i_sbd;
+	struct gfs2_inode *ip = GFS2_I(file->f_mapping->host);
+	struct gfs2_sbd *sdp = GFS2_SB(file->f_mapping->host);
 
 	if (!(fl->fl_flags & FL_FLOCK))
 		return -ENOLCK;
