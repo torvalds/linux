@@ -186,6 +186,7 @@ struct audit_context {
 	int		    auditable;  /* 1 if record should be written */
 	int		    name_count;
 	struct audit_names  names[AUDIT_NAMES];
+	char *		    filterkey;	/* key for rule that triggered record */
 	struct dentry *	    pwd;
 	struct vfsmount *   pwdmnt;
 	struct audit_context *previous; /* For nested syscalls */
@@ -348,11 +349,17 @@ static int audit_filter_rules(struct task_struct *tsk,
 			if (ctx)
 				result = audit_comparator(ctx->argv[f->type-AUDIT_ARG0], f->op, f->val);
 			break;
+		case AUDIT_FILTERKEY:
+			/* ignore this field for filtering */
+			result = 1;
+			break;
 		}
 
 		if (!result)
 			return 0;
 	}
+	if (rule->filterkey)
+		ctx->filterkey = kstrdup(rule->filterkey, GFP_ATOMIC);
 	switch (rule->action) {
 	case AUDIT_NEVER:    *state = AUDIT_DISABLED;	    break;
 	case AUDIT_ALWAYS:   *state = AUDIT_RECORD_CONTEXT; break;
@@ -627,6 +634,7 @@ static inline void audit_free_context(struct audit_context *context)
 		}
 		audit_free_names(context);
 		audit_free_aux(context);
+		kfree(context->filterkey);
 		kfree(context);
 		context  = previous;
 	} while (context);
@@ -735,6 +743,11 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 		  context->euid, context->suid, context->fsuid,
 		  context->egid, context->sgid, context->fsgid, tty);
 	audit_log_task_info(ab, tsk);
+	if (context->filterkey) {
+		audit_log_format(ab, " key=");
+		audit_log_untrustedstring(ab, context->filterkey);
+	} else
+		audit_log_format(ab, " key=(null)");
 	audit_log_end(ab);
 
 	for (aux = context->aux; aux; aux = aux->next) {
@@ -1060,6 +1073,8 @@ void audit_syscall_exit(int valid, long return_code)
 	} else {
 		audit_free_names(context);
 		audit_free_aux(context);
+		kfree(context->filterkey);
+		context->filterkey = NULL;
 		tsk->audit_context = context;
 	}
 }

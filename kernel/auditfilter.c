@@ -141,6 +141,7 @@ static inline void audit_free_rule(struct audit_entry *e)
 			selinux_audit_rule_free(f->se_rule);
 		}
 	kfree(e->rule.fields);
+	kfree(e->rule.filterkey);
 	kfree(e);
 }
 
@@ -511,6 +512,16 @@ static struct audit_entry *audit_data_to_entry(struct audit_rule_data *data,
 			if (err)
 				goto exit_free;
 			break;
+		case AUDIT_FILTERKEY:
+			err = -EINVAL;
+			if (entry->rule.filterkey || f->val > AUDIT_MAX_KEY_LEN)
+				goto exit_free;
+			str = audit_unpack_string(&bufp, &remain, f->val);
+			if (IS_ERR(str))
+				goto exit_free;
+			entry->rule.buflen += f->val;
+			entry->rule.filterkey = str;
+			break;
 		default:
 			goto exit_free;
 		}
@@ -612,6 +623,10 @@ static struct audit_rule_data *audit_krule_to_data(struct audit_krule *krule)
 			data->buflen += data->values[i] =
 				audit_pack_string(&bufp, krule->watch->path);
 			break;
+		case AUDIT_FILTERKEY:
+			data->buflen += data->values[i] =
+				audit_pack_string(&bufp, krule->filterkey);
+			break;
 		default:
 			data->values[i] = f->val;
 		}
@@ -649,6 +664,11 @@ static int audit_compare_rule(struct audit_krule *a, struct audit_krule *b)
 			break;
 		case AUDIT_WATCH:
 			if (strcmp(a->watch->path, b->watch->path))
+				return 1;
+			break;
+		case AUDIT_FILTERKEY:
+			/* both filterkeys exist based on above type compare */
+			if (strcmp(a->filterkey, b->filterkey))
 				return 1;
 			break;
 		default:
@@ -730,6 +750,7 @@ static struct audit_entry *audit_dupe_rule(struct audit_krule *old,
 	u32 fcount = old->field_count;
 	struct audit_entry *entry;
 	struct audit_krule *new;
+	char *fk;
 	int i, err = 0;
 
 	entry = audit_init_entry(fcount);
@@ -760,6 +781,13 @@ static struct audit_entry *audit_dupe_rule(struct audit_krule *old,
 		case AUDIT_SE_CLR:
 			err = audit_dupe_selinux_field(&new->fields[i],
 						       &old->fields[i]);
+			break;
+		case AUDIT_FILTERKEY:
+			fk = kstrdup(old->filterkey, GFP_KERNEL);
+			if (unlikely(!fk))
+				err = -ENOMEM;
+			else
+				new->filterkey = fk;
 		}
 		if (err) {
 			audit_free_rule(entry);
@@ -1245,6 +1273,34 @@ static void audit_list_rules(int pid, int seq, struct sk_buff_head *q)
 		skb_queue_tail(q, skb);
 }
 
+/* Log rule additions and removals */
+static void audit_log_rule_change(uid_t loginuid, u32 sid, char *action,
+				  struct audit_krule *rule, int res)
+{
+	struct audit_buffer *ab;
+
+	ab = audit_log_start(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE);
+	if (!ab)
+		return;
+	audit_log_format(ab, "auid=%u", loginuid);
+	if (sid) {
+		char *ctx = NULL;
+		u32 len;
+		if (selinux_ctxid_to_string(sid, &ctx, &len))
+			audit_log_format(ab, " ssid=%u", sid);
+		else
+			audit_log_format(ab, " subj=%s", ctx);
+		kfree(ctx);
+	}
+	audit_log_format(ab, " %s rule key=", action);
+	if (rule->filterkey)
+		audit_log_untrustedstring(ab, rule->filterkey);
+	else
+		audit_log_format(ab, "(null)");
+	audit_log_format(ab, " list=%d res=%d", rule->listnr, res);
+	audit_log_end(ab);
+}
+
 /**
  * audit_receive_filter - apply all rules to the specified message type
  * @type: audit message type
@@ -1304,24 +1360,7 @@ int audit_receive_filter(int type, int pid, int uid, int seq, void *data,
 
 		err = audit_add_rule(entry,
 				     &audit_filter_list[entry->rule.listnr]);
-
-		if (sid) {
-			char *ctx = NULL;
-			u32 len;
-			if (selinux_ctxid_to_string(sid, &ctx, &len)) {
-				/* Maybe call audit_panic? */
-				audit_log(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE,
-				 "auid=%u ssid=%u add rule to list=%d res=%d",
-				 loginuid, sid, entry->rule.listnr, !err);
-			} else
-				audit_log(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE,
-				 "auid=%u subj=%s add rule to list=%d res=%d",
-				 loginuid, ctx, entry->rule.listnr, !err);
-			kfree(ctx);
-		} else
-			audit_log(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE,
-				"auid=%u add rule to list=%d res=%d",
-				loginuid, entry->rule.listnr, !err);
+		audit_log_rule_change(loginuid, sid, "add", &entry->rule, !err);
 
 		if (err)
 			audit_free_rule(entry);
@@ -1337,24 +1376,8 @@ int audit_receive_filter(int type, int pid, int uid, int seq, void *data,
 
 		err = audit_del_rule(entry,
 				     &audit_filter_list[entry->rule.listnr]);
-
-		if (sid) {
-			char *ctx = NULL;
-			u32 len;
-			if (selinux_ctxid_to_string(sid, &ctx, &len)) {
-				/* Maybe call audit_panic? */
-				audit_log(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE,
-					"auid=%u ssid=%u remove rule from list=%d res=%d",
-					 loginuid, sid, entry->rule.listnr, !err);
-			} else
-				audit_log(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE,
-					"auid=%u subj=%s remove rule from list=%d res=%d",
-					 loginuid, ctx, entry->rule.listnr, !err);
-			kfree(ctx);
-		} else
-			audit_log(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE,
-				"auid=%u remove rule from list=%d res=%d",
-				loginuid, entry->rule.listnr, !err);
+		audit_log_rule_change(loginuid, sid, "remove", &entry->rule,
+				      !err);
 
 		audit_free_rule(entry);
 		break;

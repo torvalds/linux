@@ -122,6 +122,7 @@
 /* Rule structure sizes -- if these change, different AUDIT_ADD and
  * AUDIT_LIST commands must be implemented. */
 #define AUDIT_MAX_FIELDS   64
+#define AUDIT_MAX_KEY_LEN  32
 #define AUDIT_BITMASK_SIZE 64
 #define AUDIT_WORD(nr) ((__u32)((nr)/32))
 #define AUDIT_BIT(nr)  (1 << ((nr) - AUDIT_WORD(nr)*32))
@@ -170,6 +171,8 @@
 #define AUDIT_ARG1      (AUDIT_ARG0+1)
 #define AUDIT_ARG2      (AUDIT_ARG0+2)
 #define AUDIT_ARG3      (AUDIT_ARG0+3)
+
+#define AUDIT_FILTERKEY	210
 
 #define AUDIT_NEGATE			0x80000000
 
