@@ -142,6 +142,7 @@ struct class {
 
 	struct subsystem	subsys;
 	struct list_head	children;
+	struct list_head	devices;
 	struct list_head	interfaces;
 	struct semaphore	sem;	/* locks both the children and interfaces lists */
 
@@ -305,6 +306,7 @@ struct device {
 	struct kobject kobj;
 	char	bus_id[BUS_ID_SIZE];	/* position on parent bus */
 	struct device_attribute uevent_attr;
+	struct device_attribute *devt_attr;
 
 	struct semaphore	sem;	/* semaphore to synchronize calls to
 					 * its driver.
@@ -331,6 +333,11 @@ struct device {
 
 	struct dma_coherent_mem	*dma_mem; /* internal for coherent mem
 					     override */
+
+	/* class_device migration path */
+	struct list_head	node;
+	struct class		*class;		/* optional*/
+	dev_t			devt;		/* dev_t, creates the sysfs "dev" */
 
 	void	(*release)(struct device * dev);
 };
@@ -373,6 +380,13 @@ extern int  device_attach(struct device * dev);
 extern void driver_attach(struct device_driver * drv);
 extern void device_reprobe(struct device *dev);
 
+/*
+ * Easy functions for dynamically creating devices on the fly
+ */
+extern struct device *device_create(struct class *cls, struct device *parent,
+				    dev_t devt, char *fmt, ...)
+				    __attribute__((format(printf,4,5)));
+extern void device_destroy(struct class *cls, dev_t devt);
 
 /*
  * Platform "fixup" functions - allow the platform to have their say

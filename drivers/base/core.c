@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/string.h>
+#include <linux/kdev_t.h>
 
 #include <asm/semaphore.h>
 
@@ -98,6 +99,8 @@ static int dev_uevent_filter(struct kset *kset, struct kobject *kobj)
 		struct device *dev = to_dev(kobj);
 		if (dev->bus)
 			return 1;
+		if (dev->class)
+			return 1;
 	}
 	return 0;
 }
@@ -106,7 +109,11 @@ static const char *dev_uevent_name(struct kset *kset, struct kobject *kobj)
 {
 	struct device *dev = to_dev(kobj);
 
-	return dev->bus->name;
+	if (dev->bus)
+		return dev->bus->name;
+	if (dev->class)
+		return dev->class->name;
+	return NULL;
 }
 
 static int dev_uevent(struct kset *kset, struct kobject *kobj, char **envp,
@@ -116,6 +123,16 @@ static int dev_uevent(struct kset *kset, struct kobject *kobj, char **envp,
 	int i = 0;
 	int length = 0;
 	int retval = 0;
+
+	/* add the major/minor if present */
+	if (MAJOR(dev->devt)) {
+		add_uevent_var(envp, num_envp, &i,
+			       buffer, buffer_size, &length,
+			       "MAJOR=%u", MAJOR(dev->devt));
+		add_uevent_var(envp, num_envp, &i,
+			       buffer, buffer_size, &length,
+			       "MINOR=%u", MINOR(dev->devt));
+	}
 
 	/* add bus name of physical device */
 	if (dev->bus)
@@ -159,6 +176,12 @@ static ssize_t store_uevent(struct device *dev, struct device_attribute *attr,
 {
 	kobject_uevent(&dev->kobj, KOBJ_ADD);
 	return count;
+}
+
+static ssize_t show_dev(struct device *dev, struct device_attribute *attr,
+			char *buf)
+{
+	return print_dev_t(buf, dev->devt);
 }
 
 /*
@@ -231,6 +254,7 @@ void device_initialize(struct device *dev)
 	klist_init(&dev->klist_children, klist_children_get,
 		   klist_children_put);
 	INIT_LIST_HEAD(&dev->dma_pools);
+	INIT_LIST_HEAD(&dev->node);
 	init_MUTEX(&dev->sem);
 	device_init_wakeup(dev, 0);
 }
@@ -274,6 +298,31 @@ int device_add(struct device *dev)
 	dev->uevent_attr.store = store_uevent;
 	device_create_file(dev, &dev->uevent_attr);
 
+	if (MAJOR(dev->devt)) {
+		struct device_attribute *attr;
+		attr = kzalloc(sizeof(*attr), GFP_KERNEL);
+		if (!attr) {
+			error = -ENOMEM;
+			goto PMError;
+		}
+		attr->attr.name = "dev";
+		attr->attr.mode = S_IRUGO;
+		if (dev->driver)
+			attr->attr.owner = dev->driver->owner;
+		attr->show = show_dev;
+		error = device_create_file(dev, attr);
+		if (error) {
+			kfree(attr);
+			goto attrError;
+		}
+
+		dev->devt_attr = attr;
+	}
+
+	if (dev->class)
+		sysfs_create_link(&dev->class->subsys.kset.kobj, &dev->kobj,
+				  dev->bus_id);
+
 	if ((error = device_pm_add(dev)))
 		goto PMError;
 	if ((error = bus_add_device(dev)))
@@ -292,6 +341,11 @@ int device_add(struct device *dev)
  BusError:
 	device_pm_remove(dev);
  PMError:
+	if (dev->devt_attr) {
+		device_remove_file(dev, dev->devt_attr);
+		kfree(dev->devt_attr);
+	}
+ attrError:
 	kobject_uevent(&dev->kobj, KOBJ_REMOVE);
 	kobject_del(&dev->kobj);
  Error:
@@ -366,6 +420,10 @@ void device_del(struct device * dev)
 
 	if (parent)
 		klist_del(&dev->knode_parent);
+	if (dev->devt_attr)
+		device_remove_file(dev, dev->devt_attr);
+	if (dev->class)
+		sysfs_remove_link(&dev->class->subsys.kset.kobj, dev->bus_id);
 	device_remove_file(dev, &dev->uevent_attr);
 
 	/* Notify the platform of the removal, in case they
@@ -450,3 +508,105 @@ EXPORT_SYMBOL_GPL(put_device);
 
 EXPORT_SYMBOL_GPL(device_create_file);
 EXPORT_SYMBOL_GPL(device_remove_file);
+
+
+static void device_create_release(struct device *dev)
+{
+	pr_debug("%s called for %s\n", __FUNCTION__, dev->bus_id);
+	kfree(dev);
+}
+
+/**
+ * device_create - creates a device and registers it with sysfs
+ * @cs: pointer to the struct class that this device should be registered to.
+ * @parent: pointer to the parent struct device of this new device, if any.
+ * @dev: the dev_t for the char device to be added.
+ * @fmt: string for the class device's name
+ *
+ * This function can be used by char device classes.  A struct
+ * device will be created in sysfs, registered to the specified
+ * class.
+ * A "dev" file will be created, showing the dev_t for the device, if
+ * the dev_t is not 0,0.
+ * If a pointer to a parent struct device is passed in, the newly
+ * created struct device will be a child of that device in sysfs.  The
+ * pointer to the struct device will be returned from the call.  Any
+ * further sysfs files that might be required can be created using this
+ * pointer.
+ *
+ * Note: the struct class passed to this function must have previously
+ * been created with a call to class_create().
+ */
+struct device *device_create(struct class *class, struct device *parent,
+			     dev_t devt, char *fmt, ...)
+{
+	va_list args;
+	struct device *dev = NULL;
+	int retval = -ENODEV;
+
+	if (class == NULL || IS_ERR(class))
+		goto error;
+	if (parent == NULL) {
+		printk(KERN_WARNING "%s does not work yet for NULL parents\n", __FUNCTION__);
+		goto error;
+	}
+
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	if (!dev) {
+		retval = -ENOMEM;
+		goto error;
+	}
+
+	dev->devt = devt;
+	dev->class = class;
+	dev->parent = parent;
+	dev->release = device_create_release;
+
+	va_start(args, fmt);
+	vsnprintf(dev->bus_id, BUS_ID_SIZE, fmt, args);
+	va_end(args);
+	retval = device_register(dev);
+	if (retval)
+		goto error;
+
+	/* tie the class to the device */
+	down(&class->sem);
+	list_add_tail(&dev->node, &class->devices);
+	up(&class->sem);
+
+	return dev;
+
+error:
+	kfree(dev);
+	return ERR_PTR(retval);
+}
+EXPORT_SYMBOL_GPL(device_create);
+
+/**
+ * device_destroy - removes a device that was created with device_create()
+ * @class: the pointer to the struct class that this device was registered * with.
+ * @dev: the dev_t of the device that was previously registered.
+ *
+ * This call unregisters and cleans up a class device that was created with a
+ * call to class_device_create()
+ */
+void device_destroy(struct class *class, dev_t devt)
+{
+	struct device *dev = NULL;
+	struct device *dev_tmp;
+
+	down(&class->sem);
+	list_for_each_entry(dev_tmp, &class->devices, node) {
+		if (dev_tmp->devt == devt) {
+			dev = dev_tmp;
+			break;
+		}
+	}
+	up(&class->sem);
+
+	if (dev) {
+		list_del_init(&dev->node);
+		device_unregister(dev);
+	}
+}
+EXPORT_SYMBOL_GPL(device_destroy);
