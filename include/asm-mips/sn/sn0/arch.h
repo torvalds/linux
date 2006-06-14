@@ -59,9 +59,9 @@
  */
 #ifdef CONFIG_SGI_SN_N_MODE
 #define MAX_MEM_SLOTS   16                      /* max slots per node */
-#else /* !CONFIG_SGI_SN_N_MODE, assume M_MODE */
+#else /* !CONFIG_SGI_SN_N_MODE, assume CONFIG_SGI_SN_M_MODE */
 #define MAX_MEM_SLOTS   32                      /* max slots per node */
-#endif /* defined(N_MODE) */
+#endif /* CONFIG_SGI_SN_M_MODE */
 
 #define SLOT_SHIFT      	(27)
 #define SLOT_MIN_MEM_SIZE	(32*1024*1024)
