@@ -1547,15 +1547,18 @@ void __init setup_arch(char **cmdline_p)
 	if (efi_enabled)
 		efi_map_memmap();
 
-#ifdef CONFIG_X86_IO_APIC
-	check_acpi_pci();	/* Checks more than just ACPI actually */
-#endif
-
 #ifdef CONFIG_ACPI
 	/*
 	 * Parse the ACPI tables for possible boot-time SMP configuration.
 	 */
 	acpi_boot_table_init();
+#endif
+
+#ifdef CONFIG_X86_IO_APIC
+	check_acpi_pci();	/* Checks more than just ACPI actually */
+#endif
+
+#ifdef CONFIG_ACPI
 	acpi_boot_init();
 
 #if defined(CONFIG_SMP) && defined(CONFIG_X86_PC)

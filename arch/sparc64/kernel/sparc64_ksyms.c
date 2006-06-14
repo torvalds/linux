@@ -297,7 +297,6 @@ EXPORT_SYMBOL(svr4_getcontext);
 EXPORT_SYMBOL(svr4_setcontext);
 EXPORT_SYMBOL(compat_sys_ioctl);
 EXPORT_SYMBOL(sparc32_open);
-EXPORT_SYMBOL(sys_close);
 #endif
 
 /* Special internal versions of library functions. */

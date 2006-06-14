@@ -804,8 +804,6 @@ void i2o_iop_remove(struct i2o_controller *c)
 
 	/* Ask the IOP to switch to RESET state */
 	i2o_iop_reset(c);
-
-	put_device(&c->device);
 }
 
 /**
@@ -1059,7 +1057,7 @@ struct i2o_controller *i2o_iop_alloc(void)
 
 	snprintf(poolname, sizeof(poolname), "i2o_%s_msg_inpool", c->name);
 	if (i2o_pool_alloc
-	    (&c->in_msg, poolname, I2O_INBOUND_MSG_FRAME_SIZE * 4,
+	    (&c->in_msg, poolname, I2O_INBOUND_MSG_FRAME_SIZE * 4 + sizeof(u32),
 	     I2O_MSG_INPOOL_MIN)) {
 		kfree(c);
 		return ERR_PTR(-ENOMEM);
