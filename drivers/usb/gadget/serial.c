@@ -53,8 +53,8 @@
 
 /* Defines */
 
-#define GS_VERSION_STR			"v2.1"
-#define GS_VERSION_NUM			0x0201
+#define GS_VERSION_STR			"v2.2"
+#define GS_VERSION_NUM			0x0202
 
 #define GS_LONG_NAME			"Gadget Serial"
 #define GS_SHORT_NAME			"g_serial"
@@ -774,18 +774,16 @@ exit_unlock_dev:
 
 #define GS_WRITE_FINISHED_EVENT_SAFELY(p)			\
 ({								\
-	unsigned long flags;					\
 	int cond;						\
 								\
-	spin_lock_irqsave(&(p)->port_lock, flags);		\
+	spin_lock_irq(&(p)->port_lock);				\
 	cond = !(p)->port_dev || !gs_buf_data_avail((p)->port_write_buf); \
-	spin_unlock_irqrestore(&(p)->port_lock, flags);		\
+	spin_unlock_irq(&(p)->port_lock);			\
 	cond;							\
 })
 
 static void gs_close(struct tty_struct *tty, struct file *file)
 {
-	unsigned long flags;
 	struct gs_port *port = tty->driver_data;
 	struct semaphore *sem;
 
@@ -799,7 +797,7 @@ static void gs_close(struct tty_struct *tty, struct file *file)
 	sem = &gs_open_close_sem[port->port_num];
 	down(sem);
 
-	spin_lock_irqsave(&port->port_lock, flags);
+	spin_lock_irq(&port->port_lock);
 
 	if (port->port_open_count == 0) {
 		printk(KERN_ERR
@@ -827,11 +825,11 @@ static void gs_close(struct tty_struct *tty, struct file *file)
 	/* wait for write buffer to drain, or */
 	/* at most GS_CLOSE_TIMEOUT seconds */
 	if (gs_buf_data_avail(port->port_write_buf) > 0) {
-		spin_unlock_irqrestore(&port->port_lock, flags);
+		spin_unlock_irq(&port->port_lock);
 		wait_event_interruptible_timeout(port->port_write_wait,
 					GS_WRITE_FINISHED_EVENT_SAFELY(port),
 					GS_CLOSE_TIMEOUT * HZ);
-		spin_lock_irqsave(&port->port_lock, flags);
+		spin_lock_irq(&port->port_lock);
 	}
 
 	/* free disconnected port on final close */
@@ -851,7 +849,7 @@ static void gs_close(struct tty_struct *tty, struct file *file)
 		port->port_num, tty, file);
 
 exit:
-	spin_unlock_irqrestore(&port->port_lock, flags);
+	spin_unlock_irq(&port->port_lock);
 	up(sem);
 }
 
