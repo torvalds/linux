@@ -173,7 +173,7 @@ static struct kobj_type ep_object_ktype = {
 	.default_attrs =	ep_attrs,
 };
 
-void usb_create_ep_files(struct kobject *parent,
+void usb_create_ep_files(struct device *parent,
 			 struct usb_host_endpoint *endpoint,
 			 struct usb_device *udev)
 {
@@ -189,7 +189,7 @@ void usb_create_ep_files(struct kobject *parent,
 
 	kobj = &ep_obj->kobj;
 	kobject_set_name(kobj, "ep_%02x", endpoint->desc.bEndpointAddress);
-	kobj->parent = parent;
+	kobj->parent = &parent->kobj;
 	kobj->ktype = &ep_object_ktype;
 
 	/* Don't use kobject_register, because it generates a hotplug event */

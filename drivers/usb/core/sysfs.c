@@ -223,7 +223,7 @@ void usb_create_sysfs_dev_files (struct usb_device *udev)
 	if (udev->serial)
 		device_create_file (dev, &dev_attr_serial);
 	device_create_file (dev, &dev_attr_configuration);
-	usb_create_ep_files(&dev->kobj, &udev->ep0, udev);
+	usb_create_ep_files(dev, &udev->ep0, udev);
 }
 
 void usb_remove_sysfs_dev_files (struct usb_device *udev)
@@ -327,7 +327,7 @@ static inline void usb_create_intf_ep_files(struct usb_interface *intf,
 
 	iface_desc = intf->cur_altsetting;
 	for (i = 0; i < iface_desc->desc.bNumEndpoints; ++i)
-		usb_create_ep_files(&intf->dev.kobj, &iface_desc->endpoint[i],
+		usb_create_ep_files(&intf->dev, &iface_desc->endpoint[i],
 				udev);
 }
 
