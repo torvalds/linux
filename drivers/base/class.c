@@ -561,6 +561,7 @@ int class_device_add(struct class_device *class_dev)
 		goto out2;
 
 	/* add the needed attributes to this device */
+	sysfs_create_link(&class_dev->kobj, &parent_class->subsys.kset.kobj, "subsystem");
 	class_dev->uevent_attr.attr.name = "uevent";
 	class_dev->uevent_attr.attr.mode = S_IWUSR;
 	class_dev->uevent_attr.attr.owner = parent_class->owner;
@@ -737,6 +738,7 @@ void class_device_del(struct class_device *class_dev)
 		sysfs_remove_link(&class_dev->kobj, "device");
 		sysfs_remove_link(&class_dev->dev->kobj, class_name);
 	}
+	sysfs_remove_link(&class_dev->kobj, "subsystem");
 	class_device_remove_file(class_dev, &class_dev->uevent_attr);
 	if (class_dev->devt_attr)
 		class_device_remove_file(class_dev, class_dev->devt_attr);

@@ -319,9 +319,12 @@ int device_add(struct device *dev)
 		dev->devt_attr = attr;
 	}
 
-	if (dev->class)
+	if (dev->class) {
+		sysfs_create_link(&dev->kobj, &dev->class->subsys.kset.kobj,
+				  "subsystem");
 		sysfs_create_link(&dev->class->subsys.kset.kobj, &dev->kobj,
 				  dev->bus_id);
+	}
 
 	if ((error = device_pm_add(dev)))
 		goto PMError;
@@ -422,8 +425,10 @@ void device_del(struct device * dev)
 		klist_del(&dev->knode_parent);
 	if (dev->devt_attr)
 		device_remove_file(dev, dev->devt_attr);
-	if (dev->class)
+	if (dev->class) {
+		sysfs_remove_link(&dev->kobj, "subsystem");
 		sysfs_remove_link(&dev->class->subsys.kset.kobj, dev->bus_id);
+	}
 	device_remove_file(dev, &dev->uevent_attr);
 
 	/* Notify the platform of the removal, in case they
