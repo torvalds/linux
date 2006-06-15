@@ -194,7 +194,7 @@ struct aux_sigframe {
  */
 struct sigframe {
 	struct sigcontext sc;
-	unsigned long extramask[_NSIG_WORDS-1];
+	sigset_t sigmask;
 	unsigned long retcode[2];
 	struct aux_sigframe aux __attribute__((aligned(8)));
 };
@@ -264,10 +264,7 @@ asmlinkage int sys_sigreturn(struct pt_regs *regs)
 
 	if (!access_ok(VERIFY_READ, frame, sizeof (*frame)))
 		goto badframe;
-	if (__get_user(set.sig[0], &frame->sc.oldmask)
-	    || (_NSIG_WORDS > 1
-	        && __copy_from_user(&set.sig[1], &frame->extramask,
-				    sizeof(frame->extramask))))
+	if (__copy_from_user(&set, &frame->sigmask, sizeof(set)))
 		goto badframe;
 
 	sigdelsetmask(&set, ~_BLOCKABLE);
@@ -486,11 +483,7 @@ setup_frame(int usig, struct k_sigaction *ka, sigset_t *set, struct pt_regs *reg
 		return 1;
 
 	err |= setup_sigcontext(&frame->sc, &frame->aux, regs, set->sig[0]);
-
-	if (_NSIG_WORDS > 1) {
-		err |= __copy_to_user(frame->extramask, &set->sig[1],
-				      sizeof(frame->extramask));
-	}
+	err |= __copy_to_user(&frame->sigmask, set, sizeof(*set));
 
 	if (err == 0)
 		err = setup_return(regs, ka, frame->retcode, frame, usig);
