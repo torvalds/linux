@@ -203,39 +203,47 @@ struct rt_sigframe {
 	struct sigframe sig;
 };
 
-static int
-restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc,
-		   struct aux_sigframe __user *aux)
+static int restore_sigframe(struct pt_regs *regs, struct sigframe __user *sf)
 {
-	int err = 0;
+	sigset_t set;
+	int err;
 
-	__get_user_error(regs->ARM_r0, &sc->arm_r0, err);
-	__get_user_error(regs->ARM_r1, &sc->arm_r1, err);
-	__get_user_error(regs->ARM_r2, &sc->arm_r2, err);
-	__get_user_error(regs->ARM_r3, &sc->arm_r3, err);
-	__get_user_error(regs->ARM_r4, &sc->arm_r4, err);
-	__get_user_error(regs->ARM_r5, &sc->arm_r5, err);
-	__get_user_error(regs->ARM_r6, &sc->arm_r6, err);
-	__get_user_error(regs->ARM_r7, &sc->arm_r7, err);
-	__get_user_error(regs->ARM_r8, &sc->arm_r8, err);
-	__get_user_error(regs->ARM_r9, &sc->arm_r9, err);
-	__get_user_error(regs->ARM_r10, &sc->arm_r10, err);
-	__get_user_error(regs->ARM_fp, &sc->arm_fp, err);
-	__get_user_error(regs->ARM_ip, &sc->arm_ip, err);
-	__get_user_error(regs->ARM_sp, &sc->arm_sp, err);
-	__get_user_error(regs->ARM_lr, &sc->arm_lr, err);
-	__get_user_error(regs->ARM_pc, &sc->arm_pc, err);
-	__get_user_error(regs->ARM_cpsr, &sc->arm_cpsr, err);
+	err = __copy_from_user(&set, &sf->uc.uc_sigmask, sizeof(set));
+	if (err == 0) {
+		sigdelsetmask(&set, ~_BLOCKABLE);
+		spin_lock_irq(&current->sighand->siglock);
+		current->blocked = set;
+		recalc_sigpending();
+		spin_unlock_irq(&current->sighand->siglock);
+	}
+
+	__get_user_error(regs->ARM_r0, &sf->uc.uc_mcontext.arm_r0, err);
+	__get_user_error(regs->ARM_r1, &sf->uc.uc_mcontext.arm_r1, err);
+	__get_user_error(regs->ARM_r2, &sf->uc.uc_mcontext.arm_r2, err);
+	__get_user_error(regs->ARM_r3, &sf->uc.uc_mcontext.arm_r3, err);
+	__get_user_error(regs->ARM_r4, &sf->uc.uc_mcontext.arm_r4, err);
+	__get_user_error(regs->ARM_r5, &sf->uc.uc_mcontext.arm_r5, err);
+	__get_user_error(regs->ARM_r6, &sf->uc.uc_mcontext.arm_r6, err);
+	__get_user_error(regs->ARM_r7, &sf->uc.uc_mcontext.arm_r7, err);
+	__get_user_error(regs->ARM_r8, &sf->uc.uc_mcontext.arm_r8, err);
+	__get_user_error(regs->ARM_r9, &sf->uc.uc_mcontext.arm_r9, err);
+	__get_user_error(regs->ARM_r10, &sf->uc.uc_mcontext.arm_r10, err);
+	__get_user_error(regs->ARM_fp, &sf->uc.uc_mcontext.arm_fp, err);
+	__get_user_error(regs->ARM_ip, &sf->uc.uc_mcontext.arm_ip, err);
+	__get_user_error(regs->ARM_sp, &sf->uc.uc_mcontext.arm_sp, err);
+	__get_user_error(regs->ARM_lr, &sf->uc.uc_mcontext.arm_lr, err);
+	__get_user_error(regs->ARM_pc, &sf->uc.uc_mcontext.arm_pc, err);
+	__get_user_error(regs->ARM_cpsr, &sf->uc.uc_mcontext.arm_cpsr, err);
 
 	err |= !valid_user_regs(regs);
 
 #ifdef CONFIG_IWMMXT
 	if (err == 0 && test_thread_flag(TIF_USING_IWMMXT))
-		err |= restore_iwmmxt_context(&aux->iwmmxt);
+		err |= restore_iwmmxt_context(&sf->aux.iwmmxt);
 #endif
 #ifdef CONFIG_VFP
 //	if (err == 0)
-//		err |= vfp_restore_state(&aux->vfp);
+//		err |= vfp_restore_state(&sf->aux.vfp);
 #endif
 
 	return err;
@@ -244,7 +252,6 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc,
 asmlinkage int sys_sigreturn(struct pt_regs *regs)
 {
 	struct sigframe __user *frame;
-	sigset_t set;
 
 	/* Always make any pending restarted system calls return -EINTR */
 	current_thread_info()->restart_block.fn = do_no_restart_syscall;
@@ -261,16 +268,8 @@ asmlinkage int sys_sigreturn(struct pt_regs *regs)
 
 	if (!access_ok(VERIFY_READ, frame, sizeof (*frame)))
 		goto badframe;
-	if (__copy_from_user(&set, &frame->uc.uc_sigmask, sizeof(set)))
-		goto badframe;
 
-	sigdelsetmask(&set, ~_BLOCKABLE);
-	spin_lock_irq(&current->sighand->siglock);
-	current->blocked = set;
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
-
-	if (restore_sigcontext(regs, &frame->uc.uc_mcontext, &frame->aux))
+	if (restore_sigframe(regs, frame))
 		goto badframe;
 
 	/* Send SIGTRAP if we're single-stepping */
@@ -289,7 +288,6 @@ badframe:
 asmlinkage int sys_rt_sigreturn(struct pt_regs *regs)
 {
 	struct rt_sigframe __user *frame;
-	sigset_t set;
 
 	/* Always make any pending restarted system calls return -EINTR */
 	current_thread_info()->restart_block.fn = do_no_restart_syscall;
@@ -306,16 +304,8 @@ asmlinkage int sys_rt_sigreturn(struct pt_regs *regs)
 
 	if (!access_ok(VERIFY_READ, frame, sizeof (*frame)))
 		goto badframe;
-	if (__copy_from_user(&set, &frame->sig.uc.uc_sigmask, sizeof(set)))
-		goto badframe;
 
-	sigdelsetmask(&set, ~_BLOCKABLE);
-	spin_lock_irq(&current->sighand->siglock);
-	current->blocked = set;
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
-
-	if (restore_sigcontext(regs, &frame->sig.uc.uc_mcontext, &frame->sig.aux))
+	if (restore_sigframe(regs, &frame->sig))
 		goto badframe;
 
 	if (do_sigaltstack(&frame->sig.uc.uc_stack, NULL, regs->ARM_sp) == -EFAULT)
