@@ -1889,7 +1889,7 @@ L:	linux-kernel@vger.kernel.org
 W:	http://www.atnf.csiro.au/~rgooch/linux/kernel-patches.html
 S:	Maintained
 
-MULTIMEDIA CARD SUBSYSTEM
+MULTIMEDIA CARD (MMC) SUBSYSTEM
 P:	Russell King
 M:	rmk+mmc@arm.linux.org.uk
 S:	Maintained
