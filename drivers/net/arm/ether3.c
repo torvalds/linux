@@ -198,7 +198,7 @@ static inline void ether3_ledon(struct net_device *dev)
  * Read the ethernet address string from the on board rom.
  * This is an ascii string!!!
  */
-static int __init
+static int __devinit
 ether3_addr(char *addr, struct expansion_card *ec)
 {
 	struct in_chunk_dir cd;
@@ -223,7 +223,7 @@ ether3_addr(char *addr, struct expansion_card *ec)
 
 /* --------------------------------------------------------------------------- */
 
-static int __init
+static int __devinit
 ether3_ramtest(struct net_device *dev, unsigned char byte)
 {
 	unsigned char *buffer = kmalloc(RX_END, GFP_KERNEL);
@@ -272,7 +272,7 @@ ether3_ramtest(struct net_device *dev, unsigned char byte)
 
 /* ------------------------------------------------------------------------------- */
 
-static int __init ether3_init_2(struct net_device *dev)
+static int __devinit ether3_init_2(struct net_device *dev)
 {
 	int i;
 
@@ -765,7 +765,7 @@ static void ether3_tx(struct net_device *dev)
 	}
 }
 
-static void __init ether3_banner(void)
+static void __devinit ether3_banner(void)
 {
 	static unsigned version_printed = 0;
 
