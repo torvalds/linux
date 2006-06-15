@@ -2627,6 +2627,50 @@ no_rx:
 #endif
 
 /**
+ * s2io_netpoll - Rx interrupt service handler for netpoll support
+ * @dev : pointer to the device structure.
+ * Description:
+ * Polling 'interrupt' - used by things like netconsole to send skbs
+ * without having to re-enable interrupts. It's not called while
+ * the interrupt routine is executing.
+ */
+
+#ifdef CONFIG_NET_POLL_CONTROLLER
+static void s2io_netpoll(struct net_device *dev)
+{
+	nic_t *nic = dev->priv;
+	mac_info_t *mac_control;
+	struct config_param *config;
+	XENA_dev_config_t __iomem *bar0 = nic->bar0;
+	u64 val64;
+	int i;
+
+	disable_irq(dev->irq);
+
+	atomic_inc(&nic->isr_cnt);
+	mac_control = &nic->mac_control;
+	config = &nic->config;
+
+	val64 = readq(&bar0->rx_traffic_int);
+	writeq(val64, &bar0->rx_traffic_int);
+
+	for (i = 0; i < config->rx_ring_num; i++)
+		rx_intr_handler(&mac_control->rings[i]);
+
+	for (i = 0; i < config->rx_ring_num; i++) {
+		if (fill_rx_buffers(nic, i) == -ENOMEM) {
+			DBG_PRINT(ERR_DBG, "%s:Out of memory", dev->name);
+			DBG_PRINT(ERR_DBG, " in Rx Netpoll!!\n");
+			break;
+		}
+	}
+	atomic_dec(&nic->isr_cnt);
+	enable_irq(dev->irq);
+	return;
+}
+#endif
+
+/**
  *  rx_intr_handler - Rx interrupt handler
  *  @nic: device private variable.
  *  Description:
@@ -6965,6 +7009,10 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 #if defined(CONFIG_S2IO_NAPI)
 	dev->poll = s2io_poll;
 	dev->weight = 32;
+#endif
+
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	dev->poll_controller = s2io_netpoll;
 #endif
 
 	dev->features |= NETIF_F_SG | NETIF_F_IP_CSUM;
