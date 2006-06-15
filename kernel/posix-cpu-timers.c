@@ -555,9 +555,6 @@ static void arm_timer(struct k_itimer *timer, union cpu_time_count now)
 	struct cpu_timer_list *next;
 	unsigned long i;
 
-	if (CPUCLOCK_PERTHREAD(timer->it_clock)	&& (p->flags & PF_EXITING))
-		return;
-
 	head = (CPUCLOCK_PERTHREAD(timer->it_clock) ?
 		p->cpu_timers : p->signal->cpu_timers);
 	head += CPUCLOCK_WHICH(timer->it_clock);
