@@ -325,41 +325,42 @@ badframe:
 }
 
 static int
-setup_sigcontext(struct sigcontext __user *sc, struct aux_sigframe __user *aux,
-		 struct pt_regs *regs, unsigned long mask)
+setup_sigframe(struct sigframe __user *sf, struct pt_regs *regs, sigset_t *set)
 {
 	int err = 0;
 
-	__put_user_error(regs->ARM_r0, &sc->arm_r0, err);
-	__put_user_error(regs->ARM_r1, &sc->arm_r1, err);
-	__put_user_error(regs->ARM_r2, &sc->arm_r2, err);
-	__put_user_error(regs->ARM_r3, &sc->arm_r3, err);
-	__put_user_error(regs->ARM_r4, &sc->arm_r4, err);
-	__put_user_error(regs->ARM_r5, &sc->arm_r5, err);
-	__put_user_error(regs->ARM_r6, &sc->arm_r6, err);
-	__put_user_error(regs->ARM_r7, &sc->arm_r7, err);
-	__put_user_error(regs->ARM_r8, &sc->arm_r8, err);
-	__put_user_error(regs->ARM_r9, &sc->arm_r9, err);
-	__put_user_error(regs->ARM_r10, &sc->arm_r10, err);
-	__put_user_error(regs->ARM_fp, &sc->arm_fp, err);
-	__put_user_error(regs->ARM_ip, &sc->arm_ip, err);
-	__put_user_error(regs->ARM_sp, &sc->arm_sp, err);
-	__put_user_error(regs->ARM_lr, &sc->arm_lr, err);
-	__put_user_error(regs->ARM_pc, &sc->arm_pc, err);
-	__put_user_error(regs->ARM_cpsr, &sc->arm_cpsr, err);
+	__put_user_error(regs->ARM_r0, &sf->uc.uc_mcontext.arm_r0, err);
+	__put_user_error(regs->ARM_r1, &sf->uc.uc_mcontext.arm_r1, err);
+	__put_user_error(regs->ARM_r2, &sf->uc.uc_mcontext.arm_r2, err);
+	__put_user_error(regs->ARM_r3, &sf->uc.uc_mcontext.arm_r3, err);
+	__put_user_error(regs->ARM_r4, &sf->uc.uc_mcontext.arm_r4, err);
+	__put_user_error(regs->ARM_r5, &sf->uc.uc_mcontext.arm_r5, err);
+	__put_user_error(regs->ARM_r6, &sf->uc.uc_mcontext.arm_r6, err);
+	__put_user_error(regs->ARM_r7, &sf->uc.uc_mcontext.arm_r7, err);
+	__put_user_error(regs->ARM_r8, &sf->uc.uc_mcontext.arm_r8, err);
+	__put_user_error(regs->ARM_r9, &sf->uc.uc_mcontext.arm_r9, err);
+	__put_user_error(regs->ARM_r10, &sf->uc.uc_mcontext.arm_r10, err);
+	__put_user_error(regs->ARM_fp, &sf->uc.uc_mcontext.arm_fp, err);
+	__put_user_error(regs->ARM_ip, &sf->uc.uc_mcontext.arm_ip, err);
+	__put_user_error(regs->ARM_sp, &sf->uc.uc_mcontext.arm_sp, err);
+	__put_user_error(regs->ARM_lr, &sf->uc.uc_mcontext.arm_lr, err);
+	__put_user_error(regs->ARM_pc, &sf->uc.uc_mcontext.arm_pc, err);
+	__put_user_error(regs->ARM_cpsr, &sf->uc.uc_mcontext.arm_cpsr, err);
 
-	__put_user_error(current->thread.trap_no, &sc->trap_no, err);
-	__put_user_error(current->thread.error_code, &sc->error_code, err);
-	__put_user_error(current->thread.address, &sc->fault_address, err);
-	__put_user_error(mask, &sc->oldmask, err);
+	__put_user_error(current->thread.trap_no, &sf->uc.uc_mcontext.trap_no, err);
+	__put_user_error(current->thread.error_code, &sf->uc.uc_mcontext.error_code, err);
+	__put_user_error(current->thread.address, &sf->uc.uc_mcontext.fault_address, err);
+	__put_user_error(set->sig[0], &sf->uc.uc_mcontext.oldmask, err);
+
+	err |= __copy_to_user(&sf->uc.uc_sigmask, set, sizeof(*set));
 
 #ifdef CONFIG_IWMMXT
 	if (err == 0 && test_thread_flag(TIF_USING_IWMMXT))
-		err |= preserve_iwmmxt_context(&aux->iwmmxt);
+		err |= preserve_iwmmxt_context(&sf->aux.iwmmxt);
 #endif
 #ifdef CONFIG_VFP
 //	if (err == 0)
-//		err |= vfp_save_state(&aux->vfp);
+//		err |= vfp_save_state(&sf->aux.vfp);
 #endif
 
 	return err;
@@ -469,9 +470,7 @@ setup_frame(int usig, struct k_sigaction *ka, sigset_t *set, struct pt_regs *reg
 	if (!frame)
 		return 1;
 
-	err |= setup_sigcontext(&frame->uc.uc_mcontext, &frame->aux, regs, set->sig[0]);
-	err |= __copy_to_user(&frame->uc.uc_sigmask, set, sizeof(*set));
-
+	err |= setup_sigframe(frame, regs, set);
 	if (err == 0)
 		err = setup_return(regs, ka, frame->retcode, frame, usig);
 
@@ -500,10 +499,7 @@ setup_rt_frame(int usig, struct k_sigaction *ka, siginfo_t *info,
 	stack.ss_size = current->sas_ss_size;
 	err |= __copy_to_user(&frame->sig.uc.uc_stack, &stack, sizeof(stack));
 
-	err |= setup_sigcontext(&frame->sig.uc.uc_mcontext, &frame->sig.aux,
-				regs, set->sig[0]);
-	err |= __copy_to_user(&frame->sig.uc.uc_sigmask, set, sizeof(*set));
-
+	err |= setup_sigframe(&frame->sig, regs, set);
 	if (err == 0)
 		err = setup_return(regs, ka, frame->sig.retcode, frame, usig);
 
