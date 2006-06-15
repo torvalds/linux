@@ -165,6 +165,16 @@ struct mmu_psize_def
 extern struct mmu_psize_def mmu_psize_defs[MMU_PAGE_COUNT];
 extern int mmu_linear_psize;
 extern int mmu_virtual_psize;
+extern int mmu_vmalloc_psize;
+extern int mmu_io_psize;
+
+/*
+ * If the processor supports 64k normal pages but not 64k cache
+ * inhibited pages, we have to be prepared to switch processes
+ * to use 4k pages when they create cache-inhibited mappings.
+ * If this is the case, mmu_ci_restrictions will be set to 1.
+ */
+extern int mmu_ci_restrictions;
 
 #ifdef CONFIG_HUGETLB_PAGE
 /*
@@ -256,6 +266,7 @@ extern long iSeries_hpte_insert(unsigned long hpte_group,
 
 extern void stabs_alloc(void);
 extern void slb_initialize(void);
+extern void slb_flush_and_rebolt(void);
 extern void stab_initialize(unsigned long stab);
 
 #endif /* __ASSEMBLY__ */
@@ -359,6 +370,8 @@ typedef unsigned long mm_context_id_t;
 
 typedef struct {
 	mm_context_id_t id;
+	u16 user_psize;			/* page size index */
+	u16 sllp;			/* SLB entry page size encoding */
 #ifdef CONFIG_HUGETLB_PAGE
 	u16 low_htlb_areas, high_htlb_areas;
 #endif

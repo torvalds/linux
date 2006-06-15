@@ -78,6 +78,8 @@
 
 #define pte_iterate_hashed_end() } while(0)
 
+#define pte_pagesize_index(pte)	MMU_PAGE_4K
+
 /*
  * 4-level page tables related bits
  */

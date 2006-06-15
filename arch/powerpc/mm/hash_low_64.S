@@ -369,6 +369,7 @@ _GLOBAL(__hash_page_4K)
 	rlwinm	r30,r4,32-9+7,31-7,31-7	/* _PAGE_RW -> _PAGE_DIRTY */
 	or	r30,r30,r31
 	ori	r30,r30,_PAGE_BUSY | _PAGE_ACCESSED | _PAGE_HASHPTE
+	oris	r30,r30,_PAGE_COMBO@h
 	/* Write the linux PTE atomically (setting busy) */
 	stdcx.	r30,0,r6
 	bne-	1b
@@ -428,6 +429,14 @@ END_FTR_SECTION(CPU_FTR_NOEXECUTE|CPU_FTR_COHERENT_ICACHE, CPU_FTR_NOEXECUTE)
 	andi.	r0,r31,_PAGE_HASHPTE
 	li	r26,0			/* Default hidx */
 	beq	htab_insert_pte
+
+	/*
+	 * Check if the pte was already inserted into the hash table
+	 * as a 64k HW page, and invalidate the 64k HPTE if so.
+	 */
+	andis.	r0,r31,_PAGE_COMBO@h
+	beq	htab_inval_old_hpte
+
 	ld	r6,STK_PARM(r6)(r1)
 	ori	r26,r6,0x8000		/* Load the hidx mask */
 	ld	r26,0(r26)
@@ -498,6 +507,19 @@ _GLOBAL(htab_call_hpte_remove)
 	/* Try all again */
 	b	htab_insert_pte
 
+	/*
+	 * Call out to C code to invalidate an 64k HW HPTE that is
+	 * useless now that the segment has been switched to 4k pages.
+	 */
+htab_inval_old_hpte:
+	mr	r3,r29			/* virtual addr */
+	mr	r4,r31			/* PTE.pte */
+	li	r5,0			/* PTE.hidx */
+	li	r6,MMU_PAGE_64K		/* psize */
+	ld	r7,STK_PARM(r8)(r1)	/* local */
+	bl	.flush_hash_page
+	b	htab_insert_pte
+	
 htab_bail_ok:
 	li	r3,0
 	b	htab_bail
@@ -638,6 +660,12 @@ _GLOBAL(__hash_page_64K)
 	 * is changing this PTE anyway and might hash it.
 	 */
 	bne-	ht64_bail_ok
+BEGIN_FTR_SECTION
+	/* Check if PTE has the cache-inhibit bit set */
+	andi.	r0,r31,_PAGE_NO_CACHE
+	/* If so, bail out and refault as a 4k page */
+	bne-	ht64_bail_ok
+END_FTR_SECTION_IFCLR(CPU_FTR_CI_LARGE_PAGE)
 	/* Prepare new PTE value (turn access RW into DIRTY, then
 	 * add BUSY,HASHPTE and ACCESSED)
 	 */

@@ -81,6 +81,7 @@ struct paca_struct {
  				 * on the linear mapping */
 
 	mm_context_t context;
+	u16 vmalloc_sllp;
 	u16 slb_cache[SLB_CACHE_ENTRIES];
 	u16 slb_cache_ptr;
 
