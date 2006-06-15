@@ -193,8 +193,7 @@ struct aux_sigframe {
  * Do a signal return; undo the signal stack.  These are aligned to 64-bit.
  */
 struct sigframe {
-	struct sigcontext sc;
-	sigset_t sigmask;
+	struct ucontext uc;
 	unsigned long retcode[2];
 	struct aux_sigframe aux __attribute__((aligned(8)));
 };
@@ -264,7 +263,7 @@ asmlinkage int sys_sigreturn(struct pt_regs *regs)
 
 	if (!access_ok(VERIFY_READ, frame, sizeof (*frame)))
 		goto badframe;
-	if (__copy_from_user(&set, &frame->sigmask, sizeof(set)))
+	if (__copy_from_user(&set, &frame->uc.uc_sigmask, sizeof(set)))
 		goto badframe;
 
 	sigdelsetmask(&set, ~_BLOCKABLE);
@@ -273,7 +272,7 @@ asmlinkage int sys_sigreturn(struct pt_regs *regs)
 	recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
 
-	if (restore_sigcontext(regs, &frame->sc, &frame->aux))
+	if (restore_sigcontext(regs, &frame->uc.uc_mcontext, &frame->aux))
 		goto badframe;
 
 	/* Send SIGTRAP if we're single-stepping */
@@ -482,8 +481,8 @@ setup_frame(int usig, struct k_sigaction *ka, sigset_t *set, struct pt_regs *reg
 	if (!frame)
 		return 1;
 
-	err |= setup_sigcontext(&frame->sc, &frame->aux, regs, set->sig[0]);
-	err |= __copy_to_user(&frame->sigmask, set, sizeof(*set));
+	err |= setup_sigcontext(&frame->uc.uc_mcontext, &frame->aux, regs, set->sig[0]);
+	err |= __copy_to_user(&frame->uc.uc_sigmask, set, sizeof(*set));
 
 	if (err == 0)
 		err = setup_return(regs, ka, frame->retcode, frame, usig);
