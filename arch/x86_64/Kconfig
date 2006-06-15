@@ -299,6 +299,7 @@ config X86_64_ACPI_NUMA
        bool "ACPI NUMA detection"
        depends on NUMA
        select ACPI 
+	select PCI
        select ACPI_NUMA
        default y
        help
