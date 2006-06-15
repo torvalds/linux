@@ -1173,6 +1173,9 @@ static void check_process_timers(struct task_struct *tsk,
 		}
 		t = tsk;
 		do {
+			if (unlikely(t->flags & PF_EXITING))
+				continue;
+
 			ticks = cputime_add(cputime_add(t->utime, t->stime),
 					    prof_left);
 			if (!cputime_eq(prof_expires, cputime_zero) &&
@@ -1193,11 +1196,7 @@ static void check_process_timers(struct task_struct *tsk,
 					      t->it_sched_expires > sched)) {
 				t->it_sched_expires = sched;
 			}
-
-			do {
-				t = next_thread(t);
-			} while (unlikely(t->flags & PF_EXITING));
-		} while (t != tsk);
+		} while ((t = next_thread(t)) != tsk);
 	}
 }
 
