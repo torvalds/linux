@@ -200,9 +200,7 @@ struct sigframe {
 
 struct rt_sigframe {
 	struct siginfo info;
-	struct ucontext uc;
-	unsigned long retcode[2];
-	struct aux_sigframe aux __attribute__((aligned(8)));
+	struct sigframe sig;
 };
 
 static int
@@ -308,7 +306,7 @@ asmlinkage int sys_rt_sigreturn(struct pt_regs *regs)
 
 	if (!access_ok(VERIFY_READ, frame, sizeof (*frame)))
 		goto badframe;
-	if (__copy_from_user(&set, &frame->uc.uc_sigmask, sizeof(set)))
+	if (__copy_from_user(&set, &frame->sig.uc.uc_sigmask, sizeof(set)))
 		goto badframe;
 
 	sigdelsetmask(&set, ~_BLOCKABLE);
@@ -317,10 +315,10 @@ asmlinkage int sys_rt_sigreturn(struct pt_regs *regs)
 	recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
 
-	if (restore_sigcontext(regs, &frame->uc.uc_mcontext, &frame->aux))
+	if (restore_sigcontext(regs, &frame->sig.uc.uc_mcontext, &frame->sig.aux))
 		goto badframe;
 
-	if (do_sigaltstack(&frame->uc.uc_stack, NULL, regs->ARM_sp) == -EFAULT)
+	if (do_sigaltstack(&frame->sig.uc.uc_stack, NULL, regs->ARM_sp) == -EFAULT)
 		goto badframe;
 
 	/* Send SIGTRAP if we're single-stepping */
@@ -503,21 +501,21 @@ setup_rt_frame(int usig, struct k_sigaction *ka, siginfo_t *info,
 
 	err |= copy_siginfo_to_user(&frame->info, info);
 
-	__put_user_error(0, &frame->uc.uc_flags, err);
-	__put_user_error(NULL, &frame->uc.uc_link, err);
+	__put_user_error(0, &frame->sig.uc.uc_flags, err);
+	__put_user_error(NULL, &frame->sig.uc.uc_link, err);
 
 	memset(&stack, 0, sizeof(stack));
 	stack.ss_sp = (void __user *)current->sas_ss_sp;
 	stack.ss_flags = sas_ss_flags(regs->ARM_sp);
 	stack.ss_size = current->sas_ss_size;
-	err |= __copy_to_user(&frame->uc.uc_stack, &stack, sizeof(stack));
+	err |= __copy_to_user(&frame->sig.uc.uc_stack, &stack, sizeof(stack));
 
-	err |= setup_sigcontext(&frame->uc.uc_mcontext, &frame->aux,
+	err |= setup_sigcontext(&frame->sig.uc.uc_mcontext, &frame->sig.aux,
 				regs, set->sig[0]);
-	err |= __copy_to_user(&frame->uc.uc_sigmask, set, sizeof(*set));
+	err |= __copy_to_user(&frame->sig.uc.uc_sigmask, set, sizeof(*set));
 
 	if (err == 0)
-		err = setup_return(regs, ka, frame->retcode, frame, usig);
+		err = setup_return(regs, ka, frame->sig.retcode, frame, usig);
 
 	if (err == 0) {
 		/*
@@ -526,7 +524,7 @@ setup_rt_frame(int usig, struct k_sigaction *ka, siginfo_t *info,
 		 *   -- Peter Maydell <pmaydell@chiark.greenend.org.uk> 2000-12-06
 		 */
 		regs->ARM_r1 = (unsigned long)&frame->info;
-		regs->ARM_r2 = (unsigned long)&frame->uc;
+		regs->ARM_r2 = (unsigned long)&frame->sig.uc;
 	}
 
 	return err;
