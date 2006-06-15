@@ -1288,30 +1288,30 @@ void run_posix_cpu_timers(struct task_struct *tsk)
 
 #undef	UNEXPIRED
 
-	BUG_ON(tsk->exit_state);
-
 	/*
 	 * Double-check with locks held.
 	 */
 	read_lock(&tasklist_lock);
-	spin_lock(&tsk->sighand->siglock);
+	if (likely(tsk->signal != NULL)) {
+		spin_lock(&tsk->sighand->siglock);
 
-	/*
-	 * Here we take off tsk->cpu_timers[N] and tsk->signal->cpu_timers[N]
-	 * all the timers that are firing, and put them on the firing list.
-	 */
-	check_thread_timers(tsk, &firing);
-	check_process_timers(tsk, &firing);
+		/*
+		 * Here we take off tsk->cpu_timers[N] and tsk->signal->cpu_timers[N]
+		 * all the timers that are firing, and put them on the firing list.
+		 */
+		check_thread_timers(tsk, &firing);
+		check_process_timers(tsk, &firing);
 
-	/*
-	 * We must release these locks before taking any timer's lock.
-	 * There is a potential race with timer deletion here, as the
-	 * siglock now protects our private firing list.  We have set
-	 * the firing flag in each timer, so that a deletion attempt
-	 * that gets the timer lock before we do will give it up and
-	 * spin until we've taken care of that timer below.
-	 */
-	spin_unlock(&tsk->sighand->siglock);
+		/*
+		 * We must release these locks before taking any timer's lock.
+		 * There is a potential race with timer deletion here, as the
+		 * siglock now protects our private firing list.  We have set
+		 * the firing flag in each timer, so that a deletion attempt
+		 * that gets the timer lock before we do will give it up and
+		 * spin until we've taken care of that timer below.
+		 */
+		spin_unlock(&tsk->sighand->siglock);
+	}
 	read_unlock(&tasklist_lock);
 
 	/*
