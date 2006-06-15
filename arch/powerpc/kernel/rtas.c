@@ -797,6 +797,7 @@ EXPORT_SYMBOL(rtas_call);
 EXPORT_SYMBOL(rtas_data_buf);
 EXPORT_SYMBOL(rtas_data_buf_lock);
 EXPORT_SYMBOL(rtas_busy_delay_time);
+EXPORT_SYMBOL(rtas_busy_delay);
 EXPORT_SYMBOL(rtas_get_sensor);
 EXPORT_SYMBOL(rtas_get_power_level);
 EXPORT_SYMBOL(rtas_set_power_level);
