@@ -200,8 +200,6 @@ struct sigframe {
 };
 
 struct rt_sigframe {
-	struct siginfo __user *pinfo;
-	void __user *puc;
 	struct siginfo info;
 	struct ucontext uc;
 	unsigned long retcode[2];
@@ -511,8 +509,6 @@ setup_rt_frame(int usig, struct k_sigaction *ka, siginfo_t *info,
 	if (!frame)
 		return 1;
 
-	__put_user_error(&frame->info, &frame->pinfo, err);
-	__put_user_error(&frame->uc, &frame->puc, err);
 	err |= copy_siginfo_to_user(&frame->info, info);
 
 	__put_user_error(0, &frame->uc.uc_flags, err);
