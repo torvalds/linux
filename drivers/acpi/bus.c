@@ -43,7 +43,7 @@ ACPI_MODULE_NAME("acpi_bus")
 extern void __init acpi_pic_sci_set_trigger(unsigned int irq, u16 trigger);
 #endif
 
-FADT_DESCRIPTOR acpi_fadt;
+struct fadt_descriptor acpi_fadt;
 EXPORT_SYMBOL(acpi_fadt);
 
 struct acpi_device *acpi_root;
@@ -596,6 +596,8 @@ void __init acpi_early_init(void)
 	if (acpi_disabled)
 		return_VOID;
 
+	printk(KERN_INFO PREFIX "Core revision %08x\n", ACPI_CA_VERSION);
+
 	/* enable workarounds, unless strict ACPI spec. compliance */
 	if (!acpi_strict)
 		acpi_gbl_enable_interpreter_slack = TRUE;
@@ -617,7 +619,7 @@ void __init acpi_early_init(void)
 	/*
 	 * Get a separate copy of the FADT for use by other drivers.
 	 */
-	status = acpi_get_table(ACPI_TABLE_FADT, 1, &buffer);
+	status = acpi_get_table(ACPI_TABLE_ID_FADT, 1, &buffer);
 	if (ACPI_FAILURE(status)) {
 		printk(KERN_ERR PREFIX "Unable to get the FADT\n");
 		goto error0;
@@ -742,8 +744,6 @@ static int __init acpi_init(void)
 	int result = 0;
 
 	ACPI_FUNCTION_TRACE("acpi_init");
-
-	printk(KERN_INFO PREFIX "Subsystem revision %08x\n", ACPI_CA_VERSION);
 
 	if (acpi_disabled) {
 		printk(KERN_INFO PREFIX "Interpreter disabled.\n");

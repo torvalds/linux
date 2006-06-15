@@ -205,6 +205,7 @@ acpi_rs_set_resource_length(acpi_rsdesc_size total_length,
 	/* Length is stored differently for large and small descriptors */
 
 	if (aml->small_header.descriptor_type & ACPI_RESOURCE_NAME_LARGE) {
+
 		/* Large descriptor -- bytes 1-2 contain the 16-bit length */
 
 		ACPI_MOVE_16_TO_16(&aml->large_header.resource_length,
@@ -298,7 +299,8 @@ static u16 acpi_rs_strcpy(char *destination, char *source)
  *              string_ptr          - (optional) where to store the actual
  *                                    resource_source string
  *
- * RETURN:      Length of the string plus NULL terminator, rounded up to 32 bit
+ * RETURN:      Length of the string plus NULL terminator, rounded up to native
+ *              word boundary
  *
  * DESCRIPTION: Copy the optional resource_source data from a raw AML descriptor
  *              to an internal resource descriptor
@@ -328,6 +330,7 @@ acpi_rs_get_resource_source(acpi_rs_length resource_length,
 	 * we add 1 to the minimum length.
 	 */
 	if (total_length > (acpi_rsdesc_size) (minimum_length + 1)) {
+
 		/* Get the resource_source_index */
 
 		resource_source->index = aml_resource_source[0];
@@ -344,23 +347,26 @@ acpi_rs_get_resource_source(acpi_rs_length resource_length,
 		}
 
 		/*
-		 * In order for the struct_size to fall on a 32-bit boundary, calculate
-		 * the length of the string (+1 for the NULL terminator) and expand the
-		 * struct_size to the next 32-bit boundary.
+		 * In order for the Resource length to be a multiple of the native
+		 * word, calculate the length of the string (+1 for NULL terminator)
+		 * and expand to the next word multiple.
 		 *
 		 * Zero the entire area of the buffer.
 		 */
 		total_length =
-		    ACPI_ROUND_UP_to_32_bITS(ACPI_STRLEN
-					     ((char *)&aml_resource_source[1]) +
-					     1);
+		    (u32)
+		    ACPI_STRLEN(ACPI_CAST_PTR(char, &aml_resource_source[1])) +
+		    1;
+		total_length = (u32) ACPI_ROUND_UP_TO_NATIVE_WORD(total_length);
+
 		ACPI_MEMSET(resource_source->string_ptr, 0, total_length);
 
 		/* Copy the resource_source string to the destination */
 
 		resource_source->string_length =
 		    acpi_rs_strcpy(resource_source->string_ptr,
-				   (char *)&aml_resource_source[1]);
+				   ACPI_CAST_PTR(char,
+						 &aml_resource_source[1]));
 
 		return ((acpi_rs_length) total_length);
 	}
@@ -405,6 +411,7 @@ acpi_rs_set_resource_source(union aml_resource * aml,
 	/* Non-zero string length indicates presence of a resource_source */
 
 	if (resource_source->string_length) {
+
 		/* Point to the end of the AML descriptor */
 
 		aml_resource_source = ACPI_ADD_PTR(u8, aml, minimum_length);
@@ -415,7 +422,7 @@ acpi_rs_set_resource_source(union aml_resource * aml,
 
 		/* Copy the resource_source string */
 
-		ACPI_STRCPY((char *)&aml_resource_source[1],
+		ACPI_STRCPY(ACPI_CAST_PTR(char, &aml_resource_source[1]),
 			    resource_source->string_ptr);
 
 		/*
@@ -435,9 +442,9 @@ acpi_rs_set_resource_source(union aml_resource * aml,
  *
  * FUNCTION:    acpi_rs_get_prt_method_data
  *
- * PARAMETERS:  Handle          - a handle to the containing object
- *              ret_buffer      - a pointer to a buffer structure for the
- *                                  results
+ * PARAMETERS:  Node            - Device node
+ *              ret_buffer      - Pointer to a buffer structure for the
+ *                                results
  *
  * RETURN:      Status
  *
@@ -450,18 +457,19 @@ acpi_rs_set_resource_source(union aml_resource * aml,
  ******************************************************************************/
 
 acpi_status
-acpi_rs_get_prt_method_data(acpi_handle handle, struct acpi_buffer * ret_buffer)
+acpi_rs_get_prt_method_data(struct acpi_namespace_node * node,
+			    struct acpi_buffer * ret_buffer)
 {
 	union acpi_operand_object *obj_desc;
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("rs_get_prt_method_data");
+	ACPI_FUNCTION_TRACE(rs_get_prt_method_data);
 
 	/* Parameters guaranteed valid by caller */
 
 	/* Execute the method, no parameters */
 
-	status = acpi_ut_evaluate_object(handle, METHOD_NAME__PRT,
+	status = acpi_ut_evaluate_object(node, METHOD_NAME__PRT,
 					 ACPI_BTYPE_PACKAGE, &obj_desc);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
@@ -483,9 +491,9 @@ acpi_rs_get_prt_method_data(acpi_handle handle, struct acpi_buffer * ret_buffer)
  *
  * FUNCTION:    acpi_rs_get_crs_method_data
  *
- * PARAMETERS:  Handle          - a handle to the containing object
- *              ret_buffer      - a pointer to a buffer structure for the
- *                                  results
+ * PARAMETERS:  Node            - Device node
+ *              ret_buffer      - Pointer to a buffer structure for the
+ *                                results
  *
  * RETURN:      Status
  *
@@ -498,18 +506,19 @@ acpi_rs_get_prt_method_data(acpi_handle handle, struct acpi_buffer * ret_buffer)
  ******************************************************************************/
 
 acpi_status
-acpi_rs_get_crs_method_data(acpi_handle handle, struct acpi_buffer *ret_buffer)
+acpi_rs_get_crs_method_data(struct acpi_namespace_node *node,
+			    struct acpi_buffer *ret_buffer)
 {
 	union acpi_operand_object *obj_desc;
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("rs_get_crs_method_data");
+	ACPI_FUNCTION_TRACE(rs_get_crs_method_data);
 
 	/* Parameters guaranteed valid by caller */
 
 	/* Execute the method, no parameters */
 
-	status = acpi_ut_evaluate_object(handle, METHOD_NAME__CRS,
+	status = acpi_ut_evaluate_object(node, METHOD_NAME__CRS,
 					 ACPI_BTYPE_BUFFER, &obj_desc);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
@@ -522,7 +531,7 @@ acpi_rs_get_crs_method_data(acpi_handle handle, struct acpi_buffer *ret_buffer)
 	 */
 	status = acpi_rs_create_resource_list(obj_desc, ret_buffer);
 
-	/* on exit, we must delete the object returned by evaluate_object */
+	/* On exit, we must delete the object returned by evaluate_object */
 
 	acpi_ut_remove_reference(obj_desc);
 	return_ACPI_STATUS(status);
@@ -532,9 +541,9 @@ acpi_rs_get_crs_method_data(acpi_handle handle, struct acpi_buffer *ret_buffer)
  *
  * FUNCTION:    acpi_rs_get_prs_method_data
  *
- * PARAMETERS:  Handle          - a handle to the containing object
- *              ret_buffer      - a pointer to a buffer structure for the
- *                                  results
+ * PARAMETERS:  Node            - Device node
+ *              ret_buffer      - Pointer to a buffer structure for the
+ *                                results
  *
  * RETURN:      Status
  *
@@ -548,18 +557,19 @@ acpi_rs_get_crs_method_data(acpi_handle handle, struct acpi_buffer *ret_buffer)
 
 #ifdef ACPI_FUTURE_USAGE
 acpi_status
-acpi_rs_get_prs_method_data(acpi_handle handle, struct acpi_buffer *ret_buffer)
+acpi_rs_get_prs_method_data(struct acpi_namespace_node *node,
+			    struct acpi_buffer *ret_buffer)
 {
 	union acpi_operand_object *obj_desc;
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("rs_get_prs_method_data");
+	ACPI_FUNCTION_TRACE(rs_get_prs_method_data);
 
 	/* Parameters guaranteed valid by caller */
 
 	/* Execute the method, no parameters */
 
-	status = acpi_ut_evaluate_object(handle, METHOD_NAME__PRS,
+	status = acpi_ut_evaluate_object(node, METHOD_NAME__PRS,
 					 ACPI_BTYPE_BUFFER, &obj_desc);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
@@ -572,7 +582,7 @@ acpi_rs_get_prs_method_data(acpi_handle handle, struct acpi_buffer *ret_buffer)
 	 */
 	status = acpi_rs_create_resource_list(obj_desc, ret_buffer);
 
-	/* on exit, we must delete the object returned by evaluate_object */
+	/* On exit, we must delete the object returned by evaluate_object */
 
 	acpi_ut_remove_reference(obj_desc);
 	return_ACPI_STATUS(status);
@@ -583,10 +593,10 @@ acpi_rs_get_prs_method_data(acpi_handle handle, struct acpi_buffer *ret_buffer)
  *
  * FUNCTION:    acpi_rs_get_method_data
  *
- * PARAMETERS:  Handle          - a handle to the containing object
+ * PARAMETERS:  Handle          - Handle to the containing object
  *              Path            - Path to method, relative to Handle
- *              ret_buffer      - a pointer to a buffer structure for the
- *                                  results
+ *              ret_buffer      - Pointer to a buffer structure for the
+ *                                results
  *
  * RETURN:      Status
  *
@@ -605,7 +615,7 @@ acpi_rs_get_method_data(acpi_handle handle,
 	union acpi_operand_object *obj_desc;
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("rs_get_method_data");
+	ACPI_FUNCTION_TRACE(rs_get_method_data);
 
 	/* Parameters guaranteed valid by caller */
 
@@ -634,9 +644,9 @@ acpi_rs_get_method_data(acpi_handle handle,
  *
  * FUNCTION:    acpi_rs_set_srs_method_data
  *
- * PARAMETERS:  Handle          - a handle to the containing object
- *              in_buffer       - a pointer to a buffer structure of the
- *                                  parameter
+ * PARAMETERS:  Node            - Device node
+ *              in_buffer       - Pointer to a buffer structure of the
+ *                                parameter
  *
  * RETURN:      Status
  *
@@ -646,23 +656,37 @@ acpi_rs_get_method_data(acpi_handle handle,
  *              If the function fails an appropriate status will be returned
  *              and the contents of the callers buffer is undefined.
  *
+ * Note: Parameters guaranteed valid by caller
+ *
  ******************************************************************************/
 
 acpi_status
-acpi_rs_set_srs_method_data(acpi_handle handle, struct acpi_buffer *in_buffer)
+acpi_rs_set_srs_method_data(struct acpi_namespace_node *node,
+			    struct acpi_buffer *in_buffer)
 {
-	struct acpi_parameter_info info;
-	union acpi_operand_object *params[2];
+	struct acpi_evaluate_info *info;
+	union acpi_operand_object *args[2];
 	acpi_status status;
 	struct acpi_buffer buffer;
 
-	ACPI_FUNCTION_TRACE("rs_set_srs_method_data");
+	ACPI_FUNCTION_TRACE(rs_set_srs_method_data);
 
-	/* Parameters guaranteed valid by caller */
+	/* Allocate and initialize the evaluation information block */
+
+	info = ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_evaluate_info));
+	if (!info) {
+		return_ACPI_STATUS(AE_NO_MEMORY);
+	}
+
+	info->prefix_node = node;
+	info->pathname = METHOD_NAME__SRS;
+	info->parameters = args;
+	info->parameter_type = ACPI_PARAM_ARGS;
+	info->flags = ACPI_IGNORE_RETURN_VALUE;
 
 	/*
 	 * The in_buffer parameter will point to a linked list of
-	 * resource parameters.  It needs to be formatted into a
+	 * resource parameters. It needs to be formatted into a
 	 * byte stream to be sent in as an input parameter to _SRS
 	 *
 	 * Convert the linked list into a byte stream
@@ -670,41 +694,36 @@ acpi_rs_set_srs_method_data(acpi_handle handle, struct acpi_buffer *in_buffer)
 	buffer.length = ACPI_ALLOCATE_LOCAL_BUFFER;
 	status = acpi_rs_create_aml_resources(in_buffer->pointer, &buffer);
 	if (ACPI_FAILURE(status)) {
-		return_ACPI_STATUS(status);
+		goto cleanup;
 	}
 
-	/* Init the param object */
+	/* Create and initialize the method parameter object */
 
-	params[0] = acpi_ut_create_internal_object(ACPI_TYPE_BUFFER);
-	if (!params[0]) {
-		acpi_os_free(buffer.pointer);
-		return_ACPI_STATUS(AE_NO_MEMORY);
+	args[0] = acpi_ut_create_internal_object(ACPI_TYPE_BUFFER);
+	if (!args[0]) {
+		/*
+		 * Must free the buffer allocated above (otherwise it is freed
+		 * later)
+		 */
+		ACPI_FREE(buffer.pointer);
+		status = AE_NO_MEMORY;
+		goto cleanup;
 	}
 
-	/* Set up the parameter object */
+	args[0]->buffer.length = (u32) buffer.length;
+	args[0]->buffer.pointer = buffer.pointer;
+	args[0]->common.flags = AOPOBJ_DATA_VALID;
+	args[1] = NULL;
 
-	params[0]->buffer.length = (u32) buffer.length;
-	params[0]->buffer.pointer = buffer.pointer;
-	params[0]->common.flags = AOPOBJ_DATA_VALID;
-	params[1] = NULL;
+	/* Execute the method, no return value is expected */
 
-	info.node = handle;
-	info.parameters = params;
-	info.parameter_type = ACPI_PARAM_ARGS;
+	status = acpi_ns_evaluate(info);
 
-	/* Execute the method, no return value */
+	/* Clean up and return the status from acpi_ns_evaluate */
 
-	status = acpi_ns_evaluate_relative(METHOD_NAME__SRS, &info);
-	if (ACPI_SUCCESS(status)) {
-		/* Delete any return object (especially if implicit_return is enabled) */
+	acpi_ut_remove_reference(args[0]);
 
-		if (info.return_object) {
-			acpi_ut_remove_reference(info.return_object);
-		}
-	}
-
-	/* Clean up and return the status from acpi_ns_evaluate_relative */
-
-	acpi_ut_remove_reference(params[0]);
+      cleanup:
+	ACPI_FREE(info);
 	return_ACPI_STATUS(status);
 }

@@ -497,7 +497,7 @@ zx1_gart_probe (acpi_handle obj, u32 depth, void *context, void **ret)
 			info = buffer.pointer;
 			info->hardware_id.value[sizeof(info->hardware_id)-1] = '\0';
 			match = (strcmp(info->hardware_id.value, "HWP0001") == 0);
-			ACPI_MEM_FREE(info);
+			kfree(info);
 			if (match) {
 				status = hp_acpi_csr_space(handle, &sba_hpa, &length);
 				if (ACPI_SUCCESS(status))

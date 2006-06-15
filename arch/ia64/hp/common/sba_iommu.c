@@ -1999,7 +1999,7 @@ acpi_sba_ioc_add(struct acpi_device *device)
 		if (!iovp_shift)
 			iovp_shift = min(PAGE_SHIFT, 16);
 	}
-	ACPI_MEM_FREE(dev_info);
+	kfree(dev_info);
 
 	/*
 	 * default anything not caught above or specified on cmdline to 4k

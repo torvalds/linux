@@ -621,9 +621,9 @@ extern u32 pmtmr_ioport;
 
 static int __init acpi_parse_fadt(unsigned long phys, unsigned long size)
 {
-	struct fadt_descriptor_rev2 *fadt = NULL;
+	struct fadt_descriptor *fadt = NULL;
 
-	fadt = (struct fadt_descriptor_rev2 *)__acpi_map_table(phys, size);
+	fadt = (struct fadt_descriptor *)__acpi_map_table(phys, size);
 	if (!fadt) {
 		printk(KERN_WARNING PREFIX "Unable to map FADT\n");
 		return 0;
