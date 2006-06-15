@@ -323,7 +323,7 @@ acpi_video_device_lcd_query_levels(struct acpi_video_device *device,
 	if (!ACPI_SUCCESS(status))
 		return_VALUE(status);
 	obj = (union acpi_object *)buffer.pointer;
-	if (!obj && (obj->type != ACPI_TYPE_PACKAGE)) {
+	if (!obj || (obj->type != ACPI_TYPE_PACKAGE)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Invalid _BCL data\n"));
 		status = -EFAULT;
 		goto err;
