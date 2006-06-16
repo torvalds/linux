@@ -82,6 +82,7 @@ MODULE_PARM_DESC(tzp, "Thermal zone polling frequency, in 1/10 seconds.\n");
 
 static int acpi_thermal_add(struct acpi_device *device);
 static int acpi_thermal_remove(struct acpi_device *device, int type);
+static int acpi_thermal_resume(struct acpi_device *device, int state);
 static int acpi_thermal_state_open_fs(struct inode *inode, struct file *file);
 static int acpi_thermal_temp_open_fs(struct inode *inode, struct file *file);
 static int acpi_thermal_trip_open_fs(struct inode *inode, struct file *file);
@@ -103,6 +104,7 @@ static struct acpi_driver acpi_thermal_driver = {
 	.ops = {
 		.add = acpi_thermal_add,
 		.remove = acpi_thermal_remove,
+		.resume = acpi_thermal_resume,
 		},
 };
 
@@ -1415,6 +1417,20 @@ static int acpi_thermal_remove(struct acpi_device *device, int type)
 
 	kfree(tz);
 	return_VALUE(0);
+}
+
+static int acpi_thermal_resume(struct acpi_device *device, int state)
+{
+	struct acpi_thermal *tz = NULL;
+
+	if (!device || !acpi_driver_data(device))
+		return_VALUE(-EINVAL);
+
+	tz = (struct acpi_thermal *)acpi_driver_data(device);
+
+	acpi_thermal_check(tz);
+
+	return AE_OK;
 }
 
 static int __init acpi_thermal_init(void)

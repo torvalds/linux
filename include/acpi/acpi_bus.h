@@ -26,7 +26,7 @@
 #ifndef __ACPI_BUS_H__
 #define __ACPI_BUS_H__
 
-#include <linux/kobject.h>
+#include <linux/device.h>
 
 #include <acpi/acpi.h>
 
@@ -169,7 +169,8 @@ struct acpi_device_flags {
 	u32 power_manageable:1;
 	u32 performance_manageable:1;
 	u32 wake_capable:1;	/* Wakeup(_PRW) supported? */
-	u32 reserved:20;
+	u32 force_power_state:1;
+	u32 reserved:19;
 };
 
 /* File System */
@@ -296,6 +297,7 @@ struct acpi_device {
 	struct acpi_driver *driver;
 	void *driver_data;
 	struct kobject kobj;
+	struct device dev;
 };
 
 #define acpi_driver_data(d)	((d)->driver_data)
