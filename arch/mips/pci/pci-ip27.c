@@ -370,8 +370,7 @@ int __init bridge_probe(nasid_t nasid, int widget_id, int masterwid)
 	bc->widget_id = widget_id;
 	bc->nasid = nasid;
 
-	bc->baddr = (u64)masterwid << 60;
-	bc->baddr |= (1UL << 56);	/* Barrier set */
+	bc->baddr = (u64)masterwid << 60 | PCI64_ATTR_BAR;
 
 	/*
 	 * point to this bridge
