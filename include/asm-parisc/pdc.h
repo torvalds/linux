@@ -733,6 +733,7 @@ int pdc_model_cpuid(unsigned long *cpu_id);
 int pdc_model_versions(unsigned long *versions, int id);
 int pdc_model_capabilities(unsigned long *capabilities);
 int pdc_cache_info(struct pdc_cache_info *cache);
+int pdc_spaceid_bits(unsigned long *space_bits);
 #ifndef CONFIG_PA20
 int pdc_btlb_info(struct pdc_btlb_info *btlb);
 int pdc_mem_map_hpa(struct pdc_memory_map *r_addr, struct pdc_module_path *mod_path);

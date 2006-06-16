@@ -236,7 +236,8 @@ parisc_cache_init(void)
 
 void disable_sr_hashing(void)
 {
-	int srhash_type;
+	int srhash_type, retval;
+	unsigned long space_bits;
 
 	switch (boot_cpu_data.cpu_type) {
 	case pcx: /* We shouldn't get this far.  setup.c should prevent it. */
@@ -262,6 +263,13 @@ void disable_sr_hashing(void)
 	}
 
 	disable_sr_hashing_asm(srhash_type);
+
+	retval = pdc_spaceid_bits(&space_bits);
+	/* If this procedure isn't implemented, don't panic. */
+	if (retval < 0 && retval != PDC_BAD_OPTION)
+		panic("pdc_spaceid_bits call failed.\n");
+	if (space_bits != 0)
+		panic("SpaceID hashing is still on!\n");
 }
 
 void flush_dcache_page(struct page *page)

@@ -512,6 +512,26 @@ int pdc_cache_info(struct pdc_cache_info *cache_info)
         return retval;
 }
 
+/**
+ * pdc_spaceid_bits - Return whether Space ID hashing is turned on.
+ * @space_bits: Should be 0, if not, bad mojo!
+ *
+ * Returns information about Space ID hashing.
+ */
+int pdc_spaceid_bits(unsigned long *space_bits)
+{
+	int retval;
+
+	spin_lock_irq(&pdc_lock);
+	pdc_result[0] = 0;
+	retval = mem_pdc_call(PDC_CACHE, PDC_CACHE_RET_SPID, __pa(pdc_result), 0);
+	convert_to_wide(pdc_result);
+	*space_bits = pdc_result[0];
+	spin_unlock_irq(&pdc_lock);
+
+	return retval;
+}
+
 #ifndef CONFIG_PA20
 /**
  * pdc_btlb_info - Return block TLB information.
