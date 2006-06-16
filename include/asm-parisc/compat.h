@@ -5,6 +5,7 @@
  */
 #include <linux/types.h>
 #include <linux/sched.h>
+#include <linux/personality.h>
 
 #define COMPAT_USER_HZ 100
 
@@ -147,6 +148,16 @@ static __inline__ void __user *compat_alloc_user_space(long len)
 {
 	struct pt_regs *regs = &current->thread.regs;
 	return (void __user *)regs->gr[30];
+}
+
+static inline int __is_compat_task(struct task_struct *t)
+{
+	return personality(t->personality) == PER_LINUX32;
+}
+
+static inline int is_compat_task(void)
+{
+	return __is_compat_task(current);
 }
 
 #endif /* _ASM_PARISC_COMPAT_H */
