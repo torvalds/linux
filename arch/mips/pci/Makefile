@@ -43,7 +43,7 @@ obj-$(CONFIG_MOMENCO_OCELOT_C)	+= fixup-ocelot-c.o pci-ocelot-c.o
 obj-$(CONFIG_MOMENCO_OCELOT_G)	+= fixup-ocelot-g.o pci-ocelot-g.o
 obj-$(CONFIG_PMC_YOSEMITE)	+= fixup-yosemite.o ops-titan.o ops-titan-ht.o \
 				   pci-yosemite.o
-obj-$(CONFIG_SGI_IP27)		+= pci-ip27.o
+obj-$(CONFIG_SGI_IP27)		+= ops-bridge.o pci-ip27.o
 obj-$(CONFIG_SGI_IP32)		+= fixup-ip32.o ops-mace.o pci-ip32.o
 obj-$(CONFIG_SIBYTE_SB1250)	+= fixup-sb1250.o pci-sb1250.o
 obj-$(CONFIG_SIBYTE_BCM112X)	+= fixup-sb1250.o pci-sb1250.o
