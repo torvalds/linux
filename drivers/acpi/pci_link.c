@@ -38,6 +38,7 @@
 #include <linux/spinlock.h>
 #include <linux/pm.h>
 #include <linux/pci.h>
+#include <linux/mutex.h>
 
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
@@ -91,7 +92,7 @@ static struct {
 	int count;
 	struct list_head entries;
 } acpi_link;
-DECLARE_MUTEX(acpi_link_lock);
+DEFINE_MUTEX(acpi_link_lock);
 
 /* --------------------------------------------------------------------------
                             PCI Link Device Management
@@ -641,19 +642,19 @@ acpi_pci_link_allocate_irq(acpi_handle handle,
 		return_VALUE(-1);
 	}
 
-	down(&acpi_link_lock);
+	mutex_lock(&acpi_link_lock);
 	if (acpi_pci_link_allocate(link)) {
-		up(&acpi_link_lock);
+		mutex_unlock(&acpi_link_lock);
 		return_VALUE(-1);
 	}
 
 	if (!link->irq.active) {
-		up(&acpi_link_lock);
+		mutex_unlock(&acpi_link_lock);
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Link active IRQ is 0!\n"));
 		return_VALUE(-1);
 	}
 	link->refcnt++;
-	up(&acpi_link_lock);
+	mutex_unlock(&acpi_link_lock);
 
 	if (triggering)
 		*triggering = link->irq.triggering;
@@ -691,9 +692,9 @@ int acpi_pci_link_free_irq(acpi_handle handle)
 		return_VALUE(-1);
 	}
 
-	down(&acpi_link_lock);
+	mutex_lock(&acpi_link_lock);
 	if (!link->irq.initialized) {
-		up(&acpi_link_lock);
+		mutex_unlock(&acpi_link_lock);
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Link isn't initialized\n"));
 		return_VALUE(-1);
 	}
@@ -716,7 +717,7 @@ int acpi_pci_link_free_irq(acpi_handle handle)
 	if (link->refcnt == 0) {
 		acpi_ut_evaluate_object(link->handle, "_DIS", 0, NULL);
 	}
-	up(&acpi_link_lock);
+	mutex_unlock(&acpi_link_lock);
 	return_VALUE(link->irq.active);
 }
 
@@ -747,7 +748,7 @@ static int acpi_pci_link_add(struct acpi_device *device)
 	strcpy(acpi_device_class(device), ACPI_PCI_LINK_CLASS);
 	acpi_driver_data(device) = link;
 
-	down(&acpi_link_lock);
+	mutex_lock(&acpi_link_lock);
 	result = acpi_pci_link_get_possible(link);
 	if (result)
 		goto end;
@@ -782,7 +783,7 @@ static int acpi_pci_link_add(struct acpi_device *device)
       end:
 	/* disable all links -- to be activated on use */
 	acpi_ut_evaluate_object(link->handle, "_DIS", 0, NULL);
-	up(&acpi_link_lock);
+	mutex_unlock(&acpi_link_lock);
 
 	if (result)
 		kfree(link);
@@ -837,9 +838,9 @@ static int acpi_pci_link_remove(struct acpi_device *device, int type)
 
 	link = (struct acpi_pci_link *)acpi_driver_data(device);
 
-	down(&acpi_link_lock);
+	mutex_lock(&acpi_link_lock);
 	list_del(&link->node);
-	up(&acpi_link_lock);
+	mutex_unlock(&acpi_link_lock);
 
 	kfree(link);
 
