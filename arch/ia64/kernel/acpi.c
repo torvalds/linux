@@ -68,8 +68,6 @@ EXPORT_SYMBOL(pm_power_off);
 unsigned char acpi_kbd_controller_present = 1;
 unsigned char acpi_legacy_devices;
 
-static unsigned int __initdata acpi_madt_rev;
-
 unsigned int acpi_cpei_override;
 unsigned int acpi_cpei_phys_cpuid;
 
@@ -242,6 +240,8 @@ acpi_parse_iosapic(acpi_table_entry_header * header, const unsigned long end)
 
 	return iosapic_init(iosapic->address, iosapic->global_irq_base);
 }
+
+static unsigned int __initdata acpi_madt_rev;
 
 static int __init
 acpi_parse_plat_int_src(acpi_table_entry_header * header,
