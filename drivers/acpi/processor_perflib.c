@@ -624,7 +624,7 @@ int acpi_processor_preregister_performance(
 	struct acpi_processor *match_pr;
 	struct acpi_psd_package *match_pdomain;
 
-	down(&performance_sem);
+	mutex_lock(&performance_mutex);
 
 	retval = 0;
 
@@ -772,7 +772,7 @@ err_ret:
 		pr->performance = NULL; /* Will be set for real in register */
 	}
 
-	up(&performance_sem);
+	mutex_unlock(&performance_mutex);
 	return retval;
 }
 EXPORT_SYMBOL(acpi_processor_preregister_performance);
