@@ -29,6 +29,22 @@ int (*platform_notify_remove)(struct device * dev) = NULL;
  * sysfs bindings for devices.
  */
 
+/**
+ * dev_driver_string - Return a device's driver name, if at all possible
+ * @dev: struct device to get the name of
+ *
+ * Will return the device's driver's name if it is bound to a device.  If
+ * the device is not bound to a device, it will return the name of the bus
+ * it is attached to.  If it is not attached to a bus either, an empty
+ * string will be returned.
+ */
+const char *dev_driver_string(struct device *dev)
+{
+	return dev->driver ? dev->driver->name :
+			(dev->bus ? dev->bus->name : "");
+}
+EXPORT_SYMBOL_GPL(dev_driver_string);
+
 #define to_dev(obj) container_of(obj, struct device, kobj)
 #define to_dev_attr(_attr) container_of(_attr, struct device_attribute, attr)
 
