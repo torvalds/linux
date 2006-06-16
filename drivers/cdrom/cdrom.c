@@ -1009,9 +1009,9 @@ int cdrom_open(struct cdrom_device_info *cdi, struct inode *ip, struct file *fp)
 		if (fp->f_mode & FMODE_WRITE) {
 			ret = -EROFS;
 			if (cdrom_open_write(cdi))
-				goto err;
+				goto err_release;
 			if (!CDROM_CAN(CDC_RAM))
-				goto err;
+				goto err_release;
 			ret = 0;
 			cdi->media_written = 0;
 		}
@@ -1026,6 +1026,8 @@ int cdrom_open(struct cdrom_device_info *cdi, struct inode *ip, struct file *fp)
 	    not be mounting, but opening with O_NONBLOCK */
 	check_disk_change(ip->i_bdev);
 	return 0;
+err_release:
+	cdi->ops->release(cdi);
 err:
 	cdi->use_count--;
 	return ret;
