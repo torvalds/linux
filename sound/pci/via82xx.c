@@ -1775,6 +1775,12 @@ static struct ac97_quirk ac97_quirks[] = {
 		.name = "Targa Traveller 811",
 		.type = AC97_TUNE_HP_ONLY,
 	},
+	{
+		.subvendor = 0x161f,
+		.subdevice = 0x2032,
+		.name = "m680x",
+		.type = AC97_TUNE_HP_ONLY, /* http://launchpad.net/bugs/38546 */
+	},
 	{ } /* terminator */
 };
 
