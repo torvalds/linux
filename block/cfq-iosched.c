@@ -26,7 +26,7 @@ static const int cfq_back_penalty = 2;		/* penalty of a backwards seek */
 static const int cfq_slice_sync = HZ / 10;
 static int cfq_slice_async = HZ / 25;
 static const int cfq_slice_async_rq = 2;
-static int cfq_slice_idle = HZ / 70;
+static int cfq_slice_idle = HZ / 125;
 
 #define CFQ_IDLE_GRACE		(HZ / 10)
 #define CFQ_SLICE_SCALE		(5)
@@ -906,6 +906,8 @@ static struct cfq_queue *cfq_set_active_queue(struct cfq_data *cfqd)
 	return cfqq;
 }
 
+#define CIC_SEEKY(cic) ((cic)->seek_mean > (128 * 1024))
+
 static int cfq_arm_slice_timer(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 
 {
@@ -939,7 +941,7 @@ static int cfq_arm_slice_timer(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 	 * fair distribution of slice time for a process doing back-to-back
 	 * seeks. so allow a little bit of time for him to submit a new rq
 	 */
-	if (sample_valid(cic->seek_samples) && cic->seek_mean > 131072)
+	if (sample_valid(cic->seek_samples) && CIC_SEEKY(cic))
 		sl = 2;
 
 	mod_timer(&cfqd->idle_slice_timer, jiffies + sl);
@@ -1038,8 +1040,10 @@ static struct cfq_queue *cfq_select_queue(struct cfq_data *cfqd)
 	 */
 	if (!RB_EMPTY(&cfqq->sort_list))
 		goto keep_queue;
-	else if (cfq_cfqq_class_sync(cfqq) &&
-		 time_before(now, cfqq->slice_end)) {
+	else if (cfq_cfqq_dispatched(cfqq)) {
+		cfqq = NULL;
+		goto keep_queue;
+	} else if (cfq_cfqq_class_sync(cfqq)) {
 		if (cfq_arm_slice_timer(cfqd, cfqq))
 			return NULL;
 	}
@@ -1088,8 +1092,7 @@ __cfq_dispatch_requests(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 	} while (dispatched < max_dispatch);
 
 	/*
-	 * if slice end isn't set yet, set it. if at least one request was
-	 * sync, use the sync time slice value
+	 * if slice end isn't set yet, set it.
 	 */
 	if (!cfqq->slice_end)
 		cfq_set_prio_slice(cfqd, cfqq);
@@ -1100,7 +1103,8 @@ __cfq_dispatch_requests(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 	 */
 	if ((!cfq_cfqq_sync(cfqq) &&
 	    cfqd->dispatch_slice >= cfq_prio_to_maxrq(cfqd, cfqq)) ||
-	    cfq_class_idle(cfqq))
+	    cfq_class_idle(cfqq) ||
+	    !cfq_cfqq_idle_window(cfqq))
 		cfq_slice_expired(cfqd, 0);
 
 	return dispatched;
@@ -1109,10 +1113,11 @@ __cfq_dispatch_requests(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 static int
 cfq_forced_dispatch_cfqqs(struct list_head *list)
 {
-	int dispatched = 0;
 	struct cfq_queue *cfqq, *next;
 	struct cfq_rq *crq;
+	int dispatched;
 
+	dispatched = 0;
 	list_for_each_entry_safe(cfqq, next, list, cfq_list) {
 		while ((crq = cfqq->next_crq)) {
 			cfq_dispatch_insert(cfqq->cfqd->queue, crq);
@@ -1120,6 +1125,7 @@ cfq_forced_dispatch_cfqqs(struct list_head *list)
 		}
 		BUG_ON(!list_empty(&cfqq->fifo));
 	}
+
 	return dispatched;
 }
 
@@ -1146,7 +1152,8 @@ static int
 cfq_dispatch_requests(request_queue_t *q, int force)
 {
 	struct cfq_data *cfqd = q->elevator->elevator_data;
-	struct cfq_queue *cfqq;
+	struct cfq_queue *cfqq, *prev_cfqq;
+	int dispatched;
 
 	if (!cfqd->busy_queues)
 		return 0;
@@ -1154,9 +1161,16 @@ cfq_dispatch_requests(request_queue_t *q, int force)
 	if (unlikely(force))
 		return cfq_forced_dispatch(cfqd);
 
-	cfqq = cfq_select_queue(cfqd);
-	if (cfqq) {
+	dispatched = 0;
+	prev_cfqq = NULL;
+	while ((cfqq = cfq_select_queue(cfqd)) != NULL) {
 		int max_dispatch;
+
+		/*
+		 * Don't repeat dispatch from the previous queue.
+		 */
+		if (prev_cfqq == cfqq)
+			break;
 
 		cfq_clear_cfqq_must_dispatch(cfqq);
 		cfq_clear_cfqq_wait_request(cfqq);
@@ -1166,10 +1180,19 @@ cfq_dispatch_requests(request_queue_t *q, int force)
 		if (cfq_class_idle(cfqq))
 			max_dispatch = 1;
 
-		return __cfq_dispatch_requests(cfqd, cfqq, max_dispatch);
+		dispatched += __cfq_dispatch_requests(cfqd, cfqq, max_dispatch);
+
+		/*
+		 * If the dispatch cfqq has idling enabled and is still
+		 * the active queue, break out.
+		 */
+		if (cfq_cfqq_idle_window(cfqq) && cfqd->active_queue)
+			break;
+
+		prev_cfqq = cfqq;
 	}
 
-	return 0;
+	return dispatched;
 }
 
 /*
@@ -1375,24 +1398,28 @@ static inline void changed_ioprio(struct cfq_io_context *cic)
 {
 	struct cfq_data *cfqd = cic->key;
 	struct cfq_queue *cfqq;
-	if (cfqd) {
-		spin_lock(cfqd->queue->queue_lock);
-		cfqq = cic->cfqq[ASYNC];
-		if (cfqq) {
-			struct cfq_queue *new_cfqq;
-			new_cfqq = cfq_get_queue(cfqd, CFQ_KEY_ASYNC,
-						cic->ioc->task, GFP_ATOMIC);
-			if (new_cfqq) {
-				cic->cfqq[ASYNC] = new_cfqq;
-				cfq_put_queue(cfqq);
-			}
-		}
-		cfqq = cic->cfqq[SYNC];
-		if (cfqq)
-			cfq_mark_cfqq_prio_changed(cfqq);
 
-		spin_unlock(cfqd->queue->queue_lock);
+	if (unlikely(!cfqd))
+		return;
+
+	spin_lock(cfqd->queue->queue_lock);
+
+	cfqq = cic->cfqq[ASYNC];
+	if (cfqq) {
+		struct cfq_queue *new_cfqq;
+		new_cfqq = cfq_get_queue(cfqd, CFQ_KEY_ASYNC, cic->ioc->task,
+					 GFP_ATOMIC);
+		if (new_cfqq) {
+			cic->cfqq[ASYNC] = new_cfqq;
+			cfq_put_queue(cfqq);
+		}
 	}
+
+	cfqq = cic->cfqq[SYNC];
+	if (cfqq)
+		cfq_mark_cfqq_prio_changed(cfqq);
+
+	spin_unlock(cfqd->queue->queue_lock);
 }
 
 /*
@@ -1461,8 +1488,7 @@ retry:
 		 * set ->slice_left to allow preemption for a new process
 		 */
 		cfqq->slice_left = 2 * cfqd->cfq_slice_idle;
-		if (!cfqd->hw_tag)
-			cfq_mark_cfqq_idle_window(cfqq);
+		cfq_mark_cfqq_idle_window(cfqq);
 		cfq_mark_cfqq_prio_changed(cfqq);
 		cfq_init_prio_data(cfqq);
 	}
@@ -1653,7 +1679,8 @@ cfq_update_idle_window(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 {
 	int enable_idle = cfq_cfqq_idle_window(cfqq);
 
-	if (!cic->ioc->task || !cfqd->cfq_slice_idle || cfqd->hw_tag)
+	if (!cic->ioc->task || !cfqd->cfq_slice_idle ||
+	    (cfqd->hw_tag && CIC_SEEKY(cic)))
 		enable_idle = 0;
 	else if (sample_valid(cic->ttime_samples)) {
 		if (cic->ttime_mean > cfqd->cfq_slice_idle)
@@ -1683,7 +1710,7 @@ cfq_should_preempt(struct cfq_data *cfqd, struct cfq_queue *new_cfqq,
 		return 0;
 
 	if (!cfqq)
-		return 1;
+		return 0;
 
 	if (cfq_class_idle(cfqq))
 		return 1;
@@ -1715,7 +1742,7 @@ static void cfq_preempt_queue(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 		cfqq->slice_left = cfq_prio_to_slice(cfqd, cfqq) / 2;
 
 	cfqq->slice_end = cfqq->slice_left + jiffies;
-	__cfq_slice_expired(cfqd, cfqq, 1);
+	cfq_slice_expired(cfqd, 1);
 	__cfq_set_active_queue(cfqd, cfqq);
 }
 
@@ -1834,11 +1861,23 @@ static void cfq_completed_request(request_queue_t *q, struct request *rq)
 			cfqq->service_last = now;
 			cfq_resort_rr_list(cfqq, 0);
 		}
-		cfq_schedule_dispatch(cfqd);
 	}
 
-	if (cfq_crq_is_sync(crq))
+	if (sync)
 		crq->io_context->last_end_request = now;
+
+	/*
+	 * If this is the active queue, check if it needs to be expired,
+	 * or if we want to idle in case it has no pending requests.
+	 */
+	if (cfqd->active_queue == cfqq) {
+		if (time_after(now, cfqq->slice_end))
+			cfq_slice_expired(cfqd, 0);
+		else if (sync && RB_EMPTY(&cfqq->sort_list)) {
+			if (!cfq_arm_slice_timer(cfqd, cfqq))
+				cfq_schedule_dispatch(cfqd);
+		}
+	}
 }
 
 static struct request *
@@ -2106,11 +2145,8 @@ static void cfq_idle_slice_timer(unsigned long data)
 		 * only expire and reinvoke request handler, if there are
 		 * other queues with pending requests
 		 */
-		if (!cfqd->busy_queues) {
-			cfqd->idle_slice_timer.expires = min(now + cfqd->cfq_slice_idle, cfqq->slice_end);
-			add_timer(&cfqd->idle_slice_timer);
+		if (!cfqd->busy_queues)
 			goto out_cont;
-		}
 
 		/*
 		 * not expired and it has a request pending, let it dispatch
