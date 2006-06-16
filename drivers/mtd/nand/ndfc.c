@@ -203,15 +203,10 @@ static int ndfc_chip_probe(struct platform_device *pdev)
 #ifdef CONFIG_MTD_PARTITIONS
 	printk("Number of partitions %d\n", nc->nr_partitions);
 	if (nc->nr_partitions) {
-		struct mtd_info *mtd_ubi;
-		nc->partitions[NAND_PARTS_CONTENT_IDX].mtdp = &mtd_ubi;
-
-		add_mtd_device(&nandmtd->mtd); /* for testing */
-		add_mtd_partitions(&nandmtd->mtd,
-				   nc->partitions,
+		/* Add the full device, so complete dumps can be made */
+		add_mtd_device(&nandmtd->mtd);
+		add_mtd_partitions(&nandmtd->mtd, nc->partitions,
 				   nc->nr_partitions);
-
-		add_mtd_device(mtd_ubi);
 
 	} else
 #else
@@ -233,7 +228,7 @@ static int ndfc_nand_probe(struct platform_device *pdev)
 	struct ndfc_controller_settings *settings = nc->priv;
 	struct resource *res = pdev->resource;
 	struct ndfc_controller *ndfc = &ndfc_ctrl;
-	unsigned long long phys = setting->erpn | res->start;
+	unsigned long long phys = settings->ndfc_erpn | res->start;
 
 	ndfc->ndfcbase = ioremap64(phys, res->end - res->start + 1);
 	if (!ndfc->ndfcbase) {
