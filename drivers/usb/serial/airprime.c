@@ -16,6 +16,7 @@
 #include "usb-serial.h"
 
 static struct usb_device_id id_table [] = {
+	{ USB_DEVICE(0x0c88, 0x17da) }, /* Kyocera Wireless KPC650/Passport */
 	{ USB_DEVICE(0xf3d, 0x0112) },  /* AirPrime CDMA Wireless PC Card */
 	{ USB_DEVICE(0x1410, 0x1110) }, /* Novatel Wireless Merlin CDMA */
 	{ USB_DEVICE(0x1199, 0x0112) }, /* Sierra Wireless Aircard 580 */
