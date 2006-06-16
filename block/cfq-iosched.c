@@ -952,11 +952,15 @@ static void cfq_dispatch_insert(request_queue_t *q, struct cfq_rq *crq)
 {
 	struct cfq_data *cfqd = q->elevator->elevator_data;
 	struct cfq_queue *cfqq = crq->cfq_queue;
+	struct request *rq;
 
 	cfqq->next_crq = cfq_find_next_crq(cfqd, cfqq, crq);
 	cfq_remove_request(crq->request);
 	cfqq->on_dispatch[cfq_crq_is_sync(crq)]++;
 	elv_dispatch_sort(q, crq->request);
+
+	rq = list_entry(q->queue_head.prev, struct request, queuelist);
+	cfqd->last_sector = rq->sector + rq->nr_sectors;
 }
 
 /*
@@ -1767,11 +1771,7 @@ static void
 cfq_crq_enqueued(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 		 struct cfq_rq *crq)
 {
-	struct cfq_io_context *cic;
-
-	cfqq->next_crq = cfq_choose_req(cfqd, cfqq->next_crq, crq);
-
-	cic = crq->io_context;
+	struct cfq_io_context *cic = crq->io_context;
 
 	/*
 	 * we never wait for an async request and we don't allow preemption
