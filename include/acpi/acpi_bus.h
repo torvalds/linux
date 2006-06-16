@@ -327,7 +327,7 @@ int acpi_bus_set_power(acpi_handle handle, int state);
 int acpi_bus_generate_event(struct acpi_device *device, u8 type, int data);
 int acpi_bus_receive_event(struct acpi_bus_event *event);
 int acpi_bus_register_driver(struct acpi_driver *driver);
-int acpi_bus_unregister_driver(struct acpi_driver *driver);
+void acpi_bus_unregister_driver(struct acpi_driver *driver);
 int acpi_bus_add(struct acpi_device **child, struct acpi_device *parent,
 		 acpi_handle handle, int type);
 int acpi_bus_trim(struct acpi_device *start, int rmdevice);
