@@ -73,6 +73,8 @@ struct cpufreq_real_policy {
 
 struct cpufreq_policy {
 	cpumask_t		cpus;	/* affected CPUs */
+	unsigned int		shared_type; /* ANY or ALL affected CPUs
+						should set cpufreq */
 	unsigned int		cpu;    /* cpu nr of registered CPU */
 	struct cpufreq_cpuinfo	cpuinfo;/* see above */
 
@@ -99,6 +101,8 @@ struct cpufreq_policy {
 #define CPUFREQ_INCOMPATIBLE	(1)
 #define CPUFREQ_NOTIFY		(2)
 
+#define CPUFREQ_SHARED_TYPE_ALL	(0) /* All dependent CPUs should set freq */
+#define CPUFREQ_SHARED_TYPE_ANY	(1) /* Freq can be set from any dependent CPU */
 
 /******************** cpufreq transition notifiers *******************/
 

@@ -3,6 +3,7 @@
 
 #include <linux/kernel.h>
 #include <linux/config.h>
+#include <linux/cpu.h>
 
 #include <asm/acpi.h>
 
@@ -17,6 +18,17 @@
 #define ACPI_PROCESSOR_MAX_DUTY_WIDTH	4
 
 #define ACPI_PDC_REVISION_ID		0x1
+
+#define ACPI_PSD_REV0_REVISION		0 /* Support for _PSD as in ACPI 3.0 */
+#define ACPI_PSD_REV0_ENTRIES		5
+
+/*
+ * Types of coordination defined in ACPI 3.0. Same macros can be used across
+ * P, C and T states
+ */
+#define DOMAIN_COORD_TYPE_SW_ALL	0xfc
+#define DOMAIN_COORD_TYPE_SW_ANY	0xfd
+#define DOMAIN_COORD_TYPE_HW_ALL	0xfe
 
 /* Power Management */
 
@@ -66,6 +78,14 @@ struct acpi_processor_power {
 
 /* Performance Management */
 
+struct acpi_psd_package {
+	acpi_integer num_entries;
+	acpi_integer revision;
+	acpi_integer domain;
+	acpi_integer coord_type;
+	acpi_integer num_processors;
+} __attribute__ ((packed));
+
 struct acpi_pct_register {
 	u8 descriptor;
 	u16 length;
@@ -92,7 +112,9 @@ struct acpi_processor_performance {
 	struct acpi_pct_register status_register;
 	unsigned int state_count;
 	struct acpi_processor_px *states;
-
+	struct acpi_psd_package domain_info;
+	cpumask_t shared_cpu_map;
+	unsigned int shared_type;
 };
 
 /* Throttling Control */
@@ -160,6 +182,9 @@ struct acpi_processor_errata {
 		u32 bmisx;
 	} piix4;
 };
+
+extern int acpi_processor_preregister_performance(
+		struct acpi_processor_performance **performance);
 
 extern int acpi_processor_register_performance(struct acpi_processor_performance
 					       *performance, unsigned int cpu);
