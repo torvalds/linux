@@ -1294,7 +1294,7 @@ acpi_video_bus_get_one_device(struct acpi_device *device,
 			      struct acpi_video_bus *video)
 {
 	unsigned long device_id;
-	int status, result;
+	int status;
 	struct acpi_video_device *data;
 
 	ACPI_FUNCTION_TRACE("acpi_video_bus_get_one_device");
@@ -1346,8 +1346,11 @@ acpi_video_bus_get_one_device(struct acpi_device *device,
 		if (ACPI_FAILURE(status)) {
 			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
 					  "Error installing notify handler\n"));
-			result = -ENODEV;
-			goto end;
+			if(data->brightness)
+				kfree(data->brightness->levels);
+			kfree(data->brightness);
+			kfree(data);
+			return -ENODEV;
 		}
 
 		down(&video->sem);
@@ -1359,7 +1362,6 @@ acpi_video_bus_get_one_device(struct acpi_device *device,
 		return_VALUE(0);
 	}
 
-      end:
 	return_VALUE(-ENOENT);
 }
 
@@ -1643,8 +1645,9 @@ static int acpi_video_bus_put_devices(struct acpi_video_bus *video)
 			printk(KERN_WARNING PREFIX
 			       "hhuuhhuu bug in acpi video driver.\n");
 
+		if (data->brightness);
+			kfree(data->brightness->levels);
 		kfree(data->brightness);
-
 		kfree(data);
 	}
 
@@ -1785,6 +1788,10 @@ static int acpi_video_bus_add(struct acpi_device *device)
 	if (ACPI_FAILURE(status)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
 				  "Error installing notify handler\n"));
+		acpi_video_bus_stop_devices(video);
+		acpi_video_bus_put_devices(video);
+		kfree(video->attached_array);
+		acpi_video_bus_remove_fs(device);
 		result = -ENODEV;
 		goto end;
 	}
@@ -1796,10 +1803,8 @@ static int acpi_video_bus_add(struct acpi_device *device)
 	       video->flags.post ? "yes" : "no");
 
       end:
-	if (result) {
-		acpi_video_bus_remove_fs(device);
+	if (result)
 		kfree(video);
-	}
 
 	return_VALUE(result);
 }
