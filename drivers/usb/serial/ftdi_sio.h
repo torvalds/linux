@@ -442,6 +442,11 @@
  */
 #define FTDI_YEI_SERVOCENTER31_PID	0xE050	/* YEI ServoCenter3.1 USB */
 
+/*
+ * ThorLabs USB motor drivers
+ */
+#define FTDI_THORLABS_PID		0xfaf0 /* ThorLabs USB motor drivers */
+
 /* Commands */
 #define FTDI_SIO_RESET 		0 /* Reset the port */
 #define FTDI_SIO_MODEM_CTRL 	1 /* Set the modem control register */
