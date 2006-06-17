@@ -15,10 +15,12 @@
 #ifndef __LINUX_VIDEODEV2_H
 #define __LINUX_VIDEODEV2_H
 #ifdef __KERNEL__
-#include <linux/time.h> /* need struct timeval */
+#include <linux/time.h>     /* need struct timeval */
+#include <linux/compiler.h> /* need __user */
+#else
+#define __user
 #endif
 #include <linux/types.h>
-#include <linux/compiler.h> /* need __user */
 
 #define HAVE_V4L2 1
 
