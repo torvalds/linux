@@ -43,13 +43,13 @@ unsigned long _SDR1;
 union ubat {			/* BAT register values to be loaded */
 	BAT	bat;
 	u32	word[2];
-} BATS[4][2];			/* 4 pairs of IBAT, DBAT */
+} BATS[8][2];			/* 8 pairs of IBAT, DBAT */
 
 struct batrange {		/* stores address ranges mapped by BATs */
 	unsigned long start;
 	unsigned long limit;
 	unsigned long phys;
-} bat_addrs[4];
+} bat_addrs[8];
 
 /*
  * Return PA for this VA if it is mapped by a BAT, or 0
