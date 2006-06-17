@@ -343,7 +343,7 @@ free_out:
  * Helper function for jffs2_get_inode_nodes().
  * It is called every time an unknown node is found.
  *
- * Returns: 0 on succes;
+ * Returns: 0 on success;
  * 	    1 if the node should be marked obsolete;
  * 	    negative error code on failure.
  */
@@ -354,37 +354,30 @@ static inline int read_unknown(struct jffs2_sb_info *c, struct jffs2_raw_node_re
 
 	un->nodetype = cpu_to_je16(JFFS2_NODE_ACCURATE | je16_to_cpu(un->nodetype));
 
-	if (crc32(0, un, sizeof(struct jffs2_unknown_node) - 4) != je32_to_cpu(un->hdr_crc)) {
-		/* Hmmm. This should have been caught at scan time. */
-		JFFS2_NOTICE("node header CRC failed at %#08x. But it must have been OK earlier.\n", ref_offset(ref));
-		jffs2_dbg_dump_node(c, ref_offset(ref));
+	switch(je16_to_cpu(un->nodetype) & JFFS2_COMPAT_MASK) {
+
+	case JFFS2_FEATURE_INCOMPAT:
+		JFFS2_ERROR("unknown INCOMPAT nodetype %#04X at %#08x\n",
+			    je16_to_cpu(un->nodetype), ref_offset(ref));
+		/* EEP */
+		BUG();
+		break;
+
+	case JFFS2_FEATURE_ROCOMPAT:
+		JFFS2_ERROR("unknown ROCOMPAT nodetype %#04X at %#08x\n",
+			    je16_to_cpu(un->nodetype), ref_offset(ref));
+		BUG_ON(!(c->flags & JFFS2_SB_FLAG_RO));
+		break;
+
+	case JFFS2_FEATURE_RWCOMPAT_COPY:
+		JFFS2_NOTICE("unknown RWCOMPAT_COPY nodetype %#04X at %#08x\n",
+			     je16_to_cpu(un->nodetype), ref_offset(ref));
+		break;
+
+	case JFFS2_FEATURE_RWCOMPAT_DELETE:
+		JFFS2_NOTICE("unknown RWCOMPAT_DELETE nodetype %#04X at %#08x\n",
+			     je16_to_cpu(un->nodetype), ref_offset(ref));
 		return 1;
-	} else {
-		switch(je16_to_cpu(un->nodetype) & JFFS2_COMPAT_MASK) {
-
-		case JFFS2_FEATURE_INCOMPAT:
-			JFFS2_ERROR("unknown INCOMPAT nodetype %#04X at %#08x\n",
-				je16_to_cpu(un->nodetype), ref_offset(ref));
-			/* EEP */
-			BUG();
-			break;
-
-		case JFFS2_FEATURE_ROCOMPAT:
-			JFFS2_ERROR("unknown ROCOMPAT nodetype %#04X at %#08x\n",
-					je16_to_cpu(un->nodetype), ref_offset(ref));
-			BUG_ON(!(c->flags & JFFS2_SB_FLAG_RO));
-			break;
-
-		case JFFS2_FEATURE_RWCOMPAT_COPY:
-			JFFS2_NOTICE("unknown RWCOMPAT_COPY nodetype %#04X at %#08x\n",
-					je16_to_cpu(un->nodetype), ref_offset(ref));
-			break;
-
-		case JFFS2_FEATURE_RWCOMPAT_DELETE:
-			JFFS2_NOTICE("unknown RWCOMPAT_DELETE nodetype %#04X at %#08x\n",
-					je16_to_cpu(un->nodetype), ref_offset(ref));
-			return 1;
-		}
 	}
 
 	return 0;
@@ -549,6 +542,18 @@ static int jffs2_get_inode_nodes(struct jffs2_sb_info *c, struct jffs2_inode_inf
 
 		node = (union jffs2_node_union *)bufstart;
 
+		/* No need to mask in the valid bit; it shouldn't be invalid */
+		if (je32_to_cpu(node->u.hdr_crc) != crc32(0, node, sizeof(node->u)-4)) {
+			JFFS2_NOTICE("Node header CRC failed at %#08x. {%04x,%04x,%08x,%08x}\n",
+				     ref_offset(ref), je16_to_cpu(node->u.magic),
+				     je16_to_cpu(node->u.nodetype),
+				     je32_to_cpu(node->u.totlen),
+				     je32_to_cpu(node->u.hdr_crc));
+			jffs2_dbg_dump_node(c, ref_offset(ref));
+			jffs2_mark_node_obsolete(c, ref);
+			goto cont;
+		}
+
 		switch (je16_to_cpu(node->u.nodetype)) {
 
 		case JFFS2_NODETYPE_DIRENT:
@@ -606,6 +611,7 @@ static int jffs2_get_inode_nodes(struct jffs2_sb_info *c, struct jffs2_inode_inf
 				goto free_out;
 
 		}
+	cont:
 		spin_lock(&c->erase_completion_lock);
 	}
 
