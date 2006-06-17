@@ -270,7 +270,7 @@ static const char * const wss_strs[] = {
 	"letterbox 16:9 top",
 	"invalid",
 	"invalid",
-	"16:9 full format anamorphic"
+	"16:9 full format anamorphic",
 	"4:3 full format",
 	"invalid",
 	"invalid",
