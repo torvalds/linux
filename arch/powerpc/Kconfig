@@ -141,6 +141,15 @@ config PPC_85xx
 	select FSL_SOC
 	select 85xx
 
+config PPC_86xx
+	bool "Freescale 86xx"
+	select 6xx
+	select FSL_SOC
+	select PPC_FPU
+	select ALTIVEC
+	help
+	  The Freescale E600 SoCs have 74xx cores.
+
 config 40x
 	bool "AMCC 40x"
 
@@ -549,6 +558,7 @@ source arch/powerpc/platforms/embedded6xx/Kconfig
 source arch/powerpc/platforms/4xx/Kconfig
 source arch/powerpc/platforms/83xx/Kconfig
 source arch/powerpc/platforms/85xx/Kconfig
+source arch/powerpc/platforms/86xx/Kconfig
 source arch/powerpc/platforms/8xx/Kconfig
 source arch/powerpc/platforms/cell/Kconfig
 
@@ -780,6 +790,7 @@ config GENERIC_ISA_DMA
 
 config PPC_I8259
 	bool
+	default y if MPC8641_HPCN
 	default n
 
 config PPC_INDIRECT_PCI
@@ -802,8 +813,8 @@ config MCA
 	bool
 
 config PCI
-	bool "PCI support" if 40x || CPM2 || PPC_83xx || PPC_85xx || PPC_MPC52xx || (EMBEDDED && PPC_ISERIES)
-	default y if !40x && !CPM2 && !8xx && !APUS && !PPC_83xx && !PPC_85xx
+	bool "PCI support" if 40x || CPM2 || PPC_83xx || PPC_85xx || PPC_86xx || PPC_MPC52xx || (EMBEDDED && PPC_ISERIES)
+	default y if !40x && !CPM2 && !8xx && !APUS && !PPC_83xx && !PPC_85xx && !PPC_86xx
 	default PCI_PERMEDIA if !4xx && !CPM2 && !8xx && APUS
 	default PCI_QSPAN if !4xx && !CPM2 && 8xx
 	help
