@@ -29,18 +29,6 @@
 	.level		1.1
 #endif
 
-#ifndef CONFIG_64BIT
-	.macro fixup_branch,lbl
-	b	    \lbl
-	.endm
-#else
-	.macro fixup_branch,lbl
-	ldil	    L%\lbl, %r1
-	ldo	    R%\lbl(%r1), %r1
-	bv,n        %r0(%r1)
-	.endm
-#endif
-
 	.text
 
 	.import syscall_exit,code
