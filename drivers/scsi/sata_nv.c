@@ -89,7 +89,6 @@ static irqreturn_t nv_interrupt (int irq, void *dev_instance,
 				 struct pt_regs *regs);
 static u32 nv_scr_read (struct ata_port *ap, unsigned int sc_reg);
 static void nv_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val);
-static void nv_host_stop (struct ata_host_set *host_set);
 
 enum nv_host_type
 {
@@ -135,30 +134,6 @@ static const struct pci_device_id nv_pci_tbl[] = {
 		PCI_ANY_ID, PCI_ANY_ID,
 		PCI_CLASS_STORAGE_RAID<<8, 0xffff00, GENERIC },
 	{ 0, } /* terminate list */
-};
-
-struct nv_host_desc
-{
-	enum nv_host_type	host_type;
-};
-static struct nv_host_desc nv_device_tbl[] = {
-	{
-		.host_type	= GENERIC,
-	},
-	{
-		.host_type	= NFORCE2,
-	},
-	{
-		.host_type	= NFORCE3,
-	},
-	{	.host_type	= CK804,
-	},
-};
-
-struct nv_host
-{
-	struct nv_host_desc	*host_desc;
-	unsigned long		host_flags;
 };
 
 static struct pci_driver nv_pci_driver = {
@@ -208,7 +183,7 @@ static const struct ata_port_operations nv_ops = {
 	.scr_write		= nv_scr_write,
 	.port_start		= ata_port_start,
 	.port_stop		= ata_port_stop,
-	.host_stop		= nv_host_stop,
+	.host_stop		= ata_pci_host_stop,
 };
 
 /* FIXME: The hardware provides the necessary SATA PHY controls
@@ -287,19 +262,9 @@ static void nv_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val)
 	iowrite32(val, (void __iomem *)ap->ioaddr.scr_addr + (sc_reg * 4));
 }
 
-static void nv_host_stop (struct ata_host_set *host_set)
-{
-	struct nv_host *host = host_set->private_data;
-
-	kfree(host);
-
-	ata_pci_host_stop(host_set);
-}
-
 static int nv_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	static int printed_version = 0;
-	struct nv_host *host;
 	struct ata_port_info *ppi;
 	struct ata_probe_ent *probe_ent;
 	int pci_dev_busy = 0;
@@ -341,19 +306,10 @@ static int nv_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (!probe_ent)
 		goto err_out_regions;
 
-	host = kmalloc(sizeof(struct nv_host), GFP_KERNEL);
-	if (!host)
-		goto err_out_free_ent;
-
-	memset(host, 0, sizeof(struct nv_host));
-	host->host_desc = &nv_device_tbl[ent->driver_data];
-
-	probe_ent->private_data = host;
-
 	probe_ent->mmio_base = pci_iomap(pdev, 5, 0);
 	if (!probe_ent->mmio_base) {
 		rc = -EIO;
-		goto err_out_free_host;
+		goto err_out_free_ent;
 	}
 
 	base = (unsigned long)probe_ent->mmio_base;
@@ -373,8 +329,6 @@ static int nv_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 
 err_out_iounmap:
 	pci_iounmap(pdev, probe_ent->mmio_base);
-err_out_free_host:
-	kfree(host);
 err_out_free_ent:
 	kfree(probe_ent);
 err_out_regions:
