@@ -15,6 +15,7 @@
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <asm/xtalk/xwidget.h>		/* generic widget header */
+#include <asm/sn/types.h>
 
 /* I/O page size */
 
