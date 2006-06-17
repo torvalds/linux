@@ -69,7 +69,8 @@ enum {
 	NV_INT_PORT_SHIFT		= 4,	/* each port occupies 4 bits */
 
 	NV_INT_ALL			= 0x0f,
-	NV_INT_MASK			= NV_INT_DEV,
+	NV_INT_MASK			= NV_INT_DEV |
+					  NV_INT_ADDED | NV_INT_REMOVED,
 
 	/* INT_CONFIG */
 	NV_INT_CONFIG			= 0x12,
@@ -323,6 +324,12 @@ static int nv_host_intr(struct ata_port *ap, u8 irq_stat)
 {
 	struct ata_queued_cmd *qc = ata_qc_from_tag(ap, ap->active_tag);
 	int handled;
+
+	/* freeze if hotplugged */
+	if (unlikely(irq_stat & (NV_INT_ADDED | NV_INT_REMOVED))) {
+		ata_port_freeze(ap);
+		return 1;
+	}
 
 	/* bail out if not our interrupt */
 	if (!(irq_stat & NV_INT_DEV))
