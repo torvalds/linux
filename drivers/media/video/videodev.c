@@ -734,7 +734,7 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 	{
 		struct video_mbuf *p=arg;
 
-		memset(&p,0,sizeof(p));
+		memset(p,0,sizeof(p));
 
 		if (!vfd->vidiocgmbuf)
 			break;

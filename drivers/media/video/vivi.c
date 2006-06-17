@@ -1000,7 +1000,7 @@ static int vidiocgmbuf (struct file *file, void *priv, struct video_mbuf *mbuf)
 	ret = videobuf_reqbufs(q,&req);
 	if (ret < 0)
 		return (ret);
-	memset(mbuf,0,sizeof(*mbuf));
+
 	mbuf->frames = req.count;
 	mbuf->size   = 0;
 	for (i = 0; i < mbuf->frames; i++) {
