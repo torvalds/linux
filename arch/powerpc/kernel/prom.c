@@ -1267,13 +1267,16 @@ static void __init early_reserve_mem(void)
 {
 	u64 base, size;
 	u64 *reserve_map;
+	unsigned long self_base;
+	unsigned long self_size;
 
 	reserve_map = (u64 *)(((unsigned long)initial_boot_params) +
 					initial_boot_params->off_mem_rsvmap);
 
 	/* before we do anything, lets reserve the dt blob */
-	lmb_reserve(__pa((unsigned long)initial_boot_params),
-		    initial_boot_params->totalsize);
+	self_base = __pa((unsigned long)initial_boot_params);
+	self_size = initial_boot_params->totalsize;
+	lmb_reserve(self_base, self_size);
 
 #ifdef CONFIG_PPC32
 	/* 
@@ -1289,6 +1292,9 @@ static void __init early_reserve_mem(void)
 			size_32 = *(reserve_map_32++);
 			if (size_32 == 0)
 				break;
+			/* skip if the reservation is for the blob */
+			if (base_32 == self_base && size_32 == self_size)
+				continue;
 			DBG("reserving: %x -> %x\n", base_32, size_32);
 			lmb_reserve(base_32, size_32);
 		}
@@ -1300,6 +1306,9 @@ static void __init early_reserve_mem(void)
 		size = *(reserve_map++);
 		if (size == 0)
 			break;
+		/* skip if the reservation is for the blob */
+		if (base == self_base && size == self_size)
+			continue;
 		DBG("reserving: %llx -> %llx\n", base, size);
 		lmb_reserve(base, size);
 	}
