@@ -252,12 +252,12 @@ config I2C_POWERMAC
 	  will be called i2c-powermac.
 
 config I2C_MPC
-	tristate "MPC107/824x/85xx/52xx"
+	tristate "MPC107/824x/85xx/52xx/86xx"
 	depends on I2C && PPC32
 	help
 	  If you say yes to this option, support will be included for the
 	  built-in I2C interface on the MPC107/Tsi107/MPC8240/MPC8245 and
-	  MPC85xx family processors. The driver may also work on 52xx
+	  MPC85xx/MPC8641 family processors. The driver may also work on 52xx
 	  family processors, though interrupts are known not to work.
 
 	  This driver can also be built as a module.  If so, the module
