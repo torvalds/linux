@@ -722,6 +722,18 @@ struct cpu_spec	cpu_specs[] = {
 		.oprofile_type		= PPC_OPROFILE_G4,
 		.platform		= "ppc7450",
 	},
+        {       /* 8641 */
+               .pvr_mask               = 0xffffffff,
+               .pvr_value              = 0x80040010,
+               .cpu_name               = "8641",
+               .cpu_features           = CPU_FTRS_7447A,
+               .cpu_user_features      = COMMON_USER | PPC_FEATURE_HAS_ALTIVEC_COMP,
+               .icache_bsize           = 32,
+               .dcache_bsize           = 32,
+               .num_pmcs               = 6,
+               .cpu_setup              = __setup_cpu_745x
+        },
+
 	{	/* 82xx (8240, 8245, 8260 are all 603e cores) */
 		.pvr_mask		= 0x7fff0000,
 		.pvr_value		= 0x00810000,
