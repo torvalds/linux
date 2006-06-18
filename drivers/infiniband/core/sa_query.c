@@ -463,9 +463,9 @@ int ib_init_ah_from_path(struct ib_device *device, u8 port_num,
 		if (ret)
 			return ret;
 
-		ah_attr->grh.sgid_index = gid_index;
-		ah_attr->grh.flow_label = be32_to_cpu(rec->flow_label);
-		ah_attr->grh.hop_limit = rec->hop_limit;
+		ah_attr->grh.sgid_index    = gid_index;
+		ah_attr->grh.flow_label    = be32_to_cpu(rec->flow_label);
+		ah_attr->grh.hop_limit     = rec->hop_limit;
 		ah_attr->grh.traffic_class = rec->traffic_class;
 	}
 	return 0;

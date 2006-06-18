@@ -254,23 +254,13 @@ static void cm_set_private_data(struct cm_id_private *cm_id_priv,
 	cm_id_priv->private_data_len = private_data_len;
 }
 
-static void cm_set_ah_attr(struct ib_ah_attr *ah_attr, u8 port_num,
-			   u16 dlid, u8 sl, u16 src_path_bits)
-{
-	memset(ah_attr, 0, sizeof ah_attr);
-	ah_attr->dlid = dlid;
-	ah_attr->sl = sl;
-	ah_attr->src_path_bits = src_path_bits;
-	ah_attr->port_num = port_num;
-}
-
-static void cm_init_av_for_response(struct cm_port *port,
-				    struct ib_wc *wc, struct cm_av *av)
+static void cm_init_av_for_response(struct cm_port *port, struct ib_wc *wc,
+				    struct ib_grh *grh, struct cm_av *av)
 {
 	av->port = port;
 	av->pkey_index = wc->pkey_index;
-	cm_set_ah_attr(&av->ah_attr, port->port_num, wc->slid,
-		       wc->sl, wc->dlid_path_bits);
+	ib_init_ah_from_wc(port->cm_dev->device, port->port_num, wc,
+			   grh, &av->ah_attr);
 }
 
 static int cm_init_av_by_path(struct ib_sa_path_rec *path, struct cm_av *av)
@@ -300,9 +290,8 @@ static int cm_init_av_by_path(struct ib_sa_path_rec *path, struct cm_av *av)
 		return ret;
 
 	av->port = port;
-	cm_set_ah_attr(&av->ah_attr, av->port->port_num,
-		       be16_to_cpu(path->dlid), path->sl,
-		       be16_to_cpu(path->slid) & 0x7F);
+	ib_init_ah_from_path(cm_dev->device, port->port_num, path,
+			     &av->ah_attr);
 	av->packet_life_time = path->packet_life_time;
 	return 0;
 }
@@ -1342,6 +1331,7 @@ static int cm_req_handler(struct cm_work *work)
 	cm_id_priv = container_of(cm_id, struct cm_id_private, id);
 	cm_id_priv->id.remote_id = req_msg->local_comm_id;
 	cm_init_av_for_response(work->port, work->mad_recv_wc->wc,
+				work->mad_recv_wc->recv_buf.grh,
 				&cm_id_priv->av);
 	cm_id_priv->timewait_info = cm_create_timewait_info(cm_id_priv->
 							    id.local_id);
@@ -2707,6 +2697,7 @@ static int cm_sidr_req_handler(struct cm_work *work)
 	cm_id_priv->av.dgid.global.subnet_prefix = cpu_to_be64(wc->slid);
 	cm_id_priv->av.dgid.global.interface_id = 0;
 	cm_init_av_for_response(work->port, work->mad_recv_wc->wc,
+				work->mad_recv_wc->recv_buf.grh,
 				&cm_id_priv->av);
 	cm_id_priv->id.remote_id = sidr_req_msg->request_id;
 	cm_id_priv->id.state = IB_CM_SIDR_REQ_RCVD;
