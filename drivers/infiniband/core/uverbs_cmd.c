@@ -492,7 +492,6 @@ err_idr:
 
 err_unreg:
 	ib_dereg_mr(mr);
-	atomic_dec(&pd->usecnt);
 
 err_up:
 	mutex_unlock(&ib_uverbs_idr_mutex);
@@ -986,11 +985,6 @@ err_idr:
 
 err_destroy:
 	ib_destroy_qp(qp);
-	atomic_dec(&pd->usecnt);
-	atomic_dec(&attr.send_cq->usecnt);
-	atomic_dec(&attr.recv_cq->usecnt);
-	if (attr.srq)
-		atomic_dec(&attr.srq->usecnt);
 
 err_up:
 	mutex_unlock(&ib_uverbs_idr_mutex);
@@ -1888,7 +1882,6 @@ err_idr:
 
 err_destroy:
 	ib_destroy_srq(srq);
-	atomic_dec(&pd->usecnt);
 
 err_up:
 	mutex_unlock(&ib_uverbs_idr_mutex);
