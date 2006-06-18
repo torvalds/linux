@@ -1,0 +1,13 @@
+include include/asm-generic/Kbuild.asm
+
+header-y += apc.h asi.h asmmacro.h auxio.h bitext.h bpp.h \
+	bsderrno.h btfixup.h clock.h contregs.h cpudata.h cypress.h \
+	ebus.h ecc.h eeprom.h fbio.h floppy.h head.h hw_irq.h \
+	idprom.h io-unit.h iommu.h ipc.h jsflash.h \
+	kdebug.h machines.h mbus.h memreg.h mostek.h mpmbox.h msi.h \
+	mxcc.h obio.h openprom.h openpromio.h oplib.h pbm.h pcic.h \
+	pconf.h perfctr.h pgtsrmmu.h pgtsun4.h pgtsun4c.h psr.h reg.h \
+	ross.h sbi.h sbus.h sfp-machine.h smpprim.h \
+	solerrno.h spinlock.h sun4paddr.h sun4prom.h sunbpp.h svr4.h \
+	swift.h sysen.h timer.h traps.h tsunami.h turbosparc.h \
+	vac-ops.h vaddrs.h vfc_ioctls.h viking.h winmacro.h

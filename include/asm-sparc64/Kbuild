@@ -1,0 +1,16 @@
+include include/asm-generic/Kbuild.asm
+
+ALTARCH := sparc
+ARCHDEF := defined __sparc__ && defined __arch64__ 
+ALTARCHDEF := defined __sparc__ && !defined __arch64__
+
+header-y += agp.h apb.h asi.h auxio.h bbc.h bpp.h bsderrno.h \
+	chafsr.h chmctrl.h compat.h const.h cpudata.h dcr.h dcu.h \
+	display7seg.h ebus.h envctrl.h estate.h fbio.h fhc.h floppy.h \
+	fpumacro.h head.h hw_irq.h idprom.h iommu.h \
+	ipc.h isa.h kdebug.h lsu.h mostek.h ns87303.h \
+	openprom.h openpromio.h oplib.h parport.h pbm.h pconf.h \
+	perfctr.h pil.h psrcompat.h pstate.h reg.h sbus.h \
+	sfp-machine.h solerrno.h spinlock.h spitfire.h starfire.h \
+	sunbpp.h svr4.h timer.h ttable.h uctx.h upa.h utrap.h vga.h \
+	visasm.h watchdog.h
