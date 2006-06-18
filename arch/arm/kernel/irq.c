@@ -342,10 +342,10 @@ __do_irq(unsigned int irq, struct irqaction *action, struct pt_regs *regs)
 
 #ifdef CONFIG_NO_IDLE_HZ
 	if (!(action->flags & SA_TIMER) && system_timer->dyn_tick != NULL) {
-		write_seqlock(&xtime_lock);
+		spin_lock(&system_timer->dyn_tick->lock);
 		if (system_timer->dyn_tick->state & DYN_TICK_ENABLED)
 			system_timer->dyn_tick->handler(irq, 0, regs);
-		write_sequnlock(&xtime_lock);
+		spin_unlock(&system_timer->dyn_tick->lock);
 	}
 #endif
 
