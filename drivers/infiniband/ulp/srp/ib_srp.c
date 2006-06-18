@@ -1850,7 +1850,6 @@ static void srp_remove_one(struct ib_device *device)
 	struct srp_host *host, *tmp_host;
 	LIST_HEAD(target_list);
 	struct srp_target_port *target, *tmp_target;
-	unsigned long flags;
 
 	srp_dev = ib_get_client_data(device, &srp_client);
 
@@ -1868,10 +1867,9 @@ static void srp_remove_one(struct ib_device *device)
 		 */
 		spin_lock(&host->target_lock);
 		list_for_each_entry(target, &host->target_list, list) {
-			spin_lock_irqsave(target->scsi_host->host_lock, flags);
-			if (target->state != SRP_TARGET_REMOVED)
-				target->state = SRP_TARGET_REMOVED;
-			spin_unlock_irqrestore(target->scsi_host->host_lock, flags);
+			spin_lock_irq(target->scsi_host->host_lock);
+			target->state = SRP_TARGET_REMOVED;
+			spin_unlock_irq(target->scsi_host->host_lock);
 		}
 		spin_unlock(&host->target_lock);
 
