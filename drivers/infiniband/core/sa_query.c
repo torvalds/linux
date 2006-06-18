@@ -47,6 +47,7 @@
 
 #include <rdma/ib_pack.h>
 #include <rdma/ib_sa.h>
+#include <rdma/ib_cache.h>
 
 MODULE_AUTHOR("Roland Dreier");
 MODULE_DESCRIPTION("InfiniBand subnet administration query support");
@@ -440,6 +441,36 @@ void ib_sa_cancel_query(int id, struct ib_sa_query *query)
 	ib_cancel_mad(agent, mad_buf);
 }
 EXPORT_SYMBOL(ib_sa_cancel_query);
+
+int ib_init_ah_from_path(struct ib_device *device, u8 port_num,
+			 struct ib_sa_path_rec *rec, struct ib_ah_attr *ah_attr)
+{
+	int ret;
+	u16 gid_index;
+
+	memset(ah_attr, 0, sizeof *ah_attr);
+	ah_attr->dlid = be16_to_cpu(rec->dlid);
+	ah_attr->sl = rec->sl;
+	ah_attr->src_path_bits = be16_to_cpu(rec->slid) & 0x7f;
+	ah_attr->port_num = port_num;
+
+	if (rec->hop_limit > 1) {
+		ah_attr->ah_flags = IB_AH_GRH;
+		ah_attr->grh.dgid = rec->dgid;
+
+		ret = ib_find_cached_gid(device, &rec->sgid, &port_num,
+					 &gid_index);
+		if (ret)
+			return ret;
+
+		ah_attr->grh.sgid_index = gid_index;
+		ah_attr->grh.flow_label = be32_to_cpu(rec->flow_label);
+		ah_attr->grh.hop_limit = rec->hop_limit;
+		ah_attr->grh.traffic_class = rec->traffic_class;
+	}
+	return 0;
+}
+EXPORT_SYMBOL(ib_init_ah_from_path);
 
 static void init_mad(struct ib_sa_mad *mad, struct ib_mad_agent *agent)
 {
