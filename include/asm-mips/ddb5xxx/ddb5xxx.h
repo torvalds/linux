@@ -255,9 +255,7 @@ extern void ddb_pci_reset_bus(void);
 /*
  * include the board dependent part
  */
-#if defined(CONFIG_DDB5476)
-#include <asm/ddb5xxx/ddb5476.h>
-#elif defined(CONFIG_DDB5477)
+#if defined(CONFIG_DDB5477)
 #include <asm/ddb5xxx/ddb5477.h>
 #else
 #error "Unknown DDB board!"

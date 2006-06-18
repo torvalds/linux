@@ -41,7 +41,6 @@ CONFIG_MIPS_EV96100=y
 # CONFIG_MIPS_XXS1500 is not set
 # CONFIG_PNX8550_V2PCI is not set
 # CONFIG_PNX8550_JBS is not set
-# CONFIG_DDB5476 is not set
 # CONFIG_DDB5477 is not set
 # CONFIG_MACH_VR41XX is not set
 # CONFIG_PMC_YOSEMITE is not set

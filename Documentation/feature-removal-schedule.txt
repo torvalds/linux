@@ -212,15 +212,6 @@ Who:	Greg Kroah-Hartman <gregkh@suse.de>
 
 ---------------------------
 
-What:	Support for NEC DDB5476 evaluation boards.
-When:	June 2006
-Why:	Board specific code doesn't build anymore since ~2.6.0 and no
-	users have complained indicating there is no more need for these
-	boards.  This should really be considered a last call.
-Who:	Ralf Baechle <ralf@linux-mips.org>
-
----------------------------
-
 What:	USB driver API moves to EXPORT_SYMBOL_GPL
 When:	Febuary 2008
 Files:	include/linux/usb.h, drivers/usb/core/driver.c
