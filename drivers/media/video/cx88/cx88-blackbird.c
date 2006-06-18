@@ -84,162 +84,10 @@ enum blackbird_framerate {
 	BLACKBIRD_FRAMERATE_NTSC_30, /* NTSC: 30fps */
 	BLACKBIRD_FRAMERATE_PAL_25   /* PAL: 25fps */
 };
-enum blackbird_video_bitrate_type {
-	BLACKBIRD_VIDEO_VBR,
-	BLACKBIRD_VIDEO_CBR
-};
-#define BLACKBIRD_PEAK_RATE_DIVISOR 400
-enum blackbird_mux_rate {
-	BLACKBIRD_MUX_RATE_DEFAULT,
-	 /* dvd mux rate: multiply by 400 to get the actual rate */
-	BLACKBIRD_MUX_RATE_DVD = 25200
-};
-enum blackbird_aspect_ratio {
-	BLACKBIRD_ASPECT_RATIO_FORBIDDEN,
-	BLACKBIRD_ASPECT_RATIO_1_1_SQUARE,
-	BLACKBIRD_ASPECT_RATIO_4_3,
-	BLACKBIRD_ASPECT_RATIO_16_9,
-	BLACKBIRD_ASPECT_RATIO_221_100,
-	BLACKBIRD_ASPECT_RATIO_RESERVED
-};
-enum blackbird_dnr_bits {
-	BLACKBIRD_DNR_BITS_MANUAL,
-	BLACKBIRD_DNR_BITS_AUTO_SPATIAL,
-	BLACKBIRD_DNR_BITS_AUTO_TEMPORAL,
-	BLACKBIRD_DNR_BITS_AUTO
-};
-enum blackbird_median_filter {
-	BLACKBIRD_MEDIAN_FILTER_DISABLED,
-	BLACKBIRD_MEDIAN_FILTER_HORIZONTAL,
-	BLACKBIRD_MEDIAN_FILTER_VERTICAL,
-	BLACKBIRD_MEDIAN_FILTER_HV,
-	BLACKBIRD_MEDIAN_FILTER_DIAGONAL
-};
-enum blackbird_spatial_filter_luma {
-	BLACKBIRD_SPATIAL_FILTER_LUMA_DISABLED,
-	BLACKBIRD_SPATIAL_FILTER_LUMA_1D_HORIZ,
-	BLACKBIRD_SPATIAL_FILTER_LUMA_1D_VERT,
-	BLACKBIRD_SPATIAL_FILTER_LUMA_2D_HV, /* separable, default */
-	BLACKBIRD_SPATIAL_FILTER_LUMA_2D_SYMM /* symmetric non-separable */
-};
-enum blackbird_spatial_filter_chroma {
-	BLACKBIRD_SPATIAL_FILTER_CHROMA_DISABLED,
-	BLACKBIRD_SPATIAL_FILTER_CHROMA_1D_HORIZ /* default */
-};
-enum blackbird_pulldown {
-	BLACKBIRD_3_2_PULLDOWN_DISABLED,
-	BLACKBIRD_3_2_PULLDOWN_ENABLED
-};
-enum blackbird_vbi_line_bits {
-	BLACKBIRD_VBI_LINE_BITS_TOP_FIELD,
-	BLACKBIRD_VBI_LINE_BITS_BOT_FIELD = (1 << 31),
-	BLACKBIRD_VBI_LINE_BITS_ALL_LINES = 0xFFFFFFFF
-};
-enum blackbird_vbi_line {
-	BLACKBIRD_VBI_LINE_DISABLED,
-	BLACKBIRD_VBI_LINE_ENABLED
-};
-enum blackbird_vbi_slicing {
-	BLACKBIRD_VBI_SLICING_NONE,
-	BLACKBIRD_VBI_SLICING_CLOSED_CAPTION
-};
-enum blackbird_stream_type {
-	BLACKBIRD_STREAM_PROGRAM,
-	BLACKBIRD_STREAM_TRANSPORT,
-	BLACKBIRD_STREAM_MPEG1,
-	BLACKBIRD_STREAM_PES_AV,
-	BLACKBIRD_STREAM_UNKNOWN4,
-	BLACKBIRD_STREAM_PES_VIDEO,
-	BLACKBIRD_STREAM_UNKNOWN6,
-	BLACKBIRD_STREAM_PES_AUDIO,
-	BLACKBIRD_STREAM_UNKNOWN8,
-	BLACKBIRD_STREAM_UNKNOWN9, /* audio/pcm ? */
-	BLACKBIRD_STREAM_DVD,
-	BLACKBIRD_STREAM_VCD,
-	BLACKBIRD_STREAM_UNKNOWN12 /* svcd/xvcd ? */
-};
 enum blackbird_stream_port {
 	BLACKBIRD_OUTPUT_PORT_MEMORY,
 	BLACKBIRD_OUTPUT_PORT_STREAMING,
 	BLACKBIRD_OUTPUT_PORT_SERIAL
-};
-enum blackbird_audio_bits_sample_rate {
-	BLACKBIRD_AUDIO_BITS_44100HZ,
-	BLACKBIRD_AUDIO_BITS_48000HZ,
-	BLACKBIRD_AUDIO_BITS_32000HZ,
-	BLACKBIRD_AUDIO_BITS_RESERVED_HZ,
-};
-enum blackbird_audio_bits_encoding {
-	BLACKBIRD_AUDIO_BITS_LAYER_1 = 0x1 << 2,
-	BLACKBIRD_AUDIO_BITS_LAYER_2 = 0x2 << 2,
-};
-enum blackbird_audio_bits_bitrate_layer_1 {
-	BLACKBIRD_AUDIO_BITS_LAYER_1_FREE_FORMAT,
-	BLACKBIRD_AUDIO_BITS_LAYER_1_32  = 0x01 << 4,
-	BLACKBIRD_AUDIO_BITS_LAYER_1_64  = 0x02 << 4,
-	BLACKBIRD_AUDIO_BITS_LAYER_1_96  = 0x03 << 4,
-	BLACKBIRD_AUDIO_BITS_LAYER_1_128 = 0x04 << 4,
-	BLACKBIRD_AUDIO_BITS_LAYER_1_160 = 0x05 << 4,
-	BLACKBIRD_AUDIO_BITS_LAYER_1_192 = 0x06 << 4,
-	BLACKBIRD_AUDIO_BITS_LAYER_1_224 = 0x07 << 4,
-	BLACKBIRD_AUDIO_BITS_LAYER_1_256 = 0x08 << 4,
-	BLACKBIRD_AUDIO_BITS_LAYER_1_288 = 0x09 << 4,
-	BLACKBIRD_AUDIO_BITS_LAYER_1_320 = 0x0A << 4,
-	BLACKBIRD_AUDIO_BITS_LAYER_1_352 = 0x0B << 4,
-	BLACKBIRD_AUDIO_BITS_LAYER_1_384 = 0x0C << 4,
-	BLACKBIRD_AUDIO_BITS_LAYER_1_416 = 0x0D << 4,
-	BLACKBIRD_AUDIO_BITS_LAYER_1_448 = 0x0E << 4,
-};
-enum blackbird_audio_bits_bitrate_layer_2 {
-	BLACKBIRD_AUDIO_BITS_LAYER_2_FREE_FORMAT,
-	BLACKBIRD_AUDIO_BITS_LAYER_2_32  = 0x01 << 4,
-	BLACKBIRD_AUDIO_BITS_LAYER_2_48  = 0x02 << 4,
-	BLACKBIRD_AUDIO_BITS_LAYER_2_56  = 0x03 << 4,
-	BLACKBIRD_AUDIO_BITS_LAYER_2_64  = 0x04 << 4,
-	BLACKBIRD_AUDIO_BITS_LAYER_2_80  = 0x05 << 4,
-	BLACKBIRD_AUDIO_BITS_LAYER_2_96  = 0x06 << 4,
-	BLACKBIRD_AUDIO_BITS_LAYER_2_112 = 0x07 << 4,
-	BLACKBIRD_AUDIO_BITS_LAYER_2_128 = 0x08 << 4,
-	BLACKBIRD_AUDIO_BITS_LAYER_2_160 = 0x09 << 4,
-	BLACKBIRD_AUDIO_BITS_LAYER_2_192 = 0x0A << 4,
-	BLACKBIRD_AUDIO_BITS_LAYER_2_224 = 0x0B << 4,
-	BLACKBIRD_AUDIO_BITS_LAYER_2_256 = 0x0C << 4,
-	BLACKBIRD_AUDIO_BITS_LAYER_2_320 = 0x0D << 4,
-	BLACKBIRD_AUDIO_BITS_LAYER_2_384 = 0x0E << 4,
-};
-enum blackbird_audio_bits_mode {
-	BLACKBIRD_AUDIO_BITS_STEREO,
-	BLACKBIRD_AUDIO_BITS_JOINT_STEREO = 0x1 << 8,
-	BLACKBIRD_AUDIO_BITS_DUAL         = 0x2 << 8,
-	BLACKBIRD_AUDIO_BITS_MONO         = 0x3 << 8,
-};
-enum blackbird_audio_bits_mode_extension {
-	BLACKBIRD_AUDIO_BITS_BOUND_4,
-	BLACKBIRD_AUDIO_BITS_BOUND_8  = 0x1 << 10,
-	BLACKBIRD_AUDIO_BITS_BOUND_12 = 0x2 << 10,
-	BLACKBIRD_AUDIO_BITS_BOUND_16 = 0x3 << 10,
-};
-enum blackbird_audio_bits_emphasis {
-	BLACKBIRD_AUDIO_BITS_EMPHASIS_NONE,
-	BLACKBIRD_AUDIO_BITS_EMPHASIS_50_15     = 0x1 << 12,
-	BLACKBIRD_AUDIO_BITS_EMPHASIS_RESERVED  = 0x2 << 12,
-	BLACKBIRD_AUDIO_BITS_EMPHASIS_CCITT_J17 = 0x3 << 12,
-};
-enum blackbird_audio_bits_crc {
-	BLACKBIRD_AUDIO_BITS_CRC_OFF,
-	BLACKBIRD_AUDIO_BITS_CRC_ON = 0x1 << 14,
-};
-enum blackbird_audio_bits_copyright {
-	BLACKBIRD_AUDIO_BITS_COPYRIGHT_OFF,
-	BLACKBIRD_AUDIO_BITS_COPYRIGHT_ON = 0x1 << 15,
-};
-enum blackbird_audio_bits_original {
-	BLACKBIRD_AUDIO_BITS_COPY,
-	BLACKBIRD_AUDIO_BITS_ORIGINAL = 0x1 << 16,
-};
-enum blackbird_gop_closure {
-	BLACKBIRD_GOP_CLOSURE_OFF,
-	BLACKBIRD_GOP_CLOSURE_ON,
 };
 enum blackbird_data_xfer_status {
 	BLACKBIRD_MORE_BUFFERS_FOLLOW,
@@ -458,15 +306,12 @@ static int register_read(struct cx88_core *core, u32 address, u32 *value)
 
 /* ------------------------------------------------------------------ */
 
-/* We don't need to call the API often, so using just one mailbox will probably suffice */
-static int blackbird_api_cmd(struct cx8802_dev *dev, u32 command,
-			     u32 inputcnt, u32 outputcnt, ...)
+static int blackbird_mbox_func(void *priv, int command, int in, int out, u32 data[CX2341X_MBOX_MAX_DATA])
 {
+	struct cx8802_dev *dev = priv;
 	unsigned long timeout;
 	u32 value, flag, retval;
 	int i;
-	va_list args;
-	va_start(args, outputcnt);
 
 	dprintk(1,"%s: 0x%X\n", __FUNCTION__, command);
 
@@ -490,12 +335,11 @@ static int blackbird_api_cmd(struct cx8802_dev *dev, u32 command,
 	/* write command + args + fill remaining with zeros */
 	memory_write(dev->core, dev->mailbox + 1, command); /* command code */
 	memory_write(dev->core, dev->mailbox + 3, IVTV_API_STD_TIMEOUT); /* timeout */
-	for (i = 0; i < inputcnt ; i++) {
-		value = va_arg(args, int);
-		memory_write(dev->core, dev->mailbox + 4 + i, value);
-		dprintk(1, "API Input %d = %d\n", i, value);
+	for (i = 0; i < in; i++) {
+		memory_write(dev->core, dev->mailbox + 4 + i, data[i]);
+		dprintk(1, "API Input %d = %d\n", i, data[i]);
 	}
-	for (; i < 16 ; i++)
+	for (; i < CX2341X_MBOX_MAX_DATA; i++)
 		memory_write(dev->core, dev->mailbox + 4 + i, 0);
 
 	flag |= 3; /* tell 'em we're done writing */
@@ -515,12 +359,10 @@ static int blackbird_api_cmd(struct cx8802_dev *dev, u32 command,
 	}
 
 	/* read output values */
-	for (i = 0; i < outputcnt ; i++) {
-		int *vptr = va_arg(args, int *);
-		memory_read(dev->core, dev->mailbox + 4 + i, vptr);
-		dprintk(1, "API Output %d = %d\n", i, *vptr);
+	for (i = 0; i < out; i++) {
+		memory_read(dev->core, dev->mailbox + 4 + i, data + i);
+		dprintk(1, "API Output %d = %d\n", i, data[i]);
 	}
-	va_end(args);
 
 	memory_read(dev->core, dev->mailbox + 2, &retval);
 	dprintk(1, "API result = %d\n",retval);
@@ -529,7 +371,29 @@ static int blackbird_api_cmd(struct cx8802_dev *dev, u32 command,
 	memory_write(dev->core, dev->mailbox, flag);
 	return retval;
 }
+/* ------------------------------------------------------------------ */
 
+/* We don't need to call the API often, so using just one mailbox will probably suffice */
+static int blackbird_api_cmd(struct cx8802_dev *dev, u32 command,
+			     u32 inputcnt, u32 outputcnt, ...)
+{
+	u32 data[CX2341X_MBOX_MAX_DATA];
+	va_list vargs;
+	int i, err;
+
+	va_start(vargs, outputcnt);
+
+	for (i = 0; i < inputcnt; i++) {
+		data[i] = va_arg(vargs, int);
+	}
+	err = blackbird_mbox_func(dev, command, inputcnt, outputcnt, data);
+	for (i = 0; i < outputcnt; i++) {
+		int *vptr = va_arg(vargs, int *);
+		*vptr = data[i];
+	}
+	va_end(vargs);
+	return err;
+}
 
 static int blackbird_find_mailbox(struct cx8802_dev *dev)
 {
@@ -646,12 +510,19 @@ DB* DVD | MPEG2 | 720x576PAL | CBR     | 600 :Good    | 6000 Kbps  | 25fps   | M
 *DB: "DirectBurn"
 */
 
-static struct blackbird_dnr default_dnr_params = {
-	.mode     = BLACKBIRD_DNR_BITS_MANUAL,
-	.type     = BLACKBIRD_MEDIAN_FILTER_DISABLED,
-	.spatial  = 0,
-	.temporal = 0
-};
+static void blackbird_codec_settings(struct cx8802_dev *dev)
+{
+	/* assign frame size */
+	blackbird_api_cmd(dev, CX2341X_ENC_SET_FRAME_SIZE, 2, 0,
+				dev->height, dev->width);
+
+	dev->params.width = dev->width;
+	dev->params.height = dev->height;
+	dev->params.is_50hz = (dev->core->tvnorm->id & V4L2_STD_625_50) != 0;
+
+	cx2341x_update(dev, blackbird_mbox_func, NULL, &dev->params);
+}
+
 static struct v4l2_mpeg_compression default_mpeg_params = {
 	.st_type          = V4L2_MPEG_PS_2,
 	.st_bitrate       = {
@@ -672,7 +543,7 @@ static struct v4l2_mpeg_compression default_mpeg_params = {
 		.target   = 224,
 		.max      = 224
 	},
-	.au_sample_rate    = 44100,
+	.au_sample_rate    = 48000,
 	.au_pesid          = 0,
 	.vi_type           = V4L2_MPEG_VI_2,
 	.vi_aspect_ratio   = V4L2_MPEG_ASPECT_4_3,
@@ -683,523 +554,12 @@ static struct v4l2_mpeg_compression default_mpeg_params = {
 		.max       = 6000
 	},
 	.vi_frame_rate     = 25,
-	.vi_frames_per_gop = 15,
+	.vi_frames_per_gop = 12,
 	.vi_bframes_count  = 2,
 	.vi_pesid          = 0,
-	.closed_gops       = 0,
+	.closed_gops       = 1,
 	.pulldown          = 0
 };
-
-static enum blackbird_stream_type mpeg_stream_types[] = {
-	[V4L2_MPEG_SS_1]   = BLACKBIRD_STREAM_MPEG1,
-	[V4L2_MPEG_PS_2]   = BLACKBIRD_STREAM_PROGRAM,
-	[V4L2_MPEG_TS_2]   = BLACKBIRD_STREAM_TRANSPORT,
-	[V4L2_MPEG_PS_DVD] = BLACKBIRD_STREAM_DVD,
-};
-static enum blackbird_aspect_ratio mpeg_stream_ratios[] = {
-	[V4L2_MPEG_ASPECT_SQUARE] = BLACKBIRD_ASPECT_RATIO_1_1_SQUARE,
-	[V4L2_MPEG_ASPECT_4_3]    = BLACKBIRD_ASPECT_RATIO_4_3,
-	[V4L2_MPEG_ASPECT_16_9]   = BLACKBIRD_ASPECT_RATIO_16_9,
-	[V4L2_MPEG_ASPECT_1_221]  = BLACKBIRD_ASPECT_RATIO_221_100,
-};
-static enum blackbird_video_bitrate_type mpeg_video_bitrates[] = {
-	[V4L2_BITRATE_NONE] = BLACKBIRD_VIDEO_CBR,
-	[V4L2_BITRATE_CBR]  = BLACKBIRD_VIDEO_CBR,
-	[V4L2_BITRATE_VBR]  = BLACKBIRD_VIDEO_VBR,
-};
-/* find the best layer I/II bitrate to fit a given numeric value */
-struct bitrate_bits {
-	u32 bits; /* layer bits for the best fit */
-	u32 rate; /* actual numeric value for the layer best fit */
-};
-struct bitrate_approximation {
-	u32                 target;   /* numeric value of the rate we want */
-	struct bitrate_bits layer[2];
-};
-static struct bitrate_approximation mpeg_audio_bitrates[] = {
-	/* target  layer[0].bits           layer[0].rate       layer[1].bits           layer[1].rate */
-	{   0, { {                                0,   0, }, {                                0,   0, }, }, },
-	{  32, { { BLACKBIRD_AUDIO_BITS_LAYER_1_32 ,  32, }, { BLACKBIRD_AUDIO_BITS_LAYER_2_32 ,  32, }, }, },
-	{  48, { { BLACKBIRD_AUDIO_BITS_LAYER_1_64 ,  64, }, { BLACKBIRD_AUDIO_BITS_LAYER_2_48 ,  48, }, }, },
-	{  56, { { BLACKBIRD_AUDIO_BITS_LAYER_1_64 ,  64, }, { BLACKBIRD_AUDIO_BITS_LAYER_2_56 ,  56, }, }, },
-	{  64, { { BLACKBIRD_AUDIO_BITS_LAYER_1_64 ,  64, }, { BLACKBIRD_AUDIO_BITS_LAYER_2_64 ,  64, }, }, },
-	{  80, { { BLACKBIRD_AUDIO_BITS_LAYER_1_96 ,  96, }, { BLACKBIRD_AUDIO_BITS_LAYER_2_80 ,  80, }, }, },
-	{  96, { { BLACKBIRD_AUDIO_BITS_LAYER_1_96 ,  96, }, { BLACKBIRD_AUDIO_BITS_LAYER_2_96 ,  96, }, }, },
-	{ 112, { { BLACKBIRD_AUDIO_BITS_LAYER_1_128, 128, }, { BLACKBIRD_AUDIO_BITS_LAYER_2_112, 112, }, }, },
-	{ 128, { { BLACKBIRD_AUDIO_BITS_LAYER_1_128, 128, }, { BLACKBIRD_AUDIO_BITS_LAYER_2_128, 128, }, }, },
-	{ 160, { { BLACKBIRD_AUDIO_BITS_LAYER_1_160, 160, }, { BLACKBIRD_AUDIO_BITS_LAYER_2_160, 160, }, }, },
-	{ 192, { { BLACKBIRD_AUDIO_BITS_LAYER_1_192, 192, }, { BLACKBIRD_AUDIO_BITS_LAYER_2_192, 192, }, }, },
-	{ 224, { { BLACKBIRD_AUDIO_BITS_LAYER_1_224, 224, }, { BLACKBIRD_AUDIO_BITS_LAYER_2_224, 224, }, }, },
-	{ 256, { { BLACKBIRD_AUDIO_BITS_LAYER_1_256, 256, }, { BLACKBIRD_AUDIO_BITS_LAYER_2_256, 256, }, }, },
-	{ 288, { { BLACKBIRD_AUDIO_BITS_LAYER_1_288, 288, }, { BLACKBIRD_AUDIO_BITS_LAYER_2_320, 320, }, }, },
-	{ 320, { { BLACKBIRD_AUDIO_BITS_LAYER_1_320, 320, }, { BLACKBIRD_AUDIO_BITS_LAYER_2_320, 320, }, }, },
-	{ 352, { { BLACKBIRD_AUDIO_BITS_LAYER_1_352, 352, }, { BLACKBIRD_AUDIO_BITS_LAYER_2_384, 384, }, }, },
-	{ 384, { { BLACKBIRD_AUDIO_BITS_LAYER_1_384, 384, }, { BLACKBIRD_AUDIO_BITS_LAYER_2_384, 384, }, }, },
-	{ 416, { { BLACKBIRD_AUDIO_BITS_LAYER_1_416, 416, }, { BLACKBIRD_AUDIO_BITS_LAYER_2_384, 384, }, }, },
-	{ 448, { { BLACKBIRD_AUDIO_BITS_LAYER_1_448, 448, }, { BLACKBIRD_AUDIO_BITS_LAYER_2_384, 384, }, }, },
-};
-static const int BITRATES_SIZE = ARRAY_SIZE(mpeg_audio_bitrates);
-
-static void blackbird_set_default_params(struct cx8802_dev *dev)
-{
-	struct v4l2_mpeg_compression *params = &dev->params;
-	u32 au_params;
-
-	/* assign stream type */
-	if( params->st_type >= ARRAY_SIZE(mpeg_stream_types) )
-		params->st_type = V4L2_MPEG_PS_2;
-	if( params->st_type == V4L2_MPEG_SS_1 )
-		params->vi_type = V4L2_MPEG_VI_1;
-	else
-		params->vi_type = V4L2_MPEG_VI_2;
-	blackbird_api_cmd(dev, CX2341X_ENC_SET_STREAM_TYPE, 1, 0, mpeg_stream_types[params->st_type]);
-
-	/* assign framerate */
-	if( params->vi_frame_rate <= 25 )
-	{
-		params->vi_frame_rate = 25;
-		blackbird_api_cmd(dev, CX2341X_ENC_SET_FRAME_RATE, 1, 0, BLACKBIRD_FRAMERATE_PAL_25);
-	}
-	else
-	{
-		params->vi_frame_rate = 30;
-		blackbird_api_cmd(dev, CX2341X_ENC_SET_FRAME_RATE, 1, 0, BLACKBIRD_FRAMERATE_NTSC_30);
-	}
-
-	/* assign aspect ratio */
-	if( params->vi_aspect_ratio >= ARRAY_SIZE(mpeg_stream_ratios) )
-		params->vi_aspect_ratio = V4L2_MPEG_ASPECT_4_3;
-	blackbird_api_cmd(dev, CX2341X_ENC_SET_ASPECT_RATIO, 1, 0, mpeg_stream_ratios[params->vi_aspect_ratio]);
-
-	/* assign gop properties */
-	blackbird_api_cmd(dev, CX2341X_ENC_SET_GOP_PROPERTIES, 2, 0, params->vi_frames_per_gop, params->vi_bframes_count+1);
-
-	/* assign gop closure */
-	blackbird_api_cmd(dev, CX2341X_ENC_SET_GOP_CLOSURE, 1, 0, params->closed_gops);
-
-	/* assign 3 2 pulldown */
-	blackbird_api_cmd(dev, CX2341X_ENC_SET_3_2_PULLDOWN, 1, 0, params->pulldown);
-
-	/* make sure the params are within bounds */
-	if( params->st_bitrate.mode >= ARRAY_SIZE(mpeg_video_bitrates) )
-		params->vi_bitrate.mode = V4L2_BITRATE_NONE;
-	if( params->vi_bitrate.mode >= ARRAY_SIZE(mpeg_video_bitrates) )
-		params->vi_bitrate.mode = V4L2_BITRATE_NONE;
-	if( params->au_bitrate.mode >= ARRAY_SIZE(mpeg_video_bitrates) )
-		params->au_bitrate.mode = V4L2_BITRATE_NONE;
-
-	/* assign audio properties */
-	/* note: it's not necessary to set the samplerate, the mpeg encoder seems to autodetect/adjust */
-	au_params = BLACKBIRD_AUDIO_BITS_STEREO |
-			/* BLACKBIRD_AUDIO_BITS_BOUND_4 | */
-			BLACKBIRD_AUDIO_BITS_EMPHASIS_NONE |
-			BLACKBIRD_AUDIO_BITS_CRC_OFF |
-			BLACKBIRD_AUDIO_BITS_COPYRIGHT_OFF |
-			BLACKBIRD_AUDIO_BITS_COPY |
-			0;
-	if( params->au_sample_rate <= 32000 )
-	{
-		params->au_sample_rate = 32000;
-		au_params |= BLACKBIRD_AUDIO_BITS_32000HZ;
-	}
-	else if( params->au_sample_rate <= 44100 )
-	{
-		params->au_sample_rate = 44100;
-		au_params |= BLACKBIRD_AUDIO_BITS_44100HZ;
-	}
-	else
-	{
-		params->au_sample_rate = 48000;
-		au_params |= BLACKBIRD_AUDIO_BITS_48000HZ;
-	}
-	if( params->au_type == V4L2_MPEG_AU_2_I )
-	{
-		au_params |= BLACKBIRD_AUDIO_BITS_LAYER_1;
-	}
-	else
-	{
-		/* TODO: try to handle the other formats more gracefully */
-		params->au_type = V4L2_MPEG_AU_2_II;
-		au_params |= BLACKBIRD_AUDIO_BITS_LAYER_2;
-	}
-	if( params->au_bitrate.mode )
-	{
-		int layer;
-
-		if( params->au_bitrate.mode == V4L2_BITRATE_CBR )
-			params->au_bitrate.max = params->vi_bitrate.target;
-		else
-			params->au_bitrate.target = params->vi_bitrate.max;
-
-		layer = params->au_type;
-		if( params->au_bitrate.target == 0 )
-		{
-			/* TODO: use the minimum possible bitrate instead of 0 ? */
-			au_params |= 0;
-		}
-		else if( params->au_bitrate.target >=
-			 mpeg_audio_bitrates[BITRATES_SIZE-1].layer[layer].rate )
-		{
-			/* clamp the bitrate to the max supported by the standard */
-			params->au_bitrate.target = mpeg_audio_bitrates[BITRATES_SIZE-1].layer[layer].rate;
-			params->au_bitrate.max = params->au_bitrate.target;
-			au_params |= mpeg_audio_bitrates[BITRATES_SIZE-1].layer[layer].bits;
-		}
-		else
-		{
-			/* round up to the nearest supported bitrate */
-			int i;
-			for(i = 1; i < BITRATES_SIZE; i++)
-			{
-				if( params->au_bitrate.target > mpeg_audio_bitrates[i-1].layer[layer].rate &&
-				    params->au_bitrate.target <= mpeg_audio_bitrates[i].layer[layer].rate )
-				{
-					params->au_bitrate.target = mpeg_audio_bitrates[i].layer[layer].rate;
-					params->au_bitrate.max = params->au_bitrate.target;
-					au_params |= mpeg_audio_bitrates[i].layer[layer].bits;
-					break;
-				}
-			}
-		}
-	}
-	else
-	{
-		/* TODO: ??? */
-		params->au_bitrate.target = params->au_bitrate.max = 0;
-		au_params |= 0;
-	}
-	blackbird_api_cmd(dev, CX2341X_ENC_SET_AUDIO_PROPERTIES, 1, 0, au_params );
-
-	/* assign bitrates */
-	if( params->vi_bitrate.mode )
-	{
-		/* bitrate is set, let's figure out the cbr/vbr mess */
-		if( params->vi_bitrate.max < params->vi_bitrate.target )
-		{
-			if( params->vi_bitrate.mode == V4L2_BITRATE_CBR )
-				params->vi_bitrate.max = params->vi_bitrate.target;
-			else
-				params->vi_bitrate.target = params->vi_bitrate.max;
-		}
-	}
-	else
-	{
-		if( params->st_bitrate.max < params->st_bitrate.target )
-		{
-			if( params->st_bitrate.mode == V4L2_BITRATE_VBR )
-				params->st_bitrate.target = params->st_bitrate.max;
-			else
-				params->st_bitrate.max = params->st_bitrate.target;
-		}
-		/* calculate vi_bitrate = st_bitrate - au_bitrate */
-		params->vi_bitrate.max = params->st_bitrate.max - params->au_bitrate.max;
-		params->vi_bitrate.target = params->st_bitrate.target - params->au_bitrate.target;
-	}
-	blackbird_api_cmd(dev, CX2341X_ENC_SET_BIT_RATE, 4, 0,
-				mpeg_video_bitrates[params->vi_bitrate.mode],
-				params->vi_bitrate.target * 1000, /* kbps -> bps */
-				params->vi_bitrate.max * 1000 / BLACKBIRD_PEAK_RATE_DIVISOR, /* peak/400 */
-				BLACKBIRD_MUX_RATE_DEFAULT /*, 0x70*/); /* encoding buffer, ckennedy */
-
-	/* TODO: implement the stream ID stuff:
-		ts_pid_pmt, ts_pid_audio, ts_pid_video, ts_pid_pcr,
-		ps_size, au_pesid, vi_pesid
-	*/
-}
-#define CHECK_PARAM( name ) ( dev->params.name != params->name )
-#define IF_PARAM( name ) if( CHECK_PARAM( name ) )
-#define UPDATE_PARAM( name ) dev->params.name = params->name
-void blackbird_set_params(struct cx8802_dev *dev, struct v4l2_mpeg_compression *params)
-{
-	u32 au_params;
-
-	/* assign stream type */
-	if( params->st_type >= ARRAY_SIZE(mpeg_stream_types) )
-		params->st_type = V4L2_MPEG_PS_2;
-	if( params->st_type == V4L2_MPEG_SS_1 )
-		params->vi_type = V4L2_MPEG_VI_1;
-	else
-		params->vi_type = V4L2_MPEG_VI_2;
-	if( CHECK_PARAM( st_type ) || CHECK_PARAM( vi_type ) )
-	{
-		UPDATE_PARAM( st_type );
-		UPDATE_PARAM( vi_type );
-		blackbird_api_cmd(dev, CX2341X_ENC_SET_STREAM_TYPE, 1, 0, mpeg_stream_types[params->st_type]);
-	}
-
-	/* assign framerate */
-	if( params->vi_frame_rate <= 25 )
-		params->vi_frame_rate = 25;
-	else
-		params->vi_frame_rate = 30;
-	IF_PARAM( vi_frame_rate )
-	{
-		UPDATE_PARAM( vi_frame_rate );
-		if( params->vi_frame_rate == 25 )
-			blackbird_api_cmd(dev, CX2341X_ENC_SET_FRAME_RATE, 1, 0, BLACKBIRD_FRAMERATE_PAL_25);
-		else
-			blackbird_api_cmd(dev, CX2341X_ENC_SET_FRAME_RATE, 1, 0, BLACKBIRD_FRAMERATE_NTSC_30);
-	}
-
-	/* assign aspect ratio */
-	if( params->vi_aspect_ratio >= ARRAY_SIZE(mpeg_stream_ratios) )
-		params->vi_aspect_ratio = V4L2_MPEG_ASPECT_4_3;
-	IF_PARAM( vi_aspect_ratio )
-	{
-		UPDATE_PARAM( vi_aspect_ratio );
-		blackbird_api_cmd(dev, CX2341X_ENC_SET_ASPECT_RATIO, 1, 0, mpeg_stream_ratios[params->vi_aspect_ratio]);
-	}
-
-	/* assign gop properties */
-	if( CHECK_PARAM( vi_frames_per_gop ) || CHECK_PARAM( vi_bframes_count ) )
-	{
-		UPDATE_PARAM( vi_frames_per_gop );
-		UPDATE_PARAM( vi_bframes_count );
-		blackbird_api_cmd(dev, CX2341X_ENC_SET_GOP_PROPERTIES, 2, 0, params->vi_frames_per_gop, params->vi_bframes_count+1);
-	}
-
-	/* assign gop closure */
-	IF_PARAM( closed_gops )
-	{
-		UPDATE_PARAM( closed_gops );
-		blackbird_api_cmd(dev, CX2341X_ENC_SET_GOP_CLOSURE, 1, 0, params->closed_gops);
-	}
-
-	/* assign 3 2 pulldown */
-	IF_PARAM( pulldown )
-	{
-		UPDATE_PARAM( pulldown );
-		blackbird_api_cmd(dev, CX2341X_ENC_SET_3_2_PULLDOWN, 1, 0, params->pulldown);
-	}
-
-	/* make sure the params are within bounds */
-	if( params->st_bitrate.mode >= ARRAY_SIZE(mpeg_video_bitrates) )
-		params->vi_bitrate.mode = V4L2_BITRATE_NONE;
-	if( params->vi_bitrate.mode >= ARRAY_SIZE(mpeg_video_bitrates) )
-		params->vi_bitrate.mode = V4L2_BITRATE_NONE;
-	if( params->au_bitrate.mode >= ARRAY_SIZE(mpeg_video_bitrates) )
-		params->au_bitrate.mode = V4L2_BITRATE_NONE;
-
-	/* assign audio properties */
-	/* note: it's not necessary to set the samplerate, the mpeg encoder seems to autodetect/adjust */
-	au_params = BLACKBIRD_AUDIO_BITS_STEREO |
-			/* BLACKBIRD_AUDIO_BITS_BOUND_4 | */
-	BLACKBIRD_AUDIO_BITS_EMPHASIS_NONE |
-		BLACKBIRD_AUDIO_BITS_CRC_OFF |
-		BLACKBIRD_AUDIO_BITS_COPYRIGHT_OFF |
-		BLACKBIRD_AUDIO_BITS_COPY |
-		0;
-	if( params->au_sample_rate < 32000 )
-	{
-		params->au_sample_rate = 32000;
-		au_params |= BLACKBIRD_AUDIO_BITS_32000HZ;
-	}
-	else if( params->au_sample_rate < 44100 )
-	{
-		params->au_sample_rate = 44100;
-		au_params |= BLACKBIRD_AUDIO_BITS_44100HZ;
-	}
-	else
-	{
-		params->au_sample_rate = 48000;
-		au_params |= BLACKBIRD_AUDIO_BITS_48000HZ;
-	}
-	if( params->au_type == V4L2_MPEG_AU_2_I )
-	{
-		au_params |= BLACKBIRD_AUDIO_BITS_LAYER_1;
-	}
-	else
-	{
-		/* TODO: try to handle the other formats more gracefully */
-		params->au_type = V4L2_MPEG_AU_2_II;
-		au_params |= BLACKBIRD_AUDIO_BITS_LAYER_2;
-	}
-	if( params->au_bitrate.mode )
-	{
-		int layer;
-
-		if( params->au_bitrate.mode == V4L2_BITRATE_CBR )
-			params->au_bitrate.max = params->vi_bitrate.target;
-		else
-			params->au_bitrate.target = params->vi_bitrate.max;
-
-		layer = params->au_type;
-		if( params->au_bitrate.target == 0 )
-		{
-			/* TODO: use the minimum possible bitrate instead of 0 ? */
-			au_params |= 0;
-		}
-		else if( params->au_bitrate.target >=
-			 mpeg_audio_bitrates[BITRATES_SIZE-1].layer[layer].rate )
-		{
-			/* clamp the bitrate to the max supported by the standard */
-			params->au_bitrate.target = mpeg_audio_bitrates[BITRATES_SIZE-1].layer[layer].rate;
-			params->au_bitrate.max = params->au_bitrate.target;
-			au_params |= mpeg_audio_bitrates[BITRATES_SIZE-1].layer[layer].bits;
-		}
-		else
-		{
-			/* round up to the nearest supported bitrate */
-			int i;
-			for(i = 1; i < BITRATES_SIZE; i++)
-			{
-				if( params->au_bitrate.target > mpeg_audio_bitrates[i-1].layer[layer].rate &&
-				    params->au_bitrate.target <= mpeg_audio_bitrates[i].layer[layer].rate )
-				{
-					params->au_bitrate.target = mpeg_audio_bitrates[i].layer[layer].rate;
-					params->au_bitrate.max = params->au_bitrate.target;
-					au_params |= mpeg_audio_bitrates[i].layer[layer].bits;
-					break;
-				}
-			}
-		}
-	}
-	else
-	{
-		/* TODO: ??? */
-		params->au_bitrate.target = params->au_bitrate.max = 0;
-		au_params |= 0;
-	}
-	if( CHECK_PARAM( au_type ) || CHECK_PARAM( au_sample_rate )
-		|| CHECK_PARAM( au_bitrate.mode ) || CHECK_PARAM( au_bitrate.max )
-		|| CHECK_PARAM( au_bitrate.target )
-	)
-	{
-		UPDATE_PARAM( au_type );
-		UPDATE_PARAM( au_sample_rate );
-		UPDATE_PARAM( au_bitrate );
-		blackbird_api_cmd(dev, CX2341X_ENC_SET_AUDIO_PROPERTIES, 1, 0, au_params );
-	}
-
-	/* assign bitrates */
-	if( params->vi_bitrate.mode )
-	{
-		/* bitrate is set, let's figure out the cbr/vbr mess */
-		if( params->vi_bitrate.max < params->vi_bitrate.target )
-		{
-			if( params->vi_bitrate.mode == V4L2_BITRATE_CBR )
-				params->vi_bitrate.max = params->vi_bitrate.target;
-			else
-				params->vi_bitrate.target = params->vi_bitrate.max;
-		}
-	}
-	else
-	{
-		if( params->st_bitrate.max < params->st_bitrate.target )
-		{
-			if( params->st_bitrate.mode == V4L2_BITRATE_VBR )
-				params->st_bitrate.target = params->st_bitrate.max;
-			else
-				params->st_bitrate.max = params->st_bitrate.target;
-		}
-		/* calculate vi_bitrate = st_bitrate - au_bitrate */
-		params->vi_bitrate.max = params->st_bitrate.max - params->au_bitrate.max;
-		params->vi_bitrate.target = params->st_bitrate.target - params->au_bitrate.target;
-	}
-	UPDATE_PARAM( st_bitrate );
-	if( CHECK_PARAM( vi_bitrate.mode ) || CHECK_PARAM( vi_bitrate.max )
-		|| CHECK_PARAM( vi_bitrate.target )
-	)
-	{
-		UPDATE_PARAM( vi_bitrate );
-		blackbird_api_cmd(dev, CX2341X_ENC_SET_BIT_RATE, 4, 0,
-				mpeg_video_bitrates[params->vi_bitrate.mode],
-				params->vi_bitrate.target * 1000, /* kbps -> bps */
-				params->vi_bitrate.max * 1000 / BLACKBIRD_PEAK_RATE_DIVISOR, /* peak/400 */
-				BLACKBIRD_MUX_RATE_DEFAULT /*, 0x70*/); /* encoding buffer, ckennedy */
-	}
-
-	/* TODO: implement the stream ID stuff:
-		ts_pid_pmt, ts_pid_audio, ts_pid_video, ts_pid_pcr,
-		ps_size, au_pesid, vi_pesid
-	*/
-	UPDATE_PARAM( ts_pid_pmt );
-	UPDATE_PARAM( ts_pid_audio );
-	UPDATE_PARAM( ts_pid_video );
-	UPDATE_PARAM( ts_pid_pcr );
-	UPDATE_PARAM( ps_size );
-	UPDATE_PARAM( au_pesid );
-	UPDATE_PARAM( vi_pesid );
-}
-
-static void blackbird_set_default_dnr_params(struct cx8802_dev *dev)
-{
-	/* assign dnr filter mode */
-	if( dev->dnr_params.mode > BLACKBIRD_DNR_BITS_AUTO )
-		dev->dnr_params.mode = BLACKBIRD_DNR_BITS_MANUAL;
-	if( dev->dnr_params.type > BLACKBIRD_MEDIAN_FILTER_DIAGONAL )
-		dev->dnr_params.type = BLACKBIRD_MEDIAN_FILTER_DISABLED;
-	blackbird_api_cmd(dev, CX2341X_ENC_SET_DNR_FILTER_MODE, 2, 0,
-				dev->dnr_params.mode,
-				dev->dnr_params.type
-			);
-
-	/* assign dnr filter props*/
-	if( dev->dnr_params.spatial > 15 )
-		dev->dnr_params.spatial = 15;
-	if( dev->dnr_params.temporal > 31 )
-		dev->dnr_params.temporal = 31;
-	blackbird_api_cmd(dev, CX2341X_ENC_SET_DNR_FILTER_PROPS, 2, 0,
-				dev->dnr_params.spatial,
-				dev->dnr_params.temporal
-			);
-}
-#define CHECK_DNR_PARAM( name ) ( dev->dnr_params.name != dnr_params->name )
-#define UPDATE_DNR_PARAM( name ) dev->dnr_params.name = dnr_params->name
-void blackbird_set_dnr_params(struct cx8802_dev *dev, struct blackbird_dnr* dnr_params)
-{
-	/* assign dnr filter mode */
-	/* clamp values */
-	if( dnr_params->mode > BLACKBIRD_DNR_BITS_AUTO )
-		dnr_params->mode = BLACKBIRD_DNR_BITS_MANUAL;
-	if( dnr_params->type > BLACKBIRD_MEDIAN_FILTER_DIAGONAL )
-		dnr_params->type = BLACKBIRD_MEDIAN_FILTER_DISABLED;
-	/* check if the params actually changed */
-	if( CHECK_DNR_PARAM( mode ) || CHECK_DNR_PARAM( type ) )
-	{
-		UPDATE_DNR_PARAM( mode );
-		UPDATE_DNR_PARAM( type );
-		blackbird_api_cmd(dev, CX2341X_ENC_SET_DNR_FILTER_MODE, 2, 0, dnr_params->mode, dnr_params->type);
-	}
-
-	/* assign dnr filter props*/
-	if( dnr_params->spatial > 15 )
-		dnr_params->spatial = 15;
-	if( dnr_params->temporal > 31 )
-		dnr_params->temporal = 31;
-	if( CHECK_DNR_PARAM( spatial ) || CHECK_DNR_PARAM( temporal ) )
-	{
-		UPDATE_DNR_PARAM( spatial );
-		UPDATE_DNR_PARAM( temporal );
-		blackbird_api_cmd(dev, CX2341X_ENC_SET_DNR_FILTER_PROPS, 2, 0, dnr_params->spatial, dnr_params->temporal);
-	}
-}
-
-static void blackbird_codec_settings(struct cx8802_dev *dev)
-{
-
-	/* assign output port */
-	blackbird_api_cmd(dev, CX2341X_ENC_SET_OUTPUT_PORT, 1, 0, BLACKBIRD_OUTPUT_PORT_STREAMING); /* Host */
-
-	/* assign frame size */
-	blackbird_api_cmd(dev, CX2341X_ENC_SET_FRAME_SIZE, 2, 0,
-				dev->height, dev->width);
-
-	/* assign coring levels (luma_h, luma_l, chroma_h, chroma_l) */
-	blackbird_api_cmd(dev, CX2341X_ENC_SET_CORING_LEVELS, 4, 0, 0, 255, 0, 255);
-
-	/* assign spatial filter type: luma_t: horiz_only, chroma_t: horiz_only */
-	blackbird_api_cmd(dev, CX2341X_ENC_SET_SPATIAL_FILTER_TYPE, 2, 0,
-				BLACKBIRD_SPATIAL_FILTER_LUMA_1D_HORIZ,
-				BLACKBIRD_SPATIAL_FILTER_CHROMA_1D_HORIZ
-			);
-
-	/* assign frame drop rate */
-	/* blackbird_api_cmd(dev, IVTV_API_ASSIGN_FRAME_DROP_RATE, 1, 0, 0); */
-
-	blackbird_set_default_params(dev);
-	blackbird_set_default_dnr_params(dev);
-}
 
 static int blackbird_initialize_codec(struct cx8802_dev *dev)
 {
@@ -1445,15 +805,35 @@ static int mpeg_do_ioctl(struct inode *inode, struct file *file,
 	{
 		struct v4l2_mpeg_compression *f = arg;
 
-		memcpy(f,&dev->params,sizeof(*f));
+		memcpy(f,&default_mpeg_params,sizeof(*f));
 		return 0;
 	}
 	case VIDIOC_S_MPEGCOMP:
-	{
-		struct v4l2_mpeg_compression *f = arg;
-
-		blackbird_set_params(dev, f);
 		return 0;
+	case VIDIOC_G_EXT_CTRLS:
+	{
+		struct v4l2_ext_controls *f = arg;
+
+		if (f->ctrl_class != V4L2_CTRL_CLASS_MPEG)
+			return -EINVAL;
+		return cx2341x_ext_ctrls(&dev->params, f, cmd);
+	}
+	case VIDIOC_S_EXT_CTRLS:
+	case VIDIOC_TRY_EXT_CTRLS:
+	{
+		struct v4l2_ext_controls *f = arg;
+		struct cx2341x_mpeg_params p;
+		int err;
+
+		if (f->ctrl_class != V4L2_CTRL_CLASS_MPEG)
+			return -EINVAL;
+		p = dev->params;
+		err = cx2341x_ext_ctrls(&p, f, cmd);
+		if (err == 0 && cmd == VIDIOC_S_EXT_CTRLS) {
+			err = cx2341x_update(dev, blackbird_mbox_func, &dev->params, &p);
+			dev->params = p;
+		}
+		return err;
 	}
 	case VIDIOC_S_FREQUENCY:
 	{
@@ -1658,26 +1038,21 @@ static int __devinit blackbird_probe(struct pci_dev *pci_dev,
 	dev->core = core;
 	dev->width = 720;
 	dev->height = 576;
-	memcpy(&dev->params,&default_mpeg_params,sizeof(default_mpeg_params));
-	memcpy(&dev->dnr_params,&default_dnr_params,sizeof(default_dnr_params));
+	cx2341x_fill_defaults(&dev->params);
 
 	switch (core->board) {
 	case CX88_BOARD_HAUPPAUGE_ROSLYN:
 		if (core->tuner_formats & V4L2_STD_525_60) {
 			dev->height = 480;
-			dev->params.vi_frame_rate = 30;
 		} else {
 			dev->height = 576;
-			dev->params.vi_frame_rate = 25;
 		}
 		break;
 	case CX88_BOARD_KWORLD_HARDWARE_MPEG_TV_XPERT:
 		if (core->tvnorm->id & V4L2_STD_525_60) {
 			dev->height = 480;
-			dev->params.vi_frame_rate = 30;
 		} else {
 			dev->height = 576;
-			dev->params.vi_frame_rate = 25;
 		}
 		break;
 	}
@@ -1765,8 +1140,6 @@ module_exit(blackbird_fini);
 
 EXPORT_SYMBOL(cx88_ioctl_hook);
 EXPORT_SYMBOL(cx88_ioctl_translator);
-EXPORT_SYMBOL(blackbird_set_params);
-EXPORT_SYMBOL(blackbird_set_dnr_params);
 
 /* ----------------------------------------------------------- */
 /*

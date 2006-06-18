@@ -29,6 +29,7 @@
 #include <media/tuner.h>
 #include <media/tveeprom.h>
 #include <media/video-buf.h>
+#include <media/cx2341x.h>
 #include <media/video-buf-dvb.h>
 
 #include "btcx-risc.h"
@@ -398,14 +399,6 @@ struct cx8802_suspend_state {
 	int                        disabled;
 };
 
-/* TODO: move this to struct v4l2_mpeg_compression ? */
-struct blackbird_dnr {
-	u32                       mode;
-	u32                       type;
-	u32                       spatial;
-	u32                       temporal;
-};
-
 struct cx8802_dev {
 	struct cx88_core           *core;
 	spinlock_t                 slock;
@@ -439,8 +432,7 @@ struct cx8802_dev {
 	unsigned char              ts_gen_cntrl;
 
 	/* mpeg params */
-	struct v4l2_mpeg_compression params;
-	struct blackbird_dnr       dnr_params;
+	struct cx2341x_mpeg_params params;
 };
 
 /* ----------------------------------------------------------- */
@@ -605,10 +597,6 @@ extern int cx88_do_ioctl(struct inode *inode, struct file *file, int radio,
 extern int (*cx88_ioctl_hook)(struct inode *inode, struct file *file,
 				unsigned int cmd, void *arg);
 extern unsigned int (*cx88_ioctl_translator)(unsigned int cmd);
-void blackbird_set_params(struct cx8802_dev *dev,
-				struct v4l2_mpeg_compression *params);
-void blackbird_set_dnr_params(struct cx8802_dev *dev,
-				struct blackbird_dnr* dnr_params);
 
 /*
  * Local variables:
