@@ -137,12 +137,12 @@ static void set_audio_finish(struct cx88_core *core, u32 ctl)
 {
 	u32 volume;
 
-#ifndef USING_CX88_ALSA
+#ifndef CONFIG_VIDEO_CX88_ALSA
 	/* restart dma; This avoids buzz in NICAM and is good in others  */
 	cx88_stop_audio_dma(core);
 #endif
 	cx_write(AUD_RATE_THRES_DMD, 0x000000C0);
-#ifndef USING_CX88_ALSA
+#ifndef CONFIG_VIDEO_CX88_ALSA
 	cx88_start_audio_dma(core);
 #endif
 
