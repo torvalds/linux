@@ -1284,7 +1284,7 @@ int dev_queue_xmit(struct sk_buff *skb)
 	 * checksumming for this protocol, complete checksumming here.
 	 */
 	if (skb->ip_summed == CHECKSUM_HW &&
-	    (!(dev->features & (NETIF_F_HW_CSUM | NETIF_F_NO_CSUM)) &&
+	    (!(dev->features & NETIF_F_GEN_CSUM) &&
 	     (!(dev->features & NETIF_F_IP_CSUM) ||
 	      skb->protocol != htons(ETH_P_IP))))
 	      	if (skb_checksum_help(skb, 0))
@@ -2789,9 +2789,7 @@ int register_netdevice(struct net_device *dev)
 
 	/* Fix illegal SG+CSUM combinations. */
 	if ((dev->features & NETIF_F_SG) &&
-	    !(dev->features & (NETIF_F_IP_CSUM |
-			       NETIF_F_NO_CSUM |
-			       NETIF_F_HW_CSUM))) {
+	    !(dev->features & NETIF_F_ALL_CSUM)) {
 		printk("%s: Dropping NETIF_F_SG since no checksum feature.\n",
 		       dev->name);
 		dev->features &= ~NETIF_F_SG;

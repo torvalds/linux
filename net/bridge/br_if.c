@@ -376,8 +376,7 @@ void br_features_recompute(struct net_bridge *br)
 	checksum = br->feature_mask & NETIF_F_IP_CSUM;
 
 	list_for_each_entry(p, &br->port_list, list) {
-		if (!(p->dev->features 
-		      & (NETIF_F_IP_CSUM|NETIF_F_NO_CSUM|NETIF_F_HW_CSUM)))
+		if (!(p->dev->features & NETIF_F_ALL_CSUM))
 			checksum = 0;
 		features &= p->dev->features;
 	}

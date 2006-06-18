@@ -1199,8 +1199,7 @@ int bond_sethwaddr(struct net_device *bond_dev, struct net_device *slave_dev)
 }
 
 #define BOND_INTERSECT_FEATURES \
-	(NETIF_F_SG|NETIF_F_IP_CSUM|NETIF_F_NO_CSUM|NETIF_F_HW_CSUM|\
-	NETIF_F_TSO|NETIF_F_UFO)
+	(NETIF_F_SG | NETIF_F_ALL_CSUM | NETIF_F_TSO | NETIF_F_UFO)
 
 /* 
  * Compute the common dev->feature set available to all slaves.  Some
@@ -1218,9 +1217,7 @@ static int bond_compute_features(struct bonding *bond)
 		features &= (slave->dev->features & BOND_INTERSECT_FEATURES);
 
 	if ((features & NETIF_F_SG) && 
-	    !(features & (NETIF_F_IP_CSUM |
-			  NETIF_F_NO_CSUM |
-			  NETIF_F_HW_CSUM)))
+	    !(features & NETIF_F_ALL_CSUM))
 		features &= ~NETIF_F_SG;
 
 	/* 

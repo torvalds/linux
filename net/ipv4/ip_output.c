@@ -840,7 +840,7 @@ int ip_append_data(struct sock *sk,
 	 */
 	if (transhdrlen &&
 	    length + fragheaderlen <= mtu &&
-	    rt->u.dst.dev->features&(NETIF_F_IP_CSUM|NETIF_F_NO_CSUM|NETIF_F_HW_CSUM) &&
+	    rt->u.dst.dev->features & NETIF_F_ALL_CSUM &&
 	    !exthdrlen)
 		csummode = CHECKSUM_HW;
 

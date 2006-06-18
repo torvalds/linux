@@ -312,6 +312,9 @@ struct net_device
 #define NETIF_F_LLTX		4096	/* LockLess TX */
 #define NETIF_F_UFO             8192    /* Can offload UDP Large Send*/
 
+#define NETIF_F_GEN_CSUM	(NETIF_F_NO_CSUM | NETIF_F_HW_CSUM)
+#define NETIF_F_ALL_CSUM	(NETIF_F_IP_CSUM | NETIF_F_GEN_CSUM)
+
 	struct net_device	*next_sched;
 
 	/* Interface index. Unique device identifier	*/

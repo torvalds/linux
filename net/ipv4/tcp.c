@@ -622,13 +622,9 @@ ssize_t tcp_sendpage(struct socket *sock, struct page *page, int offset,
 	ssize_t res;
 	struct sock *sk = sock->sk;
 
-#define TCP_ZC_CSUM_FLAGS (NETIF_F_IP_CSUM | NETIF_F_NO_CSUM | NETIF_F_HW_CSUM)
-
 	if (!(sk->sk_route_caps & NETIF_F_SG) ||
-	    !(sk->sk_route_caps & TCP_ZC_CSUM_FLAGS))
+	    !(sk->sk_route_caps & NETIF_F_ALL_CSUM))
 		return sock_no_sendpage(sock, page, offset, size, flags);
-
-#undef TCP_ZC_CSUM_FLAGS
 
 	lock_sock(sk);
 	TCP_CHECK_TIMER(sk);
@@ -726,9 +722,7 @@ new_segment:
 				/*
 				 * Check whether we can use HW checksum.
 				 */
-				if (sk->sk_route_caps &
-				    (NETIF_F_IP_CSUM | NETIF_F_NO_CSUM |
-				     NETIF_F_HW_CSUM))
+				if (sk->sk_route_caps & NETIF_F_ALL_CSUM)
 					skb->ip_summed = CHECKSUM_HW;
 
 				skb_entail(sk, tp, skb);
