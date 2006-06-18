@@ -306,11 +306,13 @@ struct v4l2_timecode
 #define V4L2_TC_USERBITS_8BITCHARS	0x0008
 /* The above is based on SMPTE timecodes */
 
+#ifdef __KERNEL__
 /*
  *	M P E G   C O M P R E S S I O N   P A R A M E T E R S
  *
- *  ### WARNING: this is still work-in-progress right now, most likely
- *  ###          there will be some incompatible changes.
+ *  ### WARNING: This experimental MPEG compression API is obsolete.
+ *  ###          It is replaced by the MPEG controls API.
+ *  ###          This old API will disappear in the near future!
  *
  */
 enum v4l2_bitrate_mode {
@@ -390,6 +392,7 @@ struct v4l2_mpeg_compression {
 	/* I don't expect the above being perfect yet ;) */
 	__u32				reserved_5[8];
 };
+#endif
 
 struct v4l2_jpegcompression
 {
@@ -1185,8 +1188,10 @@ struct v4l2_streamparm
 #define VIDIOC_ENUM_FMT         _IOWR ('V',  2, struct v4l2_fmtdesc)
 #define VIDIOC_G_FMT		_IOWR ('V',  4, struct v4l2_format)
 #define VIDIOC_S_FMT		_IOWR ('V',  5, struct v4l2_format)
+#ifdef __KERNEL__
 #define VIDIOC_G_MPEGCOMP       _IOR  ('V',  6, struct v4l2_mpeg_compression)
 #define VIDIOC_S_MPEGCOMP     	_IOW  ('V',  7, struct v4l2_mpeg_compression)
+#endif
 #define VIDIOC_REQBUFS		_IOWR ('V',  8, struct v4l2_requestbuffers)
 #define VIDIOC_QUERYBUF		_IOWR ('V',  9, struct v4l2_buffer)
 #define VIDIOC_G_FBUF		_IOR  ('V', 10, struct v4l2_framebuffer)

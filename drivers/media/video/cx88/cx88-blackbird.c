@@ -805,10 +805,14 @@ static int mpeg_do_ioctl(struct inode *inode, struct file *file,
 	{
 		struct v4l2_mpeg_compression *f = arg;
 
+		printk(KERN_WARNING "VIDIOC_G_MPEGCOMP is obsolete. "
+				    "Replace with VIDIOC_G_EXT_CTRLS!");
 		memcpy(f,&default_mpeg_params,sizeof(*f));
 		return 0;
 	}
 	case VIDIOC_S_MPEGCOMP:
+		printk(KERN_WARNING "VIDIOC_S_MPEGCOMP is obsolete. "
+				    "Replace with VIDIOC_S_EXT_CTRLS!");
 		return 0;
 	case VIDIOC_G_EXT_CTRLS:
 	{

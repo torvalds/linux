@@ -1216,6 +1216,7 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 	case VIDIOC_G_MPEGCOMP:
 	{
 		struct v4l2_mpeg_compression *p=arg;
+
 		/*FIXME: Several fields not shown */
 		if (!vfd->vidioc_g_mpegcomp)
 			break;
