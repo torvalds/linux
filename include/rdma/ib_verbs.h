@@ -1088,6 +1088,20 @@ int ib_dealloc_pd(struct ib_pd *pd);
 struct ib_ah *ib_create_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr);
 
 /**
+ * ib_init_ah_from_wc - Initializes address handle attributes from a
+ *   work completion.
+ * @device: Device on which the received message arrived.
+ * @port_num: Port on which the received message arrived.
+ * @wc: Work completion associated with the received message.
+ * @grh: References the received global route header.  This parameter is
+ *   ignored unless the work completion indicates that the GRH is valid.
+ * @ah_attr: Returned attributes that can be used when creating an address
+ *   handle for replying to the message.
+ */
+int ib_init_ah_from_wc(struct ib_device *device, u8 port_num, struct ib_wc *wc,
+		       struct ib_grh *grh, struct ib_ah_attr *ah_attr);
+
+/**
  * ib_create_ah_from_wc - Creates an address handle associated with the
  *   sender of the specified work completion.
  * @pd: The protection domain associated with the address handle.
