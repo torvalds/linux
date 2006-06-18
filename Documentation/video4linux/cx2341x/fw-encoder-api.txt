@@ -100,13 +100,20 @@ Param[1]
 Name 	CX2341X_ENC_SET_BIT_RATE
 Enum 	149/0x95
 Description
-	Assign average video stream bitrate.
+	Assign average video stream bitrate. Note on the last three params:
+	Param[3] and [4] seem to be always 0, param [5] doesn't seem to be used.
 Param[0]
 	0=variable bitrate, 1=constant bitrate
 Param[1]
 	bitrate in bits per second
 Param[2]
 	peak bitrate in bits per second, divided by 400
+Param[3]
+	Mux bitrate in bits per second, divided by 400. May be 0 (default).
+Param[4]
+	Rate Control VBR Padding
+Param[5]
+	VBV Buffer used by encoder
 
 -------------------------------------------------------------------------------
 
@@ -115,10 +122,11 @@ Enum 	151/0x97
 Description
 	Setup the GOP structure
 Param[0]
-	GOP size
+	GOP size (maximum is 34)
 Param[1]
 	Number of B frames between the I and P frame, plus 1.
 	For example: IBBPBBPBBPBB --> GOP size: 12, number of B frames: 2+1 = 3
+	Note that GOP size must be a multiple of (B-frames + 1).
 
 -------------------------------------------------------------------------------
 
@@ -241,6 +249,9 @@ Name 	CX2341X_ENC_SET_STREAM_TYPE
 Enum 	185/0xB9
 Description
 	Assign stream type
+	Note: Transport stream is not working in recent firmwares.
+	And in older firmwares the timestamps in the TS seem to be
+	unreliable.
 Param[0]
 	 0=Program stream
 	 1=Transport stream
@@ -278,6 +289,8 @@ Description
 		'01' Layer III
 		'00' Undefined
 	This discrepancy may indicate a possible error in the documentation.
+	Testing indicated that only Layer II is actually working, and that
+	the minimum bitrate should be 192 kbps.
 Param[0]
 	Bitmask:
 	   0:1  '00' 44.1Khz
@@ -313,6 +326,9 @@ Param[0]
 		'01'=JointStereo
 		'10'=Dual
 		'11'=Mono
+		Note: testing seems to indicate that Mono and possibly
+		JointStereo are not working (default to stereo).
+		Dual does work, though.
 
 	  10:11 Mode Extension used in joint_stereo mode.
 		In Layer I and II they indicate which subbands are in
