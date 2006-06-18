@@ -822,6 +822,7 @@ int mthca_init_cq(struct mthca_dev *dev, int nent,
 	spin_lock_init(&cq->lock);
 	cq->refcount = 1;
 	init_waitqueue_head(&cq->wait);
+	mutex_init(&cq->mutex);
 
 	memset(cq_context, 0, sizeof *cq_context);
 	cq_context->flags           = cpu_to_be32(MTHCA_CQ_STATUS_OK      |
