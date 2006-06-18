@@ -534,7 +534,7 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 	struct mthca_qp_context *qp_context;
 	u32 sqd_event = 0;
 	u8 status;
-	int err;
+	int err = -EINVAL;
 
 	if (attr_mask & IB_QP_CUR_STATE) {
 		cur_state = attr->cur_qp_state;
@@ -618,7 +618,7 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 		if (attr->path_mtu < IB_MTU_256 || attr->path_mtu > IB_MTU_2048) {
 			mthca_dbg(dev, "path MTU (%u) is invalid\n",
 				  attr->path_mtu);
-			return -EINVAL;
+			goto out;
 		}
 		qp_context->mtu_msgmax = (attr->path_mtu << 5) | 31;
 	}
@@ -672,7 +672,7 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 	if (attr_mask & IB_QP_AV) {
 		if (mthca_path_set(dev, &attr->ah_attr, &qp_context->pri_path,
 				   attr_mask & IB_QP_PORT ? attr->port_num : qp->port))
-			return -EINVAL;
+			goto out;
 
 		qp_param->opt_param_mask |= cpu_to_be32(MTHCA_QP_OPTPAR_PRIMARY_ADDR_PATH);
 	}
@@ -686,18 +686,18 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 		if (attr->alt_pkey_index >= dev->limits.pkey_table_len) {
 			mthca_dbg(dev, "Alternate P_Key index (%u) too large. max is %d\n",
 				  attr->alt_pkey_index, dev->limits.pkey_table_len-1);
-			return -EINVAL;
+			goto out;
 		}
 
 		if (attr->alt_port_num == 0 || attr->alt_port_num > dev->limits.num_ports) {
 			mthca_dbg(dev, "Alternate port number (%u) is invalid\n",
 				attr->alt_port_num);
-			return -EINVAL;
+			goto out;
 		}
 
 		if (mthca_path_set(dev, &attr->alt_ah_attr, &qp_context->alt_path,
 				   attr->alt_ah_attr.port_num))
-			return -EINVAL;
+			goto out;
 
 		qp_context->alt_path.port_pkey |= cpu_to_be32(attr->alt_pkey_index |
 							      attr->alt_port_num << 24);
