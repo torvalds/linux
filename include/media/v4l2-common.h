@@ -84,6 +84,19 @@ extern void v4l_printk_ioctl_arg(char *s,unsigned int cmd, void *arg);
 
 /* ------------------------------------------------------------------------- */
 
+/* Control helper functions */
+
+int v4l2_ctrl_check(struct v4l2_ext_control *ctrl, struct v4l2_queryctrl *qctrl,
+		const char **menu_items);
+const char **v4l2_ctrl_get_menu(u32 id);
+int v4l2_ctrl_query_fill(struct v4l2_queryctrl *qctrl, s32 min, s32 max, s32 step, s32 def);
+int v4l2_ctrl_query_fill_std(struct v4l2_queryctrl *qctrl);
+int v4l2_ctrl_query_menu(struct v4l2_querymenu *qmenu,
+		struct v4l2_queryctrl *qctrl, const char **menu_items);
+u32 v4l2_ctrl_next(const u32 * const *ctrl_classes, u32 id);
+
+/* ------------------------------------------------------------------------- */
+
 /* Internal ioctls */
 
 /* VIDIOC_INT_G_REGISTER and VIDIOC_INT_S_REGISTER */
