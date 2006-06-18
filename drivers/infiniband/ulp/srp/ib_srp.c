@@ -1491,6 +1491,7 @@ enum {
 	SRP_OPT_PKEY		= 1 << 3,
 	SRP_OPT_SERVICE_ID	= 1 << 4,
 	SRP_OPT_MAX_SECT	= 1 << 5,
+	SRP_OPT_MAX_CMD_PER_LUN	= 1 << 6,
 	SRP_OPT_ALL		= (SRP_OPT_ID_EXT	|
 				   SRP_OPT_IOC_GUID	|
 				   SRP_OPT_DGID		|
@@ -1499,13 +1500,14 @@ enum {
 };
 
 static match_table_t srp_opt_tokens = {
-	{ SRP_OPT_ID_EXT,	"id_ext=%s" 	},
-	{ SRP_OPT_IOC_GUID,	"ioc_guid=%s" 	},
-	{ SRP_OPT_DGID,		"dgid=%s" 	},
-	{ SRP_OPT_PKEY,		"pkey=%x" 	},
-	{ SRP_OPT_SERVICE_ID,	"service_id=%s" },
-	{ SRP_OPT_MAX_SECT,     "max_sect=%d" 	},
-	{ SRP_OPT_ERR,		NULL 		}
+	{ SRP_OPT_ID_EXT,		"id_ext=%s" 		},
+	{ SRP_OPT_IOC_GUID,		"ioc_guid=%s" 		},
+	{ SRP_OPT_DGID,			"dgid=%s" 		},
+	{ SRP_OPT_PKEY,			"pkey=%x" 		},
+	{ SRP_OPT_SERVICE_ID,		"service_id=%s"		},
+	{ SRP_OPT_MAX_SECT,		"max_sect=%d" 		},
+	{ SRP_OPT_MAX_CMD_PER_LUN,	"max_cmd_per_lun=%d" 	},
+	{ SRP_OPT_ERR,			NULL 			}
 };
 
 static int srp_parse_options(const char *buf, struct srp_target_port *target)
@@ -1579,6 +1581,14 @@ static int srp_parse_options(const char *buf, struct srp_target_port *target)
 				goto out;
 			}
 			target->scsi_host->max_sectors = token;
+			break;
+
+		case SRP_OPT_MAX_CMD_PER_LUN:
+			if (match_int(args, &token)) {
+				printk(KERN_WARNING PFX "bad max cmd_per_lun parameter '%s'\n", p);
+				goto out;
+			}
+			target->scsi_host->cmd_per_lun = min(token, SRP_SQ_SIZE);
 			break;
 
 		default:
