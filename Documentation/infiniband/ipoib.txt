@@ -1,10 +1,10 @@
 IP OVER INFINIBAND
 
   The ib_ipoib driver is an implementation of the IP over InfiniBand
-  protocol as specified by the latest Internet-Drafts issued by the
-  IETF ipoib working group.  It is a "native" implementation in the
-  sense of setting the interface type to ARPHRD_INFINIBAND and the
-  hardware address length to 20 (earlier proprietary implementations
+  protocol as specified by RFC 4391 and 4392, issued by the IETF ipoib
+  working group.  It is a "native" implementation in the sense of
+  setting the interface type to ARPHRD_INFINIBAND and the hardware
+  address length to 20 (earlier proprietary implementations
   masqueraded to the kernel as ethernet interfaces).
 
 Partitions and P_Keys
@@ -53,3 +53,7 @@ References
 
   IETF IP over InfiniBand (ipoib) Working Group
     http://ietf.org/html.charters/ipoib-charter.html
+  Transmission of IP over InfiniBand (IPoIB) (RFC 4391)
+    http://ietf.org/rfc/rfc4391.txt 
+  IP over InfiniBand (IPoIB) Architecture (RFC 4392)
+    http://ietf.org/rfc/rfc4392.txt 
