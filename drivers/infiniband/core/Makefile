@@ -1,5 +1,7 @@
+addr_trans-$(CONFIG_INFINIBAND_ADDR_TRANS) := ib_addr.o
+
 obj-$(CONFIG_INFINIBAND) +=		ib_core.o ib_mad.o ib_sa.o \
-					ib_cm.o
+					ib_cm.o $(addr_trans-y)
 obj-$(CONFIG_INFINIBAND_USER_MAD) +=	ib_umad.o
 obj-$(CONFIG_INFINIBAND_USER_ACCESS) +=	ib_uverbs.o ib_ucm.o
 
@@ -11,6 +13,8 @@ ib_mad-y :=			mad.o smi.o agent.o mad_rmpp.o
 ib_sa-y :=			sa_query.o
 
 ib_cm-y :=			cm.o
+
+ib_addr-y :=			addr.o
 
 ib_umad-y :=			user_mad.o
 
