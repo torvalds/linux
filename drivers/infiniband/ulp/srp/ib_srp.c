@@ -1196,11 +1196,10 @@ static int srp_cm_handler(struct ib_cm_id *cm_id, struct ib_cm_event *event)
 		srp_cm_rej_handler(cm_id, event, target);
 		break;
 
-	case IB_CM_MRA_RECEIVED:
-		printk(KERN_ERR PFX "MRA received\n");
-		break;
-
-	case IB_CM_DREP_RECEIVED:
+	case IB_CM_DREQ_RECEIVED:
+		printk(KERN_WARNING PFX "DREQ received - connection closed\n");
+		if (ib_send_cm_drep(cm_id, NULL, 0))
+			printk(KERN_ERR PFX "Sending CM DREP failed\n");
 		break;
 
 	case IB_CM_TIMEWAIT_EXIT:
@@ -1208,6 +1207,11 @@ static int srp_cm_handler(struct ib_cm_id *cm_id, struct ib_cm_event *event)
 
 		comp = 1;
 		target->status = 0;
+		break;
+
+	case IB_CM_MRA_RECEIVED:
+	case IB_CM_DREQ_ERROR:
+	case IB_CM_DREP_RECEIVED:
 		break;
 
 	default:
