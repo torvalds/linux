@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2005 Silicon Graphics, Inc.
+ * Copyright (c) 2000-2006 Silicon Graphics, Inc.
  * All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -796,9 +796,7 @@ xfs_fs_fill_super(
 	}
 
 	sb_min_blocksize(sb, BBSIZE);
-#ifdef CONFIG_XFS_EXPORT
 	sb->s_export_op = &xfs_export_operations;
-#endif
 	sb->s_qcop = &xfs_quotactl_operations;
 	sb->s_op = &xfs_super_operations;
 
