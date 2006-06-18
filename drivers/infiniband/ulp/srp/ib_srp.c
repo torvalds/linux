@@ -471,14 +471,26 @@ static void srp_unmap_data(struct scsi_cmnd *scmnd,
 		     scmnd->sc_data_direction);
 }
 
+static void srp_remove_req(struct srp_target_port *target, struct srp_request *req)
+{
+	srp_unmap_data(req->scmnd, target, req);
+	list_move_tail(&req->list, &target->free_reqs);
+}
+
+static void srp_reset_req(struct srp_target_port *target, struct srp_request *req)
+{
+	req->scmnd->result = DID_RESET << 16;
+	req->scmnd->scsi_done(req->scmnd);
+	srp_remove_req(target, req);
+}
+
 static int srp_reconnect_target(struct srp_target_port *target)
 {
 	struct ib_cm_id *new_cm_id;
 	struct ib_qp_attr qp_attr;
-	struct srp_request *req;
+	struct srp_request *req, *tmp;
 	struct ib_wc wc;
 	int ret;
-	int i;
 
 	spin_lock_irq(target->scsi_host->host_lock);
 	if (target->state != SRP_TARGET_LIVE) {
@@ -514,19 +526,12 @@ static int srp_reconnect_target(struct srp_target_port *target)
 	while (ib_poll_cq(target->cq, 1, &wc) > 0)
 		; /* nothing */
 
-	list_for_each_entry(req, &target->req_queue, list) {
-		req->scmnd->result = DID_RESET << 16;
-		req->scmnd->scsi_done(req->scmnd);
-		srp_unmap_data(req->scmnd, target, req);
-	}
+	list_for_each_entry_safe(req, tmp, &target->req_queue, list)
+		srp_reset_req(target, req);
 
 	target->rx_head	 = 0;
 	target->tx_head	 = 0;
 	target->tx_tail  = 0;
-	INIT_LIST_HEAD(&target->free_reqs);
-	INIT_LIST_HEAD(&target->req_queue);
-	for (i = 0; i < SRP_SQ_SIZE; ++i)
-		list_add_tail(&target->req_ring[i].list, &target->free_reqs);
 
 	ret = srp_connect_target(target);
 	if (ret)
@@ -724,12 +729,6 @@ static int srp_map_data(struct scsi_cmnd *scmnd, struct srp_target_port *target,
 		cmd->buf_fmt = fmt;
 
 	return len;
-}
-
-static void srp_remove_req(struct srp_target_port *target, struct srp_request *req)
-{
-	srp_unmap_data(req->scmnd, target, req);
-	list_move_tail(&req->list, &target->free_reqs);
 }
 
 static void srp_process_rsp(struct srp_target_port *target, struct srp_rsp *rsp)
@@ -1348,11 +1347,8 @@ static int srp_reset_device(struct scsi_cmnd *scmnd)
 	spin_lock_irq(target->scsi_host->host_lock);
 
 	list_for_each_entry_safe(req, tmp, &target->req_queue, list)
-		if (req->scmnd->device == scmnd->device) {
-			req->scmnd->result = DID_RESET << 16;
-			req->scmnd->scsi_done(req->scmnd);
-			srp_remove_req(target, req);
-		}
+		if (req->scmnd->device == scmnd->device)
+			srp_reset_req(target, req);
 
 	spin_unlock_irq(target->scsi_host->host_lock);
 
