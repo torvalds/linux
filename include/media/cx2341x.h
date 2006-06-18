@@ -19,6 +19,66 @@
 #ifndef CX2341X_H
 #define CX2341X_H
 
+struct cx2341x_mpeg_params {
+	/* misc */
+	u16 width;
+	u16 height;
+	u16 is_50hz;
+
+	/* stream */
+	enum v4l2_mpeg_stream_type stream_type;
+
+	/* audio */
+	enum v4l2_mpeg_audio_sampling_freq audio_sampling_freq;
+	enum v4l2_mpeg_audio_encoding audio_encoding;
+	enum v4l2_mpeg_audio_l2_bitrate audio_l2_bitrate;
+	enum v4l2_mpeg_audio_mode audio_mode;
+	enum v4l2_mpeg_audio_mode_extension audio_mode_extension;
+	enum v4l2_mpeg_audio_emphasis audio_emphasis;
+	enum v4l2_mpeg_audio_crc audio_crc;
+	u8 audio_properties;
+
+	/* video */
+	enum v4l2_mpeg_video_encoding video_encoding;
+	enum v4l2_mpeg_video_aspect video_aspect;
+	u16 video_b_frames;
+	u16 video_gop_size;
+	u16 video_gop_closure;
+	u16 video_pulldown;
+	enum v4l2_mpeg_video_bitrate_mode video_bitrate_mode;
+	u32 video_bitrate;
+	u32 video_bitrate_peak;
+	u16 video_temporal_decimation;
+
+	/* encoding filters */
+	enum v4l2_mpeg_cx2341x_video_spatial_filter_mode video_spatial_filter_mode;
+	u16 video_spatial_filter;
+	enum v4l2_mpeg_cx2341x_video_luma_spatial_filter_type video_luma_spatial_filter_type;
+	enum v4l2_mpeg_cx2341x_video_chroma_spatial_filter_type video_chroma_spatial_filter_type;
+	enum v4l2_mpeg_cx2341x_video_temporal_filter_mode video_temporal_filter_mode;
+	u16 video_temporal_filter;
+	enum v4l2_mpeg_cx2341x_video_median_filter_type video_median_filter_type;
+	u16 video_luma_median_filter_top;
+	u16 video_luma_median_filter_bottom;
+	u16 video_chroma_median_filter_top;
+	u16 video_chroma_median_filter_bottom;
+};
+
+#define CX2341X_MBOX_MAX_DATA 16
+
+typedef int (*cx2341x_mbox_func)(void *priv, int cmd, int in, int out,
+		u32 data[CX2341X_MBOX_MAX_DATA]);
+int cx2341x_update(void *priv, cx2341x_mbox_func func,
+		const struct cx2341x_mpeg_params *old,
+		const struct cx2341x_mpeg_params *new);
+int cx2341x_ctrl_query(struct cx2341x_mpeg_params *params,
+		struct v4l2_queryctrl *qctrl);
+const char **cx2341x_ctrl_get_menu(u32 id);
+int cx2341x_ext_ctrls(struct cx2341x_mpeg_params *params,
+		struct v4l2_ext_controls *ctrls, int cmd);
+void cx2341x_fill_defaults(struct cx2341x_mpeg_params *p);
+void cx2341x_log_status(struct cx2341x_mpeg_params *p, int cardid);
+
 /* Firmware names */
 #define CX2341X_FIRM_ENC_FILENAME "v4l-cx2341x-enc.fw"
 /* Decoder firmware for the cx23415 only */
