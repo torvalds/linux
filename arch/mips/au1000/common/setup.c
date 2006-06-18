@@ -55,7 +55,7 @@ extern void au1xxx_time_init(void);
 extern void au1xxx_timer_setup(struct irqaction *irq);
 extern void set_cpuspec(void);
 
-void __init plat_setup(void)
+void __init plat_mem_setup(void)
 {
 	struct	cpu_spec *sp;
 	char *argptr;

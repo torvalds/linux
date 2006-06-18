@@ -20,7 +20,7 @@ static void __init qemu_timer_setup(struct irqaction *irq)
 	setup_irq(0, irq);
 }
 
-void __init plat_setup(void)
+void __init plat_mem_setup(void)
 {
 	set_io_port_base(QEMU_PORT_BASE);
 	board_timer_setup = qemu_timer_setup;

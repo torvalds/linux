@@ -154,7 +154,7 @@ void __init it8172_init_ram_resource(unsigned long memsize)
 	it8172_resources.ram.end = memsize;
 }
 
-void __init plat_setup(void)
+void __init plat_mem_setup(void)
 {
 	unsigned short dsr;
 	char *argptr;

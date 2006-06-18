@@ -258,4 +258,10 @@ extern char arcs_cmdline[CL_SIZE];
  * Registers a0, a1, a3 and a4 as passed to the kenrel entry by firmware
  */
 extern unsigned long fw_arg0, fw_arg1, fw_arg2, fw_arg3;
+
+/*
+ * Platform memory detection hook called by setup_arch
+ */
+extern void plat_mem_setup(void);
+
 #endif /* _ASM_BOOTINFO_H */

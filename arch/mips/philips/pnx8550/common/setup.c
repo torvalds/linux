@@ -99,7 +99,7 @@ unsigned long get_system_mem_size(void)
 
 int pnx8550_console_port = -1;
 
-void __init plat_setup(void)
+void __init plat_mem_setup(void)
 {
 	int i;
 	char* argptr;

@@ -86,7 +86,7 @@ static void __init ddb_time_init(void)
 
 
 
-void __init plat_setup(void)
+void __init plat_mem_setup(void)
 {
 	set_io_port_base(NILE4_PCI_IO_BASE);
 	isa_slot_offset = NILE4_PCI_MEM_BASE;

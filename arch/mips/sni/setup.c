@@ -252,7 +252,7 @@ static inline void sni_pcimt_time_init(void)
 	rtc_mips_set_time = mc146818_set_rtc_mmss;
 }
 
-void __init plat_setup(void)
+void __init plat_mem_setup(void)
 {
 	sni_pcimt_detect();
 	sni_pcimt_sc_init();

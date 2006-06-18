@@ -150,7 +150,7 @@ static struct {
 
 static void ddb5476_board_init(void);
 
-void __init plat_setup(void)
+void __init plat_mem_setup(void)
 {
 	set_io_port_base(KSEG1ADDR(DDB_PCI_IO_BASE));
 

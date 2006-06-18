@@ -120,7 +120,7 @@ static struct pci_controller cobalt_pci_controller = {
 	.io_offset	= 0 - GT64111_IO_BASE
 };
 
-void __init plat_setup(void)
+void __init plat_mem_setup(void)
 {
 	static struct uart_port uart;
 	unsigned int devfn = PCI_DEVFN(COBALT_PCICONF_VIA, 0);

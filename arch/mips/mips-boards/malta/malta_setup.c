@@ -111,7 +111,7 @@ void __init fd_activate(void)
 }
 #endif
 
-void __init plat_setup(void)
+void __init plat_mem_setup(void)
 {
 	unsigned int i;
 

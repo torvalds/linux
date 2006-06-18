@@ -238,7 +238,7 @@ static void jmr3927_board_init(void);
 extern struct resource pci_io_resource;
 extern struct resource pci_mem_resource;
 
-void __init plat_setup(void)
+void __init plat_mem_setup(void)
 {
 	char *argptr;
 

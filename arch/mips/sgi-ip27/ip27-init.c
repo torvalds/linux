@@ -196,7 +196,7 @@ extern void ip27_setup_console(void);
 extern void ip27_time_init(void);
 extern void ip27_reboot_setup(void);
 
-void __init plat_setup(void)
+void __init plat_mem_setup(void)
 {
 	hubreg_t p, e, n_mode;
 	nasid_t nid;
