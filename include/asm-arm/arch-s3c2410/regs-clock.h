@@ -114,7 +114,7 @@ s3c2410_get_pll(unsigned int pllval, unsigned int baseclk)
 
 #endif /* __ASSEMBLY__ */
 
-#ifdef CONFIG_CPU_S3C2440
+#if defined(CONFIG_CPU_S3C2440) || defined(CONFIG_CPU_S3C2442)
 
 /* extra registers */
 #define S3C2440_CAMDIVN	    S3C2410_CLKREG(0x18)
@@ -136,7 +136,9 @@ s3c2410_get_pll(unsigned int pllval, unsigned int baseclk)
 #define S3C2440_CAMDIVN_HCLK4_HALF   (1<<9)
 #define S3C2440_CAMDIVN_DVSEN        (1<<12)
 
-#endif /* CONFIG_CPU_S3C2440 */
+#define S3C2442_CAMDIVN_CAMCLK_DIV3  (1<<5)
+
+#endif /* CONFIG_CPU_S3C2440 or CONFIG_CPU_S3C2442 */
 
 
 #endif /* __ASM_ARM_REGS_CLOCK */

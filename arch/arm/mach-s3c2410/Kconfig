@@ -70,6 +70,18 @@ config ARCH_S3C2440
 	help
 	  Say Y here if you are using the SMDK2440.
 
+config SMDK2440_CPU2440
+	bool "SMDK2440 with S3C2440 cpu module"
+	depends on ARCH_S3C2440
+	default y if ARCH_S3C2440
+	select CPU_S3C2440
+
+config SMDK2440_CPU2442
+	bool "SMDM2440 with S3C2442 cpu module"
+	depends on ARCH_S3C2440
+	select CPU_S3C2442
+
+
 config MACH_VR1000
 	bool "Thorcom VR1000"
 	select CPU_S3C2410
@@ -109,11 +121,25 @@ config CPU_S3C2410
 	  Support for S3C2410 and S3C2410A family from the S3C24XX line
 	  of Samsung Mobile CPUs.
 
+config CPU_S3C244X
+	bool
+	depends on ARCH_S3C2410 && (CPU_S3C2440 || CPU_S3C2442)
+	help
+	  Support for S3C2440 and S3C2442 Samsung Mobile CPU based systems.
+
 config CPU_S3C2440
 	bool
 	depends on ARCH_S3C2410
+	select CPU_S3C244X
 	help
 	  Support for S3C2440 Samsung Mobile CPU based systems.
+
+config CPU_S3C2442
+	bool
+	depends on ARCH_S3C2420
+	select CPU_S3C244X
+	help
+	  Support for S3C2442 Samsung Mobile CPU based systems.
 
 comment "S3C2410 Boot"
 

@@ -42,11 +42,11 @@
 #include "pm.h"
 #include "irq.h"
 
-/* WDT/AC97 */
+/* camera irq */
 
-static void s3c_irq_demux_wdtac97(unsigned int irq,
-				  struct irqdesc *desc,
-				  struct pt_regs *regs)
+static void s3c_irq_demux_cam(unsigned int irq,
+			      struct irqdesc *desc,
+			      struct pt_regs *regs)
 {
 	unsigned int subsrc, submsk;
 	struct irqdesc *mydesc;
@@ -58,62 +58,63 @@ static void s3c_irq_demux_wdtac97(unsigned int irq,
 	submsk = __raw_readl(S3C2410_INTSUBMSK);
 
 	subsrc &= ~submsk;
-	subsrc >>= 13;
+	subsrc >>= 11;
 	subsrc &= 3;
 
 	if (subsrc != 0) {
 		if (subsrc & 1) {
-			mydesc = irq_desc + IRQ_S3C2440_WDT;
-			desc_handle_irq(IRQ_S3C2440_WDT, mydesc, regs);
+			mydesc = irq_desc + IRQ_S3C2440_CAM_C;
+			desc_handle_irq(IRQ_S3C2440_CAM_C, mydesc, regs);
 		}
 		if (subsrc & 2) {
-			mydesc = irq_desc + IRQ_S3C2440_AC97;
-			desc_handle_irq(IRQ_S3C2440_AC97, mydesc, regs);
+			mydesc = irq_desc + IRQ_S3C2440_CAM_P;
+			desc_handle_irq(IRQ_S3C2440_CAM_P, mydesc, regs);
 		}
 	}
 }
 
-
-#define INTMSK_WDT	 (1UL << (IRQ_WDT - IRQ_EINT0))
+#define INTMSK_CAM (1UL << (IRQ_CAM - IRQ_EINT0))
 
 static void
-s3c_irq_wdtac97_mask(unsigned int irqno)
+s3c_irq_cam_mask(unsigned int irqno)
 {
-	s3c_irqsub_mask(irqno, INTMSK_WDT, 3<<13);
+	s3c_irqsub_mask(irqno, INTMSK_CAM, 3<<11);
 }
 
 static void
-s3c_irq_wdtac97_unmask(unsigned int irqno)
+s3c_irq_cam_unmask(unsigned int irqno)
 {
-	s3c_irqsub_unmask(irqno, INTMSK_WDT);
+	s3c_irqsub_unmask(irqno, INTMSK_CAM);
 }
 
 static void
-s3c_irq_wdtac97_ack(unsigned int irqno)
+s3c_irq_cam_ack(unsigned int irqno)
 {
-	s3c_irqsub_maskack(irqno, INTMSK_WDT, 3<<13);
+	s3c_irqsub_maskack(irqno, INTMSK_CAM, 3<<11);
 }
 
-static struct irqchip s3c_irq_wdtac97 = {
-	.mask	    = s3c_irq_wdtac97_mask,
-	.unmask	    = s3c_irq_wdtac97_unmask,
-	.ack	    = s3c_irq_wdtac97_ack,
+static struct irqchip s3c_irq_cam = {
+	.mask	    = s3c_irq_cam_mask,
+	.unmask	    = s3c_irq_cam_unmask,
+	.ack	    = s3c_irq_cam_ack,
 };
 
-static int s3c2440_irq_add(struct sys_device *sysdev)
+static int s3c244x_irq_add(struct sys_device *sysdev)
 {
 	unsigned int irqno;
 
-	printk("S3C2440: IRQ Support\n");
+	set_irq_chip(IRQ_NFCON, &s3c_irq_level_chip);
+	set_irq_handler(IRQ_NFCON, do_level_IRQ);
+	set_irq_flags(IRQ_NFCON, IRQF_VALID);
 
-	/* add new chained handler for wdt, ac7 */
+	/* add chained handler for camera */
 
-	set_irq_chip(IRQ_WDT, &s3c_irq_level_chip);
-	set_irq_handler(IRQ_WDT, do_level_IRQ);
-	set_irq_chained_handler(IRQ_WDT, s3c_irq_demux_wdtac97);
+	set_irq_chip(IRQ_CAM, &s3c_irq_level_chip);
+	set_irq_handler(IRQ_CAM, do_level_IRQ);
+	set_irq_chained_handler(IRQ_CAM, s3c_irq_demux_cam);
 
-	for (irqno = IRQ_S3C2440_WDT; irqno <= IRQ_S3C2440_AC97; irqno++) {
-		set_irq_chip(irqno, &s3c_irq_wdtac97);
+	for (irqno = IRQ_S3C2440_CAM_C; irqno <= IRQ_S3C2440_CAM_P; irqno++) {
+		set_irq_chip(irqno, &s3c_irq_cam);
 		set_irq_handler(irqno, do_level_IRQ);
 		set_irq_flags(irqno, IRQF_VALID);
 	}
@@ -121,14 +122,21 @@ static int s3c2440_irq_add(struct sys_device *sysdev)
 	return 0;
 }
 
-static struct sysdev_driver s3c2440_irq_driver = {
-	.add	= s3c2440_irq_add,
+static struct sysdev_driver s3c244x_irq_driver = {
+	.add	= s3c244x_irq_add,
 };
 
 static int s3c2440_irq_init(void)
 {
-	return sysdev_driver_register(&s3c2440_sysclass, &s3c2440_irq_driver);
+	return sysdev_driver_register(&s3c2440_sysclass, &s3c244x_irq_driver);
 }
 
 arch_initcall(s3c2440_irq_init);
 
+
+static int s3c2442_irq_init(void)
+{
+	return sysdev_driver_register(&s3c2442_sysclass, &s3c244x_irq_driver);
+}
+
+arch_initcall(s3c2442_irq_init);

@@ -44,7 +44,9 @@
 #include "clock.h"
 #include "s3c2400.h"
 #include "s3c2410.h"
+#include "s3c244x.h"
 #include "s3c2440.h"
+#include "s3c2442.h"
 
 struct cpu_table {
 	unsigned long	idcode;
@@ -61,6 +63,7 @@ struct cpu_table {
 static const char name_s3c2400[]  = "S3C2400";
 static const char name_s3c2410[]  = "S3C2410";
 static const char name_s3c2440[]  = "S3C2440";
+static const char name_s3c2442[]  = "S3C2442";
 static const char name_s3c2410a[] = "S3C2410A";
 static const char name_s3c2440a[] = "S3C2440A";
 
@@ -86,20 +89,29 @@ static struct cpu_table cpu_ids[] __initdata = {
 	{
 		.idcode		= 0x32440000,
 		.idmask		= 0xffffffff,
-		.map_io		= s3c2440_map_io,
-		.init_clocks	= s3c2440_init_clocks,
-		.init_uarts	= s3c2440_init_uarts,
+		.map_io		= s3c244x_map_io,
+		.init_clocks	= s3c244x_init_clocks,
+		.init_uarts	= s3c244x_init_uarts,
 		.init		= s3c2440_init,
 		.name		= name_s3c2440
 	},
 	{
 		.idcode		= 0x32440001,
 		.idmask		= 0xffffffff,
-		.map_io		= s3c2440_map_io,
-		.init_clocks	= s3c2440_init_clocks,
-		.init_uarts	= s3c2440_init_uarts,
+		.map_io		= s3c244x_map_io,
+		.init_clocks	= s3c244x_init_clocks,
+		.init_uarts	= s3c244x_init_uarts,
 		.init		= s3c2440_init,
 		.name		= name_s3c2440a
+	},
+	{
+		.idcode		= 0x32440aaa,
+		.idmask		= 0xffffffff,
+		.map_io		= s3c244x_map_io,
+		.init_clocks	= s3c244x_init_clocks,
+		.init_uarts	= s3c244x_init_uarts,
+		.init		= s3c2442_init,
+		.name		= name_s3c2442
 	},
 	{
 		.idcode		= 0x0,   /* S3C2400 doesn't have an idcode */
