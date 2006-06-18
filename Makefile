@@ -856,6 +856,17 @@ depend dep:
 	@echo '*** Warning: make $@ is unnecessary now.'
 
 # ---------------------------------------------------------------------------
+# Kernel headers
+INSTALL_HDR_PATH=$(MODLIB)/abi
+export INSTALL_HDR_PATH
+
+PHONY += headers_install
+headers_install: include/linux/version.h
+	$(Q)unifdef -Ux /dev/null
+	$(Q)rm -rf $(INSTALL_HDR_PATH)/include
+	$(Q)$(MAKE) -rR -f $(srctree)/scripts/Makefile.headersinst obj=include
+
+# ---------------------------------------------------------------------------
 # Modules
 
 ifdef CONFIG_MODULES
@@ -1027,6 +1038,8 @@ help:
 	@echo  '  cscope	  - Generate cscope index'
 	@echo  '  kernelrelease	  - Output the release version string'
 	@echo  '  kernelversion	  - Output the version stored in Makefile'
+	@echo  '  headers_install - Install sanitised kernel headers to INSTALL_HDR_PATH'
+	@echo  '                    (default: /lib/modules/$$VERSION/abi)'
 	@echo  ''
 	@echo  'Static analysers'
 	@echo  '  checkstack      - Generate a list of stack hogs'
