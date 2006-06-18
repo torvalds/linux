@@ -78,6 +78,11 @@ quiet_cmd_unifdef	  = UNIFDEF $(_dst)/$@
       cmd_unifdef	  = $(UNIFDEF) $(srctree)/$(obj)/$@ | $(HDRSED)	\
                             > $(INSTALL_HDR_PATH)/$(_dst)/$@ || :
 
+quiet_cmd_check		  = CHECK   $(_dst)/$@
+      cmd_check		  = $(srctree)/scripts/hdrcheck.sh		\
+                              $(INSTALL_HDR_PATH)/include		\
+			      $(INSTALL_HDR_PATH)/$(_dst)/$@
+
 quiet_cmd_mkdir		  = MKDIR   $@
       cmd_mkdir		  = mkdir -p $(INSTALL_HDR_PATH)/$@
 
@@ -112,6 +117,11 @@ __headersinst: $(subdir-y) $(header-y) $(unifdef-y) $(altarch-y) $(objhdr-y)
 
 .PHONY: $(header-y) $(unifdef-y) $(subdir-y)
 
+ifdef HDRCHECK
+# Rules for checking headers
+$(objhdr-y) $(header-y) $(unifdef-y):
+	$(call cmd,check)
+else
 # Rules for installing headers
 
 $(objhdr-y) $(subdir-y) $(header-y) $(unifdef-y): $(_dst)
@@ -133,6 +143,7 @@ $(header-y):
 
 $(unifdef-y):
 	$(call cmd,unifdef)
+endif
 endif
 
 hdrinst := -rR -f $(srctree)/scripts/Makefile.headersinst obj

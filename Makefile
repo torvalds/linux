@@ -866,6 +866,10 @@ headers_install: include/linux/version.h
 	$(Q)rm -rf $(INSTALL_HDR_PATH)/include
 	$(Q)$(MAKE) -rR -f $(srctree)/scripts/Makefile.headersinst obj=include
 
+PHONY += headers_check
+headers_check: headers_install
+	$(Q)$(MAKE) -rR -f $(srctree)/scripts/Makefile.headersinst obj=include HDRCHECK=1
+
 # ---------------------------------------------------------------------------
 # Modules
 
