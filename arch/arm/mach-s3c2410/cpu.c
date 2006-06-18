@@ -37,8 +37,10 @@
 #include <asm/mach/map.h>
 
 #include <asm/arch/regs-gpio.h>
+#include <asm/arch/regs-serial.h>
 
 #include "cpu.h"
+#include "devs.h"
 #include "clock.h"
 #include "s3c2400.h"
 #include "s3c2410.h"
@@ -208,6 +210,49 @@ void __init s3c24xx_init_clocks(int xtal)
 		(cpu->init_clocks)(xtal);
 }
 
+/* uart management */
+
+static int nr_uarts __initdata = 0;
+
+static struct s3c2410_uartcfg uart_cfgs[3];
+
+/* s3c24xx_init_uartdevs
+ *
+ * copy the specified platform data and configuration into our central
+ * set of devices, before the data is thrown away after the init process.
+ *
+ * This also fills in the array passed to the serial driver for the
+ * early initialisation of the console.
+*/
+
+void __init s3c24xx_init_uartdevs(char *name,
+				  struct s3c24xx_uart_resources *res,
+				  struct s3c2410_uartcfg *cfg, int no)
+{
+	struct platform_device *platdev;
+	struct s3c2410_uartcfg *cfgptr = uart_cfgs;
+	struct s3c24xx_uart_resources *resp;
+	int uart;
+
+	memcpy(cfgptr, cfg, sizeof(struct s3c2410_uartcfg) * no);
+
+	for (uart = 0; uart < no; uart++, cfg++, cfgptr++) {
+		platdev = s3c24xx_uart_src[cfgptr->hwport];
+
+		resp = res + cfgptr->hwport;
+
+		s3c24xx_uart_devs[uart] = platdev;
+
+		platdev->name = name;
+		platdev->resource = resp->resources;
+		platdev->num_resources = resp->nr_resources;
+
+		platdev->dev.platform_data = cfgptr;
+	}
+
+	nr_uarts = no;
+}
+
 void __init s3c24xx_init_uarts(struct s3c2410_uartcfg *cfg, int no)
 {
 	if (cpu == NULL)
@@ -229,6 +274,10 @@ static int __init s3c_arch_init(void)
 		panic("s3c_arch_init: NULL cpu\n");
 
 	ret = (cpu->init)();
+	if (ret != 0)
+		return ret;
+
+	ret = platform_add_devices(s3c24xx_uart_devs, nr_uarts);
 	if (ret != 0)
 		return ret;
 

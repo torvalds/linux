@@ -31,6 +31,8 @@
 #define print_mhz(m) ((m) / MHZ), ((m / 1000) % 1000)
 
 /* forward declaration */
+struct s3c24xx_uart_resources;
+struct platform_device;
 struct s3c2410_uartcfg;
 struct map_desc;
 
@@ -43,6 +45,10 @@ extern void s3c24xx_init_io(struct map_desc *mach_desc, int size);
 extern void s3c24xx_init_uarts(struct s3c2410_uartcfg *cfg, int no);
 
 extern void s3c24xx_init_clocks(int xtal);
+
+extern void s3c24xx_init_uartdevs(char *name,
+				  struct s3c24xx_uart_resources *res,
+				  struct s3c2410_uartcfg *cfg, int no);
 
 /* the board structure is used at first initialsation time
  * to get info such as the devices to register for this
