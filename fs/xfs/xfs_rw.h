@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2003,2005 Silicon Graphics, Inc.
+ * Copyright (c) 2000-2006 Silicon Graphics, Inc.
  * All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -75,6 +75,7 @@ xfs_fsb_to_db_io(struct xfs_iocore *io, xfs_fsblock_t fsb)
  * Prototypes for functions in xfs_rw.c.
  */
 extern int xfs_write_clear_setuid(struct xfs_inode *ip);
+extern int xfs_write_sync_logforce(struct xfs_mount *mp, struct xfs_inode *ip);
 extern int xfs_bwrite(struct xfs_mount *mp, struct xfs_buf *bp);
 extern int xfs_bioerror(struct xfs_buf *bp);
 extern int xfs_bioerror_relse(struct xfs_buf *bp);

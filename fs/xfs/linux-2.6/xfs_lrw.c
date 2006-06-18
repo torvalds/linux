@@ -892,79 +892,9 @@ retry:
 
 	/* Handle various SYNC-type writes */
 	if ((file->f_flags & O_SYNC) || IS_SYNC(inode)) {
-		/*
-		 * If we're treating this as O_DSYNC and we have not updated the
-		 * size, force the log.
-		 */
-		if (!(mp->m_flags & XFS_MOUNT_OSYNCISOSYNC) &&
-		    !(xip->i_update_size)) {
-			xfs_inode_log_item_t	*iip = xip->i_itemp;
-
-			/*
-			 * If an allocation transaction occurred
-			 * without extending the size, then we have to force
-			 * the log up the proper point to ensure that the
-			 * allocation is permanent.  We can't count on
-			 * the fact that buffered writes lock out direct I/O
-			 * writes - the direct I/O write could have extended
-			 * the size nontransactionally, then finished before
-			 * we started.  xfs_write_file will think that the file
-			 * didn't grow but the update isn't safe unless the
-			 * size change is logged.
-			 *
-			 * Force the log if we've committed a transaction
-			 * against the inode or if someone else has and
-			 * the commit record hasn't gone to disk (e.g.
-			 * the inode is pinned).  This guarantees that
-			 * all changes affecting the inode are permanent
-			 * when we return.
-			 */
-			if (iip && iip->ili_last_lsn) {
-				xfs_log_force(mp, iip->ili_last_lsn,
-						XFS_LOG_FORCE | XFS_LOG_SYNC);
-			} else if (xfs_ipincount(xip) > 0) {
-				xfs_log_force(mp, (xfs_lsn_t)0,
-						XFS_LOG_FORCE | XFS_LOG_SYNC);
-			}
-
-		} else {
-			xfs_trans_t	*tp;
-
-			/*
-			 * O_SYNC or O_DSYNC _with_ a size update are handled
-			 * the same way.
-			 *
-			 * If the write was synchronous then we need to make
-			 * sure that the inode modification time is permanent.
-			 * We'll have updated the timestamp above, so here
-			 * we use a synchronous transaction to log the inode.
-			 * It's not fast, but it's necessary.
-			 *
-			 * If this a dsync write and the size got changed
-			 * non-transactionally, then we need to ensure that
-			 * the size change gets logged in a synchronous
-			 * transaction.
-			 */
-
-			tp = xfs_trans_alloc(mp, XFS_TRANS_WRITE_SYNC);
-			if ((error = xfs_trans_reserve(tp, 0,
-						      XFS_SWRITE_LOG_RES(mp),
-						      0, 0, 0))) {
-				/* Transaction reserve failed */
-				xfs_trans_cancel(tp, 0);
-			} else {
-				/* Transaction reserve successful */
-				xfs_ilock(xip, XFS_ILOCK_EXCL);
-				xfs_trans_ijoin(tp, xip, XFS_ILOCK_EXCL);
-				xfs_trans_ihold(tp, xip);
-				xfs_trans_log_inode(tp, xip, XFS_ILOG_CORE);
-				xfs_trans_set_sync(tp);
-				error = xfs_trans_commit(tp, 0, NULL);
-				xfs_iunlock(xip, XFS_ILOCK_EXCL);
-			}
-			if (error)
-				goto out_unlock_internal;
-		}
+		error = xfs_write_sync_logforce(mp, xip);
+		if (error)
+			goto out_unlock_internal;
 
 		xfs_rwunlock(bdp, locktype);
 		if (need_i_mutex)
