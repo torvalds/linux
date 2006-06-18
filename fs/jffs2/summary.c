@@ -453,7 +453,7 @@ static int jffs2_sum_process_sum_data(struct jffs2_sb_info *c, struct jffs2_eras
 					return -ENOMEM;
 				}
 
-				fd->raw = sum_link_node_ref(c, jeb,  je32_to_cpu(spd->offset) | REF_PRISTINE,
+				fd->raw = sum_link_node_ref(c, jeb,  je32_to_cpu(spd->offset) | REF_UNCHECKED,
 							    PAD(je32_to_cpu(spd->totlen)), ic);
 
 				fd->next = NULL;

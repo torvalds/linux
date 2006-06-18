@@ -116,17 +116,40 @@ static inline int read_direntry(struct jffs2_sb_info *c, struct jffs2_raw_node_r
 				uint32_t *latest_mctime, uint32_t *mctime_ver)
 {
 	struct jffs2_full_dirent *fd;
+	uint32_t crc;
 
-	/* The direntry nodes are checked during the flash scanning */
-	BUG_ON(ref_flags(ref) == REF_UNCHECKED);
 	/* Obsoleted. This cannot happen, surely? dwmw2 20020308 */
 	BUG_ON(ref_obsolete(ref));
 
-	/* Sanity check */
-	if (unlikely(PAD((rd->nsize + sizeof(*rd))) != PAD(je32_to_cpu(rd->totlen)))) {
-		JFFS2_ERROR("illegal nsize in node at %#08x: nsize %#02x, totlen %#04x\n",
-		       ref_offset(ref), rd->nsize, je32_to_cpu(rd->totlen));
+	crc = crc32(0, rd, sizeof(*rd) - 8);
+	if (unlikely(crc != je32_to_cpu(rd->node_crc))) {
+		JFFS2_NOTICE("header CRC failed on dirent node at %#08x: read %#08x, calculated %#08x\n",
+			     ref_offset(ref), je32_to_cpu(rd->node_crc), crc);
 		return 1;
+	}
+
+	/* If we've never checked the CRCs on this node, check them now */
+	if (ref_flags(ref) == REF_UNCHECKED) {
+		struct jffs2_eraseblock *jeb;
+		int len;
+
+		/* Sanity check */
+		if (unlikely(PAD((rd->nsize + sizeof(*rd))) != PAD(je32_to_cpu(rd->totlen)))) {
+			JFFS2_ERROR("illegal nsize in node at %#08x: nsize %#02x, totlen %#04x\n",
+				    ref_offset(ref), rd->nsize, je32_to_cpu(rd->totlen));
+			return 1;
+		}
+
+		jeb = &c->blocks[ref->flash_offset / c->sector_size];
+		len = ref_totlen(c, jeb, ref);
+
+		spin_lock(&c->erase_completion_lock);
+		jeb->used_size += len;
+		jeb->unchecked_size -= len;
+		c->used_size += len;
+		c->unchecked_size -= len;
+		ref->flash_offset = ref_offset(ref) | REF_PRISTINE;
+		spin_unlock(&c->erase_completion_lock);
 	}
 
 	fd = jffs2_alloc_full_dirent(rd->nsize + 1);
@@ -198,9 +221,17 @@ static inline int read_dnode(struct jffs2_sb_info *c, struct jffs2_raw_node_ref 
 	struct jffs2_tmp_dnode_info *tn;
 	uint32_t len, csize;
 	int ret = 1;
+	uint32_t crc;
 
 	/* Obsoleted. This cannot happen, surely? dwmw2 20020308 */
 	BUG_ON(ref_obsolete(ref));
+
+	crc = crc32(0, rd, sizeof(*rd) - 8);
+	if (unlikely(crc != je32_to_cpu(rd->node_crc))) {
+		JFFS2_NOTICE("node CRC failed on dnode at %#08x: read %#08x, calculated %#08x\n",
+			     ref_offset(ref), je32_to_cpu(rd->node_crc), crc);
+		return 1;
+	}
 
 	tn = jffs2_alloc_tmp_dnode_info();
 	if (!tn) {
@@ -213,14 +244,6 @@ static inline int read_dnode(struct jffs2_sb_info *c, struct jffs2_raw_node_ref 
 
 	/* If we've never checked the CRCs on this node, check them now */
 	if (ref_flags(ref) == REF_UNCHECKED) {
-		uint32_t crc;
-
-		crc = crc32(0, rd, sizeof(*rd) - 8);
-		if (unlikely(crc != je32_to_cpu(rd->node_crc))) {
-			JFFS2_NOTICE("header CRC failed on node at %#08x: read %#08x, calculated %#08x\n",
-					ref_offset(ref), je32_to_cpu(rd->node_crc), crc);
-			goto free_out;
-		}
 
 		/* Sanity checks */
 		if (unlikely(je32_to_cpu(rd->offset) > je32_to_cpu(rd->isize)) ||
