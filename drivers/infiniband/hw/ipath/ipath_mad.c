@@ -409,7 +409,7 @@ static int recv_subn_set_portinfo(struct ib_smp *smp,
 
 	if (pip->clientrereg_resv_subnetto & 0x80) {
 		clientrereg = 1;
-		event.event = IB_EVENT_LID_CHANGE;
+		event.event = IB_EVENT_CLIENT_REREGISTER;
 		ib_dispatch_event(&event);
 	}
 
