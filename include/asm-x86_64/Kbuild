@@ -1,0 +1,11 @@
+include include/asm-generic/Kbuild.asm
+
+ALTARCH := i386
+ARCHDEF := defined __x86_64__
+ALTARCHDEF := defined __i386__
+
+header-y += boot.h bootsetup.h cpufeature.h debugreg.h ldt.h \
+	 msr.h prctl.h setup.h sigcontext32.h ucontext.h \
+	 vsyscall32.h
+
+unifdef-y += mce.h mtrr.h vsyscall.h
