@@ -1090,48 +1090,6 @@ static void saa7115_decode_vbi_line(struct i2c_client *client,
 
 /* ============ SAA7115 AUDIO settings (end) ============= */
 
-static struct v4l2_queryctrl saa7115_qctrl[] = {
-	{
-		.id            = V4L2_CID_BRIGHTNESS,
-		.type          = V4L2_CTRL_TYPE_INTEGER,
-		.name          = "Brightness",
-		.minimum       = 0,
-		.maximum       = 255,
-		.step          = 1,
-		.default_value = 128,
-		.flags         = 0,
-	}, {
-		.id            = V4L2_CID_CONTRAST,
-		.type          = V4L2_CTRL_TYPE_INTEGER,
-		.name          = "Contrast",
-		.minimum       = 0,
-		.maximum       = 127,
-		.step          = 1,
-		.default_value = 64,
-		.flags         = 0,
-	}, {
-		.id            = V4L2_CID_SATURATION,
-		.type          = V4L2_CTRL_TYPE_INTEGER,
-		.name          = "Saturation",
-		.minimum       = 0,
-		.maximum       = 127,
-		.step          = 1,
-		.default_value = 64,
-		.flags         = 0,
-	}, {
-		.id            = V4L2_CID_HUE,
-		.type          = V4L2_CTRL_TYPE_INTEGER,
-		.name          = "Hue",
-		.minimum       = -128,
-		.maximum       = 127,
-		.step          = 1,
-		.default_value = 0,
-		.flags 	       = 0,
-	},
-};
-
-/* ----------------------------------------------------------------------- */
-
 static int saa7115_command(struct i2c_client *client, unsigned int cmd, void *arg)
 {
 	struct saa7115_state *state = i2c_get_clientdata(client);
@@ -1175,14 +1133,16 @@ static int saa7115_command(struct i2c_client *client, unsigned int cmd, void *ar
 	case VIDIOC_QUERYCTRL:
 	{
 		struct v4l2_queryctrl *qc = arg;
-		int i;
 
-		for (i = 0; i < ARRAY_SIZE(saa7115_qctrl); i++)
-			if (qc->id && qc->id == saa7115_qctrl[i].id) {
-				memcpy(qc, &saa7115_qctrl[i], sizeof(*qc));
-				return 0;
-			}
-		return -EINVAL;
+		switch (qc->id) {
+			case V4L2_CID_BRIGHTNESS:
+			case V4L2_CID_CONTRAST:
+			case V4L2_CID_SATURATION:
+			case V4L2_CID_HUE:
+				return v4l2_ctrl_query_fill_std(qc);
+			default:
+				return -EINVAL;
+		}
 	}
 
 	case VIDIOC_G_STD:

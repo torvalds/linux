@@ -385,67 +385,6 @@ static int msp_mode_v4l1_to_v4l2(int mode)
 	return V4L2_TUNER_MODE_MONO;
 }
 
-static struct v4l2_queryctrl msp_qctrl_std[] = {
-	{
-		.id            = V4L2_CID_AUDIO_VOLUME,
-		.name          = "Volume",
-		.minimum       = 0,
-		.maximum       = 65535,
-		.step          = 65535/100,
-		.default_value = 58880,
-		.flags         = 0,
-		.type          = V4L2_CTRL_TYPE_INTEGER,
-	},{
-		.id            = V4L2_CID_AUDIO_MUTE,
-		.name          = "Mute",
-		.minimum       = 0,
-		.maximum       = 1,
-		.step          = 1,
-		.default_value = 1,
-		.flags         = 0,
-		.type          = V4L2_CTRL_TYPE_BOOLEAN,
-	},
-};
-
-static struct v4l2_queryctrl msp_qctrl_sound_processing[] = {
-	{
-		.id            = V4L2_CID_AUDIO_BALANCE,
-		.name          = "Balance",
-		.minimum       = 0,
-		.maximum       = 65535,
-		.step          = 65535/100,
-		.default_value = 32768,
-		.flags         = 0,
-		.type          = V4L2_CTRL_TYPE_INTEGER,
-	},{
-		.id            = V4L2_CID_AUDIO_BASS,
-		.name          = "Bass",
-		.minimum       = 0,
-		.maximum       = 65535,
-		.step          = 65535/100,
-		.default_value = 32768,
-		.type          = V4L2_CTRL_TYPE_INTEGER,
-	},{
-		.id            = V4L2_CID_AUDIO_TREBLE,
-		.name          = "Treble",
-		.minimum       = 0,
-		.maximum       = 65535,
-		.step          = 65535/100,
-		.default_value = 32768,
-		.type          = V4L2_CTRL_TYPE_INTEGER,
-	},{
-		.id            = V4L2_CID_AUDIO_LOUDNESS,
-		.name          = "Loudness",
-		.minimum       = 0,
-		.maximum       = 1,
-		.step          = 1,
-		.default_value = 1,
-		.flags         = 0,
-		.type          = V4L2_CTRL_TYPE_BOOLEAN,
-	},
-};
-
-
 static int msp_get_ctrl(struct i2c_client *client, struct v4l2_control *ctrl)
 {
 	struct msp_state *state = i2c_get_clientdata(client);
@@ -753,21 +692,25 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 	case VIDIOC_QUERYCTRL:
 	{
 		struct v4l2_queryctrl *qc = arg;
-		int i;
 
-		for (i = 0; i < ARRAY_SIZE(msp_qctrl_std); i++)
-			if (qc->id && qc->id == msp_qctrl_std[i].id) {
-				memcpy(qc, &msp_qctrl_std[i], sizeof(*qc));
-				return 0;
-			}
+		switch (qc->id) {
+			case V4L2_CID_AUDIO_VOLUME:
+			case V4L2_CID_AUDIO_MUTE:
+				return v4l2_ctrl_query_fill_std(qc);
+			default:
+				break;
+		}
 		if (!state->has_sound_processing)
 			return -EINVAL;
-		for (i = 0; i < ARRAY_SIZE(msp_qctrl_sound_processing); i++)
-			if (qc->id && qc->id == msp_qctrl_sound_processing[i].id) {
-				memcpy(qc, &msp_qctrl_sound_processing[i], sizeof(*qc));
-				return 0;
-			}
-		return -EINVAL;
+		switch (qc->id) {
+			case V4L2_CID_AUDIO_LOUDNESS:
+			case V4L2_CID_AUDIO_BALANCE:
+			case V4L2_CID_AUDIO_BASS:
+			case V4L2_CID_AUDIO_TREBLE:
+				return v4l2_ctrl_query_fill_std(qc);
+			default:
+				return -EINVAL;
+		}
 	}
 
 	case VIDIOC_G_CTRL:
