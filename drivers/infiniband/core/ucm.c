@@ -648,6 +648,17 @@ out:
 	return result;
 }
 
+static int ucm_validate_listen(__be64 service_id, __be64 service_mask)
+{
+	service_id &= service_mask;
+
+	if (((service_id & IB_CMA_SERVICE_ID_MASK) == IB_CMA_SERVICE_ID) ||
+	    ((service_id & IB_SDP_SERVICE_ID_MASK) == IB_SDP_SERVICE_ID))
+		return -EINVAL;
+
+	return 0;
+}
+
 static ssize_t ib_ucm_listen(struct ib_ucm_file *file,
 			     const char __user *inbuf,
 			     int in_len, int out_len)
@@ -663,7 +674,13 @@ static ssize_t ib_ucm_listen(struct ib_ucm_file *file,
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
 
-	result = ib_cm_listen(ctx->cm_id, cmd.service_id, cmd.service_mask);
+	result = ucm_validate_listen(cmd.service_id, cmd.service_mask);
+	if (result)
+		goto out;
+
+	result = ib_cm_listen(ctx->cm_id, cmd.service_id, cmd.service_mask,
+			      NULL);
+out:
 	ib_ucm_ctx_put(ctx);
 	return result;
 }
