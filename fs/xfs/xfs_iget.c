@@ -1031,6 +1031,6 @@ xfs_iflock_nowait(xfs_inode_t *ip)
 void
 xfs_ifunlock(xfs_inode_t *ip)
 {
-	ASSERT(valusema(&(ip->i_flock)) <= 0);
+	ASSERT(issemalocked(&(ip->i_flock)));
 	vsema(&(ip->i_flock));
 }

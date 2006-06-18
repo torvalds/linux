@@ -794,7 +794,7 @@ xfs_inode_item_pushbuf(
 	 * inode flush completed and the inode was taken off the AIL.
 	 * So, just get out.
 	 */
-	if ((valusema(&(ip->i_flock)) > 0)  ||
+	if (!issemalocked(&(ip->i_flock)) ||
 	    ((iip->ili_item.li_flags & XFS_LI_IN_AIL) == 0)) {
 		iip->ili_pushbuf_flag = 0;
 		xfs_iunlock(ip, XFS_ILOCK_SHARED);
@@ -816,7 +816,7 @@ xfs_inode_item_pushbuf(
 			 * If not, we can flush it async.
 			 */
 			dopush = ((iip->ili_item.li_flags & XFS_LI_IN_AIL) &&
-				  (valusema(&(ip->i_flock)) <= 0));
+				  issemalocked(&(ip->i_flock)));
 			iip->ili_pushbuf_flag = 0;
 			xfs_iunlock(ip, XFS_ILOCK_SHARED);
 			xfs_buftrace("INODE ITEM PUSH", bp);
@@ -864,7 +864,7 @@ xfs_inode_item_push(
 	ip = iip->ili_inode;
 
 	ASSERT(ismrlocked(&(ip->i_lock), MR_ACCESS));
-	ASSERT(valusema(&(ip->i_flock)) <= 0);
+	ASSERT(issemalocked(&(ip->i_flock)));
 	/*
 	 * Since we were able to lock the inode's flush lock and
 	 * we found it on the AIL, the inode must be dirty.  This
