@@ -107,7 +107,7 @@ static struct s3c2410_uartcfg osiris_uartcfgs[] = {
 		.clocks_size = ARRAY_SIZE(osiris_serial_clocks)
 	},
 	[1] = {
-		.hwport	     = 2,
+		.hwport	     = 1,
 		.flags	     = 0,
 		.ucon	     = UCON,
 		.ulcon	     = ULCON,
