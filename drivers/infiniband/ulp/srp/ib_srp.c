@@ -321,7 +321,29 @@ static int srp_send_req(struct srp_target_port *target)
 	req->priv.req_it_iu_len = cpu_to_be32(srp_max_iu_len);
 	req->priv.req_buf_fmt 	= cpu_to_be16(SRP_BUF_FORMAT_DIRECT |
 					      SRP_BUF_FORMAT_INDIRECT);
-	memcpy(req->priv.initiator_port_id, target->srp_host->initiator_port_id, 16);
+	/*
+	 * In the published SRP specification (draft rev. 16a), the 
+	 * port identifier format is 8 bytes of ID extension followed
+	 * by 8 bytes of GUID.  Older drafts put the two halves in the
+	 * opposite order, so that the GUID comes first.
+	 *
+	 * Targets conforming to these obsolete drafts can be
+	 * recognized by the I/O Class they report.
+	 */
+	if (target->io_class == SRP_REV10_IB_IO_CLASS) {
+		memcpy(req->priv.initiator_port_id,
+		       target->srp_host->initiator_port_id + 8, 8);
+		memcpy(req->priv.initiator_port_id + 8,
+		       target->srp_host->initiator_port_id, 8);
+		memcpy(req->priv.target_port_id,     &target->ioc_guid, 8);
+		memcpy(req->priv.target_port_id + 8, &target->id_ext, 8);
+	} else {
+		memcpy(req->priv.initiator_port_id,
+		       target->srp_host->initiator_port_id, 16);
+		memcpy(req->priv.target_port_id,     &target->id_ext, 8);
+		memcpy(req->priv.target_port_id + 8, &target->ioc_guid, 8);
+	}
+
 	/*
 	 * Topspin/Cisco SRP targets will reject our login unless we
 	 * zero out the first 8 bytes of our initiator port ID.  The
@@ -334,8 +356,6 @@ static int srp_send_req(struct srp_target_port *target)
 		       (unsigned long long) be64_to_cpu(target->ioc_guid));
 		memset(req->priv.initiator_port_id, 0, 8);
 	}
-	memcpy(req->priv.target_port_id,     &target->id_ext, 8);
-	memcpy(req->priv.target_port_id + 8, &target->ioc_guid, 8);
 
 	status = ib_send_cm_req(target->cm_id, &req->param);
 
@@ -1511,6 +1531,7 @@ enum {
 	SRP_OPT_SERVICE_ID	= 1 << 4,
 	SRP_OPT_MAX_SECT	= 1 << 5,
 	SRP_OPT_MAX_CMD_PER_LUN	= 1 << 6,
+	SRP_OPT_IO_CLASS	= 1 << 7,
 	SRP_OPT_ALL		= (SRP_OPT_ID_EXT	|
 				   SRP_OPT_IOC_GUID	|
 				   SRP_OPT_DGID		|
@@ -1526,6 +1547,7 @@ static match_table_t srp_opt_tokens = {
 	{ SRP_OPT_SERVICE_ID,		"service_id=%s"		},
 	{ SRP_OPT_MAX_SECT,		"max_sect=%d" 		},
 	{ SRP_OPT_MAX_CMD_PER_LUN,	"max_cmd_per_lun=%d" 	},
+	{ SRP_OPT_IO_CLASS,		"io_class=%x"		},
 	{ SRP_OPT_ERR,			NULL 			}
 };
 
@@ -1610,6 +1632,21 @@ static int srp_parse_options(const char *buf, struct srp_target_port *target)
 			target->scsi_host->cmd_per_lun = min(token, SRP_SQ_SIZE);
 			break;
 
+		case SRP_OPT_IO_CLASS:
+			if (match_hex(args, &token)) {
+				printk(KERN_WARNING PFX "bad  IO class parameter '%s' \n", p);
+				goto out;
+			}
+			if (token != SRP_REV10_IB_IO_CLASS &&
+			    token != SRP_REV16A_IB_IO_CLASS) {
+				printk(KERN_WARNING PFX "unknown IO class parameter value"
+				       " %x specified (use %x or %x).\n",
+				       token, SRP_REV10_IB_IO_CLASS, SRP_REV16A_IB_IO_CLASS);
+				goto out;
+			}
+			target->io_class = token;
+			break;
+
 		default:
 			printk(KERN_WARNING PFX "unknown parameter or missing value "
 			       "'%s' in target creation request\n", p);
@@ -1652,6 +1689,7 @@ static ssize_t srp_create_target(struct class_device *class_dev,
 	target = host_to_target(target_host);
 	memset(target, 0, sizeof *target);
 
+	target->io_class   = SRP_REV16A_IB_IO_CLASS;
 	target->scsi_host  = target_host;
 	target->srp_host   = host;
 

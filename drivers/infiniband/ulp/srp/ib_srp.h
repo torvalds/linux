@@ -122,6 +122,7 @@ struct srp_target_port {
 	__be64			id_ext;
 	__be64			ioc_guid;
 	__be64			service_id;
+	u16			io_class;
 	struct srp_host	       *srp_host;
 	struct Scsi_Host       *scsi_host;
 	char			target_name[32];
