@@ -111,101 +111,13 @@ static struct ftp_search {
 	},
 };
 
-/* This code is based on inet_pton() in glibc-2.2.4 */
 static int
 get_ipv6_addr(const char *src, size_t dlen, struct in6_addr *dst, u_int8_t term)
 {
-	static const char xdigits[] = "0123456789abcdef";
-	u_int8_t tmp[16], *tp, *endp, *colonp;
-	int ch, saw_xdigit;
-	u_int32_t val;
-	size_t clen = 0;
-
-	tp = memset(tmp, '\0', sizeof(tmp));
-	endp = tp + sizeof(tmp);
-	colonp = NULL;
-
-	/* Leading :: requires some special handling. */
-	if (*src == ':'){
-		if (*++src != ':') {
-			DEBUGP("invalid \":\" at the head of addr\n");
-			return 0;
-		}
-		clen++;
-	}
-
-	saw_xdigit = 0;
-	val = 0;
-	while ((clen < dlen) && (*src != term)) {
-		const char *pch;
-
-		ch = tolower(*src++);
-		clen++;
-
-                pch = strchr(xdigits, ch);
-                if (pch != NULL) {
-                        val <<= 4;
-                        val |= (pch - xdigits);
-                        if (val > 0xffff)
-                                return 0;
-
-			saw_xdigit = 1;
-                        continue;
-                }
-		if (ch != ':') {
-			DEBUGP("get_ipv6_addr: invalid char. \'%c\'\n", ch);
-			return 0;
-		}
-
-		if (!saw_xdigit) {
-			if (colonp) {
-				DEBUGP("invalid location of \"::\".\n");
-				return 0;
-			}
-			colonp = tp;
-			continue;
-		} else if (*src == term) {
-			DEBUGP("trancated IPv6 addr\n");
-			return 0;
-		}
-
-		if (tp + 2 > endp)
-			return 0;
-		*tp++ = (u_int8_t) (val >> 8) & 0xff;
-		*tp++ = (u_int8_t) val & 0xff;
-
-		saw_xdigit = 0;
-		val = 0;
-		continue;
-        }
-        if (saw_xdigit) {
-                if (tp + 2 > endp)
-                        return 0;
-                *tp++ = (u_int8_t) (val >> 8) & 0xff;
-                *tp++ = (u_int8_t) val & 0xff;
-        }
-        if (colonp != NULL) {
-                /*
-                 * Since some memmove()'s erroneously fail to handle
-                 * overlapping regions, we'll do the shift by hand.
-                 */
-                const int n = tp - colonp;
-                int i;
-
-                if (tp == endp)
-                        return 0;
-
-                for (i = 1; i <= n; i++) {
-                        endp[- i] = colonp[n - i];
-                        colonp[n - i] = 0;
-                }
-                tp = endp;
-        }
-        if (tp != endp || (*src != term))
-                return 0;
-
-        memcpy(dst->s6_addr, tmp, sizeof(dst->s6_addr));
-        return clen;
+	int ret = in6_pton(src, min_t(size_t, dlen, 0xffff), dst, term, &end);
+	if (ret > 0)
+		return (int)(end - src);
+	return 0;
 }
 
 static int try_number(const char *data, size_t dlen, u_int32_t array[],
