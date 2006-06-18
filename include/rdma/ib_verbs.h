@@ -827,6 +827,7 @@ struct ib_cache {
 	struct ib_event_handler event_handler;
 	struct ib_pkey_cache  **pkey_cache;
 	struct ib_gid_cache   **gid_cache;
+	u8                     *lmc_cache;
 };
 
 struct ib_device {
