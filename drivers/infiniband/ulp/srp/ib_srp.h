@@ -99,7 +99,7 @@ struct srp_host {
 	u8			port;
 	struct class_device	class_dev;
 	struct list_head	target_list;
-	struct mutex		target_mutex;
+	spinlock_t		target_lock;
 	struct completion	released;
 	struct list_head	list;
 };
