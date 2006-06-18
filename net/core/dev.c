@@ -115,6 +115,7 @@
 #include <net/iw_handler.h>
 #include <asm/current.h>
 #include <linux/audit.h>
+#include <linux/dmaengine.h>
 
 /*
  *	The list of packet types we will receive (as opposed to discard)
@@ -147,6 +148,12 @@
 static DEFINE_SPINLOCK(ptype_lock);
 static struct list_head ptype_base[16];	/* 16 way hashed list */
 static struct list_head ptype_all;		/* Taps */
+
+#ifdef CONFIG_NET_DMA
+static struct dma_client *net_dma_client;
+static unsigned int net_dma_count;
+static spinlock_t net_dma_event_lock;
+#endif
 
 /*
  * The @dev_base list is protected by @dev_base_lock and the rtnl
@@ -1846,6 +1853,19 @@ static void net_rx_action(struct softirq_action *h)
 		}
 	}
 out:
+#ifdef CONFIG_NET_DMA
+	/*
+	 * There may not be any more sk_buffs coming right now, so push
+	 * any pending DMA copies to hardware
+	 */
+	if (net_dma_client) {
+		struct dma_chan *chan;
+		rcu_read_lock();
+		list_for_each_entry_rcu(chan, &net_dma_client->channels, client_node)
+			dma_async_memcpy_issue_pending(chan);
+		rcu_read_unlock();
+	}
+#endif
 	local_irq_enable();
 	return;
 
@@ -3300,6 +3320,88 @@ static int dev_cpu_callback(struct notifier_block *nfb,
 }
 #endif /* CONFIG_HOTPLUG_CPU */
 
+#ifdef CONFIG_NET_DMA
+/**
+ * net_dma_rebalance -
+ * This is called when the number of channels allocated to the net_dma_client
+ * changes.  The net_dma_client tries to have one DMA channel per CPU.
+ */
+static void net_dma_rebalance(void)
+{
+	unsigned int cpu, i, n;
+	struct dma_chan *chan;
+
+	lock_cpu_hotplug();
+
+	if (net_dma_count == 0) {
+		for_each_online_cpu(cpu)
+			rcu_assign_pointer(per_cpu(softnet_data.net_dma, cpu), NULL);
+		unlock_cpu_hotplug();
+		return;
+	}
+
+	i = 0;
+	cpu = first_cpu(cpu_online_map);
+
+	rcu_read_lock();
+	list_for_each_entry(chan, &net_dma_client->channels, client_node) {
+		n = ((num_online_cpus() / net_dma_count)
+		   + (i < (num_online_cpus() % net_dma_count) ? 1 : 0));
+
+		while(n) {
+			per_cpu(softnet_data.net_dma, cpu) = chan;
+			cpu = next_cpu(cpu, cpu_online_map);
+			n--;
+		}
+		i++;
+	}
+	rcu_read_unlock();
+
+	unlock_cpu_hotplug();
+}
+
+/**
+ * netdev_dma_event - event callback for the net_dma_client
+ * @client: should always be net_dma_client
+ * @chan:
+ * @event:
+ */
+static void netdev_dma_event(struct dma_client *client, struct dma_chan *chan,
+	enum dma_event event)
+{
+	spin_lock(&net_dma_event_lock);
+	switch (event) {
+	case DMA_RESOURCE_ADDED:
+		net_dma_count++;
+		net_dma_rebalance();
+		break;
+	case DMA_RESOURCE_REMOVED:
+		net_dma_count--;
+		net_dma_rebalance();
+		break;
+	default:
+		break;
+	}
+	spin_unlock(&net_dma_event_lock);
+}
+
+/**
+ * netdev_dma_regiser - register the networking subsystem as a DMA client
+ */
+static int __init netdev_dma_register(void)
+{
+	spin_lock_init(&net_dma_event_lock);
+	net_dma_client = dma_async_client_register(netdev_dma_event);
+	if (net_dma_client == NULL)
+		return -ENOMEM;
+
+	dma_async_client_chan_request(net_dma_client, num_online_cpus());
+	return 0;
+}
+
+#else
+static int __init netdev_dma_register(void) { return -ENODEV; }
+#endif /* CONFIG_NET_DMA */
 
 /*
  *	Initialize the DEV module. At boot time this walks the device list and
@@ -3352,6 +3454,8 @@ static int __init net_dev_init(void)
 		queue->backlog_dev.poll = process_backlog;
 		atomic_set(&queue->backlog_dev.refcnt, 1);
 	}
+
+	netdev_dma_register();
 
 	dev_boot_phase = 0;
 

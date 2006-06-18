@@ -37,6 +37,7 @@
 #include <linux/config.h>
 #include <linux/device.h>
 #include <linux/percpu.h>
+#include <linux/dmaengine.h>
 
 struct divert_blk;
 struct vlan_group;
@@ -593,6 +594,9 @@ struct softnet_data
 	struct sk_buff		*completion_queue;
 
 	struct net_device	backlog_dev;	/* Sorry. 8) */
+#ifdef CONFIG_NET_DMA
+	struct dma_chan		*net_dma;
+#endif
 };
 
 DECLARE_PER_CPU(struct softnet_data,softnet_data);
