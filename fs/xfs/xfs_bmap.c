@@ -2834,7 +2834,7 @@ xfs_bmap_btalloc(
 		args.prod = ap->ip->i_d.di_extsize;
 		if ((args.mod = (xfs_extlen_t)do_mod(ap->off, args.prod)))
 			args.mod = (xfs_extlen_t)(args.prod - args.mod);
-	} else if (unlikely(mp->m_sb.sb_blocksize >= NBPP)) {
+	} else if (mp->m_sb.sb_blocksize >= NBPP) {
 		args.prod = 1;
 		args.mod = 0;
 	} else {
