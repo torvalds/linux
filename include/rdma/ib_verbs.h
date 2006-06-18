@@ -697,8 +697,12 @@ struct ib_ucontext {
 struct ib_uobject {
 	u64			user_handle;	/* handle given to us by userspace */
 	struct ib_ucontext     *context;	/* associated user context */
+	void		       *object;		/* containing object */
 	struct list_head	list;		/* link to context's list */
 	u32			id;		/* index into kernel idr */
+	struct kref		ref;
+	struct rw_semaphore	mutex;		/* protects .live */
+	int			live;
 };
 
 struct ib_umem {
