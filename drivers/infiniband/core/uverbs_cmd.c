@@ -80,8 +80,10 @@ ssize_t ib_uverbs_get_context(struct ib_uverbs_file *file,
 		   in_len - sizeof cmd, out_len - sizeof resp);
 
 	ucontext = ibdev->alloc_ucontext(ibdev, &udata);
-	if (IS_ERR(ucontext))
-		return PTR_ERR(file->ucontext);
+	if (IS_ERR(ucontext)) {
+		ret = PTR_ERR(file->ucontext);
+		goto err;
+	}
 
 	ucontext->device = ibdev;
 	INIT_LIST_HEAD(&ucontext->pd_list);
