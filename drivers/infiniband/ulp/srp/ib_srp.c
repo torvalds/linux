@@ -62,6 +62,13 @@ MODULE_DESCRIPTION("InfiniBand SCSI RDMA Protocol initiator "
 		   "v" DRV_VERSION " (" DRV_RELDATE ")");
 MODULE_LICENSE("Dual BSD/GPL");
 
+static int srp_sg_tablesize = SRP_DEF_SG_TABLESIZE;
+static int srp_max_iu_len;
+
+module_param(srp_sg_tablesize, int, 0444);
+MODULE_PARM_DESC(srp_sg_tablesize,
+		 "Max number of gather/scatter entries per I/O (default is 12)");
+
 static int topspin_workarounds = 1;
 
 module_param(topspin_workarounds, int, 0444);
@@ -311,7 +318,7 @@ static int srp_send_req(struct srp_target_port *target)
 
 	req->priv.opcode     	= SRP_LOGIN_REQ;
 	req->priv.tag        	= 0;
-	req->priv.req_it_iu_len = cpu_to_be32(SRP_MAX_IU_LEN);
+	req->priv.req_it_iu_len = cpu_to_be32(srp_max_iu_len);
 	req->priv.req_buf_fmt 	= cpu_to_be16(SRP_BUF_FORMAT_DIRECT |
 					      SRP_BUF_FORMAT_INDIRECT);
 	memcpy(req->priv.initiator_port_id, target->srp_host->initiator_port_id, 16);
@@ -953,7 +960,7 @@ static int srp_queuecommand(struct scsi_cmnd *scmnd,
 		goto err;
 
 	dma_sync_single_for_cpu(target->srp_host->dev->dev->dma_device, iu->dma,
-				SRP_MAX_IU_LEN, DMA_TO_DEVICE);
+				srp_max_iu_len, DMA_TO_DEVICE);
 
 	req = list_entry(target->free_reqs.next, struct srp_request, list);
 
@@ -986,7 +993,7 @@ static int srp_queuecommand(struct scsi_cmnd *scmnd,
 	}
 
 	dma_sync_single_for_device(target->srp_host->dev->dev->dma_device, iu->dma,
-				   SRP_MAX_IU_LEN, DMA_TO_DEVICE);
+				   srp_max_iu_len, DMA_TO_DEVICE);
 
 	if (__srp_post_send(target, iu, len)) {
 		printk(KERN_ERR PFX "Send failed\n");
@@ -1018,7 +1025,7 @@ static int srp_alloc_iu_bufs(struct srp_target_port *target)
 
 	for (i = 0; i < SRP_SQ_SIZE + 1; ++i) {
 		target->tx_ring[i] = srp_alloc_iu(target->srp_host,
-						  SRP_MAX_IU_LEN,
+						  srp_max_iu_len,
 						  GFP_KERNEL, DMA_TO_DEVICE);
 		if (!target->tx_ring[i])
 			goto err;
@@ -1436,7 +1443,6 @@ static struct scsi_host_template srp_template = {
 	.eh_host_reset_handler		= srp_reset_host,
 	.can_queue			= SRP_SQ_SIZE,
 	.this_id			= -1,
-	.sg_tablesize			= SRP_MAX_INDIRECT,
 	.cmd_per_lun			= SRP_SQ_SIZE,
 	.use_clustering			= ENABLE_CLUSTERING,
 	.shost_attrs			= srp_host_attrs
@@ -1913,6 +1919,11 @@ static void srp_remove_one(struct ib_device *device)
 static int __init srp_init_module(void)
 {
 	int ret;
+
+	srp_template.sg_tablesize = srp_sg_tablesize;
+	srp_max_iu_len = (sizeof (struct srp_cmd) +
+			  sizeof (struct srp_indirect_buf) +
+			  srp_sg_tablesize * 16);
 
 	ret = class_register(&srp_class);
 	if (ret) {

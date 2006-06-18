@@ -56,7 +56,7 @@ enum {
 	SRP_DLID_REDIRECT	= 2,
 
 	SRP_MAX_LUN		= 512,
-	SRP_MAX_IU_LEN		= 256,
+	SRP_DEF_SG_TABLESIZE	= 12,
 
 	SRP_RQ_SHIFT    	= 6,
 	SRP_RQ_SIZE		= 1 << SRP_RQ_SHIFT,
@@ -71,9 +71,6 @@ enum {
 };
 
 #define SRP_OP_RECV		(1 << 31)
-#define SRP_MAX_INDIRECT	((SRP_MAX_IU_LEN -			\
-				  sizeof (struct srp_cmd) -		\
-				  sizeof (struct srp_indirect_buf)) / 16)
 
 enum srp_target_state {
 	SRP_TARGET_LIVE,
