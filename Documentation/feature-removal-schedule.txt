@@ -212,7 +212,7 @@ Who:	Greg Kroah-Hartman <gregkh@suse.de>
 
 ---------------------------
 
-What:	Support for NEC DDB5074 and DDB5476 evaluation boards.
+What:	Support for NEC DDB5476 evaluation boards.
 When:	June 2006
 Why:	Board specific code doesn't build anymore since ~2.6.0 and no
 	users have complained indicating there is no more need for these

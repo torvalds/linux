@@ -469,24 +469,6 @@ config PNX8550_JBS
 	select PNX8550
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 
-config DDB5074
-	bool "NEC DDB Vrc-5074 (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
-	select DDB5XXX_COMMON
-	select DMA_NONCOHERENT
-	select HAVE_STD_PC_SERIAL_PORT
-	select HW_HAS_PCI
-	select IRQ_CPU
-	select I8259
-	select ISA
-	select SYS_HAS_CPU_R5000
-	select SYS_SUPPORTS_32BIT_KERNEL
-	select SYS_SUPPORTS_64BIT_KERNEL if EXPERIMENTAL
-	select SYS_SUPPORTS_LITTLE_ENDIAN
-	help
-	  This enables support for the VR5000-based NEC DDB Vrc-5074
-	  evaluation board.
-
 config DDB5476
 	bool "NEC DDB Vrc-5476"
 	select DDB5XXX_COMMON

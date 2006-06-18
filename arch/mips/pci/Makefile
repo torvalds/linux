@@ -22,7 +22,6 @@ obj-$(CONFIG_NEC_CMBVR4133)	+= fixup-vr4133.o
 #
 # These are still pretty much in the old state, watch, go blind.
 #
-obj-$(CONFIG_DDB5074)		+= fixup-ddb5074.o pci-ddb5074.o ops-ddb5074.o
 obj-$(CONFIG_DDB5476)		+= ops-ddb5476.o pci-ddb5476.o
 obj-$(CONFIG_DDB5477)		+= fixup-ddb5477.o pci-ddb5477.o ops-ddb5477.o
 obj-$(CONFIG_LASAT)		+= pci-lasat.o

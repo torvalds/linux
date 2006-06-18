@@ -404,12 +404,6 @@ load-$(CONFIG_MOMENCO_JAGUAR_ATX)	+= 0xffffffff80100000
 core-$(CONFIG_DDB5XXX_COMMON)	+= arch/mips/ddb5xxx/common/
 
 #
-# NEC DDB Vrc-5074
-#
-core-$(CONFIG_DDB5074)		+= arch/mips/ddb5xxx/ddb5074/
-load-$(CONFIG_DDB5074)		+= 0xffffffff80080000
-
-#
 # NEC DDB Vrc-5476
 #
 core-$(CONFIG_DDB5476)		+= arch/mips/ddb5xxx/ddb5476/
