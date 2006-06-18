@@ -175,12 +175,12 @@ void __init s3c24xx_init_io(struct map_desc *mach_desc, int size)
 		panic("Unknown S3C24XX CPU");
 	}
 
+	printk("CPU %s (id 0x%08lx)\n", cpu->name, idcode);
+
 	if (cpu->map_io == NULL || cpu->init == NULL) {
 		printk(KERN_ERR "CPU %s support not enabled\n", cpu->name);
 		panic("Unsupported S3C24XX CPU");
 	}
-
-	printk("CPU %s (id 0x%08lx)\n", cpu->name, idcode);
 
 	(cpu->map_io)(mach_desc, size);
 }
