@@ -72,8 +72,10 @@ const char *get_system_type(void)
 
 void __init swarm_time_init(void)
 {
+#if defined(CONFIG_SIBYTE_SB1250) || defined(CONFIG_SIBYTE_BCM112X)
 	/* Setup HPT */
 	sb1250_hpt_setup();
+#endif
 }
 
 void __init swarm_timer_setup(struct irqaction *irq)
