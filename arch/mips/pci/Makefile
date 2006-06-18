@@ -23,6 +23,7 @@ obj-$(CONFIG_MARKEINS)		+= ops-emma2rh.o pci-emma2rh.o fixup-emma2rh.o
 #
 # These are still pretty much in the old state, watch, go blind.
 #
+obj-$(CONFIG_BASLER_EXCITE)	= ops-titan.o pci-excite.o fixup-excite.o
 obj-$(CONFIG_DDB5477)		+= fixup-ddb5477.o pci-ddb5477.o ops-ddb5477.o
 obj-$(CONFIG_LASAT)		+= pci-lasat.o
 obj-$(CONFIG_MIPS_ATLAS)	+= fixup-atlas.o

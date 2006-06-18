@@ -388,6 +388,13 @@ cflags-$(CONFIG_MOMENCO_OCELOT_3)	+= -Iinclude/asm-mips/mach-ocelot3
 load-$(CONFIG_MOMENCO_OCELOT_3) 	+= 0xffffffff80100000
 
 #
+# Basler eXcite
+#
+core-$(CONFIG_BASLER_EXCITE)	+= arch/mips/basler/excite/
+cflags-$(CONFIG_BASLER_EXCITE)	+= -Iinclude/asm-mips/mach-excite
+load-$(CONFIG_BASLER_EXCITE)	+= 0x80100000
+
+#
 # Momentum Jaguar ATX
 #
 core-$(CONFIG_MOMENCO_JAGUAR_ATX)	+= arch/mips/momentum/jaguar_atx/

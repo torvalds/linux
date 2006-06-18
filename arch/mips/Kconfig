@@ -119,6 +119,32 @@ config MIPS_MIRAGE
 	select SYS_HAS_CPU_MIPS32_R1
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 
+config BASLER_EXCITE
+	bool "Basler eXcite smart camera support"
+	select DMA_COHERENT
+	select HW_HAS_PCI
+	select IRQ_CPU
+	select IRQ_CPU_RM7K
+	select IRQ_CPU_RM9K
+	select SERIAL_RM9000
+	select SYS_HAS_CPU_RM9000
+	select SYS_SUPPORTS_32BIT_KERNEL
+	select SYS_SUPPORTS_64BIT_KERNEL
+	select SYS_SUPPORTS_BIG_ENDIAN
+	help
+	  The eXcite is a smart camera platform manufactured by
+	  Basler Vision Technologies AG
+
+config BASLER_EXCITE_PROTOTYPE
+	bool "Support for pre-release units"
+	depends on BASLER_EXCITE
+	default n
+	help
+	  Pre-series (prototype) units are different from later ones in
+	  some ways. Select this option if you have one of these. Please
+	  note that a kernel built with this option selected will not be
+	  able to run on normal units.
+
 config MIPS_COBALT
 	bool "Cobalt Server"
 	select DMA_NONCOHERENT

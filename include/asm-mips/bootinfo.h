@@ -217,6 +217,7 @@
  */
 #define MACH_GROUP_TITAN       22	/* PMC-Sierra Titan		*/
 #define  MACH_TITAN_YOSEMITE	1	/* PMC-Sierra Yosemite		*/
+#define  MACH_TITAN_EXCITE	2	/* Basler eXcite		*/
 
 /*
  * Valid machtype for group NEC EMMA2RH
