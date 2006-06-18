@@ -894,12 +894,8 @@ static struct srp_iu *__srp_get_tx_iu(struct srp_target_port *target)
 	if (target->tx_head - target->tx_tail >= SRP_SQ_SIZE)
 		return NULL;
 
-	if (unlikely(target->req_lim < 1)) {
-		if (printk_ratelimit())
-			printk(KERN_DEBUG PFX "Target has req_lim %d\n",
-			       target->req_lim);
-		return NULL;
-	}
+	if (unlikely(target->req_lim < 1))
+		++target->zero_req_lim;
 
 	return target->tx_ring[target->tx_head & SRP_SQ_SIZE];
 }
@@ -1422,11 +1418,23 @@ static ssize_t show_dgid(struct class_device *cdev, char *buf)
 		       be16_to_cpu(((__be16 *) target->path.dgid.raw)[7]));
 }
 
+static ssize_t show_zero_req_lim(struct class_device *cdev, char *buf)
+{
+	struct srp_target_port *target = host_to_target(class_to_shost(cdev));
+
+	if (target->state == SRP_TARGET_DEAD ||
+	    target->state == SRP_TARGET_REMOVED)
+		return -ENODEV;
+
+	return sprintf(buf, "%d\n", target->zero_req_lim);
+}
+
 static CLASS_DEVICE_ATTR(id_ext,	S_IRUGO, show_id_ext,		NULL);
 static CLASS_DEVICE_ATTR(ioc_guid,	S_IRUGO, show_ioc_guid,		NULL);
 static CLASS_DEVICE_ATTR(service_id,	S_IRUGO, show_service_id,	NULL);
 static CLASS_DEVICE_ATTR(pkey,		S_IRUGO, show_pkey,		NULL);
 static CLASS_DEVICE_ATTR(dgid,		S_IRUGO, show_dgid,		NULL);
+static CLASS_DEVICE_ATTR(zero_req_lim,	S_IRUGO, show_zero_req_lim,	NULL);
 
 static struct class_device_attribute *srp_host_attrs[] = {
 	&class_device_attr_id_ext,
@@ -1434,6 +1442,7 @@ static struct class_device_attribute *srp_host_attrs[] = {
 	&class_device_attr_service_id,
 	&class_device_attr_pkey,
 	&class_device_attr_dgid,
+	&class_device_attr_zero_req_lim,
 	NULL
 };
 

@@ -138,6 +138,8 @@ struct srp_target_port {
 	int			max_ti_iu_len;
 	s32			req_lim;
 
+	int			zero_req_lim;
+
 	unsigned		rx_head;
 	struct srp_iu	       *rx_ring[SRP_RQ_SIZE];
 
