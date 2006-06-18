@@ -696,7 +696,6 @@ static int __devinit snd_cx88_create(struct snd_card *card,
 	chip->irq = -1;
 	spin_lock_init(&chip->reg_lock);
 
-	cx88_reset(core);
 	chip->core = core;
 
 	/* get irq */
