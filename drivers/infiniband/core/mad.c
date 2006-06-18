@@ -34,6 +34,7 @@
  * $Id: mad.c 5596 2006-03-03 01:00:07Z sean.hefty $
  */
 #include <linux/dma-mapping.h>
+#include <rdma/ib_cache.h>
 
 #include "mad_priv.h"
 #include "mad_rmpp.h"
@@ -1672,19 +1673,20 @@ static inline int rcv_has_same_class(struct ib_mad_send_wr_private *wr,
 		rwc->recv_buf.mad->mad_hdr.mgmt_class;
 }
 
-static inline int rcv_has_same_gid(struct ib_mad_send_wr_private *wr,
+static inline int rcv_has_same_gid(struct ib_mad_agent_private *mad_agent_priv,
+				   struct ib_mad_send_wr_private *wr,
 				   struct ib_mad_recv_wc *rwc )
 {
 	struct ib_ah_attr attr;
 	u8 send_resp, rcv_resp;
+	union ib_gid sgid;
+	struct ib_device *device = mad_agent_priv->agent.device;
+	u8 port_num = mad_agent_priv->agent.port_num;
+	u8 lmc;
 
 	send_resp = ((struct ib_mad *)(wr->send_buf.mad))->
 		     mad_hdr.method & IB_MGMT_METHOD_RESP;
 	rcv_resp = rwc->recv_buf.mad->mad_hdr.method & IB_MGMT_METHOD_RESP;
-
-	if (!send_resp && rcv_resp)
-		/* is request/response. GID/LIDs are both local (same). */
-		return 1;
 
 	if (send_resp == rcv_resp)
 		/* both requests, or both responses. GIDs different */
@@ -1694,48 +1696,78 @@ static inline int rcv_has_same_gid(struct ib_mad_send_wr_private *wr,
 		/* Assume not equal, to avoid false positives. */
 		return 0;
 
-	if (!(attr.ah_flags & IB_AH_GRH) && !(rwc->wc->wc_flags & IB_WC_GRH))
-		return attr.dlid == rwc->wc->slid;
-	else if ((attr.ah_flags & IB_AH_GRH) &&
-		 (rwc->wc->wc_flags & IB_WC_GRH))
-		return memcmp(attr.grh.dgid.raw,
-			      rwc->recv_buf.grh->sgid.raw, 16) == 0;
-	else
+	if (!!(attr.ah_flags & IB_AH_GRH) !=
+	    !!(rwc->wc->wc_flags & IB_WC_GRH))
 		/* one has GID, other does not.  Assume different */
 		return 0;
+
+	if (!send_resp && rcv_resp) {
+		/* is request/response. */
+		if (!(attr.ah_flags & IB_AH_GRH)) {
+			if (ib_get_cached_lmc(device, port_num, &lmc))
+				return 0;
+			return (!lmc || !((attr.src_path_bits ^
+					   rwc->wc->dlid_path_bits) &
+					  ((1 << lmc) - 1)));
+		} else {
+			if (ib_get_cached_gid(device, port_num,
+					      attr.grh.sgid_index, &sgid))
+				return 0;
+			return !memcmp(sgid.raw, rwc->recv_buf.grh->dgid.raw,
+				       16);
+		}
+	}
+
+	if (!(attr.ah_flags & IB_AH_GRH))
+		return attr.dlid == rwc->wc->slid;
+	else
+		return !memcmp(attr.grh.dgid.raw, rwc->recv_buf.grh->sgid.raw,
+			       16);
 }
+
+static inline int is_direct(u8 class)
+{
+	return (class == IB_MGMT_CLASS_SUBN_DIRECTED_ROUTE);
+}
+
 struct ib_mad_send_wr_private*
 ib_find_send_mad(struct ib_mad_agent_private *mad_agent_priv,
-		 struct ib_mad_recv_wc *mad_recv_wc)
+		 struct ib_mad_recv_wc *wc)
 {
-	struct ib_mad_send_wr_private *mad_send_wr;
+	struct ib_mad_send_wr_private *wr;
 	struct ib_mad *mad;
 
-	mad = (struct ib_mad *)mad_recv_wc->recv_buf.mad;
+	mad = (struct ib_mad *)wc->recv_buf.mad;
 
-	list_for_each_entry(mad_send_wr, &mad_agent_priv->wait_list,
-			    agent_list) {
-		if ((mad_send_wr->tid == mad->mad_hdr.tid) &&
-		    rcv_has_same_class(mad_send_wr, mad_recv_wc) &&
-		    rcv_has_same_gid(mad_send_wr, mad_recv_wc))
-			return mad_send_wr;
+	list_for_each_entry(wr, &mad_agent_priv->wait_list, agent_list) {
+		if ((wr->tid == mad->mad_hdr.tid) &&
+		    rcv_has_same_class(wr, wc) &&
+		    /*
+		     * Don't check GID for direct routed MADs.
+		     * These might have permissive LIDs.
+		     */
+		    (is_direct(wc->recv_buf.mad->mad_hdr.mgmt_class) ||
+		     rcv_has_same_gid(mad_agent_priv, wr, wc)))
+			return wr;
 	}
 
 	/*
 	 * It's possible to receive the response before we've
 	 * been notified that the send has completed
 	 */
-	list_for_each_entry(mad_send_wr, &mad_agent_priv->send_list,
-			    agent_list) {
-		if (is_data_mad(mad_agent_priv, mad_send_wr->send_buf.mad) &&
-		    mad_send_wr->tid == mad->mad_hdr.tid &&
-		    mad_send_wr->timeout &&
-		    rcv_has_same_class(mad_send_wr, mad_recv_wc) &&
-		    rcv_has_same_gid(mad_send_wr, mad_recv_wc)) {
+	list_for_each_entry(wr, &mad_agent_priv->send_list, agent_list) {
+		if (is_data_mad(mad_agent_priv, wr->send_buf.mad) &&
+		    wr->tid == mad->mad_hdr.tid &&
+		    wr->timeout &&
+		    rcv_has_same_class(wr, wc) &&
+		    /*
+		     * Don't check GID for direct routed MADs.
+		     * These might have permissive LIDs.
+		     */
+		    (is_direct(wc->recv_buf.mad->mad_hdr.mgmt_class) ||
+		     rcv_has_same_gid(mad_agent_priv, wr, wc)))
 			/* Verify request has not been canceled */
-			return (mad_send_wr->status == IB_WC_SUCCESS) ?
-				mad_send_wr : NULL;
-		}
+			return (wr->status == IB_WC_SUCCESS) ? wr : NULL;
 	}
 	return NULL;
 }
