@@ -232,6 +232,12 @@ struct video_device
 					struct v4l2_control *a);
 	int (*vidioc_s_ctrl)           (struct file *file, void *fh,
 					struct v4l2_control *a);
+	int (*vidioc_g_ext_ctrls)      (struct file *file, void *fh,
+					struct v4l2_ext_controls *a);
+	int (*vidioc_s_ext_ctrls)      (struct file *file, void *fh,
+					struct v4l2_ext_controls *a);
+	int (*vidioc_try_ext_ctrls)    (struct file *file, void *fh,
+					struct v4l2_ext_controls *a);
 	int (*vidioc_querymenu)        (struct file *file, void *fh,
 					struct v4l2_querymenu *a);
 

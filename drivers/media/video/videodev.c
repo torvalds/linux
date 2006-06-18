@@ -190,10 +190,15 @@ video_usercopy(struct inode *inode, struct file *file,
 	void    *mbuf = NULL;
 	void	*parg = NULL;
 	int	err  = -EINVAL;
+	int     is_ext_ctrl;
+	size_t  ctrls_size = 0;
+	void __user *user_ptr = NULL;
 
 #ifdef __OLD_VIDIOC_
 	cmd = video_fix_command(cmd);
 #endif
+	is_ext_ctrl = (cmd == VIDIOC_S_EXT_CTRLS || cmd == VIDIOC_G_EXT_CTRLS ||
+		       cmd == VIDIOC_TRY_EXT_CTRLS);
 
 	/*  Copy arguments into temp kernel buffer  */
 	switch (_IOC_DIR(cmd)) {
@@ -215,19 +220,47 @@ video_usercopy(struct inode *inode, struct file *file,
 
 		err = -EFAULT;
 		if (_IOC_DIR(cmd) & _IOC_WRITE)
-			if (copy_from_user(parg, (void __user *)arg,
-							_IOC_SIZE(cmd)))
+			if (copy_from_user(parg, (void __user *)arg, _IOC_SIZE(cmd)))
 				goto out;
 		break;
+	}
+	if (is_ext_ctrl) {
+		struct v4l2_ext_controls *p = parg;
+
+		/* In case of an error, tell the caller that it wasn't
+		   a specific control that caused it. */
+		p->error_idx = p->count;
+		user_ptr = (void __user *)p->controls;
+		if (p->count) {
+			ctrls_size = sizeof(struct v4l2_ext_control) * p->count;
+			/* Note: v4l2_ext_controls fits in sbuf[] so mbuf is still NULL. */
+			mbuf = kmalloc(ctrls_size, GFP_KERNEL);
+			err = -ENOMEM;
+			if (NULL == mbuf)
+				goto out_ext_ctrl;
+			err = -EFAULT;
+			if (copy_from_user(mbuf, user_ptr, ctrls_size))
+				goto out_ext_ctrl;
+			p->controls = mbuf;
+		}
 	}
 
 	/* call driver */
 	err = func(inode, file, cmd, parg);
 	if (err == -ENOIOCTLCMD)
 		err = -EINVAL;
+	if (is_ext_ctrl) {
+		struct v4l2_ext_controls *p = parg;
+
+		p->controls = (void *)user_ptr;
+		if (p->count && err == 0 && copy_to_user(user_ptr, mbuf, ctrls_size))
+			err = -EFAULT;
+		goto out_ext_ctrl;
+	}
 	if (err < 0)
 		goto out;
 
+out_ext_ctrl:
 	/*  Copy results into user buffer  */
 	switch (_IOC_DIR(cmd))
 	{
@@ -993,6 +1026,39 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 		ret=vfd->vidioc_s_ctrl(file, fh, p);
 		break;
 	}
+	case VIDIOC_G_EXT_CTRLS:
+	{
+		struct v4l2_ext_controls *p = arg;
+
+		if (vfd->vidioc_g_ext_ctrls) {
+			dbgarg(cmd, "count=%d\n", p->count);
+
+			ret=vfd->vidioc_g_ext_ctrls(file, fh, p);
+		}
+		break;
+	}
+	case VIDIOC_S_EXT_CTRLS:
+	{
+		struct v4l2_ext_controls *p = arg;
+
+		if (vfd->vidioc_s_ext_ctrls) {
+			dbgarg(cmd, "count=%d\n", p->count);
+
+			ret=vfd->vidioc_s_ext_ctrls(file, fh, p);
+		}
+		break;
+	}
+	case VIDIOC_TRY_EXT_CTRLS:
+	{
+		struct v4l2_ext_controls *p = arg;
+
+		if (vfd->vidioc_try_ext_ctrls) {
+			dbgarg(cmd, "count=%d\n", p->count);
+
+			ret=vfd->vidioc_try_ext_ctrls(file, fh, p);
+		}
+		break;
+	}
 	case VIDIOC_QUERYMENU:
 	{
 		struct v4l2_querymenu *p=arg;
@@ -1326,10 +1392,15 @@ int video_ioctl2 (struct inode *inode, struct file *file,
 	void    *mbuf = NULL;
 	void	*parg = NULL;
 	int	err  = -EINVAL;
+	int     is_ext_ctrl;
+	size_t  ctrls_size = 0;
+	void __user *user_ptr = NULL;
 
 #ifdef __OLD_VIDIOC_
 	cmd = video_fix_command(cmd);
 #endif
+	is_ext_ctrl = (cmd == VIDIOC_S_EXT_CTRLS || cmd == VIDIOC_G_EXT_CTRLS ||
+		       cmd == VIDIOC_TRY_EXT_CTRLS);
 
 	/*  Copy arguments into temp kernel buffer  */
 	switch (_IOC_DIR(cmd)) {
@@ -1356,13 +1427,43 @@ int video_ioctl2 (struct inode *inode, struct file *file,
 		break;
 	}
 
+	if (is_ext_ctrl) {
+		struct v4l2_ext_controls *p = parg;
+
+		/* In case of an error, tell the caller that it wasn't
+		   a specific control that caused it. */
+		p->error_idx = p->count;
+		user_ptr = (void __user *)p->controls;
+		if (p->count) {
+			ctrls_size = sizeof(struct v4l2_ext_control) * p->count;
+			/* Note: v4l2_ext_controls fits in sbuf[] so mbuf is still NULL. */
+			mbuf = kmalloc(ctrls_size, GFP_KERNEL);
+			err = -ENOMEM;
+			if (NULL == mbuf)
+				goto out_ext_ctrl;
+			err = -EFAULT;
+			if (copy_from_user(mbuf, user_ptr, ctrls_size))
+				goto out_ext_ctrl;
+			p->controls = mbuf;
+		}
+	}
+
 	/* Handles IOCTL */
 	err = __video_do_ioctl(inode, file, cmd, parg);
 	if (err == -ENOIOCTLCMD)
 		err = -EINVAL;
+	if (is_ext_ctrl) {
+		struct v4l2_ext_controls *p = parg;
+
+		p->controls = (void *)user_ptr;
+		if (p->count && err == 0 && copy_to_user(user_ptr, mbuf, ctrls_size))
+			err = -EFAULT;
+		goto out_ext_ctrl;
+	}
 	if (err < 0)
 		goto out;
 
+out_ext_ctrl:
 	/*  Copy results into user buffer  */
 	switch (_IOC_DIR(cmd))
 	{
