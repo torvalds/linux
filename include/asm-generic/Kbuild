@@ -1,0 +1,3 @@
+header-y += atomic.h errno-base.h errno.h fcntl.h ioctl.h ipc.h mman.h \
+	signal.h statfs.h
+unifdef-y := resource.h siginfo.h

@@ -1,0 +1,2 @@
+header-y += ca.h frontend.h net.h osd.h version.h
+unifdef-y := audio.h dmx.h video.h
