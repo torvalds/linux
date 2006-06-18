@@ -115,6 +115,16 @@ static int mthca_query_device(struct ib_device *ibdev,
 	props->max_mcast_qp_attach = MTHCA_QP_PER_MGM;
 	props->max_total_mcast_qp_attach = props->max_mcast_qp_attach *
 					   props->max_mcast_grp;
+	/*
+	 * If Sinai memory key optimization is being used, then only
+	 * the 8-bit key portion will change.  For other HCAs, the
+	 * unused index bits will also be used for FMR remapping.
+	 */
+	if (mdev->mthca_flags & MTHCA_FLAG_SINAI_OPT)
+		props->max_map_per_fmr = 255;
+	else
+		props->max_map_per_fmr =
+			(1 << (32 - long_log2(mdev->limits.num_mpts))) - 1;
 
 	err = 0;
  out:
