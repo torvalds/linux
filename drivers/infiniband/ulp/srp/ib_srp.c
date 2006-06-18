@@ -1867,8 +1867,7 @@ static void srp_remove_one(struct ib_device *device)
 		 * commands and don't try to reconnect.
 		 */
 		mutex_lock(&host->target_mutex);
-		list_for_each_entry_safe(target, tmp_target,
-					 &host->target_list, list) {
+		list_for_each_entry(target, &host->target_list, list) {
 			spin_lock_irqsave(target->scsi_host->host_lock, flags);
 			if (target->state != SRP_TARGET_REMOVED)
 				target->state = SRP_TARGET_REMOVED;
