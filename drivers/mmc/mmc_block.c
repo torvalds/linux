@@ -30,6 +30,7 @@
 #include <linux/mutex.h>
 
 #include <linux/mmc/card.h>
+#include <linux/mmc/host.h>
 #include <linux/mmc/protocol.h>
 
 #include <asm/system.h>
@@ -171,14 +172,47 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 
 		brq.cmd.arg = req->sector << 9;
 		brq.cmd.flags = MMC_RSP_R1 | MMC_CMD_ADTC;
-		brq.data.timeout_ns = card->csd.tacc_ns * 10;
-		brq.data.timeout_clks = card->csd.tacc_clks * 10;
 		brq.data.blksz_bits = md->block_bits;
 		brq.data.blksz = 1 << md->block_bits;
 		brq.data.blocks = req->nr_sectors >> (md->block_bits - 9);
 		brq.stop.opcode = MMC_STOP_TRANSMISSION;
 		brq.stop.arg = 0;
 		brq.stop.flags = MMC_RSP_R1B | MMC_CMD_AC;
+
+		brq.data.timeout_ns = card->csd.tacc_ns * 10;
+		brq.data.timeout_clks = card->csd.tacc_clks * 10;
+
+		/*
+		 * Scale up the timeout by the r2w factor
+		 */
+		if (rq_data_dir(req) == WRITE) {
+			brq.data.timeout_ns <<= card->csd.r2w_factor;
+			brq.data.timeout_clks <<= card->csd.r2w_factor;
+		}
+
+		/*
+		 * SD cards use a 100 multiplier and has a upper limit
+		 */
+		if (mmc_card_sd(card)) {
+			unsigned int limit_us, timeout_us;
+
+			brq.data.timeout_ns *= 10;
+			brq.data.timeout_clks *= 10;
+
+			if (rq_data_dir(req) == READ)
+				limit_us = 100000;
+			else
+				limit_us = 250000;
+
+			timeout_us = brq.data.timeout_ns / 1000;
+			timeout_us += brq.data.timeout_clks * 1000 /
+				(card->host->ios.clock / 1000);
+
+			if (timeout_us > limit_us) {
+				brq.data.timeout_ns = limit_us * 1000;
+				brq.data.timeout_clks = 0;
+			}
+		}
 
 		if (rq_data_dir(req) == READ) {
 			brq.cmd.opcode = brq.data.blocks > 1 ? MMC_READ_MULTIPLE_BLOCK : MMC_READ_SINGLE_BLOCK;
@@ -187,12 +221,6 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 			brq.cmd.opcode = MMC_WRITE_BLOCK;
 			brq.data.flags |= MMC_DATA_WRITE;
 			brq.data.blocks = 1;
-
-			/*
-			 * Scale up the timeout by the r2w factor
-			 */
-			brq.data.timeout_ns <<= card->csd.r2w_factor;
-			brq.data.timeout_clks <<= card->csd.r2w_factor;
 		}
 
 		if (brq.data.blocks > 1) {
