@@ -50,6 +50,22 @@
 		(udata)->outlen = (olen);				\
 	} while (0)
 
+static int idr_add_uobj(struct idr *idr, void *obj, struct ib_uobject *uobj)
+{
+	int ret;
+
+retry:
+	if (!idr_pre_get(idr, GFP_KERNEL))
+		return -ENOMEM;
+
+	ret = idr_get_new(idr, uobj, &uobj->id);
+
+	if (ret == -EAGAIN)
+		goto retry;
+
+	return ret;
+}
+
 ssize_t ib_uverbs_get_context(struct ib_uverbs_file *file,
 			      const char __user *buf,
 			      int in_len, int out_len)
@@ -295,16 +311,7 @@ ssize_t ib_uverbs_alloc_pd(struct ib_uverbs_file *file,
 
 	mutex_lock(&ib_uverbs_idr_mutex);
 
-retry:
-	if (!idr_pre_get(&ib_uverbs_pd_idr, GFP_KERNEL)) {
-		ret = -ENOMEM;
-		goto err_up;
-	}
-
-	ret = idr_get_new(&ib_uverbs_pd_idr, pd, &uobj->id);
-
-	if (ret == -EAGAIN)
-		goto retry;
+	ret = idr_add_uobj(&ib_uverbs_pd_idr, pd, uobj);
 	if (ret)
 		goto err_up;
 
@@ -458,16 +465,7 @@ ssize_t ib_uverbs_reg_mr(struct ib_uverbs_file *file,
 	resp.lkey = mr->lkey;
 	resp.rkey = mr->rkey;
 
-retry:
-	if (!idr_pre_get(&ib_uverbs_mr_idr, GFP_KERNEL)) {
-		ret = -ENOMEM;
-		goto err_unreg;
-	}
-
-	ret = idr_get_new(&ib_uverbs_mr_idr, mr, &obj->uobject.id);
-
-	if (ret == -EAGAIN)
-		goto retry;
+	ret = idr_add_uobj(&ib_uverbs_mr_idr, mr, &obj->uobject);
 	if (ret)
 		goto err_unreg;
 
@@ -632,16 +630,7 @@ ssize_t ib_uverbs_create_cq(struct ib_uverbs_file *file,
 
 	mutex_lock(&ib_uverbs_idr_mutex);
 
-retry:
-	if (!idr_pre_get(&ib_uverbs_cq_idr, GFP_KERNEL)) {
-		ret = -ENOMEM;
-		goto err_up;
-	}
-
-	ret = idr_get_new(&ib_uverbs_cq_idr, cq, &uobj->uobject.id);
-
-	if (ret == -EAGAIN)
-		goto retry;
+	ret = idr_add_uobj(&ib_uverbs_cq_idr, cq, &uobj->uobject);
 	if (ret)
 		goto err_up;
 
@@ -946,16 +935,7 @@ ssize_t ib_uverbs_create_qp(struct ib_uverbs_file *file,
 	memset(&resp, 0, sizeof resp);
 	resp.qpn = qp->qp_num;
 
-retry:
-	if (!idr_pre_get(&ib_uverbs_qp_idr, GFP_KERNEL)) {
-		ret = -ENOMEM;
-		goto err_destroy;
-	}
-
-	ret = idr_get_new(&ib_uverbs_qp_idr, qp, &uobj->uevent.uobject.id);
-
-	if (ret == -EAGAIN)
-		goto retry;
+	ret = idr_add_uobj(&ib_uverbs_qp_idr, qp, &uobj->uevent.uobject);
 	if (ret)
 		goto err_destroy;
 
@@ -1614,16 +1594,7 @@ ssize_t ib_uverbs_create_ah(struct ib_uverbs_file *file,
 
 	ah->uobject = uobj;
 
-retry:
-	if (!idr_pre_get(&ib_uverbs_ah_idr, GFP_KERNEL)) {
-		ret = -ENOMEM;
-		goto err_destroy;
-	}
-
-	ret = idr_get_new(&ib_uverbs_ah_idr, ah, &uobj->id);
-
-	if (ret == -EAGAIN)
-		goto retry;
+	ret = idr_add_uobj(&ib_uverbs_ah_idr, ah, uobj);
 	if (ret)
 		goto err_destroy;
 
@@ -1846,16 +1817,7 @@ ssize_t ib_uverbs_create_srq(struct ib_uverbs_file *file,
 
 	memset(&resp, 0, sizeof resp);
 
-retry:
-	if (!idr_pre_get(&ib_uverbs_srq_idr, GFP_KERNEL)) {
-		ret = -ENOMEM;
-		goto err_destroy;
-	}
-
-	ret = idr_get_new(&ib_uverbs_srq_idr, srq, &uobj->uobject.id);
-
-	if (ret == -EAGAIN)
-		goto retry;
+	ret = idr_add_uobj(&ib_uverbs_srq_idr, srq, &uobj->uobject);
 	if (ret)
 		goto err_destroy;
 
