@@ -2074,12 +2074,22 @@ struct tg3 {
 
 	/* SMP locking strategy:
 	 *
-	 * lock: Held during all operations except TX packet
-	 *       processing.
+	 * lock: Held during reset, PHY access, timer, and when
+	 *       updating tg3_flags and tg3_flags2.
 	 *
-	 * tx_lock: Held during tg3_start_xmit and tg3_tx
+	 * tx_lock: Held during tg3_start_xmit and tg3_tx only
+	 *          when calling netif_[start|stop]_queue.
+	 *          tg3_start_xmit is protected by netif_tx_lock.
 	 *
 	 * Both of these locks are to be held with BH safety.
+	 *
+	 * Because the IRQ handler, tg3_poll, and tg3_start_xmit
+	 * are running lockless, it is necessary to completely
+	 * quiesce the chip with tg3_netif_stop and tg3_full_lock
+	 * before reconfiguring the device.
+	 *
+	 * indirect_lock: Held when accessing registers indirectly
+	 *                with IRQ disabling.
 	 */
 	spinlock_t			lock;
 	spinlock_t			indirect_lock;

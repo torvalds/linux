@@ -3759,14 +3759,11 @@ static int tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	len = skb_headlen(skb);
 
-	/* No BH disabling for tx_lock here.  We are running in BH disabled
-	 * context and TX reclaim runs via tp->poll inside of a software
+	/* We are running in BH disabled context with netif_tx_lock
+	 * and TX reclaim runs via tp->poll inside of a software
 	 * interrupt.  Furthermore, IRQ processing runs lockless so we have
 	 * no IRQ context deadlocks to worry about either.  Rejoice!
 	 */
-	if (!spin_trylock(&tp->tx_lock))
-		return NETDEV_TX_LOCKED;
-
 	if (unlikely(TX_BUFFS_AVAIL(tp) <= (skb_shinfo(skb)->nr_frags + 1))) {
 		if (!netif_queue_stopped(dev)) {
 			netif_stop_queue(dev);
@@ -3775,7 +3772,6 @@ static int tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			printk(KERN_ERR PFX "%s: BUG! Tx Ring full when "
 			       "queue awake!\n", dev->name);
 		}
-		spin_unlock(&tp->tx_lock);
 		return NETDEV_TX_BUSY;
 	}
 
@@ -3858,15 +3854,16 @@ static int tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	tw32_tx_mbox((MAILBOX_SNDHOST_PROD_IDX_0 + TG3_64BIT_REG_LOW), entry);
 
 	tp->tx_prod = entry;
-	if (TX_BUFFS_AVAIL(tp) <= (MAX_SKB_FRAGS + 1)) {
+	if (unlikely(TX_BUFFS_AVAIL(tp) <= (MAX_SKB_FRAGS + 1))) {
+		spin_lock(&tp->tx_lock);
 		netif_stop_queue(dev);
 		if (TX_BUFFS_AVAIL(tp) > TG3_TX_WAKEUP_THRESH)
 			netif_wake_queue(tp->dev);
+		spin_unlock(&tp->tx_lock);
 	}
 
 out_unlock:
     	mmiowb();
-	spin_unlock(&tp->tx_lock);
 
 	dev->trans_start = jiffies;
 
@@ -3885,14 +3882,11 @@ static int tg3_start_xmit_dma_bug(struct sk_buff *skb, struct net_device *dev)
 
 	len = skb_headlen(skb);
 
-	/* No BH disabling for tx_lock here.  We are running in BH disabled
-	 * context and TX reclaim runs via tp->poll inside of a software
+	/* We are running in BH disabled context with netif_tx_lock
+	 * and TX reclaim runs via tp->poll inside of a software
 	 * interrupt.  Furthermore, IRQ processing runs lockless so we have
 	 * no IRQ context deadlocks to worry about either.  Rejoice!
 	 */
-	if (!spin_trylock(&tp->tx_lock))
-		return NETDEV_TX_LOCKED; 
-
 	if (unlikely(TX_BUFFS_AVAIL(tp) <= (skb_shinfo(skb)->nr_frags + 1))) {
 		if (!netif_queue_stopped(dev)) {
 			netif_stop_queue(dev);
@@ -3901,7 +3895,6 @@ static int tg3_start_xmit_dma_bug(struct sk_buff *skb, struct net_device *dev)
 			printk(KERN_ERR PFX "%s: BUG! Tx Ring full when "
 			       "queue awake!\n", dev->name);
 		}
-		spin_unlock(&tp->tx_lock);
 		return NETDEV_TX_BUSY;
 	}
 
@@ -4039,15 +4032,16 @@ static int tg3_start_xmit_dma_bug(struct sk_buff *skb, struct net_device *dev)
 	tw32_tx_mbox((MAILBOX_SNDHOST_PROD_IDX_0 + TG3_64BIT_REG_LOW), entry);
 
 	tp->tx_prod = entry;
-	if (TX_BUFFS_AVAIL(tp) <= (MAX_SKB_FRAGS + 1)) {
+	if (unlikely(TX_BUFFS_AVAIL(tp) <= (MAX_SKB_FRAGS + 1))) {
+		spin_lock(&tp->tx_lock);
 		netif_stop_queue(dev);
 		if (TX_BUFFS_AVAIL(tp) > TG3_TX_WAKEUP_THRESH)
 			netif_wake_queue(tp->dev);
+		spin_unlock(&tp->tx_lock);
 	}
 
 out_unlock:
     	mmiowb();
-	spin_unlock(&tp->tx_lock);
 
 	dev->trans_start = jiffies;
 
@@ -11284,7 +11278,6 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
-	dev->features |= NETIF_F_LLTX;
 #if TG3_VLAN_TAG_USED
 	dev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
 	dev->vlan_rx_register = tg3_vlan_rx_register;
