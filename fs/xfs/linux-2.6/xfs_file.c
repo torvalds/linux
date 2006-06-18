@@ -522,23 +522,18 @@ xfs_file_open_exec(
 	struct inode	*inode)
 {
 	bhv_vnode_t	*vp = vn_from_inode(inode);
-	xfs_mount_t	*mp = XFS_VFSTOM(vp->v_vfsp);
-	int		error = 0;
-	xfs_inode_t	*ip;
 
-	if (vp->v_vfsp->vfs_flag & VFS_DMI) {
-		ip = xfs_vtoi(vp);
-		if (!ip) {
-			error = -EINVAL;
-			goto open_exec_out;
-		}
-		if (DM_EVENT_ENABLED(vp->v_vfsp, ip, DM_EVENT_READ)) {
-			error = -XFS_SEND_DATA(mp, DM_EVENT_READ, vp,
+	if (unlikely(vp->v_vfsp->vfs_flag & VFS_DMI)) {
+		xfs_mount_t	*mp = XFS_VFSTOM(vp->v_vfsp);
+		xfs_inode_t	*ip = xfs_vtoi(vp);
+
+		if (!ip)
+			return -EINVAL;
+		if (DM_EVENT_ENABLED(vp->v_vfsp, ip, DM_EVENT_READ))
+			return -XFS_SEND_DATA(mp, DM_EVENT_READ, vp,
 					       0, 0, 0, NULL);
-		}
 	}
-open_exec_out:
-	return error;
+	return 0;
 }
 #endif /* HAVE_FOP_OPEN_EXEC */
 
