@@ -1044,7 +1044,6 @@ static ssize_t ib_ucm_send_sidr_req(struct ib_ucm_file *file,
 	param.service_id       = cmd.sid;
 	param.timeout_ms       = cmd.timeout;
 	param.max_cm_retries   = cmd.max_cm_retries;
-	param.pkey             = cmd.pkey;
 
 	ctx = ib_ucm_ctx_get(file, cmd.id);
 	if (!IS_ERR(ctx)) {

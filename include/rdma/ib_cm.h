@@ -546,7 +546,6 @@ struct ib_cm_sidr_req_param {
 	const void		*private_data;
 	u8			private_data_len;
 	u8			max_cm_retries;
-	u16			pkey;
 };
 
 /**
@@ -570,7 +569,7 @@ struct ib_cm_sidr_rep_param {
 };
 
 /**
- * ib_send_cm_sidr_rep - Sends a service ID resolution request to the
+ * ib_send_cm_sidr_rep - Sends a service ID resolution reply to the
  *   remote node.
  * @cm_id: Communication identifier associated with the received service ID
  *   resolution request.

@@ -200,7 +200,7 @@ struct ib_ucm_sidr_req {
 	__be64 sid;
 	__u64 data;
 	__u64 path;
-	__u16 pkey;
+	__u16 reserved_pkey;
 	__u8  len;
 	__u8  max_cm_retries;
 	__u8  reserved[4];
