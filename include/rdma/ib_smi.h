@@ -85,6 +85,42 @@ struct ib_smp {
 #define IB_SMP_ATTR_LED_INFO			__constant_htons(0x0031)
 #define IB_SMP_ATTR_VENDOR_MASK			__constant_htons(0xFF00)
 
+struct ib_port_info {
+	__be64 mkey;
+	__be64 gid_prefix;
+	__be16 lid;
+	__be16 sm_lid;
+	__be32 cap_mask;
+	__be16 diag_code;
+	__be16 mkey_lease_period;
+	u8 local_port_num;
+	u8 link_width_enabled;
+	u8 link_width_supported;
+	u8 link_width_active;
+	u8 linkspeed_portstate;			/* 4 bits, 4 bits */
+	u8 portphysstate_linkdown;		/* 4 bits, 4 bits */
+	u8 mkeyprot_resv_lmc;			/* 2 bits, 3, 3 */
+	u8 linkspeedactive_enabled;		/* 4 bits, 4 bits */
+	u8 neighbormtu_mastersmsl;		/* 4 bits, 4 bits */
+	u8 vlcap_inittype;			/* 4 bits, 4 bits */
+	u8 vl_high_limit;
+	u8 vl_arb_high_cap;
+	u8 vl_arb_low_cap;
+	u8 inittypereply_mtucap;		/* 4 bits, 4 bits */
+	u8 vlstallcnt_hoqlife;			/* 3 bits, 5 bits */
+	u8 operationalvl_pei_peo_fpi_fpo;	/* 4 bits, 1, 1, 1, 1 */
+	__be16 mkey_violations;
+	__be16 pkey_violations;
+	__be16 qkey_violations;
+	u8 guid_cap;
+	u8 clientrereg_resv_subnetto;		/* 1 bit, 2 bits, 5 */
+	u8 resv_resptimevalue;			/* 3 bits, 5 bits */
+	u8 localphyerrors_overrunerrors;	/* 4 bits, 4 bits */
+	__be16 max_credit_hint;
+	u8 resv;
+	u8 link_roundtrip_latency[3];
+};
+
 static inline u8
 ib_get_smp_direction(struct ib_smp *smp)
 {
