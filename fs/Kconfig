@@ -1075,9 +1075,35 @@ config JFFS2_FS_DEBUG
 	  If reporting bugs, please try to have available a full dump of the
 	  messages at debug level 1 while the misbehaviour was occurring.
 
-config JFFS2_FS_XATTR
-	bool "JFFS2 XATTR support"
+config JFFS2_FS_WRITEBUFFER
+	bool "JFFS2 write-buffering support"
 	depends on JFFS2_FS
+	default y
+	help
+	  This enables the write-buffering support in JFFS2.
+
+	  This functionality is required to support JFFS2 on the following
+	  types of flash devices:
+	    - NAND flash
+	    - NOR flash with transparent ECC
+	    - DataFlash
+
+config JFFS2_SUMMARY
+	bool "JFFS2 summary support (EXPERIMENTAL)"
+	depends on JFFS2_FS && EXPERIMENTAL
+	default n
+	help
+	  This feature makes it possible to use summary information
+	  for faster filesystem mount.
+
+	  The summary information can be inserted into a filesystem image
+	  by the utility 'sumtool'.
+
+	  If unsure, say 'N'.
+
+config JFFS2_FS_XATTR
+	bool "JFFS2 XATTR support (EXPERIMENTAL)"
+	depends on JFFS2_FS && EXPERIMENTAL && !JFFS2_FS_WRITEBUFFER
 	default n
 	help
 	  Extended attributes are name:value pairs associated with inodes by
@@ -1112,32 +1138,6 @@ config JFFS2_FS_SECURITY
 	  
 	  If you are not using a security module that requires using
 	  extended attributes for file security labels, say N.
-
-config JFFS2_FS_WRITEBUFFER
-	bool "JFFS2 write-buffering support"
-	depends on JFFS2_FS
-	default y
-	help
-	  This enables the write-buffering support in JFFS2.
-
-	  This functionality is required to support JFFS2 on the following
-	  types of flash devices:
-	    - NAND flash
-	    - NOR flash with transparent ECC
-	    - DataFlash
-
-config JFFS2_SUMMARY
-	bool "JFFS2 summary support (EXPERIMENTAL)"
-	depends on JFFS2_FS && EXPERIMENTAL
-	default n
-	help
-	  This feature makes it possible to use summary information
-	  for faster filesystem mount.
-
-	  The summary information can be inserted into a filesystem image
-	  by the utility 'sumtool'.
-
-	  If unsure, say 'N'.
 
 config JFFS2_COMPRESSION_OPTIONS
 	bool "Advanced compression options for JFFS2"
