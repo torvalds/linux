@@ -52,7 +52,7 @@ static inline void __tlbie(unsigned long va, unsigned int psize)
 	default:
 		penc = mmu_psize_defs[psize].penc;
 		va &= ~((1ul << mmu_psize_defs[psize].shift) - 1);
-		va |= (0x7f >> (8 - penc)) << 12;
+		va |= penc << 12;
 		asm volatile("tlbie %0,1" : : "r" (va) : "memory");
 		break;
 	}
@@ -74,7 +74,7 @@ static inline void __tlbiel(unsigned long va, unsigned int psize)
 	default:
 		penc = mmu_psize_defs[psize].penc;
 		va &= ~((1ul << mmu_psize_defs[psize].shift) - 1);
-		va |= (0x7f >> (8 - penc)) << 12;
+		va |= penc << 12;
 		asm volatile(".long 0x7c000224 | (%0 << 11) | (1 << 21)"
 			     : : "r"(va) : "memory");
 		break;

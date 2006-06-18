@@ -881,14 +881,6 @@ fastcall NORET_TYPE void do_exit(long code)
 
 	tsk->flags |= PF_EXITING;
 
-	/*
-	 * Make sure we don't try to process any timer firings
-	 * while we are already exiting.
-	 */
- 	tsk->it_virt_expires = cputime_zero;
- 	tsk->it_prof_expires = cputime_zero;
-	tsk->it_sched_expires = 0;
-
 	if (unlikely(in_atomic()))
 		printk(KERN_INFO "note: %s[%d] exited with preempt_count %d\n",
 				current->comm, current->pid,

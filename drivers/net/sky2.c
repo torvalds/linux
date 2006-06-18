@@ -2255,8 +2255,10 @@ static irqreturn_t sky2_intr(int irq, void *dev_id, struct pt_regs *regs)
 static void sky2_netpoll(struct net_device *dev)
 {
 	struct sky2_port *sky2 = netdev_priv(dev);
+	struct net_device *dev0 = sky2->hw->dev[0];
 
-	sky2_intr(sky2->hw->pdev->irq, sky2->hw, NULL);
+	if (netif_running(dev) && __netif_rx_schedule_prep(dev0))
+		__netif_rx_schedule(dev0);
 }
 #endif
 
@@ -3446,6 +3448,7 @@ static int sky2_suspend(struct pci_dev *pdev, pm_message_t state)
 
 			sky2_down(dev);
 			netif_device_detach(dev);
+			netif_poll_disable(dev);
 		}
 	}
 
@@ -3474,6 +3477,8 @@ static int sky2_resume(struct pci_dev *pdev)
 		struct net_device *dev = hw->dev[i];
 		if (dev && netif_running(dev)) {
 			netif_device_attach(dev);
+			netif_poll_enable(dev);
+
 			err = sky2_up(dev);
 			if (err) {
 				printk(KERN_ERR PFX "%s: could not up: %d\n",
