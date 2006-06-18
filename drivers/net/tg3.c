@@ -2984,9 +2984,7 @@ static void tg3_tx_recover(struct tg3 *tp)
 	       "and include system chipset information.\n", tp->dev->name);
 
 	spin_lock(&tp->lock);
-	spin_lock(&tp->tx_lock);
 	tp->tg3_flags |= TG3_FLAG_TX_RECOVERY_PENDING;
-	spin_unlock(&tp->tx_lock);
 	spin_unlock(&tp->lock);
 }
 
@@ -3429,12 +3427,10 @@ static inline void tg3_full_lock(struct tg3 *tp, int irq_sync)
 	if (irq_sync)
 		tg3_irq_quiesce(tp);
 	spin_lock_bh(&tp->lock);
-	spin_lock(&tp->tx_lock);
 }
 
 static inline void tg3_full_unlock(struct tg3 *tp)
 {
-	spin_unlock(&tp->tx_lock);
 	spin_unlock_bh(&tp->lock);
 }
 
