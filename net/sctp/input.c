@@ -141,7 +141,8 @@ int sctp_rcv(struct sk_buff *skb)
 	__skb_pull(skb, skb->h.raw - skb->data);
 	if (skb->len < sizeof(struct sctphdr))
 		goto discard_it;
-	if (sctp_rcv_checksum(skb) < 0)
+	if ((skb->ip_summed != CHECKSUM_UNNECESSARY) &&
+	    (sctp_rcv_checksum(skb) < 0))
 		goto discard_it;
 
 	skb_pull(skb, sizeof(struct sctphdr));
