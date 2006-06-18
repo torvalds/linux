@@ -615,6 +615,33 @@ static int calc_vclock(int index, int m1, int m2, int n, int p1, int p2, int lvd
 	return vco / p;
 }
 
+static void
+intelfbhw_get_p1p2(struct intelfb_info *dinfo, int dpll, int *o_p1, int *o_p2)
+{
+	int p1, p2;
+
+	if (IS_I9XX(dinfo)) {
+		if (dpll & DPLL_P1_FORCE_DIV2)
+			p1 = 1;
+		else
+			p1 = (dpll >> DPLL_P1_SHIFT) & 0xff;
+		
+		p1 = ffs(p1);
+
+		p2 = (dpll >> DPLL_I9XX_P2_SHIFT) & DPLL_P2_MASK;
+	} else {
+		if (dpll & DPLL_P1_FORCE_DIV2)
+			p1 = 0;
+		else
+			p1 = (dpll >> DPLL_P1_SHIFT) & DPLL_P1_MASK;
+		p2 = (dpll >> DPLL_P2_SHIFT) & DPLL_P2_MASK;
+	}
+
+	*o_p1 = p1;
+	*o_p2 = p2;
+}
+
+
 void
 intelfbhw_print_hw_state(struct intelfb_info *dinfo, struct intelfb_hwstate *hw)
 {
@@ -633,12 +660,8 @@ intelfbhw_print_hw_state(struct intelfb_info *dinfo, struct intelfb_hwstate *hw)
 	n = (hw->vga0_divisor >> FP_N_DIVISOR_SHIFT) & FP_DIVISOR_MASK;
 	m1 = (hw->vga0_divisor >> FP_M1_DIVISOR_SHIFT) & FP_DIVISOR_MASK;
 	m2 = (hw->vga0_divisor >> FP_M2_DIVISOR_SHIFT) & FP_DIVISOR_MASK;
-	if (hw->vga_pd & VGAPD_0_P1_FORCE_DIV2)
-		p1 = 0;
-	else
-		p1 = (hw->vga_pd >> VGAPD_0_P1_SHIFT) & DPLL_P1_MASK;
 
-	p2 = (hw->vga_pd >> VGAPD_0_P2_SHIFT) & DPLL_P2_MASK;
+	intelfbhw_get_p1p2(dinfo, hw->vga_pd, &p1, &p2);
 
 	printk("	VGA0: (m1, m2, n, p1, p2) = (%d, %d, %d, %d, %d)\n",
 	       m1, m2, n, p1, p2);
@@ -648,11 +671,8 @@ intelfbhw_print_hw_state(struct intelfb_info *dinfo, struct intelfb_hwstate *hw)
 	n = (hw->vga1_divisor >> FP_N_DIVISOR_SHIFT) & FP_DIVISOR_MASK;
 	m1 = (hw->vga1_divisor >> FP_M1_DIVISOR_SHIFT) & FP_DIVISOR_MASK;
 	m2 = (hw->vga1_divisor >> FP_M2_DIVISOR_SHIFT) & FP_DIVISOR_MASK;
-	if (hw->vga_pd & VGAPD_1_P1_FORCE_DIV2)
-		p1 = 0;
-	else
-		p1 = (hw->vga_pd >> VGAPD_1_P1_SHIFT) & DPLL_P1_MASK;
-	p2 = (hw->vga_pd >> VGAPD_1_P2_SHIFT) & DPLL_P2_MASK;
+
+	intelfbhw_get_p1p2(dinfo, hw->vga_pd, &p1, &p2);
 	printk("	VGA1: (m1, m2, n, p1, p2) = (%d, %d, %d, %d, %d)\n",
 	       m1, m2, n, p1, p2);
 	printk("	VGA1: clock is %d\n", calc_vclock(index, m1, m2, n, p1, p2, 0));
@@ -668,38 +688,7 @@ intelfbhw_print_hw_state(struct intelfb_info *dinfo, struct intelfb_hwstate *hw)
 	m1 = (hw->fpa0 >> FP_M1_DIVISOR_SHIFT) & FP_DIVISOR_MASK;
 	m2 = (hw->fpa0 >> FP_M2_DIVISOR_SHIFT) & FP_DIVISOR_MASK;
 
-	if (IS_I9XX(dinfo)) {
-		int tmpp1;
-
-		if (hw->dpll_a & DPLL_P1_FORCE_DIV2)
-			p1 = 0;
-		else
-			p1 = (hw->dpll_a >> DPLL_P1_SHIFT) & 0xff;
-
-		tmpp1 = p1;
-
-		switch (tmpp1)
-		{
-		case 0x1: p1 = 1; break;
-		case 0x2: p1 = 2; break;
-		case 0x4: p1 = 3; break;
-		case 0x8: p1 = 4; break;
-		case 0x10: p1 = 5; break;
-		case 0x20: p1 = 6; break;
-		case 0x40: p1 = 7; break;
-		case 0x80: p1 = 8; break;
-		default: break;
-		}
-
-		p2 = (hw->dpll_a >> DPLL_I9XX_P2_SHIFT) & DPLL_P2_MASK;
-
-	} else {
-		if (hw->dpll_a & DPLL_P1_FORCE_DIV2)
-			p1 = 0;
-		else
-			p1 = (hw->dpll_a >> DPLL_P1_SHIFT) & DPLL_P1_MASK;
-		p2 = (hw->dpll_a >> DPLL_P2_SHIFT) & DPLL_P2_MASK;
-	}
+	intelfbhw_get_p1p2(dinfo, hw->dpll_a, &p1, &p2);
 
 	printk("	PLLA0: (m1, m2, n, p1, p2) = (%d, %d, %d, %d, %d)\n",
 	       m1, m2, n, p1, p2);
@@ -709,37 +698,8 @@ intelfbhw_print_hw_state(struct intelfb_info *dinfo, struct intelfb_hwstate *hw)
 	m1 = (hw->fpa1 >> FP_M1_DIVISOR_SHIFT) & FP_DIVISOR_MASK;
 	m2 = (hw->fpa1 >> FP_M2_DIVISOR_SHIFT) & FP_DIVISOR_MASK;
 
-	if (IS_I9XX(dinfo)) {
-		int tmpp1;
+	intelfbhw_get_p1p2(dinfo, hw->dpll_a, &p1, &p2);
 
-		if (hw->dpll_a & DPLL_P1_FORCE_DIV2)
-			p1 = 0;
-		else
-			p1 = (hw->dpll_a >> DPLL_P1_SHIFT) & 0xff;
-
-		tmpp1 = p1;
-
-		switch (tmpp1) {
-		case 0x1: p1 = 1; break;
-		case 0x2: p1 = 2; break;
-		case 0x4: p1 = 3; break;
-		case 0x8: p1 = 4; break;
-		case 0x10: p1 = 5; break;
-		case 0x20: p1 = 6; break;
-		case 0x40: p1 = 7; break;
-		case 0x80: p1 = 8; break;
-		default: break;
-		}
-		
-		p2 = (hw->dpll_a >> DPLL_I9XX_P2_SHIFT) & DPLL_P2_MASK;
-
-	} else {
-		if (hw->dpll_a & DPLL_P1_FORCE_DIV2)
-			p1 = 0;
-		else
-			p1 = (hw->dpll_a >> DPLL_P1_SHIFT) & DPLL_P1_MASK;
-		p2 = (hw->dpll_a >> DPLL_P2_SHIFT) & DPLL_P2_MASK;
-	}
 	printk("	PLLA1: (m1, m2, n, p1, p2) = (%d, %d, %d, %d, %d)\n",
 	       m1, m2, n, p1, p2);
 	printk("	PLLA1: clock is %d\n", calc_vclock(index, m1, m2, n, p1, p2, 0));
