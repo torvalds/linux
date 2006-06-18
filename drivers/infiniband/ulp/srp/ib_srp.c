@@ -1456,9 +1456,8 @@ static int srp_add_target(struct srp_host *host, struct srp_target_port *target)
 
 	target->state = SRP_TARGET_LIVE;
 
-	/* XXX: are we supposed to have a definition of SCAN_WILD_CARD ?? */
 	scsi_scan_target(&target->scsi_host->shost_gendev,
-			 0, target->scsi_id, ~0, 0);
+			 0, target->scsi_id, SCAN_WILD_CARD, 0);
 
 	return 0;
 }
