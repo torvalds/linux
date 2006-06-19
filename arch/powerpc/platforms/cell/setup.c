@@ -49,6 +49,7 @@
 #include <asm/ppc-pci.h>
 #include <asm/irq.h>
 #include <asm/spu.h>
+#include <asm/spu_priv1.h>
 
 #include "interrupt.h"
 #include "iommu.h"
@@ -83,6 +84,9 @@ static void __init cell_setup_arch(void)
 {
 	ppc_md.init_IRQ       = iic_init_IRQ;
 	ppc_md.get_irq        = iic_get_irq;
+#ifdef CONFIG_SPU_BASE
+	spu_priv1_ops         = &spu_priv1_mmio_ops;
+#endif
 
 	cbe_regs_init();
 

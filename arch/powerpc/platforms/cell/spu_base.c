@@ -34,9 +34,14 @@
 #include <asm/prom.h>
 #include <linux/mutex.h>
 #include <asm/spu.h>
+#include <asm/spu_priv1.h>
 #include <asm/mmu_context.h>
 
 #include "interrupt.h"
+
+const struct spu_priv1_ops *spu_priv1_ops;
+
+EXPORT_SYMBOL_GPL(spu_priv1_ops);
 
 static int __spu_trap_invalid_dma(struct spu *spu)
 {
