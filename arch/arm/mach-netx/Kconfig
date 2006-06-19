@@ -1,0 +1,10 @@
+menu "NetX Implementations"
+	depends on ARCH_NETX
+
+config MACH_NXDKN
+	bool "Enable Hilscher nxdkn Eval Board support"
+	depends on ARCH_NETX
+	help
+	  Board support for the Hilscher NetX Eval Board
+
+endmenu

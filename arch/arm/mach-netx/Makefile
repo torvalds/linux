@@ -9,3 +9,6 @@
 
 obj-y			+= time.o generic.o pfifo.o xc.o
 
+# Specific board support
+obj-$(CONFIG_MACH_NXDKN) += nxdkn.o
+
