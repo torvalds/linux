@@ -18,11 +18,13 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/fb.h>
+#include <linux/pm.h>
 
 #include <asm/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/irq.h>
 #include <asm/setup.h>
+#include <asm/system.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -247,9 +249,24 @@ static struct platform_device *devices[] __initdata = {
 	&poodle_scoop_device,
 };
 
+static void poodle_poweroff(void)
+{
+	RCSR = RCSR_HWR | RCSR_WDR | RCSR_SMR | RCSR_GPR;
+	arm_machine_restart('h');
+}
+
+static void poodle_restart(char mode)
+{
+	RCSR = RCSR_HWR | RCSR_WDR | RCSR_SMR | RCSR_GPR;
+	arm_machine_restart('h');
+}
+
 static void __init poodle_init(void)
 {
 	int ret = 0;
+
+	pm_power_off = poodle_poweroff;
+	arm_pm_restart = poodle_restart;
 
 	/* setup sleep mode values */
 	PWER  = 0x00000002;
