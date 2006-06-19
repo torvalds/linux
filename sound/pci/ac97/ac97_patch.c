@@ -1371,6 +1371,13 @@ static void ad18xx_resume(struct snd_ac97 *ac97)
 
 	snd_ac97_restore_iec958(ac97);
 }
+
+static void ad1888_resume(struct snd_ac97 *ac97)
+{
+	ad18xx_resume(ac97);
+	snd_ac97_write_cache(ac97, AC97_CODEC_CLASS_REV, 0x8080);
+}
+
 #endif
 
 int patch_ad1819(struct snd_ac97 * ac97)
@@ -1844,7 +1851,7 @@ static struct snd_ac97_build_ops patch_ad1888_build_ops = {
 	.build_post_spdif = patch_ad198x_post_spdif,
 	.build_specific = patch_ad1888_specific,
 #ifdef CONFIG_PM
-	.resume = ad18xx_resume,
+	.resume = ad1888_resume,
 #endif
 	.update_jacks = ad1888_update_jacks,
 };
