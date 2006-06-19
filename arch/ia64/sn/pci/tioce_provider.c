@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2003-2005 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (C) 2003-2006 Silicon Graphics, Inc.  All Rights Reserved.
  */
 
 #include <linux/types.h>
@@ -1002,7 +1002,7 @@ tioce_bus_fixup(struct pcibus_bussoft *prom_bussoft, struct pci_controller *cont
 	tioce_mmr_seti(tioce_kern, &tioce_mmr->ce_adm_int_status_alias, ~0ULL);
 	tioce_mmr_seti(tioce_kern, &tioce_mmr->ce_adm_error_summary_alias,
 		       ~0ULL);
-	tioce_mmr_seti(tioce_kern, &tioce_mmr->ce_dre_comp_err_addr, ~0ULL);
+	tioce_mmr_seti(tioce_kern, &tioce_mmr->ce_dre_comp_err_addr, 0ULL);
 
 	if (request_irq(SGI_PCIASIC_ERROR,
 			tioce_error_intr_handler,
