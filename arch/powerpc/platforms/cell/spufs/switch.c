@@ -2074,6 +2074,7 @@ int spu_save(struct spu_state *prev, struct spu *spu)
 	}
 	return rc;
 }
+EXPORT_SYMBOL_GPL(spu_save);
 
 /**
  * spu_restore - SPU context restore, with harvest and locking.
@@ -2103,6 +2104,7 @@ int spu_restore(struct spu_state *new, struct spu *spu)
 	}
 	return rc;
 }
+EXPORT_SYMBOL_GPL(spu_restore);
 
 /**
  * spu_harvest - SPU harvest (reset) operation
@@ -2193,6 +2195,7 @@ void spu_init_csa(struct spu_state *csa)
 	init_priv1(csa);
 	init_priv2(csa);
 }
+EXPORT_SYMBOL_GPL(spu_init_csa);
 
 void spu_fini_csa(struct spu_state *csa)
 {
@@ -2203,3 +2206,4 @@ void spu_fini_csa(struct spu_state *csa)
 
 	vfree(csa->lscsa);
 }
+EXPORT_SYMBOL_GPL(spu_fini_csa);
