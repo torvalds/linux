@@ -2129,6 +2129,7 @@ static void init_prob(struct spu_state *csa)
 	csa->spu_chnlcnt_RW[28] = 1;
 	csa->spu_chnlcnt_RW[30] = 1;
 	csa->prob.spu_runcntl_RW = SPU_RUNCNTL_STOP;
+	csa->prob.mb_stat_R = 0x000400;
 }
 
 static void init_priv1(struct spu_state *csa)
