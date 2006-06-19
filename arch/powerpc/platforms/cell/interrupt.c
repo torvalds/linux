@@ -117,8 +117,7 @@ static int iic_external_get_irq(struct cbe_iic_pending_bits pending)
 		 * One of these units can be connected
 		 * to an external interrupt controller.
 		 */
-		if (pending.prio > 0x3f ||
-		    pending.class != 2)
+		if (pending.class != 2)
 			break;
 		irq = IIC_EXT_OFFSET
 			+ spider_get_irq(node)
