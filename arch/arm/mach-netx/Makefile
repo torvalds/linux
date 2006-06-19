@@ -7,5 +7,5 @@
 
 # Object file lists.
 
-obj-y			+= time.o generic.o
+obj-y			+= time.o generic.o pfifo.o
 
