@@ -373,8 +373,12 @@ static int usb_stor_control_thread(void * __us)
 		/* lock access to the state */
 		scsi_lock(host);
 
+		/* did the command already complete because of a disconnect? */
+		if (!us->srb)
+			;		/* nothing to do */
+
 		/* indicate that the command is done */
-		if (us->srb->result != DID_ABORT << 16) {
+		else if (us->srb->result != DID_ABORT << 16) {
 			US_DEBUGP("scsi cmd done, result=0x%x\n", 
 				   us->srb->result);
 			us->srb->scsi_done(us->srb);
@@ -836,32 +840,34 @@ static void dissociate_dev(struct us_data *us)
  * the host */
 static void quiesce_and_remove_host(struct us_data *us)
 {
+	struct Scsi_Host *host = us_to_host(us);
+
 	/* Prevent new USB transfers, stop the current command, and
 	 * interrupt a SCSI-scan or device-reset delay */
+	scsi_lock(host);
 	set_bit(US_FLIDX_DISCONNECTING, &us->flags);
+	scsi_unlock(host);
 	usb_stor_stop_transport(us);
 	wake_up(&us->delay_wait);
 
 	/* It doesn't matter if the SCSI-scanning thread is still running.
 	 * The thread will exit when it sees the DISCONNECTING flag. */
 
-	/* Wait for the current command to finish, then remove the host */
-	mutex_lock(&us->dev_mutex);
-	mutex_unlock(&us->dev_mutex);
-
 	/* queuecommand won't accept any new commands and the control
 	 * thread won't execute a previously-queued command.  If there
 	 * is such a command pending, complete it with an error. */
+	mutex_lock(&us->dev_mutex);
 	if (us->srb) {
 		us->srb->result = DID_NO_CONNECT << 16;
-		scsi_lock(us_to_host(us));
+		scsi_lock(host);
 		us->srb->scsi_done(us->srb);
 		us->srb = NULL;
-		scsi_unlock(us_to_host(us));
+		scsi_unlock(host);
 	}
+	mutex_unlock(&us->dev_mutex);
 
 	/* Now we own no commands so it's safe to remove the SCSI host */
-	scsi_remove_host(us_to_host(us));
+	scsi_remove_host(host);
 }
 
 /* Second stage of disconnect processing: deallocate all resources */
