@@ -1790,7 +1790,10 @@ static int finish_device_resume(struct usb_device *udev)
 	 * and device drivers will know about any resume quirks.
 	 */
 	status = usb_get_status(udev, USB_RECIP_DEVICE, 0, &devstatus);
-	if (status < 2)
+	if (status >= 0)
+		status = (status == 2 ? 0 : -ENODEV);
+
+	if (status)
 		dev_dbg(&udev->dev,
 			"gone after usb resume? status %d\n",
 			status);
