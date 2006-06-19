@@ -446,7 +446,11 @@ $(KCONFIG_CONFIG) include/config/auto.conf.cmd: ;
 # if auto.conf.cmd is missing then we are probarly in a cleaned tree so
 # we execute the config step to be sure to catch updated Kconfig files
 include/config/auto.conf: $(KCONFIG_CONFIG) include/config/auto.conf.cmd
+ifeq ($(KBUILD_EXTMOD),)
 	$(Q)$(MAKE) -f $(srctree)/Makefile silentoldconfig
+else
+	$(error kernel configuration not valid - run 'make prepare' in $(srctree) to update it)
+endif
 
 else
 # Dummy target needed, because used as prerequisite
