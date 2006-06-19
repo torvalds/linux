@@ -1348,9 +1348,11 @@ static int snd_ac97_mixer_build(struct snd_ac97 * ac97)
 	}
 
 	/* build Aux controls */
-	if (snd_ac97_try_volume_mix(ac97, AC97_AUX)) {
-		if ((err = snd_ac97_cmix_new(card, "Aux Playback", AC97_AUX, ac97)) < 0)
-			return err;
+	if (!(ac97->flags & AC97_HAS_NO_AUX)) {
+		if (snd_ac97_try_volume_mix(ac97, AC97_AUX)) {
+			if ((err = snd_ac97_cmix_new(card, "Aux Playback", AC97_AUX, ac97)) < 0)
+				return err;
+		}
 	}
 
 	/* build PCM controls */
