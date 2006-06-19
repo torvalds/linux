@@ -134,7 +134,6 @@ struct spu {
 	int class_0_pending;
 	spinlock_t register_lock;
 
-	u32 stop_code;
 	void (* wbox_callback)(struct spu *spu);
 	void (* ibox_callback)(struct spu *spu);
 	void (* stop_callback)(struct spu *spu);

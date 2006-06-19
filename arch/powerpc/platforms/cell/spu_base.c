@@ -160,7 +160,6 @@ static int __spu_trap_mailbox(struct spu *spu)
 static int __spu_trap_stop(struct spu *spu)
 {
 	pr_debug("%s\n", __FUNCTION__);
-	spu->stop_code = in_be32(&spu->problem->spu_status_R);
 	if (spu->stop_callback)
 		spu->stop_callback(spu);
 	return 0;
@@ -169,7 +168,6 @@ static int __spu_trap_stop(struct spu *spu)
 static int __spu_trap_halt(struct spu *spu)
 {
 	pr_debug("%s\n", __FUNCTION__);
-	spu->stop_code = in_be32(&spu->problem->spu_status_R);
 	if (spu->stop_callback)
 		spu->stop_callback(spu);
 	return 0;

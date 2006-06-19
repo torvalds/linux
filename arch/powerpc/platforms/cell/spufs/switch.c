@@ -2109,7 +2109,6 @@ int spu_restore(struct spu_state *new, struct spu *spu)
 
 	acquire_spu_lock(spu);
 	harvest(NULL, spu);
-	spu->stop_code = 0;
 	spu->dar = 0;
 	spu->dsisr = 0;
 	spu->slb_replace = 0;
