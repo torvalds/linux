@@ -92,10 +92,6 @@ static int at91rm9200_irq_type(unsigned irq, unsigned type)
 {
 	unsigned int smr, srctype;
 
-	/* change triggering only for FIQ and external IRQ0..IRQ6 */
-	if ((irq < AT91_ID_IRQ0) && (irq != AT91_ID_FIQ))
-		return -EINVAL;
-
 	switch (type) {
 	case IRQT_HIGH:
 		srctype = AT91_AIC_SRCTYPE_HIGH;
@@ -104,9 +100,13 @@ static int at91rm9200_irq_type(unsigned irq, unsigned type)
 		srctype = AT91_AIC_SRCTYPE_RISING;
 		break;
 	case IRQT_LOW:
+		if ((irq > AT91_ID_FIQ) && (irq < AT91_ID_IRQ0))	/* only supported on external interrupts */
+			return -EINVAL;
 		srctype = AT91_AIC_SRCTYPE_LOW;
 		break;
 	case IRQT_FALLING:
+		if ((irq > AT91_ID_FIQ) && (irq < AT91_ID_IRQ0))	/* only supported on external interrupts */
+			return -EINVAL;
 		srctype = AT91_AIC_SRCTYPE_FALLING;
 		break;
 	default:
