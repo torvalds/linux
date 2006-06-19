@@ -1328,6 +1328,22 @@ static u64 spufs_srr0_get(void *data)
 DEFINE_SIMPLE_ATTRIBUTE(spufs_srr0_ops, spufs_srr0_get, spufs_srr0_set,
 			"%llx\n")
 
+static u64 spufs_id_get(void *data)
+{
+	struct spu_context *ctx = data;
+	u64 num;
+
+	spu_acquire(ctx);
+	if (ctx->state == SPU_STATE_RUNNABLE)
+		num = ctx->spu->number;
+	else
+		num = (unsigned int)-1;
+	spu_release(ctx);
+
+	return num;
+}
+DEFINE_SIMPLE_ATTRIBUTE(spufs_id_ops, spufs_id_get, 0, "0x%llx\n")
+
 struct tree_descr spufs_dir_contents[] = {
 	{ "mem",  &spufs_mem_fops,  0666, },
 	{ "regs", &spufs_regs_fops,  0666, },
@@ -1351,5 +1367,6 @@ struct tree_descr spufs_dir_contents[] = {
 	{ "spu_tag_mask", &spufs_spu_tag_mask_ops, 0666, },
 	{ "event_mask", &spufs_event_mask_ops, 0666, },
 	{ "srr0", &spufs_srr0_ops, 0666, },
+	{ "phys-id", &spufs_id_ops, 0666, },
 	{},
 };
