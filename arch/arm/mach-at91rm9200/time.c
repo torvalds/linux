@@ -90,6 +90,20 @@ static struct irqaction at91rm9200_timer_irq = {
 	.handler	= at91rm9200_timer_interrupt
 };
 
+void at91rm9200_timer_reset(void)
+{
+	last_crtr = 0;
+
+	/* Real time counter incremented every 30.51758 microseconds */
+	at91_sys_write(AT91_ST_RTMR, 1);
+
+	/* Set Period Interval timer */
+	at91_sys_write(AT91_ST_PIMR, LATCH);
+
+	/* Enable Period Interval Timer interrupt */
+	at91_sys_write(AT91_ST_IER, AT91_ST_PITS);
+}
+
 /*
  * Set up timer interrupt.
  */
@@ -99,28 +113,30 @@ void __init at91rm9200_timer_init(void)
 	at91_sys_write(AT91_ST_IDR, AT91_ST_PITS | AT91_ST_WDOVF | AT91_ST_RTTINC | AT91_ST_ALMS);
 	(void) at91_sys_read(AT91_ST_SR);	/* Clear any pending interrupts */
 
-	/*
-	 * Make IRQs happen for the system timer.
-	 */
+	/* Make IRQs happen for the system timer */
 	setup_irq(AT91_ID_SYS, &at91rm9200_timer_irq);
-
-	/* Set initial alarm to 0 */
-	at91_sys_write(AT91_ST_RTAR, 0);
-
-	/* Real time counter incremented every 30.51758 microseconds */
-	at91_sys_write(AT91_ST_RTMR, 1);
-
-	/* Set Period Interval timer */
-	at91_sys_write(AT91_ST_PIMR, LATCH);
 
 	/* Change the kernel's 'tick' value to 10009 usec. (the default is 10000) */
 	tick_usec = (LATCH * 1000000) / CLOCK_TICK_RATE;
 
-	/* Enable Period Interval Timer interrupt */
-	at91_sys_write(AT91_ST_IER, AT91_ST_PITS);
+	/* Initialize and enable the timer interrupt */
+	at91rm9200_timer_reset();
 }
+
+#ifdef CONFIG_PM
+static void at91rm9200_timer_suspend(void)
+{
+	/* disable Period Interval Timer interrupt */
+	at91_sys_write(AT91_ST_IDR, AT91_ST_PITS);
+}
+#else
+#define at91rm9200_timer_suspend	NULL
+#endif
 
 struct sys_timer at91rm9200_timer = {
 	.init		= at91rm9200_timer_init,
 	.offset		= at91rm9200_gettimeoffset,
+	.suspend	= at91rm9200_timer_suspend,
+	.resume		= at91rm9200_timer_reset,
 };
+
