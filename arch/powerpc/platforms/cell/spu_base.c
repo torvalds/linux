@@ -701,7 +701,7 @@ static int __init create_spu(struct device_node *spe)
 	static int number;
 
 	ret = -ENOMEM;
-	spu = kmalloc(sizeof (*spu), GFP_KERNEL);
+	spu = kzalloc(sizeof (*spu), GFP_KERNEL);
 	if (!spu)
 		goto out;
 
@@ -713,28 +713,11 @@ static int __init create_spu(struct device_node *spe)
 	spu->nid = of_node_to_nid(spe);
 	if (spu->nid == -1)
 		spu->nid = 0;
-
-	spu->stop_code = 0;
-	spu->slb_replace = 0;
-	spu->mm = NULL;
-	spu->ctx = NULL;
-	spu->rq = NULL;
-	spu->pid = 0;
-	spu->class_0_pending = 0;
-	spu->flags = 0UL;
-	spu->dar = 0UL;
-	spu->dsisr = 0UL;
 	spin_lock_init(&spu->register_lock);
-
 	spu_mfc_sdr_set(spu, mfspr(SPRN_SDR1));
 	spu_mfc_sr1_set(spu, 0x33);
-
-	spu->ibox_callback = NULL;
-	spu->wbox_callback = NULL;
-	spu->stop_callback = NULL;
-	spu->mfc_callback = NULL;
-
 	mutex_lock(&spu_mutex);
+
 	spu->number = number++;
 	ret = spu_request_irqs(spu);
 	if (ret)
