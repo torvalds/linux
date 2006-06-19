@@ -2981,7 +2981,7 @@ static int create_ua1000_quirk(struct snd_usb_audio *chip,
 		return -ENXIO;
 	alts = &iface->altsetting[1];
 	altsd = get_iface_desc(alts);
-	if (alts->extralen != 11 || alts->extra[1] != CS_AUDIO_INTERFACE ||
+	if (alts->extralen != 11 || alts->extra[1] != USB_DT_CS_INTERFACE ||
 	    altsd->bNumEndpoints != 1)
 		return -ENXIO;
 
