@@ -1227,6 +1227,15 @@ UNUSUAL_DEV(  0x1370, 0x6828, 0x0110, 0x0110,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_IGNORE_RESIDUE ),
 
+/* patch submitted by Davide Perini <perini.davide@dpsoftware.org>
+ * and Renato Perini <rperini@email.it>
+ */
+UNUSUAL_DEV(  0x22b8, 0x3010, 0x0001, 0x0001,
+		"Motorola",
+		"RAZR V3x",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_FIX_CAPACITY | US_FL_IGNORE_RESIDUE ),
+
 /* Reported by Radovan Garabik <garabik@kassiopeia.juls.savba.sk> */
 UNUSUAL_DEV(  0x2735, 0x100b, 0x0000, 0x9999,
 		"MPIO",
