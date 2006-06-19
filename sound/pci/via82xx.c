@@ -2371,7 +2371,7 @@ static int __devinit check_dxs_list(struct pci_dev *pci, int revision)
 		{ .subvendor = 0x1462, .subdevice = 0x0470, .action = VIA_DXS_SRC }, /* MSI KT880 Delta-FSR */
 		{ .subvendor = 0x1462, .subdevice = 0x3800, .action = VIA_DXS_ENABLE }, /* MSI KT266 */
 		{ .subvendor = 0x1462, .subdevice = 0x5901, .action = VIA_DXS_NO_VRA }, /* MSI KT6 Delta-SR */
-		{ .subvendor = 0x1462, .subdevice = 0x7023, .action = VIA_DXS_NO_VRA }, /* MSI K8T Neo2-FI */
+		{ .subvendor = 0x1462, .subdevice = 0x7023, .action = VIA_DXS_SRC }, /* MSI K8T Neo2-FI */
 		{ .subvendor = 0x1462, .subdevice = 0x7120, .action = VIA_DXS_ENABLE }, /* MSI KT4V */
 		{ .subvendor = 0x1462, .subdevice = 0x7142, .action = VIA_DXS_ENABLE }, /* MSI K8MM-V */
 		{ .subvendor = 0x1462, .subdevice = 0xb012, .action = VIA_DXS_SRC }, /* P4M800/VIA8237R */
