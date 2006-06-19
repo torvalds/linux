@@ -135,6 +135,16 @@ config MTD_NAND_NDFC
 	help
 	 NDFC Nand Flash Controllers are integrated in EP44x SoCs
 
+config MTD_NAND_S3C2410_CLKSTOP
+	bool "S3C2410 NAND IDLE clock stop"
+	depends on MTD_NAND_S3C2410
+	default n
+	help
+	  Stop the clock to the NAND controller when there is no chip
+	  selected to save power. This will mean there is a small delay
+	  when the is NAND chip selected or released, but will save
+	  approximately 5mA of power when there is nothing happening.
+
 config MTD_NAND_DISKONCHIP
 	tristate "DiskOnChip 2000, Millennium and Millennium Plus (NAND reimplementation) (EXPERIMENTAL)"
 	depends on MTD_NAND && EXPERIMENTAL

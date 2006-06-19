@@ -18,8 +18,9 @@
  *	20-Jun-2005  BJD  Updated s3c2440 support, fixed timing bug
  *	08-Jul-2005  BJD  Fix OOPS when no platform data supplied
  *	20-Oct-2005  BJD  Fix timing calculation bug
+ *	14-Jan-2006  BJD  Allow clock to be stopped when idle
  *
- * $Id: s3c2410.c,v 1.20 2005/11/07 11:14:31 gleixner Exp $
+ * $Id: s3c2410.c,v 1.23 2006/04/01 18:06:29 bjd Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,9 +36,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
-
-#include <config/mtd/nand/s3c2410/hwecc.h>
-#include <config/mtd/nand/s3c2410/debug.h>
 
 #ifdef CONFIG_MTD_NAND_S3C2410_DEBUG
 #define DEBUG
@@ -72,6 +70,13 @@ static int hardware_ecc = 1;
 #else
 static int hardware_ecc = 0;
 #endif
+
+#ifdef CONFIG_MTD_NAND_S3C2410_CLKSTOP
+static int clock_stop = 1;
+#else
+static const int clock_stop = 0;
+#endif
+
 
 /* new oob placement block for use with hardware ecc generation
  */
@@ -132,6 +137,11 @@ static struct s3c2410_nand_info *to_nand_info(struct platform_device *dev)
 static struct s3c2410_platform_nand *to_nand_plat(struct platform_device *dev)
 {
 	return dev->dev.platform_data;
+}
+
+static inline int allow_clk_stop(struct s3c2410_nand_info *info)
+{
+	return clock_stop;
 }
 
 /* timing calculations */
@@ -201,6 +211,11 @@ static int s3c2410_nand_inithw(struct s3c2410_nand_info *info, struct platform_d
 		cfg = S3C2440_NFCONF_TACLS(tacls - 1);
 		cfg |= S3C2440_NFCONF_TWRPH0(twrph0 - 1);
 		cfg |= S3C2440_NFCONF_TWRPH1(twrph1 - 1);
+
+		/* enable the controller and de-assert nFCE */
+
+		writel(S3C2440_NFCONT_ENABLE | S3C2440_NFCONT_ENABLE,
+		       info->regs + S3C2440_NFCONT);
 	}
 
 	pr_debug(PFX "NF_CONF is 0x%lx\n", cfg);
@@ -226,6 +241,9 @@ static void s3c2410_nand_select_chip(struct mtd_info *mtd, int chip)
 	bit = (info->is_s3c2440) ? S3C2440_NFCONT_nFCE : S3C2410_NFCONF_nFCE;
 	reg = info->regs + ((info->is_s3c2440) ? S3C2440_NFCONT : S3C2410_NFCONF);
 
+	if (chip != -1 && allow_clk_stop(info))
+		clk_enable(info->clk);
+
 	cur = readl(reg);
 
 	if (chip == -1) {
@@ -245,6 +263,9 @@ static void s3c2410_nand_select_chip(struct mtd_info *mtd, int chip)
 	}
 
 	writel(cur, reg);
+
+	if (chip == -1 && allow_clk_stop(info))
+		clk_disable(info->clk);
 }
 
 /* command and control functions
@@ -417,7 +438,8 @@ static int s3c2410_nand_remove(struct platform_device *pdev)
 	/* free the common resources */
 
 	if (info->clk != NULL && !IS_ERR(info->clk)) {
-		clk_disable(info->clk);
+		if (!allow_clk_stop(info))
+			clk_disable(info->clk);
 		clk_put(info->clk);
 	}
 
@@ -627,6 +649,11 @@ static int s3c24xx_nand_probe(struct platform_device *pdev, int is_s3c2440)
 			sets++;
 	}
 
+	if (allow_clk_stop(info)) {
+		dev_info(&pdev->dev, "clock idle support enabled\n");
+		clk_disable(info->clk);
+	}
+
 	pr_debug("initialised ok\n");
 	return 0;
 
@@ -637,6 +664,41 @@ static int s3c24xx_nand_probe(struct platform_device *pdev, int is_s3c2440)
 		err = -EINVAL;
 	return err;
 }
+
+/* PM Support */
+#ifdef CONFIG_PM
+
+static int s3c24xx_nand_suspend(struct platform_device *dev, pm_message_t pm)
+{
+	struct s3c2410_nand_info *info = platform_get_drvdata(dev);
+
+	if (info) {
+		if (!allow_clk_stop(info))
+			clk_disable(info->clk);
+	}
+
+	return 0;
+}
+
+static int s3c24xx_nand_resume(struct platform_device *dev)
+{
+	struct s3c2410_nand_info *info = platform_get_drvdata(dev);
+
+	if (info) {
+		clk_enable(info->clk);
+		s3c2410_nand_inithw(info, dev);
+
+		if (allow_clk_stop(info))
+			clk_disable(info->clk);
+	}
+
+	return 0;
+}
+
+#else
+#define s3c24xx_nand_suspend NULL
+#define s3c24xx_nand_resume NULL
+#endif
 
 /* driver device registration */
 
@@ -653,6 +715,8 @@ static int s3c2440_nand_probe(struct platform_device *dev)
 static struct platform_driver s3c2410_nand_driver = {
 	.probe		= s3c2410_nand_probe,
 	.remove		= s3c2410_nand_remove,
+	.suspend	= s3c24xx_nand_suspend,
+	.resume		= s3c24xx_nand_resume,
 	.driver		= {
 		.name	= "s3c2410-nand",
 		.owner	= THIS_MODULE,
@@ -662,6 +726,8 @@ static struct platform_driver s3c2410_nand_driver = {
 static struct platform_driver s3c2440_nand_driver = {
 	.probe		= s3c2440_nand_probe,
 	.remove		= s3c2410_nand_remove,
+	.suspend	= s3c24xx_nand_suspend,
+	.resume		= s3c24xx_nand_resume,
 	.driver		= {
 		.name	= "s3c2440-nand",
 		.owner	= THIS_MODULE,
