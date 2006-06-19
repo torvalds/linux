@@ -277,17 +277,17 @@ config CPU_32v6K
 # This defines the compiler instruction set which depends on the machine type.
 config CPU_32v3
 	bool
-	select TLS_REG_EMUL if SMP
+	select TLS_REG_EMUL if SMP || !MMU
 	select NEEDS_SYSCALL_FOR_CMPXCHG if SMP
 
 config CPU_32v4
 	bool
-	select TLS_REG_EMUL if SMP
+	select TLS_REG_EMUL if SMP || !MMU
 	select NEEDS_SYSCALL_FOR_CMPXCHG if SMP
 
 config CPU_32v5
 	bool
-	select TLS_REG_EMUL if SMP
+	select TLS_REG_EMUL if SMP || !MMU
 	select NEEDS_SYSCALL_FOR_CMPXCHG if SMP
 
 config CPU_32v6
