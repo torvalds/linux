@@ -45,10 +45,6 @@ static const char *name_prefix="dlm";
 static struct list_head user_ls_list;
 static struct mutex user_ls_lock;
 
-/* Lock infos are stored in here indexed by lock ID */
-static DEFINE_IDR(lockinfo_idr);
-static rwlock_t lockinfo_lock;
-
 /* Flags in li_flags */
 #define LI_FLAG_COMPLETE   1
 #define LI_FLAG_FIRSTLOCK  2
@@ -98,6 +94,10 @@ struct user_ls {
 	void    *ls_lockspace;
 	atomic_t ls_refcnt;
 	long     ls_flags;
+
+	/* Lock infos are stored in here indexed by lock ID */
+	struct idr lockinfo_idr;
+	rwlock_t lockinfo_lock;
 
 	/* Passed into misc_register() */
 	struct miscdevice ls_miscinfo;
@@ -240,13 +240,13 @@ static void put_file_info(struct file_info *f)
 		kfree(f);
 }
 
-static void release_lockinfo(struct lock_info *li)
+static void release_lockinfo(struct user_ls *ls, struct lock_info *li)
 {
 	put_file_info(li->li_file);
 
-	write_lock(&lockinfo_lock);
-	idr_remove(&lockinfo_idr, li->li_lksb.sb_lkid);
-	write_unlock(&lockinfo_lock);
+	write_lock(&ls->lockinfo_lock);
+	idr_remove(&ls->lockinfo_idr, li->li_lksb.sb_lkid);
+	write_unlock(&ls->lockinfo_lock);
 
 	if (li->li_lksb.sb_lvbptr)
 		kfree(li->li_lksb.sb_lvbptr);
@@ -255,46 +255,46 @@ static void release_lockinfo(struct lock_info *li)
 	module_put(THIS_MODULE);
 }
 
-static struct lock_info *get_lockinfo(uint32_t lockid)
+static struct lock_info *get_lockinfo(struct user_ls *ls, uint32_t lockid)
 {
 	struct lock_info *li;
 
-	read_lock(&lockinfo_lock);
-	li = idr_find(&lockinfo_idr, lockid);
-	read_unlock(&lockinfo_lock);
+	read_lock(&ls->lockinfo_lock);
+	li = idr_find(&ls->lockinfo_idr, lockid);
+	read_unlock(&ls->lockinfo_lock);
 
 	return li;
 }
 
-static int add_lockinfo(struct lock_info *li)
+static int add_lockinfo(struct user_ls *ls, struct lock_info *li)
 {
 	int n;
 	int r;
 	int ret = -EINVAL;
 
-	write_lock(&lockinfo_lock);
+	write_lock(&ls->lockinfo_lock);
 
-	if (idr_find(&lockinfo_idr, li->li_lksb.sb_lkid))
+	if (idr_find(&ls->lockinfo_idr, li->li_lksb.sb_lkid))
 		goto out_up;
 
 	ret = -ENOMEM;
-	r = idr_pre_get(&lockinfo_idr, GFP_KERNEL);
+	r = idr_pre_get(&ls->lockinfo_idr, GFP_KERNEL);
 	if (!r)
 		goto out_up;
 
-	r = idr_get_new_above(&lockinfo_idr, li, li->li_lksb.sb_lkid, &n);
+	r = idr_get_new_above(&ls->lockinfo_idr, li, li->li_lksb.sb_lkid, &n);
 	if (r)
 		goto out_up;
 
 	if (n != li->li_lksb.sb_lkid) {
-		idr_remove(&lockinfo_idr, n);
+		idr_remove(&ls->lockinfo_idr, n);
 		goto out_up;
 	}
 
 	ret = 0;
 
  out_up:
-	write_unlock(&lockinfo_lock);
+	write_unlock(&ls->lockinfo_lock);
 
 	return ret;
 }
@@ -357,6 +357,9 @@ static int register_lockspace(char *name, struct user_ls **ls, int flags)
 		kfree(newls);
 		return status;
 	}
+
+	idr_init(&newls->lockinfo_idr);
+	rwlock_init(&newls->lockinfo_lock);
 
 	snprintf((char*)newls->ls_miscinfo.name, namelen, "%s_%s",
 		 name_prefix, name);
@@ -486,13 +489,13 @@ static void ast_routine(void *param)
 			list_del(&li->li_ownerqueue);
 			clear_bit(LI_FLAG_ONLIST, &li->li_flags);
 			spin_unlock(&li->li_file->fi_li_lock);
-			release_lockinfo(li);
+			release_lockinfo(li->li_file->fi_ls, li);
 			return;
 		}
 		/* Free unlocks & queries */
 		if (li->li_lksb.sb_status == -DLM_EUNLOCK ||
 		    li->li_cmd == DLM_USER_QUERY) {
-			release_lockinfo(li);
+			release_lockinfo(li->li_file->fi_ls, li);
 		}
 	} else {
 		/* Synchronous request, just wake up the caller */
@@ -641,7 +644,7 @@ static int dlm_close(struct inode *inode, struct file *file)
 				       old_li->li_lksb.sb_lkid, status);
 
 			/* But tidy our references in it */
-			release_lockinfo(old_li);
+			release_lockinfo(old_li->li_file->fi_ls, old_li);
 			continue;
 		}
 
@@ -662,7 +665,7 @@ static int dlm_close(struct inode *inode, struct file *file)
 
 		/* Unlock suceeded, free the lock_info struct. */
 		if (status == 0)
-			release_lockinfo(old_li);
+			release_lockinfo(old_li->li_file->fi_ls, old_li);
 	}
 
 	remove_wait_queue(&li.li_waitq, &wq);
@@ -920,7 +923,7 @@ static int do_user_lock(struct file_info *fi, uint8_t cmd,
 	   unless we are adopting an orphaned persistent lock */
 	if (kparams->flags & DLM_LKF_CONVERT) {
 
-		li = get_lockinfo(kparams->lkid);
+		li = get_lockinfo(fi->fi_ls, kparams->lkid);
 
 		/* If this is a persistent lock we will have to create a
 		   lockinfo again */
@@ -938,7 +941,7 @@ static int do_user_lock(struct file_info *fi, uint8_t cmd,
 			   fail we want rid of it */
 			init_completion(&li->li_firstcomp);
 			set_bit(LI_FLAG_FIRSTLOCK, &li->li_flags);
-			add_lockinfo(li);
+			add_lockinfo(fi->fi_ls, li);
 
 			/* TODO: do a query to get the current state ?? */
 		}
@@ -1014,7 +1017,7 @@ static int do_user_lock(struct file_info *fi, uint8_t cmd,
 		list_add(&li->li_ownerqueue, &fi->fi_li_list);
 		set_bit(LI_FLAG_ONLIST, &li->li_flags);
 		spin_unlock(&fi->fi_li_lock);
-		if (add_lockinfo(li))
+		if (add_lockinfo(fi->fi_ls, li))
 			printk(KERN_WARNING "Add lockinfo failed\n");
 
 		complete(&li->li_firstcomp);
@@ -1025,7 +1028,7 @@ static int do_user_lock(struct file_info *fi, uint8_t cmd,
 
  out_err:
 	if (test_bit(LI_FLAG_FIRSTLOCK, &li->li_flags))
-		release_lockinfo(li);
+		release_lockinfo(fi->fi_ls, li);
 	return status;
 
 }
@@ -1037,7 +1040,7 @@ static int do_user_unlock(struct file_info *fi, uint8_t cmd,
 	int status;
 	int convert_cancel = 0;
 
-	li = get_lockinfo(kparams->lkid);
+	li = get_lockinfo(fi->fi_ls, kparams->lkid);
 	if (!li) {
 		li = allocate_lockinfo(fi, cmd, kparams);
 		if (!li)
@@ -1209,7 +1212,6 @@ static int __init dlm_device_init(void)
 
 	INIT_LIST_HEAD(&user_ls_list);
 	mutex_init(&user_ls_lock);
-	rwlock_init(&lockinfo_lock);
 
 	ctl_device.name = "dlm-control";
 	ctl_device.fops = &_dlm_ctl_fops;
