@@ -37,12 +37,15 @@
 #include <asm/arch/irda.h>
 #include <asm/arch/poodle.h>
 #include <asm/arch/pxafb.h>
+#include <asm/arch/sharpsl.h>
+#include <asm/arch/ssp.h>
 
 #include <asm/hardware/scoop.h>
 #include <asm/hardware/locomo.h>
 #include <asm/mach/sharpsl_param.h>
 
 #include "generic.h"
+#include "sharpsl.h"
 
 static struct resource poodle_scoop_resources[] = {
 	[0] = {
@@ -120,11 +123,69 @@ static struct resource locomo_resources[] = {
 	},
 };
 
-static struct platform_device locomo_device = {
+struct platform_device poodle_locomo_device = {
 	.name		= "locomo",
 	.id		= 0,
 	.num_resources	= ARRAY_SIZE(locomo_resources),
 	.resource	= locomo_resources,
+};
+
+EXPORT_SYMBOL(poodle_locomo_device);
+
+/*
+ * Poodle SSP Device
+ */
+
+struct platform_device poodle_ssp_device = {
+	.name		= "corgi-ssp",
+	.id		= -1,
+};
+
+struct corgissp_machinfo poodle_ssp_machinfo = {
+	.port		= 1,
+	.cs_lcdcon	= -1,
+	.cs_ads7846	= -1,
+	.cs_max1111	= -1,
+	.clk_lcdcon	= 2,
+	.clk_ads7846	= 36,
+	.clk_max1111	= 2,
+};
+
+
+/*
+ * Poodle Touch Screen Device
+ */
+static struct resource poodlets_resources[] = {
+	[0] = {
+		.start		= POODLE_IRQ_GPIO_TP_INT,
+		.end		= POODLE_IRQ_GPIO_TP_INT,
+		.flags		= IORESOURCE_IRQ,
+	},
+};
+
+static unsigned long poodle_get_hsync_len(void)
+{
+	return 0;
+}
+
+static void poodle_null_hsync(void)
+{
+}
+
+static struct corgits_machinfo  poodle_ts_machinfo = {
+	.get_hsync_len   = poodle_get_hsync_len,
+	.put_hsync       = poodle_null_hsync,
+	.wait_hsync      = poodle_null_hsync,
+};
+
+static struct platform_device poodle_ts_device = {
+	.name		= "corgi-ts",
+	.dev		= {
+		.platform_data	= &poodle_ts_machinfo,
+	},
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(poodlets_resources),
+	.resource	= poodlets_resources,
 };
 
 
@@ -259,8 +320,10 @@ static struct pxafb_mach_info poodle_fb_info __initdata = {
 };
 
 static struct platform_device *devices[] __initdata = {
-	&locomo_device,
+	&poodle_locomo_device,
 	&poodle_scoop_device,
+	&poodle_ssp_device,
+	&poodle_ts_device,
 };
 
 static void poodle_poweroff(void)
@@ -319,6 +382,7 @@ static void __init poodle_init(void)
   	GPSR1 = 0x00000000;
         GPSR2 = 0x00000000;
 
+	set_pxa_fb_parent(&poodle_locomo_device.dev);
 	set_pxa_fb_info(&poodle_fb_info);
 	pxa_gpio_mode(POODLE_GPIO_USB_PULLUP | GPIO_OUT);
 	pxa_gpio_mode(POODLE_GPIO_IR_ON | GPIO_OUT);
@@ -332,6 +396,7 @@ static void __init poodle_init(void)
 	if (ret) {
 		printk(KERN_WARNING "poodle: Unable to register LoCoMo device\n");
 	}
+	corgi_ssp_set_machinfo(&poodle_ssp_machinfo);
 }
 
 static void __init fixup_poodle(struct machine_desc *desc,

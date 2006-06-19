@@ -70,4 +70,6 @@
 #define POODLE_SCOOP_IO_DIR	( POODLE_SCOOP_VPEN | POODLE_SCOOP_HS_OUT )
 #define POODLE_SCOOP_IO_OUT	( 0 )
 
+extern struct platform_device poodle_locomo_device;
+
 #endif /* __ASM_ARCH_POODLE_H  */
