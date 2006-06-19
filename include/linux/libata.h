@@ -249,6 +249,7 @@ enum {
 	ATA_EH_HARDRESET	= (1 << 2),
 
 	ATA_EH_RESET_MASK	= ATA_EH_SOFTRESET | ATA_EH_HARDRESET,
+	ATA_EH_PERDEV_MASK	= ATA_EH_REVALIDATE,
 
 	/* ata_eh_info->flags */
 	ATA_EHI_HOTPLUGGED	= (1 << 0),  /* could have been hotplugged */
@@ -462,6 +463,7 @@ struct ata_eh_info {
 	u32			serror;		/* SError from LLDD */
 	unsigned int		err_mask;	/* port-wide err_mask */
 	unsigned int		action;		/* ATA_EH_* action mask */
+	unsigned int		dev_action[ATA_MAX_DEVICES]; /* dev EH action */
 	unsigned int		flags;		/* ATA_EHI_* flags */
 
 	unsigned long		hotplug_timestamp;

@@ -706,9 +706,35 @@ static void ata_eh_detach_dev(struct ata_device *dev)
 	spin_unlock_irqrestore(&ap->host_set->lock, flags);
 }
 
+static void ata_eh_clear_action(struct ata_device *dev,
+				struct ata_eh_info *ehi, unsigned int action)
+{
+	int i;
+
+	if (!dev) {
+		ehi->action &= ~action;
+		for (i = 0; i < ATA_MAX_DEVICES; i++)
+			ehi->dev_action[i] &= ~action;
+	} else {
+		/* doesn't make sense for port-wide EH actions */
+		WARN_ON(!(action & ATA_EH_PERDEV_MASK));
+
+		/* break ehi->action into ehi->dev_action */
+		if (ehi->action & action) {
+			for (i = 0; i < ATA_MAX_DEVICES; i++)
+				ehi->dev_action[i] |= ehi->action & action;
+			ehi->action &= ~action;
+		}
+
+		/* turn off the specified per-dev action */
+		ehi->dev_action[dev->devno] &= ~action;
+	}
+}
+
 /**
  *	ata_eh_about_to_do - about to perform eh_action
  *	@ap: target ATA port
+ *	@dev: target ATA dev for per-dev action (can be NULL)
  *	@action: action about to be performed
  *
  *	Called just before performing EH actions to clear related bits
@@ -718,14 +744,33 @@ static void ata_eh_detach_dev(struct ata_device *dev)
  *	LOCKING:
  *	None.
  */
-static void ata_eh_about_to_do(struct ata_port *ap, unsigned int action)
+static void ata_eh_about_to_do(struct ata_port *ap, struct ata_device *dev,
+			       unsigned int action)
 {
 	unsigned long flags;
 
 	spin_lock_irqsave(&ap->host_set->lock, flags);
-	ap->eh_info.action &= ~action;
+	ata_eh_clear_action(dev, &ap->eh_info, action);
 	ap->flags |= ATA_FLAG_RECOVERED;
 	spin_unlock_irqrestore(&ap->host_set->lock, flags);
+}
+
+/**
+ *	ata_eh_done - EH action complete
+ *	@ap: target ATA port
+ *	@dev: target ATA dev for per-dev action (can be NULL)
+ *	@action: action just completed
+ *
+ *	Called right after performing EH actions to clear related bits
+ *	in @ap->eh_context.
+ *
+ *	LOCKING:
+ *	None.
+ */
+static void ata_eh_done(struct ata_port *ap, struct ata_device *dev,
+			unsigned int action)
+{
+	ata_eh_clear_action(dev, &ap->eh_context.i, action);
 }
 
 /**
@@ -1271,16 +1316,23 @@ static void ata_eh_autopsy(struct ata_port *ap)
 			is_io = 1;
 	}
 
-	/* speed down iff command was in progress */
-	if (failed_dev)
-		action |= ata_eh_speed_down(failed_dev, is_io, all_err_mask);
-
 	/* enforce default EH actions */
 	if (ap->flags & ATA_FLAG_FROZEN ||
 	    all_err_mask & (AC_ERR_HSM | AC_ERR_TIMEOUT))
 		action |= ATA_EH_SOFTRESET;
 	else if (all_err_mask)
 		action |= ATA_EH_REVALIDATE;
+
+	/* if we have offending qcs and the associated failed device */
+	if (failed_dev) {
+		/* speed down */
+		action |= ata_eh_speed_down(failed_dev, is_io, all_err_mask);
+
+		/* perform per-dev EH action only on the offending device */
+		ehc->i.dev_action[failed_dev->devno] |=
+			action & ATA_EH_PERDEV_MASK;
+		action &= ~ATA_EH_PERDEV_MASK;
+	}
 
 	/* record autopsy result */
 	ehc->i.dev = failed_dev;
@@ -1457,7 +1509,7 @@ static int ata_eh_reset(struct ata_port *ap, int classify,
 				reset == softreset ? "soft" : "hard");
 
 	/* reset */
-	ata_eh_about_to_do(ap, ATA_EH_RESET_MASK);
+	ata_eh_about_to_do(ap, NULL, ATA_EH_RESET_MASK);
 	ehc->i.flags |= ATA_EHI_DID_RESET;
 
 	rc = ata_do_reset(ap, reset, classes);
@@ -1476,7 +1528,7 @@ static int ata_eh_reset(struct ata_port *ap, int classify,
 			return -EINVAL;
 		}
 
-		ata_eh_about_to_do(ap, ATA_EH_RESET_MASK);
+		ata_eh_about_to_do(ap, NULL, ATA_EH_RESET_MASK);
 		rc = ata_do_reset(ap, reset, classes);
 
 		if (rc == 0 && classify &&
@@ -1520,8 +1572,7 @@ static int ata_eh_reset(struct ata_port *ap, int classify,
 			postreset(ap, classes);
 
 		/* reset successful, schedule revalidation */
-		ehc->i.dev = NULL;
-		ehc->i.action &= ~ATA_EH_RESET_MASK;
+		ata_eh_done(ap, NULL, ATA_EH_RESET_MASK);
 		ehc->i.action |= ATA_EH_REVALIDATE;
 	}
 
@@ -1539,20 +1590,24 @@ static int ata_eh_revalidate_and_attach(struct ata_port *ap,
 	DPRINTK("ENTER\n");
 
 	for (i = 0; i < ATA_MAX_DEVICES; i++) {
-		dev = &ap->device[i];
+		unsigned int action;
 
-		if (ehc->i.action & ATA_EH_REVALIDATE && ata_dev_enabled(dev) &&
-		    (!ehc->i.dev || ehc->i.dev == dev)) {
+		dev = &ap->device[i];
+		action = ehc->i.action | ehc->i.dev_action[dev->devno];
+
+		if (action & ATA_EH_REVALIDATE && ata_dev_enabled(dev)) {
 			if (ata_port_offline(ap)) {
 				rc = -EIO;
 				break;
 			}
 
-			ata_eh_about_to_do(ap, ATA_EH_REVALIDATE);
+			ata_eh_about_to_do(ap, dev, ATA_EH_REVALIDATE);
 			rc = ata_dev_revalidate(dev,
 					ehc->i.flags & ATA_EHI_DID_RESET);
 			if (rc)
 				break;
+
+			ata_eh_done(ap, dev, ATA_EH_REVALIDATE);
 
 			/* schedule the scsi_rescan_device() here */
 			queue_work(ata_aux_wq, &(ap->scsi_rescan_task));
@@ -1576,9 +1631,7 @@ static int ata_eh_revalidate_and_attach(struct ata_port *ap,
 		}
 	}
 
-	if (rc == 0)
-		ehc->i.action &= ~ATA_EH_REVALIDATE;
-	else
+	if (rc)
 		*r_failed_dev = dev;
 
 	DPRINTK("EXIT\n");
