@@ -129,7 +129,6 @@ static void inode_go_xmote_bh(struct gfs2_glock *gl)
 
 static void inode_go_drop_th(struct gfs2_glock *gl)
 {
-	printk(KERN_INFO "drop th %p\n", gl->gl_object);
 	gfs2_pte_inval(gl);
 	gfs2_glock_drop_th(gl);
 }
@@ -148,7 +147,6 @@ static void inode_go_sync(struct gfs2_glock *gl, int flags)
 
 	if (test_bit(GLF_DIRTY, &gl->gl_flags)) {
 		if (meta && data) {
-			printk(KERN_INFO "sync all\n");
 			gfs2_page_sync(gl, flags | DIO_START);
 			gfs2_log_flush(gl->gl_sbd, gl);
 			gfs2_meta_sync(gl, flags | DIO_START | DIO_WAIT);
@@ -226,7 +224,6 @@ static int inode_go_lock(struct gfs2_holder *gh)
 		return 0;
 
 	if (ip->i_vn != gl->gl_vn) {
-		printk(KERN_INFO "refresh inode %p\n", &ip->i_inode);
 		error = gfs2_inode_refresh(ip);
 		if (error)
 			return error;

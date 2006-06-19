@@ -447,8 +447,6 @@ static int gfs2_ri_update(struct gfs2_inode *ip)
 	uint64_t junk = ip->i_di.di_size;
 	int error;
 
-	printk(KERN_INFO "gfs2_ri_update inode=%p\n", inode);
-
 	if (do_div(junk, sizeof(struct gfs2_rindex))) {
 		gfs2_consist_inode(ip);
 		return -EIO;
@@ -456,12 +454,9 @@ static int gfs2_ri_update(struct gfs2_inode *ip)
 
 	clear_rgrpdi(sdp);
 
-	printk(KERN_INFO "rgrps cleared\n");
-
 	file_ra_state_init(&ra_state, inode->i_mapping);
 	for (sdp->sd_rgrps = 0;; sdp->sd_rgrps++) {
 		loff_t pos = sdp->sd_rgrps * sizeof(struct gfs2_rindex);
-		printk(KERN_INFO "reading rgrp %d\n", sdp->sd_rgrps);
 		error = gfs2_internal_read(ip, &ra_state, buf, &pos,
 					    sizeof(struct gfs2_rindex));
 		if (!error)
@@ -485,15 +480,12 @@ static int gfs2_ri_update(struct gfs2_inode *ip)
 		list_add_tail(&rgd->rd_list_mru, &sdp->sd_rindex_mru_list);
 
 		gfs2_rindex_in(&rgd->rd_ri, buf);
-		printk(KERN_INFO "compute bitstructs\n");
 		error = compute_bitstructs(rgd);
 		if (error)
 			goto fail;
 
-		printk(KERN_INFO "gfs2_glock_get\n");
 		error = gfs2_glock_get(sdp, rgd->rd_ri.ri_addr,
 				       &gfs2_rgrp_glops, CREATE, &rgd->rd_gl);
-		printk(KERN_INFO "gfs2_glock_got one\n");
 		if (error)
 			goto fail;
 
@@ -501,14 +493,11 @@ static int gfs2_ri_update(struct gfs2_inode *ip)
 		rgd->rd_rg_vn = rgd->rd_gl->gl_vn - 1;
 	}
 
-	printk(KERN_INFO "ok, finished\n");
 	sdp->sd_rindex_vn = ip->i_gl->gl_vn;
 	return 0;
 
 fail:
-	printk(KERN_INFO "fail\n");
 	clear_rgrpdi(sdp);
-	printk(KERN_INFO "cleared rgrps\n");
 	return error;
 }
 

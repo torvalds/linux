@@ -59,7 +59,7 @@ static int gfs2_write_inode(struct inode *inode, int sync)
 		if (current->flags & PF_MEMALLOC)
 			return 0;
 		if (sync)
-			gfs2_log_flush(ip->i_gl->gl_sbd, ip->i_gl);
+			gfs2_log_flush(GFS2_SB(inode), ip->i_gl);
 	}
 
 	return 0;

@@ -650,7 +650,7 @@ static void databuf_lo_before_commit(struct gfs2_sbd *sdp)
 		} else
 			gfs2_log_unlock(sdp);
 
-		kfree(bd1);
+		kmem_cache_free(gfs2_bufdata_cachep, bd1);
 	}
 
 	/* We've removed all the ordered write bufs here, so only jdata left */

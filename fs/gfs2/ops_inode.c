@@ -56,7 +56,6 @@ static int gfs2_create(struct inode *dir, struct dentry *dentry,
 	struct gfs2_sbd *sdp = GFS2_SB(dir);
 	struct gfs2_holder ghs[2];
 	struct inode *inode;
-	int new = 1;
 
 	gfs2_holder_init(dip->i_gl, 0, 0, ghs);
 
@@ -69,6 +68,7 @@ static int gfs2_create(struct inode *dir, struct dentry *dentry,
 			gfs2_quota_unlock(dip);
 			gfs2_alloc_put(dip);
 			gfs2_glock_dq_uninit_m(2, ghs);
+			mark_inode_dirty(inode);
 			break;
 		} else if (PTR_ERR(inode) != -EEXIST ||
 			   (nd->intent.open.flags & O_EXCL)) {
@@ -79,7 +79,6 @@ static int gfs2_create(struct inode *dir, struct dentry *dentry,
 		inode = gfs2_lookupi(dir, &dentry->d_name, 0, nd);
 		if (inode) {
 			if (!IS_ERR(inode)) {
-				new = 0;
 				gfs2_holder_uninit(ghs);
 				break;
 			} else {
@@ -90,8 +89,6 @@ static int gfs2_create(struct inode *dir, struct dentry *dentry,
 	}
 
 	d_instantiate(dentry, inode);
-	if (new)
-		mark_inode_dirty(inode);
 
 	return 0;
 }
