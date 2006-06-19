@@ -268,20 +268,16 @@ static void s3c2410_nand_select_chip(struct mtd_info *mtd, int chip)
 		clk_disable(info->clk);
 }
 
-/* command and control functions
+/* s3c2410_nand_hwcontrol
  *
- * Note, these all use tglx's method of changing the IO_ADDR_W field
- * to make the code simpler, and use the nand layer's code to issue the
- * command and address sequences via the proper IO ports.
- *
+ * Issue command and address cycles to the chip
 */
 
 static void s3c2410_nand_hwcontrol(struct mtd_info *mtd, int cmd,
 				   unsigned int ctrl)
 {
 	struct s3c2410_nand_info *info = s3c2410_nand_mtd_toinfo(mtd);
-	struct nand_chip *chip = mtd->priv;
-
+	
 	if (cmd == NAND_CMD_NONE)
 		return;
 
@@ -297,7 +293,6 @@ static void s3c2440_nand_hwcontrol(struct mtd_info *mtd, int cmd,
 				   unsigned int ctrl)
 {
 	struct s3c2410_nand_info *info = s3c2410_nand_mtd_toinfo(mtd);
-	struct nand_chip *chip = mtd->priv;
 
 	if (cmd == NAND_CMD_NONE)
 		return;
