@@ -25,8 +25,8 @@
 #ifdef __KERNEL__
 
 #include <linux/config.h>
-#include <linux/kref.h>
 #include <linux/workqueue.h>
+#include <linux/sysdev.h>
 
 #define LS_SIZE (256 * 1024)
 #define LS_ADDR_MASK (LS_SIZE - 1)
@@ -123,7 +123,6 @@ struct spu {
 	u64 flags;
 	u64 dar;
 	u64 dsisr;
-	struct kref kref;
 	size_t ls_size;
 	unsigned int slb_replace;
 	struct mm_struct *mm;
@@ -144,6 +143,8 @@ struct spu {
 	char irq_c0[8];
 	char irq_c1[8];
 	char irq_c2[8];
+
+	struct sys_device sysdev;
 };
 
 struct spu *spu_alloc(void);
