@@ -15,6 +15,7 @@ SPU_AFLAGS	:= -c -D__ASSEMBLY__ -I$(srctree)/include -I$(objtree)/include2
 SPU_LDFLAGS	:= -N -Ttext=0x0
 
 $(obj)/switch.o: $(obj)/spu_save_dump.h $(obj)/spu_restore_dump.h
+clean-files := spu_save_dump.h spu_restore_dump.h
 
 # Compile SPU files
       cmd_spu_cc = $(SPU_CC) $(SPU_CFLAGS) -c -o $@ $<
