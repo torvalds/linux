@@ -35,8 +35,8 @@
 #include <asm/mach/irq.h>
 
 #include <asm/arch/hardware.h>
-#include <asm/mach/serial_at91rm9200.h>
 #include <asm/arch/board.h>
+#include <asm/arch/gpio.h>
 
 #include "generic.h"
 
@@ -54,14 +54,14 @@ static void __init csb637_init_irq(void)
  *    0 .. 3 = USART0 .. USART3
  *    4      = DBGU
  */
-#define CSB637_UART_MAP		{ 4, 1, -1, -1, -1 }	/* ttyS0, ..., ttyS4 */
-#define CSB637_SERIAL_CONSOLE	0			/* ttyS0 */
+static struct at91_uart_config __initdata csb637_uart_config = {
+	.console_tty	= 0,				/* ttyS0 */
+	.nr_tty		= 2,
+	.tty_map	= { 4, 1, -1, -1, -1 }		/* ttyS0, ..., ttyS4 */
+};
 
 static void __init csb637_map_io(void)
 {
-	int serial[AT91_NR_UART] = CSB637_UART_MAP;
-	int i;
-
 	at91rm9200_map_io();
 
 	/* Initialize clocks: 3.6864 MHz crystal */
@@ -70,16 +70,8 @@ static void __init csb637_map_io(void)
 	/* Setup the LEDs */
 	at91_init_leds(AT91_PIN_PB2, AT91_PIN_PB2);
 
-#ifdef CONFIG_SERIAL_AT91
-	at91_console_port = CSB637_SERIAL_CONSOLE;
-	memcpy(at91_serial_map, serial, sizeof(serial));
-
-	/* Register UARTs */
-	for (i = 0; i < AT91_NR_UART; i++) {
-		if (serial[i] >= 0)
-			at91_register_uart(i, serial[i]);
-	}
-#endif
+	/* Setup the serial ports and console */
+	at91_init_serial(&csb637_uart_config);
 }
 
 static struct at91_eth_data __initdata csb637_eth_data = {
@@ -98,12 +90,18 @@ static struct at91_udc_data __initdata csb637_udc_data = {
 
 static void __init csb637_board_init(void)
 {
+	/* Serial */
+	at91_add_device_serial();
 	/* Ethernet */
 	at91_add_device_eth(&csb637_eth_data);
 	/* USB Host */
 	at91_add_device_usbh(&csb637_usbh_data);
 	/* USB Device */
 	at91_add_device_udc(&csb637_udc_data);
+	/* I2C */
+	at91_add_device_i2c();
+	/* SPI */
+	at91_add_device_spi(NULL, 0);
 }
 
 MACHINE_START(CSB637, "Cogent CSB637")
