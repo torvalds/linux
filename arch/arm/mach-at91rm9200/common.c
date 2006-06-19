@@ -17,6 +17,7 @@
 #include <asm/mach/map.h>
 
 #include <asm/arch/hardware.h>
+#include "generic.h"
 
 static struct map_desc at91rm9200_io_desc[] __initdata = {
 	{
@@ -93,6 +94,11 @@ static struct map_desc at91rm9200_io_desc[] __initdata = {
 		.virtual	= AT91_VA_BASE_TCB0,
 		.pfn		= __phys_to_pfn(AT91_BASE_TCB0),
 		.length		= SZ_16K,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= AT91_SRAM_VIRT_BASE,
+		.pfn		= __phys_to_pfn(AT91_SRAM_BASE),
+		.length		= AT91_SRAM_SIZE,
 		.type		= MT_DEVICE,
 	},
 };
