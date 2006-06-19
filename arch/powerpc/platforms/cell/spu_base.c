@@ -522,14 +522,6 @@ int spu_irq_class_1_bottom(struct spu *spu)
 	return ret;
 }
 
-void spu_irq_setaffinity(struct spu *spu, int cpu)
-{
-	u64 target = iic_get_target_id(cpu);
-	u64 route = target << 48 | target << 32 | target << 16;
-	spu_int_route_set(spu, route);
-}
-EXPORT_SYMBOL_GPL(spu_irq_setaffinity);
-
 static int __init find_spu_node_id(struct device_node *spe)
 {
 	unsigned int *id;
