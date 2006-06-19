@@ -404,8 +404,18 @@ config PPC_MAPLE
 	  For more informations, refer to <http://www.970eval.com>
 
 config PPC_CELL
-	bool "Cell Broadband Processor Architecture"
+	bool
+	default n
+
+config PPC_CELL_NATIVE
+	bool
+	select PPC_CELL
+	default n
+
+config PPC_IBM_CELL_BLADE
+	bool "  IBM Cell Blade"
 	depends on PPC_MULTIPLATFORM && PPC64
+	select PPC_CELL_NATIVE
 	select PPC_RTAS
 	select MMIO_NVRAM
 	select PPC_UDBG_16550
@@ -450,11 +460,6 @@ config MMIO_NVRAM
 config MPIC_BROKEN_U3
 	bool
 	depends on PPC_MAPLE
-	default y
-
-config CELL_IIC
-	depends on PPC_CELL
-	bool
 	default y
 
 config IBMVIO
