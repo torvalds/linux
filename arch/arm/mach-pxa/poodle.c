@@ -19,6 +19,7 @@
 #include <linux/platform_device.h>
 #include <linux/fb.h>
 #include <linux/pm.h>
+#include <linux/delay.h>
 
 #include <asm/hardware.h>
 #include <asm/mach-types.h>
@@ -143,7 +144,9 @@ static int poodle_mci_init(struct device *dev, irqreturn_t (*poodle_detect_int)(
 	pxa_gpio_mode(GPIO6_MMCCLK_MD);
 	pxa_gpio_mode(GPIO8_MMCCS0_MD);
 	pxa_gpio_mode(POODLE_GPIO_nSD_DETECT | GPIO_IN);
+	pxa_gpio_mode(POODLE_GPIO_nSD_WP | GPIO_IN);
 	pxa_gpio_mode(POODLE_GPIO_SD_PWR | GPIO_OUT);
+	pxa_gpio_mode(POODLE_GPIO_SD_PWR1 | GPIO_OUT);
 
 	poodle_mci_platform_data.detect_delay = msecs_to_jiffies(250);
 
@@ -162,11 +165,21 @@ static void poodle_mci_setpower(struct device *dev, unsigned int vdd)
 {
 	struct pxamci_platform_data* p_d = dev->platform_data;
 
-	if (( 1 << vdd) & p_d->ocr_mask)
-		GPSR1 = GPIO_bit(POODLE_GPIO_SD_PWR);
-	else
-		GPCR1 = GPIO_bit(POODLE_GPIO_SD_PWR);
+	if (( 1 << vdd) & p_d->ocr_mask) {
+		GPSR(POODLE_GPIO_SD_PWR) = GPIO_bit(POODLE_GPIO_SD_PWR);
+		mdelay(2);
+		GPSR(POODLE_GPIO_SD_PWR1) = GPIO_bit(POODLE_GPIO_SD_PWR1);
+	} else {
+		GPCR(POODLE_GPIO_SD_PWR1) = GPIO_bit(POODLE_GPIO_SD_PWR1);
+		GPCR(POODLE_GPIO_SD_PWR) = GPIO_bit(POODLE_GPIO_SD_PWR);
+	}
 }
+
+static int poodle_mci_get_ro(struct device *dev)
+{
+	return GPLR(POODLE_GPIO_nSD_WP) & GPIO_bit(POODLE_GPIO_nSD_WP);
+}
+
 
 static void poodle_mci_exit(struct device *dev, void *data)
 {
@@ -176,6 +189,7 @@ static void poodle_mci_exit(struct device *dev, void *data)
 static struct pxamci_platform_data poodle_mci_platform_data = {
 	.ocr_mask	= MMC_VDD_32_33|MMC_VDD_33_34,
 	.init 		= poodle_mci_init,
+	.get_ro		= poodle_mci_get_ro,
 	.setpower 	= poodle_mci_setpower,
 	.exit		= poodle_mci_exit,
 };
