@@ -10,8 +10,10 @@ SPU_CC		:= $(SPU_CROSS)gcc
 SPU_AS		:= $(SPU_CROSS)gcc
 SPU_LD		:= $(SPU_CROSS)ld
 SPU_OBJCOPY	:= $(SPU_CROSS)objcopy
-SPU_CFLAGS	:= -O2 -Wall -I$(srctree)/include -I$(objtree)/include2
-SPU_AFLAGS	:= -c -D__ASSEMBLY__ -I$(srctree)/include -I$(objtree)/include2
+SPU_CFLAGS	:= -O2 -Wall -I$(srctree)/include \
+		   -I$(objtree)/include2 -D__KERNEL__
+SPU_AFLAGS	:= -c -D__ASSEMBLY__ -I$(srctree)/include \
+		   -I$(objtree)/include2 -D__KERNEL__
 SPU_LDFLAGS	:= -N -Ttext=0x0
 
 $(obj)/switch.o: $(obj)/spu_save_dump.h $(obj)/spu_restore_dump.h
@@ -48,7 +50,8 @@ cmd_hexdump   = ( \
 		echo " * Hex-dump auto generated from $*.c." ; \
 		echo " * Do not edit!" ; \
 		echo " */" ; \
-		echo "static unsigned int $*_code[] __page_aligned = {" ; \
+		echo "static unsigned int $*_code[] " \
+			"__attribute__((__aligned__(128))) = {" ; \
 		hexdump -v -e '"0x" 4/1 "%02x" "," "\n"' $< ; \
 		echo "};" ; \
 		) > $@
