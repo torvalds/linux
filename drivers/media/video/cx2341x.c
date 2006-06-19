@@ -406,6 +406,12 @@ int cx2341x_ctrl_query(struct cx2341x_mpeg_params *params, struct v4l2_queryctrl
 			qctrl->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 		return err;
 
+	case V4L2_CID_MPEG_VIDEO_BITRATE_MODE:
+		err = v4l2_ctrl_query_fill_std(qctrl);
+		if (err == 0 && params->video_encoding == V4L2_MPEG_VIDEO_ENCODING_MPEG_1)
+			qctrl->flags |= V4L2_CTRL_FLAG_INACTIVE;
+		return err;
+
 	case V4L2_CID_MPEG_VIDEO_BITRATE_PEAK:
 		err = v4l2_ctrl_query_fill_std(qctrl);
 		if (err == 0 && params->video_bitrate_mode == V4L2_MPEG_VIDEO_BITRATE_MODE_CBR)
