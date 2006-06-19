@@ -304,6 +304,10 @@ long spufs_create_thread(struct nameidata *nd,
 	    nd->dentry != nd->dentry->d_sb->s_root)
 		goto out;
 
+	/* all flags are reserved */
+	if (flags)
+		goto out;
+
 	dentry = lookup_create(nd, 1);
 	ret = PTR_ERR(dentry);
 	if (IS_ERR(dentry))
