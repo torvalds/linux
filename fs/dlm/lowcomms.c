@@ -1190,10 +1190,6 @@ int dlm_lowcomms_start(void)
 {
 	int error;
 
-	spin_lock_init(&write_nodes_lock);
-	INIT_LIST_HEAD(&write_nodes);
-	init_rwsem(&nodeinfo_lock);
-
 	error = init_sock();
 	if (error)
 		goto fail_sock;
@@ -1224,6 +1220,9 @@ void dlm_lowcomms_stop(void)
 int dlm_lowcomms_init(void)
 {
 	init_waitqueue_head(&lowcomms_recv_wait);
+	spin_lock_init(&write_nodes_lock);
+	INIT_LIST_HEAD(&write_nodes);
+	init_rwsem(&nodeinfo_lock);
 	return 0;
 }
 
