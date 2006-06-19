@@ -14,4 +14,11 @@ config MACH_NXDB500
 	help
 	  Board support for the Hilscher nxdb500 Eval Board
 
+config MACH_NXEB500HMI
+	bool "Enable Hilscher nxeb500hmi Eval Board support"
+	depends on ARCH_NETX
+	select ARM_AMBA
+	help
+	  Board support for the Hilscher nxeb500hmi Eval Board
+
 endmenu
