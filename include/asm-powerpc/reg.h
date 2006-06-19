@@ -386,6 +386,8 @@
 #define   SRR1_WAKEMT		0x00280000 /* mtctrl */
 #define   SRR1_WAKEDEC		0x00180000 /* Decrementer interrupt */
 #define   SRR1_WAKETHERM	0x00100000 /* Thermal management interrupt */
+#define SPRN_HSRR0	0x13A	/* Save/Restore Register 0 */
+#define SPRN_HSRR1	0x13B	/* Save/Restore Register 1 */
 
 #ifndef SPRN_SVR
 #define SPRN_SVR	0x11E	/* System Version Register */

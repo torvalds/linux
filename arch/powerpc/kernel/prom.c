@@ -2105,3 +2105,46 @@ int prom_update_property(struct device_node *np,
 	return 0;
 }
 
+
+/* Find the device node for a given logical cpu number, also returns the cpu
+ * local thread number (index in ibm,interrupt-server#s) if relevant and
+ * asked for (non NULL)
+ */
+struct device_node *of_get_cpu_node(int cpu, unsigned int *thread)
+{
+	int hardid;
+	struct device_node *np;
+
+	hardid = get_hard_smp_processor_id(cpu);
+
+	for_each_node_by_type(np, "cpu") {
+		u32 *intserv;
+		unsigned int plen, t;
+
+		/* Check for ibm,ppc-interrupt-server#s. If it doesn't exist
+		 * fallback to "reg" property and assume no threads
+		 */
+		intserv = (u32 *)get_property(np, "ibm,ppc-interrupt-server#s",
+					      &plen);
+		if (intserv == NULL) {
+			u32 *reg = (u32 *)get_property(np, "reg", NULL);
+			if (reg == NULL)
+				continue;
+			if (*reg == hardid) {
+				if (thread)
+					*thread = 0;
+				return np;
+			}
+		} else {
+			plen /= sizeof(u32);
+			for (t = 0; t < plen; t++) {
+				if (hardid == intserv[t]) {
+					if (thread)
+						*thread = t;
+					return np;
+				}
+			}
+		}
+	}
+	return NULL;
+}

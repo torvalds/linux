@@ -1,5 +1,6 @@
 obj-y			+= interrupt.o iommu.o setup.o spider-pic.o
-obj-y			+= pervasive.o
+obj-y			+= cbe_regs.o pervasive.o
+obj-$(CONFIG_CBE_RAS)	+= ras.o
 
 obj-$(CONFIG_SMP)	+= smp.o
 obj-$(CONFIG_SPU_FS)	+= spu-base.o spufs/

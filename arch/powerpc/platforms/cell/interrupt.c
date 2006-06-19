@@ -33,29 +33,10 @@
 #include <asm/ptrace.h>
 
 #include "interrupt.h"
-
-struct iic_pending_bits {
-	u32 data;
-	u8 flags;
-	u8 class;
-	u8 source;
-	u8 prio;
-};
-
-enum iic_pending_flags {
-	IIC_VALID = 0x80,
-	IIC_IPI   = 0x40,
-};
-
-struct iic_regs {
-	struct iic_pending_bits pending;
-	struct iic_pending_bits pending_destr;
-	u64 generate;
-	u64 prio;
-};
+#include "cbe_regs.h"
 
 struct iic {
-	struct iic_regs __iomem *regs;
+	struct cbe_iic_thread_regs __iomem *regs;
 	u8 target_id;
 };
 
@@ -115,7 +96,7 @@ static struct hw_interrupt_type iic_pic = {
 	.end = iic_end,
 };
 
-static int iic_external_get_irq(struct iic_pending_bits pending)
+static int iic_external_get_irq(struct cbe_iic_pending_bits pending)
 {
 	int irq;
 	unsigned char node, unit;
@@ -168,15 +149,15 @@ int iic_get_irq(struct pt_regs *regs)
 {
 	struct iic *iic;
 	int irq;
-	struct iic_pending_bits pending;
+	struct cbe_iic_pending_bits pending;
 
 	iic = &__get_cpu_var(iic);
 	*(unsigned long *) &pending = 
 		in_be64((unsigned long __iomem *) &iic->regs->pending_destr);
 
 	irq = -1;
-	if (pending.flags & IIC_VALID) {
-		if (pending.flags & IIC_IPI) {
+	if (pending.flags & CBE_IIC_IRQ_VALID) {
+		if (pending.flags & CBE_IIC_IRQ_IPI) {
 			irq = IIC_IPI_OFFSET + (pending.prio >> 4);
 /*
 			if (irq > 0x80)
@@ -226,7 +207,7 @@ static int setup_iic_hardcoded(void)
 			regs += 0x20;
 
 		printk(KERN_INFO "IIC for CPU %d at %lx\n", cpu, regs);
-		iic->regs = ioremap(regs, sizeof(struct iic_regs));
+		iic->regs = ioremap(regs, sizeof(struct cbe_iic_thread_regs));
 		iic->target_id = (nodeid << 4) + ((cpu & 1) ? 0xf : 0xe);
 	}
 
@@ -267,12 +248,12 @@ static int setup_iic(void)
 		}
 
  		iic = &per_cpu(iic, np[0]);
- 		iic->regs = ioremap(regs[0], sizeof(struct iic_regs));
+ 		iic->regs = ioremap(regs[0], sizeof(struct cbe_iic_thread_regs));
 		iic->target_id = ((np[0] & 2) << 3) + ((np[0] & 1) ? 0xf : 0xe);
  		printk("IIC for CPU %d at %lx mapped to %p\n", np[0], regs[0], iic->regs);
 
  		iic = &per_cpu(iic, np[1]);
- 		iic->regs = ioremap(regs[2], sizeof(struct iic_regs));
+ 		iic->regs = ioremap(regs[2], sizeof(struct cbe_iic_thread_regs));
 		iic->target_id = ((np[1] & 2) << 3) + ((np[1] & 1) ? 0xf : 0xe);
  		printk("IIC for CPU %d at %lx mapped to %p\n", np[1], regs[2], iic->regs);
 

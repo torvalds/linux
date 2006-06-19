@@ -133,6 +133,7 @@ CONFIG_CELL_IIC=y
 #
 CONFIG_SPU_FS=m
 CONFIG_SPUFS_MMAP=y
+CONFIG_CBE_RAS=y
 
 #
 # Kernel options
