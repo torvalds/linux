@@ -870,13 +870,16 @@ e1000_intr_test(struct e1000_adapter *adapter, uint64_t *data)
 	*data = 0;
 
 	/* Hook up test interrupt handler just for this test */
- 	if (!request_irq(irq, &e1000_test_intr, 0, netdev->name, netdev)) {
+	if (!request_irq(irq, &e1000_test_intr, SA_PROBEIRQ, netdev->name,
+	                 netdev)) {
  		shared_int = FALSE;
  	} else if (request_irq(irq, &e1000_test_intr, SA_SHIRQ,
 			      netdev->name, netdev)){
 		*data = 1;
 		return -1;
 	}
+	DPRINTK(PROBE,INFO, "testing %s interrupt\n",
+	        (shared_int ? "shared" : "unshared"));
 
 	/* Disable all the interrupts */
 	E1000_WRITE_REG(&adapter->hw, IMC, 0xFFFFFFFF);
