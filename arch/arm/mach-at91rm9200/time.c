@@ -31,6 +31,8 @@
 #include <asm/irq.h>
 #include <asm/mach/time.h>
 
+static unsigned long last_crtr;
+
 /*
  * The ST_CRTR is updated asynchronously to the master clock.  It is therefore
  *  necessary to read it twice (with the same value) to ensure accuracy.
@@ -56,7 +58,7 @@ static unsigned long at91rm9200_gettimeoffset(void)
 {
 	unsigned long elapsed;
 
-	elapsed = (read_CRTR() - at91_sys_read(AT91_ST_RTAR)) & AT91_ST_ALMV;
+	elapsed = (read_CRTR() - last_crtr) & AT91_ST_ALMV;
 
 	return (unsigned long)(elapsed * (tick_nsec / 1000)) / LATCH;
 }
@@ -66,15 +68,12 @@ static unsigned long at91rm9200_gettimeoffset(void)
  */
 static irqreturn_t at91rm9200_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
-	unsigned long rtar;
-
 	if (at91_sys_read(AT91_ST_SR) & AT91_ST_PITS) {	/* This is a shared interrupt */
 		write_seqlock(&xtime_lock);
 
-		while (((read_CRTR() - at91_sys_read(AT91_ST_RTAR)) & AT91_ST_ALMV) >= LATCH) {
+		while (((read_CRTR() - last_crtr) & AT91_ST_ALMV) >= LATCH) {
 			timer_tick(regs);
-			rtar = (at91_sys_read(AT91_ST_RTAR) + LATCH) & AT91_ST_ALMV;
-			at91_sys_write(AT91_ST_RTAR, rtar);
+			last_crtr = (last_crtr + LATCH) & AT91_ST_ALMV;
 		}
 
 		write_sequnlock(&xtime_lock);
@@ -87,7 +86,7 @@ static irqreturn_t at91rm9200_timer_interrupt(int irq, void *dev_id, struct pt_r
 
 static struct irqaction at91rm9200_timer_irq = {
 	.name		= "at91_tick",
-	.flags		= SA_SHIRQ | SA_INTERRUPT,
+	.flags		= SA_SHIRQ | SA_INTERRUPT | SA_TIMER,
 	.handler	= at91rm9200_timer_interrupt
 };
 
