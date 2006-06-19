@@ -467,11 +467,11 @@ static void databuf_lo_add(struct gfs2_sbd *sdp, struct gfs2_log_element *le)
 	if (!list_empty(&bd->bd_list_tr) &&
 	    (ip->i_di.di_flags & GFS2_DIF_JDATA)) {
 		tr->tr_num_buf++;
-		gfs2_trans_add_gl(bd->bd_gl);
 		list_add(&bd->bd_list_tr, &tr->tr_list_buf);
 		gfs2_pin(sdp, bd->bd_bh);
 		tr->tr_num_buf_new++;
 	}
+	gfs2_trans_add_gl(bd->bd_gl);
 	gfs2_log_lock(sdp);
 	if (!list_empty(&le->le_list)) {
 		if (ip->i_di.di_flags & GFS2_DIF_JDATA)
