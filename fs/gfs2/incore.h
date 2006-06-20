@@ -157,7 +157,7 @@ struct gfs2_holder {
 	unsigned gh_flags;
 
 	int gh_error;
-	unsigned gh_iflags;
+	unsigned long gh_iflags;
 	struct completion gh_wait;
 	unsigned long gh_ip;
 };
