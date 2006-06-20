@@ -367,6 +367,7 @@ extern int intelfb_var_to_depth(const struct fb_var_screeninfo *var);
 
 #ifdef CONFIG_FB_INTEL_I2C
 extern void intelfb_create_i2c_busses(struct intelfb_info *dinfo);
+extern void intelfb_delete_i2c_busses(struct intelfb_info *dinfo);
 #endif
 
 #endif /* _INTELFB_H */

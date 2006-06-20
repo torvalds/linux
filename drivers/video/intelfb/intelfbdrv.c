@@ -474,6 +474,11 @@ cleanup(struct intelfb_info *dinfo)
 		agp_free_memory(dinfo->gtt_ring_mem);
 	}
 
+#ifdef CONFIG_FB_INTEL_I2C
+	/* un-register I2C bus */
+	intelfb_delete_i2c_busses(dinfo);
+#endif
+
 	if (dinfo->mmio_base)
 		iounmap((void __iomem *)dinfo->mmio_base);
 	if (dinfo->aperture.virtual)

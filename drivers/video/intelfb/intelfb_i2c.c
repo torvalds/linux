@@ -182,3 +182,19 @@ void intelfb_create_i2c_busses(struct intelfb_info *dinfo)
 	}
 	dinfo->num_outputs = i;
 }
+
+void intelfb_delete_i2c_busses(struct intelfb_info *dinfo)
+{
+	int i;
+
+	for (i = 0; i < MAX_OUTPUTS; i++) {
+		if (dinfo->output[i].i2c_bus.dinfo) {
+			i2c_bit_del_bus(&dinfo->output[i].i2c_bus.adapter);
+			dinfo->output[i].i2c_bus.dinfo = NULL;
+		}
+		if (dinfo->output[i].ddc_bus.dinfo) {
+			i2c_bit_del_bus(&dinfo->output[i].ddc_bus.adapter);
+			dinfo->output[i].ddc_bus.dinfo = NULL;
+		}
+	}
+}
