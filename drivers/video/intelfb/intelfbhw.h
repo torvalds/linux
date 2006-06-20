@@ -468,8 +468,11 @@
 
 /* I/O macros */
 #define INREG8(addr)	      readb((u8 __iomem *)(dinfo->mmio_base + (addr)))
+#define INREG16(addr)	      readw((u16 __iomem *)(dinfo->mmio_base + (addr)))
 #define INREG(addr)	      readl((u32 __iomem *)(dinfo->mmio_base + (addr)))
 #define OUTREG8(addr, val)    writeb((val),(u8 __iomem *)(dinfo->mmio_base + \
+							   (addr)))
+#define OUTREG16(addr, val)    writew((val),(u16 __iomem *)(dinfo->mmio_base + \
 							   (addr)))
 #define OUTREG(addr, val)     writel((val),(u32 __iomem *)(dinfo->mmio_base + \
                                      (addr)))
