@@ -62,9 +62,6 @@ void gt64120_init_pic(void)
 
 void __init arch_init_irq(void)
 {
-	/* enable all CPU interrupt bits. */
-	set_c0_status(ST0_IM);	/* IE bit is still 0 */
-
 	/* IRQ 0 - 7 are for MIPS common irq_cpu controller */
 	mips_cpu_irq_init(0);
 
