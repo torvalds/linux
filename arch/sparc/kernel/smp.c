@@ -267,27 +267,41 @@ int setup_profiling_timer(unsigned int multiplier)
 void __init smp_prepare_cpus(unsigned int max_cpus)
 {
 	extern void smp4m_boot_cpus(void);
-	int i, cpuid, ncpus, extra;
+	int i, cpuid, extra;
 
 	BUG_ON(sparc_cpu_model != sun4m);
 	printk("Entering SMP Mode...\n");
 
-	ncpus = 1;
 	extra = 0;
 	for (i = 0; !cpu_find_by_instance(i, NULL, &cpuid); i++) {
-		if (cpuid == boot_cpu_id)
-			continue;
-		if (cpuid < NR_CPUS && ncpus++ < max_cpus)
-			cpu_set(cpuid, phys_cpu_present_map);
-		else
+		if (cpuid >= NR_CPUS)
 			extra++;
 	}
-	if (max_cpus >= NR_CPUS && extra)
+	/* i = number of cpus */
+	if (extra && max_cpus > i - extra)
 		printk("Warning: NR_CPUS is too low to start all cpus\n");
 
 	smp_store_cpu_info(boot_cpu_id);
 
 	smp4m_boot_cpus();
+}
+
+/* Set this up early so that things like the scheduler can init
+ * properly.  We use the same cpu mask for both the present and
+ * possible cpu map.
+ */
+void __init smp_setup_cpu_possible_map(void)
+{
+	int instance, mid;
+
+	instance = 0;
+	while (!cpu_find_by_instance(instance, NULL, &mid)) {
+		if (mid < NR_CPUS) {
+			cpu_set(mid, phys_cpu_present_map);
+			cpu_set(mid, cpu_present_map);
+		}
+		instance++;
+	}
 }
 
 void __devinit smp_prepare_boot_cpu(void)

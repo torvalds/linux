@@ -146,6 +146,8 @@ static inline int hard_smp_processor_id(void)
 #define prof_multiplier(__cpu)		cpu_data(__cpu).multiplier
 #define prof_counter(__cpu)		cpu_data(__cpu).counter
 
+void smp_setup_cpu_possible_map(void);
+
 #endif /* !(__ASSEMBLY__) */
 
 /* Sparc specific messages. */
@@ -162,7 +164,11 @@ static inline int hard_smp_processor_id(void)
 #define MBOX_IDLECPU2         0xFD
 #define MBOX_STOPCPU2         0xFE
 
-#endif /* SMP */
+#else /* SMP */
+
+#define smp_setup_cpu_possible_map() do { } while (0)
+
+#endif /* !(SMP) */
 
 #define NO_PROC_ID            0xFF
 
