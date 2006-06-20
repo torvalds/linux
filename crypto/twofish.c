@@ -181,6 +181,8 @@ static void twofish_decrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 
 static struct crypto_alg alg = {
 	.cra_name           =   "twofish",
+	.cra_driver_name    =   "twofish-generic",
+	.cra_priority       =   100,
 	.cra_flags          =   CRYPTO_ALG_TYPE_CIPHER,
 	.cra_blocksize      =   TF_BLOCK_SIZE,
 	.cra_ctxsize        =   sizeof(struct twofish_ctx),
