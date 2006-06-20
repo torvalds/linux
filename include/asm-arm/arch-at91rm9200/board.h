@@ -31,13 +31,6 @@
 #ifndef __ASM_ARCH_BOARD_H
 #define __ASM_ARCH_BOARD_H
 
- /* Clocks */
-extern unsigned long at91_master_clock;
-
- /* Serial Port */
-extern int at91_serial_map[AT91_NR_UART];
-extern int at91_console_port;
-
 #include <linux/mtd/partitions.h>
 #include <linux/device.h>
 #include <linux/spi/spi.h>

@@ -108,14 +108,3 @@ void __init at91rm9200_map_io(void)
 	iotable_init(at91rm9200_io_desc, ARRAY_SIZE(at91rm9200_io_desc));
 }
 
-
-unsigned long at91_master_clock;
-
-EXPORT_SYMBOL(at91_master_clock);
-
-
-int at91_serial_map[AT91_NR_UART];
-int at91_console_port;
-
-EXPORT_SYMBOL(at91_serial_map);
-EXPORT_SYMBOL(at91_console_port);
