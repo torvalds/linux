@@ -34,7 +34,7 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <asm/arch/hardware.h>
+#include <asm/hardware.h>
 #include <asm/arch/board.h>
 #include <asm/arch/gpio.h>
 

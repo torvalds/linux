@@ -24,7 +24,7 @@
 #include <linux/amba/clcd.h>
 
 #include <asm/arch/netx-regs.h>
-#include <asm/arch/hardware.h>
+#include <asm/hardware.h>
 
 struct clk {};
 

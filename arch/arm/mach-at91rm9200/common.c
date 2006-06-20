@@ -16,7 +16,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <asm/arch/hardware.h>
+#include <asm/hardware.h>
 #include "generic.h"
 
 static struct map_desc at91rm9200_io_desc[] __initdata = {

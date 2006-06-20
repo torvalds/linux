@@ -27,7 +27,7 @@
 #include <asm/io.h>
 #include <asm/mach-types.h>
 
-#include <asm/arch/hardware.h>
+#include <asm/hardware.h>
 
 #include "generic.h"
 
