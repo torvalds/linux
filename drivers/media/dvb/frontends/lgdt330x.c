@@ -674,6 +674,7 @@ static int lgdt3303_read_snr(struct dvb_frontend* fe, u16* snr)
 
 	if (state->current_modulation == VSB_8) {
 
+		i2c_read_demod_bytes(state, 0x6e, buf, 5);
 		/* Phase Tracker Mean-Square Error Register for VSB */
 		noise = ((buf[0] & 7) << 16) | (buf[3] << 8) | buf[4];
 	} else {
