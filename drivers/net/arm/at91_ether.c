@@ -660,6 +660,22 @@ static struct ethtool_ops at91ether_ethtool_ops = {
 	.get_link	= ethtool_op_get_link,
 };
 
+static int at91ether_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
+{
+	struct at91_private *lp = (struct at91_private *) dev->priv;
+	int res;
+
+	if (!netif_running(dev))
+		return -EINVAL;
+
+	spin_lock_irq(&lp->lock);
+	enable_mdi();
+	res = generic_mii_ioctl(&lp->mii, if_mii(rq), cmd, NULL);
+	disable_mdi();
+	spin_unlock_irq(&lp->lock);
+
+	return res;
+}
 
 /* ................................ MAC ................................ */
 
@@ -963,6 +979,7 @@ static int __init at91ether_setup(unsigned long phy_type, unsigned short phy_add
 	dev->set_multicast_list = at91ether_set_rx_mode;
 	dev->set_mac_address = set_mac_address;
 	dev->ethtool_ops = &at91ether_ethtool_ops;
+	dev->do_ioctl = at91ether_ioctl;
 
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
@@ -993,6 +1010,9 @@ static int __init at91ether_setup(unsigned long phy_type, unsigned short phy_add
 	lp->mii.dev = dev;		/* Support for ethtool */
 	lp->mii.mdio_read = mdio_read;
 	lp->mii.mdio_write = mdio_write;
+	lp->mii.phy_id = phy_address;
+	lp->mii.phy_id_mask = 0x1f;
+	lp->mii.reg_num_mask = 0x1f;
 
 	lp->phy_type = phy_type;	/* Type of PHY connected */
 	lp->phy_address = phy_address;	/* MDI address of PHY */
