@@ -41,7 +41,6 @@ static struct gatt_mask ati_generic_masks[] =
 };
 
 
-
 typedef struct _ati_page_map {
 	unsigned long *real;
 	unsigned long __iomem *remapped;
@@ -141,7 +140,8 @@ static int ati_create_gatt_pages(int nr_tables)
 	ati_generic_private.num_tables = nr_tables;
 	ati_generic_private.gatt_pages = tables;
 
-	if (retval != 0) ati_free_gatt_pages();
+	if (retval != 0)
+		ati_free_gatt_pages();
 
 	return retval;
 }
@@ -219,16 +219,16 @@ static int ati_configure(void)
 	ati_generic_private.registers = (volatile u8 __iomem *) ioremap(temp, 4096);
 
 	if (is_r200())
-       	pci_write_config_dword(agp_bridge->dev, ATI_RS100_IG_AGPMODE, 0x20000);
+		pci_write_config_dword(agp_bridge->dev, ATI_RS100_IG_AGPMODE, 0x20000);
 	else
 		pci_write_config_dword(agp_bridge->dev, ATI_RS300_IG_AGPMODE, 0x20000);
 
 	/* address to map too */
-        /*
+	/*
 	pci_read_config_dword(agp_bridge.dev, AGP_APBASE, &temp);
 	agp_bridge.gart_bus_addr = (temp & PCI_BASE_ADDRESS_MEM_MASK);
 	printk(KERN_INFO PFX "IGP320 gart_bus_addr: %x\n", agp_bridge.gart_bus_addr);
-        */
+	*/
 	writel(0x60000, ati_generic_private.registers+ATI_GART_FEATURE_ID);
 	readl(ati_generic_private.registers+ATI_GART_FEATURE_ID);	/* PCI Posting.*/
 
@@ -321,9 +321,9 @@ static int ati_remove_memory(struct agp_memory * mem, off_t pg_start,
 	unsigned long __iomem *cur_gatt;
 	unsigned long addr;
 
-	if (type != 0 || mem->type != 0) {
+	if (type != 0 || mem->type != 0)
 		return -EINVAL;
-	}
+
 	for (i = pg_start; i < (mem->page_count + pg_start); i++) {
 		addr = (i * PAGE_SIZE) + agp_bridge->gart_bus_addr;
 		cur_gatt = GET_GATT(addr);
@@ -502,9 +502,8 @@ found:
 
 	bridge->dev = pdev;
 	bridge->capndx = cap_ptr;
-	
-	bridge->driver = &ati_generic_bridge;
 
+	bridge->driver = &ati_generic_bridge;
 
 	printk(KERN_INFO PFX "Detected Ati %s chipset\n",
 			devs[j].chipset_name);
