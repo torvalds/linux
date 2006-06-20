@@ -1254,7 +1254,7 @@ config CPU_R6000
 	select CPU_SUPPORTS_32BIT_KERNEL
 	help
 	  MIPS Technologies R6000 and R6000A series processors.  Note these
-	  processors are extremly rare and the support for them is incomplete.
+	  processors are extremely rare and the support for them is incomplete.
 
 config CPU_NEVADA
 	bool "RM52xx"
@@ -1375,7 +1375,7 @@ config SYS_HAS_CPU_SB1
 endmenu
 
 #
-# These two indicate any levelof the MIPS32 and MIPS64 architecture
+# These two indicate any level of the MIPS32 and MIPS64 architecture
 #
 config CPU_MIPS32
 	bool
@@ -1386,7 +1386,7 @@ config CPU_MIPS64
 	default y if CPU_MIPS64_R1 || CPU_MIPS64_R2
 
 #
-# These two indicate the revision of the architecture, either 32 bot 64 bit.
+# These two indicate the revision of the architecture, either Release 1 or Release 2
 #
 config CPU_MIPSR1
 	bool
