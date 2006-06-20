@@ -245,18 +245,20 @@ static int ati_configure(void)
 
 
 #ifdef CONFIG_PM
-static int agp_ati_resume(struct pci_dev *dev)
-{
-	pci_restore_state(dev);
-
-	return ati_configure();
-}
-
 static int agp_ati_suspend(struct pci_dev *dev, pm_message_t state)
 {
 	pci_save_state(dev);
+	pci_set_power_state (pdev, 3);
 
 	return 0;
+}
+
+static int agp_ati_resume(struct pci_dev *dev)
+{
+	pci_set_power_state (pdev, 0);
+	pci_restore_state(dev);
+
+	return ati_configure();
 }
 #endif
 
@@ -545,8 +547,8 @@ static struct pci_driver agp_ati_pci_driver = {
 	.probe		= agp_ati_probe,
 	.remove		= agp_ati_remove,
 #ifdef CONFIG_PM
-	.resume		= agp_ati_resume,
 	.suspend	= agp_ati_suspend,
+	.resume		= agp_ati_resume,
 #endif
 };
 
