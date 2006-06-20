@@ -95,6 +95,7 @@ extern struct sbus_bus *sbus_root;
 #define sbus_can_dma_64bit(sdev)	(1)
 #define sbus_can_burst64(sdev)		(1)
 extern void sbus_set_sbus64(struct sbus_dev *, int);
+extern void sbus_fill_device_irq(struct sbus_dev *);
 
 /* These yield IOMMU mappings in consistent mode. */
 extern void *sbus_alloc_consistent(struct sbus_dev *, size_t, dma_addr_t *dma_addrp);

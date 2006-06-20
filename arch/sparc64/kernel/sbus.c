@@ -1225,3 +1225,24 @@ void __init sbus_iommu_init(int prom_node, struct sbus_bus *sbus)
 
 	sysio_register_error_handlers(sbus);
 }
+
+void sbus_fill_device_irq(struct sbus_dev *sdev)
+{
+	struct linux_prom_irqs irqs[PROMINTR_MAX];
+	int len;
+
+	len = prom_getproperty(sdev->prom_node, "interrupts",
+			       (char *) irqs, sizeof(irqs));
+	if (len == -1 || len == 0) {
+		sdev->irqs[0] = 0;
+		sdev->num_irqs = 0;
+	} else {
+		unsigned int pri = irqs[0].pri;
+
+		sdev->num_irqs = 1;
+		if (pri < 0x20)
+			pri += sdev->slot * 8;
+
+		sdev->irqs[0] =	sbus_build_irq(sdev->bus, pri);
+	}
+}

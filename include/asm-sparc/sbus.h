@@ -102,6 +102,7 @@ sbus_is_slave(struct sbus_dev *dev)
 #define sbus_can_dma_64bit(sdev)	(0) /* actually, sparc_cpu_model==sun4d */
 #define sbus_can_burst64(sdev)		(0) /* actually, sparc_cpu_model==sun4d */
 extern void sbus_set_sbus64(struct sbus_dev *, int);
+extern void sbus_fill_device_irq(struct sbus_dev *);
 
 /* These yield IOMMU mappings in consistent mode. */
 extern void *sbus_alloc_consistent(struct sbus_dev *, long, u32 *dma_addrp);

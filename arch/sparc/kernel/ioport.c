@@ -224,8 +224,52 @@ static void _sparc_free_io(struct resource *res)
 
 #ifdef CONFIG_SBUS
 
-void sbus_set_sbus64(struct sbus_dev *sdev, int x) {
+void sbus_set_sbus64(struct sbus_dev *sdev, int x)
+{
 	printk("sbus_set_sbus64: unsupported\n");
+}
+
+extern unsigned int sun4d_build_irq(struct sbus_dev *sdev, int irq);
+void __init sbus_fill_device_irq(struct sbus_dev *sdev)
+{
+	struct linux_prom_irqs irqs[PROMINTR_MAX];
+	int len;
+
+	len = prom_getproperty(sdev->prom_node, "intr",
+			       (char *)irqs, sizeof(irqs));
+	if (len != -1) {
+		sdev->num_irqs = len / 8;
+		if (sdev->num_irqs == 0) {
+			sdev->irqs[0] = 0;
+		} else if (sparc_cpu_model == sun4d) {
+			for (len = 0; len < sdev->num_irqs; len++)
+				sdev->irqs[len] =
+					sun4d_build_irq(sdev, irqs[len].pri);
+		} else {
+			for (len = 0; len < sdev->num_irqs; len++)
+				sdev->irqs[len] = irqs[len].pri;
+		}
+	} else {
+		int interrupts[PROMINTR_MAX];
+
+		/* No "intr" node found-- check for "interrupts" node.
+		 * This node contains SBus interrupt levels, not IPLs
+		 * as in "intr", and no vector values.  We convert
+		 * SBus interrupt levels to PILs (platform specific).
+		 */
+		len = prom_getproperty(sdev->prom_node, "interrupts",
+				       (char *)interrupts, sizeof(interrupts));
+		if (len == -1) {
+			sdev->irqs[0] = 0;
+			sdev->num_irqs = 0;
+		} else {
+			sdev->num_irqs = len / sizeof(int);
+			for (len = 0; len < sdev->num_irqs; len++) {
+				sdev->irqs[len] =
+					sbint_to_irq(sdev, interrupts[len]);
+			}
+		}
+	} 
 }
 
 /*

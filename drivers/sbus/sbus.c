@@ -1,7 +1,6 @@
-/* $Id: sbus.c,v 1.100 2002/01/24 15:36:24 davem Exp $
- * sbus.c:  SBus support routines.
+/* sbus.c: SBus support routines.
  *
- * Copyright (C) 1995 David S. Miller (davem@caip.rutgers.edu)
+ * Copyright (C) 1995, 2006 David S. Miller (davem@davemloft.net)
  */
 
 #include <linux/kernel.h>
@@ -17,28 +16,11 @@
 #include <asm/bpp.h>
 #include <asm/irq.h>
 
-struct sbus_bus *sbus_root = NULL;
-
-static struct linux_prom_irqs irqs[PROMINTR_MAX] __initdata = { { 0 } };
-#ifdef CONFIG_SPARC32
-static int interrupts[PROMINTR_MAX] __initdata = { 0 };
-#endif
+struct sbus_bus *sbus_root;
 
 #ifdef CONFIG_PCI
 extern int pcic_present(void);
 #endif
-
-/* Perhaps when I figure out more about the iommu we'll put a
- * device registration routine here that probe_sbus() calls to
- * setup the iommu for each Sbus.
- */
-
-/* We call this for each SBus device, and fill the structure based
- * upon the prom device tree.  We return the start of memory after
- * the things we have allocated.
- */
-
-/* #define DEBUG_FILL */
 
 static void __init fill_sbus_device(int prom_node, struct sbus_dev *sdev)
 {
@@ -52,117 +34,30 @@ static void __init fill_sbus_device(int prom_node, struct sbus_dev *sdev)
 	len = prom_getproperty(prom_node, "reg",
 			       (char *) sdev->reg_addrs,
 			       sizeof(sdev->reg_addrs));
-	if (len == -1) {
-		sdev->num_registers = 0;
-		goto no_regs;
+	sdev->num_registers = 0;
+	if (len != -1) {
+		sdev->num_registers =
+			len / sizeof(struct linux_prom_registers);
+		sdev->ranges_applied = 0;
+
+		base = (unsigned long) sdev->reg_addrs[0].phys_addr;
+
+		/* Compute the slot number. */
+		if (base >= SUN_SBUS_BVADDR && sparc_cpu_model == sun4m)
+			sdev->slot = sbus_dev_slot(base);
+		else
+			sdev->slot = sdev->reg_addrs[0].which_io;
 	}
 
-	if (len % sizeof(struct linux_prom_registers)) {
-		prom_printf("fill_sbus_device: proplen for regs of %s "
-			    " was %d, need multiple of %d\n",
-			    sdev->prom_name, len,
-			    (int) sizeof(struct linux_prom_registers));
-		prom_halt();
-	}
-	if (len > (sizeof(struct linux_prom_registers) * PROMREG_MAX)) {
-		prom_printf("fill_sbus_device: Too many register properties "
-			    "for device %s, len=%d\n",
-			    sdev->prom_name, len);
-		prom_halt();
-	}
-	sdev->num_registers = len / sizeof(struct linux_prom_registers);
-	sdev->ranges_applied = 0;
-
-	base = (unsigned long) sdev->reg_addrs[0].phys_addr;
-
-	/* Compute the slot number. */
-	if (base >= SUN_SBUS_BVADDR && sparc_cpu_model == sun4m) {
-		sdev->slot = sbus_dev_slot(base);
-	} else {
-		sdev->slot = sdev->reg_addrs[0].which_io;
-	}
-
-no_regs:
 	len = prom_getproperty(prom_node, "ranges",
 			       (char *)sdev->device_ranges,
 			       sizeof(sdev->device_ranges));
-	if (len == -1) {
-		sdev->num_device_ranges = 0;
-		goto no_ranges;
-	}
-	if (len % sizeof(struct linux_prom_ranges)) {
-		prom_printf("fill_sbus_device: proplen for ranges of %s "
-			    " was %d, need multiple of %d\n",
-			    sdev->prom_name, len,
-			    (int) sizeof(struct linux_prom_ranges));
-		prom_halt();
-	}
-	if (len > (sizeof(struct linux_prom_ranges) * PROMREG_MAX)) {
-		prom_printf("fill_sbus_device: Too many range properties "
-			    "for device %s, len=%d\n",
-			    sdev->prom_name, len);
-		prom_halt();
-	}
-	sdev->num_device_ranges =
-		len / sizeof(struct linux_prom_ranges);
+	sdev->num_device_ranges = 0;
+	if (len != -1)
+		sdev->num_device_ranges =
+			len / sizeof(struct linux_prom_ranges);
 
-no_ranges:
-	/* XXX Unfortunately, IRQ issues are very arch specific.
-	 * XXX Pull this crud out into an arch specific area
-	 * XXX at some point. -DaveM
-	 */
-#ifdef CONFIG_SPARC64
-	len = prom_getproperty(prom_node, "interrupts",
-			       (char *) irqs, sizeof(irqs));
-	if (len == -1 || len == 0) {
-		sdev->irqs[0] = 0;
-		sdev->num_irqs = 0;
-	} else {
-		unsigned int pri = irqs[0].pri;
-
-		sdev->num_irqs = 1;
-		if (pri < 0x20)
-			pri += sdev->slot * 8;
-
-		sdev->irqs[0] =	sbus_build_irq(sdev->bus, pri);
-	}
-#endif /* CONFIG_SPARC64 */
-
-#ifdef CONFIG_SPARC32
-	len = prom_getproperty(prom_node, "intr",
-			       (char *)irqs, sizeof(irqs));
-	if (len != -1) {
-		sdev->num_irqs = len / 8;
-		if (sdev->num_irqs == 0) {
-			sdev->irqs[0] = 0;
-		} else if (sparc_cpu_model == sun4d) {
-			extern unsigned int sun4d_build_irq(struct sbus_dev *sdev, int irq);
-
-			for (len = 0; len < sdev->num_irqs; len++)
-				sdev->irqs[len] = sun4d_build_irq(sdev, irqs[len].pri);
-		} else {
-			for (len = 0; len < sdev->num_irqs; len++)
-				sdev->irqs[len] = irqs[len].pri;
-		}
-	} else {
-		/* No "intr" node found-- check for "interrupts" node.
-		 * This node contains SBus interrupt levels, not IPLs
-		 * as in "intr", and no vector values.  We convert 
-		 * SBus interrupt levels to PILs (platform specific).
-		 */
-		len = prom_getproperty(prom_node, "interrupts", 
-					(char *)interrupts, sizeof(interrupts));
-		if (len == -1) {
-			sdev->irqs[0] = 0;
-			sdev->num_irqs = 0;
-		} else {
-			sdev->num_irqs = len / sizeof(int);
-			for (len = 0; len < sdev->num_irqs; len++) {
-				sdev->irqs[len] = sbint_to_irq(sdev, interrupts[len]);
-			}
-		}
-	} 
-#endif /* CONFIG_SPARC32 */
+	sbus_fill_device_irq(sdev);
 }
 
 /* This routine gets called from whoever needs the sbus first, to scan
