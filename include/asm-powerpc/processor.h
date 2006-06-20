@@ -190,7 +190,7 @@ struct thread_struct {
 	.fs = KERNEL_DS, \
 	.fpr = {0}, \
 	.fpscr = { .val = 0, }, \
-	.fpexc_mode = MSR_FE0|MSR_FE1, \
+	.fpexc_mode = 0, \
 }
 #endif
 
