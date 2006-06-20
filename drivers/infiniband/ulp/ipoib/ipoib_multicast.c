@@ -821,7 +821,8 @@ void ipoib_mcast_restart_task(void *dev_ptr)
 
 	ipoib_mcast_stop_thread(dev, 0);
 
-	spin_lock_irqsave(&dev->xmit_lock, flags);
+	local_irq_save(flags);
+	netif_tx_lock(dev);
 	spin_lock(&priv->lock);
 
 	/*
@@ -896,7 +897,8 @@ void ipoib_mcast_restart_task(void *dev_ptr)
 	}
 
 	spin_unlock(&priv->lock);
-	spin_unlock_irqrestore(&dev->xmit_lock, flags);
+	netif_tx_unlock(dev);
+	local_irq_restore(flags);
 
 	/* We have to cancel outside of the spinlock */
 	list_for_each_entry_safe(mcast, tmcast, &remove_list, list) {

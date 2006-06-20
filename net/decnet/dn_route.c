@@ -629,8 +629,7 @@ int dn_route_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type
 			padlen);
 
         if (flags & DN_RT_PKT_CNTL) {
-		if (unlikely(skb_is_nonlinear(skb)) &&
-		    skb_linearize(skb, GFP_ATOMIC) != 0)
+		if (unlikely(skb_linearize(skb)))
 			goto dump_it;
 
                 switch(flags & DN_RT_CNTL_MSK) {

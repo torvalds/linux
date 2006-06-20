@@ -101,8 +101,7 @@ match(const struct sk_buff *skb,
       unsigned int protoff,
       int *hotdrop)
 {
-	const struct xt_dccp_info *info = 
-				(const struct xt_dccp_info *)matchinfo;
+	const struct xt_dccp_info *info = matchinfo;
 	struct dccp_hdr _dh, *dh;
 
 	if (offset)

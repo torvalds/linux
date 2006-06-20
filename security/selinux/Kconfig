@@ -1,6 +1,7 @@
 config SECURITY_SELINUX
 	bool "NSA SELinux Support"
 	depends on SECURITY_NETWORK && AUDIT && NET && INET
+	select NETWORK_SECMARK
 	default n
 	help
 	  This selects NSA Security-Enhanced Linux (SELinux).
@@ -95,3 +96,31 @@ config SECURITY_SELINUX_CHECKREQPROT_VALUE
 	  via /selinux/checkreqprot if authorized by policy.
 
 	  If you are unsure how to answer this question, answer 1.
+
+config SECURITY_SELINUX_ENABLE_SECMARK_DEFAULT
+	bool "NSA SELinux enable new secmark network controls by default"
+	depends on SECURITY_SELINUX
+	default n
+	help
+	  This option determines whether the new secmark-based network
+	  controls will be enabled by default.  If not, the old internal
+	  per-packet controls will be enabled by default, preserving
+	  old behavior.
+
+	  If you enable the new controls, you will need updated
+	  SELinux userspace libraries, tools and policy.  Typically,
+	  your distribution will provide these and enable the new controls
+	  in the kernel they also distribute.
+
+	  Note that this option can be overriden at boot with the
+	  selinux_compat_net parameter, and after boot via
+	  /selinux/compat_net.  See Documentation/kernel-parameters.txt
+	  for details on this parameter.
+
+	  If you enable the new network controls, you will likely
+	  also require the SECMARK and CONNSECMARK targets, as
+	  well as any conntrack helpers for protocols which you
+	  wish to control.
+
+	  If you are unsure what do do here, select N.
+

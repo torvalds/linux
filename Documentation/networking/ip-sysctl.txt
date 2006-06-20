@@ -362,6 +362,13 @@ tcp_workaround_signed_windows - BOOLEAN
 	not receive a window scaling option from them.
 	Default: 0
 
+tcp_slow_start_after_idle - BOOLEAN
+	If set, provide RFC2861 behavior and time out the congestion
+	window after an idle period.  An idle period is defined at
+	the current RTO.  If unset, the congestion window will not
+	be timed out after an idle period.
+	Default: 1
+
 IP Variables:
 
 ip_local_port_range - 2 INTEGERS

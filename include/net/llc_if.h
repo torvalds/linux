@@ -16,6 +16,7 @@
 #include <linux/if.h>
 #include <linux/if_arp.h>
 #include <linux/llc.h>
+#include <linux/etherdevice.h>
 #include <net/llc.h>
 
 #define LLC_DATAUNIT_PRIM	1
@@ -61,8 +62,6 @@
 #define LLC_STATUS_CONFLICT	7 /* disconnect conn */
 #define LLC_STATUS_RESET_DONE	8 /*  */
 
-extern u8 llc_mac_null_var[IFHWADDRLEN];
-
 /**
  *      llc_mac_null - determines if a address is a null mac address
  *      @mac: Mac address to test if null.
@@ -70,16 +69,20 @@ extern u8 llc_mac_null_var[IFHWADDRLEN];
  *      Determines if a given address is a null mac address.  Returns 0 if the
  *      address is not a null mac, 1 if the address is a null mac.
  */
-static __inline__ int llc_mac_null(u8 *mac)
+static inline int llc_mac_null(const u8 *mac)
 {
-	return !memcmp(mac, llc_mac_null_var, IFHWADDRLEN);
+	return is_zero_ether_addr(mac);
 }
 
-static __inline__ int llc_addrany(struct llc_addr *addr)
+static inline int llc_addrany(const struct llc_addr *addr)
 {
 	return llc_mac_null(addr->mac) && !addr->lsap;
 }
 
+static inline int llc_mac_multicast(const u8 *mac)
+{
+	return is_multicast_ether_addr(mac);
+}
 /**
  *	llc_mac_match - determines if two mac addresses are the same
  *	@mac1: First mac address to compare.
@@ -89,9 +92,9 @@ static __inline__ int llc_addrany(struct llc_addr *addr)
  *	is not a complete match up to len, 1 if a complete match up to len is
  *	found.
  */
-static __inline__ int llc_mac_match(u8 *mac1, u8 *mac2)
+static inline int llc_mac_match(const u8 *mac1, const u8 *mac2)
 {
-	return !memcmp(mac1, mac2, IFHWADDRLEN);
+	return !compare_ether_addr(mac1, mac2);
 }
 
 extern int llc_establish_connection(struct sock *sk, u8 *lmac,

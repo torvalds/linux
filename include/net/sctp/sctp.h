@@ -255,7 +255,7 @@ extern int sctp_debug_flag;
 #define SCTP_DEBUG_PRINTK_IPADDR(whatever...)
 #define SCTP_ENABLE_DEBUG
 #define SCTP_DISABLE_DEBUG
-#define SCTP_ASSERT(expr, str, func)
+#define SCTP_ASSERT(expr, str, func) BUG_ON(!(expr))
 
 #endif /* SCTP_DEBUG */
 
