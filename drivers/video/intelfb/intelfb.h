@@ -195,6 +195,10 @@ struct intelfb_hwstate {
 	u32 mem_mode;
 	u32 fw_blc_0;
 	u32 fw_blc_1;
+	u16 hwstam;
+	u16 ier;
+	u16 iir;
+	u16 imr;
 };
 
 struct intelfb_heap_data {

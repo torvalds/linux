@@ -88,6 +88,19 @@
 #define INSTDONE		0x2090
 #define PRI_RING_EMPTY			1
 
+#define HWSTAM			0x2098
+#define IER			0x20A0
+#define IIR			0x20A4
+#define IMR			0x20A8
+#define VSYNC_PIPE_A_INTERRUPT		(1 << 7)
+#define PIPE_A_EVENT_INTERRUPT		(1 << 4)
+#define VSYNC_PIPE_B_INTERRUPT		(1 << 5)
+#define PIPE_B_EVENT_INTERRUPT		(1 << 4)
+#define HOST_PORT_EVENT_INTERRUPT	(1 << 3)
+#define CAPTURE_EVENT_INTERRUPT		(1 << 2)
+#define USER_DEFINED_INTERRUPT		(1 << 1)
+#define BREAKPOINT_INTERRUPT		1
+
 #define INSTPM			0x20c0
 #define SYNC_FLUSH_ENABLE		(1 << 5)
 

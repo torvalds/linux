@@ -587,6 +587,11 @@ intelfbhw_read_hw_state(struct intelfb_info *dinfo, struct intelfb_hwstate *hw,
 	hw->fw_blc_0 = INREG(FW_BLC_0);
 	hw->fw_blc_1 = INREG(FW_BLC_1);
 
+	hw->hwstam = INREG16(HWSTAM);
+	hw->ier = INREG16(IER);
+	hw->iir = INREG16(IIR);
+	hw->imr = INREG16(IMR);
+
 	return 0;
 }
 
@@ -796,6 +801,10 @@ intelfbhw_print_hw_state(struct intelfb_info *dinfo, struct intelfb_hwstate *hw)
 	printk("	FW_BLC_0		0x%08x\n", hw->fw_blc_0);
 	printk("	FW_BLC_1		0x%08x\n", hw->fw_blc_1);
 
+	printk("	HWSTAM			0x%04x\n", hw->hwstam);
+	printk("	IER			0x%04x\n", hw->ier);
+	printk("	IIR			0x%04x\n", hw->iir);
+	printk("	IMR			0x%04x\n", hw->imr);
 	printk("hw state dump end\n");
 #endif
 }
