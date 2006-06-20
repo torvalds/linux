@@ -1626,7 +1626,7 @@
 #define SSCR0_RIM	(1 << 22)	/* Receive FIFO overrrun interrupt mask */
 #define SSCR0_TUM	(1 << 23)	/* Transmit FIFO underrun interrupt mask */
 #define SSCR0_FRDC	(0x07000000)	/* Frame rate divider control (mask) */
-#define SSCR0_SlotsPerFrm(c) ((x) - 1)	/* Time slots per frame [1..8] */
+#define SSCR0_SlotsPerFrm(x) ((x) - 1)	/* Time slots per frame [1..8] */
 #define SSCR0_ADC	(1 << 30)	/* Audio clock select */
 #define SSCR0_MOD	(1 << 31)	/* Mode (normal or network) */
 #endif
@@ -1707,6 +1707,10 @@
 #if defined (CONFIG_PXA27x)
 #define SSTO_P1		__REG(0x41000028)  /* SSP Port 1 Time Out Register */
 #define SSPSP_P1	__REG(0x4100002C)  /* SSP Port 1 Programmable Serial Protocol */
+#define SSTSA_P1	__REG(0x41000030)  /* SSP Port 1 Tx Timeslot Active */
+#define SSRSA_P1	__REG(0x41000034)  /* SSP Port 1 Rx Timeslot Active */
+#define SSTSS_P1	__REG(0x41000038)  /* SSP Port 1 Timeslot Status */
+#define SSACD_P1	__REG(0x4100003C)  /* SSP Port 1 Audio Clock Divider */
 #define SSCR0_P2	__REG(0x41700000)  /* SSP Port 2 Control Register 0 */
 #define SSCR1_P2	__REG(0x41700004)  /* SSP Port 2 Control Register 1 */
 #define SSSR_P2		__REG(0x41700008)  /* SSP Port 2 Status Register */
@@ -1714,6 +1718,10 @@
 #define SSDR_P2		__REG(0x41700010)  /* (Write / Read) SSP Port 2 Data Write Register/SSP Data Read Register */
 #define SSTO_P2		__REG(0x41700028)  /* SSP Port 2 Time Out Register */
 #define SSPSP_P2	__REG(0x4170002C)  /* SSP Port 2 Programmable Serial Protocol */
+#define SSTSA_P2	__REG(0x41700030)  /* SSP Port 2 Tx Timeslot Active */
+#define SSRSA_P2	__REG(0x41700034)  /* SSP Port 2 Rx Timeslot Active */
+#define SSTSS_P2	__REG(0x41700038)  /* SSP Port 2 Timeslot Status */
+#define SSACD_P2	__REG(0x4170003C)  /* SSP Port 2 Audio Clock Divider */
 #define SSCR0_P3	__REG(0x41900000)  /* SSP Port 3 Control Register 0 */
 #define SSCR1_P3	__REG(0x41900004)  /* SSP Port 3 Control Register 1 */
 #define SSSR_P3		__REG(0x41900008)  /* SSP Port 3 Status Register */
@@ -1721,6 +1729,10 @@
 #define SSDR_P3		__REG(0x41900010)  /* (Write / Read) SSP Port 3 Data Write Register/SSP Data Read Register */
 #define SSTO_P3		__REG(0x41900028)  /* SSP Port 3 Time Out Register */
 #define SSPSP_P3	__REG(0x4190002C)  /* SSP Port 3 Programmable Serial Protocol */
+#define SSTSA_P3	__REG(0x41900030)  /* SSP Port 3 Tx Timeslot Active */
+#define SSRSA_P3	__REG(0x41900034)  /* SSP Port 3 Rx Timeslot Active */
+#define SSTSS_P3	__REG(0x41900038)  /* SSP Port 3 Timeslot Status */
+#define SSACD_P3	__REG(0x4190003C)  /* SSP Port 3 Audio Clock Divider */
 #else /* PXA255 (only port 2) and PXA26x ports*/
 #define SSTO_P1		__REG(0x41000028)  /* SSP Port 1 Time Out Register */
 #define SSPSP_P1	__REG(0x4100002C)  /* SSP Port 1 Programmable Serial Protocol */
@@ -1747,6 +1759,10 @@
 #define SSDR_P(x) (*(((x) == 1) ? &SSDR_P1 : ((x) == 2) ? &SSDR_P2 : ((x) == 3) ? &SSDR_P3 : NULL))
 #define SSTO_P(x) (*(((x) == 1) ? &SSTO_P1 : ((x) == 2) ? &SSTO_P2 : ((x) == 3) ? &SSTO_P3 : NULL))
 #define SSPSP_P(x) (*(((x) == 1) ? &SSPSP_P1 : ((x) == 2) ? &SSPSP_P2 : ((x) == 3) ? &SSPSP_P3 : NULL))
+#define SSTSA_P(x) (*(((x) == 1) ? &SSTSA_P1 : ((x) == 2) ? &SSTSA_P2 : ((x) == 3) ? &SSTSA_P3 : NULL))
+#define SSRSA_P(x) (*(((x) == 1) ? &SSRSA_P1 : ((x) == 2) ? &SSRSA_P2 : ((x) == 3) ? &SSRSA_P3 : NULL))
+#define SSTSS_P(x) (*(((x) == 1) ? &SSTSS_P1 : ((x) == 2) ? &SSTSS_P2 : ((x) == 3) ? &SSTSS_P3 : NULL))
+#define SSACD_P(x) (*(((x) == 1) ? &SSACD_P1 : ((x) == 2) ? &SSACD_P2 : ((x) == 3) ? &SSACD_P3 : NULL))
 
 /*
  * MultiMediaCard (MMC) controller
