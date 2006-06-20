@@ -447,6 +447,7 @@ config MIPS_GT96100ETH
 config MIPS_AU1X00_ENET
 	bool "MIPS AU1000 Ethernet support"
 	depends on NET_ETHERNET && SOC_AU1X00
+	select PHYLIB
 	select CRC32
 	help
 	  If you have an Alchemy Semi AU1X00 based system
@@ -864,6 +865,22 @@ config DM9000
 	  To compile this driver as a module, choose M here and read
 	  <file:Documentation/networking/net-modules.txt>.  The module will be
 	  called dm9000.
+
+config SMC911X
+	tristate "SMSC LAN911[5678] support"
+	select CRC32
+	select MII
+	depends on NET_ETHERNET && ARCH_PXA
+	help
+	  This is a driver for SMSC's LAN911x series of Ethernet chipsets
+	  including the new LAN9115, LAN9116, LAN9117, and LAN9118.
+	  Say Y if you want it compiled into the kernel, 
+	  and read the Ethernet-HOWTO, available from
+	  <http://www.linuxdoc.org/docs.html#howto>.
+
+	  This driver is also available as a module. The module will be 
+	  called smc911x.  If you want to compile it as a module, say M 
+	  here and read <file:Documentation/modules.txt>
 
 config NET_VENDOR_RACAL
 	bool "Racal-Interlan (Micom) NI cards"
@@ -2310,6 +2327,23 @@ config S2IO_NAPI
 	  information.
 
 	  If in doubt, say N.
+
+config MYRI10GE
+	tristate "Myricom Myri-10G Ethernet support"
+	depends on PCI
+	select FW_LOADER
+	select CRC32
+	---help---
+	  This driver supports Myricom Myri-10G Dual Protocol interface in
+	  Ethernet mode. If the eeprom on your board is not recent enough,
+	  you will need a newer firmware image.
+	  You may get this image or more information, at:
+
+	  <http://www.myri.com/Myri-10G/>
+
+	  To compile this driver as a module, choose M here and read
+	  <file:Documentation/networking/net-modules.txt>.  The module
+	  will be called myri10ge.
 
 endmenu
 

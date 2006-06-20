@@ -75,10 +75,13 @@
 
 #define IbmVethNumBufferPools 5
 #define IBMVETH_BUFF_OH 22 /* Overhead: 14 ethernet header + 8 opaque handle */
+#define IBMVETH_MAX_MTU 68
+#define IBMVETH_MAX_POOL_COUNT 4096
+#define IBMVETH_MAX_BUF_SIZE (1024 * 128)
 
-/* pool_size should be sorted */
 static int pool_size[] = { 512, 1024 * 2, 1024 * 16, 1024 * 32, 1024 * 64 };
 static int pool_count[] = { 256, 768, 256, 256, 256 };
+static int pool_active[] = { 1, 1, 0, 0, 0};
 
 #define IBM_VETH_INVALID_MAP ((u16)0xffff)
 
@@ -94,6 +97,7 @@ struct ibmveth_buff_pool {
     dma_addr_t *dma_addr;
     struct sk_buff **skbuff;
     int active;
+    struct kobject kobj;
 };
 
 struct ibmveth_rx_q {
@@ -118,6 +122,7 @@ struct ibmveth_adapter {
     dma_addr_t filter_list_dma;
     struct ibmveth_buff_pool rx_buff_pool[IbmVethNumBufferPools];
     struct ibmveth_rx_q rx_queue;
+    int pool_config;
 
     /* adapter specific stats */
     u64 replenish_task_cycles;
@@ -134,7 +139,7 @@ struct ibmveth_adapter {
     spinlock_t stats_lock;
 };
 
-struct ibmveth_buf_desc_fields {	
+struct ibmveth_buf_desc_fields {
     u32 valid : 1;
     u32 toggle : 1;
     u32 reserved : 6;
@@ -143,7 +148,7 @@ struct ibmveth_buf_desc_fields {
 };
 
 union ibmveth_buf_desc {
-    u64 desc;	
+    u64 desc;
     struct ibmveth_buf_desc_fields fields;
 };
 

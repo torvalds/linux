@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   
-  Copyright(c) 1999 - 2005 Intel Corporation. All rights reserved.
+  Copyright(c) 1999 - 2006 Intel Corporation. All rights reserved.
   
   This program is free software; you can redistribute it and/or modify it 
   under the terms of the GNU General Public License as published by the Free 
@@ -44,6 +44,8 @@ extern void ixgb_free_rx_resources(struct ixgb_adapter *adapter);
 extern void ixgb_free_tx_resources(struct ixgb_adapter *adapter);
 extern void ixgb_update_stats(struct ixgb_adapter *adapter);
 
+#define IXGB_ALL_RAR_ENTRIES 16
+
 struct ixgb_stats {
 	char stat_string[ETH_GSTRING_LEN];
 	int sizeof_stat;
@@ -76,6 +78,7 @@ static struct ixgb_stats ixgb_gstrings_stats[] = {
 	{"tx_heartbeat_errors", IXGB_STAT(net_stats.tx_heartbeat_errors)},
 	{"tx_window_errors", IXGB_STAT(net_stats.tx_window_errors)},
 	{"tx_deferred_ok", IXGB_STAT(stats.dc)},
+	{"tx_timeout_count", IXGB_STAT(tx_timeout_count) },
 	{"rx_long_length_errors", IXGB_STAT(stats.roc)},
 	{"rx_short_length_errors", IXGB_STAT(stats.ruc)},
 #ifdef NETIF_F_TSO
@@ -117,6 +120,16 @@ ixgb_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 	return 0;
 }
 
+static void ixgb_set_speed_duplex(struct net_device *netdev)
+{
+	struct ixgb_adapter *adapter = netdev_priv(netdev);
+	/* be optimistic about our link, since we were up before */
+	adapter->link_speed = 10000;
+	adapter->link_duplex = FULL_DUPLEX;
+	netif_carrier_on(netdev);
+	netif_wake_queue(netdev);
+}
+
 static int
 ixgb_set_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 {
@@ -130,12 +143,7 @@ ixgb_set_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 		ixgb_down(adapter, TRUE);
 		ixgb_reset(adapter);
 		ixgb_up(adapter);
-		/* be optimistic about our link, since we were up before */
-		adapter->link_speed = 10000;
-		adapter->link_duplex = FULL_DUPLEX;
-		netif_carrier_on(netdev);
-		netif_wake_queue(netdev);
-		
+		ixgb_set_speed_duplex(netdev);
 	} else
 		ixgb_reset(adapter);
 
@@ -183,11 +191,7 @@ ixgb_set_pauseparam(struct net_device *netdev,
 	if(netif_running(adapter->netdev)) {
 		ixgb_down(adapter, TRUE);
 		ixgb_up(adapter);
-		/* be optimistic about our link, since we were up before */
-		adapter->link_speed = 10000;
-		adapter->link_duplex = FULL_DUPLEX;
-		netif_carrier_on(netdev);
-		netif_wake_queue(netdev);
+		ixgb_set_speed_duplex(netdev);
 	} else
 		ixgb_reset(adapter);
 		
@@ -212,11 +216,7 @@ ixgb_set_rx_csum(struct net_device *netdev, uint32_t data)
 	if(netif_running(netdev)) {
 		ixgb_down(adapter,TRUE);
 		ixgb_up(adapter);
-		/* be optimistic about our link, since we were up before */
-		adapter->link_speed = 10000;
-		adapter->link_duplex = FULL_DUPLEX;
-		netif_carrier_on(netdev);
-		netif_wake_queue(netdev);
+		ixgb_set_speed_duplex(netdev);
 	} else
 		ixgb_reset(adapter);
 	return 0;
@@ -251,6 +251,19 @@ ixgb_set_tso(struct net_device *netdev, uint32_t data)
 } 
 #endif /* NETIF_F_TSO */
 
+static uint32_t
+ixgb_get_msglevel(struct net_device *netdev)
+{
+	struct ixgb_adapter *adapter = netdev_priv(netdev);
+	return adapter->msg_enable;
+}
+
+static void
+ixgb_set_msglevel(struct net_device *netdev, uint32_t data)
+{
+	struct ixgb_adapter *adapter = netdev_priv(netdev);
+	adapter->msg_enable = data;
+}
 #define IXGB_GET_STAT(_A_, _R_) _A_->stats._R_
 
 static int 
@@ -303,7 +316,7 @@ ixgb_get_regs(struct net_device *netdev,
 	*reg++ = IXGB_READ_REG(hw, RXCSUM);	/*  20 */
 
 	/* there are 16 RAR entries in hardware, we only use 3 */
-	for(i = 0; i < 16; i++) {
+	for(i = 0; i < IXGB_ALL_RAR_ENTRIES; i++) {
 		*reg++ = IXGB_READ_REG_ARRAY(hw, RAL, (i << 1)); /*21,...,51 */
 		*reg++ = IXGB_READ_REG_ARRAY(hw, RAH, (i << 1)); /*22,...,52 */
 	}
@@ -593,11 +606,7 @@ ixgb_set_ringparam(struct net_device *netdev,
 		adapter->tx_ring = tx_new;
 		if((err = ixgb_up(adapter)))
 			return err;
-		/* be optimistic about our link, since we were up before */
-		adapter->link_speed = 10000;
-		adapter->link_duplex = FULL_DUPLEX;
-		netif_carrier_on(netdev);
-		netif_wake_queue(netdev);
+		ixgb_set_speed_duplex(netdev);
 	}
 
 	return 0;
@@ -714,6 +723,8 @@ static struct ethtool_ops ixgb_ethtool_ops = {
 	.set_tx_csum = ixgb_set_tx_csum,
 	.get_sg	= ethtool_op_get_sg,
 	.set_sg	= ethtool_op_set_sg,
+	.get_msglevel = ixgb_get_msglevel,
+	.set_msglevel = ixgb_set_msglevel,
 #ifdef NETIF_F_TSO
 	.get_tso = ethtool_op_get_tso,
 	.set_tso = ixgb_set_tso,

@@ -45,5 +45,11 @@ config CICADA_PHY
 	---help---
 	  Currently supports the cis8204
 
+config SMSC_PHY
+	tristate "Drivers for SMSC PHYs"
+	depends on PHYLIB
+	---help---
+	  Currently supports the LAN83C185 PHY
+
 endmenu
 
