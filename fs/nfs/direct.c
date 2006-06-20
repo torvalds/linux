@@ -94,8 +94,8 @@ struct nfs_direct_req {
 	struct nfs_writeverf	verf;		/* unstable write verifier */
 };
 
-static void nfs_direct_write_schedule(struct nfs_direct_req *dreq, int sync);
 static void nfs_direct_write_complete(struct nfs_direct_req *dreq, struct inode *inode);
+static const struct rpc_call_ops nfs_write_direct_ops;
 
 static inline void get_dreq(struct nfs_direct_req *dreq)
 {
@@ -435,14 +435,51 @@ static void nfs_direct_free_writedata(struct nfs_direct_req *dreq)
 #if defined(CONFIG_NFS_V3) || defined(CONFIG_NFS_V4)
 static void nfs_direct_write_reschedule(struct nfs_direct_req *dreq)
 {
-	struct list_head *pos;
+	struct inode *inode = dreq->inode;
+	struct list_head *p;
+	struct nfs_write_data *data;
 
-	list_splice_init(&dreq->rewrite_list, &dreq->list);
-	list_for_each(pos, &dreq->list)
-		get_dreq(dreq);
 	dreq->count = 0;
+	get_dreq(dreq);
 
-	nfs_direct_write_schedule(dreq, FLUSH_STABLE);
+	list_for_each(p, &dreq->rewrite_list) {
+		data = list_entry(p, struct nfs_write_data, pages);
+
+		get_dreq(dreq);
+
+		/*
+		 * Reset data->res.
+		 */
+		nfs_fattr_init(&data->fattr);
+		data->res.count = data->args.count;
+		memset(&data->verf, 0, sizeof(data->verf));
+
+		/*
+		 * Reuse data->task; data->args should not have changed
+		 * since the original request was sent.
+		 */
+		rpc_init_task(&data->task, NFS_CLIENT(inode), RPC_TASK_ASYNC,
+				&nfs_write_direct_ops, data);
+		NFS_PROTO(inode)->write_setup(data, FLUSH_STABLE);
+
+		data->task.tk_priority = RPC_PRIORITY_NORMAL;
+		data->task.tk_cookie = (unsigned long) inode;
+
+		/*
+		 * We're called via an RPC callback, so BKL is already held.
+		 */
+		rpc_execute(&data->task);
+
+		dprintk("NFS: %5u rescheduled direct write call (req %s/%Ld, %u bytes @ offset %Lu)\n",
+				data->task.tk_pid,
+				inode->i_sb->s_id,
+				(long long)NFS_FILEID(inode),
+				data->args.count,
+				(unsigned long long)data->args.offset);
+	}
+
+	if (put_dreq(dreq))
+		nfs_direct_write_complete(dreq, inode);
 }
 
 static void nfs_direct_commit_result(struct rpc_task *task, void *calldata)
@@ -612,8 +649,6 @@ static void nfs_direct_write_result(struct rpc_task *task, void *calldata)
 				}
 		}
 	}
-	/* In case we have to resend */
-	data->args.stable = NFS_FILE_SYNC;
 
 	spin_unlock(&dreq->lock);
 }
