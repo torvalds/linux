@@ -213,7 +213,7 @@ void init_iic(void)
 	ar_outl(0x0300, PLDI2CMOD); 	/* I2CMOD ACK/8b-data/7b-addr/auto */
 	ar_outl(0x1, PLDI2CACK);	/* I2CACK ACK                      */
 
-    	/* I2C CLK */
+	/* I2C CLK */
 	/* 50MH-100k */
 	if (freq == 75) {
 		ar_outl(369, PLDI2CFREQ);	/* BCLK = 75MHz */

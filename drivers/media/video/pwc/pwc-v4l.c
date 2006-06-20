@@ -676,9 +676,9 @@ int pwc_video_do_ioctl(struct inode *inode, struct file *file,
 			break;
 		}
 
-	    	/* V4L2 Layer */
-	    	case VIDIOC_QUERYCAP:
-	    	{
+		/* V4L2 Layer */
+		case VIDIOC_QUERYCAP:
+		{
 		    struct v4l2_capability *cap = arg;
 
 		    PWC_DEBUG_IOCTL("ioctl(VIDIOC_QUERYCAP) This application "\
@@ -694,8 +694,8 @@ int pwc_video_do_ioctl(struct inode *inode, struct file *file,
 		    return 0;
 		}
 
-	    	case VIDIOC_ENUMINPUT:
-	    	{
+		case VIDIOC_ENUMINPUT:
+		{
 		    struct v4l2_input *i = arg;
 
 		    if ( i->index )	/* Only one INPUT is supported */
@@ -706,14 +706,14 @@ int pwc_video_do_ioctl(struct inode *inode, struct file *file,
 		    return 0;
 		}
 
-	    	case VIDIOC_G_INPUT:
+		case VIDIOC_G_INPUT:
 		{
 		    int *i = arg;
 		    *i = 0;	/* Only one INPUT is supported */
 		    return 0;
 		}
-	    	case VIDIOC_S_INPUT:
-	    	{
+		case VIDIOC_S_INPUT:
+		{
 			int *i = arg;
 
 			if ( *i ) {	/* Only one INPUT is supported */
@@ -725,7 +725,7 @@ int pwc_video_do_ioctl(struct inode *inode, struct file *file,
 		}
 
 		/* TODO: */
-	    	case VIDIOC_QUERYCTRL:
+		case VIDIOC_QUERYCTRL:
 		{
 			struct v4l2_queryctrl *c = arg;
 			int i;
@@ -963,13 +963,13 @@ int pwc_video_do_ioctl(struct inode *inode, struct file *file,
 
 		case VIDIOC_ENUM_FMT:
 		{
-		    	struct v4l2_fmtdesc *f = arg;
+			struct v4l2_fmtdesc *f = arg;
 			int index;
 
 			if (f->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 			      return -EINVAL;
 
-		    	/* We only support two format: the raw format, and YUV */
+			/* We only support two format: the raw format, and YUV */
 			index = f->index;
 			memset(f,0,sizeof(struct v4l2_fmtdesc));
 			f->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
@@ -978,23 +978,23 @@ int pwc_video_do_ioctl(struct inode *inode, struct file *file,
 			{
 				case 0:
 					/* RAW format */
-			    		f->pixelformat = pdev->type<=646?V4L2_PIX_FMT_PWC1:V4L2_PIX_FMT_PWC2;
+					f->pixelformat = pdev->type<=646?V4L2_PIX_FMT_PWC1:V4L2_PIX_FMT_PWC2;
 					f->flags = V4L2_FMT_FLAG_COMPRESSED;
-			    		strlcpy(f->description,"Raw Philips Webcam",sizeof(f->description));
+					strlcpy(f->description,"Raw Philips Webcam",sizeof(f->description));
 					break;
 				case 1:
-			    		f->pixelformat = V4L2_PIX_FMT_YUV420;
-			    		strlcpy(f->description,"4:2:0, planar, Y-Cb-Cr",sizeof(f->description));
+					f->pixelformat = V4L2_PIX_FMT_YUV420;
+					strlcpy(f->description,"4:2:0, planar, Y-Cb-Cr",sizeof(f->description));
 					break;
-			    	default:
+				default:
 					return -EINVAL;
 			}
 			return 0;
 		}
 
-	    	case VIDIOC_G_FMT:
+		case VIDIOC_G_FMT:
 		{
-		    	struct v4l2_format *f = arg;
+			struct v4l2_format *f = arg;
 
 			PWC_DEBUG_IOCTL("ioctl(VIDIOC_G_FMT) return size %dx%d\n",pdev->image.x,pdev->image.y);
 			if (f->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
@@ -1008,7 +1008,7 @@ int pwc_video_do_ioctl(struct inode *inode, struct file *file,
 		case VIDIOC_TRY_FMT:
 			return pwc_vidioc_try_fmt(pdev, arg);
 
-	    	case VIDIOC_S_FMT:
+		case VIDIOC_S_FMT:
 			return pwc_vidioc_set_fmt(pdev, arg);
 
 		case VIDIOC_G_STD:

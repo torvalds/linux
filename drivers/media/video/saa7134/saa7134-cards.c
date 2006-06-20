@@ -2160,7 +2160,7 @@ struct saa7134_board saa7134_boards[] = {
 		.radio = {
 			  .name = name_radio,
 			  .amux = LINE2,
-    		},
+		},
 	},
 	[SAA7134_BOARD_GOTVIEW_7135] = {
 		/* Mike Baikov <mike@baikov.com> */

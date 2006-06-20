@@ -1385,7 +1385,7 @@ int pwc_ioctl(struct pwc_device *pdev, unsigned int cmd, void *arg)
 
 		ARG_IN(leds)
 		ret = pwc_set_leds(pdev, ARGR(leds).led_on, ARGR(leds).led_off);
-	    	break;
+		break;
 	}
 
 

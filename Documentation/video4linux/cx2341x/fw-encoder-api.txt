@@ -281,64 +281,64 @@ Description
 Param[0]
 	Bitmask:
 	   0:1  '00' 44.1Khz
-	    	'01' 48Khz
-	    	'10' 32Khz
-	    	'11' reserved
+		'01' 48Khz
+		'10' 32Khz
+		'11' reserved
 
 	   2:3  '01'=Layer I
 		'10'=Layer II
 
 	   4:7  Bitrate:
-	    	     Index | Layer I     | Layer II
-	    	     ------+-------------+------------
-	    	    '0000' | free format | free format
-	    	    '0001' |  32 kbit/s  |  32 kbit/s
-	    	    '0010' |  64 kbit/s  |  48 kbit/s
-	    	    '0011' |  96 kbit/s  |  56 kbit/s
-	    	    '0100' | 128 kbit/s  |  64 kbit/s
-	    	    '0101' | 160 kbit/s  |  80 kbit/s
-	    	    '0110' | 192 kbit/s  |  96 kbit/s
-	    	    '0111' | 224 kbit/s  | 112 kbit/s
-	    	    '1000' | 256 kbit/s  | 128 kbit/s
-	    	    '1001' | 288 kbit/s  | 160 kbit/s
-	    	    '1010' | 320 kbit/s  | 192 kbit/s
-	    	    '1011' | 352 kbit/s  | 224 kbit/s
-	    	    '1100' | 384 kbit/s  | 256 kbit/s
-	    	    '1101' | 416 kbit/s  | 320 kbit/s
-	    	    '1110' | 448 kbit/s  | 384 kbit/s
-	    	Note: For Layer II, not all combinations of total bitrate
-	    	and mode are allowed. See ISO11172-3 3-Annex B, Table 3-B.2
+		     Index | Layer I     | Layer II
+		     ------+-------------+------------
+		    '0000' | free format | free format
+		    '0001' |  32 kbit/s  |  32 kbit/s
+		    '0010' |  64 kbit/s  |  48 kbit/s
+		    '0011' |  96 kbit/s  |  56 kbit/s
+		    '0100' | 128 kbit/s  |  64 kbit/s
+		    '0101' | 160 kbit/s  |  80 kbit/s
+		    '0110' | 192 kbit/s  |  96 kbit/s
+		    '0111' | 224 kbit/s  | 112 kbit/s
+		    '1000' | 256 kbit/s  | 128 kbit/s
+		    '1001' | 288 kbit/s  | 160 kbit/s
+		    '1010' | 320 kbit/s  | 192 kbit/s
+		    '1011' | 352 kbit/s  | 224 kbit/s
+		    '1100' | 384 kbit/s  | 256 kbit/s
+		    '1101' | 416 kbit/s  | 320 kbit/s
+		    '1110' | 448 kbit/s  | 384 kbit/s
+		Note: For Layer II, not all combinations of total bitrate
+		and mode are allowed. See ISO11172-3 3-Annex B, Table 3-B.2
 
 	   8:9  '00'=Stereo
-	    	'01'=JointStereo
-	    	'10'=Dual
-	    	'11'=Mono
+		'01'=JointStereo
+		'10'=Dual
+		'11'=Mono
 
 	  10:11 Mode Extension used in joint_stereo mode.
-	    	In Layer I and II they indicate which subbands are in
+		In Layer I and II they indicate which subbands are in
 		intensity_stereo. All other subbands are coded in stereo.
-	    	    '00' subbands 4-31 in intensity_stereo, bound==4
-	    	    '01' subbands 8-31 in intensity_stereo, bound==8
-	    	    '10' subbands 12-31 in intensity_stereo, bound==12
-	    	    '11' subbands 16-31 in intensity_stereo, bound==16
+		    '00' subbands 4-31 in intensity_stereo, bound==4
+		    '01' subbands 8-31 in intensity_stereo, bound==8
+		    '10' subbands 12-31 in intensity_stereo, bound==12
+		    '11' subbands 16-31 in intensity_stereo, bound==16
 
 	  12:13 Emphasis:
-	    	    '00' None
-	    	    '01' 50/15uS
-	    	    '10' reserved
-	    	    '11' CCITT J.17
+		    '00' None
+		    '01' 50/15uS
+		    '10' reserved
+		    '11' CCITT J.17
 
 	  14 	CRC:
-	    	    '0' off
-	    	    '1' on
+		    '0' off
+		    '1' on
 
 	  15    Copyright:
-	    	    '0' off
-	    	    '1' on
+		    '0' off
+		    '1' on
 
 	  16    Generation:
-	    	    '0' copy
-	    	    '1' original
+		    '0' copy
+		    '1' original
 
 -------------------------------------------------------------------------------
 

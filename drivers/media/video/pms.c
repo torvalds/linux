@@ -805,7 +805,7 @@ static int pms_do_ioctl(struct inode *inode, struct file *file,
 			struct video_picture *p = arg;
 			if(!((p->palette==VIDEO_PALETTE_RGB565 && p->depth==16)
 			    ||(p->palette==VIDEO_PALETTE_RGB555 && p->depth==15)))
-			    	return -EINVAL;
+				return -EINVAL;
 			pd->picture= *p;
 
 			/*

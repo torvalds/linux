@@ -3239,7 +3239,7 @@ ov511_move_data(struct usb_ov511 *ov, unsigned char *in, int n)
 		RESTRICT_TO_RANGE(frame->bytes_recvd, 8, max_raw);
 
 		if (frame->scanstate == STATE_LINES) {
-	    		int nextf;
+			int nextf;
 
 			frame->grabstate = FRAME_DONE;
 			wake_up_interruptible(&frame->wq);
@@ -3405,7 +3405,7 @@ eof:
 	RESTRICT_TO_RANGE(frame->bytes_recvd, 8, max_raw);
 
 	if (frame->scanstate == STATE_LINES) {
-    		int nextf;
+		int nextf;
 
 		frame->grabstate = FRAME_DONE;
 		wake_up_interruptible(&frame->wq);

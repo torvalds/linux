@@ -280,7 +280,7 @@ Description
 Param[0]
 	Bitmask:
 	     0:1  Data size:
-	    	      '00' 16 bit
+		      '00' 16 bit
 		      '01' 20 bit
 		      '10' 24 bit
 	     2:7  Unused
@@ -292,9 +292,9 @@ Param[0]
 			   (for left justified MSB first mode, 20 bit only)
 	    10:11 Unused
 	    12:13 Channel format:
-	    	      '00' right justified MSB first mode
-	    	      '01' left justified MSB first mode
-	    	      '10' I2S mode
+		      '00' right justified MSB first mode
+		      '01' left justified MSB first mode
+		      '10' I2S mode
 	    14:15 Unused
 	    16:21 Right justify bit count
 	    22:31 Unused

@@ -269,7 +269,7 @@ static struct CARD {
 	{ 0x41a0a051, BTTV_BOARD_FLYVIDEO_98FM, "Lifeview FlyVideo 98 LR50 Rev Q" },
 	{ 0x18501f7f, BTTV_BOARD_FLYVIDEO_98,   "Lifeview Flyvideo 98" },
 
-    	{ 0x010115cb, BTTV_BOARD_GMV1,          "AG GMV1" },
+	{ 0x010115cb, BTTV_BOARD_GMV1,          "AG GMV1" },
 	{ 0x010114c7, BTTV_BOARD_MODTEC_205,    "Modular Technology MM201/MM202/MM205/MM210/MM215 PCTV" },
 
 	{ 0x10b42636, BTTV_BOARD_HAUPPAUGE878,  "STB ???" },

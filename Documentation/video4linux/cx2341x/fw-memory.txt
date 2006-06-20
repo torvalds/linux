@@ -60,7 +60,7 @@ DMA Registers 0x000-0xff:
 	if changed to 0xffffffff DMA write interrupts break.
  0x50 - always 0xffffffff
  0x54 - always 0xffffffff (0x4c, 0x50, 0x54 seem like interrupt masks, are
-    	3 processors on chip, Java ones, VPU, SPU, APU, maybe these are the
+	3 processors on chip, Java ones, VPU, SPU, APU, maybe these are the
 	interrupt masks???).
  0x60-0x7C - random values
  0x80 - first write linked list reg, for Encoder Memory addr

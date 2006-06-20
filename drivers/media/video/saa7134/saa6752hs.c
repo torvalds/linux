@@ -62,11 +62,11 @@ struct saa6752hs_state {
 
 enum saa6752hs_command {
 	SAA6752HS_COMMAND_RESET = 0,
-    	SAA6752HS_COMMAND_STOP = 1,
-    	SAA6752HS_COMMAND_START = 2,
-    	SAA6752HS_COMMAND_PAUSE = 3,
-    	SAA6752HS_COMMAND_RECONFIGURE = 4,
-    	SAA6752HS_COMMAND_SLEEP = 5,
+	SAA6752HS_COMMAND_STOP = 1,
+	SAA6752HS_COMMAND_START = 2,
+	SAA6752HS_COMMAND_PAUSE = 3,
+	SAA6752HS_COMMAND_RECONFIGURE = 4,
+	SAA6752HS_COMMAND_SLEEP = 5,
 	SAA6752HS_COMMAND_RECONFIGURE_FORCE = 6,
 
 	SAA6752HS_COMMAND_MAX
@@ -241,19 +241,19 @@ static int saa6752hs_set_bitrate(struct i2c_client* client,
 	if (params->vi_bitrate.mode == V4L2_BITRATE_VBR) {
 		/* set the target bitrate */
 		buf[0] = 0x80;
-	    	buf[1] = params->vi_bitrate.target >> 8;
+		buf[1] = params->vi_bitrate.target >> 8;
 		buf[2] = params->vi_bitrate.target & 0xff;
 		i2c_master_send(client, buf, 3);
 
 		/* set the max bitrate */
 		buf[0] = 0x81;
-	    	buf[1] = params->vi_bitrate.max >> 8;
+		buf[1] = params->vi_bitrate.max >> 8;
 		buf[2] = params->vi_bitrate.max & 0xff;
 		i2c_master_send(client, buf, 3);
 	} else {
 		/* set the target bitrate (no max bitrate for CBR) */
 		buf[0] = 0x81;
-	    	buf[1] = params->vi_bitrate.target >> 8;
+		buf[1] = params->vi_bitrate.target >> 8;
 		buf[2] = params->vi_bitrate.target & 0xff;
 		i2c_master_send(client, buf, 3);
 	}
@@ -395,22 +395,22 @@ static int saa6752hs_init(struct i2c_client* client)
 	buf[2] = 0x0D;
 	i2c_master_send(client,buf,3);
 
-    	/* Set minimum Q-scale {4} */
+	/* Set minimum Q-scale {4} */
 	buf[0] = 0x82;
 	buf[1] = 0x04;
 	i2c_master_send(client,buf,2);
 
-    	/* Set maximum Q-scale {12} */
+	/* Set maximum Q-scale {12} */
 	buf[0] = 0x83;
 	buf[1] = 0x0C;
 	i2c_master_send(client,buf,2);
 
-    	/* Set Output Protocol */
+	/* Set Output Protocol */
 	buf[0] = 0xD0;
 	buf[1] = 0x81;
 	i2c_master_send(client,buf,2);
 
-    	/* Set video output stream format {TS} */
+	/* Set video output stream format {TS} */
 	buf[0] = 0xB0;
 	buf[1] = 0x05;
 	i2c_master_send(client,buf,2);
@@ -441,7 +441,7 @@ static int saa6752hs_init(struct i2c_client* client)
 	localPMT[sizeof(PMT) - 2] = (crc >> 8) & 0xFF;
 	localPMT[sizeof(PMT) - 1] = crc & 0xFF;
 
-    	/* Set Audio PID */
+	/* Set Audio PID */
 	buf[0] = 0xC1;
 	buf[1] = (h->params.ts_pid_audio >> 8) & 0xFF;
 	buf[2] = h->params.ts_pid_audio & 0xFF;

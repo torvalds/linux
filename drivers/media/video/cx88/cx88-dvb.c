@@ -358,7 +358,7 @@ static struct or51132_config pchdtv_hd3000 = {
 
 #ifdef HAVE_LGDT330X
 static int lgdt3302_tuner_set_params(struct dvb_frontend* fe,
-			    	     struct dvb_frontend_parameters* params)
+				     struct dvb_frontend_parameters* params)
 {
 	/* FIXME make this routine use the tuner-simple code.
 	 * It could probably be shared with a number of ATSC

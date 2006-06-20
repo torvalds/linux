@@ -105,7 +105,7 @@ static void build_bit_powermask_table(struct pwc_dec23_private *pdec)
 
 
 static void build_table_color(const unsigned int romtable[16][8],
-    			      unsigned char p0004[16][1024],
+			      unsigned char p0004[16][1024],
 			      unsigned char p8004[16][256])
 {
 	int compression_mode, j, k, bit, pw;
@@ -787,7 +787,7 @@ static void DecompressBand23(struct pwc_dec23_private *pdec,
  *
  */
 static void DecompressBandBayer(struct pwc_dec23_private *pdec,
-    				const unsigned char *rawyuv,
+				const unsigned char *rawyuv,
 				unsigned char *rgbbayer,
 				unsigned int   compressed_image_width,
 				unsigned int   real_image_width)

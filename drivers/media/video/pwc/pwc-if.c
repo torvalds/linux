@@ -1064,7 +1064,7 @@ static const char *pwc_sensor_type_to_string(unsigned int sensor_type)
 		case 0x101:
 			return "PAL MR sensor";
 		default:
-		    	return "unknown type of sensor";
+			return "unknown type of sensor";
 	}
 }
 #endif
@@ -1696,10 +1696,10 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 		     (device_hint[hint].pdev == NULL)) {
 			/* so far, so good... try serial number */
 			if ((device_hint[hint].serial_number[0] == '*') || !strcmp(device_hint[hint].serial_number, serial_number)) {
-			    	/* match! */
-			    	video_nr = device_hint[hint].device_node;
-			    	PWC_DEBUG_PROBE("Found hint, will try to register as /dev/video%d\n", video_nr);
-			    	break;
+				/* match! */
+				video_nr = device_hint[hint].device_node;
+				PWC_DEBUG_PROBE("Found hint, will try to register as /dev/video%d\n", video_nr);
+				break;
 			}
 		}
 	}

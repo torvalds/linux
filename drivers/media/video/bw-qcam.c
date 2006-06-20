@@ -760,7 +760,7 @@ static int qcam_do_ioctl(struct inode *inode, struct file *file,
 		{
 			struct video_picture *p = arg;
 			if(p->palette!=VIDEO_PALETTE_GREY)
-			    	return -EINVAL;
+				return -EINVAL;
 			if(p->depth!=4 && p->depth!=6)
 				return -EINVAL;
 
