@@ -273,6 +273,7 @@ void device_initialize(struct device *dev)
 int device_add(struct device *dev)
 {
 	struct device *parent = NULL;
+	char *class_name = NULL;
 	int error = -EINVAL;
 
 	dev = get_device(dev);
@@ -324,6 +325,10 @@ int device_add(struct device *dev)
 				  "subsystem");
 		sysfs_create_link(&dev->class->subsys.kset.kobj, &dev->kobj,
 				  dev->bus_id);
+
+		sysfs_create_link(&dev->kobj, &dev->parent->kobj, "device");
+		class_name = make_class_name(dev->class->name, &dev->kobj);
+		sysfs_create_link(&dev->parent->kobj, &dev->kobj, class_name);
 	}
 
 	if ((error = device_pm_add(dev)))
@@ -339,6 +344,7 @@ int device_add(struct device *dev)
 	if (platform_notify)
 		platform_notify(dev);
  Done:
+ 	kfree(class_name);
 	put_device(dev);
 	return error;
  BusError:
@@ -420,6 +426,7 @@ void put_device(struct device * dev)
 void device_del(struct device * dev)
 {
 	struct device * parent = dev->parent;
+	char *class_name = NULL;
 
 	if (parent)
 		klist_del(&dev->knode_parent);
@@ -428,6 +435,10 @@ void device_del(struct device * dev)
 	if (dev->class) {
 		sysfs_remove_link(&dev->kobj, "subsystem");
 		sysfs_remove_link(&dev->class->subsys.kset.kobj, dev->bus_id);
+		class_name = make_class_name(dev->class->name, &dev->kobj);
+		sysfs_remove_link(&dev->kobj, "device");
+		sysfs_remove_link(&dev->parent->kobj, class_name);
+		kfree(class_name);
 	}
 	device_remove_file(dev, &dev->uevent_attr);
 
