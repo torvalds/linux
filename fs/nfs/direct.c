@@ -80,8 +80,8 @@ struct nfs_direct_req {
 	unsigned int		npages;		/* count of pages */
 
 	/* completion state */
+	atomic_t		io_count;	/* i/os we're waiting for */
 	spinlock_t		lock;		/* protect completion state */
-	int			outstanding;	/* i/os we're waiting for */
 	ssize_t			count,		/* bytes actually processed */
 				error;		/* any reported error */
 	struct completion	completion;	/* wait for i/o completion */
@@ -96,6 +96,16 @@ struct nfs_direct_req {
 
 static void nfs_direct_write_schedule(struct nfs_direct_req *dreq, int sync);
 static void nfs_direct_write_complete(struct nfs_direct_req *dreq, struct inode *inode);
+
+static inline void get_dreq(struct nfs_direct_req *dreq)
+{
+	atomic_inc(&dreq->io_count);
+}
+
+static inline int put_dreq(struct nfs_direct_req *dreq)
+{
+	return atomic_dec_and_test(&dreq->io_count);
+}
 
 /**
  * nfs_direct_IO - NFS address space operation for direct I/O
@@ -180,7 +190,7 @@ static inline struct nfs_direct_req *nfs_direct_req_alloc(void)
 	dreq->iocb = NULL;
 	dreq->ctx = NULL;
 	spin_lock_init(&dreq->lock);
-	dreq->outstanding = 0;
+	atomic_set(&dreq->io_count, 0);
 	dreq->count = 0;
 	dreq->error = 0;
 	dreq->flags = 0;
@@ -278,7 +288,7 @@ static struct nfs_direct_req *nfs_direct_read_alloc(size_t nbytes, size_t rsize)
 		list_add(&data->pages, list);
 
 		data->req = (struct nfs_page *) dreq;
-		dreq->outstanding++;
+		get_dreq(dreq);
 		if (nbytes <= rsize)
 			break;
 		nbytes -= rsize;
@@ -302,13 +312,10 @@ static void nfs_direct_read_result(struct rpc_task *task, void *calldata)
 	else
 		dreq->error = task->tk_status;
 
-	if (--dreq->outstanding) {
-		spin_unlock(&dreq->lock);
-		return;
-	}
-
 	spin_unlock(&dreq->lock);
-	nfs_direct_complete(dreq);
+
+	if (put_dreq(dreq))
+		nfs_direct_complete(dreq);
 }
 
 static const struct rpc_call_ops nfs_read_direct_ops = {
@@ -432,7 +439,7 @@ static void nfs_direct_write_reschedule(struct nfs_direct_req *dreq)
 
 	list_splice_init(&dreq->rewrite_list, &dreq->list);
 	list_for_each(pos, &dreq->list)
-		dreq->outstanding++;
+		get_dreq(dreq);
 	dreq->count = 0;
 
 	nfs_direct_write_schedule(dreq, FLUSH_STABLE);
@@ -564,7 +571,7 @@ static struct nfs_direct_req *nfs_direct_write_alloc(size_t nbytes, size_t wsize
 		list_add(&data->pages, list);
 
 		data->req = (struct nfs_page *) dreq;
-		dreq->outstanding++;
+		get_dreq(dreq);
 		if (nbytes <= wsize)
 			break;
 		nbytes -= wsize;
@@ -620,14 +627,8 @@ static void nfs_direct_write_release(void *calldata)
 	struct nfs_write_data *data = calldata;
 	struct nfs_direct_req *dreq = (struct nfs_direct_req *) data->req;
 
-	spin_lock(&dreq->lock);
-	if (--dreq->outstanding) {
-		spin_unlock(&dreq->lock);
-		return;
-	}
-	spin_unlock(&dreq->lock);
-
-	nfs_direct_write_complete(dreq, data->inode);
+	if (put_dreq(dreq))
+		nfs_direct_write_complete(dreq, data->inode);
 }
 
 static const struct rpc_call_ops nfs_write_direct_ops = {
