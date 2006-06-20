@@ -213,7 +213,7 @@ static int acpi_ec_intr_wait(union acpi_ec *ec, unsigned int event)
 
 	switch (event) {
 	case ACPI_EC_EVENT_IBE:
-		if (~acpi_ec_read_status(ec) & event) {
+		if (~acpi_ec_read_status(ec) & ACPI_EC_FLAG_IBF) {
 			ec->intr.expect_event = 0;
 			return 0;
 		}
@@ -782,12 +782,15 @@ static u32 acpi_ec_gpe_intr_handler(void *data)
 	case ACPI_EC_EVENT_OBF:
 		if (!(value & ACPI_EC_FLAG_OBF))
 			break;
+		ec->intr.expect_event = 0;
+		wake_up(&ec->intr.wait);
+		break;
 	case ACPI_EC_EVENT_IBE:
 		if ((value & ACPI_EC_FLAG_IBF))
 			break;
 		ec->intr.expect_event = 0;
 		wake_up(&ec->intr.wait);
-		return ACPI_INTERRUPT_HANDLED;
+		break;
 	default:
 		break;
 	}
