@@ -7,6 +7,8 @@ obj-m		:=
 obj-n		:=
 obj-		:=
 
+obj-$(CONFIG_PM)		+= pm.o
+
 # Board-specific support
 obj-$(CONFIG_ARCH_AT91RM9200DK)	+= board-dk.o
 obj-$(CONFIG_MACH_AT91RM9200EK)	+= board-ek.o
@@ -28,3 +30,8 @@ obj-$(CONFIG_LEDS) += $(led-y)
 
 # VGA support
 #obj-$(CONFIG_FB_S1D13XXX)	+= ics1523.o
+
+
+ifeq ($(CONFIG_PM_DEBUG),y)
+CFLAGS_pm.o += -DDEBUG
+endif
