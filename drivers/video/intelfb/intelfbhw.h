@@ -126,6 +126,12 @@
 #define FW_DISPC_BL_SHIFT		8
 #define FW_DISPC_BL_MASK		0x7
 
+#define GPIOA             0x5010
+#define GPIOB             0x5014
+#define GPIOC             0x5018 // this may be external DDC on i830
+#define GPIOD             0x501C // this is DVO DDC
+#define GPIOE             0x5020 // this is DVO i2C
+#define GPIOF             0x5024
 
 /* PLL registers */
 #define VGA0_DIVISOR		0x06000
