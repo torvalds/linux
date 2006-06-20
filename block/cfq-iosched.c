@@ -60,14 +60,9 @@ static DEFINE_SPINLOCK(cfq_exit_lock);
 /*
  * rb-tree defines
  */
-#define RB_NONE			(2)
 #define RB_EMPTY(node)		((node)->rb_node == NULL)
-#define RB_CLEAR_COLOR(node)	(node)->rb_color = RB_NONE
 #define RB_CLEAR(node)		do {	\
-	(node)->rb_parent = NULL;	\
-	RB_CLEAR_COLOR((node));		\
-	(node)->rb_right = NULL;	\
-	(node)->rb_left = NULL;		\
+		memset(node, 0, sizeof(*node)); \
 } while (0)
 #define RB_CLEAR_ROOT(root)	((root)->rb_node = NULL)
 #define rb_entry_crq(node)	rb_entry((node), struct cfq_rq, rb_node)
@@ -567,7 +562,6 @@ static inline void cfq_del_crq_rb(struct cfq_rq *crq)
 	cfq_update_next_crq(crq);
 
 	rb_erase(&crq->rb_node, &cfqq->sort_list);
-	RB_CLEAR_COLOR(&crq->rb_node);
 
 	if (cfq_cfqq_on_rr(cfqq) && RB_EMPTY(&cfqq->sort_list))
 		cfq_del_cfqq_rr(cfqd, cfqq);

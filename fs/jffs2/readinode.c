@@ -66,7 +66,7 @@ static void jffs2_free_tmp_dnode_info_list(struct rb_root *list)
 			jffs2_free_full_dnode(tn->fn);
 			jffs2_free_tmp_dnode_info(tn);
 
-			this = this->rb_parent;
+			this = rb_parent(this);
 			if (!this)
 				break;
 
@@ -708,12 +708,12 @@ static int jffs2_do_read_inode_internal(struct jffs2_sb_info *c,
 			jffs2_mark_node_obsolete(c, fn->raw);
 
 		BUG_ON(rb->rb_left);
-		if (rb->rb_parent && rb->rb_parent->rb_left == rb) {
+		if (rb_parent(rb) && rb_parent(rb)->rb_left == rb) {
 			/* We were then left-hand child of our parent. We need
 			 * to move our own right-hand child into our place. */
 			repl_rb = rb->rb_right;
 			if (repl_rb)
-				repl_rb->rb_parent = rb->rb_parent;
+				rb_set_parent(repl_rb, rb_parent(rb));
 		} else
 			repl_rb = NULL;
 
@@ -721,14 +721,14 @@ static int jffs2_do_read_inode_internal(struct jffs2_sb_info *c,
 
 		/* Remove the spent tn from the tree; don't bother rebalancing
 		 * but put our right-hand child in our own place. */
-		if (tn->rb.rb_parent) {
-			if (tn->rb.rb_parent->rb_left == &tn->rb)
-				tn->rb.rb_parent->rb_left = repl_rb;
-			else if (tn->rb.rb_parent->rb_right == &tn->rb)
-				tn->rb.rb_parent->rb_right = repl_rb;
+		if (rb_parent(&tn->rb)) {
+			if (rb_parent(&tn->rb)->rb_left == &tn->rb)
+				rb_parent(&tn->rb)->rb_left = repl_rb;
+			else if (rb_parent(&tn->rb)->rb_right == &tn->rb)
+				rb_parent(&tn->rb)->rb_right = repl_rb;
 			else BUG();
 		} else if (tn->rb.rb_right)
-			tn->rb.rb_right->rb_parent = NULL;
+			rb_set_parent(tn->rb.rb_right, NULL);
 
 		jffs2_free_tmp_dnode_info(tn);
 		if (ret) {
