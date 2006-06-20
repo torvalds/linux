@@ -649,7 +649,6 @@ static int do_sync(unsigned int num_qd, struct gfs2_quota_data **qda)
 	struct gfs2_sbd *sdp = (*qda)->qd_gl->gl_sbd;
 	struct gfs2_inode *ip = GFS2_I(sdp->sd_quota_inode);
 	unsigned int data_blocks, ind_blocks;
-	struct file_ra_state ra_state;
 	struct gfs2_holder *ghs, i_gh;
 	unsigned int qx, x;
 	struct gfs2_quota_data *qd;
@@ -716,7 +715,6 @@ static int do_sync(unsigned int num_qd, struct gfs2_quota_data **qda)
 			goto out_gunlock;
 	}
 
-	file_ra_state_init(&ra_state, ip->i_inode.i_mapping);
 	for (x = 0; x < num_qd; x++) {
 		qd = qda[x];
 		offset = qd2offset(qd);
@@ -790,10 +788,8 @@ static int do_glock(struct gfs2_quota_data *qd, int force_refresh,
 
 		memset(buf, 0, sizeof(struct gfs2_quota));
 		pos = qd2offset(qd);
-		error = gfs2_internal_read(ip,
-					    &ra_state, buf,
-					    &pos,
-					    sizeof(struct gfs2_quota));
+		error = gfs2_internal_read(ip, &ra_state, buf,
+					   &pos, sizeof(struct gfs2_quota));
 		if (error < 0)
 			goto fail_gunlock;
 
