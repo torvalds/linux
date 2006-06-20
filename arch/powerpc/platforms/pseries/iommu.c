@@ -331,13 +331,9 @@ static void iommu_bus_setup_pSeries(struct pci_bus *bus)
 	if (isa_dn_orig)
 		of_node_put(isa_dn_orig);
 
-	/* Count number of direct PCI children of the PHB.
-	 * All PCI device nodes have class-code property, so it's
-	 * an easy way to find them.
-	 */
+	/* Count number of direct PCI children of the PHB. */
 	for (children = 0, tmp = dn->child; tmp; tmp = tmp->sibling)
-		if (get_property(tmp, "class-code", NULL))
-			children++;
+		children++;
 
 	DBG("Children: %d\n", children);
 
