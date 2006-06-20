@@ -371,14 +371,13 @@ static irqreturn_t nv_nf2_interrupt(int irq, void *dev_instance,
 				    struct pt_regs *regs)
 {
 	struct ata_host_set *host_set = dev_instance;
-	unsigned long flags;
 	u8 irq_stat;
 	irqreturn_t ret;
 
-	spin_lock_irqsave(&host_set->lock, flags);
+	spin_lock(&host_set->lock);
 	irq_stat = inb(host_set->ports[0]->ioaddr.scr_addr + NV_INT_STATUS);
 	ret = nv_do_interrupt(host_set, irq_stat);
-	spin_unlock_irqrestore(&host_set->lock, flags);
+	spin_unlock(&host_set->lock);
 
 	return ret;
 }
@@ -387,14 +386,13 @@ static irqreturn_t nv_ck804_interrupt(int irq, void *dev_instance,
 				      struct pt_regs *regs)
 {
 	struct ata_host_set *host_set = dev_instance;
-	unsigned long flags;
 	u8 irq_stat;
 	irqreturn_t ret;
 
-	spin_lock_irqsave(&host_set->lock, flags);
+	spin_lock(&host_set->lock);
 	irq_stat = readb(host_set->mmio_base + NV_INT_STATUS_CK804);
 	ret = nv_do_interrupt(host_set, irq_stat);
-	spin_unlock_irqrestore(&host_set->lock, flags);
+	spin_unlock(&host_set->lock);
 
 	return ret;
 }
