@@ -50,6 +50,7 @@ struct sys_timer {
 #define DYN_TICK_ENABLED	(1 << 1)
 
 struct dyn_tick_timer {
+	spinlock_t	lock;
 	unsigned int	state;			/* Current state */
 	int		(*enable)(void);	/* Enables dynamic tick */
 	int		(*disable)(void);	/* Disables dynamic tick */

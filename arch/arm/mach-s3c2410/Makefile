@@ -24,12 +24,22 @@ obj-$(CONFIG_S3C2410_DMA)  += dma.o
 obj-$(CONFIG_PM)	   += pm.o sleep.o
 obj-$(CONFIG_PM_SIMTEC)	   += pm-simtec.o
 
+# S3C244X support
+
+obj-$(CONFIG_CPU_S3C244X)  += s3c244x.o
+obj-$(CONFIG_CPU_S3C244X)  += s3c244x-irq.o
+
 # S3C2440 support
 
 obj-$(CONFIG_CPU_S3C2440)  += s3c2440.o s3c2440-dsc.o
 obj-$(CONFIG_CPU_S3C2440)  += s3c2440-irq.o
 obj-$(CONFIG_CPU_S3C2440)  += s3c2440-clock.o
 obj-$(CONFIG_CPU_S3C2440)  += s3c2410-gpio.o
+
+# S3C2442 support
+
+obj-$(CONFIG_CPU_S3C2442)  += s3c2442.o
+obj-$(CONFIG_CPU_S3C2442)  += s3c2442-clock.o
 
 # bast extras
 

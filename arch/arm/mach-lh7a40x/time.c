@@ -1,4 +1,4 @@
-/* 
+/*
  *  arch/arm/mach-lh7a40x/time.c
  *
  *  Copyright (C) 2004 Logic Product Development
@@ -57,7 +57,7 @@ static struct irqaction lh7a40x_timer_irq = {
 	.handler	= lh7a40x_timer_interrupt,
 };
 
-static void __init lh7a40x_timer_init(void)
+static void __init lh7a40x_timer_init (void)
 {
 				/* Stop/disable all timers */
 	TIMER_CONTROL1 = 0;
