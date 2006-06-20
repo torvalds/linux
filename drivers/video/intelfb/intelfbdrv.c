@@ -851,6 +851,11 @@ intelfb_pci_register(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (bailearly == 5)
 		bailout(dinfo);
 
+#ifdef CONFIG_FB_INTEL_I2C
+	/* register I2C bus */
+	intelfb_create_i2c_busses(dinfo);
+#endif
+
 	if (bailearly == 6)
 		bailout(dinfo);
 
