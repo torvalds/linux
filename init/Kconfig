@@ -389,9 +389,6 @@ config SLOB
 	default !SLAB
 	bool
 
-config OBSOLETE_INTERMODULE
-	tristate
-
 menu "Loadable module support"
 
 config MODULES

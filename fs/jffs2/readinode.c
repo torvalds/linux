@@ -116,17 +116,40 @@ static inline int read_direntry(struct jffs2_sb_info *c, struct jffs2_raw_node_r
 				uint32_t *latest_mctime, uint32_t *mctime_ver)
 {
 	struct jffs2_full_dirent *fd;
+	uint32_t crc;
 
-	/* The direntry nodes are checked during the flash scanning */
-	BUG_ON(ref_flags(ref) == REF_UNCHECKED);
 	/* Obsoleted. This cannot happen, surely? dwmw2 20020308 */
 	BUG_ON(ref_obsolete(ref));
 
-	/* Sanity check */
-	if (unlikely(PAD((rd->nsize + sizeof(*rd))) != PAD(je32_to_cpu(rd->totlen)))) {
-		JFFS2_ERROR("illegal nsize in node at %#08x: nsize %#02x, totlen %#04x\n",
-		       ref_offset(ref), rd->nsize, je32_to_cpu(rd->totlen));
+	crc = crc32(0, rd, sizeof(*rd) - 8);
+	if (unlikely(crc != je32_to_cpu(rd->node_crc))) {
+		JFFS2_NOTICE("header CRC failed on dirent node at %#08x: read %#08x, calculated %#08x\n",
+			     ref_offset(ref), je32_to_cpu(rd->node_crc), crc);
 		return 1;
+	}
+
+	/* If we've never checked the CRCs on this node, check them now */
+	if (ref_flags(ref) == REF_UNCHECKED) {
+		struct jffs2_eraseblock *jeb;
+		int len;
+
+		/* Sanity check */
+		if (unlikely(PAD((rd->nsize + sizeof(*rd))) != PAD(je32_to_cpu(rd->totlen)))) {
+			JFFS2_ERROR("illegal nsize in node at %#08x: nsize %#02x, totlen %#04x\n",
+				    ref_offset(ref), rd->nsize, je32_to_cpu(rd->totlen));
+			return 1;
+		}
+
+		jeb = &c->blocks[ref->flash_offset / c->sector_size];
+		len = ref_totlen(c, jeb, ref);
+
+		spin_lock(&c->erase_completion_lock);
+		jeb->used_size += len;
+		jeb->unchecked_size -= len;
+		c->used_size += len;
+		c->unchecked_size -= len;
+		ref->flash_offset = ref_offset(ref) | REF_PRISTINE;
+		spin_unlock(&c->erase_completion_lock);
 	}
 
 	fd = jffs2_alloc_full_dirent(rd->nsize + 1);
@@ -198,13 +221,21 @@ static inline int read_dnode(struct jffs2_sb_info *c, struct jffs2_raw_node_ref 
 	struct jffs2_tmp_dnode_info *tn;
 	uint32_t len, csize;
 	int ret = 1;
+	uint32_t crc;
 
 	/* Obsoleted. This cannot happen, surely? dwmw2 20020308 */
 	BUG_ON(ref_obsolete(ref));
 
+	crc = crc32(0, rd, sizeof(*rd) - 8);
+	if (unlikely(crc != je32_to_cpu(rd->node_crc))) {
+		JFFS2_NOTICE("node CRC failed on dnode at %#08x: read %#08x, calculated %#08x\n",
+			     ref_offset(ref), je32_to_cpu(rd->node_crc), crc);
+		return 1;
+	}
+
 	tn = jffs2_alloc_tmp_dnode_info();
 	if (!tn) {
-		JFFS2_ERROR("failed to allocate tn (%d bytes).\n", sizeof(*tn));
+		JFFS2_ERROR("failed to allocate tn (%zu bytes).\n", sizeof(*tn));
 		return -ENOMEM;
 	}
 
@@ -213,14 +244,6 @@ static inline int read_dnode(struct jffs2_sb_info *c, struct jffs2_raw_node_ref 
 
 	/* If we've never checked the CRCs on this node, check them now */
 	if (ref_flags(ref) == REF_UNCHECKED) {
-		uint32_t crc;
-
-		crc = crc32(0, rd, sizeof(*rd) - 8);
-		if (unlikely(crc != je32_to_cpu(rd->node_crc))) {
-			JFFS2_NOTICE("header CRC failed on node at %#08x: read %#08x, calculated %#08x\n",
-					ref_offset(ref), je32_to_cpu(rd->node_crc), crc);
-			goto free_out;
-		}
 
 		/* Sanity checks */
 		if (unlikely(je32_to_cpu(rd->offset) > je32_to_cpu(rd->isize)) ||
@@ -343,7 +366,7 @@ free_out:
  * Helper function for jffs2_get_inode_nodes().
  * It is called every time an unknown node is found.
  *
- * Returns: 0 on succes;
+ * Returns: 0 on success;
  * 	    1 if the node should be marked obsolete;
  * 	    negative error code on failure.
  */
@@ -354,37 +377,30 @@ static inline int read_unknown(struct jffs2_sb_info *c, struct jffs2_raw_node_re
 
 	un->nodetype = cpu_to_je16(JFFS2_NODE_ACCURATE | je16_to_cpu(un->nodetype));
 
-	if (crc32(0, un, sizeof(struct jffs2_unknown_node) - 4) != je32_to_cpu(un->hdr_crc)) {
-		/* Hmmm. This should have been caught at scan time. */
-		JFFS2_NOTICE("node header CRC failed at %#08x. But it must have been OK earlier.\n", ref_offset(ref));
-		jffs2_dbg_dump_node(c, ref_offset(ref));
+	switch(je16_to_cpu(un->nodetype) & JFFS2_COMPAT_MASK) {
+
+	case JFFS2_FEATURE_INCOMPAT:
+		JFFS2_ERROR("unknown INCOMPAT nodetype %#04X at %#08x\n",
+			    je16_to_cpu(un->nodetype), ref_offset(ref));
+		/* EEP */
+		BUG();
+		break;
+
+	case JFFS2_FEATURE_ROCOMPAT:
+		JFFS2_ERROR("unknown ROCOMPAT nodetype %#04X at %#08x\n",
+			    je16_to_cpu(un->nodetype), ref_offset(ref));
+		BUG_ON(!(c->flags & JFFS2_SB_FLAG_RO));
+		break;
+
+	case JFFS2_FEATURE_RWCOMPAT_COPY:
+		JFFS2_NOTICE("unknown RWCOMPAT_COPY nodetype %#04X at %#08x\n",
+			     je16_to_cpu(un->nodetype), ref_offset(ref));
+		break;
+
+	case JFFS2_FEATURE_RWCOMPAT_DELETE:
+		JFFS2_NOTICE("unknown RWCOMPAT_DELETE nodetype %#04X at %#08x\n",
+			     je16_to_cpu(un->nodetype), ref_offset(ref));
 		return 1;
-	} else {
-		switch(je16_to_cpu(un->nodetype) & JFFS2_COMPAT_MASK) {
-
-		case JFFS2_FEATURE_INCOMPAT:
-			JFFS2_ERROR("unknown INCOMPAT nodetype %#04X at %#08x\n",
-				je16_to_cpu(un->nodetype), ref_offset(ref));
-			/* EEP */
-			BUG();
-			break;
-
-		case JFFS2_FEATURE_ROCOMPAT:
-			JFFS2_ERROR("unknown ROCOMPAT nodetype %#04X at %#08x\n",
-					je16_to_cpu(un->nodetype), ref_offset(ref));
-			BUG_ON(!(c->flags & JFFS2_SB_FLAG_RO));
-			break;
-
-		case JFFS2_FEATURE_RWCOMPAT_COPY:
-			JFFS2_NOTICE("unknown RWCOMPAT_COPY nodetype %#04X at %#08x\n",
-					je16_to_cpu(un->nodetype), ref_offset(ref));
-			break;
-
-		case JFFS2_FEATURE_RWCOMPAT_DELETE:
-			JFFS2_NOTICE("unknown RWCOMPAT_DELETE nodetype %#04X at %#08x\n",
-					je16_to_cpu(un->nodetype), ref_offset(ref));
-			return 1;
-		}
 	}
 
 	return 0;
@@ -434,7 +450,7 @@ static int read_more(struct jffs2_sb_info *c, struct jffs2_raw_node_ref *ref,
 	}
 
 	if (retlen < len) {
-		JFFS2_ERROR("short read at %#08x: %d instead of %d.\n",
+		JFFS2_ERROR("short read at %#08x: %zu instead of %d.\n",
 				offs, retlen, len);
 		return -EIO;
 	}
@@ -542,12 +558,24 @@ static int jffs2_get_inode_nodes(struct jffs2_sb_info *c, struct jffs2_inode_inf
 		}
 
 		if (retlen < len) {
-			JFFS2_ERROR("short read at %#08x: %d instead of %d.\n", ref_offset(ref), retlen, len);
+			JFFS2_ERROR("short read at %#08x: %zu instead of %d.\n", ref_offset(ref), retlen, len);
 			err = -EIO;
 			goto free_out;
 		}
 
 		node = (union jffs2_node_union *)bufstart;
+
+		/* No need to mask in the valid bit; it shouldn't be invalid */
+		if (je32_to_cpu(node->u.hdr_crc) != crc32(0, node, sizeof(node->u)-4)) {
+			JFFS2_NOTICE("Node header CRC failed at %#08x. {%04x,%04x,%08x,%08x}\n",
+				     ref_offset(ref), je16_to_cpu(node->u.magic),
+				     je16_to_cpu(node->u.nodetype),
+				     je32_to_cpu(node->u.totlen),
+				     je32_to_cpu(node->u.hdr_crc));
+			jffs2_dbg_dump_node(c, ref_offset(ref));
+			jffs2_mark_node_obsolete(c, ref);
+			goto cont;
+		}
 
 		switch (je16_to_cpu(node->u.nodetype)) {
 
@@ -606,6 +634,7 @@ static int jffs2_get_inode_nodes(struct jffs2_sb_info *c, struct jffs2_inode_inf
 				goto free_out;
 
 		}
+	cont:
 		spin_lock(&c->erase_completion_lock);
 	}
 

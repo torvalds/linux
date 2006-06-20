@@ -635,6 +635,7 @@ int __init lart_flash_init (void)
    printk ("%s: This looks like a LART board to me.\n",module_name);
    mtd.name = module_name;
    mtd.type = MTD_NORFLASH;
+   mtd.writesize = 1;
    mtd.flags = MTD_CAP_NORFLASH;
    mtd.size = FLASH_BLOCKSIZE_PARAM * FLASH_NUMBLOCKS_16m_PARAM + FLASH_BLOCKSIZE_MAIN * FLASH_NUMBLOCKS_16m_MAIN;
    mtd.erasesize = FLASH_BLOCKSIZE_MAIN;

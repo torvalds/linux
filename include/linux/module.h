@@ -557,13 +557,4 @@ static inline void module_remove_driver(struct device_driver *driver)
 
 #define __MODULE_STRING(x) __stringify(x)
 
-/* Use symbol_get and symbol_put instead.  You'll thank me. */
-#define HAVE_INTER_MODULE
-extern void __deprecated inter_module_register(const char *,
-		struct module *, const void *);
-extern void __deprecated inter_module_unregister(const char *);
-extern const void * __deprecated inter_module_get_request(const char *,
-		const char *);
-extern void __deprecated inter_module_put(const char *);
-
 #endif /* _LINUX_MODULE_H */

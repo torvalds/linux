@@ -1843,12 +1843,12 @@ S:     linux-scsi@vger.kernel.org
 W:     http://megaraid.lsilogic.com
 S:     Maintained
 
-MEMORY TECHNOLOGY DEVICES
+MEMORY TECHNOLOGY DEVICES (MTD)
 P:	David Woodhouse
 M:	dwmw2@infradead.org
 W:	http://www.linux-mtd.infradead.org/
 L:	linux-mtd@lists.infradead.org
-T:	git kernel.org:/pub/scm/linux/kernel/git/tglx/mtd-2.6.git
+T:	git git://git.infradead.org/mtd-2.6.git
 S:	Maintained
 
 MICROTEK X6 SCANNER

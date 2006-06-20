@@ -3,13 +3,6 @@
 #
 # $Id: Makefile.common,v 1.5 2005/11/07 11:14:22 gleixner Exp $
 
-#                       *** BIG UGLY NOTE ***
-#
-# The removal of get_module_symbol() and replacement with
-# inter_module_register() et al has introduced a link order dependency
-# here where previously there was none.  We now have to ensure that
-# the CFI command set drivers are linked before gen_probe.o
-
 obj-$(CONFIG_MTD)		+= chipreg.o
 obj-$(CONFIG_MTD_AMDSTD)	+= amd_flash.o
 obj-$(CONFIG_MTD_CFI)		+= cfi_probe.o
