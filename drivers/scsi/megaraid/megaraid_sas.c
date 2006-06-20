@@ -10,7 +10,7 @@
  *	   2 of the License, or (at your option) any later version.
  *
  * FILE		: megaraid_sas.c
- * Version	: v00.00.02.04
+ * Version	: v00.00.03.01
  *
  * Authors:
  * 	Sreenivas Bagalkote	<Sreenivas.Bagalkote@lsil.com>
@@ -55,19 +55,25 @@ static struct pci_device_id megasas_pci_table[] = {
 
 	{
 	 PCI_VENDOR_ID_LSI_LOGIC,
-	 PCI_DEVICE_ID_LSI_SAS1064R, // xscale IOP
+	 PCI_DEVICE_ID_LSI_SAS1064R, /* xscale IOP */
 	 PCI_ANY_ID,
 	 PCI_ANY_ID,
 	 },
 	{
 	 PCI_VENDOR_ID_LSI_LOGIC,
-	 PCI_DEVICE_ID_LSI_SAS1078R, // ppc IOP
+	 PCI_DEVICE_ID_LSI_SAS1078R, /* ppc IOP */
 	 PCI_ANY_ID,
 	 PCI_ANY_ID,
 	},
 	{
+	 PCI_VENDOR_ID_LSI_LOGIC,
+	 PCI_DEVICE_ID_LSI_VERDE_ZCR,	/* xscale IOP, vega */
+	 PCI_ANY_ID,
+	 PCI_ANY_ID,
+	 },
+	{
 	 PCI_VENDOR_ID_DELL,
-	 PCI_DEVICE_ID_DELL_PERC5, // xscale IOP
+	 PCI_DEVICE_ID_DELL_PERC5, /* xscale IOP */
 	 PCI_ANY_ID,
 	 PCI_ANY_ID,
 	 },
@@ -289,9 +295,14 @@ static struct megasas_instance_template megasas_instance_template_ppc = {
  * @regs:			MFI register set
  */
 static inline void
-megasas_disable_intr(struct megasas_register_set __iomem * regs)
+megasas_disable_intr(struct megasas_instance *instance)
 {
 	u32 mask = 0x1f; 
+	struct megasas_register_set __iomem *regs = instance->reg_set;
+
+	if(instance->pdev->device == PCI_DEVICE_ID_LSI_SAS1078R)
+		mask = 0xffffffff;
+
 	writel(mask, &regs->outbound_intr_mask);
 
 	/* Dummy readl to force pci flush */
@@ -1260,7 +1271,7 @@ megasas_transition_to_ready(struct megasas_instance* instance)
 			/*
 			 * Bring it to READY state; assuming max wait 2 secs
 			 */
-			megasas_disable_intr(instance->reg_set);
+			megasas_disable_intr(instance);
 			writel(MFI_INIT_READY, &instance->reg_set->inbound_doorbell);
 
 			max_wait = 10;
@@ -1757,6 +1768,11 @@ static int megasas_init_mfi(struct megasas_instance *instance)
 	init_frame->data_xfer_len = sizeof(struct megasas_init_queue_info);
 
 	/*
+	 * disable the intr before firing the init frame to FW
+	 */
+	megasas_disable_intr(instance);
+
+	/*
 	 * Issue the init frame in polled mode
 	 */
 	if (megasas_issue_polled(instance, cmd)) {
@@ -2234,7 +2250,7 @@ megasas_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	megasas_mgmt_info.max_index--;
 
 	pci_set_drvdata(pdev, NULL);
-	megasas_disable_intr(instance->reg_set);
+	megasas_disable_intr(instance);
 	free_irq(instance->pdev->irq, instance);
 
 	megasas_release_mfi(instance);
@@ -2364,7 +2380,7 @@ static void megasas_detach_one(struct pci_dev *pdev)
 
 	pci_set_drvdata(instance->pdev, NULL);
 
-	megasas_disable_intr(instance->reg_set);
+	megasas_disable_intr(instance);
 
 	free_irq(instance->pdev->irq, instance);
 
