@@ -131,6 +131,7 @@ config CRYPTO_BLOWFISH
 config CRYPTO_TWOFISH
 	tristate "Twofish cipher algorithm"
 	depends on CRYPTO
+	select CRYPTO_TWOFISH_COMMON
 	help
 	  Twofish cipher algorithm.
 	  
@@ -141,6 +142,13 @@ config CRYPTO_TWOFISH
 	  
 	  See also:
 	  <http://www.schneier.com/twofish.html>
+
+config CRYPTO_TWOFISH_COMMON
+	tristate
+	depends on CRYPTO
+	help
+	  Common parts of the Twofish cipher algorithm shared by the
+	  generic c and the assembler implementations.
 
 config CRYPTO_SERPENT
 	tristate "Serpent cipher algorithm"
