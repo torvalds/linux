@@ -1473,6 +1473,19 @@ static int
 intelfb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 {
 	int retval = 0;
+	struct intelfb_info *dinfo = GET_DINFO(info);
+	u32 pipe = 0;
+
+	switch (cmd) {
+		case FBIO_WAITFORVSYNC:
+			if (get_user(pipe, (__u32 __user *)arg))
+				return -EFAULT;
+
+			retval = intelfbhw_wait_for_vsync(dinfo, pipe);
+			break;
+		default:
+			break;
+	}
 
 	return retval;
 }

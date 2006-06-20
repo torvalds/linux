@@ -563,5 +563,6 @@ extern void intelfbhw_cursor_load(struct intelfb_info *dinfo, int width,
 extern void intelfbhw_cursor_reset(struct intelfb_info *dinfo);
 extern int intelfbhw_enable_irq(struct intelfb_info *dinfo, int reenable);
 extern void intelfbhw_disable_irq(struct intelfb_info *dinfo);
+extern int intelfbhw_wait_for_vsync(struct intelfb_info *dinfo, u32 pipe);
 
 #endif /* _INTELFBHW_H */

@@ -2019,3 +2019,36 @@ intelfbhw_disable_irq(struct intelfb_info *dinfo) {
 		free_irq(dinfo->pdev->irq, dinfo);
 	}
 }
+
+int
+intelfbhw_wait_for_vsync(struct intelfb_info *dinfo, u32 pipe) {
+	struct intelfb_vsync *vsync;
+	unsigned int count;
+	int ret;
+
+	switch (pipe) {
+		case 0:
+			vsync = &dinfo->vsync;
+			break;
+		default:
+			return -ENODEV;
+	}
+
+	ret = intelfbhw_enable_irq(dinfo, 0);
+	if (ret) {
+		return ret;
+	}
+
+	count = vsync->count;
+	ret = wait_event_interruptible_timeout(vsync->wait, count != vsync->count, HZ/10);
+	if (ret < 0) {
+		return ret;
+	}
+	if (ret == 0) {
+		intelfbhw_enable_irq(dinfo, 1);
+		DBG_MSG("wait_for_vsync timed out!\n");
+		return -ETIMEDOUT;
+	}
+
+	return 0;
+}
