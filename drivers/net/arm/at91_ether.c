@@ -1128,10 +1128,54 @@ static int __devexit at91ether_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+
+static int at91ether_suspend(struct platform_device *pdev, pm_message_t mesg)
+{
+	struct at91_private *lp = (struct at91_private *) at91_dev->priv;
+	struct net_device *net_dev = platform_get_drvdata(pdev);
+	int phy_irq = lp->board_data.phy_irq_pin;
+
+	if (netif_running(net_dev)) {
+		if (phy_irq)
+			disable_irq(phy_irq);
+
+		netif_stop_queue(net_dev);
+		netif_device_detach(net_dev);
+
+		clk_disable(lp->ether_clk);
+	}
+	return 0;
+}
+
+static int at91ether_resume(struct platform_device *pdev)
+{
+	struct at91_private *lp = (struct at91_private *) at91_dev->priv;
+	struct net_device *net_dev = platform_get_drvdata(pdev);
+	int phy_irq = lp->board_data.phy_irq_pin;
+
+	if (netif_running(net_dev)) {
+		clk_enable(lp->ether_clk);
+
+		netif_device_attach(net_dev);
+		netif_start_queue(net_dev);
+
+		if (phy_irq)
+			enable_irq(phy_irq);
+	}
+	return 0;
+}
+
+#else
+#define at91ether_suspend	NULL
+#define at91ether_resume	NULL
+#endif
+
 static struct platform_driver at91ether_driver = {
 	.probe		= at91ether_probe,
 	.remove		= __devexit_p(at91ether_remove),
-	/* FIXME:  support suspend and resume */
+	.suspend	= at91ether_suspend,
+	.resume		= at91ether_resume,
 	.driver		= {
 		.name	= DRV_NAME,
 		.owner	= THIS_MODULE,
