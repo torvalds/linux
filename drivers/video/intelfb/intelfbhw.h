@@ -561,5 +561,7 @@ extern void intelfbhw_cursor_setcolor(struct intelfb_info *dinfo, u32 bg,
 extern void intelfbhw_cursor_load(struct intelfb_info *dinfo, int width,
 				  int height, u8 *data);
 extern void intelfbhw_cursor_reset(struct intelfb_info *dinfo);
+extern int intelfbhw_enable_irq(struct intelfb_info *dinfo, int reenable);
+extern void intelfbhw_disable_irq(struct intelfb_info *dinfo);
 
 #endif /* _INTELFBHW_H */

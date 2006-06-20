@@ -208,6 +208,11 @@ struct intelfb_heap_data {
 	u32 size;    // in bytes
 };
 
+struct intelfb_vsync {
+	wait_queue_head_t wait;
+	unsigned int count;
+};
+
 struct intelfb_info {
 	struct fb_info *info;
 	struct fb_ops  *fbops;
@@ -271,6 +276,12 @@ struct intelfb_info {
 	int fixed_mode;
 	int ring_active;
 	int flag;
+	unsigned long irq_flags;
+	int open;
+
+	/* vsync */
+	struct intelfb_vsync vsync;
+	spinlock_t int_lock;
 
 	/* hw cursor */
 	int cursor_on;

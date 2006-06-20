@@ -34,6 +34,7 @@
 #include <linux/pci.h>
 #include <linux/vmalloc.h>
 #include <linux/pagemap.h>
+#include <linux/interrupt.h>
 
 #include <asm/io.h>
 
@@ -1941,5 +1942,80 @@ intelfbhw_cursor_reset(struct intelfb_info *dinfo) {
 			writeb(0x00, addr + j+8);
 		}
 		addr += 16;
+	}
+}
+
+static irqreturn_t
+intelfbhw_irq(int irq, void *dev_id, struct pt_regs *fp) {
+	int handled = 0;
+	u16 tmp;
+	struct intelfb_info *dinfo = (struct intelfb_info *)dev_id;
+
+	spin_lock(&dinfo->int_lock);
+
+	tmp = INREG16(IIR);
+	tmp &= VSYNC_PIPE_A_INTERRUPT;
+
+	if (tmp == 0) {
+		spin_unlock(&dinfo->int_lock);
+		return IRQ_RETVAL(handled);
+	}
+
+	OUTREG16(IIR, tmp);
+
+	if (tmp & VSYNC_PIPE_A_INTERRUPT) {
+		dinfo->vsync.count++;
+		wake_up_interruptible(&dinfo->vsync.wait);
+		handled = 1;
+	}
+
+	spin_unlock(&dinfo->int_lock);
+
+	return IRQ_RETVAL(handled);
+}
+
+int
+intelfbhw_enable_irq(struct intelfb_info *dinfo, int reenable) {
+
+	if (!test_and_set_bit(0, &dinfo->irq_flags)) {
+		if (request_irq(dinfo->pdev->irq, intelfbhw_irq, SA_SHIRQ, "intelfb", dinfo)) {
+			clear_bit(0, &dinfo->irq_flags);
+			return -EINVAL;
+		}
+
+		spin_lock_irq(&dinfo->int_lock);
+		OUTREG16(HWSTAM, 0xfffe);
+		OUTREG16(IMR, 0x0);
+		OUTREG16(IER, VSYNC_PIPE_A_INTERRUPT);
+		spin_unlock_irq(&dinfo->int_lock);
+	} else if (reenable) {
+		u16 ier;
+
+		spin_lock_irq(&dinfo->int_lock);
+		ier = INREG16(IER);
+		if ((ier & VSYNC_PIPE_A_INTERRUPT)) {
+			DBG_MSG("someone disabled the IRQ [%08X]\n", ier);
+			OUTREG(IER, VSYNC_PIPE_A_INTERRUPT);
+		}
+		spin_unlock_irq(&dinfo->int_lock);
+	}
+	return 0;
+}
+
+void
+intelfbhw_disable_irq(struct intelfb_info *dinfo) {
+	u16 tmp;
+
+	if (test_and_clear_bit(0, &dinfo->irq_flags)) {
+		spin_lock_irq(&dinfo->int_lock);
+		OUTREG16(HWSTAM, 0xffff);
+		OUTREG16(IMR, 0xffff);
+		OUTREG16(IER, 0x0);
+
+		tmp = INREG16(IIR);
+		OUTREG16(IIR, tmp);
+		spin_unlock_irq(&dinfo->int_lock);
+
+		free_irq(dinfo->pdev->irq, dinfo);
 	}
 }

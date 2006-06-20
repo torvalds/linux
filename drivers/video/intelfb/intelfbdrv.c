@@ -137,6 +137,8 @@
 static void __devinit get_initial_mode(struct intelfb_info *dinfo);
 static void update_dinfo(struct intelfb_info *dinfo,
 			 struct fb_var_screeninfo *var);
+static int intelfb_open(struct fb_info *info, int user);
+static int intelfb_release(struct fb_info *info, int user);
 static int intelfb_check_var(struct fb_var_screeninfo *var,
 			     struct fb_info *info);
 static int intelfb_set_par(struct fb_info *info);
@@ -195,6 +197,8 @@ static int num_registered = 0;
 /* fb ops */
 static struct fb_ops intel_fb_ops = {
 	.owner =		THIS_MODULE,
+	.fb_open =              intelfb_open,
+	.fb_release =           intelfb_release,
 	.fb_check_var =         intelfb_check_var,
 	.fb_set_par =           intelfb_set_par,
 	.fb_setcolreg =		intelfb_setcolreg,
@@ -446,6 +450,8 @@ cleanup(struct intelfb_info *dinfo)
 
 	if (!dinfo)
 		return;
+
+	intelfbhw_disable_irq(dinfo);
 
 	fb_dealloc_cmap(&dinfo->info->cmap);
 	kfree(dinfo->info->pixmap.addr);
@@ -889,6 +895,11 @@ intelfb_pci_register(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	dinfo->registered = 1;
+	dinfo->open = 0;
+
+	init_waitqueue_head(&dinfo->vsync.wait);
+	spin_lock_init(&dinfo->int_lock);
+	dinfo->irq_flags = 0;
 
 	return 0;
 
@@ -1187,6 +1198,34 @@ update_dinfo(struct intelfb_info *dinfo, struct fb_var_screeninfo *var)
 /***************************************************************
  *                       fbdev interface                       *
  ***************************************************************/
+
+static int
+intelfb_open(struct fb_info *info, int user)
+{
+	struct intelfb_info *dinfo = GET_DINFO(info);
+
+	if (user) {
+		dinfo->open++;
+	}
+
+	return 0;
+}
+
+static int
+intelfb_release(struct fb_info *info, int user)
+{
+	struct intelfb_info *dinfo = GET_DINFO(info);
+
+	if (user) {
+		dinfo->open--;
+		msleep(1);
+		if (!dinfo->open) {
+			intelfbhw_disable_irq(dinfo);
+		}
+	}
+
+	return 0;
+}
 
 static int
 intelfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
