@@ -54,7 +54,8 @@ static void process_complete(struct gdlm_lock *lp)
 
 	if (lp->lksb.sb_status == -DLM_ECANCEL) {
 		log_info("complete dlm cancel %x,%llx flags %lx",
-		 	 lp->lockname.ln_type, lp->lockname.ln_number,
+		 	 lp->lockname.ln_type, 
+			 (unsigned long long)lp->lockname.ln_number,
 			 lp->flags);
 
 		lp->req = lp->cur;
@@ -68,7 +69,8 @@ static void process_complete(struct gdlm_lock *lp)
 		if (lp->lksb.sb_status != -DLM_EUNLOCK) {
 			log_info("unlock sb_status %d %x,%llx flags %lx",
 				 lp->lksb.sb_status, lp->lockname.ln_type,
-				 lp->lockname.ln_number, lp->flags);
+				 (unsigned long long)lp->lockname.ln_number,
+				 lp->flags);
 			return;
 		}
 
@@ -100,7 +102,8 @@ static void process_complete(struct gdlm_lock *lp)
 
 	if (test_and_clear_bit(LFL_CANCEL, &lp->flags)) {
 		log_info("complete internal cancel %x,%llx",
-		 	 lp->lockname.ln_type, lp->lockname.ln_number);
+		 	 lp->lockname.ln_type, 
+			 (unsigned long long)lp->lockname.ln_number);
 		lp->req = lp->cur;
 		acb.lc_ret |= LM_OUT_CANCELED;
 		goto out;
@@ -123,7 +126,8 @@ static void process_complete(struct gdlm_lock *lp)
 		/* this could only happen with cancels I think */
 		log_info("ast sb_status %d %x,%llx flags %lx",
 			 lp->lksb.sb_status, lp->lockname.ln_type,
-			 lp->lockname.ln_number, lp->flags);
+			 (unsigned long long)lp->lockname.ln_number,
+			 lp->flags);
 		return;
 	}
 
@@ -144,9 +148,11 @@ static void process_complete(struct gdlm_lock *lp)
 
 	if (test_and_clear_bit(LFL_REREQUEST, &lp->flags)) {
 		gdlm_assert(lp->req == DLM_LOCK_NL, "%x,%llx",
-			    lp->lockname.ln_type, lp->lockname.ln_number);
+			    lp->lockname.ln_type,
+			    (unsigned long long)lp->lockname.ln_number);
 		gdlm_assert(lp->prev_req > DLM_LOCK_NL, "%x,%llx",
-			    lp->lockname.ln_type, lp->lockname.ln_number);
+			    lp->lockname.ln_type,
+			    (unsigned long long)lp->lockname.ln_number);
 
 		lp->cur = DLM_LOCK_NL;
 		lp->req = lp->prev_req;
@@ -183,7 +189,8 @@ static void process_complete(struct gdlm_lock *lp)
 		lp->lkf &= ~DLM_LKF_CONVDEADLK;
 
 		log_debug("rereq %x,%llx id %x %d,%d",
-			  lp->lockname.ln_type, lp->lockname.ln_number,
+			  lp->lockname.ln_type,
+			  (unsigned long long)lp->lockname.ln_number,
 			  lp->lksb.sb_lkid, lp->cur, lp->req);
 
 		set_bit(LFL_REREQUEST, &lp->flags);
