@@ -691,36 +691,6 @@ void sbus_set_sbus64(struct sbus_dev *sdev, int bursts)
 	upa_writeq(val, cfg_reg);
 }
 
-/* SBUS SYSIO INO number to Sparc PIL level. */
-static unsigned char sysio_ino_to_pil[] = {
-	0, 5, 5, 7, 5, 7, 8, 9,		/* SBUS slot 0 */
-	0, 5, 5, 7, 5, 7, 8, 9,		/* SBUS slot 1 */
-	0, 5, 5, 7, 5, 7, 8, 9,		/* SBUS slot 2 */
-	0, 5, 5, 7, 5, 7, 8, 9,		/* SBUS slot 3 */
-	5, /* Onboard SCSI */
-	5, /* Onboard Ethernet */
-/*XXX*/	8, /* Onboard BPP */
-	0, /* Bogon */
-       13, /* Audio */
-/*XXX*/15, /* PowerFail */
-	0, /* Bogon */
-	0, /* Bogon */
-       12, /* Zilog Serial Channels (incl. Keyboard/Mouse lines) */
-       11, /* Floppy */
-	0, /* Spare Hardware (bogon for now) */
-	0, /* Keyboard (bogon for now) */
-	0, /* Mouse (bogon for now) */
-	0, /* Serial (bogon for now) */
-     0, 0, /* Bogon, Bogon */
-       10, /* Timer 0 */
-       11, /* Timer 1 */
-     0, 0, /* Bogon, Bogon */
-       15, /* Uncorrectable SBUS Error */
-       15, /* Correctable SBUS Error */
-       15, /* SBUS Error */
-/*XXX*/ 0, /* Power Management (bogon for now) */
-};
-
 /* INO number to IMAP register offset for SYSIO external IRQ's.
  * This should conform to both Sunfire/Wildfire server and Fusion
  * desktop designs.
@@ -812,21 +782,12 @@ unsigned int sbus_build_irq(void *buscookie, unsigned int ino)
 	struct sbus_iommu *iommu = sbus->iommu;
 	unsigned long reg_base = iommu->sbus_control_reg - 0x2000UL;
 	unsigned long imap, iclr;
-	int pil, sbus_level = 0;
-
-	pil = sysio_ino_to_pil[ino];
-	if (!pil) {
-		printk("sbus_irq_build: Bad SYSIO INO[%x]\n", ino);
-		panic("Bad SYSIO IRQ translations...");
-	}
-
-	if (PIL_RESERVED(pil))
-		BUG();
+	int sbus_level = 0;
 
 	imap = sysio_irq_offsets[ino];
 	if (imap == ((unsigned long)-1)) {
-		prom_printf("get_irq_translations: Bad SYSIO INO[%x] cpu[%d]\n",
-			    ino, pil);
+		prom_printf("get_irq_translations: Bad SYSIO INO[%x]\n",
+			    ino);
 		prom_halt();
 	}
 	imap += reg_base;
@@ -860,7 +821,7 @@ unsigned int sbus_build_irq(void *buscookie, unsigned int ino)
 
 		iclr += ((unsigned long)sbus_level - 1UL) * 8UL;
 	}
-	return build_irq(pil, sbus_level, iclr, imap);
+	return build_irq(sbus_level, iclr, imap);
 }
 
 /* Error interrupt handling. */

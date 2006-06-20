@@ -232,101 +232,6 @@ static unsigned long schizo_iclr_offset(unsigned long ino)
 	return SCHIZO_ICLR_BASE + (ino * 8UL);
 }
 
-/* PCI SCHIZO INO number to Sparc PIL level.  This table only matters for
- * INOs which will not have an associated PCI device struct, ie. onboard
- * EBUS devices and PCI controller internal error interrupts.
- */
-static unsigned char schizo_pil_table[] = {
-/*0x00*/0, 0, 0, 0,	/* PCI slot 0  Int A, B, C, D	*/
-/*0x04*/0, 0, 0, 0,	/* PCI slot 1  Int A, B, C, D	*/
-/*0x08*/0, 0, 0, 0,	/* PCI slot 2  Int A, B, C, D	*/
-/*0x0c*/0, 0, 0, 0,	/* PCI slot 3  Int A, B, C, D	*/
-/*0x10*/0, 0, 0, 0,	/* PCI slot 4  Int A, B, C, D	*/
-/*0x14*/0, 0, 0, 0,	/* PCI slot 5  Int A, B, C, D	*/
-/*0x18*/5,		/* SCSI				*/
-/*0x19*/5,		/* second SCSI			*/
-/*0x1a*/0,		/* UNKNOWN			*/
-/*0x1b*/0,		/* UNKNOWN			*/
-/*0x1c*/8,		/* Parallel			*/
-/*0x1d*/5,		/* Ethernet			*/
-/*0x1e*/8,		/* Firewire-1394		*/
-/*0x1f*/9,		/* USB				*/
-/*0x20*/13,		/* Audio Record			*/
-/*0x21*/14,		/* Audio Playback		*/
-/*0x22*/12,		/* Serial			*/
-/*0x23*/5,		/* EBUS I2C 			*/
-/*0x24*/10,		/* RTC Clock			*/
-/*0x25*/11,		/* Floppy			*/
-/*0x26*/0,		/* UNKNOWN			*/
-/*0x27*/0,		/* UNKNOWN			*/
-/*0x28*/0,		/* UNKNOWN			*/
-/*0x29*/0,		/* UNKNOWN			*/
-/*0x2a*/10,		/* UPA 1			*/
-/*0x2b*/10,		/* UPA 2			*/
-/*0x2c*/0,		/* UNKNOWN			*/
-/*0x2d*/0,		/* UNKNOWN			*/
-/*0x2e*/0,		/* UNKNOWN			*/
-/*0x2f*/0,		/* UNKNOWN			*/
-/*0x30*/15,		/* Uncorrectable ECC		*/
-/*0x31*/15,		/* Correctable ECC		*/
-/*0x32*/15,		/* PCI Bus A Error		*/
-/*0x33*/15,		/* PCI Bus B Error		*/
-/*0x34*/15,		/* Safari Bus Error		*/
-/*0x35*/0,		/* Reserved			*/
-/*0x36*/0,		/* Reserved			*/
-/*0x37*/0,		/* Reserved			*/
-/*0x38*/0,		/* Reserved for NewLink		*/
-/*0x39*/0,		/* Reserved for NewLink		*/
-/*0x3a*/0,		/* Reserved for NewLink		*/
-/*0x3b*/0,		/* Reserved for NewLink		*/
-/*0x3c*/0,		/* Reserved for NewLink		*/
-/*0x3d*/0,		/* Reserved for NewLink		*/
-/*0x3e*/0,		/* Reserved for NewLink		*/
-/*0x3f*/0,		/* Reserved for NewLink		*/
-};
-
-static int schizo_ino_to_pil(struct pci_dev *pdev, unsigned int ino)
-{
-	int ret;
-
-	if (pdev &&
-	    pdev->vendor == PCI_VENDOR_ID_SUN &&
-	    pdev->device == PCI_DEVICE_ID_SUN_RIO_USB)
-		return 9;
-
-	ret = schizo_pil_table[ino];
-	if (ret == 0 && pdev == NULL) {
-		ret = 5;
-	} else if (ret == 0) {
-		switch ((pdev->class >> 16) & 0xff) {
-		case PCI_BASE_CLASS_STORAGE:
-			ret = 5;
-			break;
-
-		case PCI_BASE_CLASS_NETWORK:
-			ret = 6;
-			break;
-
-		case PCI_BASE_CLASS_DISPLAY:
-			ret = 9;
-			break;
-
-		case PCI_BASE_CLASS_MULTIMEDIA:
-		case PCI_BASE_CLASS_MEMORY:
-		case PCI_BASE_CLASS_BRIDGE:
-		case PCI_BASE_CLASS_SERIAL:
-			ret = 10;
-			break;
-
-		default:
-			ret = 5;
-			break;
-		};
-	}
-
-	return ret;
-}
-
 static void tomatillo_wsync_handler(struct ino_bucket *bucket, void *_arg1, void *_arg2)
 {
 	unsigned long sync_reg = (unsigned long) _arg2;
@@ -372,17 +277,12 @@ static unsigned int schizo_irq_build(struct pci_pbm_info *pbm,
 	struct ino_bucket *bucket;
 	unsigned long imap, iclr;
 	unsigned long imap_off, iclr_off;
-	int pil, ign_fixup;
+	int ign_fixup;
 
 	ino &= PCI_IRQ_INO;
 	imap_off = schizo_imap_offset(ino);
 
 	/* Now build the IRQ bucket. */
-	pil = schizo_ino_to_pil(pdev, ino);
-
-	if (PIL_RESERVED(pil))
-		BUG();
-
 	imap = pbm->pbm_regs + imap_off;
 	imap += 4;
 
@@ -405,7 +305,7 @@ static unsigned int schizo_irq_build(struct pci_pbm_info *pbm,
 			ign_fixup = (1 << 6);
 	}
 
-	bucket = __bucket(build_irq(pil, ign_fixup, iclr, imap));
+	bucket = __bucket(build_irq(ign_fixup, iclr, imap));
 	bucket->flags |= IBF_PCI;
 
 	if (pdev && pbm->chip_type == PBM_CHIP_TYPE_TOMATILLO) {

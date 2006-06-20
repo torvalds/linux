@@ -37,14 +37,14 @@ struct irq_desc {
  * line.  Keep this in mind please.
  */
 struct ino_bucket {
-	/* Next handler in per-CPU PIL worklist.  We know that
+	/* Next handler in per-CPU IRQ worklist.  We know that
 	 * bucket pointers have the high 32-bits clear, so to
 	 * save space we only store the bits we need.
 	 */
 /*0x00*/unsigned int irq_chain;
 
-	/* PIL to schedule this IVEC at. */
-/*0x04*/unsigned char pil;
+	/* Virtual interrupt number assigned to this INO.  */
+/*0x04*/unsigned char virt_irq;
 
 	/* If an IVEC arrives while irq_info is NULL, we
 	 * set this to notify request_irq() about the event.
@@ -95,7 +95,6 @@ extern struct ino_bucket ivector_table[NUM_IVECS];
 
 #define __irq_ino(irq) \
         (((struct ino_bucket *)(unsigned long)(irq)) - &ivector_table[0])
-#define __irq_pil(irq) ((struct ino_bucket *)(unsigned long)(irq))->pil
 #define __bucket(irq) ((struct ino_bucket *)(unsigned long)(irq))
 #define __irq(bucket) ((unsigned int)(unsigned long)(bucket))
 
@@ -105,8 +104,8 @@ extern struct ino_bucket ivector_table[NUM_IVECS];
 extern void disable_irq(unsigned int);
 #define disable_irq_nosync disable_irq
 extern void enable_irq(unsigned int);
-extern unsigned int build_irq(int pil, int inofixup, unsigned long iclr, unsigned long imap);
-extern unsigned int sun4v_build_irq(u32 devhandle, unsigned int devino, int pil, unsigned char flags);
+extern unsigned int build_irq(int inofixup, unsigned long iclr, unsigned long imap);
+extern unsigned int sun4v_build_irq(u32 devhandle, unsigned int devino, unsigned char flags);
 extern unsigned int sbus_build_irq(void *sbus, unsigned int ino);
 
 static __inline__ void set_softint(unsigned long bits)

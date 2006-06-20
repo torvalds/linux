@@ -843,38 +843,8 @@ static unsigned int pci_sun4v_irq_build(struct pci_pbm_info *pbm,
 					unsigned int devino)
 {
 	u32 devhandle = pbm->devhandle;
-	int pil;
 
-	pil = 5;
-	if (pdev) {
-		switch ((pdev->class >> 16) & 0xff) {
-		case PCI_BASE_CLASS_STORAGE:
-			pil = 5;
-			break;
-
-		case PCI_BASE_CLASS_NETWORK:
-			pil = 6;
-			break;
-
-		case PCI_BASE_CLASS_DISPLAY:
-			pil = 9;
-			break;
-
-		case PCI_BASE_CLASS_MULTIMEDIA:
-		case PCI_BASE_CLASS_MEMORY:
-		case PCI_BASE_CLASS_BRIDGE:
-		case PCI_BASE_CLASS_SERIAL:
-			pil = 10;
-			break;
-
-		default:
-			pil = 5;
-			break;
-		};
-	}
-	BUG_ON(PIL_RESERVED(pil));
-
-	return sun4v_build_irq(devhandle, devino, pil, IBF_PCI);
+	return sun4v_build_irq(devhandle, devino, IBF_PCI);
 }
 
 static void pci_sun4v_base_address_update(struct pci_dev *pdev, int resource)

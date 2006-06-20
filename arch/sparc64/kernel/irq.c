@@ -70,7 +70,7 @@ struct ino_bucket ivector_table[NUM_IVECS] __attribute__ ((aligned (SMP_CACHE_BY
  */
 #define irq_work(__cpu)	&(trap_block[(__cpu)].irq_worklist)
 
-static struct irqaction *irq_action[NR_IRQS+1];
+static struct irqaction *irq_action[NR_IRQS];
 
 /* This only synchronizes entities which modify IRQ handler
  * state and some selected user-level spots that want to
@@ -116,12 +116,9 @@ int show_interrupts(struct seq_file *p, void *v)
 				   kstat_cpu(j).irqs[i]);
 		}
 #endif
-		seq_printf(p, " %s:%lx", action->name,
-			   get_ino_in_irqaction(action));
-		for (action = action->next; action; action = action->next) {
-			seq_printf(p, ", %s:%lx", action->name,
-				   get_ino_in_irqaction(action));
-		}
+		seq_printf(p, " %s", action->name);
+		for (action = action->next; action; action = action->next)
+			seq_printf(p, ", %s", action->name);
 		seq_putc(p, '\n');
 	}
 out_unlock:
@@ -245,48 +242,47 @@ void disable_irq(unsigned int irq)
 	}
 }
 
-static void build_irq_error(const char *msg, unsigned int ino, int pil, int inofixup,
+static void build_irq_error(const char *msg, unsigned int ino, int inofixup,
 			    unsigned long iclr, unsigned long imap,
 			    struct ino_bucket *bucket)
 {
-	prom_printf("IRQ: INO %04x (%d:%016lx:%016lx) --> "
-		    "(%d:%d:%016lx:%016lx), halting...\n",
-		    ino, bucket->pil, bucket->iclr, bucket->imap,
-		    pil, inofixup, iclr, imap);
+	prom_printf("IRQ: INO %04x (%016lx:%016lx) --> "
+		    "(%d:%016lx:%016lx), halting...\n",
+		    ino, bucket->iclr, bucket->imap,
+		    inofixup, iclr, imap);
 	prom_halt();
 }
 
-unsigned int build_irq(int pil, int inofixup, unsigned long iclr, unsigned long imap)
+unsigned int build_irq(int inofixup, unsigned long iclr, unsigned long imap)
 {
 	struct ino_bucket *bucket;
 	int ino;
 
-	BUG_ON(pil == 0);
 	BUG_ON(tlb_type == hypervisor);
 
 	/* RULE: Both must be specified in all other cases. */
 	if (iclr == 0UL || imap == 0UL) {
-		prom_printf("Invalid build_irq %d %d %016lx %016lx\n",
-			    pil, inofixup, iclr, imap);
+		prom_printf("Invalid build_irq %d %016lx %016lx\n",
+			    inofixup, iclr, imap);
 		prom_halt();
 	}
 	
 	ino = (upa_readl(imap) & (IMAP_IGN | IMAP_INO)) + inofixup;
 	if (ino > NUM_IVECS) {
-		prom_printf("Invalid INO %04x (%d:%d:%016lx:%016lx)\n",
-			    ino, pil, inofixup, iclr, imap);
+		prom_printf("Invalid INO %04x (%d:%016lx:%016lx)\n",
+			    ino, inofixup, iclr, imap);
 		prom_halt();
 	}
 
 	bucket = &ivector_table[ino];
 	if (bucket->flags & IBF_ACTIVE)
 		build_irq_error("IRQ: Trying to build active INO bucket.\n",
-				ino, pil, inofixup, iclr, imap, bucket);
+				ino, inofixup, iclr, imap, bucket);
 
 	if (bucket->irq_info) {
 		if (bucket->imap != imap || bucket->iclr != iclr)
 			build_irq_error("IRQ: Trying to reinit INO bucket.\n",
-					ino, pil, inofixup, iclr, imap, bucket);
+					ino, inofixup, iclr, imap, bucket);
 
 		goto out;
 	}
@@ -302,14 +298,13 @@ unsigned int build_irq(int pil, int inofixup, unsigned long iclr, unsigned long 
 	 */
 	bucket->imap  = imap;
 	bucket->iclr  = iclr;
-	bucket->pil   = pil;
 	bucket->flags = 0;
 
 out:
 	return __irq(bucket);
 }
 
-unsigned int sun4v_build_irq(u32 devhandle, unsigned int devino, int pil, unsigned char flags)
+unsigned int sun4v_build_irq(u32 devhandle, unsigned int devino, unsigned char flags)
 {
 	struct ino_bucket *bucket;
 	unsigned long sysino;
@@ -328,7 +323,6 @@ unsigned int sun4v_build_irq(u32 devhandle, unsigned int devino, int pil, unsign
 	bucket->imap = ~0UL - sysino;
 	bucket->iclr = ~0UL - sysino;
 
-	bucket->pil = pil;
 	bucket->flags = flags;
 
 	bucket->irq_info = kzalloc(sizeof(struct irq_desc), GFP_ATOMIC);
@@ -356,16 +350,12 @@ static void atomic_bucket_insert(struct ino_bucket *bucket)
 
 static int check_irq_sharing(int pil, unsigned long irqflags)
 {
-	struct irqaction *action, *tmp;
+	struct irqaction *action;
 
 	action = *(irq_action + pil);
 	if (action) {
-		if ((action->flags & SA_SHIRQ) && (irqflags & SA_SHIRQ)) {
-			for (tmp = action; tmp->next; tmp = tmp->next)
-				;
-		} else {
+		if (!(action->flags & SA_SHIRQ) || !(irqflags & SA_SHIRQ))
 			return -EBUSY;
-		}
 	}
 	return 0;
 }
@@ -425,12 +415,12 @@ int request_irq(unsigned int irq, irqreturn_t (*handler)(int, void *, struct pt_
 	 	 * installing a new handler, but is this really a problem,
 	 	 * only the sysadmin is able to do this.
 	 	 */
-		rand_initialize_irq(irq);
+		rand_initialize_irq(PIL_DEVICE_IRQ);
 	}
 
 	spin_lock_irqsave(&irq_action_lock, flags);
 
-	if (check_irq_sharing(bucket->pil, irqflags)) {
+	if (check_irq_sharing(PIL_DEVICE_IRQ, irqflags)) {
 		spin_unlock_irqrestore(&irq_action_lock, flags);
 		return -EBUSY;
 	}
@@ -454,7 +444,7 @@ int request_irq(unsigned int irq, irqreturn_t (*handler)(int, void *, struct pt_
 	put_ino_in_irqaction(action, irq);
 	put_smpaff_in_irqaction(action, CPU_MASK_NONE);
 
-	append_irq_action(bucket->pil, action);
+	append_irq_action(PIL_DEVICE_IRQ, action);
 
 	enable_irq(irq);
 
@@ -478,16 +468,15 @@ EXPORT_SYMBOL(request_irq);
 
 static struct irqaction *unlink_irq_action(unsigned int irq, void *dev_id)
 {
-	struct ino_bucket *bucket = __bucket(irq);
 	struct irqaction *action, **pp;
 
-	pp = irq_action + bucket->pil;
+	pp = irq_action + PIL_DEVICE_IRQ;
 	action = *pp;
 	if (unlikely(!action))
 		return NULL;
 
 	if (unlikely(!action->handler)) {
-		printk("Freeing free IRQ %d\n", bucket->pil);
+		printk("Freeing free IRQ %d\n", PIL_DEVICE_IRQ);
 		return NULL;
 	}
 
@@ -648,7 +637,7 @@ static void process_bucket(struct ino_bucket *bp, struct pt_regs *regs)
 
 	/* Test and add entropy */
 	if (random & SA_SAMPLE_RANDOM)
-		add_interrupt_randomness(bp->pil);
+		add_interrupt_randomness(PIL_DEVICE_IRQ);
 out:
 	bp->flags &= ~IBF_INPROGRESS;
 }
@@ -691,7 +680,7 @@ void handler_irq(int irq, struct pt_regs *regs)
 	while (bp) {
 		struct ino_bucket *nbp = __bucket(bp->irq_chain);
 
-		kstat_this_cpu.irqs[bp->pil]++;
+		kstat_this_cpu.irqs[bp->virt_irq]++;
 
 		bp->irq_chain = 0;
 		process_bucket(bp, regs);
@@ -817,15 +806,8 @@ static void distribute_irqs(void)
 	spin_lock_irqsave(&irq_action_lock, flags);
 	cpu = 0;
 
-	/*
-	 * Skip the timer at [0], and very rare error/power intrs at [15].
-	 * Also level [12], it causes problems on Ex000 systems.
-	 */
 	for (level = 1; level < NR_IRQS; level++) {
 		struct irqaction *p = irq_action[level];
-
-		if (level == 12)
-			continue;
 
 		while(p) {
 			cpu = retarget_one_irq(p, cpu);
