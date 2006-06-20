@@ -24,14 +24,12 @@
 #include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
-#include "xfs_dir.h"
 #include "xfs_dir2.h"
 #include "xfs_dmapi.h"
 #include "xfs_mount.h"
 #include "xfs_bmap_btree.h"
 #include "xfs_alloc_btree.h"
 #include "xfs_ialloc_btree.h"
-#include "xfs_dir_sf.h"
 #include "xfs_dir2_sf.h"
 #include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
@@ -934,18 +932,7 @@ xfs_mountfs(
 	vfsp->vfs_altfsid = (xfs_fsid_t *)mp->m_fixedfsid;
 	mp->m_dmevmask = 0;	/* not persistent; set after each mount */
 
-	/*
-	 * Select the right directory manager.
-	 */
-	mp->m_dirops =
-		XFS_SB_VERSION_HASDIRV2(&mp->m_sb) ?
-			xfsv2_dirops :
-			xfsv1_dirops;
-
-	/*
-	 * Initialize directory manager's entries.
-	 */
-	XFS_DIR_MOUNT(mp);
+	xfs_dir_mount(mp);
 
 	/*
 	 * Initialize the attribute manager's entries.

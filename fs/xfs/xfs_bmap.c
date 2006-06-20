@@ -24,13 +24,11 @@
 #include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
-#include "xfs_dir.h"
 #include "xfs_dir2.h"
 #include "xfs_da_btree.h"
 #include "xfs_bmap_btree.h"
 #include "xfs_alloc_btree.h"
 #include "xfs_ialloc_btree.h"
-#include "xfs_dir_sf.h"
 #include "xfs_dir2_sf.h"
 #include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
@@ -40,13 +38,15 @@
 #include "xfs_mount.h"
 #include "xfs_ialloc.h"
 #include "xfs_itable.h"
+#include "xfs_dir2_data.h"
+#include "xfs_dir2_leaf.h"
+#include "xfs_dir2_block.h"
 #include "xfs_inode_item.h"
 #include "xfs_extfree_item.h"
 #include "xfs_alloc.h"
 #include "xfs_bmap.h"
 #include "xfs_rtalloc.h"
 #include "xfs_error.h"
-#include "xfs_dir_leaf.h"
 #include "xfs_attr_leaf.h"
 #include "xfs_rw.h"
 #include "xfs_quota.h"
@@ -516,7 +516,7 @@ xfs_bmap_add_attrfork_local(
 		dargs.total = mp->m_dirblkfsbs;
 		dargs.whichfork = XFS_DATA_FORK;
 		dargs.trans = tp;
-		error = XFS_DIR_SHORTFORM_TO_SINGLE(mp, &dargs);
+		error = xfs_dir2_sf_to_block(&dargs);
 	} else
 		error = xfs_bmap_local_to_extents(tp, ip, firstblock, 1, flags,
 			XFS_DATA_FORK);

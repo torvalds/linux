@@ -22,19 +22,16 @@
 #include "xfs_inum.h"
 #include "xfs_trans.h"
 #include "xfs_sb.h"
-#include "xfs_dir.h"
 #include "xfs_dir2.h"
 #include "xfs_dmapi.h"
 #include "xfs_mount.h"
 #include "xfs_da_btree.h"
 #include "xfs_bmap_btree.h"
-#include "xfs_dir_sf.h"
 #include "xfs_dir2_sf.h"
 #include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
 #include "xfs_inode_item.h"
-#include "xfs_dir_leaf.h"
 #include "xfs_dir2_data.h"
 #include "xfs_dir2_leaf.h"
 #include "xfs_dir2_block.h"
@@ -50,6 +47,18 @@ static void xfs_dir2_block_log_tail(xfs_trans_t *tp, xfs_dabuf_t *bp);
 static int xfs_dir2_block_lookup_int(xfs_da_args_t *args, xfs_dabuf_t **bpp,
 				     int *entno);
 static int xfs_dir2_block_sort(const void *a, const void *b);
+
+static xfs_dahash_t xfs_dir_hash_dot, xfs_dir_hash_dotdot;
+
+/*
+ * One-time startup routine called from xfs_init().
+ */
+void
+xfs_dir_startup(void)
+{
+	xfs_dir_hash_dot = xfs_da_hashname(".", 1);
+	xfs_dir_hash_dotdot = xfs_da_hashname("..", 2);
+}
 
 /*
  * Add an entry to a block directory.

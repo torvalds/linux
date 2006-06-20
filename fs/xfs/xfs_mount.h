@@ -403,8 +403,6 @@ typedef struct xfs_mount {
 	__uint8_t		m_inode_quiesce;/* call quiesce on new inodes.
 						   field governed by m_ilock */
 	__uint8_t		m_sectbb_log;	/* sectlog - BBSHIFT */
-	__uint8_t		m_dirversion;	/* 1 or 2 */
-	xfs_dirops_t		m_dirops;	/* table of dir funcs */
 	int			m_dirblksize;	/* directory block sz--bytes */
 	int			m_dirblkfsbs;	/* directory block sz--fsbs */
 	xfs_dablk_t		m_dirdatablk;	/* blockno of dir data v2 */

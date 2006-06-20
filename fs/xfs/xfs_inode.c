@@ -26,14 +26,12 @@
 #include "xfs_trans_priv.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
-#include "xfs_dir.h"
 #include "xfs_dir2.h"
 #include "xfs_dmapi.h"
 #include "xfs_mount.h"
 #include "xfs_bmap_btree.h"
 #include "xfs_alloc_btree.h"
 #include "xfs_ialloc_btree.h"
-#include "xfs_dir_sf.h"
 #include "xfs_dir2_sf.h"
 #include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
@@ -2924,13 +2922,6 @@ xfs_iflush_fork(
 			ASSERT(ifp->if_u1.if_data != NULL);
 			ASSERT(ifp->if_bytes <= XFS_IFORK_SIZE(ip, whichfork));
 			memcpy(cp, ifp->if_u1.if_data, ifp->if_bytes);
-		}
-		if (whichfork == XFS_DATA_FORK) {
-			if (unlikely(XFS_DIR_SHORTFORM_VALIDATE_ONDISK(mp, dip))) {
-				XFS_ERROR_REPORT("xfs_iflush_fork",
-						 XFS_ERRLEVEL_LOW, mp);
-				return XFS_ERROR(EFSCORRUPTED);
-			}
 		}
 		break;
 

@@ -24,7 +24,6 @@
 #include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
-#include "xfs_dir.h"
 #include "xfs_dir2.h"
 #include "xfs_dmapi.h"
 #include "xfs_mount.h"
@@ -32,7 +31,6 @@
 #include "xfs_bmap_btree.h"
 #include "xfs_ialloc_btree.h"
 #include "xfs_alloc_btree.h"
-#include "xfs_dir_sf.h"
 #include "xfs_dir2_sf.h"
 #include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
@@ -131,9 +129,6 @@ xfs_init(void)
 #ifdef XFS_BMBT_TRACE
 	xfs_bmbt_trace_buf = ktrace_alloc(XFS_BMBT_TRACE_SIZE, KM_SLEEP);
 #endif
-#ifdef XFS_DIR_TRACE
-	xfs_dir_trace_buf = ktrace_alloc(XFS_DIR_TRACE_SIZE, KM_SLEEP);
-#endif
 #ifdef XFS_ATTR_TRACE
 	xfs_attr_trace_buf = ktrace_alloc(XFS_ATTR_TRACE_SIZE, KM_SLEEP);
 #endif
@@ -176,9 +171,6 @@ xfs_cleanup(void)
 #endif
 #ifdef XFS_ATTR_TRACE
 	ktrace_free(xfs_attr_trace_buf);
-#endif
-#ifdef XFS_DIR_TRACE
-	ktrace_free(xfs_dir_trace_buf);
 #endif
 #ifdef XFS_BMBT_TRACE
 	ktrace_free(xfs_bmbt_trace_buf);
