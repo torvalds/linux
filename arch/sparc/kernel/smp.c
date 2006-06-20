@@ -58,7 +58,7 @@ cpumask_t smp_commenced_mask = CPU_MASK_NONE;
 /* Used to make bitops atomic */
 unsigned char bitops_spinlock = 0;
 
-void __init smp_store_cpu_info(int id)
+void __cpuinit smp_store_cpu_info(int id)
 {
 	int cpu_node;
 
@@ -304,7 +304,7 @@ void __init smp_setup_cpu_possible_map(void)
 	}
 }
 
-void __devinit smp_prepare_boot_cpu(void)
+void __init smp_prepare_boot_cpu(void)
 {
 	int cpuid = hard_smp_processor_id();
 
@@ -320,7 +320,7 @@ void __devinit smp_prepare_boot_cpu(void)
 	cpu_set(cpuid, phys_cpu_present_map);
 }
 
-int __devinit __cpu_up(unsigned int cpu)
+int __cpuinit __cpu_up(unsigned int cpu)
 {
 	extern int smp4m_boot_one_cpu(int);
 	int ret;
