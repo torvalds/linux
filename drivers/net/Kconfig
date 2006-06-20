@@ -1376,8 +1376,8 @@ config APRICOT
 	  called apricot.
 
 config B44
-	tristate "Broadcom 4400 ethernet support (EXPERIMENTAL)"
-	depends on NET_PCI && PCI && EXPERIMENTAL
+	tristate "Broadcom 4400 ethernet support"
+	depends on NET_PCI && PCI
 	select MII
 	help
 	  If you have a network (Ethernet) controller of this type, say Y and
