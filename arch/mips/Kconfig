@@ -358,7 +358,7 @@ config MIPS_SEAD
 	  board.
 
 config WR_PPMC
-	bool "Support for Wind River PPMC board"
+	bool "Wind River PPMC board"
 	select IRQ_CPU
 	select BOOT_ELF32
 	select DMA_NONCOHERENT
