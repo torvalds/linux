@@ -329,7 +329,7 @@ static int agp_uninorth_suspend(struct pci_dev *pdev)
 	/* turn off AGP on the bridge */
 	agp = pci_find_capability(pdev, PCI_CAP_ID_AGP);
 	pci_read_config_dword(pdev, agp + PCI_AGP_COMMAND, &cmd);
-	bridge->dev_private_data = (void *)cmd;
+	bridge->dev_private_data = (void *)(long)cmd;
 	if (cmd & PCI_AGP_COMMAND_AGP) {
 		printk("uninorth-agp: disabling AGP on bridge %s\n",
 				pci_name(pdev));
@@ -351,7 +351,7 @@ static int agp_uninorth_resume(struct pci_dev *pdev)
 	if (bridge == NULL)
 		return -ENODEV;
 
-	command = (u32)bridge->dev_private_data;
+	command = (long)bridge->dev_private_data;
 	bridge->dev_private_data = NULL;
 	if (!(command & PCI_AGP_COMMAND_AGP))
 		return 0;
