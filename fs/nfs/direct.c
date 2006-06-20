@@ -126,16 +126,21 @@ ssize_t nfs_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov, loff_
 	return -EINVAL;
 }
 
-static void nfs_free_user_pages(struct page **pages, int npages, int do_dirty)
+static void nfs_direct_dirty_pages(struct page **pages, int npages)
 {
 	int i;
 	for (i = 0; i < npages; i++) {
 		struct page *page = pages[i];
-		if (do_dirty && !PageCompound(page))
+		if (!PageCompound(page))
 			set_page_dirty_lock(page);
-		page_cache_release(page);
 	}
-	kfree(pages);
+}
+
+static void nfs_direct_release_pages(struct page **pages, int npages)
+{
+	int i;
+	for (i = 0; i < npages; i++)
+		page_cache_release(pages[i]);
 }
 
 static inline int nfs_get_user_pages(int rw, unsigned long user_addr, size_t size, struct page ***pages)
@@ -162,7 +167,7 @@ static inline int nfs_get_user_pages(int rw, unsigned long user_addr, size_t siz
 			 * end of a mapping; return EFAULT.
 			 */
 			if (result >= 0) {
-				nfs_free_user_pages(*pages, result, 0);
+				nfs_direct_release_pages(*pages, result);
 				result = -EFAULT;
 			} else
 				kfree(*pages);
@@ -238,8 +243,6 @@ out:
  */
 static void nfs_direct_complete(struct nfs_direct_req *dreq)
 {
-	nfs_free_user_pages(dreq->pages, dreq->npages, 1);
-
 	if (dreq->iocb) {
 		long res = (long) dreq->error;
 		if (!res)
@@ -311,8 +314,11 @@ static void nfs_direct_read_result(struct rpc_task *task, void *calldata)
 
 	spin_unlock(&dreq->lock);
 
-	if (put_dreq(dreq))
+	if (put_dreq(dreq)) {
+		nfs_direct_dirty_pages(dreq->pages, dreq->npages);
+		nfs_direct_release_pages(dreq->pages, dreq->npages);
 		nfs_direct_complete(dreq);
+	}
 }
 
 static const struct rpc_call_ops nfs_read_direct_ops = {
@@ -422,6 +428,7 @@ static void nfs_direct_free_writedata(struct nfs_direct_req *dreq)
 		list_del(&data->pages);
 		nfs_writedata_release(data);
 	}
+	nfs_direct_release_pages(dreq->pages, dreq->npages);
 }
 
 #if defined(CONFIG_NFS_V3) || defined(CONFIG_NFS_V4)
