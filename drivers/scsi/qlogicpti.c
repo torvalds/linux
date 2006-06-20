@@ -725,7 +725,7 @@ static int __init qpti_register_irq(struct qlogicpti *qpti)
 			SA_SHIRQ, "Qlogic/PTI", qpti))
 		goto fail;
 
-	printk("qpti%d: IRQ %s ", qpti->qpti_id, __irq_itoa(qpti->irq));
+	printk("qpti%d: IRQ %d ", qpti->qpti_id, qpti->irq);
 
 	return 0;
 
@@ -988,8 +988,8 @@ const char *qlogicpti_info(struct Scsi_Host *host)
 	static char buf[80];
 	struct qlogicpti *qpti = (struct qlogicpti *) host->hostdata;
 
-	sprintf(buf, "PTI Qlogic,ISP SBUS SCSI irq %s regs at %p",
-		__irq_itoa(qpti->qhost->irq), qpti->qregs);
+	sprintf(buf, "PTI Qlogic,ISP SBUS SCSI irq %d regs at %p",
+		qpti->qhost->irq, qpti->qregs);
 	return buf;
 }
 

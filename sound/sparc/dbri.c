@@ -2645,9 +2645,9 @@ static int __init dbri_attach(int prom_node, struct sbus_dev *sdev)
 	strcpy(card->driver, "DBRI");
 	strcpy(card->shortname, "Sun DBRI");
 	rp = &sdev->resource[0];
-	sprintf(card->longname, "%s at 0x%02lx:0x%08lx, irq %s",
+	sprintf(card->longname, "%s at 0x%02lx:0x%08lx, irq %d",
 		card->shortname,
-		rp->flags & 0xffL, rp->start, __irq_itoa(irq.pri));
+		rp->flags & 0xffL, rp->start, irq.pri);
 
 	if ((err = snd_dbri_create(card, sdev, &irq, dev)) < 0) {
 		snd_card_free(card);

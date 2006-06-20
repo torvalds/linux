@@ -54,14 +54,8 @@
 #define NAME53C		"sym53c"
 #define NAME53C8XX	"sym53c8xx"
 
-/* SPARC just has to be different ... */
-#ifdef __sparc__
-#define IRQ_FMT "%s"
-#define IRQ_PRM(x) __irq_itoa(x)
-#else
 #define IRQ_FMT "%d"
 #define IRQ_PRM(x) (x)
-#endif
 
 struct sym_driver_setup sym_driver_setup = SYM_LINUX_DRIVER_SETUP;
 unsigned int sym_debug_flags = 0;

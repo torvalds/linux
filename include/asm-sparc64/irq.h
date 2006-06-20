@@ -99,14 +99,6 @@ extern struct ino_bucket ivector_table[NUM_IVECS];
 #define __bucket(irq) ((struct ino_bucket *)(unsigned long)(irq))
 #define __irq(bucket) ((unsigned int)(unsigned long)(bucket))
 
-static __inline__ char *__irq_itoa(unsigned int irq)
-{
-	static char buff[16];
-
-	sprintf(buff, "%d,%x", __irq_pil(irq), (unsigned int)__irq_ino(irq));
-	return buff;
-}
-
 #define NR_IRQS    16
 
 #define irq_canonicalize(irq)	(irq)

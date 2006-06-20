@@ -63,9 +63,6 @@
 #ifdef CONFIG_MTRR
 #include <asm/mtrr.h>
 #endif
-#ifdef __sparc__
-#include <asm/irq.h>			/* needed for __irq_itoa() proto */
-#endif
 
 #include "mptbase.h"
 
@@ -1394,13 +1391,8 @@ mpt_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 		r = request_irq(pdev->irq, mpt_interrupt, SA_SHIRQ, ioc->name, ioc);
 
 		if (r < 0) {
-#ifndef __sparc__
 			printk(MYIOC_s_ERR_FMT "Unable to allocate interrupt %d!\n",
 					ioc->name, pdev->irq);
-#else
-			printk(MYIOC_s_ERR_FMT "Unable to allocate interrupt %s!\n",
-					ioc->name, __irq_itoa(pdev->irq));
-#endif
 			list_del(&ioc->list);
 			iounmap(mem);
 			kfree(ioc);
@@ -1412,11 +1404,7 @@ mpt_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 		pci_set_master(pdev);			/* ?? */
 		pci_set_drvdata(pdev, ioc);
 
-#ifndef __sparc__
 		dprintk((KERN_INFO MYNAM ": %s installed at interrupt %d\n", ioc->name, pdev->irq));
-#else
-		dprintk((KERN_INFO MYNAM ": %s installed at interrupt %s\n", ioc->name, __irq_itoa(pdev->irq)));
-#endif
 	}
 
 	/* Check for "bound ports" (929, 929X, 1030, 1035) to reduce redundant resets.
@@ -5647,11 +5635,7 @@ mpt_print_ioc_summary(MPT_ADAPTER *ioc, char *buffer, int *size, int len, int sh
 			a[5], a[4], a[3], a[2], a[1], a[0]);
 	}
 
-#ifndef __sparc__
 	y += sprintf(buffer+len+y, ", IRQ=%d", ioc->pci_irq);
-#else
-	y += sprintf(buffer+len+y, ", IRQ=%s", __irq_itoa(ioc->pci_irq));
-#endif
 
 	if (!ioc->active)
 		y += sprintf(buffer+len+y, " (disabled)");

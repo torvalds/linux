@@ -304,8 +304,8 @@ static int wd_open(struct inode *inode, struct file *f)
 						SA_SHIRQ,
 						WD_OBPNAME,
 						(void *)wd_dev.regs)) {
-			printk("%s: Cannot register IRQ %s\n", 
-				WD_OBPNAME, __irq_itoa(wd_dev.irq));
+			printk("%s: Cannot register IRQ %d\n", 
+				WD_OBPNAME, wd_dev.irq);
 			return(-EBUSY);
 		}
 		wd_dev.initialized = 1;
