@@ -119,6 +119,11 @@
 /* Intel agpgart driver */
 #define AGP_PHYSICAL_MEMORY     2
 
+/* store information about an Ixxx DVO */
+/* The i830->i865 use multiple DVOs with multiple i2cs */
+/* the i915, i945 have a single sDVO i2c bus - which is different */
+#define MAX_OUTPUTS 6
+
 /* these are outputs from the chip - integrated only
    external chips are via DVO or SDVO output */
 #define INTELFB_OUTPUT_UNUSED 0
@@ -344,6 +349,10 @@ struct intelfb_info {
 	
 	/* index into plls */
 	int pll_index;
+
+	/* outputs */
+	int num_outputs;
+	struct intelfb_output_rec output[MAX_OUTPUTS];
 };
 
 #define IS_I9XX(dinfo) (((dinfo)->chipset == INTEL_915G)||(dinfo->chipset == INTEL_915GM)||((dinfo)->chipset == INTEL_945G)||(dinfo->chipset==INTEL_945GM))
