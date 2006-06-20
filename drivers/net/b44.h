@@ -24,6 +24,9 @@
 #define  WKUP_LEN_P3_MASK	0x7f000000 /* Pattern 3 */
 #define  WKUP_LEN_P3_SHIFT	24
 #define  WKUP_LEN_D3		0x80000000
+#define  WKUP_LEN_DISABLE	0x80808080
+#define  WKUP_LEN_ENABLE_TWO	0x80800000
+#define  WKUP_LEN_ENABLE_THREE	0x80000000
 #define B44_ISTAT	0x0020UL /* Interrupt Status */
 #define  ISTAT_LS		0x00000020 /* Link Change (B0 only) */
 #define  ISTAT_PME		0x00000040 /* Power Management Event */
