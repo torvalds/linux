@@ -71,6 +71,13 @@ extern int (*nat_h245_hook) (struct sk_buff ** pskb, struct ip_conntrack * ct,
 			     unsigned char **data, int dataoff,
 			     TransportAddress * addr, u_int16_t port,
 			     struct ip_conntrack_expect * exp);
+extern int (*nat_callforwarding_hook) (struct sk_buff ** pskb,
+				       struct ip_conntrack * ct,
+				       enum ip_conntrack_info ctinfo,
+				       unsigned char **data, int dataoff,
+				       TransportAddress * addr,
+				       u_int16_t port,
+				       struct ip_conntrack_expect * exp);
 extern int (*nat_q931_hook) (struct sk_buff ** pskb, struct ip_conntrack * ct,
 			     enum ip_conntrack_info ctinfo,
 			     unsigned char **data, TransportAddress * addr,

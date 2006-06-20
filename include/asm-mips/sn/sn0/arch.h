@@ -13,8 +13,6 @@
 
 #include <linux/config.h>
 
-#ifndef SABLE
-
 #ifndef SN0XXL  /* 128 cpu SMP max */
 /*
  * This is the maximum number of nodes that can be part of a kernel.
@@ -54,25 +52,16 @@
  */
 #define MAX_PARTITIONS		MAX_REGIONS
 
-
-#else
-
-#define MAX_COMPACT_NODES	4
-#define MAX_NASIDS		4
-#define MAXCPUS			8
-
-#endif
-
 #define NASID_MASK_BYTES	((MAX_NASIDS + 7) / 8)
 
 /*
  * Slot constants for SN0
  */
-#ifdef CONFIG_SGI_SN0_N_MODE
+#ifdef CONFIG_SGI_SN_N_MODE
 #define MAX_MEM_SLOTS   16                      /* max slots per node */
-#else /* !CONFIG_SGI_SN0_N_MODE, assume M_MODE */
+#else /* !CONFIG_SGI_SN_N_MODE, assume CONFIG_SGI_SN_M_MODE */
 #define MAX_MEM_SLOTS   32                      /* max slots per node */
-#endif /* defined(N_MODE) */
+#endif /* CONFIG_SGI_SN_M_MODE */
 
 #define SLOT_SHIFT      	(27)
 #define SLOT_MIN_MEM_SIZE	(32*1024*1024)

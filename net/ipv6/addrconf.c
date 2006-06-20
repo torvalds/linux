@@ -2860,6 +2860,11 @@ inet6_rtm_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	return inet6_addr_add(ifm->ifa_index, pfx, ifm->ifa_prefixlen);
 }
 
+/* Maximum length of ifa_cacheinfo attributes */
+#define INET6_IFADDR_RTA_SPACE \
+		RTA_SPACE(16) /* IFA_ADDRESS */ + \
+		RTA_SPACE(sizeof(struct ifa_cacheinfo)) /* CACHEINFO */
+
 static int inet6_fill_ifaddr(struct sk_buff *skb, struct inet6_ifaddr *ifa,
 			     u32 pid, u32 seq, int event, unsigned int flags)
 {
@@ -3092,7 +3097,7 @@ static int inet6_dump_ifacaddr(struct sk_buff *skb, struct netlink_callback *cb)
 static void inet6_ifa_notify(int event, struct inet6_ifaddr *ifa)
 {
 	struct sk_buff *skb;
-	int size = NLMSG_SPACE(sizeof(struct ifaddrmsg)+128);
+	int size = NLMSG_SPACE(sizeof(struct ifaddrmsg) + INET6_IFADDR_RTA_SPACE);
 
 	skb = alloc_skb(size, GFP_ATOMIC);
 	if (!skb) {
@@ -3141,6 +3146,17 @@ static void inline ipv6_store_devconf(struct ipv6_devconf *cnf,
 #endif
 #endif
 }
+
+/* Maximum length of ifinfomsg attributes */
+#define INET6_IFINFO_RTA_SPACE \
+		RTA_SPACE(IFNAMSIZ) /* IFNAME */ + \
+		RTA_SPACE(MAX_ADDR_LEN) /* ADDRESS */ +	\
+		RTA_SPACE(sizeof(u32)) /* MTU */ + \
+		RTA_SPACE(sizeof(int)) /* LINK */ + \
+		RTA_SPACE(0) /* PROTINFO */ + \
+		RTA_SPACE(sizeof(u32)) /* FLAGS */ + \
+		RTA_SPACE(sizeof(struct ifla_cacheinfo)) /* CACHEINFO */ + \
+		RTA_SPACE(sizeof(__s32[DEVCONF_MAX])) /* CONF */
 
 static int inet6_fill_ifinfo(struct sk_buff *skb, struct inet6_dev *idev, 
 			     u32 pid, u32 seq, int event, unsigned int flags)
@@ -3235,8 +3251,7 @@ static int inet6_dump_ifinfo(struct sk_buff *skb, struct netlink_callback *cb)
 void inet6_ifinfo_notify(int event, struct inet6_dev *idev)
 {
 	struct sk_buff *skb;
-	/* 128 bytes ?? */
-	int size = NLMSG_SPACE(sizeof(struct ifinfomsg)+128);
+	int size = NLMSG_SPACE(sizeof(struct ifinfomsg) + INET6_IFINFO_RTA_SPACE);
 	
 	skb = alloc_skb(size, GFP_ATOMIC);
 	if (!skb) {
@@ -3251,6 +3266,11 @@ void inet6_ifinfo_notify(int event, struct inet6_dev *idev)
 	NETLINK_CB(skb).dst_group = RTNLGRP_IPV6_IFINFO;
 	netlink_broadcast(rtnl, skb, 0, RTNLGRP_IPV6_IFINFO, GFP_ATOMIC);
 }
+
+/* Maximum length of prefix_cacheinfo attributes */
+#define INET6_PREFIX_RTA_SPACE \
+		RTA_SPACE(sizeof(((struct prefix_info *)NULL)->prefix)) /* ADDRESS */ + \
+		RTA_SPACE(sizeof(struct prefix_cacheinfo)) /* CACHEINFO */
 
 static int inet6_fill_prefix(struct sk_buff *skb, struct inet6_dev *idev,
 			struct prefix_info *pinfo, u32 pid, u32 seq, 
@@ -3296,7 +3316,7 @@ static void inet6_prefix_notify(int event, struct inet6_dev *idev,
 			 struct prefix_info *pinfo)
 {
 	struct sk_buff *skb;
-	int size = NLMSG_SPACE(sizeof(struct prefixmsg)+128);
+	int size = NLMSG_SPACE(sizeof(struct prefixmsg) + INET6_PREFIX_RTA_SPACE);
 
 	skb = alloc_skb(size, GFP_ATOMIC);
 	if (!skb) {

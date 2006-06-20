@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   
-  Copyright(c) 1999 - 2005 Intel Corporation. All rights reserved.
+  Copyright(c) 1999 - 2006 Intel Corporation. All rights reserved.
   
   This program is free software; you can redistribute it and/or modify it 
   under the terms of the GNU General Public License as published by the Free 
@@ -22,6 +22,7 @@
   
   Contact Information:
   Linux NICS <linux.nics@intel.com>
+  e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
   Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 
 *******************************************************************************/
@@ -864,8 +865,8 @@ static int
 e1000_intr_test(struct e1000_adapter *adapter, uint64_t *data)
 {
 	struct net_device *netdev = adapter->netdev;
- 	uint32_t mask, i=0, shared_int = TRUE;
- 	uint32_t irq = adapter->pdev->irq;
+	uint32_t mask, i=0, shared_int = TRUE;
+	uint32_t irq = adapter->pdev->irq;
 
 	*data = 0;
 
@@ -891,22 +892,22 @@ e1000_intr_test(struct e1000_adapter *adapter, uint64_t *data)
 		/* Interrupt to test */
 		mask = 1 << i;
 
- 		if (!shared_int) {
- 			/* Disable the interrupt to be reported in
- 			 * the cause register and then force the same
- 			 * interrupt and see if one gets posted.  If
- 			 * an interrupt was posted to the bus, the
- 			 * test failed.
- 			 */
- 			adapter->test_icr = 0;
- 			E1000_WRITE_REG(&adapter->hw, IMC, mask);
- 			E1000_WRITE_REG(&adapter->hw, ICS, mask);
- 			msec_delay(10);
+		if (!shared_int) {
+			/* Disable the interrupt to be reported in
+			 * the cause register and then force the same
+			 * interrupt and see if one gets posted.  If
+			 * an interrupt was posted to the bus, the
+			 * test failed.
+			 */
+			adapter->test_icr = 0;
+			E1000_WRITE_REG(&adapter->hw, IMC, mask);
+			E1000_WRITE_REG(&adapter->hw, ICS, mask);
+			msec_delay(10);
 
- 			if (adapter->test_icr & mask) {
- 				*data = 3;
- 				break;
- 			}
+			if (adapter->test_icr & mask) {
+				*data = 3;
+				break;
+			}
 		}
 
 		/* Enable the interrupt to be reported in
@@ -925,7 +926,7 @@ e1000_intr_test(struct e1000_adapter *adapter, uint64_t *data)
 			break;
 		}
 
- 		if (!shared_int) {
+		if (!shared_int) {
 			/* Disable the other interrupts to be reported in
 			 * the cause register and then force the other
 			 * interrupts and see if any get posted.  If

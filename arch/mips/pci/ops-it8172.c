@@ -50,30 +50,28 @@
 static struct resource pci_mem_resource_1;
 
 static struct resource pci_io_resource = {
-	"io pci IO space",
-	0x14018000,
-	0x17FFFFFF,
-	IORESOURCE_IO
+	.start	= 0x14018000,
+	.end	= 0x17FFFFFF,
+	.name	= "io pci IO space",
+	.flags	= IORESOURCE_IO
 };
 
 static struct resource pci_mem_resource_0 = {
-	"ext pci memory space 0/1",
-	0x10101000,
-	0x13FFFFFF,
-	IORESOURCE_MEM,
-	&pci_mem_resource_0,
-	NULL,
-	&pci_mem_resource_1
+	.start	= 0x10101000,
+	.end	= 0x13FFFFFF,
+	.name	= "ext pci memory space 0/1",
+	.flags	= IORESOURCE_MEM,
+	.parent	= &pci_mem_resource_0,
+	.sibling = NULL,
+	.child	= &pci_mem_resource_1
 };
 
 static struct resource pci_mem_resource_1 = {
-	"ext pci memory space 2/3",
-	0x1A000000,
-	0x1FBFFFFF,
-	IORESOURCE_MEM,
-	&pci_mem_resource_0,
-	NULL,
-	NULL
+	.start	= 0x1A000000,
+	.end	= 0x1FBFFFFF,
+	.name	= "ext pci memory space 2/3",
+	.flags	= IORESOURCE_MEM,
+	.parent	= &pci_mem_resource_0
 };
 
 extern struct pci_ops it8172_pci_ops;

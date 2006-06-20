@@ -67,6 +67,7 @@ EXPORT_SYMBOL(oops_in_progress);
  * driver system.
  */
 static DECLARE_MUTEX(console_sem);
+static DECLARE_MUTEX(secondary_console_sem);
 struct console *console_drivers;
 /*
  * This is used for debugging the mess that is the VT code by
@@ -76,7 +77,7 @@ struct console *console_drivers;
  * path in the console code where we end up in places I want
  * locked without the console sempahore held
  */
-static int console_locked;
+static int console_locked, console_suspended;
 
 /*
  * logbuf_lock protects log_buf, log_start, log_end, con_start and logged_chars
@@ -698,6 +699,23 @@ int __init add_preferred_console(char *name, int idx, char *options)
 }
 
 /**
+ * suspend_console - suspend the console subsystem
+ *
+ * This disables printk() while we go into suspend states
+ */
+void suspend_console(void)
+{
+	acquire_console_sem();
+	console_suspended = 1;
+}
+
+void resume_console(void)
+{
+	console_suspended = 0;
+	release_console_sem();
+}
+
+/**
  * acquire_console_sem - lock the console system for exclusive use.
  *
  * Acquires a semaphore which guarantees that the caller has
@@ -708,6 +726,10 @@ int __init add_preferred_console(char *name, int idx, char *options)
 void acquire_console_sem(void)
 {
 	BUG_ON(in_interrupt());
+	if (console_suspended) {
+		down(&secondary_console_sem);
+		return;
+	}
 	down(&console_sem);
 	console_locked = 1;
 	console_may_schedule = 1;
@@ -750,6 +772,10 @@ void release_console_sem(void)
 	unsigned long _con_start, _log_end;
 	unsigned long wake_klogd = 0;
 
+	if (console_suspended) {
+		up(&secondary_console_sem);
+		return;
+	}
 	for ( ; ; ) {
 		spin_lock_irqsave(&logbuf_lock, flags);
 		wake_klogd |= log_start - log_end;

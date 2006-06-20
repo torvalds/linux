@@ -83,9 +83,9 @@ static struct usb_device_id dongles[] = {
 	/* Extended Systems, Inc.,  XTNDAccess IrDA USB (ESI-9685) */
 	{ USB_DEVICE(0x8e9, 0x100), .driver_info = IUC_SPEED_BUG | IUC_NO_WINDOW },
 	/* SigmaTel STIR4210/4220/4116 USB IrDA (VFIR) Bridge */
-	{ USB_DEVICE(0x66f, 0x4210), .driver_info = IUC_STIR_4210 | IUC_SPEED_BUG },
-	{ USB_DEVICE(0x66f, 0x4220), .driver_info = IUC_STIR_4210 | IUC_SPEED_BUG },
-	{ USB_DEVICE(0x66f, 0x4116), .driver_info = IUC_STIR_4210 | IUC_SPEED_BUG },
+	{ USB_DEVICE(0x66f, 0x4210), .driver_info = IUC_STIR421X | IUC_SPEED_BUG },
+	{ USB_DEVICE(0x66f, 0x4220), .driver_info = IUC_STIR421X | IUC_SPEED_BUG },
+	{ USB_DEVICE(0x66f, 0x4116), .driver_info = IUC_STIR421X | IUC_SPEED_BUG },
 	{ .match_flags = USB_DEVICE_ID_MATCH_INT_CLASS |
 	  USB_DEVICE_ID_MATCH_INT_SUBCLASS,
 	  .bInterfaceClass = USB_CLASS_APP_SPEC,
@@ -154,7 +154,7 @@ static void irda_usb_build_header(struct irda_usb_cb *self,
 	 * and if either speed or xbofs (or both) needs
 	 * to be changed.
 	 */
-	if (self->capability & IUC_STIR_4210 &&
+	if (self->capability & IUC_STIR421X &&
 	    ((self->new_speed != -1) || (self->new_xbofs != -1))) {
 
 		/* With STIR421x, speed and xBOFs must be set at the same
@@ -318,7 +318,7 @@ static void irda_usb_change_speed_xbofs(struct irda_usb_cb *self)
 	/* Set the new speed and xbofs in this fake frame */
 	irda_usb_build_header(self, frame, 1);
 
-	if ( self->capability & IUC_STIR_4210 ) {
+	if (self->capability & IUC_STIR421X) {
 		if (frame[0] == 0) return ; // do nothing if no change
 		frame[1] = 0; // other parameters don't change here
 		frame[2] = 0;
@@ -455,7 +455,7 @@ static int irda_usb_hard_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 	/* Change setting for next frame */
 
-	if ( self->capability & IUC_STIR_4210 ) {
+	if (self->capability & IUC_STIR421X) {
 		__u8 turnaround_time;
 		__u8* frame;
 		turnaround_time = get_turnaround_time( skb );
@@ -897,10 +897,13 @@ static void irda_usb_receive(struct urb *urb, struct pt_regs *regs)
 	docopy = (urb->actual_length < IRDA_RX_COPY_THRESHOLD);
 
 	/* Allocate a new skb */
-	if ( self->capability & IUC_STIR_4210 )
-		newskb = dev_alloc_skb(docopy ? urb->actual_length : IRDA_SKB_MAX_MTU + USB_IRDA_SIGMATEL_HEADER);
+	if (self->capability & IUC_STIR421X)
+		newskb = dev_alloc_skb(docopy ? urb->actual_length :
+				       IRDA_SKB_MAX_MTU +
+				       USB_IRDA_STIR421X_HEADER);
 	else
-		newskb = dev_alloc_skb(docopy ? urb->actual_length : IRDA_SKB_MAX_MTU);
+		newskb = dev_alloc_skb(docopy ? urb->actual_length :
+				       IRDA_SKB_MAX_MTU);
 
 	if (!newskb)  {
 		self->stats.rx_dropped++;
@@ -1022,188 +1025,140 @@ static int irda_usb_is_receiving(struct irda_usb_cb *self)
 	return 0; /* For now */
 }
 
-
-#define STIR421X_PATCH_PRODUCT_VERSION_STR       "Product Version: "
-#define STIR421X_PATCH_COMPONENT_VERSION_STR     "Component Version: "
-#define STIR421X_PATCH_DATA_TAG_STR              "STMP"
-#define STIR421X_PATCH_FILE_VERSION_MAX_OFFSET   512     /* version info is before here */
-#define STIR421X_PATCH_FILE_IMAGE_MAX_OFFSET     512     /* patch image starts before here */
-#define STIR421X_PATCH_FILE_END_OF_HEADER_TAG    0x1A    /* marks end of patch file header (PC DOS text file EOF character) */
+#define STIR421X_PATCH_PRODUCT_VER     "Product Version: "
+#define STIR421X_PATCH_STMP_TAG        "STMP"
+#define STIR421X_PATCH_CODE_OFFSET     512 /* patch image starts before here */
+/* marks end of patch file header (PC DOS text file EOF character) */
+#define STIR421X_PATCH_END_OF_HDR_TAG  0x1A
+#define STIR421X_PATCH_BLOCK_SIZE      1023
 
 /*
- * Known firmware patches for STIR421x dongles
+ * Function stir421x_fwupload (struct irda_usb_cb *self,
+ *                             unsigned char *patch,
+ *                             const unsigned int patch_len)
+ *
+ *   Upload firmware code to SigmaTel 421X IRDA-USB dongle
  */
-static char * stir421x_patches[] = {
-	"42101001.sb",
-	"42101002.sb",
-};
-
-static int stir421x_get_patch_version(unsigned char * patch, const unsigned long patch_len)
+static int stir421x_fw_upload(struct irda_usb_cb *self,
+			     unsigned char *patch,
+			     const unsigned int patch_len)
 {
-	unsigned int version_offset;
-	unsigned long version_major, version_minor, version_build;
-	unsigned char * version_start;
-	int version_found = 0;
+        int ret = -ENOMEM;
+        int actual_len = 0;
+        unsigned int i;
+        unsigned int block_size = 0;
+        unsigned char *patch_block;
 
-	for (version_offset = 0;
-	     version_offset < STIR421X_PATCH_FILE_END_OF_HEADER_TAG;
-	     version_offset++) {
-		if (!memcmp(patch + version_offset,
-			    STIR421X_PATCH_PRODUCT_VERSION_STR,
-			    sizeof(STIR421X_PATCH_PRODUCT_VERSION_STR) - 1)) {
-				    version_found = 1;
-				    version_start = patch +
-					    version_offset +
-					    sizeof(STIR421X_PATCH_PRODUCT_VERSION_STR) - 1;
-				    break;
-		}
+        patch_block = kzalloc(STIR421X_PATCH_BLOCK_SIZE, GFP_KERNEL);
+	if (patch_block == NULL)
+		return -ENOMEM;
+
+	/* break up patch into 1023-byte sections */
+	for (i = 0; i < patch_len; i += block_size) {
+		block_size = patch_len - i;
+
+		if (block_size > STIR421X_PATCH_BLOCK_SIZE)
+			block_size = STIR421X_PATCH_BLOCK_SIZE;
+
+		/* upload the patch section */
+		memcpy(patch_block, patch + i, block_size);
+
+		ret = usb_bulk_msg(self->usbdev,
+				   usb_sndbulkpipe(self->usbdev,
+						   self->bulk_out_ep),
+				   patch_block, block_size,
+				   &actual_len, msecs_to_jiffies(500));
+		IRDA_DEBUG(3,"%s(): Bulk send %u bytes, ret=%d\n",
+			   __FUNCTION__, actual_len, ret);
+
+		if (ret < 0)
+			break;
 	}
 
-	/* We couldn't find a product version on this patch */
-	if (!version_found)
-		return -EINVAL;
+	kfree(patch_block);
 
-	/* Let's check if the product version is dotted */
-	if (version_start[3] != '.' ||
-	    version_start[7] != '.')
-		return -EINVAL;
+        return ret;
+ }
 
-	version_major = simple_strtoul(version_start, NULL, 10);
-	version_minor = simple_strtoul(version_start + 4, NULL, 10);
-	version_build = simple_strtoul(version_start + 8, NULL, 10);
-
-	IRDA_DEBUG(2, "%s(), Major: %ld Minor: %ld Build: %ld\n",
-		   __FUNCTION__,
-		   version_major, version_minor, version_build);
-
-	return (((version_major) << 12) +
-		((version_minor) << 8) +
-		((version_build / 10) << 4) +
-		(version_build % 10));
-
-}
-
-
-static int stir421x_upload_patch (struct irda_usb_cb *self,
-				  unsigned char * patch,
-				  const unsigned int patch_len)
-{
-    int retval = 0;
-    int actual_len;
-    unsigned int i = 0, download_amount = 0;
-    unsigned char * patch_chunk;
-
-    IRDA_DEBUG (2, "%s(), Uploading STIR421x Patch\n", __FUNCTION__);
-
-    patch_chunk = kzalloc(STIR421X_MAX_PATCH_DOWNLOAD_SIZE, GFP_KERNEL);
-    if (patch_chunk == NULL)
-	    return -ENOMEM;
-
-    /* break up patch into 1023-byte sections */
-    for (i = 0; retval >= 0 && i < patch_len; i += download_amount) {
-	    download_amount = patch_len - i;
-	    if (download_amount > STIR421X_MAX_PATCH_DOWNLOAD_SIZE)
-		    download_amount = STIR421X_MAX_PATCH_DOWNLOAD_SIZE;
-
-	    /* download the patch section */
-	    memcpy(patch_chunk, patch + i, download_amount);
-
-	    retval = usb_bulk_msg (self->usbdev,
-				   usb_sndbulkpipe (self->usbdev,
-						    self->bulk_out_ep),
-				   patch_chunk, download_amount,
-				   &actual_len, msecs_to_jiffies (500));
-	    IRDA_DEBUG (2, "%s(), Sent %u bytes\n", __FUNCTION__,
-			actual_len);
-	    if (retval == 0)
-		    mdelay(10);
-    }
-
-    kfree(patch_chunk);
-
-    if (i != patch_len) {
-	    IRDA_ERROR ("%s(), Pushed %d bytes (!= patch_len (%d))\n",
-		       __FUNCTION__, i, patch_len);
-	    retval = -EIO;
-    }
-
-    if (retval < 0)
-	    /* todo - mark device as not ready */
-	    IRDA_ERROR ("%s(), STIR421x patch upload failed (%d)\n",
-			__FUNCTION__, retval);
-
-    return retval;
-}
-
-
+/*
+ * Function stir421x_patch_device(struct irda_usb_cb *self)
+ *
+ * Get a firmware code from userspase using hotplug request_firmware() call
+  */
 static int stir421x_patch_device(struct irda_usb_cb *self)
 {
-	unsigned int i, patch_found = 0, data_found = 0, data_offset;
-	int patch_version, ret = 0;
-	const struct firmware *fw_entry;
+        unsigned int i;
+        int ret;
+        char stir421x_fw_name[11];
+        const struct firmware *fw;
+        unsigned char *fw_version_ptr; /* pointer to version string */
+	unsigned long fw_version = 0;
 
-	for (i = 0; i < ARRAY_SIZE(stir421x_patches); i++) {
-		if(request_firmware(&fw_entry, stir421x_patches[i], &self->usbdev->dev) != 0) {
-			IRDA_ERROR( "%s(), Patch %s is not available\n", __FUNCTION__, stir421x_patches[i]);
-			continue;
-		}
+        /*
+         * Known firmware patch file names for STIR421x dongles
+         * are "42101001.sb" or "42101002.sb"
+         */
+        sprintf(stir421x_fw_name, "4210%4X.sb",
+                self->usbdev->descriptor.bcdDevice);
+        ret = request_firmware(&fw, stir421x_fw_name, &self->usbdev->dev);
+        if (ret < 0)
+                return ret;
 
-                /* We found a patch from userspace */
-		patch_version = stir421x_get_patch_version (fw_entry->data, fw_entry->size);
+        /* We get a patch from userspace */
+        IRDA_MESSAGE("%s(): Received firmware %s (%u bytes)\n",
+                     __FUNCTION__, stir421x_fw_name, fw->size);
 
-		if (patch_version < 0) {
-			/* Couldn't fetch a version, let's move on to the next file */
-			IRDA_ERROR("%s(), version parsing failed\n", __FUNCTION__);
-			ret = patch_version;
-			release_firmware(fw_entry);
-			continue;
-		}
+        ret = -EINVAL;
 
-		if (patch_version != self->usbdev->descriptor.bcdDevice) {
-			/* Patch version and device don't match */
-			IRDA_ERROR ("%s(), wrong patch version (%d <-> %d)\n",
-				    __FUNCTION__,
-				    patch_version, self->usbdev->descriptor.bcdDevice);
-			ret = -EINVAL;
-			release_firmware(fw_entry);
-			continue;
-		}
+	/* Get the bcd product version */
+        if (!memcmp(fw->data, STIR421X_PATCH_PRODUCT_VER,
+                    sizeof(STIR421X_PATCH_PRODUCT_VER) - 1)) {
+                fw_version_ptr = fw->data +
+			sizeof(STIR421X_PATCH_PRODUCT_VER) - 1;
 
-		/* If we're here, we've found a correct patch */
-		patch_found = 1;
-		break;
+                /* Let's check if the product version is dotted */
+                if (fw_version_ptr[3] == '.' &&
+		    fw_version_ptr[7] == '.') {
+			unsigned long major, minor, build;
+			major = simple_strtoul(fw_version_ptr, NULL, 10);
+			minor = simple_strtoul(fw_version_ptr + 4, NULL, 10);
+			build = simple_strtoul(fw_version_ptr + 8, NULL, 10);
 
-	}
+			fw_version = (major << 12)
+				+ (minor << 8)
+				+ ((build / 10) << 4)
+				+ (build % 10);
 
-	/* We couldn't find a valid firmware, let's leave */
-	if (!patch_found)
-		return ret;
+			IRDA_DEBUG(3, "%s(): Firmware Product version %ld\n",
+                                   __FUNCTION__, fw_version);
+                }
+        }
 
-	/* The actual image starts after the "STMP" keyword */
-	for (data_offset = 0; data_offset < STIR421X_PATCH_FILE_IMAGE_MAX_OFFSET; data_offset++) {
-		if (!memcmp(fw_entry->data + data_offset,
-			    STIR421X_PATCH_DATA_TAG_STR,
-			    sizeof(STIR421X_PATCH_FILE_IMAGE_MAX_OFFSET))) {
-			IRDA_DEBUG(2, "%s(), found patch data for STIR421x at offset %d\n",
-				   __FUNCTION__, data_offset);
-			data_found = 1;
-			break;
-		}
-	}
+        if (self->usbdev->descriptor.bcdDevice == fw_version) {
+                /*
+		 * If we're here, we've found a correct patch
+                 * The actual image starts after the "STMP" keyword
+                 * so forward to the firmware header tag
+                 */
+                for (i = 0; (fw->data[i] != STIR421X_PATCH_END_OF_HDR_TAG)
+			     && (i < fw->size); i++) ;
+                /* here we check for the out of buffer case */
+                if ((STIR421X_PATCH_END_OF_HDR_TAG == fw->data[i])
+                    && (i < STIR421X_PATCH_CODE_OFFSET)) {
+                        if (!memcmp(fw->data + i + 1, STIR421X_PATCH_STMP_TAG,
+                                    sizeof(STIR421X_PATCH_STMP_TAG) - 1)) {
 
-	/* We couldn't find "STMP" from the header */
-	if (!data_found)
-		return -EINVAL;
+				/* We can upload the patch to the target */
+				i += sizeof(STIR421X_PATCH_STMP_TAG);
+                                ret = stir421x_fw_upload(self, &fw->data[i],
+							 fw->size - i);
+                        }
+                }
+        }
 
-	/* Let's upload the patch to the target */
-	ret = stir421x_upload_patch(self,
-				    &fw_entry->data[data_offset + sizeof(STIR421X_PATCH_FILE_IMAGE_MAX_OFFSET)],
-				    fw_entry->size - (data_offset + sizeof(STIR421X_PATCH_FILE_IMAGE_MAX_OFFSET)));
+        release_firmware(fw);
 
-	release_firmware(fw_entry);
-
-	return ret;
-
+        return ret;
 }
 
 
@@ -1702,12 +1657,12 @@ static int irda_usb_probe(struct usb_interface *intf,
 	init_timer(&self->rx_defer_timer);
 
 	self->capability = id->driver_info;
-	self->needspatch = ((self->capability & IUC_STIR_4210) != 0) ;
+	self->needspatch = ((self->capability & IUC_STIR421X) != 0);
 
 	/* Create all of the needed urbs */
-	if (self->capability & IUC_STIR_4210) {
+	if (self->capability & IUC_STIR421X) {
 		self->max_rx_urb = IU_SIGMATEL_MAX_RX_URBS;
-		self->header_length = USB_IRDA_SIGMATEL_HEADER;
+		self->header_length = USB_IRDA_STIR421X_HEADER;
 	} else {
 		self->max_rx_urb = IU_MAX_RX_URBS;
 		self->header_length = USB_IRDA_HEADER;
@@ -1813,8 +1768,8 @@ static int irda_usb_probe(struct usb_interface *intf,
 		/* Now we fetch and upload the firmware patch */
 		ret = stir421x_patch_device(self);
 		self->needspatch = (ret < 0);
-		if (ret < 0) {
-			printk("patch_device failed\n");
+		if (self->needspatch) {
+			IRDA_ERROR("STIR421X: Couldn't upload patch\n");
 			goto err_out_5;
 		}
 

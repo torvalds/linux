@@ -534,5 +534,4 @@ int hostap_master_start_xmit(struct sk_buff *skb, struct net_device *dev)
 }
 
 
-EXPORT_SYMBOL(hostap_dump_tx_80211);
 EXPORT_SYMBOL(hostap_master_start_xmit);

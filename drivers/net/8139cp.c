@@ -19,11 +19,11 @@
 	See the file COPYING in this distribution for more information.
 
 	Contributors:
-	
+
 		Wake-on-LAN support - Felipe Damasio <felipewd@terra.com.br>
 		PCI suspend/resume  - Felipe Damasio <felipewd@terra.com.br>
 		LinkChg interrupt   - Felipe Damasio <felipewd@terra.com.br>
-			
+
 	TODO:
 	* Test Tx checksumming thoroughly
 	* Implement dev->tx_timeout
@@ -461,7 +461,7 @@ static void cp_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 static inline void cp_set_rxbufsize (struct cp_private *cp)
 {
 	unsigned int mtu = cp->dev->mtu;
-	
+
 	if (mtu > ETH_DATA_LEN)
 		/* MTU + ethernet header + FCS + optional VLAN tag */
 		cp->rx_buf_sz = mtu + ETH_HLEN + 8;
@@ -510,7 +510,7 @@ static void cp_rx_err_acct (struct cp_private *cp, unsigned rx_tail,
 static inline unsigned int cp_rx_csum_ok (u32 status)
 {
 	unsigned int protocol = (status >> 16) & 0x3;
-	
+
 	if (likely((protocol == RxProtoTCP) && (!(status & TCPFail))))
 		return 1;
 	else if ((protocol == RxProtoUDP) && (!(status & UDPFail)))
@@ -1061,7 +1061,7 @@ static void cp_init_hw (struct cp_private *cp)
 	cpw8(Config3, PARMEnable);
 	cp->wol_enabled = 0;
 
-	cpw8(Config5, cpr8(Config5) & PMEStatus); 
+	cpw8(Config5, cpr8(Config5) & PMEStatus);
 
 	cpw32_f(HiTxRingAddr, 0);
 	cpw32_f(HiTxRingAddr + 4, 0);
@@ -1351,7 +1351,7 @@ static void netdev_get_wol (struct cp_private *cp,
 		         WAKE_MCAST | WAKE_UCAST;
 	/* We don't need to go on if WOL is disabled */
 	if (!cp->wol_enabled) return;
-	
+
 	options        = cpr8 (Config3);
 	if (options & LinkUp)        wol->wolopts |= WAKE_PHY;
 	if (options & MagicPacket)   wol->wolopts |= WAKE_MAGIC;
@@ -1919,7 +1919,7 @@ static int cp_resume (struct pci_dev *pdev)
 	mii_check_media(&cp->mii_if, netif_msg_link(cp), FALSE);
 
 	spin_unlock_irqrestore (&cp->lock, flags);
-	
+
 	return 0;
 }
 #endif /* CONFIG_PM */

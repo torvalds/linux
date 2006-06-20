@@ -1646,7 +1646,7 @@ static struct net_device *this_device;
  *	insmod multiple modules for now but it's a hack.
  */
 
-int init_module(void)
+int __init init_module(void)
 {
 	this_device = mc32_probe(-1);
 	if (IS_ERR(this_device))

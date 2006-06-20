@@ -38,11 +38,11 @@
 /*
 ** EISA Register Address Map
 */
-#define EISA_ID      iobase+0x0c80   /* EISA ID Registers */ 
-#define EISA_ID0     iobase+0x0c80   /* EISA ID Register 0 */ 
-#define EISA_ID1     iobase+0x0c81   /* EISA ID Register 1 */ 
-#define EISA_ID2     iobase+0x0c82   /* EISA ID Register 2 */ 
-#define EISA_ID3     iobase+0x0c83   /* EISA ID Register 3 */ 
+#define EISA_ID      iobase+0x0c80   /* EISA ID Registers */
+#define EISA_ID0     iobase+0x0c80   /* EISA ID Register 0 */
+#define EISA_ID1     iobase+0x0c81   /* EISA ID Register 1 */
+#define EISA_ID2     iobase+0x0c82   /* EISA ID Register 2 */
+#define EISA_ID3     iobase+0x0c83   /* EISA ID Register 3 */
 #define EISA_CR      iobase+0x0c84   /* EISA Control Register */
 #define EISA_REG0    iobase+0x0c88   /* EISA Configuration Register 0 */
 #define EISA_REG1    iobase+0x0c89   /* EISA Configuration Register 1 */
@@ -1008,8 +1008,8 @@ struct de4x5_ioctl {
 	unsigned char  __user *data;       /* Pointer to the data buffer */
 };
 
-/* 
-** Recognised commands for the driver 
+/*
+** Recognised commands for the driver
 */
 #define DE4X5_GET_HWADDR	0x01 /* Get the hardware address */
 #define DE4X5_SET_HWADDR	0x02 /* Set the hardware address */

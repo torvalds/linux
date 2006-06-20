@@ -407,12 +407,8 @@ static unsigned int br_nf_pre_routing_ipv6(unsigned int hook,
 	if (pkt_len || hdr->nexthdr != NEXTHDR_HOP) {
 		if (pkt_len + sizeof(struct ipv6hdr) > skb->len)
 			goto inhdr_error;
-		if (pkt_len + sizeof(struct ipv6hdr) < skb->len) {
-			if (__pskb_trim(skb, pkt_len + sizeof(struct ipv6hdr)))
-				goto inhdr_error;
-			if (skb->ip_summed == CHECKSUM_HW)
-				skb->ip_summed = CHECKSUM_NONE;
-		}
+		if (pskb_trim_rcsum(skb, pkt_len + sizeof(struct ipv6hdr)))
+			goto inhdr_error;
 	}
 	if (hdr->nexthdr == NEXTHDR_HOP && check_hbh_len(skb))
 		goto inhdr_error;
@@ -495,11 +491,7 @@ static unsigned int br_nf_pre_routing(unsigned int hook, struct sk_buff **pskb,
 	if (skb->len < len || len < 4 * iph->ihl)
 		goto inhdr_error;
 
-	if (skb->len > len) {
-		__pskb_trim(skb, len);
-		if (skb->ip_summed == CHECKSUM_HW)
-			skb->ip_summed = CHECKSUM_NONE;
-	}
+	pskb_trim_rcsum(skb, len);
 
 	nf_bridge_put(skb->nf_bridge);
 	if (!nf_bridge_alloc(skb))

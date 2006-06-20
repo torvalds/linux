@@ -38,6 +38,8 @@
 #define cpu_has_vtag_icache	0
 #define cpu_has_ic_fills_f_dc	0
 #define cpu_has_dsp		0
+#define cpu_has_4k_cache	1
+
 
 #define cpu_has_mips32r1	0
 #define cpu_has_mips32r2	0

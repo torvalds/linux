@@ -65,38 +65,25 @@ static LIST_HEAD(ipcomp6_tfms_list);
 
 static int ipcomp6_input(struct xfrm_state *x, struct sk_buff *skb)
 {
-	int err = 0;
-	u8 nexthdr = 0;
-	int hdr_len = skb->h.raw - skb->nh.raw;
-	unsigned char *tmp_hdr = NULL;
+	int err = -ENOMEM;
 	struct ipv6hdr *iph;
+	struct ipv6_comp_hdr *ipch;
 	int plen, dlen;
 	struct ipcomp_data *ipcd = x->data;
 	u8 *start, *scratch;
 	struct crypto_tfm *tfm;
 	int cpu;
 
-	if ((skb_is_nonlinear(skb) || skb_cloned(skb)) &&
-		skb_linearize(skb, GFP_ATOMIC) != 0) {
-		err = -ENOMEM;
+	if (skb_linearize_cow(skb))
 		goto out;
-	}
 
 	skb->ip_summed = CHECKSUM_NONE;
 
 	/* Remove ipcomp header and decompress original payload */
 	iph = skb->nh.ipv6h;
-	tmp_hdr = kmalloc(hdr_len, GFP_ATOMIC);
-	if (!tmp_hdr)
-		goto out;
-	memcpy(tmp_hdr, iph, hdr_len);
-	nexthdr = *(u8 *)skb->data;
-	skb_pull(skb, sizeof(struct ipv6_comp_hdr)); 
-	skb->nh.raw += sizeof(struct ipv6_comp_hdr);
-	memcpy(skb->nh.raw, tmp_hdr, hdr_len);
-	iph = skb->nh.ipv6h;
-	iph->payload_len = htons(ntohs(iph->payload_len) - sizeof(struct ipv6_comp_hdr));
-	skb->h.raw = skb->data;
+	ipch = (void *)skb->data;
+	skb->h.raw = skb->nh.raw + sizeof(*ipch);
+	__skb_pull(skb, sizeof(*ipch));
 
 	/* decompression */
 	plen = skb->len;
@@ -125,18 +112,11 @@ static int ipcomp6_input(struct xfrm_state *x, struct sk_buff *skb)
 
 	skb_put(skb, dlen - plen);
 	memcpy(skb->data, scratch, dlen);
+	err = ipch->nexthdr;
 
-	iph = skb->nh.ipv6h;
-	iph->payload_len = htons(skb->len);
-	
 out_put_cpu:
 	put_cpu();
 out:
-	kfree(tmp_hdr);
-	if (err)
-		goto error_out;
-	return nexthdr;
-error_out:
 	return err;
 }
 
@@ -159,10 +139,8 @@ static int ipcomp6_output(struct xfrm_state *x, struct sk_buff *skb)
 		goto out_ok;
 	}
 
-	if ((skb_is_nonlinear(skb) || skb_cloned(skb)) &&
-		skb_linearize(skb, GFP_ATOMIC) != 0) {
+	if (skb_linearize_cow(skb))
 		goto out_ok;
-	}
 
 	/* compression */
 	plen = skb->len - hdr_len;

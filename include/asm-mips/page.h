@@ -145,6 +145,25 @@ typedef struct { unsigned long pgprot; } pgprot_t;
 #endif
 #endif
 
+#ifdef CONFIG_FLATMEM
+
+#define pfn_valid(pfn)		((pfn) < max_mapnr)
+
+#elif defined(CONFIG_NEED_MULTIPLE_NODES)
+
+#define pfn_valid(pfn)							\
+({									\
+	unsigned long __pfn = (pfn);					\
+	int __n = pfn_to_nid(__pfn);					\
+	((__n >= 0) ? (__pfn < NODE_DATA(__n)->node_start_pfn +		\
+	                       NODE_DATA(__n)->node_spanned_pages)	\
+	            : 0);						\
+})
+
+#else
+#error Provide a definition of pfn_valid
+#endif
+
 #define virt_to_page(kaddr)	pfn_to_page(__pa(kaddr) >> PAGE_SHIFT)
 #define virt_addr_valid(kaddr)	pfn_valid(__pa(kaddr) >> PAGE_SHIFT)
 
