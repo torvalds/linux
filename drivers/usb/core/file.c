@@ -158,14 +158,13 @@ int usb_register_dev(struct usb_interface *intf,
 		++temp;
 	else
 		temp = name;
-	intf->class_dev = class_device_create(usb_class, NULL,
-					      MKDEV(USB_MAJOR, minor),
-					      &intf->dev, "%s", temp);
-	if (IS_ERR(intf->class_dev)) {
+	intf->usb_dev = device_create(usb_class, &intf->dev,
+				      MKDEV(USB_MAJOR, minor), "%s", temp);
+	if (IS_ERR(intf->usb_dev)) {
 		spin_lock (&minor_lock);
 		usb_minors[intf->minor] = NULL;
 		spin_unlock (&minor_lock);
-		retval = PTR_ERR(intf->class_dev);
+		retval = PTR_ERR(intf->usb_dev);
 	}
 exit:
 	return retval;
@@ -206,8 +205,8 @@ void usb_deregister_dev(struct usb_interface *intf,
 	spin_unlock (&minor_lock);
 
 	snprintf(name, BUS_ID_SIZE, class_driver->name, intf->minor - minor_base);
-	class_device_destroy(usb_class, MKDEV(USB_MAJOR, intf->minor));
-	intf->class_dev = NULL;
+	device_destroy(usb_class, MKDEV(USB_MAJOR, intf->minor));
+	intf->usb_dev = NULL;
 	intf->minor = -1;
 }
 EXPORT_SYMBOL(usb_deregister_dev);

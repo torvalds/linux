@@ -103,7 +103,8 @@ enum usb_interface_condition {
  * @condition: binding state of the interface: not bound, binding
  *	(in probe()), bound to a driver, or unbinding (in disconnect())
  * @dev: driver model's view of this device
- * @class_dev: driver model's class view of this device.
+ * @usb_dev: if an interface is bound to the USB major, this will point
+ *	to the sysfs representation for that device.
  *
  * USB device drivers attach to interfaces on a physical device.  Each
  * interface encapsulates a single high level function, such as feeding
@@ -143,7 +144,7 @@ struct usb_interface {
 					 * bound to */
 	enum usb_interface_condition condition;		/* state of binding */
 	struct device dev;		/* interface specific device info */
-	struct class_device *class_dev;
+	struct device *usb_dev;		/* pointer to the usb class's device, if any */
 };
 #define	to_usb_interface(d) container_of(d, struct usb_interface, dev)
 #define	interface_to_usbdev(intf) \
