@@ -63,18 +63,21 @@ extern void nand_release (struct mtd_info *mtd);
  */
 #define NAND_CMD_READ0		0
 #define NAND_CMD_READ1		1
+#define NAND_CMD_RNDOUT		5
 #define NAND_CMD_PAGEPROG	0x10
 #define NAND_CMD_READOOB	0x50
 #define NAND_CMD_ERASE1		0x60
 #define NAND_CMD_STATUS		0x70
 #define NAND_CMD_STATUS_MULTI	0x71
 #define NAND_CMD_SEQIN		0x80
+#define NAND_CMD_RNDIN		0x85
 #define NAND_CMD_READID		0x90
 #define NAND_CMD_ERASE2		0xd0
 #define NAND_CMD_RESET		0xff
 
 /* Extended commands for large page devices */
 #define NAND_CMD_READSTART	0x30
+#define NAND_CMD_RNDOUTSTART	0xE0
 #define NAND_CMD_CACHEDPROG	0x15
 
 /* Extended commands for AG-AND device */
@@ -250,6 +253,13 @@ struct nand_ecc_ctrl {
 	void			(*write_page)(struct mtd_info *mtd,
 					      struct nand_chip *chip,
 					      const uint8_t *buf);
+	int			(*read_oob)(struct mtd_info *mtd,
+					    struct nand_chip *chip,
+					    int page,
+					    int sndcmd);
+	int			(*write_oob)(struct mtd_info *mtd,
+					     struct nand_chip *chip,
+					     int page);
 };
 
 /**
@@ -339,7 +349,7 @@ struct nand_chip {
 				    unsigned int ctrl);
 	int		(*dev_ready)(struct mtd_info *mtd);
 	void		(*cmdfunc)(struct mtd_info *mtd, unsigned command, int column, int page_addr);
-	int		(*waitfunc)(struct mtd_info *mtd, struct nand_chip *this, int state);
+	int		(*waitfunc)(struct mtd_info *mtd, struct nand_chip *this);
 	void		(*erase_cmd)(struct mtd_info *mtd, int page);
 	int		(*scan_bbt)(struct mtd_info *mtd);
 	int		(*errstat)(struct mtd_info *mtd, struct nand_chip *this, int state, int status, int page);

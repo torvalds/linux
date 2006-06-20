@@ -504,12 +504,12 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 			return ret;
 
 		ops.len = buf.length;
-		ops.ooblen = mtd->oobsize;
+		ops.ooblen = buf.length;
 		ops.ooboffs = buf.start & (mtd->oobsize - 1);
 		ops.datbuf = NULL;
 		ops.mode = MTD_OOB_PLACE;
 
-		if (ops.ooboffs && ops.len > (ops.ooblen - ops.ooboffs))
+		if (ops.ooboffs && ops.len > (mtd->oobsize - ops.ooboffs))
 			return -EINVAL;
 
 		ops.oobbuf = kmalloc(buf.length, GFP_KERNEL);
@@ -553,12 +553,12 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 			return ret;
 
 		ops.len = buf.length;
-		ops.ooblen = mtd->oobsize;
+		ops.ooblen = buf.length;
 		ops.ooboffs = buf.start & (mtd->oobsize - 1);
 		ops.datbuf = NULL;
 		ops.mode = MTD_OOB_PLACE;
 
-		if (ops.ooboffs && ops.len > (ops.ooblen - ops.ooboffs))
+		if (ops.ooboffs && ops.len > (mtd->oobsize - ops.ooboffs))
 			return -EINVAL;
 
 		ops.oobbuf = kmalloc(buf.length, GFP_KERNEL);

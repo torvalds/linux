@@ -464,7 +464,7 @@ static void __init doc2000_count_chips(struct mtd_info *mtd)
 	printk(KERN_DEBUG "Detected %d chips per floor.\n", i);
 }
 
-static int doc200x_wait(struct mtd_info *mtd, struct nand_chip *this, int state)
+static int doc200x_wait(struct mtd_info *mtd, struct nand_chip *this)
 {
 	struct doc_priv *doc = this->priv;
 
