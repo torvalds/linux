@@ -504,22 +504,21 @@ void class_device_initialize(struct class_device *class_dev)
 	INIT_LIST_HEAD(&class_dev->node);
 }
 
-static char *make_class_name(struct class_device *class_dev)
+char *make_class_name(const char *name, struct kobject *kobj)
 {
-	char *name;
+	char *class_name;
 	int size;
 
-	size = strlen(class_dev->class->name) +
-		strlen(kobject_name(&class_dev->kobj)) + 2;
+	size = strlen(name) + strlen(kobject_name(kobj)) + 2;
 
-	name = kmalloc(size, GFP_KERNEL);
-	if (!name)
+	class_name = kmalloc(size, GFP_KERNEL);
+	if (!class_name)
 		return ERR_PTR(-ENOMEM);
 
-	strcpy(name, class_dev->class->name);
-	strcat(name, ":");
-	strcat(name, kobject_name(&class_dev->kobj));
-	return name;
+	strcpy(class_name, name);
+	strcat(class_name, ":");
+	strcat(class_name, kobject_name(kobj));
+	return class_name;
 }
 
 int class_device_add(struct class_device *class_dev)
@@ -594,7 +593,8 @@ int class_device_add(struct class_device *class_dev)
 		goto out5;
 
 	if (class_dev->dev) {
-		class_name = make_class_name(class_dev);
+		class_name = make_class_name(class_dev->class->name,
+					     &class_dev->kobj);
 		error = sysfs_create_link(&class_dev->kobj,
 					  &class_dev->dev->kobj, "device");
 		if (error)
@@ -731,7 +731,8 @@ void class_device_del(struct class_device *class_dev)
 	}
 
 	if (class_dev->dev) {
-		class_name = make_class_name(class_dev);
+		class_name = make_class_name(class_dev->class->name,
+					     &class_dev->kobj);
 		sysfs_remove_link(&class_dev->kobj, "device");
 		sysfs_remove_link(&class_dev->dev->kobj, class_name);
 	}
@@ -796,14 +797,16 @@ int class_device_rename(struct class_device *class_dev, char *new_name)
 		 new_name);
 
 	if (class_dev->dev)
-		old_class_name = make_class_name(class_dev);
+		old_class_name = make_class_name(class_dev->class->name,
+						 &class_dev->kobj);
 
 	strlcpy(class_dev->class_id, new_name, KOBJ_NAME_LEN);
 
 	error = kobject_rename(&class_dev->kobj, new_name);
 
 	if (class_dev->dev) {
-		new_class_name = make_class_name(class_dev);
+		new_class_name = make_class_name(class_dev->class->name,
+						 &class_dev->kobj);
 		sysfs_create_link(&class_dev->dev->kobj, &class_dev->kobj,
 				  new_class_name);
 		sysfs_remove_link(&class_dev->dev->kobj, old_class_name);
