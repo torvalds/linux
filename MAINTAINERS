@@ -1425,6 +1425,8 @@ P:	Jesse Brandeburg
 M:	jesse.brandeburg@intel.com
 P:	Jeff Kirsher
 M:	jeffrey.t.kirsher@intel.com
+P:	Auke Kok
+M:	auke-jan.h.kok@intel.com
 W:	http://sourceforge.net/projects/e1000/
 S:	Supported
 
@@ -1437,6 +1439,8 @@ P:	Jesse Brandeburg
 M:	jesse.brandeburg@intel.com
 P:	Jeff Kirsher
 M:	jeffrey.t.kirsher@intel.com
+P:	Auke Kok
+M:	auke-jan.h.kok@intel.com
 W:	http://sourceforge.net/projects/e1000/
 S:	Supported
 
@@ -1449,6 +1453,8 @@ P:	John Ronciak
 M:	john.ronciak@intel.com
 P:	Jesse Brandeburg
 M:	jesse.brandeburg@intel.com
+P:	Auke Kok
+M:	auke-jan.h.kok@intel.com
 W:	http://sourceforge.net/projects/e1000/
 S:	Supported
 

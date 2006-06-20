@@ -13,10 +13,6 @@
 
 #include <linux/config.h>
 
-#if defined(CONFIG_SGI_IO)
-#include <asm/hack.h>
-#endif
-
 /*
  * The kldir memory area resides at a fixed place in each node's memory and
  * provides pointers to most other IP27 memory areas.  This allows us to
@@ -136,8 +132,6 @@
 #define KLDIR_OFF_STRIDE		0x28
 #endif /* __ASSEMBLY__ */
 
-#if !defined(CONFIG_SGI_IO)
-
 /*
  * This is defined here because IP27_SYMMON_STK_SIZE must be at least what
  * we define here.  Since it's set up in the prom.  We can't redefine it later
@@ -147,7 +141,7 @@
  */
 #define SYMMON_STACK_SIZE		0x8000
 
-#if defined (PROM) || defined (SABLE)
+#if defined (PROM)
 
 /*
  * These defines are prom version dependent.  No code other than the IP27
@@ -184,7 +178,7 @@
 #define IP27_FREEMEM_COUNT		1
 #define IP27_FREEMEM_STRIDE		0
 
-#endif /* PROM || SABLE*/
+#endif /* PROM */
 /*
  * There will be only one of these in a partition so the IO6 must set it up.
  */
@@ -207,17 +201,11 @@
 #define KLDIR_ENT_SIZE			0x40
 #define KLDIR_MAX_ENTRIES		(0x400 / 0x40)
 
-#endif	/* !CONFIG_SGI_IO */
-
 #ifndef __ASSEMBLY__
 typedef struct kldir_ent_s {
 	u64		magic;		/* Indicates validity of entry      */
 	off_t		offset;		/* Offset from start of node space  */
-#if defined(CONFIG_SGI_IO)	/* FIXME */
-	__psunsigned_t	pointer;	/* Pointer to area in some cases    */
-#else
 	unsigned long	pointer;	/* Pointer to area in some cases    */
-#endif
 	size_t		size;		/* Size in bytes 		    */
 	u64		count;		/* Repeat count if array, 1 if not  */
 	size_t		stride;		/* Stride if array, 0 if not        */
@@ -226,23 +214,5 @@ typedef struct kldir_ent_s {
 	   entry to store partition info. Refer to klpart.h for this. */
 } kldir_ent_t;
 #endif /* !__ASSEMBLY__ */
-
-#if defined(CONFIG_SGI_IO)
-
-#define KLDIR_ENT_SIZE			0x40
-#define KLDIR_MAX_ENTRIES		(0x400 / 0x40)
-
-/*
- * The actual offsets of each memory area are machine-dependent
- */
-#ifdef CONFIG_SGI_IP27
-// Not yet #include <asm/sn/sn0/kldir.h>
-#elif defined(CONFIG_SGI_IP35)
-#include <asm/sn/sn1/kldir.h>
-#else
-#error "kldir.h is currently defined for IP27 and IP35 platforms only"
-#endif
-
-#endif	/* CONFIG_SGI_IO */
 
 #endif /* _ASM_SN_KLDIR_H */

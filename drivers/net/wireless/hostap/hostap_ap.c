@@ -3276,17 +3276,6 @@ EXPORT_SYMBOL(hostap_init_data);
 EXPORT_SYMBOL(hostap_init_ap_proc);
 EXPORT_SYMBOL(hostap_free_data);
 EXPORT_SYMBOL(hostap_check_sta_fw_version);
-EXPORT_SYMBOL(hostap_handle_sta_tx);
-EXPORT_SYMBOL(hostap_handle_sta_release);
 EXPORT_SYMBOL(hostap_handle_sta_tx_exc);
-EXPORT_SYMBOL(hostap_update_sta_ps);
-EXPORT_SYMBOL(hostap_handle_sta_rx);
-EXPORT_SYMBOL(hostap_is_sta_assoc);
-EXPORT_SYMBOL(hostap_is_sta_authorized);
-EXPORT_SYMBOL(hostap_add_sta);
-EXPORT_SYMBOL(hostap_update_rates);
-EXPORT_SYMBOL(hostap_add_wds_links);
-EXPORT_SYMBOL(hostap_wds_link_oper);
 #ifndef PRISM2_NO_KERNEL_IEEE80211_MGMT
-EXPORT_SYMBOL(hostap_deauth_all_stas);
 #endif /* PRISM2_NO_KERNEL_IEEE80211_MGMT */

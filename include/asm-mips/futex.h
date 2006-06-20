@@ -22,51 +22,53 @@
 		"	.set	push				\n"	\
 		"	.set	noat				\n"	\
 		"	.set	mips3				\n"	\
-		"1:	ll	%1, (%3)	# __futex_atomic_op	\n" \
+		"1:	ll	%1, %4	# __futex_atomic_op	\n"	\
 		"	.set	mips0				\n"	\
 		"	" insn	"				\n"	\
 		"	.set	mips3				\n"	\
-		"2:	sc	$1, (%3)			\n"	\
+		"2:	sc	$1, %2				\n"	\
 		"	beqzl	$1, 1b				\n"	\
 		__FUTEX_SMP_SYNC					\
 		"3:						\n"	\
 		"	.set	pop				\n"	\
 		"	.set	mips0				\n"	\
 		"	.section .fixup,\"ax\"			\n"	\
-		"4:	li	%0, %5				\n"	\
+		"4:	li	%0, %6				\n"	\
 		"	j	2b				\n"	\
 		"	.previous				\n"	\
 		"	.section __ex_table,\"a\"		\n"	\
 		"	"__UA_ADDR "\t1b, 4b			\n"	\
 		"	"__UA_ADDR "\t2b, 4b			\n"	\
 		"	.previous				\n"	\
-		: "=r" (ret), "=r" (oldval)				\
-		: "0" (0), "r" (uaddr), "Jr" (oparg), "i" (-EFAULT));	\
+		: "=r" (ret), "=&r" (oldval), "=R" (*uaddr)		\
+		: "0" (0), "R" (*uaddr), "Jr" (oparg), "i" (-EFAULT)	\
+		: "memory");						\
 	} else if (cpu_has_llsc) {					\
 		__asm__ __volatile__(					\
 		"	.set	push				\n"	\
 		"	.set	noat				\n"	\
 		"	.set	mips3				\n"	\
-		"1:	ll	%1, (%3)	# __futex_atomic_op	\n" \
+		"1:	ll	%1, %4	# __futex_atomic_op	\n"	\
 		"	.set	mips0				\n"	\
 		"	" insn	"				\n"	\
 		"	.set	mips3				\n"	\
-		"2:	sc	$1, (%3)			\n"	\
+		"2:	sc	$1, %2				\n"	\
 		"	beqz	$1, 1b				\n"	\
 		__FUTEX_SMP_SYNC					\
 		"3:						\n"	\
 		"	.set	pop				\n"	\
 		"	.set	mips0				\n"	\
 		"	.section .fixup,\"ax\"			\n"	\
-		"4:	li	%0, %5				\n"	\
+		"4:	li	%0, %6				\n"	\
 		"	j	2b				\n"	\
 		"	.previous				\n"	\
 		"	.section __ex_table,\"a\"		\n"	\
 		"	"__UA_ADDR "\t1b, 4b			\n"	\
 		"	"__UA_ADDR "\t2b, 4b			\n"	\
 		"	.previous				\n"	\
-		: "=r" (ret), "=r" (oldval)				\
-		: "0" (0), "r" (uaddr), "Jr" (oparg), "i" (-EFAULT));	\
+		: "=r" (ret), "=&r" (oldval), "=R" (*uaddr)		\
+		: "0" (0), "R" (*uaddr), "Jr" (oparg), "i" (-EFAULT)	\
+		: "memory");						\
 	} else								\
 		ret = -ENOSYS;						\
 }
@@ -89,23 +91,23 @@ futex_atomic_op_inuser (int encoded_op, int __user *uaddr)
 
 	switch (op) {
 	case FUTEX_OP_SET:
-		__futex_atomic_op("move	$1, %z4", ret, oldval, uaddr, oparg);
+		__futex_atomic_op("move	$1, %z5", ret, oldval, uaddr, oparg);
 		break;
 
 	case FUTEX_OP_ADD:
-		__futex_atomic_op("addu	$1, %1, %z4",
+		__futex_atomic_op("addu	$1, %1, %z5",
 		                  ret, oldval, uaddr, oparg);
 		break;
 	case FUTEX_OP_OR:
-		__futex_atomic_op("or	$1, %1, %z4",
+		__futex_atomic_op("or	$1, %1, %z5",
 		                  ret, oldval, uaddr, oparg);
 		break;
 	case FUTEX_OP_ANDN:
-		__futex_atomic_op("and	$1, %1, %z4",
+		__futex_atomic_op("and	$1, %1, %z5",
 		                  ret, oldval, uaddr, ~oparg);
 		break;
 	case FUTEX_OP_XOR:
-		__futex_atomic_op("xor	$1, %1, %z4",
+		__futex_atomic_op("xor	$1, %1, %z5",
 		                  ret, oldval, uaddr, oparg);
 		break;
 	default:

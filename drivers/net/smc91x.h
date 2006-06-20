@@ -129,6 +129,24 @@
 #define SMC_insb(a, r, p, l)	readsb((a) + (r), p, (l))
 #define SMC_outsb(a, r, p, l)	writesb((a) + (r), p, (l))
 
+#elif	defined(CONFIG_MACH_LOGICPD_PXA270)
+
+#define SMC_CAN_USE_8BIT	0
+#define SMC_CAN_USE_16BIT	1
+#define SMC_CAN_USE_32BIT	0
+#define SMC_IO_SHIFT		0
+#define SMC_NOWAIT		1
+#define SMC_USE_PXA_DMA		1
+
+#define SMC_inb(a, r)		readb((a) + (r))
+#define SMC_inw(a, r)		readw((a) + (r))
+#define SMC_inl(a, r)		readl((a) + (r))
+#define SMC_outb(v, a, r)	writeb(v, (a) + (r))
+#define SMC_outw(v, a, r)	writew(v, (a) + (r))
+#define SMC_outl(v, a, r)	writel(v, (a) + (r))
+#define SMC_insw(a, r, p, l)	readsw((a) + (r), p, l)
+#define SMC_outsw(a, r, p, l)	writesw((a) + (r), p, l)
+
 #elif	defined(CONFIG_ARCH_INNOKOM) || \
 	defined(CONFIG_MACH_MAINSTONE) || \
 	defined(CONFIG_ARCH_PXA_IDP) || \

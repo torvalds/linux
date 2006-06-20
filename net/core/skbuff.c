@@ -464,7 +464,7 @@ struct sk_buff *skb_clone(struct sk_buff *skb, gfp_t gfp_mask)
 	n->tc_verd = CLR_TC_MUNGED(n->tc_verd);
 	C(input_dev);
 #endif
-
+	skb_copy_secmark(n, skb);
 #endif
 	C(truesize);
 	atomic_set(&n->users, 1);
@@ -526,6 +526,7 @@ static void copy_skb_header(struct sk_buff *new, const struct sk_buff *old)
 #endif
 	new->tc_index	= old->tc_index;
 #endif
+	skb_copy_secmark(new, old);
 	atomic_set(&new->users, 1);
 	skb_shinfo(new)->tso_size = skb_shinfo(old)->tso_size;
 	skb_shinfo(new)->tso_segs = skb_shinfo(old)->tso_segs;
@@ -800,12 +801,10 @@ struct sk_buff *skb_pad(struct sk_buff *skb, int pad)
 	return nskb;
 }	
  
-/* Trims skb to length len. It can change skb pointers, if "realloc" is 1.
- * If realloc==0 and trimming is impossible without change of data,
- * it is BUG().
+/* Trims skb to length len. It can change skb pointers.
  */
 
-int ___pskb_trim(struct sk_buff *skb, unsigned int len, int realloc)
+int ___pskb_trim(struct sk_buff *skb, unsigned int len)
 {
 	int offset = skb_headlen(skb);
 	int nfrags = skb_shinfo(skb)->nr_frags;
@@ -815,7 +814,6 @@ int ___pskb_trim(struct sk_buff *skb, unsigned int len, int realloc)
 		int end = offset + skb_shinfo(skb)->frags[i].size;
 		if (end > len) {
 			if (skb_cloned(skb)) {
-				BUG_ON(!realloc);
 				if (pskb_expand_head(skb, 0, 0, GFP_ATOMIC))
 					return -ENOMEM;
 			}

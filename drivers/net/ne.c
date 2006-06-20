@@ -829,7 +829,7 @@ that the ne2k probe is the last 8390 based probe to take place (as it
 is at boot) and so the probe will get confused by any other 8390 cards.
 ISA device autoprobes on a running machine are not recommended anyway. */
 
-int init_module(void)
+int __init init_module(void)
 {
 	int this_dev, found = 0;
 

@@ -822,6 +822,7 @@ static void __init prom_send_capabilities(void)
 		/* try calling the ibm,client-architecture-support method */
 		if (call_prom_ret("call-method", 3, 2, &ret,
 				  ADDR("ibm,client-architecture-support"),
+				  root,
 				  ADDR(ibm_architecture_vec)) == 0) {
 			/* the call exists... */
 			if (ret)
@@ -1622,6 +1623,15 @@ static int __init prom_find_machine_type(void)
 			if (strstr(p, RELOC("Power Macintosh")) ||
 			    strstr(p, RELOC("MacRISC")))
 				return PLATFORM_POWERMAC;
+#ifdef CONFIG_PPC64
+			/* We must make sure we don't detect the IBM Cell
+			 * blades as pSeries due to some firmware issues,
+			 * so we do it here.
+			 */
+			if (strstr(p, RELOC("IBM,CBEA")) ||
+			    strstr(p, RELOC("IBM,CPBW-1.0")))
+				return PLATFORM_GENERIC;
+#endif /* CONFIG_PPC64 */
 			i += sl + 1;
 		}
 	}

@@ -1,7 +1,7 @@
 ################################################################################
 #
 # 
-# Copyright(c) 1999 - 2003 Intel Corporation. All rights reserved.
+# Copyright(c) 1999 - 2006 Intel Corporation. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify it 
 # under the terms of the GNU General Public License as published by the Free 
@@ -22,6 +22,7 @@
 # 
 # Contact Information:
 # Linux NICS <linux.nics@intel.com>
+# e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
 # Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 #
 ################################################################################

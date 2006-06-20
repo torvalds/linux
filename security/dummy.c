@@ -810,6 +810,11 @@ static void dummy_xfrm_policy_free_security(struct xfrm_policy *xp)
 {
 }
 
+static int dummy_xfrm_policy_delete_security(struct xfrm_policy *xp)
+{
+	return 0;
+}
+
 static int dummy_xfrm_state_alloc_security(struct xfrm_state *x, struct xfrm_user_sec_ctx *sec_ctx)
 {
 	return 0;
@@ -817,6 +822,11 @@ static int dummy_xfrm_state_alloc_security(struct xfrm_state *x, struct xfrm_use
 
 static void dummy_xfrm_state_free_security(struct xfrm_state *x)
 {
+}
+
+static int dummy_xfrm_state_delete_security(struct xfrm_state *x)
+{
+	return 0;
 }
 
 static int dummy_xfrm_policy_lookup(struct xfrm_policy *xp, u32 sk_sid, u8 dir)
@@ -1024,8 +1034,10 @@ void security_fixup_ops (struct security_operations *ops)
 	set_to_dummy_if_null(ops, xfrm_policy_alloc_security);
 	set_to_dummy_if_null(ops, xfrm_policy_clone_security);
 	set_to_dummy_if_null(ops, xfrm_policy_free_security);
+	set_to_dummy_if_null(ops, xfrm_policy_delete_security);
 	set_to_dummy_if_null(ops, xfrm_state_alloc_security);
 	set_to_dummy_if_null(ops, xfrm_state_free_security);
+	set_to_dummy_if_null(ops, xfrm_state_delete_security);
 	set_to_dummy_if_null(ops, xfrm_policy_lookup);
 #endif	/* CONFIG_SECURITY_NETWORK_XFRM */
 #ifdef CONFIG_KEYS

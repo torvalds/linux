@@ -1,5 +1,5 @@
 /*
- *  (c) 2003, 2004, 2005 Advanced Micro Devices, Inc.
+ *  (c) 2003-2006 Advanced Micro Devices, Inc.
  *  Your use of this code is subject to the terms and conditions of the
  *  GNU general public license version 2. See "COPYING" or
  *  http://www.gnu.org/licenses/gpl.html
@@ -21,8 +21,8 @@ struct powernow_k8_data {
 	u32 plllock; /* pll lock time, units 1 us */
         u32 exttype; /* extended interface = 1 */
 
-	/* keep track of the current fid / vid */
-	u32 currvid, currfid;
+	/* keep track of the current fid / vid or did */
+	u32 currvid, currfid, currdid;
 
 	/* the powernow_table includes all frequency and vid/fid pairings:
 	 * fid are the lower 8 bits of the index, vid are the upper 8 bits.
@@ -34,6 +34,10 @@ struct powernow_k8_data {
 	 * used to determine valid frequency/vid/fid states */
 	struct acpi_processor_performance acpi_data;
 #endif
+	/* we need to keep track of associated cores, but let cpufreq
+	 * handle hotplug events - so just point at cpufreq pol->cpus
+	 * structure */
+	cpumask_t *available_cores;
 };
 
 
@@ -43,6 +47,7 @@ struct powernow_k8_data {
 #define CPUID_XFAM_K8			0
 #define CPUID_XMOD			0x000f0000	/* extended model */
 #define CPUID_XMOD_REV_G		0x00060000
+#define CPUID_XFAM_10H 			0x00100000	/* family 0x10 */
 #define CPUID_USE_XFAM_XMOD		0x00000f00
 #define CPUID_GET_MAX_CAPABILITIES	0x80000000
 #define CPUID_FREQ_VOLT_CAPABILITIES	0x80000007
@@ -78,6 +83,32 @@ struct powernow_k8_data {
 #define MSR_S_HI_START_VID        0x00003f00
 #define MSR_S_HI_CURRENT_VID      0x0000003f
 #define MSR_C_HI_STP_GNT_BENIGN	  0x00000001
+
+
+/* Hardware Pstate _PSS and MSR definitions */
+#define USE_HW_PSTATE		0x00000080
+#define HW_PSTATE_FID_MASK 	0x0000003f
+#define HW_PSTATE_DID_MASK 	0x000001c0
+#define HW_PSTATE_DID_SHIFT 	6
+#define HW_PSTATE_MASK 		0x00000007
+#define HW_PSTATE_VALID_MASK 	0x80000000
+#define HW_FID_INDEX_SHIFT	8
+#define HW_FID_INDEX_MASK	0x0000ff00
+#define HW_DID_INDEX_SHIFT	16
+#define HW_DID_INDEX_MASK	0x00ff0000
+#define HW_WATTS_MASK		0xff
+#define HW_PWR_DVR_MASK		0x300
+#define HW_PWR_DVR_SHIFT	8
+#define HW_PWR_MAX_MULT		3
+#define MAX_HW_PSTATE		8	/* hw pstate supports up to 8 */
+#define MSR_PSTATE_DEF_BASE 	0xc0010064 /* base of Pstate MSRs */
+#define MSR_PSTATE_STATUS 	0xc0010063 /* Pstate Status MSR */
+#define MSR_PSTATE_CTRL 	0xc0010062 /* Pstate control MSR */
+
+/* define the two driver architectures */
+#define CPU_OPTERON 0
+#define CPU_HW_PSTATE 1
+
 
 /*
  * There are restrictions frequencies have to follow:
@@ -181,6 +212,9 @@ static int core_voltage_post_transition(struct powernow_k8_data *data, u32 reqvi
 static int core_frequency_transition(struct powernow_k8_data *data, u32 reqfid);
 
 static void powernow_k8_acpi_pst_values(struct powernow_k8_data *data, unsigned int index);
+
+static int fill_powernow_table_pstate(struct powernow_k8_data *data, struct cpufreq_frequency_table *powernow_table);
+static int fill_powernow_table_fidvid(struct powernow_k8_data *data, struct cpufreq_frequency_table *powernow_table);
 
 #ifdef CONFIG_SMP
 static inline void define_siblings(int cpu, cpumask_t cpu_sharedcore_mask[])

@@ -12,66 +12,9 @@
 #include <linux/skbuff.h>
 #include <linux/spinlock.h>
 #include <linux/netfilter_ipv4.h>
-#include <net/inet_ecn.h>
 #include <net/ip.h>
 #include <net/xfrm.h>
 #include <net/icmp.h>
-
-/* Add encapsulation header.
- *
- * In transport mode, the IP header will be moved forward to make space
- * for the encapsulation header.
- *
- * In tunnel mode, the top IP header will be constructed per RFC 2401.
- * The following fields in it shall be filled in by x->type->output:
- *	tot_len
- *	check
- *
- * On exit, skb->h will be set to the start of the payload to be processed
- * by x->type->output and skb->nh will be set to the top IP header.
- */
-static void xfrm4_encap(struct sk_buff *skb)
-{
-	struct dst_entry *dst = skb->dst;
-	struct xfrm_state *x = dst->xfrm;
-	struct iphdr *iph, *top_iph;
-	int flags;
-
-	iph = skb->nh.iph;
-	skb->h.ipiph = iph;
-
-	skb->nh.raw = skb_push(skb, x->props.header_len);
-	top_iph = skb->nh.iph;
-
-	if (!x->props.mode) {
-		skb->h.raw += iph->ihl*4;
-		memmove(top_iph, iph, iph->ihl*4);
-		return;
-	}
-
-	top_iph->ihl = 5;
-	top_iph->version = 4;
-
-	/* DS disclosed */
-	top_iph->tos = INET_ECN_encapsulate(iph->tos, iph->tos);
-
-	flags = x->props.flags;
-	if (flags & XFRM_STATE_NOECN)
-		IP_ECN_clear(top_iph);
-
-	top_iph->frag_off = (flags & XFRM_STATE_NOPMTUDISC) ?
-		0 : (iph->frag_off & htons(IP_DF));
-	if (!top_iph->frag_off)
-		__ip_select_ident(top_iph, dst->child, 0);
-
-	top_iph->ttl = dst_metric(dst->child, RTAX_HOPLIMIT);
-
-	top_iph->saddr = x->props.saddr.a4;
-	top_iph->daddr = x->id.daddr.a4;
-	top_iph->protocol = IPPROTO_IPIP;
-
-	memset(&(IPCB(skb)->opt), 0, sizeof(struct ip_options));
-}
 
 static int xfrm4_tunnel_check_size(struct sk_buff *skb)
 {
@@ -121,7 +64,9 @@ static int xfrm4_output_one(struct sk_buff *skb)
 		if (err)
 			goto error;
 
-		xfrm4_encap(skb);
+		err = x->mode->output(skb);
+		if (err)
+			goto error;
 
 		err = x->type->output(x, skb);
 		if (err)

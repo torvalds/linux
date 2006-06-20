@@ -1224,7 +1224,7 @@ out:
  *	Chips that have the MRM/reserved bit quirk and the burst quirk. That
  *	is the DM910X and the on chip ULi devices
  */
- 
+
 static int tulip_uli_dm_quirk(struct pci_dev *pdev)
 {
 	if (pdev->vendor == 0x1282 && pdev->device == 0x9102)
@@ -1297,7 +1297,7 @@ static int __devinit tulip_init_one (struct pci_dev *pdev,
 	 */
 
 	/* 1. Intel Saturn. Switch to 8 long words burst, 8 long word cache
-	      aligned.  Aries might need this too. The Saturn errata are not 
+	      aligned.  Aries might need this too. The Saturn errata are not
 	      pretty reading but thankfully it's an old 486 chipset.
 
 	   2. The dreaded SiS496 486 chipset. Same workaround as Intel
@@ -1483,14 +1483,6 @@ static int __devinit tulip_init_one (struct pci_dev *pdev,
 			sa_offset = 2;		/* Grrr, damn Matrox boards. */
 			multiport_cnt = 4;
 		}
-#ifdef CONFIG_DDB5476
-		if ((pdev->bus->number == 0) && (PCI_SLOT(pdev->devfn) == 6)) {
-			/* DDB5476 MAC address in first EEPROM locations. */
-                       sa_offset = 0;
-                       /* No media table either */
-                       tp->flags &= ~HAS_MEDIA_TABLE;
-               }
-#endif
 #ifdef CONFIG_DDB5477
                if ((pdev->bus->number == 0) && (PCI_SLOT(pdev->devfn) == 4)) {
                        /* DDB5477 MAC address in first EEPROM locations. */
@@ -1500,7 +1492,7 @@ static int __devinit tulip_init_one (struct pci_dev *pdev,
                }
 #endif
 #ifdef CONFIG_MIPS_COBALT
-               if ((pdev->bus->number == 0) && 
+               if ((pdev->bus->number == 0) &&
                    ((PCI_SLOT(pdev->devfn) == 7) ||
                     (PCI_SLOT(pdev->devfn) == 12))) {
                        /* Cobalt MAC address in first EEPROM locations. */

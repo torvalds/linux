@@ -149,6 +149,56 @@ ieee80211softmac_hdr_3addr(struct ieee80211softmac_device *mac,
 	 * shouldn't the sequence number be in ieee80211? */
 }
 
+static u16
+ieee80211softmac_capabilities(struct ieee80211softmac_device *mac,
+	struct ieee80211softmac_network *net)
+{
+	u16 capability = 0;
+
+	/* ESS and IBSS bits are set according to the current mode */
+	switch (mac->ieee->iw_mode) {
+	case IW_MODE_INFRA:
+		capability = cpu_to_le16(WLAN_CAPABILITY_ESS);
+		break;
+	case IW_MODE_ADHOC:
+		capability = cpu_to_le16(WLAN_CAPABILITY_IBSS);
+		break;
+	case IW_MODE_AUTO:
+		capability = net->capabilities &
+			(WLAN_CAPABILITY_ESS|WLAN_CAPABILITY_IBSS);
+		break;
+	default:
+		/* bleh. we don't ever go to these modes */
+		printk(KERN_ERR PFX "invalid iw_mode!\n");
+		break;
+	}
+
+	/* CF Pollable / CF Poll Request */
+	/* Needs to be implemented, for now, the 0's == not supported */
+
+	/* Privacy Bit */
+	capability |= mac->ieee->sec.level ?
+		cpu_to_le16(WLAN_CAPABILITY_PRIVACY) : 0;
+
+	/* Short Preamble */
+	/* Always supported: we probably won't ever be powering devices which
+	 * dont support this... */
+	capability |= WLAN_CAPABILITY_SHORT_PREAMBLE;
+
+	/* PBCC */
+	/* Not widely used */
+
+	/* Channel Agility */
+	/* Not widely used */
+
+	/* Short Slot */
+	/* Will be implemented later */
+
+	/* DSSS-OFDM */
+	/* Not widely used */
+
+	return capability;
+}
 
 /*****************************************************************************
  * Create Management packets
@@ -179,27 +229,6 @@ ieee80211softmac_assoc_req(struct ieee80211_assoc_request **pkt,
 		return 0;
 	ieee80211softmac_hdr_3addr(mac, &((*pkt)->header), IEEE80211_STYPE_ASSOC_REQ, net->bssid, net->bssid);
 
-	/* Fill in capability Info */
-	switch (mac->ieee->iw_mode) {
-	case IW_MODE_INFRA:
-		(*pkt)->capability = cpu_to_le16(WLAN_CAPABILITY_ESS);
-		break;
-	case IW_MODE_ADHOC:
-		(*pkt)->capability = cpu_to_le16(WLAN_CAPABILITY_IBSS);
-		break;
-	case IW_MODE_AUTO:
-		(*pkt)->capability = net->capabilities & (WLAN_CAPABILITY_ESS|WLAN_CAPABILITY_IBSS);
-		break;
-	default:
-		/* bleh. we don't ever go to these modes */
-		printk(KERN_ERR PFX "invalid iw_mode!\n");
-		break;
-	}
-	/* Need to add this
-	(*pkt)->capability |= mac->ieee->short_slot ? 
-			cpu_to_le16(WLAN_CAPABILITY_SHORT_SLOT_TIME) : 0;
-	 */
-	(*pkt)->capability |= mac->ieee->sec.level ? cpu_to_le16(WLAN_CAPABILITY_PRIVACY) : 0;
 	/* Fill in Listen Interval (?) */
 	(*pkt)->listen_interval = cpu_to_le16(10);
 	
@@ -239,17 +268,9 @@ ieee80211softmac_reassoc_req(struct ieee80211_reassoc_request **pkt,
 		return 0;
 	ieee80211softmac_hdr_3addr(mac, &((*pkt)->header), IEEE80211_STYPE_REASSOC_REQ, net->bssid, net->bssid);
 
-	/* Fill in capability Info */
-	(*pkt)->capability = mac->ieee->iw_mode == IW_MODE_MASTER ? 
-				cpu_to_le16(WLAN_CAPABILITY_ESS) :
-				cpu_to_le16(WLAN_CAPABILITY_IBSS);
-	/*
-	(*pkt)->capability |= mac->ieee->short_slot ? 
-			cpu_to_le16(WLAN_CAPABILITY_SHORT_SLOT_TIME) : 0;
-	 */
-	(*pkt)->capability |= mac->ieee->sec.level ?
-			cpu_to_le16(WLAN_CAPABILITY_PRIVACY) : 0;
-		
+	/* Fill in the capabilities */
+	(*pkt)->capability = ieee80211softmac_capabilities(mac, net);
+
 	/* Fill in Listen Interval (?) */
 	(*pkt)->listen_interval = cpu_to_le16(10);
 	/* Fill in the current AP MAC */
@@ -268,26 +289,27 @@ ieee80211softmac_reassoc_req(struct ieee80211_reassoc_request **pkt,
 static u32
 ieee80211softmac_auth(struct ieee80211_auth **pkt, 
 	struct ieee80211softmac_device *mac, struct ieee80211softmac_network *net,
-	u16 transaction, u16 status)
+	u16 transaction, u16 status, int *encrypt_mpdu)
 {
 	u8 *data;
+	int auth_mode = mac->ieee->sec.auth_mode;
+	int is_shared_response = (auth_mode == WLAN_AUTH_SHARED_KEY
+		&& transaction == IEEE80211SOFTMAC_AUTH_SHARED_RESPONSE);
+
 	/* Allocate Packet */
 	(*pkt) = (struct ieee80211_auth *)ieee80211softmac_alloc_mgt(
 		2 +		/* Auth Algorithm */
 		2 +		/* Auth Transaction Seq */
 		2 +		/* Status Code */
 		 /* Challenge Text IE */
-		mac->ieee->open_wep ? 0 : 
-		1 + 1 + WLAN_AUTH_CHALLENGE_LEN
-	);	
+		is_shared_response ? 0 : 1 + 1 + net->challenge_len
+	);
 	if (unlikely((*pkt) == NULL))
 		return 0;
 	ieee80211softmac_hdr_3addr(mac, &((*pkt)->header), IEEE80211_STYPE_AUTH, net->bssid, net->bssid);
 		
 	/* Algorithm */
-	(*pkt)->algorithm = mac->ieee->open_wep ? 
-		cpu_to_le16(WLAN_AUTH_OPEN) :
-		cpu_to_le16(WLAN_AUTH_SHARED_KEY);
+	(*pkt)->algorithm = cpu_to_le16(auth_mode);
 	/* Transaction */
 	(*pkt)->transaction = cpu_to_le16(transaction);
 	/* Status */
@@ -295,18 +317,20 @@ ieee80211softmac_auth(struct ieee80211_auth **pkt,
 	
 	data = (u8 *)(*pkt)->info_element;
 	/* Challenge Text */
-	if(!mac->ieee->open_wep){
+	if (is_shared_response) {
 		*data = MFIE_TYPE_CHALLENGE;
 		data++;
 		
 		/* Copy the challenge in */
-		// *data = challenge length
-		// data += sizeof(u16);
-		// memcpy(data, challenge, challenge length);
-		// data += challenge length;
-		
-		/* Add the full size to the packet length */
-	}
+		*data = net->challenge_len;
+		data++;
+		memcpy(data, net->challenge, net->challenge_len);
+		data += net->challenge_len;
+
+		/* Make sure this frame gets encrypted with the shared key */
+		*encrypt_mpdu = 1;
+	} else
+		*encrypt_mpdu = 0;
 
 	/* Return the packet size */
 	return (data - (u8 *)(*pkt));
@@ -396,6 +420,7 @@ ieee80211softmac_send_mgt_frame(struct ieee80211softmac_device *mac,
 {
 	void *pkt = NULL;
 	u32 pkt_size = 0;
+	int encrypt_mpdu = 0;
 
 	switch(type) {
 	case IEEE80211_STYPE_ASSOC_REQ:
@@ -405,7 +430,7 @@ ieee80211softmac_send_mgt_frame(struct ieee80211softmac_device *mac,
 		pkt_size = ieee80211softmac_reassoc_req((struct ieee80211_reassoc_request **)(&pkt), mac, (struct ieee80211softmac_network *)ptrarg);
 		break;
 	case IEEE80211_STYPE_AUTH:
-		pkt_size = ieee80211softmac_auth((struct ieee80211_auth **)(&pkt), mac, (struct ieee80211softmac_network *)ptrarg, (u16)(arg & 0xFFFF), (u16) (arg >> 16));
+		pkt_size = ieee80211softmac_auth((struct ieee80211_auth **)(&pkt), mac, (struct ieee80211softmac_network *)ptrarg, (u16)(arg & 0xFFFF), (u16) (arg >> 16), &encrypt_mpdu);
 		break;
 	case IEEE80211_STYPE_DISASSOC:
 	case IEEE80211_STYPE_DEAUTH:
@@ -434,52 +459,8 @@ ieee80211softmac_send_mgt_frame(struct ieee80211softmac_device *mac,
 	 * or get rid of it alltogether?
 	 * Does this work for you now?
 	 */
-	ieee80211_tx_frame(mac->ieee, (struct ieee80211_hdr *)pkt, pkt_size);
-
-	kfree(pkt);
-	return 0;
-}
-
-
-/* Create an rts/cts frame */
-static u32
-ieee80211softmac_rts_cts(struct ieee80211_hdr_2addr **pkt,
-	struct ieee80211softmac_device *mac, struct ieee80211softmac_network *net, 
-	u32 type)
-{
-	/* Allocate Packet */
-	(*pkt) = kmalloc(IEEE80211_2ADDR_LEN, GFP_ATOMIC);	
-	memset(*pkt, 0, IEEE80211_2ADDR_LEN);
-	if((*pkt) == NULL)
-		return 0;
-	ieee80211softmac_hdr_2addr(mac, (*pkt), type, net->bssid);
-	return IEEE80211_2ADDR_LEN;
-}
-
-
-/* Sends a control packet */
-static int
-ieee80211softmac_send_ctl_frame(struct ieee80211softmac_device *mac,
-	struct ieee80211softmac_network *net, u32 type, u32 arg)
-{
-	void *pkt = NULL;
-	u32 pkt_size = 0;
-	
-	switch(type) {
-	case IEEE80211_STYPE_RTS:
-	case IEEE80211_STYPE_CTS:
-		pkt_size = ieee80211softmac_rts_cts((struct ieee80211_hdr_2addr **)(&pkt), mac, net, type);
-		break;
-	default:
-		printkl(KERN_DEBUG PFX "Unsupported Control Frame type: %i\n", type);
-		return -EINVAL;
-	}
-
-	if(pkt_size == 0)
-		return -ENOMEM;
-	
-	/* Send the packet to the ieee80211 layer for tx */
-	ieee80211_tx_frame(mac->ieee, (struct ieee80211_hdr *) pkt, pkt_size);
+	ieee80211_tx_frame(mac->ieee, (struct ieee80211_hdr *)pkt,
+		IEEE80211_3ADDR_LEN, pkt_size, encrypt_mpdu);
 
 	kfree(pkt);
 	return 0;

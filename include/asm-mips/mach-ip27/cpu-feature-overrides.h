@@ -31,6 +31,9 @@
 #define cpu_has_nofpuex		0
 #define cpu_has_64bits		1
 
+#define cpu_has_4kex		1
+#define cpu_has_4k_cache	1
+
 #define cpu_has_subset_pcaches	1
 
 #define cpu_dcache_line_size()	32

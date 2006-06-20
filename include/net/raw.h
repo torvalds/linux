@@ -36,7 +36,7 @@ extern rwlock_t raw_v4_lock;
 
 
 extern struct sock *__raw_v4_lookup(struct sock *sk, unsigned short num,
-				    unsigned long raddr, unsigned long laddr,
+				    __be32 raddr, __be32 laddr,
 				    int dif);
 
 extern int raw_v4_input(struct sk_buff *skb, struct iphdr *iph, int hash);

@@ -80,6 +80,7 @@
 
 extern unsigned int policydb_loaded_version;
 extern int selinux_nlmsg_lookup(u16 sclass, u16 nlmsg_type, u32 *perm);
+extern int selinux_compat_net;
 
 #ifdef CONFIG_SECURITY_SELINUX_DEVELOP
 int selinux_enforcing = 0;
@@ -696,6 +697,8 @@ static inline u16 socket_type_to_security_class(int family, int type, int protoc
 		return SECCLASS_PACKET_SOCKET;
 	case PF_KEY:
 		return SECCLASS_KEY_SOCKET;
+	case PF_APPLETALK:
+		return SECCLASS_APPLETALK_SOCKET;
 	}
 
 	return SECCLASS_SOCKET;
@@ -3214,47 +3217,17 @@ static int selinux_socket_unix_may_send(struct socket *sock,
 	return 0;
 }
 
-static int selinux_socket_sock_rcv_skb(struct sock *sk, struct sk_buff *skb)
+static int selinux_sock_rcv_skb_compat(struct sock *sk, struct sk_buff *skb,
+		struct avc_audit_data *ad, u32 sock_sid, u16 sock_class,
+		u16 family, char *addrp, int len)
 {
-	u16 family;
-	char *addrp;
-	int len, err = 0;
+	int err = 0;
 	u32 netif_perm, node_perm, node_sid, if_sid, recv_perm = 0;
-	u32 sock_sid = 0;
-	u16 sock_class = 0;
-	struct socket *sock;
-	struct net_device *dev;
-	struct avc_audit_data ad;
 
-	family = sk->sk_family;
-	if (family != PF_INET && family != PF_INET6)
+	if (!skb->dev)
 		goto out;
 
-	/* Handle mapped IPv4 packets arriving via IPv6 sockets */
-	if (family == PF_INET6 && skb->protocol == htons(ETH_P_IP))
-		family = PF_INET;
-
- 	read_lock_bh(&sk->sk_callback_lock);
- 	sock = sk->sk_socket;
- 	if (sock) {
- 		struct inode *inode;
- 		inode = SOCK_INODE(sock);
- 		if (inode) {
- 			struct inode_security_struct *isec;
- 			isec = inode->i_security;
- 			sock_sid = isec->sid;
- 			sock_class = isec->sclass;
- 		}
- 	}
- 	read_unlock_bh(&sk->sk_callback_lock);
- 	if (!sock_sid)
-  		goto out;
-
-	dev = skb->dev;
-	if (!dev)
-		goto out;
-
-	err = sel_netif_sids(dev, &if_sid, NULL);
+	err = sel_netif_sids(skb->dev, &if_sid, NULL);
 	if (err)
 		goto out;
 
@@ -3277,44 +3250,88 @@ static int selinux_socket_sock_rcv_skb(struct sock *sk, struct sk_buff *skb)
 		break;
 	}
 
-	AVC_AUDIT_DATA_INIT(&ad, NET);
-	ad.u.net.netif = dev->name;
-	ad.u.net.family = family;
-
-	err = selinux_parse_skb(skb, &ad, &addrp, &len, 1);
-	if (err)
-		goto out;
-
-	err = avc_has_perm(sock_sid, if_sid, SECCLASS_NETIF, netif_perm, &ad);
+	err = avc_has_perm(sock_sid, if_sid, SECCLASS_NETIF, netif_perm, ad);
 	if (err)
 		goto out;
 	
-	/* Fixme: this lookup is inefficient */
 	err = security_node_sid(family, addrp, len, &node_sid);
 	if (err)
 		goto out;
 	
-	err = avc_has_perm(sock_sid, node_sid, SECCLASS_NODE, node_perm, &ad);
+	err = avc_has_perm(sock_sid, node_sid, SECCLASS_NODE, node_perm, ad);
 	if (err)
 		goto out;
 
 	if (recv_perm) {
 		u32 port_sid;
 
-		/* Fixme: make this more efficient */
 		err = security_port_sid(sk->sk_family, sk->sk_type,
-		                        sk->sk_protocol, ntohs(ad.u.net.sport),
+		                        sk->sk_protocol, ntohs(ad->u.net.sport),
 		                        &port_sid);
 		if (err)
 			goto out;
 
 		err = avc_has_perm(sock_sid, port_sid,
-				   sock_class, recv_perm, &ad);
+				   sock_class, recv_perm, ad);
 	}
 
-	if (!err)
-		err = selinux_xfrm_sock_rcv_skb(sock_sid, skb);
+out:
+	return err;
+}
 
+static int selinux_socket_sock_rcv_skb(struct sock *sk, struct sk_buff *skb)
+{
+	u16 family;
+	u16 sock_class = 0;
+	char *addrp;
+	int len, err = 0;
+	u32 sock_sid = 0;
+	struct socket *sock;
+	struct avc_audit_data ad;
+
+	family = sk->sk_family;
+	if (family != PF_INET && family != PF_INET6)
+		goto out;
+
+	/* Handle mapped IPv4 packets arriving via IPv6 sockets */
+	if (family == PF_INET6 && skb->protocol == ntohs(ETH_P_IP))
+		family = PF_INET;
+
+ 	read_lock_bh(&sk->sk_callback_lock);
+ 	sock = sk->sk_socket;
+ 	if (sock) {
+ 		struct inode *inode;
+ 		inode = SOCK_INODE(sock);
+ 		if (inode) {
+ 			struct inode_security_struct *isec;
+ 			isec = inode->i_security;
+ 			sock_sid = isec->sid;
+ 			sock_class = isec->sclass;
+ 		}
+ 	}
+ 	read_unlock_bh(&sk->sk_callback_lock);
+ 	if (!sock_sid)
+  		goto out;
+
+	AVC_AUDIT_DATA_INIT(&ad, NET);
+	ad.u.net.netif = skb->dev ? skb->dev->name : "[unknown]";
+	ad.u.net.family = family;
+
+	err = selinux_parse_skb(skb, &ad, &addrp, &len, 1);
+	if (err)
+		goto out;
+
+	if (selinux_compat_net)
+		err = selinux_sock_rcv_skb_compat(sk, skb, &ad, sock_sid,
+						  sock_class, family,
+						  addrp, len);
+	else
+		err = avc_has_perm(sock_sid, skb->secmark, SECCLASS_PACKET,
+				   PACKET__RECV, &ad);
+	if (err)
+		goto out;
+
+	err = selinux_xfrm_sock_rcv_skb(sock_sid, skb);
 out:	
 	return err;
 }
@@ -3454,42 +3471,18 @@ out:
 
 #ifdef CONFIG_NETFILTER
 
-static unsigned int selinux_ip_postroute_last(unsigned int hooknum,
-                                              struct sk_buff **pskb,
-                                              const struct net_device *in,
-                                              const struct net_device *out,
-                                              int (*okfn)(struct sk_buff *),
-                                              u16 family)
+static int selinux_ip_postroute_last_compat(struct sock *sk, struct net_device *dev,
+					    struct inode_security_struct *isec,
+					    struct avc_audit_data *ad,
+					    u16 family, char *addrp, int len)
 {
-	char *addrp;
-	int len, err = NF_ACCEPT;
+	int err;
 	u32 netif_perm, node_perm, node_sid, if_sid, send_perm = 0;
-	struct sock *sk;
-	struct socket *sock;
-	struct inode *inode;
-	struct sk_buff *skb = *pskb;
-	struct inode_security_struct *isec;
-	struct avc_audit_data ad;
-	struct net_device *dev = (struct net_device *)out;
 	
-	sk = skb->sk;
-	if (!sk)
-		goto out;
-		
-	sock = sk->sk_socket;
-	if (!sock)
-		goto out;
-		
-	inode = SOCK_INODE(sock);
-	if (!inode)
-		goto out;
-
 	err = sel_netif_sids(dev, &if_sid, NULL);
 	if (err)
 		goto out;
 
-	isec = inode->i_security;
-	
 	switch (isec->sclass) {
 	case SECCLASS_UDP_SOCKET:
 		netif_perm = NETIF__UDP_SEND;
@@ -3509,55 +3502,88 @@ static unsigned int selinux_ip_postroute_last(unsigned int hooknum,
 		break;
 	}
 
-
-	AVC_AUDIT_DATA_INIT(&ad, NET);
-	ad.u.net.netif = dev->name;
-	ad.u.net.family = family;
-
-	err = selinux_parse_skb(skb, &ad, &addrp,
-				&len, 0) ? NF_DROP : NF_ACCEPT;
-	if (err != NF_ACCEPT)
-		goto out;
-
-	err = avc_has_perm(isec->sid, if_sid, SECCLASS_NETIF,
-	                   netif_perm, &ad) ? NF_DROP : NF_ACCEPT;
-	if (err != NF_ACCEPT)
+	err = avc_has_perm(isec->sid, if_sid, SECCLASS_NETIF, netif_perm, ad);
+	if (err)
 		goto out;
 		
-	/* Fixme: this lookup is inefficient */
-	err = security_node_sid(family, addrp, len,
-				&node_sid) ? NF_DROP : NF_ACCEPT;
-	if (err != NF_ACCEPT)
+	err = security_node_sid(family, addrp, len, &node_sid);
+	if (err)
 		goto out;
 	
-	err = avc_has_perm(isec->sid, node_sid, SECCLASS_NODE,
-	                   node_perm, &ad) ? NF_DROP : NF_ACCEPT;
-	if (err != NF_ACCEPT)
+	err = avc_has_perm(isec->sid, node_sid, SECCLASS_NODE, node_perm, ad);
+	if (err)
 		goto out;
 
 	if (send_perm) {
 		u32 port_sid;
 		
-		/* Fixme: make this more efficient */
 		err = security_port_sid(sk->sk_family,
 		                        sk->sk_type,
 		                        sk->sk_protocol,
-		                        ntohs(ad.u.net.dport),
-		                        &port_sid) ? NF_DROP : NF_ACCEPT;
-		if (err != NF_ACCEPT)
+		                        ntohs(ad->u.net.dport),
+		                        &port_sid);
+		if (err)
 			goto out;
 
 		err = avc_has_perm(isec->sid, port_sid, isec->sclass,
-		                   send_perm, &ad) ? NF_DROP : NF_ACCEPT;
+				   send_perm, ad);
 	}
+out:
+	return err;
+}
 
-	if (err != NF_ACCEPT)
+static unsigned int selinux_ip_postroute_last(unsigned int hooknum,
+                                              struct sk_buff **pskb,
+                                              const struct net_device *in,
+                                              const struct net_device *out,
+                                              int (*okfn)(struct sk_buff *),
+                                              u16 family)
+{
+	char *addrp;
+	int len, err = 0;
+	struct sock *sk;
+	struct socket *sock;
+	struct inode *inode;
+	struct sk_buff *skb = *pskb;
+	struct inode_security_struct *isec;
+	struct avc_audit_data ad;
+	struct net_device *dev = (struct net_device *)out;
+
+	sk = skb->sk;
+	if (!sk)
+		goto out;
+
+	sock = sk->sk_socket;
+	if (!sock)
+		goto out;
+
+	inode = SOCK_INODE(sock);
+	if (!inode)
+		goto out;
+
+	isec = inode->i_security;
+
+	AVC_AUDIT_DATA_INIT(&ad, NET);
+	ad.u.net.netif = dev->name;
+	ad.u.net.family = family;
+
+	err = selinux_parse_skb(skb, &ad, &addrp, &len, 0);
+	if (err)
+		goto out;
+
+	if (selinux_compat_net)
+		err = selinux_ip_postroute_last_compat(sk, dev, isec, &ad,
+						       family, addrp, len);
+	else
+		err = avc_has_perm(isec->sid, skb->secmark, SECCLASS_PACKET,
+				   PACKET__SEND, &ad);
+
+	if (err)
 		goto out;
 
 	err = selinux_xfrm_postroute_last(isec->sid, skb);
-
 out:
-	return err;
+	return err ? NF_DROP : NF_ACCEPT;
 }
 
 static unsigned int selinux_ipv4_postroute_last(unsigned int hooknum,
@@ -4374,8 +4400,10 @@ static struct security_operations selinux_ops = {
 	.xfrm_policy_alloc_security =	selinux_xfrm_policy_alloc,
 	.xfrm_policy_clone_security =	selinux_xfrm_policy_clone,
 	.xfrm_policy_free_security =	selinux_xfrm_policy_free,
+	.xfrm_policy_delete_security =	selinux_xfrm_policy_delete,
 	.xfrm_state_alloc_security =	selinux_xfrm_state_alloc,
 	.xfrm_state_free_security =	selinux_xfrm_state_free,
+	.xfrm_state_delete_security =	selinux_xfrm_state_delete,
 	.xfrm_policy_lookup = 		selinux_xfrm_policy_lookup,
 #endif
 };

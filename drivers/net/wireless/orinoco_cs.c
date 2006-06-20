@@ -147,14 +147,11 @@ static void orinoco_cs_detach(struct pcmcia_device *link)
 {
 	struct net_device *dev = link->priv;
 
+	if (link->dev_node)
+		unregister_netdev(dev);
+
 	orinoco_cs_release(link);
 
-	DEBUG(0, PFX "detach: link=%p link->dev_node=%p\n", link, link->dev_node);
-	if (link->dev_node) {
-		DEBUG(0, PFX "About to unregister net device %p\n",
-		      dev);
-		unregister_netdev(dev);
-	}
 	free_orinocodev(dev);
 }				/* orinoco_cs_detach */
 
@@ -178,12 +175,9 @@ orinoco_cs_config(struct pcmcia_device *link)
 	int last_fn, last_ret;
 	u_char buf[64];
 	config_info_t conf;
-	cisinfo_t info;
 	tuple_t tuple;
 	cisparse_t parse;
 	void __iomem *mem;
-
-	CS_CHECK(ValidateCIS, pcmcia_validate_cis(link, &info));
 
 	/*
 	 * This reads the card's CONFIG tuple to find its
@@ -233,12 +227,6 @@ orinoco_cs_config(struct pcmcia_device *link)
 		if (cfg->index == 0)
 			goto next_entry;
 		link->conf.ConfigIndex = cfg->index;
-
-		/* Does this card need audio output? */
-		if (cfg->flags & CISTPL_CFTABLE_AUDIO) {
-			link->conf.Attributes |= CONF_ENABLE_SPKR;
-			link->conf.Status = CCSR_AUDIO_ENA;
-		}
 
 		/* Use power settings for Vcc and Vpp if present */
 		/* Note that the CIS values need to be rescaled */
@@ -355,19 +343,10 @@ orinoco_cs_config(struct pcmcia_device *link)
                                     net_device has been registered */
 
 	/* Finally, report what we've done */
-	printk(KERN_DEBUG "%s: index 0x%02x: ",
-	       dev->name, link->conf.ConfigIndex);
-	if (link->conf.Vpp)
-		printk(", Vpp %d.%d", link->conf.Vpp / 10,
-		       link->conf.Vpp % 10);
-	printk(", irq %d", link->irq.AssignedIRQ);
-	if (link->io.NumPorts1)
-		printk(", io 0x%04x-0x%04x", link->io.BasePort1,
-		       link->io.BasePort1 + link->io.NumPorts1 - 1);
-	if (link->io.NumPorts2)
-		printk(" & 0x%04x-0x%04x", link->io.BasePort2,
-		       link->io.BasePort2 + link->io.NumPorts2 - 1);
-	printk("\n");
+	printk(KERN_DEBUG "%s: " DRIVER_NAME " at %s, irq %d, io "
+	       "0x%04x-0x%04x\n", dev->name, dev->class_dev.dev->bus_id,
+	       link->irq.AssignedIRQ, link->io.BasePort1,
+	       link->io.BasePort1 + link->io.NumPorts1 - 1);
 
 	return 0;
 
@@ -436,7 +415,6 @@ static int orinoco_cs_resume(struct pcmcia_device *link)
 	struct orinoco_private *priv = netdev_priv(dev);
 	struct orinoco_pccard *card = priv->card;
 	int err = 0;
-	unsigned long flags;
 
 	if (! test_bit(0, &card->hard_reset_in_progress)) {
 		err = orinoco_reinit_firmware(dev);
@@ -446,7 +424,7 @@ static int orinoco_cs_resume(struct pcmcia_device *link)
 			return -EIO;
 		}
 
-		spin_lock_irqsave(&priv->lock, flags);
+		spin_lock(&priv->lock);
 
 		netif_device_attach(dev);
 		priv->hw_unavailable--;
@@ -458,10 +436,10 @@ static int orinoco_cs_resume(struct pcmcia_device *link)
 				       dev->name, err);
 		}
 
-		spin_unlock_irqrestore(&priv->lock, flags);
+		spin_unlock(&priv->lock);
 	}
 
-	return 0;
+	return err;
 }
 
 

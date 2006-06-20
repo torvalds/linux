@@ -218,7 +218,7 @@ static void __init py_late_time_init(void)
 	py_rtc_setup();
 }
 
-void __init plat_setup(void)
+void __init plat_mem_setup(void)
 {
 	board_time_init = yosemite_time_init;
 	late_time_init = py_late_time_init;

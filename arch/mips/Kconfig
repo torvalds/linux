@@ -119,6 +119,32 @@ config MIPS_MIRAGE
 	select SYS_HAS_CPU_MIPS32_R1
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 
+config BASLER_EXCITE
+	bool "Basler eXcite smart camera support"
+	select DMA_COHERENT
+	select HW_HAS_PCI
+	select IRQ_CPU
+	select IRQ_CPU_RM7K
+	select IRQ_CPU_RM9K
+	select SERIAL_RM9000
+	select SYS_HAS_CPU_RM9000
+	select SYS_SUPPORTS_32BIT_KERNEL
+	select SYS_SUPPORTS_64BIT_KERNEL
+	select SYS_SUPPORTS_BIG_ENDIAN
+	help
+	  The eXcite is a smart camera platform manufactured by
+	  Basler Vision Technologies AG
+
+config BASLER_EXCITE_PROTOTYPE
+	bool "Support for pre-release units"
+	depends on BASLER_EXCITE
+	default n
+	help
+	  Pre-series (prototype) units are different from later ones in
+	  some ways. Select this option if you have one of these. Please
+	  note that a kernel built with this option selected will not be
+	  able to run on normal units.
+
 config MIPS_COBALT
 	bool "Cobalt Server"
 	select DMA_NONCOHERENT
@@ -142,6 +168,9 @@ config MACH_DECSTATION
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_64BIT_KERNEL if EXPERIMENTAL
 	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select SYS_SUPPORTS_128HZ
+	select SYS_SUPPORTS_256HZ
+	select SYS_SUPPORTS_1024HZ
 	help
 	  This enables support for DEC's MIPS based workstations.  For details
 	  see the Linux/MIPS FAQ on <http://www.linux-mips.org/> and the
@@ -239,6 +268,7 @@ config MACH_JAZZ
 	select SYS_HAS_CPU_R4X00
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_64BIT_KERNEL if EXPERIMENTAL
+	select SYS_SUPPORTS_100HZ
 	help
 	 This a family of machines based on the MIPS R4030 chipset which was
 	 used by several vendors to build RISC/os and Windows NT workstations.
@@ -326,6 +356,27 @@ config MIPS_SEAD
 	help
 	  This enables support for the MIPS Technologies SEAD evaluation
 	  board.
+
+config WR_PPMC
+	bool "Support for Wind River PPMC board"
+	select IRQ_CPU
+	select BOOT_ELF32
+	select DMA_NONCOHERENT
+	select HW_HAS_PCI
+	select MIPS_GT64120
+	select SWAP_IO_SPACE
+	select SYS_HAS_CPU_MIPS32_R1
+	select SYS_HAS_CPU_MIPS32_R2
+	select SYS_HAS_CPU_MIPS64_R1
+	select SYS_HAS_CPU_NEVADA
+	select SYS_HAS_CPU_RM7000
+	select SYS_SUPPORTS_32BIT_KERNEL
+	select SYS_SUPPORTS_64BIT_KERNEL
+	select SYS_SUPPORTS_BIG_ENDIAN
+	select SYS_SUPPORTS_LITTLE_ENDIAN
+	help
+	  This enables support for the Wind River MIPS32 4KC PPMC evaluation
+	  board, which is based on GT64120 bridge chip.
 
 config MIPS_SIM
 	bool 'MIPS simulator (MIPSsim)'
@@ -438,52 +489,15 @@ config MIPS_XXS1500
 
 config PNX8550_V2PCI
 	bool "Philips PNX8550 based Viper2-PCI board"
+	depends on BROKEN
 	select PNX8550
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 
 config PNX8550_JBS
 	bool "Philips PNX8550 based JBS board"
+	depends on BROKEN
 	select PNX8550
 	select SYS_SUPPORTS_LITTLE_ENDIAN
-
-config DDB5074
-	bool "NEC DDB Vrc-5074 (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
-	select DDB5XXX_COMMON
-	select DMA_NONCOHERENT
-	select HAVE_STD_PC_SERIAL_PORT
-	select HW_HAS_PCI
-	select IRQ_CPU
-	select I8259
-	select ISA
-	select SYS_HAS_CPU_R5000
-	select SYS_SUPPORTS_32BIT_KERNEL
-	select SYS_SUPPORTS_64BIT_KERNEL if EXPERIMENTAL
-	select SYS_SUPPORTS_LITTLE_ENDIAN
-	help
-	  This enables support for the VR5000-based NEC DDB Vrc-5074
-	  evaluation board.
-
-config DDB5476
-	bool "NEC DDB Vrc-5476"
-	select DDB5XXX_COMMON
-	select DMA_NONCOHERENT
-	select HAVE_STD_PC_SERIAL_PORT
-	select HW_HAS_PCI
-	select IRQ_CPU
-	select I8259
-	select ISA
-	select SYS_HAS_CPU_R5432
-	select SYS_SUPPORTS_32BIT_KERNEL
-	select SYS_SUPPORTS_64BIT_KERNEL if EXPERIMENTAL
-	select SYS_SUPPORTS_LITTLE_ENDIAN
-	help
-	  This enables support for the R5432-based NEC DDB Vrc-5476
-	  evaluation board.
-
-	  Features : kernel debugging, serial terminal, NFS root fs, on-board
-	  ether port USB, AC97, PCI, PCI VGA card & framebuffer console,
-	  IDE controller, PS2 keyboard, PS2 mouse, etc.
 
 config DDB5477
 	bool "NEC DDB Vrc-5477"
@@ -546,6 +560,20 @@ config QEMU
 	  simulate actual MIPS hardware platforms.  More information on Qemu
 	  can be found at http://www.linux-mips.org/wiki/Qemu.
 
+config MARKEINS
+	bool "Support for NEC EMMA2RH Mark-eins"
+	select DMA_NONCOHERENT
+	select HW_HAS_PCI
+	select IRQ_CPU
+	select SWAP_IO_SPACE
+	select SYS_SUPPORTS_32BIT_KERNEL
+	select SYS_SUPPORTS_BIG_ENDIAN
+	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select SYS_HAS_CPU_R5000
+	help
+	  This enables support for the R5432-based NEC Mark-eins
+	  boards with R5500 CPU.
+
 config SGI_IP22
 	bool "SGI IP22 (Indy/Indigo2)"
 	select ARC
@@ -555,6 +583,7 @@ config SGI_IP22
 	select HW_HAS_EISA
 	select IP22_CPU_SCACHE
 	select IRQ_CPU
+	select NO_ISA if ISA
 	select SWAP_IO_SPACE
 	select SYS_HAS_CPU_R4X00
 	select SYS_HAS_CPU_R5000
@@ -577,6 +606,7 @@ config SGI_IP27
 	select SYS_HAS_CPU_R10000
 	select SYS_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
+	select SYS_SUPPORTS_NUMA
 	help
 	  This are the SGI Origin 200, Origin 2000 and Onyx 2 Graphics
 	  workstations.  To compile a Linux kernel that runs on these, say Y
@@ -707,8 +737,8 @@ config SIBYTE_CRHONE
 
 config SNI_RM200_PCI
 	bool "SNI RM200 PCI"
-	select ARC
-	select ARC32
+	select ARC if CPU_LITTLE_ENDIAN
+	select ARC32 if CPU_LITTLE_ENDIAN
 	select ARCH_MAY_HAVE_PC_FDC
 	select BOOT_ELF32
 	select DMA_NONCOHERENT
@@ -719,10 +749,13 @@ config SNI_RM200_PCI
 	select I8253
 	select I8259
 	select ISA
+	select SWAP_IO_SPACE if CPU_BIG_ENDIAN
 	select SYS_HAS_CPU_R4X00
+	select SYS_HAS_CPU_R5000
+	select R5000_CPU_SCACHE
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_64BIT_KERNEL if EXPERIMENTAL
-	select SYS_SUPPORTS_BIG_ENDIAN if EXPERIMENTAL
+	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_HIGHMEM
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	help
@@ -978,6 +1011,11 @@ config SOC_PNX8550
 
 config SWAP_IO_SPACE
 	bool
+
+config EMMA2RH
+	bool
+	depends on MARKEINS
+	default y
 
 #
 # Unfortunately not all GT64120 systems run the chip at the same clock.
@@ -1607,6 +1645,28 @@ config ARCH_FLATMEM_ENABLE
 	def_bool y
 	depends on !NUMA
 
+config ARCH_DISCONTIGMEM_ENABLE
+	bool
+	default y if SGI_IP27
+	help
+	  Say Y to upport efficient handling of discontiguous physical memory,
+	  for architectures which are either NUMA (Non-Uniform Memory Access)
+	  or have huge holes in the physical address space for other reasons.
+	  See <file:Documentation/vm/numa> for more.
+
+config NUMA
+	bool "NUMA Support"
+	depends on SYS_SUPPORTS_NUMA
+	help
+	  Say Y to compile the kernel to support NUMA (Non-Uniform Memory
+	  Access).  This option improves performance on systems with more
+	  than two nodes; on two node systems it is generally better to
+	  leave it disabled; on single node systems disable this option
+	  disabled.
+
+config SYS_SUPPORTS_NUMA
+	bool
+
 config NODES_SHIFT
 	int
 	default "6"
@@ -1650,6 +1710,77 @@ config NR_CPUS
 
 	  This is purely to save memory - each supported CPU adds
 	  approximately eight kilobytes to the kernel image.
+
+#
+# Timer Interrupt Frequency Configuration
+#
+
+choice
+	prompt "Timer frequency"
+	default HZ_250
+	help
+	 Allows the configuration of the timer frequency.
+
+	config HZ_48
+		bool "48 HZ" if SYS_SUPPORTS_48HZ
+
+	config HZ_100
+		bool "100 HZ" if SYS_SUPPORTS_100HZ || SYS_SUPPORTS_ARBIT_HZ
+
+	config HZ_128
+		bool "128 HZ" if SYS_SUPPORTS_128HZ || SYS_SUPPORTS_ARBIT_HZ
+
+	config HZ_250
+		bool "250 HZ" if SYS_SUPPORTS_250HZ || SYS_SUPPORTS_ARBIT_HZ
+
+	config HZ_256
+		bool "256 HZ" if SYS_SUPPORTS_256HZ || SYS_SUPPORTS_ARBIT_HZ
+
+	config HZ_1000
+		bool "1000 HZ" if SYS_SUPPORTS_1000HZ || SYS_SUPPORTS_ARBIT_HZ
+
+	config HZ_1024
+		bool "1024 HZ" if SYS_SUPPORTS_1024HZ || SYS_SUPPORTS_ARBIT_HZ
+
+endchoice
+
+config SYS_SUPPORTS_48HZ
+	bool
+
+config SYS_SUPPORTS_100HZ
+	bool
+
+config SYS_SUPPORTS_128HZ
+	bool
+
+config SYS_SUPPORTS_250HZ
+	bool
+
+config SYS_SUPPORTS_256HZ
+	bool
+
+config SYS_SUPPORTS_1000HZ
+	bool
+
+config SYS_SUPPORTS_1024HZ
+	bool
+
+config SYS_SUPPORTS_ARBIT_HZ
+	bool
+	default y if !SYS_SUPPORTS_48HZ && !SYS_SUPPORTS_100HZ && \
+		     !SYS_SUPPORTS_128HZ && !SYS_SUPPORTS_250HZ && \
+		     !SYS_SUPPORTS_256HZ && !SYS_SUPPORTS_1000HZ && \
+		     !SYS_SUPPORTS_1024HZ
+
+config HZ
+	int
+	default 48 if HZ_48
+	default 100 if HZ_100
+	default 128 if HZ_128
+	default 250 if HZ_250
+	default 256 if HZ_256
+	default 1000 if HZ_1000
+	default 1024 if HZ_1024
 
 source "kernel/Kconfig.preempt"
 
@@ -1708,6 +1839,9 @@ source "drivers/pci/Kconfig"
 # users to choose the right thing ...
 #
 config ISA
+	bool
+
+config NO_ISA
 	bool
 
 config EISA
@@ -1839,6 +1973,32 @@ config SECCOMP
 config PM
 	bool "Power Management support (EXPERIMENTAL)"
 	depends on EXPERIMENTAL && SOC_AU1X00
+
+config APM
+        tristate "Advanced Power Management Emulation"
+	depends on PM
+        ---help---
+	  APM is a BIOS specification for saving power using several different
+	  techniques. This is mostly useful for battery powered systems with
+	  APM compliant BIOSes. If you say Y here, the system time will be
+	  reset after a RESUME operation, the /proc/apm device will provide
+	  battery status information, and user-space programs will receive
+	  notification of APM "events" (e.g. battery status change).
+
+	  In order to use APM, you will need supporting software. For location
+	  and more information, read <file:Documentation/pm.txt> and the
+	  Battery Powered Linux mini-HOWTO, available from
+	  <http://www.tldp.org/docs.html#howto>.
+
+	  This driver does not spin down disk drives (see the hdparm(8)
+	  manpage ("man 8 hdparm") for that), and it doesn't turn off
+	  VESA-compliant "green" monitors.
+
+	  Generally, if you don't have a battery in your machine, there isn't
+	  much point in using this driver and you should say N. If you get
+	  random kernel OOPSes or reboots that don't seem to be related to
+	  anything, try disabling/enabling this option (or disabling/enabling
+	  APM in your BIOS).
 
 endmenu
 

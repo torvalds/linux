@@ -50,7 +50,7 @@
 extern acpi_status pci_osc_control_set(acpi_handle handle, u32 flags);
 extern acpi_status pci_osc_support_set(u32 flags);
 #else
-#if !defined(acpi_status)
+#if !defined(AE_ERROR)
 typedef u32 		acpi_status;
 #define AE_ERROR      	(acpi_status) (0x0001)
 #endif    

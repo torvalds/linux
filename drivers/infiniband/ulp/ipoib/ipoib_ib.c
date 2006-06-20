@@ -84,15 +84,9 @@ void ipoib_free_ah(struct kref *kref)
 
 	unsigned long flags;
 
-	if ((int) priv->tx_tail - (int) ah->last_send >= 0) {
-		ipoib_dbg(priv, "Freeing ah %p\n", ah->ah);
-		ib_destroy_ah(ah->ah);
-		kfree(ah);
-	} else {
-		spin_lock_irqsave(&priv->lock, flags);
-		list_add_tail(&ah->list, &priv->dead_ahs);
-		spin_unlock_irqrestore(&priv->lock, flags);
-	}
+	spin_lock_irqsave(&priv->lock, flags);
+	list_add_tail(&ah->list, &priv->dead_ahs);
+	spin_unlock_irqrestore(&priv->lock, flags);
 }
 
 static int ipoib_ib_post_receive(struct net_device *dev, int id)
@@ -377,19 +371,16 @@ static void __ipoib_reap_ah(struct net_device *dev)
 	struct ipoib_ah *ah, *tah;
 	LIST_HEAD(remove_list);
 
-	spin_lock_irq(&priv->lock);
+	spin_lock_irq(&priv->tx_lock);
+	spin_lock(&priv->lock);
 	list_for_each_entry_safe(ah, tah, &priv->dead_ahs, list)
 		if ((int) priv->tx_tail - (int) ah->last_send >= 0) {
 			list_del(&ah->list);
-			list_add_tail(&ah->list, &remove_list);
+			ib_destroy_ah(ah->ah);
+			kfree(ah);
 		}
-	spin_unlock_irq(&priv->lock);
-
-	list_for_each_entry_safe(ah, tah, &remove_list, list) {
-		ipoib_dbg(priv, "Reaping ah %p\n", ah->ah);
-		ib_destroy_ah(ah->ah);
-		kfree(ah);
-	}
+	spin_unlock(&priv->lock);
+	spin_unlock_irq(&priv->tx_lock);
 }
 
 void ipoib_reap_ah(void *dev_ptr)

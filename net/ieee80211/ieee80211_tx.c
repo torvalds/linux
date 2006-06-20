@@ -220,13 +220,43 @@ static struct ieee80211_txb *ieee80211_alloc_txb(int nr_frags, int txb_size,
 	return txb;
 }
 
+static int ieee80211_classify(struct sk_buff *skb)
+{
+	struct ethhdr *eth;
+	struct iphdr *ip;
+
+	eth = (struct ethhdr *)skb->data;
+	if (eth->h_proto != __constant_htons(ETH_P_IP))
+		return 0;
+
+	ip = skb->nh.iph;
+	switch (ip->tos & 0xfc) {
+	case 0x20:
+		return 2;
+	case 0x40:
+		return 1;
+	case 0x60:
+		return 3;
+	case 0x80:
+		return 4;
+	case 0xa0:
+		return 5;
+	case 0xc0:
+		return 6;
+	case 0xe0:
+		return 7;
+	default:
+		return 0;
+	}
+}
+
 /* Incoming skb is converted to a txb which consists of
  * a block of 802.11 fragment packets (stored as skbs) */
 int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ieee80211_device *ieee = netdev_priv(dev);
 	struct ieee80211_txb *txb = NULL;
-	struct ieee80211_hdr_3addr *frag_hdr;
+	struct ieee80211_hdr_3addrqos *frag_hdr;
 	int i, bytes_per_frag, nr_frags, bytes_last_frag, frag_size,
 	    rts_required;
 	unsigned long flags;
@@ -234,9 +264,10 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 	int ether_type, encrypt, host_encrypt, host_encrypt_msdu, host_build_iv;
 	int bytes, fc, hdr_len;
 	struct sk_buff *skb_frag;
-	struct ieee80211_hdr_3addr header = {	/* Ensure zero initialized */
+	struct ieee80211_hdr_3addrqos header = {/* Ensure zero initialized */
 		.duration_id = 0,
-		.seq_ctl = 0
+		.seq_ctl = 0,
+		.qos_ctl = 0
 	};
 	u8 dest[ETH_ALEN], src[ETH_ALEN];
 	struct ieee80211_crypt_data *crypt;
@@ -282,12 +313,6 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 	memcpy(dest, skb->data, ETH_ALEN);
 	memcpy(src, skb->data + ETH_ALEN, ETH_ALEN);
 
-	/* Advance the SKB to the start of the payload */
-	skb_pull(skb, sizeof(struct ethhdr));
-
-	/* Determine total amount of storage required for TXB packets */
-	bytes = skb->len + SNAP_SIZE + sizeof(u16);
-
 	if (host_encrypt || host_build_iv)
 		fc = IEEE80211_FTYPE_DATA | IEEE80211_STYPE_DATA |
 		    IEEE80211_FCTL_PROTECTED;
@@ -306,8 +331,22 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 		memcpy(header.addr2, src, ETH_ALEN);
 		memcpy(header.addr3, ieee->bssid, ETH_ALEN);
 	}
-	header.frame_ctl = cpu_to_le16(fc);
 	hdr_len = IEEE80211_3ADDR_LEN;
+
+	if (ieee->is_qos_active && ieee->is_qos_active(dev, skb)) {
+		fc |= IEEE80211_STYPE_QOS_DATA;
+		hdr_len += 2;
+
+		skb->priority = ieee80211_classify(skb);
+		header.qos_ctl |= skb->priority & IEEE80211_QCTL_TID;
+	}
+	header.frame_ctl = cpu_to_le16(fc);
+
+	/* Advance the SKB to the start of the payload */
+	skb_pull(skb, sizeof(struct ethhdr));
+
+	/* Determine total amount of storage required for TXB packets */
+	bytes = skb->len + SNAP_SIZE + sizeof(u16);
 
 	/* Encrypt msdu first on the whole data packet. */
 	if ((host_encrypt || host_encrypt_msdu) &&
@@ -402,7 +441,7 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (rts_required) {
 		skb_frag = txb->fragments[0];
 		frag_hdr =
-		    (struct ieee80211_hdr_3addr *)skb_put(skb_frag, hdr_len);
+		    (struct ieee80211_hdr_3addrqos *)skb_put(skb_frag, hdr_len);
 
 		/*
 		 * Set header frame_ctl to the RTS.
@@ -433,7 +472,7 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 				    crypt->ops->extra_mpdu_prefix_len);
 
 		frag_hdr =
-		    (struct ieee80211_hdr_3addr *)skb_put(skb_frag, hdr_len);
+		    (struct ieee80211_hdr_3addrqos *)skb_put(skb_frag, hdr_len);
 		memcpy(frag_hdr, &header, hdr_len);
 
 		/* If this is not the last fragment, then add the MOREFRAGS
@@ -516,7 +555,8 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 /* Incoming 802.11 strucure is converted to a TXB
  * a block of 802.11 fragment packets (stored as skbs) */
 int ieee80211_tx_frame(struct ieee80211_device *ieee,
-		       struct ieee80211_hdr *frame, int len)
+		       struct ieee80211_hdr *frame, int hdr_len, int total_len,
+		       int encrypt_mpdu)
 {
 	struct ieee80211_txb *txb = NULL;
 	unsigned long flags;
@@ -526,6 +566,9 @@ int ieee80211_tx_frame(struct ieee80211_device *ieee,
 
 	spin_lock_irqsave(&ieee->lock, flags);
 
+	if (encrypt_mpdu && !ieee->sec.encrypt)
+		encrypt_mpdu = 0;
+
 	/* If there is no driver handler to take the TXB, dont' bother
 	 * creating it... */
 	if (!ieee->hard_start_xmit) {
@@ -533,31 +576,40 @@ int ieee80211_tx_frame(struct ieee80211_device *ieee,
 		goto success;
 	}
 
-	if (unlikely(len < 24)) {
+	if (unlikely(total_len < 24)) {
 		printk(KERN_WARNING "%s: skb too small (%d).\n",
-		       ieee->dev->name, len);
+		       ieee->dev->name, total_len);
 		goto success;
 	}
+
+	if (encrypt_mpdu)
+		frame->frame_ctl |= cpu_to_le16(IEEE80211_FCTL_PROTECTED);
 
 	/* When we allocate the TXB we allocate enough space for the reserve
 	 * and full fragment bytes (bytes_per_frag doesn't include prefix,
 	 * postfix, header, FCS, etc.) */
-	txb = ieee80211_alloc_txb(1, len, ieee->tx_headroom, GFP_ATOMIC);
+	txb = ieee80211_alloc_txb(1, total_len, ieee->tx_headroom, GFP_ATOMIC);
 	if (unlikely(!txb)) {
 		printk(KERN_WARNING "%s: Could not allocate TXB\n",
 		       ieee->dev->name);
 		goto failed;
 	}
 	txb->encrypted = 0;
-	txb->payload_size = len;
+	txb->payload_size = total_len;
 
 	skb_frag = txb->fragments[0];
 
-	memcpy(skb_put(skb_frag, len), frame, len);
+	memcpy(skb_put(skb_frag, total_len), frame, total_len);
 
 	if (ieee->config &
 	    (CFG_IEEE80211_COMPUTE_FCS | CFG_IEEE80211_RESERVE_FCS))
 		skb_put(skb_frag, 4);
+
+	/* To avoid overcomplicating things, we do the corner-case frame
+	 * encryption in software. The only real situation where encryption is
+	 * needed here is during software-based shared key authentication. */
+	if (encrypt_mpdu)
+		ieee80211_encrypt_fragment(ieee, skb_frag, hdr_len);
 
       success:
 	spin_unlock_irqrestore(&ieee->lock, flags);

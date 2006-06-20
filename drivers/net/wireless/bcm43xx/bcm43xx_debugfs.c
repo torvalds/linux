@@ -92,7 +92,7 @@ static ssize_t devinfo_read_file(struct file *file, char __user *userbuf,
 	fappend("subsystem_vendor: 0x%04x   subsystem_device: 0x%04x\n",
 		pci_dev->subsystem_vendor, pci_dev->subsystem_device);
 	fappend("IRQ: %d\n", bcm->irq);
-	fappend("mmio_addr: 0x%p   mmio_len: %u\n", bcm->mmio_addr, bcm->mmio_len);
+	fappend("mmio_addr: 0x%p\n", bcm->mmio_addr);
 	fappend("chip_id: 0x%04x   chip_rev: 0x%02x\n", bcm->chip_id, bcm->chip_rev);
 	if ((bcm->core_80211[0].rev >= 3) && (bcm43xx_read32(bcm, 0x0158) & (1 << 16)))
 		fappend("Radio disabled by hardware!\n");

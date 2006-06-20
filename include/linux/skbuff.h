@@ -29,6 +29,7 @@
 #include <linux/net.h>
 #include <linux/textsearch.h>
 #include <net/checksum.h>
+#include <linux/dmaengine.h>
 
 #define HAVE_ALLOC_SKB		/* For the drivers to know */
 #define HAVE_ALIGNABLE_SKB	/* Ditto 8)		   */
@@ -209,6 +210,7 @@ enum {
  *	@nf_bridge: Saved data about a bridged frame - see br_netfilter.c
  *	@tc_index: Traffic control index
  *	@tc_verd: traffic control verdict
+ *	@secmark: security marking
  */
 
 struct sk_buff {
@@ -284,6 +286,12 @@ struct sk_buff {
 #ifdef CONFIG_NET_CLS_ACT
 	__u16			tc_verd;	/* traffic control verdict */
 #endif
+#endif
+#ifdef CONFIG_NET_DMA
+	dma_cookie_t		dma_cookie;
+#endif
+#ifdef CONFIG_NETWORK_SECMARK
+	__u32			secmark;
 #endif
 
 
@@ -967,15 +975,16 @@ static inline void skb_reserve(struct sk_buff *skb, int len)
 #define NET_SKB_PAD	16
 #endif
 
-extern int ___pskb_trim(struct sk_buff *skb, unsigned int len, int realloc);
+extern int ___pskb_trim(struct sk_buff *skb, unsigned int len);
 
 static inline void __skb_trim(struct sk_buff *skb, unsigned int len)
 {
-	if (!skb->data_len) {
-		skb->len  = len;
-		skb->tail = skb->data + len;
-	} else
-		___pskb_trim(skb, len, 0);
+	if (unlikely(skb->data_len)) {
+		WARN_ON(1);
+		return;
+	}
+	skb->len  = len;
+	skb->tail = skb->data + len;
 }
 
 /**
@@ -985,6 +994,7 @@ static inline void __skb_trim(struct sk_buff *skb, unsigned int len)
  *
  *	Cut the length of a buffer down by removing data from the tail. If
  *	the buffer is already under the length specified it is not modified.
+ *	The skb must be linear.
  */
 static inline void skb_trim(struct sk_buff *skb, unsigned int len)
 {
@@ -995,12 +1005,10 @@ static inline void skb_trim(struct sk_buff *skb, unsigned int len)
 
 static inline int __pskb_trim(struct sk_buff *skb, unsigned int len)
 {
-	if (!skb->data_len) {
-		skb->len  = len;
-		skb->tail = skb->data+len;
-		return 0;
-	}
-	return ___pskb_trim(skb, len, 1);
+	if (skb->data_len)
+		return ___pskb_trim(skb, len);
+	__skb_trim(skb, len);
+	return 0;
 }
 
 static inline int pskb_trim(struct sk_buff *skb, unsigned int len)
@@ -1161,18 +1169,34 @@ static inline int skb_can_coalesce(struct sk_buff *skb, int i,
 	return 0;
 }
 
+static inline int __skb_linearize(struct sk_buff *skb)
+{
+	return __pskb_pull_tail(skb, skb->data_len) ? 0 : -ENOMEM;
+}
+
 /**
  *	skb_linearize - convert paged skb to linear one
  *	@skb: buffer to linarize
- *	@gfp: allocation mode
  *
  *	If there is no free memory -ENOMEM is returned, otherwise zero
  *	is returned and the old skb data released.
  */
-extern int __skb_linearize(struct sk_buff *skb, gfp_t gfp);
-static inline int skb_linearize(struct sk_buff *skb, gfp_t gfp)
+static inline int skb_linearize(struct sk_buff *skb)
 {
-	return __skb_linearize(skb, gfp);
+	return skb_is_nonlinear(skb) ? __skb_linearize(skb) : 0;
+}
+
+/**
+ *	skb_linearize_cow - make sure skb is linear and writable
+ *	@skb: buffer to process
+ *
+ *	If there is no free memory -ENOMEM is returned, otherwise zero
+ *	is returned and the old skb data released.
+ */
+static inline int skb_linearize_cow(struct sk_buff *skb)
+{
+	return skb_is_nonlinear(skb) || skb_cloned(skb) ?
+	       __skb_linearize(skb) : 0;
 }
 
 /**
@@ -1395,6 +1419,24 @@ static inline void nf_reset(struct sk_buff *skb)
 #else /* CONFIG_NETFILTER */
 static inline void nf_reset(struct sk_buff *skb) {}
 #endif /* CONFIG_NETFILTER */
+
+#ifdef CONFIG_NETWORK_SECMARK
+static inline void skb_copy_secmark(struct sk_buff *to, const struct sk_buff *from)
+{
+	to->secmark = from->secmark;
+}
+
+static inline void skb_init_secmark(struct sk_buff *skb)
+{
+	skb->secmark = 0;
+}
+#else
+static inline void skb_copy_secmark(struct sk_buff *to, const struct sk_buff *from)
+{ }
+
+static inline void skb_init_secmark(struct sk_buff *skb)
+{ }
+#endif
 
 #endif	/* __KERNEL__ */
 #endif	/* _LINUX_SKBUFF_H */
