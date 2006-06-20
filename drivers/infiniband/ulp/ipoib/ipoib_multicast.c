@@ -154,7 +154,7 @@ static struct ipoib_mcast *ipoib_mcast_alloc(struct net_device *dev,
 	return mcast;
 }
 
-static struct ipoib_mcast *__ipoib_mcast_find(struct net_device *dev, union ib_gid *mgid)
+static struct ipoib_mcast *__ipoib_mcast_find(struct net_device *dev, void *mgid)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	struct rb_node *n = priv->multicast_tree.rb_node;
@@ -165,7 +165,7 @@ static struct ipoib_mcast *__ipoib_mcast_find(struct net_device *dev, union ib_g
 
 		mcast = rb_entry(n, struct ipoib_mcast, rb_node);
 
-		ret = memcmp(mgid->raw, mcast->mcmember.mgid.raw,
+		ret = memcmp(mgid, mcast->mcmember.mgid.raw,
 			     sizeof (union ib_gid));
 		if (ret < 0)
 			n = n->rb_left;
@@ -694,8 +694,7 @@ static int ipoib_mcast_leave(struct net_device *dev, struct ipoib_mcast *mcast)
 	return 0;
 }
 
-void ipoib_mcast_send(struct net_device *dev, union ib_gid *mgid,
-		      struct sk_buff *skb)
+void ipoib_mcast_send(struct net_device *dev, void *mgid, struct sk_buff *skb)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	struct ipoib_mcast *mcast;
@@ -718,7 +717,7 @@ void ipoib_mcast_send(struct net_device *dev, union ib_gid *mgid,
 	if (!mcast) {
 		/* Let's create a new send only group now */
 		ipoib_dbg_mcast(priv, "setting up send only multicast group for "
-				IPOIB_GID_FMT "\n", IPOIB_GID_ARG(*mgid));
+				IPOIB_GID_FMT "\n", IPOIB_GID_RAW_ARG(mgid));
 
 		mcast = ipoib_mcast_alloc(dev, 0);
 		if (!mcast) {
@@ -730,7 +729,7 @@ void ipoib_mcast_send(struct net_device *dev, union ib_gid *mgid,
 		}
 
 		set_bit(IPOIB_MCAST_FLAG_SENDONLY, &mcast->flags);
-		mcast->mcmember.mgid = *mgid;
+		memcpy(mcast->mcmember.mgid.raw, mgid, sizeof (union ib_gid));
 		__ipoib_mcast_add(dev, mcast);
 		list_add_tail(&mcast->list, &priv->multicast_list);
 	}
