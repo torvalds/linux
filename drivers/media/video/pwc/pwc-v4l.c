@@ -210,10 +210,6 @@ static struct v4l2_queryctrl pwc_controls[] = {
 	},
 };
 
-#if CONFIG_PWC_DEBUG
-/* In 2.6.16-rc1 v4l_printk_ioctl is not defined but exported */
-extern void v4l_printk_ioctl(unsigned int cmd);
-#endif
 
 static void pwc_vidioc_fill_fmt(const struct pwc_device *pdev, struct v4l2_format *f)
 {
