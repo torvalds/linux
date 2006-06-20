@@ -544,10 +544,10 @@ static unsigned int sabre_irq_build(struct pci_pbm_info *pbm,
 				    struct pci_dev *pdev,
 				    unsigned int ino)
 {
-	struct ino_bucket *bucket;
 	unsigned long imap, iclr;
 	unsigned long imap_off, iclr_off;
 	int inofixup = 0;
+	int virt_irq;
 
 	ino &= PCI_IRQ_INO;
 	if (ino < SABRE_ONBOARD_IRQ_BASE) {
@@ -573,23 +573,23 @@ static unsigned int sabre_irq_build(struct pci_pbm_info *pbm,
 	if ((ino & 0x20) == 0)
 		inofixup = ino & 0x03;
 
-	bucket = __bucket(build_irq(inofixup, iclr, imap));
-	bucket->flags |= IBF_PCI;
+	virt_irq = build_irq(inofixup, iclr, imap, IBF_PCI);
 
 	if (pdev) {
 		struct pcidev_cookie *pcp = pdev->sysdata;
 
 		if (pdev->bus->number != pcp->pbm->pci_first_busno) {
 			struct pci_controller_info *p = pcp->pbm->parent;
-			struct irq_desc *d = bucket->irq_info;
 
-			d->pre_handler = sabre_wsync_handler;
-			d->pre_handler_arg1 = pdev;
-			d->pre_handler_arg2 = (void *)
-				p->pbm_A.controller_regs + SABRE_WRSYNC;
+			irq_install_pre_handler(virt_irq,
+						sabre_wsync_handler,
+						pdev,
+						(void *)
+						p->pbm_A.controller_regs +
+						SABRE_WRSYNC);
 		}
 	}
-	return __irq(bucket);
+	return virt_irq;
 }
 
 /* SABRE error handling support. */

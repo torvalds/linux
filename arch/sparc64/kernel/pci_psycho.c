@@ -280,7 +280,6 @@ static unsigned int psycho_irq_build(struct pci_pbm_info *pbm,
 				     struct pci_dev *pdev,
 				     unsigned int ino)
 {
-	struct ino_bucket *bucket;
 	unsigned long imap, iclr;
 	unsigned long imap_off, iclr_off;
 	int inofixup = 0;
@@ -309,10 +308,7 @@ static unsigned int psycho_irq_build(struct pci_pbm_info *pbm,
 	if ((ino & 0x20) == 0)
 		inofixup = ino & 0x03;
 
-	bucket = __bucket(build_irq(inofixup, iclr, imap));
-	bucket->flags |= IBF_PCI;
-
-	return __irq(bucket);
+	return build_irq(inofixup, iclr, imap, IBF_PCI);
 }
 
 /* PSYCHO error handling support. */

@@ -70,7 +70,10 @@ struct ino_bucket ivector_table[NUM_IVECS] __attribute__ ((aligned (SMP_CACHE_BY
  */
 #define irq_work(__cpu)	&(trap_block[(__cpu)].irq_worklist)
 
-static struct irqaction *irq_action[NR_IRQS];
+static struct irqaction timer_irq_action = {
+	.name = "timer",
+};
+static struct irqaction *irq_action[NR_IRQS] = { &timer_irq_action, };
 
 /* This only synchronizes entities which modify IRQ handler
  * state and some selected user-level spots that want to
@@ -78,6 +81,59 @@ static struct irqaction *irq_action[NR_IRQS];
  * its' accesses such that no locking is needed.
  */
 static DEFINE_SPINLOCK(irq_action_lock);
+
+static unsigned int virt_to_real_irq_table[NR_IRQS];
+static unsigned char virt_irq_cur = 1;
+
+static unsigned char virt_irq_alloc(unsigned int real_irq)
+{
+	unsigned char ent;
+
+	BUILD_BUG_ON(NR_IRQS >= 256);
+
+	ent = virt_irq_cur;
+	if (ent >= NR_IRQS) {
+		printk(KERN_ERR "IRQ: Out of virtual IRQs.\n");
+		return 0;
+	}
+
+	virt_irq_cur = ent + 1;
+	virt_to_real_irq_table[ent] = real_irq;
+
+	return ent;
+}
+
+#if 0 /* Currently unused. */
+static unsigned char real_to_virt_irq(unsigned int real_irq)
+{
+	struct ino_bucket *bucket = __bucket(real_irq);
+
+	return bucket->virt_irq;
+}
+#endif
+
+static unsigned int virt_to_real_irq(unsigned char virt_irq)
+{
+	return virt_to_real_irq_table[virt_irq];
+}
+
+void irq_install_pre_handler(int virt_irq,
+			     void (*func)(struct ino_bucket *, void *, void *),
+			     void *arg1, void *arg2)
+{
+	unsigned int real_irq = virt_to_real_irq(virt_irq);
+	struct ino_bucket *bucket;
+	struct irq_desc *d;
+
+	if (unlikely(!real_irq))
+		return;
+
+	bucket = __bucket(real_irq);
+	d = bucket->irq_info;
+	d->pre_handler = func;
+	d->pre_handler_arg1 = arg1;
+	d->pre_handler_arg2 = arg2;
+}
 
 static void register_irq_proc (unsigned int irq);
 
@@ -164,14 +220,18 @@ static unsigned int sun4u_compute_tid(unsigned long imap, unsigned long cpuid)
 	return tid;
 }
 
-/* Now these are always passed a true fully specified sun4u INO. */
-void enable_irq(unsigned int irq)
+void enable_irq(unsigned int virt_irq)
 {
-	struct ino_bucket *bucket = __bucket(irq);
+	unsigned int real_irq = virt_to_real_irq(virt_irq);
+	struct ino_bucket *bucket;
 	unsigned long imap, cpuid;
 
+	if (unlikely(!real_irq))
+		return;
+
+	bucket = __bucket(real_irq);
 	imap = bucket->imap;
-	if (imap == 0UL)
+	if (unlikely(imap == 0UL))
 		return;
 
 	preempt_disable();
@@ -182,7 +242,7 @@ void enable_irq(unsigned int irq)
 	cpuid = real_hard_smp_processor_id();
 
 	if (tlb_type == hypervisor) {
-		unsigned int ino = __irq_ino(irq);
+		unsigned int ino = __irq_ino(real_irq);
 		int err;
 
 		err = sun4v_intr_settarget(ino, cpuid);
@@ -211,34 +271,39 @@ void enable_irq(unsigned int irq)
 	preempt_enable();
 }
 
-/* This now gets passed true ino's as well. */
-void disable_irq(unsigned int irq)
+void disable_irq(unsigned int virt_irq)
 {
-	struct ino_bucket *bucket = __bucket(irq);
+	unsigned int real_irq = virt_to_real_irq(virt_irq);
+	struct ino_bucket *bucket;
 	unsigned long imap;
 
+	if (unlikely(!real_irq))
+		return;
+
+	bucket = __bucket(real_irq);
 	imap = bucket->imap;
-	if (imap != 0UL) {
-		if (tlb_type == hypervisor) {
-			unsigned int ino = __irq_ino(irq);
-			int err;
+	if (unlikely(imap == 0UL))
+		return;
 
-			err = sun4v_intr_setenabled(ino, HV_INTR_DISABLED);
-			if (err != HV_EOK)
-				printk("sun4v_intr_setenabled(%x): "
-				       "err(%d)\n", ino, err);
-		} else {
-			u32 tmp;
+	if (tlb_type == hypervisor) {
+		unsigned int ino = __irq_ino(real_irq);
+		int err;
 
-			/* NOTE: We do not want to futz with the IRQ clear registers
-			 *       and move the state to IDLE, the SCSI code does call
-			 *       disable_irq() to assure atomicity in the queue cmd
-			 *       SCSI adapter driver code.  Thus we'd lose interrupts.
-			 */
-			tmp = upa_readl(imap);
-			tmp &= ~IMAP_VALID;
-			upa_writel(tmp, imap);
-		}
+		err = sun4v_intr_setenabled(ino, HV_INTR_DISABLED);
+		if (err != HV_EOK)
+			printk("sun4v_intr_setenabled(%x): "
+			       "err(%d)\n", ino, err);
+	} else {
+		u32 tmp;
+
+		/* NOTE: We do not want to futz with the IRQ clear registers
+		 *       and move the state to IDLE, the SCSI code does call
+		 *       disable_irq() to assure atomicity in the queue cmd
+		 *       SCSI adapter driver code.  Thus we'd lose interrupts.
+		 */
+		tmp = upa_readl(imap);
+		tmp &= ~IMAP_VALID;
+		upa_writel(tmp, imap);
 	}
 }
 
@@ -253,14 +318,14 @@ static void build_irq_error(const char *msg, unsigned int ino, int inofixup,
 	prom_halt();
 }
 
-unsigned int build_irq(int inofixup, unsigned long iclr, unsigned long imap)
+unsigned int build_irq(int inofixup, unsigned long iclr, unsigned long imap, unsigned char flags)
 {
 	struct ino_bucket *bucket;
 	int ino;
 
 	BUG_ON(tlb_type == hypervisor);
 
-	/* RULE: Both must be specified in all other cases. */
+	/* RULE: Both must be specified. */
 	if (iclr == 0UL || imap == 0UL) {
 		prom_printf("Invalid build_irq %d %016lx %016lx\n",
 			    inofixup, iclr, imap);
@@ -298,10 +363,12 @@ unsigned int build_irq(int inofixup, unsigned long iclr, unsigned long imap)
 	 */
 	bucket->imap  = imap;
 	bucket->iclr  = iclr;
-	bucket->flags = 0;
+	if (!bucket->virt_irq)
+		bucket->virt_irq = virt_irq_alloc(__irq(bucket));
+	bucket->flags = flags;
 
 out:
-	return __irq(bucket);
+	return bucket->virt_irq;
 }
 
 unsigned int sun4v_build_irq(u32 devhandle, unsigned int devino, unsigned char flags)
@@ -322,7 +389,8 @@ unsigned int sun4v_build_irq(u32 devhandle, unsigned int devino, unsigned char f
 	 */
 	bucket->imap = ~0UL - sysino;
 	bucket->iclr = ~0UL - sysino;
-
+	if (!bucket->virt_irq)
+		bucket->virt_irq = virt_irq_alloc(__irq(bucket));
 	bucket->flags = flags;
 
 	bucket->irq_info = kzalloc(sizeof(struct irq_desc), GFP_ATOMIC);
@@ -331,7 +399,7 @@ unsigned int sun4v_build_irq(u32 devhandle, unsigned int devino, unsigned char f
 		prom_halt();
 	}
 
-	return __irq(bucket);
+	return bucket->virt_irq;
 }
 
 static void atomic_bucket_insert(struct ino_bucket *bucket)
@@ -390,37 +458,42 @@ static struct irqaction *get_action_slot(struct ino_bucket *bucket)
 	return NULL;
 }
 
-int request_irq(unsigned int irq, irqreturn_t (*handler)(int, void *, struct pt_regs *),
+int request_irq(unsigned int virt_irq,
+		irqreturn_t (*handler)(int, void *, struct pt_regs *),
 		unsigned long irqflags, const char *name, void *dev_id)
 {
 	struct irqaction *action;
-	struct ino_bucket *bucket = __bucket(irq);
+	struct ino_bucket *bucket;
 	unsigned long flags;
+	unsigned int real_irq;
 	int pending = 0;
+
+	real_irq = virt_to_real_irq(virt_irq);
+	if (unlikely(!real_irq))
+		return -EINVAL;
 
 	if (unlikely(!handler))
 		return -EINVAL;
 
+	bucket = __bucket(real_irq);
 	if (unlikely(!bucket->irq_info))
 		return -ENODEV;
 
 	if (irqflags & SA_SAMPLE_RANDOM) {
 		/*
-	 	 * This function might sleep, we want to call it first,
-	 	 * outside of the atomic block. In SA_STATIC_ALLOC case,
-		 * random driver's kmalloc will fail, but it is safe.
-		 * If already initialized, random driver will not reinit.
-	 	 * Yes, this might clear the entropy pool if the wrong
-	 	 * driver is attempted to be loaded, without actually
-	 	 * installing a new handler, but is this really a problem,
-	 	 * only the sysadmin is able to do this.
-	 	 */
-		rand_initialize_irq(PIL_DEVICE_IRQ);
+		 * This function might sleep, we want to call it first,
+		 * outside of the atomic block.
+		 * Yes, this might clear the entropy pool if the wrong
+		 * driver is attempted to be loaded, without actually
+		 * installing a new handler, but is this really a problem,
+		 * only the sysadmin is able to do this.
+		 */
+		rand_initialize_irq(virt_irq);
 	}
 
 	spin_lock_irqsave(&irq_action_lock, flags);
 
-	if (check_irq_sharing(PIL_DEVICE_IRQ, irqflags)) {
+	if (check_irq_sharing(virt_irq, irqflags)) {
 		spin_unlock_irqrestore(&irq_action_lock, flags);
 		return -EBUSY;
 	}
@@ -441,12 +514,12 @@ int request_irq(unsigned int irq, irqreturn_t (*handler)(int, void *, struct pt_
 	action->name = name;
 	action->next = NULL;
 	action->dev_id = dev_id;
-	put_ino_in_irqaction(action, irq);
+	put_ino_in_irqaction(action, __irq_ino(real_irq));
 	put_smpaff_in_irqaction(action, CPU_MASK_NONE);
 
-	append_irq_action(PIL_DEVICE_IRQ, action);
+	append_irq_action(virt_irq, action);
 
-	enable_irq(irq);
+	enable_irq(virt_irq);
 
 	/* We ate the IVEC already, this makes sure it does not get lost. */
 	if (pending) {
@@ -456,7 +529,7 @@ int request_irq(unsigned int irq, irqreturn_t (*handler)(int, void *, struct pt_
 
 	spin_unlock_irqrestore(&irq_action_lock, flags);
 
-	register_irq_proc(__irq_ino(irq));
+	register_irq_proc(virt_irq);
 
 #ifdef CONFIG_SMP
 	distribute_irqs();
@@ -466,17 +539,17 @@ int request_irq(unsigned int irq, irqreturn_t (*handler)(int, void *, struct pt_
 
 EXPORT_SYMBOL(request_irq);
 
-static struct irqaction *unlink_irq_action(unsigned int irq, void *dev_id)
+static struct irqaction *unlink_irq_action(unsigned int virt_irq, void *dev_id)
 {
 	struct irqaction *action, **pp;
 
-	pp = irq_action + PIL_DEVICE_IRQ;
+	pp = irq_action + virt_irq;
 	action = *pp;
 	if (unlikely(!action))
 		return NULL;
 
 	if (unlikely(!action->handler)) {
-		printk("Freeing free IRQ %d\n", PIL_DEVICE_IRQ);
+		printk("Freeing free IRQ %d\n", virt_irq);
 		return NULL;
 	}
 
@@ -491,28 +564,33 @@ static struct irqaction *unlink_irq_action(unsigned int irq, void *dev_id)
 	return action;
 }
 
-void free_irq(unsigned int irq, void *dev_id)
+void free_irq(unsigned int virt_irq, void *dev_id)
 {
 	struct irqaction *action;
 	struct ino_bucket *bucket;
 	struct irq_desc *desc;
 	unsigned long flags;
+	unsigned int real_irq;
 	int ent, i;
+
+	real_irq = virt_to_real_irq(virt_irq);
+	if (unlikely(!real_irq))
+		return;
 
 	spin_lock_irqsave(&irq_action_lock, flags);
 
-	action = unlink_irq_action(irq, dev_id);
+	action = unlink_irq_action(virt_irq, dev_id);
 
 	spin_unlock_irqrestore(&irq_action_lock, flags);
 
 	if (unlikely(!action))
 		return;
 
-	synchronize_irq(irq);
+	synchronize_irq(virt_irq);
 
 	spin_lock_irqsave(&irq_action_lock, flags);
 
-	bucket = __bucket(irq);
+	bucket = __bucket(real_irq);
 	desc = bucket->irq_info;
 
 	for (i = 0; i < MAX_IRQ_DESC_ACTION; i++) {
@@ -545,7 +623,7 @@ void free_irq(unsigned int irq, void *dev_id)
 		 * the same IMAP are active.
 		 */
 		if (ent == NUM_IVECS)
-			disable_irq(irq);
+			disable_irq(virt_irq);
 	}
 
 	spin_unlock_irqrestore(&irq_action_lock, flags);
@@ -554,10 +632,15 @@ void free_irq(unsigned int irq, void *dev_id)
 EXPORT_SYMBOL(free_irq);
 
 #ifdef CONFIG_SMP
-void synchronize_irq(unsigned int irq)
+void synchronize_irq(unsigned int virt_irq)
 {
-	struct ino_bucket *bucket = __bucket(irq);
+	unsigned int real_irq = virt_to_real_irq(virt_irq);
+	struct ino_bucket *bucket;
 
+	if (unlikely(!real_irq))
+		return;
+
+	bucket = __bucket(real_irq);
 #if 0
 	/* The following is how I wish I could implement this.
 	 * Unfortunately the ICLR registers are read-only, you can
@@ -616,7 +699,7 @@ static void process_bucket(struct ino_bucket *bp, struct pt_regs *regs)
 
 		action_mask &= ~mask;
 
-		if (p->handler(__irq(bp), p->dev_id, regs) == IRQ_HANDLED)
+		if (p->handler(bp->virt_irq, p->dev_id, regs) == IRQ_HANDLED)
 			random |= p->flags;
 
 		if (!action_mask)
@@ -637,7 +720,7 @@ static void process_bucket(struct ino_bucket *bp, struct pt_regs *regs)
 
 	/* Test and add entropy */
 	if (random & SA_SAMPLE_RANDOM)
-		add_interrupt_randomness(PIL_DEVICE_IRQ);
+		add_interrupt_randomness(bp->virt_irq);
 out:
 	bp->flags &= ~IBF_INPROGRESS;
 }
@@ -657,7 +740,7 @@ void timer_irq(int irq, struct pt_regs *regs)
 	clear_softint(clr_mask);
 
 	irq_enter();
-	kstat_this_cpu.irqs[irq]++;
+	kstat_this_cpu.irqs[0]++;
 	timer_interrupt(irq, NULL, regs);
 	irq_exit();
 }
@@ -1022,13 +1105,13 @@ void __init init_IRQ(void)
 			     : "g1");
 }
 
-static struct proc_dir_entry * root_irq_dir;
-static struct proc_dir_entry * irq_dir [NUM_IVECS];
+static struct proc_dir_entry *root_irq_dir;
+static struct proc_dir_entry *irq_dir[NR_IRQS];
 
 #ifdef CONFIG_SMP
 
-static int irq_affinity_read_proc (char *page, char **start, off_t off,
-			int count, int *eof, void *data)
+static int irq_affinity_read_proc(char *page, char **start, off_t off,
+				  int count, int *eof, void *data)
 {
 	struct ino_bucket *bp = ivector_table + (long)data;
 	struct irq_desc *desc = bp->irq_info;
@@ -1047,11 +1130,20 @@ static int irq_affinity_read_proc (char *page, char **start, off_t off,
 	return len;
 }
 
-static inline void set_intr_affinity(int irq, cpumask_t hw_aff)
+static inline void set_intr_affinity(int virt_irq, cpumask_t hw_aff)
 {
-	struct ino_bucket *bp = ivector_table + irq;
-	struct irq_desc *desc = bp->irq_info;
-	struct irqaction *ap = desc->action;
+	struct ino_bucket *bp;
+	struct irq_desc *desc;
+	struct irqaction *ap;
+	unsigned int real_irq;
+
+	real_irq = virt_to_real_irq(virt_irq);
+	if (unlikely(!real_irq))
+		return;
+
+	bp = __bucket(real_irq);
+	desc = bp->irq_info;
+	ap = desc->action;
 
 	/* Users specify affinity in terms of hw cpu ids.
 	 * As soon as we do this, handler_irq() might see and take action.
@@ -1060,13 +1152,16 @@ static inline void set_intr_affinity(int irq, cpumask_t hw_aff)
 
 	/* Migration is simply done by the next cpu to service this
 	 * interrupt.
+	 *
+	 * XXX Broken, this doesn't happen anymore...
 	 */
 }
 
-static int irq_affinity_write_proc (struct file *file, const char __user *buffer,
-					unsigned long count, void *data)
+static int irq_affinity_write_proc(struct file *file,
+				   const char __user *buffer,
+				   unsigned long count, void *data)
 {
-	int irq = (long) data, full_count = count, err;
+	int virt_irq = (long) data, full_count = count, err;
 	cpumask_t new_value;
 
 	err = cpumask_parse(buffer, count, new_value);
@@ -1080,7 +1175,7 @@ static int irq_affinity_write_proc (struct file *file, const char __user *buffer
 	if (cpus_empty(new_value))
 		return -EINVAL;
 
-	set_intr_affinity(irq, new_value);
+	set_intr_affinity(virt_irq, new_value);
 
 	return full_count;
 }
@@ -1089,18 +1184,18 @@ static int irq_affinity_write_proc (struct file *file, const char __user *buffer
 
 #define MAX_NAMELEN 10
 
-static void register_irq_proc (unsigned int irq)
+static void register_irq_proc(unsigned int virt_irq)
 {
 	char name [MAX_NAMELEN];
 
-	if (!root_irq_dir || irq_dir[irq])
+	if (!root_irq_dir || irq_dir[virt_irq])
 		return;
 
 	memset(name, 0, MAX_NAMELEN);
-	sprintf(name, "%x", irq);
+	sprintf(name, "%d", virt_irq);
 
 	/* create /proc/irq/1234 */
-	irq_dir[irq] = proc_mkdir(name, root_irq_dir);
+	irq_dir[virt_irq] = proc_mkdir(name, root_irq_dir);
 
 #ifdef CONFIG_SMP
 	/* XXX SMP affinity not supported on starfire yet. */
@@ -1112,7 +1207,7 @@ static void register_irq_proc (unsigned int irq)
 
 		if (entry) {
 			entry->nlink = 1;
-			entry->data = (void *)(long)irq;
+			entry->data = (void *)(long)virt_irq;
 			entry->read_proc = irq_affinity_read_proc;
 			entry->write_proc = irq_affinity_write_proc;
 		}
@@ -1120,7 +1215,7 @@ static void register_irq_proc (unsigned int irq)
 #endif
 }
 
-void init_irq_proc (void)
+void init_irq_proc(void)
 {
 	/* create /proc/irq */
 	root_irq_dir = proc_mkdir("irq", NULL);

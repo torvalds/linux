@@ -98,13 +98,22 @@ extern struct ino_bucket ivector_table[NUM_IVECS];
 #define __bucket(irq) ((struct ino_bucket *)(unsigned long)(irq))
 #define __irq(bucket) ((unsigned int)(unsigned long)(bucket))
 
-#define NR_IRQS    16
+/* The largest number of unique interrupt sources we support.
+ * If this needs to ever be larger than 255, you need to change
+ * the type of ino_bucket->virt_irq as appropriate.
+ *
+ * ino_bucket->virt_irq allocation is made during {sun4v_,}build_irq().
+ */
+#define NR_IRQS    255
 
+extern void irq_install_pre_handler(int virt_irq,
+				    void (*func)(struct ino_bucket *, void *, void *),
+				    void *arg1, void *arg2);
 #define irq_canonicalize(irq)	(irq)
 extern void disable_irq(unsigned int);
 #define disable_irq_nosync disable_irq
 extern void enable_irq(unsigned int);
-extern unsigned int build_irq(int inofixup, unsigned long iclr, unsigned long imap);
+extern unsigned int build_irq(int inofixup, unsigned long iclr, unsigned long imap, unsigned char flags);
 extern unsigned int sun4v_build_irq(u32 devhandle, unsigned int devino, unsigned char flags);
 extern unsigned int sbus_build_irq(void *sbus, unsigned int ino);
 
