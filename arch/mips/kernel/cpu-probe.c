@@ -597,8 +597,6 @@ static inline void cpu_probe_mips(struct cpuinfo_mips *c)
 		break;
 	case PRID_IMP_25KF:
 		c->cputype = CPU_25KF;
-		/* Probe for L2 cache */
-		c->scache.flags &= ~MIPS_CACHE_NOT_PRESENT;
 		break;
 	case PRID_IMP_34K:
 		c->cputype = CPU_34K;

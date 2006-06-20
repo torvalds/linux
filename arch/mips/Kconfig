@@ -325,6 +325,7 @@ config MIPS_MALTA
 	select I8259
 	select MIPS_BOARDS_GEN
 	select MIPS_BONITO64
+	select MIPS_CPU_SCACHE
 	select MIPS_GT64120
 	select MIPS_MSC
 	select SWAP_IO_SPACE
@@ -1475,6 +1476,13 @@ config BOARD_SCACHE
 	bool
 
 config IP22_CPU_SCACHE
+	bool
+	select BOARD_SCACHE
+
+#
+# Support for a MIPS32 / MIPS64 style S-caches
+#
+config MIPS_CPU_SCACHE
 	bool
 	select BOARD_SCACHE
 

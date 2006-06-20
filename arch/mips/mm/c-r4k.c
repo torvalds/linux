@@ -1092,6 +1092,7 @@ static int __init probe_scache(void)
 
 extern int r5k_sc_init(void);
 extern int rm7k_sc_init(void);
+extern int mips_sc_init(void);
 
 static void __init setup_scache(void)
 {
@@ -1139,16 +1140,28 @@ static void __init setup_scache(void)
 		return;
 
 	default:
+		if (c->isa_level == MIPS_CPU_ISA_M32R1 ||
+		    c->isa_level == MIPS_CPU_ISA_M32R2 ||
+		    c->isa_level == MIPS_CPU_ISA_M64R1 ||
+		    c->isa_level == MIPS_CPU_ISA_M64R2) {
+#ifdef CONFIG_MIPS_CPU_SCACHE
+			if (mips_sc_init ()) {
+				scache_size = c->scache.ways * c->scache.sets * c->scache.linesz;
+				printk("MIPS secondary cache %ldkB, %s, linesize %d bytes.\n",
+				       scache_size >> 10,
+				       way_string[c->scache.ways], c->scache.linesz);
+			}
+#else
+			if (!(c->scache.flags & MIPS_CACHE_NOT_PRESENT))
+				panic("Dunno how to handle MIPS32 / MIPS64 second level cache");
+#endif
+			return;
+		}
 		sc_present = 0;
 	}
 
 	if (!sc_present)
 		return;
-
-	if ((c->isa_level == MIPS_CPU_ISA_M32R1 ||
-	     c->isa_level == MIPS_CPU_ISA_M64R1) &&
-	    !(c->scache.flags & MIPS_CACHE_NOT_PRESENT))
-		panic("Dunno how to handle MIPS32 / MIPS64 second level cache");
 
 	/* compute a couple of other cache variables */
 	c->scache.waysize = scache_size / c->scache.ways;
