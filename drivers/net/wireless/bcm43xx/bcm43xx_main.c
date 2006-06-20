@@ -128,13 +128,15 @@ MODULE_PARM_DESC(fwpostfix, "Postfix for .fw files. Useful for debugging.");
 	static struct pci_device_id bcm43xx_pci_tbl[] = {
 	/* Broadcom 4303 802.11b */
 	{ PCI_VENDOR_ID_BROADCOM, 0x4301, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-		/* Broadcom 4307 802.11b */
+	/* Broadcom 4307 802.11b */
 	{ PCI_VENDOR_ID_BROADCOM, 0x4307, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-		/* Broadcom 4318 802.11b/g */
+	/* Broadcom 4318 802.11b/g */
 	{ PCI_VENDOR_ID_BROADCOM, 0x4318, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	/* Broadcom 4319 802.11a/b/g */
+	{ PCI_VENDOR_ID_BROADCOM, 0x4319, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	/* Broadcom 4306 802.11b/g */
 	{ PCI_VENDOR_ID_BROADCOM, 0x4320, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-		/* Broadcom 4306 802.11a */
+	/* Broadcom 4306 802.11a */
 //	{ PCI_VENDOR_ID_BROADCOM, 0x4321, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	/* Broadcom 4309 802.11a/b/g */
 	{ PCI_VENDOR_ID_BROADCOM, 0x4324, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
@@ -3299,8 +3301,7 @@ static void bcm43xx_detach_board(struct bcm43xx_private *bcm)
 
 	bcm43xx_chipset_detach(bcm);
 	/* Do _not_ access the chip, after it is detached. */
-	iounmap(bcm->mmio_addr);
-	
+	pci_iounmap(pci_dev, bcm->mmio_addr);
 	pci_release_regions(pci_dev);
 	pci_disable_device(pci_dev);
 
@@ -3390,40 +3391,26 @@ static int bcm43xx_attach_board(struct bcm43xx_private *bcm)
 	struct net_device *net_dev = bcm->net_dev;
 	int err;
 	int i;
-	unsigned long mmio_start, mmio_flags, mmio_len;
 	u32 coremask;
 
 	err = pci_enable_device(pci_dev);
 	if (err) {
-		printk(KERN_ERR PFX "unable to wake up pci device (%i)\n", err);
+		printk(KERN_ERR PFX "pci_enable_device() failed\n");
 		goto out;
-	}
-	mmio_start = pci_resource_start(pci_dev, 0);
-	mmio_flags = pci_resource_flags(pci_dev, 0);
-	mmio_len = pci_resource_len(pci_dev, 0);
-	if (!(mmio_flags & IORESOURCE_MEM)) {
-		printk(KERN_ERR PFX
-		       "%s, region #0 not an MMIO resource, aborting\n",
-		       pci_name(pci_dev));
-		err = -ENODEV;
-		goto err_pci_disable;
 	}
 	err = pci_request_regions(pci_dev, KBUILD_MODNAME);
 	if (err) {
-		printk(KERN_ERR PFX
-		       "could not access PCI resources (%i)\n", err);
+		printk(KERN_ERR PFX "pci_request_regions() failed\n");
 		goto err_pci_disable;
 	}
 	/* enable PCI bus-mastering */
 	pci_set_master(pci_dev);
-	bcm->mmio_addr = ioremap(mmio_start, mmio_len);
+	bcm->mmio_addr = pci_iomap(pci_dev, 0, ~0UL);
 	if (!bcm->mmio_addr) {
-		printk(KERN_ERR PFX "%s: cannot remap MMIO, aborting\n",
-		       pci_name(pci_dev));
+		printk(KERN_ERR PFX "pci_iomap() failed\n");
 		err = -EIO;
 		goto err_pci_release;
 	}
-	bcm->mmio_len = mmio_len;
 	net_dev->base_addr = (unsigned long)bcm->mmio_addr;
 
 	bcm43xx_pci_read_config16(bcm, PCI_SUBSYSTEM_VENDOR_ID,
@@ -3517,7 +3504,7 @@ err_80211_unwind:
 err_chipset_detach:
 	bcm43xx_chipset_detach(bcm);
 err_iounmap:
-	iounmap(bcm->mmio_addr);
+	pci_iounmap(pci_dev, bcm->mmio_addr);
 err_pci_release:
 	pci_release_regions(pci_dev);
 err_pci_disable:
@@ -3568,7 +3555,7 @@ static void bcm43xx_ieee80211_set_security(struct net_device *net_dev,
 	unsigned long flags;
 	int keyidx;
 	
-	dprintk(KERN_INFO PFX "set security called\n");
+	dprintk(KERN_INFO PFX "set security called");
 
 	bcm43xx_lock_mmio(bcm, flags);
 
@@ -3581,24 +3568,25 @@ static void bcm43xx_ieee80211_set_security(struct net_device *net_dev,
 	
 	if (sec->flags & SEC_ACTIVE_KEY) {
 		secinfo->active_key = sec->active_key;
-		dprintk(KERN_INFO PFX "   .active_key = %d\n", sec->active_key);
+		dprintk(", .active_key = %d", sec->active_key);
 	}
 	if (sec->flags & SEC_UNICAST_GROUP) {
 		secinfo->unicast_uses_group = sec->unicast_uses_group;
-		dprintk(KERN_INFO PFX "   .unicast_uses_group = %d\n", sec->unicast_uses_group);
+		dprintk(", .unicast_uses_group = %d", sec->unicast_uses_group);
 	}
 	if (sec->flags & SEC_LEVEL) {
 		secinfo->level = sec->level;
-		dprintk(KERN_INFO PFX "   .level = %d\n", sec->level);
+		dprintk(", .level = %d", sec->level);
 	}
 	if (sec->flags & SEC_ENABLED) {
 		secinfo->enabled = sec->enabled;
-		dprintk(KERN_INFO PFX "   .enabled = %d\n", sec->enabled);
+		dprintk(", .enabled = %d", sec->enabled);
 	}
 	if (sec->flags & SEC_ENCRYPT) {
 		secinfo->encrypt = sec->encrypt;
-		dprintk(KERN_INFO PFX "   .encrypt = %d\n", sec->encrypt);
+		dprintk(", .encrypt = %d", sec->encrypt);
 	}
+	dprintk("\n");
 	if (bcm->initialized && !bcm->ieee->host_encrypt) {
 		if (secinfo->enabled) {
 			/* upload WEP keys to hardware */

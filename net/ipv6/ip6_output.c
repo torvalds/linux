@@ -39,6 +39,7 @@
 #include <linux/in6.h>
 #include <linux/tcp.h>
 #include <linux/route.h>
+#include <linux/module.h>
 
 #include <linux/netfilter.h>
 #include <linux/netfilter_ipv6.h>
@@ -458,6 +459,7 @@ static void ip6_copy_metadata(struct sk_buff *to, struct sk_buff *from)
 	nf_bridge_get(to->nf_bridge);
 #endif
 #endif
+	skb_copy_secmark(to, from);
 }
 
 int ip6_find_1stfragopt(struct sk_buff *skb, u8 **nexthdr)
@@ -488,6 +490,7 @@ int ip6_find_1stfragopt(struct sk_buff *skb, u8 **nexthdr)
 
 	return offset;
 }
+EXPORT_SYMBOL_GPL(ip6_find_1stfragopt);
 
 static int ip6_fragment(struct sk_buff *skb, int (*output)(struct sk_buff *))
 {

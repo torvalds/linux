@@ -71,7 +71,7 @@ unsigned long __init prom_free_prom_memory(void)
  */
 extern void gt64120_time_init(void);
 
-void __init plat_setup(void)
+void __init plat_mem_setup(void)
 {
 	_machine_restart = galileo_machine_restart;
 	_machine_halt = galileo_machine_halt;

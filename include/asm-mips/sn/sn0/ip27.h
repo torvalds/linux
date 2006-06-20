@@ -6,7 +6,7 @@
  * Derived from IRIX <sys/SN/SN0/IP27.h>.
  *
  * Copyright (C) 1992 - 1997, 1999 Silicon Graphics, Inc.
- * Copyright (C) 1999 by Ralf Baechle
+ * Copyright (C) 1999, 2006 by Ralf Baechle
  */
 #ifndef _ASM_SN_SN0_IP27_H
 #define _ASM_SN_SN0_IP27_H
@@ -81,12 +81,5 @@
 
 #define SEND_NMI(_nasid, _slice)	\
           REMOTE_HUB_S((_nasid),  (PI_NMI_A + ((_slice) * PI_NMI_OFFSET)), 1)
-
-/* Sanity hazzard ...  Below all the Origin hacks are following.  */
-
-#define SN00_BRIDGE		0x9200000008000000
-#define SN00I_BRIDGE0		0x920000000b000000
-#define SN00I_BRIDGE1		0x920000000e000000
-#define SN00I_BRIDGE2		0x920000000f000000
 
 #endif /* _ASM_SN_SN0_IP27_H */

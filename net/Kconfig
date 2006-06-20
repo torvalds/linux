@@ -66,6 +66,13 @@ source "net/ipv6/Kconfig"
 
 endif # if INET
 
+config NETWORK_SECMARK
+	bool "Security Marking"
+	help
+	  This enables security marking of network packets, similar
+	  to nfmark, but designated for security purposes.
+	  If you are unsure how to answer this question, answer N.
+
 menuconfig NETFILTER
 	bool "Network packet filtering (replaces ipchains)"
 	---help---
@@ -214,6 +221,21 @@ config NET_PKTGEN
 
 	  To compile this code as a module, choose M here: the
 	  module will be called pktgen.
+
+config NET_TCPPROBE
+	tristate "TCP connection probing"
+	depends on INET && EXPERIMENTAL && PROC_FS && KPROBES
+	---help---
+	This module allows for capturing the changes to TCP connection
+	state in response to incoming packets. It is used for debugging
+	TCP congestion avoidance modules. If you don't understand
+	what was just said, you don't need it: say N.
+
+	Documentation on how to use the packet generator can be found
+	at http://linux-net.osdl.org/index.php/TcpProbe
+
+	To compile this code as a module, choose M here: the
+	module will be called tcp_probe.
 
 endmenu
 

@@ -730,7 +730,6 @@ out_err:
 static void icmp_redirect(struct sk_buff *skb)
 {
 	struct iphdr *iph;
-	unsigned long ip;
 
 	if (skb->len < sizeof(struct iphdr))
 		goto out_err;
@@ -742,7 +741,6 @@ static void icmp_redirect(struct sk_buff *skb)
 		goto out;
 
 	iph = (struct iphdr *)skb->data;
-	ip = iph->daddr;
 
 	switch (skb->h.icmph->code & 7) {
 	case ICMP_REDIR_NET:
@@ -752,7 +750,8 @@ static void icmp_redirect(struct sk_buff *skb)
 		 */
 	case ICMP_REDIR_HOST:
 	case ICMP_REDIR_HOSTTOS:
-		ip_rt_redirect(skb->nh.iph->saddr, ip, skb->h.icmph->un.gateway,
+		ip_rt_redirect(skb->nh.iph->saddr, iph->daddr,
+			       skb->h.icmph->un.gateway,
 			       iph->saddr, skb->dev);
 		break;
   	}

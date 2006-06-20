@@ -789,7 +789,7 @@ struct ipw_sys_config {
 	u8 bt_coexist_collision_thr;
 	u8 silence_threshold;
 	u8 accept_all_mgmt_bcpr;
-	u8 accept_all_mgtm_frames;
+	u8 accept_all_mgmt_frames;
 	u8 pass_noise_stats_to_host;
 	u8 reserved3;
 } __attribute__ ((packed));
@@ -1122,6 +1122,52 @@ struct ipw_fw_error {
 	u8 payload[0];
 } __attribute__ ((packed));
 
+#ifdef CONFIG_IPW2200_PROMISCUOUS
+
+enum ipw_prom_filter {
+	IPW_PROM_CTL_HEADER_ONLY = (1 << 0),
+	IPW_PROM_MGMT_HEADER_ONLY = (1 << 1),
+	IPW_PROM_DATA_HEADER_ONLY = (1 << 2),
+	IPW_PROM_ALL_HEADER_ONLY = 0xf, /* bits 0..3 */
+	IPW_PROM_NO_TX = (1 << 4),
+	IPW_PROM_NO_RX = (1 << 5),
+	IPW_PROM_NO_CTL = (1 << 6),
+	IPW_PROM_NO_MGMT = (1 << 7),
+	IPW_PROM_NO_DATA = (1 << 8),
+};
+
+struct ipw_priv;
+struct ipw_prom_priv {
+	struct ipw_priv *priv;
+	struct ieee80211_device *ieee;
+	enum ipw_prom_filter filter;
+	int tx_packets;
+	int rx_packets;
+};
+#endif
+
+#if defined(CONFIG_IPW2200_RADIOTAP) || defined(CONFIG_IPW2200_PROMISCUOUS)
+/* Magic struct that slots into the radiotap header -- no reason
+ * to build this manually element by element, we can write it much
+ * more efficiently than we can parse it. ORDER MATTERS HERE
+ *
+ * When sent to us via the simulated Rx interface in sysfs, the entire
+ * structure is provided regardless of any bits unset.
+ */
+struct ipw_rt_hdr {
+	struct ieee80211_radiotap_header rt_hdr;
+	u64 rt_tsf;      /* TSF */
+	u8 rt_flags;	/* radiotap packet flags */
+	u8 rt_rate;	/* rate in 500kb/s */
+	u16 rt_channel;	/* channel in mhz */
+	u16 rt_chbitmask;	/* channel bitfield */
+	s8 rt_dbmsignal;	/* signal in dbM, kluged to signed */
+	s8 rt_dbmnoise;
+	u8 rt_antenna;	/* antenna number */
+	u8 payload[0];  /* payload... */
+} __attribute__ ((packed));
+#endif
+
 struct ipw_priv {
 	/* ieee device used by generic ieee processing code */
 	struct ieee80211_device *ieee;
@@ -1132,6 +1178,12 @@ struct ipw_priv {
 	/* basic pci-network driver stuff */
 	struct pci_dev *pci_dev;
 	struct net_device *net_dev;
+
+#ifdef CONFIG_IPW2200_PROMISCUOUS
+	/* Promiscuous mode */
+	struct ipw_prom_priv *prom_priv;
+	struct net_device *prom_net_dev;
+#endif
 
 	/* pci hardware address support */
 	void __iomem *hw_base;
@@ -1153,11 +1205,9 @@ struct ipw_priv {
 	u32 config;
 	u32 capability;
 
-	u8 last_rx_rssi;
-	u8 last_noise;
 	struct average average_missed_beacons;
-	struct average average_rssi;
-	struct average average_noise;
+	s16 exp_avg_rssi;
+	s16 exp_avg_noise;
 	u32 port_type;
 	int rx_bufs_min;	  /**< minimum number of bufs in Rx queue */
 	int rx_pend_max;	  /**< maximum pending buffers for one IRQ */
@@ -1307,6 +1357,29 @@ struct ipw_priv {
 };				/*ipw_priv */
 
 /* debug macros */
+
+/* Debug and printf string expansion helpers for printing bitfields */
+#define BIT_FMT8 "%c%c%c%c-%c%c%c%c"
+#define BIT_FMT16 BIT_FMT8 ":" BIT_FMT8
+#define BIT_FMT32 BIT_FMT16 " " BIT_FMT16
+
+#define BITC(x,y) (((x>>y)&1)?'1':'0')
+#define BIT_ARG8(x) \
+BITC(x,7),BITC(x,6),BITC(x,5),BITC(x,4),\
+BITC(x,3),BITC(x,2),BITC(x,1),BITC(x,0)
+
+#define BIT_ARG16(x) \
+BITC(x,15),BITC(x,14),BITC(x,13),BITC(x,12),\
+BITC(x,11),BITC(x,10),BITC(x,9),BITC(x,8),\
+BIT_ARG8(x)
+
+#define BIT_ARG32(x) \
+BITC(x,31),BITC(x,30),BITC(x,29),BITC(x,28),\
+BITC(x,27),BITC(x,26),BITC(x,25),BITC(x,24),\
+BITC(x,23),BITC(x,22),BITC(x,21),BITC(x,20),\
+BITC(x,19),BITC(x,18),BITC(x,17),BITC(x,16),\
+BIT_ARG16(x)
+
 
 #ifdef CONFIG_IPW2200_DEBUG
 #define IPW_DEBUG(level, fmt, args...) \

@@ -2074,12 +2074,22 @@ struct tg3 {
 
 	/* SMP locking strategy:
 	 *
-	 * lock: Held during all operations except TX packet
-	 *       processing.
+	 * lock: Held during reset, PHY access, timer, and when
+	 *       updating tg3_flags and tg3_flags2.
 	 *
-	 * tx_lock: Held during tg3_start_xmit and tg3_tx
+	 * tx_lock: Held during tg3_start_xmit and tg3_tx only
+	 *          when calling netif_[start|stop]_queue.
+	 *          tg3_start_xmit is protected by netif_tx_lock.
 	 *
 	 * Both of these locks are to be held with BH safety.
+	 *
+	 * Because the IRQ handler, tg3_poll, and tg3_start_xmit
+	 * are running lockless, it is necessary to completely
+	 * quiesce the chip with tg3_netif_stop and tg3_full_lock
+	 * before reconfiguring the device.
+	 *
+	 * indirect_lock: Held when accessing registers indirectly
+	 *                with IRQ disabling.
 	 */
 	spinlock_t			lock;
 	spinlock_t			indirect_lock;
@@ -2155,11 +2165,7 @@ struct tg3 {
 #define TG3_FLAG_ENABLE_ASF		0x00000020
 #define TG3_FLAG_5701_REG_WRITE_BUG	0x00000040
 #define TG3_FLAG_POLL_SERDES		0x00000080
-#if defined(CONFIG_X86)
 #define TG3_FLAG_MBOX_WRITE_REORDER	0x00000100
-#else
-#define TG3_FLAG_MBOX_WRITE_REORDER	0	/* disables code too */
-#endif
 #define TG3_FLAG_PCIX_TARGET_HWBUG	0x00000200
 #define TG3_FLAG_WOL_SPEED_100MB	0x00000400
 #define TG3_FLAG_WOL_ENABLE		0x00000800
@@ -2172,6 +2178,7 @@ struct tg3 {
 #define TG3_FLAG_PCI_HIGH_SPEED		0x00040000
 #define TG3_FLAG_PCI_32BIT		0x00080000
 #define TG3_FLAG_SRAM_USE_CONFIG	0x00100000
+#define TG3_FLAG_TX_RECOVERY_PENDING	0x00200000
 #define TG3_FLAG_SERDES_WOL_CAP		0x00400000
 #define TG3_FLAG_JUMBO_RING_ENABLE	0x00800000
 #define TG3_FLAG_10_100_ONLY		0x01000000
@@ -2184,7 +2191,7 @@ struct tg3 {
 #define TG3_FLAG_INIT_COMPLETE		0x80000000
 	u32				tg3_flags2;
 #define TG3_FLG2_RESTART_TIMER		0x00000001
-#define TG3_FLG2_SUN_570X		0x00000002
+/*					0x00000002 available */
 #define TG3_FLG2_NO_ETH_WIRE_SPEED	0x00000004
 #define TG3_FLG2_IS_5788		0x00000008
 #define TG3_FLG2_MAX_RXPEND_64		0x00000010
@@ -2216,6 +2223,7 @@ struct tg3 {
 #define TG3_FLG2_HW_TSO			(TG3_FLG2_HW_TSO_1 | TG3_FLG2_HW_TSO_2)
 #define TG3_FLG2_1SHOT_MSI		0x10000000
 #define TG3_FLG2_PHY_JITTER_BUG		0x20000000
+#define TG3_FLG2_NO_FWARE_REPORTED	0x40000000
 
 	u32				split_mode_max_reqs;
 #define SPLIT_MODE_5704_MAX_REQ		3

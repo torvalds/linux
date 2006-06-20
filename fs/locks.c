@@ -755,6 +755,7 @@ static int flock_lock_file(struct file *filp, struct file_lock *request)
 	if (request->fl_type == F_UNLCK)
 		goto out;
 
+	error = -ENOMEM;
 	new_fl = locks_alloc_lock();
 	if (new_fl == NULL)
 		goto out;
@@ -781,6 +782,7 @@ static int flock_lock_file(struct file *filp, struct file_lock *request)
 	locks_copy_lock(new_fl, request);
 	locks_insert_lock(&inode->i_flock, new_fl);
 	new_fl = NULL;
+	error = 0;
 
 out:
 	unlock_kernel();

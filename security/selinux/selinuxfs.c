@@ -38,12 +38,27 @@
 
 unsigned int selinux_checkreqprot = CONFIG_SECURITY_SELINUX_CHECKREQPROT_VALUE;
 
+#ifdef CONFIG_SECURITY_SELINUX_ENABLE_SECMARK_DEFAULT
+#define SELINUX_COMPAT_NET_VALUE 0
+#else
+#define SELINUX_COMPAT_NET_VALUE 1
+#endif
+
+int selinux_compat_net = SELINUX_COMPAT_NET_VALUE;
+
 static int __init checkreqprot_setup(char *str)
 {
 	selinux_checkreqprot = simple_strtoul(str,NULL,0) ? 1 : 0;
 	return 1;
 }
 __setup("checkreqprot=", checkreqprot_setup);
+
+static int __init selinux_compat_net_setup(char *str)
+{
+	selinux_compat_net = simple_strtoul(str,NULL,0) ? 1 : 0;
+	return 1;
+}
+__setup("selinux_compat_net=", selinux_compat_net_setup);
 
 
 static DEFINE_MUTEX(sel_mutex);
@@ -85,6 +100,7 @@ enum sel_inos {
 	SEL_AVC,	/* AVC management directory */
 	SEL_MEMBER,	/* compute polyinstantiation membership decision */
 	SEL_CHECKREQPROT, /* check requested protection, not kernel-applied one */
+	SEL_COMPAT_NET,	/* whether to use old compat network packet controls */
 };
 
 #define TMPBUFLEN	12
@@ -362,6 +378,55 @@ out:
 static struct file_operations sel_checkreqprot_ops = {
 	.read		= sel_read_checkreqprot,
 	.write		= sel_write_checkreqprot,
+};
+
+static ssize_t sel_read_compat_net(struct file *filp, char __user *buf,
+				   size_t count, loff_t *ppos)
+{
+	char tmpbuf[TMPBUFLEN];
+	ssize_t length;
+
+	length = scnprintf(tmpbuf, TMPBUFLEN, "%d", selinux_compat_net);
+	return simple_read_from_buffer(buf, count, ppos, tmpbuf, length);
+}
+
+static ssize_t sel_write_compat_net(struct file * file, const char __user * buf,
+				    size_t count, loff_t *ppos)
+{
+	char *page;
+	ssize_t length;
+	int new_value;
+
+	length = task_has_security(current, SECURITY__LOAD_POLICY);
+	if (length)
+		return length;
+
+	if (count >= PAGE_SIZE)
+		return -ENOMEM;
+	if (*ppos != 0) {
+		/* No partial writes. */
+		return -EINVAL;
+	}
+	page = (char*)get_zeroed_page(GFP_KERNEL);
+	if (!page)
+		return -ENOMEM;
+	length = -EFAULT;
+	if (copy_from_user(page, buf, count))
+		goto out;
+
+	length = -EINVAL;
+	if (sscanf(page, "%d", &new_value) != 1)
+		goto out;
+
+	selinux_compat_net = new_value ? 1 : 0;
+	length = count;
+out:
+	free_page((unsigned long) page);
+	return length;
+}
+static struct file_operations sel_compat_net_ops = {
+	.read		= sel_read_compat_net,
+	.write		= sel_write_compat_net,
 };
 
 /*
@@ -1219,6 +1284,7 @@ static int sel_fill_super(struct super_block * sb, void * data, int silent)
 		[SEL_DISABLE] = {"disable", &sel_disable_ops, S_IWUSR},
 		[SEL_MEMBER] = {"member", &transaction_ops, S_IRUGO|S_IWUGO},
 		[SEL_CHECKREQPROT] = {"checkreqprot", &sel_checkreqprot_ops, S_IRUGO|S_IWUSR},
+		[SEL_COMPAT_NET] = {"compat_net", &sel_compat_net_ops, S_IRUGO|S_IWUSR},
 		/* last one */ {""}
 	};
 	ret = simple_fill_super(sb, SELINUX_MAGIC, selinux_files);

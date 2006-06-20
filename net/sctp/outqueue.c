@@ -1262,6 +1262,7 @@ static void sctp_check_transmitted(struct sctp_outq *q,
 			   	if (!tchunk->tsn_gap_acked &&
 				    !tchunk->resent &&
 				    tchunk->rtt_in_progress) {
+					tchunk->rtt_in_progress = 0;
 					rtt = jiffies - tchunk->sent_at;
 					sctp_transport_update_rto(transport,
 								  rtt);

@@ -59,6 +59,9 @@ int sysctl_tcp_tso_win_divisor = 3;
 int sysctl_tcp_mtu_probing = 0;
 int sysctl_tcp_base_mss = 512;
 
+/* By default, RFC2861 behavior.  */
+int sysctl_tcp_slow_start_after_idle = 1;
+
 static void update_send_head(struct sock *sk, struct tcp_sock *tp,
 			     struct sk_buff *skb)
 {
@@ -138,7 +141,8 @@ static void tcp_event_data_sent(struct tcp_sock *tp,
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	const u32 now = tcp_time_stamp;
 
-	if (!tp->packets_out && (s32)(now - tp->lsndtime) > icsk->icsk_rto)
+	if (sysctl_tcp_slow_start_after_idle &&
+	    (!tp->packets_out && (s32)(now - tp->lsndtime) > icsk->icsk_rto))
 		tcp_cwnd_restart(sk, __sk_dst_get(sk));
 
 	tp->lsndtime = now;

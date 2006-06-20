@@ -1348,4 +1348,4 @@ static void __exit ip_nat_snmp_basic_fini(void)
 module_init(ip_nat_snmp_basic_init);
 module_exit(ip_nat_snmp_basic_fini);
 
-module_param(debug, bool, 0600);
+module_param(debug, int, 0600);

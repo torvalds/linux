@@ -74,7 +74,7 @@ static ssize_t
 show_total_trans(struct cpufreq_policy *policy, char *buf)
 {
 	struct cpufreq_stats *stat = cpufreq_stats_table[policy->cpu];
-	if(!stat)
+	if (!stat)
 		return 0;
 	return sprintf(buf, "%d\n",
 			cpufreq_stats_table[stat->cpu]->total_trans);
@@ -86,7 +86,7 @@ show_time_in_state(struct cpufreq_policy *policy, char *buf)
 	ssize_t len = 0;
 	int i;
 	struct cpufreq_stats *stat = cpufreq_stats_table[policy->cpu];
-	if(!stat)
+	if (!stat)
 		return 0;
 	cpufreq_stats_update(stat->cpu);
 	for (i = 0; i < stat->state_num; i++) {
@@ -104,7 +104,7 @@ show_trans_table(struct cpufreq_policy *policy, char *buf)
 	int i, j;
 
 	struct cpufreq_stats *stat = cpufreq_stats_table[policy->cpu];
-	if(!stat)
+	if (!stat)
 		return 0;
 	cpufreq_stats_update(stat->cpu);
 	len += snprintf(buf + len, PAGE_SIZE - len, "   From  :    To\n");

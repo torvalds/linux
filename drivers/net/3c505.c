@@ -1633,7 +1633,7 @@ MODULE_PARM_DESC(io, "EtherLink Plus I/O base address(es)");
 MODULE_PARM_DESC(irq, "EtherLink Plus IRQ number(s) (assigned)");
 MODULE_PARM_DESC(dma, "EtherLink Plus DMA channel(s)");
 
-int init_module(void)
+int __init init_module(void)
 {
 	int this_dev, found = 0;
 

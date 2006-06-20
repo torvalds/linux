@@ -129,10 +129,8 @@ match(const struct sk_buff *skb,
       unsigned int protoff,
       int *hotdrop)
 {
-	const struct xt_sctp_info *info;
+	const struct xt_sctp_info *info = matchinfo;
 	sctp_sctphdr_t _sh, *sh;
-
-	info = (const struct xt_sctp_info *)matchinfo;
 
 	if (offset) {
 		duprintf("Dropping non-first fragment.. FIXME\n");

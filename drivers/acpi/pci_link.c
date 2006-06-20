@@ -812,6 +812,9 @@ static int irqrouter_resume(struct sys_device *dev)
 
 	ACPI_FUNCTION_TRACE("irqrouter_resume");
 
+	/* Make sure SCI is enabled again (Apple firmware bug?) */
+	acpi_set_register(ACPI_BITREG_SCI_ENABLE, 1, ACPI_MTX_DO_NOT_LOCK);
+
 	acpi_in_resume = 1;
 	list_for_each(node, &acpi_link.entries) {
 		link = list_entry(node, struct acpi_pci_link, node);

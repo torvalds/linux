@@ -187,12 +187,11 @@ static u16 gm_phy_read(struct sky2_hw *hw, unsigned port, u16 reg)
 	return v;
 }
 
-static int sky2_set_power_state(struct sky2_hw *hw, pci_power_t state)
+static void sky2_set_power_state(struct sky2_hw *hw, pci_power_t state)
 {
 	u16 power_control;
 	u32 reg1;
 	int vaux;
-	int ret = 0;
 
 	pr_debug("sky2_set_power_state %d\n", state);
 	sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_ON);
@@ -275,12 +274,10 @@ static int sky2_set_power_state(struct sky2_hw *hw, pci_power_t state)
 		break;
 	default:
 		printk(KERN_ERR PFX "Unknown power state %d\n", state);
-		ret = -1;
 	}
 
 	sky2_pci_write16(hw, hw->pm_cap + PCI_PM_CTRL, power_control);
 	sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_OFF);
-	return ret;
 }
 
 static void sky2_phy_reset(struct sky2_hw *hw, unsigned port)
@@ -2164,6 +2161,13 @@ static void sky2_descriptor_error(struct sky2_hw *hw, unsigned port,
 /* If idle then force a fake soft NAPI poll once a second
  * to work around cases where sharing an edge triggered interrupt.
  */
+static inline void sky2_idle_start(struct sky2_hw *hw)
+{
+	if (idle_timeout > 0)
+		mod_timer(&hw->idle_timer,
+			  jiffies + msecs_to_jiffies(idle_timeout));
+}
+
 static void sky2_idle(unsigned long arg)
 {
 	struct sky2_hw *hw = (struct sky2_hw *) arg;
@@ -2182,6 +2186,9 @@ static int sky2_poll(struct net_device *dev0, int *budget)
 	int work_limit = min(dev0->quota, *budget);
 	int work_done = 0;
 	u32 status = sky2_read32(hw, B0_Y2_SP_EISR);
+
+	if (!~status)
+		goto out;
 
 	if (status & Y2_IS_HW_ERR)
 		sky2_hw_intr(hw);
@@ -2219,7 +2226,7 @@ static int sky2_poll(struct net_device *dev0, int *budget)
 
 	if (sky2_more_work(hw))
 		return 1;
-
+out:
 	netif_rx_complete(dev0);
 
 	sky2_read32(hw, B0_Y2_SP_LISR);
@@ -2248,8 +2255,10 @@ static irqreturn_t sky2_intr(int irq, void *dev_id, struct pt_regs *regs)
 static void sky2_netpoll(struct net_device *dev)
 {
 	struct sky2_port *sky2 = netdev_priv(dev);
+	struct net_device *dev0 = sky2->hw->dev[0];
 
-	sky2_intr(sky2->hw->pdev->irq, sky2->hw, NULL);
+	if (netif_running(dev) && __netif_rx_schedule_prep(dev0))
+		__netif_rx_schedule(dev0);
 }
 #endif
 
@@ -3350,9 +3359,7 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 	sky2_write32(hw, B0_IMSK, Y2_IS_BASE);
 
 	setup_timer(&hw->idle_timer, sky2_idle, (unsigned long) hw);
-	if (idle_timeout > 0)
-		mod_timer(&hw->idle_timer,
-			  jiffies + msecs_to_jiffies(idle_timeout));
+	sky2_idle_start(hw);
 
 	pci_set_drvdata(pdev, hw);
 
@@ -3425,8 +3432,14 @@ static int sky2_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct sky2_hw *hw = pci_get_drvdata(pdev);
 	int i;
+	pci_power_t pstate = pci_choose_state(pdev, state);
 
-	for (i = 0; i < 2; i++) {
+	if (!(pstate == PCI_D3hot || pstate == PCI_D3cold))
+		return -EINVAL;
+
+	del_timer_sync(&hw->idle_timer);
+
+	for (i = 0; i < hw->ports; i++) {
 		struct net_device *dev = hw->dev[i];
 
 		if (dev) {
@@ -3435,10 +3448,14 @@ static int sky2_suspend(struct pci_dev *pdev, pm_message_t state)
 
 			sky2_down(dev);
 			netif_device_detach(dev);
+			netif_poll_disable(dev);
 		}
 	}
 
-	return sky2_set_power_state(hw, pci_choose_state(pdev, state));
+	sky2_write32(hw, B0_IMSK, 0);
+	pci_save_state(pdev);
+	sky2_set_power_state(hw, pstate);
+	return 0;
 }
 
 static int sky2_resume(struct pci_dev *pdev)
@@ -3448,27 +3465,31 @@ static int sky2_resume(struct pci_dev *pdev)
 
 	pci_restore_state(pdev);
 	pci_enable_wake(pdev, PCI_D0, 0);
-	err = sky2_set_power_state(hw, PCI_D0);
-	if (err)
-		goto out;
+	sky2_set_power_state(hw, PCI_D0);
 
 	err = sky2_reset(hw);
 	if (err)
 		goto out;
 
-	for (i = 0; i < 2; i++) {
+	sky2_write32(hw, B0_IMSK, Y2_IS_BASE);
+
+	for (i = 0; i < hw->ports; i++) {
 		struct net_device *dev = hw->dev[i];
 		if (dev && netif_running(dev)) {
 			netif_device_attach(dev);
+			netif_poll_enable(dev);
+
 			err = sky2_up(dev);
 			if (err) {
 				printk(KERN_ERR PFX "%s: could not up: %d\n",
 				       dev->name, err);
 				dev_close(dev);
-				break;
+				goto out;
 			}
 		}
 	}
+
+	sky2_idle_start(hw);
 out:
 	return err;
 }
