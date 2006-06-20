@@ -10,7 +10,6 @@
 #ifndef _ASM_SH_MACHVEC_H
 #define _ASM_SH_MACHVEC_H 1
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/time.h>
 

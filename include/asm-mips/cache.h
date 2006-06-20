@@ -9,7 +9,6 @@
 #ifndef _ASM_CACHE_H
 #define _ASM_CACHE_H
 
-#include <linux/config.h>
 #include <kmalloc.h>
 
 #define L1_CACHE_SHIFT		CONFIG_MIPS_L1_CACHE_SHIFT

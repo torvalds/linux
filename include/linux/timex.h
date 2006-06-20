@@ -53,7 +53,6 @@
 #ifndef _LINUX_TIMEX_H
 #define _LINUX_TIMEX_H
 
-#include <linux/config.h>
 #include <linux/compiler.h>
 #include <linux/time.h>
 

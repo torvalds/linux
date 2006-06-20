@@ -317,6 +317,8 @@
 #define __NR_pselect6		308
 #define __NR_ppoll		309
 
+#ifdef __KERNEL__
+
 #define NR_syscalls 310
 
 /*
@@ -477,9 +479,8 @@ static inline pid_t wait(int * wait_stat)
 	return waitpid(-1,wait_stat,0);
 }
 
-#endif
+#endif /* __KERNEL_SYSCALLS__ */
 
-#ifdef __KERNEL__
 #define __ARCH_WANT_IPC_PARSE_VERSION
 /* #define __ARCH_WANT_OLD_READDIR */
 #define __ARCH_WANT_OLD_STAT
@@ -503,7 +504,6 @@ static inline pid_t wait(int * wait_stat)
 #define __ARCH_WANT_SYS_SIGPROCMASK
 #define __ARCH_WANT_SYS_RT_SIGACTION
 #define __ARCH_WANT_SYS_RT_SIGSUSPEND
-#endif
 
 /*
  * "Conditional" syscalls
@@ -515,4 +515,5 @@ static inline pid_t wait(int * wait_stat)
 #define cond_syscall(x) asm(".weak\t" #x "\n\t.set\t" #x ",sys_ni_syscall")
 #endif
 
+#endif /* __KERNEL__ */
 #endif /* _ASM_UNISTD_H_ */

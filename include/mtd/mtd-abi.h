@@ -7,8 +7,9 @@
 #ifndef __MTD_ABI_H__
 #define __MTD_ABI_H__
 
-#ifndef __KERNEL__ /* Urgh. The whole point of splitting this out into
-		    separate files was to avoid #ifdef __KERNEL__ */
+#ifndef __KERNEL__ 
+/* Urgh. The whole point of splitting this out into
+   separate files was to avoid #ifdef __KERNEL__ */
 #define __user
 #endif
 

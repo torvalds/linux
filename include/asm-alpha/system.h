@@ -1,7 +1,6 @@
 #ifndef __ALPHA_SYSTEM_H
 #define __ALPHA_SYSTEM_H
 
-#include <linux/config.h>
 #include <asm/pal.h>
 #include <asm/page.h>
 #include <asm/barrier.h>

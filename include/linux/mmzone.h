@@ -4,7 +4,6 @@
 #ifdef __KERNEL__
 #ifndef __ASSEMBLY__
 
-#include <linux/config.h>
 #include <linux/spinlock.h>
 #include <linux/list.h>
 #include <linux/wait.h>

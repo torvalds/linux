@@ -8,7 +8,6 @@
 #ifndef __ASM_COBALT_CPU_FEATURE_OVERRIDES_H
 #define __ASM_COBALT_CPU_FEATURE_OVERRIDES_H
 
-#include <linux/config.h>
 
 #define cpu_has_tlb		1
 #define cpu_has_4kex		1

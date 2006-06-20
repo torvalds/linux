@@ -1,7 +1,6 @@
 #ifndef _SPARC_CACHEFLUSH_H
 #define _SPARC_CACHEFLUSH_H
 
-#include <linux/config.h>
 #include <linux/mm.h>		/* Common for other includes */
 // #include <linux/kernel.h> from pgalloc.h
 // #include <linux/sched.h>  from pgalloc.h

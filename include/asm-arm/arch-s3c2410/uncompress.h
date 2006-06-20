@@ -22,7 +22,6 @@
 #ifndef __ASM_ARCH_UNCOMPRESS_H
 #define __ASM_ARCH_UNCOMPRESS_H
 
-#include <linux/config.h>
 
 /* defines for UART registers */
 #include "asm/arch/regs-serial.h"

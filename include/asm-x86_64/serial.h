@@ -2,7 +2,6 @@
  * include/asm-x86_64/serial.h
  */
 
-#include <linux/config.h>
 
 /*
  * This assumes you have a 1.8432 MHz clock for your UART.

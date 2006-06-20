@@ -10,7 +10,6 @@
 #ifndef _PPC_SMP_H
 #define _PPC_SMP_H
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/bitops.h>
 #include <linux/errno.h>

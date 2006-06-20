@@ -7,7 +7,6 @@
 #ifndef __ASM_ARCH_MEMORY_H
 #define __ASM_ARCH_MEMORY_H
 
-#include <linux/config.h>
 #include <asm/sizes.h>
 
 /*

@@ -14,7 +14,6 @@
 #ifndef _ASM_ATOMIC_H
 #define _ASM_ATOMIC_H
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <asm/spr-regs.h>
 

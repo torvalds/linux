@@ -7,7 +7,6 @@
  * for more details.
  */
 
-#include <linux/config.h>
 
 /*
  * Entries defined so far:

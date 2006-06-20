@@ -10,7 +10,6 @@
 #ifndef _INCLUDE_CERF_H_
 #define _INCLUDE_CERF_H_
 
-#include <linux/config.h>
 
 #define CERF_ETH_IO			0xf0000000
 #define CERF_ETH_IRQ IRQ_GPIO26

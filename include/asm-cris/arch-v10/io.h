@@ -2,7 +2,6 @@
 #define _ASM_ARCH_CRIS_IO_H
 
 #include <asm/arch/svinto.h>
-#include <linux/config.h>
 
 /* Etrax shadow registers - which live in arch/cris/kernel/shadows.c */
 

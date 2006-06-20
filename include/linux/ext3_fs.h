@@ -17,11 +17,6 @@
 #define _LINUX_EXT3_FS_H
 
 #include <linux/types.h>
-#include <linux/ext3_fs_i.h>
-#include <linux/ext3_fs_sb.h>
-
-
-struct statfs;
 
 /*
  * The second extended filesystem constants/structures
@@ -487,6 +482,8 @@ struct ext3_super_block {
 };
 
 #ifdef __KERNEL__
+#include <linux/ext3_fs_i.h>
+#include <linux/ext3_fs_sb.h>
 static inline struct ext3_sb_info * EXT3_SB(struct super_block *sb)
 {
 	return sb->s_fs_info;
@@ -664,6 +661,8 @@ struct ext3_dir_entry_2 {
 #define DX_HASH_HALF_MD4	1
 #define DX_HASH_TEA		2
 
+#ifdef __KERNEL__
+
 /* hash info structure used by the directory hash */
 struct dx_hash_info
 {
@@ -675,7 +674,6 @@ struct dx_hash_info
 
 #define EXT3_HTREE_EOF	0x7fffffff
 
-#ifdef __KERNEL__
 /*
  * Control parameters used by ext3_htree_next_block
  */

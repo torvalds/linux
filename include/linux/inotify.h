@@ -67,7 +67,6 @@ struct inotify_event {
 
 #include <linux/dcache.h>
 #include <linux/fs.h>
-#include <linux/config.h>
 
 #ifdef CONFIG_INOTIFY
 

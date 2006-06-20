@@ -21,7 +21,6 @@
 #define THREAD_SIZE		(1 << THREAD_SHIFT)
 
 #ifndef __ASSEMBLY__
-#include <linux/config.h>
 #include <linux/cache.h>
 #include <asm/processor.h>
 #include <asm/page.h>

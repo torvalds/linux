@@ -40,7 +40,6 @@
 #ifndef _SOCK_H
 #define _SOCK_H
 
-#include <linux/config.h>
 #include <linux/list.h>
 #include <linux/timer.h>
 #include <linux/cache.h>

@@ -12,7 +12,6 @@
  * Copyright (C) 1999 Asit Mallick <asit.k.mallick@intel.com>
  * Copyright (C) 1999 Don Dugger <don.dugger@intel.com>
  */
-#include <linux/config.h>
 
 #include <asm/kregs.h>
 #include <asm/page.h>

@@ -1,7 +1,6 @@
 #ifndef __M68K_UNALIGNED_H
 #define __M68K_UNALIGNED_H
 
-#include <linux/config.h>
 
 #ifdef CONFIG_COLDFIRE
 

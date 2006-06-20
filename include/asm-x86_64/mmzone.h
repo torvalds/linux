@@ -4,7 +4,6 @@
 #ifndef _ASM_X86_64_MMZONE_H
 #define _ASM_X86_64_MMZONE_H 1
 
-#include <linux/config.h>
 
 #ifdef CONFIG_NUMA
 

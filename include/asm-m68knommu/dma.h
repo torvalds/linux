@@ -3,7 +3,6 @@
  
 //#define	DMA_DEBUG	1
 
-#include <linux/config.h>
 
 #ifdef CONFIG_COLDFIRE
 /*

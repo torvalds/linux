@@ -15,7 +15,6 @@
 #ifndef _M32104UT_M32104UT_PLD_H
 #define _M32104UT_M32104UT_PLD_H
 
-#include <linux/config.h>
 
 #if defined(CONFIG_PLAT_M32104UT)
 #define PLD_PLAT_BASE		0x02c00000

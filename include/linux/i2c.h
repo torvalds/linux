@@ -20,14 +20,15 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.		     */
 /* ------------------------------------------------------------------------- */
 
-/* With some changes from Kyösti Mälkki <kmalkki@cc.hut.fi> and
+/* With some changes from KyÃ¶sti MÃ¤lkki <kmalkki@cc.hut.fi> and
    Frodo Looijaard <frodol@dds.nl> */
 
 #ifndef _LINUX_I2C_H
 #define _LINUX_I2C_H
 
-#include <linux/module.h>
 #include <linux/types.h>
+#ifdef __KERNEL__ 
+#include <linux/module.h>
 #include <linux/i2c-id.h>
 #include <linux/mod_devicetable.h>
 #include <linux/device.h>	/* for struct device */
@@ -354,6 +355,7 @@ static inline int i2c_adapter_id(struct i2c_adapter *adap)
 {
 	return adap->nr;
 }
+#endif /* __KERNEL__ */
 
 /*
  * I2C Message - used for pure i2c transaction, also from /dev interface
@@ -469,6 +471,7 @@ union i2c_smbus_data {
 #define I2C_SMBUS	0x0720	/* SMBus-level access */
 
 /* ----- I2C-DEV: char device interface stuff ------------------------- */
+#ifdef __KERNEL__
 
 #define I2C_MAJOR	89		/* Device major number		*/
 
@@ -646,5 +649,5 @@ static unsigned short *forces[] = { force, force_##chip1,		\
 				    force_##chip6, force_##chip7,	\
 				    force_##chip8, NULL };		\
 I2C_CLIENT_INSMOD_COMMON
-
+#endif /* __KERNEL__ */
 #endif /* _LINUX_I2C_H */

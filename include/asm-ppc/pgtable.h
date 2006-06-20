@@ -4,7 +4,6 @@
 
 #include <asm-generic/4level-fixup.h>
 
-#include <linux/config.h>
 
 #ifndef __ASSEMBLY__
 #include <linux/sched.h>

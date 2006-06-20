@@ -20,7 +20,6 @@
  */
 
 #include <linux/stddef.h>
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/compiler.h>
 
