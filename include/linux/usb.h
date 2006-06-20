@@ -107,7 +107,8 @@ enum usb_interface_condition {
  * @needs_remote_wakeup: flag set when the driver requires remote-wakeup
  *	capability during autosuspend.
  * @dev: driver model's view of this device
- * @class_dev: driver model's class view of this device.
+ * @usb_dev: if an interface is bound to the USB major, this will point
+ *	to the sysfs representation for that device.
  * @pm_usage_cnt: PM usage counter for this interface; autosuspend is not
  *	allowed unless the counter is 0.
  *
@@ -152,7 +153,7 @@ struct usb_interface {
 	unsigned needs_remote_wakeup:1;	/* driver requires remote wakeup */
 
 	struct device dev;		/* interface specific device info */
-	struct class_device *class_dev;
+	struct device *usb_dev;		/* pointer to the usb class's device, if any */
 	int pm_usage_cnt;		/* usage counter for autosuspend */
 };
 #define	to_usb_interface(d) container_of(d, struct usb_interface, dev)
