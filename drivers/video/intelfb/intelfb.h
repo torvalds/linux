@@ -119,6 +119,24 @@
 /* Intel agpgart driver */
 #define AGP_PHYSICAL_MEMORY     2
 
+/* these are outputs from the chip - integrated only
+   external chips are via DVO or SDVO output */
+#define INTELFB_OUTPUT_UNUSED 0
+#define INTELFB_OUTPUT_ANALOG 1
+#define INTELFB_OUTPUT_DVO 2
+#define INTELFB_OUTPUT_SDVO 3
+#define INTELFB_OUTPUT_LVDS 4
+#define INTELFB_OUTPUT_TVOUT 5
+
+#define INTELFB_DVO_CHIP_NONE 0
+#define INTELFB_DVO_CHIP_LVDS 1
+#define INTELFB_DVO_CHIP_TMDS 2
+#define INTELFB_DVO_CHIP_TVOUT 4
+
+#define INTELFB_OUTPUT_PIPE_NC  0
+#define INTELFB_OUTPUT_PIPE_A   1
+#define INTELFB_OUTPUT_PIPE_B   2
+
 /*** Data Types ***/
 
 /* supported chipsets */
@@ -220,6 +238,17 @@ struct intelfb_i2c_chan {
     struct i2c_algo_bit_data algo;
 };
 #endif
+
+struct intelfb_output_rec {
+    int type;
+    int pipe;
+    int flags;
+
+#ifdef CONFIG_FB_INTEL_I2C
+    struct intelfb_i2c_chan i2c_bus;
+    struct intelfb_i2c_chan ddc_bus;
+#endif
+};
 
 struct intelfb_vsync {
 	wait_queue_head_t wait;
