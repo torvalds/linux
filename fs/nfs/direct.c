@@ -73,9 +73,6 @@ struct nfs_direct_req {
 	struct nfs_open_context	*ctx;		/* file open context info */
 	struct kiocb *		iocb;		/* controlling i/o request */
 	struct inode *		inode;		/* target file of i/o */
-	unsigned long		user_addr;	/* location of user's buffer */
-	size_t			user_count;	/* total bytes to move */
-	loff_t			pos;		/* starting offset in file */
 	struct page **		pages;		/* pages in our buffer */
 	unsigned int		npages;		/* count of pages */
 
@@ -327,19 +324,17 @@ static const struct rpc_call_ops nfs_read_direct_ops = {
  * For each nfs_read_data struct that was allocated on the list, dispatch
  * an NFS READ operation
  */
-static void nfs_direct_read_schedule(struct nfs_direct_req *dreq)
+static void nfs_direct_read_schedule(struct nfs_direct_req *dreq, unsigned long user_addr, size_t count, loff_t pos)
 {
 	struct nfs_open_context *ctx = dreq->ctx;
 	struct inode *inode = ctx->dentry->d_inode;
 	struct list_head *list = &dreq->list;
 	struct page **pages = dreq->pages;
-	size_t count = dreq->user_count;
-	loff_t pos = dreq->pos;
 	size_t rsize = NFS_SERVER(inode)->rsize;
 	unsigned int curpage, pgbase;
 
 	curpage = 0;
-	pgbase = dreq->user_addr & ~PAGE_MASK;
+	pgbase = user_addr & ~PAGE_MASK;
 	do {
 		struct nfs_read_data *data;
 		size_t bytes;
@@ -403,9 +398,6 @@ static ssize_t nfs_direct_read(struct kiocb *iocb, unsigned long user_addr, size
 	if (!dreq)
 		return -ENOMEM;
 
-	dreq->user_addr = user_addr;
-	dreq->user_count = count;
-	dreq->pos = pos;
 	dreq->pages = pages;
 	dreq->npages = nr_pages;
 	dreq->inode = inode;
@@ -415,7 +407,7 @@ static ssize_t nfs_direct_read(struct kiocb *iocb, unsigned long user_addr, size
 
 	nfs_add_stats(inode, NFSIOS_DIRECTREADBYTES, count);
 	rpc_clnt_sigmask(clnt, &oldset);
-	nfs_direct_read_schedule(dreq);
+	nfs_direct_read_schedule(dreq, user_addr, count, pos);
 	result = nfs_direct_wait(dreq);
 	rpc_clnt_sigunmask(clnt, &oldset);
 
@@ -516,8 +508,8 @@ static void nfs_direct_commit_schedule(struct nfs_direct_req *dreq)
 	data->cred = dreq->ctx->cred;
 
 	data->args.fh = NFS_FH(data->inode);
-	data->args.offset = dreq->pos;
-	data->args.count = dreq->user_count;
+	data->args.offset = 0;
+	data->args.count = 0;
 	data->res.count = 0;
 	data->res.fattr = &data->fattr;
 	data->res.verf = &data->verf;
@@ -675,19 +667,17 @@ static const struct rpc_call_ops nfs_write_direct_ops = {
  * For each nfs_write_data struct that was allocated on the list, dispatch
  * an NFS WRITE operation
  */
-static void nfs_direct_write_schedule(struct nfs_direct_req *dreq, int sync)
+static void nfs_direct_write_schedule(struct nfs_direct_req *dreq, unsigned long user_addr, size_t count, loff_t pos, int sync)
 {
 	struct nfs_open_context *ctx = dreq->ctx;
 	struct inode *inode = ctx->dentry->d_inode;
 	struct list_head *list = &dreq->list;
 	struct page **pages = dreq->pages;
-	size_t count = dreq->user_count;
-	loff_t pos = dreq->pos;
 	size_t wsize = NFS_SERVER(inode)->wsize;
 	unsigned int curpage, pgbase;
 
 	curpage = 0;
-	pgbase = dreq->user_addr & ~PAGE_MASK;
+	pgbase = user_addr & ~PAGE_MASK;
 	do {
 		struct nfs_write_data *data;
 		size_t bytes;
@@ -756,9 +746,6 @@ static ssize_t nfs_direct_write(struct kiocb *iocb, unsigned long user_addr, siz
 	if (dreq->commit_data == NULL || count < wsize)
 		sync = FLUSH_STABLE;
 
-	dreq->user_addr = user_addr;
-	dreq->user_count = count;
-	dreq->pos = pos;
 	dreq->pages = pages;
 	dreq->npages = nr_pages;
 	dreq->inode = inode;
@@ -771,7 +758,7 @@ static ssize_t nfs_direct_write(struct kiocb *iocb, unsigned long user_addr, siz
 	nfs_begin_data_update(inode);
 
 	rpc_clnt_sigmask(clnt, &oldset);
-	nfs_direct_write_schedule(dreq, sync);
+	nfs_direct_write_schedule(dreq, user_addr, count, pos, sync);
 	result = nfs_direct_wait(dreq);
 	rpc_clnt_sigunmask(clnt, &oldset);
 
