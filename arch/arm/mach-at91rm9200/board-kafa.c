@@ -1,7 +1,7 @@
 /*
- * linux/arch/arm/mach-at91rm9200/board-csb637.c
+ * linux/arch/arm/mach-at91rm9200/board-kafa.c
  *
- *  Copyright (C) 2005 SAN People
+ *  Copyright (C) 2006 Sperry-Sun
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -40,13 +40,13 @@
 
 #include "generic.h"
 
-static void __init csb637_init_irq(void)
+static void __init kafa_init_irq(void)
 {
 	/* Initialize AIC controller */
 	at91rm9200_init_irq(NULL);
 
 	/* Set up the GPIO interrupts */
-	at91_gpio_irq_setup(BGA_GPIO_BANKS);
+	at91_gpio_irq_setup(PQFP_GPIO_BANKS);
 }
 
 /*
@@ -54,63 +54,63 @@ static void __init csb637_init_irq(void)
  *    0 .. 3 = USART0 .. USART3
  *    4      = DBGU
  */
-static struct at91_uart_config __initdata csb637_uart_config = {
+static struct at91_uart_config __initdata kafa_uart_config = {
 	.console_tty	= 0,				/* ttyS0 */
 	.nr_tty		= 2,
-	.tty_map	= { 4, 1, -1, -1, -1 }		/* ttyS0, ..., ttyS4 */
+	.tty_map	= { 4, 0, -1, -1, -1 }		/* ttyS0, ..., ttyS4 */
 };
 
-static void __init csb637_map_io(void)
+static void __init kafa_map_io(void)
 {
 	at91rm9200_map_io();
 
-	/* Initialize clocks: 3.6864 MHz crystal */
-	at91_clock_init(3686400);
+	/* Initialize clocks: 18.432 MHz crystal */
+	at91_clock_init(18432000);
 
-	/* Setup the LEDs */
-	at91_init_leds(AT91_PIN_PB2, AT91_PIN_PB2);
+	/* Set up the LEDs */
+	at91_init_leds(AT91_PIN_PB4, AT91_PIN_PB4);
 
 	/* Setup the serial ports and console */
-	at91_init_serial(&csb637_uart_config);
+	at91_init_serial(&kafa_uart_config);
 }
 
-static struct at91_eth_data __initdata csb637_eth_data = {
-	.phy_irq_pin	= AT91_PIN_PC0,
+static struct at91_eth_data __initdata kafa_eth_data = {
+	.phy_irq_pin	= AT91_PIN_PC4,
 	.is_rmii	= 0,
 };
 
-static struct at91_usbh_data __initdata csb637_usbh_data = {
-	.ports		= 2,
+static struct at91_usbh_data __initdata kafa_usbh_data = {
+	.ports		= 1,
 };
 
-static struct at91_udc_data __initdata csb637_udc_data = {
-	.vbus_pin     = AT91_PIN_PB28,
-	.pullup_pin   = AT91_PIN_PB1,
+static struct at91_udc_data __initdata kafa_udc_data = {
+	.vbus_pin	= AT91_PIN_PB6,
+	.pullup_pin	= AT91_PIN_PB7,
 };
 
-static void __init csb637_board_init(void)
+static void __init kafa_board_init(void)
 {
 	/* Serial */
 	at91_add_device_serial();
 	/* Ethernet */
-	at91_add_device_eth(&csb637_eth_data);
+	at91_add_device_eth(&kafa_eth_data);
 	/* USB Host */
-	at91_add_device_usbh(&csb637_usbh_data);
+	at91_add_device_usbh(&kafa_usbh_data);
 	/* USB Device */
-	at91_add_device_udc(&csb637_udc_data);
+	at91_add_device_udc(&kafa_udc_data);
 	/* I2C */
 	at91_add_device_i2c();
 	/* SPI */
 	at91_add_device_spi(NULL, 0);
 }
 
-MACHINE_START(CSB637, "Cogent CSB637")
-	/* Maintainer: Bill Gatliff */
+MACHINE_START(KAFA, "Sperry-Sun KAFA")
+	/* Maintainer: Sergei Sharonov */
 	.phys_io	= AT91_BASE_SYS,
 	.io_pg_offst	= (AT91_VA_BASE_SYS >> 18) & 0xfffc,
 	.boot_params	= AT91_SDRAM_BASE + 0x100,
 	.timer		= &at91rm9200_timer,
-	.map_io		= csb637_map_io,
-	.init_irq	= csb637_init_irq,
-	.init_machine	= csb637_board_init,
+	.map_io		= kafa_map_io,
+	.init_irq	= kafa_init_irq,
+	.init_machine	= kafa_board_init,
 MACHINE_END

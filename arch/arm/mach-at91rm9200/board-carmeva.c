@@ -1,7 +1,8 @@
 /*
- * linux/arch/arm/mach-at91rm9200/board-csb637.c
+ * linux/arch/arm/mach-at91rm9200/board-carmeva.c
  *
- *  Copyright (C) 2005 SAN People
+ *  Copyright (c) 2005 Peer Georgi
+ *  		       Conitec Datasystems
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -40,7 +41,7 @@
 
 #include "generic.h"
 
-static void __init csb637_init_irq(void)
+static void __init carmeva_init_irq(void)
 {
 	/* Initialize AIC controller */
 	at91rm9200_init_irq(NULL);
@@ -54,63 +55,77 @@ static void __init csb637_init_irq(void)
  *    0 .. 3 = USART0 .. USART3
  *    4      = DBGU
  */
-static struct at91_uart_config __initdata csb637_uart_config = {
+static struct at91_uart_config __initdata carmeva_uart_config = {
 	.console_tty	= 0,				/* ttyS0 */
 	.nr_tty		= 2,
 	.tty_map	= { 4, 1, -1, -1, -1 }		/* ttyS0, ..., ttyS4 */
 };
 
-static void __init csb637_map_io(void)
+static void __init carmeva_map_io(void)
 {
 	at91rm9200_map_io();
 
-	/* Initialize clocks: 3.6864 MHz crystal */
-	at91_clock_init(3686400);
-
-	/* Setup the LEDs */
-	at91_init_leds(AT91_PIN_PB2, AT91_PIN_PB2);
+	/* Initialize clocks: 20.000 MHz crystal */
+	at91_clock_init(20000000);
 
 	/* Setup the serial ports and console */
-	at91_init_serial(&csb637_uart_config);
+	at91_init_serial(&carmeva_uart_config);
 }
 
-static struct at91_eth_data __initdata csb637_eth_data = {
-	.phy_irq_pin	= AT91_PIN_PC0,
-	.is_rmii	= 0,
+static struct at91_eth_data __initdata carmeva_eth_data = {
+	.phy_irq_pin	= AT91_PIN_PC4,
+	.is_rmii	= 1,
 };
 
-static struct at91_usbh_data __initdata csb637_usbh_data = {
+static struct at91_usbh_data __initdata carmeva_usbh_data = {
 	.ports		= 2,
 };
 
-static struct at91_udc_data __initdata csb637_udc_data = {
-	.vbus_pin     = AT91_PIN_PB28,
-	.pullup_pin   = AT91_PIN_PB1,
+static struct at91_udc_data __initdata carmeva_udc_data = {
+	.vbus_pin	= AT91_PIN_PD12,
+	.pullup_pin	= AT91_PIN_PD9,
 };
 
-static void __init csb637_board_init(void)
+/* FIXME: user dependend */
+// static struct at91_cf_data __initdata carmeva_cf_data = {
+//	.det_pin	= AT91_PIN_PB0,
+//	.rst_pin	= AT91_PIN_PC5,
+	// .irq_pin	= ... not connected
+	// .vcc_pin	= ... always powered
+// };
+
+static struct at91_mmc_data __initdata carmeva_mmc_data = {
+	.is_b		= 0,
+	.wire4		= 1,
+};
+
+static void __init carmeva_board_init(void)
 {
 	/* Serial */
 	at91_add_device_serial();
 	/* Ethernet */
-	at91_add_device_eth(&csb637_eth_data);
+	at91_add_device_eth(&carmeva_eth_data);
 	/* USB Host */
-	at91_add_device_usbh(&csb637_usbh_data);
+	at91_add_device_usbh(&carmeva_usbh_data);
 	/* USB Device */
-	at91_add_device_udc(&csb637_udc_data);
+	at91_add_device_udc(&carmeva_udc_data);
 	/* I2C */
 	at91_add_device_i2c();
+	/* Compact Flash */
+//	at91_add_device_cf(&carmeva_cf_data);
 	/* SPI */
-	at91_add_device_spi(NULL, 0);
+//	at91_add_device_spi(NULL, 0);
+	/* MMC */
+	at91_add_device_mmc(&carmeva_mmc_data);
 }
 
-MACHINE_START(CSB637, "Cogent CSB637")
-	/* Maintainer: Bill Gatliff */
+MACHINE_START(CARMEVA, "Carmeva")
+	/* Maintainer: Conitec Datasystems */
 	.phys_io	= AT91_BASE_SYS,
 	.io_pg_offst	= (AT91_VA_BASE_SYS >> 18) & 0xfffc,
 	.boot_params	= AT91_SDRAM_BASE + 0x100,
 	.timer		= &at91rm9200_timer,
-	.map_io		= csb637_map_io,
-	.init_irq	= csb637_init_irq,
-	.init_machine	= csb637_board_init,
+	.map_io		= carmeva_map_io,
+	.init_irq	= carmeva_init_irq,
+	.init_machine	= carmeva_board_init,
 MACHINE_END

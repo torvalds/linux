@@ -28,9 +28,9 @@
 #include <asm/mach-types.h>
 
 #include <asm/arch/hardware.h>
-#include <asm/arch/board.h>		/* for master clock global */
 
 #include "generic.h"
+
 
 /*
  * There's a lot more which can be done with clocks, including cpufreq
@@ -721,9 +721,6 @@ int __init at91_clock_init(unsigned long main_clock)
 		freq / 1000000, (unsigned) mck.rate_hz / 1000000,
 		(unsigned) main_clock / 1000000,
 		((unsigned) main_clock % 1000000) / 1000);
-
-	/* FIXME get rid of master_clock global */
-	at91_master_clock = mck.rate_hz;
 
 #ifdef CONFIG_AT91_PROGRAMMABLE_CLOCKS
 	/* establish PCK0..PCK3 parentage */

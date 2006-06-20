@@ -300,21 +300,22 @@ config SERIAL_AMBA_PL011_CONSOLE
 	  kernel at boot time.)
 
 config SERIAL_AT91
-	bool "AT91RM9200 serial port support"
-	depends on ARM && ARCH_AT91RM9200
+	bool "AT91RM9200 / AT91SAM9261 serial port support"
+	depends on ARM && (ARCH_AT91RM9200 || ARCH_AT91SAM9261)
 	select SERIAL_CORE
 	help
-	  This enables the driver for the on-chip UARTs of the AT91RM9200
-	  processor.
+	  This enables the driver for the on-chip UARTs of the Atmel
+	  AT91RM9200 and AT91SAM926 processor.
 
 config SERIAL_AT91_CONSOLE
-	bool "Support for console on AT91RM9200 serial port"
+	bool "Support for console on AT91RM9200 / AT91SAM9261 serial port"
 	depends on SERIAL_AT91=y
 	select SERIAL_CORE_CONSOLE
 	help
-	  Say Y here if you wish to use a UART on the AT91RM9200 as the system
-	  console (the system console is the device which receives all kernel
-	  messages and warnings and which allows logins in single user mode).
+	  Say Y here if you wish to use a UART on the Atmel AT91RM9200 or
+	  AT91SAM9261 as the system console (the system console is the device
+	  which receives all kernel messages and warnings and which allows
+	  logins in single user mode).
 
 config SERIAL_AT91_TTYAT
 	bool "Install as device ttyAT0-4 instead of ttyS0-4"

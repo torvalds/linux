@@ -17,6 +17,7 @@
 #include <asm/mach/map.h>
 
 #include <asm/arch/hardware.h>
+#include "generic.h"
 
 static struct map_desc at91rm9200_io_desc[] __initdata = {
 	{
@@ -94,6 +95,11 @@ static struct map_desc at91rm9200_io_desc[] __initdata = {
 		.pfn		= __phys_to_pfn(AT91_BASE_TCB0),
 		.length		= SZ_16K,
 		.type		= MT_DEVICE,
+	}, {
+		.virtual	= AT91_SRAM_VIRT_BASE,
+		.pfn		= __phys_to_pfn(AT91_SRAM_BASE),
+		.length		= AT91_SRAM_SIZE,
+		.type		= MT_DEVICE,
 	},
 };
 
@@ -102,14 +108,3 @@ void __init at91rm9200_map_io(void)
 	iotable_init(at91rm9200_io_desc, ARRAY_SIZE(at91rm9200_io_desc));
 }
 
-
-unsigned long at91_master_clock;
-
-EXPORT_SYMBOL(at91_master_clock);
-
-
-int at91_serial_map[AT91_NR_UART];
-int at91_console_port;
-
-EXPORT_SYMBOL(at91_serial_map);
-EXPORT_SYMBOL(at91_console_port);
