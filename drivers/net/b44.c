@@ -1450,6 +1450,41 @@ static void b44_poll_controller(struct net_device *dev)
 }
 #endif
 
+
+static void b44_setup_wol(struct b44 *bp)
+{
+	u32 val;
+	u16 pmval;
+
+	bw32(bp, B44_RXCONFIG, RXCONFIG_ALLMULTI);
+
+	if (bp->flags & B44_FLAG_B0_ANDLATER) {
+
+		bw32(bp, B44_WKUP_LEN, WKUP_LEN_DISABLE);
+
+		val = bp->dev->dev_addr[2] << 24 |
+			bp->dev->dev_addr[3] << 16 |
+			bp->dev->dev_addr[4] << 8 |
+			bp->dev->dev_addr[5];
+		bw32(bp, B44_ADDR_LO, val);
+
+		val = bp->dev->dev_addr[0] << 8 |
+			bp->dev->dev_addr[1];
+		bw32(bp, B44_ADDR_HI, val);
+
+		val = br32(bp, B44_DEVCTRL);
+		bw32(bp, B44_DEVCTRL, val | DEVCTRL_MPM | DEVCTRL_PFE);
+
+	}
+
+	val = br32(bp, B44_SBTMSLOW);
+	bw32(bp, B44_SBTMSLOW, val | SBTMSLOW_PE);
+
+	pci_read_config_word(bp->pdev, SSB_PMCSR, &pmval);
+	pci_write_config_word(bp->pdev, SSB_PMCSR, pmval | SSB_PE);
+
+}
+
 static int b44_close(struct net_device *dev)
 {
 	struct b44 *bp = netdev_priv(dev);
@@ -1474,6 +1509,11 @@ static int b44_close(struct net_device *dev)
 	free_irq(dev->irq, dev);
 
 	netif_poll_enable(dev);
+
+	if (bp->flags & B44_FLAG_WOL_ENABLE) {
+		b44_init_hw(bp);
+		b44_setup_wol(bp);
+	}
 
 	b44_free_consistent(bp);
 
@@ -1831,12 +1871,40 @@ static void b44_get_ethtool_stats(struct net_device *dev,
 	spin_unlock_irq(&bp->lock);
 }
 
+static void b44_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
+{
+	struct b44 *bp = netdev_priv(dev);
+
+	wol->supported = WAKE_MAGIC;
+	if (bp->flags & B44_FLAG_WOL_ENABLE)
+		wol->wolopts = WAKE_MAGIC;
+	else
+		wol->wolopts = 0;
+	memset(&wol->sopass, 0, sizeof(wol->sopass));
+}
+
+static int b44_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
+{
+	struct b44 *bp = netdev_priv(dev);
+
+	spin_lock_irq(&bp->lock);
+	if (wol->wolopts & WAKE_MAGIC)
+		bp->flags |= B44_FLAG_WOL_ENABLE;
+	else
+		bp->flags &= ~B44_FLAG_WOL_ENABLE;
+	spin_unlock_irq(&bp->lock);
+
+	return 0;
+}
+
 static struct ethtool_ops b44_ethtool_ops = {
 	.get_drvinfo		= b44_get_drvinfo,
 	.get_settings		= b44_get_settings,
 	.set_settings		= b44_set_settings,
 	.nway_reset		= b44_nway_reset,
 	.get_link		= ethtool_op_get_link,
+	.get_wol		= b44_get_wol,
+	.set_wol		= b44_set_wol,
 	.get_ringparam		= b44_get_ringparam,
 	.set_ringparam		= b44_set_ringparam,
 	.get_pauseparam		= b44_get_pauseparam,
@@ -1915,6 +1983,10 @@ static int __devinit b44_get_invariants(struct b44 *bp)
 	/* XXX - really required?
 	   bp->flags |= B44_FLAG_BUGGY_TXPTR;
          */
+
+ 	if (ssb_get_core_rev(bp) >= 7)
+ 		bp->flags |= B44_FLAG_B0_ANDLATER;
+
 out:
 	return err;
 }
@@ -2115,6 +2187,10 @@ static int b44_suspend(struct pci_dev *pdev, pm_message_t state)
 	spin_unlock_irq(&bp->lock);
 
 	free_irq(dev->irq, dev);
+	if (bp->flags & B44_FLAG_WOL_ENABLE) {
+		b44_init_hw(bp);
+		b44_setup_wol(bp);
+	}
 	pci_disable_device(pdev);
 	return 0;
 }

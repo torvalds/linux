@@ -264,6 +264,8 @@
 #define  SBIDHIGH_VC_SHIFT	16
 
 /* SSB PCI config space registers.  */
+#define SSB_PMCSR		0x44
+#define  SSB_PE			0x100
 #define	SSB_BAR0_WIN		0x80
 #define	SSB_BAR1_WIN		0x84
 #define	SSB_SPROM_CONTROL	0x88
@@ -420,6 +422,7 @@ struct b44 {
 
 	u32			dma_offset;
 	u32			flags;
+#define B44_FLAG_B0_ANDLATER	0x00000001
 #define B44_FLAG_BUGGY_TXPTR	0x00000002
 #define B44_FLAG_REORDER_BUG	0x00000004
 #define B44_FLAG_PAUSE_AUTO	0x00008000
@@ -435,6 +438,7 @@ struct b44 {
 #define B44_FLAG_INTERNAL_PHY	0x10000000
 #define B44_FLAG_RX_RING_HACK	0x20000000
 #define B44_FLAG_TX_RING_HACK	0x40000000
+#define B44_FLAG_WOL_ENABLE	0x80000000
 
 	u32			rx_offset;
 
