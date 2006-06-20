@@ -844,7 +844,7 @@ static unsigned int pci_sun4v_irq_build(struct pci_pbm_info *pbm,
 {
 	u32 devhandle = pbm->devhandle;
 
-	return sun4v_build_irq(devhandle, devino, IBF_PCI);
+	return sun4v_build_irq(devhandle, devino);
 }
 
 static void pci_sun4v_base_address_update(struct pci_dev *pdev, int resource)

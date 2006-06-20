@@ -821,7 +821,7 @@ unsigned int sbus_build_irq(void *buscookie, unsigned int ino)
 
 		iclr += ((unsigned long)sbus_level - 1UL) * 8UL;
 	}
-	return build_irq(sbus_level, iclr, imap, 0);
+	return build_irq(sbus_level, iclr, imap);
 }
 
 /* Error interrupt handling. */

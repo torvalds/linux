@@ -308,7 +308,7 @@ static unsigned int psycho_irq_build(struct pci_pbm_info *pbm,
 	if ((ino & 0x20) == 0)
 		inofixup = ino & 0x03;
 
-	return build_irq(inofixup, iclr, imap, IBF_PCI);
+	return build_irq(inofixup, iclr, imap);
 }
 
 /* PSYCHO error handling support. */

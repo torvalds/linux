@@ -157,7 +157,7 @@ unsigned int sun4v_vdev_device_interrupt(unsigned int dev_node)
 		return 0;
 	}
 
-	return sun4v_build_irq(sun4v_vdev_devhandle, irq, 0);
+	return sun4v_build_irq(sun4v_vdev_devhandle, irq);
 }
 
 static const char *cpu_mid_prop(void)

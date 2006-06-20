@@ -432,7 +432,7 @@ do_ivec:
 	membar		#Sync
 
 	sethi		%hi(ivector_table), %g2
-	sllx		%g3, 5, %g3
+	sllx		%g3, 3, %g3
 	or		%g2, %lo(ivector_table), %g2
 	add		%g2, %g3, %g3
 

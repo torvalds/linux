@@ -530,7 +530,7 @@ static unsigned long __onboard_imap_off[] = {
  * side of the non-APB bridge, then perform a read of Sabre's DMA
  * write-sync register.
  */
-static void sabre_wsync_handler(struct ino_bucket *bucket, void *_arg1, void *_arg2)
+static void sabre_wsync_handler(unsigned int ino, void *_arg1, void *_arg2)
 {
 	struct pci_dev *pdev = _arg1;
 	unsigned long sync_reg = (unsigned long) _arg2;
@@ -573,7 +573,7 @@ static unsigned int sabre_irq_build(struct pci_pbm_info *pbm,
 	if ((ino & 0x20) == 0)
 		inofixup = ino & 0x03;
 
-	virt_irq = build_irq(inofixup, iclr, imap, IBF_PCI);
+	virt_irq = build_irq(inofixup, iclr, imap);
 
 	if (pdev) {
 		struct pcidev_cookie *pcp = pdev->sysdata;

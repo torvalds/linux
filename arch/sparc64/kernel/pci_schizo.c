@@ -232,10 +232,10 @@ static unsigned long schizo_iclr_offset(unsigned long ino)
 	return SCHIZO_ICLR_BASE + (ino * 8UL);
 }
 
-static void tomatillo_wsync_handler(struct ino_bucket *bucket, void *_arg1, void *_arg2)
+static void tomatillo_wsync_handler(unsigned int ino, void *_arg1, void *_arg2)
 {
 	unsigned long sync_reg = (unsigned long) _arg2;
-	u64 mask = 1UL << (__irq_ino(__irq(bucket)) & IMAP_INO);
+	u64 mask = 1UL << (ino & IMAP_INO);
 	u64 val;
 	int limit;
 
@@ -313,7 +313,7 @@ static unsigned int schizo_irq_build(struct pci_pbm_info *pbm,
 			ign_fixup = (1 << 6);
 	}
 
-	virt_irq = build_irq(ign_fixup, iclr, imap, IBF_PCI);
+	virt_irq = build_irq(ign_fixup, iclr, imap);
 
 	if (pdev && pbm->chip_type == PBM_CHIP_TYPE_TOMATILLO) {
 		irq_install_pre_handler(virt_irq,

@@ -103,7 +103,7 @@ sun4v_dev_mondo:
 
 	/* Get &ivector_table[IVEC] into %g4.  */
 	sethi	%hi(ivector_table), %g4
-	sllx	%g3, 5, %g3
+	sllx	%g3, 3, %g3
 	or	%g4, %lo(ivector_table), %g4
 	add	%g4, %g3, %g4
 

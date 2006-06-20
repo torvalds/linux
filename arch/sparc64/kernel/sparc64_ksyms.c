@@ -175,10 +175,6 @@ EXPORT_SYMBOL(set_bit);
 EXPORT_SYMBOL(clear_bit);
 EXPORT_SYMBOL(change_bit);
 
-EXPORT_SYMBOL(ivector_table);
-EXPORT_SYMBOL(enable_irq);
-EXPORT_SYMBOL(disable_irq);
-
 EXPORT_SYMBOL(__flushw_user);
 
 EXPORT_SYMBOL(tlb_type);
