@@ -69,7 +69,11 @@ extern void __set_fixmap (enum fixed_addresses idx,
  * the start of the fixmap, and leave one page empty
  * at the top of mem..
  */
+#if defined(CONFIG_CPU_TX39XX) || defined(CONFIG_CPU_TX49XX)
+#define FIXADDR_TOP	(0xff000000UL - 0x2000)
+#else
 #define FIXADDR_TOP	(0xffffe000UL)
+#endif
 #define FIXADDR_SIZE	(__end_of_fixed_addresses << PAGE_SHIFT)
 #define FIXADDR_START	(FIXADDR_TOP - FIXADDR_SIZE)
 
