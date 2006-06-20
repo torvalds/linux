@@ -8,9 +8,9 @@
 
 
 /*** Version/name ***/
-#define INTELFB_VERSION			"0.9.2"
+#define INTELFB_VERSION			"0.9.4"
 #define INTELFB_MODULE_NAME		"intelfb"
-#define SUPPORTED_CHIPSETS		"830M/845G/852GM/855GM/865G/915G/915GM"
+#define SUPPORTED_CHIPSETS		"830M/845G/852GM/855GM/865G/915G/915GM/945G/945GM"
 
 
 /*** Debug/feature defines ***/
@@ -52,11 +52,14 @@
 #define PCI_DEVICE_ID_INTEL_865G	0x2572
 #define PCI_DEVICE_ID_INTEL_915G	0x2582
 #define PCI_DEVICE_ID_INTEL_915GM	0x2592
+#define PCI_DEVICE_ID_INTEL_945G	0x2772
+#define PCI_DEVICE_ID_INTEL_945GM	0x27A2
 
 /* Size of MMIO region */
 #define INTEL_REG_SIZE			0x80000
 
 #define STRIDE_ALIGNMENT		16
+#define STRIDE_ALIGNMENT_I9XX		64
 
 #define PALETTE_8_ENTRIES		256
 
@@ -125,7 +128,9 @@ enum intel_chips {
 	INTEL_855GME,
 	INTEL_865G,
 	INTEL_915G,
-	INTEL_915GM
+	INTEL_915GM,
+	INTEL_945G,
+	INTEL_945GM,
 };
 
 struct intelfb_hwstate {
@@ -277,7 +282,12 @@ struct intelfb_info {
 
 	/* driver registered */
 	int registered;
+	
+	/* index into plls */
+	int pll_index;
 };
+
+#define IS_I9XX(dinfo) (((dinfo)->chipset == INTEL_915G)||(dinfo->chipset == INTEL_915GM)||((dinfo)->chipset == INTEL_945G)||(dinfo->chipset==INTEL_945GM))
 
 /*** function prototypes ***/
 
