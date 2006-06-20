@@ -16,3 +16,10 @@ extern struct sys_timer at91rm9200_timer;
 extern void __init at91rm9200_map_io(void);
 
 extern int __init at91_clock_init(unsigned long main_clock);
+struct device;
+extern void __init at91_clock_associate(const char *id, struct device *dev, const char *func);
+
+ /* Power Management */
+extern void at91_irq_suspend(void);
+extern void at91_irq_resume(void);
+
