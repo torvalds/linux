@@ -255,7 +255,8 @@ void ipoib_event(struct ib_event_handler *handler,
 	    record->event == IB_EVENT_PKEY_CHANGE ||
 	    record->event == IB_EVENT_PORT_ACTIVE ||
 	    record->event == IB_EVENT_LID_CHANGE  ||
-	    record->event == IB_EVENT_SM_CHANGE) {
+	    record->event == IB_EVENT_SM_CHANGE   ||
+	    record->event == IB_EVENT_CLIENT_REREGISTER) {
 		ipoib_dbg(priv, "Port state change event\n");
 		queue_work(ipoib_workqueue, &priv->flush_task);
 	}

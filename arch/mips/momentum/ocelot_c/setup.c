@@ -231,7 +231,7 @@ void momenco_time_init(void)
 	rtc_mips_set_time = m48t37y_set_time;
 }
 
-void __init plat_setup(void)
+void __init plat_mem_setup(void)
 {
 	unsigned int tmpword;
 

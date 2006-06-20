@@ -17,7 +17,7 @@
 /* media enumeration - defined in a way that it fits onto the LAN/A's
    POS registers... */
 
-typedef enum { 
+typedef enum {
 	Media_10BaseT, Media_10Base5,
 	Media_Unknown, Media_10Base2, Media_Count
 } ibmlana_medium;
@@ -27,7 +27,7 @@ typedef enum {
 typedef struct {
 	unsigned int slot;		/* MCA-Slot-#                       */
 	struct net_device_stats stat;	/* packet statistics            */
-	int realirq;			/* memorizes actual IRQ, even when 
+	int realirq;			/* memorizes actual IRQ, even when
 					   currently not allocated          */
 	ibmlana_medium medium;		/* physical cannector               */
 	u32 	tdastart, txbufstart,	/* addresses                        */
@@ -41,7 +41,7 @@ typedef struct {
 	spinlock_t lock;
 } ibmlana_priv;
 
-/* this card uses quite a lot of I/O ports...luckily the MCA bus decodes 
+/* this card uses quite a lot of I/O ports...luckily the MCA bus decodes
    a full 64K I/O range... */
 
 #define IBM_LANA_IORANGE 0xa0

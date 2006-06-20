@@ -118,6 +118,27 @@ void selinux_get_ipc_sid(const struct kern_ipc_perm *ipcp, u32 *sid);
  */
 void selinux_get_task_sid(struct task_struct *tsk, u32 *sid);
 
+/**
+ *     selinux_string_to_sid - map a security context string to a security ID
+ *     @str: the security context string to be mapped
+ *     @sid: ID value returned via this.
+ *
+ *     Returns 0 if successful, with the SID stored in sid.  A value
+ *     of zero for sid indicates no SID could be determined (but no error
+ *     occurred).
+ */
+int selinux_string_to_sid(char *str, u32 *sid);
+
+/**
+ *     selinux_relabel_packet_permission - check permission to relabel a packet
+ *     @sid: ID value to be applied to network packet (via SECMARK, most likely)
+ *
+ *     Returns 0 if the current task is allowed to label packets with the
+ *     supplied security ID.  Note that it is implicit that the packet is always
+ *     being relabeled from the default unlabled value, and that the access
+ *     control decision is made in the AVC.
+ */
+int selinux_relabel_packet_permission(u32 sid);
 
 #else
 
@@ -170,6 +191,17 @@ static inline void selinux_get_ipc_sid(const struct kern_ipc_perm *ipcp, u32 *si
 static inline void selinux_get_task_sid(struct task_struct *tsk, u32 *sid)
 {
 	*sid = 0;
+}
+
+static inline int selinux_string_to_sid(const char *str, u32 *sid)
+{
+       *sid = 0;
+       return 0;
+}
+
+static inline int selinux_relabel_packet_permission(u32 sid)
+{
+	return 0;
 }
 
 #endif	/* CONFIG_SECURITY_SELINUX */

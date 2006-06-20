@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   
-  Copyright(c) 1999 - 2005 Intel Corporation. All rights reserved.
+  Copyright(c) 1999 - 2006 Intel Corporation. All rights reserved.
   
   This program is free software; you can redistribute it and/or modify it 
   under the terms of the GNU General Public License as published by the Free 
@@ -22,6 +22,7 @@
   
   Contact Information:
   Linux NICS <linux.nics@intel.com>
+  e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
   Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 
 *******************************************************************************/
@@ -114,6 +115,8 @@ struct e1000_adapter;
 /* Supported Rx Buffer Sizes */
 #define E1000_RXBUFFER_128   128    /* Used for packet split */
 #define E1000_RXBUFFER_256   256    /* Used for packet split */
+#define E1000_RXBUFFER_512   512
+#define E1000_RXBUFFER_1024  1024
 #define E1000_RXBUFFER_2048  2048
 #define E1000_RXBUFFER_4096  4096
 #define E1000_RXBUFFER_8192  8192
@@ -334,7 +337,6 @@ struct e1000_adapter {
 	boolean_t have_msi;
 #endif
 	/* to not mess up cache alignment, always add to the bottom */
-	boolean_t txb2b;
 #ifdef NETIF_F_TSO
 	boolean_t tso_force;
 #endif

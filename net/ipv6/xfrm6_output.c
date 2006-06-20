@@ -14,67 +14,8 @@
 #include <linux/spinlock.h>
 #include <linux/icmpv6.h>
 #include <linux/netfilter_ipv6.h>
-#include <net/dsfield.h>
-#include <net/inet_ecn.h>
 #include <net/ipv6.h>
 #include <net/xfrm.h>
-
-/* Add encapsulation header.
- *
- * In transport mode, the IP header and mutable extension headers will be moved
- * forward to make space for the encapsulation header.
- *
- * In tunnel mode, the top IP header will be constructed per RFC 2401.
- * The following fields in it shall be filled in by x->type->output:
- *	payload_len
- *
- * On exit, skb->h will be set to the start of the encapsulation header to be
- * filled in by x->type->output and skb->nh will be set to the nextheader field
- * of the extension header directly preceding the encapsulation header, or in
- * its absence, that of the top IP header.  The value of skb->data will always
- * point to the top IP header.
- */
-static void xfrm6_encap(struct sk_buff *skb)
-{
-	struct dst_entry *dst = skb->dst;
-	struct xfrm_state *x = dst->xfrm;
-	struct ipv6hdr *iph, *top_iph;
-	int dsfield;
-
-	skb_push(skb, x->props.header_len);
-	iph = skb->nh.ipv6h;
-
-	if (!x->props.mode) {
-		u8 *prevhdr;
-		int hdr_len;
-
-		hdr_len = ip6_find_1stfragopt(skb, &prevhdr);
-		skb->nh.raw = prevhdr - x->props.header_len;
-		skb->h.raw = skb->data + hdr_len;
-		memmove(skb->data, iph, hdr_len);
-		return;
-	}
-
-	skb->nh.raw = skb->data;
-	top_iph = skb->nh.ipv6h;
-	skb->nh.raw = &top_iph->nexthdr;
-	skb->h.ipv6h = top_iph + 1;
-
-	top_iph->version = 6;
-	top_iph->priority = iph->priority;
-	top_iph->flow_lbl[0] = iph->flow_lbl[0];
-	top_iph->flow_lbl[1] = iph->flow_lbl[1];
-	top_iph->flow_lbl[2] = iph->flow_lbl[2];
-	dsfield = ipv6_get_dsfield(top_iph);
-	dsfield = INET_ECN_encapsulate(dsfield, dsfield);
-	if (x->props.flags & XFRM_STATE_NOECN)
-		dsfield &= ~INET_ECN_MASK;
-	ipv6_change_dsfield(top_iph, 0, dsfield);
-	top_iph->nexthdr = IPPROTO_IPV6; 
-	top_iph->hop_limit = dst_metric(dst->child, RTAX_HOPLIMIT);
-	ipv6_addr_copy(&top_iph->saddr, (struct in6_addr *)&x->props.saddr);
-	ipv6_addr_copy(&top_iph->daddr, (struct in6_addr *)&x->id.daddr);
-}
 
 static int xfrm6_tunnel_check_size(struct sk_buff *skb)
 {
@@ -118,7 +59,9 @@ static int xfrm6_output_one(struct sk_buff *skb)
 		if (err)
 			goto error;
 
-		xfrm6_encap(skb);
+		err = x->mode->output(skb);
+		if (err)
+			goto error;
 
 		err = x->type->output(x, skb);
 		if (err)

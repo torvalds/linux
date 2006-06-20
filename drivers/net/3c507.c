@@ -932,7 +932,7 @@ module_param(irq, int, 0);
 MODULE_PARM_DESC(io, "EtherLink16 I/O base address");
 MODULE_PARM_DESC(irq, "(ignored)");
 
-int init_module(void)
+int __init init_module(void)
 {
 	if (io == 0)
 		printk("3c507: You should not use auto-probing with insmod!\n");

@@ -54,7 +54,7 @@ enum {
 /*
  * If an FMR is not in use, then the list member will point to either
  * its pool's free_list (if the FMR can be mapped again; that is,
- * remap_count < IB_FMR_MAX_REMAPS) or its pool's dirty_list (if the
+ * remap_count < pool->max_remaps) or its pool's dirty_list (if the
  * FMR needs to be unmapped before being remapped).  In either of
  * these cases it is a bug if the ref_count is not 0.  In other words,
  * if ref_count is > 0, then the list member must not be linked into
@@ -84,6 +84,7 @@ struct ib_fmr_pool {
 
 	int                       pool_size;
 	int                       max_pages;
+	int			  max_remaps;
 	int                       dirty_watermark;
 	int                       dirty_len;
 	struct list_head          free_list;
@@ -214,8 +215,10 @@ struct ib_fmr_pool *ib_create_fmr_pool(struct ib_pd             *pd,
 {
 	struct ib_device   *device;
 	struct ib_fmr_pool *pool;
+	struct ib_device_attr *attr;
 	int i;
 	int ret;
+	int max_remaps;
 
 	if (!params)
 		return ERR_PTR(-EINVAL);
@@ -227,6 +230,26 @@ struct ib_fmr_pool *ib_create_fmr_pool(struct ib_pd             *pd,
 		       device->name);
 		return ERR_PTR(-ENOSYS);
 	}
+
+	attr = kmalloc(sizeof *attr, GFP_KERNEL);
+	if (!attr) {
+		printk(KERN_WARNING "couldn't allocate device attr struct");
+		return ERR_PTR(-ENOMEM);
+	}
+
+	ret = ib_query_device(device, attr);
+	if (ret) {
+		printk(KERN_WARNING "couldn't query device");
+		kfree(attr);
+		return ERR_PTR(ret);
+	}
+
+	if (!attr->max_map_per_fmr)
+		max_remaps = IB_FMR_MAX_REMAPS;
+	else
+		max_remaps = attr->max_map_per_fmr;
+
+	kfree(attr);
 
 	pool = kmalloc(sizeof *pool, GFP_KERNEL);
 	if (!pool) {
@@ -258,6 +281,7 @@ struct ib_fmr_pool *ib_create_fmr_pool(struct ib_pd             *pd,
 
 	pool->pool_size       = 0;
 	pool->max_pages       = params->max_pages_per_fmr;
+	pool->max_remaps      = max_remaps;
 	pool->dirty_watermark = params->dirty_watermark;
 	pool->dirty_len       = 0;
 	spin_lock_init(&pool->pool_lock);
@@ -279,7 +303,7 @@ struct ib_fmr_pool *ib_create_fmr_pool(struct ib_pd             *pd,
 		struct ib_pool_fmr *fmr;
 		struct ib_fmr_attr attr = {
 			.max_pages  = params->max_pages_per_fmr,
-			.max_maps   = IB_FMR_MAX_REMAPS,
+			.max_maps   = pool->max_remaps,
 			.page_shift = params->page_shift
 		};
 
@@ -489,7 +513,7 @@ int ib_fmr_pool_unmap(struct ib_pool_fmr *fmr)
 
 	--fmr->ref_count;
 	if (!fmr->ref_count) {
-		if (fmr->remap_count < IB_FMR_MAX_REMAPS) {
+		if (fmr->remap_count < pool->max_remaps) {
 			list_add_tail(&fmr->list, &pool->free_list);
 		} else {
 			list_add_tail(&fmr->list, &pool->dirty_list);

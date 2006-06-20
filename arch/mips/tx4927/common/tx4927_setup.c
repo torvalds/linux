@@ -64,7 +64,7 @@ static void tx4927_write_buffer_flush(void)
 }
 
 
-void __init plat_setup(void)
+void __init plat_mem_setup(void)
 {
 	board_time_init = tx4927_time_init;
 	board_timer_setup = tx4927_timer_setup;

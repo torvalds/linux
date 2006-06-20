@@ -282,7 +282,7 @@ static void llc_sap_rcv(struct llc_sap *sap, struct sk_buff *skb)
  *	mac, and local sap. Returns pointer for socket found, %NULL otherwise.
  */
 static struct sock *llc_lookup_dgram(struct llc_sap *sap,
-				     struct llc_addr *laddr)
+				     const struct llc_addr *laddr)
 {
 	struct sock *rc;
 	struct hlist_node *node;
@@ -304,19 +304,62 @@ found:
 	return rc;
 }
 
+/**
+ * 	llc_sap_mcast - Deliver multicast PDU's to all matching datagram sockets.
+ *	@sap: SAP
+ *	@laddr: address of local LLC (MAC + SAP)
+ *
+ *	Search socket list of the SAP and finds connections with same sap.
+ *	Deliver clone to each.
+ */
+static void llc_sap_mcast(struct llc_sap *sap,
+			  const struct llc_addr *laddr,
+			  struct sk_buff *skb)
+{
+	struct sock *sk;
+	struct hlist_node *node;
+
+	read_lock_bh(&sap->sk_list.lock);
+	sk_for_each(sk, node, &sap->sk_list.list) {
+		struct llc_sock *llc = llc_sk(sk);
+		struct sk_buff *skb1;
+
+		if (sk->sk_type != SOCK_DGRAM)
+			continue;
+
+		if (llc->laddr.lsap != laddr->lsap)
+			continue;
+
+		skb1 = skb_clone(skb, GFP_ATOMIC);
+		if (!skb1)
+			break;
+
+		sock_hold(sk);
+		skb_set_owner_r(skb1, sk);
+		llc_sap_rcv(sap, skb1);
+		sock_put(sk);
+	}
+	read_unlock_bh(&sap->sk_list.lock);
+}
+
+
 void llc_sap_handler(struct llc_sap *sap, struct sk_buff *skb)
 {
 	struct llc_addr laddr;
-	struct sock *sk;
 
 	llc_pdu_decode_da(skb, laddr.mac);
 	llc_pdu_decode_dsap(skb, &laddr.lsap);
 
-	sk = llc_lookup_dgram(sap, &laddr);
-	if (sk) {
-		skb_set_owner_r(skb, sk);
-		llc_sap_rcv(sap, skb);
-		sock_put(sk);
-	} else
+	if (llc_mac_multicast(laddr.mac)) {
+		llc_sap_mcast(sap, &laddr, skb);
 		kfree_skb(skb);
+	} else {
+		struct sock *sk = llc_lookup_dgram(sap, &laddr);
+		if (sk) {
+			skb_set_owner_r(skb, sk);
+			llc_sap_rcv(sap, skb);
+			sock_put(sk);
+		} else
+			kfree_skb(skb);
+	}
 }

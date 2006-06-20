@@ -107,6 +107,7 @@ ieee80211softmac_auth_queue(void *data)
 	printkl(KERN_WARNING PFX "Authentication timed out with "MAC_FMT"\n", MAC_ARG(net->bssid));
 	/* Remove this item from the queue */
 	spin_lock_irqsave(&mac->lock, flags);
+	net->authenticating = 0;
 	ieee80211softmac_call_events_locked(mac, IEEE80211SOFTMAC_EVENT_AUTH_TIMEOUT, net);
 	cancel_delayed_work(&auth->work); /* just to make sure... */
 	list_del(&auth->list);
@@ -212,13 +213,13 @@ ieee80211softmac_auth_resp(struct net_device *dev, struct ieee80211_auth *auth)
 			aq->state = IEEE80211SOFTMAC_AUTH_SHARED_RESPONSE; 
 			spin_unlock_irqrestore(&mac->lock, flags);
 
-			/* Switch to correct channel for this network */
-			mac->set_channel(mac->dev, net->channel);
-			
-			/* Send our response (How to encrypt?) */
+			/* Send our response */
 			ieee80211softmac_send_mgt_frame(mac, aq->net, IEEE80211_STYPE_AUTH, aq->state);
-			break;
+			return 0;
 		case IEEE80211SOFTMAC_AUTH_SHARED_PASS:
+			kfree(net->challenge);
+			net->challenge = NULL;
+			net->challenge_len = 0;
 			/* Check the status code of the response */
 			switch(auth->status) {
 			case WLAN_STATUS_SUCCESS:
@@ -229,6 +230,7 @@ ieee80211softmac_auth_resp(struct net_device *dev, struct ieee80211_auth *auth)
 				spin_unlock_irqrestore(&mac->lock, flags);
 				printkl(KERN_NOTICE PFX "Shared Key Authentication completed with "MAC_FMT"\n", 
 					MAC_ARG(net->bssid));
+				ieee80211softmac_call_events(mac, IEEE80211SOFTMAC_EVENT_AUTHENTICATED, net);
 				break;
 			default:
 				printkl(KERN_NOTICE PFX "Shared Key Authentication with "MAC_FMT" failed, error code: %i\n", 
@@ -278,6 +280,9 @@ ieee80211softmac_deauth_from_net(struct ieee80211softmac_device *mac,
 	struct ieee80211softmac_auth_queue_item *aq = NULL;
 	struct list_head *list_ptr;
 	unsigned long flags;
+
+	/* deauthentication implies disassociation */
+	ieee80211softmac_disassoc(mac);
 
 	/* Lock and reset status flags */
 	spin_lock_irqsave(&mac->lock, flags);

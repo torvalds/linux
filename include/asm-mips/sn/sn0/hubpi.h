@@ -398,24 +398,6 @@ typedef u64	rtc_time_t;
 
 /* PI_RT_FILTER_CTRL mask and shift definitions */
 
-#if 0
-/*
- * XXX - This register's definition has changed, but it's only implemented
- * in Hub 2.
- */
-#define PRFC_DROP_COUNT_SHFT	27
-#define PRFC_DROP_COUNT_MASK	(UINT64_CAST 0x3ff << 27)
-#define PRFC_DROP_CTR_SHFT	18
-#define PRFC_DROP_CTR_MASK	(UINT64_CAST 0x1ff << 18)
-#define PRFC_MASK_ENABLE_SHFT	10
-#define PRFC_MASK_ENABLE_MASK	(UINT64_CAST 0x7f << 10)
-#define PRFC_MASK_CTR_SHFT	2
-#define PRFC_MASK_CTR_MASK	(UINT64_CAST 0xff << 2)
-#define PRFC_OFFSET_SHFT	0
-#define PRFC_OFFSET_MASK	(UINT64_CAST 3)
-#endif /* 0 */
-
-
 /*
  * Bits for NACK_CNT_A/B and NACK_CMP
  */

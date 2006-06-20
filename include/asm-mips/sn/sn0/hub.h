@@ -31,10 +31,6 @@
 #include <asm/sn/sn0/hubni.h>
 //#include <asm/sn/sn0/hubcore.h>
 
-#ifdef SABLE
-#define IP27_NO_HUBUART_INT	1
-#endif
-
 /* Translation of uncached attributes */
 #define	UATTR_HSPEC	0
 #define	UATTR_IO	1

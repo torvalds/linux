@@ -56,13 +56,7 @@ void __init prom_init(void)
 
 	mips_machgroup = MACH_GROUP_NEC_DDB;
 
-#if defined(CONFIG_DDB5074)
-	mips_machtype = MACH_NEC_DDB5074;
-	add_memory_region(0, DDB_SDRAM_SIZE, BOOT_MEM_RAM);
-#elif defined(CONFIG_DDB5476)
-	mips_machtype = MACH_NEC_DDB5476;
-	add_memory_region(0, DDB_SDRAM_SIZE, BOOT_MEM_RAM);
-#elif defined(CONFIG_DDB5477)
+#if defined(CONFIG_DDB5477)
 	ddb5477_runtime_detection();
 	add_memory_region(0, board_ram_size, BOOT_MEM_RAM);
 #endif
