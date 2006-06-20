@@ -900,6 +900,8 @@ intelfb_pci_register(struct pci_dev *pdev, const struct pci_device_id *ent)
 	init_waitqueue_head(&dinfo->vsync.wait);
 	spin_lock_init(&dinfo->int_lock);
 	dinfo->irq_flags = 0;
+	dinfo->vsync.pan_display = 0;
+	dinfo->vsync.pan_offset = 0;
 
 	return 0;
 

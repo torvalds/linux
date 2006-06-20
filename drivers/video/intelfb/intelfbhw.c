@@ -371,7 +371,13 @@ intelfbhw_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 
 	offset += dinfo->fb.offset << 12;
 
-	OUTREG(DSPABASE, offset);
+	dinfo->vsync.pan_offset = offset;
+	if ((var->activate & FB_ACTIVATE_VBL) && !intelfbhw_enable_irq(dinfo, 0)) {
+		dinfo->vsync.pan_display = 1;
+	} else {
+		dinfo->vsync.pan_display = 0;
+		OUTREG(DSPABASE, offset);
+	}
 
 	return 0;
 }
@@ -1965,6 +1971,10 @@ intelfbhw_irq(int irq, void *dev_id, struct pt_regs *fp) {
 
 	if (tmp & VSYNC_PIPE_A_INTERRUPT) {
 		dinfo->vsync.count++;
+		if (dinfo->vsync.pan_display) {
+			dinfo->vsync.pan_display = 0;
+			OUTREG(DSPABASE, dinfo->vsync.pan_offset);
+		}
 		wake_up_interruptible(&dinfo->vsync.wait);
 		handled = 1;
 	}
@@ -2007,6 +2017,10 @@ intelfbhw_disable_irq(struct intelfb_info *dinfo) {
 	u16 tmp;
 
 	if (test_and_clear_bit(0, &dinfo->irq_flags)) {
+		if (dinfo->vsync.pan_display) {
+			dinfo->vsync.pan_display = 0;
+			OUTREG(DSPABASE, dinfo->vsync.pan_offset);
+		}
 		spin_lock_irq(&dinfo->int_lock);
 		OUTREG16(HWSTAM, 0xffff);
 		OUTREG16(IMR, 0xffff);

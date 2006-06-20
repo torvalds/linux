@@ -211,6 +211,8 @@ struct intelfb_heap_data {
 struct intelfb_vsync {
 	wait_queue_head_t wait;
 	unsigned int count;
+	int pan_display;
+	u32 pan_offset;
 };
 
 struct intelfb_info {
