@@ -633,23 +633,22 @@ static void process_bucket(struct ino_bucket *bp, struct pt_regs *regs)
 		if (!action_mask)
 			break;
 	}
-	if (bp->pil != 0) {
-		if (tlb_type == hypervisor) {
-			unsigned int ino = __irq_ino(bp);
-			int err;
 
-			err = sun4v_intr_setstate(ino, HV_INTR_STATE_IDLE);
-			if (err != HV_EOK)
-				printk("sun4v_intr_setstate(%x): "
-				       "err(%d)\n", ino, err);
-		} else {
-			upa_writel(ICLR_IDLE, bp->iclr);
-		}
+	if (tlb_type == hypervisor) {
+		unsigned int ino = __irq_ino(bp);
+		int err;
 
-		/* Test and add entropy */
-		if (random & SA_SAMPLE_RANDOM)
-			add_interrupt_randomness(bp->pil);
+		err = sun4v_intr_setstate(ino, HV_INTR_STATE_IDLE);
+		if (err != HV_EOK)
+			printk("sun4v_intr_setstate(%x): "
+			       "err(%d)\n", ino, err);
+	} else {
+		upa_writel(ICLR_IDLE, bp->iclr);
 	}
+
+	/* Test and add entropy */
+	if (random & SA_SAMPLE_RANDOM)
+		add_interrupt_randomness(bp->pil);
 out:
 	bp->flags &= ~IBF_INPROGRESS;
 }
