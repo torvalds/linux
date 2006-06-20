@@ -22,6 +22,7 @@
 #include <asm/estate.h>
 #include <asm/auxio.h>
 #include <asm/sfafsr.h>
+#include <asm/pil.h>
 
 #define curptr      g6
 
@@ -434,17 +435,13 @@ do_ivec:
 	sllx		%g3, 5, %g3
 	or		%g2, %lo(ivector_table), %g2
 	add		%g2, %g3, %g3
-	ldub		[%g3 + 0x04], %g4	/* pil */
-	mov		1, %g2
-	sllx		%g2, %g4, %g2
-	sllx		%g4, 2, %g4
 
 	TRAP_LOAD_IRQ_WORK(%g6, %g1)
 
-	lduw		[%g6 + %g4], %g5	/* g5 = irq_work(cpu, pil) */
+	lduw		[%g6], %g5		/* g5 = irq_work(cpu) */
 	stw		%g5, [%g3 + 0x00]	/* bucket->irq_chain = g5 */
-	stw		%g3, [%g6 + %g4]	/* irq_work(cpu, pil) = bucket */
-	wr		%g2, 0x0, %set_softint
+	stw		%g3, [%g6]		/* irq_work(cpu) = bucket */
+	wr		%g0, 1 << PIL_DEVICE_IRQ, %set_softint
 	retry
 do_ivec_xcall:
 	mov		0x50, %g1

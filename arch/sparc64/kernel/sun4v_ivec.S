@@ -5,6 +5,7 @@
 
 #include <asm/cpudata.h>
 #include <asm/intr_queue.h>
+#include <asm/pil.h>
 
 	.text
 	.align	32
@@ -106,19 +107,13 @@ sun4v_dev_mondo:
 	or	%g4, %lo(ivector_table), %g4
 	add	%g4, %g3, %g4
 
-	/* Load IRQ %pil into %g5.  */
-	ldub	[%g4 + 0x04], %g5
-
 	/* Insert ivector_table[] entry into __irq_work[] queue.  */
-	sllx	%g5, 2, %g3
-	lduw	[%g1 + %g3], %g2	/* g2 = irq_work(cpu, pil) */
+	lduw	[%g1], %g2		/* g2 = irq_work(cpu) */
 	stw	%g2, [%g4 + 0x00]	/* bucket->irq_chain = g2 */
-	stw	%g4, [%g1 + %g3]	/* irq_work(cpu, pil) = bucket */
+	stw	%g4, [%g1]		/* irq_work(cpu) = bucket */
 
 	/* Signal the interrupt by setting (1 << pil) in %softint.  */
-	mov	1, %g2
-	sllx	%g2, %g5, %g2
-	wr	%g2, 0x0, %set_softint
+	wr	%g0, 1 << PIL_DEVICE_IRQ, %set_softint
 
 sun4v_dev_mondo_queue_empty:
 	retry
