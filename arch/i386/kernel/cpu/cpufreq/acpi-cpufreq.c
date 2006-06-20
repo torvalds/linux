@@ -104,7 +104,7 @@ acpi_processor_set_performance (
 {
 	u16			port = 0;
 	u8			bit_width = 0;
-	int			ret = 0;
+	int			ret;
 	u32			value = 0;
 	int			i = 0;
 	struct cpufreq_freqs    cpufreq_freqs;
@@ -195,7 +195,6 @@ acpi_processor_set_performance (
 			udelay(10);
 		}
 	} else {
-		i = 0;
 		value = (u32) data->acpi_data.states[state].status;
 	}
 
@@ -444,14 +443,15 @@ static struct freq_attr* acpi_cpufreq_attr[] = {
 };
 
 static struct cpufreq_driver acpi_cpufreq_driver = {
-	.verify 	= acpi_cpufreq_verify,
-	.target 	= acpi_cpufreq_target,
-	.init		= acpi_cpufreq_cpu_init,
-	.exit		= acpi_cpufreq_cpu_exit,
-	.resume		= acpi_cpufreq_resume,
-	.name		= "acpi-cpufreq",
-	.owner		= THIS_MODULE,
-	.attr           = acpi_cpufreq_attr,
+	.verify	= acpi_cpufreq_verify,
+	.target	= acpi_cpufreq_target,
+	.init	= acpi_cpufreq_cpu_init,
+	.exit	= acpi_cpufreq_cpu_exit,
+	.resume	= acpi_cpufreq_resume,
+	.name	= "acpi-cpufreq",
+	.owner	= THIS_MODULE,
+	.attr	= acpi_cpufreq_attr,
+	.flags	= CPUFREQ_STICKY,
 };
 
 
