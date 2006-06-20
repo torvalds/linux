@@ -82,7 +82,12 @@
 #define AUDIT_CONFIG_CHANGE	1305	/* Audit system configuration change */
 #define AUDIT_SOCKADDR		1306	/* sockaddr copied as syscall arg */
 #define AUDIT_CWD		1307	/* Current working directory */
+#define AUDIT_EXECVE		1309	/* execve arguments */
 #define AUDIT_IPC_SET_PERM	1311	/* IPC new permissions record type */
+#define AUDIT_MQ_OPEN		1312	/* POSIX MQ open record type */
+#define AUDIT_MQ_SENDRECV	1313	/* POSIX MQ send/receive record type */
+#define AUDIT_MQ_NOTIFY		1314	/* POSIX MQ notify record type */
+#define AUDIT_MQ_GETSETATTR	1315	/* POSIX MQ get/set attribute record type */
 
 #define AUDIT_AVC		1400	/* SE Linux avc denial or grant */
 #define AUDIT_SELINUX_ERR	1401	/* Internal SE Linux Errors */
@@ -150,6 +155,7 @@
 #define AUDIT_SE_TYPE	15	/* security label type */
 #define AUDIT_SE_SEN	16	/* security label sensitivity label */
 #define AUDIT_SE_CLR	17	/* security label clearance label */
+#define AUDIT_PPID	18
 
 				/* These are ONLY useful when checking
 				 * at syscall exit time (AUDIT_AT_EXIT). */
@@ -158,6 +164,7 @@
 #define AUDIT_INODE	102
 #define AUDIT_EXIT	103
 #define AUDIT_SUCCESS   104	/* exit >= 0; value ignored */
+#define AUDIT_WATCH	105
 
 #define AUDIT_ARG0      200
 #define AUDIT_ARG1      (AUDIT_ARG0+1)
@@ -277,12 +284,16 @@ struct audit_rule {		/* for AUDIT_LIST, AUDIT_ADD, and AUDIT_DEL */
 struct audit_sig_info {
 	uid_t		uid;
 	pid_t		pid;
+	char		ctx[0];
 };
 
 struct audit_buffer;
 struct audit_context;
 struct inode;
 struct netlink_skb_parms;
+struct linux_binprm;
+struct mq_attr;
+struct mqstat;
 
 #define AUDITSC_INVALID 0
 #define AUDITSC_SUCCESS 1
@@ -297,15 +308,19 @@ extern void audit_syscall_entry(int arch,
 				int major, unsigned long a0, unsigned long a1,
 				unsigned long a2, unsigned long a3);
 extern void audit_syscall_exit(int failed, long return_code);
-extern void audit_getname(const char *name);
+extern void __audit_getname(const char *name);
 extern void audit_putname(const char *name);
-extern void __audit_inode(const char *name, const struct inode *inode, unsigned flags);
+extern void __audit_inode(const char *name, const struct inode *inode);
 extern void __audit_inode_child(const char *dname, const struct inode *inode,
 				unsigned long pino);
-static inline void audit_inode(const char *name, const struct inode *inode,
-			       unsigned flags) {
+static inline void audit_getname(const char *name)
+{
 	if (unlikely(current->audit_context))
-		__audit_inode(name, inode, flags);
+		__audit_getname(name);
+}
+static inline void audit_inode(const char *name, const struct inode *inode) {
+	if (unlikely(current->audit_context))
+		__audit_inode(name, inode);
 }
 static inline void audit_inode_child(const char *dname, 
 				     const struct inode *inode, 
@@ -320,13 +335,61 @@ extern void auditsc_get_stamp(struct audit_context *ctx,
 			      struct timespec *t, unsigned int *serial);
 extern int  audit_set_loginuid(struct task_struct *task, uid_t loginuid);
 extern uid_t audit_get_loginuid(struct audit_context *ctx);
-extern int audit_ipc_obj(struct kern_ipc_perm *ipcp);
-extern int audit_ipc_set_perm(unsigned long qbytes, uid_t uid, gid_t gid, mode_t mode, struct kern_ipc_perm *ipcp);
+extern int __audit_ipc_obj(struct kern_ipc_perm *ipcp);
+extern int __audit_ipc_set_perm(unsigned long qbytes, uid_t uid, gid_t gid, mode_t mode);
+extern int audit_bprm(struct linux_binprm *bprm);
 extern int audit_socketcall(int nargs, unsigned long *args);
 extern int audit_sockaddr(int len, void *addr);
 extern int audit_avc_path(struct dentry *dentry, struct vfsmount *mnt);
-extern void audit_signal_info(int sig, struct task_struct *t);
 extern int audit_set_macxattr(const char *name);
+extern int __audit_mq_open(int oflag, mode_t mode, struct mq_attr __user *u_attr);
+extern int __audit_mq_timedsend(mqd_t mqdes, size_t msg_len, unsigned int msg_prio, const struct timespec __user *u_abs_timeout);
+extern int __audit_mq_timedreceive(mqd_t mqdes, size_t msg_len, unsigned int __user *u_msg_prio, const struct timespec __user *u_abs_timeout);
+extern int __audit_mq_notify(mqd_t mqdes, const struct sigevent __user *u_notification);
+extern int __audit_mq_getsetattr(mqd_t mqdes, struct mq_attr *mqstat);
+
+static inline int audit_ipc_obj(struct kern_ipc_perm *ipcp)
+{
+	if (unlikely(current->audit_context))
+		return __audit_ipc_obj(ipcp);
+	return 0;
+}
+static inline int audit_ipc_set_perm(unsigned long qbytes, uid_t uid, gid_t gid, mode_t mode)
+{
+	if (unlikely(current->audit_context))
+		return __audit_ipc_set_perm(qbytes, uid, gid, mode);
+	return 0;
+}
+static inline int audit_mq_open(int oflag, mode_t mode, struct mq_attr __user *u_attr)
+{
+	if (unlikely(current->audit_context))
+		return __audit_mq_open(oflag, mode, u_attr);
+	return 0;
+}
+static inline int audit_mq_timedsend(mqd_t mqdes, size_t msg_len, unsigned int msg_prio, const struct timespec __user *u_abs_timeout)
+{
+	if (unlikely(current->audit_context))
+		return __audit_mq_timedsend(mqdes, msg_len, msg_prio, u_abs_timeout);
+	return 0;
+}
+static inline int audit_mq_timedreceive(mqd_t mqdes, size_t msg_len, unsigned int __user *u_msg_prio, const struct timespec __user *u_abs_timeout)
+{
+	if (unlikely(current->audit_context))
+		return __audit_mq_timedreceive(mqdes, msg_len, u_msg_prio, u_abs_timeout);
+	return 0;
+}
+static inline int audit_mq_notify(mqd_t mqdes, const struct sigevent __user *u_notification)
+{
+	if (unlikely(current->audit_context))
+		return __audit_mq_notify(mqdes, u_notification);
+	return 0;
+}
+static inline int audit_mq_getsetattr(mqd_t mqdes, struct mq_attr *mqstat)
+{
+	if (unlikely(current->audit_context))
+		return __audit_mq_getsetattr(mqdes, mqstat);
+	return 0;
+}
 #else
 #define audit_alloc(t) ({ 0; })
 #define audit_free(t) do { ; } while (0)
@@ -334,19 +397,24 @@ extern int audit_set_macxattr(const char *name);
 #define audit_syscall_exit(f,r) do { ; } while (0)
 #define audit_getname(n) do { ; } while (0)
 #define audit_putname(n) do { ; } while (0)
-#define __audit_inode(n,i,f) do { ; } while (0)
+#define __audit_inode(n,i) do { ; } while (0)
 #define __audit_inode_child(d,i,p) do { ; } while (0)
-#define audit_inode(n,i,f) do { ; } while (0)
+#define audit_inode(n,i) do { ; } while (0)
 #define audit_inode_child(d,i,p) do { ; } while (0)
 #define auditsc_get_stamp(c,t,s) do { BUG(); } while (0)
 #define audit_get_loginuid(c) ({ -1; })
 #define audit_ipc_obj(i) ({ 0; })
-#define audit_ipc_set_perm(q,u,g,m,i) ({ 0; })
+#define audit_ipc_set_perm(q,u,g,m) ({ 0; })
+#define audit_bprm(p) ({ 0; })
 #define audit_socketcall(n,a) ({ 0; })
 #define audit_sockaddr(len, addr) ({ 0; })
 #define audit_avc_path(dentry, mnt) ({ 0; })
-#define audit_signal_info(s,t) do { ; } while (0)
 #define audit_set_macxattr(n) do { ; } while (0)
+#define audit_mq_open(o,m,a) ({ 0; })
+#define audit_mq_timedsend(d,l,p,t) ({ 0; })
+#define audit_mq_timedreceive(d,l,p,t) ({ 0; })
+#define audit_mq_notify(d,n) ({ 0; })
+#define audit_mq_getsetattr(d,s) ({ 0; })
 #endif
 
 #ifdef CONFIG_AUDIT
@@ -364,8 +432,11 @@ extern void		    audit_log_end(struct audit_buffer *ab);
 extern void		    audit_log_hex(struct audit_buffer *ab,
 					  const unsigned char *buf,
 					  size_t len);
-extern void		    audit_log_untrustedstring(struct audit_buffer *ab,
+extern const char *	    audit_log_untrustedstring(struct audit_buffer *ab,
 						      const char *string);
+extern const char *	    audit_log_n_untrustedstring(struct audit_buffer *ab,
+							size_t n,
+							const char *string);
 extern void		    audit_log_d_path(struct audit_buffer *ab,
 					     const char *prefix,
 					     struct dentry *dentry,
@@ -383,8 +454,8 @@ extern int  audit_receive_filter(int type, int pid, int uid, int seq,
 #define audit_log_end(b) do { ; } while (0)
 #define audit_log_hex(a,b,l) do { ; } while (0)
 #define audit_log_untrustedstring(a,s) do { ; } while (0)
+#define audit_log_n_untrustedstring(a,n,s) do { ; } while (0)
 #define audit_log_d_path(b,p,d,v) do { ; } while (0)
-#define audit_panic(m) do { ; } while (0)
 #endif
 #endif
 #endif

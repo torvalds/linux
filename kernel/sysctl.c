@@ -150,7 +150,7 @@ extern ctl_table random_table[];
 #ifdef CONFIG_UNIX98_PTYS
 extern ctl_table pty_table[];
 #endif
-#ifdef CONFIG_INOTIFY
+#ifdef CONFIG_INOTIFY_USER
 extern ctl_table inotify_table[];
 #endif
 
@@ -1028,7 +1028,7 @@ static ctl_table fs_table[] = {
 		.mode		= 0644,
 		.proc_handler	= &proc_doulongvec_minmax,
 	},
-#ifdef CONFIG_INOTIFY
+#ifdef CONFIG_INOTIFY_USER
 	{
 		.ctl_name	= FS_INOTIFY,
 		.procname	= "inotify",
