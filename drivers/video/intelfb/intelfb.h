@@ -6,6 +6,10 @@
 #include <linux/agp_backend.h>
 #include <linux/fb.h>
 
+#ifdef CONFIG_FB_INTEL_I2C
+#include <linux/i2c.h>
+#include <linux/i2c-algo-bit.h>
+#endif
 
 /*** Version/name ***/
 #define INTELFB_VERSION			"0.9.4"
@@ -207,6 +211,15 @@ struct intelfb_heap_data {
 	u32 offset;  // in GATT pages
 	u32 size;    // in bytes
 };
+
+#ifdef CONFIG_FB_INTEL_I2C
+struct intelfb_i2c_chan {
+    struct intelfb_info *dinfo;
+    u32 reg;
+    struct i2c_adapter adapter;
+    struct i2c_algo_bit_data algo;
+};
+#endif
 
 struct intelfb_vsync {
 	wait_queue_head_t wait;
