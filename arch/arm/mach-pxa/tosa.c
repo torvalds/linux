@@ -20,6 +20,7 @@
 #include <linux/interrupt.h>
 #include <linux/mmc/host.h>
 #include <linux/pm.h>
+#include <linux/delay.h>
 
 #include <asm/setup.h>
 #include <asm/memory.h>
