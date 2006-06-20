@@ -360,7 +360,7 @@ struct usb_device {
 	char *serial;			/* iSerialNumber string, if present */
 
 	struct list_head filelist;
-	struct class_device *class_dev;
+	struct device *usbfs_dev;
 	struct dentry *usbfs_dentry;	/* usbfs dentry entry for the device */
 
 	/*
