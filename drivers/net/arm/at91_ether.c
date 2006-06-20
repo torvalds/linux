@@ -45,6 +45,9 @@
 static struct net_device *at91_dev;
 static struct clk *ether_clk;
 
+static struct timer_list check_timer;
+#define LINK_POLL_INTERVAL	(HZ)
+
 /* ..................................................................... */
 
 /*
@@ -143,7 +146,7 @@ static void read_phy(unsigned char phy_addr, unsigned char address, unsigned int
  * MAC accordingly.
  * If no link or auto-negotiation is busy, then no changes are made.
  */
-static void update_linkspeed(struct net_device *dev)
+static void update_linkspeed(struct net_device *dev, int silent)
 {
 	struct at91_private *lp = (struct at91_private *) dev->priv;
 	unsigned int bmsr, bmcr, lpa, mac_cfg;
@@ -151,7 +154,8 @@ static void update_linkspeed(struct net_device *dev)
 
 	if (!mii_link_ok(&lp->mii)) {		/* no link */
 		netif_carrier_off(dev);
-		printk(KERN_INFO "%s: Link down.\n", dev->name);
+		if (!silent)
+			printk(KERN_INFO "%s: Link down.\n", dev->name);
 		return;
 	}
 
@@ -186,7 +190,8 @@ static void update_linkspeed(struct net_device *dev)
 	}
 	at91_emac_write(AT91_EMAC_CFG, mac_cfg);
 
-	printk(KERN_INFO "%s: Link now %i-%s\n", dev->name, speed, (duplex == DUPLEX_FULL) ? "FullDuplex" : "HalfDuplex");
+	if (!silent)
+		printk(KERN_INFO "%s: Link now %i-%s\n", dev->name, speed, (duplex == DUPLEX_FULL) ? "FullDuplex" : "HalfDuplex");
 	netif_carrier_on(dev);
 }
 
@@ -226,7 +231,7 @@ static irqreturn_t at91ether_phy_interrupt(int irq, void *dev_id, struct pt_regs
 			goto done;
 	}
 
-	update_linkspeed(dev);
+	update_linkspeed(dev, 0);
 
 done:
 	disable_mdi();
@@ -243,14 +248,17 @@ static void enable_phyirq(struct net_device *dev)
 	unsigned int dsintr, irq_number;
 	int status;
 
-	if (lp->phy_type == MII_RTL8201_ID)	/* RTL8201 does not have an interrupt */
-		return;
-	if (lp->phy_type == MII_DP83847_ID)	/* DP83847 does not have an interrupt */
-		return;
-	if (lp->phy_type == MII_AC101L_ID)	/* AC101L interrupt not supported yet */
-		return;
-
 	irq_number = lp->board_data.phy_irq_pin;
+	if (!irq_number) {
+		/*
+		 * PHY doesn't have an IRQ pin (RTL8201, DP83847, AC101L),
+		 * or board does not have it connected.
+		 */
+		check_timer.expires = jiffies + LINK_POLL_INTERVAL;
+		add_timer(&check_timer);
+		return;
+	}
+
 	status = request_irq(irq_number, at91ether_phy_interrupt, 0, dev->name, dev);
 	if (status) {
 		printk(KERN_ERR "at91_ether: PHY IRQ %d request failed - status %d!\n", irq_number, status);
@@ -292,12 +300,11 @@ static void disable_phyirq(struct net_device *dev)
 	unsigned int dsintr;
 	unsigned int irq_number;
 
-	if (lp->phy_type == MII_RTL8201_ID) 	/* RTL8201 does not have an interrupt */
+	irq_number = lp->board_data.phy_irq_pin;
+	if (!irq_number) {
+		del_timer_sync(&check_timer);
 		return;
-	if (lp->phy_type == MII_DP83847_ID)	/* DP83847 does not have an interrupt */
-		return;
-	if (lp->phy_type == MII_AC101L_ID)	/* AC101L interrupt not supported yet */
-		return;
+	}
 
 	spin_lock_irq(&lp->lock);
 	enable_mdi();
@@ -326,7 +333,6 @@ static void disable_phyirq(struct net_device *dev)
 	disable_mdi();
 	spin_unlock_irq(&lp->lock);
 
-	irq_number = lp->board_data.phy_irq_pin;
 	free_irq(irq_number, dev);			/* Free interrupt handler */
 }
 
@@ -354,6 +360,18 @@ static void reset_phy(struct net_device *dev)
 	spin_unlock_irq(&lp->lock);
 }
 #endif
+
+static void at91ether_check_link(unsigned long dev_id)
+{
+	struct net_device *dev = (struct net_device *) dev_id;
+
+	enable_mdi();
+	update_linkspeed(dev, 1);
+	disable_mdi();
+
+	check_timer.expires = jiffies + LINK_POLL_INTERVAL;
+	add_timer(&check_timer);
+}
 
 /* ......................... ADDRESS MANAGEMENT ........................ */
 
@@ -708,7 +726,7 @@ static int at91ether_open(struct net_device *dev)
 	/* Determine current link speed */
 	spin_lock_irq(&lp->lock);
 	enable_mdi();
-	update_linkspeed(dev);
+	update_linkspeed(dev, 0);
 	disable_mdi();
 	spin_unlock_irq(&lp->lock);
 
@@ -992,10 +1010,17 @@ static int __init at91ether_setup(unsigned long phy_type, unsigned short phy_add
 	/* Determine current link speed */
 	spin_lock_irq(&lp->lock);
 	enable_mdi();
-	update_linkspeed(dev);
+	update_linkspeed(dev, 0);
 	disable_mdi();
 	spin_unlock_irq(&lp->lock);
 	netif_carrier_off(dev);		/* will be enabled in open() */
+
+	/* If board has no PHY IRQ, use a timer to poll the PHY */
+	if (!lp->board_data.phy_irq_pin) {
+		init_timer(&check_timer);
+		check_timer.data = (unsigned long)dev;
+		check_timer.function = at91ether_check_link;
+	}
 
 	/* Display ethernet banner */
 	printk(KERN_INFO "%s: AT91 ethernet at 0x%08x int=%d %s%s (%02x:%02x:%02x:%02x:%02x:%02x)\n",
