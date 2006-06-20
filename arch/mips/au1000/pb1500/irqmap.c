@@ -52,7 +52,7 @@ char irq_tab_alchemy[][5] __initdata = {
  [13] = { -1, INTA, INTB, INTC, INTD},   /* IDSEL 13 - PCI slot */
 };
 
-au1xxx_irq_map_t au1xxx_irq_map[] = {
+au1xxx_irq_map_t __initdata au1xxx_irq_map[] = {
 	{ AU1500_GPIO_204, INTC_INT_HIGH_LEVEL, 0},
 	{ AU1500_GPIO_201, INTC_INT_LOW_LEVEL, 0 },
 	{ AU1500_GPIO_202, INTC_INT_LOW_LEVEL, 0 },
@@ -60,4 +60,4 @@ au1xxx_irq_map_t au1xxx_irq_map[] = {
 	{ AU1500_GPIO_205, INTC_INT_LOW_LEVEL, 0 },
 };
 
-int au1xxx_nr_irqs = sizeof(au1xxx_irq_map)/sizeof(au1xxx_irq_map_t);
+int __initdata au1xxx_nr_irqs = ARRAY_SIZE(au1xxx_irq_map);
