@@ -384,10 +384,10 @@ config VIDEO_WM8739
 source "drivers/media/video/cx25840/Kconfig"
 
 config VIDEO_SAA711X
-	tristate "Philips SAA7113/4/5 video decoders (OBSOLETED)"
-	depends on VIDEO_V4L1 && I2C && EXPERIMENTAL
+	tristate "Philips SAA7113/4/5 video decoders"
+	depends on VIDEO_DEV && I2C && EXPERIMENTAL
 	---help---
-	  Old support for the Philips SAA7113/4 video decoders.
+	  Support for the Philips SAA7113/4/5 video decoders.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called saa7115.
