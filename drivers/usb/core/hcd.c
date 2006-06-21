@@ -1826,24 +1826,16 @@ int usb_add_hcd(struct usb_hcd *hcd,
 
 	/* enable irqs just before we start the controller */
 	if (hcd->driver->irq) {
-		char	buf[8], *bufp = buf;
-
-#ifdef __sparc__
-		bufp = __irq_itoa(irqnum);
-#else
-		sprintf(buf, "%d", irqnum);
-#endif
-
 		snprintf(hcd->irq_descr, sizeof(hcd->irq_descr), "%s:usb%d",
 				hcd->driver->description, hcd->self.busnum);
 		if ((retval = request_irq(irqnum, &usb_hcd_irq, irqflags,
 				hcd->irq_descr, hcd)) != 0) {
 			dev_err(hcd->self.controller,
-					"request interrupt %s failed\n", bufp);
+					"request interrupt %d failed\n", irqnum);
 			goto err_request_irq;
 		}
 		hcd->irq = irqnum;
-		dev_info(hcd->self.controller, "irq %s, %s 0x%08llx\n", bufp,
+		dev_info(hcd->self.controller, "irq %d, %s 0x%08llx\n", irqnum,
 				(hcd->driver->flags & HCD_MEMORY) ?
 					"io mem" : "io base",
 					(unsigned long long)hcd->rsrc_start);

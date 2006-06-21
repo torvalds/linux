@@ -232,105 +232,10 @@ static unsigned long schizo_iclr_offset(unsigned long ino)
 	return SCHIZO_ICLR_BASE + (ino * 8UL);
 }
 
-/* PCI SCHIZO INO number to Sparc PIL level.  This table only matters for
- * INOs which will not have an associated PCI device struct, ie. onboard
- * EBUS devices and PCI controller internal error interrupts.
- */
-static unsigned char schizo_pil_table[] = {
-/*0x00*/0, 0, 0, 0,	/* PCI slot 0  Int A, B, C, D	*/
-/*0x04*/0, 0, 0, 0,	/* PCI slot 1  Int A, B, C, D	*/
-/*0x08*/0, 0, 0, 0,	/* PCI slot 2  Int A, B, C, D	*/
-/*0x0c*/0, 0, 0, 0,	/* PCI slot 3  Int A, B, C, D	*/
-/*0x10*/0, 0, 0, 0,	/* PCI slot 4  Int A, B, C, D	*/
-/*0x14*/0, 0, 0, 0,	/* PCI slot 5  Int A, B, C, D	*/
-/*0x18*/5,		/* SCSI				*/
-/*0x19*/5,		/* second SCSI			*/
-/*0x1a*/0,		/* UNKNOWN			*/
-/*0x1b*/0,		/* UNKNOWN			*/
-/*0x1c*/8,		/* Parallel			*/
-/*0x1d*/5,		/* Ethernet			*/
-/*0x1e*/8,		/* Firewire-1394		*/
-/*0x1f*/9,		/* USB				*/
-/*0x20*/13,		/* Audio Record			*/
-/*0x21*/14,		/* Audio Playback		*/
-/*0x22*/12,		/* Serial			*/
-/*0x23*/5,		/* EBUS I2C 			*/
-/*0x24*/10,		/* RTC Clock			*/
-/*0x25*/11,		/* Floppy			*/
-/*0x26*/0,		/* UNKNOWN			*/
-/*0x27*/0,		/* UNKNOWN			*/
-/*0x28*/0,		/* UNKNOWN			*/
-/*0x29*/0,		/* UNKNOWN			*/
-/*0x2a*/10,		/* UPA 1			*/
-/*0x2b*/10,		/* UPA 2			*/
-/*0x2c*/0,		/* UNKNOWN			*/
-/*0x2d*/0,		/* UNKNOWN			*/
-/*0x2e*/0,		/* UNKNOWN			*/
-/*0x2f*/0,		/* UNKNOWN			*/
-/*0x30*/15,		/* Uncorrectable ECC		*/
-/*0x31*/15,		/* Correctable ECC		*/
-/*0x32*/15,		/* PCI Bus A Error		*/
-/*0x33*/15,		/* PCI Bus B Error		*/
-/*0x34*/15,		/* Safari Bus Error		*/
-/*0x35*/0,		/* Reserved			*/
-/*0x36*/0,		/* Reserved			*/
-/*0x37*/0,		/* Reserved			*/
-/*0x38*/0,		/* Reserved for NewLink		*/
-/*0x39*/0,		/* Reserved for NewLink		*/
-/*0x3a*/0,		/* Reserved for NewLink		*/
-/*0x3b*/0,		/* Reserved for NewLink		*/
-/*0x3c*/0,		/* Reserved for NewLink		*/
-/*0x3d*/0,		/* Reserved for NewLink		*/
-/*0x3e*/0,		/* Reserved for NewLink		*/
-/*0x3f*/0,		/* Reserved for NewLink		*/
-};
-
-static int schizo_ino_to_pil(struct pci_dev *pdev, unsigned int ino)
-{
-	int ret;
-
-	if (pdev &&
-	    pdev->vendor == PCI_VENDOR_ID_SUN &&
-	    pdev->device == PCI_DEVICE_ID_SUN_RIO_USB)
-		return 9;
-
-	ret = schizo_pil_table[ino];
-	if (ret == 0 && pdev == NULL) {
-		ret = 5;
-	} else if (ret == 0) {
-		switch ((pdev->class >> 16) & 0xff) {
-		case PCI_BASE_CLASS_STORAGE:
-			ret = 5;
-			break;
-
-		case PCI_BASE_CLASS_NETWORK:
-			ret = 6;
-			break;
-
-		case PCI_BASE_CLASS_DISPLAY:
-			ret = 9;
-			break;
-
-		case PCI_BASE_CLASS_MULTIMEDIA:
-		case PCI_BASE_CLASS_MEMORY:
-		case PCI_BASE_CLASS_BRIDGE:
-		case PCI_BASE_CLASS_SERIAL:
-			ret = 10;
-			break;
-
-		default:
-			ret = 5;
-			break;
-		};
-	}
-
-	return ret;
-}
-
-static void tomatillo_wsync_handler(struct ino_bucket *bucket, void *_arg1, void *_arg2)
+static void tomatillo_wsync_handler(unsigned int ino, void *_arg1, void *_arg2)
 {
 	unsigned long sync_reg = (unsigned long) _arg2;
-	u64 mask = 1UL << (__irq_ino(__irq(bucket)) & IMAP_INO);
+	u64 mask = 1UL << (ino & IMAP_INO);
 	u64 val;
 	int limit;
 
@@ -365,30 +270,33 @@ static void tomatillo_wsync_handler(struct ino_bucket *bucket, void *_arg1, void
 	}
 }
 
+static unsigned long schizo_ino_to_iclr(struct pci_pbm_info *pbm,
+					unsigned int ino)
+{
+	ino &= PCI_IRQ_INO;
+	return pbm->pbm_regs + schizo_iclr_offset(ino) + 4;
+}
+
+static unsigned long schizo_ino_to_imap(struct pci_pbm_info *pbm,
+					unsigned int ino)
+{
+	ino &= PCI_IRQ_INO;
+	return pbm->pbm_regs + schizo_imap_offset(ino) + 4;
+}
+
 static unsigned int schizo_irq_build(struct pci_pbm_info *pbm,
 				     struct pci_dev *pdev,
 				     unsigned int ino)
 {
-	struct ino_bucket *bucket;
 	unsigned long imap, iclr;
-	unsigned long imap_off, iclr_off;
-	int pil, ign_fixup;
+	int ign_fixup;
+	int virt_irq;
 
 	ino &= PCI_IRQ_INO;
-	imap_off = schizo_imap_offset(ino);
 
 	/* Now build the IRQ bucket. */
-	pil = schizo_ino_to_pil(pdev, ino);
-
-	if (PIL_RESERVED(pil))
-		BUG();
-
-	imap = pbm->pbm_regs + imap_off;
-	imap += 4;
-
-	iclr_off = schizo_iclr_offset(ino);
-	iclr = pbm->pbm_regs + iclr_off;
-	iclr += 4;
+	imap = schizo_ino_to_imap(pbm, ino);
+	iclr = schizo_ino_to_iclr(pbm, ino);
 
 	/* On Schizo, no inofixup occurs.  This is because each
 	 * INO has it's own IMAP register.  On Psycho and Sabre
@@ -405,19 +313,17 @@ static unsigned int schizo_irq_build(struct pci_pbm_info *pbm,
 			ign_fixup = (1 << 6);
 	}
 
-	bucket = __bucket(build_irq(pil, ign_fixup, iclr, imap));
-	bucket->flags |= IBF_PCI;
+	virt_irq = build_irq(ign_fixup, iclr, imap);
 
 	if (pdev && pbm->chip_type == PBM_CHIP_TYPE_TOMATILLO) {
-		struct irq_desc *p = bucket->irq_info;
-
-		p->pre_handler = tomatillo_wsync_handler;
-		p->pre_handler_arg1 = ((pbm->chip_version <= 4) ?
-				       (void *) 1 : (void *) 0);
-		p->pre_handler_arg2 = (void *) pbm->sync_reg;
+		irq_install_pre_handler(virt_irq,
+					tomatillo_wsync_handler,
+					((pbm->chip_version <= 4) ?
+					 (void *) 1 : (void *) 0),
+					(void *) pbm->sync_reg);
 	}
 
-	return __irq(bucket);
+	return virt_irq;
 }
 
 /* SCHIZO error handling support. */
@@ -458,7 +364,6 @@ struct pci_pbm_info *pbm_for_ino(struct pci_controller_info *p, u32 ino)
 static void schizo_clear_other_err_intr(struct pci_controller_info *p, int irq)
 {
 	struct pci_pbm_info *pbm;
-	struct ino_bucket *bucket;
 	unsigned long iclr;
 
 	/* Do not clear the interrupt for the other PCI bus.
@@ -476,11 +381,11 @@ static void schizo_clear_other_err_intr(struct pci_controller_info *p, int irq)
 	else
 		pbm = &p->pbm_A;
 
-	irq = schizo_irq_build(pbm, NULL,
-			       (pbm->portid << 6) | (irq & IMAP_INO));
-	bucket = __bucket(irq);
-	iclr = bucket->iclr;
+	schizo_irq_build(pbm, NULL,
+			 (pbm->portid << 6) | (irq & IMAP_INO));
 
+	iclr = schizo_ino_to_iclr(pbm,
+				  (pbm->portid << 6) | (irq & IMAP_INO));
 	upa_writel(ICLR_IDLE, iclr);
 }
 
@@ -1225,7 +1130,6 @@ static void tomatillo_register_error_handlers(struct pci_controller_info *p)
 {
 	struct pci_pbm_info *pbm;
 	unsigned int irq;
-	struct ino_bucket *bucket;
 	u64 tmp, err_mask, err_no_mask;
 
 	/* Build IRQs and register handlers. */
@@ -1237,8 +1141,7 @@ static void tomatillo_register_error_handlers(struct pci_controller_info *p)
 			    pbm->name);
 		prom_halt();
 	}
-	bucket = __bucket(irq);
-	tmp = upa_readl(bucket->imap);
+	tmp = upa_readl(schizo_ino_to_imap(pbm, (pbm->portid << 6) | SCHIZO_UE_INO));
 	upa_writel(tmp, (pbm->pbm_regs +
 			 schizo_imap_offset(SCHIZO_UE_INO) + 4));
 
@@ -1250,8 +1153,7 @@ static void tomatillo_register_error_handlers(struct pci_controller_info *p)
 			    pbm->name);
 		prom_halt();
 	}
-	bucket = __bucket(irq);
-	tmp = upa_readl(bucket->imap);
+	tmp = upa_readl(schizo_ino_to_imap(pbm, (pbm->portid << 6) | SCHIZO_CE_INO));
 	upa_writel(tmp, (pbm->pbm_regs +
 			 schizo_imap_offset(SCHIZO_CE_INO) + 4));
 
@@ -1264,8 +1166,8 @@ static void tomatillo_register_error_handlers(struct pci_controller_info *p)
 			    pbm->name);
 		prom_halt();
 	}
-	bucket = __bucket(irq);
-	tmp = upa_readl(bucket->imap);
+	tmp = upa_readl(schizo_ino_to_imap(pbm, ((pbm->portid << 6) |
+						 SCHIZO_PCIERR_A_INO)));
 	upa_writel(tmp, (pbm->pbm_regs +
 			 schizo_imap_offset(SCHIZO_PCIERR_A_INO) + 4));
 
@@ -1278,8 +1180,8 @@ static void tomatillo_register_error_handlers(struct pci_controller_info *p)
 			    pbm->name);
 		prom_halt();
 	}
-	bucket = __bucket(irq);
-	tmp = upa_readl(bucket->imap);
+	tmp = upa_readl(schizo_ino_to_imap(pbm, ((pbm->portid << 6) |
+						 SCHIZO_PCIERR_B_INO)));
 	upa_writel(tmp, (pbm->pbm_regs +
 			 schizo_imap_offset(SCHIZO_PCIERR_B_INO) + 4));
 
@@ -1291,8 +1193,8 @@ static void tomatillo_register_error_handlers(struct pci_controller_info *p)
 			    pbm->name);
 		prom_halt();
 	}
-	bucket = __bucket(irq);
-	tmp = upa_readl(bucket->imap);
+	tmp = upa_readl(schizo_ino_to_imap(pbm, ((pbm->portid << 6) |
+						 SCHIZO_SERR_INO)));
 	upa_writel(tmp, (pbm->pbm_regs +
 			 schizo_imap_offset(SCHIZO_SERR_INO) + 4));
 
@@ -1363,7 +1265,6 @@ static void schizo_register_error_handlers(struct pci_controller_info *p)
 {
 	struct pci_pbm_info *pbm;
 	unsigned int irq;
-	struct ino_bucket *bucket;
 	u64 tmp, err_mask, err_no_mask;
 
 	/* Build IRQs and register handlers. */
@@ -1375,8 +1276,7 @@ static void schizo_register_error_handlers(struct pci_controller_info *p)
 			    pbm->name);
 		prom_halt();
 	}
-	bucket = __bucket(irq);
-	tmp = upa_readl(bucket->imap);
+	tmp = upa_readl(schizo_ino_to_imap(pbm, (pbm->portid << 6) | SCHIZO_UE_INO));
 	upa_writel(tmp, (pbm->pbm_regs + schizo_imap_offset(SCHIZO_UE_INO) + 4));
 
 	pbm = pbm_for_ino(p, SCHIZO_CE_INO);
@@ -1387,8 +1287,7 @@ static void schizo_register_error_handlers(struct pci_controller_info *p)
 			    pbm->name);
 		prom_halt();
 	}
-	bucket = __bucket(irq);
-	tmp = upa_readl(bucket->imap);
+	tmp = upa_readl(schizo_ino_to_imap(pbm, (pbm->portid << 6) | SCHIZO_CE_INO));
 	upa_writel(tmp, (pbm->pbm_regs + schizo_imap_offset(SCHIZO_CE_INO) + 4));
 
 	pbm = pbm_for_ino(p, SCHIZO_PCIERR_A_INO);
@@ -1399,8 +1298,7 @@ static void schizo_register_error_handlers(struct pci_controller_info *p)
 			    pbm->name);
 		prom_halt();
 	}
-	bucket = __bucket(irq);
-	tmp = upa_readl(bucket->imap);
+	tmp = upa_readl(schizo_ino_to_imap(pbm, (pbm->portid << 6) | SCHIZO_PCIERR_A_INO));
 	upa_writel(tmp, (pbm->pbm_regs + schizo_imap_offset(SCHIZO_PCIERR_A_INO) + 4));
 
 	pbm = pbm_for_ino(p, SCHIZO_PCIERR_B_INO);
@@ -1411,8 +1309,7 @@ static void schizo_register_error_handlers(struct pci_controller_info *p)
 			    pbm->name);
 		prom_halt();
 	}
-	bucket = __bucket(irq);
-	tmp = upa_readl(bucket->imap);
+	tmp = upa_readl(schizo_ino_to_imap(pbm, (pbm->portid << 6) | SCHIZO_PCIERR_B_INO));
 	upa_writel(tmp, (pbm->pbm_regs + schizo_imap_offset(SCHIZO_PCIERR_B_INO) + 4));
 
 	pbm = pbm_for_ino(p, SCHIZO_SERR_INO);
@@ -1423,8 +1320,7 @@ static void schizo_register_error_handlers(struct pci_controller_info *p)
 			    pbm->name);
 		prom_halt();
 	}
-	bucket = __bucket(irq);
-	tmp = upa_readl(bucket->imap);
+	tmp = upa_readl(schizo_ino_to_imap(pbm, (pbm->portid << 6) | SCHIZO_SERR_INO));
 	upa_writel(tmp, (pbm->pbm_regs + schizo_imap_offset(SCHIZO_SERR_INO) + 4));
 
 	/* Enable UE and CE interrupts for controller. */

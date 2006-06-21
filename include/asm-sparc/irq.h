@@ -16,8 +16,6 @@
 
 #define __irq_ino(irq) irq
 #define __irq_pil(irq) irq
-BTFIXUPDEF_CALL(char *, __irq_itoa, unsigned int)
-#define __irq_itoa(irq) BTFIXUP_CALL(__irq_itoa)(irq)
 
 #define NR_IRQS    16
 

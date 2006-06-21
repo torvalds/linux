@@ -87,6 +87,10 @@ config SYSVIPC_COMPAT
 	depends on COMPAT && SYSVIPC
 	default y
 
+config GENERIC_HARDIRQS
+	bool
+	default y
+
 menu "General machine setup"
 
 config SMP

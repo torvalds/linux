@@ -960,10 +960,6 @@ found:
 	 * PCI Slot 2 INTA# (and some INTx# in Slot 1).
 	 */
 	if (request_irq(rtc_irq, rtc_interrupt, SA_SHIRQ, "rtc", (void *)&rtc_port)) {
-		/*
-		 * Standard way for sparc to print irq's is to use
-		 * __irq_itoa(). I think for EBus it's ok to use %d.
-		 */
 		printk(KERN_ERR "rtc: cannot register IRQ %d\n", rtc_irq);
 		return -EIO;
 	}
