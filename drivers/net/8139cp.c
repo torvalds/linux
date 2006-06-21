@@ -1628,7 +1628,7 @@ static int read_eeprom (void __iomem *ioaddr, int location, int addr_len)
 	eeprom_delay ();
 
 	/* Shift the read command bits out. */
-	for (i = 4 + addr_len; i >= 0; i--) {
+	for (i = 3 + addr_len - 1; i >= 0; i--) {
 		int dataval = (read_cmd & (1 << i)) ? EE_DATA_WRITE : 0;
 		writeb (EE_ENB | dataval, ee_addr);
 		eeprom_delay ();
