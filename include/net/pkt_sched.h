@@ -218,12 +218,13 @@ extern struct qdisc_rate_table *qdisc_get_rtab(struct tc_ratespec *r,
 		struct rtattr *tab);
 extern void qdisc_put_rtab(struct qdisc_rate_table *tab);
 
-extern int qdisc_restart(struct net_device *dev);
+extern void __qdisc_run(struct net_device *dev);
 
 static inline void qdisc_run(struct net_device *dev)
 {
-	while (!netif_queue_stopped(dev) && qdisc_restart(dev) < 0)
-		/* NOTHING */;
+	if (!netif_queue_stopped(dev) &&
+	    !test_and_set_bit(__LINK_STATE_QDISC_RUNNING, &dev->state))
+		__qdisc_run(dev);
 }
 
 extern int tc_classify(struct sk_buff *skb, struct tcf_proto *tp,
