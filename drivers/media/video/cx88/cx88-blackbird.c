@@ -1043,6 +1043,7 @@ static int __devinit blackbird_probe(struct pci_dev *pci_dev,
 	dev->width = 720;
 	dev->height = 576;
 	cx2341x_fill_defaults(&dev->params);
+	dev->params.port = CX2341X_PORT_STREAMING;
 
 	switch (core->board) {
 	case CX88_BOARD_HAUPPAUGE_ROSLYN:

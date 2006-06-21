@@ -270,11 +270,17 @@ Param[0]
 Name 	CX2341X_ENC_SET_OUTPUT_PORT
 Enum 	187/0xBB
 Description
-	Assign stream output port (not recommended you change setting from default)
+	Assign stream output port. Normally 0 when the data is copied through
+	the PCI bus (DMA), and 1 when the data is streamed to another chip
+	(pvrusb and cx88-blackbird).
 Param[0]
 	0=Memory (default)
 	1=Streaming
 	2=Serial
+Param[1]
+	Unknown, but leaving this to 0 seems to work best. Indications are that
+	this might have to do with USB support, although passing anything but 0
+	onl breaks things.
 
 -------------------------------------------------------------------------------
 

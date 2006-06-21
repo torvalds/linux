@@ -639,6 +639,7 @@ void cx2341x_fill_defaults(struct cx2341x_mpeg_params *p)
 {
 	static struct cx2341x_mpeg_params default_params = {
 	/* misc */
+	.port = CX2341X_PORT_MEMORY,
 	.width = 720,
 	.height = 480,
 	.is_50hz = 0,
@@ -714,7 +715,7 @@ int cx2341x_update(void *priv, cx2341x_mbox_func func,
 
 	int err = 0;
 
-	cx2341x_api(priv, func, CX2341X_ENC_SET_OUTPUT_PORT, 1, 0);	/* 0 = Memory */
+	cx2341x_api(priv, func, CX2341X_ENC_SET_OUTPUT_PORT, 2, new->port, 0);
 
 	if (old == NULL || old->is_50hz != new->is_50hz) {
 		err = cx2341x_api(priv, func, CX2341X_ENC_SET_FRAME_RATE, 1, new->is_50hz);

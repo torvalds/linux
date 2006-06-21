@@ -19,8 +19,15 @@
 #ifndef CX2341X_H
 #define CX2341X_H
 
+enum cx2341x_port {
+	CX2341X_PORT_MEMORY,
+	CX2341X_PORT_STREAMING,
+	CX2341X_PORT_SERIAL
+};
+
 struct cx2341x_mpeg_params {
 	/* misc */
+	enum cx2341x_port port;
 	u16 width;
 	u16 height;
 	u16 is_50hz;
