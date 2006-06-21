@@ -543,6 +543,8 @@ static void dst_type_flags_print(u32 type_flags)
 	dprintk(verbose, DST_ERROR, 0, "DST type flags :");
 	if (type_flags & DST_TYPE_HAS_NEWTUNE)
 		dprintk(verbose, DST_ERROR, 0, " 0x%x newtuner", DST_TYPE_HAS_NEWTUNE);
+	if (type_flags & DST_TYPE_HAS_NEWTUNE_2)
+		dprintk(verbose, DST_ERROR, 0, " 0x%x newtuner 2", DST_TYPE_HAS_NEWTUNE_2);
 	if (type_flags & DST_TYPE_HAS_TS204)
 		dprintk(verbose, DST_ERROR, 0, " 0x%x ts204", DST_TYPE_HAS_TS204);
 	if (type_flags & DST_TYPE_HAS_SYMDIV)
@@ -909,7 +911,12 @@ static int dst_get_tuner_info(struct dst_state *state)
 	if (state->board_info[0] == 0xbc) {
 //		if (state->type_flags & DST_TYPE_HAS_TS204)
 //			state->type_flags &= ~DST_TYPE_HAS_TS204;
-		state->type_flags |= DST_TYPE_HAS_NEWTUNE;
+//		state->type_flags |= DST_TYPE_HAS_NEWTUNE;
+		if (!(state->type_flags & DST_TYPE_IS_ATSC)) {
+			state->type_flags |= DST_TYPE_HAS_NEWTUNE;
+		} else {
+			state->type_flags |= DST_TYPE_HAS_NEWTUNE_2;
+		}
 		dprintk(verbose, DST_INFO, 1, "DST type has TS=188, Daughterboard=[%d]", state->board_info[1]);
 
 	} else if (state->board_info[0] == 0xcc) {
@@ -1382,8 +1389,7 @@ static int dst_init(struct dvb_frontend *fe)
 	static u8 ter_tuna_204[] = { 0x00, 0x00, 0x03, 0xb6, 0x01, 0x07, 0x00, 0x00, 0x00, 0x00 };
 	static u8 cab_tuna_204[] = { 0x00, 0x00, 0x03, 0xb6, 0x01, 0x07, 0x00, 0x00, 0x00, 0x00 };
 	static u8 cab_tuna_188[] = { 0x09, 0x00, 0x03, 0xb6, 0x01, 0x07, 0x00, 0x00, 0x00, 0x00 };
-	static u8 atsc_tuna_188[] = { 0x09, 0x00, 0x03, 0xb6, 0x01, 0x07, 0x00, 0x00, 0x00, 0x00 };
-	static u8 atsc_tuna_204[] = { 0x00, 0x00, 0x03, 0xb6, 0x01, 0x07, 0x00, 0x00, 0x00, 0x00 };
+	static u8 atsc_tuner[] = { 0x00, 0x00, 0x03, 0xb6, 0x01, 0x07, 0x00, 0x00, 0x00, 0x00 };
 
 	state->inversion = INVERSION_OFF;
 	state->voltage = SEC_VOLTAGE_13;
@@ -1399,7 +1405,7 @@ static int dst_init(struct dvb_frontend *fe)
 	else if (state->dst_type == DST_TYPE_IS_CABLE)
 		memcpy(state->tx_tuna, ((state->type_flags & DST_TYPE_HAS_NEWTUNE) ? cab_tuna_188 : cab_tuna_204), sizeof (cab_tuna_204));
 	else if (state->dst_type == DST_TYPE_IS_ATSC)
-		memcpy(state->tx_tuna, ((state->type_flags & DST_TYPE_HAS_NEWTUNE) ? atsc_tuna_188 : atsc_tuna_204), sizeof (atsc_tuna_204));
+		memcpy(state->tx_tuna, atsc_tuner, sizeof (atsc_tuner));
 
 	return 0;
 }

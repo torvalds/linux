@@ -52,6 +52,7 @@
 #define DST_TYPE_HAS_OBS_REGS	128
 #define DST_TYPE_HAS_INC_COUNT	256
 #define DST_TYPE_HAS_MULTI_FE	512
+#define DST_TYPE_HAS_NEWTUNE_2	1024
 
 /*	Card capability list	*/
 
