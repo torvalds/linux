@@ -1636,7 +1636,7 @@ static void nsp32_scsi_done(struct scsi_cmnd *SCpnt)
 
 	if (SCpnt->use_sg) {
 		pci_unmap_sg(data->Pci,
-			     (struct scatterlist *)SCpnt->buffer,
+			     (struct scatterlist *)SCpnt->request_buffer,
 			     SCpnt->use_sg, SCpnt->sc_data_direction);
 	} else {
 		pci_unmap_single(data->Pci,

@@ -148,6 +148,8 @@ static int nondasd = -1;
 static int dacmode = -1;
 
 static int commit = -1;
+int startup_timeout = 180;
+int aif_timeout = 120;
 
 module_param(nondasd, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(nondasd, "Control scanning of hba for nondasd devices. 0=off, 1=on");
@@ -155,6 +157,10 @@ module_param(dacmode, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(dacmode, "Control whether dma addressing is using 64 bit DAC. 0=off, 1=on");
 module_param(commit, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(commit, "Control whether a COMMIT_CONFIG is issued to the adapter for foreign arrays.\nThis is typically needed in systems that do not have a BIOS. 0=off, 1=on");
+module_param(startup_timeout, int, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(startup_timeout, "The duration of time in seconds to wait for adapter to have it's kernel up and\nrunning. This is typically adjusted for large systems that do not have a BIOS.");
+module_param(aif_timeout, int, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(aif_timeout, "The duration of time in seconds to wait for applications to pick up AIFs before\nderegistering them. This is typically adjusted for heavily burdened systems.");
 
 int numacb = -1;
 module_param(numacb, int, S_IRUGO|S_IWUSR);
@@ -635,13 +641,13 @@ static void setinqstr(struct aac_dev *dev, void *data, int tindex)
 			cp[sizeof(str->pid)] = c;
 	} else {
 		struct aac_driver_ident *mp = aac_get_driver_ident(dev->cardtype);
-   
-		inqstrcpy (mp->vname, str->vid); 
+
+		inqstrcpy (mp->vname, str->vid);
 		/* last six chars reserved for vol type */
 		inqstrcpy (mp->model, str->pid);
 	}
 
-	if (tindex < (sizeof(container_types)/sizeof(char *))){
+	if (tindex < ARRAY_SIZE(container_types)){
 		char *findit = str->pid;
 
 		for ( ; *findit != ' '; findit++); /* walk till we find a space */
@@ -955,7 +961,7 @@ static void io_callback(void *context, struct fib * fibptr)
 		
 	if(scsicmd->use_sg)
 		pci_unmap_sg(dev->pdev, 
-			(struct scatterlist *)scsicmd->buffer,
+			(struct scatterlist *)scsicmd->request_buffer,
 			scsicmd->use_sg,
 			scsicmd->sc_data_direction);
 	else if(scsicmd->request_bufflen)
@@ -1570,7 +1576,7 @@ int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 		 *	see: <vendor>.c i.e. aac.c
 		 */
 		if (scmd_id(scsicmd) == host->this_id) {
-			setinqstr(dev, (void *) (inq_data.inqd_vid), (sizeof(container_types)/sizeof(char *)));
+			setinqstr(dev, (void *) (inq_data.inqd_vid), ARRAY_SIZE(container_types));
 			inq_data.inqd_pdt = INQD_PDT_PROC;	/* Processor device */
 			aac_internal_transfer(scsicmd, &inq_data, 0, sizeof(inq_data));
 			scsicmd->result = DID_OK << 16 | COMMAND_COMPLETE << 8 | SAM_STAT_GOOD;
@@ -1913,7 +1919,7 @@ static void aac_srb_callback(void *context, struct fib * fibptr)
 
 	if(scsicmd->use_sg)
 		pci_unmap_sg(dev->pdev, 
-			(struct scatterlist *)scsicmd->buffer,
+			(struct scatterlist *)scsicmd->request_buffer,
 			scsicmd->use_sg,
 			scsicmd->sc_data_direction);
 	else if(scsicmd->request_bufflen)
@@ -2218,15 +2224,15 @@ static unsigned long aac_build_sg(struct scsi_cmnd* scsicmd, struct sgmap* psg)
 		}
 	}
 	else if(scsicmd->request_bufflen) {
-		dma_addr_t addr; 
-		addr = pci_map_single(dev->pdev,
+		u32 addr;
+		scsicmd->SCp.dma_handle = pci_map_single(dev->pdev,
 				scsicmd->request_buffer,
 				scsicmd->request_bufflen,
 				scsicmd->sc_data_direction);
+		addr = scsicmd->SCp.dma_handle;
 		psg->count = cpu_to_le32(1);
 		psg->sg[0].addr = cpu_to_le32(addr);
 		psg->sg[0].count = cpu_to_le32(scsicmd->request_bufflen);  
-		scsicmd->SCp.dma_handle = addr;
 		byte_count = scsicmd->request_bufflen;
 	}
 	return byte_count;
@@ -2375,7 +2381,7 @@ static struct aac_srb_status_info srb_status_info[] = {
 	{ SRB_STATUS_SUCCESS,		"Success"},
 	{ SRB_STATUS_ABORTED,		"Aborted Command"},
 	{ SRB_STATUS_ABORT_FAILED,	"Abort Failed"},
-	{ SRB_STATUS_ERROR,		"Error Event"}, 
+	{ SRB_STATUS_ERROR,		"Error Event"},
 	{ SRB_STATUS_BUSY,		"Device Busy"},
 	{ SRB_STATUS_INVALID_REQUEST,	"Invalid Request"},
 	{ SRB_STATUS_INVALID_PATH_ID,	"Invalid Path ID"},
@@ -2394,7 +2400,7 @@ static struct aac_srb_status_info srb_status_info[] = {
 	{ SRB_STATUS_BAD_SRB_BLOCK_LENGTH,"Bad Srb Block Length"},
 	{ SRB_STATUS_REQUEST_FLUSHED,	"Request Flushed"},
 	{ SRB_STATUS_DELAYED_RETRY,	"Delayed Retry"},
-	{ SRB_STATUS_INVALID_LUN,	"Invalid LUN"}, 
+	{ SRB_STATUS_INVALID_LUN,	"Invalid LUN"},
 	{ SRB_STATUS_INVALID_TARGET_ID,	"Invalid TARGET ID"},
 	{ SRB_STATUS_BAD_FUNCTION,	"Bad Function"},
 	{ SRB_STATUS_ERROR_RECOVERY,	"Error Recovery"},
@@ -2409,11 +2415,9 @@ char *aac_get_status_string(u32 status)
 {
 	int i;
 
-	for(i=0; i < (sizeof(srb_status_info)/sizeof(struct aac_srb_status_info)); i++ ){
-		if(srb_status_info[i].status == status){
+	for (i = 0; i < ARRAY_SIZE(srb_status_info); i++)
+		if (srb_status_info[i].status == status)
 			return srb_status_info[i].str;
-		}
-	}
 
 	return "Bad Status Code";
 }

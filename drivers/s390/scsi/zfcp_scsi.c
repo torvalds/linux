@@ -1,18 +1,8 @@
 /* 
- * 
- * linux/drivers/s390/scsi/zfcp_scsi.c
- * 
- * FCP adapter driver for IBM eServer zSeries 
- * 
- * (C) Copyright IBM Corp. 2002, 2004
+ * This file is part of the zfcp device driver for
+ * FCP adapters for IBM System z9 and zSeries.
  *
- * Author(s): Martin Peschke <mpeschke@de.ibm.com> 
- *            Raimund Schroeder <raimund.schroeder@de.ibm.com> 
- *            Aron Zeh
- *            Wolfgang Taphorn
- *            Stefan Bader <stefan.bader@de.ibm.com> 
- *            Heiko Carstens <heiko.carstens@de.ibm.com> 
- *            Andreas Herrmann <aherrman@de.ibm.com>
+ * (C) Copyright IBM Corp. 2002, 2006
  * 
  * This program is free software; you can redistribute it and/or modify 
  * it under the terms of the GNU General Public License as published by 
@@ -45,8 +35,8 @@ static int zfcp_scsi_eh_host_reset_handler(struct scsi_cmnd *);
 static int zfcp_task_management_function(struct zfcp_unit *, u8,
 					 struct scsi_cmnd *);
 
-static struct zfcp_unit *zfcp_unit_lookup(struct zfcp_adapter *, int, scsi_id_t,
-					  scsi_lun_t);
+static struct zfcp_unit *zfcp_unit_lookup(struct zfcp_adapter *, int,
+					  unsigned int, unsigned int);
 
 static struct device_attribute *zfcp_sysfs_sdev_attrs[];
 
@@ -161,14 +151,6 @@ set_driver_byte(u32 * result, char status)
 	set_byte(result, status, 3);
 }
 
-/*
- * function:	zfcp_scsi_slave_alloc
- *
- * purpose:
- *
- * returns:
- */
-
 static int
 zfcp_scsi_slave_alloc(struct scsi_device *sdp)
 {
@@ -194,14 +176,6 @@ zfcp_scsi_slave_alloc(struct scsi_device *sdp)
  out:
 	return retval;
 }
-
-/*
- * function:	zfcp_scsi_slave_destroy
- *
- * purpose:
- *
- * returns:
- */
 
 static void
 zfcp_scsi_slave_destroy(struct scsi_device *sdpnt)
@@ -374,18 +348,9 @@ zfcp_scsi_queuecommand(struct scsi_cmnd *scpnt,
 	return zfcp_scsi_command_async(adapter, unit, scpnt, NULL);
 }
 
-/*
- * function:    zfcp_unit_lookup
- *
- * purpose:
- *
- * returns:
- *
- * context:	
- */
 static struct zfcp_unit *
-zfcp_unit_lookup(struct zfcp_adapter *adapter, int channel, scsi_id_t id,
-		 scsi_lun_t lun)
+zfcp_unit_lookup(struct zfcp_adapter *adapter, int channel, unsigned int id,
+		 unsigned int lun)
 {
 	struct zfcp_port *port;
 	struct zfcp_unit *unit, *retval = NULL;
@@ -491,13 +456,6 @@ zfcp_scsi_eh_abort_handler(struct scsi_cmnd *scpnt)
 	return retval;
 }
 
-/*
- * function:	zfcp_scsi_eh_device_reset_handler
- *
- * purpose:
- *
- * returns:
- */
 int
 zfcp_scsi_eh_device_reset_handler(struct scsi_cmnd *scpnt)
 {
@@ -625,13 +583,6 @@ zfcp_scsi_eh_host_reset_handler(struct scsi_cmnd *scpnt)
 	return SUCCESS;
 }
 
-/*
- * function:	
- *
- * purpose:	
- *
- * returns:
- */
 int
 zfcp_adapter_scsi_register(struct zfcp_adapter *adapter)
 {
@@ -657,10 +608,6 @@ zfcp_adapter_scsi_register(struct zfcp_adapter *adapter)
 	adapter->scsi_host->unique_id = unique_id++;	/* FIXME */
 	adapter->scsi_host->max_cmd_len = ZFCP_MAX_SCSI_CMND_LENGTH;
 	adapter->scsi_host->transportt = zfcp_transport_template;
-	/*
-	 * Reverse mapping of the host number to avoid race condition
-	 */
-	adapter->scsi_host_no = adapter->scsi_host->host_no;
 
 	/*
 	 * save a pointer to our own adapter data structure within
@@ -678,13 +625,6 @@ zfcp_adapter_scsi_register(struct zfcp_adapter *adapter)
 	return retval;
 }
 
-/*
- * function:	
- *
- * purpose:	
- *
- * returns:
- */
 void
 zfcp_adapter_scsi_unregister(struct zfcp_adapter *adapter)
 {
@@ -703,7 +643,6 @@ zfcp_adapter_scsi_unregister(struct zfcp_adapter *adapter)
 	scsi_remove_host(shost);
 	scsi_host_put(shost);
 	adapter->scsi_host = NULL;
-	adapter->scsi_host_no = 0;
 	atomic_clear_mask(ZFCP_STATUS_ADAPTER_REGISTERED, &adapter->status);
 
 	return;
@@ -817,10 +756,9 @@ zfcp_get_fc_host_stats(struct Scsi_Host *shost)
 	if (!fc_stats)
 		return NULL;
 
-	data = kmalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return NULL;
-	memset(data, 0, sizeof(*data));
 
 	ret = zfcp_fsf_exchange_port_data(NULL, adapter, data);
 	if (ret) {
@@ -848,10 +786,9 @@ zfcp_reset_fc_host_stats(struct Scsi_Host *shost)
 	int ret;
 
 	adapter = (struct zfcp_adapter *)shost->hostdata[0];
-	data = kmalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return;
-	memset(data, 0, sizeof(*data));
 
 	ret = zfcp_fsf_exchange_port_data(NULL, adapter, data);
 	if (ret == 0) {
@@ -863,11 +800,18 @@ zfcp_reset_fc_host_stats(struct Scsi_Host *shost)
 	}
 }
 
+static void zfcp_set_rport_dev_loss_tmo(struct fc_rport *rport, u32 timeout)
+{
+	rport->dev_loss_tmo = timeout;
+}
+
 struct fc_function_template zfcp_transport_functions = {
 	.show_starget_port_id = 1,
 	.show_starget_port_name = 1,
 	.show_starget_node_name = 1,
 	.show_rport_supported_classes = 1,
+	.show_rport_maxframe_size = 1,
+	.show_rport_dev_loss_tmo = 1,
 	.show_host_node_name = 1,
 	.show_host_port_name = 1,
 	.show_host_permanent_port_name = 1,
@@ -877,6 +821,7 @@ struct fc_function_template zfcp_transport_functions = {
 	.show_host_serial_number = 1,
 	.get_fc_host_stats = zfcp_get_fc_host_stats,
 	.reset_fc_host_stats = zfcp_reset_fc_host_stats,
+	.set_rport_dev_loss_tmo = zfcp_set_rport_dev_loss_tmo,
 	/* no functions registered for following dynamic attributes but
 	   directly set by LLDD */
 	.show_host_port_type = 1,

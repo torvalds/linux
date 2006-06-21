@@ -473,7 +473,7 @@ go_42:
 			 */
 			if (workreq->use_sg) {
 				pci_unmap_sg(dev->pdev,
-					(struct scatterlist *)workreq->buffer,
+					(struct scatterlist *)workreq->request_buffer,
 					workreq->use_sg,
 					workreq->sc_data_direction);
 			} else if (workreq->request_bufflen &&
@@ -3047,7 +3047,7 @@ flash_ok_885:
 		if (atp_dev.chip_ver == 4)
 			shpnt->max_id = 16;
 		else		
-			shpnt->max_id = 7;
+			shpnt->max_id = 8;
 		shpnt->this_id = host_id;
 		shpnt->unique_id = base_io;
 		shpnt->io_port = base_io;

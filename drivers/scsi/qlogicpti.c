@@ -43,7 +43,6 @@
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_eh.h>
-#include <scsi/scsi_request.h>
 #include <scsi/scsi_tcq.h>
 #include <scsi/scsi_host.h>
 
@@ -132,7 +131,7 @@ static const u_char mbox_param[] = {
 	PACKB(0, 0)	/* 0x0042 */
 };
 
-#define MAX_MBOX_COMMAND	(sizeof(mbox_param)/sizeof(u_short))
+#define MAX_MBOX_COMMAND	ARRAY_SIZE(mbox_param)
 
 /* queue length's _must_ be power of two: */
 #define QUEUE_DEPTH(in, out, ql)	((in - out) & (ql))
