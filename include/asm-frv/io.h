@@ -17,7 +17,6 @@
 
 #ifdef __KERNEL__
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <asm/virtconvert.h>
 #include <asm/string.h>

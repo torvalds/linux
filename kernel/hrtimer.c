@@ -393,7 +393,7 @@ static void __remove_hrtimer(struct hrtimer *timer, struct hrtimer_base *base)
 	if (base->first == &timer->node)
 		base->first = rb_next(&timer->node);
 	rb_erase(&timer->node, &base->active);
-	timer->node.rb_parent = HRTIMER_INACTIVE;
+	rb_set_parent(&timer->node, &timer->node);
 }
 
 /*
@@ -582,7 +582,7 @@ void hrtimer_init(struct hrtimer *timer, clockid_t clock_id,
 		clock_id = CLOCK_MONOTONIC;
 
 	timer->base = &bases[clock_id];
-	timer->node.rb_parent = HRTIMER_INACTIVE;
+	rb_set_parent(&timer->node, &timer->node);
 }
 EXPORT_SYMBOL_GPL(hrtimer_init);
 

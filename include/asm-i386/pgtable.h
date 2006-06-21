@@ -1,7 +1,6 @@
 #ifndef _I386_PGTABLE_H
 #define _I386_PGTABLE_H
 
-#include <linux/config.h>
 
 /*
  * The Linux memory management assumes a three-level page table setup. On

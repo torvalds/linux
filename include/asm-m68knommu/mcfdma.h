@@ -11,7 +11,6 @@
 #define	mcfdma_h
 /****************************************************************************/
 
-#include <linux/config.h>
 
 /*
  *	Get address specific defines for this Coldfire member.

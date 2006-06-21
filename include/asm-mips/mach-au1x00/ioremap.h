@@ -9,7 +9,6 @@
 #ifndef __ASM_MACH_AU1X00_IOREMAP_H
 #define __ASM_MACH_AU1X00_IOREMAP_H
 
-#include <linux/config.h>
 #include <linux/types.h>
 
 #ifdef CONFIG_64BIT_PHYS_ADDR

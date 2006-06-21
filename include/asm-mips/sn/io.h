@@ -9,7 +9,6 @@
 #ifndef _ASM_SN_IO_H
 #define _ASM_SN_IO_H
 
-#include <linux/config.h>
 #if defined (CONFIG_SGI_IP27)
 #include <asm/sn/sn0/hubio.h>
 #endif

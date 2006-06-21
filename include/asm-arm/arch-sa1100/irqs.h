@@ -7,7 +7,6 @@
  *
  * 2001/11/14	RMK	Cleaned up and standardised a lot of the IRQs.
  */
-#include <linux/config.h>
 
 #define	IRQ_GPIO0		0
 #define	IRQ_GPIO1		1

@@ -19,7 +19,6 @@
 
 #ifdef __KERNEL__
 
-#include <linux/config.h>
 #include <linux/list.h>
 #include <linux/stddef.h>
 #include <linux/spinlock.h>

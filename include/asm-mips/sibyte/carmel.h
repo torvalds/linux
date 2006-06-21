@@ -18,7 +18,6 @@
 #ifndef __ASM_SIBYTE_CARMEL_H
 #define __ASM_SIBYTE_CARMEL_H
 
-#include <linux/config.h>
 
 #include <asm/sibyte/sb1250.h>
 #include <asm/sibyte/sb1250_int.h>

@@ -17,7 +17,6 @@
 #ifndef __ASM_MPC85xx_H__
 #define __ASM_MPC85xx_H__
 
-#include <linux/config.h>
 #include <asm/mmu.h>
 
 #ifdef CONFIG_85xx

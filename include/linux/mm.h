@@ -7,7 +7,6 @@
 
 #ifdef __KERNEL__
 
-#include <linux/config.h>
 #include <linux/gfp.h>
 #include <linux/list.h>
 #include <linux/mmzone.h>

@@ -27,7 +27,6 @@
  *      that offsets of existing fields do not change.
  */
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <asm/sn/types.h>
 

@@ -2,7 +2,6 @@
 #ifndef _PPC_MACHDEP_H
 #define _PPC_MACHDEP_H
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/kexec.h>
 

@@ -19,6 +19,8 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/concat.h>
 
+#include <asm/div64.h>
+
 /*
  * Our storage structure:
  * Subdev points to an array of pointers to struct mtd_info objects
@@ -54,7 +56,7 @@ concat_read(struct mtd_info *mtd, loff_t from, size_t len,
 	    size_t * retlen, u_char * buf)
 {
 	struct mtd_concat *concat = CONCAT(mtd);
-	int err = -EINVAL;
+	int ret = 0, err;
 	int i;
 
 	*retlen = 0;
@@ -78,19 +80,29 @@ concat_read(struct mtd_info *mtd, loff_t from, size_t len,
 
 		err = subdev->read(subdev, from, size, &retsize, buf);
 
-		if (err)
-			break;
+		/* Save information about bitflips! */
+		if (unlikely(err)) {
+			if (err == -EBADMSG) {
+				mtd->ecc_stats.failed++;
+				ret = err;
+			} else if (err == -EUCLEAN) {
+				mtd->ecc_stats.corrected++;
+				/* Do not overwrite -EBADMSG !! */
+				if (!ret)
+					ret = err;
+			} else
+				return err;
+		}
 
 		*retlen += retsize;
 		len -= size;
 		if (len == 0)
-			break;
+			return ret;
 
-		err = -EINVAL;
 		buf += size;
 		from = 0;
 	}
-	return err;
+	return -EINVAL;
 }
 
 static int
@@ -141,211 +153,185 @@ concat_write(struct mtd_info *mtd, loff_t to, size_t len,
 }
 
 static int
-concat_read_ecc(struct mtd_info *mtd, loff_t from, size_t len,
-		size_t * retlen, u_char * buf, u_char * eccbuf,
-		struct nand_oobinfo *oobsel)
+concat_writev(struct mtd_info *mtd, const struct kvec *vecs,
+		unsigned long count, loff_t to, size_t * retlen)
 {
 	struct mtd_concat *concat = CONCAT(mtd);
-	int err = -EINVAL;
+	struct kvec *vecs_copy;
+	unsigned long entry_low, entry_high;
+	size_t total_len = 0;
 	int i;
-
-	*retlen = 0;
-
-	for (i = 0; i < concat->num_subdev; i++) {
-		struct mtd_info *subdev = concat->subdev[i];
-		size_t size, retsize;
-
-		if (from >= subdev->size) {
-			/* Not destined for this subdev */
-			size = 0;
-			from -= subdev->size;
-			continue;
-		}
-
-		if (from + len > subdev->size)
-			/* First part goes into this subdev */
-			size = subdev->size - from;
-		else
-			/* Entire transaction goes into this subdev */
-			size = len;
-
-		if (subdev->read_ecc)
-			err = subdev->read_ecc(subdev, from, size,
-					       &retsize, buf, eccbuf, oobsel);
-		else
-			err = -EINVAL;
-
-		if (err)
-			break;
-
-		*retlen += retsize;
-		len -= size;
-		if (len == 0)
-			break;
-
-		err = -EINVAL;
-		buf += size;
-		if (eccbuf) {
-			eccbuf += subdev->oobsize;
-			/* in nand.c at least, eccbufs are
-			   tagged with 2 (int)eccstatus'; we
-			   must account for these */
-			eccbuf += 2 * (sizeof (int));
-		}
-		from = 0;
-	}
-	return err;
-}
-
-static int
-concat_write_ecc(struct mtd_info *mtd, loff_t to, size_t len,
-		 size_t * retlen, const u_char * buf, u_char * eccbuf,
-		 struct nand_oobinfo *oobsel)
-{
-	struct mtd_concat *concat = CONCAT(mtd);
 	int err = -EINVAL;
-	int i;
 
 	if (!(mtd->flags & MTD_WRITEABLE))
 		return -EROFS;
 
 	*retlen = 0;
 
+	/* Calculate total length of data */
+	for (i = 0; i < count; i++)
+		total_len += vecs[i].iov_len;
+
+	/* Do not allow write past end of device */
+	if ((to + total_len) > mtd->size)
+		return -EINVAL;
+
+	/* Check alignment */
+	if (mtd->writesize > 1) {
+		loff_t __to = to;
+		if (do_div(__to, mtd->writesize) || (total_len % mtd->writesize))
+			return -EINVAL;
+	}
+
+	/* make a copy of vecs */
+	vecs_copy = kmalloc(sizeof(struct kvec) * count, GFP_KERNEL);
+	if (!vecs_copy)
+		return -ENOMEM;
+	memcpy(vecs_copy, vecs, sizeof(struct kvec) * count);
+
+	entry_low = 0;
 	for (i = 0; i < concat->num_subdev; i++) {
 		struct mtd_info *subdev = concat->subdev[i];
-		size_t size, retsize;
+		size_t size, wsize, retsize, old_iov_len;
 
 		if (to >= subdev->size) {
-			size = 0;
 			to -= subdev->size;
 			continue;
 		}
-		if (to + len > subdev->size)
-			size = subdev->size - to;
-		else
-			size = len;
+
+		size = min(total_len, (size_t)(subdev->size - to));
+		wsize = size; /* store for future use */
+
+		entry_high = entry_low;
+		while (entry_high < count) {
+			if (size <= vecs_copy[entry_high].iov_len)
+				break;
+			size -= vecs_copy[entry_high++].iov_len;
+		}
+
+		old_iov_len = vecs_copy[entry_high].iov_len;
+		vecs_copy[entry_high].iov_len = size;
 
 		if (!(subdev->flags & MTD_WRITEABLE))
 			err = -EROFS;
-		else if (subdev->write_ecc)
-			err = subdev->write_ecc(subdev, to, size,
-						&retsize, buf, eccbuf, oobsel);
 		else
-			err = -EINVAL;
+			err = subdev->writev(subdev, &vecs_copy[entry_low],
+				entry_high - entry_low + 1, to, &retsize);
+
+		vecs_copy[entry_high].iov_len = old_iov_len - size;
+		vecs_copy[entry_high].iov_base += size;
+
+		entry_low = entry_high;
 
 		if (err)
 			break;
 
 		*retlen += retsize;
-		len -= size;
-		if (len == 0)
+		total_len -= wsize;
+
+		if (total_len == 0)
 			break;
 
 		err = -EINVAL;
-		buf += size;
-		if (eccbuf)
-			eccbuf += subdev->oobsize;
 		to = 0;
 	}
+
+	kfree(vecs_copy);
 	return err;
 }
 
 static int
-concat_read_oob(struct mtd_info *mtd, loff_t from, size_t len,
-		size_t * retlen, u_char * buf)
+concat_read_oob(struct mtd_info *mtd, loff_t from, struct mtd_oob_ops *ops)
 {
 	struct mtd_concat *concat = CONCAT(mtd);
-	int err = -EINVAL;
-	int i;
+	struct mtd_oob_ops devops = *ops;
+	int i, err, ret = 0;
 
-	*retlen = 0;
+	ops->retlen = 0;
 
 	for (i = 0; i < concat->num_subdev; i++) {
 		struct mtd_info *subdev = concat->subdev[i];
-		size_t size, retsize;
 
 		if (from >= subdev->size) {
-			/* Not destined for this subdev */
-			size = 0;
 			from -= subdev->size;
 			continue;
 		}
-		if (from + len > subdev->size)
-			/* First part goes into this subdev */
-			size = subdev->size - from;
-		else
-			/* Entire transaction goes into this subdev */
-			size = len;
 
-		if (subdev->read_oob)
-			err = subdev->read_oob(subdev, from, size,
-					       &retsize, buf);
-		else
-			err = -EINVAL;
+		/* partial read ? */
+		if (from + devops.len > subdev->size)
+			devops.len = subdev->size - from;
 
-		if (err)
-			break;
+		err = subdev->read_oob(subdev, from, &devops);
+		ops->retlen += devops.retlen;
 
-		*retlen += retsize;
-		len -= size;
-		if (len == 0)
-			break;
+		/* Save information about bitflips! */
+		if (unlikely(err)) {
+			if (err == -EBADMSG) {
+				mtd->ecc_stats.failed++;
+				ret = err;
+			} else if (err == -EUCLEAN) {
+				mtd->ecc_stats.corrected++;
+				/* Do not overwrite -EBADMSG !! */
+				if (!ret)
+					ret = err;
+			} else
+				return err;
+		}
 
-		err = -EINVAL;
-		buf += size;
+		devops.len = ops->len - ops->retlen;
+		if (!devops.len)
+			return ret;
+
+		if (devops.datbuf)
+			devops.datbuf += devops.retlen;
+		if (devops.oobbuf)
+			devops.oobbuf += devops.ooblen;
+
 		from = 0;
 	}
-	return err;
+	return -EINVAL;
 }
 
 static int
-concat_write_oob(struct mtd_info *mtd, loff_t to, size_t len,
-		 size_t * retlen, const u_char * buf)
+concat_write_oob(struct mtd_info *mtd, loff_t to, struct mtd_oob_ops *ops)
 {
 	struct mtd_concat *concat = CONCAT(mtd);
-	int err = -EINVAL;
-	int i;
+	struct mtd_oob_ops devops = *ops;
+	int i, err;
 
 	if (!(mtd->flags & MTD_WRITEABLE))
 		return -EROFS;
 
-	*retlen = 0;
+	ops->retlen = 0;
 
 	for (i = 0; i < concat->num_subdev; i++) {
 		struct mtd_info *subdev = concat->subdev[i];
-		size_t size, retsize;
 
 		if (to >= subdev->size) {
-			size = 0;
 			to -= subdev->size;
 			continue;
 		}
-		if (to + len > subdev->size)
-			size = subdev->size - to;
-		else
-			size = len;
 
-		if (!(subdev->flags & MTD_WRITEABLE))
-			err = -EROFS;
-		else if (subdev->write_oob)
-			err = subdev->write_oob(subdev, to, size, &retsize,
-						buf);
-		else
-			err = -EINVAL;
+		/* partial write ? */
+		if (to + devops.len > subdev->size)
+			devops.len = subdev->size - to;
 
+		err = subdev->write_oob(subdev, to, &devops);
+		ops->retlen += devops.retlen;
 		if (err)
-			break;
+			return err;
 
-		*retlen += retsize;
-		len -= size;
-		if (len == 0)
-			break;
+		devops.len = ops->len - ops->retlen;
+		if (!devops.len)
+			return 0;
 
-		err = -EINVAL;
-		buf += size;
+		if (devops.datbuf)
+			devops.datbuf += devops.retlen;
+		if (devops.oobbuf)
+			devops.oobbuf += devops.ooblen;
 		to = 0;
 	}
-	return err;
+	return -EINVAL;
 }
 
 static void concat_erase_callback(struct erase_info *instr)
@@ -636,6 +622,60 @@ static void concat_resume(struct mtd_info *mtd)
 	}
 }
 
+static int concat_block_isbad(struct mtd_info *mtd, loff_t ofs)
+{
+	struct mtd_concat *concat = CONCAT(mtd);
+	int i, res = 0;
+
+	if (!concat->subdev[0]->block_isbad)
+		return res;
+
+	if (ofs > mtd->size)
+		return -EINVAL;
+
+	for (i = 0; i < concat->num_subdev; i++) {
+		struct mtd_info *subdev = concat->subdev[i];
+
+		if (ofs >= subdev->size) {
+			ofs -= subdev->size;
+			continue;
+		}
+
+		res = subdev->block_isbad(subdev, ofs);
+		break;
+	}
+
+	return res;
+}
+
+static int concat_block_markbad(struct mtd_info *mtd, loff_t ofs)
+{
+	struct mtd_concat *concat = CONCAT(mtd);
+	int i, err = -EINVAL;
+
+	if (!concat->subdev[0]->block_markbad)
+		return 0;
+
+	if (ofs > mtd->size)
+		return -EINVAL;
+
+	for (i = 0; i < concat->num_subdev; i++) {
+		struct mtd_info *subdev = concat->subdev[i];
+
+		if (ofs >= subdev->size) {
+			ofs -= subdev->size;
+			continue;
+		}
+
+		err = subdev->block_markbad(subdev, ofs);
+		if (!err)
+			mtd->ecc_stats.badblocks++;
+		break;
+	}
+
+	return err;
+}
+
 /*
  * This function constructs a virtual MTD device by concatenating
  * num_devs MTD devices. A pointer to the new device object is
@@ -677,18 +717,22 @@ struct mtd_info *mtd_concat_create(struct mtd_info *subdev[],	/* subdevices to c
 	concat->mtd.flags = subdev[0]->flags;
 	concat->mtd.size = subdev[0]->size;
 	concat->mtd.erasesize = subdev[0]->erasesize;
-	concat->mtd.oobblock = subdev[0]->oobblock;
+	concat->mtd.writesize = subdev[0]->writesize;
 	concat->mtd.oobsize = subdev[0]->oobsize;
 	concat->mtd.ecctype = subdev[0]->ecctype;
 	concat->mtd.eccsize = subdev[0]->eccsize;
-	if (subdev[0]->read_ecc)
-		concat->mtd.read_ecc = concat_read_ecc;
-	if (subdev[0]->write_ecc)
-		concat->mtd.write_ecc = concat_write_ecc;
+	if (subdev[0]->writev)
+		concat->mtd.writev = concat_writev;
 	if (subdev[0]->read_oob)
 		concat->mtd.read_oob = concat_read_oob;
 	if (subdev[0]->write_oob)
 		concat->mtd.write_oob = concat_write_oob;
+	if (subdev[0]->block_isbad)
+		concat->mtd.block_isbad = concat_block_isbad;
+	if (subdev[0]->block_markbad)
+		concat->mtd.block_markbad = concat_block_markbad;
+
+	concat->mtd.ecc_stats.badblocks = subdev[0]->ecc_stats.badblocks;
 
 	concat->subdev[0] = subdev[0];
 
@@ -717,12 +761,12 @@ struct mtd_info *mtd_concat_create(struct mtd_info *subdev[],	/* subdevices to c
 				    subdev[i]->flags & MTD_WRITEABLE;
 		}
 		concat->mtd.size += subdev[i]->size;
-		if (concat->mtd.oobblock   !=  subdev[i]->oobblock ||
+		concat->mtd.ecc_stats.badblocks +=
+			subdev[i]->ecc_stats.badblocks;
+		if (concat->mtd.writesize   !=  subdev[i]->writesize ||
 		    concat->mtd.oobsize    !=  subdev[i]->oobsize ||
 		    concat->mtd.ecctype    !=  subdev[i]->ecctype ||
 		    concat->mtd.eccsize    !=  subdev[i]->eccsize ||
-		    !concat->mtd.read_ecc  != !subdev[i]->read_ecc ||
-		    !concat->mtd.write_ecc != !subdev[i]->write_ecc ||
 		    !concat->mtd.read_oob  != !subdev[i]->read_oob ||
 		    !concat->mtd.write_oob != !subdev[i]->write_oob) {
 			kfree(concat);
@@ -734,14 +778,11 @@ struct mtd_info *mtd_concat_create(struct mtd_info *subdev[],	/* subdevices to c
 
 	}
 
+	concat->mtd.ecclayout = subdev[0]->ecclayout;
+
 	concat->num_subdev = num_devs;
 	concat->mtd.name = name;
 
-	/*
-	 * NOTE: for now, we do not provide any readv()/writev() methods
-	 *       because they are messy to implement and they are not
-	 *       used to a great extent anyway.
-	 */
 	concat->mtd.erase = concat_erase;
 	concat->mtd.read = concat_read;
 	concat->mtd.write = concat_write;

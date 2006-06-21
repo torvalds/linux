@@ -6,7 +6,6 @@
  * structures etc.
  */
 
-#include <linux/config.h>
 #include <linux/limits.h>
 #include <linux/ioctl.h>
 

@@ -12,7 +12,6 @@
  *	David Mosberger-Tang <davidm@hpl.hp.com>
  */
 
-#include <linux/config.h>
 
 #include <asm/mman.h>
 #include <asm/page.h>

@@ -11,7 +11,6 @@
 #ifndef _XTENSA_CHECKSUM_H
 #define _XTENSA_CHECKSUM_H
 
-#include <linux/config.h>
 #include <linux/in6.h>
 #include <xtensa/config/core.h>
 

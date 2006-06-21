@@ -63,7 +63,6 @@
  */
 
 
-#include <linux/config.h>
 
 #ifdef TEST_FRAME
 #undef CONFIG_PROC_FS

@@ -2,7 +2,6 @@
 #define _LINUX_DEVFS_FS_KERNEL_H
 
 #include <linux/fs.h>
-#include <linux/config.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>
 

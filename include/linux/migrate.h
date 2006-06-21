@@ -1,7 +1,6 @@
 #ifndef _LINUX_MIGRATE_H
 #define _LINUX_MIGRATE_H
 
-#include <linux/config.h>
 #include <linux/mm.h>
 
 #ifdef CONFIG_MIGRATION

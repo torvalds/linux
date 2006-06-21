@@ -1,12 +1,12 @@
 #ifndef _LINUX_SIGNAL_H
 #define _LINUX_SIGNAL_H
 
-#include <linux/list.h>
-#include <linux/spinlock.h>
 #include <asm/signal.h>
 #include <asm/siginfo.h>
 
 #ifdef __KERNEL__
+#include <linux/list.h>
+#include <linux/spinlock.h>
 
 /*
  * These values of sa_flags are used only by the kernel as part of the

@@ -1,7 +1,6 @@
 #ifndef _ASM_CRIS_ARCH_PROCESSOR_H
 #define _ASM_CRIS_ARCH_PROCESSOR_H
 
-#include <linux/config.h>
 
 /* Return current instruction pointer. */
 #define current_text_addr() \

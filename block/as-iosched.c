@@ -353,10 +353,9 @@ static struct request *as_find_arq_hash(struct as_data *ad, sector_t offset)
 /*
  * rb tree support functions
  */
-#define RB_NONE		(2)
 #define RB_EMPTY(root)	((root)->rb_node == NULL)
-#define ON_RB(node)	((node)->rb_color != RB_NONE)
-#define RB_CLEAR(node)	((node)->rb_color = RB_NONE)
+#define ON_RB(node)	(rb_parent(node) != node)
+#define RB_CLEAR(node)	(rb_set_parent(node, node))
 #define rb_entry_arq(node)	rb_entry((node), struct as_rq, rb_node)
 #define ARQ_RB_ROOT(ad, arq)	(&(ad)->sort_list[(arq)->is_sync])
 #define rq_rb_key(rq)		(rq)->sector

@@ -13,7 +13,6 @@
 
 #ifdef __KERNEL__
 
-#include <linux/config.h>
 
 #define IDE_ARCH_OBSOLETE_DEFAULTS
 

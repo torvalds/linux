@@ -17,8 +17,6 @@
 #ifndef LINUX_PCI_H
 #define LINUX_PCI_H
 
-#include <linux/mod_devicetable.h>
-
 /* Include the pci register defines */
 #include <linux/pci_regs.h>
 
@@ -46,8 +44,9 @@
 
 #ifdef __KERNEL__
 
+#include <linux/mod_devicetable.h>
+
 #include <linux/types.h>
-#include <linux/config.h>
 #include <linux/ioport.h>
 #include <linux/list.h>
 #include <linux/errno.h>

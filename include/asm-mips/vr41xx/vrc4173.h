@@ -24,7 +24,6 @@
 #ifndef __NEC_VRC4173_H
 #define __NEC_VRC4173_H
 
-#include <linux/config.h>
 #include <asm/io.h>
 
 /*

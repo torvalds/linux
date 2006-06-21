@@ -1019,8 +1019,8 @@ static ssize_t proc_loginuid_write(struct file * file, const char __user * buf,
 	if (current != task)
 		return -EPERM;
 
-	if (count > PAGE_SIZE)
-		count = PAGE_SIZE;
+	if (count >= PAGE_SIZE)
+		count = PAGE_SIZE - 1;
 
 	if (*ppos != 0) {
 		/* No partial writes. */
@@ -1033,6 +1033,7 @@ static ssize_t proc_loginuid_write(struct file * file, const char __user * buf,
 	if (copy_from_user(page, buf, count))
 		goto out_free_page;
 
+	page[count] = '\0';
 	loginuid = simple_strtoul(page, &tmp, 10);
 	if (tmp == page) {
 		length = -EINVAL;

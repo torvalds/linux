@@ -13,7 +13,6 @@
 #ifndef __PXA_REGS_H
 #define __PXA_REGS_H
 
-#include <linux/config.h>
 
 /*
  * PXA Chip selects

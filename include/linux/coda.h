@@ -59,7 +59,6 @@ Mellon the rights to redistribute these changes without encumbrance.
 #ifndef _CODA_HEADER_
 #define _CODA_HEADER_
 
-#include <linux/config.h>
 
 /* Catch new _KERNEL defn for NetBSD and DJGPP/__CYGWIN32__ */
 #if defined(__NetBSD__) || \

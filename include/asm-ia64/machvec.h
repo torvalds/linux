@@ -10,7 +10,6 @@
 #ifndef _ASM_IA64_MACHVEC_H
 #define _ASM_IA64_MACHVEC_H
 
-#include <linux/config.h>
 #include <linux/types.h>
 
 /* forward declarations: */

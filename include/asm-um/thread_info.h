@@ -8,7 +8,6 @@
 
 #ifndef __ASSEMBLY__
 
-#include <linux/config.h>
 #include <asm/processor.h>
 #include <asm/types.h>
 

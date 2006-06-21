@@ -8,7 +8,6 @@
 #ifndef _SPARC64_IRQ_H
 #define _SPARC64_IRQ_H
 
-#include <linux/config.h>
 #include <linux/linkage.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>

@@ -5,7 +5,6 @@
  *
  * Copyright (c) 1998 Harald Koerfgen
  */
-#include <linux/config.h>
 
 #ifndef __ASM_ISADEP_H
 #define __ASM_ISADEP_H

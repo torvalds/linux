@@ -6,7 +6,6 @@
  * Copyright 2002, Yoshinori Sato
  */
 
-#include <linux/config.h>
 #include <linux/compiler.h>
 #include <asm/system.h>
 

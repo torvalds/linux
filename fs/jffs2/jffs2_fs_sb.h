@@ -100,6 +100,7 @@ struct jffs2_sb_info {
 #ifdef CONFIG_JFFS2_FS_WRITEBUFFER
 	/* Write-behind buffer for NAND flash */
 	unsigned char *wbuf;
+	unsigned char *oobbuf;
 	uint32_t wbuf_ofs;
 	uint32_t wbuf_len;
 	struct jffs2_inodirty *wbuf_inodes;
@@ -107,7 +108,7 @@ struct jffs2_sb_info {
 	struct rw_semaphore wbuf_sem;	/* Protects the write buffer */
 
 	/* Information about out-of-band area usage... */
-	struct nand_oobinfo *oobinfo;
+	struct nand_ecclayout *ecclayout;
 	uint32_t badblock_pos;
 	uint32_t fsdata_pos;
 	uint32_t fsdata_len;
@@ -115,6 +116,16 @@ struct jffs2_sb_info {
 
 	struct jffs2_summary *summary;		/* Summary information */
 
+#ifdef CONFIG_JFFS2_FS_XATTR
+#define XATTRINDEX_HASHSIZE	(57)
+	uint32_t highest_xid;
+	struct list_head xattrindex[XATTRINDEX_HASHSIZE];
+	struct list_head xattr_unchecked;
+	struct jffs2_xattr_ref *xref_temp;
+	struct rw_semaphore xattr_sem;
+	uint32_t xdatum_mem_usage;
+	uint32_t xdatum_mem_threshold;
+#endif
 	/* OS-private pointer for getting back to master superblock info */
 	void *os_priv;
 };

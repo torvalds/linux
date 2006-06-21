@@ -1,7 +1,6 @@
 #ifndef _ASM_GENERIC_FCNTL_H
 #define _ASM_GENERIC_FCNTL_H
 
-#include <linux/config.h>
 #include <linux/types.h>
 
 /* open/fcntl - O_SYNC is only implemented on blocks devices and on files

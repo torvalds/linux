@@ -16,7 +16,6 @@
 		   consoles 16 and higher (since it returns a short) */
 
 #ifdef __KERNEL__
-#include <linux/config.h>
 #include <linux/fs.h>
 #include <linux/major.h>
 #include <linux/termios.h>

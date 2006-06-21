@@ -140,7 +140,7 @@ struct user_struct * alloc_uid(uid_t uid)
 		atomic_set(&new->processes, 0);
 		atomic_set(&new->files, 0);
 		atomic_set(&new->sigpending, 0);
-#ifdef CONFIG_INOTIFY
+#ifdef CONFIG_INOTIFY_USER
 		atomic_set(&new->inotify_watches, 0);
 		atomic_set(&new->inotify_devs, 0);
 #endif

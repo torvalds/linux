@@ -14,7 +14,6 @@
 #define _LINUX_NFS4_H
 
 #include <linux/types.h>
-#include <linux/list.h>
 
 #define NFS4_VERIFIER_SIZE	8
 #define NFS4_FHSIZE		128
@@ -96,6 +95,9 @@ enum nfs4_acl_whotype {
 	NFS4_ACL_WHO_GROUP,
 	NFS4_ACL_WHO_EVERYONE,
 };
+
+#ifdef __KERNEL__
+#include <linux/list.h>
 
 struct nfs4_ace {
 	uint32_t	type;
@@ -344,8 +346,6 @@ enum lock_type4 {
 #define NFSPROC4_COMPOUND 1
 #define NFS4_MINOR_VERSION 0
 #define NFS4_DEBUG 1
-
-#ifdef __KERNEL__
 
 /* Index of predefined Linux client operations */
 

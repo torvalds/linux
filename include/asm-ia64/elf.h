@@ -8,7 +8,6 @@
  *	David Mosberger-Tang <davidm@hpl.hp.com>
  */
 
-#include <linux/config.h>
 
 #include <asm/fpu.h>
 #include <asm/page.h>

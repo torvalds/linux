@@ -231,6 +231,10 @@ static inline int __init doccheck(void __iomem *potential, unsigned long physadr
 
 static int docfound;
 
+extern void DoC2k_init(struct mtd_info *);
+extern void DoCMil_init(struct mtd_info *);
+extern void DoCMilPlus_init(struct mtd_info *);
+
 static void __init DoC_Probe(unsigned long physadr)
 {
 	void __iomem *docptr;
@@ -239,8 +243,6 @@ static void __init DoC_Probe(unsigned long physadr)
 	int ChipID;
 	char namebuf[15];
 	char *name = namebuf;
-	char *im_funcname = NULL;
-	char *im_modname = NULL;
 	void (*initroutine)(struct mtd_info *) = NULL;
 
 	docptr = ioremap(physadr, DOC_IOREMAP_LEN);
@@ -278,41 +280,33 @@ static void __init DoC_Probe(unsigned long physadr)
 		switch(ChipID) {
 		case DOC_ChipID_Doc2kTSOP:
 			name="2000 TSOP";
-			im_funcname = "DoC2k_init";
-			im_modname = "doc2000";
+			initroutine = symbol_request(DoC2k_init);
 			break;
 
 		case DOC_ChipID_Doc2k:
 			name="2000";
-			im_funcname = "DoC2k_init";
-			im_modname = "doc2000";
+			initroutine = symbol_request(DoC2k_init);
 			break;
 
 		case DOC_ChipID_DocMil:
 			name="Millennium";
 #ifdef DOC_SINGLE_DRIVER
-			im_funcname = "DoC2k_init";
-			im_modname = "doc2000";
+			initroutine = symbol_request(DoC2k_init);
 #else
-			im_funcname = "DoCMil_init";
-			im_modname = "doc2001";
+			initroutine = symbol_request(DoCMil_init);
 #endif /* DOC_SINGLE_DRIVER */
 			break;
 
 		case DOC_ChipID_DocMilPlus16:
 		case DOC_ChipID_DocMilPlus32:
 			name="MillenniumPlus";
-			im_funcname = "DoCMilPlus_init";
-			im_modname = "doc2001plus";
+			initroutine = symbol_request(DoCMilPlus_init);
 			break;
 		}
 
-		if (im_funcname)
-			initroutine = inter_module_get_request(im_funcname, im_modname);
-
 		if (initroutine) {
 			(*initroutine)(mtd);
-			inter_module_put(im_funcname);
+			symbol_put_addr(initroutine);
 			return;
 		}
 		printk(KERN_NOTICE "Cannot find driver for DiskOnChip %s at 0x%lX\n", name, physadr);

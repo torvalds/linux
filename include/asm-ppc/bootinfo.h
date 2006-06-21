@@ -9,7 +9,6 @@
 #ifndef _PPC_BOOTINFO_H
 #define _PPC_BOOTINFO_H
 
-#include <linux/config.h>
 #include <asm/page.h>
 
 #if defined(CONFIG_APUS) && !defined(__BOOTER__)

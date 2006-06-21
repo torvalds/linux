@@ -4,7 +4,6 @@
    very heavy lock, which is equivalent to grabbing every spinlock
    (and more).  So the "read" side to such a lock is anything which
    diables preeempt. */
-#include <linux/config.h>
 #include <linux/cpu.h>
 #include <asm/system.h>
 

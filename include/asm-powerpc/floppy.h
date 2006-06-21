@@ -11,7 +11,6 @@
 #define __ASM_POWERPC_FLOPPY_H
 #ifdef __KERNEL__
 
-#include <linux/config.h>
 #include <asm/machdep.h>
 
 #define fd_inb(port)		inb_p(port)

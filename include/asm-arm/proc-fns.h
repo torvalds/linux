@@ -13,7 +13,6 @@
 
 #ifdef __KERNEL__
 
-#include <linux/config.h>
 
 /*
  * Work out if we need multiple CPU support

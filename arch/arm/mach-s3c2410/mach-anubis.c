@@ -131,7 +131,7 @@ static struct s3c24xx_uart_clksrc anubis_serial_clocks[] = {
 };
 
 
-static struct s3c2410_uartcfg anubis_uartcfgs[] = {
+static struct s3c2410_uartcfg anubis_uartcfgs[] __initdata = {
 	[0] = {
 		.hwport	     = 0,
 		.flags	     = 0,

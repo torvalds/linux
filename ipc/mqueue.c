@@ -8,6 +8,8 @@
  * Lockless receive & send, fd based notify:
  * 			    Manfred Spraul	    (manfred@colorfullife.com)
  *
+ * Audit:                   George Wilson           (ltcgcw@us.ibm.com)
+ *
  * This file is released under the GPL.
  */
 
@@ -24,6 +26,7 @@
 #include <linux/skbuff.h>
 #include <linux/netlink.h>
 #include <linux/syscalls.h>
+#include <linux/audit.h>
 #include <linux/signal.h>
 #include <linux/mutex.h>
 
@@ -657,6 +660,10 @@ asmlinkage long sys_mq_open(const char __user *u_name, int oflag, mode_t mode,
 	char *name;
 	int fd, error;
 
+	error = audit_mq_open(oflag, mode, u_attr);
+	if (error != 0)
+		return error;
+
 	if (IS_ERR(name = getname(u_name)))
 		return PTR_ERR(name);
 
@@ -814,6 +821,10 @@ asmlinkage long sys_mq_timedsend(mqd_t mqdes, const char __user *u_msg_ptr,
 	long timeout;
 	int ret;
 
+	ret = audit_mq_timedsend(mqdes, msg_len, msg_prio, u_abs_timeout);
+	if (ret != 0)
+		return ret;
+
 	if (unlikely(msg_prio >= (unsigned long) MQ_PRIO_MAX))
 		return -EINVAL;
 
@@ -896,6 +907,10 @@ asmlinkage ssize_t sys_mq_timedreceive(mqd_t mqdes, char __user *u_msg_ptr,
 	struct mqueue_inode_info *info;
 	struct ext_wait_queue wait;
 
+	ret = audit_mq_timedreceive(mqdes, msg_len, u_msg_prio, u_abs_timeout);
+	if (ret != 0)
+		return ret;
+
 	timeout = prepare_timeout(u_abs_timeout);
 
 	ret = -EBADF;
@@ -974,6 +989,10 @@ asmlinkage long sys_mq_notify(mqd_t mqdes,
 	struct sigevent notification;
 	struct mqueue_inode_info *info;
 	struct sk_buff *nc;
+
+	ret = audit_mq_notify(mqdes, u_notification);
+	if (ret != 0)
+		return ret;
 
 	nc = NULL;
 	sock = NULL;
@@ -1115,6 +1134,9 @@ asmlinkage long sys_mq_getsetattr(mqd_t mqdes,
 	omqstat = info->attr;
 	omqstat.mq_flags = filp->f_flags & O_NONBLOCK;
 	if (u_mqstat) {
+		ret = audit_mq_getsetattr(mqdes, &mqstat);
+		if (ret != 0)
+			goto out;
 		if (mqstat.mq_flags & O_NONBLOCK)
 			filp->f_flags |= O_NONBLOCK;
 		else

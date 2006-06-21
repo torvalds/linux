@@ -1,7 +1,6 @@
 #ifndef _SPARC64_TLB_H
 #define _SPARC64_TLB_H
 
-#include <linux/config.h>
 #include <linux/swap.h>
 #include <asm/pgalloc.h>
 #include <asm/tlbflush.h>

@@ -8,7 +8,6 @@
 #ifndef __ARCH_SPARC64_ATOMIC__
 #define __ARCH_SPARC64_ATOMIC__
 
-#include <linux/config.h>
 #include <linux/types.h>
 
 typedef struct { volatile int counter; } atomic_t;

@@ -10,7 +10,6 @@
 #ifndef mcfdebug_h
 #define mcfdebug_h
 /****************************************************************************/
-#include <linux/config.h>
 
 /* Define the debug module registers */
 #define MCFDEBUG_CSR	0x0			/* Configuration status		*/

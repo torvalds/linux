@@ -7,7 +7,6 @@
 #ifndef _SPARC64_BITOPS_H
 #define _SPARC64_BITOPS_H
 
-#include <linux/config.h>
 #include <linux/compiler.h>
 #include <asm/byteorder.h>
 

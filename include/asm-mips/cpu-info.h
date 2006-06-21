@@ -12,7 +12,6 @@
 #ifndef __ASM_CPU_INFO_H
 #define __ASM_CPU_INFO_H
 
-#include <linux/config.h>
 #include <asm/cache.h>
 
 #ifdef CONFIG_SGI_IP27

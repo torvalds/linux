@@ -1843,12 +1843,12 @@ S:     linux-scsi@vger.kernel.org
 W:     http://megaraid.lsilogic.com
 S:     Maintained
 
-MEMORY TECHNOLOGY DEVICES
+MEMORY TECHNOLOGY DEVICES (MTD)
 P:	David Woodhouse
 M:	dwmw2@infradead.org
 W:	http://www.linux-mtd.infradead.org/
 L:	linux-mtd@lists.infradead.org
-T:	git kernel.org:/pub/scm/linux/kernel/git/tglx/mtd-2.6.git
+T:	git git://git.infradead.org/mtd-2.6.git
 S:	Maintained
 
 MICROTEK X6 SCANNER
@@ -1895,7 +1895,7 @@ L:	linux-kernel@vger.kernel.org
 W:	http://www.atnf.csiro.au/~rgooch/linux/kernel-patches.html
 S:	Maintained
 
-MULTIMEDIA CARD SUBSYSTEM
+MULTIMEDIA CARD (MMC) SUBSYSTEM
 P:	Russell King
 M:	rmk+mmc@arm.linux.org.uk
 S:	Maintained

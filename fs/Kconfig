@@ -393,13 +393,25 @@ config INOTIFY
 	bool "Inotify file change notification support"
 	default y
 	---help---
-	  Say Y here to enable inotify support and the associated system
-	  calls.  Inotify is a file change notification system and a
-	  replacement for dnotify.  Inotify fixes numerous shortcomings in
-	  dnotify and introduces several new features.  It allows monitoring
-	  of both files and directories via a single open fd.  Other features
-	  include multiple file events, one-shot support, and unmount
+	  Say Y here to enable inotify support.  Inotify is a file change
+	  notification system and a replacement for dnotify.  Inotify fixes
+	  numerous shortcomings in dnotify and introduces several new features
+	  including multiple file events, one-shot support, and unmount
 	  notification.
+
+	  For more information, see Documentation/filesystems/inotify.txt
+
+	  If unsure, say Y.
+
+config INOTIFY_USER
+	bool "Inotify support for userspace"
+	depends on INOTIFY
+	default y
+	---help---
+	  Say Y here to enable inotify support for userspace, including the
+	  associated system calls.  Inotify allows monitoring of both files and
+	  directories via a single open fd.  Events are read from the file
+	  descriptor, which is also select()- and poll()-able.
 
 	  For more information, see Documentation/filesystems/inotify.txt
 
@@ -1100,6 +1112,44 @@ config JFFS2_SUMMARY
 	  by the utility 'sumtool'.
 
 	  If unsure, say 'N'.
+
+config JFFS2_FS_XATTR
+	bool "JFFS2 XATTR support (EXPERIMENTAL)"
+	depends on JFFS2_FS && EXPERIMENTAL && !JFFS2_FS_WRITEBUFFER
+	default n
+	help
+	  Extended attributes are name:value pairs associated with inodes by
+	  the kernel or by users (see the attr(5) manual page, or visit
+	  <http://acl.bestbits.at/> for details).
+	  
+	  If unsure, say N.
+
+config JFFS2_FS_POSIX_ACL
+	bool "JFFS2 POSIX Access Control Lists"
+	depends on JFFS2_FS_XATTR
+	default y
+	select FS_POSIX_ACL
+	help
+	  Posix Access Control Lists (ACLs) support permissions for users and
+	  groups beyond the owner/group/world scheme.
+	  
+	  To learn more about Access Control Lists, visit the Posix ACLs for
+	  Linux website <http://acl.bestbits.at/>.
+	  
+	  If you don't know what Access Control Lists are, say N
+
+config JFFS2_FS_SECURITY
+	bool "JFFS2 Security Labels"
+	depends on JFFS2_FS_XATTR
+	default y
+	help
+	  Security labels support alternative access control models
+	  implemented by security modules like SELinux.  This option
+	  enables an extended attribute handler for file security
+	  labels in the jffs2 filesystem.
+	  
+	  If you are not using a security module that requires using
+	  extended attributes for file security labels, say N.
 
 config JFFS2_COMPRESSION_OPTIONS
 	bool "Advanced compression options for JFFS2"

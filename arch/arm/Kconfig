@@ -270,6 +270,11 @@ config ARCH_AT91RM9200
 	  Say Y here if you intend to run this kernel on an Atmel
 	  AT91RM9200-based board.
 
+config ARCH_PNX4008
+	bool "Philips Nexperia PNX4008 Mobile"
+	help
+	  This enables support for Philips PNX4008 mobile platform.
+
 endchoice
 
 source "arch/arm/mach-clps711x/Kconfig"
