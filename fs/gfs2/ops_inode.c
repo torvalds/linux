@@ -615,13 +615,19 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 			goto out_gunlock_r;
 	}
 
+	num_gh = 1;
 	gfs2_holder_init(odip->i_gl, LM_ST_EXCLUSIVE, 0, ghs);
-	gfs2_holder_init(ndip->i_gl, LM_ST_EXCLUSIVE, 0, ghs + 1);
-	gfs2_holder_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, ghs + 2);
-	num_gh = 3;
+	if (odip != ndip) {
+		gfs2_holder_init(ndip->i_gl, LM_ST_EXCLUSIVE, 0, ghs + num_gh);
+		num_gh++;
+	}
+	gfs2_holder_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, ghs + num_gh);
+	num_gh++;
 
-	if (nip)
-		gfs2_holder_init(nip->i_gl, LM_ST_EXCLUSIVE, 0, ghs + num_gh++);
+	if (nip) {
+		gfs2_holder_init(nip->i_gl, LM_ST_EXCLUSIVE, 0, ghs + num_gh);
+		num_gh++;
+	}
 
 	error = gfs2_glock_nq_m(num_gh, ghs);
 	if (error)
