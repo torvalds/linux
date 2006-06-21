@@ -1318,7 +1318,6 @@ cfq_alloc_io_context(struct cfq_data *cfqd, gfp_t gfp_mask)
 
 	if (cic) {
 		memset(cic, 0, sizeof(*cic));
-		RB_CLEAR_COLOR(&cic->rb_node);
 		cic->last_end_request = jiffies;
 		INIT_LIST_HEAD(&cic->queue_list);
 		cic->dtor = cfq_free_io_context;
