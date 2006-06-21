@@ -125,7 +125,13 @@ struct dst_state {
 	u8 vendor[8];
 	u8 board_info[8];
 	u32 tuner_type;
+	char *tuner_name;
 	struct mutex dst_mutex;
+};
+
+struct tuner_types {
+	u32 tuner_type;
+	char *tuner_name;
 };
 
 struct dst_types {

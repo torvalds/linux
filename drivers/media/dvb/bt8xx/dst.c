@@ -586,6 +586,23 @@ static int dst_type_print(u8 type)
 	return 0;
 }
 
+struct tuner_types tuner_list[] = {
+	{
+		.tuner_type = 2,
+		.tuner_name = "L 64724"
+	},
+
+	{
+		.tuner_type = 4,
+		.tuner_name = "STV 0299"
+	},
+
+	{
+		.tuner_type = 8,
+		.tuner_name = "MB 86A15"
+	},
+};
+
 /*
 	Known cards list
 	Satellite
@@ -656,7 +673,7 @@ static struct dst_types dst_tlist[] = {
 		.type_flags = DST_TYPE_HAS_SYMDIV | DST_TYPE_HAS_TS204 | DST_TYPE_HAS_FW_2,
 		.dst_feature = DST_TYPE_HAS_DISEQC3 | DST_TYPE_HAS_DISEQC4 | DST_TYPE_HAS_DISEQC5
 							 | DST_TYPE_HAS_MAC | DST_TYPE_HAS_MOTO,
-		.tuner_type = TUNER_TYPE_STV0299
+		.tuner_type = TUNER_TYPE_MULTI
 	 },
 
 	{
@@ -890,8 +907,10 @@ static int dst_get_device_id(struct dst_state *state)
 {
 	u8 reply;
 
-	int i;
+	int i, j;
 	struct dst_types *p_dst_type;
+	struct tuner_types *p_tuner_list;
+
 	u8 use_dst_type = 0;
 	u32 use_type_flags = 0;
 
@@ -930,6 +949,16 @@ static int dst_get_device_id(struct dst_state *state)
 			state->dst_hw_cap = p_dst_type->dst_feature;
 			dprintk(verbose, DST_ERROR, 1, "Recognise [%s]\n", p_dst_type->device_id);
 
+			if (p_dst_type->tuner_type != TUNER_TYPE_MULTI) {
+				state->tuner_type = p_dst_type->tuner_type;
+
+				for (j = 0, p_tuner_list = tuner_list; j < ARRAY_SIZE(tuner_list); j++, p_tuner_list++) {
+					if (p_dst_type->tuner_type == p_tuner_list->tuner_type) {
+						state->tuner_name = p_tuner_list->tuner_name;
+						dprintk(verbose, DST_ERROR, 1, "DST has a [%s] based tuner\n", state->tuner_name);
+					}
+				}
+			}
 			break;
 		}
 	}
