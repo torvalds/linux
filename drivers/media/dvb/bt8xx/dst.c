@@ -962,6 +962,58 @@ static int dst_get_vendor(struct dst_state *state)
 	return 0;
 }
 
+static void debug_dst_buffer(struct dst_state *state)
+{
+	int i;
+
+	if (verbose > 2) {
+		printk("%s: [", __func__);
+		for (i = 0; i < 8; i++)
+			printk(" %02x", state->rxbuffer[i]);
+		printk("]\n");
+	}
+}
+
+static int dst_check_stv0299(struct dst_state *state)
+{
+	u8 check_stv0299[] = { 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+
+	check_stv0299[7] = dst_check_sum(check_stv0299, 7);
+	if (dst_command(state, check_stv0299, 8) < 0) {
+		dprintk(verbose, DST_ERROR, 1, "Cmd=[0x04] failed");
+		return -1;
+	}
+	debug_dst_buffer(state);
+
+	if (memcmp(&check_stv0299, &state->rxbuffer, 8)) {
+		dprintk(verbose, DST_ERROR, 1, "Found a STV0299 NIM");
+		state->tuner_type = TUNER_TYPE_STV0299;
+		return 0;
+	}
+
+	return -1;
+}
+
+static int dst_check_mb86a15(struct dst_state *state)
+{
+	u8 check_mb86a15[] = { 0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+
+	check_mb86a15[7] = dst_check_sum(check_mb86a15, 7);
+	if (dst_command(state, check_mb86a15, 8) < 0) {
+		dprintk(verbose, DST_ERROR, 1, "Cmd=[0x10], failed");
+		return -1;
+	}
+	debug_dst_buffer(state);
+
+	if (memcmp(&check_mb86a15, &state->rxbuffer, 8) < 0) {
+		dprintk(verbose, DST_ERROR, 1, "Found a MB86A15 NIM");
+		state->tuner_type = TUNER_TYPE_MB86A15;
+		return 0;
+	}
+
+	return -1;
+}
+
 static int dst_get_tuner_info(struct dst_state *state)
 {
 	u8 get_tuner_1[] = { 0x00, 0x13, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
@@ -1006,14 +1058,15 @@ static int dst_get_device_id(struct dst_state *state)
 	u8 reply;
 
 	int i, j;
-	struct dst_types *p_dst_type;
-	struct tuner_types *p_tuner_list;
+	struct dst_types *p_dst_type = NULL;
+	struct tuner_types *p_tuner_list = NULL;
 
 	u8 use_dst_type = 0;
 	u32 use_type_flags = 0;
 
 	static u8 device_type[8] = {0x00, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff};
 
+	state->tuner_type = 0;
 	device_type[7] = dst_check_sum(device_type, 7);
 
 	if (write_dst(state, device_type, FIXED_COMM))
@@ -1047,14 +1100,24 @@ static int dst_get_device_id(struct dst_state *state)
 			state->dst_hw_cap = p_dst_type->dst_feature;
 			dprintk(verbose, DST_ERROR, 1, "Recognise [%s]", p_dst_type->device_id);
 
-			if (p_dst_type->tuner_type != TUNER_TYPE_MULTI) {
+//			if (p_dst_type->tuner_type != TUNER_TYPE_MULTI) {
+			/*	Multiple tuners		*/
+			if (p_dst_type->tuner_type & TUNER_TYPE_MULTI) {
+				/*	STV0299 check	*/
+				if (dst_check_stv0299(state) < 0)
+					dprintk(verbose, DST_ERROR, 1, "Unsupported");
+				/*	MB86A15 check	*/
+				if (dst_check_mb86a15(state) < 0)
+					dprintk(verbose, DST_ERROR, 1, "Unsupported");
+			/*	Single tuner		*/
+			} else {
 				state->tuner_type = p_dst_type->tuner_type;
-
-				for (j = 0, p_tuner_list = tuner_list; j < ARRAY_SIZE(tuner_list); j++, p_tuner_list++) {
-					if (p_dst_type->tuner_type == p_tuner_list->tuner_type) {
-						state->tuner_type = p_tuner_list->tuner_type;
-						dprintk(verbose, DST_ERROR, 1, "DST has a [%s] based tuner", p_tuner_list->tuner_name);
-					}
+			}
+			for (j = 0, p_tuner_list = tuner_list; j < ARRAY_SIZE(tuner_list); j++, p_tuner_list++) {
+				if (!(strncmp(p_dst_type->device_id, p_tuner_list->fw_name, 7)) &&
+					p_tuner_list->tuner_type == state->tuner_type) {
+					dprintk(verbose, DST_ERROR, 1, "[%s] has a [%s]",
+						p_dst_type->device_id, p_tuner_list->tuner_name);
 				}
 			}
 			break;
