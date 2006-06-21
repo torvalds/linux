@@ -417,6 +417,11 @@ static int __devinit bt878_probe(struct pci_dev *dev,
 
 	printk(KERN_INFO "bt878: Bt878 AUDIO function found (%d).\n",
 	       bt878_num);
+	if (bt878_num >= BT878_MAX) {
+		printk(KERN_ERR "bt878: Too many devices inserted\n");
+		result = -ENOMEM;
+		goto fail0;
+	}
 	if (pci_enable_device(dev))
 		return -EIO;
 
