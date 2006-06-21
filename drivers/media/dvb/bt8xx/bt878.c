@@ -63,8 +63,6 @@ MODULE_PARM_DESC(debug, "Turn on/off debugging, default is 0 (off).");
 int bt878_num;
 struct bt878 bt878[BT878_MAX];
 
-EXPORT_SYMBOL(bt878_debug);
-EXPORT_SYMBOL(bt878_verbose);
 EXPORT_SYMBOL(bt878_num);
 EXPORT_SYMBOL(bt878);
 
