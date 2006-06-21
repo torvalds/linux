@@ -926,15 +926,15 @@ static int dst_get_device_id(struct dst_state *state)
 static int dst_probe(struct dst_state *state)
 {
 	mutex_init(&state->dst_mutex);
-	if ((rdc_8820_reset(state)) < 0) {
-		dprintk(verbose, DST_ERROR, 1, "RDC 8820 RESET Failed.");
-		return -1;
-	}
-	if (dst_addons & DST_TYPE_HAS_CA)
+	if (dst_addons & DST_TYPE_HAS_CA) {
+		if ((rdc_8820_reset(state)) < 0) {
+			dprintk(verbose, DST_ERROR, 1, "RDC 8820 RESET Failed.");
+			return -1;
+		}
 		msleep(4000);
-	else
+	} else {
 		msleep(100);
-
+	}
 	if ((dst_comm_init(state)) < 0) {
 		dprintk(verbose, DST_ERROR, 1, "DST Initialization Failed.");
 		return -1;
