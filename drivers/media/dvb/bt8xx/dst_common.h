@@ -138,6 +138,7 @@ struct dst_state {
 	u32 tuner_type;
 	char *tuner_name;
 	struct mutex dst_mutex;
+	u8 fw_name[8];
 };
 
 struct tuner_types {
