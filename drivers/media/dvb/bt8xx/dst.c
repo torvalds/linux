@@ -562,8 +562,8 @@ static void dst_type_flags_print(struct dst_state *state)
 	u32 type_flags = state->type_flags;
 
 	dprintk(verbose, DST_ERROR, 0, "DST type flags :");
-	if (type_flags & DST_TYPE_HAS_NEWTUNE)
-		dprintk(verbose, DST_ERROR, 0, " 0x%x newtuner", DST_TYPE_HAS_NEWTUNE);
+	if (type_flags & DST_TYPE_HAS_TS188)
+		dprintk(verbose, DST_ERROR, 0, " 0x%x newtuner", DST_TYPE_HAS_TS188);
 	if (type_flags & DST_TYPE_HAS_NEWTUNE_2)
 		dprintk(verbose, DST_ERROR, 0, " 0x%x newtuner 2", DST_TYPE_HAS_NEWTUNE_2);
 	if (type_flags & DST_TYPE_HAS_TS204)
@@ -788,7 +788,7 @@ static struct dst_types dst_tlist[] = {
 		.device_id = "DST-030",
 		.offset =  0,
 		.dst_type = DST_TYPE_IS_SAT,
-		.type_flags = DST_TYPE_HAS_TS204 | DST_TYPE_HAS_NEWTUNE | DST_TYPE_HAS_FW_1,
+		.type_flags = DST_TYPE_HAS_TS204 | DST_TYPE_HAS_TS188 | DST_TYPE_HAS_FW_1,
 		.dst_feature = 0,
 		.tuner_type = 0
 	},	/*	obsolete	*/
@@ -825,7 +825,7 @@ static struct dst_types dst_tlist[] = {
 		.device_id = "DSTMCI",
 		.offset = 1,
 		.dst_type = DST_TYPE_IS_SAT,
-		.type_flags = DST_TYPE_HAS_NEWTUNE | DST_TYPE_HAS_FW_2 | DST_TYPE_HAS_FW_BUILD | DST_TYPE_HAS_INC_COUNT,
+		.type_flags = DST_TYPE_HAS_TS188 | DST_TYPE_HAS_FW_2 | DST_TYPE_HAS_FW_BUILD | DST_TYPE_HAS_INC_COUNT,
 		.dst_feature = DST_TYPE_HAS_CA | DST_TYPE_HAS_DISEQC3 | DST_TYPE_HAS_DISEQC4
 							| DST_TYPE_HAS_MOTO | DST_TYPE_HAS_MAC,
 		.tuner_type = TUNER_TYPE_MULTI
@@ -835,7 +835,7 @@ static struct dst_types dst_tlist[] = {
 		.device_id = "DSTFCI",
 		.offset = 1,
 		.dst_type = DST_TYPE_IS_SAT,
-		.type_flags = DST_TYPE_HAS_NEWTUNE | DST_TYPE_HAS_FW_1,
+		.type_flags = DST_TYPE_HAS_TS188 | DST_TYPE_HAS_FW_1,
 		.dst_feature = 0,
 		.tuner_type = 0
 	},	/* unknown to vendor	*/
@@ -853,7 +853,7 @@ static struct dst_types dst_tlist[] = {
 		.device_id = "DCTNEW",
 		.offset = 1,
 		.dst_type = DST_TYPE_IS_CABLE,
-		.type_flags = DST_TYPE_HAS_NEWTUNE | DST_TYPE_HAS_FW_3 | DST_TYPE_HAS_FW_BUILD | DST_TYPE_MULTI_FE,
+		.type_flags = DST_TYPE_HAS_TS188 | DST_TYPE_HAS_FW_3 | DST_TYPE_HAS_FW_BUILD | DST_TYPE_HAS_MULTI_FE,
 		.dst_feature = 0,
 		.tuner_type = 0
 	},
@@ -1062,7 +1062,7 @@ static int dst_get_tuner_info(struct dst_state *state)
 	}
 	if (state->board_info[0] == 0xbc) {
 		if (state->type_flags != DST_TYPE_IS_ATSC)
-			state->type_flags |= DST_TYPE_HAS_NEWTUNE;
+			state->type_flags |= DST_TYPE_HAS_TS188;
 		else
 			state->type_flags |= DST_TYPE_HAS_NEWTUNE_2;
 
@@ -1342,7 +1342,7 @@ static int dst_get_tuna(struct dst_state *state)
 		return -EIO;
 //	if (state->type_flags & DST_TYPE_HAS_NEWTUNE)
 //		/* how to get variable length reply ???? */
-	if ((state->type_flags & DST_TYPE_HAS_NEWTUNE) &&
+	if ((state->type_flags & DST_TYPE_HAS_TS188) &&
 		!(state->dst_type == DST_TYPE_IS_CABLE) &&
 		!(state->dst_type == DST_TYPE_IS_ATSC))
 
@@ -1354,9 +1354,9 @@ static int dst_get_tuna(struct dst_state *state)
 		return retval;
 	}
 //	if (state->type_flags & DST_TYPE_HAS_NEWTUNE) {
-	if ((state->type_flags & DST_TYPE_HAS_NEWTUNE) &&
+	if ((state->type_flags & DST_TYPE_HAS_TS188) &&
 		!(state->dst_type == DST_TYPE_IS_CABLE) &&
-		!(state->dst_type == DST_TYPE_IS_ATSC) {
+		!(state->dst_type == DST_TYPE_IS_ATSC)) {
 
 		if (state->rx_tuna[9] != dst_check_sum(&state->rx_tuna[0], 9)) {
 			dprintk(verbose, DST_INFO, 1, "checksum failure ? ");
@@ -1404,7 +1404,7 @@ static int dst_write_tuna(struct dvb_frontend *fe)
 		goto error;
 	}
 //	if (state->type_flags & DST_TYPE_HAS_NEWTUNE) {
-	if ((state->type_flags & DST_TYPE_HAS_NEWTUNE) &&
+	if ((state->type_flags & DST_TYPE_HAS_TS188) &&
 		(!(state->dst_type == DST_TYPE_IS_CABLE)) &&
 		(!(state->dst_type == DST_TYPE_IS_ATSC))) {
 
@@ -1572,9 +1572,9 @@ static int dst_init(struct dvb_frontend *fe)
 	state->bandwidth = BANDWIDTH_7_MHZ;
 	state->cur_jiff = jiffies;
 	if (state->dst_type == DST_TYPE_IS_SAT)
-		memcpy(state->tx_tuna, ((state->type_flags & DST_TYPE_HAS_NEWTUNE) ? sat_tuna_188 : sat_tuna_204), sizeof (sat_tuna_204));
+		memcpy(state->tx_tuna, ((state->type_flags & DST_TYPE_HAS_TS188) ? sat_tuna_188 : sat_tuna_204), sizeof (sat_tuna_204));
 	else if (state->dst_type == DST_TYPE_IS_TERR)
-		memcpy(state->tx_tuna, ((state->type_flags & DST_TYPE_HAS_NEWTUNE) ? ter_tuna_188 : ter_tuna_204), sizeof (ter_tuna_204));
+		memcpy(state->tx_tuna, ((state->type_flags & DST_TYPE_HAS_TS188) ? ter_tuna_188 : ter_tuna_204), sizeof (ter_tuna_204));
 	else if (state->dst_type == DST_TYPE_IS_CABLE)
 		memcpy(state->tx_tuna, cable_tuna, sizeof (cable_tuna));
 	else if (state->dst_type == DST_TYPE_IS_ATSC)
