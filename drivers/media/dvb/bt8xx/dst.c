@@ -1103,10 +1103,17 @@ static int dst_get_device_id(struct dst_state *state)
 //			if (p_dst_type->tuner_type != TUNER_TYPE_MULTI) {
 			/*	Multiple tuners		*/
 			if (p_dst_type->tuner_type & TUNER_TYPE_MULTI) {
-				/*	STV0299 check	*/
-				if (dst_check_stv0299(state) < 0)
-					dprintk(verbose, DST_ERROR, 1, "Unsupported");
-				/*	MB86A15 check	*/
+				switch (use_dst_type) {
+				case DST_TYPE_IS_SAT:
+					/*	STV0299 check	*/
+					if (dst_check_stv0299(state) < 0) {
+						dprintk(verbose, DST_ERROR, 1, "Unsupported");
+						state->tuner_type = TUNER_TYPE_MB86A15;
+					}
+					break;
+				default:
+					break;
+				}
 				if (dst_check_mb86a15(state) < 0)
 					dprintk(verbose, DST_ERROR, 1, "Unsupported");
 			/*	Single tuner		*/
