@@ -590,28 +590,116 @@ static int dst_type_print(u8 type)
 
 struct tuner_types tuner_list[] = {
 	{
-		.tuner_type = 2,
+		.tuner_type = TUNER_TYPE_L64724,
 		.tuner_name = "L 64724",
-		.board_name = " "
+		.board_name = "UNKNOWN",
+		.fw_name    = "UNKNOWN"
 	},
 
 	{
-		.tuner_type = 4,
+		.tuner_type = TUNER_TYPE_STV0299,
 		.tuner_name = "STV 0299",
-		.board_name = "VP1030"
+		.board_name = "VP1020",
+		.fw_name    = "DST-MOT"
 	},
 
 	{
-		.tuner_type = 8,
+		.tuner_type = TUNER_TYPE_STV0299,
+		.tuner_name = "STV 0299",
+		.board_name = "VP1020",
+		.fw_name    = "DST-03T"
+	},
+
+	{
+		.tuner_type = TUNER_TYPE_MB86A15,
 		.tuner_name = "MB 86A15",
-		.board_name = "VP1025"
+		.board_name = "VP1022",
+		.fw_name    = "DST-03T"
 	},
 
 	{
-		.tuner_type = 16,
-		.tuner_name = "NXT 200x",
-		.board_name = "VP3250"
-	}
+		.tuner_type = TUNER_TYPE_MB86A15,
+		.tuner_name = "MB 86A15",
+		.board_name = "VP1025",
+		.fw_name    = "DST-03T"
+	},
+
+	{
+		.tuner_type = TUNER_TYPE_STV0299,
+		.tuner_name = "STV 0299",
+		.board_name = "VP1030",
+		.fw_name    = "DST-CI"
+	},
+
+	{
+		.tuner_type = TUNER_TYPE_STV0299,
+		.tuner_name = "STV 0299",
+		.board_name = "VP1030",
+		.fw_name    = "DSTMCI"
+	},
+
+	{
+		.tuner_type = TUNER_TYPE_UNKNOWN,
+		.tuner_name = "UNKNOWN",
+		.board_name = "VP2030",
+		.fw_name    = "DCT-CI"
+	},
+
+	{
+		.tuner_type = TUNER_TYPE_UNKNOWN,
+		.tuner_name = "UNKNOWN",
+		.board_name = "VP2031",
+		.fw_name    = "DCT-CI"
+	},
+
+	{
+		.tuner_type = TUNER_TYPE_UNKNOWN,
+		.tuner_name = "UNKNOWN",
+		.board_name = "VP2040",
+		.fw_name    = "DCT-CI"
+	},
+
+	{
+		.tuner_type = TUNER_TYPE_UNKNOWN,
+		.tuner_name = "UNKNOWN",
+		.board_name = "VP3020",
+		.fw_name    = "DTTFTA"
+	},
+
+	{
+		.tuner_type = TUNER_TYPE_UNKNOWN,
+		.tuner_name = "UNKNOWN",
+		.board_name = "VP3021",
+		.fw_name    = "DTTFTA"
+	},
+
+	{
+		.tuner_type = TUNER_TYPE_TDA10046,
+		.tuner_name = "TDA10046",
+		.board_name = "VP3040",
+		.fw_name    = "DTT-CI"
+	},
+
+	{
+		.tuner_type = TUNER_TYPE_UNKNOWN,
+		.tuner_name = "UNKNOWN",
+		.board_name = "VP3051",
+		.fw_name    = "DTTNXT"
+	},
+
+	{
+		.tuner_type = TUNER_TYPE_NXT200x,
+		.tuner_name = "NXT200x",
+		.board_name = "VP3220",
+		.fw_name    = "ATSCDI"
+	},
+
+	{
+		.tuner_type = TUNER_TYPE_NXT200x,
+		.tuner_name = "NXT200x",
+		.board_name = "VP3250",
+		.fw_name    = "ATSCAD"
+	},
 };
 
 /*

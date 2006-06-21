@@ -66,14 +66,17 @@
 #define DST_TYPE_HAS_SESSION	128
 
 #define TUNER_TYPE_MULTI	1
-
+#define TUNER_TYPE_UNKNOWN	2
 /*	DVB-S		*/
-#define TUNER_TYPE_L64724	2
-#define TUNER_TYPE_STV0299	4
-#define TUNER_TYPE_MB86A15	8
+#define TUNER_TYPE_L64724	4
+#define TUNER_TYPE_STV0299	8
+#define TUNER_TYPE_MB86A15	16
+
+/*	DVB-T		*/
+#define TUNER_TYPE_TDA10046	32
 
 /*	ATSC		*/
-#define TUNER_TYPE_NXT200x	16
+#define TUNER_TYPE_NXT200x	64
 
 
 #define RDC_8820_PIO_0_DISABLE	0
@@ -140,6 +143,7 @@ struct tuner_types {
 	u32 tuner_type;
 	char *tuner_name;
 	char *board_name;
+	char *fw_name;
 };
 
 struct dst_types {
