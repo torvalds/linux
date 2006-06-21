@@ -97,16 +97,13 @@ ENTRY(c_backtrace)
 		b	1007f
 
 /*
- * Fixup for LDMDB
+ * Fixup for LDMDB.  Note that this must not be in the fixup section.
  */
-		.section .fixup,"ax"
-		.align	0
 1007:		ldr	r0, =.Lbad
 		mov	r1, frame
 		bl	printk
 		ldmfd	sp!, {r4 - r8, pc}
 		.ltorg
-		.previous
 		
 		.section __ex_table,"a"
 		.align	3
