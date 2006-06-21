@@ -63,8 +63,6 @@
 #include <asm/arch/regs-nand.h>
 #include <asm/arch/nand.h>
 
-#define PFX "s3c2410-nand: "
-
 #ifdef CONFIG_MTD_NAND_S3C2410_HWECC
 static int hardware_ecc = 1;
 #else
@@ -195,11 +193,11 @@ static int s3c2410_nand_inithw(struct s3c2410_nand_info *info, struct platform_d
 	}
 
 	if (tacls < 0 || twrph0 < 0 || twrph1 < 0) {
-		printk(KERN_ERR PFX "cannot get timings suitable for board\n");
+		dev_err(info->device, "cannot get suitable timings\n");
 		return -EINVAL;
 	}
 
-	printk(KERN_INFO PFX "Tacls=%d, %dns Twrph0=%d %dns, Twrph1=%d %dns\n",
+	dev_info(info->device, "Tacls=%d, %dns Twrph0=%d %dns, Twrph1=%d %dns\n",
 	       tacls, to_ns(tacls, clkrate), twrph0, to_ns(twrph0, clkrate), twrph1, to_ns(twrph1, clkrate));
 
 	if (!info->is_s3c2440) {
@@ -218,7 +216,7 @@ static int s3c2410_nand_inithw(struct s3c2410_nand_info *info, struct platform_d
 		       info->regs + S3C2440_NFCONT);
 	}
 
-	pr_debug(PFX "NF_CONF is 0x%lx\n", cfg);
+	dev_dbg(info->device, "NF_CONF is 0x%lx\n", cfg);
 
 	writel(cfg, info->regs + S3C2410_NFCONF);
 	return 0;
@@ -250,7 +248,7 @@ static void s3c2410_nand_select_chip(struct mtd_info *mtd, int chip)
 		cur |= bit;
 	} else {
 		if (nmtd->set != NULL && chip > nmtd->set->nr_chips) {
-			printk(KERN_ERR PFX "chip %d out of range\n", chip);
+			dev_err(info->device, "invalid chip %d\n", chip);
 			return;
 		}
 
