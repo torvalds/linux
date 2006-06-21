@@ -667,7 +667,7 @@ static struct dst_types dst_tlist[] = {
 		.device_id = "DST-CI",
 		.offset = 1,
 		.dst_type = DST_TYPE_IS_SAT,
-		.type_flags = DST_TYPE_HAS_TS204 | DST_TYPE_HAS_NEWTUNE | DST_TYPE_HAS_FW_1,
+		.type_flags = DST_TYPE_HAS_TS204 | DST_TYPE_HAS_FW_1,
 		.dst_feature = DST_TYPE_HAS_CA
 	},	/*	An OEM board	*/
 
@@ -692,8 +692,7 @@ static struct dst_types dst_tlist[] = {
 		.device_id = "DCT-CI",
 		.offset = 1,
 		.dst_type = DST_TYPE_IS_CABLE,
-		.type_flags = DST_TYPE_HAS_TS204 | DST_TYPE_HAS_NEWTUNE | DST_TYPE_HAS_FW_1
-							| DST_TYPE_HAS_FW_2,
+		.type_flags = DST_TYPE_HAS_MULTI_FE | DST_TYPE_HAS_FW_1	| DST_TYPE_HAS_FW_2,
 		.dst_feature = DST_TYPE_HAS_CA
 	},
 
@@ -709,7 +708,7 @@ static struct dst_types dst_tlist[] = {
 		.device_id = "DTT-CI",
 		.offset = 1,
 		.dst_type = DST_TYPE_IS_TERR,
-		.type_flags = DST_TYPE_HAS_TS204 | DST_TYPE_HAS_NEWTUNE | DST_TYPE_HAS_FW_2 | DST_TYPE_HAS_MULTI_FE,
+		.type_flags = DST_TYPE_HAS_FW_2 | DST_TYPE_HAS_MULTI_FE,
 		.dst_feature = DST_TYPE_HAS_CA
 	},
 
@@ -741,7 +740,7 @@ static struct dst_types dst_tlist[] = {
 		.device_id = "ATSCAD",
 		.offset = 1,
 		.dst_type = DST_TYPE_IS_ATSC,
-		.type_flags = DST_TYPE_HAS_NEWTUNE | DST_TYPE_HAS_FW_2 | DST_TYPE_HAS_FW_BUILD,
+		.type_flags = DST_TYPE_HAS_MULTI_FE | DST_TYPE_HAS_FW_2 | DST_TYPE_HAS_FW_BUILD,
 		.dst_feature = DST_TYPE_HAS_MAC | DST_TYPE_HAS_ANALOG
 	},
 
@@ -822,20 +821,25 @@ static int dst_get_tuner_info(struct dst_state *state)
 
 	get_tuner_1[7] = dst_check_sum(get_tuner_1, 7);
 	get_tuner_2[7] = dst_check_sum(get_tuner_2, 7);
+	dprintk(verbose, DST_ERROR, 1, "DST TYpe = MULTI FE");
 	if (state->type_flags & DST_TYPE_HAS_MULTI_FE) {
-		if (dst_command(state, get_tuner_2, 8) < 0) {
-			dprintk(verbose, DST_INFO, 1, "Unsupported Command");
+//		if (dst_command(state, get_tuner_2, 8) < 0) {
+		if (dst_command(state, get_tuner_1, 8) < 0) {
+			dprintk(verbose, DST_INFO, 1, "Cmd=[0x13], Unsupported");
 			return -1;
 		}
 	} else {
-		if (dst_command(state, get_tuner_1, 8) < 0) {
-			dprintk(verbose, DST_INFO, 1, "Unsupported Command");
+//		if (dst_command(state, get_tuner_1, 8) < 0) {
+		if (dst_command(state, get_tuner_2, 8) < 0) {
+			dprintk(verbose, DST_INFO, 1, "Cmd=[0xb], Unsupported");
 			return -1;
 		}
 	}
 	memset(&state->board_info, '\0', 8);
 	memcpy(&state->board_info, &state->rxbuffer, 8);
 	if (state->type_flags & DST_TYPE_HAS_MULTI_FE) {
+		dprintk(verbose, DST_ERROR, 1, "DST type has TS=188");
+/*
 		if (state->board_info[1] == 0x0b) {
 			if (state->type_flags & DST_TYPE_HAS_TS204)
 				state->type_flags &= ~DST_TYPE_HAS_TS204;
@@ -848,19 +852,21 @@ static int dst_get_tuner_info(struct dst_state *state)
 			dprintk(verbose, DST_INFO, 1, "DST type has TS=204");
 		}
 	} else {
-		if (state->board_info[0] == 0xbc) {
-			if (state->type_flags & DST_TYPE_HAS_TS204)
-				state->type_flags &= ~DST_TYPE_HAS_TS204;
-			state->type_flags |= DST_TYPE_HAS_NEWTUNE;
-			dprintk(verbose, DST_INFO, 1, "DST type has TS=188, Daughterboard=[%d]", state->board_info[1]);
-
-		} else if (state->board_info[0] == 0xcc) {
-			if (state->type_flags & DST_TYPE_HAS_NEWTUNE)
-				state->type_flags &= ~DST_TYPE_HAS_NEWTUNE;
-			state->type_flags |= DST_TYPE_HAS_TS204;
-			dprintk(verbose, DST_INFO, 1, "DST type has TS=204 Daughterboard=[%d]", state->board_info[1]);
-		}
+*/
 	}
+	if (state->board_info[0] == 0xbc) {
+//		if (state->type_flags & DST_TYPE_HAS_TS204)
+//			state->type_flags &= ~DST_TYPE_HAS_TS204;
+		state->type_flags |= DST_TYPE_HAS_NEWTUNE;
+		dprintk(verbose, DST_INFO, 1, "DST type has TS=188, Daughterboard=[%d]", state->board_info[1]);
+
+	} else if (state->board_info[0] == 0xcc) {
+//		if (state->type_flags & DST_TYPE_HAS_NEWTUNE)
+//			state->type_flags &= ~DST_TYPE_HAS_NEWTUNE;
+		state->type_flags |= DST_TYPE_HAS_TS204;
+		dprintk(verbose, DST_INFO, 1, "DST type has TS=204 Daughterboard=[%d]", state->board_info[1]);
+	}
+//	}
 
 	return 0;
 }
