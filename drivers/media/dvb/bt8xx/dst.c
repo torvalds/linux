@@ -51,20 +51,20 @@ MODULE_PARM_DESC(dst_algo, "tuning algo: default is 0=(SW), 1=(HW)");
 #define DST_INFO		2
 #define DST_DEBUG		3
 
-#define dprintk(x, y, z, format, arg...) do {						\
-	if (z) {									\
-		if	((x > DST_ERROR) && (x > y))					\
-			printk(KERN_ERR "%s: " format "\n", __FUNCTION__ , ##arg);	\
-		else if	((x > DST_NOTICE) && (x > y))					\
-			printk(KERN_NOTICE "%s: " format "\n", __FUNCTION__ , ##arg);	\
-		else if ((x > DST_INFO) && (x > y))					\
-			printk(KERN_INFO "%s: " format "\n", __FUNCTION__ , ##arg);	\
-		else if ((x > DST_DEBUG) && (x > y))					\
-			printk(KERN_DEBUG "%s: " format "\n", __FUNCTION__ , ##arg);	\
-	} else {									\
-		if (x > y)								\
-			printk(format, ##arg);						\
-	}										\
+#define dprintk(x, y, z, format, arg...) do {									\
+	if (z) {												\
+		if	((x > DST_ERROR) && (x > y))								\
+			printk(KERN_ERR "dst(%d) %s: " format "\n", state->bt->nr, __FUNCTION__ , ##arg);	\
+		else if	((x > DST_NOTICE) && (x > y))								\
+			printk(KERN_NOTICE "dst(%d) %s: " format "\n", state->bt->nr, __FUNCTION__ , ##arg);	\
+		else if ((x > DST_INFO) && (x > y))								\
+			printk(KERN_INFO "dst(%d) %s: " format "\n", state->bt->nr, __FUNCTION__ , ##arg);	\
+		else if ((x > DST_DEBUG) && (x > y))								\
+			printk(KERN_DEBUG "dst(%d) %s: " format "\n",state->bt->nr,  __FUNCTION__ , ##arg);	\
+	} else {												\
+		if (x > y)											\
+			printk(format, ##arg);									\
+	}													\
 } while(0)
 
 
@@ -114,7 +114,7 @@ int dst_gpio_inb(struct dst_state *state, u8 *result)
 
 	*result = 0;
 	if ((err = bt878_device_control(state->bt, DST_IG_READ, &rd_packet)) < 0) {
-		dprintk(verbose, DST_ERROR, 1, "dst_gpio_inb error (err == %i)\n", err);
+		dprintk(verbose, DST_ERROR, 1, "dst_gpio_inb error (err == %i)", err);
 		return -EREMOTEIO;
 	}
 	*result = (u8) rd_packet.rd.value;
@@ -538,8 +538,10 @@ u8 dst_check_sum(u8 *buf, u32 len)
 }
 EXPORT_SYMBOL(dst_check_sum);
 
-static void dst_type_flags_print(u32 type_flags)
+static void dst_type_flags_print(struct dst_state *state)
 {
+	u32 type_flags = state->type_flags;
+
 	dprintk(verbose, DST_ERROR, 0, "DST type flags :");
 	if (type_flags & DST_TYPE_HAS_NEWTUNE)
 		dprintk(verbose, DST_ERROR, 0, " 0x%x newtuner", DST_TYPE_HAS_NEWTUNE);
@@ -559,7 +561,7 @@ static void dst_type_flags_print(u32 type_flags)
 }
 
 
-static int dst_type_print(u8 type)
+static int dst_type_print(struct dst_state *state, u8 type)
 {
 	char *otype;
 	switch (type) {
@@ -933,7 +935,7 @@ static int dst_card_type(struct dst_state *state)
 	for (j = 0, p_tuner_list = tuner_list; j < ARRAY_SIZE(tuner_list); j++, p_tuner_list++) {
 		if (!strcmp(&state->card_info[0], p_tuner_list->board_name)) {
 			state->tuner_type = p_tuner_list->tuner_type;
-			dprintk(verbose, DST_ERROR, 1, "DST has [%s] tuner, tuner type=[%d]\n",
+			dprintk(verbose, DST_ERROR, 1, "DST has [%s] tuner, tuner type=[%d]",
 				p_tuner_list->tuner_name, p_tuner_list->tuner_type);
 		}
 	}
@@ -1039,7 +1041,7 @@ static int dst_get_device_id(struct dst_state *state)
 
 			/*	Card capabilities	*/
 			state->dst_hw_cap = p_dst_type->dst_feature;
-			dprintk(verbose, DST_ERROR, 1, "Recognise [%s]\n", p_dst_type->device_id);
+			dprintk(verbose, DST_ERROR, 1, "Recognise [%s]", p_dst_type->device_id);
 
 			if (p_dst_type->tuner_type != TUNER_TYPE_MULTI) {
 				state->tuner_type = p_dst_type->tuner_type;
@@ -1047,7 +1049,7 @@ static int dst_get_device_id(struct dst_state *state)
 				for (j = 0, p_tuner_list = tuner_list; j < ARRAY_SIZE(tuner_list); j++, p_tuner_list++) {
 					if (p_dst_type->tuner_type == p_tuner_list->tuner_type) {
 						state->tuner_type = p_tuner_list->tuner_type;
-						dprintk(verbose, DST_ERROR, 1, "DST has a [%s] based tuner\n", p_tuner_list->tuner_name);
+						dprintk(verbose, DST_ERROR, 1, "DST has a [%s] based tuner", p_tuner_list->tuner_name);
 					}
 				}
 			}
@@ -1061,10 +1063,10 @@ static int dst_get_device_id(struct dst_state *state)
 		use_dst_type = DST_TYPE_IS_SAT;
 		use_type_flags = DST_TYPE_HAS_SYMDIV;
 	}
-	dst_type_print(use_dst_type);
+	dst_type_print(state, use_dst_type);
 	state->type_flags = use_type_flags;
 	state->dst_type = use_dst_type;
-	dst_type_flags_print(state->type_flags);
+	dst_type_flags_print(state);
 
 	return 0;
 }
