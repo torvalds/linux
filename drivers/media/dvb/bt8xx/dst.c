@@ -363,6 +363,17 @@ static int dst_set_freq(struct dst_state *state, u32 freq)
 		state->tx_tuna[2] = (freq >> 16) & 0xff;
 		state->tx_tuna[3] = (freq >> 8) & 0xff;
 		state->tx_tuna[4] = (u8) freq;
+	} else if (state->dst_type == DST_TYPE_IS_ATSC) {
+		freq = freq / 1000;
+		if (freq < 51000 || freq > 858000)
+			return -EINVAL;
+		state->tx_tuna[2] = (freq >> 16) & 0xff;
+		state->tx_tuna[3] = (freq >>  8) & 0xff;
+		state->tx_tuna[4] = (u8) freq;
+		state->tx_tuna[5] = 0x00;		/*	ATSC	*/
+		state->tx_tuna[6] = 0x00;
+		if (state->dst_hw_cap & DST_TYPE_HAS_ANALOG)
+			state->tx_tuna[7] = 0x00;	/*	Digital	*/
 	} else
 		return -EINVAL;
 
@@ -726,8 +737,8 @@ static struct dst_types dst_tlist[] = {
 		.device_id = "ATSCAD",
 		.offset = 1,
 		.dst_type = DST_TYPE_IS_ATSC,
-		.type_flags = DST_TYPE_HAS_FW_2,
-		.dst_feature = 0
+		.type_flags = DST_TYPE_HAS_NEWTUNE | DST_TYPE_HAS_FW_2 | DST_TYPE_HAS_FW_BUILD,
+		.dst_feature = DST_TYPE_HAS_MAC | DST_TYPE_HAS_ANALOG
 	},
 
 	{ }
@@ -1052,6 +1063,10 @@ static int dst_get_signal(struct dst_state *state)
 			state->decode_lock = (state->rxbuffer[1]) ? 1 : 0;
 			state->decode_strength = state->rxbuffer[4] << 8;
 			state->decode_snr = state->rxbuffer[3] << 8;
+		} else if (state->dst_type == DST_TYPE_IS_ATSC) {
+			state->decode_lock = (state->rxbuffer[6] == 0x00) ? 1 : 0;
+			state->decode_strength = state->rxbuffer[4] << 8;
+			state->decode_snr = state->rxbuffer[2] << 8 | state->rxbuffer[3];
 		}
 		state->cur_jiff = jiffies;
 	}
