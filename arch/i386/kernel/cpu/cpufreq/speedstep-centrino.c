@@ -2,19 +2,15 @@
  * cpufreq driver for Enhanced SpeedStep, as found in Intel's Pentium
  * M (part of the Centrino chipset).
  *
+ * Since the original Pentium M, most new Intel CPUs support Enhanced
+ * SpeedStep.
+ *
  * Despite the "SpeedStep" in the name, this is almost entirely unlike
  * traditional SpeedStep.
  *
  * Modelled on speedstep.c
  *
  * Copyright (C) 2003 Jeremy Fitzhardinge <jeremy@goop.org>
- *
- * WARNING WARNING WARNING
- *
- * This driver manipulates the PERF_CTL MSR, which is only somewhat
- * documented.  While it seems to work on my laptop, it has not been
- * tested anywhere else, and it may not work for you, do strange
- * things or simply crash.
  */
 
 #include <linux/kernel.h>
@@ -36,7 +32,7 @@
 #include <asm/cpufeature.h>
 
 #define PFX		"speedstep-centrino: "
-#define MAINTAINER	"Jeremy Fitzhardinge <jeremy@goop.org>"
+#define MAINTAINER	"cpufreq@lists.linux.org.uk"
 
 #define dprintk(msg...) cpufreq_debug_printk(CPUFREQ_DEBUG_DRIVER, "speedstep-centrino", msg)
 
