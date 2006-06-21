@@ -589,18 +589,27 @@ static int dst_type_print(u8 type)
 struct tuner_types tuner_list[] = {
 	{
 		.tuner_type = 2,
-		.tuner_name = "L 64724"
+		.tuner_name = "L 64724",
+		.board_name = " "
 	},
 
 	{
 		.tuner_type = 4,
-		.tuner_name = "STV 0299"
+		.tuner_name = "STV 0299",
+		.board_name = "VP1030"
 	},
 
 	{
 		.tuner_type = 8,
-		.tuner_name = "MB 86A15"
+		.tuner_name = "MB 86A15",
+		.board_name = "VP1025"
 	},
+
+	{
+		.tuner_type = 16,
+		.tuner_name = "NXT 200x",
+		.board_name = "VP3250"
+	}
 };
 
 /*
@@ -818,6 +827,9 @@ static int dst_fw_ver(struct dst_state *state)
 
 static int dst_card_type(struct dst_state *state)
 {
+	int j;
+	struct tuner_types *p_tuner_list = NULL;
+
 	u8 get_type[] = { 0x00, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 	get_type[7] = dst_check_sum(get_type, 7);
 	if (dst_command(state, get_type, 8) < 0) {
@@ -827,6 +839,14 @@ static int dst_card_type(struct dst_state *state)
 	memset(&state->card_info, '\0', 8);
 	memcpy(&state->card_info, &state->rxbuffer, 7);
 	dprintk(verbose, DST_ERROR, 1, "Device Model=[%s]", &state->card_info[0]);
+
+	for (j = 0, p_tuner_list = tuner_list; j < ARRAY_SIZE(tuner_list); j++, p_tuner_list++) {
+		if (!strcmp(&state->card_info[0], p_tuner_list->board_name)) {
+			state->tuner_type = p_tuner_list->tuner_type;
+			dprintk(verbose, DST_ERROR, 1, "DST has [%s] tuner, tuner type=[%d]\n",
+				p_tuner_list->tuner_name, p_tuner_list->tuner_type);
+		}
+	}
 
 	return 0;
 }
@@ -954,8 +974,8 @@ static int dst_get_device_id(struct dst_state *state)
 
 				for (j = 0, p_tuner_list = tuner_list; j < ARRAY_SIZE(tuner_list); j++, p_tuner_list++) {
 					if (p_dst_type->tuner_type == p_tuner_list->tuner_type) {
-						state->tuner_name = p_tuner_list->tuner_name;
-						dprintk(verbose, DST_ERROR, 1, "DST has a [%s] based tuner\n", state->tuner_name);
+						state->tuner_type = p_tuner_list->tuner_type;
+						dprintk(verbose, DST_ERROR, 1, "DST has a [%s] based tuner\n", p_tuner_list->tuner_name);
 					}
 				}
 			}
