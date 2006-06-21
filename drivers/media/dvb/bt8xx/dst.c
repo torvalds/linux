@@ -51,20 +51,24 @@ MODULE_PARM_DESC(dst_algo, "tuning algo: default is 0=(SW), 1=(HW)");
 #define DST_INFO		2
 #define DST_DEBUG		3
 
-#define dprintk(x, y, z, format, arg...) do {									\
-	if (z) {												\
-		if	((x > DST_ERROR) && (x > y))								\
-			printk(KERN_ERR "dst(%d) %s: " format "\n", state->bt->nr, __FUNCTION__ , ##arg);	\
-		else if	((x > DST_NOTICE) && (x > y))								\
-			printk(KERN_NOTICE "dst(%d) %s: " format "\n", state->bt->nr, __FUNCTION__ , ##arg);	\
-		else if ((x > DST_INFO) && (x > y))								\
-			printk(KERN_INFO "dst(%d) %s: " format "\n", state->bt->nr, __FUNCTION__ , ##arg);	\
-		else if ((x > DST_DEBUG) && (x > y))								\
-			printk(KERN_DEBUG "dst(%d) %s: " format "\n",state->bt->nr,  __FUNCTION__ , ##arg);	\
-	} else {												\
-		if (x > y)											\
-			printk(format, ##arg);									\
-	}													\
+#define dprintk(x, y, z, format, arg...) do {				\
+	if (z) {							\
+		if	((x > DST_ERROR) && (x > y))			\
+			printk(KERN_ERR "dst(%d) %s: " format "\n",	\
+				state->bt->nr, __func__ , ##arg);	\
+		else if	((x > DST_NOTICE) && (x > y))			\
+			printk(KERN_NOTICE "dst(%d) %s: " format "\n",  \
+				state->bt->nr, __func__ , ##arg);	\
+		else if ((x > DST_INFO) && (x > y))			\
+			printk(KERN_INFO "dst(%d) %s: " format "\n",	\
+				state->bt->nr, __func__ , ##arg);	\
+		else if ((x > DST_DEBUG) && (x > y))			\
+			printk(KERN_DEBUG "dst(%d) %s: " format "\n",	\
+				state->bt->nr,  __func__ , ##arg);	\
+	} else {							\
+		if (x > y)						\
+			printk(format, ##arg);				\
+	}								\
 } while(0)
 
 
