@@ -1435,6 +1435,10 @@ struct cx88_subid cx88_subids[] = {
 		.subvendor = 0x107d,
 		.subdevice = 0x665e,
 		.card      = CX88_BOARD_WINFAST_DTV2000H,
+	},{
+		.subvendor = 0x18ac,
+		.subdevice = 0xd800, /* FusionHDTV 3 Gold (original revision) */
+		.card      = CX88_BOARD_DVICO_FUSIONHDTV_3_GOLD_Q,
 	},
 };
 const unsigned int cx88_idcount = ARRAY_SIZE(cx88_subids);
