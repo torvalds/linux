@@ -1000,11 +1000,11 @@ static int dst_get_tuner_info(struct dst_state *state)
 //		if (state->type_flags & DST_TYPE_HAS_TS204)
 //			state->type_flags &= ~DST_TYPE_HAS_TS204;
 //		state->type_flags |= DST_TYPE_HAS_NEWTUNE;
-		if (!(state->type_flags & DST_TYPE_IS_ATSC)) {
+		if (state->type_flags != DST_TYPE_IS_ATSC))
 			state->type_flags |= DST_TYPE_HAS_NEWTUNE;
-		} else {
+		else
 			state->type_flags |= DST_TYPE_HAS_NEWTUNE_2;
-		}
+
 		dprintk(verbose, DST_INFO, 1, "DST type has TS=188, Daughterboard=[%d]", state->board_info[1]);
 
 	} else if (state->board_info[0] == 0xcc) {
