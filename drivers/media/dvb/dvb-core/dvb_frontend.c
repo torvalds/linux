@@ -942,7 +942,9 @@ static int dvb_frontend_ioctl(struct inode *inode, struct file *file,
 				fepriv->max_drift = (fe->ops.info.frequency_stepsize * 2) + 1;
 				break;
 			case FE_ATSC:
-				printk("dvb-core: FE_ATSC not handled yet.\n");
+				fepriv->min_delay = HZ/20;
+				fepriv->step_size = 0;
+				fepriv->max_drift = 0;
 				break;
 			}
 		}
