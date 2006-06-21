@@ -558,6 +558,10 @@ static int dst_type_print(u8 type)
 		otype = "cable";
 		break;
 
+	case DST_TYPE_IS_ATSC:
+		otype = "atsc";
+		break;
+
 	default:
 		dprintk(verbose, DST_INFO, 1, "invalid dst type %d", type);
 		return -EINVAL;
@@ -1408,6 +1412,7 @@ static void dst_release(struct dvb_frontend *fe)
 static struct dvb_frontend_ops dst_dvbt_ops;
 static struct dvb_frontend_ops dst_dvbs_ops;
 static struct dvb_frontend_ops dst_dvbc_ops;
+static struct dvb_frontend_ops dst_atsc_ops;
 
 struct dst_state *dst_attach(struct dst_state *state, struct dvb_adapter *dvb_adapter)
 {
@@ -1427,6 +1432,9 @@ struct dst_state *dst_attach(struct dst_state *state, struct dvb_adapter *dvb_ad
 		break;
 	case DST_TYPE_IS_SAT:
 		memcpy(&state->frontend.ops, &dst_dvbs_ops, sizeof(struct dvb_frontend_ops));
+		break;
+	case DST_TYPE_IS_ATSC:
+		memcpy(&state->frontend.ops, &dst_atsc_ops, sizeof(struct dvb_frontend_ops));
 		break;
 	default:
 		dprintk(verbose, DST_ERROR, 1, "unknown DST type. please report to the LinuxTV.org DVB mailinglist.");
@@ -1511,6 +1519,27 @@ static struct dvb_frontend_ops dst_dvbc_ops = {
 	.read_snr = dst_read_snr,
 };
 
-MODULE_DESCRIPTION("DST DVB-S/T/C Combo Frontend driver");
+static struct dvb_frontend_ops dst_atsc_ops = {
+	.info = {
+		.name = "DST ATSC",
+		.type = FE_ATSC,
+		.frequency_stepsize = 62500,
+		.frequency_min = 510000000,
+		.frequency_max = 858000000,
+		.symbol_rate_min = 1000000,
+		.symbol_rate_max = 45000000,
+		.caps = FE_CAN_FEC_AUTO | FE_CAN_QAM_AUTO | FE_CAN_QAM_64 | FE_CAN_QAM_256 | FE_CAN_8VSB
+	},
+
+	.release = dst_release,
+	.init = dst_init,
+	.tune = dst_set_frontend,
+	.get_frontend = dst_get_frontend,
+	.read_status = dst_read_status,
+	.read_signal_strength = dst_read_signal_strength,
+	.read_snr = dst_read_snr,
+};
+
+MODULE_DESCRIPTION("DST DVB-S/T/C/ATSC Combo Frontend driver");
 MODULE_AUTHOR("Jamie Honan, Manu Abraham");
 MODULE_LICENSE("GPL");
