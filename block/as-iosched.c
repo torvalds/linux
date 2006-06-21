@@ -347,9 +347,6 @@ static struct request *as_find_arq_hash(struct as_data *ad, sector_t offset)
 /*
  * rb tree support functions
  */
-#define RB_EMPTY(root)	((root)->rb_node == NULL)
-#define ON_RB(node)	(rb_parent(node) != node)
-#define RB_CLEAR(node)	(rb_set_parent(node, node))
 #define rb_entry_arq(node)	rb_entry((node), struct as_rq, rb_node)
 #define ARQ_RB_ROOT(ad, arq)	(&(ad)->sort_list[(arq)->is_sync])
 #define rq_rb_key(rq)		(rq)->sector
@@ -418,13 +415,13 @@ static void as_add_arq_rb(struct as_data *ad, struct as_rq *arq)
 
 static inline void as_del_arq_rb(struct as_data *ad, struct as_rq *arq)
 {
-	if (!ON_RB(&arq->rb_node)) {
+	if (!RB_EMPTY_NODE(&arq->rb_node)) {
 		WARN_ON(1);
 		return;
 	}
 
 	rb_erase(&arq->rb_node, ARQ_RB_ROOT(ad, arq));
-	RB_CLEAR(&arq->rb_node);
+	RB_CLEAR_NODE(&arq->rb_node);
 }
 
 static struct request *
@@ -545,7 +542,7 @@ static struct as_rq *as_find_next_arq(struct as_data *ad, struct as_rq *last)
 	struct rb_node *rbprev = rb_prev(&last->rb_node);
 	struct as_rq *arq_next, *arq_prev;
 
-	BUG_ON(!ON_RB(&last->rb_node));
+	BUG_ON(!RB_EMPTY_NODE(&last->rb_node));
 
 	if (rbprev)
 		arq_prev = rb_entry_arq(rbprev);
@@ -1122,7 +1119,7 @@ static void as_move_to_dispatch(struct as_data *ad, struct as_rq *arq)
 	struct request *rq = arq->request;
 	const int data_dir = arq->is_sync;
 
-	BUG_ON(!ON_RB(&arq->rb_node));
+	BUG_ON(!RB_EMPTY_NODE(&arq->rb_node));
 
 	as_antic_stop(ad);
 	ad->antic_status = ANTIC_OFF;
@@ -1247,7 +1244,7 @@ static int as_dispatch_request(request_queue_t *q, int force)
 	 */
 
 	if (reads) {
-		BUG_ON(RB_EMPTY(&ad->sort_list[REQ_SYNC]));
+		BUG_ON(RB_EMPTY_ROOT(&ad->sort_list[REQ_SYNC]));
 
 		if (writes && ad->batch_data_dir == REQ_SYNC)
 			/*
@@ -1271,7 +1268,7 @@ static int as_dispatch_request(request_queue_t *q, int force)
 
 	if (writes) {
 dispatch_writes:
-		BUG_ON(RB_EMPTY(&ad->sort_list[REQ_ASYNC]));
+		BUG_ON(RB_EMPTY_ROOT(&ad->sort_list[REQ_ASYNC]));
 
 		if (ad->batch_data_dir == REQ_SYNC) {
 			ad->changed_batch = 1;
@@ -1591,7 +1588,7 @@ static int as_set_request(request_queue_t *q, struct request *rq,
 
 	if (arq) {
 		memset(arq, 0, sizeof(*arq));
-		RB_CLEAR(&arq->rb_node);
+		RB_CLEAR_NODE(&arq->rb_node);
 		arq->request = rq;
 		arq->state = AS_RQ_PRESCHED;
 		arq->io_context = NULL;

@@ -159,9 +159,6 @@ deadline_find_drq_hash(struct deadline_data *dd, sector_t offset)
 /*
  * rb tree support functions
  */
-#define RB_EMPTY(root)	((root)->rb_node == NULL)
-#define ON_RB(node)	(rb_parent(node) != node)
-#define RB_CLEAR(node)	(rb_set_parent(node, node))
 #define rb_entry_drq(node)	rb_entry((node), struct deadline_rq, rb_node)
 #define DRQ_RB_ROOT(dd, drq)	(&(dd)->sort_list[rq_data_dir((drq)->request)])
 #define rq_rb_key(rq)		(rq)->sector
@@ -220,9 +217,9 @@ deadline_del_drq_rb(struct deadline_data *dd, struct deadline_rq *drq)
 			dd->next_drq[data_dir] = rb_entry_drq(rbnext);
 	}
 
-	BUG_ON(!ON_RB(&drq->rb_node));
+	BUG_ON(!RB_EMPTY_NODE(&drq->rb_node));
 	rb_erase(&drq->rb_node, DRQ_RB_ROOT(dd, drq));
-	RB_CLEAR(&drq->rb_node);
+	RB_CLEAR_NODE(&drq->rb_node);
 }
 
 static struct request *
@@ -496,7 +493,7 @@ static int deadline_dispatch_requests(request_queue_t *q, int force)
 	 */
 
 	if (reads) {
-		BUG_ON(RB_EMPTY(&dd->sort_list[READ]));
+		BUG_ON(RB_EMPTY_ROOT(&dd->sort_list[READ]));
 
 		if (writes && (dd->starved++ >= dd->writes_starved))
 			goto dispatch_writes;
@@ -512,7 +509,7 @@ static int deadline_dispatch_requests(request_queue_t *q, int force)
 
 	if (writes) {
 dispatch_writes:
-		BUG_ON(RB_EMPTY(&dd->sort_list[WRITE]));
+		BUG_ON(RB_EMPTY_ROOT(&dd->sort_list[WRITE]));
 
 		dd->starved = 0;
 
@@ -668,7 +665,7 @@ deadline_set_request(request_queue_t *q, struct request *rq, struct bio *bio,
 	drq = mempool_alloc(dd->drq_pool, gfp_mask);
 	if (drq) {
 		memset(drq, 0, sizeof(*drq));
-		RB_CLEAR(&drq->rb_node);
+		RB_CLEAR_NODE(&drq->rb_node);
 		drq->request = rq;
 
 		INIT_HLIST_NODE(&drq->hash);

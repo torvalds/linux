@@ -60,11 +60,6 @@ static DEFINE_SPINLOCK(cfq_exit_lock);
 /*
  * rb-tree defines
  */
-#define RB_EMPTY(node)		((node)->rb_node == NULL)
-#define RB_CLEAR(node)		do {	\
-		memset(node, 0, sizeof(*node)); \
-} while (0)
-#define RB_CLEAR_ROOT(root)	((root)->rb_node = NULL)
 #define rb_entry_crq(node)	rb_entry((node), struct cfq_rq, rb_node)
 #define rq_rb_key(rq)		(rq)->sector
 
@@ -559,7 +554,7 @@ static inline void cfq_del_crq_rb(struct cfq_rq *crq)
 
 	rb_erase(&crq->rb_node, &cfqq->sort_list);
 
-	if (cfq_cfqq_on_rr(cfqq) && RB_EMPTY(&cfqq->sort_list))
+	if (cfq_cfqq_on_rr(cfqq) && RB_EMPTY_ROOT(&cfqq->sort_list))
 		cfq_del_cfqq_rr(cfqd, cfqq);
 }
 
@@ -914,7 +909,7 @@ static int cfq_arm_slice_timer(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 	struct cfq_io_context *cic;
 	unsigned long sl;
 
-	WARN_ON(!RB_EMPTY(&cfqq->sort_list));
+	WARN_ON(!RB_EMPTY_ROOT(&cfqq->sort_list));
 	WARN_ON(cfqq != cfqd->active_queue);
 
 	/*
@@ -1042,7 +1037,7 @@ static struct cfq_queue *cfq_select_queue(struct cfq_data *cfqd)
 	 * if queue has requests, dispatch one. if not, check if
 	 * enough slice is left to wait for one
 	 */
-	if (!RB_EMPTY(&cfqq->sort_list))
+	if (!RB_EMPTY_ROOT(&cfqq->sort_list))
 		goto keep_queue;
 	else if (cfq_cfqq_dispatched(cfqq)) {
 		cfqq = NULL;
@@ -1066,7 +1061,7 @@ __cfq_dispatch_requests(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 {
 	int dispatched = 0;
 
-	BUG_ON(RB_EMPTY(&cfqq->sort_list));
+	BUG_ON(RB_EMPTY_ROOT(&cfqq->sort_list));
 
 	do {
 		struct cfq_rq *crq;
@@ -1090,7 +1085,7 @@ __cfq_dispatch_requests(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 			cfqd->active_cic = crq->io_context;
 		}
 
-		if (RB_EMPTY(&cfqq->sort_list))
+		if (RB_EMPTY_ROOT(&cfqq->sort_list))
 			break;
 
 	} while (dispatched < max_dispatch);
@@ -1480,7 +1475,6 @@ retry:
 
 		INIT_HLIST_NODE(&cfqq->cfq_hash);
 		INIT_LIST_HEAD(&cfqq->cfq_list);
-		RB_CLEAR_ROOT(&cfqq->sort_list);
 		INIT_LIST_HEAD(&cfqq->fifo);
 
 		cfqq->key = key;
@@ -1873,7 +1867,7 @@ static void cfq_completed_request(request_queue_t *q, struct request *rq)
 	if (cfqd->active_queue == cfqq) {
 		if (time_after(now, cfqq->slice_end))
 			cfq_slice_expired(cfqd, 0);
-		else if (sync && RB_EMPTY(&cfqq->sort_list)) {
+		else if (sync && RB_EMPTY_ROOT(&cfqq->sort_list)) {
 			if (!cfq_arm_slice_timer(cfqd, cfqq))
 				cfq_schedule_dispatch(cfqd);
 		}
@@ -2059,7 +2053,7 @@ cfq_set_request(request_queue_t *q, struct request *rq, struct bio *bio,
 
 	crq = mempool_alloc(cfqd->crq_pool, gfp_mask);
 	if (crq) {
-		RB_CLEAR(&crq->rb_node);
+		RB_CLEAR_NODE(&crq->rb_node);
 		crq->rb_key = 0;
 		crq->request = rq;
 		INIT_HLIST_NODE(&crq->hash);
@@ -2151,7 +2145,7 @@ static void cfq_idle_slice_timer(unsigned long data)
 		/*
 		 * not expired and it has a request pending, let it dispatch
 		 */
-		if (!RB_EMPTY(&cfqq->sort_list)) {
+		if (!RB_EMPTY_ROOT(&cfqq->sort_list)) {
 			cfq_mark_cfqq_must_dispatch(cfqq);
 			goto out_kick;
 		}
