@@ -825,7 +825,7 @@ static int dst_card_type(struct dst_state *state)
 		return -1;
 	}
 	memset(&state->card_info, '\0', 8);
-	memcpy(&state->card_info, &state->rxbuffer, 8);
+	memcpy(&state->card_info, &state->rxbuffer, 7);
 	dprintk(verbose, DST_ERROR, 1, "Device Model=[%s]", &state->card_info[0]);
 
 	return 0;
@@ -840,7 +840,7 @@ static int dst_get_vendor(struct dst_state *state)
 		return -1;
 	}
 	memset(&state->vendor, '\0', 8);
-	memcpy(&state->vendor, &state->rxbuffer, 8);
+	memcpy(&state->vendor, &state->rxbuffer, 7);
 	dprintk(verbose, DST_ERROR, 1, "Vendor=[%s]", &state->vendor[0]);
 
 	return 0;
