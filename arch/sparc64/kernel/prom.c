@@ -63,6 +63,32 @@ struct device_node *of_find_node_by_path(const char *path)
 	return np;
 }
 
+struct device_node *of_find_node_by_name(struct device_node *from,
+	const char *name)
+{
+	struct device_node *np;
+
+	np = from ? from->allnext : allnodes;
+	for (; np != NULL; np = np->allnext)
+		if (np->name != NULL && strcmp(np->name, name) == 0)
+			break;
+
+	return np;
+}
+
+struct device_node *of_find_node_by_type(struct device_node *from,
+	const char *type)
+{
+	struct device_node *np;
+
+	np = from ? from->allnext : allnodes;
+	for (; np != 0; np = np->allnext)
+		if (np->type != 0 && strcmp(np->type, type) == 0)
+			break;
+
+	return np;
+}
+
 struct property *of_find_property(struct device_node *np, const char *name,
 				  int *lenp)
 {

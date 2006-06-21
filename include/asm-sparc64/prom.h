@@ -65,6 +65,16 @@ static inline void set_node_proc_entry(struct device_node *dn, struct proc_dir_e
 	dn->pde = de;
 }
 
+extern struct device_node *of_find_node_by_name(struct device_node *from,
+	const char *name);
+#define for_each_node_by_name(dn, name) \
+	for (dn = of_find_node_by_name(NULL, name); dn; \
+	     dn = of_find_node_by_name(dn, name))
+extern struct device_node *of_find_node_by_type(struct device_node *from,
+	const char *type);
+#define for_each_node_by_type(dn, type) \
+	for (dn = of_find_node_by_type(NULL, type); dn; \
+	     dn = of_find_node_by_type(dn, type))
 extern struct device_node *of_find_node_by_path(const char *path);
 extern struct device_node *of_get_parent(const struct device_node *node);
 extern struct device_node *of_get_next_child(const struct device_node *node,
