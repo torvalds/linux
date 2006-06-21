@@ -20,7 +20,7 @@
  * returns the number of characters copied (strlen of copied string),
  *  -EFAULT on exception, or "len" if we fill the whole buffer
  */
-ENTRY(__arch_strncpy_from_user)
+ENTRY(__strncpy_from_user)
 	mov	ip, r1
 1:	subs	r2, r2, #1
 USER(	ldrplbt	r3, [r1], #1)

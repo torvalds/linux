@@ -12,13 +12,13 @@
 
 		.text
 
-/* Prototype: int __arch_clear_user(void *addr, size_t sz)
+/* Prototype: int __clear_user(void *addr, size_t sz)
  * Purpose  : clear some user memory
  * Params   : addr - user memory address to clear
  *          : sz   - number of bytes to clear
  * Returns  : number of bytes NOT cleared
  */
-ENTRY(__arch_clear_user)
+ENTRY(__clear_user)
 		stmfd	sp!, {r1, lr}
 		mov	r2, #0
 		cmp	r1, #4
