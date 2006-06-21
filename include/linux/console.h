@@ -117,6 +117,10 @@ extern void console_stop(struct console *);
 extern void console_start(struct console *);
 extern int is_console_locked(void);
 
+/* Suspend and resume console messages over PM events */
+extern void suspend_console(void);
+extern void resume_console(void);
+
 /* Some debug stub to catch some of the obvious races in the VT code */
 #if 1
 #define WARN_CONSOLE_UNLOCKED()	WARN_ON(!is_console_locked() && !oops_in_progress)

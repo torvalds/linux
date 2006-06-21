@@ -250,7 +250,7 @@ static int centrino_cpu_init_table(struct cpufreq_policy *policy)
 
 	if (model->cpu_id == NULL) {
 		/* No match at all */
-		dprintk(KERN_INFO PFX "no support for CPU model \"%s\": "
+		dprintk("no support for CPU model \"%s\": "
 		       "send /proc/cpuinfo to " MAINTAINER "\n",
 		       cpu->x86_model_id);
 		return -ENOENT;
@@ -258,10 +258,10 @@ static int centrino_cpu_init_table(struct cpufreq_policy *policy)
 
 	if (model->op_points == NULL) {
 		/* Matched a non-match */
-		dprintk(KERN_INFO PFX "no table support for CPU model \"%s\"\n",
+		dprintk("no table support for CPU model \"%s\"\n",
 		       cpu->x86_model_id);
 #ifndef CONFIG_X86_SPEEDSTEP_CENTRINO_ACPI
-		dprintk(KERN_INFO PFX "try compiling with CONFIG_X86_SPEEDSTEP_CENTRINO_ACPI enabled\n");
+		dprintk("try compiling with CONFIG_X86_SPEEDSTEP_CENTRINO_ACPI enabled\n");
 #endif
 		return -ENOENT;
 	}
@@ -368,7 +368,7 @@ static int centrino_cpu_init_acpi(struct cpufreq_policy *policy)
 
 	/* register with ACPI core */
 	if (acpi_processor_register_performance(&p, cpu)) {
-		dprintk(KERN_INFO PFX "obtaining ACPI data failed\n");
+		dprintk("obtaining ACPI data failed\n");
 		return -EIO;
 	}
 
@@ -465,7 +465,7 @@ static int centrino_cpu_init_acpi(struct cpufreq_policy *policy)
 	kfree(centrino_model[cpu]);
  err_unreg:
 	acpi_processor_unregister_performance(&p, cpu);
-	dprintk(KERN_INFO PFX "invalid ACPI data\n");
+	dprintk("invalid ACPI data\n");
 	return (result);
 }
 #else
@@ -499,7 +499,7 @@ static int centrino_cpu_init(struct cpufreq_policy *policy)
 			centrino_cpu[policy->cpu] = &cpu_ids[i];
 
 		if (!centrino_cpu[policy->cpu]) {
-			dprintk(KERN_INFO PFX "found unsupported CPU with "
+			dprintk("found unsupported CPU with "
 			"Enhanced SpeedStep: send /proc/cpuinfo to "
 			MAINTAINER "\n");
 			return -ENODEV;

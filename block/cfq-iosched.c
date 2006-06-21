@@ -1323,17 +1323,12 @@ cfq_alloc_io_context(struct cfq_data *cfqd, gfp_t gfp_mask)
 	struct cfq_io_context *cic = kmem_cache_alloc(cfq_ioc_pool, gfp_mask);
 
 	if (cic) {
-		RB_CLEAR(&cic->rb_node);
-		cic->key = NULL;
-		cic->cfqq[ASYNC] = NULL;
-		cic->cfqq[SYNC] = NULL;
+		memset(cic, 0, sizeof(*cic));
+		RB_CLEAR_COLOR(&cic->rb_node);
 		cic->last_end_request = jiffies;
-		cic->ttime_total = 0;
-		cic->ttime_samples = 0;
-		cic->ttime_mean = 0;
+		INIT_LIST_HEAD(&cic->queue_list);
 		cic->dtor = cfq_free_io_context;
 		cic->exit = cfq_exit_io_context;
-		INIT_LIST_HEAD(&cic->queue_list);
 		atomic_inc(&ioc_count);
 	}
 
@@ -2251,14 +2246,14 @@ static void cfq_exit_queue(elevator_t *e)
 	kfree(cfqd);
 }
 
-static int cfq_init_queue(request_queue_t *q, elevator_t *e)
+static void *cfq_init_queue(request_queue_t *q, elevator_t *e)
 {
 	struct cfq_data *cfqd;
 	int i;
 
 	cfqd = kmalloc(sizeof(*cfqd), GFP_KERNEL);
 	if (!cfqd)
-		return -ENOMEM;
+		return NULL;
 
 	memset(cfqd, 0, sizeof(*cfqd));
 
@@ -2288,8 +2283,6 @@ static int cfq_init_queue(request_queue_t *q, elevator_t *e)
 	for (i = 0; i < CFQ_QHASH_ENTRIES; i++)
 		INIT_HLIST_HEAD(&cfqd->cfq_hash[i]);
 
-	e->elevator_data = cfqd;
-
 	cfqd->queue = q;
 
 	cfqd->max_queued = q->nr_requests / 4;
@@ -2316,14 +2309,14 @@ static int cfq_init_queue(request_queue_t *q, elevator_t *e)
 	cfqd->cfq_slice_async_rq = cfq_slice_async_rq;
 	cfqd->cfq_slice_idle = cfq_slice_idle;
 
-	return 0;
+	return cfqd;
 out_crqpool:
 	kfree(cfqd->cfq_hash);
 out_cfqhash:
 	kfree(cfqd->crq_hash);
 out_crqhash:
 	kfree(cfqd);
-	return -ENOMEM;
+	return NULL;
 }
 
 static void cfq_slab_kill(void)

@@ -55,6 +55,18 @@ config IP_NF_CONNTRACK_MARK
 	  of packets, but this mark value is kept in the conntrack session
 	  instead of the individual packets.
 	
+config IP_NF_CONNTRACK_SECMARK
+	bool  'Connection tracking security mark support'
+	depends on IP_NF_CONNTRACK && NETWORK_SECMARK
+	help
+	  This option enables security markings to be applied to
+	  connections.  Typically they are copied to connections from
+	  packets using the CONNSECMARK target and copied back from
+	  connections to packets with the same target, with the packets
+	  being originally labeled via SECMARK.
+
+	  If unsure, say 'N'.
+
 config IP_NF_CONNTRACK_EVENTS
 	bool "Connection tracking events (EXPERIMENTAL)"
 	depends on EXPERIMENTAL && IP_NF_CONNTRACK
@@ -142,6 +154,8 @@ config IP_NF_TFTP
 config IP_NF_AMANDA
 	tristate "Amanda backup protocol support"
 	depends on IP_NF_CONNTRACK
+	select TEXTSEARCH
+	select TEXTSEARCH_KMP
 	help
 	  If you are running the Amanda backup package <http://www.amanda.org/>
 	  on this machine or machines that will be MASQUERADED through this
@@ -181,13 +195,25 @@ config IP_NF_H323
 	  With this module you can support H.323 on a connection tracking/NAT
 	  firewall.
 
-	  This module supports RAS, Fast-start, H.245 tunnelling, RTP/RTCP
-	  and T.120 based data and applications including audio, video, FAX,
-	  chat, whiteboard, file transfer, etc. For more information, please
-	  see http://nath323.sourceforge.net/.
+	  This module supports RAS, Fast Start, H.245 Tunnelling, Call
+	  Forwarding, RTP/RTCP and T.120 based audio, video, fax, chat,
+	  whiteboard, file transfer, etc. For more information, please
+	  visit http://nath323.sourceforge.net/.
 
 	  If you want to compile it as a module, say 'M' here and read
 	  Documentation/modules.txt.  If unsure, say 'N'.
+
+config IP_NF_SIP
+	tristate "SIP protocol support (EXPERIMENTAL)"
+	depends on IP_NF_CONNTRACK && EXPERIMENTAL
+	help
+	  SIP is an application-layer control protocol that can establish,
+	  modify, and terminate multimedia sessions (conferences) such as
+	  Internet telephony calls. With the ip_conntrack_sip and
+	  the ip_nat_sip modules you can support the protocol on a connection
+	  tracking/NATing firewall.
+
+	  To compile it as a module, choose M here.  If unsure, say Y.
 
 config IP_NF_QUEUE
 	tristate "IP Userspace queueing via NETLINK (OBSOLETE)"
@@ -500,6 +526,12 @@ config IP_NF_NAT_H323
 	depends on IP_NF_IPTABLES!=n && IP_NF_CONNTRACK!=n && IP_NF_NAT!=n
 	default IP_NF_NAT if IP_NF_H323=y
 	default m if IP_NF_H323=m
+
+config IP_NF_NAT_SIP
+	tristate
+	depends on IP_NF_IPTABLES!=n && IP_NF_CONNTRACK!=n && IP_NF_NAT!=n
+	default IP_NF_NAT if IP_NF_SIP=y
+	default m if IP_NF_SIP=m
 
 # mangle + specific targets
 config IP_NF_MANGLE

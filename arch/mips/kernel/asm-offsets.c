@@ -141,72 +141,72 @@ void output_thread_defines(void)
 void output_thread_fpu_defines(void)
 {
 	offset("#define THREAD_FPR0    ",
-	       struct task_struct, thread.fpu.hard.fpr[0]);
+	       struct task_struct, thread.fpu.fpr[0]);
 	offset("#define THREAD_FPR1    ",
-	       struct task_struct, thread.fpu.hard.fpr[1]);
+	       struct task_struct, thread.fpu.fpr[1]);
 	offset("#define THREAD_FPR2    ",
-	       struct task_struct, thread.fpu.hard.fpr[2]);
+	       struct task_struct, thread.fpu.fpr[2]);
 	offset("#define THREAD_FPR3    ",
-	       struct task_struct, thread.fpu.hard.fpr[3]);
+	       struct task_struct, thread.fpu.fpr[3]);
 	offset("#define THREAD_FPR4    ",
-	       struct task_struct, thread.fpu.hard.fpr[4]);
+	       struct task_struct, thread.fpu.fpr[4]);
 	offset("#define THREAD_FPR5    ",
-	       struct task_struct, thread.fpu.hard.fpr[5]);
+	       struct task_struct, thread.fpu.fpr[5]);
 	offset("#define THREAD_FPR6    ",
-	       struct task_struct, thread.fpu.hard.fpr[6]);
+	       struct task_struct, thread.fpu.fpr[6]);
 	offset("#define THREAD_FPR7    ",
-	       struct task_struct, thread.fpu.hard.fpr[7]);
+	       struct task_struct, thread.fpu.fpr[7]);
 	offset("#define THREAD_FPR8    ",
-	       struct task_struct, thread.fpu.hard.fpr[8]);
+	       struct task_struct, thread.fpu.fpr[8]);
 	offset("#define THREAD_FPR9    ",
-	       struct task_struct, thread.fpu.hard.fpr[9]);
+	       struct task_struct, thread.fpu.fpr[9]);
 	offset("#define THREAD_FPR10   ",
-	       struct task_struct, thread.fpu.hard.fpr[10]);
+	       struct task_struct, thread.fpu.fpr[10]);
 	offset("#define THREAD_FPR11   ",
-	       struct task_struct, thread.fpu.hard.fpr[11]);
+	       struct task_struct, thread.fpu.fpr[11]);
 	offset("#define THREAD_FPR12   ",
-	       struct task_struct, thread.fpu.hard.fpr[12]);
+	       struct task_struct, thread.fpu.fpr[12]);
 	offset("#define THREAD_FPR13   ",
-	       struct task_struct, thread.fpu.hard.fpr[13]);
+	       struct task_struct, thread.fpu.fpr[13]);
 	offset("#define THREAD_FPR14   ",
-	       struct task_struct, thread.fpu.hard.fpr[14]);
+	       struct task_struct, thread.fpu.fpr[14]);
 	offset("#define THREAD_FPR15   ",
-	       struct task_struct, thread.fpu.hard.fpr[15]);
+	       struct task_struct, thread.fpu.fpr[15]);
 	offset("#define THREAD_FPR16   ",
-	       struct task_struct, thread.fpu.hard.fpr[16]);
+	       struct task_struct, thread.fpu.fpr[16]);
 	offset("#define THREAD_FPR17   ",
-	       struct task_struct, thread.fpu.hard.fpr[17]);
+	       struct task_struct, thread.fpu.fpr[17]);
 	offset("#define THREAD_FPR18   ",
-	       struct task_struct, thread.fpu.hard.fpr[18]);
+	       struct task_struct, thread.fpu.fpr[18]);
 	offset("#define THREAD_FPR19   ",
-	       struct task_struct, thread.fpu.hard.fpr[19]);
+	       struct task_struct, thread.fpu.fpr[19]);
 	offset("#define THREAD_FPR20   ",
-	       struct task_struct, thread.fpu.hard.fpr[20]);
+	       struct task_struct, thread.fpu.fpr[20]);
 	offset("#define THREAD_FPR21   ",
-	       struct task_struct, thread.fpu.hard.fpr[21]);
+	       struct task_struct, thread.fpu.fpr[21]);
 	offset("#define THREAD_FPR22   ",
-	       struct task_struct, thread.fpu.hard.fpr[22]);
+	       struct task_struct, thread.fpu.fpr[22]);
 	offset("#define THREAD_FPR23   ",
-	       struct task_struct, thread.fpu.hard.fpr[23]);
+	       struct task_struct, thread.fpu.fpr[23]);
 	offset("#define THREAD_FPR24   ",
-	       struct task_struct, thread.fpu.hard.fpr[24]);
+	       struct task_struct, thread.fpu.fpr[24]);
 	offset("#define THREAD_FPR25   ",
-	       struct task_struct, thread.fpu.hard.fpr[25]);
+	       struct task_struct, thread.fpu.fpr[25]);
 	offset("#define THREAD_FPR26   ",
-	       struct task_struct, thread.fpu.hard.fpr[26]);
+	       struct task_struct, thread.fpu.fpr[26]);
 	offset("#define THREAD_FPR27   ",
-	       struct task_struct, thread.fpu.hard.fpr[27]);
+	       struct task_struct, thread.fpu.fpr[27]);
 	offset("#define THREAD_FPR28   ",
-	       struct task_struct, thread.fpu.hard.fpr[28]);
+	       struct task_struct, thread.fpu.fpr[28]);
 	offset("#define THREAD_FPR29   ",
-	       struct task_struct, thread.fpu.hard.fpr[29]);
+	       struct task_struct, thread.fpu.fpr[29]);
 	offset("#define THREAD_FPR30   ",
-	       struct task_struct, thread.fpu.hard.fpr[30]);
+	       struct task_struct, thread.fpu.fpr[30]);
 	offset("#define THREAD_FPR31   ",
-	       struct task_struct, thread.fpu.hard.fpr[31]);
+	       struct task_struct, thread.fpu.fpr[31]);
 
 	offset("#define THREAD_FCR31   ",
-	       struct task_struct, thread.fpu.hard.fcr31);
+	       struct task_struct, thread.fpu.fcr31);
 	linefeed;
 }
 

@@ -743,7 +743,7 @@ config FB_I810_I2C
 
 config FB_INTEL
 	tristate "Intel 830M/845G/852GM/855GM/865G support (EXPERIMENTAL)"
-	depends on FB && EXPERIMENTAL && PCI && X86_32
+	depends on FB && EXPERIMENTAL && PCI && X86
 	select AGP
 	select AGP_INTEL
 	select FB_MODE_HELPERS

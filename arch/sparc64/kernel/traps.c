@@ -1797,7 +1797,9 @@ static const char *sun4v_err_type_to_str(u32 type)
 	};
 }
 
-static void sun4v_log_error(struct sun4v_error_entry *ent, int cpu, const char *pfx, atomic_t *ocnt)
+extern void __show_regs(struct pt_regs * regs);
+
+static void sun4v_log_error(struct pt_regs *regs, struct sun4v_error_entry *ent, int cpu, const char *pfx, atomic_t *ocnt)
 {
 	int cnt;
 
@@ -1829,6 +1831,8 @@ static void sun4v_log_error(struct sun4v_error_entry *ent, int cpu, const char *
 	printk("%s: err_raddr[%016lx] err_size[%u] err_cpu[%u]\n",
 	       pfx,
 	       ent->err_raddr, ent->err_size, ent->err_cpu);
+
+	__show_regs(regs);
 
 	if ((cnt = atomic_read(ocnt)) != 0) {
 		atomic_set(ocnt, 0);
@@ -1862,7 +1866,7 @@ void sun4v_resum_error(struct pt_regs *regs, unsigned long offset)
 
 	put_cpu();
 
-	sun4v_log_error(&local_copy, cpu,
+	sun4v_log_error(regs, &local_copy, cpu,
 			KERN_ERR "RESUMABLE ERROR",
 			&sun4v_resum_oflow_cnt);
 }
@@ -1910,7 +1914,7 @@ void sun4v_nonresum_error(struct pt_regs *regs, unsigned long offset)
 	}
 #endif
 
-	sun4v_log_error(&local_copy, cpu,
+	sun4v_log_error(regs, &local_copy, cpu,
 			KERN_EMERG "NON-RESUMABLE ERROR",
 			&sun4v_nonresum_oflow_cnt);
 
@@ -2200,7 +2204,6 @@ static inline struct reg_window *kernel_stack_up(struct reg_window *rw)
 void die_if_kernel(char *str, struct pt_regs *regs)
 {
 	static int die_counter;
-	extern void __show_regs(struct pt_regs * regs);
 	extern void smp_report_regs(void);
 	int count = 0;
 	

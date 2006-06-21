@@ -72,9 +72,9 @@ void qdisc_unlock_tree(struct net_device *dev)
    dev->queue_lock serializes queue accesses for this device
    AND dev->qdisc pointer itself.
 
-   dev->xmit_lock serializes accesses to device driver.
+   netif_tx_lock serializes accesses to device driver.
 
-   dev->queue_lock and dev->xmit_lock are mutually exclusive,
+   dev->queue_lock and netif_tx_lock are mutually exclusive,
    if one is grabbed, another must be free.
  */
 
@@ -108,7 +108,7 @@ int qdisc_restart(struct net_device *dev)
 		 * will be requeued.
 		 */
 		if (!nolock) {
-			if (!spin_trylock(&dev->xmit_lock)) {
+			if (!netif_tx_trylock(dev)) {
 			collision:
 				/* So, someone grabbed the driver. */
 				
@@ -126,8 +126,6 @@ int qdisc_restart(struct net_device *dev)
 				__get_cpu_var(netdev_rx_stat).cpu_collision++;
 				goto requeue;
 			}
-			/* Remember that the driver is grabbed by us. */
-			dev->xmit_lock_owner = smp_processor_id();
 		}
 		
 		{
@@ -142,8 +140,7 @@ int qdisc_restart(struct net_device *dev)
 				ret = dev->hard_start_xmit(skb, dev);
 				if (ret == NETDEV_TX_OK) { 
 					if (!nolock) {
-						dev->xmit_lock_owner = -1;
-						spin_unlock(&dev->xmit_lock);
+						netif_tx_unlock(dev);
 					}
 					spin_lock(&dev->queue_lock);
 					return -1;
@@ -157,8 +154,7 @@ int qdisc_restart(struct net_device *dev)
 			/* NETDEV_TX_BUSY - we need to requeue */
 			/* Release the driver */
 			if (!nolock) { 
-				dev->xmit_lock_owner = -1;
-				spin_unlock(&dev->xmit_lock);
+				netif_tx_unlock(dev);
 			} 
 			spin_lock(&dev->queue_lock);
 			q = dev->qdisc;
@@ -187,7 +183,7 @@ static void dev_watchdog(unsigned long arg)
 {
 	struct net_device *dev = (struct net_device *)arg;
 
-	spin_lock(&dev->xmit_lock);
+	netif_tx_lock(dev);
 	if (dev->qdisc != &noop_qdisc) {
 		if (netif_device_present(dev) &&
 		    netif_running(dev) &&
@@ -203,7 +199,7 @@ static void dev_watchdog(unsigned long arg)
 				dev_hold(dev);
 		}
 	}
-	spin_unlock(&dev->xmit_lock);
+	netif_tx_unlock(dev);
 
 	dev_put(dev);
 }
@@ -227,17 +223,17 @@ void __netdev_watchdog_up(struct net_device *dev)
 
 static void dev_watchdog_up(struct net_device *dev)
 {
-	spin_lock_bh(&dev->xmit_lock);
+	netif_tx_lock_bh(dev);
 	__netdev_watchdog_up(dev);
-	spin_unlock_bh(&dev->xmit_lock);
+	netif_tx_unlock_bh(dev);
 }
 
 static void dev_watchdog_down(struct net_device *dev)
 {
-	spin_lock_bh(&dev->xmit_lock);
+	netif_tx_lock_bh(dev);
 	if (del_timer(&dev->watchdog_timer))
 		dev_put(dev);
-	spin_unlock_bh(&dev->xmit_lock);
+	netif_tx_unlock_bh(dev);
 }
 
 void netif_carrier_on(struct net_device *dev)
@@ -582,7 +578,7 @@ void dev_deactivate(struct net_device *dev)
 	while (test_bit(__LINK_STATE_SCHED, &dev->state))
 		yield();
 
-	spin_unlock_wait(&dev->xmit_lock);
+	spin_unlock_wait(&dev->_xmit_lock);
 }
 
 void dev_init_scheduler(struct net_device *dev)

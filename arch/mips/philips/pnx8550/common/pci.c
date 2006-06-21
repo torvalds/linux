@@ -27,17 +27,17 @@
 #include <nand.h>
 
 static struct resource pci_io_resource = {
-	"pci IO space",
-	(u32)(PNX8550_PCIIO + 0x1000),	/* reserve regacy I/O space */
-	(u32)(PNX8550_PCIIO + PNX8550_PCIIO_SIZE),
-	IORESOURCE_IO
+	.start	= PNX8550_PCIIO + 0x1000,	/* reserve regacy I/O space */
+	.end	= PNX8550_PCIIO + PNX8550_PCIIO_SIZE,
+	.name	= "pci IO space",
+	.flags	= IORESOURCE_IO
 };
 
 static struct resource pci_mem_resource = {
-	"pci memory space",
-	(u32)(PNX8550_PCIMEM),
-	(u32)(PNX8550_PCIMEM + PNX8550_PCIMEM_SIZE - 1),
-	IORESOURCE_MEM
+	.start	= PNX8550_PCIMEM,
+	.end	= PNX8550_PCIMEM + PNX8550_PCIMEM_SIZE - 1,
+	.name	= "pci memory space",
+	.flags	= IORESOURCE_MEM
 };
 
 extern struct pci_ops pnx8550_pci_ops;

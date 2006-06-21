@@ -1899,6 +1899,13 @@ static int velocity_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	int pktlen = skb->len;
 
+#ifdef VELOCITY_ZERO_COPY_SUPPORT
+	if (skb_shinfo(skb)->nr_frags > 6 && __skb_linearize(skb)) {
+		kfree_skb(skb);
+		return 0;
+	}
+#endif
+
 	spin_lock_irqsave(&vptr->lock, flags);
 
 	index = vptr->td_curr[qnum];
@@ -1914,8 +1921,6 @@ static int velocity_xmit(struct sk_buff *skb, struct net_device *dev)
 	 */
 	if (pktlen < ETH_ZLEN) {
 		/* Cannot occur until ZC support */
-		if(skb_linearize(skb, GFP_ATOMIC))
-			return 0; 
 		pktlen = ETH_ZLEN;
 		memcpy(tdinfo->buf, skb->data, skb->len);
 		memset(tdinfo->buf + skb->len, 0, ETH_ZLEN - skb->len);
@@ -1933,7 +1938,6 @@ static int velocity_xmit(struct sk_buff *skb, struct net_device *dev)
 		int nfrags = skb_shinfo(skb)->nr_frags;
 		tdinfo->skb = skb;
 		if (nfrags > 6) {
-			skb_linearize(skb, GFP_ATOMIC);
 			memcpy(tdinfo->buf, skb->data, skb->len);
 			tdinfo->skb_dma[0] = tdinfo->buf_dma;
 			td_ptr->tdesc0.pktsize = 

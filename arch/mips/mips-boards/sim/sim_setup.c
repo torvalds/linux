@@ -50,7 +50,7 @@ const char *get_system_type(void)
 	return "MIPSsim";
 }
 
-void __init plat_setup(void)
+void __init plat_mem_setup(void)
 {
 	set_io_port_base(0xbfd00000);
 

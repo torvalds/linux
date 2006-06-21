@@ -118,6 +118,10 @@ enum
 	XFRM_SHARE_UNIQUE	/* Use once */
 };
 
+#define XFRM_MODE_TRANSPORT 0
+#define XFRM_MODE_TUNNEL 1
+#define XFRM_MODE_MAX 2
+
 /* Netlink configuration messages.  */
 enum {
 	XFRM_MSG_BASE = 0x10,

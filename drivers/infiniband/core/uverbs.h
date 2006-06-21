@@ -132,7 +132,7 @@ struct ib_ucq_object {
 	u32			async_events_reported;
 };
 
-extern struct mutex ib_uverbs_idr_mutex;
+extern spinlock_t ib_uverbs_idr_lock;
 extern struct idr ib_uverbs_pd_idr;
 extern struct idr ib_uverbs_mr_idr;
 extern struct idr ib_uverbs_mw_idr;
@@ -140,6 +140,8 @@ extern struct idr ib_uverbs_ah_idr;
 extern struct idr ib_uverbs_cq_idr;
 extern struct idr ib_uverbs_qp_idr;
 extern struct idr ib_uverbs_srq_idr;
+
+void idr_remove_uobj(struct idr *idp, struct ib_uobject *uobj);
 
 struct file *ib_uverbs_alloc_event_file(struct ib_uverbs_file *uverbs_file,
 					int is_async, int *fd);

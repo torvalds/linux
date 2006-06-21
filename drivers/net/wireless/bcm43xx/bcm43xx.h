@@ -636,6 +636,17 @@ struct bcm43xx_key {
 	u8 algorithm;
 };
 
+/* Driver initialization status. */
+enum {
+	BCM43xx_STAT_UNINIT,		/* Uninitialized. */
+	BCM43xx_STAT_INITIALIZING,	/* init_board() in progress. */
+	BCM43xx_STAT_INITIALIZED,	/* Fully operational. */
+	BCM43xx_STAT_SHUTTINGDOWN,	/* free_board() in progress. */
+	BCM43xx_STAT_RESTARTING,	/* controller_restart() called. */
+};
+#define bcm43xx_status(bcm)		atomic_read(&(bcm)->init_status)
+#define bcm43xx_set_status(bcm, stat)	atomic_set(&(bcm)->init_status, (stat))
+
 struct bcm43xx_private {
 	struct ieee80211_device *ieee;
 	struct ieee80211softmac_device *softmac;
@@ -646,18 +657,17 @@ struct bcm43xx_private {
 
 	void __iomem *mmio_addr;
 
-	/* Do not use the lock directly. Use the bcm43xx_lock* helper
-	 * functions, to be MMIO-safe. */
-	spinlock_t _lock;
+	/* Locking, see "theory of locking" text below. */
+	spinlock_t irq_lock;
+	struct mutex mutex;
 
-	/* Driver status flags. */
-	u32 initialized:1,		/* init_board() succeed */
-	    was_initialized:1,		/* for PCI suspend/resume. */
-	    shutting_down:1,		/* free_board() in progress */
+	/* Driver initialization status BCM43xx_STAT_*** */
+	atomic_t init_status;
+
+	u16 was_initialized:1,		/* for PCI suspend/resume. */
 	    __using_pio:1,		/* Internal, use bcm43xx_using_pio(). */
 	    bad_frames_preempt:1,	/* Use "Bad Frames Preemption" (default off) */
 	    reg124_set_0x4:1,		/* Some variable to keep track of IRQ stuff. */
-	    powersaving:1,		/* TRUE if we are in PowerSaving mode. FALSE otherwise. */
 	    short_preamble:1,		/* TRUE, if short preamble is enabled. */
 	    firmware_norelease:1;	/* Do not release the firmware. Used on suspend. */
 
@@ -721,7 +731,7 @@ struct bcm43xx_private {
 	struct tasklet_struct isr_tasklet;
 
 	/* Periodic tasks */
-	struct timer_list periodic_tasks;
+	struct work_struct periodic_work;
 	unsigned int periodic_state;
 
 	struct work_struct restart_work;
@@ -746,21 +756,55 @@ struct bcm43xx_private {
 #endif
 };
 
-/* bcm43xx_(un)lock() protect struct bcm43xx_private.
- * Note that _NO_ MMIO writes are allowed. If you want to
- * write to the device through MMIO in the critical section, use
- * the *_mmio lock functions.
- * MMIO read-access is allowed, though.
+
+/*    *** THEORY OF LOCKING ***
+ *
+ * We have two different locks in the bcm43xx driver.
+ * => bcm->mutex:    General sleeping mutex. Protects struct bcm43xx_private
+ *                   and the device registers.
+ * => bcm->irq_lock: IRQ spinlock. Protects against IRQ handler concurrency.
+ *
+ * We have three types of helper function pairs to utilize these locks.
+ *     (Always use the helper functions.)
+ * 1) bcm43xx_{un}lock_noirq():
+ *     Takes bcm->mutex. Does _not_ protect against IRQ concurrency,
+ *     so it is almost always unsafe, if device IRQs are enabled.
+ *     So only use this, if device IRQs are masked.
+ *     Locking may sleep.
+ *     You can sleep within the critical section.
+ * 2) bcm43xx_{un}lock_irqonly():
+ *     Takes bcm->irq_lock. Does _not_ protect against
+ *     bcm43xx_lock_noirq() critical sections.
+ *     Does only protect against the IRQ handler path and other
+ *     irqonly() critical sections.
+ *     Locking does not sleep.
+ *     You must not sleep within the critical section.
+ * 3) bcm43xx_{un}lock_irqsafe():
+ *     This is the cummulative lock and takes both, mutex and irq_lock.
+ *     Protects against noirq() and irqonly() critical sections (and
+ *     the IRQ handler path).
+ *     Locking may sleep.
+ *     You must not sleep within the critical section.
  */
-#define bcm43xx_lock(bcm, flags)	spin_lock_irqsave(&(bcm)->_lock, flags)
-#define bcm43xx_unlock(bcm, flags)	spin_unlock_irqrestore(&(bcm)->_lock, flags)
-/* bcm43xx_(un)lock_mmio() protect struct bcm43xx_private and MMIO.
- * MMIO write-access to the device is allowed.
- * All MMIO writes are flushed on unlock, so it is guaranteed to not
- * interfere with other threads writing MMIO registers.
- */
-#define bcm43xx_lock_mmio(bcm, flags)	bcm43xx_lock(bcm, flags)
-#define bcm43xx_unlock_mmio(bcm, flags)	do { mmiowb(); bcm43xx_unlock(bcm, flags); } while (0)
+
+/* Lock type 1 */
+#define bcm43xx_lock_noirq(bcm)		mutex_lock(&(bcm)->mutex)
+#define bcm43xx_unlock_noirq(bcm)	mutex_unlock(&(bcm)->mutex)
+/* Lock type 2 */
+#define bcm43xx_lock_irqonly(bcm, flags)	\
+	spin_lock_irqsave(&(bcm)->irq_lock, flags)
+#define bcm43xx_unlock_irqonly(bcm, flags)	\
+	spin_unlock_irqrestore(&(bcm)->irq_lock, flags)
+/* Lock type 3 */
+#define bcm43xx_lock_irqsafe(bcm, flags) do {	\
+	bcm43xx_lock_noirq(bcm);		\
+	bcm43xx_lock_irqonly(bcm, flags);	\
+		} while (0)
+#define bcm43xx_unlock_irqsafe(bcm, flags) do {	\
+	bcm43xx_unlock_irqonly(bcm, flags);	\
+	bcm43xx_unlock_noirq(bcm);		\
+		} while (0)
+
 
 static inline
 struct bcm43xx_private * bcm43xx_priv(struct net_device *dev)
@@ -843,16 +887,6 @@ struct bcm43xx_radioinfo * bcm43xx_current_radio(struct bcm43xx_private *bcm)
 	return &(bcm->core_80211_ext[bcm->current_80211_core_idx].radio);
 }
 
-/* Are we running in init_board() context? */
-static inline
-int bcm43xx_is_initializing(struct bcm43xx_private *bcm)
-{
-	if (bcm->initialized)
-		return 0;
-	if (bcm->shutting_down)
-		return 0;
-	return 1;
-}
 
 static inline
 struct bcm43xx_lopair * bcm43xx_get_lopair(struct bcm43xx_phyinfo *phy,

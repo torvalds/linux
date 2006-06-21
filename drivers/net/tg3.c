@@ -69,8 +69,8 @@
 
 #define DRV_MODULE_NAME		"tg3"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"3.58"
-#define DRV_MODULE_RELDATE	"May 22, 2006"
+#define DRV_MODULE_VERSION	"3.60"
+#define DRV_MODULE_RELDATE	"June 17, 2006"
 
 #define TG3_DEF_MAC_MODE	0
 #define TG3_DEF_RX_MODE		0
@@ -228,6 +228,8 @@ static struct pci_device_id tg3_pci_tbl[] = {
 	{ PCI_VENDOR_ID_BROADCOM, PCI_DEVICE_ID_TIGON3_5755,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0UL },
 	{ PCI_VENDOR_ID_BROADCOM, PCI_DEVICE_ID_TIGON3_5755M,
+	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0UL },
+	{ PCI_VENDOR_ID_BROADCOM, PCI_DEVICE_ID_TIGON3_5786,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0UL },
 	{ PCI_VENDOR_ID_BROADCOM, PCI_DEVICE_ID_TIGON3_5787,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0UL },
@@ -2965,6 +2967,27 @@ static int tg3_setup_phy(struct tg3 *tp, int force_reset)
 	return err;
 }
 
+/* This is called whenever we suspect that the system chipset is re-
+ * ordering the sequence of MMIO to the tx send mailbox. The symptom
+ * is bogus tx completions. We try to recover by setting the
+ * TG3_FLAG_MBOX_WRITE_REORDER flag and resetting the chip later
+ * in the workqueue.
+ */
+static void tg3_tx_recover(struct tg3 *tp)
+{
+	BUG_ON((tp->tg3_flags & TG3_FLAG_MBOX_WRITE_REORDER) ||
+	       tp->write32_tx_mbox == tg3_write_indirect_mbox);
+
+	printk(KERN_WARNING PFX "%s: The system may be re-ordering memory-"
+	       "mapped I/O cycles to the network device, attempting to "
+	       "recover. Please report the problem to the driver maintainer "
+	       "and include system chipset information.\n", tp->dev->name);
+
+	spin_lock(&tp->lock);
+	tp->tg3_flags |= TG3_FLAG_TX_RECOVERY_PENDING;
+	spin_unlock(&tp->lock);
+}
+
 /* Tigon3 never reports partial packet sends.  So we do not
  * need special logic to handle SKBs that have not had all
  * of their frags sent yet, like SunGEM does.
@@ -2977,9 +3000,13 @@ static void tg3_tx(struct tg3 *tp)
 	while (sw_idx != hw_idx) {
 		struct tx_ring_info *ri = &tp->tx_buffers[sw_idx];
 		struct sk_buff *skb = ri->skb;
-		int i;
+		int i, tx_bug = 0;
 
-		BUG_ON(skb == NULL);
+		if (unlikely(skb == NULL)) {
+			tg3_tx_recover(tp);
+			return;
+		}
+
 		pci_unmap_single(tp->pdev,
 				 pci_unmap_addr(ri, mapping),
 				 skb_headlen(skb),
@@ -2990,10 +3017,9 @@ static void tg3_tx(struct tg3 *tp)
 		sw_idx = NEXT_TX(sw_idx);
 
 		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
-			BUG_ON(sw_idx == hw_idx);
-
 			ri = &tp->tx_buffers[sw_idx];
-			BUG_ON(ri->skb != NULL);
+			if (unlikely(ri->skb != NULL || sw_idx == hw_idx))
+				tx_bug = 1;
 
 			pci_unmap_page(tp->pdev,
 				       pci_unmap_addr(ri, mapping),
@@ -3004,6 +3030,11 @@ static void tg3_tx(struct tg3 *tp)
 		}
 
 		dev_kfree_skb(skb);
+
+		if (unlikely(tx_bug)) {
+			tg3_tx_recover(tp);
+			return;
+		}
 	}
 
 	tp->tx_cons = sw_idx;
@@ -3331,6 +3362,11 @@ static int tg3_poll(struct net_device *netdev, int *budget)
 	/* run TX completion thread */
 	if (sblk->idx[0].tx_consumer != tp->tx_cons) {
 		tg3_tx(tp);
+		if (unlikely(tp->tg3_flags & TG3_FLAG_TX_RECOVERY_PENDING)) {
+			netif_rx_complete(netdev);
+			schedule_work(&tp->reset_task);
+			return 0;
+		}
 	}
 
 	/* run RX thread, within the bounds set by NAPI.
@@ -3391,12 +3427,10 @@ static inline void tg3_full_lock(struct tg3 *tp, int irq_sync)
 	if (irq_sync)
 		tg3_irq_quiesce(tp);
 	spin_lock_bh(&tp->lock);
-	spin_lock(&tp->tx_lock);
 }
 
 static inline void tg3_full_unlock(struct tg3 *tp)
 {
-	spin_unlock(&tp->tx_lock);
 	spin_unlock_bh(&tp->lock);
 }
 
@@ -3579,6 +3613,13 @@ static void tg3_reset_task(void *_data)
 	restart_timer = tp->tg3_flags2 & TG3_FLG2_RESTART_TIMER;
 	tp->tg3_flags2 &= ~TG3_FLG2_RESTART_TIMER;
 
+	if (tp->tg3_flags & TG3_FLAG_TX_RECOVERY_PENDING) {
+		tp->write32_tx_mbox = tg3_write32_tx_mbox;
+		tp->write32_rx_mbox = tg3_write_flush_reg32;
+		tp->tg3_flags |= TG3_FLAG_MBOX_WRITE_REORDER;
+		tp->tg3_flags &= ~TG3_FLAG_TX_RECOVERY_PENDING;
+	}
+
 	tg3_halt(tp, RESET_KIND_SHUTDOWN, 0);
 	tg3_init_hw(tp, 1);
 
@@ -3718,14 +3759,11 @@ static int tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	len = skb_headlen(skb);
 
-	/* No BH disabling for tx_lock here.  We are running in BH disabled
-	 * context and TX reclaim runs via tp->poll inside of a software
+	/* We are running in BH disabled context with netif_tx_lock
+	 * and TX reclaim runs via tp->poll inside of a software
 	 * interrupt.  Furthermore, IRQ processing runs lockless so we have
 	 * no IRQ context deadlocks to worry about either.  Rejoice!
 	 */
-	if (!spin_trylock(&tp->tx_lock))
-		return NETDEV_TX_LOCKED;
-
 	if (unlikely(TX_BUFFS_AVAIL(tp) <= (skb_shinfo(skb)->nr_frags + 1))) {
 		if (!netif_queue_stopped(dev)) {
 			netif_stop_queue(dev);
@@ -3734,7 +3772,6 @@ static int tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			printk(KERN_ERR PFX "%s: BUG! Tx Ring full when "
 			       "queue awake!\n", dev->name);
 		}
-		spin_unlock(&tp->tx_lock);
 		return NETDEV_TX_BUSY;
 	}
 
@@ -3817,15 +3854,16 @@ static int tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	tw32_tx_mbox((MAILBOX_SNDHOST_PROD_IDX_0 + TG3_64BIT_REG_LOW), entry);
 
 	tp->tx_prod = entry;
-	if (TX_BUFFS_AVAIL(tp) <= (MAX_SKB_FRAGS + 1)) {
+	if (unlikely(TX_BUFFS_AVAIL(tp) <= (MAX_SKB_FRAGS + 1))) {
+		spin_lock(&tp->tx_lock);
 		netif_stop_queue(dev);
 		if (TX_BUFFS_AVAIL(tp) > TG3_TX_WAKEUP_THRESH)
 			netif_wake_queue(tp->dev);
+		spin_unlock(&tp->tx_lock);
 	}
 
 out_unlock:
     	mmiowb();
-	spin_unlock(&tp->tx_lock);
 
 	dev->trans_start = jiffies;
 
@@ -3844,14 +3882,11 @@ static int tg3_start_xmit_dma_bug(struct sk_buff *skb, struct net_device *dev)
 
 	len = skb_headlen(skb);
 
-	/* No BH disabling for tx_lock here.  We are running in BH disabled
-	 * context and TX reclaim runs via tp->poll inside of a software
+	/* We are running in BH disabled context with netif_tx_lock
+	 * and TX reclaim runs via tp->poll inside of a software
 	 * interrupt.  Furthermore, IRQ processing runs lockless so we have
 	 * no IRQ context deadlocks to worry about either.  Rejoice!
 	 */
-	if (!spin_trylock(&tp->tx_lock))
-		return NETDEV_TX_LOCKED; 
-
 	if (unlikely(TX_BUFFS_AVAIL(tp) <= (skb_shinfo(skb)->nr_frags + 1))) {
 		if (!netif_queue_stopped(dev)) {
 			netif_stop_queue(dev);
@@ -3860,7 +3895,6 @@ static int tg3_start_xmit_dma_bug(struct sk_buff *skb, struct net_device *dev)
 			printk(KERN_ERR PFX "%s: BUG! Tx Ring full when "
 			       "queue awake!\n", dev->name);
 		}
-		spin_unlock(&tp->tx_lock);
 		return NETDEV_TX_BUSY;
 	}
 
@@ -3998,15 +4032,16 @@ static int tg3_start_xmit_dma_bug(struct sk_buff *skb, struct net_device *dev)
 	tw32_tx_mbox((MAILBOX_SNDHOST_PROD_IDX_0 + TG3_64BIT_REG_LOW), entry);
 
 	tp->tx_prod = entry;
-	if (TX_BUFFS_AVAIL(tp) <= (MAX_SKB_FRAGS + 1)) {
+	if (unlikely(TX_BUFFS_AVAIL(tp) <= (MAX_SKB_FRAGS + 1))) {
+		spin_lock(&tp->tx_lock);
 		netif_stop_queue(dev);
 		if (TX_BUFFS_AVAIL(tp) > TG3_TX_WAKEUP_THRESH)
 			netif_wake_queue(tp->dev);
+		spin_unlock(&tp->tx_lock);
 	}
 
 out_unlock:
     	mmiowb();
-	spin_unlock(&tp->tx_lock);
 
 	dev->trans_start = jiffies;
 
@@ -4485,9 +4520,8 @@ static void tg3_disable_nvram_access(struct tg3 *tp)
 /* tp->lock is held. */
 static void tg3_write_sig_pre_reset(struct tg3 *tp, int kind)
 {
-	if (!(tp->tg3_flags2 & TG3_FLG2_SUN_570X))
-		tg3_write_mem(tp, NIC_SRAM_FIRMWARE_MBOX,
-			      NIC_SRAM_FIRMWARE_MBOX_MAGIC1);
+	tg3_write_mem(tp, NIC_SRAM_FIRMWARE_MBOX,
+		      NIC_SRAM_FIRMWARE_MBOX_MAGIC1);
 
 	if (tp->tg3_flags2 & TG3_FLG2_ASF_NEW_HANDSHAKE) {
 		switch (kind) {
@@ -4568,13 +4602,12 @@ static int tg3_chip_reset(struct tg3 *tp)
 	void (*write_op)(struct tg3 *, u32, u32);
 	int i;
 
-	if (!(tp->tg3_flags2 & TG3_FLG2_SUN_570X)) {
-		tg3_nvram_lock(tp);
-		/* No matching tg3_nvram_unlock() after this because
-		 * chip reset below will undo the nvram lock.
-		 */
-		tp->nvram_lock_cnt = 0;
-	}
+	tg3_nvram_lock(tp);
+
+	/* No matching tg3_nvram_unlock() after this because
+	 * chip reset below will undo the nvram lock.
+	 */
+	tp->nvram_lock_cnt = 0;
 
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5752 ||
 	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5755 ||
@@ -4727,20 +4760,25 @@ static int tg3_chip_reset(struct tg3 *tp)
 		tw32_f(MAC_MODE, 0);
 	udelay(40);
 
-	if (!(tp->tg3_flags2 & TG3_FLG2_SUN_570X)) {
-		/* Wait for firmware initialization to complete. */
-		for (i = 0; i < 100000; i++) {
-			tg3_read_mem(tp, NIC_SRAM_FIRMWARE_MBOX, &val);
-			if (val == ~NIC_SRAM_FIRMWARE_MBOX_MAGIC1)
-				break;
-			udelay(10);
-		}
-		if (i >= 100000) {
-			printk(KERN_ERR PFX "tg3_reset_hw timed out for %s, "
-			       "firmware will not restart magic=%08x\n",
-			       tp->dev->name, val);
-			return -ENODEV;
-		}
+	/* Wait for firmware initialization to complete. */
+	for (i = 0; i < 100000; i++) {
+		tg3_read_mem(tp, NIC_SRAM_FIRMWARE_MBOX, &val);
+		if (val == ~NIC_SRAM_FIRMWARE_MBOX_MAGIC1)
+			break;
+		udelay(10);
+	}
+
+	/* Chip might not be fitted with firmare.  Some Sun onboard
+	 * parts are configured like that.  So don't signal the timeout
+	 * of the above loop as an error, but do report the lack of
+	 * running firmware once.
+	 */
+	if (i >= 100000 &&
+	    !(tp->tg3_flags2 & TG3_FLG2_NO_FWARE_REPORTED)) {
+		tp->tg3_flags2 |= TG3_FLG2_NO_FWARE_REPORTED;
+
+		printk(KERN_INFO PFX "%s: No firmware running.\n",
+		       tp->dev->name);
 	}
 
 	if ((tp->tg3_flags2 & TG3_FLG2_PCI_EXPRESS) &&
@@ -9075,9 +9113,6 @@ static void __devinit tg3_nvram_init(struct tg3 *tp)
 {
 	int j;
 
-	if (tp->tg3_flags2 & TG3_FLG2_SUN_570X)
-		return;
-
 	tw32_f(GRC_EEPROM_ADDR,
 	     (EEPROM_ADDR_FSM_RESET |
 	      (EEPROM_DEFAULT_CLOCK_PERIOD <<
@@ -9209,11 +9244,6 @@ static u32 tg3_nvram_logical_addr(struct tg3 *tp, u32 addr)
 static int tg3_nvram_read(struct tg3 *tp, u32 offset, u32 *val)
 {
 	int ret;
-
-	if (tp->tg3_flags2 & TG3_FLG2_SUN_570X) {
-		printk(KERN_ERR PFX "Attempt to do nvram_read on Sun 570X\n");
-		return -EINVAL;
-	}
 
 	if (!(tp->tg3_flags & TG3_FLAG_NVRAM))
 		return tg3_nvram_read_using_eeprom(tp, offset, val);
@@ -9447,11 +9477,6 @@ static int tg3_nvram_write_block(struct tg3 *tp, u32 offset, u32 len, u8 *buf)
 {
 	int ret;
 
-	if (tp->tg3_flags2 & TG3_FLG2_SUN_570X) {
-		printk(KERN_ERR PFX "Attempt to do nvram_write on Sun 570X\n");
-		return -EINVAL;
-	}
-
 	if (tp->tg3_flags & TG3_FLAG_EEPROM_WRITE_PROT) {
 		tw32_f(GRC_LOCAL_CTRL, tp->grc_local_ctrl &
 		       ~GRC_LCLCTRL_GPIO_OUTPUT1);
@@ -9578,15 +9603,19 @@ static void __devinit tg3_get_eeprom_hw_cfg(struct tg3 *tp)
 	pci_write_config_dword(tp->pdev, TG3PCI_MISC_HOST_CTRL,
 			       tp->misc_host_ctrl);
 
+	/* The memory arbiter has to be enabled in order for SRAM accesses
+	 * to succeed.  Normally on powerup the tg3 chip firmware will make
+	 * sure it is enabled, but other entities such as system netboot
+	 * code might disable it.
+	 */
+	val = tr32(MEMARB_MODE);
+	tw32(MEMARB_MODE, val | MEMARB_MODE_ENABLE);
+
 	tp->phy_id = PHY_ID_INVALID;
 	tp->led_ctrl = LED_CTRL_MODE_PHY_1;
 
-	/* Do not even try poking around in here on Sun parts.  */
-	if (tp->tg3_flags2 & TG3_FLG2_SUN_570X) {
-		/* All SUN chips are built-in LOMs. */
-		tp->tg3_flags |= TG3_FLAG_EEPROM_WRITE_PROT;
-		return;
-	}
+	/* Assume an onboard device by default.  */
+	tp->tg3_flags |= TG3_FLAG_EEPROM_WRITE_PROT;
 
 	tg3_read_mem(tp, NIC_SRAM_DATA_SIG, &val);
 	if (val == NIC_SRAM_DATA_SIG_MAGIC) {
@@ -9686,6 +9715,8 @@ static void __devinit tg3_get_eeprom_hw_cfg(struct tg3 *tp)
 
 		if (nic_cfg & NIC_SRAM_DATA_CFG_EEPROM_WP)
 			tp->tg3_flags |= TG3_FLAG_EEPROM_WRITE_PROT;
+		else
+			tp->tg3_flags &= ~TG3_FLAG_EEPROM_WRITE_PROT;
 
 		if (nic_cfg & NIC_SRAM_DATA_CFG_ASF_ENABLE) {
 			tp->tg3_flags |= TG3_FLAG_ENABLE_ASF;
@@ -9834,16 +9865,8 @@ static void __devinit tg3_read_partno(struct tg3 *tp)
 	int i;
 	u32 magic;
 
-	if (tp->tg3_flags2 & TG3_FLG2_SUN_570X) {
-		/* Sun decided not to put the necessary bits in the
-		 * NVRAM of their onboard tg3 parts :(
-		 */
-		strcpy(tp->board_part_number, "Sun 570X");
-		return;
-	}
-
 	if (tg3_nvram_read_swab(tp, 0x0, &magic))
-		return;
+		goto out_not_found;
 
 	if (magic == TG3_EEPROM_MAGIC) {
 		for (i = 0; i < 256; i += 4) {
@@ -9874,6 +9897,9 @@ static void __devinit tg3_read_partno(struct tg3 *tp)
 					break;
 				msleep(1);
 			}
+			if (!(tmp16 & 0x8000))
+				goto out_not_found;
+
 			pci_read_config_dword(tp->pdev, vpd_cap + PCI_VPD_DATA,
 					      &tmp);
 			tmp = cpu_to_le32(tmp);
@@ -9965,37 +9991,6 @@ static void __devinit tg3_read_fw_ver(struct tg3 *tp)
 	}
 }
 
-#ifdef CONFIG_SPARC64
-static int __devinit tg3_is_sun_570X(struct tg3 *tp)
-{
-	struct pci_dev *pdev = tp->pdev;
-	struct pcidev_cookie *pcp = pdev->sysdata;
-
-	if (pcp != NULL) {
-		int node = pcp->prom_node;
-		u32 venid;
-		int err;
-
-		err = prom_getproperty(node, "subsystem-vendor-id",
-				       (char *) &venid, sizeof(venid));
-		if (err == 0 || err == -1)
-			return 0;
-		if (venid == PCI_VENDOR_ID_SUN)
-			return 1;
-
-		/* TG3 chips onboard the SunBlade-2500 don't have the
-		 * subsystem-vendor-id set to PCI_VENDOR_ID_SUN but they
-		 * are distinguishable from non-Sun variants by being
-		 * named "network" by the firmware.  Non-Sun cards will
-		 * show up as being named "ethernet".
-		 */
-		if (!strcmp(pcp->prom_name, "network"))
-			return 1;
-	}
-	return 0;
-}
-#endif
-
 static int __devinit tg3_get_invariants(struct tg3 *tp)
 {
 	static struct pci_device_id write_reorder_chipsets[] = {
@@ -10011,11 +10006,6 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	u32 val;
 	u16 pci_cmd;
 	int err;
-
-#ifdef CONFIG_SPARC64
-	if (tg3_is_sun_570X(tp))
-		tp->tg3_flags2 |= TG3_FLG2_SUN_570X;
-#endif
 
 	/* Force memory write invalidate off.  If we leave it on,
 	 * then on 5700_BX chips we have to enable a workaround.
@@ -10312,8 +10302,7 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	if (tp->write32 == tg3_write_indirect_reg32 ||
 	    ((tp->tg3_flags & TG3_FLAG_PCIX_MODE) &&
 	     (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5700 ||
-	      GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5701)) ||
-	    (tp->tg3_flags2 & TG3_FLG2_SUN_570X))
+	      GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5701)))
 		tp->tg3_flags |= TG3_FLAG_SRAM_USE_CONFIG;
 
 	/* Get eeprom hw config before calling tg3_set_power_state().
@@ -10594,8 +10583,7 @@ static int __devinit tg3_get_device_address(struct tg3 *tp)
 #endif
 
 	mac_offset = 0x7c;
-	if ((GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5704 &&
-	     !(tp->tg3_flags & TG3_FLG2_SUN_570X)) ||
+	if ((GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5704) ||
 	    (tp->tg3_flags2 & TG3_FLG2_5780_CLASS)) {
 		if (tr32(TG3PCI_DUAL_MAC_CTRL) & DUAL_MAC_CTRL_ID)
 			mac_offset = 0xcc;
@@ -10622,8 +10610,7 @@ static int __devinit tg3_get_device_address(struct tg3 *tp)
 	}
 	if (!addr_ok) {
 		/* Next, try NVRAM. */
-		if (!(tp->tg3_flags & TG3_FLG2_SUN_570X) &&
-		    !tg3_nvram_read(tp, mac_offset + 0, &hi) &&
+		if (!tg3_nvram_read(tp, mac_offset + 0, &hi) &&
 		    !tg3_nvram_read(tp, mac_offset + 4, &lo)) {
 			dev->dev_addr[0] = ((hi >> 16) & 0xff);
 			dev->dev_addr[1] = ((hi >> 24) & 0xff);
@@ -11291,7 +11278,6 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
-	dev->features |= NETIF_F_LLTX;
 #if TG3_VLAN_TAG_USED
 	dev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
 	dev->vlan_rx_register = tg3_vlan_rx_register;

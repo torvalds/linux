@@ -98,8 +98,8 @@ config SOUND_HAL2
 	tristate "SGI HAL2 sound (EXPERIMENTAL)"
 	depends on SOUND_PRIME && SGI_IP22 && EXPERIMENTAL
 	help
-	  Say Y or M if you have an SGI Indy system and want to be able to
-	  use it's on-board A2 audio system.
+	  Say Y or M if you have an SGI Indy or Indigo2 system and want to be able to
+	  use its on-board A2 audio system.
 
 config SOUND_IT8172
 	tristate "IT8172G Sound"

@@ -246,14 +246,6 @@ static void htcp_cong_avoid(struct sock *sk, u32 ack, u32 rtt,
 	}
 }
 
-/* Lower bound on congestion window. */
-static u32 htcp_min_cwnd(struct sock *sk)
-{
-	const struct tcp_sock *tp = tcp_sk(sk);
-	return tp->snd_ssthresh;
-}
-
-
 static void htcp_init(struct sock *sk)
 {
 	struct htcp *ca = inet_csk_ca(sk);
@@ -285,7 +277,6 @@ static void htcp_state(struct sock *sk, u8 new_state)
 static struct tcp_congestion_ops htcp = {
 	.init		= htcp_init,
 	.ssthresh	= htcp_recalc_ssthresh,
-	.min_cwnd	= htcp_min_cwnd,
 	.cong_avoid	= htcp_cong_avoid,
 	.set_state	= htcp_state,
 	.undo_cwnd	= htcp_cwnd_undo,

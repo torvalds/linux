@@ -16,6 +16,7 @@
 #include <linux/kernel.h>
 #include <linux/smp_lock.h>
 #include <linux/etherdevice.h>
+#include <linux/rtnetlink.h>
 
 #include "br_private.h"
 #include "br_private_stp.h"
@@ -86,6 +87,7 @@ void br_stp_disable_bridge(struct net_bridge *br)
 void br_stp_enable_port(struct net_bridge_port *p)
 {
 	br_init_port(p);
+	br_ifinfo_notify(RTM_NEWLINK, p);
 	br_port_state_selection(p->br);
 }
 
@@ -98,6 +100,8 @@ void br_stp_disable_port(struct net_bridge_port *p)
 	br = p->br;
 	printk(KERN_INFO "%s: port %i(%s) entering %s state\n",
 	       br->dev->name, p->port_no, p->dev->name, "disabled");
+
+	br_ifinfo_notify(RTM_DELLINK, p);
 
 	wasroot = br_is_root_bridge(br);
 	br_become_designated_port(p);
