@@ -30,13 +30,14 @@ struct hpsb_host {
 
 	unsigned char iso_listen_count[64];
 
-	int node_count; /* number of identified nodes on this bus */
-	int selfid_count; /* total number of SelfIDs received */
-	int nodes_active; /* number of nodes that are actually active */
+	int node_count;      /* number of identified nodes on this bus */
+	int selfid_count;    /* total number of SelfIDs received */
+	int nodes_active;    /* number of nodes with active link layer */
+	u8 speed[ALL_NODES]; /* speed between each node and local node */
 
-	nodeid_t node_id; /* node ID of this host */
-	nodeid_t irm_id; /* ID of this bus' isochronous resource manager */
-	nodeid_t busmgr_id; /* ID of this bus' bus manager */
+	nodeid_t node_id;    /* node ID of this host */
+	nodeid_t irm_id;     /* ID of this bus' isochronous resource manager */
+	nodeid_t busmgr_id;  /* ID of this bus' bus manager */
 
 	/* this nodes state */
 	unsigned in_bus_reset:1;
@@ -55,7 +56,7 @@ struct hpsb_host {
 	struct csr_control csr;
 
 	/* Per node tlabel pool allocation */
-	struct hpsb_tlabel_pool tpool[64];
+	struct hpsb_tlabel_pool tpool[ALL_NODES];
 
 	struct hpsb_host_driver *driver;
 
@@ -72,6 +73,8 @@ struct hpsb_host {
 	unsigned int config_roms;
 
 	struct list_head addr_space;
+	u64 low_addr_space;	/* upper bound of physical DMA area */
+	u64 middle_addr_space;	/* upper bound of posted write area */
 };
 
 

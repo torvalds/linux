@@ -163,7 +163,7 @@ printk(level "%s: fw-host%d: " fmt "\n" , OHCI1394_DRIVER_NAME, ohci->host->id ,
 
 /* Module Parameters */
 static int phys_dma = 1;
-module_param(phys_dma, int, 0644);
+module_param(phys_dma, int, 0444);
 MODULE_PARM_DESC(phys_dma, "Enable physical dma (default = 1).");
 
 static void dma_trm_tasklet(unsigned long data);
@@ -553,7 +553,8 @@ static void ohci_initialize(struct ti_ohci *ohci)
 	 * register content.
 	 * To actually enable physical responses is the job of our interrupt
 	 * handler which programs the physical request filter. */
-	reg_write(ohci, OHCI1394_PhyUpperBound, 0x01000000);
+	reg_write(ohci, OHCI1394_PhyUpperBound,
+		  OHCI1394_PHYS_UPPER_BOUND_PROGRAMMED >> 16);
 
 	DBGMSG("physUpperBoundOffset=%08x",
 	       reg_read(ohci, OHCI1394_PhyUpperBound));
@@ -580,6 +581,7 @@ static void ohci_initialize(struct ti_ohci *ohci)
 		  OHCI1394_isochRx |
 		  OHCI1394_isochTx |
 		  OHCI1394_postedWriteErr |
+		  OHCI1394_cycleTooLong |
 		  OHCI1394_cycleInconsistent);
 
 	/* Enable link */
@@ -2382,6 +2384,15 @@ static irqreturn_t ohci_irq_handler(int irq, void *dev_id,
 		PRINT(KERN_ERR, "physical posted write error");
 		/* no recovery strategy yet, had to involve protocol drivers */
 	}
+	if (event & OHCI1394_cycleTooLong) {
+		if(printk_ratelimit())
+			PRINT(KERN_WARNING, "isochronous cycle too long");
+		else
+			DBGMSG("OHCI1394_cycleTooLong");
+		reg_write(ohci, OHCI1394_LinkControlSet,
+			  OHCI1394_LinkControl_CycleMaster);
+		event &= ~OHCI1394_cycleTooLong;
+	}
 	if (event & OHCI1394_cycleInconsistent) {
 		/* We subscribe to the cycleInconsistent event only to
 		 * clear the corresponding event bit... otherwise,
@@ -3400,6 +3411,14 @@ static int __devinit ohci1394_pci_probe(struct pci_dev *dev,
 	host->csr.max_rec = (reg_read(ohci, OHCI1394_BusOptions) >> 12) & 0xf;
 	host->csr.lnk_spd = reg_read(ohci, OHCI1394_BusOptions) & 0x7;
 
+	if (phys_dma) {
+		host->low_addr_space =
+			(u64) reg_read(ohci, OHCI1394_PhyUpperBound) << 16;
+		if (!host->low_addr_space)
+			host->low_addr_space = OHCI1394_PHYS_UPPER_BOUND_FIXED;
+	}
+	host->middle_addr_space = OHCI1394_MIDDLE_ADDRESS_SPACE;
+
 	/* Tell the highlevel this host is ready */
 	if (hpsb_add_host(host))
 		FAIL(-ENOMEM, "Failed to register host with highlevel");
@@ -3458,23 +3477,12 @@ static void ohci1394_pci_remove(struct pci_dev *pdev)
 	case OHCI_INIT_HAVE_TXRX_BUFFERS__MAYBE:
 		/* The ohci_soft_reset() stops all DMA contexts, so we
 		 * dont need to do this.  */
-		/* Free AR dma */
 		free_dma_rcv_ctx(&ohci->ar_req_context);
 		free_dma_rcv_ctx(&ohci->ar_resp_context);
-
-		/* Free AT dma */
 		free_dma_trm_ctx(&ohci->at_req_context);
 		free_dma_trm_ctx(&ohci->at_resp_context);
-
-		/* Free IR dma */
 		free_dma_rcv_ctx(&ohci->ir_legacy_context);
-
-		/* Free IT dma */
 		free_dma_trm_ctx(&ohci->it_legacy_context);
-
-		/* Free IR legacy dma */
-		free_dma_rcv_ctx(&ohci->ir_legacy_context);
-
 
 	case OHCI_INIT_HAVE_SELFID_BUFFER:
 		pci_free_consistent(ohci->dev, OHCI1394_SI_DMA_BUF_SIZE,
@@ -3535,6 +3543,7 @@ static int ohci1394_pci_resume (struct pci_dev *pdev)
 	}
 #endif /* CONFIG_PPC_PMAC */
 
+	pci_restore_state(pdev);
 	pci_enable_device(pdev);
 
 	return 0;
@@ -3553,6 +3562,8 @@ static int ohci1394_pci_suspend (struct pci_dev *pdev, pm_message_t state)
 			pmac_call_feature(PMAC_FTR_1394_ENABLE, of_node, 0, 0);
 	}
 #endif
+
+	pci_save_state(pdev);
 
 	return 0;
 }
