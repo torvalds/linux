@@ -1466,9 +1466,12 @@ static int dst_set_diseqc(struct dvb_frontend *fe, struct dvb_diseqc_master_cmd 
 
 	if (state->dst_type != DST_TYPE_IS_SAT)
 		return 0;
-	if (cmd->msg_len == 0 || cmd->msg_len > 4)
+	if (cmd->msg_len > 0 && cmd->msg_len < 5)
+		memcpy(&paket[3], cmd->msg, cmd->msg_len);
+	else if (cmd->msg_len == 5 && state->dst_hw_cap & DST_TYPE_HAS_DISEQC5)
+		memcpy(&paket[2], cmd->msg, cmd->msg_len);
+	else
 		return -EINVAL;
-	memcpy(&paket[3], cmd->msg, cmd->msg_len);
 	paket[7] = dst_check_sum(&paket[0], 7);
 	dst_command(state, paket, 8);
 	return 0;
