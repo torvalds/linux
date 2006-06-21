@@ -1359,7 +1359,7 @@ do_start_xmit(struct sk_buff *skb, struct net_device *dev)
     kio_addr_t ioaddr = dev->base_addr;
     int okay;
     unsigned freespace;
-    unsigned pktlen = skb? skb->len : 0;
+    unsigned pktlen = skb->len;
 
     DEBUG(1, "do_start_xmit(skb=%p, dev=%p) len=%u\n",
 	  skb, dev, pktlen);
