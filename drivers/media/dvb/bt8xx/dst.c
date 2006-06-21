@@ -627,7 +627,8 @@ static struct dst_types dst_tlist[] = {
 		.offset = 0,
 		.dst_type =  DST_TYPE_IS_SAT,
 		.type_flags = DST_TYPE_HAS_SYMDIV | DST_TYPE_HAS_FW_1 | DST_TYPE_HAS_OBS_REGS,
-		.dst_feature = 0
+		.dst_feature = 0,
+		.tuner_type = 0
 	},	/*	obsolete	*/
 
 	{
@@ -635,7 +636,8 @@ static struct dst_types dst_tlist[] = {
 		.offset = 0,
 		.dst_type =  DST_TYPE_IS_SAT,
 		.type_flags = DST_TYPE_HAS_SYMDIV | DST_TYPE_HAS_FW_1,
-		.dst_feature = 0
+		.dst_feature = 0,
+		.tuner_type = 0
 	},	/*	obsolete	*/
 
 	{
@@ -643,7 +645,8 @@ static struct dst_types dst_tlist[] = {
 		.offset =  0,
 		.dst_type = DST_TYPE_IS_SAT,
 		.type_flags = DST_TYPE_HAS_TS204 | DST_TYPE_HAS_NEWTUNE | DST_TYPE_HAS_FW_1,
-		.dst_feature = 0
+		.dst_feature = 0,
+		.tuner_type = 0
 	},	/*	obsolete	*/
 
 	{
@@ -652,7 +655,8 @@ static struct dst_types dst_tlist[] = {
 		.dst_type = DST_TYPE_IS_SAT,
 		.type_flags = DST_TYPE_HAS_SYMDIV | DST_TYPE_HAS_TS204 | DST_TYPE_HAS_FW_2,
 		.dst_feature = DST_TYPE_HAS_DISEQC3 | DST_TYPE_HAS_DISEQC4 | DST_TYPE_HAS_DISEQC5
-							 | DST_TYPE_HAS_MAC | DST_TYPE_HAS_MOTO
+							 | DST_TYPE_HAS_MAC | DST_TYPE_HAS_MOTO,
+		.tuner_type = TUNER_TYPE_STV0299
 	 },
 
 	{
@@ -660,7 +664,8 @@ static struct dst_types dst_tlist[] = {
 		.offset =  0,
 		.dst_type = DST_TYPE_IS_SAT,
 		.type_flags = DST_TYPE_HAS_SYMDIV | DST_TYPE_HAS_FW_1,
-		.dst_feature = 0
+		.dst_feature = 0,
+		.tuner_type = 0
 	},	/*	obsolete	*/
 
 	{
@@ -668,7 +673,8 @@ static struct dst_types dst_tlist[] = {
 		.offset = 1,
 		.dst_type = DST_TYPE_IS_SAT,
 		.type_flags = DST_TYPE_HAS_TS204 | DST_TYPE_HAS_FW_1,
-		.dst_feature = DST_TYPE_HAS_CA
+		.dst_feature = DST_TYPE_HAS_CA,
+		.tuner_type = 0
 	},	/*	An OEM board	*/
 
 	{
@@ -677,7 +683,8 @@ static struct dst_types dst_tlist[] = {
 		.dst_type = DST_TYPE_IS_SAT,
 		.type_flags = DST_TYPE_HAS_NEWTUNE | DST_TYPE_HAS_FW_2 | DST_TYPE_HAS_FW_BUILD | DST_TYPE_HAS_INC_COUNT,
 		.dst_feature = DST_TYPE_HAS_CA | DST_TYPE_HAS_DISEQC3 | DST_TYPE_HAS_DISEQC4
-							| DST_TYPE_HAS_MOTO | DST_TYPE_HAS_MAC
+							| DST_TYPE_HAS_MOTO | DST_TYPE_HAS_MAC,
+		.tuner_type = TUNER_TYPE_MULTI
 	},
 
 	{
@@ -685,7 +692,8 @@ static struct dst_types dst_tlist[] = {
 		.offset = 1,
 		.dst_type = DST_TYPE_IS_SAT,
 		.type_flags = DST_TYPE_HAS_NEWTUNE | DST_TYPE_HAS_FW_1,
-		.dst_feature = 0
+		.dst_feature = 0,
+		.tuner_type = 0
 	},	/* unknown to vendor	*/
 
 	{
@@ -693,7 +701,8 @@ static struct dst_types dst_tlist[] = {
 		.offset = 1,
 		.dst_type = DST_TYPE_IS_CABLE,
 		.type_flags = DST_TYPE_HAS_MULTI_FE | DST_TYPE_HAS_FW_1	| DST_TYPE_HAS_FW_2,
-		.dst_feature = DST_TYPE_HAS_CA
+		.dst_feature = DST_TYPE_HAS_CA,
+		.tuner_type = 0
 	},
 
 	{
@@ -701,7 +710,8 @@ static struct dst_types dst_tlist[] = {
 		.offset = 1,
 		.dst_type = DST_TYPE_IS_CABLE,
 		.type_flags = DST_TYPE_HAS_NEWTUNE | DST_TYPE_HAS_FW_3 | DST_TYPE_HAS_FW_BUILD,
-		.dst_feature = 0
+		.dst_feature = 0,
+		.tuner_type = 0
 	},
 
 	{
@@ -709,7 +719,8 @@ static struct dst_types dst_tlist[] = {
 		.offset = 1,
 		.dst_type = DST_TYPE_IS_TERR,
 		.type_flags = DST_TYPE_HAS_FW_2 | DST_TYPE_HAS_MULTI_FE,
-		.dst_feature = DST_TYPE_HAS_CA
+		.dst_feature = DST_TYPE_HAS_CA,
+		.tuner_type = 0
 	},
 
 	{
@@ -717,7 +728,8 @@ static struct dst_types dst_tlist[] = {
 		.offset = 1,
 		.dst_type = DST_TYPE_IS_TERR,
 		.type_flags = DST_TYPE_HAS_FW_2,
-		.dst_feature = 0
+		.dst_feature = 0,
+		.tuner_type = 0
 	},
 
 	{
@@ -725,7 +737,8 @@ static struct dst_types dst_tlist[] = {
 		.offset = 1,
 		.dst_type = DST_TYPE_IS_TERR,
 		.type_flags = DST_TYPE_HAS_FW_2,
-		.dst_feature = DST_TYPE_HAS_ANALOG
+		.dst_feature = DST_TYPE_HAS_ANALOG,
+		.tuner_type = 0
 	},
 
 	{
@@ -733,7 +746,8 @@ static struct dst_types dst_tlist[] = {
 		.offset = 1,
 		.dst_type = DST_TYPE_IS_ATSC,
 		.type_flags = DST_TYPE_HAS_FW_2,
-		.dst_feature = 0
+		.dst_feature = 0,
+		.tuner_type = 0
 	},
 
 	{
@@ -741,7 +755,8 @@ static struct dst_types dst_tlist[] = {
 		.offset = 1,
 		.dst_type = DST_TYPE_IS_ATSC,
 		.type_flags = DST_TYPE_HAS_MULTI_FE | DST_TYPE_HAS_FW_2 | DST_TYPE_HAS_FW_BUILD,
-		.dst_feature = DST_TYPE_HAS_MAC | DST_TYPE_HAS_ANALOG
+		.dst_feature = DST_TYPE_HAS_MAC | DST_TYPE_HAS_ANALOG,
+		.tuner_type = 0
 	},
 
 	{ }

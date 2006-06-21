@@ -64,6 +64,11 @@
 #define	DST_TYPE_HAS_ANALOG	64	/*	Analog inputs	*/
 #define DST_TYPE_HAS_SESSION	128
 
+#define TUNER_TYPE_MULTI	1
+#define TUNER_TYPE_L64724	2
+#define TUNER_TYPE_STV0299	4
+#define TUNER_TYPE_MB86A15	8
+
 #define RDC_8820_PIO_0_DISABLE	0
 #define RDC_8820_PIO_0_ENABLE	1
 #define RDC_8820_INT		2
@@ -119,7 +124,7 @@ struct dst_state {
 	u8 card_info[8];
 	u8 vendor[8];
 	u8 board_info[8];
-
+	u32 tuner_type;
 	struct mutex dst_mutex;
 };
 
@@ -129,6 +134,7 @@ struct dst_types {
 	u8 dst_type;
 	u32 type_flags;
 	u32 dst_feature;
+	u32 tuner_type;
 };
 
 struct dst_config
