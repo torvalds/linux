@@ -164,6 +164,7 @@ enum {
 
 	/* ap->flags bits */
 	AHCI_FLAG_RESET_NEEDS_CLO	= (1 << 24),
+	AHCI_FLAG_NO_NCQ		= (1 << 25),
 };
 
 struct ahci_cmd_hdr {
@@ -277,7 +278,7 @@ static const struct ata_port_info ahci_port_info[] = {
 		.host_flags	= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
 				  ATA_FLAG_MMIO | ATA_FLAG_PIO_DMA |
 				  ATA_FLAG_SKIP_D2H_BSY |
-				  AHCI_FLAG_RESET_NEEDS_CLO,
+				  AHCI_FLAG_RESET_NEEDS_CLO | AHCI_FLAG_NO_NCQ,
 		.pio_mask	= 0x1f, /* pio0-4 */
 		.udma_mask	= 0x7f, /* udma0-6 ; FIXME */
 		.port_ops	= &ahci_ops,
@@ -1386,7 +1387,8 @@ static int ahci_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (rc)
 		goto err_out_hpriv;
 
-	if (hpriv->cap & HOST_CAP_NCQ)
+	if (!(probe_ent->host_flags & AHCI_FLAG_NO_NCQ) &&
+	    (hpriv->cap & HOST_CAP_NCQ))
 		probe_ent->host_flags |= ATA_FLAG_NCQ;
 
 	ahci_print_info(probe_ent);
