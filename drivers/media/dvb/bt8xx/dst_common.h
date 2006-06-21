@@ -53,6 +53,7 @@
 #define DST_TYPE_HAS_INC_COUNT	256
 #define DST_TYPE_HAS_MULTI_FE	512
 #define DST_TYPE_HAS_NEWTUNE_2	1024
+#define DST_TYPE_HAS_DBOARD	2048
 
 /*	Card capability list	*/
 

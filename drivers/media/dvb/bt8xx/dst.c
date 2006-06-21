@@ -965,13 +965,11 @@ static int dst_get_tuner_info(struct dst_state *state)
 	get_tuner_2[7] = dst_check_sum(get_tuner_2, 7);
 	dprintk(verbose, DST_ERROR, 1, "DST TYpe = MULTI FE");
 	if (state->type_flags & DST_TYPE_HAS_MULTI_FE) {
-//		if (dst_command(state, get_tuner_2, 8) < 0) {
 		if (dst_command(state, get_tuner_1, 8) < 0) {
 			dprintk(verbose, DST_INFO, 1, "Cmd=[0x13], Unsupported");
 			return -1;
 		}
 	} else {
-//		if (dst_command(state, get_tuner_1, 8) < 0) {
 		if (dst_command(state, get_tuner_2, 8) < 0) {
 			dprintk(verbose, DST_INFO, 1, "Cmd=[0xb], Unsupported");
 			return -1;
@@ -981,39 +979,18 @@ static int dst_get_tuner_info(struct dst_state *state)
 	memcpy(&state->board_info, &state->rxbuffer, 8);
 	if (state->type_flags & DST_TYPE_HAS_MULTI_FE) {
 		dprintk(verbose, DST_ERROR, 1, "DST type has TS=188");
-/*
-		if (state->board_info[1] == 0x0b) {
-			if (state->type_flags & DST_TYPE_HAS_TS204)
-				state->type_flags &= ~DST_TYPE_HAS_TS204;
-			state->type_flags |= DST_TYPE_HAS_NEWTUNE;
-			dprintk(verbose, DST_INFO, 1, "DST type has TS=188");
-		} else {
-			if (state->type_flags & DST_TYPE_HAS_NEWTUNE)
-				state->type_flags &= ~DST_TYPE_HAS_NEWTUNE;
-			state->type_flags |= DST_TYPE_HAS_TS204;
-			dprintk(verbose, DST_INFO, 1, "DST type has TS=204");
-		}
-	} else {
-*/
 	}
 	if (state->board_info[0] == 0xbc) {
-//		if (state->type_flags & DST_TYPE_HAS_TS204)
-//			state->type_flags &= ~DST_TYPE_HAS_TS204;
-//		state->type_flags |= DST_TYPE_HAS_NEWTUNE;
-		if (state->type_flags != DST_TYPE_IS_ATSC))
+		if (state->type_flags != DST_TYPE_IS_ATSC)
 			state->type_flags |= DST_TYPE_HAS_NEWTUNE;
 		else
 			state->type_flags |= DST_TYPE_HAS_NEWTUNE_2;
 
-		dprintk(verbose, DST_INFO, 1, "DST type has TS=188, Daughterboard=[%d]", state->board_info[1]);
-
-	} else if (state->board_info[0] == 0xcc) {
-//		if (state->type_flags & DST_TYPE_HAS_NEWTUNE)
-//			state->type_flags &= ~DST_TYPE_HAS_NEWTUNE;
-		state->type_flags |= DST_TYPE_HAS_TS204;
-		dprintk(verbose, DST_INFO, 1, "DST type has TS=204 Daughterboard=[%d]", state->board_info[1]);
+		if (state->board_info[1] == 0x01) {
+			state->dst_hw_cap |= DST_TYPE_HAS_DBOARD;
+			dprintk(verbose, DST_ERROR, 1, "DST has Daughterboard");
+		}
 	}
-//	}
 
 	return 0;
 }
