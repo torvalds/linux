@@ -102,6 +102,8 @@ struct dvb_frontend_ops {
 		    unsigned int mode_flags,
 		    int *delay,
 		    fe_status_t *status);
+	/* get frontend tuning algorithm from the module */
+	int (*get_frontend_algo)(struct dvb_frontend *fe);
 
 	/* these two are only used for the swzigzag code */
 	int (*set_frontend)(struct dvb_frontend* fe, struct dvb_frontend_parameters* params);

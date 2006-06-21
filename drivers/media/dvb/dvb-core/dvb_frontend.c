@@ -72,6 +72,8 @@ MODULE_PARM_DESC(dvb_powerdown_on_sleep, "0: do not power down, 1: turn LNB volt
 #define FESTATE_SEARCHING_FAST (FESTATE_TUNING_FAST | FESTATE_ZIGZAG_FAST)
 #define FESTATE_SEARCHING_SLOW (FESTATE_TUNING_SLOW | FESTATE_ZIGZAG_SLOW)
 #define FESTATE_LOSTLOCK (FESTATE_ZIGZAG_FAST | FESTATE_ZIGZAG_SLOW)
+
+#define FE_ALGO_HW		1
 /*
  * FESTATE_IDLE. No tuning parameters have been supplied and the loop is idling.
  * FESTATE_RETUNE. Parameters have been supplied, but we have not yet performed the first tune.
@@ -554,7 +556,7 @@ static int dvb_frontend_thread(void *data)
 		}
 
 		/* do an iteration of the tuning loop */
-		if (fe->ops.tune) {
+		if (fe->ops.get_frontend_algo(fe) == FE_ALGO_HW) {
 			/* have we been asked to retune? */
 			params = NULL;
 			if (fepriv->state & FESTATE_RETUNE) {
