@@ -42,6 +42,7 @@
 #include <asm/sections.h>
 #include <asm/tsb.h>
 #include <asm/hypervisor.h>
+#include <asm/prom.h>
 
 extern void device_scan(void);
 
@@ -1338,6 +1339,8 @@ void __init paging_init(void)
 	max_mapnr = last_valid_pfn;
 
 	kernel_physical_mapping_init();
+
+	prom_build_devicetree();
 
 	{
 		unsigned long zones_size[MAX_NR_ZONES];
