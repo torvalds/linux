@@ -38,6 +38,10 @@ static unsigned int dst_addons;
 module_param(dst_addons, int, 0644);
 MODULE_PARM_DESC(dst_addons, "CA daughterboard, default is 0 (No addons)");
 
+static unsigned int dst_algo;
+module_param(dst_algo, int, 0644);
+MODULE_PARM_DESC(dst_algo, "tuning algo: default is 0=(SW), 1=(HW)");
+
 #define HAS_LOCK		1
 #define ATTEMPT_TUNE		2
 #define HAS_POWER		4
@@ -1360,7 +1364,36 @@ static int dst_read_snr(struct dvb_frontend *fe, u16 *snr)
 	return 0;
 }
 
-static int dst_set_frontend(struct dvb_frontend* fe,
+static int dst_set_frontend(struct dvb_frontend *fe, struct dvb_frontend_parameters *p)
+{
+	struct dst_state *state = fe->demodulator_priv;
+
+	if (p != NULL) {
+		dst_set_freq(state, p->frequency);
+		dprintk(verbose, DST_DEBUG, 1, "Set Frequency=[%d]", p->frequency);
+
+		if (state->dst_type == DST_TYPE_IS_SAT) {
+			if (state->type_flags & DST_TYPE_HAS_OBS_REGS)
+				dst_set_inversion(state, p->inversion);
+			dst_set_fec(state, p->u.qpsk.fec_inner);
+			dst_set_symbolrate(state, p->u.qpsk.symbol_rate);
+			dst_set_polarization(state);
+			dprintk(verbose, DST_DEBUG, 1, "Set Symbolrate=[%d]", p->u.qpsk.symbol_rate);
+
+		} else if (state->dst_type == DST_TYPE_IS_TERR)
+			dst_set_bandwidth(state, p->u.ofdm.bandwidth);
+		else if (state->dst_type == DST_TYPE_IS_CABLE) {
+			dst_set_fec(state, p->u.qam.fec_inner);
+			dst_set_symbolrate(state, p->u.qam.symbol_rate);
+			dst_set_modulation(state, p->u.qam.modulation);
+		}
+		dst_write_tuna(fe);
+	}
+
+	return 0;
+}
+
+static int dst_tune_frontend(struct dvb_frontend* fe,
 			    struct dvb_frontend_parameters* p,
 			    unsigned int mode_flags,
 			    int *delay,
@@ -1395,6 +1428,11 @@ static int dst_set_frontend(struct dvb_frontend* fe,
 
 	*delay = HZ/10;
 	return 0;
+}
+
+static int dst_get_tuning_algo(struct dvb_frontend *fe)
+{
+	return dst_algo;
 }
 
 static int dst_get_frontend(struct dvb_frontend *fe, struct dvb_frontend_parameters *p)
@@ -1476,7 +1514,8 @@ static struct dvb_frontend_ops dst_dvbt_ops = {
 
 	.release = dst_release,
 	.init = dst_init,
-	.tune = dst_set_frontend,
+	.tune = dst_tune_frontend,
+	.set_frontend = dst_set_frontend,
 	.get_frontend = dst_get_frontend,
 	.read_status = dst_read_status,
 	.read_signal_strength = dst_read_signal_strength,
@@ -1500,7 +1539,8 @@ static struct dvb_frontend_ops dst_dvbs_ops = {
 
 	.release = dst_release,
 	.init = dst_init,
-	.tune = dst_set_frontend,
+	.tune = dst_tune_frontend,
+	.set_frontend = dst_set_frontend,
 	.get_frontend = dst_get_frontend,
 	.read_status = dst_read_status,
 	.read_signal_strength = dst_read_signal_strength,
@@ -1527,7 +1567,8 @@ static struct dvb_frontend_ops dst_dvbc_ops = {
 
 	.release = dst_release,
 	.init = dst_init,
-	.tune = dst_set_frontend,
+	.tune = dst_tune_frontend,
+	.set_frontend = dst_set_frontend,
 	.get_frontend = dst_get_frontend,
 	.read_status = dst_read_status,
 	.read_signal_strength = dst_read_signal_strength,
@@ -1548,7 +1589,8 @@ static struct dvb_frontend_ops dst_atsc_ops = {
 
 	.release = dst_release,
 	.init = dst_init,
-	.tune = dst_set_frontend,
+	.tune = dst_tune_frontend,
+	.set_frontend = dst_set_frontend,
 	.get_frontend = dst_get_frontend,
 	.read_status = dst_read_status,
 	.read_signal_strength = dst_read_signal_strength,
