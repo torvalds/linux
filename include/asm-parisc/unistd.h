@@ -797,11 +797,6 @@
 
 #define SYS_ify(syscall_name)   __NR_##syscall_name
 
-/* Assume all syscalls are done from PIC code just to be
- * safe. The worst case scenario is that you lose a register
- * and save/restore r19 across the syscall. */
-#define PIC
-
 #ifndef ASM_LINE_SEP
 # define ASM_LINE_SEP ;
 #endif
