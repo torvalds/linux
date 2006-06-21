@@ -21,7 +21,7 @@
 #ifndef __ASM_ARCH_SYSTEM_H
 #define __ASM_ARCH_SYSTEM_H
 
-#include <asm/arch/hardware.h>
+#include <asm/hardware.h>
 
 static inline void arch_idle(void)
 {
@@ -46,6 +46,14 @@ static inline void arch_reset(char mode)
 	 */
 	at91_sys_write(AT91_ST_WDMR, AT91_ST_RSTEN | AT91_ST_EXTEN | 1);
 	at91_sys_write(AT91_ST_CR, AT91_ST_WDRST);
+}
+
+#define ARCH_ID_AT91RM9200	0x09200080
+#define ARCH_ID_AT91SAM9261	0x019000a0
+
+static inline unsigned long arch_identify(void)
+{
+	return at91_sys_read(AT91_DBGU_CIDR) & (AT91_CIDR_EPROC | AT91_CIDR_ARCH);
 }
 
 #endif
