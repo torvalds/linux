@@ -1318,6 +1318,8 @@ static int dst_init(struct dvb_frontend *fe)
 	static u8 ter_tuna_204[] = { 0x00, 0x00, 0x03, 0xb6, 0x01, 0x07, 0x00, 0x00, 0x00, 0x00 };
 	static u8 cab_tuna_204[] = { 0x00, 0x00, 0x03, 0xb6, 0x01, 0x07, 0x00, 0x00, 0x00, 0x00 };
 	static u8 cab_tuna_188[] = { 0x09, 0x00, 0x03, 0xb6, 0x01, 0x07, 0x00, 0x00, 0x00, 0x00 };
+	static u8 atsc_tuna_188[] = { 0x09, 0x00, 0x03, 0xb6, 0x01, 0x07, 0x00, 0x00, 0x00, 0x00 };
+	static u8 atsc_tuna_204[] = { 0x00, 0x00, 0x03, 0xb6, 0x01, 0x07, 0x00, 0x00, 0x00, 0x00 };
 
 	state->inversion = INVERSION_OFF;
 	state->voltage = SEC_VOLTAGE_13;
@@ -1332,6 +1334,8 @@ static int dst_init(struct dvb_frontend *fe)
 		memcpy(state->tx_tuna, ((state->type_flags & DST_TYPE_HAS_NEWTUNE) ? ter_tuna_188 : ter_tuna_204), sizeof (ter_tuna_204));
 	else if (state->dst_type == DST_TYPE_IS_CABLE)
 		memcpy(state->tx_tuna, ((state->type_flags & DST_TYPE_HAS_NEWTUNE) ? cab_tuna_188 : cab_tuna_204), sizeof (cab_tuna_204));
+	else if (state->dst_type == DST_TYPE_IS_ATSC)
+		memcpy(state->tx_tuna, ((state->type_flags & DST_TYPE_HAS_NEWTUNE) ? atsc_tuna_188 : atsc_tuna_204), sizeof (atsc_tuna_204));
 
 	return 0;
 }
