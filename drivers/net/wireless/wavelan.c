@@ -1695,8 +1695,8 @@ static int wv_frequency_list(unsigned long ioaddr,	/* I/O port of the card */
 		/* Look in the table if the frequency is allowed */
 		if (table[9 - (freq / 16)] & (1 << (freq % 16))) {
 			/* Compute approximate channel number */
-			while ((((channel_bands[c] >> 1) - 24) < freq) &&
-			       (c < NELS(channel_bands)))
+			while ((c < NELS(channel_bands)) &&
+				(((channel_bands[c] >> 1) - 24) < freq)) 
 				c++;
 			list[i].i = c;	/* Set the list index */
 
