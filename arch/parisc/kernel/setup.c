@@ -303,7 +303,7 @@ extern void eisa_init(void);
 
 static int __init parisc_init(void)
 {
-	u32 osid = (0x0006 << 16);
+	u32 osid = (OS_ID_LINUX << 16);
 
 	parisc_proc_mkdir();
 	parisc_init_resources();

@@ -278,12 +278,11 @@ typedef struct {
 /* constants for OS (NVM...) */
 #define OS_ID_NONE		0	/* Undefined OS ID	*/
 #define OS_ID_HPUX		1	/* HP-UX OS		*/
-#define OS_ID_LINUX		OS_ID_HPUX /* just use the same value as hpux */
 #define OS_ID_MPEXL		2	/* MPE XL OS		*/
 #define OS_ID_OSF		3	/* OSF OS		*/
 #define OS_ID_HPRT		4	/* HP-RT OS		*/
 #define OS_ID_NOVEL		5	/* NOVELL OS		*/
-#define OS_ID_NT		6	/* NT OS		*/
+#define OS_ID_LINUX		6	/* Linux		*/
 
 
 /* constants for PDC_CHASSIS */

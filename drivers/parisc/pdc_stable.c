@@ -884,7 +884,7 @@ pdcs_osdep1_write(struct subsystem *entry, const char *buf, size_t count)
 	if (!entry || !buf || !count)
 		return -EINVAL;
 
-	if (unlikely(pdcs_osid != 0x0006))
+	if (unlikely(pdcs_osid != OS_ID_LINUX))
 		return -EPERM;
 
 	if (count > 16)
@@ -926,7 +926,7 @@ pdcs_osdep2_write(struct subsystem *entry, const char *buf, size_t count)
 	if (unlikely(pdcs_size <= 224))
 		return -ENOSYS;
 
-	if (unlikely(pdcs_osid != 0x0006))
+	if (unlikely(pdcs_osid != OS_ID_LINUX))
 		return -EPERM;
 
 	size = pdcs_size - 224;

@@ -407,7 +407,9 @@ int pdc_model_info(struct pdc_model *model)
  * pdc_model_sysmodel - Get the system model name.
  * @name: A char array of at least 81 characters.
  *
- * Get system model name from PDC ROM (e.g. 9000/715 or 9000/778/B160L)
+ * Get system model name from PDC ROM (e.g. 9000/715 or 9000/778/B160L).
+ * Using OS_ID_HPUX will return the equivalent of the 'modelname' command
+ * on HP/UX.
  */
 int pdc_model_sysmodel(char *name)
 {
