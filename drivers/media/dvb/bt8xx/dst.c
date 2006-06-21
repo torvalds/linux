@@ -568,6 +568,8 @@ static void dst_type_flags_print(struct dst_state *state)
 		dprintk(verbose, DST_ERROR, 0, " 0x%x newtuner 2", DST_TYPE_HAS_NEWTUNE_2);
 	if (type_flags & DST_TYPE_HAS_TS204)
 		dprintk(verbose, DST_ERROR, 0, " 0x%x ts204", DST_TYPE_HAS_TS204);
+	if (type_flags & DST_TYPE_HAS_VLF)
+		dprintk(verbose, DST_ERROR, 0, " 0x%x VLF", DST_TYPE_HAS_VLF);
 	if (type_flags & DST_TYPE_HAS_SYMDIV)
 		dprintk(verbose, DST_ERROR, 0, " 0x%x symdiv", DST_TYPE_HAS_SYMDIV);
 	if (type_flags & DST_TYPE_HAS_FW_1)
@@ -825,7 +827,7 @@ static struct dst_types dst_tlist[] = {
 		.device_id = "DSTMCI",
 		.offset = 1,
 		.dst_type = DST_TYPE_IS_SAT,
-		.type_flags = DST_TYPE_HAS_TS188 | DST_TYPE_HAS_FW_2 | DST_TYPE_HAS_FW_BUILD | DST_TYPE_HAS_INC_COUNT,
+		.type_flags = DST_TYPE_HAS_TS188 | DST_TYPE_HAS_FW_2 | DST_TYPE_HAS_FW_BUILD | DST_TYPE_HAS_INC_COUNT | DST_TYPE_HAS_VLF,
 		.dst_feature = DST_TYPE_HAS_CA | DST_TYPE_HAS_DISEQC3 | DST_TYPE_HAS_DISEQC4
 							| DST_TYPE_HAS_MOTO | DST_TYPE_HAS_MAC,
 		.tuner_type = TUNER_TYPE_MULTI
@@ -844,7 +846,7 @@ static struct dst_types dst_tlist[] = {
 		.device_id = "DCT-CI",
 		.offset = 1,
 		.dst_type = DST_TYPE_IS_CABLE,
-		.type_flags = DST_TYPE_HAS_MULTI_FE | DST_TYPE_HAS_FW_1	| DST_TYPE_HAS_FW_2,
+		.type_flags = DST_TYPE_HAS_MULTI_FE | DST_TYPE_HAS_FW_1	| DST_TYPE_HAS_FW_2 | DST_TYPE_HAS_VLF,
 		.dst_feature = DST_TYPE_HAS_CA,
 		.tuner_type = 0
 	},
@@ -862,7 +864,7 @@ static struct dst_types dst_tlist[] = {
 		.device_id = "DTT-CI",
 		.offset = 1,
 		.dst_type = DST_TYPE_IS_TERR,
-		.type_flags = DST_TYPE_HAS_FW_2 | DST_TYPE_HAS_MULTI_FE,
+		.type_flags = DST_TYPE_HAS_FW_2 | DST_TYPE_HAS_MULTI_FE | DST_TYPE_HAS_VLF,
 		.dst_feature = DST_TYPE_HAS_CA,
 		.tuner_type = 0
 	},
@@ -1047,12 +1049,12 @@ static int dst_get_tuner_info(struct dst_state *state)
 	if (state->type_flags & DST_TYPE_HAS_MULTI_FE) {
 		if (dst_command(state, get_tuner_1, 8) < 0) {
 			dprintk(verbose, DST_INFO, 1, "Cmd=[0x13], Unsupported");
-			return -1;
+			goto force;
 		}
 	} else {
 		if (dst_command(state, get_tuner_2, 8) < 0) {
 			dprintk(verbose, DST_INFO, 1, "Cmd=[0xb], Unsupported");
-			return -1;
+			goto force;
 		}
 	}
 	memset(&state->board_info, '\0', 8);
@@ -1073,6 +1075,13 @@ static int dst_get_tuner_info(struct dst_state *state)
 	}
 
 	return 0;
+force:
+	if (!strncmp(state->fw_name, "DCT-CI", 6)) {
+		state->type_flags |= DST_TYPE_HAS_TS204;
+		dprintk(verbose, DST_ERROR, 1, "Forcing [%s] to TS188", state->fw_name);
+	}
+
+	return -1;
 }
 
 static int dst_get_device_id(struct dst_state *state)
@@ -1189,7 +1198,6 @@ static int dst_probe(struct dst_state *state)
 	}
 	if (dst_get_mac(state) < 0) {
 		dprintk(verbose, DST_INFO, 1, "MAC: Unsupported command");
-		return 0;
 	}
 	if ((state->type_flags & DST_TYPE_HAS_MULTI_FE) || (state->type_flags & DST_TYPE_HAS_FW_BUILD)) {
 		if (dst_get_tuner_info(state) < 0)
@@ -1340,10 +1348,7 @@ static int dst_get_tuna(struct dst_state *state)
 	state->diseq_flags &= ~(HAS_LOCK);
 	if (!dst_wait_dst_ready(state, NO_DELAY))
 		return -EIO;
-//	if (state->type_flags & DST_TYPE_HAS_NEWTUNE)
-//		/* how to get variable length reply ???? */
-	if ((state->type_flags & DST_TYPE_HAS_TS188) &&
-		!(state->dst_type == DST_TYPE_IS_CABLE) &&
+	if ((state->type_flags & DST_TYPE_HAS_VLF) &&
 		!(state->dst_type == DST_TYPE_IS_ATSC))
 
 		retval = read_dst(state, state->rx_tuna, 10);
@@ -1353,8 +1358,7 @@ static int dst_get_tuna(struct dst_state *state)
 		dprintk(verbose, DST_DEBUG, 1, "read not successful");
 		return retval;
 	}
-//	if (state->type_flags & DST_TYPE_HAS_NEWTUNE) {
-	if ((state->type_flags & DST_TYPE_HAS_TS188) &&
+	if ((state->type_flags & DST_TYPE_HAS_VLF) &&
 		!(state->dst_type == DST_TYPE_IS_CABLE) &&
 		!(state->dst_type == DST_TYPE_IS_ATSC)) {
 
@@ -1404,8 +1408,7 @@ static int dst_write_tuna(struct dvb_frontend *fe)
 		goto error;
 	}
 //	if (state->type_flags & DST_TYPE_HAS_NEWTUNE) {
-	if ((state->type_flags & DST_TYPE_HAS_TS188) &&
-		(!(state->dst_type == DST_TYPE_IS_CABLE)) &&
+	if ((state->type_flags & DST_TYPE_HAS_VLF) &&
 		(!(state->dst_type == DST_TYPE_IS_ATSC))) {
 
 		state->tx_tuna[9] = dst_check_sum(&state->tx_tuna[0], 9);
@@ -1561,7 +1564,8 @@ static int dst_init(struct dvb_frontend *fe)
 	static u8 sat_tuna_204[] = { 0x00, 0x00, 0x03, 0xb6, 0x01, 0x55, 0xbd, 0x50, 0x00, 0x00 };
 	static u8 ter_tuna_188[] = { 0x09, 0x00, 0x03, 0xb6, 0x01, 0x07, 0x00, 0x00, 0x00, 0x00 };
 	static u8 ter_tuna_204[] = { 0x00, 0x00, 0x03, 0xb6, 0x01, 0x07, 0x00, 0x00, 0x00, 0x00 };
-	static u8 cable_tuna[] = { 0x00, 0x00, 0x03, 0xb6, 0x01, 0x07, 0x00, 0x00, 0x00, 0x00 };
+	static u8 cab_tuna_188[] = { 0x09, 0x00, 0x03, 0xb6, 0x01, 0x07, 0x00, 0x00, 0x00, 0x00 };
+	static u8 cab_tuna_204[] = { 0x00, 0x00, 0x03, 0xb6, 0x01, 0x07, 0x00, 0x00, 0x00, 0x00 };
 	static u8 atsc_tuner[] = { 0x00, 0x00, 0x03, 0xb6, 0x01, 0x07, 0x00, 0x00, 0x00, 0x00 };
 
 	state->inversion = INVERSION_OFF;
@@ -1572,11 +1576,11 @@ static int dst_init(struct dvb_frontend *fe)
 	state->bandwidth = BANDWIDTH_7_MHZ;
 	state->cur_jiff = jiffies;
 	if (state->dst_type == DST_TYPE_IS_SAT)
-		memcpy(state->tx_tuna, ((state->type_flags & DST_TYPE_HAS_TS188) ? sat_tuna_188 : sat_tuna_204), sizeof (sat_tuna_204));
+		memcpy(state->tx_tuna, ((state->type_flags & DST_TYPE_HAS_VLF) ? sat_tuna_188 : sat_tuna_204), sizeof (sat_tuna_204));
 	else if (state->dst_type == DST_TYPE_IS_TERR)
-		memcpy(state->tx_tuna, ((state->type_flags & DST_TYPE_HAS_TS188) ? ter_tuna_188 : ter_tuna_204), sizeof (ter_tuna_204));
+		memcpy(state->tx_tuna, ((state->type_flags & DST_TYPE_HAS_VLF) ? ter_tuna_188 : ter_tuna_204), sizeof (ter_tuna_204));
 	else if (state->dst_type == DST_TYPE_IS_CABLE)
-		memcpy(state->tx_tuna, cable_tuna, sizeof (cable_tuna));
+		memcpy(state->tx_tuna, ((state->type_flags & DST_TYPE_HAS_VLF) ? cab_tuna_188 : cab_tuna_204), sizeof (cab_tuna_204));
 	else if (state->dst_type == DST_TYPE_IS_ATSC)
 		memcpy(state->tx_tuna, atsc_tuner, sizeof (atsc_tuner));
 

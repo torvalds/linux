@@ -54,6 +54,7 @@
 #define DST_TYPE_HAS_MULTI_FE	512
 #define DST_TYPE_HAS_NEWTUNE_2	1024
 #define DST_TYPE_HAS_DBOARD	2048
+#define DST_TYPE_HAS_VLF	4096
 
 /*	Card capability list	*/
 
