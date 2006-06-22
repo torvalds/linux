@@ -991,6 +991,8 @@ void usb_buffer_unmap_sg (struct usb_device *dev, unsigned pipe,
 
 static int verify_suspended(struct device *dev, void *unused)
 {
+	if (dev->driver == NULL)
+		return 0;
 	return (dev->power.power_state.event == PM_EVENT_ON) ? -EBUSY : 0;
 }
 
