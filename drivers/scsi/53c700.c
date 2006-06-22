@@ -2044,7 +2044,7 @@ NCR_700_slave_configure(struct scsi_device *SDp)
 	struct NCR_700_Host_Parameters *hostdata = 
 		(struct NCR_700_Host_Parameters *)SDp->host->hostdata[0];
 
-	SDp->hostdata = kmalloc(GFP_KERNEL, sizeof(struct NCR_700_sense));
+	SDp->hostdata = kmalloc(sizeof(struct NCR_700_sense), GFP_KERNEL);
 
 	if (!SDp->hostdata)
 		return -ENOMEM;
