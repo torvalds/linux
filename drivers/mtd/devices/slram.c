@@ -209,6 +209,7 @@ static int register_device(char *name, unsigned long start, unsigned long length
 	(*curmtd)->mtdinfo->owner = THIS_MODULE;
 	(*curmtd)->mtdinfo->type = MTD_RAM;
 	(*curmtd)->mtdinfo->erasesize = SLRAM_BLK_SZ;
+	(*curmtd)->mtdinfo->writesize = 1;
 
 	if (add_mtd_device((*curmtd)->mtdinfo))	{
 		E("slram: Failed to register new device\n");

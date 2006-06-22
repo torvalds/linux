@@ -256,6 +256,7 @@ static struct mtd_info *jedec_probe(struct map_info *map)
    MTD->name = map->name;
    MTD->type = MTD_NORFLASH;
    MTD->flags = MTD_CAP_NORFLASH;
+   MTD->writesize = 1;
    MTD->erasesize = SectorSize*(map->buswidth);
    //   printk("MTD->erasesize is %x\n",(unsigned int)MTD->erasesize);
    MTD->size = priv->size;

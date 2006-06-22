@@ -478,6 +478,7 @@ add_dataflash(struct spi_device *spi, char *name,
 	device->name = (pdata && pdata->name) ? pdata->name : priv->name;
 	device->size = nr_pages * pagesize;
 	device->erasesize = pagesize;
+	device->writesize = pagesize;
 	device->owner = THIS_MODULE;
 	device->type = MTD_DATAFLASH;
 	device->flags = MTD_CAP_NORFLASH;

@@ -778,7 +778,8 @@ static int __init init_pmc551(void)
                 mtd->type 	= MTD_RAM;
                 mtd->name 	= "PMC551 RAM board";
                 mtd->erasesize 	= 0x10000;
-		mtd->owner = THIS_MODULE;
+                mtd->writesize  = 1;
+                mtd->owner = THIS_MODULE;
 
                 if (add_mtd_device(mtd)) {
                         printk(KERN_NOTICE "pmc551: Failed to register new device\n");
