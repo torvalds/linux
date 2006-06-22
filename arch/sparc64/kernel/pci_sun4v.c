@@ -988,8 +988,13 @@ static unsigned long probe_existing_entries(struct pci_pbm_info *pbm,
 					     HV_PCI_TSBID(0, i),
 					     &io_attrs, &ra);
 		if (ret == HV_EOK) {
-			cnt++;
-			__set_bit(i, arena->map);
+			if (page_in_phys_avail(ra)) {
+				pci_sun4v_iommu_demap(devhandle,
+						      HV_PCI_TSBID(0, i), 1);
+			} else {
+				cnt++;
+				__set_bit(i, arena->map);
+			}
 		}
 	}
 
@@ -1062,9 +1067,9 @@ static void pci_sun4v_iommu_init(struct pci_pbm_info *pbm)
 	iommu->arena.limit = num_tsb_entries;
 
 	sz = probe_existing_entries(pbm, iommu);
-
-	printk("%s: TSB entries [%lu], existing mapings [%lu]\n",
-	       pbm->name, num_tsb_entries, sz);
+	if (sz)
+		printk("%s: Imported %lu TSB entries from OBP\n",
+		       pbm->name, sz);
 }
 
 static void pci_sun4v_get_bus_range(struct pci_pbm_info *pbm)

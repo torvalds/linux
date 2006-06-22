@@ -1396,7 +1396,7 @@ static void __init taint_real_pages(void)
 		while (old_start < old_end) {
 			int n;
 
-			for (n = 0; pavail_rescan_ents; n++) {
+			for (n = 0; n < pavail_rescan_ents; n++) {
 				unsigned long new_start, new_end;
 
 				new_start = pavail_rescan[n].phys_addr;
@@ -1416,6 +1416,32 @@ static void __init taint_real_pages(void)
 			old_start += PAGE_SIZE;
 		}
 	}
+}
+
+int __init page_in_phys_avail(unsigned long paddr)
+{
+	int i;
+
+	paddr &= PAGE_MASK;
+
+	for (i = 0; i < pavail_rescan_ents; i++) {
+		unsigned long start, end;
+
+		start = pavail_rescan[i].phys_addr;
+		end = start + pavail_rescan[i].reg_size;
+
+		if (paddr >= start && paddr < end)
+			return 1;
+	}
+	if (paddr >= kern_base && paddr < (kern_base + kern_size))
+		return 1;
+#ifdef CONFIG_BLK_DEV_INITRD
+	if (paddr >= __pa(initrd_start) &&
+	    paddr < __pa(PAGE_ALIGN(initrd_end)))
+		return 1;
+#endif
+
+	return 0;
 }
 
 void __init mem_init(void)
