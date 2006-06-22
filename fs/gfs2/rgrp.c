@@ -1401,7 +1401,7 @@ void gfs2_unlink_di(struct inode *inode)
 	gfs2_trans_add_rg(rgd);
 }
 
-void gfs2_free_uninit_di(struct gfs2_rgrpd *rgd, uint64_t blkno)
+static void gfs2_free_uninit_di(struct gfs2_rgrpd *rgd, uint64_t blkno)
 {
 	struct gfs2_sbd *sdp = rgd->rd_sbd;
 	struct gfs2_rgrpd *tmp_rgd;

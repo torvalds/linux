@@ -214,7 +214,7 @@ struct gfs2_eattr_operations gfs2_system_eaops = {
 	.eo_name = "system",
 };
 
-struct gfs2_eattr_operations gfs2_security_eaops = {
+static struct gfs2_eattr_operations gfs2_security_eaops = {
 	.eo_get = security_eo_get,
 	.eo_set = security_eo_set,
 	.eo_remove = security_eo_remove,
