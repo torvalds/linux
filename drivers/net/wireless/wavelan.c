@@ -2903,6 +2903,7 @@ static int wavelan_packet_xmit(struct sk_buff *skb, struct net_device * dev)
 {
 	net_local *lp = (net_local *) dev->priv;
 	unsigned long flags;
+	char data[ETH_ZLEN];
 
 #ifdef DEBUG_TX_TRACE
 	printk(KERN_DEBUG "%s: ->wavelan_packet_xmit(0x%X)\n", dev->name,
@@ -2937,14 +2938,15 @@ static int wavelan_packet_xmit(struct sk_buff *skb, struct net_device * dev)
 	 * able to detect collisions, therefore in theory we don't really
 	 * need to pad. Jean II */
 	if (skb->len < ETH_ZLEN) {
-		skb = skb_padto(skb, ETH_ZLEN);
-		if (skb == NULL)
-			return 0;
+		memset(data, 0, ETH_ZLEN);
+		memcpy(data, skb->data, skb->len);
+		/* Write packet on the card */
+		if(wv_packet_write(dev, data, ETH_ZLEN))
+			return 1;	/* We failed */
 	}
-
-	/* Write packet on the card */
-	if(wv_packet_write(dev, skb->data, skb->len))
+	else if(wv_packet_write(dev, skb->data, skb->len))
 		return 1;	/* We failed */
+
 
 	dev_kfree_skb(skb);
 
