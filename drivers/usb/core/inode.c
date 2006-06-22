@@ -695,7 +695,7 @@ static void usbfs_remove_device(struct usb_device *dev)
 		wake_up_all(&ds->wait);
 		list_del_init(&ds->list);
 		if (ds->discsignr) {
-			sinfo.si_signo = SIGPIPE;
+			sinfo.si_signo = ds->discsignr;
 			sinfo.si_errno = EPIPE;
 			sinfo.si_code = SI_ASYNCIO;
 			sinfo.si_addr = ds->disccontext;
