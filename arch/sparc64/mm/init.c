@@ -102,8 +102,6 @@ static void __init read_obp_memory(const char *property,
 		prom_halt();
 	}
 
-	*num_ents = ents;
-
 	/* Sanitize what we got from the firmware, by page aligning
 	 * everything.
 	 */
@@ -125,6 +123,25 @@ static void __init read_obp_memory(const char *property,
 		regs[i].phys_addr = base;
 		regs[i].reg_size = size;
 	}
+
+	for (i = 0; i < ents; i++) {
+		if (regs[i].reg_size == 0UL) {
+			int j;
+
+			for (j = i; j < ents - 1; j++) {
+				regs[j].phys_addr =
+					regs[j+1].phys_addr;
+				regs[j].reg_size =
+					regs[j+1].reg_size;
+			}
+
+			ents--;
+			i--;
+		}
+	}
+
+	*num_ents = ents;
+
 	sort(regs, ents, sizeof(struct linux_prom64_registers),
 	     cmp_p64, NULL);
 }
