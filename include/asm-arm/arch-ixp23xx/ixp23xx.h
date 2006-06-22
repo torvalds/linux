@@ -124,6 +124,7 @@
 
 #define IXP23XX_EXP_UNIT_FUSE		IXP23XX_EXP_CFG_REG(0x28)
 #define IXP23XX_EXP_MSF_MUX		IXP23XX_EXP_CFG_REG(0x30)
+#define IXP23XX_EXP_CFG_FUSE		IXP23XX_EXP_CFG_REG(0x34)
 
 #define IXP23XX_EXP_BUS_PHYS		0x90000000
 #define IXP23XX_EXP_BUS_WINDOW_SIZE	0x01000000
@@ -264,6 +265,8 @@
 #define IXP23XX_RESET_PCI		(1 << 2)
 #define IXP23XX_PCI_UNIT_RESET		(1 << 1)
 #define IXP23XX_XSCALE_RESET		(1 << 0)
+
+#define IXP23XX_UENGINE_CSR_VIRT_BASE	(IXP23XX_CAP_CSR_VIRT + 0x18000)
 
 
 /****************************************************************************
