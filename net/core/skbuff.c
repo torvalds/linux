@@ -172,9 +172,9 @@ struct sk_buff *__alloc_skb(unsigned int size, gfp_t gfp_mask,
 	shinfo = skb_shinfo(skb);
 	atomic_set(&shinfo->dataref, 1);
 	shinfo->nr_frags  = 0;
-	shinfo->tso_size = 0;
-	shinfo->tso_segs = 0;
-	shinfo->ufo_size = 0;
+	shinfo->gso_size = 0;
+	shinfo->gso_segs = 0;
+	shinfo->gso_type = 0;
 	shinfo->ip6_frag_id = 0;
 	shinfo->frag_list = NULL;
 
@@ -238,8 +238,9 @@ struct sk_buff *alloc_skb_from_cache(kmem_cache_t *cp,
 
 	atomic_set(&(skb_shinfo(skb)->dataref), 1);
 	skb_shinfo(skb)->nr_frags  = 0;
-	skb_shinfo(skb)->tso_size = 0;
-	skb_shinfo(skb)->tso_segs = 0;
+	skb_shinfo(skb)->gso_size = 0;
+	skb_shinfo(skb)->gso_segs = 0;
+	skb_shinfo(skb)->gso_type = 0;
 	skb_shinfo(skb)->frag_list = NULL;
 out:
 	return skb;
@@ -528,8 +529,9 @@ static void copy_skb_header(struct sk_buff *new, const struct sk_buff *old)
 #endif
 	skb_copy_secmark(new, old);
 	atomic_set(&new->users, 1);
-	skb_shinfo(new)->tso_size = skb_shinfo(old)->tso_size;
-	skb_shinfo(new)->tso_segs = skb_shinfo(old)->tso_segs;
+	skb_shinfo(new)->gso_size = skb_shinfo(old)->gso_size;
+	skb_shinfo(new)->gso_segs = skb_shinfo(old)->gso_segs;
+	skb_shinfo(new)->gso_type = skb_shinfo(old)->gso_type;
 }
 
 /**

@@ -34,8 +34,8 @@ static inline unsigned packet_length(const struct sk_buff *skb)
 
 int br_dev_queue_push_xmit(struct sk_buff *skb)
 {
-	/* drop mtu oversized packets except tso */
-	if (packet_length(skb) > skb->dev->mtu && !skb_shinfo(skb)->tso_size)
+	/* drop mtu oversized packets except gso */
+	if (packet_length(skb) > skb->dev->mtu && !skb_shinfo(skb)->gso_size)
 		kfree_skb(skb);
 	else {
 #ifdef CONFIG_BRIDGE_NETFILTER

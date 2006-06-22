@@ -134,9 +134,10 @@ struct skb_frag_struct {
 struct skb_shared_info {
 	atomic_t	dataref;
 	unsigned short	nr_frags;
-	unsigned short	tso_size;
-	unsigned short	tso_segs;
-	unsigned short  ufo_size;
+	unsigned short	gso_size;
+	/* Warning: this field is not always filled in (UFO)! */
+	unsigned short	gso_segs;
+	unsigned short  gso_type;
 	unsigned int    ip6_frag_id;
 	struct sk_buff	*frag_list;
 	skb_frag_t	frags[MAX_SKB_FRAGS];
@@ -166,6 +167,11 @@ enum {
 	SKB_FCLONE_UNAVAILABLE,
 	SKB_FCLONE_ORIG,
 	SKB_FCLONE_CLONE,
+};
+
+enum {
+	SKB_GSO_TCPV4 = 1 << 0,
+	SKB_GSO_UDPV4 = 1 << 1,
 };
 
 /** 

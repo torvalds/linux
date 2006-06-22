@@ -308,9 +308,12 @@ struct net_device
 #define NETIF_F_HW_VLAN_RX	256	/* Receive VLAN hw acceleration */
 #define NETIF_F_HW_VLAN_FILTER	512	/* Receive filtering on VLAN */
 #define NETIF_F_VLAN_CHALLENGED	1024	/* Device cannot handle VLAN packets */
-#define NETIF_F_TSO		2048	/* Can offload TCP/IP segmentation */
 #define NETIF_F_LLTX		4096	/* LockLess TX */
-#define NETIF_F_UFO             8192    /* Can offload UDP Large Send*/
+
+	/* Segmentation offload features */
+#define NETIF_F_GSO_SHIFT	16
+#define NETIF_F_TSO		(SKB_GSO_TCPV4 << NETIF_F_GSO_SHIFT)
+#define NETIF_F_UFO		(SKB_GSO_UDPV4 << NETIF_F_GSO_SHIFT)
 
 #define NETIF_F_GEN_CSUM	(NETIF_F_NO_CSUM | NETIF_F_HW_CSUM)
 #define NETIF_F_ALL_CSUM	(NETIF_F_IP_CSUM | NETIF_F_GEN_CSUM)
@@ -978,6 +981,13 @@ extern void dev_seq_stop(struct seq_file *seq, void *v);
 #endif
 
 extern void linkwatch_run_queue(void);
+
+static inline int netif_needs_gso(struct net_device *dev, struct sk_buff *skb)
+{
+	int feature = skb_shinfo(skb)->gso_type << NETIF_F_GSO_SHIFT;
+	return skb_shinfo(skb)->gso_size &&
+	       (dev->features & feature) != feature;
+}
 
 #endif /* __KERNEL__ */
 
