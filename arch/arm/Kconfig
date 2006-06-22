@@ -339,6 +339,10 @@ config XSCALE_PMU
 	depends on CPU_XSCALE && !XSCALE_PMU_TIMER
 	default y
 
+if !MMU
+source "arch/arm/Kconfig-nommu"
+endif
+
 endmenu
 
 source "arch/arm/common/Kconfig"
