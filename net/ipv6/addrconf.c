@@ -1075,6 +1075,9 @@ int ipv6_dev_get_saddr(struct net_device *daddr_dev,
 				if (hiscore.attrs & IPV6_SADDR_SCORE_PRIVACY)
 					continue;
 			}
+#else
+			if (hiscore.rule < 7)
+				hiscore.rule++;
 #endif
 			/* Rule 8: Use longest matching prefix */
 			if (hiscore.rule < 8) {
