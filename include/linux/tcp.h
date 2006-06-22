@@ -18,7 +18,6 @@
 #define _LINUX_TCP_H
 
 #include <linux/types.h>
-#include <linux/dmaengine.h>
 #include <asm/byteorder.h>
 
 struct tcphdr {
@@ -161,6 +160,7 @@ struct tcp_info
 #ifdef __KERNEL__
 
 #include <linux/skbuff.h>
+#include <linux/dmaengine.h>
 #include <net/sock.h>
 #include <net/inet_connection_sock.h>
 #include <net/inet_timewait_sock.h>
