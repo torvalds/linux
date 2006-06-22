@@ -427,8 +427,6 @@ char *jffs2_getlink(struct jffs2_sb_info *c, struct jffs2_inode_info *f);
 /* scan.c */
 int jffs2_scan_medium(struct jffs2_sb_info *c);
 void jffs2_rotate_lists(struct jffs2_sb_info *c);
-int jffs2_fill_scan_buf(struct jffs2_sb_info *c, void *buf,
-				uint32_t ofs, uint32_t len);
 struct jffs2_inode_cache *jffs2_scan_make_ino_cache(struct jffs2_sb_info *c, uint32_t ino);
 int jffs2_scan_classify_jeb(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb);
 int jffs2_scan_dirty_space(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb, uint32_t size);
