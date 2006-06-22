@@ -1161,7 +1161,7 @@ static void sabre_scan_bus(struct pci_controller_info *p)
 
 		pbus->sysdata = pbm;
 		pbm->pci_bus = pbus;
-		pci_fill_in_pbm_cookies(pbus, pbm, pbm->prom_node->node);
+		pci_fill_in_pbm_cookies(pbus, pbm, pbm->prom_node);
 		pci_record_assignments(pbm, pbus);
 		pci_assign_unassigned(pbm, pbus);
 		pci_fixup_irq(pbm, pbus);
@@ -1174,7 +1174,7 @@ static void sabre_scan_bus(struct pci_controller_info *p)
 		pbm = &p->pbm_A;
 		sabre_bus->sysdata = pbm;
 		pbm->pci_bus = sabre_bus;
-		pci_fill_in_pbm_cookies(sabre_bus, pbm, pbm->prom_node->node);
+		pci_fill_in_pbm_cookies(sabre_bus, pbm, pbm->prom_node);
 		pci_record_assignments(pbm, sabre_bus);
 		pci_assign_unassigned(pbm, sabre_bus);
 		pci_fixup_irq(pbm, sabre_bus);

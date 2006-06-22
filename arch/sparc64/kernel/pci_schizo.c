@@ -1438,7 +1438,7 @@ static void pbm_scan_bus(struct pci_controller_info *p,
 	pci_fixup_host_bridge_self(pbm->pci_bus);
 	pbm->pci_bus->self->sysdata = cookie;
 
-	pci_fill_in_pbm_cookies(pbm->pci_bus, pbm, pbm->prom_node->node);
+	pci_fill_in_pbm_cookies(pbm->pci_bus, pbm, pbm->prom_node);
 	pci_record_assignments(pbm, pbm->pci_bus);
 	pci_assign_unassigned(pbm, pbm->pci_bus);
 	pci_fixup_irq(pbm, pbm->pci_bus);

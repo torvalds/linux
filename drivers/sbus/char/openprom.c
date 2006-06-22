@@ -243,8 +243,8 @@ static int openprom_sunos_ioctl(struct inode * inode, struct file * file,
 					      ((int *) opp->oprom_array)[1]);
 
 			pcp = pdev->sysdata;
-			if (pcp != NULL && pcp->prom_node != -1 && pcp->prom_node) {
-				node = pcp->prom_node;
+			if (pcp != NULL) {
+				node = pcp->prom_node->node;
 				data->current_node = node;
 				*((int *)opp->oprom_array) = node;
 				opp->oprom_size = sizeof(int);

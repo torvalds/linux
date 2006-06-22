@@ -553,7 +553,7 @@ void __init ebus_init(void)
 	}
 
 	cookie = pdev->sysdata;
-	ebusnd = cookie->prom_node;
+	ebusnd = cookie->prom_node->node;
 
 	ebus_chain = ebus = ebus_alloc(sizeof(struct linux_ebus));
 	ebus->next = NULL;
@@ -578,7 +578,7 @@ void __init ebus_init(void)
 			}
 			ebus->is_rio = is_rio;
 			cookie = pdev->sysdata;
-			ebusnd = cookie->prom_node;
+			ebusnd = cookie->prom_node->node;
 			continue;
 		}
 		printk("ebus%d:", num_ebus);
@@ -622,7 +622,7 @@ void __init ebus_init(void)
 			break;
 
 		cookie = pdev->sysdata;
-		ebusnd = cookie->prom_node;
+		ebusnd = cookie->prom_node->node;
 
 		ebus->next = ebus_alloc(sizeof(struct linux_ebus));
 		ebus = ebus->next;

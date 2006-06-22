@@ -76,12 +76,15 @@ extern struct device_node *of_find_node_by_type(struct device_node *from,
 	for (dn = of_find_node_by_type(NULL, type); dn; \
 	     dn = of_find_node_by_type(dn, type))
 extern struct device_node *of_find_node_by_path(const char *path);
+extern struct device_node *of_find_node_by_phandle(phandle handle);
 extern struct device_node *of_get_parent(const struct device_node *node);
 extern struct device_node *of_get_next_child(const struct device_node *node,
 					     struct device_node *prev);
 extern struct property *of_find_property(struct device_node *np,
 					 const char *name,
 					 int *lenp);
+extern void *of_get_property(struct device_node *node, const char *name,
+			     int *lenp);
 extern int of_getintprop_default(struct device_node *np,
 				 const char *name,
 				 int def);

@@ -227,8 +227,7 @@ struct pci_controller_info {
  */
 struct pcidev_cookie {
 	struct pci_pbm_info		*pbm;
-	char				prom_name[64];
-	int				prom_node;
+	struct device_node		*prom_node;
 	struct linux_prom_pci_registers	prom_regs[PROMREG_MAX];
 	int num_prom_regs;
 	struct linux_prom_pci_registers prom_assignments[PROMREG_MAX];

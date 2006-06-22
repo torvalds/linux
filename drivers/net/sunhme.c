@@ -3013,7 +3013,6 @@ static int __init happy_meal_pci_init(struct pci_dev *pdev)
 	struct quattro *qp = NULL;
 #ifdef __sparc__
 	struct pcidev_cookie *pcp;
-	int node;
 #endif
 	struct happy_meal *hp;
 	struct net_device *dev;
@@ -3026,13 +3025,12 @@ static int __init happy_meal_pci_init(struct pci_dev *pdev)
 	/* Now make sure pci_dev cookie is there. */
 #ifdef __sparc__
 	pcp = pdev->sysdata;
-	if (pcp == NULL || pcp->prom_node == -1) {
+	if (pcp == NULL) {
 		printk(KERN_ERR "happymeal(PCI): Some PCI device info missing\n");
 		return -ENODEV;
 	}
-	node = pcp->prom_node;
 	
-	prom_getstring(node, "name", prom_name, sizeof(prom_name));
+	strcpy(prom_name, pcp->prom_node->name);
 #else
 	if (is_quattro_p(pdev))
 		strcpy(prom_name, "SUNW,qfe");
@@ -3104,10 +3102,14 @@ static int __init happy_meal_pci_init(struct pci_dev *pdev)
 		macaddr[5]++;
 	} else {
 #ifdef __sparc__
+		unsigned char *addr;
+		int len;
+
 		if (qfe_slot != -1 &&
-		    prom_getproplen(node, "local-mac-address") == 6) {
-			prom_getproperty(node, "local-mac-address",
-					 dev->dev_addr, 6);
+		    (addr = of_get_property(pcp->prom_node,
+					    "local-mac-address", &len)) != NULL
+		    && len == 6) {
+			memcpy(dev->dev_addr, addr, 6);
 		} else {
 			memcpy(dev->dev_addr, idprom->id_ethaddr, 6);
 		}
@@ -3124,7 +3126,7 @@ static int __init happy_meal_pci_init(struct pci_dev *pdev)
 	hp->tcvregs    = (hpreg_base + 0x7000UL);
 
 #ifdef __sparc__
-	hp->hm_revision = prom_getintdefault(node, "hm-rev", 0xff);
+	hp->hm_revision = of_getintprop_default(pcp->prom_node, "hm-rev", 0xff);
 	if (hp->hm_revision == 0xff) {
 		unsigned char prev;
 

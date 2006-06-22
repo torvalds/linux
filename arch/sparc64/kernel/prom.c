@@ -20,6 +20,7 @@
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/bootmem.h>
+#include <linux/module.h>
 
 #include <asm/prom.h>
 #include <asm/oplib.h>
@@ -59,6 +60,17 @@ struct device_node *of_find_node_by_path(const char *path)
 		if (np->full_name != 0 && strcmp(np->full_name, path) == 0)
 			break;
 	}
+
+	return np;
+}
+
+struct device_node *of_find_node_by_phandle(phandle handle)
+{
+	struct device_node *np;
+
+	for (np = allnodes; np != 0; np = np->allnext)
+		if (np->node == handle)
+			break;
 
 	return np;
 }
@@ -103,6 +115,18 @@ struct property *of_find_property(struct device_node *np, const char *name,
 	}
 	return pp;
 }
+EXPORT_SYMBOL(of_find_property);
+
+/*
+ * Find a property with a given name for a given node
+ * and return the value.
+ */
+void *of_get_property(struct device_node *np, const char *name, int *lenp)
+{
+	struct property *pp = of_find_property(np,name,lenp);
+	return pp ? pp->value : NULL;
+}
+EXPORT_SYMBOL(of_get_property);
 
 int of_getintprop_default(struct device_node *np, const char *name, int def)
 {
@@ -115,6 +139,7 @@ int of_getintprop_default(struct device_node *np, const char *name, int def)
 
 	return *(int *) prop->value;
 }
+EXPORT_SYMBOL(of_getintprop_default);
 
 static unsigned int prom_early_allocated;
 

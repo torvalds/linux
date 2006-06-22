@@ -291,8 +291,8 @@ void __init isa_init(void)
 		isa_br->parent = pbm;
 		isa_br->self = pdev;
 		isa_br->index = index++;
-		isa_br->prom_node = pdev_cookie->prom_node;
-		strncpy(isa_br->prom_name, pdev_cookie->prom_name,
+		isa_br->prom_node = pdev_cookie->prom_node->node;
+		strncpy(isa_br->prom_name, pdev_cookie->prom_node->name,
 			sizeof(isa_br->prom_name));
 
 		prop_len = prom_getproperty(isa_br->prom_node,
