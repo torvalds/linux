@@ -854,6 +854,17 @@ config SMC9194
 	  <file:Documentation/networking/net-modules.txt>. The module
 	  will be called smc9194.
 
+config NET_NETX
+	tristate "NetX Ethernet support"
+	select MII
+	depends on NET_ETHERNET && ARCH_NETX
+	help
+	  This is support for the Hilscher netX builtin Ethernet ports
+
+	  To compile this driver as a module, choose M here and read
+	  <file:Documentation/networking/net-modules.txt>. The module
+	  will be called netx-eth.
+
 config DM9000
 	tristate "DM9000 support"
 	depends on (ARM || MIPS) && NET_ETHERNET
