@@ -148,8 +148,11 @@ unsigned long clk_get_rate(struct clk *clk)
 	if (clk->rate != 0)
 		return clk->rate;
 
-	while (clk->parent != NULL && clk->rate == 0)
-		clk = clk->parent;
+	if (clk->get_rate != NULL)
+		return (clk->get_rate)(clk);
+
+	if (clk->parent != NULL)
+		return clk_get_rate(clk->parent);
 
 	return clk->rate;
 }
