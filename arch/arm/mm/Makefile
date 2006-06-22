@@ -3,8 +3,14 @@
 #
 
 obj-y				:= consistent.o extable.o fault-armv.o \
-				   fault.o flush.o init.o ioremap.o mmap.o \
+				   fault.o flush.o init.o iomap.o mmap.o \
 				   mm-armv.o
+
+obj-$(CONFIG_MMU)		+= ioremap.o
+
+ifneq ($(CONFIG_MMU),y)
+obj-y				+= nommu.o
+endif
 
 obj-$(CONFIG_MODULES)		+= proc-syms.o
 
