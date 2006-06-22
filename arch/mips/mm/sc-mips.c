@@ -24,22 +24,7 @@
  */
 static void mips_sc_wback_inv(unsigned long addr, unsigned long size)
 {
-	unsigned long sc_lsize = cpu_scache_line_size();
-	unsigned long end, a;
-
-	pr_debug("mips_sc_wback_inv[%08lx,%08lx]", addr, size);
-
-	/* Catch bad driver code */
-	BUG_ON(size == 0);
-
-	a = addr & ~(sc_lsize - 1);
-	end = (addr + size - 1) & ~(sc_lsize - 1);
-	while (1) {
-		flush_scache_line(a);		/* Hit_Writeback_Inv_SD */
-		if (a == end)
-			break;
-		a += sc_lsize;
-	}
+	blast_scache_range(addr, addr + size);
 }
 
 /*
@@ -47,22 +32,7 @@ static void mips_sc_wback_inv(unsigned long addr, unsigned long size)
  */
 static void mips_sc_inv(unsigned long addr, unsigned long size)
 {
-	unsigned long sc_lsize = cpu_scache_line_size();
-	unsigned long end, a;
-
-	pr_debug("mips_sc_inv[%08lx,%08lx]", addr, size);
-
-	/* Catch bad driver code */
-	BUG_ON(size == 0);
-
-	a = addr & ~(sc_lsize - 1);
-	end = (addr + size - 1) & ~(sc_lsize - 1);
-	while (1) {
-		invalidate_scache_line(a);	/* Hit_Invalidate_SD */
-		if (a == end)
-			break;
-		a += sc_lsize;
-	}
+	blast_inv_scache_range(addr, addr + size);
 }
 
 static void mips_sc_enable(void)
@@ -123,6 +93,7 @@ static inline int __init mips_sc_probe(void)
 		return 0;
 
 	c->scache.waysize = c->scache.sets * c->scache.linesz;
+	c->scache.waybit = __ffs(c->scache.waysize);
 
 	c->scache.flags &= ~MIPS_CACHE_NOT_PRESENT;
 
