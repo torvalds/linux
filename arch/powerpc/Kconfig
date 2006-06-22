@@ -794,7 +794,6 @@ config GENERIC_ISA_DMA
 
 config PPC_I8259
 	bool
-	default y if MPC8641_HPCN
 	default n
 
 config PPC_INDIRECT_PCI
