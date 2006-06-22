@@ -406,8 +406,14 @@ void pcibios_bus_to_resource(struct pci_dev *pdev, struct resource *res,
 }
 EXPORT_SYMBOL(pcibios_bus_to_resource);
 
+extern int pci_irq_verbose;
+
 char * __init pcibios_setup(char *str)
 {
+	if (!strcmp(str, "irq_verbose")) {
+		pci_irq_verbose = 1;
+		return NULL;
+	}
 	return str;
 }
 

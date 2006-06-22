@@ -10,6 +10,9 @@
 
 #include <asm/pbm.h>
 
+/* Pass "pci=irq_verbose" on the kernel command line to enable this.  */
+int pci_irq_verbose;
+
 /* Fix self device of BUS and hook it into BUS->self.
  * The pci_scan_bus does not do this for the host bridge.
  */
@@ -556,9 +559,10 @@ static inline unsigned int pci_slot_swivel(struct pci_pbm_info *pbm,
 
 	ret = ((interrupt - 1 + (PCI_SLOT(pdev->devfn) & 3)) & 3) + 1;
 
-	printk("%s: %s IRQ Swivel %s [%x:%x] -> [%x]\n",
-	       pbm->name, pci_name(toplevel_pdev), pci_name(pdev),
-	       interrupt, PCI_SLOT(pdev->devfn), ret);
+	if (pci_irq_verbose)
+		printk("%s: %s IRQ Swivel %s [%x:%x] -> [%x]\n",
+		       pbm->name, pci_name(toplevel_pdev), pci_name(pdev),
+		       interrupt, PCI_SLOT(pdev->devfn), ret);
 
 	return ret;
 }
@@ -616,10 +620,11 @@ static inline unsigned int pci_apply_intmap(struct pci_pbm_info *pbm,
 		}
 	}
 
-	printk("%s: %s MAP BUS %s DEV %s [%x] -> [%x]\n",
-	       pbm->name, pci_name(toplevel_pdev),
-	       pci_name(pbus), pci_name(pdev),
-	       orig_interrupt, interrupt);
+	if (pci_irq_verbose)
+		printk("%s: %s MAP BUS %s DEV %s [%x] -> [%x]\n",
+		       pbm->name, pci_name(toplevel_pdev),
+		       pci_name(pbus), pci_name(pdev),
+		       orig_interrupt, interrupt);
 
 no_intmap:
 	return interrupt;
@@ -714,10 +719,11 @@ fail:
 	return 0;
 
 success:
-	printk("%s: Routing bus[%2x] slot[%2x] to INO[%02x]\n",
-	       pbm->name,
-	       pdev->bus->number, PCI_SLOT(pdev->devfn),
-	       *interrupt);
+	if (pci_irq_verbose)
+		printk("%s: Routing bus[%2x] slot[%2x] to INO[%02x]\n",
+		       pbm->name,
+		       pdev->bus->number, PCI_SLOT(pdev->devfn),
+		       *interrupt);
 	return 1;
 }
 
