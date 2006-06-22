@@ -15,7 +15,6 @@
 #ifndef __ASM_POWERPC_MPC86xx_H__
 #define __ASM_POWERPC_MPC86xx_H__
 
-#include <linux/config.h>
 #include <asm/mmu.h>
 
 #ifdef CONFIG_PPC_86xx
