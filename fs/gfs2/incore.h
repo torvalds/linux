@@ -234,7 +234,6 @@ struct gfs2_alloc {
 };
 
 enum {
-	GIF_MIN_INIT		= 0,
 	GIF_QD_LOCKED		= 1,
 	GIF_PAGED		= 2,
 	GIF_SW_PAGED		= 3,

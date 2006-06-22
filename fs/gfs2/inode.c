@@ -236,7 +236,6 @@ int gfs2_inode_refresh(struct gfs2_inode *ip)
 	}
 
 	gfs2_dinode_in(&ip->i_di, dibh->b_data);
-	set_bit(GIF_MIN_INIT, &ip->i_flags);
 
 	brelse(dibh);
 
