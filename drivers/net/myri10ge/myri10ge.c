@@ -2120,7 +2120,7 @@ abort_linearize:
 		goto drop;
 	}
 
-	if (skb_linearize(skb, GFP_ATOMIC))
+	if (skb_linearize(skb))
 		goto drop;
 
 	mgp->tx_linearized++;
