@@ -3,15 +3,15 @@ Naming and data format standards for sysfs files
 
 The libsensors library offers an interface to the raw sensors data
 through the sysfs interface. See libsensors documentation and source for
-more further information. As of writing this document, libsensors
-(from lm_sensors 2.8.3) is heavily chip-dependant. Adding or updating
+further information. As of writing this document, libsensors
+(from lm_sensors 2.8.3) is heavily chip-dependent. Adding or updating
 support for any given chip requires modifying the library's code.
 This is because libsensors was written for the procfs interface
 older kernel modules were using, which wasn't standardized enough.
 Recent versions of libsensors (from lm_sensors 2.8.2 and later) have
 support for the sysfs interface, though.
 
-The new sysfs interface was designed to be as chip-independant as
+The new sysfs interface was designed to be as chip-independent as
 possible.
 
 Note that motherboards vary widely in the connections to sensor chips.
@@ -24,7 +24,7 @@ range using external resistors. Since the values of these resistors
 can change from motherboard to motherboard, the conversions cannot be
 hard coded into the driver and have to be done in user space.
 
-For this reason, even if we aim at a chip-independant libsensors, it will
+For this reason, even if we aim at a chip-independent libsensors, it will
 still require a configuration file (e.g. /etc/sensors.conf) for proper
 values conversion, labeling of inputs and hiding of unused inputs.
 
@@ -39,15 +39,16 @@ If you are developing a userspace application please send us feedback on
 this standard.
 
 Note that this standard isn't completely established yet, so it is subject
-to changes, even important ones. One more reason to use the library instead
-of accessing sysfs files directly.
+to changes. If you are writing a new hardware monitoring driver those
+features can't seem to fit in this interface, please contact us with your
+extension proposal. Keep in mind that backward compatibility must be
+preserved.
 
 Each chip gets its own directory in the sysfs /sys/devices tree.  To
-find all sensor chips, it is easier to follow the symlinks from
-/sys/i2c/devices/
+find all sensor chips, it is easier to follow the device symlinks from
+/sys/class/hwmon/hwmon*.
 
-All sysfs values are fixed point numbers.  To get the true value of some
-of the values, you should divide by the specified value.
+All sysfs values are fixed point numbers.
 
 There is only one value per file, unlike the older /proc specification.
 The common scheme for files naming is: <type><number>_<item>. Usual
@@ -69,28 +70,40 @@ to cause an alarm) is chip-dependent.
 
 -------------------------------------------------------------------------
 
+[0-*]	denotes any positive number starting from 0
+[1-*]	denotes any positive number starting from 1
+RO	read only value
+RW	read/write value
+
+Read/write values may be read-only for some chips, depending on the
+hardware implementation.
+
+All entries are optional, and should only be created in a given driver
+if the chip has the feature.
+
 ************
 * Voltages *
 ************
 
-in[0-8]_min	Voltage min value.
+in[0-*]_min	Voltage min value.
 		Unit: millivolt
-		Read/Write
+		RW
 		
-in[0-8]_max	Voltage max value.
+in[0-*]_max	Voltage max value.
 		Unit: millivolt
-		Read/Write
+		RW
 		
-in[0-8]_input	Voltage input value.
+in[0-*]_input	Voltage input value.
 		Unit: millivolt
-		Read only
+		RO
+		Voltage measured on the chip pin.
 		Actual voltage depends on the scaling resistors on the
 		motherboard, as recommended in the chip datasheet.
 		This varies by chip and by motherboard.
 		Because of this variation, values are generally NOT scaled
 		by the chip driver, and must be done by the application.
 		However, some drivers (notably lm87 and via686a)
-		do scale, with various degrees of success.
+		do scale, because of internal resistors built into a chip.
 		These drivers will output the actual voltage.
 
 		Typical usage:
@@ -104,58 +117,72 @@ in[0-8]_input	Voltage input value.
 			in7_*	varies
 			in8_*	varies
 
-cpu[0-1]_vid	CPU core reference voltage.
+cpu[0-*]_vid	CPU core reference voltage.
 		Unit: millivolt
-		Read only.
+		RO
 		Not always correct.
 
 vrm		Voltage Regulator Module version number. 
-		Read only.
-		Two digit number, first is major version, second is
-		minor version.
+		RW (but changing it should no more be necessary)
+		Originally the VRM standard version multiplied by 10, but now
+		an arbitrary number, as not all standards have a version
+		number.
 		Affects the way the driver calculates the CPU core reference
 		voltage from the vid pins.
+
+Also see the Alarms section for status flags associated with voltages.
 
 
 ********
 * Fans *
 ********
 
-fan[1-3]_min	Fan minimum value
+fan[1-*]_min	Fan minimum value
 		Unit: revolution/min (RPM)
-		Read/Write.
+		RW
 
-fan[1-3]_input	Fan input value.
+fan[1-*]_input	Fan input value.
 		Unit: revolution/min (RPM)
-		Read only.
+		RO
 
-fan[1-3]_div	Fan divisor.
+fan[1-*]_div	Fan divisor.
 		Integer value in powers of two (1, 2, 4, 8, 16, 32, 64, 128).
+		RW
 		Some chips only support values 1, 2, 4 and 8.
 		Note that this is actually an internal clock divisor, which
 		affects the measurable speed range, not the read value.
+
+Also see the Alarms section for status flags associated with fans.
+
 
 *******
 * PWM *
 *******
 
-pwm[1-3]	Pulse width modulation fan control.
+pwm[1-*]	Pulse width modulation fan control.
 		Integer value in the range 0 to 255
-		Read/Write
+		RW
 		255 is max or 100%.
 
-pwm[1-3]_enable
+pwm[1-*]_enable
 		Switch PWM on and off.
 		Not always present even if fan*_pwm is.
-		0 to turn off
-		1 to turn on in manual mode
-		2 to turn on in automatic mode
-		Read/Write
+		0: turn off
+		1: turn on in manual mode
+		2+: turn on in automatic mode
+		Check individual chip documentation files for automatic mode details.
+		RW
+
+pwm[1-*]_mode
+		0: DC mode
+		1: PWM mode
+		RW
 
 pwm[1-*]_auto_channels_temp
 		Select which temperature channels affect this PWM output in
 		auto mode. Bitfield, 1 is temp1, 2 is temp2, 4 is temp3 etc...
 		Which values are possible depend on the chip used.
+		RW
 
 pwm[1-*]_auto_point[1-*]_pwm
 pwm[1-*]_auto_point[1-*]_temp
@@ -163,6 +190,7 @@ pwm[1-*]_auto_point[1-*]_temp_hyst
 		Define the PWM vs temperature curve. Number of trip points is
 		chip-dependent. Use this for chips which associate trip points
 		to PWM output channels.
+		RW
 
 OR
 
@@ -172,50 +200,57 @@ temp[1-*]_auto_point[1-*]_temp_hyst
 		Define the PWM vs temperature curve. Number of trip points is
 		chip-dependent. Use this for chips which associate trip points
 		to temperature channels.
+		RW
 
 
 ****************
 * Temperatures *
 ****************
 
-temp[1-3]_type	Sensor type selection.
+temp[1-*]_type	Sensor type selection.
 		Integers 1 to 4 or thermistor Beta value (typically 3435)
-		Read/Write.
+		RW
 		1: PII/Celeron Diode
 		2: 3904 transistor
 		3: thermal diode
 		4: thermistor (default/unknown Beta)
 		Not all types are supported by all chips
 
-temp[1-4]_max	Temperature max value.
-		Unit: millidegree Celcius
-		Read/Write value.
+temp[1-*]_max	Temperature max value.
+		Unit: millidegree Celsius (or millivolt, see below)
+		RW
 
-temp[1-3]_min	Temperature min value.
-		Unit: millidegree Celcius
-		Read/Write value.
+temp[1-*]_min	Temperature min value.
+		Unit: millidegree Celsius
+		RW
 
-temp[1-3]_max_hyst
+temp[1-*]_max_hyst
 		Temperature hysteresis value for max limit.
-		Unit: millidegree Celcius
+		Unit: millidegree Celsius
 		Must be reported as an absolute temperature, NOT a delta
 		from the max value.
-		Read/Write value.
+		RW
 
-temp[1-4]_input Temperature input value.
-		Unit: millidegree Celcius
-		Read only value.
+temp[1-*]_input Temperature input value.
+		Unit: millidegree Celsius
+		RO
 
-temp[1-4]_crit	Temperature critical value, typically greater than
+temp[1-*]_crit	Temperature critical value, typically greater than
 		corresponding temp_max values.
-		Unit: millidegree Celcius
-		Read/Write value.
+		Unit: millidegree Celsius
+		RW
 
-temp[1-2]_crit_hyst
+temp[1-*]_crit_hyst
 		Temperature hysteresis value for critical limit.
-		Unit: millidegree Celcius
+		Unit: millidegree Celsius
 		Must be reported as an absolute temperature, NOT a delta
 		from the critical value.
+		RW
+
+temp[1-4]_offset
+		Temperature offset which is added to the temperature reading
+		by the chip.
+		Unit: millidegree Celsius
 		Read/Write value.
 
 		If there are multiple temperature sensors, temp1_* is
@@ -225,6 +260,17 @@ temp[1-2]_crit_hyst
 		itself, for example the thermal diode inside the CPU or
 		a thermistor nearby.
 
+Some chips measure temperature using external thermistors and an ADC, and
+report the temperature measurement as a voltage. Converting this voltage
+back to a temperature (or the other way around for limits) requires
+mathematical functions not available in the kernel, so the conversion
+must occur in user space. For these chips, all temp* files described
+above should contain values expressed in millivolt instead of millidegree
+Celsius. In other words, such temperature channels are handled as voltage
+channels by the driver.
+
+Also see the Alarms section for status flags associated with temperatures.
+
 
 ************
 * Currents *
@@ -233,25 +279,88 @@ temp[1-2]_crit_hyst
 Note that no known chip provides current measurements as of writing,
 so this part is theoretical, so to say.
 
-curr[1-n]_max	Current max value
+curr[1-*]_max	Current max value
 		Unit: milliampere
-		Read/Write.
+		RW
 
-curr[1-n]_min	Current min value.
+curr[1-*]_min	Current min value.
 		Unit: milliampere
-		Read/Write.
+		RW
 
-curr[1-n]_input	Current input value
+curr[1-*]_input	Current input value
 		Unit: milliampere
-		Read only.
+		RO
 
 
-*********
-* Other *
-*********
+**********
+* Alarms *
+**********
+
+Each channel or limit may have an associated alarm file, containing a
+boolean value. 1 means than an alarm condition exists, 0 means no alarm.
+
+Usually a given chip will either use channel-related alarms, or
+limit-related alarms, not both. The driver should just reflect the hardware
+implementation.
+
+in[0-*]_alarm
+fan[1-*]_alarm
+temp[1-*]_alarm
+		Channel alarm
+		0: no alarm
+		1: alarm
+		RO
+
+OR
+
+in[0-*]_min_alarm
+in[0-*]_max_alarm
+fan[1-*]_min_alarm
+temp[1-*]_min_alarm
+temp[1-*]_max_alarm
+temp[1-*]_crit_alarm
+		Limit alarm
+		0: no alarm
+		1: alarm
+		RO
+
+Each input channel may have an associated fault file. This can be used
+to notify open diodes, unconnected fans etc. where the hardware
+supports it. When this boolean has value 1, the measurement for that
+channel should not be trusted.
+
+in[0-*]_input_fault
+fan[1-*]_input_fault
+temp[1-*]_input_fault
+		Input fault condition
+		0: no fault occured
+		1: fault condition
+		RO
+
+Some chips also offer the possibility to get beeped when an alarm occurs:
+
+beep_enable	Master beep enable
+		0: no beeps
+		1: beeps
+		RW
+
+in[0-*]_beep
+fan[1-*]_beep
+temp[1-*]_beep
+		Channel beep
+		0: disable
+		1: enable
+		RW
+
+In theory, a chip could provide per-limit beep masking, but no such chip
+was seen so far.
+
+Old drivers provided a different, non-standard interface to alarms and
+beeps. These interface files are deprecated, but will be kept around
+for compatibility reasons:
 
 alarms		Alarm bitmask.
-		Read only.
+		RO
 		Integer representation of one to four bytes.
 		A '1' bit means an alarm.
 		Chips should be programmed for 'comparator' mode so that
@@ -259,35 +368,26 @@ alarms		Alarm bitmask.
 		if it is still valid.
 		Generally a direct representation of a chip's internal
 		alarm registers; there is no standard for the position
-		of individual bits.
+		of individual bits. For this reason, the use of this
+		interface file for new drivers is discouraged. Use
+		individual *_alarm and *_fault files instead.
 		Bits are defined in kernel/include/sensors.h.
 
-alarms_in	Alarm bitmask relative to in (voltage) channels
-		Read only
-		A '1' bit means an alarm, LSB corresponds to in0 and so on
-		Prefered to 'alarms' for newer chips
-
-alarms_fan	Alarm bitmask relative to fan channels
-		Read only
-		A '1' bit means an alarm, LSB corresponds to fan1 and so on
-		Prefered to 'alarms' for newer chips
-
-alarms_temp	Alarm bitmask relative to temp (temperature) channels
-		Read only
-		A '1' bit means an alarm, LSB corresponds to temp1 and so on
-		Prefered to 'alarms' for newer chips
-
-beep_enable	Beep/interrupt enable
-		0 to disable.
-		1 to enable.
-		Read/Write
-
 beep_mask	Bitmask for beep.
-		Same format as 'alarms' with the same bit locations.
-		Read/Write
+		Same format as 'alarms' with the same bit locations,
+		use discouraged for the same reason. Use individual
+		*_beep files instead.
+		RW
+
+
+*********
+* Other *
+*********
 
 eeprom		Raw EEPROM data in binary form.
-		Read only.
+		RO
 
 pec		Enable or disable PEC (SMBus only)
-		Read/Write
+		0: disable
+		1: enable
+		RW
