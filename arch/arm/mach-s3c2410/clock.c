@@ -3,7 +3,7 @@
  * Copyright (c) 2004-2005 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
  *
- * S3C2410 Clock control support
+ * S3C24XX Core clock control support
  *
  * Based on, and code from linux/arch/arm/mach-versatile/clock.c
  **
@@ -56,35 +56,10 @@ static LIST_HEAD(clocks);
 
 DEFINE_MUTEX(clocks_mutex);
 
-/* old functions */
-
-void inline s3c24xx_clk_enable(unsigned int clocks, unsigned int enable)
-{
-	unsigned long clkcon;
-
-	clkcon = __raw_readl(S3C2410_CLKCON);
-
-	if (enable)
-		clkcon |= clocks;
-	else
-		clkcon &= ~clocks;
-
-	/* ensure none of the special function bits set */
-	clkcon &= ~(S3C2410_CLKCON_IDLE|S3C2410_CLKCON_POWER | 3);
-
-	__raw_writel(clkcon, S3C2410_CLKCON);
-}
-
 /* enable and disable calls for use with the clk struct */
 
 static int clk_null_enable(struct clk *clk, int enable)
 {
-	return 0;
-}
-
-int s3c24xx_clkcon_enable(struct clk *clk, int enable)
-{
-	s3c24xx_clk_enable(clk->ctrlbit, enable);
 	return 0;
 }
 
@@ -233,28 +208,6 @@ EXPORT_SYMBOL(clk_set_rate);
 EXPORT_SYMBOL(clk_get_parent);
 EXPORT_SYMBOL(clk_set_parent);
 
-/* base clock enable */
-
-static int s3c24xx_upll_enable(struct clk *clk, int enable)
-{
-	unsigned long clkslow = __raw_readl(S3C2410_CLKSLOW);
-	unsigned long orig = clkslow;
-
-	if (enable)
-		clkslow &= ~S3C2410_CLKSLOW_UCLK_OFF;
-	else
-		clkslow |= S3C2410_CLKSLOW_UCLK_OFF;
-
-	__raw_writel(clkslow, S3C2410_CLKSLOW);
-
-	/* if we started the UPLL, then allow to settle */
-
-	if (enable && (orig & S3C2410_CLKSLOW_UCLK_OFF))
-		udelay(200);
-
-	return 0;
-}
-
 /* base clocks */
 
 static struct clk clk_xtal = {
@@ -265,15 +218,14 @@ static struct clk clk_xtal = {
 	.ctrlbit	= 0,
 };
 
-static struct clk clk_upll = {
+struct clk clk_upll = {
 	.name		= "upll",
 	.id		= -1,
 	.parent		= NULL,
-	.enable		= s3c24xx_upll_enable,
 	.ctrlbit	= 0,
 };
 
-static struct clk clk_f = {
+struct clk clk_f = {
 	.name		= "fclk",
 	.id		= -1,
 	.rate		= 0,
@@ -281,7 +233,7 @@ static struct clk clk_f = {
 	.ctrlbit	= 0,
 };
 
-static struct clk clk_h = {
+struct clk clk_h = {
 	.name		= "hclk",
 	.id		= -1,
 	.rate		= 0,
@@ -289,7 +241,7 @@ static struct clk clk_h = {
 	.ctrlbit	= 0,
 };
 
-static struct clk clk_p = {
+struct clk clk_p = {
 	.name		= "pclk",
 	.id		= -1,
 	.rate		= 0,
@@ -426,108 +378,6 @@ struct clk s3c24xx_uclk = {
 	.id		= -1,
 };
 
-
-/* standard clock definitions */
-
-static struct clk init_clocks[] = {
-	{
-		.name		= "nand",
-		.id		= -1,
-		.parent		= &clk_h,
-		.enable		= s3c24xx_clkcon_enable,
-		.ctrlbit	= S3C2410_CLKCON_NAND,
-	}, {
-		.name		= "lcd",
-		.id		= -1,
-		.parent		= &clk_h,
-		.enable		= s3c24xx_clkcon_enable,
-		.ctrlbit	= S3C2410_CLKCON_LCDC,
-	}, {
-		.name		= "usb-host",
-		.id		= -1,
-		.parent		= &clk_h,
-		.enable		= s3c24xx_clkcon_enable,
-		.ctrlbit	= S3C2410_CLKCON_USBH,
-	}, {
-		.name		= "usb-device",
-		.id		= -1,
-		.parent		= &clk_h,
-		.enable		= s3c24xx_clkcon_enable,
-		.ctrlbit	= S3C2410_CLKCON_USBD,
-	}, {
-		.name		= "timers",
-		.id		= -1,
-		.parent		= &clk_p,
-		.enable		= s3c24xx_clkcon_enable,
-		.ctrlbit	= S3C2410_CLKCON_PWMT,
-	}, {
-		.name		= "sdi",
-		.id		= -1,
-		.parent		= &clk_p,
-		.enable		= s3c24xx_clkcon_enable,
-		.ctrlbit	= S3C2410_CLKCON_SDI,
-	}, {
-		.name		= "uart",
-		.id		= 0,
-		.parent		= &clk_p,
-		.enable		= s3c24xx_clkcon_enable,
-		.ctrlbit	= S3C2410_CLKCON_UART0,
-	}, {
-		.name		= "uart",
-		.id		= 1,
-		.parent		= &clk_p,
-		.enable		= s3c24xx_clkcon_enable,
-		.ctrlbit	= S3C2410_CLKCON_UART1,
-	}, {
-		.name		= "uart",
-		.id		= 2,
-		.parent		= &clk_p,
-		.enable		= s3c24xx_clkcon_enable,
-		.ctrlbit	= S3C2410_CLKCON_UART2,
-	}, {
-		.name		= "gpio",
-		.id		= -1,
-		.parent		= &clk_p,
-		.enable		= s3c24xx_clkcon_enable,
-		.ctrlbit	= S3C2410_CLKCON_GPIO,
-	}, {
-		.name		= "rtc",
-		.id		= -1,
-		.parent		= &clk_p,
-		.enable		= s3c24xx_clkcon_enable,
-		.ctrlbit	= S3C2410_CLKCON_RTC,
-	}, {
-		.name		= "adc",
-		.id		= -1,
-		.parent		= &clk_p,
-		.enable		= s3c24xx_clkcon_enable,
-		.ctrlbit	= S3C2410_CLKCON_ADC,
-	}, {
-		.name		= "i2c",
-		.id		= -1,
-		.parent		= &clk_p,
-		.enable		= s3c24xx_clkcon_enable,
-		.ctrlbit	= S3C2410_CLKCON_IIC,
-	}, {
-		.name		= "iis",
-		.id		= -1,
-		.parent		= &clk_p,
-		.enable		= s3c24xx_clkcon_enable,
-		.ctrlbit	= S3C2410_CLKCON_IIS,
-	}, {
-		.name		= "spi",
-		.id		= -1,
-		.parent		= &clk_p,
-		.enable		= s3c24xx_clkcon_enable,
-		.ctrlbit	= S3C2410_CLKCON_SPI,
-	}, {
-		.name		= "watchdog",
-		.id		= -1,
-		.parent		= &clk_p,
-		.ctrlbit	= 0,
-	}
-};
-
 /* initialise the clock system */
 
 int s3c24xx_register_clock(struct clk *clk)
@@ -536,14 +386,6 @@ int s3c24xx_register_clock(struct clk *clk)
 
 	if (clk->enable == NULL)
 		clk->enable = clk_null_enable;
-
-	/* if this is a standard clock, set the usage state */
-
-	if (clk->ctrlbit && clk->enable == s3c24xx_clkcon_enable) {
-		unsigned long clkcon = __raw_readl(S3C2410_CLKCON);
-
-		clk->usage = (clkcon & clk->ctrlbit) ? 1 : 0;
-	}
 
 	/* add to the list of available clocks */
 
@@ -561,43 +403,16 @@ int __init s3c24xx_setup_clocks(unsigned long xtal,
 				unsigned long hclk,
 				unsigned long pclk)
 {
-	unsigned long upllcon = __raw_readl(S3C2410_UPLLCON);
-	unsigned long clkslow = __raw_readl(S3C2410_CLKSLOW);
-	struct clk *clkp = init_clocks;
-	int ptr;
-	int ret;
-
-	printk(KERN_INFO "S3C2410 Clocks, (c) 2004 Simtec Electronics\n");
+	printk(KERN_INFO "S3C24XX Clocks, (c) 2004 Simtec Electronics\n");
 
 	/* initialise the main system clocks */
 
 	clk_xtal.rate = xtal;
-	clk_upll.rate = s3c2410_get_pll(upllcon, xtal);
+	clk_upll.rate = s3c2410_get_pll(__raw_readl(S3C2410_UPLLCON), xtal);
 
 	clk_h.rate = hclk;
 	clk_p.rate = pclk;
 	clk_f.rate = fclk;
-
-	/* We must be careful disabling the clocks we are not intending to
-	 * be using at boot time, as subsytems such as the LCD which do
-	 * their own DMA requests to the bus can cause the system to lockup
-	 * if they where in the middle of requesting bus access.
-	 *
-	 * Disabling the LCD clock if the LCD is active is very dangerous,
-	 * and therefore the bootloader should be  careful to not enable
-	 * the LCD clock if it is not needed.
-	*/
-
-	mutex_lock(&clocks_mutex);
-
-	s3c24xx_clk_enable(S3C2410_CLKCON_NAND, 0);
-	s3c24xx_clk_enable(S3C2410_CLKCON_USBH, 0);
-	s3c24xx_clk_enable(S3C2410_CLKCON_USBD, 0);
-	s3c24xx_clk_enable(S3C2410_CLKCON_ADC, 0);
-	s3c24xx_clk_enable(S3C2410_CLKCON_IIC, 0);
-	s3c24xx_clk_enable(S3C2410_CLKCON_SPI, 0);
-
-	mutex_unlock(&clocks_mutex);
 
 	/* assume uart clocks are correctly setup */
 
@@ -617,28 +432,6 @@ int __init s3c24xx_setup_clocks(unsigned long xtal,
 
 	if (s3c24xx_register_clock(&clk_p) < 0)
 		printk(KERN_ERR "failed to register cpu pclk\n");
-
-
-	if (s3c24xx_register_clock(&clk_usb_bus) < 0)
-		printk(KERN_ERR "failed to register usb bus clock\n");
-
-	/* register clocks from clock array */
-
-	for (ptr = 0; ptr < ARRAY_SIZE(init_clocks); ptr++, clkp++) {
-		ret = s3c24xx_register_clock(clkp);
-		if (ret < 0) {
-			printk(KERN_ERR "Failed to register clock %s (%d)\n",
-			       clkp->name, ret);
-		}
-	}
-
-	/* show the clock-slow value */
-
-	printk("CLOCK: Slow mode (%ld.%ld MHz), %s, MPLL %s, UPLL %s\n",
-	       print_mhz(xtal / ( 2 * S3C2410_CLKSLOW_GET_SLOWVAL(clkslow))),
-	       (clkslow & S3C2410_CLKSLOW_SLOW) ? "slow" : "fast",
-	       (clkslow & S3C2410_CLKSLOW_MPLL_OFF) ? "off" : "on",
-	       (clkslow & S3C2410_CLKSLOW_UCLK_OFF) ? "off" : "on");
 
 	return 0;
 }

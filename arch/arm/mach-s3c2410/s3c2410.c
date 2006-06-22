@@ -109,6 +109,7 @@ void __init s3c2410_init_clocks(int xtal)
 	 */
 
 	s3c24xx_setup_clocks(xtal, fclk, hclk, pclk);
+	s3c2410_baseclk_add();
 }
 
 struct sysdev_class s3c2410_sysclass = {

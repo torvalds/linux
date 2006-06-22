@@ -114,9 +114,15 @@ config MACH_NEXCODER_2440
 
 endmenu
 
+config S3C2410_CLOCK
+	bool
+	help
+	  Clock code for the S3C2410, and similar processors
+
 config CPU_S3C2410
 	bool
 	depends on ARCH_S3C2410
+	select S3C2410_CLOCK
 	help
 	  Support for S3C2410 and S3C2410A family from the S3C24XX line
 	  of Samsung Mobile CPUs.
@@ -130,6 +136,7 @@ config CPU_S3C244X
 config CPU_S3C2440
 	bool
 	depends on ARCH_S3C2410
+	select S3C2410_CLOCK
 	select CPU_S3C244X
 	help
 	  Support for S3C2440 Samsung Mobile CPU based systems.
@@ -137,6 +144,7 @@ config CPU_S3C2440
 config CPU_S3C2442
 	bool
 	depends on ARCH_S3C2420
+	select S3C2410_CLOCK
 	select CPU_S3C244X
 	help
 	  Support for S3C2442 Samsung Mobile CPU based systems.
