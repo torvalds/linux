@@ -33,7 +33,7 @@ extern void cpu_probe(void);
 extern void central_probe(void);
 
 u32 sun4v_vdev_devhandle;
-int sun4v_vdev_root;
+struct device_node *sun4v_vdev_root;
 
 struct vdev_intmap {
 	unsigned int phys;
@@ -50,102 +50,68 @@ struct vdev_intmask {
 
 static struct vdev_intmap *vdev_intmap;
 static int vdev_num_intmap;
-static struct vdev_intmask vdev_intmask;
+static struct vdev_intmask *vdev_intmask;
 
 static void __init sun4v_virtual_device_probe(void)
 {
-	struct linux_prom64_registers regs;
-	struct vdev_intmap *ip;
-	int node, sz, err;
+	struct linux_prom64_registers *regs;
+	struct property *prop;
+	struct device_node *dp;
+	int sz;
 
 	if (tlb_type != hypervisor)
 		return;
 
-	node = prom_getchild(prom_root_node);
-	node = prom_searchsiblings(node, "virtual-devices");
-	if (!node) {
+	dp = of_find_node_by_name(NULL, "virtual-devices");
+	if (!dp) {
 		prom_printf("SUN4V: Fatal error, no virtual-devices node.\n");
 		prom_halt();
 	}
 
-	sun4v_vdev_root = node;
+	sun4v_vdev_root = dp;
 
-	prom_getproperty(node, "reg", (char *)&regs, sizeof(regs));
-	sun4v_vdev_devhandle = (regs.phys_addr >> 32UL) & 0x0fffffff;
+	prop = of_find_property(dp, "reg", NULL);
+	regs = prop->value;
+	sun4v_vdev_devhandle = (regs[0].phys_addr >> 32UL) & 0x0fffffff;
 
-	sz = prom_getproplen(node, "interrupt-map");
-	if (sz <= 0) {
-		prom_printf("SUN4V: Error, no vdev interrupt-map.\n");
-		prom_halt();
-	}
+	prop = of_find_property(dp, "interrupt-map", &sz);
+	vdev_intmap = prop->value;
+	vdev_num_intmap = sz / sizeof(struct vdev_intmap);
 
-	if ((sz % sizeof(*ip)) != 0) {
-		prom_printf("SUN4V: Bogus interrupt-map property size %d\n",
-			    sz);
-		prom_halt();
-	}
+	prop = of_find_property(dp, "interrupt-map-mask", NULL);
+	vdev_intmask = prop->value;
 
-	vdev_intmap = ip = alloc_bootmem_low_pages(sz);
-	if (!vdev_intmap) {
-		prom_printf("SUN4V: Error, cannot allocate vdev_intmap.\n");
-		prom_halt();
-	}
-
-	err = prom_getproperty(node, "interrupt-map", (char *) ip, sz);
-	if (err == -1) {
-		prom_printf("SUN4V: Fatal error, no vdev interrupt-map.\n");
-		prom_halt();
-	}
-	if (err != sz) {
-		prom_printf("SUN4V: Inconsistent interrupt-map size, "
-			    "proplen(%d) vs getprop(%d).\n", sz,err);
-		prom_halt();
-	}
-
-	vdev_num_intmap = err / sizeof(*ip);
-
-	err = prom_getproperty(node, "interrupt-map-mask",
-			       (char *) &vdev_intmask,
-			       sizeof(vdev_intmask));
-	if (err <= 0) {
-		prom_printf("SUN4V: Fatal error, no vdev "
-			    "interrupt-map-mask.\n");
-		prom_halt();
-	}
-	if (err % sizeof(vdev_intmask)) {
-		prom_printf("SUN4V: Bogus interrupt-map-mask "
-			    "property size %d\n", err);
-		prom_halt();
-	}
-
-	printk("SUN4V: virtual-devices devhandle[%x]\n",
-	       sun4v_vdev_devhandle);
+	printk("%s: Virtual Device Bus devhandle[%x]\n",
+	       dp->full_name, sun4v_vdev_devhandle);
 }
 
-unsigned int sun4v_vdev_device_interrupt(unsigned int dev_node)
+unsigned int sun4v_vdev_device_interrupt(struct device_node *dev_node)
 {
+	struct property *prop;
 	unsigned int irq, reg;
-	int err, i;
+	int i;
 
-	err = prom_getproperty(dev_node, "interrupts",
-			       (char *) &irq, sizeof(irq));
-	if (err <= 0) {
+	prop = of_find_property(dev_node, "interrupts", NULL);
+	if (!prop) {
 		printk("VDEV: Cannot get \"interrupts\" "
-		       "property for OBP node %x\n", dev_node);
+		       "property for OBP node %s\n",
+		       dev_node->full_name);
 		return 0;
 	}
+	irq = *(unsigned int *) prop->value;
 
-	err = prom_getproperty(dev_node, "reg",
-			       (char *) &reg, sizeof(reg));
-	if (err <= 0) {
+	prop = of_find_property(dev_node, "reg", NULL);
+	if (!prop) {
 		printk("VDEV: Cannot get \"reg\" "
-		       "property for OBP node %x\n", dev_node);
+		       "property for OBP node %s\n",
+		       dev_node->full_name);
 		return 0;
 	}
+	reg = *(unsigned int *) prop->value;
 
 	for (i = 0; i < vdev_num_intmap; i++) {
-		if (vdev_intmap[i].phys == (reg & vdev_intmask.phys) &&
-		    vdev_intmap[i].irq == (irq & vdev_intmask.interrupt)) {
+		if (vdev_intmap[i].phys == (reg & vdev_intmask->phys) &&
+		    vdev_intmap[i].irq == (irq & vdev_intmask->interrupt)) {
 			irq = vdev_intmap[i].cinterrupt;
 			break;
 		}
@@ -153,7 +119,7 @@ unsigned int sun4v_vdev_device_interrupt(unsigned int dev_node)
 
 	if (i == vdev_num_intmap) {
 		printk("VDEV: No matching interrupt map entry "
-		       "for OBP node %x\n", dev_node);
+		       "for OBP node %s\n", dev_node->full_name);
 		return 0;
 	}
 
