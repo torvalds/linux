@@ -3418,8 +3418,8 @@ static void net_dma_rebalance(void)
 /**
  * netdev_dma_event - event callback for the net_dma_client
  * @client: should always be net_dma_client
- * @chan:
- * @event:
+ * @chan: DMA channel for the event
+ * @event: event type
  */
 static void netdev_dma_event(struct dma_client *client, struct dma_chan *chan,
 	enum dma_event event)

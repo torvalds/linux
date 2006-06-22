@@ -215,6 +215,8 @@ enum {
  *	@nf_bridge: Saved data about a bridged frame - see br_netfilter.c
  *	@tc_index: Traffic control index
  *	@tc_verd: traffic control verdict
+ *	@dma_cookie: a cookie to one of several possible DMA operations
+ *		done by skb DMA functions
  *	@secmark: security marking
  */
 
