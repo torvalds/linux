@@ -155,7 +155,7 @@ static int gfs2_link(struct dentry *old_dentry, struct inode *dir,
 	if (error)
 		goto out;
 
-	error = gfs2_repermission(dir, MAY_WRITE | MAY_EXEC, NULL);
+	error = permission(dir, MAY_WRITE | MAY_EXEC, NULL);
 	if (error)
 		goto out_gunlock;
 
@@ -659,7 +659,7 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 			}
 		}
 	} else {
-		error = gfs2_repermission(ndir, MAY_WRITE | MAY_EXEC, NULL);
+		error = permission(ndir, MAY_WRITE | MAY_EXEC, NULL);
 		if (error)
 			goto out_gunlock;
 
@@ -694,7 +694,7 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 	/* Check out the dir to be renamed */
 
 	if (dir_rename) {
-		error = gfs2_repermission(odentry->d_inode, MAY_WRITE, NULL);
+		error = permission(odentry->d_inode, MAY_WRITE, NULL);
 		if (error)
 			goto out_gunlock;
 	}
@@ -888,9 +888,7 @@ static int gfs2_permission(struct inode *inode, int mask, struct nameidata *nd)
 	if (ip->i_vn == ip->i_gl->gl_vn)
 		return generic_permission(inode, mask, gfs2_check_acl);
 
-	error = gfs2_glock_nq_init(ip->i_gl,
-				   LM_ST_SHARED, LM_FLAG_ANY,
-				   &i_gh);
+	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_SHARED, LM_FLAG_ANY, &i_gh);
 	if (!error) {
 		error = generic_permission(inode, mask, gfs2_check_acl_locked);
 		gfs2_glock_dq_uninit(&i_gh);

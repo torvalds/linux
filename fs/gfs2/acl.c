@@ -179,9 +179,7 @@ int gfs2_check_acl(struct inode *inode, int mask)
 	struct gfs2_holder i_gh;
 	int error;
 
-	error = gfs2_glock_nq_init(ip->i_gl,
-				   LM_ST_SHARED, LM_FLAG_ANY,
-				   &i_gh);
+	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_SHARED, LM_FLAG_ANY, &i_gh);
 	if (!error) {
 		error = gfs2_check_acl_locked(inode, mask);
 		gfs2_glock_dq_uninit(&i_gh);

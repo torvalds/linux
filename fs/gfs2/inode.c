@@ -420,7 +420,7 @@ struct inode *gfs2_lookupi(struct inode *dir, const struct qstr *name,
 		return ERR_PTR(error);
 
 	if (!is_root) {
-		error = gfs2_repermission(dir, MAY_EXEC, NULL);
+		error = permission(dir, MAY_EXEC, NULL);
 		if (error)
 			goto out;
 	}
@@ -571,7 +571,7 @@ static int create_ok(struct gfs2_inode *dip, const struct qstr *name,
 {
 	int error;
 
-	error = gfs2_repermission(&dip->i_inode, MAY_WRITE | MAY_EXEC, NULL);
+	error = permission(&dip->i_inode, MAY_WRITE | MAY_EXEC, NULL);
 	if (error)
 		return error;
 
@@ -1003,7 +1003,7 @@ int gfs2_unlink_ok(struct gfs2_inode *dip, const struct qstr *name,
 	if (IS_APPEND(&dip->i_inode))
 		return -EPERM;
 
-	error = gfs2_repermission(&dip->i_inode, MAY_WRITE | MAY_EXEC, NULL);
+	error = permission(&dip->i_inode, MAY_WRITE | MAY_EXEC, NULL);
 	if (error)
 		return error;
 
@@ -1354,10 +1354,5 @@ int gfs2_setattr_simple(struct gfs2_inode *ip, struct iattr *attr)
 	gfs2_trans_end(GFS2_SB(&ip->i_inode));
 
 	return error;
-}
-
-int gfs2_repermission(struct inode *inode, int mask, struct nameidata *nd)
-{
-	return permission(inode, mask, nd);
 }
 

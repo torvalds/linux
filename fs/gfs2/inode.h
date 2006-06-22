@@ -50,8 +50,6 @@ int gfs2_glock_nq_m_atime(unsigned int num_gh, struct gfs2_holder *ghs);
 
 int gfs2_setattr_simple(struct gfs2_inode *ip, struct iattr *attr);
 
-int gfs2_repermission(struct inode *inode, int mask, struct nameidata *nd);
-
 struct inode *gfs2_lookup_simple(struct inode *dip, const char *name);
 
 #endif /* __INODE_DOT_H__ */
