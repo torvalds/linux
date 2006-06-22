@@ -391,6 +391,8 @@ key_ref_t search_process_keyrings(struct key_type *type,
 	struct request_key_auth *rka;
 	key_ref_t key_ref, ret, err;
 
+	might_sleep();
+
 	/* we want to return -EAGAIN or -ENOKEY if any of the keyrings were
 	 * searchable, but we failed to find a key or we found a negative key;
 	 * otherwise we want to return a sample error (probably -EACCES) if
@@ -496,27 +498,35 @@ key_ref_t search_process_keyrings(struct key_type *type,
 	 */
 	if (context->request_key_auth &&
 	    context == current &&
-	    type != &key_type_request_key_auth &&
-	    key_validate(context->request_key_auth) == 0
+	    type != &key_type_request_key_auth
 	    ) {
-		rka = context->request_key_auth->payload.data;
+		/* defend against the auth key being revoked */
+		down_read(&context->request_key_auth->sem);
 
-		key_ref = search_process_keyrings(type, description, match,
-						  rka->context);
+		if (key_validate(context->request_key_auth) == 0) {
+			rka = context->request_key_auth->payload.data;
 
-		if (!IS_ERR(key_ref))
-			goto found;
+			key_ref = search_process_keyrings(type, description,
+							  match, rka->context);
 
-		switch (PTR_ERR(key_ref)) {
-		case -EAGAIN: /* no key */
-			if (ret)
+			up_read(&context->request_key_auth->sem);
+
+			if (!IS_ERR(key_ref))
+				goto found;
+
+			switch (PTR_ERR(key_ref)) {
+			case -EAGAIN: /* no key */
+				if (ret)
+					break;
+			case -ENOKEY: /* negative key */
+				ret = key_ref;
 				break;
-		case -ENOKEY: /* negative key */
-			ret = key_ref;
-			break;
-		default:
-			err = key_ref;
-			break;
+			default:
+				err = key_ref;
+				break;
+			}
+		} else {
+			up_read(&context->request_key_auth->sem);
 		}
 	}
 

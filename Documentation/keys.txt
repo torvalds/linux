@@ -964,6 +964,16 @@ The structure has a number of fields, some of which are mandatory:
      It is not safe to sleep in this method; the caller may hold spinlocks.
 
 
+ (*) void (*revoke)(struct key *key);
+
+     This method is optional.  It is called to discard part of the payload
+     data upon a key being revoked.  The caller will have the key semaphore
+     write-locked.
+
+     It is safe to sleep in this method, though care should be taken to avoid
+     a deadlock against the key semaphore.
+
+
  (*) void (*destroy)(struct key *key);
 
      This method is optional. It is called to discard the payload data on a key

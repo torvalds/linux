@@ -205,6 +205,11 @@ struct key_type {
 	/* match a key against a description */
 	int (*match)(const struct key *key, const void *desc);
 
+	/* clear some of the data from a key on revokation (optional)
+	 * - the key's semaphore will be write-locked by the caller
+	 */
+	void (*revoke)(struct key *key);
+
 	/* clear the data from a key (optional) */
 	void (*destroy)(struct key *key);
 

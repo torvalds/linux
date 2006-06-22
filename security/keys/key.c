@@ -907,6 +907,10 @@ void key_revoke(struct key *key)
 	 * it */
 	down_write(&key->sem);
 	set_bit(KEY_FLAG_REVOKED, &key->flags);
+
+	if (key->type->revoke)
+		key->type->revoke(key);
+
 	up_write(&key->sem);
 
 } /* end key_revoke() */
