@@ -125,7 +125,7 @@ static void __init ep93xx_timer_init(void)
 {
 	/* Enable periodic HZ timer.  */
 	__raw_writel(0x48, EP93XX_TIMER1_CONTROL);
-	__raw_writel((508000 / HZ) - 1, EP93XX_TIMER1_LOAD);
+	__raw_writel((508469 / HZ) - 1, EP93XX_TIMER1_LOAD);
 	__raw_writel(0xc8, EP93XX_TIMER1_CONTROL);
 
 	/* Enable lost jiffy timer.  */
