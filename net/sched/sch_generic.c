@@ -96,8 +96,11 @@ static inline int qdisc_restart(struct net_device *dev)
 	struct sk_buff *skb;
 
 	/* Dequeue packet */
-	if ((skb = q->dequeue(q)) != NULL) {
+	if (((skb = dev->gso_skb)) || ((skb = q->dequeue(q)))) {
 		unsigned nolock = (dev->features & NETIF_F_LLTX);
+
+		dev->gso_skb = NULL;
+
 		/*
 		 * When the driver has LLTX set it does its own locking
 		 * in start_xmit. No need to add additional overhead by
@@ -134,10 +137,8 @@ static inline int qdisc_restart(struct net_device *dev)
 
 			if (!netif_queue_stopped(dev)) {
 				int ret;
-				if (netdev_nit)
-					dev_queue_xmit_nit(skb, dev);
 
-				ret = dev->hard_start_xmit(skb, dev);
+				ret = dev_hard_start_xmit(skb, dev);
 				if (ret == NETDEV_TX_OK) { 
 					if (!nolock) {
 						netif_tx_unlock(dev);
@@ -171,7 +172,10 @@ static inline int qdisc_restart(struct net_device *dev)
 		 */
 
 requeue:
-		q->ops->requeue(skb, q);
+		if (skb->next)
+			dev->gso_skb = skb;
+		else
+			q->ops->requeue(skb, q);
 		netif_schedule(dev);
 		return 1;
 	}
@@ -593,6 +597,11 @@ void dev_deactivate(struct net_device *dev)
 	/* Wait for outstanding qdisc_run calls. */
 	while (test_bit(__LINK_STATE_QDISC_RUNNING, &dev->state))
 		yield();
+
+	if (dev->gso_skb) {
+		kfree_skb(dev->gso_skb);
+		dev->gso_skb = NULL;
+	}
 }
 
 void dev_init_scheduler(struct net_device *dev)

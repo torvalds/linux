@@ -116,6 +116,7 @@
 #include <asm/current.h>
 #include <linux/audit.h>
 #include <linux/dmaengine.h>
+#include <linux/err.h>
 
 /*
  *	The list of packet types we will receive (as opposed to discard)
@@ -1048,7 +1049,7 @@ static inline void net_timestamp(struct sk_buff *skb)
  *	taps currently in use.
  */
 
-void dev_queue_xmit_nit(struct sk_buff *skb, struct net_device *dev)
+static void dev_queue_xmit_nit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct packet_type *ptype;
 
@@ -1186,6 +1187,40 @@ out:
 	return ret;
 }
 
+/**
+ *	skb_gso_segment - Perform segmentation on skb.
+ *	@skb: buffer to segment
+ *	@sg: whether scatter-gather is supported on the target.
+ *
+ *	This function segments the given skb and returns a list of segments.
+ */
+struct sk_buff *skb_gso_segment(struct sk_buff *skb, int sg)
+{
+	struct sk_buff *segs = ERR_PTR(-EPROTONOSUPPORT);
+	struct packet_type *ptype;
+	int type = skb->protocol;
+
+	BUG_ON(skb_shinfo(skb)->frag_list);
+	BUG_ON(skb->ip_summed != CHECKSUM_HW);
+
+	skb->mac.raw = skb->data;
+	skb->mac_len = skb->nh.raw - skb->data;
+	__skb_pull(skb, skb->mac_len);
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(ptype, &ptype_base[ntohs(type) & 15], list) {
+		if (ptype->type == type && !ptype->dev && ptype->gso_segment) {
+			segs = ptype->gso_segment(skb, sg);
+			break;
+		}
+	}
+	rcu_read_unlock();
+
+	return segs;
+}
+
+EXPORT_SYMBOL(skb_gso_segment);
+
 /* Take action when hardware reception checksum errors are detected. */
 #ifdef CONFIG_BUG
 void netdev_rx_csum_fault(struct net_device *dev)
@@ -1221,6 +1256,86 @@ static inline int illegal_highdma(struct net_device *dev, struct sk_buff *skb)
 #else
 #define illegal_highdma(dev, skb)	(0)
 #endif
+
+struct dev_gso_cb {
+	void (*destructor)(struct sk_buff *skb);
+};
+
+#define DEV_GSO_CB(skb) ((struct dev_gso_cb *)(skb)->cb)
+
+static void dev_gso_skb_destructor(struct sk_buff *skb)
+{
+	struct dev_gso_cb *cb;
+
+	do {
+		struct sk_buff *nskb = skb->next;
+
+		skb->next = nskb->next;
+		nskb->next = NULL;
+		kfree_skb(nskb);
+	} while (skb->next);
+
+	cb = DEV_GSO_CB(skb);
+	if (cb->destructor)
+		cb->destructor(skb);
+}
+
+/**
+ *	dev_gso_segment - Perform emulated hardware segmentation on skb.
+ *	@skb: buffer to segment
+ *
+ *	This function segments the given skb and stores the list of segments
+ *	in skb->next.
+ */
+static int dev_gso_segment(struct sk_buff *skb)
+{
+	struct net_device *dev = skb->dev;
+	struct sk_buff *segs;
+
+	segs = skb_gso_segment(skb, dev->features & NETIF_F_SG &&
+				    !illegal_highdma(dev, skb));
+	if (unlikely(IS_ERR(segs)))
+		return PTR_ERR(segs);
+
+	skb->next = segs;
+	DEV_GSO_CB(skb)->destructor = skb->destructor;
+	skb->destructor = dev_gso_skb_destructor;
+
+	return 0;
+}
+
+int dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
+{
+	if (likely(!skb->next)) {
+		if (netdev_nit)
+			dev_queue_xmit_nit(skb, dev);
+
+		if (!netif_needs_gso(dev, skb))
+			return dev->hard_start_xmit(skb, dev);
+
+		if (unlikely(dev_gso_segment(skb)))
+			goto out_kfree_skb;
+	}
+
+	do {
+		struct sk_buff *nskb = skb->next;
+		int rc;
+
+		skb->next = nskb->next;
+		nskb->next = NULL;
+		rc = dev->hard_start_xmit(nskb, dev);
+		if (unlikely(rc)) {
+			skb->next = nskb;
+			return rc;
+		}
+	} while (skb->next);
+	
+	skb->destructor = DEV_GSO_CB(skb)->destructor;
+
+out_kfree_skb:
+	kfree_skb(skb);
+	return 0;
+}
 
 #define HARD_TX_LOCK(dev, cpu) {			\
 	if ((dev->features & NETIF_F_LLTX) == 0) {	\
@@ -1266,6 +1381,10 @@ int dev_queue_xmit(struct sk_buff *skb)
 	struct Qdisc *q;
 	int rc = -ENOMEM;
 
+	/* GSO will handle the following emulations directly. */
+	if (netif_needs_gso(dev, skb))
+		goto gso;
+
 	if (skb_shinfo(skb)->frag_list &&
 	    !(dev->features & NETIF_F_FRAGLIST) &&
 	    __skb_linearize(skb))
@@ -1290,6 +1409,7 @@ int dev_queue_xmit(struct sk_buff *skb)
 	      	if (skb_checksum_help(skb, 0))
 	      		goto out_kfree_skb;
 
+gso:
 	spin_lock_prefetch(&dev->queue_lock);
 
 	/* Disable soft irqs for various locks below. Also 
@@ -1346,11 +1466,8 @@ int dev_queue_xmit(struct sk_buff *skb)
 			HARD_TX_LOCK(dev, cpu);
 
 			if (!netif_queue_stopped(dev)) {
-				if (netdev_nit)
-					dev_queue_xmit_nit(skb, dev);
-
 				rc = 0;
-				if (!dev->hard_start_xmit(skb, dev)) {
+				if (!dev_hard_start_xmit(skb, dev)) {
 					HARD_TX_UNLOCK(dev);
 					goto out;
 				}

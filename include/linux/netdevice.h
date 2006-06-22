@@ -405,6 +405,9 @@ struct net_device
 	struct list_head	qdisc_list;
 	unsigned long		tx_queue_len;	/* Max frames per queue allowed */
 
+	/* Partially transmitted GSO packet. */
+	struct sk_buff		*gso_skb;
+
 	/* ingress path synchronizer */
 	spinlock_t		ingress_lock;
 	struct Qdisc		*qdisc_ingress;
@@ -539,6 +542,7 @@ struct packet_type {
 					 struct net_device *,
 					 struct packet_type *,
 					 struct net_device *);
+	struct sk_buff		*(*gso_segment)(struct sk_buff *skb, int sg);
 	void			*af_packet_priv;
 	struct list_head	list;
 };
@@ -689,7 +693,8 @@ extern int		dev_change_name(struct net_device *, char *);
 extern int		dev_set_mtu(struct net_device *, int);
 extern int		dev_set_mac_address(struct net_device *,
 					    struct sockaddr *);
-extern void		dev_queue_xmit_nit(struct sk_buff *skb, struct net_device *dev);
+extern int		dev_hard_start_xmit(struct sk_buff *skb,
+					    struct net_device *dev);
 
 extern void		dev_init(void);
 
@@ -963,6 +968,7 @@ extern int		netdev_max_backlog;
 extern int		weight_p;
 extern int		netdev_set_master(struct net_device *dev, struct net_device *master);
 extern int skb_checksum_help(struct sk_buff *skb, int inward);
+extern struct sk_buff *skb_gso_segment(struct sk_buff *skb, int sg);
 #ifdef CONFIG_BUG
 extern void netdev_rx_csum_fault(struct net_device *dev);
 #else
