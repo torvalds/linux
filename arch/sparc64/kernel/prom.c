@@ -104,6 +104,18 @@ struct property *of_find_property(struct device_node *np, const char *name,
 	return pp;
 }
 
+int of_getintprop_default(struct device_node *np, const char *name, int def)
+{
+	struct property *prop;
+	int len;
+
+	prop = of_find_property(np, name, &len);
+	if (!prop || len != 4)
+		return def;
+
+	return *(int *) prop->value;
+}
+
 static unsigned int prom_early_allocated;
 
 static void * __init prom_early_alloc(unsigned long size)

@@ -82,6 +82,9 @@ extern struct device_node *of_get_next_child(const struct device_node *node,
 extern struct property *of_find_property(struct device_node *np,
 					 const char *name,
 					 int *lenp);
+extern int of_getintprop_default(struct device_node *np,
+				 const char *name,
+				 int def);
 
 extern void prom_build_devicetree(void);
 
