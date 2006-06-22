@@ -2206,63 +2206,6 @@ int lock_may_write(struct inode *inode, loff_t start, unsigned long len)
 
 EXPORT_SYMBOL(lock_may_write);
 
-static inline void __steal_locks(struct file *file, fl_owner_t from)
-{
-	struct inode *inode = file->f_dentry->d_inode;
-	struct file_lock *fl = inode->i_flock;
-
-	while (fl) {
-		if (fl->fl_file == file && fl->fl_owner == from)
-			fl->fl_owner = current->files;
-		fl = fl->fl_next;
-	}
-}
-
-/* When getting ready for executing a binary, we make sure that current
- * has a files_struct on its own. Before dropping the old files_struct,
- * we take over ownership of all locks for all file descriptors we own.
- * Note that we may accidentally steal a lock for a file that a sibling
- * has created since the unshare_files() call.
- */
-void steal_locks(fl_owner_t from)
-{
-	struct files_struct *files = current->files;
-	int i, j;
-	struct fdtable *fdt;
-
-	if (from == files)
-		return;
-
-	lock_kernel();
-	j = 0;
-
-	/*
-	 * We are not taking a ref to the file structures, so
-	 * we need to acquire ->file_lock.
-	 */
-	spin_lock(&files->file_lock);
-	fdt = files_fdtable(files);
-	for (;;) {
-		unsigned long set;
-		i = j * __NFDBITS;
-		if (i >= fdt->max_fdset || i >= fdt->max_fds)
-			break;
-		set = fdt->open_fds->fds_bits[j++];
-		while (set) {
-			if (set & 1) {
-				struct file *file = fdt->fd[i];
-				if (file)
-					__steal_locks(file, from);
-			}
-			i++;
-			set >>= 1;
-		}
-	}
-	spin_unlock(&files->file_lock);
-	unlock_kernel();
-}
-EXPORT_SYMBOL(steal_locks);
-
 static int __init filelock_init(void)
 {
 	filelock_cache = kmem_cache_create("file_lock_cache",
