@@ -48,6 +48,7 @@
 #include <asm/sections.h>
 #include <asm/cpudata.h>
 #include <asm/uaccess.h>
+#include <asm/prom.h>
 
 DEFINE_SPINLOCK(mostek_lock);
 DEFINE_SPINLOCK(rtc_lock);
@@ -983,12 +984,14 @@ try_isa_clock:
 /* This is gets the master TICK_INT timer going. */
 static unsigned long sparc64_init_timers(void)
 {
+	struct device_node *dp;
+	struct property *prop;
 	unsigned long clock;
-	int node;
 #ifdef CONFIG_SMP
 	extern void smp_tick_init(void);
 #endif
 
+	dp = of_find_node_by_path("/");
 	if (tlb_type == spitfire) {
 		unsigned long ver, manuf, impl;
 
@@ -999,18 +1002,17 @@ static unsigned long sparc64_init_timers(void)
 		if (manuf == 0x17 && impl == 0x13) {
 			/* Hummingbird, aka Ultra-IIe */
 			tick_ops = &hbtick_operations;
-			node = prom_root_node;
-			clock = prom_getint(node, "stick-frequency");
+			prop = of_find_property(dp, "stick-frequency", NULL);
 		} else {
 			tick_ops = &tick_operations;
-			cpu_find_by_instance(0, &node, NULL);
-			clock = prom_getint(node, "clock-frequency");
+			cpu_find_by_instance(0, &dp, NULL);
+			prop = of_find_property(dp, "clock-frequency", NULL);
 		}
 	} else {
 		tick_ops = &stick_operations;
-		node = prom_root_node;
-		clock = prom_getint(node, "stick-frequency");
+		prop = of_find_property(dp, "stick-frequency", NULL);
 	}
+	clock = *(unsigned int *) prop->value;
 	timer_tick_offset = clock / HZ;
 
 #ifdef CONFIG_SMP

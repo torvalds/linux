@@ -1455,16 +1455,13 @@ void sabre_init(struct device_node *dp, char *model_name)
 				hummingbird_p = 1;
 		}
 		if (!hummingbird_p) {
-			char compat[64];
-			int cpu_node;
+			struct device_node *dp;
 
 			/* Of course, Sun has to encode things a thousand
 			 * different ways, inconsistently.
 			 */
-			cpu_find_by_instance(0, &cpu_node, NULL);
-			if (prom_getproperty(cpu_node, "name",
-					     compat, sizeof(compat)) > 0 &&
-			    !strcmp(compat, "SUNW,UltraSPARC-IIe"))
+			cpu_find_by_instance(0, &dp, NULL);
+			if (!strcmp(dp->name, "SUNW,UltraSPARC-IIe"))
 				hummingbird_p = 1;
 		}
 	}
