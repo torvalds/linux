@@ -334,7 +334,7 @@ void __init ixp23xx_init_irq(void)
 /*************************************************************************
  * Timer-tick functions for IXP23xx
  *************************************************************************/
-#define CLOCK_TICKS_PER_USEC	CLOCK_TICK_RATE / (USEC_PER_SEC)
+#define CLOCK_TICKS_PER_USEC	(CLOCK_TICK_RATE / USEC_PER_SEC)
 
 static unsigned long next_jiffy_time;
 
@@ -353,7 +353,7 @@ ixp23xx_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
 	/* Clear Pending Interrupt by writing '1' to it */
 	*IXP23XX_TIMER_STATUS = IXP23XX_TIMER1_INT_PEND;
-	while ((*IXP23XX_TIMER_CONT - next_jiffy_time) > LATCH) {
+	while ((signed long)(*IXP23XX_TIMER_CONT - next_jiffy_time) >= LATCH) {
 		timer_tick(regs);
 		next_jiffy_time += LATCH;
 	}
