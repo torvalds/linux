@@ -15,7 +15,7 @@ config GFS2_FS
 
 	To use the GFS2 filesystem, you will need to enable one or more of
 	the below locking modules. Documentation and utilities for GFS2 can
-	be found here: http://sources.redhat.com/cluster/gfs/
+	be found here: http://sources.redhat.com/cluster
 
 config GFS2_FS_LOCKING_NOLOCK
 	tristate "GFS2 \"nolock\" locking module"
