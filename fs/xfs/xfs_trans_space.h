@@ -30,8 +30,7 @@
 	  XFS_EXTENTADD_SPACE_RES(mp,w))
 #define	XFS_DAENTER_1B(mp,w)	((w) == XFS_DATA_FORK ? (mp)->m_dirblkfsbs : 1)
 #define	XFS_DAENTER_DBS(mp,w)	\
-	(XFS_DA_NODE_MAXDEPTH + \
-	 ((XFS_DIR_IS_V2(mp) && (w) == XFS_DATA_FORK) ? 2 : 0))
+	(XFS_DA_NODE_MAXDEPTH + (((w) == XFS_DATA_FORK) ? 2 : 0))
 #define	XFS_DAENTER_BLOCKS(mp,w)	\
 	(XFS_DAENTER_1B(mp,w) * XFS_DAENTER_DBS(mp,w))
 #define	XFS_DAENTER_BMAP1B(mp,w)	\
@@ -41,10 +40,7 @@
 #define	XFS_DAENTER_SPACE_RES(mp,w)	\
 	(XFS_DAENTER_BLOCKS(mp,w) + XFS_DAENTER_BMAPS(mp,w))
 #define	XFS_DAREMOVE_SPACE_RES(mp,w)	XFS_DAENTER_BMAPS(mp,w)
-#define	XFS_DIRENTER_MAX_SPLIT(mp,nl)	\
-	(((mp)->m_sb.sb_blocksize == 512 && \
-	  XFS_DIR_IS_V1(mp) && \
-	  (nl) >= XFS_DIR_LEAF_CAN_DOUBLE_SPLIT_LEN) ? 2 : 1)
+#define	XFS_DIRENTER_MAX_SPLIT(mp,nl)	1
 #define	XFS_DIRENTER_SPACE_RES(mp,nl)	\
 	(XFS_DAENTER_SPACE_RES(mp, XFS_DATA_FORK) * \
 	 XFS_DIRENTER_MAX_SPLIT(mp,nl))
@@ -57,8 +53,7 @@
  * Space reservation values for various transactions.
  */
 #define	XFS_ADDAFORK_SPACE_RES(mp)	\
-	((mp)->m_dirblkfsbs + \
-	 (XFS_DIR_IS_V1(mp) ? 0 : XFS_DAENTER_BMAP1B(mp, XFS_DATA_FORK)))
+	((mp)->m_dirblkfsbs + XFS_DAENTER_BMAP1B(mp, XFS_DATA_FORK))
 #define	XFS_ATTRRM_SPACE_RES(mp)	\
 	XFS_DAREMOVE_SPACE_RES(mp, XFS_ATTR_FORK)
 /* This macro is not used - see inline code in xfs_attr_set */

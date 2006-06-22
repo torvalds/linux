@@ -23,7 +23,6 @@
 #include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
-#include "xfs_dir.h"
 #include "xfs_dir2.h"
 #include "xfs_alloc.h"
 #include "xfs_dmapi.h"
@@ -32,7 +31,6 @@
 #include "xfs_bmap_btree.h"
 #include "xfs_alloc_btree.h"
 #include "xfs_ialloc_btree.h"
-#include "xfs_dir_sf.h"
 #include "xfs_dir2_sf.h"
 #include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
@@ -61,7 +59,7 @@
  */
 xfs_inode_t *
 xfs_vtoi(
-	struct vnode	*vp)
+	bhv_vnode_t	*vp)
 {
 	bhv_desc_t      *bdp;
 
@@ -80,7 +78,7 @@ void
 xfs_synchronize_atime(
 	xfs_inode_t	*ip)
 {
-	vnode_t		*vp;
+	bhv_vnode_t	*vp;
 
 	vp = XFS_ITOV_NULL(ip);
 	if (vp) {
@@ -200,14 +198,10 @@ xfs_ichgtime_fast(
 STATIC void
 xfs_validate_fields(
 	struct inode	*ip,
-	struct vattr	*vattr)
+	bhv_vattr_t	*vattr)
 {
-	vnode_t		*vp = vn_from_inode(ip);
-	int		error;
-
 	vattr->va_mask = XFS_AT_NLINK|XFS_AT_SIZE|XFS_AT_NBLOCKS;
-	VOP_GETATTR(vp, vattr, ATTR_LAZY, NULL, error);
-  	if (likely(!error)) {
+	if (!bhv_vop_getattr(vn_from_inode(ip), vattr, ATTR_LAZY, NULL)) {
 		ip->i_nlink = vattr->va_nlink;
 		ip->i_blocks = vattr->va_nblocks;
 
@@ -225,7 +219,7 @@ xfs_validate_fields(
  */
 STATIC int
 xfs_init_security(
-	struct vnode	*vp,
+	bhv_vnode_t	*vp,
 	struct inode	*dir)
 {
 	struct inode	*ip = vn_to_inode(vp);
@@ -241,7 +235,7 @@ xfs_init_security(
 		return -error;
 	}
 
-	VOP_ATTR_SET(vp, name, value, length, ATTR_SECURE, NULL, error);
+	error = bhv_vop_attr_set(vp, name, value, length, ATTR_SECURE, NULL);
 	if (!error)
 		VMODIFY(vp);
 
@@ -264,13 +258,12 @@ xfs_has_fs_struct(struct task_struct *task)
 
 STATIC inline void
 xfs_cleanup_inode(
-	vnode_t		*dvp,
-	vnode_t		*vp,
+	bhv_vnode_t	*dvp,
+	bhv_vnode_t	*vp,
 	struct dentry	*dentry,
 	int		mode)
 {
 	struct dentry   teardown = {};
-	int             error;
 
 	/* Oh, the horror.
 	 * If we can't add the ACL or we fail in
@@ -281,9 +274,9 @@ xfs_cleanup_inode(
 	teardown.d_name = dentry->d_name;
 
 	if (S_ISDIR(mode))
-	  	VOP_RMDIR(dvp, &teardown, NULL, error);
+	  	bhv_vop_rmdir(dvp, &teardown, NULL);
 	else
-		VOP_REMOVE(dvp, &teardown, NULL, error);
+		bhv_vop_remove(dvp, &teardown, NULL);
 	VN_RELE(vp);
 }
 
@@ -295,8 +288,8 @@ xfs_vn_mknod(
 	dev_t		rdev)
 {
 	struct inode	*ip;
-	vattr_t		vattr = { 0 };
-	vnode_t		*vp = NULL, *dvp = vn_from_inode(dir);
+	bhv_vattr_t	vattr = { 0 };
+	bhv_vnode_t	*vp = NULL, *dvp = vn_from_inode(dir);
 	xfs_acl_t	*default_acl = NULL;
 	attrexists_t	test_default_acl = _ACL_DEFAULT_EXISTS;
 	int		error;
@@ -330,10 +323,10 @@ xfs_vn_mknod(
 		vattr.va_mask |= XFS_AT_RDEV;
 		/*FALLTHROUGH*/
 	case S_IFREG:
-		VOP_CREATE(dvp, dentry, &vattr, &vp, NULL, error);
+		error = bhv_vop_create(dvp, dentry, &vattr, &vp, NULL);
 		break;
 	case S_IFDIR:
-		VOP_MKDIR(dvp, dentry, &vattr, &vp, NULL, error);
+		error = bhv_vop_mkdir(dvp, dentry, &vattr, &vp, NULL);
 		break;
 	default:
 		error = EINVAL;
@@ -396,14 +389,14 @@ xfs_vn_lookup(
 	struct dentry	*dentry,
 	struct nameidata *nd)
 {
-	struct vnode	*vp = vn_from_inode(dir), *cvp;
+	bhv_vnode_t	*vp = vn_from_inode(dir), *cvp;
 	int		error;
 
 	if (dentry->d_name.len >= MAXNAMELEN)
 		return ERR_PTR(-ENAMETOOLONG);
 
-	VOP_LOOKUP(vp, dentry, &cvp, 0, NULL, NULL, error);
-	if (error) {
+	error = bhv_vop_lookup(vp, dentry, &cvp, 0, NULL, NULL);
+	if (unlikely(error)) {
 		if (unlikely(error != ENOENT))
 			return ERR_PTR(-error);
 		d_add(dentry, NULL);
@@ -420,9 +413,9 @@ xfs_vn_link(
 	struct dentry	*dentry)
 {
 	struct inode	*ip;	/* inode of guy being linked to */
-	vnode_t		*tdvp;	/* target directory for new name/link */
-	vnode_t		*vp;	/* vp of name being linked */
-	vattr_t		vattr;
+	bhv_vnode_t	*tdvp;	/* target directory for new name/link */
+	bhv_vnode_t	*vp;	/* vp of name being linked */
+	bhv_vattr_t	vattr;
 	int		error;
 
 	ip = old_dentry->d_inode;	/* inode being linked to */
@@ -432,7 +425,7 @@ xfs_vn_link(
 	tdvp = vn_from_inode(dir);
 	vp = vn_from_inode(ip);
 
-	VOP_LINK(tdvp, vp, dentry, NULL, error);
+	error = bhv_vop_link(tdvp, vp, dentry, NULL);
 	if (likely(!error)) {
 		VMODIFY(tdvp);
 		VN_HOLD(vp);
@@ -448,14 +441,14 @@ xfs_vn_unlink(
 	struct dentry	*dentry)
 {
 	struct inode	*inode;
-	vnode_t		*dvp;	/* directory containing name to remove */
-	vattr_t		vattr;
+	bhv_vnode_t	*dvp;	/* directory containing name to remove */
+	bhv_vattr_t	vattr;
 	int		error;
 
 	inode = dentry->d_inode;
 	dvp = vn_from_inode(dir);
 
-	VOP_REMOVE(dvp, dentry, NULL, error);
+	error = bhv_vop_remove(dvp, dentry, NULL);
 	if (likely(!error)) {
 		xfs_validate_fields(dir, &vattr);	/* size needs update */
 		xfs_validate_fields(inode, &vattr);
@@ -470,27 +463,26 @@ xfs_vn_symlink(
 	const char	*symname)
 {
 	struct inode	*ip;
-	vattr_t		vattr = { 0 };
-	vnode_t		*dvp;	/* directory containing name of symlink */
-	vnode_t		*cvp;	/* used to lookup symlink to put in dentry */
+	bhv_vattr_t	va = { 0 };
+	bhv_vnode_t	*dvp;	/* directory containing name of symlink */
+	bhv_vnode_t	*cvp;	/* used to lookup symlink to put in dentry */
 	int		error;
 
 	dvp = vn_from_inode(dir);
 	cvp = NULL;
 
-	vattr.va_mode = S_IFLNK |
+	va.va_mode = S_IFLNK |
 		(irix_symlink_mode ? 0777 & ~current->fs->umask : S_IRWXUGO);
-	vattr.va_mask = XFS_AT_TYPE|XFS_AT_MODE;
+	va.va_mask = XFS_AT_TYPE|XFS_AT_MODE;
 
-	error = 0;
-	VOP_SYMLINK(dvp, dentry, &vattr, (char *)symname, &cvp, NULL, error);
+	error = bhv_vop_symlink(dvp, dentry, &va, (char *)symname, &cvp, NULL);
 	if (likely(!error && cvp)) {
 		error = xfs_init_security(cvp, dir);
 		if (likely(!error)) {
 			ip = vn_to_inode(cvp);
 			d_instantiate(dentry, ip);
-			xfs_validate_fields(dir, &vattr);
-			xfs_validate_fields(ip, &vattr);
+			xfs_validate_fields(dir, &va);
+			xfs_validate_fields(ip, &va);
 		} else {
 			xfs_cleanup_inode(dvp, cvp, dentry, 0);
 		}
@@ -504,11 +496,11 @@ xfs_vn_rmdir(
 	struct dentry	*dentry)
 {
 	struct inode	*inode = dentry->d_inode;
-	vnode_t		*dvp = vn_from_inode(dir);
-	vattr_t		vattr;
+	bhv_vnode_t	*dvp = vn_from_inode(dir);
+	bhv_vattr_t	vattr;
 	int		error;
 
-	VOP_RMDIR(dvp, dentry, NULL, error);
+	error = bhv_vop_rmdir(dvp, dentry, NULL);
 	if (likely(!error)) {
 		xfs_validate_fields(inode, &vattr);
 		xfs_validate_fields(dir, &vattr);
@@ -524,15 +516,15 @@ xfs_vn_rename(
 	struct dentry	*ndentry)
 {
 	struct inode	*new_inode = ndentry->d_inode;
-	vnode_t		*fvp;	/* from directory */
-	vnode_t		*tvp;	/* target directory */
-	vattr_t		vattr;
+	bhv_vnode_t	*fvp;	/* from directory */
+	bhv_vnode_t	*tvp;	/* target directory */
+	bhv_vattr_t	vattr;
 	int		error;
 
 	fvp = vn_from_inode(odir);
 	tvp = vn_from_inode(ndir);
 
-	VOP_RENAME(fvp, odentry, tvp, ndentry, NULL, error);
+	error = bhv_vop_rename(fvp, odentry, tvp, ndentry, NULL);
 	if (likely(!error)) {
 		if (new_inode)
 			xfs_validate_fields(new_inode, &vattr);
@@ -553,7 +545,7 @@ xfs_vn_follow_link(
 	struct dentry		*dentry,
 	struct nameidata	*nd)
 {
-	vnode_t			*vp;
+	bhv_vnode_t		*vp;
 	uio_t			*uio;
 	iovec_t			iov;
 	int			error;
@@ -586,8 +578,8 @@ xfs_vn_follow_link(
 	uio->uio_resid = MAXPATHLEN;
 	uio->uio_iovcnt = 1;
 
-	VOP_READLINK(vp, uio, 0, NULL, error);
-	if (error) {
+	error = bhv_vop_readlink(vp, uio, 0, NULL);
+	if (unlikely(error)) {
 		kfree(link);
 		link = ERR_PTR(-error);
 	} else {
@@ -618,12 +610,7 @@ xfs_vn_permission(
 	int		mode,
 	struct nameidata *nd)
 {
-	vnode_t		*vp = vn_from_inode(inode);
-	int		error;
-
-	mode <<= 6;		/* convert from linux to vnode access bits */
-	VOP_ACCESS(vp, mode, NULL, error);
-	return -error;
+	return -bhv_vop_access(vn_from_inode(inode), mode << 6, NULL);
 }
 #else
 #define xfs_vn_permission NULL
@@ -636,14 +623,14 @@ xfs_vn_getattr(
 	struct kstat	*stat)
 {
 	struct inode	*inode = dentry->d_inode;
-	vnode_t		*vp = vn_from_inode(inode);
+	bhv_vnode_t	*vp = vn_from_inode(inode);
 	int		error = 0;
 
 	if (unlikely(vp->v_flag & VMODIFIED))
 		error = vn_revalidate(vp);
 	if (!error)
 		generic_fillattr(inode, stat);
-	return 0;
+	return -error;
 }
 
 STATIC int
@@ -653,8 +640,8 @@ xfs_vn_setattr(
 {
 	struct inode	*inode = dentry->d_inode;
 	unsigned int	ia_valid = attr->ia_valid;
-	vnode_t		*vp = vn_from_inode(inode);
-	vattr_t		vattr = { 0 };
+	bhv_vnode_t	*vp = vn_from_inode(inode);
+	bhv_vattr_t	vattr = { 0 };
 	int		flags = 0;
 	int		error;
 
@@ -697,7 +684,7 @@ xfs_vn_setattr(
 		flags |= ATTR_NONBLOCK;
 #endif
 
-	VOP_SETATTR(vp, &vattr, flags, NULL, error);
+	error = bhv_vop_setattr(vp, &vattr, flags, NULL);
 	if (likely(!error))
 		__vn_revalidate(vp, &vattr);
 	return -error;
@@ -718,7 +705,7 @@ xfs_vn_setxattr(
 	size_t		size,
 	int		flags)
 {
-	vnode_t		*vp = vn_from_inode(dentry->d_inode);
+	bhv_vnode_t	*vp = vn_from_inode(dentry->d_inode);
 	char		*attr = (char *)name;
 	attrnames_t	*namesp;
 	int		xflags = 0;
@@ -748,7 +735,7 @@ xfs_vn_getxattr(
 	void		*data,
 	size_t		size)
 {
-	vnode_t		*vp = vn_from_inode(dentry->d_inode);
+	bhv_vnode_t	*vp = vn_from_inode(dentry->d_inode);
 	char		*attr = (char *)name;
 	attrnames_t	*namesp;
 	int		xflags = 0;
@@ -777,7 +764,7 @@ xfs_vn_listxattr(
 	char			*data,
 	size_t			size)
 {
-	vnode_t			*vp = vn_from_inode(dentry->d_inode);
+	bhv_vnode_t		*vp = vn_from_inode(dentry->d_inode);
 	int			error, xflags = ATTR_KERNAMELS;
 	ssize_t			result;
 
@@ -796,7 +783,7 @@ xfs_vn_removexattr(
 	struct dentry	*dentry,
 	const char	*name)
 {
-	vnode_t		*vp = vn_from_inode(dentry->d_inode);
+	bhv_vnode_t	*vp = vn_from_inode(dentry->d_inode);
 	char		*attr = (char *)name;
 	attrnames_t	*namesp;
 	int		xflags = 0;
