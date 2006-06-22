@@ -1,0 +1,98 @@
+Userspace communication protocol over connector [1].
+
+
+Message types.
+=============
+
+There are three types of messages between w1 core and userspace:
+1. Events. They are generated each time new master or slave device found
+	either due to automatic or requested search.
+2. Userspace commands. Includes read/write and search/alarm search comamnds.
+3. Replies to userspace commands.
+
+
+Protocol.
+========
+
+[struct cn_msg] - connector header. It's length field is equal to size of the attached data.
+[struct w1_netlink_msg] - w1 netlink header.
+	__u8 type 	- message type.
+			W1_SLAVE_ADD/W1_SLAVE_REMOVE - slave add/remove events.
+			W1_MASTER_ADD/W1_MASTER_REMOVE - master add/remove events.
+			W1_MASTER_CMD - userspace command for bus master device (search/alarm search).
+			W1_SLAVE_CMD - userspace command for slave device (read/write/ search/alarm search
+					for bus master device where given slave device found).
+	__u8 res	- reserved
+	__u16 len	- size of attached to this header data.
+	union {
+		__u8 id;			 - slave unique device id
+		struct w1_mst {
+			__u32		id;	 - master's id.
+			__u32		res;	 - reserved
+		} mst;
+	} id;
+
+[strucrt w1_netlink_cmd] - command for gived master or slave device.
+	__u8 cmd	- command opcode.
+			W1_CMD_READ 	- read command.
+			W1_CMD_WRITE	- write command.
+			W1_CMD_SEARCH	- search command.
+			W1_CMD_ALARM_SEARCH - alarm search command.
+	__u8 res	- reserved
+	__u16 len	- length of data for this command.
+			For read command data must be allocated like for write command.
+	__u8 data[0]	- data for this command.
+
+
+Each connector message can include one or more w1_netlink_msg with zero of more attached w1_netlink_cmd messages.
+
+For event messages there are no w1_netlink_cmd embedded structures, only connector header
+and w1_netlink_msg strucutre with "len" field being zero and filled type (one of event types)
+and id - either 8 bytes of slave unique id in host order, or master's id, which is assigned
+to bus master device when it is added to w1 core.
+
+Currently replies to userspace commands are only generated for read command request.
+One reply is generated exactly for one w1_netlink_cmd read request.
+Replies are not combined when sent - i.e. typical reply messages looks like the following:
+[cn_msg][w1_netlink_msg][w1_netlink_cmd]
+cn_msg.len = sizeof(struct w1_netlink_msg) + sizeof(struct w1_netlink_cmd) + cmd->len;
+w1_netlink_msg.len = sizeof(struct w1_netlink_cmd) + cmd->len;
+w1_netlink_cmd.len = cmd->len;
+
+
+Operation steps in w1 core when new command is received.
+=======================================================
+
+When new message (w1_netlink_msg) is received w1 core detects if it is master of slave request,
+according to w1_netlink_msg.type field.
+Then master or slave device is searched for.
+When found, master device (requested or those one on where slave device is found) is locked.
+If slave command is requested, then reset/select procedure is started to select given device.
+
+Then all requested in w1_netlink_msg operations are performed one by one.
+If command requires reply (like read command) it is sent on command completion.
+
+When all commands (w1_netlink_cmd) are processed muster device is unlocked
+and next w1_netlink_msg header processing started.
+
+
+Connector [1] specific documentation.
+====================================
+
+Each connector message includes two u32 fields as "address".
+w1 uses CN_W1_IDX and CN_W1_VAL defined in include/linux/connector.h header.
+Each message also includes sequence and acknowledge numbers.
+Sequence number for event messages is appropriate bus master sequence number increased with
+each event message sent "through" this master.
+Sequence number for userspace requests is set by userspace application.
+Sequence number for reply is the same as was in request, and
+acknowledge number is set to seq+1.
+
+
+Additional documantion, source code examples.
+============================================
+
+1. Documentation/connector
+2. http://tservice.net.ru/~s0mbre/archive/w1
+This archive includes userspace application w1d.c which
+uses read/write/search commands for all master/slave devices found on the bus.
