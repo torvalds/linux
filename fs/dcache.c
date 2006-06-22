@@ -359,12 +359,13 @@ restart:
 }
 
 /*
- * Throw away a dentry - free the inode, dput the parent.
- * This requires that the LRU list has already been
- * removed.
+ * Throw away a dentry - free the inode, dput the parent.  This requires that
+ * the LRU list has already been removed.
+ *
  * Called with dcache_lock, drops it and then regains.
+ * Called with dentry->d_lock held, drops it.
  */
-static inline void prune_one_dentry(struct dentry * dentry)
+static void prune_one_dentry(struct dentry * dentry)
 {
 	struct dentry * parent;
 
