@@ -181,9 +181,13 @@ requeue:
 
 void __qdisc_run(struct net_device *dev)
 {
+	if (unlikely(dev->qdisc == &noop_qdisc))
+		goto out;
+
 	while (qdisc_restart(dev) < 0 && !netif_queue_stopped(dev))
 		/* NOTHING */;
 
+out:
 	clear_bit(__LINK_STATE_QDISC_RUNNING, &dev->state);
 }
 
@@ -583,10 +587,12 @@ void dev_deactivate(struct net_device *dev)
 
 	dev_watchdog_down(dev);
 
-	while (test_bit(__LINK_STATE_SCHED, &dev->state))
-		yield();
+	/* Wait for outstanding dev_queue_xmit calls. */
+	synchronize_rcu();
 
-	spin_unlock_wait(&dev->_xmit_lock);
+	/* Wait for outstanding qdisc_run calls. */
+	while (test_bit(__LINK_STATE_QDISC_RUNNING, &dev->state))
+		yield();
 }
 
 void dev_init_scheduler(struct net_device *dev)

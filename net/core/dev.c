@@ -1295,7 +1295,7 @@ int dev_queue_xmit(struct sk_buff *skb)
 	/* Disable soft irqs for various locks below. Also 
 	 * stops preemption for RCU. 
 	 */
-	local_bh_disable(); 
+	rcu_read_lock_bh(); 
 
 	/* Updates of qdisc are serialized by queue_lock. 
 	 * The struct Qdisc which is pointed to by qdisc is now a 
@@ -1369,13 +1369,13 @@ int dev_queue_xmit(struct sk_buff *skb)
 	}
 
 	rc = -ENETDOWN;
-	local_bh_enable();
+	rcu_read_unlock_bh();
 
 out_kfree_skb:
 	kfree_skb(skb);
 	return rc;
 out:
-	local_bh_enable();
+	rcu_read_unlock_bh();
 	return rc;
 }
 
