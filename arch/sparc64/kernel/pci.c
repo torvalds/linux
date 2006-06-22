@@ -22,6 +22,7 @@
 #include <asm/irq.h>
 #include <asm/ebus.h>
 #include <asm/isa.h>
+#include <asm/prom.h>
 
 unsigned long pci_memspace_mask = 0xffffffffUL;
 
@@ -177,16 +178,16 @@ void pci_config_write32(u32 *addr, u32 val)
 }
 
 /* Probe for all PCI controllers in the system. */
-extern void sabre_init(int, char *);
-extern void psycho_init(int, char *);
-extern void schizo_init(int, char *);
-extern void schizo_plus_init(int, char *);
-extern void tomatillo_init(int, char *);
-extern void sun4v_pci_init(int, char *);
+extern void sabre_init(struct device_node *, const char *);
+extern void psycho_init(struct device_node *, const char *);
+extern void schizo_init(struct device_node *, const char *);
+extern void schizo_plus_init(struct device_node *, const char *);
+extern void tomatillo_init(struct device_node *, const char *);
+extern void sun4v_pci_init(struct device_node *, const char *);
 
 static struct {
 	char *model_name;
-	void (*init)(int, char *);
+	void (*init)(struct device_node *, const char *);
 } pci_controller_table[] __initdata = {
 	{ "SUNW,sabre", sabre_init },
 	{ "pci108e,a000", sabre_init },
@@ -204,7 +205,7 @@ static struct {
 #define PCI_NUM_CONTROLLER_TYPES (sizeof(pci_controller_table) / \
 				  sizeof(pci_controller_table[0]))
 
-static int __init pci_controller_init(char *model_name, int namelen, int node)
+static int __init pci_controller_init(const char *model_name, int namelen, struct device_node *dp)
 {
 	int i;
 
@@ -212,18 +213,15 @@ static int __init pci_controller_init(char *model_name, int namelen, int node)
 		if (!strncmp(model_name,
 			     pci_controller_table[i].model_name,
 			     namelen)) {
-			pci_controller_table[i].init(node, model_name);
+			pci_controller_table[i].init(dp, model_name);
 			return 1;
 		}
 	}
-	printk("PCI: Warning unknown controller, model name [%s]\n",
-	       model_name);
-	printk("PCI: Ignoring controller...\n");
 
 	return 0;
 }
 
-static int __init pci_is_controller(char *model_name, int namelen, int node)
+static int __init pci_is_controller(const char *model_name, int namelen, struct device_node *dp)
 {
 	int i;
 
@@ -237,36 +235,35 @@ static int __init pci_is_controller(char *model_name, int namelen, int node)
 	return 0;
 }
 
-static int __init pci_controller_scan(int (*handler)(char *, int, int))
+static int __init pci_controller_scan(int (*handler)(const char *, int, struct device_node *))
 {
-	char namebuf[64];
-	int node;
+	struct device_node *dp;
 	int count = 0;
 
-	node = prom_getchild(prom_root_node);
-	while ((node = prom_searchsiblings(node, "pci")) != 0) {
+	for_each_node_by_name(dp, "pci") {
+		struct property *prop;
 		int len;
 
-		if ((len = prom_getproperty(node, "model", namebuf, sizeof(namebuf))) > 0 ||
-		    (len = prom_getproperty(node, "compatible", namebuf, sizeof(namebuf))) > 0) {
+		prop = of_find_property(dp, "model", &len);
+		if (!prop)
+			prop = of_find_property(dp, "compatible", &len);
+
+		if (prop) {
+			const char *model = prop->value;
 			int item_len = 0;
 
 			/* Our value may be a multi-valued string in the
 			 * case of some compatible properties. For sanity,
-			 * only try the first one. */
-
-			while (namebuf[item_len] && len) {
+			 * only try the first one.
+			 */
+			while (model[item_len] && len) {
 				len--;
 				item_len++;
 			}
 
-			if (handler(namebuf, item_len, node))
+			if (handler(model, item_len, dp))
 				count++;
 		}
-
-		node = prom_getsibling(node);
-		if (!node)
-			break;
 	}
 
 	return count;

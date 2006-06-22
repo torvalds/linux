@@ -18,6 +18,7 @@
 #include <asm/pstate.h>
 #include <asm/oplib.h>
 #include <asm/hypervisor.h>
+#include <asm/prom.h>
 
 #include "pci_impl.h"
 #include "iommu_common.h"
@@ -646,35 +647,37 @@ static int pdev_htab_add(u32 devhandle, unsigned int bus, unsigned int device, u
 /* Recursively descend into the OBP device tree, rooted at toplevel_node,
  * looking for a PCI device matching bus and devfn.
  */
-static int obp_find(struct linux_prom_pci_registers *pregs, int toplevel_node, unsigned int bus, unsigned int devfn)
+static int obp_find(struct device_node *toplevel_node, unsigned int bus, unsigned int devfn)
 {
-	toplevel_node = prom_getchild(toplevel_node);
+	toplevel_node = toplevel_node->child;
 
-	while (toplevel_node != 0) {
-		int ret = obp_find(pregs, toplevel_node, bus, devfn);
+	while (toplevel_node != NULL) {
+		struct linux_prom_pci_registers *regs;
+		struct property *prop;
+		int ret;
 
+		ret = obp_find(toplevel_node, bus, devfn);
 		if (ret != 0)
 			return ret;
 
-		ret = prom_getproperty(toplevel_node, "reg", (char *) pregs,
-				       sizeof(*pregs) * PROMREG_MAX);
-		if (ret == 0 || ret == -1)
+		prop = of_find_property(toplevel_node, "reg", NULL);
+		if (!prop)
 			goto next_sibling;
 
-		if (((pregs[0].phys_hi >> 16) & 0xff) == bus &&
-		    ((pregs[0].phys_hi >> 8) & 0xff) == devfn)
+		regs = prop->value;
+		if (((regs->phys_hi >> 16) & 0xff) == bus &&
+		    ((regs->phys_hi >> 8) & 0xff) == devfn)
 			break;
 
 	next_sibling:
-		toplevel_node = prom_getsibling(toplevel_node);
+		toplevel_node = toplevel_node->sibling;
 	}
 
-	return toplevel_node;
+	return toplevel_node != NULL;
 }
 
 static int pdev_htab_populate(struct pci_pbm_info *pbm)
 {
-	struct linux_prom_pci_registers pr[PROMREG_MAX];
 	u32 devhandle = pbm->devhandle;
 	unsigned int bus;
 
@@ -685,7 +688,7 @@ static int pdev_htab_populate(struct pci_pbm_info *pbm)
 			unsigned int device = PCI_SLOT(devfn);
 			unsigned int func = PCI_FUNC(devfn);
 
-			if (obp_find(pr, pbm->prom_node, bus, devfn)) {
+			if (obp_find(pbm->prom_node, bus, devfn)) {
 				int err = pdev_htab_add(devhandle, bus,
 							device, func);
 				if (err)
@@ -812,7 +815,7 @@ static void pbm_scan_bus(struct pci_controller_info *p,
 	pbm->pci_bus->self->sysdata = cookie;
 #endif
 	pci_fill_in_pbm_cookies(pbm->pci_bus, pbm,
-				pbm->prom_node);
+				pbm->prom_node->node);
 	pci_record_assignments(pbm, pbm->pci_bus);
 	pci_assign_unassigned(pbm, pbm->pci_bus);
 	pci_fixup_irq(pbm, pbm->pci_bus);
@@ -822,15 +825,18 @@ static void pbm_scan_bus(struct pci_controller_info *p,
 
 static void pci_sun4v_scan_bus(struct pci_controller_info *p)
 {
-	if (p->pbm_A.prom_node) {
-		p->pbm_A.is_66mhz_capable =
-			prom_getbool(p->pbm_A.prom_node, "66mhz-capable");
+	struct property *prop;
+	struct device_node *dp;
+
+	if ((dp = p->pbm_A.prom_node) != NULL) {
+		prop = of_find_property(dp, "66mhz-capable", NULL);
+		p->pbm_A.is_66mhz_capable = (prop != NULL);
 
 		pbm_scan_bus(p, &p->pbm_A);
 	}
-	if (p->pbm_B.prom_node) {
-		p->pbm_B.is_66mhz_capable =
-			prom_getbool(p->pbm_B.prom_node, "66mhz-capable");
+	if ((dp = p->pbm_B.prom_node) != NULL) {
+		prop = of_find_property(dp, "66mhz-capable", NULL);
+		p->pbm_B.is_66mhz_capable = (prop != NULL);
 
 		pbm_scan_bus(p, &p->pbm_B);
 	}
@@ -993,13 +999,18 @@ static unsigned long probe_existing_entries(struct pci_pbm_info *pbm,
 static void pci_sun4v_iommu_init(struct pci_pbm_info *pbm)
 {
 	struct pci_iommu *iommu = pbm->iommu;
+	struct property *prop;
 	unsigned long num_tsb_entries, sz;
 	u32 vdma[2], dma_mask, dma_offset;
-	int err, tsbsize;
+	int tsbsize;
 
-	err = prom_getproperty(pbm->prom_node, "virtual-dma",
-			       (char *)&vdma[0], sizeof(vdma));
-	if (err == 0 || err == -1) {
+	prop = of_find_property(pbm->prom_node, "virtual-dma", NULL);
+	if (prop) {
+		u32 *val = prop->value;
+
+		vdma[0] = val[0];
+		vdma[1] = val[1];
+	} else {
 		/* No property, use default values. */
 		vdma[0] = 0x80000000;
 		vdma[1] = 0x80000000;
@@ -1058,27 +1069,23 @@ static void pci_sun4v_iommu_init(struct pci_pbm_info *pbm)
 
 static void pci_sun4v_get_bus_range(struct pci_pbm_info *pbm)
 {
-	unsigned int busrange[2];
-	int prom_node = pbm->prom_node;
-	int err;
+	struct property *prop;
+	unsigned int *busrange;
 
-	err = prom_getproperty(prom_node, "bus-range",
-			       (char *)&busrange[0],
-			       sizeof(busrange));
-	if (err == 0 || err == -1) {
-		prom_printf("%s: Fatal error, no bus-range.\n", pbm->name);
-		prom_halt();
-	}
+	prop = of_find_property(pbm->prom_node, "bus-range", NULL);
+
+	busrange = prop->value;
 
 	pbm->pci_first_busno = busrange[0];
 	pbm->pci_last_busno = busrange[1];
 
 }
 
-static void pci_sun4v_pbm_init(struct pci_controller_info *p, int prom_node, u32 devhandle)
+static void pci_sun4v_pbm_init(struct pci_controller_info *p, struct device_node *dp, u32 devhandle)
 {
 	struct pci_pbm_info *pbm;
-	int err, i;
+	struct property *prop;
+	int len, i;
 
 	if (devhandle & 0x40)
 		pbm = &p->pbm_B;
@@ -1086,32 +1093,19 @@ static void pci_sun4v_pbm_init(struct pci_controller_info *p, int prom_node, u32
 		pbm = &p->pbm_A;
 
 	pbm->parent = p;
-	pbm->prom_node = prom_node;
+	pbm->prom_node = dp;
 	pbm->pci_first_slot = 1;
 
 	pbm->devhandle = devhandle;
 
-	sprintf(pbm->name, "SUN4V-PCI%d PBM%c",
-		p->index, (pbm == &p->pbm_A ? 'A' : 'B'));
+	pbm->name = dp->full_name;
 
-	printk("%s: devhandle[%x] prom_node[%x:%x]\n",
-	       pbm->name, pbm->devhandle,
-	       pbm->prom_node, prom_getchild(pbm->prom_node));
+	printk("%s: SUN4V PCI Bus Module\n", pbm->name);
 
-	prom_getstring(prom_node, "name",
-		       pbm->prom_name, sizeof(pbm->prom_name));
-
-	err = prom_getproperty(prom_node, "ranges",
-			       (char *) pbm->pbm_ranges,
-			       sizeof(pbm->pbm_ranges));
-	if (err == 0 || err == -1) {
-		prom_printf("%s: Fatal error, no ranges property.\n",
-			    pbm->name);
-		prom_halt();
-	}
-
+	prop = of_find_property(dp, "ranges", &len);
+	pbm->pbm_ranges = prop->value;
 	pbm->num_pbm_ranges =
-		(err / sizeof(struct linux_prom_pci_ranges));
+		(len / sizeof(struct linux_prom_pci_ranges));
 
 	/* Mask out the top 8 bits of the ranges, leaving the real
 	 * physical address.
@@ -1122,24 +1116,13 @@ static void pci_sun4v_pbm_init(struct pci_controller_info *p, int prom_node, u32
 	pci_sun4v_determine_mem_io_space(pbm);
 	pbm_register_toplevel_resources(p, pbm);
 
-	err = prom_getproperty(prom_node, "interrupt-map",
-			       (char *)pbm->pbm_intmap,
-			       sizeof(pbm->pbm_intmap));
-	if (err == 0 || err == -1) {
-		prom_printf("%s: Fatal error, no interrupt-map property.\n",
-			    pbm->name);
-		prom_halt();
-	}
+	prop = of_find_property(dp, "interrupt-map", &len);
+	pbm->pbm_intmap = prop->value;
+	pbm->num_pbm_intmap =
+		(len / sizeof(struct linux_prom_pci_intmap));
 
-	pbm->num_pbm_intmap = (err / sizeof(struct linux_prom_pci_intmap));
-	err = prom_getproperty(prom_node, "interrupt-map-mask",
-			       (char *)&pbm->pbm_intmask,
-			       sizeof(pbm->pbm_intmask));
-	if (err == 0 || err == -1) {
-		prom_printf("%s: Fatal error, no interrupt-map-mask.\n",
-			    pbm->name);
-		prom_halt();
-	}
+	prop = of_find_property(dp, "interrupt-map-mask", NULL);
+	pbm->pbm_intmask = prop->value;
 
 	pci_sun4v_get_bus_range(pbm);
 	pci_sun4v_iommu_init(pbm);
@@ -1147,16 +1130,19 @@ static void pci_sun4v_pbm_init(struct pci_controller_info *p, int prom_node, u32
 	pdev_htab_populate(pbm);
 }
 
-void sun4v_pci_init(int node, char *model_name)
+void sun4v_pci_init(struct device_node *dp, char *model_name)
 {
 	struct pci_controller_info *p;
 	struct pci_iommu *iommu;
-	struct linux_prom64_registers regs;
+	struct property *prop;
+	struct linux_prom64_registers *regs;
 	u32 devhandle;
 	int i;
 
-	prom_getproperty(node, "reg", (char *)&regs, sizeof(regs));
-	devhandle = (regs.phys_addr >> 32UL) & 0x0fffffff;
+	prop = of_find_property(dp, "reg", NULL);
+	regs = prop->value;
+
+	devhandle = (regs->phys_addr >> 32UL) & 0x0fffffff;
 
 	for (p = pci_controller_root; p; p = p->next) {
 		struct pci_pbm_info *pbm;
@@ -1169,7 +1155,7 @@ void sun4v_pci_init(int node, char *model_name)
 		       &p->pbm_B);
 
 		if (pbm->devhandle == (devhandle ^ 0x40)) {
-			pci_sun4v_pbm_init(p, node, devhandle);
+			pci_sun4v_pbm_init(p, dp, devhandle);
 			return;
 		}
 	}
@@ -1220,7 +1206,7 @@ void sun4v_pci_init(int node, char *model_name)
 	 */
 	pci_memspace_mask = 0x7fffffffUL;
 
-	pci_sun4v_pbm_init(p, node, devhandle);
+	pci_sun4v_pbm_init(p, dp, devhandle);
 	return;
 
 fatal_memory_error:

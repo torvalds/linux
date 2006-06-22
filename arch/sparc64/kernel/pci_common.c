@@ -664,7 +664,7 @@ static unsigned int __init pci_intmap_match_to_root(struct pci_pbm_info *pbm,
 		}
 		pdev = pbus;
 
-		if (cnode == pbm->prom_node)
+		if (cnode == pbm->prom_node->node)
 			break;
 	}
 
@@ -680,7 +680,7 @@ static int __init pci_intmap_match(struct pci_dev *pdev, unsigned int *interrupt
 	int i, cnode, plen;
 
 	cnode = pci_intmap_match_to_root(pbm, pdev, interrupt);
-	if (cnode == pbm->prom_node)
+	if (cnode == pbm->prom_node->node)
 		goto success;
 
 	plen = prom_getproperty(cnode, "reg", (char *) reg, sizeof(reg));
@@ -691,10 +691,10 @@ static int __init pci_intmap_match(struct pci_dev *pdev, unsigned int *interrupt
 		goto fail;
 	}
 
-	hi   = reg[0].phys_hi & pbm->pbm_intmask.phys_hi;
-	mid  = reg[0].phys_mid & pbm->pbm_intmask.phys_mid;
-	lo   = reg[0].phys_lo & pbm->pbm_intmask.phys_lo;
-	irq  = *interrupt & pbm->pbm_intmask.interrupt;
+	hi   = reg[0].phys_hi & pbm->pbm_intmask->phys_hi;
+	mid  = reg[0].phys_mid & pbm->pbm_intmask->phys_mid;
+	lo   = reg[0].phys_lo & pbm->pbm_intmask->phys_lo;
+	irq  = *interrupt & pbm->pbm_intmask->interrupt;
 
 	for (i = 0; i < pbm->num_pbm_intmap; i++) {
 		struct linux_prom_pci_intmap *intmap;
@@ -714,7 +714,8 @@ fail:
 	return 0;
 
 success:
-	printk("PCI-IRQ: Routing bus[%2x] slot[%2x] to INO[%02x]\n",
+	printk("%s: Routing bus[%2x] slot[%2x] to INO[%02x]\n",
+	       pbm->name,
 	       pdev->bus->number, PCI_SLOT(pdev->devfn),
 	       *interrupt);
 	return 1;

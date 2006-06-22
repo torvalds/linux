@@ -16,6 +16,7 @@
 #include <asm/irq.h>
 #include <asm/upa.h>
 #include <asm/pstate.h>
+#include <asm/prom.h>
 
 #include "pci_impl.h"
 #include "iommu_common.h"
@@ -1437,7 +1438,7 @@ static void pbm_scan_bus(struct pci_controller_info *p,
 	pci_fixup_host_bridge_self(pbm->pci_bus);
 	pbm->pci_bus->self->sysdata = cookie;
 
-	pci_fill_in_pbm_cookies(pbm->pci_bus, pbm, pbm->prom_node);
+	pci_fill_in_pbm_cookies(pbm->pci_bus, pbm, pbm->prom_node->node);
 	pci_record_assignments(pbm, pbm->pci_bus);
 	pci_assign_unassigned(pbm, pbm->pci_bus);
 	pci_fixup_irq(pbm, pbm->pci_bus);
@@ -1456,10 +1457,12 @@ static void __schizo_scan_bus(struct pci_controller_info *p,
 
 	pbm_config_busmastering(&p->pbm_B);
 	p->pbm_B.is_66mhz_capable =
-		prom_getbool(p->pbm_B.prom_node, "66mhz-capable");
+		(of_find_property(p->pbm_B.prom_node, "66mhz-capable", NULL)
+		 != NULL);
 	pbm_config_busmastering(&p->pbm_A);
 	p->pbm_A.is_66mhz_capable =
-		prom_getbool(p->pbm_A.prom_node, "66mhz-capable");
+		(of_find_property(p->pbm_A.prom_node, "66mhz-capable", NULL)
+		 != NULL);
 	pbm_scan_bus(p, &p->pbm_B);
 	pbm_scan_bus(p, &p->pbm_A);
 
@@ -1661,13 +1664,18 @@ static void schizo_pbm_iommu_init(struct pci_pbm_info *pbm)
 {
 	struct pci_iommu *iommu = pbm->iommu;
 	unsigned long i, tagbase, database;
+	struct property *prop;
 	u32 vdma[2], dma_mask;
 	u64 control;
-	int err, tsbsize;
+	int tsbsize;
 
-	err = prom_getproperty(pbm->prom_node, "virtual-dma",
-			       (char *)&vdma[0], sizeof(vdma));
-	if (err == 0 || err == -1) {
+	prop = of_find_property(pbm->prom_node, "virtual-dma", NULL);
+	if (prop) {
+		u32 *val = prop->value;
+
+		vdma[0] = val[0];
+		vdma[1] = val[1];
+	} else {
 		/* No property, use default values. */
 		vdma[0] = 0xc0000000;
 		vdma[1] = 0x40000000;
@@ -1778,6 +1786,7 @@ static void schizo_pbm_iommu_init(struct pci_pbm_info *pbm)
 
 static void schizo_pbm_hw_init(struct pci_pbm_info *pbm)
 {
+	struct property *prop;
 	u64 tmp;
 
 	schizo_write(pbm->pbm_regs + SCHIZO_PCI_IRQ_RETRY, 5);
@@ -1791,7 +1800,8 @@ static void schizo_pbm_hw_init(struct pci_pbm_info *pbm)
 	    pbm->chip_version >= 0x2)
 		tmp |= 0x3UL << SCHIZO_PCICTRL_PTO_SHIFT;
 
-	if (!prom_getbool(pbm->prom_node, "no-bus-parking"))
+	prop = of_find_property(pbm->prom_node, "no-bus-parking", NULL);
+	if (!prop)
 		tmp |= SCHIZO_PCICTRL_PARK;
 	else
 		tmp &= ~SCHIZO_PCICTRL_PARK;
@@ -1831,16 +1841,17 @@ static void schizo_pbm_hw_init(struct pci_pbm_info *pbm)
 }
 
 static void schizo_pbm_init(struct pci_controller_info *p,
-			    int prom_node, u32 portid,
+			    struct device_node *dp, u32 portid,
 			    int chip_type)
 {
-	struct linux_prom64_registers pr_regs[4];
-	unsigned int busrange[2];
+	struct linux_prom64_registers *regs;
+	struct property *prop;
+	unsigned int *busrange;
 	struct pci_pbm_info *pbm;
 	const char *chipset_name;
-	u32 ino_bitmap[2];
+	u32 *ino_bitmap;
 	int is_pbm_a;
-	int err;
+	int len;
 
 	switch (chip_type) {
 	case PBM_CHIP_TYPE_TOMATILLO:
@@ -1868,16 +1879,10 @@ static void schizo_pbm_init(struct pci_controller_info *p,
 	 * 3) PBM PCI config space
 	 * 4) Ichip regs
 	 */
-	err = prom_getproperty(prom_node, "reg",
-			       (char *)&pr_regs[0],
-			       sizeof(pr_regs));
-	if (err == 0 || err == -1) {
-		prom_printf("%s: Fatal error, no reg property.\n",
-			    chipset_name);
-		prom_halt();
-	}
+	prop = of_find_property(dp, "reg", NULL);
+	regs = prop->value;
 
-	is_pbm_a = ((pr_regs[0].phys_addr & 0x00700000) == 0x00600000);
+	is_pbm_a = ((regs[0].phys_addr & 0x00700000) == 0x00600000);
 
 	if (is_pbm_a)
 		pbm = &p->pbm_A;
@@ -1886,92 +1891,62 @@ static void schizo_pbm_init(struct pci_controller_info *p,
 
 	pbm->portid = portid;
 	pbm->parent = p;
-	pbm->prom_node = prom_node;
+	pbm->prom_node = dp;
 	pbm->pci_first_slot = 1;
 
 	pbm->chip_type = chip_type;
-	pbm->chip_version =
-		prom_getintdefault(prom_node, "version#", 0);
-	pbm->chip_revision =
-		prom_getintdefault(prom_node, "module-revision#", 0);
+	pbm->chip_version = 0;
+	prop = of_find_property(dp, "version#", NULL);
+	if (prop)
+		pbm->chip_version = *(int *) prop->value;
+	pbm->chip_revision = 0;
+	prop = of_find_property(dp, "module-revision#", NULL);
+	if (prop)
+		pbm->chip_revision = *(int *) prop->value;
 
-	pbm->pbm_regs = pr_regs[0].phys_addr;
-	pbm->controller_regs = pr_regs[1].phys_addr - 0x10000UL;
+	pbm->pbm_regs = regs[0].phys_addr;
+	pbm->controller_regs = regs[1].phys_addr - 0x10000UL;
 
 	if (chip_type == PBM_CHIP_TYPE_TOMATILLO)
-		pbm->sync_reg = pr_regs[3].phys_addr + 0x1a18UL;
+		pbm->sync_reg = regs[3].phys_addr + 0x1a18UL;
 
-	sprintf(pbm->name,
-		(chip_type == PBM_CHIP_TYPE_TOMATILLO ?
-		 "TOMATILLO%d PBM%c" :
-		 "SCHIZO%d PBM%c"),
-		p->index,
-		(pbm == &p->pbm_A ? 'A' : 'B'));
+	pbm->name = dp->full_name;
 
-	printk("%s: ver[%x:%x], portid %x, "
-	       "cregs[%lx] pregs[%lx]\n",
+	printk("%s: %s PCI Bus Module ver[%x:%x]\n",
 	       pbm->name,
-	       pbm->chip_version, pbm->chip_revision,
-	       pbm->portid,
-	       pbm->controller_regs,
-	       pbm->pbm_regs);
+	       (chip_type == PBM_CHIP_TYPE_TOMATILLO ?
+		"TOMATILLO" : "SCHIZO"),
+	       pbm->chip_version, pbm->chip_revision);
 
 	schizo_pbm_hw_init(pbm);
 
-	prom_getstring(prom_node, "name",
-		       pbm->prom_name,
-		       sizeof(pbm->prom_name));
-
-	err = prom_getproperty(prom_node, "ranges",
-			       (char *) pbm->pbm_ranges,
-			       sizeof(pbm->pbm_ranges));
-	if (err == 0 || err == -1) {
-		prom_printf("%s: Fatal error, no ranges property.\n",
-			    pbm->name);
-		prom_halt();
-	}
-
+	prop = of_find_property(dp, "ranges", &len);
+	pbm->pbm_ranges = prop->value;
 	pbm->num_pbm_ranges =
-		(err / sizeof(struct linux_prom_pci_ranges));
+		(len / sizeof(struct linux_prom_pci_ranges));
 
 	schizo_determine_mem_io_space(pbm);
 	pbm_register_toplevel_resources(p, pbm);
 
-	err = prom_getproperty(prom_node, "interrupt-map",
-			       (char *)pbm->pbm_intmap,
-			       sizeof(pbm->pbm_intmap));
-	if (err != -1) {
-		pbm->num_pbm_intmap = (err / sizeof(struct linux_prom_pci_intmap));
-		err = prom_getproperty(prom_node, "interrupt-map-mask",
-				       (char *)&pbm->pbm_intmask,
-				       sizeof(pbm->pbm_intmask));
-		if (err == -1) {
-			prom_printf("%s: Fatal error, no "
-				    "interrupt-map-mask.\n", pbm->name);
-			prom_halt();
-		}
+	prop = of_find_property(dp, "interrupt-map", &len);
+	if (prop) {
+		pbm->pbm_intmap = prop->value;
+		pbm->num_pbm_intmap =
+			(len / sizeof(struct linux_prom_pci_intmap));
+
+		prop = of_find_property(dp, "interrupt-map-mask", NULL);
+		pbm->pbm_intmask = prop->value;
 	} else {
 		pbm->num_pbm_intmap = 0;
-		memset(&pbm->pbm_intmask, 0, sizeof(pbm->pbm_intmask));
 	}
 
-	err = prom_getproperty(prom_node, "ino-bitmap",
-			       (char *) &ino_bitmap[0],
-			       sizeof(ino_bitmap));
-	if (err == 0 || err == -1) {
-		prom_printf("%s: Fatal error, no ino-bitmap.\n", pbm->name);
-		prom_halt();
-	}
+	prop = of_find_property(dp, "ino-bitmap", NULL);
+	ino_bitmap = prop->value;
 	pbm->ino_bitmap = (((u64)ino_bitmap[1] << 32UL) |
 			   ((u64)ino_bitmap[0] <<  0UL));
 
-	err = prom_getproperty(prom_node, "bus-range",
-			       (char *)&busrange[0],
-			       sizeof(busrange));
-	if (err == 0 || err == -1) {
-		prom_printf("%s: Fatal error, no bus-range.\n", pbm->name);
-		prom_halt();
-	}
+	prop = of_find_property(dp, "bus-range", NULL);
+	busrange = prop->value;
 	pbm->pci_first_busno = busrange[0];
 	pbm->pci_last_busno = busrange[1];
 
@@ -1989,16 +1964,20 @@ static inline int portid_compare(u32 x, u32 y, int chip_type)
 	return (x == y);
 }
 
-static void __schizo_init(int node, char *model_name, int chip_type)
+static void __schizo_init(struct device_node *dp, char *model_name, int chip_type)
 {
 	struct pci_controller_info *p;
 	struct pci_iommu *iommu;
+	struct property *prop;
 	int is_pbm_a;
 	u32 portid;
 
-	portid = prom_getintdefault(node, "portid", 0xff);
+	portid = 0xff;
+	prop = of_find_property(dp, "portid", NULL);
+	if (prop)
+		portid = *(u32 *) prop->value;
 
-	for(p = pci_controller_root; p; p = p->next) {
+	for (p = pci_controller_root; p; p = p->next) {
 		struct pci_pbm_info *pbm;
 
 		if (p->pbm_A.prom_node && p->pbm_B.prom_node)
@@ -2009,8 +1988,8 @@ static void __schizo_init(int node, char *model_name, int chip_type)
 		       &p->pbm_B);
 
 		if (portid_compare(pbm->portid, portid, chip_type)) {
-			is_pbm_a = (p->pbm_A.prom_node == 0);
-			schizo_pbm_init(p, node, portid, chip_type);
+			is_pbm_a = (p->pbm_A.prom_node == NULL);
+			schizo_pbm_init(p, dp, portid, chip_type);
 			return;
 		}
 	}
@@ -2051,20 +2030,20 @@ static void __schizo_init(int node, char *model_name, int chip_type)
 	/* Like PSYCHO we have a 2GB aligned area for memory space. */
 	pci_memspace_mask = 0x7fffffffUL;
 
-	schizo_pbm_init(p, node, portid, chip_type);
+	schizo_pbm_init(p, dp, portid, chip_type);
 }
 
-void schizo_init(int node, char *model_name)
+void schizo_init(struct device_node *dp, char *model_name)
 {
-	__schizo_init(node, model_name, PBM_CHIP_TYPE_SCHIZO);
+	__schizo_init(dp, model_name, PBM_CHIP_TYPE_SCHIZO);
 }
 
-void schizo_plus_init(int node, char *model_name)
+void schizo_plus_init(struct device_node *dp, char *model_name)
 {
-	__schizo_init(node, model_name, PBM_CHIP_TYPE_SCHIZO_PLUS);
+	__schizo_init(dp, model_name, PBM_CHIP_TYPE_SCHIZO_PLUS);
 }
 
-void tomatillo_init(int node, char *model_name)
+void tomatillo_init(struct device_node *dp, char *model_name)
 {
-	__schizo_init(node, model_name, PBM_CHIP_TYPE_TOMATILLO);
+	__schizo_init(dp, model_name, PBM_CHIP_TYPE_TOMATILLO);
 }
