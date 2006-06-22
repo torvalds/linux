@@ -67,7 +67,8 @@ struct key root_session_keyring = {
 /*
  * allocate the keyrings to be associated with a UID
  */
-int alloc_uid_keyring(struct user_struct *user)
+int alloc_uid_keyring(struct user_struct *user,
+		      struct task_struct *ctx)
 {
 	struct key *uid_keyring, *session_keyring;
 	char buf[20];
@@ -76,7 +77,7 @@ int alloc_uid_keyring(struct user_struct *user)
 	/* concoct a default session keyring */
 	sprintf(buf, "_uid_ses.%u", user->uid);
 
-	session_keyring = keyring_alloc(buf, user->uid, (gid_t) -1, 0, NULL);
+	session_keyring = keyring_alloc(buf, user->uid, (gid_t) -1, ctx, 0, NULL);
 	if (IS_ERR(session_keyring)) {
 		ret = PTR_ERR(session_keyring);
 		goto error;
@@ -86,7 +87,7 @@ int alloc_uid_keyring(struct user_struct *user)
 	 * keyring */
 	sprintf(buf, "_uid.%u", user->uid);
 
-	uid_keyring = keyring_alloc(buf, user->uid, (gid_t) -1, 0,
+	uid_keyring = keyring_alloc(buf, user->uid, (gid_t) -1, ctx, 0,
 				    session_keyring);
 	if (IS_ERR(uid_keyring)) {
 		key_put(session_keyring);
@@ -143,7 +144,7 @@ int install_thread_keyring(struct task_struct *tsk)
 
 	sprintf(buf, "_tid.%u", tsk->pid);
 
-	keyring = keyring_alloc(buf, tsk->uid, tsk->gid, 1, NULL);
+	keyring = keyring_alloc(buf, tsk->uid, tsk->gid, tsk, 1, NULL);
 	if (IS_ERR(keyring)) {
 		ret = PTR_ERR(keyring);
 		goto error;
@@ -177,7 +178,7 @@ int install_process_keyring(struct task_struct *tsk)
 	if (!tsk->signal->process_keyring) {
 		sprintf(buf, "_pid.%u", tsk->tgid);
 
-		keyring = keyring_alloc(buf, tsk->uid, tsk->gid, 1, NULL);
+		keyring = keyring_alloc(buf, tsk->uid, tsk->gid, tsk, 1, NULL);
 		if (IS_ERR(keyring)) {
 			ret = PTR_ERR(keyring);
 			goto error;
@@ -217,7 +218,7 @@ static int install_session_keyring(struct task_struct *tsk,
 	if (!keyring) {
 		sprintf(buf, "_ses.%u", tsk->tgid);
 
-		keyring = keyring_alloc(buf, tsk->uid, tsk->gid, 1, NULL);
+		keyring = keyring_alloc(buf, tsk->uid, tsk->gid, tsk, 1, NULL);
 		if (IS_ERR(keyring))
 			return PTR_ERR(keyring);
 	}
@@ -717,7 +718,7 @@ long join_session_keyring(const char *name)
 	keyring = find_keyring_by_name(name, 0);
 	if (PTR_ERR(keyring) == -ENOKEY) {
 		/* not found - try and create a new one */
-		keyring = keyring_alloc(name, tsk->uid, tsk->gid, 0, NULL);
+		keyring = keyring_alloc(name, tsk->uid, tsk->gid, tsk, 0, NULL);
 		if (IS_ERR(keyring)) {
 			ret = PTR_ERR(keyring);
 			goto error2;

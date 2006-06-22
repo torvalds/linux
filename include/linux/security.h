@@ -1313,7 +1313,7 @@ struct security_operations {
 
 	/* key management security hooks */
 #ifdef CONFIG_KEYS
-	int (*key_alloc)(struct key *key);
+	int (*key_alloc)(struct key *key, struct task_struct *tsk);
 	void (*key_free)(struct key *key);
 	int (*key_permission)(key_ref_t key_ref,
 			      struct task_struct *context,
@@ -3008,9 +3008,10 @@ static inline int security_xfrm_policy_lookup(struct xfrm_policy *xp, u32 sk_sid
 
 #ifdef CONFIG_KEYS
 #ifdef CONFIG_SECURITY
-static inline int security_key_alloc(struct key *key)
+static inline int security_key_alloc(struct key *key,
+				     struct task_struct *tsk)
 {
-	return security_ops->key_alloc(key);
+	return security_ops->key_alloc(key, tsk);
 }
 
 static inline void security_key_free(struct key *key)
@@ -3027,7 +3028,8 @@ static inline int security_key_permission(key_ref_t key_ref,
 
 #else
 
-static inline int security_key_alloc(struct key *key)
+static inline int security_key_alloc(struct key *key,
+				     struct task_struct *tsk)
 {
 	return 0;
 }

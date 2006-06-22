@@ -148,7 +148,7 @@ struct user_struct * alloc_uid(uid_t uid)
 		new->mq_bytes = 0;
 		new->locked_shm = 0;
 
-		if (alloc_uid_keyring(new) < 0) {
+		if (alloc_uid_keyring(new, current) < 0) {
 			kmem_cache_free(uid_cachep, new);
 			return NULL;
 		}
