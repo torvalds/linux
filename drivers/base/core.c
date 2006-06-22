@@ -559,9 +559,9 @@ static void device_create_release(struct device *dev)
 
 /**
  * device_create - creates a device and registers it with sysfs
- * @cs: pointer to the struct class that this device should be registered to.
+ * @class: pointer to the struct class that this device should be registered to.
  * @parent: pointer to the parent struct device of this new device, if any.
- * @dev: the dev_t for the char device to be added.
+ * @devt: the dev_t for the char device to be added.
  * @fmt: string for the class device's name
  *
  * This function can be used by char device classes.  A struct
@@ -621,7 +621,7 @@ EXPORT_SYMBOL_GPL(device_create);
 /**
  * device_destroy - removes a device that was created with device_create()
  * @class: the pointer to the struct class that this device was registered * with.
- * @dev: the dev_t of the device that was previously registered.
+ * @devt: the dev_t of the device that was previously registered.
  *
  * This call unregisters and cleans up a class device that was created with a
  * call to class_device_create()
