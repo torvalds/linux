@@ -29,9 +29,4 @@ config PPC_INDIRECT_PCI_BE
 	depends on PPC_86xx
 	default y
 
-config PPC_STD_MMU
-	bool
-	depends on PPC_86xx
-	default y
-
 endmenu
