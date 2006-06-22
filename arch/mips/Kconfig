@@ -606,6 +606,7 @@ config SGI_IP27
 	select ARC64
 	select BOOT_ELF64
 	select DMA_IP27
+	select EARLY_PRINTK
 	select HW_HAS_PCI
 	select PCI_DOMAINS
 	select SYS_HAS_CPU_R10000
