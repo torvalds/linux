@@ -258,6 +258,7 @@
 #include <linux/random.h>
 #include <linux/bootmem.h>
 #include <linux/cache.h>
+#include <linux/err.h>
 
 #include <net/icmp.h>
 #include <net/tcp.h>
@@ -2143,6 +2144,67 @@ int compat_tcp_getsockopt(struct sock *sk, int level, int optname,
 
 EXPORT_SYMBOL(compat_tcp_getsockopt);
 #endif
+
+struct sk_buff *tcp_tso_segment(struct sk_buff *skb, int sg)
+{
+	struct sk_buff *segs = ERR_PTR(-EINVAL);
+	struct tcphdr *th;
+	unsigned thlen;
+	unsigned int seq;
+	unsigned int delta;
+	unsigned int oldlen;
+	unsigned int len;
+
+	if (!pskb_may_pull(skb, sizeof(*th)))
+		goto out;
+
+	th = skb->h.th;
+	thlen = th->doff * 4;
+	if (thlen < sizeof(*th))
+		goto out;
+
+	if (!pskb_may_pull(skb, thlen))
+		goto out;
+
+	oldlen = ~htonl(skb->len);
+	__skb_pull(skb, thlen);
+
+	segs = skb_segment(skb, sg);
+	if (IS_ERR(segs))
+		goto out;
+
+	len = skb_shinfo(skb)->gso_size;
+	delta = csum_add(oldlen, htonl(thlen + len));
+
+	skb = segs;
+	th = skb->h.th;
+	seq = ntohl(th->seq);
+
+	do {
+		th->fin = th->psh = 0;
+
+		if (skb->ip_summed == CHECKSUM_NONE) {
+			th->check = csum_fold(csum_partial(
+				skb->h.raw, thlen, csum_add(skb->csum, delta)));
+		}
+
+		seq += len;
+		skb = skb->next;
+		th = skb->h.th;
+
+		th->seq = htonl(seq);
+		th->cwr = 0;
+	} while (skb->next);
+
+	if (skb->ip_summed == CHECKSUM_NONE) {
+		delta = csum_add(oldlen, htonl(skb->tail - skb->h.raw));
+		th->check = csum_fold(csum_partial(
+			skb->h.raw, thlen, csum_add(skb->csum, delta)));
+	}
+
+out:
+	return segs;
+}
 
 extern void __skb_cb_too_small_for_tcp(int, int);
 extern struct tcp_congestion_ops tcp_reno;

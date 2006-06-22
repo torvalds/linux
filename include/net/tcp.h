@@ -1086,6 +1086,8 @@ extern struct request_sock_ops tcp_request_sock_ops;
 
 extern int tcp_v4_destroy_sock(struct sock *sk);
 
+extern struct sk_buff *tcp_tso_segment(struct sk_buff *skb, int sg);
+
 #ifdef CONFIG_PROC_FS
 extern int  tcp4_proc_init(void);
 extern void tcp4_proc_exit(void);
