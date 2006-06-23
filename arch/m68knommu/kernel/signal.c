@@ -553,7 +553,7 @@ get_sigframe(struct k_sigaction *ka, struct pt_regs *regs, size_t frame_size)
 
 	/* This is the X/Open sanctioned signal stack switching.  */
 	if (ka->sa.sa_flags & SA_ONSTACK) {
-		if (!on_sig_stack(usp))
+		if (!sas_ss_flags(usp))
 			usp = current->sas_ss_sp + current->sas_ss_size;
 	}
 	return (void *)((usp - frame_size) & -8UL);
