@@ -87,6 +87,7 @@
 #include <linux/seq_file.h>
 #include <linux/proc_fs.h>
 #include <linux/migrate.h>
+#include <linux/rmap.h>
 
 #include <asm/tlbflush.h>
 #include <asm/uaccess.h>
@@ -587,6 +588,11 @@ static void migrate_page_add(struct page *page, struct list_head *pagelist,
 		isolate_lru_page(page, pagelist);
 }
 
+static struct page *new_node_page(struct page *page, unsigned long node)
+{
+	return alloc_pages_node(node, GFP_HIGHUSER, 0);
+}
+
 /*
  * Migrate pages from one node to a target node.
  * Returns error or the number of pages not migrated.
@@ -604,7 +610,8 @@ int migrate_to_node(struct mm_struct *mm, int source, int dest, int flags)
 			flags | MPOL_MF_DISCONTIG_OK, &pagelist);
 
 	if (!list_empty(&pagelist))
-		err = migrate_pages_to(&pagelist, NULL, dest);
+		err = migrate_pages(&pagelist, new_node_page, dest);
+
 	return err;
 }
 
@@ -691,6 +698,12 @@ int do_migrate_pages(struct mm_struct *mm,
 
 }
 
+static struct page *new_vma_page(struct page *page, unsigned long private)
+{
+	struct vm_area_struct *vma = (struct vm_area_struct *)private;
+
+	return alloc_page_vma(GFP_HIGHUSER, vma, page_address_in_vma(page, vma));
+}
 #else
 
 static void migrate_page_add(struct page *page, struct list_head *pagelist,
@@ -702,6 +715,11 @@ int do_migrate_pages(struct mm_struct *mm,
 	const nodemask_t *from_nodes, const nodemask_t *to_nodes, int flags)
 {
 	return -ENOSYS;
+}
+
+static struct page *new_vma_page(struct page *page, unsigned long private)
+{
+	return NULL;
 }
 #endif
 
@@ -764,7 +782,8 @@ long do_mbind(unsigned long start, unsigned long len,
 		err = mbind_range(vma, start, end, new);
 
 		if (!list_empty(&pagelist))
-			nr_failed = migrate_pages_to(&pagelist, vma, -1);
+			nr_failed = migrate_pages(&pagelist, new_vma_page,
+						(unsigned long)vma);
 
 		if (!err && nr_failed && (flags & MPOL_MF_STRICT))
 			err = -EIO;

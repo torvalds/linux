@@ -28,9 +28,6 @@
 
 #include "internal.h"
 
-/* The maximum number of pages to take off the LRU for migration */
-#define MIGRATE_CHUNK_SIZE 256
-
 #define lru_to_page(_head) (list_entry((_head)->prev, struct page, lru))
 
 /*
@@ -587,18 +584,23 @@ static int move_to_new_page(struct page *newpage, struct page *page)
  * Obtain the lock on page, remove all ptes and migrate the page
  * to the newly allocated page in newpage.
  */
-static int unmap_and_move(struct page *newpage, struct page *page, int force)
+static int unmap_and_move(new_page_t get_new_page, unsigned long private,
+			struct page *page, int force)
 {
 	int rc = 0;
+	struct page *newpage = get_new_page(page, private);
+
+	if (!newpage)
+		return -ENOMEM;
 
 	if (page_count(page) == 1)
 		/* page was freed from under us. So we are done. */
-		goto ret;
+		goto move_newpage;
 
 	rc = -EAGAIN;
 	if (TestSetPageLocked(page)) {
 		if (!force)
-			goto ret;
+			goto move_newpage;
 		lock_page(page);
 	}
 
@@ -622,7 +624,7 @@ static int unmap_and_move(struct page *newpage, struct page *page, int force)
 		remove_migration_ptes(page, page);
 unlock:
 	unlock_page(page);
-ret:
+
 	if (rc != -EAGAIN) {
  		/*
  		 * A page that has been migrated has all references
@@ -632,29 +634,33 @@ ret:
  		 */
  		list_del(&page->lru);
  		move_to_lru(page);
-
-		list_del(&newpage->lru);
-		move_to_lru(newpage);
 	}
+
+move_newpage:
+	/*
+	 * Move the new page to the LRU. If migration was not successful
+	 * then this will free the page.
+	 */
+	move_to_lru(newpage);
 	return rc;
 }
 
 /*
  * migrate_pages
  *
- * Two lists are passed to this function. The first list
- * contains the pages isolated from the LRU to be migrated.
- * The second list contains new pages that the isolated pages
- * can be moved to.
+ * The function takes one list of pages to migrate and a function
+ * that determines from the page to be migrated and the private data
+ * the target of the move and allocates the page.
  *
  * The function returns after 10 attempts or if no pages
  * are movable anymore because to has become empty
  * or no retryable pages exist anymore. All pages will be
  * retruned to the LRU or freed.
  *
- * Return: Number of pages not migrated.
+ * Return: Number of pages not migrated or error code.
  */
-int migrate_pages(struct list_head *from, struct list_head *to)
+int migrate_pages(struct list_head *from,
+		new_page_t get_new_page, unsigned long private)
 {
 	int retry = 1;
 	int nr_failed = 0;
@@ -671,15 +677,14 @@ int migrate_pages(struct list_head *from, struct list_head *to)
 		retry = 0;
 
 		list_for_each_entry_safe(page, page2, from, lru) {
-
-			if (list_empty(to))
-				break;
-
 			cond_resched();
 
-			rc = unmap_and_move(lru_to_page(to), page, pass > 2);
+			rc = unmap_and_move(get_new_page, private,
+						page, pass > 2);
 
 			switch(rc) {
+			case -ENOMEM:
+				goto out;
 			case -EAGAIN:
 				retry++;
 				break;
@@ -692,72 +697,16 @@ int migrate_pages(struct list_head *from, struct list_head *to)
 			}
 		}
 	}
-
+	rc = 0;
+out:
 	if (!swapwrite)
 		current->flags &= ~PF_SWAPWRITE;
 
 	putback_lru_pages(from);
+
+	if (rc)
+		return rc;
+
 	return nr_failed + retry;
 }
 
-/*
- * Migrate the list 'pagelist' of pages to a certain destination.
- *
- * Specify destination with either non-NULL vma or dest_node >= 0
- * Return the number of pages not migrated or error code
- */
-int migrate_pages_to(struct list_head *pagelist,
-			struct vm_area_struct *vma, int dest)
-{
-	LIST_HEAD(newlist);
-	int err = 0;
-	unsigned long offset = 0;
-	int nr_pages;
-	int nr_failed = 0;
-	struct page *page;
-	struct list_head *p;
-
-redo:
-	nr_pages = 0;
-	list_for_each(p, pagelist) {
-		if (vma) {
-			/*
-			 * The address passed to alloc_page_vma is used to
-			 * generate the proper interleave behavior. We fake
-			 * the address here by an increasing offset in order
-			 * to get the proper distribution of pages.
-			 *
-			 * No decision has been made as to which page
-			 * a certain old page is moved to so we cannot
-			 * specify the correct address.
-			 */
-			page = alloc_page_vma(GFP_HIGHUSER, vma,
-					offset + vma->vm_start);
-			offset += PAGE_SIZE;
-		}
-		else
-			page = alloc_pages_node(dest, GFP_HIGHUSER, 0);
-
-		if (!page) {
-			err = -ENOMEM;
-			goto out;
-		}
-		list_add_tail(&page->lru, &newlist);
-		nr_pages++;
-		if (nr_pages > MIGRATE_CHUNK_SIZE)
-			break;
-	}
-	err = migrate_pages(pagelist, &newlist);
-
-	if (err >= 0) {
-		nr_failed += err;
-		if (list_empty(&newlist) && !list_empty(pagelist))
-			goto redo;
-	}
-out:
-
-	/* Calculate number of leftover pages */
-	list_for_each(p, pagelist)
-		nr_failed++;
-	return nr_failed;
-}
