@@ -345,7 +345,7 @@ extern struct sk_buff *skb_realloc_headroom(struct sk_buff *skb,
 extern struct sk_buff *skb_copy_expand(const struct sk_buff *skb,
 				       int newheadroom, int newtailroom,
 				       gfp_t priority);
-extern struct sk_buff *		skb_pad(struct sk_buff *skb, int pad);
+extern int	       skb_pad(struct sk_buff *skb, int pad);
 #define dev_kfree_skb(a)	kfree_skb(a)
 extern void	      skb_over_panic(struct sk_buff *skb, int len,
 				     void *here);
@@ -1122,16 +1122,15 @@ static inline int skb_cow(struct sk_buff *skb, unsigned int headroom)
  *
  *	Pads up a buffer to ensure the trailing bytes exist and are
  *	blanked. If the buffer already contains sufficient data it
- *	is untouched. Returns the buffer, which may be a replacement
- *	for the original, or NULL for out of memory - in which case
- *	the original buffer is still freed.
+ *	is untouched. Otherwise it is extended. Returns zero on
+ *	success. The skb is freed on error.
  */
  
-static inline struct sk_buff *skb_padto(struct sk_buff *skb, unsigned int len)
+static inline int skb_padto(struct sk_buff *skb, unsigned int len)
 {
 	unsigned int size = skb->len;
 	if (likely(size >= len))
-		return skb;
+		return 0;
 	return skb_pad(skb, len-size);
 }
 

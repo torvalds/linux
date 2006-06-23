@@ -2310,8 +2310,7 @@ static int skge_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 	u64 map;
 	unsigned long flags;
 
-	skb = skb_padto(skb, ETH_ZLEN);
-	if (!skb)
+	if (skb_padto(skb, ETH_ZLEN))
 		return NETDEV_TX_OK;
 
 	if (!spin_trylock_irqsave(&skge->tx_lock, flags))

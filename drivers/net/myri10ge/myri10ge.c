@@ -1939,8 +1939,7 @@ again:
 
 		/* pad frames to at least ETH_ZLEN bytes */
 		if (unlikely(skb->len < ETH_ZLEN)) {
-			skb = skb_padto(skb, ETH_ZLEN);
-			if (skb == NULL) {
+			if (skb_padto(skb, ETH_ZLEN)) {
 				/* The packet is gone, so we must
 				 * return 0 */
 				mgp->stats.tx_dropped += 1;

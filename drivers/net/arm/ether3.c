@@ -518,8 +518,7 @@ ether3_sendpacket(struct sk_buff *skb, struct net_device *dev)
 
 	length = (length + 1) & ~1;
 	if (length != skb->len) {
-		skb = skb_padto(skb, length);
-		if (skb == NULL)
+		if (skb_padto(skb, length))
 			goto out;
 	}
 

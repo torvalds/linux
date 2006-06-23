@@ -3194,11 +3194,8 @@ wavelan_packet_xmit(struct sk_buff *	skb,
 	 * and we don't have the Ethernet specific requirement of beeing
 	 * able to detect collisions, therefore in theory we don't really
 	 * need to pad. Jean II */
-	if (skb->len < ETH_ZLEN) {
-		skb = skb_padto(skb, ETH_ZLEN);
-		if (skb == NULL)
-			return 0;
-	}
+	if (skb_padto(skb, ETH_ZLEN))
+		return 0;
 
   wv_packet_write(dev, skb->data, skb->len);
 
