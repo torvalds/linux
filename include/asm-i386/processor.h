@@ -728,10 +728,4 @@ extern unsigned long boot_option_idle_override;
 extern void enable_sep_cpu(void);
 extern int sysenter_setup(void);
 
-#ifdef CONFIG_X86_MCE
-extern void mcheck_init(struct cpuinfo_x86 *c);
-#else
-#define mcheck_init(c) do {} while(0)
-#endif
-
 #endif /* __ASM_I386_PROCESSOR_H */
