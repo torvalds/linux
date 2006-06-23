@@ -63,6 +63,7 @@ struct device_node *of_find_node_by_path(const char *path)
 
 	return np;
 }
+EXPORT_SYMBOL(of_find_node_by_path);
 
 struct device_node *of_find_node_by_phandle(phandle handle)
 {

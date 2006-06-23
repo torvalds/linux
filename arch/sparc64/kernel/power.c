@@ -105,24 +105,24 @@ again:
 	return 0;
 }
 
-static int __init has_button_interrupt(unsigned int irq, int prom_node)
+static int __init has_button_interrupt(unsigned int irq, struct device_node *dp)
 {
 	if (irq == PCI_IRQ_NONE)
 		return 0;
-	if (!prom_node_has_property(prom_node, "button"))
+	if (!of_find_property(dp, "button", NULL))
 		return 0;
 
 	return 1;
 }
 
-static int __init power_probe_ebus(struct resource **resp, unsigned int *irq_p, int *prom_node_p)
+static int __init power_probe_ebus(struct resource **resp, unsigned int *irq_p, struct device_node **prom_node_p)
 {
 	struct linux_ebus *ebus;
 	struct linux_ebus_device *edev;
 
 	for_each_ebus(ebus) {
 		for_each_ebusdev(edev, ebus) {
-			if (!strcmp(edev->prom_name, "power")) {
+			if (!strcmp(edev->prom_node->name, "power")) {
 				*resp = &edev->resource[0];
 				*irq_p = edev->irqs[0];
 				*prom_node_p = edev->prom_node;
@@ -133,14 +133,14 @@ static int __init power_probe_ebus(struct resource **resp, unsigned int *irq_p, 
 	return -ENODEV;
 }
 
-static int __init power_probe_isa(struct resource **resp, unsigned int *irq_p, int *prom_node_p)
+static int __init power_probe_isa(struct resource **resp, unsigned int *irq_p, struct device_node **prom_node_p)
 {
 	struct sparc_isa_bridge *isa_bus;
 	struct sparc_isa_device *isa_dev;
 
 	for_each_isa(isa_bus) {
 		for_each_isadev(isa_dev, isa_bus) {
-			if (!strcmp(isa_dev->prom_name, "power")) {
+			if (!strcmp(isa_dev->prom_node->name, "power")) {
 				*resp = &isa_dev->resource;
 				*irq_p = isa_dev->irq;
 				*prom_node_p = isa_dev->prom_node;
@@ -155,17 +155,17 @@ void __init power_init(void)
 {
 	struct resource *res = NULL;
 	unsigned int irq;
-	int prom_node;
+	struct device_node *dp;
 	static int invoked;
 
 	if (invoked)
 		return;
 	invoked = 1;
 
-	if (!power_probe_ebus(&res, &irq, &prom_node))
+	if (!power_probe_ebus(&res, &irq, &dp))
 		goto found;
 
-	if (!power_probe_isa(&res, &irq, &prom_node))
+	if (!power_probe_isa(&res, &irq, &dp))
 		goto found;
 
 	return;
@@ -174,7 +174,7 @@ found:
 	power_reg = ioremap(res->start, 0x4);
 	printk("power: Control reg at %p ... ", power_reg);
 	poweroff_method = machine_halt;  /* able to use the standard halt */
-	if (has_button_interrupt(irq, prom_node)) {
+	if (has_button_interrupt(irq, dp)) {
 		if (kernel_thread(powerd, NULL, CLONE_FS) < 0) {
 			printk("Failed to start power daemon.\n");
 			return;

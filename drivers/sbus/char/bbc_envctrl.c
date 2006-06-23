@@ -575,9 +575,9 @@ int bbc_envctrl_init(void)
 	int devidx = 0;
 
 	while ((echild = bbc_i2c_getdev(devidx++)) != NULL) {
-		if (!strcmp(echild->prom_name, "temperature"))
+		if (!strcmp(echild->prom_node->name, "temperature"))
 			attach_one_temp(echild, temp_index++);
-		if (!strcmp(echild->prom_name, "fan-control"))
+		if (!strcmp(echild->prom_node->name, "fan-control"))
 			attach_one_fan(echild, fan_index++);
 	}
 	if (temp_index != 0 && fan_index != 0) {

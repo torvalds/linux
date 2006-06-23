@@ -984,19 +984,19 @@ static void __init for_each_sab_edev(void (*callback)(struct linux_ebus_device *
 
 	for_each_ebus(ebus) {
 		for_each_ebusdev(edev, ebus) {
-			if (!strcmp(edev->prom_name, "se")) {
+			if (!strcmp(edev->prom_node->name, "se")) {
 				callback(edev, arg);
 				continue;
-			} else if (!strcmp(edev->prom_name, "serial")) {
-				char compat[32];
+			} else if (!strcmp(edev->prom_node->name, "serial")) {
+				char *compat;
 				int clen;
 
 				/* On RIO this can be an SE, check it.  We could
 				 * just check ebus->is_rio, but this is more portable.
 				 */
-				clen = prom_getproperty(edev->prom_node, "compatible",
-							compat, sizeof(compat));
-				if (clen > 0) {
+				compat = of_get_property(edev->prom_node,
+							 "compatible", &clen);
+				if (compat && clen > 0) {
 					if (strncmp(compat, "sab82532", 8) == 0) {
 						callback(edev, arg);
 						continue;

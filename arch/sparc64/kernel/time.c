@@ -756,23 +756,199 @@ retry:
 	return -EOPNOTSUPP;
 }
 
-void __init clock_probe(void)
+static int __init clock_model_matches(char *model)
+{
+	if (strcmp(model, "mk48t02") &&
+	    strcmp(model, "mk48t08") &&
+	    strcmp(model, "mk48t59") &&
+	    strcmp(model, "m5819") &&
+	    strcmp(model, "m5819p") &&
+	    strcmp(model, "m5823") &&
+	    strcmp(model, "ds1287"))
+		return 0;
+
+	return 1;
+}
+
+static void __init __clock_assign_common(void __iomem *addr, char *model)
+{
+	if (model[5] == '0' && model[6] == '2') {
+		mstk48t02_regs = addr;
+	} else if(model[5] == '0' && model[6] == '8') {
+		mstk48t08_regs = addr;
+		mstk48t02_regs = mstk48t08_regs + MOSTEK_48T08_48T02;
+	} else {
+		mstk48t59_regs = addr;
+		mstk48t02_regs = mstk48t59_regs + MOSTEK_48T59_48T02;
+	}
+}
+
+static void __init clock_assign_clk_reg(struct linux_prom_registers *clk_reg,
+					char *model)
+{
+	unsigned long addr;
+
+	addr = ((unsigned long) clk_reg[0].phys_addr |
+		(((unsigned long) clk_reg[0].which_io) << 32UL));
+
+	__clock_assign_common((void __iomem *) addr, model);
+}
+
+static int __init clock_probe_central(void)
 {
 	struct linux_prom_registers clk_reg[2];
-	char model[128];
-	int node, busnd = -1, err;
-	unsigned long flags;
-	struct linux_central *cbus;
+	char model[64];
+	int node;
+
+	if (!central_bus)
+		return 0;
+
+	/* Get Central FHC's prom node.  */
+	node = central_bus->child->prom_node;
+
+	/* Then get the first child device below it.  */
+	node = prom_getchild(node);
+
+	while (node) {
+		prom_getstring(node, "model", model, sizeof(model));
+		if (!clock_model_matches(model))
+			goto next_sibling;
+
+		prom_getproperty(node, "reg", (char *)clk_reg,
+				 sizeof(clk_reg));
+
+		apply_fhc_ranges(central_bus->child, clk_reg, 1);
+		apply_central_ranges(central_bus, clk_reg, 1);
+
+		clock_assign_clk_reg(clk_reg, model);
+		return 1;
+
+	next_sibling:
+		node = prom_getsibling(node);
+	}
+
+	return 0;
+}
+
 #ifdef CONFIG_PCI
-	struct linux_ebus *ebus = NULL;
-	struct sparc_isa_bridge *isa_br = NULL;
+static void __init clock_isa_ebus_assign_regs(struct resource *res, char *model)
+{
+	if (!strcmp(model, "ds1287") ||
+	    !strcmp(model, "m5819") ||
+	    !strcmp(model, "m5819p") ||
+	    !strcmp(model, "m5823")) {
+		ds1287_regs = res->start;
+	} else {
+		mstk48t59_regs = (void __iomem *) res->start;
+		mstk48t02_regs = mstk48t59_regs + MOSTEK_48T59_48T02;
+	}
+}
+
+static int __init clock_probe_one_ebus_dev(struct linux_ebus_device *edev)
+{
+	struct device_node *dp = edev->prom_node;
+	char *model;
+
+	model = of_get_property(dp, "model", NULL);
+	if (!clock_model_matches(model))
+		return 0;
+
+	clock_isa_ebus_assign_regs(&edev->resource[0], model);
+
+	return 1;
+}
+
+static int __init clock_probe_ebus(void)
+{
+	struct linux_ebus *ebus;
+
+	for_each_ebus(ebus) {
+		struct linux_ebus_device *edev;
+
+		for_each_ebusdev(edev, ebus) {
+			if (clock_probe_one_ebus_dev(edev))
+				return 1;
+		}
+	}
+
+	return 0;
+}
+
+static int __init clock_probe_one_isa_dev(struct sparc_isa_device *idev)
+{
+	struct device_node *dp = idev->prom_node;
+	char *model;
+
+	model = of_get_property(dp, "model", NULL);
+	if (!clock_model_matches(model))
+		return 0;
+
+	clock_isa_ebus_assign_regs(&idev->resource, model);
+
+	return 1;
+}
+
+static int __init clock_probe_isa(void)
+{
+	struct sparc_isa_bridge *isa_br;
+
+	for_each_isa(isa_br) {
+		struct sparc_isa_device *isa_dev;
+
+		for_each_isadev(isa_dev, isa_br) {
+			if (clock_probe_one_isa_dev(isa_dev))
+				return 1;
+		}
+	}
+
+	return 0;
+}
+#endif /* CONFIG_PCI */
+
+#ifdef CONFIG_SBUS
+static int __init clock_probe_one_sbus_dev(struct sbus_bus *sbus, struct sbus_dev *sdev)
+{
+	struct resource *res;
+	char model[64];
+	void __iomem *addr;
+
+	prom_getstring(sdev->prom_node, "model", model, sizeof(model));
+	if (!clock_model_matches(model))
+		return 0;
+
+	res = &sdev->resource[0];
+	addr = sbus_ioremap(res, 0, 0x800UL, "eeprom");
+
+	__clock_assign_common(addr, model);
+
+	return 1;
+}
+
+static int __init clock_probe_sbus(void)
+{
+	struct sbus_bus *sbus;
+
+	for_each_sbus(sbus) {
+		struct sbus_dev *sdev;
+
+		for_each_sbusdev(sdev, sbus) {
+			if (clock_probe_one_sbus_dev(sbus, sdev))
+				return 1;
+		}
+	}
+
+	return 0;
+}
 #endif
+
+void __init clock_probe(void)
+{
 	static int invoked;
+	unsigned long flags;
 
 	if (invoked)
 		return;
 	invoked = 1;
-
 
 	if (this_is_starfire) {
 		xtime.tv_sec = starfire_get_time();
@@ -789,182 +965,26 @@ void __init clock_probe(void)
 		return;
 	}
 
-	local_irq_save(flags);
-
-	cbus = central_bus;
-	if (cbus != NULL)
-		busnd = central_bus->child->prom_node;
-
 	/* Check FHC Central then EBUSs then ISA bridges then SBUSs.
 	 * That way we handle the presence of multiple properly.
 	 *
 	 * As a special case, machines with Central must provide the
 	 * timer chip there.
 	 */
+	if (!clock_probe_central() &&
 #ifdef CONFIG_PCI
-	if (ebus_chain != NULL) {
-		ebus = ebus_chain;
-		if (busnd == -1)
-			busnd = ebus->prom_node;
-	}
-	if (isa_chain != NULL) {
-		isa_br = isa_chain;
-		if (busnd == -1)
-			busnd = isa_br->prom_node;
-	}
+	    !clock_probe_ebus() &&
+	    !clock_probe_isa() &&
 #endif
-	if (sbus_root != NULL && busnd == -1)
-		busnd = sbus_root->prom_node;
-
-	if (busnd == -1) {
-		prom_printf("clock_probe: problem, cannot find bus to search.\n");
-		prom_halt();
+#ifdef CONFIG_SBUS
+	    !clock_probe_sbus()
+#endif
+		) {
+		printk(KERN_WARNING "No clock chip found.\n");
+		return;
 	}
 
-	node = prom_getchild(busnd);
-
-	while (1) {
-		if (!node)
-			model[0] = 0;
-		else
-			prom_getstring(node, "model", model, sizeof(model));
-		if (strcmp(model, "mk48t02") &&
-		    strcmp(model, "mk48t08") &&
-		    strcmp(model, "mk48t59") &&
-		    strcmp(model, "m5819") &&
-		    strcmp(model, "m5819p") &&
-		    strcmp(model, "m5823") &&
-		    strcmp(model, "ds1287")) {
-			if (cbus != NULL) {
-				prom_printf("clock_probe: Central bus lacks timer chip.\n");
-				prom_halt();
-			}
-
-		   	if (node != 0)
-				node = prom_getsibling(node);
-#ifdef CONFIG_PCI
-			while ((node == 0) && ebus != NULL) {
-				ebus = ebus->next;
-				if (ebus != NULL) {
-					busnd = ebus->prom_node;
-					node = prom_getchild(busnd);
-				}
-			}
-			while ((node == 0) && isa_br != NULL) {
-				isa_br = isa_br->next;
-				if (isa_br != NULL) {
-					busnd = isa_br->prom_node;
-					node = prom_getchild(busnd);
-				}
-			}
-#endif
-			if (node == 0) {
-				prom_printf("clock_probe: Cannot find timer chip\n");
-				prom_halt();
-			}
-			continue;
-		}
-
-		err = prom_getproperty(node, "reg", (char *)clk_reg,
-				       sizeof(clk_reg));
-		if(err == -1) {
-			prom_printf("clock_probe: Cannot get Mostek reg property\n");
-			prom_halt();
-		}
-
-		if (cbus != NULL) {
-			apply_fhc_ranges(central_bus->child, clk_reg, 1);
-			apply_central_ranges(central_bus, clk_reg, 1);
-		}
-#ifdef CONFIG_PCI
-		else if (ebus != NULL) {
-			struct linux_ebus_device *edev;
-
-			for_each_ebusdev(edev, ebus)
-				if (edev->prom_node == node)
-					break;
-			if (edev == NULL) {
-				if (isa_chain != NULL)
-					goto try_isa_clock;
-				prom_printf("%s: Mostek not probed by EBUS\n",
-					    __FUNCTION__);
-				prom_halt();
-			}
-
-			if (!strcmp(model, "ds1287") ||
-			    !strcmp(model, "m5819") ||
-			    !strcmp(model, "m5819p") ||
-			    !strcmp(model, "m5823")) {
-				ds1287_regs = edev->resource[0].start;
-			} else {
-				mstk48t59_regs = (void __iomem *)
-					edev->resource[0].start;
-				mstk48t02_regs = mstk48t59_regs + MOSTEK_48T59_48T02;
-			}
-			break;
-		}
-		else if (isa_br != NULL) {
-			struct sparc_isa_device *isadev;
-
-try_isa_clock:
-			for_each_isadev(isadev, isa_br)
-				if (isadev->prom_node == node)
-					break;
-			if (isadev == NULL) {
-				prom_printf("%s: Mostek not probed by ISA\n");
-				prom_halt();
-			}
-			if (!strcmp(model, "ds1287") ||
-			    !strcmp(model, "m5819") ||
-			    !strcmp(model, "m5819p") ||
-			    !strcmp(model, "m5823")) {
-				ds1287_regs = isadev->resource.start;
-			} else {
-				mstk48t59_regs = (void __iomem *)
-					isadev->resource.start;
-				mstk48t02_regs = mstk48t59_regs + MOSTEK_48T59_48T02;
-			}
-			break;
-		}
-#endif
-		else {
-			if (sbus_root->num_sbus_ranges) {
-				int nranges = sbus_root->num_sbus_ranges;
-				int rngc;
-
-				for (rngc = 0; rngc < nranges; rngc++)
-					if (clk_reg[0].which_io ==
-					    sbus_root->sbus_ranges[rngc].ot_child_space)
-						break;
-				if (rngc == nranges) {
-					prom_printf("clock_probe: Cannot find ranges for "
-						    "clock regs.\n");
-					prom_halt();
-				}
-				clk_reg[0].which_io =
-					sbus_root->sbus_ranges[rngc].ot_parent_space;
-				clk_reg[0].phys_addr +=
-					sbus_root->sbus_ranges[rngc].ot_parent_base;
-			}
-		}
-
-		if(model[5] == '0' && model[6] == '2') {
-			mstk48t02_regs = (void __iomem *)
-				(((u64)clk_reg[0].phys_addr) |
-				 (((u64)clk_reg[0].which_io)<<32UL));
-		} else if(model[5] == '0' && model[6] == '8') {
-			mstk48t08_regs = (void __iomem *)
-				(((u64)clk_reg[0].phys_addr) |
-				 (((u64)clk_reg[0].which_io)<<32UL));
-			mstk48t02_regs = mstk48t08_regs + MOSTEK_48T08_48T02;
-		} else {
-			mstk48t59_regs = (void __iomem *)
-				(((u64)clk_reg[0].phys_addr) |
-				 (((u64)clk_reg[0].which_io)<<32UL));
-			mstk48t02_regs = mstk48t59_regs + MOSTEK_48T59_48T02;
-		}
-		break;
-	}
+	local_irq_save(flags);
 
 	if (mstk48t02_regs != NULL) {
 		/* Report a low battery voltage condition. */

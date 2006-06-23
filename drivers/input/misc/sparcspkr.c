@@ -199,7 +199,7 @@ static int __init sparcspkr_init(void)
 
 	for_each_ebus(ebus) {
 		for_each_ebusdev(edev, ebus) {
-			if (!strcmp(edev->prom_name, "beep")) {
+			if (!strcmp(edev->prom_node->name, "beep")) {
 				beep_name = "Sparc EBUS Speaker";
 				beep_event = ebus_spkr_event;
 				beep_iobase = edev->resource[0].start;
@@ -213,7 +213,7 @@ static int __init sparcspkr_init(void)
 			/* A hack, the beep device's base lives in
 			 * the DMA isa node.
 			 */
-			if (!strcmp(isa_dev->prom_name, "dma")) {
+			if (!strcmp(isa_dev->prom_node->name, "dma")) {
 				beep_name = "Sparc ISA Speaker";
 				beep_event = isa_spkr_event,
 				beep_iobase = isa_dev->resource.start;

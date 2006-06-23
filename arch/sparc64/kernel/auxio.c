@@ -136,7 +136,7 @@ found_sdev:
 
 		for_each_ebus(ebus) {
 			for_each_ebusdev(edev, ebus) {
-				if (!strcmp(edev->prom_name, "auxio"))
+				if (!strcmp(edev->prom_node->name, "auxio"))
 					goto ebus_done;
 			}
 		}

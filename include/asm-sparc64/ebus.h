@@ -10,13 +10,13 @@
 
 #include <asm/pbm.h>
 #include <asm/oplib.h>
+#include <asm/prom.h>
 
 struct linux_ebus_child {
 	struct linux_ebus_child		*next;
 	struct linux_ebus_device	*parent;
 	struct linux_ebus		*bus;
-	int				 prom_node;
-	char				 prom_name[64];
+	struct device_node		*prom_node;
 	struct resource			 resource[PROMREG_MAX];
 	int				 num_addrs;
 	unsigned int			 irqs[PROMINTR_MAX];
@@ -27,8 +27,7 @@ struct linux_ebus_device {
 	struct linux_ebus_device	*next;
 	struct linux_ebus_child		*children;
 	struct linux_ebus		*bus;
-	int				 prom_node;
-	char				 prom_name[64];
+	struct device_node		*prom_node;
 	struct resource			 resource[PROMREG_MAX];
 	int				 num_addrs;
 	unsigned int			 irqs[PROMINTR_MAX];
@@ -42,8 +41,7 @@ struct linux_ebus {
 	struct pci_dev			*self;
 	int				 index;
 	int				 is_rio;
-	int				 prom_node;
-	char				 prom_name[64];
+	struct device_node		*prom_node;
 	struct linux_prom_ebus_ranges	 ebus_ranges[PROMREG_MAX];
 	int				 num_ebus_ranges;
 	struct linux_prom_ebus_intmap	 ebus_intmap[PROMREG_MAX];

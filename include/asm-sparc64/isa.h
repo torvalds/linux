@@ -9,6 +9,7 @@
 
 #include <asm/pbm.h>
 #include <asm/oplib.h>
+#include <asm/prom.h>
 
 struct sparc_isa_bridge;
 
@@ -16,9 +17,7 @@ struct sparc_isa_device {
 	struct sparc_isa_device	*next;
 	struct sparc_isa_device	*child;
 	struct sparc_isa_bridge	*bus;
-	int			prom_node;
-	char			prom_name[64];
-	char			compatible[64];
+	struct device_node	*prom_node;
 	struct resource		resource;
 	unsigned int		irq;
 };
@@ -29,8 +28,7 @@ struct sparc_isa_bridge {
 	struct pci_pbm_info	*parent;
 	struct pci_dev		*self;
 	int			index;
-	int			prom_node;
-	char			prom_name[64];
+	struct device_node	*prom_node;
 #define linux_prom_isa_ranges linux_prom_ebus_ranges
 	struct linux_prom_isa_ranges	isa_ranges[PROMREG_MAX];
 	int			num_isa_ranges;
