@@ -177,10 +177,11 @@ create_elf_tables(struct linux_binprm *bprm, struct elfhdr *exec,
 	}
 
 	/* Create the ELF interpreter info */
-	elf_info = (elf_addr_t *) current->mm->saved_auxv;
+	elf_info = (elf_addr_t *)current->mm->saved_auxv;
 #define NEW_AUX_ENT(id, val) \
 	do { \
-		elf_info[ei_index++] = id; elf_info[ei_index++] = val; \
+		elf_info[ei_index++] = id; \
+		elf_info[ei_index++] = val; \
 	} while (0)
 
 #ifdef ARCH_DLINFO
@@ -199,17 +200,17 @@ create_elf_tables(struct linux_binprm *bprm, struct elfhdr *exec,
 	NEW_AUX_ENT(AT_BASE, interp_load_addr);
 	NEW_AUX_ENT(AT_FLAGS, 0);
 	NEW_AUX_ENT(AT_ENTRY, exec->e_entry);
-	NEW_AUX_ENT(AT_UID, (elf_addr_t)tsk->uid);
-	NEW_AUX_ENT(AT_EUID, (elf_addr_t)tsk->euid);
-	NEW_AUX_ENT(AT_GID, (elf_addr_t)tsk->gid);
-	NEW_AUX_ENT(AT_EGID, (elf_addr_t)tsk->egid);
- 	NEW_AUX_ENT(AT_SECURE, (elf_addr_t)security_bprm_secureexec(bprm));
+	NEW_AUX_ENT(AT_UID, tsk->uid);
+	NEW_AUX_ENT(AT_EUID, tsk->euid);
+	NEW_AUX_ENT(AT_GID, tsk->gid);
+	NEW_AUX_ENT(AT_EGID, tsk->egid);
+ 	NEW_AUX_ENT(AT_SECURE, security_bprm_secureexec(bprm));
 	if (k_platform) {
 		NEW_AUX_ENT(AT_PLATFORM,
-			(elf_addr_t)(unsigned long)u_platform);
+			    (elf_addr_t)(unsigned long)u_platform);
 	}
 	if (bprm->interp_flags & BINPRM_FLAGS_EXECFD) {
-		NEW_AUX_ENT(AT_EXECFD, (elf_addr_t)bprm->interp_data);
+		NEW_AUX_ENT(AT_EXECFD, bprm->interp_data);
 	}
 #undef NEW_AUX_ENT
 	/* AT_NULL is zero; clear the rest too */
