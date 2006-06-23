@@ -29,6 +29,10 @@ obj-$(CONFIG_PM_SIMTEC)	   += pm-simtec.o
 obj-$(CONFIG_CPU_S3C244X)  += s3c244x.o
 obj-$(CONFIG_CPU_S3C244X)  += s3c244x-irq.o
 
+# Clock control
+
+obj-$(CONFIG_S3C2410_CLOCK) += s3c2410-clock.o
+
 # S3C2440 support
 
 obj-$(CONFIG_CPU_S3C2440)  += s3c2440.o s3c2440-dsc.o

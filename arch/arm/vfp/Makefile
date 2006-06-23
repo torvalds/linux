@@ -7,6 +7,9 @@
 # EXTRA_CFLAGS := -DDEBUG
 # EXTRA_AFLAGS := -DDEBUG
 
+AFLAGS		:=$(AFLAGS:-msoft-float=-Wa,-mfpu=softvfp+vfp)
+LDFLAGS		+=--no-warn-mismatch
+
 obj-y			+= vfp.o
 
-vfp-$(CONFIG_VFP)	+= entry.o vfpmodule.o vfphw.o vfpsingle.o vfpdouble.o
+vfp-$(CONFIG_VFP)	+= vfpmodule.o entry.o vfphw.o vfpsingle.o vfpdouble.o

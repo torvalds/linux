@@ -170,7 +170,7 @@
 #define S3C2440_DSC1_CS1_4mA    (3<<2)
 #define S3C2440_DSC1_CS1_MASK   (3<<2)
 
-#define S3C2440_DSC1_CS0        (S3C2440_SELECT_DSC1 | 0
+#define S3C2440_DSC1_CS0        (S3C2440_SELECT_DSC1 | 0)
 #define S3C2440_DSC1_CS0_10mA   (0<<0)
 #define S3C2440_DSC1_CS0_8mA    (1<<0)
 #define S3C2440_DSC1_CS0_6mA    (2<<0)

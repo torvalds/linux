@@ -16,16 +16,38 @@
 #include <linux/mm.h>
 #include <linux/sched.h>
 #include <linux/interrupt.h>
+#include <linux/ioport.h>
 #include <linux/mtd/physmap.h>
+#include <linux/platform_device.h>
 #include <asm/io.h>
 #include <asm/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
+static struct physmap_flash_data gesbc9312_flash_data = {
+	.width		= 4,
+};
+
+static struct resource gesbc9312_flash_resource = {
+	.start		= 0x60000000,
+	.end		= 0x60800000,
+	.flags		= IORESOURCE_MEM,
+};
+
+static struct platform_device gesbc9312_flash = {
+	.name		= "physmap-flash",
+	.id		= 0,
+	.dev		= {
+		.platform_data	= &gesbc9312_flash_data,
+	},
+	.num_resources	= 1,
+	.resource	= &gesbc9312_flash_resource,
+};
+
 static void __init gesbc9312_init_machine(void)
 {
 	ep93xx_init_devices();
-	physmap_configure(0x60000000, 0x00800000, 4, NULL);
+	platform_device_register(&gesbc9312_flash);
 }
 
 MACHINE_START(GESBC9312, "Glomation GESBC-9312-sx")

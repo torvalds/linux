@@ -46,7 +46,7 @@
 struct imx_dma_channel {
 	const char *name;
 	void (*irq_handler) (int, void *, struct pt_regs *);
-	void (*err_handler) (int, void *, struct pt_regs *);
+	void (*err_handler) (int, void *, struct pt_regs *, int errcode);
 	void *data;
 	dmamode_t  dma_mode;
 	struct scatterlist *sg;
@@ -58,6 +58,10 @@ struct imx_dma_channel {
 
 extern struct imx_dma_channel imx_dma_channels[IMX_DMA_CHANNELS];
 
+#define IMX_DMA_ERR_BURST     1
+#define IMX_DMA_ERR_REQUEST   2
+#define IMX_DMA_ERR_TRANSFER  4
+#define IMX_DMA_ERR_BUFFER    8
 
 /* The type to distinguish channel numbers parameter from ordinal int type */
 typedef int imx_dmach_t;
@@ -74,7 +78,7 @@ imx_dma_setup_sg(imx_dmach_t dma_ch,
 int
 imx_dma_setup_handlers(imx_dmach_t dma_ch,
 		void (*irq_handler) (int, void *, struct pt_regs *),
-		void (*err_handler) (int, void *, struct pt_regs *), void *data);
+		void (*err_handler) (int, void *, struct pt_regs *, int), void *data);
 
 void imx_dma_enable(imx_dmach_t dma_ch);
 

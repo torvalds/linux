@@ -15,6 +15,7 @@
 #include <linux/kernel.h>
 #include <linux/serial.h>
 #include <linux/serial_8250.h>
+#include <linux/leds.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -36,6 +37,36 @@ static struct platform_device nas100d_flash = {
 	.num_resources		= 1,
 	.resource		= &nas100d_flash_resource,
 };
+
+#ifdef CONFIG_LEDS_IXP4XX
+static struct resource nas100d_led_resources[] = {
+	{
+		.name		= "wlan",   /* green led */
+		.start		= 0,
+		.end		= 0,
+		.flags		= IXP4XX_GPIO_LOW,
+	},
+	{
+		.name		= "ready",  /* blue power led (off is flashing!) */
+		.start		= 15,
+		.end		= 15,
+		.flags		= IXP4XX_GPIO_LOW,
+	},
+	{
+		.name		= "disk",   /* yellow led */
+		.start		= 3,
+		.end		= 3,
+		.flags		= IXP4XX_GPIO_LOW,
+	},
+};
+
+static struct platform_device nas100d_leds = {
+	.name			= "IXP4XX-GPIO-LED",
+	.id			= -1,
+	.num_resources		= ARRAY_SIZE(nas100d_led_resources),
+	.resource		= nas100d_led_resources,
+};
+#endif
 
 static struct ixp4xx_i2c_pins nas100d_i2c_gpio_pins = {
 	.sda_pin		= NAS100D_SDA_PIN,
@@ -95,7 +126,9 @@ static struct platform_device nas100d_uart = {
 static struct platform_device *nas100d_devices[] __initdata = {
 	&nas100d_i2c_controller,
 	&nas100d_flash,
-	&nas100d_uart,
+#ifdef CONFIG_LEDS_IXP4XX
+	&nas100d_leds,
+#endif
 };
 
 static void nas100d_power_off(void)
@@ -121,6 +154,12 @@ static void __init nas100d_init(void)
 		IXP4XX_EXP_BUS_BASE(0) + ixp4xx_exp_bus_size - 1;
 
 	pm_power_off = nas100d_power_off;
+
+	/* This is only useful on a modified machine, but it is valuable
+	 * to have it first in order to see debug messages, and so that
+	 * it does *not* get removed if platform_add_devices fails!
+	 */
+	(void)platform_device_register(&nas100d_uart);
 
 	platform_add_devices(nas100d_devices, ARRAY_SIZE(nas100d_devices));
 }

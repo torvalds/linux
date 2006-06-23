@@ -19,9 +19,5 @@
 		addne	\rx, \rx, #0xf4000000
 		.endm
 
-		.macro	senduart,rd,rx
-		strb	\rd, [\rx, #0x0]
-		.endm
-
 #define UART_SHIFT	2
 #include <asm/hardware/debug-8250.S>
