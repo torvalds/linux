@@ -618,7 +618,7 @@ EXPORT_SYMBOL(acpi_unregister_gsi);
 static int __init acpi_parse_fadt(unsigned long phys_addr, unsigned long size)
 {
 	struct acpi_table_header *fadt_header;
-	struct fadt_descriptor_rev2 *fadt;
+	struct fadt_descriptor *fadt;
 
 	if (!phys_addr || !size)
 		return -EINVAL;
@@ -627,7 +627,7 @@ static int __init acpi_parse_fadt(unsigned long phys_addr, unsigned long size)
 	if (fadt_header->revision != 3)
 		return -ENODEV;	/* Only deal with ACPI 2.0 FADT */
 
-	fadt = (struct fadt_descriptor_rev2 *)fadt_header;
+	fadt = (struct fadt_descriptor *)fadt_header;
 
 	if (!(fadt->iapc_boot_arch & BAF_8042_KEYBOARD_CONTROLLER))
 		acpi_kbd_controller_present = 0;
