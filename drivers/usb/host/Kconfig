@@ -70,7 +70,6 @@ config USB_EHCI_TT_NEWSCHED
 config USB_ISP116X_HCD
 	tristate "ISP116X HCD support"
 	depends on USB
-	default N
 	---help---
 	  The ISP1160 and ISP1161 chips are USB host controllers. Enable this
 	  option if your board has this chip. If unsure, say N.
@@ -145,7 +144,6 @@ config USB_UHCI_HCD
 config USB_SL811_HCD
 	tristate "SL811HS HCD support"
 	depends on USB
-	default N
 	help
 	  The SL811HS is a single-port USB controller that supports either
 	  host side or peripheral side roles.  Enable this option if your
@@ -158,7 +156,6 @@ config USB_SL811_HCD
 config USB_SL811_CS
 	tristate "CF/PCMCIA support for SL811HS HCD"
 	depends on USB_SL811_HCD && PCMCIA
-	default N
 	help
 	  Wraps a PCMCIA driver around the SL811HS HCD, supporting the RATOC
 	  REX-CFU1U CF card (often used with PDAs).  If unsure, say N.
