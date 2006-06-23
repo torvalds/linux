@@ -1337,7 +1337,8 @@ qla24xx_disable_intrs(scsi_qla_host_t *ha)
 /*
  * PCI driver interface
  */
-static int qla2x00_probe_one(struct pci_dev *pdev)
+static int __devinit
+qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	int	ret = -ENODEV;
 	device_reg_t __iomem *reg;
@@ -1650,7 +1651,8 @@ probe_out:
 	return ret;
 }
 
-static void qla2x00_remove_one(struct pci_dev *pdev)
+static void __devexit
+qla2x00_remove_one(struct pci_dev *pdev)
 {
 	scsi_qla_host_t *ha;
 
@@ -2644,39 +2646,15 @@ static struct pci_device_id qla2xxx_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, qla2xxx_pci_tbl);
 
-static int __devinit
-qla2xxx_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
-{
-	return qla2x00_probe_one(pdev);
-}
-
-static void __devexit
-qla2xxx_remove_one(struct pci_dev *pdev)
-{
-	qla2x00_remove_one(pdev);
-}
-
 static struct pci_driver qla2xxx_pci_driver = {
 	.name		= QLA2XXX_DRIVER_NAME,
 	.driver		= {
 		.owner		= THIS_MODULE,
 	},
 	.id_table	= qla2xxx_pci_tbl,
-	.probe		= qla2xxx_probe_one,
-	.remove		= __devexit_p(qla2xxx_remove_one),
+	.probe		= qla2x00_probe_one,
+	.remove		= __devexit_p(qla2x00_remove_one),
 };
-
-static inline int
-qla2x00_pci_module_init(void)
-{
-	return pci_module_init(&qla2xxx_pci_driver);
-}
-
-static inline void
-qla2x00_pci_module_exit(void)
-{
-	pci_unregister_driver(&qla2xxx_pci_driver);
-}
 
 /**
  * qla2x00_module_init - Module initialization.
@@ -2706,7 +2684,7 @@ qla2x00_module_init(void)
 		return -ENODEV;
 
 	printk(KERN_INFO "QLogic Fibre Channel HBA Driver\n");
-	ret = qla2x00_pci_module_init();
+	ret = pci_register_driver(&qla2xxx_pci_driver);
 	if (ret) {
 		kmem_cache_destroy(srb_cachep);
 		fc_release_transport(qla2xxx_transport_template);
@@ -2720,7 +2698,7 @@ qla2x00_module_init(void)
 static void __exit
 qla2x00_module_exit(void)
 {
-	qla2x00_pci_module_exit();
+	pci_unregister_driver(&qla2xxx_pci_driver);
 	qla2x00_release_firmware();
 	kmem_cache_destroy(srb_cachep);
 	fc_release_transport(qla2xxx_transport_template);
