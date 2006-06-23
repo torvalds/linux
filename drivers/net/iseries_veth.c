@@ -69,6 +69,7 @@
 #include <linux/delay.h>
 #include <linux/mm.h>
 #include <linux/ethtool.h>
+#include <linux/if_ether.h>
 
 #include <asm/abs_addr.h>
 #include <asm/iseries/mf.h>
@@ -1035,11 +1036,22 @@ static struct ethtool_ops ops = {
 	.get_link = veth_get_link,
 };
 
-static struct net_device * __init veth_probe_one(int vlan, struct device *vdev)
+static struct net_device * __init veth_probe_one(int vlan,
+		struct vio_dev *vio_dev)
 {
 	struct net_device *dev;
 	struct veth_port *port;
+	struct device *vdev = &vio_dev->dev;
 	int i, rc;
+	const unsigned char *mac_addr;
+
+	mac_addr = vio_get_attribute(vio_dev, "local-mac-address", NULL);
+	if (mac_addr == NULL)
+		mac_addr = vio_get_attribute(vio_dev, "mac-address", NULL);
+	if (mac_addr == NULL) {
+		veth_error("Unable to fetch MAC address from device tree.\n");
+		return NULL;
+	}
 
 	dev = alloc_etherdev(sizeof (struct veth_port));
 	if (! dev) {
@@ -1064,16 +1076,11 @@ static struct net_device * __init veth_probe_one(int vlan, struct device *vdev)
 	}
 	port->dev = vdev;
 
-	dev->dev_addr[0] = 0x02;
-	dev->dev_addr[1] = 0x01;
-	dev->dev_addr[2] = 0xff;
-	dev->dev_addr[3] = vlan;
-	dev->dev_addr[4] = 0xff;
-	dev->dev_addr[5] = this_lp;
+	memcpy(dev->dev_addr, mac_addr, ETH_ALEN);
 
 	dev->mtu = VETH_MAX_MTU;
 
-	memcpy(&port->mac_addr, dev->dev_addr, 6);
+	memcpy(&port->mac_addr, mac_addr, ETH_ALEN);
 
 	dev->open = veth_open;
 	dev->hard_start_xmit = veth_start_xmit;
@@ -1608,7 +1615,7 @@ static int veth_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	struct net_device *dev;
 	struct veth_port *port;
 
-	dev = veth_probe_one(i, &vdev->dev);
+	dev = veth_probe_one(i, vdev);
 	if (dev == NULL) {
 		veth_remove(vdev);
 		return 1;
@@ -1641,7 +1648,7 @@ static int veth_probe(struct vio_dev *vdev, const struct vio_device_id *id)
  * support.
  */
 static struct vio_device_id veth_device_table[] __devinitdata = {
-	{ "vlan", "" },
+	{ "network", "IBM,iSeries-l-lan" },
 	{ "", "" }
 };
 MODULE_DEVICE_TABLE(vio, veth_device_table);

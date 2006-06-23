@@ -14,6 +14,7 @@
 #include <linux/types.h>
 #include <linux/sched.h>
 #include <linux/console.h>
+#include <linux/init.h>
 #include <asm/processor.h>
 #include <asm/udbg.h>
 
@@ -141,12 +142,14 @@ static int early_console_initialized;
 
 void __init disable_early_printk(void)
 {
-#if 1
 	if (!early_console_initialized)
 		return;
+	if (strstr(saved_command_line, "udbg-immortal")) {
+		printk(KERN_INFO "early console immortal !\n");
+		return;
+	}
 	unregister_console(&udbg_console);
 	early_console_initialized = 0;
-#endif
 }
 
 /* called by setup_system */

@@ -299,9 +299,9 @@ void __init paging_init(void)
 	kmap_prot = PAGE_KERNEL;
 #endif /* CONFIG_HIGHMEM */
 
-	printk(KERN_INFO "Top of RAM: 0x%lx, Total RAM: 0x%lx\n",
+	printk(KERN_DEBUG "Top of RAM: 0x%lx, Total RAM: 0x%lx\n",
 	       top_of_ram, total_ram);
-	printk(KERN_INFO "Memory hole size: %ldMB\n",
+	printk(KERN_DEBUG "Memory hole size: %ldMB\n",
 	       (top_of_ram - total_ram) >> 20);
 	/*
 	 * All pages are DMA-able so we put them all in the DMA zone.
@@ -380,7 +380,7 @@ void __init mem_init(void)
 			totalhigh_pages++;
 		}
 		totalram_pages += totalhigh_pages;
-		printk(KERN_INFO "High memory: %luk\n",
+		printk(KERN_DEBUG "High memory: %luk\n",
 		       totalhigh_pages << (PAGE_SHIFT-10));
 	}
 #endif /* CONFIG_HIGHMEM */

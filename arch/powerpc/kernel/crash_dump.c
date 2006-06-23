@@ -25,6 +25,11 @@
 #define DBG(fmt...)
 #endif
 
+void reserve_kdump_trampoline(void)
+{
+	lmb_reserve(0, KDUMP_RESERVE_LIMIT);
+}
+
 static void __init create_trampoline(unsigned long addr)
 {
 	/* The maximum range of a single instruction branch, is the current
@@ -39,11 +44,11 @@ static void __init create_trampoline(unsigned long addr)
 	create_branch(addr + 4, addr + PHYSICAL_START, 0);
 }
 
-void __init kdump_setup(void)
+void __init setup_kdump_trampoline(void)
 {
 	unsigned long i;
 
-	DBG(" -> kdump_setup()\n");
+	DBG(" -> setup_kdump_trampoline()\n");
 
 	for (i = KDUMP_TRAMPOLINE_START; i < KDUMP_TRAMPOLINE_END; i += 8) {
 		create_trampoline(i);
@@ -52,7 +57,7 @@ void __init kdump_setup(void)
 	create_trampoline(__pa(system_reset_fwnmi) - PHYSICAL_START);
 	create_trampoline(__pa(machine_check_fwnmi) - PHYSICAL_START);
 
-	DBG(" <- kdump_setup()\n");
+	DBG(" <- setup_kdump_trampoline()\n");
 }
 
 #ifdef CONFIG_PROC_VMCORE

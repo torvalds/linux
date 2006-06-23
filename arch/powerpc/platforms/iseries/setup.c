@@ -50,7 +50,6 @@
 #include <asm/iseries/hv_call_xm.h>
 #include <asm/iseries/it_lp_queue.h>
 #include <asm/iseries/mf.h>
-#include <asm/iseries/it_exp_vpd_panel.h>
 #include <asm/iseries/hv_lp_event.h>
 #include <asm/iseries/lpar_map.h>
 #include <asm/udbg.h>
@@ -81,17 +80,12 @@ extern void iSeries_pci_final_fixup(void);
 static void iSeries_pci_final_fixup(void) { }
 #endif
 
-/* Global Variables */
-int piranha_simulator;
-
 extern int rd_size;		/* Defined in drivers/block/rd.c */
 extern unsigned long embedded_sysmap_start;
 extern unsigned long embedded_sysmap_end;
 
 extern unsigned long iSeries_recal_tb;
 extern unsigned long iSeries_recal_titan;
-
-static unsigned long cmd_mem_limit;
 
 struct MemoryBlock {
 	unsigned long absStart;
@@ -340,8 +334,6 @@ static void __init iSeries_init_early(void)
 #ifdef CONFIG_SMP
 	smp_init_iSeries();
 #endif
-	if (itLpNaca.xPirEnvironMode == 0)
-		piranha_simulator = 1;
 
 	/* Associate Lp Event Queue 0 with processor 0 */
 	HvCallEvent_setLpEventQueueInterruptProc(0, 0);
@@ -536,10 +528,10 @@ static void __init iSeries_setup_arch(void)
 {
 	if (get_lppaca()->shared_proc) {
 		ppc_md.idle_loop = iseries_shared_idle;
-		printk(KERN_INFO "Using shared processor idle loop\n");
+		printk(KERN_DEBUG "Using shared processor idle loop\n");
 	} else {
 		ppc_md.idle_loop = iseries_dedicated_idle;
-		printk(KERN_INFO "Using dedicated idle loop\n");
+		printk(KERN_DEBUG "Using dedicated idle loop\n");
 	}
 
 	/* Setup the Lp Event Queue */
@@ -714,243 +706,6 @@ define_machine(iseries) {
 	/* XXX Implement enable_pmcs for iSeries */
 };
 
-struct blob {
-	unsigned char data[PAGE_SIZE];
-	unsigned long next;
-};
-
-struct iseries_flat_dt {
-	struct boot_param_header header;
-	u64 reserve_map[2];
-	struct blob dt;
-	struct blob strings;
-};
-
-struct iseries_flat_dt iseries_dt;
-
-void dt_init(struct iseries_flat_dt *dt)
-{
-	dt->header.off_mem_rsvmap =
-		offsetof(struct iseries_flat_dt, reserve_map);
-	dt->header.off_dt_struct = offsetof(struct iseries_flat_dt, dt);
-	dt->header.off_dt_strings = offsetof(struct iseries_flat_dt, strings);
-	dt->header.totalsize = sizeof(struct iseries_flat_dt);
-	dt->header.dt_strings_size = sizeof(struct blob);
-
-	/* There is no notion of hardware cpu id on iSeries */
-	dt->header.boot_cpuid_phys = smp_processor_id();
-
-	dt->dt.next = (unsigned long)&dt->dt.data;
-	dt->strings.next = (unsigned long)&dt->strings.data;
-
-	dt->header.magic = OF_DT_HEADER;
-	dt->header.version = 0x10;
-	dt->header.last_comp_version = 0x10;
-
-	dt->reserve_map[0] = 0;
-	dt->reserve_map[1] = 0;
-}
-
-void dt_check_blob(struct blob *b)
-{
-	if (b->next >= (unsigned long)&b->next) {
-		DBG("Ran out of space in flat device tree blob!\n");
-		BUG();
-	}
-}
-
-void dt_push_u32(struct iseries_flat_dt *dt, u32 value)
-{
-	*((u32*)dt->dt.next) = value;
-	dt->dt.next += sizeof(u32);
-
-	dt_check_blob(&dt->dt);
-}
-
-void dt_push_u64(struct iseries_flat_dt *dt, u64 value)
-{
-	*((u64*)dt->dt.next) = value;
-	dt->dt.next += sizeof(u64);
-
-	dt_check_blob(&dt->dt);
-}
-
-unsigned long dt_push_bytes(struct blob *blob, char *data, int len)
-{
-	unsigned long start = blob->next - (unsigned long)blob->data;
-
-	memcpy((char *)blob->next, data, len);
-	blob->next = _ALIGN(blob->next + len, 4);
-
-	dt_check_blob(blob);
-
-	return start;
-}
-
-void dt_start_node(struct iseries_flat_dt *dt, char *name)
-{
-	dt_push_u32(dt, OF_DT_BEGIN_NODE);
-	dt_push_bytes(&dt->dt, name, strlen(name) + 1);
-}
-
-#define dt_end_node(dt) dt_push_u32(dt, OF_DT_END_NODE)
-
-void dt_prop(struct iseries_flat_dt *dt, char *name, char *data, int len)
-{
-	unsigned long offset;
-
-	dt_push_u32(dt, OF_DT_PROP);
-
-	/* Length of the data */
-	dt_push_u32(dt, len);
-
-	/* Put the property name in the string blob. */
-	offset = dt_push_bytes(&dt->strings, name, strlen(name) + 1);
-
-	/* The offset of the properties name in the string blob. */
-	dt_push_u32(dt, (u32)offset);
-
-	/* The actual data. */
-	dt_push_bytes(&dt->dt, data, len);
-}
-
-void dt_prop_str(struct iseries_flat_dt *dt, char *name, char *data)
-{
-	dt_prop(dt, name, data, strlen(data) + 1); /* + 1 for NULL */
-}
-
-void dt_prop_u32(struct iseries_flat_dt *dt, char *name, u32 data)
-{
-	dt_prop(dt, name, (char *)&data, sizeof(u32));
-}
-
-void dt_prop_u64(struct iseries_flat_dt *dt, char *name, u64 data)
-{
-	dt_prop(dt, name, (char *)&data, sizeof(u64));
-}
-
-void dt_prop_u64_list(struct iseries_flat_dt *dt, char *name, u64 *data, int n)
-{
-	dt_prop(dt, name, (char *)data, sizeof(u64) * n);
-}
-
-void dt_prop_u32_list(struct iseries_flat_dt *dt, char *name, u32 *data, int n)
-{
-	dt_prop(dt, name, (char *)data, sizeof(u32) * n);
-}
-
-void dt_prop_empty(struct iseries_flat_dt *dt, char *name)
-{
-	dt_prop(dt, name, NULL, 0);
-}
-
-void dt_cpus(struct iseries_flat_dt *dt)
-{
-	unsigned char buf[32];
-	unsigned char *p;
-	unsigned int i, index;
-	struct IoHriProcessorVpd *d;
-	u32 pft_size[2];
-
-	/* yuck */
-	snprintf(buf, 32, "PowerPC,%s", cur_cpu_spec->cpu_name);
-	p = strchr(buf, ' ');
-	if (!p) p = buf + strlen(buf);
-
-	dt_start_node(dt, "cpus");
-	dt_prop_u32(dt, "#address-cells", 1);
-	dt_prop_u32(dt, "#size-cells", 0);
-
-	pft_size[0] = 0; /* NUMA CEC cookie, 0 for non NUMA  */
-	pft_size[1] = __ilog2(HvCallHpt_getHptPages() * HW_PAGE_SIZE);
-
-	for (i = 0; i < NR_CPUS; i++) {
-		if (lppaca[i].dyn_proc_status >= 2)
-			continue;
-
-		snprintf(p, 32 - (p - buf), "@%d", i);
-		dt_start_node(dt, buf);
-
-		dt_prop_str(dt, "device_type", "cpu");
-
-		index = lppaca[i].dyn_hv_phys_proc_index;
-		d = &xIoHriProcessorVpd[index];
-
-		dt_prop_u32(dt, "i-cache-size", d->xInstCacheSize * 1024);
-		dt_prop_u32(dt, "i-cache-line-size", d->xInstCacheOperandSize);
-
-		dt_prop_u32(dt, "d-cache-size", d->xDataL1CacheSizeKB * 1024);
-		dt_prop_u32(dt, "d-cache-line-size", d->xDataCacheOperandSize);
-
-		/* magic conversions to Hz copied from old code */
-		dt_prop_u32(dt, "clock-frequency",
-			((1UL << 34) * 1000000) / d->xProcFreq);
-		dt_prop_u32(dt, "timebase-frequency",
-			((1UL << 32) * 1000000) / d->xTimeBaseFreq);
-
-		dt_prop_u32(dt, "reg", i);
-
-		dt_prop_u32_list(dt, "ibm,pft-size", pft_size, 2);
-
-		dt_end_node(dt);
-	}
-
-	dt_end_node(dt);
-}
-
-void dt_model(struct iseries_flat_dt *dt)
-{
-	char buf[16] = "IBM,";
-
-	/* "IBM," + mfgId[2:3] + systemSerial[1:5] */
-	strne2a(buf + 4, xItExtVpdPanel.mfgID + 2, 2);
-	strne2a(buf + 6, xItExtVpdPanel.systemSerial + 1, 5);
-	buf[11] = '\0';
-	dt_prop_str(dt, "system-id", buf);
-
-	/* "IBM," + machineType[0:4] */
-	strne2a(buf + 4, xItExtVpdPanel.machineType, 4);
-	buf[8] = '\0';
-	dt_prop_str(dt, "model", buf);
-
-	dt_prop_str(dt, "compatible", "IBM,iSeries");
-}
-
-void build_flat_dt(struct iseries_flat_dt *dt, unsigned long phys_mem_size)
-{
-	u64 tmp[2];
-
-	dt_init(dt);
-
-	dt_start_node(dt, "");
-
-	dt_prop_u32(dt, "#address-cells", 2);
-	dt_prop_u32(dt, "#size-cells", 2);
-	dt_model(dt);
-
-	/* /memory */
-	dt_start_node(dt, "memory@0");
-	dt_prop_str(dt, "name", "memory");
-	dt_prop_str(dt, "device_type", "memory");
-	tmp[0] = 0;
-	tmp[1] = phys_mem_size;
-	dt_prop_u64_list(dt, "reg", tmp, 2);
-	dt_end_node(dt);
-
-	/* /chosen */
-	dt_start_node(dt, "chosen");
-	dt_prop_str(dt, "bootargs", cmd_line);
-	if (cmd_mem_limit)
-		dt_prop_u64(dt, "linux,memory-limit", cmd_mem_limit);
-	dt_end_node(dt);
-
-	dt_cpus(dt);
-
-	dt_end_node(dt);
-
-	dt_push_u32(dt, OF_DT_END);
-}
-
 void * __init iSeries_early_setup(void)
 {
 	unsigned long phys_mem_size;
@@ -965,28 +720,8 @@ void * __init iSeries_early_setup(void)
 
 	iSeries_get_cmdline();
 
-	/* Save unparsed command line copy for /proc/cmdline */
-	strlcpy(saved_command_line, cmd_line, COMMAND_LINE_SIZE);
-
-	/* Parse early parameters, in particular mem=x */
-	parse_early_param();
-
-	build_flat_dt(&iseries_dt, phys_mem_size);
-
-	return (void *) __pa(&iseries_dt);
+	return (void *) __pa(build_flat_dt(phys_mem_size));
 }
-
-/*
- * On iSeries we just parse the mem=X option from the command line.
- * On pSeries it's a bit more complicated, see prom_init_mem()
- */
-static int __init early_parsemem(char *p)
-{
-	if (p)
-		cmd_mem_limit = ALIGN(memparse(p, &p), PAGE_SIZE);
-	return 0;
-}
-early_param("mem", early_parsemem);
 
 static void hvputc(char c)
 {

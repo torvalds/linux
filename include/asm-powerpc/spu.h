@@ -24,8 +24,8 @@
 #define _SPU_H
 #ifdef __KERNEL__
 
-#include <linux/kref.h>
 #include <linux/workqueue.h>
+#include <linux/sysdev.h>
 
 #define LS_SIZE (256 * 1024)
 #define LS_ADDR_MASK (LS_SIZE - 1)
@@ -122,7 +122,6 @@ struct spu {
 	u64 flags;
 	u64 dar;
 	u64 dsisr;
-	struct kref kref;
 	size_t ls_size;
 	unsigned int slb_replace;
 	struct mm_struct *mm;
@@ -134,7 +133,6 @@ struct spu {
 	int class_0_pending;
 	spinlock_t register_lock;
 
-	u32 stop_code;
 	void (* wbox_callback)(struct spu *spu);
 	void (* ibox_callback)(struct spu *spu);
 	void (* stop_callback)(struct spu *spu);
@@ -143,6 +141,8 @@ struct spu {
 	char irq_c0[8];
 	char irq_c1[8];
 	char irq_c2[8];
+
+	struct sys_device sysdev;
 };
 
 struct spu *spu_alloc(void);
@@ -179,29 +179,6 @@ static inline void unregister_spu_syscalls(struct spufs_calls *calls)
 {
 }
 #endif /* MODULE */
-
-
-/* access to priv1 registers */
-void spu_int_mask_and(struct spu *spu, int class, u64 mask);
-void spu_int_mask_or(struct spu *spu, int class, u64 mask);
-void spu_int_mask_set(struct spu *spu, int class, u64 mask);
-u64 spu_int_mask_get(struct spu *spu, int class);
-void spu_int_stat_clear(struct spu *spu, int class, u64 stat);
-u64 spu_int_stat_get(struct spu *spu, int class);
-void spu_int_route_set(struct spu *spu, u64 route);
-u64 spu_mfc_dar_get(struct spu *spu);
-u64 spu_mfc_dsisr_get(struct spu *spu);
-void spu_mfc_dsisr_set(struct spu *spu, u64 dsisr);
-void spu_mfc_sdr_set(struct spu *spu, u64 sdr);
-void spu_mfc_sr1_set(struct spu *spu, u64 sr1);
-u64 spu_mfc_sr1_get(struct spu *spu);
-void spu_mfc_tclass_id_set(struct spu *spu, u64 tclass_id);
-u64 spu_mfc_tclass_id_get(struct spu *spu);
-void spu_tlb_invalidate(struct spu *spu);
-void spu_resource_allocation_groupID_set(struct spu *spu, u64 id);
-u64 spu_resource_allocation_groupID_get(struct spu *spu);
-void spu_resource_allocation_enable_set(struct spu *spu, u64 enable);
-u64 spu_resource_allocation_enable_get(struct spu *spu);
 
 
 /*

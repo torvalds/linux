@@ -57,6 +57,12 @@
 #ifndef GET_FPEXC_CTL
 # define GET_FPEXC_CTL(a,b)	(-EINVAL)
 #endif
+#ifndef GET_ENDIAN
+# define GET_ENDIAN(a,b)	(-EINVAL)
+#endif
+#ifndef SET_ENDIAN
+# define SET_ENDIAN(a,b)	(-EINVAL)
+#endif
 
 /*
  * this is where the system-wide overflow UID and GID are defined, for
@@ -2045,6 +2051,13 @@ asmlinkage long sys_prctl(int option, unsigned long arg2, unsigned long arg3,
 				return -EFAULT;
 			return 0;
 		}
+		case PR_GET_ENDIAN:
+			error = GET_ENDIAN(current, arg2);
+			break;
+		case PR_SET_ENDIAN:
+			error = SET_ENDIAN(current, arg2);
+			break;
+
 		default:
 			error = -EINVAL;
 			break;

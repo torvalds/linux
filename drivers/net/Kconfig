@@ -2190,7 +2190,7 @@ config BNX2
 
 config SPIDER_NET
 	tristate "Spider Gigabit Ethernet driver"
-	depends on PCI && PPC_CELL
+	depends on PCI && PPC_IBM_CELL_BLADE
 	select FW_LOADER
 	help
 	  This driver supports the Gigabit Ethernet chips present on the
@@ -2198,11 +2198,11 @@ config SPIDER_NET
 
 config GIANFAR
 	tristate "Gianfar Ethernet"
-	depends on 85xx || 83xx
+	depends on 85xx || 83xx || PPC_86xx
 	select PHYLIB
 	help
-	  This driver supports the Gigabit TSEC on the MPC85xx 
-	  family of chips, and the FEC on the 8540
+	  This driver supports the Gigabit TSEC on the MPC83xx, MPC85xx,
+	  and MPC86xx family of chips, and the FEC on the 8540.
 
 config GFAR_NAPI
 	bool "NAPI Support"

@@ -22,6 +22,7 @@
 #include <asm/pmc.h>
 #include <asm/cputable.h>
 #include <asm/oprofile_impl.h>
+#include <asm/firmware.h>
 
 static struct op_powerpc_model *model;
 
@@ -130,6 +131,9 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 	if (!cur_cpu_spec->oprofile_cpu_type)
 		return -ENODEV;
 
+	if (firmware_has_feature(FW_FEATURE_ISERIES))
+		return -ENODEV;
+
 	switch (cur_cpu_spec->oprofile_type) {
 #ifdef CONFIG_PPC64
 		case PPC_OPROFILE_RS64:
@@ -162,7 +166,7 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 	ops->stop = op_powerpc_stop;
 	ops->backtrace = op_powerpc_backtrace;
 
-	printk(KERN_INFO "oprofile: using %s performance monitoring.\n",
+	printk(KERN_DEBUG "oprofile: using %s performance monitoring.\n",
 	       ops->cpu_type);
 
 	return 0;

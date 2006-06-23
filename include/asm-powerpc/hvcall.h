@@ -102,6 +102,15 @@
 #define H_PP1			(1UL<<(63-62))
 #define H_PP2			(1UL<<(63-63))
 
+/* VASI States */
+#define H_VASI_INVALID          0
+#define H_VASI_ENABLED          1
+#define H_VASI_ABORTED          2
+#define H_VASI_SUSPENDING       3
+#define H_VASI_SUSPENDED        4
+#define H_VASI_RESUMED          5
+#define H_VASI_COMPLETED        6
+
 /* DABRX flags */
 #define H_DABRX_HYPERVISOR	(1UL<<(63-61))
 #define H_DABRX_KERNEL		(1UL<<(63-62))
@@ -190,6 +199,7 @@
 #define H_QUERY_INT_STATE       0x1E4
 #define H_POLL_PENDING		0x1D8
 #define H_JOIN			0x298
+#define H_VASI_STATE            0x2A4
 #define H_ENABLE_CRQ		0x2B0
 
 #ifndef __ASSEMBLY__
