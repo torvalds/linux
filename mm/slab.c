@@ -1489,31 +1489,29 @@ __initcall(cpucache_init);
 static void *kmem_getpages(struct kmem_cache *cachep, gfp_t flags, int nodeid)
 {
 	struct page *page;
-	void *addr;
+	int nr_pages;
 	int i;
 
-	flags |= cachep->gfpflags;
 #ifndef CONFIG_MMU
-	/* nommu uses slab's for process anonymous memory allocations, so
-	 * requires __GFP_COMP to properly refcount higher order allocations"
+	/*
+	 * Nommu uses slab's for process anonymous memory allocations, and thus
+	 * requires __GFP_COMP to properly refcount higher order allocations
 	 */
-	page = alloc_pages_node(nodeid, (flags | __GFP_COMP), cachep->gfporder);
-#else
-	page = alloc_pages_node(nodeid, flags, cachep->gfporder);
+	flags |= __GFP_COMP;
 #endif
+	flags |= cachep->gfpflags;
+
+	page = alloc_pages_node(nodeid, flags, cachep->gfporder);
 	if (!page)
 		return NULL;
-	addr = page_address(page);
 
-	i = (1 << cachep->gfporder);
+	nr_pages = (1 << cachep->gfporder);
 	if (cachep->flags & SLAB_RECLAIM_ACCOUNT)
-		atomic_add(i, &slab_reclaim_pages);
-	add_page_state(nr_slab, i);
-	while (i--) {
-		__SetPageSlab(page);
-		page++;
-	}
-	return addr;
+		atomic_add(nr_pages, &slab_reclaim_pages);
+	add_page_state(nr_slab, nr_pages);
+	for (i = 0; i < nr_pages; i++)
+		__SetPageSlab(page + i);
+	return page_address(page);
 }
 
 /*
