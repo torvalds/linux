@@ -323,7 +323,7 @@ static void dbgbuf(unsigned int cmd, struct video_device *vfd,
 	dbgarg2 ("timecode= %02d:%02d:%02d type=%d, "
 		"flags=0x%08d, frames=%d, userbits=0x%08x\n",
 			tc->hours,tc->minutes,tc->seconds,
-			tc->type, tc->flags, tc->frames, (__u32) tc->userbits);
+			tc->type, tc->flags, tc->frames, *(__u32 *) tc->userbits);
 }
 
 static inline void dbgrect(struct video_device *vfd, char *s,
