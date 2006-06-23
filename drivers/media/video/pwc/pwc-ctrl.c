@@ -925,7 +925,7 @@ int pwc_set_leds(struct pwc_device *pdev, int on_value, int off_value)
 	return SendControlMsg(SET_STATUS_CTL, LED_FORMATTER, 2);
 }
 
-int pwc_get_leds(struct pwc_device *pdev, int *on_value, int *off_value)
+static int pwc_get_leds(struct pwc_device *pdev, int *on_value, int *off_value)
 {
 	unsigned char buf[2];
 	int ret;

@@ -274,7 +274,6 @@ extern "C" {
 #if CONFIG_PWC_DEBUG
 extern int pwc_trace;
 #endif
-extern int pwc_preferred_compression;
 extern int pwc_mbufs;
 
 /** functions in pwc-if.c */
@@ -308,7 +307,6 @@ extern int pwc_set_gamma(struct pwc_device *pdev, int value);
 extern int pwc_get_saturation(struct pwc_device *pdev, int *value);
 extern int pwc_set_saturation(struct pwc_device *pdev, int value);
 extern int pwc_set_leds(struct pwc_device *pdev, int on_value, int off_value);
-extern int pwc_get_leds(struct pwc_device *pdev, int *on_value, int *off_value);
 extern int pwc_get_cmos_sensor(struct pwc_device *pdev, int *sensor);
 extern int pwc_restore_user(struct pwc_device *pdev);
 extern int pwc_save_user(struct pwc_device *pdev);
