@@ -123,6 +123,7 @@ mprotect_fixup(struct vm_area_struct *vma, struct vm_area_struct **pprev,
 	unsigned long oldflags = vma->vm_flags;
 	long nrpages = (end - start) >> PAGE_SHIFT;
 	unsigned long charged = 0;
+	unsigned int mask;
 	pgprot_t newprot;
 	pgoff_t pgoff;
 	int error;
@@ -148,8 +149,6 @@ mprotect_fixup(struct vm_area_struct *vma, struct vm_area_struct **pprev,
 			newflags |= VM_ACCOUNT;
 		}
 	}
-
-	newprot = protection_map[newflags & 0xf];
 
 	/*
 	 * First try to merge with previous and/or next vma.
@@ -177,6 +176,14 @@ mprotect_fixup(struct vm_area_struct *vma, struct vm_area_struct **pprev,
 	}
 
 success:
+	/* Don't make the VMA automatically writable if it's shared, but the
+	 * backer wishes to know when pages are first written to */
+	mask = VM_READ|VM_WRITE|VM_EXEC|VM_SHARED;
+	if (vma->vm_ops && vma->vm_ops->page_mkwrite)
+		mask &= ~VM_SHARED;
+
+	newprot = protection_map[newflags & mask];
+
 	/*
 	 * vm_flags and vm_page_prot are protected by the mmap_sem
 	 * held in write mode.
