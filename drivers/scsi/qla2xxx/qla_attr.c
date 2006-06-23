@@ -294,9 +294,6 @@ qla2x00_sysfs_read_vpd(struct kobject *kobj, char *buf, loff_t off,
 	if (!capable(CAP_SYS_ADMIN) || off != 0)
 		return 0;
 
-	if (!IS_QLA24XX(ha) && !IS_QLA54XX(ha))
-		return -ENOTSUPP;
-
 	/* Read NVRAM. */
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	ha->isp_ops.read_nvram(ha, (uint8_t *)buf, ha->vpd_base, ha->vpd_size);
@@ -315,9 +312,6 @@ qla2x00_sysfs_write_vpd(struct kobject *kobj, char *buf, loff_t off,
 
 	if (!capable(CAP_SYS_ADMIN) || off != 0 || count != ha->vpd_size)
 		return 0;
-
-	if (!IS_QLA24XX(ha) && !IS_QLA54XX(ha))
-		return -ENOTSUPP;
 
 	/* Write NVRAM. */
 	spin_lock_irqsave(&ha->hardware_lock, flags);
@@ -395,10 +389,12 @@ qla2x00_alloc_sysfs_attr(scsi_qla_host_t *ha)
 	sysfs_create_bin_file(&host->shost_gendev.kobj, &sysfs_optrom_attr);
 	sysfs_create_bin_file(&host->shost_gendev.kobj,
 	    &sysfs_optrom_ctl_attr);
-	sysfs_create_bin_file(&host->shost_gendev.kobj, &sysfs_vpd_attr);
-	if (IS_QLA24XX(ha) || IS_QLA54XX(ha))
+	if (IS_QLA24XX(ha) || IS_QLA54XX(ha)) {
+		sysfs_create_bin_file(&host->shost_gendev.kobj,
+		    &sysfs_vpd_attr);
 		sysfs_create_bin_file(&host->shost_gendev.kobj,
 		    &sysfs_sfp_attr);
+	}
 }
 
 void
@@ -411,10 +407,12 @@ qla2x00_free_sysfs_attr(scsi_qla_host_t *ha)
 	sysfs_remove_bin_file(&host->shost_gendev.kobj, &sysfs_optrom_attr);
 	sysfs_remove_bin_file(&host->shost_gendev.kobj,
 	    &sysfs_optrom_ctl_attr);
-	sysfs_remove_bin_file(&host->shost_gendev.kobj, &sysfs_vpd_attr);
-	if (IS_QLA24XX(ha) || IS_QLA54XX(ha))
+	if (IS_QLA24XX(ha) || IS_QLA54XX(ha)) {
+		sysfs_remove_bin_file(&host->shost_gendev.kobj,
+		    &sysfs_vpd_attr);
 		sysfs_remove_bin_file(&host->shost_gendev.kobj,
 		    &sysfs_sfp_attr);
+	}
 
 	if (ha->beacon_blink_led == 1)
 		ha->isp_ops.beacon_off(ha);
