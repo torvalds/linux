@@ -254,14 +254,20 @@ static int migrate_page_move_mapping(struct address_space *mapping,
 {
 	struct page **radix_pointer;
 
+	if (!mapping) {
+		/* Anonymous page */
+		if (page_count(page) != 1)
+			return -EAGAIN;
+		return 0;
+	}
+
 	write_lock_irq(&mapping->tree_lock);
 
 	radix_pointer = (struct page **)radix_tree_lookup_slot(
 						&mapping->page_tree,
 						page_index(page));
 
-	if (!page_mapping(page) ||
-			page_count(page) != 2 + !!PagePrivate(page) ||
+	if (page_count(page) != 2 + !!PagePrivate(page) ||
 			*radix_pointer != page) {
 		write_unlock_irq(&mapping->tree_lock);
 		return -EAGAIN;
@@ -271,10 +277,12 @@ static int migrate_page_move_mapping(struct address_space *mapping,
 	 * Now we know that no one else is looking at the page.
 	 */
 	get_page(newpage);
+#ifdef CONFIG_SWAP
 	if (PageSwapCache(page)) {
 		SetPageSwapCache(newpage);
 		set_page_private(newpage, page_private(page));
 	}
+#endif
 
 	*radix_pointer = newpage;
 	__put_page(page);
@@ -308,7 +316,9 @@ static void migrate_page_copy(struct page *newpage, struct page *page)
 		set_page_dirty(newpage);
  	}
 
+#ifdef CONFIG_SWAP
 	ClearPageSwapCache(page);
+#endif
 	ClearPageActive(page);
 	ClearPagePrivate(page);
 	set_page_private(page, 0);
@@ -353,16 +363,6 @@ int migrate_page(struct address_space *mapping,
 		return rc;
 
 	migrate_page_copy(newpage, page);
-
-	/*
-	 * Remove auxiliary swap entries and replace
-	 * them with real ptes.
-	 *
-	 * Note that a real pte entry will allow processes that are not
-	 * waiting on the page lock to use the new page via the page tables
-	 * before the new page is unlocked.
-	 */
-	remove_from_swap(newpage);
 	return 0;
 }
 EXPORT_SYMBOL(migrate_page);
@@ -530,23 +530,7 @@ redo:
 				goto unlock_page;
 
 		/*
-		 * Establish swap ptes for anonymous pages or destroy pte
-		 * maps for files.
-		 *
-		 * In order to reestablish file backed mappings the fault handlers
-		 * will take the radix tree_lock which may then be used to stop
-	  	 * processses from accessing this page until the new page is ready.
-		 *
-		 * A process accessing via a swap pte (an anonymous page) will take a
-		 * page_lock on the old page which will block the process until the
-		 * migration attempt is complete. At that time the PageSwapCache bit
-		 * will be examined. If the page was migrated then the PageSwapCache
-		 * bit will be clear and the operation to retrieve the page will be
-		 * retried which will find the new page in the radix tree. Then a new
-		 * direct mapping may be generated based on the radix tree contents.
-		 *
-		 * If the page was not migrated then the PageSwapCache bit
-		 * is still set and the operation may continue.
+		 * Establish migration ptes or remove ptes
 		 */
 		rc = -EPERM;
 		if (try_to_unmap(page, 1) == SWAP_FAIL)
@@ -569,9 +553,9 @@ redo:
 		 */
 		mapping = page_mapping(page);
 		if (!mapping)
-			goto unlock_both;
+			rc = migrate_page(mapping, newpage, page);
 
-		if (mapping->a_ops->migratepage)
+		else if (mapping->a_ops->migratepage)
 			/*
 			 * Most pages have a mapping and most filesystems
 			 * should provide a migration function. Anonymous
@@ -584,10 +568,15 @@ redo:
 		else
 			rc = fallback_migrate_page(mapping, newpage, page);
 
-unlock_both:
+		if (!rc)
+			remove_migration_ptes(page, newpage);
+
 		unlock_page(newpage);
 
 unlock_page:
+		if (rc)
+			remove_migration_ptes(page, page);
+
 		unlock_page(page);
 
 next:
