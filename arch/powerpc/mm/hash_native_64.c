@@ -520,7 +520,7 @@ static inline int tlb_batching_enabled(void)
 }
 #endif
 
-void hpte_init_native(void)
+void __init hpte_init_native(void)
 {
 	ppc_md.hpte_invalidate	= native_hpte_invalidate;
 	ppc_md.hpte_updatepp	= native_hpte_updatepp;
@@ -530,5 +530,4 @@ void hpte_init_native(void)
 	ppc_md.hpte_clear_all	= native_hpte_clear;
 	if (tlb_batching_enabled())
 		ppc_md.flush_hash_range = native_flush_hash_range;
-	htab_finish_init();
 }

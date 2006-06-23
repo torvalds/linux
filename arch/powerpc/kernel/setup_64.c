@@ -358,11 +358,7 @@ void __init setup_system(void)
 	 * Fill the ppc64_caches & systemcfg structures with informations
 	 * retrieved from the device-tree. Need to be called before
 	 * finish_device_tree() since the later requires some of the
-	 * informations filled up here to properly parse the interrupt
-	 * tree.
-	 * It also sets up the cache line sizes which allows to call
-	 * routines like flush_icache_range (used by the hash init
-	 * later on).
+	 * informations filled up here to properly parse the interrupt tree.
 	 */
 	initialize_cache_info();
 

@@ -319,11 +319,6 @@ static void __init iSeries_init_early(void)
 	iSeries_recal_titan = HvCallXm_loadTod();
 
 	/*
-	 * Initialize the hash table management pointers
-	 */
-	hpte_init_iSeries();
-
-	/*
 	 * Initialize the DMA/TCE management
 	 */
 	iommu_init_early_iSeries();
@@ -670,6 +665,8 @@ static int __init iseries_probe(void)
 	 * sources (the irq number is passed in a u8).
 	 */
 	virt_irq_max = 255;
+
+	hpte_init_iSeries();
 
 	return 1;
 }
