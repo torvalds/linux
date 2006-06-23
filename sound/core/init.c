@@ -310,6 +310,7 @@ int snd_card_disconnect(struct snd_card *card)
 	if (err < 0)
 		snd_printk(KERN_ERR "not all devices for card %i can be disconnected\n", card->number);
 
+	snd_info_card_disconnect(card);
 	return 0;	
 }
 
@@ -360,7 +361,7 @@ int snd_card_free(struct snd_card *card)
 	}
 	if (card->private_free)
 		card->private_free(card);
-	snd_info_unregister(card->proc_id);
+	snd_info_free_entry(card->proc_id);
 	if (snd_info_card_free(card) < 0) {
 		snd_printk(KERN_WARNING "unable to free card info\n");
 		/* Not fatal error */
@@ -625,9 +626,9 @@ int __init snd_card_info_init(void)
 
 int __exit snd_card_info_done(void)
 {
-	snd_info_unregister(snd_card_info_entry);
+	snd_info_free_entry(snd_card_info_entry);
 #ifdef MODULE
-	snd_info_unregister(snd_card_module_info_entry);
+	snd_info_free_entry(snd_card_module_info_entry);
 #endif
 	return 0;
 }

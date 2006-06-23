@@ -1599,7 +1599,7 @@ static int snd_rawmidi_dev_unregister(struct snd_device *device)
 	mutex_lock(&register_mutex);
 	list_del(&rmidi->list);
 	if (rmidi->proc_entry) {
-		snd_info_unregister(rmidi->proc_entry);
+		snd_info_free_entry(rmidi->proc_entry);
 		rmidi->proc_entry = NULL;
 	}
 #ifdef CONFIG_SND_OSSEMUL

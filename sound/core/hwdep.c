@@ -497,7 +497,7 @@ static void __init snd_hwdep_proc_init(void)
 
 static void __exit snd_hwdep_proc_done(void)
 {
-	snd_info_unregister(snd_hwdep_proc_entry);
+	snd_info_free_entry(snd_hwdep_proc_entry);
 }
 #else /* !CONFIG_PROC_FS */
 #define snd_hwdep_proc_init()

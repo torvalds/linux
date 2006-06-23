@@ -387,8 +387,7 @@ int __init snd_minor_info_init(void)
 
 int __exit snd_minor_info_done(void)
 {
-	if (snd_minor_info_entry)
-		snd_info_unregister(snd_minor_info_entry);
+	snd_info_free_entry(snd_minor_info_entry);
 	return 0;
 }
 #endif /* CONFIG_PROC_FS */

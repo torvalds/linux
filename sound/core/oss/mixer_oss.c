@@ -1193,10 +1193,8 @@ static void snd_mixer_oss_proc_init(struct snd_mixer_oss *mixer)
 
 static void snd_mixer_oss_proc_done(struct snd_mixer_oss *mixer)
 {
-	if (mixer->proc_entry) {
-		snd_info_unregister(mixer->proc_entry);
-		mixer->proc_entry = NULL;
-	}
+	snd_info_free_entry(mixer->proc_entry);
+	mixer->proc_entry = NULL;
 }
 #else /* !CONFIG_PROC_FS */
 #define snd_mixer_oss_proc_init(mix)

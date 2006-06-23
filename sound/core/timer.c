@@ -1126,7 +1126,7 @@ static void __init snd_timer_proc_init(void)
 
 static void __exit snd_timer_proc_done(void)
 {
-	snd_info_unregister(snd_timer_proc_entry);
+	snd_info_free_entry(snd_timer_proc_entry);
 }
 #else /* !CONFIG_PROC_FS */
 #define snd_timer_proc_init()

@@ -573,7 +573,7 @@ static void __exit alsa_seq_device_exit(void)
 {
 	remove_drivers();
 #ifdef CONFIG_PROC_FS
-	snd_info_unregister(info_entry);
+	snd_info_free_entry(info_entry);
 #endif
 	if (num_ops)
 		snd_printk(KERN_ERR "drivers not released (%d)\n", num_ops);

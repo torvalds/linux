@@ -494,19 +494,13 @@ static int snd_pcm_stream_proc_init(struct snd_pcm_str *pstr)
 static int snd_pcm_stream_proc_done(struct snd_pcm_str *pstr)
 {
 #ifdef CONFIG_SND_PCM_XRUN_DEBUG
-	if (pstr->proc_xrun_debug_entry) {
-		snd_info_unregister(pstr->proc_xrun_debug_entry);
-		pstr->proc_xrun_debug_entry = NULL;
-	}
+	snd_info_free_entry(pstr->proc_xrun_debug_entry);
+	pstr->proc_xrun_debug_entry = NULL;
 #endif
-	if (pstr->proc_info_entry) {
-		snd_info_unregister(pstr->proc_info_entry);
-		pstr->proc_info_entry = NULL;
-	}
-	if (pstr->proc_root) {
-		snd_info_unregister(pstr->proc_root);
-		pstr->proc_root = NULL;
-	}
+	snd_info_free_entry(pstr->proc_info_entry);
+	pstr->proc_info_entry = NULL;
+	snd_info_free_entry(pstr->proc_root);
+	pstr->proc_root = NULL;
 	return 0;
 }
 
@@ -570,29 +564,19 @@ static int snd_pcm_substream_proc_init(struct snd_pcm_substream *substream)
 
 	return 0;
 }
-		
+
 static int snd_pcm_substream_proc_done(struct snd_pcm_substream *substream)
 {
-	if (substream->proc_info_entry) {
-		snd_info_unregister(substream->proc_info_entry);
-		substream->proc_info_entry = NULL;
-	}
-	if (substream->proc_hw_params_entry) {
-		snd_info_unregister(substream->proc_hw_params_entry);
-		substream->proc_hw_params_entry = NULL;
-	}
-	if (substream->proc_sw_params_entry) {
-		snd_info_unregister(substream->proc_sw_params_entry);
-		substream->proc_sw_params_entry = NULL;
-	}
-	if (substream->proc_status_entry) {
-		snd_info_unregister(substream->proc_status_entry);
-		substream->proc_status_entry = NULL;
-	}
-	if (substream->proc_root) {
-		snd_info_unregister(substream->proc_root);
-		substream->proc_root = NULL;
-	}
+	snd_info_free_entry(substream->proc_info_entry);
+	substream->proc_info_entry = NULL;
+	snd_info_free_entry(substream->proc_hw_params_entry);
+	substream->proc_hw_params_entry = NULL;
+	snd_info_free_entry(substream->proc_sw_params_entry);
+	substream->proc_sw_params_entry = NULL;
+	snd_info_free_entry(substream->proc_status_entry);
+	substream->proc_status_entry = NULL;
+	snd_info_free_entry(substream->proc_root);
+	substream->proc_root = NULL;
 	return 0;
 }
 #else /* !CONFIG_SND_VERBOSE_PROCFS */
@@ -1090,8 +1074,7 @@ static void snd_pcm_proc_init(void)
 
 static void snd_pcm_proc_done(void)
 {
-	if (snd_pcm_proc_entry)
-		snd_info_unregister(snd_pcm_proc_entry);
+	snd_info_free_entry(snd_pcm_proc_entry);
 }
 
 #else /* !CONFIG_PROC_FS */

@@ -64,9 +64,9 @@ int __init snd_seq_info_init(void)
 
 int __exit snd_seq_info_done(void)
 {
-	snd_info_unregister(queues_entry);
-	snd_info_unregister(clients_entry);
-	snd_info_unregister(timer_entry);
+	snd_info_free_entry(queues_entry);
+	snd_info_free_entry(clients_entry);
+	snd_info_free_entry(timer_entry);
 	return 0;
 }
 #endif

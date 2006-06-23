@@ -159,8 +159,7 @@ int snd_opl4_create_proc(struct snd_opl4 *opl4)
 
 void snd_opl4_free_proc(struct snd_opl4 *opl4)
 {
-	if (opl4->proc_entry)
-		snd_info_unregister(opl4->proc_entry);
+	snd_info_free_entry(opl4->proc_entry);
 }
 
 #endif /* CONFIG_PROC_FS */
