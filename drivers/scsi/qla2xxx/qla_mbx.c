@@ -1458,6 +1458,8 @@ qla24xx_login_fabric(scsi_qla_host_t *ha, uint16_t loop_id, uint8_t domain,
 	lg->control_flags = __constant_cpu_to_le16(LCF_COMMAND_PLOGI);
 	if (opt & BIT_0)
 		lg->control_flags |= __constant_cpu_to_le16(LCF_COND_PLOGI);
+	if (opt & BIT_1)
+		lg->control_flags |= __constant_cpu_to_le16(LCF_SKIP_PRLI);
 	lg->port_id[0] = al_pa;
 	lg->port_id[1] = area;
 	lg->port_id[2] = domain;
