@@ -40,13 +40,13 @@ static inline unsigned long _swapl(unsigned long v)
 //#define __iormb() asm volatile("membar")
 //#define __iowmb() asm volatile("membar")
 
-#define __raw_readb(addr) __builtin_read8((void *) (addr))
-#define __raw_readw(addr) __builtin_read16((void *) (addr))
-#define __raw_readl(addr) __builtin_read32((void *) (addr))
+#define __raw_readb __builtin_read8
+#define __raw_readw __builtin_read16
+#define __raw_readl __builtin_read32
 
-#define __raw_writeb(datum, addr) __builtin_write8((void *) (addr), datum)
-#define __raw_writew(datum, addr) __builtin_write16((void *) (addr), datum)
-#define __raw_writel(datum, addr) __builtin_write32((void *) (addr), datum)
+#define __raw_writeb(datum, addr) __builtin_write8(addr, datum)
+#define __raw_writew(datum, addr) __builtin_write16(addr, datum)
+#define __raw_writel(datum, addr) __builtin_write32(addr, datum)
 
 static inline void io_outsb(unsigned int addr, const void *buf, int len)
 {
@@ -128,12 +128,12 @@ static inline void memcpy_toio(volatile void __iomem *dst, const void *src, int 
 
 static inline uint8_t inb(unsigned long addr)
 {
-	return __builtin_read8((void *)addr);
+	return __builtin_read8((void __iomem *)addr);
 }
 
 static inline uint16_t inw(unsigned long addr)
 {
-	uint16_t ret = __builtin_read16((void *)addr);
+	uint16_t ret = __builtin_read16((void __iomem *)addr);
 
 	if (__is_PCI_IO(addr))
 		ret = _swapw(ret);
@@ -143,7 +143,7 @@ static inline uint16_t inw(unsigned long addr)
 
 static inline uint32_t inl(unsigned long addr)
 {
-	uint32_t ret = __builtin_read32((void *)addr);
+	uint32_t ret = __builtin_read32((void __iomem *)addr);
 
 	if (__is_PCI_IO(addr))
 		ret = _swapl(ret);
@@ -153,21 +153,21 @@ static inline uint32_t inl(unsigned long addr)
 
 static inline void outb(uint8_t datum, unsigned long addr)
 {
-	__builtin_write8((void *)addr, datum);
+	__builtin_write8((void __iomem *)addr, datum);
 }
 
 static inline void outw(uint16_t datum, unsigned long addr)
 {
 	if (__is_PCI_IO(addr))
 		datum = _swapw(datum);
-	__builtin_write16((void *)addr, datum);
+	__builtin_write16((void __iomem *)addr, datum);
 }
 
 static inline void outl(uint32_t datum, unsigned long addr)
 {
 	if (__is_PCI_IO(addr))
 		datum = _swapl(datum);
-	__builtin_write32((void *)addr, datum);
+	__builtin_write32((void __iomem *)addr, datum);
 }
 
 #define inb_p(addr)	inb(addr)
@@ -189,12 +189,12 @@ static inline void outl(uint32_t datum, unsigned long addr)
 
 static inline uint8_t readb(const volatile void __iomem *addr)
 {
-	return __builtin_read8((volatile uint8_t __force *) addr);
+	return __builtin_read8((__force void volatile __iomem *) addr);
 }
 
 static inline uint16_t readw(const volatile void __iomem *addr)
 {
-	uint16_t ret =	__builtin_read16((volatile uint16_t __force *)addr);
+	uint16_t ret =	__builtin_read16((__force void volatile __iomem *)addr);
 
 	if (__is_PCI_MEM(addr))
 		ret = _swapw(ret);
@@ -203,7 +203,7 @@ static inline uint16_t readw(const volatile void __iomem *addr)
 
 static inline uint32_t readl(const volatile void __iomem *addr)
 {
-	uint32_t ret =	__builtin_read32((volatile uint32_t __force *)addr);
+	uint32_t ret =	__builtin_read32((__force void volatile __iomem *)addr);
 
 	if (__is_PCI_MEM(addr))
 		ret = _swapl(ret);
@@ -217,7 +217,7 @@ static inline uint32_t readl(const volatile void __iomem *addr)
 
 static inline void writeb(uint8_t datum, volatile void __iomem *addr)
 {
-	__builtin_write8((volatile uint8_t __force *) addr, datum);
+	__builtin_write8(addr, datum);
 	if (__is_PCI_MEM(addr))
 		__flush_PCI_writes();
 }
@@ -227,7 +227,7 @@ static inline void writew(uint16_t datum, volatile void __iomem *addr)
 	if (__is_PCI_MEM(addr))
 		datum = _swapw(datum);
 
-	__builtin_write16((volatile uint16_t __force *) addr, datum);
+	__builtin_write16(addr, datum);
 	if (__is_PCI_MEM(addr))
 		__flush_PCI_writes();
 }
@@ -237,7 +237,7 @@ static inline void writel(uint32_t datum, volatile void __iomem *addr)
 	if (__is_PCI_MEM(addr))
 		datum = _swapl(datum);
 
-	__builtin_write32((volatile uint32_t __force *) addr, datum);
+	__builtin_write32(addr, datum);
 	if (__is_PCI_MEM(addr))
 		__flush_PCI_writes();
 }
@@ -271,7 +271,7 @@ static inline void __iomem *ioremap_fullcache(unsigned long physaddr, unsigned l
 	return __ioremap(physaddr, size, IOMAP_FULL_CACHING);
 }
 
-extern void iounmap(void __iomem *addr);
+extern void iounmap(void volatile __iomem *addr);
 
 static inline void __iomem *ioport_map(unsigned long port, unsigned int nr)
 {
