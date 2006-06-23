@@ -1958,7 +1958,7 @@ sba_map_ioc_to_node(struct ioc *ioc, acpi_handle handle)
 	if (pxm < 0)
 		return;
 
-	node = pxm_to_nid_map[pxm];
+	node = pxm_to_node(pxm);
 
 	if (node >= MAX_NUMNODES || !node_online(node))
 		return;

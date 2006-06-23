@@ -352,7 +352,7 @@ pci_acpi_scan_root(struct acpi_device *device, int domain, int bus)
 	pxm = acpi_get_pxm(controller->acpi_handle);
 #ifdef CONFIG_NUMA
 	if (pxm >= 0)
-		controller->node = pxm_to_nid_map[pxm];
+		controller->node = pxm_to_node(pxm);
 #endif
 
 	acpi_walk_resources(device->handle, METHOD_NAME__CRS, count_window,
