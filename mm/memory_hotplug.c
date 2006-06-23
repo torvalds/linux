@@ -160,6 +160,6 @@ int online_pages(unsigned long pfn, unsigned long nr_pages)
 
 	if (need_zonelists_rebuild)
 		build_all_zonelists();
-
+	vm_total_pages = nr_free_pagecache_pages();
 	return 0;
 }
