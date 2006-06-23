@@ -164,6 +164,14 @@ static inline void set_irq_info(int irq, cpumask_t mask)
 
 #endif // CONFIG_SMP
 
+#ifdef CONFIG_IRQBALANCE
+extern void set_balance_irq_affinity(unsigned int irq, cpumask_t mask);
+#else
+static inline void set_balance_irq_affinity(unsigned int irq, cpumask_t mask)
+{
+}
+#endif
+
 extern int no_irq_affinity;
 extern int noirqdebug_setup(char *str);
 
