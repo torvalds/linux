@@ -27,6 +27,7 @@
 #include <linux/writeback.h>
 #include <linux/mempolicy.h>
 #include <linux/vmalloc.h>
+#include <linux/security.h>
 
 #include "internal.h"
 
@@ -904,6 +905,11 @@ asmlinkage long sys_move_pages(pid_t pid, unsigned long nr_pages,
 		err = -EPERM;
 		goto out2;
 	}
+
+ 	err = security_task_movememory(task);
+ 	if (err)
+ 		goto out2;
+
 
 	task_nodes = cpuset_mems_allowed(task);
 

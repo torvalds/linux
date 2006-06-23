@@ -88,6 +88,7 @@
 #include <linux/proc_fs.h>
 #include <linux/migrate.h>
 #include <linux/rmap.h>
+#include <linux/security.h>
 
 #include <asm/tlbflush.h>
 #include <asm/uaccess.h>
@@ -941,6 +942,10 @@ asmlinkage long sys_migrate_pages(pid_t pid, unsigned long maxnode,
 		err = -EPERM;
 		goto out;
 	}
+
+	err = security_task_movememory(task);
+	if (err)
+		goto out;
 
 	err = do_migrate_pages(mm, &old, &new,
 		capable(CAP_SYS_NICE) ? MPOL_MF_MOVE_ALL : MPOL_MF_MOVE);
