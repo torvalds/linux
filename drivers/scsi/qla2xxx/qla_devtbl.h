@@ -1,4 +1,4 @@
-#define QLA_MODEL_NAMES         0x4A
+#define QLA_MODEL_NAMES		0x57
 
 /*
  * Adapter model names and descriptions.
@@ -76,6 +76,19 @@ static char *qla2x00_model_name[QLA_MODEL_NAMES*2] = {
 	"QLE2440",	"PCI-Express to 4Gb FC, Single Channel",	/* 0x145 */
 	"QLE2464",	"PCI-Express to 4Gb FC, Quad Channel",		/* 0x146 */
 	"QLA2440",	"PCI-X 2.0 to 4Gb FC, Single Channel",		/* 0x147 */
-	" ",		" ",						/* 0x148 */
+	"HP AE369A",	"PCI-X 2.0 to 4Gb FC, Dual Channel",		/* 0x148 */
 	"QLA2340",	"Sun 133MHz PCI-X to 2Gb FC, Single Channel",	/* 0x149 */
+	" ",		" ",						/* 0x14a */
+	" ",		" ",						/* 0x14b */
+	"QMC2432M",	"IBM eServer BC 4Gb FC Expansion Card CFFE",	/* 0x14c */
+	"QMC2422M",	"IBM eServer BC 4Gb FC Expansion Card CFFX",	/* 0x14d */
+	"QLE220",	"Sun PCI-Express to 4Gb FC, Single Channel",	/* 0x14e */
+	" ",		" ",						/* 0x14f */
+	" ",		" ",						/* 0x150 */
+	" ",		" ",						/* 0x151 */
+	"QME2462",	"PCI-Express to 4Gb FC, Dual Channel Mezz HBA",	/* 0x152 */
+	"QMH2462",	"PCI-Express to 4Gb FC, Dual Channel Mezz HBA",	/* 0x153 */
+	" ",		" ",						/* 0x154 */
+	"QLE220",	"PCI-Express to 4Gb FC, Single Channel",	/* 0x155 */
+	"QLE220",	"PCI-Express to 4Gb FC, Single Channel",	/* 0x156 */
 };
