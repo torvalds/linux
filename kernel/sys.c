@@ -13,7 +13,6 @@
 #include <linux/notifier.h>
 #include <linux/reboot.h>
 #include <linux/prctl.h>
-#include <linux/init.h>
 #include <linux/highuid.h>
 #include <linux/fs.h>
 #include <linux/kernel.h>
