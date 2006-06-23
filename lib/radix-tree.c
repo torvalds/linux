@@ -389,8 +389,7 @@ void *radix_tree_tag_set(struct radix_tree_root *root,
 	struct radix_tree_node *slot;
 
 	height = root->height;
-	if (index > radix_tree_maxindex(height))
-		return NULL;
+	BUG_ON(index > radix_tree_maxindex(height));
 
 	slot = root->rnode;
 	shift = (height - 1) * RADIX_TREE_MAP_SHIFT;
