@@ -1725,9 +1725,9 @@ void __meminit build_all_zonelists(void)
 		stop_machine_run(__build_all_zonelists, NULL, NR_CPUS);
 		/* cpuset refresh routine should be here */
 	}
-
-	printk("Built %i zonelists\n", num_online_nodes());
-
+	vm_total_pages = nr_free_pagecache_pages();
+	printk("Built %i zonelists.  Total pages: %ld\n",
+			num_online_nodes(), vm_total_pages);
 }
 
 /*

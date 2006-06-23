@@ -110,7 +110,7 @@ struct shrinker {
  * From 0 .. 100.  Higher means more swappy.
  */
 int vm_swappiness = 60;
-static long total_memory;
+long vm_total_pages;	/* The total number of pages which the VM controls */
 
 static LIST_HEAD(shrinker_list);
 static DECLARE_RWSEM(shrinker_rwsem);
@@ -743,7 +743,7 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
 		 * how much memory
 		 * is mapped.
 		 */
-		mapped_ratio = (sc->nr_mapped * 100) / total_memory;
+		mapped_ratio = (sc->nr_mapped * 100) / vm_total_pages;
 
 		/*
 		 * Now decide how much we really want to unmap some pages.  The
@@ -1482,7 +1482,6 @@ static int __init kswapd_init(void)
 		pgdat->kswapd = find_task_by_pid(pid);
 		read_unlock(&tasklist_lock);
 	}
-	total_memory = nr_free_pagecache_pages();
 	hotcpu_notifier(cpu_callback, 0);
 	return 0;
 }
