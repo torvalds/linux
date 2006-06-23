@@ -61,6 +61,12 @@ MODULE_PARM_DESC(ql2xallocfwdump,
 		"during HBA initialization.  Memory allocation requirements "
 		"vary by ISP type.  Default is 1 - allocate memory.");
 
+int extended_error_logging;
+module_param(extended_error_logging, int, S_IRUGO|S_IRUSR);
+MODULE_PARM_DESC(extended_error_logging,
+		"Option to enable extended error logging, "
+		"Default is 0 - no logging. 1 - log errors.");
+
 static void qla2x00_free_device(scsi_qla_host_t *);
 
 static void qla2x00_config_dma_addressing(scsi_qla_host_t *ha);
@@ -2691,9 +2697,9 @@ qla2x00_module_init(void)
 
 	/* Derive version string. */
 	strcpy(qla2x00_version_str, QLA2XXX_VERSION);
-#if DEBUG_QLA2100
-	strcat(qla2x00_version_str, "-debug");
-#endif
+	if (extended_error_logging)
+		strcat(qla2x00_version_str, "-debug");
+
 	qla2xxx_transport_template =
 	    fc_attach_transport(&qla2xxx_transport_functions);
 	if (!qla2xxx_transport_template)
