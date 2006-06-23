@@ -41,8 +41,6 @@
 #endif
 #define USBH_DISABLE      (USB_MCFG_EBMEN | USB_MCFG_EMEMEN)
 
-#endif				/* Au1200 */
-
 extern int usb_disabled(void);
 
 /*-------------------------------------------------------------------------*/
@@ -107,9 +105,9 @@ int usb_ehci_au1xxx_probe(const struct hc_driver *driver,
 
 	/* Au1200 AB USB does not support coherent memory */
 	if (!(read_c0_prid() & 0xff)) {
-		pr_info("%s: this is chip revision AB!\n", dev->dev.name);
+		pr_info("%s: this is chip revision AB!\n", dev->name);
 		pr_info("%s: update your board or re-configure the kernel\n",
-			dev->dev.name);
+			dev->name);
 		return -ENODEV;
 	}
 #endif
@@ -228,9 +226,8 @@ static const struct hc_driver ehci_au1xxx_hc_driver = {
 
 /*-------------------------------------------------------------------------*/
 
-static int ehci_hcd_au1xxx_drv_probe(struct device *dev)
+static int ehci_hcd_au1xxx_drv_probe(struct platform_device *pdev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
 	struct usb_hcd *hcd = NULL;
 	int ret;
 
@@ -243,10 +240,9 @@ static int ehci_hcd_au1xxx_drv_probe(struct device *dev)
 	return ret;
 }
 
-static int ehci_hcd_au1xxx_drv_remove(struct device *dev)
+static int ehci_hcd_au1xxx_drv_remove(struct platform_device *pdev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct usb_hcd *hcd = dev_get_drvdata(dev);
+	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 
 	usb_ehci_au1xxx_remove(hcd, pdev);
 	return 0;
@@ -269,12 +265,13 @@ static int ehci_hcd_au1xxx_drv_resume(struct device *dev)
 }
 */
 MODULE_ALIAS("au1xxx-ehci");
-/* FIXME use "struct platform_driver" */
-static struct device_driver ehci_hcd_au1xxx_driver = {
-	.name = "au1xxx-ehci",
-	.bus = &platform_bus_type,
+static struct platform_driver ehci_hcd_au1xxx_driver = {
 	.probe = ehci_hcd_au1xxx_drv_probe,
 	.remove = ehci_hcd_au1xxx_drv_remove,
 	/*.suspend      = ehci_hcd_au1xxx_drv_suspend, */
 	/*.resume       = ehci_hcd_au1xxx_drv_resume, */
+	.driver = {
+		.name = "au1xxx-ehci",
+		.bus = &platform_bus_type
+	}
 };
