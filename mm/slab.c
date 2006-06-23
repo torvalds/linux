@@ -2499,23 +2499,28 @@ static void slab_put_obj(struct kmem_cache *cachep, struct slab *slabp,
 	slabp->inuse--;
 }
 
-static void set_slab_attr(struct kmem_cache *cachep, struct slab *slabp,
-			void *objp)
+/*
+ * Map pages beginning at addr to the given cache and slab. This is required
+ * for the slab allocator to be able to lookup the cache and slab of a
+ * virtual address for kfree, ksize, kmem_ptr_validate, and slab debugging.
+ */
+static void slab_map_pages(struct kmem_cache *cache, struct slab *slab,
+			   void *addr)
 {
-	int i;
+	int nr_pages;
 	struct page *page;
 
-	/* Nasty!!!!!! I hope this is OK. */
-	page = virt_to_page(objp);
+	page = virt_to_page(addr);
 
-	i = 1;
+	nr_pages = 1;
 	if (likely(!PageCompound(page)))
-		i <<= cachep->gfporder;
+		nr_pages <<= cache->gfporder;
+
 	do {
-		page_set_cache(page, cachep);
-		page_set_slab(page, slabp);
+		page_set_cache(page, cache);
+		page_set_slab(page, slab);
 		page++;
-	} while (--i);
+	} while (--nr_pages);
 }
 
 /*
@@ -2587,7 +2592,7 @@ static int cache_grow(struct kmem_cache *cachep, gfp_t flags, int nodeid)
 		goto opps1;
 
 	slabp->nodeid = nodeid;
-	set_slab_attr(cachep, slabp, objp);
+	slab_map_pages(cachep, slabp, objp);
 
 	cache_init_objs(cachep, slabp, ctor_flags);
 
