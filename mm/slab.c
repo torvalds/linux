@@ -1950,8 +1950,7 @@ kmem_cache_create (const char *name, size_t size, size_t align,
 	void (*dtor)(void*, struct kmem_cache *, unsigned long))
 {
 	size_t left_over, slab_size, ralign;
-	struct kmem_cache *cachep = NULL;
-	struct list_head *p;
+	struct kmem_cache *cachep = NULL, *pc;
 
 	/*
 	 * Sanity checks... these are all serious usage bugs.
@@ -1971,8 +1970,7 @@ kmem_cache_create (const char *name, size_t size, size_t align,
 
 	mutex_lock(&cache_chain_mutex);
 
-	list_for_each(p, &cache_chain) {
-		struct kmem_cache *pc = list_entry(p, struct kmem_cache, next);
+	list_for_each_entry(pc, &cache_chain, next) {
 		mm_segment_t old_fs = get_fs();
 		char tmp;
 		int res;
@@ -3690,7 +3688,7 @@ void drain_array(struct kmem_cache *cachep, struct kmem_list3 *l3,
  */
 static void cache_reap(void *unused)
 {
-	struct list_head *walk;
+	struct kmem_cache *searchp;
 	struct kmem_list3 *l3;
 	int node = numa_node_id();
 
@@ -3701,13 +3699,11 @@ static void cache_reap(void *unused)
 		return;
 	}
 
-	list_for_each(walk, &cache_chain) {
-		struct kmem_cache *searchp;
+	list_for_each_entry(searchp, &cache_chain, next) {
 		struct list_head *p;
 		int tofree;
 		struct slab *slabp;
 
-		searchp = list_entry(walk, struct kmem_cache, next);
 		check_irq_on();
 
 		/*
@@ -3835,7 +3831,6 @@ static void s_stop(struct seq_file *m, void *p)
 static int s_show(struct seq_file *m, void *p)
 {
 	struct kmem_cache *cachep = p;
-	struct list_head *q;
 	struct slab *slabp;
 	unsigned long active_objs;
 	unsigned long num_objs;
@@ -3856,15 +3851,13 @@ static int s_show(struct seq_file *m, void *p)
 		check_irq_on();
 		spin_lock_irq(&l3->list_lock);
 
-		list_for_each(q, &l3->slabs_full) {
-			slabp = list_entry(q, struct slab, list);
+		list_for_each_entry(slabp, &l3->slabs_full, list) {
 			if (slabp->inuse != cachep->num && !error)
 				error = "slabs_full accounting error";
 			active_objs += cachep->num;
 			active_slabs++;
 		}
-		list_for_each(q, &l3->slabs_partial) {
-			slabp = list_entry(q, struct slab, list);
+		list_for_each_entry(slabp, &l3->slabs_partial, list) {
 			if (slabp->inuse == cachep->num && !error)
 				error = "slabs_partial inuse accounting error";
 			if (!slabp->inuse && !error)
@@ -3872,8 +3865,7 @@ static int s_show(struct seq_file *m, void *p)
 			active_objs += slabp->inuse;
 			active_slabs++;
 		}
-		list_for_each(q, &l3->slabs_free) {
-			slabp = list_entry(q, struct slab, list);
+		list_for_each_entry(slabp, &l3->slabs_free, list) {
 			if (slabp->inuse && !error)
 				error = "slabs_free/inuse accounting error";
 			num_slabs++;
@@ -3966,7 +3958,7 @@ ssize_t slabinfo_write(struct file *file, const char __user * buffer,
 {
 	char kbuf[MAX_SLABINFO_WRITE + 1], *tmp;
 	int limit, batchcount, shared, res;
-	struct list_head *p;
+	struct kmem_cache *cachep;
 
 	if (count > MAX_SLABINFO_WRITE)
 		return -EINVAL;
@@ -3985,10 +3977,7 @@ ssize_t slabinfo_write(struct file *file, const char __user * buffer,
 	/* Find the cache in the chain of caches. */
 	mutex_lock(&cache_chain_mutex);
 	res = -EINVAL;
-	list_for_each(p, &cache_chain) {
-		struct kmem_cache *cachep;
-
-		cachep = list_entry(p, struct kmem_cache, next);
+	list_for_each_entry(cachep, &cache_chain, next) {
 		if (!strcmp(cachep->name, kbuf)) {
 			if (limit < 1 || batchcount < 1 ||
 					batchcount > limit || shared < 0) {
@@ -4090,7 +4079,6 @@ static void show_symbol(struct seq_file *m, unsigned long address)
 static int leaks_show(struct seq_file *m, void *p)
 {
 	struct kmem_cache *cachep = p;
-	struct list_head *q;
 	struct slab *slabp;
 	struct kmem_list3 *l3;
 	const char *name;
@@ -4115,14 +4103,10 @@ static int leaks_show(struct seq_file *m, void *p)
 		check_irq_on();
 		spin_lock_irq(&l3->list_lock);
 
-		list_for_each(q, &l3->slabs_full) {
-			slabp = list_entry(q, struct slab, list);
+		list_for_each_entry(slabp, &l3->slabs_full, list)
 			handle_slab(n, cachep, slabp);
-		}
-		list_for_each(q, &l3->slabs_partial) {
-			slabp = list_entry(q, struct slab, list);
+		list_for_each_entry(slabp, &l3->slabs_partial, list)
 			handle_slab(n, cachep, slabp);
-		}
 		spin_unlock_irq(&l3->list_lock);
 	}
 	name = cachep->name;
