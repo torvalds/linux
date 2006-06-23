@@ -78,7 +78,7 @@ extern int cond_resched(void);
 # define might_sleep() do { might_resched(); } while (0)
 #endif
 
-#define might_sleep_if(cond) do { if (unlikely(cond)) might_sleep(); } while (0)
+#define might_sleep_if(cond) do { if (cond) might_sleep(); } while (0)
 
 #define abs(x) ({				\
 		int __x = (x);			\
