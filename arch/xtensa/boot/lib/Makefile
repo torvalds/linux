@@ -2,7 +2,7 @@
 # Makefile for some libs needed by zImage.
 #
 
-zlib	:= infblock.c infcodes.c inffast.c inflate.c inftrees.c infutil.c
+zlib	:= inffast.c inflate.c inftrees.c
 
 lib-y	+= $(zlib:.c=.o) zmem.o
 

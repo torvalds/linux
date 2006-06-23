@@ -1418,7 +1418,7 @@ int t1_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct cpl_tx_pkt *cpl;
 
 #ifdef NETIF_F_TSO
-	if (skb_shinfo(skb)->tso_size) {
+	if (skb_shinfo(skb)->gso_size) {
 		int eth_type;
 		struct cpl_tx_pkt_lso *hdr;
 
@@ -1433,7 +1433,7 @@ int t1_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		hdr->ip_hdr_words = skb->nh.iph->ihl;
 		hdr->tcp_hdr_words = skb->h.th->doff;
 		hdr->eth_type_mss = htons(MK_ETH_TYPE_MSS(eth_type,
-						skb_shinfo(skb)->tso_size));
+						skb_shinfo(skb)->gso_size));
 		hdr->len = htonl(skb->len - sizeof(*hdr));
 		cpl = (struct cpl_tx_pkt *)hdr;
 		sge->stats.tx_lso_pkts++;

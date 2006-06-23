@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 1992 - 1997, 2000-2004 Silicon Graphics, Inc. All rights reserved.
+ * Copyright (C) 1992 - 1997, 2000-2005 Silicon Graphics, Inc. All rights reserved.
  */
 #ifndef _ASM_IA64_SN_PCI_PCIBUS_PROVIDER_H
 #define _ASM_IA64_SN_PCI_PCIBUS_PROVIDER_H
@@ -45,13 +45,24 @@ struct pci_controller;
  */
 
 struct sn_pcibus_provider {
-	dma_addr_t	(*dma_map)(struct pci_dev *, unsigned long, size_t);
-	dma_addr_t	(*dma_map_consistent)(struct pci_dev *, unsigned long, size_t);
+	dma_addr_t	(*dma_map)(struct pci_dev *, unsigned long, size_t, int flags);
+	dma_addr_t	(*dma_map_consistent)(struct pci_dev *, unsigned long, size_t, int flags);
 	void		(*dma_unmap)(struct pci_dev *, dma_addr_t, int);
 	void *		(*bus_fixup)(struct pcibus_bussoft *, struct pci_controller *);
  	void		(*force_interrupt)(struct sn_irq_info *);
  	void		(*target_interrupt)(struct sn_irq_info *);
 };
+
+/*
+ * Flags used by the map interfaces
+ * bits 3:0 specifies format of passed in address
+ * bit  4   specifies that address is to be used for MSI
+ */
+
+#define SN_DMA_ADDRTYPE(x)	((x) & 0xf)
+#define     SN_DMA_ADDR_PHYS	1	/* address is an xio address. */
+#define     SN_DMA_ADDR_XIO	2	/* address is phys memory */
+#define SN_DMA_MSI		0x10	/* Bus address is to be used for MSI */
 
 extern struct sn_pcibus_provider *sn_pci_provider[];
 #endif				/* _ASM_IA64_SN_PCI_PCIBUS_PROVIDER_H */

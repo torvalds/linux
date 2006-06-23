@@ -211,7 +211,8 @@ static int ixp2000_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	/* clear timer 1 */
 	ixp2000_reg_wrb(IXP2000_T1_CLR, 1);
 
-	while ((next_jiffy_time - *missing_jiffy_timer_csr) > ticks_per_jiffy) {
+	while ((signed long)(next_jiffy_time - *missing_jiffy_timer_csr)
+							>= ticks_per_jiffy) {
 		timer_tick(regs);
 		next_jiffy_time -= ticks_per_jiffy;
 	}

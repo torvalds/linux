@@ -180,8 +180,10 @@
 #define AML_BANK_FIELD_OP           (u16) 0x5b87
 #define AML_DATA_REGION_OP          (u16) 0x5b88	/* ACPI 2.0 */
 
-/* Bogus opcodes (they are actually two separate opcodes) */
-
+/*
+ * Combination opcodes (actually two one-byte opcodes)
+ * Used by the disassembler and i_aSL compiler
+ */
 #define AML_LGREATEREQUAL_OP        (u16) 0x9295
 #define AML_LLESSEQUAL_OP           (u16) 0x9294
 #define AML_LNOTEQUAL_OP            (u16) 0x9293

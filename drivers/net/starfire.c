@@ -1349,8 +1349,7 @@ static int start_tx(struct sk_buff *skb, struct net_device *dev)
 
 #if defined(ZEROCOPY) && defined(HAS_BROKEN_FIRMWARE)
 	if (skb->ip_summed == CHECKSUM_HW) {
-		skb = skb_padto(skb, (skb->len + PADDING_MASK) & ~PADDING_MASK);
-		if (skb == NULL)
+		if (skb_padto(skb, (skb->len + PADDING_MASK) & ~PADDING_MASK))
 			return NETDEV_TX_OK;
 	}
 #endif /* ZEROCOPY && HAS_BROKEN_FIRMWARE */

@@ -103,7 +103,8 @@ static int ep93xx_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	write_seqlock(&xtime_lock);
 
 	__raw_writel(1, EP93XX_TIMER1_CLEAR);
-	while (__raw_readl(EP93XX_TIMER4_VALUE_LOW) - last_jiffy_time
+	while ((signed long)
+		(__raw_readl(EP93XX_TIMER4_VALUE_LOW) - last_jiffy_time)
 						>= TIMER4_TICKS_PER_JIFFY) {
 		last_jiffy_time += TIMER4_TICKS_PER_JIFFY;
 		timer_tick(regs);
@@ -124,7 +125,7 @@ static void __init ep93xx_timer_init(void)
 {
 	/* Enable periodic HZ timer.  */
 	__raw_writel(0x48, EP93XX_TIMER1_CONTROL);
-	__raw_writel((508000 / HZ) - 1, EP93XX_TIMER1_LOAD);
+	__raw_writel((508469 / HZ) - 1, EP93XX_TIMER1_LOAD);
 	__raw_writel(0xc8, EP93XX_TIMER1_CONTROL);
 
 	/* Enable lost jiffy timer.  */

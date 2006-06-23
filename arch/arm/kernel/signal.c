@@ -665,17 +665,33 @@ static int do_signal(sigset_t *oldset, struct pt_regs *regs, int syscall)
 	if (syscall) {
 		if (regs->ARM_r0 == -ERESTART_RESTARTBLOCK) {
 			if (thumb_mode(regs)) {
-				regs->ARM_r7 = __NR_restart_syscall;
+				regs->ARM_r7 = __NR_restart_syscall - __NR_SYSCALL_BASE;
 				regs->ARM_pc -= 2;
 			} else {
+#if defined(CONFIG_AEABI) && !defined(CONFIG_OABI_COMPAT)
+				regs->ARM_r7 = __NR_restart_syscall;
+				regs->ARM_pc -= 4;
+#else
 				u32 __user *usp;
+				u32 swival = __NR_restart_syscall;
 
 				regs->ARM_sp -= 12;
 				usp = (u32 __user *)regs->ARM_sp;
 
+				/*
+				 * Either we supports OABI only, or we have
+				 * EABI with the OABI compat layer enabled.
+				 * In the later case we don't know if user
+				 * space is EABI or not, and if not we must
+				 * not clobber r7.  Always using the OABI
+				 * syscall solves that issue and works for
+				 * all those cases.
+				 */
+				swival = swival - __NR_SYSCALL_BASE + __NR_OABI_SYSCALL_BASE;
+
 				put_user(regs->ARM_pc, &usp[0]);
 				/* swi __NR_restart_syscall */
-				put_user(0xef000000 | __NR_restart_syscall, &usp[1]);
+				put_user(0xef000000 | swival, &usp[1]);
 				/* ldr	pc, [sp], #12 */
 				put_user(0xe49df00c, &usp[2]);
 
@@ -683,6 +699,7 @@ static int do_signal(sigset_t *oldset, struct pt_regs *regs, int syscall)
 						   (unsigned long)(usp + 3));
 
 				regs->ARM_pc = regs->ARM_sp + 4;
+#endif
 			}
 		}
 		if (regs->ARM_r0 == -ERESTARTNOHAND ||

@@ -54,8 +54,8 @@ MODULE_SUPPORTED_DEVICE("{{S3,SonicVibes PCI}}");
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
 static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;	/* Enable this card */
-static int reverb[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 0};
-static int mge[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 0};
+static int reverb[SNDRV_CARDS];
+static int mge[SNDRV_CARDS];
 static unsigned int dmaio = 0x7a00;	/* DDMA i/o address */
 
 module_param_array(index, int, NULL, 0444);
@@ -1144,7 +1144,7 @@ static void __devinit snd_sonicvibes_proc_init(struct sonicvibes * sonic)
 	struct snd_info_entry *entry;
 
 	if (! snd_card_proc_new(sonic->card, "sonicvibes", &entry))
-		snd_info_set_text_ops(entry, sonic, 1024, snd_sonicvibes_proc_read);
+		snd_info_set_text_ops(entry, sonic, snd_sonicvibes_proc_read);
 }
 
 /*
@@ -1456,7 +1456,7 @@ static int __devinit snd_sonic_probe(struct pci_dev *pci,
 		return err;
 	}
 	if ((err = snd_mpu401_uart_new(card, 0, MPU401_HW_SONICVIBES,
-				       sonic->midi_port, 1,
+				       sonic->midi_port, MPU401_INFO_INTEGRATED,
 				       sonic->irq, 0,
 				       &midi_uart)) < 0) {
 		snd_card_free(card);

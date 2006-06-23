@@ -723,6 +723,8 @@ get_parms(char *config_record,
 		goto do_fail;
 	count = tmp1 - tmp;
 	*action_handle = (char *)kmalloc(count + 1, GFP_KERNEL);
+	if (!*action_handle)
+		goto do_fail;
 	strncpy(*action_handle, tmp, count);
 	*(*action_handle + count) = 0;
 

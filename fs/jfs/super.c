@@ -139,9 +139,9 @@ static void jfs_destroy_inode(struct inode *inode)
 	kmem_cache_free(jfs_inode_cachep, ji);
 }
 
-static int jfs_statfs(struct super_block *sb, struct kstatfs *buf)
+static int jfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
-	struct jfs_sb_info *sbi = JFS_SBI(sb);
+	struct jfs_sb_info *sbi = JFS_SBI(dentry->d_sb);
 	s64 maxinodes;
 	struct inomap *imap = JFS_IP(sbi->ipimap)->i_imap;
 
@@ -565,10 +565,11 @@ static void jfs_unlockfs(struct super_block *sb)
 	}
 }
 
-static struct super_block *jfs_get_sb(struct file_system_type *fs_type, 
-	int flags, const char *dev_name, void *data)
+static int jfs_get_sb(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
 {
-	return get_sb_bdev(fs_type, flags, dev_name, data, jfs_fill_super);
+	return get_sb_bdev(fs_type, flags, dev_name, data, jfs_fill_super,
+			   mnt);
 }
 
 static int jfs_sync_fs(struct super_block *sb, int wait)

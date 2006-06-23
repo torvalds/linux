@@ -661,11 +661,12 @@ static int msdos_fill_super(struct super_block *sb, void *data, int silent)
 	return 0;
 }
 
-static struct super_block *msdos_get_sb(struct file_system_type *fs_type,
-					int flags, const char *dev_name,
-					void *data)
+static int msdos_get_sb(struct file_system_type *fs_type,
+			int flags, const char *dev_name,
+			void *data, struct vfsmount *mnt)
 {
-	return get_sb_bdev(fs_type, flags, dev_name, data, msdos_fill_super);
+	return get_sb_bdev(fs_type, flags, dev_name, data, msdos_fill_super,
+			   mnt);
 }
 
 static struct file_system_type msdos_fs_type = {

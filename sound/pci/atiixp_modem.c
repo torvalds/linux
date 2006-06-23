@@ -1177,7 +1177,7 @@ static void __devinit snd_atiixp_proc_init(struct atiixp_modem *chip)
 	struct snd_info_entry *entry;
 
 	if (! snd_card_proc_new(chip->card, "atiixp-modem", &entry))
-		snd_info_set_text_ops(entry, chip, 1024, snd_atiixp_proc_read);
+		snd_info_set_text_ops(entry, chip, snd_atiixp_proc_read);
 }
 #else
 #define snd_atiixp_proc_init(chip)

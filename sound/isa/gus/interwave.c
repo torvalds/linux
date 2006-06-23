@@ -70,9 +70,9 @@ static int dma1[SNDRV_CARDS] = SNDRV_DEFAULT_DMA;	/* 0,1,3,5,6,7 */
 static int dma2[SNDRV_CARDS] = SNDRV_DEFAULT_DMA;	/* 0,1,3,5,6,7 */
 static int joystick_dac[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 29};
 				/* 0 to 31, (0.59V-4.52V or 0.389V-2.98V) */
-static int midi[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 0};
+static int midi[SNDRV_CARDS];
 static int pcm_channels[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 2};
-static int effect[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 0};
+static int effect[SNDRV_CARDS];
 
 #ifdef SNDRV_STB
 #define PFX "interwave-stb: "

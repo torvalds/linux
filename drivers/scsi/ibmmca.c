@@ -2241,8 +2241,7 @@ static int __ibmmca_host_reset(Scsi_Cmnd * cmd)
 	int host_index;
 	unsigned long imm_command;
 
-	if (cmd == NULL)
-		BUG();
+	BUG_ON(cmd == NULL);
 
 	ticks = IM_RESET_DELAY * HZ;
 	shpnt = cmd->device->host;

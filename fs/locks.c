@@ -703,7 +703,7 @@ EXPORT_SYMBOL(posix_test_lock);
  * from a broken NFS client. But broken NFS clients have a lot more to
  * worry about than proper deadlock detection anyway... --okir
  */
-int posix_locks_deadlock(struct file_lock *caller_fl,
+static int posix_locks_deadlock(struct file_lock *caller_fl,
 				struct file_lock *block_fl)
 {
 	struct list_head *tmp;
@@ -721,8 +721,6 @@ next_task:
 	}
 	return 0;
 }
-
-EXPORT_SYMBOL(posix_locks_deadlock);
 
 /* Try to create a FLOCK lock on filp. We always insert new FLOCK locks
  * at the head of the list, but that's secret knowledge known only to
@@ -794,7 +792,8 @@ out:
 static int __posix_lock_file_conf(struct inode *inode, struct file_lock *request, struct file_lock *conflock)
 {
 	struct file_lock *fl;
-	struct file_lock *new_fl, *new_fl2;
+	struct file_lock *new_fl = NULL;
+	struct file_lock *new_fl2 = NULL;
 	struct file_lock *left = NULL;
 	struct file_lock *right = NULL;
 	struct file_lock **before;
@@ -803,9 +802,15 @@ static int __posix_lock_file_conf(struct inode *inode, struct file_lock *request
 	/*
 	 * We may need two file_lock structures for this operation,
 	 * so we get them in advance to avoid races.
+	 *
+	 * In some cases we can be sure, that no new locks will be needed
 	 */
-	new_fl = locks_alloc_lock();
-	new_fl2 = locks_alloc_lock();
+	if (!(request->fl_flags & FL_ACCESS) &&
+	    (request->fl_type != F_UNLCK ||
+	     request->fl_start != 0 || request->fl_end != OFFSET_MAX)) {
+		new_fl = locks_alloc_lock();
+		new_fl2 = locks_alloc_lock();
+	}
 
 	lock_kernel();
 	if (request->fl_type != F_UNLCK) {
@@ -834,14 +839,7 @@ static int __posix_lock_file_conf(struct inode *inode, struct file_lock *request
 	if (request->fl_flags & FL_ACCESS)
 		goto out;
 
-	error = -ENOLCK; /* "no luck" */
-	if (!(new_fl && new_fl2))
-		goto out;
-
 	/*
-	 * We've allocated the new locks in advance, so there are no
-	 * errors possible (and no blocking operations) from here on.
-	 * 
 	 * Find the first old lock with the same owner as the new lock.
 	 */
 	
@@ -938,10 +936,25 @@ static int __posix_lock_file_conf(struct inode *inode, struct file_lock *request
 		before = &fl->fl_next;
 	}
 
+	/*
+	 * The above code only modifies existing locks in case of
+	 * merging or replacing.  If new lock(s) need to be inserted
+	 * all modifications are done bellow this, so it's safe yet to
+	 * bail out.
+	 */
+	error = -ENOLCK; /* "no luck" */
+	if (right && left == right && !new_fl2)
+		goto out;
+
 	error = 0;
 	if (!added) {
 		if (request->fl_type == F_UNLCK)
 			goto out;
+
+		if (!new_fl) {
+			error = -ENOLCK;
+			goto out;
+		}
 		locks_copy_lock(new_fl, request);
 		locks_insert_lock(before, new_fl);
 		new_fl = NULL;
@@ -1881,19 +1894,18 @@ out:
  */
 void locks_remove_posix(struct file *filp, fl_owner_t owner)
 {
-	struct file_lock lock, **before;
+	struct file_lock lock;
 
 	/*
 	 * If there are no locks held on this file, we don't need to call
 	 * posix_lock_file().  Another process could be setting a lock on this
 	 * file at the same time, but we wouldn't remove that lock anyway.
 	 */
-	before = &filp->f_dentry->d_inode->i_flock;
-	if (*before == NULL)
+	if (!filp->f_dentry->d_inode->i_flock)
 		return;
 
 	lock.fl_type = F_UNLCK;
-	lock.fl_flags = FL_POSIX;
+	lock.fl_flags = FL_POSIX | FL_CLOSE;
 	lock.fl_start = 0;
 	lock.fl_end = OFFSET_MAX;
 	lock.fl_owner = owner;
@@ -1902,25 +1914,11 @@ void locks_remove_posix(struct file *filp, fl_owner_t owner)
 	lock.fl_ops = NULL;
 	lock.fl_lmops = NULL;
 
-	if (filp->f_op && filp->f_op->lock != NULL) {
+	if (filp->f_op && filp->f_op->lock != NULL)
 		filp->f_op->lock(filp, F_SETLK, &lock);
-		goto out;
-	}
+	else
+		posix_lock_file(filp, &lock);
 
-	/* Can't use posix_lock_file here; we need to remove it no matter
-	 * which pid we have.
-	 */
-	lock_kernel();
-	while (*before != NULL) {
-		struct file_lock *fl = *before;
-		if (IS_POSIX(fl) && posix_same_owner(fl, &lock)) {
-			locks_delete_lock(before);
-			continue;
-		}
-		before = &fl->fl_next;
-	}
-	unlock_kernel();
-out:
 	if (lock.fl_ops && lock.fl_ops->fl_release_private)
 		lock.fl_ops->fl_release_private(&lock);
 }
@@ -2205,63 +2203,6 @@ int lock_may_write(struct inode *inode, loff_t start, unsigned long len)
 }
 
 EXPORT_SYMBOL(lock_may_write);
-
-static inline void __steal_locks(struct file *file, fl_owner_t from)
-{
-	struct inode *inode = file->f_dentry->d_inode;
-	struct file_lock *fl = inode->i_flock;
-
-	while (fl) {
-		if (fl->fl_file == file && fl->fl_owner == from)
-			fl->fl_owner = current->files;
-		fl = fl->fl_next;
-	}
-}
-
-/* When getting ready for executing a binary, we make sure that current
- * has a files_struct on its own. Before dropping the old files_struct,
- * we take over ownership of all locks for all file descriptors we own.
- * Note that we may accidentally steal a lock for a file that a sibling
- * has created since the unshare_files() call.
- */
-void steal_locks(fl_owner_t from)
-{
-	struct files_struct *files = current->files;
-	int i, j;
-	struct fdtable *fdt;
-
-	if (from == files)
-		return;
-
-	lock_kernel();
-	j = 0;
-
-	/*
-	 * We are not taking a ref to the file structures, so
-	 * we need to acquire ->file_lock.
-	 */
-	spin_lock(&files->file_lock);
-	fdt = files_fdtable(files);
-	for (;;) {
-		unsigned long set;
-		i = j * __NFDBITS;
-		if (i >= fdt->max_fdset || i >= fdt->max_fds)
-			break;
-		set = fdt->open_fds->fds_bits[j++];
-		while (set) {
-			if (set & 1) {
-				struct file *file = fdt->fd[i];
-				if (file)
-					__steal_locks(file, from);
-			}
-			i++;
-			set >>= 1;
-		}
-	}
-	spin_unlock(&files->file_lock);
-	unlock_kernel();
-}
-EXPORT_SYMBOL(steal_locks);
 
 static int __init filelock_init(void)
 {

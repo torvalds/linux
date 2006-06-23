@@ -147,6 +147,9 @@ running once the system is up.
 	acpi_irq_isa=	[HW,ACPI] If irq_balance, mark listed IRQs used by ISA
 			Format: <irq>,<irq>...
 
+	acpi_os_name=	[HW,ACPI] Tell ACPI BIOS the name of the OS
+			Format: To spoof as Windows 98: ="Microsoft Windows"
+
 	acpi_osi=	[HW,ACPI] empty param disables _OSI
 
 	acpi_serialize	[HW,ACPI] force serialization of AML methods

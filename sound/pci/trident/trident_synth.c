@@ -914,7 +914,9 @@ static int snd_trident_synth_create_port(struct snd_trident * trident, int idx)
 						   &callbacks,
 						   SNDRV_SEQ_PORT_CAP_WRITE | SNDRV_SEQ_PORT_CAP_SUBS_WRITE,
 						   SNDRV_SEQ_PORT_TYPE_DIRECT_SAMPLE |
-						   SNDRV_SEQ_PORT_TYPE_SYNTH,
+						   SNDRV_SEQ_PORT_TYPE_SYNTH |
+						   SNDRV_SEQ_PORT_TYPE_HARDWARE |
+						   SNDRV_SEQ_PORT_TYPE_SYNTHESIZER,
 						   16, 0,
 						   name);
 	if (p->chset->port < 0) {

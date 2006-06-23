@@ -229,8 +229,7 @@ void aac_fib_init(struct fib *fibptr)
 static void fib_dealloc(struct fib * fibptr)
 {
 	struct hw_fib *hw_fib = fibptr->hw_fib;
-	if(hw_fib->header.StructType != FIB_MAGIC) 
-		BUG();
+	BUG_ON(hw_fib->header.StructType != FIB_MAGIC);
 	hw_fib->header.XferState = 0;        
 }
 
@@ -530,8 +529,7 @@ int aac_fib_send(u16 command, struct fib *fibptr, unsigned long size,
 			}
 		} else
 			down(&fibptr->event_wait);
-		if(fibptr->done == 0)
-			BUG();
+		BUG_ON(fibptr->done == 0);
 			
 		if((fibptr->flags & FIB_CONTEXT_FLAG_TIMED_OUT)){
 			return -ETIMEDOUT;

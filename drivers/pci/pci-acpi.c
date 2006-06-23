@@ -267,7 +267,7 @@ static int acpi_pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 
 
 /* ACPI bus type */
-static int pci_acpi_find_device(struct device *dev, acpi_handle *handle)
+static int acpi_pci_find_device(struct device *dev, acpi_handle *handle)
 {
 	struct pci_dev * pci_dev;
 	acpi_integer	addr;
@@ -281,7 +281,7 @@ static int pci_acpi_find_device(struct device *dev, acpi_handle *handle)
 	return 0;
 }
 
-static int pci_acpi_find_root_bridge(struct device *dev, acpi_handle *handle)
+static int acpi_pci_find_root_bridge(struct device *dev, acpi_handle *handle)
 {
 	int num;
 	unsigned int seg, bus;
@@ -299,21 +299,21 @@ static int pci_acpi_find_root_bridge(struct device *dev, acpi_handle *handle)
 	return 0;
 }
 
-static struct acpi_bus_type pci_acpi_bus = {
+static struct acpi_bus_type acpi_pci_bus = {
 	.bus = &pci_bus_type,
-	.find_device = pci_acpi_find_device,
-	.find_bridge = pci_acpi_find_root_bridge,
+	.find_device = acpi_pci_find_device,
+	.find_bridge = acpi_pci_find_root_bridge,
 };
 
-static int __init pci_acpi_init(void)
+static int __init acpi_pci_init(void)
 {
 	int ret;
 
-	ret = register_acpi_bus_type(&pci_acpi_bus);
+	ret = register_acpi_bus_type(&acpi_pci_bus);
 	if (ret)
 		return 0;
 	platform_pci_choose_state = acpi_pci_choose_state;
 	platform_pci_set_power_state = acpi_pci_set_power_state;
 	return 0;
 }
-arch_initcall(pci_acpi_init);
+arch_initcall(acpi_pci_init);

@@ -34,9 +34,14 @@
 #include <asm/prom.h>
 #include <linux/mutex.h>
 #include <asm/spu.h>
+#include <asm/spu_priv1.h>
 #include <asm/mmu_context.h>
 
 #include "interrupt.h"
+
+const struct spu_priv1_ops *spu_priv1_ops;
+
+EXPORT_SYMBOL_GPL(spu_priv1_ops);
 
 static int __spu_trap_invalid_dma(struct spu *spu)
 {
@@ -71,7 +76,7 @@ static int __spu_trap_data_seg(struct spu *spu, unsigned long ea)
 {
 	struct spu_priv2 __iomem *priv2 = spu->priv2;
 	struct mm_struct *mm = spu->mm;
-	u64 esid, vsid;
+	u64 esid, vsid, llp;
 
 	pr_debug("%s\n", __FUNCTION__);
 
@@ -91,9 +96,14 @@ static int __spu_trap_data_seg(struct spu *spu, unsigned long ea)
 	}
 
 	esid = (ea & ESID_MASK) | SLB_ESID_V;
-	vsid = (get_vsid(mm->context.id, ea) << SLB_VSID_SHIFT) | SLB_VSID_USER;
+#ifdef CONFIG_HUGETLB_PAGE
 	if (in_hugepage_area(mm->context, ea))
-		vsid |= SLB_VSID_L;
+		llp = mmu_psize_defs[mmu_huge_psize].sllp;
+	else
+#endif
+		llp = mmu_psize_defs[mmu_virtual_psize].sllp;
+	vsid = (get_vsid(mm->context.id, ea) << SLB_VSID_SHIFT) |
+			SLB_VSID_USER | llp;
 
 	out_be64(&priv2->slb_index_W, spu->slb_replace);
 	out_be64(&priv2->slb_vsid_RW, vsid);
@@ -130,57 +140,7 @@ static int __spu_trap_data_map(struct spu *spu, unsigned long ea, u64 dsisr)
 	spu->dar = ea;
 	spu->dsisr = dsisr;
 	mb();
-	if (spu->stop_callback)
-		spu->stop_callback(spu);
-	return 0;
-}
-
-static int __spu_trap_mailbox(struct spu *spu)
-{
-	if (spu->ibox_callback)
-		spu->ibox_callback(spu);
-
-	/* atomically disable SPU mailbox interrupts */
-	spin_lock(&spu->register_lock);
-	spu_int_mask_and(spu, 2, ~0x1);
-	spin_unlock(&spu->register_lock);
-	return 0;
-}
-
-static int __spu_trap_stop(struct spu *spu)
-{
-	pr_debug("%s\n", __FUNCTION__);
-	spu->stop_code = in_be32(&spu->problem->spu_status_R);
-	if (spu->stop_callback)
-		spu->stop_callback(spu);
-	return 0;
-}
-
-static int __spu_trap_halt(struct spu *spu)
-{
-	pr_debug("%s\n", __FUNCTION__);
-	spu->stop_code = in_be32(&spu->problem->spu_status_R);
-	if (spu->stop_callback)
-		spu->stop_callback(spu);
-	return 0;
-}
-
-static int __spu_trap_tag_group(struct spu *spu)
-{
-	pr_debug("%s\n", __FUNCTION__);
-	spu->mfc_callback(spu);
-	return 0;
-}
-
-static int __spu_trap_spubox(struct spu *spu)
-{
-	if (spu->wbox_callback)
-		spu->wbox_callback(spu);
-
-	/* atomically disable SPU mailbox interrupts */
-	spin_lock(&spu->register_lock);
-	spu_int_mask_and(spu, 2, ~0x10);
-	spin_unlock(&spu->register_lock);
+	spu->stop_callback(spu);
 	return 0;
 }
 
@@ -191,8 +151,7 @@ spu_irq_class_0(int irq, void *data, struct pt_regs *regs)
 
 	spu = data;
 	spu->class_0_pending = 1;
-	if (spu->stop_callback)
-		spu->stop_callback(spu);
+	spu->stop_callback(spu);
 
 	return IRQ_HANDLED;
 }
@@ -270,29 +229,38 @@ spu_irq_class_2(int irq, void *data, struct pt_regs *regs)
 	unsigned long mask;
 
 	spu = data;
+	spin_lock(&spu->register_lock);
 	stat = spu_int_stat_get(spu, 2);
 	mask = spu_int_mask_get(spu, 2);
+	/* ignore interrupts we're not waiting for */
+	stat &= mask;
+	/*
+	 * mailbox interrupts (0x1 and 0x10) are level triggered.
+	 * mask them now before acknowledging.
+	 */
+	if (stat & 0x11)
+		spu_int_mask_and(spu, 2, ~(stat & 0x11));
+	/* acknowledge all interrupts before the callbacks */
+	spu_int_stat_clear(spu, 2, stat);
+	spin_unlock(&spu->register_lock);
 
 	pr_debug("class 2 interrupt %d, %lx, %lx\n", irq, stat, mask);
 
-	stat &= mask;
-
 	if (stat & 1)  /* PPC core mailbox */
-		__spu_trap_mailbox(spu);
+		spu->ibox_callback(spu);
 
 	if (stat & 2) /* SPU stop-and-signal */
-		__spu_trap_stop(spu);
+		spu->stop_callback(spu);
 
 	if (stat & 4) /* SPU halted */
-		__spu_trap_halt(spu);
+		spu->stop_callback(spu);
 
 	if (stat & 8) /* DMA tag group complete */
-		__spu_trap_tag_group(spu);
+		spu->mfc_callback(spu);
 
 	if (stat & 0x10) /* SPU mailbox threshold */
-		__spu_trap_spubox(spu);
+		spu->wbox_callback(spu);
 
-	spu_int_stat_clear(spu, 2, stat);
 	return stat ? IRQ_HANDLED : IRQ_NONE;
 }
 
@@ -512,14 +480,6 @@ int spu_irq_class_1_bottom(struct spu *spu)
 	return ret;
 }
 
-void spu_irq_setaffinity(struct spu *spu, int cpu)
-{
-	u64 target = iic_get_target_id(cpu);
-	u64 route = target << 48 | target << 32 | target << 16;
-	spu_int_route_set(spu, route);
-}
-EXPORT_SYMBOL_GPL(spu_irq_setaffinity);
-
 static int __init find_spu_node_id(struct device_node *spe)
 {
 	unsigned int *id;
@@ -649,6 +609,46 @@ out:
 	return ret;
 }
 
+struct sysdev_class spu_sysdev_class = {
+	set_kset_name("spu")
+};
+
+static ssize_t spu_show_isrc(struct sys_device *sysdev, char *buf)
+{
+	struct spu *spu = container_of(sysdev, struct spu, sysdev);
+	return sprintf(buf, "%d\n", spu->isrc);
+
+}
+static SYSDEV_ATTR(isrc, 0400, spu_show_isrc, NULL);
+
+extern int attach_sysdev_to_node(struct sys_device *dev, int nid);
+
+static int spu_create_sysdev(struct spu *spu)
+{
+	int ret;
+
+	spu->sysdev.id = spu->number;
+	spu->sysdev.cls = &spu_sysdev_class;
+	ret = sysdev_register(&spu->sysdev);
+	if (ret) {
+		printk(KERN_ERR "Can't register SPU %d with sysfs\n",
+				spu->number);
+		return ret;
+	}
+
+	sysdev_create_file(&spu->sysdev, &attr_isrc);
+	sysfs_add_device_to_node(&spu->sysdev, spu->nid);
+
+	return 0;
+}
+
+static void spu_destroy_sysdev(struct spu *spu)
+{
+	sysdev_remove_file(&spu->sysdev, &attr_isrc);
+	sysfs_remove_device_from_node(&spu->sysdev, spu->nid);
+	sysdev_unregister(&spu->sysdev);
+}
+
 static int __init create_spu(struct device_node *spe)
 {
 	struct spu *spu;
@@ -656,7 +656,7 @@ static int __init create_spu(struct device_node *spe)
 	static int number;
 
 	ret = -ENOMEM;
-	spu = kmalloc(sizeof (*spu), GFP_KERNEL);
+	spu = kzalloc(sizeof (*spu), GFP_KERNEL);
 	if (!spu)
 		goto out;
 
@@ -668,32 +668,19 @@ static int __init create_spu(struct device_node *spe)
 	spu->nid = of_node_to_nid(spe);
 	if (spu->nid == -1)
 		spu->nid = 0;
-
-	spu->stop_code = 0;
-	spu->slb_replace = 0;
-	spu->mm = NULL;
-	spu->ctx = NULL;
-	spu->rq = NULL;
-	spu->pid = 0;
-	spu->class_0_pending = 0;
-	spu->flags = 0UL;
-	spu->dar = 0UL;
-	spu->dsisr = 0UL;
 	spin_lock_init(&spu->register_lock);
-
 	spu_mfc_sdr_set(spu, mfspr(SPRN_SDR1));
 	spu_mfc_sr1_set(spu, 0x33);
-
-	spu->ibox_callback = NULL;
-	spu->wbox_callback = NULL;
-	spu->stop_callback = NULL;
-	spu->mfc_callback = NULL;
-
 	mutex_lock(&spu_mutex);
+
 	spu->number = number++;
 	ret = spu_request_irqs(spu);
 	if (ret)
 		goto out_unmap;
+
+	ret = spu_create_sysdev(spu);
+	if (ret)
+		goto out_free_irqs;
 
 	list_add(&spu->list, &spu_list);
 	mutex_unlock(&spu_mutex);
@@ -702,6 +689,9 @@ static int __init create_spu(struct device_node *spe)
 		spu->name, spu->isrc, spu->local_store,
 		spu->problem, spu->priv1, spu->priv2, spu->number);
 	goto out;
+
+out_free_irqs:
+	spu_free_irqs(spu);
 
 out_unmap:
 	mutex_unlock(&spu_mutex);
@@ -716,6 +706,7 @@ static void destroy_spu(struct spu *spu)
 {
 	list_del_init(&spu->list);
 
+	spu_destroy_sysdev(spu);
 	spu_free_irqs(spu);
 	spu_unmap(spu);
 	kfree(spu);
@@ -728,6 +719,7 @@ static void cleanup_spu_base(void)
 	list_for_each_entry_safe(spu, tmp, &spu_list, list)
 		destroy_spu(spu);
 	mutex_unlock(&spu_mutex);
+	sysdev_class_unregister(&spu_sysdev_class);
 }
 module_exit(cleanup_spu_base);
 
@@ -735,6 +727,11 @@ static int __init init_spu_base(void)
 {
 	struct device_node *node;
 	int ret;
+
+	/* create sysdev class for spus */
+	ret = sysdev_class_register(&spu_sysdev_class);
+	if (ret)
+		return ret;
 
 	ret = -ENODEV;
 	for (node = of_find_node_by_type(NULL, "spe");

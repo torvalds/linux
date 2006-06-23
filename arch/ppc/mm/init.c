@@ -583,7 +583,7 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address,
 		mm = (address < TASK_SIZE)? vma->vm_mm: &init_mm;
 		pmd = pmd_offset(pgd_offset(mm, address), address);
 		if (!pmd_none(*pmd))
-			add_hash_page(mm->context, address, pmd_val(*pmd));
+			add_hash_page(mm->context.id, address, pmd_val(*pmd));
 	}
 #endif
 }

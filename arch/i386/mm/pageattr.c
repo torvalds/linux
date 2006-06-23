@@ -209,19 +209,19 @@ int change_page_attr(struct page *page, int numpages, pgprot_t prot)
 }
 
 void global_flush_tlb(void)
-{ 
-	LIST_HEAD(l);
+{
+	struct list_head l;
 	struct page *pg, *next;
 
 	BUG_ON(irqs_disabled());
 
 	spin_lock_irq(&cpa_lock);
-	list_splice_init(&df_list, &l);
+	list_replace_init(&df_list, &l);
 	spin_unlock_irq(&cpa_lock);
 	flush_map();
 	list_for_each_entry_safe(pg, next, &l, lru)
 		__free_page(pg);
-} 
+}
 
 #ifdef CONFIG_DEBUG_PAGEALLOC
 void kernel_map_pages(struct page *page, int numpages, int enable)

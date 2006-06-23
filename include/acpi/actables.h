@@ -136,7 +136,11 @@ acpi_status acpi_tb_is_table_installed(struct acpi_table_desc *new_table_desc);
 acpi_status
 acpi_tb_verify_table_checksum(struct acpi_table_header *table_header);
 
-u8 acpi_tb_generate_checksum(void *buffer, u32 length);
+u8 acpi_tb_sum_table(void *buffer, u32 length);
+
+u8 acpi_tb_generate_checksum(struct acpi_table_header *table);
+
+void acpi_tb_set_checksum(struct acpi_table_header *table);
 
 acpi_status
 acpi_tb_validate_table_header(struct acpi_table_header *table_header);

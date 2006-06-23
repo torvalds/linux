@@ -300,5 +300,5 @@ void __init files_init(unsigned long mempages)
 	if (files_stat.max_files < NR_FILE)
 		files_stat.max_files = NR_FILE;
 	files_defer_init();
-	percpu_counter_init(&nr_files);
+	percpu_counter_init(&nr_files, 0);
 } 

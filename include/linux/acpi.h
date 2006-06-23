@@ -37,6 +37,7 @@
 #include <acpi/acpi.h>
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
+#include <acpi/acpi_numa.h>
 #include <asm/acpi.h>
 
 
@@ -407,10 +408,18 @@ void acpi_table_print_madt_entry (acpi_table_entry_header *madt);
 void acpi_table_print_srat_entry (acpi_table_entry_header *srat);
 
 /* the following four functions are architecture-dependent */
+#ifdef CONFIG_HAVE_ARCH_PARSE_SRAT
+#define NR_NODE_MEMBLKS MAX_NUMNODES
+#define acpi_numa_slit_init(slit) do {} while (0)
+#define acpi_numa_processor_affinity_init(pa) do {} while (0)
+#define acpi_numa_memory_affinity_init(ma) do {} while (0)
+#define acpi_numa_arch_fixup() do {} while (0)
+#else
 void acpi_numa_slit_init (struct acpi_table_slit *slit);
 void acpi_numa_processor_affinity_init (struct acpi_table_processor_affinity *pa);
 void acpi_numa_memory_affinity_init (struct acpi_table_memory_affinity *ma);
 void acpi_numa_arch_fixup(void);
+#endif
 
 #ifdef CONFIG_ACPI_HOTPLUG_CPU
 /* Arch dependent functions for cpu hotplug support */

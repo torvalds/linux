@@ -30,7 +30,7 @@
 struct spu_context *alloc_spu_context(void)
 {
 	struct spu_context *ctx;
-	ctx = kmalloc(sizeof *ctx, GFP_KERNEL);
+	ctx = kzalloc(sizeof *ctx, GFP_KERNEL);
 	if (!ctx)
 		goto out;
 	/* Binding to physical processor deferred
@@ -48,17 +48,7 @@ struct spu_context *alloc_spu_context(void)
 	init_waitqueue_head(&ctx->wbox_wq);
 	init_waitqueue_head(&ctx->stop_wq);
 	init_waitqueue_head(&ctx->mfc_wq);
-	ctx->ibox_fasync = NULL;
-	ctx->wbox_fasync = NULL;
-	ctx->mfc_fasync = NULL;
-	ctx->mfc = NULL;
-	ctx->tagwait = 0;
 	ctx->state = SPU_STATE_SAVED;
-	ctx->local_store = NULL;
-	ctx->cntl = NULL;
-	ctx->signal1 = NULL;
-	ctx->signal2 = NULL;
-	ctx->spu = NULL;
 	ctx->ops = &spu_backing_ops;
 	ctx->owner = get_task_mm(current);
 	goto out;

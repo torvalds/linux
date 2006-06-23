@@ -202,8 +202,7 @@ int pdflush_operation(void (*fn)(unsigned long), unsigned long arg0)
 	unsigned long flags;
 	int ret = 0;
 
-	if (fn == NULL)
-		BUG();		/* Hard to diagnose if it's deferred */
+	BUG_ON(fn == NULL);	/* Hard to diagnose if it's deferred */
 
 	spin_lock_irqsave(&pdflush_lock, flags);
 	if (list_empty(&pdflush_list)) {

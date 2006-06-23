@@ -790,11 +790,22 @@ restart_loop:
 			jbd_unlock_bh_state(bh);
 		} else {
 			J_ASSERT_BH(bh, !buffer_dirty(bh));
-			J_ASSERT_JH(jh, jh->b_next_transaction == NULL);
-			__journal_unfile_buffer(jh);
-			jbd_unlock_bh_state(bh);
-			journal_remove_journal_head(bh);  /* needs a brelse */
-			release_buffer_page(bh);
+			/* The buffer on BJ_Forget list and not jbddirty means
+			 * it has been freed by this transaction and hence it
+			 * could not have been reallocated until this
+			 * transaction has committed. *BUT* it could be
+			 * reallocated once we have written all the data to
+			 * disk and before we process the buffer on BJ_Forget
+			 * list. */
+			JBUFFER_TRACE(jh, "refile or unfile freed buffer");
+			__journal_refile_buffer(jh);
+			if (!jh->b_transaction) {
+				jbd_unlock_bh_state(bh);
+				 /* needs a brelse */
+				journal_remove_journal_head(bh);
+				release_buffer_page(bh);
+			} else
+				jbd_unlock_bh_state(bh);
 		}
 		cond_resched_lock(&journal->j_list_lock);
 	}

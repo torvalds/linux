@@ -1451,9 +1451,12 @@ static ide_startstop_t cdrom_pc_intr (ide_drive_t *drive)
 	} else {
 confused:
 		printk (KERN_ERR "%s: cdrom_pc_intr: The drive "
-			"appears confused (ireason = 0x%02x)\n",
+			"appears confused (ireason = 0x%02x). "
+			"Trying to recover by ending request.\n",
 			drive->name, ireason);
 		rq->flags |= REQ_FAILED;
+		cdrom_end_request(drive, 0);
+		return ide_stopped;
 	}
 
 	/* Now we wait for another interrupt. */
@@ -1722,8 +1725,7 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 		}
 	}
 
-	if (HWGROUP(drive)->handler != NULL)
-		BUG();
+	BUG_ON(HWGROUP(drive)->handler != NULL);
 
 	ide_set_handler(drive, cdrom_newpc_intr, rq->timeout, NULL);
 	return ide_started;

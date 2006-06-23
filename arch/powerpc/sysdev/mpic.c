@@ -829,7 +829,27 @@ void __init mpic_init(struct mpic *mpic)
 	mpic_cpu_write(MPIC_CPU_CURRENT_TASK_PRI, 0);
 }
 
+void __init mpic_set_clk_ratio(struct mpic *mpic, u32 clock_ratio)
+{
+	u32 v;
 
+	v = mpic_read(mpic->gregs, MPIC_GREG_GLOBAL_CONF_1);
+	v &= ~MPIC_GREG_GLOBAL_CONF_1_CLK_RATIO_MASK;
+	v |= MPIC_GREG_GLOBAL_CONF_1_CLK_RATIO(clock_ratio);
+	mpic_write(mpic->gregs, MPIC_GREG_GLOBAL_CONF_1, v);
+}
+
+void __init mpic_set_serial_int(struct mpic *mpic, int enable)
+{
+	u32 v;
+
+	v = mpic_read(mpic->gregs, MPIC_GREG_GLOBAL_CONF_1);
+	if (enable)
+		v |= MPIC_GREG_GLOBAL_CONF_1_SIE;
+	else
+		v &= ~MPIC_GREG_GLOBAL_CONF_1_SIE;
+	mpic_write(mpic->gregs, MPIC_GREG_GLOBAL_CONF_1, v);
+}
 
 void mpic_irq_set_priority(unsigned int irq, unsigned int pri)
 {

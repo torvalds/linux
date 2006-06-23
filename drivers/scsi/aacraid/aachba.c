@@ -396,8 +396,7 @@ static void get_container_name_callback(void *context, struct fib * fibptr)
 	scsicmd->SCp.phase = AAC_OWNER_MIDLEVEL;
 
 	dprintk((KERN_DEBUG "get_container_name_callback[cpu %d]: t = %ld.\n", smp_processor_id(), jiffies));
-	if (fibptr == NULL)
-		BUG();
+	BUG_ON(fibptr == NULL);
 
 	get_name_reply = (struct aac_get_name_resp *) fib_data(fibptr);
 	/* Failure is irrelevant, using default value instead */
@@ -956,8 +955,7 @@ static void io_callback(void *context, struct fib * fibptr)
 		  smp_processor_id(), (unsigned long long)lba, jiffies);
 	}
 
-	if (fibptr == NULL)
-		BUG();
+	BUG_ON(fibptr == NULL);
 		
 	if(scsicmd->use_sg)
 		pci_unmap_sg(dev->pdev, 
@@ -1092,8 +1090,7 @@ static int aac_read(struct scsi_cmnd * scsicmd, int cid)
 		
 		aac_build_sgraw(scsicmd, &readcmd->sg);
 		fibsize = sizeof(struct aac_raw_io) + ((le32_to_cpu(readcmd->sg.count) - 1) * sizeof (struct sgentryraw));
-		if (fibsize > (dev->max_fib_size - sizeof(struct aac_fibhdr)))
-			BUG();
+		BUG_ON(fibsize > (dev->max_fib_size - sizeof(struct aac_fibhdr)));
 		/*
 		 *	Now send the Fib to the adapter
 		 */
@@ -1261,8 +1258,7 @@ static int aac_write(struct scsi_cmnd * scsicmd, int cid)
 		
 		aac_build_sgraw(scsicmd, &writecmd->sg);
 		fibsize = sizeof(struct aac_raw_io) + ((le32_to_cpu(writecmd->sg.count) - 1) * sizeof (struct sgentryraw));
-		if (fibsize > (dev->max_fib_size - sizeof(struct aac_fibhdr)))
-			BUG();
+		BUG_ON(fibsize > (dev->max_fib_size - sizeof(struct aac_fibhdr)));
 		/*
 		 *	Now send the Fib to the adapter
 		 */
@@ -1904,8 +1900,7 @@ static void aac_srb_callback(void *context, struct fib * fibptr)
 	scsicmd->SCp.phase = AAC_OWNER_MIDLEVEL;
 	dev = (struct aac_dev *)scsicmd->device->host->hostdata;
 
-	if (fibptr == NULL)
-		BUG();
+	BUG_ON(fibptr == NULL);
 
 	srbreply = (struct aac_srb_reply *) fib_data(fibptr);
 

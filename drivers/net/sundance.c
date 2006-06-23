@@ -94,11 +94,13 @@
 	Version LK1.10 (Philippe De Muyter phdm@macqel.be):
 	- Make 'unblock interface after Tx underrun' work
 
+	Version LK1.11 (Pedro Alejandro Lopez-Valencia palopezv at gmail.com):
+	- Add support for IC Plus Corporation IP100A chipset
 */
 
 #define DRV_NAME	"sundance"
-#define DRV_VERSION	"1.01+LK1.10"
-#define DRV_RELDATE	"28-Oct-2005"
+#define DRV_VERSION	"1.01+LK1.11"
+#define DRV_RELDATE	"14-Jun-2006"
 
 
 /* The user-configurable values.
@@ -287,6 +289,7 @@ static struct pci_device_id sundance_pci_tbl[] = {
 	{0x1186, 0x1002, 0x1186, 0x1040, 0, 0, 3},
 	{0x1186, 0x1002, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 4},
 	{0x13F0, 0x0201, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 5},
+	{0x13F0, 0x0200, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 6},
 	{0,}
 };
 MODULE_DEVICE_TABLE(pci, sundance_pci_tbl);
@@ -305,6 +308,7 @@ static const struct pci_id_info pci_id_tbl[] = {
 	{"D-Link DFE-530TXS FAST Ethernet Adapter"},
 	{"D-Link DL10050-based FAST Ethernet Adapter"},
 	{"Sundance Technology Alta"},
+	{"IC Plus Corporation IP100A FAST Ethernet Adapter"},
 	{NULL,},			/* 0 terminated list. */
 };
 

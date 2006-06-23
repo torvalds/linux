@@ -70,7 +70,7 @@ acpi_status acpi_ns_root_initialize(void)
 	union acpi_operand_object *obj_desc;
 	acpi_string val = NULL;
 
-	ACPI_FUNCTION_TRACE("ns_root_initialize");
+	ACPI_FUNCTION_TRACE(ns_root_initialize);
 
 	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
 	if (ACPI_FAILURE(status)) {
@@ -98,6 +98,7 @@ acpi_status acpi_ns_root_initialize(void)
 			  "Entering predefined entries into namespace\n"));
 
 	for (init_val = acpi_gbl_pre_defined_names; init_val->name; init_val++) {
+
 		/* _OSI is optional for now, will be permanent later */
 
 		if (!ACPI_STRCMP(init_val->name, "_OSI")
@@ -156,7 +157,7 @@ acpi_status acpi_ns_root_initialize(void)
 
 #if defined (ACPI_ASL_COMPILER)
 
-				/* save the parameter count for the i_aSL compiler */
+				/* Save the parameter count for the i_aSL compiler */
 
 				new_node->value = obj_desc->method.param_count;
 #else
@@ -258,10 +259,8 @@ acpi_status acpi_ns_root_initialize(void)
 	/* Save a handle to "_GPE", it is always present */
 
 	if (ACPI_SUCCESS(status)) {
-		status =
-		    acpi_ns_get_node_by_path("\\_GPE", NULL,
-					     ACPI_NS_NO_UPSEARCH,
-					     &acpi_gbl_fadt_gpe_device);
+		status = acpi_ns_get_node(NULL, "\\_GPE", ACPI_NS_NO_UPSEARCH,
+					  &acpi_gbl_fadt_gpe_device);
 	}
 
 	return_ACPI_STATUS(status);
@@ -310,17 +309,17 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 	acpi_object_type type_to_check_for;
 	acpi_object_type this_search_type;
 	u32 search_parent_flag = ACPI_NS_SEARCH_PARENT;
-	u32 local_flags = flags & ~(ACPI_NS_ERROR_IF_FOUND |
-				    ACPI_NS_SEARCH_PARENT);
+	u32 local_flags;
 
-	ACPI_FUNCTION_TRACE("ns_lookup");
+	ACPI_FUNCTION_TRACE(ns_lookup);
 
 	if (!return_node) {
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
-	acpi_gbl_ns_lookup_count++;
+	local_flags = flags & ~(ACPI_NS_ERROR_IF_FOUND | ACPI_NS_SEARCH_PARENT);
 	*return_node = ACPI_ENTRY_NOT_FOUND;
+	acpi_gbl_ns_lookup_count++;
 
 	if (!acpi_gbl_root_node) {
 		return_ACPI_STATUS(AE_NO_NAMESPACE);
@@ -346,14 +345,17 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 			return_ACPI_STATUS(AE_AML_INTERNAL);
 		}
 
-		/*
-		 * This node might not be a actual "scope" node (such as a
-		 * Device/Method, etc.)  It could be a Package or other object node.
-		 * Backup up the tree to find the containing scope node.
-		 */
-		while (!acpi_ns_opens_scope(prefix_node->type) &&
-		       prefix_node->type != ACPI_TYPE_ANY) {
-			prefix_node = acpi_ns_get_parent_node(prefix_node);
+		if (!(flags & ACPI_NS_PREFIX_IS_SCOPE)) {
+			/*
+			 * This node might not be a actual "scope" node (such as a
+			 * Device/Method, etc.)  It could be a Package or other object node.
+			 * Backup up the tree to find the containing scope node.
+			 */
+			while (!acpi_ns_opens_scope(prefix_node->type) &&
+			       prefix_node->type != ACPI_TYPE_ANY) {
+				prefix_node =
+				    acpi_ns_get_parent_node(prefix_node);
+			}
 		}
 	}
 
@@ -365,6 +367,7 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 	 * Begin examination of the actual pathname
 	 */
 	if (!pathname) {
+
 		/* A Null name_path is allowed and refers to the root */
 
 		num_segments = 0;
@@ -389,6 +392,7 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 		 * to the current scope).
 		 */
 		if (*path == (u8) AML_ROOT_PREFIX) {
+
 			/* Pathname is fully qualified, start from the root */
 
 			this_node = acpi_gbl_root_node;
@@ -416,6 +420,7 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 			this_node = prefix_node;
 			num_carats = 0;
 			while (*path == (u8) AML_PARENT_PREFIX) {
+
 				/* Name is fully qualified, no search rules apply */
 
 				search_parent_flag = ACPI_NS_NO_UPSEARCH;
@@ -430,6 +435,7 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 				num_carats++;
 				this_node = acpi_ns_get_parent_node(this_node);
 				if (!this_node) {
+
 					/* Current scope has no parent scope */
 
 					ACPI_ERROR((AE_INFO,
@@ -569,6 +575,7 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 					     &this_node);
 		if (ACPI_FAILURE(status)) {
 			if (status == AE_NOT_FOUND) {
+
 				/* Name not found in ACPI namespace */
 
 				ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
@@ -602,10 +609,11 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 		    (type_to_check_for != ACPI_TYPE_LOCAL_SCOPE) &&
 		    (this_node->type != ACPI_TYPE_ANY) &&
 		    (this_node->type != type_to_check_for)) {
+
 			/* Complain about a type mismatch */
 
 			ACPI_WARNING((AE_INFO,
-				      "ns_lookup: Type mismatch on %4.4s (%s), searching for (%s)",
+				      "NsLookup: Type mismatch on %4.4s (%s), searching for (%s)",
 				      ACPI_CAST_PTR(char, &simple_name),
 				      acpi_ut_get_type_name(this_node->type),
 				      acpi_ut_get_type_name

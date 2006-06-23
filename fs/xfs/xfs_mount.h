@@ -53,8 +53,8 @@ typedef struct xfs_trans_reservations {
 #else
 struct cred;
 struct log;
-struct vfs;
-struct vnode;
+struct bhv_vfs;
+struct bhv_vnode;
 struct xfs_mount_args;
 struct xfs_ihash;
 struct xfs_chash;
@@ -63,9 +63,11 @@ struct xfs_perag;
 struct xfs_iocore;
 struct xfs_bmbt_irec;
 struct xfs_bmap_free;
+struct xfs_extdelta;
+struct xfs_swapext;
 
-extern struct vfsops xfs_vfsops;
-extern struct vnodeops xfs_vnodeops;
+extern struct bhv_vfsops xfs_vfsops;
+extern struct bhv_vnodeops xfs_vnodeops;
 
 #define	AIL_LOCK_T		lock_t
 #define	AIL_LOCKINIT(x,y)	spinlock_init(x,y)
@@ -78,15 +80,15 @@ extern struct vnodeops xfs_vnodeops;
  * Prototypes and functions for the Data Migration subsystem.
  */
 
-typedef int	(*xfs_send_data_t)(int, struct vnode *,
-			xfs_off_t, size_t, int, vrwlock_t *);
+typedef int	(*xfs_send_data_t)(int, struct bhv_vnode *,
+			xfs_off_t, size_t, int, bhv_vrwlock_t *);
 typedef int	(*xfs_send_mmap_t)(struct vm_area_struct *, uint);
-typedef int	(*xfs_send_destroy_t)(struct vnode *, dm_right_t);
-typedef int	(*xfs_send_namesp_t)(dm_eventtype_t, struct vfs *,
-			struct vnode *,
-			dm_right_t, struct vnode *, dm_right_t,
+typedef int	(*xfs_send_destroy_t)(struct bhv_vnode *, dm_right_t);
+typedef int	(*xfs_send_namesp_t)(dm_eventtype_t, struct bhv_vfs *,
+			struct bhv_vnode *,
+			dm_right_t, struct bhv_vnode *, dm_right_t,
 			char *, char *, mode_t, int, int);
-typedef void	(*xfs_send_unmount_t)(struct vfs *, struct vnode *,
+typedef void	(*xfs_send_unmount_t)(struct bhv_vfs *, struct bhv_vnode *,
 			dm_right_t, mode_t, int, int);
 
 typedef struct xfs_dmops {
@@ -188,13 +190,18 @@ typedef struct xfs_qmops {
  * Prototypes and functions for I/O core modularization.
  */
 
-typedef int		(*xfs_ioinit_t)(struct vfs *,
+typedef int		(*xfs_ioinit_t)(struct bhv_vfs *,
 				struct xfs_mount_args *, int);
 typedef int		(*xfs_bmapi_t)(struct xfs_trans *, void *,
 				xfs_fileoff_t, xfs_filblks_t, int,
 				xfs_fsblock_t *, xfs_extlen_t,
 				struct xfs_bmbt_irec *, int *,
-				struct xfs_bmap_free *);
+				struct xfs_bmap_free *, struct xfs_extdelta *);
+typedef int		(*xfs_bunmapi_t)(struct xfs_trans *,
+				void *, xfs_fileoff_t,
+				xfs_filblks_t, int, xfs_extnum_t,
+				xfs_fsblock_t *, struct xfs_bmap_free *,
+				struct xfs_extdelta *, int *);
 typedef int		(*xfs_bmap_eof_t)(void *, xfs_fileoff_t, int, int *);
 typedef int		(*xfs_iomap_write_direct_t)(
 				void *, xfs_off_t, size_t, int,
@@ -213,11 +220,14 @@ typedef void		(*xfs_lock_demote_t)(void *, uint);
 typedef int		(*xfs_lock_nowait_t)(void *, uint);
 typedef void		(*xfs_unlk_t)(void *, unsigned int);
 typedef xfs_fsize_t	(*xfs_size_t)(void *);
-typedef xfs_fsize_t	(*xfs_iodone_t)(struct vfs *);
+typedef xfs_fsize_t	(*xfs_iodone_t)(struct bhv_vfs *);
+typedef int		(*xfs_swap_extents_t)(void *, void *,
+				struct xfs_swapext*);
 
 typedef struct xfs_ioops {
 	xfs_ioinit_t			xfs_ioinit;
 	xfs_bmapi_t			xfs_bmapi_func;
+	xfs_bunmapi_t			xfs_bunmapi_func;
 	xfs_bmap_eof_t			xfs_bmap_eof_func;
 	xfs_iomap_write_direct_t	xfs_iomap_write_direct;
 	xfs_iomap_write_delay_t		xfs_iomap_write_delay;
@@ -230,13 +240,17 @@ typedef struct xfs_ioops {
 	xfs_unlk_t			xfs_unlock;
 	xfs_size_t			xfs_size_func;
 	xfs_iodone_t			xfs_iodone;
+	xfs_swap_extents_t		xfs_swap_extents_func;
 } xfs_ioops_t;
 
 #define XFS_IOINIT(vfsp, args, flags) \
 	(*(mp)->m_io_ops.xfs_ioinit)(vfsp, args, flags)
-#define XFS_BMAPI(mp, trans,io,bno,len,f,first,tot,mval,nmap,flist)	\
+#define XFS_BMAPI(mp, trans,io,bno,len,f,first,tot,mval,nmap,flist,delta) \
 	(*(mp)->m_io_ops.xfs_bmapi_func) \
-		(trans,(io)->io_obj,bno,len,f,first,tot,mval,nmap,flist)
+		(trans,(io)->io_obj,bno,len,f,first,tot,mval,nmap,flist,delta)
+#define XFS_BUNMAPI(mp, trans,io,bno,len,f,nexts,first,flist,delta,done) \
+	(*(mp)->m_io_ops.xfs_bunmapi_func) \
+		(trans,(io)->io_obj,bno,len,f,nexts,first,flist,delta,done)
 #define XFS_BMAP_EOF(mp, io, endoff, whichfork, eof) \
 	(*(mp)->m_io_ops.xfs_bmap_eof_func) \
 		((io)->io_obj, endoff, whichfork, eof)
@@ -266,6 +280,9 @@ typedef struct xfs_ioops {
 	(*(mp)->m_io_ops.xfs_size_func)((io)->io_obj)
 #define XFS_IODONE(vfsp) \
 	(*(mp)->m_io_ops.xfs_iodone)(vfsp)
+#define XFS_SWAP_EXTENTS(mp, io, tio, sxp) \
+	(*(mp)->m_io_ops.xfs_swap_extents_func) \
+		((io)->io_obj, (tio)->io_obj, sxp)
 
 #ifdef HAVE_PERCPU_SB
 
@@ -386,8 +403,6 @@ typedef struct xfs_mount {
 	__uint8_t		m_inode_quiesce;/* call quiesce on new inodes.
 						   field governed by m_ilock */
 	__uint8_t		m_sectbb_log;	/* sectlog - BBSHIFT */
-	__uint8_t		m_dirversion;	/* 1 or 2 */
-	xfs_dirops_t		m_dirops;	/* table of dir funcs */
 	int			m_dirblksize;	/* directory block sz--bytes */
 	int			m_dirblkfsbs;	/* directory block sz--fsbs */
 	xfs_dablk_t		m_dirdatablk;	/* blockno of dir data v2 */
@@ -494,16 +509,7 @@ xfs_preferred_iosize(xfs_mount_t *mp)
 
 #define XFS_FORCED_SHUTDOWN(mp)	((mp)->m_flags & XFS_MOUNT_FS_SHUTDOWN)
 #define xfs_force_shutdown(m,f)	\
-	VFS_FORCE_SHUTDOWN((XFS_MTOVFS(m)), f, __FILE__, __LINE__)
-
-/*
- * Flags sent to xfs_force_shutdown.
- */
-#define XFS_METADATA_IO_ERROR	0x1
-#define XFS_LOG_IO_ERROR	0x2
-#define XFS_FORCE_UMOUNT	0x4
-#define XFS_CORRUPT_INCORE	0x8	/* Corrupt in-memory data structures */
-#define XFS_SHUTDOWN_REMOTE_REQ 0x10	/* Shutdown came from remote cell */
+	bhv_vfs_force_shutdown((XFS_MTOVFS(m)), f, __FILE__, __LINE__)
 
 /*
  * Flags for xfs_mountfs
@@ -521,7 +527,7 @@ xfs_preferred_iosize(xfs_mount_t *mp)
  * Macros for getting from mount to vfs and back.
  */
 #define	XFS_MTOVFS(mp)		xfs_mtovfs(mp)
-static inline struct vfs *xfs_mtovfs(xfs_mount_t *mp)
+static inline struct bhv_vfs *xfs_mtovfs(xfs_mount_t *mp)
 {
 	return bhvtovfs(&mp->m_bhv);
 }
@@ -533,7 +539,7 @@ static inline xfs_mount_t *xfs_bhvtom(bhv_desc_t *bdp)
 }
 
 #define XFS_VFSTOM(vfs) xfs_vfstom(vfs)
-static inline xfs_mount_t *xfs_vfstom(vfs_t *vfs)
+static inline xfs_mount_t *xfs_vfstom(bhv_vfs_t *vfs)
 {
 	return XFS_BHVTOM(bhv_lookup(VFS_BHVHEAD(vfs), &xfs_vfsops));
 }
@@ -571,7 +577,7 @@ typedef struct xfs_mod_sb {
 extern xfs_mount_t *xfs_mount_init(void);
 extern void	xfs_mod_sb(xfs_trans_t *, __int64_t);
 extern void	xfs_mount_free(xfs_mount_t *mp, int remove_bhv);
-extern int	xfs_mountfs(struct vfs *, xfs_mount_t *mp, int);
+extern int	xfs_mountfs(struct bhv_vfs *, xfs_mount_t *mp, int);
 extern void	xfs_mountfs_check_barriers(xfs_mount_t *mp);
 
 extern int	xfs_unmountfs(xfs_mount_t *, struct cred *);
@@ -589,7 +595,7 @@ extern void	xfs_freesb(xfs_mount_t *);
 extern void	xfs_do_force_shutdown(bhv_desc_t *, int, char *, int);
 extern int	xfs_syncsub(xfs_mount_t *, int, int, int *);
 extern int	xfs_sync_inodes(xfs_mount_t *, int, int, int *);
-extern xfs_agnumber_t	xfs_initialize_perag(struct vfs *, xfs_mount_t *,
+extern xfs_agnumber_t	xfs_initialize_perag(struct bhv_vfs *, xfs_mount_t *,
 						xfs_agnumber_t);
 extern void	xfs_xlatesb(void *, struct xfs_sb *, int, __int64_t);
 

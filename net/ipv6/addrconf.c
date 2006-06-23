@@ -862,6 +862,8 @@ static int inline ipv6_saddr_label(const struct in6_addr *addr, int type)
   * 	2002::/16		2
   * 	::/96			3
   * 	::ffff:0:0/96		4
+  *	fc00::/7		5
+  * 	2001::/32		6
   */
 	if (type & IPV6_ADDR_LOOPBACK)
 		return 0;
@@ -869,8 +871,12 @@ static int inline ipv6_saddr_label(const struct in6_addr *addr, int type)
 		return 3;
 	else if (type & IPV6_ADDR_MAPPED)
 		return 4;
+	else if (addr->s6_addr32[0] == htonl(0x20010000))
+		return 6;
 	else if (addr->s6_addr16[0] == htons(0x2002))
 		return 2;
+	else if ((addr->s6_addr[0] & 0xfe) == 0xfc)
+		return 5;
 	return 1;
 }
 
@@ -1069,6 +1075,9 @@ int ipv6_dev_get_saddr(struct net_device *daddr_dev,
 				if (hiscore.attrs & IPV6_SADDR_SCORE_PRIVACY)
 					continue;
 			}
+#else
+			if (hiscore.rule < 7)
+				hiscore.rule++;
 #endif
 			/* Rule 8: Use longest matching prefix */
 			if (hiscore.rule < 8) {

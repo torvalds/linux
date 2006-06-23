@@ -90,77 +90,94 @@
 #define	MRLSENSOR		0x40000000
 #define ATTN_BUTTON		0x80000000
 
-/* Slot Status Field Definitions */
-/* Slot State */
-#define PWR_ONLY		0x0001
-#define ENABLED			0x0002
-#define DISABLED		0x0003
+/*
+ * Interrupt Locator Register definitions
+ */
+#define CMD_INTR_PENDING	(1 << 0)
+#define SLOT_INTR_PENDING(i)	(1 << (i + 1))
 
-/* Power Indicator State */
-#define PWR_LED_ON		0x0004
-#define PWR_LED_BLINK		0x0008
-#define PWR_LED_OFF		0x000c
+/*
+ * Controller SERR-INT Register
+ */
+#define GLOBAL_INTR_MASK	(1 << 0)
+#define GLOBAL_SERR_MASK	(1 << 1)
+#define COMMAND_INTR_MASK	(1 << 2)
+#define ARBITER_SERR_MASK	(1 << 3)
+#define COMMAND_DETECTED	(1 << 16)
+#define ARBITER_DETECTED	(1 << 17)
+#define SERR_INTR_RSVDZ_MASK	0xfffc0000
 
-/* Attention Indicator State */
-#define ATTEN_LED_ON		0x0010
-#define	ATTEN_LED_BLINK		0x0020
-#define ATTEN_LED_OFF		0x0030
+/*
+ * Logical Slot Register definitions
+ */
+#define SLOT_REG(i)		(SLOT1 + (4 * i))
 
-/* Power Fault */
-#define pwr_fault		0x0040
+#define SLOT_STATE_SHIFT	(0)
+#define SLOT_STATE_MASK		(3 << 0)
+#define SLOT_STATE_PWRONLY	(1)
+#define SLOT_STATE_ENABLED	(2)
+#define SLOT_STATE_DISABLED	(3)
+#define PWR_LED_STATE_SHIFT	(2)
+#define PWR_LED_STATE_MASK	(3 << 2)
+#define ATN_LED_STATE_SHIFT	(4)
+#define ATN_LED_STATE_MASK	(3 << 4)
+#define ATN_LED_STATE_ON	(1)
+#define ATN_LED_STATE_BLINK	(2)
+#define ATN_LED_STATE_OFF	(3)
+#define POWER_FAULT		(1 << 6)
+#define ATN_BUTTON		(1 << 7)
+#define MRL_SENSOR		(1 << 8)
+#define MHZ66_CAP		(1 << 9)
+#define PRSNT_SHIFT		(10)
+#define PRSNT_MASK		(3 << 10)
+#define PCIX_CAP_SHIFT		(12)
+#define PCIX_CAP_MASK_PI1	(3 << 12)
+#define PCIX_CAP_MASK_PI2	(7 << 12)
+#define PRSNT_CHANGE_DETECTED	(1 << 16)
+#define ISO_PFAULT_DETECTED	(1 << 17)
+#define BUTTON_PRESS_DETECTED	(1 << 18)
+#define MRL_CHANGE_DETECTED	(1 << 19)
+#define CON_PFAULT_DETECTED	(1 << 20)
+#define PRSNT_CHANGE_INTR_MASK	(1 << 24)
+#define ISO_PFAULT_INTR_MASK	(1 << 25)
+#define BUTTON_PRESS_INTR_MASK	(1 << 26)
+#define MRL_CHANGE_INTR_MASK	(1 << 27)
+#define CON_PFAULT_INTR_MASK	(1 << 28)
+#define MRL_CHANGE_SERR_MASK	(1 << 29)
+#define CON_PFAULT_SERR_MASK	(1 << 30)
+#define SLOT_REG_RSVDZ_MASK	(1 << 15) | (7 << 21)
 
-/* Attention Button */
-#define ATTEN_BUTTON		0x0080
-
-/* MRL Sensor */
-#define MRL_SENSOR		0x0100
-
-/* 66 MHz Capable */
-#define IS_66MHZ_CAP		0x0200
-
-/* PRSNT1#/PRSNT2# */
-#define SLOT_EMP		0x0c00
-
-/* PCI-X Capability */
-#define NON_PCIX		0x0000
-#define PCIX_66			0x1000
-#define PCIX_133		0x3000
-#define PCIX_266		0x4000  /* For PI = 2 only */
-#define PCIX_533		0x5000	/* For PI = 2 only */
-
-/* SHPC 'write' operations/commands */
-
-/* Slot operation - 0x00h to 0x3Fh */
-
-#define NO_CHANGE		0x00
-
-/* Slot state - Bits 0 & 1 of controller command register */
-#define SET_SLOT_PWR		0x01	
-#define SET_SLOT_ENABLE		0x02	
-#define SET_SLOT_DISABLE	0x03	
-
-/* Power indicator state - Bits 2 & 3 of controller command register*/
-#define SET_PWR_ON		0x04	
-#define SET_PWR_BLINK		0x08	
-#define SET_PWR_OFF		0x0C	
-
-/* Attention indicator state - Bits 4 & 5 of controller command register*/
-#define SET_ATTN_ON		0x010	
-#define SET_ATTN_BLINK		0x020
-#define SET_ATTN_OFF		0x030	
-
-/* Set bus speed/mode A - 0x40h to 0x47h */
-#define SETA_PCI_33MHZ		0x40
+/*
+ * SHPC Command Code definitnions
+ *
+ *     Slot Operation				00h - 3Fh
+ *     Set Bus Segment Speed/Mode A		40h - 47h
+ *     Power-Only All Slots			48h
+ *     Enable All Slots				49h
+ *     Set Bus Segment Speed/Mode B (PI=2)	50h - 5Fh
+ *     Reserved Command Codes			60h - BFh
+ *     Vendor Specific Commands			C0h - FFh
+ */
+#define SET_SLOT_PWR		0x01	/* Slot Operation */
+#define SET_SLOT_ENABLE		0x02
+#define SET_SLOT_DISABLE	0x03
+#define SET_PWR_ON		0x04
+#define SET_PWR_BLINK		0x08
+#define SET_PWR_OFF		0x0c
+#define SET_ATTN_ON		0x10
+#define SET_ATTN_BLINK		0x20
+#define SET_ATTN_OFF		0x30
+#define SETA_PCI_33MHZ		0x40	/* Set Bus Segment Speed/Mode A */
 #define SETA_PCI_66MHZ		0x41
 #define SETA_PCIX_66MHZ		0x42
 #define SETA_PCIX_100MHZ	0x43
 #define SETA_PCIX_133MHZ	0x44
-#define RESERV_1		0x45
-#define RESERV_2		0x46
-#define RESERV_3		0x47
-
-/* Set bus speed/mode B - 0x50h to 0x5fh */
-#define	SETB_PCI_33MHZ		0x50
+#define SETA_RESERVED1		0x45
+#define SETA_RESERVED2		0x46
+#define SETA_RESERVED3		0x47
+#define SET_PWR_ONLY_ALL	0x48	/* Power-Only All Slots */
+#define SET_ENABLE_ALL		0x49	/* Enable All Slots */
+#define	SETB_PCI_33MHZ		0x50	/* Set Bus Segment Speed/Mode B */
 #define SETB_PCI_66MHZ		0x51
 #define SETB_PCIX_66MHZ_PM	0x52
 #define SETB_PCIX_100MHZ_PM	0x53
@@ -174,81 +191,115 @@
 #define SETB_PCIX_66MHZ_533	0x5b
 #define SETB_PCIX_100MHZ_533	0x5c
 #define SETB_PCIX_133MHZ_533	0x5d
+#define SETB_RESERVED1		0x5e
+#define SETB_RESERVED2		0x5f
 
-
-/* Power-on all slots - 0x48h */
-#define SET_PWR_ON_ALL		0x48
-
-/* Enable all slots	- 0x49h */
-#define SET_ENABLE_ALL		0x49
-
-/*  SHPC controller command error code */
+/*
+ * SHPC controller command error code
+ */
 #define SWITCH_OPEN		0x1
 #define INVALID_CMD		0x2
 #define INVALID_SPEED_MODE	0x4
 
-/* For accessing SHPC Working Register Set */
+/*
+ * For accessing SHPC Working Register Set via PCI Configuration Space
+ */
 #define DWORD_SELECT		0x2
 #define DWORD_DATA		0x4
-#define BASE_OFFSET		0x0
 
 /* Field Offset in Logical Slot Register - byte boundary */
 #define SLOT_EVENT_LATCH	0x2
 #define SLOT_SERR_INT_MASK	0x3
-
-static spinlock_t hpc_event_lock;
 
 DEFINE_DBG_BUFFER		/* Debug string buffer for entire HPC defined here */
 static struct php_ctlr_state_s *php_ctlr_list_head;	/* HPC state linked list */
 static int ctlr_seq_num = 0;	/* Controller sequenc # */
 static spinlock_t list_lock;
 
-static irqreturn_t shpc_isr(int IRQ, void *dev_id, struct pt_regs *regs);
+static atomic_t shpchp_num_controllers = ATOMIC_INIT(0);
 
-static void start_int_poll_timer(struct php_ctlr_state_s *php_ctlr, int seconds);
+static irqreturn_t shpc_isr(int irq, void *dev_id, struct pt_regs *regs);
+static void start_int_poll_timer(struct php_ctlr_state_s *php_ctlr, int sec);
 static int hpc_check_cmd_status(struct controller *ctrl);
 
-/* This is the interrupt polling timeout function. */
-static void int_poll_timeout(unsigned long lphp_ctlr)
+static inline u8 shpc_readb(struct controller *ctrl, int reg)
 {
-    struct php_ctlr_state_s *php_ctlr = (struct php_ctlr_state_s *)lphp_ctlr;
-
-    DBG_ENTER_ROUTINE
-
-    if ( !php_ctlr ) {
-		err("%s: Invalid HPC controller handle!\n", __FUNCTION__);
-		return;
-    }
-
-    /* Poll for interrupt events.  regs == NULL => polling */
-    shpc_isr( 0, (void *)php_ctlr, NULL );
-
-    init_timer(&php_ctlr->int_poll_timer);
-	if (!shpchp_poll_time)
-		shpchp_poll_time = 2; /* reset timer to poll in 2 secs if user doesn't specify at module installation*/
-
-    start_int_poll_timer(php_ctlr, shpchp_poll_time);  
-	
-	return;
+	return readb(ctrl->hpc_ctlr_handle->creg + reg);
 }
 
-/* This function starts the interrupt polling timer. */
-static void start_int_poll_timer(struct php_ctlr_state_s *php_ctlr, int seconds)
+static inline void shpc_writeb(struct controller *ctrl, int reg, u8 val)
 {
-    if (!php_ctlr) {
-		err("%s: Invalid HPC controller handle!\n", __FUNCTION__);
-		return;
-	}
+	writeb(val, ctrl->hpc_ctlr_handle->creg + reg);
+}
 
-    if ( ( seconds <= 0 ) || ( seconds > 60 ) )
-        seconds = 2;            /* Clamp to sane value */
+static inline u16 shpc_readw(struct controller *ctrl, int reg)
+{
+	return readw(ctrl->hpc_ctlr_handle->creg + reg);
+}
 
-    php_ctlr->int_poll_timer.function = &int_poll_timeout;
-    php_ctlr->int_poll_timer.data = (unsigned long)php_ctlr;    /* Instance data */
-    php_ctlr->int_poll_timer.expires = jiffies + seconds * HZ;
-    add_timer(&php_ctlr->int_poll_timer);
+static inline void shpc_writew(struct controller *ctrl, int reg, u16 val)
+{
+	writew(val, ctrl->hpc_ctlr_handle->creg + reg);
+}
 
-	return;
+static inline u32 shpc_readl(struct controller *ctrl, int reg)
+{
+	return readl(ctrl->hpc_ctlr_handle->creg + reg);
+}
+
+static inline void shpc_writel(struct controller *ctrl, int reg, u32 val)
+{
+	writel(val, ctrl->hpc_ctlr_handle->creg + reg);
+}
+
+static inline int shpc_indirect_read(struct controller *ctrl, int index,
+				     u32 *value)
+{
+	int rc;
+	u32 cap_offset = ctrl->cap_offset;
+	struct pci_dev *pdev = ctrl->pci_dev;
+
+	rc = pci_write_config_byte(pdev, cap_offset + DWORD_SELECT, index);
+	if (rc)
+		return rc;
+	return pci_read_config_dword(pdev, cap_offset + DWORD_DATA, value);
+}
+
+/*
+ * This is the interrupt polling timeout function.
+ */
+static void int_poll_timeout(unsigned long lphp_ctlr)
+{
+	struct php_ctlr_state_s *php_ctlr =
+		(struct php_ctlr_state_s *)lphp_ctlr;
+
+	DBG_ENTER_ROUTINE
+
+	/* Poll for interrupt events.  regs == NULL => polling */
+	shpc_isr(0, php_ctlr->callback_instance_id, NULL);
+
+	init_timer(&php_ctlr->int_poll_timer);
+	if (!shpchp_poll_time)
+		shpchp_poll_time = 2; /* default polling interval is 2 sec */
+
+	start_int_poll_timer(php_ctlr, shpchp_poll_time);
+
+	DBG_LEAVE_ROUTINE
+}
+
+/*
+ * This function starts the interrupt polling timer.
+ */
+static void start_int_poll_timer(struct php_ctlr_state_s *php_ctlr, int sec)
+{
+	/* Clamp to sane value */
+	if ((sec <= 0) || (sec > 60))
+		sec = 2;
+
+	php_ctlr->int_poll_timer.function = &int_poll_timeout;
+	php_ctlr->int_poll_timer.data = (unsigned long)php_ctlr;
+	php_ctlr->int_poll_timer.expires = jiffies + sec * HZ;
+	add_timer(&php_ctlr->int_poll_timer);
 }
 
 static inline int shpc_wait_cmd(struct controller *ctrl)
@@ -272,7 +323,7 @@ static inline int shpc_wait_cmd(struct controller *ctrl)
 
 static int shpc_write_cmd(struct slot *slot, u8 t_slot, u8 cmd)
 {
-	struct php_ctlr_state_s *php_ctlr = slot->ctrl->hpc_ctlr_handle;
+	struct controller *ctrl = slot->ctrl;
 	u16 cmd_status;
 	int retval = 0;
 	u16 temp_word;
@@ -282,14 +333,8 @@ static int shpc_write_cmd(struct slot *slot, u8 t_slot, u8 cmd)
 
 	mutex_lock(&slot->ctrl->cmd_lock);
 
-	if (!php_ctlr) {
-		err("%s: Invalid HPC controller handle!\n", __FUNCTION__);
-		retval = -EINVAL;
-		goto out;
-	}
-
 	for (i = 0; i < 10; i++) {
-		cmd_status = readw(php_ctlr->creg + CMD_STATUS);
+		cmd_status = shpc_readw(ctrl, CMD_STATUS);
 		
 		if (!(cmd_status & 0x1))
 			break;
@@ -297,7 +342,7 @@ static int shpc_write_cmd(struct slot *slot, u8 t_slot, u8 cmd)
 		msleep(100);
 	}
 
-	cmd_status = readw(php_ctlr->creg + CMD_STATUS);
+	cmd_status = shpc_readw(ctrl, CMD_STATUS);
 	
 	if (cmd_status & 0x1) { 
 		/* After 1 sec and and the controller is still busy */
@@ -314,7 +359,7 @@ static int shpc_write_cmd(struct slot *slot, u8 t_slot, u8 cmd)
 	 * command. 
 	 */
 	slot->ctrl->cmd_busy = 1;
-	writew(temp_word, php_ctlr->creg + CMD);
+	shpc_writew(ctrl, CMD, temp_word);
 
 	/*
 	 * Wait for command completion.
@@ -338,18 +383,12 @@ static int shpc_write_cmd(struct slot *slot, u8 t_slot, u8 cmd)
 
 static int hpc_check_cmd_status(struct controller *ctrl)
 {
-	struct php_ctlr_state_s *php_ctlr = ctrl->hpc_ctlr_handle;
 	u16 cmd_status;
 	int retval = 0;
 
 	DBG_ENTER_ROUTINE 
-	
-	if (!ctrl->hpc_ctlr_handle) {
-		err("%s: Invalid HPC controller handle!\n", __FUNCTION__);
-		return -1;
-	}
 
-	cmd_status = readw(php_ctlr->creg + CMD_STATUS) & 0x000F;
+	cmd_status = shpc_readw(ctrl, CMD_STATUS) & 0x000F;
 	
 	switch (cmd_status >> 1) {
 	case 0:
@@ -378,37 +417,27 @@ static int hpc_check_cmd_status(struct controller *ctrl)
 
 static int hpc_get_attention_status(struct slot *slot, u8 *status)
 {
-	struct php_ctlr_state_s *php_ctlr = slot->ctrl->hpc_ctlr_handle;
+	struct controller *ctrl = slot->ctrl;
 	u32 slot_reg;
-	u16 slot_status;
-	u8 atten_led_state;
+	u8 state;
 	
 	DBG_ENTER_ROUTINE 
 
-	if (!slot->ctrl->hpc_ctlr_handle) {
-		err("%s: Invalid HPC controller handle!\n", __FUNCTION__);
-		return -1;
-	}
+	slot_reg = shpc_readl(ctrl, SLOT_REG(slot->hp_slot));
+	state = (slot_reg & ATN_LED_STATE_MASK) >> ATN_LED_STATE_SHIFT;
 
-	slot_reg = readl(php_ctlr->creg + SLOT1 + 4*(slot->hp_slot));
-	slot_status = (u16) slot_reg;
-	atten_led_state = (slot_status & 0x0030) >> 4;
-
-	switch (atten_led_state) {
-	case 0:
-		*status = 0xFF;	/* Reserved */
-		break;
-	case 1:
+	switch (state) {
+	case ATN_LED_STATE_ON:
 		*status = 1;	/* On */
 		break;
-	case 2:
+	case ATN_LED_STATE_BLINK:
 		*status = 2;	/* Blink */
 		break;
-	case 3:
+	case ATN_LED_STATE_OFF:
 		*status = 0;	/* Off */
 		break;
 	default:
-		*status = 0xFF;
+		*status = 0xFF;	/* Reserved */
 		break;
 	}
 
@@ -418,64 +447,44 @@ static int hpc_get_attention_status(struct slot *slot, u8 *status)
 
 static int hpc_get_power_status(struct slot * slot, u8 *status)
 {
-	struct php_ctlr_state_s *php_ctlr = slot->ctrl->hpc_ctlr_handle;
+	struct controller *ctrl = slot->ctrl;
 	u32 slot_reg;
-	u16 slot_status;
-	u8 slot_state;
-	int	retval = 0;
+	u8 state;
 	
 	DBG_ENTER_ROUTINE 
 
-	if (!slot->ctrl->hpc_ctlr_handle) {
-		err("%s: Invalid HPC controller handle!\n", __FUNCTION__);
-		return -1;
-	}
+	slot_reg = shpc_readl(ctrl, SLOT_REG(slot->hp_slot));
+	state = (slot_reg & SLOT_STATE_MASK) >> SLOT_STATE_SHIFT;
 
-	slot_reg = readl(php_ctlr->creg + SLOT1 + 4*(slot->hp_slot));
-	slot_status = (u16) slot_reg;
-	slot_state = (slot_status & 0x0003);
-
-	switch (slot_state) {
-	case 0:
-		*status = 0xFF;
-		break;
-	case 1:
+	switch (state) {
+	case SLOT_STATE_PWRONLY:
 		*status = 2;	/* Powered only */
 		break;
-	case 2:
+	case SLOT_STATE_ENABLED:
 		*status = 1;	/* Enabled */
 		break;
-	case 3:
+	case SLOT_STATE_DISABLED:
 		*status = 0;	/* Disabled */
 		break;
 	default:
-		*status = 0xFF;
+		*status = 0xFF;	/* Reserved */
 		break;
 	}
 
 	DBG_LEAVE_ROUTINE 
-	return retval;
+	return 0;
 }
 
 
 static int hpc_get_latch_status(struct slot *slot, u8 *status)
 {
-	struct php_ctlr_state_s *php_ctlr = slot->ctrl->hpc_ctlr_handle;
+	struct controller *ctrl = slot->ctrl;
 	u32 slot_reg;
-	u16 slot_status;
 
 	DBG_ENTER_ROUTINE 
 
-	if (!slot->ctrl->hpc_ctlr_handle) {
-		err("%s: Invalid HPC controller handle!\n", __FUNCTION__);
-		return -1;
-	}
-
-	slot_reg = readl(php_ctlr->creg + SLOT1 + 4*(slot->hp_slot));
-	slot_status = (u16)slot_reg;
-
-	*status = ((slot_status & 0x0100) == 0) ? 0 : 1;   /* 0 -> close; 1 -> open */
-
+	slot_reg = shpc_readl(ctrl, SLOT_REG(slot->hp_slot));
+	*status = !!(slot_reg & MRL_SENSOR);	/* 0 -> close; 1 -> open */
 
 	DBG_LEAVE_ROUTINE 
 	return 0;
@@ -483,22 +492,15 @@ static int hpc_get_latch_status(struct slot *slot, u8 *status)
 
 static int hpc_get_adapter_status(struct slot *slot, u8 *status)
 {
-	struct php_ctlr_state_s *php_ctlr = slot->ctrl->hpc_ctlr_handle;
+	struct controller *ctrl = slot->ctrl;
 	u32 slot_reg;
-	u16 slot_status;
-	u8 card_state;
+	u8 state;
 
 	DBG_ENTER_ROUTINE 
 
-	if (!slot->ctrl->hpc_ctlr_handle) {
-		err("%s: Invalid HPC controller handle!\n", __FUNCTION__);
-		return -1;
-	}
-
-	slot_reg = readl(php_ctlr->creg + SLOT1 + 4*(slot->hp_slot));
-	slot_status = (u16)slot_reg;
-	card_state = (u8)((slot_status & 0x0C00) >> 10);
-	*status = (card_state != 0x3) ? 1 : 0;
+	slot_reg = shpc_readl(ctrl, SLOT_REG(slot->hp_slot));
+	state = (slot_reg & PRSNT_MASK) >> PRSNT_SHIFT;
+	*status = (state != 0x3) ? 1 : 0;
 
 	DBG_LEAVE_ROUTINE 
 	return 0;
@@ -506,16 +508,11 @@ static int hpc_get_adapter_status(struct slot *slot, u8 *status)
 
 static int hpc_get_prog_int(struct slot *slot, u8 *prog_int)
 {
-	struct php_ctlr_state_s *php_ctlr = slot->ctrl->hpc_ctlr_handle;
+	struct controller *ctrl = slot->ctrl;
 
 	DBG_ENTER_ROUTINE 
-	
-	if (!slot->ctrl->hpc_ctlr_handle) {
-		err("%s: Invalid HPC controller handle!\n", __FUNCTION__);
-		return -1;
-	}
 
-	*prog_int = readb(php_ctlr->creg + PROG_INTERFACE);
+	*prog_int = shpc_readb(ctrl, PROG_INTERFACE);
 
 	DBG_LEAVE_ROUTINE 
 	return 0;
@@ -524,12 +521,26 @@ static int hpc_get_prog_int(struct slot *slot, u8 *prog_int)
 static int hpc_get_adapter_speed(struct slot *slot, enum pci_bus_speed *value)
 {
 	int retval = 0;
-	struct php_ctlr_state_s *php_ctlr = slot->ctrl->hpc_ctlr_handle;
-	u32 slot_reg = readl(php_ctlr->creg + SLOT1 + 4 * slot->hp_slot);
-	u8 pcix_cap = (slot_reg >> 12) & 7;
-	u8 m66_cap  = (slot_reg >> 9) & 1;
+	struct controller *ctrl = slot->ctrl;
+	u32 slot_reg = shpc_readl(ctrl, SLOT_REG(slot->hp_slot));
+	u8 m66_cap  = !!(slot_reg & MHZ66_CAP);
+	u8 pi, pcix_cap;
 
 	DBG_ENTER_ROUTINE 
+
+	if ((retval = hpc_get_prog_int(slot, &pi)))
+		return retval;
+
+	switch (pi) {
+	case 1:
+		pcix_cap = (slot_reg & PCIX_CAP_MASK_PI1) >> PCIX_CAP_SHIFT;
+		break;
+	case 2:
+		pcix_cap = (slot_reg & PCIX_CAP_MASK_PI2) >> PCIX_CAP_SHIFT;
+		break;
+	default:
+		return -ENODEV;
+	}
 
 	dbg("%s: slot_reg = %x, pcix_cap = %x, m66_cap = %x\n",
 	    __FUNCTION__, slot_reg, pcix_cap, m66_cap);
@@ -564,20 +575,15 @@ static int hpc_get_adapter_speed(struct slot *slot, enum pci_bus_speed *value)
 
 static int hpc_get_mode1_ECC_cap(struct slot *slot, u8 *mode)
 {
-	struct php_ctlr_state_s *php_ctlr = slot->ctrl->hpc_ctlr_handle;
+	struct controller *ctrl = slot->ctrl;
 	u16 sec_bus_status;
 	u8 pi;
 	int retval = 0;
 
 	DBG_ENTER_ROUTINE 
 
-	if (!slot->ctrl->hpc_ctlr_handle) {
-		err("%s: Invalid HPC controller handle!\n", __FUNCTION__);
-		return -1;
-	}
-
-	pi = readb(php_ctlr->creg + PROG_INTERFACE);
-	sec_bus_status = readw(php_ctlr->creg + SEC_BUS_CONFIG);
+	pi = shpc_readb(ctrl, PROG_INTERFACE);
+	sec_bus_status = shpc_readw(ctrl, SEC_BUS_CONFIG);
 
 	if (pi == 2) {
 		*mode = (sec_bus_status & 0x0100) >> 8;
@@ -593,128 +599,53 @@ static int hpc_get_mode1_ECC_cap(struct slot *slot, u8 *mode)
 
 static int hpc_query_power_fault(struct slot * slot)
 {
-	struct php_ctlr_state_s *php_ctlr = slot->ctrl->hpc_ctlr_handle;
+	struct controller *ctrl = slot->ctrl;
 	u32 slot_reg;
-	u16 slot_status;
-	u8 pwr_fault_state, status;
 
 	DBG_ENTER_ROUTINE 
 
-	if (!slot->ctrl->hpc_ctlr_handle) {
-		err("%s: Invalid HPC controller handle!\n", __FUNCTION__);
-		return -1;
-	}
-
-	slot_reg = readl(php_ctlr->creg + SLOT1 + 4*(slot->hp_slot));
-	slot_status = (u16) slot_reg;
-	pwr_fault_state = (slot_status & 0x0040) >> 7;
-	status = (pwr_fault_state == 1) ? 0 : 1;
+	slot_reg = shpc_readl(ctrl, SLOT_REG(slot->hp_slot));
 
 	DBG_LEAVE_ROUTINE
 	/* Note: Logic 0 => fault */
-	return status;
+	return !(slot_reg & POWER_FAULT);
 }
 
 static int hpc_set_attention_status(struct slot *slot, u8 value)
 {
-	struct php_ctlr_state_s *php_ctlr = slot->ctrl->hpc_ctlr_handle;
 	u8 slot_cmd = 0;
-	int rc = 0;
-
-	if (!slot->ctrl->hpc_ctlr_handle) {
-		err("%s: Invalid HPC controller handle!\n", __FUNCTION__);
-		return -1;
-	}
-
-	if (slot->hp_slot >= php_ctlr->num_slots) {
-		err("%s: Invalid HPC slot number!\n", __FUNCTION__);
-		return -1;
-	}
 
 	switch (value) {
 		case 0 :	
-			slot_cmd = 0x30;	/* OFF */
+			slot_cmd = SET_ATTN_OFF;	/* OFF */
 			break;
 		case 1:
-			slot_cmd = 0x10;	/* ON */
+			slot_cmd = SET_ATTN_ON;		/* ON */
 			break;
 		case 2:
-			slot_cmd = 0x20;	/* BLINK */
+			slot_cmd = SET_ATTN_BLINK;	/* BLINK */
 			break;
 		default:
 			return -1;
 	}
 
-	shpc_write_cmd(slot, slot->hp_slot, slot_cmd);
-	
-	return rc;
+	return shpc_write_cmd(slot, slot->hp_slot, slot_cmd);
 }
 
 
 static void hpc_set_green_led_on(struct slot *slot)
 {
-	struct php_ctlr_state_s *php_ctlr = slot->ctrl->hpc_ctlr_handle;
-	u8 slot_cmd;
-
-	if (!slot->ctrl->hpc_ctlr_handle) {
-		err("%s: Invalid HPC controller handle!\n", __FUNCTION__);
-		return ;
-	}
-
-	if (slot->hp_slot >= php_ctlr->num_slots) {
-		err("%s: Invalid HPC slot number!\n", __FUNCTION__);
-		return ;
-	}
-
-	slot_cmd = 0x04;
-
-	shpc_write_cmd(slot, slot->hp_slot, slot_cmd);
-
-	return;
+	shpc_write_cmd(slot, slot->hp_slot, SET_PWR_ON);
 }
 
 static void hpc_set_green_led_off(struct slot *slot)
 {
-	struct php_ctlr_state_s *php_ctlr = slot->ctrl->hpc_ctlr_handle;
-	u8 slot_cmd;
-
-	if (!slot->ctrl->hpc_ctlr_handle) {
-		err("%s: Invalid HPC controller handle!\n", __FUNCTION__);
-		return ;
-	}
-
-	if (slot->hp_slot >= php_ctlr->num_slots) {
-		err("%s: Invalid HPC slot number!\n", __FUNCTION__);
-		return ;
-	}
-
-	slot_cmd = 0x0C;
-
-	shpc_write_cmd(slot, slot->hp_slot, slot_cmd);
-
-	return;
+	shpc_write_cmd(slot, slot->hp_slot, SET_PWR_OFF);
 }
 
 static void hpc_set_green_led_blink(struct slot *slot)
 {
-	struct php_ctlr_state_s *php_ctlr = slot->ctrl->hpc_ctlr_handle;
-	u8 slot_cmd;
-
-	if (!slot->ctrl->hpc_ctlr_handle) {
-		err("%s: Invalid HPC controller handle!\n", __FUNCTION__);
-		return ;
-	}
-
-	if (slot->hp_slot >= php_ctlr->num_slots) {
-		err("%s: Invalid HPC slot number!\n", __FUNCTION__);
-		return ;
-	}
-
-	slot_cmd = 0x08;
-
-	shpc_write_cmd(slot, slot->hp_slot, slot_cmd);
-
-	return;
+	shpc_write_cmd(slot, slot->hp_slot, SET_PWR_BLINK);
 }
 
 int shpc_get_ctlr_slot_config(struct controller *ctrl,
@@ -724,21 +655,17 @@ int shpc_get_ctlr_slot_config(struct controller *ctrl,
 	int *updown,		/* physical_slot_num increament: 1 or -1	*/
 	int *flags)
 {
-	struct php_ctlr_state_s *php_ctlr = ctrl->hpc_ctlr_handle;
+	u32 slot_config;
 
 	DBG_ENTER_ROUTINE 
 
-	if (!ctrl->hpc_ctlr_handle) {
-		err("%s: Invalid HPC controller handle!\n", __FUNCTION__);
-		return -1;
-	}
+	slot_config = shpc_readl(ctrl, SLOT_CONFIG);
+	*first_device_num = (slot_config & FIRST_DEV_NUM) >> 8;
+	*num_ctlr_slots = slot_config & SLOT_NUM;
+	*physical_slot_num = (slot_config & PSN) >> 16;
+	*updown = ((slot_config & UPDOWN) >> 29) ? 1 : -1;
 
-	*first_device_num = php_ctlr->slot_device_offset;	/* Obtained in shpc_init() */
-	*num_ctlr_slots = php_ctlr->num_slots;			/* Obtained in shpc_init() */
-
-	*physical_slot_num = (readl(php_ctlr->creg + SLOT_CONFIG) & PSN) >> 16;
 	dbg("%s: physical_slot_num = %x\n", __FUNCTION__, *physical_slot_num);
-	*updown = ((readl(php_ctlr->creg + SLOT_CONFIG) & UPDOWN ) >> 29) ? 1 : -1;	
 
 	DBG_LEAVE_ROUTINE 
 	return 0;
@@ -749,21 +676,33 @@ static void hpc_release_ctlr(struct controller *ctrl)
 	struct php_ctlr_state_s *php_ctlr = ctrl->hpc_ctlr_handle;
 	struct php_ctlr_state_s *p, *p_prev;
 	int i;
+	u32 slot_reg, serr_int;
 
 	DBG_ENTER_ROUTINE 
 
-	if (!ctrl->hpc_ctlr_handle) {
-		err("%s: Invalid HPC controller handle!\n", __FUNCTION__);
-		return ;
+	/*
+	 * Mask event interrupts and SERRs of all slots
+	 */
+	for (i = 0; i < ctrl->num_slots; i++) {
+		slot_reg = shpc_readl(ctrl, SLOT_REG(i));
+		slot_reg |= (PRSNT_CHANGE_INTR_MASK | ISO_PFAULT_INTR_MASK |
+			     BUTTON_PRESS_INTR_MASK | MRL_CHANGE_INTR_MASK |
+			     CON_PFAULT_INTR_MASK   | MRL_CHANGE_SERR_MASK |
+			     CON_PFAULT_SERR_MASK);
+		slot_reg &= ~SLOT_REG_RSVDZ_MASK;
+		shpc_writel(ctrl, SLOT_REG(i), slot_reg);
 	}
 
-	/*
-	 * Mask all slot event interrupts
-	 */
-	for (i = 0; i < ctrl->num_slots; i++)
-		writel(0xffff3fff, php_ctlr->creg + SLOT1 + (4 * i));
-
 	cleanup_slots(ctrl);
+
+	/*
+	 * Mask SERR and System Interrut generation
+	 */
+	serr_int = shpc_readl(ctrl, SERR_INTR_ENABLE);
+	serr_int |= (GLOBAL_INTR_MASK  | GLOBAL_SERR_MASK |
+		     COMMAND_INTR_MASK | ARBITER_SERR_MASK);
+	serr_int &= ~SERR_INTR_RSVDZ_MASK;
+	shpc_writel(ctrl, SERR_INTR_ENABLE, serr_int);
 
 	if (shpchp_poll_mode) {
 	    del_timer(&php_ctlr->int_poll_timer);
@@ -800,113 +739,79 @@ static void hpc_release_ctlr(struct controller *ctrl)
 
 	kfree(php_ctlr);
 
+	/*
+	 * If this is the last controller to be released, destroy the
+	 * shpchpd work queue
+	 */
+	if (atomic_dec_and_test(&shpchp_num_controllers))
+		destroy_workqueue(shpchp_wq);
+
 DBG_LEAVE_ROUTINE
 			  
 }
 
 static int hpc_power_on_slot(struct slot * slot)
 {
-	struct php_ctlr_state_s *php_ctlr = slot->ctrl->hpc_ctlr_handle;
-	u8 slot_cmd;
-	int retval = 0;
+	int retval;
 
 	DBG_ENTER_ROUTINE 
 
-	if (!slot->ctrl->hpc_ctlr_handle) {
-		err("%s: Invalid HPC controller handle!\n", __FUNCTION__);
-		return -1;
-	}
-
-	if (slot->hp_slot >= php_ctlr->num_slots) {
-		err("%s: Invalid HPC slot number!\n", __FUNCTION__);
-		return -1;
-	}
-	slot_cmd = 0x01;
-
-	retval = shpc_write_cmd(slot, slot->hp_slot, slot_cmd);
-
+	retval = shpc_write_cmd(slot, slot->hp_slot, SET_SLOT_PWR);
 	if (retval) {
 		err("%s: Write command failed!\n", __FUNCTION__);
-		return -1;
+		return retval;
 	}
 
 	DBG_LEAVE_ROUTINE
 
-	return retval;
+	return 0;
 }
 
 static int hpc_slot_enable(struct slot * slot)
 {
-	struct php_ctlr_state_s *php_ctlr = slot->ctrl->hpc_ctlr_handle;
-	u8 slot_cmd;
-	int retval = 0;
+	int retval;
 
 	DBG_ENTER_ROUTINE 
 
-	if (!slot->ctrl->hpc_ctlr_handle) {
-		err("%s: Invalid HPC controller handle!\n", __FUNCTION__);
-		return -1;
-	}
-
-	if (slot->hp_slot >= php_ctlr->num_slots) {
-		err("%s: Invalid HPC slot number!\n", __FUNCTION__);
-		return -1;
-	}
-	/* 3A => Slot - Enable, Power Indicator - Blink, Attention Indicator - Off */
-	slot_cmd = 0x3A;  
-
-	retval = shpc_write_cmd(slot, slot->hp_slot, slot_cmd);
-
+	/* Slot - Enable, Power Indicator - Blink, Attention Indicator - Off */
+	retval = shpc_write_cmd(slot, slot->hp_slot,
+			SET_SLOT_ENABLE | SET_PWR_BLINK | SET_ATTN_OFF);
 	if (retval) {
 		err("%s: Write command failed!\n", __FUNCTION__);
-		return -1;
+		return retval;
 	}
 
 	DBG_LEAVE_ROUTINE
-	return retval;
+	return 0;
 }
 
 static int hpc_slot_disable(struct slot * slot)
 {
-	struct php_ctlr_state_s *php_ctlr = slot->ctrl->hpc_ctlr_handle;
-	u8 slot_cmd;
-	int retval = 0;
+	int retval;
 
 	DBG_ENTER_ROUTINE 
 
-	if (!slot->ctrl->hpc_ctlr_handle) {
-		err("%s: Invalid HPC controller handle!\n", __FUNCTION__);
-		return -1;
-	}
-
-	if (slot->hp_slot >= php_ctlr->num_slots) {
-		err("%s: Invalid HPC slot number!\n", __FUNCTION__);
-		return -1;
-	}
-
-	/* 1F => Slot - Disable, Power Indicator - Off, Attention Indicator - On */
-	slot_cmd = 0x1F;
-
-	retval = shpc_write_cmd(slot, slot->hp_slot, slot_cmd);
-
+	/* Slot - Disable, Power Indicator - Off, Attention Indicator - On */
+	retval = shpc_write_cmd(slot, slot->hp_slot,
+			SET_SLOT_DISABLE | SET_PWR_OFF | SET_ATTN_ON);
 	if (retval) {
 		err("%s: Write command failed!\n", __FUNCTION__);
-		return -1;
+		return retval;
 	}
 
 	DBG_LEAVE_ROUTINE
-	return retval;
+	return 0;
 }
 
 static int hpc_set_bus_speed_mode(struct slot * slot, enum pci_bus_speed value)
 {
 	int retval;
-	struct php_ctlr_state_s *php_ctlr = slot->ctrl->hpc_ctlr_handle;
+	struct controller *ctrl = slot->ctrl;
 	u8 pi, cmd;
 
 	DBG_ENTER_ROUTINE 
 
-	pi = readb(php_ctlr->creg + PROG_INTERFACE);
+	pi = shpc_readb(ctrl, PROG_INTERFACE);
 	if ((pi == 1) && (value > PCI_SPEED_133MHz_PCIX))
 		return -EINVAL;
 
@@ -965,100 +870,86 @@ static int hpc_set_bus_speed_mode(struct slot * slot, enum pci_bus_speed value)
 	return retval;
 }
 
-static irqreturn_t shpc_isr(int IRQ, void *dev_id, struct pt_regs *regs)
+static irqreturn_t shpc_isr(int irq, void *dev_id, struct pt_regs *regs)
 {
-	struct controller *ctrl = NULL;
-	struct php_ctlr_state_s *php_ctlr;
-	u8 schedule_flag = 0;
-	u8 temp_byte;
-	u32 temp_dword, intr_loc, intr_loc2;
+	struct controller *ctrl = (struct controller *)dev_id;
+	struct php_ctlr_state_s *php_ctlr = ctrl->hpc_ctlr_handle;
+	u32 serr_int, slot_reg, intr_loc, intr_loc2;
 	int hp_slot;
 
-	if (!dev_id)
-		return IRQ_NONE;
-
-	if (!shpchp_poll_mode) { 
-		ctrl = (struct controller *)dev_id;
-		php_ctlr = ctrl->hpc_ctlr_handle;
-	} else { 
-		php_ctlr = (struct php_ctlr_state_s *) dev_id;
-		ctrl = (struct controller *)php_ctlr->callback_instance_id;
-	}
-
-	if (!ctrl)
-		return IRQ_NONE;
-	
-	if (!php_ctlr || !php_ctlr->creg)
-		return IRQ_NONE;
-
 	/* Check to see if it was our interrupt */
-	intr_loc = readl(php_ctlr->creg + INTR_LOC);  
-
+	intr_loc = shpc_readl(ctrl, INTR_LOC);
 	if (!intr_loc)
 		return IRQ_NONE;
+
 	dbg("%s: intr_loc = %x\n",__FUNCTION__, intr_loc); 
 
 	if(!shpchp_poll_mode) {
-		/* Mask Global Interrupt Mask - see implementation note on p. 139 */
-		/* of SHPC spec rev 1.0*/
-		temp_dword = readl(php_ctlr->creg + SERR_INTR_ENABLE);
-		temp_dword |= 0x00000001;
-		writel(temp_dword, php_ctlr->creg + SERR_INTR_ENABLE);
+		/*
+		 * Mask Global Interrupt Mask - see implementation
+		 * note on p. 139 of SHPC spec rev 1.0
+		 */
+		serr_int = shpc_readl(ctrl, SERR_INTR_ENABLE);
+		serr_int |= GLOBAL_INTR_MASK;
+		serr_int &= ~SERR_INTR_RSVDZ_MASK;
+		shpc_writel(ctrl, SERR_INTR_ENABLE, serr_int);
 
-		intr_loc2 = readl(php_ctlr->creg + INTR_LOC);  
+		intr_loc2 = shpc_readl(ctrl, INTR_LOC);
 		dbg("%s: intr_loc2 = %x\n",__FUNCTION__, intr_loc2); 
 	}
 
-	if (intr_loc & 0x0001) {
+	if (intr_loc & CMD_INTR_PENDING) {
 		/* 
 		 * Command Complete Interrupt Pending 
 		 * RO only - clear by writing 1 to the Command Completion
 		 * Detect bit in Controller SERR-INT register
 		 */
-		temp_dword = readl(php_ctlr->creg + SERR_INTR_ENABLE);
-		temp_dword &= 0xfffdffff;
-		writel(temp_dword, php_ctlr->creg + SERR_INTR_ENABLE);
+		serr_int = shpc_readl(ctrl, SERR_INTR_ENABLE);
+		serr_int &= ~SERR_INTR_RSVDZ_MASK;
+		shpc_writel(ctrl, SERR_INTR_ENABLE, serr_int);
+
 		ctrl->cmd_busy = 0;
 		wake_up_interruptible(&ctrl->queue);
 	}
 
-	if ((intr_loc = (intr_loc >> 1)) == 0)
+	if (!(intr_loc & ~CMD_INTR_PENDING))
 		goto out;
 
 	for (hp_slot = 0; hp_slot < ctrl->num_slots; hp_slot++) { 
-	/* To find out which slot has interrupt pending */
-		if ((intr_loc >> hp_slot) & 0x01) {
-			temp_dword = readl(php_ctlr->creg + SLOT1 + (4*hp_slot));
-			dbg("%s: Slot %x with intr, slot register = %x\n",
-				__FUNCTION__, hp_slot, temp_dword);
-			temp_byte = (temp_dword >> 16) & 0xFF;
-			if ((php_ctlr->switch_change_callback) && (temp_byte & 0x08))
-				schedule_flag += php_ctlr->switch_change_callback(
-					hp_slot, php_ctlr->callback_instance_id);
-			if ((php_ctlr->attention_button_callback) && (temp_byte & 0x04))
-				schedule_flag += php_ctlr->attention_button_callback(
-					hp_slot, php_ctlr->callback_instance_id);
-			if ((php_ctlr->presence_change_callback) && (temp_byte & 0x01))
-				schedule_flag += php_ctlr->presence_change_callback(
-					hp_slot , php_ctlr->callback_instance_id);
-			if ((php_ctlr->power_fault_callback) && (temp_byte & 0x12))
-				schedule_flag += php_ctlr->power_fault_callback(
-					hp_slot, php_ctlr->callback_instance_id);
-			
-			/* Clear all slot events */
-			temp_dword = 0xe01f3fff;
-			writel(temp_dword, php_ctlr->creg + SLOT1 + (4*hp_slot));
+		/* To find out which slot has interrupt pending */
+		if (!(intr_loc & SLOT_INTR_PENDING(hp_slot)))
+			continue;
 
-			intr_loc2 = readl(php_ctlr->creg + INTR_LOC);  
-			dbg("%s: intr_loc2 = %x\n",__FUNCTION__, intr_loc2); 
-		}
+		slot_reg = shpc_readl(ctrl, SLOT_REG(hp_slot));
+		dbg("%s: Slot %x with intr, slot register = %x\n",
+		    __FUNCTION__, hp_slot, slot_reg);
+
+		if (slot_reg & MRL_CHANGE_DETECTED)
+			php_ctlr->switch_change_callback(
+				hp_slot, php_ctlr->callback_instance_id);
+
+		if (slot_reg & BUTTON_PRESS_DETECTED)
+			php_ctlr->attention_button_callback(
+				hp_slot, php_ctlr->callback_instance_id);
+
+		if (slot_reg & PRSNT_CHANGE_DETECTED)
+			php_ctlr->presence_change_callback(
+				hp_slot , php_ctlr->callback_instance_id);
+
+		if (slot_reg & (ISO_PFAULT_DETECTED | CON_PFAULT_DETECTED))
+			php_ctlr->power_fault_callback(
+				hp_slot, php_ctlr->callback_instance_id);
+
+		/* Clear all slot events */
+		slot_reg &= ~SLOT_REG_RSVDZ_MASK;
+		shpc_writel(ctrl, SLOT_REG(hp_slot), slot_reg);
 	}
  out:
 	if (!shpchp_poll_mode) {
 		/* Unmask Global Interrupt Mask */
-		temp_dword = readl(php_ctlr->creg + SERR_INTR_ENABLE);
-		temp_dword &= 0xfffffffe;
-		writel(temp_dword, php_ctlr->creg + SERR_INTR_ENABLE);
+		serr_int = shpc_readl(ctrl, SERR_INTR_ENABLE);
+		serr_int &= ~(GLOBAL_INTR_MASK | SERR_INTR_RSVDZ_MASK);
+		shpc_writel(ctrl, SERR_INTR_ENABLE, serr_int);
 	}
 	
 	return IRQ_HANDLED;
@@ -1067,11 +958,11 @@ static irqreturn_t shpc_isr(int IRQ, void *dev_id, struct pt_regs *regs)
 static int hpc_get_max_bus_speed (struct slot *slot, enum pci_bus_speed *value)
 {
 	int retval = 0;
-	struct php_ctlr_state_s *php_ctlr = slot->ctrl->hpc_ctlr_handle;
+	struct controller *ctrl = slot->ctrl;
 	enum pci_bus_speed bus_speed = PCI_SPEED_UNKNOWN;
-	u8 pi = readb(php_ctlr->creg + PROG_INTERFACE);
-	u32 slot_avail1 = readl(php_ctlr->creg + SLOT_AVAIL1);
-	u32 slot_avail2 = readl(php_ctlr->creg + SLOT_AVAIL2);
+	u8 pi = shpc_readb(ctrl, PROG_INTERFACE);
+	u32 slot_avail1 = shpc_readl(ctrl, SLOT_AVAIL1);
+	u32 slot_avail2 = shpc_readl(ctrl, SLOT_AVAIL2);
 
 	DBG_ENTER_ROUTINE 
 
@@ -1114,10 +1005,10 @@ static int hpc_get_max_bus_speed (struct slot *slot, enum pci_bus_speed *value)
 static int hpc_get_cur_bus_speed (struct slot *slot, enum pci_bus_speed *value)
 {
 	int retval = 0;
-	struct php_ctlr_state_s *php_ctlr = slot->ctrl->hpc_ctlr_handle;
+	struct controller *ctrl = slot->ctrl;
 	enum pci_bus_speed bus_speed = PCI_SPEED_UNKNOWN;
-	u16 sec_bus_reg = readw(php_ctlr->creg + SEC_BUS_CONFIG);
-	u8 pi = readb(php_ctlr->creg + PROG_INTERFACE);
+	u16 sec_bus_reg = shpc_readw(ctrl, SEC_BUS_CONFIG);
+	u8 pi = shpc_readb(ctrl, PROG_INTERFACE);
 	u8 speed_mode = (pi == 2) ? (sec_bus_reg & 0xF) : (sec_bus_reg & 0x7);
 
 	DBG_ENTER_ROUTINE 
@@ -1206,28 +1097,14 @@ static struct hpc_ops shpchp_hpc_ops = {
 	.release_ctlr			= hpc_release_ctlr,
 };
 
-inline static int shpc_indirect_creg_read(struct controller *ctrl, int index,
-					  u32 *value)
-{
-	int rc;
-	u32 cap_offset = ctrl->cap_offset;
-	struct pci_dev *pdev = ctrl->pci_dev;
-
-	rc = pci_write_config_byte(pdev, cap_offset + DWORD_SELECT, index);
-	if (rc)
-		return rc;
-	return pci_read_config_dword(pdev, cap_offset + DWORD_DATA, value);
-}
-
 int shpc_init(struct controller * ctrl, struct pci_dev * pdev)
 {
 	struct php_ctlr_state_s *php_ctlr, *p;
 	void *instance_id = ctrl;
 	int rc, num_slots = 0;
 	u8 hp_slot;
-	static int first = 1;
 	u32 shpc_base_offset;
-	u32 tempdword, slot_reg;
+	u32 tempdword, slot_reg, slot_config;
 	u8 i;
 
 	DBG_ENTER_ROUTINE
@@ -1257,13 +1134,13 @@ int shpc_init(struct controller * ctrl, struct pci_dev * pdev)
 		}
 		dbg("%s: cap_offset = %x\n", __FUNCTION__, ctrl->cap_offset);
 
-		rc = shpc_indirect_creg_read(ctrl, 0, &shpc_base_offset);
+		rc = shpc_indirect_read(ctrl, 0, &shpc_base_offset);
 		if (rc) {
 			err("%s: cannot read base_offset\n", __FUNCTION__);
 			goto abort_free_ctlr;
 		}
 
-		rc = shpc_indirect_creg_read(ctrl, 3, &tempdword);
+		rc = shpc_indirect_read(ctrl, 3, &tempdword);
 		if (rc) {
 			err("%s: cannot read slot config\n", __FUNCTION__);
 			goto abort_free_ctlr;
@@ -1272,7 +1149,7 @@ int shpc_init(struct controller * ctrl, struct pci_dev * pdev)
 		dbg("%s: num_slots (indirect) %x\n", __FUNCTION__, num_slots);
 
 		for (i = 0; i < 9 + num_slots; i++) {
-			rc = shpc_indirect_creg_read(ctrl, i, &tempdword);
+			rc = shpc_indirect_read(ctrl, i, &tempdword);
 			if (rc) {
 				err("%s: cannot read creg (index = %d)\n",
 				    __FUNCTION__, i);
@@ -1285,11 +1162,6 @@ int shpc_init(struct controller * ctrl, struct pci_dev * pdev)
 		ctrl->mmio_base =
 			pci_resource_start(pdev, 0) + shpc_base_offset;
 		ctrl->mmio_size = 0x24 + 0x4 * num_slots;
-	}
-
-	if (first) {
-		spin_lock_init(&hpc_event_lock);
-		first = 0;
 	}
 
 	info("HPC vendor_id %x device_id %x ss_vid %x ss_did %x\n", pdev->vendor, pdev->device, pdev->subsystem_vendor, 
@@ -1326,29 +1198,39 @@ int shpc_init(struct controller * ctrl, struct pci_dev * pdev)
 	php_ctlr->power_fault_callback = shpchp_handle_power_fault;
 	php_ctlr->callback_instance_id = instance_id;
 
+	ctrl->hpc_ctlr_handle = php_ctlr;
+	ctrl->hpc_ops = &shpchp_hpc_ops;
+
 	/* Return PCI Controller Info */
-	php_ctlr->slot_device_offset = (readl(php_ctlr->creg + SLOT_CONFIG) & FIRST_DEV_NUM ) >> 8;
-	php_ctlr->num_slots = readl(php_ctlr->creg + SLOT_CONFIG) & SLOT_NUM;
+	slot_config = shpc_readl(ctrl, SLOT_CONFIG);
+	php_ctlr->slot_device_offset = (slot_config & FIRST_DEV_NUM) >> 8;
+	php_ctlr->num_slots = slot_config & SLOT_NUM;
 	dbg("%s: slot_device_offset %x\n", __FUNCTION__, php_ctlr->slot_device_offset);
 	dbg("%s: num_slots %x\n", __FUNCTION__, php_ctlr->num_slots);
 
 	/* Mask Global Interrupt Mask & Command Complete Interrupt Mask */
-	tempdword = readl(php_ctlr->creg + SERR_INTR_ENABLE);
+	tempdword = shpc_readl(ctrl, SERR_INTR_ENABLE);
 	dbg("%s: SERR_INTR_ENABLE = %x\n", __FUNCTION__, tempdword);
-	tempdword = 0x0003000f;   
-	writel(tempdword, php_ctlr->creg + SERR_INTR_ENABLE);
-	tempdword = readl(php_ctlr->creg + SERR_INTR_ENABLE);
+	tempdword |= (GLOBAL_INTR_MASK  | GLOBAL_SERR_MASK |
+		      COMMAND_INTR_MASK | ARBITER_SERR_MASK);
+	tempdword &= ~SERR_INTR_RSVDZ_MASK;
+	shpc_writel(ctrl, SERR_INTR_ENABLE, tempdword);
+	tempdword = shpc_readl(ctrl, SERR_INTR_ENABLE);
 	dbg("%s: SERR_INTR_ENABLE = %x\n", __FUNCTION__, tempdword);
 
 	/* Mask the MRL sensor SERR Mask of individual slot in
 	 * Slot SERR-INT Mask & clear all the existing event if any
 	 */
 	for (hp_slot = 0; hp_slot < php_ctlr->num_slots; hp_slot++) {
-		slot_reg = readl(php_ctlr->creg + SLOT1 + 4*hp_slot );
+		slot_reg = shpc_readl(ctrl, SLOT_REG(hp_slot));
 		dbg("%s: Default Logical Slot Register %d value %x\n", __FUNCTION__,
 			hp_slot, slot_reg);
-		tempdword = 0xffff3fff;  
-		writel(tempdword, php_ctlr->creg + SLOT1 + (4*hp_slot));
+		slot_reg |= (PRSNT_CHANGE_INTR_MASK | ISO_PFAULT_INTR_MASK |
+			     BUTTON_PRESS_INTR_MASK | MRL_CHANGE_INTR_MASK |
+			     CON_PFAULT_INTR_MASK   | MRL_CHANGE_SERR_MASK |
+			     CON_PFAULT_SERR_MASK);
+		slot_reg &= ~SLOT_REG_RSVDZ_MASK;
+		shpc_writel(ctrl, SLOT_REG(hp_slot), slot_reg);
 	}
 	
 	if (shpchp_poll_mode)  {/* Install interrupt polling code */
@@ -1392,24 +1274,37 @@ int shpc_init(struct controller * ctrl, struct pci_dev * pdev)
 	}
 	spin_unlock(&list_lock);
 
-
 	ctlr_seq_num++;
-	ctrl->hpc_ctlr_handle = php_ctlr;
-	ctrl->hpc_ops = &shpchp_hpc_ops;
 
+	/*
+	 * If this is the first controller to be initialized,
+	 * initialize the shpchpd work queue
+	 */
+	if (atomic_add_return(1, &shpchp_num_controllers) == 1) {
+		shpchp_wq = create_singlethread_workqueue("shpchpd");
+		if (!shpchp_wq)
+			return -ENOMEM;
+	}
+
+	/*
+	 * Unmask all event interrupts of all slots
+	 */
 	for (hp_slot = 0; hp_slot < php_ctlr->num_slots; hp_slot++) {
-		slot_reg = readl(php_ctlr->creg + SLOT1 + 4*hp_slot );
+		slot_reg = shpc_readl(ctrl, SLOT_REG(hp_slot));
 		dbg("%s: Default Logical Slot Register %d value %x\n", __FUNCTION__,
 			hp_slot, slot_reg);
-		tempdword = 0xe01f3fff;  
-		writel(tempdword, php_ctlr->creg + SLOT1 + (4*hp_slot));
+		slot_reg &= ~(PRSNT_CHANGE_INTR_MASK | ISO_PFAULT_INTR_MASK |
+			      BUTTON_PRESS_INTR_MASK | MRL_CHANGE_INTR_MASK |
+			      CON_PFAULT_INTR_MASK | SLOT_REG_RSVDZ_MASK);
+		shpc_writel(ctrl, SLOT_REG(hp_slot), slot_reg);
 	}
 	if (!shpchp_poll_mode) {
 		/* Unmask all general input interrupts and SERR */
-		tempdword = readl(php_ctlr->creg + SERR_INTR_ENABLE);
-		tempdword = 0x0000000a;
-		writel(tempdword, php_ctlr->creg + SERR_INTR_ENABLE);
-		tempdword = readl(php_ctlr->creg + SERR_INTR_ENABLE);
+		tempdword = shpc_readl(ctrl, SERR_INTR_ENABLE);
+		tempdword &= ~(GLOBAL_INTR_MASK | COMMAND_INTR_MASK |
+			       SERR_INTR_RSVDZ_MASK);
+		shpc_writel(ctrl, SERR_INTR_ENABLE, tempdword);
+		tempdword = shpc_readl(ctrl, SERR_INTR_ENABLE);
 		dbg("%s: SERR_INTR_ENABLE = %x\n", __FUNCTION__, tempdword);
 	}
 

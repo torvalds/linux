@@ -14,4 +14,16 @@ static inline void set_intr_gate (int nr, void *func) {}
 #define ack_APIC_irq		ia64_eoi
 #define MSI_TARGET_CPU_SHIFT	4
 
+extern struct msi_ops msi_apic_ops;
+
+static inline int msi_arch_init(void)
+{
+	if (platform_msi_init)
+		return platform_msi_init();
+
+	/* default ops for most ia64 platforms */
+	msi_register(&msi_apic_ops);
+	return 0;
+}
+
 #endif /* ASM_MSI_H */

@@ -36,13 +36,9 @@ struct zone;
  * level in the Btree, and to identify which type of block this is.
  */
 #define XFS_DA_NODE_MAGIC	0xfebe	/* magic number: non-leaf blocks */
-#define XFS_DIR_LEAF_MAGIC	0xfeeb	/* magic number: directory leaf blks */
 #define XFS_ATTR_LEAF_MAGIC	0xfbee	/* magic number: attribute leaf blks */
 #define	XFS_DIR2_LEAF1_MAGIC	0xd2f1	/* magic number: v2 dirlf single blks */
 #define	XFS_DIR2_LEAFN_MAGIC	0xd2ff	/* magic number: v2 dirlf multi blks */
-
-#define	XFS_DIRX_LEAF_MAGIC(mp)	\
-	(XFS_DIR_IS_V1(mp) ? XFS_DIR_LEAF_MAGIC : XFS_DIR2_LEAFN_MAGIC)
 
 typedef struct xfs_da_blkinfo {
 	__be32		forw;			/* previous block in list */

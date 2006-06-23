@@ -268,7 +268,7 @@ static void sdhci_prepare_data(struct sdhci_host *host, struct mmc_data *data)
 	}
 
 	DBG("blksz %04x blks %04x flags %08x\n",
-		1 << data->blksz_bits, data->blocks, data->flags);
+		data->blksz, data->blocks, data->flags);
 	DBG("tsac %d ms nsac %d clk\n",
 		data->timeout_ns / 1000000, data->timeout_clks);
 
@@ -282,7 +282,7 @@ static void sdhci_prepare_data(struct sdhci_host *host, struct mmc_data *data)
 
 	writew(mode, host->ioaddr + SDHCI_TRANSFER_MODE);
 
-	writew(1 << data->blksz_bits, host->ioaddr + SDHCI_BLOCK_SIZE);
+	writew(data->blksz, host->ioaddr + SDHCI_BLOCK_SIZE);
 	writew(data->blocks, host->ioaddr + SDHCI_BLOCK_COUNT);
 
 	if (host->flags & SDHCI_USE_DMA) {
@@ -294,7 +294,7 @@ static void sdhci_prepare_data(struct sdhci_host *host, struct mmc_data *data)
 
 		writel(sg_dma_address(data->sg), host->ioaddr + SDHCI_DMA_ADDRESS);
 	} else {
-		host->size = (1 << data->blksz_bits) * data->blocks;
+		host->size = data->blksz * data->blocks;
 
 		host->cur_sg = data->sg;
 		host->num_sg = data->sg_len;
@@ -335,7 +335,7 @@ static void sdhci_finish_data(struct sdhci_host *host)
 		blocks = 0;
 	else
 		blocks = readw(host->ioaddr + SDHCI_BLOCK_COUNT);
-	data->bytes_xfered = (1 << data->blksz_bits) * (data->blocks - blocks);
+	data->bytes_xfered = data->blksz * (data->blocks - blocks);
 
 	if ((data->error == MMC_ERR_NONE) && blocks) {
 		printk(KERN_ERR "%s: Controller signalled completion even "

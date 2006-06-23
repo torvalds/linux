@@ -25,7 +25,7 @@
 #define HAVE_HWFP 1
 #endif
 
-static unsigned long mxcsr_feature_mask = 0xffffffff;
+static unsigned long mxcsr_feature_mask __read_mostly = 0xffffffff;
 
 void mxcsr_feature_mask_init(void)
 {

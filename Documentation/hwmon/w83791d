@@ -1,0 +1,113 @@
+Kernel driver w83791d
+=====================
+
+Supported chips:
+  * Winbond W83791D
+    Prefix: 'w83791d'
+    Addresses scanned: I2C 0x2c - 0x2f
+    Datasheet: http://www.winbond-usa.com/products/winbond_products/pdfs/PCIC/W83791Da.pdf
+
+Author: Charles Spirakis <bezaur@gmail.com>
+
+This driver was derived from the w83781d.c and w83792d.c source files.
+
+Credits:
+  w83781d.c:
+    Frodo Looijaard <frodol@dds.nl>,
+    Philip Edelbrock <phil@netroedge.com>,
+    and Mark Studebaker <mdsxyz123@yahoo.com>
+  w83792d.c:
+    Chunhao Huang <DZShen@Winbond.com.tw>,
+    Rudolf Marek <r.marek@sh.cvut.cz>
+
+Module Parameters
+-----------------
+
+* init boolean
+  (default 0)
+  Use 'init=1' to have the driver do extra software initializations.
+  The default behavior is to do the minimum initialization possible
+  and depend on the BIOS to properly setup the chip. If you know you
+  have a w83791d and you're having problems, try init=1 before trying
+  reset=1.
+
+* reset boolean
+  (default 0)
+  Use 'reset=1' to reset the chip (via index 0x40, bit 7). The default
+  behavior is no chip reset to preserve BIOS settings.
+
+* force_subclients=bus,caddr,saddr,saddr
+  This is used to force the i2c addresses for subclients of
+  a certain chip. Example usage is `force_subclients=0,0x2f,0x4a,0x4b'
+  to force the subclients of chip 0x2f on bus 0 to i2c addresses
+  0x4a and 0x4b.
+
+
+Description
+-----------
+
+This driver implements support for the Winbond W83791D chip.
+
+Detection of the chip can sometimes be foiled because it can be in an
+internal state that allows no clean access (Bank with ID register is not
+currently selected). If you know the address of the chip, use a 'force'
+parameter; this will put it into a more well-behaved state first.
+
+The driver implements three temperature sensors, five fan rotation speed
+sensors, and ten voltage sensors.
+
+Temperatures are measured in degrees Celsius and measurement resolution is 1
+degC for temp1 and 0.5 degC for temp2 and temp3. An alarm is triggered when
+the temperature gets higher than the Overtemperature Shutdown value; it stays
+on until the temperature falls below the Hysteresis value.
+
+Fan rotation speeds are reported in RPM (rotations per minute). An alarm is
+triggered if the rotation speed has dropped below a programmable limit. Fan
+readings can be divided by a programmable divider (1, 2, 4, 8 for fan 1/2/3
+and 1, 2, 4, 8, 16, 32, 64 or 128 for fan 4/5) to give the readings more
+range or accuracy.
+
+Voltage sensors (also known as IN sensors) report their values in millivolts.
+An alarm is triggered if the voltage has crossed a programmable minimum
+or maximum limit.
+
+Alarms are provided as output from a "realtime status register". The
+following bits are defined:
+
+bit - alarm on:
+0  - Vcore
+1  - VINR0
+2  - +3.3VIN
+3  - 5VDD
+4  - temp1
+5  - temp2
+6  - fan1
+7  - fan2
+8  - +12VIN
+9  - -12VIN
+10 - -5VIN
+11 - fan3
+12 - chassis
+13 - temp3
+14 - VINR1
+15 - reserved
+16 - tart1
+17 - tart2
+18 - tart3
+19 - VSB
+20 - VBAT
+21 - fan4
+22 - fan5
+23 - reserved
+
+When an alarm goes off, you can be warned by a beeping signal through your
+computer speaker. It is possible to enable all beeping globally, or only
+the beeping for some alarms.
+
+The driver only reads the chip values each 3 seconds; reading them more
+often will do no harm, but will return 'old' values.
+
+W83791D TODO:
+---------------
+Provide a patch for per-file alarms as discussed on the mailing list
+Provide a patch for smart-fan control (still need appropriate motherboard/fans)

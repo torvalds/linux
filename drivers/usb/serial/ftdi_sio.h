@@ -436,6 +436,12 @@
  */
 #define FTDI_ACG_HFDUAL_PID		0xDD20	/* HF Dual ISO Reader (RFID) */
 
+/*
+ * Yost Engineering, Inc. products (www.yostengineering.com).
+ * PID 0xE050 submitted by Aaron Prose.
+ */
+#define FTDI_YEI_SERVOCENTER31_PID	0xE050	/* YEI ServoCenter3.1 USB */
+
 /* Commands */
 #define FTDI_SIO_RESET 		0 /* Reset the port */
 #define FTDI_SIO_MODEM_CTRL 	1 /* Set the modem control register */

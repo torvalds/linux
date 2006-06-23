@@ -1828,7 +1828,7 @@ mega_build_sglist(adapter_t *adapter, scb_t *scb, u32 *buf, u32 *len)
 
 	scb->dma_type = MEGA_SGLIST;
 
-	if( sgcnt > adapter->sglen ) BUG();
+	BUG_ON(sgcnt > adapter->sglen);
 
 	*len = 0;
 

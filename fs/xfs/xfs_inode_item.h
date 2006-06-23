@@ -23,25 +23,6 @@
  * log.  The size of the inline data/extents/b-tree root to be logged
  * (if any) is indicated in the ilf_dsize field.  Changes to this structure
  * must be added on to the end.
- *
- * Convention for naming inode log item versions :  The current version
- * is always named XFS_LI_INODE.  When an inode log item gets superseded,
- * add the latest version of IRIX that will generate logs with that item
- * to the version name.
- *
- * -Version 1 of this structure (XFS_LI_5_3_INODE) included up to the first
- *	union (ilf_u) field.  This was released with IRIX 5.3-XFS.
- * -Version 2 of this structure (XFS_LI_6_1_INODE) is currently the entire
- *	structure.  This was released with IRIX 6.0.1-XFS and IRIX 6.1.
- * -Version 3 of this structure (XFS_LI_INODE) is the same as version 2
- *	so a new structure definition wasn't necessary.  However, we had
- *	to add a new type because the inode cluster size changed from 4K
- *	to 8K and the version number had to be rev'ved to keep older kernels
- *	from trying to recover logs with the 8K buffers in them.  The logging
- *	code can handle recovery on different-sized clusters now so hopefully
- *	this'll be the last time we need to change the inode log item just
- *	for a change in the inode cluster size.  This new version was
- *	released with IRIX 6.2.
  */
 typedef struct xfs_inode_log_format {
 	unsigned short		ilf_type;	/* inode log item type */
@@ -59,18 +40,38 @@ typedef struct xfs_inode_log_format {
 	int			ilf_boffset;	/* off of inode in buffer */
 } xfs_inode_log_format_t;
 
-/* Initial version shipped with IRIX 5.3-XFS */
-typedef struct xfs_inode_log_format_v1 {
-	unsigned short		ilf_type;	/* inode log item type */
-	unsigned short		ilf_size;	/* size of this item */
-	uint			ilf_fields;	/* flags for fields logged */
-	uint			ilf_dsize;	/* size of data/ext/root */
-	xfs_ino_t		ilf_ino;	/* inode number */
+typedef struct xfs_inode_log_format_32 {
+	unsigned short		ilf_type;	/* 16: inode log item type */
+	unsigned short		ilf_size;	/* 16: size of this item */
+	uint			ilf_fields;	/* 32: flags for fields logged */
+	ushort			ilf_asize;	/* 32: size of attr d/ext/root */
+	ushort			ilf_dsize;	/* 32: size of data/ext/root */
+	xfs_ino_t		ilf_ino;	/* 64: inode number */
 	union {
-		xfs_dev_t	ilfu_rdev;	/* rdev value for dev inode*/
-		uuid_t		ilfu_uuid;	/* mount point value */
+		xfs_dev_t	ilfu_rdev;	/* 32: rdev value for dev inode*/
+		uuid_t		ilfu_uuid;	/* 128: mount point value */
 	} ilf_u;
-} xfs_inode_log_format_t_v1;
+	__int64_t		ilf_blkno;	/* 64: blkno of inode buffer */
+	int			ilf_len;	/* 32: len of inode buffer */
+	int			ilf_boffset;	/* 32: off of inode in buffer */
+} __attribute__((packed)) xfs_inode_log_format_32_t;
+
+typedef struct xfs_inode_log_format_64 {
+	unsigned short		ilf_type;	/* 16: inode log item type */
+	unsigned short		ilf_size;	/* 16: size of this item */
+	uint			ilf_fields;	/* 32: flags for fields logged */
+	ushort			ilf_asize;	/* 32: size of attr d/ext/root */
+	ushort			ilf_dsize;	/* 32: size of data/ext/root */
+	__uint32_t		ilf_pad;	/* 32: pad for 64 bit boundary */
+	xfs_ino_t		ilf_ino;	/* 64: inode number */
+	union {
+		xfs_dev_t	ilfu_rdev;	/* 32: rdev value for dev inode*/
+		uuid_t		ilfu_uuid;	/* 128: mount point value */
+	} ilf_u;
+	__int64_t		ilf_blkno;	/* 64: blkno of inode buffer */
+	int			ilf_len;	/* 32: len of inode buffer */
+	int			ilf_boffset;	/* 32: off of inode in buffer */
+} xfs_inode_log_format_64_t;
 
 /*
  * Flags for xfs_trans_log_inode flags field.
@@ -172,6 +173,8 @@ extern void xfs_inode_item_destroy(struct xfs_inode *);
 extern void xfs_iflush_done(struct xfs_buf *, xfs_inode_log_item_t *);
 extern void xfs_istale_done(struct xfs_buf *, xfs_inode_log_item_t *);
 extern void xfs_iflush_abort(struct xfs_inode *);
+extern int xfs_inode_item_format_convert(xfs_log_iovec_t *,
+					 xfs_inode_log_format_t *);
 
 #endif	/* __KERNEL__ */
 

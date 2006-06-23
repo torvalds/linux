@@ -42,7 +42,7 @@ void flush_hash_entry(struct mm_struct *mm, pte_t *ptep, unsigned long addr)
 
 	if (Hash != 0) {
 		ptephys = __pa(ptep) & PAGE_MASK;
-		flush_hash_pages(mm->context, addr, ptephys, 1);
+		flush_hash_pages(mm->context.id, addr, ptephys, 1);
 	}
 }
 
@@ -102,7 +102,7 @@ static void flush_range(struct mm_struct *mm, unsigned long start,
 	pmd_t *pmd;
 	unsigned long pmd_end;
 	int count;
-	unsigned int ctx = mm->context;
+	unsigned int ctx = mm->context.id;
 
 	if (Hash == 0) {
 		_tlbia();
@@ -172,7 +172,7 @@ void flush_tlb_page(struct vm_area_struct *vma, unsigned long vmaddr)
 	mm = (vmaddr < TASK_SIZE)? vma->vm_mm: &init_mm;
 	pmd = pmd_offset(pgd_offset(mm, vmaddr), vmaddr);
 	if (!pmd_none(*pmd))
-		flush_hash_pages(mm->context, vmaddr, pmd_val(*pmd), 1);
+		flush_hash_pages(mm->context.id, vmaddr, pmd_val(*pmd), 1);
 	FINISH_FLUSH;
 }
 

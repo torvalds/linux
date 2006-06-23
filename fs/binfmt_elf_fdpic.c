@@ -435,9 +435,10 @@ static int create_elf_fdpic_tables(struct linux_binprm *bprm,
 				   struct elf_fdpic_params *interp_params)
 {
 	unsigned long sp, csp, nitems;
-	elf_caddr_t *argv, *envp;
+	elf_caddr_t __user *argv, *envp;
 	size_t platform_len = 0, len;
-	char *k_platform, *u_platform, *p;
+	char *k_platform;
+	char __user *u_platform, *p;
 	long hwcap;
 	int loop;
 
@@ -462,11 +463,10 @@ static int create_elf_fdpic_tables(struct linux_binprm *bprm,
 	if (k_platform) {
 		platform_len = strlen(k_platform) + 1;
 		sp -= platform_len;
+		u_platform = (char __user *) sp;
 		if (__copy_to_user(u_platform, k_platform, platform_len) != 0)
 			return -EFAULT;
 	}
-
-	u_platform = (char *) sp;
 
 #if defined(__i386__) && defined(CONFIG_SMP)
 	/* in some cases (e.g. Hyper-Threading), we want to avoid L1 evictions
@@ -490,7 +490,7 @@ static int create_elf_fdpic_tables(struct linux_binprm *bprm,
 	sp = (sp - len) & ~7UL;
 	exec_params->map_addr = sp;
 
-	if (copy_to_user((void *) sp, exec_params->loadmap, len) != 0)
+	if (copy_to_user((void __user *) sp, exec_params->loadmap, len) != 0)
 		return -EFAULT;
 
 	current->mm->context.exec_fdpic_loadmap = (unsigned long) sp;
@@ -501,7 +501,7 @@ static int create_elf_fdpic_tables(struct linux_binprm *bprm,
 		sp = (sp - len) & ~7UL;
 		interp_params->map_addr = sp;
 
-		if (copy_to_user((void *) sp, interp_params->loadmap, len) != 0)
+		if (copy_to_user((void __user *) sp, interp_params->loadmap, len) != 0)
 			return -EFAULT;
 
 		current->mm->context.interp_fdpic_loadmap = (unsigned long) sp;
@@ -527,7 +527,7 @@ static int create_elf_fdpic_tables(struct linux_binprm *bprm,
 	/* put the ELF interpreter info on the stack */
 #define NEW_AUX_ENT(nr, id, val)						\
 	do {									\
-		struct { unsigned long _id, _val; } *ent = (void *) csp;	\
+		struct { unsigned long _id, _val; } __user *ent = (void __user *) csp;	\
 		__put_user((id), &ent[nr]._id);					\
 		__put_user((val), &ent[nr]._val);				\
 	} while (0)
@@ -564,13 +564,13 @@ static int create_elf_fdpic_tables(struct linux_binprm *bprm,
 
 	/* allocate room for argv[] and envv[] */
 	csp -= (bprm->envc + 1) * sizeof(elf_caddr_t);
-	envp = (elf_caddr_t *) csp;
+	envp = (elf_caddr_t __user *) csp;
 	csp -= (bprm->argc + 1) * sizeof(elf_caddr_t);
-	argv = (elf_caddr_t *) csp;
+	argv = (elf_caddr_t __user *) csp;
 
 	/* stack argc */
 	csp -= sizeof(unsigned long);
-	__put_user(bprm->argc, (unsigned long *) csp);
+	__put_user(bprm->argc, (unsigned long __user *) csp);
 
 	BUG_ON(csp != sp);
 
@@ -581,7 +581,7 @@ static int create_elf_fdpic_tables(struct linux_binprm *bprm,
 	current->mm->arg_start = current->mm->start_stack - (MAX_ARG_PAGES * PAGE_SIZE - bprm->p);
 #endif
 
-	p = (char *) current->mm->arg_start;
+	p = (char __user *) current->mm->arg_start;
 	for (loop = bprm->argc; loop > 0; loop--) {
 		__put_user((elf_caddr_t) p, argv++);
 		len = strnlen_user(p, PAGE_SIZE * MAX_ARG_PAGES);
@@ -1025,7 +1025,7 @@ static int elf_fdpic_map_file_by_direct_mmap(struct elf_fdpic_params *params,
 		/* clear the bit between beginning of mapping and beginning of PT_LOAD */
 		if (prot & PROT_WRITE && disp > 0) {
 			kdebug("clear[%d] ad=%lx sz=%lx", loop, maddr, disp);
-			clear_user((void *) maddr, disp);
+			clear_user((void __user *) maddr, disp);
 			maddr += disp;
 		}
 
@@ -1059,7 +1059,7 @@ static int elf_fdpic_map_file_by_direct_mmap(struct elf_fdpic_params *params,
 		if (prot & PROT_WRITE && excess1 > 0) {
 			kdebug("clear[%d] ad=%lx sz=%lx",
 			       loop, maddr + phdr->p_filesz, excess1);
-			clear_user((void *) maddr + phdr->p_filesz, excess1);
+			clear_user((void __user *) maddr + phdr->p_filesz, excess1);
 		}
 
 #else

@@ -41,7 +41,7 @@ extern int sn_ioif_inited;
 
 static dma_addr_t
 pcibr_dmamap_ate32(struct pcidev_info *info,
-		   u64 paddr, size_t req_size, u64 flags)
+		   u64 paddr, size_t req_size, u64 flags, int dma_flags)
 {
 
 	struct pcidev_info *pcidev_info = info->pdi_host_pcidev_info;
@@ -81,9 +81,12 @@ pcibr_dmamap_ate32(struct pcidev_info *info,
 	if (IS_PCIX(pcibus_info))
 		ate_flags &= ~(PCI32_ATE_PREF);
 
-	xio_addr =
-	    IS_PIC_SOFT(pcibus_info) ? PHYS_TO_DMA(paddr) :
-	    PHYS_TO_TIODMA(paddr);
+	if (SN_DMA_ADDRTYPE(dma_flags == SN_DMA_ADDR_PHYS))
+		xio_addr = IS_PIC_SOFT(pcibus_info) ? PHYS_TO_DMA(paddr) :
+	    					      PHYS_TO_TIODMA(paddr);
+	else
+		xio_addr = paddr;
+
 	offset = IOPGOFF(xio_addr);
 	ate = ate_flags | (xio_addr - offset);
 
@@ -91,6 +94,13 @@ pcibr_dmamap_ate32(struct pcidev_info *info,
 	if (IS_PIC_SOFT(pcibus_info)) {
 		ate |= (pcibus_info->pbi_hub_xid << PIC_ATE_TARGETID_SHFT);
 	}
+
+	/*
+	 * If we're mapping for MSI, set the MSI bit in the ATE
+	 */
+	if (dma_flags & SN_DMA_MSI)
+		ate |= PCI32_ATE_MSI;
+
 	ate_write(pcibus_info, ate_index, ate_count, ate);
 
 	/*
@@ -105,20 +115,27 @@ pcibr_dmamap_ate32(struct pcidev_info *info,
 	if (pcibus_info->pbi_devreg[internal_device] & PCIBR_DEV_SWAP_DIR)
 		ATE_SWAP_ON(pci_addr);
 
+
 	return pci_addr;
 }
 
 static dma_addr_t
 pcibr_dmatrans_direct64(struct pcidev_info * info, u64 paddr,
-			u64 dma_attributes)
+			u64 dma_attributes, int dma_flags)
 {
 	struct pcibus_info *pcibus_info = (struct pcibus_info *)
 	    ((info->pdi_host_pcidev_info)->pdi_pcibus_info);
 	u64 pci_addr;
 
 	/* Translate to Crosstalk View of Physical Address */
-	pci_addr = (IS_PIC_SOFT(pcibus_info) ? PHYS_TO_DMA(paddr) :
-		    PHYS_TO_TIODMA(paddr)) | dma_attributes;
+	if (SN_DMA_ADDRTYPE(dma_flags) == SN_DMA_ADDR_PHYS)
+		pci_addr = IS_PIC_SOFT(pcibus_info) ?
+				PHYS_TO_DMA(paddr) :
+		    		PHYS_TO_TIODMA(paddr) | dma_attributes;
+	else
+		pci_addr = IS_PIC_SOFT(pcibus_info) ?
+				paddr :
+				paddr | dma_attributes;
 
 	/* Handle Bus mode */
 	if (IS_PCIX(pcibus_info))
@@ -130,7 +147,9 @@ pcibr_dmatrans_direct64(struct pcidev_info * info, u64 paddr,
 		    ((u64) pcibus_info->
 		     pbi_hub_xid << PIC_PCI64_ATTR_TARG_SHFT);
 	} else
-		pci_addr |= TIOCP_PCI64_CMDTYPE_MEM;
+		pci_addr |= (dma_flags & SN_DMA_MSI) ?
+				TIOCP_PCI64_CMDTYPE_MSI :
+				TIOCP_PCI64_CMDTYPE_MEM;
 
 	/* If PCI mode, func zero uses VCHAN0, every other func uses VCHAN1 */
 	if (!IS_PCIX(pcibus_info) && PCI_FUNC(info->pdi_linux_pcidev->devfn))
@@ -141,7 +160,7 @@ pcibr_dmatrans_direct64(struct pcidev_info * info, u64 paddr,
 
 static dma_addr_t
 pcibr_dmatrans_direct32(struct pcidev_info * info,
-			u64 paddr, size_t req_size, u64 flags)
+			u64 paddr, size_t req_size, u64 flags, int dma_flags)
 {
 	struct pcidev_info *pcidev_info = info->pdi_host_pcidev_info;
 	struct pcibus_info *pcibus_info = (struct pcibus_info *)pcidev_info->
@@ -156,8 +175,14 @@ pcibr_dmatrans_direct32(struct pcidev_info * info,
 		return 0;
 	}
 
-	xio_addr = IS_PIC_SOFT(pcibus_info) ? PHYS_TO_DMA(paddr) :
-	    PHYS_TO_TIODMA(paddr);
+	if (dma_flags & SN_DMA_MSI)
+		return 0;
+
+	if (SN_DMA_ADDRTYPE(dma_flags) == SN_DMA_ADDR_PHYS)
+		xio_addr = IS_PIC_SOFT(pcibus_info) ? PHYS_TO_DMA(paddr) :
+	    					      PHYS_TO_TIODMA(paddr);
+	else
+		xio_addr = paddr;
 
 	xio_base = pcibus_info->pbi_dir_xbase;
 	offset = xio_addr - xio_base;
@@ -327,7 +352,7 @@ void sn_dma_flush(u64 addr)
  */
 
 dma_addr_t
-pcibr_dma_map(struct pci_dev * hwdev, unsigned long phys_addr, size_t size)
+pcibr_dma_map(struct pci_dev * hwdev, unsigned long phys_addr, size_t size, int dma_flags)
 {
 	dma_addr_t dma_handle;
 	struct pcidev_info *pcidev_info = SN_PCIDEV_INFO(hwdev);
@@ -344,11 +369,11 @@ pcibr_dma_map(struct pci_dev * hwdev, unsigned long phys_addr, size_t size)
 		 */
 
 		dma_handle = pcibr_dmatrans_direct64(pcidev_info, phys_addr,
-						     PCI64_ATTR_PREF);
+						     PCI64_ATTR_PREF, dma_flags);
 	} else {
 		/* Handle 32-63 bit cards via direct mapping */
 		dma_handle = pcibr_dmatrans_direct32(pcidev_info, phys_addr,
-						     size, 0);
+						     size, 0, dma_flags);
 		if (!dma_handle) {
 			/*
 			 * It is a 32 bit card and we cannot do direct mapping,
@@ -356,7 +381,8 @@ pcibr_dma_map(struct pci_dev * hwdev, unsigned long phys_addr, size_t size)
 			 */
 
 			dma_handle = pcibr_dmamap_ate32(pcidev_info, phys_addr,
-							size, PCI32_ATE_PREF);
+							size, PCI32_ATE_PREF,
+							dma_flags);
 		}
 	}
 
@@ -365,18 +391,18 @@ pcibr_dma_map(struct pci_dev * hwdev, unsigned long phys_addr, size_t size)
 
 dma_addr_t
 pcibr_dma_map_consistent(struct pci_dev * hwdev, unsigned long phys_addr,
-			 size_t size)
+			 size_t size, int dma_flags)
 {
 	dma_addr_t dma_handle;
 	struct pcidev_info *pcidev_info = SN_PCIDEV_INFO(hwdev);
 
 	if (hwdev->dev.coherent_dma_mask == ~0UL) {
 		dma_handle = pcibr_dmatrans_direct64(pcidev_info, phys_addr,
-					    PCI64_ATTR_BAR);
+					    PCI64_ATTR_BAR, dma_flags);
 	} else {
 		dma_handle = (dma_addr_t) pcibr_dmamap_ate32(pcidev_info,
 						    phys_addr, size,
-						    PCI32_ATE_BAR);
+						    PCI32_ATE_BAR, dma_flags);
 	}
 
 	return dma_handle;

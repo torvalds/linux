@@ -29,14 +29,13 @@ if usbmon is built into the kernel.
 
 # mount -t debugfs none_debugs /sys/kernel/debug
 # modprobe usbmon
+#
 
 Verify that bus sockets are present.
 
-[root@lembas zaitcev]# ls /sys/kernel/debug/usbmon
+# ls /sys/kernel/debug/usbmon
 1s  1t  2s  2t  3s  3t  4s  4t
-[root@lembas zaitcev]#
-
-# ls /sys/kernel
+#
 
 2. Find which bus connects to the desired device
 
@@ -76,7 +75,7 @@ that the file size is not excessive for your favourite editor.
 
 * Raw text data format
 
-The '0t' type data consists of a stream of events, such as URB submission,
+The '1t' type data consists of a stream of events, such as URB submission,
 URB callback, submission error. Every event is a text line, which consists
 of whitespace separated words. The number of position of words may depend
 on the event type, but there is a set of words, common for all types.
@@ -97,20 +96,25 @@ Here is the list of words, from left to right:
     Zi Zo   Isochronous input and output
     Ii Io   Interrupt input and output
     Bi Bo   Bulk input and output
-  Device address and Endpoint number are decimal numbers with leading zeroes
-  or 3 and 2 positions, correspondingly.
-- URB Status. This field makes no sense for submissions, but is present
-  to help scripts with parsing. In error case, it contains the error code.
-  In case of a setup packet, it contains a Setup Tag. If scripts read a number
-  in this field, they proceed to read Data Length. Otherwise, they read
-  the setup packet before reading the Data Length.
+  Device address and Endpoint number are 3-digit and 2-digit (respectively)
+  decimal numbers, with leading zeroes.
+- URB Status. In most cases, this field contains a number, sometimes negative,
+  which represents a "status" field of the URB. This field makes no sense for
+  submissions, but is present anyway to help scripts with parsing. When an
+  error occurs, the field contains the error code. In case of a submission of
+  a Control packet, this field contains a Setup Tag instead of an error code.
+  It is easy to tell whether the Setup Tag is present because it is never a
+  number. Thus if scripts find a number in this field, they proceed to read
+  Data Length. If they find something else, like a letter, they read the setup
+  packet before reading the Data Length.
 - Setup packet, if present, consists of 5 words: one of each for bmRequestType,
   bRequest, wValue, wIndex, wLength, as specified by the USB Specification 2.0.
   These words are safe to decode if Setup Tag was 's'. Otherwise, the setup
   packet was present, but not captured, and the fields contain filler.
-- Data Length. This is the actual length in the URB.
+- Data Length. For submissions, this is the requested length. For callbacks,
+  this is the actual length.
 - Data tag. The usbmon may not always capture data, even if length is nonzero.
-  Only if tag is '=', the data words are present.
+  The data words are present only if this tag is '='.
 - Data words follow, in big endian hexadecimal format. Notice that they are
   not machine words, but really just a byte stream split into words to make
   it easier to read. Thus, the last word may contain from one to four bytes.

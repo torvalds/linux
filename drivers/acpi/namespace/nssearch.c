@@ -56,16 +56,16 @@ acpi_ns_search_parent_tree(u32 target_name,
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_ns_search_node
+ * FUNCTION:    acpi_ns_search_one_scope
  *
  * PARAMETERS:  target_name     - Ascii ACPI name to search for
- *              Node            - Starting node where search will begin
+ *              parent_node     - Starting node where search will begin
  *              Type            - Object type to match
  *              return_node     - Where the matched Named obj is returned
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Search a single level of the namespace.  Performs a
+ * DESCRIPTION: Search a single level of the namespace. Performs a
  *              simple search of the specified level, and does not add
  *              entries or search parents.
  *
@@ -75,35 +75,40 @@ acpi_ns_search_parent_tree(u32 target_name,
  *
  *      All namespace searching is linear in this implementation, but
  *      could be easily modified to support any improved search
- *      algorithm.  However, the linear search was chosen for simplicity
+ *      algorithm. However, the linear search was chosen for simplicity
  *      and because the trees are small and the other interpreter
  *      execution overhead is relatively high.
+ *
+ *      Note: CPU execution analysis has shown that the AML interpreter spends
+ *      a very small percentage of its time searching the namespace. Therefore,
+ *      the linear search seems to be sufficient, as there would seem to be
+ *      little value in improving the search.
  *
  ******************************************************************************/
 
 acpi_status
-acpi_ns_search_node(u32 target_name,
-		    struct acpi_namespace_node *node,
-		    acpi_object_type type,
-		    struct acpi_namespace_node **return_node)
+acpi_ns_search_one_scope(u32 target_name,
+			 struct acpi_namespace_node *parent_node,
+			 acpi_object_type type,
+			 struct acpi_namespace_node **return_node)
 {
-	struct acpi_namespace_node *next_node;
+	struct acpi_namespace_node *node;
 
-	ACPI_FUNCTION_TRACE("ns_search_node");
+	ACPI_FUNCTION_TRACE(ns_search_one_scope);
 
 #ifdef ACPI_DEBUG_OUTPUT
 	if (ACPI_LV_NAMES & acpi_dbg_level) {
 		char *scope_name;
 
-		scope_name = acpi_ns_get_external_pathname(node);
+		scope_name = acpi_ns_get_external_pathname(parent_node);
 		if (scope_name) {
 			ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
 					  "Searching %s (%p) For [%4.4s] (%s)\n",
-					  scope_name, node, ACPI_CAST_PTR(char,
-									  &target_name),
+					  scope_name, parent_node,
+					  ACPI_CAST_PTR(char, &target_name),
 					  acpi_ut_get_type_name(type)));
 
-			ACPI_MEM_FREE(scope_name);
+			ACPI_FREE(scope_name);
 		}
 	}
 #endif
@@ -112,32 +117,33 @@ acpi_ns_search_node(u32 target_name,
 	 * Search for name at this namespace level, which is to say that we
 	 * must search for the name among the children of this object
 	 */
-	next_node = node->child;
-	while (next_node) {
+	node = parent_node->child;
+	while (node) {
+
 		/* Check for match against the name */
 
-		if (next_node->name.integer == target_name) {
+		if (node->name.integer == target_name) {
+
 			/* Resolve a control method alias if any */
 
-			if (acpi_ns_get_type(next_node) ==
+			if (acpi_ns_get_type(node) ==
 			    ACPI_TYPE_LOCAL_METHOD_ALIAS) {
-				next_node =
+				node =
 				    ACPI_CAST_PTR(struct acpi_namespace_node,
-						  next_node->object);
+						  node->object);
 			}
 
-			/*
-			 * Found matching entry.
-			 */
+			/* Found matching entry */
+
 			ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
 					  "Name [%4.4s] (%s) %p found in scope [%4.4s] %p\n",
 					  ACPI_CAST_PTR(char, &target_name),
-					  acpi_ut_get_type_name(next_node->
-								type),
-					  next_node,
-					  acpi_ut_get_node_name(node), node));
+					  acpi_ut_get_type_name(node->type),
+					  node,
+					  acpi_ut_get_node_name(parent_node),
+					  parent_node));
 
-			*return_node = next_node;
+			*return_node = node;
 			return_ACPI_STATUS(AE_OK);
 		}
 
@@ -145,7 +151,8 @@ acpi_ns_search_node(u32 target_name,
 		 * The last entry in the list points back to the parent,
 		 * so a flag is used to indicate the end-of-list
 		 */
-		if (next_node->flags & ANOBJ_END_OF_PEER_LIST) {
+		if (node->flags & ANOBJ_END_OF_PEER_LIST) {
+
 			/* Searched entire list, we are done */
 
 			break;
@@ -153,7 +160,7 @@ acpi_ns_search_node(u32 target_name,
 
 		/* Didn't match name, move on to the next peer object */
 
-		next_node = next_node->peer;
+		node = node->peer;
 	}
 
 	/* Searched entire namespace level, not found */
@@ -162,7 +169,8 @@ acpi_ns_search_node(u32 target_name,
 			  "Name [%4.4s] (%s) not found in search in scope [%4.4s] %p first child %p\n",
 			  ACPI_CAST_PTR(char, &target_name),
 			  acpi_ut_get_type_name(type),
-			  acpi_ut_get_node_name(node), node, node->child));
+			  acpi_ut_get_node_name(parent_node), parent_node,
+			  parent_node->child));
 
 	return_ACPI_STATUS(AE_NOT_FOUND);
 }
@@ -179,14 +187,14 @@ acpi_ns_search_node(u32 target_name,
  * RETURN:      Status
  *
  * DESCRIPTION: Called when a name has not been found in the current namespace
- *              level.  Before adding it or giving up, ACPI scope rules require
+ *              level. Before adding it or giving up, ACPI scope rules require
  *              searching enclosing scopes in cases identified by acpi_ns_local().
  *
  *              "A name is located by finding the matching name in the current
  *              name space, and then in the parent name space. If the parent
  *              name space does not contain the name, the search continues
  *              recursively until either the name is found or the name space
- *              does not have a parent (the root of the name space).  This
+ *              does not have a parent (the root of the name space). This
  *              indicates that the name is not found" (From ACPI Specification,
  *              section 5.3)
  *
@@ -201,7 +209,7 @@ acpi_ns_search_parent_tree(u32 target_name,
 	acpi_status status;
 	struct acpi_namespace_node *parent_node;
 
-	ACPI_FUNCTION_TRACE("ns_search_parent_tree");
+	ACPI_FUNCTION_TRACE(ns_search_parent_tree);
 
 	parent_node = acpi_ns_get_parent_node(node);
 
@@ -235,20 +243,19 @@ acpi_ns_search_parent_tree(u32 target_name,
 	 */
 	while (parent_node) {
 		/*
-		 * Search parent scope.  Use TYPE_ANY because we don't care about the
+		 * Search parent scope. Use TYPE_ANY because we don't care about the
 		 * object type at this point, we only care about the existence of
-		 * the actual name we are searching for.  Typechecking comes later.
+		 * the actual name we are searching for. Typechecking comes later.
 		 */
-		status = acpi_ns_search_node(target_name, parent_node,
+		status =
+		    acpi_ns_search_one_scope(target_name, parent_node,
 					     ACPI_TYPE_ANY, return_node);
 		if (ACPI_SUCCESS(status)) {
 			return_ACPI_STATUS(status);
 		}
 
-		/*
-		 * Not found here, go up another level
-		 * (until we reach the root)
-		 */
+		/* Not found here, go up another level (until we reach the root) */
+
 		parent_node = acpi_ns_get_parent_node(parent_node);
 	}
 
@@ -273,7 +280,7 @@ acpi_ns_search_parent_tree(u32 target_name,
  * RETURN:      Status
  *
  * DESCRIPTION: Search for a name segment in a single namespace level,
- *              optionally adding it if it is not found.  If the passed
+ *              optionally adding it if it is not found. If the passed
  *              Type is not Any and the type previously stored in the
  *              entry was Any (i.e. unknown), update the stored type.
  *
@@ -293,29 +300,46 @@ acpi_ns_search_and_enter(u32 target_name,
 	acpi_status status;
 	struct acpi_namespace_node *new_node;
 
-	ACPI_FUNCTION_TRACE("ns_search_and_enter");
+	ACPI_FUNCTION_TRACE(ns_search_and_enter);
 
 	/* Parameter validation */
 
 	if (!node || !target_name || !return_node) {
 		ACPI_ERROR((AE_INFO,
-			    "Null param: Node %p Name %X return_node %p",
+			    "Null parameter: Node %p Name %X ReturnNode %p",
 			    node, target_name, return_node));
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
-	/* Name must consist of printable characters */
-
+	/*
+	 * Name must consist of valid ACPI characters. We will repair the name if
+	 * necessary because we don't want to abort because of this, but we want
+	 * all namespace names to be printable. A warning message is appropriate.
+	 *
+	 * This issue came up because there are in fact machines that exhibit
+	 * this problem, and we want to be able to enable ACPI support for them,
+	 * even though there are a few bad names.
+	 */
 	if (!acpi_ut_valid_acpi_name(target_name)) {
-		ACPI_ERROR((AE_INFO, "Bad character in ACPI Name: %X",
-			    target_name));
-		return_ACPI_STATUS(AE_BAD_CHARACTER);
+		target_name = acpi_ut_repair_name(target_name);
+
+		/* Report warning only if in strict mode or debug mode */
+
+		if (!acpi_gbl_enable_interpreter_slack) {
+			ACPI_WARNING((AE_INFO,
+				      "Found bad character(s) in name, repaired: [%4.4s]\n",
+				      ACPI_CAST_PTR(char, &target_name)));
+		} else {
+			ACPI_DEBUG_PRINT((ACPI_DB_WARN,
+					  "Found bad character(s) in name, repaired: [%4.4s]\n",
+					  ACPI_CAST_PTR(char, &target_name)));
+		}
 	}
 
 	/* Try to find the name in the namespace level specified by the caller */
 
 	*return_node = ACPI_ENTRY_NOT_FOUND;
-	status = acpi_ns_search_node(target_name, node, type, return_node);
+	status = acpi_ns_search_one_scope(target_name, node, type, return_node);
 	if (status != AE_NOT_FOUND) {
 		/*
 		 * If we found it AND the request specifies that a find is an error,
@@ -325,18 +349,16 @@ acpi_ns_search_and_enter(u32 target_name,
 			status = AE_ALREADY_EXISTS;
 		}
 
-		/*
-		 * Either found it or there was an error
-		 * -- finished either way
-		 */
+		/* Either found it or there was an error: finished either way */
+
 		return_ACPI_STATUS(status);
 	}
 
 	/*
-	 * The name was not found.  If we are NOT performing the first pass
+	 * The name was not found. If we are NOT performing the first pass
 	 * (name entry) of loading the namespace, search the parent tree (all the
 	 * way to the root if necessary.) We don't want to perform the parent
-	 * search when the namespace is actually being loaded.  We want to perform
+	 * search when the namespace is actually being loaded. We want to perform
 	 * the search when namespace references are being resolved (load pass 2)
 	 * and during the execution phase.
 	 */
@@ -354,9 +376,8 @@ acpi_ns_search_and_enter(u32 target_name,
 		}
 	}
 
-	/*
-	 * In execute mode, just search, never add names.  Exit now.
-	 */
+	/* In execute mode, just search, never add names. Exit now */
+
 	if (interpreter_mode == ACPI_IMODE_EXECUTE) {
 		ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
 				  "%4.4s Not found in %p [Not adding]\n",
@@ -371,11 +392,18 @@ acpi_ns_search_and_enter(u32 target_name,
 	if (!new_node) {
 		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
+#ifdef ACPI_ASL_COMPILER
+	/*
+	 * Node is an object defined by an External() statement
+	 */
+	if (flags & ACPI_NS_EXTERNAL) {
+		new_node->flags |= ANOBJ_IS_EXTERNAL;
+	}
+#endif
 
 	/* Install the new object into the parent's list of children */
 
 	acpi_ns_install_node(walk_state, node, new_node, type);
 	*return_node = new_node;
-
 	return_ACPI_STATUS(AE_OK);
 }

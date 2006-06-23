@@ -78,12 +78,12 @@ UNUSUAL_DEV(  0x03f0, 0x0107, 0x0200, 0x0200,
 UNUSUAL_DEV(  0x03f0, 0x0207, 0x0001, 0x0001, 
 		"HP",
 		"CD-Writer+ 8200e",
-		US_SC_8070, US_PR_USBAT, init_usbat, 0),
+		US_SC_8070, US_PR_USBAT, init_usbat_cd, 0),
 
 UNUSUAL_DEV(  0x03f0, 0x0307, 0x0001, 0x0001, 
 		"HP",
 		"CD-Writer+ CD-4e",
-		US_SC_8070, US_PR_USBAT, init_usbat, 0),
+		US_SC_8070, US_PR_USBAT, init_usbat_cd, 0),
 #endif
 
 /* Reported by Sebastian Kapfer <sebastian_kapfer@gmx.net>
@@ -132,6 +132,14 @@ UNUSUAL_DEV(  0x0420, 0x0001, 0x0100, 0x0100,
 		"GENERIC", "MP3 PLAYER", /* MyMusix PD-205 on the outside. */
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_IGNORE_RESIDUE ),
+
+/* Reported by Jiri Slaby <jirislaby@gmail.com> and
+ * Rene C. Castberg <Rene@Castberg.org> */
+UNUSUAL_DEV(  0x0421, 0x0446, 0x0100, 0x0100,
+		"Nokia",
+		"N80",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_IGNORE_RESIDUE | US_FL_FIX_CAPACITY ),
 
 /* Reported by Olaf Hering <olh@suse.de> from novell bug #105878 */
 UNUSUAL_DEV(  0x0424, 0x0fdc, 0x0210, 0x0210,
@@ -216,13 +224,6 @@ UNUSUAL_DEV(  0x04a4, 0x0004, 0x0001, 0x0001,
 		"DVD-CAM DZ-MV100A Camcorder",
 		US_SC_SCSI, US_PR_CB, NULL, US_FL_SINGLE_LUN),
 
-/* Reported by Andreas Bockhold <andreas@bockionline.de> */
-UNUSUAL_DEV(  0x04b0, 0x0405, 0x0100, 0x0100,
-		"NIKON",
-		"NIKON DSC D70",
-		US_SC_DEVICE, US_PR_DEVICE, NULL,
-		US_FL_FIX_CAPACITY),
-
 /* Patch for Nikon coolpix 2000
  * Submitted by Fabien Cosse <fabien.cosse@wanadoo.fr>*/
 UNUSUAL_DEV(  0x04b0, 0x0301, 0x0010, 0x0010,
@@ -230,6 +231,20 @@ UNUSUAL_DEV(  0x04b0, 0x0301, 0x0010, 0x0010,
 		"NIKON DSC E2000",
 		US_SC_DEVICE, US_PR_DEVICE,NULL,
 		US_FL_NOT_LOCKABLE ),
+
+/* Reported by Andreas Bockhold <andreas@bockionline.de> */
+UNUSUAL_DEV(  0x04b0, 0x0405, 0x0100, 0x0100,
+		"NIKON",
+		"NIKON DSC D70",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_FIX_CAPACITY),
+
+/* Reported by Jamie Kitson <jamie@staberinde.fsnet.co.uk> */
+UNUSUAL_DEV(  0x04b0, 0x040d, 0x0100, 0x0100,
+		"NIKON",
+		"NIKON DSC D70s",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_FIX_CAPACITY),
 
 /* BENQ DC5330
  * Reported by Manuel Fombuena <mfombuena@ya.com> and
@@ -393,7 +408,7 @@ UNUSUAL_DEV(  0x04fc, 0x80c2, 0x0100, 0x0100,
 UNUSUAL_DEV(  0x04e6, 0x1010, 0x0000, 0x9999,
 		"Shuttle/SCM",
 		"USBAT-02",
-		US_SC_SCSI, US_PR_USBAT, init_usbat,
+		US_SC_SCSI, US_PR_USBAT, init_usbat_flash,
 		US_FL_SINGLE_LUN),
 #endif
 
@@ -797,7 +812,7 @@ UNUSUAL_DEV(  0x0781, 0x0002, 0x0009, 0x0009,
 UNUSUAL_DEV(  0x0781, 0x0005, 0x0005, 0x0005,
 		"Sandisk",
 		"ImageMate SDDR-05b",
-		US_SC_SCSI, US_PR_USBAT, init_usbat,
+		US_SC_SCSI, US_PR_USBAT, init_usbat_flash,
 		US_FL_SINGLE_LUN ),
 #endif
 

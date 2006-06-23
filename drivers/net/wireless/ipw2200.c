@@ -533,7 +533,7 @@ static inline void ipw_clear_bit(struct ipw_priv *priv, u32 reg, u32 mask)
 	ipw_write32(priv, reg, ipw_read32(priv, reg) & ~mask);
 }
 
-static inline void ipw_enable_interrupts(struct ipw_priv *priv)
+static inline void __ipw_enable_interrupts(struct ipw_priv *priv)
 {
 	if (priv->status & STATUS_INT_ENABLED)
 		return;
@@ -541,12 +541,30 @@ static inline void ipw_enable_interrupts(struct ipw_priv *priv)
 	ipw_write32(priv, IPW_INTA_MASK_R, IPW_INTA_MASK_ALL);
 }
 
-static inline void ipw_disable_interrupts(struct ipw_priv *priv)
+static inline void __ipw_disable_interrupts(struct ipw_priv *priv)
 {
 	if (!(priv->status & STATUS_INT_ENABLED))
 		return;
 	priv->status &= ~STATUS_INT_ENABLED;
 	ipw_write32(priv, IPW_INTA_MASK_R, ~IPW_INTA_MASK_ALL);
+}
+
+static inline void ipw_enable_interrupts(struct ipw_priv *priv)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&priv->irq_lock, flags);
+	__ipw_enable_interrupts(priv);
+	spin_unlock_irqrestore(&priv->irq_lock, flags);
+}
+
+static inline void ipw_disable_interrupts(struct ipw_priv *priv)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&priv->irq_lock, flags);
+	__ipw_disable_interrupts(priv);
+	spin_unlock_irqrestore(&priv->irq_lock, flags);
 }
 
 #ifdef CONFIG_IPW2200_DEBUG
@@ -1856,7 +1874,7 @@ static void ipw_irq_tasklet(struct ipw_priv *priv)
 	unsigned long flags;
 	int rc = 0;
 
-	spin_lock_irqsave(&priv->lock, flags);
+	spin_lock_irqsave(&priv->irq_lock, flags);
 
 	inta = ipw_read32(priv, IPW_INTA_RW);
 	inta_mask = ipw_read32(priv, IPW_INTA_MASK_R);
@@ -1864,6 +1882,10 @@ static void ipw_irq_tasklet(struct ipw_priv *priv)
 
 	/* Add any cached INTA values that need to be handled */
 	inta |= priv->isr_inta;
+
+	spin_unlock_irqrestore(&priv->irq_lock, flags);
+
+	spin_lock_irqsave(&priv->lock, flags);
 
 	/* handle all the justifications for the interrupt */
 	if (inta & IPW_INTA_BIT_RX_TRANSFER) {
@@ -1993,10 +2015,10 @@ static void ipw_irq_tasklet(struct ipw_priv *priv)
 		IPW_ERROR("Unhandled INTA bits 0x%08x\n", inta & ~handled);
 	}
 
+	spin_unlock_irqrestore(&priv->lock, flags);
+
 	/* enable all interrupts */
 	ipw_enable_interrupts(priv);
-
-	spin_unlock_irqrestore(&priv->lock, flags);
 }
 
 #define IPW_CMD(x) case IPW_CMD_ ## x : return #x
@@ -10460,7 +10482,7 @@ static irqreturn_t ipw_isr(int irq, void *data, struct pt_regs *regs)
 	if (!priv)
 		return IRQ_NONE;
 
-	spin_lock(&priv->lock);
+	spin_lock(&priv->irq_lock);
 
 	if (!(priv->status & STATUS_INT_ENABLED)) {
 		/* Shared IRQ */
@@ -10482,7 +10504,7 @@ static irqreturn_t ipw_isr(int irq, void *data, struct pt_regs *regs)
 	}
 
 	/* tell the device to stop sending interrupts */
-	ipw_disable_interrupts(priv);
+	__ipw_disable_interrupts(priv);
 
 	/* ack current interrupts */
 	inta &= (IPW_INTA_MASK_ALL & inta_mask);
@@ -10493,11 +10515,11 @@ static irqreturn_t ipw_isr(int irq, void *data, struct pt_regs *regs)
 
 	tasklet_schedule(&priv->irq_tasklet);
 
-	spin_unlock(&priv->lock);
+	spin_unlock(&priv->irq_lock);
 
 	return IRQ_HANDLED;
       none:
-	spin_unlock(&priv->lock);
+	spin_unlock(&priv->irq_lock);
 	return IRQ_NONE;
 }
 
@@ -11477,6 +11499,7 @@ static int ipw_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 #ifdef CONFIG_IPW2200_DEBUG
 	ipw_debug_level = debug;
 #endif
+	spin_lock_init(&priv->irq_lock);
 	spin_lock_init(&priv->lock);
 	for (i = 0; i < IPW_IBSS_MAC_HASH_SIZE; i++)
 		INIT_LIST_HEAD(&priv->ibss_mac_hash[i]);

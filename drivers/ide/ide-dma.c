@@ -206,8 +206,7 @@ int ide_build_sglist(ide_drive_t *drive, struct request *rq)
 	ide_hwif_t *hwif = HWIF(drive);
 	struct scatterlist *sg = hwif->sg_table;
 
-	if ((rq->flags & REQ_DRIVE_TASKFILE) && rq->nr_sectors > 256)
-		BUG();
+	BUG_ON((rq->flags & REQ_DRIVE_TASKFILE) && rq->nr_sectors > 256);
 
 	ide_map_sg(drive, rq);
 
@@ -947,8 +946,7 @@ void ide_setup_dma (ide_hwif_t *hwif, unsigned long dma_base, unsigned int num_p
 	}
 	printk("\n");
 
-	if (!(hwif->dma_master))
-		BUG();
+	BUG_ON(!hwif->dma_master);
 }
 
 EXPORT_SYMBOL_GPL(ide_setup_dma);

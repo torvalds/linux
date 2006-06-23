@@ -183,8 +183,7 @@ static void trm290_ide_dma_exec_cmd(ide_drive_t *drive, u8 command)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 
-	if (HWGROUP(drive)->handler != NULL)	/* paranoia check */
-		BUG();
+	BUG_ON(HWGROUP(drive)->handler != NULL);	/* paranoia check */
 	ide_set_handler(drive, &ide_dma_intr, WAIT_CMD, NULL);
 	/* issue cmd to drive */
 	hwif->OUTB(command, IDE_COMMAND_REG);

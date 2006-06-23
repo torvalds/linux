@@ -23,7 +23,7 @@
 #include <asm/uaccess.h>
 #include <linux/moduleparam.h>
 
-static int emu8000_reset_addr = 0;
+static int emu8000_reset_addr;
 module_param(emu8000_reset_addr, int, 0444);
 MODULE_PARM_DESC(emu8000_reset_addr, "reset write address at each time (makes slowdown)");
 

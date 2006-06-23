@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2005 Silicon Graphics, Inc.
+ * Copyright (c) 2000-2006 Silicon Graphics, Inc.
  * All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -23,7 +23,6 @@
 #include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
-#include "xfs_dir.h"
 #include "xfs_dir2.h"
 #include "xfs_alloc.h"
 #include "xfs_dmapi.h"
@@ -32,7 +31,6 @@
 #include "xfs_bmap_btree.h"
 #include "xfs_alloc_btree.h"
 #include "xfs_ialloc_btree.h"
-#include "xfs_dir_sf.h"
 #include "xfs_dir2_sf.h"
 #include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
@@ -151,7 +149,7 @@ xfs_set_inodeops(
 STATIC __inline__ void
 xfs_revalidate_inode(
 	xfs_mount_t		*mp,
-	vnode_t			*vp,
+	bhv_vnode_t		*vp,
 	xfs_inode_t		*ip)
 {
 	struct inode		*inode = vn_to_inode(vp);
@@ -206,7 +204,7 @@ xfs_revalidate_inode(
 void
 xfs_initialize_vnode(
 	bhv_desc_t		*bdp,
-	vnode_t			*vp,
+	bhv_vnode_t		*vp,
 	bhv_desc_t		*inode_bhv,
 	int			unlock)
 {
@@ -336,7 +334,7 @@ STATIC struct inode *
 xfs_fs_alloc_inode(
 	struct super_block	*sb)
 {
-	vnode_t			*vp;
+	bhv_vnode_t		*vp;
 
 	vp = kmem_zone_alloc(xfs_vnode_zone, KM_SLEEP);
 	if (unlikely(!vp))
@@ -359,13 +357,13 @@ xfs_fs_inode_init_once(
 {
 	if ((flags & (SLAB_CTOR_VERIFY|SLAB_CTOR_CONSTRUCTOR)) ==
 		      SLAB_CTOR_CONSTRUCTOR)
-		inode_init_once(vn_to_inode((vnode_t *)vnode));
+		inode_init_once(vn_to_inode((bhv_vnode_t *)vnode));
 }
 
 STATIC int
 xfs_init_zones(void)
 {
-	xfs_vnode_zone = kmem_zone_init_flags(sizeof(vnode_t), "xfs_vnode_t",
+	xfs_vnode_zone = kmem_zone_init_flags(sizeof(bhv_vnode_t), "xfs_vnode",
 					KM_ZONE_HWALIGN | KM_ZONE_RECLAIM |
 					KM_ZONE_SPREAD,
 					xfs_fs_inode_init_once);
@@ -409,22 +407,17 @@ xfs_fs_write_inode(
 	struct inode		*inode,
 	int			sync)
 {
-	vnode_t			*vp = vn_from_inode(inode);
+	bhv_vnode_t		*vp = vn_from_inode(inode);
 	int			error = 0, flags = FLUSH_INODE;
 
 	if (vp) {
 		vn_trace_entry(vp, __FUNCTION__, (inst_t *)__return_address);
 		if (sync)
 			flags |= FLUSH_SYNC;
-		VOP_IFLUSH(vp, flags, error);
-		if (error == EAGAIN) {
-			if (sync)
-				VOP_IFLUSH(vp, flags | FLUSH_LOG, error);
-			else
-				error = 0;
-		}
+		error = bhv_vop_iflush(vp, flags);
+		if (error == EAGAIN)
+			error = sync? bhv_vop_iflush(vp, flags | FLUSH_LOG) : 0;
 	}
-
 	return -error;
 }
 
@@ -432,8 +425,7 @@ STATIC void
 xfs_fs_clear_inode(
 	struct inode		*inode)
 {
-	vnode_t			*vp = vn_from_inode(inode);
-	int			error, cache;
+	bhv_vnode_t		*vp = vn_from_inode(inode);
 
 	vn_trace_entry(vp, __FUNCTION__, (inst_t *)__return_address);
 
@@ -446,20 +438,18 @@ xfs_fs_clear_inode(
 	 * This can happen because xfs_iget_core calls xfs_idestroy if we
 	 * find an inode with di_mode == 0 but without IGET_CREATE set.
 	 */
-	if (vp->v_fbhv)
-		VOP_INACTIVE(vp, NULL, cache);
+	if (VNHEAD(vp))
+		bhv_vop_inactive(vp, NULL);
 
 	VN_LOCK(vp);
 	vp->v_flag &= ~VMODIFIED;
 	VN_UNLOCK(vp, 0);
 
-	if (vp->v_fbhv) {
-		VOP_RECLAIM(vp, error);
-		if (error)
-			panic("vn_purge: cannot reclaim");
-	}
+	if (VNHEAD(vp))
+		if (bhv_vop_reclaim(vp))
+			panic("%s: cannot reclaim 0x%p\n", __FUNCTION__, vp);
 
-	ASSERT(vp->v_fbhv == NULL);
+	ASSERT(VNHEAD(vp) == NULL);
 
 #ifdef XFS_VNODE_TRACE
 	ktrace_free(vp->v_trace);
@@ -475,13 +465,13 @@ xfs_fs_clear_inode(
  */
 STATIC void
 xfs_syncd_queue_work(
-	struct vfs	*vfs,
+	struct bhv_vfs	*vfs,
 	void		*data,
-	void		(*syncer)(vfs_t *, void *))
+	void		(*syncer)(bhv_vfs_t *, void *))
 {
-	vfs_sync_work_t	*work;
+	struct bhv_vfs_sync_work *work;
 
-	work = kmem_alloc(sizeof(struct vfs_sync_work), KM_SLEEP);
+	work = kmem_alloc(sizeof(struct bhv_vfs_sync_work), KM_SLEEP);
 	INIT_LIST_HEAD(&work->w_list);
 	work->w_syncer = syncer;
 	work->w_data = data;
@@ -500,7 +490,7 @@ xfs_syncd_queue_work(
  */
 STATIC void
 xfs_flush_inode_work(
-	vfs_t		*vfs,
+	bhv_vfs_t	*vfs,
 	void		*inode)
 {
 	filemap_flush(((struct inode *)inode)->i_mapping);
@@ -512,7 +502,7 @@ xfs_flush_inode(
 	xfs_inode_t	*ip)
 {
 	struct inode	*inode = vn_to_inode(XFS_ITOV(ip));
-	struct vfs	*vfs = XFS_MTOVFS(ip->i_mount);
+	struct bhv_vfs	*vfs = XFS_MTOVFS(ip->i_mount);
 
 	igrab(inode);
 	xfs_syncd_queue_work(vfs, inode, xfs_flush_inode_work);
@@ -525,7 +515,7 @@ xfs_flush_inode(
  */
 STATIC void
 xfs_flush_device_work(
-	vfs_t		*vfs,
+	bhv_vfs_t	*vfs,
 	void		*inode)
 {
 	sync_blockdev(vfs->vfs_super->s_bdev);
@@ -537,7 +527,7 @@ xfs_flush_device(
 	xfs_inode_t	*ip)
 {
 	struct inode	*inode = vn_to_inode(XFS_ITOV(ip));
-	struct vfs	*vfs = XFS_MTOVFS(ip->i_mount);
+	struct bhv_vfs	*vfs = XFS_MTOVFS(ip->i_mount);
 
 	igrab(inode);
 	xfs_syncd_queue_work(vfs, inode, xfs_flush_device_work);
@@ -545,16 +535,16 @@ xfs_flush_device(
 	xfs_log_force(ip->i_mount, (xfs_lsn_t)0, XFS_LOG_FORCE|XFS_LOG_SYNC);
 }
 
-#define SYNCD_FLAGS	(SYNC_FSDATA|SYNC_BDFLUSH|SYNC_ATTR|SYNC_REFCACHE)
 STATIC void
 vfs_sync_worker(
-	vfs_t		*vfsp,
+	bhv_vfs_t	*vfsp,
 	void		*unused)
 {
 	int		error;
 
 	if (!(vfsp->vfs_flag & VFS_RDONLY))
-		VFS_SYNC(vfsp, SYNCD_FLAGS, NULL, error);
+		error = bhv_vfs_sync(vfsp, SYNC_FSDATA | SYNC_BDFLUSH | \
+					SYNC_ATTR | SYNC_REFCACHE, NULL);
 	vfsp->vfs_sync_seq++;
 	wmb();
 	wake_up(&vfsp->vfs_wait_single_sync_task);
@@ -565,8 +555,8 @@ xfssyncd(
 	void			*arg)
 {
 	long			timeleft;
-	vfs_t			*vfsp = (vfs_t *) arg;
-	struct vfs_sync_work	*work, *n;
+	bhv_vfs_t		*vfsp = (bhv_vfs_t *) arg;
+	bhv_vfs_sync_work_t	*work, *n;
 	LIST_HEAD		(tmp);
 
 	timeleft = xfs_syncd_centisecs * msecs_to_jiffies(10);
@@ -600,7 +590,7 @@ xfssyncd(
 			list_del(&work->w_list);
 			if (work == &vfsp->vfs_sync_work)
 				continue;
-			kmem_free(work, sizeof(struct vfs_sync_work));
+			kmem_free(work, sizeof(struct bhv_vfs_sync_work));
 		}
 	}
 
@@ -609,7 +599,7 @@ xfssyncd(
 
 STATIC int
 xfs_fs_start_syncd(
-	vfs_t			*vfsp)
+	bhv_vfs_t		*vfsp)
 {
 	vfsp->vfs_sync_work.w_syncer = vfs_sync_worker;
 	vfsp->vfs_sync_work.w_vfs = vfsp;
@@ -621,7 +611,7 @@ xfs_fs_start_syncd(
 
 STATIC void
 xfs_fs_stop_syncd(
-	vfs_t			*vfsp)
+	bhv_vfs_t		*vfsp)
 {
 	kthread_stop(vfsp->vfs_sync_task);
 }
@@ -630,35 +620,26 @@ STATIC void
 xfs_fs_put_super(
 	struct super_block	*sb)
 {
-	vfs_t			*vfsp = vfs_from_sb(sb);
+	bhv_vfs_t		*vfsp = vfs_from_sb(sb);
 	int			error;
 
 	xfs_fs_stop_syncd(vfsp);
-	VFS_SYNC(vfsp, SYNC_ATTR|SYNC_DELWRI, NULL, error);
-	if (!error)
-		VFS_UNMOUNT(vfsp, 0, NULL, error);
+	bhv_vfs_sync(vfsp, SYNC_ATTR | SYNC_DELWRI, NULL);
+	error = bhv_vfs_unmount(vfsp, 0, NULL);
 	if (error) {
-		printk("XFS unmount got error %d\n", error);
-		printk("%s: vfsp/0x%p left dangling!\n", __FUNCTION__, vfsp);
-		return;
+		printk("XFS: unmount got error=%d\n", error);
+		printk("%s: vfs=0x%p left dangling!\n", __FUNCTION__, vfsp);
+	} else {
+		vfs_deallocate(vfsp);
 	}
-
-	vfs_deallocate(vfsp);
 }
 
 STATIC void
 xfs_fs_write_super(
 	struct super_block	*sb)
 {
-	vfs_t			*vfsp = vfs_from_sb(sb);
-	int			error;
-
-	if (sb->s_flags & MS_RDONLY) {
-		sb->s_dirt = 0; /* paranoia */
-		return;
-	}
-	/* Push the log and superblock a little */
-	VFS_SYNC(vfsp, SYNC_FSDATA, NULL, error);
+	if (!(sb->s_flags & MS_RDONLY))
+		bhv_vfs_sync(vfs_from_sb(sb), SYNC_FSDATA, NULL);
 	sb->s_dirt = 0;
 }
 
@@ -667,16 +648,16 @@ xfs_fs_sync_super(
 	struct super_block	*sb,
 	int			wait)
 {
-	vfs_t		*vfsp = vfs_from_sb(sb);
-	int		error;
-	int		flags = SYNC_FSDATA;
+	bhv_vfs_t		*vfsp = vfs_from_sb(sb);
+	int			error;
+	int			flags;
 
 	if (unlikely(sb->s_frozen == SB_FREEZE_WRITE))
 		flags = SYNC_QUIESCE;
 	else
 		flags = SYNC_FSDATA | (wait ? SYNC_WAIT : 0);
 
-	VFS_SYNC(vfsp, flags, NULL, error);
+	error = bhv_vfs_sync(vfsp, flags, NULL);
 	sb->s_dirt = 0;
 
 	if (unlikely(laptop_mode)) {
@@ -703,14 +684,11 @@ xfs_fs_sync_super(
 
 STATIC int
 xfs_fs_statfs(
-	struct super_block	*sb,
+	struct dentry		*dentry,
 	struct kstatfs		*statp)
 {
-	vfs_t			*vfsp = vfs_from_sb(sb);
-	int			error;
-
-	VFS_STATVFS(vfsp, statp, NULL, error);
-	return -error;
+	return -bhv_vfs_statvfs(vfs_from_sb(dentry->d_sb), statp,
+				vn_from_inode(dentry->d_inode));
 }
 
 STATIC int
@@ -719,13 +697,13 @@ xfs_fs_remount(
 	int			*flags,
 	char			*options)
 {
-	vfs_t			*vfsp = vfs_from_sb(sb);
+	bhv_vfs_t		*vfsp = vfs_from_sb(sb);
 	struct xfs_mount_args	*args = xfs_args_allocate(sb, 0);
 	int			error;
 
-	VFS_PARSEARGS(vfsp, options, args, 1, error);
+	error = bhv_vfs_parseargs(vfsp, options, args, 1);
 	if (!error)
-		VFS_MNTUPDATE(vfsp, flags, args, error);
+		error = bhv_vfs_mntupdate(vfsp, flags, args);
 	kmem_free(args, sizeof(*args));
 	return -error;
 }
@@ -734,7 +712,7 @@ STATIC void
 xfs_fs_lockfs(
 	struct super_block	*sb)
 {
-	VFS_FREEZE(vfs_from_sb(sb));
+	bhv_vfs_freeze(vfs_from_sb(sb));
 }
 
 STATIC int
@@ -742,11 +720,7 @@ xfs_fs_show_options(
 	struct seq_file		*m,
 	struct vfsmount		*mnt)
 {
-	struct vfs		*vfsp = vfs_from_sb(mnt->mnt_sb);
-	int			error;
-
-	VFS_SHOWARGS(vfsp, m, error);
-	return error;
+	return -bhv_vfs_showargs(vfs_from_sb(mnt->mnt_sb), m);
 }
 
 STATIC int
@@ -754,11 +728,7 @@ xfs_fs_quotasync(
 	struct super_block	*sb,
 	int			type)
 {
-	struct vfs		*vfsp = vfs_from_sb(sb);
-	int			error;
-
-	VFS_QUOTACTL(vfsp, Q_XQUOTASYNC, 0, (caddr_t)NULL, error);
-	return -error;
+	return -bhv_vfs_quotactl(vfs_from_sb(sb), Q_XQUOTASYNC, 0, NULL);
 }
 
 STATIC int
@@ -766,11 +736,7 @@ xfs_fs_getxstate(
 	struct super_block	*sb,
 	struct fs_quota_stat	*fqs)
 {
-	struct vfs		*vfsp = vfs_from_sb(sb);
-	int			error;
-
-	VFS_QUOTACTL(vfsp, Q_XGETQSTAT, 0, (caddr_t)fqs, error);
-	return -error;
+	return -bhv_vfs_quotactl(vfs_from_sb(sb), Q_XGETQSTAT, 0, (caddr_t)fqs);
 }
 
 STATIC int
@@ -779,11 +745,7 @@ xfs_fs_setxstate(
 	unsigned int		flags,
 	int			op)
 {
-	struct vfs		*vfsp = vfs_from_sb(sb);
-	int			error;
-
-	VFS_QUOTACTL(vfsp, op, 0, (caddr_t)&flags, error);
-	return -error;
+	return -bhv_vfs_quotactl(vfs_from_sb(sb), op, 0, (caddr_t)&flags);
 }
 
 STATIC int
@@ -793,13 +755,10 @@ xfs_fs_getxquota(
 	qid_t			id,
 	struct fs_disk_quota	*fdq)
 {
-	struct vfs		*vfsp = vfs_from_sb(sb);
-	int			error, getmode;
-
-	getmode = (type == USRQUOTA) ? Q_XGETQUOTA :
-		 ((type == GRPQUOTA) ? Q_XGETGQUOTA : Q_XGETPQUOTA);
-	VFS_QUOTACTL(vfsp, getmode, id, (caddr_t)fdq, error);
-	return -error;
+	return -bhv_vfs_quotactl(vfs_from_sb(sb),
+				 (type == USRQUOTA) ? Q_XGETQUOTA :
+				  ((type == GRPQUOTA) ? Q_XGETGQUOTA :
+				   Q_XGETPQUOTA), id, (caddr_t)fdq);
 }
 
 STATIC int
@@ -809,13 +768,10 @@ xfs_fs_setxquota(
 	qid_t			id,
 	struct fs_disk_quota	*fdq)
 {
-	struct vfs		*vfsp = vfs_from_sb(sb);
-	int			error, setmode;
-
-	setmode = (type == USRQUOTA) ? Q_XSETQLIM :
-		 ((type == GRPQUOTA) ? Q_XSETGQLIM : Q_XSETPQLIM);
-	VFS_QUOTACTL(vfsp, setmode, id, (caddr_t)fdq, error);
-	return -error;
+	return -bhv_vfs_quotactl(vfs_from_sb(sb),
+				 (type == USRQUOTA) ? Q_XSETQLIM :
+				  ((type == GRPQUOTA) ? Q_XSETGQLIM :
+				   Q_XSETPQLIM), id, (caddr_t)fdq);
 }
 
 STATIC int
@@ -824,34 +780,32 @@ xfs_fs_fill_super(
 	void			*data,
 	int			silent)
 {
-	vnode_t			*rootvp;
-	struct vfs		*vfsp = vfs_allocate(sb);
+	struct bhv_vnode	*rootvp;
+	struct bhv_vfs		*vfsp = vfs_allocate(sb);
 	struct xfs_mount_args	*args = xfs_args_allocate(sb, silent);
 	struct kstatfs		statvfs;
-	int			error, error2;
+	int			error;
 
 	bhv_insert_all_vfsops(vfsp);
 
-	VFS_PARSEARGS(vfsp, (char *)data, args, 0, error);
+	error = bhv_vfs_parseargs(vfsp, (char *)data, args, 0);
 	if (error) {
 		bhv_remove_all_vfsops(vfsp, 1);
 		goto fail_vfsop;
 	}
 
 	sb_min_blocksize(sb, BBSIZE);
-#ifdef CONFIG_XFS_EXPORT
 	sb->s_export_op = &xfs_export_operations;
-#endif
 	sb->s_qcop = &xfs_quotactl_operations;
 	sb->s_op = &xfs_super_operations;
 
-	VFS_MOUNT(vfsp, args, NULL, error);
+	error = bhv_vfs_mount(vfsp, args, NULL);
 	if (error) {
 		bhv_remove_all_vfsops(vfsp, 1);
 		goto fail_vfsop;
 	}
 
-	VFS_STATVFS(vfsp, &statvfs, NULL, error);
+	error = bhv_vfs_statvfs(vfsp, &statvfs, NULL);
 	if (error)
 		goto fail_unmount;
 
@@ -863,7 +817,7 @@ xfs_fs_fill_super(
 	sb->s_time_gran = 1;
 	set_posix_acl_flag(sb);
 
-	VFS_ROOT(vfsp, &rootvp, error);
+	error = bhv_vfs_root(vfsp, &rootvp);
 	if (error)
 		goto fail_unmount;
 
@@ -892,7 +846,7 @@ fail_vnrele:
 	}
 
 fail_unmount:
-	VFS_UNMOUNT(vfsp, 0, NULL, error2);
+	bhv_vfs_unmount(vfsp, 0, NULL);
 
 fail_vfsop:
 	vfs_deallocate(vfsp);
@@ -900,14 +854,16 @@ fail_vfsop:
 	return -error;
 }
 
-STATIC struct super_block *
+STATIC int
 xfs_fs_get_sb(
 	struct file_system_type	*fs_type,
 	int			flags,
 	const char		*dev_name,
-	void			*data)
+	void			*data,
+	struct vfsmount		*mnt)
 {
-	return get_sb_bdev(fs_type, flags, dev_name, data, xfs_fs_fill_super);
+	return get_sb_bdev(fs_type, flags, dev_name, data, xfs_fs_fill_super,
+			   mnt);
 }
 
 STATIC struct super_operations xfs_super_operations = {

@@ -349,6 +349,7 @@ snd_trident_synth_alloc(struct snd_trident *hw, unsigned int size)
 	return blk;
 }
 
+EXPORT_SYMBOL(snd_trident_synth_alloc);
 
 /*
  * free a synth sample area
@@ -365,6 +366,7 @@ snd_trident_synth_free(struct snd_trident *hw, struct snd_util_memblk *blk)
 	return 0;
 }
 
+EXPORT_SYMBOL(snd_trident_synth_free);
 
 /*
  * reset TLB entry and free kernel page
@@ -486,3 +488,4 @@ int snd_trident_synth_copy_from_user(struct snd_trident *trident,
 	return 0;
 }
 
+EXPORT_SYMBOL(snd_trident_synth_copy_from_user);

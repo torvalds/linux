@@ -49,7 +49,7 @@ MODULE_SUPPORTED_DEVICE("{{ALI,M5451,pci},{ALI,M5451}}");
 static int index = SNDRV_DEFAULT_IDX1;	/* Index */
 static char *id = SNDRV_DEFAULT_STR1;	/* ID for this card */
 static int pcm_channels = 32;
-static int spdif = 0;
+static int spdif;
 
 module_param(index, int, 0444);
 MODULE_PARM_DESC(index, "Index value for ALI M5451 PCI Audio.");
@@ -2173,7 +2173,7 @@ static void __devinit snd_ali_proc_init(struct snd_ali *codec)
 {
 	struct snd_info_entry *entry;
 	if(!snd_card_proc_new(codec->card, "ali5451", &entry))
-		snd_info_set_text_ops(entry, codec, 1024, snd_ali_proc_read);
+		snd_info_set_text_ops(entry, codec, snd_ali_proc_read);
 }
 
 static int __devinit snd_ali_resources(struct snd_ali *codec)

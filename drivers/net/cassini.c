@@ -2915,8 +2915,7 @@ static int cas_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	 */
 	static int ring; 
 
-	skb = skb_padto(skb, cp->min_frame_size);
-	if (!skb)
+	if (skb_padto(skb, cp->min_frame_size))
 		return 0;
 
 	/* XXX: we need some higher-level QoS hooks to steer packets to

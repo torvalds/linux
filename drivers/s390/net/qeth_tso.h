@@ -51,7 +51,7 @@ qeth_tso_fill_header(struct qeth_card *card, struct sk_buff *skb)
 	hdr->ext.hdr_version = 1;
 	hdr->ext.hdr_len     = 28;
 	/*insert non-fix values */
-	hdr->ext.mss = skb_shinfo(skb)->tso_size;
+	hdr->ext.mss = skb_shinfo(skb)->gso_size;
 	hdr->ext.dg_hdr_len = (__u16)(iph->ihl*4 + tcph->doff*4);
 	hdr->ext.payload_len = (__u16)(skb->len - hdr->ext.dg_hdr_len -
 				       sizeof(struct qeth_hdr_tso));

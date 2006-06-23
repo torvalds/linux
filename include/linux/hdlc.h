@@ -188,7 +188,7 @@ int hdlc_x25_ioctl(struct net_device *dev, struct ifreq *ifr);
 int hdlc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd);
 
 /* Must be used by hardware driver on module startup/exit */
-int register_hdlc_device(struct net_device *dev);
+#define register_hdlc_device(dev)	register_netdev(dev)
 void unregister_hdlc_device(struct net_device *dev);
 
 struct net_device *alloc_hdlcdev(void *priv);

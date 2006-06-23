@@ -75,7 +75,7 @@ void acpi_ns_print_pathname(u32 num_segments, char *pathname)
 {
 	acpi_native_uint i;
 
-	ACPI_FUNCTION_NAME("ns_print_pathname");
+	ACPI_FUNCTION_NAME(ns_print_pathname);
 
 	if (!(acpi_dbg_level & ACPI_LV_NAMES)
 	    || !(acpi_dbg_layer & ACPI_NAMESPACE)) {
@@ -123,7 +123,7 @@ void
 acpi_ns_dump_pathname(acpi_handle handle, char *msg, u32 level, u32 component)
 {
 
-	ACPI_FUNCTION_TRACE("ns_dump_pathname");
+	ACPI_FUNCTION_TRACE(ns_dump_pathname);
 
 	/* Do this only if the requested debug level and component are enabled */
 
@@ -167,7 +167,7 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 	u32 dbg_level;
 	u32 i;
 
-	ACPI_FUNCTION_NAME("ns_dump_one_object");
+	ACPI_FUNCTION_NAME(ns_dump_one_object);
 
 	/* Is output enabled? */
 
@@ -191,6 +191,7 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 	}
 
 	if (!(info->display_type & ACPI_DISPLAY_SHORT)) {
+
 		/* Indent the object according to the level */
 
 		acpi_os_printf("%2d%*s", (u32) level - 1, (int)level * 2, " ");
@@ -203,6 +204,9 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 		}
 
 		if (!acpi_ut_valid_acpi_name(this_node->name.integer)) {
+			this_node->name.integer =
+			    acpi_ut_repair_name(this_node->name.integer);
+
 			ACPI_WARNING((AE_INFO, "Invalid ACPI Name %08X",
 				      this_node->name.integer));
 		}
@@ -226,6 +230,7 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 	case ACPI_DISPLAY_SUMMARY:
 
 		if (!obj_desc) {
+
 			/* No attached object, we are done */
 
 			acpi_os_printf("\n");
@@ -419,6 +424,7 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 
 		acpi_os_printf("O:%p", obj_desc);
 		if (!obj_desc) {
+
 			/* No attached object, we are done */
 
 			acpi_os_printf("\n");
@@ -669,7 +675,7 @@ void acpi_ns_dump_tables(acpi_handle search_base, u32 max_depth)
 {
 	acpi_handle search_handle = search_base;
 
-	ACPI_FUNCTION_TRACE("ns_dump_tables");
+	ACPI_FUNCTION_TRACE(ns_dump_tables);
 
 	if (!acpi_gbl_root_node) {
 		/*
@@ -682,6 +688,7 @@ void acpi_ns_dump_tables(acpi_handle search_base, u32 max_depth)
 	}
 
 	if (ACPI_NS_ALL == search_base) {
+
 		/* Entire namespace */
 
 		search_handle = acpi_gbl_root_node;

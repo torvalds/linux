@@ -854,6 +854,17 @@ config SMC9194
 	  <file:Documentation/networking/net-modules.txt>. The module
 	  will be called smc9194.
 
+config NET_NETX
+	tristate "NetX Ethernet support"
+	select MII
+	depends on NET_ETHERNET && ARCH_NETX
+	help
+	  This is support for the Hilscher netX builtin Ethernet ports
+
+	  To compile this driver as a module, choose M here and read
+	  <file:Documentation/networking/net-modules.txt>. The module
+	  will be called netx-eth.
+
 config DM9000
 	tristate "DM9000 support"
 	depends on (ARM || MIPS) && NET_ETHERNET
@@ -1376,8 +1387,8 @@ config APRICOT
 	  called apricot.
 
 config B44
-	tristate "Broadcom 4400 ethernet support (EXPERIMENTAL)"
-	depends on NET_PCI && PCI && EXPERIMENTAL
+	tristate "Broadcom 4400 ethernet support"
+	depends on NET_PCI && PCI
 	select MII
 	help
 	  If you have a network (Ethernet) controller of this type, say Y and
@@ -2190,7 +2201,7 @@ config BNX2
 
 config SPIDER_NET
 	tristate "Spider Gigabit Ethernet driver"
-	depends on PCI && PPC_CELL
+	depends on PCI && PPC_IBM_CELL_BLADE
 	select FW_LOADER
 	help
 	  This driver supports the Gigabit Ethernet chips present on the
@@ -2198,11 +2209,11 @@ config SPIDER_NET
 
 config GIANFAR
 	tristate "Gianfar Ethernet"
-	depends on 85xx || 83xx
+	depends on 85xx || 83xx || PPC_86xx
 	select PHYLIB
 	help
-	  This driver supports the Gigabit TSEC on the MPC85xx 
-	  family of chips, and the FEC on the 8540
+	  This driver supports the Gigabit TSEC on the MPC83xx, MPC85xx,
+	  and MPC86xx family of chips, and the FEC on the 8540.
 
 config GFAR_NAPI
 	bool "NAPI Support"

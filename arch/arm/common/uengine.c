@@ -18,9 +18,25 @@
 #include <linux/module.h>
 #include <linux/string.h>
 #include <asm/hardware.h>
-#include <asm/arch/ixp2000-regs.h>
+#include <asm/arch/hardware.h>
 #include <asm/hardware/uengine.h>
 #include <asm/io.h>
+
+#if defined(CONFIG_ARCH_IXP2000)
+#define IXP_UENGINE_CSR_VIRT_BASE	IXP2000_UENGINE_CSR_VIRT_BASE
+#define IXP_PRODUCT_ID			IXP2000_PRODUCT_ID
+#define IXP_MISC_CONTROL		IXP2000_MISC_CONTROL
+#define IXP_RESET1			IXP2000_RESET1
+#else
+#if defined(CONFIG_ARCH_IXP23XX)
+#define IXP_UENGINE_CSR_VIRT_BASE	IXP23XX_UENGINE_CSR_VIRT_BASE
+#define IXP_PRODUCT_ID			IXP23XX_PRODUCT_ID
+#define IXP_MISC_CONTROL		IXP23XX_MISC_CONTROL
+#define IXP_RESET1			IXP23XX_RESET1
+#else
+#error unknown platform
+#endif
+#endif
 
 #define USTORE_ADDRESS			0x000
 #define USTORE_DATA_LOWER		0x004
@@ -43,7 +59,7 @@ u32 ixp2000_uengine_mask;
 
 static void *ixp2000_uengine_csr_area(int uengine)
 {
-	return ((void *)IXP2000_UENGINE_CSR_VIRT_BASE) + (uengine << 10);
+	return ((void *)IXP_UENGINE_CSR_VIRT_BASE) + (uengine << 10);
 }
 
 /*
@@ -91,8 +107,13 @@ EXPORT_SYMBOL(ixp2000_uengine_csr_write);
 
 void ixp2000_uengine_reset(u32 uengine_mask)
 {
-	ixp2000_reg_wrb(IXP2000_RESET1, uengine_mask & ixp2000_uengine_mask);
-	ixp2000_reg_wrb(IXP2000_RESET1, 0);
+	u32 value;
+
+	value = ixp2000_reg_read(IXP_RESET1) & ~ixp2000_uengine_mask;
+
+	uengine_mask &= ixp2000_uengine_mask;
+	ixp2000_reg_wrb(IXP_RESET1, value | uengine_mask);
+	ixp2000_reg_wrb(IXP_RESET1, value);
 }
 EXPORT_SYMBOL(ixp2000_uengine_reset);
 
@@ -235,11 +256,12 @@ static int check_ixp_type(struct ixp2000_uengine_code *c)
 	u32 product_id;
 	u32 rev;
 
-	product_id = ixp2000_reg_read(IXP2000_PRODUCT_ID);
+	product_id = ixp2000_reg_read(IXP_PRODUCT_ID);
 	if (((product_id >> 16) & 0x1f) != 0)
 		return 0;
 
 	switch ((product_id >> 8) & 0xff) {
+#ifdef CONFIG_ARCH_IXP2000
 	case 0:		/* IXP2800 */
 		if (!(c->cpu_model_bitmask & 4))
 			return 0;
@@ -254,6 +276,14 @@ static int check_ixp_type(struct ixp2000_uengine_code *c)
 		if (!(c->cpu_model_bitmask & 2))
 			return 0;
 		break;
+#endif
+
+#ifdef CONFIG_ARCH_IXP23XX
+	case 4:		/* IXP23xx */
+		if (!(c->cpu_model_bitmask & 0x3f0))
+			return 0;
+		break;
+#endif
 
 	default:
 		return 0;
@@ -432,7 +462,8 @@ static int __init ixp2000_uengine_init(void)
 	/*
 	 * Determine number of microengines present.
 	 */
-	switch ((ixp2000_reg_read(IXP2000_PRODUCT_ID) >> 8) & 0x1fff) {
+	switch ((ixp2000_reg_read(IXP_PRODUCT_ID) >> 8) & 0x1fff) {
+#ifdef CONFIG_ARCH_IXP2000
 	case 0:		/* IXP2800 */
 	case 1:		/* IXP2850 */
 		ixp2000_uengine_mask = 0x00ff00ff;
@@ -441,10 +472,17 @@ static int __init ixp2000_uengine_init(void)
 	case 2:		/* IXP2400 */
 		ixp2000_uengine_mask = 0x000f000f;
 		break;
+#endif
+
+#ifdef CONFIG_ARCH_IXP23XX
+	case 4:		/* IXP23xx */
+		ixp2000_uengine_mask = (*IXP23XX_EXP_CFG_FUSE >> 8) & 0xf;
+		break;
+#endif
 
 	default:
 		printk(KERN_INFO "Detected unknown IXP2000 model (%.8x)\n",
-			(unsigned int)ixp2000_reg_read(IXP2000_PRODUCT_ID));
+			(unsigned int)ixp2000_reg_read(IXP_PRODUCT_ID));
 		ixp2000_uengine_mask = 0x00000000;
 		break;
 	}
@@ -457,15 +495,15 @@ static int __init ixp2000_uengine_init(void)
 	/*
 	 * Synchronise timestamp counters across all microengines.
 	 */
-	value = ixp2000_reg_read(IXP2000_MISC_CONTROL);
-	ixp2000_reg_wrb(IXP2000_MISC_CONTROL, value & ~0x80);
+	value = ixp2000_reg_read(IXP_MISC_CONTROL);
+	ixp2000_reg_wrb(IXP_MISC_CONTROL, value & ~0x80);
 	for (uengine = 0; uengine < 32; uengine++) {
 		if (ixp2000_uengine_mask & (1 << uengine)) {
 			ixp2000_uengine_csr_write(uengine, TIMESTAMP_LOW, 0);
 			ixp2000_uengine_csr_write(uengine, TIMESTAMP_HIGH, 0);
 		}
 	}
-	ixp2000_reg_wrb(IXP2000_MISC_CONTROL, value | 0x80);
+	ixp2000_reg_wrb(IXP_MISC_CONTROL, value | 0x80);
 
 	return 0;
 }
