@@ -687,7 +687,7 @@ static int do_signal(sigset_t *oldset, struct pt_regs *regs, int syscall)
 				 * syscall solves that issue and works for
 				 * all those cases.
 				 */
-				swival = swival - __NR_SYSCAll_BASE + __NR_OABI_SYSCALL_BASE;
+				swival = swival - __NR_SYSCALL_BASE + __NR_OABI_SYSCALL_BASE;
 
 				put_user(regs->ARM_pc, &usp[0]);
 				/* swi __NR_restart_syscall */
