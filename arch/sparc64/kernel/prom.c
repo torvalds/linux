@@ -27,6 +27,26 @@
 
 static struct device_node *allnodes;
 
+int of_device_is_compatible(struct device_node *device, const char *compat)
+{
+	const char* cp;
+	int cplen, l;
+
+	cp = (char *) of_get_property(device, "compatible", &cplen);
+	if (cp == NULL)
+		return 0;
+	while (cplen > 0) {
+		if (strncmp(cp, compat, strlen(compat)) == 0)
+			return 1;
+		l = strlen(cp) + 1;
+		cp += l;
+		cplen -= l;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(of_device_is_compatible);
+
 struct device_node *of_get_parent(const struct device_node *node)
 {
 	struct device_node *np;
@@ -38,6 +58,7 @@ struct device_node *of_get_parent(const struct device_node *node)
 
 	return np;
 }
+EXPORT_SYMBOL(of_get_parent);
 
 struct device_node *of_get_next_child(const struct device_node *node,
 	struct device_node *prev)
@@ -51,6 +72,7 @@ struct device_node *of_get_next_child(const struct device_node *node,
 
 	return next;
 }
+EXPORT_SYMBOL(of_get_next_child);
 
 struct device_node *of_find_node_by_path(const char *path)
 {
@@ -75,6 +97,7 @@ struct device_node *of_find_node_by_phandle(phandle handle)
 
 	return np;
 }
+EXPORT_SYMBOL(of_find_node_by_phandle);
 
 struct device_node *of_find_node_by_name(struct device_node *from,
 	const char *name)
@@ -88,6 +111,7 @@ struct device_node *of_find_node_by_name(struct device_node *from,
 
 	return np;
 }
+EXPORT_SYMBOL(of_find_node_by_name);
 
 struct device_node *of_find_node_by_type(struct device_node *from,
 	const char *type)
@@ -101,6 +125,25 @@ struct device_node *of_find_node_by_type(struct device_node *from,
 
 	return np;
 }
+EXPORT_SYMBOL(of_find_node_by_type);
+
+struct device_node *of_find_compatible_node(struct device_node *from,
+	const char *type, const char *compatible)
+{
+	struct device_node *np;
+
+	np = from ? from->allnext : allnodes;
+	for (; np != 0; np = np->allnext) {
+		if (type != NULL
+		    && !(np->type != 0 && strcmp(np->type, type) == 0))
+			continue;
+		if (of_device_is_compatible(np, compatible))
+			break;
+	}
+
+	return np;
+}
+EXPORT_SYMBOL(of_find_compatible_node);
 
 struct property *of_find_property(struct device_node *np, const char *name,
 				  int *lenp)
