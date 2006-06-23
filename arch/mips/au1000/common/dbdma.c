@@ -730,6 +730,8 @@ au1xxx_dbdma_get_dest(u32 chanid, void **buf, int *nbytes)
 	return rv;
 }
 
+EXPORT_SYMBOL_GPL(au1xxx_dbdma_get_dest);
+
 void
 au1xxx_dbdma_stop(u32 chanid)
 {
@@ -820,6 +822,8 @@ au1xxx_get_dma_residue(u32 chanid)
 
 	return rv;
 }
+
+EXPORT_SYMBOL_GPL(au1xxx_get_dma_residue);
 
 void
 au1xxx_dbdma_chan_free(u32 chanid)
