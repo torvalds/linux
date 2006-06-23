@@ -1727,6 +1727,7 @@ void __init build_all_zonelists(void)
  */
 #define PAGES_PER_WAITQUEUE	256
 
+#ifndef CONFIG_MEMORY_HOTPLUG
 static inline unsigned long wait_table_hash_nr_entries(unsigned long pages)
 {
 	unsigned long size = 1;
@@ -1745,6 +1746,29 @@ static inline unsigned long wait_table_hash_nr_entries(unsigned long pages)
 
 	return max(size, 4UL);
 }
+#else
+/*
+ * A zone's size might be changed by hot-add, so it is not possible to determine
+ * a suitable size for its wait_table.  So we use the maximum size now.
+ *
+ * The max wait table size = 4096 x sizeof(wait_queue_head_t).   ie:
+ *
+ *    i386 (preemption config)    : 4096 x 16 = 64Kbyte.
+ *    ia64, x86-64 (no preemption): 4096 x 20 = 80Kbyte.
+ *    ia64, x86-64 (preemption)   : 4096 x 24 = 96Kbyte.
+ *
+ * The maximum entries are prepared when a zone's memory is (512K + 256) pages
+ * or more by the traditional way. (See above).  It equals:
+ *
+ *    i386, x86-64, powerpc(4K page size) : =  ( 2G + 1M)byte.
+ *    ia64(16K page size)                 : =  ( 8G + 4M)byte.
+ *    powerpc (64K page size)             : =  (32G +16M)byte.
+ */
+static inline unsigned long wait_table_hash_nr_entries(unsigned long pages)
+{
+	return 4096UL;
+}
+#endif
 
 /*
  * This is an integer logarithm so that shifts can be used later
@@ -2010,10 +2034,11 @@ void __init setup_per_cpu_pageset(void)
 #endif
 
 static __meminit
-void zone_wait_table_init(struct zone *zone, unsigned long zone_size_pages)
+int zone_wait_table_init(struct zone *zone, unsigned long zone_size_pages)
 {
 	int i;
 	struct pglist_data *pgdat = zone->zone_pgdat;
+	size_t alloc_size;
 
 	/*
 	 * The per-page waitqueue mechanism uses hashed waitqueues
@@ -2023,12 +2048,32 @@ void zone_wait_table_init(struct zone *zone, unsigned long zone_size_pages)
 		 wait_table_hash_nr_entries(zone_size_pages);
 	zone->wait_table_bits =
 		wait_table_bits(zone->wait_table_hash_nr_entries);
-	zone->wait_table = (wait_queue_head_t *)
-		alloc_bootmem_node(pgdat, zone->wait_table_hash_nr_entries
-					* sizeof(wait_queue_head_t));
+	alloc_size = zone->wait_table_hash_nr_entries
+					* sizeof(wait_queue_head_t);
+
+ 	if (system_state == SYSTEM_BOOTING) {
+		zone->wait_table = (wait_queue_head_t *)
+			alloc_bootmem_node(pgdat, alloc_size);
+	} else {
+		/*
+		 * This case means that a zone whose size was 0 gets new memory
+		 * via memory hot-add.
+		 * But it may be the case that a new node was hot-added.  In
+		 * this case vmalloc() will not be able to use this new node's
+		 * memory - this wait_table must be initialized to use this new
+		 * node itself as well.
+		 * To use this new node's memory, further consideration will be
+		 * necessary.
+		 */
+		zone->wait_table = (wait_queue_head_t *)vmalloc(alloc_size);
+	}
+	if (!zone->wait_table)
+		return -ENOMEM;
 
 	for(i = 0; i < zone->wait_table_hash_nr_entries; ++i)
 		init_waitqueue_head(zone->wait_table + i);
+
+	return 0;
 }
 
 static __meminit void zone_pcp_init(struct zone *zone)
@@ -2055,8 +2100,10 @@ __meminit int init_currently_empty_zone(struct zone *zone,
 					unsigned long size)
 {
 	struct pglist_data *pgdat = zone->zone_pgdat;
-
-	zone_wait_table_init(zone, size);
+	int ret;
+	ret = zone_wait_table_init(zone, size);
+	if (ret)
+		return ret;
 	pgdat->nr_zones = zone_idx(zone) + 1;
 
 	zone->zone_start_pfn = zone_start_pfn;
