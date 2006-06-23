@@ -188,8 +188,10 @@ int swsusp_shrink_memory(void)
 			PAGES_FOR_IO;
 		tmp = size;
 		for_each_zone (zone)
-			if (!is_highmem(zone))
+			if (!is_highmem(zone) && populated_zone(zone)) {
 				tmp -= zone->free_pages;
+				tmp += zone->lowmem_reserve[ZONE_NORMAL];
+			}
 		if (tmp > 0) {
 			tmp = __shrink_memory(tmp);
 			if (!tmp)
