@@ -103,7 +103,7 @@ int anon_vma_prepare(struct vm_area_struct *vma)
 		spin_lock(&mm->page_table_lock);
 		if (likely(!vma->anon_vma)) {
 			vma->anon_vma = anon_vma;
-			list_add(&vma->anon_vma_node, &anon_vma->head);
+			list_add_tail(&vma->anon_vma_node, &anon_vma->head);
 			allocated = NULL;
 		}
 		spin_unlock(&mm->page_table_lock);
@@ -127,7 +127,7 @@ void __anon_vma_link(struct vm_area_struct *vma)
 	struct anon_vma *anon_vma = vma->anon_vma;
 
 	if (anon_vma) {
-		list_add(&vma->anon_vma_node, &anon_vma->head);
+		list_add_tail(&vma->anon_vma_node, &anon_vma->head);
 		validate_anon_vma(vma);
 	}
 }
@@ -138,7 +138,7 @@ void anon_vma_link(struct vm_area_struct *vma)
 
 	if (anon_vma) {
 		spin_lock(&anon_vma->lock);
-		list_add(&vma->anon_vma_node, &anon_vma->head);
+		list_add_tail(&vma->anon_vma_node, &anon_vma->head);
 		validate_anon_vma(vma);
 		spin_unlock(&anon_vma->lock);
 	}
@@ -620,17 +620,27 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
 
 	if (PageAnon(page)) {
 		swp_entry_t entry = { .val = page_private(page) };
-		/*
-		 * Store the swap location in the pte.
-		 * See handle_pte_fault() ...
-		 */
-		BUG_ON(!PageSwapCache(page));
-		swap_duplicate(entry);
-		if (list_empty(&mm->mmlist)) {
-			spin_lock(&mmlist_lock);
-			if (list_empty(&mm->mmlist))
-				list_add(&mm->mmlist, &init_mm.mmlist);
-			spin_unlock(&mmlist_lock);
+
+		if (PageSwapCache(page)) {
+			/*
+			 * Store the swap location in the pte.
+			 * See handle_pte_fault() ...
+			 */
+			swap_duplicate(entry);
+			if (list_empty(&mm->mmlist)) {
+				spin_lock(&mmlist_lock);
+				if (list_empty(&mm->mmlist))
+					list_add(&mm->mmlist, &init_mm.mmlist);
+				spin_unlock(&mmlist_lock);
+			}
+		} else {
+			/*
+			 * Store the pfn of the page in a special migration
+			 * pte. do_swap_page() will wait until the migration
+			 * pte is removed and then restart fault handling.
+			 */
+			BUG_ON(!migration);
+			entry = make_migration_entry(page, pte_write(pteval));
 		}
 		set_pte_at(mm, address, pte, swp_entry_to_pte(entry));
 		BUG_ON(pte_file(*pte));

@@ -434,7 +434,9 @@ copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 	/* pte contains position in swap or file, so copy. */
 	if (unlikely(!pte_present(pte))) {
 		if (!pte_file(pte)) {
-			swap_duplicate(pte_to_swp_entry(pte));
+			swp_entry_t entry = pte_to_swp_entry(pte);
+
+			swap_duplicate(entry);
 			/* make sure dst_mm is on swapoff's mmlist. */
 			if (unlikely(list_empty(&dst_mm->mmlist))) {
 				spin_lock(&mmlist_lock);
@@ -442,6 +444,16 @@ copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 					list_add(&dst_mm->mmlist,
 						 &src_mm->mmlist);
 				spin_unlock(&mmlist_lock);
+			}
+			if (is_write_migration_entry(entry) &&
+					is_cow_mapping(vm_flags)) {
+				/*
+				 * COW mappings require pages in both parent
+				 * and child to be set to read.
+				 */
+				make_migration_entry_read(&entry);
+				pte = swp_entry_to_pte(entry);
+				set_pte_at(src_mm, addr, src_pte, pte);
 			}
 		}
 		goto out_set_pte;
@@ -1879,6 +1891,10 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		goto out;
 
 	entry = pte_to_swp_entry(orig_pte);
+	if (is_migration_entry(entry)) {
+		migration_entry_wait(mm, pmd, address);
+		goto out;
+	}
 	page = lookup_swap_cache(entry);
 	if (!page) {
  		swapin_readahead(entry, address, vma);

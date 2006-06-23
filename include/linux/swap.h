@@ -28,7 +28,14 @@ static inline int current_is_kswapd(void)
  * the type/offset into the pte as 5/27 as well.
  */
 #define MAX_SWAPFILES_SHIFT	5
+#ifndef CONFIG_MIGRATION
 #define MAX_SWAPFILES		(1 << MAX_SWAPFILES_SHIFT)
+#else
+/* Use last two entries for page migration swap entries */
+#define MAX_SWAPFILES		((1 << MAX_SWAPFILES_SHIFT)-2)
+#define SWP_MIGRATION_READ	MAX_SWAPFILES
+#define SWP_MIGRATION_WRITE	(MAX_SWAPFILES + 1)
+#endif
 
 /*
  * Magic header for a swap area. The first part of the union is

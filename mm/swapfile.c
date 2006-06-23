@@ -395,6 +395,9 @@ void free_swap_and_cache(swp_entry_t entry)
 	struct swap_info_struct * p;
 	struct page *page = NULL;
 
+	if (is_migration_entry(entry))
+		return;
+
 	p = swap_info_get(entry);
 	if (p) {
 		if (swap_entry_free(p, swp_offset(entry)) == 1) {
@@ -1400,19 +1403,7 @@ asmlinkage long sys_swapon(const char __user * specialfile, int swap_flags)
 		if (!(p->flags & SWP_USED))
 			break;
 	error = -EPERM;
-	/*
-	 * Test if adding another swap device is possible. There are
-	 * two limiting factors: 1) the number of bits for the swap
-	 * type swp_entry_t definition and 2) the number of bits for
-	 * the swap type in the swap ptes as defined by the different
-	 * architectures. To honor both limitations a swap entry
-	 * with swap offset 0 and swap type ~0UL is created, encoded
-	 * to a swap pte, decoded to a swp_entry_t again and finally
-	 * the swap type part is extracted. This will mask all bits
-	 * from the initial ~0UL that can't be encoded in either the
-	 * swp_entry_t or the architecture definition of a swap pte.
-	 */
-	if (type > swp_type(pte_to_swp_entry(swp_entry_to_pte(swp_entry(~0UL,0))))) {
+	if (type >= MAX_SWAPFILES) {
 		spin_unlock(&swap_lock);
 		goto out;
 	}
@@ -1701,6 +1692,9 @@ int swap_duplicate(swp_entry_t entry)
 	struct swap_info_struct * p;
 	unsigned long offset, type;
 	int result = 0;
+
+	if (is_migration_entry(entry))
+		return 1;
 
 	type = swp_type(entry);
 	if (type >= nr_swapfiles)

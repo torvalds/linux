@@ -15,6 +15,7 @@
 #include <linux/migrate.h>
 #include <linux/module.h>
 #include <linux/swap.h>
+#include <linux/swapops.h>
 #include <linux/pagemap.h>
 #include <linux/buffer_head.h>
 #include <linux/mm_inline.h>
@@ -23,7 +24,6 @@
 #include <linux/topology.h>
 #include <linux/cpu.h>
 #include <linux/cpuset.h>
-#include <linux/swapops.h>
 
 #include "internal.h"
 
@@ -117,6 +117,132 @@ int putback_lru_pages(struct list_head *l)
 		count++;
 	}
 	return count;
+}
+
+static inline int is_swap_pte(pte_t pte)
+{
+	return !pte_none(pte) && !pte_present(pte) && !pte_file(pte);
+}
+
+/*
+ * Restore a potential migration pte to a working pte entry
+ */
+static void remove_migration_pte(struct vm_area_struct *vma, unsigned long addr,
+		struct page *old, struct page *new)
+{
+	struct mm_struct *mm = vma->vm_mm;
+	swp_entry_t entry;
+ 	pgd_t *pgd;
+ 	pud_t *pud;
+ 	pmd_t *pmd;
+	pte_t *ptep, pte;
+ 	spinlock_t *ptl;
+
+ 	pgd = pgd_offset(mm, addr);
+	if (!pgd_present(*pgd))
+                return;
+
+	pud = pud_offset(pgd, addr);
+	if (!pud_present(*pud))
+                return;
+
+	pmd = pmd_offset(pud, addr);
+	if (!pmd_present(*pmd))
+		return;
+
+	ptep = pte_offset_map(pmd, addr);
+
+	if (!is_swap_pte(*ptep)) {
+		pte_unmap(ptep);
+ 		return;
+ 	}
+
+ 	ptl = pte_lockptr(mm, pmd);
+ 	spin_lock(ptl);
+	pte = *ptep;
+	if (!is_swap_pte(pte))
+		goto out;
+
+	entry = pte_to_swp_entry(pte);
+
+	if (!is_migration_entry(entry) || migration_entry_to_page(entry) != old)
+		goto out;
+
+	inc_mm_counter(mm, anon_rss);
+	get_page(new);
+	pte = pte_mkold(mk_pte(new, vma->vm_page_prot));
+	if (is_write_migration_entry(entry))
+		pte = pte_mkwrite(pte);
+	set_pte_at(mm, addr, ptep, pte);
+	page_add_anon_rmap(new, vma, addr);
+out:
+	pte_unmap_unlock(ptep, ptl);
+}
+
+/*
+ * Get rid of all migration entries and replace them by
+ * references to the indicated page.
+ *
+ * Must hold mmap_sem lock on at least one of the vmas containing
+ * the page so that the anon_vma cannot vanish.
+ */
+static void remove_migration_ptes(struct page *old, struct page *new)
+{
+	struct anon_vma *anon_vma;
+	struct vm_area_struct *vma;
+	unsigned long mapping;
+
+	mapping = (unsigned long)new->mapping;
+
+	if (!mapping || (mapping & PAGE_MAPPING_ANON) == 0)
+		return;
+
+	/*
+	 * We hold the mmap_sem lock. So no need to call page_lock_anon_vma.
+	 */
+	anon_vma = (struct anon_vma *) (mapping - PAGE_MAPPING_ANON);
+	spin_lock(&anon_vma->lock);
+
+	list_for_each_entry(vma, &anon_vma->head, anon_vma_node)
+		remove_migration_pte(vma, page_address_in_vma(new, vma),
+					old, new);
+
+	spin_unlock(&anon_vma->lock);
+}
+
+/*
+ * Something used the pte of a page under migration. We need to
+ * get to the page and wait until migration is finished.
+ * When we return from this function the fault will be retried.
+ *
+ * This function is called from do_swap_page().
+ */
+void migration_entry_wait(struct mm_struct *mm, pmd_t *pmd,
+				unsigned long address)
+{
+	pte_t *ptep, pte;
+	spinlock_t *ptl;
+	swp_entry_t entry;
+	struct page *page;
+
+	ptep = pte_offset_map_lock(mm, pmd, address, &ptl);
+	pte = *ptep;
+	if (!is_swap_pte(pte))
+		goto out;
+
+	entry = pte_to_swp_entry(pte);
+	if (!is_migration_entry(entry))
+		goto out;
+
+	page = migration_entry_to_page(entry);
+
+	get_page(page);
+	pte_unmap_unlock(ptep, ptl);
+	wait_on_page_locked(page);
+	put_page(page);
+	return;
+out:
+	pte_unmap_unlock(ptep, ptl);
 }
 
 /*

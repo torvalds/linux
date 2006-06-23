@@ -67,3 +67,56 @@ static inline pte_t swp_entry_to_pte(swp_entry_t entry)
 	BUG_ON(pte_file(__swp_entry_to_pte(arch_entry)));
 	return __swp_entry_to_pte(arch_entry);
 }
+
+#ifdef CONFIG_MIGRATION
+static inline swp_entry_t make_migration_entry(struct page *page, int write)
+{
+	BUG_ON(!PageLocked(page));
+	return swp_entry(write ? SWP_MIGRATION_WRITE : SWP_MIGRATION_READ,
+			page_to_pfn(page));
+}
+
+static inline int is_migration_entry(swp_entry_t entry)
+{
+	return unlikely(swp_type(entry) == SWP_MIGRATION_READ ||
+			swp_type(entry) == SWP_MIGRATION_WRITE);
+}
+
+static inline int is_write_migration_entry(swp_entry_t entry)
+{
+	return unlikely(swp_type(entry) == SWP_MIGRATION_WRITE);
+}
+
+static inline struct page *migration_entry_to_page(swp_entry_t entry)
+{
+	struct page *p = pfn_to_page(swp_offset(entry));
+	/*
+	 * Any use of migration entries may only occur while the
+	 * corresponding page is locked
+	 */
+	BUG_ON(!PageLocked(p));
+	return p;
+}
+
+static inline void make_migration_entry_read(swp_entry_t *entry)
+{
+	*entry = swp_entry(SWP_MIGRATION_READ, swp_offset(*entry));
+}
+
+extern void migration_entry_wait(struct mm_struct *mm, pmd_t *pmd,
+					unsigned long address);
+#else
+
+#define make_migration_entry(page, write) swp_entry(0, 0)
+#define is_migration_entry(swp) 0
+#define migration_entry_to_page(swp) NULL
+static inline void make_migration_entry_read(swp_entry_t *entryp) { }
+static inline void migration_entry_wait(struct mm_struct *mm, pmd_t *pmd,
+					 unsigned long address) { }
+static inline int is_write_migration_entry(swp_entry_t entry)
+{
+	return 0;
+}
+
+#endif
+

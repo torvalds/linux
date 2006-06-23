@@ -19,7 +19,8 @@
 #include <linux/mempolicy.h>
 #include <linux/personality.h>
 #include <linux/syscalls.h>
-
+#include <linux/swap.h>
+#include <linux/swapops.h>
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/cacheflush.h>
@@ -28,12 +29,13 @@
 static void change_pte_range(struct mm_struct *mm, pmd_t *pmd,
 		unsigned long addr, unsigned long end, pgprot_t newprot)
 {
-	pte_t *pte;
+	pte_t *pte, oldpte;
 	spinlock_t *ptl;
 
 	pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
 	do {
-		if (pte_present(*pte)) {
+		oldpte = *pte;
+		if (pte_present(oldpte)) {
 			pte_t ptent;
 
 			/* Avoid an SMP race with hardware updated dirty/clean
@@ -43,7 +45,22 @@ static void change_pte_range(struct mm_struct *mm, pmd_t *pmd,
 			ptent = pte_modify(ptep_get_and_clear(mm, addr, pte), newprot);
 			set_pte_at(mm, addr, pte, ptent);
 			lazy_mmu_prot_update(ptent);
+#ifdef CONFIG_MIGRATION
+		} else if (!pte_file(oldpte)) {
+			swp_entry_t entry = pte_to_swp_entry(oldpte);
+
+			if (is_write_migration_entry(entry)) {
+				/*
+				 * A protection check is difficult so
+				 * just be safe and disable write
+				 */
+				make_migration_entry_read(&entry);
+				set_pte_at(mm, addr, pte,
+					swp_entry_to_pte(entry));
+			}
+#endif
 		}
+
 	} while (pte++, addr += PAGE_SIZE, addr != end);
 	pte_unmap_unlock(pte - 1, ptl);
 }
