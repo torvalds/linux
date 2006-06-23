@@ -1024,6 +1024,40 @@ static void drain_alien_cache(struct kmem_cache *cachep,
 		}
 	}
 }
+
+static inline int cache_free_alien(struct kmem_cache *cachep, void *objp)
+{
+	struct slab *slabp = virt_to_slab(objp);
+	int nodeid = slabp->nodeid;
+	struct kmem_list3 *l3;
+	struct array_cache *alien = NULL;
+
+	/*
+	 * Make sure we are not freeing a object from another node to the array
+	 * cache on this cpu.
+	 */
+	if (likely(slabp->nodeid == numa_node_id()))
+		return 0;
+
+	l3 = cachep->nodelists[numa_node_id()];
+	STATS_INC_NODEFREES(cachep);
+	if (l3->alien && l3->alien[nodeid]) {
+		alien = l3->alien[nodeid];
+		spin_lock(&alien->lock);
+		if (unlikely(alien->avail == alien->limit)) {
+			STATS_INC_ACOVERFLOW(cachep);
+			__drain_alien_cache(cachep, alien, nodeid);
+		}
+		alien->entry[alien->avail++] = objp;
+		spin_unlock(&alien->lock);
+	} else {
+		spin_lock(&(cachep->nodelists[nodeid])->list_lock);
+		free_block(cachep, &objp, 1, nodeid);
+		spin_unlock(&(cachep->nodelists[nodeid])->list_lock);
+	}
+	return 1;
+}
+
 #else
 
 #define drain_alien_cache(cachep, alien) do { } while (0)
@@ -1036,6 +1070,11 @@ static inline struct array_cache **alloc_alien_cache(int node, int limit)
 
 static inline void free_alien_cache(struct array_cache **ac_ptr)
 {
+}
+
+static inline int cache_free_alien(struct kmem_cache *cachep, void *objp)
+{
+	return 0;
 }
 
 #endif
@@ -3087,41 +3126,9 @@ static inline void __cache_free(struct kmem_cache *cachep, void *objp)
 	check_irq_off();
 	objp = cache_free_debugcheck(cachep, objp, __builtin_return_address(0));
 
-	/* Make sure we are not freeing a object from another
-	 * node to the array cache on this cpu.
-	 */
-#ifdef CONFIG_NUMA
-	{
-		struct slab *slabp;
-		slabp = virt_to_slab(objp);
-		if (unlikely(slabp->nodeid != numa_node_id())) {
-			struct array_cache *alien = NULL;
-			int nodeid = slabp->nodeid;
-			struct kmem_list3 *l3;
+	if (cache_free_alien(cachep, objp))
+		return;
 
-			l3 = cachep->nodelists[numa_node_id()];
-			STATS_INC_NODEFREES(cachep);
-			if (l3->alien && l3->alien[nodeid]) {
-				alien = l3->alien[nodeid];
-				spin_lock(&alien->lock);
-				if (unlikely(alien->avail == alien->limit)) {
-					STATS_INC_ACOVERFLOW(cachep);
-					__drain_alien_cache(cachep,
-							    alien, nodeid);
-				}
-				alien->entry[alien->avail++] = objp;
-				spin_unlock(&alien->lock);
-			} else {
-				spin_lock(&(cachep->nodelists[nodeid])->
-					  list_lock);
-				free_block(cachep, &objp, 1, nodeid);
-				spin_unlock(&(cachep->nodelists[nodeid])->
-					    list_lock);
-			}
-			return;
-		}
-	}
-#endif
 	if (likely(ac->avail < ac->limit)) {
 		STATS_INC_FREEHIT(cachep);
 		ac->entry[ac->avail++] = objp;
