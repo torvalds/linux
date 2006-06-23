@@ -380,12 +380,12 @@ fastcall void __kprobes do_page_fault(struct pt_regs *regs,
 		goto bad_area;
 	if (error_code & 4) {
 		/*
-		 * accessing the stack below %esp is always a bug.
-		 * The "+ 32" is there due to some instructions (like
-		 * pusha) doing post-decrement on the stack and that
-		 * doesn't show up until later..
+		 * Accessing the stack below %esp is always a bug.
+		 * The large cushion allows instructions like enter
+		 * and pusha to work.  ("enter $65535,$31" pushes
+		 * 32 pointers and then decrements %esp by 65535.)
 		 */
-		if (address + 32 < regs->esp)
+		if (address + 65536 + 32 * sizeof(unsigned long) < regs->esp)
 			goto bad_area;
 	}
 	if (expand_stack(vma, address))
