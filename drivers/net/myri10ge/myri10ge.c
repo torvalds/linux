@@ -2251,12 +2251,6 @@ static void myri10ge_enable_ecrc(struct myri10ge_priv *mgp)
 	}
 
 	cap = pci_find_ext_capability(bridge, PCI_EXT_CAP_ID_ERR);
-	/* nvidia ext cap is not always linked in ext cap chain */
-	if (!cap
-	    && bridge->vendor == PCI_VENDOR_ID_NVIDIA
-	    && bridge->device == PCI_DEVICE_ID_NVIDIA_NFORCE_CK804_PCIE)
-		cap = 0x160;
-
 	if (!cap)
 		return;
 
