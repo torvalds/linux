@@ -399,7 +399,7 @@ static ctl_table kern_table[] = {
 		.strategy	= &sysctl_string,
 	},
 #endif
-#ifdef CONFIG_HOTPLUG
+#if defined(CONFIG_HOTPLUG) && defined(CONFIG_NET)
 	{
 		.ctl_name	= KERN_HOTPLUG,
 		.procname	= "hotplug",
