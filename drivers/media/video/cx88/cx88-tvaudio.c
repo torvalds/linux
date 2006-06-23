@@ -154,6 +154,7 @@ static void set_audio_finish(struct cx88_core *core, u32 ctl)
 		case CX88_BOARD_KWORLD_MCE200_DELUXE:
 		case CX88_BOARD_KWORLD_HARDWARE_MPEG_TV_XPERT:
 		case CX88_BOARD_PIXELVIEW_PLAYTV_P7000:
+		case CX88_BOARD_ASUS_PVR_416:
 			cx_clear(AUD_CTL, EN_I2SIN_ENABLE);
 			break;
 		default:
