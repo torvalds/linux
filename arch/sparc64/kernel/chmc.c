@@ -17,6 +17,7 @@
 #include <asm/spitfire.h>
 #include <asm/chmctrl.h>
 #include <asm/oplib.h>
+#include <asm/prom.h>
 #include <asm/io.h>
 
 #define CHMCTRL_NDGRPS	2
@@ -67,7 +68,6 @@ struct bank_info {
 struct mctrl_info {
 	struct list_head	list;
 	int			portid;
-	int			index;
 
 	struct obp_mem_layout	layout_prop;
 	int			layout_size;
@@ -339,12 +339,13 @@ static void fetch_decode_regs(struct mctrl_info *mp)
 				 read_mcreg(mp, CHMCTRL_DECODE4));
 }
 
-static int init_one_mctrl(int node, int index)
+static int init_one_mctrl(struct device_node *dp)
 {
 	struct mctrl_info *mp = kmalloc(sizeof(*mp), GFP_KERNEL);
-	int portid = prom_getintdefault(node, "portid", -1);
-	struct linux_prom64_registers p_reg_prop;
-	int t;
+	int portid = of_getintprop_default(dp, "portid", -1);
+	struct linux_prom64_registers *regs;
+	void *pval;
+	int len;
 
 	if (!mp)
 		return -1;
@@ -353,24 +354,21 @@ static int init_one_mctrl(int node, int index)
 		goto fail;
 
 	mp->portid = portid;
-	mp->layout_size = prom_getproplen(node, "memory-layout");
-	if (mp->layout_size < 0)
+	pval = of_get_property(dp, "memory-layout", &len);
+	mp->layout_size = len;
+	if (!pval)
 		mp->layout_size = 0;
-	if (mp->layout_size > sizeof(mp->layout_prop))
+	else {
+		if (mp->layout_size > sizeof(mp->layout_prop))
+			goto fail;
+		memcpy(&mp->layout_prop, pval, len);
+	}
+
+	regs = of_get_property(dp, "reg", NULL);
+	if (!regs || regs->reg_size != 0x48)
 		goto fail;
 
-	if (mp->layout_size > 0)
-		prom_getproperty(node, "memory-layout",
-				 (char *) &mp->layout_prop,
-				 mp->layout_size);
-
-	t = prom_getproperty(node, "reg",
-			     (char *) &p_reg_prop,
-			     sizeof(p_reg_prop));
-	if (t < 0 || p_reg_prop.reg_size != 0x48)
-		goto fail;
-
-	mp->regs = ioremap(p_reg_prop.phys_addr, p_reg_prop.reg_size);
+	mp->regs = ioremap(regs->phys_addr, regs->reg_size);
 	if (mp->regs == NULL)
 		goto fail;
 
@@ -384,13 +382,11 @@ static int init_one_mctrl(int node, int index)
 
 	fetch_decode_regs(mp);
 
-	mp->index = index;
-
 	list_add(&mp->list, &mctrl_list);
 
 	/* Report the device. */
-	printk(KERN_INFO "chmc%d: US3 memory controller at %p [%s]\n",
-	       mp->index,
+	printk(KERN_INFO "%s: US3 memory controller at %p [%s]\n",
+	       dp->full_name,
 	       mp->regs, (mp->layout_size ? "ACTIVE" : "INACTIVE"));
 
 	return 0;
@@ -404,34 +400,19 @@ fail:
 	return -1;
 }
 
-static int __init probe_for_string(char *name, int index)
-{
-	int node = prom_getchild(prom_root_node);
-
-	while ((node = prom_searchsiblings(node, name)) != 0) {
-		int ret = init_one_mctrl(node, index);
-
-		if (!ret)
-			index++;
-
-		node = prom_getsibling(node);
-		if (!node)
-			break;
-	}
-
-	return index;
-}
-
 static int __init chmc_init(void)
 {
-	int index;
+	struct device_node *dp;
 
 	/* This driver is only for cheetah platforms. */
 	if (tlb_type != cheetah && tlb_type != cheetah_plus)
 		return -ENODEV;
 
-	index = probe_for_string("memory-controller", 0);
-	index = probe_for_string("mc-us3", index);
+	for_each_node_by_name(dp, "memory-controller")
+		init_one_mctrl(dp);
+
+	for_each_node_by_name(dp, "mc-us3")
+		init_one_mctrl(dp);
 
 	return 0;
 }
