@@ -500,7 +500,7 @@ void scsi_device_unbusy(struct scsi_device *sdev)
 	spin_lock_irqsave(shost->host_lock, flags);
 	shost->host_busy--;
 	if (unlikely(scsi_host_in_recovery(shost) &&
-		     shost->host_failed))
+		     (shost->host_failed || shost->host_eh_scheduled)))
 		scsi_eh_wakeup(shost);
 	spin_unlock(shost->host_lock);
 	spin_lock(sdev->request_queue->queue_lock);
