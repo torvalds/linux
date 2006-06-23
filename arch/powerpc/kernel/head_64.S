@@ -1976,17 +1976,6 @@ _STATIC(start_here_common)
 	/* Not reached */
 	BUG_OPCODE
 
-/* Put the paca pointer into r13 and SPRG3 */
-_GLOBAL(setup_boot_paca)
-	LOAD_REG_IMMEDIATE(r3, boot_cpuid)
-	lwz	r3,0(r3)
-	LOAD_REG_IMMEDIATE(r4, paca) 	/* Get base vaddr of paca array	 */
-	mulli	r3,r3,PACA_SIZE		/* Calculate vaddr of right paca */
-	add	r13,r3,r4		/* for this processor.		 */
-	mtspr	SPRN_SPRG3,r13
-
-	blr
-
 /*
  * We put a few things here that have to be page-aligned.
  * This stuff goes at the beginning of the bss, which is page-aligned.

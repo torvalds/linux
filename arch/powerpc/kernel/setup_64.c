@@ -149,6 +149,13 @@ early_param("smt-enabled", early_smt_enabled);
 #define check_smt_enabled()
 #endif /* CONFIG_SMP */
 
+/* Put the paca pointer into r13 and SPRG3 */
+void __init setup_paca(int cpu)
+{
+	local_paca = &paca[cpu];
+	mtspr(SPRN_SPRG3, local_paca);
+}
+
 /*
  * Early initialization entry point. This is called by head.S
  * with MMU translation disabled. We rely on the "feature" of
@@ -183,7 +190,7 @@ void __init early_setup(unsigned long dt_ptr)
 	early_init_devtree(__va(dt_ptr));
 
 	/* Now we know the logical id of our boot cpu, setup the paca. */
-	setup_boot_paca();
+	setup_paca(boot_cpuid);
 
 	/* Fix up paca fields required for the boot cpu */
 	get_paca()->cpu_start = 1;
