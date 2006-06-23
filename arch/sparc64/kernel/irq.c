@@ -34,6 +34,7 @@
 #include <asm/iommu.h>
 #include <asm/upa.h>
 #include <asm/oplib.h>
+#include <asm/prom.h>
 #include <asm/timer.h>
 #include <asm/smp.h>
 #include <asm/starfire.h>
@@ -635,23 +636,30 @@ static u64 prom_limit0, prom_limit1;
 
 static void map_prom_timers(void)
 {
-	unsigned int addr[3];
+	struct device_node *dp;
+	unsigned int *addr;
 	int tnode, err;
 
 	/* PROM timer node hangs out in the top level of device siblings... */
-	tnode = prom_finddevice("/counter-timer");
+	dp = of_find_node_by_path("/");
+	dp = dp->child;
+	while (dp) {
+		if (!strcmp(dp->name, "counter-timer"))
+			break;
+		dp = dp->sibling;
+	}
 
 	/* Assume if node is not present, PROM uses different tick mechanism
 	 * which we should not care about.
 	 */
-	if (tnode == 0 || tnode == -1) {
+	if (!dp) {
 		prom_timers = (struct sun5_timer *) 0;
 		return;
 	}
 
 	/* If PROM is really using this, it must be mapped by him. */
-	err = prom_getproperty(tnode, "address", (char *)addr, sizeof(addr));
-	if (err == -1) {
+	addr = of_get_property(dp, "address", NULL);
+	if (!addr) {
 		prom_printf("PROM does not have timer mapped, trying to continue.\n");
 		prom_timers = (struct sun5_timer *) 0;
 		return;

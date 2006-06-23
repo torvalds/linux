@@ -19,6 +19,7 @@
 #include <asm/cache.h>
 #include <asm/dma.h>
 #include <asm/irq.h>
+#include <asm/prom.h>
 #include <asm/starfire.h>
 
 #include "iommu_common.h"
@@ -1098,24 +1099,25 @@ static void __init sysio_register_error_handlers(struct sbus_bus *sbus)
 }
 
 /* Boot time initialization. */
-void __init sbus_iommu_init(int prom_node, struct sbus_bus *sbus)
+void __init sbus_iommu_init(int __node, struct sbus_bus *sbus)
 {
-	struct linux_prom64_registers rprop;
+	struct linux_prom64_registers *pr;
+	struct device_node *dp;
 	struct sbus_iommu *iommu;
 	unsigned long regs, tsb_base;
 	u64 control;
-	int err, i;
+	int i;
 
-	sbus->portid = prom_getintdefault(sbus->prom_node,
-					  "upa-portid", -1);
+	dp = of_find_node_by_phandle(__node);
 
-	err = prom_getproperty(prom_node, "reg",
-			       (char *)&rprop, sizeof(rprop));
-	if (err < 0) {
+	sbus->portid = of_getintprop_default(dp, "upa-portid", -1);
+
+	pr = of_get_property(dp, "reg", NULL);
+	if (!pr) {
 		prom_printf("sbus_iommu_init: Cannot map SYSIO control registers.\n");
 		prom_halt();
 	}
-	regs = rprop.phys_addr;
+	regs = pr->phys_addr;
 
 	iommu = kmalloc(sizeof(*iommu) + SMP_CACHE_BYTES, GFP_ATOMIC);
 	if (iommu == NULL) {
@@ -1228,12 +1230,11 @@ void __init sbus_iommu_init(int prom_node, struct sbus_bus *sbus)
 
 void sbus_fill_device_irq(struct sbus_dev *sdev)
 {
-	struct linux_prom_irqs irqs[PROMINTR_MAX];
-	int len;
+	struct device_node *dp = of_find_node_by_phandle(sdev->prom_node);
+	struct linux_prom_irqs *irqs;
 
-	len = prom_getproperty(sdev->prom_node, "interrupts",
-			       (char *) irqs, sizeof(irqs));
-	if (len == -1 || len == 0) {
+	irqs = of_get_property(dp, "interrupts", NULL);
+	if (!irqs) {
 		sdev->irqs[0] = 0;
 		sdev->num_irqs = 0;
 	} else {
