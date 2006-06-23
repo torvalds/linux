@@ -166,50 +166,20 @@ retry:
 }
 
 /*
- * Remove references for a page and establish the new page with the correct
- * basic settings to be able to stop accesses to the page.
+ * Replace the page in the mapping.
  *
  * The number of remaining references must be:
  * 1 for anonymous pages without a mapping
  * 2 for pages with a mapping
  * 3 for pages with a mapping and PagePrivate set.
  */
-static int migrate_page_remove_references(struct page *newpage,
+static int migrate_page_move_mapping(struct page *newpage,
 				struct page *page)
 {
 	struct address_space *mapping = page_mapping(page);
 	struct page **radix_pointer;
 
 	if (!mapping)
-		return -EAGAIN;
-
-	/*
-	 * Establish swap ptes for anonymous pages or destroy pte
-	 * maps for files.
-	 *
-	 * In order to reestablish file backed mappings the fault handlers
-	 * will take the radix tree_lock which may then be used to stop
-  	 * processses from accessing this page until the new page is ready.
-	 *
-	 * A process accessing via a swap pte (an anonymous page) will take a
-	 * page_lock on the old page which will block the process until the
-	 * migration attempt is complete. At that time the PageSwapCache bit
-	 * will be examined. If the page was migrated then the PageSwapCache
-	 * bit will be clear and the operation to retrieve the page will be
-	 * retried which will find the new page in the radix tree. Then a new
-	 * direct mapping may be generated based on the radix tree contents.
-	 *
-	 * If the page was not migrated then the PageSwapCache bit
-	 * is still set and the operation may continue.
-	 */
-	if (try_to_unmap(page, 1) == SWAP_FAIL)
-		/* A vma has VM_LOCKED set -> permanent failure */
-		return -EPERM;
-
-	/*
-	 * Give up if we were unable to remove all mappings.
-	 */
-	if (page_mapcount(page))
 		return -EAGAIN;
 
 	write_lock_irq(&mapping->tree_lock);
@@ -310,7 +280,7 @@ int migrate_page(struct page *newpage, struct page *page)
 
 	BUG_ON(PageWriteback(page));	/* Writeback must be complete */
 
-	rc = migrate_page_remove_references(newpage, page);
+	rc = migrate_page_move_mapping(newpage, page);
 
 	if (rc)
 		return rc;
@@ -349,7 +319,7 @@ int buffer_migrate_page(struct page *newpage, struct page *page)
 
 	head = page_buffers(page);
 
-	rc = migrate_page_remove_references(newpage, page);
+	rc = migrate_page_move_mapping(newpage, page);
 
 	if (rc)
 		return rc;
@@ -482,6 +452,33 @@ redo:
 		lock_page(newpage);
 
 		/*
+		 * Establish swap ptes for anonymous pages or destroy pte
+		 * maps for files.
+		 *
+		 * In order to reestablish file backed mappings the fault handlers
+		 * will take the radix tree_lock which may then be used to stop
+	  	 * processses from accessing this page until the new page is ready.
+		 *
+		 * A process accessing via a swap pte (an anonymous page) will take a
+		 * page_lock on the old page which will block the process until the
+		 * migration attempt is complete. At that time the PageSwapCache bit
+		 * will be examined. If the page was migrated then the PageSwapCache
+		 * bit will be clear and the operation to retrieve the page will be
+		 * retried which will find the new page in the radix tree. Then a new
+		 * direct mapping may be generated based on the radix tree contents.
+		 *
+		 * If the page was not migrated then the PageSwapCache bit
+		 * is still set and the operation may continue.
+		 */
+		rc = -EPERM;
+		if (try_to_unmap(page, 1) == SWAP_FAIL)
+			/* A vma has VM_LOCKED set -> permanent failure */
+			goto unlock_both;
+
+		rc = -EAGAIN;
+		if (page_mapped(page))
+			goto unlock_both;
+		/*
 		 * Pages are properly locked and writeback is complete.
 		 * Try to migrate the page.
 		 */
@@ -500,17 +497,6 @@ redo:
 			rc = mapping->a_ops->migratepage(newpage, page);
 			goto unlock_both;
                 }
-
-		/* Make sure the dirty bit is up to date */
-		if (try_to_unmap(page, 1) == SWAP_FAIL) {
-			rc = -EPERM;
-			goto unlock_both;
-		}
-
-		if (page_mapcount(page)) {
-			rc = -EAGAIN;
-			goto unlock_both;
-		}
 
 		/*
 		 * Default handling if a filesystem does not provide
