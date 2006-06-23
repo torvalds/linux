@@ -10,7 +10,6 @@
 #ifndef _ASM_ADDRSPACE_H
 #define _ASM_ADDRSPACE_H
 
-#include <linux/config.h>
 #include <spaces.h>
 
 /*
@@ -133,56 +132,21 @@
     || defined (CONFIG_CPU_NEVADA)					\
     || defined (CONFIG_CPU_TX49XX)					\
     || defined (CONFIG_CPU_MIPS64)
-#define KUSIZE		_LLCONST_(0x0000010000000000)	/* 2^^40 */
-#define KUSIZE_64	_LLCONST_(0x0000010000000000)	/* 2^^40 */
-#define K0SIZE		_LLCONST_(0x0000001000000000)	/* 2^^36 */
-#define K1SIZE		_LLCONST_(0x0000001000000000)	/* 2^^36 */
-#define K2SIZE		_LLCONST_(0x000000ff80000000)
-#define KSEGSIZE	_LLCONST_(0x000000ff80000000)	/* max syssegsz */
 #define TO_PHYS_MASK	_LLCONST_(0x0000000fffffffff)	/* 2^^36 - 1 */
 #endif
 
 #if defined (CONFIG_CPU_R8000)
 /* We keep KUSIZE consistent with R4000 for now (2^^40) instead of (2^^48) */
-#define KUSIZE		_LLCONST_(0x0000010000000000)	/* 2^^40 */
-#define KUSIZE_64	_LLCONST_(0x0000010000000000)	/* 2^^40 */
-#define K0SIZE		_LLCONST_(0x0000010000000000)	/* 2^^40 */
-#define K1SIZE		_LLCONST_(0x0000010000000000)	/* 2^^40 */
-#define K2SIZE		_LLCONST_(0x0001000000000000)
-#define KSEGSIZE	_LLCONST_(0x0000010000000000)	/* max syssegsz */
 #define TO_PHYS_MASK	_LLCONST_(0x000000ffffffffff)	/* 2^^40 - 1 */
 #endif
 
 #if defined (CONFIG_CPU_R10000)
-#define KUSIZE		_LLCONST_(0x0000010000000000)	/* 2^^40 */
-#define KUSIZE_64	_LLCONST_(0x0000010000000000)	/* 2^^40 */
-#define K0SIZE		_LLCONST_(0x0000010000000000)	/* 2^^40 */
-#define K1SIZE		_LLCONST_(0x0000010000000000)	/* 2^^40 */
-#define K2SIZE		_LLCONST_(0x00000fff80000000)
-#define KSEGSIZE	_LLCONST_(0x00000fff80000000)	/* max syssegsz */
 #define TO_PHYS_MASK	_LLCONST_(0x000000ffffffffff)	/* 2^^40 - 1 */
 #endif
 
 #if defined(CONFIG_CPU_SB1) || defined(CONFIG_CPU_SB1A)
-#define KUSIZE		_LLCONST_(0x0000100000000000)	/* 2^^44 */
-#define KUSIZE_64	_LLCONST_(0x0000100000000000)	/* 2^^44 */
-#define K0SIZE		_LLCONST_(0x0000100000000000)	/* 2^^44 */
-#define K1SIZE		_LLCONST_(0x0000100000000000)	/* 2^^44 */
-#define K2SIZE		_LLCONST_(0x0000ffff80000000)
-#define KSEGSIZE	_LLCONST_(0x0000ffff80000000)	/* max syssegsz */
 #define TO_PHYS_MASK	_LLCONST_(0x00000fffffffffff)	/* 2^^44 - 1 */
 #endif
-
-/*
- * Further names for SGI source compatibility.  These are stolen from
- * IRIX's <sys/mips_addrspace.h>.
- */
-#define KUBASE		_LLCONST_(0)
-#define KUSIZE_32	_LLCONST_(0x0000000080000000)	/* KUSIZE
-							   for a 32 bit proc */
-#define K0BASE_EXL_WR	_LLCONST_(0xa800000000000000)	/* exclusive on write */
-#define K0BASE_NONCOH	_LLCONST_(0x9800000000000000)	/* noncoherent */
-#define K0BASE_EXL	_LLCONST_(0xa000000000000000)	/* exclusive */
 
 #ifndef CONFIG_CPU_R8000
 

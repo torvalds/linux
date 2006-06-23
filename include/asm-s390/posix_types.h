@@ -76,24 +76,36 @@ typedef struct {
 } __kernel_fsid_t;
 
 
-#if defined(__KERNEL__) || !defined(__GLIBC__) || (__GLIBC__ < 2)
+#ifdef __KERNEL__
 
-#ifndef _S390_BITOPS_H
-#include <asm/bitops.h>
-#endif
+#undef __FD_SET
+static inline void __FD_SET(unsigned long fd, __kernel_fd_set *fdsetp)
+{
+	unsigned long _tmp = fd / __NFDBITS;
+	unsigned long _rem = fd % __NFDBITS;
+	fdsetp->fds_bits[_tmp] |= (1UL<<_rem);
+}
 
-#undef  __FD_SET
-#define __FD_SET(fd,fdsetp)  set_bit((fd),(fdsetp)->fds_bits)
+#undef __FD_CLR
+static inline void __FD_CLR(unsigned long fd, __kernel_fd_set *fdsetp)
+{
+	unsigned long _tmp = fd / __NFDBITS;
+	unsigned long _rem = fd % __NFDBITS;
+	fdsetp->fds_bits[_tmp] &= ~(1UL<<_rem);
+}
 
-#undef  __FD_CLR
-#define __FD_CLR(fd,fdsetp)  clear_bit((fd),(fdsetp)->fds_bits)
-
-#undef  __FD_ISSET
-#define __FD_ISSET(fd,fdsetp)  test_bit((fd),(fdsetp)->fds_bits)
+#undef __FD_ISSET
+static inline int __FD_ISSET(unsigned long fd, const __kernel_fd_set *fdsetp)
+{
+	unsigned long _tmp = fd / __NFDBITS;
+	unsigned long _rem = fd % __NFDBITS;
+	return (fdsetp->fds_bits[_tmp] & (1UL<<_rem)) != 0;
+}
 
 #undef  __FD_ZERO
-#define __FD_ZERO(fdsetp) (memset ((fdsetp), 0, sizeof(*(fd_set *)(fdsetp))))
+#define __FD_ZERO(fdsetp) \
+	((void) memset ((__ptr_t) (fdsetp), 0, sizeof (__kernel_fd_set)))
 
-#endif     /* defined(__KERNEL__) || !defined(__GLIBC__) || (__GLIBC__ < 2)*/
+#endif     /* __KERNEL__ */
 
 #endif

@@ -162,7 +162,7 @@ static void __init setup_l3cache(unsigned long size)
 	printk("Done\n");
 }
 
-void __init plat_setup(void)
+void __init plat_mem_setup(void)
 {
 	void (*l3func)(unsigned long) = (void *) KSEG1ADDR(setup_l3cache);
 	unsigned int tmpword;

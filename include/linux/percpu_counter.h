@@ -6,7 +6,6 @@
  * WARNING: these things are HUGE.  4 kbytes per counter on 32-way P4.
  */
 
-#include <linux/config.h>
 #include <linux/spinlock.h>
 #include <linux/smp.h>
 #include <linux/threads.h>

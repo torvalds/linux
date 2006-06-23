@@ -15,5 +15,5 @@
 
 obj-$(CONFIG_ZLIB_INFLATE) += zlib_inflate.o
 
-zlib_inflate-objs := infblock.o infcodes.o inffast.o inflate.o \
-		     inflate_sync.o inftrees.o infutil.o inflate_syms.o
+zlib_inflate-objs := inffast.o inflate.o \
+		     inftrees.o inflate_syms.o

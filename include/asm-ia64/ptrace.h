@@ -54,7 +54,6 @@
  * This is because ar.ec is saved as part of ar.pfs.
  */
 
-#include <linux/config.h>
 
 #include <asm/fpu.h>
 #ifndef ASM_OFFSETS_C

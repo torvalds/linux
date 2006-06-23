@@ -15,7 +15,7 @@
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/pm.h>
-
+#include <linux/console.h>
 
 #include "power.h"
 
@@ -86,6 +86,7 @@ static int suspend_prepare(suspend_state_t state)
 			goto Thaw;
 	}
 
+	suspend_console();
 	if ((error = device_suspend(PMSG_SUSPEND))) {
 		printk(KERN_ERR "Some devices failed to suspend\n");
 		goto Finish;
@@ -133,6 +134,7 @@ int suspend_enter(suspend_state_t state)
 static void suspend_finish(suspend_state_t state)
 {
 	device_resume();
+	resume_console();
 	thaw_processes();
 	enable_nonboot_cpus();
 	if (pm_ops && pm_ops->finish)

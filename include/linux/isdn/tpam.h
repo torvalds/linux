@@ -26,7 +26,6 @@
 #define _TPAM_H_
 
 #include <linux/types.h>
-#include <linux/pci.h>
 
 /* IOCTL commands */
 #define TPAM_CMD_DSPLOAD	0x0001

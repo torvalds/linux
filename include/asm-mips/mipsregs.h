@@ -13,7 +13,6 @@
 #ifndef _ASM_MIPSREGS_H
 #define _ASM_MIPSREGS_H
 
-#include <linux/config.h>
 #include <linux/linkage.h>
 #include <asm/hazards.h>
 
@@ -1451,12 +1450,10 @@ static inline void __emt(unsigned int previous)
 {
 	if ((previous & __EMT_ENABLE))
 		__asm__ __volatile__(
-		"	.set	noreorder				\n"
 		"	.set	mips32r2				\n"
 		"	.word	0x41600be1		# emt		\n"
 		"	ehb						\n"
-		"	.set	mips0					\n"
-		"	.set	reorder					\n");
+		"	.set	mips0					\n");
 }
 
 static inline void __ehb(void)

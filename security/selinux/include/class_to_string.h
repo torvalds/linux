@@ -58,3 +58,6 @@
     S_("nscd")
     S_("association")
     S_("netlink_kobject_uevent_socket")
+    S_("appletalk_socket")
+    S_("packet")
+    S_("key")

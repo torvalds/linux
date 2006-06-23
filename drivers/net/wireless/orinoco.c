@@ -201,41 +201,12 @@ static struct {
 /* Data types                                                       */
 /********************************************************************/
 
-/* Used in Event handling.
- * We avoid nested structures as they break on ARM -- Moustafa */
-struct hermes_tx_descriptor_802_11 {
-	/* hermes_tx_descriptor */
-	__le16 status;
-	__le16 reserved1;
-	__le16 reserved2;
-	__le32 sw_support;
-	u8 retry_count;
-	u8 tx_rate;
-	__le16 tx_control;
-
-	/* ieee80211_hdr */
+/* Beginning of the Tx descriptor, used in TxExc handling */
+struct hermes_txexc_data {
+	struct hermes_tx_descriptor desc;
 	__le16 frame_ctl;
 	__le16 duration_id;
 	u8 addr1[ETH_ALEN];
-	u8 addr2[ETH_ALEN];
-	u8 addr3[ETH_ALEN];
-	__le16 seq_ctl;
-	u8 addr4[ETH_ALEN];
-
-	__le16 data_len;
-
-	/* ethhdr */
-	u8 h_dest[ETH_ALEN];	/* destination eth addr */
-	u8 h_source[ETH_ALEN];	/* source ether addr    */
-	__be16 h_proto;		/* packet type ID field */
-
-	/* p8022_hdr */
-	u8 dsap;
-	u8 ssap;
-	u8 ctrl;
-	u8 oui[3];
-
-	__be16 ethertype;
 } __attribute__ ((packed));
 
 /* Rx frame header except compatibility 802.3 header */
@@ -450,53 +421,39 @@ static int orinoco_xmit(struct sk_buff *skb, struct net_device *dev)
 	hermes_t *hw = &priv->hw;
 	int err = 0;
 	u16 txfid = priv->txfid;
-	char *p;
 	struct ethhdr *eh;
-	int len, data_len, data_off;
+	int data_off;
 	struct hermes_tx_descriptor desc;
 	unsigned long flags;
-
-	TRACE_ENTER(dev->name);
 
 	if (! netif_running(dev)) {
 		printk(KERN_ERR "%s: Tx on stopped device!\n",
 		       dev->name);
-		TRACE_EXIT(dev->name);
-		return 1;
+		return NETDEV_TX_BUSY;
 	}
 	
 	if (netif_queue_stopped(dev)) {
 		printk(KERN_DEBUG "%s: Tx while transmitter busy!\n", 
 		       dev->name);
-		TRACE_EXIT(dev->name);
-		return 1;
+		return NETDEV_TX_BUSY;
 	}
 	
 	if (orinoco_lock(priv, &flags) != 0) {
 		printk(KERN_ERR "%s: orinoco_xmit() called while hw_unavailable\n",
 		       dev->name);
-		TRACE_EXIT(dev->name);
-		return 1;
+		return NETDEV_TX_BUSY;
 	}
 
 	if (! netif_carrier_ok(dev) || (priv->iw_mode == IW_MODE_MONITOR)) {
 		/* Oops, the firmware hasn't established a connection,
                    silently drop the packet (this seems to be the
                    safest approach). */
-		stats->tx_errors++;
-		orinoco_unlock(priv, &flags);
-		dev_kfree_skb(skb);
-		TRACE_EXIT(dev->name);
-		return 0;
+		goto drop;
 	}
 
-	/* Length of the packet body */
-	/* FIXME: what if the skb is smaller than this? */
-	len = max_t(int, ALIGN(skb->len, 2), ETH_ZLEN);
-	skb = skb_padto(skb, len);
-	if (skb == NULL)
-		goto fail;
-	len -= ETH_HLEN;
+	/* Check packet length */
+	if (skb->len < ETH_HLEN)
+		goto drop;
 
 	eh = (struct ethhdr *)skb->data;
 
@@ -507,8 +464,7 @@ static int orinoco_xmit(struct sk_buff *skb, struct net_device *dev)
 		if (net_ratelimit())
 			printk(KERN_ERR "%s: Error %d writing Tx descriptor "
 			       "to BAP\n", dev->name, err);
-		stats->tx_errors++;
-		goto fail;
+		goto busy;
 	}
 
 	/* Clear the 802.11 header and data length fields - some
@@ -519,50 +475,38 @@ static int orinoco_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* Encapsulate Ethernet-II frames */
 	if (ntohs(eh->h_proto) > ETH_DATA_LEN) { /* Ethernet-II frame */
-		struct header_struct hdr;
-		data_len = len;
-		data_off = HERMES_802_3_OFFSET + sizeof(hdr);
-		p = skb->data + ETH_HLEN;
+		struct header_struct {
+			struct ethhdr eth;	/* 802.3 header */
+			u8 encap[6];		/* 802.2 header */
+		} __attribute__ ((packed)) hdr;
 
-		/* 802.3 header */
-		memcpy(hdr.dest, eh->h_dest, ETH_ALEN);
-		memcpy(hdr.src, eh->h_source, ETH_ALEN);
-		hdr.len = htons(data_len + ENCAPS_OVERHEAD);
-		
-		/* 802.2 header */
-		memcpy(&hdr.dsap, &encaps_hdr, sizeof(encaps_hdr));
-			
-		hdr.ethertype = eh->h_proto;
-		err  = hermes_bap_pwrite(hw, USER_BAP, &hdr, sizeof(hdr),
-					 txfid, HERMES_802_3_OFFSET);
+		/* Strip destination and source from the data */
+		skb_pull(skb, 2 * ETH_ALEN);
+		data_off = HERMES_802_2_OFFSET + sizeof(encaps_hdr);
+
+		/* And move them to a separate header */
+		memcpy(&hdr.eth, eh, 2 * ETH_ALEN);
+		hdr.eth.h_proto = htons(sizeof(encaps_hdr) + skb->len);
+		memcpy(hdr.encap, encaps_hdr, sizeof(encaps_hdr));
+
+		err = hermes_bap_pwrite(hw, USER_BAP, &hdr, sizeof(hdr),
+					txfid, HERMES_802_3_OFFSET);
 		if (err) {
 			if (net_ratelimit())
 				printk(KERN_ERR "%s: Error %d writing packet "
 				       "header to BAP\n", dev->name, err);
-			stats->tx_errors++;
-			goto fail;
+			goto busy;
 		}
-		/* Actual xfer length - allow for padding */
-		len = ALIGN(data_len, 2);
-		if (len < ETH_ZLEN - ETH_HLEN)
-			len = ETH_ZLEN - ETH_HLEN;
 	} else { /* IEEE 802.3 frame */
-		data_len = len + ETH_HLEN;
 		data_off = HERMES_802_3_OFFSET;
-		p = skb->data;
-		/* Actual xfer length - round up for odd length packets */
-		len = ALIGN(data_len, 2);
-		if (len < ETH_ZLEN)
-			len = ETH_ZLEN;
 	}
 
-	err = hermes_bap_pwrite_pad(hw, USER_BAP, p, data_len, len,
+	err = hermes_bap_pwrite(hw, USER_BAP, skb->data, skb->len,
 				txfid, data_off);
 	if (err) {
 		printk(KERN_ERR "%s: Error %d writing packet to BAP\n",
 		       dev->name, err);
-		stats->tx_errors++;
-		goto fail;
+		goto busy;
 	}
 
 	/* Finally, we actually initiate the send */
@@ -575,25 +519,27 @@ static int orinoco_xmit(struct sk_buff *skb, struct net_device *dev)
 		if (net_ratelimit())
 			printk(KERN_ERR "%s: Error %d transmitting packet\n",
 				dev->name, err);
-		stats->tx_errors++;
-		goto fail;
+		goto busy;
 	}
 
 	dev->trans_start = jiffies;
-	stats->tx_bytes += data_off + data_len;
+	stats->tx_bytes += data_off + skb->len;
+	goto ok;
 
+ drop:
+	stats->tx_errors++;
+	stats->tx_dropped++;
+
+ ok:
 	orinoco_unlock(priv, &flags);
-
 	dev_kfree_skb(skb);
+	return NETDEV_TX_OK;
 
-	TRACE_EXIT(dev->name);
-
-	return 0;
- fail:
-	TRACE_EXIT(dev->name);
-
+ busy:
+	if (err == -EIO)
+		schedule_work(&priv->reset_work);
 	orinoco_unlock(priv, &flags);
-	return err;
+	return NETDEV_TX_BUSY;
 }
 
 static void __orinoco_ev_alloc(struct net_device *dev, hermes_t *hw)
@@ -629,7 +575,7 @@ static void __orinoco_ev_txexc(struct net_device *dev, hermes_t *hw)
 	struct net_device_stats *stats = &priv->stats;
 	u16 fid = hermes_read_regn(hw, TXCOMPLFID);
 	u16 status;
-	struct hermes_tx_descriptor_802_11 hdr;
+	struct hermes_txexc_data hdr;
 	int err = 0;
 
 	if (fid == DUMMY_FID)
@@ -637,8 +583,7 @@ static void __orinoco_ev_txexc(struct net_device *dev, hermes_t *hw)
 
 	/* Read part of the frame header - we need status and addr1 */
 	err = hermes_bap_pread(hw, IRQ_BAP, &hdr,
-			       offsetof(struct hermes_tx_descriptor_802_11,
-					addr2),
+			       sizeof(struct hermes_txexc_data),
 			       fid, 0);
 
 	hermes_write_regn(hw, TXCOMPLFID, DUMMY_FID);
@@ -658,7 +603,7 @@ static void __orinoco_ev_txexc(struct net_device *dev, hermes_t *hw)
 	 * exceeded, because that's the only status that really mean
 	 * that this particular node went away.
 	 * Other errors means that *we* screwed up. - Jean II */
-	status = le16_to_cpu(hdr.status);
+	status = le16_to_cpu(hdr.desc.status);
 	if (status & (HERMES_TXSTAT_RETRYERR | HERMES_TXSTAT_AGEDERR)) {
 		union iwreq_data	wrqu;
 
@@ -1398,15 +1343,11 @@ int __orinoco_down(struct net_device *dev)
 	return 0;
 }
 
-int orinoco_reinit_firmware(struct net_device *dev)
+static int orinoco_allocate_fid(struct net_device *dev)
 {
 	struct orinoco_private *priv = netdev_priv(dev);
 	struct hermes *hw = &priv->hw;
 	int err;
-
-	err = hermes_init(hw);
-	if (err)
-		return err;
 
 	err = hermes_allocate(hw, priv->nicbuf_size, &priv->txfid);
 	if (err == -EIO && priv->nicbuf_size > TX_NICBUF_SIZE_BUG) {
@@ -1422,6 +1363,19 @@ int orinoco_reinit_firmware(struct net_device *dev)
 		else
 			printk("ok.\n");
 	}
+
+	return err;
+}
+
+int orinoco_reinit_firmware(struct net_device *dev)
+{
+	struct orinoco_private *priv = netdev_priv(dev);
+	struct hermes *hw = &priv->hw;
+	int err;
+
+	err = hermes_init(hw);
+	if (!err)
+		err = orinoco_allocate_fid(dev);
 
 	return err;
 }
@@ -1833,7 +1787,9 @@ static int __orinoco_program_rids(struct net_device *dev)
 	/* Set promiscuity / multicast*/
 	priv->promiscuous = 0;
 	priv->mc_count = 0;
-	__orinoco_set_multicast_list(dev); /* FIXME: what about the xmit_lock */
+
+	/* FIXME: what about netif_tx_lock */
+	__orinoco_set_multicast_list(dev);
 
 	return 0;
 }
@@ -2272,14 +2228,12 @@ static int orinoco_init(struct net_device *dev)
 	u16 reclen;
 	int len;
 
-	TRACE_ENTER(dev->name);
-
 	/* No need to lock, the hw_unavailable flag is already set in
 	 * alloc_orinocodev() */
 	priv->nicbuf_size = IEEE80211_FRAME_LEN + ETH_HLEN;
 
 	/* Initialize the firmware */
-	err = orinoco_reinit_firmware(dev);
+	err = hermes_init(hw);
 	if (err != 0) {
 		printk(KERN_ERR "%s: failed to initialize firmware (err = %d)\n",
 		       dev->name, err);
@@ -2336,6 +2290,13 @@ static int orinoco_init(struct net_device *dev)
 	priv->nick[len] = '\0';
 
 	printk(KERN_DEBUG "%s: Station name \"%s\"\n", dev->name, priv->nick);
+
+	err = orinoco_allocate_fid(dev);
+	if (err) {
+		printk(KERN_ERR "%s: failed to allocate NIC buffer!\n",
+		       dev->name);
+		goto out;
+	}
 
 	/* Get allowed channels */
 	err = hermes_read_wordrec(hw, USER_BAP, HERMES_RID_CHANNELLIST,
@@ -2427,7 +2388,6 @@ static int orinoco_init(struct net_device *dev)
 	printk(KERN_DEBUG "%s: ready\n", dev->name);
 
  out:
-	TRACE_EXIT(dev->name);
 	return err;
 }
 
@@ -2795,8 +2755,6 @@ static int orinoco_ioctl_getiwrange(struct net_device *dev,
 	int numrates;
 	int i, k;
 
-	TRACE_ENTER(dev->name);
-
 	rrq->length = sizeof(struct iw_range);
 	memset(range, 0, sizeof(struct iw_range));
 
@@ -2885,8 +2843,6 @@ static int orinoco_ioctl_getiwrange(struct net_device *dev,
 	IW_EVENT_CAPA_SET(range->event_capa, SIOCGIWAP);
 	IW_EVENT_CAPA_SET(range->event_capa, SIOCGIWSCAN);
 	IW_EVENT_CAPA_SET(range->event_capa, IWEVTXDROP);
-
-	TRACE_EXIT(dev->name);
 
 	return 0;
 }
@@ -3069,8 +3025,6 @@ static int orinoco_ioctl_getessid(struct net_device *dev,
 	int err = 0;
 	unsigned long flags;
 
-	TRACE_ENTER(dev->name);
-
 	if (netif_running(dev)) {
 		err = orinoco_hw_get_essid(priv, &active, essidbuf);
 		if (err)
@@ -3085,8 +3039,6 @@ static int orinoco_ioctl_getessid(struct net_device *dev,
 	erq->flags = 1;
 	erq->length = strlen(essidbuf) + 1;
 
-	TRACE_EXIT(dev->name);
-	
 	return 0;
 }
 
@@ -4345,69 +4297,6 @@ static struct ethtool_ops orinoco_ethtool_ops = {
 	.get_drvinfo = orinoco_get_drvinfo,
 	.get_link = ethtool_op_get_link,
 };
-
-/********************************************************************/
-/* Debugging                                                        */
-/********************************************************************/
-
-#if 0
-static void show_rx_frame(struct orinoco_rxframe_hdr *frame)
-{
-	printk(KERN_DEBUG "RX descriptor:\n");
-	printk(KERN_DEBUG "  status      = 0x%04x\n", frame->desc.status);
-	printk(KERN_DEBUG "  time        = 0x%08x\n", frame->desc.time);
-	printk(KERN_DEBUG "  silence     = 0x%02x\n", frame->desc.silence);
-	printk(KERN_DEBUG "  signal      = 0x%02x\n", frame->desc.signal);
-	printk(KERN_DEBUG "  rate        = 0x%02x\n", frame->desc.rate);
-	printk(KERN_DEBUG "  rxflow      = 0x%02x\n", frame->desc.rxflow);
-	printk(KERN_DEBUG "  reserved    = 0x%08x\n", frame->desc.reserved);
-
-	printk(KERN_DEBUG "IEEE 802.11 header:\n");
-	printk(KERN_DEBUG "  frame_ctl   = 0x%04x\n",
-	       frame->p80211.frame_ctl);
-	printk(KERN_DEBUG "  duration_id = 0x%04x\n",
-	       frame->p80211.duration_id);
-	printk(KERN_DEBUG "  addr1       = %02x:%02x:%02x:%02x:%02x:%02x\n",
-	       frame->p80211.addr1[0], frame->p80211.addr1[1],
-	       frame->p80211.addr1[2], frame->p80211.addr1[3],
-	       frame->p80211.addr1[4], frame->p80211.addr1[5]);
-	printk(KERN_DEBUG "  addr2       = %02x:%02x:%02x:%02x:%02x:%02x\n",
-	       frame->p80211.addr2[0], frame->p80211.addr2[1],
-	       frame->p80211.addr2[2], frame->p80211.addr2[3],
-	       frame->p80211.addr2[4], frame->p80211.addr2[5]);
-	printk(KERN_DEBUG "  addr3       = %02x:%02x:%02x:%02x:%02x:%02x\n",
-	       frame->p80211.addr3[0], frame->p80211.addr3[1],
-	       frame->p80211.addr3[2], frame->p80211.addr3[3],
-	       frame->p80211.addr3[4], frame->p80211.addr3[5]);
-	printk(KERN_DEBUG "  seq_ctl     = 0x%04x\n",
-	       frame->p80211.seq_ctl);
-	printk(KERN_DEBUG "  addr4       = %02x:%02x:%02x:%02x:%02x:%02x\n",
-	       frame->p80211.addr4[0], frame->p80211.addr4[1],
-	       frame->p80211.addr4[2], frame->p80211.addr4[3],
-	       frame->p80211.addr4[4], frame->p80211.addr4[5]);
-	printk(KERN_DEBUG "  data_len    = 0x%04x\n",
-	       frame->p80211.data_len);
-
-	printk(KERN_DEBUG "IEEE 802.3 header:\n");
-	printk(KERN_DEBUG "  dest        = %02x:%02x:%02x:%02x:%02x:%02x\n",
-	       frame->p8023.h_dest[0], frame->p8023.h_dest[1],
-	       frame->p8023.h_dest[2], frame->p8023.h_dest[3],
-	       frame->p8023.h_dest[4], frame->p8023.h_dest[5]);
-	printk(KERN_DEBUG "  src         = %02x:%02x:%02x:%02x:%02x:%02x\n",
-	       frame->p8023.h_source[0], frame->p8023.h_source[1],
-	       frame->p8023.h_source[2], frame->p8023.h_source[3],
-	       frame->p8023.h_source[4], frame->p8023.h_source[5]);
-	printk(KERN_DEBUG "  len         = 0x%04x\n", frame->p8023.h_proto);
-
-	printk(KERN_DEBUG "IEEE 802.2 LLC/SNAP header:\n");
-	printk(KERN_DEBUG "  DSAP        = 0x%02x\n", frame->p8022.dsap);
-	printk(KERN_DEBUG "  SSAP        = 0x%02x\n", frame->p8022.ssap);
-	printk(KERN_DEBUG "  ctrl        = 0x%02x\n", frame->p8022.ctrl);
-	printk(KERN_DEBUG "  OUI         = %02x:%02x:%02x\n",
-	       frame->p8022.oui[0], frame->p8022.oui[1], frame->p8022.oui[2]);
-	printk(KERN_DEBUG "  ethertype  = 0x%04x\n", frame->ethertype);
-}
-#endif /* 0 */
 
 /********************************************************************/
 /* Module initialization                                            */

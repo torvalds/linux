@@ -990,6 +990,9 @@ init_conntrack(const struct nf_conntrack_tuple *tuple,
 #ifdef CONFIG_NF_CONNTRACK_MARK
 		conntrack->mark = exp->master->mark;
 #endif
+#ifdef CONFIG_NF_CONNTRACK_SECMARK
+		conntrack->secmark = exp->master->secmark;
+#endif
 		nf_conntrack_get(&conntrack->master->ct_general);
 		NF_CT_STAT_INC(expect_new);
 	} else
@@ -1395,6 +1398,12 @@ void __nf_ct_refresh_acct(struct nf_conn *ct,
 	NF_CT_ASSERT(skb);
 
 	write_lock_bh(&nf_conntrack_lock);
+
+	/* Only update if this is not a fixed timeout */
+	if (test_bit(IPS_FIXED_TIMEOUT_BIT, &ct->status)) {
+		write_unlock_bh(&nf_conntrack_lock);
+		return;
+	}
 
 	/* If not in hash table, timer will not be active yet */
 	if (!nf_ct_is_confirmed(ct)) {

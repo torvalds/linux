@@ -4,7 +4,6 @@
  * These are the type definitions for the architecture specific
  * syscall compatibility layer.
  */
-#include <linux/config.h>
 
 #ifdef CONFIG_COMPAT
 

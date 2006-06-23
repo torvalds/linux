@@ -31,6 +31,7 @@
 #include <linux/console.h>
 #include <linux/spinlock.h>
 #include <linux/root_dev.h>
+#include <linux/cpu.h>
 
 #include <asm/system.h>
 #include <asm/io.h>
@@ -331,7 +332,7 @@ void __init setup_arch(char **cmdline_p)
 	if (!root_flags)
 		root_mountflags &= ~MS_RDONLY;
 	ROOT_DEV = old_decode_dev(root_dev);
-#ifdef CONFIG_BLK_DEV_INITRD
+#ifdef CONFIG_BLK_DEV_RAM
 	rd_image_start = ram_flags & RAMDISK_IMAGE_START_MASK;
 	rd_prompt = ((ram_flags & RAMDISK_PROMPT_FLAG) != 0);
 	rd_doload = ((ram_flags & RAMDISK_LOAD_FLAG) != 0);	
@@ -347,6 +348,8 @@ void __init setup_arch(char **cmdline_p)
 
 	init_mm.context = (unsigned long) NO_CONTEXT;
 	init_task.thread.kregs = &fake_swapper_regs;
+
+	smp_setup_cpu_possible_map();
 
 	paging_init();
 }
@@ -389,6 +392,8 @@ console_initcall(set_preferred_console);
 extern char *sparc_cpu_type;
 extern char *sparc_fpu_type;
 
+static int ncpus_probed;
+
 static int show_cpuinfo(struct seq_file *m, void *__unused)
 {
 	seq_printf(m,
@@ -411,7 +416,7 @@ static int show_cpuinfo(struct seq_file *m, void *__unused)
 		   romvec->pv_printrev >> 16,
 		   romvec->pv_printrev & 0xffff,
 		   &cputypval,
-		   num_possible_cpus(),
+		   ncpus_probed,
 		   num_online_cpus()
 #ifndef CONFIG_SMP
 		   , cpu_data(0).udelay_val/(500000/HZ),
@@ -471,3 +476,30 @@ void sun_do_break(void)
 
 int serial_console = -1;
 int stop_a_enabled = 1;
+
+static int __init topology_init(void)
+{
+	int i, ncpus, err;
+
+	/* Count the number of physically present processors in
+	 * the machine, even on uniprocessor, so that /proc/cpuinfo
+	 * output is consistent with 2.4.x
+	 */
+	ncpus = 0;
+	while (!cpu_find_by_instance(ncpus, NULL, NULL))
+		ncpus++;
+	ncpus_probed = ncpus;
+
+	err = 0;
+	for_each_online_cpu(i) {
+		struct cpu *p = kzalloc(sizeof(*p), GFP_KERNEL);
+		if (!p)
+			err = -ENOMEM;
+		else
+			register_cpu(p, i, NULL);
+	}
+
+	return err;
+}
+
+subsys_initcall(topology_init);

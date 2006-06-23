@@ -145,12 +145,12 @@ void dma_region_free(struct dma_region *dma)
 /* find the scatterlist index and remaining offset corresponding to a
    given offset from the beginning of the buffer */
 static inline int dma_region_find(struct dma_region *dma, unsigned long offset,
-				  unsigned long *rem)
+				  unsigned int start, unsigned long *rem)
 {
 	int i;
 	unsigned long off = offset;
 
-	for (i = 0; i < dma->n_dma_pages; i++) {
+	for (i = start; i < dma->n_dma_pages; i++) {
 		if (off < sg_dma_len(&dma->sglist[i])) {
 			*rem = off;
 			break;
@@ -170,7 +170,7 @@ dma_addr_t dma_region_offset_to_bus(struct dma_region * dma,
 	unsigned long rem = 0;
 
 	struct scatterlist *sg =
-	    &dma->sglist[dma_region_find(dma, offset, &rem)];
+	    &dma->sglist[dma_region_find(dma, offset, 0, &rem)];
 	return sg_dma_address(sg) + rem;
 }
 
@@ -178,13 +178,13 @@ void dma_region_sync_for_cpu(struct dma_region *dma, unsigned long offset,
 			     unsigned long len)
 {
 	int first, last;
-	unsigned long rem;
+	unsigned long rem = 0;
 
 	if (!len)
 		len = 1;
 
-	first = dma_region_find(dma, offset, &rem);
-	last = dma_region_find(dma, offset + len - 1, &rem);
+	first = dma_region_find(dma, offset, 0, &rem);
+	last = dma_region_find(dma, rem + len - 1, first, &rem);
 
 	pci_dma_sync_sg_for_cpu(dma->dev, &dma->sglist[first], last - first + 1,
 				dma->direction);
@@ -194,13 +194,13 @@ void dma_region_sync_for_device(struct dma_region *dma, unsigned long offset,
 				unsigned long len)
 {
 	int first, last;
-	unsigned long rem;
+	unsigned long rem = 0;
 
 	if (!len)
 		len = 1;
 
-	first = dma_region_find(dma, offset, &rem);
-	last = dma_region_find(dma, offset + len - 1, &rem);
+	first = dma_region_find(dma, offset, 0, &rem);
+	last = dma_region_find(dma, rem + len - 1, first, &rem);
 
 	pci_dma_sync_sg_for_device(dma->dev, &dma->sglist[first],
 				   last - first + 1, dma->direction);

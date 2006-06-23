@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2005 Silicon Graphics, Inc.
+ * Copyright (c) 2000-2006 Silicon Graphics, Inc.
  * All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -24,7 +24,6 @@
 #include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
-#include "xfs_dir.h"
 #include "xfs_dir2.h"
 #include "xfs_alloc.h"
 #include "xfs_dmapi.h"
@@ -33,7 +32,6 @@
 #include "xfs_bmap_btree.h"
 #include "xfs_alloc_btree.h"
 #include "xfs_ialloc_btree.h"
-#include "xfs_dir_sf.h"
 #include "xfs_dir2_sf.h"
 #include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
@@ -129,7 +127,7 @@ xfs_qm_parseargs(
 		return XFS_ERROR(EINVAL);
 	}
 
-	PVFS_PARSEARGS(BHV_NEXT(bhv), options, args, update, error);
+	error = bhv_next_vfs_parseargs(BHV_NEXT(bhv), options, args, update);
 	if (!error && !referenced)
 		bhv_remove_vfsops(bhvtovfs(bhv), VFS_POSITION_QM);
 	return error;
@@ -140,9 +138,8 @@ xfs_qm_showargs(
 	struct bhv_desc		*bhv,
 	struct seq_file		*m)
 {
-	struct vfs		*vfsp = bhvtovfs(bhv);
+	struct bhv_vfs		*vfsp = bhvtovfs(bhv);
 	struct xfs_mount	*mp = XFS_VFSTOM(vfsp);
-	int			error;
 
 	if (mp->m_qflags & XFS_UQUOTA_ACCT) {
 		(mp->m_qflags & XFS_UQUOTA_ENFD) ?
@@ -165,8 +162,7 @@ xfs_qm_showargs(
 	if (!(mp->m_qflags & XFS_ALL_QUOTA_ACCT))
 		seq_puts(m, "," MNTOPT_NOQUOTA);
 
-	PVFS_SHOWARGS(BHV_NEXT(bhv), m, error);
-	return error;
+	return bhv_next_vfs_showargs(BHV_NEXT(bhv), m);
 }
 
 STATIC int
@@ -175,14 +171,67 @@ xfs_qm_mount(
 	struct xfs_mount_args	*args,
 	struct cred		*cr)
 {
-	struct vfs		*vfsp = bhvtovfs(bhv);
+	struct bhv_vfs		*vfsp = bhvtovfs(bhv);
 	struct xfs_mount	*mp = XFS_VFSTOM(vfsp);
-	int			error;
 
 	if (args->flags & (XFSMNT_UQUOTA | XFSMNT_GQUOTA | XFSMNT_PQUOTA))
 		xfs_qm_mount_quotainit(mp, args->flags);
-	PVFS_MOUNT(BHV_NEXT(bhv), args, cr, error);
-	return error;
+	return bhv_next_vfs_mount(BHV_NEXT(bhv), args, cr);
+}
+
+/*
+ * Directory tree accounting is implemented using project quotas, where
+ * the project identifier is inherited from parent directories.
+ * A statvfs (df, etc.) of a directory that is using project quota should
+ * return a statvfs of the project, not the entire filesystem.
+ * This makes such trees appear as if they are filesystems in themselves.
+ */
+STATIC int
+xfs_qm_statvfs(
+	struct bhv_desc		*bhv,
+	bhv_statvfs_t		*statp,
+	struct bhv_vnode	*vnode)
+{
+	xfs_mount_t		*mp;
+	xfs_inode_t		*ip;
+	xfs_dquot_t		*dqp;
+	xfs_disk_dquot_t	*dp;
+	__uint64_t		limit;
+	int			error;
+
+	error = bhv_next_vfs_statvfs(BHV_NEXT(bhv), statp, vnode);
+	if (error || !vnode)
+		return error;
+
+	mp = XFS_BHVTOM(bhv);
+	ip = xfs_vtoi(vnode);
+
+	if (!(ip->i_d.di_flags & XFS_DIFLAG_PROJINHERIT))
+		return 0;
+	if (!(mp->m_qflags & XFS_PQUOTA_ACCT))
+		return 0;
+	if (!(mp->m_qflags & XFS_OQUOTA_ENFD))
+		return 0;
+
+	if (xfs_qm_dqget(mp, NULL, ip->i_d.di_projid, XFS_DQ_PROJ, 0, &dqp))
+		return 0;
+	dp = &dqp->q_core;
+
+	limit = dp->d_blk_softlimit ? dp->d_blk_softlimit : dp->d_blk_hardlimit;
+	if (limit && statp->f_blocks > limit) {
+		statp->f_blocks = limit;
+		statp->f_bfree = (statp->f_blocks > dp->d_bcount) ?
+					(statp->f_blocks - dp->d_bcount) : 0;
+	}
+	limit = dp->d_ino_softlimit ? dp->d_ino_softlimit : dp->d_ino_hardlimit;
+	if (limit && statp->f_files > limit) {
+		statp->f_files = limit;
+		statp->f_ffree = (statp->f_files > dp->d_icount) ?
+					(statp->f_ffree - dp->d_icount) : 0;
+	}
+
+	xfs_qm_dqput(dqp);
+	return 0;
 }
 
 STATIC int
@@ -191,7 +240,7 @@ xfs_qm_syncall(
 	int			flags,
 	cred_t			*credp)
 {
-	struct vfs		*vfsp = bhvtovfs(bhv);
+	struct bhv_vfs		*vfsp = bhvtovfs(bhv);
 	struct xfs_mount	*mp = XFS_VFSTOM(vfsp);
 	int			error;
 
@@ -210,8 +259,7 @@ xfs_qm_syncall(
 			}
 		}
 	}
-	PVFS_SYNC(BHV_NEXT(bhv), flags, credp, error);
-	return error;
+	return bhv_next_vfs_sync(BHV_NEXT(bhv), flags, credp);
 }
 
 STATIC int
@@ -346,11 +394,12 @@ STATIC struct xfs_qmops xfs_qmcore_xfs = {
 	.xfs_dqtrxops		= &xfs_trans_dquot_ops,
 };
 
-struct bhv_vfsops xfs_qmops = { {
+struct bhv_module_vfsops xfs_qmops = { {
 	BHV_IDENTITY_INIT(VFS_BHV_QM, VFS_POSITION_QM),
 	.vfs_parseargs		= xfs_qm_parseargs,
 	.vfs_showargs		= xfs_qm_showargs,
 	.vfs_mount		= xfs_qm_mount,
+	.vfs_statvfs		= xfs_qm_statvfs,
 	.vfs_sync		= xfs_qm_syncall,
 	.vfs_quotactl		= xfs_qm_quotactl, },
 };

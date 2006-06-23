@@ -523,78 +523,6 @@ static unsigned long __onboard_imap_off[] = {
 	((ino & 0x20) ? (SABRE_ICLR_SCSI + (((ino) & 0x1f) << 3)) :  \
 			(SABRE_ICLR_A_SLOT0 + (((ino) & 0x1f)<<3)))
 
-/* PCI SABRE INO number to Sparc PIL level. */
-static unsigned char sabre_pil_table[] = {
-/*0x00*/0, 0, 0, 0,	/* PCI A slot 0  Int A, B, C, D */
-/*0x04*/0, 0, 0, 0,	/* PCI A slot 1  Int A, B, C, D */
-/*0x08*/0, 0, 0, 0,	/* PCI A slot 2  Int A, B, C, D */
-/*0x0c*/0, 0, 0, 0,	/* PCI A slot 3  Int A, B, C, D */
-/*0x10*/0, 0, 0, 0,	/* PCI B slot 0  Int A, B, C, D */
-/*0x14*/0, 0, 0, 0,	/* PCI B slot 1  Int A, B, C, D */
-/*0x18*/0, 0, 0, 0,	/* PCI B slot 2  Int A, B, C, D */
-/*0x1c*/0, 0, 0, 0,	/* PCI B slot 3  Int A, B, C, D */
-/*0x20*/5,		/* SCSI				*/
-/*0x21*/5,		/* Ethernet			*/
-/*0x22*/8,		/* Parallel Port		*/
-/*0x23*/13,		/* Audio Record			*/
-/*0x24*/14,		/* Audio Playback		*/
-/*0x25*/15,		/* PowerFail			*/
-/*0x26*/5,		/* second SCSI			*/
-/*0x27*/11,		/* Floppy			*/
-/*0x28*/5,		/* Spare Hardware		*/
-/*0x29*/9,		/* Keyboard			*/
-/*0x2a*/5,		/* Mouse			*/
-/*0x2b*/12,		/* Serial			*/
-/*0x2c*/10,		/* Timer 0			*/
-/*0x2d*/11,		/* Timer 1			*/
-/*0x2e*/15,		/* Uncorrectable ECC		*/
-/*0x2f*/15,		/* Correctable ECC		*/
-/*0x30*/15,		/* PCI Bus A Error		*/
-/*0x31*/15,		/* PCI Bus B Error		*/
-/*0x32*/15,		/* Power Management		*/
-};
-
-static int sabre_ino_to_pil(struct pci_dev *pdev, unsigned int ino)
-{
-	int ret;
-
-	if (pdev &&
-	    pdev->vendor == PCI_VENDOR_ID_SUN &&
-	    pdev->device == PCI_DEVICE_ID_SUN_RIO_USB)
-		return 9;
-
-	ret = sabre_pil_table[ino];
-	if (ret == 0 && pdev == NULL) {
-		ret = 5;
-	} else if (ret == 0) {
-		switch ((pdev->class >> 16) & 0xff) {
-		case PCI_BASE_CLASS_STORAGE:
-			ret = 5;
-			break;
-
-		case PCI_BASE_CLASS_NETWORK:
-			ret = 6;
-			break;
-
-		case PCI_BASE_CLASS_DISPLAY:
-			ret = 9;
-			break;
-
-		case PCI_BASE_CLASS_MULTIMEDIA:
-		case PCI_BASE_CLASS_MEMORY:
-		case PCI_BASE_CLASS_BRIDGE:
-		case PCI_BASE_CLASS_SERIAL:
-			ret = 10;
-			break;
-
-		default:
-			ret = 5;
-			break;
-		};
-	}
-	return ret;
-}
-
 /* When a device lives behind a bridge deeper in the PCI bus topology
  * than APB, a special sequence must run to make sure all pending DMA
  * transfers at the time of IRQ delivery are visible in the coherency
@@ -602,7 +530,7 @@ static int sabre_ino_to_pil(struct pci_dev *pdev, unsigned int ino)
  * side of the non-APB bridge, then perform a read of Sabre's DMA
  * write-sync register.
  */
-static void sabre_wsync_handler(struct ino_bucket *bucket, void *_arg1, void *_arg2)
+static void sabre_wsync_handler(unsigned int ino, void *_arg1, void *_arg2)
 {
 	struct pci_dev *pdev = _arg1;
 	unsigned long sync_reg = (unsigned long) _arg2;
@@ -616,10 +544,10 @@ static unsigned int sabre_irq_build(struct pci_pbm_info *pbm,
 				    struct pci_dev *pdev,
 				    unsigned int ino)
 {
-	struct ino_bucket *bucket;
 	unsigned long imap, iclr;
 	unsigned long imap_off, iclr_off;
-	int pil, inofixup = 0;
+	int inofixup = 0;
+	int virt_irq;
 
 	ino &= PCI_IRQ_INO;
 	if (ino < SABRE_ONBOARD_IRQ_BASE) {
@@ -635,11 +563,6 @@ static unsigned int sabre_irq_build(struct pci_pbm_info *pbm,
 	}
 
 	/* Now build the IRQ bucket. */
-	pil = sabre_ino_to_pil(pdev, ino);
-
-	if (PIL_RESERVED(pil))
-		BUG();
-
 	imap = pbm->controller_regs + imap_off;
 	imap += 4;
 
@@ -650,23 +573,23 @@ static unsigned int sabre_irq_build(struct pci_pbm_info *pbm,
 	if ((ino & 0x20) == 0)
 		inofixup = ino & 0x03;
 
-	bucket = __bucket(build_irq(pil, inofixup, iclr, imap));
-	bucket->flags |= IBF_PCI;
+	virt_irq = build_irq(inofixup, iclr, imap);
 
 	if (pdev) {
 		struct pcidev_cookie *pcp = pdev->sysdata;
 
 		if (pdev->bus->number != pcp->pbm->pci_first_busno) {
 			struct pci_controller_info *p = pcp->pbm->parent;
-			struct irq_desc *d = bucket->irq_info;
 
-			d->pre_handler = sabre_wsync_handler;
-			d->pre_handler_arg1 = pdev;
-			d->pre_handler_arg2 = (void *)
-				p->pbm_A.controller_regs + SABRE_WRSYNC;
+			irq_install_pre_handler(virt_irq,
+						sabre_wsync_handler,
+						pdev,
+						(void *)
+						p->pbm_A.controller_regs +
+						SABRE_WRSYNC);
 		}
 	}
-	return __irq(bucket);
+	return virt_irq;
 }
 
 /* SABRE error handling support. */

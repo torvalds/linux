@@ -17,7 +17,6 @@
 #ifndef __linux_video_vga_h__
 #define __linux_video_vga_h__
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <asm/io.h>
 #ifndef CONFIG_AMIGA

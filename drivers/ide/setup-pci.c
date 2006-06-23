@@ -694,13 +694,8 @@ static int do_ide_setup_pci_device(struct pci_dev *dev, ide_pci_device_t *d,
 				goto out;
 		}
 		if (noisy)
-#ifdef __sparc__
-			printk(KERN_INFO "%s: 100%% native mode on irq %s\n",
-			       d->name, __irq_itoa(pciirq));
-#else
 			printk(KERN_INFO "%s: 100%% native mode on irq %d\n",
 				d->name, pciirq);
-#endif
 	}
 
 	/* FIXME: silent failure can happen */

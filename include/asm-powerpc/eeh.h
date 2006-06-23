@@ -21,7 +21,6 @@
 #define _PPC64_EEH_H
 #ifdef __KERNEL__
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/string.h>

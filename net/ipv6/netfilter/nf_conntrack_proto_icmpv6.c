@@ -233,7 +233,7 @@ icmpv6_error(struct sk_buff *skb, unsigned int dataoff,
 		return -NF_ACCEPT;
 	}
 
-	if (hooknum == NF_IP6_PRE_ROUTING &&
+	if (nf_conntrack_checksum && hooknum == NF_IP6_PRE_ROUTING &&
 	    nf_ip6_checksum(skb, hooknum, dataoff, IPPROTO_ICMPV6)) {
 		nf_log_packet(PF_INET6, 0, skb, NULL, NULL, NULL,
 			      "nf_ct_icmpv6: ICMPv6 checksum failed\n");

@@ -805,31 +805,37 @@ struct swap_info_struct;
  *	used by the XFRM system.
  *	@sec_ctx contains the security context information being provided by
  *	the user-level policy update program (e.g., setkey).
- *	Allocate a security structure to the xp->selector.security field.
+ *	Allocate a security structure to the xp->security field.
  *	The security field is initialized to NULL when the xfrm_policy is
  *	allocated.
  *	Return 0 if operation was successful (memory to allocate, legal context)
  * @xfrm_policy_clone_security:
  *	@old contains an existing xfrm_policy in the SPD.
  *	@new contains a new xfrm_policy being cloned from old.
- *	Allocate a security structure to the new->selector.security field
- *	that contains the information from the old->selector.security field.
+ *	Allocate a security structure to the new->security field
+ *	that contains the information from the old->security field.
  *	Return 0 if operation was successful (memory to allocate).
  * @xfrm_policy_free_security:
  *	@xp contains the xfrm_policy
- *	Deallocate xp->selector.security.
+ *	Deallocate xp->security.
+ * @xfrm_policy_delete_security:
+ *	@xp contains the xfrm_policy.
+ *	Authorize deletion of xp->security.
  * @xfrm_state_alloc_security:
  *	@x contains the xfrm_state being added to the Security Association
  *	Database by the XFRM system.
  *	@sec_ctx contains the security context information being provided by
  *	the user-level SA generation program (e.g., setkey or racoon).
- *	Allocate a security structure to the x->sel.security field.  The
+ *	Allocate a security structure to the x->security field.  The
  *	security field is initialized to NULL when the xfrm_state is
  *	allocated.
  *	Return 0 if operation was successful (memory to allocate, legal context).
  * @xfrm_state_free_security:
  *	@x contains the xfrm_state.
- *	Deallocate x>sel.security.
+ *	Deallocate x->security.
+ * @xfrm_state_delete_security:
+ *	@x contains the xfrm_state.
+ *	Authorize deletion of x->security.
  * @xfrm_policy_lookup:
  *	@xp contains the xfrm_policy for which the access control is being
  *	checked.
@@ -1298,14 +1304,16 @@ struct security_operations {
 	int (*xfrm_policy_alloc_security) (struct xfrm_policy *xp, struct xfrm_user_sec_ctx *sec_ctx);
 	int (*xfrm_policy_clone_security) (struct xfrm_policy *old, struct xfrm_policy *new);
 	void (*xfrm_policy_free_security) (struct xfrm_policy *xp);
+	int (*xfrm_policy_delete_security) (struct xfrm_policy *xp);
 	int (*xfrm_state_alloc_security) (struct xfrm_state *x, struct xfrm_user_sec_ctx *sec_ctx);
 	void (*xfrm_state_free_security) (struct xfrm_state *x);
+	int (*xfrm_state_delete_security) (struct xfrm_state *x);
 	int (*xfrm_policy_lookup)(struct xfrm_policy *xp, u32 sk_sid, u8 dir);
 #endif	/* CONFIG_SECURITY_NETWORK_XFRM */
 
 	/* key management security hooks */
 #ifdef CONFIG_KEYS
-	int (*key_alloc)(struct key *key);
+	int (*key_alloc)(struct key *key, struct task_struct *tsk);
 	void (*key_free)(struct key *key);
 	int (*key_permission)(key_ref_t key_ref,
 			      struct task_struct *context,
@@ -2934,9 +2942,19 @@ static inline void security_xfrm_policy_free(struct xfrm_policy *xp)
 	security_ops->xfrm_policy_free_security(xp);
 }
 
+static inline int security_xfrm_policy_delete(struct xfrm_policy *xp)
+{
+	return security_ops->xfrm_policy_delete_security(xp);
+}
+
 static inline int security_xfrm_state_alloc(struct xfrm_state *x, struct xfrm_user_sec_ctx *sec_ctx)
 {
 	return security_ops->xfrm_state_alloc_security(x, sec_ctx);
+}
+
+static inline int security_xfrm_state_delete(struct xfrm_state *x)
+{
+	return security_ops->xfrm_state_delete_security(x);
 }
 
 static inline void security_xfrm_state_free(struct xfrm_state *x)
@@ -2963,6 +2981,11 @@ static inline void security_xfrm_policy_free(struct xfrm_policy *xp)
 {
 }
 
+static inline int security_xfrm_policy_delete(struct xfrm_policy *xp)
+{
+	return 0;
+}
+
 static inline int security_xfrm_state_alloc(struct xfrm_state *x, struct xfrm_user_sec_ctx *sec_ctx)
 {
 	return 0;
@@ -2970,6 +2993,11 @@ static inline int security_xfrm_state_alloc(struct xfrm_state *x, struct xfrm_us
 
 static inline void security_xfrm_state_free(struct xfrm_state *x)
 {
+}
+
+static inline int security_xfrm_state_delete(struct xfrm_state *x)
+{
+	return 0;
 }
 
 static inline int security_xfrm_policy_lookup(struct xfrm_policy *xp, u32 sk_sid, u8 dir)
@@ -2980,9 +3008,10 @@ static inline int security_xfrm_policy_lookup(struct xfrm_policy *xp, u32 sk_sid
 
 #ifdef CONFIG_KEYS
 #ifdef CONFIG_SECURITY
-static inline int security_key_alloc(struct key *key)
+static inline int security_key_alloc(struct key *key,
+				     struct task_struct *tsk)
 {
-	return security_ops->key_alloc(key);
+	return security_ops->key_alloc(key, tsk);
 }
 
 static inline void security_key_free(struct key *key)
@@ -2999,7 +3028,8 @@ static inline int security_key_permission(key_ref_t key_ref,
 
 #else
 
-static inline int security_key_alloc(struct key *key)
+static inline int security_key_alloc(struct key *key,
+				     struct task_struct *tsk)
 {
 	return 0;
 }

@@ -444,13 +444,14 @@ err_out:
 
 
 /*
- * 0x1725/0x7174 is the Vitesse VSC-7174
- * 0x8086/0x3200 is the Intel 31244, which is supposed to be identical
- * compatibility is untested as of yet
+ * Intel 31244 is supposed to be identical.
+ * Compatibility is untested as of yet.
  */
 static const struct pci_device_id vsc_sata_pci_tbl[] = {
-	{ 0x1725, 0x7174, PCI_ANY_ID, PCI_ANY_ID, 0x10600, 0xFFFFFF, 0 },
-	{ 0x8086, 0x3200, PCI_ANY_ID, PCI_ANY_ID, 0x10600, 0xFFFFFF, 0 },
+	{ PCI_VENDOR_ID_VITESSE, PCI_DEVICE_ID_VITESSE_VSC7174,
+	  PCI_ANY_ID, PCI_ANY_ID, 0x10600, 0xFFFFFF, 0 },
+	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_GD31244,
+	  PCI_ANY_ID, PCI_ANY_ID, 0x10600, 0xFFFFFF, 0 },
 	{ }
 };
 

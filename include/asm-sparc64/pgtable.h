@@ -14,7 +14,6 @@
 
 #include <asm-generic/pgtable-nopud.h>
 
-#include <linux/config.h>
 #include <linux/compiler.h>
 #include <asm/types.h>
 #include <asm/spitfire.h>

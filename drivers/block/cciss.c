@@ -3237,6 +3237,7 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
 		disk->fops = &cciss_fops;
 		disk->queue = q;
 		disk->private_data = drv;
+		disk->driverfs_dev = &pdev->dev;
 		/* we must register the controller even if no disks exist */
 		/* this is for the online array utilities */
 		if(!drv->heads && j)

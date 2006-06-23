@@ -17,7 +17,6 @@
  */
 
 #ifndef __ASSEMBLY__
-#include <linux/config.h>
 #include <asm/atomic.h>
 #include <asm/irq.h>
 #include <linux/profile.h>

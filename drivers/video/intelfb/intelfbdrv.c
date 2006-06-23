@@ -1,11 +1,12 @@
 /*
  * intelfb
  *
- * Linux framebuffer driver for Intel(R) 830M/845G/852GM/855GM/865G/915G/915GM
- * integrated graphics chips.
+ * Linux framebuffer driver for Intel(R) 830M/845G/852GM/855GM/865G/915G/915GM/
+ * 945G/945GM integrated graphics chips.
  *
  * Copyright © 2002, 2003 David Dawes <dawes@xfree86.org>
  *                   2004 Sylvain Meyer
+ *                   2006 David Airlie
  *
  * This driver consists of two parts.  The first part (intelfbdrv.c) provides
  * the basic fbdev interfaces, is derived in part from the radeonfb and
@@ -131,6 +132,7 @@
 
 #include "intelfb.h"
 #include "intelfbhw.h"
+#include "../edid.h"
 
 static void __devinit get_initial_mode(struct intelfb_info *dinfo);
 static void update_dinfo(struct intelfb_info *dinfo,
@@ -182,6 +184,8 @@ static struct pci_device_id intelfb_pci_table[] __devinitdata = {
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_865G, PCI_ANY_ID, PCI_ANY_ID, PCI_CLASS_DISPLAY_VGA << 8, INTELFB_CLASS_MASK, INTEL_865G },
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_915G, PCI_ANY_ID, PCI_ANY_ID, PCI_CLASS_DISPLAY_VGA << 8, INTELFB_CLASS_MASK, INTEL_915G },
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_915GM, PCI_ANY_ID, PCI_ANY_ID, PCI_CLASS_DISPLAY_VGA << 8, INTELFB_CLASS_MASK, INTEL_915GM },
+	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_945G, PCI_ANY_ID, PCI_ANY_ID, PCI_CLASS_DISPLAY_VGA << 8, INTELFB_CLASS_MASK, INTEL_945G },
+	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_945GM, PCI_ANY_ID, PCI_ANY_ID, PCI_CLASS_DISPLAY_VGA << 8, INTELFB_CLASS_MASK, INTEL_945GM },
 	{ 0, }
 };
 
@@ -261,7 +265,7 @@ MODULE_PARM_DESC(mode,
 
 #ifndef MODULE
 #define OPT_EQUAL(opt, name) (!strncmp(opt, name, strlen(name)))
-#define OPT_INTVAL(opt, name) simple_strtoul(opt + strlen(name), NULL, 0)
+#define OPT_INTVAL(opt, name) simple_strtoul(opt + strlen(name) + 1, NULL, 0)
 #define OPT_STRVAL(opt, name) (opt + strlen(name))
 
 static __inline__ char *
@@ -546,11 +550,11 @@ intelfb_pci_register(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* Set base addresses. */
 	if ((ent->device == PCI_DEVICE_ID_INTEL_915G) ||
-			(ent->device == PCI_DEVICE_ID_INTEL_915GM)) {
+	    (ent->device == PCI_DEVICE_ID_INTEL_915GM) ||
+	    (ent->device == PCI_DEVICE_ID_INTEL_945G)  ||
+	    (ent->device == PCI_DEVICE_ID_INTEL_945GM)) {
 		aperture_bar = 2;
 		mmio_bar = 0;
-		/* Disable HW cursor on 915G/M (not implemented yet) */
-		hwcursor = 0;
 	}
 	dinfo->aperture.physical = pci_resource_start(pdev, aperture_bar);
 	dinfo->aperture.size     = pci_resource_len(pdev, aperture_bar);
@@ -584,8 +588,7 @@ intelfb_pci_register(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* Get the chipset info. */
 	dinfo->pci_chipset = pdev->device;
 
-	if (intelfbhw_get_chipset(pdev, &dinfo->name, &dinfo->chipset,
-				  &dinfo->mobile)) {
+	if (intelfbhw_get_chipset(pdev, dinfo)) {
 		cleanup(dinfo);
 		return -ENODEV;
 	}
@@ -1029,17 +1032,44 @@ intelfb_init_var(struct intelfb_info *dinfo)
 		       sizeof(struct fb_var_screeninfo));
 		msrc = 5;
 	} else {
-		if (mode) {
-			msrc = fb_find_mode(var, dinfo->info, mode,
-					    vesa_modes, VESA_MODEDB_SIZE,
-					    NULL, 0);
-			if (msrc)
-				msrc |= 8;
+		const u8 *edid_s = fb_firmware_edid(&dinfo->pdev->dev);
+		u8 *edid_d = NULL;
+
+		if (edid_s) {
+			edid_d = kmalloc(EDID_LENGTH, GFP_KERNEL);
+
+			if (edid_d) {
+				memcpy(edid_d, edid_s, EDID_LENGTH);
+				fb_edid_to_monspecs(edid_d,
+						    &dinfo->info->monspecs);
+				kfree(edid_d);
+			}
 		}
+
+		if (mode) {
+			printk("intelfb: Looking for mode in private "
+			       "database\n");
+			msrc = fb_find_mode(var, dinfo->info, mode,
+					    dinfo->info->monspecs.modedb,
+					    dinfo->info->monspecs.modedb_len,
+					    NULL, 0);
+
+			if (msrc && msrc > 1) {
+				printk("intelfb: No mode in private database, "
+				       "intelfb: looking for mode in global "
+				       "database ");
+				msrc = fb_find_mode(var, dinfo->info, mode,
+						    NULL, 0, NULL, 0);
+
+				if (msrc)
+					msrc |= 8;
+			}
+
+		}
+
 		if (!msrc) {
 			msrc = fb_find_mode(var, dinfo->info, PREFERRED_MODE,
-					    vesa_modes, VESA_MODEDB_SIZE,
-					    NULL, 0);
+					    NULL, 0, NULL, 0);
 		}
 	}
 
@@ -1139,7 +1169,10 @@ update_dinfo(struct intelfb_info *dinfo, struct fb_var_screeninfo *var)
 	}
 
 	/* Make sure the line length is a aligned correctly. */
-	dinfo->pitch = ROUND_UP_TO(dinfo->pitch, STRIDE_ALIGNMENT);
+	if (IS_I9XX(dinfo))
+		dinfo->pitch = ROUND_UP_TO(dinfo->pitch, STRIDE_ALIGNMENT_I9XX);
+	else
+		dinfo->pitch = ROUND_UP_TO(dinfo->pitch, STRIDE_ALIGNMENT);
 
 	if (FIXED_MODE(dinfo))
 		dinfo->pitch = dinfo->initial_pitch;
@@ -1162,15 +1195,32 @@ intelfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	struct fb_var_screeninfo v;
 	struct intelfb_info *dinfo;
 	static int first = 1;
+	int i;
+	/* Good pitches to allow tiling.  Don't care about pitches < 1024. */
+	static const int pitches[] = {
+		128 * 8,
+		128 * 16,
+		128 * 32,
+		128 * 64,
+		0
+	};
 
 	DBG_MSG("intelfb_check_var: accel_flags is %d\n", var->accel_flags);
 
 	dinfo = GET_DINFO(info);
 
+	/* update the pitch */
 	if (intelfbhw_validate_mode(dinfo, var) != 0)
 		return -EINVAL;
 
 	v = *var;
+
+	for (i = 0; pitches[i] != 0; i++) {
+		if (pitches[i] >= v.xres_virtual) {
+			v.xres_virtual = pitches[i];
+			break;
+		}
+	}
 
 	/* Check for a supported bpp. */
 	if (v.bits_per_pixel <= 8) {
@@ -1467,7 +1517,7 @@ static int
 intelfb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 {
         struct intelfb_info *dinfo = GET_DINFO(info);
-
+	u32 physical;
 #if VERBOSE > 0
 	DBG_MSG("intelfb_cursor\n");
 #endif
@@ -1478,7 +1528,10 @@ intelfb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 	intelfbhw_cursor_hide(dinfo);
 
 	/* If XFree killed the cursor - restore it */
-	if (INREG(CURSOR_A_BASEADDR) != dinfo->cursor.offset << 12) {
+	physical = (dinfo->mobile || IS_I9XX(dinfo)) ? dinfo->cursor.physical :
+		   (dinfo->cursor.offset << 12);
+
+	if (INREG(CURSOR_A_BASEADDR) != physical) {
 		u32 fg, bg;
 
 		DBG_MSG("the cursor was killed - restore it !!\n");

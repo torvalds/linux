@@ -29,6 +29,7 @@
 #include <sound/ak4xxx-adda.h>
 #include <sound/ak4114.h>
 #include <sound/pcm.h>
+#include <sound/mpu401.h>
 
 
 /*
@@ -495,6 +496,10 @@ struct snd_ice1712_card_info {
 	int (*chip_init)(struct snd_ice1712 *);
 	int (*build_controls)(struct snd_ice1712 *);
 	unsigned int no_mpu401: 1;
+	unsigned int mpu401_1_info_flags;
+	unsigned int mpu401_2_info_flags;
+	const char *mpu401_1_name;
+	const char *mpu401_2_name;
 	unsigned int eeprom_size;
 	unsigned char *eeprom_data;
 };

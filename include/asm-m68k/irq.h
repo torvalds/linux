@@ -1,7 +1,6 @@
 #ifndef _M68K_IRQ_H_
 #define _M68K_IRQ_H_
 
-#include <linux/config.h>
 #include <linux/interrupt.h>
 
 /*

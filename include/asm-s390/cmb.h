@@ -47,7 +47,7 @@ struct cmbdata {
 /* reset channel measurement block */
 #define BIODASDRESETCMB		_IO(DASD_IOCTL_LETTER,34)
 /* read channel measurement data */
-#define BIODASDREADCMB		_IOWR(DASD_IOCTL_LETTER,32,u64)
+#define BIODASDREADCMB		_IOWR(DASD_IOCTL_LETTER,32,__u64)
 /* read channel measurement data */
 #define BIODASDREADALLCMB	_IOWR(DASD_IOCTL_LETTER,33,struct cmbdata)
 

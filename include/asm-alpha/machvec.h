@@ -1,7 +1,6 @@
 #ifndef __ALPHA_MACHVEC_H
 #define __ALPHA_MACHVEC_H 1
 
-#include <linux/config.h>
 #include <linux/types.h>
 
 /*

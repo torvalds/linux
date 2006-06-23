@@ -12,6 +12,8 @@ extern struct hda_codec_preset snd_hda_preset_analog[];
 extern struct hda_codec_preset snd_hda_preset_sigmatel[];
 /* SiLabs 3054/3055 modem codecs */
 extern struct hda_codec_preset snd_hda_preset_si3054[];
+/* ATI HDMI codecs */
+extern struct hda_codec_preset snd_hda_preset_atihdmi[];
 
 static const struct hda_codec_preset *hda_preset_tables[] = {
 	snd_hda_preset_realtek,
@@ -19,5 +21,6 @@ static const struct hda_codec_preset *hda_preset_tables[] = {
 	snd_hda_preset_analog,
 	snd_hda_preset_sigmatel,
 	snd_hda_preset_si3054,
+	snd_hda_preset_atihdmi,
 	NULL
 };

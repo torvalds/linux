@@ -40,7 +40,7 @@ extern int pci_bus_find_capability (struct pci_bus *bus, unsigned int devfn, int
 extern void pci_remove_legacy_files(struct pci_bus *bus);
 
 /* Lock for read/write access to pci device and bus lists */
-extern spinlock_t pci_bus_lock;
+extern struct rw_semaphore pci_bus_sem;
 
 #ifdef CONFIG_X86_IO_APIC
 extern int pci_msi_quirk;

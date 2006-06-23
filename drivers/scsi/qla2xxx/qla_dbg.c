@@ -28,7 +28,7 @@ qla2300_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 	uint16_t __iomem *dmp_reg;
 	unsigned long	flags;
 	struct qla2300_fw_dump	*fw;
-	uint32_t	dump_size, data_ram_cnt;
+	uint32_t	data_ram_cnt;
 
 	risc_address = data_ram_cnt = 0;
 	mb0 = mb2 = 0;
@@ -37,23 +37,16 @@ qla2300_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 	if (!hardware_locked)
 		spin_lock_irqsave(&ha->hardware_lock, flags);
 
-	if (ha->fw_dump != NULL) {
+	if (!ha->fw_dump) {
 		qla_printk(KERN_WARNING, ha,
-		    "Firmware has been previously dumped (%p) -- ignoring "
-		    "request...\n", ha->fw_dump);
+		    "No buffer available for dump!!!\n");
 		goto qla2300_fw_dump_failed;
 	}
 
-	/* Allocate (large) dump buffer. */
-	dump_size = sizeof(struct qla2300_fw_dump);
-	dump_size += (ha->fw_memory_size - 0x11000) * sizeof(uint16_t);
-	ha->fw_dump_order = get_order(dump_size);
-	ha->fw_dump = (struct qla2300_fw_dump *) __get_free_pages(GFP_ATOMIC,
-	    ha->fw_dump_order);
-	if (ha->fw_dump == NULL) {
+	if (ha->fw_dumped) {
 		qla_printk(KERN_WARNING, ha,
-		    "Unable to allocated memory for firmware dump (%d/%d).\n",
-		    ha->fw_dump_order, dump_size);
+		    "Firmware has been previously dumped (%p) -- ignoring "
+		    "request...\n", ha->fw_dump);
 		goto qla2300_fw_dump_failed;
 	}
 	fw = ha->fw_dump;
@@ -358,17 +351,16 @@ qla2300_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 		}
 	}
 
-
 	if (rval != QLA_SUCCESS) {
 		qla_printk(KERN_WARNING, ha,
 		    "Failed to dump firmware (%x)!!!\n", rval);
+		ha->fw_dumped = 0;
 
-		free_pages((unsigned long)ha->fw_dump, ha->fw_dump_order);
-		ha->fw_dump = NULL;
 	} else {
 		qla_printk(KERN_INFO, ha,
 		    "Firmware dump saved to temp buffer (%ld/%p).\n",
 		    ha->host_no, ha->fw_dump);
+		ha->fw_dumped = 1;
 	}
 
 qla2300_fw_dump_failed:
@@ -587,21 +579,16 @@ qla2100_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 	if (!hardware_locked)
 		spin_lock_irqsave(&ha->hardware_lock, flags);
 
-	if (ha->fw_dump != NULL) {
+	if (!ha->fw_dump) {
 		qla_printk(KERN_WARNING, ha,
-		    "Firmware has been previously dumped (%p) -- ignoring "
-		    "request...\n", ha->fw_dump);
+		    "No buffer available for dump!!!\n");
 		goto qla2100_fw_dump_failed;
 	}
 
-	/* Allocate (large) dump buffer. */
-	ha->fw_dump_order = get_order(sizeof(struct qla2100_fw_dump));
-	ha->fw_dump = (struct qla2100_fw_dump *) __get_free_pages(GFP_ATOMIC,
-	    ha->fw_dump_order);
-	if (ha->fw_dump == NULL) {
+	if (ha->fw_dumped) {
 		qla_printk(KERN_WARNING, ha,
-		    "Unable to allocated memory for firmware dump (%d/%Zd).\n",
-		    ha->fw_dump_order, sizeof(struct qla2100_fw_dump));
+		    "Firmware has been previously dumped (%p) -- ignoring "
+		    "request...\n", ha->fw_dump);
 		goto qla2100_fw_dump_failed;
 	}
 	fw = ha->fw_dump;
@@ -777,13 +764,13 @@ qla2100_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 	if (rval != QLA_SUCCESS) {
 		qla_printk(KERN_WARNING, ha,
 		    "Failed to dump firmware (%x)!!!\n", rval);
+		ha->fw_dumped = 0;
 
-		free_pages((unsigned long)ha->fw_dump, ha->fw_dump_order);
-		ha->fw_dump = NULL;
 	} else {
 		qla_printk(KERN_INFO, ha,
 		    "Firmware dump saved to temp buffer (%ld/%p).\n",
 		    ha->host_no, ha->fw_dump);
+		ha->fw_dumped = 1;
 	}
 
 qla2100_fw_dump_failed:
@@ -988,7 +975,7 @@ qla24xx_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 	if (!hardware_locked)
 		spin_lock_irqsave(&ha->hardware_lock, flags);
 
-	if (!ha->fw_dump24) {
+	if (!ha->fw_dump) {
 		qla_printk(KERN_WARNING, ha,
 		    "No buffer available for dump!!!\n");
 		goto qla24xx_fw_dump_failed;
@@ -997,10 +984,10 @@ qla24xx_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 	if (ha->fw_dumped) {
 		qla_printk(KERN_WARNING, ha,
 		    "Firmware has been previously dumped (%p) -- ignoring "
-		    "request...\n", ha->fw_dump24);
+		    "request...\n", ha->fw_dump);
 		goto qla24xx_fw_dump_failed;
 	}
-	fw = (struct qla24xx_fw_dump *) ha->fw_dump24;
+	fw = ha->fw_dump;
 
 	rval = QLA_SUCCESS;
 	fw->host_status = RD_REG_DWORD(&reg->host_status);
@@ -1654,7 +1641,7 @@ qla24xx_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 	} else {
 		qla_printk(KERN_INFO, ha,
 		    "Firmware dump saved to temp buffer (%ld/%p).\n",
-		    ha->host_no, ha->fw_dump24);
+		    ha->host_no, ha->fw_dump);
 		ha->fw_dumped = 1;
 	}
 
@@ -1672,7 +1659,7 @@ qla24xx_ascii_fw_dump(scsi_qla_host_t *ha)
 	uint32_t ext_mem_cnt;
 
 	uiter = ha->fw_dump_buffer;
-	fw = ha->fw_dump24;
+	fw = ha->fw_dump;
 
 	qla_uprintf(&uiter, "ISP FW Version %d.%02d.%02d Attributes %04x\n",
 	    ha->fw_major_version, ha->fw_minor_version,
@@ -1995,7 +1982,6 @@ qla2x00_print_scsi_cmd(struct scsi_cmnd * cmd)
 		return;
 
 	printk("  sp flags=0x%x\n", sp->flags);
-	printk("  state=%d\n", sp->state);
 }
 
 void

@@ -31,9 +31,7 @@ struct kvec;
 #define JFFS2_F_I_MODE(f) (OFNI_EDONI_2SFFJ(f)->i_mode)
 #define JFFS2_F_I_UID(f) (OFNI_EDONI_2SFFJ(f)->i_uid)
 #define JFFS2_F_I_GID(f) (OFNI_EDONI_2SFFJ(f)->i_gid)
-
-#define JFFS2_F_I_RDEV_MIN(f) (iminor(OFNI_EDONI_2SFFJ(f)))
-#define JFFS2_F_I_RDEV_MAJ(f) (imajor(OFNI_EDONI_2SFFJ(f)))
+#define JFFS2_F_I_RDEV(f) (OFNI_EDONI_2SFFJ(f)->i_rdev)
 
 #define ITIME(sec) ((struct timespec){sec, 0})
 #define I_SEC(tv) ((tv).tv_sec)
@@ -60,6 +58,10 @@ static inline void jffs2_init_inode_info(struct jffs2_inode_info *f)
 	f->target = NULL;
 	f->flags = 0;
 	f->usercompr = 0;
+#ifdef CONFIG_JFFS2_FS_POSIX_ACL
+	f->i_acl_access = JFFS2_ACL_NOT_CACHED;
+	f->i_acl_default = JFFS2_ACL_NOT_CACHED;
+#endif
 }
 
 
@@ -90,13 +92,10 @@ static inline void jffs2_init_inode_info(struct jffs2_inode_info *f)
 #define jffs2_flash_writev(a,b,c,d,e,f) jffs2_flash_direct_writev(a,b,c,d,e)
 #define jffs2_wbuf_timeout NULL
 #define jffs2_wbuf_process NULL
-#define jffs2_nor_ecc(c) (0)
 #define jffs2_dataflash(c) (0)
-#define jffs2_nor_wbuf_flash(c) (0)
-#define jffs2_nor_ecc_flash_setup(c) (0)
-#define jffs2_nor_ecc_flash_cleanup(c) do {} while (0)
 #define jffs2_dataflash_setup(c) (0)
 #define jffs2_dataflash_cleanup(c) do {} while (0)
+#define jffs2_nor_wbuf_flash(c) (0)
 #define jffs2_nor_wbuf_flash_setup(c) (0)
 #define jffs2_nor_wbuf_flash_cleanup(c) do {} while (0)
 
@@ -107,9 +106,7 @@ static inline void jffs2_init_inode_info(struct jffs2_inode_info *f)
 #ifdef CONFIG_JFFS2_SUMMARY
 #define jffs2_can_mark_obsolete(c) (0)
 #else
-#define jffs2_can_mark_obsolete(c) \
-  ((c->mtd->type == MTD_NORFLASH && !(c->mtd->flags & (MTD_ECC|MTD_PROGRAM_REGIONS))) || \
-   c->mtd->type == MTD_RAM)
+#define jffs2_can_mark_obsolete(c) (c->mtd->flags & (MTD_BIT_WRITEABLE))
 #endif
 
 #define jffs2_cleanmarker_oob(c) (c->mtd->type == MTD_NANDFLASH)
@@ -133,15 +130,11 @@ int jffs2_flush_wbuf_pad(struct jffs2_sb_info *c);
 int jffs2_nand_flash_setup(struct jffs2_sb_info *c);
 void jffs2_nand_flash_cleanup(struct jffs2_sb_info *c);
 
-#define jffs2_nor_ecc(c) (c->mtd->type == MTD_NORFLASH && (c->mtd->flags & MTD_ECC))
-int jffs2_nor_ecc_flash_setup(struct jffs2_sb_info *c);
-void jffs2_nor_ecc_flash_cleanup(struct jffs2_sb_info *c);
-
 #define jffs2_dataflash(c) (c->mtd->type == MTD_DATAFLASH)
 int jffs2_dataflash_setup(struct jffs2_sb_info *c);
 void jffs2_dataflash_cleanup(struct jffs2_sb_info *c);
 
-#define jffs2_nor_wbuf_flash(c) (c->mtd->type == MTD_NORFLASH && (c->mtd->flags & MTD_PROGRAM_REGIONS))
+#define jffs2_nor_wbuf_flash(c) (c->mtd->type == MTD_NORFLASH && ! (c->mtd->flags & MTD_BIT_WRITEABLE))
 int jffs2_nor_wbuf_flash_setup(struct jffs2_sb_info *c);
 void jffs2_nor_wbuf_flash_cleanup(struct jffs2_sb_info *c);
 

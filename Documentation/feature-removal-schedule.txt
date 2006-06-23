@@ -49,11 +49,11 @@ Who:	Paul E. McKenney <paulmck@us.ibm.com>
 ---------------------------
 
 What:	raw1394: requests of type RAW1394_REQ_ISO_SEND, RAW1394_REQ_ISO_LISTEN
-When:	November 2005
+When:	November 2006
 Why:	Deprecated in favour of the new ioctl-based rawiso interface, which is
 	more efficient.  You should really be using libraw1394 for raw1394
 	access anyway.
-Who:	Jody McIntyre <scjody@steamballoon.com>
+Who:	Jody McIntyre <scjody@modernduck.com>
 
 ---------------------------
 
@@ -209,15 +209,6 @@ Why:	These events are not correct, and do not properly let userspace know
 	when a file system has been mounted or unmounted.  Userspace should
 	poll the /proc/mounts file instead to detect this properly.
 Who:	Greg Kroah-Hartman <gregkh@suse.de>
-
----------------------------
-
-What:	Support for NEC DDB5074 and DDB5476 evaluation boards.
-When:	June 2006
-Why:	Board specific code doesn't build anymore since ~2.6.0 and no
-	users have complained indicating there is no more need for these
-	boards.  This should really be considered a last call.
-Who:	Ralf Baechle <ralf@linux-mips.org>
 
 ---------------------------
 

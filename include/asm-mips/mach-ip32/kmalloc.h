@@ -1,7 +1,6 @@
 #ifndef __ASM_MACH_IP32_KMALLOC_H
 #define __ASM_MACH_IP32_KMALLOC_H
 
-#include <linux/config.h>
 
 #if defined(CONFIG_CPU_R5000) || defined (CONFIG_CPU_RM7000)
 #define ARCH_KMALLOC_MINALIGN	32

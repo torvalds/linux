@@ -5,7 +5,6 @@
 #ifndef _ASM_MMZONE_H_
 #define _ASM_MMZONE_H_
 
-#include <linux/config.h>
 #include <asm/page.h>
 #include <mmzone.h>
 
@@ -13,17 +12,6 @@
 
 #define kvaddr_to_nid(kvaddr)	pa_to_nid(__pa(kvaddr))
 #define pfn_to_nid(pfn)		pa_to_nid((pfn) << PAGE_SHIFT)
-
-#define pfn_valid(pfn)						\
-({								\
- 	unsigned long __pfn = (pfn);				\
- 	int __n = pfn_to_nid(__pfn);				\
-	((__n >= 0) ? (__pfn < NODE_DATA(__n)->node_start_pfn +	\
-		       NODE_DATA(__n)->node_spanned_pages) : 0);\
-})
-
-/* XXX: FIXME -- wli */
-#define kern_addr_valid(addr)	(0)
 
 #endif /* CONFIG_DISCONTIGMEM */
 

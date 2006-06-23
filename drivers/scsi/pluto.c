@@ -27,6 +27,9 @@
 
 #include <linux/module.h>
 
+#define RQ_SCSI_BUSY		0xffff
+#define RQ_SCSI_DONE		0xfffe
+
 /* #define PLUTO_DEBUG */
 
 #define pluto_printk printk ("PLUTO %s: ", fc->name); printk

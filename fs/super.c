@@ -231,7 +231,7 @@ void generic_shutdown_super(struct super_block *sb)
 	if (root) {
 		sb->s_root = NULL;
 		shrink_dcache_parent(root);
-		shrink_dcache_anon(&sb->s_anon);
+		shrink_dcache_anon(sb);
 		dput(root);
 		fsync_super(sb);
 		lock_super(sb);

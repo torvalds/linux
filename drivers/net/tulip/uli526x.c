@@ -9,7 +9,7 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
-    
+
 */
 
 #define DRV_NAME	"uli526x"
@@ -185,7 +185,7 @@ struct uli526x_board_info {
 
 	/* NIC SROM data */
 	unsigned char srom[128];
-	u8 init;	
+	u8 init;
 };
 
 enum uli526x_offsets {
@@ -258,7 +258,7 @@ static int __devinit uli526x_init_one (struct pci_dev *pdev,
 	struct uli526x_board_info *db;	/* board information structure */
 	struct net_device *dev;
 	int i, err;
-	
+
 	ULI526X_DBUG(0, "uli526x_init_one()", 0);
 
 	if (!printed_version++)
@@ -316,7 +316,7 @@ static int __devinit uli526x_init_one (struct pci_dev *pdev,
 		err = -ENOMEM;
 		goto err_out_nomem;
 	}
-	
+
 	db->first_tx_desc = (struct tx_desc *) db->desc_pool_ptr;
 	db->first_tx_desc_dma = db->desc_pool_dma_ptr;
 	db->buf_pool_start = db->buf_pool_ptr;
@@ -324,14 +324,14 @@ static int __devinit uli526x_init_one (struct pci_dev *pdev,
 
 	db->chip_id = ent->driver_data;
 	db->ioaddr = pci_resource_start(pdev, 0);
-	
+
 	db->pdev = pdev;
 	db->init = 1;
-	
+
 	dev->base_addr = db->ioaddr;
 	dev->irq = pdev->irq;
 	pci_set_drvdata(pdev, dev);
-	
+
 	/* Register some necessary functions */
 	dev->open = &uli526x_open;
 	dev->hard_start_xmit = &uli526x_start_xmit;
@@ -341,7 +341,7 @@ static int __devinit uli526x_init_one (struct pci_dev *pdev,
 	dev->ethtool_ops = &netdev_ethtool_ops;
 	spin_lock_init(&db->lock);
 
-		
+
 	/* read 64 word srom data */
 	for (i = 0; i < 64; i++)
 		((u16 *) db->srom)[i] = cpu_to_le16(read_srom_word(db->ioaddr, i));
@@ -374,7 +374,7 @@ static int __devinit uli526x_init_one (struct pci_dev *pdev,
 		goto err_out_res;
 
 	printk(KERN_INFO "%s: ULi M%04lx at pci%s,",dev->name,ent->driver_data >> 16,pci_name(pdev));
-	
+
 	for (i = 0; i < 6; i++)
 		printk("%c%02x", i ? ':' : ' ', dev->dev_addr[i]);
 	printk(", irq %d.\n", dev->irq);
@@ -389,7 +389,7 @@ err_out_nomem:
 	if(db->desc_pool_ptr)
 		pci_free_consistent(pdev, sizeof(struct tx_desc) * DESC_ALL_CNT + 0x20,
 			db->desc_pool_ptr, db->desc_pool_dma_ptr);
-			
+
 	if(db->buf_pool_ptr != NULL)
 		pci_free_consistent(pdev, TX_BUF_ALLOC * TX_DESC_CNT + 4,
 			db->buf_pool_ptr, db->buf_pool_dma_ptr);
@@ -433,7 +433,7 @@ static int uli526x_open(struct net_device *dev)
 {
 	int ret;
 	struct uli526x_board_info *db = netdev_priv(dev);
-	
+
 	ULI526X_DBUG(0, "uli526x_open", 0);
 
 	ret = request_irq(dev->irq, &uli526x_interrupt, SA_SHIRQ, dev->name, dev);
@@ -454,7 +454,7 @@ static int uli526x_open(struct net_device *dev)
 	/* CR6 operation mode decision */
 	db->cr6_data |= ULI526X_TXTH_256;
 	db->cr0_data = CR0_DEFAULT;
-	
+
 	/* Initialize ULI526X board */
 	uli526x_init(dev);
 
@@ -604,7 +604,7 @@ static int uli526x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* Restore CR7 to enable interrupt */
 	spin_unlock_irqrestore(&db->lock, flags);
 	outl(db->cr7_data, dev->base_addr + DCR7);
-	
+
 	/* free this SKB */
 	dev_kfree_skb(skb);
 
@@ -782,7 +782,7 @@ static void uli526x_rx_packet(struct net_device *dev, struct uli526x_board_info 
 	struct sk_buff *skb;
 	int rxlen;
 	u32 rdes0;
-	
+
 	rxptr = db->rx_ready_ptr;
 
 	while(db->rx_avail_cnt) {
@@ -821,7 +821,7 @@ static void uli526x_rx_packet(struct net_device *dev, struct uli526x_board_info 
 			if ( !(rdes0 & 0x8000) ||
 				((db->cr6_data & CR6_PM) && (rxlen>6)) ) {
 				skb = rxptr->rx_skb_ptr;
-		
+
 				/* Good packet, send to upper layer */
 				/* Shorst packet used new SKB */
 				if ( (rxlen < RX_COPY_SIZE) &&
@@ -841,7 +841,7 @@ static void uli526x_rx_packet(struct net_device *dev, struct uli526x_board_info 
 				dev->last_rx = jiffies;
 				db->stats.rx_packets++;
 				db->stats.rx_bytes += rxlen;
-				
+
 			} else {
 				/* Reuse SKB buffer when the packet is error */
 				ULI526X_DBUG(0, "Reuse SK buffer, rdes0", rdes0);
@@ -911,7 +911,7 @@ ULi_ethtool_gset(struct uli526x_board_info *db, struct ethtool_cmd *ecmd)
 	                   SUPPORTED_100baseT_Full |
 	                   SUPPORTED_Autoneg |
 	                   SUPPORTED_MII);
-		
+
 	ecmd->advertising = (ADVERTISED_10baseT_Half |
 	                   ADVERTISED_10baseT_Full |
 	                   ADVERTISED_100baseT_Half |
@@ -924,13 +924,13 @@ ULi_ethtool_gset(struct uli526x_board_info *db, struct ethtool_cmd *ecmd)
 	ecmd->phy_address = db->phy_addr;
 
 	ecmd->transceiver = XCVR_EXTERNAL;
-		
+
 	ecmd->speed = 10;
 	ecmd->duplex = DUPLEX_HALF;
-	
+
 	if(db->op_mode==ULI526X_100MHF || db->op_mode==ULI526X_100MFD)
 	{
-		ecmd->speed = 100;               
+		ecmd->speed = 100;
 	}
 	if(db->op_mode==ULI526X_10MFD || db->op_mode==ULI526X_100MFD)
 	{
@@ -939,11 +939,11 @@ ULi_ethtool_gset(struct uli526x_board_info *db, struct ethtool_cmd *ecmd)
 	if(db->link_failed)
 	{
 		ecmd->speed = -1;
-		ecmd->duplex = -1;	
+		ecmd->duplex = -1;
 	}
-	
+
 	if (db->media_mode & ULI526X_AUTO)
-	{	
+	{
 		ecmd->autoneg = AUTONEG_ENABLE;
 	}
 }
@@ -964,15 +964,15 @@ static void netdev_get_drvinfo(struct net_device *dev,
 
 static int netdev_get_settings(struct net_device *dev, struct ethtool_cmd *cmd) {
 	struct uli526x_board_info *np = netdev_priv(dev);
-	
+
 	ULi_ethtool_gset(np, cmd);
-	
+
 	return 0;
 }
 
 static u32 netdev_get_link(struct net_device *dev) {
 	struct uli526x_board_info *np = netdev_priv(dev);
-		
+
 	if(np->link_failed)
 		return 0;
 	else
@@ -1005,11 +1005,11 @@ static void uli526x_timer(unsigned long data)
 	struct uli526x_board_info *db = netdev_priv(dev);
  	unsigned long flags;
 	u8 TmpSpeed=10;
-	
+
 	//ULI526X_DBUG(0, "uli526x_timer()", 0);
 	spin_lock_irqsave(&db->lock, flags);
 
-	
+
 	/* Dynamic reset ULI526X : system error or transmit time-out */
 	tmp_cr8 = inl(db->ioaddr + DCR8);
 	if ( (db->interval_rx_cnt==0) && (tmp_cr8) ) {
@@ -1021,9 +1021,9 @@ static void uli526x_timer(unsigned long data)
 	/* TX polling kick monitor */
 	if ( db->tx_packet_cnt &&
 	     time_after(jiffies, dev->trans_start + ULI526X_TX_KICK) ) {
-		outl(0x1, dev->base_addr + DCR1);   // Tx polling again 
+		outl(0x1, dev->base_addr + DCR1);   // Tx polling again
 
-		// TX Timeout 
+		// TX Timeout
 		if ( time_after(jiffies, dev->trans_start + ULI526X_TX_TIMEOUT) ) {
 			db->reset_TXtimeout++;
 			db->wait_reset = 1;
@@ -1073,7 +1073,7 @@ static void uli526x_timer(unsigned long data)
 				uli526x_sense_speed(db) )
 				db->link_failed = 1;
 			uli526x_process_mode(db);
-			
+
 			if(db->link_failed==0)
 			{
 				if(db->op_mode==ULI526X_100MHF || db->op_mode==ULI526X_100MFD)
@@ -1404,7 +1404,7 @@ static u8 uli526x_sense_speed(struct uli526x_board_info * db)
 	phy_mode = phy_read(db->ioaddr, db->phy_addr, 1, db->chip_id);
 
 	if ( (phy_mode & 0x24) == 0x24 ) {
-		
+
 		phy_mode = ((phy_read(db->ioaddr, db->phy_addr, 5, db->chip_id) & 0x01e0)<<7);
 		if(phy_mode&0x8000)
 			phy_mode = 0x8000;
@@ -1414,7 +1414,7 @@ static u8 uli526x_sense_speed(struct uli526x_board_info * db)
 			phy_mode = 0x2000;
 		else
 			phy_mode = 0x1000;
-		
+
 		/* printk(DRV_NAME ": Phy_mode %x ",phy_mode); */
 		switch (phy_mode) {
 		case 0x1000: db->op_mode = ULI526X_10MHF; break;
@@ -1442,7 +1442,7 @@ static u8 uli526x_sense_speed(struct uli526x_board_info * db)
 static void uli526x_set_phyxcer(struct uli526x_board_info *db)
 {
 	u16 phy_reg;
-	
+
 	/* Phyxcer capability setting */
 	phy_reg = phy_read(db->ioaddr, db->phy_addr, 4, db->chip_id) & ~0x01e0;
 
@@ -1457,7 +1457,7 @@ static void uli526x_set_phyxcer(struct uli526x_board_info *db)
 		case ULI526X_100MHF: phy_reg |= 0x80; break;
 		case ULI526X_100MFD: phy_reg |= 0x100; break;
 		}
-		
+
 	}
 
   	/* Write new capability to Phyxcer Reg4 */
@@ -1556,7 +1556,7 @@ static void phy_write(unsigned long iobase, u8 phy_addr, u8 offset, u16 phy_data
 	/* Write a word data to PHY controller */
 	for ( i = 0x8000; i > 0; i >>= 1)
 		phy_write_1bit(ioaddr, phy_data & i ? PHY_DATA_1 : PHY_DATA_0, chip_id);
-	
+
 }
 
 
@@ -1574,7 +1574,7 @@ static u16 phy_read(unsigned long iobase, u8 phy_addr, u8 offset, u32 chip_id)
 		return phy_readby_cr10(iobase, phy_addr, offset);
 	/* M5261/M5263 Chip */
 	ioaddr = iobase + DCR9;
-	
+
 	/* Send 33 synchronization clock to Phy controller */
 	for (i = 0; i < 35; i++)
 		phy_write_1bit(ioaddr, PHY_DATA_1, chip_id);
@@ -1610,7 +1610,7 @@ static u16 phy_read(unsigned long iobase, u8 phy_addr, u8 offset, u32 chip_id)
 static u16 phy_readby_cr10(unsigned long iobase, u8 phy_addr, u8 offset)
 {
 	unsigned long ioaddr,cr10_value;
-	
+
 	ioaddr = iobase + DCR10;
 	cr10_value = phy_addr;
 	cr10_value = (cr10_value<<5) + offset;
@@ -1629,7 +1629,7 @@ static u16 phy_readby_cr10(unsigned long iobase, u8 phy_addr, u8 offset)
 static void phy_writeby_cr10(unsigned long iobase, u8 phy_addr, u8 offset, u16 phy_data)
 {
 	unsigned long ioaddr,cr10_value;
-	
+
 	ioaddr = iobase + DCR10;
 	cr10_value = phy_addr;
 	cr10_value = (cr10_value<<5) + offset;
@@ -1659,7 +1659,7 @@ static void phy_write_1bit(unsigned long ioaddr, u32 phy_data, u32 chip_id)
 static u16 phy_read_1bit(unsigned long ioaddr, u32 chip_id)
 {
 	u16 phy_data;
-	
+
 	outl(0x50000 , ioaddr);
 	udelay(1);
 	phy_data = ( inl(ioaddr) >> 19 ) & 0x1;

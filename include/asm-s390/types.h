@@ -58,7 +58,6 @@ typedef __signed__ long saddr_t;
 
 #ifndef __ASSEMBLY__
 
-#include <linux/config.h>
 
 typedef signed char s8;
 typedef unsigned char u8;

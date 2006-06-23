@@ -10,7 +10,6 @@
 #ifndef _ASM_MACH_IP22_SPACES_H
 #define _ASM_MACH_IP22_SPACES_H
 
-#include <linux/config.h>
 
 #ifdef CONFIG_32BIT
 

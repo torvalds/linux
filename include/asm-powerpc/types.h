@@ -64,7 +64,6 @@ typedef struct {
 
 #ifndef __ASSEMBLY__
 
-#include <linux/config.h>
 
 typedef signed char s8;
 typedef unsigned char u8;

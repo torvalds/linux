@@ -14,6 +14,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/rtnetlink.h>
 
 #include "br_private.h"
 
@@ -49,6 +50,7 @@ static int br_device_event(struct notifier_block *unused, unsigned long event, v
 
 	case NETDEV_CHANGEADDR:
 		br_fdb_changeaddr(p, dev->dev_addr);
+		br_ifinfo_notify(RTM_NEWLINK, p);
 		br_stp_recalculate_bridge_id(br);
 		break;
 

@@ -8,7 +8,6 @@
 #ifndef _ASM_PGTABLE_H
 #define _ASM_PGTABLE_H
 
-#include <linux/config.h>
 #ifdef CONFIG_32BIT
 #include <asm/pgtable-32.h>
 #endif
@@ -379,9 +378,7 @@ static inline void update_mmu_cache(struct vm_area_struct *vma,
 	__update_cache(vma, address, pte);
 }
 
-#ifndef CONFIG_NEED_MULTIPLE_NODES
 #define kern_addr_valid(addr)	(1)
-#endif
 
 #ifdef CONFIG_64BIT_PHYS_ADDR
 extern int remap_pfn_range(struct vm_area_struct *vma, unsigned long from, unsigned long pfn, unsigned long size, pgprot_t prot);

@@ -18,8 +18,8 @@
 #ifndef __XFS_LRW_H__
 #define __XFS_LRW_H__
 
-struct vnode;
 struct bhv_desc;
+struct bhv_vnode;
 struct xfs_mount;
 struct xfs_iocore;
 struct xfs_inode;
@@ -49,7 +49,7 @@ struct xfs_iomap;
 #define	XFS_CTRUNC4		14
 #define	XFS_CTRUNC5		15
 #define	XFS_CTRUNC6		16
-#define	XFS_BUNMAPI		17
+#define	XFS_BUNMAP		17
 #define	XFS_INVAL_CACHED	18
 #define	XFS_DIORD_ENTER		19
 #define	XFS_DIOWR_ENTER		20
@@ -82,7 +82,7 @@ extern int xfsbdstrat(struct xfs_mount *, struct xfs_buf *);
 extern int xfs_bdstrat_cb(struct xfs_buf *);
 extern int xfs_dev_is_read_only(struct xfs_mount *, char *);
 
-extern int xfs_zero_eof(struct vnode *, struct xfs_iocore *, xfs_off_t,
+extern int xfs_zero_eof(struct bhv_vnode *, struct xfs_iocore *, xfs_off_t,
 				xfs_fsize_t, xfs_fsize_t);
 extern ssize_t xfs_read(struct bhv_desc *, struct kiocb *,
 				const struct iovec *, unsigned int,

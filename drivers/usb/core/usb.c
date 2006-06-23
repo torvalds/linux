@@ -1207,6 +1207,7 @@ EXPORT_SYMBOL(usb_ifnum_to_if);
 EXPORT_SYMBOL(usb_altnum_to_altsetting);
 
 EXPORT_SYMBOL(usb_reset_device);
+EXPORT_SYMBOL(usb_reset_composite_device);
 
 EXPORT_SYMBOL(__usb_get_extra_descriptor);
 

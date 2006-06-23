@@ -34,9 +34,9 @@
 #include <asm/cache.h>
 #include <asm/byteorder.h>
 
-#include <linux/config.h>
 #include <linux/device.h>
 #include <linux/percpu.h>
+#include <linux/dmaengine.h>
 
 struct divert_blk;
 struct vlan_group;
@@ -232,6 +232,7 @@ enum netdev_state_t
 	__LINK_STATE_RX_SCHED,
 	__LINK_STATE_LINKWATCH_PENDING,
 	__LINK_STATE_DORMANT,
+	__LINK_STATE_QDISC_RUNNING,
 };
 
 
@@ -310,6 +311,9 @@ struct net_device
 #define NETIF_F_TSO		2048	/* Can offload TCP/IP segmentation */
 #define NETIF_F_LLTX		4096	/* LockLess TX */
 #define NETIF_F_UFO             8192    /* Can offload UDP Large Send*/
+
+#define NETIF_F_GEN_CSUM	(NETIF_F_NO_CSUM | NETIF_F_HW_CSUM)
+#define NETIF_F_ALL_CSUM	(NETIF_F_IP_CSUM | NETIF_F_GEN_CSUM)
 
 	struct net_device	*next_sched;
 
@@ -406,7 +410,7 @@ struct net_device
  * One part is mostly used on xmit path (device)
  */
 	/* hard_start_xmit synchronizer */
-	spinlock_t		xmit_lock ____cacheline_aligned_in_smp;
+	spinlock_t		_xmit_lock ____cacheline_aligned_in_smp;
 	/* cpu id of processor entered to hard_start_xmit or -1,
 	   if nobody entered there.
 	 */
@@ -593,6 +597,9 @@ struct softnet_data
 	struct sk_buff		*completion_queue;
 
 	struct net_device	backlog_dev;	/* Sorry. 8) */
+#ifdef CONFIG_NET_DMA
+	struct dma_chan		*net_dma;
+#endif
 };
 
 DECLARE_PER_CPU(struct softnet_data,softnet_data);
@@ -889,11 +896,43 @@ static inline void __netif_rx_complete(struct net_device *dev)
 	clear_bit(__LINK_STATE_RX_SCHED, &dev->state);
 }
 
+static inline void netif_tx_lock(struct net_device *dev)
+{
+	spin_lock(&dev->_xmit_lock);
+	dev->xmit_lock_owner = smp_processor_id();
+}
+
+static inline void netif_tx_lock_bh(struct net_device *dev)
+{
+	spin_lock_bh(&dev->_xmit_lock);
+	dev->xmit_lock_owner = smp_processor_id();
+}
+
+static inline int netif_tx_trylock(struct net_device *dev)
+{
+	int err = spin_trylock(&dev->_xmit_lock);
+	if (!err)
+		dev->xmit_lock_owner = smp_processor_id();
+	return err;
+}
+
+static inline void netif_tx_unlock(struct net_device *dev)
+{
+	dev->xmit_lock_owner = -1;
+	spin_unlock(&dev->_xmit_lock);
+}
+
+static inline void netif_tx_unlock_bh(struct net_device *dev)
+{
+	dev->xmit_lock_owner = -1;
+	spin_unlock_bh(&dev->_xmit_lock);
+}
+
 static inline void netif_tx_disable(struct net_device *dev)
 {
-	spin_lock_bh(&dev->xmit_lock);
+	netif_tx_lock_bh(dev);
 	netif_stop_queue(dev);
-	spin_unlock_bh(&dev->xmit_lock);
+	netif_tx_unlock_bh(dev);
 }
 
 /* These functions live elsewhere (drivers/net/net_init.c, but related) */

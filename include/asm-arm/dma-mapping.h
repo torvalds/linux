@@ -3,7 +3,6 @@
 
 #ifdef __KERNEL__
 
-#include <linux/config.h>
 #include <linux/mm.h> /* need struct page */
 
 #include <asm/scatterlist.h>

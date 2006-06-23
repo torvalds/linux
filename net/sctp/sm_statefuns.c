@@ -5293,10 +5293,18 @@ static int sctp_eat_data(const struct sctp_association *asoc,
 	 * seems a bit troublesome in that frag_point varies based on
 	 * PMTU.  In cases, such as loopback, this might be a rather
 	 * large spill over.
+	 * NOTE: If we have a full receive buffer here, we only renege if
+	 * our receiver can still make progress without the tsn being
+	 * received. We do this because in the event that the associations
+	 * receive queue is empty we are filling a leading gap, and since
+	 * reneging moves the gap to the end of the tsn stream, we are likely
+	 * to stall again very shortly. Avoiding the renege when we fill a
+	 * leading gap is a good heuristic for avoiding such steady state
+	 * stalls.
 	 */
 	if (!asoc->rwnd || asoc->rwnd_over ||
 	    (datalen > asoc->rwnd + asoc->frag_point) ||
-	    rcvbuf_over) {
+	    (rcvbuf_over && (!skb_queue_len(&sk->sk_receive_queue)))) {
 
 		/* If this is the next TSN, consider reneging to make
 		 * room.   Note: Playing nice with a confused sender.  A

@@ -4990,6 +4990,7 @@ int ata_device_resume(struct ata_device *dev)
 	if (ap->flags & ATA_FLAG_SUSPENDED) {
 		struct ata_device *failed_dev;
 
+		ata_busy_sleep(ap, ATA_TMOUT_BOOT_QUICK, ATA_TMOUT_BOOT);
 		ata_busy_wait(ap, ATA_BUSY | ATA_DRQ, 200000);
 
 		ap->flags &= ~ATA_FLAG_SUSPENDED;

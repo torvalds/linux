@@ -54,7 +54,6 @@ struct compat_stat;
 struct compat_timeval;
 struct robust_list_head;
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/aio_abi.h>
 #include <linux/capability.h>

@@ -11,7 +11,6 @@
 #ifndef _ASM_SN_SN0_ADDRS_H
 #define _ASM_SN_SN0_ADDRS_H
 
-#include <linux/config.h>
 
 /*
  * SN0 (on a T5) Address map
@@ -49,7 +48,7 @@
  * so for now we just use defines bracketed by an ifdef.
  */
 
-#ifdef CONFIG_SGI_SN0_N_MODE
+#ifdef CONFIG_SGI_SN_N_MODE
 
 #define NODE_SIZE_BITS		31
 #define BWIN_SIZE_BITS		28
@@ -63,7 +62,7 @@
 #define BDDIR_UPPER_MASK	(UINT64_CAST 0x7ffff << 10)
 #define BDECC_UPPER_MASK	(UINT64_CAST 0x3ffffff << 3)
 
-#else /* !defined(CONFIG_SGI_SN0_N_MODE), assume that M-mode is desired */
+#else /* !defined(CONFIG_SGI_SN_N_MODE), assume that M-mode is desired */
 
 #define NODE_SIZE_BITS		32
 #define BWIN_SIZE_BITS		29
@@ -77,7 +76,7 @@
 #define BDDIR_UPPER_MASK	(UINT64_CAST 0xfffff << 10)
 #define BDECC_UPPER_MASK	(UINT64_CAST 0x7ffffff << 3)
 
-#endif /* !defined(CONFIG_SGI_SN0_N_MODE) */
+#endif /* !defined(CONFIG_SGI_SN_N_MODE) */
 
 #define NODE_ADDRSPACE_SIZE	(UINT64_CAST 1 << NODE_SIZE_BITS)
 
@@ -85,15 +84,15 @@
 #define NASID_GET(_pa)		(int) ((UINT64_CAST (_pa) >>		\
 					NASID_SHFT) & NASID_BITMASK)
 
-#if !defined(__ASSEMBLY__) && !defined(_STANDALONE)
+#if !defined(__ASSEMBLY__)
 
 #define NODE_SWIN_BASE(nasid, widget)					\
 	((widget == 0) ? NODE_BWIN_BASE((nasid), SWIN0_BIGWIN)		\
 	: RAW_NODE_SWIN_BASE(nasid, widget))
-#else /* __ASSEMBLY__ || _STANDALONE */
+#else /* __ASSEMBLY__ */
 #define NODE_SWIN_BASE(nasid, widget) \
      (NODE_IO_BASE(nasid) + (UINT64_CAST (widget) << SWIN_SIZE_BITS))
-#endif /* __ASSEMBLY__ || _STANDALONE */
+#endif /* __ASSEMBLY__ */
 
 /*
  * The following definitions pertain to the IO special address
@@ -143,12 +142,7 @@
 #define SN0_WIDGET_BASE(_nasid, _wid)	(NODE_SWIN_BASE((_nasid), (_wid)))
 
 /* Turn on sable logging for the processors whose bits are set. */
-#ifdef SABLE
-#define SABLE_LOG_TRIGGER(_map)	\
-		*((volatile hubreg_t *)(IO_BASE + 0x17ffff0)) = (_map)
-#else
 #define SABLE_LOG_TRIGGER(_map)
-#endif /* SABLE */
 
 #ifndef __ASSEMBLY__
 #define KERN_NMI_ADDR(nasid, slice)					\
@@ -280,76 +274,6 @@
 #endif	/* !__ASSEMBLY__ */
 
 #define _ARCSPROM
-
-#ifdef _STANDALONE
-
-/*
- * The PROM needs to pass the device base address and the
- * device pci cfg space address to the device drivers during
- * install. The COMPONENT->Key field is used for this purpose.
- * Macros needed by SN0 device drivers to convert the
- * COMPONENT->Key field to the respective base address.
- * Key field looks as follows:
- *
- *  +----------------------------------------------------+
- *  |devnasid | widget  |pciid |hubwidid|hstnasid | adap |
- *  |   2     |   1     |  1   |   1    |    2    |   1  |
- *  +----------------------------------------------------+
- *  |         |         |      |        |         |      |
- *  64        48        40     32       24        8      0
- *
- * These are used by standalone drivers till the io infrastructure
- * is in place.
- */
-
-#ifndef __ASSEMBLY__
-
-#define uchar unsigned char
-
-#define KEY_DEVNASID_SHFT  48
-#define KEY_WIDID_SHFT	   40
-#define KEY_PCIID_SHFT	   32
-#define KEY_HUBWID_SHFT	   24
-#define KEY_HSTNASID_SHFT  8
-
-#define MK_SN0_KEY(nasid, widid, pciid) \
-			((((__psunsigned_t)nasid)<< KEY_DEVNASID_SHFT |\
-				((__psunsigned_t)widid) << KEY_WIDID_SHFT) |\
-				((__psunsigned_t)pciid) << KEY_PCIID_SHFT)
-
-#define ADD_HUBWID_KEY(key,hubwid)\
-			(key|=((__psunsigned_t)hubwid << KEY_HUBWID_SHFT))
-
-#define ADD_HSTNASID_KEY(key,hstnasid)\
-			(key|=((__psunsigned_t)hstnasid << KEY_HSTNASID_SHFT))
-
-#define GET_DEVNASID_FROM_KEY(key)	((short)(key >> KEY_DEVNASID_SHFT))
-#define GET_WIDID_FROM_KEY(key)		((uchar)(key >> KEY_WIDID_SHFT))
-#define GET_PCIID_FROM_KEY(key)		((uchar)(key >> KEY_PCIID_SHFT))
-#define GET_HUBWID_FROM_KEY(key)	((uchar)(key >> KEY_HUBWID_SHFT))
-#define GET_HSTNASID_FROM_KEY(key)	((short)(key >> KEY_HSTNASID_SHFT))
-
-#define PCI_64_TARGID_SHFT		60
-
-#define GET_PCIBASE_FROM_KEY(key)  (NODE_SWIN_BASE(GET_DEVNASID_FROM_KEY(key),\
-					GET_WIDID_FROM_KEY(key))\
-					| BRIDGE_DEVIO(GET_PCIID_FROM_KEY(key)))
-
-#define GET_PCICFGBASE_FROM_KEY(key) \
-			(NODE_SWIN_BASE(GET_DEVNASID_FROM_KEY(key),\
-			      GET_WIDID_FROM_KEY(key))\
-			| BRIDGE_TYPE0_CFG_DEV(GET_PCIID_FROM_KEY(key)))
-
-#define GET_WIDBASE_FROM_KEY(key) \
-                        (NODE_SWIN_BASE(GET_DEVNASID_FROM_KEY(key),\
-                              GET_WIDID_FROM_KEY(key)))
-
-#define PUT_INSTALL_STATUS(c,s)		c->Revision = s
-#define GET_INSTALL_STATUS(c)		c->Revision
-
-#endif /* !__ASSEMBLY__ */
-
-#endif /* _STANDALONE */
 
 #if defined (HUB_ERR_STS_WAR)
 

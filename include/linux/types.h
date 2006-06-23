@@ -2,7 +2,6 @@
 #define _LINUX_TYPES_H
 
 #ifdef	__KERNEL__
-#include <linux/config.h>
 
 #define BITS_TO_LONGS(bits) \
 	(((bits)+BITS_PER_LONG-1)/BITS_PER_LONG)

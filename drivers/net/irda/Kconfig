@@ -417,5 +417,20 @@ config PXA_FICP
 	  available capabilities may vary from one PXA2xx target to
 	  another.
 
+config MCS_FIR
+	tristate "MosChip MCS7780 IrDA-USB dongle"
+	depends on IRDA && USB && EXPERIMENTAL
+	help
+	  Say Y or M here if you want to build support for the MosChip
+	  MCS7780 IrDA-USB bridge device driver.
+
+	  USB bridge based on the MosChip MCS7780 don't conform to the
+	  IrDA-USB device class specification, and therefore need their
+	  own specific driver. Those dongles support SIR and FIR (4Mbps)
+	  speeds.
+
+	  To compile it as a module, choose M here: the module will be called
+	  mcs7780.
+
 endmenu
 

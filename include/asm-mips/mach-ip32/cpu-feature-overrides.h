@@ -9,7 +9,6 @@
 #ifndef __ASM_MACH_IP32_CPU_FEATURE_OVERRIDES_H
 #define __ASM_MACH_IP32_CPU_FEATURE_OVERRIDES_H
 
-#include <linux/config.h>
 
 /*
  * R5000 has an interesting "restriction":  ll(d)/sc(d)
@@ -38,6 +37,8 @@
 #define cpu_has_vtag_icache	0
 #define cpu_has_ic_fills_f_dc	0
 #define cpu_has_dsp		0
+#define cpu_has_4k_cache	1
+
 
 #define cpu_has_mips32r1	0
 #define cpu_has_mips32r2	0

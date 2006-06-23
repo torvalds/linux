@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   
-  Copyright(c) 1999 - 2005 Intel Corporation. All rights reserved.
+  Copyright(c) 1999 - 2006 Intel Corporation. All rights reserved.
   
   This program is free software; you can redistribute it and/or modify it 
   under the terms of the GNU General Public License as published by the Free 
@@ -84,7 +84,12 @@ struct ixgb_adapter;
 #define IXGB_DBG(args...)
 #endif
 
-#define IXGB_ERR(args...) printk(KERN_ERR "ixgb: " args)
+#define PFX "ixgb: "
+#define DPRINTK(nlevel, klevel, fmt, args...) \
+	(void)((NETIF_MSG_##nlevel & adapter->msg_enable) && \
+	printk(KERN_##klevel PFX "%s: %s: " fmt, adapter->netdev->name, \
+		__FUNCTION__ , ## args))
+
 
 /* TX/RX descriptor defines */
 #define DEFAULT_TXD	 256
@@ -175,6 +180,7 @@ struct ixgb_adapter {
 	uint64_t hw_csum_tx_good;
 	uint64_t hw_csum_tx_error;
 	uint32_t tx_int_delay;
+	uint32_t tx_timeout_count;
 	boolean_t tx_int_delay_enable;
 	boolean_t detect_tx_hung;
 
@@ -192,7 +198,9 @@ struct ixgb_adapter {
 
 	/* structs defined in ixgb_hw.h */
 	struct ixgb_hw hw;
+	u16 msg_enable;
 	struct ixgb_hw_stats stats;
+	uint32_t alloc_rx_buff_failed;
 #ifdef CONFIG_PCI_MSI
 	boolean_t have_msi;
 #endif

@@ -643,7 +643,7 @@ asmlinkage long sys_shmctl (int shmid, int cmd, struct shmid_ds __user *buf)
 		err = audit_ipc_obj(&(shp->shm_perm));
 		if (err)
 			goto out_unlock_up;
-		err = audit_ipc_set_perm(0, setbuf.uid, setbuf.gid, setbuf.mode, &(shp->shm_perm));
+		err = audit_ipc_set_perm(0, setbuf.uid, setbuf.gid, setbuf.mode);
 		if (err)
 			goto out_unlock_up;
 		err=-EPERM;

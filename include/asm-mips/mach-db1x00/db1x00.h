@@ -28,7 +28,6 @@
 #ifndef __ASM_DB1X00_H
 #define __ASM_DB1X00_H
 
-#include <linux/config.h>
 
 #ifdef CONFIG_MIPS_DB1550
 #define BCSR_KSEG1_ADDR 0xAF000000

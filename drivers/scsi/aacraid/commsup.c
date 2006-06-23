@@ -472,7 +472,6 @@ int aac_fib_send(u16 command, struct fib *fibptr, unsigned long size,
 	spin_lock_irqsave(q->lock, qflags);
 	if (dev->new_comm_interface) {
 		unsigned long count = 10000000L; /* 50 seconds */
-		list_add_tail(&fibptr->queue, &q->pendingq);
 		q->numpending++;
 		spin_unlock_irqrestore(q->lock, qflags);
 		while (aac_adapter_send(fibptr) != 0) {
@@ -481,7 +480,6 @@ int aac_fib_send(u16 command, struct fib *fibptr, unsigned long size,
 					spin_unlock_irqrestore(&fibptr->event_lock, flags);
 				spin_lock_irqsave(q->lock, qflags);
 				q->numpending--;
-				list_del(&fibptr->queue);
 				spin_unlock_irqrestore(q->lock, qflags);
 				return -ETIMEDOUT;
 			}
@@ -492,7 +490,6 @@ int aac_fib_send(u16 command, struct fib *fibptr, unsigned long size,
 		unsigned long nointr = 0;
 		aac_queue_get( dev, &index, AdapNormCmdQueue, hw_fib, 1, fibptr, &nointr);
 
-		list_add_tail(&fibptr->queue, &q->pendingq);
 		q->numpending++;
 		*(q->headers.producer) = cpu_to_le32(index + 1);
 		spin_unlock_irqrestore(q->lock, qflags);
@@ -520,7 +517,6 @@ int aac_fib_send(u16 command, struct fib *fibptr, unsigned long size,
 				if (--count == 0) {
 					spin_lock_irqsave(q->lock, qflags);
 					q->numpending--;
-					list_del(&fibptr->queue);
 					spin_unlock_irqrestore(q->lock, qflags);
 					if (wait == -1) {
 	        				printk(KERN_ERR "aacraid: aac_fib_send: first asynchronous command timed out.\n"
@@ -1214,7 +1210,7 @@ int aac_command_thread(void *data)
 						 * since the last read off
 						 * the queue?
 						 */
-						if ((time_now - time_last) > 120) {
+						if ((time_now - time_last) > aif_timeout) {
 							entry = entry->next;
 							aac_close_fib_context(dev, fibctx);
 							continue;

@@ -13,7 +13,6 @@
 #ifndef __ASM_ARCH_COLLIE_H
 #define __ASM_ARCH_COLLIE_H
 
-#include <linux/config.h>
 
 #define COLLIE_SCP_CHARGE_ON	SCOOP_GPCR_PA11
 #define COLLIE_SCP_DIAG_BOOT1	SCOOP_GPCR_PA12

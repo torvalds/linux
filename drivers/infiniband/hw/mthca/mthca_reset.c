@@ -49,6 +49,12 @@ int mthca_reset(struct mthca_dev *mdev)
 	u32 *hca_header    = NULL;
 	u32 *bridge_header = NULL;
 	struct pci_dev *bridge = NULL;
+	int bridge_pcix_cap = 0;
+	int hca_pcie_cap = 0;
+	int hca_pcix_cap = 0;
+
+	u16 devctl;
+	u16 linkctl;
 
 #define MTHCA_RESET_OFFSET 0xf0010
 #define MTHCA_RESET_VALUE  swab32(1)
@@ -110,6 +116,9 @@ int mthca_reset(struct mthca_dev *mdev)
 		}
 	}
 
+	hca_pcix_cap = pci_find_capability(mdev->pdev, PCI_CAP_ID_PCIX);
+	hca_pcie_cap = pci_find_capability(mdev->pdev, PCI_CAP_ID_EXP);
+
 	if (bridge) {
 		bridge_header = kmalloc(256, GFP_KERNEL);
 		if (!bridge_header) {
@@ -128,6 +137,13 @@ int mthca_reset(struct mthca_dev *mdev)
 					  "PCI header, aborting.\n");
 				goto out;
 			}
+		}
+		bridge_pcix_cap = pci_find_capability(bridge, PCI_CAP_ID_PCIX);
+		if (!bridge_pcix_cap) {
+				err = -ENODEV;
+				mthca_err(mdev, "Couldn't locate HCA bridge "
+					  "PCI-X capability, aborting.\n");
+				goto out;
 		}
 	}
 
@@ -178,6 +194,20 @@ int mthca_reset(struct mthca_dev *mdev)
 good:
 	/* Now restore the PCI headers */
 	if (bridge) {
+		if (pci_write_config_dword(bridge, bridge_pcix_cap + 0x8,
+				 bridge_header[(bridge_pcix_cap + 0x8) / 4])) {
+			err = -ENODEV;
+			mthca_err(mdev, "Couldn't restore HCA bridge Upstream "
+				  "split transaction control, aborting.\n");
+			goto out;
+		}
+		if (pci_write_config_dword(bridge, bridge_pcix_cap + 0xc,
+				 bridge_header[(bridge_pcix_cap + 0xc) / 4])) {
+			err = -ENODEV;
+			mthca_err(mdev, "Couldn't restore HCA bridge Downstream "
+				  "split transaction control, aborting.\n");
+			goto out;
+		}
 		/*
 		 * Bridge control register is at 0x3e, so we'll
 		 * naturally restore it last in this loop.
@@ -199,6 +229,35 @@ good:
 			err = -ENODEV;
 			mthca_err(mdev, "Couldn't restore HCA bridge COMMAND, "
 				  "aborting.\n");
+			goto out;
+		}
+	}
+
+	if (hca_pcix_cap) {
+		if (pci_write_config_dword(mdev->pdev, hca_pcix_cap,
+				 hca_header[hca_pcix_cap / 4])) {
+			err = -ENODEV;
+			mthca_err(mdev, "Couldn't restore HCA PCI-X "
+				  "command register, aborting.\n");
+			goto out;
+		}
+	}
+
+	if (hca_pcie_cap) {
+		devctl = hca_header[(hca_pcie_cap + PCI_EXP_DEVCTL) / 4];
+		if (pci_write_config_word(mdev->pdev, hca_pcie_cap + PCI_EXP_DEVCTL,
+					   devctl)) {
+			err = -ENODEV;
+			mthca_err(mdev, "Couldn't restore HCA PCI Express "
+				  "Device Control register, aborting.\n");
+			goto out;
+		}
+		linkctl = hca_header[(hca_pcie_cap + PCI_EXP_LNKCTL) / 4];
+		if (pci_write_config_word(mdev->pdev, hca_pcie_cap + PCI_EXP_LNKCTL,
+					   linkctl)) {
+			err = -ENODEV;
+			mthca_err(mdev, "Couldn't restore HCA PCI Express "
+				  "Link control register, aborting.\n");
 			goto out;
 		}
 	}

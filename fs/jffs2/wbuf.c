@@ -156,15 +156,69 @@ static void jffs2_block_refile(struct jffs2_sb_info *c, struct jffs2_eraseblock 
 		jffs2_erase_pending_trigger(c);
 	}
 
-	/* Adjust its size counts accordingly */
-	c->wasted_size += jeb->free_size;
-	c->free_size -= jeb->free_size;
-	jeb->wasted_size += jeb->free_size;
-	jeb->free_size = 0;
+	if (!jffs2_prealloc_raw_node_refs(c, jeb, 1)) {
+		uint32_t oldfree = jeb->free_size;
+
+		jffs2_link_node_ref(c, jeb, 
+				    (jeb->offset+c->sector_size-oldfree) | REF_OBSOLETE,
+				    oldfree, NULL);
+		/* convert to wasted */
+		c->wasted_size += oldfree;
+		jeb->wasted_size += oldfree;
+		c->dirty_size -= oldfree;
+		jeb->dirty_size -= oldfree;
+	}
 
 	jffs2_dbg_dump_block_lists_nolock(c);
 	jffs2_dbg_acct_sanity_check_nolock(c,jeb);
 	jffs2_dbg_acct_paranoia_check_nolock(c, jeb);
+}
+
+static struct jffs2_raw_node_ref **jffs2_incore_replace_raw(struct jffs2_sb_info *c,
+							    struct jffs2_inode_info *f,
+							    struct jffs2_raw_node_ref *raw,
+							    union jffs2_node_union *node)
+{
+	struct jffs2_node_frag *frag;
+	struct jffs2_full_dirent *fd;
+
+	dbg_noderef("incore_replace_raw: node at %p is {%04x,%04x}\n",
+		    node, je16_to_cpu(node->u.magic), je16_to_cpu(node->u.nodetype));
+
+	BUG_ON(je16_to_cpu(node->u.magic) != 0x1985 &&
+	       je16_to_cpu(node->u.magic) != 0);
+
+	switch (je16_to_cpu(node->u.nodetype)) {
+	case JFFS2_NODETYPE_INODE:
+		if (f->metadata && f->metadata->raw == raw) {
+			dbg_noderef("Will replace ->raw in f->metadata at %p\n", f->metadata);
+			return &f->metadata->raw;
+		}
+		frag = jffs2_lookup_node_frag(&f->fragtree, je32_to_cpu(node->i.offset));
+		BUG_ON(!frag);
+		/* Find a frag which refers to the full_dnode we want to modify */
+		while (!frag->node || frag->node->raw != raw) {
+			frag = frag_next(frag);
+			BUG_ON(!frag);
+		}
+		dbg_noderef("Will replace ->raw in full_dnode at %p\n", frag->node);
+		return &frag->node->raw;
+
+	case JFFS2_NODETYPE_DIRENT:
+		for (fd = f->dents; fd; fd = fd->next) {
+			if (fd->raw == raw) {
+				dbg_noderef("Will replace ->raw in full_dirent at %p\n", fd);
+				return &fd->raw;
+			}
+		}
+		BUG();
+
+	default:
+		dbg_noderef("Don't care about replacing raw for nodetype %x\n",
+			    je16_to_cpu(node->u.nodetype));
+		break;
+	}
+	return NULL;
 }
 
 /* Recover from failure to write wbuf. Recover the nodes up to the
@@ -173,52 +227,59 @@ static void jffs2_block_refile(struct jffs2_sb_info *c, struct jffs2_eraseblock 
 static void jffs2_wbuf_recover(struct jffs2_sb_info *c)
 {
 	struct jffs2_eraseblock *jeb, *new_jeb;
-	struct jffs2_raw_node_ref **first_raw, **raw;
+	struct jffs2_raw_node_ref *raw, *next, *first_raw = NULL;
 	size_t retlen;
 	int ret;
+	int nr_refile = 0;
 	unsigned char *buf;
 	uint32_t start, end, ofs, len;
 
-	spin_lock(&c->erase_completion_lock);
-
 	jeb = &c->blocks[c->wbuf_ofs / c->sector_size];
 
+	spin_lock(&c->erase_completion_lock);
 	jffs2_block_refile(c, jeb, REFILE_NOTEMPTY);
+	spin_unlock(&c->erase_completion_lock);
+
+	BUG_ON(!ref_obsolete(jeb->last_node));
 
 	/* Find the first node to be recovered, by skipping over every
 	   node which ends before the wbuf starts, or which is obsolete. */
-	first_raw = &jeb->first_node;
-	while (*first_raw &&
-	       (ref_obsolete(*first_raw) ||
-		(ref_offset(*first_raw)+ref_totlen(c, jeb, *first_raw)) < c->wbuf_ofs)) {
-		D1(printk(KERN_DEBUG "Skipping node at 0x%08x(%d)-0x%08x which is either before 0x%08x or obsolete\n",
-			  ref_offset(*first_raw), ref_flags(*first_raw),
-			  (ref_offset(*first_raw) + ref_totlen(c, jeb, *first_raw)),
-			  c->wbuf_ofs));
-		first_raw = &(*first_raw)->next_phys;
+	for (next = raw = jeb->first_node; next; raw = next) {
+		next = ref_next(raw);
+
+		if (ref_obsolete(raw) || 
+		    (next && ref_offset(next) <= c->wbuf_ofs)) {
+			dbg_noderef("Skipping node at 0x%08x(%d)-0x%08x which is either before 0x%08x or obsolete\n",
+				    ref_offset(raw), ref_flags(raw),
+				    (ref_offset(raw) + ref_totlen(c, jeb, raw)),
+				    c->wbuf_ofs);
+			continue;
+		}
+		dbg_noderef("First node to be recovered is at 0x%08x(%d)-0x%08x\n",
+			    ref_offset(raw), ref_flags(raw),
+			    (ref_offset(raw) + ref_totlen(c, jeb, raw)));
+
+		first_raw = raw;
+		break;
 	}
 
-	if (!*first_raw) {
+	if (!first_raw) {
 		/* All nodes were obsolete. Nothing to recover. */
 		D1(printk(KERN_DEBUG "No non-obsolete nodes to be recovered. Just filing block bad\n"));
-		spin_unlock(&c->erase_completion_lock);
+		c->wbuf_len = 0;
 		return;
 	}
 
-	start = ref_offset(*first_raw);
-	end = ref_offset(*first_raw) + ref_totlen(c, jeb, *first_raw);
+	start = ref_offset(first_raw);
+	end = ref_offset(jeb->last_node);
+	nr_refile = 1;
 
-	/* Find the last node to be recovered */
-	raw = first_raw;
-	while ((*raw)) {
-		if (!ref_obsolete(*raw))
-			end = ref_offset(*raw) + ref_totlen(c, jeb, *raw);
+	/* Count the number of refs which need to be copied */
+	while ((raw = ref_next(raw)) != jeb->last_node)
+		nr_refile++;
 
-		raw = &(*raw)->next_phys;
-	}
-	spin_unlock(&c->erase_completion_lock);
-
-	D1(printk(KERN_DEBUG "wbuf recover %08x-%08x\n", start, end));
+	dbg_noderef("wbuf recover %08x-%08x (%d bytes in %d nodes)\n",
+		    start, end, end - start, nr_refile);
 
 	buf = NULL;
 	if (start < c->wbuf_ofs) {
@@ -233,28 +294,37 @@ static void jffs2_wbuf_recover(struct jffs2_sb_info *c)
 		}
 
 		/* Do the read... */
-		if (jffs2_cleanmarker_oob(c))
-			ret = c->mtd->read_ecc(c->mtd, start, c->wbuf_ofs - start, &retlen, buf, NULL, c->oobinfo);
-		else
-			ret = c->mtd->read(c->mtd, start, c->wbuf_ofs - start, &retlen, buf);
+		ret = c->mtd->read(c->mtd, start, c->wbuf_ofs - start, &retlen, buf);
 
-		if (ret == -EBADMSG && retlen == c->wbuf_ofs - start) {
-			/* ECC recovered */
+		/* ECC recovered ? */
+		if ((ret == -EUCLEAN || ret == -EBADMSG) &&
+		    (retlen == c->wbuf_ofs - start))
 			ret = 0;
-		}
+
 		if (ret || retlen != c->wbuf_ofs - start) {
 			printk(KERN_CRIT "Old data are already lost in wbuf recovery. Data loss ensues.\n");
 
 			kfree(buf);
 			buf = NULL;
 		read_failed:
-			first_raw = &(*first_raw)->next_phys;
+			first_raw = ref_next(first_raw);
+			nr_refile--;
+			while (first_raw && ref_obsolete(first_raw)) {
+				first_raw = ref_next(first_raw);
+				nr_refile--;
+			}
+
 			/* If this was the only node to be recovered, give up */
-			if (!(*first_raw))
+			if (!first_raw) {
+				c->wbuf_len = 0;
 				return;
+			}
 
 			/* It wasn't. Go on and try to recover nodes complete in the wbuf */
-			start = ref_offset(*first_raw);
+			start = ref_offset(first_raw);
+			dbg_noderef("wbuf now recover %08x-%08x (%d bytes in %d nodes)\n",
+				    start, end, end - start, nr_refile);
+
 		} else {
 			/* Read succeeded. Copy the remaining data from the wbuf */
 			memcpy(buf + (c->wbuf_ofs - start), c->wbuf, end - c->wbuf_ofs);
@@ -263,14 +333,23 @@ static void jffs2_wbuf_recover(struct jffs2_sb_info *c)
 	/* OK... we're to rewrite (end-start) bytes of data from first_raw onwards.
 	   Either 'buf' contains the data, or we find it in the wbuf */
 
-
 	/* ... and get an allocation of space from a shiny new block instead */
-	ret = jffs2_reserve_space_gc(c, end-start, &ofs, &len, JFFS2_SUMMARY_NOSUM_SIZE);
+	ret = jffs2_reserve_space_gc(c, end-start, &len, JFFS2_SUMMARY_NOSUM_SIZE);
 	if (ret) {
 		printk(KERN_WARNING "Failed to allocate space for wbuf recovery. Data loss ensues.\n");
 		kfree(buf);
 		return;
 	}
+
+	ret = jffs2_prealloc_raw_node_refs(c, c->nextblock, nr_refile);
+	if (ret) {
+		printk(KERN_WARNING "Failed to allocate node refs for wbuf recovery. Data loss ensues.\n");
+		kfree(buf);
+		return;
+	}
+
+	ofs = write_ofs(c);
+
 	if (end-start >= c->wbuf_pagesize) {
 		/* Need to do another write immediately, but it's possible
 		   that this is just because the wbuf itself is completely
@@ -288,36 +367,22 @@ static void jffs2_wbuf_recover(struct jffs2_sb_info *c)
 		if (breakme++ == 20) {
 			printk(KERN_NOTICE "Faking write error at 0x%08x\n", ofs);
 			breakme = 0;
-			c->mtd->write_ecc(c->mtd, ofs, towrite, &retlen,
-					  brokenbuf, NULL, c->oobinfo);
+			c->mtd->write(c->mtd, ofs, towrite, &retlen,
+				      brokenbuf);
 			ret = -EIO;
 		} else
 #endif
-		if (jffs2_cleanmarker_oob(c))
-			ret = c->mtd->write_ecc(c->mtd, ofs, towrite, &retlen,
-						rewrite_buf, NULL, c->oobinfo);
-		else
-			ret = c->mtd->write(c->mtd, ofs, towrite, &retlen, rewrite_buf);
+			ret = c->mtd->write(c->mtd, ofs, towrite, &retlen,
+					    rewrite_buf);
 
 		if (ret || retlen != towrite) {
 			/* Argh. We tried. Really we did. */
 			printk(KERN_CRIT "Recovery of wbuf failed due to a second write error\n");
 			kfree(buf);
 
-			if (retlen) {
-				struct jffs2_raw_node_ref *raw2;
+			if (retlen)
+				jffs2_add_physical_node_ref(c, ofs | REF_OBSOLETE, ref_totlen(c, jeb, first_raw), NULL);
 
-				raw2 = jffs2_alloc_raw_node_ref();
-				if (!raw2)
-					return;
-
-				raw2->flash_offset = ofs | REF_OBSOLETE;
-				raw2->__totlen = ref_totlen(c, jeb, *first_raw);
-				raw2->next_phys = NULL;
-				raw2->next_in_ino = NULL;
-
-				jffs2_add_physical_node_ref(c, raw2);
-			}
 			return;
 		}
 		printk(KERN_NOTICE "Recovery of wbuf succeeded to %08x\n", ofs);
@@ -326,12 +391,10 @@ static void jffs2_wbuf_recover(struct jffs2_sb_info *c)
 		c->wbuf_ofs = ofs + towrite;
 		memmove(c->wbuf, rewrite_buf + towrite, c->wbuf_len);
 		/* Don't muck about with c->wbuf_inodes. False positives are harmless. */
-		kfree(buf);
 	} else {
 		/* OK, now we're left with the dregs in whichever buffer we're using */
 		if (buf) {
 			memcpy(c->wbuf, buf, end-start);
-			kfree(buf);
 		} else {
 			memmove(c->wbuf, c->wbuf + (start - c->wbuf_ofs), end - start);
 		}
@@ -343,62 +406,111 @@ static void jffs2_wbuf_recover(struct jffs2_sb_info *c)
 	new_jeb = &c->blocks[ofs / c->sector_size];
 
 	spin_lock(&c->erase_completion_lock);
-	if (new_jeb->first_node) {
-		/* Odd, but possible with ST flash later maybe */
-		new_jeb->last_node->next_phys = *first_raw;
-	} else {
-		new_jeb->first_node = *first_raw;
-	}
-
-	raw = first_raw;
-	while (*raw) {
-		uint32_t rawlen = ref_totlen(c, jeb, *raw);
+	for (raw = first_raw; raw != jeb->last_node; raw = ref_next(raw)) {
+		uint32_t rawlen = ref_totlen(c, jeb, raw);
+		struct jffs2_inode_cache *ic;
+		struct jffs2_raw_node_ref *new_ref;
+		struct jffs2_raw_node_ref **adjust_ref = NULL;
+		struct jffs2_inode_info *f = NULL;
 
 		D1(printk(KERN_DEBUG "Refiling block of %08x at %08x(%d) to %08x\n",
-			  rawlen, ref_offset(*raw), ref_flags(*raw), ofs));
+			  rawlen, ref_offset(raw), ref_flags(raw), ofs));
 
-		if (ref_obsolete(*raw)) {
-			/* Shouldn't really happen much */
-			new_jeb->dirty_size += rawlen;
-			new_jeb->free_size -= rawlen;
-			c->dirty_size += rawlen;
-		} else {
-			new_jeb->used_size += rawlen;
-			new_jeb->free_size -= rawlen;
+		ic = jffs2_raw_ref_to_ic(raw);
+
+		/* Ick. This XATTR mess should be fixed shortly... */
+		if (ic && ic->class == RAWNODE_CLASS_XATTR_DATUM) {
+			struct jffs2_xattr_datum *xd = (void *)ic;
+			BUG_ON(xd->node != raw);
+			adjust_ref = &xd->node;
+			raw->next_in_ino = NULL;
+			ic = NULL;
+		} else if (ic && ic->class == RAWNODE_CLASS_XATTR_REF) {
+			struct jffs2_xattr_datum *xr = (void *)ic;
+			BUG_ON(xr->node != raw);
+			adjust_ref = &xr->node;
+			raw->next_in_ino = NULL;
+			ic = NULL;
+		} else if (ic && ic->class == RAWNODE_CLASS_INODE_CACHE) {
+			struct jffs2_raw_node_ref **p = &ic->nodes;
+
+			/* Remove the old node from the per-inode list */
+			while (*p && *p != (void *)ic) {
+				if (*p == raw) {
+					(*p) = (raw->next_in_ino);
+					raw->next_in_ino = NULL;
+					break;
+				}
+				p = &((*p)->next_in_ino);
+			}
+
+			if (ic->state == INO_STATE_PRESENT && !ref_obsolete(raw)) {
+				/* If it's an in-core inode, then we have to adjust any
+				   full_dirent or full_dnode structure to point to the
+				   new version instead of the old */
+				f = jffs2_gc_fetch_inode(c, ic->ino, ic->nlink);
+				if (IS_ERR(f)) {
+					/* Should never happen; it _must_ be present */
+					JFFS2_ERROR("Failed to iget() ino #%u, err %ld\n",
+						    ic->ino, PTR_ERR(f));
+					BUG();
+				}
+				/* We don't lock f->sem. There's a number of ways we could
+				   end up in here with it already being locked, and nobody's
+				   going to modify it on us anyway because we hold the
+				   alloc_sem. We're only changing one ->raw pointer too,
+				   which we can get away with without upsetting readers. */
+				adjust_ref = jffs2_incore_replace_raw(c, f, raw,
+								      (void *)(buf?:c->wbuf) + (ref_offset(raw) - start));
+			} else if (unlikely(ic->state != INO_STATE_PRESENT &&
+					    ic->state != INO_STATE_CHECKEDABSENT &&
+					    ic->state != INO_STATE_GC)) {
+				JFFS2_ERROR("Inode #%u is in strange state %d!\n", ic->ino, ic->state);
+				BUG();
+			}
+		}
+
+		new_ref = jffs2_link_node_ref(c, new_jeb, ofs | ref_flags(raw), rawlen, ic);
+
+		if (adjust_ref) {
+			BUG_ON(*adjust_ref != raw);
+			*adjust_ref = new_ref;
+		}
+		if (f)
+			jffs2_gc_release_inode(c, f);
+
+		if (!ref_obsolete(raw)) {
 			jeb->dirty_size += rawlen;
 			jeb->used_size  -= rawlen;
 			c->dirty_size += rawlen;
+			c->used_size -= rawlen;
+			raw->flash_offset = ref_offset(raw) | REF_OBSOLETE;
+			BUG_ON(raw->next_in_ino);
 		}
-		c->free_size -= rawlen;
-		(*raw)->flash_offset = ofs | ref_flags(*raw);
 		ofs += rawlen;
-		new_jeb->last_node = *raw;
-
-		raw = &(*raw)->next_phys;
 	}
 
+	kfree(buf);
+
 	/* Fix up the original jeb now it's on the bad_list */
-	*first_raw = NULL;
-	if (first_raw == &jeb->first_node) {
-		jeb->last_node = NULL;
+	if (first_raw == jeb->first_node) {
 		D1(printk(KERN_DEBUG "Failing block at %08x is now empty. Moving to erase_pending_list\n", jeb->offset));
 		list_del(&jeb->list);
 		list_add(&jeb->list, &c->erase_pending_list);
 		c->nr_erasing_blocks++;
 		jffs2_erase_pending_trigger(c);
 	}
-	else
-		jeb->last_node = container_of(first_raw, struct jffs2_raw_node_ref, next_phys);
 
 	jffs2_dbg_acct_sanity_check_nolock(c, jeb);
-        jffs2_dbg_acct_paranoia_check_nolock(c, jeb);
+	jffs2_dbg_acct_paranoia_check_nolock(c, jeb);
 
 	jffs2_dbg_acct_sanity_check_nolock(c, new_jeb);
-        jffs2_dbg_acct_paranoia_check_nolock(c, new_jeb);
+	jffs2_dbg_acct_paranoia_check_nolock(c, new_jeb);
 
 	spin_unlock(&c->erase_completion_lock);
 
-	D1(printk(KERN_DEBUG "wbuf recovery completed OK\n"));
+	D1(printk(KERN_DEBUG "wbuf recovery completed OK. wbuf_ofs 0x%08x, len 0x%x\n", c->wbuf_ofs, c->wbuf_len));
+
 }
 
 /* Meaning of pad argument:
@@ -412,6 +524,7 @@ static void jffs2_wbuf_recover(struct jffs2_sb_info *c)
 
 static int __jffs2_flush_wbuf(struct jffs2_sb_info *c, int pad)
 {
+	struct jffs2_eraseblock *wbuf_jeb;
 	int ret;
 	size_t retlen;
 
@@ -428,6 +541,10 @@ static int __jffs2_flush_wbuf(struct jffs2_sb_info *c, int pad)
 
 	if (!c->wbuf_len)	/* already checked c->wbuf above */
 		return 0;
+
+	wbuf_jeb = &c->blocks[c->wbuf_ofs / c->sector_size];
+	if (jffs2_prealloc_raw_node_refs(c, wbuf_jeb, c->nextblock->allocated_refs + 1))
+		return -ENOMEM;
 
 	/* claim remaining space on the page
 	   this happens, if we have a change to a new block,
@@ -458,15 +575,12 @@ static int __jffs2_flush_wbuf(struct jffs2_sb_info *c, int pad)
 	if (breakme++ == 20) {
 		printk(KERN_NOTICE "Faking write error at 0x%08x\n", c->wbuf_ofs);
 		breakme = 0;
-		c->mtd->write_ecc(c->mtd, c->wbuf_ofs, c->wbuf_pagesize,
-					&retlen, brokenbuf, NULL, c->oobinfo);
+		c->mtd->write(c->mtd, c->wbuf_ofs, c->wbuf_pagesize, &retlen,
+			      brokenbuf);
 		ret = -EIO;
 	} else
 #endif
 
-	if (jffs2_cleanmarker_oob(c))
-		ret = c->mtd->write_ecc(c->mtd, c->wbuf_ofs, c->wbuf_pagesize, &retlen, c->wbuf, NULL, c->oobinfo);
-	else
 		ret = c->mtd->write(c->mtd, c->wbuf_ofs, c->wbuf_pagesize, &retlen, c->wbuf);
 
 	if (ret || retlen != c->wbuf_pagesize) {
@@ -483,32 +597,34 @@ static int __jffs2_flush_wbuf(struct jffs2_sb_info *c, int pad)
 		return ret;
 	}
 
-	spin_lock(&c->erase_completion_lock);
-
 	/* Adjust free size of the block if we padded. */
 	if (pad) {
-		struct jffs2_eraseblock *jeb;
-
-		jeb = &c->blocks[c->wbuf_ofs / c->sector_size];
+		uint32_t waste = c->wbuf_pagesize - c->wbuf_len;
 
 		D1(printk(KERN_DEBUG "jffs2_flush_wbuf() adjusting free_size of %sblock at %08x\n",
-			  (jeb==c->nextblock)?"next":"", jeb->offset));
+			  (wbuf_jeb==c->nextblock)?"next":"", wbuf_jeb->offset));
 
 		/* wbuf_pagesize - wbuf_len is the amount of space that's to be
 		   padded. If there is less free space in the block than that,
 		   something screwed up */
-		if (jeb->free_size < (c->wbuf_pagesize - c->wbuf_len)) {
+		if (wbuf_jeb->free_size < waste) {
 			printk(KERN_CRIT "jffs2_flush_wbuf(): Accounting error. wbuf at 0x%08x has 0x%03x bytes, 0x%03x left.\n",
-			       c->wbuf_ofs, c->wbuf_len, c->wbuf_pagesize-c->wbuf_len);
+			       c->wbuf_ofs, c->wbuf_len, waste);
 			printk(KERN_CRIT "jffs2_flush_wbuf(): But free_size for block at 0x%08x is only 0x%08x\n",
-			       jeb->offset, jeb->free_size);
+			       wbuf_jeb->offset, wbuf_jeb->free_size);
 			BUG();
 		}
-		jeb->free_size -= (c->wbuf_pagesize - c->wbuf_len);
-		c->free_size -= (c->wbuf_pagesize - c->wbuf_len);
-		jeb->wasted_size += (c->wbuf_pagesize - c->wbuf_len);
-		c->wasted_size += (c->wbuf_pagesize - c->wbuf_len);
-	}
+
+		spin_lock(&c->erase_completion_lock);
+
+		jffs2_link_node_ref(c, wbuf_jeb, (c->wbuf_ofs + c->wbuf_len) | REF_OBSOLETE, waste, NULL);
+		/* FIXME: that made it count as dirty. Convert to wasted */
+		wbuf_jeb->dirty_size -= waste;
+		c->dirty_size -= waste;
+		wbuf_jeb->wasted_size += waste;
+		c->wasted_size += waste;
+	} else
+		spin_lock(&c->erase_completion_lock);
 
 	/* Stick any now-obsoleted blocks on the erase_pending_list */
 	jffs2_refile_wbuf_blocks(c);
@@ -603,20 +719,30 @@ int jffs2_flush_wbuf_pad(struct jffs2_sb_info *c)
 
 	return ret;
 }
-int jffs2_flash_writev(struct jffs2_sb_info *c, const struct kvec *invecs, unsigned long count, loff_t to, size_t *retlen, uint32_t ino)
-{
-	struct kvec outvecs[3];
-	uint32_t totlen = 0;
-	uint32_t split_ofs = 0;
-	uint32_t old_totlen;
-	int ret, splitvec = -1;
-	int invec, outvec;
-	size_t wbuf_retlen;
-	unsigned char *wbuf_ptr;
-	size_t donelen = 0;
-	uint32_t outvec_to = to;
 
-	/* If not NAND flash, don't bother */
+static size_t jffs2_fill_wbuf(struct jffs2_sb_info *c, const uint8_t *buf,
+			      size_t len)
+{
+	if (len && !c->wbuf_len && (len >= c->wbuf_pagesize))
+		return 0;
+
+	if (len > (c->wbuf_pagesize - c->wbuf_len))
+		len = c->wbuf_pagesize - c->wbuf_len;
+	memcpy(c->wbuf + c->wbuf_len, buf, len);
+	c->wbuf_len += (uint32_t) len;
+	return len;
+}
+
+int jffs2_flash_writev(struct jffs2_sb_info *c, const struct kvec *invecs,
+		       unsigned long count, loff_t to, size_t *retlen,
+		       uint32_t ino)
+{
+	struct jffs2_eraseblock *jeb;
+	size_t wbuf_retlen, donelen = 0;
+	uint32_t outvec_to = to;
+	int ret, invec;
+
+	/* If not writebuffered flash, don't bother */
 	if (!jffs2_is_writebuffered(c))
 		return jffs2_flash_direct_writev(c, invecs, count, to, retlen);
 
@@ -629,34 +755,22 @@ int jffs2_flash_writev(struct jffs2_sb_info *c, const struct kvec *invecs, unsig
 		memset(c->wbuf,0xff,c->wbuf_pagesize);
 	}
 
-	/* Fixup the wbuf if we are moving to a new eraseblock.  The checks below
-	   fail for ECC'd NOR because cleanmarker == 16, so a block starts at
-	   xxx0010.  */
-	if (jffs2_nor_ecc(c)) {
-		if (((c->wbuf_ofs % c->sector_size) == 0) && !c->wbuf_len) {
-			c->wbuf_ofs = PAGE_DIV(to);
-			c->wbuf_len = PAGE_MOD(to);
-			memset(c->wbuf,0xff,c->wbuf_pagesize);
-		}
-	}
-
-	/* Sanity checks on target address.
-	   It's permitted to write at PAD(c->wbuf_len+c->wbuf_ofs),
-	   and it's permitted to write at the beginning of a new
-	   erase block. Anything else, and you die.
-	   New block starts at xxx000c (0-b = block header)
-	*/
+	/*
+	 * Sanity checks on target address.  It's permitted to write
+	 * at PAD(c->wbuf_len+c->wbuf_ofs), and it's permitted to
+	 * write at the beginning of a new erase block. Anything else,
+	 * and you die.  New block starts at xxx000c (0-b = block
+	 * header)
+	 */
 	if (SECTOR_ADDR(to) != SECTOR_ADDR(c->wbuf_ofs)) {
 		/* It's a write to a new block */
 		if (c->wbuf_len) {
-			D1(printk(KERN_DEBUG "jffs2_flash_writev() to 0x%lx causes flush of wbuf at 0x%08x\n", (unsigned long)to, c->wbuf_ofs));
+			D1(printk(KERN_DEBUG "jffs2_flash_writev() to 0x%lx "
+				  "causes flush of wbuf at 0x%08x\n",
+				  (unsigned long)to, c->wbuf_ofs));
 			ret = __jffs2_flush_wbuf(c, PAD_NOACCOUNT);
-			if (ret) {
-				/* the underlying layer has to check wbuf_len to do the cleanup */
-				D1(printk(KERN_WARNING "jffs2_flush_wbuf() called from jffs2_flash_writev() failed %d\n", ret));
-				*retlen = 0;
-				goto exit;
-			}
+			if (ret)
+				goto outerr;
 		}
 		/* set pointer to new block */
 		c->wbuf_ofs = PAGE_DIV(to);
@@ -665,165 +779,70 @@ int jffs2_flash_writev(struct jffs2_sb_info *c, const struct kvec *invecs, unsig
 
 	if (to != PAD(c->wbuf_ofs + c->wbuf_len)) {
 		/* We're not writing immediately after the writebuffer. Bad. */
-		printk(KERN_CRIT "jffs2_flash_writev(): Non-contiguous write to %08lx\n", (unsigned long)to);
+		printk(KERN_CRIT "jffs2_flash_writev(): Non-contiguous write "
+		       "to %08lx\n", (unsigned long)to);
 		if (c->wbuf_len)
 			printk(KERN_CRIT "wbuf was previously %08x-%08x\n",
-					  c->wbuf_ofs, c->wbuf_ofs+c->wbuf_len);
+			       c->wbuf_ofs, c->wbuf_ofs+c->wbuf_len);
 		BUG();
 	}
 
-	/* Note outvecs[3] above. We know count is never greater than 2 */
-	if (count > 2) {
-		printk(KERN_CRIT "jffs2_flash_writev(): count is %ld\n", count);
-		BUG();
-	}
-
-	invec = 0;
-	outvec = 0;
-
-	/* Fill writebuffer first, if already in use */
-	if (c->wbuf_len) {
-		uint32_t invec_ofs = 0;
-
-		/* adjust alignment offset */
-		if (c->wbuf_len != PAGE_MOD(to)) {
-			c->wbuf_len = PAGE_MOD(to);
-			/* take care of alignment to next page */
-			if (!c->wbuf_len)
-				c->wbuf_len = c->wbuf_pagesize;
-		}
-
-		while(c->wbuf_len < c->wbuf_pagesize) {
-			uint32_t thislen;
-
-			if (invec == count)
-				goto alldone;
-
-			thislen = c->wbuf_pagesize - c->wbuf_len;
-
-			if (thislen >= invecs[invec].iov_len)
-				thislen = invecs[invec].iov_len;
-
-			invec_ofs = thislen;
-
-			memcpy(c->wbuf + c->wbuf_len, invecs[invec].iov_base, thislen);
-			c->wbuf_len += thislen;
-			donelen += thislen;
-			/* Get next invec, if actual did not fill the buffer */
-			if (c->wbuf_len < c->wbuf_pagesize)
-				invec++;
-		}
-
-		/* write buffer is full, flush buffer */
-		ret = __jffs2_flush_wbuf(c, NOPAD);
-		if (ret) {
-			/* the underlying layer has to check wbuf_len to do the cleanup */
-			D1(printk(KERN_WARNING "jffs2_flush_wbuf() called from jffs2_flash_writev() failed %d\n", ret));
-			/* Retlen zero to make sure our caller doesn't mark the space dirty.
-			   We've already done everything that's necessary */
-			*retlen = 0;
-			goto exit;
-		}
-		outvec_to += donelen;
-		c->wbuf_ofs = outvec_to;
-
-		/* All invecs done ? */
-		if (invec == count)
-			goto alldone;
-
-		/* Set up the first outvec, containing the remainder of the
-		   invec we partially used */
-		if (invecs[invec].iov_len > invec_ofs) {
-			outvecs[0].iov_base = invecs[invec].iov_base+invec_ofs;
-			totlen = outvecs[0].iov_len = invecs[invec].iov_len-invec_ofs;
-			if (totlen > c->wbuf_pagesize) {
-				splitvec = outvec;
-				split_ofs = outvecs[0].iov_len - PAGE_MOD(totlen);
-			}
-			outvec++;
-		}
-		invec++;
-	}
-
-	/* OK, now we've flushed the wbuf and the start of the bits
-	   we have been asked to write, now to write the rest.... */
-
-	/* totlen holds the amount of data still to be written */
-	old_totlen = totlen;
-	for ( ; invec < count; invec++,outvec++ ) {
-		outvecs[outvec].iov_base = invecs[invec].iov_base;
-		totlen += outvecs[outvec].iov_len = invecs[invec].iov_len;
-		if (PAGE_DIV(totlen) != PAGE_DIV(old_totlen)) {
-			splitvec = outvec;
-			split_ofs = outvecs[outvec].iov_len - PAGE_MOD(totlen);
-			old_totlen = totlen;
+	/* adjust alignment offset */
+	if (c->wbuf_len != PAGE_MOD(to)) {
+		c->wbuf_len = PAGE_MOD(to);
+		/* take care of alignment to next page */
+		if (!c->wbuf_len) {
+			c->wbuf_len = c->wbuf_pagesize;
+			ret = __jffs2_flush_wbuf(c, NOPAD);
+			if (ret)
+				goto outerr;
 		}
 	}
 
-	/* Now the outvecs array holds all the remaining data to write */
-	/* Up to splitvec,split_ofs is to be written immediately. The rest
-	   goes into the (now-empty) wbuf */
+	for (invec = 0; invec < count; invec++) {
+		int vlen = invecs[invec].iov_len;
+		uint8_t *v = invecs[invec].iov_base;
 
-	if (splitvec != -1) {
-		uint32_t remainder;
+		wbuf_retlen = jffs2_fill_wbuf(c, v, vlen);
 
-		remainder = outvecs[splitvec].iov_len - split_ofs;
-		outvecs[splitvec].iov_len = split_ofs;
-
-		/* We did cross a page boundary, so we write some now */
-		if (jffs2_cleanmarker_oob(c))
-			ret = c->mtd->writev_ecc(c->mtd, outvecs, splitvec+1, outvec_to, &wbuf_retlen, NULL, c->oobinfo);
-		else
-			ret = jffs2_flash_direct_writev(c, outvecs, splitvec+1, outvec_to, &wbuf_retlen);
-
-		if (ret < 0 || wbuf_retlen != PAGE_DIV(totlen)) {
-			/* At this point we have no problem,
-			   c->wbuf is empty. However refile nextblock to avoid
-			   writing again to same address.
-			*/
-			struct jffs2_eraseblock *jeb;
-
-			spin_lock(&c->erase_completion_lock);
-
-			jeb = &c->blocks[outvec_to / c->sector_size];
-			jffs2_block_refile(c, jeb, REFILE_ANYWAY);
-
-			*retlen = 0;
-			spin_unlock(&c->erase_completion_lock);
-			goto exit;
+		if (c->wbuf_len == c->wbuf_pagesize) {
+			ret = __jffs2_flush_wbuf(c, NOPAD);
+			if (ret)
+				goto outerr;
 		}
-
+		vlen -= wbuf_retlen;
+		outvec_to += wbuf_retlen;
 		donelen += wbuf_retlen;
-		c->wbuf_ofs = PAGE_DIV(outvec_to) + PAGE_DIV(totlen);
+		v += wbuf_retlen;
 
-		if (remainder) {
-			outvecs[splitvec].iov_base += split_ofs;
-			outvecs[splitvec].iov_len = remainder;
-		} else {
-			splitvec++;
+		if (vlen >= c->wbuf_pagesize) {
+			ret = c->mtd->write(c->mtd, outvec_to, PAGE_DIV(vlen),
+					    &wbuf_retlen, v);
+			if (ret < 0 || wbuf_retlen != PAGE_DIV(vlen))
+				goto outfile;
+
+			vlen -= wbuf_retlen;
+			outvec_to += wbuf_retlen;
+			c->wbuf_ofs = outvec_to;
+			donelen += wbuf_retlen;
+			v += wbuf_retlen;
 		}
 
-	} else {
-		splitvec = 0;
+		wbuf_retlen = jffs2_fill_wbuf(c, v, vlen);
+		if (c->wbuf_len == c->wbuf_pagesize) {
+			ret = __jffs2_flush_wbuf(c, NOPAD);
+			if (ret)
+				goto outerr;
+		}
+
+		outvec_to += wbuf_retlen;
+		donelen += wbuf_retlen;
 	}
 
-	/* Now splitvec points to the start of the bits we have to copy
-	   into the wbuf */
-	wbuf_ptr = c->wbuf;
-
-	for ( ; splitvec < outvec; splitvec++) {
-		/* Don't copy the wbuf into itself */
-		if (outvecs[splitvec].iov_base == c->wbuf)
-			continue;
-		memcpy(wbuf_ptr, outvecs[splitvec].iov_base, outvecs[splitvec].iov_len);
-		wbuf_ptr += outvecs[splitvec].iov_len;
-		donelen += outvecs[splitvec].iov_len;
-	}
-	c->wbuf_len = wbuf_ptr - c->wbuf;
-
-	/* If there's a remainder in the wbuf and it's a non-GC write,
-	   remember that the wbuf affects this ino */
-alldone:
+	/*
+	 * If there's a remainder in the wbuf and it's a non-GC write,
+	 * remember that the wbuf affects this ino
+	 */
 	*retlen = donelen;
 
 	if (jffs2_sum_active()) {
@@ -836,8 +855,24 @@ alldone:
 		jffs2_wbuf_dirties_inode(c, ino);
 
 	ret = 0;
+	up_write(&c->wbuf_sem);
+	return ret;
 
-exit:
+outfile:
+	/*
+	 * At this point we have no problem, c->wbuf is empty. However
+	 * refile nextblock to avoid writing again to same address.
+	 */
+
+	spin_lock(&c->erase_completion_lock);
+
+	jeb = &c->blocks[outvec_to / c->sector_size];
+	jffs2_block_refile(c, jeb, REFILE_ANYWAY);
+
+	spin_unlock(&c->erase_completion_lock);
+
+outerr:
+	*retlen = 0;
 	up_write(&c->wbuf_sem);
 	return ret;
 }
@@ -846,7 +881,8 @@ exit:
  *	This is the entry for flash write.
  *	Check, if we work on NAND FLASH, if so build an kvec and write it via vritev
 */
-int jffs2_flash_write(struct jffs2_sb_info *c, loff_t ofs, size_t len, size_t *retlen, const u_char *buf)
+int jffs2_flash_write(struct jffs2_sb_info *c, loff_t ofs, size_t len,
+		      size_t *retlen, const u_char *buf)
 {
 	struct kvec vecs[1];
 
@@ -871,25 +907,23 @@ int jffs2_flash_read(struct jffs2_sb_info *c, loff_t ofs, size_t len, size_t *re
 
 	/* Read flash */
 	down_read(&c->wbuf_sem);
-	if (jffs2_cleanmarker_oob(c))
-		ret = c->mtd->read_ecc(c->mtd, ofs, len, retlen, buf, NULL, c->oobinfo);
-	else
-		ret = c->mtd->read(c->mtd, ofs, len, retlen, buf);
+	ret = c->mtd->read(c->mtd, ofs, len, retlen, buf);
 
-	if ( (ret == -EBADMSG) && (*retlen == len) ) {
-		printk(KERN_WARNING "mtd->read(0x%zx bytes from 0x%llx) returned ECC error\n",
-		       len, ofs);
+	if ( (ret == -EBADMSG || ret == -EUCLEAN) && (*retlen == len) ) {
+		if (ret == -EBADMSG)
+			printk(KERN_WARNING "mtd->read(0x%zx bytes from 0x%llx)"
+			       " returned ECC error\n", len, ofs);
 		/*
-		 * We have the raw data without ECC correction in the buffer, maybe
-		 * we are lucky and all data or parts are correct. We check the node.
-		 * If data are corrupted node check will sort it out.
-		 * We keep this block, it will fail on write or erase and the we
-		 * mark it bad. Or should we do that now? But we should give him a chance.
-		 * Maybe we had a system crash or power loss before the ecc write or
-		 * a erase was completed.
+		 * We have the raw data without ECC correction in the buffer,
+		 * maybe we are lucky and all data or parts are correct. We
+		 * check the node.  If data are corrupted node check will sort
+		 * it out.  We keep this block, it will fail on write or erase
+		 * and the we mark it bad. Or should we do that now? But we
+		 * should give him a chance.  Maybe we had a system crash or
+		 * power loss before the ecc write or a erase was completed.
 		 * So we return success. :)
 		 */
-	 	ret = 0;
+		ret = 0;
 	}
 
 	/* if no writebuffer available or write buffer empty, return */
@@ -911,7 +945,7 @@ int jffs2_flash_read(struct jffs2_sb_info *c, loff_t ofs, size_t len, size_t *re
 		orbf = (c->wbuf_ofs - ofs);	/* offset in read buffer */
 		if (orbf > len)			/* is write beyond write buffer ? */
 			goto exit;
-		lwbf = len - orbf; 		/* number of bytes to copy */
+		lwbf = len - orbf;		/* number of bytes to copy */
 		if (lwbf > c->wbuf_len)
 			lwbf = c->wbuf_len;
 	}
@@ -923,158 +957,159 @@ exit:
 	return ret;
 }
 
+#define NR_OOB_SCAN_PAGES	4
+
 /*
- *	Check, if the out of band area is empty
+ * Check, if the out of band area is empty
  */
-int jffs2_check_oob_empty( struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb, int mode)
+int jffs2_check_oob_empty(struct jffs2_sb_info *c,
+			  struct jffs2_eraseblock *jeb, int mode)
 {
-	unsigned char *buf;
-	int 	ret = 0;
-	int	i,len,page;
-	size_t  retlen;
-	int	oob_size;
+	int i, page, ret;
+	int oobsize = c->mtd->oobsize;
+	struct mtd_oob_ops ops;
 
-	/* allocate a buffer for all oob data in this sector */
-	oob_size = c->mtd->oobsize;
-	len = 4 * oob_size;
-	buf = kmalloc(len, GFP_KERNEL);
-	if (!buf) {
-		printk(KERN_NOTICE "jffs2_check_oob_empty(): allocation of temporary data buffer for oob check failed\n");
-		return -ENOMEM;
-	}
-	/*
-	 * if mode = 0, we scan for a total empty oob area, else we have
-	 * to take care of the cleanmarker in the first page of the block
-	*/
-	ret = jffs2_flash_read_oob(c, jeb->offset, len , &retlen, buf);
+	ops.len = NR_OOB_SCAN_PAGES * oobsize;
+	ops.ooblen = oobsize;
+	ops.oobbuf = c->oobbuf;
+	ops.ooboffs = 0;
+	ops.datbuf = NULL;
+	ops.mode = MTD_OOB_PLACE;
+
+	ret = c->mtd->read_oob(c->mtd, jeb->offset, &ops);
 	if (ret) {
-		D1(printk(KERN_WARNING "jffs2_check_oob_empty(): Read OOB failed %d for block at %08x\n", ret, jeb->offset));
-		goto out;
+		D1(printk(KERN_WARNING "jffs2_check_oob_empty(): Read OOB "
+			  "failed %d for block at %08x\n", ret, jeb->offset));
+		return ret;
 	}
 
-	if (retlen < len) {
-		D1(printk(KERN_WARNING "jffs2_check_oob_empty(): Read OOB return short read "
-			  "(%zd bytes not %d) for block at %08x\n", retlen, len, jeb->offset));
-		ret = -EIO;
-		goto out;
+	if (ops.retlen < ops.len) {
+		D1(printk(KERN_WARNING "jffs2_check_oob_empty(): Read OOB "
+			  "returned short read (%zd bytes not %d) for block "
+			  "at %08x\n", ops.retlen, ops.len, jeb->offset));
+		return -EIO;
 	}
 
 	/* Special check for first page */
-	for(i = 0; i < oob_size ; i++) {
+	for(i = 0; i < oobsize ; i++) {
 		/* Yeah, we know about the cleanmarker. */
 		if (mode && i >= c->fsdata_pos &&
 		    i < c->fsdata_pos + c->fsdata_len)
 			continue;
 
-		if (buf[i] != 0xFF) {
-			D2(printk(KERN_DEBUG "Found %02x at %x in OOB for %08x\n",
-				  buf[i], i, jeb->offset));
-			ret = 1;
-			goto out;
+		if (ops.oobbuf[i] != 0xFF) {
+			D2(printk(KERN_DEBUG "Found %02x at %x in OOB for "
+				  "%08x\n", ops.oobbuf[i], i, jeb->offset));
+			return 1;
 		}
 	}
 
 	/* we know, we are aligned :) */
-	for (page = oob_size; page < len; page += sizeof(long)) {
-		unsigned long dat = *(unsigned long *)(&buf[page]);
-		if(dat != -1) {
-			ret = 1;
-			goto out;
-		}
+	for (page = oobsize; page < ops.len; page += sizeof(long)) {
+		long dat = *(long *)(&ops.oobbuf[page]);
+		if(dat != -1)
+			return 1;
 	}
-
-out:
-	kfree(buf);
-
-	return ret;
+	return 0;
 }
 
 /*
-*	Scan for a valid cleanmarker and for bad blocks
-*	For virtual blocks (concatenated physical blocks) check the cleanmarker
-*	only in the first page of the first physical block, but scan for bad blocks in all
-*	physical blocks
-*/
-int jffs2_check_nand_cleanmarker (struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb)
+ * Scan for a valid cleanmarker and for bad blocks
+ */
+int jffs2_check_nand_cleanmarker (struct jffs2_sb_info *c,
+				  struct jffs2_eraseblock *jeb)
 {
 	struct jffs2_unknown_node n;
-	unsigned char buf[2 * NAND_MAX_OOBSIZE];
-	unsigned char *p;
-	int ret, i, cnt, retval = 0;
-	size_t retlen, offset;
-	int oob_size;
+	struct mtd_oob_ops ops;
+	int oobsize = c->mtd->oobsize;
+	unsigned char *p,*b;
+	int i, ret;
+	size_t offset = jeb->offset;
 
-	offset = jeb->offset;
-	oob_size = c->mtd->oobsize;
-
-	/* Loop through the physical blocks */
-	for (cnt = 0; cnt < (c->sector_size / c->mtd->erasesize); cnt++) {
-		/* Check first if the block is bad. */
-		if (c->mtd->block_isbad (c->mtd, offset)) {
-			D1 (printk (KERN_WARNING "jffs2_check_nand_cleanmarker(): Bad block at %08x\n", jeb->offset));
-			return 2;
-		}
-		/*
-		   *    We read oob data from page 0 and 1 of the block.
-		   *    page 0 contains cleanmarker and badblock info
-		   *    page 1 contains failure count of this block
-		 */
-		ret = c->mtd->read_oob (c->mtd, offset, oob_size << 1, &retlen, buf);
-
-		if (ret) {
-			D1 (printk (KERN_WARNING "jffs2_check_nand_cleanmarker(): Read OOB failed %d for block at %08x\n", ret, jeb->offset));
-			return ret;
-		}
-		if (retlen < (oob_size << 1)) {
-			D1 (printk (KERN_WARNING "jffs2_check_nand_cleanmarker(): Read OOB return short read (%zd bytes not %d) for block at %08x\n", retlen, oob_size << 1, jeb->offset));
-			return -EIO;
-		}
-
-		/* Check cleanmarker only on the first physical block */
-		if (!cnt) {
-			n.magic = cpu_to_je16 (JFFS2_MAGIC_BITMASK);
-			n.nodetype = cpu_to_je16 (JFFS2_NODETYPE_CLEANMARKER);
-			n.totlen = cpu_to_je32 (8);
-			p = (unsigned char *) &n;
-
-			for (i = 0; i < c->fsdata_len; i++) {
-				if (buf[c->fsdata_pos + i] != p[i]) {
-					retval = 1;
-				}
-			}
-			D1(if (retval == 1) {
-				printk(KERN_WARNING "jffs2_check_nand_cleanmarker(): Cleanmarker node not detected in block at %08x\n", jeb->offset);
-				printk(KERN_WARNING "OOB at %08x was ", offset);
-				for (i=0; i < oob_size; i++) {
-					printk("%02x ", buf[i]);
-				}
-				printk("\n");
-			})
-		}
-		offset += c->mtd->erasesize;
+	/* Check first if the block is bad. */
+	if (c->mtd->block_isbad(c->mtd, offset)) {
+		D1 (printk(KERN_WARNING "jffs2_check_nand_cleanmarker()"
+			   ": Bad block at %08x\n", jeb->offset));
+		return 2;
 	}
-	return retval;
+
+	ops.len = oobsize;
+	ops.ooblen = oobsize;
+	ops.oobbuf = c->oobbuf;
+	ops.ooboffs = 0;
+	ops.datbuf = NULL;
+	ops.mode = MTD_OOB_PLACE;
+
+	ret = c->mtd->read_oob(c->mtd, offset, &ops);
+	if (ret) {
+		D1 (printk(KERN_WARNING "jffs2_check_nand_cleanmarker(): "
+			   "Read OOB failed %d for block at %08x\n",
+			   ret, jeb->offset));
+		return ret;
+	}
+
+	if (ops.retlen < ops.len) {
+		D1 (printk (KERN_WARNING "jffs2_check_nand_cleanmarker(): "
+			    "Read OOB return short read (%zd bytes not %d) "
+			    "for block at %08x\n", ops.retlen, ops.len,
+			    jeb->offset));
+		return -EIO;
+	}
+
+	n.magic = cpu_to_je16 (JFFS2_MAGIC_BITMASK);
+	n.nodetype = cpu_to_je16 (JFFS2_NODETYPE_CLEANMARKER);
+	n.totlen = cpu_to_je32 (8);
+	p = (unsigned char *) &n;
+	b = c->oobbuf + c->fsdata_pos;
+
+	for (i = c->fsdata_len; i; i--) {
+		if (*b++ != *p++)
+			ret = 1;
+	}
+
+	D1(if (ret == 1) {
+		printk(KERN_WARNING "jffs2_check_nand_cleanmarker(): "
+		       "Cleanmarker node not detected in block at %08x\n",
+		       offset);
+		printk(KERN_WARNING "OOB at %08zx was ", offset);
+		for (i=0; i < oobsize; i++)
+			printk("%02x ", c->oobbuf[i]);
+		printk("\n");
+	});
+	return ret;
 }
 
-int jffs2_write_nand_cleanmarker(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb)
+int jffs2_write_nand_cleanmarker(struct jffs2_sb_info *c,
+				 struct jffs2_eraseblock *jeb)
 {
-	struct 	jffs2_unknown_node n;
-	int 	ret;
-	size_t 	retlen;
+	struct jffs2_unknown_node n;
+	int	ret;
+	struct mtd_oob_ops ops;
 
 	n.magic = cpu_to_je16(JFFS2_MAGIC_BITMASK);
 	n.nodetype = cpu_to_je16(JFFS2_NODETYPE_CLEANMARKER);
 	n.totlen = cpu_to_je32(8);
 
-	ret = jffs2_flash_write_oob(c, jeb->offset + c->fsdata_pos, c->fsdata_len, &retlen, (unsigned char *)&n);
+	ops.len = c->fsdata_len;
+	ops.ooblen = c->fsdata_len;;
+	ops.oobbuf = (uint8_t *)&n;
+	ops.ooboffs = c->fsdata_pos;
+	ops.datbuf = NULL;
+	ops.mode = MTD_OOB_PLACE;
+
+	ret = c->mtd->write_oob(c->mtd, jeb->offset, &ops);
 
 	if (ret) {
-		D1(printk(KERN_WARNING "jffs2_write_nand_cleanmarker(): Write failed for block at %08x: error %d\n", jeb->offset, ret));
+		D1(printk(KERN_WARNING "jffs2_write_nand_cleanmarker(): "
+			  "Write failed for block at %08x: error %d\n",
+			  jeb->offset, ret));
 		return ret;
 	}
-	if (retlen != c->fsdata_len) {
-		D1(printk(KERN_WARNING "jffs2_write_nand_cleanmarker(): Short write for block at %08x: %zd not %d\n", jeb->offset, retlen, c->fsdata_len));
-		return ret;
+	if (ops.retlen != ops.len) {
+		D1(printk(KERN_WARNING "jffs2_write_nand_cleanmarker(): "
+			  "Short write for block at %08x: %zd not %d\n",
+			  jeb->offset, ops.retlen, ops.len));
+		return -EIO;
 	}
 	return 0;
 }
@@ -1108,18 +1143,9 @@ int jffs2_write_nand_badblock(struct jffs2_sb_info *c, struct jffs2_eraseblock *
 	return 1;
 }
 
-#define NAND_JFFS2_OOB16_FSDALEN	8
-
-static struct nand_oobinfo jffs2_oobinfo_docecc = {
-	.useecc = MTD_NANDECC_PLACE,
-	.eccbytes = 6,
-	.eccpos = {0,1,2,3,4,5}
-};
-
-
 static int jffs2_nand_set_oobinfo(struct jffs2_sb_info *c)
 {
-	struct nand_oobinfo *oinfo = &c->mtd->oobinfo;
+	struct nand_ecclayout *oinfo = c->mtd->ecclayout;
 
 	/* Do this only, if we have an oob buffer */
 	if (!c->mtd->oobsize)
@@ -1129,33 +1155,23 @@ static int jffs2_nand_set_oobinfo(struct jffs2_sb_info *c)
 	c->cleanmarker_size = 0;
 
 	/* Should we use autoplacement ? */
-	if (oinfo && oinfo->useecc == MTD_NANDECC_AUTOPLACE) {
-		D1(printk(KERN_DEBUG "JFFS2 using autoplace on NAND\n"));
-		/* Get the position of the free bytes */
-		if (!oinfo->oobfree[0][1]) {
-			printk (KERN_WARNING "jffs2_nand_set_oobinfo(): Eeep. Autoplacement selected and no empty space in oob\n");
-			return -ENOSPC;
-		}
-		c->fsdata_pos = oinfo->oobfree[0][0];
-		c->fsdata_len = oinfo->oobfree[0][1];
-		if (c->fsdata_len > 8)
-			c->fsdata_len = 8;
-	} else {
-		/* This is just a legacy fallback and should go away soon */
-		switch(c->mtd->ecctype) {
-		case MTD_ECC_RS_DiskOnChip:
-			printk(KERN_WARNING "JFFS2 using DiskOnChip hardware ECC without autoplacement. Fix it!\n");
-			c->oobinfo = &jffs2_oobinfo_docecc;
-			c->fsdata_pos = 6;
-			c->fsdata_len = NAND_JFFS2_OOB16_FSDALEN;
-			c->badblock_pos = 15;
-			break;
-
-		default:
-			D1(printk(KERN_DEBUG "JFFS2 on NAND. No autoplacment info found\n"));
-			return -EINVAL;
-		}
+	if (!oinfo) {
+		D1(printk(KERN_DEBUG "JFFS2 on NAND. No autoplacment info found\n"));
+		return -EINVAL;
 	}
+
+	D1(printk(KERN_DEBUG "JFFS2 using autoplace on NAND\n"));
+	/* Get the position of the free bytes */
+	if (!oinfo->oobfree[0].length) {
+		printk (KERN_WARNING "jffs2_nand_set_oobinfo(): Eeep."
+			" Autoplacement selected and no empty space in oob\n");
+		return -ENOSPC;
+	}
+	c->fsdata_pos = oinfo->oobfree[0].offset;
+	c->fsdata_len = oinfo->oobfree[0].length;
+	if (c->fsdata_len > 8)
+		c->fsdata_len = 8;
+
 	return 0;
 }
 
@@ -1165,11 +1181,15 @@ int jffs2_nand_flash_setup(struct jffs2_sb_info *c)
 
 	/* Initialise write buffer */
 	init_rwsem(&c->wbuf_sem);
-	c->wbuf_pagesize = c->mtd->oobblock;
+	c->wbuf_pagesize = c->mtd->writesize;
 	c->wbuf_ofs = 0xFFFFFFFF;
 
 	c->wbuf = kmalloc(c->wbuf_pagesize, GFP_KERNEL);
 	if (!c->wbuf)
+		return -ENOMEM;
+
+	c->oobbuf = kmalloc(NR_OOB_SCAN_PAGES * c->mtd->oobsize, GFP_KERNEL);
+	if (!c->oobbuf)
 		return -ENOMEM;
 
 	res = jffs2_nand_set_oobinfo(c);
@@ -1189,6 +1209,7 @@ int jffs2_nand_flash_setup(struct jffs2_sb_info *c)
 void jffs2_nand_flash_cleanup(struct jffs2_sb_info *c)
 {
 	kfree(c->wbuf);
+	kfree(c->oobbuf);
 }
 
 int jffs2_dataflash_setup(struct jffs2_sb_info *c) {
@@ -1236,33 +1257,14 @@ void jffs2_dataflash_cleanup(struct jffs2_sb_info *c) {
 	kfree(c->wbuf);
 }
 
-int jffs2_nor_ecc_flash_setup(struct jffs2_sb_info *c) {
-	/* Cleanmarker is actually larger on the flashes */
-	c->cleanmarker_size = 16;
-
-	/* Initialize write buffer */
-	init_rwsem(&c->wbuf_sem);
-	c->wbuf_pagesize = c->mtd->eccsize;
-	c->wbuf_ofs = 0xFFFFFFFF;
-
-	c->wbuf = kmalloc(c->wbuf_pagesize, GFP_KERNEL);
-	if (!c->wbuf)
-		return -ENOMEM;
-
-	return 0;
-}
-
-void jffs2_nor_ecc_flash_cleanup(struct jffs2_sb_info *c) {
-	kfree(c->wbuf);
-}
-
 int jffs2_nor_wbuf_flash_setup(struct jffs2_sb_info *c) {
-	/* Cleanmarker currently occupies a whole programming region */
-	c->cleanmarker_size = MTD_PROGREGION_SIZE(c->mtd);
+	/* Cleanmarker currently occupies whole programming regions,
+	 * either one or 2 for 8Byte STMicro flashes. */
+	c->cleanmarker_size = max(16u, c->mtd->writesize);
 
 	/* Initialize write buffer */
 	init_rwsem(&c->wbuf_sem);
-	c->wbuf_pagesize = MTD_PROGREGION_SIZE(c->mtd);
+	c->wbuf_pagesize = c->mtd->writesize;
 	c->wbuf_ofs = 0xFFFFFFFF;
 
 	c->wbuf = kmalloc(c->wbuf_pagesize, GFP_KERNEL);

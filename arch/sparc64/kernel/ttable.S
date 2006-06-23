@@ -58,13 +58,11 @@ tl0_irq2:	BTRAP(0x42)
 tl0_irq3:	BTRAP(0x43)
 tl0_irq4:	BTRAP(0x44)
 #endif
-tl0_irq5:	TRAP_IRQ(handler_irq, 5)  TRAP_IRQ(handler_irq, 6)
-tl0_irq7:	TRAP_IRQ(handler_irq, 7)  TRAP_IRQ(handler_irq, 8)
-tl0_irq9:	TRAP_IRQ(handler_irq, 9)  TRAP_IRQ(handler_irq, 10)
-tl0_irq11:	TRAP_IRQ(handler_irq, 11) TRAP_IRQ(handler_irq, 12)
-tl0_irq13:	TRAP_IRQ(handler_irq, 13)
+tl0_irq5:	TRAP_IRQ(handler_irq, 5)
+tl0_irq6:	BTRAP(0x46) BTRAP(0x47) BTRAP(0x48) BTRAP(0x49)
+tl0_irq10:	BTRAP(0x4a) BTRAP(0x4b) BTRAP(0x4c) BTRAP(0x4d)
 #ifndef CONFIG_SMP
-tl0_irq14:	TRAP_IRQ(handler_irq, 14)
+tl0_irq14:	TRAP_IRQ(timer_irq, 14)
 #else
 tl0_irq14:	TICK_SMP_IRQ
 #endif

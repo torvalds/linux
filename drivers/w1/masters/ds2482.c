@@ -125,7 +125,7 @@ struct ds2482_w1_chan {
 
 struct ds2482_data {
 	struct i2c_client	client;
-	struct semaphore	access_lock;
+	struct mutex		access_lock;
 
 	/* 1-wire interface(s) */
 	int			w1_count;	/* 1 or 8 */
@@ -265,7 +265,7 @@ static u8 ds2482_w1_touch_bit(void *data, u8 bit)
 	struct ds2482_data    *pdev = pchan->pdev;
 	int status = -1;
 
-	down(&pdev->access_lock);
+	mutex_lock(&pdev->access_lock);
 
 	/* Select the channel */
 	ds2482_wait_1wire_idle(pdev);
@@ -277,7 +277,7 @@ static u8 ds2482_w1_touch_bit(void *data, u8 bit)
 				  bit ? 0xFF : 0))
 		status = ds2482_wait_1wire_idle(pdev);
 
-	up(&pdev->access_lock);
+	mutex_unlock(&pdev->access_lock);
 
 	return (status & DS2482_REG_STS_SBR) ? 1 : 0;
 }
@@ -297,7 +297,7 @@ static u8 ds2482_w1_triplet(void *data, u8 dbit)
 	struct ds2482_data    *pdev = pchan->pdev;
 	int status = (3 << 5);
 
-	down(&pdev->access_lock);
+	mutex_lock(&pdev->access_lock);
 
 	/* Select the channel */
 	ds2482_wait_1wire_idle(pdev);
@@ -309,7 +309,7 @@ static u8 ds2482_w1_triplet(void *data, u8 dbit)
 				  dbit ? 0xFF : 0))
 		status = ds2482_wait_1wire_idle(pdev);
 
-	up(&pdev->access_lock);
+	mutex_unlock(&pdev->access_lock);
 
 	/* Decode the status */
 	return (status >> 5);
@@ -326,7 +326,7 @@ static void ds2482_w1_write_byte(void *data, u8 byte)
 	struct ds2482_w1_chan *pchan = data;
 	struct ds2482_data    *pdev = pchan->pdev;
 
-	down(&pdev->access_lock);
+	mutex_lock(&pdev->access_lock);
 
 	/* Select the channel */
 	ds2482_wait_1wire_idle(pdev);
@@ -336,7 +336,7 @@ static void ds2482_w1_write_byte(void *data, u8 byte)
 	/* Send the write byte command */
 	ds2482_send_cmd_data(pdev, DS2482_CMD_1WIRE_WRITE_BYTE, byte);
 
-	up(&pdev->access_lock);
+	mutex_unlock(&pdev->access_lock);
 }
 
 /**
@@ -351,7 +351,7 @@ static u8 ds2482_w1_read_byte(void *data)
 	struct ds2482_data    *pdev = pchan->pdev;
 	int result;
 
-	down(&pdev->access_lock);
+	mutex_lock(&pdev->access_lock);
 
 	/* Select the channel */
 	ds2482_wait_1wire_idle(pdev);
@@ -370,7 +370,7 @@ static u8 ds2482_w1_read_byte(void *data)
 	/* Read the data byte */
 	result = i2c_smbus_read_byte(&pdev->client);
 
-	up(&pdev->access_lock);
+	mutex_unlock(&pdev->access_lock);
 
 	return result;
 }
@@ -389,7 +389,7 @@ static u8 ds2482_w1_reset_bus(void *data)
 	int err;
 	u8 retval = 1;
 
-	down(&pdev->access_lock);
+	mutex_lock(&pdev->access_lock);
 
 	/* Select the channel */
 	ds2482_wait_1wire_idle(pdev);
@@ -409,7 +409,7 @@ static u8 ds2482_w1_reset_bus(void *data)
 					     0xF0);
 	}
 
-	up(&pdev->access_lock);
+	mutex_unlock(&pdev->access_lock);
 
 	return retval;
 }
@@ -482,7 +482,7 @@ static int ds2482_detect(struct i2c_adapter *adapter, int address, int kind)
 	snprintf(new_client->name, sizeof(new_client->name), "ds2482-%d00",
 		 data->w1_count);
 
-	init_MUTEX(&data->access_lock);
+	mutex_init(&data->access_lock);
 
 	/* Tell the I2C layer a new client has arrived */
 	if ((err = i2c_attach_client(new_client)))

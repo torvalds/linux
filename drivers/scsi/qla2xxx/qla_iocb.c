@@ -408,7 +408,6 @@ qla2x00_start_scsi(srb_t *sp)
 		ha->request_ring_ptr++;
 
 	sp->flags |= SRB_DMA_VALID;
-	sp->state = SRB_ACTIVE_STATE;
 
 	/* Set chip new ring index. */
 	WRT_REG_WORD(ISP_REQ_Q_IN(ha, reg), ha->req_ring_index);
@@ -838,7 +837,6 @@ qla24xx_start_scsi(srb_t *sp)
 		ha->request_ring_ptr++;
 
 	sp->flags |= SRB_DMA_VALID;
-	sp->state = SRB_ACTIVE_STATE;
 
 	/* Set chip new ring index. */
 	WRT_REG_DWORD(&reg->req_q_in, ha->req_ring_index);

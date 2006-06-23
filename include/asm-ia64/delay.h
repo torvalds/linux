@@ -12,7 +12,6 @@
  * Copyright (C) 1999 Don Dugger <don.dugger@intel.com>
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/compiler.h>

@@ -13,6 +13,8 @@
 #ifndef __ASM_ARCH_HARDWARE_H
 #define __ASM_ARCH_HARDWARE_H
 
+#include <asm/sizes.h>		/* Added for the sake of amba-clcd driver */
+
 #define io_p2v(x) (0xf0000000 | (((x) & 0xfff00000) >> 4) | ((x) & 0x0000ffff))
 #define io_v2p(x) (             (((x) & 0x0fff0000) << 4) | ((x) & 0x0000ffff))
 
@@ -52,6 +54,8 @@ typedef struct { volatile u8 offset[4096]; } __regbase8;
 # define __PREG(x)	(io_v2p((u32)&(x)))
 
 #endif
+
+#define MASK_AND_SET(v,m,s)	(v) = ((v)&~(m))|(s)
 
 #include "registers.h"
 

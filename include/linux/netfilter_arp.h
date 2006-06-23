@@ -5,7 +5,6 @@
  * (C)2002 Rusty Russell IBM -- This code is GPL.
  */
 
-#include <linux/config.h>
 #include <linux/netfilter.h>
 
 /* There is no PF_ARP. */

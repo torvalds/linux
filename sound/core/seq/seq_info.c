@@ -34,8 +34,8 @@ static struct snd_info_entry *timer_entry;
 
 
 static struct snd_info_entry * __init
-create_info_entry(char *name, int size, void (*read)(struct snd_info_entry *,
-						     struct snd_info_buffer *))
+create_info_entry(char *name, void (*read)(struct snd_info_entry *,
+					   struct snd_info_buffer *))
 {
 	struct snd_info_entry *entry;
 
@@ -43,7 +43,6 @@ create_info_entry(char *name, int size, void (*read)(struct snd_info_entry *,
 	if (entry == NULL)
 		return NULL;
 	entry->content = SNDRV_INFO_CONTENT_TEXT;
-	entry->c.text.read_size = size;
 	entry->c.text.read = read;
 	if (snd_info_register(entry) < 0) {
 		snd_info_free_entry(entry);
@@ -55,11 +54,11 @@ create_info_entry(char *name, int size, void (*read)(struct snd_info_entry *,
 /* create all our /proc entries */
 int __init snd_seq_info_init(void)
 {
-	queues_entry = create_info_entry("queues", 512 + (256 * SNDRV_SEQ_MAX_QUEUES),
+	queues_entry = create_info_entry("queues",
 					 snd_seq_info_queues_read);
-	clients_entry = create_info_entry("clients", 512 + (256 * SNDRV_SEQ_MAX_CLIENTS),
+	clients_entry = create_info_entry("clients",
 					  snd_seq_info_clients_read);
-	timer_entry = create_info_entry("timer", 1024, snd_seq_info_timer_read);
+	timer_entry = create_info_entry("timer", snd_seq_info_timer_read);
 	return 0;
 }
 

@@ -1244,7 +1244,6 @@ static void __devinit snd_mixart_proc_init(struct snd_mixart *chip)
 	/* text interface to read perf and temp meters */
 	if (! snd_card_proc_new(chip->card, "board_info", &entry)) {
 		entry->private_data = chip;
-		entry->c.text.read_size = 1024;
 		entry->c.text.read = snd_mixart_proc_read;
 	}
 

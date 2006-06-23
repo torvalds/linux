@@ -397,30 +397,6 @@
 #include "ql1280_fw.h"
 #include "ql1040_fw.h"
 
-
-/*
- * Missing PCI ID's
- */
-#ifndef PCI_DEVICE_ID_QLOGIC_ISP1080
-#define PCI_DEVICE_ID_QLOGIC_ISP1080	0x1080
-#endif
-#ifndef PCI_DEVICE_ID_QLOGIC_ISP1240
-#define PCI_DEVICE_ID_QLOGIC_ISP1240	0x1240
-#endif
-#ifndef PCI_DEVICE_ID_QLOGIC_ISP1280
-#define PCI_DEVICE_ID_QLOGIC_ISP1280	0x1280
-#endif
-#ifndef PCI_DEVICE_ID_QLOGIC_ISP10160
-#define PCI_DEVICE_ID_QLOGIC_ISP10160	0x1016
-#endif
-#ifndef PCI_DEVICE_ID_QLOGIC_ISP12160
-#define PCI_DEVICE_ID_QLOGIC_ISP12160	0x1216
-#endif
-
-#ifndef PCI_VENDOR_ID_AMI
-#define PCI_VENDOR_ID_AMI               0x101e
-#endif
-
 #ifndef BITS_PER_LONG
 #error "BITS_PER_LONG not defined!"
 #endif
@@ -4239,15 +4215,12 @@ qla1280_get_token(char *str)
 {
 	char *sep;
 	long ret = -1;
-	int i, len;
-
-	len = sizeof(setup_token)/sizeof(struct setup_tokens);
+	int i;
 
 	sep = strchr(str, ':');
 
 	if (sep) {
-		for (i = 0; i < len; i++){
-
+		for (i = 0; i < ARRAY_SIZE(setup_token); i++) {
 			if (!strncmp(setup_token[i].token, str, (sep - str))) {
 				ret =  setup_token[i].val;
 				break;

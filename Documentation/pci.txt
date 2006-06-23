@@ -213,9 +213,17 @@ have been remapped by the kernel.
 
    See Documentation/IO-mapping.txt for how to access device memory.
 
-   You still need to call request_region() for I/O regions and
-request_mem_region() for memory regions to make sure nobody else is using the
-same device.
+   The device driver needs to call pci_request_region() to make sure
+no other device is already using the same resource. The driver is expected
+to determine MMIO and IO Port resource availability _before_ calling
+pci_enable_device().  Conversely, drivers should call pci_release_region()
+_after_ calling pci_disable_device(). The idea is to prevent two devices
+colliding on the same address range.
+
+Generic flavors of pci_request_region() are request_mem_region()
+(for MMIO ranges) and request_region() (for IO Port ranges).
+Use these for address resources that are not described by "normal" PCI
+interfaces (e.g. BAR).
 
    All interrupt handlers should be registered with SA_SHIRQ and use the devid
 to map IRQs to devices (remember that all PCI interrupts are shared).

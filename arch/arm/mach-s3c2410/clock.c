@@ -70,7 +70,7 @@ void inline s3c24xx_clk_enable(unsigned int clocks, unsigned int enable)
 		clkcon &= ~clocks;
 
 	/* ensure none of the special function bits set */
-	clkcon &= ~(S3C2410_CLKCON_IDLE|S3C2410_CLKCON_POWER);
+	clkcon &= ~(S3C2410_CLKCON_IDLE|S3C2410_CLKCON_POWER | 3);
 
 	__raw_writel(clkcon, S3C2410_CLKCON);
 }

@@ -13,7 +13,10 @@
 #include <linux/usb.h>	/* Only needed for declarations in usb_mon.h */
 #include "usb_mon.h"
 
-#ifdef __i386__		/* CONFIG_ARCH_I386 does not exit */
+/*
+ * PC-compatibles, are, fortunately, sufficiently cache-coherent for this.
+ */
+#if defined(__i386__) || defined(__x86_64__) /* CONFIG_ARCH_I386 doesn't exit */
 #define MON_HAS_UNMAP 1
 
 #define phys_to_page(phys)	pfn_to_page((phys) >> PAGE_SHIFT)

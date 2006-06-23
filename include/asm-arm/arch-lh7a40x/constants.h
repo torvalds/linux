@@ -12,7 +12,6 @@
 #ifndef __ASM_ARCH_CONSTANTS_H
 #define __ASM_ARCH_CONSTANTS_H
 
-#include <linux/config.h>
 
 /* Addressing constants */
 
@@ -29,8 +28,7 @@
 
 #if defined (CONFIG_MACH_LPD7A400) || defined (CONFIG_MACH_LPD7A404)
 
-# define IOBARRIER_PHYS		0xc0000000 /* Start of SDRAM */
-/*# define IOBARRIER_PHYS		0x00000000 */ /* Start of flash */
+# define IOBARRIER_PHYS		0x10000000 /* Second bank, fastest timing */
 # define IOBARRIER_VIRT		0xf0000000
 # define IOBARRIER_SIZE		PAGE_SIZE
 
@@ -53,6 +51,9 @@
 # define CPLD08_PHYS		CPLDX_PHYS (0x08)
 # define CPLD08_VIRT		CPLDX_VIRT (0x08)
 # define CPLD08_SIZE		PAGE_SIZE
+# define CPLD0A_PHYS		CPLDX_PHYS (0x0a)
+# define CPLD0A_VIRT		CPLDX_VIRT (0x0a)
+# define CPLD0A_SIZE		PAGE_SIZE
 # define CPLD0C_PHYS		CPLDX_PHYS (0x0c)
 # define CPLD0C_VIRT		CPLDX_VIRT (0x0c)
 # define CPLD0C_SIZE		PAGE_SIZE
@@ -84,5 +85,7 @@
 #define	XTAL_IN			14745600	/* 14.7456 MHz crystal */
 #define PLL_CLOCK		(XTAL_IN * 21)	/* 309 MHz PLL clock */
 #define MAX_HCLK_KHZ		100000		/* HCLK max limit ~100MHz */
+#define HCLK			(99993600)
+//#define HCLK			(119808000)
 
 #endif /* __ASM_ARCH_CONSTANTS_H */

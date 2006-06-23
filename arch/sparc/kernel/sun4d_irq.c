@@ -560,17 +560,6 @@ void __init sun4d_init_sbi_irq(void)
 	}
 }
 
-static char *sun4d_irq_itoa(unsigned int irq)
-{
-	static char buff[16];
-	
-	if (irq < (1 << 5))
-		sprintf(buff, "%d", irq);
-	else
-		sprintf(buff, "%d,%x", sbus_to_pil[(irq >> 2) & 7], irq);
-	return buff;
-}
-
 void __init sun4d_init_IRQ(void)
 {
 	local_irq_disable();
@@ -581,7 +570,6 @@ void __init sun4d_init_IRQ(void)
 	BTFIXUPSET_CALL(clear_clock_irq, sun4d_clear_clock_irq, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(clear_profile_irq, sun4d_clear_profile_irq, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(load_profile_irq, sun4d_load_profile_irq, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(__irq_itoa, sun4d_irq_itoa, BTFIXUPCALL_NORM);
 	sparc_init_timers = sun4d_init_timers;
 #ifdef CONFIG_SMP
 	BTFIXUPSET_CALL(set_cpu_int, sun4d_set_cpu_int, BTFIXUPCALL_NORM);

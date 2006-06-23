@@ -1127,7 +1127,7 @@ out:
 	if (likely(retval == 0)) {
 		if (unlikely(current->audit_context && nd && nd->dentry &&
 				nd->dentry->d_inode))
-		audit_inode(name, nd->dentry->d_inode, flags);
+		audit_inode(name, nd->dentry->d_inode);
 	}
 out_fail:
 	return retval;

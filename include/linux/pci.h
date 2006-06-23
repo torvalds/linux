@@ -17,8 +17,6 @@
 #ifndef LINUX_PCI_H
 #define LINUX_PCI_H
 
-#include <linux/mod_devicetable.h>
-
 /* Include the pci register defines */
 #include <linux/pci_regs.h>
 
@@ -46,8 +44,9 @@
 
 #ifdef __KERNEL__
 
+#include <linux/mod_devicetable.h>
+
 #include <linux/types.h>
-#include <linux/config.h>
 #include <linux/ioport.h>
 #include <linux/list.h>
 #include <linux/errno.h>
@@ -163,6 +162,9 @@ struct pci_dev {
 	unsigned int	is_busmaster:1; /* device is busmaster */
 	unsigned int	no_msi:1;	/* device may not use msi */
 	unsigned int	block_ucfg_access:1;	/* userspace config space access is blocked */
+	unsigned int	broken_parity_status:1;	/* Device generates false positive parity */
+	unsigned int 	msi_enabled:1;
+	unsigned int	msix_enabled:1;
 
 	u32		saved_config_space[16]; /* config space saved at suspend time */
 	struct hlist_head saved_cap_space;
@@ -442,6 +444,7 @@ struct pci_dev *pci_find_device_reverse (unsigned int vendor, unsigned int devic
 struct pci_dev *pci_find_slot (unsigned int bus, unsigned int devfn);
 int pci_find_capability (struct pci_dev *dev, int cap);
 int pci_find_next_capability (struct pci_dev *dev, u8 pos, int cap);
+int pci_find_ext_capability (struct pci_dev *dev, int cap);
 struct pci_bus * pci_find_next_bus(const struct pci_bus *from);
 
 struct pci_dev *pci_get_device (unsigned int vendor, unsigned int device, struct pci_dev *from);
@@ -496,6 +499,7 @@ int pci_set_dma_mask(struct pci_dev *dev, u64 mask);
 int pci_set_consistent_dma_mask(struct pci_dev *dev, u64 mask);
 void pci_update_resource(struct pci_dev *dev, struct resource *res, int resno);
 int pci_assign_resource(struct pci_dev *dev, int i);
+int pci_assign_resource_fixed(struct pci_dev *dev, int i);
 void pci_restore_bars(struct pci_dev *dev);
 
 /* ROM control related routines */
@@ -662,6 +666,7 @@ static inline int pci_register_driver(struct pci_driver *drv) { return 0;}
 static inline void pci_unregister_driver(struct pci_driver *drv) { }
 static inline int pci_find_capability (struct pci_dev *dev, int cap) {return 0; }
 static inline int pci_find_next_capability (struct pci_dev *dev, u8 post, int cap) { return 0; }
+static inline int pci_find_ext_capability (struct pci_dev *dev, int cap) {return 0; }
 static inline const struct pci_device_id *pci_match_device(const struct pci_device_id *ids, const struct pci_dev *dev) { return NULL; }
 
 /* Power management related routines */

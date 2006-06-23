@@ -1052,7 +1052,7 @@ static void wq_set_multicast_list (void *data)
 
 	dvb_net_feed_stop(dev);
 	priv->rx_mode = RX_MODE_UNI;
-	spin_lock_bh(&dev->xmit_lock);
+	netif_tx_lock_bh(dev);
 
 	if (dev->flags & IFF_PROMISC) {
 		dprintk("%s: promiscuous mode\n", dev->name);
@@ -1077,7 +1077,7 @@ static void wq_set_multicast_list (void *data)
 		}
 	}
 
-	spin_unlock_bh(&dev->xmit_lock);
+	netif_tx_unlock_bh(dev);
 	dvb_net_feed_start(dev);
 }
 

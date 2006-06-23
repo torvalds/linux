@@ -12,7 +12,6 @@
  */
 
 #ifndef __ASSEMBLY__
-#include <linux/config.h>
 #include <linux/stddef.h>
 #include <asm/processor.h>		/* For TASK_SIZE */
 #include <asm/mmu.h>

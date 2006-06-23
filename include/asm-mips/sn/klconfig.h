@@ -27,7 +27,6 @@
  *      that offsets of existing fields do not change.
  */
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <asm/sn/types.h>
 
@@ -37,7 +36,7 @@
 //#include <sys/SN/router.h>
 // XXX Stolen from <sys/SN/router.h>:
 #define MAX_ROUTER_PORTS (6)    /* Max. number of ports on a router */
-#include <asm/sn/sn0/sn0_fru.h>
+#include <asm/sn/fru.h>
 //#include <sys/graph.h>
 //#include <sys/xtalk/xbow.h>
 
@@ -54,32 +53,21 @@
 #include <asm/sn/agent.h>
 #include <asm/arc/types.h>
 #include <asm/arc/hinv.h>
-#if defined(CONFIG_SGI_IO) || defined(CONFIG_SGI_IP35)
+#if defined(CONFIG_SGI_IP35)
 // The hack file has to be before vector and after sn0_fru....
 #include <asm/hack.h>
 #include <asm/sn/vector.h>
 #include <asm/xtalk/xtalk.h>
-#endif /* CONFIG_SGI_IO || CONFIG_SGI_IP35 */
+#endif /* CONFIG_SGI_IP35 */
 #endif /* CONFIG_SGI_IP27 || CONFIG_SGI_IP35 */
 
 #define KLCFGINFO_MAGIC	0xbeedbabe
 
-#ifdef FRUTEST
-typedef u64 klconf_off_t;
-#else
 typedef s32 klconf_off_t;
-#endif
 
 /*
  * Some IMPORTANT OFFSETS. These are the offsets on all NODES.
  */
-#if 0
-#define RAMBASE                 0
-#define ARCSSPB_OFF             0x1000 /* shift it to sys/arcs/spb.h */
-
-#define OFF_HWGRAPH 		0
-#endif
-
 #define	MAX_MODULE_ID		255
 #define SIZE_PAD		4096 /* 4k padding for structures */
 /*
@@ -134,15 +122,9 @@ typedef s32 klconf_off_t;
 
 
 typedef struct console_s {
-#if defined(CONFIG_SGI_IO)	/* FIXME */
-	__psunsigned_t 	uart_base;
-	__psunsigned_t 	config_base;
-	__psunsigned_t 	memory_base;
-#else
 	unsigned long 	uart_base;
 	unsigned long 	config_base;
 	unsigned long 	memory_base;
-#endif
 	short		baud;
 	short		flag;
 	int		type;
@@ -174,10 +156,6 @@ typedef struct kl_config_hdr {
 
 
 #define KL_CONFIG_HDR(_nasid) 	((kl_config_hdr_t *)(KLCONFIG_ADDR(_nasid)))
-#if 0
-#define KL_CONFIG_MALLOC_HDR(_nasid) \
-                                (KL_CONFIG_HDR(_nasid)->ch_malloc_hdr)
-#endif
 #define KL_CONFIG_INFO_OFFSET(_nasid)					\
         (KL_CONFIG_HDR(_nasid)->ch_board_info)
 #define KL_CONFIG_INFO_SET_OFFSET(_nasid, _off)				\
@@ -197,23 +175,13 @@ typedef struct kl_config_hdr {
 
 /* --- New Macros for the changed kl_config_hdr_t structure --- */
 
-#if defined(CONFIG_SGI_IO)
-#define PTR_CH_MALLOC_HDR(_k)   ((klc_malloc_hdr_t *)\
-			((__psunsigned_t)_k + (_k->ch_malloc_hdr_off)))
-#else
 #define PTR_CH_MALLOC_HDR(_k)   ((klc_malloc_hdr_t *)\
 			(unsigned long)_k + (_k->ch_malloc_hdr_off)))
-#endif
 
 #define KL_CONFIG_CH_MALLOC_HDR(_n)   PTR_CH_MALLOC_HDR(KL_CONFIG_HDR(_n))
 
-#if defined(CONFIG_SGI_IO)
-#define PTR_CH_CONS_INFO(_k)	((console_t *)\
-			((__psunsigned_t)_k + (_k->ch_cons_off)))
-#else
 #define PTR_CH_CONS_INFO(_k)	((console_t *)\
 			((unsigned long)_k + (_k->ch_cons_off)))
-#endif
 
 #define KL_CONFIG_CH_CONS_INFO(_n)   PTR_CH_CONS_INFO(KL_CONFIG_HDR(_n))
 
@@ -490,14 +458,6 @@ typedef struct lboard_s {
 #define KLCF_NUM_COMPS(_brd)	((_brd)->brd_numcompts)
 #define KLCF_MODULE_ID(_brd)	((_brd)->brd_module)
 
-#ifdef FRUTEST
-
-#define KLCF_NEXT(_brd) 		((_brd)->brd_next ? (lboard_t *)((_brd)->brd_next):  NULL)
-#define KLCF_COMP(_brd, _ndx)   	(klinfo_t *)((_brd)->brd_compts[(_ndx)])
-#define KLCF_COMP_ERROR(_brd, _comp)   	(_brd = _brd , (_comp)->errinfo)
-
-#else
-
 #define KLCF_NEXT(_brd) 	\
         ((_brd)->brd_next ? 	\
 	 (lboard_t *)(NODE_OFFSET_TO_K1(NASID_GET(_brd), (_brd)->brd_next)):\
@@ -508,8 +468,6 @@ typedef struct lboard_s {
 
 #define KLCF_COMP_ERROR(_brd, _comp)	\
                (NODE_OFFSET_TO_K1(NASID_GET(_brd), (_comp)->errinfo))
-
-#endif
 
 #define KLCF_COMP_TYPE(_comp)	((_comp)->struct_type)
 #define KLCF_BRIDGE_W_ID(_comp)	((_comp)->physid)	/* Widget ID */
@@ -630,18 +588,6 @@ typedef struct klport_s {
 	unsigned char	port_flag;
 	klconf_off_t	port_offset;
 } klport_t;
-
-#if 0
-/*
- * This is very similar to the klport_s but instead of having a componant
- * offset it has a board offset.
- */
-typedef struct klxbow_port_s {
-	nasid_t		port_nasid;
-	unsigned char	port_flag;
-	klconf_off_t	board_offset;
-} klxbow_port_t;
-#endif
 
 typedef struct klcpu_s {                          /* CPU */
 	klinfo_t 	cpu_info;
@@ -945,36 +891,6 @@ extern klcpu_t *nasid_slice_to_cpuinfo(nasid_t, int);
 extern lboard_t *find_lboard_class(lboard_t *start, unsigned char brd_class);
 
 
-#if defined(CONFIG_SGI_IO)
-extern xwidgetnum_t nodevertex_widgetnum_get(vertex_hdl_t node_vtx);
-extern vertex_hdl_t nodevertex_xbow_peer_get(vertex_hdl_t node_vtx);
-extern lboard_t *find_gfxpipe(int pipenum);
-extern void setup_gfxpipe_link(vertex_hdl_t vhdl,int pipenum);
-extern lboard_t *find_lboard_module_class(lboard_t *start, moduleid_t mod,
-                                               unsigned char brd_class);
-extern lboard_t *find_nic_lboard(lboard_t *, nic_t);
-extern lboard_t *find_nic_type_lboard(nasid_t, unsigned char, nic_t);
-extern lboard_t *find_lboard_modslot(lboard_t *start, moduleid_t mod, slotid_t slot);
-extern lboard_t *find_lboard_module(lboard_t *start, moduleid_t mod);
-extern lboard_t *get_board_name(nasid_t nasid, moduleid_t mod, slotid_t slot, char *name);
-extern int	config_find_nic_router(nasid_t, nic_t, lboard_t **, klrou_t**);
-extern int	config_find_nic_hub(nasid_t, nic_t, lboard_t **, klhub_t**);
-extern int	config_find_xbow(nasid_t, lboard_t **, klxbow_t**);
-extern klcpu_t *get_cpuinfo(cpuid_t cpu);
-extern int 	update_klcfg_cpuinfo(nasid_t, int);
-extern void 	board_to_path(lboard_t *brd, char *path);
-extern moduleid_t get_module_id(nasid_t nasid);
-extern void 	nic_name_convert(char *old_name, char *new_name);
-extern int 	module_brds(nasid_t nasid, lboard_t **module_brds, int n);
-extern lboard_t *brd_from_key(ulong_t key);
-extern void 	device_component_canonical_name_get(lboard_t *,klinfo_t *,
-						    char *);
-extern int	board_serial_number_get(lboard_t *,char *);
-extern int	is_master_baseio(nasid_t,moduleid_t,slotid_t);
-extern nasid_t	get_actual_nasid(lboard_t *brd) ;
-extern net_vec_t klcfg_discover_route(lboard_t *, lboard_t *, int);
-#else	/* CONFIG_SGI_IO */
 extern klcpu_t *sn_get_cpuinfo(cpuid_t cpu);
-#endif	/* CONFIG_SGI_IO */
 
 #endif /* _ASM_SN_KLCONFIG_H */

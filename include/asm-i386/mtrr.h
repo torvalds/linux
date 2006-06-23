@@ -23,7 +23,6 @@
 #ifndef _LINUX_MTRR_H
 #define _LINUX_MTRR_H
 
-#include <linux/config.h>
 #include <linux/ioctl.h>
 #include <linux/errno.h>
 

@@ -528,7 +528,7 @@ struct kiocb_priv {
 	struct usb_request	*req;
 	struct ep_data		*epdata;
 	void			*buf;
-	char __user		*ubuf;
+	char __user		*ubuf;		/* NULL for writes */
 	unsigned		actual;
 };
 
@@ -566,7 +566,6 @@ static ssize_t ep_aio_read_retry(struct kiocb *iocb)
 		status = priv->actual;
 	kfree(priv->buf);
 	kfree(priv);
-	aio_put_req(iocb);
 	return status;
 }
 
@@ -580,8 +579,8 @@ static void ep_aio_complete(struct usb_ep *ep, struct usb_request *req)
 	spin_lock(&epdata->dev->lock);
 	priv->req = NULL;
 	priv->epdata = NULL;
-	if (NULL == iocb->ki_retry
-			|| unlikely(0 == req->actual)
+	if (priv->ubuf == NULL
+			|| unlikely(req->actual == 0)
 			|| unlikely(kiocbIsCancelled(iocb))) {
 		kfree(req->buf);
 		kfree(priv);
@@ -618,7 +617,7 @@ ep_aio_rwtail(
 	char __user	*ubuf
 )
 {
-	struct kiocb_priv	*priv = (void *) &iocb->private;
+	struct kiocb_priv	*priv;
 	struct usb_request	*req;
 	ssize_t			value;
 
@@ -670,7 +669,7 @@ fail:
 		kfree(priv);
 		put_ep(epdata);
 	} else
-		value = -EIOCBQUEUED;
+		value = (ubuf ? -EIOCBRETRY : -EIOCBQUEUED);
 	return value;
 }
 
@@ -1039,7 +1038,7 @@ scan:
 		/* ep0 can't deliver events when STATE_SETUP */
 		for (i = 0; i < n; i++) {
 			if (dev->event [i].type == GADGETFS_SETUP) {
-				len = n = i + 1;
+				len = i + 1;
 				len *= sizeof (struct usb_gadgetfs_event);
 				n = 0;
 				break;
@@ -1587,13 +1586,13 @@ gadgetfs_create_file (struct super_block *sb, char const *name,
 static int activate_ep_files (struct dev_data *dev)
 {
 	struct usb_ep	*ep;
+	struct ep_data	*data;
 
 	gadget_for_each_ep (ep, dev->gadget) {
-		struct ep_data	*data;
 
 		data = kzalloc(sizeof(*data), GFP_KERNEL);
 		if (!data)
-			goto enomem;
+			goto enomem0;
 		data->state = STATE_EP_DISABLED;
 		init_MUTEX (&data->lock);
 		init_waitqueue_head (&data->wait);
@@ -1608,21 +1607,23 @@ static int activate_ep_files (struct dev_data *dev)
 
 		data->req = usb_ep_alloc_request (ep, GFP_KERNEL);
 		if (!data->req)
-			goto enomem;
+			goto enomem1;
 
 		data->inode = gadgetfs_create_file (dev->sb, data->name,
 				data, &ep_config_operations,
 				&data->dentry);
-		if (!data->inode) {
-			usb_ep_free_request(ep, data->req);
-			kfree (data);
-			goto enomem;
-		}
+		if (!data->inode)
+			goto enomem2;
 		list_add_tail (&data->epfiles, &dev->epfiles);
 	}
 	return 0;
 
-enomem:
+enomem2:
+	usb_ep_free_request (ep, data->req);
+enomem1:
+	put_dev (dev);
+	kfree (data);
+enomem0:
 	DBG (dev, "%s enomem\n", __FUNCTION__);
 	destroy_ep_files (dev);
 	return -ENOMEM;
@@ -1793,7 +1794,7 @@ static struct usb_gadget_driver probe_driver = {
  *
  * After initialization, the device stays active for as long as that
  * $CHIP file is open.  Events may then be read from that descriptor,
- * such configuration notifications.  More complex drivers will handle
+ * such as configuration notifications.  More complex drivers will handle
  * some control requests in user space.
  */
 
@@ -2033,12 +2034,10 @@ gadgetfs_fill_super (struct super_block *sb, void *opts, int silent)
 			NULL, &simple_dir_operations,
 			S_IFDIR | S_IRUGO | S_IXUGO);
 	if (!inode)
-		return -ENOMEM;
+		goto enomem0;
 	inode->i_op = &simple_dir_inode_operations;
-	if (!(d = d_alloc_root (inode))) {
-		iput (inode);
-		return -ENOMEM;
-	}
+	if (!(d = d_alloc_root (inode)))
+		goto enomem1;
 	sb->s_root = d;
 
 	/* the ep0 file is named after the controller we expect;
@@ -2046,21 +2045,28 @@ gadgetfs_fill_super (struct super_block *sb, void *opts, int silent)
 	 */
 	dev = dev_new ();
 	if (!dev)
-		return -ENOMEM;
+		goto enomem2;
 
 	dev->sb = sb;
-	if (!(inode = gadgetfs_create_file (sb, CHIP,
+	if (!gadgetfs_create_file (sb, CHIP,
 				dev, &dev_init_operations,
-				&dev->dentry))) {
-		put_dev(dev);
-		return -ENOMEM;
-	}
+				&dev->dentry))
+		goto enomem3;
 
 	/* other endpoint files are available after hardware setup,
 	 * from binding to a controller.
 	 */
 	the_device = dev;
 	return 0;
+
+enomem3:
+	put_dev (dev);
+enomem2:
+	dput (d);
+enomem1:
+	iput (inode);
+enomem0:
+	return -ENOMEM;
 }
 
 /* "mount -t gadgetfs path /dev/gadget" ends up here */

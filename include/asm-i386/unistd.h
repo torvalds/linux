@@ -323,6 +323,8 @@
 #define __NR_tee		315
 #define __NR_vmsplice		316
 
+#ifdef __KERNEL__
+
 #define NR_syscalls 317
 
 /*
@@ -422,7 +424,6 @@ __asm__ volatile ("push %%ebp ; push %%ebx ; movl 4(%2),%%ebp ; " \
 __syscall_return(type,__res); \
 }
 
-#ifdef __KERNEL__
 #define __ARCH_WANT_IPC_PARSE_VERSION
 #define __ARCH_WANT_OLD_READDIR
 #define __ARCH_WANT_OLD_STAT
@@ -446,7 +447,6 @@ __syscall_return(type,__res); \
 #define __ARCH_WANT_SYS_SIGPROCMASK
 #define __ARCH_WANT_SYS_RT_SIGACTION
 #define __ARCH_WANT_SYS_RT_SIGSUSPEND
-#endif
 
 #ifdef __KERNEL_SYSCALLS__
 
@@ -485,7 +485,7 @@ asmlinkage long sys_rt_sigaction(int sig,
 				struct sigaction __user *oact,
 				size_t sigsetsize);
 
-#endif
+#endif /* __KERNEL_SYSCALLS__ */
 
 /*
  * "Conditional" syscalls
@@ -497,4 +497,5 @@ asmlinkage long sys_rt_sigaction(int sig,
 #define cond_syscall(x) asm(".weak\t" #x "\n\t.set\t" #x ",sys_ni_syscall")
 #endif
 
+#endif /* __KERNEL__ */
 #endif /* _ASM_I386_UNISTD_H_ */

@@ -181,6 +181,12 @@ M:	bcrl@kvack.org
 L:	linux-aio@kvack.org
 S:	Supported
 
+ABIT UGURU HARDWARE MONITOR DRIVER
+P:	Hans de Goede
+M:	j.w.r.degoede@hhs.nl
+L:	lm-sensors@lm-sensors.org
+S:	Maintained
+
 ACENIC DRIVER
 P:	Jes Sorensen
 M:	jes@trained-monkey.org
@@ -1147,6 +1153,12 @@ L:	linux-hams@vger.kernel.org
 W:	http://www.nt.tuwien.ac.at/~kkudielk/Linux/
 S:	Maintained
 
+HIGHPOINT ROCKETRAID 3xxx RAID DRIVER
+P:	HighPoint Linux Team
+M:	linux@highpoint-tech.com
+W:	http://www.highpoint-tech.com
+S:	Supported
+
 HIPPI
 P:	Jes Sorensen
 M:	jes@trained-monkey.org
@@ -1425,6 +1437,8 @@ P:	Jesse Brandeburg
 M:	jesse.brandeburg@intel.com
 P:	Jeff Kirsher
 M:	jeffrey.t.kirsher@intel.com
+P:	Auke Kok
+M:	auke-jan.h.kok@intel.com
 W:	http://sourceforge.net/projects/e1000/
 S:	Supported
 
@@ -1437,6 +1451,8 @@ P:	Jesse Brandeburg
 M:	jesse.brandeburg@intel.com
 P:	Jeff Kirsher
 M:	jeffrey.t.kirsher@intel.com
+P:	Auke Kok
+M:	auke-jan.h.kok@intel.com
 W:	http://sourceforge.net/projects/e1000/
 S:	Supported
 
@@ -1449,6 +1465,8 @@ P:	John Ronciak
 M:	john.ronciak@intel.com
 P:	Jesse Brandeburg
 M:	jesse.brandeburg@intel.com
+P:	Auke Kok
+M:	auke-jan.h.kok@intel.com
 W:	http://sourceforge.net/projects/e1000/
 S:	Supported
 
@@ -1837,12 +1855,12 @@ S:     linux-scsi@vger.kernel.org
 W:     http://megaraid.lsilogic.com
 S:     Maintained
 
-MEMORY TECHNOLOGY DEVICES
+MEMORY TECHNOLOGY DEVICES (MTD)
 P:	David Woodhouse
 M:	dwmw2@infradead.org
 W:	http://www.linux-mtd.infradead.org/
 L:	linux-mtd@lists.infradead.org
-T:	git kernel.org:/pub/scm/linux/kernel/git/tglx/mtd-2.6.git
+T:	git git://git.infradead.org/mtd-2.6.git
 S:	Maintained
 
 MICROTEK X6 SCANNER
@@ -1889,7 +1907,7 @@ L:	linux-kernel@vger.kernel.org
 W:	http://www.atnf.csiro.au/~rgooch/linux/kernel-patches.html
 S:	Maintained
 
-MULTIMEDIA CARD SUBSYSTEM
+MULTIMEDIA CARD (MMC) SUBSYSTEM
 P:	Russell King
 M:	rmk+mmc@arm.linux.org.uk
 S:	Maintained
@@ -2044,6 +2062,12 @@ P:      Antonino Daplas
 M:      adaplas@pol.net
 L:      linux-fbdev-devel@lists.sourceforge.net
 S:      Maintained
+
+OPENCORES I2C BUS DRIVER
+P:	Peter Korsgaard
+M:	jacmet@sunsite.dk
+L:	lm-sensors@lm-sensors.org
+S:	Maintained
 
 ORACLE CLUSTER FILESYSTEM 2 (OCFS2)
 P:	Mark Fasheh
@@ -2515,12 +2539,6 @@ P:	Thomas Winischhofer
 M:	thomas@winischhofer.net
 W:	http://www.winischhofer.at/linuxsisusbvga.shtml
 S:	Maintained
-
-SMSC47M1 HARDWARE MONITOR DRIVER
-P:	Jean Delvare
-M:	khali@linux-fr.org
-L:	lm-sensors@lm-sensors.org
-S:	Odd Fixes
 
 SMB FILESYSTEM
 P:	Urban Widmark
@@ -3134,12 +3152,6 @@ L:	wbsd-devel@list.drzeus.cx
 W:	http://projects.drzeus.cx/wbsd
 S:	Maintained
 
-W83L785TS HARDWARE MONITOR DRIVER
-P:	Jean Delvare
-M:	khali@linux-fr.org
-L:	lm-sensors@lm-sensors.org
-S:	Odd Fixes
-
 WATCHDOG DEVICE DRIVERS
 P:	Wim Van Sebroeck
 M:	wim@iguana.be
@@ -3179,7 +3191,7 @@ XFS FILESYSTEM
 P:	Silicon Graphics Inc
 M:	xfs-masters@oss.sgi.com
 M:	nathans@sgi.com
-L:	linux-xfs@oss.sgi.com
+L:	xfs@oss.sgi.com
 W:	http://oss.sgi.com/projects/xfs
 S:	Supported
 

@@ -40,7 +40,6 @@
 #ifndef _SOCK_H
 #define _SOCK_H
 
-#include <linux/config.h>
 #include <linux/list.h>
 #include <linux/timer.h>
 #include <linux/cache.h>
@@ -132,6 +131,7 @@ struct sock_common {
   *	@sk_receive_queue: incoming packets
   *	@sk_wmem_alloc: transmit queue bytes committed
   *	@sk_write_queue: Packet sending queue
+  *	@sk_async_wait_queue: DMA copied packets
   *	@sk_omem_alloc: "o" is "option" or "other"
   *	@sk_wmem_queued: persistent queue size
   *	@sk_forward_alloc: space allocated forward
@@ -205,6 +205,7 @@ struct sock {
 	atomic_t		sk_omem_alloc;
 	struct sk_buff_head	sk_receive_queue;
 	struct sk_buff_head	sk_write_queue;
+	struct sk_buff_head	sk_async_wait_queue;
 	int			sk_wmem_queued;
 	int			sk_forward_alloc;
 	gfp_t			sk_allocation;
@@ -871,10 +872,7 @@ static inline int sk_filter(struct sock *sk, struct sk_buff *skb, int needlock)
 		if (filter) {
 			unsigned int pkt_len = sk_run_filter(skb, filter->insns,
 							     filter->len);
-			if (!pkt_len)
-				err = -EPERM;
-			else
-				skb_trim(skb, pkt_len);
+			err = pkt_len ? pskb_trim(skb, pkt_len) : -EPERM;
 		}
 
 		if (needlock)
@@ -1271,11 +1269,22 @@ sock_recv_timestamp(struct msghdr *msg, struct sock *sk, struct sk_buff *skb)
  * This routine must be called with interrupts disabled or with the socket
  * locked so that the sk_buff queue operation is ok.
 */
-static inline void sk_eat_skb(struct sock *sk, struct sk_buff *skb)
+#ifdef CONFIG_NET_DMA
+static inline void sk_eat_skb(struct sock *sk, struct sk_buff *skb, int copied_early)
+{
+	__skb_unlink(skb, &sk->sk_receive_queue);
+	if (!copied_early)
+		__kfree_skb(skb);
+	else
+		__skb_queue_tail(&sk->sk_async_wait_queue, skb);
+}
+#else
+static inline void sk_eat_skb(struct sock *sk, struct sk_buff *skb, int copied_early)
 {
 	__skb_unlink(skb, &sk->sk_receive_queue);
 	__kfree_skb(skb);
 }
+#endif
 
 extern void sock_enable_timestamp(struct sock *sk);
 extern int sock_get_timestamp(struct sock *, struct timeval __user *);

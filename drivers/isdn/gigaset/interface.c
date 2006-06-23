@@ -625,7 +625,14 @@ void gigaset_if_init(struct cardstate *cs)
 		return;
 
 	tasklet_init(&cs->if_wake_tasklet, &if_wake, (unsigned long) cs);
-	tty_register_device(drv->tty, cs->minor_index, NULL);
+	cs->class = tty_register_device(drv->tty, cs->minor_index, NULL);
+
+	if (!IS_ERR(cs->class))
+		class_set_devdata(cs->class, cs);
+	else {
+		warn("could not register device to the tty subsystem");
+		cs->class = NULL;
+	}
 }
 
 void gigaset_if_free(struct cardstate *cs)
@@ -638,6 +645,7 @@ void gigaset_if_free(struct cardstate *cs)
 
 	tasklet_disable(&cs->if_wake_tasklet);
 	tasklet_kill(&cs->if_wake_tasklet);
+	cs->class = NULL;
 	tty_unregister_device(drv->tty, cs->minor_index);
 }
 

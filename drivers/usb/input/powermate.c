@@ -30,12 +30,10 @@
 
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/input.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/spinlock.h>
-#include <linux/usb.h>
-#include <linux/usb_input.h>
+#include <linux/usb/input.h>
 
 #define POWERMATE_VENDOR	0x077d	/* Griffin Technology, Inc. */
 #define POWERMATE_PRODUCT_NEW	0x0410	/* Griffin PowerMate */

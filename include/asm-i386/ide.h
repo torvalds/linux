@@ -13,7 +13,6 @@
 
 #ifdef __KERNEL__
 
-#include <linux/config.h>
 
 #ifndef MAX_HWIFS
 # ifdef CONFIG_BLK_DEV_IDEPCI

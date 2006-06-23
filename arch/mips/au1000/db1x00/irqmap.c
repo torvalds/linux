@@ -80,7 +80,7 @@ char irq_tab_alchemy[][5] __initdata = {
 #endif
 
 
-au1xxx_irq_map_t au1xxx_irq_map[] = {
+au1xxx_irq_map_t __initdata au1xxx_irq_map[] = {
 
 #ifndef CONFIG_MIPS_MIRAGE
 #ifdef CONFIG_MIPS_DB1550
@@ -101,4 +101,4 @@ au1xxx_irq_map_t au1xxx_irq_map[] = {
 
 };
 
-int au1xxx_nr_irqs = sizeof(au1xxx_irq_map)/sizeof(au1xxx_irq_map_t);
+int __initdata au1xxx_nr_irqs = ARRAY_SIZE(au1xxx_irq_map);

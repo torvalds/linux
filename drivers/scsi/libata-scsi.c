@@ -38,9 +38,9 @@
 #include <linux/spinlock.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_host.h>
+#include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_eh.h>
 #include <scsi/scsi_device.h>
-#include <scsi/scsi_request.h>
 #include <scsi/scsi_tcq.h>
 #include <scsi/scsi_transport.h>
 #include <linux/libata.h>
@@ -2351,7 +2351,7 @@ static unsigned int atapi_xlat(struct ata_queued_cmd *qc, const u8 *scsicmd)
 			qc->tf.feature |= ATAPI_DMADIR;
 	}
 
-	qc->nbytes = cmd->bufflen;
+	qc->nbytes = cmd->request_bufflen;
 
 	return 0;
 }
@@ -2553,7 +2553,7 @@ ata_scsi_pass_thru(struct ata_queued_cmd *qc, const u8 *scsicmd)
 	 * TODO: find out if we need to do more here to
 	 *       cover scatter/gather case.
 	 */
-	qc->nsect = cmd->bufflen / ATA_SECT_SIZE;
+	qc->nsect = cmd->request_bufflen / ATA_SECT_SIZE;
 
 	/* request result TF */
 	qc->flags |= ATA_QCFLAG_RESULT_TF;

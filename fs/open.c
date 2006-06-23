@@ -633,7 +633,7 @@ asmlinkage long sys_fchmod(unsigned int fd, mode_t mode)
 	dentry = file->f_dentry;
 	inode = dentry->d_inode;
 
-	audit_inode(NULL, inode, 0);
+	audit_inode(NULL, inode);
 
 	err = -EROFS;
 	if (IS_RDONLY(inode))
@@ -786,7 +786,7 @@ asmlinkage long sys_fchown(unsigned int fd, uid_t user, gid_t group)
 	if (file) {
 		struct dentry * dentry;
 		dentry = file->f_dentry;
-		audit_inode(NULL, dentry->d_inode, 0);
+		audit_inode(NULL, dentry->d_inode);
 		error = chown_common(dentry, user, group);
 		fput(file);
 	}

@@ -15,7 +15,6 @@
 #define _LINUX_CPUFREQ_H
 
 #include <linux/mutex.h>
-#include <linux/config.h>
 #include <linux/notifier.h>
 #include <linux/threads.h>
 #include <linux/device.h>

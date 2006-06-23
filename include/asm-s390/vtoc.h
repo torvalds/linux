@@ -177,27 +177,27 @@ struct vtoc_format7_label
 } __attribute__ ((packed));
 
 struct vtoc_cms_label {
-	u8 label_id[4];		/* Label identifier */
-	u8 vol_id[6];		/* Volid */
-	u16 version_id;		/* Version identifier */
-	u32 block_size;		/* Disk block size */
-	u32 origin_ptr;		/* Disk origin pointer */
-	u32 usable_count;	/* Number of usable cylinders/blocks */
-	u32 formatted_count;	/* Maximum number of formatted cylinders/
+	__u8 label_id[4];		/* Label identifier */
+	__u8 vol_id[6];		/* Volid */
+	__u16 version_id;		/* Version identifier */
+	__u32 block_size;		/* Disk block size */
+	__u32 origin_ptr;		/* Disk origin pointer */
+	__u32 usable_count;	/* Number of usable cylinders/blocks */
+	__u32 formatted_count;	/* Maximum number of formatted cylinders/
 				 * blocks */
-	u32 block_count;	/* Disk size in CMS blocks */
-	u32 used_count;		/* Number of CMS blocks in use */
-	u32 fst_size;		/* File Status Table (FST) size */
-	u32 fst_count;		/* Number of FSTs per CMS block */
-	u8 format_date[6];	/* Disk FORMAT date */
-	u8 reserved1[2];
-	u32 disk_offset;	/* Disk offset when reserved*/
-	u32 map_block;		/* Allocation Map Block with next hole */
-	u32 hblk_disp;		/* Displacement into HBLK data of next hole */
-	u32 user_disp;		/* Displacement into user part of Allocation
+	__u32 block_count;	/* Disk size in CMS blocks */
+	__u32 used_count;		/* Number of CMS blocks in use */
+	__u32 fst_size;		/* File Status Table (FST) size */
+	__u32 fst_count;		/* Number of FSTs per CMS block */
+	__u8 format_date[6];	/* Disk FORMAT date */
+	__u8 reserved1[2];
+	__u32 disk_offset;	/* Disk offset when reserved*/
+	__u32 map_block;		/* Allocation Map Block with next hole */
+	__u32 hblk_disp;		/* Displacement into HBLK data of next hole */
+	__u32 user_disp;		/* Displacement into user part of Allocation
 				 * map */
-	u8 reserved2[4];
-	u8 segment_name[8];	/* Name of shared segment */
+	__u8 reserved2[4];
+	__u8 segment_name[8];	/* Name of shared segment */
 } __attribute__ ((packed));
 
 #endif /* _ASM_S390_VTOC_H */

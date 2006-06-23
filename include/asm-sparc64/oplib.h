@@ -9,7 +9,6 @@
 #ifndef __SPARC64_OPLIB_H
 #define __SPARC64_OPLIB_H
 
-#include <linux/config.h>
 #include <asm/openprom.h>
 
 /* OBP version string. */
