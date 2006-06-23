@@ -177,7 +177,7 @@ acpi_status acpi_ex_create_event(struct acpi_walk_state *walk_state)
 	 * that the event is created in an unsignalled state
 	 */
 	status = acpi_os_create_semaphore(ACPI_NO_UNIT_LIMIT, 0,
-					  &obj_desc->event.semaphore);
+					  &obj_desc->event.os_semaphore);
 	if (ACPI_FAILURE(status)) {
 		goto cleanup;
 	}
@@ -226,12 +226,9 @@ acpi_status acpi_ex_create_mutex(struct acpi_walk_state *walk_state)
 		goto cleanup;
 	}
 
-	/*
-	 * Create the actual OS semaphore.
-	 * One unit max to make it a mutex, with one initial unit to allow
-	 * the mutex to be acquired.
-	 */
-	status = acpi_os_create_semaphore(1, 1, &obj_desc->mutex.semaphore);
+	/* Create the actual OS Mutex */
+
+	status = acpi_os_create_mutex(&obj_desc->mutex.os_mutex);
 	if (ACPI_FAILURE(status)) {
 		goto cleanup;
 	}
@@ -565,7 +562,7 @@ acpi_ex_create_method(u8 * aml_start,
 	obj_desc->method.aml_length = aml_length;
 
 	/*
-	 * Disassemble the method flags.  Split off the Arg Count
+	 * Disassemble the method flags. Split off the Arg Count
 	 * for efficiency
 	 */
 	method_flags = (u8) operand[1]->integer.value;
@@ -576,21 +573,19 @@ acpi_ex_create_method(u8 * aml_start,
 	    (u8) (method_flags & AML_METHOD_ARG_COUNT);
 
 	/*
-	 * Get the concurrency count.  If required, a semaphore will be
+	 * Get the sync_level. If method is serialized, a mutex will be
 	 * created for this method when it is parsed.
 	 */
 	if (acpi_gbl_all_methods_serialized) {
-		obj_desc->method.concurrency = 1;
+		obj_desc->method.sync_level = 0;
 		obj_desc->method.method_flags |= AML_METHOD_SERIALIZED;
 	} else if (method_flags & AML_METHOD_SERIALIZED) {
 		/*
-		 * ACPI 1.0: Concurrency = 1
-		 * ACPI 2.0: Concurrency = (sync_level (in method declaration) + 1)
+		 * ACPI 1.0: sync_level = 0
+		 * ACPI 2.0: sync_level = sync_level in method declaration
 		 */
-		obj_desc->method.concurrency = (u8)
-		    (((method_flags & AML_METHOD_SYNCH_LEVEL) >> 4) + 1);
-	} else {
-		obj_desc->method.concurrency = ACPI_INFINITE_CONCURRENCY;
+		obj_desc->method.sync_level = (u8)
+		    ((method_flags & AML_METHOD_SYNCH_LEVEL) >> 4);
 	}
 
 	/* Attach the new object to the method Node */

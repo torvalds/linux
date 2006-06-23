@@ -161,12 +161,13 @@ acpi_ex_acquire_mutex(union acpi_operand_object *time_desc,
 
 	/*
 	 * Current Sync must be less than or equal to the sync level of the
-	 * mutex.  This mechanism provides some deadlock prevention
+	 * mutex. This mechanism provides some deadlock prevention
 	 */
 	if (walk_state->thread->current_sync_level > obj_desc->mutex.sync_level) {
 		ACPI_ERROR((AE_INFO,
-			    "Cannot acquire Mutex [%4.4s], incorrect SyncLevel",
-			    acpi_ut_get_node_name(obj_desc->mutex.node)));
+			    "Cannot acquire Mutex [%4.4s], current SyncLevel is too large (%d)",
+			    acpi_ut_get_node_name(obj_desc->mutex.node),
+			    walk_state->thread->current_sync_level));
 		return_ACPI_STATUS(AE_AML_MUTEX_ORDER);
 	}
 
@@ -178,8 +179,7 @@ acpi_ex_acquire_mutex(union acpi_operand_object *time_desc,
 
 		if ((obj_desc->mutex.owner_thread->thread_id ==
 		     walk_state->thread->thread_id) ||
-		    (obj_desc->mutex.semaphore ==
-		     acpi_gbl_global_lock_semaphore)) {
+		    (obj_desc->mutex.os_mutex == ACPI_GLOBAL_LOCK)) {
 			/*
 			 * The mutex is already owned by this thread,
 			 * just increment the acquisition depth
@@ -264,7 +264,7 @@ acpi_ex_release_mutex(union acpi_operand_object *obj_desc,
 	 */
 	if ((obj_desc->mutex.owner_thread->thread_id !=
 	     walk_state->thread->thread_id)
-	    && (obj_desc->mutex.semaphore != acpi_gbl_global_lock_semaphore)) {
+	    && (obj_desc->mutex.os_mutex != ACPI_GLOBAL_LOCK)) {
 		ACPI_ERROR((AE_INFO,
 			    "Thread %X cannot release Mutex [%4.4s] acquired by thread %X",
 			    walk_state->thread->thread_id,

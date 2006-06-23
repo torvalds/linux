@@ -727,11 +727,23 @@ acpi_ex_extract_from_field(union acpi_operand_object *obj_desc,
 			return_ACPI_STATUS(status);
 		}
 
-		/* Merge with previous datum if necessary */
-
-		merged_datum |= raw_datum <<
-		    (obj_desc->common_field.access_bit_width -
-		     obj_desc->common_field.start_field_bit_offset);
+		/*
+		 * Merge with previous datum if necessary.
+		 *
+		 * Note: Before the shift, check if the shift value will be larger than
+		 * the integer size. If so, there is no need to perform the operation.
+		 * This avoids the differences in behavior between different compilers
+		 * concerning shift values larger than the target data width.
+		 */
+		if ((obj_desc->common_field.access_bit_width -
+		     obj_desc->common_field.start_field_bit_offset) <
+		    ACPI_INTEGER_BIT_SIZE) {
+			merged_datum |=
+			    raw_datum << (obj_desc->common_field.
+					  access_bit_width -
+					  obj_desc->common_field.
+					  start_field_bit_offset);
+		}
 
 		if (i == datum_count) {
 			break;
@@ -808,13 +820,23 @@ acpi_ex_insert_into_field(union acpi_operand_object *obj_desc,
 		return_ACPI_STATUS(AE_BUFFER_OVERFLOW);
 	}
 
-	/* Compute the number of datums (access width data items) */
+	/*
+	 * Create the bitmasks used for bit insertion.
+	 * Note: This if/else is used to bypass compiler differences with the
+	 * shift operator
+	 */
+	if (obj_desc->common_field.access_bit_width == ACPI_INTEGER_BIT_SIZE) {
+		width_mask = ACPI_INTEGER_MAX;
+	} else {
+		width_mask =
+		    ACPI_MASK_BITS_ABOVE(obj_desc->common_field.
+					 access_bit_width);
+	}
 
-	width_mask =
-	    ACPI_MASK_BITS_ABOVE(obj_desc->common_field.access_bit_width);
-	mask =
-	    width_mask & ACPI_MASK_BITS_BELOW(obj_desc->common_field.
-					      start_field_bit_offset);
+	mask = width_mask &
+	    ACPI_MASK_BITS_BELOW(obj_desc->common_field.start_field_bit_offset);
+
+	/* Compute the number of datums (access width data items) */
 
 	datum_count = ACPI_ROUND_UP_TO(obj_desc->common_field.bit_length,
 				       obj_desc->common_field.access_bit_width);
@@ -848,12 +870,29 @@ acpi_ex_insert_into_field(union acpi_operand_object *obj_desc,
 			return_ACPI_STATUS(status);
 		}
 
-		/* Start new output datum by merging with previous input datum */
-
 		field_offset += obj_desc->common_field.access_byte_width;
-		merged_datum = raw_datum >>
-		    (obj_desc->common_field.access_bit_width -
-		     obj_desc->common_field.start_field_bit_offset);
+
+		/*
+		 * Start new output datum by merging with previous input datum
+		 * if necessary.
+		 *
+		 * Note: Before the shift, check if the shift value will be larger than
+		 * the integer size. If so, there is no need to perform the operation.
+		 * This avoids the differences in behavior between different compilers
+		 * concerning shift values larger than the target data width.
+		 */
+		if ((obj_desc->common_field.access_bit_width -
+		     obj_desc->common_field.start_field_bit_offset) <
+		    ACPI_INTEGER_BIT_SIZE) {
+			merged_datum =
+			    raw_datum >> (obj_desc->common_field.
+					  access_bit_width -
+					  obj_desc->common_field.
+					  start_field_bit_offset);
+		} else {
+			merged_datum = 0;
+		}
+
 		mask = width_mask;
 
 		if (i == datum_count) {

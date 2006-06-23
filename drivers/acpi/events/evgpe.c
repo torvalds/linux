@@ -382,7 +382,6 @@ u32 acpi_ev_gpe_detect(struct acpi_gpe_xrupt_info * gpe_xrupt_list)
 	u32 status_reg;
 	u32 enable_reg;
 	acpi_cpu_flags flags;
-	acpi_cpu_flags hw_flags;
 	acpi_native_uint i;
 	acpi_native_uint j;
 
@@ -394,8 +393,11 @@ u32 acpi_ev_gpe_detect(struct acpi_gpe_xrupt_info * gpe_xrupt_list)
 		return (int_status);
 	}
 
-	/* We need to hold the GPE lock now, hardware lock in the loop */
-
+	/*
+	 * We need to obtain the GPE lock for both the data structs and registers
+	 * Note: Not necessary to obtain the hardware lock, since the GPE registers
+	 * are owned by the gpe_lock.
+	 */
 	flags = acpi_os_acquire_lock(acpi_gbl_gpe_lock);
 
 	/* Examine all GPE blocks attached to this interrupt level */
@@ -413,8 +415,6 @@ u32 acpi_ev_gpe_detect(struct acpi_gpe_xrupt_info * gpe_xrupt_list)
 
 			gpe_register_info = &gpe_block->register_info[i];
 
-			hw_flags = acpi_os_acquire_lock(acpi_gbl_hardware_lock);
-
 			/* Read the Status Register */
 
 			status =
@@ -423,8 +423,6 @@ u32 acpi_ev_gpe_detect(struct acpi_gpe_xrupt_info * gpe_xrupt_list)
 						   &gpe_register_info->
 						   status_address);
 			if (ACPI_FAILURE(status)) {
-				acpi_os_release_lock(acpi_gbl_hardware_lock,
-						     hw_flags);
 				goto unlock_and_exit;
 			}
 
@@ -435,8 +433,6 @@ u32 acpi_ev_gpe_detect(struct acpi_gpe_xrupt_info * gpe_xrupt_list)
 						   &enable_reg,
 						   &gpe_register_info->
 						   enable_address);
-			acpi_os_release_lock(acpi_gbl_hardware_lock, hw_flags);
-
 			if (ACPI_FAILURE(status)) {
 				goto unlock_and_exit;
 			}

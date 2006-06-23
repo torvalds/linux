@@ -241,7 +241,7 @@ typedef acpi_native_uint acpi_size;
 
 /*******************************************************************************
  *
- * OS- or compiler-dependent types
+ * OS-dependent and compiler-dependent types
  *
  * If the defaults below are not appropriate for the host system, they can
  * be defined in the compiler-specific or OS-specific header, and this will
@@ -249,27 +249,34 @@ typedef acpi_native_uint acpi_size;
  *
  ******************************************************************************/
 
-/* Use C99 uintptr_t for pointer casting if available, "void *" otherwise */
+/* Value returned by acpi_os_get_thread_id */
 
-#ifndef acpi_uintptr_t
-#define acpi_uintptr_t                  void *
+#ifndef acpi_thread_id
+#define acpi_thread_id                  acpi_native_uint
 #endif
 
-/*
- * If acpi_cache_t was not defined in the OS-dependent header,
- * define it now. This is typically the case where the local cache
- * manager implementation is to be used (ACPI_USE_LOCAL_CACHE)
- */
+/* Object returned from acpi_os_create_lock */
+
+#ifndef acpi_spinlock
+#define acpi_spinlock                   void *
+#endif
+
+/* Flags for acpi_os_acquire_lock/acpi_os_release_lock */
+
+#ifndef acpi_cpu_flags
+#define acpi_cpu_flags                  acpi_native_uint
+#endif
+
+/* Object returned from acpi_os_create_cache */
+
 #ifndef acpi_cache_t
 #define acpi_cache_t                    struct acpi_memory_list
 #endif
 
-/*
- * Allow the CPU flags word to be defined per-OS to simplify the use of the
- * lock and unlock OSL interfaces.
- */
-#ifndef acpi_cpu_flags
-#define acpi_cpu_flags                  acpi_native_uint
+/* Use C99 uintptr_t for pointer casting if available, "void *" otherwise */
+
+#ifndef acpi_uintptr_t
+#define acpi_uintptr_t                  void *
 #endif
 
 /*
@@ -296,13 +303,6 @@ typedef acpi_native_uint acpi_size;
  */
 #ifndef ACPI_EXPORT_SYMBOL
 #define ACPI_EXPORT_SYMBOL(symbol)
-#endif
-
-/*
- * thread_id is returned by acpi_os_get_thread_id.
- */
-#ifndef acpi_thread_id
-#define acpi_thread_id                  acpi_native_uint
 #endif
 
 /*******************************************************************************
@@ -379,6 +379,11 @@ struct uint32_struct {
 	u32 lo;
 	u32 hi;
 };
+
+/* Synchronization objects */
+
+#define acpi_mutex                      void *
+#define acpi_semaphore                  void *
 
 /*
  * Acpi integer width. In ACPI version 1, integers are

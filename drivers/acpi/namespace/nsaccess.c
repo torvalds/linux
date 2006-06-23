@@ -196,33 +196,30 @@ acpi_status acpi_ns_root_initialize(void)
 				    (u8) (ACPI_TO_INTEGER(val) - 1);
 
 				if (ACPI_STRCMP(init_val->name, "_GL_") == 0) {
-					/*
-					 * Create a counting semaphore for the
-					 * global lock
-					 */
+
+					/* Create a counting semaphore for the global lock */
+
 					status =
 					    acpi_os_create_semaphore
 					    (ACPI_NO_UNIT_LIMIT, 1,
-					     &obj_desc->mutex.semaphore);
+					     &acpi_gbl_global_lock_semaphore);
 					if (ACPI_FAILURE(status)) {
 						acpi_ut_remove_reference
 						    (obj_desc);
 						goto unlock_and_exit;
 					}
 
-					/*
-					 * We just created the mutex for the
-					 * global lock, save it
-					 */
-					acpi_gbl_global_lock_semaphore =
-					    obj_desc->mutex.semaphore;
+					/* Mark this mutex as very special */
+
+					obj_desc->mutex.os_mutex =
+					    ACPI_GLOBAL_LOCK;
 				} else {
 					/* Create a mutex */
 
-					status = acpi_os_create_semaphore(1, 1,
-									  &obj_desc->
-									  mutex.
-									  semaphore);
+					status =
+					    acpi_os_create_mutex(&obj_desc->
+								 mutex.
+								 os_mutex);
 					if (ACPI_FAILURE(status)) {
 						acpi_ut_remove_reference
 						    (obj_desc);
