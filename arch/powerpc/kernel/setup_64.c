@@ -350,10 +350,6 @@ void __init setup_system(void)
 	 */
 	unflatten_device_tree();
 
-#ifdef CONFIG_KEXEC
-	kexec_setup();	/* requires unflattened device tree. */
-#endif
-
 	/*
 	 * Fill the ppc64_caches & systemcfg structures with informations
 	 * retrieved from the device-tree. Need to be called before
