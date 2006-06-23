@@ -45,113 +45,113 @@
 #include <acpi/amlresrc.h>
 
 #define _COMPONENT          ACPI_UTILITIES
-ACPI_MODULE_NAME("utmisc")
+ACPI_MODULE_NAME("utresrc")
 
 #if defined(ACPI_DISASSEMBLER) || defined (ACPI_DEBUGGER)
 /*
  * Strings used to decode resource descriptors.
  * Used by both the disasssembler and the debugger resource dump routines
  */
-const char *acpi_gbl_BMdecode[2] = {
-	"not_bus_master",
-	"bus_master"
+const char *acpi_gbl_bm_decode[] = {
+	"NotBusMaster",
+	"BusMaster"
 };
 
-const char *acpi_gbl_config_decode[4] = {
+const char *acpi_gbl_config_decode[] = {
 	"0 - Good Configuration",
 	"1 - Acceptable Configuration",
 	"2 - Suboptimal Configuration",
 	"3 - ***Invalid Configuration***",
 };
 
-const char *acpi_gbl_consume_decode[2] = {
-	"resource_producer",
-	"resource_consumer"
+const char *acpi_gbl_consume_decode[] = {
+	"ResourceProducer",
+	"ResourceConsumer"
 };
 
-const char *acpi_gbl_DECdecode[2] = {
-	"pos_decode",
-	"sub_decode"
+const char *acpi_gbl_dec_decode[] = {
+	"PosDecode",
+	"SubDecode"
 };
 
-const char *acpi_gbl_HEdecode[2] = {
+const char *acpi_gbl_he_decode[] = {
 	"Level",
 	"Edge"
 };
 
-const char *acpi_gbl_io_decode[2] = {
+const char *acpi_gbl_io_decode[] = {
 	"Decode10",
 	"Decode16"
 };
 
-const char *acpi_gbl_LLdecode[2] = {
-	"active_high",
-	"active_low"
+const char *acpi_gbl_ll_decode[] = {
+	"ActiveHigh",
+	"ActiveLow"
 };
 
-const char *acpi_gbl_max_decode[2] = {
-	"max_not_fixed",
-	"max_fixed"
+const char *acpi_gbl_max_decode[] = {
+	"MaxNotFixed",
+	"MaxFixed"
 };
 
-const char *acpi_gbl_MEMdecode[4] = {
-	"non_cacheable",
+const char *acpi_gbl_mem_decode[] = {
+	"NonCacheable",
 	"Cacheable",
-	"write_combining",
+	"WriteCombining",
 	"Prefetchable"
 };
 
-const char *acpi_gbl_min_decode[2] = {
-	"min_not_fixed",
-	"min_fixed"
+const char *acpi_gbl_min_decode[] = {
+	"MinNotFixed",
+	"MinFixed"
 };
 
-const char *acpi_gbl_MTPdecode[4] = {
-	"address_range_memory",
-	"address_range_reserved",
-	"address_range_aCPI",
-	"address_range_nVS"
+const char *acpi_gbl_mtp_decode[] = {
+	"AddressRangeMemory",
+	"AddressRangeReserved",
+	"AddressRangeACPI",
+	"AddressRangeNVS"
 };
 
-const char *acpi_gbl_RNGdecode[4] = {
-	"invalid_ranges",
-	"non_iSAonly_ranges",
-	"ISAonly_ranges",
-	"entire_range"
+const char *acpi_gbl_rng_decode[] = {
+	"InvalidRanges",
+	"NonISAOnlyRanges",
+	"ISAOnlyRanges",
+	"EntireRange"
 };
 
-const char *acpi_gbl_RWdecode[2] = {
-	"read_only",
-	"read_write"
+const char *acpi_gbl_rw_decode[] = {
+	"ReadOnly",
+	"ReadWrite"
 };
 
-const char *acpi_gbl_SHRdecode[2] = {
+const char *acpi_gbl_shr_decode[] = {
 	"Exclusive",
 	"Shared"
 };
 
-const char *acpi_gbl_SIZdecode[4] = {
+const char *acpi_gbl_siz_decode[] = {
 	"Transfer8",
 	"Transfer8_16",
 	"Transfer16",
-	"invalid_size"
+	"InvalidSize"
 };
 
-const char *acpi_gbl_TRSdecode[2] = {
-	"dense_translation",
-	"sparse_translation"
+const char *acpi_gbl_trs_decode[] = {
+	"DenseTranslation",
+	"SparseTranslation"
 };
 
-const char *acpi_gbl_TTPdecode[2] = {
-	"type_static",
-	"type_translation"
+const char *acpi_gbl_ttp_decode[] = {
+	"TypeStatic",
+	"TypeTranslation"
 };
 
-const char *acpi_gbl_TYPdecode[4] = {
+const char *acpi_gbl_typ_decode[] = {
 	"Compatibility",
-	"type_a",
-	"type_b",
-	"type_f"
+	"TypeA",
+	"TypeB",
+	"TypeF"
 };
 
 #endif
@@ -240,6 +240,104 @@ static const u8 acpi_gbl_resource_types[] = {
 
 /*******************************************************************************
  *
+ * FUNCTION:    acpi_ut_walk_aml_resources
+ *
+ * PARAMETERS:  Aml             - Pointer to the raw AML resource template
+ *              aml_length      - Length of the entire template
+ *              user_function   - Called once for each descriptor found. If
+ *                                NULL, a pointer to the end_tag is returned
+ *              Context         - Passed to user_function
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Walk a raw AML resource list(buffer). User function called
+ *              once for each resource found.
+ *
+ ******************************************************************************/
+
+acpi_status
+acpi_ut_walk_aml_resources(u8 * aml,
+			   acpi_size aml_length,
+			   acpi_walk_aml_callback user_function, void **context)
+{
+	acpi_status status;
+	u8 *end_aml;
+	u8 resource_index;
+	u32 length;
+	u32 offset = 0;
+
+	ACPI_FUNCTION_TRACE(ut_walk_aml_resources);
+
+	/* The absolute minimum resource template is one end_tag descriptor */
+
+	if (aml_length < sizeof(struct aml_resource_end_tag)) {
+		return_ACPI_STATUS(AE_AML_NO_RESOURCE_END_TAG);
+	}
+
+	/* Point to the end of the resource template buffer */
+
+	end_aml = aml + aml_length;
+
+	/* Walk the byte list, abort on any invalid descriptor type or length */
+
+	while (aml < end_aml) {
+
+		/* Validate the Resource Type and Resource Length */
+
+		status = acpi_ut_validate_resource(aml, &resource_index);
+		if (ACPI_FAILURE(status)) {
+			return_ACPI_STATUS(status);
+		}
+
+		/* Get the length of this descriptor */
+
+		length = acpi_ut_get_descriptor_length(aml);
+
+		/* Invoke the user function */
+
+		if (user_function) {
+			status =
+			    user_function(aml, length, offset, resource_index,
+					  context);
+			if (ACPI_FAILURE(status)) {
+				return (status);
+			}
+		}
+
+		/* An end_tag descriptor terminates this resource template */
+
+		if (acpi_ut_get_resource_type(aml) ==
+		    ACPI_RESOURCE_NAME_END_TAG) {
+			/*
+			 * There must be at least one more byte in the buffer for
+			 * the 2nd byte of the end_tag
+			 */
+			if ((aml + 1) >= end_aml) {
+				return_ACPI_STATUS(AE_AML_NO_RESOURCE_END_TAG);
+			}
+
+			/* Return the pointer to the end_tag if requested */
+
+			if (!user_function) {
+				*context = aml;
+			}
+
+			/* Normal exit */
+
+			return_ACPI_STATUS(AE_OK);
+		}
+
+		aml += length;
+		offset += length;
+	}
+
+	/* Did not find an end_tag descriptor */
+
+	return (AE_AML_NO_RESOURCE_END_TAG);
+}
+
+/*******************************************************************************
+ *
  * FUNCTION:    acpi_ut_validate_resource
  *
  * PARAMETERS:  Aml             - Pointer to the raw AML resource descriptor
@@ -273,6 +371,7 @@ acpi_status acpi_ut_validate_resource(void *aml, u8 * return_index)
 	 * Examine the large/small bit in the resource header
 	 */
 	if (resource_type & ACPI_RESOURCE_NAME_LARGE) {
+
 		/* Verify the large resource type (name) against the max */
 
 		if (resource_type > ACPI_RESOURCE_NAME_LARGE_MAX) {
@@ -376,6 +475,7 @@ u8 acpi_ut_get_resource_type(void *aml)
 	 * Examine the large/small bit in the resource header
 	 */
 	if (ACPI_GET8(aml) & ACPI_RESOURCE_NAME_LARGE) {
+
 		/* Large Resource Type -- bits 6:0 contain the name */
 
 		return (ACPI_GET8(aml));
@@ -411,6 +511,7 @@ u16 acpi_ut_get_resource_length(void *aml)
 	 * Examine the large/small bit in the resource header
 	 */
 	if (ACPI_GET8(aml) & ACPI_RESOURCE_NAME_LARGE) {
+
 		/* Large Resource type -- bytes 1-2 contain the 16-bit length */
 
 		ACPI_MOVE_16_TO_16(&resource_length, ACPI_ADD_PTR(u8, aml, 1));
@@ -495,60 +596,21 @@ acpi_ut_get_resource_end_tag(union acpi_operand_object * obj_desc,
 			     u8 ** end_tag)
 {
 	acpi_status status;
-	u8 *aml;
-	u8 *end_aml;
 
-	ACPI_FUNCTION_TRACE("ut_get_resource_end_tag");
-
-	/* Get start and end pointers */
-
-	aml = obj_desc->buffer.pointer;
-	end_aml = aml + obj_desc->buffer.length;
+	ACPI_FUNCTION_TRACE(ut_get_resource_end_tag);
 
 	/* Allow a buffer length of zero */
 
 	if (!obj_desc->buffer.length) {
-		*end_tag = aml;
+		*end_tag = obj_desc->buffer.pointer;
 		return_ACPI_STATUS(AE_OK);
 	}
 
-	/* Walk the resource template, one descriptor per iteration */
+	/* Validate the template and get a pointer to the end_tag */
 
-	while (aml < end_aml) {
-		/* Validate the Resource Type and Resource Length */
+	status = acpi_ut_walk_aml_resources(obj_desc->buffer.pointer,
+					    obj_desc->buffer.length, NULL,
+					    (void **)end_tag);
 
-		status = acpi_ut_validate_resource(aml, NULL);
-		if (ACPI_FAILURE(status)) {
-			return_ACPI_STATUS(status);
-		}
-
-		/* end_tag resource indicates the end of the resource template */
-
-		if (acpi_ut_get_resource_type(aml) ==
-		    ACPI_RESOURCE_NAME_END_TAG) {
-			/*
-			 * There must be at least one more byte in the buffer for
-			 * the 2nd byte of the end_tag
-			 */
-			if ((aml + 1) >= end_aml) {
-				return_ACPI_STATUS(AE_AML_NO_RESOURCE_END_TAG);
-			}
-
-			/* Return the pointer to the end_tag */
-
-			*end_tag = aml;
-			return_ACPI_STATUS(AE_OK);
-		}
-
-		/*
-		 * Point to the next resource descriptor in the AML buffer. The
-		 * descriptor length is guaranteed to be non-zero by resource
-		 * validation above.
-		 */
-		aml += acpi_ut_get_descriptor_length(aml);
-	}
-
-	/* Did not find an end_tag resource descriptor */
-
-	return_ACPI_STATUS(AE_AML_NO_RESOURCE_END_TAG);
+	return_ACPI_STATUS(status);
 }

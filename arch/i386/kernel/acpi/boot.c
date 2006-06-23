@@ -217,7 +217,7 @@ static int __init acpi_parse_madt(unsigned long phys_addr, unsigned long size)
 {
 	struct acpi_table_madt *madt = NULL;
 
-	if (!phys_addr || !size)
+	if (!phys_addr || !size || !cpu_has_apic)
 		return -EINVAL;
 
 	madt = (struct acpi_table_madt *)__acpi_map_table(phys_addr, size);
@@ -623,9 +623,9 @@ extern u32 pmtmr_ioport;
 
 static int __init acpi_parse_fadt(unsigned long phys, unsigned long size)
 {
-	struct fadt_descriptor_rev2 *fadt = NULL;
+	struct fadt_descriptor *fadt = NULL;
 
-	fadt = (struct fadt_descriptor_rev2 *)__acpi_map_table(phys, size);
+	fadt = (struct fadt_descriptor *)__acpi_map_table(phys, size);
 	if (!fadt) {
 		printk(KERN_WARNING PREFIX "Unable to map FADT\n");
 		return 0;
@@ -756,7 +756,7 @@ static int __init acpi_parse_madt_ioapic_entries(void)
 		return -ENODEV;
 	}
 
-	if (!cpu_has_apic)
+	if (!cpu_has_apic) 
 		return -ENODEV;
 
 	/*

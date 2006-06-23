@@ -91,11 +91,11 @@ acpi_rs_dump_descriptor(void *resource, struct acpi_rsdump_info *table);
 struct acpi_rsdump_info acpi_rs_dump_irq[6] = {
 	{ACPI_RSD_TITLE, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_irq), "IRQ", NULL},
 	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(irq.triggering), "Triggering",
-	 acpi_gbl_HEdecode},
+	 acpi_gbl_he_decode},
 	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(irq.polarity), "Polarity",
-	 acpi_gbl_LLdecode},
+	 acpi_gbl_ll_decode},
 	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(irq.sharable), "Sharing",
-	 acpi_gbl_SHRdecode},
+	 acpi_gbl_shr_decode},
 	{ACPI_RSD_UINT8, ACPI_RSD_OFFSET(irq.interrupt_count),
 	 "Interrupt Count", NULL},
 	{ACPI_RSD_SHORTLIST, ACPI_RSD_OFFSET(irq.interrupts[0]),
@@ -105,11 +105,11 @@ struct acpi_rsdump_info acpi_rs_dump_irq[6] = {
 struct acpi_rsdump_info acpi_rs_dump_dma[6] = {
 	{ACPI_RSD_TITLE, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_dma), "DMA", NULL},
 	{ACPI_RSD_2BITFLAG, ACPI_RSD_OFFSET(dma.type), "Speed",
-	 acpi_gbl_TYPdecode},
+	 acpi_gbl_typ_decode},
 	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(dma.bus_master), "Mastering",
-	 acpi_gbl_BMdecode},
+	 acpi_gbl_bm_decode},
 	{ACPI_RSD_2BITFLAG, ACPI_RSD_OFFSET(dma.transfer), "Transfer Type",
-	 acpi_gbl_SIZdecode},
+	 acpi_gbl_siz_decode},
 	{ACPI_RSD_UINT8, ACPI_RSD_OFFSET(dma.channel_count), "Channel Count",
 	 NULL},
 	{ACPI_RSD_SHORTLIST, ACPI_RSD_OFFSET(dma.channels[0]), "Channel List",
@@ -158,7 +158,7 @@ struct acpi_rsdump_info acpi_rs_dump_vendor[3] = {
 };
 
 struct acpi_rsdump_info acpi_rs_dump_end_tag[1] = {
-	{ACPI_RSD_TITLE, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_end_tag), "end_tag",
+	{ACPI_RSD_TITLE, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_end_tag), "EndTag",
 	 NULL}
 };
 
@@ -166,7 +166,7 @@ struct acpi_rsdump_info acpi_rs_dump_memory24[6] = {
 	{ACPI_RSD_TITLE, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_memory24),
 	 "24-Bit Memory Range", NULL},
 	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(memory24.write_protect),
-	 "Write Protect", acpi_gbl_RWdecode},
+	 "Write Protect", acpi_gbl_rw_decode},
 	{ACPI_RSD_UINT16, ACPI_RSD_OFFSET(memory24.minimum), "Address Minimum",
 	 NULL},
 	{ACPI_RSD_UINT16, ACPI_RSD_OFFSET(memory24.maximum), "Address Maximum",
@@ -181,7 +181,7 @@ struct acpi_rsdump_info acpi_rs_dump_memory32[6] = {
 	{ACPI_RSD_TITLE, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_memory32),
 	 "32-Bit Memory Range", NULL},
 	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(memory32.write_protect),
-	 "Write Protect", acpi_gbl_RWdecode},
+	 "Write Protect", acpi_gbl_rw_decode},
 	{ACPI_RSD_UINT32, ACPI_RSD_OFFSET(memory32.minimum), "Address Minimum",
 	 NULL},
 	{ACPI_RSD_UINT32, ACPI_RSD_OFFSET(memory32.maximum), "Address Maximum",
@@ -196,7 +196,7 @@ struct acpi_rsdump_info acpi_rs_dump_fixed_memory32[4] = {
 	{ACPI_RSD_TITLE, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_fixed_memory32),
 	 "32-Bit Fixed Memory Range", NULL},
 	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(fixed_memory32.write_protect),
-	 "Write Protect", acpi_gbl_RWdecode},
+	 "Write Protect", acpi_gbl_rw_decode},
 	{ACPI_RSD_UINT32, ACPI_RSD_OFFSET(fixed_memory32.address), "Address",
 	 NULL},
 	{ACPI_RSD_UINT32, ACPI_RSD_OFFSET(fixed_memory32.address_length),
@@ -278,11 +278,11 @@ struct acpi_rsdump_info acpi_rs_dump_ext_irq[8] = {
 	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(extended_irq.producer_consumer),
 	 "Type", acpi_gbl_consume_decode},
 	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(extended_irq.triggering),
-	 "Triggering", acpi_gbl_HEdecode},
+	 "Triggering", acpi_gbl_he_decode},
 	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(extended_irq.polarity), "Polarity",
-	 acpi_gbl_LLdecode},
+	 acpi_gbl_ll_decode},
 	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(extended_irq.sharable), "Sharing",
-	 acpi_gbl_SHRdecode},
+	 acpi_gbl_shr_decode},
 	{ACPI_RSD_SOURCE, ACPI_RSD_OFFSET(extended_irq.resource_source), NULL,
 	 NULL},
 	{ACPI_RSD_UINT8, ACPI_RSD_OFFSET(extended_irq.interrupt_count),
@@ -314,7 +314,7 @@ static struct acpi_rsdump_info acpi_rs_dump_general_flags[5] = {
 	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(address.producer_consumer),
 	 "Consumer/Producer", acpi_gbl_consume_decode},
 	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(address.decode), "Address Decode",
-	 acpi_gbl_DECdecode},
+	 acpi_gbl_dec_decode},
 	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(address.min_address_fixed),
 	 "Min Relocatability", acpi_gbl_min_decode},
 	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(address.max_address_fixed),
@@ -325,24 +325,24 @@ static struct acpi_rsdump_info acpi_rs_dump_memory_flags[5] = {
 	{ACPI_RSD_LITERAL, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_memory_flags),
 	 "Resource Type", (void *)"Memory Range"},
 	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(address.info.mem.write_protect),
-	 "Write Protect", acpi_gbl_RWdecode},
+	 "Write Protect", acpi_gbl_rw_decode},
 	{ACPI_RSD_2BITFLAG, ACPI_RSD_OFFSET(address.info.mem.caching),
-	 "Caching", acpi_gbl_MEMdecode},
+	 "Caching", acpi_gbl_mem_decode},
 	{ACPI_RSD_2BITFLAG, ACPI_RSD_OFFSET(address.info.mem.range_type),
-	 "Range Type", acpi_gbl_MTPdecode},
+	 "Range Type", acpi_gbl_mtp_decode},
 	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(address.info.mem.translation),
-	 "Translation", acpi_gbl_TTPdecode}
+	 "Translation", acpi_gbl_ttp_decode}
 };
 
 static struct acpi_rsdump_info acpi_rs_dump_io_flags[4] = {
 	{ACPI_RSD_LITERAL, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_io_flags),
 	 "Resource Type", (void *)"I/O Range"},
 	{ACPI_RSD_2BITFLAG, ACPI_RSD_OFFSET(address.info.io.range_type),
-	 "Range Type", acpi_gbl_RNGdecode},
+	 "Range Type", acpi_gbl_rng_decode},
 	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(address.info.io.translation),
-	 "Translation", acpi_gbl_TTPdecode},
+	 "Translation", acpi_gbl_ttp_decode},
 	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(address.info.io.translation_type),
-	 "Translation Type", acpi_gbl_TRSdecode}
+	 "Translation Type", acpi_gbl_trs_decode}
 };
 
 /*

@@ -76,19 +76,21 @@ acpi_ns_attach_object(struct acpi_namespace_node *node,
 	union acpi_operand_object *last_obj_desc;
 	acpi_object_type object_type = ACPI_TYPE_ANY;
 
-	ACPI_FUNCTION_TRACE("ns_attach_object");
+	ACPI_FUNCTION_TRACE(ns_attach_object);
 
 	/*
 	 * Parameter validation
 	 */
 	if (!node) {
+
 		/* Invalid handle */
 
-		ACPI_ERROR((AE_INFO, "Null named_obj handle"));
+		ACPI_ERROR((AE_INFO, "Null NamedObj handle"));
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
 	if (!object && (ACPI_TYPE_ANY != type)) {
+
 		/* Null object */
 
 		ACPI_ERROR((AE_INFO,
@@ -97,6 +99,7 @@ acpi_ns_attach_object(struct acpi_namespace_node *node,
 	}
 
 	if (ACPI_GET_DESCRIPTOR_TYPE(node) != ACPI_DESC_TYPE_NAMED) {
+
 		/* Not a name handle */
 
 		ACPI_ERROR((AE_INFO, "Invalid handle %p [%s]",
@@ -108,7 +111,7 @@ acpi_ns_attach_object(struct acpi_namespace_node *node,
 
 	if (node->object == object) {
 		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
-				  "Obj %p already installed in name_obj %p\n",
+				  "Obj %p already installed in NameObj %p\n",
 				  object, node));
 
 		return_ACPI_STATUS(AE_OK);
@@ -201,7 +204,7 @@ void acpi_ns_detach_object(struct acpi_namespace_node *node)
 {
 	union acpi_operand_object *obj_desc;
 
-	ACPI_FUNCTION_TRACE("ns_detach_object");
+	ACPI_FUNCTION_TRACE(ns_detach_object);
 
 	obj_desc = node->object;
 
@@ -252,7 +255,7 @@ union acpi_operand_object *acpi_ns_get_attached_object(struct
 						       acpi_namespace_node
 						       *node)
 {
-	ACPI_FUNCTION_TRACE_PTR("ns_get_attached_object", node);
+	ACPI_FUNCTION_TRACE_PTR(ns_get_attached_object, node);
 
 	if (!node) {
 		ACPI_WARNING((AE_INFO, "Null Node ptr"));
@@ -287,7 +290,7 @@ union acpi_operand_object *acpi_ns_get_secondary_object(union
 							acpi_operand_object
 							*obj_desc)
 {
-	ACPI_FUNCTION_TRACE_PTR("ns_get_secondary_object", obj_desc);
+	ACPI_FUNCTION_TRACE_PTR(ns_get_secondary_object, obj_desc);
 
 	if ((!obj_desc) ||
 	    (ACPI_GET_OBJECT_TYPE(obj_desc) == ACPI_TYPE_LOCAL_DATA) ||

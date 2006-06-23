@@ -817,7 +817,7 @@ typedef int (proc_writefunc) (struct file * file, const char __user * buffer,
 			      unsigned long count, void *data);
 
 static int
-__init asus_proc_add(char *name, proc_writefunc * writefunc,
+asus_proc_add(char *name, proc_writefunc * writefunc,
 		     proc_readfunc * readfunc, mode_t mode,
 		     struct acpi_device *device)
 {
@@ -836,7 +836,7 @@ __init asus_proc_add(char *name, proc_writefunc * writefunc,
 	return 0;
 }
 
-static int __init asus_hotk_add_fs(struct acpi_device *device)
+static int asus_hotk_add_fs(struct acpi_device *device)
 {
 	struct proc_dir_entry *proc;
 	mode_t mode;
@@ -954,7 +954,7 @@ static void asus_hotk_notify(acpi_handle handle, u32 event, void *data)
  * This function is used to initialize the hotk with right values. In this
  * method, we can make all the detection we want, and modify the hotk struct
  */
-static int __init asus_hotk_get_info(void)
+static int asus_hotk_get_info(void)
 {
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 	struct acpi_buffer dsdt = { ACPI_ALLOCATE_BUFFER, NULL };
@@ -970,7 +970,7 @@ static int __init asus_hotk_get_info(void)
 	 * HID), this bit will be moved. A global variable asus_info contains
 	 * the DSDT header.
 	 */
-	status = acpi_get_table(ACPI_TABLE_DSDT, 1, &dsdt);
+	status = acpi_get_table(ACPI_TABLE_ID_DSDT, 1, &dsdt);
 	if (ACPI_FAILURE(status))
 		printk(KERN_WARNING "  Couldn't get the DSDT table header\n");
 	else
@@ -1101,7 +1101,7 @@ static int __init asus_hotk_get_info(void)
 	return AE_OK;
 }
 
-static int __init asus_hotk_check(void)
+static int asus_hotk_check(void)
 {
 	int result = 0;
 
@@ -1119,7 +1119,9 @@ static int __init asus_hotk_check(void)
 	return result;
 }
 
-static int __init asus_hotk_add(struct acpi_device *device)
+static int asus_hotk_found;
+
+static int asus_hotk_add(struct acpi_device *device)
 {
 	acpi_status status = AE_OK;
 	int result;
@@ -1180,6 +1182,8 @@ static int __init asus_hotk_add(struct acpi_device *device)
 		}
 	}
 
+	asus_hotk_found = 1;
+
       end:
 	if (result) {
 		kfree(hotk);
@@ -1226,10 +1230,22 @@ static int __init asus_acpi_init(void)
 	asus_proc_dir->owner = THIS_MODULE;
 
 	result = acpi_bus_register_driver(&asus_hotk_driver);
-	if (result < 1) {
-		acpi_bus_unregister_driver(&asus_hotk_driver);
+	if (result < 0) {
 		remove_proc_entry(PROC_ASUS, acpi_root_dir);
 		return -ENODEV;
+	}
+
+	/*
+	 * This is a bit of a kludge.  We only want this module loaded
+	 * for ASUS systems, but there's currently no way to probe the
+	 * ACPI namespace for ASUS HIDs.  So we just return failure if
+	 * we didn't find one, which will cause the module to be
+	 * unloaded.
+	 */
+	if (!asus_hotk_found) {
+		acpi_bus_unregister_driver(&asus_hotk_driver);
+		remove_proc_entry(PROC_ASUS, acpi_root_dir);
+		return result;
 	}
 
 	return 0;

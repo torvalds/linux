@@ -74,7 +74,7 @@ struct acpi_memory_device {
 	unsigned short caching;	/* memory cache attribute */
 	unsigned short write_protect;	/* memory read/write attribute */
 	u64 start_addr;		/* Memory Range start physical addr */
-	u64 end_addr;		/* Memory Range end physical addr */
+	u64 length;		/* Memory Range length */
 };
 
 static int
@@ -97,12 +97,11 @@ acpi_memory_get_device_resources(struct acpi_memory_device *mem_device)
 	if (ACPI_SUCCESS(status)) {
 		if (address64.resource_type == ACPI_MEMORY_RANGE) {
 			/* Populate the structure */
-			mem_device->caching =
-			    address64.info.mem.caching;
+			mem_device->caching = address64.info.mem.caching;
 			mem_device->write_protect =
 			    address64.info.mem.write_protect;
 			mem_device->start_addr = address64.minimum;
-			mem_device->end_addr = address64.maximum;
+			mem_device->length = address64.address_length;
 		}
 	}
 
@@ -199,8 +198,7 @@ static int acpi_memory_enable_device(struct acpi_memory_device *mem_device)
 	 * Tell the VM there is more memory here...
 	 * Note: Assume that this function returns zero on success
 	 */
-	result = add_memory(mem_device->start_addr,
-			    (mem_device->end_addr - mem_device->start_addr) + 1);
+	result = add_memory(mem_device->start_addr, mem_device->length);
 	if (result) {
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "\nadd_memory failed\n"));
 		mem_device->state = MEMORY_INVALID_STATE;
@@ -249,7 +247,7 @@ static int acpi_memory_disable_device(struct acpi_memory_device *mem_device)
 {
 	int result;
 	u64 start = mem_device->start_addr;
-	u64 len = mem_device->end_addr - start + 1;
+	u64 len = mem_device->length;
 
 	ACPI_FUNCTION_TRACE("acpi_memory_disable_device");
 

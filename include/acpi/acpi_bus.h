@@ -26,7 +26,7 @@
 #ifndef __ACPI_BUS_H__
 #define __ACPI_BUS_H__
 
-#include <linux/kobject.h>
+#include <linux/device.h>
 
 #include <acpi/acpi.h>
 
@@ -59,7 +59,7 @@ acpi_evaluate_reference(acpi_handle handle,
 
 #define ACPI_BUS_FILE_ROOT	"acpi"
 extern struct proc_dir_entry *acpi_root_dir;
-extern FADT_DESCRIPTOR acpi_fadt;
+extern struct fadt_descriptor acpi_fadt;
 
 enum acpi_bus_removal_type {
 	ACPI_BUS_REMOVAL_NORMAL = 0,
@@ -169,7 +169,8 @@ struct acpi_device_flags {
 	u32 power_manageable:1;
 	u32 performance_manageable:1;
 	u32 wake_capable:1;	/* Wakeup(_PRW) supported? */
-	u32 reserved:20;
+	u32 force_power_state:1;
+	u32 reserved:19;
 };
 
 /* File System */
@@ -296,6 +297,7 @@ struct acpi_device {
 	struct acpi_driver *driver;
 	void *driver_data;
 	struct kobject kobj;
+	struct device dev;
 };
 
 #define acpi_driver_data(d)	((d)->driver_data)
@@ -327,7 +329,7 @@ int acpi_bus_set_power(acpi_handle handle, int state);
 int acpi_bus_generate_event(struct acpi_device *device, u8 type, int data);
 int acpi_bus_receive_event(struct acpi_bus_event *event);
 int acpi_bus_register_driver(struct acpi_driver *driver);
-int acpi_bus_unregister_driver(struct acpi_driver *driver);
+void acpi_bus_unregister_driver(struct acpi_driver *driver);
 int acpi_bus_add(struct acpi_device **child, struct acpi_device *parent,
 		 acpi_handle handle, int type);
 int acpi_bus_trim(struct acpi_device *start, int rmdevice);

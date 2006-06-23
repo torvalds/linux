@@ -62,13 +62,13 @@ ACPI_MODULE_NAME("nsparse")
  *
  ******************************************************************************/
 acpi_status
-acpi_ns_one_complete_parse(u8 pass_number, struct acpi_table_desc * table_desc)
+acpi_ns_one_complete_parse(u8 pass_number, struct acpi_table_desc *table_desc)
 {
 	union acpi_parse_object *parse_root;
 	acpi_status status;
 	struct acpi_walk_state *walk_state;
 
-	ACPI_FUNCTION_TRACE("ns_one_complete_parse");
+	ACPI_FUNCTION_TRACE(ns_one_complete_parse);
 
 	/* Create and init a Root Node */
 
@@ -124,7 +124,7 @@ acpi_ns_parse_table(struct acpi_table_desc *table_desc,
 {
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("ns_parse_table");
+	ACPI_FUNCTION_TRACE(ns_parse_table);
 
 	/*
 	 * AML Parse, pass 1

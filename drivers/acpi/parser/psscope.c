@@ -106,14 +106,14 @@ acpi_ps_init_scope(struct acpi_parse_state * parser_state,
 {
 	union acpi_generic_state *scope;
 
-	ACPI_FUNCTION_TRACE_PTR("ps_init_scope", root_op);
+	ACPI_FUNCTION_TRACE_PTR(ps_init_scope, root_op);
 
 	scope = acpi_ut_create_generic_state();
 	if (!scope) {
 		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
 
-	scope->common.data_type = ACPI_DESC_TYPE_STATE_RPSCOPE;
+	scope->common.descriptor_type = ACPI_DESC_TYPE_STATE_RPSCOPE;
 	scope->parse_scope.op = root_op;
 	scope->parse_scope.arg_count = ACPI_VAR_ARGS;
 	scope->parse_scope.arg_end = parser_state->aml_end;
@@ -147,14 +147,14 @@ acpi_ps_push_scope(struct acpi_parse_state *parser_state,
 {
 	union acpi_generic_state *scope;
 
-	ACPI_FUNCTION_TRACE_PTR("ps_push_scope", op);
+	ACPI_FUNCTION_TRACE_PTR(ps_push_scope, op);
 
 	scope = acpi_ut_create_generic_state();
 	if (!scope) {
 		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
 
-	scope->common.data_type = ACPI_DESC_TYPE_STATE_PSCOPE;
+	scope->common.descriptor_type = ACPI_DESC_TYPE_STATE_PSCOPE;
 	scope->parse_scope.op = op;
 	scope->parse_scope.arg_list = remaining_args;
 	scope->parse_scope.arg_count = arg_count;
@@ -165,6 +165,7 @@ acpi_ps_push_scope(struct acpi_parse_state *parser_state,
 	acpi_ut_push_generic_state(&parser_state->scope, scope);
 
 	if (arg_count == ACPI_VAR_ARGS) {
+
 		/* Multiple arguments */
 
 		scope->parse_scope.arg_end = parser_state->pkg_end;
@@ -199,14 +200,14 @@ acpi_ps_pop_scope(struct acpi_parse_state *parser_state,
 {
 	union acpi_generic_state *scope = parser_state->scope;
 
-	ACPI_FUNCTION_TRACE("ps_pop_scope");
+	ACPI_FUNCTION_TRACE(ps_pop_scope);
 
 	/* Only pop the scope if there is in fact a next scope */
 
 	if (scope->common.next) {
 		scope = acpi_ut_pop_generic_state(&parser_state->scope);
 
-		/* return to parsing previous op */
+		/* Return to parsing previous op */
 
 		*op = scope->parse_scope.op;
 		*arg_list = scope->parse_scope.arg_list;
@@ -217,7 +218,7 @@ acpi_ps_pop_scope(struct acpi_parse_state *parser_state,
 
 		acpi_ut_delete_generic_state(scope);
 	} else {
-		/* empty parse stack, prepare to fetch next opcode */
+		/* Empty parse stack, prepare to fetch next opcode */
 
 		*op = NULL;
 		*arg_list = 0;
@@ -246,7 +247,7 @@ void acpi_ps_cleanup_scope(struct acpi_parse_state *parser_state)
 {
 	union acpi_generic_state *scope;
 
-	ACPI_FUNCTION_TRACE_PTR("ps_cleanup_scope", parser_state);
+	ACPI_FUNCTION_TRACE_PTR(ps_cleanup_scope, parser_state);
 
 	if (!parser_state) {
 		return_VOID;

@@ -194,7 +194,9 @@ acpi_status
 acpi_ds_restart_control_method(struct acpi_walk_state *walk_state,
 			       union acpi_operand_object *return_desc);
 
-void acpi_ds_terminate_control_method(struct acpi_walk_state *walk_state);
+void
+acpi_ds_terminate_control_method(union acpi_operand_object *method_desc,
+				 struct acpi_walk_state *walk_state);
 
 acpi_status
 acpi_ds_begin_method_execution(struct acpi_namespace_node *method_node,
@@ -302,7 +304,7 @@ acpi_ds_init_aml_walk(struct acpi_walk_state *walk_state,
 		      struct acpi_namespace_node *method_node,
 		      u8 * aml_start,
 		      u32 aml_length,
-		      struct acpi_parameter_info *info, u8 pass_number);
+		      struct acpi_evaluate_info *info, u8 pass_number);
 
 acpi_status
 acpi_ds_obj_stack_pop_and_delete(u32 pop_count,

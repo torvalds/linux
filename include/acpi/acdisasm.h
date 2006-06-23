@@ -50,26 +50,72 @@
 #define BLOCK_PAREN             1
 #define BLOCK_BRACE             2
 #define BLOCK_COMMA_LIST        4
+#define ACPI_DEFAULT_RESNAME    *(u32 *) "__RD"
 
 struct acpi_external_list {
 	char *path;
+	char *internal_path;
 	struct acpi_external_list *next;
+	u32 value;
+	u16 length;
+	u8 type;
 };
 
 extern struct acpi_external_list *acpi_gbl_external_list;
 
-/* Strings used for decoding flags to ASL keywords */
+typedef const struct acpi_dmtable_info {
+	u8 opcode;
+	u8 offset;
+	char *name;
 
-extern const char *acpi_gbl_word_decode[4];
-extern const char *acpi_gbl_irq_decode[2];
-extern const char *acpi_gbl_lock_rule[ACPI_NUM_LOCK_RULES];
-extern const char *acpi_gbl_access_types[ACPI_NUM_ACCESS_TYPES];
-extern const char *acpi_gbl_update_rules[ACPI_NUM_UPDATE_RULES];
-extern const char *acpi_gbl_match_ops[ACPI_NUM_MATCH_OPS];
+} acpi_dmtable_info;
+
+/*
+ * Values for Opcode above.
+ * Note: 0-7 must not change, used as a flag shift value
+ */
+#define ACPI_DMT_FLAG0                  0
+#define ACPI_DMT_FLAG1                  1
+#define ACPI_DMT_FLAG2                  2
+#define ACPI_DMT_FLAG3                  3
+#define ACPI_DMT_FLAG4                  4
+#define ACPI_DMT_FLAG5                  5
+#define ACPI_DMT_FLAG6                  6
+#define ACPI_DMT_FLAG7                  7
+#define ACPI_DMT_FLAGS0                 8
+#define ACPI_DMT_FLAGS2                 9
+#define ACPI_DMT_UINT8                  10
+#define ACPI_DMT_UINT16                 11
+#define ACPI_DMT_UINT24                 12
+#define ACPI_DMT_UINT32                 13
+#define ACPI_DMT_UINT56                 14
+#define ACPI_DMT_UINT64                 15
+#define ACPI_DMT_STRING                 16
+#define ACPI_DMT_NAME4                  17
+#define ACPI_DMT_NAME6                  18
+#define ACPI_DMT_NAME8                  19
+#define ACPI_DMT_CHKSUM                 20
+#define ACPI_DMT_SPACEID                21
+#define ACPI_DMT_GAS                    22
+#define ACPI_DMT_MADT                   23
+#define ACPI_DMT_SRAT                   24
+#define ACPI_DMT_EXIT                   25
+
+typedef
+void (*ACPI_TABLE_HANDLER) (struct acpi_table_header * table);
+
+struct acpi_dmtable_data {
+	char *signature;
+	struct acpi_dmtable_info *table_info;
+	ACPI_TABLE_HANDLER table_handler;
+};
 
 struct acpi_op_walk_info {
 	u32 level;
+	u32 last_level;
+	u32 count;
 	u32 bit_offset;
+	u32 flags;
 	struct acpi_walk_state *walk_state;
 };
 
@@ -77,12 +123,111 @@ typedef
 acpi_status(*asl_walk_callback) (union acpi_parse_object * op,
 				 u32 level, void *context);
 
+struct acpi_resource_tag {
+	u32 bit_index;
+	char *tag;
+};
+
+/* Strings used for decoding flags to ASL keywords */
+
+extern const char *acpi_gbl_word_decode[];
+extern const char *acpi_gbl_irq_decode[];
+extern const char *acpi_gbl_lock_rule[];
+extern const char *acpi_gbl_access_types[];
+extern const char *acpi_gbl_update_rules[];
+extern const char *acpi_gbl_match_ops[];
+
+extern struct acpi_dmtable_info acpi_dm_table_info_asf0[];
+extern struct acpi_dmtable_info acpi_dm_table_info_asf1[];
+extern struct acpi_dmtable_info acpi_dm_table_info_asf2[];
+extern struct acpi_dmtable_info acpi_dm_table_info_asf3[];
+extern struct acpi_dmtable_info acpi_dm_table_info_asf4[];
+extern struct acpi_dmtable_info acpi_dm_table_info_asf_hdr[];
+extern struct acpi_dmtable_info acpi_dm_table_info_boot[];
+extern struct acpi_dmtable_info acpi_dm_table_info_cpep[];
+extern struct acpi_dmtable_info acpi_dm_table_info_cpep0[];
+extern struct acpi_dmtable_info acpi_dm_table_info_dbgp[];
+extern struct acpi_dmtable_info acpi_dm_table_info_ecdt[];
+extern struct acpi_dmtable_info acpi_dm_table_info_facs[];
+extern struct acpi_dmtable_info acpi_dm_table_info_fadt1[];
+extern struct acpi_dmtable_info acpi_dm_table_info_fadt2[];
+extern struct acpi_dmtable_info acpi_dm_table_info_gas[];
+extern struct acpi_dmtable_info acpi_dm_table_info_header[];
+extern struct acpi_dmtable_info acpi_dm_table_info_hpet[];
+extern struct acpi_dmtable_info acpi_dm_table_info_madt[];
+extern struct acpi_dmtable_info acpi_dm_table_info_madt0[];
+extern struct acpi_dmtable_info acpi_dm_table_info_madt1[];
+extern struct acpi_dmtable_info acpi_dm_table_info_madt2[];
+extern struct acpi_dmtable_info acpi_dm_table_info_madt3[];
+extern struct acpi_dmtable_info acpi_dm_table_info_madt4[];
+extern struct acpi_dmtable_info acpi_dm_table_info_madt5[];
+extern struct acpi_dmtable_info acpi_dm_table_info_madt6[];
+extern struct acpi_dmtable_info acpi_dm_table_info_madt7[];
+extern struct acpi_dmtable_info acpi_dm_table_info_madt8[];
+extern struct acpi_dmtable_info acpi_dm_table_info_madt_hdr[];
+extern struct acpi_dmtable_info acpi_dm_table_info_mcfg[];
+extern struct acpi_dmtable_info acpi_dm_table_info_mcfg0[];
+extern struct acpi_dmtable_info acpi_dm_table_info_rsdp1[];
+extern struct acpi_dmtable_info acpi_dm_table_info_rsdp2[];
+extern struct acpi_dmtable_info acpi_dm_table_info_sbst[];
+extern struct acpi_dmtable_info acpi_dm_table_info_slit[];
+extern struct acpi_dmtable_info acpi_dm_table_info_spcr[];
+extern struct acpi_dmtable_info acpi_dm_table_info_spmi[];
+extern struct acpi_dmtable_info acpi_dm_table_info_srat[];
+extern struct acpi_dmtable_info acpi_dm_table_info_srat0[];
+extern struct acpi_dmtable_info acpi_dm_table_info_srat1[];
+extern struct acpi_dmtable_info acpi_dm_table_info_tcpa[];
+extern struct acpi_dmtable_info acpi_dm_table_info_wdrt[];
+
+/*
+ * dmtable
+ */
+void acpi_dm_dump_data_table(struct acpi_table_header *table);
+
+void
+acpi_dm_dump_table(u32 table_length,
+		   u32 table_offset,
+		   void *table,
+		   u32 sub_table_length, struct acpi_dmtable_info *info);
+
+void acpi_dm_line_header(u32 offset, u32 byte_length, char *name);
+
+void acpi_dm_line_header2(u32 offset, u32 byte_length, char *name, u32 value);
+
+/*
+ * dmtbdump
+ */
+void acpi_dm_dump_asf(struct acpi_table_header *table);
+
+void acpi_dm_dump_cpep(struct acpi_table_header *table);
+
+void acpi_dm_dump_fadt(struct acpi_table_header *table);
+
+void acpi_dm_dump_srat(struct acpi_table_header *table);
+
+void acpi_dm_dump_mcfg(struct acpi_table_header *table);
+
+void acpi_dm_dump_madt(struct acpi_table_header *table);
+
+u32 acpi_dm_dump_rsdp(struct acpi_table_header *table);
+
+void acpi_dm_dump_rsdt(struct acpi_table_header *table);
+
+void acpi_dm_dump_slit(struct acpi_table_header *table);
+
+void acpi_dm_dump_xsdt(struct acpi_table_header *table);
+
 /*
  * dmwalk
  */
 void
 acpi_dm_disassemble(struct acpi_walk_state *walk_state,
 		    union acpi_parse_object *origin, u32 num_opcodes);
+
+void
+acpi_dm_walk_parse_tree(union acpi_parse_object *op,
+			asl_walk_callback descending_callback,
+			asl_walk_callback ascending_callback, void *context);
 
 /*
  * dmopcode
@@ -166,6 +311,7 @@ void acpi_dm_dump_integer64(u64 value, char *name);
 
 void
 acpi_dm_resource_template(struct acpi_op_walk_info *info,
+			  union acpi_parse_object *op,
 			  u8 * byte_data, u32 byte_count);
 
 u8 acpi_dm_is_resource_template(union acpi_parse_object *op);
@@ -175,6 +321,8 @@ void acpi_dm_indent(u32 level);
 void acpi_dm_bit_list(u16 mask);
 
 void acpi_dm_decode_attribute(u8 attribute);
+
+void acpi_dm_descriptor_name(void);
 
 /*
  * dmresrcl
@@ -248,6 +396,15 @@ acpi_dm_vendor_small_descriptor(union aml_resource *resource,
 /*
  * dmutils
  */
-void acpi_dm_add_to_external_list(char *path);
+void acpi_dm_add_to_external_list(char *path, u8 type, u32 value);
+
+/*
+ * dmrestag
+ */
+void acpi_dm_find_resources(union acpi_parse_object *root);
+
+void
+acpi_dm_check_resource_reference(union acpi_parse_object *op,
+				 struct acpi_walk_state *walk_state);
 
 #endif				/* __ACDISASM_H__ */
