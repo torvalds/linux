@@ -937,4 +937,23 @@ config SERIAL_SGI_IOC3
 	  If you have an SGI Altix with an IOC3 serial card,
 	  say Y or M.  Otherwise, say N.
 
+config SERIAL_NETX
+	bool "NetX serial port support"
+	depends on ARM && ARCH_NETX
+	select SERIAL_CORE
+	help
+	  If you have a machine based on a Hilscher NetX SoC you
+	  can enable its onboard serial port by enabling this option.
+
+          To compile this driver as a module, choose M here: the
+          module will be called netx-serial.
+
+config SERIAL_NETX_CONSOLE
+	bool "Console on NetX serial port"
+	depends on SERIAL_NETX
+	select SERIAL_CORE_CONSOLE
+	help
+	  If you have enabled the serial port on the Motorola IMX
+	  CPU you can make it the console by answering Y to this option.
+
 endmenu
