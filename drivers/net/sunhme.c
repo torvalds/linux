@@ -45,6 +45,7 @@
 #include <asm/sbus.h>
 #include <asm/openprom.h>
 #include <asm/oplib.h>
+#include <asm/prom.h>
 #include <asm/auxio.h>
 #ifndef __sparc_v9__
 #include <asm/io-unit.h>

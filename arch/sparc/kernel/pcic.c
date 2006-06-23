@@ -31,6 +31,7 @@
 
 #include <asm/irq.h>
 #include <asm/oplib.h>
+#include <asm/prom.h>
 #include <asm/pcic.h>
 #include <asm/timer.h>
 #include <asm/uaccess.h>
@@ -665,7 +666,7 @@ void __init pcibios_fixup_bus(struct pci_bus *bus)
 		/* cookies */
 		pcp = pci_devcookie_alloc();
 		pcp->pbm = &pcic->pbm;
-		pcp->prom_node = node;
+		pcp->prom_node = of_find_node_by_phandle(node);
 		dev->sysdata = pcp;
 
 		/* fixing I/O to look like memory */
