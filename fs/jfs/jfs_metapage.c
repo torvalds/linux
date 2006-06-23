@@ -632,10 +632,9 @@ struct metapage *__get_metapage(struct inode *inode, unsigned long lblock,
 		}
 		SetPageUptodate(page);
 	} else {
-		page = read_cache_page(mapping, page_index,
-			    (filler_t *)mapping->a_ops->readpage, NULL);
+		page = read_mapping_page(mapping, page_index, NULL);
 		if (IS_ERR(page) || !PageUptodate(page)) {
-			jfs_err("read_cache_page failed!");
+			jfs_err("read_mapping_page failed!");
 			return NULL;
 		}
 		lock_page(page);

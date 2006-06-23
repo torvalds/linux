@@ -63,7 +63,6 @@ unsigned long afs_mntpt_expiry_timeout = 20;
 int afs_mntpt_check_symlink(struct afs_vnode *vnode)
 {
 	struct page *page;
-	filler_t *filler;
 	size_t size;
 	char *buf;
 	int ret;
@@ -71,10 +70,7 @@ int afs_mntpt_check_symlink(struct afs_vnode *vnode)
 	_enter("{%u,%u}", vnode->fid.vnode, vnode->fid.unique);
 
 	/* read the contents of the symlink into the pagecache */
-	filler = (filler_t *) AFS_VNODE_TO_I(vnode)->i_mapping->a_ops->readpage;
-
-	page = read_cache_page(AFS_VNODE_TO_I(vnode)->i_mapping, 0,
-			       filler, NULL);
+	page = read_mapping_page(AFS_VNODE_TO_I(vnode)->i_mapping, 0, NULL);
 	if (IS_ERR(page)) {
 		ret = PTR_ERR(page);
 		goto out;
@@ -160,7 +156,6 @@ static struct vfsmount *afs_mntpt_do_automount(struct dentry *mntpt)
 	struct page *page = NULL;
 	size_t size;
 	char *buf, *devname = NULL, *options = NULL;
-	filler_t *filler;
 	int ret;
 
 	kenter("{%s}", mntpt->d_name.name);
@@ -182,9 +177,7 @@ static struct vfsmount *afs_mntpt_do_automount(struct dentry *mntpt)
 		goto error;
 
 	/* read the contents of the AFS special symlink */
-	filler = (filler_t *)mntpt->d_inode->i_mapping->a_ops->readpage;
-
-	page = read_cache_page(mntpt->d_inode->i_mapping, 0, filler, NULL);
+	page = read_mapping_page(mntpt->d_inode->i_mapping, 0, NULL);
 	if (IS_ERR(page)) {
 		ret = PTR_ERR(page);
 		goto error;

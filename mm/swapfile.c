@@ -1477,8 +1477,7 @@ asmlinkage long sys_swapon(const char __user * specialfile, int swap_flags)
 		error = -EINVAL;
 		goto bad_swap;
 	}
-	page = read_cache_page(mapping, 0,
-			(filler_t *)mapping->a_ops->readpage, swap_file);
+	page = read_mapping_page(mapping, 0, swap_file);
 	if (IS_ERR(page)) {
 		error = PTR_ERR(page);
 		goto bad_swap;

@@ -231,8 +231,7 @@ do_non_resident_extend:
 		 * Read the page.  If the page is not present, this will zero
 		 * the uninitialized regions for us.
 		 */
-		page = read_cache_page(mapping, index,
-				(filler_t*)mapping->a_ops->readpage, NULL);
+		page = read_mapping_page(mapping, index, NULL);
 		if (IS_ERR(page)) {
 			err = PTR_ERR(page);
 			goto init_err_out;
