@@ -1906,17 +1906,6 @@ qla2x00_mem_alloc(scsi_qla_host_t *ha)
 		}
 		memset(ha->init_cb, 0, ha->init_cb_size);
 
-		/* Allocate ioctl related memory. */
-		if (qla2x00_alloc_ioctl_mem(ha)) {
-			qla_printk(KERN_WARNING, ha,
-			    "Memory Allocation failed - ioctl_mem\n");
-
-			qla2x00_mem_free(ha);
-			msleep(100);
-
-			continue;
-		}
-
 		if (qla2x00_allocate_sp_pool(ha)) {
 			qla_printk(KERN_WARNING, ha,
 			    "Memory Allocation failed - "
@@ -2032,9 +2021,6 @@ qla2x00_mem_free(scsi_qla_host_t *ha)
 		DEBUG2(printk("%s(): ERROR invalid ha pointer.\n", __func__));
 		return;
 	}
-
-	/* free ioctl memory */
-	qla2x00_free_ioctl_mem(ha);
 
 	/* free sp pool */
 	qla2x00_free_sp_pool(ha);

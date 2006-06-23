@@ -286,13 +286,6 @@ extern void *qla24xx_prep_ms_fdmi_iocb(scsi_qla_host_t *, uint32_t, uint32_t);
 extern int qla2x00_fdmi_register(scsi_qla_host_t *);
 
 /*
- * Global Function Prototypes in qla_xioctl.c source file.
- */
-#define qla2x00_enqueue_aen(ha, cmd, mode)	do { } while (0)
-#define qla2x00_alloc_ioctl_mem(ha)		(0)
-#define qla2x00_free_ioctl_mem(ha)		do { } while (0)
-
-/*
  * Global Function Prototypes in qla_attr.c source file.
  */
 struct class_device_attribute;
