@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.17
-# Mon Jun 19 17:23:03 2006
+# Linux kernel version: 2.6.17-rc6
+# Thu Jun 22 15:28:36 2006
 #
 CONFIG_PPC64=y
 CONFIG_64BIT=y
@@ -1063,7 +1063,8 @@ CONFIG_DEBUG_FS=y
 # CONFIG_DEBUG_STACKOVERFLOW is not set
 # CONFIG_DEBUG_STACK_USAGE is not set
 CONFIG_DEBUGGER=y
-# CONFIG_XMON is not set
+CONFIG_XMON=y
+CONFIG_XMON_DEFAULT=y
 CONFIG_IRQSTACKS=y
 # CONFIG_BOOTX_TEXT is not set
 # CONFIG_PPC_EARLY_DEBUG is not set
