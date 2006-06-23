@@ -624,6 +624,15 @@ unlock:
 	unlock_page(page);
 ret:
 	if (rc != -EAGAIN) {
+ 		/*
+ 		 * A page that has been migrated has all references
+ 		 * removed and will be freed. A page that has not been
+ 		 * migrated will have kepts its references and be
+ 		 * restored.
+ 		 */
+ 		list_del(&page->lru);
+ 		move_to_lru(page);
+
 		list_del(&newpage->lru);
 		move_to_lru(newpage);
 	}
@@ -640,12 +649,12 @@ ret:
  *
  * The function returns after 10 attempts or if no pages
  * are movable anymore because to has become empty
- * or no retryable pages exist anymore.
+ * or no retryable pages exist anymore. All pages will be
+ * retruned to the LRU or freed.
  *
- * Return: Number of pages not migrated when "to" ran empty.
+ * Return: Number of pages not migrated.
  */
-int migrate_pages(struct list_head *from, struct list_head *to,
-		  struct list_head *moved, struct list_head *failed)
+int migrate_pages(struct list_head *from, struct list_head *to)
 {
 	int retry = 1;
 	int nr_failed = 0;
@@ -675,11 +684,9 @@ int migrate_pages(struct list_head *from, struct list_head *to,
 				retry++;
 				break;
 			case 0:
-				list_move(&page->lru, moved);
 				break;
 			default:
 				/* Permanent failure */
-				list_move(&page->lru, failed);
 				nr_failed++;
 				break;
 			}
@@ -689,6 +696,7 @@ int migrate_pages(struct list_head *from, struct list_head *to,
 	if (!swapwrite)
 		current->flags &= ~PF_SWAPWRITE;
 
+	putback_lru_pages(from);
 	return nr_failed + retry;
 }
 
@@ -702,11 +710,10 @@ int migrate_pages_to(struct list_head *pagelist,
 			struct vm_area_struct *vma, int dest)
 {
 	LIST_HEAD(newlist);
-	LIST_HEAD(moved);
-	LIST_HEAD(failed);
 	int err = 0;
 	unsigned long offset = 0;
 	int nr_pages;
+	int nr_failed = 0;
 	struct page *page;
 	struct list_head *p;
 
@@ -740,26 +747,17 @@ redo:
 		if (nr_pages > MIGRATE_CHUNK_SIZE)
 			break;
 	}
-	err = migrate_pages(pagelist, &newlist, &moved, &failed);
+	err = migrate_pages(pagelist, &newlist);
 
-	putback_lru_pages(&moved);	/* Call release pages instead ?? */
-
-	if (err >= 0 && list_empty(&newlist) && !list_empty(pagelist))
-		goto redo;
-out:
-	/* Return leftover allocated pages */
-	while (!list_empty(&newlist)) {
-		page = list_entry(newlist.next, struct page, lru);
-		list_del(&page->lru);
-		__free_page(page);
+	if (err >= 0) {
+		nr_failed += err;
+		if (list_empty(&newlist) && !list_empty(pagelist))
+			goto redo;
 	}
-	list_splice(&failed, pagelist);
-	if (err < 0)
-		return err;
+out:
 
 	/* Calculate number of leftover pages */
-	nr_pages = 0;
 	list_for_each(p, pagelist)
-		nr_pages++;
-	return nr_pages;
+		nr_failed++;
+	return nr_failed;
 }
