@@ -703,7 +703,7 @@ EXPORT_SYMBOL(posix_test_lock);
  * from a broken NFS client. But broken NFS clients have a lot more to
  * worry about than proper deadlock detection anyway... --okir
  */
-int posix_locks_deadlock(struct file_lock *caller_fl,
+static int posix_locks_deadlock(struct file_lock *caller_fl,
 				struct file_lock *block_fl)
 {
 	struct list_head *tmp;
@@ -721,8 +721,6 @@ next_task:
 	}
 	return 0;
 }
-
-EXPORT_SYMBOL(posix_locks_deadlock);
 
 /* Try to create a FLOCK lock on filp. We always insert new FLOCK locks
  * at the head of the list, but that's secret knowledge known only to
