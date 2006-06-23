@@ -77,12 +77,15 @@ static inline unsigned long get_segment_eip(struct pt_regs *regs,
 	unsigned seg = regs->xcs & 0xffff;
 	u32 seg_ar, seg_limit, base, *desc;
 
+	/* Unlikely, but must come before segment checks. */
+	if (unlikely(regs->eflags & VM_MASK)) {
+		base = seg << 4;
+		*eip_limit = base + 0xffff;
+		return base + (eip & 0xffff);
+	}
+
 	/* The standard kernel/user address space limit. */
 	*eip_limit = (seg & 3) ? USER_DS.seg : KERNEL_DS.seg;
-
-	/* Unlikely, but must come before segment checks. */
-	if (unlikely((regs->eflags & VM_MASK) != 0))
-		return eip + (seg << 4);
 	
 	/* By far the most common cases. */
 	if (likely(seg == __USER_CS || seg == __KERNEL_CS))
