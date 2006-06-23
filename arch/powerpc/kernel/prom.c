@@ -1125,24 +1125,6 @@ static int __init early_init_dt_scan_chosen(unsigned long node,
  		tce_alloc_end = *lprop;
 #endif
 
-#ifdef CONFIG_PPC_RTAS
-	/* To help early debugging via the front panel, we retrieve a minimal
-	 * set of RTAS infos now if available
-	 */
-	{
-		u64 *basep, *entryp, *sizep;
-
-		basep = of_get_flat_dt_prop(node, "linux,rtas-base", NULL);
-		entryp = of_get_flat_dt_prop(node, "linux,rtas-entry", NULL);
-		sizep = of_get_flat_dt_prop(node, "linux,rtas-size", NULL);
-		if (basep && entryp && sizep) {
-			rtas.base = *basep;
-			rtas.entry = *entryp;
-			rtas.size = *sizep;
-		}
-	}
-#endif /* CONFIG_PPC_RTAS */
-
 #ifdef CONFIG_KEXEC
        lprop = (u64*)of_get_flat_dt_prop(node, "linux,crashkernel-base", NULL);
        if (lprop)
@@ -1326,6 +1308,11 @@ void __init early_init_devtree(void *params)
 
 	/* Setup flat device-tree pointer */
 	initial_boot_params = params;
+
+#ifdef CONFIG_PPC_RTAS
+	/* Some machines might need RTAS info for debugging, grab it now. */
+	of_scan_flat_dt(early_init_dt_scan_rtas, NULL);
+#endif
 
 	/* Retrieve various informations from the /chosen node of the
 	 * device-tree, including the platform type, initrd location and

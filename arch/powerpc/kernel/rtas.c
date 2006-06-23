@@ -801,3 +801,25 @@ void __init rtas_initialize(void)
 	rtas_last_error_token = rtas_token("rtas-last-error");
 #endif
 }
+
+int __init early_init_dt_scan_rtas(unsigned long node,
+		const char *uname, int depth, void *data)
+{
+	u32 *basep, *entryp, *sizep;
+
+	if (depth != 1 || strcmp(uname, "rtas") != 0)
+		return 0;
+
+	basep  = of_get_flat_dt_prop(node, "linux,rtas-base", NULL);
+	entryp = of_get_flat_dt_prop(node, "linux,rtas-entry", NULL);
+	sizep  = of_get_flat_dt_prop(node, "rtas-size", NULL);
+
+	if (basep && entryp && sizep) {
+		rtas.base = *basep;
+		rtas.entry = *entryp;
+		rtas.size = *sizep;
+	}
+
+	/* break now */
+	return 1;
+}
