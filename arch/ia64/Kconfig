@@ -273,7 +273,6 @@ config HOTPLUG_CPU
 config SCHED_SMT
 	bool "SMT scheduler support"
 	depends on SMP
-	default off
 	help
 	  Improves the CPU scheduler's decision making when dealing with
 	  Intel IA64 chips with MultiThreading at a cost of slightly increased
