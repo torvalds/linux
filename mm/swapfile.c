@@ -618,15 +618,6 @@ static int unuse_mm(struct mm_struct *mm,
 	return 0;
 }
 
-#ifdef CONFIG_MIGRATION
-int remove_vma_swap(struct vm_area_struct *vma, struct page *page)
-{
-	swp_entry_t entry = { .val = page_private(page) };
-
-	return unuse_vma(vma, entry, page);
-}
-#endif
-
 /*
  * Scan swap_map from current position to next entry still in use.
  * Recycle to start on reaching the end, returning 0 when empty.

@@ -91,7 +91,6 @@ static inline void page_dup_rmap(struct page *page)
  */
 int page_referenced(struct page *, int is_locked);
 int try_to_unmap(struct page *, int ignore_refs);
-void remove_from_swap(struct page *page);
 
 /*
  * Called from mm/filemap_xip.c to unmap empty zero page
