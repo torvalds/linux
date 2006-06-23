@@ -2044,6 +2044,7 @@ typedef struct scsi_qla_host {
 		uint32_t	enable_led_scheme	:1;
 		uint32_t	msi_enabled		:1;
 		uint32_t	msix_enabled		:1;
+		uint32_t	disable_serdes		:1;
 	} flags;
 
 	atomic_t	loop_state;

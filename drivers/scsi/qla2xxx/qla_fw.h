@@ -141,7 +141,7 @@ struct nvram_24xx {
 	 * BIT 2  = Enable Memory Map BIOS
 	 * BIT 3  = Enable Selectable Boot
 	 * BIT 4  = Disable RISC code load
-	 * BIT 5  =
+	 * BIT 5  = Disable Serdes
 	 * BIT 6  =
 	 * BIT 7  =
 	 *
