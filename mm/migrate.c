@@ -120,15 +120,6 @@ int putback_lru_pages(struct list_head *l)
 }
 
 /*
- * Non migratable page
- */
-int fail_migrate_page(struct page *newpage, struct page *page)
-{
-	return -EIO;
-}
-EXPORT_SYMBOL(fail_migrate_page);
-
-/*
  * swapout a single page
  * page is locked upon entry, unlocked on exit
  */
@@ -297,6 +288,17 @@ void migrate_page_copy(struct page *newpage, struct page *page)
 }
 EXPORT_SYMBOL(migrate_page_copy);
 
+/************************************************************
+ *                    Migration functions
+ ***********************************************************/
+
+/* Always fail migration. Used for mappings that are not movable */
+int fail_migrate_page(struct page *newpage, struct page *page)
+{
+	return -EIO;
+}
+EXPORT_SYMBOL(fail_migrate_page);
+
 /*
  * Common logic to directly migrate a single page suitable for
  * pages that do not use PagePrivate.
@@ -328,6 +330,67 @@ int migrate_page(struct page *newpage, struct page *page)
 	return 0;
 }
 EXPORT_SYMBOL(migrate_page);
+
+/*
+ * Migration function for pages with buffers. This function can only be used
+ * if the underlying filesystem guarantees that no other references to "page"
+ * exist.
+ */
+int buffer_migrate_page(struct page *newpage, struct page *page)
+{
+	struct address_space *mapping = page->mapping;
+	struct buffer_head *bh, *head;
+	int rc;
+
+	if (!mapping)
+		return -EAGAIN;
+
+	if (!page_has_buffers(page))
+		return migrate_page(newpage, page);
+
+	head = page_buffers(page);
+
+	rc = migrate_page_remove_references(newpage, page, 3);
+
+	if (rc)
+		return rc;
+
+	bh = head;
+	do {
+		get_bh(bh);
+		lock_buffer(bh);
+		bh = bh->b_this_page;
+
+	} while (bh != head);
+
+	ClearPagePrivate(page);
+	set_page_private(newpage, page_private(page));
+	set_page_private(page, 0);
+	put_page(page);
+	get_page(newpage);
+
+	bh = head;
+	do {
+		set_bh_page(bh, newpage, bh_offset(bh));
+		bh = bh->b_this_page;
+
+	} while (bh != head);
+
+	SetPagePrivate(newpage);
+
+	migrate_page_copy(newpage, page);
+
+	bh = head;
+	do {
+		unlock_buffer(bh);
+ 		put_bh(bh);
+		bh = bh->b_this_page;
+
+	} while (bh != head);
+
+	return 0;
+}
+EXPORT_SYMBOL(buffer_migrate_page);
 
 /*
  * migrate_pages
@@ -527,67 +590,6 @@ next:
 
 	return nr_failed + retry;
 }
-
-/*
- * Migration function for pages with buffers. This function can only be used
- * if the underlying filesystem guarantees that no other references to "page"
- * exist.
- */
-int buffer_migrate_page(struct page *newpage, struct page *page)
-{
-	struct address_space *mapping = page->mapping;
-	struct buffer_head *bh, *head;
-	int rc;
-
-	if (!mapping)
-		return -EAGAIN;
-
-	if (!page_has_buffers(page))
-		return migrate_page(newpage, page);
-
-	head = page_buffers(page);
-
-	rc = migrate_page_remove_references(newpage, page, 3);
-
-	if (rc)
-		return rc;
-
-	bh = head;
-	do {
-		get_bh(bh);
-		lock_buffer(bh);
-		bh = bh->b_this_page;
-
-	} while (bh != head);
-
-	ClearPagePrivate(page);
-	set_page_private(newpage, page_private(page));
-	set_page_private(page, 0);
-	put_page(page);
-	get_page(newpage);
-
-	bh = head;
-	do {
-		set_bh_page(bh, newpage, bh_offset(bh));
-		bh = bh->b_this_page;
-
-	} while (bh != head);
-
-	SetPagePrivate(newpage);
-
-	migrate_page_copy(newpage, page);
-
-	bh = head;
-	do {
-		unlock_buffer(bh);
- 		put_bh(bh);
-		bh = bh->b_this_page;
-
-	} while (bh != head);
-
-	return 0;
-}
-EXPORT_SYMBOL(buffer_migrate_page);
 
 /*
  * Migrate the list 'pagelist' of pages to a certain destination.
