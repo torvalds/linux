@@ -2726,8 +2726,6 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* Save configuration space to be restored if the
 	 * nic resets due to a parity error */
 	myri10ge_save_state(mgp);
-	/* Restore state immediately since pci_save_msi_state disables MSI */
-	myri10ge_restore_state(mgp);
 
 	/* Setup the watchdog timer */
 	setup_timer(&mgp->watchdog_timer, myri10ge_watchdog_timer,
