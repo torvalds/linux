@@ -197,7 +197,7 @@ struct zone {
 
 	/*
 	 * wait_table		-- the array holding the hash table
-	 * wait_table_size	-- the size of the hash table array
+	 * wait_table_hash_nr_entries	-- the size of the hash table array
 	 * wait_table_bits	-- wait_table_size == (1 << wait_table_bits)
 	 *
 	 * The purpose of all these is to keep track of the people
@@ -220,7 +220,7 @@ struct zone {
 	 * free_area_init_core() performs the initialization of them.
 	 */
 	wait_queue_head_t	* wait_table;
-	unsigned long		wait_table_size;
+	unsigned long		wait_table_hash_nr_entries;
 	unsigned long		wait_table_bits;
 
 	/*

@@ -1727,7 +1727,7 @@ void __init build_all_zonelists(void)
  */
 #define PAGES_PER_WAITQUEUE	256
 
-static inline unsigned long wait_table_size(unsigned long pages)
+static inline unsigned long wait_table_hash_nr_entries(unsigned long pages)
 {
 	unsigned long size = 1;
 
@@ -2019,13 +2019,15 @@ void zone_wait_table_init(struct zone *zone, unsigned long zone_size_pages)
 	 * The per-page waitqueue mechanism uses hashed waitqueues
 	 * per zone.
 	 */
-	zone->wait_table_size = wait_table_size(zone_size_pages);
-	zone->wait_table_bits =	wait_table_bits(zone->wait_table_size);
+	zone->wait_table_hash_nr_entries =
+		 wait_table_hash_nr_entries(zone_size_pages);
+	zone->wait_table_bits =
+		wait_table_bits(zone->wait_table_hash_nr_entries);
 	zone->wait_table = (wait_queue_head_t *)
-		alloc_bootmem_node(pgdat, zone->wait_table_size
+		alloc_bootmem_node(pgdat, zone->wait_table_hash_nr_entries
 					* sizeof(wait_queue_head_t));
 
-	for(i = 0; i < zone->wait_table_size; ++i)
+	for(i = 0; i < zone->wait_table_hash_nr_entries; ++i)
 		init_waitqueue_head(zone->wait_table + i);
 }
 
