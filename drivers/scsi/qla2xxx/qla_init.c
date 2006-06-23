@@ -1273,8 +1273,7 @@ qla2x00_fw_ready(scsi_qla_host_t *ha)
 			rval = QLA_FUNCTION_FAILED;
 
 			if (atomic_read(&ha->loop_down_timer) &&
-			    (fw_state >= FSTATE_LOSS_OF_SYNC ||
-				fw_state == FSTATE_WAIT_AL_PA)) {
+			    fw_state != FSTATE_READY) {
 				/* Loop down. Timeout on min_wait for states
 				 * other than Wait for Login.
 				 */
