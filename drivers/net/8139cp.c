@@ -797,7 +797,7 @@ static int cp_start_xmit (struct sk_buff *skb, struct net_device *dev)
 	entry = cp->tx_head;
 	eor = (entry == (CP_TX_RING_SIZE - 1)) ? RingEnd : 0;
 	if (dev->features & NETIF_F_TSO)
-		mss = skb_shinfo(skb)->tso_size;
+		mss = skb_shinfo(skb)->gso_size;
 
 	if (skb_shinfo(skb)->nr_frags == 0) {
 		struct cp_desc *txd = &cp->tx_ring[entry];

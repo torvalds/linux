@@ -1879,7 +1879,7 @@ again:
 
 #ifdef NETIF_F_TSO
 	if (skb->len > (dev->mtu + ETH_HLEN)) {
-		mss = skb_shinfo(skb)->tso_size;
+		mss = skb_shinfo(skb)->gso_size;
 		if (mss != 0)
 			max_segments = MYRI10GE_MAX_SEND_DESC_TSO;
 	}
@@ -1939,8 +1939,7 @@ again:
 
 		/* pad frames to at least ETH_ZLEN bytes */
 		if (unlikely(skb->len < ETH_ZLEN)) {
-			skb = skb_padto(skb, ETH_ZLEN);
-			if (skb == NULL) {
+			if (skb_padto(skb, ETH_ZLEN)) {
 				/* The packet is gone, so we must
 				 * return 0 */
 				mgp->stats.tx_dropped += 1;
@@ -2113,7 +2112,7 @@ abort_linearize:
 		}
 		idx = (idx + 1) & tx->mask;
 	} while (idx != last_idx);
-	if (skb_shinfo(skb)->tso_size) {
+	if (skb_shinfo(skb)->gso_size) {
 		printk(KERN_ERR
 		       "myri10ge: %s: TSO but wanted to linearize?!?!?\n",
 		       mgp->dev->name);

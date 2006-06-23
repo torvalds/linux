@@ -340,7 +340,7 @@ enum state_values {
 #endif
 
 #if defined(NETIF_F_TSO)
-#define skb_tso_size(x)		(skb_shinfo(x)->tso_size)
+#define skb_tso_size(x)		(skb_shinfo(x)->gso_size)
 #define TSO_NUM_DESCRIPTORS	2
 #define TSO_OFFLOAD_ON		TYPHOON_OFFLOAD_TCP_SEGMENT
 #else

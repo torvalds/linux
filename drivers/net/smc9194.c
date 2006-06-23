@@ -523,8 +523,7 @@ static int smc_wait_to_send_packet( struct sk_buff * skb, struct net_device * de
 	length = skb->len;
 
 	if (length < ETH_ZLEN) {
-		skb = skb_padto(skb, ETH_ZLEN);
-		if (skb == NULL) {
+		if (skb_padto(skb, ETH_ZLEN)) {
 			netif_wake_queue(dev);
 			return 0;
 		}

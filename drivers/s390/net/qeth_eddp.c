@@ -420,7 +420,7 @@ __qeth_eddp_fill_context_tcp(struct qeth_eddp_context *ctx,
        }
 	tcph = eddp->skb->h.th;
 	while (eddp->skb_offset < eddp->skb->len) {
-		data_len = min((int)skb_shinfo(eddp->skb)->tso_size,
+		data_len = min((int)skb_shinfo(eddp->skb)->gso_size,
 			       (int)(eddp->skb->len - eddp->skb_offset));
 		/* prepare qdio hdr */
 		if (eddp->qh.hdr.l2.id == QETH_HEADER_TYPE_LAYER2){
@@ -515,20 +515,20 @@ qeth_eddp_calc_num_pages(struct qeth_eddp_context *ctx, struct sk_buff *skb,
 
 	QETH_DBF_TEXT(trace, 5, "eddpcanp");
 	/* can we put multiple skbs in one page? */
-	skbs_per_page = PAGE_SIZE / (skb_shinfo(skb)->tso_size + hdr_len);
+	skbs_per_page = PAGE_SIZE / (skb_shinfo(skb)->gso_size + hdr_len);
 	if (skbs_per_page > 1){
-		ctx->num_pages = (skb_shinfo(skb)->tso_segs + 1) /
+		ctx->num_pages = (skb_shinfo(skb)->gso_segs + 1) /
 				 skbs_per_page + 1;
 		ctx->elements_per_skb = 1;
 	} else {
 		/* no -> how many elements per skb? */
-		ctx->elements_per_skb = (skb_shinfo(skb)->tso_size + hdr_len +
+		ctx->elements_per_skb = (skb_shinfo(skb)->gso_size + hdr_len +
 				     PAGE_SIZE) >> PAGE_SHIFT;
 		ctx->num_pages = ctx->elements_per_skb *
-				 (skb_shinfo(skb)->tso_segs + 1);
+				 (skb_shinfo(skb)->gso_segs + 1);
 	}
 	ctx->num_elements = ctx->elements_per_skb *
-			    (skb_shinfo(skb)->tso_segs + 1);
+			    (skb_shinfo(skb)->gso_segs + 1);
 }
 
 static inline struct qeth_eddp_context *
