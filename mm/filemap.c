@@ -190,8 +190,8 @@ int __filemap_fdatawrite_range(struct address_space *mapping, loff_t start,
 	struct writeback_control wbc = {
 		.sync_mode = sync_mode,
 		.nr_to_write = mapping->nrpages * 2,
-		.start = start,
-		.end = end,
+		.range_start = start,
+		.range_end = end,
 	};
 
 	if (!mapping_cap_writeback_dirty(mapping))
@@ -204,7 +204,7 @@ int __filemap_fdatawrite_range(struct address_space *mapping, loff_t start,
 static inline int __filemap_fdatawrite(struct address_space *mapping,
 	int sync_mode)
 {
-	return __filemap_fdatawrite_range(mapping, 0, 0, sync_mode);
+	return __filemap_fdatawrite_range(mapping, 0, LLONG_MAX, sync_mode);
 }
 
 int filemap_fdatawrite(struct address_space *mapping)

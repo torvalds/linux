@@ -339,6 +339,8 @@ pageout_t pageout(struct page *page, struct address_space *mapping)
 		struct writeback_control wbc = {
 			.sync_mode = WB_SYNC_NONE,
 			.nr_to_write = SWAP_CLUSTER_MAX,
+			.range_start = 0,
+			.range_end = LLONG_MAX,
 			.nonblocking = 1,
 			.for_reclaim = 1,
 		};
