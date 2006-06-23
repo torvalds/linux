@@ -48,12 +48,14 @@ union swap_header {
 		char magic[10];			/* SWAP-SPACE or SWAPSPACE2 */
 	} magic;
 	struct {
-		char	     bootbits[1024];	/* Space for disklabel etc. */
-		unsigned int version;
-		unsigned int last_page;
-		unsigned int nr_badpages;
-		unsigned int padding[125];
-		unsigned int badpages[1];
+		char		bootbits[1024];	/* Space for disklabel etc. */
+		__u32		version;
+		__u32		last_page;
+		__u32		nr_badpages;
+		unsigned char	sws_uuid[16];
+		unsigned char	sws_volume[16];
+		__u32		padding[117];
+		__u32		badpages[1];
 	} info;
 };
 
