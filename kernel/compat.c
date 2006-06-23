@@ -938,7 +938,7 @@ asmlinkage long compat_sys_adjtimex(struct compat_timex __user *utp)
 
 #ifdef CONFIG_NUMA
 asmlinkage long compat_sys_move_pages(pid_t pid, unsigned long nr_pages,
-		void __user *pages32,
+		compat_uptr_t __user *pages32,
 		const int __user *nodes,
 		int __user *status,
 		int flags)
@@ -950,7 +950,7 @@ asmlinkage long compat_sys_move_pages(pid_t pid, unsigned long nr_pages,
 	for (i = 0; i < nr_pages; i++) {
 		compat_uptr_t p;
 
-		if (get_user(p, (compat_uptr_t *)(pages32 + i)) ||
+		if (get_user(p, pages32 + i) ||
 			put_user(compat_ptr(p), pages + i))
 			return -EFAULT;
 	}
