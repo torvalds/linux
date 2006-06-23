@@ -834,14 +834,7 @@ static int __posix_lock_file_conf(struct inode *inode, struct file_lock *request
 	if (request->fl_flags & FL_ACCESS)
 		goto out;
 
-	error = -ENOLCK; /* "no luck" */
-	if (!(new_fl && new_fl2))
-		goto out;
-
 	/*
-	 * We've allocated the new locks in advance, so there are no
-	 * errors possible (and no blocking operations) from here on.
-	 * 
 	 * Find the first old lock with the same owner as the new lock.
 	 */
 	
@@ -938,10 +931,25 @@ static int __posix_lock_file_conf(struct inode *inode, struct file_lock *request
 		before = &fl->fl_next;
 	}
 
+	/*
+	 * The above code only modifies existing locks in case of
+	 * merging or replacing.  If new lock(s) need to be inserted
+	 * all modifications are done bellow this, so it's safe yet to
+	 * bail out.
+	 */
+	error = -ENOLCK; /* "no luck" */
+	if (right && left == right && !new_fl2)
+		goto out;
+
 	error = 0;
 	if (!added) {
 		if (request->fl_type == F_UNLCK)
 			goto out;
+
+		if (!new_fl) {
+			error = -ENOLCK;
+			goto out;
+		}
 		locks_copy_lock(new_fl, request);
 		locks_insert_lock(before, new_fl);
 		new_fl = NULL;
