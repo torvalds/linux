@@ -113,7 +113,7 @@ void __init apic_intr_init(void)
 }
 
 /* Using APIC to generate smp_local_timer_interrupt? */
-int using_apic_timer = 0;
+int using_apic_timer __read_mostly = 0;
 
 static int enabled_via_apicbase;
 
