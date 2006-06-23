@@ -85,7 +85,9 @@ Code	Seq#	Include File		Comments
 					<mailto:maassen@uni-freiburg.de>
 'C'	all	linux/soundcard.h
 'D'	all	asm-s390/dasd.h
+'E'	all	linux/input.h
 'F'	all	linux/fb.h
+'H'	all	linux/hiddev.h
 'I'	all	linux/isdn.h
 'J'	00-1F	drivers/scsi/gdth_ioctl.h
 'K'	all	linux/kd.h
