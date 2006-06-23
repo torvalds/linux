@@ -11,7 +11,7 @@
 #include <linux/kallsyms.h>
 #include <linux/interrupt.h>
 
-static int irqfixup;
+static int irqfixup __read_mostly;
 
 /*
  * Recovery handler for misrouted interrupts.
@@ -136,9 +136,9 @@ static void report_bad_irq(unsigned int irq, irq_desc_t *desc, irqreturn_t actio
 void note_interrupt(unsigned int irq, irq_desc_t *desc, irqreturn_t action_ret,
 			struct pt_regs *regs)
 {
-	if (action_ret != IRQ_HANDLED) {
+	if (unlikely(action_ret != IRQ_HANDLED)) {
 		desc->irqs_unhandled++;
-		if (action_ret != IRQ_NONE)
+		if (unlikely(action_ret != IRQ_NONE))
 			report_bad_irq(irq, desc, action_ret);
 	}
 
@@ -152,11 +152,11 @@ void note_interrupt(unsigned int irq, irq_desc_t *desc, irqreturn_t action_ret,
 	}
 
 	desc->irq_count++;
-	if (desc->irq_count < 100000)
+	if (likely(desc->irq_count < 100000))
 		return;
 
 	desc->irq_count = 0;
-	if (desc->irqs_unhandled > 99900) {
+	if (unlikely(desc->irqs_unhandled > 99900)) {
 		/*
 		 * The interrupt is stuck
 		 */
@@ -171,7 +171,7 @@ void note_interrupt(unsigned int irq, irq_desc_t *desc, irqreturn_t action_ret,
 	desc->irqs_unhandled = 0;
 }
 
-int noirqdebug;
+int noirqdebug __read_mostly;
 
 int __init noirqdebug_setup(char *str)
 {
