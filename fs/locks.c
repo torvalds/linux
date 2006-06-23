@@ -794,7 +794,8 @@ out:
 static int __posix_lock_file_conf(struct inode *inode, struct file_lock *request, struct file_lock *conflock)
 {
 	struct file_lock *fl;
-	struct file_lock *new_fl, *new_fl2;
+	struct file_lock *new_fl = NULL;
+	struct file_lock *new_fl2 = NULL;
 	struct file_lock *left = NULL;
 	struct file_lock *right = NULL;
 	struct file_lock **before;
@@ -803,9 +804,15 @@ static int __posix_lock_file_conf(struct inode *inode, struct file_lock *request
 	/*
 	 * We may need two file_lock structures for this operation,
 	 * so we get them in advance to avoid races.
+	 *
+	 * In some cases we can be sure, that no new locks will be needed
 	 */
-	new_fl = locks_alloc_lock();
-	new_fl2 = locks_alloc_lock();
+	if (!(request->fl_flags & FL_ACCESS) &&
+	    (request->fl_type != F_UNLCK ||
+	     request->fl_start != 0 || request->fl_end != OFFSET_MAX)) {
+		new_fl = locks_alloc_lock();
+		new_fl2 = locks_alloc_lock();
+	}
 
 	lock_kernel();
 	if (request->fl_type != F_UNLCK) {
