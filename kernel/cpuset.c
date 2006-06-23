@@ -41,6 +41,7 @@
 #include <linux/rcupdate.h>
 #include <linux/sched.h>
 #include <linux/seq_file.h>
+#include <linux/security.h>
 #include <linux/slab.h>
 #include <linux/smp_lock.h>
 #include <linux/spinlock.h>
@@ -1177,6 +1178,7 @@ static int attach_task(struct cpuset *cs, char *pidbuf, char **ppathbuf)
 	cpumask_t cpus;
 	nodemask_t from, to;
 	struct mm_struct *mm;
+	int retval;
 
 	if (sscanf(pidbuf, "%d", &pid) != 1)
 		return -EIO;
@@ -1203,6 +1205,12 @@ static int attach_task(struct cpuset *cs, char *pidbuf, char **ppathbuf)
 	} else {
 		tsk = current;
 		get_task_struct(tsk);
+	}
+
+	retval = security_task_setscheduler(tsk, 0, NULL);
+	if (retval) {
+		put_task_struct(tsk);
+		return retval;
 	}
 
 	mutex_lock(&callback_mutex);
