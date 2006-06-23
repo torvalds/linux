@@ -796,26 +796,26 @@ static void __init clock_assign_clk_reg(struct linux_prom_registers *clk_reg,
 
 static int __init clock_probe_central(void)
 {
-	struct linux_prom_registers clk_reg[2];
-	char model[64];
-	int node;
+	struct linux_prom_registers clk_reg[2], *pr;
+	struct device_node *dp;
+	char *model;
 
 	if (!central_bus)
 		return 0;
 
 	/* Get Central FHC's prom node.  */
-	node = central_bus->child->prom_node;
+	dp = central_bus->child->prom_node;
 
 	/* Then get the first child device below it.  */
-	node = prom_getchild(node);
+	dp = dp->child;
 
-	while (node) {
-		prom_getstring(node, "model", model, sizeof(model));
-		if (!clock_model_matches(model))
+	while (dp) {
+		model = of_get_property(dp, "model", NULL);
+		if (!model || !clock_model_matches(model))
 			goto next_sibling;
 
-		prom_getproperty(node, "reg", (char *)clk_reg,
-				 sizeof(clk_reg));
+		pr = of_get_property(dp, "reg", NULL);
+		memcpy(clk_reg, pr, sizeof(clk_reg));
 
 		apply_fhc_ranges(central_bus->child, clk_reg, 1);
 		apply_central_ranges(central_bus, clk_reg, 1);
@@ -824,7 +824,7 @@ static int __init clock_probe_central(void)
 		return 1;
 
 	next_sibling:
-		node = prom_getsibling(node);
+		dp = dp->sibling;
 	}
 
 	return 0;

@@ -10,6 +10,7 @@
 #include <linux/timer.h>
 
 #include <asm/oplib.h>
+#include <asm/prom.h>
 #include <asm/upa.h>
 
 struct linux_fhc;
@@ -34,8 +35,7 @@ struct linux_central {
 	unsigned long			clkregs;
 	unsigned long			clkver;
 	int				slots;
-	int				prom_node;
-	char				prom_name[64];
+	struct device_node		*prom_node;
 
 	struct linux_prom_ranges	central_ranges[PROMREG_MAX];
 	int				num_central_ranges;
@@ -112,8 +112,7 @@ struct linux_fhc {
 	struct fhc_regs			fhc_regs;
 	int				board;
 	int				jtag_master;
-	int				prom_node;
-	char				prom_name[64];
+	struct device_node		*prom_node;
 
 	struct linux_prom_ranges	fhc_ranges[PROMREG_MAX];
 	int				num_fhc_ranges;
