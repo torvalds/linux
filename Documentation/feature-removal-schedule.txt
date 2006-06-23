@@ -33,21 +33,6 @@ Who:	Adrian Bunk <bunk@stusta.de>
 
 ---------------------------
 
-What:	RCU API moves to EXPORT_SYMBOL_GPL
-When:	April 2006
-Files:	include/linux/rcupdate.h, kernel/rcupdate.c
-Why:	Outside of Linux, the only implementations of anything even
-	vaguely resembling RCU that I am aware of are in DYNIX/ptx,
-	VM/XA, Tornado, and K42.  I do not expect anyone to port binary
-	drivers or kernel modules from any of these, since the first two
-	are owned by IBM and the last two are open-source research OSes.
-	So these will move to GPL after a grace period to allow
-	people, who might be using implementations that I am not aware
-	of, to adjust to this upcoming change.
-Who:	Paul E. McKenney <paulmck@us.ibm.com>
-
----------------------------
-
 What:	raw1394: requests of type RAW1394_REQ_ISO_SEND, RAW1394_REQ_ISO_LISTEN
 When:	November 2006
 Why:	Deprecated in favour of the new ioctl-based rawiso interface, which is
