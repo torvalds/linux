@@ -772,10 +772,8 @@ static int try_to_unuse(unsigned int type)
 			while (*swap_map > 1 && !retval &&
 					(p = p->next) != &start_mm->mmlist) {
 				mm = list_entry(p, struct mm_struct, mmlist);
-				if (atomic_inc_return(&mm->mm_users) == 1) {
-					atomic_dec(&mm->mm_users);
+				if (!atomic_inc_not_zero(&mm->mm_users))
 					continue;
-				}
 				spin_unlock(&mmlist_lock);
 				mmput(prev_mm);
 				prev_mm = mm;
