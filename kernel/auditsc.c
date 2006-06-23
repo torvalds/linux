@@ -1558,6 +1558,7 @@ int __audit_ipc_obj(struct kern_ipc_perm *ipcp)
  * @uid: msgq user id
  * @gid: msgq group id
  * @mode: msgq mode (permissions)
+ * @ipcp: in-kernel IPC permissions
  *
  * Returns 0 for success or NULL context or < 0 on error.
  */
