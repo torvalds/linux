@@ -331,6 +331,8 @@ static __always_inline int index_of(const size_t size)
 	return 0;
 }
 
+static int slab_early_init = 1;
+
 #define INDEX_AC index_of(sizeof(struct arraycache_init))
 #define INDEX_L3 index_of(sizeof(struct kmem_list3))
 
@@ -1376,6 +1378,8 @@ void __init kmem_cache_init(void)
 				NULL, NULL);
 	}
 
+	slab_early_init = 0;
+
 	while (sizes->cs_size != ULONG_MAX) {
 		/*
 		 * For performance, all the general caches are L1 aligned.
@@ -2106,8 +2110,12 @@ kmem_cache_create (const char *name, size_t size, size_t align,
 #endif
 #endif
 
-	/* Determine if the slab management is 'on' or 'off' slab. */
-	if (size >= (PAGE_SIZE >> 3))
+	/*
+	 * Determine if the slab management is 'on' or 'off' slab.
+	 * (bootstrapping cannot cope with offslab caches so don't do
+	 * it too early on.)
+	 */
+	if ((size >= (PAGE_SIZE >> 3)) && !slab_early_init)
 		/*
 		 * Size is large, assume best to place the slab management obj
 		 * off-slab (should allow better packing of objs).
