@@ -328,7 +328,7 @@ int rtas_call(int token, int nargs, int nret, int *outputs, ...)
 	char *buff_copy = NULL;
 	int ret;
 
-	if (token == RTAS_UNKNOWN_SERVICE)
+	if (!rtas.entry || token == RTAS_UNKNOWN_SERVICE)
 		return -1;
 
 	/* Gotta do something different here, use global lock for now... */
