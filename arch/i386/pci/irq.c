@@ -198,14 +198,14 @@ static void write_config_nybble(struct pci_dev *router, unsigned offset, unsigne
  */
 static int pirq_ali_get(struct pci_dev *router, struct pci_dev *dev, int pirq)
 {
-	static unsigned char irqmap[16] = { 0, 9, 3, 10, 4, 5, 7, 6, 1, 11, 0, 12, 0, 14, 0, 15 };
+	static const unsigned char irqmap[16] = { 0, 9, 3, 10, 4, 5, 7, 6, 1, 11, 0, 12, 0, 14, 0, 15 };
 
 	return irqmap[read_config_nybble(router, 0x48, pirq-1)];
 }
 
 static int pirq_ali_set(struct pci_dev *router, struct pci_dev *dev, int pirq, int irq)
 {
-	static unsigned char irqmap[16] = { 0, 8, 0, 2, 4, 5, 7, 6, 0, 1, 3, 9, 11, 0, 13, 15 };
+	static const unsigned char irqmap[16] = { 0, 8, 0, 2, 4, 5, 7, 6, 0, 1, 3, 9, 11, 0, 13, 15 };
 	unsigned int val = irqmap[irq];
 		
 	if (val) {
@@ -256,13 +256,13 @@ static int pirq_via_set(struct pci_dev *router, struct pci_dev *dev, int pirq, i
  */
 static int pirq_via586_get(struct pci_dev *router, struct pci_dev *dev, int pirq)
 {
-	static unsigned int pirqmap[4] = { 3, 2, 5, 1 };
+	static const unsigned int pirqmap[4] = { 3, 2, 5, 1 };
 	return read_config_nybble(router, 0x55, pirqmap[pirq-1]);
 }
 
 static int pirq_via586_set(struct pci_dev *router, struct pci_dev *dev, int pirq, int irq)
 {
-	static unsigned int pirqmap[4] = { 3, 2, 5, 1 };
+	static const unsigned int pirqmap[4] = { 3, 2, 5, 1 };
 	write_config_nybble(router, 0x55, pirqmap[pirq-1], irq);
 	return 1;
 }
@@ -274,13 +274,13 @@ static int pirq_via586_set(struct pci_dev *router, struct pci_dev *dev, int pirq
  */
 static int pirq_ite_get(struct pci_dev *router, struct pci_dev *dev, int pirq)
 {
-	static unsigned char pirqmap[4] = { 1, 0, 2, 3 };
+	static const unsigned char pirqmap[4] = { 1, 0, 2, 3 };
 	return read_config_nybble(router,0x43, pirqmap[pirq-1]);
 }
 
 static int pirq_ite_set(struct pci_dev *router, struct pci_dev *dev, int pirq, int irq)
 {
-	static unsigned char pirqmap[4] = { 1, 0, 2, 3 };
+	static const unsigned char pirqmap[4] = { 1, 0, 2, 3 };
 	write_config_nybble(router, 0x43, pirqmap[pirq-1], irq);
 	return 1;
 }
@@ -505,7 +505,7 @@ static int pirq_bios_set(struct pci_dev *router, struct pci_dev *dev, int pirq, 
 
 static __init int intel_router_probe(struct irq_router *r, struct pci_dev *router, u16 device)
 {
-	static struct pci_device_id pirq_440gx[] = {
+	static struct pci_device_id __initdata pirq_440gx[] = {
 		{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82443GX_0) },
 		{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82443GX_2) },
 		{ },
