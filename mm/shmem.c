@@ -1081,14 +1081,6 @@ repeat:
 			page_cache_release(swappage);
 			goto repeat;
 		}
-		if (!PageSwapCache(swappage)) {
-			/* Page migration has occured */
-			shmem_swp_unmap(entry);
-			spin_unlock(&info->lock);
-			unlock_page(swappage);
-			page_cache_release(swappage);
-			goto repeat;
-		}
 		if (PageWriteback(swappage)) {
 			shmem_swp_unmap(entry);
 			spin_unlock(&info->lock);
