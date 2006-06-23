@@ -383,23 +383,19 @@ EXPORT_SYMBOL(del_timer_sync);
 static int cascade(tvec_base_t *base, tvec_t *tv, int index)
 {
 	/* cascade all the timers from tv up one level */
-	struct list_head *head, *curr;
+	struct timer_list *timer, *tmp;
+	struct list_head tv_list;
 
-	head = tv->vec + index;
-	curr = head->next;
+	list_replace_init(tv->vec + index, &tv_list);
+
 	/*
-	 * We are removing _all_ timers from the list, so we don't  have to
-	 * detach them individually, just clear the list afterwards.
+	 * We are removing _all_ timers from the list, so we
+	 * don't have to detach them individually.
 	 */
-	while (curr != head) {
-		struct timer_list *tmp;
-
-		tmp = list_entry(curr, struct timer_list, entry);
-		BUG_ON(tmp->base != base);
-		curr = curr->next;
-		internal_add_timer(base, tmp);
+	list_for_each_entry_safe(timer, tmp, &tv_list, entry) {
+		BUG_ON(timer->base != base);
+		internal_add_timer(base, timer);
 	}
-	INIT_LIST_HEAD(head);
 
 	return index;
 }
