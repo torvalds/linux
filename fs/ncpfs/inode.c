@@ -39,7 +39,7 @@
 
 static void ncp_delete_inode(struct inode *);
 static void ncp_put_super(struct super_block *);
-static int  ncp_statfs(struct super_block *, struct kstatfs *);
+static int  ncp_statfs(struct dentry *, struct kstatfs *);
 
 static kmem_cache_t * ncp_inode_cachep;
 
@@ -724,13 +724,14 @@ static void ncp_put_super(struct super_block *sb)
 	kfree(server);
 }
 
-static int ncp_statfs(struct super_block *sb, struct kstatfs *buf)
+static int ncp_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	struct dentry* d;
 	struct inode* i;
 	struct ncp_inode_info* ni;
 	struct ncp_server* s;
 	struct ncp_volume_info vi;
+	struct super_block *sb = dentry->d_sb;
 	int err;
 	__u8 dh;
 	

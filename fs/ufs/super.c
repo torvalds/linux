@@ -1113,8 +1113,9 @@ static int ufs_remount (struct super_block *sb, int *mount_flags, char *data)
 	return 0;
 }
 
-static int ufs_statfs (struct super_block *sb, struct kstatfs *buf)
+static int ufs_statfs (struct dentry *dentry, struct kstatfs *buf)
 {
+	struct super_block *sb = dentry->d_sb;
 	struct ufs_sb_private_info * uspi;
 	struct ufs_super_block_first * usb1;
 	struct ufs_super_block * usb;

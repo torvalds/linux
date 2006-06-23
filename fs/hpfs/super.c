@@ -135,8 +135,9 @@ static unsigned count_bitmaps(struct super_block *s)
 	return count;
 }
 
-static int hpfs_statfs(struct super_block *s, struct kstatfs *buf)
+static int hpfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
+	struct super_block *s = dentry->d_sb;
 	struct hpfs_sb_info *sbi = hpfs_sb(s);
 	lock_kernel();
 

@@ -31,18 +31,18 @@
 
 #include <asm/unistd.h>
 
-int vfs_statfs(struct super_block *sb, struct kstatfs *buf)
+int vfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	int retval = -ENODEV;
 
-	if (sb) {
+	if (dentry) {
 		retval = -ENOSYS;
-		if (sb->s_op->statfs) {
+		if (dentry->d_sb->s_op->statfs) {
 			memset(buf, 0, sizeof(*buf));
-			retval = security_sb_statfs(sb);
+			retval = security_sb_statfs(dentry);
 			if (retval)
 				return retval;
-			retval = sb->s_op->statfs(sb, buf);
+			retval = dentry->d_sb->s_op->statfs(dentry, buf);
 			if (retval == 0 && buf->f_frsize == 0)
 				buf->f_frsize = buf->f_bsize;
 		}
@@ -52,12 +52,12 @@ int vfs_statfs(struct super_block *sb, struct kstatfs *buf)
 
 EXPORT_SYMBOL(vfs_statfs);
 
-static int vfs_statfs_native(struct super_block *sb, struct statfs *buf)
+static int vfs_statfs_native(struct dentry *dentry, struct statfs *buf)
 {
 	struct kstatfs st;
 	int retval;
 
-	retval = vfs_statfs(sb, &st);
+	retval = vfs_statfs(dentry, &st);
 	if (retval)
 		return retval;
 
@@ -95,12 +95,12 @@ static int vfs_statfs_native(struct super_block *sb, struct statfs *buf)
 	return 0;
 }
 
-static int vfs_statfs64(struct super_block *sb, struct statfs64 *buf)
+static int vfs_statfs64(struct dentry *dentry, struct statfs64 *buf)
 {
 	struct kstatfs st;
 	int retval;
 
-	retval = vfs_statfs(sb, &st);
+	retval = vfs_statfs(dentry, &st);
 	if (retval)
 		return retval;
 
@@ -130,7 +130,7 @@ asmlinkage long sys_statfs(const char __user * path, struct statfs __user * buf)
 	error = user_path_walk(path, &nd);
 	if (!error) {
 		struct statfs tmp;
-		error = vfs_statfs_native(nd.dentry->d_inode->i_sb, &tmp);
+		error = vfs_statfs_native(nd.dentry, &tmp);
 		if (!error && copy_to_user(buf, &tmp, sizeof(tmp)))
 			error = -EFAULT;
 		path_release(&nd);
@@ -149,7 +149,7 @@ asmlinkage long sys_statfs64(const char __user *path, size_t sz, struct statfs64
 	error = user_path_walk(path, &nd);
 	if (!error) {
 		struct statfs64 tmp;
-		error = vfs_statfs64(nd.dentry->d_inode->i_sb, &tmp);
+		error = vfs_statfs64(nd.dentry, &tmp);
 		if (!error && copy_to_user(buf, &tmp, sizeof(tmp)))
 			error = -EFAULT;
 		path_release(&nd);
@@ -168,7 +168,7 @@ asmlinkage long sys_fstatfs(unsigned int fd, struct statfs __user * buf)
 	file = fget(fd);
 	if (!file)
 		goto out;
-	error = vfs_statfs_native(file->f_dentry->d_inode->i_sb, &tmp);
+	error = vfs_statfs_native(file->f_dentry, &tmp);
 	if (!error && copy_to_user(buf, &tmp, sizeof(tmp)))
 		error = -EFAULT;
 	fput(file);
@@ -189,7 +189,7 @@ asmlinkage long sys_fstatfs64(unsigned int fd, size_t sz, struct statfs64 __user
 	file = fget(fd);
 	if (!file)
 		goto out;
-	error = vfs_statfs64(file->f_dentry->d_inode->i_sb, &tmp);
+	error = vfs_statfs64(file->f_dentry, &tmp);
 	if (!error && copy_to_user(buf, &tmp, sizeof(tmp)))
 		error = -EFAULT;
 	fput(file);

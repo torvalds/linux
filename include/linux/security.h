@@ -171,9 +171,9 @@ struct swap_info_struct;
  *	Deallocate and clear the sb->s_security field.
  *	@sb contains the super_block structure to be modified.
  * @sb_statfs:
- *	Check permission before obtaining filesystem statistics for the @sb
- *	filesystem.
- *	@sb contains the super_block structure for the filesystem.
+ *	Check permission before obtaining filesystem statistics for the @mnt
+ *	mountpoint.
+ *	@dentry is a handle on the superblock for the filesystem.
  *	Return 0 if permission is granted.  
  * @sb_mount:
  *	Check permission before an object specified by @dev_name is mounted on
@@ -1127,7 +1127,7 @@ struct security_operations {
 	int (*sb_copy_data)(struct file_system_type *type,
 			    void *orig, void *copy);
 	int (*sb_kern_mount) (struct super_block *sb, void *data);
-	int (*sb_statfs) (struct super_block * sb);
+	int (*sb_statfs) (struct dentry *dentry);
 	int (*sb_mount) (char *dev_name, struct nameidata * nd,
 			 char *type, unsigned long flags, void *data);
 	int (*sb_check_sb) (struct vfsmount * mnt, struct nameidata * nd);
@@ -1450,9 +1450,9 @@ static inline int security_sb_kern_mount (struct super_block *sb, void *data)
 	return security_ops->sb_kern_mount (sb, data);
 }
 
-static inline int security_sb_statfs (struct super_block *sb)
+static inline int security_sb_statfs (struct dentry *dentry)
 {
-	return security_ops->sb_statfs (sb);
+	return security_ops->sb_statfs (dentry);
 }
 
 static inline int security_sb_mount (char *dev_name, struct nameidata *nd,
@@ -2162,7 +2162,7 @@ static inline int security_sb_kern_mount (struct super_block *sb, void *data)
 	return 0;
 }
 
-static inline int security_sb_statfs (struct super_block *sb)
+static inline int security_sb_statfs (struct dentry *dentry)
 {
 	return 0;
 }

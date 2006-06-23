@@ -191,7 +191,7 @@ static int dummy_sb_kern_mount (struct super_block *sb, void *data)
 	return 0;
 }
 
-static int dummy_sb_statfs (struct super_block *sb)
+static int dummy_sb_statfs (struct dentry *dentry)
 {
 	return 0;
 }

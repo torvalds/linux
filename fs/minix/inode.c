@@ -19,7 +19,7 @@
 
 static void minix_read_inode(struct inode * inode);
 static int minix_write_inode(struct inode * inode, int wait);
-static int minix_statfs(struct super_block *sb, struct kstatfs *buf);
+static int minix_statfs(struct dentry *dentry, struct kstatfs *buf);
 static int minix_remount (struct super_block * sb, int * flags, char * data);
 
 static void minix_delete_inode(struct inode *inode)
@@ -296,11 +296,11 @@ out_bad_sb:
 	return -EINVAL;
 }
 
-static int minix_statfs(struct super_block *sb, struct kstatfs *buf)
+static int minix_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
-	struct minix_sb_info *sbi = minix_sb(sb);
-	buf->f_type = sb->s_magic;
-	buf->f_bsize = sb->s_blocksize;
+	struct minix_sb_info *sbi = minix_sb(dentry->d_sb);
+	buf->f_type = dentry->d_sb->s_magic;
+	buf->f_bsize = dentry->d_sb->s_blocksize;
 	buf->f_blocks = (sbi->s_nzones - sbi->s_firstdatazone) << sbi->s_log_zone_size;
 	buf->f_bfree = minix_count_free_blocks(sbi);
 	buf->f_bavail = buf->f_bfree;

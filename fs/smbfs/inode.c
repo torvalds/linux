@@ -48,7 +48,7 @@
 
 static void smb_delete_inode(struct inode *);
 static void smb_put_super(struct super_block *);
-static int  smb_statfs(struct super_block *, struct kstatfs *);
+static int  smb_statfs(struct dentry *, struct kstatfs *);
 static int  smb_show_options(struct seq_file *, struct vfsmount *);
 
 static kmem_cache_t *smb_inode_cachep;
@@ -641,13 +641,13 @@ out_no_server:
 }
 
 static int
-smb_statfs(struct super_block *sb, struct kstatfs *buf)
+smb_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	int result;
 	
 	lock_kernel();
 
-	result = smb_proc_dskattr(sb, buf);
+	result = smb_proc_dskattr(dentry, buf);
 
 	unlock_kernel();
 

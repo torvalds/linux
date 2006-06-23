@@ -166,8 +166,9 @@ cifs_put_super(struct super_block *sb)
 }
 
 static int
-cifs_statfs(struct super_block *sb, struct kstatfs *buf)
+cifs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
+	struct super_block *sb = dentry->d_sb;
 	int xid; 
 	int rc = -EOPNOTSUPP;
 	struct cifs_sb_info *cifs_sb;

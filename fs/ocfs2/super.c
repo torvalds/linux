@@ -100,7 +100,7 @@ static int ocfs2_initialize_mem_caches(void);
 static void ocfs2_free_mem_caches(void);
 static void ocfs2_delete_osb(struct ocfs2_super *osb);
 
-static int ocfs2_statfs(struct super_block *sb, struct kstatfs *buf);
+static int ocfs2_statfs(struct dentry *dentry, struct kstatfs *buf);
 
 static int ocfs2_sync_fs(struct super_block *sb, int wait);
 
@@ -857,7 +857,7 @@ static void ocfs2_put_super(struct super_block *sb)
 	mlog_exit_void();
 }
 
-static int ocfs2_statfs(struct super_block *sb, struct kstatfs *buf)
+static int ocfs2_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	struct ocfs2_super *osb;
 	u32 numbits, freebits;
@@ -866,9 +866,9 @@ static int ocfs2_statfs(struct super_block *sb, struct kstatfs *buf)
 	struct buffer_head *bh = NULL;
 	struct inode *inode = NULL;
 
-	mlog_entry("(%p, %p)\n", sb, buf);
+	mlog_entry("(%p, %p)\n", dentry->d_sb, buf);
 
-	osb = OCFS2_SB(sb);
+	osb = OCFS2_SB(dentry->d_sb);
 
 	inode = ocfs2_get_system_file_inode(osb,
 					    GLOBAL_BITMAP_SYSTEM_INODE,
@@ -891,7 +891,7 @@ static int ocfs2_statfs(struct super_block *sb, struct kstatfs *buf)
 	freebits = numbits - le32_to_cpu(bm_lock->id1.bitmap1.i_used);
 
 	buf->f_type = OCFS2_SUPER_MAGIC;
-	buf->f_bsize = sb->s_blocksize;
+	buf->f_bsize = dentry->d_sb->s_blocksize;
 	buf->f_namelen = OCFS2_MAX_FILENAME_LEN;
 	buf->f_blocks = ((sector_t) numbits) *
 			(osb->s_clustersize >> osb->sb->s_blocksize_bits);

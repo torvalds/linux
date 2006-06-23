@@ -2601,10 +2601,10 @@ static unsigned long __get_nr_free_mft_records(ntfs_volume *vol,
 
 /**
  * ntfs_statfs - return information about mounted NTFS volume
- * @sb:		super block of mounted volume
+ * @dentry:	dentry from mounted volume
  * @sfs:	statfs structure in which to return the information
  *
- * Return information about the mounted NTFS volume @sb in the statfs structure
+ * Return information about the mounted NTFS volume @dentry in the statfs structure
  * pointed to by @sfs (this is initialized with zeros before ntfs_statfs is
  * called). We interpret the values to be correct of the moment in time at
  * which we are called. Most values are variable otherwise and this isn't just
@@ -2617,8 +2617,9 @@ static unsigned long __get_nr_free_mft_records(ntfs_volume *vol,
  *
  * Return 0 on success or -errno on error.
  */
-static int ntfs_statfs(struct super_block *sb, struct kstatfs *sfs)
+static int ntfs_statfs(struct dentry *dentry, struct kstatfs *sfs)
 {
+	struct super_block *sb = dentry->d_sb;
 	s64 size;
 	ntfs_volume *vol = NTFS_SB(sb);
 	ntfs_inode *mft_ni = NTFS_I(vol->mft_ino);

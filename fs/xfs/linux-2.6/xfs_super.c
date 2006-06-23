@@ -684,10 +684,10 @@ xfs_fs_sync_super(
 
 STATIC int
 xfs_fs_statfs(
-	struct super_block	*sb,
+	struct dentry		*dentry,
 	struct kstatfs		*statp)
 {
-	return -bhv_vfs_statvfs(vfs_from_sb(sb), statp, NULL);
+	return -bhv_vfs_statvfs(vfs_from_sb(dentry->d_sb), statp, NULL);
 }
 
 STATIC int

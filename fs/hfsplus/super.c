@@ -212,8 +212,10 @@ static void hfsplus_put_super(struct super_block *sb)
 	sb->s_fs_info = NULL;
 }
 
-static int hfsplus_statfs(struct super_block *sb, struct kstatfs *buf)
+static int hfsplus_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
+	struct super_block *sb = dentry->d_sb;
+
 	buf->f_type = HFSPLUS_SUPER_MAGIC;
 	buf->f_bsize = sb->s_blocksize;
 	buf->f_blocks = HFSPLUS_SB(sb).total_blocks << HFSPLUS_SB(sb).fs_shift;

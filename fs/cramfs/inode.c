@@ -322,8 +322,10 @@ out:
 	return -EINVAL;
 }
 
-static int cramfs_statfs(struct super_block *sb, struct kstatfs *buf)
+static int cramfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
+	struct super_block *sb = dentry->d_sb;
+
 	buf->f_type = CRAMFS_MAGIC;
 	buf->f_bsize = PAGE_CACHE_SIZE;
 	buf->f_blocks = CRAMFS_SB(sb)->blocks;

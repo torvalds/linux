@@ -18,7 +18,7 @@
 
 extern struct timezone sys_tz;
 
-static int affs_statfs(struct super_block *sb, struct kstatfs *buf);
+static int affs_statfs(struct dentry *dentry, struct kstatfs *buf);
 static int affs_remount (struct super_block *sb, int *flags, char *data);
 
 static void
@@ -508,8 +508,9 @@ affs_remount(struct super_block *sb, int *flags, char *data)
 }
 
 static int
-affs_statfs(struct super_block *sb, struct kstatfs *buf)
+affs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
+	struct super_block *sb = dentry->d_sb;
 	int		 free;
 
 	pr_debug("AFFS: statfs() partsize=%d, reserved=%d\n",AFFS_SB(sb)->s_partition_size,

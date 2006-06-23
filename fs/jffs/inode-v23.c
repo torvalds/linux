@@ -377,9 +377,9 @@ jffs_new_inode(const struct inode * dir, struct jffs_raw_inode *raw_inode,
 
 /* Get statistics of the file system.  */
 static int
-jffs_statfs(struct super_block *sb, struct kstatfs *buf)
+jffs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
-	struct jffs_control *c = (struct jffs_control *) sb->s_fs_info;
+	struct jffs_control *c = (struct jffs_control *) dentry->d_sb->s_fs_info;
 	struct jffs_fmcontrol *fmc;
 
 	lock_kernel();

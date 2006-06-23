@@ -58,7 +58,7 @@ static int ext3_sync_fs(struct super_block *sb, int wait);
 static const char *ext3_decode_error(struct super_block * sb, int errno,
 				     char nbuf[16]);
 static int ext3_remount (struct super_block * sb, int * flags, char * data);
-static int ext3_statfs (struct super_block * sb, struct kstatfs * buf);
+static int ext3_statfs (struct dentry * dentry, struct kstatfs * buf);
 static void ext3_unlockfs(struct super_block *sb);
 static void ext3_write_super (struct super_block * sb);
 static void ext3_write_super_lockfs(struct super_block *sb);
@@ -2318,8 +2318,9 @@ restore_opts:
 	return err;
 }
 
-static int ext3_statfs (struct super_block * sb, struct kstatfs * buf)
+static int ext3_statfs (struct dentry * dentry, struct kstatfs * buf)
 {
+	struct super_block *sb = dentry->d_sb;
 	struct ext3_sb_info *sbi = EXT3_SB(sb);
 	struct ext3_super_block *es = sbi->s_es;
 	unsigned long overhead;

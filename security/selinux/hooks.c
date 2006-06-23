@@ -1903,13 +1903,13 @@ static int selinux_sb_kern_mount(struct super_block *sb, void *data)
 	return superblock_has_perm(current, sb, FILESYSTEM__MOUNT, &ad);
 }
 
-static int selinux_sb_statfs(struct super_block *sb)
+static int selinux_sb_statfs(struct dentry *dentry)
 {
 	struct avc_audit_data ad;
 
 	AVC_AUDIT_DATA_INIT(&ad,FS);
-	ad.u.fs.dentry = sb->s_root;
-	return superblock_has_perm(current, sb, FILESYSTEM__GETATTR, &ad);
+	ad.u.fs.dentry = dentry->d_sb->s_root;
+	return superblock_has_perm(current, dentry->d_sb, FILESYSTEM__GETATTR, &ad);
 }
 
 static int selinux_mount(char * dev_name,

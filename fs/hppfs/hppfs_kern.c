@@ -616,7 +616,7 @@ static const struct file_operations hppfs_dir_fops = {
 	.fsync		= hppfs_fsync,
 };
 
-static int hppfs_statfs(struct super_block *sb, struct kstatfs *sf)
+static int hppfs_statfs(struct dentry *dentry, struct kstatfs *sf)
 {
 	sf->f_blocks = 0;
 	sf->f_bfree = 0;

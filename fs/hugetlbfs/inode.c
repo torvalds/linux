@@ -467,9 +467,9 @@ static int hugetlbfs_set_page_dirty(struct page *page)
 	return 0;
 }
 
-static int hugetlbfs_statfs(struct super_block *sb, struct kstatfs *buf)
+static int hugetlbfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
-	struct hugetlbfs_sb_info *sbinfo = HUGETLBFS_SB(sb);
+	struct hugetlbfs_sb_info *sbinfo = HUGETLBFS_SB(dentry->d_sb);
 
 	buf->f_type = HUGETLBFS_MAGIC;
 	buf->f_bsize = HPAGE_SIZE;

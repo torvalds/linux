@@ -1654,9 +1654,9 @@ static ssize_t shmem_file_sendfile(struct file *in_file, loff_t *ppos,
 	return desc.error;
 }
 
-static int shmem_statfs(struct super_block *sb, struct kstatfs *buf)
+static int shmem_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
-	struct shmem_sb_info *sbinfo = SHMEM_SB(sb);
+	struct shmem_sb_info *sbinfo = SHMEM_SB(dentry->d_sb);
 
 	buf->f_type = TMPFS_MAGIC;
 	buf->f_bsize = PAGE_CACHE_SIZE;

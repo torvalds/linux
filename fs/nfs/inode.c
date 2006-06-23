@@ -65,7 +65,7 @@ static int nfs_write_inode(struct inode *,int);
 static void nfs_delete_inode(struct inode *);
 static void nfs_clear_inode(struct inode *);
 static void nfs_umount_begin(struct super_block *);
-static int  nfs_statfs(struct super_block *, struct kstatfs *);
+static int  nfs_statfs(struct dentry *, struct kstatfs *);
 static int  nfs_show_options(struct seq_file *, struct vfsmount *);
 static int  nfs_show_stats(struct seq_file *, struct vfsmount *);
 static void nfs_zap_acl_cache(struct inode *);
@@ -534,8 +534,9 @@ nfs_fill_super(struct super_block *sb, struct nfs_mount_data *data, int silent)
 }
 
 static int
-nfs_statfs(struct super_block *sb, struct kstatfs *buf)
+nfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
+	struct super_block *sb = dentry->d_sb;
 	struct nfs_server *server = NFS_SB(sb);
 	unsigned char blockbits;
 	unsigned long blockres;

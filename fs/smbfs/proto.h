@@ -29,7 +29,7 @@ extern int smb_proc_getattr(struct dentry *dir, struct smb_fattr *fattr);
 extern int smb_proc_setattr(struct dentry *dir, struct smb_fattr *fattr);
 extern int smb_proc_setattr_unix(struct dentry *d, struct iattr *attr, unsigned int major, unsigned int minor);
 extern int smb_proc_settime(struct dentry *dentry, struct smb_fattr *fattr);
-extern int smb_proc_dskattr(struct super_block *sb, struct kstatfs *attr);
+extern int smb_proc_dskattr(struct dentry *dentry, struct kstatfs *attr);
 extern int smb_proc_read_link(struct smb_sb_info *server, struct dentry *d, char *buffer, int len);
 extern int smb_proc_symlink(struct smb_sb_info *server, struct dentry *d, const char *oldpath);
 extern int smb_proc_link(struct smb_sb_info *server, struct dentry *dentry, struct dentry *new_dentry);

@@ -203,8 +203,9 @@ static void bfs_put_super(struct super_block *s)
 	s->s_fs_info = NULL;
 }
 
-static int bfs_statfs(struct super_block *s, struct kstatfs *buf)
+static int bfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
+	struct super_block *s = dentry->d_sb;
 	struct bfs_sb_info *info = BFS_SB(s);
 	u64 id = huge_encode_dev(s->s_bdev->bd_dev);
 	buf->f_type = BFS_MAGIC;

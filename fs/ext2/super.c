@@ -39,7 +39,7 @@
 static void ext2_sync_super(struct super_block *sb,
 			    struct ext2_super_block *es);
 static int ext2_remount (struct super_block * sb, int * flags, char * data);
-static int ext2_statfs (struct super_block * sb, struct kstatfs * buf);
+static int ext2_statfs (struct dentry * dentry, struct kstatfs * buf);
 
 void ext2_error (struct super_block * sb, const char * function,
 		 const char * fmt, ...)
@@ -1038,8 +1038,9 @@ restore_opts:
 	return err;
 }
 
-static int ext2_statfs (struct super_block * sb, struct kstatfs * buf)
+static int ext2_statfs (struct dentry * dentry, struct kstatfs * buf)
 {
+	struct super_block *sb = dentry->d_sb;
 	struct ext2_sb_info *sbi = EXT2_SB(sb);
 	unsigned long overhead;
 	int i;

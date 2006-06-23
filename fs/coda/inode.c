@@ -36,7 +36,7 @@
 /* VFS super_block ops */
 static void coda_clear_inode(struct inode *);
 static void coda_put_super(struct super_block *);
-static int coda_statfs(struct super_block *sb, struct kstatfs *buf);
+static int coda_statfs(struct dentry *dentry, struct kstatfs *buf);
 
 static kmem_cache_t * coda_inode_cachep;
 
@@ -278,13 +278,13 @@ struct inode_operations coda_file_inode_operations = {
 	.setattr	= coda_setattr,
 };
 
-static int coda_statfs(struct super_block *sb, struct kstatfs *buf)
+static int coda_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	int error;
 	
 	lock_kernel();
 
-	error = venus_statfs(sb, buf);
+	error = venus_statfs(dentry, buf);
 
 	unlock_kernel();
 
