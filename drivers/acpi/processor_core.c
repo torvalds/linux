@@ -110,7 +110,7 @@ static struct file_operations acpi_processor_info_fops = {
 };
 
 struct acpi_processor *processors[NR_CPUS];
-struct acpi_processor_errata errata;
+struct acpi_processor_errata errata __read_mostly;
 
 /* --------------------------------------------------------------------------
                                 Errata Handling
