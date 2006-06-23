@@ -638,7 +638,6 @@ static void map_prom_timers(void)
 {
 	struct device_node *dp;
 	unsigned int *addr;
-	int tnode, err;
 
 	/* PROM timer node hangs out in the top level of device siblings... */
 	dp = of_find_node_by_path("/");
