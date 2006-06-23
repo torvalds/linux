@@ -592,6 +592,7 @@ static inline struct kmem_cache *page_get_cache(struct page *page)
 {
 	if (unlikely(PageCompound(page)))
 		page = (struct page *)page_private(page);
+	BUG_ON(!PageSlab(page));
 	return (struct kmem_cache *)page->lru.next;
 }
 
@@ -604,6 +605,7 @@ static inline struct slab *page_get_slab(struct page *page)
 {
 	if (unlikely(PageCompound(page)))
 		page = (struct page *)page_private(page);
+	BUG_ON(!PageSlab(page));
 	return (struct slab *)page->lru.prev;
 }
 
@@ -2669,15 +2671,6 @@ static void *cache_free_debugcheck(struct kmem_cache *cachep, void *objp,
 	kfree_debugcheck(objp);
 	page = virt_to_page(objp);
 
-	if (page_get_cache(page) != cachep) {
-		printk(KERN_ERR "mismatch in kmem_cache_free: expected "
-				"cache %p, got %p\n",
-		       page_get_cache(page), cachep);
-		printk(KERN_ERR "%p is %s.\n", cachep, cachep->name);
-		printk(KERN_ERR "%p is %s.\n", page_get_cache(page),
-		       page_get_cache(page)->name);
-		WARN_ON(1);
-	}
 	slabp = page_get_slab(page);
 
 	if (cachep->flags & SLAB_RED_ZONE) {
@@ -3392,6 +3385,8 @@ EXPORT_SYMBOL(__alloc_percpu);
 void kmem_cache_free(struct kmem_cache *cachep, void *objp)
 {
 	unsigned long flags;
+
+	BUG_ON(virt_to_cache(objp) != cachep);
 
 	local_irq_save(flags);
 	__cache_free(cachep, objp);
