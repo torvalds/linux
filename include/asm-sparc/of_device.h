@@ -1,12 +1,11 @@
-#ifndef _ASM_SPARC64_OF_DEVICE_H
-#define _ASM_SPARC64_OF_DEVICE_H
+#ifndef _ASM_SPARC_OF_DEVICE_H
+#define _ASM_SPARC_OF_DEVICE_H
 #ifdef __KERNEL__
 
 #include <linux/device.h>
 #include <linux/mod_devicetable.h>
 #include <asm/prom.h>
 
-extern struct bus_type isa_bus_type;
 extern struct bus_type ebus_bus_type;
 extern struct bus_type sbus_bus_type;
 
@@ -61,4 +60,4 @@ extern struct of_device *of_platform_device_create(struct device_node *np,
 extern void of_release_dev(struct device *dev);
 
 #endif /* __KERNEL__ */
-#endif /* _ASM_SPARC64_OF_DEVICE_H */
+#endif /* _ASM_SPARC_OF_DEVICE_H */
