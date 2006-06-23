@@ -338,6 +338,53 @@ static struct bin_attribute sysfs_vpd_attr = {
 	.write = qla2x00_sysfs_write_vpd,
 };
 
+static ssize_t
+qla2x00_sysfs_read_sfp(struct kobject *kobj, char *buf, loff_t off,
+    size_t count)
+{
+	struct scsi_qla_host *ha = to_qla_host(dev_to_shost(container_of(kobj,
+	    struct device, kobj)));
+	uint16_t iter, addr, offset;
+	int rval;
+
+	if (!capable(CAP_SYS_ADMIN) || off != 0 || count != SFP_DEV_SIZE * 2)
+		return 0;
+
+	addr = 0xa0;
+	for (iter = 0, offset = 0; iter < (SFP_DEV_SIZE * 2) / SFP_BLOCK_SIZE;
+	    iter++, offset += SFP_BLOCK_SIZE) {
+		if (iter == 4) {
+			/* Skip to next device address. */
+			addr = 0xa2;
+			offset = 0;
+		}
+
+		rval = qla2x00_read_sfp(ha, ha->sfp_data_dma, addr, offset,
+		    SFP_BLOCK_SIZE);
+		if (rval != QLA_SUCCESS) {
+			qla_printk(KERN_WARNING, ha,
+			    "Unable to read SFP data (%x/%x/%x).\n", rval,
+			    addr, offset);
+			count = 0;
+			break;
+		}
+		memcpy(buf, ha->sfp_data, SFP_BLOCK_SIZE);
+		buf += SFP_BLOCK_SIZE;
+	}
+
+	return count;
+}
+
+static struct bin_attribute sysfs_sfp_attr = {
+	.attr = {
+		.name = "sfp",
+		.mode = S_IRUSR | S_IWUSR,
+		.owner = THIS_MODULE,
+	},
+	.size = SFP_DEV_SIZE * 2,
+	.read = qla2x00_sysfs_read_sfp,
+};
+
 void
 qla2x00_alloc_sysfs_attr(scsi_qla_host_t *ha)
 {
@@ -349,6 +396,9 @@ qla2x00_alloc_sysfs_attr(scsi_qla_host_t *ha)
 	sysfs_create_bin_file(&host->shost_gendev.kobj,
 	    &sysfs_optrom_ctl_attr);
 	sysfs_create_bin_file(&host->shost_gendev.kobj, &sysfs_vpd_attr);
+	if (IS_QLA24XX(ha) || IS_QLA54XX(ha))
+		sysfs_create_bin_file(&host->shost_gendev.kobj,
+		    &sysfs_sfp_attr);
 }
 
 void
@@ -362,6 +412,9 @@ qla2x00_free_sysfs_attr(scsi_qla_host_t *ha)
 	sysfs_remove_bin_file(&host->shost_gendev.kobj,
 	    &sysfs_optrom_ctl_attr);
 	sysfs_remove_bin_file(&host->shost_gendev.kobj, &sysfs_vpd_attr);
+	if (IS_QLA24XX(ha) || IS_QLA54XX(ha))
+		sysfs_remove_bin_file(&host->shost_gendev.kobj,
+		    &sysfs_sfp_attr);
 
 	if (ha->beacon_blink_led == 1)
 		ha->isp_ops.beacon_off(ha);

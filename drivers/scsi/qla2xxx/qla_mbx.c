@@ -2503,4 +2503,40 @@ qla2x00_trace_control(scsi_qla_host_t *ha, uint16_t ctrl, dma_addr_t eft_dma,
 	return rval;
 }
 
+int
+qla2x00_read_sfp(scsi_qla_host_t *ha, dma_addr_t sfp_dma, uint16_t addr,
+    uint16_t off, uint16_t count)
+{
+	int rval;
+	mbx_cmd_t mc;
+	mbx_cmd_t *mcp = &mc;
 
+	if (!IS_QLA24XX(ha) && !IS_QLA54XX(ha))
+		return QLA_FUNCTION_FAILED;
+
+	DEBUG11(printk("%s(%ld): entered.\n", __func__, ha->host_no));
+
+	mcp->mb[0] = MBC_READ_SFP;
+	mcp->mb[1] = addr;
+	mcp->mb[2] = MSW(sfp_dma);
+	mcp->mb[3] = LSW(sfp_dma);
+	mcp->mb[6] = MSW(MSD(sfp_dma));
+	mcp->mb[7] = LSW(MSD(sfp_dma));
+	mcp->mb[8] = count;
+	mcp->mb[9] = off;
+	mcp->mb[10] = 0;
+	mcp->out_mb = MBX_10|MBX_9|MBX_8|MBX_7|MBX_6|MBX_3|MBX_2|MBX_1|MBX_0;
+	mcp->in_mb = MBX_0;
+	mcp->tov = 30;
+	mcp->flags = 0;
+	rval = qla2x00_mailbox_command(ha, mcp);
+
+	if (rval != QLA_SUCCESS) {
+		DEBUG2_3_11(printk("%s(%ld): failed=%x (%x).\n", __func__,
+		    ha->host_no, rval, mcp->mb[0]));
+	} else {
+		DEBUG11(printk("%s(%ld): done.\n", __func__, ha->host_no));
+	}
+
+	return rval;
+}

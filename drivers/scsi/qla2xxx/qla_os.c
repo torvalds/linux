@@ -1979,6 +1979,26 @@ qla2x00_mem_alloc(scsi_qla_host_t *ha)
 				continue;
 			}
 			memset(ha->ct_sns, 0, sizeof(struct ct_sns_pkt));
+
+			if (IS_QLA24XX(ha) || IS_QLA54XX(ha)) {
+				/*
+				 * Get consistent memory allocated for SFP
+				 * block.
+				 */
+				ha->sfp_data = dma_pool_alloc(ha->s_dma_pool,
+				    GFP_KERNEL, &ha->sfp_data_dma);
+				if (ha->sfp_data == NULL) {
+					qla_printk(KERN_WARNING, ha,
+					    "Memory Allocation failed - "
+					    "sfp_data\n");
+
+					qla2x00_mem_free(ha);
+					msleep(100);
+
+					continue;
+				}
+				memset(ha->sfp_data, 0, SFP_BLOCK_SIZE);
+			}
 		}
 
 		/* Done all allocations without any error. */
@@ -2033,6 +2053,9 @@ qla2x00_mem_free(scsi_qla_host_t *ha)
 	if (ha->ct_sns)
 		dma_free_coherent(&ha->pdev->dev, sizeof(struct ct_sns_pkt),
 		    ha->ct_sns, ha->ct_sns_dma);
+
+	if (ha->sfp_data)
+		dma_pool_free(ha->s_dma_pool, ha->sfp_data, ha->sfp_data_dma);
 
 	if (ha->ms_iocb)
 		dma_pool_free(ha->s_dma_pool, ha->ms_iocb, ha->ms_iocb_dma);

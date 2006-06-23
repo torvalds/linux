@@ -610,6 +610,7 @@ typedef struct {
 #define MBC_GET_TIMEOUT_PARAMS		0x22	/* Get FW timeouts. */
 #define MBC_TRACE_CONTROL		0x27	/* Trace control command. */
 #define MBC_GEN_SYSTEM_ERROR		0x2a	/* Generate System Error. */
+#define MBC_READ_SFP			0x31	/* Read SFP Data. */
 #define MBC_SET_TIMEOUT_PARAMS		0x32	/* Set FW timeouts. */
 #define MBC_MID_INITIALIZE_FIRMWARE	0x48	/* MID Initialize firmware. */
 #define MBC_MID_GET_VP_DATABASE		0x49	/* MID Get VP Database. */
@@ -2241,6 +2242,11 @@ typedef struct scsi_qla_host {
 	/* SNS command interfaces for 2200. */
 	struct sns_cmd_pkt	*sns_cmd;
 	dma_addr_t		sns_cmd_dma;
+
+#define SFP_DEV_SIZE	256
+#define SFP_BLOCK_SIZE	64
+	void			*sfp_data;
+	dma_addr_t		sfp_data_dma;
 
 	struct task_struct	*dpc_thread;
 	uint8_t dpc_active;                  /* DPC routine is active */
