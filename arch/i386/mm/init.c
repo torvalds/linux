@@ -29,6 +29,7 @@
 #include <linux/efi.h>
 #include <linux/memory_hotplug.h>
 #include <linux/initrd.h>
+#include <linux/cpumask.h>
 
 #include <asm/processor.h>
 #include <asm/system.h>
@@ -384,7 +385,7 @@ static void __init pagetable_init (void)
 #endif
 }
 
-#ifdef CONFIG_SOFTWARE_SUSPEND
+#if defined(CONFIG_SOFTWARE_SUSPEND) || defined(CONFIG_ACPI_SLEEP)
 /*
  * Swap suspend & friends need this for resume because things like the intel-agp
  * driver might have split up a kernel 4MB mapping.

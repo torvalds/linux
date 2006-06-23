@@ -56,7 +56,7 @@ wakeup_code:
 1:
 
 	# set up page table
-	movl	$swapper_pg_dir-__PAGE_OFFSET, %eax
+	movl	$swsusp_pg_dir-__PAGE_OFFSET, %eax
 	movl	%eax, %cr3
 
 	testl	$1, real_efer_save_restore - wakeup_code
