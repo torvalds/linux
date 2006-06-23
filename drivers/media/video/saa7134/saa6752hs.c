@@ -261,45 +261,57 @@ static int saa6752hs_chip_command(struct i2c_client* client,
 
 
 static int saa6752hs_set_bitrate(struct i2c_client* client,
-				 struct v4l2_mpeg_compression* params)
+				 struct saa6752hs_mpeg_params* params)
 {
 	u8 buf[3];
+	int tot_bitrate;
 
 	/* set the bitrate mode */
 	buf[0] = 0x71;
-	buf[1] = (params->vi_bitrate.mode == V4L2_BITRATE_VBR) ? 0 : 1;
+	buf[1] = (params->vi_bitrate_mode == V4L2_MPEG_VIDEO_BITRATE_MODE_VBR) ? 0 : 1;
 	i2c_master_send(client, buf, 2);
 
 	/* set the video bitrate */
-	if (params->vi_bitrate.mode == V4L2_BITRATE_VBR) {
+	if (params->vi_bitrate_mode == V4L2_MPEG_VIDEO_BITRATE_MODE_VBR) {
 		/* set the target bitrate */
 		buf[0] = 0x80;
-		buf[1] = params->vi_bitrate.target >> 8;
-		buf[2] = params->vi_bitrate.target & 0xff;
+		buf[1] = params->vi_bitrate >> 8;
+		buf[2] = params->vi_bitrate & 0xff;
 		i2c_master_send(client, buf, 3);
 
 		/* set the max bitrate */
 		buf[0] = 0x81;
-		buf[1] = params->vi_bitrate.max >> 8;
-		buf[2] = params->vi_bitrate.max & 0xff;
+		buf[1] = params->vi_bitrate_peak >> 8;
+		buf[2] = params->vi_bitrate_peak & 0xff;
 		i2c_master_send(client, buf, 3);
+		tot_bitrate = params->vi_bitrate_peak;
 	} else {
 		/* set the target bitrate (no max bitrate for CBR) */
 		buf[0] = 0x81;
-		buf[1] = params->vi_bitrate.target >> 8;
-		buf[2] = params->vi_bitrate.target & 0xff;
+		buf[1] = params->vi_bitrate >> 8;
+		buf[2] = params->vi_bitrate & 0xff;
 		i2c_master_send(client, buf, 3);
+		tot_bitrate = params->vi_bitrate;
 	}
 
 	/* set the audio bitrate */
 	buf[0] = 0x94;
-	buf[1] = (256 == params->au_bitrate.target) ? 0 : 1;
+	buf[1] = (V4L2_MPEG_AUDIO_L2_BITRATE_256K == params->au_l2_bitrate) ? 0 : 1;
 	i2c_master_send(client, buf, 2);
+	tot_bitrate += (V4L2_MPEG_AUDIO_L2_BITRATE_256K == params->au_l2_bitrate) ? 256 : 384;
+
+	/* Note: the total max bitrate is determined by adding the video and audio
+	   bitrates together and also adding an extra 768kbit/s to stay on the
+	   safe side. If more control should be required, then an extra MPEG control
+	   should be added. */
+	tot_bitrate += 768;
+	if (tot_bitrate > MPEG_TOTAL_TARGET_BITRATE_MAX)
+		tot_bitrate = MPEG_TOTAL_TARGET_BITRATE_MAX;
 
 	/* set the total bitrate */
 	buf[0] = 0xb1;
-	buf[1] = params->st_bitrate.target >> 8;
-	buf[2] = params->st_bitrate.target & 0xff;
+	buf[1] = tot_bitrate >> 8;
+	buf[2] = tot_bitrate & 0xff;
 	i2c_master_send(client, buf, 3);
 
 	return 0;

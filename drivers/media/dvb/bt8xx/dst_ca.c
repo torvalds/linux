@@ -308,100 +308,6 @@ static int ca_get_slot_info(struct dst_state *state, struct ca_slot_info *p_ca_s
 	return 0;
 }
 
-/*	MMI	*/
-static int ca_get_mmi(struct dst_state *state, struct ca_msg *hw_msg, struct ca_msg *mmi_msg)
-{
-	static u8 get_mmi[] = { 0x07, 0x40, 0x00, 0x00, 0x0d, 0x00, 0x00, 0x0f };
-
-	put_checksum(&get_mmi[0], 7);
-	if ((dst_put_ci(state, get_mmi, sizeof (get_mmi), hw_msg->msg, GET_REPLY)) < 0) {
-		dprintk(verbose, DST_CA_ERROR, 1, " -->dst_put_ci FAILED !");
-		return -1;
-	}
-	dprintk(verbose, DST_CA_NOTICE, 1, " -->dst_put_ci SUCCESS !");
-	memcpy(mmi_msg->msg, hw_msg->msg, hw_msg->msg[4]);
-
-	return 0;
-}
-
-/**
- *	Get Menu should be the first MMI function (like open !)
- */
-static int ca_get_menu(struct dst_state *state)
-{
-	static u8 get_menu[] = { 0x07, 0x40, 0x00, 0x00, 0x09, 0x00, 0x00, 0xff };
-
-	put_checksum(&get_menu[0], 7);
-	if ((dst_put_ci(state, get_menu, sizeof (get_menu), get_menu, NO_REPLY)) < 0) {
-		dprintk(verbose, DST_CA_ERROR, 1, " -->dst_put_ci FAILED !");
-		return -1;
-	}
-	dprintk(verbose, DST_CA_NOTICE, 1, " -->dst_put_ci SUCCESS !");
-
-	return 0;
-}
-
-/**
- *	MMI Enq	(Enquire the application to allow user input)
- */
-static int ca_answer_menu(struct dst_state *state, struct ca_msg *hw_msg, struct ca_msg *menu_answ)
-{
-	u8 choice = 0;
-
-	static u8 answer_menu[] = { 0x08, 0x40, 0x00, 0x00, 0x0b, 0x01, 0x00, 0x01, 0xff };
-
-	/*	derive answer from menu (This comes from the user)	*/
-	answer_menu[7] = choice;
-	put_checksum(&answer_menu[0], 7);
-	if ((dst_put_ci(state, answer_menu, sizeof (answer_menu), hw_msg->msg, NO_REPLY)) < 0) {
-		dprintk(verbose, DST_CA_ERROR, 1, " -->dst_put_ci FAILED !");
-		return -1;
-	}
-	dprintk(verbose, DST_CA_NOTICE, 1, " -->dst_put_ci SUCCESS !");
-
-	return 0;
-}
-
-static int ca_answer_mmi(struct dst_state *state, struct ca_msg *hw_msg, struct ca_msg *answ_msg)
-{
-	u8 answer =0, length = 0;
-
-	static u8 answer_mmi[] = { 0x08, 0x40, 0x00, 0x00, 0x08, 0x01, 0x00, 0x01, 0xff };
-
-	/*	derive answer from answ_msg (This comes from the user)	*/
-	if (answer == 0)	/*	0x00 == Cancel	*/
-		answer_mmi[7] = 0x00;
-	else {			/*	0x01 == Answer	*/
-		length = strlen(answ_msg->msg);
-		memcpy(&answer_mmi[8], answ_msg->msg, length);
-		answer_mmi[0] += length;
-		answer_mmi[5] += length;
-	}
-	put_checksum(&answer_mmi[0], (8 + length));
-	if ((dst_put_ci(state, answer_mmi, sizeof (answer_mmi), hw_msg->msg, GET_REPLY)) < 0) {
-		dprintk(verbose, DST_CA_NOTICE, 1, " -->dst_put_ci FAILED !");
-
-		return -1;
-	}
-	dprintk(verbose, DST_CA_NOTICE, 1, " -->dst_put_ci SUCCESS !");
-
-	return 0;
-}
-
-static int ca_close_mmi(struct dst_state *state, struct ca_msg *hw_msg)
-{
-	static u8 close_mmi[] = { 0x07, 0x40, 0x00, 0x00, 0x0e, 0x00, 0x00, 0xff };
-
-	put_checksum(&close_mmi[0], 7);
-	if ((dst_put_ci(state, close_mmi, sizeof (close_mmi), hw_msg->msg, NO_REPLY)) < 0) {
-		dprintk(verbose, DST_CA_ERROR, 1, " -->dst_put_ci FAILED !");
-
-		return -1;
-	}
-	dprintk(verbose, DST_CA_NOTICE, 1, " -->dst_put_ci SUCCESS !");
-
-	return 0;
-}
 
 static int ca_get_message(struct dst_state *state, struct ca_msg *p_ca_message, void __user *arg)
 {
@@ -512,100 +418,6 @@ static int debug_string(u8 *msg, u32 length, u32 offset)
 	return 0;
 }
 
-/*	MMI	*/
-static int ca_get_mmi(struct dst_state *state, struct ca_msg *hw_msg, struct ca_msg *mmi_msg)
-{
-	static u8 get_mmi[] = { 0x07, 0x40, 0x00, 0x00, 0x0d, 0x00, 0x00, 0x0f };
-
-	put_checksum(&get_mmi[0], 7);
-	if ((dst_put_ci(state, get_mmi, sizeof (get_mmi), hw_msg->msg, GET_REPLY)) < 0) {
-		dprintk(verbose, DST_CA_ERROR, 1, " -->dst_put_ci FAILED !");
-		return -1;
-	}
-	dprintk(verbose, DST_CA_NOTICE, 1, " -->dst_put_ci SUCCESS !");
-	memcpy(mmi_msg->msg, hw_msg->msg, hw_msg->msg[4]);
-
-	return 0;
-}
-
-/**
- *	Get Menu should be the first MMI function (like open !)
- */
-static int ca_get_menu(struct dst_state *state)
-{
-	static u8 get_menu[] = { 0x07, 0x40, 0x00, 0x00, 0x09, 0x00, 0x00, 0xff };
-
-	put_checksum(&get_menu[0], 7);
-	if ((dst_put_ci(state, get_menu, sizeof (get_menu), get_menu, NO_REPLY)) < 0) {
-		dprintk(verbose, DST_CA_ERROR, 1, " -->dst_put_ci FAILED !");
-		return -1;
-	}
-	dprintk(verbose, DST_CA_NOTICE, 1, " -->dst_put_ci SUCCESS !");
-
-	return 0;
-}
-
-/**
- *	MMI Enq	(Enquire the application to allow user input)
- */
-static int ca_answer_menu(struct dst_state *state, struct ca_msg *hw_msg, struct ca_msg *menu_answ)
-{
-	u8 choice = 0;
-
-	static u8 answer_menu[] = { 0x08, 0x40, 0x00, 0x00, 0x0b, 0x01, 0x00, 0x01, 0xff };
-
-	/*	derive answer from menu (This comes from the user)	*/
-	answer_menu[7] = choice;
-	put_checksum(&answer_menu[0], 7);
-	if ((dst_put_ci(state, answer_menu, sizeof (answer_menu), hw_msg->msg, NO_REPLY)) < 0) {
-		dprintk(verbose, DST_CA_ERROR, 1, " -->dst_put_ci FAILED !");
-		return -1;
-	}
-	dprintk(verbose, DST_CA_NOTICE, 1, " -->dst_put_ci SUCCESS !");
-
-	return 0;
-}
-
-static int ca_answer_mmi(struct dst_state *state, struct ca_msg *hw_msg, struct ca_msg *answ_msg)
-{
-	u8 answer =0, length = 0;
-
-	static u8 answer_mmi[] = { 0x08, 0x40, 0x00, 0x00, 0x08, 0x01, 0x00, 0x01, 0xff };
-
-	/*	derive answer from answ_msg (This comes from the user)	*/
-	if (answer == 0)	/*	0x00 == Cancel	*/
-		answer_mmi[7] = 0x00;
-	else {			/*	0x01 == Answer	*/
-		length = strlen(answ_msg->msg);
-		memcpy(&answer_mmi[8], answ_msg->msg, length);
-		answer_mmi[0] += length;
-		answer_mmi[5] += length;
-	}
-	put_checksum(&answer_mmi[0], (8 + length));
-	if ((dst_put_ci(state, answer_mmi, sizeof (answer_mmi), hw_msg->msg, GET_REPLY)) < 0) {
-		dprintk(verbose, DST_CA_NOTICE, 1, " -->dst_put_ci FAILED !");
-
-		return -1;
-	}
-	dprintk(verbose, DST_CA_NOTICE, 1, " -->dst_put_ci SUCCESS !");
-
-	return 0;
-}
-
-static int ca_close_mmi(struct dst_state *state, struct ca_msg *hw_msg)
-{
-	static u8 close_mmi[] = { 0x07, 0x40, 0x00, 0x00, 0x0e, 0x00, 0x00, 0xff };
-
-	put_checksum(&close_mmi[0], 7);
-	if ((dst_put_ci(state, close_mmi, sizeof (close_mmi), hw_msg->msg, NO_REPLY)) < 0) {
-		dprintk(verbose, DST_CA_ERROR, 1, " -->dst_put_ci FAILED !");
-
-		return -1;
-	}
-	dprintk(verbose, DST_CA_NOTICE, 1, " -->dst_put_ci SUCCESS !");
-
-	return 0;
-}
 
 static int ca_set_pmt(struct dst_state *state, struct ca_msg *p_ca_message, struct ca_msg *hw_buffer, u8 reply, u8 query)
 {
@@ -750,18 +562,15 @@ static int dst_ca_ioctl(struct inode *inode, struct file *file, unsigned int cmd
 	void __user *arg = (void __user *)ioctl_arg;
 	int result = 0;
 
-	if ((p_ca_message = (struct ca_msg *) kmalloc(sizeof (struct ca_msg), GFP_KERNEL)) == NULL) {
+	p_ca_message = kmalloc(sizeof (struct ca_msg), GFP_KERNEL);
+	p_ca_slot_info = kmalloc(sizeof (struct ca_slot_info), GFP_KERNEL);
+	p_ca_caps = kmalloc(sizeof (struct ca_caps), GFP_KERNEL);
+	if (!p_ca_message || !p_ca_slot_info || !p_ca_caps) {
 		dprintk(verbose, DST_CA_ERROR, 1, " Memory allocation failure");
-		return -ENOMEM;
+		result = -ENOMEM;
+		goto free_mem_and_exit;
 	}
-	if ((p_ca_slot_info = (struct ca_slot_info *) kmalloc(sizeof (struct ca_slot_info), GFP_KERNEL)) == NULL) {
-		dprintk(verbose, DST_CA_ERROR, 1, " Memory allocation failure");
-		return -ENOMEM;
-	}
-	if ((p_ca_caps = (struct ca_caps *) kmalloc(sizeof (struct ca_caps), GFP_KERNEL)) == NULL) {
-		dprintk(verbose, DST_CA_ERROR, 1, " Memory allocation failure");
-		return -ENOMEM;
-	}
+
 	/*	We have now only the standard ioctl's, the driver is upposed to handle internals.	*/
 	switch (cmd) {
 	case CA_SEND_MSG:
