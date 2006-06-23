@@ -169,7 +169,7 @@ retry:
  * Remove references for a page and establish the new page with the correct
  * basic settings to be able to stop accesses to the page.
  */
-int migrate_page_remove_references(struct page *newpage,
+static int migrate_page_remove_references(struct page *newpage,
 				struct page *page, int nr_refs)
 {
 	struct address_space *mapping = page_mapping(page);
@@ -246,12 +246,11 @@ int migrate_page_remove_references(struct page *newpage,
 
 	return 0;
 }
-EXPORT_SYMBOL(migrate_page_remove_references);
 
 /*
  * Copy the page to its new location
  */
-void migrate_page_copy(struct page *newpage, struct page *page)
+static void migrate_page_copy(struct page *newpage, struct page *page)
 {
 	copy_highpage(newpage, page);
 
@@ -286,7 +285,6 @@ void migrate_page_copy(struct page *newpage, struct page *page)
 	if (PageWriteback(newpage))
 		end_page_writeback(newpage);
 }
-EXPORT_SYMBOL(migrate_page_copy);
 
 /************************************************************
  *                    Migration functions
