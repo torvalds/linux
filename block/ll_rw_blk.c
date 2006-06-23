@@ -3359,12 +3359,11 @@ EXPORT_SYMBOL(end_that_request_chunk);
  */
 static void blk_done_softirq(struct softirq_action *h)
 {
-	struct list_head *cpu_list;
-	LIST_HEAD(local_list);
+	struct list_head *cpu_list, local_list;
 
 	local_irq_disable();
 	cpu_list = &__get_cpu_var(blk_cpu_done);
-	list_splice_init(cpu_list, &local_list);
+	list_replace_init(cpu_list, &local_list);
 	local_irq_enable();
 
 	while (!list_empty(&local_list)) {

@@ -91,11 +91,10 @@ static void rfc2863_policy(struct net_device *dev)
 /* Must be called with the rtnl semaphore held */
 void linkwatch_run_queue(void)
 {
-	LIST_HEAD(head);
-	struct list_head *n, *next;
+	struct list_head head, *n, *next;
 
 	spin_lock_irq(&lweventlist_lock);
-	list_splice_init(&lweventlist, &head);
+	list_replace_init(&lweventlist, &head);
 	spin_unlock_irq(&lweventlist_lock);
 
 	list_for_each_safe(n, next, &head) {

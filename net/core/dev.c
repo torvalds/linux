@@ -2980,7 +2980,7 @@ static void netdev_wait_allrefs(struct net_device *dev)
 static DEFINE_MUTEX(net_todo_run_mutex);
 void netdev_run_todo(void)
 {
-	struct list_head list = LIST_HEAD_INIT(list);
+	struct list_head list;
 
 	/* Need to guard against multiple cpu's getting out of order. */
 	mutex_lock(&net_todo_run_mutex);
@@ -2995,9 +2995,9 @@ void netdev_run_todo(void)
 
 	/* Snapshot list, allow later requests */
 	spin_lock(&net_todo_list_lock);
-	list_splice_init(&net_todo_list, &list);
+	list_replace_init(&net_todo_list, &list);
 	spin_unlock(&net_todo_list_lock);
-		
+
 	while (!list_empty(&list)) {
 		struct net_device *dev
 			= list_entry(list.next, struct net_device, todo_list);
