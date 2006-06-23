@@ -1,5 +1,6 @@
 Copyright 2004 Linus Torvalds
 Copyright 2004 Pavel Machek <pavel@suse.cz>
+Copyright 2006 Bob Copeland <me@bobcopeland.com>
 
 Using sparse for typechecking
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -41,15 +42,8 @@ sure that bitwise types don't get mixed up (little-endian vs big-endian
 vs cpu-endian vs whatever), and there the constant "0" really _is_
 special.
 
-Use
-
-	make C=[12] CF=-Wbitwise
-
-or you don't get any checking at all.
-
-
-Where to get sparse
-~~~~~~~~~~~~~~~~~~~
+Getting sparse
+~~~~~~~~~~~~~~
 
 With git, you can just get it from
 
@@ -57,7 +51,7 @@ With git, you can just get it from
 
 and DaveJ has tar-balls at
 
-	http://www.codemonkey.org.uk/projects/git-snapshots/sparse/
+        http://www.codemonkey.org.uk/projects/git-snapshots/sparse/
 
 
 Once you have it, just do
@@ -65,8 +59,20 @@ Once you have it, just do
         make
         make install
 
-as your regular user, and it will install sparse in your ~/bin directory.
-After that, doing a kernel make with "make C=1" will run sparse on all the
-C files that get recompiled, or with "make C=2" will run sparse on the
-files whether they need to be recompiled or not (ie the latter is fast way
-to check the whole tree if you have already built it).
+as a regular user, and it will install sparse in your ~/bin directory.
+
+Using sparse
+~~~~~~~~~~~~
+
+Do a kernel make with "make C=1" to run sparse on all the C files that get
+recompiled, or use "make C=2" to run sparse on the files whether they need to
+be recompiled or not.  The latter is a fast way to check the whole tree if you
+have already built it.
+
+The optional make variable CF can be used to pass arguments to sparse.  The
+build system passes -Wbitwise to sparse automatically.  To perform endianness
+checks, you may define __CHECK_ENDIAN__:
+
+        make C=2 CF="-D__CHECK_ENDIAN__"
+
+These checks are disabled by default as they generate a host of warnings.
