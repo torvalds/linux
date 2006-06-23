@@ -782,10 +782,10 @@ out:
 	return error;
 }
 
-static struct super_block *smb_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data)
+static int smb_get_sb(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
 {
-	return get_sb_nodev(fs_type, flags, data, smb_fill_super);
+	return get_sb_nodev(fs_type, flags, data, smb_fill_super, mnt);
 }
 
 static struct file_system_type smb_fs_type = {

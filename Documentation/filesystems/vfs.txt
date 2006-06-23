@@ -113,8 +113,8 @@ members are defined:
 struct file_system_type {
 	const char *name;
 	int fs_flags;
-        struct super_block *(*get_sb) (struct file_system_type *, int,
-                                       const char *, void *);
+        struct int (*get_sb) (struct file_system_type *, int,
+                              const char *, void *, struct vfsmount *);
         void (*kill_sb) (struct super_block *);
         struct module *owner;
         struct file_system_type * next;

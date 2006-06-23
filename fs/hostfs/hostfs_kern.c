@@ -993,11 +993,11 @@ static int hostfs_fill_sb_common(struct super_block *sb, void *d, int silent)
 	return(err);
 }
 
-static struct super_block *hostfs_read_sb(struct file_system_type *type,
-					     int flags, const char *dev_name,
-					     void *data)
+static int hostfs_read_sb(struct file_system_type *type,
+			  int flags, const char *dev_name,
+			  void *data, struct vfsmount *mnt)
 {
-	return(get_sb_nodev(type, flags, data, hostfs_fill_sb_common));
+	return get_sb_nodev(type, flags, data, hostfs_fill_sb_common, mnt);
 }
 
 static struct file_system_type hostfs_type = {

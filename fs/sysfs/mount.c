@@ -66,10 +66,10 @@ static int sysfs_fill_super(struct super_block *sb, void *data, int silent)
 	return 0;
 }
 
-static struct super_block *sysfs_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data)
+static int sysfs_get_sb(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
 {
-	return get_sb_single(fs_type, flags, data, sysfs_fill_super);
+	return get_sb_single(fs_type, flags, data, sysfs_fill_super, mnt);
 }
 
 static struct file_system_type sysfs_fs_type = {

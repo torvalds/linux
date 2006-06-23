@@ -205,11 +205,11 @@ static int mqueue_fill_super(struct super_block *sb, void *data, int silent)
 	return 0;
 }
 
-static struct super_block *mqueue_get_sb(struct file_system_type *fs_type,
-					 int flags, const char *dev_name,
-					 void *data)
+static int mqueue_get_sb(struct file_system_type *fs_type,
+			 int flags, const char *dev_name,
+			 void *data, struct vfsmount *mnt)
 {
-	return get_sb_single(fs_type, flags, data, mqueue_fill_super);
+	return get_sb_single(fs_type, flags, data, mqueue_fill_super, mnt);
 }
 
 static void init_once(void *foo, kmem_cache_t * cachep, unsigned long flags)

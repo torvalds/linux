@@ -436,11 +436,11 @@ spufs_fill_super(struct super_block *sb, void *data, int silent)
 	return spufs_create_root(sb, data);
 }
 
-static struct super_block *
+static int
 spufs_get_sb(struct file_system_type *fstype, int flags,
-		const char *name, void *data)
+		const char *name, void *data, struct vfsmount *mnt)
 {
-	return get_sb_single(fstype, flags, data, spufs_fill_super);
+	return get_sb_single(fstype, flags, data, spufs_fill_super, mnt);
 }
 
 static struct file_system_type spufs_type = {

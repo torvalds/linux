@@ -26,10 +26,10 @@ struct proc_dir_entry *proc_net, *proc_net_stat, *proc_bus, *proc_root_fs, *proc
 struct proc_dir_entry *proc_sys_root;
 #endif
 
-static struct super_block *proc_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data)
+static int proc_get_sb(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
 {
-	return get_sb_single(fs_type, flags, data, proc_fill_super);
+	return get_sb_single(fs_type, flags, data, proc_fill_super, mnt);
 }
 
 static struct file_system_type proc_fs_type = {

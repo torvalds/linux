@@ -450,10 +450,12 @@ static void hfsplus_destroy_inode(struct inode *inode)
 
 #define HFSPLUS_INODE_SIZE	sizeof(struct hfsplus_inode_info)
 
-static struct super_block *hfsplus_get_sb(struct file_system_type *fs_type,
-					  int flags, const char *dev_name, void *data)
+static int hfsplus_get_sb(struct file_system_type *fs_type,
+			  int flags, const char *dev_name, void *data,
+			  struct vfsmount *mnt)
 {
-	return get_sb_bdev(fs_type, flags, dev_name, data, hfsplus_fill_super);
+	return get_sb_bdev(fs_type, flags, dev_name, data, hfsplus_fill_super,
+			   mnt);
 }
 
 static struct file_system_type hfsplus_fs_type = {

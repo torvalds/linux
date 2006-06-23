@@ -307,10 +307,10 @@ static int coda_statfs(struct super_block *sb, struct kstatfs *buf)
 
 /* init_coda: used by filesystems.c to register coda */
 
-static struct super_block *coda_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data)
+static int coda_get_sb(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
 {
-	return get_sb_nodev(fs_type, flags, data, coda_fill_super);
+	return get_sb_nodev(fs_type, flags, data, coda_fill_super, mnt);
 }
 
 struct file_system_type coda_fs_type = {

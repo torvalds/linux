@@ -2249,11 +2249,12 @@ static ssize_t reiserfs_quota_write(struct super_block *sb, int type,
 
 #endif
 
-static struct super_block *get_super_block(struct file_system_type *fs_type,
-					   int flags, const char *dev_name,
-					   void *data)
+static int get_super_block(struct file_system_type *fs_type,
+			   int flags, const char *dev_name,
+			   void *data, struct vfsmount *mnt)
 {
-	return get_sb_bdev(fs_type, flags, dev_name, data, reiserfs_fill_super);
+	return get_sb_bdev(fs_type, flags, dev_name, data, reiserfs_fill_super,
+			   mnt);
 }
 
 static int __init init_reiserfs_fs(void)

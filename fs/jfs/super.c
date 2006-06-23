@@ -565,10 +565,11 @@ static void jfs_unlockfs(struct super_block *sb)
 	}
 }
 
-static struct super_block *jfs_get_sb(struct file_system_type *fs_type, 
-	int flags, const char *dev_name, void *data)
+static int jfs_get_sb(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
 {
-	return get_sb_bdev(fs_type, flags, dev_name, data, jfs_fill_super);
+	return get_sb_bdev(fs_type, flags, dev_name, data, jfs_fill_super,
+			   mnt);
 }
 
 static int jfs_sync_fs(struct super_block *sb, int wait)

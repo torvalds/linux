@@ -300,10 +300,10 @@ static struct super_operations bdev_sops = {
 	.clear_inode = bdev_clear_inode,
 };
 
-static struct super_block *bd_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data)
+static int bd_get_sb(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
 {
-	return get_sb_pseudo(fs_type, "bdev:", &bdev_sops, 0x62646576);
+	return get_sb_pseudo(fs_type, "bdev:", &bdev_sops, 0x62646576, mnt);
 }
 
 static struct file_system_type bd_type = {

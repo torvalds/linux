@@ -1054,10 +1054,10 @@ out_no_root:
 	return -ENOMEM;
 }
 
-static struct super_block *openprom_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data)
+static int openprom_get_sb(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
 {
-	return get_sb_single(fs_type, flags, data, openprom_fill_super);
+	return get_sb_single(fs_type, flags, data, openprom_fill_super, mnt);
 }
 
 static struct file_system_type openprom_fs_type = {

@@ -2070,11 +2070,11 @@ enomem0:
 }
 
 /* "mount -t gadgetfs path /dev/gadget" ends up here */
-static struct super_block *
+static int
 gadgetfs_get_sb (struct file_system_type *t, int flags,
-		const char *path, void *opts)
+		const char *path, void *opts, struct vfsmount *mnt)
 {
-	return get_sb_single (t, flags, opts, gadgetfs_fill_super);
+	return get_sb_single (t, flags, opts, gadgetfs_fill_super, mnt);
 }
 
 static void

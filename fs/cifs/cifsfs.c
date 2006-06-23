@@ -460,9 +460,9 @@ struct super_operations cifs_super_ops = {
 	.remount_fs = cifs_remount,
 };
 
-static struct super_block *
+static int
 cifs_get_sb(struct file_system_type *fs_type,
-	    int flags, const char *dev_name, void *data)
+	    int flags, const char *dev_name, void *data, struct vfsmount *mnt)
 {
 	int rc;
 	struct super_block *sb = sget(fs_type, NULL, set_anon_super, NULL);
@@ -470,7 +470,7 @@ cifs_get_sb(struct file_system_type *fs_type,
 	cFYI(1, ("Devname: %s flags: %d ", dev_name, flags));
 
 	if (IS_ERR(sb))
-		return sb;
+		return PTR_ERR(sb);
 
 	sb->s_flags = flags;
 
@@ -478,10 +478,10 @@ cifs_get_sb(struct file_system_type *fs_type,
 	if (rc) {
 		up_write(&sb->s_umount);
 		deactivate_super(sb);
-		return ERR_PTR(rc);
+		return rc;
 	}
 	sb->s_flags |= MS_ACTIVE;
-	return sb;
+	return simple_set_mnt(mnt, sb);
 }
 
 static ssize_t cifs_file_writev(struct file *file, const struct iovec *iov,

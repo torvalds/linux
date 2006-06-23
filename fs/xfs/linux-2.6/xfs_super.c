@@ -853,14 +853,16 @@ fail_vfsop:
 	return -error;
 }
 
-STATIC struct super_block *
+STATIC int
 xfs_fs_get_sb(
 	struct file_system_type	*fs_type,
 	int			flags,
 	const char		*dev_name,
-	void			*data)
+	void			*data,
+	struct vfsmount		*mnt)
 {
-	return get_sb_bdev(fs_type, flags, dev_name, data, xfs_fs_fill_super);
+	return get_sb_bdev(fs_type, flags, dev_name, data, xfs_fs_fill_super,
+			   mnt);
 }
 
 STATIC struct super_operations xfs_super_operations = {

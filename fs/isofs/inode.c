@@ -1399,10 +1399,11 @@ struct inode *isofs_iget(struct super_block *sb,
 	return inode;
 }
 
-static struct super_block *isofs_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data)
+static int isofs_get_sb(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
 {
-	return get_sb_bdev(fs_type, flags, dev_name, data, isofs_fill_super);
+	return get_sb_bdev(fs_type, flags, dev_name, data, isofs_fill_super,
+			   mnt);
 }
 
 static struct file_system_type iso9660_fs_type = {

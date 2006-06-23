@@ -3093,10 +3093,11 @@ struct kmem_cache *ntfs_index_ctx_cache;
 /* Driver wide mutex. */
 DEFINE_MUTEX(ntfs_lock);
 
-static struct super_block *ntfs_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data)
+static int ntfs_get_sb(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
 {
-	return get_sb_bdev(fs_type, flags, dev_name, data, ntfs_fill_super);
+	return get_sb_bdev(fs_type, flags, dev_name, data, ntfs_fill_super,
+			   mnt);
 }
 
 static struct file_system_type ntfs_fs_type = {

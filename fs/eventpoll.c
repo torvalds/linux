@@ -268,9 +268,9 @@ static int ep_poll(struct eventpoll *ep, struct epoll_event __user *events,
 		   int maxevents, long timeout);
 static int eventpollfs_delete_dentry(struct dentry *dentry);
 static struct inode *ep_eventpoll_inode(void);
-static struct super_block *eventpollfs_get_sb(struct file_system_type *fs_type,
-					      int flags, const char *dev_name,
-					      void *data);
+static int eventpollfs_get_sb(struct file_system_type *fs_type,
+			      int flags, const char *dev_name,
+			      void *data, struct vfsmount *mnt);
 
 /*
  * This semaphore is used to serialize ep_free() and eventpoll_release_file().
@@ -1595,11 +1595,12 @@ eexit_1:
 }
 
 
-static struct super_block *
+static int
 eventpollfs_get_sb(struct file_system_type *fs_type, int flags,
-		   const char *dev_name, void *data)
+		   const char *dev_name, void *data, struct vfsmount *mnt)
 {
-	return get_sb_pseudo(fs_type, "eventpoll:", NULL, EVENTPOLLFS_MAGIC);
+	return get_sb_pseudo(fs_type, "eventpoll:", NULL, EVENTPOLLFS_MAGIC,
+			     mnt);
 }
 
 
