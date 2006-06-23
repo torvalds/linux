@@ -62,7 +62,7 @@ int apic_verbosity;
 
 static void apic_pm_activate(void);
 
-int modern_apic(void)
+static int modern_apic(void)
 {
 	unsigned int lvr, version;
 	/* AMD systems use old APIC versions, so check the CPU */
