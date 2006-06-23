@@ -1099,7 +1099,7 @@ static void __init sysio_register_error_handlers(struct sbus_bus *sbus)
 }
 
 /* Boot time initialization. */
-void __init sbus_iommu_init(int __node, struct sbus_bus *sbus)
+static void __init sbus_iommu_init(int __node, struct sbus_bus *sbus)
 {
 	struct linux_prom64_registers *pr;
 	struct device_node *dp;
@@ -1246,4 +1246,33 @@ void sbus_fill_device_irq(struct sbus_dev *sdev)
 
 		sdev->irqs[0] =	sbus_build_irq(sdev->bus, pri);
 	}
+}
+
+void __init sbus_arch_bus_ranges_init(struct device_node *pn, struct sbus_bus *sbus)
+{
+}
+
+void __init sbus_setup_iommu(struct sbus_bus *sbus, struct device_node *dp)
+{
+	sbus_iommu_init(dp->node, sbus);
+}
+
+void __init sbus_setup_arch_props(struct sbus_bus *sbus, struct device_node *dp)
+{
+}
+
+int __init sbus_arch_preinit(void)
+{
+	return 0;
+}
+
+void __init sbus_arch_postinit(void)
+{
+	extern void firetruck_init(void);
+	extern void auxio_probe(void);
+	extern void clock_probe(void);
+
+	firetruck_init();
+	auxio_probe();
+	clock_probe();
 }

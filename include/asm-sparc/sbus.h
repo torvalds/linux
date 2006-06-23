@@ -11,7 +11,8 @@
 #include <linux/ioport.h>
 
 #include <asm/oplib.h>
-/* #include <asm/iommu.h> */ /* Unused since we use opaque iommu (|io-unit) */
+#include <asm/prom.h>
+#include <asm/of_device.h>
 #include <asm/scatterlist.h>
 
 /* We scan which devices are on the SBus using the PROM node device
@@ -42,18 +43,19 @@ struct sbus_bus;
 
 /* Linux SBUS device tables */
 struct sbus_dev {
-	struct sbus_bus	*bus;       /* Back ptr to sbus */
-	struct sbus_dev	*next;      /* next device on this SBus or null */
-	struct sbus_dev	*child;     /* For ledma and espdma on sun4m */
-	struct sbus_dev	*parent;    /* Parent device if not toplevel */
-	int prom_node;              /* PROM device tree node for this device */
-	char prom_name[64];         /* PROM device name */
+	struct of_device	ofdev;
+	struct sbus_bus		*bus;
+	struct sbus_dev		*next;
+	struct sbus_dev		*child;
+	struct sbus_dev		*parent;
+	int prom_node;	
+	char prom_name[64];
 	int slot;
 
 	struct resource resource[PROMREG_MAX];
 
 	struct linux_prom_registers reg_addrs[PROMREG_MAX];
-	int num_registers, ranges_applied;
+	int num_registers;
 
 	struct linux_prom_ranges device_ranges[PROMREG_MAX];
 	int num_device_ranges;
@@ -61,9 +63,11 @@ struct sbus_dev {
 	unsigned int irqs[4];
 	int num_irqs;
 };
+#define to_sbus_device(d) container_of(d, struct sbus_dev, ofdev.dev)
 
 /* This struct describes the SBus(s) found on this machine. */
 struct sbus_bus {
+	struct of_device	ofdev;
 	void			*iommu;		/* Opaque IOMMU cookie */
 	struct sbus_dev		*devices;	/* Link to devices on this SBus */
 	struct sbus_bus		*next;		/* next SBus, if more than one SBus */
@@ -77,6 +81,7 @@ struct sbus_bus {
 	int devid;
 	int board;
 };
+#define to_sbus(d) container_of(d, struct sbus_bus, ofdev.dev)
 
 extern struct sbus_bus *sbus_root;
 
@@ -139,5 +144,11 @@ extern void sbus_dma_sync_sg_for_device(struct sbus_dev *, struct scatterlist *,
  */
 BTFIXUPDEF_CALL(unsigned int, sbint_to_irq, struct sbus_dev *sdev, unsigned int)
 #define sbint_to_irq(sdev, sbint) BTFIXUP_CALL(sbint_to_irq)(sdev, sbint)
+
+extern void sbus_arch_bus_ranges_init(struct device_node *, struct sbus_bus *);
+extern void sbus_setup_iommu(struct sbus_bus *, struct device_node *);
+extern void sbus_setup_arch_props(struct sbus_bus *, struct device_node *);
+extern int sbus_arch_preinit(void);
+extern void sbus_arch_postinit(void);
 
 #endif /* !(_SPARC_SBUS_H) */

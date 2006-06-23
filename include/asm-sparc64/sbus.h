@@ -11,6 +11,8 @@
 #include <linux/ioport.h>
 
 #include <asm/oplib.h>
+#include <asm/prom.h>
+#include <asm/of_device.h>
 #include <asm/iommu.h>
 #include <asm/scatterlist.h>
 
@@ -42,18 +44,19 @@ struct sbus_bus;
 
 /* Linux SBUS device tables */
 struct sbus_dev {
-	struct sbus_bus *bus;	/* Our toplevel parent SBUS	*/
-	struct sbus_dev *next;	/* Chain of siblings		*/
-	struct sbus_dev *child;	/* Chain of children		*/
-	struct sbus_dev *parent;/* Parent device if not toplevel*/
-	int prom_node;		/* OBP node of this device	*/
-	char prom_name[64];	/* OBP device name property	*/
-	int slot;		/* SBUS slot number		*/
+	struct of_device	ofdev;
+	struct sbus_bus		*bus;
+	struct sbus_dev		*next;
+	struct sbus_dev		*child;
+	struct sbus_dev		*parent;
+	int prom_node;	
+	char prom_name[64];
+	int slot;
 
 	struct resource resource[PROMREG_MAX];
 
 	struct linux_prom_registers reg_addrs[PROMREG_MAX];
-	int num_registers, ranges_applied;
+	int num_registers;
 
 	struct linux_prom_ranges device_ranges[PROMREG_MAX];
 	int num_device_ranges;
@@ -61,9 +64,11 @@ struct sbus_dev {
 	unsigned int irqs[4];
 	int num_irqs;
 };
+#define to_sbus_device(d) container_of(d, struct sbus_dev, ofdev.dev)
 
 /* This struct describes the SBus(s) found on this machine. */
 struct sbus_bus {
+	struct of_device	ofdev;
 	void			*iommu;		/* Opaque IOMMU cookie	*/
 	struct sbus_dev		*devices;	/* Tree of SBUS devices	*/
 	struct sbus_bus		*next;		/* Next SBUS in system	*/
@@ -77,6 +82,7 @@ struct sbus_bus {
 	int portid;
 	void *starfire_cookie;
 };
+#define to_sbus(d) container_of(d, struct sbus_bus, ofdev.dev)
 
 extern struct sbus_bus *sbus_root;
 
@@ -119,5 +125,11 @@ extern void sbus_dma_sync_single_for_device(struct sbus_dev *, dma_addr_t, size_
 extern void sbus_dma_sync_sg_for_cpu(struct sbus_dev *, struct scatterlist *, int, int);
 #define sbus_dma_sync_sg sbus_dma_sync_sg_for_cpu
 extern void sbus_dma_sync_sg_for_device(struct sbus_dev *, struct scatterlist *, int, int);
+
+extern void sbus_arch_bus_ranges_init(struct device_node *, struct sbus_bus *);
+extern void sbus_setup_iommu(struct sbus_bus *, struct device_node *);
+extern void sbus_setup_arch_props(struct sbus_bus *, struct device_node *);
+extern int sbus_arch_preinit(void);
+extern void sbus_arch_postinit(void);
 
 #endif /* !(_SPARC64_SBUS_H) */

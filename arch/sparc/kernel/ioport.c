@@ -39,6 +39,8 @@
 #include <asm/io.h>
 #include <asm/vaddrs.h>
 #include <asm/oplib.h>
+#include <asm/prom.h>
+#include <asm/sbus.h>
 #include <asm/page.h>
 #include <asm/pgalloc.h>
 #include <asm/dma.h>
@@ -457,6 +459,89 @@ void sbus_dma_sync_sg_for_cpu(struct sbus_dev *sdev, struct scatterlist *sg, int
 void sbus_dma_sync_sg_for_device(struct sbus_dev *sdev, struct scatterlist *sg, int n, int direction)
 {
 	printk("sbus_dma_sync_sg_for_device: not implemented yet\n");
+}
+
+/* Support code for sbus_init().  */
+/*
+ * XXX This functions appears to be a distorted version of
+ * prom_sbus_ranges_init(), with all sun4d stuff cut away.
+ * Ask DaveM what is going on here, how is sun4d supposed to work... XXX
+ */
+/* added back sun4d patch from Thomas Bogendoerfer - should be OK (crn) */
+void __init sbus_arch_bus_ranges_init(struct device_node *pn, struct sbus_bus *sbus)
+{
+	int parent_node = pn->node;
+
+	if (sparc_cpu_model == sun4d) {
+		struct linux_prom_ranges iounit_ranges[PROMREG_MAX];
+		int num_iounit_ranges, len;
+
+		len = prom_getproperty(parent_node, "ranges",
+				       (char *) iounit_ranges,
+				       sizeof (iounit_ranges));
+		if (len != -1) {
+			num_iounit_ranges =
+				(len / sizeof(struct linux_prom_ranges));
+			prom_adjust_ranges(sbus->sbus_ranges,
+					   sbus->num_sbus_ranges,
+					   iounit_ranges, num_iounit_ranges);
+		}
+	}
+}
+
+void __init sbus_setup_iommu(struct sbus_bus *sbus, struct device_node *dp)
+{
+	struct device_node *parent = dp->parent;
+
+	if (sparc_cpu_model != sun4d &&
+	    parent != NULL &&
+	    !strcmp(parent->name, "iommu")) {
+		extern void iommu_init(int iommu_node, struct sbus_bus *sbus);
+
+		iommu_init(parent->node, sbus);
+	}
+
+	if (sparc_cpu_model == sun4d) {
+		extern void iounit_init(int sbi_node, int iounit_node,
+					struct sbus_bus *sbus);
+
+		iounit_init(dp->node, parent->node, sbus);
+	}
+}
+
+void __init sbus_setup_arch_props(struct sbus_bus *sbus, struct device_node *dp)
+{
+	if (sparc_cpu_model == sun4d) {
+		struct device_node *parent = dp->parent;
+
+		sbus->devid = of_getintprop_default(parent, "device-id", 0);
+		sbus->board = of_getintprop_default(parent, "board#", 0);
+	}
+}
+
+int __init sbus_arch_preinit(void)
+{
+	extern void register_proc_sparc_ioport(void);
+
+	register_proc_sparc_ioport();
+
+#ifdef CONFIG_SUN4
+	{
+		extern void sun4_dvma_init(void);
+		sun4_dvma_init();
+	}
+	return 1;
+#else
+	return 0;
+#endif
+}
+
+void __init sbus_arch_postinit(void)
+{
+	if (sparc_cpu_model == sun4d) {
+		extern void sun4d_init_sbi_irq(void);
+		sun4d_init_sbi_irq();
+	}
 }
 #endif /* CONFIG_SBUS */
 
