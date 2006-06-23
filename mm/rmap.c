@@ -596,6 +596,7 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
 				spin_unlock(&mmlist_lock);
 			}
 			dec_mm_counter(mm, anon_rss);
+#ifdef CONFIG_MIGRATION
 		} else {
 			/*
 			 * Store the pfn of the page in a special migration
@@ -604,11 +605,21 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
 			 */
 			BUG_ON(!migration);
 			entry = make_migration_entry(page, pte_write(pteval));
+#endif
 		}
 		set_pte_at(mm, address, pte, swp_entry_to_pte(entry));
 		BUG_ON(pte_file(*pte));
 	} else
+#ifdef CONFIG_MIGRATION
+	if (migration) {
+		/* Establish migration entry for a file page */
+		swp_entry_t entry;
+		entry = make_migration_entry(page, pte_write(pteval));
+		set_pte_at(mm, address, pte, swp_entry_to_pte(entry));
+	} else
+#endif
 		dec_mm_counter(mm, file_rss);
+
 
 	page_remove_rmap(page);
 	page_cache_release(page);

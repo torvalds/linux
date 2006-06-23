@@ -24,6 +24,7 @@
 #include <linux/topology.h>
 #include <linux/cpu.h>
 #include <linux/cpuset.h>
+#include <linux/writeback.h>
 
 #include "internal.h"
 
@@ -123,7 +124,7 @@ static inline int is_swap_pte(pte_t pte)
 /*
  * Restore a potential migration pte to a working pte entry
  */
-static void remove_migration_pte(struct vm_area_struct *vma, unsigned long addr,
+static void remove_migration_pte(struct vm_area_struct *vma,
 		struct page *old, struct page *new)
 {
 	struct mm_struct *mm = vma->vm_mm;
@@ -133,6 +134,10 @@ static void remove_migration_pte(struct vm_area_struct *vma, unsigned long addr,
  	pmd_t *pmd;
 	pte_t *ptep, pte;
  	spinlock_t *ptl;
+	unsigned long addr = page_address_in_vma(new, vma);
+
+	if (addr == -EFAULT)
+		return;
 
  	pgd = pgd_offset(mm, addr);
 	if (!pgd_present(*pgd))
@@ -169,19 +174,47 @@ static void remove_migration_pte(struct vm_area_struct *vma, unsigned long addr,
 	if (is_write_migration_entry(entry))
 		pte = pte_mkwrite(pte);
 	set_pte_at(mm, addr, ptep, pte);
-	page_add_anon_rmap(new, vma, addr);
+
+	if (PageAnon(new))
+		page_add_anon_rmap(new, vma, addr);
+	else
+		page_add_file_rmap(new);
+
+	/* No need to invalidate - it was non-present before */
+	update_mmu_cache(vma, addr, pte);
+	lazy_mmu_prot_update(pte);
+
 out:
 	pte_unmap_unlock(ptep, ptl);
 }
 
 /*
- * Get rid of all migration entries and replace them by
- * references to the indicated page.
- *
+ * Note that remove_file_migration_ptes will only work on regular mappings,
+ * Nonlinear mappings do not use migration entries.
+ */
+static void remove_file_migration_ptes(struct page *old, struct page *new)
+{
+	struct vm_area_struct *vma;
+	struct address_space *mapping = page_mapping(new);
+	struct prio_tree_iter iter;
+	pgoff_t pgoff = new->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
+
+	if (!mapping)
+		return;
+
+	spin_lock(&mapping->i_mmap_lock);
+
+	vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, pgoff, pgoff)
+		remove_migration_pte(vma, old, new);
+
+	spin_unlock(&mapping->i_mmap_lock);
+}
+
+/*
  * Must hold mmap_sem lock on at least one of the vmas containing
  * the page so that the anon_vma cannot vanish.
  */
-static void remove_migration_ptes(struct page *old, struct page *new)
+static void remove_anon_migration_ptes(struct page *old, struct page *new)
 {
 	struct anon_vma *anon_vma;
 	struct vm_area_struct *vma;
@@ -199,10 +232,21 @@ static void remove_migration_ptes(struct page *old, struct page *new)
 	spin_lock(&anon_vma->lock);
 
 	list_for_each_entry(vma, &anon_vma->head, anon_vma_node)
-		remove_migration_pte(vma, page_address_in_vma(new, vma),
-					old, new);
+		remove_migration_pte(vma, old, new);
 
 	spin_unlock(&anon_vma->lock);
+}
+
+/*
+ * Get rid of all migration entries and replace them by
+ * references to the indicated page.
+ */
+static void remove_migration_ptes(struct page *old, struct page *new)
+{
+	if (PageAnon(new))
+		remove_anon_migration_ptes(old, new);
+	else
+		remove_file_migration_ptes(old, new);
 }
 
 /*
@@ -424,30 +468,59 @@ int buffer_migrate_page(struct address_space *mapping,
 }
 EXPORT_SYMBOL(buffer_migrate_page);
 
+/*
+ * Writeback a page to clean the dirty state
+ */
+static int writeout(struct address_space *mapping, struct page *page)
+{
+	struct writeback_control wbc = {
+		.sync_mode = WB_SYNC_NONE,
+		.nr_to_write = 1,
+		.range_start = 0,
+		.range_end = LLONG_MAX,
+		.nonblocking = 1,
+		.for_reclaim = 1
+	};
+	int rc;
+
+	if (!mapping->a_ops->writepage)
+		/* No write method for the address space */
+		return -EINVAL;
+
+	if (!clear_page_dirty_for_io(page))
+		/* Someone else already triggered a write */
+		return -EAGAIN;
+
+	/*
+	 * A dirty page may imply that the underlying filesystem has
+	 * the page on some queue. So the page must be clean for
+	 * migration. Writeout may mean we loose the lock and the
+	 * page state is no longer what we checked for earlier.
+	 * At this point we know that the migration attempt cannot
+	 * be successful.
+	 */
+	remove_migration_ptes(page, page);
+
+	rc = mapping->a_ops->writepage(page, &wbc);
+	if (rc < 0)
+		/* I/O Error writing */
+		return -EIO;
+
+	if (rc != AOP_WRITEPAGE_ACTIVATE)
+		/* unlocked. Relock */
+		lock_page(page);
+
+	return -EAGAIN;
+}
+
+/*
+ * Default handling if a filesystem does not provide a migration function.
+ */
 static int fallback_migrate_page(struct address_space *mapping,
 	struct page *newpage, struct page *page)
 {
-	/*
-	 * Default handling if a filesystem does not provide
-	 * a migration function. We can only migrate clean
-	 * pages so try to write out any dirty pages first.
-	 */
-	if (PageDirty(page)) {
-		switch (pageout(page, mapping)) {
-		case PAGE_KEEP:
-		case PAGE_ACTIVATE:
-			return -EAGAIN;
-
-		case PAGE_SUCCESS:
-			/* Relock since we lost the lock */
-			lock_page(page);
-			/* Must retry since page state may have changed */
-			return -EAGAIN;
-
-		case PAGE_CLEAN:
-			; /* try to migrate the page below */
-		}
-	}
+	if (PageDirty(page))
+		return writeout(mapping, page);
 
 	/*
 	 * Buffers may be managed in a filesystem specific way.
