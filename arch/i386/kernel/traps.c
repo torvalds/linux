@@ -149,6 +149,12 @@ static inline unsigned long print_context_stack(struct thread_info *tinfo,
 	while (valid_stack_ptr(tinfo, (void *)ebp)) {
 		addr = *(unsigned long *)(ebp + 4);
 		printed = print_addr_and_symbol(addr, log_lvl, printed);
+		/*
+		 * break out of recursive entries (such as
+		 * end_of_stack_stop_unwind_function):
+	 	 */
+		if (ebp == *(unsigned long *)ebp)
+			break;
 		ebp = *(unsigned long *)ebp;
 	}
 #else
