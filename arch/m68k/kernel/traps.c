@@ -992,6 +992,7 @@ void show_registers(struct pt_regs *regs)
 
 void show_stack(struct task_struct *task, unsigned long *stack)
 {
+	unsigned long *p;
 	unsigned long *endstack;
 	int i;
 
@@ -1004,12 +1005,13 @@ void show_stack(struct task_struct *task, unsigned long *stack)
 	endstack = (unsigned long *)(((unsigned long)stack + THREAD_SIZE - 1) & -THREAD_SIZE);
 
 	printk("Stack from %08lx:", (unsigned long)stack);
+	p = stack;
 	for (i = 0; i < kstack_depth_to_print; i++) {
-		if (stack + 1 > endstack)
+		if (p + 1 > endstack)
 			break;
 		if (i % 8 == 0)
 			printk("\n       ");
-		printk(" %08lx", *stack++);
+		printk(" %08lx", *p++);
 	}
 	printk("\n");
 	show_trace(stack);
