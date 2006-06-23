@@ -114,7 +114,7 @@ void __init base_trap_init(void)
 	if(MACH_IS_SUN3X) {
 		extern e_vector *sun3x_prom_vbr;
 
-		__asm__ volatile ("movec %%vbr, %0" : "=r" ((void*)sun3x_prom_vbr));
+		__asm__ volatile ("movec %%vbr, %0" : "=r" (sun3x_prom_vbr));
 	}
 
 	/* setup the exception vector table */
