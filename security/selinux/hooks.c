@@ -2679,6 +2679,11 @@ static int selinux_task_getscheduler(struct task_struct *p)
 	return task_has_perm(current, p, PROCESS__GETSCHED);
 }
 
+static int selinux_task_movememory(struct task_struct *p)
+{
+	return task_has_perm(current, p, PROCESS__SETSCHED);
+}
+
 static int selinux_task_kill(struct task_struct *p, struct siginfo *info, int sig)
 {
 	u32 perm;
@@ -4392,6 +4397,7 @@ static struct security_operations selinux_ops = {
 	.task_setrlimit =		selinux_task_setrlimit,
 	.task_setscheduler =		selinux_task_setscheduler,
 	.task_getscheduler =		selinux_task_getscheduler,
+	.task_movememory =		selinux_task_movememory,
 	.task_kill =			selinux_task_kill,
 	.task_wait =			selinux_task_wait,
 	.task_prctl =			selinux_task_prctl,

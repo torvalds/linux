@@ -601,6 +601,10 @@ struct swap_info_struct;
  *	@p.
  *	@p contains the task_struct for process.
  *	Return 0 if permission is granted.
+ * @task_movememory
+ *	Check permission before moving memory owned by process @p.
+ *	@p contains the task_struct for process.
+ *	Return 0 if permission is granted.
  * @task_kill:
  *	Check permission before sending signal @sig to @p.  @info can be NULL,
  *	the constant 1, or a pointer to a siginfo structure.  If @info is 1 or
@@ -1220,6 +1224,7 @@ struct security_operations {
 	int (*task_setscheduler) (struct task_struct * p, int policy,
 				  struct sched_param * lp);
 	int (*task_getscheduler) (struct task_struct * p);
+	int (*task_movememory) (struct task_struct * p);
 	int (*task_kill) (struct task_struct * p,
 			  struct siginfo * info, int sig);
 	int (*task_wait) (struct task_struct * p);
@@ -1865,6 +1870,11 @@ static inline int security_task_getscheduler (struct task_struct *p)
 	return security_ops->task_getscheduler (p);
 }
 
+static inline int security_task_movememory (struct task_struct *p)
+{
+	return security_ops->task_movememory (p);
+}
+
 static inline int security_task_kill (struct task_struct *p,
 				      struct siginfo *info, int sig)
 {
@@ -2508,6 +2518,11 @@ static inline int security_task_setscheduler (struct task_struct *p,
 }
 
 static inline int security_task_getscheduler (struct task_struct *p)
+{
+	return 0;
+}
+
+static inline int security_task_movememory (struct task_struct *p)
 {
 	return 0;
 }

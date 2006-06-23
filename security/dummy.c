@@ -537,6 +537,11 @@ static int dummy_task_getscheduler (struct task_struct *p)
 	return 0;
 }
 
+static int dummy_task_movememory (struct task_struct *p)
+{
+	return 0;
+}
+
 static int dummy_task_wait (struct task_struct *p)
 {
 	return 0;
@@ -981,6 +986,7 @@ void security_fixup_ops (struct security_operations *ops)
 	set_to_dummy_if_null(ops, task_setrlimit);
 	set_to_dummy_if_null(ops, task_setscheduler);
 	set_to_dummy_if_null(ops, task_getscheduler);
+	set_to_dummy_if_null(ops, task_movememory);
 	set_to_dummy_if_null(ops, task_wait);
 	set_to_dummy_if_null(ops, task_kill);
 	set_to_dummy_if_null(ops, task_prctl);
