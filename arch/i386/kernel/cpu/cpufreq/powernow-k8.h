@@ -169,7 +169,9 @@ struct powernow_k8_data {
 #define MVS_MASK        3
 #define VST_MASK     0x7f
 #define VID_MASK     0x1f
-#define FID_MASK     0x3f
+#define FID_MASK     0x1f
+#define EXT_VID_MASK 0x3f
+#define EXT_FID_MASK 0x3f
 
 
 /*

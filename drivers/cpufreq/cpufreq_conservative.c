@@ -72,6 +72,14 @@ static DEFINE_PER_CPU(struct cpu_dbs_info_s, cpu_dbs_info);
 
 static unsigned int dbs_enable;	/* number of CPUs using this policy */
 
+/*
+ * DEADLOCK ALERT! There is a ordering requirement between cpu_hotplug
+ * lock and dbs_mutex. cpu_hotplug lock should always be held before
+ * dbs_mutex. If any function that can potentially take cpu_hotplug lock
+ * (like __cpufreq_driver_target()) is being called with dbs_mutex taken, then
+ * cpu_hotplug lock should be taken before that. Note that cpu_hotplug lock
+ * is recursive for the same process. -Venki
+ */
 static DEFINE_MUTEX 	(dbs_mutex);
 static DECLARE_WORK	(dbs_work, do_dbs_timer, NULL);
 
@@ -414,12 +422,14 @@ static void dbs_check_cpu(int cpu)
 static void do_dbs_timer(void *data)
 { 
 	int i;
+	lock_cpu_hotplug();
 	mutex_lock(&dbs_mutex);
 	for_each_online_cpu(i)
 		dbs_check_cpu(i);
 	schedule_delayed_work(&dbs_work, 
 			usecs_to_jiffies(dbs_tuners_ins.sampling_rate));
 	mutex_unlock(&dbs_mutex);
+	unlock_cpu_hotplug();
 } 
 
 static inline void dbs_timer_init(void)
@@ -514,6 +524,7 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 		break;
 
 	case CPUFREQ_GOV_LIMITS:
+		lock_cpu_hotplug();
 		mutex_lock(&dbs_mutex);
 		if (policy->max < this_dbs_info->cur_policy->cur)
 			__cpufreq_driver_target(
@@ -524,6 +535,7 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 					this_dbs_info->cur_policy,
 				       	policy->min, CPUFREQ_RELATION_L);
 		mutex_unlock(&dbs_mutex);
+		unlock_cpu_hotplug();
 		break;
 	}
 	return 0;
