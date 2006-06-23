@@ -72,19 +72,30 @@ static struct {
 static int __init isa_dev_get_irq_using_imap(struct sparc_isa_device *isa_dev,
 					     struct sparc_isa_bridge *isa_br,
 					     int *interrupt,
-					     struct linux_prom_registers *pregs)
+					     struct linux_prom_registers *reg)
 {
+	struct linux_prom_ebus_intmap *imap;
+	struct linux_prom_ebus_intmap *imask;
 	unsigned int hi, lo, irq;
-	int i;
+	int i, len, n_imap;
 
-	hi = pregs->which_io & isa_br->isa_intmask.phys_hi;
-	lo = pregs->phys_addr & isa_br->isa_intmask.phys_lo;
-	irq = *interrupt & isa_br->isa_intmask.interrupt;
-	for (i = 0; i < isa_br->num_isa_intmap; i++) {
-		if ((isa_br->isa_intmap[i].phys_hi == hi) &&
-		    (isa_br->isa_intmap[i].phys_lo == lo) &&
-		    (isa_br->isa_intmap[i].interrupt == irq)) {
-			*interrupt = isa_br->isa_intmap[i].cinterrupt;
+	imap = of_get_property(isa_br->prom_node, "interrupt-map", &len);
+	if (!imap)
+		return 0;
+	n_imap = len / sizeof(imap[0]);
+
+	imask = of_get_property(isa_br->prom_node, "interrupt-map-mask", NULL);
+	if (!imask)
+		return 0;
+
+	hi = reg->which_io & imask->phys_hi;
+	lo = reg->phys_addr & imask->phys_lo;
+	irq = *interrupt & imask->interrupt;
+	for (i = 0; i < n_imap; i++) {
+		if ((imap[i].phys_hi == hi) &&
+		    (imap[i].phys_lo == lo) &&
+		    (imap[i].interrupt == irq)) {
+			*interrupt = imap[i].cinterrupt;
 			return 0;
 		}
 	}
@@ -105,7 +116,8 @@ static void __init isa_dev_get_irq(struct sparc_isa_device *isa_dev,
 		struct pci_pbm_info *pbm;
 		int i;
 
-		if (isa_dev->bus->num_isa_intmap) {
+		if (of_find_property(isa_dev->bus->prom_node,
+				     "interrupt-map", NULL)) {
 			if (!isa_dev_get_irq_using_imap(isa_dev,
 							isa_dev->bus,
 							&irq_prop,
@@ -218,36 +230,6 @@ static void __init isa_fill_devices(struct sparc_isa_bridge *isa_br)
 	}
 }
 
-static void __init get_bridge_props(struct sparc_isa_bridge *isa_br)
-{
-	struct device_node *dp = isa_br->prom_node;
-	void *pval;
-	int len;
-
-	pval = of_get_property(dp, "ranges", &len);
-	if (pval) {
-		memcpy(isa_br->isa_ranges, pval, len);
-		isa_br->num_isa_ranges =
-			len / sizeof(struct linux_prom_isa_ranges);
-	} else {
-		isa_br->num_isa_ranges = 0;
-	}
-
-	pval = of_get_property(dp, "interrupt-map", &len);
-	if (pval) {
-		memcpy(isa_br->isa_intmap, pval, len);
-		isa_br->num_isa_intmap =
-			(len / sizeof(struct linux_prom_isa_intmap));
-	} else {
-		isa_br->num_isa_intmap = 0;
-	}
-
-	pval = of_get_property(dp, "interrupt-map-mask", &len);
-	if (pval)
-		memcpy(&isa_br->isa_intmask, pval,
-		       sizeof(isa_br->isa_intmask));
-}
-
 void __init isa_init(void)
 {
 	struct pci_dev *pdev;
@@ -287,8 +269,6 @@ void __init isa_init(void)
 		isa_br->self = pdev;
 		isa_br->index = index++;
 		isa_br->prom_node = pdev_cookie->prom_node;
-
-		get_bridge_props(isa_br);
 
 		printk("isa%d:", isa_br->index);
 

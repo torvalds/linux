@@ -283,60 +283,32 @@ static inline void *ebus_alloc(size_t size)
 	return mem;
 }
 
-static void __init ebus_ranges_init(struct linux_ebus *ebus)
-{
-	struct linux_prom_ebus_ranges *rngs;
-	int len;
-
-	ebus->num_ebus_ranges = 0;
-	rngs = of_get_property(ebus->prom_node, "ranges", &len);
-	if (rngs) {
-		memcpy(ebus->ebus_ranges, rngs, len);
-		ebus->num_ebus_ranges =
-			(len / sizeof(struct linux_prom_ebus_ranges));
-	}
-}
-
-static void __init ebus_intmap_init(struct linux_ebus *ebus)
-{
-	struct linux_prom_ebus_intmap *imap;
-	struct linux_prom_ebus_intmask *imask;
-	int len;
-
-	ebus->num_ebus_intmap = 0;
-	imap = of_get_property(ebus->prom_node, "interrupt-map", &len);
-	if (!imap)
-		return;
-
-	memcpy(ebus->ebus_intmap, imap, len);
-	ebus->num_ebus_intmap = (len / sizeof(struct linux_prom_ebus_intmap));
-
-	imask = of_get_property(ebus->prom_node, "interrupt-map-mask", &len);
-	if (!imask) {
-		prom_printf("EBUS: can't get interrupt-map-mask\n");
-		prom_halt();
-	}
-	memcpy(&ebus->ebus_intmask, imask, sizeof(ebus->ebus_intmask));
-}
-
 int __init ebus_intmap_match(struct linux_ebus *ebus,
 			     struct linux_prom_registers *reg,
 			     int *interrupt)
 {
+	struct linux_prom_ebus_intmap *imap;
+	struct linux_prom_ebus_intmask *imask;
 	unsigned int hi, lo, irq;
-	int i;
+	int i, len, n_imap;
 
-	if (!ebus->num_ebus_intmap)
+	imap = of_get_property(ebus->prom_node, "interrupt-map", &len);
+	if (!imap)
+		return 0;
+	n_imap = len / sizeof(imap[0]);
+
+	imask = of_get_property(ebus->prom_node, "interrupt-map-mask", NULL);
+	if (!imask)
 		return 0;
 
-	hi = reg->which_io & ebus->ebus_intmask.phys_hi;
-	lo = reg->phys_addr & ebus->ebus_intmask.phys_lo;
-	irq = *interrupt & ebus->ebus_intmask.interrupt;
-	for (i = 0; i < ebus->num_ebus_intmap; i++) {
-		if ((ebus->ebus_intmap[i].phys_hi == hi) &&
-		    (ebus->ebus_intmap[i].phys_lo == lo) &&
-		    (ebus->ebus_intmap[i].interrupt == irq)) {
-			*interrupt = ebus->ebus_intmap[i].cinterrupt;
+	hi = reg->which_io & imask->phys_hi;
+	lo = reg->phys_addr & imask->phys_lo;
+	irq = *interrupt & imask->interrupt;
+	for (i = 0; i < n_imap; i++) {
+		if ((imap[i].phys_hi == hi) &&
+		    (imap[i].phys_lo == lo) &&
+		    (imap[i].interrupt == irq)) {
+			*interrupt = imap[i].cinterrupt;
 			return 0;
 		}
 	}
@@ -597,9 +569,6 @@ void __init ebus_init(void)
 		ebus->prom_node = dp;
 		ebus->self = pdev;
 		ebus->parent = pbm = cookie->pbm;
-
-		ebus_ranges_init(ebus);
-		ebus_intmap_init(ebus);
 
 		child = dp->child;
 		if (!child)

@@ -42,11 +42,6 @@ struct linux_ebus {
 	int				 index;
 	int				 is_rio;
 	struct device_node		*prom_node;
-	struct linux_prom_ebus_ranges	 ebus_ranges[PROMREG_MAX];
-	int				 num_ebus_ranges;
-	struct linux_prom_ebus_intmap	 ebus_intmap[PROMREG_MAX];
-	int				 num_ebus_intmap;
-	struct linux_prom_ebus_intmask	 ebus_intmask;
 };
 
 struct ebus_dma_info {
