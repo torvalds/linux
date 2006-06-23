@@ -282,18 +282,60 @@ static inline void disable_swap_token(void)
 #define free_pages_and_swap_cache(pages, nr) \
 	release_pages((pages), (nr), 0);
 
-#define show_swap_cache_info()			/*NOTHING*/
-#define free_swap_and_cache(swp)		/*NOTHING*/
-#define swap_duplicate(swp)			/*NOTHING*/
-#define swap_free(swp)				/*NOTHING*/
-#define read_swap_cache_async(swp,vma,addr)	NULL
-#define lookup_swap_cache(swp)			NULL
-#define valid_swaphandles(swp, off)		0
+static inline void show_swap_cache_info(void)
+{
+}
+
+static inline void free_swap_and_cache(swp_entry_t swp)
+{
+}
+
+static inline int swap_duplicate(swp_entry_t swp)
+{
+	return 0;
+}
+
+static inline void swap_free(swp_entry_t swp)
+{
+}
+
+static inline struct page *read_swap_cache_async(swp_entry_t swp,
+			struct vm_area_struct *vma, unsigned long addr)
+{
+	return NULL;
+}
+
+static inline struct page *lookup_swap_cache(swp_entry_t swp)
+{
+	return NULL;
+}
+
+static inline int valid_swaphandles(swp_entry_t entry, unsigned long *offset)
+{
+	return 0;
+}
+
 #define can_share_swap_page(p)			(page_mapcount(p) == 1)
-#define move_to_swap_cache(p, swp)		1
-#define move_from_swap_cache(p, i, m)		1
-#define __delete_from_swap_cache(p)		/*NOTHING*/
-#define delete_from_swap_cache(p)		/*NOTHING*/
+
+static inline int move_to_swap_cache(struct page *page, swp_entry_t entry)
+{
+	return 1;
+}
+
+static inline int move_from_swap_cache(struct page *page, unsigned long index,
+					struct address_space *mapping)
+{
+	return 1;
+}
+
+static inline void __delete_from_swap_cache(struct page *page)
+{
+}
+
+static inline void delete_from_swap_cache(struct page *page)
+{
+}
+
 #define swap_token_default_timeout		0
 
 static inline int remove_exclusive_swap_page(struct page *p)
