@@ -425,9 +425,19 @@ static int attach_inform(struct i2c_client *client)
 	struct em28xx *dev = client->adapter->algo_data;
 
 	switch (client->addr << 1) {
-		case 0x86:
+		case 0x43:
+		case 0x4b:
+		{
+			struct tuner_setup tun_setup;
+
+			tun_setup.mode_mask = T_ANALOG_TV | T_RADIO;
+			tun_setup.type = TUNER_TDA9887;
+			tun_setup.addr = client->addr;
+
+			em28xx_i2c_call_clients(dev, TUNER_SET_TYPE_ADDR, &tun_setup);
 			em28xx_i2c_call_clients(dev, TDA9887_SET_CONFIG, &dev->tda9887_conf);
 			break;
+		}
 		case 0x42:
 			dprintk1(1,"attach_inform: saa7114 detected.\n");
 			break;
@@ -453,6 +463,7 @@ static int attach_inform(struct i2c_client *client)
 		case 0xba:
 			dprintk1(1,"attach_inform: tvp5150 detected.\n");
 			break;
+
 		default:
 			dprintk1(1,"attach inform: detected I2C address %x\n", client->addr << 1);
 			dev->tuner_addr = client->addr;

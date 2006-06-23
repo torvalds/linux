@@ -25,6 +25,8 @@
 #include <linux/videodev2.h>
 #include <media/tuner-types.h>
 
+extern int tuner_debug;
+
 #define ADDR_UNSET (255)
 
 #define TUNER_TEMIC_PAL			0        /* 4002 FH5 (3X 7756, 9483) */
@@ -120,6 +122,7 @@
 
 #define TUNER_THOMSON_FE6600		72	/* DViCO FusionHDTV DVB-T Hybrid */
 #define TUNER_SAMSUNG_TCPG_6121P30A     73 	/* Hauppauge PVR-500 PAL */
+#define TUNER_TDA9887                   74      /* This tuner should be used only internally */
 
 /* tv card specific */
 #define TDA9887_PRESENT 		(1<<0)
@@ -191,6 +194,10 @@ struct tuner {
 
 	int          using_v4l2;
 
+	/* used by tda9887 */
+	unsigned int       tda9887_config;
+	unsigned char 	   tda9887_data[4];
+
 	/* used by MT2032 */
 	unsigned int xogc;
 	unsigned int radio_if2;
@@ -207,6 +214,8 @@ struct tuner {
 	void (*set_radio_freq)(struct i2c_client *c, unsigned int freq);
 	int  (*has_signal)(struct i2c_client *c);
 	int  (*is_stereo)(struct i2c_client *c);
+	int  (*get_afc)(struct i2c_client *c);
+	void (*tuner_status)(struct i2c_client *c);
 	void (*standby)(struct i2c_client *c);
 };
 
@@ -219,6 +228,7 @@ extern int tda8290_probe(struct i2c_client *c);
 extern int tea5767_tuner_init(struct i2c_client *c);
 extern int default_tuner_init(struct i2c_client *c);
 extern int tea5767_autodetection(struct i2c_client *c);
+extern int tda9887_tuner_init(struct i2c_client *c);
 
 #define tuner_warn(fmt, arg...) do {\
 	printk(KERN_WARNING "%s %d-%04x: " fmt, t->i2c.driver->driver.name, \
