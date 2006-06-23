@@ -474,8 +474,7 @@ NCR_700_readl(struct Scsi_Host *host, __u32 reg)
 		ioread32(hostdata->base + reg);
 #if 1
 	/* sanity check the register */
-	if((reg & 0x3) != 0)
-		BUG();
+	BUG_ON((reg & 0x3) != 0);
 #endif
 
 	return value;
@@ -498,8 +497,7 @@ NCR_700_writel(__u32 value, struct Scsi_Host *host, __u32 reg)
 
 #if 1
 	/* sanity check the register */
-	if((reg & 0x3) != 0)
-		BUG();
+	BUG_ON((reg & 0x3) != 0);
 #endif
 
 	bEBus ? iowrite32be(value, hostdata->base + reg): 

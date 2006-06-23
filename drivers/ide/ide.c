@@ -1367,8 +1367,7 @@ int generic_ide_ioctl(ide_drive_t *drive, struct file *file, struct block_device
 
 			ide_abort(drive, "drive reset");
 
-			if(HWGROUP(drive)->handler)
-				BUG();
+			BUG_ON(HWGROUP(drive)->handler);
 				
 			/* Ensure nothing gets queued after we
 			   drop the lock. Reset will clear the busy */
