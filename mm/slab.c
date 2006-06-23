@@ -3277,26 +3277,10 @@ EXPORT_SYMBOL(kmalloc_node);
 #endif
 
 /**
- * kmalloc - allocate memory
+ * __do_kmalloc - allocate memory
  * @size: how many bytes of memory are required.
- * @flags: the type of memory to allocate.
+ * @flags: the type of memory to allocate (see kmalloc).
  * @caller: function caller for debug tracking of the caller
- *
- * kmalloc is the normal method of allocating memory
- * in the kernel.
- *
- * The @flags argument may be one of:
- *
- * %GFP_USER - Allocate memory on behalf of user.  May sleep.
- *
- * %GFP_KERNEL - Allocate normal kernel ram.  May sleep.
- *
- * %GFP_ATOMIC - Allocation will not sleep.  Use inside interrupt handlers.
- *
- * Additionally, the %GFP_DMA flag may be set to indicate the memory
- * must be suitable for DMA.  This can mean different things on different
- * platforms.  For example, on i386, it means that the memory must come
- * from the first 16MB.
  */
 static __always_inline void *__do_kmalloc(size_t size, gfp_t flags,
 					  void *caller)
