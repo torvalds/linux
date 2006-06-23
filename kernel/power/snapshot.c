@@ -122,7 +122,7 @@ static int restore_arch_mem(void)
 }
 
 #ifdef CONFIG_HIGHMEM
-unsigned int count_highmem_pages(void)
+static unsigned int count_highmem_pages(void)
 {
 	struct zone *zone;
 	unsigned long zone_pfn;
@@ -199,7 +199,7 @@ static int save_highmem_zone(struct zone *zone)
 	return 0;
 }
 
-int save_highmem(void)
+static int save_highmem(void)
 {
 	struct zone *zone;
 	int res = 0;
@@ -216,7 +216,7 @@ int save_highmem(void)
 	return 0;
 }
 
-int restore_highmem(void)
+static int restore_highmem(void)
 {
 	printk("swsusp: Restoring Highmem\n");
 	while (highmem_copy) {
@@ -233,9 +233,9 @@ int restore_highmem(void)
 	return 0;
 }
 #else
-static unsigned int count_highmem_pages(void) {return 0;}
-static int save_highmem(void) {return 0;}
-static int restore_highmem(void) {return 0;}
+static inline unsigned int count_highmem_pages(void) {return 0;}
+static inline int save_highmem(void) {return 0;}
+static inline int restore_highmem(void) {return 0;}
 #endif
 
 unsigned int count_special_pages(void)
@@ -482,7 +482,8 @@ unsigned long get_safe_page(gfp_t gfp_mask)
  *	On each page we set up a list of struct_pbe elements.
  */
 
-struct pbe *alloc_pagedir(unsigned int nr_pages, gfp_t gfp_mask, int safe_needed)
+static struct pbe *alloc_pagedir(unsigned int nr_pages, gfp_t gfp_mask,
+				 int safe_needed)
 {
 	unsigned int num;
 	struct pbe *pblist, *pbe;
