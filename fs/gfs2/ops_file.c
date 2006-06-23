@@ -859,24 +859,6 @@ static int gfs2_lock(struct file *file, int cmd, struct file_lock *fl)
 		return gfs2_lm_plock(sdp, &name, file, cmd, fl);
 }
 
-/**
- * gfs2_sendfile - Send bytes to a file or socket
- * @in_file: The file to read from
- * @out_file: The file to write to
- * @count: The amount of data
- * @offset: The beginning file offset
- *
- * Outputs: offset - updated according to number of bytes read
- *
- * Returns: The number of bytes sent, errno on failure
- */
-
-static ssize_t gfs2_sendfile(struct file *in_file, loff_t *offset, size_t count,
-			     read_actor_t actor, void *target)
-{
-	return generic_file_sendfile(in_file, offset, count, actor, target);
-}
-
 static int do_flock(struct file *file, int cmd, struct file_lock *fl)
 {
 	struct gfs2_file *fp = file->private_data;
@@ -982,7 +964,7 @@ struct file_operations gfs2_file_fops = {
 	.release = gfs2_close,
 	.fsync = gfs2_fsync,
 	.lock = gfs2_lock,
-	.sendfile = gfs2_sendfile,
+	.sendfile = generic_file_sendfile,
 	.flock = gfs2_flock,
 	.splice_read = generic_file_splice_read,
 	.splice_write = generic_file_splice_write,
