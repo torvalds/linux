@@ -105,6 +105,8 @@ extern struct module __this_module;
  *	"GPL and additional rights"	[GNU Public License v2 rights and more]
  *	"Dual BSD/GPL"			[GNU Public License v2
  *					 or BSD license choice]
+ *	"Dual MIT/GPL"			[GNU Public License v2
+ *					 or MIT license choice]
  *	"Dual MPL/GPL"			[GNU Public License v2
  *					 or Mozilla license choice]
  *
