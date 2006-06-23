@@ -891,6 +891,8 @@ static int init_section_ref_ok(const char *name)
 		".pci_fixup_final",
 		".pdr",
 		"__param",
+		"__ex_table",
+		".fixup",
 		".smp_locks",
 		".plt",  /* seen on ARCH=um build on x86_64. Harmless */
 		NULL
@@ -918,6 +920,8 @@ static int init_section_ref_ok(const char *name)
 	for (s = namelist3; *s; s++)
 		if (strstr(name, *s) != NULL)
 			return 1;
+	if (strrcmp(name, ".init") == 0)
+		return 1;
 	return 0;
 }
 
@@ -964,6 +968,8 @@ static int exit_section_ref_ok(const char *name)
 		".exitcall.exit",
 		".eh_frame",
 		".stab",
+		"__ex_table",
+		".fixup",
 		".smp_locks",
 		".plt",  /* seen on ARCH=um build on x86_64. Harmless */
 		NULL
