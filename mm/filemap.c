@@ -14,6 +14,7 @@
 #include <linux/slab.h>
 #include <linux/compiler.h>
 #include <linux/fs.h>
+#include <linux/uaccess.h>
 #include <linux/aio.h>
 #include <linux/capability.h>
 #include <linux/kernel_stat.h>
@@ -38,7 +39,6 @@
  */
 #include <linux/buffer_head.h> /* for generic_osync_inode */
 
-#include <asm/uaccess.h>
 #include <asm/mman.h>
 
 static ssize_t
@@ -1902,7 +1902,7 @@ __filemap_copy_from_user_iovec(char *vaddr,
 		int copy = min(bytes, iov->iov_len - base);
 
 		base = 0;
-		left = __copy_from_user_inatomic(vaddr, buf, copy);
+		left = __copy_from_user_inatomic_nocache(vaddr, buf, copy);
 		copied += copy;
 		bytes -= copy;
 		vaddr += copy;
