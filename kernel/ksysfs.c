@@ -14,6 +14,7 @@
 #include <linux/sysfs.h>
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/kexec.h>
 
 #define KERNEL_ATTR_RO(_name) \
 static struct subsys_attribute _name##_attr = __ATTR_RO(_name)
@@ -48,6 +49,20 @@ static ssize_t uevent_helper_store(struct subsystem *subsys, const char *page, s
 KERNEL_ATTR_RW(uevent_helper);
 #endif
 
+#ifdef CONFIG_KEXEC
+static ssize_t kexec_loaded_show(struct subsystem *subsys, char *page)
+{
+	return sprintf(page, "%d\n", !!kexec_image);
+}
+KERNEL_ATTR_RO(kexec_loaded);
+
+static ssize_t kexec_crash_loaded_show(struct subsystem *subsys, char *page)
+{
+	return sprintf(page, "%d\n", !!kexec_crash_image);
+}
+KERNEL_ATTR_RO(kexec_crash_loaded);
+#endif /* CONFIG_KEXEC */
+
 decl_subsys(kernel, NULL, NULL);
 EXPORT_SYMBOL_GPL(kernel_subsys);
 
@@ -55,6 +70,10 @@ static struct attribute * kernel_attrs[] = {
 #if defined(CONFIG_HOTPLUG) && defined(CONFIG_NET)
 	&uevent_seqnum_attr.attr,
 	&uevent_helper_attr.attr,
+#endif
+#ifdef CONFIG_KEXEC
+	&kexec_loaded_attr.attr,
+	&kexec_crash_loaded_attr.attr,
 #endif
 	NULL
 };
