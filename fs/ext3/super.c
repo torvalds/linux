@@ -1580,9 +1580,6 @@ static int ext3_fill_super (struct super_block *sb, void *data, int silent)
 		goto failed_mount;
 	}
 
-	percpu_counter_init(&sbi->s_freeblocks_counter);
-	percpu_counter_init(&sbi->s_freeinodes_counter);
-	percpu_counter_init(&sbi->s_dirs_counter);
 	bgl_lock_init(&sbi->s_blockgroup_lock);
 
 	for (i = 0; i < db_count; i++) {
@@ -1602,6 +1599,14 @@ static int ext3_fill_super (struct super_block *sb, void *data, int silent)
 	sbi->s_gdb_count = db_count;
 	get_random_bytes(&sbi->s_next_generation, sizeof(u32));
 	spin_lock_init(&sbi->s_next_gen_lock);
+
+	percpu_counter_init(&sbi->s_freeblocks_counter,
+		ext3_count_free_blocks(sb));
+	percpu_counter_init(&sbi->s_freeinodes_counter,
+		ext3_count_free_inodes(sb));
+	percpu_counter_init(&sbi->s_dirs_counter,
+		ext3_count_dirs(sb));
+
 	/* per fileystem reservation list head & lock */
 	spin_lock_init(&sbi->s_rsv_window_lock);
 	sbi->s_rsv_window_root = RB_ROOT;
@@ -1640,16 +1645,16 @@ static int ext3_fill_super (struct super_block *sb, void *data, int silent)
 	if (!test_opt(sb, NOLOAD) &&
 	    EXT3_HAS_COMPAT_FEATURE(sb, EXT3_FEATURE_COMPAT_HAS_JOURNAL)) {
 		if (ext3_load_journal(sb, es, journal_devnum))
-			goto failed_mount2;
+			goto failed_mount3;
 	} else if (journal_inum) {
 		if (ext3_create_journal(sb, es, journal_inum))
-			goto failed_mount2;
+			goto failed_mount3;
 	} else {
 		if (!silent)
 			printk (KERN_ERR
 				"ext3: No journal on filesystem on %s\n",
 				sb->s_id);
-		goto failed_mount2;
+		goto failed_mount3;
 	}
 
 	/* We have now updated the journal if required, so we can
@@ -1672,7 +1677,7 @@ static int ext3_fill_super (struct super_block *sb, void *data, int silent)
 		    (sbi->s_journal, 0, 0, JFS_FEATURE_INCOMPAT_REVOKE)) {
 			printk(KERN_ERR "EXT3-fs: Journal does not support "
 			       "requested data journaling mode\n");
-			goto failed_mount3;
+			goto failed_mount4;
 		}
 	default:
 		break;
@@ -1695,13 +1700,13 @@ static int ext3_fill_super (struct super_block *sb, void *data, int silent)
 	if (!sb->s_root) {
 		printk(KERN_ERR "EXT3-fs: get root inode failed\n");
 		iput(root);
-		goto failed_mount3;
+		goto failed_mount4;
 	}
 	if (!S_ISDIR(root->i_mode) || !root->i_blocks || !root->i_size) {
 		dput(sb->s_root);
 		sb->s_root = NULL;
 		printk(KERN_ERR "EXT3-fs: corrupt root inode, run e2fsck\n");
-		goto failed_mount3;
+		goto failed_mount4;
 	}
 
 	ext3_setup_super (sb, es, sb->s_flags & MS_RDONLY);
@@ -1724,13 +1729,6 @@ static int ext3_fill_super (struct super_block *sb, void *data, int silent)
 		test_opt(sb,DATA_FLAGS) == EXT3_MOUNT_ORDERED_DATA ? "ordered":
 		"writeback");
 
-	percpu_counter_mod(&sbi->s_freeblocks_counter,
-		ext3_count_free_blocks(sb));
-	percpu_counter_mod(&sbi->s_freeinodes_counter,
-		ext3_count_free_inodes(sb));
-	percpu_counter_mod(&sbi->s_dirs_counter,
-		ext3_count_dirs(sb));
-
 	lock_kernel();
 	return 0;
 
@@ -1740,8 +1738,12 @@ cantfind_ext3:
 		       sb->s_id);
 	goto failed_mount;
 
-failed_mount3:
+failed_mount4:
 	journal_destroy(sbi->s_journal);
+failed_mount3:
+	percpu_counter_destroy(&sbi->s_freeblocks_counter);
+	percpu_counter_destroy(&sbi->s_freeinodes_counter);
+	percpu_counter_destroy(&sbi->s_dirs_counter);
 failed_mount2:
 	for (i = 0; i < db_count; i++)
 		brelse(sbi->s_group_desc[i]);
