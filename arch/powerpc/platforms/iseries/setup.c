@@ -81,8 +81,6 @@ static void iSeries_pci_final_fixup(void) { }
 #endif
 
 extern int rd_size;		/* Defined in drivers/block/rd.c */
-extern unsigned long embedded_sysmap_start;
-extern unsigned long embedded_sysmap_end;
 
 extern unsigned long iSeries_recal_tb;
 extern unsigned long iSeries_recal_titan;
@@ -563,16 +561,6 @@ static void __init iSeries_fixup_klimit(void)
 	if (naca.xRamDisk)
 		klimit = KERNELBASE + (u64)naca.xRamDisk +
 			(naca.xRamDiskSize * HW_PAGE_SIZE);
-	else {
-		/*
-		 * No ram disk was included - check and see if there
-		 * was an embedded system map.  Change klimit to take
-		 * into account any embedded system map
-		 */
-		if (embedded_sysmap_end)
-			klimit = KERNELBASE + ((embedded_sysmap_end + 4095) &
-					0xfffffffffffff000);
-	}
 }
 
 static int __init iSeries_src_init(void)

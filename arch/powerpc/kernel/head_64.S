@@ -85,34 +85,6 @@ END_FTR_SECTION(0, 1)
 	/* Catch branch to 0 in real mode */
 	trap
 
-#ifdef CONFIG_PPC_ISERIES
-	/*
-	 * At offset 0x20, there is a pointer to iSeries LPAR data.
-	 * This is required by the hypervisor
-	 */
-	. = 0x20
-	.llong hvReleaseData-KERNELBASE
-
-	/*
-	 * At offset 0x28 and 0x30 are offsets to the mschunks_map
-	 * array (used by the iSeries LPAR debugger to do translation
-	 * between physical addresses and absolute addresses) and
-	 * to the pidhash table (also used by the debugger)
-	 */
-	.llong mschunks_map-KERNELBASE
-	.llong 0	/* pidhash-KERNELBASE SFRXXX */
-
-	/* Offset 0x38 - Pointer to start of embedded System.map */
-	.globl	embedded_sysmap_start
-embedded_sysmap_start:
-	.llong	0
-	/* Offset 0x40 - Pointer to end of embedded System.map */
-	.globl	embedded_sysmap_end
-embedded_sysmap_end:
-	.llong	0
-
-#endif /* CONFIG_PPC_ISERIES */
-
 	/* Secondary processors spin on this value until it goes to 1. */
 	.globl  __secondary_hold_spinloop
 __secondary_hold_spinloop:
@@ -123,6 +95,15 @@ __secondary_hold_spinloop:
 	.globl	__secondary_hold_acknowledge
 __secondary_hold_acknowledge:
 	.llong	0x0
+
+#ifdef CONFIG_PPC_ISERIES
+	/*
+	 * At offset 0x20, there is a pointer to iSeries LPAR data.
+	 * This is required by the hypervisor
+	 */
+	. = 0x20
+	.llong hvReleaseData-KERNELBASE
+#endif /* CONFIG_PPC_ISERIES */
 
 	. = 0x60
 /*
