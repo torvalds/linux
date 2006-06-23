@@ -4,10 +4,6 @@
  * Uses for this includes on-device special memory, uncached memory
  * etc.
  *
- * This code is based on the buddy allocator found in the sym53c8xx_2
- * driver Copyright (C) 1999-2001  Gerard Roudier <groudier@free.fr>,
- * and adapted for general purpose use.
- *
  * Copyright 2005 (C) Jes Sorensen <jes@trained-monkey.org>
  *
  * This source code is licensed under the GNU General Public License,
@@ -15,172 +11,155 @@
  */
 
 #include <linux/module.h>
-#include <linux/stddef.h>
-#include <linux/kernel.h>
-#include <linux/string.h>
-#include <linux/slab.h>
-#include <linux/init.h>
-#include <linux/mm.h>
-#include <linux/spinlock.h>
 #include <linux/genalloc.h>
 
-#include <asm/page.h>
 
-
-struct gen_pool *gen_pool_create(int nr_chunks, int max_chunk_shift,
-				 unsigned long (*fp)(struct gen_pool *),
-				 unsigned long data)
+/*
+ * Create a new special memory pool.
+ *
+ * @min_alloc_order: log base 2 of number of bytes each bitmap bit represents
+ * @nid: node id of the node the pool structure should be allocated on, or -1
+ */
+struct gen_pool *gen_pool_create(int min_alloc_order, int nid)
 {
-	struct gen_pool *poolp;
-	unsigned long tmp;
-	int i;
+	struct gen_pool *pool;
 
-	/*
-	 * This is really an arbitrary limit, +10 is enough for
-	 * IA64_GRANULE_SHIFT, aka 16MB. If anyone needs a large limit
-	 * this can be increased without problems.
-	 */
-	if ((max_chunk_shift > (PAGE_SHIFT + 10)) ||
-	    ((max_chunk_shift < ALLOC_MIN_SHIFT) && max_chunk_shift))
-		return NULL;
-
-	if (!max_chunk_shift)
-		max_chunk_shift = PAGE_SHIFT;
-
-	poolp = kmalloc(sizeof(struct gen_pool), GFP_KERNEL);
-	if (!poolp)
-		return NULL;
-	memset(poolp, 0, sizeof(struct gen_pool));
-	poolp->h = kmalloc(sizeof(struct gen_pool_link) *
-			   (max_chunk_shift - ALLOC_MIN_SHIFT + 1),
-			   GFP_KERNEL);
-	if (!poolp->h) {
-		printk(KERN_WARNING "gen_pool_alloc() failed to allocate\n");
-		kfree(poolp);
-		return NULL;
+	pool = kmalloc_node(sizeof(struct gen_pool), GFP_KERNEL, nid);
+	if (pool != NULL) {
+		rwlock_init(&pool->lock);
+		INIT_LIST_HEAD(&pool->chunks);
+		pool->min_alloc_order = min_alloc_order;
 	}
-	memset(poolp->h, 0, sizeof(struct gen_pool_link) *
-	       (max_chunk_shift - ALLOC_MIN_SHIFT + 1));
-
-	spin_lock_init(&poolp->lock);
-	poolp->get_new_chunk = fp;
-	poolp->max_chunk_shift = max_chunk_shift;
-	poolp->private = data;
-
-	for (i = 0; i < nr_chunks; i++) {
-		tmp = poolp->get_new_chunk(poolp);
-		printk(KERN_INFO "allocated %lx\n", tmp);
-		if (!tmp)
-			break;
-		gen_pool_free(poolp, tmp, (1 << poolp->max_chunk_shift));
-	}
-
-	return poolp;
+	return pool;
 }
 EXPORT_SYMBOL(gen_pool_create);
 
 
 /*
- *  Simple power of two buddy-like generic allocator.
- *  Provides naturally aligned memory chunks.
+ * Add a new chunk of memory to the specified pool.
+ *
+ * @pool: pool to add new memory chunk to
+ * @addr: starting address of memory chunk to add to pool
+ * @size: size in bytes of the memory chunk to add to pool
+ * @nid: node id of the node the chunk structure and bitmap should be
+ *       allocated on, or -1
  */
-unsigned long gen_pool_alloc(struct gen_pool *poolp, int size)
+int gen_pool_add(struct gen_pool *pool, unsigned long addr, size_t size,
+		 int nid)
 {
-	int j, i, s, max_chunk_size;
-	unsigned long a, flags;
-	struct gen_pool_link *h = poolp->h;
+	struct gen_pool_chunk *chunk;
+	int nbits = size >> pool->min_alloc_order;
+	int nbytes = sizeof(struct gen_pool_chunk) +
+				(nbits + BITS_PER_BYTE - 1) / BITS_PER_BYTE;
 
-	max_chunk_size = 1 << poolp->max_chunk_shift;
+	chunk = kmalloc_node(nbytes, GFP_KERNEL, nid);
+	if (unlikely(chunk == NULL))
+		return -1;
 
-	if (size > max_chunk_size)
+	memset(chunk, 0, nbytes);
+	spin_lock_init(&chunk->lock);
+	chunk->start_addr = addr;
+	chunk->end_addr = addr + size;
+
+	write_lock(&pool->lock);
+	list_add(&chunk->next_chunk, &pool->chunks);
+	write_unlock(&pool->lock);
+
+	return 0;
+}
+EXPORT_SYMBOL(gen_pool_add);
+
+
+/*
+ * Allocate the requested number of bytes from the specified pool.
+ * Uses a first-fit algorithm.
+ *
+ * @pool: pool to allocate from
+ * @size: number of bytes to allocate from the pool
+ */
+unsigned long gen_pool_alloc(struct gen_pool *pool, size_t size)
+{
+	struct list_head *_chunk;
+	struct gen_pool_chunk *chunk;
+	unsigned long addr, flags;
+	int order = pool->min_alloc_order;
+	int nbits, bit, start_bit, end_bit;
+
+	if (size == 0)
 		return 0;
 
-	size = max(size, 1 << ALLOC_MIN_SHIFT);
-	i = fls(size - 1);
-	s = 1 << i;
-	j = i -= ALLOC_MIN_SHIFT;
+	nbits = (size + (1UL << order) - 1) >> order;
 
-	spin_lock_irqsave(&poolp->lock, flags);
-	while (!h[j].next) {
-		if (s == max_chunk_size) {
-			struct gen_pool_link *ptr;
-			spin_unlock_irqrestore(&poolp->lock, flags);
-			ptr = (struct gen_pool_link *)poolp->get_new_chunk(poolp);
-			spin_lock_irqsave(&poolp->lock, flags);
-			h[j].next = ptr;
-			if (h[j].next)
-				h[j].next->next = NULL;
-			break;
+	read_lock(&pool->lock);
+	list_for_each(_chunk, &pool->chunks) {
+		chunk = list_entry(_chunk, struct gen_pool_chunk, next_chunk);
+
+		end_bit = (chunk->end_addr - chunk->start_addr) >> order;
+		end_bit -= nbits + 1;
+
+		spin_lock_irqsave(&chunk->lock, flags);
+		bit = -1;
+		while (bit + 1 < end_bit) {
+			bit = find_next_zero_bit(chunk->bits, end_bit, bit + 1);
+			if (bit >= end_bit)
+				break;
+
+			start_bit = bit;
+			if (nbits > 1) {
+				bit = find_next_bit(chunk->bits, bit + nbits,
+							bit + 1);
+				if (bit - start_bit < nbits)
+					continue;
+			}
+
+			addr = chunk->start_addr +
+					    ((unsigned long)start_bit << order);
+			while (nbits--)
+				__set_bit(start_bit++, &chunk->bits);
+			spin_unlock_irqrestore(&chunk->lock, flags);
+			read_unlock(&pool->lock);
+			return addr;
 		}
-		j++;
-		s <<= 1;
+		spin_unlock_irqrestore(&chunk->lock, flags);
 	}
-	a = (unsigned long) h[j].next;
-	if (a) {
-		h[j].next = h[j].next->next;
-		/*
-		 * This should be split into a seperate function doing
-		 * the chunk split in order to support custom
-		 * handling memory not physically accessible by host
-		 */
-		while (j > i) {
-			j -= 1;
-			s >>= 1;
-			h[j].next = (struct gen_pool_link *) (a + s);
-			h[j].next->next = NULL;
-		}
-	}
-	spin_unlock_irqrestore(&poolp->lock, flags);
-	return a;
+	read_unlock(&pool->lock);
+	return 0;
 }
 EXPORT_SYMBOL(gen_pool_alloc);
 
 
 /*
- *  Counter-part of the generic allocator.
+ * Free the specified memory back to the specified pool.
+ *
+ * @pool: pool to free to
+ * @addr: starting address of memory to free back to pool
+ * @size: size in bytes of memory to free
  */
-void gen_pool_free(struct gen_pool *poolp, unsigned long ptr, int size)
+void gen_pool_free(struct gen_pool *pool, unsigned long addr, size_t size)
 {
-	struct gen_pool_link *q;
-	struct gen_pool_link *h = poolp->h;
-	unsigned long a, b, flags;
-	int i, s, max_chunk_size;
+	struct list_head *_chunk;
+	struct gen_pool_chunk *chunk;
+	unsigned long flags;
+	int order = pool->min_alloc_order;
+	int bit, nbits;
 
-	max_chunk_size = 1 << poolp->max_chunk_shift;
+	nbits = (size + (1UL << order) - 1) >> order;
 
-	if (size > max_chunk_size)
-		return;
+	read_lock(&pool->lock);
+	list_for_each(_chunk, &pool->chunks) {
+		chunk = list_entry(_chunk, struct gen_pool_chunk, next_chunk);
 
-	size = max(size, 1 << ALLOC_MIN_SHIFT);
-	i = fls(size - 1);
-	s = 1 << i;
-	i -= ALLOC_MIN_SHIFT;
-
-	a = ptr;
-
-	spin_lock_irqsave(&poolp->lock, flags);
-	while (1) {
-		if (s == max_chunk_size) {
-			((struct gen_pool_link *)a)->next = h[i].next;
-			h[i].next = (struct gen_pool_link *)a;
+		if (addr >= chunk->start_addr && addr < chunk->end_addr) {
+			BUG_ON(addr + size > chunk->end_addr);
+			spin_lock_irqsave(&chunk->lock, flags);
+			bit = (addr - chunk->start_addr) >> order;
+			while (nbits--)
+				__clear_bit(bit++, &chunk->bits);
+			spin_unlock_irqrestore(&chunk->lock, flags);
 			break;
 		}
-		b = a ^ s;
-		q = &h[i];
-
-		while (q->next && q->next != (struct gen_pool_link *)b)
-			q = q->next;
-
-		if (!q->next) {
-			((struct gen_pool_link *)a)->next = h[i].next;
-			h[i].next = (struct gen_pool_link *)a;
-			break;
-		}
-		q->next = q->next->next;
-		a = a & b;
-		s <<= 1;
-		i++;
 	}
-	spin_unlock_irqrestore(&poolp->lock, flags);
+	BUG_ON(nbits > 0);
+	read_unlock(&pool->lock);
 }
 EXPORT_SYMBOL(gen_pool_free);

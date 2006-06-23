@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2001-2005 Silicon Graphics, Inc.  All rights reserved.
+ * Copyright (C) 2001-2006 Silicon Graphics, Inc.  All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License
@@ -29,15 +29,8 @@
 #include <asm/tlbflush.h>
 #include <asm/sn/arch.h>
 
-#define DEBUG	0
 
-#if DEBUG
-#define dprintk			printk
-#else
-#define dprintk(x...)		do { } while (0)
-#endif
-
-void __init efi_memmap_walk_uc (efi_freemem_callback_t callback);
+extern void __init efi_memmap_walk_uc(efi_freemem_callback_t, void *);
 
 #define MAX_UNCACHED_GRANULES	5
 static int allocated_granules;
@@ -60,6 +53,7 @@ static void uncached_ipi_visibility(void *data)
 static void uncached_ipi_mc_drain(void *data)
 {
 	int status;
+
 	status = ia64_pal_mc_drain();
 	if (status)
 		printk(KERN_WARNING "ia64_pal_mc_drain() failed with %i on "
@@ -67,30 +61,35 @@ static void uncached_ipi_mc_drain(void *data)
 }
 
 
-static unsigned long
-uncached_get_new_chunk(struct gen_pool *poolp)
+/*
+ * Add a new chunk of uncached memory pages to the specified pool.
+ *
+ * @pool: pool to add new chunk of uncached memory to
+ * @nid: node id of node to allocate memory from, or -1
+ *
+ * This is accomplished by first allocating a granule of cached memory pages
+ * and then converting them to uncached memory pages.
+ */
+static int uncached_add_chunk(struct gen_pool *pool, int nid)
 {
 	struct page *page;
-	void *tmp;
 	int status, i;
-	unsigned long addr, node;
+	unsigned long c_addr, uc_addr;
 
 	if (allocated_granules >= MAX_UNCACHED_GRANULES)
-		return 0;
+		return -1;
 
-	node = poolp->private;
-	page = alloc_pages_node(node, GFP_KERNEL | __GFP_ZERO,
+	/* attempt to allocate a granule's worth of cached memory pages */
+
+	page = alloc_pages_node(nid, GFP_KERNEL | __GFP_ZERO,
 				IA64_GRANULE_SHIFT-PAGE_SHIFT);
-
-	dprintk(KERN_INFO "get_new_chunk page %p, addr %lx\n",
-		page, (unsigned long)(page-vmem_map) << PAGE_SHIFT);
-
-	/*
-	 * Do magic if no mem on local node! XXX
-	 */
 	if (!page)
-		return 0;
-	tmp = page_address(page);
+		return -1;
+
+	/* convert the memory pages from cached to uncached */
+
+	c_addr = (unsigned long)page_address(page);
+	uc_addr = c_addr - PAGE_OFFSET + __IA64_UNCACHED_OFFSET;
 
 	/*
 	 * There's a small race here where it's possible for someone to
@@ -100,76 +99,90 @@ uncached_get_new_chunk(struct gen_pool *poolp)
 	for (i = 0; i < (IA64_GRANULE_SIZE / PAGE_SIZE); i++)
 		SetPageUncached(&page[i]);
 
-	flush_tlb_kernel_range(tmp, tmp + IA64_GRANULE_SIZE);
+	flush_tlb_kernel_range(uc_addr, uc_adddr + IA64_GRANULE_SIZE);
 
 	status = ia64_pal_prefetch_visibility(PAL_VISIBILITY_PHYSICAL);
-
-	dprintk(KERN_INFO "pal_prefetch_visibility() returns %i on cpu %i\n",
-		status, raw_smp_processor_id());
-
 	if (!status) {
 		status = smp_call_function(uncached_ipi_visibility, NULL, 0, 1);
 		if (status)
-			printk(KERN_WARNING "smp_call_function failed for "
-			       "uncached_ipi_visibility! (%i)\n", status);
+			goto failed;
 	}
 
+	preempt_disable();
+
 	if (ia64_platform_is("sn2"))
-		sn_flush_all_caches((unsigned long)tmp, IA64_GRANULE_SIZE);
+		sn_flush_all_caches(uc_addr, IA64_GRANULE_SIZE);
 	else
-		flush_icache_range((unsigned long)tmp,
-				   (unsigned long)tmp+IA64_GRANULE_SIZE);
+		flush_icache_range(uc_addr, uc_addr + IA64_GRANULE_SIZE);
+
+	/* flush the just introduced uncached translation from the TLB */
+	local_flush_tlb_all();
+
+	preempt_enable();
 
 	ia64_pal_mc_drain();
 	status = smp_call_function(uncached_ipi_mc_drain, NULL, 0, 1);
 	if (status)
-		printk(KERN_WARNING "smp_call_function failed for "
-		       "uncached_ipi_mc_drain! (%i)\n", status);
+		goto failed;
 
-	addr = (unsigned long)tmp - PAGE_OFFSET + __IA64_UNCACHED_OFFSET;
+	/*
+	 * The chunk of memory pages has been converted to uncached so now we
+	 * can add it to the pool.
+	 */
+	status = gen_pool_add(pool, uc_addr, IA64_GRANULE_SIZE, nid);
+	if (status)
+		goto failed;
 
 	allocated_granules++;
-	return addr;
+	return 0;
+
+	/* failed to convert or add the chunk so give it back to the kernel */
+failed:
+	for (i = 0; i < (IA64_GRANULE_SIZE / PAGE_SIZE); i++)
+		ClearPageUncached(&page[i]);
+
+	free_pages(c_addr, IA64_GRANULE_SHIFT-PAGE_SHIFT);
+	return -1;
 }
 
 
 /*
  * uncached_alloc_page
  *
+ * @starting_nid: node id of node to start with, or -1
+ *
  * Allocate 1 uncached page. Allocates on the requested node. If no
  * uncached pages are available on the requested node, roundrobin starting
- * with higher nodes.
+ * with the next higher node.
  */
-unsigned long
-uncached_alloc_page(int nid)
+unsigned long uncached_alloc_page(int starting_nid)
 {
-	unsigned long maddr;
+	unsigned long uc_addr;
+	struct gen_pool *pool;
+	int nid;
 
-	maddr = gen_pool_alloc(uncached_pool[nid], PAGE_SIZE);
+	if (unlikely(starting_nid >= MAX_NUMNODES))
+		return 0;
 
-	dprintk(KERN_DEBUG "uncached_alloc_page returns %lx on node %i\n",
-		maddr, nid);
+	if (starting_nid < 0)
+		starting_nid = numa_node_id();
+	nid = starting_nid;
 
-	/*
-	 * If no memory is availble on our local node, try the
-	 * remaining nodes in the system.
-	 */
-	if (!maddr) {
-		int i;
+	do {
+		if (!node_online(nid))
+			continue;
+		pool = uncached_pool[nid];
+		if (pool == NULL)
+			continue;
+		do {
+			uc_addr = gen_pool_alloc(pool, PAGE_SIZE);
+			if (uc_addr != 0)
+				return uc_addr;
+		} while (uncached_add_chunk(pool, nid) == 0);
 
-		for (i = MAX_NUMNODES - 1; i >= 0; i--) {
-			if (i == nid || !node_online(i))
-				continue;
-			maddr = gen_pool_alloc(uncached_pool[i], PAGE_SIZE);
-			dprintk(KERN_DEBUG "uncached_alloc_page alternate search "
-				"returns %lx on node %i\n", maddr, i);
-			if (maddr) {
-				break;
-			}
-		}
-	}
+	} while ((nid = (nid + 1) % MAX_NUMNODES) != starting_nid);
 
-	return maddr;
+	return 0;
 }
 EXPORT_SYMBOL(uncached_alloc_page);
 
@@ -177,21 +190,22 @@ EXPORT_SYMBOL(uncached_alloc_page);
 /*
  * uncached_free_page
  *
+ * @uc_addr: uncached address of page to free
+ *
  * Free a single uncached page.
  */
-void
-uncached_free_page(unsigned long maddr)
+void uncached_free_page(unsigned long uc_addr)
 {
-	int node;
+	int nid = paddr_to_nid(uc_addr - __IA64_UNCACHED_OFFSET);
+	struct gen_pool *pool = uncached_pool[nid];
 
-	node = paddr_to_nid(maddr - __IA64_UNCACHED_OFFSET);
+	if (unlikely(pool == NULL))
+		return;
 
-	dprintk(KERN_DEBUG "uncached_free_page(%lx) on node %i\n", maddr, node);
+	if ((uc_addr & (0XFUL << 60)) != __IA64_UNCACHED_OFFSET)
+		panic("uncached_free_page invalid address %lx\n", uc_addr);
 
-	if ((maddr & (0XFUL << 60)) != __IA64_UNCACHED_OFFSET)
-		panic("uncached_free_page invalid address %lx\n", maddr);
-
-	gen_pool_free(uncached_pool[node], maddr, PAGE_SIZE);
+	gen_pool_free(pool, uc_addr, PAGE_SIZE);
 }
 EXPORT_SYMBOL(uncached_free_page);
 
@@ -199,43 +213,39 @@ EXPORT_SYMBOL(uncached_free_page);
 /*
  * uncached_build_memmap,
  *
+ * @uc_start: uncached starting address of a chunk of uncached memory
+ * @uc_end: uncached ending address of a chunk of uncached memory
+ * @arg: ignored, (NULL argument passed in on call to efi_memmap_walk_uc())
+ *
  * Called at boot time to build a map of pages that can be used for
  * memory special operations.
  */
-static int __init
-uncached_build_memmap(unsigned long start, unsigned long end, void *arg)
+static int __init uncached_build_memmap(unsigned long uc_start,
+					unsigned long uc_end, void *arg)
 {
-	long length = end - start;
-	int node;
-
-	dprintk(KERN_ERR "uncached_build_memmap(%lx %lx)\n", start, end);
+	int nid = paddr_to_nid(uc_start - __IA64_UNCACHED_OFFSET);
+	struct gen_pool *pool = uncached_pool[nid];
+	size_t size = uc_end - uc_start;
 
 	touch_softlockup_watchdog();
-	memset((char *)start, 0, length);
 
-	node = paddr_to_nid(start - __IA64_UNCACHED_OFFSET);
-
-	for (; start < end ; start += PAGE_SIZE) {
-		dprintk(KERN_INFO "sticking %lx into the pool!\n", start);
-		gen_pool_free(uncached_pool[node], start, PAGE_SIZE);
+	if (pool != NULL) {
+		memset((char *)uc_start, 0, size);
+		(void) gen_pool_add(pool, uc_start, size, nid);
 	}
-
 	return 0;
 }
 
 
-static int __init uncached_init(void) {
-	int i;
+static int __init uncached_init(void)
+{
+	int nid;
 
-	for (i = 0; i < MAX_NUMNODES; i++) {
-		if (!node_online(i))
-			continue;
-		uncached_pool[i] = gen_pool_create(0, IA64_GRANULE_SHIFT,
-						   &uncached_get_new_chunk, i);
+	for_each_online_node(nid) {
+		uncached_pool[nid] = gen_pool_create(PAGE_SHIFT, nid);
 	}
 
-	efi_memmap_walk_uc(uncached_build_memmap);
-
+	efi_memmap_walk_uc(uncached_build_memmap, NULL);
 	return 0;
 }
 
