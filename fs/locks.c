@@ -1896,15 +1896,14 @@ out:
  */
 void locks_remove_posix(struct file *filp, fl_owner_t owner)
 {
-	struct file_lock lock, **before;
+	struct file_lock lock;
 
 	/*
 	 * If there are no locks held on this file, we don't need to call
 	 * posix_lock_file().  Another process could be setting a lock on this
 	 * file at the same time, but we wouldn't remove that lock anyway.
 	 */
-	before = &filp->f_dentry->d_inode->i_flock;
-	if (*before == NULL)
+	if (!filp->f_dentry->d_inode->i_flock)
 		return;
 
 	lock.fl_type = F_UNLCK;
@@ -1917,25 +1916,11 @@ void locks_remove_posix(struct file *filp, fl_owner_t owner)
 	lock.fl_ops = NULL;
 	lock.fl_lmops = NULL;
 
-	if (filp->f_op && filp->f_op->lock != NULL) {
+	if (filp->f_op && filp->f_op->lock != NULL)
 		filp->f_op->lock(filp, F_SETLK, &lock);
-		goto out;
-	}
+	else
+		posix_lock_file(filp, &lock);
 
-	/* Can't use posix_lock_file here; we need to remove it no matter
-	 * which pid we have.
-	 */
-	lock_kernel();
-	while (*before != NULL) {
-		struct file_lock *fl = *before;
-		if (IS_POSIX(fl) && posix_same_owner(fl, &lock)) {
-			locks_delete_lock(before);
-			continue;
-		}
-		before = &fl->fl_next;
-	}
-	unlock_kernel();
-out:
 	if (lock.fl_ops && lock.fl_ops->fl_release_private)
 		lock.fl_ops->fl_release_private(&lock);
 }
