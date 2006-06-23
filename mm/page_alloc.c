@@ -1491,7 +1491,7 @@ void show_free_areas(void)
 	}
 
 	for_each_zone(zone) {
- 		unsigned long nr, flags, order, total = 0;
+ 		unsigned long nr[MAX_ORDER], flags, order, total = 0;
 
 		show_node(zone);
 		printk("%s: ", zone->name);
@@ -1502,11 +1502,12 @@ void show_free_areas(void)
 
 		spin_lock_irqsave(&zone->lock, flags);
 		for (order = 0; order < MAX_ORDER; order++) {
-			nr = zone->free_area[order].nr_free;
-			total += nr << order;
-			printk("%lu*%lukB ", nr, K(1UL) << order);
+			nr[order] = zone->free_area[order].nr_free;
+			total += nr[order] << order;
 		}
 		spin_unlock_irqrestore(&zone->lock, flags);
+		for (order = 0; order < MAX_ORDER; order++)
+			printk("%lu*%lukB ", nr[order], K(1UL) << order);
 		printk("= %lukB\n", K(total));
 	}
 
