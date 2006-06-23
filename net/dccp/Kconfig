@@ -26,7 +26,7 @@ config INET_DCCP_DIAG
 
 config IP_DCCP_ACKVEC
 	depends on IP_DCCP
-	def_bool N
+	bool
 
 source "net/dccp/ccids/Kconfig"
 
