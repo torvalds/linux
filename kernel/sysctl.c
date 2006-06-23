@@ -59,6 +59,7 @@ extern int proc_nr_files(ctl_table *table, int write, struct file *filp,
 extern int C_A_D;
 extern int sysctl_overcommit_memory;
 extern int sysctl_overcommit_ratio;
+extern int sysctl_panic_on_oom;
 extern int max_threads;
 extern int sysrq_enabled;
 extern int core_uses_pid;
@@ -698,6 +699,14 @@ static ctl_table vm_table[] = {
 		.procname	= "overcommit_memory",
 		.data		= &sysctl_overcommit_memory,
 		.maxlen		= sizeof(sysctl_overcommit_memory),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
+	},
+	{
+		.ctl_name	= VM_PANIC_ON_OOM,
+		.procname	= "panic_on_oom",
+		.data		= &sysctl_panic_on_oom,
+		.maxlen		= sizeof(sysctl_panic_on_oom),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec,
 	},

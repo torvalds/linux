@@ -22,6 +22,7 @@
 #include <linux/jiffies.h>
 #include <linux/cpuset.h>
 
+int sysctl_panic_on_oom;
 /* #define DEBUG */
 
 /**
@@ -344,6 +345,8 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask, int order)
 		break;
 
 	case CONSTRAINT_NONE:
+		if (sysctl_panic_on_oom)
+			panic("out of memory. panic_on_oom is selected\n");
 retry:
 		/*
 		 * Rambo mode: Shoot down a process and hope it solves whatever
