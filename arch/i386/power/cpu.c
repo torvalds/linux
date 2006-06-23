@@ -10,6 +10,7 @@
 #include <linux/config.h>
 #include <linux/module.h>
 #include <linux/suspend.h>
+#include <asm/mtrr.h>
 
 static struct saved_context saved_context;
 
