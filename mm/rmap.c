@@ -595,6 +595,7 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
 					list_add(&mm->mmlist, &init_mm.mmlist);
 				spin_unlock(&mmlist_lock);
 			}
+			dec_mm_counter(mm, anon_rss);
 		} else {
 			/*
 			 * Store the pfn of the page in a special migration
@@ -606,7 +607,6 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
 		}
 		set_pte_at(mm, address, pte, swp_entry_to_pte(entry));
 		BUG_ON(pte_file(*pte));
-		dec_mm_counter(mm, anon_rss);
 	} else
 		dec_mm_counter(mm, file_rss);
 

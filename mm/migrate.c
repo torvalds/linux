@@ -164,7 +164,6 @@ static void remove_migration_pte(struct vm_area_struct *vma, unsigned long addr,
 	if (!is_migration_entry(entry) || migration_entry_to_page(entry) != old)
 		goto out;
 
-	inc_mm_counter(mm, anon_rss);
 	get_page(new);
 	pte = pte_mkold(mk_pte(new, vma->vm_page_prot));
 	if (is_write_migration_entry(entry))
