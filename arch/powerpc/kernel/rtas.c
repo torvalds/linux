@@ -38,16 +38,19 @@
 struct rtas_t rtas = {
 	.lock = SPIN_LOCK_UNLOCKED
 };
+EXPORT_SYMBOL(rtas);
 
 struct rtas_suspend_me_data {
 	long waiting;
 	struct rtas_args *args;
 };
 
-EXPORT_SYMBOL(rtas);
-
 DEFINE_SPINLOCK(rtas_data_buf_lock);
+EXPORT_SYMBOL(rtas_data_buf_lock);
+
 char rtas_data_buf[RTAS_DATA_BUF_SIZE] __cacheline_aligned;
+EXPORT_SYMBOL(rtas_data_buf);
+
 unsigned long rtas_rmo_buf;
 
 /*
@@ -236,6 +239,7 @@ int rtas_token(const char *service)
 	tokp = (int *) get_property(rtas.dev, service, NULL);
 	return tokp ? *tokp : RTAS_UNKNOWN_SERVICE;
 }
+EXPORT_SYMBOL(rtas_token);
 
 #ifdef CONFIG_RTAS_ERROR_LOGGING
 /*
@@ -369,6 +373,7 @@ int rtas_call(int token, int nargs, int nret, int *outputs, ...)
 	}
 	return ret;
 }
+EXPORT_SYMBOL(rtas_call);
 
 /* For RTAS_BUSY (-2), delay for 1 millisecond.  For an extended busy status
  * code of 990n, perform the hinted delay of 10^n (last digit) milliseconds.
@@ -388,6 +393,7 @@ unsigned int rtas_busy_delay_time(int status)
 
 	return ms;
 }
+EXPORT_SYMBOL(rtas_busy_delay_time);
 
 /* For an RTAS busy status code, perform the hinted delay. */
 unsigned int rtas_busy_delay(int status)
@@ -401,6 +407,7 @@ unsigned int rtas_busy_delay(int status)
 
 	return ms;
 }
+EXPORT_SYMBOL(rtas_busy_delay);
 
 int rtas_error_rc(int rtas_rc)
 {
@@ -446,6 +453,7 @@ int rtas_get_power_level(int powerdomain, int *level)
 		return rtas_error_rc(rc);
 	return rc;
 }
+EXPORT_SYMBOL(rtas_get_power_level);
 
 int rtas_set_power_level(int powerdomain, int level, int *setlevel)
 {
@@ -463,6 +471,7 @@ int rtas_set_power_level(int powerdomain, int level, int *setlevel)
 		return rtas_error_rc(rc);
 	return rc;
 }
+EXPORT_SYMBOL(rtas_set_power_level);
 
 int rtas_get_sensor(int sensor, int index, int *state)
 {
@@ -480,6 +489,7 @@ int rtas_get_sensor(int sensor, int index, int *state)
 		return rtas_error_rc(rc);
 	return rc;
 }
+EXPORT_SYMBOL(rtas_get_sensor);
 
 int rtas_set_indicator(int indicator, int index, int new_value)
 {
@@ -497,6 +507,7 @@ int rtas_set_indicator(int indicator, int index, int new_value)
 		return rtas_error_rc(rc);
 	return rc;
 }
+EXPORT_SYMBOL(rtas_set_indicator);
 
 void rtas_restart(char *cmd)
 {
@@ -790,15 +801,3 @@ void __init rtas_initialize(void)
 	rtas_last_error_token = rtas_token("rtas-last-error");
 #endif
 }
-
-
-EXPORT_SYMBOL(rtas_token);
-EXPORT_SYMBOL(rtas_call);
-EXPORT_SYMBOL(rtas_data_buf);
-EXPORT_SYMBOL(rtas_data_buf_lock);
-EXPORT_SYMBOL(rtas_busy_delay_time);
-EXPORT_SYMBOL(rtas_busy_delay);
-EXPORT_SYMBOL(rtas_get_sensor);
-EXPORT_SYMBOL(rtas_get_power_level);
-EXPORT_SYMBOL(rtas_set_power_level);
-EXPORT_SYMBOL(rtas_set_indicator);
