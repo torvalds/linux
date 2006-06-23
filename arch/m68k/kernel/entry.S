@@ -226,7 +226,7 @@ ENTRY(nmi_handler)
 inthandler:
 	SAVE_ALL_INT
 	GET_CURRENT(%d0)
-	addqb	#1,%curptr@(TASK_INFO+TINFO_PREEMPT+2)
+	addqb	#1,%curptr@(TASK_INFO+TINFO_PREEMPT+1)
 					|  put exception # in d0
 	bfextu %sp@(PT_VECTOR){#4,#10},%d0
 
@@ -245,7 +245,7 @@ inthandler:
 3:	addql	#8,%sp			|  pop parameters off stack
 
 ret_from_interrupt:
-	subqb	#1,%curptr@(TASK_INFO+TINFO_PREEMPT+2)
+	subqb	#1,%curptr@(TASK_INFO+TINFO_PREEMPT+1)
 	jeq	1f
 2:
 	RESTORE_ALL
