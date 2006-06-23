@@ -499,20 +499,21 @@ static void ext3_clear_inode(struct inode *inode)
 {
 	struct ext3_block_alloc_info *rsv = EXT3_I(inode)->i_block_alloc_info;
 #ifdef CONFIG_EXT3_FS_POSIX_ACL
-       if (EXT3_I(inode)->i_acl &&
-           EXT3_I(inode)->i_acl != EXT3_ACL_NOT_CACHED) {
-               posix_acl_release(EXT3_I(inode)->i_acl);
-               EXT3_I(inode)->i_acl = EXT3_ACL_NOT_CACHED;
-       }
-       if (EXT3_I(inode)->i_default_acl &&
-           EXT3_I(inode)->i_default_acl != EXT3_ACL_NOT_CACHED) {
-               posix_acl_release(EXT3_I(inode)->i_default_acl);
-               EXT3_I(inode)->i_default_acl = EXT3_ACL_NOT_CACHED;
-       }
+	if (EXT3_I(inode)->i_acl &&
+			EXT3_I(inode)->i_acl != EXT3_ACL_NOT_CACHED) {
+		posix_acl_release(EXT3_I(inode)->i_acl);
+		EXT3_I(inode)->i_acl = EXT3_ACL_NOT_CACHED;
+	}
+	if (EXT3_I(inode)->i_default_acl &&
+			EXT3_I(inode)->i_default_acl != EXT3_ACL_NOT_CACHED) {
+		posix_acl_release(EXT3_I(inode)->i_default_acl);
+		EXT3_I(inode)->i_default_acl = EXT3_ACL_NOT_CACHED;
+	}
 #endif
 	ext3_discard_reservation(inode);
 	EXT3_I(inode)->i_block_alloc_info = NULL;
-	kfree(rsv);
+	if (unlikely(rsv))
+		kfree(rsv);
 }
 
 static inline void ext3_show_quota_options(struct seq_file *seq, struct super_block *sb)
