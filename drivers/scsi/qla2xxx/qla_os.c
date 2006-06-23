@@ -631,7 +631,7 @@ qla2xxx_eh_abort(struct scsi_cmnd *cmd)
 
 		DEBUG2(printk("%s(%ld): aborting sp %p from RISC. pid=%ld.\n",
 		    __func__, ha->host_no, sp, serial));
-		DEBUG3(qla2x00_print_scsi_cmd(cmd);)
+		DEBUG3(qla2x00_print_scsi_cmd(cmd));
 
 		spin_unlock_irqrestore(&ha->hardware_lock, flags);
 		if (ha->isp_ops.abort_command(ha, sp)) {
@@ -773,7 +773,7 @@ qla2xxx_eh_device_reset(struct scsi_cmnd *cmd)
 #endif
 	} else {
 		DEBUG2(printk(KERN_INFO
-		    "%s failed: loop not ready\n",__func__);)
+		    "%s failed: loop not ready\n",__func__));
 	}
 
 	if (ret == FAILED) {
@@ -1028,12 +1028,12 @@ qla2x00_loop_reset(scsi_qla_host_t *ha)
 		/* Empty */
 		DEBUG2_3(printk("%s(%ld): **** FAILED ****\n",
 				__func__,
-				ha->host_no);)
+				ha->host_no));
 	} else {
 		/* Empty */
 		DEBUG3(printk("%s(%ld): exiting normally.\n",
 				__func__,
-				ha->host_no);)
+				ha->host_no));
 	}
 
 	return(status);

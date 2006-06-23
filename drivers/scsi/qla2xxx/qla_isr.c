@@ -1432,8 +1432,8 @@ qla24xx_ms_entry(scsi_qla_host_t *ha, struct ct_entry_24xx *pkt)
 	DEBUG3(printk("%s(%ld): pkt=%p pkthandle=%d.\n",
 	    __func__, ha->host_no, pkt, pkt->handle));
 
-	DEBUG9(printk("%s: ct pkt dump:\n", __func__);)
-	DEBUG9(qla2x00_dump_buffer((void *)pkt, sizeof(struct ct_entry_24xx));)
+	DEBUG9(printk("%s: ct pkt dump:\n", __func__));
+	DEBUG9(qla2x00_dump_buffer((void *)pkt, sizeof(struct ct_entry_24xx)));
 
 	/* Validate handle. */
  	if (pkt->handle < MAX_OUTSTANDING_COMMANDS)

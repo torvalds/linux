@@ -3137,14 +3137,14 @@ qla2x00_abort_isp(scsi_qla_host_t *ha)
 					ha->isp_abort_cnt--;
 					DEBUG(printk("qla%ld: ISP abort - "
 					    "retry remaining %d\n",
-					    ha->host_no, ha->isp_abort_cnt);)
+					    ha->host_no, ha->isp_abort_cnt));
 					status = 1;
 				}
 			} else {
 				ha->isp_abort_cnt = MAX_RETRIES_OF_ISP_ABORT;
 				DEBUG(printk("qla2x00(%ld): ISP error recovery "
 				    "- retrying (%d) more times\n",
-				    ha->host_no, ha->isp_abort_cnt);)
+				    ha->host_no, ha->isp_abort_cnt));
 				set_bit(ISP_ABORT_RETRY, &ha->dpc_flags);
 				status = 1;
 			}
@@ -3158,7 +3158,7 @@ qla2x00_abort_isp(scsi_qla_host_t *ha)
 	} else {
 		DEBUG(printk(KERN_INFO
 				"qla2x00_abort_isp(%ld): exiting.\n",
-				ha->host_no);)
+				ha->host_no));
 	}
 
 	return(status);
@@ -3234,7 +3234,7 @@ qla2x00_restart_isp(scsi_qla_host_t *ha)
 		clear_bit(RESET_MARKER_NEEDED, &ha->dpc_flags);
 		if (!(status = qla2x00_fw_ready(ha))) {
 			DEBUG(printk("%s(): Start configure loop, "
-			    "status = %d\n", __func__, status);)
+			    "status = %d\n", __func__, status));
 
 			/* Issue a marker after FW becomes ready. */
 			qla2x00_marker(ha, 0, 0, MK_SYNC_ALL);
@@ -3258,7 +3258,7 @@ qla2x00_restart_isp(scsi_qla_host_t *ha)
 
 		DEBUG(printk("%s(): Configure loop done, status = 0x%x\n",
 				__func__,
-				status);)
+				status));
 	}
 	return (status);
 }
