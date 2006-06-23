@@ -167,34 +167,12 @@ int htab_bolt_mapping(unsigned long vstart, unsigned long vend,
 		hash = hpt_hash(va, shift);
 		hpteg = ((hash & htab_hash_mask) * HPTES_PER_GROUP);
 
-		/* The crap below can be cleaned once ppd_md.probe() can
-		 * set up the hash callbacks, thus we can just used the
-		 * normal insert callback here.
-		 */
-#ifdef CONFIG_PPC_ISERIES
-		if (machine_is(iseries))
-			ret = iSeries_hpte_insert(hpteg, va,
-						  paddr,
-						  tmp_mode,
-						  HPTE_V_BOLTED,
-						  psize);
-		else
-#endif
-#ifdef CONFIG_PPC_PSERIES
-		if (machine_is(pseries) && firmware_has_feature(FW_FEATURE_LPAR))
-			ret = pSeries_lpar_hpte_insert(hpteg, va,
-						       paddr,
-						       tmp_mode,
-						       HPTE_V_BOLTED,
-						       psize);
-		else
-#endif
-#ifdef CONFIG_PPC_MULTIPLATFORM
-			ret = native_hpte_insert(hpteg, va,
-						 paddr,
-						 tmp_mode, HPTE_V_BOLTED,
-						 psize);
-#endif
+		DBG("htab_bolt_mapping: calling %p\n", ppc_md.hpte_insert);
+
+		BUG_ON(!ppc_md.hpte_insert);
+		ret = ppc_md.hpte_insert(hpteg, va, paddr,
+				tmp_mode, HPTE_V_BOLTED, psize);
+
 		if (ret < 0)
 			break;
 	}
