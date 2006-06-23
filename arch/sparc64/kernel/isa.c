@@ -195,11 +195,24 @@ static void __init isa_fill_devices(struct sparc_isa_bridge *isa_br)
 
 		isa_dev = kmalloc(sizeof(*isa_dev), GFP_KERNEL);
 		if (!isa_dev) {
-			fatal_err("cannot allocate isa_dev");
-			prom_halt();
+			printk(KERN_DEBUG "ISA: cannot allocate isa_dev");
+			return;
 		}
 
 		memset(isa_dev, 0, sizeof(*isa_dev));
+
+		isa_dev->ofdev.node = dp;
+		isa_dev->ofdev.dev.parent = &isa_br->ofdev.dev;
+		isa_dev->ofdev.dev.bus = &isa_bus_type;
+		strcpy(isa_dev->ofdev.dev.bus_id, dp->path_component_name);
+
+		/* Register with core */
+		if (of_device_register(&isa_dev->ofdev) != 0) {
+			printk(KERN_DEBUG "isa: device registration error for %s!\n",
+			       isa_dev->ofdev.dev.bus_id);
+			kfree(isa_dev);
+			goto next_sibling;
+		}
 
 		/* Link it in. */
 		isa_dev->next = NULL;
@@ -226,6 +239,7 @@ static void __init isa_fill_devices(struct sparc_isa_bridge *isa_br)
 
 		printk("]");
 
+	next_sibling:
 		dp = dp->sibling;
 	}
 }
@@ -244,6 +258,7 @@ void __init isa_init(void)
 		struct pcidev_cookie *pdev_cookie;
 		struct pci_pbm_info *pbm;
 		struct sparc_isa_bridge *isa_br;
+		struct device_node *dp;
 
 		pdev_cookie = pdev->sysdata;
 		if (!pdev_cookie) {
@@ -252,14 +267,28 @@ void __init isa_init(void)
 			continue;
 		}
 		pbm = pdev_cookie->pbm;
+		dp = pdev_cookie->prom_node;
 
 		isa_br = kmalloc(sizeof(*isa_br), GFP_KERNEL);
 		if (!isa_br) {
-			fatal_err("cannot allocate sparc_isa_bridge");
-			prom_halt();
+			printk(KERN_DEBUG "isa: cannot allocate sparc_isa_bridge");
+			return;
 		}
 
 		memset(isa_br, 0, sizeof(*isa_br));
+
+		isa_br->ofdev.node = dp;
+		isa_br->ofdev.dev.parent = &pdev->dev;
+		isa_br->ofdev.dev.bus = &isa_bus_type;
+		strcpy(isa_br->ofdev.dev.bus_id, dp->path_component_name);
+
+		/* Register with core */
+		if (of_device_register(&isa_br->ofdev) != 0) {
+			printk(KERN_DEBUG "isa: device registration error for %s!\n",
+			       isa_br->ofdev.dev.bus_id);
+			kfree(isa_br);
+			return;
+		}
 
 		/* Link it in. */
 		isa_br->next = isa_chain;

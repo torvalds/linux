@@ -475,6 +475,16 @@ probe_interrupts:
 		}
 	}
 
+	dev->ofdev.node = dp;
+	dev->ofdev.dev.parent = &dev->bus->ofdev.dev;
+	dev->ofdev.dev.bus = &ebus_bus_type;
+	strcpy(dev->ofdev.dev.bus_id, dp->path_component_name);
+
+	/* Register with core */
+	if (of_device_register(&dev->ofdev) != 0)
+		printk(KERN_DEBUG "ebus: device registration error for %s!\n",
+		       dev->ofdev.dev.bus_id);
+
 	dp = dp->child;
 	if (dp) {
 		printk(" ->");
@@ -569,6 +579,17 @@ void __init ebus_init(void)
 		ebus->prom_node = dp;
 		ebus->self = pdev;
 		ebus->parent = pbm = cookie->pbm;
+
+		ebus->ofdev.node = dp;
+		ebus->ofdev.dev.parent = &pdev->dev;
+		ebus->ofdev.dev.bus = &ebus_bus_type;
+		strcpy(ebus->ofdev.dev.bus_id, dp->path_component_name);
+
+		/* Register with core */
+		if (of_device_register(&ebus->ofdev) != 0)
+			printk(KERN_DEBUG "ebus: device registration error for %s!\n",
+			       ebus->ofdev.dev.bus_id);
+
 
 		child = dp->child;
 		if (!child)

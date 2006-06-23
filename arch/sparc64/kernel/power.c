@@ -115,66 +115,15 @@ static int __init has_button_interrupt(unsigned int irq, struct device_node *dp)
 	return 1;
 }
 
-static int __init power_probe_ebus(struct resource **resp, unsigned int *irq_p, struct device_node **prom_node_p)
+static void __devinit power_probe_common(struct of_device *dev, struct resource *res, unsigned int irq)
 {
-	struct linux_ebus *ebus;
-	struct linux_ebus_device *edev;
-
-	for_each_ebus(ebus) {
-		for_each_ebusdev(edev, ebus) {
-			if (!strcmp(edev->prom_node->name, "power")) {
-				*resp = &edev->resource[0];
-				*irq_p = edev->irqs[0];
-				*prom_node_p = edev->prom_node;
-				return 0;
-			}
-		}
-	}
-	return -ENODEV;
-}
-
-static int __init power_probe_isa(struct resource **resp, unsigned int *irq_p, struct device_node **prom_node_p)
-{
-	struct sparc_isa_bridge *isa_bus;
-	struct sparc_isa_device *isa_dev;
-
-	for_each_isa(isa_bus) {
-		for_each_isadev(isa_dev, isa_bus) {
-			if (!strcmp(isa_dev->prom_node->name, "power")) {
-				*resp = &isa_dev->resource;
-				*irq_p = isa_dev->irq;
-				*prom_node_p = isa_dev->prom_node;
-				return 0;
-			}
-		}
-	}
-	return -ENODEV;
-}
-
-void __init power_init(void)
-{
-	struct resource *res = NULL;
-	unsigned int irq;
-	struct device_node *dp;
-	static int invoked;
-
-	if (invoked)
-		return;
-	invoked = 1;
-
-	if (!power_probe_ebus(&res, &irq, &dp))
-		goto found;
-
-	if (!power_probe_isa(&res, &irq, &dp))
-		goto found;
-
-	return;
-
-found:
 	power_reg = ioremap(res->start, 0x4);
+
 	printk("power: Control reg at %p ... ", power_reg);
+
 	poweroff_method = machine_halt;  /* able to use the standard halt */
-	if (has_button_interrupt(irq, dp)) {
+
+	if (has_button_interrupt(irq, dev->node)) {
 		if (kernel_thread(powerd, NULL, CLONE_FS) < 0) {
 			printk("Failed to start power daemon.\n");
 			return;
@@ -187,5 +136,53 @@ found:
 	} else {
 		printk("not using powerd.\n");
 	}
+}
+
+static struct of_device_id power_match[] = {
+	{
+		.name = "power",
+	},
+	{},
+};
+
+static int __devinit ebus_power_probe(struct of_device *dev, const struct of_device_id *match)
+{
+	struct linux_ebus_device *edev = to_ebus_device(&dev->dev);
+	struct resource *res = &edev->resource[0];
+	unsigned int irq = edev->irqs[0];
+
+	power_probe_common(dev, res,irq);
+
+	return 0;
+}
+
+static struct of_platform_driver ebus_power_driver = {
+	.name		= "power",
+	.match_table	= power_match,
+	.probe		= ebus_power_probe,
+};
+
+static int __devinit isa_power_probe(struct of_device *dev, const struct of_device_id *match)
+{
+	struct sparc_isa_device *idev = to_isa_device(&dev->dev);
+	struct resource *res = &idev->resource;
+	unsigned int irq = idev->irq;
+
+	power_probe_common(dev, res,irq);
+
+	return 0;
+}
+
+static struct of_platform_driver isa_power_driver = {
+	.name		= "power",
+	.match_table	= power_match,
+	.probe		= isa_power_probe,
+};
+
+void __init power_init(void)
+{
+	of_register_driver(&ebus_power_driver, &ebus_bus_type);
+	of_register_driver(&isa_power_driver, &isa_bus_type);
+	return;
 }
 #endif /* CONFIG_PCI */

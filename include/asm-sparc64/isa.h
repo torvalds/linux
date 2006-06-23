@@ -10,10 +10,12 @@
 #include <asm/pbm.h>
 #include <asm/oplib.h>
 #include <asm/prom.h>
+#include <asm/of_device.h>
 
 struct sparc_isa_bridge;
 
 struct sparc_isa_device {
+	struct of_device	ofdev;
 	struct sparc_isa_device	*next;
 	struct sparc_isa_device	*child;
 	struct sparc_isa_bridge	*bus;
@@ -21,8 +23,10 @@ struct sparc_isa_device {
 	struct resource		resource;
 	unsigned int		irq;
 };
+#define to_isa_device(d) container_of(d, struct sparc_isa_device, ofdev.dev)
 
 struct sparc_isa_bridge {
+	struct of_device	ofdev;
 	struct sparc_isa_bridge	*next;
 	struct sparc_isa_device	*devices;
 	struct pci_pbm_info	*parent;
@@ -30,6 +34,7 @@ struct sparc_isa_bridge {
 	int			index;
 	struct device_node	*prom_node;
 };
+#define to_isa_bridge(d) container_of(d, struct sparc_isa_bridge, ofdev.dev)
 
 extern struct sparc_isa_bridge	*isa_chain;
 
