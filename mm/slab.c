@@ -2636,6 +2636,28 @@ static void kfree_debugcheck(const void *objp)
 	}
 }
 
+static inline void verify_redzone_free(struct kmem_cache *cache, void *obj)
+{
+	unsigned long redzone1, redzone2;
+
+	redzone1 = *dbg_redzone1(cache, obj);
+	redzone2 = *dbg_redzone2(cache, obj);
+
+	/*
+	 * Redzone is ok.
+	 */
+	if (redzone1 == RED_ACTIVE && redzone2 == RED_ACTIVE)
+		return;
+
+	if (redzone1 == RED_INACTIVE && redzone2 == RED_INACTIVE)
+		slab_error(cache, "double free detected");
+	else
+		slab_error(cache, "memory outside object was overwritten");
+
+	printk(KERN_ERR "%p: redzone 1:0x%lx, redzone 2:0x%lx.\n",
+			obj, redzone1, redzone2);
+}
+
 static void *cache_free_debugcheck(struct kmem_cache *cachep, void *objp,
 				   void *caller)
 {
@@ -2659,15 +2681,7 @@ static void *cache_free_debugcheck(struct kmem_cache *cachep, void *objp,
 	slabp = page_get_slab(page);
 
 	if (cachep->flags & SLAB_RED_ZONE) {
-		if (*dbg_redzone1(cachep, objp) != RED_ACTIVE ||
-				*dbg_redzone2(cachep, objp) != RED_ACTIVE) {
-			slab_error(cachep, "double free, or memory outside"
-						" object was overwritten");
-			printk(KERN_ERR "%p: redzone 1:0x%lx, "
-					"redzone 2:0x%lx.\n",
-			       objp, *dbg_redzone1(cachep, objp),
-			       *dbg_redzone2(cachep, objp));
-		}
+		verify_redzone_free(cachep, objp);
 		*dbg_redzone1(cachep, objp) = RED_INACTIVE;
 		*dbg_redzone2(cachep, objp) = RED_INACTIVE;
 	}
