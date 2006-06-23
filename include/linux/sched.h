@@ -1225,7 +1225,7 @@ static inline int thread_group_empty(task_t *p)
 		(thread_group_leader(p) && !thread_group_empty(p))
 
 /*
- * Protects ->fs, ->files, ->mm, ->ptrace, ->group_info, ->comm, keyring
+ * Protects ->fs, ->files, ->mm, ->group_info, ->comm, keyring
  * subscriptions and synchronises with wait4().  Also used in procfs.  Also
  * pins the final release of task.io_context.  Also protects ->cpuset.
  *
