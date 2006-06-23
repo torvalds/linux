@@ -343,7 +343,9 @@ static int cpia2_close(struct inode *inode, struct file *file)
 		cpia2_free_buffers(cam);
 		if (!cam->present) {
 			video_unregister_device(dev);
+			mutex_unlock(&cam->busy_lock);
 			kfree(cam);
+			return 0;
 		}
 	}
 
