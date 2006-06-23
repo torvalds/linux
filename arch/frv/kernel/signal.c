@@ -98,7 +98,7 @@ int sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss)
 
 struct sigframe
 {
-	void (*pretcode)(void);
+	__sigrestore_t pretcode;
 	int sig;
 	struct sigcontext sc;
 	unsigned long extramask[_NSIG_WORDS-1];
@@ -107,10 +107,10 @@ struct sigframe
 
 struct rt_sigframe
 {
-	void (*pretcode)(void);
+	__sigrestore_t pretcode;
 	int sig;
-	struct siginfo *pinfo;
-	void *puc;
+	struct siginfo __user *pinfo;
+	void __user *puc;
 	struct siginfo info;
 	struct ucontext uc;
 	uint32_t retcode[2];
@@ -284,7 +284,7 @@ static int setup_frame(int sig, struct k_sigaction *ka, sigset_t *set)
 		 *	setlos	#__NR_sigreturn,gr7
 		 *	tira	gr0,0
 		 */
-		if (__put_user((void (*)(void))frame->retcode, &frame->pretcode) ||
+		if (__put_user((__sigrestore_t)frame->retcode, &frame->pretcode) ||
 		    __put_user(0x8efc0000|__NR_sigreturn, &frame->retcode[0]) ||
 		    __put_user(0xc0700000, &frame->retcode[1]))
 			goto give_sigsegv;
@@ -300,7 +300,7 @@ static int setup_frame(int sig, struct k_sigaction *ka, sigset_t *set)
 
 	if (get_personality & FDPIC_FUNCPTRS) {
 		struct fdpic_func_descriptor __user *funcptr =
-			(struct fdpic_func_descriptor *) ka->sa.sa_handler;
+			(struct fdpic_func_descriptor __user *) ka->sa.sa_handler;
 		__get_user(__frame->pc, &funcptr->text);
 		__get_user(__frame->gr15, &funcptr->GOT);
 	} else {
@@ -359,8 +359,8 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 
 	/* Create the ucontext.  */
 	if (__put_user(0, &frame->uc.uc_flags) ||
-	    __put_user(0, &frame->uc.uc_link) ||
-	    __put_user((void*)current->sas_ss_sp, &frame->uc.uc_stack.ss_sp) ||
+	    __put_user(NULL, &frame->uc.uc_link) ||
+	    __put_user((void __user *)current->sas_ss_sp, &frame->uc.uc_stack.ss_sp) ||
 	    __put_user(sas_ss_flags(__frame->sp), &frame->uc.uc_stack.ss_flags) ||
 	    __put_user(current->sas_ss_size, &frame->uc.uc_stack.ss_size))
 		goto give_sigsegv;
@@ -382,7 +382,7 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 		 *	setlos	#__NR_sigreturn,gr7
 		 *	tira	gr0,0
 		 */
-		if (__put_user((void (*)(void))frame->retcode, &frame->pretcode) ||
+		if (__put_user((__sigrestore_t)frame->retcode, &frame->pretcode) ||
 		    __put_user(0x8efc0000|__NR_rt_sigreturn, &frame->retcode[0]) ||
 		    __put_user(0xc0700000, &frame->retcode[1]))
 			goto give_sigsegv;
@@ -398,7 +398,7 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	__frame->gr9 = (unsigned long) &frame->info;
 
 	if (get_personality & FDPIC_FUNCPTRS) {
-		struct fdpic_func_descriptor *funcptr =
+		struct fdpic_func_descriptor __user *funcptr =
 			(struct fdpic_func_descriptor __user *) ka->sa.sa_handler;
 		__get_user(__frame->pc, &funcptr->text);
 		__get_user(__frame->gr15, &funcptr->GOT);
