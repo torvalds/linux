@@ -26,8 +26,13 @@ a process are located. See also the numa_maps manpage in the numactl package.
 Manual migration is useful if for example the scheduler has relocated
 a process to a processor on a distant node. A batch scheduler or an
 administrator may detect the situation and move the pages of the process
-nearer to the new processor. At some point in the future we may have
-some mechanism in the scheduler that will automatically move the pages.
+nearer to the new processor. The kernel itself does only provide
+manual page migration support. Automatic page migration may be implemented
+through user space processes that move pages. A special function call
+"move_pages" allows the moving of individual pages within a process.
+A NUMA profiler may f.e. obtain a log showing frequent off node
+accesses and may use the result to move pages to more advantageous
+locations.
 
 Larger installations usually partition the system using cpusets into
 sections of nodes. Paul Jackson has equipped cpusets with the ability to
@@ -62,22 +67,14 @@ A. In kernel use of migrate_pages()
    It also prevents the swapper or other scans to encounter
    the page.
 
-2. Generate a list of newly allocates pages. These pages will contain the
-   contents of the pages from the first list after page migration is
-   complete.
+2. We need to have a function of type new_page_t that can be
+   passed to migrate_pages(). This function should figure out
+   how to allocate the correct new page given the old page.
 
 3. The migrate_pages() function is called which attempts
-   to do the migration. It returns the moved pages in the
-   list specified as the third parameter and the failed
-   migrations in the fourth parameter. When the function
-   returns the first list will contain the pages that could still be retried.
-
-4. The leftover pages of various types are returned
-   to the LRU using putback_to_lru_pages() or otherwise
-   disposed of. The pages will still have the refcount as
-   increased by isolate_lru_pages() if putback_to_lru_pages() is not
-   used! The kernel may want to handle the various cases of failures in
-   different ways.
+   to do the migration. It will call the function to allocate
+   the new page for each page that is considered for
+   moving.
 
 B. How migrate_pages() works
 ----------------------------

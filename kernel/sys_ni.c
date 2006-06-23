@@ -87,6 +87,7 @@ cond_syscall(sys_inotify_init);
 cond_syscall(sys_inotify_add_watch);
 cond_syscall(sys_inotify_rm_watch);
 cond_syscall(sys_migrate_pages);
+cond_syscall(sys_move_pages);
 cond_syscall(sys_chown16);
 cond_syscall(sys_fchown16);
 cond_syscall(sys_getegid16);

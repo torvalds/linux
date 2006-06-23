@@ -3,7 +3,7 @@
 
 #include <linux/mm.h>
 
-typedef struct page *new_page_t(struct page *, unsigned long private);
+typedef struct page *new_page_t(struct page *, unsigned long private, int **);
 
 #ifdef CONFIG_MIGRATION
 extern int isolate_lru_page(struct page *p, struct list_head *pagelist);

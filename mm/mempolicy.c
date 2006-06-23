@@ -588,7 +588,7 @@ static void migrate_page_add(struct page *page, struct list_head *pagelist,
 		isolate_lru_page(page, pagelist);
 }
 
-static struct page *new_node_page(struct page *page, unsigned long node)
+static struct page *new_node_page(struct page *page, unsigned long node, int **x)
 {
 	return alloc_pages_node(node, GFP_HIGHUSER, 0);
 }
@@ -698,7 +698,7 @@ int do_migrate_pages(struct mm_struct *mm,
 
 }
 
-static struct page *new_vma_page(struct page *page, unsigned long private)
+static struct page *new_vma_page(struct page *page, unsigned long private, int **x)
 {
 	struct vm_area_struct *vma = (struct vm_area_struct *)private;
 
