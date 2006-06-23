@@ -205,8 +205,7 @@ sys_mprotect(unsigned long start, size_t len, unsigned long prot)
 	/*
 	 * Does the application expect PROT_READ to imply PROT_EXEC:
 	 */
-	if (unlikely((prot & PROT_READ) &&
-			(current->personality & READ_IMPLIES_EXEC)))
+	if ((prot & PROT_READ) && (current->personality & READ_IMPLIES_EXEC))
 		prot |= PROT_EXEC;
 
 	vm_flags = calc_vm_prot_bits(prot);
