@@ -116,7 +116,7 @@ static inline void memset_io(volatile void __iomem *addr, unsigned char val, int
 	memset((void __force *) addr, val, count);
 }
 
-static inline void memcpy_fromio(void *dst, volatile void __iomem *src, int count)
+static inline void memcpy_fromio(void *dst, const volatile void __iomem *src, int count)
 {
 	memcpy(dst, (void __force *) src, count);
 }
