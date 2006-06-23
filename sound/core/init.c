@@ -81,8 +81,6 @@ static inline int init_info_for_card(struct snd_card *card)
 #define init_info_for_card(card)
 #endif
 
-static void snd_card_free_thread(void * __card);
-
 /**
  *  snd_card_new - create and initialize a soundcard structure
  *  @idx: card index (address) [0 ... (SNDRV_CARDS-1)]
@@ -145,7 +143,6 @@ struct snd_card *snd_card_new(int idx, const char *xid,
 	INIT_LIST_HEAD(&card->ctl_files);
 	spin_lock_init(&card->files_lock);
 	init_waitqueue_head(&card->shutdown_sleep);
-	INIT_WORK(&card->free_workq, snd_card_free_thread, card);
 #ifdef CONFIG_PM
 	mutex_init(&card->power_lock);
 	init_waitqueue_head(&card->power_sleep);
@@ -412,53 +409,6 @@ int snd_card_free(struct snd_card *card)
 }
 
 EXPORT_SYMBOL(snd_card_free);
-
-static void snd_card_free_thread(void * __card)
-{
-	struct snd_card *card = __card;
-	struct module * module = card->module;
-
-	if (!try_module_get(module)) {
-		snd_printk(KERN_ERR "unable to lock toplevel module for card %i in free thread\n", card->number);
-		module = NULL;
-	}
-
-	snd_card_free(card);
-
-	module_put(module);
-}
-
-/**
- *  snd_card_free_in_thread - call snd_card_free() in thread
- *  @card: soundcard structure
- *
- *  This function schedules the call of snd_card_free() function in a
- *  work queue.  When all devices are released (non-busy), the work
- *  is woken up and calls snd_card_free().
- *
- *  When a card can be disconnected at any time by hotplug service,
- *  this function should be used in disconnect (or detach) callback
- *  instead of calling snd_card_free() directly.
- *  
- *  Returns - zero otherwise a negative error code if the start of thread failed.
- */
-int snd_card_free_in_thread(struct snd_card *card)
-{
-	if (card->files == NULL) {
-		snd_card_free(card);
-		return 0;
-	}
-
-	if (schedule_work(&card->free_workq))
-		return 0;
-
-	snd_printk(KERN_ERR "schedule_work() failed in snd_card_free_in_thread for card %i\n", card->number);
-	/* try to free the structure immediately */
-	snd_card_free(card);
-	return -EFAULT;
-}
-
-EXPORT_SYMBOL(snd_card_free_in_thread);
 
 static void choose_default_id(struct snd_card *card)
 {
@@ -742,9 +692,9 @@ EXPORT_SYMBOL(snd_card_file_add);
  *
  *  This function removes the file formerly added to the card via
  *  snd_card_file_add() function.
- *  If all files are removed and the release of the card is
- *  scheduled, it will wake up the the thread to call snd_card_free()
- *  (see snd_card_free_in_thread() function).
+ *  If all files are removed and snd_card_free_when_closed() was
+ *  called beforehand, it processes the pending release of
+ *  resources.
  *
  *  Returns zero or a negative error code.
  */

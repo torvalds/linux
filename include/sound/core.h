@@ -25,7 +25,6 @@
 #include <linux/sched.h>		/* wake_up() */
 #include <linux/mutex.h>		/* struct mutex */
 #include <linux/rwsem.h>		/* struct rw_semaphore */
-#include <linux/workqueue.h>		/* struct workqueue_struct */
 #include <linux/pm.h>			/* pm_message_t */
 
 /* forward declarations */
@@ -132,7 +131,6 @@ struct snd_card {
 	int shutdown;			/* this card is going down */
 	int free_on_last_close;		/* free in context of file_release */
 	wait_queue_head_t shutdown_sleep;
-	struct work_struct free_workq;	/* for free in workqueue */
 	struct device *dev;
 
 #ifdef CONFIG_PM
@@ -245,7 +243,6 @@ struct snd_card *snd_card_new(int idx, const char *id,
 int snd_card_disconnect(struct snd_card *card);
 int snd_card_free(struct snd_card *card);
 int snd_card_free_when_closed(struct snd_card *card);
-int snd_card_free_in_thread(struct snd_card *card);
 int snd_card_register(struct snd_card *card);
 int snd_card_info_init(void);
 int snd_card_info_done(void);
