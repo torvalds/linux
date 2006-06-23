@@ -33,8 +33,6 @@
 extern void SMBNTencrypt(unsigned char *passwd, unsigned char *c8,
                          unsigned char *p24);
 
-#ifdef CONFIG_CIFS_EXPERIMENTAL
-
 static __u32 cifs_ssetup_hdr(struct cifsSesInfo *ses, SESSION_SETUP_ANDX *pSMB)
 {
 	__u32 capabilities = 0;
@@ -319,7 +317,7 @@ CIFS_SessSetup(unsigned int xid, struct cifsSesInfo *ses, int first_time,
 	__u32 capabilities;
 	int count;
 	int resp_buf_type = 0;
-	struct kvec iov[1];
+	struct kvec iov[2];  /* BB split variable length info into 2nd iovec */
 	enum securityEnum type;
 	__u16 action;
 	int bytes_remaining;
@@ -489,7 +487,7 @@ CIFS_SessSetup(unsigned int xid, struct cifsSesInfo *ses, int first_time,
 	}
 	action = le16_to_cpu(pSMB->resp.Action);
 	if (action & GUEST_LOGIN)
-		cFYI(1, (" Guest login")); /* BB mark SesInfo struct? */
+		cFYI(1, ("Guest login")); /* BB mark SesInfo struct? */
 	ses->Suid = smb_buf->Uid;   /* UID left in wire format (le) */
 	cFYI(1, ("UID = %d ", ses->Suid));
 	/* response can have either 3 or 4 word count - Samba sends 3 */
@@ -525,4 +523,3 @@ ssetup_exit:
 
 	return rc;
 }
-#endif /* CONFIG_CIFS_EXPERIMENTAL */

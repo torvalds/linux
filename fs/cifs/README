@@ -453,6 +453,8 @@ sec		Security mode.  Allowed values are:
 				server requires signing also can be the default) 
 			ntlmv2  Use NTLMv2 password hashing      
 			ntlmv2i Use NTLMv2 password hashing with packet signing
+			lanman  (if configured in kernel config) use older
+				lanman hash
 
 The mount.cifs mount helper also accepts a few mount options before -o
 including:
