@@ -1011,7 +1011,7 @@ static int vidiocgmbuf (struct file *file, void *priv, struct video_mbuf *mbuf)
 }
 #endif
 
-int vidioc_streamon (struct file *file, void *priv, enum v4l2_buf_type i)
+static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 {
 	struct vivi_fh  *fh=priv;
 	struct vivi_dev *dev    = fh->dev;
@@ -1026,7 +1026,7 @@ int vidioc_streamon (struct file *file, void *priv, enum v4l2_buf_type i)
 	return (videobuf_streamon(&fh->vb_vidq));
 }
 
-int vidioc_streamoff (struct file *file, void *priv, enum v4l2_buf_type i)
+static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
 {
 	struct vivi_fh  *fh=priv;
 	struct vivi_dev *dev    = fh->dev;
