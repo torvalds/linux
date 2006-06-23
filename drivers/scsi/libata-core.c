@@ -933,9 +933,9 @@ void ata_port_flush_task(struct ata_port *ap)
 
 	DPRINTK("ENTER\n");
 
-	spin_lock_irqsave(&ap->host_set->lock, flags);
+	spin_lock_irqsave(ap->lock, flags);
 	ap->flags |= ATA_FLAG_FLUSH_PORT_TASK;
-	spin_unlock_irqrestore(&ap->host_set->lock, flags);
+	spin_unlock_irqrestore(ap->lock, flags);
 
 	DPRINTK("flush #1\n");
 	flush_workqueue(ata_wq);
@@ -950,9 +950,9 @@ void ata_port_flush_task(struct ata_port *ap)
 		flush_workqueue(ata_wq);
 	}
 
-	spin_lock_irqsave(&ap->host_set->lock, flags);
+	spin_lock_irqsave(ap->lock, flags);
 	ap->flags &= ~ATA_FLAG_FLUSH_PORT_TASK;
-	spin_unlock_irqrestore(&ap->host_set->lock, flags);
+	spin_unlock_irqrestore(ap->lock, flags);
 
 	DPRINTK("EXIT\n");
 }
@@ -999,11 +999,11 @@ unsigned ata_exec_internal(struct ata_device *dev,
 	unsigned int err_mask;
 	int rc;
 
-	spin_lock_irqsave(&ap->host_set->lock, flags);
+	spin_lock_irqsave(ap->lock, flags);
 
 	/* no internal command while frozen */
 	if (ap->flags & ATA_FLAG_FROZEN) {
-		spin_unlock_irqrestore(&ap->host_set->lock, flags);
+		spin_unlock_irqrestore(ap->lock, flags);
 		return AC_ERR_SYSTEM;
 	}
 
@@ -1052,14 +1052,14 @@ unsigned ata_exec_internal(struct ata_device *dev,
 
 	ata_qc_issue(qc);
 
-	spin_unlock_irqrestore(&ap->host_set->lock, flags);
+	spin_unlock_irqrestore(ap->lock, flags);
 
 	rc = wait_for_completion_timeout(&wait, ATA_TMOUT_INTERNAL);
 
 	ata_port_flush_task(ap);
 
 	if (!rc) {
-		spin_lock_irqsave(&ap->host_set->lock, flags);
+		spin_lock_irqsave(ap->lock, flags);
 
 		/* We're racing with irq here.  If we lose, the
 		 * following test prevents us from completing the qc
@@ -1078,7 +1078,7 @@ unsigned ata_exec_internal(struct ata_device *dev,
 				       "qc timeout (cmd 0x%x)\n", command);
 		}
 
-		spin_unlock_irqrestore(&ap->host_set->lock, flags);
+		spin_unlock_irqrestore(ap->lock, flags);
 	}
 
 	/* do post_internal_cmd */
@@ -1092,7 +1092,7 @@ unsigned ata_exec_internal(struct ata_device *dev,
 	}
 
 	/* finish up */
-	spin_lock_irqsave(&ap->host_set->lock, flags);
+	spin_lock_irqsave(ap->lock, flags);
 
 	*tf = qc->result_tf;
 	err_mask = qc->err_mask;
@@ -1118,7 +1118,7 @@ unsigned ata_exec_internal(struct ata_device *dev,
 		ata_port_probe(ap);
 	}
 
-	spin_unlock_irqrestore(&ap->host_set->lock, flags);
+	spin_unlock_irqrestore(ap->lock, flags);
 
 	return err_mask;
 }
@@ -3912,7 +3912,7 @@ static void ata_hsm_qc_complete(struct ata_queued_cmd *qc, int in_wq)
 
 	if (ap->ops->error_handler) {
 		if (in_wq) {
-			spin_lock_irqsave(&ap->host_set->lock, flags);
+			spin_lock_irqsave(ap->lock, flags);
 
 			/* EH might have kicked in while host_set lock
 			 * is released.
@@ -3926,7 +3926,7 @@ static void ata_hsm_qc_complete(struct ata_queued_cmd *qc, int in_wq)
 					ata_port_freeze(ap);
 			}
 
-			spin_unlock_irqrestore(&ap->host_set->lock, flags);
+			spin_unlock_irqrestore(ap->lock, flags);
 		} else {
 			if (likely(!(qc->err_mask & AC_ERR_HSM)))
 				ata_qc_complete(qc);
@@ -3935,10 +3935,10 @@ static void ata_hsm_qc_complete(struct ata_queued_cmd *qc, int in_wq)
 		}
 	} else {
 		if (in_wq) {
-			spin_lock_irqsave(&ap->host_set->lock, flags);
+			spin_lock_irqsave(ap->lock, flags);
 			ata_irq_on(ap);
 			ata_qc_complete(qc);
-			spin_unlock_irqrestore(&ap->host_set->lock, flags);
+			spin_unlock_irqrestore(ap->lock, flags);
 		} else
 			ata_qc_complete(qc);
 	}
@@ -4018,7 +4018,7 @@ fsm_start:
 		 * hsm_task_state is changed. Hence, the following locking.
 		 */
 		if (in_wq)
-			spin_lock_irqsave(&ap->host_set->lock, flags);
+			spin_lock_irqsave(ap->lock, flags);
 
 		if (qc->tf.protocol == ATA_PROT_PIO) {
 			/* PIO data out protocol.
@@ -4037,7 +4037,7 @@ fsm_start:
 			atapi_send_cdb(ap, qc);
 
 		if (in_wq)
-			spin_unlock_irqrestore(&ap->host_set->lock, flags);
+			spin_unlock_irqrestore(ap->lock, flags);
 
 		/* if polling, ata_pio_task() handles the rest.
 		 * otherwise, interrupt handler takes over from here.
@@ -5130,9 +5130,9 @@ void ata_dev_init(struct ata_device *dev)
 	 * requests which occur asynchronously.  Synchronize using
 	 * host_set lock.
 	 */
-	spin_lock_irqsave(&ap->host_set->lock, flags);
+	spin_lock_irqsave(ap->lock, flags);
 	dev->flags &= ~ATA_DFLAG_INIT_MASK;
-	spin_unlock_irqrestore(&ap->host_set->lock, flags);
+	spin_unlock_irqrestore(ap->lock, flags);
 
 	memset((void *)dev + ATA_DEVICE_CLEAR_OFFSET, 0,
 	       sizeof(*dev) - ATA_DEVICE_CLEAR_OFFSET);
@@ -5167,6 +5167,7 @@ static void ata_host_init(struct ata_port *ap, struct Scsi_Host *host,
 	host->unique_id = ata_unique_id++;
 	host->max_cmd_len = 12;
 
+	ap->lock = &host_set->lock;
 	ap->flags = ATA_FLAG_DISABLED;
 	ap->id = host->unique_id;
 	ap->host = host;
@@ -5388,7 +5389,7 @@ int ata_device_add(const struct ata_probe_ent *ent)
 			ata_port_probe(ap);
 
 			/* kick EH for boot probing */
-			spin_lock_irqsave(&ap->host_set->lock, flags);
+			spin_lock_irqsave(ap->lock, flags);
 
 			ap->eh_info.probe_mask = (1 << ATA_MAX_DEVICES) - 1;
 			ap->eh_info.action |= ATA_EH_SOFTRESET;
@@ -5396,7 +5397,7 @@ int ata_device_add(const struct ata_probe_ent *ent)
 			ap->flags |= ATA_FLAG_LOADING;
 			ata_port_schedule_eh(ap);
 
-			spin_unlock_irqrestore(&ap->host_set->lock, flags);
+			spin_unlock_irqrestore(ap->lock, flags);
 
 			/* wait for EH to finish */
 			ata_port_wait_eh(ap);
@@ -5460,29 +5461,29 @@ void ata_port_detach(struct ata_port *ap)
 		return;
 
 	/* tell EH we're leaving & flush EH */
-	spin_lock_irqsave(&ap->host_set->lock, flags);
+	spin_lock_irqsave(ap->lock, flags);
 	ap->flags |= ATA_FLAG_UNLOADING;
-	spin_unlock_irqrestore(&ap->host_set->lock, flags);
+	spin_unlock_irqrestore(ap->lock, flags);
 
 	ata_port_wait_eh(ap);
 
 	/* EH is now guaranteed to see UNLOADING, so no new device
 	 * will be attached.  Disable all existing devices.
 	 */
-	spin_lock_irqsave(&ap->host_set->lock, flags);
+	spin_lock_irqsave(ap->lock, flags);
 
 	for (i = 0; i < ATA_MAX_DEVICES; i++)
 		ata_dev_disable(&ap->device[i]);
 
-	spin_unlock_irqrestore(&ap->host_set->lock, flags);
+	spin_unlock_irqrestore(ap->lock, flags);
 
 	/* Final freeze & EH.  All in-flight commands are aborted.  EH
 	 * will be skipped and retrials will be terminated with bad
 	 * target.
 	 */
-	spin_lock_irqsave(&ap->host_set->lock, flags);
+	spin_lock_irqsave(ap->lock, flags);
 	ata_port_freeze(ap);	/* won't be thawed */
-	spin_unlock_irqrestore(&ap->host_set->lock, flags);
+	spin_unlock_irqrestore(ap->lock, flags);
 
 	ata_port_wait_eh(ap);
 

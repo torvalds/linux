@@ -715,7 +715,6 @@ void ata_bmdma_drive_eh(struct ata_port *ap, ata_prereset_fn_t prereset,
 			ata_reset_fn_t softreset, ata_reset_fn_t hardreset,
 			ata_postreset_fn_t postreset)
 {
-	struct ata_host_set *host_set = ap->host_set;
 	struct ata_eh_context *ehc = &ap->eh_context;
 	struct ata_queued_cmd *qc;
 	unsigned long flags;
@@ -726,7 +725,7 @@ void ata_bmdma_drive_eh(struct ata_port *ap, ata_prereset_fn_t prereset,
 		qc = NULL;
 
 	/* reset PIO HSM and stop DMA engine */
-	spin_lock_irqsave(&host_set->lock, flags);
+	spin_lock_irqsave(ap->lock, flags);
 
 	ap->hsm_task_state = HSM_ST_IDLE;
 
@@ -755,7 +754,7 @@ void ata_bmdma_drive_eh(struct ata_port *ap, ata_prereset_fn_t prereset,
 	ata_chk_status(ap);
 	ap->ops->irq_clear(ap);
 
-	spin_unlock_irqrestore(&host_set->lock, flags);
+	spin_unlock_irqrestore(ap->lock, flags);
 
 	if (thaw)
 		ata_eh_thaw_port(ap);

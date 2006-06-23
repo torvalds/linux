@@ -752,7 +752,7 @@ void ata_scsi_slave_destroy(struct scsi_device *sdev)
 	if (!ap->ops->error_handler)
 		return;
 
-	spin_lock_irqsave(&ap->host_set->lock, flags);
+	spin_lock_irqsave(ap->lock, flags);
 	dev = __ata_scsi_find_dev(ap, sdev);
 	if (dev && dev->sdev) {
 		/* SCSI device already in CANCEL state, no need to offline it */
@@ -760,7 +760,7 @@ void ata_scsi_slave_destroy(struct scsi_device *sdev)
 		dev->flags |= ATA_DFLAG_DETACH;
 		ata_port_schedule_eh(ap);
 	}
-	spin_unlock_irqrestore(&ap->host_set->lock, flags);
+	spin_unlock_irqrestore(ap->lock, flags);
 }
 
 /**
@@ -2684,7 +2684,7 @@ int ata_scsi_queuecmd(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
 	ap = ata_shost_to_port(shost);
 
 	spin_unlock(shost->host_lock);
-	spin_lock(&ap->host_set->lock);
+	spin_lock(ap->lock);
 
 	ata_scsi_dump_cdb(ap, cmd);
 
@@ -2696,7 +2696,7 @@ int ata_scsi_queuecmd(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
 		done(cmd);
 	}
 
-	spin_unlock(&ap->host_set->lock);
+	spin_unlock(ap->lock);
 	spin_lock(shost->host_lock);
 	return rc;
 }
@@ -2858,7 +2858,7 @@ static void ata_scsi_remove_dev(struct ata_device *dev)
 	 * increments reference counts regardless of device state.
 	 */
 	mutex_lock(&ap->host->scan_mutex);
-	spin_lock_irqsave(&ap->host_set->lock, flags);
+	spin_lock_irqsave(ap->lock, flags);
 
 	/* clearing dev->sdev is protected by host_set lock */
 	sdev = dev->sdev;
@@ -2882,7 +2882,7 @@ static void ata_scsi_remove_dev(struct ata_device *dev)
 		}
 	}
 
-	spin_unlock_irqrestore(&ap->host_set->lock, flags);
+	spin_unlock_irqrestore(ap->lock, flags);
 	mutex_unlock(&ap->host->scan_mutex);
 
 	if (sdev) {
@@ -2926,9 +2926,9 @@ void ata_scsi_hotplug(void *data)
 		if (!(dev->flags & ATA_DFLAG_DETACHED))
 			continue;
 
-		spin_lock_irqsave(&ap->host_set->lock, flags);
+		spin_lock_irqsave(ap->lock, flags);
 		dev->flags &= ~ATA_DFLAG_DETACHED;
-		spin_unlock_irqrestore(&ap->host_set->lock, flags);
+		spin_unlock_irqrestore(ap->lock, flags);
 
 		ata_scsi_remove_dev(dev);
 	}
@@ -2981,7 +2981,7 @@ static int ata_scsi_user_scan(struct Scsi_Host *shost, unsigned int channel,
 	    (lun != SCAN_WILD_CARD && lun != 0))
 		return -EINVAL;
 
-	spin_lock_irqsave(&ap->host_set->lock, flags);
+	spin_lock_irqsave(ap->lock, flags);
 
 	if (id == SCAN_WILD_CARD) {
 		ap->eh_info.probe_mask |= (1 << ATA_MAX_DEVICES) - 1;
@@ -2999,7 +2999,7 @@ static int ata_scsi_user_scan(struct Scsi_Host *shost, unsigned int channel,
 	if (rc == 0)
 		ata_port_schedule_eh(ap);
 
-	spin_unlock_irqrestore(&ap->host_set->lock, flags);
+	spin_unlock_irqrestore(ap->lock, flags);
 
 	return rc;
 }
