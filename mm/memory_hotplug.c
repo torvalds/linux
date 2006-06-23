@@ -127,6 +127,7 @@ int online_pages(unsigned long pfn, unsigned long nr_pages)
 	unsigned long flags;
 	unsigned long onlined_pages = 0;
 	struct zone *zone;
+	int need_zonelists_rebuild = 0;
 
 	/*
 	 * This doesn't need a lock to do pfn_to_page().
@@ -139,6 +140,14 @@ int online_pages(unsigned long pfn, unsigned long nr_pages)
 	grow_pgdat_span(zone->zone_pgdat, pfn, pfn + nr_pages);
 	pgdat_resize_unlock(zone->zone_pgdat, &flags);
 
+	/*
+	 * If this zone is not populated, then it is not in zonelist.
+	 * This means the page allocator ignores this zone.
+	 * So, zonelist must be updated after online.
+	 */
+	if (!populated_zone(zone))
+		need_zonelists_rebuild = 1;
+
 	for (i = 0; i < nr_pages; i++) {
 		struct page *page = pfn_to_page(pfn + i);
 		online_page(page);
@@ -148,6 +157,9 @@ int online_pages(unsigned long pfn, unsigned long nr_pages)
 	zone->zone_pgdat->node_present_pages += onlined_pages;
 
 	setup_per_zone_pages_min();
+
+	if (need_zonelists_rebuild)
+		build_all_zonelists();
 
 	return 0;
 }
