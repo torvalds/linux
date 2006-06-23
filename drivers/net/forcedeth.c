@@ -2076,7 +2076,7 @@ static void nv_set_multicast(struct net_device *dev)
 	spin_unlock_irq(&np->lock);
 }
 
-void nv_update_pause(struct net_device *dev, u32 pause_flags)
+static void nv_update_pause(struct net_device *dev, u32 pause_flags)
 {
 	struct fe_priv *np = netdev_priv(dev);
 	u8 __iomem *base = get_hwbase(dev);

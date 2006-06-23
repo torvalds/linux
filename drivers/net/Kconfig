@@ -854,6 +854,17 @@ config SMC9194
 	  <file:Documentation/networking/net-modules.txt>. The module
 	  will be called smc9194.
 
+config NET_NETX
+	tristate "NetX Ethernet support"
+	select MII
+	depends on NET_ETHERNET && ARCH_NETX
+	help
+	  This is support for the Hilscher netX builtin Ethernet ports
+
+	  To compile this driver as a module, choose M here and read
+	  <file:Documentation/networking/net-modules.txt>. The module
+	  will be called netx-eth.
+
 config DM9000
 	tristate "DM9000 support"
 	depends on (ARM || MIPS) && NET_ETHERNET
@@ -1376,8 +1387,8 @@ config APRICOT
 	  called apricot.
 
 config B44
-	tristate "Broadcom 4400 ethernet support (EXPERIMENTAL)"
-	depends on NET_PCI && PCI && EXPERIMENTAL
+	tristate "Broadcom 4400 ethernet support"
+	depends on NET_PCI && PCI
 	select MII
 	help
 	  If you have a network (Ethernet) controller of this type, say Y and

@@ -217,7 +217,7 @@ static int __devinit olympic_probe(struct pci_dev *pdev, const struct pci_device
 	dev = alloc_trdev(sizeof(struct olympic_private)) ; 
 	if (!dev) {
 		i = -ENOMEM; 
-		goto op_free_dev;
+		goto op_release_dev;
 	}
 
 	olympic_priv = dev->priv ;
@@ -282,8 +282,8 @@ op_free_iomap:
 	if (olympic_priv->olympic_lap)
 		iounmap(olympic_priv->olympic_lap);
 
-op_free_dev:
 	free_netdev(dev);
+op_release_dev:
 	pci_release_regions(pdev); 
 
 op_disable_dev:

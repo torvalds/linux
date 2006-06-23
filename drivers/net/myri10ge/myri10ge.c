@@ -2251,12 +2251,6 @@ static void myri10ge_enable_ecrc(struct myri10ge_priv *mgp)
 	}
 
 	cap = pci_find_ext_capability(bridge, PCI_EXT_CAP_ID_ERR);
-	/* nvidia ext cap is not always linked in ext cap chain */
-	if (!cap
-	    && bridge->vendor == PCI_VENDOR_ID_NVIDIA
-	    && bridge->device == PCI_DEVICE_ID_NVIDIA_NFORCE_CK804_PCIE)
-		cap = 0x160;
-
 	if (!cap)
 		return;
 
@@ -2732,8 +2726,6 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* Save configuration space to be restored if the
 	 * nic resets due to a parity error */
 	myri10ge_save_state(mgp);
-	/* Restore state immediately since pci_save_msi_state disables MSI */
-	myri10ge_restore_state(mgp);
 
 	/* Setup the watchdog timer */
 	setup_timer(&mgp->watchdog_timer, myri10ge_watchdog_timer,

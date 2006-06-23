@@ -326,21 +326,21 @@ static int __init c101_run(unsigned long irq, unsigned long winbase)
 	if (request_irq(irq, sca_intr, 0, devname, card)) {
 		printk(KERN_ERR "c101: could not allocate IRQ\n");
 		c101_destroy_card(card);
-		return(-EBUSY);
+		return -EBUSY;
 	}
 	card->irq = irq;
 
 	if (!request_mem_region(winbase, C101_MAPPED_RAM_SIZE, devname)) {
 		printk(KERN_ERR "c101: could not request RAM window\n");
 		c101_destroy_card(card);
-		return(-EBUSY);
+		return -EBUSY;
 	}
 	card->phy_winbase = winbase;
 	card->win0base = ioremap(winbase, C101_MAPPED_RAM_SIZE);
 	if (!card->win0base) {
 		printk(KERN_ERR "c101: could not map I/O address\n");
 		c101_destroy_card(card);
-		return -EBUSY;
+		return -EFAULT;
 	}
 
 	card->tx_ring_buffers = TX_RING_BUFFERS;

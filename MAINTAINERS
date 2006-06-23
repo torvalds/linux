@@ -574,6 +574,12 @@ L:	linuxppc-dev@ozlabs.org
 W:	http://www.penguinppc.org/ppc64/
 S:	Supported
 
+BROADCOM B44 10/100 ETHERNET DRIVER
+P:	Gary Zambrano
+M:	zambrano@broadcom.com
+L:	netdev@vger.kernel.org
+S:	Supported
+
 BROADCOM BNX2 GIGABIT ETHERNET DRIVER
 P:	Michael Chan
 M:	mchan@broadcom.com
