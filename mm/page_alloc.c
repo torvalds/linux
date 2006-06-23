@@ -2879,42 +2879,14 @@ void *__init alloc_large_system_hash(const char *tablename,
 }
 
 #ifdef CONFIG_OUT_OF_LINE_PFN_TO_PAGE
-/*
- * pfn <-> page translation. out-of-line version.
- * (see asm-generic/memory_model.h)
- */
-#if defined(CONFIG_FLATMEM)
 struct page *pfn_to_page(unsigned long pfn)
 {
-	return mem_map + (pfn - ARCH_PFN_OFFSET);
+	return __pfn_to_page(pfn);
 }
 unsigned long page_to_pfn(struct page *page)
 {
-	return (page - mem_map) + ARCH_PFN_OFFSET;
+	return __page_to_pfn(page);
 }
-#elif defined(CONFIG_DISCONTIGMEM)
-struct page *pfn_to_page(unsigned long pfn)
-{
-	int nid = arch_pfn_to_nid(pfn);
-	return NODE_DATA(nid)->node_mem_map + arch_local_page_offset(pfn,nid);
-}
-unsigned long page_to_pfn(struct page *page)
-{
-	struct pglist_data *pgdat = NODE_DATA(page_to_nid(page));
-	return (page - pgdat->node_mem_map) + pgdat->node_start_pfn;
-}
-#elif defined(CONFIG_SPARSEMEM)
-struct page *pfn_to_page(unsigned long pfn)
-{
-	return __section_mem_map_addr(__pfn_to_section(pfn)) + pfn;
-}
-
-unsigned long page_to_pfn(struct page *page)
-{
-	long section_id = page_to_section(page);
-	return page - __section_mem_map_addr(__nr_to_section(section_id));
-}
-#endif /* CONFIG_FLATMEM/DISCONTIGMME/SPARSEMEM */
 EXPORT_SYMBOL(pfn_to_page);
 EXPORT_SYMBOL(page_to_pfn);
 #endif /* CONFIG_OUT_OF_LINE_PFN_TO_PAGE */
