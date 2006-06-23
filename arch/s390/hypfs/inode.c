@@ -302,11 +302,10 @@ err_alloc:
 	return rc;
 }
 
-static struct super_block *hypfs_get_super(struct file_system_type *fst,
-					   int flags, const char *devname,
-					   void *data)
+static int hypfs_get_super(struct file_system_type *fst, int flags,
+			const char *devname, void *data, struct vfsmount *mnt)
 {
-	return get_sb_single(fst, flags, data, hypfs_fill_super);
+	return get_sb_single(fst, flags, data, hypfs_fill_super, mnt);
 }
 
 static void hypfs_kill_super(struct super_block *sb)
