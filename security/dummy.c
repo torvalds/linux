@@ -516,6 +516,11 @@ static int dummy_task_setnice (struct task_struct *p, int nice)
 	return 0;
 }
 
+static int dummy_task_setioprio (struct task_struct *p, int ioprio)
+{
+	return 0;
+}
+
 static int dummy_task_setrlimit (unsigned int resource, struct rlimit *new_rlim)
 {
 	return 0;
@@ -972,6 +977,7 @@ void security_fixup_ops (struct security_operations *ops)
 	set_to_dummy_if_null(ops, task_getsid);
 	set_to_dummy_if_null(ops, task_setgroups);
 	set_to_dummy_if_null(ops, task_setnice);
+	set_to_dummy_if_null(ops, task_setioprio);
 	set_to_dummy_if_null(ops, task_setrlimit);
 	set_to_dummy_if_null(ops, task_setscheduler);
 	set_to_dummy_if_null(ops, task_getscheduler);

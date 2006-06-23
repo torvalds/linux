@@ -2645,6 +2645,11 @@ static int selinux_task_setnice(struct task_struct *p, int nice)
 	return task_has_perm(current,p, PROCESS__SETSCHED);
 }
 
+static int selinux_task_setioprio(struct task_struct *p, int ioprio)
+{
+	return task_has_perm(current, p, PROCESS__SETSCHED);
+}
+
 static int selinux_task_setrlimit(unsigned int resource, struct rlimit *new_rlim)
 {
 	struct rlimit *old_rlim = current->signal->rlim + resource;
@@ -4383,6 +4388,7 @@ static struct security_operations selinux_ops = {
 	.task_getsid =		        selinux_task_getsid,
 	.task_setgroups =		selinux_task_setgroups,
 	.task_setnice =			selinux_task_setnice,
+	.task_setioprio =		selinux_task_setioprio,
 	.task_setrlimit =		selinux_task_setrlimit,
 	.task_setscheduler =		selinux_task_setscheduler,
 	.task_getscheduler =		selinux_task_getscheduler,
