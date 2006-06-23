@@ -30,6 +30,7 @@
 #include <linux/bitops.h>
 #include <linux/module.h>
 #include <linux/kexec.h>
+#include <linux/debugfs.h>
 
 #include <asm/prom.h>
 #include <asm/rtas.h>
@@ -2148,3 +2149,27 @@ struct device_node *of_get_cpu_node(int cpu, unsigned int *thread)
 	}
 	return NULL;
 }
+
+#ifdef DEBUG
+static struct debugfs_blob_wrapper flat_dt_blob;
+
+static int __init export_flat_device_tree(void)
+{
+	struct dentry *d;
+
+	d = debugfs_create_dir("powerpc", NULL);
+	if (!d)
+		return 1;
+
+	flat_dt_blob.data = initial_boot_params;
+	flat_dt_blob.size = initial_boot_params->totalsize;
+
+	d = debugfs_create_blob("flat-device-tree", S_IFREG | S_IRUSR,
+				d, &flat_dt_blob);
+	if (!d)
+		return 1;
+
+	return 0;
+}
+__initcall(export_flat_device_tree);
+#endif
