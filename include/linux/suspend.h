@@ -71,6 +71,7 @@ struct saved_context;
 void __save_processor_state(struct saved_context *ctxt);
 void __restore_processor_state(struct saved_context *ctxt);
 unsigned long get_safe_page(gfp_t gfp_mask);
+int swsusp_add_arch_pages(unsigned long start, unsigned long end);
 
 /*
  * XXX: We try to keep some more pages free so that I/O operations succeed

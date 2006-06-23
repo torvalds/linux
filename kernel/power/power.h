@@ -105,6 +105,10 @@ extern struct bitmap_page *alloc_bitmap(unsigned int nr_bits);
 extern unsigned long alloc_swap_page(int swap, struct bitmap_page *bitmap);
 extern void free_all_swap_pages(int swap, struct bitmap_page *bitmap);
 
+extern unsigned int count_special_pages(void);
+extern int save_special_mem(void);
+extern int restore_special_mem(void);
+
 extern int swsusp_check(void);
 extern int swsusp_shrink_memory(void);
 extern void swsusp_free(void);

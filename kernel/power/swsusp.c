@@ -62,16 +62,6 @@ unsigned long image_size = 500 * 1024 * 1024;
 
 int in_suspend __nosavedata = 0;
 
-#ifdef CONFIG_HIGHMEM
-unsigned int count_highmem_pages(void);
-int save_highmem(void);
-int restore_highmem(void);
-#else
-static int save_highmem(void) { return 0; }
-static int restore_highmem(void) { return 0; }
-static unsigned int count_highmem_pages(void) { return 0; }
-#endif
-
 /**
  *	The following functions are used for tracing the allocated
  *	swap pages, so that they can be freed in case of an error.
@@ -192,7 +182,7 @@ int swsusp_shrink_memory(void)
 
 	printk("Shrinking memory...  ");
 	do {
-		size = 2 * count_highmem_pages();
+		size = 2 * count_special_pages();
 		size += size / 50 + count_data_pages();
 		size += (size + PBES_PER_PAGE - 1) / PBES_PER_PAGE +
 			PAGES_FOR_IO;
@@ -234,7 +224,7 @@ int swsusp_suspend(void)
 		goto Enable_irqs;
 	}
 
-	if ((error = save_highmem())) {
+	if ((error = save_special_mem())) {
 		printk(KERN_ERR "swsusp: Not enough free pages for highmem\n");
 		goto Restore_highmem;
 	}
@@ -245,7 +235,7 @@ int swsusp_suspend(void)
 	/* Restore control flow magically appears here */
 	restore_processor_state();
 Restore_highmem:
-	restore_highmem();
+	restore_special_mem();
 	device_power_up();
 Enable_irqs:
 	local_irq_enable();
@@ -271,7 +261,7 @@ int swsusp_resume(void)
 	 */
 	swsusp_free();
 	restore_processor_state();
-	restore_highmem();
+	restore_special_mem();
 	touch_softlockup_watchdog();
 	device_power_up();
 	local_irq_enable();
