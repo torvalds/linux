@@ -173,14 +173,10 @@ retry:
  * 2 for pages with a mapping
  * 3 for pages with a mapping and PagePrivate set.
  */
-static int migrate_page_move_mapping(struct page *newpage,
-				struct page *page)
+static int migrate_page_move_mapping(struct address_space *mapping,
+		struct page *newpage, struct page *page)
 {
-	struct address_space *mapping = page_mapping(page);
 	struct page **radix_pointer;
-
-	if (!mapping)
-		return -EAGAIN;
 
 	write_lock_irq(&mapping->tree_lock);
 
@@ -197,15 +193,8 @@ static int migrate_page_move_mapping(struct page *newpage,
 
 	/*
 	 * Now we know that no one else is looking at the page.
-	 *
-	 * Certain minimal information about a page must be available
-	 * in order for other subsystems to properly handle the page if they
-	 * find it through the radix tree update before we are finished
-	 * copying the page.
 	 */
 	get_page(newpage);
-	newpage->index = page->index;
-	newpage->mapping = page->mapping;
 	if (PageSwapCache(page)) {
 		SetPageSwapCache(newpage);
 		set_page_private(newpage, page_private(page));
@@ -262,7 +251,8 @@ static void migrate_page_copy(struct page *newpage, struct page *page)
  ***********************************************************/
 
 /* Always fail migration. Used for mappings that are not movable */
-int fail_migrate_page(struct page *newpage, struct page *page)
+int fail_migrate_page(struct address_space *mapping,
+			struct page *newpage, struct page *page)
 {
 	return -EIO;
 }
@@ -274,13 +264,14 @@ EXPORT_SYMBOL(fail_migrate_page);
  *
  * Pages are locked upon entry and exit.
  */
-int migrate_page(struct page *newpage, struct page *page)
+int migrate_page(struct address_space *mapping,
+		struct page *newpage, struct page *page)
 {
 	int rc;
 
 	BUG_ON(PageWriteback(page));	/* Writeback must be complete */
 
-	rc = migrate_page_move_mapping(newpage, page);
+	rc = migrate_page_move_mapping(mapping, newpage, page);
 
 	if (rc)
 		return rc;
@@ -305,21 +296,18 @@ EXPORT_SYMBOL(migrate_page);
  * if the underlying filesystem guarantees that no other references to "page"
  * exist.
  */
-int buffer_migrate_page(struct page *newpage, struct page *page)
+int buffer_migrate_page(struct address_space *mapping,
+		struct page *newpage, struct page *page)
 {
-	struct address_space *mapping = page->mapping;
 	struct buffer_head *bh, *head;
 	int rc;
 
-	if (!mapping)
-		return -EAGAIN;
-
 	if (!page_has_buffers(page))
-		return migrate_page(newpage, page);
+		return migrate_page(mapping, newpage, page);
 
 	head = page_buffers(page);
 
-	rc = migrate_page_move_mapping(newpage, page);
+	rc = migrate_page_move_mapping(mapping, newpage, page);
 
 	if (rc)
 		return rc;
@@ -448,9 +436,6 @@ redo:
 			goto next;
 		}
 
-		newpage = lru_to_page(to);
-		lock_page(newpage);
-
 		/*
 		 * Establish swap ptes for anonymous pages or destroy pte
 		 * maps for files.
@@ -473,11 +458,18 @@ redo:
 		rc = -EPERM;
 		if (try_to_unmap(page, 1) == SWAP_FAIL)
 			/* A vma has VM_LOCKED set -> permanent failure */
-			goto unlock_both;
+			goto unlock_page;
 
 		rc = -EAGAIN;
 		if (page_mapped(page))
-			goto unlock_both;
+			goto unlock_page;
+
+		newpage = lru_to_page(to);
+		lock_page(newpage);
+		/* Prepare mapping for the new page.*/
+		newpage->index = page->index;
+		newpage->mapping = page->mapping;
+
 		/*
 		 * Pages are properly locked and writeback is complete.
 		 * Try to migrate the page.
@@ -494,7 +486,8 @@ redo:
 			 * own migration function. This is the most common
 			 * path for page migration.
 			 */
-			rc = mapping->a_ops->migratepage(newpage, page);
+			rc = mapping->a_ops->migratepage(mapping,
+							newpage, page);
 			goto unlock_both;
                 }
 
@@ -524,7 +517,7 @@ redo:
 		 */
 		if (!page_has_buffers(page) ||
 		    try_to_release_page(page, GFP_KERNEL)) {
-			rc = migrate_page(newpage, page);
+			rc = migrate_page(mapping, newpage, page);
 			goto unlock_both;
 		}
 
@@ -553,12 +546,17 @@ unlock_page:
 		unlock_page(page);
 
 next:
-		if (rc == -EAGAIN) {
-			retry++;
-		} else if (rc) {
-			/* Permanent failure */
-			list_move(&page->lru, failed);
-			nr_failed++;
+		if (rc) {
+			if (newpage)
+				newpage->mapping = NULL;
+
+			if (rc == -EAGAIN)
+				retry++;
+			else {
+				/* Permanent failure */
+				list_move(&page->lru, failed);
+				nr_failed++;
+			}
 		} else {
 			if (newpage) {
 				/* Successful migration. Return page to LRU */

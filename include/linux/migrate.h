@@ -6,12 +6,14 @@
 #ifdef CONFIG_MIGRATION
 extern int isolate_lru_page(struct page *p, struct list_head *pagelist);
 extern int putback_lru_pages(struct list_head *l);
-extern int migrate_page(struct page *, struct page *);
+extern int migrate_page(struct address_space *,
+			struct page *, struct page *);
 extern int migrate_pages(struct list_head *l, struct list_head *t,
 		struct list_head *moved, struct list_head *failed);
 extern int migrate_pages_to(struct list_head *pagelist,
 			struct vm_area_struct *vma, int dest);
-extern int fail_migrate_page(struct page *, struct page *);
+extern int fail_migrate_page(struct address_space *,
+			struct page *, struct page *);
 
 extern int migrate_prep(void);
 

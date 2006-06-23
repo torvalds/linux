@@ -376,7 +376,8 @@ struct address_space_operations {
 	struct page* (*get_xip_page)(struct address_space *, sector_t,
 			int);
 	/* migrate the contents of a page to the specified target */
-	int (*migratepage) (struct page *, struct page *);
+	int (*migratepage) (struct address_space *,
+			struct page *, struct page *);
 };
 
 struct backing_dev_info;
@@ -1772,7 +1773,8 @@ extern void simple_release_fs(struct vfsmount **mount, int *count);
 extern ssize_t simple_read_from_buffer(void __user *, size_t, loff_t *, const void *, size_t);
 
 #ifdef CONFIG_MIGRATION
-extern int buffer_migrate_page(struct page *, struct page *);
+extern int buffer_migrate_page(struct address_space *,
+				struct page *, struct page *);
 #else
 #define buffer_migrate_page NULL
 #endif
