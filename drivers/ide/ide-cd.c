@@ -1451,9 +1451,12 @@ static ide_startstop_t cdrom_pc_intr (ide_drive_t *drive)
 	} else {
 confused:
 		printk (KERN_ERR "%s: cdrom_pc_intr: The drive "
-			"appears confused (ireason = 0x%02x)\n",
+			"appears confused (ireason = 0x%02x). "
+			"Trying to recover by ending request.\n",
 			drive->name, ireason);
 		rq->flags |= REQ_FAILED;
+		cdrom_end_request(drive, 0);
+		return ide_stopped;
 	}
 
 	/* Now we wait for another interrupt. */
