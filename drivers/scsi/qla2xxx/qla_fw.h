@@ -278,7 +278,7 @@ struct init_cb_24xx {
 	uint16_t response_q_length;
 	uint16_t request_q_length;
 
-	uint16_t link_down_timeout;		/* Milliseconds. */
+	uint16_t link_down_on_nos;		/* Milliseconds. */
 
 	uint16_t prio_request_q_length;
 

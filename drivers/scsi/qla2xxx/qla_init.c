@@ -3379,7 +3379,6 @@ qla24xx_nvram_config(scsi_qla_host_t *ha)
 		nv->node_name[6] = 0x55;
 		nv->node_name[7] = 0x86;
 		nv->login_retry_count = __constant_cpu_to_le16(8);
-		nv->link_down_timeout = __constant_cpu_to_le16(200);
 		nv->interrupt_delay_timer = __constant_cpu_to_le16(0);
 		nv->login_timeout = __constant_cpu_to_le16(0);
 		nv->firmware_options_1 =
@@ -3408,7 +3407,7 @@ qla24xx_nvram_config(scsi_qla_host_t *ha)
 		*dptr1++ = *dptr2++;
 
 	icb->login_retry_count = nv->login_retry_count;
-	icb->link_down_timeout = nv->link_down_timeout;
+	icb->link_down_on_nos = nv->link_down_on_nos;
 
 	/* Copy 2nd segment. */
 	dptr1 = (uint8_t *)&icb->interrupt_delay_timer;
