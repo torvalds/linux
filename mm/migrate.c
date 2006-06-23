@@ -349,6 +349,42 @@ int buffer_migrate_page(struct address_space *mapping,
 }
 EXPORT_SYMBOL(buffer_migrate_page);
 
+static int fallback_migrate_page(struct address_space *mapping,
+	struct page *newpage, struct page *page)
+{
+	/*
+	 * Default handling if a filesystem does not provide
+	 * a migration function. We can only migrate clean
+	 * pages so try to write out any dirty pages first.
+	 */
+	if (PageDirty(page)) {
+		switch (pageout(page, mapping)) {
+		case PAGE_KEEP:
+		case PAGE_ACTIVATE:
+			return -EAGAIN;
+
+		case PAGE_SUCCESS:
+			/* Relock since we lost the lock */
+			lock_page(page);
+			/* Must retry since page state may have changed */
+			return -EAGAIN;
+
+		case PAGE_CLEAN:
+			; /* try to migrate the page below */
+		}
+	}
+
+	/*
+	 * Buffers may be managed in a filesystem specific way.
+	 * We must have no buffers or drop them.
+	 */
+	if (page_has_buffers(page) &&
+	    !try_to_release_page(page, GFP_KERNEL))
+		return -EAGAIN;
+
+	return migrate_page(mapping, newpage, page);
+}
+
 /*
  * migrate_pages
  *
@@ -478,7 +514,7 @@ redo:
 		if (!mapping)
 			goto unlock_both;
 
-		if (mapping->a_ops->migratepage) {
+		if (mapping->a_ops->migratepage)
 			/*
 			 * Most pages have a mapping and most filesystems
 			 * should provide a migration function. Anonymous
@@ -488,56 +524,8 @@ redo:
 			 */
 			rc = mapping->a_ops->migratepage(mapping,
 							newpage, page);
-			goto unlock_both;
-                }
-
-		/*
-		 * Default handling if a filesystem does not provide
-		 * a migration function. We can only migrate clean
-		 * pages so try to write out any dirty pages first.
-		 */
-		if (PageDirty(page)) {
-			switch (pageout(page, mapping)) {
-			case PAGE_KEEP:
-			case PAGE_ACTIVATE:
-				goto unlock_both;
-
-			case PAGE_SUCCESS:
-				unlock_page(newpage);
-				goto next;
-
-			case PAGE_CLEAN:
-				; /* try to migrate the page below */
-			}
-                }
-
-		/*
-		 * Buffers are managed in a filesystem specific way.
-		 * We must have no buffers or drop them.
-		 */
-		if (!page_has_buffers(page) ||
-		    try_to_release_page(page, GFP_KERNEL)) {
-			rc = migrate_page(mapping, newpage, page);
-			goto unlock_both;
-		}
-
-		/*
-		 * On early passes with mapped pages simply
-		 * retry. There may be a lock held for some
-		 * buffers that may go away. Later
-		 * swap them out.
-		 */
-		if (pass > 4) {
-			/*
-			 * Persistently unable to drop buffers..... As a
-			 * measure of last resort we fall back to
-			 * swap_page().
-			 */
-			unlock_page(newpage);
-			newpage = NULL;
-			rc = swap_page(page);
-			goto next;
-		}
+		else
+			rc = fallback_migrate_page(mapping, newpage, page);
 
 unlock_both:
 		unlock_page(newpage);
