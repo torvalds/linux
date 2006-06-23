@@ -1193,7 +1193,7 @@ static int st_open(struct inode *inode, struct file *filp)
 
 
 /* Flush the tape buffer before close */
-static int st_flush(struct file *filp)
+static int st_flush(struct file *filp, fl_owner_t id)
 {
 	int result = 0, result2;
 	unsigned char cmd[MAX_COMMAND_SIZE];

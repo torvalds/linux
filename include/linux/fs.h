@@ -683,6 +683,7 @@ extern spinlock_t files_lock;
 #define FL_FLOCK	2
 #define FL_ACCESS	8	/* not trying to lock, just looking */
 #define FL_LEASE	32	/* lease held on this file */
+#define FL_CLOSE	64	/* unlock on close */
 #define FL_SLEEP	128	/* A blocking lock */
 
 /*
@@ -1025,7 +1026,7 @@ struct file_operations {
 	long (*compat_ioctl) (struct file *, unsigned int, unsigned long);
 	int (*mmap) (struct file *, struct vm_area_struct *);
 	int (*open) (struct inode *, struct file *);
-	int (*flush) (struct file *);
+	int (*flush) (struct file *, fl_owner_t id);
 	int (*release) (struct inode *, struct file *);
 	int (*fsync) (struct file *, struct dentry *, int datasync);
 	int (*aio_fsync) (struct kiocb *, int datasync);

@@ -532,7 +532,6 @@ static ctl_table pfm_sysctl_root[] = {
 static struct ctl_table_header *pfm_sysctl_header;
 
 static int pfm_context_unload(pfm_context_t *ctx, void *arg, int count, struct pt_regs *regs);
-static int pfm_flush(struct file *filp);
 
 #define pfm_get_cpu_var(v)		__ia64_per_cpu_var(v)
 #define pfm_get_cpu_data(a,b)		per_cpu(a, b)
@@ -1774,7 +1773,7 @@ pfm_syswide_cleanup_other_cpu(pfm_context_t *ctx)
  * When caller is self-monitoring, the context is unloaded.
  */
 static int
-pfm_flush(struct file *filp)
+pfm_flush(struct file *filp, fl_owner_t id)
 {
 	pfm_context_t *ctx;
 	struct task_struct *task;

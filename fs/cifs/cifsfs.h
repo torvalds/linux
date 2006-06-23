@@ -74,7 +74,7 @@ extern ssize_t cifs_user_write(struct file *file, const char __user *write_data,
 			 size_t write_size, loff_t * poffset);
 extern int cifs_lock(struct file *, int, struct file_lock *);
 extern int cifs_fsync(struct file *, struct dentry *, int);
-extern int cifs_flush(struct file *);
+extern int cifs_flush(struct file *, fl_owner_t id);
 extern int cifs_file_mmap(struct file * , struct vm_area_struct *);
 extern const struct file_operations cifs_dir_ops;
 extern int cifs_dir_open(struct inode *inode, struct file *file);

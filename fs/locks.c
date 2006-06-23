@@ -1907,7 +1907,7 @@ void locks_remove_posix(struct file *filp, fl_owner_t owner)
 		return;
 
 	lock.fl_type = F_UNLCK;
-	lock.fl_flags = FL_POSIX;
+	lock.fl_flags = FL_POSIX | FL_CLOSE;
 	lock.fl_start = 0;
 	lock.fl_end = OFFSET_MAX;
 	lock.fl_owner = owner;

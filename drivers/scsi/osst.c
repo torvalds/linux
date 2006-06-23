@@ -4724,7 +4724,7 @@ err_out:
 
 
 /* Flush the tape buffer before close */
-static int os_scsi_tape_flush(struct file * filp)
+static int os_scsi_tape_flush(struct file * filp, fl_owner_t id)
 {
 	int		      result = 0, result2;
 	struct osst_tape    * STp    = filp->private_data;

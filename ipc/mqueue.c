@@ -359,7 +359,7 @@ static ssize_t mqueue_read_file(struct file *filp, char __user *u_data,
 	return count;
 }
 
-static int mqueue_flush_file(struct file *filp)
+static int mqueue_flush_file(struct file *filp, fl_owner_t id)
 {
 	struct mqueue_inode_info *info = MQUEUE_I(filp->f_dentry->d_inode);
 

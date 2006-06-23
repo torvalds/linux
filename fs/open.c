@@ -1152,7 +1152,7 @@ int filp_close(struct file *filp, fl_owner_t id)
 	}
 
 	if (filp->f_op && filp->f_op->flush)
-		retval = filp->f_op->flush(filp);
+		retval = filp->f_op->flush(filp, id);
 
 	dnotify_flush(filp, id);
 	locks_remove_posix(filp, id);

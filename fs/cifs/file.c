@@ -1417,7 +1417,7 @@ int cifs_fsync(struct file *file, struct dentry *dentry, int datasync)
  * As file closes, flush all cached write data for this inode checking
  * for write behind errors.
  */
-int cifs_flush(struct file *file)
+int cifs_flush(struct file *file, fl_owner_t id)
 {
 	struct inode * inode = file->f_dentry->d_inode;
 	int rc = 0;
