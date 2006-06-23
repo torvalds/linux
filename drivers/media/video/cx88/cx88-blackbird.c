@@ -1045,21 +1045,10 @@ static int __devinit blackbird_probe(struct pci_dev *pci_dev,
 	cx2341x_fill_defaults(&dev->params);
 	dev->params.port = CX2341X_PORT_STREAMING;
 
-	switch (core->board) {
-	case CX88_BOARD_HAUPPAUGE_ROSLYN:
-		if (core->tuner_formats & V4L2_STD_525_60) {
-			dev->height = 480;
-		} else {
-			dev->height = 576;
-		}
-		break;
-	case CX88_BOARD_KWORLD_HARDWARE_MPEG_TV_XPERT:
-		if (core->tvnorm->id & V4L2_STD_525_60) {
-			dev->height = 480;
-		} else {
-			dev->height = 576;
-		}
-		break;
+	if (core->tvnorm->id & V4L2_STD_525_60) {
+		dev->height = 480;
+	} else {
+		dev->height = 576;
 	}
 
 	err = cx8802_init_common(dev);
