@@ -12,7 +12,6 @@
 # define THIS_CPU(var)	(per_cpu__##var)  /* use this to mark accesses to per-CPU variables... */
 #else /* !__ASSEMBLY__ */
 
-#include <linux/config.h>
 
 #include <linux/threads.h>
 

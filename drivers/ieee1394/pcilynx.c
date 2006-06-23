@@ -1252,11 +1252,7 @@ static int __devinit add_card(struct pci_dev *dev,
         /* Fix buggy cards with autoboot pin not tied low: */
         reg_write(lynx, DMA0_CHAN_CTRL, 0);
 
-#ifndef __sparc__
 	sprintf (irq_buf, "%d", dev->irq);
-#else
-	sprintf (irq_buf, "%s", __irq_itoa(dev->irq));
-#endif
 
         if (!request_irq(dev->irq, lynx_irq_handler, SA_SHIRQ,
                          PCILYNX_DRIVER_NAME, lynx)) {

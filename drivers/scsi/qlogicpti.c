@@ -43,7 +43,6 @@
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_eh.h>
-#include <scsi/scsi_request.h>
 #include <scsi/scsi_tcq.h>
 #include <scsi/scsi_host.h>
 
@@ -132,7 +131,7 @@ static const u_char mbox_param[] = {
 	PACKB(0, 0)	/* 0x0042 */
 };
 
-#define MAX_MBOX_COMMAND	(sizeof(mbox_param)/sizeof(u_short))
+#define MAX_MBOX_COMMAND	ARRAY_SIZE(mbox_param)
 
 /* queue length's _must_ be power of two: */
 #define QUEUE_DEPTH(in, out, ql)	((in - out) & (ql))
@@ -725,7 +724,7 @@ static int __init qpti_register_irq(struct qlogicpti *qpti)
 			SA_SHIRQ, "Qlogic/PTI", qpti))
 		goto fail;
 
-	printk("qpti%d: IRQ %s ", qpti->qpti_id, __irq_itoa(qpti->irq));
+	printk("qpti%d: IRQ %d ", qpti->qpti_id, qpti->irq);
 
 	return 0;
 
@@ -988,8 +987,8 @@ const char *qlogicpti_info(struct Scsi_Host *host)
 	static char buf[80];
 	struct qlogicpti *qpti = (struct qlogicpti *) host->hostdata;
 
-	sprintf(buf, "PTI Qlogic,ISP SBUS SCSI irq %s regs at %p",
-		__irq_itoa(qpti->qhost->irq), qpti->qregs);
+	sprintf(buf, "PTI Qlogic,ISP SBUS SCSI irq %d regs at %p",
+		qpti->qhost->irq, qpti->qregs);
 	return buf;
 }
 

@@ -8,7 +8,6 @@
 #ifndef __CONFIG_8xx_DEFS
 #define __CONFIG_8xx_DEFS
 
-#include <linux/config.h>
 
 #ifdef CONFIG_8xx
 

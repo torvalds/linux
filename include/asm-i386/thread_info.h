@@ -9,7 +9,6 @@
 
 #ifdef __KERNEL__
 
-#include <linux/config.h>
 #include <linux/compiler.h>
 #include <asm/page.h>
 

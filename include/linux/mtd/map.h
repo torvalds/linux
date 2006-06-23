@@ -5,7 +5,6 @@
 #ifndef __LINUX_MTD_MAP_H__
 #define __LINUX_MTD_MAP_H__
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/list.h>
 #include <linux/string.h>

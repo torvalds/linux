@@ -333,9 +333,9 @@ int RIODelay_ni(struct Port *PortP, int njiffies)
 	return !RIO_FAIL;
 }
 
-void rio_copy_to_card(void *to, void *from, int len)
+void rio_copy_to_card(void *from, void __iomem *to, int len)
 {
-	rio_memcpy_toio(NULL, to, from, len);
+	rio_copy_toio(to, from, len);
 }
 
 int rio_minor(struct tty_struct *tty)
@@ -573,7 +573,7 @@ static int rio_fw_ioctl(struct inode *inode, struct file *filp, unsigned int cmd
 	func_enter();
 
 	/* The "dev" argument isn't used. */
-	rc = riocontrol(p, 0, cmd, (void *) arg, capable(CAP_SYS_ADMIN));
+	rc = riocontrol(p, 0, cmd, arg, capable(CAP_SYS_ADMIN));
 
 	func_exit();
 	return rc;
@@ -583,6 +583,7 @@ extern int RIOShortCommand(struct rio_info *p, struct Port *PortP, int command, 
 
 static int rio_ioctl(struct tty_struct *tty, struct file *filp, unsigned int cmd, unsigned long arg)
 {
+	void __user *argp = (void __user *)arg;
 	int rc;
 	struct Port *PortP;
 	int ival;
@@ -594,14 +595,14 @@ static int rio_ioctl(struct tty_struct *tty, struct file *filp, unsigned int cmd
 	rc = 0;
 	switch (cmd) {
 	case TIOCSSOFTCAR:
-		if ((rc = get_user(ival, (unsigned int *) arg)) == 0) {
+		if ((rc = get_user(ival, (unsigned __user *) argp)) == 0) {
 			tty->termios->c_cflag = (tty->termios->c_cflag & ~CLOCAL) | (ival ? CLOCAL : 0);
 		}
 		break;
 	case TIOCGSERIAL:
 		rc = -EFAULT;
-		if (access_ok(VERIFY_WRITE, (void *) arg, sizeof(struct serial_struct)))
-			rc = gs_getserial(&PortP->gs, (struct serial_struct *) arg);
+		if (access_ok(VERIFY_WRITE, argp, sizeof(struct serial_struct)))
+			rc = gs_getserial(&PortP->gs, argp);
 		break;
 	case TCSBRK:
 		if (PortP->State & RIO_DELETED) {
@@ -631,8 +632,8 @@ static int rio_ioctl(struct tty_struct *tty, struct file *filp, unsigned int cmd
 		break;
 	case TIOCSSERIAL:
 		rc = -EFAULT;
-		if (access_ok(VERIFY_READ, (void *) arg, sizeof(struct serial_struct)))
-			rc = gs_setserial(&PortP->gs, (struct serial_struct *) arg);
+		if (access_ok(VERIFY_READ, argp, sizeof(struct serial_struct)))
+			rc = gs_setserial(&PortP->gs, argp);
 		break;
 	default:
 		rc = -ENOIOCTLCMD;
@@ -919,7 +920,7 @@ static void __exit rio_release_drivers(void)
 static void fix_rio_pci(struct pci_dev *pdev)
 {
 	unsigned long hwbase;
-	unsigned char *rebase;
+	unsigned char __iomem *rebase;
 	unsigned int t;
 
 #define CNTRL_REG_OFFSET        0x50
@@ -999,7 +1000,7 @@ static int __init rio_init(void)
 		if (((1 << hp->Ivec) & rio_irqmask) == 0)
 			hp->Ivec = 0;
 		hp->Caddr = ioremap(p->RIOHosts[p->RIONumHosts].PaddrP, RIO_WINDOW_LEN);
-		hp->CardP = (struct DpRam *) hp->Caddr;
+		hp->CardP = (struct DpRam __iomem *) hp->Caddr;
 		hp->Type = RIO_PCI;
 		hp->Copy = rio_copy_to_card;
 		hp->Mode = RIO_PCI_BOOT_FROM_RAM;
@@ -1021,7 +1022,7 @@ static int __init rio_init(void)
 			p->RIONumHosts++;
 			found++;
 		} else {
-			iounmap((char *) (p->RIOHosts[p->RIONumHosts].Caddr));
+			iounmap(p->RIOHosts[p->RIONumHosts].Caddr);
 		}
 	}
 
@@ -1047,7 +1048,7 @@ static int __init rio_init(void)
 			hp->Ivec = 0;
 		hp->Ivec |= 0x8000;	/* Mark as non-sharable */
 		hp->Caddr = ioremap(p->RIOHosts[p->RIONumHosts].PaddrP, RIO_WINDOW_LEN);
-		hp->CardP = (struct DpRam *) hp->Caddr;
+		hp->CardP = (struct DpRam __iomem *) hp->Caddr;
 		hp->Type = RIO_PCI;
 		hp->Copy = rio_copy_to_card;
 		hp->Mode = RIO_PCI_BOOT_FROM_RAM;
@@ -1070,7 +1071,7 @@ static int __init rio_init(void)
 			p->RIONumHosts++;
 			found++;
 		} else {
-			iounmap((char *) (p->RIOHosts[p->RIONumHosts].Caddr));
+			iounmap(p->RIOHosts[p->RIONumHosts].Caddr);
 		}
 #else
 		printk(KERN_ERR "Found an older RIO PCI card, but the driver is not " "compiled to support it.\n");
@@ -1085,7 +1086,7 @@ static int __init rio_init(void)
 		/* There was something about the IRQs of these cards. 'Forget what.--REW */
 		hp->Ivec = 0;
 		hp->Caddr = ioremap(p->RIOHosts[p->RIONumHosts].PaddrP, RIO_WINDOW_LEN);
-		hp->CardP = (struct DpRam *) hp->Caddr;
+		hp->CardP = (struct DpRam __iomem *) hp->Caddr;
 		hp->Type = RIO_AT;
 		hp->Copy = rio_copy_to_card;	/* AT card PCI???? - PVDL
                                          * -- YES! this is now a normal copy. Only the
@@ -1111,7 +1112,7 @@ static int __init rio_init(void)
 			}
 
 			if (!okboard)
-				iounmap((char *) (hp->Caddr));
+				iounmap(hp->Caddr);
 		}
 	}
 

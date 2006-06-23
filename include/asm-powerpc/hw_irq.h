@@ -6,7 +6,6 @@
 
 #ifdef __KERNEL__
 
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <asm/ptrace.h>
 #include <asm/processor.h>

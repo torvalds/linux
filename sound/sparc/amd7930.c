@@ -977,9 +977,9 @@ static int __init snd_amd7930_create(struct snd_card *card,
 
 	if (request_irq(irq_prop->pri, snd_amd7930_interrupt,
 			SA_INTERRUPT | SA_SHIRQ, "amd7930", amd)) {
-		snd_printk("amd7930-%d: Unable to grab IRQ %s\n",
+		snd_printk("amd7930-%d: Unable to grab IRQ %d\n",
 			   dev,
-			   __irq_itoa(irq_prop->pri));
+			   irq_prop->pri);
 		snd_amd7930_free(amd);
 		return -EBUSY;
 	}
@@ -1063,11 +1063,11 @@ static int __init amd7930_attach(int prom_node, struct sbus_dev *sdev)
 
 	strcpy(card->driver, "AMD7930");
 	strcpy(card->shortname, "Sun AMD7930");
-	sprintf(card->longname, "%s at 0x%02lx:0x%08lx, irq %s",
+	sprintf(card->longname, "%s at 0x%02lx:0x%08lx, irq %d",
 		card->shortname,
 		rp->flags & 0xffL,
 		rp->start,
-		__irq_itoa(irq_prop.pri));
+		irq_prop.pri);
 
 	if ((err = snd_amd7930_create(card, sdev, rp, reg_prop.reg_size,
 					  &irq_prop, dev, &amd)) < 0)

@@ -163,6 +163,190 @@ static int same_tt (struct usb_device *dev1, struct usb_device *dev2)
 		return 1;
 }
 
+#ifdef CONFIG_USB_EHCI_TT_NEWSCHED
+
+/* Which uframe does the low/fullspeed transfer start in?
+ *
+ * The parameter is the mask of ssplits in "H-frame" terms
+ * and this returns the transfer start uframe in "B-frame" terms,
+ * which allows both to match, e.g. a ssplit in "H-frame" uframe 0
+ * will cause a transfer in "B-frame" uframe 0.  "B-frames" lag
+ * "H-frames" by 1 uframe.  See the EHCI spec sec 4.5 and figure 4.7.
+ */
+static inline unsigned char tt_start_uframe(struct ehci_hcd *ehci, __le32 mask)
+{
+	unsigned char smask = QH_SMASK & le32_to_cpu(mask);
+	if (!smask) {
+		ehci_err(ehci, "invalid empty smask!\n");
+		/* uframe 7 can't have bw so this will indicate failure */
+		return 7;
+	}
+	return ffs(smask) - 1;
+}
+
+static const unsigned char
+max_tt_usecs[] = { 125, 125, 125, 125, 125, 125, 30, 0 };
+
+/* carryover low/fullspeed bandwidth that crosses uframe boundries */
+static inline void carryover_tt_bandwidth(unsigned short tt_usecs[8])
+{
+	int i;
+	for (i=0; i<7; i++) {
+		if (max_tt_usecs[i] < tt_usecs[i]) {
+			tt_usecs[i+1] += tt_usecs[i] - max_tt_usecs[i];
+			tt_usecs[i] = max_tt_usecs[i];
+		}
+	}
+}
+
+/* How many of the tt's periodic downstream 1000 usecs are allocated?
+ *
+ * While this measures the bandwidth in terms of usecs/uframe,
+ * the low/fullspeed bus has no notion of uframes, so any particular
+ * low/fullspeed transfer can "carry over" from one uframe to the next,
+ * since the TT just performs downstream transfers in sequence.
+ *
+ * For example two seperate 100 usec transfers can start in the same uframe,
+ * and the second one would "carry over" 75 usecs into the next uframe.
+ */
+static void
+periodic_tt_usecs (
+	struct ehci_hcd *ehci,
+	struct usb_device *dev,
+	unsigned frame,
+	unsigned short tt_usecs[8]
+)
+{
+	__le32			*hw_p = &ehci->periodic [frame];
+	union ehci_shadow	*q = &ehci->pshadow [frame];
+	unsigned char		uf;
+
+	memset(tt_usecs, 0, 16);
+
+	while (q->ptr) {
+		switch (Q_NEXT_TYPE(*hw_p)) {
+		case Q_TYPE_ITD:
+			hw_p = &q->itd->hw_next;
+			q = &q->itd->itd_next;
+			continue;
+		case Q_TYPE_QH:
+			if (same_tt(dev, q->qh->dev)) {
+				uf = tt_start_uframe(ehci, q->qh->hw_info2);
+				tt_usecs[uf] += q->qh->tt_usecs;
+			}
+			hw_p = &q->qh->hw_next;
+			q = &q->qh->qh_next;
+			continue;
+		case Q_TYPE_SITD:
+			if (same_tt(dev, q->sitd->urb->dev)) {
+				uf = tt_start_uframe(ehci, q->sitd->hw_uframe);
+				tt_usecs[uf] += q->sitd->stream->tt_usecs;
+			}
+			hw_p = &q->sitd->hw_next;
+			q = &q->sitd->sitd_next;
+			continue;
+		// case Q_TYPE_FSTN:
+		default:
+			ehci_dbg(ehci,
+				  "ignoring periodic frame %d FSTN\n", frame);
+			hw_p = &q->fstn->hw_next;
+			q = &q->fstn->fstn_next;
+		}
+	}
+
+	carryover_tt_bandwidth(tt_usecs);
+
+	if (max_tt_usecs[7] < tt_usecs[7])
+		ehci_err(ehci, "frame %d tt sched overrun: %d usecs\n",
+			frame, tt_usecs[7] - max_tt_usecs[7]);
+}
+
+/*
+ * Return true if the device's tt's downstream bus is available for a
+ * periodic transfer of the specified length (usecs), starting at the
+ * specified frame/uframe.  Note that (as summarized in section 11.19
+ * of the usb 2.0 spec) TTs can buffer multiple transactions for each
+ * uframe.
+ *
+ * The uframe parameter is when the fullspeed/lowspeed transfer
+ * should be executed in "B-frame" terms, which is the same as the
+ * highspeed ssplit's uframe (which is in "H-frame" terms).  For example
+ * a ssplit in "H-frame" 0 causes a transfer in "B-frame" 0.
+ * See the EHCI spec sec 4.5 and fig 4.7.
+ *
+ * This checks if the full/lowspeed bus, at the specified starting uframe,
+ * has the specified bandwidth available, according to rules listed
+ * in USB 2.0 spec section 11.18.1 fig 11-60.
+ *
+ * This does not check if the transfer would exceed the max ssplit
+ * limit of 16, specified in USB 2.0 spec section 11.18.4 requirement #4,
+ * since proper scheduling limits ssplits to less than 16 per uframe.
+ */
+static int tt_available (
+	struct ehci_hcd		*ehci,
+	unsigned		period,
+	struct usb_device	*dev,
+	unsigned		frame,
+	unsigned		uframe,
+	u16			usecs
+)
+{
+	if ((period == 0) || (uframe >= 7))	/* error */
+		return 0;
+
+	for (; frame < ehci->periodic_size; frame += period) {
+		unsigned short tt_usecs[8];
+
+		periodic_tt_usecs (ehci, dev, frame, tt_usecs);
+
+		ehci_vdbg(ehci, "tt frame %d check %d usecs start uframe %d in"
+			" schedule %d/%d/%d/%d/%d/%d/%d/%d\n",
+			frame, usecs, uframe,
+			tt_usecs[0], tt_usecs[1], tt_usecs[2], tt_usecs[3],
+			tt_usecs[4], tt_usecs[5], tt_usecs[6], tt_usecs[7]);
+
+		if (max_tt_usecs[uframe] <= tt_usecs[uframe]) {
+			ehci_vdbg(ehci, "frame %d uframe %d fully scheduled\n",
+				frame, uframe);
+			return 0;
+		}
+
+		/* special case for isoc transfers larger than 125us:
+		 * the first and each subsequent fully used uframe
+		 * must be empty, so as to not illegally delay
+		 * already scheduled transactions
+		 */
+		if (125 < usecs) {
+			int ufs = (usecs / 125) - 1;
+			int i;
+			for (i = uframe; i < (uframe + ufs) && i < 8; i++)
+				if (0 < tt_usecs[i]) {
+					ehci_vdbg(ehci,
+						"multi-uframe xfer can't fit "
+						"in frame %d uframe %d\n",
+						frame, i);
+					return 0;
+				}
+		}
+
+		tt_usecs[uframe] += usecs;
+
+		carryover_tt_bandwidth(tt_usecs);
+
+		/* fail if the carryover pushed bw past the last uframe's limit */
+		if (max_tt_usecs[7] < tt_usecs[7]) {
+			ehci_vdbg(ehci,
+				"tt unavailable usecs %d frame %d uframe %d\n",
+				usecs, frame, uframe);
+			return 0;
+		}
+	}
+
+	return 1;
+}
+
+#else
+
 /* return true iff the device's transaction translator is available
  * for a periodic transfer starting at the specified frame, using
  * all the uframes in the mask.
@@ -236,6 +420,8 @@ static int tt_no_collision (
 	/* no collision */
 	return 1;
 }
+
+#endif /* CONFIG_USB_EHCI_TT_NEWSCHED */
 
 /*-------------------------------------------------------------------------*/
 
@@ -481,7 +667,7 @@ static int check_intr_schedule (
 )
 {
     	int		retval = -ENOSPC;
-	u8		mask;
+	u8		mask = 0;
 
 	if (qh->c_usecs && uframe >= 6)		/* FSTN territory? */
 		goto done;
@@ -494,6 +680,24 @@ static int check_intr_schedule (
 		goto done;
 	}
 
+#ifdef CONFIG_USB_EHCI_TT_NEWSCHED
+	if (tt_available (ehci, qh->period, qh->dev, frame, uframe,
+				qh->tt_usecs)) {
+		unsigned i;
+
+		/* TODO : this may need FSTN for SSPLIT in uframe 5. */
+		for (i=uframe+1; i<8 && i<uframe+4; i++)
+			if (!check_period (ehci, frame, i,
+						qh->period, qh->c_usecs))
+				goto done;
+			else
+				mask |= 1 << i;
+
+		retval = 0;
+
+		*c_maskp = cpu_to_le32 (mask << 8);
+	}
+#else
 	/* Make sure this tt's buffer is also available for CSPLITs.
 	 * We pessimize a bit; probably the typical full speed case
 	 * doesn't need the second CSPLIT.
@@ -514,6 +718,7 @@ static int check_intr_schedule (
 			goto done;
 		retval = 0;
 	}
+#endif
 done:
 	return retval;
 }
@@ -1047,12 +1252,21 @@ sitd_slot_ok (
 		frame = uframe >> 3;
 		uf = uframe & 7;
 
+#ifdef CONFIG_USB_EHCI_TT_NEWSCHED
+		/* The tt's fullspeed bus bandwidth must be available.
+		 * tt_available scheduling guarantees 10+% for control/bulk.
+		 */
+		if (!tt_available (ehci, period_uframes << 3,
+				stream->udev, frame, uf, stream->tt_usecs))
+			return 0;
+#else
 		/* tt must be idle for start(s), any gap, and csplit.
 		 * assume scheduling slop leaves 10+% for control/bulk.
 		 */
 		if (!tt_no_collision (ehci, period_uframes << 3,
 				stream->udev, frame, mask))
 			return 0;
+#endif
 
 		/* check starts (OUT uses more than one) */
 		max_used = 100 - stream->usecs;

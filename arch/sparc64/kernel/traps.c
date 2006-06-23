@@ -2544,7 +2544,9 @@ void __init trap_init(void)
 	    (TRAP_PER_CPU_TSB_HUGE !=
 	     offsetof(struct trap_per_cpu, tsb_huge)) ||
 	    (TRAP_PER_CPU_TSB_HUGE_TEMP !=
-	     offsetof(struct trap_per_cpu, tsb_huge_temp)))
+	     offsetof(struct trap_per_cpu, tsb_huge_temp)) ||
+	    (TRAP_PER_CPU_IRQ_WORKLIST !=
+	     offsetof(struct trap_per_cpu, irq_worklist)))
 		trap_per_cpu_offsets_are_bolixed_dave();
 
 	if ((TSB_CONFIG_TSB !=

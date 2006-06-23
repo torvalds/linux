@@ -389,6 +389,7 @@ config GART_IOMMU
 	bool "K8 GART IOMMU support"
 	default y
 	select SWIOTLB
+	select AGP
 	depends on PCI
 	help
 	  Support for hardware IOMMU in AMD's Opteron/Athlon64 Processors
@@ -401,11 +402,9 @@ config GART_IOMMU
   	  northbridge and a software emulation used on other systems without
 	  hardware IOMMU.  If unsure, say Y.
 
-# need this always enabled with GART_IOMMU for the VIA workaround
+# need this always selected by GART_IOMMU for the VIA workaround
 config SWIOTLB
 	bool
-	default y
-	depends on GART_IOMMU
 
 config X86_MCE
 	bool "Machine check support" if EMBEDDED

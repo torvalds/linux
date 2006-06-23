@@ -34,9 +34,8 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/module.h>
-#include <linux/usb.h>
 #include <linux/usb_ch9.h>
-#include <linux/usb_input.h>
+#include <linux/usb/input.h>
 #include "usb.h"
 #include "onetouch.h"
 #include "debug.h"

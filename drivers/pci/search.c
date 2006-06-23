@@ -13,7 +13,7 @@
 #include <linux/interrupt.h>
 #include "pci.h"
 
-DEFINE_SPINLOCK(pci_bus_lock);
+DECLARE_RWSEM(pci_bus_sem);
 
 static struct pci_bus * __devinit
 pci_do_find_bus(struct pci_bus* bus, unsigned char busnr)
@@ -72,11 +72,11 @@ pci_find_next_bus(const struct pci_bus *from)
 	struct pci_bus *b = NULL;
 
 	WARN_ON(in_interrupt());
-	spin_lock(&pci_bus_lock);
+	down_read(&pci_bus_sem);
 	n = from ? from->node.next : pci_root_buses.next;
 	if (n != &pci_root_buses)
 		b = pci_bus_b(n);
-	spin_unlock(&pci_bus_lock);
+	up_read(&pci_bus_sem);
 	return b;
 }
 
@@ -124,7 +124,7 @@ struct pci_dev * pci_get_slot(struct pci_bus *bus, unsigned int devfn)
 	struct pci_dev *dev;
 
 	WARN_ON(in_interrupt());
-	spin_lock(&pci_bus_lock);
+	down_read(&pci_bus_sem);
 
 	list_for_each(tmp, &bus->devices) {
 		dev = pci_dev_b(tmp);
@@ -135,7 +135,7 @@ struct pci_dev * pci_get_slot(struct pci_bus *bus, unsigned int devfn)
 	dev = NULL;
  out:
 	pci_dev_get(dev);
-	spin_unlock(&pci_bus_lock);
+	up_read(&pci_bus_sem);
 	return dev;
 }
 
@@ -167,7 +167,7 @@ static struct pci_dev * pci_find_subsys(unsigned int vendor,
 	struct pci_dev *dev;
 
 	WARN_ON(in_interrupt());
-	spin_lock(&pci_bus_lock);
+	down_read(&pci_bus_sem);
 	n = from ? from->global_list.next : pci_devices.next;
 
 	while (n && (n != &pci_devices)) {
@@ -181,7 +181,7 @@ static struct pci_dev * pci_find_subsys(unsigned int vendor,
 	}
 	dev = NULL;
 exit:
-	spin_unlock(&pci_bus_lock);
+	up_read(&pci_bus_sem);
 	return dev;
 }
 
@@ -232,7 +232,7 @@ pci_get_subsys(unsigned int vendor, unsigned int device,
 	struct pci_dev *dev;
 
 	WARN_ON(in_interrupt());
-	spin_lock(&pci_bus_lock);
+	down_read(&pci_bus_sem);
 	n = from ? from->global_list.next : pci_devices.next;
 
 	while (n && (n != &pci_devices)) {
@@ -247,7 +247,7 @@ pci_get_subsys(unsigned int vendor, unsigned int device,
 	dev = NULL;
 exit:
 	dev = pci_dev_get(dev);
-	spin_unlock(&pci_bus_lock);
+	up_read(&pci_bus_sem);
 	pci_dev_put(from);
 	return dev;
 }
@@ -292,7 +292,7 @@ pci_find_device_reverse(unsigned int vendor, unsigned int device, const struct p
 	struct pci_dev *dev;
 
 	WARN_ON(in_interrupt());
-	spin_lock(&pci_bus_lock);
+	down_read(&pci_bus_sem);
 	n = from ? from->global_list.prev : pci_devices.prev;
 
 	while (n && (n != &pci_devices)) {
@@ -304,7 +304,7 @@ pci_find_device_reverse(unsigned int vendor, unsigned int device, const struct p
 	}
 	dev = NULL;
 exit:
-	spin_unlock(&pci_bus_lock);
+	up_read(&pci_bus_sem);
 	return dev;
 }
 
@@ -328,7 +328,7 @@ struct pci_dev *pci_get_class(unsigned int class, struct pci_dev *from)
 	struct pci_dev *dev;
 
 	WARN_ON(in_interrupt());
-	spin_lock(&pci_bus_lock);
+	down_read(&pci_bus_sem);
 	n = from ? from->global_list.next : pci_devices.next;
 
 	while (n && (n != &pci_devices)) {
@@ -340,7 +340,7 @@ struct pci_dev *pci_get_class(unsigned int class, struct pci_dev *from)
 	dev = NULL;
 exit:
 	dev = pci_dev_get(dev);
-	spin_unlock(&pci_bus_lock);
+	up_read(&pci_bus_sem);
 	pci_dev_put(from);
 	return dev;
 }
@@ -362,7 +362,7 @@ int pci_dev_present(const struct pci_device_id *ids)
 	int found = 0;
 
 	WARN_ON(in_interrupt());
-	spin_lock(&pci_bus_lock);
+	down_read(&pci_bus_sem);
 	while (ids->vendor || ids->subvendor || ids->class_mask) {
 		list_for_each_entry(dev, &pci_devices, global_list) {
 			if (pci_match_one_device(ids, dev)) {
@@ -372,8 +372,8 @@ int pci_dev_present(const struct pci_device_id *ids)
 		}
 		ids++;
 	}
-exit:				
-	spin_unlock(&pci_bus_lock);
+exit:
+	up_read(&pci_bus_sem);
 	return found;
 }
 EXPORT_SYMBOL(pci_dev_present);

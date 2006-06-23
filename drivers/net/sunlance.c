@@ -936,7 +936,7 @@ static int lance_open(struct net_device *dev)
 
 	if (request_irq(dev->irq, &lance_interrupt, SA_SHIRQ,
 			lancestr, (void *) dev)) {
-		printk(KERN_ERR "Lance: Can't get irq %s\n", __irq_itoa(dev->irq));
+		printk(KERN_ERR "Lance: Can't get irq %d\n", dev->irq);
 		return -EAGAIN;
 	}
 

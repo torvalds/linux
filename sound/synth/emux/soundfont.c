@@ -195,7 +195,7 @@ snd_soundfont_load(struct snd_sf_list *sflist, const void __user *data,
 		break;
 	case SNDRV_SFNT_REMOVE_INFO:
 		/* patch must be opened */
-		if (sflist->currsf) {
+		if (!sflist->currsf) {
 			snd_printk("soundfont: remove_info: patch not opened\n");
 			rc = -EINVAL;
 		} else {
@@ -809,6 +809,9 @@ snd_sf_linear_to_log(unsigned int amount, int offset, int ratio)
 	v += (24 - bit) * ratio;
 	return v;
 }
+
+EXPORT_SYMBOL(snd_sf_linear_to_log);
+
 
 #define OFFSET_MSEC		653117		/* base = 1000 */
 #define OFFSET_ABSCENT		851781		/* base = 8176 */
@@ -1485,4 +1488,3 @@ snd_soundfont_remove_unlocked(struct snd_sf_list *sflist)
 	unlock_preset(sflist);
 	return 0;
 }
-

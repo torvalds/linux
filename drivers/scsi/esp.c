@@ -821,8 +821,8 @@ static int __init esp_register_irq(struct esp *esp)
 		return -1;
 	}
 
-	printk("esp%d: IRQ %s ", esp->esp_id,
-	       __irq_itoa(esp->ehost->irq));
+	printk("esp%d: IRQ %d ", esp->esp_id,
+	       esp->ehost->irq);
 
 	return 0;
 }

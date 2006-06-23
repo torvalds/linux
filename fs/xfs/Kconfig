@@ -1,6 +1,5 @@
 config XFS_FS
 	tristate "XFS filesystem support"
-	select EXPORTFS if NFSD!=n
 	help
 	  XFS is a high performance journaling filesystem which originated
 	  on the SGI IRIX platform.  It is completely multi-threaded, can
@@ -17,11 +16,6 @@ config XFS_FS
 	  module will be called xfs.  Be aware, however, that if the file
 	  system of your root partition is compiled as a module, you'll need
 	  to use an initial ramdisk (initrd) to boot.
-
-config XFS_EXPORT
-	bool
-	depends on XFS_FS && EXPORTFS
-	default y
 
 config XFS_QUOTA
 	bool "XFS Quota support"
@@ -65,18 +59,19 @@ config XFS_POSIX_ACL
 	  If you don't know what Access Control Lists are, say N.
 
 config XFS_RT
-	bool "XFS Realtime support (EXPERIMENTAL)"
-	depends on XFS_FS && EXPERIMENTAL
+	bool "XFS Realtime subvolume support"
+	depends on XFS_FS
 	help
 	  If you say Y here you will be able to mount and use XFS filesystems
-	  which contain a realtime subvolume. The realtime subvolume is a
-	  separate area of disk space where only file data is stored. The
-	  realtime subvolume is designed to provide very deterministic
-	  data rates suitable for media streaming applications.
+	  which contain a realtime subvolume.  The realtime subvolume is a
+	  separate area of disk space where only file data is stored.  It was
+	  originally designed to provide deterministic data rates suitable
+	  for media streaming applications, but is also useful as a generic
+	  mechanism for ensuring data and metadata/log I/Os are completely
+	  separated.  Regular file I/Os are isolated to a separate device
+	  from all other requests, and this can be done quite transparently
+	  to applications via the inherit-realtime directory inode flag.
 
-	  See the xfs man page in section 5 for a bit more information.
-
-	  This feature is unsupported at this time, is not yet fully
-	  functional, and may cause serious problems.
+	  See the xfs man page in section 5 for additional information.
 
 	  If unsure, say N.

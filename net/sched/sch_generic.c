@@ -90,7 +90,7 @@ void qdisc_unlock_tree(struct net_device *dev)
    NOTE: Called under dev->queue_lock with locally disabled BH.
 */
 
-int qdisc_restart(struct net_device *dev)
+static inline int qdisc_restart(struct net_device *dev)
 {
 	struct Qdisc *q = dev->qdisc;
 	struct sk_buff *skb;
@@ -177,6 +177,14 @@ requeue:
 	}
 	BUG_ON((int) q->q.qlen < 0);
 	return q->q.qlen;
+}
+
+void __qdisc_run(struct net_device *dev)
+{
+	while (qdisc_restart(dev) < 0 && !netif_queue_stopped(dev))
+		/* NOTHING */;
+
+	clear_bit(__LINK_STATE_QDISC_RUNNING, &dev->state);
 }
 
 static void dev_watchdog(unsigned long arg)
@@ -620,6 +628,5 @@ EXPORT_SYMBOL(qdisc_create_dflt);
 EXPORT_SYMBOL(qdisc_alloc);
 EXPORT_SYMBOL(qdisc_destroy);
 EXPORT_SYMBOL(qdisc_reset);
-EXPORT_SYMBOL(qdisc_restart);
 EXPORT_SYMBOL(qdisc_lock_tree);
 EXPORT_SYMBOL(qdisc_unlock_tree);

@@ -29,6 +29,20 @@ config MTD_ONENAND_GENERIC
 	help
 	  Support for OneNAND flash via platform device driver.
 
+config MTD_ONENAND_OTP
+	bool "OneNAND OTP Support"
+	depends on MTD_ONENAND
+	help
+	  One Block of the NAND Flash Array memory is reserved as
+	  a One-Time Programmable Block memory area.
+	  Also, 1st Block of NAND Flash Array can be used as OTP.
+
+	  The OTP block can be read, programmed and locked using the same
+	  operations as any other NAND Flash Array memory block.
+	  OTP block cannot be erased.
+
+	  OTP block is fully-guaranteed to be a valid block.
+
 config MTD_ONENAND_SYNC_READ
 	bool "OneNAND Sync. Burst Read Support"
 	depends on ARCH_OMAP

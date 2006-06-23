@@ -12,7 +12,6 @@
 #define	m5206sim_h
 /****************************************************************************/
 
-#include <linux/config.h>
 
 /*
  *	Define the 5206 SIM register set addresses.

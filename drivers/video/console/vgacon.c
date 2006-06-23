@@ -391,7 +391,7 @@ static const char __init *vgacon_startup(void)
 			static struct resource ega_console_resource =
 			    { "ega", 0x3B0, 0x3BF };
 			vga_video_type = VIDEO_TYPE_EGAM;
-			vga_vram_end = 0xb8000;
+			vga_vram_size = 0x8000;
 			display_desc = "EGA+";
 			request_resource(&ioport_resource,
 					 &ega_console_resource);
@@ -401,7 +401,7 @@ static const char __init *vgacon_startup(void)
 			static struct resource mda2_console_resource =
 			    { "mda", 0x3BF, 0x3BF };
 			vga_video_type = VIDEO_TYPE_MDA;
-			vga_vram_end = 0xb2000;
+			vga_vram_size = 0x2000;
 			display_desc = "*MDA";
 			request_resource(&ioport_resource,
 					 &mda1_console_resource);
@@ -418,7 +418,7 @@ static const char __init *vgacon_startup(void)
 		if ((ORIG_VIDEO_EGA_BX & 0xff) != 0x10) {
 			int i;
 
-			vga_vram_end = 0xc0000;
+			vga_vram_size = 0x8000;
 
 			if (!ORIG_VIDEO_ISVGA) {
 				static struct resource ega_console_resource
@@ -443,7 +443,7 @@ static const char __init *vgacon_startup(void)
 				 * and COE=1 isn't necessarily a good idea)
 				 */
 				vga_vram_base = 0xa0000;
-				vga_vram_end = 0xb0000;
+				vga_vram_size = 0x10000;
 				outb_p(6, VGA_GFX_I);
 				outb_p(6, VGA_GFX_D);
 #endif
@@ -475,7 +475,7 @@ static const char __init *vgacon_startup(void)
 			static struct resource cga_console_resource =
 			    { "cga", 0x3D4, 0x3D5 };
 			vga_video_type = VIDEO_TYPE_CGA;
-			vga_vram_end = 0xba000;
+			vga_vram_size = 0x2000;
 			display_desc = "*CGA";
 			request_resource(&ioport_resource,
 					 &cga_console_resource);
@@ -483,9 +483,8 @@ static const char __init *vgacon_startup(void)
 		}
 	}
 
-	vga_vram_base = VGA_MAP_MEM(vga_vram_base);
-	vga_vram_end = VGA_MAP_MEM(vga_vram_end);
-	vga_vram_size = vga_vram_end - vga_vram_base;
+	vga_vram_base = VGA_MAP_MEM(vga_vram_base, vga_vram_size);
+	vga_vram_end = vga_vram_base + vga_vram_size;
 
 	/*
 	 *      Find out if there is a graphics card present.
@@ -1020,14 +1019,14 @@ static int vgacon_do_font_op(struct vgastate *state,char *arg,int set,int ch512)
 	char *charmap;
 	
 	if (vga_video_type != VIDEO_TYPE_EGAM) {
-		charmap = (char *) VGA_MAP_MEM(colourmap);
+		charmap = (char *) VGA_MAP_MEM(colourmap, 0);
 		beg = 0x0e;
 #ifdef VGA_CAN_DO_64KB
 		if (vga_video_type == VIDEO_TYPE_VGAC)
 			beg = 0x06;
 #endif
 	} else {
-		charmap = (char *) VGA_MAP_MEM(blackwmap);
+		charmap = (char *) VGA_MAP_MEM(blackwmap, 0);
 		beg = 0x0a;
 	}
 

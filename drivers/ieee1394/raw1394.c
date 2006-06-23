@@ -408,34 +408,34 @@ static void fcp_request(struct hpsb_host *host, int nodeid, int direction,
 
 #ifdef CONFIG_COMPAT
 struct compat_raw1394_req {
-        __u32 type;
-        __s32 error;
-        __u32 misc;
+	__u32 type;
+	__s32 error;
+	__u32 misc;
 
-        __u32 generation;
-        __u32 length;
+	__u32 generation;
+	__u32 length;
 
-        __u64 address;
+	__u64 address;
 
-        __u64 tag;
+	__u64 tag;
 
-        __u64 sendb;
-        __u64 recvb;
-}  __attribute__((packed));
+	__u64 sendb;
+	__u64 recvb;
+} __attribute__((packed));
 
 static const char __user *raw1394_compat_write(const char __user *buf)
 {
-	struct compat_raw1394_req __user *cr = (typeof(cr)) buf; 
+	struct compat_raw1394_req __user *cr = (typeof(cr)) buf;
 	struct raw1394_request __user *r;
 	r = compat_alloc_user_space(sizeof(struct raw1394_request));
 
 #define C(x) __copy_in_user(&r->x, &cr->x, sizeof(r->x))
 
 	if (copy_in_user(r, cr, sizeof(struct compat_raw1394_req)) ||
-		C(address) ||
-		C(tag) ||
-		C(sendb) ||
-		C(recvb))
+	    C(address) ||
+	    C(tag) ||
+	    C(sendb) ||
+	    C(recvb))
 		return ERR_PTR(-EFAULT);
 	return (const char __user *)r;
 }
@@ -443,11 +443,11 @@ static const char __user *raw1394_compat_write(const char __user *buf)
 
 #define P(x) __put_user(r->x, &cr->x)
 
-static int 
+static int
 raw1394_compat_read(const char __user *buf, struct raw1394_request *r)
 {
-	struct compat_raw1394_req __user *cr = (typeof(cr)) r; 
-	if (!access_ok(VERIFY_WRITE,cr,sizeof(struct compat_raw1394_req)) ||
+	struct compat_raw1394_req __user *cr = (typeof(cr)) r;
+	if (!access_ok(VERIFY_WRITE, cr, sizeof(struct compat_raw1394_req)) ||
 	    P(type) ||
 	    P(error) ||
 	    P(misc) ||
@@ -512,18 +512,17 @@ static ssize_t raw1394_read(struct file *file, char __user * buffer,
 	}
 
 #ifdef CONFIG_COMPAT
-	if (count == sizeof(struct compat_raw1394_req) && 
-   		sizeof(struct compat_raw1394_req) != 
-			sizeof(struct raw1394_request)) { 
+	if (count == sizeof(struct compat_raw1394_req) &&
+   	    sizeof(struct compat_raw1394_req) !=
+			sizeof(struct raw1394_request)) {
 		ret = raw1394_compat_read(buffer, &req->req);
-
-	} else	
+	} else
 #endif
 	{
 		if (copy_to_user(buffer, &req->req, sizeof(req->req))) {
 			ret = -EFAULT;
 			goto out;
-		}		
+		}
 		ret = (ssize_t) sizeof(struct raw1394_request);
 	}
       out:
@@ -2348,7 +2347,6 @@ static int state_connected(struct file_info *fi, struct pending_request *req)
 	return handle_async_request(fi, req, node);
 }
 
-
 static ssize_t raw1394_write(struct file *file, const char __user * buffer,
 			     size_t count, loff_t * offset_is_ignored)
 {
@@ -2357,9 +2355,9 @@ static ssize_t raw1394_write(struct file *file, const char __user * buffer,
 	ssize_t retval = 0;
 
 #ifdef CONFIG_COMPAT
-	if (count == sizeof(struct compat_raw1394_req) && 
-   		sizeof(struct compat_raw1394_req) != 
-			sizeof(struct raw1394_request)) { 
+	if (count == sizeof(struct compat_raw1394_req) &&
+   	    sizeof(struct compat_raw1394_req) !=
+			sizeof(struct raw1394_request)) {
 		buffer = raw1394_compat_write(buffer);
 		if (IS_ERR(buffer))
 			return PTR_ERR(buffer);

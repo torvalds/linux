@@ -524,7 +524,7 @@ mega_build_cmd(adapter_t *adapter, Scsi_Cmnd *cmd, int *busy)
 	 * filter the internal and ioctl commands
 	 */
 	if((cmd->cmnd[0] == MEGA_INTERNAL_CMD)) {
-		return cmd->buffer;
+		return cmd->request_buffer;
 	}
 
 
@@ -4492,7 +4492,7 @@ mega_internal_command(adapter_t *adapter, megacmd_t *mc, mega_passthru *pthru)
 	scmd->device = sdev;
 
 	scmd->device->host = adapter->host;
-	scmd->buffer = (void *)scb;
+	scmd->request_buffer = (void *)scb;
 	scmd->cmnd[0] = MEGA_INTERNAL_CMD;
 
 	scb->state |= SCB_ACTIVE;

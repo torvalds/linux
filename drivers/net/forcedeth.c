@@ -2991,13 +2991,13 @@ static int nv_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 	netif_carrier_off(dev);
 	if (netif_running(dev)) {
 		nv_disable_irq(dev);
-		spin_lock_bh(&dev->xmit_lock);
+		netif_tx_lock_bh(dev);
 		spin_lock(&np->lock);
 		/* stop engines */
 		nv_stop_rx(dev);
 		nv_stop_tx(dev);
 		spin_unlock(&np->lock);
-		spin_unlock_bh(&dev->xmit_lock);
+		netif_tx_unlock_bh(dev);
 	}
 
 	if (ecmd->autoneg == AUTONEG_ENABLE) {
@@ -3131,13 +3131,13 @@ static int nv_nway_reset(struct net_device *dev)
 		netif_carrier_off(dev);
 		if (netif_running(dev)) {
 			nv_disable_irq(dev);
-			spin_lock_bh(&dev->xmit_lock);
+			netif_tx_lock_bh(dev);
 			spin_lock(&np->lock);
 			/* stop engines */
 			nv_stop_rx(dev);
 			nv_stop_tx(dev);
 			spin_unlock(&np->lock);
-			spin_unlock_bh(&dev->xmit_lock);
+			netif_tx_unlock_bh(dev);
 			printk(KERN_INFO "%s: link down.\n", dev->name);
 		}
 
@@ -3244,7 +3244,7 @@ static int nv_set_ringparam(struct net_device *dev, struct ethtool_ringparam* ri
 
 	if (netif_running(dev)) {
 		nv_disable_irq(dev);
-		spin_lock_bh(&dev->xmit_lock);
+		netif_tx_lock_bh(dev);
 		spin_lock(&np->lock);
 		/* stop engines */
 		nv_stop_rx(dev);
@@ -3303,7 +3303,7 @@ static int nv_set_ringparam(struct net_device *dev, struct ethtool_ringparam* ri
 		nv_start_rx(dev);
 		nv_start_tx(dev);
 		spin_unlock(&np->lock);
-		spin_unlock_bh(&dev->xmit_lock);
+		netif_tx_unlock_bh(dev);
 		nv_enable_irq(dev);
 	}
 	return 0;
@@ -3339,13 +3339,13 @@ static int nv_set_pauseparam(struct net_device *dev, struct ethtool_pauseparam* 
 	netif_carrier_off(dev);
 	if (netif_running(dev)) {
 		nv_disable_irq(dev);
-		spin_lock_bh(&dev->xmit_lock);
+		netif_tx_lock_bh(dev);
 		spin_lock(&np->lock);
 		/* stop engines */
 		nv_stop_rx(dev);
 		nv_stop_tx(dev);
 		spin_unlock(&np->lock);
-		spin_unlock_bh(&dev->xmit_lock);
+		netif_tx_unlock_bh(dev);
 	}
 
 	np->pause_flags &= ~(NV_PAUSEFRAME_RX_REQ|NV_PAUSEFRAME_TX_REQ);
@@ -3729,7 +3729,7 @@ static void nv_self_test(struct net_device *dev, struct ethtool_test *test, u64 
 	if (test->flags & ETH_TEST_FL_OFFLINE) {
 		if (netif_running(dev)) {
 			netif_stop_queue(dev);
-			spin_lock_bh(&dev->xmit_lock);
+			netif_tx_lock_bh(dev);
 			spin_lock_irq(&np->lock);
 			nv_disable_hw_interrupts(dev, np->irqmask);
 			if (!(np->msi_flags & NV_MSI_X_ENABLED)) {
@@ -3745,7 +3745,7 @@ static void nv_self_test(struct net_device *dev, struct ethtool_test *test, u64 
 			nv_drain_rx(dev);
 			nv_drain_tx(dev);
 			spin_unlock_irq(&np->lock);
-			spin_unlock_bh(&dev->xmit_lock);
+			netif_tx_unlock_bh(dev);
 		}
 
 		if (!nv_register_test(dev)) {

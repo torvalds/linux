@@ -46,9 +46,7 @@ static struct mtd_info *map_rom_probe(struct map_info *map)
 	mtd->write = maprom_write;
 	mtd->sync = maprom_nop;
 	mtd->flags = MTD_CAP_ROM;
-	mtd->erasesize = 131072;
- 	while(mtd->size & (mtd->erasesize - 1))
-		mtd->erasesize >>= 1;
+	mtd->erasesize = map->size;
 
 	__module_get(THIS_MODULE);
 	return mtd;

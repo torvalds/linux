@@ -896,13 +896,6 @@ static inline unsigned long get_irqmask(int irq_nr)
 	return 1 << irq_nr;
 }
 
-static inline char *pcic_irq_itoa(unsigned int irq)
-{
-	static char buff[16];
-	sprintf(buff, "%d", irq);
-	return buff;
-}
-
 static void pcic_disable_irq(unsigned int irq_nr)
 {
 	unsigned long mask, flags;
@@ -955,7 +948,6 @@ void __init sun4m_pci_init_IRQ(void)
 	BTFIXUPSET_CALL(clear_clock_irq, pcic_clear_clock_irq, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(clear_profile_irq, pcic_clear_profile_irq, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(load_profile_irq, pcic_load_profile_irq, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(__irq_itoa, pcic_irq_itoa, BTFIXUPCALL_NORM);
 }
 
 int pcibios_assign_resource(struct pci_dev *pdev, int resource)

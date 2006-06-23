@@ -1295,9 +1295,9 @@ static int __init sunsu_kbd_ms_init(struct uart_sunsu_port *up, int channel)
 	if (up->port.type == PORT_UNKNOWN)
 		return -1;
 
-	printk(KERN_INFO "su%d at 0x%p (irq = %s) is a %s\n",
+	printk(KERN_INFO "su%d at 0x%p (irq = %d) is a %s\n",
 	       channel,
-	       up->port.membase, __irq_itoa(up->port.irq),
+	       up->port.membase, up->port.irq,
 	       sunsu_type(&up->port));
 
 #ifdef CONFIG_SERIO

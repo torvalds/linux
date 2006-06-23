@@ -4,7 +4,6 @@
 /*
  * User space memory access functions
  */
-#include <linux/config.h>
 #include <linux/compiler.h>
 #include <linux/errno.h>
 #include <linux/sched.h>

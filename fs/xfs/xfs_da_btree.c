@@ -24,7 +24,6 @@
 #include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
-#include "xfs_dir.h"
 #include "xfs_dir2.h"
 #include "xfs_dmapi.h"
 #include "xfs_mount.h"
@@ -32,7 +31,6 @@
 #include "xfs_bmap_btree.h"
 #include "xfs_alloc_btree.h"
 #include "xfs_ialloc_btree.h"
-#include "xfs_dir_sf.h"
 #include "xfs_dir2_sf.h"
 #include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
@@ -43,7 +41,6 @@
 #include "xfs_bmap.h"
 #include "xfs_attr.h"
 #include "xfs_attr_leaf.h"
-#include "xfs_dir_leaf.h"
 #include "xfs_dir2_data.h"
 #include "xfs_dir2_leaf.h"
 #include "xfs_dir2_block.h"
@@ -159,7 +156,7 @@ xfs_da_split(xfs_da_state_t *state)
 	max = state->path.active - 1;
 	ASSERT((max >= 0) && (max < XFS_DA_NODE_MAXDEPTH));
 	ASSERT(state->path.blk[max].magic == XFS_ATTR_LEAF_MAGIC ||
-	       state->path.blk[max].magic == XFS_DIRX_LEAF_MAGIC(state->mp));
+	       state->path.blk[max].magic == XFS_DIR2_LEAFN_MAGIC);
 
 	addblk = &state->path.blk[max];		/* initial dummy value */
 	for (i = max; (i >= 0) && addblk; state->path.active--, i--) {
@@ -199,38 +196,7 @@ xfs_da_split(xfs_da_state_t *state)
 				return(error);	/* GROT: attr inconsistent */
 			addblk = newblk;
 			break;
-		case XFS_DIR_LEAF_MAGIC:
-			ASSERT(XFS_DIR_IS_V1(state->mp));
-			error = xfs_dir_leaf_split(state, oldblk, newblk);
-			if ((error != 0) && (error != ENOSPC)) {
-				return(error);	/* GROT: dir is inconsistent */
-			}
-			if (!error) {
-				addblk = newblk;
-				break;
-			}
-			/*
-			 * Entry wouldn't fit, split the leaf again.
-			 */
-			state->extravalid = 1;
-			if (state->inleaf) {
-				state->extraafter = 0;	/* before newblk */
-				error = xfs_dir_leaf_split(state, oldblk,
-							   &state->extrablk);
-				if (error)
-					return(error);	/* GROT: dir incon. */
-				addblk = newblk;
-			} else {
-				state->extraafter = 1;	/* after newblk */
-				error = xfs_dir_leaf_split(state, newblk,
-							   &state->extrablk);
-				if (error)
-					return(error);	/* GROT: dir incon. */
-				addblk = newblk;
-			}
-			break;
 		case XFS_DIR2_LEAFN_MAGIC:
-			ASSERT(XFS_DIR_IS_V2(state->mp));
 			error = xfs_dir2_leafn_split(state, oldblk, newblk);
 			if (error)
 				return error;
@@ -363,7 +329,6 @@ xfs_da_root_split(xfs_da_state_t *state, xfs_da_state_blk_t *blk1,
 		size = (int)((char *)&oldroot->btree[be16_to_cpu(oldroot->hdr.count)] -
 			     (char *)oldroot);
 	} else {
-		ASSERT(XFS_DIR_IS_V2(mp));
 		ASSERT(be16_to_cpu(oldroot->hdr.info.magic) == XFS_DIR2_LEAFN_MAGIC);
 		leaf = (xfs_dir2_leaf_t *)oldroot;
 		size = (int)((char *)&leaf->ents[be16_to_cpu(leaf->hdr.count)] -
@@ -379,8 +344,7 @@ xfs_da_root_split(xfs_da_state_t *state, xfs_da_state_blk_t *blk1,
 	 * Set up the new root node.
 	 */
 	error = xfs_da_node_create(args,
-		args->whichfork == XFS_DATA_FORK &&
-		XFS_DIR_IS_V2(mp) ? mp->m_dirleafblk : 0,
+		(args->whichfork == XFS_DATA_FORK) ? mp->m_dirleafblk : 0,
 		be16_to_cpu(node->hdr.level) + 1, &bp, args->whichfork);
 	if (error)
 		return(error);
@@ -427,10 +391,9 @@ xfs_da_node_split(xfs_da_state_t *state, xfs_da_state_blk_t *oldblk,
 	ASSERT(be16_to_cpu(node->hdr.info.magic) == XFS_DA_NODE_MAGIC);
 
 	/*
-	 * With V2 the extra block is data or freespace.
+	 * With V2 dirs the extra block is data or freespace.
 	 */
-	useextra = state->extravalid && (XFS_DIR_IS_V1(state->mp) ||
-			state->args->whichfork == XFS_ATTR_FORK);
+	useextra = state->extravalid && state->args->whichfork == XFS_ATTR_FORK;
 	newcount = 1 + useextra;
 	/*
 	 * Do we have to split the node?
@@ -624,7 +587,7 @@ xfs_da_node_add(xfs_da_state_t *state, xfs_da_state_blk_t *oldblk,
 	ASSERT(be16_to_cpu(node->hdr.info.magic) == XFS_DA_NODE_MAGIC);
 	ASSERT((oldblk->index >= 0) && (oldblk->index <= be16_to_cpu(node->hdr.count)));
 	ASSERT(newblk->blkno != 0);
-	if (state->args->whichfork == XFS_DATA_FORK && XFS_DIR_IS_V2(mp))
+	if (state->args->whichfork == XFS_DATA_FORK)
 		ASSERT(newblk->blkno >= mp->m_dirleafblk &&
 		       newblk->blkno < mp->m_dirfreeblk);
 
@@ -670,7 +633,7 @@ xfs_da_join(xfs_da_state_t *state)
 	save_blk = &state->altpath.blk[ state->path.active-1 ];
 	ASSERT(state->path.blk[0].magic == XFS_DA_NODE_MAGIC);
 	ASSERT(drop_blk->magic == XFS_ATTR_LEAF_MAGIC ||
-	       drop_blk->magic == XFS_DIRX_LEAF_MAGIC(state->mp));
+	       drop_blk->magic == XFS_DIR2_LEAFN_MAGIC);
 
 	/*
 	 * Walk back up the tree joining/deallocating as necessary.
@@ -693,17 +656,7 @@ xfs_da_join(xfs_da_state_t *state)
 				return(0);
 			xfs_attr_leaf_unbalance(state, drop_blk, save_blk);
 			break;
-		case XFS_DIR_LEAF_MAGIC:
-			ASSERT(XFS_DIR_IS_V1(state->mp));
-			error = xfs_dir_leaf_toosmall(state, &action);
-			if (error)
-				return(error);
-			if (action == 0)
-				return(0);
-			xfs_dir_leaf_unbalance(state, drop_blk, save_blk);
-			break;
 		case XFS_DIR2_LEAFN_MAGIC:
-			ASSERT(XFS_DIR_IS_V2(state->mp));
 			error = xfs_dir2_leafn_toosmall(state, &action);
 			if (error)
 				return error;
@@ -790,7 +743,7 @@ xfs_da_root_join(xfs_da_state_t *state, xfs_da_state_blk_t *root_blk)
 	ASSERT(bp != NULL);
 	blkinfo = bp->data;
 	if (be16_to_cpu(oldroot->hdr.level) == 1) {
-		ASSERT(be16_to_cpu(blkinfo->magic) == XFS_DIRX_LEAF_MAGIC(state->mp) ||
+		ASSERT(be16_to_cpu(blkinfo->magic) == XFS_DIR2_LEAFN_MAGIC ||
 		       be16_to_cpu(blkinfo->magic) == XFS_ATTR_LEAF_MAGIC);
 	} else {
 		ASSERT(be16_to_cpu(blkinfo->magic) == XFS_DA_NODE_MAGIC);
@@ -951,14 +904,7 @@ xfs_da_fixhashpath(xfs_da_state_t *state, xfs_da_state_path_t *path)
 		if (count == 0)
 			return;
 		break;
-	case XFS_DIR_LEAF_MAGIC:
-		ASSERT(XFS_DIR_IS_V1(state->mp));
-		lasthash = xfs_dir_leaf_lasthash(blk->bp, &count);
-		if (count == 0)
-			return;
-		break;
 	case XFS_DIR2_LEAFN_MAGIC:
-		ASSERT(XFS_DIR_IS_V2(state->mp));
 		lasthash = xfs_dir2_leafn_lasthash(blk->bp, &count);
 		if (count == 0)
 			return;
@@ -1117,10 +1063,7 @@ xfs_da_node_lookup_int(xfs_da_state_t *state, int *result)
 	 * Descend thru the B-tree searching each level for the right
 	 * node to use, until the right hashval is found.
 	 */
-	if (args->whichfork == XFS_DATA_FORK && XFS_DIR_IS_V2(state->mp))
-		blkno = state->mp->m_dirleafblk;
-	else
-		blkno = 0;
+	blkno = (args->whichfork == XFS_DATA_FORK)? state->mp->m_dirleafblk : 0;
 	for (blk = &state->path.blk[0], state->path.active = 1;
 			 state->path.active <= XFS_DA_NODE_MAXDEPTH;
 			 blk++, state->path.active++) {
@@ -1137,7 +1080,7 @@ xfs_da_node_lookup_int(xfs_da_state_t *state, int *result)
 		}
 		curr = blk->bp->data;
 		ASSERT(be16_to_cpu(curr->magic) == XFS_DA_NODE_MAGIC ||
-		       be16_to_cpu(curr->magic) == XFS_DIRX_LEAF_MAGIC(state->mp) ||
+		       be16_to_cpu(curr->magic) == XFS_DIR2_LEAFN_MAGIC ||
 		       be16_to_cpu(curr->magic) == XFS_ATTR_LEAF_MAGIC);
 
 		/*
@@ -1190,16 +1133,10 @@ xfs_da_node_lookup_int(xfs_da_state_t *state, int *result)
 				blk->index = probe;
 				blkno = be32_to_cpu(btree->before);
 			}
-		}
-		else if (be16_to_cpu(curr->magic) == XFS_ATTR_LEAF_MAGIC) {
+		} else if (be16_to_cpu(curr->magic) == XFS_ATTR_LEAF_MAGIC) {
 			blk->hashval = xfs_attr_leaf_lasthash(blk->bp, NULL);
 			break;
-		}
-		else if (be16_to_cpu(curr->magic) == XFS_DIR_LEAF_MAGIC) {
-			blk->hashval = xfs_dir_leaf_lasthash(blk->bp, NULL);
-			break;
-		}
-		else if (be16_to_cpu(curr->magic) == XFS_DIR2_LEAFN_MAGIC) {
+		} else if (be16_to_cpu(curr->magic) == XFS_DIR2_LEAFN_MAGIC) {
 			blk->hashval = xfs_dir2_leafn_lasthash(blk->bp, NULL);
 			break;
 		}
@@ -1212,12 +1149,7 @@ xfs_da_node_lookup_int(xfs_da_state_t *state, int *result)
 	 * next leaf and keep searching.
 	 */
 	for (;;) {
-		if (blk->magic == XFS_DIR_LEAF_MAGIC) {
-			ASSERT(XFS_DIR_IS_V1(state->mp));
-			retval = xfs_dir_leaf_lookup_int(blk->bp, args,
-								  &blk->index);
-		} else if (blk->magic == XFS_DIR2_LEAFN_MAGIC) {
-			ASSERT(XFS_DIR_IS_V2(state->mp));
+		if (blk->magic == XFS_DIR2_LEAFN_MAGIC) {
 			retval = xfs_dir2_leafn_lookup_int(blk->bp, args,
 							&blk->index, state);
 		}
@@ -1270,7 +1202,7 @@ xfs_da_blk_link(xfs_da_state_t *state, xfs_da_state_blk_t *old_blk,
 	old_info = old_blk->bp->data;
 	new_info = new_blk->bp->data;
 	ASSERT(old_blk->magic == XFS_DA_NODE_MAGIC ||
-	       old_blk->magic == XFS_DIRX_LEAF_MAGIC(state->mp) ||
+	       old_blk->magic == XFS_DIR2_LEAFN_MAGIC ||
 	       old_blk->magic == XFS_ATTR_LEAF_MAGIC);
 	ASSERT(old_blk->magic == be16_to_cpu(old_info->magic));
 	ASSERT(new_blk->magic == be16_to_cpu(new_info->magic));
@@ -1280,12 +1212,7 @@ xfs_da_blk_link(xfs_da_state_t *state, xfs_da_state_blk_t *old_blk,
 	case XFS_ATTR_LEAF_MAGIC:
 		before = xfs_attr_leaf_order(old_blk->bp, new_blk->bp);
 		break;
-	case XFS_DIR_LEAF_MAGIC:
-		ASSERT(XFS_DIR_IS_V1(state->mp));
-		before = xfs_dir_leaf_order(old_blk->bp, new_blk->bp);
-		break;
 	case XFS_DIR2_LEAFN_MAGIC:
-		ASSERT(XFS_DIR_IS_V2(state->mp));
 		before = xfs_dir2_leafn_order(old_blk->bp, new_blk->bp);
 		break;
 	case XFS_DA_NODE_MAGIC:
@@ -1404,7 +1331,7 @@ xfs_da_blk_unlink(xfs_da_state_t *state, xfs_da_state_blk_t *drop_blk,
 	save_info = save_blk->bp->data;
 	drop_info = drop_blk->bp->data;
 	ASSERT(save_blk->magic == XFS_DA_NODE_MAGIC ||
-	       save_blk->magic == XFS_DIRX_LEAF_MAGIC(state->mp) ||
+	       save_blk->magic == XFS_DIR2_LEAFN_MAGIC ||
 	       save_blk->magic == XFS_ATTR_LEAF_MAGIC);
 	ASSERT(save_blk->magic == be16_to_cpu(save_info->magic));
 	ASSERT(drop_blk->magic == be16_to_cpu(drop_info->magic));
@@ -1529,7 +1456,7 @@ xfs_da_path_shift(xfs_da_state_t *state, xfs_da_state_path_t *path,
 		ASSERT(blk->bp != NULL);
 		info = blk->bp->data;
 		ASSERT(be16_to_cpu(info->magic) == XFS_DA_NODE_MAGIC ||
-		       be16_to_cpu(info->magic) == XFS_DIRX_LEAF_MAGIC(state->mp) ||
+		       be16_to_cpu(info->magic) == XFS_DIR2_LEAFN_MAGIC ||
 		       be16_to_cpu(info->magic) == XFS_ATTR_LEAF_MAGIC);
 		blk->magic = be16_to_cpu(info->magic);
 		if (blk->magic == XFS_DA_NODE_MAGIC) {
@@ -1548,20 +1475,13 @@ xfs_da_path_shift(xfs_da_state_t *state, xfs_da_state_path_t *path,
 				blk->hashval = xfs_attr_leaf_lasthash(blk->bp,
 								      NULL);
 				break;
-			case XFS_DIR_LEAF_MAGIC:
-				ASSERT(XFS_DIR_IS_V1(state->mp));
-				blk->hashval = xfs_dir_leaf_lasthash(blk->bp,
-								     NULL);
-				break;
 			case XFS_DIR2_LEAFN_MAGIC:
-				ASSERT(XFS_DIR_IS_V2(state->mp));
 				blk->hashval = xfs_dir2_leafn_lasthash(blk->bp,
 								       NULL);
 				break;
 			default:
 				ASSERT(blk->magic == XFS_ATTR_LEAF_MAGIC ||
-				       blk->magic ==
-				       XFS_DIRX_LEAF_MAGIC(state->mp));
+				       blk->magic == XFS_DIR2_LEAFN_MAGIC);
 				break;
 			}
 		}
@@ -1620,7 +1540,6 @@ xfs_da_grow_inode(xfs_da_args_t *args, xfs_dablk_t *new_blkno)
 	xfs_bmbt_irec_t	*mapp;
 	xfs_inode_t *dp;
 	int nmap, error, w, count, c, got, i, mapi;
-	xfs_fsize_t size;
 	xfs_trans_t *tp;
 	xfs_mount_t *mp;
 
@@ -1631,7 +1550,7 @@ xfs_da_grow_inode(xfs_da_args_t *args, xfs_dablk_t *new_blkno)
 	/*
 	 * For new directories adjust the file offset and block count.
 	 */
-	if (w == XFS_DATA_FORK && XFS_DIR_IS_V2(mp)) {
+	if (w == XFS_DATA_FORK) {
 		bno = mp->m_dirleafblk;
 		count = mp->m_dirblkfsbs;
 	} else {
@@ -1641,10 +1560,9 @@ xfs_da_grow_inode(xfs_da_args_t *args, xfs_dablk_t *new_blkno)
 	/*
 	 * Find a spot in the file space to put the new block.
 	 */
-	if ((error = xfs_bmap_first_unused(tp, dp, count, &bno, w))) {
+	if ((error = xfs_bmap_first_unused(tp, dp, count, &bno, w)))
 		return error;
-	}
-	if (w == XFS_DATA_FORK && XFS_DIR_IS_V2(mp))
+	if (w == XFS_DATA_FORK)
 		ASSERT(bno >= mp->m_dirleafblk && bno < mp->m_dirfreeblk);
 	/*
 	 * Try mapping it in one filesystem block.
@@ -1655,7 +1573,7 @@ xfs_da_grow_inode(xfs_da_args_t *args, xfs_dablk_t *new_blkno)
 			XFS_BMAPI_AFLAG(w)|XFS_BMAPI_WRITE|XFS_BMAPI_METADATA|
 			XFS_BMAPI_CONTIG,
 			args->firstblock, args->total, &map, &nmap,
-			args->flist))) {
+			args->flist, NULL))) {
 		return error;
 	}
 	ASSERT(nmap <= 1);
@@ -1676,7 +1594,8 @@ xfs_da_grow_inode(xfs_da_args_t *args, xfs_dablk_t *new_blkno)
 					XFS_BMAPI_AFLAG(w)|XFS_BMAPI_WRITE|
 					XFS_BMAPI_METADATA,
 					args->firstblock, args->total,
-					&mapp[mapi], &nmap, args->flist))) {
+					&mapp[mapi], &nmap, args->flist,
+					NULL))) {
 				kmem_free(mapp, sizeof(*mapp) * count);
 				return error;
 			}
@@ -1705,19 +1624,6 @@ xfs_da_grow_inode(xfs_da_args_t *args, xfs_dablk_t *new_blkno)
 	if (mapp != &map)
 		kmem_free(mapp, sizeof(*mapp) * count);
 	*new_blkno = (xfs_dablk_t)bno;
-	/*
-	 * For version 1 directories, adjust the file size if it changed.
-	 */
-	if (w == XFS_DATA_FORK && XFS_DIR_IS_V1(mp)) {
-		ASSERT(mapi == 1);
-		if ((error = xfs_bmap_last_offset(tp, dp, &bno, w)))
-			return error;
-		size = XFS_FSB_TO_B(mp, bno);
-		if (size != dp->i_d.di_size) {
-			dp->i_d.di_size = size;
-			xfs_trans_log_inode(tp, dp, XFS_ILOG_CORE);
-		}
-	}
 	return 0;
 }
 
@@ -1742,7 +1648,6 @@ xfs_da_swap_lastblock(xfs_da_args_t *args, xfs_dablk_t *dead_blknop,
 	int error, w, entno, level, dead_level;
 	xfs_da_blkinfo_t *dead_info, *sib_info;
 	xfs_da_intnode_t *par_node, *dead_node;
-	xfs_dir_leafblock_t *dead_leaf;
 	xfs_dir2_leaf_t *dead_leaf2;
 	xfs_dahash_t dead_hash;
 
@@ -1753,11 +1658,8 @@ xfs_da_swap_lastblock(xfs_da_args_t *args, xfs_dablk_t *dead_blknop,
 	w = args->whichfork;
 	ASSERT(w == XFS_DATA_FORK);
 	mp = ip->i_mount;
-	if (XFS_DIR_IS_V2(mp)) {
-		lastoff = mp->m_dirfreeblk;
-		error = xfs_bmap_last_before(tp, ip, &lastoff, w);
-	} else
-		error = xfs_bmap_last_offset(tp, ip, &lastoff, w);
+	lastoff = mp->m_dirfreeblk;
+	error = xfs_bmap_last_before(tp, ip, &lastoff, w);
 	if (error)
 		return error;
 	if (unlikely(lastoff == 0)) {
@@ -1780,14 +1682,7 @@ xfs_da_swap_lastblock(xfs_da_args_t *args, xfs_dablk_t *dead_blknop,
 	/*
 	 * Get values from the moved block.
 	 */
-	if (be16_to_cpu(dead_info->magic) == XFS_DIR_LEAF_MAGIC) {
-		ASSERT(XFS_DIR_IS_V1(mp));
-		dead_leaf = (xfs_dir_leafblock_t *)dead_info;
-		dead_level = 0;
-		dead_hash =
-			INT_GET(dead_leaf->entries[INT_GET(dead_leaf->hdr.count, ARCH_CONVERT) - 1].hashval, ARCH_CONVERT);
-	} else if (be16_to_cpu(dead_info->magic) == XFS_DIR2_LEAFN_MAGIC) {
-		ASSERT(XFS_DIR_IS_V2(mp));
+	if (be16_to_cpu(dead_info->magic) == XFS_DIR2_LEAFN_MAGIC) {
 		dead_leaf2 = (xfs_dir2_leaf_t *)dead_info;
 		dead_level = 0;
 		dead_hash = be32_to_cpu(dead_leaf2->ents[be16_to_cpu(dead_leaf2->hdr.count) - 1].hashval);
@@ -1842,7 +1737,7 @@ xfs_da_swap_lastblock(xfs_da_args_t *args, xfs_dablk_t *dead_blknop,
 		xfs_da_buf_done(sib_buf);
 		sib_buf = NULL;
 	}
-	par_blkno = XFS_DIR_IS_V1(mp) ? 0 : mp->m_dirleafblk;
+	par_blkno = mp->m_dirleafblk;
 	level = -1;
 	/*
 	 * Walk down the tree looking for the parent of the moved block.
@@ -1941,8 +1836,6 @@ xfs_da_shrink_inode(xfs_da_args_t *args, xfs_dablk_t dead_blkno,
 {
 	xfs_inode_t *dp;
 	int done, error, w, count;
-	xfs_fileoff_t bno;
-	xfs_fsize_t size;
 	xfs_trans_t *tp;
 	xfs_mount_t *mp;
 
@@ -1950,7 +1843,7 @@ xfs_da_shrink_inode(xfs_da_args_t *args, xfs_dablk_t dead_blkno,
 	w = args->whichfork;
 	tp = args->trans;
 	mp = dp->i_mount;
-	if (w == XFS_DATA_FORK && XFS_DIR_IS_V2(mp))
+	if (w == XFS_DATA_FORK)
 		count = mp->m_dirblkfsbs;
 	else
 		count = 1;
@@ -1961,34 +1854,17 @@ xfs_da_shrink_inode(xfs_da_args_t *args, xfs_dablk_t dead_blkno,
 		 */
 		if ((error = xfs_bunmapi(tp, dp, dead_blkno, count,
 				XFS_BMAPI_AFLAG(w)|XFS_BMAPI_METADATA,
-				0, args->firstblock, args->flist,
+				0, args->firstblock, args->flist, NULL,
 				&done)) == ENOSPC) {
 			if (w != XFS_DATA_FORK)
-				goto done;
+				break;
 			if ((error = xfs_da_swap_lastblock(args, &dead_blkno,
 					&dead_buf)))
-				goto done;
-		} else if (error)
-			goto done;
-		else
+				break;
+		} else {
 			break;
-	}
-	ASSERT(done);
-	xfs_da_binval(tp, dead_buf);
-	/*
-	 * Adjust the directory size for version 1.
-	 */
-	if (w == XFS_DATA_FORK && XFS_DIR_IS_V1(mp)) {
-		if ((error = xfs_bmap_last_offset(tp, dp, &bno, w)))
-			return error;
-		size = XFS_FSB_TO_B(dp->i_mount, bno);
-		if (size != dp->i_d.di_size) {
-			dp->i_d.di_size = size;
-			xfs_trans_log_inode(tp, dp, XFS_ILOG_CORE);
 		}
 	}
-	return 0;
-done:
 	xfs_da_binval(tp, dead_buf);
 	return error;
 }
@@ -2049,10 +1925,7 @@ xfs_da_do_buf(
 	xfs_dabuf_t	*rbp;
 
 	mp = dp->i_mount;
-	if (whichfork == XFS_DATA_FORK && XFS_DIR_IS_V2(mp))
-		nfsb = mp->m_dirblkfsbs;
-	else
-		nfsb = 1;
+	nfsb = (whichfork == XFS_DATA_FORK) ? mp->m_dirblkfsbs : 1;
 	mappedbno = *mappedbnop;
 	/*
 	 * Caller doesn't have a mapping.  -2 means don't complain
@@ -2086,7 +1959,7 @@ xfs_da_do_buf(
 					nfsb,
 					XFS_BMAPI_METADATA |
 						XFS_BMAPI_AFLAG(whichfork),
-					NULL, 0, mapp, &nmap, NULL)))
+					NULL, 0, mapp, &nmap, NULL, NULL)))
 				goto exit0;
 		}
 	} else {
@@ -2198,7 +2071,6 @@ xfs_da_do_buf(
 		magic1 = be32_to_cpu(data->hdr.magic);
 		if (unlikely(
 		    XFS_TEST_ERROR((magic != XFS_DA_NODE_MAGIC) &&
-				   (magic != XFS_DIR_LEAF_MAGIC) &&
 				   (magic != XFS_ATTR_LEAF_MAGIC) &&
 				   (magic != XFS_DIR2_LEAF1_MAGIC) &&
 				   (magic != XFS_DIR2_LEAFN_MAGIC) &&

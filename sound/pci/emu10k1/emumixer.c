@@ -777,6 +777,8 @@ int __devinit snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 	};
 	static char *audigy_remove_ctls[] = {
 		/* Master/PCM controls on ac97 of Audigy has no effect */
+		/* On the Audigy2 the AC97 playback is piped into
+		 * the Philips ADC for 24bit capture */
 		"PCM Playback Switch",
 		"PCM Playback Volume",
 		"Master Mono Playback Switch",
@@ -802,6 +804,47 @@ int __devinit snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 		/* "Wave Capture Volume", "PCM Capture Volume", */
 		"Wave Master Playback Volume", "Master Playback Volume",
 		"AMic Playback Volume", "Mic Playback Volume",
+		NULL
+	};
+	static char *audigy_remove_ctls_1361t_adc[] = {
+		/* On the Audigy2 the AC97 playback is piped into
+		 * the Philips ADC for 24bit capture */
+		"PCM Playback Switch",
+		"PCM Playback Volume",
+		"Master Mono Playback Switch",
+		"Master Mono Playback Volume",
+		"Capture Source",
+		"Capture Switch",
+		"Capture Volume",
+		"Mic Capture Volume",
+		"Headphone Playback Switch",
+		"Headphone Playback Volume",
+		"3D Control - Center",
+		"3D Control - Depth",
+		"3D Control - Switch",
+		"Line2 Playback Volume",
+		"Line2 Capture Volume",
+		NULL
+	};
+	static char *audigy_rename_ctls_1361t_adc[] = {
+		"Master Playback Switch", "Master Capture Switch",
+		"Master Playback Volume", "Master Capture Volume",
+		"Wave Master Playback Volume", "Master Playback Volume",
+		"PC Speaker Playback Switch", "PC Speaker Capture Switch",
+		"PC Speaker Playback Volume", "PC Speaker Capture Volume",
+		"Phone Playback Switch", "Phone Capture Switch",
+		"Phone Playback Volume", "Phone Capture Volume",
+		"Mic Playback Switch", "Mic Capture Switch",
+		"Mic Playback Volume", "Mic Capture Volume",
+		"Line Playback Switch", "Line Capture Switch",
+		"Line Playback Volume", "Line Capture Volume",
+		"CD Playback Switch", "CD Capture Switch",
+		"CD Playback Volume", "CD Capture Volume",
+		"Aux Playback Switch", "Aux Capture Switch",
+		"Aux Playback Volume", "Aux Capture Volume",
+		"Video Playback Switch", "Video Capture Switch",
+		"Video Playback Volume", "Video Capture Volume",
+
 		NULL
 	};
 
@@ -834,7 +877,10 @@ int __devinit snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 			snd_ac97_write_cache(emu->ac97, AC97_MASTER, 0x0000);
 			/* set capture source to mic */
 			snd_ac97_write_cache(emu->ac97, AC97_REC_SEL, 0x0000);
-			c = audigy_remove_ctls;
+			if (emu->card_capabilities->adc_1361t)
+				c = audigy_remove_ctls_1361t_adc;
+			else 
+				c = audigy_remove_ctls;
 		} else {
 			/*
 			 * Credits for cards based on STAC9758:
@@ -863,11 +909,15 @@ int __devinit snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 	}
 
 	if (emu->audigy)
-		c = audigy_rename_ctls;
+		if (emu->card_capabilities->adc_1361t)
+			c = audigy_rename_ctls_1361t_adc;
+		else
+			c = audigy_rename_ctls;
 	else
 		c = emu10k1_rename_ctls;
 	for (; *c; c += 2)
 		rename_ctl(card, c[0], c[1]);
+
 	if (emu->card_capabilities->subsystem == 0x20071102) {  /* Audigy 4 Pro */
 		rename_ctl(card, "Line2 Capture Volume", "Line1/Mic Capture Volume");
 		rename_ctl(card, "Analog Mix Capture Volume", "Line2 Capture Volume");

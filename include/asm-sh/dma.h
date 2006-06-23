@@ -11,7 +11,6 @@
 #define __ASM_SH_DMA_H
 #ifdef __KERNEL__
 
-#include <linux/config.h>
 #include <linux/spinlock.h>
 #include <linux/wait.h>
 #include <linux/sysdev.h>

@@ -329,6 +329,7 @@ void delete_partition(struct gendisk *disk, int part)
 	p->ios[0] = p->ios[1] = 0;
 	p->sectors[0] = p->sectors[1] = 0;
 	devfs_remove("%s/part%d", disk->devfs_name, part);
+	sysfs_remove_link(&p->kobj, "subsystem");
 	if (p->holder_dir)
 		kobject_unregister(p->holder_dir);
 	kobject_uevent(&p->kobj, KOBJ_REMOVE);
@@ -363,6 +364,7 @@ void add_partition(struct gendisk *disk, int part, sector_t start, sector_t len)
 	kobject_add(&p->kobj);
 	if (!disk->part_uevent_suppress)
 		kobject_uevent(&p->kobj, KOBJ_ADD);
+	sysfs_create_link(&p->kobj, &block_subsys.kset.kobj, "subsystem");
 	partition_sysfs_add_subdir(p);
 	disk->part[part-1] = p;
 }
@@ -398,6 +400,7 @@ static void disk_sysfs_symlinks(struct gendisk *disk)
 			kfree(disk_name);
 		}
 	}
+	sysfs_create_link(&disk->kobj, &block_subsys.kset.kobj, "subsystem");
 }
 
 /* Not exported, helper to add_disk(). */
@@ -548,5 +551,6 @@ void del_gendisk(struct gendisk *disk)
 		put_device(disk->driverfs_dev);
 		disk->driverfs_dev = NULL;
 	}
+	sysfs_remove_link(&disk->kobj, "subsystem");
 	kobject_del(&disk->kobj);
 }

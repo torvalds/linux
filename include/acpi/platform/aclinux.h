@@ -49,7 +49,6 @@
 
 #ifdef __KERNEL__
 
-#include <linux/config.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
 #include <linux/ctype.h>

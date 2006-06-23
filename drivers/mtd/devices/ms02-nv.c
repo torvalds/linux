@@ -219,7 +219,7 @@ static int __init ms02nv_init_one(ulong addr)
 	mp->uaddr = phys_to_virt(fixaddr);
 
 	mtd->type = MTD_RAM;
-	mtd->flags = MTD_CAP_RAM | MTD_XIP;
+	mtd->flags = MTD_CAP_RAM;
 	mtd->size = fixsize;
 	mtd->name = (char *)ms02nv_name;
 	mtd->owner = THIS_MODULE;

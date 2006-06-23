@@ -12,7 +12,6 @@
 #ifndef _XTENSA_DELAY_H
 #define _XTENSA_DELAY_H
 
-#include <linux/config.h>
 #include <asm/processor.h>
 #include <asm/param.h>
 

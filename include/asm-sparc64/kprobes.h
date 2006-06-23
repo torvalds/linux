@@ -1,7 +1,6 @@
 #ifndef _SPARC64_KPROBES_H
 #define _SPARC64_KPROBES_H
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/percpu.h>
 

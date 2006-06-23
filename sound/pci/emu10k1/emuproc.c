@@ -532,57 +532,51 @@ int __devinit snd_emu10k1_proc_init(struct snd_emu10k1 * emu)
 	struct snd_info_entry *entry;
 #ifdef CONFIG_SND_DEBUG
 	if (! snd_card_proc_new(emu->card, "io_regs", &entry)) {
-		snd_info_set_text_ops(entry, emu, 1024, snd_emu_proc_io_reg_read);
-		entry->c.text.write_size = 64;
+		snd_info_set_text_ops(entry, emu, snd_emu_proc_io_reg_read);
 		entry->c.text.write = snd_emu_proc_io_reg_write;
 		entry->mode |= S_IWUSR;
 	}
 	if (! snd_card_proc_new(emu->card, "ptr_regs00a", &entry)) {
-		snd_info_set_text_ops(entry, emu, 65536, snd_emu_proc_ptr_reg_read00a);
-		entry->c.text.write_size = 64;
+		snd_info_set_text_ops(entry, emu, snd_emu_proc_ptr_reg_read00a);
 		entry->c.text.write = snd_emu_proc_ptr_reg_write00;
 		entry->mode |= S_IWUSR;
 	}
 	if (! snd_card_proc_new(emu->card, "ptr_regs00b", &entry)) {
-		snd_info_set_text_ops(entry, emu, 65536, snd_emu_proc_ptr_reg_read00b);
-		entry->c.text.write_size = 64;
+		snd_info_set_text_ops(entry, emu, snd_emu_proc_ptr_reg_read00b);
 		entry->c.text.write = snd_emu_proc_ptr_reg_write00;
 		entry->mode |= S_IWUSR;
 	}
 	if (! snd_card_proc_new(emu->card, "ptr_regs20a", &entry)) {
-		snd_info_set_text_ops(entry, emu, 65536, snd_emu_proc_ptr_reg_read20a);
-		entry->c.text.write_size = 64;
+		snd_info_set_text_ops(entry, emu, snd_emu_proc_ptr_reg_read20a);
 		entry->c.text.write = snd_emu_proc_ptr_reg_write20;
 		entry->mode |= S_IWUSR;
 	}
 	if (! snd_card_proc_new(emu->card, "ptr_regs20b", &entry)) {
-		snd_info_set_text_ops(entry, emu, 65536, snd_emu_proc_ptr_reg_read20b);
-		entry->c.text.write_size = 64;
+		snd_info_set_text_ops(entry, emu, snd_emu_proc_ptr_reg_read20b);
 		entry->c.text.write = snd_emu_proc_ptr_reg_write20;
 		entry->mode |= S_IWUSR;
 	}
 	if (! snd_card_proc_new(emu->card, "ptr_regs20c", &entry)) {
-		snd_info_set_text_ops(entry, emu, 65536, snd_emu_proc_ptr_reg_read20c);
-		entry->c.text.write_size = 64;
+		snd_info_set_text_ops(entry, emu, snd_emu_proc_ptr_reg_read20c);
 		entry->c.text.write = snd_emu_proc_ptr_reg_write20;
 		entry->mode |= S_IWUSR;
 	}
 #endif
 	
 	if (! snd_card_proc_new(emu->card, "emu10k1", &entry))
-		snd_info_set_text_ops(entry, emu, 2048, snd_emu10k1_proc_read);
+		snd_info_set_text_ops(entry, emu, snd_emu10k1_proc_read);
 
 	if (emu->card_capabilities->emu10k2_chip) {
 		if (! snd_card_proc_new(emu->card, "spdif-in", &entry))
-			snd_info_set_text_ops(entry, emu, 2048, snd_emu10k1_proc_spdif_read);
+			snd_info_set_text_ops(entry, emu, snd_emu10k1_proc_spdif_read);
 	}
 	if (emu->card_capabilities->ca0151_chip) {
 		if (! snd_card_proc_new(emu->card, "capture-rates", &entry))
-			snd_info_set_text_ops(entry, emu, 2048, snd_emu10k1_proc_rates_read);
+			snd_info_set_text_ops(entry, emu, snd_emu10k1_proc_rates_read);
 	}
 
 	if (! snd_card_proc_new(emu->card, "voices", &entry))
-		snd_info_set_text_ops(entry, emu, 2048, snd_emu10k1_proc_voices_read);
+		snd_info_set_text_ops(entry, emu, snd_emu10k1_proc_voices_read);
 
 	if (! snd_card_proc_new(emu->card, "fx8010_gpr", &entry)) {
 		entry->content = SNDRV_INFO_CONTENT_DATA;
@@ -616,7 +610,6 @@ int __devinit snd_emu10k1_proc_init(struct snd_emu10k1 * emu)
 		entry->content = SNDRV_INFO_CONTENT_TEXT;
 		entry->private_data = emu;
 		entry->mode = S_IFREG | S_IRUGO /*| S_IWUSR*/;
-		entry->c.text.read_size = 128*1024;
 		entry->c.text.read = snd_emu10k1_proc_acode_read;
 	}
 	return 0;

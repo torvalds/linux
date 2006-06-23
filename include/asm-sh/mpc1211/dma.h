@@ -8,7 +8,6 @@
 #ifndef _ASM_MPC1211_DMA_H
 #define _ASM_MPC1211_DMA_H
 
-#include <linux/config.h>
 #include <linux/spinlock.h>	/* And spinlocks */
 #include <asm/io.h>		/* need byte IO */
 #include <linux/delay.h>

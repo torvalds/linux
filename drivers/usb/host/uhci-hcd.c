@@ -13,7 +13,7 @@
  * (C) Copyright 2000 Yggdrasil Computing, Inc. (port of new PCI interface
  *               support from usb-ohci.c by Adam Richter, adam@yggdrasil.com).
  * (C) Copyright 1999 Gregory P. Smith (from usb-ohci.c)
- * (C) Copyright 2004-2005 Alan Stern, stern@rowland.harvard.edu
+ * (C) Copyright 2004-2006 Alan Stern, stern@rowland.harvard.edu
  *
  * Intel documents this fairly well, and as far as I know there
  * are no royalties or anything like that, but even so there are
@@ -31,7 +31,6 @@
 #include <linux/ioport.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
 #include <linux/errno.h>
 #include <linux/unistd.h>
 #include <linux/interrupt.h>
@@ -88,15 +87,6 @@ static void suspend_rh(struct uhci_hcd *uhci, enum uhci_rh_state new_state);
 static void wakeup_rh(struct uhci_hcd *uhci);
 static void uhci_get_current_frame_number(struct uhci_hcd *uhci);
 
-/* If a transfer is still active after this much time, turn off FSBR */
-#define IDLE_TIMEOUT	msecs_to_jiffies(50)
-#define FSBR_DELAY	msecs_to_jiffies(50)
-
-/* When we timeout an idle transfer for FSBR, we'll switch it over to */
-/* depth first traversal. We'll do it in groups of this number of TDs */
-/* to make sure it doesn't hog all of the bandwidth */
-#define DEPTH_INTERVAL 5
-
 #include "uhci-debug.c"
 #include "uhci-q.c"
 #include "uhci-hub.c"
@@ -120,22 +110,29 @@ static void finish_reset(struct uhci_hcd *uhci)
 	uhci->is_stopped = UHCI_IS_STOPPED;
 	uhci_to_hcd(uhci)->state = HC_STATE_HALT;
 	uhci_to_hcd(uhci)->poll_rh = 0;
+
+	uhci->dead = 0;		/* Full reset resurrects the controller */
 }
 
 /*
  * Last rites for a defunct/nonfunctional controller
  * or one we don't want to use any more.
  */
-static void hc_died(struct uhci_hcd *uhci)
+static void uhci_hc_died(struct uhci_hcd *uhci)
 {
+	uhci_get_current_frame_number(uhci);
 	uhci_reset_hc(to_pci_dev(uhci_dev(uhci)), uhci->io_addr);
 	finish_reset(uhci);
-	uhci->hc_inaccessible = 1;
+	uhci->dead = 1;
+
+	/* The current frame may already be partway finished */
+	++uhci->frame_number;
 }
 
 /*
- * Initialize a controller that was newly discovered or has just been
- * resumed.  In either case we can't be sure of its previous state.
+ * Initialize a controller that was newly discovered or has lost power
+ * or otherwise been reset while it was suspended.  In none of these cases
+ * can we be sure of its previous state.
  */
 static void check_and_reset_hc(struct uhci_hcd *uhci)
 {
@@ -155,7 +152,8 @@ static void configure_hc(struct uhci_hcd *uhci)
 	outl(uhci->frame_dma_handle, uhci->io_addr + USBFLBASEADD);
 
 	/* Set the current frame number */
-	outw(uhci->frame_number, uhci->io_addr + USBFRNUM);
+	outw(uhci->frame_number & UHCI_MAX_SOF_NUMBER,
+			uhci->io_addr + USBFRNUM);
 
 	/* Mark controller as not halted before we enable interrupts */
 	uhci_to_hcd(uhci)->state = HC_STATE_SUSPENDED;
@@ -207,7 +205,8 @@ __acquires(uhci->lock)
 	int int_enable;
 
 	auto_stop = (new_state == UHCI_RH_AUTO_STOPPED);
-	dev_dbg(uhci_dev(uhci), "%s%s\n", __FUNCTION__,
+	dev_dbg(&uhci_to_hcd(uhci)->self.root_hub->dev,
+			"%s%s\n", __FUNCTION__,
 			(auto_stop ? " (auto-stop)" : ""));
 
 	/* If we get a suspend request when we're already auto-stopped
@@ -241,27 +240,27 @@ __acquires(uhci->lock)
 		spin_unlock_irq(&uhci->lock);
 		msleep(1);
 		spin_lock_irq(&uhci->lock);
-		if (uhci->hc_inaccessible)	/* Died */
+		if (uhci->dead)
 			return;
 	}
 	if (!(inw(uhci->io_addr + USBSTS) & USBSTS_HCH))
-		dev_warn(uhci_dev(uhci), "Controller not stopped yet!\n");
+		dev_warn(&uhci_to_hcd(uhci)->self.root_hub->dev,
+			"Controller not stopped yet!\n");
 
 	uhci_get_current_frame_number(uhci);
-	smp_wmb();
 
 	uhci->rh_state = new_state;
 	uhci->is_stopped = UHCI_IS_STOPPED;
 	uhci_to_hcd(uhci)->poll_rh = !int_enable;
 
 	uhci_scan_schedule(uhci, NULL);
+	uhci_fsbr_off(uhci);
 }
 
 static void start_rh(struct uhci_hcd *uhci)
 {
 	uhci_to_hcd(uhci)->state = HC_STATE_RUNNING;
 	uhci->is_stopped = 0;
-	smp_wmb();
 
 	/* Mark it configured and running with a 64-byte max packet.
 	 * All interrupts are enabled, even though RESUME won't do anything.
@@ -278,7 +277,8 @@ static void wakeup_rh(struct uhci_hcd *uhci)
 __releases(uhci->lock)
 __acquires(uhci->lock)
 {
-	dev_dbg(uhci_dev(uhci), "%s%s\n", __FUNCTION__,
+	dev_dbg(&uhci_to_hcd(uhci)->self.root_hub->dev,
+			"%s%s\n", __FUNCTION__,
 			uhci->rh_state == UHCI_RH_AUTO_STOPPED ?
 				" (auto-start)" : "");
 
@@ -293,7 +293,7 @@ __acquires(uhci->lock)
 		spin_unlock_irq(&uhci->lock);
 		msleep(20);
 		spin_lock_irq(&uhci->lock);
-		if (uhci->hc_inaccessible)	/* Died */
+		if (uhci->dead)
 			return;
 
 		/* End Global Resume and wait for EOP to be sent */
@@ -345,7 +345,7 @@ static irqreturn_t uhci_irq(struct usb_hcd *hcd, struct pt_regs *regs)
 							errbuf, ERRBUF_LEN);
 					lprintk(errbuf);
 				}
-				hc_died(uhci);
+				uhci_hc_died(uhci);
 
 				/* Force a callback in case there are
 				 * pending unlinks */
@@ -368,12 +368,21 @@ static irqreturn_t uhci_irq(struct usb_hcd *hcd, struct pt_regs *regs)
 
 /*
  * Store the current frame number in uhci->frame_number if the controller
- * is runnning
+ * is runnning.  Expand from 11 bits (of which we use only 10) to a
+ * full-sized integer.
+ *
+ * Like many other parts of the driver, this code relies on being polled
+ * more than once per second as long as the controller is running.
  */
 static void uhci_get_current_frame_number(struct uhci_hcd *uhci)
 {
-	if (!uhci->is_stopped)
-		uhci->frame_number = inw(uhci->io_addr + USBFRNUM);
+	if (!uhci->is_stopped) {
+		unsigned delta;
+
+		delta = (inw(uhci->io_addr + USBFRNUM) - uhci->frame_number) &
+				(UHCI_NUMFRAMES - 1);
+		uhci->frame_number += delta;
+	}
 }
 
 /*
@@ -407,7 +416,7 @@ static void release_uhci(struct uhci_hcd *uhci)
 			uhci->frame, uhci->frame_dma_handle);
 }
 
-static int uhci_reset(struct usb_hcd *hcd)
+static int uhci_init(struct usb_hcd *hcd)
 {
 	struct uhci_hcd *uhci = hcd_to_uhci(hcd);
 	unsigned io_size = (unsigned) hcd->rsrc_len;
@@ -459,7 +468,7 @@ static void uhci_shutdown(struct pci_dev *pdev)
 {
 	struct usb_hcd *hcd = (struct usb_hcd *) pci_get_drvdata(pdev);
 
-	hc_died(hcd_to_uhci(hcd));
+	uhci_hc_died(hcd_to_uhci(hcd));
 }
 
 /*
@@ -487,14 +496,10 @@ static int uhci_start(struct usb_hcd *hcd)
 
 	hcd->uses_new_polling = 1;
 
-	uhci->fsbr = 0;
-	uhci->fsbrtimeout = 0;
-
 	spin_lock_init(&uhci->lock);
-
-	INIT_LIST_HEAD(&uhci->td_remove_list);
+	setup_timer(&uhci->fsbr_timer, uhci_fsbr_timeout,
+			(unsigned long) uhci);
 	INIT_LIST_HEAD(&uhci->idle_qh_list);
-
 	init_waitqueue_head(&uhci->waitqh);
 
 	if (DEBUG_CONFIGURED) {
@@ -665,11 +670,12 @@ static void uhci_stop(struct usb_hcd *hcd)
 	struct uhci_hcd *uhci = hcd_to_uhci(hcd);
 
 	spin_lock_irq(&uhci->lock);
-	if (!uhci->hc_inaccessible)
-		hc_died(uhci);
+	if (test_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags) && !uhci->dead)
+		uhci_hc_died(uhci);
 	uhci_scan_schedule(uhci, NULL);
 	spin_unlock_irq(&uhci->lock);
 
+	del_timer_sync(&uhci->fsbr_timer);
 	release_uhci(uhci);
 }
 
@@ -677,12 +683,15 @@ static void uhci_stop(struct usb_hcd *hcd)
 static int uhci_rh_suspend(struct usb_hcd *hcd)
 {
 	struct uhci_hcd *uhci = hcd_to_uhci(hcd);
+	int rc = 0;
 
 	spin_lock_irq(&uhci->lock);
-	if (!uhci->hc_inaccessible)		/* Not dead */
+	if (!test_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags))
+		rc = -ESHUTDOWN;
+	else if (!uhci->dead)
 		suspend_rh(uhci, UHCI_RH_SUSPENDED);
 	spin_unlock_irq(&uhci->lock);
-	return 0;
+	return rc;
 }
 
 static int uhci_rh_resume(struct usb_hcd *hcd)
@@ -691,13 +700,10 @@ static int uhci_rh_resume(struct usb_hcd *hcd)
 	int rc = 0;
 
 	spin_lock_irq(&uhci->lock);
-	if (uhci->hc_inaccessible) {
-		if (uhci->rh_state == UHCI_RH_SUSPENDED) {
-			dev_warn(uhci_dev(uhci), "HC isn't running!\n");
-			rc = -ENODEV;
-		}
-		/* Otherwise the HC is dead */
-	} else
+	if (!test_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags)) {
+		dev_warn(&hcd->self.root_hub->dev, "HC isn't running!\n");
+		rc = -ESHUTDOWN;
+	} else if (!uhci->dead)
 		wakeup_rh(uhci);
 	spin_unlock_irq(&uhci->lock);
 	return rc;
@@ -711,8 +717,8 @@ static int uhci_suspend(struct usb_hcd *hcd, pm_message_t message)
 	dev_dbg(uhci_dev(uhci), "%s\n", __FUNCTION__);
 
 	spin_lock_irq(&uhci->lock);
-	if (uhci->hc_inaccessible)	/* Dead or already suspended */
-		goto done;
+	if (!test_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags) || uhci->dead)
+		goto done_okay;		/* Already suspended or dead */
 
 	if (uhci->rh_state > UHCI_RH_SUSPENDED) {
 		dev_warn(uhci_dev(uhci), "Root hub isn't suspended!\n");
@@ -725,12 +731,12 @@ static int uhci_suspend(struct usb_hcd *hcd, pm_message_t message)
 	 */
 	pci_write_config_word(to_pci_dev(uhci_dev(uhci)), USBLEGSUP, 0);
 	mb();
-	clear_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
-	uhci->hc_inaccessible = 1;
 	hcd->poll_rh = 0;
 
 	/* FIXME: Enable non-PME# remote wakeup? */
 
+done_okay:
+	clear_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
 done:
 	spin_unlock_irq(&uhci->lock);
 	return rc;
@@ -743,24 +749,22 @@ static int uhci_resume(struct usb_hcd *hcd)
 	dev_dbg(uhci_dev(uhci), "%s\n", __FUNCTION__);
 
 	/* Since we aren't in D3 any more, it's safe to set this flag
-	 * even if the controller was dead.  It might not even be dead
-	 * any more, if the firmware or quirks code has reset it.
+	 * even if the controller was dead.
 	 */
 	set_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
 	mb();
 
-	if (uhci->rh_state == UHCI_RH_RESET)	/* Dead */
-		return 0;
 	spin_lock_irq(&uhci->lock);
 
 	/* FIXME: Disable non-PME# remote wakeup? */
 
-	uhci->hc_inaccessible = 0;
-
-	/* The BIOS may have changed the controller settings during a
-	 * system wakeup.  Check it and reconfigure to avoid problems.
+	/* The firmware or a boot kernel may have changed the controller
+	 * settings during a system wakeup.  Check it and reconfigure
+	 * to avoid problems.
 	 */
 	check_and_reset_hc(uhci);
+
+	/* If the controller was dead before, it's back alive now */
 	configure_hc(uhci);
 
 	if (uhci->rh_state == UHCI_RH_RESET) {
@@ -810,18 +814,15 @@ done:
 static int uhci_hcd_get_frame_number(struct usb_hcd *hcd)
 {
 	struct uhci_hcd *uhci = hcd_to_uhci(hcd);
-	unsigned long flags;
-	int is_stopped;
-	int frame_number;
+	unsigned frame_number;
+	unsigned delta;
 
 	/* Minimize latency by avoiding the spinlock */
-	local_irq_save(flags);
-	is_stopped = uhci->is_stopped;
-	smp_rmb();
-	frame_number = (is_stopped ? uhci->frame_number :
-			inw(uhci->io_addr + USBFRNUM));
-	local_irq_restore(flags);
-	return frame_number;
+	frame_number = uhci->frame_number;
+	barrier();
+	delta = (inw(uhci->io_addr + USBFRNUM) - frame_number) &
+			(UHCI_NUMFRAMES - 1);
+	return frame_number + delta;
 }
 
 static const char hcd_name[] = "uhci_hcd";
@@ -836,7 +837,7 @@ static const struct hc_driver uhci_driver = {
 	.flags =		HCD_USB11,
 
 	/* Basic lifecycle operations */
-	.reset =		uhci_reset,
+	.reset =		uhci_init,
 	.start =		uhci_start,
 #ifdef CONFIG_PM
 	.suspend =		uhci_suspend,

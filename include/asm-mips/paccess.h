@@ -13,7 +13,6 @@
 #ifndef _ASM_PACCESS_H
 #define _ASM_PACCESS_H
 
-#include <linux/config.h>
 #include <linux/errno.h>
 
 #ifdef CONFIG_32BIT

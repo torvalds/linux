@@ -6,6 +6,8 @@ Supported adapters:
     Datasheet: Publicly available at the Intel website
   * ServerWorks OSB4, CSB5, CSB6 and HT-1000 southbridges
     Datasheet: Only available via NDA from ServerWorks
+  * ATI IXP southbridges IXP200, IXP300, IXP400
+    Datasheet: Not publicly available
   * Standard Microsystems (SMSC) SLC90E66 (Victory66) southbridge
     Datasheet: Publicly available at the SMSC website http://www.smsc.com
 
@@ -21,8 +23,6 @@ Module Parameters
   Forcibly enable the PIIX4. DANGEROUS!
 * force_addr: int
   Forcibly enable the PIIX4 at the given address. EXTREMELY DANGEROUS!
-* fix_hstcfg: int
-  Fix config register. Needed on some boards (Force CPCI735).
 
 
 Description
@@ -63,10 +63,36 @@ The PIIX4E is just an new version of the PIIX4; it is supported as well.
 The PIIX/PIIX3 does not implement an SMBus or I2C bus, so you can't use
 this driver on those mainboards.
 
-The ServerWorks Southbridges, the Intel 440MX, and the Victory766 are
+The ServerWorks Southbridges, the Intel 440MX, and the Victory66 are
 identical to the PIIX4 in I2C/SMBus support.
 
-A few OSB4 southbridges are known to be misconfigured by the BIOS. In this
-case, you have you use the fix_hstcfg module parameter. Do not use it
-unless you know you have to, because in some cases it also breaks
-configuration on southbridges that don't need it.
+If you own Force CPCI735 motherboard or other OSB4 based systems you may need
+to change the SMBus Interrupt Select register so the SMBus controller uses
+the SMI mode.
+
+1) Use lspci command and locate the PCI device with the SMBus controller:
+   00:0f.0 ISA bridge: ServerWorks OSB4 South Bridge (rev 4f)
+   The line may vary for different chipsets. Please consult the driver source
+   for all possible PCI ids (and lspci -n to match them). Lets assume the
+   device is located at 00:0f.0.
+2) Now you just need to change the value in 0xD2 register. Get it first with
+   command: lspci -xxx -s 00:0f.0
+   If the value is 0x3 then you need to change it to 0x1
+   setpci  -s 00:0f.0 d2.b=1
+
+Please note that you don't need to do that in all cases, just when the SMBus is
+not working properly.
+
+
+Hardware-specific issues
+------------------------
+
+This driver will refuse to load on IBM systems with an Intel PIIX4 SMBus.
+Some of these machines have an RFID EEPROM (24RF08) connected to the SMBus,
+which can easily get corrupted due to a state machine bug. These are mostly
+Thinkpad laptops, but desktop systems may also be affected. We have no list
+of all affected systems, so the only safe solution was to prevent access to
+the SMBus on all IBM systems (detected using DMI data.)
+
+For additional information, read:
+http://www2.lm-sensors.nu/~lm78/cvs/lm_sensors2/README.thinkpad

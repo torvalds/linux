@@ -3,14 +3,14 @@
 
 #ifdef __KERNEL__
 #include <linux/sched.h>	/* for task_struct */
+#include <asm/page.h>
+#include <asm/string.h>
 #endif
 
 #include <asm/types.h>
 #include <asm/ptrace.h>
 #include <asm/cputable.h>
 #include <asm/auxvec.h>
-#include <asm/page.h>
-#include <asm/string.h>
 
 /* PowerPC relocations defined by the ABIs */
 #define R_PPC_NONE		0
@@ -129,7 +129,7 @@ typedef elf_greg_t32 elf_gregset_t32[ELF_NGREG];
   /* Assumption: ELF_ARCH == EM_PPC and ELF_CLASS == ELFCLASS32 */
   typedef elf_greg_t32 elf_greg_t;
   typedef elf_gregset_t32 elf_gregset_t;
-# define elf_addr_t u32
+# define elf_addr_t __u32
 #endif /* ELF_ARCH */
 
 /* Floating point registers */
@@ -161,6 +161,7 @@ typedef elf_vrreg_t elf_vrregset_t[ELF_NVRREG];
 typedef elf_vrreg_t elf_vrregset_t32[ELF_NVRREG32];
 #endif
 
+#ifdef __KERNEL__
 /*
  * This is used to ensure we don't load something for the wrong architecture.
  */
@@ -175,8 +176,6 @@ typedef elf_vrreg_t elf_vrregset_t32[ELF_NVRREG32];
    that it will "exec", and that there is sufficient room for the brk.  */
 
 #define ELF_ET_DYN_BASE         (0x08000000)
-
-#ifdef __KERNEL__
 
 /* Common routine for both 32-bit and 64-bit processes */
 static inline void ppc_elf_core_copy_regs(elf_gregset_t elf_regs,

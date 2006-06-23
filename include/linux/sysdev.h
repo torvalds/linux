@@ -37,11 +37,27 @@ struct sysdev_class {
 	struct kset		kset;
 };
 
+struct sysdev_class_attribute {
+	struct attribute attr;
+	ssize_t (*show)(struct sysdev_class *, char *);
+	ssize_t (*store)(struct sysdev_class *, const char *, size_t);
+};
+
+#define SYSDEV_CLASS_ATTR(_name,_mode,_show,_store) 		\
+struct sysdev_class_attribute attr_##_name = { 			\
+	.attr = {.name = __stringify(_name), .mode = _mode },	\
+	.show	= _show,					\
+	.store	= _store,					\
+};
+
 
 extern int sysdev_class_register(struct sysdev_class *);
 extern void sysdev_class_unregister(struct sysdev_class *);
 
-
+extern int sysdev_class_create_file(struct sysdev_class *,
+	struct sysdev_class_attribute *);
+extern void sysdev_class_remove_file(struct sysdev_class *,
+	struct sysdev_class_attribute *);
 /**
  * Auxillary system device drivers.
  */

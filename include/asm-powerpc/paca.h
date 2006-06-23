@@ -16,7 +16,6 @@
 #define _ASM_POWERPC_PACA_H
 #ifdef __KERNEL__
 
-#include	<linux/config.h>
 #include	<asm/types.h>
 #include	<asm/lppaca.h>
 #include	<asm/mmu.h>

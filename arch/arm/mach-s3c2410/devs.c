@@ -38,10 +38,86 @@
 #include <asm/arch/regs-serial.h>
 
 #include "devs.h"
+#include "cpu.h"
 
 /* Serial port registrations */
 
-struct platform_device *s3c24xx_uart_devs[3];
+static struct resource s3c2410_uart0_resource[] = {
+	[0] = {
+		.start = S3C2410_PA_UART0,
+		.end   = S3C2410_PA_UART0 + 0x3fff,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = IRQ_S3CUART_RX0,
+		.end   = IRQ_S3CUART_ERR0,
+		.flags = IORESOURCE_IRQ,
+	}
+};
+
+static struct resource s3c2410_uart1_resource[] = {
+	[0] = {
+		.start = S3C2410_PA_UART1,
+		.end   = S3C2410_PA_UART1 + 0x3fff,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = IRQ_S3CUART_RX1,
+		.end   = IRQ_S3CUART_ERR1,
+		.flags = IORESOURCE_IRQ,
+	}
+};
+
+static struct resource s3c2410_uart2_resource[] = {
+	[0] = {
+		.start = S3C2410_PA_UART2,
+		.end   = S3C2410_PA_UART2 + 0x3fff,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = IRQ_S3CUART_RX2,
+		.end   = IRQ_S3CUART_ERR2,
+		.flags = IORESOURCE_IRQ,
+	}
+};
+
+struct s3c24xx_uart_resources s3c2410_uart_resources[] __initdata = {
+	[0] = {
+		.resources	= s3c2410_uart0_resource,
+		.nr_resources	= ARRAY_SIZE(s3c2410_uart0_resource),
+	},
+	[1] = {
+		.resources	= s3c2410_uart1_resource,
+		.nr_resources	= ARRAY_SIZE(s3c2410_uart1_resource),
+	},
+	[2] = {
+		.resources	= s3c2410_uart2_resource,
+		.nr_resources	= ARRAY_SIZE(s3c2410_uart2_resource),
+	},
+};
+
+/* yart devices */
+
+static struct platform_device s3c24xx_uart_device0 = {
+	.id		= 0,
+};
+
+static struct platform_device s3c24xx_uart_device1 = {
+	.id		= 1,
+};
+
+static struct platform_device s3c24xx_uart_device2 = {
+	.id		= 2,
+};
+
+struct platform_device *s3c24xx_uart_src[3] = {
+	&s3c24xx_uart_device0,
+	&s3c24xx_uart_device1,
+	&s3c24xx_uart_device2,
+};
+
+struct platform_device *s3c24xx_uart_devs[3] = {
+};
 
 /* USB Host Controller */
 

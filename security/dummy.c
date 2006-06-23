@@ -860,7 +860,7 @@ static int dummy_setprocattr(struct task_struct *p, char *name, void *value, siz
 }
 
 #ifdef CONFIG_KEYS
-static inline int dummy_key_alloc(struct key *key)
+static inline int dummy_key_alloc(struct key *key, struct task_struct *ctx)
 {
 	return 0;
 }

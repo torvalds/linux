@@ -86,9 +86,9 @@ static void RIOConCon(struct rio_info *, struct Host *, unsigned int, unsigned i
 ** Incoming on the ROUTE_RUP
 ** I wrote this while I was tired. Forgive me.
 */
-int RIORouteRup(struct rio_info *p, unsigned int Rup, struct Host *HostP, struct PKT * PacketP)
+int RIORouteRup(struct rio_info *p, unsigned int Rup, struct Host *HostP, struct PKT __iomem * PacketP)
 {
-	struct PktCmd *PktCmdP = (struct PktCmd *) PacketP->data;
+	struct PktCmd __iomem *PktCmdP = (struct PktCmd __iomem *) PacketP->data;
 	struct PktCmd_M *PktReplyP;
 	struct CmdBlk *CmdBlkP;
 	struct Port *PortP;
@@ -307,7 +307,7 @@ int RIORouteRup(struct rio_info *p, unsigned int Rup, struct Host *HostP, struct
 	if (!RIOBootOk(p, HostP, RtaUniq)) {
 		rio_dprintk(RIO_DEBUG_ROUTE, "RTA %x tried to get an ID, but does not belong - FOAD it!\n", RtaUniq);
 		PktReplyP->Command = ROUTE_FOAD;
-		HostP->Copy("RT_FOAD", PktReplyP->CommandText, 7);
+		memcpy(PktReplyP->CommandText, "RT_FOAD", 7);
 		RIOQueueCmdBlk(HostP, Rup, CmdBlkP);
 		return 1;
 	}
@@ -341,7 +341,7 @@ int RIORouteRup(struct rio_info *p, unsigned int Rup, struct Host *HostP, struct
 					HostP->Mapping[ThisUnit].Flags |= MSG_DONE;
 				}
 				PktReplyP->Command = ROUTE_FOAD;
-				HostP->Copy("RT_FOAD", PktReplyP->CommandText, 7);
+				memcpy(PktReplyP->CommandText, "RT_FOAD", 7);
 				RIOQueueCmdBlk(HostP, Rup, CmdBlkP);
 				return 1;
 			}
@@ -367,7 +367,7 @@ int RIORouteRup(struct rio_info *p, unsigned int Rup, struct Host *HostP, struct
 				PktReplyP->IDNum2 = ROUTE_NO_ID;
 				rio_dprintk(RIO_DEBUG_ROUTE, "RTA '%s' has been allocated ID %d\n", HostP->Mapping[ThisUnit].Name, PktReplyP->IDNum);
 			}
-			HostP->Copy("RT_ALLOCAT", PktReplyP->CommandText, 10);
+			memcpy(PktReplyP->CommandText, "RT_ALLOCAT", 10);
 
 			RIOQueueCmdBlk(HostP, Rup, CmdBlkP);
 
@@ -469,7 +469,7 @@ int RIORouteRup(struct rio_info *p, unsigned int Rup, struct Host *HostP, struct
 		}
 
 		PktReplyP->Command = ROUTE_FOAD;
-		HostP->Copy("RT_FOAD", PktReplyP->CommandText, 7);
+		memcpy(PktReplyP->CommandText, "RT_FOAD", 7);
 	} else {
 		/*
 		 ** we did boot it (as an extra), and there may now be a table
@@ -489,7 +489,7 @@ int RIORouteRup(struct rio_info *p, unsigned int Rup, struct Host *HostP, struct
 			}
 		}
 		PktReplyP->Command = ROUTE_USED;
-		HostP->Copy("RT_USED", PktReplyP->CommandText, 7);
+		memcpy(PktReplyP->CommandText, "RT_USED", 7);
 	}
 	RIOQueueCmdBlk(HostP, Rup, CmdBlkP);
 	return 1;
@@ -517,8 +517,8 @@ void RIOFixPhbs(struct rio_info *p, struct Host *HostP, unsigned int unit)
 
 		for (port = 0; port < PORTS_PER_RTA; port++, PortN++) {
 			unsigned short dest_port = port + 8;
-			u16 *TxPktP;
-			struct PKT *Pkt;
+			u16 __iomem *TxPktP;
+			struct PKT __iomem *Pkt;
 
 			PortP = p->RIOPortp[PortN];
 
@@ -555,12 +555,12 @@ void RIOFixPhbs(struct rio_info *p, struct Host *HostP, unsigned int unit)
 				 ** card. This needs to be translated into a 32 bit pointer
 				 ** so it can be accessed from the driver.
 				 */
-				Pkt = (struct PKT *) RIO_PTR(HostP->Caddr, readw(TxPktP));
+				Pkt = (struct PKT __iomem *) RIO_PTR(HostP->Caddr, readw(TxPktP));
 
 				/*
 				 ** If the packet is used, reset it.
 				 */
-				Pkt = (struct PKT *) ((unsigned long) Pkt & ~PKT_IN_USE);
+				Pkt = (struct PKT __iomem *) ((unsigned long) Pkt & ~PKT_IN_USE);
 				writeb(dest_unit, &Pkt->dest_unit);
 				writeb(dest_port, &Pkt->dest_port);
 			}

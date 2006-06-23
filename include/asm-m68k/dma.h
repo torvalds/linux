@@ -1,7 +1,6 @@
 #ifndef _M68K_DMA_H
 #define _M68K_DMA_H 1
 
-#include <linux/config.h>
 
 /* it's useless on the m68k, but unfortunately needed by the new
    bootmem allocator (but this should do it for this) */

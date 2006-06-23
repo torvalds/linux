@@ -17,7 +17,6 @@
  * kind, whether express or implied.
  */
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/serial_reg.h>
 #include <asm/arch/serial.h>

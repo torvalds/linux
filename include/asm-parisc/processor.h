@@ -9,7 +9,6 @@
 #define __ASM_PARISC_PROCESSOR_H
 
 #ifndef __ASSEMBLY__
-#include <linux/config.h>
 #include <linux/threads.h>
 #include <linux/spinlock_types.h>
 

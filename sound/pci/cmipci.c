@@ -2121,7 +2121,7 @@ static struct snd_kcontrol_new snd_cmipci_mixers[] __devinitdata = {
 	CMIPCI_MIXER_VOL_MONO("Mic Capture Volume", CM_REG_MIXER2, CM_VADMIC_SHIFT, 7),
 	CMIPCI_SB_VOL_MONO("Phone Playback Volume", CM_REG_EXTENT_IND, 5, 7),
 	CMIPCI_DOUBLE("Phone Playback Switch", CM_REG_EXTENT_IND, CM_REG_EXTENT_IND, 4, 4, 1, 0, 0),
-	CMIPCI_DOUBLE("PC Speaker Playnack Switch", CM_REG_EXTENT_IND, CM_REG_EXTENT_IND, 3, 3, 1, 0, 0),
+	CMIPCI_DOUBLE("PC Speaker Playback Switch", CM_REG_EXTENT_IND, CM_REG_EXTENT_IND, 3, 3, 1, 0, 0),
 	CMIPCI_DOUBLE("Mic Boost Capture Switch", CM_REG_EXTENT_IND, CM_REG_EXTENT_IND, 0, 0, 1, 0, 0),
 };
 
@@ -2602,7 +2602,7 @@ static void __devinit snd_cmipci_proc_init(struct cmipci *cm)
 	struct snd_info_entry *entry;
 
 	if (! snd_card_proc_new(cm->card, "cmipci", &entry))
-		snd_info_set_text_ops(entry, cm, 1024, snd_cmipci_proc_read);
+		snd_info_set_text_ops(entry, cm, snd_cmipci_proc_read);
 }
 #else /* !CONFIG_PROC_FS */
 static inline void snd_cmipci_proc_init(struct cmipci *cm) {}
@@ -2932,7 +2932,7 @@ static int __devinit snd_cmipci_create(struct snd_card *card, struct pci_dev *pc
 	}
 
 	integrated_midi = snd_cmipci_read_b(cm, CM_REG_MPU_PCI) != 0xff;
-	if (integrated_midi)
+	if (integrated_midi && mpu_port[dev] == 1)
 		iomidi = cm->iobase + CM_REG_MPU_PCI;
 	else {
 		iomidi = mpu_port[dev];
@@ -2981,7 +2981,9 @@ static int __devinit snd_cmipci_create(struct snd_card *card, struct pci_dev *pc
 
 	if (iomidi > 0) {
 		if ((err = snd_mpu401_uart_new(card, 0, MPU401_HW_CMIPCI,
-					       iomidi, integrated_midi,
+					       iomidi,
+					       (integrated_midi ?
+						MPU401_INFO_INTEGRATED : 0),
 					       cm->irq, 0, &cm->rmidi)) < 0) {
 			printk(KERN_ERR "cmipci: no UART401 device at 0x%lx\n", iomidi);
 		}

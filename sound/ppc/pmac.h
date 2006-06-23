@@ -85,7 +85,7 @@ struct pmac_stream {
 
 enum snd_pmac_model {
 	PMAC_AWACS, PMAC_SCREAMER, PMAC_BURGUNDY, PMAC_DACA, PMAC_TUMBLER,
-	PMAC_SNAPPER, PMAC_TOONIE
+	PMAC_SNAPPER
 };
 
 struct snd_pmac {
@@ -188,7 +188,6 @@ int snd_pmac_burgundy_init(struct snd_pmac *chip);
 int snd_pmac_daca_init(struct snd_pmac *chip);
 int snd_pmac_tumbler_init(struct snd_pmac *chip);
 int snd_pmac_tumbler_post_init(void);
-int snd_pmac_toonie_init(struct snd_pmac *chip);
 
 /* i2c functions */
 struct pmac_keywest {

@@ -251,7 +251,7 @@
  * CAP CSRs.
  ****************************************************************************/
 #define IXP23XX_GLOBAL_REG(x)		((volatile unsigned long *)(IXP23XX_CAP_CSR_VIRT + 0x4a00 + (x)))
-#define IXP23XX_PROD_IDG		IXP23XX_GLOBAL_REG(0x00)
+#define IXP23XX_PRODUCT_ID		IXP23XX_GLOBAL_REG(0x00)
 #define IXP23XX_MISC_CONTROL		IXP23XX_GLOBAL_REG(0x04)
 #define IXP23XX_MSF_CLK_CNTRL		IXP23XX_GLOBAL_REG(0x08)
 #define IXP23XX_RESET0			IXP23XX_GLOBAL_REG(0x0c)

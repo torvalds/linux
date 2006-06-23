@@ -69,7 +69,7 @@ static void insert_phys_mapping(struct phys_desc *desc)
 		panic("Physical remapping for %p already present",
 		      desc->virt);
 
-	rb_link_node(&desc->rb, (*n)->rb_parent, n);
+	rb_link_node(&desc->rb, rb_parent(*n), n);
 	rb_insert_color(&desc->rb, &phys_mappings);
 }
 

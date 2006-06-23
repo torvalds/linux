@@ -192,6 +192,7 @@
 
 #define  CSR1212_EXTENDED_ROM_SIZE		(0x10000 * sizeof(u_int32_t))
 
+#define  CSR1212_INVALID_ADDR_SPACE		-1
 
 /* Config ROM image structures */
 struct csr1212_bus_info_block_img {

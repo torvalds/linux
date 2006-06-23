@@ -10,7 +10,6 @@
 #ifndef __ASM_SPARC64_FLOPPY_H
 #define __ASM_SPARC64_FLOPPY_H
 
-#include <linux/config.h>
 #include <linux/init.h>
 
 #include <asm/page.h>

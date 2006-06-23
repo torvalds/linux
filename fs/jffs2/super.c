@@ -151,7 +151,10 @@ static struct super_block *jffs2_get_sb_mtd(struct file_system_type *fs_type,
 
 	sb->s_op = &jffs2_super_operations;
 	sb->s_flags = flags | MS_NOATIME;
-
+	sb->s_xattr = jffs2_xattr_handlers;
+#ifdef CONFIG_JFFS2_FS_POSIX_ACL
+	sb->s_flags |= MS_POSIXACL;
+#endif
 	ret = jffs2_do_fill_super(sb, data, flags & MS_SILENT ? 1 : 0);
 
 	if (ret) {
@@ -293,6 +296,7 @@ static void jffs2_put_super (struct super_block *sb)
 		kfree(c->blocks);
 	jffs2_flash_cleanup(c);
 	kfree(c->inocache_list);
+	jffs2_clear_xattr_subsystem(c);
 	if (c->mtd->sync)
 		c->mtd->sync(c->mtd);
 
@@ -320,6 +324,18 @@ static int __init init_jffs2_fs(void)
 {
 	int ret;
 
+	/* Paranoia checks for on-medium structures. If we ask GCC
+	   to pack them with __attribute__((packed)) then it _also_
+	   assumes that they're not aligned -- so it emits crappy
+	   code on some architectures. Ideally we want an attribute
+	   which means just 'no padding', without the alignment
+	   thing. But GCC doesn't have that -- we have to just
+	   hope the structs are the right sizes, instead. */
+	BUG_ON(sizeof(struct jffs2_unknown_node) != 12);
+	BUG_ON(sizeof(struct jffs2_raw_dirent) != 40);
+	BUG_ON(sizeof(struct jffs2_raw_inode) != 68);
+	BUG_ON(sizeof(struct jffs2_raw_summary) != 32);
+
 	printk(KERN_INFO "JFFS2 version 2.2."
 #ifdef CONFIG_JFFS2_FS_WRITEBUFFER
 	       " (NAND)"
@@ -327,7 +343,7 @@ static int __init init_jffs2_fs(void)
 #ifdef CONFIG_JFFS2_SUMMARY
 	       " (SUMMARY) "
 #endif
-	       " (C) 2001-2003 Red Hat, Inc.\n");
+	       " (C) 2001-2006 Red Hat, Inc.\n");
 
 	jffs2_inode_cachep = kmem_cache_create("jffs2_i",
 					     sizeof(struct jffs2_inode_info),

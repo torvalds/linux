@@ -264,10 +264,8 @@ int snd_gf1_mem_init(struct snd_gus_card * gus)
 	if (snd_gf1_mem_xalloc(alloc, &block) == NULL)
 		return -ENOMEM;
 #ifdef CONFIG_SND_DEBUG
-	if (! snd_card_proc_new(gus->card, "gusmem", &entry)) {
-		snd_info_set_text_ops(entry, gus, 1024, snd_gf1_mem_info_read);
-		entry->c.text.read_size = 256 * 1024;
-	}
+	if (! snd_card_proc_new(gus->card, "gusmem", &entry))
+		snd_info_set_text_ops(entry, gus, snd_gf1_mem_info_read);
 #endif
 	return 0;
 }

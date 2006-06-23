@@ -1011,7 +1011,7 @@ static int __init do_setup(char *str)
 
 	int count=setup_idx;
 
-	get_options(str, sizeof(ints)/sizeof(int), ints);
+	get_options(str, ARRAY_SIZE(ints), ints);
 	aha1542_setup(str,ints);
 
 	return count<setup_idx;
@@ -1072,8 +1072,7 @@ static int __init aha1542_detect(struct scsi_host_template * tpnt)
 		int slot = 0;
 		int pos = 0;
 
-		for (indx = 0; (slot !=  MCA_NOTFOUND) && 
-			     (indx < sizeof(bases)/sizeof(bases[0])); indx++) {
+		for (indx = 0; (slot != MCA_NOTFOUND) && (indx < ARRAY_SIZE(bases)); indx++) {
 
 			if (bases[indx])
 				continue;
@@ -1083,10 +1082,9 @@ static int __init aha1542_detect(struct scsi_host_template * tpnt)
 			if (slot == MCA_NOTFOUND)
 				break;
 
-			
 			/* Found one */
 			pos = mca_read_stored_pos(slot, 3);
-			
+
 			/* Decode address */
 			if (pos & 0x80) {
 				if (pos & 0x02) {
@@ -1118,23 +1116,22 @@ static int __init aha1542_detect(struct scsi_host_template * tpnt)
 			mca_set_adapter_name(slot, "Adapter AHA-1640");
 			mca_set_adapter_procfn(slot, NULL, NULL);
 			mca_mark_as_used(slot);
-			
+
 			/* Go on */
 			slot++;
 		}
-		
+
 	}
 #endif
 
 	/*
 	 *	Hunt for ISA Plug'n'Pray Adaptecs (AHA1535)
 	 */
-	 
+
 	if(isapnp)
 	{
 		struct pnp_dev *pdev = NULL;
-		for(indx = 0; indx <sizeof(bases)/sizeof(bases[0]);indx++)
-		{
+		for(indx = 0; indx < ARRAY_SIZE(bases); indx++) {
 			if(bases[indx])
 				continue;
 			pdev = pnp_find_dev(NULL, ISAPNP_VENDOR('A', 'D', 'P'), 
@@ -1144,29 +1141,29 @@ static int __init aha1542_detect(struct scsi_host_template * tpnt)
 			/*
 			 *	Activate the PnP card
 			 */
-			 
+
 			if(pnp_device_attach(pdev)<0)
 				continue;
-			
+
 			if(pnp_activate_dev(pdev)<0) {
 				pnp_device_detach(pdev);
 				continue;
 			}
-			
+
 			if(!pnp_port_valid(pdev, 0)) {
 				pnp_device_detach(pdev);
 				continue;
 			}
-				
+
 			bases[indx] = pnp_port_start(pdev, 0);
-			
+
 			/* The card can be queried for its DMA, we have 
 			   the DMA set up that is enough */
-			   
+
 			printk(KERN_INFO "ISAPnP found an AHA1535 at I/O 0x%03X\n", bases[indx]);
 		}
 	}
-	for (indx = 0; indx < sizeof(bases) / sizeof(bases[0]); indx++)
+	for (indx = 0; indx < ARRAY_SIZE(bases); indx++)
 		if (bases[indx] != 0 && request_region(bases[indx], 4, "aha1542")) {
 			shpnt = scsi_register(tpnt,
 					sizeof(struct aha1542_hostdata));

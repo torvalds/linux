@@ -759,7 +759,6 @@ static int load_elf_binary(struct linux_binprm * bprm, struct pt_regs * regs)
 
 	/* Discard our unneeded old files struct */
 	if (files) {
-		steal_locks(files);
 		put_files_struct(files);
 		files = NULL;
 	}

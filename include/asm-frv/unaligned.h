@@ -12,7 +12,6 @@
 #ifndef _ASM_UNALIGNED_H
 #define _ASM_UNALIGNED_H
 
-#include <linux/config.h>
 
 /*
  * Unaligned accesses on uClinux can't be performed in a fault handler - the

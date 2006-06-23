@@ -63,7 +63,7 @@
 #include <linux/mutex.h>
 #include <asm/uaccess.h>
 #include <linux/usb.h>
-#include <linux/usb_cdc.h>
+#include <linux/usb/cdc.h>
 #include <asm/byteorder.h>
 #include <asm/unaligned.h>
 #include <linux/list.h>
@@ -127,8 +127,8 @@ static int acm_wb_alloc(struct acm *acm)
 			wb->use = 1;
 			return wbn;
 		}
-		wbn = (wbn + 1) % ACM_NWB;
-		if (++i >= ACM_NWB)
+		wbn = (wbn + 1) % ACM_NW;
+		if (++i >= ACM_NW)
 			return -1;
 	}
 }
@@ -142,10 +142,9 @@ static int acm_wb_is_avail(struct acm *acm)
 {
 	int i, n;
 
-	n = 0;
-	for (i = 0; i < ACM_NWB; i++) {
-		if (!acm->wb[i].use)
-			n++;
+	n = ACM_NW;
+	for (i = 0; i < ACM_NW; i++) {
+		n -= acm->wb[i].use;
 	}
 	return n;
 }
@@ -167,7 +166,7 @@ static void acm_write_done(struct acm *acm)
 	acm->write_ready = 1;
 	wbn = acm->write_current;
 	acm_wb_free(acm, wbn);
-	acm->write_current = (wbn + 1) % ACM_NWB;
+	acm->write_current = (wbn + 1) % ACM_NW;
 	spin_unlock_irqrestore(&acm->write_lock, flags);
 }
 
@@ -291,22 +290,32 @@ static void acm_read_bulk(struct urb *urb, struct pt_regs *regs)
 	struct acm_rb *buf;
 	struct acm_ru *rcv = urb->context;
 	struct acm *acm = rcv->instance;
+	int status = urb->status;
 	dbg("Entering acm_read_bulk with status %d\n", urb->status);
 
 	if (!ACM_READY(acm))
 		return;
 
-	if (urb->status)
-		dev_dbg(&acm->data->dev, "bulk rx status %d\n", urb->status);
+	if (status)
+		dev_dbg(&acm->data->dev, "bulk rx status %d\n", status);
 
 	buf = rcv->buffer;
 	buf->size = urb->actual_length;
 
-	spin_lock(&acm->read_lock);
-	list_add_tail(&rcv->list, &acm->spare_read_urbs);
-	list_add_tail(&buf->list, &acm->filled_read_bufs);
-	spin_unlock(&acm->read_lock);
-
+	if (likely(status == 0)) {
+		spin_lock(&acm->read_lock);
+		list_add_tail(&rcv->list, &acm->spare_read_urbs);
+		list_add_tail(&buf->list, &acm->filled_read_bufs);
+		spin_unlock(&acm->read_lock);
+	} else {
+		/* we drop the buffer due to an error */
+		spin_lock(&acm->read_lock);
+		list_add_tail(&rcv->list, &acm->spare_read_urbs);
+		list_add(&buf->list, &acm->spare_read_bufs);
+		spin_unlock(&acm->read_lock);
+		/* nevertheless the tasklet must be kicked unconditionally
+		so the queue cannot dry up */
+	}
 	tasklet_schedule(&acm->urb_task);
 }
 
@@ -464,10 +473,10 @@ static int acm_tty_open(struct tty_struct *tty, struct file *filp)
 	INIT_LIST_HEAD(&acm->spare_read_urbs);
 	INIT_LIST_HEAD(&acm->spare_read_bufs);
 	INIT_LIST_HEAD(&acm->filled_read_bufs);
-	for (i = 0; i < ACM_NRU; i++) {
+	for (i = 0; i < acm->rx_buflimit; i++) {
 		list_add(&(acm->ru[i].list), &acm->spare_read_urbs);
 	}
-	for (i = 0; i < ACM_NRB; i++) {
+	for (i = 0; i < acm->rx_buflimit; i++) {
 		list_add(&(acm->rb[i].list), &acm->spare_read_bufs);
 	}
 
@@ -488,14 +497,15 @@ bail_out:
 
 static void acm_tty_unregister(struct acm *acm)
 {
-	int i;
+	int i,nr;
 
+	nr = acm->rx_buflimit;
 	tty_unregister_device(acm_tty_driver, acm->minor);
 	usb_put_intf(acm->control);
 	acm_table[acm->minor] = NULL;
 	usb_free_urb(acm->ctrlurb);
 	usb_free_urb(acm->writeurb);
-	for (i = 0; i < ACM_NRU; i++)
+	for (i = 0; i < nr; i++)
 		usb_free_urb(acm->ru[i].urb);
 	kfree(acm);
 }
@@ -503,18 +513,19 @@ static void acm_tty_unregister(struct acm *acm)
 static void acm_tty_close(struct tty_struct *tty, struct file *filp)
 {
 	struct acm *acm = tty->driver_data;
-	int i;
+	int i,nr;
 
 	if (!acm || !acm->used)
 		return;
 
+	nr = acm->rx_buflimit;
 	mutex_lock(&open_mutex);
 	if (!--acm->used) {
 		if (acm->dev) {
 			acm_set_control(acm, acm->ctrlout = 0);
 			usb_kill_urb(acm->ctrlurb);
 			usb_kill_urb(acm->writeurb);
-			for (i = 0; i < ACM_NRU; i++)
+			for (i = 0; i < nr; i++)
 				usb_kill_urb(acm->ru[i].urb);
 		} else
 			acm_tty_unregister(acm);
@@ -576,7 +587,7 @@ static int acm_tty_chars_in_buffer(struct tty_struct *tty)
 	/*
 	 * This is inaccurate (overcounts), but it works.
 	 */
-	return (ACM_NWB - acm_wb_is_avail(acm)) * acm->writesize;
+	return (ACM_NW - acm_wb_is_avail(acm)) * acm->writesize;
 }
 
 static void acm_tty_throttle(struct tty_struct *tty)
@@ -712,7 +723,7 @@ static void acm_write_buffers_free(struct acm *acm)
 	int i;
 	struct acm_wb *wb;
 
-	for (wb = &acm->wb[0], i = 0; i < ACM_NWB; i++, wb++) {
+	for (wb = &acm->wb[0], i = 0; i < ACM_NW; i++, wb++) {
 		usb_buffer_free(acm->dev, acm->writesize, wb->buf, wb->dmah);
 	}
 }
@@ -723,7 +734,7 @@ static int acm_write_buffers_alloc(struct acm *acm)
 	int i;
 	struct acm_wb *wb;
 
-	for (wb = &acm->wb[0], i = 0; i < ACM_NWB; i++, wb++) {
+	for (wb = &acm->wb[0], i = 0; i < ACM_NW; i++, wb++) {
 		wb->buf = usb_buffer_alloc(acm->dev, acm->writesize, GFP_KERNEL,
 		    &wb->dmah);
 		if (!wb->buf) {
@@ -760,10 +771,14 @@ static int acm_probe (struct usb_interface *intf,
 	int call_interface_num = -1;
 	int data_interface_num;
 	unsigned long quirks;
+	int num_rx_buf;
 	int i;
 
-	/* handle quirks deadly to normal probing*/
+	/* normal quirks */
 	quirks = (unsigned long)id->driver_info;
+	num_rx_buf = (quirks == SINGLE_RX_URB) ? 1 : ACM_NR;
+
+	/* handle quirks deadly to normal probing*/
 	if (quirks == NO_UNION_NORMAL) {
 		data_interface = usb_ifnum_to_if(usb_dev, 1);
 		control_interface = usb_ifnum_to_if(usb_dev, 0);
@@ -900,7 +915,7 @@ skip_normal_probe:
 	}
 
 	ctrlsize = le16_to_cpu(epctrl->wMaxPacketSize);
-	readsize = le16_to_cpu(epread->wMaxPacketSize)*2;
+	readsize = le16_to_cpu(epread->wMaxPacketSize)* ( quirks == SINGLE_RX_URB ? 1 : 2);
 	acm->writesize = le16_to_cpu(epwrite->wMaxPacketSize);
 	acm->control = control_interface;
 	acm->data = data_interface;
@@ -909,6 +924,7 @@ skip_normal_probe:
 	acm->ctrl_caps = ac_management_function;
 	acm->ctrlsize = ctrlsize;
 	acm->readsize = readsize;
+	acm->rx_buflimit = num_rx_buf;
 	acm->urb_task.func = acm_rx_tasklet;
 	acm->urb_task.data = (unsigned long) acm;
 	INIT_WORK(&acm->work, acm_softint, acm);
@@ -935,7 +951,7 @@ skip_normal_probe:
 		dev_dbg(&intf->dev, "out of memory (ctrlurb kmalloc)\n");
 		goto alloc_fail5;
 	}
-	for (i = 0; i < ACM_NRU; i++) {
+	for (i = 0; i < num_rx_buf; i++) {
 		struct acm_ru *rcv = &(acm->ru[i]);
 
 		if (!(rcv->urb = usb_alloc_urb(0, GFP_KERNEL))) {
@@ -946,10 +962,9 @@ skip_normal_probe:
 		rcv->urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 		rcv->instance = acm;
 	}
-	for (i = 0; i < ACM_NRB; i++) {
+	for (i = 0; i < num_rx_buf; i++) {
 		struct acm_rb *buf = &(acm->rb[i]);
 
-		// Using usb_buffer_alloc instead of kmalloc as Oliver suggested
 		if (!(buf->base = usb_buffer_alloc(acm->dev, readsize, GFP_KERNEL, &buf->dma))) {
 			dev_dbg(&intf->dev, "out of memory (read bufs usb_buffer_alloc)\n");
 			goto alloc_fail7;
@@ -988,9 +1003,9 @@ skip_normal_probe:
 	return 0;
 
 alloc_fail7:
-	for (i = 0; i < ACM_NRB; i++)
+	for (i = 0; i < num_rx_buf; i++)
 		usb_buffer_free(usb_dev, acm->readsize, acm->rb[i].base, acm->rb[i].dma);
-	for (i = 0; i < ACM_NRU; i++)
+	for (i = 0; i < num_rx_buf; i++)
 		usb_free_urb(acm->ru[i].urb);
 	usb_free_urb(acm->ctrlurb);
 alloc_fail5:
@@ -1027,7 +1042,7 @@ static void acm_disconnect(struct usb_interface *intf)
 
 	usb_kill_urb(acm->ctrlurb);
 	usb_kill_urb(acm->writeurb);
-	for (i = 0; i < ACM_NRU; i++)
+	for (i = 0; i < acm->rx_buflimit; i++)
 		usb_kill_urb(acm->ru[i].urb);
 
 	INIT_LIST_HEAD(&acm->filled_read_bufs);
@@ -1039,7 +1054,7 @@ static void acm_disconnect(struct usb_interface *intf)
 
 	acm_write_buffers_free(acm);
 	usb_buffer_free(usb_dev, acm->ctrlsize, acm->ctrl_buffer, acm->ctrl_dma);
-	for (i = 0; i < ACM_NRB; i++)
+	for (i = 0; i < acm->rx_buflimit; i++)
 		usb_buffer_free(usb_dev, acm->readsize, acm->rb[i].base, acm->rb[i].dma);
 
 	usb_driver_release_interface(&acm_driver, intf == acm->control ? acm->data : intf);
@@ -1067,6 +1082,9 @@ static struct usb_device_id acm_ids[] = {
 	},
 	{ USB_DEVICE(0x0482, 0x0203), /* KYOCERA AH-K3001V */
 	.driver_info = NO_UNION_NORMAL, /* has no union descriptor */
+	},
+	{ USB_DEVICE(0x0ace, 0x1608), /* ZyDAS 56K USB MODEM */
+	.driver_info = SINGLE_RX_URB, /* firmware bug */
 	},
 	/* control interfaces with various AT-command sets */
 	{ USB_INTERFACE_INFO(USB_CLASS_COMM, USB_CDC_SUBCLASS_ACM,

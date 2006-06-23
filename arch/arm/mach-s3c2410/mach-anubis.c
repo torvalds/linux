@@ -131,7 +131,7 @@ static struct s3c24xx_uart_clksrc anubis_serial_clocks[] = {
 };
 
 
-static struct s3c2410_uartcfg anubis_uartcfgs[] = {
+static struct s3c2410_uartcfg anubis_uartcfgs[] __initdata = {
 	[0] = {
 		.hwport	     = 0,
 		.flags	     = 0,
@@ -239,6 +239,54 @@ static struct s3c2410_platform_nand anubis_nand_info = {
 	.select_chip	= anubis_nand_select,
 };
 
+/* IDE channels */
+
+static struct resource anubis_ide0_resource[] = {
+	{
+		.start	= S3C2410_CS3,
+		.end	= S3C2410_CS3 + (8*32) - 1,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.start	= S3C2410_CS3 + (1<<26),
+		.end	= S3C2410_CS3 + (1<<26) + (8*32) - 1,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.start	= IRQ_IDE0,
+		.end	= IRQ_IDE0,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device anubis_device_ide0 = {
+	.name		= "simtec-ide",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(anubis_ide0_resource),
+	.resource	= anubis_ide0_resource,
+};
+
+static struct resource anubis_ide1_resource[] = {
+	{
+		.start	= S3C2410_CS4,
+		.end	= S3C2410_CS4 + (8*32) - 1,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.start	= S3C2410_CS4 + (1<<26),
+		.end	= S3C2410_CS4 + (1<<26) + (8*32) - 1,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.start	= IRQ_IDE0,
+		.end	= IRQ_IDE0,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+
+static struct platform_device anubis_device_ide1 = {
+	.name		= "simtec-ide",
+	.id		= 1,
+	.num_resources	= ARRAY_SIZE(anubis_ide1_resource),
+	.resource	= anubis_ide1_resource,
+};
 
 /* Standard Anubis devices */
 
@@ -249,6 +297,8 @@ static struct platform_device *anubis_devices[] __initdata = {
 	&s3c_device_i2c,
  	&s3c_device_rtc,
 	&s3c_device_nand,
+	&anubis_device_ide0,
+	&anubis_device_ide1,
 };
 
 static struct clk *anubis_clocks[] = {

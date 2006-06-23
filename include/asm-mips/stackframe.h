@@ -10,7 +10,6 @@
 #ifndef _ASM_STACKFRAME_H
 #define _ASM_STACKFRAME_H
 
-#include <linux/config.h>
 #include <linux/threads.h>
 
 #include <asm/asm.h>

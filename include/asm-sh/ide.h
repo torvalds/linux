@@ -14,7 +14,6 @@
 
 #ifdef __KERNEL__
 
-#include <linux/config.h>
 
 #define ide_default_io_ctl(base)	(0)
 

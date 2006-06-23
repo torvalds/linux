@@ -34,7 +34,6 @@
 #include <asm/cache.h>
 #include <asm/byteorder.h>
 
-#include <linux/config.h>
 #include <linux/device.h>
 #include <linux/percpu.h>
 #include <linux/dmaengine.h>
@@ -233,6 +232,7 @@ enum netdev_state_t
 	__LINK_STATE_RX_SCHED,
 	__LINK_STATE_LINKWATCH_PENDING,
 	__LINK_STATE_DORMANT,
+	__LINK_STATE_QDISC_RUNNING,
 };
 
 

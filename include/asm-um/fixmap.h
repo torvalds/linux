@@ -1,7 +1,6 @@
 #ifndef __UM_FIXMAP_H
 #define __UM_FIXMAP_H
 
-#include <linux/config.h>
 #include <asm/kmap_types.h>
 #include <asm/archparam.h>
 #include <asm/elf.h>

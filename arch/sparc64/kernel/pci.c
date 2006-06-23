@@ -47,12 +47,6 @@ struct pci_controller_info *pci_controller_root = NULL;
 /* Each PCI controller found gets a unique index. */
 int pci_num_controllers = 0;
 
-/* At boot time the user can give the kernel a command
- * line option which controls if and how PCI devices
- * are reordered at PCI bus probing time.
- */
-int pci_device_reorder = 0;
-
 volatile int pci_poke_in_progress;
 volatile int pci_poke_cpu = -1;
 volatile int pci_poke_faulted;
@@ -316,27 +310,6 @@ static void __init pci_scan_each_controller_bus(void)
 		p->scan_bus(p);
 }
 
-/* Reorder the pci_dev chain, so that onboard devices come first
- * and then come the pluggable cards.
- */
-static void __init pci_reorder_devs(void)
-{
-	struct list_head *pci_onboard = &pci_devices;
-	struct list_head *walk = pci_onboard->next;
-
-	while (walk != pci_onboard) {
-		struct pci_dev *pdev = pci_dev_g(walk);
-		struct list_head *walk_next = walk->next;
-
-		if (pdev->irq && (__irq_ino(pdev->irq) & 0x20)) {
-			list_del(walk);
-			list_add(walk, pci_onboard);
-		}
-
-		walk = walk_next;
-	}
-}
-
 extern void clock_probe(void);
 extern void power_init(void);
 
@@ -347,9 +320,6 @@ static int __init pcibios_init(void)
 		return 0;
 
 	pci_scan_each_controller_bus();
-
-	if (pci_device_reorder)
-		pci_reorder_devs();
 
 	isa_init();
 	ebus_init();
@@ -441,14 +411,6 @@ EXPORT_SYMBOL(pcibios_bus_to_resource);
 
 char * __init pcibios_setup(char *str)
 {
-	if (!strcmp(str, "onboardfirst")) {
-		pci_device_reorder = 1;
-		return NULL;
-	}
-	if (!strcmp(str, "noreorder")) {
-		pci_device_reorder = 0;
-		return NULL;
-	}
 	return str;
 }
 

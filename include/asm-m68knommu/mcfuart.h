@@ -12,7 +12,6 @@
 #define	mcfuart_h
 /****************************************************************************/
 
-#include <linux/config.h>
 
 /*
  *	Define the base address of the UARTS within the MBAR address

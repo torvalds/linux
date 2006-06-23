@@ -1,7 +1,6 @@
 config AGP
-	tristate "/dev/agpgart (AGP Support)" if !GART_IOMMU
+	tristate "/dev/agpgart (AGP Support)"
 	depends on ALPHA || IA64 || PPC || X86
-	default y if GART_IOMMU
 	---help---
 	  AGP (Accelerated Graphics Port) is a bus system mainly used to
 	  connect graphics cards to the rest of the system.

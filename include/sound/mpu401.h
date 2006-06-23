@@ -45,6 +45,12 @@
 #define MPU401_HW_PC98II		18	/* Roland PC98II */
 #define MPU401_HW_AUREAL		19	/* Aureal Vortex */
 
+#define MPU401_INFO_INPUT	(1 << 0)	/* input stream */
+#define MPU401_INFO_OUTPUT	(1 << 1)	/* output stream */
+#define MPU401_INFO_INTEGRATED	(1 << 2)	/* integrated h/w port */
+#define MPU401_INFO_MMIO	(1 << 3)	/* MMIO access */
+#define MPU401_INFO_TX_IRQ	(1 << 4)	/* independent TX irq */
+
 #define MPU401_MODE_BIT_INPUT		0
 #define MPU401_MODE_BIT_OUTPUT		1
 #define MPU401_MODE_BIT_INPUT_TRIGGER	2
@@ -62,6 +68,7 @@ struct snd_mpu401 {
 	struct snd_rawmidi *rmidi;
 
 	unsigned short hardware;	/* MPU401_HW_XXXX */
+	unsigned int info_flags;	/* MPU401_INFO_XXX */
 	unsigned long port;		/* base port of MPU-401 chip */
 	unsigned long cport;		/* port + 1 (usually) */
 	struct resource *res;		/* port resource */
@@ -99,13 +106,16 @@ struct snd_mpu401 {
 
  */
 
-irqreturn_t snd_mpu401_uart_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+irqreturn_t snd_mpu401_uart_interrupt(int irq, void *dev_id,
+				      struct pt_regs *regs);
+irqreturn_t snd_mpu401_uart_interrupt_tx(int irq, void *dev_id,
+					 struct pt_regs *regs);
 
 int snd_mpu401_uart_new(struct snd_card *card,
 			int device,
 			unsigned short hardware,
 			unsigned long port,
-			int integrated,
+			unsigned int info_flags,
 			int irq,
 			int irq_flags,
 			struct snd_rawmidi ** rrawmidi);

@@ -1,0 +1,18 @@
+Kernel driver ds2490
+====================
+
+Supported chips:
+  * Maxim DS2490 based
+
+Author: Evgeniy Polyakov <johnpol@2ka.mipt.ru>
+
+
+Description
+-----------
+
+The Maixm/Dallas Semiconductor DS2490 is a chip
+which allows to build USB <-> W1 bridges.
+
+DS9490(R) is a USB <-> W1 bus master device
+which has 0x81 family ID integrated chip and DS2490
+low-level operational chip.

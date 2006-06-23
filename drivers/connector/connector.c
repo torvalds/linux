@@ -308,6 +308,9 @@ int cn_add_callback(struct cb_id *id, char *name, void (*callback)(void *))
 	int err;
 	struct cn_dev *dev = &cdev;
 
+	if (!cn_already_initialized)
+		return -EAGAIN;
+
 	err = cn_queue_add_callback(dev->cbdev, name, id, callback);
 	if (err)
 		return err;
@@ -435,7 +438,7 @@ static void cn_callback(void *data)
 	mutex_unlock(&notify_lock);
 }
 
-static int __init cn_init(void)
+static int __devinit cn_init(void)
 {
 	struct cn_dev *dev = &cdev;
 	int err;
@@ -456,21 +459,22 @@ static int __init cn_init(void)
 			sock_release(dev->nls->sk_socket);
 		return -EINVAL;
 	}
+	
+	cn_already_initialized = 1;
 
 	err = cn_add_callback(&dev->id, "connector", &cn_callback);
 	if (err) {
+		cn_already_initialized = 0;
 		cn_queue_free_dev(dev->cbdev);
 		if (dev->nls->sk_socket)
 			sock_release(dev->nls->sk_socket);
 		return -EINVAL;
 	}
 
-	cn_already_initialized = 1;
-
 	return 0;
 }
 
-static void __exit cn_fini(void)
+static void __devexit cn_fini(void)
 {
 	struct cn_dev *dev = &cdev;
 
@@ -482,7 +486,7 @@ static void __exit cn_fini(void)
 		sock_release(dev->nls->sk_socket);
 }
 
-module_init(cn_init);
+subsys_initcall(cn_init);
 module_exit(cn_fini);
 
 EXPORT_SYMBOL_GPL(cn_add_callback);

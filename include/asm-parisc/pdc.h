@@ -1,7 +1,6 @@
 #ifndef _PARISC_PDC_H
 #define _PARISC_PDC_H
 
-#include <linux/config.h>
 
 /*
  *	PDC return values ...

@@ -28,6 +28,7 @@
 #include <linux/init.h>
 #include <linux/cpu.h>
 #include <linux/elfcore.h>
+#include <linux/pm.h>
 
 #include <asm/leds.h>
 #include <asm/processor.h>
@@ -71,14 +72,46 @@ static int __init hlt_setup(char *__unused)
 __setup("nohlt", nohlt_setup);
 __setup("hlt", hlt_setup);
 
+void arm_machine_restart(char mode)
+{
+	/*
+	 * Clean and disable cache, and turn off interrupts
+	 */
+	cpu_proc_fin();
+
+	/*
+	 * Tell the mm system that we are going to reboot -
+	 * we may need it to insert some 1:1 mappings so that
+	 * soft boot works.
+	 */
+	setup_mm_for_reboot(mode);
+
+	/*
+	 * Now call the architecture specific reboot code.
+	 */
+	arch_reset(mode);
+
+	/*
+	 * Whoops - the architecture was unable to reboot.
+	 * Tell the user!
+	 */
+	mdelay(1000);
+	printk("Reboot failed -- System halted\n");
+	while (1);
+}
+
 /*
- * The following aren't currently used.
+ * Function pointers to optional machine specific functions
  */
 void (*pm_idle)(void);
 EXPORT_SYMBOL(pm_idle);
 
 void (*pm_power_off)(void);
 EXPORT_SYMBOL(pm_power_off);
+
+void (*arm_pm_restart)(char str) = arm_machine_restart;
+EXPORT_SYMBOL_GPL(arm_pm_restart);
+
 
 /*
  * This is our default idle handler.  We need to disable
@@ -151,33 +184,9 @@ void machine_power_off(void)
 		pm_power_off();
 }
 
-
 void machine_restart(char * __unused)
 {
-	/*
-	 * Clean and disable cache, and turn off interrupts
-	 */
-	cpu_proc_fin();
-
-	/*
-	 * Tell the mm system that we are going to reboot -
-	 * we may need it to insert some 1:1 mappings so that
-	 * soft boot works.
-	 */
-	setup_mm_for_reboot(reboot_mode);
-
-	/*
-	 * Now call the architecture specific reboot code.
-	 */
-	arch_reset(reboot_mode);
-
-	/*
-	 * Whoops - the architecture was unable to reboot.
-	 * Tell the user!
-	 */
-	mdelay(1000);
-	printk("Reboot failed -- System halted\n");
-	while (1);
+	arm_pm_restart(reboot_mode);
 }
 
 void __show_regs(struct pt_regs *regs)

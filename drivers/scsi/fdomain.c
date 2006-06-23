@@ -420,10 +420,10 @@ static unsigned long addresses[] = {
    0xd0000,
    0xe0000,
 };
-#define ADDRESS_COUNT (sizeof( addresses ) / sizeof( unsigned ))
-		       
+#define ADDRESS_COUNT ARRAY_SIZE(addresses)
+
 static unsigned short ports[] = { 0x140, 0x150, 0x160, 0x170 };
-#define PORT_COUNT (sizeof( ports ) / sizeof( unsigned short ))
+#define PORT_COUNT ARRAY_SIZE(ports)
 
 static unsigned short ints[] = { 3, 5, 10, 11, 12, 14, 15, 0 };
 
@@ -502,7 +502,7 @@ static struct signature {
     geometry location are verified). */
 };
 
-#define SIGNATURE_COUNT (sizeof( signatures ) / sizeof( struct signature ))
+#define SIGNATURE_COUNT ARRAY_SIZE(signatures)
 
 static void print_banner( struct Scsi_Host *shpnt )
 {
@@ -519,7 +519,7 @@ static void print_banner( struct Scsi_Host *shpnt )
 
       if (bios_minor >= 0) printk("%d", bios_minor);
       else                 printk("?.");
-   
+
       printk( " at 0x%lx using scsi id %d\n",
 	      bios_base, shpnt->this_id );
    }

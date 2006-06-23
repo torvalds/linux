@@ -464,6 +464,10 @@ int patch_wolfson05(struct snd_ac97 * ac97)
 {
 	/* WM9705, WM9710 */
 	ac97->build_ops = &patch_wolfson_wm9705_ops;
+#ifdef CONFIG_TOUCHSCREEN_WM9705
+	/* WM9705 touchscreen uses AUX and VIDEO for touch */
+	ac97->flags |=3D AC97_HAS_NO_VIDEO | AC97_HAS_NO_AUX;
+#endif
 	return 0;
 }
 
@@ -1367,6 +1371,13 @@ static void ad18xx_resume(struct snd_ac97 *ac97)
 
 	snd_ac97_restore_iec958(ac97);
 }
+
+static void ad1888_resume(struct snd_ac97 *ac97)
+{
+	ad18xx_resume(ac97);
+	snd_ac97_write_cache(ac97, AC97_CODEC_CLASS_REV, 0x8080);
+}
+
 #endif
 
 int patch_ad1819(struct snd_ac97 * ac97)
@@ -1627,6 +1638,7 @@ static const struct snd_kcontrol_new snd_ac97_ad1981x_jack_sense[] = {
  * (SS vendor << 16 | device)
  */
 static unsigned int ad1981_jacks_blacklist[] = {
+	0x10140537, /* Thinkpad T41p */
 	0x10140554, /* Thinkpad T42p/R50p */
 	0 /* end */
 };
@@ -1839,7 +1851,7 @@ static struct snd_ac97_build_ops patch_ad1888_build_ops = {
 	.build_post_spdif = patch_ad198x_post_spdif,
 	.build_specific = patch_ad1888_specific,
 #ifdef CONFIG_PM
-	.resume = ad18xx_resume,
+	.resume = ad1888_resume,
 #endif
 	.update_jacks = ad1888_update_jacks,
 };
@@ -2048,7 +2060,10 @@ int patch_alc650(struct snd_ac97 * ac97)
 	/* Enable SPDIF-IN only on Rev.E and above */
 	val = snd_ac97_read(ac97, AC97_ALC650_CLOCK);
 	/* SPDIF IN with pin 47 */
-	if (ac97->spec.dev_flags)
+	if (ac97->spec.dev_flags &&
+	    /* ASUS A6KM requires EAPD */
+	    ! (ac97->subsystem_vendor == 0x1043 &&
+	       ac97->subsystem_device == 0x1103))
 		val |= 0x03; /* enable */
 	else
 		val &= ~0x03; /* disable */

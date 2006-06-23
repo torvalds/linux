@@ -9,7 +9,6 @@
 struct request;
 struct scatterlist;
 struct scsi_device;
-struct scsi_request;
 
 
 /* embedded in scsi_cmnd */
@@ -29,13 +28,8 @@ struct scsi_pointer {
 };
 
 struct scsi_cmnd {
-	int     sc_magic;
-
 	struct scsi_device *device;
-	struct scsi_request *sc_request;
-
 	struct list_head list;  /* scsi_cmnd participates in queue lists */
-
 	struct list_head eh_entry; /* entry for the host eh_cmd_q */
 	int eh_eflags;		/* Used by error handlr */
 	void (*done) (struct scsi_cmnd *);	/* Mid-level done function */
@@ -151,5 +145,9 @@ extern struct scsi_cmnd *scsi_get_command(struct scsi_device *, gfp_t);
 extern void scsi_put_command(struct scsi_cmnd *);
 extern void scsi_io_completion(struct scsi_cmnd *, unsigned int, unsigned int);
 extern void scsi_finish_command(struct scsi_cmnd *cmd);
+
+extern void *scsi_kmap_atomic_sg(struct scatterlist *sg, int sg_count,
+				 size_t *offset, size_t *len);
+extern void scsi_kunmap_atomic_sg(void *virt);
 
 #endif /* _SCSI_SCSI_CMND_H */

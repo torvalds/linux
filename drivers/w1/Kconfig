@@ -3,13 +3,25 @@ menu "Dallas's 1-wire bus"
 config W1
 	tristate "Dallas's 1-wire support"
 	---help---
-	  Dallas's 1-wire bus is useful to connect slow 1-pin devices
+	  Dallas' 1-wire bus is useful to connect slow 1-pin devices
 	  such as iButtons and thermal sensors.
 
 	  If you want W1 support, you should say Y here.
 
 	  This W1 support can also be built as a module.  If so, the module
 	  will be called wire.ko.
+
+config W1_CON
+	depends on CONNECTOR && W1
+	bool "Userspace communication over connector"
+	default y
+	--- help ---
+	  This allows to communicate with userspace using connector [Documentation/connector].
+	  There are three types of messages between w1 core and userspace:
+	  1. Events. They are generated each time new master or slave device found
+		either due to automatic or requested search.
+	  2. Userspace commands. Includes read/write and search/alarm search comamnds.
+	  3. Replies to userspace commands.
 
 source drivers/w1/masters/Kconfig
 source drivers/w1/slaves/Kconfig

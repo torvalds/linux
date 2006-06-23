@@ -30,8 +30,6 @@ aic7xxx.txt
 	- info on driver for Adaptec controllers
 aic7xxx_old.txt
 	- info on driver for Adaptec controllers, old generation
-cpqfc.txt
-	- info on driver for Compaq Tachyon TS adapters
 dpti.txt
 	- info on driver for DPT SmartRAID and Adaptec I2O RAID based adapters
 dtc3x80.txt

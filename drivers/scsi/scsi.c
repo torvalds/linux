@@ -63,7 +63,6 @@
 #include <scsi/scsi_eh.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_tcq.h>
-#include <scsi/scsi_request.h>
 
 #include "scsi_priv.h"
 #include "scsi_logging.h"
@@ -115,79 +114,6 @@ const char *const scsi_device_types[MAX_SCSI_DEVICE_CODE] = {
 	"Direct-Access-RBC",
 };
 EXPORT_SYMBOL(scsi_device_types);
-
-/*
- * Function:    scsi_allocate_request
- *
- * Purpose:     Allocate a request descriptor.
- *
- * Arguments:   device		- device for which we want a request
- *		gfp_mask	- allocation flags passed to kmalloc
- *
- * Lock status: No locks assumed to be held.  This function is SMP-safe.
- *
- * Returns:     Pointer to request block.
- */
-struct scsi_request *scsi_allocate_request(struct scsi_device *sdev,
-					   gfp_t gfp_mask)
-{
-	const int offset = ALIGN(sizeof(struct scsi_request), 4);
-	const int size = offset + sizeof(struct request);
-	struct scsi_request *sreq;
-  
-	sreq = kzalloc(size, gfp_mask);
-	if (likely(sreq != NULL)) {
-		sreq->sr_request = (struct request *)(((char *)sreq) + offset);
-		sreq->sr_device = sdev;
-		sreq->sr_host = sdev->host;
-		sreq->sr_magic = SCSI_REQ_MAGIC;
-		sreq->sr_data_direction = DMA_BIDIRECTIONAL;
-	}
-
-	return sreq;
-}
-EXPORT_SYMBOL(scsi_allocate_request);
-
-void __scsi_release_request(struct scsi_request *sreq)
-{
-	struct request *req = sreq->sr_request;
-
-	/* unlikely because the tag was usually ended earlier by the
-	 * mid-layer. However, for layering reasons ULD's don't end
-	 * the tag of commands they generate. */
-	if (unlikely(blk_rq_tagged(req))) {
-		unsigned long flags;
-		struct request_queue *q = req->q;
-
-		spin_lock_irqsave(q->queue_lock, flags);
-		blk_queue_end_tag(q, req);
-		spin_unlock_irqrestore(q->queue_lock, flags);
-	}
-
-
-	if (likely(sreq->sr_command != NULL)) {
-		struct scsi_cmnd *cmd = sreq->sr_command;
-
-		sreq->sr_command = NULL;
-		scsi_next_command(cmd);
-	}
-}
-
-/*
- * Function:    scsi_release_request
- *
- * Purpose:     Release a request descriptor.
- *
- * Arguments:   sreq    - request to release
- *
- * Lock status: No locks assumed to be held.  This function is SMP-safe.
- */
-void scsi_release_request(struct scsi_request *sreq)
-{
-	__scsi_release_request(sreq);
-	kfree(sreq);
-}
-EXPORT_SYMBOL(scsi_release_request);
 
 struct scsi_host_cmd_pool {
 	kmem_cache_t	*slab;
@@ -646,73 +572,6 @@ int scsi_dispatch_cmd(struct scsi_cmnd *cmd)
 	return rtn;
 }
 
-/*
- * Function:    scsi_init_cmd_from_req
- *
- * Purpose:     Queue a SCSI command
- * Purpose:     Initialize a struct scsi_cmnd from a struct scsi_request
- *
- * Arguments:   cmd       - command descriptor.
- *              sreq      - Request from the queue.
- *
- * Lock status: None needed.
- *
- * Returns:     Nothing.
- *
- * Notes:       Mainly transfer data from the request structure to the
- *              command structure.  The request structure is allocated
- *              using the normal memory allocator, and requests can pile
- *              up to more or less any depth.  The command structure represents
- *              a consumable resource, as these are allocated into a pool
- *              when the SCSI subsystem initializes.  The preallocation is
- *              required so that in low-memory situations a disk I/O request
- *              won't cause the memory manager to try and write out a page.
- *              The request structure is generally used by ioctls and character
- *              devices.
- */
-void scsi_init_cmd_from_req(struct scsi_cmnd *cmd, struct scsi_request *sreq)
-{
-	sreq->sr_command = cmd;
-
-	cmd->cmd_len = sreq->sr_cmd_len;
-	cmd->use_sg = sreq->sr_use_sg;
-
-	cmd->request = sreq->sr_request;
-	memcpy(cmd->data_cmnd, sreq->sr_cmnd, sizeof(cmd->data_cmnd));
-	cmd->serial_number = 0;
-	cmd->bufflen = sreq->sr_bufflen;
-	cmd->buffer = sreq->sr_buffer;
-	cmd->retries = 0;
-	cmd->allowed = sreq->sr_allowed;
-	cmd->done = sreq->sr_done;
-	cmd->timeout_per_command = sreq->sr_timeout_per_command;
-	cmd->sc_data_direction = sreq->sr_data_direction;
-	cmd->sglist_len = sreq->sr_sglist_len;
-	cmd->underflow = sreq->sr_underflow;
-	cmd->sc_request = sreq;
-	memcpy(cmd->cmnd, sreq->sr_cmnd, sizeof(sreq->sr_cmnd));
-
-	/*
-	 * Zero the sense buffer.  Some host adapters automatically request
-	 * sense on error.  0 is not a valid sense code.
-	 */
-	memset(cmd->sense_buffer, 0, sizeof(sreq->sr_sense_buffer));
-	cmd->request_buffer = sreq->sr_buffer;
-	cmd->request_bufflen = sreq->sr_bufflen;
-	cmd->old_use_sg = cmd->use_sg;
-	if (cmd->cmd_len == 0)
-		cmd->cmd_len = COMMAND_SIZE(cmd->cmnd[0]);
-	cmd->old_cmd_len = cmd->cmd_len;
-	cmd->sc_old_data_direction = cmd->sc_data_direction;
-	cmd->old_underflow = cmd->underflow;
-
-	/*
-	 * Start the timer ticking.
-	 */
-	cmd->result = 0;
-
-	SCSI_LOG_MLQUEUE(3, printk("Leaving scsi_init_cmd_from_req()\n"));
-}
 
 /*
  * Per-CPU I/O completion queue.
@@ -809,7 +668,6 @@ void scsi_finish_command(struct scsi_cmnd *cmd)
 {
 	struct scsi_device *sdev = cmd->device;
 	struct Scsi_Host *shost = sdev->host;
-	struct scsi_request *sreq;
 
 	scsi_device_unbusy(sdev);
 
@@ -839,21 +697,6 @@ void scsi_finish_command(struct scsi_cmnd *cmd)
 	 * We can get here with use_sg=0, causing a panic in the upper level
 	 */
 	cmd->use_sg = cmd->old_use_sg;
-
-	/*
-	 * If there is an associated request structure, copy the data over
-	 * before we call the completion function.
-	 */
-	sreq = cmd->sc_request;
-	if (sreq) {
-	       sreq->sr_result = sreq->sr_command->result;
-	       if (sreq->sr_result) {
-		       memcpy(sreq->sr_sense_buffer,
-			      sreq->sr_command->sense_buffer,
-			      sizeof(sreq->sr_sense_buffer));
-	       }
-	}
-
 	cmd->done(cmd);
 }
 EXPORT_SYMBOL(scsi_finish_command);

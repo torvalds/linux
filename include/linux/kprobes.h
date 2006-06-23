@@ -29,7 +29,6 @@
  *		<jkenisto@us.ibm.com>  and Prasanna S Panchamukhi
  *		<prasanna@in.ibm.com> added function-return probes.
  */
-#include <linux/config.h>
 #include <linux/list.h>
 #include <linux/notifier.h>
 #include <linux/smp.h>

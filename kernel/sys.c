@@ -1860,23 +1860,20 @@ out:
  * fields when reaping, so a sample either gets all the additions of a
  * given child after it's reaped, or none so this sample is before reaping.
  *
- * tasklist_lock locking optimisation:
- * If we are current and single threaded, we do not need to take the tasklist
- * lock or the siglock.  No one else can take our signal_struct away,
- * no one else can reap the children to update signal->c* counters, and
- * no one else can race with the signal-> fields.
- * If we do not take the tasklist_lock, the signal-> fields could be read
- * out of order while another thread was just exiting. So we place a
- * read memory barrier when we avoid the lock.  On the writer side,
- * write memory barrier is implied in  __exit_signal as __exit_signal releases
- * the siglock spinlock after updating the signal-> fields.
- *
- * We don't really need the siglock when we access the non c* fields
- * of the signal_struct (for RUSAGE_SELF) even in multithreaded
- * case, since we take the tasklist lock for read and the non c* signal->
- * fields are updated only in __exit_signal, which is called with
- * tasklist_lock taken for write, hence these two threads cannot execute
- * concurrently.
+ * Locking:
+ * We need to take the siglock for CHILDEREN, SELF and BOTH
+ * for  the cases current multithreaded, non-current single threaded
+ * non-current multithreaded.  Thread traversal is now safe with
+ * the siglock held.
+ * Strictly speaking, we donot need to take the siglock if we are current and
+ * single threaded,  as no one else can take our signal_struct away, no one
+ * else can  reap the  children to update signal->c* counters, and no one else
+ * can race with the signal-> fields. If we do not take any lock, the
+ * signal-> fields could be read out of order while another thread was just
+ * exiting. So we should  place a read memory barrier when we avoid the lock.
+ * On the writer side,  write memory barrier is implied in  __exit_signal
+ * as __exit_signal releases  the siglock spinlock after updating the signal->
+ * fields. But we don't do this yet to keep things simple.
  *
  */
 
@@ -1885,35 +1882,25 @@ static void k_getrusage(struct task_struct *p, int who, struct rusage *r)
 	struct task_struct *t;
 	unsigned long flags;
 	cputime_t utime, stime;
-	int need_lock = 0;
 
 	memset((char *) r, 0, sizeof *r);
 	utime = stime = cputime_zero;
 
-	if (p != current || !thread_group_empty(p))
-		need_lock = 1;
-
-	if (need_lock) {
-		read_lock(&tasklist_lock);
-		if (unlikely(!p->signal)) {
-			read_unlock(&tasklist_lock);
-			return;
-		}
-	} else
-		/* See locking comments above */
-		smp_rmb();
+	rcu_read_lock();
+	if (!lock_task_sighand(p, &flags)) {
+		rcu_read_unlock();
+		return;
+	}
 
 	switch (who) {
 		case RUSAGE_BOTH:
 		case RUSAGE_CHILDREN:
-			spin_lock_irqsave(&p->sighand->siglock, flags);
 			utime = p->signal->cutime;
 			stime = p->signal->cstime;
 			r->ru_nvcsw = p->signal->cnvcsw;
 			r->ru_nivcsw = p->signal->cnivcsw;
 			r->ru_minflt = p->signal->cmin_flt;
 			r->ru_majflt = p->signal->cmaj_flt;
-			spin_unlock_irqrestore(&p->sighand->siglock, flags);
 
 			if (who == RUSAGE_CHILDREN)
 				break;
@@ -1941,8 +1928,9 @@ static void k_getrusage(struct task_struct *p, int who, struct rusage *r)
 			BUG();
 	}
 
-	if (need_lock)
-		read_unlock(&tasklist_lock);
+	unlock_task_sighand(p, &flags);
+	rcu_read_unlock();
+
 	cputime_to_timeval(utime, &r->ru_utime);
 	cputime_to_timeval(stime, &r->ru_stime);
 }

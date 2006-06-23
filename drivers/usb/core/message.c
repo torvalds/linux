@@ -158,6 +158,37 @@ int usb_control_msg(struct usb_device *dev, unsigned int pipe, __u8 request, __u
 
 
 /**
+ * usb_interrupt_msg - Builds an interrupt urb, sends it off and waits for completion
+ * @usb_dev: pointer to the usb device to send the message to
+ * @pipe: endpoint "pipe" to send the message to
+ * @data: pointer to the data to send
+ * @len: length in bytes of the data to send
+ * @actual_length: pointer to a location to put the actual length transferred in bytes
+ * @timeout: time in msecs to wait for the message to complete before
+ *	timing out (if 0 the wait is forever)
+ * Context: !in_interrupt ()
+ *
+ * This function sends a simple interrupt message to a specified endpoint and
+ * waits for the message to complete, or timeout.
+ *
+ * If successful, it returns 0, otherwise a negative error number.  The number
+ * of actual bytes transferred will be stored in the actual_length paramater.
+ *
+ * Don't use this function from within an interrupt context, like a bottom half
+ * handler.  If you need an asynchronous message, or need to send a message
+ * from within interrupt context, use usb_submit_urb() If a thread in your
+ * driver uses this call, make sure your disconnect() method can wait for it to
+ * complete.  Since you don't have a handle on the URB used, you can't cancel
+ * the request.
+ */
+int usb_interrupt_msg(struct usb_device *usb_dev, unsigned int pipe,
+		      void *data, int len, int *actual_length, int timeout)
+{
+	return usb_bulk_msg(usb_dev, pipe, data, len, actual_length, timeout);
+}
+EXPORT_SYMBOL_GPL(usb_interrupt_msg);
+
+/**
  *	usb_bulk_msg - Builds a bulk urb, sends it off and waits for completion
  *	@usb_dev: pointer to the usb device to send the message to
  *	@pipe: endpoint "pipe" to send the message to
@@ -1380,6 +1411,12 @@ free_interfaces:
 				return ret;
 			}
 		}
+
+		i = dev->bus_mA - cp->desc.bMaxPower * 2;
+		if (i < 0)
+			dev_warn(&dev->dev, "new config #%d exceeds power "
+					"limit by %dmA\n",
+					configuration, -i);
 	}
 
 	/* if it's already configured, clear out old state first.
@@ -1388,92 +1425,85 @@ free_interfaces:
 	if (dev->state != USB_STATE_ADDRESS)
 		usb_disable_device (dev, 1);	// Skip ep0
 
-	if (cp) {
-		i = dev->bus_mA - cp->desc.bMaxPower * 2;
-		if (i < 0)
-			dev_warn(&dev->dev, "new config #%d exceeds power "
-					"limit by %dmA\n",
-					configuration, -i);
-	}
-
 	if ((ret = usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
 			USB_REQ_SET_CONFIGURATION, 0, configuration, 0,
-			NULL, 0, USB_CTRL_SET_TIMEOUT)) < 0)
-		goto free_interfaces;
+			NULL, 0, USB_CTRL_SET_TIMEOUT)) < 0) {
+
+		/* All the old state is gone, so what else can we do?
+		 * The device is probably useless now anyway.
+		 */
+		cp = NULL;
+	}
 
 	dev->actconfig = cp;
-	if (!cp)
+	if (!cp) {
 		usb_set_device_state(dev, USB_STATE_ADDRESS);
-	else {
-		usb_set_device_state(dev, USB_STATE_CONFIGURED);
+		goto free_interfaces;
+	}
+	usb_set_device_state(dev, USB_STATE_CONFIGURED);
 
-		/* Initialize the new interface structures and the
-		 * hc/hcd/usbcore interface/endpoint state.
+	/* Initialize the new interface structures and the
+	 * hc/hcd/usbcore interface/endpoint state.
+	 */
+	for (i = 0; i < nintf; ++i) {
+		struct usb_interface_cache *intfc;
+		struct usb_interface *intf;
+		struct usb_host_interface *alt;
+
+		cp->interface[i] = intf = new_interfaces[i];
+		intfc = cp->intf_cache[i];
+		intf->altsetting = intfc->altsetting;
+		intf->num_altsetting = intfc->num_altsetting;
+		kref_get(&intfc->ref);
+
+		alt = usb_altnum_to_altsetting(intf, 0);
+
+		/* No altsetting 0?  We'll assume the first altsetting.
+		 * We could use a GetInterface call, but if a device is
+		 * so non-compliant that it doesn't have altsetting 0
+		 * then I wouldn't trust its reply anyway.
 		 */
-		for (i = 0; i < nintf; ++i) {
-			struct usb_interface_cache *intfc;
-			struct usb_interface *intf;
-			struct usb_host_interface *alt;
+		if (!alt)
+			alt = &intf->altsetting[0];
 
-			cp->interface[i] = intf = new_interfaces[i];
-			intfc = cp->intf_cache[i];
-			intf->altsetting = intfc->altsetting;
-			intf->num_altsetting = intfc->num_altsetting;
-			kref_get(&intfc->ref);
+		intf->cur_altsetting = alt;
+		usb_enable_interface(dev, intf);
+		intf->dev.parent = &dev->dev;
+		intf->dev.driver = NULL;
+		intf->dev.bus = &usb_bus_type;
+		intf->dev.dma_mask = dev->dev.dma_mask;
+		intf->dev.release = release_interface;
+		device_initialize (&intf->dev);
+		mark_quiesced(intf);
+		sprintf (&intf->dev.bus_id[0], "%d-%s:%d.%d",
+			 dev->bus->busnum, dev->devpath,
+			 configuration, alt->desc.bInterfaceNumber);
+	}
+	kfree(new_interfaces);
 
-			alt = usb_altnum_to_altsetting(intf, 0);
+	if (cp->string == NULL)
+		cp->string = usb_cache_string(dev, cp->desc.iConfiguration);
 
-			/* No altsetting 0?  We'll assume the first altsetting.
-			 * We could use a GetInterface call, but if a device is
-			 * so non-compliant that it doesn't have altsetting 0
-			 * then I wouldn't trust its reply anyway.
-			 */
-			if (!alt)
-				alt = &intf->altsetting[0];
+	/* Now that all the interfaces are set up, register them
+	 * to trigger binding of drivers to interfaces.  probe()
+	 * routines may install different altsettings and may
+	 * claim() any interfaces not yet bound.  Many class drivers
+	 * need that: CDC, audio, video, etc.
+	 */
+	for (i = 0; i < nintf; ++i) {
+		struct usb_interface *intf = cp->interface[i];
 
-			intf->cur_altsetting = alt;
-			usb_enable_interface(dev, intf);
-			intf->dev.parent = &dev->dev;
-			intf->dev.driver = NULL;
-			intf->dev.bus = &usb_bus_type;
-			intf->dev.dma_mask = dev->dev.dma_mask;
-			intf->dev.release = release_interface;
-			device_initialize (&intf->dev);
-			mark_quiesced(intf);
-			sprintf (&intf->dev.bus_id[0], "%d-%s:%d.%d",
-				 dev->bus->busnum, dev->devpath,
-				 configuration,
-				 alt->desc.bInterfaceNumber);
+		dev_dbg (&dev->dev,
+			"adding %s (config #%d, interface %d)\n",
+			intf->dev.bus_id, configuration,
+			intf->cur_altsetting->desc.bInterfaceNumber);
+		ret = device_add (&intf->dev);
+		if (ret != 0) {
+			dev_err(&dev->dev, "device_add(%s) --> %d\n",
+				intf->dev.bus_id, ret);
+			continue;
 		}
-		kfree(new_interfaces);
-
-		if (cp->string == NULL)
-			cp->string = usb_cache_string(dev,
-					cp->desc.iConfiguration);
-
-		/* Now that all the interfaces are set up, register them
-		 * to trigger binding of drivers to interfaces.  probe()
-		 * routines may install different altsettings and may
-		 * claim() any interfaces not yet bound.  Many class drivers
-		 * need that: CDC, audio, video, etc.
-		 */
-		for (i = 0; i < nintf; ++i) {
-			struct usb_interface *intf = cp->interface[i];
-
-			dev_dbg (&dev->dev,
-				"adding %s (config #%d, interface %d)\n",
-				intf->dev.bus_id, configuration,
-				intf->cur_altsetting->desc.bInterfaceNumber);
-			ret = device_add (&intf->dev);
-			if (ret != 0) {
-				dev_err(&dev->dev,
-					"device_add(%s) --> %d\n",
-					intf->dev.bus_id,
-					ret);
-				continue;
-			}
-			usb_create_sysfs_intf_files (intf);
-		}
+		usb_create_sysfs_intf_files (intf);
 	}
 
 	return 0;

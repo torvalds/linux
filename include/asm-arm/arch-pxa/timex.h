@@ -10,7 +10,6 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/config.h>
 
 #if defined(CONFIG_PXA25x)
 /* PXA250/210 timer base */

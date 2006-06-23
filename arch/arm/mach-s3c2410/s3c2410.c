@@ -42,6 +42,7 @@
 
 #include "s3c2410.h"
 #include "cpu.h"
+#include "devs.h"
 #include "clock.h"
 
 /* Initial IO mappings */
@@ -55,93 +56,13 @@ static struct map_desc s3c2410_iodesc[] __initdata = {
 	IODESC_ENT(WATCHDOG),
 };
 
-static struct resource s3c_uart0_resource[] = {
-	[0] = {
-		.start = S3C2410_PA_UART0,
-		.end   = S3C2410_PA_UART0 + 0x3fff,
-		.flags = IORESOURCE_MEM,
-	},
-	[1] = {
-		.start = IRQ_S3CUART_RX0,
-		.end   = IRQ_S3CUART_ERR0,
-		.flags = IORESOURCE_IRQ,
-	}
-
-};
-
-static struct resource s3c_uart1_resource[] = {
-	[0] = {
-		.start = S3C2410_PA_UART1,
-		.end   = S3C2410_PA_UART1 + 0x3fff,
-		.flags = IORESOURCE_MEM,
-	},
-	[1] = {
-		.start = IRQ_S3CUART_RX1,
-		.end   = IRQ_S3CUART_ERR1,
-		.flags = IORESOURCE_IRQ,
-	}
-};
-
-static struct resource s3c_uart2_resource[] = {
-	[0] = {
-		.start = S3C2410_PA_UART2,
-		.end   = S3C2410_PA_UART2 + 0x3fff,
-		.flags = IORESOURCE_MEM,
-	},
-	[1] = {
-		.start = IRQ_S3CUART_RX2,
-		.end   = IRQ_S3CUART_ERR2,
-		.flags = IORESOURCE_IRQ,
-	}
-};
-
 /* our uart devices */
-
-static struct platform_device s3c_uart0 = {
-	.name		  = "s3c2410-uart",
-	.id		  = 0,
-	.num_resources	  = ARRAY_SIZE(s3c_uart0_resource),
-	.resource	  = s3c_uart0_resource,
-};
-
-
-static struct platform_device s3c_uart1 = {
-	.name		  = "s3c2410-uart",
-	.id		  = 1,
-	.num_resources	  = ARRAY_SIZE(s3c_uart1_resource),
-	.resource	  = s3c_uart1_resource,
-};
-
-static struct platform_device s3c_uart2 = {
-	.name		  = "s3c2410-uart",
-	.id		  = 2,
-	.num_resources	  = ARRAY_SIZE(s3c_uart2_resource),
-	.resource	  = s3c_uart2_resource,
-};
-
-static struct platform_device *uart_devices[] __initdata = {
-	&s3c_uart0,
-	&s3c_uart1,
-	&s3c_uart2
-};
-
-static int s3c2410_uart_count = 0;
 
 /* uart registration process */
 
 void __init s3c2410_init_uarts(struct s3c2410_uartcfg *cfg, int no)
 {
-	struct platform_device *platdev;
-	int uart;
-
-	for (uart = 0; uart < no; uart++, cfg++) {
-		platdev = uart_devices[cfg->hwport];
-
-		s3c24xx_uart_devs[uart] = platdev;
-		platdev->dev.platform_data = cfg;
-	}
-
-	s3c2410_uart_count = uart;
+	s3c24xx_init_uartdevs("s3c2410-uart", s3c2410_uart_resources, cfg, no);
 }
 
 /* s3c2410_map_io
@@ -193,5 +114,5 @@ int __init s3c2410_init(void)
 {
 	printk("S3C2410: Initialising architecture\n");
 
-	return platform_add_devices(s3c24xx_uart_devs, s3c2410_uart_count);
+	return 0;
 }

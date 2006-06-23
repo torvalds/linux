@@ -58,7 +58,11 @@ unsigned long s3c_pm_flags;
 
 /* cache functions from arch/arm/mm/proc-arm920.S */
 
+#ifndef CONFIG_CPU_DCACHE_WRITETHROUGH
 extern void arm920_flush_kern_cache_all(void);
+#else
+static void arm920_flush_kern_cache_all(void) { }
+#endif
 
 #define PFX "s3c24xx-pm: "
 
