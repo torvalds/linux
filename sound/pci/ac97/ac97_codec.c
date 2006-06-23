@@ -1817,13 +1817,13 @@ static int snd_ac97_dev_register(struct snd_device *device)
 	return 0;
 }
 
-/* unregister ac97 codec */
-static int snd_ac97_dev_unregister(struct snd_device *device)
+/* disconnect ac97 codec */
+static int snd_ac97_dev_disconnect(struct snd_device *device)
 {
 	struct snd_ac97 *ac97 = device->device_data;
 	if (ac97->dev.bus)
 		device_unregister(&ac97->dev);
-	return snd_ac97_free(ac97);
+	return 0;
 }
 
 /* build_ops to do nothing */
@@ -1860,7 +1860,7 @@ int snd_ac97_mixer(struct snd_ac97_bus *bus, struct snd_ac97_template *template,
 	static struct snd_device_ops ops = {
 		.dev_free =	snd_ac97_dev_free,
 		.dev_register =	snd_ac97_dev_register,
-		.dev_unregister =	snd_ac97_dev_unregister,
+		.dev_disconnect =	snd_ac97_dev_disconnect,
 	};
 
 	snd_assert(rac97 != NULL, return -EINVAL);

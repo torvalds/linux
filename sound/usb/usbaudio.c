@@ -3499,7 +3499,7 @@ static void snd_usb_audio_disconnect(struct usb_device *dev, void *ptr)
 		}
 		usb_chip[chip->index] = NULL;
 		mutex_unlock(&register_mutex);
-		snd_card_free(card);
+		snd_card_free_when_closed(card);
 	} else {
 		mutex_unlock(&register_mutex);
 	}

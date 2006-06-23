@@ -1375,6 +1375,11 @@ static int snd_ctl_dev_disconnect(struct snd_device *device)
 	struct snd_card *card = device->device_data;
 	struct list_head *flist;
 	struct snd_ctl_file *ctl;
+	int err, cardnum;
+
+	snd_assert(card != NULL, return -ENXIO);
+	cardnum = card->number;
+	snd_assert(cardnum >= 0 && cardnum < SNDRV_CARDS, return -ENXIO);
 
 	down_read(&card->controls_rwsem);
 	list_for_each(flist, &card->ctl_files) {
@@ -1383,6 +1388,10 @@ static int snd_ctl_dev_disconnect(struct snd_device *device)
 		kill_fasync(&ctl->fasync, SIGIO, POLL_ERR);
 	}
 	up_read(&card->controls_rwsem);
+
+	if ((err = snd_unregister_device(SNDRV_DEVICE_TYPE_CONTROL,
+					 card, -1)) < 0)
+		return err;
 	return 0;
 }
 
@@ -1404,23 +1413,6 @@ static int snd_ctl_dev_free(struct snd_device *device)
 }
 
 /*
- * de-registration of the control device
- */
-static int snd_ctl_dev_unregister(struct snd_device *device)
-{
-	struct snd_card *card = device->device_data;
-	int err, cardnum;
-
-	snd_assert(card != NULL, return -ENXIO);
-	cardnum = card->number;
-	snd_assert(cardnum >= 0 && cardnum < SNDRV_CARDS, return -ENXIO);
-	if ((err = snd_unregister_device(SNDRV_DEVICE_TYPE_CONTROL,
-					 card, -1)) < 0)
-		return err;
-	return snd_ctl_dev_free(device);
-}
-
-/*
  * create control core:
  * called from init.c
  */
@@ -1430,7 +1422,6 @@ int snd_ctl_create(struct snd_card *card)
 		.dev_free = snd_ctl_dev_free,
 		.dev_register =	snd_ctl_dev_register,
 		.dev_disconnect = snd_ctl_dev_disconnect,
-		.dev_unregister = snd_ctl_dev_unregister
 	};
 
 	snd_assert(card != NULL, return -ENXIO);

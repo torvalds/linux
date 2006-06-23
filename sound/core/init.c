@@ -327,21 +327,9 @@ EXPORT_SYMBOL(snd_card_disconnect);
  *  Returns zero. Frees all associated devices and frees the control
  *  interface associated to given soundcard.
  */
-int snd_card_free(struct snd_card *card)
+static int snd_card_do_free(struct snd_card *card)
 {
 	struct snd_shutdown_f_ops *s_f_ops;
-
-	if (card == NULL)
-		return -EINVAL;
-	mutex_lock(&snd_card_mutex);
-	snd_cards[card->number] = NULL;
-	mutex_unlock(&snd_card_mutex);
-
-#ifdef CONFIG_PM
-	wake_up(&card->power_sleep);
-#endif
-	/* wait, until all devices are ready for the free operation */
-	wait_event(card->shutdown_sleep, card->files == NULL);
 
 #if defined(CONFIG_SND_MIXER_OSS) || defined(CONFIG_SND_MIXER_OSS_MODULE)
 	if (snd_mixer_oss_notify_callback)
@@ -371,10 +359,55 @@ int snd_card_free(struct snd_card *card)
 		card->s_f_ops = s_f_ops->next;
 		kfree(s_f_ops);
 	}
+	kfree(card);
+	return 0;
+}
+
+static int snd_card_free_prepare(struct snd_card *card)
+{
+	if (card == NULL)
+		return -EINVAL;
+	(void) snd_card_disconnect(card);
 	mutex_lock(&snd_card_mutex);
+	snd_cards[card->number] = NULL;
 	snd_cards_lock &= ~(1 << card->number);
 	mutex_unlock(&snd_card_mutex);
-	kfree(card);
+#ifdef CONFIG_PM
+	wake_up(&card->power_sleep);
+#endif
+	return 0;
+}
+
+int snd_card_free_when_closed(struct snd_card *card)
+{
+	int free_now = 0;
+	int ret = snd_card_free_prepare(card);
+	if (ret)
+		return ret;
+
+	spin_lock(&card->files_lock);
+	if (card->files == NULL)
+		free_now = 1;
+	else
+		card->free_on_last_close = 1;
+	spin_unlock(&card->files_lock);
+
+	if (free_now)
+		snd_card_do_free(card);
+	return 0;
+}
+
+EXPORT_SYMBOL(snd_card_free_when_closed);
+
+int snd_card_free(struct snd_card *card)
+{
+	int ret = snd_card_free_prepare(card);
+	if (ret)
+		return ret;
+
+	/* wait, until all devices are ready for the free operation */
+	wait_event(card->shutdown_sleep, card->files == NULL);
+	snd_card_do_free(card);
 	return 0;
 }
 
@@ -718,6 +751,7 @@ EXPORT_SYMBOL(snd_card_file_add);
 int snd_card_file_remove(struct snd_card *card, struct file *file)
 {
 	struct snd_monitor_file *mfile, *pfile = NULL;
+	int last_close = 0;
 
 	spin_lock(&card->files_lock);
 	mfile = card->files;
@@ -732,9 +766,14 @@ int snd_card_file_remove(struct snd_card *card, struct file *file)
 		pfile = mfile;
 		mfile = mfile->next;
 	}
-	spin_unlock(&card->files_lock);
 	if (card->files == NULL)
+		last_close = 1;
+	spin_unlock(&card->files_lock);
+	if (last_close) {
 		wake_up(&card->shutdown_sleep);
+		if (card->free_on_last_close)
+			snd_card_do_free(card);
+	}
 	if (!mfile) {
 		snd_printk(KERN_ERR "ALSA card file remove problem (%p)\n", file);
 		return -ENOENT;

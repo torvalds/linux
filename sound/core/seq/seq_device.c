@@ -90,7 +90,6 @@ static int snd_seq_device_free(struct snd_seq_device *dev);
 static int snd_seq_device_dev_free(struct snd_device *device);
 static int snd_seq_device_dev_register(struct snd_device *device);
 static int snd_seq_device_dev_disconnect(struct snd_device *device);
-static int snd_seq_device_dev_unregister(struct snd_device *device);
 
 static int init_device(struct snd_seq_device *dev, struct ops_list *ops);
 static int free_device(struct snd_seq_device *dev, struct ops_list *ops);
@@ -189,7 +188,6 @@ int snd_seq_device_new(struct snd_card *card, int device, char *id, int argsize,
 		.dev_free = snd_seq_device_dev_free,
 		.dev_register = snd_seq_device_dev_register,
 		.dev_disconnect = snd_seq_device_dev_disconnect,
-		.dev_unregister = snd_seq_device_dev_unregister
 	};
 
 	if (result)
@@ -306,15 +304,6 @@ static int snd_seq_device_dev_disconnect(struct snd_device *device)
 
 	unlock_driver(ops);
 	return 0;
-}
-
-/*
- * unregister the existing device
- */
-static int snd_seq_device_dev_unregister(struct snd_device *device)
-{
-	struct snd_seq_device *dev = device->device_data;
-	return snd_seq_device_free(dev);
 }
 
 /*
