@@ -97,6 +97,7 @@ int sc_ioctl(int card, scs_ioctl *data)
 
 	case SCIOCSTART:
 	{
+		kfree(rcvmsg);
 		pr_debug("%s: SCIOSTART: ioctl received\n",
 				sc_adapter[card]->devicename);
 		if(sc_adapter[card]->EngineUp) {
