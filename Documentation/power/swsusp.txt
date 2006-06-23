@@ -350,9 +350,34 @@ Q: How do I make suspend more verbose?
 
 A: If you want to see any non-error kernel messages on the virtual
 terminal the kernel switches to during suspend, you have to set the
-kernel console loglevel to at least 5, for example by doing
+kernel console loglevel to at least 4 (KERN_WARNING), for example by
+doing
 
-	echo 5 > /proc/sys/kernel/printk
+	# save the old loglevel
+	read LOGLEVEL DUMMY < /proc/sys/kernel/printk
+	# set the loglevel so we see the progress bar.
+	# if the level is higher than needed, we leave it alone.
+	if [ $LOGLEVEL -lt 5 ]; then
+	        echo 5 > /proc/sys/kernel/printk
+		fi
+
+        IMG_SZ=0
+        read IMG_SZ < /sys/power/image_size
+        echo -n disk > /sys/power/state
+        RET=$?
+        #
+        # the logic here is:
+        # if image_size > 0 (without kernel support, IMG_SZ will be zero),
+        # then try again with image_size set to zero.
+	if [ $RET -ne 0 -a $IMG_SZ -ne 0 ]; then # try again with minimal image size
+                echo 0 > /sys/power/image_size
+                echo -n disk > /sys/power/state
+                RET=$?
+        fi
+
+	# restore previous loglevel
+	echo $LOGLEVEL > /proc/sys/kernel/printk
+	exit $RET
 
 Q: Is this true that if I have a mounted filesystem on a USB device and
 I suspend to disk, I can lose data unless the filesystem has been mounted
@@ -380,3 +405,17 @@ safest thing is to unmount all filesystems on removable media (such USB,
 Firewire, CompactFlash, MMC, external SATA, or even IDE hotplug bays)
 before suspending; then remount them after resuming.
 
+Q: I upgraded the kernel from 2.6.15 to 2.6.16. Both kernels were
+compiled with the similar configuration files. Anyway I found that
+suspend to disk (and resume) is much slower on 2.6.16 compared to
+2.6.15. Any idea for why that might happen or how can I speed it up?
+
+A: This is because the size of the suspend image is now greater than
+for 2.6.15 (by saving more data we can get more responsive system
+after resume).
+
+There's the /sys/power/image_size knob that controls the size of the
+image.  If you set it to 0 (eg. by echo 0 > /sys/power/image_size as
+root), the 2.6.15 behavior should be restored.  If it is still too
+slow, take a look at suspend.sf.net -- userland suspend is faster and
+supports LZF compression to speed it up further.
