@@ -368,6 +368,8 @@ void fastcall __mmdrop(struct mm_struct *mm)
  */
 void mmput(struct mm_struct *mm)
 {
+	might_sleep();
+
 	if (atomic_dec_and_test(&mm->mm_users)) {
 		exit_aio(mm);
 		exit_mmap(mm);
