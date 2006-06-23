@@ -36,6 +36,9 @@
 #define FTDI_ACTZWAVE_PID	0xF2D0
 
 
+/* www.starting-point-systems.com µChameleon device */
+#define FTDI_MICRO_CHAMELEON_PID	0xCAA0	/* Product Id */
+
 /* www.irtrans.de device */
 #define FTDI_IRTRANS_PID 0xFC60 /* Product Id */
 
