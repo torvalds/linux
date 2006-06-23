@@ -770,29 +770,104 @@ qla24xx_chip_diag(scsi_qla_host_t *ha)
 	return rval;
 }
 
-static void
+void
 qla2x00_alloc_fw_dump(scsi_qla_host_t *ha)
 {
-	uint32_t dump_size = 0;
+	int rval;
+	uint32_t dump_size, fixed_size, mem_size, req_q_size, rsp_q_size,
+	    eft_size;
+	dma_addr_t eft_dma;
+	void *eft;
 
-	ha->fw_dumped = 0;
-	if (IS_QLA2100(ha) || IS_QLA2200(ha)) {
-		dump_size = sizeof(struct qla2100_fw_dump);
-	} else if (IS_QLA23XX(ha)) {
-		dump_size = sizeof(struct qla2300_fw_dump);
-		dump_size += (ha->fw_memory_size - 0x11000) * sizeof(uint16_t);
-        } else if (IS_QLA24XX(ha) || IS_QLA54XX(ha)) {
-		dump_size = sizeof(struct qla24xx_fw_dump);
-		dump_size += (ha->fw_memory_size - 0x100000) * sizeof(uint32_t);
+	if (ha->fw_dump) {
+		qla_printk(KERN_WARNING, ha,
+		    "Firmware dump previously allocated.\n");
+		return;
 	}
 
+	ha->fw_dumped = 0;
+	fixed_size = mem_size = eft_size = 0;
+	if (IS_QLA2100(ha) || IS_QLA2200(ha)) {
+		fixed_size = sizeof(struct qla2100_fw_dump);
+	} else if (IS_QLA23XX(ha)) {
+		fixed_size = offsetof(struct qla2300_fw_dump, data_ram);
+		mem_size = (ha->fw_memory_size - 0x11000 + 1) *
+		    sizeof(uint16_t);
+	} else if (IS_QLA24XX(ha) || IS_QLA54XX(ha)) {
+		fixed_size = offsetof(struct qla24xx_fw_dump, ext_mem);
+		mem_size = (ha->fw_memory_size - 0x100000 + 1) *
+		    sizeof(uint32_t);
+
+		/* Allocate memory for Extended Trace Buffer. */
+		eft = dma_alloc_coherent(&ha->pdev->dev, EFT_SIZE, &eft_dma,
+		    GFP_KERNEL);
+		if (!eft) {
+			qla_printk(KERN_WARNING, ha, "Unable to allocate "
+			    "(%d KB) for EFT.\n", EFT_SIZE / 1024);
+			goto cont_alloc;
+		}
+
+		rval = qla2x00_trace_control(ha, TC_ENABLE, eft_dma,
+		    EFT_NUM_BUFFERS);
+		if (rval) {
+			qla_printk(KERN_WARNING, ha, "Unable to initialize "
+			    "EFT (%d).\n", rval);
+			dma_free_coherent(&ha->pdev->dev, EFT_SIZE, eft,
+			    eft_dma);
+			goto cont_alloc;
+		}
+
+		qla_printk(KERN_INFO, ha, "Allocated (%d KB) for EFT...\n",
+		    EFT_SIZE / 1024);
+
+		eft_size = EFT_SIZE;
+		memset(eft, 0, eft_size);
+		ha->eft_dma = eft_dma;
+		ha->eft = eft;
+	}
+cont_alloc:
+	req_q_size = ha->request_q_length * sizeof(request_t);
+	rsp_q_size = ha->response_q_length * sizeof(response_t);
+
+	dump_size = offsetof(struct qla2xxx_fw_dump, isp);
+	dump_size += fixed_size + mem_size + req_q_size + rsp_q_size +
+	    eft_size;
+
 	ha->fw_dump = vmalloc(dump_size);
-	if (ha->fw_dump)
-		qla_printk(KERN_INFO, ha, "Allocated (%d KB) for firmware "
-		    "dump...\n", dump_size / 1024);
-	else
+	if (!ha->fw_dump) {
 		qla_printk(KERN_WARNING, ha, "Unable to allocate (%d KB) for "
 		    "firmware dump!!!\n", dump_size / 1024);
+
+		if (ha->eft) {
+			dma_free_coherent(&ha->pdev->dev, eft_size, ha->eft,
+			    ha->eft_dma);
+			ha->eft = NULL;
+			ha->eft_dma = 0;
+		}
+		return;
+	}
+
+	qla_printk(KERN_INFO, ha, "Allocated (%d KB) for firmware dump...\n",
+	    dump_size / 1024);
+
+	ha->fw_dump_len = dump_size;
+	ha->fw_dump->signature[0] = 'Q';
+	ha->fw_dump->signature[1] = 'L';
+	ha->fw_dump->signature[2] = 'G';
+	ha->fw_dump->signature[3] = 'C';
+	ha->fw_dump->version = __constant_htonl(1);
+
+	ha->fw_dump->fixed_size = htonl(fixed_size);
+	ha->fw_dump->mem_size = htonl(mem_size);
+	ha->fw_dump->req_q_size = htonl(req_q_size);
+	ha->fw_dump->rsp_q_size = htonl(rsp_q_size);
+
+	ha->fw_dump->eft_size = htonl(eft_size);
+	ha->fw_dump->eft_addr_l = htonl(LSD(ha->eft_dma));
+	ha->fw_dump->eft_addr_h = htonl(MSD(ha->eft_dma));
+
+	ha->fw_dump->header_size =
+	    htonl(offsetof(struct qla2xxx_fw_dump, isp));
 }
 
 /**
@@ -809,8 +884,6 @@ qla2x00_resize_request_q(scsi_qla_host_t *ha)
 	uint16_t request_q_length = REQUEST_ENTRY_CNT_2XXX_EXT_MEM;
 	dma_addr_t request_dma;
 	request_t *request_ring;
-
-	qla2x00_alloc_fw_dump(ha);
 
 	/* Valid only on recent ISPs. */
 	if (IS_QLA2100(ha) || IS_QLA2200(ha))
@@ -883,6 +956,9 @@ qla2x00_setup_chip(scsi_qla_host_t *ha)
 				    &ha->fw_subminor_version,
 				    &ha->fw_attributes, &ha->fw_memory_size);
 				qla2x00_resize_request_q(ha);
+
+				if (ql2xallocfwdump)
+					qla2x00_alloc_fw_dump(ha);
 			}
 		} else {
 			DEBUG2(printk(KERN_INFO

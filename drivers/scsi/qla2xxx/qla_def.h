@@ -608,6 +608,7 @@ typedef struct {
 #define MBC_SERDES_PARAMS		0x10	/* Serdes Tx Parameters. */
 #define MBC_GET_IOCB_STATUS		0x12	/* Get IOCB status command. */
 #define MBC_GET_TIMEOUT_PARAMS		0x22	/* Get FW timeouts. */
+#define MBC_TRACE_CONTROL		0x27	/* Trace control command. */
 #define MBC_GEN_SYSTEM_ERROR		0x2a	/* Generate System Error. */
 #define MBC_SET_TIMEOUT_PARAMS		0x32	/* Set FW timeouts. */
 #define MBC_MID_INITIALIZE_FIRMWARE	0x48	/* MID Initialize firmware. */
@@ -617,6 +618,9 @@ typedef struct {
 #define MBC_SEND_RNFT_ELS		0x5e	/* Send RNFT ELS request */
 #define MBC_GET_LINK_PRIV_STATS		0x6d	/* Get link & private data. */
 #define MBC_SET_VENDOR_ID		0x76	/* Set Vendor ID. */
+
+#define TC_ENABLE			4
+#define TC_DISABLE			5
 
 /* Firmware return data sizes */
 #define FCAL_MAP_SIZE	128
@@ -1997,7 +2001,6 @@ struct isp_operations {
 		uint32_t);
 
 	void (*fw_dump) (struct scsi_qla_host *, int);
-	void (*ascii_fw_dump) (struct scsi_qla_host *);
 
 	int (*beacon_on) (struct scsi_qla_host *);
 	int (*beacon_off) (struct scsi_qla_host *);
@@ -2303,11 +2306,12 @@ typedef struct scsi_qla_host {
 	uint16_t	fw_seriallink_options24[4];
 
 	/* Firmware dump information. */
-	void		*fw_dump;
+	struct qla2xxx_fw_dump *fw_dump;
+	uint32_t	fw_dump_len;
 	int		fw_dumped;
 	int		fw_dump_reading;
-	char		*fw_dump_buffer;
-	int		fw_dump_buffer_len;
+	dma_addr_t	eft_dma;
+	void		*eft;
 
 	uint8_t		host_str[16];
 	uint32_t	pci_attr;

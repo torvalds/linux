@@ -8,7 +8,34 @@
 
 #include <linux/delay.h>
 
-static int qla_uprintf(char **, char *, ...);
+static inline void
+qla2xxx_prep_dump(scsi_qla_host_t *ha, struct qla2xxx_fw_dump *fw_dump)
+{
+	fw_dump->fw_major_version = htonl(ha->fw_major_version);
+	fw_dump->fw_minor_version = htonl(ha->fw_minor_version);
+	fw_dump->fw_subminor_version = htonl(ha->fw_subminor_version);
+	fw_dump->fw_attributes = htonl(ha->fw_attributes);
+
+	fw_dump->vendor = htonl(ha->pdev->vendor);
+	fw_dump->device = htonl(ha->pdev->device);
+	fw_dump->subsystem_vendor = htonl(ha->pdev->subsystem_vendor);
+	fw_dump->subsystem_device = htonl(ha->pdev->subsystem_device);
+}
+
+static inline void *
+qla2xxx_copy_queues(scsi_qla_host_t *ha, void *ptr)
+{
+	/* Request queue. */
+	memcpy(ptr, ha->request_ring, ha->request_q_length *
+	    sizeof(request_t));
+
+	/* Response queue. */
+	ptr += ha->request_q_length * sizeof(request_t);
+	memcpy(ptr, ha->response_ring, ha->response_q_length  *
+	    sizeof(response_t));
+
+	return ptr + (ha->response_q_length * sizeof(response_t));
+}
 
 /**
  * qla2300_fw_dump() - Dumps binary data from the 2300 firmware.
@@ -49,10 +76,11 @@ qla2300_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 		    "request...\n", ha->fw_dump);
 		goto qla2300_fw_dump_failed;
 	}
-	fw = ha->fw_dump;
+	fw = &ha->fw_dump->isp.isp23;
+	qla2xxx_prep_dump(ha, ha->fw_dump);
 
 	rval = QLA_SUCCESS;
-	fw->hccr = RD_REG_WORD(&reg->hccr);
+	fw->hccr = htons(RD_REG_WORD(&reg->hccr));
 
 	/* Pause RISC. */
 	WRT_REG_WORD(&reg->hccr, HCCR_PAUSE_RISC);
@@ -73,85 +101,86 @@ qla2300_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 	if (rval == QLA_SUCCESS) {
 		dmp_reg = (uint16_t __iomem *)(reg + 0);
 		for (cnt = 0; cnt < sizeof(fw->pbiu_reg) / 2; cnt++)
-			fw->pbiu_reg[cnt] = RD_REG_WORD(dmp_reg++);
+			fw->pbiu_reg[cnt] = htons(RD_REG_WORD(dmp_reg++));
 
 		dmp_reg = (uint16_t __iomem *)((uint8_t __iomem *)reg + 0x10);
 		for (cnt = 0; cnt < sizeof(fw->risc_host_reg) / 2; cnt++)
-			fw->risc_host_reg[cnt] = RD_REG_WORD(dmp_reg++);
+			fw->risc_host_reg[cnt] = htons(RD_REG_WORD(dmp_reg++));
 
 		dmp_reg = (uint16_t __iomem *)((uint8_t __iomem *)reg + 0x40);
 		for (cnt = 0; cnt < sizeof(fw->mailbox_reg) / 2; cnt++)
-			fw->mailbox_reg[cnt] = RD_REG_WORD(dmp_reg++);
+			fw->mailbox_reg[cnt] = htons(RD_REG_WORD(dmp_reg++));
 
 		WRT_REG_WORD(&reg->ctrl_status, 0x40);
 		dmp_reg = (uint16_t __iomem *)((uint8_t __iomem *)reg + 0x80);
 		for (cnt = 0; cnt < sizeof(fw->resp_dma_reg) / 2; cnt++)
-			fw->resp_dma_reg[cnt] = RD_REG_WORD(dmp_reg++);
+			fw->resp_dma_reg[cnt] = htons(RD_REG_WORD(dmp_reg++));
 
 		WRT_REG_WORD(&reg->ctrl_status, 0x50);
 		dmp_reg = (uint16_t __iomem *)((uint8_t __iomem *)reg + 0x80);
 		for (cnt = 0; cnt < sizeof(fw->dma_reg) / 2; cnt++)
-			fw->dma_reg[cnt] = RD_REG_WORD(dmp_reg++);
+			fw->dma_reg[cnt] = htons(RD_REG_WORD(dmp_reg++));
 
 		WRT_REG_WORD(&reg->ctrl_status, 0x00);
 		dmp_reg = (uint16_t __iomem *)((uint8_t __iomem *)reg + 0xA0);
 		for (cnt = 0; cnt < sizeof(fw->risc_hdw_reg) / 2; cnt++)
-			fw->risc_hdw_reg[cnt] = RD_REG_WORD(dmp_reg++);
+			fw->risc_hdw_reg[cnt] = htons(RD_REG_WORD(dmp_reg++));
 
 		WRT_REG_WORD(&reg->pcr, 0x2000);
 		dmp_reg = (uint16_t __iomem *)((uint8_t __iomem *)reg + 0x80);
 		for (cnt = 0; cnt < sizeof(fw->risc_gp0_reg) / 2; cnt++)
-			fw->risc_gp0_reg[cnt] = RD_REG_WORD(dmp_reg++);
+			fw->risc_gp0_reg[cnt] = htons(RD_REG_WORD(dmp_reg++));
 
 		WRT_REG_WORD(&reg->pcr, 0x2200);
 		dmp_reg = (uint16_t __iomem *)((uint8_t __iomem *)reg + 0x80);
 		for (cnt = 0; cnt < sizeof(fw->risc_gp1_reg) / 2; cnt++)
-			fw->risc_gp1_reg[cnt] = RD_REG_WORD(dmp_reg++);
+			fw->risc_gp1_reg[cnt] = htons(RD_REG_WORD(dmp_reg++));
 
 		WRT_REG_WORD(&reg->pcr, 0x2400);
 		dmp_reg = (uint16_t __iomem *)((uint8_t __iomem *)reg + 0x80);
 		for (cnt = 0; cnt < sizeof(fw->risc_gp2_reg) / 2; cnt++)
-			fw->risc_gp2_reg[cnt] = RD_REG_WORD(dmp_reg++);
+			fw->risc_gp2_reg[cnt] = htons(RD_REG_WORD(dmp_reg++));
 
 		WRT_REG_WORD(&reg->pcr, 0x2600);
 		dmp_reg = (uint16_t __iomem *)((uint8_t __iomem *)reg + 0x80);
 		for (cnt = 0; cnt < sizeof(fw->risc_gp3_reg) / 2; cnt++)
-			fw->risc_gp3_reg[cnt] = RD_REG_WORD(dmp_reg++);
+			fw->risc_gp3_reg[cnt] = htons(RD_REG_WORD(dmp_reg++));
 
 		WRT_REG_WORD(&reg->pcr, 0x2800);
 		dmp_reg = (uint16_t __iomem *)((uint8_t __iomem *)reg + 0x80);
 		for (cnt = 0; cnt < sizeof(fw->risc_gp4_reg) / 2; cnt++)
-			fw->risc_gp4_reg[cnt] = RD_REG_WORD(dmp_reg++);
+			fw->risc_gp4_reg[cnt] = htons(RD_REG_WORD(dmp_reg++));
 
 		WRT_REG_WORD(&reg->pcr, 0x2A00);
 		dmp_reg = (uint16_t __iomem *)((uint8_t __iomem *)reg + 0x80);
 		for (cnt = 0; cnt < sizeof(fw->risc_gp5_reg) / 2; cnt++)
-			fw->risc_gp5_reg[cnt] = RD_REG_WORD(dmp_reg++);
+			fw->risc_gp5_reg[cnt] = htons(RD_REG_WORD(dmp_reg++));
 
 		WRT_REG_WORD(&reg->pcr, 0x2C00);
 		dmp_reg = (uint16_t __iomem *)((uint8_t __iomem *)reg + 0x80);
 		for (cnt = 0; cnt < sizeof(fw->risc_gp6_reg) / 2; cnt++)
-			fw->risc_gp6_reg[cnt] = RD_REG_WORD(dmp_reg++);
+			fw->risc_gp6_reg[cnt] = htons(RD_REG_WORD(dmp_reg++));
 
 		WRT_REG_WORD(&reg->pcr, 0x2E00);
 		dmp_reg = (uint16_t __iomem *)((uint8_t __iomem *)reg + 0x80);
 		for (cnt = 0; cnt < sizeof(fw->risc_gp7_reg) / 2; cnt++)
-			fw->risc_gp7_reg[cnt] = RD_REG_WORD(dmp_reg++);
+			fw->risc_gp7_reg[cnt] = htons(RD_REG_WORD(dmp_reg++));
 
 		WRT_REG_WORD(&reg->ctrl_status, 0x10);
 		dmp_reg = (uint16_t __iomem *)((uint8_t __iomem *)reg + 0x80);
 		for (cnt = 0; cnt < sizeof(fw->frame_buf_hdw_reg) / 2; cnt++)
-			fw->frame_buf_hdw_reg[cnt] = RD_REG_WORD(dmp_reg++);
+			fw->frame_buf_hdw_reg[cnt] =
+			    htons(RD_REG_WORD(dmp_reg++));
 
 		WRT_REG_WORD(&reg->ctrl_status, 0x20);
 		dmp_reg = (uint16_t __iomem *)((uint8_t __iomem *)reg + 0x80);
 		for (cnt = 0; cnt < sizeof(fw->fpm_b0_reg) / 2; cnt++)
-			fw->fpm_b0_reg[cnt] = RD_REG_WORD(dmp_reg++);
+			fw->fpm_b0_reg[cnt] = htons(RD_REG_WORD(dmp_reg++));
 
 		WRT_REG_WORD(&reg->ctrl_status, 0x30);
 		dmp_reg = (uint16_t __iomem *)((uint8_t __iomem *)reg + 0x80);
 		for (cnt = 0; cnt < sizeof(fw->fpm_b1_reg) / 2; cnt++)
-			fw->fpm_b1_reg[cnt] = RD_REG_WORD(dmp_reg++);
+			fw->fpm_b1_reg[cnt] = htons(RD_REG_WORD(dmp_reg++));
 
 		/* Reset RISC. */
 		WRT_REG_WORD(&reg->ctrl_status, CSR_ISP_SOFT_RESET);
@@ -226,7 +255,7 @@ qla2300_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 
 		if (test_and_clear_bit(MBX_INTERRUPT, &ha->mbx_cmd_flags)) {
 			rval = mb0 & MBS_MASK;
-			fw->risc_ram[cnt] = mb2;
+			fw->risc_ram[cnt] = htons(mb2);
 		} else {
 			rval = QLA_FUNCTION_FAILED;
 		}
@@ -285,7 +314,7 @@ qla2300_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 
 		if (test_and_clear_bit(MBX_INTERRUPT, &ha->mbx_cmd_flags)) {
 			rval = mb0 & MBS_MASK;
-			fw->stack_ram[cnt] = mb2;
+			fw->stack_ram[cnt] = htons(mb2);
 		} else {
 			rval = QLA_FUNCTION_FAILED;
 		}
@@ -345,11 +374,14 @@ qla2300_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 
 		if (test_and_clear_bit(MBX_INTERRUPT, &ha->mbx_cmd_flags)) {
 			rval = mb0 & MBS_MASK;
-			fw->data_ram[cnt] = mb2;
+			fw->data_ram[cnt] = htons(mb2);
 		} else {
 			rval = QLA_FUNCTION_FAILED;
 		}
 	}
+
+	if (rval == QLA_SUCCESS)
+		qla2xxx_copy_queues(ha, &fw->data_ram[cnt]);
 
 	if (rval != QLA_SUCCESS) {
 		qla_printk(KERN_WARNING, ha,
@@ -366,193 +398,6 @@ qla2300_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 qla2300_fw_dump_failed:
 	if (!hardware_locked)
 		spin_unlock_irqrestore(&ha->hardware_lock, flags);
-}
-
-/**
- * qla2300_ascii_fw_dump() - Converts a binary firmware dump to ASCII.
- * @ha: HA context
- */
-void
-qla2300_ascii_fw_dump(scsi_qla_host_t *ha)
-{
-	uint32_t cnt;
-	char *uiter;
-	char fw_info[30];
-	struct qla2300_fw_dump *fw;
-	uint32_t data_ram_cnt;
-
-	uiter = ha->fw_dump_buffer;
-	fw = ha->fw_dump;
-
-	qla_uprintf(&uiter, "%s Firmware Version %s\n", ha->model_number,
-	    ha->isp_ops.fw_version_str(ha, fw_info));
-
-	qla_uprintf(&uiter, "\n[==>BEG]\n");
-
-	qla_uprintf(&uiter, "HCCR Register:\n%04x\n\n", fw->hccr);
-
-	qla_uprintf(&uiter, "PBIU Registers:");
-	for (cnt = 0; cnt < sizeof (fw->pbiu_reg) / 2; cnt++) {
-		if (cnt % 8 == 0) {
-			qla_uprintf(&uiter, "\n");
-		}
-		qla_uprintf(&uiter, "%04x ", fw->pbiu_reg[cnt]);
-	}
-
-	qla_uprintf(&uiter, "\n\nReqQ-RspQ-Risc2Host Status registers:");
-	for (cnt = 0; cnt < sizeof (fw->risc_host_reg) / 2; cnt++) {
-		if (cnt % 8 == 0) {
-			qla_uprintf(&uiter, "\n");
-		}
-		qla_uprintf(&uiter, "%04x ", fw->risc_host_reg[cnt]);
-	}
-
-	qla_uprintf(&uiter, "\n\nMailbox Registers:");
-	for (cnt = 0; cnt < sizeof (fw->mailbox_reg) / 2; cnt++) {
-		if (cnt % 8 == 0) {
-			qla_uprintf(&uiter, "\n");
-		}
-		qla_uprintf(&uiter, "%04x ", fw->mailbox_reg[cnt]);
-	}
-
-	qla_uprintf(&uiter, "\n\nAuto Request Response DMA Registers:");
-	for (cnt = 0; cnt < sizeof (fw->resp_dma_reg) / 2; cnt++) {
-		if (cnt % 8 == 0) {
-			qla_uprintf(&uiter, "\n");
-		}
-		qla_uprintf(&uiter, "%04x ", fw->resp_dma_reg[cnt]);
-	}
-
-	qla_uprintf(&uiter, "\n\nDMA Registers:");
-	for (cnt = 0; cnt < sizeof (fw->dma_reg) / 2; cnt++) {
-		if (cnt % 8 == 0) {
-			qla_uprintf(&uiter, "\n");
-		}
-		qla_uprintf(&uiter, "%04x ", fw->dma_reg[cnt]);
-	}
-
-	qla_uprintf(&uiter, "\n\nRISC Hardware Registers:");
-	for (cnt = 0; cnt < sizeof (fw->risc_hdw_reg) / 2; cnt++) {
-		if (cnt % 8 == 0) {
-			qla_uprintf(&uiter, "\n");
-		}
-		qla_uprintf(&uiter, "%04x ", fw->risc_hdw_reg[cnt]);
-	}
-
-	qla_uprintf(&uiter, "\n\nRISC GP0 Registers:");
-	for (cnt = 0; cnt < sizeof (fw->risc_gp0_reg) / 2; cnt++) {
-		if (cnt % 8 == 0) {
-			qla_uprintf(&uiter, "\n");
-		}
-		qla_uprintf(&uiter, "%04x ", fw->risc_gp0_reg[cnt]);
-	}
-
-	qla_uprintf(&uiter, "\n\nRISC GP1 Registers:");
-	for (cnt = 0; cnt < sizeof (fw->risc_gp1_reg) / 2; cnt++) {
-		if (cnt % 8 == 0) {
-			qla_uprintf(&uiter, "\n");
-		}
-		qla_uprintf(&uiter, "%04x ", fw->risc_gp1_reg[cnt]);
-	}
-
-	qla_uprintf(&uiter, "\n\nRISC GP2 Registers:");
-	for (cnt = 0; cnt < sizeof (fw->risc_gp2_reg) / 2; cnt++) {
-		if (cnt % 8 == 0) {
-			qla_uprintf(&uiter, "\n");
-		}
-		qla_uprintf(&uiter, "%04x ", fw->risc_gp2_reg[cnt]);
-	}
-
-	qla_uprintf(&uiter, "\n\nRISC GP3 Registers:");
-	for (cnt = 0; cnt < sizeof (fw->risc_gp3_reg) / 2; cnt++) {
-		if (cnt % 8 == 0) {
-			qla_uprintf(&uiter, "\n");
-		}
-		qla_uprintf(&uiter, "%04x ", fw->risc_gp3_reg[cnt]);
-	}
-
-	qla_uprintf(&uiter, "\n\nRISC GP4 Registers:");
-	for (cnt = 0; cnt < sizeof (fw->risc_gp4_reg) / 2; cnt++) {
-		if (cnt % 8 == 0) {
-			qla_uprintf(&uiter, "\n");
-		}
-		qla_uprintf(&uiter, "%04x ", fw->risc_gp4_reg[cnt]);
-	}
-
-	qla_uprintf(&uiter, "\n\nRISC GP5 Registers:");
-	for (cnt = 0; cnt < sizeof (fw->risc_gp5_reg) / 2; cnt++) {
-		if (cnt % 8 == 0) {
-			qla_uprintf(&uiter, "\n");
-		}
-		qla_uprintf(&uiter, "%04x ", fw->risc_gp5_reg[cnt]);
-	}
-
-	qla_uprintf(&uiter, "\n\nRISC GP6 Registers:");
-	for (cnt = 0; cnt < sizeof (fw->risc_gp6_reg) / 2; cnt++) {
-		if (cnt % 8 == 0) {
-			qla_uprintf(&uiter, "\n");
-		}
-		qla_uprintf(&uiter, "%04x ", fw->risc_gp6_reg[cnt]);
-	}
-
-	qla_uprintf(&uiter, "\n\nRISC GP7 Registers:");
-	for (cnt = 0; cnt < sizeof (fw->risc_gp7_reg) / 2; cnt++) {
-		if (cnt % 8 == 0) {
-			qla_uprintf(&uiter, "\n");
-		}
-		qla_uprintf(&uiter, "%04x ", fw->risc_gp7_reg[cnt]);
-	}
-
-	qla_uprintf(&uiter, "\n\nFrame Buffer Hardware Registers:");
-	for (cnt = 0; cnt < sizeof (fw->frame_buf_hdw_reg) / 2; cnt++) {
-		if (cnt % 8 == 0) {
-			qla_uprintf(&uiter, "\n");
-		}
-		qla_uprintf(&uiter, "%04x ", fw->frame_buf_hdw_reg[cnt]);
-	}
-
-	qla_uprintf(&uiter, "\n\nFPM B0 Registers:");
-	for (cnt = 0; cnt < sizeof (fw->fpm_b0_reg) / 2; cnt++) {
-		if (cnt % 8 == 0) {
-			qla_uprintf(&uiter, "\n");
-		}
-		qla_uprintf(&uiter, "%04x ", fw->fpm_b0_reg[cnt]);
-	}
-
-	qla_uprintf(&uiter, "\n\nFPM B1 Registers:");
-	for (cnt = 0; cnt < sizeof (fw->fpm_b1_reg) / 2; cnt++) {
-		if (cnt % 8 == 0) {
-			qla_uprintf(&uiter, "\n");
-		}
-		qla_uprintf(&uiter, "%04x ", fw->fpm_b1_reg[cnt]);
-	}
-
-	qla_uprintf(&uiter, "\n\nCode RAM Dump:");
-	for (cnt = 0; cnt < sizeof (fw->risc_ram) / 2; cnt++) {
-		if (cnt % 8 == 0) {
-			qla_uprintf(&uiter, "\n%04x: ", cnt + 0x0800);
-		}
-		qla_uprintf(&uiter, "%04x ", fw->risc_ram[cnt]);
-	}
-
-	qla_uprintf(&uiter, "\n\nStack RAM Dump:");
-	for (cnt = 0; cnt < sizeof (fw->stack_ram) / 2; cnt++) {
-		if (cnt % 8 == 0) {
-			qla_uprintf(&uiter, "\n%05x: ", cnt + 0x10000);
-		}
-		qla_uprintf(&uiter, "%04x ", fw->stack_ram[cnt]);
-	}
-
-	qla_uprintf(&uiter, "\n\nData RAM Dump:");
-	data_ram_cnt = ha->fw_memory_size - 0x11000 + 1;
-	for (cnt = 0; cnt < data_ram_cnt; cnt++) {
-		if (cnt % 8 == 0) {
-			qla_uprintf(&uiter, "\n%05x: ", cnt + 0x11000);
-		}
-		qla_uprintf(&uiter, "%04x ", fw->data_ram[cnt]);
-	}
-
-	qla_uprintf(&uiter, "\n\n[<==END] ISP Debug Dump.");
 }
 
 /**
@@ -591,10 +436,11 @@ qla2100_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 		    "request...\n", ha->fw_dump);
 		goto qla2100_fw_dump_failed;
 	}
-	fw = ha->fw_dump;
+	fw = &ha->fw_dump->isp.isp21;
+	qla2xxx_prep_dump(ha, ha->fw_dump);
 
 	rval = QLA_SUCCESS;
-	fw->hccr = RD_REG_WORD(&reg->hccr);
+	fw->hccr = htons(RD_REG_WORD(&reg->hccr));
 
 	/* Pause RISC. */
 	WRT_REG_WORD(&reg->hccr, HCCR_PAUSE_RISC);
@@ -608,79 +454,81 @@ qla2100_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 	if (rval == QLA_SUCCESS) {
 		dmp_reg = (uint16_t __iomem *)(reg + 0);
 		for (cnt = 0; cnt < sizeof(fw->pbiu_reg) / 2; cnt++)
-			fw->pbiu_reg[cnt] = RD_REG_WORD(dmp_reg++);
+			fw->pbiu_reg[cnt] = htons(RD_REG_WORD(dmp_reg++));
 
 		dmp_reg = (uint16_t __iomem *)((uint8_t __iomem *)reg + 0x10);
 		for (cnt = 0; cnt < ha->mbx_count; cnt++) {
 			if (cnt == 8) {
-				dmp_reg = (uint16_t __iomem *)((uint8_t __iomem *)reg + 0xe0);
+				dmp_reg = (uint16_t __iomem *)
+					((uint8_t __iomem *)reg + 0xe0);
 			}
-			fw->mailbox_reg[cnt] = RD_REG_WORD(dmp_reg++);
+			fw->mailbox_reg[cnt] = htons(RD_REG_WORD(dmp_reg++));
 		}
 
 		dmp_reg = (uint16_t __iomem *)((uint8_t __iomem *)reg + 0x20);
 		for (cnt = 0; cnt < sizeof(fw->dma_reg) / 2; cnt++)
-			fw->dma_reg[cnt] = RD_REG_WORD(dmp_reg++);
+			fw->dma_reg[cnt] = htons(RD_REG_WORD(dmp_reg++));
 
 		WRT_REG_WORD(&reg->ctrl_status, 0x00);
 		dmp_reg = (uint16_t __iomem *)((uint8_t __iomem *)reg + 0xA0);
 		for (cnt = 0; cnt < sizeof(fw->risc_hdw_reg) / 2; cnt++)
-			fw->risc_hdw_reg[cnt] = RD_REG_WORD(dmp_reg++);
+			fw->risc_hdw_reg[cnt] = htons(RD_REG_WORD(dmp_reg++));
 
 		WRT_REG_WORD(&reg->pcr, 0x2000);
 		dmp_reg = (uint16_t __iomem *)((uint8_t __iomem *)reg + 0x80);
 		for (cnt = 0; cnt < sizeof(fw->risc_gp0_reg) / 2; cnt++)
-			fw->risc_gp0_reg[cnt] = RD_REG_WORD(dmp_reg++);
+			fw->risc_gp0_reg[cnt] = htons(RD_REG_WORD(dmp_reg++));
 
 		WRT_REG_WORD(&reg->pcr, 0x2100);
 		dmp_reg = (uint16_t __iomem *)((uint8_t __iomem *)reg + 0x80);
 		for (cnt = 0; cnt < sizeof(fw->risc_gp1_reg) / 2; cnt++)
-			fw->risc_gp1_reg[cnt] = RD_REG_WORD(dmp_reg++);
+			fw->risc_gp1_reg[cnt] = htons(RD_REG_WORD(dmp_reg++));
 
 		WRT_REG_WORD(&reg->pcr, 0x2200);
 		dmp_reg = (uint16_t __iomem *)((uint8_t __iomem *)reg + 0x80);
 		for (cnt = 0; cnt < sizeof(fw->risc_gp2_reg) / 2; cnt++)
-			fw->risc_gp2_reg[cnt] = RD_REG_WORD(dmp_reg++);
+			fw->risc_gp2_reg[cnt] = htons(RD_REG_WORD(dmp_reg++));
 
 		WRT_REG_WORD(&reg->pcr, 0x2300);
 		dmp_reg = (uint16_t __iomem *)((uint8_t __iomem *)reg + 0x80);
 		for (cnt = 0; cnt < sizeof(fw->risc_gp3_reg) / 2; cnt++)
-			fw->risc_gp3_reg[cnt] = RD_REG_WORD(dmp_reg++);
+			fw->risc_gp3_reg[cnt] = htons(RD_REG_WORD(dmp_reg++));
 
 		WRT_REG_WORD(&reg->pcr, 0x2400);
 		dmp_reg = (uint16_t __iomem *)((uint8_t __iomem *)reg + 0x80);
 		for (cnt = 0; cnt < sizeof(fw->risc_gp4_reg) / 2; cnt++)
-			fw->risc_gp4_reg[cnt] = RD_REG_WORD(dmp_reg++);
+			fw->risc_gp4_reg[cnt] = htons(RD_REG_WORD(dmp_reg++));
 
 		WRT_REG_WORD(&reg->pcr, 0x2500);
 		dmp_reg = (uint16_t __iomem *)((uint8_t __iomem *)reg + 0x80);
 		for (cnt = 0; cnt < sizeof(fw->risc_gp5_reg) / 2; cnt++)
-			fw->risc_gp5_reg[cnt] = RD_REG_WORD(dmp_reg++);
+			fw->risc_gp5_reg[cnt] = htons(RD_REG_WORD(dmp_reg++));
 
 		WRT_REG_WORD(&reg->pcr, 0x2600);
 		dmp_reg = (uint16_t __iomem *)((uint8_t __iomem *)reg + 0x80);
 		for (cnt = 0; cnt < sizeof(fw->risc_gp6_reg) / 2; cnt++)
-			fw->risc_gp6_reg[cnt] = RD_REG_WORD(dmp_reg++);
+			fw->risc_gp6_reg[cnt] = htons(RD_REG_WORD(dmp_reg++));
 
 		WRT_REG_WORD(&reg->pcr, 0x2700);
 		dmp_reg = (uint16_t __iomem *)((uint8_t __iomem *)reg + 0x80);
 		for (cnt = 0; cnt < sizeof(fw->risc_gp7_reg) / 2; cnt++)
-			fw->risc_gp7_reg[cnt] = RD_REG_WORD(dmp_reg++);
+			fw->risc_gp7_reg[cnt] = htons(RD_REG_WORD(dmp_reg++));
 
 		WRT_REG_WORD(&reg->ctrl_status, 0x10);
 		dmp_reg = (uint16_t __iomem *)((uint8_t __iomem *)reg + 0x80);
 		for (cnt = 0; cnt < sizeof(fw->frame_buf_hdw_reg) / 2; cnt++)
-			fw->frame_buf_hdw_reg[cnt] = RD_REG_WORD(dmp_reg++);
+			fw->frame_buf_hdw_reg[cnt] =
+			    htons(RD_REG_WORD(dmp_reg++));
 
 		WRT_REG_WORD(&reg->ctrl_status, 0x20);
 		dmp_reg = (uint16_t __iomem *)((uint8_t __iomem *)reg + 0x80);
 		for (cnt = 0; cnt < sizeof(fw->fpm_b0_reg) / 2; cnt++)
-			fw->fpm_b0_reg[cnt] = RD_REG_WORD(dmp_reg++);
+			fw->fpm_b0_reg[cnt] = htons(RD_REG_WORD(dmp_reg++));
 
 		WRT_REG_WORD(&reg->ctrl_status, 0x30);
 		dmp_reg = (uint16_t __iomem *)((uint8_t __iomem *)reg + 0x80);
 		for (cnt = 0; cnt < sizeof(fw->fpm_b1_reg) / 2; cnt++)
-			fw->fpm_b1_reg[cnt] = RD_REG_WORD(dmp_reg++);
+			fw->fpm_b1_reg[cnt] = htons(RD_REG_WORD(dmp_reg++));
 
 		/* Reset the ISP. */
 		WRT_REG_WORD(&reg->ctrl_status, CSR_ISP_SOFT_RESET);
@@ -755,11 +603,14 @@ qla2100_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 
 		if (test_and_clear_bit(MBX_INTERRUPT, &ha->mbx_cmd_flags)) {
 			rval = mb0 & MBS_MASK;
-			fw->risc_ram[cnt] = mb2;
+			fw->risc_ram[cnt] = htons(mb2);
 		} else {
 			rval = QLA_FUNCTION_FAILED;
 		}
 	}
+
+	if (rval == QLA_SUCCESS)
+		qla2xxx_copy_queues(ha, &fw->risc_ram[cnt]);
 
 	if (rval != QLA_SUCCESS) {
 		qla_printk(KERN_WARNING, ha,
@@ -778,179 +629,6 @@ qla2100_fw_dump_failed:
 		spin_unlock_irqrestore(&ha->hardware_lock, flags);
 }
 
-/**
- * qla2100_ascii_fw_dump() - Converts a binary firmware dump to ASCII.
- * @ha: HA context
- */
-void
-qla2100_ascii_fw_dump(scsi_qla_host_t *ha)
-{
-	uint32_t cnt;
-	char *uiter;
-	char fw_info[30];
-	struct qla2100_fw_dump *fw;
-
-	uiter = ha->fw_dump_buffer;
-	fw = ha->fw_dump;
-
-	qla_uprintf(&uiter, "%s Firmware Version %s\n", ha->model_number,
-	    ha->isp_ops.fw_version_str(ha, fw_info));
-
-	qla_uprintf(&uiter, "\n[==>BEG]\n");
-
-	qla_uprintf(&uiter, "HCCR Register:\n%04x\n\n", fw->hccr);
-
-	qla_uprintf(&uiter, "PBIU Registers:");
-	for (cnt = 0; cnt < sizeof (fw->pbiu_reg) / 2; cnt++) {
-		if (cnt % 8 == 0) {
-			qla_uprintf(&uiter, "\n");
-		}
-		qla_uprintf(&uiter, "%04x ", fw->pbiu_reg[cnt]);
-	}
-
-	qla_uprintf(&uiter, "\n\nMailbox Registers:");
-	for (cnt = 0; cnt < sizeof (fw->mailbox_reg) / 2; cnt++) {
-		if (cnt % 8 == 0) {
-			qla_uprintf(&uiter, "\n");
-		}
-		qla_uprintf(&uiter, "%04x ", fw->mailbox_reg[cnt]);
-	}
-
-	qla_uprintf(&uiter, "\n\nDMA Registers:");
-	for (cnt = 0; cnt < sizeof (fw->dma_reg) / 2; cnt++) {
-		if (cnt % 8 == 0) {
-			qla_uprintf(&uiter, "\n");
-		}
-		qla_uprintf(&uiter, "%04x ", fw->dma_reg[cnt]);
-	}
-
-	qla_uprintf(&uiter, "\n\nRISC Hardware Registers:");
-	for (cnt = 0; cnt < sizeof (fw->risc_hdw_reg) / 2; cnt++) {
-		if (cnt % 8 == 0) {
-			qla_uprintf(&uiter, "\n");
-		}
-		qla_uprintf(&uiter, "%04x ", fw->risc_hdw_reg[cnt]);
-	}
-
-	qla_uprintf(&uiter, "\n\nRISC GP0 Registers:");
-	for (cnt = 0; cnt < sizeof (fw->risc_gp0_reg) / 2; cnt++) {
-		if (cnt % 8 == 0) {
-			qla_uprintf(&uiter, "\n");
-		}
-		qla_uprintf(&uiter, "%04x ", fw->risc_gp0_reg[cnt]);
-	}
-
-	qla_uprintf(&uiter, "\n\nRISC GP1 Registers:");
-	for (cnt = 0; cnt < sizeof (fw->risc_gp1_reg) / 2; cnt++) {
-		if (cnt % 8 == 0) {
-			qla_uprintf(&uiter, "\n");
-		}
-		qla_uprintf(&uiter, "%04x ", fw->risc_gp1_reg[cnt]);
-	}
-
-	qla_uprintf(&uiter, "\n\nRISC GP2 Registers:");
-	for (cnt = 0; cnt < sizeof (fw->risc_gp2_reg) / 2; cnt++) {
-		if (cnt % 8 == 0) {
-			qla_uprintf(&uiter, "\n");
-		}
-		qla_uprintf(&uiter, "%04x ", fw->risc_gp2_reg[cnt]);
-	}
-
-	qla_uprintf(&uiter, "\n\nRISC GP3 Registers:");
-	for (cnt = 0; cnt < sizeof (fw->risc_gp3_reg) / 2; cnt++) {
-		if (cnt % 8 == 0) {
-			qla_uprintf(&uiter, "\n");
-		}
-		qla_uprintf(&uiter, "%04x ", fw->risc_gp3_reg[cnt]);
-	}
-
-	qla_uprintf(&uiter, "\n\nRISC GP4 Registers:");
-	for (cnt = 0; cnt < sizeof (fw->risc_gp4_reg) / 2; cnt++) {
-		if (cnt % 8 == 0) {
-			qla_uprintf(&uiter, "\n");
-		}
-		qla_uprintf(&uiter, "%04x ", fw->risc_gp4_reg[cnt]);
-	}
-
-	qla_uprintf(&uiter, "\n\nRISC GP5 Registers:");
-	for (cnt = 0; cnt < sizeof (fw->risc_gp5_reg) / 2; cnt++) {
-		if (cnt % 8 == 0) {
-			qla_uprintf(&uiter, "\n");
-		}
-		qla_uprintf(&uiter, "%04x ", fw->risc_gp5_reg[cnt]);
-	}
-
-	qla_uprintf(&uiter, "\n\nRISC GP6 Registers:");
-	for (cnt = 0; cnt < sizeof (fw->risc_gp6_reg) / 2; cnt++) {
-		if (cnt % 8 == 0) {
-			qla_uprintf(&uiter, "\n");
-		}
-		qla_uprintf(&uiter, "%04x ", fw->risc_gp6_reg[cnt]);
-	}
-
-	qla_uprintf(&uiter, "\n\nRISC GP7 Registers:");
-	for (cnt = 0; cnt < sizeof (fw->risc_gp7_reg) / 2; cnt++) {
-		if (cnt % 8 == 0) {
-			qla_uprintf(&uiter, "\n");
-		}
-		qla_uprintf(&uiter, "%04x ", fw->risc_gp7_reg[cnt]);
-	}
-
-	qla_uprintf(&uiter, "\n\nFrame Buffer Hardware Registers:");
-	for (cnt = 0; cnt < sizeof (fw->frame_buf_hdw_reg) / 2; cnt++) {
-		if (cnt % 8 == 0) {
-			qla_uprintf(&uiter, "\n");
-		}
-		qla_uprintf(&uiter, "%04x ", fw->frame_buf_hdw_reg[cnt]);
-	}
-
-	qla_uprintf(&uiter, "\n\nFPM B0 Registers:");
-	for (cnt = 0; cnt < sizeof (fw->fpm_b0_reg) / 2; cnt++) {
-		if (cnt % 8 == 0) {
-			qla_uprintf(&uiter, "\n");
-		}
-		qla_uprintf(&uiter, "%04x ", fw->fpm_b0_reg[cnt]);
-	}
-
-	qla_uprintf(&uiter, "\n\nFPM B1 Registers:");
-	for (cnt = 0; cnt < sizeof (fw->fpm_b1_reg) / 2; cnt++) {
-		if (cnt % 8 == 0) {
-			qla_uprintf(&uiter, "\n");
-		}
-		qla_uprintf(&uiter, "%04x ", fw->fpm_b1_reg[cnt]);
-	}
-
-	qla_uprintf(&uiter, "\n\nRISC SRAM:");
-	for (cnt = 0; cnt < sizeof (fw->risc_ram) / 2; cnt++) {
-		if (cnt % 8 == 0) {
-			qla_uprintf(&uiter, "\n%04x: ", cnt + 0x1000);
-		}
-		qla_uprintf(&uiter, "%04x ", fw->risc_ram[cnt]);
-	}
-
-	qla_uprintf(&uiter, "\n\n[<==END] ISP Debug Dump.");
-
-	return;
-}
-
-static int
-qla_uprintf(char **uiter, char *fmt, ...)
-{
-	int	iter, len;
-	char	buf[128];
-	va_list	args;
-
-	va_start(args, fmt);
-	len = vsprintf(buf, fmt, args);
-	va_end(args);
-
-	for (iter = 0; iter < len; iter++, *uiter += 1)
-		*uiter[0] = buf[iter];
-
-	return (len);
-}
-
-
 void
 qla24xx_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 {
@@ -967,6 +645,7 @@ qla24xx_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 	unsigned long	flags;
 	struct qla24xx_fw_dump *fw;
 	uint32_t	ext_mem_cnt;
+	void		*eft;
 
 	risc_address = ext_mem_cnt = 0;
 	memset(mb, 0, sizeof(mb));
@@ -987,10 +666,11 @@ qla24xx_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 		    "request...\n", ha->fw_dump);
 		goto qla24xx_fw_dump_failed;
 	}
-	fw = ha->fw_dump;
+	fw = &ha->fw_dump->isp.isp24;
+	qla2xxx_prep_dump(ha, ha->fw_dump);
 
 	rval = QLA_SUCCESS;
-	fw->host_status = RD_REG_DWORD(&reg->host_status);
+	fw->host_status = htonl(RD_REG_DWORD(&reg->host_status));
 
 	/* Pause RISC. */
 	if ((RD_REG_DWORD(&reg->hccr) & HCCRX_RISC_PAUSE) == 0) {
@@ -1012,7 +692,7 @@ qla24xx_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 		/* Host interface registers. */
 		dmp_reg = (uint32_t __iomem *)(reg + 0);
 		for (cnt = 0; cnt < sizeof(fw->host_reg) / 4; cnt++)
-			fw->host_reg[cnt] = RD_REG_DWORD(dmp_reg++);
+			fw->host_reg[cnt] = htonl(RD_REG_DWORD(dmp_reg++));
 
 		/* Disable interrupts. */
 		WRT_REG_DWORD(&reg->ictrl, 0);
@@ -1024,470 +704,471 @@ qla24xx_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xF0);
 		WRT_REG_DWORD(dmp_reg, 0xB0000000);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xFC);
-		fw->shadow_reg[0] = RD_REG_DWORD(dmp_reg);
+		fw->shadow_reg[0] = htonl(RD_REG_DWORD(dmp_reg));
 
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xF0);
 		WRT_REG_DWORD(dmp_reg, 0xB0100000);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xFC);
-		fw->shadow_reg[1] = RD_REG_DWORD(dmp_reg);
+		fw->shadow_reg[1] = htonl(RD_REG_DWORD(dmp_reg));
 
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xF0);
 		WRT_REG_DWORD(dmp_reg, 0xB0200000);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xFC);
-		fw->shadow_reg[2] = RD_REG_DWORD(dmp_reg);
+		fw->shadow_reg[2] = htonl(RD_REG_DWORD(dmp_reg));
 
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xF0);
 		WRT_REG_DWORD(dmp_reg, 0xB0300000);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xFC);
-		fw->shadow_reg[3] = RD_REG_DWORD(dmp_reg);
+		fw->shadow_reg[3] = htonl(RD_REG_DWORD(dmp_reg));
 
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xF0);
 		WRT_REG_DWORD(dmp_reg, 0xB0400000);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xFC);
-		fw->shadow_reg[4] = RD_REG_DWORD(dmp_reg);
+		fw->shadow_reg[4] = htonl(RD_REG_DWORD(dmp_reg));
 
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xF0);
 		WRT_REG_DWORD(dmp_reg, 0xB0500000);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xFC);
-		fw->shadow_reg[5] = RD_REG_DWORD(dmp_reg);
+		fw->shadow_reg[5] = htonl(RD_REG_DWORD(dmp_reg));
 
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xF0);
 		WRT_REG_DWORD(dmp_reg, 0xB0600000);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xFC);
-		fw->shadow_reg[6] = RD_REG_DWORD(dmp_reg);
+		fw->shadow_reg[6] = htonl(RD_REG_DWORD(dmp_reg));
 
 		/* Mailbox registers. */
 		mbx_reg = (uint16_t __iomem *)((uint8_t __iomem *)reg + 0x80);
 		for (cnt = 0; cnt < sizeof(fw->mailbox_reg) / 2; cnt++)
-			fw->mailbox_reg[cnt] = RD_REG_WORD(mbx_reg++);
+			fw->mailbox_reg[cnt] = htons(RD_REG_WORD(mbx_reg++));
 
 		/* Transfer sequence registers. */
 		iter_reg = fw->xseq_gp_reg;
 		WRT_REG_DWORD(&reg->iobase_addr, 0xBF00);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0xBF10);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0xBF20);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0xBF30);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0xBF40);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0xBF50);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0xBF60);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0xBF70);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0xBFE0);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < sizeof(fw->xseq_0_reg) / 4; cnt++)
-			fw->xseq_0_reg[cnt] = RD_REG_DWORD(dmp_reg++);
+			fw->xseq_0_reg[cnt] = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0xBFF0);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < sizeof(fw->xseq_1_reg) / 4; cnt++)
-			fw->xseq_1_reg[cnt] = RD_REG_DWORD(dmp_reg++);
+			fw->xseq_1_reg[cnt] = htonl(RD_REG_DWORD(dmp_reg++));
 
 		/* Receive sequence registers. */
 		iter_reg = fw->rseq_gp_reg;
 		WRT_REG_DWORD(&reg->iobase_addr, 0xFF00);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0xFF10);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0xFF20);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0xFF30);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0xFF40);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0xFF50);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0xFF60);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0xFF70);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0xFFD0);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < sizeof(fw->rseq_0_reg) / 4; cnt++)
-			fw->rseq_0_reg[cnt] = RD_REG_DWORD(dmp_reg++);
+			fw->rseq_0_reg[cnt] = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0xFFE0);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < sizeof(fw->rseq_1_reg) / 4; cnt++)
-			fw->rseq_1_reg[cnt] = RD_REG_DWORD(dmp_reg++);
+			fw->rseq_1_reg[cnt] = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0xFFF0);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < sizeof(fw->rseq_2_reg) / 4; cnt++)
-			fw->rseq_2_reg[cnt] = RD_REG_DWORD(dmp_reg++);
+			fw->rseq_2_reg[cnt] = htonl(RD_REG_DWORD(dmp_reg++));
 
 		/* Command DMA registers. */
 		WRT_REG_DWORD(&reg->iobase_addr, 0x7100);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < sizeof(fw->cmd_dma_reg) / 4; cnt++)
-			fw->cmd_dma_reg[cnt] = RD_REG_DWORD(dmp_reg++);
+			fw->cmd_dma_reg[cnt] = htonl(RD_REG_DWORD(dmp_reg++));
 
 		/* Queues. */
 		iter_reg = fw->req0_dma_reg;
 		WRT_REG_DWORD(&reg->iobase_addr, 0x7200);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 8; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xE4);
 		for (cnt = 0; cnt < 7; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		iter_reg = fw->resp0_dma_reg;
 		WRT_REG_DWORD(&reg->iobase_addr, 0x7300);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 8; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xE4);
 		for (cnt = 0; cnt < 7; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		iter_reg = fw->req1_dma_reg;
 		WRT_REG_DWORD(&reg->iobase_addr, 0x7400);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 8; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xE4);
 		for (cnt = 0; cnt < 7; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		/* Transmit DMA registers. */
 		iter_reg = fw->xmt0_dma_reg;
 		WRT_REG_DWORD(&reg->iobase_addr, 0x7600);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x7610);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		iter_reg = fw->xmt1_dma_reg;
 		WRT_REG_DWORD(&reg->iobase_addr, 0x7620);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x7630);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		iter_reg = fw->xmt2_dma_reg;
 		WRT_REG_DWORD(&reg->iobase_addr, 0x7640);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x7650);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		iter_reg = fw->xmt3_dma_reg;
 		WRT_REG_DWORD(&reg->iobase_addr, 0x7660);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x7670);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		iter_reg = fw->xmt4_dma_reg;
 		WRT_REG_DWORD(&reg->iobase_addr, 0x7680);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x7690);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x76A0);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < sizeof(fw->xmt_data_dma_reg) / 4; cnt++)
-			fw->xmt_data_dma_reg[cnt] = RD_REG_DWORD(dmp_reg++);
+			fw->xmt_data_dma_reg[cnt] =
+			    htonl(RD_REG_DWORD(dmp_reg++));
 
 		/* Receive DMA registers. */
 		iter_reg = fw->rcvt0_data_dma_reg;
 		WRT_REG_DWORD(&reg->iobase_addr, 0x7700);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x7710);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		iter_reg = fw->rcvt1_data_dma_reg;
 		WRT_REG_DWORD(&reg->iobase_addr, 0x7720);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x7730);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		/* RISC registers. */
 		iter_reg = fw->risc_gp_reg;
 		WRT_REG_DWORD(&reg->iobase_addr, 0x0F00);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x0F10);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x0F20);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x0F30);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x0F40);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x0F50);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x0F60);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x0F70);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		/* Local memory controller registers. */
 		iter_reg = fw->lmc_reg;
 		WRT_REG_DWORD(&reg->iobase_addr, 0x3000);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x3010);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x3020);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x3030);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x3040);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x3050);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x3060);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		/* Fibre Protocol Module registers. */
 		iter_reg = fw->fpm_hdw_reg;
 		WRT_REG_DWORD(&reg->iobase_addr, 0x4000);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x4010);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x4020);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x4030);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x4040);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x4050);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x4060);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x4070);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x4080);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x4090);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x40A0);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x40B0);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		/* Frame Buffer registers. */
 		iter_reg = fw->fb_hdw_reg;
 		WRT_REG_DWORD(&reg->iobase_addr, 0x6000);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x6010);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x6020);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x6030);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x6040);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x6100);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x6130);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x6150);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x6170);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x6190);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		WRT_REG_DWORD(&reg->iobase_addr, 0x61B0);
 		dmp_reg = (uint32_t __iomem *)((uint8_t __iomem *)reg + 0xC0);
 		for (cnt = 0; cnt < 16; cnt++)
-			*iter_reg++ = RD_REG_DWORD(dmp_reg++);
+			*iter_reg++ = htonl(RD_REG_DWORD(dmp_reg++));
 
 		/* Reset RISC. */
 		WRT_REG_DWORD(&reg->ctrl_status,
@@ -1577,7 +1258,7 @@ qla24xx_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 
 		if (test_and_clear_bit(MBX_INTERRUPT, &ha->mbx_cmd_flags)) {
 			rval = mb[0] & MBS_MASK;
-			fw->code_ram[cnt] = (mb[3] << 16) | mb[2];
+			fw->code_ram[cnt] = htonl((mb[3] << 16) | mb[2]);
 		} else {
 			rval = QLA_FUNCTION_FAILED;
 		}
@@ -1627,10 +1308,16 @@ qla24xx_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 
 		if (test_and_clear_bit(MBX_INTERRUPT, &ha->mbx_cmd_flags)) {
 			rval = mb[0] & MBS_MASK;
-			fw->ext_mem[cnt] = (mb[3] << 16) | mb[2];
+			fw->ext_mem[cnt] = htonl((mb[3] << 16) | mb[2]);
 		} else {
 			rval = QLA_FUNCTION_FAILED;
 		}
+	}
+
+	if (rval == QLA_SUCCESS) {
+		eft = qla2xxx_copy_queues(ha, &fw->ext_mem[cnt]);
+		if (ha->eft)
+			memcpy(eft, ha->eft, ntohl(ha->fw_dump->eft_size));
 	}
 
 	if (rval != QLA_SUCCESS) {
@@ -1649,252 +1336,6 @@ qla24xx_fw_dump_failed:
 	if (!hardware_locked)
 		spin_unlock_irqrestore(&ha->hardware_lock, flags);
 }
-
-void
-qla24xx_ascii_fw_dump(scsi_qla_host_t *ha)
-{
-	uint32_t cnt;
-	char *uiter;
-	struct qla24xx_fw_dump *fw;
-	uint32_t ext_mem_cnt;
-
-	uiter = ha->fw_dump_buffer;
-	fw = ha->fw_dump;
-
-	qla_uprintf(&uiter, "ISP FW Version %d.%02d.%02d Attributes %04x\n",
-	    ha->fw_major_version, ha->fw_minor_version,
-	    ha->fw_subminor_version, ha->fw_attributes);
-
-	qla_uprintf(&uiter, "\nR2H Status Register\n%04x\n", fw->host_status);
-
-	qla_uprintf(&uiter, "\nHost Interface Registers");
-	for (cnt = 0; cnt < sizeof(fw->host_reg) / 4; cnt++) {
-		if (cnt % 8 == 0)
-			qla_uprintf(&uiter, "\n");
-
-		qla_uprintf(&uiter, "%08x ", fw->host_reg[cnt]);
-	}
-
-	qla_uprintf(&uiter, "\n\nShadow Registers");
-	for (cnt = 0; cnt < sizeof(fw->shadow_reg) / 4; cnt++) {
-		if (cnt % 8 == 0)
-			qla_uprintf(&uiter, "\n");
-
-		qla_uprintf(&uiter, "%08x ", fw->shadow_reg[cnt]);
-	}
-
-	qla_uprintf(&uiter, "\n\nMailbox Registers");
-	for (cnt = 0; cnt < sizeof(fw->mailbox_reg) / 2; cnt++) {
-		if (cnt % 8 == 0)
-			qla_uprintf(&uiter, "\n");
-
-		qla_uprintf(&uiter, "%08x ", fw->mailbox_reg[cnt]);
-	}
-
-	qla_uprintf(&uiter, "\n\nXSEQ GP Registers");
-	for (cnt = 0; cnt < sizeof(fw->xseq_gp_reg) / 4; cnt++) {
-		if (cnt % 8 == 0)
-			qla_uprintf(&uiter, "\n");
-
-		qla_uprintf(&uiter, "%08x ", fw->xseq_gp_reg[cnt]);
-	}
-
-	qla_uprintf(&uiter, "\n\nXSEQ-0 Registers");
-	for (cnt = 0; cnt < sizeof(fw->xseq_0_reg) / 4; cnt++) {
-		if (cnt % 8 == 0)
-			qla_uprintf(&uiter, "\n");
-
-		qla_uprintf(&uiter, "%08x ", fw->xseq_0_reg[cnt]);
-	}
-
-	qla_uprintf(&uiter, "\n\nXSEQ-1 Registers");
-	for (cnt = 0; cnt < sizeof(fw->xseq_1_reg) / 4; cnt++) {
-		if (cnt % 8 == 0)
-			qla_uprintf(&uiter, "\n");
-
-		qla_uprintf(&uiter, "%08x ", fw->xseq_1_reg[cnt]);
-	}
-
-	qla_uprintf(&uiter, "\n\nRSEQ GP Registers");
-	for (cnt = 0; cnt < sizeof(fw->rseq_gp_reg) / 4; cnt++) {
-		if (cnt % 8 == 0)
-			qla_uprintf(&uiter, "\n");
-
-		qla_uprintf(&uiter, "%08x ", fw->rseq_gp_reg[cnt]);
-	}
-
-	qla_uprintf(&uiter, "\n\nRSEQ-0 Registers");
-	for (cnt = 0; cnt < sizeof(fw->rseq_0_reg) / 4; cnt++) {
-		if (cnt % 8 == 0)
-			qla_uprintf(&uiter, "\n");
-
-		qla_uprintf(&uiter, "%08x ", fw->rseq_0_reg[cnt]);
-	}
-
-	qla_uprintf(&uiter, "\n\nRSEQ-1 Registers");
-	for (cnt = 0; cnt < sizeof(fw->rseq_1_reg) / 4; cnt++) {
-		if (cnt % 8 == 0)
-			qla_uprintf(&uiter, "\n");
-
-		qla_uprintf(&uiter, "%08x ", fw->rseq_1_reg[cnt]);
-	}
-
-	qla_uprintf(&uiter, "\n\nRSEQ-2 Registers");
-	for (cnt = 0; cnt < sizeof(fw->rseq_2_reg) / 4; cnt++) {
-		if (cnt % 8 == 0)
-			qla_uprintf(&uiter, "\n");
-
-		qla_uprintf(&uiter, "%08x ", fw->rseq_2_reg[cnt]);
-	}
-
-	qla_uprintf(&uiter, "\n\nCommand DMA Registers");
-	for (cnt = 0; cnt < sizeof(fw->cmd_dma_reg) / 4; cnt++) {
-		if (cnt % 8 == 0)
-			qla_uprintf(&uiter, "\n");
-
-		qla_uprintf(&uiter, "%08x ", fw->cmd_dma_reg[cnt]);
-	}
-
-	qla_uprintf(&uiter, "\n\nRequest0 Queue DMA Channel Registers");
-	for (cnt = 0; cnt < sizeof(fw->req0_dma_reg) / 4; cnt++) {
-		if (cnt % 8 == 0)
-			qla_uprintf(&uiter, "\n");
-
-		qla_uprintf(&uiter, "%08x ", fw->req0_dma_reg[cnt]);
-	}
-
-	qla_uprintf(&uiter, "\n\nResponse0 Queue DMA Channel Registers");
-	for (cnt = 0; cnt < sizeof(fw->resp0_dma_reg) / 4; cnt++) {
-		if (cnt % 8 == 0)
-			qla_uprintf(&uiter, "\n");
-
-		qla_uprintf(&uiter, "%08x ", fw->resp0_dma_reg[cnt]);
-	}
-
-	qla_uprintf(&uiter, "\n\nRequest1 Queue DMA Channel Registers");
-	for (cnt = 0; cnt < sizeof(fw->req1_dma_reg) / 4; cnt++) {
-		if (cnt % 8 == 0)
-			qla_uprintf(&uiter, "\n");
-
-		qla_uprintf(&uiter, "%08x ", fw->req1_dma_reg[cnt]);
-	}
-
-	qla_uprintf(&uiter, "\n\nXMT0 Data DMA Registers");
-	for (cnt = 0; cnt < sizeof(fw->xmt0_dma_reg) / 4; cnt++) {
-		if (cnt % 8 == 0)
-			qla_uprintf(&uiter, "\n");
-
-		qla_uprintf(&uiter, "%08x ", fw->xmt0_dma_reg[cnt]);
-	}
-
-	qla_uprintf(&uiter, "\n\nXMT1 Data DMA Registers");
-	for (cnt = 0; cnt < sizeof(fw->xmt1_dma_reg) / 4; cnt++) {
-		if (cnt % 8 == 0)
-			qla_uprintf(&uiter, "\n");
-
-		qla_uprintf(&uiter, "%08x ", fw->xmt1_dma_reg[cnt]);
-	}
-
-	qla_uprintf(&uiter, "\n\nXMT2 Data DMA Registers");
-	for (cnt = 0; cnt < sizeof(fw->xmt2_dma_reg) / 4; cnt++) {
-		if (cnt % 8 == 0)
-			qla_uprintf(&uiter, "\n");
-
-		qla_uprintf(&uiter, "%08x ", fw->xmt2_dma_reg[cnt]);
-	}
-
-	qla_uprintf(&uiter, "\n\nXMT3 Data DMA Registers");
-	for (cnt = 0; cnt < sizeof(fw->xmt3_dma_reg) / 4; cnt++) {
-		if (cnt % 8 == 0)
-			qla_uprintf(&uiter, "\n");
-
-		qla_uprintf(&uiter, "%08x ", fw->xmt3_dma_reg[cnt]);
-	}
-
-	qla_uprintf(&uiter, "\n\nXMT4 Data DMA Registers");
-	for (cnt = 0; cnt < sizeof(fw->xmt4_dma_reg) / 4; cnt++) {
-		if (cnt % 8 == 0)
-			qla_uprintf(&uiter, "\n");
-
-		qla_uprintf(&uiter, "%08x ", fw->xmt4_dma_reg[cnt]);
-	}
-
-	qla_uprintf(&uiter, "\n\nXMT Data DMA Common Registers");
-	for (cnt = 0; cnt < sizeof(fw->xmt_data_dma_reg) / 4; cnt++) {
-		if (cnt % 8 == 0)
-			qla_uprintf(&uiter, "\n");
-
-		qla_uprintf(&uiter, "%08x ", fw->xmt_data_dma_reg[cnt]);
-	}
-
-	qla_uprintf(&uiter, "\n\nRCV Thread 0 Data DMA Registers");
-	for (cnt = 0; cnt < sizeof(fw->rcvt0_data_dma_reg) / 4; cnt++) {
-		if (cnt % 8 == 0)
-			qla_uprintf(&uiter, "\n");
-
-		qla_uprintf(&uiter, "%08x ", fw->rcvt0_data_dma_reg[cnt]);
-	}
-
-	qla_uprintf(&uiter, "\n\nRCV Thread 1 Data DMA Registers");
-	for (cnt = 0; cnt < sizeof(fw->rcvt1_data_dma_reg) / 4; cnt++) {
-		if (cnt % 8 == 0)
-			qla_uprintf(&uiter, "\n");
-
-		qla_uprintf(&uiter, "%08x ", fw->rcvt1_data_dma_reg[cnt]);
-	}
-
-	qla_uprintf(&uiter, "\n\nRISC GP Registers");
-	for (cnt = 0; cnt < sizeof(fw->risc_gp_reg) / 4; cnt++) {
-		if (cnt % 8 == 0)
-			qla_uprintf(&uiter, "\n");
-
-		qla_uprintf(&uiter, "%08x ", fw->risc_gp_reg[cnt]);
-	}
-
-	qla_uprintf(&uiter, "\n\nLMC Registers");
-	for (cnt = 0; cnt < sizeof(fw->lmc_reg) / 4; cnt++) {
-		if (cnt % 8 == 0)
-			qla_uprintf(&uiter, "\n");
-
-		qla_uprintf(&uiter, "%08x ", fw->lmc_reg[cnt]);
-	}
-
-	qla_uprintf(&uiter, "\n\nFPM Hardware Registers");
-	for (cnt = 0; cnt < sizeof(fw->fpm_hdw_reg) / 4; cnt++) {
-		if (cnt % 8 == 0)
-			qla_uprintf(&uiter, "\n");
-
-		qla_uprintf(&uiter, "%08x ", fw->fpm_hdw_reg[cnt]);
-	}
-
-	qla_uprintf(&uiter, "\n\nFB Hardware Registers");
-	for (cnt = 0; cnt < sizeof(fw->fb_hdw_reg) / 4; cnt++) {
-		if (cnt % 8 == 0)
-			qla_uprintf(&uiter, "\n");
-
-		qla_uprintf(&uiter, "%08x ", fw->fb_hdw_reg[cnt]);
-	}
-
-	qla_uprintf(&uiter, "\n\nCode RAM");
-	for (cnt = 0; cnt < sizeof (fw->code_ram) / 4; cnt++) {
-		if (cnt % 8 == 0) {
-			qla_uprintf(&uiter, "\n%08x: ", cnt + 0x20000);
-		}
-		qla_uprintf(&uiter, "%08x ", fw->code_ram[cnt]);
-	}
-
-	qla_uprintf(&uiter, "\n\nExternal Memory");
-	ext_mem_cnt = ha->fw_memory_size - 0x100000 + 1;
-	for (cnt = 0; cnt < ext_mem_cnt; cnt++) {
-		if (cnt % 8 == 0) {
-			qla_uprintf(&uiter, "\n%08x: ", cnt + 0x100000);
-		}
-		qla_uprintf(&uiter, "%08x ", fw->ext_mem[cnt]);
-	}
-
-	qla_uprintf(&uiter, "\n[<==END] ISP Debug Dump");
-}
-
 
 /****************************************************************************/
 /*                         Driver Debug Functions.                          */

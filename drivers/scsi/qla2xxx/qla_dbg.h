@@ -176,9 +176,6 @@
 /*
  * Firmware Dump structure definition
  */
-#define FW_DUMP_SIZE_128K	0xBC000
-#define FW_DUMP_SIZE_512K	0x2FC000
-#define FW_DUMP_SIZE_1M		0x5FC000
 
 struct qla2300_fw_dump {
 	uint16_t hccr;
@@ -224,8 +221,6 @@ struct qla2100_fw_dump {
 	uint16_t risc_ram[0xf000];
 };
 
-#define FW_DUMP_SIZE_24XX	0x2B0000
-
 struct qla24xx_fw_dump {
 	uint32_t host_status;
 	uint32_t host_reg[32];
@@ -256,4 +251,40 @@ struct qla24xx_fw_dump {
 	uint32_t fb_hdw_reg[176];
 	uint32_t code_ram[0x2000];
 	uint32_t ext_mem[1];
+};
+
+#define EFT_NUM_BUFFERS		4
+#define EFT_BYTES_PER_BUFFER	0x4000
+#define EFT_SIZE		((EFT_BYTES_PER_BUFFER) * (EFT_NUM_BUFFERS))
+
+struct qla2xxx_fw_dump {
+	uint8_t signature[4];
+	uint32_t version;
+
+	uint32_t fw_major_version;
+	uint32_t fw_minor_version;
+	uint32_t fw_subminor_version;
+	uint32_t fw_attributes;
+
+	uint32_t vendor;
+	uint32_t device;
+	uint32_t subsystem_vendor;
+	uint32_t subsystem_device;
+
+	uint32_t fixed_size;
+	uint32_t mem_size;
+	uint32_t req_q_size;
+	uint32_t rsp_q_size;
+
+	uint32_t eft_size;
+	uint32_t eft_addr_l;
+	uint32_t eft_addr_h;
+
+	uint32_t header_size;
+
+	union {
+		struct qla2100_fw_dump isp21;
+		struct qla2300_fw_dump isp23;
+		struct qla24xx_fw_dump isp24;
+	} isp;
 };

@@ -54,6 +54,13 @@ module_param(ql2xloginretrycount, int, S_IRUGO|S_IRUSR);
 MODULE_PARM_DESC(ql2xloginretrycount,
 		"Specify an alternate value for the NVRAM login retry count.");
 
+int ql2xallocfwdump = 1;
+module_param(ql2xallocfwdump, int, S_IRUGO|S_IRUSR);
+MODULE_PARM_DESC(ql2xallocfwdump,
+		"Option to enable allocation of memory for a firmware dump "
+		"during HBA initialization.  Memory allocation requirements "
+		"vary by ISP type.  Default is 1 - allocate memory.");
+
 static void qla2x00_free_device(scsi_qla_host_t *);
 
 static void qla2x00_config_dma_addressing(scsi_qla_host_t *ha);
@@ -1405,7 +1412,6 @@ static int qla2x00_probe_one(struct pci_dev *pdev)
 	ha->isp_ops.read_nvram		= qla2x00_read_nvram_data;
 	ha->isp_ops.write_nvram		= qla2x00_write_nvram_data;
 	ha->isp_ops.fw_dump		= qla2100_fw_dump;
-	ha->isp_ops.ascii_fw_dump	= qla2100_ascii_fw_dump;
 	ha->isp_ops.read_optrom		= qla2x00_read_optrom_data;
 	ha->isp_ops.write_optrom	= qla2x00_write_optrom_data;
 	if (IS_QLA2100(ha)) {
@@ -1432,7 +1438,6 @@ static int qla2x00_probe_one(struct pci_dev *pdev)
 		ha->isp_ops.pci_config = qla2300_pci_config;
 		ha->isp_ops.intr_handler = qla2300_intr_handler;
 		ha->isp_ops.fw_dump = qla2300_fw_dump;
-		ha->isp_ops.ascii_fw_dump = qla2300_ascii_fw_dump;
 		ha->isp_ops.beacon_on = qla2x00_beacon_on;
 		ha->isp_ops.beacon_off = qla2x00_beacon_off;
 		ha->isp_ops.beacon_blink = qla2x00_beacon_blink;
@@ -1469,7 +1474,6 @@ static int qla2x00_probe_one(struct pci_dev *pdev)
 		ha->isp_ops.read_nvram = qla24xx_read_nvram_data;
 		ha->isp_ops.write_nvram = qla24xx_write_nvram_data;
 		ha->isp_ops.fw_dump = qla24xx_fw_dump;
-		ha->isp_ops.ascii_fw_dump = qla24xx_ascii_fw_dump;
 		ha->isp_ops.read_optrom	= qla24xx_read_optrom_data;
 		ha->isp_ops.write_optrom = qla24xx_write_optrom_data;
 		ha->isp_ops.beacon_on = qla24xx_beacon_on;
@@ -1677,6 +1681,9 @@ qla2x00_free_device(scsi_qla_host_t *ha)
 		ha->dpc_thread = NULL;
 		kthread_stop(t);
 	}
+
+	if (ha->eft)
+		qla2x00_trace_control(ha, TC_DISABLE, 0, 0);
 
 	/* Stop currently executing firmware. */
 	qla2x00_stop_firmware(ha);
@@ -2012,6 +2019,13 @@ qla2x00_mem_free(scsi_qla_host_t *ha)
 	/* free sp pool */
 	qla2x00_free_sp_pool(ha);
 
+	if (ha->fw_dump) {
+		if (ha->eft)
+			dma_free_coherent(&ha->pdev->dev,
+			    ntohl(ha->fw_dump->eft_size), ha->eft, ha->eft_dma);
+		vfree(ha->fw_dump);
+	}
+
 	if (ha->sns_cmd)
 		dma_free_coherent(&ha->pdev->dev, sizeof(struct sns_cmd_pkt),
 		    ha->sns_cmd, ha->sns_cmd_dma);
@@ -2043,6 +2057,8 @@ qla2x00_mem_free(scsi_qla_host_t *ha)
 		    (ha->request_q_length + 1) * sizeof(request_t),
 		    ha->request_ring, ha->request_dma);
 
+	ha->eft = NULL;
+	ha->eft_dma = 0;
 	ha->sns_cmd = NULL;
 	ha->sns_cmd_dma = 0;
 	ha->ct_sns = NULL;
@@ -2071,13 +2087,9 @@ qla2x00_mem_free(scsi_qla_host_t *ha)
 	}
 	INIT_LIST_HEAD(&ha->fcports);
 
-	vfree(ha->fw_dump);
-	vfree(ha->fw_dump_buffer);
-
 	ha->fw_dump = NULL;
 	ha->fw_dumped = 0;
 	ha->fw_dump_reading = 0;
-	ha->fw_dump_buffer = NULL;
 
 	vfree(ha->optrom_buffer);
 }
