@@ -356,6 +356,13 @@ int device_add(struct device *dev)
 	if (parent)
 		klist_add_tail(&dev->knode_parent, &parent->klist_children);
 
+	if (dev->class) {
+		/* tie the class to the device */
+		down(&dev->class->sem);
+		list_add_tail(&dev->node, &dev->class->devices);
+		up(&dev->class->sem);
+	}
+
 	/* notify platform of device entry */
 	if (platform_notify)
 		platform_notify(dev);
@@ -455,6 +462,9 @@ void device_del(struct device * dev)
 		sysfs_remove_link(&dev->kobj, "device");
 		sysfs_remove_link(&dev->parent->kobj, class_name);
 		kfree(class_name);
+		down(&dev->class->sem);
+		list_del_init(&dev->node);
+		up(&dev->class->sem);
 	}
 	device_remove_file(dev, &dev->uevent_attr);
 
@@ -601,11 +611,6 @@ struct device *device_create(struct class *class, struct device *parent,
 	if (retval)
 		goto error;
 
-	/* tie the class to the device */
-	down(&class->sem);
-	list_add_tail(&dev->node, &class->devices);
-	up(&class->sem);
-
 	return dev;
 
 error:
@@ -636,9 +641,7 @@ void device_destroy(struct class *class, dev_t devt)
 	}
 	up(&class->sem);
 
-	if (dev) {
-		list_del_init(&dev->node);
+	if (dev)
 		device_unregister(dev);
-	}
 }
 EXPORT_SYMBOL_GPL(device_destroy);
