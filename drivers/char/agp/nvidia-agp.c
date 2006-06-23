@@ -387,8 +387,6 @@ static int agp_nvidia_suspend(struct pci_dev *pdev, pm_message_t state)
 
 static int agp_nvidia_resume(struct pci_dev *pdev)
 {
-	struct agp_bridge_data *bridge = pci_get_drvdata(pdev);
-
 	/* set power state 0 and restore PCI space */
 	pci_set_power_state (pdev, 0);
 	pci_restore_state(pdev);
