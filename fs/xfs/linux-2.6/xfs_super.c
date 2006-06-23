@@ -687,7 +687,8 @@ xfs_fs_statfs(
 	struct dentry		*dentry,
 	struct kstatfs		*statp)
 {
-	return -bhv_vfs_statvfs(vfs_from_sb(dentry->d_sb), statp, NULL);
+	return -bhv_vfs_statvfs(vfs_from_sb(dentry->d_sb), statp,
+				vn_from_inode(dentry->d_inode));
 }
 
 STATIC int
