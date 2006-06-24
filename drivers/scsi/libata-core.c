@@ -1131,14 +1131,23 @@ unsigned ata_exec_internal(struct ata_device *dev,
 	return err_mask;
 }
 
-/*
- * Execute a 'simple' command, that only consists of the opcode 'cmd' itself,
- * without filling any other registers
+/**
+ *	ata_do_simple_cmd - execute simple internal command
+ *	@dev: Device to which the command is sent
+ *	@cmd: Opcode to execute
+ *
+ *	Execute a 'simple' command, that only consists of the opcode
+ *	'cmd' itself, without filling any other registers
+ *
+ *	LOCKING:
+ *	Kernel thread context (may sleep).
+ *
+ *	RETURNS:
+ *	Zero on success, AC_ERR_* mask on failure
  */
-static int ata_do_simple_cmd(struct ata_device *dev, u8 cmd)
+static unsigned int ata_do_simple_cmd(struct ata_device *dev, u8 cmd)
 {
 	struct ata_taskfile tf;
-	int err;
 
 	ata_tf_init(dev, &tf);
 
@@ -1146,12 +1155,7 @@ static int ata_do_simple_cmd(struct ata_device *dev, u8 cmd)
 	tf.flags |= ATA_TFLAG_DEVICE;
 	tf.protocol = ATA_PROT_NODATA;
 
-	err = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0);
-	if (err)
-		ata_dev_printk(dev, KERN_ERR, "%s: ata command failed: %d\n",
-			       __FUNCTION__, err);
-
-	return err;
+	return ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0);
 }
 
 /**
@@ -4971,6 +4975,7 @@ int ata_port_offline(struct ata_port *ap)
 
 static int ata_flush_cache(struct ata_device *dev)
 {
+	unsigned int err_mask;
 	u8 cmd;
 
 	if (!ata_try_flush_cache(dev))
@@ -4981,17 +4986,41 @@ static int ata_flush_cache(struct ata_device *dev)
 	else
 		cmd = ATA_CMD_FLUSH;
 
-	return ata_do_simple_cmd(dev, cmd);
+	err_mask = ata_do_simple_cmd(dev, cmd);
+	if (err_mask) {
+		ata_dev_printk(dev, KERN_ERR, "failed to flush cache\n");
+		return -EIO;
+	}
+
+	return 0;
 }
 
 static int ata_standby_drive(struct ata_device *dev)
 {
-	return ata_do_simple_cmd(dev, ATA_CMD_STANDBYNOW1);
+	unsigned int err_mask;
+
+	err_mask = ata_do_simple_cmd(dev, ATA_CMD_STANDBYNOW1);
+	if (err_mask) {
+		ata_dev_printk(dev, KERN_ERR, "failed to standby drive "
+			       "(err_mask=0x%x)\n", err_mask);
+		return -EIO;
+	}
+
+	return 0;
 }
 
 static int ata_start_drive(struct ata_device *dev)
 {
-	return ata_do_simple_cmd(dev, ATA_CMD_IDLEIMMEDIATE);
+	unsigned int err_mask;
+
+	err_mask = ata_do_simple_cmd(dev, ATA_CMD_IDLEIMMEDIATE);
+	if (err_mask) {
+		ata_dev_printk(dev, KERN_ERR, "failed to start drive "
+			       "(err_mask=0x%x)\n", err_mask);
+		return -EIO;
+	}
+
+	return 0;
 }
 
 /**
