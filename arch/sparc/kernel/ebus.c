@@ -20,6 +20,7 @@
 #include <asm/ebus.h>
 #include <asm/io.h>
 #include <asm/oplib.h>
+#include <asm/prom.h>
 #include <asm/bpp.h>
 
 struct linux_ebus *ebus_chain = NULL;
@@ -83,79 +84,81 @@ int __init ebus_blacklist_irq(char *name)
 	return 0;
 }
 
-void __init fill_ebus_child(int node, struct linux_prom_registers *preg,
-				struct linux_ebus_child *dev)
+void __init fill_ebus_child(struct device_node *dp,
+			    struct linux_ebus_child *dev)
 {
-	int regs[PROMREG_MAX];
-	int irqs[PROMREG_MAX];
-	char lbuf[128];
+	int *regs;
+	int *irqs;
 	int i, len;
 
-	dev->prom_node = node;
-	prom_getstring(node, "name", lbuf, sizeof(lbuf));
-	strcpy(dev->prom_name, lbuf);
-
-	len = prom_getproperty(node, "reg", (void *)regs, sizeof(regs));
-	if (len == -1) len = 0;
+	dev->prom_node = dp;
+	regs = of_get_property(dp, "reg", &len);
+	if (!regs)
+		len = 0;
 	dev->num_addrs = len / sizeof(regs[0]);
 
 	for (i = 0; i < dev->num_addrs; i++) {
 		if (regs[i] >= dev->parent->num_addrs) {
 			prom_printf("UGH: property for %s was %d, need < %d\n",
-				    dev->prom_name, len, dev->parent->num_addrs);
+				    dev->prom_node->name, len,
+				    dev->parent->num_addrs);
 			panic(__FUNCTION__);
 		}
-		dev->resource[i].start = dev->parent->resource[regs[i]].start; /* XXX resource */
+
+		/* XXX resource */
+		dev->resource[i].start =
+			dev->parent->resource[regs[i]].start;
 	}
 
 	for (i = 0; i < PROMINTR_MAX; i++)
 		dev->irqs[i] = PCI_IRQ_NONE;
 
-	if ((dev->irqs[0] = ebus_blacklist_irq(dev->prom_name)) != 0) {
+	if ((dev->irqs[0] = ebus_blacklist_irq(dev->prom_node->name)) != 0) {
 		dev->num_irqs = 1;
-	} else if ((len = prom_getproperty(node, "interrupts",
-	    (char *)&irqs, sizeof(irqs))) == -1 || len == 0) {
-		dev->num_irqs = 0;
-		dev->irqs[0] = 0;
-		if (dev->parent->num_irqs != 0) {
-			dev->num_irqs = 1;
-			dev->irqs[0] = dev->parent->irqs[0];
-/* P3 */ /* printk("EBUS: dev %s irq %d from parent\n", dev->prom_name, dev->irqs[0]); */
-		}
 	} else {
-		dev->num_irqs = len / sizeof(irqs[0]);
-		if (irqs[0] == 0 || irqs[0] >= 8) {
-			/*
-			 * XXX Zero is a valid pin number...
-			 * This works as long as Ebus is not wired to INTA#.
-			 */
-			printk("EBUS: %s got bad irq %d from PROM\n",
-			    dev->prom_name, irqs[0]);
+		irqs = of_get_property(dp, "interrupts", &len);
+		if (!irqs) {
 			dev->num_irqs = 0;
 			dev->irqs[0] = 0;
+			if (dev->parent->num_irqs != 0) {
+				dev->num_irqs = 1;
+				dev->irqs[0] = dev->parent->irqs[0];
+			}
 		} else {
-			dev->irqs[0] = pcic_pin_to_irq(irqs[0], dev->prom_name);
+			dev->num_irqs = len / sizeof(irqs[0]);
+			if (irqs[0] == 0 || irqs[0] >= 8) {
+				/*
+				 * XXX Zero is a valid pin number...
+				 * This works as long as Ebus is not wired
+				 * to INTA#.
+				 */
+				printk("EBUS: %s got bad irq %d from PROM\n",
+				       dev->prom_node->name, irqs[0]);
+				dev->num_irqs = 0;
+				dev->irqs[0] = 0;
+			} else {
+				dev->irqs[0] =
+					pcic_pin_to_irq(irqs[0],
+							dev->prom_node->name);
+			}
 		}
 	}
 }
 
-void __init fill_ebus_device(int node, struct linux_ebus_device *dev)
+void __init fill_ebus_device(struct device_node *dp, struct linux_ebus_device *dev)
 {
-	struct linux_prom_registers regs[PROMREG_MAX];
+	struct linux_prom_registers *regs;
 	struct linux_ebus_child *child;
-	int irqs[PROMINTR_MAX];
-	char lbuf[128];
+	int *irqs;
 	int i, n, len;
 	unsigned long baseaddr;
 
-	dev->prom_node = node;
-	prom_getstring(node, "name", lbuf, sizeof(lbuf));
-	strcpy(dev->prom_name, lbuf);
+	dev->prom_node = dp;
 
-	len = prom_getproperty(node, "reg", (void *)regs, sizeof(regs));
+	regs = of_get_property(dp, "reg", &len);
 	if (len % sizeof(struct linux_prom_registers)) {
 		prom_printf("UGH: proplen for %s was %d, need multiple of %d\n",
-			    dev->prom_name, len,
+			    dev->prom_node->name, len,
 			    (int)sizeof(struct linux_prom_registers));
 		panic(__FUNCTION__);
 	}
@@ -197,7 +200,7 @@ void __init fill_ebus_device(int node, struct linux_ebus_device *dev)
 			if ((baseaddr = (unsigned long) ioremap(baseaddr,
 			    regs[i].reg_size)) == 0) {
 				panic("ebus: unable to remap dev %s",
-				    dev->prom_name);
+				      dev->prom_node->name);
 			}
 		}
 		dev->resource[i].start = baseaddr;	/* XXX Unaligned */
@@ -206,29 +209,43 @@ void __init fill_ebus_device(int node, struct linux_ebus_device *dev)
 	for (i = 0; i < PROMINTR_MAX; i++)
 		dev->irqs[i] = PCI_IRQ_NONE;
 
-	if ((dev->irqs[0] = ebus_blacklist_irq(dev->prom_name)) != 0) {
+	if ((dev->irqs[0] = ebus_blacklist_irq(dev->prom_node->name)) != 0) {
 		dev->num_irqs = 1;
-	} else if ((len = prom_getproperty(node, "interrupts",
-	    (char *)&irqs, sizeof(irqs))) == -1 || len == 0) {
-		dev->num_irqs = 0;
-		if ((dev->irqs[0] = dev->bus->self->irq) != 0) {
-			 dev->num_irqs = 1;
-/* P3 */ /* printk("EBUS: child %s irq %d from parent\n", dev->prom_name, dev->irqs[0]); */
-		}
 	} else {
-		dev->num_irqs = 1;  /* dev->num_irqs = len / sizeof(irqs[0]); */
-		if (irqs[0] == 0 || irqs[0] >= 8) {
-			/* See above for the parent. XXX */
-			printk("EBUS: %s got bad irq %d from PROM\n",
-			    dev->prom_name, irqs[0]);
+		irqs = of_get_property(dp, "interrupts", &len);
+		if (!irqs) {
 			dev->num_irqs = 0;
-			dev->irqs[0] = 0;
+			if ((dev->irqs[0] = dev->bus->self->irq) != 0) {
+				dev->num_irqs = 1;
+/* P3 */ /* printk("EBUS: child %s irq %d from parent\n", dev->prom_name, dev->irqs[0]); */
+			}
 		} else {
-			dev->irqs[0] = pcic_pin_to_irq(irqs[0], dev->prom_name);
+			dev->num_irqs = 1;  /* dev->num_irqs = len / sizeof(irqs[0]); */
+			if (irqs[0] == 0 || irqs[0] >= 8) {
+				/* See above for the parent. XXX */
+				printk("EBUS: %s got bad irq %d from PROM\n",
+				       dev->prom_node->name, irqs[0]);
+				dev->num_irqs = 0;
+				dev->irqs[0] = 0;
+			} else {
+				dev->irqs[0] =
+					pcic_pin_to_irq(irqs[0],
+							dev->prom_node->name);
+			}
 		}
 	}
 
-	if ((node = prom_getchild(node))) {
+	dev->ofdev.node = dp;
+	dev->ofdev.dev.parent = &dev->bus->ofdev.dev;
+	dev->ofdev.dev.bus = &ebus_bus_type;
+	strcpy(dev->ofdev.dev.bus_id, dp->path_component_name);
+
+	/* Register with core */
+	if (of_device_register(&dev->ofdev) != 0)
+		printk(KERN_DEBUG "ebus: device registration error for %s!\n",
+		       dev->ofdev.dev.bus_id);
+
+	if ((dp = dp->child) != NULL) {
 		dev->children = (struct linux_ebus_child *)
 			ebus_alloc(sizeof(struct linux_ebus_child));
 
@@ -236,9 +253,9 @@ void __init fill_ebus_device(int node, struct linux_ebus_device *dev)
 		child->next = NULL;
 		child->parent = dev;
 		child->bus = dev->bus;
-		fill_ebus_child(node, &regs[0], child);
+		fill_ebus_child(dp, child);
 
-		while ((node = prom_getsibling(node)) != 0) {
+		while ((dp = dp->sibling) != NULL) {
 			child->next = (struct linux_ebus_child *)
 				ebus_alloc(sizeof(struct linux_ebus_child));
 
@@ -246,51 +263,49 @@ void __init fill_ebus_device(int node, struct linux_ebus_device *dev)
 			child->next = NULL;
 			child->parent = dev;
 			child->bus = dev->bus;
-			fill_ebus_child(node, &regs[0], child);
+			fill_ebus_child(dp, child);
 		}
 	}
 }
 
 void __init ebus_init(void)
 {
-	struct linux_prom_pci_registers regs[PROMREG_MAX];
+	struct linux_prom_pci_registers *regs;
 	struct linux_pbm_info *pbm;
 	struct linux_ebus_device *dev;
 	struct linux_ebus *ebus;
 	struct ebus_system_entry *sp;
 	struct pci_dev *pdev;
 	struct pcidev_cookie *cookie;
-	char lbuf[128];
+	struct device_node *dp;
 	unsigned long addr, *base;
 	unsigned short pci_command;
-	int nd, len, ebusnd;
-	int reg, nreg;
+	int len, reg, nreg;
 	int num_ebus = 0;
 
-	prom_getstring(prom_root_node, "name", lbuf, sizeof(lbuf));
+	dp = of_find_node_by_path("/");
 	for (sp = ebus_blacklist; sp->esname != NULL; sp++) {
-		if (strcmp(lbuf, sp->esname) == 0) {
+		if (strcmp(dp->name, sp->esname) == 0) {
 			ebus_blackp = sp->ipt;
 			break;
 		}
 	}
 
 	pdev = pci_get_device(PCI_VENDOR_ID_SUN, PCI_DEVICE_ID_SUN_EBUS, NULL);
-	if (!pdev) {
+	if (!pdev)
 		return;
-	}
+
 	cookie = pdev->sysdata;
-	ebusnd = cookie->prom_node;
+	dp = cookie->prom_node;
 
 	ebus_chain = ebus = (struct linux_ebus *)
 			ebus_alloc(sizeof(struct linux_ebus));
 	ebus->next = NULL;
 
-	while (ebusnd) {
+	while (dp) {
+		struct device_node *nd;
 
-		prom_getstring(ebusnd, "name", lbuf, sizeof(lbuf));
-		ebus->prom_node = ebusnd;
-		strcpy(ebus->prom_name, lbuf);
+		ebus->prom_node = dp;
 		ebus->self = pdev;
 		ebus->parent = pbm = cookie->pbm;
 
@@ -299,9 +314,8 @@ void __init ebus_init(void)
 		pci_command |= PCI_COMMAND_MASTER;
 		pci_write_config_word(pdev, PCI_COMMAND, pci_command);
 
-		len = prom_getproperty(ebusnd, "reg", (void *)regs,
-				       sizeof(regs));
-		if (len == 0 || len == -1) {
+		regs = of_get_property(dp, "reg", &len);
+		if (!regs) {
 			prom_printf("%s: can't find reg property\n",
 				    __FUNCTION__);
 			prom_halt();
@@ -317,7 +331,18 @@ void __init ebus_init(void)
 			*base++ = addr;
 		}
 
-		nd = prom_getchild(ebusnd);
+		ebus->ofdev.node = dp;
+		ebus->ofdev.dev.parent = &pdev->dev;
+		ebus->ofdev.dev.bus = &ebus_bus_type;
+		strcpy(ebus->ofdev.dev.bus_id, dp->path_component_name);
+
+		/* Register with core */
+		if (of_device_register(&ebus->ofdev) != 0)
+			printk(KERN_DEBUG "ebus: device registration error for %s!\n",
+			       ebus->ofdev.dev.bus_id);
+
+
+		nd = dp->child;
 		if (!nd)
 			goto next_ebus;
 
@@ -330,7 +355,7 @@ void __init ebus_init(void)
 		dev->bus = ebus;
 		fill_ebus_device(nd, dev);
 
-		while ((nd = prom_getsibling(nd)) != 0) {
+		while ((nd = nd->sibling) != NULL) {
 			dev->next = (struct linux_ebus_device *)
 				ebus_alloc(sizeof(struct linux_ebus_device));
 
@@ -348,7 +373,7 @@ void __init ebus_init(void)
 			break;
 
 		cookie = pdev->sysdata;
-		ebusnd = cookie->prom_node;
+		dp = cookie->prom_node;
 
 		ebus->next = (struct linux_ebus *)
 			ebus_alloc(sizeof(struct linux_ebus));

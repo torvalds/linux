@@ -498,15 +498,14 @@ static int sun_pci_fd_test_drive(unsigned long port, int drive)
 #ifdef CONFIG_PCI
 static int __init ebus_fdthree_p(struct linux_ebus_device *edev)
 {
-	if (!strcmp(edev->prom_name, "fdthree"))
+	if (!strcmp(edev->prom_node->name, "fdthree"))
 		return 1;
-	if (!strcmp(edev->prom_name, "floppy")) {
-		char compat[16];
-		prom_getstring(edev->prom_node,
-			       "compatible",
-			       compat, sizeof(compat));
-		compat[15] = '\0';
-		if (!strcmp(compat, "fdthree"))
+	if (!strcmp(edev->prom_node->name, "floppy")) {
+		char *compat;
+
+		compat = of_get_property(edev->prom_node,
+					 "compatible", NULL);
+		if (compat && !strcmp(compat, "fdthree"))
 			return 1;
 	}
 	return 0;
@@ -524,12 +523,12 @@ static unsigned long __init isa_floppy_init(void)
 
 	for_each_isa(isa_br) {
 		for_each_isadev(isa_dev, isa_br) {
-			if (!strcmp(isa_dev->prom_name, "dma")) {
+			if (!strcmp(isa_dev->prom_node->name, "dma")) {
 				struct sparc_isa_device *child =
 					isa_dev->child;
 
 				while (child) {
-					if (!strcmp(child->prom_name,
+					if (!strcmp(child->prom_node->name,
 						    "floppy")) {
 						isa_dev = child;
 						goto isa_done;
@@ -614,6 +613,7 @@ static unsigned long __init sun_floppy_init(void)
 		struct linux_ebus_device *edev = NULL;
 		unsigned long config = 0;
 		void __iomem *auxio_reg;
+		char *state_prop;
 
 		for_each_ebus(ebus) {
 			for_each_ebusdev(edev, ebus) {
@@ -630,9 +630,8 @@ static unsigned long __init sun_floppy_init(void)
 #endif
 		}
 
-		prom_getproperty(edev->prom_node, "status",
-				 state, sizeof(state));
-		if (!strncmp(state, "disabled", 8))
+		state_prop = of_get_property(edev->prom_node, "status", NULL);
+		if (state_prop && !strncmp(state_prop, "disabled", 8))
 			return 0;
 			
 		FLOPPY_IRQ = edev->irqs[0];
@@ -703,7 +702,7 @@ static unsigned long __init sun_floppy_init(void)
 		 */
 		for_each_ebus(ebus) {
 			for_each_ebusdev(edev, ebus) {
-				if (!strcmp(edev->prom_name, "ecpp")) {
+				if (!strcmp(edev->prom_node->name, "ecpp")) {
 					config = edev->resource[1].start;
 					goto config_done;
 				}

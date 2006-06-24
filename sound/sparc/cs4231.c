@@ -2284,15 +2284,14 @@ static int __init cs4231_init(void)
 		for_each_ebusdev(edev, ebus) {
 			int match = 0;
 
-			if (!strcmp(edev->prom_name, "SUNW,CS4231")) {
+			if (!strcmp(edev->prom_node->name, "SUNW,CS4231")) {
 				match = 1;
-			} else if (!strcmp(edev->prom_name, "audio")) {
-				char compat[16];
+			} else if (!strcmp(edev->prom_node->name, "audio")) {
+				char *compat;
 
-				prom_getstring(edev->prom_node, "compatible",
-					       compat, sizeof(compat));
-				compat[15] = '\0';
-				if (!strcmp(compat, "SUNW,CS4231"))
+				compat = of_get_property(edev->prom_node,
+							 "compatible", NULL);
+				if (compat && !strcmp(compat, "SUNW,CS4231"))
 					match = 1;
 			}
 

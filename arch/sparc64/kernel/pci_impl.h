@@ -10,6 +10,7 @@
 #include <linux/types.h>
 #include <linux/spinlock.h>
 #include <asm/io.h>
+#include <asm/prom.h>
 
 extern struct pci_controller_info *pci_controller_root;
 
@@ -19,7 +20,7 @@ extern int pci_num_controllers;
 extern void pci_fixup_host_bridge_self(struct pci_bus *pbus);
 extern void pci_fill_in_pbm_cookies(struct pci_bus *pbus,
 				    struct pci_pbm_info *pbm,
-				    int prom_node);
+				    struct device_node *prom_node);
 extern void pci_record_assignments(struct pci_pbm_info *pbm,
 				   struct pci_bus *pbus);
 extern void pci_assign_unassigned(struct pci_pbm_info *pbm,

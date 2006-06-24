@@ -427,31 +427,32 @@ static int __init hv_console_compatible(char *buf, int len)
 
 static unsigned int __init get_interrupt(void)
 {
-	const char *cons_str = "console";
-	const char *compat_str = "compatible";
-	int node = prom_getchild(sun4v_vdev_root);
-	char buf[64];
-	int err, len;
+	struct device_node *dev_node;
 
-	node = prom_searchsiblings(node, cons_str);
-	if (!node)
-		return 0;
+	dev_node = sun4v_vdev_root->child;
+	while (dev_node != NULL) {
+		struct property *prop;
 
-	len = prom_getproplen(node, compat_str);
-	if (len == 0 || len == -1)
-		return 0;
+		if (strcmp(dev_node->name, "console"))
+			goto next_sibling;
 
-	err = prom_getproperty(node, compat_str, buf, 64);
-	if (err == -1)
-		return 0;
+		prop = of_find_property(dev_node, "compatible", NULL);
+		if (!prop)
+			goto next_sibling;
 
-	if (!hv_console_compatible(buf, len))
+		if (hv_console_compatible(prop->value, prop->length))
+			break;
+
+	next_sibling:
+		dev_node = dev_node->sibling;
+	}
+	if (!dev_node)
 		return 0;
 
 	/* Ok, the this is the OBP node for the sun4v hypervisor
 	 * console device.  Decode the interrupt.
 	 */
-	return sun4v_vdev_device_interrupt(node);
+	return sun4v_vdev_device_interrupt(dev_node);
 }
 
 static int __init sunhv_init(void)

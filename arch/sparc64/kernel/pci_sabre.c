@@ -19,6 +19,7 @@
 #include <asm/irq.h>
 #include <asm/smp.h>
 #include <asm/oplib.h>
+#include <asm/prom.h>
 
 #include "pci_impl.h"
 #include "iommu_common.h"
@@ -1306,34 +1307,36 @@ static void pbm_register_toplevel_resources(struct pci_controller_info *p,
 					    &pbm->mem_space);
 }
 
-static void sabre_pbm_init(struct pci_controller_info *p, int sabre_node, u32 dma_begin)
+static void sabre_pbm_init(struct pci_controller_info *p, struct device_node *dp, u32 dma_begin)
 {
 	struct pci_pbm_info *pbm;
-	char namebuf[128];
-	u32 busrange[2];
-	int node, simbas_found;
+	struct device_node *node;
+	struct property *prop;
+	u32 *busrange;
+	int len, simbas_found;
 
 	simbas_found = 0;
-	node = prom_getchild(sabre_node);
-	while ((node = prom_searchsiblings(node, "pci")) != 0) {
-		int err;
-
-		err = prom_getproperty(node, "model", namebuf, sizeof(namebuf));
-		if ((err <= 0) || strncmp(namebuf, "SUNW,simba", err))
+	node = dp->child;
+	while (node != NULL) {
+		if (strcmp(node->name, "pci"))
 			goto next_pci;
 
-		err = prom_getproperty(node, "bus-range",
-				       (char *)&busrange[0], sizeof(busrange));
-		if (err == 0 || err == -1) {
-			prom_printf("APB: Error, cannot get PCI bus-range.\n");
-			prom_halt();
-		}
+		prop = of_find_property(node, "model", NULL);
+		if (!prop || strncmp(prop->value, "SUNW,simba", prop->length))
+			goto next_pci;
 
 		simbas_found++;
+
+		prop = of_find_property(node, "bus-range", NULL);
+		busrange = prop->value;
 		if (busrange[0] == 1)
 			pbm = &p->pbm_B;
 		else
 			pbm = &p->pbm_A;
+
+		pbm->name = node->full_name;
+		printk("%s: SABRE PCI Bus Module\n", pbm->name);
+
 		pbm->chip_type = PBM_CHIP_TYPE_SABRE;
 		pbm->parent = p;
 		pbm->prom_node = node;
@@ -1341,83 +1344,68 @@ static void sabre_pbm_init(struct pci_controller_info *p, int sabre_node, u32 dm
 		pbm->pci_first_busno = busrange[0];
 		pbm->pci_last_busno = busrange[1];
 
-		prom_getstring(node, "name", pbm->prom_name, sizeof(pbm->prom_name));
-		err = prom_getproperty(node, "ranges",
-				       (char *)pbm->pbm_ranges,
-				       sizeof(pbm->pbm_ranges));
-		if (err != -1)
+		prop = of_find_property(node, "ranges", &len);
+		if (prop) {
+			pbm->pbm_ranges = prop->value;
 			pbm->num_pbm_ranges =
-				(err / sizeof(struct linux_prom_pci_ranges));
-		else
+				(len / sizeof(struct linux_prom_pci_ranges));
+		} else {
 			pbm->num_pbm_ranges = 0;
+		}
 
-		err = prom_getproperty(node, "interrupt-map",
-				       (char *)pbm->pbm_intmap,
-				       sizeof(pbm->pbm_intmap));
-		if (err != -1) {
-			pbm->num_pbm_intmap = (err / sizeof(struct linux_prom_pci_intmap));
-			err = prom_getproperty(node, "interrupt-map-mask",
-					       (char *)&pbm->pbm_intmask,
-					       sizeof(pbm->pbm_intmask));
-			if (err == -1) {
-				prom_printf("APB: Fatal error, no interrupt-map-mask.\n");
-				prom_halt();
-			}
+		prop = of_find_property(node, "interrupt-map", &len);
+		if (prop) {
+			pbm->pbm_intmap = prop->value;
+			pbm->num_pbm_intmap =
+				(len / sizeof(struct linux_prom_pci_intmap));
+
+			prop = of_find_property(node, "interrupt-map-mask",
+						NULL);
+			pbm->pbm_intmask = prop->value;
 		} else {
 			pbm->num_pbm_intmap = 0;
-			memset(&pbm->pbm_intmask, 0, sizeof(pbm->pbm_intmask));
 		}
 
 		pbm_register_toplevel_resources(p, pbm);
 
 	next_pci:
-		node = prom_getsibling(node);
-		if (!node)
-			break;
+		node = node->sibling;
 	}
 	if (simbas_found == 0) {
-		int err;
-
 		/* No APBs underneath, probably this is a hummingbird
 		 * system.
 		 */
 		pbm = &p->pbm_A;
 		pbm->parent = p;
-		pbm->prom_node = sabre_node;
+		pbm->prom_node = dp;
 		pbm->pci_first_busno = p->pci_first_busno;
 		pbm->pci_last_busno = p->pci_last_busno;
 
-		prom_getstring(sabre_node, "name", pbm->prom_name, sizeof(pbm->prom_name));
-		err = prom_getproperty(sabre_node, "ranges",
-				       (char *) pbm->pbm_ranges,
-				       sizeof(pbm->pbm_ranges));
-		if (err != -1)
+		prop = of_find_property(dp, "ranges", &len);
+		if (prop) {
+			pbm->pbm_ranges = prop->value;
 			pbm->num_pbm_ranges =
-				(err / sizeof(struct linux_prom_pci_ranges));
-		else
-			pbm->num_pbm_ranges = 0;
-
-		err = prom_getproperty(sabre_node, "interrupt-map",
-				       (char *) pbm->pbm_intmap,
-				       sizeof(pbm->pbm_intmap));
-
-		if (err != -1) {
-			pbm->num_pbm_intmap = (err / sizeof(struct linux_prom_pci_intmap));
-			err = prom_getproperty(sabre_node, "interrupt-map-mask",
-					       (char *)&pbm->pbm_intmask,
-					       sizeof(pbm->pbm_intmask));
-			if (err == -1) {
-				prom_printf("Hummingbird: Fatal error, no interrupt-map-mask.\n");
-				prom_halt();
-			}
+				(len / sizeof(struct linux_prom_pci_ranges));
 		} else {
-			pbm->num_pbm_intmap = 0;
-			memset(&pbm->pbm_intmask, 0, sizeof(pbm->pbm_intmask));
+			pbm->num_pbm_ranges = 0;
 		}
 
+		prop = of_find_property(dp, "interrupt-map", &len);
+		if (prop) {
+			pbm->pbm_intmap = prop->value;
+			pbm->num_pbm_intmap =
+				(len / sizeof(struct linux_prom_pci_intmap));
 
-		sprintf(pbm->name, "SABRE%d PBM%c", p->index,
-			(pbm == &p->pbm_A ? 'A' : 'B'));
+			prop = of_find_property(dp, "interrupt-map-mask",
+						NULL);
+			pbm->pbm_intmask = prop->value;
+		} else {
+			pbm->num_pbm_intmap = 0;
+		}
+
+		pbm->name = dp->full_name;
+		printk("%s: SABRE PCI Bus Module\n", pbm->name);
+
 		pbm->io_space.name = pbm->mem_space.name = pbm->name;
 
 		/* Hack up top-level resources. */
@@ -1443,14 +1431,15 @@ static void sabre_pbm_init(struct pci_controller_info *p, int sabre_node, u32 dm
 	}
 }
 
-void sabre_init(int pnode, char *model_name)
+void sabre_init(struct device_node *dp, char *model_name)
 {
-	struct linux_prom64_registers pr_regs[2];
+	struct linux_prom64_registers *pr_regs;
 	struct pci_controller_info *p;
 	struct pci_iommu *iommu;
-	int tsbsize, err;
-	u32 busrange[2];
-	u32 vdma[2];
+	struct property *prop;
+	int tsbsize;
+	u32 *busrange;
+	u32 *vdma;
 	u32 upa_portid, dma_mask;
 	u64 clear_irq;
 
@@ -1458,22 +1447,21 @@ void sabre_init(int pnode, char *model_name)
 	if (!strcmp(model_name, "pci108e,a001"))
 		hummingbird_p = 1;
 	else if (!strcmp(model_name, "SUNW,sabre")) {
-		char compat[64];
+		prop = of_find_property(dp, "compatible", NULL);
+		if (prop) {
+			const char *compat = prop->value;
 
-		if (prom_getproperty(pnode, "compatible",
-				     compat, sizeof(compat)) > 0 &&
-		    !strcmp(compat, "pci108e,a001")) {
-			hummingbird_p = 1;
-		} else {
-			int cpu_node;
+			if (!strcmp(compat, "pci108e,a001"))
+				hummingbird_p = 1;
+		}
+		if (!hummingbird_p) {
+			struct device_node *dp;
 
 			/* Of course, Sun has to encode things a thousand
 			 * different ways, inconsistently.
 			 */
-			cpu_find_by_instance(0, &cpu_node, NULL);
-			if (prom_getproperty(cpu_node, "name",
-					     compat, sizeof(compat)) > 0 &&
-			    !strcmp(compat, "SUNW,UltraSPARC-IIe"))
+			cpu_find_by_instance(0, &dp, NULL);
+			if (!strcmp(dp->name, "SUNW,UltraSPARC-IIe"))
 				hummingbird_p = 1;
 		}
 	}
@@ -1491,7 +1479,10 @@ void sabre_init(int pnode, char *model_name)
 	}
 	p->pbm_A.iommu = p->pbm_B.iommu = iommu;
 
-	upa_portid = prom_getintdefault(pnode, "upa-portid", 0xff);
+	upa_portid = 0xff;
+	prop = of_find_property(dp, "upa-portid", NULL);
+	if (prop)
+		upa_portid = *(u32 *) prop->value;
 
 	p->next = pci_controller_root;
 	pci_controller_root = p;
@@ -1509,22 +1500,15 @@ void sabre_init(int pnode, char *model_name)
 	/*
 	 * Map in SABRE register set and report the presence of this SABRE.
 	 */
-	err = prom_getproperty(pnode, "reg",
-			       (char *)&pr_regs[0], sizeof(pr_regs));
-	if(err == 0 || err == -1) {
-		prom_printf("SABRE: Error, cannot get U2P registers "
-			    "from PROM.\n");
-		prom_halt();
-	}
+	
+	prop = of_find_property(dp, "reg", NULL);
+	pr_regs = prop->value;
 
 	/*
 	 * First REG in property is base of entire SABRE register space.
 	 */
 	p->pbm_A.controller_regs = pr_regs[0].phys_addr;
 	p->pbm_B.controller_regs = pr_regs[0].phys_addr;
-
-	printk("PCI: Found SABRE, main regs at %016lx\n",
-	       p->pbm_A.controller_regs);
 
 	/* Clear interrupts */
 
@@ -1544,16 +1528,9 @@ void sabre_init(int pnode, char *model_name)
 	/* Now map in PCI config space for entire SABRE. */
 	p->pbm_A.config_space = p->pbm_B.config_space =
 		(p->pbm_A.controller_regs + SABRE_CONFIGSPACE);
-	printk("SABRE: Shared PCI config space at %016lx\n",
-	       p->pbm_A.config_space);
 
-	err = prom_getproperty(pnode, "virtual-dma",
-			       (char *)&vdma[0], sizeof(vdma));
-	if(err == 0 || err == -1) {
-		prom_printf("SABRE: Error, cannot get virtual-dma property "
-			    "from PROM.\n");
-		prom_halt();
-	}
+	prop = of_find_property(dp, "virtual-dma", NULL);
+	vdma = prop->value;
 
 	dma_mask = vdma[0];
 	switch(vdma[1]) {
@@ -1577,21 +1554,13 @@ void sabre_init(int pnode, char *model_name)
 
 	sabre_iommu_init(p, tsbsize, vdma[0], dma_mask);
 
-	printk("SABRE: DVMA at %08x [%08x]\n", vdma[0], vdma[1]);
-
-	err = prom_getproperty(pnode, "bus-range",
-				       (char *)&busrange[0], sizeof(busrange));
-	if(err == 0 || err == -1) {
-		prom_printf("SABRE: Error, cannot get PCI bus-range "
-			    " from PROM.\n");
-		prom_halt();
-	}
-
+	prop = of_find_property(dp, "bus-range", NULL);
+	busrange = prop->value;
 	p->pci_first_busno = busrange[0];
 	p->pci_last_busno = busrange[1];
 
 	/*
 	 * Look for APB underneath.
 	 */
-	sabre_pbm_init(p, pnode, vdma[0]);
+	sabre_pbm_init(p, dp, vdma[0]);
 }

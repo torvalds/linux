@@ -23,6 +23,7 @@
 #include <asm/oplib.h>
 #include <asm/idprom.h>
 #include <asm/smp.h>
+#include <asm/prom.h>
 
 #include "conv.h"
 
@@ -194,14 +195,17 @@ static char *machine(void)
 	}
 }
 
-static char *platform(char *buffer)
+static char *platform(char *buffer, int sz)
 {
+	struct device_node *dp = of_find_node_by_path("/");
 	int len;
 
 	*buffer = 0;
-	len = prom_getproperty(prom_root_node, "name", buffer, 256);
-	if(len > 0)
-		buffer[len] = 0;
+	len = strlen(dp->name);
+	if (len > sz)
+		len = sz;
+	memcpy(buffer, dp->name, len);
+	buffer[len] = 0;
 	if (*buffer) {
 		char *p;
 
@@ -213,16 +217,22 @@ static char *platform(char *buffer)
 	return "sun4u";
 }
 
-static char *serial(char *buffer)
+static char *serial(char *buffer, int sz)
 {
-	int node = prom_getchild(prom_root_node);
+	struct device_node *dp = of_find_node_by_path("/options");
 	int len;
 
-	node = prom_searchsiblings(node, "options");
 	*buffer = 0;
-	len = prom_getproperty(node, "system-board-serial#", buffer, 256);
-	if(len > 0)
-		buffer[len] = 0;
+	if (dp) {
+		char *val = of_get_property(dp, "system-board-serial#", &len);
+
+		if (val && len > 0) {
+			if (len > sz)
+				len = sz;
+			memcpy(buffer, val, len);
+			buffer[len] = 0;
+		}
+	}
 	if (!*buffer)
 		return "4512348717234";
 	else
@@ -305,8 +315,8 @@ asmlinkage int solaris_sysinfo(int cmd, u32 buf, s32 count)
 	case SI_MACHINE: r = machine(); break;
 	case SI_ARCHITECTURE: r = "sparc"; break;
 	case SI_HW_PROVIDER: r = "Sun_Microsystems"; break;
-	case SI_HW_SERIAL: r = serial(buffer); break;
-	case SI_PLATFORM: r = platform(buffer); break;
+	case SI_HW_SERIAL: r = serial(buffer, sizeof(buffer)); break;
+	case SI_PLATFORM: r = platform(buffer, sizeof(buffer)); break;
 	case SI_SRPC_DOMAIN: r = ""; break;
 	case SI_VERSION: r = "Generic"; break;
 	default: return -EINVAL;

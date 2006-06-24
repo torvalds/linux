@@ -376,12 +376,12 @@ void __init setup_arch(char **cmdline_p)
 	}
 #endif
 
-	smp_setup_cpu_possible_map();
-
 	/* Get boot processor trap_block[] setup.  */
 	init_cur_cpu_trap(current_thread_info());
 
 	paging_init();
+
+	smp_setup_cpu_possible_map();
 }
 
 static int __init set_preferred_console(void)

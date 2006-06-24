@@ -266,7 +266,6 @@ struct lance_private {
 	char	       	       *name;
 	dma_addr_t		init_block_dvma;
 	struct net_device      *dev;		  /* Backpointer	*/
-	struct lance_private   *next_module;
 	struct sbus_dev	       *sdev;
 	struct timer_list       multicast_timer;
 };
@@ -297,8 +296,6 @@ int sparc_lance_debug = 2;
  */
 
 #define LANCE_ADDR(x) ((long)(x) & ~0xff000000)
-
-static struct lance_private *root_lance_dev;
 
 /* Load the CSR registers */
 static void load_csrs(struct lance_private *lp)
@@ -1327,9 +1324,9 @@ static struct ethtool_ops sparc_lance_ethtool_ops = {
 	.get_link		= sparc_lance_get_link,
 };
 
-static int __init sparc_lance_init(struct sbus_dev *sdev,
-				   struct sbus_dma *ledma,
-				   struct sbus_dev *lebuffer)
+static int __init sparc_lance_probe_one(struct sbus_dev *sdev,
+					struct sbus_dma *ledma,
+					struct sbus_dev *lebuffer)
 {
 	static unsigned version_printed;
 	struct net_device *dev;
@@ -1473,6 +1470,7 @@ no_link_test:
 
 	lp->dev = dev;
 	SET_MODULE_OWNER(dev);
+	SET_NETDEV_DEV(dev, &sdev->ofdev.dev);
 	dev->open = &lance_open;
 	dev->stop = &lance_close;
 	dev->hard_start_xmit = &lance_start_xmit;
@@ -1500,8 +1498,7 @@ no_link_test:
 		goto fail;
 	}
 
-	lp->next_module = root_lance_dev;
-	root_lance_dev = lp;
+	dev_set_drvdata(&sdev->ofdev.dev, lp);
 
 	printk(KERN_INFO "%s: LANCE ", dev->name);
 
@@ -1536,88 +1533,112 @@ static inline struct sbus_dma *find_ledma(struct sbus_dev *sdev)
 #include <asm/machines.h>
 
 /* Find all the lance cards on the system and initialize them */
-static int __init sparc_lance_probe(void)
+static struct sbus_dev sun4_sdev;
+static int __init sparc_lance_init(void)
 {
-	static struct sbus_dev sdev;
-	static int called;
-
-	root_lance_dev = NULL;
-
-	if (called)
-		return -ENODEV;
-	called++;
-
 	if ((idprom->id_machtype == (SM_SUN4|SM_4_330)) ||
 	    (idprom->id_machtype == (SM_SUN4|SM_4_470))) {
-		memset(&sdev, 0, sizeof(sdev));
-		sdev.reg_addrs[0].phys_addr = sun4_eth_physaddr;
-		sdev.irqs[0] = 6;
-		return sparc_lance_init(&sdev, NULL, NULL);
+		memset(&sun4_sdev, 0, sizeof(sdev));
+		sun4_sdev.reg_addrs[0].phys_addr = sun4_eth_physaddr;
+		sun4_sdev.irqs[0] = 6;
+		return sparc_lance_probe_one(&sun4_sdev, NULL, NULL);
 	}
 	return -ENODEV;
 }
 
+static int __exit sunlance_sun4_remove(void)
+{
+	struct lance_private *lp = dev_get_drvdata(&sun4_sdev->dev);
+	struct net_device *net_dev = lp->dev;
+
+	unregister_netdevice(net_dev);
+
+	lance_free_hwresources(root_lance_dev);
+
+	free_netdev(net_dev);
+
+	dev_set_drvdata(&sun4_sdev->dev, NULL);
+
+	return 0;
+}
+
 #else /* !CONFIG_SUN4 */
 
-/* Find all the lance cards on the system and initialize them */
-static int __init sparc_lance_probe(void)
+static int __devinit sunlance_sbus_probe(struct of_device *dev, const struct of_device_id *match)
 {
-	struct sbus_bus *bus;
-	struct sbus_dev *sdev = NULL;
-	struct sbus_dma *ledma = NULL;
-	static int called;
-	int cards = 0, v;
+	struct sbus_dev *sdev = to_sbus_device(&dev->dev);
+	struct device_node *dp = dev->node;
+	int err;
 
-	root_lance_dev = NULL;
+	if (!strcmp(dp->name, "le")) {
+		err = sparc_lance_probe_one(sdev, NULL, NULL);
+	} else if (!strcmp(dp->name, "ledma")) {
+		struct sbus_dma *ledma = find_ledma(sdev);
 
-	if (called)
-		return -ENODEV;
-	called++;
+		err = sparc_lance_probe_one(sdev->child, ledma, NULL);
+	} else {
+		BUG_ON(strcmp(dp->name, "lebuffer"));
 
-	for_each_sbus (bus) {
-		for_each_sbusdev (sdev, bus) {
-			if (strcmp(sdev->prom_name, "le") == 0) {
-				cards++;
-				if ((v = sparc_lance_init(sdev, NULL, NULL)))
-					return v;
-				continue;
-			}
-			if (strcmp(sdev->prom_name, "ledma") == 0) {
-				cards++;
-				ledma = find_ledma(sdev);
-				if ((v = sparc_lance_init(sdev->child,
-							  ledma, NULL)))
-					return v;
-				continue;
-			}
-			if (strcmp(sdev->prom_name, "lebuffer") == 0){
-				cards++;
-				if ((v = sparc_lance_init(sdev->child,
-							  NULL, sdev)))
-					return v;
-				continue;
-			}
-		} /* for each sbusdev */
-	} /* for each sbus */
-	if (!cards)
-		return -ENODEV;
+		err = sparc_lance_probe_one(sdev->child, NULL, sdev);
+	}
+
+	return err;
+}
+
+static int __devexit sunlance_sbus_remove(struct of_device *dev)
+{
+	struct lance_private *lp = dev_get_drvdata(&dev->dev);
+	struct net_device *net_dev = lp->dev;
+
+	unregister_netdevice(net_dev);
+
+	lance_free_hwresources(lp);
+
+	free_netdev(net_dev);
+
+	dev_set_drvdata(&dev->dev, NULL);
+
 	return 0;
+}
+
+static struct of_device_id sunlance_sbus_match[] = {
+	{
+		.name = "le",
+	},
+	{
+		.name = "ledma",
+	},
+	{
+		.name = "lebuffer",
+	},
+	{},
+};
+
+MODULE_DEVICE_TABLE(of, sunlance_sbus_match);
+
+static struct of_platform_driver sunlance_sbus_driver = {
+	.name		= "sunlance",
+	.match_table	= sunlance_sbus_match,
+	.probe		= sunlance_sbus_probe,
+	.remove		= __devexit_p(sunlance_sbus_remove),
+};
+
+
+/* Find all the lance cards on the system and initialize them */
+static int __init sparc_lance_init(void)
+{
+	return of_register_driver(&sunlance_sbus_driver, &sbus_bus_type);
 }
 #endif /* !CONFIG_SUN4 */
 
-static void __exit sparc_lance_cleanup(void)
+static void __exit sparc_lance_exit(void)
 {
-	struct lance_private *lp;
-
-	while (root_lance_dev) {
-		lp = root_lance_dev->next_module;
-
-		unregister_netdev(root_lance_dev->dev);
-		lance_free_hwresources(root_lance_dev);
-		free_netdev(root_lance_dev->dev);
-		root_lance_dev = lp;
-	}
+#ifdef CONFIG_SUN4
+	sunlance_sun4_remove();
+#else
+	of_unregister_driver(&sunlance_sbus_driver);
+#endif
 }
 
-module_init(sparc_lance_probe);
-module_exit(sparc_lance_cleanup);
+module_init(sparc_lance_init);
+module_exit(sparc_lance_exit);
