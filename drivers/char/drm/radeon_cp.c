@@ -39,7 +39,7 @@
 static int radeon_do_cleanup_cp(drm_device_t * dev);
 
 /* CP microcode (from ATI) */
-static u32 R200_cp_microcode[][2] = {
+static const u32 R200_cp_microcode[][2] = {
 	{0x21007000, 0000000000},
 	{0x20007000, 0000000000},
 	{0x000000ab, 0x00000004},
@@ -298,7 +298,7 @@ static u32 R200_cp_microcode[][2] = {
 	{0000000000, 0000000000},
 };
 
-static u32 radeon_cp_microcode[][2] = {
+static const u32 radeon_cp_microcode[][2] = {
 	{0x21007000, 0000000000},
 	{0x20007000, 0000000000},
 	{0x000000b4, 0x00000004},
@@ -557,7 +557,7 @@ static u32 radeon_cp_microcode[][2] = {
 	{0000000000, 0000000000},
 };
 
-static u32 R300_cp_microcode[][2] = {
+static const u32 R300_cp_microcode[][2] = {
 	{0x4200e000, 0000000000},
 	{0x4000e000, 0000000000},
 	{0x000000af, 0x00000008},
