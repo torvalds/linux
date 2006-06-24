@@ -38,7 +38,7 @@
 
 #define DRIVER_NAME		"radeon"
 #define DRIVER_DESC		"ATI Radeon"
-#define DRIVER_DATE		"20060225"
+#define DRIVER_DATE		"20060519"
 
 /* Interface history:
  *
@@ -883,6 +883,8 @@ extern int r300_do_cp_cmdbuf(drm_device_t * dev, DRMFILE filp,
 #define RADEON_PP_CUBIC_OFFSET_T0_0         0x1dd0	/* bits [31:5] */
 #define RADEON_PP_CUBIC_OFFSET_T1_0         0x1e00
 #define RADEON_PP_CUBIC_OFFSET_T2_0         0x1e14
+
+#define RADEON_SE_TCL_STATE_FLUSH           0x2284
 
 #define SE_VAP_CNTL__TCL_ENA_MASK                          0x00000001
 #define SE_VAP_CNTL__FORCE_W_TO_ONE_MASK                   0x00010000

@@ -2595,7 +2595,8 @@ static __inline__ int radeon_emit_vectors(drm_radeon_private_t *dev_priv,
 	int stride = header.vectors.stride;
 	RING_LOCALS;
 
-	BEGIN_RING(3 + sz);
+	BEGIN_RING(5 + sz);
+	OUT_RING_REG(RADEON_SE_TCL_STATE_FLUSH, 0);
 	OUT_RING(CP_PACKET0(RADEON_SE_TCL_VECTOR_INDX_REG, 0));
 	OUT_RING(start | (stride << RADEON_VEC_INDX_OCTWORD_STRIDE_SHIFT));
 	OUT_RING(CP_PACKET0_TABLE(RADEON_SE_TCL_VECTOR_DATA_REG, (sz - 1)));
