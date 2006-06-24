@@ -1131,6 +1131,29 @@ unsigned ata_exec_internal(struct ata_device *dev,
 	return err_mask;
 }
 
+/*
+ * Execute a 'simple' command, that only consists of the opcode 'cmd' itself,
+ * without filling any other registers
+ */
+static int ata_do_simple_cmd(struct ata_device *dev, u8 cmd)
+{
+	struct ata_taskfile tf;
+	int err;
+
+	ata_tf_init(dev, &tf);
+
+	tf.command = cmd;
+	tf.flags |= ATA_TFLAG_DEVICE;
+	tf.protocol = ATA_PROT_NODATA;
+
+	err = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0);
+	if (err)
+		ata_dev_printk(dev, KERN_ERR, "%s: ata command failed: %d\n",
+			       __FUNCTION__, err);
+
+	return err;
+}
+
 /**
  *	ata_pio_need_iordy	-	check if iordy needed
  *	@adev: ATA device
@@ -4944,29 +4967,6 @@ int ata_port_offline(struct ata_port *ap)
 	if (!sata_scr_read(ap, SCR_STATUS, &sstatus) && (sstatus & 0xf) != 0x3)
 		return 1;
 	return 0;
-}
-
-/*
- * Execute a 'simple' command, that only consists of the opcode 'cmd' itself,
- * without filling any other registers
- */
-static int ata_do_simple_cmd(struct ata_device *dev, u8 cmd)
-{
-	struct ata_taskfile tf;
-	int err;
-
-	ata_tf_init(dev, &tf);
-
-	tf.command = cmd;
-	tf.flags |= ATA_TFLAG_DEVICE;
-	tf.protocol = ATA_PROT_NODATA;
-
-	err = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0);
-	if (err)
-		ata_dev_printk(dev, KERN_ERR, "%s: ata command failed: %d\n",
-			       __FUNCTION__, err);
-
-	return err;
 }
 
 static int ata_flush_cache(struct ata_device *dev)
