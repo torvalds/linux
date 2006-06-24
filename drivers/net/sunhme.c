@@ -40,14 +40,14 @@
 #include <asm/dma.h>
 #include <asm/byteorder.h>
 
-#ifdef __sparc__
+#ifdef CONFIG_SPARC
 #include <asm/idprom.h>
 #include <asm/sbus.h>
 #include <asm/openprom.h>
 #include <asm/oplib.h>
 #include <asm/prom.h>
 #include <asm/auxio.h>
-#ifndef __sparc_v9__
+#ifndef CONFIG_SPARC64
 #include <asm/io-unit.h>
 #endif
 #endif
@@ -58,7 +58,7 @@
 
 #ifdef CONFIG_PCI
 #include <linux/pci.h>
-#ifdef __sparc__
+#ifdef CONFIG_SPARC
 #include <asm/pbm.h>
 #endif
 #endif
@@ -1611,7 +1611,7 @@ static int happy_meal_init(struct happy_meal *hp)
 	HMD(("happy_meal_init: old[%08x] bursts<",
 	     hme_read32(hp, gregs + GREG_CFG)));
 
-#ifndef __sparc__
+#ifndef CONFIG_SPARC
 	/* It is always PCI and can handle 64byte bursts. */
 	hme_write32(hp, gregs + GREG_CFG, GREG_CFG_BURST64);
 #else
@@ -1648,7 +1648,7 @@ static int happy_meal_init(struct happy_meal *hp)
 		HMD(("XXX>"));
 		hme_write32(hp, gregs + GREG_CFG, 0);
 	}
-#endif /* __sparc__ */
+#endif /* CONFIG_SPARC */
 
 	/* Turn off interrupts we do not want to hear. */
 	HMD((", enable global interrupts, "));
@@ -2919,7 +2919,7 @@ err_out:
 #endif
 
 #ifdef CONFIG_PCI
-#ifndef __sparc__
+#ifndef CONFIG_SPARC
 static int is_quattro_p(struct pci_dev *pdev)
 {
 	struct pci_dev *busdev = pdev->bus->self;
@@ -3007,12 +3007,12 @@ static void get_hme_mac_nonsparc(struct pci_dev *pdev, unsigned char *dev_addr)
 	get_random_bytes(&dev_addr[3], 3);
 	return;
 }
-#endif /* !(__sparc__) */
+#endif /* !(CONFIG_SPARC) */
 
 static int __init happy_meal_pci_init(struct pci_dev *pdev)
 {
 	struct quattro *qp = NULL;
-#ifdef __sparc__
+#ifdef CONFIG_SPARC
 	struct pcidev_cookie *pcp;
 #endif
 	struct happy_meal *hp;
@@ -3024,7 +3024,7 @@ static int __init happy_meal_pci_init(struct pci_dev *pdev)
 	int err;
 
 	/* Now make sure pci_dev cookie is there. */
-#ifdef __sparc__
+#ifdef CONFIG_SPARC
 	pcp = pdev->sysdata;
 	if (pcp == NULL) {
 		printk(KERN_ERR "happymeal(PCI): Some PCI device info missing\n");
@@ -3102,7 +3102,7 @@ static int __init happy_meal_pci_init(struct pci_dev *pdev)
 			dev->dev_addr[i] = macaddr[i];
 		macaddr[5]++;
 	} else {
-#ifdef __sparc__
+#ifdef CONFIG_SPARC
 		unsigned char *addr;
 		int len;
 
@@ -3126,7 +3126,7 @@ static int __init happy_meal_pci_init(struct pci_dev *pdev)
 	hp->bigmacregs = (hpreg_base + 0x6000UL);
 	hp->tcvregs    = (hpreg_base + 0x7000UL);
 
-#ifdef __sparc__
+#ifdef CONFIG_SPARC
 	hp->hm_revision = of_getintprop_default(pcp->prom_node, "hm-rev", 0xff);
 	if (hp->hm_revision == 0xff) {
 		unsigned char prev;
@@ -3151,7 +3151,7 @@ static int __init happy_meal_pci_init(struct pci_dev *pdev)
 	/* And of course, indicate this is PCI. */
 	hp->happy_flags |= HFLAG_PCI;
 
-#ifdef __sparc__
+#ifdef CONFIG_SPARC
 	/* Assume PCI happy meals can handle all burst sizes. */
 	hp->happy_bursts = DMA_BURSTBITS;
 #endif
