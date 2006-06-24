@@ -470,6 +470,11 @@ setup_frame(int usig, struct k_sigaction *ka, sigset_t *set, struct pt_regs *reg
 	if (!frame)
 		return 1;
 
+	/*
+	 * Set uc.uc_flags to a value which sc.trap_no would never have.
+	 */
+	__put_user_error(0x5ac3c35a, &frame->uc.uc_flags, err);
+
 	err |= setup_sigframe(frame, regs, set);
 	if (err == 0)
 		err = setup_return(regs, ka, frame->retcode, frame, usig);
