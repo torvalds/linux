@@ -1120,9 +1120,6 @@ static int __devexit esp_remove_common(struct esp *esp)
 
 	scsi_remove_host(esp->ehost);
 
-	scsi_host_put(esp->ehost);
-	esp->ehost = NULL;
-
 	ESP_INTSOFF(esp->dregs);
 #if 0
 	esp_reset_dma(esp);
@@ -1135,7 +1132,7 @@ static int __devexit esp_remove_common(struct esp *esp)
 	sbus_iounmap(esp->eregs, ESP_REG_SIZE);
 	esp->dma->allocated = 0;
 
-	kfree(esp);
+	scsi_host_put(esp->ehost);
 
 	return 0;
 }
