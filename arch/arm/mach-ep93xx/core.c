@@ -433,6 +433,31 @@ static struct platform_device ep93xx_rtc_device = {
 };
 
 
+static struct resource ep93xx_ohci_resources[] = {
+	[0] = {
+		.start	= EP93XX_USB_PHYS_BASE,
+		.end	= EP93XX_USB_PHYS_BASE + 0x0fff,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= IRQ_EP93XX_USB,
+		.end	= IRQ_EP93XX_USB,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device ep93xx_ohci_device = {
+	.name		= "ep93xx-ohci",
+	.id		= -1,
+	.dev		= {
+		.dma_mask		= (void *)0xffffffff,
+		.coherent_dma_mask	= 0xffffffff,
+	},
+	.num_resources	= ARRAY_SIZE(ep93xx_ohci_resources),
+	.resource	= ep93xx_ohci_resources,
+};
+
+
 void __init ep93xx_init_devices(void)
 {
 	unsigned int v;
@@ -452,4 +477,5 @@ void __init ep93xx_init_devices(void)
 	amba_device_register(&uart3_device, &iomem_resource);
 
 	platform_device_register(&ep93xx_rtc_device);
+	platform_device_register(&ep93xx_ohci_device);
 }
