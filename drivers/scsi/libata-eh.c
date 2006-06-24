@@ -93,6 +93,13 @@ static int ata_ering_map(struct ata_ering *ering,
 	return rc;
 }
 
+static unsigned int ata_eh_dev_action(struct ata_device *dev)
+{
+	struct ata_eh_context *ehc = &dev->ap->eh_context;
+
+	return ehc->i.action | ehc->i.dev_action[dev->devno];
+}
+
 static void ata_eh_clear_action(struct ata_device *dev,
 				struct ata_eh_info *ehi, unsigned int action)
 {
@@ -1592,7 +1599,7 @@ static int ata_eh_revalidate_and_attach(struct ata_port *ap,
 		unsigned int action;
 
 		dev = &ap->device[i];
-		action = ehc->i.action | ehc->i.dev_action[dev->devno];
+		action = ata_eh_dev_action(dev);
 
 		if (action & ATA_EH_REVALIDATE && ata_dev_enabled(dev)) {
 			if (ata_port_offline(ap)) {
