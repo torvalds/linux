@@ -71,7 +71,7 @@ endif
 # In both cases the working directory must be the root of the kernel src.
 # 1) O=
 # Use "make O=dir/to/store/output/files/"
-# 
+#
 # 2) Set KBUILD_OUTPUT
 # Set the environment variable KBUILD_OUTPUT to point to the directory
 # where the output files shall be placed.
@@ -185,13 +185,13 @@ CONFIG_SHELL := $(shell if [ -x "$$BASH" ]; then echo $$BASH; \
 	  else if [ -x /bin/bash ]; then echo /bin/bash; \
 	  else echo sh; fi ; fi)
 
-HOSTCC  	= gcc
-HOSTCXX  	= g++
-HOSTCFLAGS	= -Wall -Wstrict-prototypes -O2 -fomit-frame-pointer
-HOSTCXXFLAGS	= -O2
+HOSTCC       = gcc
+HOSTCXX      = g++
+HOSTCFLAGS   = -Wall -Wstrict-prototypes -O2 -fomit-frame-pointer
+HOSTCXXFLAGS = -O2
 
-# 	Decide whether to build built-in, modular, or both.
-#	Normally, just do built-in.
+# Decide whether to build built-in, modular, or both.
+# Normally, just do built-in.
 
 KBUILD_MODULES :=
 KBUILD_BUILTIN := 1
@@ -199,7 +199,7 @@ KBUILD_BUILTIN := 1
 #	If we have only "make modules", don't compile built-in objects.
 #	When we're building modules with modversions, we need to consider
 #	the built-in objects during the descend as well, in order to
-#	make sure the checksums are uptodate before we record them.
+#	make sure the checksums are up to date before we record them.
 
 ifeq ($(MAKECMDGOALS),modules)
   KBUILD_BUILTIN := $(if $(CONFIG_MODVERSIONS),1)
@@ -232,7 +232,7 @@ export KBUILD_CHECKSRC KBUILD_SRC KBUILD_EXTMOD
 #
 # If $(quiet) is empty, the whole command will be printed.
 # If it is set to "quiet_", only the short version will be printed. 
-# If it is set to "silent_", nothing wil be printed at all, since
+# If it is set to "silent_", nothing will be printed at all, since
 # the variable $(silent_cmd_cc_o_c) doesn't exist.
 #
 # A simple variant is to prefix commands with $(Q) - that's useful
@@ -268,7 +268,7 @@ MAKEFLAGS += --include-dir=$(srctree)
 include  $(srctree)/scripts/Kbuild.include
 
 # Do not use make's built-in rules and variables
-# This increases performance and avoid hard-to-debug behaviour
+# This increases performance and avoid hard-to-debug behavour
 MAKEFLAGS += -rR
 
 # Make variables (CC, etc...)
@@ -306,21 +306,21 @@ LINUXINCLUDE    := -Iinclude \
 
 CPPFLAGS        := -D__KERNEL__ $(LINUXINCLUDE)
 
-CFLAGS 		:= -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
-	  	   -fno-strict-aliasing -fno-common
-AFLAGS		:= -D__ASSEMBLY__
+CFLAGS          := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
+                   -fno-strict-aliasing -fno-common
+AFLAGS          := -D__ASSEMBLY__
 
 # Read KERNELRELEASE from include/config/kernel.release (if it exists)
 KERNELRELEASE = $(shell cat include/config/kernel.release 2> /dev/null)
 KERNELVERSION = $(VERSION).$(PATCHLEVEL).$(SUBLEVEL)$(EXTRAVERSION)
 
-export	VERSION PATCHLEVEL SUBLEVEL KERNELRELEASE KERNELVERSION \
-	ARCH CONFIG_SHELL HOSTCC HOSTCFLAGS CROSS_COMPILE AS LD CC \
-	CPP AR NM STRIP OBJCOPY OBJDUMP MAKE AWK GENKSYMS PERL UTS_MACHINE \
-	HOSTCXX HOSTCXXFLAGS LDFLAGS_MODULE CHECK CHECKFLAGS
+export VERSION PATCHLEVEL SUBLEVEL KERNELRELEASE KERNELVERSION
+export ARCH CONFIG_SHELL HOSTCC HOSTCFLAGS CROSS_COMPILE AS LD CC
+export CPP AR NM STRIP OBJCOPY OBJDUMP MAKE AWK GENKSYMS PERL UTS_MACHINE
+export HOSTCXX HOSTCXXFLAGS LDFLAGS_MODULE CHECK CHECKFLAGS
 
 export CPPFLAGS NOSTDINC_FLAGS LINUXINCLUDE OBJCOPYFLAGS LDFLAGS
-export CFLAGS CFLAGS_KERNEL CFLAGS_MODULE 
+export CFLAGS CFLAGS_KERNEL CFLAGS_MODULE
 export AFLAGS AFLAGS_KERNEL AFLAGS_MODULE
 
 # When compiling out-of-tree modules, put MODVERDIR in the module
@@ -358,7 +358,7 @@ endif
 # catch them early, and hand them over to scripts/kconfig/Makefile
 # It is allowed to specify more targets when calling make, including
 # mixing *config targets and build targets.
-# For example 'make oldconfig all'. 
+# For example 'make oldconfig all'.
 # Detect when mixed targets is specified, and make a second invocation
 # of make so .config is not included in this case either (for *config).
 
@@ -417,7 +417,7 @@ else
 ifeq ($(KBUILD_EXTMOD),)
 # Additional helpers built in scripts/
 # Carefully list dependencies so we do not try to build scripts twice
-# in parrallel
+# in parallel
 PHONY += scripts
 scripts: scripts_basic include/config/auto.conf
 	$(Q)$(MAKE) $(build)=$(@)
@@ -443,7 +443,7 @@ $(KCONFIG_CONFIG) include/config/auto.conf.cmd: ;
 
 # If .config is newer than include/config/auto.conf, someone tinkered
 # with it and forgot to run make oldconfig.
-# if auto.conf.cmd is missing then we are probarly in a cleaned tree so
+# if auto.conf.cmd is missing then we are probably in a cleaned tree so
 # we execute the config step to be sure to catch updated Kconfig files
 include/config/auto.conf: $(KCONFIG_CONFIG) include/config/auto.conf.cmd
 ifeq ($(KBUILD_EXTMOD),)
@@ -460,7 +460,7 @@ endif
 # The all: target is the default when no target is given on the
 # command line.
 # This allow a user to issue only 'make' to build a kernel including modules
-# Defaults vmlinux but it is usually overriden in the arch makefile
+# Defaults vmlinux but it is usually overridden in the arch makefile
 all: vmlinux
 
 ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
@@ -492,11 +492,11 @@ CHECKFLAGS     += $(NOSTDINC_FLAGS)
 # warn about C99 declaration after statement
 CFLAGS += $(call cc-option,-Wdeclaration-after-statement,)
 
-# disable pointer signedness warnings in gcc 4.0
+# disable pointer signed / unsigned warnings in gcc 4.0
 CFLAGS += $(call cc-option,-Wno-pointer-sign,)
 
 # Default kernel image to build when no specific target is given.
-# KBUILD_IMAGE may be overruled on the commandline or
+# KBUILD_IMAGE may be overruled on the command line or
 # set in the environment
 # Also any assignments in arch/$(ARCH)/Makefile take precedence over
 # this default value
@@ -510,7 +510,7 @@ export	INSTALL_PATH ?= /boot
 #
 # INSTALL_MOD_PATH specifies a prefix to MODLIB for module directory
 # relocations required by build roots.  This is not defined in the
-# makefile but the arguement can be passed to make if needed.
+# makefile but the argument can be passed to make if needed.
 #
 
 MODLIB	= $(INSTALL_MOD_PATH)/lib/modules/$(KERNELRELEASE)
@@ -556,7 +556,7 @@ libs-y		:= $(libs-y1) $(libs-y2)
 
 # Build vmlinux
 # ---------------------------------------------------------------------------
-# vmlinux is build from the objects selected by $(vmlinux-init) and
+# vmlinux is built from the objects selected by $(vmlinux-init) and
 # $(vmlinux-main). Most are built-in.o files from top-level directories
 # in the kernel tree, others are specified in arch/$(ARCH)Makefile.
 # Ordering when linking is important, and $(vmlinux-init) must be first.
@@ -607,7 +607,7 @@ quiet_cmd_vmlinux_version = GEN     .version
 	$(MAKE) $(build)=init
 
 # Generate System.map
-quiet_cmd_sysmap = SYSMAP 
+quiet_cmd_sysmap = SYSMAP
       cmd_sysmap = $(CONFIG_SHELL) $(srctree)/scripts/mksysmap
 
 # Link of vmlinux
@@ -754,10 +754,10 @@ _localver = $(foreach f, $(__localver), $(if $(findstring ~, $(f)),,$(f)))
 localver = $(subst $(space),, \
 	   $(shell cat /dev/null $(_localver)) \
 	   $(patsubst "%",%,$(CONFIG_LOCALVERSION)))
-	       
+
 # If CONFIG_LOCALVERSION_AUTO is set scripts/setlocalversion is called
 # and if the SCM is know a tag from the SCM is appended.
-# The appended tag is determinded by the SCM used.
+# The appended tag is determined by the SCM used.
 #
 # Currently, only git is supported.
 # Other SCMs can edit scripts/setlocalversion and add the appropriate
@@ -823,14 +823,14 @@ prepare0: archprepare FORCE
 # All the preparing..
 prepare prepare-all: prepare0
 
-#	Leave this as default for preprocessing vmlinux.lds.S, which is now
-#	done in arch/$(ARCH)/kernel/Makefile
+# Leave this as default for preprocessing vmlinux.lds.S, which is now
+# done in arch/$(ARCH)/kernel/Makefile
 
 export CPPFLAGS_vmlinux.lds += -P -C -U$(ARCH)
 
-# 	FIXME: The asm symlink changes when $(ARCH) changes. That's
-#	hard to detect, but I suppose "make mrproper" is a good idea
-#	before switching between archs anyway.
+# FIXME: The asm symlink changes when $(ARCH) changes. That's
+# hard to detect, but I suppose "make mrproper" is a good idea
+# before switching between archs anyway.
 
 include/asm:
 	@echo '  SYMLINK $@ -> include/asm-$(ARCH)'
@@ -870,7 +870,7 @@ depend dep:
 
 ifdef CONFIG_MODULES
 
-# 	By default, build modules as well
+# By default, build modules as well
 
 all: modules
 
@@ -968,7 +968,7 @@ clean: archclean $(clean-dirs)
 	$(call cmd,rmdirs)
 	$(call cmd,rmfiles)
 	@find . $(RCS_FIND_IGNORE) \
-	 	\( -name '*.[oas]' -o -name '*.ko' -o -name '.*.cmd' \
+		\( -name '*.[oas]' -o -name '*.ko' -o -name '.*.cmd' \
 		-o -name '.*.d' -o -name '.*.tmp' -o -name '*.mod.c' \
 		-o -name '*.symtypes' \) \
 		-type f -print | xargs rm -f
@@ -993,9 +993,9 @@ PHONY += distclean
 
 distclean: mrproper
 	@find $(srctree) $(RCS_FIND_IGNORE) \
-	 	\( -name '*.orig' -o -name '*.rej' -o -name '*~' \
+		\( -name '*.orig' -o -name '*.rej' -o -name '*~' \
 		-o -name '*.bak' -o -name '#*#' -o -name '.*.orig' \
-	 	-o -name '.*.rej' -o -size 0 \
+		-o -name '.*.rej' -o -size 0 \
 		-o -name '*%' -o -name '.*.cmd' -o -name 'core' \) \
 		-type f -print | xargs rm -f
 
@@ -1088,7 +1088,7 @@ else # KBUILD_EXTMOD
 # make M=dir modules   Make all modules in specified dir
 # make M=dir	       Same as 'make M=dir modules'
 # make M=dir modules_install
-#                      Install the modules build in the module directory
+#                      Install the modules built in the module directory
 #                      Assumes install directory is already created
 
 # We are always building modules
@@ -1147,7 +1147,7 @@ clean:	rm-dirs := $(MODVERDIR)
 clean: $(clean-dirs)
 	$(call cmd,rmdirs)
 	@find $(KBUILD_EXTMOD) $(RCS_FIND_IGNORE) \
-	 	\( -name '*.[oas]' -o -name '*.ko' -o -name '.*.cmd' \
+		\( -name '*.[oas]' -o -name '*.ko' -o -name '.*.cmd' \
 		-o -name '.*.d' -o -name '.*.tmp' -o -name '*.mod.c' \) \
 		-type f -print | xargs rm -f
 
@@ -1186,7 +1186,7 @@ else
 ALLINCLUDE_ARCHS := $(ARCH)
 endif
 else
-#Allow user to specify only ALLSOURCE_PATHS on the command line, keeping existing behaviour.
+#Allow user to specify only ALLSOURCE_PATHS on the command line, keeping existing behavour.
 ALLINCLUDE_ARCHS := $(ALLSOURCE_ARCHS)
 endif
 
