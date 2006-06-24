@@ -42,7 +42,9 @@ extern struct clk clk_usb_bus;
 extern struct clk clk_f;
 extern struct clk clk_h;
 extern struct clk clk_p;
+extern struct clk clk_mpll;
 extern struct clk clk_upll;
+extern struct clk clk_xtal;
 
 /* exports for arch/arm/mach-s3c2410
  *
