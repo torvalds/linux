@@ -134,17 +134,6 @@ sys_sigaction(int sig, const struct old_sigaction __user *act,
 
 #ifdef CONFIG_IWMMXT
 
-/* iwmmxt_area is 0x98 bytes long, preceeded by 8 bytes of signature */
-#define IWMMXT_STORAGE_SIZE	(0x98 + 8)
-#define IWMMXT_MAGIC0		0x12ef842a
-#define IWMMXT_MAGIC1		0x1c07ca71
-
-struct iwmmxt_sigframe {
-	unsigned long	magic0;
-	unsigned long	magic1;
-	unsigned long	storage[0x98/4];
-};
-
 static int preserve_iwmmxt_context(struct iwmmxt_sigframe *frame)
 {
 	char kbuf[sizeof(*frame) + 8];
@@ -152,8 +141,8 @@ static int preserve_iwmmxt_context(struct iwmmxt_sigframe *frame)
 
 	/* the iWMMXt context must be 64 bit aligned */
 	kframe = (struct iwmmxt_sigframe *)((unsigned long)(kbuf + 8) & ~7);
-	kframe->magic0 = IWMMXT_MAGIC0;
-	kframe->magic1 = IWMMXT_MAGIC1;
+	kframe->magic = IWMMXT_MAGIC;
+	kframe->size = IWMMXT_STORAGE_SIZE;
 	iwmmxt_task_copy(current_thread_info(), &kframe->storage);
 	return __copy_to_user(frame, kframe, sizeof(*frame));
 }
@@ -167,8 +156,8 @@ static int restore_iwmmxt_context(struct iwmmxt_sigframe *frame)
 	kframe = (struct iwmmxt_sigframe *)((unsigned long)(kbuf + 8) & ~7);
 	if (__copy_from_user(kframe, frame, sizeof(*frame)))
 		return -1;
-	if (kframe->magic0 != IWMMXT_MAGIC0 ||
-	    kframe->magic1 != IWMMXT_MAGIC1)
+	if (kframe->magic != IWMMXT_MAGIC ||
+	    kframe->size != IWMMXT_STORAGE_SIZE)
 		return -1;
 	iwmmxt_task_restore(current_thread_info(), &kframe->storage);
 	return 0;
@@ -177,25 +166,11 @@ static int restore_iwmmxt_context(struct iwmmxt_sigframe *frame)
 #endif
 
 /*
- * Auxiliary signal frame.  This saves stuff like FP state.
- * The layout of this structure is not part of the user ABI.
- */
-struct aux_sigframe {
-#ifdef CONFIG_IWMMXT
-	struct iwmmxt_sigframe	iwmmxt;
-#endif
-#ifdef CONFIG_VFP
-	union vfp_state		vfp;
-#endif
-};
-
-/*
  * Do a signal return; undo the signal stack.  These are aligned to 64-bit.
  */
 struct sigframe {
 	struct ucontext uc;
 	unsigned long retcode[2];
-	struct aux_sigframe aux __attribute__((aligned(8)));
 };
 
 struct rt_sigframe {
@@ -205,6 +180,7 @@ struct rt_sigframe {
 
 static int restore_sigframe(struct pt_regs *regs, struct sigframe __user *sf)
 {
+	struct aux_sigframe __user *aux;
 	sigset_t set;
 	int err;
 
@@ -237,9 +213,10 @@ static int restore_sigframe(struct pt_regs *regs, struct sigframe __user *sf)
 
 	err |= !valid_user_regs(regs);
 
+	aux = (struct aux_sigframe __user *) sf->uc.uc_regspace;
 #ifdef CONFIG_IWMMXT
 	if (err == 0 && test_thread_flag(TIF_USING_IWMMXT))
-		err |= restore_iwmmxt_context(&sf->aux.iwmmxt);
+		err |= restore_iwmmxt_context(&aux->iwmmxt);
 #endif
 #ifdef CONFIG_VFP
 //	if (err == 0)
@@ -327,6 +304,7 @@ badframe:
 static int
 setup_sigframe(struct sigframe __user *sf, struct pt_regs *regs, sigset_t *set)
 {
+	struct aux_sigframe __user *aux;
 	int err = 0;
 
 	__put_user_error(regs->ARM_r0, &sf->uc.uc_mcontext.arm_r0, err);
@@ -354,14 +332,16 @@ setup_sigframe(struct sigframe __user *sf, struct pt_regs *regs, sigset_t *set)
 
 	err |= __copy_to_user(&sf->uc.uc_sigmask, set, sizeof(*set));
 
+	aux = (struct aux_sigframe __user *) sf->uc.uc_regspace;
 #ifdef CONFIG_IWMMXT
 	if (err == 0 && test_thread_flag(TIF_USING_IWMMXT))
-		err |= preserve_iwmmxt_context(&sf->aux.iwmmxt);
+		err |= preserve_iwmmxt_context(&aux->iwmmxt);
 #endif
 #ifdef CONFIG_VFP
 //	if (err == 0)
 //		err |= vfp_save_state(&sf->aux.vfp);
 #endif
+	__put_user_error(0, &aux->end_magic, err);
 
 	return err;
 }
