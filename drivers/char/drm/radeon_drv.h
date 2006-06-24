@@ -38,7 +38,7 @@
 
 #define DRIVER_NAME		"radeon"
 #define DRIVER_DESC		"ATI Radeon"
-#define DRIVER_DATE		"20060519"
+#define DRIVER_DATE		"20060524"
 
 /* Interface history:
  *
@@ -93,9 +93,11 @@
  * 1.22- Add support for texture cache flushes (R300_TX_CNTL)
  * 1.23- Add new radeon memory map work from benh
  * 1.24- Add general-purpose packet for manipulating scratch registers (r300)
+ * 1.25- Add support for r200 vertex programs (R200_EMIT_VAP_PVS_CNTL,
+ *       new packet type)
  */
 #define DRIVER_MAJOR		1
-#define DRIVER_MINOR		24
+#define DRIVER_MINOR		25
 #define DRIVER_PATCHLEVEL	0
 
 /*
@@ -906,6 +908,8 @@ extern int r300_do_cp_cmdbuf(drm_device_t * dev, DRMFILE filp,
 
 #define R200_PP_AFS_0                     0x2f80
 #define R200_PP_AFS_1                     0x2f00	/* same as txcblend_0 */
+
+#define R200_VAP_PVS_CNTL_1               0x22D0
 
 /* Constants */
 #define RADEON_MAX_USEC_TIMEOUT		100000	/* 100 ms */
