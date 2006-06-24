@@ -437,6 +437,8 @@ void __init ep93xx_init_devices(void)
 {
 	unsigned int v;
 
+	ep93xx_clock_init();
+
 	/*
 	 * Disallow access to MaverickCrunch initially.
 	 */
