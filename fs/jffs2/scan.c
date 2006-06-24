@@ -332,10 +332,8 @@ static int jffs2_scan_xattr_node(struct jffs2_sb_info *c, struct jffs2_erasebloc
 	xid = je32_to_cpu(rx->xid);
 	version = je32_to_cpu(rx->version);
 
-	totlen = sizeof(struct jffs2_raw_xattr);
-	if (version != XDATUM_DELETE_MARKER)
-		totlen += rx->name_len + 1 + je16_to_cpu(rx->value_len);
-	totlen = PAD(totlen);
+	totlen = PAD(sizeof(struct jffs2_raw_xattr)
+			+ rx->name_len + 1 + je16_to_cpu(rx->value_len));
 	if (totlen != je32_to_cpu(rx->totlen)) {
 		JFFS2_WARNING("node length mismatch at %#08x, read=%u, calc=%u\n",
 			      ofs, je32_to_cpu(rx->totlen), totlen);

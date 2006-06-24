@@ -16,6 +16,7 @@
 
 #define JFFS2_XFLAGS_HOT	(0x01)	/* This datum is HOT */
 #define JFFS2_XFLAGS_BIND	(0x02)	/* This datum is not reclaimed */
+#define JFFS2_XFLAGS_DEAD	(0x40)	/* This datum is already dead */
 #define JFFS2_XFLAGS_INVALID	(0x80)	/* This datum contains crc error */
 
 struct jffs2_xattr_datum
@@ -60,33 +61,11 @@ struct jffs2_xattr_ref
 	struct jffs2_xattr_ref *next;		/* chained from ic->xref_list */
 };
 
-#define XDATUM_DELETE_MARKER	(0xffffffff)
 #define XREF_DELETE_MARKER	(0x00000001)
-static inline int is_xattr_datum_dead(struct jffs2_xattr_datum *xd)
-{
-	return (xd->version == XDATUM_DELETE_MARKER);
-}
-
-static inline void set_xattr_datum_dead(struct jffs2_xattr_datum *xd)
-{
-	xd->version = XDATUM_DELETE_MARKER;
-}
-
 static inline int is_xattr_ref_dead(struct jffs2_xattr_ref *ref)
 {
 	return ((ref->xseqno & XREF_DELETE_MARKER) != 0);
 }
-
-static inline void set_xattr_ref_dead(struct jffs2_xattr_ref *ref)
-{
-	ref->xseqno |= XREF_DELETE_MARKER;
-}
-
-static inline void clr_xattr_ref_dead(struct jffs2_xattr_ref *ref)
-{
-	ref->xseqno &= ~XREF_DELETE_MARKER;
-}
-
 
 #ifdef CONFIG_JFFS2_FS_XATTR
 
