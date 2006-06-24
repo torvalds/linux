@@ -1423,19 +1423,17 @@ wait_ring(struct intelfb_info *dinfo, int n)
 
 	end = jiffies + (HZ * 3);
 	while (dinfo->ring_space < n) {
-		dinfo->ring_head = (u8 __iomem *)(INREG(PRI_RING_HEAD) &
-						   RING_HEAD_MASK);
-		if (dinfo->ring_tail + RING_MIN_FREE <
-		    (u32 __iomem) dinfo->ring_head)
-			dinfo->ring_space = (u32 __iomem) dinfo->ring_head
+		dinfo->ring_head = INREG(PRI_RING_HEAD) & RING_HEAD_MASK;
+		if (dinfo->ring_tail + RING_MIN_FREE < dinfo->ring_head)
+			dinfo->ring_space = dinfo->ring_head
 				- (dinfo->ring_tail + RING_MIN_FREE);
 		else
 			dinfo->ring_space = (dinfo->ring.size +
-					     (u32 __iomem) dinfo->ring_head)
+					     dinfo->ring_head)
 				- (dinfo->ring_tail + RING_MIN_FREE);
-		if ((u32 __iomem) dinfo->ring_head != last_head) {
+		if (dinfo->ring_head != last_head) {
 			end = jiffies + (HZ * 3);
-			last_head = (u32 __iomem) dinfo->ring_head;
+			last_head = dinfo->ring_head;
 		}
 		i++;
 		if (time_before(end, jiffies)) {
@@ -1495,15 +1493,13 @@ refresh_ring(struct intelfb_info *dinfo)
 	DBG_MSG("refresh_ring\n");
 #endif
 
-	dinfo->ring_head = (u8 __iomem *) (INREG(PRI_RING_HEAD) &
-					   RING_HEAD_MASK);
+	dinfo->ring_head = INREG(PRI_RING_HEAD) & RING_HEAD_MASK;
 	dinfo->ring_tail = INREG(PRI_RING_TAIL) & RING_TAIL_MASK;
-	if (dinfo->ring_tail + RING_MIN_FREE < (u32 __iomem)dinfo->ring_head)
-		dinfo->ring_space = (u32 __iomem) dinfo->ring_head
+	if (dinfo->ring_tail + RING_MIN_FREE < dinfo->ring_head)
+		dinfo->ring_space = dinfo->ring_head
 			- (dinfo->ring_tail + RING_MIN_FREE);
 	else
-		dinfo->ring_space = (dinfo->ring.size +
-				     (u32 __iomem) dinfo->ring_head)
+		dinfo->ring_space = (dinfo->ring.size + dinfo->ring_head)
 			- (dinfo->ring_tail + RING_MIN_FREE);
 }
 
