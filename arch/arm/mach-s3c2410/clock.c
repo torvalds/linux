@@ -268,14 +268,14 @@ struct clk clk_usb_bus = {
 
 static int s3c24xx_dclk_enable(struct clk *clk, int enable)
 {
-	unsigned long dclkcon = __raw_readl(S3C2410_DCLKCON);
+	unsigned long dclkcon = __raw_readl(S3C24XX_DCLKCON);
 
 	if (enable)
 		dclkcon |= clk->ctrlbit;
 	else
 		dclkcon &= ~clk->ctrlbit;
 
-	__raw_writel(dclkcon, S3C2410_DCLKCON);
+	__raw_writel(dclkcon, S3C24XX_DCLKCON);
 
 	return 0;
 }
@@ -294,7 +294,7 @@ static int s3c24xx_dclk_setparent(struct clk *clk, struct clk *parent)
 
 	clk->parent = parent;
 
-	dclkcon = __raw_readl(S3C2410_DCLKCON);
+	dclkcon = __raw_readl(S3C24XX_DCLKCON);
 
 	if (clk->ctrlbit == S3C2410_DCLKCON_DCLK0EN) {
 		if (uclk)
@@ -308,7 +308,7 @@ static int s3c24xx_dclk_setparent(struct clk *clk, struct clk *parent)
 			dclkcon &= ~S3C2410_DCLKCON_DCLK1_UCLK;
 	}
 
-	__raw_writel(dclkcon, S3C2410_DCLKCON);
+	__raw_writel(dclkcon, S3C24XX_DCLKCON);
 
 	return 0;
 }
