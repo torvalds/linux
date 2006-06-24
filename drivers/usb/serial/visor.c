@@ -480,7 +480,7 @@ static void visor_write_bulk_callback (struct urb *urb, struct pt_regs *regs)
 	--priv->outstanding_urbs;
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	schedule_work(&port->work);
+	usb_serial_port_softint(port);
 }
 
 

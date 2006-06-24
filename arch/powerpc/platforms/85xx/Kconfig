@@ -11,13 +11,20 @@ config MPC8540_ADS
 	help
 	  This option enables support for the MPC 8540 ADS board
 
+config MPC85xx_CDS
+	bool "Freescale MPC85xx CDS"
+	select DEFAULT_UIMAGE
+	select PPC_I8259 if PCI
+	help
+	  This option enables support for the MPC85xx CDS board
+
 endchoice
 
 config MPC8540
 	bool
 	select PPC_UDBG_16550
 	select PPC_INDIRECT_PCI
-	default y if MPC8540_ADS
+	default y if MPC8540_ADS || MPC85xx_CDS
 
 config PPC_INDIRECT_PCI_BE
 	bool

@@ -85,11 +85,6 @@ config PARPORT_PC_PCMCIA
 config PARPORT_NOT_PC
 	bool
 
-config PARPORT_ARC
-	tristate "Archimedes hardware"
-	depends on ARM && PARPORT
-	select PARPORT_NOT_PC
-
 config PARPORT_IP32
 	tristate "SGI IP32 builtin port (EXPERIMENTAL)"
 	depends on SGI_IP32 && PARPORT && EXPERIMENTAL

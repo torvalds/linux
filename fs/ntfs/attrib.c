@@ -2529,8 +2529,7 @@ int ntfs_attr_set(ntfs_inode *ni, const s64 ofs, const s64 cnt, const u8 val)
 	end >>= PAGE_CACHE_SHIFT;
 	/* If there is a first partial page, need to do it the slow way. */
 	if (start_ofs) {
-		page = read_cache_page(mapping, idx,
-				(filler_t*)mapping->a_ops->readpage, NULL);
+		page = read_mapping_page(mapping, idx, NULL);
 		if (IS_ERR(page)) {
 			ntfs_error(vol->sb, "Failed to read first partial "
 					"page (sync error, index 0x%lx).", idx);
@@ -2600,8 +2599,7 @@ int ntfs_attr_set(ntfs_inode *ni, const s64 ofs, const s64 cnt, const u8 val)
 	}
 	/* If there is a last partial page, need to do it the slow way. */
 	if (end_ofs) {
-		page = read_cache_page(mapping, idx,
-				(filler_t*)mapping->a_ops->readpage, NULL);
+		page = read_mapping_page(mapping, idx, NULL);
 		if (IS_ERR(page)) {
 			ntfs_error(vol->sb, "Failed to read last partial page "
 					"(sync error, index 0x%lx).", idx);

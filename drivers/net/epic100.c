@@ -1027,11 +1027,8 @@ static int epic_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	u32 ctrl_word;
 	unsigned long flags;
 
-	if (skb->len < ETH_ZLEN) {
-		skb = skb_padto(skb, ETH_ZLEN);
-		if (skb == NULL)
-			return 0;
-	}
+	if (skb_padto(skb, ETH_ZLEN))
+		return 0;
 
 	/* Caution: the write order is important here, set the field with the
 	   "ownership" bit last. */

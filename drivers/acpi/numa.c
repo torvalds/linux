@@ -36,11 +36,59 @@
 #define _COMPONENT	ACPI_NUMA
 ACPI_MODULE_NAME("numa")
 
+static nodemask_t nodes_found_map = NODE_MASK_NONE;
+#define PXM_INVAL	-1
+#define NID_INVAL	-1
+
+/* maps to convert between proximity domain and logical node ID */
+int __cpuinitdata pxm_to_node_map[MAX_PXM_DOMAINS]
+				= { [0 ... MAX_PXM_DOMAINS - 1] = NID_INVAL };
+int __cpuinitdata node_to_pxm_map[MAX_NUMNODES]
+				= { [0 ... MAX_NUMNODES - 1] = PXM_INVAL };
+
 extern int __init acpi_table_parse_madt_family(enum acpi_table_id id,
 					       unsigned long madt_size,
 					       int entry_id,
 					       acpi_madt_entry_handler handler,
 					       unsigned int max_entries);
+
+int __cpuinit pxm_to_node(int pxm)
+{
+	if (pxm < 0)
+		return NID_INVAL;
+	return pxm_to_node_map[pxm];
+}
+
+int __cpuinit node_to_pxm(int node)
+{
+	if (node < 0)
+		return PXM_INVAL;
+	return node_to_pxm_map[node];
+}
+
+int __cpuinit acpi_map_pxm_to_node(int pxm)
+{
+	int node = pxm_to_node_map[pxm];
+
+	if (node < 0){
+		if (nodes_weight(nodes_found_map) >= MAX_NUMNODES)
+			return NID_INVAL;
+		node = first_unset_node(nodes_found_map);
+		pxm_to_node_map[pxm] = node;
+		node_to_pxm_map[node] = pxm;
+		node_set(node, nodes_found_map);
+	}
+
+	return node;
+}
+
+void __cpuinit acpi_unmap_pxm_to_node(int node)
+{
+	int pxm = node_to_pxm_map[node];
+	pxm_to_node_map[pxm] = NID_INVAL;
+	node_to_pxm_map[node] = PXM_INVAL;
+	node_clear(node, nodes_found_map);
+}
 
 void __init acpi_table_print_srat_entry(acpi_table_entry_header * header)
 {

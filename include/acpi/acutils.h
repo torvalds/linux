@@ -50,24 +50,24 @@ extern const u8 acpi_gbl_resource_aml_sizes[];
 
 #if defined(ACPI_DISASSEMBLER) || defined (ACPI_DEBUGGER)
 
-extern const char *acpi_gbl_BMdecode[2];
-extern const char *acpi_gbl_config_decode[4];
-extern const char *acpi_gbl_consume_decode[2];
-extern const char *acpi_gbl_DECdecode[2];
-extern const char *acpi_gbl_HEdecode[2];
-extern const char *acpi_gbl_io_decode[2];
-extern const char *acpi_gbl_LLdecode[2];
-extern const char *acpi_gbl_max_decode[2];
-extern const char *acpi_gbl_MEMdecode[4];
-extern const char *acpi_gbl_min_decode[2];
-extern const char *acpi_gbl_MTPdecode[4];
-extern const char *acpi_gbl_RNGdecode[4];
-extern const char *acpi_gbl_RWdecode[2];
-extern const char *acpi_gbl_SHRdecode[2];
-extern const char *acpi_gbl_SIZdecode[4];
-extern const char *acpi_gbl_TRSdecode[2];
-extern const char *acpi_gbl_TTPdecode[2];
-extern const char *acpi_gbl_TYPdecode[4];
+extern const char *acpi_gbl_bm_decode[];
+extern const char *acpi_gbl_config_decode[];
+extern const char *acpi_gbl_consume_decode[];
+extern const char *acpi_gbl_dec_decode[];
+extern const char *acpi_gbl_he_decode[];
+extern const char *acpi_gbl_io_decode[];
+extern const char *acpi_gbl_ll_decode[];
+extern const char *acpi_gbl_max_decode[];
+extern const char *acpi_gbl_mem_decode[];
+extern const char *acpi_gbl_min_decode[];
+extern const char *acpi_gbl_mtp_decode[];
+extern const char *acpi_gbl_rng_decode[];
+extern const char *acpi_gbl_rw_decode[];
+extern const char *acpi_gbl_shr_decode[];
+extern const char *acpi_gbl_siz_decode[];
+extern const char *acpi_gbl_trs_decode[];
+extern const char *acpi_gbl_ttp_decode[];
+extern const char *acpi_gbl_typ_decode[];
 #endif
 
 /* Types for Resource descriptor entries */
@@ -76,6 +76,12 @@ extern const char *acpi_gbl_TYPdecode[4];
 #define ACPI_FIXED_LENGTH               1
 #define ACPI_VARIABLE_LENGTH            2
 #define ACPI_SMALL_VARIABLE_LENGTH      3
+
+typedef
+acpi_status(*acpi_walk_aml_callback) (u8 * aml,
+				      u32 length,
+				      u32 offset,
+				      u8 resource_index, void **context);
 
 typedef
 acpi_status(*acpi_pkg_callback) (u8 object_type,
@@ -277,6 +283,8 @@ acpi_ut_ptr_exit(u32 line_number,
 
 void acpi_ut_dump_buffer(u8 * buffer, u32 count, u32 display, u32 component_id);
 
+void acpi_ut_dump_buffer2(u8 * buffer, u32 count, u32 display);
+
 void acpi_ut_report_error(char *module_name, u32 line_number);
 
 void acpi_ut_report_info(char *module_name, u32 line_number);
@@ -445,6 +453,8 @@ acpi_ut_short_divide(acpi_integer in_dividend,
 /*
  * utmisc
  */
+u8 acpi_ut_is_aml_table(struct acpi_table_header *table);
+
 acpi_status acpi_ut_allocate_owner_id(acpi_owner_id * owner_id);
 
 void acpi_ut_release_owner_id(acpi_owner_id * owner_id);
@@ -460,7 +470,9 @@ void acpi_ut_print_string(char *string, u8 max_length);
 
 u8 acpi_ut_valid_acpi_name(u32 name);
 
-u8 acpi_ut_valid_acpi_character(char character);
+acpi_name acpi_ut_repair_name(acpi_name name);
+
+u8 acpi_ut_valid_acpi_char(char character, acpi_native_uint position);
 
 acpi_status
 acpi_ut_strtoul64(char *string, u32 base, acpi_integer * ret_integer);
@@ -468,6 +480,25 @@ acpi_ut_strtoul64(char *string, u32 base, acpi_integer * ret_integer);
 /* Values for Base above (16=Hex, 10=Decimal) */
 
 #define ACPI_ANY_BASE        0
+
+u32 acpi_ut_dword_byte_swap(u32 value);
+
+void acpi_ut_set_integer_width(u8 revision);
+
+#ifdef ACPI_DEBUG_OUTPUT
+void
+acpi_ut_display_init_pathname(u8 type,
+			      struct acpi_namespace_node *obj_handle,
+			      char *path);
+#endif
+
+/*
+ * utresrc
+ */
+acpi_status
+acpi_ut_walk_aml_resources(u8 * aml,
+			   acpi_size aml_length,
+			   acpi_walk_aml_callback user_function, void **context);
 
 acpi_status acpi_ut_validate_resource(void *aml, u8 * return_index);
 
@@ -482,20 +513,6 @@ u8 acpi_ut_get_resource_type(void *aml);
 acpi_status
 acpi_ut_get_resource_end_tag(union acpi_operand_object *obj_desc,
 			     u8 ** end_tag);
-
-u8 acpi_ut_generate_checksum(u8 * buffer, u32 length);
-
-u32 acpi_ut_dword_byte_swap(u32 value);
-
-void acpi_ut_set_integer_width(u8 revision);
-
-#ifdef ACPI_DEBUG_OUTPUT
-void
-acpi_ut_display_init_pathname(u8 type,
-			      struct acpi_namespace_node *obj_handle,
-			      char *path);
-
-#endif
 
 /*
  * utmutex - mutex support
@@ -523,14 +540,15 @@ acpi_ut_initialize_buffer(struct acpi_buffer *buffer,
 
 void *acpi_ut_allocate(acpi_size size, u32 component, char *module, u32 line);
 
-void *acpi_ut_callocate(acpi_size size, u32 component, char *module, u32 line);
+void *acpi_ut_allocate_zeroed(acpi_size size,
+			      u32 component, char *module, u32 line);
 
 #ifdef ACPI_DBG_TRACK_ALLOCATIONS
 void *acpi_ut_allocate_and_track(acpi_size size,
 				 u32 component, char *module, u32 line);
 
-void *acpi_ut_callocate_and_track(acpi_size size,
-				  u32 component, char *module, u32 line);
+void *acpi_ut_allocate_zeroed_and_track(acpi_size size,
+					u32 component, char *module, u32 line);
 
 void
 acpi_ut_free_and_track(void *address, u32 component, char *module, u32 line);
@@ -540,6 +558,11 @@ void acpi_ut_dump_allocation_info(void);
 #endif				/* ACPI_FUTURE_USAGE */
 
 void acpi_ut_dump_allocations(u32 component, char *module);
+
+acpi_status
+acpi_ut_create_list(char *list_name,
+		    u16 object_size, struct acpi_memory_list **return_cache);
+
 #endif
 
 #endif				/* _ACUTILS_H */

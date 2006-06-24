@@ -1,19 +1,8 @@
 /*
+ * This file is part of the zfcp device driver for
+ * FCP adapters for IBM System z9 and zSeries.
  *
- * linux/drivers/s390/scsi/zfcp_fsf.c
- *
- * FCP adapter driver for IBM eServer zSeries
- *
- * (C) Copyright IBM Corp. 2002, 2004
- *
- * Author(s): Martin Peschke <mpeschke@de.ibm.com>
- *            Raimund Schroeder <raimund.schroeder@de.ibm.com>
- *            Aron Zeh
- *            Wolfgang Taphorn
- *            Stefan Bader <stefan.bader@de.ibm.com>
- *            Heiko Carstens <heiko.carstens@de.ibm.com>
- *            Andreas Herrmann <aherrman@de.ibm.com>
- *            Volker Sameske <sameske@de.ibm.com>
+ * (C) Copyright IBM Corp. 2002, 2006
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -877,6 +866,7 @@ zfcp_fsf_status_read_handler(struct zfcp_fsf_req *fsf_req)
 	struct zfcp_adapter *adapter = fsf_req->adapter;
 	struct fsf_status_read_buffer *status_buffer =
 		(struct fsf_status_read_buffer *) fsf_req->data;
+	struct fsf_bit_error_payload *fsf_bit_error;
 
 	if (fsf_req->status & ZFCP_STATUS_FSFREQ_DISMISSED) {
 		zfcp_hba_dbf_event_fsf_unsol("dism", adapter, status_buffer);
@@ -903,10 +893,37 @@ zfcp_fsf_status_read_handler(struct zfcp_fsf_req *fsf_req)
 		break;
 
 	case FSF_STATUS_READ_BIT_ERROR_THRESHOLD:
-		ZFCP_LOG_NORMAL("Bit error threshold data received:\n");
-		ZFCP_HEX_DUMP(ZFCP_LOG_LEVEL_NORMAL,
-			      (char *) status_buffer,
-			      sizeof (struct fsf_status_read_buffer));
+		fsf_bit_error = (struct fsf_bit_error_payload *)
+			status_buffer->payload;
+		ZFCP_LOG_NORMAL("Warning: bit error threshold data "
+		    "received (adapter %s, "
+		    "link failures = %i, loss of sync errors = %i, "
+		    "loss of signal errors = %i, "
+		    "primitive sequence errors = %i, "
+		    "invalid transmission word errors = %i, "
+		    "CRC errors = %i)\n",
+		    zfcp_get_busid_by_adapter(adapter),
+		    fsf_bit_error->link_failure_error_count,
+		    fsf_bit_error->loss_of_sync_error_count,
+		    fsf_bit_error->loss_of_signal_error_count,
+		    fsf_bit_error->primitive_sequence_error_count,
+		    fsf_bit_error->invalid_transmission_word_error_count,
+		    fsf_bit_error->crc_error_count);
+		ZFCP_LOG_INFO("Additional bit error threshold data "
+		    "(adapter %s, "
+		    "primitive sequence event time-outs = %i, "
+		    "elastic buffer overrun errors = %i, "
+		    "advertised receive buffer-to-buffer credit = %i, "
+		    "current receice buffer-to-buffer credit = %i, "
+		    "advertised transmit buffer-to-buffer credit = %i, "
+		    "current transmit buffer-to-buffer credit = %i)\n",
+		    zfcp_get_busid_by_adapter(adapter),
+		    fsf_bit_error->primitive_sequence_event_timeout_count,
+		    fsf_bit_error->elastic_buffer_overrun_error_count,
+		    fsf_bit_error->advertised_receive_b2b_credit,
+		    fsf_bit_error->current_receive_b2b_credit,
+		    fsf_bit_error->advertised_transmit_b2b_credit,
+		    fsf_bit_error->current_transmit_b2b_credit);
 		break;
 
 	case FSF_STATUS_READ_LINK_DOWN:
@@ -1427,7 +1444,8 @@ zfcp_fsf_send_ct(struct zfcp_send_ct *ct, mempool_t *pool,
 
 	/* settings in QTCB */
 	fsf_req->qtcb->header.port_handle = port->handle;
-	fsf_req->qtcb->bottom.support.service_class = adapter->fc_service_class;
+	fsf_req->qtcb->bottom.support.service_class =
+		ZFCP_FC_SERVICE_CLASS_DEFAULT;
 	fsf_req->qtcb->bottom.support.timeout = ct->timeout;
         fsf_req->data = (unsigned long) ct;
 
@@ -1496,18 +1514,10 @@ zfcp_fsf_send_ct_handler(struct zfcp_fsf_req *fsf_req)
 		break;
 
         case FSF_SERVICE_CLASS_NOT_SUPPORTED:
-		if (adapter->fc_service_class <= 3) {
-			ZFCP_LOG_INFO("error: adapter %s does not support fc "
-				      "class %d.\n",
-				      zfcp_get_busid_by_port(port),
-				      adapter->fc_service_class);
-		} else {
-			ZFCP_LOG_INFO("bug: The fibre channel class at the "
-				      "adapter %s is invalid. "
-				      "(debug info %d)\n",
-				      zfcp_get_busid_by_port(port),
-				      adapter->fc_service_class);
-		}
+		ZFCP_LOG_INFO("error: adapter %s does not support fc "
+			      "class %d.\n",
+			      zfcp_get_busid_by_port(port),
+			      ZFCP_FC_SERVICE_CLASS_DEFAULT);
 		/* stop operation for this adapter */
 		debug_text_exception(adapter->erp_dbf, 0, "fsf_s_class_nsup");
 		zfcp_erp_adapter_shutdown(adapter, 0);
@@ -1730,7 +1740,8 @@ zfcp_fsf_send_els(struct zfcp_send_els *els)
 
 	/* settings in QTCB */
 	fsf_req->qtcb->bottom.support.d_id = d_id;
-	fsf_req->qtcb->bottom.support.service_class = adapter->fc_service_class;
+	fsf_req->qtcb->bottom.support.service_class =
+		ZFCP_FC_SERVICE_CLASS_DEFAULT;
 	fsf_req->qtcb->bottom.support.timeout = ZFCP_ELS_TIMEOUT;
 	fsf_req->data = (unsigned long) els;
 
@@ -1800,18 +1811,10 @@ static int zfcp_fsf_send_els_handler(struct zfcp_fsf_req *fsf_req)
 		break;
 
 	case FSF_SERVICE_CLASS_NOT_SUPPORTED:
-		if (adapter->fc_service_class <= 3) {
-			ZFCP_LOG_INFO("error: adapter %s does "
-				      "not support fibrechannel class %d.\n",
-				      zfcp_get_busid_by_adapter(adapter),
-				      adapter->fc_service_class);
-		} else {
-			ZFCP_LOG_INFO("bug: The fibrechannel class at "
-				      "adapter %s is invalid. "
-				      "(debug info %d)\n",
-				      zfcp_get_busid_by_adapter(adapter),
-				      adapter->fc_service_class);
-		}
+		ZFCP_LOG_INFO("error: adapter %s does not support fc "
+			      "class %d.\n",
+			      zfcp_get_busid_by_adapter(adapter),
+			      ZFCP_FC_SERVICE_CLASS_DEFAULT);
 		/* stop operation for this adapter */
 		debug_text_exception(adapter->erp_dbf, 0, "fsf_s_class_nsup");
 		zfcp_erp_adapter_shutdown(adapter, 0);
@@ -1940,14 +1943,6 @@ skip_fsfstatus:
 	return retval;
 }
 
-/*
- * function:
- *
- * purpose:
- *
- * returns:	address of initiated FSF request
- *		NULL - request could not be initiated
- */
 int
 zfcp_fsf_exchange_config_data(struct zfcp_erp_action *erp_action)
 {
@@ -2565,8 +2560,7 @@ zfcp_fsf_open_port_handler(struct zfcp_fsf_req *fsf_req)
 		if (!atomic_test_mask(ZFCP_STATUS_PORT_NO_WWPN, &port->status))
 		{
 			if (fsf_req->qtcb->bottom.support.els1_length <
-			    ((((unsigned long) &plogi->serv_param.wwpn) -
-			      ((unsigned long) plogi)) + sizeof (u64))) {
+			    sizeof (struct fsf_plogi)) {
 				ZFCP_LOG_INFO(
 					"warning: insufficient length of "
 					"PLOGI payload (%i)\n",
@@ -2585,8 +2579,10 @@ zfcp_fsf_open_port_handler(struct zfcp_fsf_req *fsf_req)
 					atomic_clear_mask(
 						ZFCP_STATUS_PORT_DID_DID,
 						&port->status);
-				} else
+				} else {
 					port->wwnn = plogi->serv_param.wwnn;
+					zfcp_plogi_evaluate(port, plogi);
+				}
 			}
 		}
 		break;
@@ -2993,8 +2989,8 @@ zfcp_fsf_open_unit(struct zfcp_erp_action *erp_action)
 	erp_action->fsf_req->qtcb->bottom.support.fcp_lun =
 		erp_action->unit->fcp_lun;
 	if (!(erp_action->adapter->connection_features & FSF_FEATURE_NPIV_MODE))
-	erp_action->fsf_req->qtcb->bottom.support.option =
-		FSF_OPEN_LUN_SUPPRESS_BOXING;
+		erp_action->fsf_req->qtcb->bottom.support.option =
+			FSF_OPEN_LUN_SUPPRESS_BOXING;
 	atomic_set_mask(ZFCP_STATUS_COMMON_OPENING, &erp_action->unit->status);
 	erp_action->fsf_req->data = (unsigned long) erp_action->unit;
 	erp_action->fsf_req->erp_action = erp_action;
@@ -3569,7 +3565,7 @@ zfcp_fsf_send_fcp_command_task(struct zfcp_adapter *adapter,
 	}
 
 	/* set FC service class in QTCB (3 per default) */
-	fsf_req->qtcb->bottom.io.service_class = adapter->fc_service_class;
+	fsf_req->qtcb->bottom.io.service_class = ZFCP_FC_SERVICE_CLASS_DEFAULT;
 
 	/* set FCP_LUN in FCP_CMND IU in QTCB */
 	fcp_cmnd_iu->fcp_lun = unit->fcp_lun;
@@ -3667,18 +3663,6 @@ zfcp_fsf_send_fcp_command_task(struct zfcp_adapter *adapter,
 	return retval;
 }
 
-/*
- * function:    zfcp_fsf_send_fcp_command_task_management
- *
- * purpose:
- *
- * returns:
- *
- * FIXME(design): should be watched by a timeout!!!
- * FIXME(design) shouldn't this be modified to return an int
- *               also...don't know how though
- *
- */
 struct zfcp_fsf_req *
 zfcp_fsf_send_fcp_command_task_management(struct zfcp_adapter *adapter,
 					  struct zfcp_unit *unit,
@@ -3720,7 +3704,7 @@ zfcp_fsf_send_fcp_command_task_management(struct zfcp_adapter *adapter,
 	fsf_req->qtcb->header.lun_handle = unit->handle;
 	fsf_req->qtcb->header.port_handle = unit->port->handle;
 	fsf_req->qtcb->bottom.io.data_direction = FSF_DATADIR_CMND;
-	fsf_req->qtcb->bottom.io.service_class = adapter->fc_service_class;
+	fsf_req->qtcb->bottom.io.service_class = ZFCP_FC_SERVICE_CLASS_DEFAULT;
 	fsf_req->qtcb->bottom.io.fcp_cmnd_length =
 		sizeof (struct fcp_cmnd_iu) + sizeof (fcp_dl_t);
 
@@ -3843,18 +3827,10 @@ zfcp_fsf_send_fcp_command_handler(struct zfcp_fsf_req *fsf_req)
 		break;
 
 	case FSF_SERVICE_CLASS_NOT_SUPPORTED:
-		if (fsf_req->adapter->fc_service_class <= 3) {
-			ZFCP_LOG_NORMAL("error: The adapter %s does "
-					"not support fibrechannel class %d.\n",
-					zfcp_get_busid_by_unit(unit),
-					fsf_req->adapter->fc_service_class);
-		} else {
-			ZFCP_LOG_NORMAL("bug: The fibrechannel class at "
-					"adapter %s is invalid. "
-					"(debug info %d)\n",
-					zfcp_get_busid_by_unit(unit),
-					fsf_req->adapter->fc_service_class);
-		}
+		ZFCP_LOG_INFO("error: adapter %s does not support fc "
+			      "class %d.\n",
+			      zfcp_get_busid_by_unit(unit),
+			      ZFCP_FC_SERVICE_CLASS_DEFAULT);
 		/* stop operation for this adapter */
 		debug_text_exception(fsf_req->adapter->erp_dbf, 0,
 				     "fsf_s_class_nsup");

@@ -39,7 +39,7 @@
 static void ext2_sync_super(struct super_block *sb,
 			    struct ext2_super_block *es);
 static int ext2_remount (struct super_block * sb, int * flags, char * data);
-static int ext2_statfs (struct super_block * sb, struct kstatfs * buf);
+static int ext2_statfs (struct dentry * dentry, struct kstatfs * buf);
 
 void ext2_error (struct super_block * sb, const char * function,
 		 const char * fmt, ...)
@@ -834,9 +834,6 @@ static int ext2_fill_super(struct super_block *sb, void *data, int silent)
 		printk ("EXT2-fs: not enough memory\n");
 		goto failed_mount;
 	}
-	percpu_counter_init(&sbi->s_freeblocks_counter);
-	percpu_counter_init(&sbi->s_freeinodes_counter);
-	percpu_counter_init(&sbi->s_dirs_counter);
 	bgl_lock_init(&sbi->s_blockgroup_lock);
 	sbi->s_debts = kmalloc(sbi->s_groups_count * sizeof(*sbi->s_debts),
 			       GFP_KERNEL);
@@ -863,6 +860,13 @@ static int ext2_fill_super(struct super_block *sb, void *data, int silent)
 	sbi->s_gdb_count = db_count;
 	get_random_bytes(&sbi->s_next_generation, sizeof(u32));
 	spin_lock_init(&sbi->s_next_gen_lock);
+
+	percpu_counter_init(&sbi->s_freeblocks_counter,
+				ext2_count_free_blocks(sb));
+	percpu_counter_init(&sbi->s_freeinodes_counter,
+				ext2_count_free_inodes(sb));
+	percpu_counter_init(&sbi->s_dirs_counter,
+				ext2_count_dirs(sb));
 	/*
 	 * set up enough so that it can read an inode
 	 */
@@ -874,24 +878,18 @@ static int ext2_fill_super(struct super_block *sb, void *data, int silent)
 	if (!sb->s_root) {
 		iput(root);
 		printk(KERN_ERR "EXT2-fs: get root inode failed\n");
-		goto failed_mount2;
+		goto failed_mount3;
 	}
 	if (!S_ISDIR(root->i_mode) || !root->i_blocks || !root->i_size) {
 		dput(sb->s_root);
 		sb->s_root = NULL;
 		printk(KERN_ERR "EXT2-fs: corrupt root inode, run e2fsck\n");
-		goto failed_mount2;
+		goto failed_mount3;
 	}
 	if (EXT2_HAS_COMPAT_FEATURE(sb, EXT3_FEATURE_COMPAT_HAS_JOURNAL))
 		ext2_warning(sb, __FUNCTION__,
 			"mounting ext3 filesystem as ext2");
 	ext2_setup_super (sb, es, sb->s_flags & MS_RDONLY);
-	percpu_counter_mod(&sbi->s_freeblocks_counter,
-				ext2_count_free_blocks(sb));
-	percpu_counter_mod(&sbi->s_freeinodes_counter,
-				ext2_count_free_inodes(sb));
-	percpu_counter_mod(&sbi->s_dirs_counter,
-				ext2_count_dirs(sb));
 	return 0;
 
 cantfind_ext2:
@@ -899,7 +897,10 @@ cantfind_ext2:
 		printk("VFS: Can't find an ext2 filesystem on dev %s.\n",
 		       sb->s_id);
 	goto failed_mount;
-
+failed_mount3:
+	percpu_counter_destroy(&sbi->s_freeblocks_counter);
+	percpu_counter_destroy(&sbi->s_freeinodes_counter);
+	percpu_counter_destroy(&sbi->s_dirs_counter);
 failed_mount2:
 	for (i = 0; i < db_count; i++)
 		brelse(sbi->s_group_desc[i]);
@@ -1038,8 +1039,9 @@ restore_opts:
 	return err;
 }
 
-static int ext2_statfs (struct super_block * sb, struct kstatfs * buf)
+static int ext2_statfs (struct dentry * dentry, struct kstatfs * buf)
 {
+	struct super_block *sb = dentry->d_sb;
 	struct ext2_sb_info *sbi = EXT2_SB(sb);
 	unsigned long overhead;
 	int i;
@@ -1087,10 +1089,10 @@ static int ext2_statfs (struct super_block * sb, struct kstatfs * buf)
 	return 0;
 }
 
-static struct super_block *ext2_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data)
+static int ext2_get_sb(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
 {
-	return get_sb_bdev(fs_type, flags, dev_name, data, ext2_fill_super);
+	return get_sb_bdev(fs_type, flags, dev_name, data, ext2_fill_super, mnt);
 }
 
 #ifdef CONFIG_QUOTA

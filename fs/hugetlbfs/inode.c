@@ -59,7 +59,6 @@ static void huge_pagevec_release(struct pagevec *pvec)
 static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct inode *inode = file->f_dentry->d_inode;
-	struct hugetlbfs_inode_info *info = HUGETLBFS_I(inode);
 	loff_t len, vma_len;
 	int ret;
 
@@ -87,9 +86,10 @@ static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)
 	if (!(vma->vm_flags & VM_WRITE) && len > inode->i_size)
 		goto out;
 
-	if (vma->vm_flags & VM_MAYSHARE)
-		if (hugetlb_extend_reservation(info, len >> HPAGE_SHIFT) != 0)
-			goto out;
+	if (vma->vm_flags & VM_MAYSHARE &&
+	    hugetlb_reserve_pages(inode, vma->vm_pgoff >> (HPAGE_SHIFT-PAGE_SHIFT),
+				  len >> HPAGE_SHIFT))
+		goto out;
 
 	ret = 0;
 	hugetlb_prefault_arch_hook(vma->vm_mm);
@@ -195,12 +195,8 @@ static void truncate_hugepages(struct inode *inode, loff_t lstart)
 	const pgoff_t start = lstart >> HPAGE_SHIFT;
 	struct pagevec pvec;
 	pgoff_t next;
-	int i;
+	int i, freed = 0;
 
-	hugetlb_truncate_reservation(HUGETLBFS_I(inode),
-				     lstart >> HPAGE_SHIFT);
-	if (!mapping->nrpages)
-		return;
 	pagevec_init(&pvec, 0);
 	next = start;
 	while (1) {
@@ -221,10 +217,12 @@ static void truncate_hugepages(struct inode *inode, loff_t lstart)
 			truncate_huge_page(page);
 			unlock_page(page);
 			hugetlb_put_quota(mapping);
+			freed++;
 		}
 		huge_pagevec_release(&pvec);
 	}
 	BUG_ON(!lstart && mapping->nrpages);
+	hugetlb_unreserve_pages(inode, start, freed);
 }
 
 static void hugetlbfs_delete_inode(struct inode *inode)
@@ -366,6 +364,7 @@ static struct inode *hugetlbfs_get_inode(struct super_block *sb, uid_t uid,
 		inode->i_mapping->a_ops = &hugetlbfs_aops;
 		inode->i_mapping->backing_dev_info =&hugetlbfs_backing_dev_info;
 		inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
+		INIT_LIST_HEAD(&inode->i_mapping->private_list);
 		info = HUGETLBFS_I(inode);
 		mpol_shared_policy_init(&info->policy, MPOL_DEFAULT, NULL);
 		switch (mode & S_IFMT) {
@@ -467,9 +466,9 @@ static int hugetlbfs_set_page_dirty(struct page *page)
 	return 0;
 }
 
-static int hugetlbfs_statfs(struct super_block *sb, struct kstatfs *buf)
+static int hugetlbfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
-	struct hugetlbfs_sb_info *sbinfo = HUGETLBFS_SB(sb);
+	struct hugetlbfs_sb_info *sbinfo = HUGETLBFS_SB(dentry->d_sb);
 
 	buf->f_type = HUGETLBFS_MAGIC;
 	buf->f_bsize = HPAGE_SIZE;
@@ -538,7 +537,6 @@ static struct inode *hugetlbfs_alloc_inode(struct super_block *sb)
 		hugetlbfs_inc_free_inodes(sbinfo);
 		return NULL;
 	}
-	p->prereserved_hpages = 0;
 	return &p->vfs_inode;
 }
 
@@ -723,10 +721,10 @@ void hugetlb_put_quota(struct address_space *mapping)
 	}
 }
 
-static struct super_block *hugetlbfs_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data)
+static int hugetlbfs_get_sb(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
 {
-	return get_sb_nodev(fs_type, flags, data, hugetlbfs_fill_super);
+	return get_sb_nodev(fs_type, flags, data, hugetlbfs_fill_super, mnt);
 }
 
 static struct file_system_type hugetlbfs_fs_type = {
@@ -781,8 +779,7 @@ struct file *hugetlb_zero_setup(size_t size)
 		goto out_file;
 
 	error = -ENOMEM;
-	if (hugetlb_extend_reservation(HUGETLBFS_I(inode),
-				       size >> HPAGE_SHIFT) != 0)
+	if (hugetlb_reserve_pages(inode, 0, size >> HPAGE_SHIFT))
 		goto out_inode;
 
 	d_instantiate(dentry, inode);

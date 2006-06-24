@@ -400,7 +400,7 @@ static int __init ts102_uctrl_init(void)
 	}
 
 	driver->regs->uctrl_intr = UCTRL_INTR_RXNE_REQ|UCTRL_INTR_RXNE_MSK;
-	printk("uctrl: 0x%x (irq %s)\n", driver->regs, __irq_itoa(driver->irq));
+	printk("uctrl: 0x%x (irq %d)\n", driver->regs, driver->irq);
 	uctrl_get_event_status();
 	uctrl_get_external_status();
         return 0;

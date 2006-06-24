@@ -1079,9 +1079,9 @@ static int cifs_writepages(struct address_space *mapping,
 	unsigned int bytes_written;
 	struct cifs_sb_info *cifs_sb;
 	int done = 0;
-	pgoff_t end = -1;
+	pgoff_t end;
 	pgoff_t index;
-	int is_range = 0;
+ 	int range_whole = 0;
 	struct kvec iov[32];
 	int len;
 	int n_iov = 0;
@@ -1122,16 +1122,14 @@ static int cifs_writepages(struct address_space *mapping,
 	xid = GetXid();
 
 	pagevec_init(&pvec, 0);
-	if (wbc->sync_mode == WB_SYNC_NONE)
+	if (wbc->range_cyclic) {
 		index = mapping->writeback_index; /* Start from prev offset */
-	else {
-		index = 0;
-		scanned = 1;
-	}
-	if (wbc->start || wbc->end) {
-		index = wbc->start >> PAGE_CACHE_SHIFT;
-		end = wbc->end >> PAGE_CACHE_SHIFT;
-		is_range = 1;
+		end = -1;
+	} else {
+		index = wbc->range_start >> PAGE_CACHE_SHIFT;
+		end = wbc->range_end >> PAGE_CACHE_SHIFT;
+		if (wbc->range_start == 0 && wbc->range_end == LLONG_MAX)
+			range_whole = 1;
 		scanned = 1;
 	}
 retry:
@@ -1167,7 +1165,7 @@ retry:
 				break;
 			}
 
-			if (unlikely(is_range) && (page->index > end)) {
+			if (!wbc->range_cyclic && page->index > end) {
 				done = 1;
 				unlock_page(page);
 				break;
@@ -1271,7 +1269,7 @@ retry:
 		index = 0;
 		goto retry;
 	}
-	if (!is_range)
+	if (wbc->range_cyclic || (range_whole && wbc->nr_to_write > 0))
 		mapping->writeback_index = index;
 
 	FreeXid(xid);
@@ -1419,7 +1417,7 @@ int cifs_fsync(struct file *file, struct dentry *dentry, int datasync)
  * As file closes, flush all cached write data for this inode checking
  * for write behind errors.
  */
-int cifs_flush(struct file *file)
+int cifs_flush(struct file *file, fl_owner_t id)
 {
 	struct inode * inode = file->f_dentry->d_inode;
 	int rc = 0;

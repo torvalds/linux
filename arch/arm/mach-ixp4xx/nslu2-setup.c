@@ -7,6 +7,7 @@
  *      Copyright (C) 2003-2004 MontaVista Software, Inc.
  *
  * Author: Mark Rakes <mrakes at mac.com>
+ * Author: Rod Whitby <rod@whitby.id.au>
  * Maintainers: http://www.nslu2-linux.org/
  *
  * Fixed missing init_time in MACHINE_START kas11 10/22/04
@@ -16,6 +17,7 @@
 #include <linux/kernel.h>
 #include <linux/serial.h>
 #include <linux/serial_8250.h>
+#include <linux/leds.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -42,6 +44,42 @@ static struct ixp4xx_i2c_pins nslu2_i2c_gpio_pins = {
 	.sda_pin		= NSLU2_SDA_PIN,
 	.scl_pin		= NSLU2_SCL_PIN,
 };
+
+#ifdef CONFIG_LEDS_IXP4XX
+static struct resource nslu2_led_resources[] = {
+	{
+		.name		= "ready",  /* green led */
+		.start		= NSLU2_LED_GRN,
+		.end		= NSLU2_LED_GRN,
+		.flags		= IXP4XX_GPIO_HIGH,
+	},
+	{
+		.name		= "status", /* red led */
+		.start		= NSLU2_LED_RED,
+		.end		= NSLU2_LED_RED,
+		.flags		= IXP4XX_GPIO_HIGH,
+	},
+	{
+		.name		= "disk-1",
+		.start		= NSLU2_LED_DISK1,
+		.end		= NSLU2_LED_DISK1,
+		.flags		= IXP4XX_GPIO_LOW,
+	},
+	{
+		.name		= "disk-2",
+		.start		= NSLU2_LED_DISK2,
+		.end		= NSLU2_LED_DISK2,
+		.flags		= IXP4XX_GPIO_LOW,
+	},
+};
+
+static struct platform_device nslu2_leds = {
+	.name			= "IXP4XX-GPIO-LED",
+	.id			= -1,
+	.num_resources		= ARRAY_SIZE(nslu2_led_resources),
+	.resource		= nslu2_led_resources,
+};
+#endif
 
 static struct platform_device nslu2_i2c_controller = {
 	.name			= "IXP4XX-I2C",
@@ -102,8 +140,10 @@ static struct platform_device nslu2_uart = {
 static struct platform_device *nslu2_devices[] __initdata = {
 	&nslu2_i2c_controller,
 	&nslu2_flash,
-	&nslu2_uart,
 	&nslu2_beeper,
+#ifdef CONFIG_LEDS_IXP4XX
+	&nslu2_leds,
+#endif
 };
 
 static void nslu2_power_off(void)
@@ -126,6 +166,12 @@ static void __init nslu2_init(void)
 		IXP4XX_EXP_BUS_BASE(0) + ixp4xx_exp_bus_size - 1;
 
 	pm_power_off = nslu2_power_off;
+
+	/* This is only useful on a modified machine, but it is valuable
+	 * to have it first in order to see debug messages, and so that
+	 * it does *not* get removed if platform_add_devices fails!
+	 */
+	(void)platform_device_register(&nslu2_uart);
 
 	platform_add_devices(nslu2_devices, ARRAY_SIZE(nslu2_devices));
 }

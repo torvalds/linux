@@ -107,12 +107,12 @@ struct rpc_program		nfsacl_program = {
 #endif  /* CONFIG_NFS_V3_ACL */
 
 static void nfs_umount_begin(struct vfsmount *, int);
-static int  nfs_statfs(struct super_block *, struct kstatfs *);
+static int  nfs_statfs(struct dentry *, struct kstatfs *);
 static int  nfs_show_options(struct seq_file *, struct vfsmount *);
 static int  nfs_show_stats(struct seq_file *, struct vfsmount *);
-static struct super_block *nfs_get_sb(struct file_system_type *, int, const char *, void *);
-static struct super_block *nfs_clone_nfs_sb(struct file_system_type *fs_type,
-		int flags, const char *dev_name, void *raw_data);
+static int nfs_get_sb(struct file_system_type *, int, const char *, void *, struct vfsmount *);
+static int nfs_clone_nfs_sb(struct file_system_type *fs_type,
+		int flags, const char *dev_name, void *raw_data, struct vfsmount *mnt);
 static void nfs_kill_super(struct super_block *);
 
 static struct file_system_type nfs_fs_type = {
@@ -143,12 +143,12 @@ static struct super_operations nfs_sops = {
 };
 
 #ifdef CONFIG_NFS_V4
-static struct super_block *nfs4_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *raw_data);
-static struct super_block *nfs_clone_nfs4_sb(struct file_system_type *fs_type,
-		int flags, const char *dev_name, void *raw_data);
-static struct super_block *nfs_referral_nfs4_sb(struct file_system_type *fs_type,
-		int flags, const char *dev_name, void *raw_data);
+static int nfs4_get_sb(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *raw_data, struct vfsmount *mnt);
+static int nfs_clone_nfs4_sb(struct file_system_type *fs_type,
+		int flags, const char *dev_name, void *raw_data, struct vfsmount *mnt);
+static int nfs_referral_nfs4_sb(struct file_system_type *fs_type,
+		int flags, const char *dev_name, void *raw_data, struct vfsmount *mnt);
 static void nfs4_kill_super(struct super_block *sb);
 
 static struct file_system_type nfs4_fs_type = {
@@ -263,8 +263,9 @@ void __exit unregister_nfs_fs(void)
 /*
  * Deliver file system statistics to userspace
  */
-static int nfs_statfs(struct super_block *sb, struct kstatfs *buf)
+static int nfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
+	struct super_block *sb = dentry->d_sb;
 	struct nfs_server *server = NFS_SB(sb);
 	unsigned char blockbits;
 	unsigned long blockres;
@@ -770,15 +771,16 @@ out:
 /*
  * Copy an existing superblock and attach revised data
  */
-static struct super_block *nfs_clone_generic_sb(struct nfs_clone_mount *data,
+static int nfs_clone_generic_sb(struct nfs_clone_mount *data,
 		struct super_block *(*fill_sb)(struct nfs_server *, struct nfs_clone_mount *),
-		struct nfs_server *(*fill_server)(struct super_block *, struct nfs_clone_mount *))
+		struct nfs_server *(*fill_server)(struct super_block *, struct nfs_clone_mount *),
+		struct vfsmount *mnt)
 {
 	struct nfs_server *server;
 	struct nfs_server *parent = NFS_SB(data->sb);
 	struct super_block *sb = ERR_PTR(-EINVAL);
-	void *err = ERR_PTR(-ENOMEM);
 	char *hostname;
+	int error = -ENOMEM;
 	int len;
 
 	server = kmalloc(sizeof(struct nfs_server), GFP_KERNEL);
@@ -791,21 +793,34 @@ static struct super_block *nfs_clone_generic_sb(struct nfs_clone_mount *data,
 	if (server->hostname == NULL)
 		goto free_server;
 	memcpy(server->hostname, hostname, len);
-	if (rpciod_up() != 0)
+	error = rpciod_up();
+	if (error != 0)
 		goto free_hostname;
 
 	sb = fill_sb(server, data);
-	if (IS_ERR((err = sb)) || sb->s_root)
+	if (IS_ERR(sb)) {
+		error = PTR_ERR(sb);
 		goto kill_rpciod;
+	}
+		
+	if (sb->s_root)
+		goto out_rpciod_down;
 
 	server = fill_server(sb, data);
-	if (IS_ERR((err = server)))
+	if (IS_ERR(server)) {
+		error = PTR_ERR(server);
 		goto out_deactivate;
-	return sb;
+	}
+	return simple_set_mnt(mnt, sb);
 out_deactivate:
 	up_write(&sb->s_umount);
 	deactivate_super(sb);
-	return (struct super_block *)err;
+	return error;
+out_rpciod_down:
+	rpciod_down();
+	kfree(server->hostname);
+	kfree(server);
+	return simple_set_mnt(mnt, sb);
 kill_rpciod:
 	rpciod_down();
 free_hostname:
@@ -813,7 +828,7 @@ free_hostname:
 free_server:
 	kfree(server);
 out_err:
-	return (struct super_block *)err;
+	return error;
 }
 
 /*
@@ -939,8 +954,8 @@ static int nfs_compare_super(struct super_block *sb, void *data)
 	return !nfs_compare_fh(&old->fh, &server->fh);
 }
 
-static struct super_block *nfs_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *raw_data)
+static int nfs_get_sb(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *raw_data, struct vfsmount *mnt)
 {
 	int error;
 	struct nfs_server *server = NULL;
@@ -948,14 +963,14 @@ static struct super_block *nfs_get_sb(struct file_system_type *fs_type,
 	struct nfs_fh *root;
 	struct nfs_mount_data *data = raw_data;
 
-	s = ERR_PTR(-EINVAL);
+	error = -EINVAL;
 	if (data == NULL) {
 		dprintk("%s: missing data argument\n", __FUNCTION__);
-		goto out_err;
+		goto out_err_noserver;
 	}
 	if (data->version <= 0 || data->version > NFS_MOUNT_VERSION) {
 		dprintk("%s: bad mount version\n", __FUNCTION__);
-		goto out_err;
+		goto out_err_noserver;
 	}
 	switch (data->version) {
 		case 1:
@@ -967,7 +982,7 @@ static struct super_block *nfs_get_sb(struct file_system_type *fs_type,
 				dprintk("%s: mount structure version %d does not support NFSv3\n",
 						__FUNCTION__,
 						data->version);
-				goto out_err;
+				goto out_err_noserver;
 			}
 			data->root.size = NFS2_FHSIZE;
 			memcpy(data->root.data, data->old_root.data, NFS2_FHSIZE);
@@ -976,24 +991,24 @@ static struct super_block *nfs_get_sb(struct file_system_type *fs_type,
 				dprintk("%s: mount structure version %d does not support strong security\n",
 						__FUNCTION__,
 						data->version);
-				goto out_err;
+				goto out_err_noserver;
 			}
 		case 5:
 			memset(data->context, 0, sizeof(data->context));
 	}
 #ifndef CONFIG_NFS_V3
 	/* If NFSv3 is not compiled in, return -EPROTONOSUPPORT */
-	s = ERR_PTR(-EPROTONOSUPPORT);
+	error = -EPROTONOSUPPORT;
 	if (data->flags & NFS_MOUNT_VER3) {
 		dprintk("%s: NFSv3 not compiled into kernel\n", __FUNCTION__);
-		goto out_err;
+		goto out_err_noserver;
 	}
 #endif /* CONFIG_NFS_V3 */
 
-	s = ERR_PTR(-ENOMEM);
+	error = -ENOMEM;
 	server = kzalloc(sizeof(struct nfs_server), GFP_KERNEL);
 	if (!server)
-		goto out_err;
+		goto out_err_noserver;
 	/* Zero out the NFS state stuff */
 	init_nfsv4_state(server);
 	server->client = server->client_sys = server->client_acl = ERR_PTR(-EINVAL);
@@ -1003,7 +1018,7 @@ static struct super_block *nfs_get_sb(struct file_system_type *fs_type,
 		root->size = data->root.size;
 	else
 		root->size = NFS2_FHSIZE;
-	s = ERR_PTR(-EINVAL);
+	error = -EINVAL;
 	if (root->size > sizeof(root->data)) {
 		dprintk("%s: invalid root filehandle\n", __FUNCTION__);
 		goto out_err;
@@ -1019,15 +1034,20 @@ static struct super_block *nfs_get_sb(struct file_system_type *fs_type,
 	}
 
 	/* Fire up rpciod if not yet running */
-	s = ERR_PTR(rpciod_up());
-	if (IS_ERR(s)) {
-		dprintk("%s: couldn't start rpciod! Error = %ld\n",
-				__FUNCTION__, PTR_ERR(s));
+	error = rpciod_up();
+	if (error < 0) {
+		dprintk("%s: couldn't start rpciod! Error = %d\n",
+				__FUNCTION__, error);
 		goto out_err;
 	}
 
 	s = sget(fs_type, nfs_compare_super, nfs_set_super, server);
-	if (IS_ERR(s) || s->s_root)
+	if (IS_ERR(s)) {
+		error = PTR_ERR(s);
+		goto out_err_rpciod;
+	}
+
+	if (s->s_root)
 		goto out_rpciod_down;
 
 	s->s_flags = flags;
@@ -1036,15 +1056,22 @@ static struct super_block *nfs_get_sb(struct file_system_type *fs_type,
 	if (error) {
 		up_write(&s->s_umount);
 		deactivate_super(s);
-		return ERR_PTR(error);
+		return error;
 	}
 	s->s_flags |= MS_ACTIVE;
-	return s;
+	return simple_set_mnt(mnt, s);
+
 out_rpciod_down:
+	rpciod_down();
+	kfree(server);
+	return simple_set_mnt(mnt, s);
+
+out_err_rpciod:
 	rpciod_down();
 out_err:
 	kfree(server);
-	return s;
+out_err_noserver:
+	return error;
 }
 
 static void nfs_kill_super(struct super_block *s)
@@ -1083,11 +1110,11 @@ static struct super_block *nfs_clone_sb(struct nfs_server *server, struct nfs_cl
 	return sb;
 }
 
-static struct super_block *nfs_clone_nfs_sb(struct file_system_type *fs_type,
-		int flags, const char *dev_name, void *raw_data)
+static int nfs_clone_nfs_sb(struct file_system_type *fs_type,
+		int flags, const char *dev_name, void *raw_data, struct vfsmount *mnt)
 {
 	struct nfs_clone_mount *data = raw_data;
-	return nfs_clone_generic_sb(data, nfs_clone_sb, nfs_clone_server);
+	return nfs_clone_generic_sb(data, nfs_clone_sb, nfs_clone_server, mnt);
 }
 
 #ifdef CONFIG_NFS_V4
@@ -1266,8 +1293,8 @@ nfs_copy_user_string(char *dst, struct nfs_string *src, int maxlen)
 	return dst;
 }
 
-static struct super_block *nfs4_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *raw_data)
+static int nfs4_get_sb(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *raw_data, struct vfsmount *mnt)
 {
 	int error;
 	struct nfs_server *server;
@@ -1277,16 +1304,16 @@ static struct super_block *nfs4_get_sb(struct file_system_type *fs_type,
 
 	if (data == NULL) {
 		dprintk("%s: missing data argument\n", __FUNCTION__);
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 	}
 	if (data->version <= 0 || data->version > NFS4_MOUNT_VERSION) {
 		dprintk("%s: bad mount version\n", __FUNCTION__);
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 	}
 
 	server = kzalloc(sizeof(struct nfs_server), GFP_KERNEL);
 	if (!server)
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 	/* Zero out the NFS state stuff */
 	init_nfsv4_state(server);
 	server->client = server->client_sys = server->client_acl = ERR_PTR(-EINVAL);
@@ -1308,33 +1335,42 @@ static struct super_block *nfs4_get_sb(struct file_system_type *fs_type,
 
 	/* We now require that the mount process passes the remote address */
 	if (data->host_addrlen != sizeof(server->addr)) {
-		s = ERR_PTR(-EINVAL);
+		error = -EINVAL;
 		goto out_free;
 	}
 	if (copy_from_user(&server->addr, data->host_addr, sizeof(server->addr))) {
-		s = ERR_PTR(-EFAULT);
+		error = -EFAULT;
 		goto out_free;
 	}
 	if (server->addr.sin_family != AF_INET ||
 	    server->addr.sin_addr.s_addr == INADDR_ANY) {
 		dprintk("%s: mount program didn't pass remote IP address!\n",
 				__FUNCTION__);
-		s = ERR_PTR(-EINVAL);
+		error = -EINVAL;
 		goto out_free;
 	}
 
 	/* Fire up rpciod if not yet running */
-	s = ERR_PTR(rpciod_up());
-	if (IS_ERR(s)) {
-		dprintk("%s: couldn't start rpciod! Error = %ld\n",
-				__FUNCTION__, PTR_ERR(s));
+	error = rpciod_up();
+	if (error < 0) {
+		dprintk("%s: couldn't start rpciod! Error = %d\n",
+				__FUNCTION__, error);
 		goto out_free;
 	}
 
 	s = sget(fs_type, nfs4_compare_super, nfs_set_super, server);
 
-	if (IS_ERR(s) || s->s_root)
+	if (IS_ERR(s)) {
+		error = PTR_ERR(s);
 		goto out_free;
+	}
+
+	if (s->s_root) {
+		kfree(server->mnt_path);
+		kfree(server->hostname);
+		kfree(server);
+		return simple_set_mnt(mnt, s);
+	}
 
 	s->s_flags = flags;
 
@@ -1342,17 +1378,17 @@ static struct super_block *nfs4_get_sb(struct file_system_type *fs_type,
 	if (error) {
 		up_write(&s->s_umount);
 		deactivate_super(s);
-		return ERR_PTR(error);
+		return error;
 	}
 	s->s_flags |= MS_ACTIVE;
-	return s;
+	return simple_set_mnt(mnt, s);
 out_err:
-	s = (struct super_block *)p;
+	error = PTR_ERR(p);
 out_free:
 	kfree(server->mnt_path);
 	kfree(server->hostname);
 	kfree(server);
-	return s;
+	return error;
 }
 
 static void nfs4_kill_super(struct super_block *sb)
@@ -1430,11 +1466,11 @@ err:
 	return sb;
 }
 
-static struct super_block *nfs_clone_nfs4_sb(struct file_system_type *fs_type,
-		int flags, const char *dev_name, void *raw_data)
+static int nfs_clone_nfs4_sb(struct file_system_type *fs_type,
+		int flags, const char *dev_name, void *raw_data, struct vfsmount *mnt)
 {
 	struct nfs_clone_mount *data = raw_data;
-	return nfs_clone_generic_sb(data, nfs4_clone_sb, nfs_clone_server);
+	return nfs_clone_generic_sb(data, nfs4_clone_sb, nfs_clone_server, mnt);
 }
 
 static struct super_block *nfs4_referral_sb(struct nfs_server *server, struct nfs_clone_mount *data)
@@ -1487,11 +1523,11 @@ out_err:
 	return (struct nfs_server *)err;
 }
 
-static struct super_block *nfs_referral_nfs4_sb(struct file_system_type *fs_type,
-		int flags, const char *dev_name, void *raw_data)
+static int nfs_referral_nfs4_sb(struct file_system_type *fs_type,
+		int flags, const char *dev_name, void *raw_data, struct vfsmount *mnt)
 {
 	struct nfs_clone_mount *data = raw_data;
-	return nfs_clone_generic_sb(data, nfs4_referral_sb, nfs4_referral_server);
+	return nfs_clone_generic_sb(data, nfs4_referral_sb, nfs4_referral_server, mnt);
 }
 
 #endif

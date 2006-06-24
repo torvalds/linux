@@ -35,17 +35,19 @@ struct aligninfo {
 
 #define INVALID	{ 0, 0 }
 
-#define LD	1	/* load */
-#define ST	2	/* store */
-#define	SE	4	/* sign-extend value */
-#define F	8	/* to/from fp regs */
-#define U	0x10	/* update index register */
-#define M	0x20	/* multiple load/store */
-#define SW	0x40	/* byte swap int or ... */
-#define S	0x40	/* ... single-precision fp */
-#define SX	0x40	/* byte count in XER */
+/* Bits in the flags field */
+#define LD	0	/* load */
+#define ST	1	/* store */
+#define	SE	2	/* sign-extend value */
+#define F	4	/* to/from fp regs */
+#define U	8	/* update index register */
+#define M	0x10	/* multiple load/store */
+#define SW	0x20	/* byte swap */
+#define S	0x40	/* single-precision fp or... */
+#define SX	0x40	/* ... byte count in XER */
 #define HARD	0x80	/* string, stwcx. */
 
+/* DSISR bits reported for a DCBZ instruction: */
 #define DCBZ	0x5f	/* 8xx/82xx dcbz faults when cache not enabled */
 
 #define SWAP(a, b)	(t = (a), (a) = (b), (b) = t)
@@ -256,12 +258,16 @@ static int emulate_dcbz(struct pt_regs *regs, unsigned char __user *addr)
 #define REG_BYTE(rp, i)		*((u8 *)(rp) + (i))
 #endif
 
+#define SWIZ_PTR(p)		((unsigned char __user *)((p) ^ swiz))
+
 static int emulate_multiple(struct pt_regs *regs, unsigned char __user *addr,
 			    unsigned int reg, unsigned int nb,
-			    unsigned int flags, unsigned int instr)
+			    unsigned int flags, unsigned int instr,
+			    unsigned long swiz)
 {
 	unsigned long *rptr;
-	unsigned int nb0, i;
+	unsigned int nb0, i, bswiz;
+	unsigned long p;
 
 	/*
 	 * We do not try to emulate 8 bytes multiple as they aren't really
@@ -280,9 +286,12 @@ static int emulate_multiple(struct pt_regs *regs, unsigned char __user *addr,
 			if (nb == 0)
 				return 1;
 		} else {
-			if (__get_user(instr,
-				       (unsigned int __user *)regs->nip))
+			unsigned long pc = regs->nip ^ (swiz & 4);
+
+			if (__get_user(instr, (unsigned int __user *)pc))
 				return -EFAULT;
+			if (swiz == 0 && (flags & SW))
+				instr = cpu_to_le32(instr);
 			nb = (instr >> 11) & 0x1f;
 			if (nb == 0)
 				nb = 32;
@@ -300,7 +309,10 @@ static int emulate_multiple(struct pt_regs *regs, unsigned char __user *addr,
 		return -EFAULT;	/* bad address */
 
 	rptr = &regs->gpr[reg];
-	if (flags & LD) {
+	p = (unsigned long) addr;
+	bswiz = (flags & SW)? 3: 0;
+
+	if (!(flags & ST)) {
 		/*
 		 * This zeroes the top 4 bytes of the affected registers
 		 * in 64-bit mode, and also zeroes out any remaining
@@ -311,26 +323,28 @@ static int emulate_multiple(struct pt_regs *regs, unsigned char __user *addr,
 			memset(&regs->gpr[0], 0,
 			       ((nb0 + 3) / 4) * sizeof(unsigned long));
 
-		for (i = 0; i < nb; ++i)
-			if (__get_user(REG_BYTE(rptr, i), addr + i))
+		for (i = 0; i < nb; ++i, ++p)
+			if (__get_user(REG_BYTE(rptr, i ^ bswiz), SWIZ_PTR(p)))
 				return -EFAULT;
 		if (nb0 > 0) {
 			rptr = &regs->gpr[0];
 			addr += nb;
-			for (i = 0; i < nb0; ++i)
-				if (__get_user(REG_BYTE(rptr, i), addr + i))
+			for (i = 0; i < nb0; ++i, ++p)
+				if (__get_user(REG_BYTE(rptr, i ^ bswiz),
+					       SWIZ_PTR(p)))
 					return -EFAULT;
 		}
 
 	} else {
-		for (i = 0; i < nb; ++i)
-			if (__put_user(REG_BYTE(rptr, i), addr + i))
+		for (i = 0; i < nb; ++i, ++p)
+			if (__put_user(REG_BYTE(rptr, i ^ bswiz), SWIZ_PTR(p)))
 				return -EFAULT;
 		if (nb0 > 0) {
 			rptr = &regs->gpr[0];
 			addr += nb;
-			for (i = 0; i < nb0; ++i)
-				if (__put_user(REG_BYTE(rptr, i), addr + i))
+			for (i = 0; i < nb0; ++i, ++p)
+				if (__put_user(REG_BYTE(rptr, i ^ bswiz),
+					       SWIZ_PTR(p)))
 					return -EFAULT;
 		}
 	}
@@ -352,7 +366,7 @@ int fix_alignment(struct pt_regs *regs)
 	unsigned int reg, areg;
 	unsigned int dsisr;
 	unsigned char __user *addr;
-	unsigned char __user *p;
+	unsigned long p, swiz;
 	int ret, t;
 	union {
 		u64 ll;
@@ -380,11 +394,15 @@ int fix_alignment(struct pt_regs *regs)
 	 * let's make one up from the instruction
 	 */
 	if (cpu_has_feature(CPU_FTR_NODSISRALIGN)) {
-		unsigned int real_instr;
-		if (unlikely(__get_user(real_instr,
-					(unsigned int __user *)regs->nip)))
+		unsigned long pc = regs->nip;
+
+		if (cpu_has_feature(CPU_FTR_PPC_LE) && (regs->msr & MSR_LE))
+			pc ^= 4;
+		if (unlikely(__get_user(instr, (unsigned int __user *)pc)))
 			return -EFAULT;
-		dsisr = make_dsisr(real_instr);
+		if (cpu_has_feature(CPU_FTR_REAL_LE) && (regs->msr & MSR_LE))
+			instr = cpu_to_le32(instr);
+		dsisr = make_dsisr(instr);
 	}
 
 	/* extract the operation and registers from the dsisr */
@@ -396,6 +414,24 @@ int fix_alignment(struct pt_regs *regs)
 	/* Lookup the operation in our table */
 	nb = aligninfo[instr].len;
 	flags = aligninfo[instr].flags;
+
+	/* Byteswap little endian loads and stores */
+	swiz = 0;
+	if (regs->msr & MSR_LE) {
+		flags ^= SW;
+		/*
+		 * So-called "PowerPC little endian" mode works by
+		 * swizzling addresses rather than by actually doing
+		 * any byte-swapping.  To emulate this, we XOR each
+		 * byte address with 7.  We also byte-swap, because
+		 * the processor's address swizzling depends on the
+		 * operand size (it xors the address with 7 for bytes,
+		 * 6 for halfwords, 4 for words, 0 for doublewords) but
+		 * we will xor with 7 and load/store each byte separately.
+		 */
+		if (cpu_has_feature(CPU_FTR_PPC_LE))
+			swiz = 7;
+	}
 
 	/* DAR has the operand effective address */
 	addr = (unsigned char __user *)regs->dar;
@@ -412,7 +448,8 @@ int fix_alignment(struct pt_regs *regs)
 	 * function
 	 */
 	if (flags & M)
-		return emulate_multiple(regs, addr, reg, nb, flags, instr);
+		return emulate_multiple(regs, addr, reg, nb,
+					flags, instr, swiz);
 
 	/* Verify the address of the operand */
 	if (unlikely(user_mode(regs) &&
@@ -431,51 +468,71 @@ int fix_alignment(struct pt_regs *regs)
 	/* If we are loading, get the data from user space, else
 	 * get it from register values
 	 */
-	if (flags & LD) {
+	if (!(flags & ST)) {
 		data.ll = 0;
 		ret = 0;
-		p = addr;
+		p = (unsigned long) addr;
 		switch (nb) {
 		case 8:
-			ret |= __get_user(data.v[0], p++);
-			ret |= __get_user(data.v[1], p++);
-			ret |= __get_user(data.v[2], p++);
-			ret |= __get_user(data.v[3], p++);
+			ret |= __get_user(data.v[0], SWIZ_PTR(p++));
+			ret |= __get_user(data.v[1], SWIZ_PTR(p++));
+			ret |= __get_user(data.v[2], SWIZ_PTR(p++));
+			ret |= __get_user(data.v[3], SWIZ_PTR(p++));
 		case 4:
-			ret |= __get_user(data.v[4], p++);
-			ret |= __get_user(data.v[5], p++);
+			ret |= __get_user(data.v[4], SWIZ_PTR(p++));
+			ret |= __get_user(data.v[5], SWIZ_PTR(p++));
 		case 2:
-			ret |= __get_user(data.v[6], p++);
-			ret |= __get_user(data.v[7], p++);
+			ret |= __get_user(data.v[6], SWIZ_PTR(p++));
+			ret |= __get_user(data.v[7], SWIZ_PTR(p++));
 			if (unlikely(ret))
 				return -EFAULT;
 		}
-	} else if (flags & F)
+	} else if (flags & F) {
 		data.dd = current->thread.fpr[reg];
-	else
+		if (flags & S) {
+			/* Single-precision FP store requires conversion... */
+#ifdef CONFIG_PPC_FPU
+			preempt_disable();
+			enable_kernel_fp();
+			cvt_df(&data.dd, (float *)&data.v[4], &current->thread);
+			preempt_enable();
+#else
+			return 0;
+#endif
+		}
+	} else
 		data.ll = regs->gpr[reg];
 
-	/* Perform other misc operations like sign extension, byteswap,
+	if (flags & SW) {
+		switch (nb) {
+		case 8:
+			SWAP(data.v[0], data.v[7]);
+			SWAP(data.v[1], data.v[6]);
+			SWAP(data.v[2], data.v[5]);
+			SWAP(data.v[3], data.v[4]);
+			break;
+		case 4:
+			SWAP(data.v[4], data.v[7]);
+			SWAP(data.v[5], data.v[6]);
+			break;
+		case 2:
+			SWAP(data.v[6], data.v[7]);
+			break;
+		}
+	}
+
+	/* Perform other misc operations like sign extension
 	 * or floating point single precision conversion
 	 */
-	switch (flags & ~U) {
+	switch (flags & ~(U|SW)) {
 	case LD+SE:	/* sign extend */
 		if ( nb == 2 )
 			data.ll = data.x16.low16;
 		else	/* nb must be 4 */
 			data.ll = data.x32.low32;
 		break;
-	case LD+S:	/* byte-swap */
-	case ST+S:
-		if (nb == 2) {
-			SWAP(data.v[6], data.v[7]);
-		} else {
-			SWAP(data.v[4], data.v[7]);
-			SWAP(data.v[5], data.v[6]);
-		}
-		break;
 
-	/* Single-precision FP load and store require conversions... */
+	/* Single-precision FP load requires conversion... */
 	case LD+F+S:
 #ifdef CONFIG_PPC_FPU
 		preempt_disable();
@@ -486,34 +543,24 @@ int fix_alignment(struct pt_regs *regs)
 		return 0;
 #endif
 		break;
-	case ST+F+S:
-#ifdef CONFIG_PPC_FPU
-		preempt_disable();
-		enable_kernel_fp();
-		cvt_df(&data.dd, (float *)&data.v[4], &current->thread);
-		preempt_enable();
-#else
-		return 0;
-#endif
-		break;
 	}
 
 	/* Store result to memory or update registers */
 	if (flags & ST) {
 		ret = 0;
-		p = addr;
+		p = (unsigned long) addr;
 		switch (nb) {
 		case 8:
-			ret |= __put_user(data.v[0], p++);
-			ret |= __put_user(data.v[1], p++);
-			ret |= __put_user(data.v[2], p++);
-			ret |= __put_user(data.v[3], p++);
+			ret |= __put_user(data.v[0], SWIZ_PTR(p++));
+			ret |= __put_user(data.v[1], SWIZ_PTR(p++));
+			ret |= __put_user(data.v[2], SWIZ_PTR(p++));
+			ret |= __put_user(data.v[3], SWIZ_PTR(p++));
 		case 4:
-			ret |= __put_user(data.v[4], p++);
-			ret |= __put_user(data.v[5], p++);
+			ret |= __put_user(data.v[4], SWIZ_PTR(p++));
+			ret |= __put_user(data.v[5], SWIZ_PTR(p++));
 		case 2:
-			ret |= __put_user(data.v[6], p++);
-			ret |= __put_user(data.v[7], p++);
+			ret |= __put_user(data.v[6], SWIZ_PTR(p++));
+			ret |= __put_user(data.v[7], SWIZ_PTR(p++));
 		}
 		if (unlikely(ret))
 			return -EFAULT;

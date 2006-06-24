@@ -83,7 +83,7 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 	struct acpi_parse_state *parser_state;
 	u8 *aml_op_start = NULL;
 
-	ACPI_FUNCTION_TRACE_PTR("ps_parse_loop", walk_state);
+	ACPI_FUNCTION_TRACE_PTR(ps_parse_loop, walk_state);
 
 	if (walk_state->descending_callback == NULL) {
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
@@ -95,6 +95,7 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 #if (!defined (ACPI_NO_METHOD_EXECUTION) && !defined (ACPI_CONSTANT_EVAL_ONLY))
 
 	if (walk_state->walk_type & ACPI_WALK_METHOD_RESTART) {
+
 		/* We are restarting a preempted control method */
 
 		if (acpi_ps_has_completed_scope(parser_state)) {
@@ -128,7 +129,7 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 
 					}
 					ACPI_EXCEPTION((AE_INFO, status,
-							"get_predicate Failed"));
+							"GetPredicate Failed"));
 					return_ACPI_STATUS(status);
 				}
 
@@ -143,6 +144,7 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 			ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
 					  "Popped scope, Op=%p\n", op));
 		} else if (walk_state->prev_op) {
+
 			/* We were in the middle of an op */
 
 			op = walk_state->prev_op;
@@ -156,6 +158,7 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 	while ((parser_state->aml < parser_state->aml_end) || (op)) {
 		aml_op_start = parser_state->aml;
 		if (!op) {
+
 			/* Get the next opcode from the AML stream */
 
 			walk_state->aml_offset =
@@ -213,6 +216,7 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 			/* Create Op structure and append to parent's argument list */
 
 			if (walk_state->op_info->flags & AML_NAMED) {
+
 				/* Allocate a new pre_op if necessary */
 
 				if (!pre_op) {
@@ -371,7 +375,7 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 
 			if (walk_state->op_info) {
 				ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
-						  "Opcode %4.4X [%s] Op %p Aml %p aml_offset %5.5X\n",
+						  "Opcode %4.4X [%s] Op %p Aml %p AmlOffset %5.5X\n",
 						  (u32) op->common.aml_opcode,
 						  walk_state->op_info->name, op,
 						  parser_state->aml,
@@ -388,6 +392,7 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 		/* Are there any arguments that must be processed? */
 
 		if (walk_state->arg_types) {
+
 			/* Get arguments */
 
 			switch (op->common.aml_opcode) {
@@ -742,7 +747,19 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 					if (ACPI_FAILURE(status2)) {
 						return_ACPI_STATUS(status2);
 					}
+
+					status2 =
+					    acpi_ds_result_stack_pop
+					    (walk_state);
+					if (ACPI_FAILURE(status2)) {
+						return_ACPI_STATUS(status2);
+					}
+
+					acpi_ut_delete_generic_state
+					    (acpi_ut_pop_generic_state
+					     (&walk_state->control_state));
 				}
+
 				acpi_ps_pop_scope(parser_state, &op,
 						  &walk_state->arg_types,
 						  &walk_state->arg_count);
@@ -762,6 +779,7 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 						return_ACPI_STATUS(status2);
 					}
 				}
+
 				acpi_ps_pop_scope(parser_state, &op,
 						  &walk_state->arg_types,
 						  &walk_state->arg_count);
@@ -853,6 +871,7 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 				}
 
 				else if (ACPI_FAILURE(status)) {
+
 					/* First error is most important */
 
 					(void)

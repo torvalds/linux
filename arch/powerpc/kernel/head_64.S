@@ -316,6 +316,21 @@ label##_pSeries:					\
 	mtspr	SPRN_SPRG1,r13;		/* save r13 */	\
 	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, label##_common)
 
+#define HSTD_EXCEPTION_PSERIES(n, label)		\
+	. = n;						\
+	.globl label##_pSeries;				\
+label##_pSeries:					\
+	HMT_MEDIUM;					\
+	mtspr	SPRN_SPRG1,r20;		/* save r20 */	\
+	mfspr	r20,SPRN_HSRR0;		/* copy HSRR0 to SRR0 */ \
+	mtspr	SPRN_SRR0,r20;				\
+	mfspr	r20,SPRN_HSRR1;		/* copy HSRR0 to SRR0 */ \
+	mtspr	SPRN_SRR1,r20;				\
+	mfspr	r20,SPRN_SPRG1;		/* restore r20 */ \
+	mtspr	SPRN_SPRG1,r13;		/* save r13 */	\
+	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, label##_common)
+
+
 #define STD_EXCEPTION_ISERIES(n, label, area)		\
 	.globl label##_iSeries;				\
 label##_iSeries:					\
@@ -544,8 +559,17 @@ system_call_pSeries:
 
 	STD_EXCEPTION_PSERIES(0xf20, altivec_unavailable)
 
+#ifdef CONFIG_CBE_RAS
+	HSTD_EXCEPTION_PSERIES(0x1200, cbe_system_error)
+#endif /* CONFIG_CBE_RAS */
 	STD_EXCEPTION_PSERIES(0x1300, instruction_breakpoint)
+#ifdef CONFIG_CBE_RAS
+	HSTD_EXCEPTION_PSERIES(0x1600, cbe_maintenance)
+#endif /* CONFIG_CBE_RAS */
 	STD_EXCEPTION_PSERIES(0x1700, altivec_assist)
+#ifdef CONFIG_CBE_RAS
+	HSTD_EXCEPTION_PSERIES(0x1800, cbe_thermal)
+#endif /* CONFIG_CBE_RAS */
 
 	. = 0x3000
 
@@ -827,6 +851,11 @@ machine_check_common:
 #else
 	STD_EXCEPTION_COMMON(0x1700, altivec_assist, .unknown_exception)
 #endif
+#ifdef CONFIG_CBE_RAS
+	STD_EXCEPTION_COMMON(0x1200, cbe_system_error, .cbe_system_error_exception)
+	STD_EXCEPTION_COMMON(0x1600, cbe_maintenance, .cbe_maintenance_exception)
+	STD_EXCEPTION_COMMON(0x1800, cbe_thermal, .cbe_thermal_exception)
+#endif /* CONFIG_CBE_RAS */
 
 /*
  * Here we have detected that the kernel stack pointer is bad.

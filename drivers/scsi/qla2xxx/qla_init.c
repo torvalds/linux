@@ -194,7 +194,6 @@ qla2100_pci_config(scsi_qla_host_t *ha)
 	mwi = 0;
 	if (pci_set_mwi(ha->pdev))
 		mwi = PCI_COMMAND_INVALIDATE;
-	pci_read_config_word(ha->pdev, PCI_REVISION_ID, &ha->revision);
 
 	pci_read_config_word(ha->pdev, PCI_COMMAND, &w);
 	w |= mwi | (PCI_COMMAND_PARITY | PCI_COMMAND_SERR);
@@ -232,7 +231,6 @@ qla2300_pci_config(scsi_qla_host_t *ha)
 	mwi = 0;
 	if (pci_set_mwi(ha->pdev))
 		mwi = PCI_COMMAND_INVALIDATE;
-	pci_read_config_word(ha->pdev, PCI_REVISION_ID, &ha->revision);
 
 	pci_read_config_word(ha->pdev, PCI_COMMAND, &w);
 	w |= mwi | (PCI_COMMAND_PARITY | PCI_COMMAND_SERR);
@@ -320,7 +318,6 @@ qla24xx_pci_config(scsi_qla_host_t *ha)
 	mwi = 0;
 	if (pci_set_mwi(ha->pdev))
 		mwi = PCI_COMMAND_INVALIDATE;
-	pci_read_config_word(ha->pdev, PCI_REVISION_ID, &ha->revision);
 
 	pci_read_config_word(ha->pdev, PCI_COMMAND, &w);
 	w |= mwi | (PCI_COMMAND_PARITY | PCI_COMMAND_SERR);
@@ -386,9 +383,7 @@ qla2x00_isp_firmware(scsi_qla_host_t *ha)
 		qla_printk(KERN_INFO, ha, "RISC CODE NOT loaded\n");
 
 		/* Verify checksum of loaded RISC code. */
-		rval = qla2x00_verify_checksum(ha,
-		    IS_QLA24XX(ha) || IS_QLA54XX(ha) ? RISC_SADDRESS :
-		    *ha->brd_info->fw_info[0].fwstart);
+		rval = qla2x00_verify_checksum(ha, ha->fw_srisc_address);
 	}
 
 	if (rval) {
@@ -411,7 +406,6 @@ qla2x00_reset_chip(scsi_qla_host_t *ha)
 	unsigned long   flags = 0;
 	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
 	uint32_t	cnt;
-	unsigned long	mbx_flags = 0;
 	uint16_t	cmd;
 
 	ha->isp_ops.disable_intrs(ha);
@@ -519,20 +513,8 @@ qla2x00_reset_chip(scsi_qla_host_t *ha)
 
 	if (IS_QLA2100(ha) || IS_QLA2200(ha) || IS_QLA2300(ha)) {
 		for (cnt = 0; cnt < 30000; cnt++) {
-			if (!(test_bit(ABORT_ISP_ACTIVE, &ha->dpc_flags)))
-				spin_lock_irqsave(&ha->mbx_reg_lock, mbx_flags);
-
-			if (RD_MAILBOX_REG(ha, reg, 0) != MBS_BUSY) {
-				if (!(test_bit(ABORT_ISP_ACTIVE,
-				    &ha->dpc_flags)))
-					spin_unlock_irqrestore(
-					    &ha->mbx_reg_lock, mbx_flags);
+			if (RD_MAILBOX_REG(ha, reg, 0) != MBS_BUSY)
 				break;
-			}
-
-			if (!(test_bit(ABORT_ISP_ACTIVE, &ha->dpc_flags)))
-				spin_unlock_irqrestore(&ha->mbx_reg_lock,
-				    mbx_flags);
 
 			udelay(100);
 		}
@@ -791,16 +773,26 @@ qla24xx_chip_diag(scsi_qla_host_t *ha)
 static void
 qla2x00_alloc_fw_dump(scsi_qla_host_t *ha)
 {
+	uint32_t dump_size = 0;
+
 	ha->fw_dumped = 0;
-	ha->fw_dump24_len = sizeof(struct qla24xx_fw_dump);
-	ha->fw_dump24_len += (ha->fw_memory_size - 0x100000) * sizeof(uint32_t);
-	ha->fw_dump24 = vmalloc(ha->fw_dump24_len);
-	if (ha->fw_dump24)
+	if (IS_QLA2100(ha) || IS_QLA2200(ha)) {
+		dump_size = sizeof(struct qla2100_fw_dump);
+	} else if (IS_QLA23XX(ha)) {
+		dump_size = sizeof(struct qla2300_fw_dump);
+		dump_size += (ha->fw_memory_size - 0x11000) * sizeof(uint16_t);
+        } else if (IS_QLA24XX(ha) || IS_QLA54XX(ha)) {
+		dump_size = sizeof(struct qla24xx_fw_dump);
+		dump_size += (ha->fw_memory_size - 0x100000) * sizeof(uint32_t);
+	}
+
+	ha->fw_dump = vmalloc(dump_size);
+	if (ha->fw_dump)
 		qla_printk(KERN_INFO, ha, "Allocated (%d KB) for firmware "
-		    "dump...\n", ha->fw_dump24_len / 1024);
+		    "dump...\n", dump_size / 1024);
 	else
 		qla_printk(KERN_WARNING, ha, "Unable to allocate (%d KB) for "
-		    "firmware dump!!!\n", ha->fw_dump24_len / 1024);
+		    "firmware dump!!!\n", dump_size / 1024);
 }
 
 /**
@@ -818,12 +810,11 @@ qla2x00_resize_request_q(scsi_qla_host_t *ha)
 	dma_addr_t request_dma;
 	request_t *request_ring;
 
+	qla2x00_alloc_fw_dump(ha);
+
 	/* Valid only on recent ISPs. */
 	if (IS_QLA2100(ha) || IS_QLA2200(ha))
 		return;
-
-	if (IS_QLA24XX(ha) || IS_QLA54XX(ha))
-		qla2x00_alloc_fw_dump(ha);
 
 	/* Retrieve IOCB counts available to the firmware. */
 	rval = qla2x00_get_resource_cnts(ha, NULL, NULL, NULL, &fw_iocb_cnt);
@@ -1545,6 +1536,12 @@ qla2x00_nvram_config(scsi_qla_host_t *ha)
 	while (cnt--)
 		*dptr1++ = *dptr2++;
 
+	/* Use alternate WWN? */
+	if (nv->host_p[1] & BIT_7) {
+		memcpy(icb->node_name, nv->alternate_node_name, WWN_SIZE);
+		memcpy(icb->port_name, nv->alternate_port_name, WWN_SIZE);
+	}
+
 	/* Prepare nodename */
 	if ((icb->firmware_options[1] & BIT_6) == 0) {
 		/*
@@ -1682,14 +1679,6 @@ qla2x00_nvram_config(scsi_qla_host_t *ha)
 }
 
 static void
-qla2x00_rport_add(void *data)
-{
-	fc_port_t *fcport = data;
-
-	qla2x00_reg_remote_port(fcport->ha, fcport);
-}
-
-static void
 qla2x00_rport_del(void *data)
 {
 	fc_port_t *fcport = data;
@@ -1726,13 +1715,10 @@ qla2x00_alloc_fcport(scsi_qla_host_t *ha, gfp_t flags)
 	fcport->ha = ha;
 	fcport->port_type = FCT_UNKNOWN;
 	fcport->loop_id = FC_NO_LOOP_ID;
-	fcport->iodesc_idx_sent = IODESC_INVALID_INDEX;
 	atomic_set(&fcport->state, FCS_UNCONFIGURED);
 	fcport->flags = FCF_RLC_SUPPORT;
 	fcport->supported_classes = FC_COS_UNSPECIFIED;
 	spin_lock_init(&fcport->rport_lock);
-	INIT_WORK(&fcport->rport_add_work, qla2x00_rport_add, fcport);
-	INIT_WORK(&fcport->rport_del_work, qla2x00_rport_del, fcport);
 
 	return (fcport);
 }
@@ -1791,6 +1777,9 @@ qla2x00_configure_loop(scsi_qla_host_t *ha)
 		ha->flags.rscn_queue_overflow = 1;
 		set_bit(RSCN_UPDATE, &flags);
 		clear_bit(LOCAL_LOOP_UPDATE, &flags);
+
+	} else if (ha->current_topology == ISP_CFG_N) {
+		clear_bit(RSCN_UPDATE, &flags);
 
 	} else if (!ha->flags.online ||
 	    (test_bit(ABORT_ISP_ACTIVE, &flags))) {
@@ -2054,10 +2043,6 @@ qla2x00_update_fcport(scsi_qla_host_t *ha, fc_port_t *fcport)
 	atomic_set(&fcport->port_down_timer, ha->port_down_retry_count *
 	    PORT_RETRY_TIME);
 	fcport->flags &= ~FCF_LOGIN_NEEDED;
-
-	if (fcport->port_type == FCT_INITIATOR ||
-	    fcport->port_type == FCT_BROADCAST)
-		fcport->device_type = TYPE_PROCESSOR;
 
 	atomic_set(&fcport->state, FCS_ONLINE);
 
@@ -2587,7 +2572,6 @@ static int
 qla2x00_device_resync(scsi_qla_host_t *ha)
 {
 	int	rval;
-	int	rval2;
 	uint32_t mask;
 	fc_port_t *fcport;
 	uint32_t rscn_entry;
@@ -2643,17 +2627,6 @@ qla2x00_device_resync(scsi_qla_host_t *ha)
 
 		switch (format) {
 		case 0:
-			if (ql2xprocessrscn &&
-			    !IS_QLA2100(ha) && !IS_QLA2200(ha) &&
-			    !IS_QLA6312(ha) && !IS_QLA6322(ha) &&
-			    !IS_QLA24XX(ha) && !IS_QLA54XX(ha) &&
-			    ha->flags.init_done) {
-				/* Handle port RSCN via asyncronous IOCBs */
-				rval2 = qla2x00_handle_port_rscn(ha, rscn_entry,
-				    NULL, 0);
-				if (rval2 == QLA_SUCCESS)
-					continue;
-			}
 			mask = 0xffffff;
 			break;
 		case 1:
@@ -2670,10 +2643,6 @@ qla2x00_device_resync(scsi_qla_host_t *ha)
 		}
 
 		rval = QLA_SUCCESS;
-
-		/* Abort any outstanding IO descriptors. */
-		if (!IS_QLA2100(ha) && !IS_QLA2200(ha))
-			qla2x00_cancel_io_descriptors(ha);
 
 		list_for_each_entry(fcport, &ha->fcports, list) {
 			if ((fcport->flags & FCF_FABRIC_DEVICE) == 0 ||
@@ -3383,8 +3352,14 @@ qla24xx_nvram_config(scsi_qla_host_t *ha)
 	} else
 		strcpy(ha->model_number, "QLA2462");
 
+	/* Use alternate WWN? */
+	if (nv->host_p & __constant_cpu_to_le32(BIT_15)) {
+		memcpy(icb->node_name, nv->alternate_node_name, WWN_SIZE);
+		memcpy(icb->port_name, nv->alternate_port_name, WWN_SIZE);
+	}
+
 	/* Prepare nodename */
-	if ((icb->firmware_options_1 & BIT_14) == 0) {
+	if ((icb->firmware_options_1 & __constant_cpu_to_le32(BIT_14)) == 0) {
 		/*
 		 * Firmware will apply the following mask if the nodename was
 		 * not provided.
@@ -3400,8 +3375,8 @@ qla24xx_nvram_config(scsi_qla_host_t *ha)
 	ha->flags.enable_target_reset = 1;
 	ha->flags.enable_led_scheme = 0;
 
-	ha->operating_mode =
-	    (icb->firmware_options_2 & (BIT_6 | BIT_5 | BIT_4)) >> 4;
+	ha->operating_mode = (le32_to_cpu(icb->firmware_options_2) &
+	    (BIT_6 | BIT_5 | BIT_4)) >> 4;
 
 	memcpy(ha->fw_seriallink_options24, nv->seriallink_options,
 	    sizeof(ha->fw_seriallink_options24));
@@ -3498,133 +3473,6 @@ qla24xx_nvram_config(scsi_qla_host_t *ha)
 	return (rval);
 }
 
-#if defined(CONFIG_SCSI_QLA2XXX_EMBEDDED_FIRMWARE)
-
-int
-qla2x00_load_risc(scsi_qla_host_t *ha, uint32_t *srisc_addr)
-{
-	int	rval, num, i;
-	uint32_t cnt;
-	uint16_t *risc_code;
-	uint32_t risc_addr, risc_size;
-	uint16_t *req_ring;
-	struct qla_fw_info *fw_iter;
-
-	rval = QLA_SUCCESS;
-
-	/* Load firmware sequences */
-	fw_iter = ha->brd_info->fw_info;
-	*srisc_addr = *ha->brd_info->fw_info->fwstart;
-	while (fw_iter->addressing != FW_INFO_ADDR_NOMORE) {
-		risc_code = fw_iter->fwcode;
-		risc_size = *fw_iter->fwlen;
-		if (fw_iter->addressing == FW_INFO_ADDR_NORMAL)
-			risc_addr = *fw_iter->fwstart;
-		else
-			risc_addr = *fw_iter->lfwstart;
-
-		num = 0;
-		rval = 0;
-		while (risc_size > 0 && !rval) {
-			cnt = (uint16_t)(ha->fw_transfer_size >> 1);
-			if (cnt > risc_size)
-				cnt = risc_size;
-
-			DEBUG7(printk("scsi(%ld): Loading risc segment@ "
-			    "addr %p, number of bytes 0x%x, offset 0x%lx.\n",
-			    ha->host_no, risc_code, cnt, risc_addr));
-
-			req_ring = (uint16_t *)ha->request_ring;
-			for (i = 0; i < cnt; i++)
-				req_ring[i] = cpu_to_le16(risc_code[i]);
-
-			rval = qla2x00_load_ram(ha, ha->request_dma, risc_addr,
-			    cnt);
-			if (rval) {
-				DEBUG(printk("scsi(%ld): [ERROR] Failed to "
-				    "load segment %d of firmware\n",
-				    ha->host_no, num));
-				qla_printk(KERN_WARNING, ha,
-				    "[ERROR] Failed to load segment %d of "
-				    "firmware\n", num);
-
-				qla2x00_dump_regs(ha);
-				break;
-			}
-
-			risc_code += cnt;
-			risc_addr += cnt;
-			risc_size -= cnt;
-			num++;
-		}
-
-		/* Next firmware sequence */
-		fw_iter++;
-	}
-	return rval;
-}
-
-int
-qla24xx_load_risc(scsi_qla_host_t *ha, uint32_t *srisc_addr)
-{
-	int	rval, num, i;
-	uint32_t cnt;
-	uint32_t *risc_code;
-	uint32_t risc_addr, risc_size;
-	uint32_t *req_ring;
-	struct qla_fw_info *fw_iter;
-
-	rval = QLA_SUCCESS;
-
-	/* Load firmware sequences */
-	fw_iter = ha->brd_info->fw_info;
-	*srisc_addr = *((uint32_t *)fw_iter->lfwstart);
-	while (fw_iter->addressing != FW_INFO_ADDR_NOMORE) {
-		risc_code = (uint32_t *)fw_iter->fwcode;
-		risc_size = *((uint32_t *)fw_iter->fwlen);
-		risc_addr = *((uint32_t *)fw_iter->lfwstart);
-
-		num = 0;
-		rval = 0;
-		while (risc_size > 0 && !rval) {
-			cnt = (uint32_t)(ha->fw_transfer_size >> 2);
-			if (cnt > risc_size)
-				cnt = risc_size;
-
-			DEBUG7(printk("scsi(%ld): Loading risc segment@ "
-			    "addr %p, number of bytes 0x%x, offset 0x%lx.\n",
-			    ha->host_no, risc_code, cnt, risc_addr));
-
-			req_ring = (uint32_t *)ha->request_ring;
-			for (i = 0; i < cnt; i++)
-				req_ring[i] = cpu_to_le32(risc_code[i]);
-
-			rval = qla2x00_load_ram(ha, ha->request_dma, risc_addr,
-			    cnt);
-			if (rval) {
-				DEBUG(printk("scsi(%ld): [ERROR] Failed to "
-				    "load segment %d of firmware\n",
-				    ha->host_no, num));
-				qla_printk(KERN_WARNING, ha,
-				    "[ERROR] Failed to load segment %d of "
-				    "firmware\n", num);
-
-				qla2x00_dump_regs(ha);
-				break;
-			}
-
-			risc_code += cnt;
-			risc_addr += cnt;
-			risc_size -= cnt;
-			num++;
-		}
-
-		/* Next firmware sequence */
-		fw_iter++;
-	}
-	return rval;
-}
-
 int
 qla24xx_load_risc_flash(scsi_qla_host_t *ha, uint32_t *srisc_addr)
 {
@@ -3707,7 +3555,7 @@ qla24xx_load_risc_flash(scsi_qla_host_t *ha, uint32_t *srisc_addr)
 	return rval;
 }
 
-#else	/* !defined(CONFIG_SCSI_QLA2XXX_EMBEDDED_FIRMWARE) */
+#define QLA_FW_URL "ftp://ftp.qlogic.com/outgoing/linux/firmware/"
 
 int
 qla2x00_load_risc(scsi_qla_host_t *ha, uint32_t *srisc_addr)
@@ -3722,6 +3570,8 @@ qla2x00_load_risc(scsi_qla_host_t *ha, uint32_t *srisc_addr)
 	blob = qla2x00_request_firmware(ha);
 	if (!blob) {
 		qla_printk(KERN_ERR, ha, "Firmware image unavailable.\n");
+		qla_printk(KERN_ERR, ha, "Firmware images can be retrieved "
+		    "from: " QLA_FW_URL ".\n");
 		return QLA_FUNCTION_FAILED;
 	}
 
@@ -3823,7 +3673,13 @@ qla24xx_load_risc(scsi_qla_host_t *ha, uint32_t *srisc_addr)
 	blob = qla2x00_request_firmware(ha);
 	if (!blob) {
 		qla_printk(KERN_ERR, ha, "Firmware image unavailable.\n");
-		return QLA_FUNCTION_FAILED;
+		qla_printk(KERN_ERR, ha, "Firmware images can be retrieved "
+		    "from: " QLA_FW_URL ".\n");
+
+		/* Try to load RISC code from flash. */
+		qla_printk(KERN_ERR, ha, "Attempting to load (potentially "
+		    "outdated) firmware from flash.\n");
+		return qla24xx_load_risc_flash(ha, srisc_addr);
 	}
 
 	rval = QLA_SUCCESS;
@@ -3909,4 +3765,3 @@ qla24xx_load_risc(scsi_qla_host_t *ha, uint32_t *srisc_addr)
 fail_fw_integrity:
 	return QLA_FUNCTION_FAILED;
 }
-#endif

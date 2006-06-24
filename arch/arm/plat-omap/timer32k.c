@@ -210,7 +210,8 @@ static irqreturn_t omap_32k_timer_interrupt(int irq, void *dev_id,
 
 	now = omap_32k_sync_timer_read();
 
-	while (now - omap_32k_last_tick >= OMAP_32K_TICKS_PER_HZ) {
+	while ((signed long)(now - omap_32k_last_tick)
+						>= OMAP_32K_TICKS_PER_HZ) {
 		omap_32k_last_tick += OMAP_32K_TICKS_PER_HZ;
 		timer_tick(regs);
 	}

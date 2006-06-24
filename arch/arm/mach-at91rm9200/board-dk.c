@@ -27,6 +27,7 @@
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/spi/spi.h>
 
 #include <asm/hardware.h>
 #include <asm/setup.h>
@@ -37,9 +38,9 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <asm/arch/hardware.h>
-#include <asm/mach/serial_at91rm9200.h>
+#include <asm/hardware.h>
 #include <asm/arch/board.h>
+#include <asm/arch/gpio.h>
 
 #include "generic.h"
 
@@ -57,14 +58,14 @@ static void __init dk_init_irq(void)
  *    0 .. 3 = USART0 .. USART3
  *    4      = DBGU
  */
-#define DK_UART_MAP		{ 4, 1, -1, -1, -1 }	/* ttyS0, ..., ttyS4 */
-#define DK_SERIAL_CONSOLE	0			/* ttyS0 */
+static struct at91_uart_config __initdata dk_uart_config = {
+	.console_tty	= 0,				/* ttyS0 */
+	.nr_tty		= 2,
+	.tty_map	= { 4, 1, -1, -1, -1 }		/* ttyS0, ..., ttyS4 */
+};
 
 static void __init dk_map_io(void)
 {
-	int serial[AT91_NR_UART] = DK_UART_MAP;
-	int i;
-
 	at91rm9200_map_io();
 
 	/* Initialize clocks: 18.432 MHz crystal */
@@ -73,16 +74,8 @@ static void __init dk_map_io(void)
 	/* Setup the LEDs */
 	at91_init_leds(AT91_PIN_PB2, AT91_PIN_PB2);
 
-#ifdef CONFIG_SERIAL_AT91
-	at91_console_port = DK_SERIAL_CONSOLE;
-	memcpy(at91_serial_map, serial, sizeof(serial));
-
-	/* Register UARTs */
-	for (i = 0; i < AT91_NR_UART; i++) {
-		if (at91_serial_map[i] >= 0)
-			at91_register_uart(i, at91_serial_map[i]);
-	}
-#endif
+	/* Setup the serial ports and console */
+	at91_init_serial(&dk_uart_config);
 }
 
 static struct at91_eth_data __initdata dk_eth_data = {
@@ -111,16 +104,48 @@ static struct at91_mmc_data __initdata dk_mmc_data = {
 	.wire4		= 1,
 };
 
+static struct spi_board_info dk_spi_devices[] = {
+	{	/* DataFlash chip */
+		.modalias	= "mtd_dataflash",
+		.chip_select	= 0,
+		.max_speed_hz	= 15 * 1000 * 1000,
+	},
+	{	/* UR6HCPS2-SP40 PS2-to-SPI adapter */
+		.modalias	= "ur6hcps2",
+		.chip_select	= 1,
+		.max_speed_hz	= 250 *  1000,
+	},
+	{	/* TLV1504 ADC, 4 channels, 10 bits; one is a temp sensor */
+		.modalias	= "tlv1504",
+		.chip_select	= 2,
+		.max_speed_hz	= 20 * 1000 * 1000,
+	},
+#ifdef CONFIG_MTD_AT91_DATAFLASH_CARD
+	{	/* DataFlash card */
+		.modalias	= "mtd_dataflash",
+		.chip_select	= 3,
+		.max_speed_hz	= 15 * 1000 * 1000,
+	}
+#endif
+};
+
 static void __init dk_board_init(void)
 {
+	/* Serial */
+	at91_add_device_serial();
 	/* Ethernet */
 	at91_add_device_eth(&dk_eth_data);
 	/* USB Host */
 	at91_add_device_usbh(&dk_usbh_data);
 	/* USB Device */
 	at91_add_device_udc(&dk_udc_data);
+	at91_set_multi_drive(dk_udc_data.pullup_pin, 1);	/* pullup_pin is connected to reset */
 	/* Compact Flash */
 	at91_add_device_cf(&dk_cf_data);
+	/* I2C */
+	at91_add_device_i2c();
+	/* SPI */
+	at91_add_device_spi(dk_spi_devices, ARRAY_SIZE(dk_spi_devices));
 #ifdef CONFIG_MTD_AT91_DATAFLASH_CARD
 	/* DataFlash card */
 	at91_set_gpio_output(AT91_PIN_PB7, 0);

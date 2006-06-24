@@ -1,0 +1,59 @@
+Kernel driver abituguru
+=======================
+
+Supported chips:
+  * Abit uGuru (Hardware Monitor part only)
+    Prefix: 'abituguru'
+    Addresses scanned: ISA 0x0E0
+    Datasheet: Not available, this driver is based on reverse engineering.
+	A "Datasheet" has been written based on the reverse engineering it
+	should be available in the same dir as this file under the name
+	abituguru-datasheet.
+
+Authors:
+	Hans de Goede <j.w.r.degoede@hhs.nl>,
+	(Initial reverse engineering done by Olle Sandberg
+	 <ollebull@gmail.com>)
+
+
+Module Parameters
+-----------------
+
+* force: bool		Force detection. Note this parameter only causes the
+			detection to be skipped, if the uGuru can't be read
+			the module initialization (insmod) will still fail.
+* fan_sensors: int	Tell the driver how many fan speed sensors there are
+			on your motherboard. Default: 0 (autodetect).
+* pwms: int		Tell the driver how many fan speed controls (fan
+			pwms) your motherboard has. Default: 0 (autodetect).
+* verbose: int		How verbose should the driver be? (0-3):
+			   0 normal output
+			   1 + verbose error reporting
+			   2 + sensors type probing info\n"
+			   3 + retryable error reporting
+			Default: 2 (the driver is still in the testing phase)
+
+Notice if you need any of the first three options above please insmod the
+driver with verbose set to 3 and mail me <j.w.r.degoede@hhs.nl> the output of:
+dmesg | grep abituguru
+
+
+Description
+-----------
+
+This driver supports the hardware monitoring features of the Abit uGuru chip
+found on Abit uGuru featuring motherboards (most modern Abit motherboards).
+
+The uGuru chip in reality is a Winbond W83L950D in disguise (despite Abit
+claiming it is "a new microprocessor designed by the ABIT Engineers").
+Unfortunatly this doesn't help since the W83L950D is a generic
+microcontroller with a custom Abit application running on it.
+
+Despite Abit not releasing any information regarding the uGuru, Olle
+Sandberg <ollebull@gmail.com> has managed to reverse engineer the sensor part
+of the uGuru. Without his work this driver would not have been possible.
+
+Known Issues
+------------
+
+The voltage and frequency control parts of the Abit uGuru are not supported.

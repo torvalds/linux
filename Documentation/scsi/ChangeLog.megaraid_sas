@@ -1,3 +1,16 @@
+
+1 Release Date    : Wed Feb 03 14:31:44 PST 2006 - Sumant Patro <Sumant.Patro@lsil.com>
+2 Current Version : 00.00.02.04
+3 Older Version   : 00.00.02.04 
+
+i.	Remove superflous instance_lock
+
+	gets rid of the otherwise superflous instance_lock and avoids an unsave 
+	unsynchronized access in the error handler.
+
+		- Christoph Hellwig <hch@lst.de>
+
+
 1 Release Date    : Wed Feb 03 14:31:44 PST 2006 - Sumant Patro <Sumant.Patro@lsil.com>
 2 Current Version : 00.00.02.04
 3 Older Version   : 00.00.02.04 

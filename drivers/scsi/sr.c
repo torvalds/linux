@@ -217,7 +217,7 @@ int sr_media_change(struct cdrom_device_info *cdi, int slot)
 static void rw_intr(struct scsi_cmnd * SCpnt)
 {
 	int result = SCpnt->result;
-	int this_count = SCpnt->bufflen;
+	int this_count = SCpnt->request_bufflen;
 	int good_bytes = (result == 0 ? this_count : 0);
 	int block_sectors = 0;
 	long error_sector;

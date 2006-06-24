@@ -521,10 +521,10 @@ static ssize_t lparcfg_write(struct file *file, const char __user * buf,
 
 	current_weight = (resource >> 5 * 8) & 0xFF;
 
-	pr_debug("%s: current_entitled = %lu, current_weight = %lu\n",
+	pr_debug("%s: current_entitled = %lu, current_weight = %u\n",
 		 __FUNCTION__, current_entitled, current_weight);
 
-	pr_debug("%s: new_entitled = %lu, new_weight = %lu\n",
+	pr_debug("%s: new_entitled = %lu, new_weight = %u\n",
 		 __FUNCTION__, *new_entitled_ptr, *new_weight_ptr);
 
 	retval = plpar_hcall_norets(H_SET_PPP, *new_entitled_ptr,

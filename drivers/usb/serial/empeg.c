@@ -335,7 +335,7 @@ static void empeg_write_bulk_callback (struct urb *urb, struct pt_regs *regs)
 		return;
 	}
 
-	schedule_work(&port->work);
+	usb_serial_port_softint(port);
 }
 
 

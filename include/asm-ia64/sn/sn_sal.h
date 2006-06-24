@@ -345,7 +345,7 @@ ia64_sn_plat_set_error_handling_features(void)
 	ret_stuff.v1 = 0;
 	ret_stuff.v2 = 0;
 	SAL_CALL_REENTRANT(ret_stuff, SN_SAL_SET_ERROR_HANDLING_FEATURES,
-		(SAL_ERR_FEAT_MCA_SLV_TO_OS_INIT_SLV | SAL_ERR_FEAT_LOG_SBES),
+		SAL_ERR_FEAT_LOG_SBES,
 		0, 0, 0, 0, 0, 0);
 
 	return ret_stuff.status;

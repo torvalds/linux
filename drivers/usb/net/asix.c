@@ -912,6 +912,10 @@ static const struct usb_device_id	products [] = {
         USB_DEVICE (0x0b95, 0x7720),
         .driver_info = (unsigned long) &ax88772_info,
 }, {
+	// ASIX AX88178 10/100/1000
+	USB_DEVICE (0x0b95, 0x1780),
+	.driver_info = (unsigned long) &ax88772_info,
+}, {
 	// Linksys USB200M Rev 2
 	USB_DEVICE (0x13b1, 0x0018),
 	.driver_info = (unsigned long) &ax88772_info,

@@ -285,7 +285,7 @@ ENTRY(iwmmxt_task_switch)
 	bne	1f				@ yes: block them for next task
 
 	ldr	r5, =concan_owner
-	add	r6, r2, #(TI_IWMMXT_STATE - TI_CPU_DOMAIN) @ get next task Concan save area
+	add	r6, r2, #TI_IWMMXT_STATE	@ get next task Concan save area
 	ldr	r5, [r5]			@ get current Concan owner
 	teq	r5, r6				@ next task owns it?
 	movne	pc, lr				@ no: leave Concan disabled

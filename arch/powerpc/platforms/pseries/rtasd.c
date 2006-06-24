@@ -348,7 +348,7 @@ static int enable_surveillance(int timeout)
 		return 0;
 
 	if (error == -EINVAL) {
-		printk(KERN_INFO "rtasd: surveillance not supported\n");
+		printk(KERN_DEBUG "rtasd: surveillance not supported\n");
 		return 0;
 	}
 
@@ -440,7 +440,7 @@ static int rtasd(void *unused)
 		goto error;
 	}
 
-	printk(KERN_INFO "RTAS daemon started\n");
+	printk(KERN_DEBUG "RTAS daemon started\n");
 
 	DEBUG("will sleep for %d milliseconds\n", (30000/rtas_event_scan_rate));
 
@@ -487,7 +487,7 @@ static int __init rtas_init(void)
 
 	/* No RTAS */
 	if (rtas_token("event-scan") == RTAS_UNKNOWN_SERVICE) {
-		printk(KERN_INFO "rtasd: no event-scan on system\n");
+		printk(KERN_DEBUG "rtasd: no event-scan on system\n");
 		return -ENODEV;
 	}
 

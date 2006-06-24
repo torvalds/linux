@@ -107,7 +107,7 @@ struct aic7770_identity aic7770_ident_table[] =
 		ahc_aic7770_EISA_setup
 	}
 };
-const int ahc_num_aic7770_devs = NUM_ELEMENTS(aic7770_ident_table);
+const int ahc_num_aic7770_devs = ARRAY_SIZE(aic7770_ident_table);
 
 struct aic7770_identity *
 aic7770_find_device(uint32_t id)

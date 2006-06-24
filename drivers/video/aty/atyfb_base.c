@@ -3722,7 +3722,9 @@ static int __init atyfb_init(void)
     atyfb_setup(option);
 #endif
 
+#ifdef CONFIG_PCI
     pci_register_driver(&atyfb_driver);
+#endif
 #ifdef CONFIG_ATARI
     atyfb_atari_probe();
 #endif
@@ -3731,7 +3733,9 @@ static int __init atyfb_init(void)
 
 static void __exit atyfb_exit(void)
 {
+#ifdef CONFIG_PCI
 	pci_unregister_driver(&atyfb_driver);
+#endif
 }
 
 module_init(atyfb_init);

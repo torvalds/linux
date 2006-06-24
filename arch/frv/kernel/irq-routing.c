@@ -112,7 +112,7 @@ struct irq_source frv_cpuuart[2] = {
 #define __CPUUART(X, A)						\
 	[X] = {							\
 		.muxname	= "uart",			\
-		.muxdata	= (volatile void __iomem *) A,	\
+		.muxdata	= (volatile void __iomem *)(unsigned long)A,\
 		.irqmask	= 1 << IRQ_CPU_UART##X,		\
 		.doirq		= frv_cpuuart_doirq,		\
 	}
@@ -136,7 +136,7 @@ struct irq_source frv_cpudma[8] = {
 #define __CPUDMA(X, A)						\
 	[X] = {							\
 		.muxname	= "dma",			\
-		.muxdata	= (volatile void __iomem *) A,	\
+		.muxdata	= (volatile void __iomem *)(unsigned long)A,\
 		.irqmask	= 1 << IRQ_CPU_DMA##X,		\
 		.doirq		= frv_cpudma_doirq,		\
 	}
@@ -164,7 +164,7 @@ struct irq_source frv_cputimer[3] = {
 #define __CPUTIMER(X)						\
 	[X] = {							\
 		.muxname	= "timer",			\
-		.muxdata	= 0,				\
+		.muxdata	= NULL,				\
 		.irqmask	= 1 << IRQ_CPU_TIMER##X,	\
 		.doirq		= frv_cputimer_doirq,		\
 	}
@@ -187,7 +187,7 @@ struct irq_source frv_cpuexternal[8] = {
 #define __CPUEXTERNAL(X)					\
 	[X] = {							\
 		.muxname	= "ext",			\
-		.muxdata	= 0,				\
+		.muxdata	= NULL,				\
 		.irqmask	= 1 << IRQ_CPU_EXTERNAL##X,	\
 		.doirq		= frv_cpuexternal_doirq,	\
 	}

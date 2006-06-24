@@ -130,8 +130,4 @@ extern volatile unsigned int num_spurious;
  */
 extern irq_node_t *new_irq_node(void);
 
-struct irqaction;
-struct pt_regs;
-int handle_IRQ_event(unsigned int, struct pt_regs *, struct irqaction *);
-
 #endif /* _M68K_IRQ_H_ */

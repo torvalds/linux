@@ -1903,13 +1903,13 @@ static int selinux_sb_kern_mount(struct super_block *sb, void *data)
 	return superblock_has_perm(current, sb, FILESYSTEM__MOUNT, &ad);
 }
 
-static int selinux_sb_statfs(struct super_block *sb)
+static int selinux_sb_statfs(struct dentry *dentry)
 {
 	struct avc_audit_data ad;
 
 	AVC_AUDIT_DATA_INIT(&ad,FS);
-	ad.u.fs.dentry = sb->s_root;
-	return superblock_has_perm(current, sb, FILESYSTEM__GETATTR, &ad);
+	ad.u.fs.dentry = dentry->d_sb->s_root;
+	return superblock_has_perm(current, dentry->d_sb, FILESYSTEM__GETATTR, &ad);
 }
 
 static int selinux_mount(char * dev_name,
@@ -2645,6 +2645,11 @@ static int selinux_task_setnice(struct task_struct *p, int nice)
 	return task_has_perm(current,p, PROCESS__SETSCHED);
 }
 
+static int selinux_task_setioprio(struct task_struct *p, int ioprio)
+{
+	return task_has_perm(current, p, PROCESS__SETSCHED);
+}
+
 static int selinux_task_setrlimit(unsigned int resource, struct rlimit *new_rlim)
 {
 	struct rlimit *old_rlim = current->signal->rlim + resource;
@@ -2672,6 +2677,11 @@ static int selinux_task_setscheduler(struct task_struct *p, int policy, struct s
 static int selinux_task_getscheduler(struct task_struct *p)
 {
 	return task_has_perm(current, p, PROCESS__GETSCHED);
+}
+
+static int selinux_task_movememory(struct task_struct *p)
+{
+	return task_has_perm(current, p, PROCESS__SETSCHED);
 }
 
 static int selinux_task_kill(struct task_struct *p, struct siginfo *info, int sig)
@@ -4252,6 +4262,57 @@ static int selinux_setprocattr(struct task_struct *p,
 	return size;
 }
 
+#ifdef CONFIG_KEYS
+
+static int selinux_key_alloc(struct key *k, struct task_struct *tsk)
+{
+	struct task_security_struct *tsec = tsk->security;
+	struct key_security_struct *ksec;
+
+	ksec = kzalloc(sizeof(struct key_security_struct), GFP_KERNEL);
+	if (!ksec)
+		return -ENOMEM;
+
+	ksec->obj = k;
+	ksec->sid = tsec->sid;
+	k->security = ksec;
+
+	return 0;
+}
+
+static void selinux_key_free(struct key *k)
+{
+	struct key_security_struct *ksec = k->security;
+
+	k->security = NULL;
+	kfree(ksec);
+}
+
+static int selinux_key_permission(key_ref_t key_ref,
+			    struct task_struct *ctx,
+			    key_perm_t perm)
+{
+	struct key *key;
+	struct task_security_struct *tsec;
+	struct key_security_struct *ksec;
+
+	key = key_ref_to_ptr(key_ref);
+
+	tsec = ctx->security;
+	ksec = key->security;
+
+	/* if no specific permissions are requested, we skip the
+	   permission check. No serious, additional covert channels
+	   appear to be created. */
+	if (perm == 0)
+		return 0;
+
+	return avc_has_perm(tsec->sid, ksec->sid,
+			    SECCLASS_KEY, perm, NULL);
+}
+
+#endif
+
 static struct security_operations selinux_ops = {
 	.ptrace =			selinux_ptrace,
 	.capget =			selinux_capget,
@@ -4332,9 +4393,11 @@ static struct security_operations selinux_ops = {
 	.task_getsid =		        selinux_task_getsid,
 	.task_setgroups =		selinux_task_setgroups,
 	.task_setnice =			selinux_task_setnice,
+	.task_setioprio =		selinux_task_setioprio,
 	.task_setrlimit =		selinux_task_setrlimit,
 	.task_setscheduler =		selinux_task_setscheduler,
 	.task_getscheduler =		selinux_task_getscheduler,
+	.task_movememory =		selinux_task_movememory,
 	.task_kill =			selinux_task_kill,
 	.task_wait =			selinux_task_wait,
 	.task_prctl =			selinux_task_prctl,
@@ -4406,6 +4469,12 @@ static struct security_operations selinux_ops = {
 	.xfrm_state_delete_security =	selinux_xfrm_state_delete,
 	.xfrm_policy_lookup = 		selinux_xfrm_policy_lookup,
 #endif
+
+#ifdef CONFIG_KEYS
+	.key_alloc =                    selinux_key_alloc,
+	.key_free =                     selinux_key_free,
+	.key_permission =               selinux_key_permission,
+#endif
 };
 
 static __init int selinux_init(void)
@@ -4441,6 +4510,13 @@ static __init int selinux_init(void)
 	} else {
 		printk(KERN_INFO "SELinux:  Starting in permissive mode\n");
 	}
+
+#ifdef CONFIG_KEYS
+	/* Add security information to initial keyrings */
+	security_key_alloc(&root_user_keyring, current);
+	security_key_alloc(&root_session_keyring, current);
+#endif
+
 	return 0;
 }
 

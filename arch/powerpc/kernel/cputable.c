@@ -30,11 +30,7 @@ EXPORT_SYMBOL(cur_cpu_spec);
  * part of the cputable though. That has to be fixed for both ppc32
  * and ppc64
  */
-#ifdef CONFIG_PPC64
-extern void __setup_cpu_power3(unsigned long offset, struct cpu_spec* spec);
-extern void __setup_cpu_power4(unsigned long offset, struct cpu_spec* spec);
-extern void __setup_cpu_be(unsigned long offset, struct cpu_spec* spec);
-#else
+#ifdef CONFIG_PPC32
 extern void __setup_cpu_603(unsigned long offset, struct cpu_spec* spec);
 extern void __setup_cpu_604(unsigned long offset, struct cpu_spec* spec);
 extern void __setup_cpu_750(unsigned long offset, struct cpu_spec* spec);
@@ -58,7 +54,8 @@ extern void __setup_cpu_ppc970(unsigned long offset, struct cpu_spec* spec);
 #define COMMON_USER_POWER5_PLUS	(COMMON_USER_PPC64 | PPC_FEATURE_POWER5_PLUS|\
 				 PPC_FEATURE_SMT | PPC_FEATURE_ICACHE_SNOOP)
 #define COMMON_USER_POWER6	(COMMON_USER_PPC64 | PPC_FEATURE_ARCH_2_05 |\
-				 PPC_FEATURE_SMT | PPC_FEATURE_ICACHE_SNOOP)
+				 PPC_FEATURE_SMT | PPC_FEATURE_ICACHE_SNOOP | \
+				 PPC_FEATURE_TRUE_LE)
 #define COMMON_USER_BOOKE	(PPC_FEATURE_32 | PPC_FEATURE_HAS_MMU | \
 				 PPC_FEATURE_BOOKE)
 
@@ -78,11 +75,10 @@ struct cpu_spec	cpu_specs[] = {
 		.pvr_value		= 0x00400000,
 		.cpu_name		= "POWER3 (630)",
 		.cpu_features		= CPU_FTRS_POWER3,
-		.cpu_user_features	= COMMON_USER_PPC64,
+		.cpu_user_features	= COMMON_USER_PPC64|PPC_FEATURE_PPC_LE,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
 		.num_pmcs		= 8,
-		.cpu_setup		= __setup_cpu_power3,
 		.oprofile_cpu_type	= "ppc64/power3",
 		.oprofile_type		= PPC_OPROFILE_RS64,
 		.platform		= "power3",
@@ -92,11 +88,10 @@ struct cpu_spec	cpu_specs[] = {
 		.pvr_value		= 0x00410000,
 		.cpu_name		= "POWER3 (630+)",
 		.cpu_features		= CPU_FTRS_POWER3,
-		.cpu_user_features	= COMMON_USER_PPC64,
+		.cpu_user_features	= COMMON_USER_PPC64|PPC_FEATURE_PPC_LE,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
 		.num_pmcs		= 8,
-		.cpu_setup		= __setup_cpu_power3,
 		.oprofile_cpu_type	= "ppc64/power3",
 		.oprofile_type		= PPC_OPROFILE_RS64,
 		.platform		= "power3",
@@ -110,7 +105,6 @@ struct cpu_spec	cpu_specs[] = {
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
 		.num_pmcs		= 8,
-		.cpu_setup		= __setup_cpu_power3,
 		.oprofile_cpu_type	= "ppc64/rs64",
 		.oprofile_type		= PPC_OPROFILE_RS64,
 		.platform		= "rs64",
@@ -124,7 +118,6 @@ struct cpu_spec	cpu_specs[] = {
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
 		.num_pmcs		= 8,
-		.cpu_setup		= __setup_cpu_power3,
 		.oprofile_cpu_type	= "ppc64/rs64",
 		.oprofile_type		= PPC_OPROFILE_RS64,
 		.platform		= "rs64",
@@ -138,7 +131,6 @@ struct cpu_spec	cpu_specs[] = {
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
 		.num_pmcs		= 8,
-		.cpu_setup		= __setup_cpu_power3,
 		.oprofile_cpu_type	= "ppc64/rs64",
 		.oprofile_type		= PPC_OPROFILE_RS64,
 		.platform		= "rs64",
@@ -152,7 +144,6 @@ struct cpu_spec	cpu_specs[] = {
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
 		.num_pmcs		= 8,
-		.cpu_setup		= __setup_cpu_power3,
 		.oprofile_cpu_type	= "ppc64/rs64",
 		.oprofile_type		= PPC_OPROFILE_RS64,
 		.platform		= "rs64",
@@ -166,7 +157,6 @@ struct cpu_spec	cpu_specs[] = {
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
 		.num_pmcs		= 8,
-		.cpu_setup		= __setup_cpu_power4,
 		.oprofile_cpu_type	= "ppc64/power4",
 		.oprofile_type		= PPC_OPROFILE_POWER4,
 		.platform		= "power4",
@@ -180,7 +170,6 @@ struct cpu_spec	cpu_specs[] = {
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
 		.num_pmcs		= 8,
-		.cpu_setup		= __setup_cpu_power4,
 		.oprofile_cpu_type	= "ppc64/power4",
 		.oprofile_type		= PPC_OPROFILE_POWER4,
 		.platform		= "power4",
@@ -200,17 +189,11 @@ struct cpu_spec	cpu_specs[] = {
 		.oprofile_type		= PPC_OPROFILE_POWER4,
 		.platform		= "ppc970",
 	},
-#endif /* CONFIG_PPC64 */
-#if defined(CONFIG_PPC64) || defined(CONFIG_POWER4)
 	{	/* PPC970FX */
 		.pvr_mask		= 0xffff0000,
 		.pvr_value		= 0x003c0000,
 		.cpu_name		= "PPC970FX",
-#ifdef CONFIG_PPC32
-		.cpu_features		= CPU_FTRS_970_32,
-#else
 		.cpu_features		= CPU_FTRS_PPC970,
-#endif
 		.cpu_user_features	= COMMON_USER_POWER4 |
 			PPC_FEATURE_HAS_ALTIVEC_COMP,
 		.icache_bsize		= 128,
@@ -221,8 +204,6 @@ struct cpu_spec	cpu_specs[] = {
 		.oprofile_type		= PPC_OPROFILE_POWER4,
 		.platform		= "ppc970",
 	},
-#endif /* defined(CONFIG_PPC64) || defined(CONFIG_POWER4) */
-#ifdef CONFIG_PPC64
 	{	/* PPC970MP */
 		.pvr_mask		= 0xffff0000,
 		.pvr_value		= 0x00440000,
@@ -232,6 +213,7 @@ struct cpu_spec	cpu_specs[] = {
 			PPC_FEATURE_HAS_ALTIVEC_COMP,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
+		.num_pmcs		= 8,
 		.cpu_setup		= __setup_cpu_ppc970,
 		.oprofile_cpu_type	= "ppc64/970",
 		.oprofile_type		= PPC_OPROFILE_POWER4,
@@ -246,9 +228,13 @@ struct cpu_spec	cpu_specs[] = {
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
 		.num_pmcs		= 6,
-		.cpu_setup		= __setup_cpu_power4,
 		.oprofile_cpu_type	= "ppc64/power5",
 		.oprofile_type		= PPC_OPROFILE_POWER4,
+		/* SIHV / SIPR bits are implemented on POWER4+ (GQ)
+		 * and above but only works on POWER5 and above
+		 */
+		.oprofile_mmcra_sihv	= MMCRA_SIHV,
+		.oprofile_mmcra_sipr	= MMCRA_SIPR,
 		.platform		= "power5",
 	},
 	{	/* Power5 GS */
@@ -260,9 +246,10 @@ struct cpu_spec	cpu_specs[] = {
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
 		.num_pmcs		= 6,
-		.cpu_setup		= __setup_cpu_power4,
 		.oprofile_cpu_type	= "ppc64/power5+",
 		.oprofile_type		= PPC_OPROFILE_POWER4,
+		.oprofile_mmcra_sihv	= MMCRA_SIHV,
+		.oprofile_mmcra_sipr	= MMCRA_SIPR,
 		.platform		= "power5+",
 	},
 	{	/* Power6 */
@@ -273,10 +260,13 @@ struct cpu_spec	cpu_specs[] = {
 		.cpu_user_features	= COMMON_USER_POWER6,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
-		.num_pmcs		= 6,
-		.cpu_setup		= __setup_cpu_power4,
+		.num_pmcs		= 8,
 		.oprofile_cpu_type	= "ppc64/power6",
 		.oprofile_type		= PPC_OPROFILE_POWER4,
+ 		.oprofile_mmcra_sihv	= POWER6_MMCRA_SIHV,
+ 		.oprofile_mmcra_sipr	= POWER6_MMCRA_SIPR,
+ 		.oprofile_mmcra_clear	= POWER6_MMCRA_THRM |
+ 			POWER6_MMCRA_OTHER,
 		.platform		= "power6",
 	},
 	{	/* Cell Broadband Engine */
@@ -289,7 +279,6 @@ struct cpu_spec	cpu_specs[] = {
 			PPC_FEATURE_SMT,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
-		.cpu_setup		= __setup_cpu_be,
 		.platform		= "ppc-cell-be",
 	},
 	{	/* default match */
@@ -301,7 +290,6 @@ struct cpu_spec	cpu_specs[] = {
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
 		.num_pmcs		= 6,
-		.cpu_setup		= __setup_cpu_power4,
 		.platform		= "power4",
 	}
 #endif	/* CONFIG_PPC64 */
@@ -323,7 +311,7 @@ struct cpu_spec	cpu_specs[] = {
 		.pvr_value		= 0x00030000,
 		.cpu_name		= "603",
 		.cpu_features		= CPU_FTRS_603,
-		.cpu_user_features	= COMMON_USER,
+		.cpu_user_features	= COMMON_USER | PPC_FEATURE_PPC_LE,
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
 		.cpu_setup		= __setup_cpu_603,
@@ -334,7 +322,7 @@ struct cpu_spec	cpu_specs[] = {
 		.pvr_value		= 0x00060000,
 		.cpu_name		= "603e",
 		.cpu_features		= CPU_FTRS_603,
-		.cpu_user_features	= COMMON_USER,
+		.cpu_user_features	= COMMON_USER | PPC_FEATURE_PPC_LE,
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
 		.cpu_setup		= __setup_cpu_603,
@@ -345,7 +333,7 @@ struct cpu_spec	cpu_specs[] = {
 		.pvr_value		= 0x00070000,
 		.cpu_name		= "603ev",
 		.cpu_features		= CPU_FTRS_603,
-		.cpu_user_features	= COMMON_USER,
+		.cpu_user_features	= COMMON_USER | PPC_FEATURE_PPC_LE,
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
 		.cpu_setup		= __setup_cpu_603,
@@ -356,7 +344,7 @@ struct cpu_spec	cpu_specs[] = {
 		.pvr_value		= 0x00040000,
 		.cpu_name		= "604",
 		.cpu_features		= CPU_FTRS_604,
-		.cpu_user_features	= COMMON_USER,
+		.cpu_user_features	= COMMON_USER | PPC_FEATURE_PPC_LE,
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
 		.num_pmcs		= 2,
@@ -368,7 +356,7 @@ struct cpu_spec	cpu_specs[] = {
 		.pvr_value		= 0x00090000,
 		.cpu_name		= "604e",
 		.cpu_features		= CPU_FTRS_604,
-		.cpu_user_features	= COMMON_USER,
+		.cpu_user_features	= COMMON_USER | PPC_FEATURE_PPC_LE,
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
 		.num_pmcs		= 4,
@@ -380,7 +368,7 @@ struct cpu_spec	cpu_specs[] = {
 		.pvr_value		= 0x00090000,
 		.cpu_name		= "604r",
 		.cpu_features		= CPU_FTRS_604,
-		.cpu_user_features	= COMMON_USER,
+		.cpu_user_features	= COMMON_USER | PPC_FEATURE_PPC_LE,
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
 		.num_pmcs		= 4,
@@ -392,7 +380,7 @@ struct cpu_spec	cpu_specs[] = {
 		.pvr_value		= 0x000a0000,
 		.cpu_name		= "604ev",
 		.cpu_features		= CPU_FTRS_604,
-		.cpu_user_features	= COMMON_USER,
+		.cpu_user_features	= COMMON_USER | PPC_FEATURE_PPC_LE,
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
 		.num_pmcs		= 4,
@@ -404,7 +392,7 @@ struct cpu_spec	cpu_specs[] = {
 		.pvr_value		= 0x00084202,
 		.cpu_name		= "740/750",
 		.cpu_features		= CPU_FTRS_740_NOTAU,
-		.cpu_user_features	= COMMON_USER,
+		.cpu_user_features	= COMMON_USER | PPC_FEATURE_PPC_LE,
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
 		.num_pmcs		= 4,
@@ -416,7 +404,7 @@ struct cpu_spec	cpu_specs[] = {
 		.pvr_value		= 0x00080100,
 		.cpu_name		= "750CX",
 		.cpu_features		= CPU_FTRS_750,
-		.cpu_user_features	= COMMON_USER,
+		.cpu_user_features	= COMMON_USER | PPC_FEATURE_PPC_LE,
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
 		.num_pmcs		= 4,
@@ -428,7 +416,7 @@ struct cpu_spec	cpu_specs[] = {
 		.pvr_value		= 0x00082200,
 		.cpu_name		= "750CX",
 		.cpu_features		= CPU_FTRS_750,
-		.cpu_user_features	= COMMON_USER,
+		.cpu_user_features	= COMMON_USER | PPC_FEATURE_PPC_LE,
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
 		.num_pmcs		= 4,
@@ -440,7 +428,7 @@ struct cpu_spec	cpu_specs[] = {
 		.pvr_value		= 0x00082210,
 		.cpu_name		= "750CXe",
 		.cpu_features		= CPU_FTRS_750,
-		.cpu_user_features	= COMMON_USER,
+		.cpu_user_features	= COMMON_USER | PPC_FEATURE_PPC_LE,
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
 		.num_pmcs		= 4,
@@ -452,7 +440,7 @@ struct cpu_spec	cpu_specs[] = {
 		.pvr_value		= 0x00083214,
 		.cpu_name		= "750CXe",
 		.cpu_features		= CPU_FTRS_750,
-		.cpu_user_features	= COMMON_USER,
+		.cpu_user_features	= COMMON_USER | PPC_FEATURE_PPC_LE,
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
 		.num_pmcs		= 4,
@@ -464,7 +452,7 @@ struct cpu_spec	cpu_specs[] = {
 		.pvr_value		= 0x00083000,
 		.cpu_name		= "745/755",
 		.cpu_features		= CPU_FTRS_750,
-		.cpu_user_features	= COMMON_USER,
+		.cpu_user_features	= COMMON_USER | PPC_FEATURE_PPC_LE,
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
 		.num_pmcs		= 4,
@@ -476,7 +464,7 @@ struct cpu_spec	cpu_specs[] = {
 		.pvr_value		= 0x70000100,
 		.cpu_name		= "750FX",
 		.cpu_features		= CPU_FTRS_750FX1,
-		.cpu_user_features	= COMMON_USER,
+		.cpu_user_features	= COMMON_USER | PPC_FEATURE_PPC_LE,
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
 		.num_pmcs		= 4,
@@ -488,7 +476,7 @@ struct cpu_spec	cpu_specs[] = {
 		.pvr_value		= 0x70000200,
 		.cpu_name		= "750FX",
 		.cpu_features		= CPU_FTRS_750FX2,
-		.cpu_user_features	= COMMON_USER,
+		.cpu_user_features	= COMMON_USER | PPC_FEATURE_PPC_LE,
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
 		.num_pmcs		= 4,
@@ -500,7 +488,7 @@ struct cpu_spec	cpu_specs[] = {
 		.pvr_value		= 0x70000000,
 		.cpu_name		= "750FX",
 		.cpu_features		= CPU_FTRS_750FX,
-		.cpu_user_features	= COMMON_USER,
+		.cpu_user_features	= COMMON_USER | PPC_FEATURE_PPC_LE,
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
 		.num_pmcs		= 4,
@@ -512,7 +500,7 @@ struct cpu_spec	cpu_specs[] = {
 		.pvr_value		= 0x70020000,
 		.cpu_name		= "750GX",
 		.cpu_features		= CPU_FTRS_750GX,
-		.cpu_user_features	= COMMON_USER,
+		.cpu_user_features	= COMMON_USER | PPC_FEATURE_PPC_LE,
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
 		.num_pmcs		= 4,
@@ -524,7 +512,7 @@ struct cpu_spec	cpu_specs[] = {
 		.pvr_value		= 0x00080000,
 		.cpu_name		= "740/750",
 		.cpu_features		= CPU_FTRS_740,
-		.cpu_user_features	= COMMON_USER,
+		.cpu_user_features	= COMMON_USER | PPC_FEATURE_PPC_LE,
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
 		.num_pmcs		= 4,
@@ -536,7 +524,8 @@ struct cpu_spec	cpu_specs[] = {
 		.pvr_value		= 0x000c1101,
 		.cpu_name		= "7400 (1.1)",
 		.cpu_features		= CPU_FTRS_7400_NOTAU,
-		.cpu_user_features	= COMMON_USER | PPC_FEATURE_HAS_ALTIVEC_COMP,
+		.cpu_user_features	= COMMON_USER |
+			PPC_FEATURE_HAS_ALTIVEC_COMP | PPC_FEATURE_PPC_LE,
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
 		.num_pmcs		= 4,
@@ -548,7 +537,8 @@ struct cpu_spec	cpu_specs[] = {
 		.pvr_value		= 0x000c0000,
 		.cpu_name		= "7400",
 		.cpu_features		= CPU_FTRS_7400,
-		.cpu_user_features	= COMMON_USER | PPC_FEATURE_HAS_ALTIVEC_COMP,
+		.cpu_user_features	= COMMON_USER |
+			PPC_FEATURE_HAS_ALTIVEC_COMP | PPC_FEATURE_PPC_LE,
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
 		.num_pmcs		= 4,
@@ -560,7 +550,8 @@ struct cpu_spec	cpu_specs[] = {
 		.pvr_value		= 0x800c0000,
 		.cpu_name		= "7410",
 		.cpu_features		= CPU_FTRS_7400,
-		.cpu_user_features	= COMMON_USER | PPC_FEATURE_HAS_ALTIVEC_COMP,
+		.cpu_user_features	= COMMON_USER |
+			PPC_FEATURE_HAS_ALTIVEC_COMP | PPC_FEATURE_PPC_LE,
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
 		.num_pmcs		= 4,
@@ -572,7 +563,8 @@ struct cpu_spec	cpu_specs[] = {
 		.pvr_value		= 0x80000200,
 		.cpu_name		= "7450",
 		.cpu_features		= CPU_FTRS_7450_20,
-		.cpu_user_features	= COMMON_USER | PPC_FEATURE_HAS_ALTIVEC_COMP,
+		.cpu_user_features	= COMMON_USER |
+			PPC_FEATURE_HAS_ALTIVEC_COMP | PPC_FEATURE_PPC_LE,
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
 		.num_pmcs		= 6,
@@ -586,7 +578,8 @@ struct cpu_spec	cpu_specs[] = {
 		.pvr_value		= 0x80000201,
 		.cpu_name		= "7450",
 		.cpu_features		= CPU_FTRS_7450_21,
-		.cpu_user_features	= COMMON_USER | PPC_FEATURE_HAS_ALTIVEC_COMP,
+		.cpu_user_features	= COMMON_USER |
+			PPC_FEATURE_HAS_ALTIVEC_COMP | PPC_FEATURE_PPC_LE,
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
 		.num_pmcs		= 6,
@@ -600,7 +593,8 @@ struct cpu_spec	cpu_specs[] = {
 		.pvr_value		= 0x80000000,
 		.cpu_name		= "7450",
 		.cpu_features		= CPU_FTRS_7450_23,
-		.cpu_user_features	= COMMON_USER | PPC_FEATURE_HAS_ALTIVEC_COMP,
+		.cpu_user_features	= COMMON_USER |
+			PPC_FEATURE_HAS_ALTIVEC_COMP | PPC_FEATURE_PPC_LE,
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
 		.num_pmcs		= 6,
@@ -614,7 +608,8 @@ struct cpu_spec	cpu_specs[] = {
 		.pvr_value		= 0x80010100,
 		.cpu_name		= "7455",
 		.cpu_features		= CPU_FTRS_7455_1,
-		.cpu_user_features	= COMMON_USER | PPC_FEATURE_HAS_ALTIVEC_COMP,
+		.cpu_user_features	= COMMON_USER |
+			PPC_FEATURE_HAS_ALTIVEC_COMP | PPC_FEATURE_PPC_LE,
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
 		.num_pmcs		= 6,
@@ -628,7 +623,8 @@ struct cpu_spec	cpu_specs[] = {
 		.pvr_value		= 0x80010200,
 		.cpu_name		= "7455",
 		.cpu_features		= CPU_FTRS_7455_20,
-		.cpu_user_features	= COMMON_USER | PPC_FEATURE_HAS_ALTIVEC_COMP,
+		.cpu_user_features	= COMMON_USER |
+			PPC_FEATURE_HAS_ALTIVEC_COMP | PPC_FEATURE_PPC_LE,
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
 		.num_pmcs		= 6,
@@ -642,7 +638,8 @@ struct cpu_spec	cpu_specs[] = {
 		.pvr_value		= 0x80010000,
 		.cpu_name		= "7455",
 		.cpu_features		= CPU_FTRS_7455,
-		.cpu_user_features	= COMMON_USER | PPC_FEATURE_HAS_ALTIVEC_COMP,
+		.cpu_user_features	= COMMON_USER |
+			PPC_FEATURE_HAS_ALTIVEC_COMP | PPC_FEATURE_PPC_LE,
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
 		.num_pmcs		= 6,
@@ -656,7 +653,8 @@ struct cpu_spec	cpu_specs[] = {
 		.pvr_value		= 0x80020100,
 		.cpu_name		= "7447/7457",
 		.cpu_features		= CPU_FTRS_7447_10,
-		.cpu_user_features	= COMMON_USER | PPC_FEATURE_HAS_ALTIVEC_COMP,
+		.cpu_user_features	= COMMON_USER |
+			PPC_FEATURE_HAS_ALTIVEC_COMP | PPC_FEATURE_PPC_LE,
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
 		.num_pmcs		= 6,
@@ -670,7 +668,8 @@ struct cpu_spec	cpu_specs[] = {
 		.pvr_value		= 0x80020101,
 		.cpu_name		= "7447/7457",
 		.cpu_features		= CPU_FTRS_7447_10,
-		.cpu_user_features	= COMMON_USER | PPC_FEATURE_HAS_ALTIVEC_COMP,
+		.cpu_user_features	= COMMON_USER |
+			PPC_FEATURE_HAS_ALTIVEC_COMP | PPC_FEATURE_PPC_LE,
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
 		.num_pmcs		= 6,
@@ -684,7 +683,7 @@ struct cpu_spec	cpu_specs[] = {
 		.pvr_value		= 0x80020000,
 		.cpu_name		= "7447/7457",
 		.cpu_features		= CPU_FTRS_7447,
-		.cpu_user_features	= COMMON_USER | PPC_FEATURE_HAS_ALTIVEC_COMP,
+		.cpu_user_features	= COMMON_USER | PPC_FEATURE_HAS_ALTIVEC_COMP | PPC_FEATURE_PPC_LE,
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
 		.num_pmcs		= 6,
@@ -698,7 +697,8 @@ struct cpu_spec	cpu_specs[] = {
 		.pvr_value		= 0x80030000,
 		.cpu_name		= "7447A",
 		.cpu_features		= CPU_FTRS_7447A,
-		.cpu_user_features	= COMMON_USER | PPC_FEATURE_HAS_ALTIVEC_COMP,
+		.cpu_user_features	= COMMON_USER |
+			PPC_FEATURE_HAS_ALTIVEC_COMP | PPC_FEATURE_PPC_LE,
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
 		.num_pmcs		= 6,
@@ -712,7 +712,8 @@ struct cpu_spec	cpu_specs[] = {
 		.pvr_value		= 0x80040000,
 		.cpu_name		= "7448",
 		.cpu_features		= CPU_FTRS_7447A,
-		.cpu_user_features	= COMMON_USER | PPC_FEATURE_HAS_ALTIVEC_COMP,
+		.cpu_user_features	= COMMON_USER |
+			PPC_FEATURE_HAS_ALTIVEC_COMP | PPC_FEATURE_PPC_LE,
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
 		.num_pmcs		= 6,
@@ -721,6 +722,18 @@ struct cpu_spec	cpu_specs[] = {
 		.oprofile_type		= PPC_OPROFILE_G4,
 		.platform		= "ppc7450",
 	},
+        {       /* 8641 */
+               .pvr_mask               = 0xffffffff,
+               .pvr_value              = 0x80040010,
+               .cpu_name               = "8641",
+               .cpu_features           = CPU_FTRS_7447A,
+               .cpu_user_features      = COMMON_USER | PPC_FEATURE_HAS_ALTIVEC_COMP,
+               .icache_bsize           = 32,
+               .dcache_bsize           = 32,
+               .num_pmcs               = 6,
+               .cpu_setup              = __setup_cpu_745x
+        },
+
 	{	/* 82xx (8240, 8245, 8260 are all 603e cores) */
 		.pvr_mask		= 0x7fff0000,
 		.pvr_value		= 0x00810000,

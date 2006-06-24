@@ -73,7 +73,7 @@ acpi_ex_read_data_from_field(struct acpi_walk_state *walk_state,
 	void *buffer;
 	u8 locked;
 
-	ACPI_FUNCTION_TRACE_PTR("ex_read_data_from_field", obj_desc);
+	ACPI_FUNCTION_TRACE_PTR(ex_read_data_from_field, obj_desc);
 
 	/* Parameter validation */
 
@@ -142,6 +142,7 @@ acpi_ex_read_data_from_field(struct acpi_walk_state *walk_state,
 	length =
 	    (acpi_size) ACPI_ROUND_BITS_UP_TO_BYTES(obj_desc->field.bit_length);
 	if (length > acpi_gbl_integer_byte_width) {
+
 		/* Field is too large for an Integer, create a Buffer instead */
 
 		buffer_desc = acpi_ut_create_buffer_object(length);
@@ -163,11 +164,11 @@ acpi_ex_read_data_from_field(struct acpi_walk_state *walk_state,
 	}
 
 	ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
-			  "field_read [TO]:  Obj %p, Type %X, Buf %p, byte_len %X\n",
+			  "FieldRead [TO]:   Obj %p, Type %X, Buf %p, ByteLen %X\n",
 			  obj_desc, ACPI_GET_OBJECT_TYPE(obj_desc), buffer,
 			  (u32) length));
 	ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
-			  "field_read [FROM]: bit_len %X, bit_off %X, byte_off %X\n",
+			  "FieldRead [FROM]: BitLen %X, BitOff %X, ByteOff %X\n",
 			  obj_desc->common_field.bit_length,
 			  obj_desc->common_field.start_field_bit_offset,
 			  obj_desc->common_field.base_byte_offset));
@@ -219,7 +220,7 @@ acpi_ex_write_data_to_field(union acpi_operand_object *source_desc,
 	u8 locked;
 	union acpi_operand_object *buffer_desc;
 
-	ACPI_FUNCTION_TRACE_PTR("ex_write_data_to_field", obj_desc);
+	ACPI_FUNCTION_TRACE_PTR(ex_write_data_to_field, obj_desc);
 
 	/* Parameter validation */
 
@@ -329,9 +330,10 @@ acpi_ex_write_data_to_field(union acpi_operand_object *source_desc,
 	    ACPI_ROUND_BITS_UP_TO_BYTES(obj_desc->common_field.bit_length);
 
 	if (length < required_length) {
+
 		/* We need to create a new buffer */
 
-		new_buffer = ACPI_MEM_CALLOCATE(required_length);
+		new_buffer = ACPI_ALLOCATE_ZEROED(required_length);
 		if (!new_buffer) {
 			return_ACPI_STATUS(AE_NO_MEMORY);
 		}
@@ -347,14 +349,14 @@ acpi_ex_write_data_to_field(union acpi_operand_object *source_desc,
 	}
 
 	ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
-			  "field_write [FROM]: Obj %p (%s:%X), Buf %p, byte_len %X\n",
+			  "FieldWrite [FROM]: Obj %p (%s:%X), Buf %p, ByteLen %X\n",
 			  source_desc,
 			  acpi_ut_get_type_name(ACPI_GET_OBJECT_TYPE
 						(source_desc)),
 			  ACPI_GET_OBJECT_TYPE(source_desc), buffer, length));
 
 	ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
-			  "field_write [TO]:  Obj %p (%s:%X), bit_len %X, bit_off %X, byte_off %X\n",
+			  "FieldWrite [TO]:   Obj %p (%s:%X), BitLen %X, BitOff %X, ByteOff %X\n",
 			  obj_desc,
 			  acpi_ut_get_type_name(ACPI_GET_OBJECT_TYPE(obj_desc)),
 			  ACPI_GET_OBJECT_TYPE(obj_desc),
@@ -375,7 +377,7 @@ acpi_ex_write_data_to_field(union acpi_operand_object *source_desc,
 	/* Free temporary buffer if we used one */
 
 	if (new_buffer) {
-		ACPI_MEM_FREE(new_buffer);
+		ACPI_FREE(new_buffer);
 	}
 
 	return_ACPI_STATUS(status);

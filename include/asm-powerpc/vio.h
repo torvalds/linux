@@ -63,32 +63,22 @@ struct vio_driver {
 	struct device_driver driver;
 };
 
-struct vio_bus_ops {
-	int (*match)(const struct vio_device_id *id, const struct vio_dev *dev);
-	void (*unregister_device)(struct vio_dev *);
-	void (*release_device)(struct device *);
-};
-
 extern struct dma_mapping_ops vio_dma_ops;
 extern struct bus_type vio_bus_type;
-extern struct vio_dev vio_bus_device;
 
 extern int vio_register_driver(struct vio_driver *drv);
 extern void vio_unregister_driver(struct vio_driver *drv);
 
-extern struct vio_dev * __devinit vio_register_device(struct vio_dev *viodev);
 extern void __devinit vio_unregister_device(struct vio_dev *dev);
 
-extern int vio_bus_init(struct vio_bus_ops *);
-
-#ifdef CONFIG_PPC_PSERIES
 struct device_node;
 
 extern struct vio_dev * __devinit vio_register_device_node(
 		struct device_node *node_vdev);
-extern struct vio_dev *vio_find_node(struct device_node *vnode);
-extern const void *vio_get_attribute(struct vio_dev *vdev, void *which,
+extern const void *vio_get_attribute(struct vio_dev *vdev, char *which,
 		int *length);
+#ifdef CONFIG_PPC_PSERIES
+extern struct vio_dev *vio_find_node(struct device_node *vnode);
 extern int vio_enable_interrupts(struct vio_dev *dev);
 extern int vio_disable_interrupts(struct vio_dev *dev);
 #endif

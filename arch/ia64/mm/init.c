@@ -671,9 +671,11 @@ int add_memory(u64 start, u64 size)
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(add_memory);
 
 int remove_memory(u64 start, u64 size)
 {
 	return -EINVAL;
 }
+EXPORT_SYMBOL_GPL(remove_memory);
 #endif

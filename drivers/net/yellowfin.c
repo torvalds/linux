@@ -862,13 +862,11 @@ static int yellowfin_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		/* Fix GX chipset errata. */
 		if (cacheline_end > 24  || cacheline_end == 0) {
 			len = skb->len + 32 - cacheline_end + 1;
-			if (len != skb->len)
-				skb = skb_padto(skb, len);
-		}
-		if (skb == NULL) {
-			yp->tx_skbuff[entry] = NULL;
-			netif_wake_queue(dev);
-			return 0;
+			if (skb_padto(skb, len)) {
+				yp->tx_skbuff[entry] = NULL;
+				netif_wake_queue(dev);
+				return 0;
+			}
 		}
 	}
 	yp->tx_skbuff[entry] = skb;

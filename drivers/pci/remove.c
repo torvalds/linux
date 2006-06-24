@@ -22,18 +22,18 @@ static void pci_destroy_dev(struct pci_dev *dev)
 		pci_proc_detach_device(dev);
 		pci_remove_sysfs_dev_files(dev);
 		device_unregister(&dev->dev);
-		spin_lock(&pci_bus_lock);
+		down_write(&pci_bus_sem);
 		list_del(&dev->global_list);
 		dev->global_list.next = dev->global_list.prev = NULL;
-		spin_unlock(&pci_bus_lock);
+		up_write(&pci_bus_sem);
 	}
 
 	/* Remove the device from the device lists, and prevent any further
 	 * list accesses from this device */
-	spin_lock(&pci_bus_lock);
+	down_write(&pci_bus_sem);
 	list_del(&dev->bus_list);
 	dev->bus_list.next = dev->bus_list.prev = NULL;
-	spin_unlock(&pci_bus_lock);
+	up_write(&pci_bus_sem);
 
 	pci_free_resources(dev);
 	pci_dev_put(dev);
@@ -62,9 +62,9 @@ void pci_remove_bus(struct pci_bus *pci_bus)
 {
 	pci_proc_detach_bus(pci_bus);
 
-	spin_lock(&pci_bus_lock);
+	down_write(&pci_bus_sem);
 	list_del(&pci_bus->node);
-	spin_unlock(&pci_bus_lock);
+	up_write(&pci_bus_sem);
 	pci_remove_legacy_files(pci_bus);
 	class_device_remove_file(&pci_bus->class_dev,
 		&class_device_attr_cpuaffinity);

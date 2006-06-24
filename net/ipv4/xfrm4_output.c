@@ -9,6 +9,8 @@
  */
 
 #include <linux/compiler.h>
+#include <linux/if_ether.h>
+#include <linux/kernel.h>
 #include <linux/skbuff.h>
 #include <linux/spinlock.h>
 #include <linux/netfilter_ipv4.h>
@@ -97,16 +99,10 @@ error_nolock:
 	goto out_exit;
 }
 
-static int xfrm4_output_finish(struct sk_buff *skb)
+static int xfrm4_output_finish2(struct sk_buff *skb)
 {
 	int err;
 
-#ifdef CONFIG_NETFILTER
-	if (!skb->dst->xfrm) {
-		IPCB(skb)->flags |= IPSKB_REROUTED;
-		return dst_output(skb);
-	}
-#endif
 	while (likely((err = xfrm4_output_one(skb)) == 0)) {
 		nf_reset(skb);
 
@@ -119,12 +115,54 @@ static int xfrm4_output_finish(struct sk_buff *skb)
 			return dst_output(skb);
 
 		err = nf_hook(PF_INET, NF_IP_POST_ROUTING, &skb, NULL,
-			      skb->dst->dev, xfrm4_output_finish);
+			      skb->dst->dev, xfrm4_output_finish2);
 		if (unlikely(err != 1))
 			break;
 	}
 
 	return err;
+}
+
+static int xfrm4_output_finish(struct sk_buff *skb)
+{
+	struct sk_buff *segs;
+
+#ifdef CONFIG_NETFILTER
+	if (!skb->dst->xfrm) {
+		IPCB(skb)->flags |= IPSKB_REROUTED;
+		return dst_output(skb);
+	}
+#endif
+
+	if (!skb_shinfo(skb)->gso_size)
+		return xfrm4_output_finish2(skb);
+
+	skb->protocol = htons(ETH_P_IP);
+	segs = skb_gso_segment(skb, 0);
+	kfree_skb(skb);
+	if (unlikely(IS_ERR(segs)))
+		return PTR_ERR(segs);
+
+	do {
+		struct sk_buff *nskb = segs->next;
+		int err;
+
+		segs->next = NULL;
+		err = xfrm4_output_finish2(segs);
+
+		if (unlikely(err)) {
+			while ((segs = nskb)) {
+				nskb = segs->next;
+				segs->next = NULL;
+				kfree_skb(segs);
+			}
+			return err;
+		}
+
+		segs = nskb;
+	} while (segs);
+
+	return 0;
 }
 
 int xfrm4_output(struct sk_buff *skb)

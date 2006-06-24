@@ -43,7 +43,8 @@ static struct snd_pcm_hardware snd_cs5535audio_playback =
 		 		SNDRV_PCM_INFO_BLOCK_TRANSFER |
 		 		SNDRV_PCM_INFO_MMAP_VALID |
 		 		SNDRV_PCM_INFO_PAUSE |
-				SNDRV_PCM_INFO_SYNC_START
+				SNDRV_PCM_INFO_SYNC_START |
+				SNDRV_PCM_INFO_RESUME
 				),
 	.formats =		(
 				SNDRV_PCM_FMTBIT_S16_LE
@@ -193,6 +194,11 @@ static void cs5535audio_playback_setup_prd(struct cs5535audio *cs5535au,
 	cs_writel(cs5535au, ACC_BM0_PRD, prd_addr);
 }
 
+static u32 cs5535audio_playback_read_prd(struct cs5535audio *cs5535au)
+{
+	return cs_readl(cs5535au, ACC_BM0_PRD);
+}
+
 static u32 cs5535audio_playback_read_dma_pntr(struct cs5535audio *cs5535au)
 {
 	return cs_readl(cs5535au, ACC_BM0_PNTR);
@@ -217,6 +223,11 @@ static void cs5535audio_capture_setup_prd(struct cs5535audio *cs5535au,
 					  u32 prd_addr)
 {
 	cs_writel(cs5535au, ACC_BM1_PRD, prd_addr);
+}
+
+static u32 cs5535audio_capture_read_prd(struct cs5535audio *cs5535au)
+{
+	return cs_readl(cs5535au, ACC_BM1_PRD);
 }
 
 static u32 cs5535audio_capture_read_dma_pntr(struct cs5535audio *cs5535au)
@@ -285,8 +296,16 @@ static int snd_cs5535audio_trigger(struct snd_pcm_substream *substream, int cmd)
 	case SNDRV_PCM_TRIGGER_START:
 		dma->ops->enable_dma(cs5535au);
 		break;
+	case SNDRV_PCM_TRIGGER_RESUME:
+		dma->ops->enable_dma(cs5535au);
+		dma->suspended = 0;
+		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 		dma->ops->disable_dma(cs5535au);
+		break;
+	case SNDRV_PCM_TRIGGER_SUSPEND:
+		dma->ops->disable_dma(cs5535au);
+		dma->suspended = 1;
 		break;
 	default:
 		snd_printk(KERN_ERR "unhandled trigger\n");
@@ -375,6 +394,7 @@ static struct cs5535audio_dma_ops snd_cs5535audio_playback_dma_ops = {
         .enable_dma = cs5535audio_playback_enable_dma,
         .disable_dma = cs5535audio_playback_disable_dma,
         .setup_prd = cs5535audio_playback_setup_prd,
+        .read_prd = cs5535audio_playback_read_prd,
         .pause_dma = cs5535audio_playback_pause_dma,
         .read_dma_pntr = cs5535audio_playback_read_dma_pntr,
 };
@@ -384,6 +404,7 @@ static struct cs5535audio_dma_ops snd_cs5535audio_capture_dma_ops = {
         .enable_dma = cs5535audio_capture_enable_dma,
         .disable_dma = cs5535audio_capture_disable_dma,
         .setup_prd = cs5535audio_capture_setup_prd,
+        .read_prd = cs5535audio_capture_read_prd,
         .pause_dma = cs5535audio_capture_pause_dma,
         .read_dma_pntr = cs5535audio_capture_read_dma_pntr,
 };
@@ -413,6 +434,7 @@ int __devinit snd_cs5535audio_pcm(struct cs5535audio *cs5535au)
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
 					snd_dma_pci_data(cs5535au->pci),
 					64*1024, 128*1024);
+	cs5535au->pcm = pcm;
 
 	return 0;
 }

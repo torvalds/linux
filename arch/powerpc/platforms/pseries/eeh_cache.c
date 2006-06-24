@@ -304,6 +304,8 @@ void __init pci_addr_cache_build(void)
 		pci_addr_cache_insert_device(dev);
 
 		dn = pci_device_to_OF_node(dev);
+		if (!dn)
+			continue;
 		pci_dev_get (dev);  /* matching put is in eeh_remove_device() */
 		PCI_DN(dn)->pcidev = dev;
 	}

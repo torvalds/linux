@@ -2221,13 +2221,8 @@ static int happy_meal_open(struct net_device *dev)
 		if (request_irq(dev->irq, &happy_meal_interrupt,
 				SA_SHIRQ, dev->name, (void *)dev)) {
 			HMD(("EAGAIN\n"));
-#ifdef __sparc__
-			printk(KERN_ERR "happy_meal(SBUS): Can't order irq %s to go.\n",
-			       __irq_itoa(dev->irq));
-#else
 			printk(KERN_ERR "happy_meal(SBUS): Can't order irq %d to go.\n",
 			       dev->irq);
-#endif
 
 			return -EAGAIN;
 		}

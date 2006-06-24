@@ -356,7 +356,7 @@ static int report_statvfs(struct vfsmount *mnt, struct inode *inode, u32 buf)
 	int error;
 	struct sol_statvfs __user *ss = A(buf);
 
-	error = vfs_statfs(mnt->mnt_sb, &s);
+	error = vfs_statfs(mnt->mnt_root, &s);
 	if (!error) {
 		const char *p = mnt->mnt_sb->s_type->name;
 		int i = 0;
@@ -392,7 +392,7 @@ static int report_statvfs64(struct vfsmount *mnt, struct inode *inode, u32 buf)
 	int error;
 	struct sol_statvfs64 __user *ss = A(buf);
 			
-	error = vfs_statfs(mnt->mnt_sb, &s);
+	error = vfs_statfs(mnt->mnt_root, &s);
 	if (!error) {
 		const char *p = mnt->mnt_sb->s_type->name;
 		int i = 0;

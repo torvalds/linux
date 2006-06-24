@@ -192,7 +192,7 @@ vfp_get_double:
 	add	pc, pc, r0, lsl #3
 	mov	r0, r0
 	.irp	dr,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15
-	mrrc	p11, 1, r0, r1, c\dr	@ fmrrd	r0, r1, d\dr
+	fmrrd	r0, r1, d\dr
 	mov	pc, lr
 	.endr
 
@@ -206,6 +206,6 @@ vfp_put_double:
 	add	pc, pc, r0, lsl #3
 	mov	r0, r0
 	.irp	dr,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15
-	mcrr	p11, 1, r1, r2, c\dr	@ fmdrr	r1, r2, d\dr
+	fmdrr	d\dr, r1, r2
 	mov	pc, lr
 	.endr

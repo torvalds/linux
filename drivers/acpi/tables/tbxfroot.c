@@ -41,8 +41,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#include <linux/module.h>
-
 #include <acpi/acpi.h>
 #include <acpi/actables.h>
 
@@ -75,6 +73,7 @@ acpi_status acpi_tb_validate_rsdp(struct rsdp_descriptor *rsdp)
 	 *  The signature and checksum must both be correct
 	 */
 	if (ACPI_STRNCMP((char *)rsdp, RSDP_SIG, sizeof(RSDP_SIG) - 1) != 0) {
+
 		/* Nope, BAD Signature */
 
 		return (AE_BAD_SIGNATURE);
@@ -82,15 +81,14 @@ acpi_status acpi_tb_validate_rsdp(struct rsdp_descriptor *rsdp)
 
 	/* Check the standard checksum */
 
-	if (acpi_tb_generate_checksum(rsdp, ACPI_RSDP_CHECKSUM_LENGTH) != 0) {
+	if (acpi_tb_sum_table(rsdp, ACPI_RSDP_CHECKSUM_LENGTH) != 0) {
 		return (AE_BAD_CHECKSUM);
 	}
 
 	/* Check extended checksum if table version >= 2 */
 
 	if ((rsdp->revision >= 2) &&
-	    (acpi_tb_generate_checksum(rsdp, ACPI_RSDP_XCHECKSUM_LENGTH) !=
-	     0)) {
+	    (acpi_tb_sum_table(rsdp, ACPI_RSDP_XCHECKSUM_LENGTH) != 0)) {
 		return (AE_BAD_CHECKSUM);
 	}
 
@@ -121,7 +119,7 @@ acpi_tb_find_table(char *signature,
 	acpi_status status;
 	struct acpi_table_header *table;
 
-	ACPI_FUNCTION_TRACE("tb_find_table");
+	ACPI_FUNCTION_TRACE(tb_find_table);
 
 	/* Validate string lengths */
 
@@ -131,7 +129,7 @@ acpi_tb_find_table(char *signature,
 		return_ACPI_STATUS(AE_AML_STRING_LIMIT);
 	}
 
-	if (!ACPI_STRNCMP(signature, DSDT_SIG, ACPI_NAME_SIZE)) {
+	if (ACPI_COMPARE_NAME(signature, DSDT_SIG)) {
 		/*
 		 * The DSDT pointer is contained in the FADT, not the RSDT.
 		 * This code should suffice, because the only code that would perform
@@ -156,10 +154,12 @@ acpi_tb_find_table(char *signature,
 
 	/* Check oem_id and oem_table_id */
 
-	if ((oem_id[0] && ACPI_STRNCMP(oem_id, table->oem_id,
-				       sizeof(table->oem_id))) ||
-	    (oem_table_id[0] && ACPI_STRNCMP(oem_table_id, table->oem_table_id,
-					     sizeof(table->oem_table_id)))) {
+	if ((oem_id[0] &&
+	     ACPI_STRNCMP(oem_id, table->oem_id,
+			  sizeof(table->oem_id))) ||
+	    (oem_table_id[0] &&
+	     ACPI_STRNCMP(oem_table_id, table->oem_table_id,
+			  sizeof(table->oem_table_id)))) {
 		return_ACPI_STATUS(AE_AML_NAME_NOT_FOUND);
 	}
 
@@ -203,7 +203,7 @@ acpi_get_firmware_table(acpi_string signature,
 	u32 i;
 	u32 j;
 
-	ACPI_FUNCTION_TRACE("acpi_get_firmware_table");
+	ACPI_FUNCTION_TRACE(acpi_get_firmware_table);
 
 	/*
 	 * Ensure that at least the table manager is initialized.  We don't
@@ -217,6 +217,7 @@ acpi_get_firmware_table(acpi_string signature,
 	/* Ensure that we have a RSDP */
 
 	if (!acpi_gbl_RSDP) {
+
 		/* Get the RSDP */
 
 		status = acpi_os_get_root_pointer(flags, &address);
@@ -261,7 +262,7 @@ acpi_get_firmware_table(acpi_string signature,
 
 	/* Get and validate the RSDT */
 
-	rsdt_info = ACPI_MEM_CALLOCATE(sizeof(struct acpi_table_desc));
+	rsdt_info = ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_table_desc));
 	if (!rsdt_info) {
 		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
@@ -278,13 +279,13 @@ acpi_get_firmware_table(acpi_string signature,
 
 	/* Allocate a scratch table header and table descriptor */
 
-	header = ACPI_MEM_ALLOCATE(sizeof(struct acpi_table_header));
+	header = ACPI_ALLOCATE(sizeof(struct acpi_table_header));
 	if (!header) {
 		status = AE_NO_MEMORY;
 		goto cleanup;
 	}
 
-	table_info = ACPI_MEM_ALLOCATE(sizeof(struct acpi_table_desc));
+	table_info = ACPI_ALLOCATE(sizeof(struct acpi_table_desc));
 	if (!table_info) {
 		status = AE_NO_MEMORY;
 		goto cleanup;
@@ -308,12 +309,12 @@ acpi_get_firmware_table(acpi_string signature,
 		if (acpi_gbl_root_table_type == ACPI_TABLE_TYPE_RSDT) {
 			address.pointer.value =
 			    (ACPI_CAST_PTR
-			     (RSDT_DESCRIPTOR,
+			     (struct rsdt_descriptor,
 			      rsdt_info->pointer))->table_offset_entry[i];
 		} else {
 			address.pointer.value =
 			    (ACPI_CAST_PTR
-			     (XSDT_DESCRIPTOR,
+			     (struct xsdt_descriptor,
 			      rsdt_info->pointer))->table_offset_entry[i];
 		}
 
@@ -326,11 +327,13 @@ acpi_get_firmware_table(acpi_string signature,
 
 		/* Compare table signatures and table instance */
 
-		if (!ACPI_STRNCMP(header->signature, signature, ACPI_NAME_SIZE)) {
+		if (ACPI_COMPARE_NAME(header->signature, signature)) {
+
 			/* An instance of the table was found */
 
 			j++;
 			if (j >= instance) {
+
 				/* Found the correct instance, get the entire table */
 
 				status =
@@ -355,23 +358,21 @@ acpi_get_firmware_table(acpi_string signature,
 		acpi_os_unmap_memory(rsdt_info->pointer,
 				     (acpi_size) rsdt_info->pointer->length);
 	}
-	ACPI_MEM_FREE(rsdt_info);
+	ACPI_FREE(rsdt_info);
 
 	if (header) {
-		ACPI_MEM_FREE(header);
+		ACPI_FREE(header);
 	}
 	if (table_info) {
-		ACPI_MEM_FREE(table_info);
+		ACPI_FREE(table_info);
 	}
 	return_ACPI_STATUS(status);
 }
 
-EXPORT_SYMBOL(acpi_get_firmware_table);
+ACPI_EXPORT_SYMBOL(acpi_get_firmware_table)
 
 /* TBD: Move to a new file */
-
 #if ACPI_MACHINE_WIDTH != 16
-
 /*******************************************************************************
  *
  * FUNCTION:    acpi_find_root_pointer
@@ -384,13 +385,12 @@ EXPORT_SYMBOL(acpi_get_firmware_table);
  * DESCRIPTION: Find the RSDP
  *
  ******************************************************************************/
-
 acpi_status acpi_find_root_pointer(u32 flags, struct acpi_pointer *rsdp_address)
 {
 	struct acpi_table_desc table_info;
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("acpi_find_root_pointer");
+	ACPI_FUNCTION_TRACE(acpi_find_root_pointer);
 
 	/* Get the RSDP */
 
@@ -407,6 +407,8 @@ acpi_status acpi_find_root_pointer(u32 flags, struct acpi_pointer *rsdp_address)
 	return_ACPI_STATUS(AE_OK);
 }
 
+ACPI_EXPORT_SYMBOL(acpi_find_root_pointer)
+
 /*******************************************************************************
  *
  * FUNCTION:    acpi_tb_scan_memory_for_rsdp
@@ -419,14 +421,13 @@ acpi_status acpi_find_root_pointer(u32 flags, struct acpi_pointer *rsdp_address)
  * DESCRIPTION: Search a block of memory for the RSDP signature
  *
  ******************************************************************************/
-
 static u8 *acpi_tb_scan_memory_for_rsdp(u8 * start_address, u32 length)
 {
 	acpi_status status;
 	u8 *mem_rover;
 	u8 *end_address;
 
-	ACPI_FUNCTION_TRACE("tb_scan_memory_for_rsdp");
+	ACPI_FUNCTION_TRACE(tb_scan_memory_for_rsdp);
 
 	end_address = start_address + length;
 
@@ -434,12 +435,14 @@ static u8 *acpi_tb_scan_memory_for_rsdp(u8 * start_address, u32 length)
 
 	for (mem_rover = start_address; mem_rover < end_address;
 	     mem_rover += ACPI_RSDP_SCAN_STEP) {
+
 		/* The RSDP signature and checksum must both be correct */
 
 		status =
 		    acpi_tb_validate_rsdp(ACPI_CAST_PTR
 					  (struct rsdp_descriptor, mem_rover));
 		if (ACPI_SUCCESS(status)) {
+
 			/* Sig and checksum valid, we have found a real RSDP */
 
 			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
@@ -469,10 +472,10 @@ static u8 *acpi_tb_scan_memory_for_rsdp(u8 * start_address, u32 length)
  *
  * RETURN:      Status, RSDP physical address
  *
- * DESCRIPTION: search lower 1_mbyte of memory for the root system descriptor
+ * DESCRIPTION: Search lower 1_mbyte of memory for the root system descriptor
  *              pointer structure.  If it is found, set *RSDP to point to it.
  *
- *              NOTE1: The RSDp must be either in the first 1_k of the Extended
+ *              NOTE1: The RSDP must be either in the first 1_k of the Extended
  *              BIOS Data Area or between E0000 and FFFFF (From ACPI Spec.)
  *              Only a 32-bit physical address is necessary.
  *
@@ -489,12 +492,13 @@ acpi_tb_find_rsdp(struct acpi_table_desc *table_info, u32 flags)
 	u32 physical_address;
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("tb_find_rsdp");
+	ACPI_FUNCTION_TRACE(tb_find_rsdp);
 
 	/*
 	 * Scan supports either logical addressing or physical addressing
 	 */
 	if ((flags & ACPI_MEMORY_MODE) == ACPI_LOGICAL_ADDRESSING) {
+
 		/* 1a) Get the location of the Extended BIOS Data Area (EBDA) */
 
 		status = acpi_os_map_memory((acpi_physical_address)
@@ -521,7 +525,7 @@ acpi_tb_find_rsdp(struct acpi_table_desc *table_info, u32 flags)
 
 		if (physical_address > 0x400) {
 			/*
-			 * 1b) Search EBDA paragraphs (EBDa is required to be a
+			 * 1b) Search EBDA paragraphs (EBDA is required to be a
 			 *     minimum of 1_k length)
 			 */
 			status = acpi_os_map_memory((acpi_physical_address)
@@ -542,10 +546,11 @@ acpi_tb_find_rsdp(struct acpi_table_desc *table_info, u32 flags)
 			acpi_os_unmap_memory(table_ptr, ACPI_EBDA_WINDOW_SIZE);
 
 			if (mem_rover) {
+
 				/* Return the physical address */
 
 				physical_address +=
-				    ACPI_PTR_DIFF(mem_rover, table_ptr);
+				    (u32) ACPI_PTR_DIFF(mem_rover, table_ptr);
 
 				table_info->physical_address =
 				    (acpi_physical_address) physical_address;
@@ -576,11 +581,12 @@ acpi_tb_find_rsdp(struct acpi_table_desc *table_info, u32 flags)
 		acpi_os_unmap_memory(table_ptr, ACPI_HI_RSDP_WINDOW_SIZE);
 
 		if (mem_rover) {
+
 			/* Return the physical address */
 
-			physical_address =
-			    ACPI_HI_RSDP_WINDOW_BASE + ACPI_PTR_DIFF(mem_rover,
-								     table_ptr);
+			physical_address = (u32)
+			    (ACPI_HI_RSDP_WINDOW_BASE +
+			     ACPI_PTR_DIFF(mem_rover, table_ptr));
 
 			table_info->physical_address =
 			    (acpi_physical_address) physical_address;
@@ -601,7 +607,7 @@ acpi_tb_find_rsdp(struct acpi_table_desc *table_info, u32 flags)
 
 		if (physical_address > 0x400) {
 			/*
-			 * 1b) Search EBDA paragraphs (EBDa is required to be a minimum of
+			 * 1b) Search EBDA paragraphs (EBDA is required to be a minimum of
 			 *     1_k length)
 			 */
 			mem_rover =
@@ -609,6 +615,7 @@ acpi_tb_find_rsdp(struct acpi_table_desc *table_info, u32 flags)
 							 (physical_address),
 							 ACPI_EBDA_WINDOW_SIZE);
 			if (mem_rover) {
+
 				/* Return the physical address */
 
 				table_info->physical_address =
@@ -624,6 +631,7 @@ acpi_tb_find_rsdp(struct acpi_table_desc *table_info, u32 flags)
 						 (ACPI_HI_RSDP_WINDOW_BASE),
 						 ACPI_HI_RSDP_WINDOW_SIZE);
 		if (mem_rover) {
+
 			/* Found it, return the physical address */
 
 			table_info->physical_address =

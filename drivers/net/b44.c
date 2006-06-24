@@ -29,8 +29,8 @@
 
 #define DRV_MODULE_NAME		"b44"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"1.00"
-#define DRV_MODULE_RELDATE	"Apr 7, 2006"
+#define DRV_MODULE_VERSION	"1.01"
+#define DRV_MODULE_RELDATE	"Jun 16, 2006"
 
 #define B44_DEF_MSG_ENABLE	  \
 	(NETIF_MSG_DRV		| \
@@ -75,6 +75,15 @@
 /* minimum number of free TX descriptors required to wake up TX process */
 #define B44_TX_WAKEUP_THRESH		(B44_TX_RING_SIZE / 4)
 
+/* b44 internal pattern match filter info */
+#define B44_PATTERN_BASE	0x400
+#define B44_PATTERN_SIZE	0x80
+#define B44_PMASK_BASE		0x600
+#define B44_PMASK_SIZE		0x10
+#define B44_MAX_PATTERNS	16
+#define B44_ETHIPV6UDP_HLEN	62
+#define B44_ETHIPV4UDP_HLEN	42
+
 static char version[] __devinitdata =
 	DRV_MODULE_NAME ".c:v" DRV_MODULE_VERSION " (" DRV_MODULE_RELDATE ")\n";
 
@@ -101,7 +110,7 @@ MODULE_DEVICE_TABLE(pci, b44_pci_tbl);
 
 static void b44_halt(struct b44 *);
 static void b44_init_rings(struct b44 *);
-static void b44_init_hw(struct b44 *);
+static void b44_init_hw(struct b44 *, int);
 
 static int dma_desc_align_mask;
 static int dma_desc_sync_size;
@@ -873,7 +882,7 @@ static int b44_poll(struct net_device *netdev, int *budget)
 		spin_lock_irq(&bp->lock);
 		b44_halt(bp);
 		b44_init_rings(bp);
-		b44_init_hw(bp);
+		b44_init_hw(bp, 1);
 		netif_wake_queue(bp->dev);
 		spin_unlock_irq(&bp->lock);
 		done = 1;
@@ -942,7 +951,7 @@ static void b44_tx_timeout(struct net_device *dev)
 
 	b44_halt(bp);
 	b44_init_rings(bp);
-	b44_init_hw(bp);
+	b44_init_hw(bp, 1);
 
 	spin_unlock_irq(&bp->lock);
 
@@ -1059,7 +1068,7 @@ static int b44_change_mtu(struct net_device *dev, int new_mtu)
 	b44_halt(bp);
 	dev->mtu = new_mtu;
 	b44_init_rings(bp);
-	b44_init_hw(bp);
+	b44_init_hw(bp, 1);
 	spin_unlock_irq(&bp->lock);
 
 	b44_enable_ints(bp);
@@ -1356,13 +1365,15 @@ static int b44_set_mac_addr(struct net_device *dev, void *p)
  * packet processing.  Invoked with bp->lock held.
  */
 static void __b44_set_rx_mode(struct net_device *);
-static void b44_init_hw(struct b44 *bp)
+static void b44_init_hw(struct b44 *bp, int full_reset)
 {
 	u32 val;
 
 	b44_chip_reset(bp);
-	b44_phy_reset(bp);
-	b44_setup_phy(bp);
+	if (full_reset) {
+		b44_phy_reset(bp);
+		b44_setup_phy(bp);
+	}
 
 	/* Enable CRC32, set proper LED modes and power on PHY */
 	bw32(bp, B44_MAC_CTRL, MAC_CTRL_CRC32_ENAB | MAC_CTRL_PHY_LEDCTRL);
@@ -1376,16 +1387,21 @@ static void b44_init_hw(struct b44 *bp)
 	bw32(bp, B44_TXMAXLEN, bp->dev->mtu + ETH_HLEN + 8 + RX_HEADER_LEN);
 
 	bw32(bp, B44_TX_WMARK, 56); /* XXX magic */
-	bw32(bp, B44_DMATX_CTRL, DMATX_CTRL_ENABLE);
-	bw32(bp, B44_DMATX_ADDR, bp->tx_ring_dma + bp->dma_offset);
-	bw32(bp, B44_DMARX_CTRL, (DMARX_CTRL_ENABLE |
-			      (bp->rx_offset << DMARX_CTRL_ROSHIFT)));
-	bw32(bp, B44_DMARX_ADDR, bp->rx_ring_dma + bp->dma_offset);
+	if (full_reset) {
+		bw32(bp, B44_DMATX_CTRL, DMATX_CTRL_ENABLE);
+		bw32(bp, B44_DMATX_ADDR, bp->tx_ring_dma + bp->dma_offset);
+		bw32(bp, B44_DMARX_CTRL, (DMARX_CTRL_ENABLE |
+				      (bp->rx_offset << DMARX_CTRL_ROSHIFT)));
+		bw32(bp, B44_DMARX_ADDR, bp->rx_ring_dma + bp->dma_offset);
 
-	bw32(bp, B44_DMARX_PTR, bp->rx_pending);
-	bp->rx_prod = bp->rx_pending;
+		bw32(bp, B44_DMARX_PTR, bp->rx_pending);
+		bp->rx_prod = bp->rx_pending;
 
-	bw32(bp, B44_MIB_CTRL, MIB_CTRL_CLR_ON_READ);
+		bw32(bp, B44_MIB_CTRL, MIB_CTRL_CLR_ON_READ);
+	} else {
+		bw32(bp, B44_DMARX_CTRL, (DMARX_CTRL_ENABLE |
+				      (bp->rx_offset << DMARX_CTRL_ROSHIFT)));
+	}
 
 	val = br32(bp, B44_ENET_CTRL);
 	bw32(bp, B44_ENET_CTRL, (val | ENET_CTRL_ENABLE));
@@ -1401,7 +1417,7 @@ static int b44_open(struct net_device *dev)
 		goto out;
 
 	b44_init_rings(bp);
-	b44_init_hw(bp);
+	b44_init_hw(bp, 1);
 
 	b44_check_phy(bp);
 
@@ -1450,6 +1466,140 @@ static void b44_poll_controller(struct net_device *dev)
 }
 #endif
 
+static void bwfilter_table(struct b44 *bp, u8 *pp, u32 bytes, u32 table_offset)
+{
+	u32 i;
+	u32 *pattern = (u32 *) pp;
+
+	for (i = 0; i < bytes; i += sizeof(u32)) {
+		bw32(bp, B44_FILT_ADDR, table_offset + i);
+		bw32(bp, B44_FILT_DATA, pattern[i / sizeof(u32)]);
+	}
+}
+
+static int b44_magic_pattern(u8 *macaddr, u8 *ppattern, u8 *pmask, int offset)
+{
+	int magicsync = 6;
+	int k, j, len = offset;
+	int ethaddr_bytes = ETH_ALEN;
+
+	memset(ppattern + offset, 0xff, magicsync);
+	for (j = 0; j < magicsync; j++)
+		set_bit(len++, (unsigned long *) pmask);
+
+	for (j = 0; j < B44_MAX_PATTERNS; j++) {
+		if ((B44_PATTERN_SIZE - len) >= ETH_ALEN)
+			ethaddr_bytes = ETH_ALEN;
+		else
+			ethaddr_bytes = B44_PATTERN_SIZE - len;
+		if (ethaddr_bytes <=0)
+			break;
+		for (k = 0; k< ethaddr_bytes; k++) {
+			ppattern[offset + magicsync +
+				(j * ETH_ALEN) + k] = macaddr[k];
+			len++;
+			set_bit(len, (unsigned long *) pmask);
+		}
+	}
+	return len - 1;
+}
+
+/* Setup magic packet patterns in the b44 WOL
+ * pattern matching filter.
+ */
+static void b44_setup_pseudo_magicp(struct b44 *bp)
+{
+
+	u32 val;
+	int plen0, plen1, plen2;
+	u8 *pwol_pattern;
+	u8 pwol_mask[B44_PMASK_SIZE];
+
+	pwol_pattern = kmalloc(B44_PATTERN_SIZE, GFP_KERNEL);
+	if (!pwol_pattern) {
+		printk(KERN_ERR PFX "Memory not available for WOL\n");
+		return;
+	}
+
+	/* Ipv4 magic packet pattern - pattern 0.*/
+	memset(pwol_pattern, 0, B44_PATTERN_SIZE);
+	memset(pwol_mask, 0, B44_PMASK_SIZE);
+	plen0 = b44_magic_pattern(bp->dev->dev_addr, pwol_pattern, pwol_mask,
+				  B44_ETHIPV4UDP_HLEN);
+
+   	bwfilter_table(bp, pwol_pattern, B44_PATTERN_SIZE, B44_PATTERN_BASE);
+   	bwfilter_table(bp, pwol_mask, B44_PMASK_SIZE, B44_PMASK_BASE);
+
+	/* Raw ethernet II magic packet pattern - pattern 1 */
+	memset(pwol_pattern, 0, B44_PATTERN_SIZE);
+	memset(pwol_mask, 0, B44_PMASK_SIZE);
+	plen1 = b44_magic_pattern(bp->dev->dev_addr, pwol_pattern, pwol_mask,
+				  ETH_HLEN);
+
+   	bwfilter_table(bp, pwol_pattern, B44_PATTERN_SIZE,
+		       B44_PATTERN_BASE + B44_PATTERN_SIZE);
+  	bwfilter_table(bp, pwol_mask, B44_PMASK_SIZE,
+		       B44_PMASK_BASE + B44_PMASK_SIZE);
+
+	/* Ipv6 magic packet pattern - pattern 2 */
+	memset(pwol_pattern, 0, B44_PATTERN_SIZE);
+	memset(pwol_mask, 0, B44_PMASK_SIZE);
+	plen2 = b44_magic_pattern(bp->dev->dev_addr, pwol_pattern, pwol_mask,
+				  B44_ETHIPV6UDP_HLEN);
+
+   	bwfilter_table(bp, pwol_pattern, B44_PATTERN_SIZE,
+		       B44_PATTERN_BASE + B44_PATTERN_SIZE + B44_PATTERN_SIZE);
+  	bwfilter_table(bp, pwol_mask, B44_PMASK_SIZE,
+		       B44_PMASK_BASE + B44_PMASK_SIZE + B44_PMASK_SIZE);
+
+	kfree(pwol_pattern);
+
+	/* set these pattern's lengths: one less than each real length */
+	val = plen0 | (plen1 << 8) | (plen2 << 16) | WKUP_LEN_ENABLE_THREE;
+	bw32(bp, B44_WKUP_LEN, val);
+
+	/* enable wakeup pattern matching */
+	val = br32(bp, B44_DEVCTRL);
+	bw32(bp, B44_DEVCTRL, val | DEVCTRL_PFE);
+
+}
+
+static void b44_setup_wol(struct b44 *bp)
+{
+	u32 val;
+	u16 pmval;
+
+	bw32(bp, B44_RXCONFIG, RXCONFIG_ALLMULTI);
+
+	if (bp->flags & B44_FLAG_B0_ANDLATER) {
+
+		bw32(bp, B44_WKUP_LEN, WKUP_LEN_DISABLE);
+
+		val = bp->dev->dev_addr[2] << 24 |
+			bp->dev->dev_addr[3] << 16 |
+			bp->dev->dev_addr[4] << 8 |
+			bp->dev->dev_addr[5];
+		bw32(bp, B44_ADDR_LO, val);
+
+		val = bp->dev->dev_addr[0] << 8 |
+			bp->dev->dev_addr[1];
+		bw32(bp, B44_ADDR_HI, val);
+
+		val = br32(bp, B44_DEVCTRL);
+		bw32(bp, B44_DEVCTRL, val | DEVCTRL_MPM | DEVCTRL_PFE);
+
+ 	} else {
+ 		b44_setup_pseudo_magicp(bp);
+ 	}
+
+	val = br32(bp, B44_SBTMSLOW);
+	bw32(bp, B44_SBTMSLOW, val | SBTMSLOW_PE);
+
+	pci_read_config_word(bp->pdev, SSB_PMCSR, &pmval);
+	pci_write_config_word(bp->pdev, SSB_PMCSR, pmval | SSB_PE);
+
+}
+
 static int b44_close(struct net_device *dev)
 {
 	struct b44 *bp = netdev_priv(dev);
@@ -1474,6 +1624,11 @@ static int b44_close(struct net_device *dev)
 	free_irq(dev->irq, dev);
 
 	netif_poll_enable(dev);
+
+	if (bp->flags & B44_FLAG_WOL_ENABLE) {
+		b44_init_hw(bp, 0);
+		b44_setup_wol(bp);
+	}
 
 	b44_free_consistent(bp);
 
@@ -1620,8 +1775,6 @@ static int b44_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	struct b44 *bp = netdev_priv(dev);
 
-	if (!netif_running(dev))
-		return -EAGAIN;
 	cmd->supported = (SUPPORTED_Autoneg);
 	cmd->supported |= (SUPPORTED_100baseT_Half |
 			  SUPPORTED_100baseT_Full |
@@ -1649,6 +1802,12 @@ static int b44_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		XCVR_INTERNAL : XCVR_EXTERNAL;
 	cmd->autoneg = (bp->flags & B44_FLAG_FORCE_LINK) ?
 		AUTONEG_DISABLE : AUTONEG_ENABLE;
+	if (cmd->autoneg == AUTONEG_ENABLE)
+		cmd->advertising |= ADVERTISED_Autoneg;
+	if (!netif_running(dev)){
+		cmd->speed = 0;
+		cmd->duplex = 0xff;
+	}
 	cmd->maxtxpkt = 0;
 	cmd->maxrxpkt = 0;
 	return 0;
@@ -1657,9 +1816,6 @@ static int b44_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 static int b44_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	struct b44 *bp = netdev_priv(dev);
-
-	if (!netif_running(dev))
-		return -EAGAIN;
 
 	/* We do not support gigabit. */
 	if (cmd->autoneg == AUTONEG_ENABLE) {
@@ -1677,28 +1833,39 @@ static int b44_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	spin_lock_irq(&bp->lock);
 
 	if (cmd->autoneg == AUTONEG_ENABLE) {
-		bp->flags &= ~B44_FLAG_FORCE_LINK;
-		bp->flags &= ~(B44_FLAG_ADV_10HALF |
+		bp->flags &= ~(B44_FLAG_FORCE_LINK |
+			       B44_FLAG_100_BASE_T |
+			       B44_FLAG_FULL_DUPLEX |
+			       B44_FLAG_ADV_10HALF |
 			       B44_FLAG_ADV_10FULL |
 			       B44_FLAG_ADV_100HALF |
 			       B44_FLAG_ADV_100FULL);
-		if (cmd->advertising & ADVERTISE_10HALF)
-			bp->flags |= B44_FLAG_ADV_10HALF;
-		if (cmd->advertising & ADVERTISE_10FULL)
-			bp->flags |= B44_FLAG_ADV_10FULL;
-		if (cmd->advertising & ADVERTISE_100HALF)
-			bp->flags |= B44_FLAG_ADV_100HALF;
-		if (cmd->advertising & ADVERTISE_100FULL)
-			bp->flags |= B44_FLAG_ADV_100FULL;
+		if (cmd->advertising == 0) {
+			bp->flags |= (B44_FLAG_ADV_10HALF |
+				      B44_FLAG_ADV_10FULL |
+				      B44_FLAG_ADV_100HALF |
+				      B44_FLAG_ADV_100FULL);
+		} else {
+			if (cmd->advertising & ADVERTISED_10baseT_Half)
+				bp->flags |= B44_FLAG_ADV_10HALF;
+			if (cmd->advertising & ADVERTISED_10baseT_Full)
+				bp->flags |= B44_FLAG_ADV_10FULL;
+			if (cmd->advertising & ADVERTISED_100baseT_Half)
+				bp->flags |= B44_FLAG_ADV_100HALF;
+			if (cmd->advertising & ADVERTISED_100baseT_Full)
+				bp->flags |= B44_FLAG_ADV_100FULL;
+		}
 	} else {
 		bp->flags |= B44_FLAG_FORCE_LINK;
+		bp->flags &= ~(B44_FLAG_100_BASE_T | B44_FLAG_FULL_DUPLEX);
 		if (cmd->speed == SPEED_100)
 			bp->flags |= B44_FLAG_100_BASE_T;
 		if (cmd->duplex == DUPLEX_FULL)
 			bp->flags |= B44_FLAG_FULL_DUPLEX;
 	}
 
-	b44_setup_phy(bp);
+	if (netif_running(dev))
+		b44_setup_phy(bp);
 
 	spin_unlock_irq(&bp->lock);
 
@@ -1734,7 +1901,7 @@ static int b44_set_ringparam(struct net_device *dev,
 
 	b44_halt(bp);
 	b44_init_rings(bp);
-	b44_init_hw(bp);
+	b44_init_hw(bp, 1);
 	netif_wake_queue(bp->dev);
 	spin_unlock_irq(&bp->lock);
 
@@ -1777,7 +1944,7 @@ static int b44_set_pauseparam(struct net_device *dev,
 	if (bp->flags & B44_FLAG_PAUSE_AUTO) {
 		b44_halt(bp);
 		b44_init_rings(bp);
-		b44_init_hw(bp);
+		b44_init_hw(bp, 1);
 	} else {
 		__b44_set_flow_ctrl(bp, bp->flags);
 	}
@@ -1819,12 +1986,40 @@ static void b44_get_ethtool_stats(struct net_device *dev,
 	spin_unlock_irq(&bp->lock);
 }
 
+static void b44_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
+{
+	struct b44 *bp = netdev_priv(dev);
+
+	wol->supported = WAKE_MAGIC;
+	if (bp->flags & B44_FLAG_WOL_ENABLE)
+		wol->wolopts = WAKE_MAGIC;
+	else
+		wol->wolopts = 0;
+	memset(&wol->sopass, 0, sizeof(wol->sopass));
+}
+
+static int b44_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
+{
+	struct b44 *bp = netdev_priv(dev);
+
+	spin_lock_irq(&bp->lock);
+	if (wol->wolopts & WAKE_MAGIC)
+		bp->flags |= B44_FLAG_WOL_ENABLE;
+	else
+		bp->flags &= ~B44_FLAG_WOL_ENABLE;
+	spin_unlock_irq(&bp->lock);
+
+	return 0;
+}
+
 static struct ethtool_ops b44_ethtool_ops = {
 	.get_drvinfo		= b44_get_drvinfo,
 	.get_settings		= b44_get_settings,
 	.set_settings		= b44_set_settings,
 	.nway_reset		= b44_nway_reset,
 	.get_link		= ethtool_op_get_link,
+	.get_wol		= b44_get_wol,
+	.set_wol		= b44_set_wol,
 	.get_ringparam		= b44_get_ringparam,
 	.set_ringparam		= b44_set_ringparam,
 	.get_pauseparam		= b44_get_pauseparam,
@@ -1903,6 +2098,10 @@ static int __devinit b44_get_invariants(struct b44 *bp)
 	/* XXX - really required?
 	   bp->flags |= B44_FLAG_BUGGY_TXPTR;
          */
+
+ 	if (ssb_get_core_rev(bp) >= 7)
+ 		bp->flags |= B44_FLAG_B0_ANDLATER;
+
 out:
 	return err;
 }
@@ -2103,6 +2302,10 @@ static int b44_suspend(struct pci_dev *pdev, pm_message_t state)
 	spin_unlock_irq(&bp->lock);
 
 	free_irq(dev->irq, dev);
+	if (bp->flags & B44_FLAG_WOL_ENABLE) {
+		b44_init_hw(bp, 0);
+		b44_setup_wol(bp);
+	}
 	pci_disable_device(pdev);
 	return 0;
 }
@@ -2125,7 +2328,7 @@ static int b44_resume(struct pci_dev *pdev)
 	spin_lock_irq(&bp->lock);
 
 	b44_init_rings(bp);
-	b44_init_hw(bp);
+	b44_init_hw(bp, 1);
 	netif_device_attach(bp->dev);
 	spin_unlock_irq(&bp->lock);
 

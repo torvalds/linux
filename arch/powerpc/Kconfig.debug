@@ -110,13 +110,16 @@ config SERIAL_TEXT_DEBUG
 	depends on 4xx || LOPEC || MV64X60 || PPLUS || PRPMC800 || \
 		PPC_GEN550 || PPC_MPC52xx
 
+config PPC_EARLY_DEBUG
+	bool "Early debugging (dangerous)"
+
 choice
-	prompt "Early debugging (dangerous)"
-	bool
-	optional
+	prompt "Early debugging console"
+	depends on PPC_EARLY_DEBUG
 	help
-	  Enable early debugging. Careful, if you enable debugging for the
-	  wrong type of machine your kernel _will not boot_.
+	  Use the selected console for early debugging. Careful, if you
+	  enable debugging for the wrong type of machine your kernel
+	  _will not boot_.
 
 config PPC_EARLY_DEBUG_LPAR
 	bool "LPAR HV Console"

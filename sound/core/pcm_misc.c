@@ -207,6 +207,8 @@ int snd_pcm_format_signed(snd_pcm_format_t format)
 	return val;
 }
 
+EXPORT_SYMBOL(snd_pcm_format_signed);
+
 /**
  * snd_pcm_format_unsigned - Check the PCM format is unsigned linear
  * @format: the format to check
@@ -224,6 +226,8 @@ int snd_pcm_format_unsigned(snd_pcm_format_t format)
 	return !val;
 }
 
+EXPORT_SYMBOL(snd_pcm_format_unsigned);
+
 /**
  * snd_pcm_format_linear - Check the PCM format is linear
  * @format: the format to check
@@ -234,6 +238,8 @@ int snd_pcm_format_linear(snd_pcm_format_t format)
 {
 	return snd_pcm_format_signed(format) >= 0;
 }
+
+EXPORT_SYMBOL(snd_pcm_format_linear);
 
 /**
  * snd_pcm_format_little_endian - Check the PCM format is little-endian
@@ -252,6 +258,8 @@ int snd_pcm_format_little_endian(snd_pcm_format_t format)
 	return val;
 }
 
+EXPORT_SYMBOL(snd_pcm_format_little_endian);
+
 /**
  * snd_pcm_format_big_endian - Check the PCM format is big-endian
  * @format: the format to check
@@ -268,6 +276,8 @@ int snd_pcm_format_big_endian(snd_pcm_format_t format)
 		return val;
 	return !val;
 }
+
+EXPORT_SYMBOL(snd_pcm_format_big_endian);
 
 /**
  * snd_pcm_format_width - return the bit-width of the format
@@ -286,6 +296,8 @@ int snd_pcm_format_width(snd_pcm_format_t format)
 	return val;
 }
 
+EXPORT_SYMBOL(snd_pcm_format_width);
+
 /**
  * snd_pcm_format_physical_width - return the physical bit-width of the format
  * @format: the format to check
@@ -303,6 +315,8 @@ int snd_pcm_format_physical_width(snd_pcm_format_t format)
 	return val;
 }
 
+EXPORT_SYMBOL(snd_pcm_format_physical_width);
+
 /**
  * snd_pcm_format_size - return the byte size of samples on the given format
  * @format: the format to check
@@ -318,6 +332,8 @@ ssize_t snd_pcm_format_size(snd_pcm_format_t format, size_t samples)
 	return samples * phys_width / 8;
 }
 
+EXPORT_SYMBOL(snd_pcm_format_size);
+
 /**
  * snd_pcm_format_silence_64 - return the silent data in 8 bytes array
  * @format: the format to check
@@ -332,6 +348,8 @@ const unsigned char *snd_pcm_format_silence_64(snd_pcm_format_t format)
 		return NULL;
 	return pcm_formats[format].silence;
 }
+
+EXPORT_SYMBOL(snd_pcm_format_silence_64);
 
 /**
  * snd_pcm_format_set_silence - set the silence data on the buffer
@@ -402,6 +420,8 @@ int snd_pcm_format_set_silence(snd_pcm_format_t format, void *data, unsigned int
 	return 0;
 }
 
+EXPORT_SYMBOL(snd_pcm_format_set_silence);
+
 /* [width][unsigned][bigendian] */
 static int linear_formats[4][2][2] = {
 	{{ SNDRV_PCM_FORMAT_S8, SNDRV_PCM_FORMAT_S8},
@@ -431,6 +451,8 @@ snd_pcm_format_t snd_pcm_build_linear_format(int width, int unsignd, int big_end
 		return SND_PCM_FORMAT_UNKNOWN;
 	return linear_formats[width][!!unsignd][!!big_endian];
 }
+
+EXPORT_SYMBOL(snd_pcm_build_linear_format);
 
 /**
  * snd_pcm_limit_hw_rates - determine rate_min/rate_max fields
@@ -463,3 +485,5 @@ int snd_pcm_limit_hw_rates(struct snd_pcm_runtime *runtime)
 	}
 	return 0;
 }
+
+EXPORT_SYMBOL(snd_pcm_limit_hw_rates);

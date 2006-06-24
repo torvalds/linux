@@ -56,7 +56,7 @@ static void isofs_put_super(struct super_block *sb)
 }
 
 static void isofs_read_inode(struct inode *);
-static int isofs_statfs (struct super_block *, struct kstatfs *);
+static int isofs_statfs (struct dentry *, struct kstatfs *);
 
 static kmem_cache_t *isofs_inode_cachep;
 
@@ -901,8 +901,10 @@ out_freesbi:
 	return -EINVAL;
 }
 
-static int isofs_statfs (struct super_block *sb, struct kstatfs *buf)
+static int isofs_statfs (struct dentry *dentry, struct kstatfs *buf)
 {
+	struct super_block *sb = dentry->d_sb;
+
 	buf->f_type = ISOFS_SUPER_MAGIC;
 	buf->f_bsize = sb->s_blocksize;
 	buf->f_blocks = (ISOFS_SB(sb)->s_nzones
@@ -1399,10 +1401,11 @@ struct inode *isofs_iget(struct super_block *sb,
 	return inode;
 }
 
-static struct super_block *isofs_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data)
+static int isofs_get_sb(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
 {
-	return get_sb_bdev(fs_type, flags, dev_name, data, isofs_fill_super);
+	return get_sb_bdev(fs_type, flags, dev_name, data, isofs_fill_super,
+			   mnt);
 }
 
 static struct file_system_type iso9660_fs_type = {

@@ -164,7 +164,7 @@ int coda_open(struct inode *coda_inode, struct file *coda_file)
 	return 0;
 }
 
-int coda_flush(struct file *coda_file)
+int coda_flush(struct file *coda_file, fl_owner_t id)
 {
 	unsigned short flags = coda_file->f_flags & ~O_EXCL;
 	unsigned short coda_flags = coda_flags_to_cflags(flags);

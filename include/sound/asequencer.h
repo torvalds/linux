@@ -605,6 +605,10 @@ struct snd_seq_remove_events {
 #define SNDRV_SEQ_PORT_TYPE_DIRECT_SAMPLE (1<<11)	/* Sampling device (support sample download) */
 #define SNDRV_SEQ_PORT_TYPE_SAMPLE	(1<<12)	/* Sampling device (sample can be downloaded at any time) */
 /*...*/
+#define SNDRV_SEQ_PORT_TYPE_HARDWARE	(1<<16)	/* driver for a hardware device */
+#define SNDRV_SEQ_PORT_TYPE_SOFTWARE	(1<<17)	/* implemented in software */
+#define SNDRV_SEQ_PORT_TYPE_SYNTHESIZER	(1<<18)	/* generates sound */
+#define SNDRV_SEQ_PORT_TYPE_PORT	(1<<19)	/* connects to other device(s) */
 #define SNDRV_SEQ_PORT_TYPE_APPLICATION	(1<<20)	/* application (sequencer/editor) */
 
 /* misc. conditioning flags */

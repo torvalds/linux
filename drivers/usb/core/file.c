@@ -61,33 +61,66 @@ static struct file_operations usb_fops = {
 	.open =		usb_open,
 };
 
-static struct class *usb_class;
+static struct usb_class {
+	struct kref kref;
+	struct class *class;
+} *usb_class;
+
+static int init_usb_class(void)
+{
+	int result = 0;
+
+	if (usb_class != NULL) {
+		kref_get(&usb_class->kref);
+		goto exit;
+	}
+
+	usb_class = kmalloc(sizeof(*usb_class), GFP_KERNEL);
+	if (!usb_class) {
+		result = -ENOMEM;
+		goto exit;
+	}
+
+	kref_init(&usb_class->kref);
+	usb_class->class = class_create(THIS_MODULE, "usb");
+	if (IS_ERR(usb_class->class)) {
+		result = IS_ERR(usb_class->class);
+		err("class_create failed for usb devices");
+		kfree(usb_class);
+		usb_class = NULL;
+	}
+
+exit:
+	return result;
+}
+
+static void release_usb_class(struct kref *kref)
+{
+	/* Ok, we cheat as we know we only have one usb_class */
+	class_destroy(usb_class->class);
+	kfree(usb_class);
+	usb_class = NULL;
+}
+
+static void destroy_usb_class(void)
+{
+	if (usb_class)
+		kref_put(&usb_class->kref, release_usb_class);
+}
 
 int usb_major_init(void)
 {
 	int error;
 
 	error = register_chrdev(USB_MAJOR, "usb", &usb_fops);
-	if (error) {
+	if (error)
 		err("unable to get major %d for usb devices", USB_MAJOR);
-		goto out;
-	}
 
-	usb_class = class_create(THIS_MODULE, "usb");
-	if (IS_ERR(usb_class)) {
-		error = PTR_ERR(usb_class);
-		err("class_create failed for usb devices");
-		unregister_chrdev(USB_MAJOR, "usb");
-		goto out;
-	}
-
-out:
 	return error;
 }
 
 void usb_major_cleanup(void)
 {
-	class_destroy(usb_class);
 	unregister_chrdev(USB_MAJOR, "usb");
 }
 
@@ -149,6 +182,10 @@ int usb_register_dev(struct usb_interface *intf,
 	if (retval)
 		goto exit;
 
+	retval = init_usb_class();
+	if (retval)
+		goto exit;
+
 	intf->minor = minor;
 
 	/* create a usb class device for this usb interface */
@@ -158,14 +195,13 @@ int usb_register_dev(struct usb_interface *intf,
 		++temp;
 	else
 		temp = name;
-	intf->class_dev = class_device_create(usb_class, NULL,
-					      MKDEV(USB_MAJOR, minor),
-					      &intf->dev, "%s", temp);
-	if (IS_ERR(intf->class_dev)) {
+	intf->usb_dev = device_create(usb_class->class, &intf->dev,
+				      MKDEV(USB_MAJOR, minor), "%s", temp);
+	if (IS_ERR(intf->usb_dev)) {
 		spin_lock (&minor_lock);
 		usb_minors[intf->minor] = NULL;
 		spin_unlock (&minor_lock);
-		retval = PTR_ERR(intf->class_dev);
+		retval = PTR_ERR(intf->usb_dev);
 	}
 exit:
 	return retval;
@@ -206,9 +242,10 @@ void usb_deregister_dev(struct usb_interface *intf,
 	spin_unlock (&minor_lock);
 
 	snprintf(name, BUS_ID_SIZE, class_driver->name, intf->minor - minor_base);
-	class_device_destroy(usb_class, MKDEV(USB_MAJOR, intf->minor));
-	intf->class_dev = NULL;
+	device_destroy(usb_class->class, MKDEV(USB_MAJOR, intf->minor));
+	intf->usb_dev = NULL;
 	intf->minor = -1;
+	destroy_usb_class();
 }
 EXPORT_SYMBOL(usb_deregister_dev);
 

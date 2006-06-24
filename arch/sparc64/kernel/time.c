@@ -457,7 +457,7 @@ static inline void timer_check_rtc(void)
 	}
 }
 
-static irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs * regs)
+irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 {
 	unsigned long ticks, compare, pstate;
 
@@ -1020,19 +1020,9 @@ static unsigned long sparc64_init_timers(void)
 	return clock;
 }
 
-static void sparc64_start_timers(irqreturn_t (*cfunc)(int, void *, struct pt_regs *))
+static void sparc64_start_timers(void)
 {
 	unsigned long pstate;
-	int err;
-
-	/* Register IRQ handler. */
-	err = request_irq(build_irq(0, 0, 0UL, 0UL), cfunc, 0,
-			  "timer", NULL);
-
-	if (err) {
-		prom_printf("Serious problem, cannot register TICK_INT\n");
-		prom_halt();
-	}
 
 	/* Guarantee that the following sequences execute
 	 * uninterrupted.
@@ -1116,7 +1106,7 @@ void __init time_init(void)
 	/* Now that the interpolator is registered, it is
 	 * safe to start the timer ticking.
 	 */
-	sparc64_start_timers(timer_interrupt);
+	sparc64_start_timers();
 
 	timer_ticks_per_nsec_quotient =
 		(((NSEC_PER_SEC << SPARC64_NSEC_PER_CYC_SHIFT) +

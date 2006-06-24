@@ -181,9 +181,7 @@ static void *cramfs_read(struct super_block *sb, unsigned int offset, unsigned i
 		struct page *page = NULL;
 
 		if (blocknr + i < devsize) {
-			page = read_cache_page(mapping, blocknr + i,
-				(filler_t *)mapping->a_ops->readpage,
-				NULL);
+			page = read_mapping_page(mapping, blocknr + i, NULL);
 			/* synchronous error? */
 			if (IS_ERR(page))
 				page = NULL;
@@ -322,8 +320,10 @@ out:
 	return -EINVAL;
 }
 
-static int cramfs_statfs(struct super_block *sb, struct kstatfs *buf)
+static int cramfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
+	struct super_block *sb = dentry->d_sb;
+
 	buf->f_type = CRAMFS_MAGIC;
 	buf->f_bsize = PAGE_CACHE_SIZE;
 	buf->f_blocks = CRAMFS_SB(sb)->blocks;
@@ -528,10 +528,11 @@ static struct super_operations cramfs_ops = {
 	.statfs		= cramfs_statfs,
 };
 
-static struct super_block *cramfs_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data)
+static int cramfs_get_sb(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
 {
-	return get_sb_bdev(fs_type, flags, dev_name, data, cramfs_fill_super);
+	return get_sb_bdev(fs_type, flags, dev_name, data, cramfs_fill_super,
+			   mnt);
 }
 
 static struct file_system_type cramfs_fs_type = {

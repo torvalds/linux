@@ -49,6 +49,9 @@ again:
 	}
 
 	mm->context.id = index;
+	mm->context.user_psize = mmu_virtual_psize;
+	mm->context.sllp = SLB_VSID_USER |
+		mmu_psize_defs[mmu_virtual_psize].sllp;
 
 	return 0;
 }

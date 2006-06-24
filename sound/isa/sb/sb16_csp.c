@@ -1101,7 +1101,7 @@ static int init_proc_entry(struct snd_sb_csp * p, int device)
 	struct snd_info_entry *entry;
 	sprintf(name, "cspD%d", device);
 	if (! snd_card_proc_new(p->chip->card, name, &entry))
-		snd_info_set_text_ops(entry, p, 1024, info_read);
+		snd_info_set_text_ops(entry, p, info_read);
 	return 0;
 }
 

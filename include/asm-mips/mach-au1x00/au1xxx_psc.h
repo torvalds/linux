@@ -39,7 +39,12 @@
 #define PSC0_BASE_ADDR		0xb1a00000
 #define PSC1_BASE_ADDR		0xb1b00000
 #define PSC2_BASE_ADDR		0xb0a00000
-#define PSC3_BASE_ADDR		0xb0d00000
+#define PSC3_BASE_ADDR		0xb0b00000
+#endif
+
+#ifdef CONFIG_SOC_AU1200
+#define PSC0_BASE_ADDR		0xb1a00000
+#define PSC1_BASE_ADDR		0xb1b00000
 #endif
 
 /* The PSC select and control registers are common to
@@ -227,6 +232,8 @@ typedef struct	psc_i2s {
 #define PSC_I2SCFG_DD_DISABLE	(1 << 27)
 #define PSC_I2SCFG_DE_ENABLE	(1 << 26)
 #define PSC_I2SCFG_SET_WS(x)	(((((x) / 2) - 1) & 0x7f) << 16)
+#define PSC_I2SCFG_WS(n)	((n & 0xFF) << 16)
+#define PSC_I2SCFG_WS_MASK	(PSC_I2SCFG_WS(0x3F))
 #define PSC_I2SCFG_WI		(1 << 15)
 
 #define PSC_I2SCFG_DIV_MASK	(3 << 13)

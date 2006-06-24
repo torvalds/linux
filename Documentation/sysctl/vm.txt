@@ -29,6 +29,7 @@ Currently, these files are in /proc/sys/vm:
 - drop-caches
 - zone_reclaim_mode
 - zone_reclaim_interval
+- panic_on_oom
 
 ==============================================================
 
@@ -177,4 +178,16 @@ Time is set in seconds and set by default to 30 seconds.
 
 Reduce the interval if undesired off node allocations occur. However, too
 frequent scans will have a negative impact onoff node allocation performance.
+
+=============================================================
+
+panic_on_oom
+
+This enables or disables panic on out-of-memory feature.  If this is set to 1,
+the kernel panics when out-of-memory happens.  If this is set to 0, the kernel
+will kill some rogue process, called oom_killer.  Usually, oom_killer can kill
+rogue processes and system will survive.  If you want to panic the system
+rather than killing rogue processes, set this to 1.
+
+The default value is 0.
 

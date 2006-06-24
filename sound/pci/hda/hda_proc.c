@@ -182,6 +182,10 @@ static void print_pin_caps(struct snd_info_buffer *buffer,
 		snd_iprintf(buffer, " OUT");
 	if (caps & AC_PINCAP_HP_DRV)
 		snd_iprintf(buffer, " HP");
+	if (caps & AC_PINCAP_EAPD)
+		snd_iprintf(buffer, " EAPD");
+	if (caps & AC_PINCAP_PRES_DETECT)
+		snd_iprintf(buffer, " Detect");
 	snd_iprintf(buffer, "\n");
 	caps = snd_hda_codec_read(codec, nid, 0, AC_VERB_GET_CONFIG_DEFAULT, 0);
 	snd_iprintf(buffer, "  Pin Default 0x%08x: [%s] %s at %s %s\n", caps,
@@ -318,7 +322,7 @@ int snd_hda_codec_proc_new(struct hda_codec *codec)
 	if (err < 0)
 		return err;
 
-	snd_info_set_text_ops(entry, codec, 32 * 1024, print_codec_info);
+	snd_info_set_text_ops(entry, codec, print_codec_info);
 	return 0;
 }
 

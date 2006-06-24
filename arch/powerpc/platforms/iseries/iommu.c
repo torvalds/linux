@@ -4,6 +4,7 @@
  * Rewrite, cleanup:
  *
  * Copyright (C) 2004 Olof Johansson <olof@lixom.net>, IBM Corporation
+ * Copyright (C) 2006 Olof Johansson <olof@lixom.net>
  *
  * Dynamic DMA mapping support, iSeries-specific parts.
  *
@@ -31,42 +32,37 @@
 #include <asm/tce.h>
 #include <asm/machdep.h>
 #include <asm/abs_addr.h>
+#include <asm/prom.h>
 #include <asm/pci-bridge.h>
 #include <asm/iseries/hv_call_xm.h>
-
-#include "iommu.h"
-
-extern struct list_head iSeries_Global_Device_List;
-
+#include <asm/iseries/iommu.h>
 
 static void tce_build_iSeries(struct iommu_table *tbl, long index, long npages,
 		unsigned long uaddr, enum dma_data_direction direction)
 {
 	u64 rc;
-	union tce_entry tce;
+	u64 tce, rpn;
 
 	index <<= TCE_PAGE_FACTOR;
 	npages <<= TCE_PAGE_FACTOR;
 
 	while (npages--) {
-		tce.te_word = 0;
-		tce.te_bits.tb_rpn = virt_to_abs(uaddr) >> TCE_SHIFT;
+		rpn = virt_to_abs(uaddr) >> TCE_SHIFT;
+		tce = (rpn & TCE_RPN_MASK) << TCE_RPN_SHIFT;
 
 		if (tbl->it_type == TCE_VB) {
 			/* Virtual Bus */
-			tce.te_bits.tb_valid = 1;
-			tce.te_bits.tb_allio = 1;
+			tce |= TCE_VALID|TCE_ALLIO;
 			if (direction != DMA_TO_DEVICE)
-				tce.te_bits.tb_rdwr = 1;
+				tce |= TCE_VB_WRITE;
 		} else {
 			/* PCI Bus */
-			tce.te_bits.tb_rdwr = 1; /* Read allowed */
+			tce |= TCE_PCI_READ; /* Read allowed */
 			if (direction != DMA_TO_DEVICE)
-				tce.te_bits.tb_pciwr = 1;
+				tce |= TCE_PCI_WRITE;
 		}
 
-		rc = HvCallXm_setTce((u64)tbl->it_index, (u64)index,
-				tce.te_word);
+		rc = HvCallXm_setTce((u64)tbl->it_index, (u64)index, tce);
 		if (rc)
 			panic("PCI_DMA: HvCallXm_setTce failed, Rc: 0x%lx\n",
 					rc);
@@ -124,7 +120,7 @@ void iommu_table_getparms_iSeries(unsigned long busno,
 
 	/* itc_size is in pages worth of table, it_size is in # of entries */
 	tbl->it_size = ((parms->itc_size * TCE_PAGE_SIZE) /
-			sizeof(union tce_entry)) >> TCE_PAGE_FACTOR;
+			TCE_ENTRY_SIZE) >> TCE_PAGE_FACTOR;
 	tbl->it_busno = parms->itc_busno;
 	tbl->it_offset = parms->itc_offset >> TCE_PAGE_FACTOR;
 	tbl->it_index = parms->itc_index;
@@ -142,10 +138,15 @@ void iommu_table_getparms_iSeries(unsigned long busno,
  */
 static struct iommu_table *iommu_table_find(struct iommu_table * tbl)
 {
-	struct pci_dn *pdn;
+	struct device_node *node;
 
-	list_for_each_entry(pdn, &iSeries_Global_Device_List, Device_List) {
-		struct iommu_table *it = pdn->iommu_table;
+	for (node = NULL; (node = of_find_all_nodes(node)); ) {
+		struct pci_dn *pdn = PCI_DN(node);
+		struct iommu_table *it;
+
+		if (pdn == NULL)
+			continue;
+		it = pdn->iommu_table;
 		if ((it != NULL) &&
 		    (it->it_type == TCE_PCI) &&
 		    (it->it_offset == tbl->it_offset) &&
@@ -161,15 +162,18 @@ void iommu_devnode_init_iSeries(struct device_node *dn)
 {
 	struct iommu_table *tbl;
 	struct pci_dn *pdn = PCI_DN(dn);
+	u32 *lsn = (u32 *)get_property(dn, "linux,logical-slot-number", NULL);
+
+	BUG_ON(lsn == NULL);
 
 	tbl = kmalloc(sizeof(struct iommu_table), GFP_KERNEL);
 
-	iommu_table_getparms_iSeries(pdn->busno, pdn->LogicalSlot, 0, tbl);
+	iommu_table_getparms_iSeries(pdn->busno, *lsn, 0, tbl);
 
 	/* Look for existing tce table */
 	pdn->iommu_table = iommu_table_find(tbl);
 	if (pdn->iommu_table == NULL)
-		pdn->iommu_table = iommu_init_table(tbl);
+		pdn->iommu_table = iommu_init_table(tbl, -1);
 	else
 		kfree(tbl);
 }

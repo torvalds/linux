@@ -677,8 +677,7 @@ static int eexp_xmit(struct sk_buff *buf, struct net_device *dev)
 #endif
 
 	if (buf->len < ETH_ZLEN) {
-		buf = skb_padto(buf, ETH_ZLEN);
-		if (buf == NULL)
+		if (skb_padto(buf, ETH_ZLEN))
 			return 0;
 		length = ETH_ZLEN;
 	}

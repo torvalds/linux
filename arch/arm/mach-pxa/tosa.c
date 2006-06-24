@@ -19,12 +19,15 @@
 #include <linux/fs.h>
 #include <linux/interrupt.h>
 #include <linux/mmc/host.h>
+#include <linux/pm.h>
+#include <linux/delay.h>
 
 #include <asm/setup.h>
 #include <asm/memory.h>
 #include <asm/mach-types.h>
 #include <asm/hardware.h>
 #include <asm/irq.h>
+#include <asm/system.h>
 #include <asm/arch/irda.h>
 #include <asm/arch/mmc.h>
 #include <asm/arch/udc.h>
@@ -266,8 +269,31 @@ static struct platform_device *devices[] __initdata = {
 	&tosaled_device,
 };
 
+static void tosa_poweroff(void)
+{
+	RCSR = RCSR_HWR | RCSR_WDR | RCSR_SMR | RCSR_GPR;
+
+	pxa_gpio_mode(TOSA_GPIO_ON_RESET | GPIO_OUT);
+	GPSR(TOSA_GPIO_ON_RESET) = GPIO_bit(TOSA_GPIO_ON_RESET);
+
+	mdelay(1000);
+	arm_machine_restart('h');
+}
+
+static void tosa_restart(char mode)
+{
+	/* Bootloader magic for a reboot */
+	if((MSC0 & 0xffff0000) == 0x7ff00000)
+		MSC0 = (MSC0 & 0xffff) | 0x7ee00000;
+
+	tosa_poweroff();
+}
+
 static void __init tosa_init(void)
 {
+	pm_power_off = tosa_poweroff;
+	arm_pm_restart = tosa_restart;
+
 	pxa_gpio_mode(TOSA_GPIO_ON_RESET | GPIO_IN);
 	pxa_gpio_mode(TOSA_GPIO_TC6393_INT | GPIO_IN);
 	pxa_gpio_mode(TOSA_GPIO_USB_IN | GPIO_IN);

@@ -515,19 +515,19 @@ static int check_ctrlrecip(struct dev_state *ps, unsigned int requesttype, unsig
 
 static struct usb_device *usbdev_lookup_minor(int minor)
 {
-	struct class_device *class_dev;
-	struct usb_device *dev = NULL;
+	struct device *device;
+	struct usb_device *udev = NULL;
 
 	down(&usb_device_class->sem);
-	list_for_each_entry(class_dev, &usb_device_class->children, node) {
-		if (class_dev->devt == MKDEV(USB_DEVICE_MAJOR, minor)) {
-			dev = class_dev->class_data;
+	list_for_each_entry(device, &usb_device_class->devices, node) {
+		if (device->devt == MKDEV(USB_DEVICE_MAJOR, minor)) {
+			udev = device->platform_data;
 			break;
 		}
 	}
 	up(&usb_device_class->sem);
 
-	return dev;
+	return udev;
 };
 
 /*
@@ -823,8 +823,7 @@ static int proc_connectinfo(struct dev_state *ps, void __user *arg)
 
 static int proc_resetdevice(struct dev_state *ps)
 {
-	return usb_reset_device(ps->dev);
-
+	return usb_reset_composite_device(ps->dev, NULL);
 }
 
 static int proc_setintf(struct dev_state *ps, void __user *arg)
@@ -923,8 +922,8 @@ static int proc_do_submiturb(struct dev_state *ps, struct usbdevfs_urb *uurb,
 		if ((ep->desc.bmAttributes & USB_ENDPOINT_XFERTYPE_MASK)
 				!= USB_ENDPOINT_XFER_CONTROL)
 			return -EINVAL;
-		/* min 8 byte setup packet, max arbitrary */
-		if (uurb->buffer_length < 8 || uurb->buffer_length > PAGE_SIZE)
+		/* min 8 byte setup packet, max 8 byte setup plus an arbitrary data stage */
+		if (uurb->buffer_length < 8 || uurb->buffer_length > (8 + MAX_USBFS_BUFFER_SIZE))
 			return -EINVAL;
 		if (!(dr = kmalloc(sizeof(struct usb_ctrlrequest), GFP_KERNEL)))
 			return -ENOMEM;
@@ -982,7 +981,8 @@ static int proc_do_submiturb(struct dev_state *ps, struct usbdevfs_urb *uurb,
 			return -EFAULT;
 		}
 		for (totlen = u = 0; u < uurb->number_of_packets; u++) {
-			if (isopkt[u].length > 1023) {
+			/* arbitrary limit, sufficient for USB 2.0 high-bandwidth iso */
+			if (isopkt[u].length > 8192) {
 				kfree(isopkt);
 				return -EINVAL;
 			}
@@ -1078,7 +1078,9 @@ static int proc_submiturb(struct dev_state *ps, void __user *arg)
 	if (copy_from_user(&uurb, arg, sizeof(uurb)))
 		return -EFAULT;
 
-	return proc_do_submiturb(ps, &uurb, (((struct usbdevfs_urb __user *)arg)->iso_frame_desc), arg);
+	return proc_do_submiturb(ps, &uurb,
+		(struct usbdevfs_iso_packet_desc __user *)uurb.iso_frame_desc,
+		arg);
 }
 
 static int proc_unlinkurb(struct dev_state *ps, void __user *arg)
@@ -1203,7 +1205,9 @@ static int proc_submiturb_compat(struct dev_state *ps, void __user *arg)
 	if (get_urb32(&uurb,(struct usbdevfs_urb32 *)arg))
 		return -EFAULT;
 
-	return proc_do_submiturb(ps, &uurb, ((struct usbdevfs_urb32 __user *)arg)->iso_frame_desc, arg);
+	return proc_do_submiturb(ps, &uurb,
+		(struct usbdevfs_iso_packet_desc __user *)uurb.iso_frame_desc,
+		arg);
 }
 
 static int processcompl_compat(struct async *as, void __user * __user *arg)
@@ -1576,16 +1580,16 @@ static void usbdev_add(struct usb_device *dev)
 {
 	int minor = ((dev->bus->busnum-1) * 128) + (dev->devnum-1);
 
-	dev->class_dev = class_device_create(usb_device_class, NULL,
-				MKDEV(USB_DEVICE_MAJOR, minor), &dev->dev,
+	dev->usbfs_dev = device_create(usb_device_class, &dev->dev,
+				MKDEV(USB_DEVICE_MAJOR, minor),
 				"usbdev%d.%d", dev->bus->busnum, dev->devnum);
 
-	dev->class_dev->class_data = dev;
+	dev->usbfs_dev->platform_data = dev;
 }
 
 static void usbdev_remove(struct usb_device *dev)
 {
-	class_device_unregister(dev->class_dev);
+	device_unregister(dev->usbfs_dev);
 }
 
 static int usbdev_notify(struct notifier_block *self, unsigned long action,

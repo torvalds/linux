@@ -80,6 +80,7 @@ void q40_ide_setup_ports ( hw_regs_t *hw,
 {
 	int i;
 
+	memset(hw, 0, sizeof(hw_regs_t));
 	for (i = 0; i < IDE_NR_PORTS; i++) {
 		/* BIG FAT WARNING: 
 		   assumption: only DATA port is ever used in 16 bit mode */

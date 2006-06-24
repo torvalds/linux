@@ -16,11 +16,11 @@
 #include <asm/io.h>
 
 #include <asm/arch/platform.h>
-#include <asm/arch/hardware.h>
+#include <asm/hardware.h>
 
 #include <linux/serial_core.h>
 #include <linux/serial_reg.h>
-#include <asm/arch/pm.h>
+#include <asm/arch/gpio.h>
 
 #include <asm/arch/clock.h>
 

@@ -61,7 +61,6 @@
 #include <sound/core.h>
 #include <sound/cs8427.h>
 #include <sound/info.h>
-#include <sound/mpu401.h>
 #include <sound/initval.h>
 
 #include <sound/asoundef.h>
@@ -1596,7 +1595,7 @@ static void __devinit snd_ice1712_proc_init(struct snd_ice1712 * ice)
 	struct snd_info_entry *entry;
 
 	if (! snd_card_proc_new(ice->card, "ice1712", &entry))
-		snd_info_set_text_ops(entry, ice, 1024, snd_ice1712_proc_read);
+		snd_info_set_text_ops(entry, ice, snd_ice1712_proc_read);
 }
 
 /*
@@ -2398,13 +2397,14 @@ static int __devinit snd_ice1712_chip_init(struct snd_ice1712 *ice)
 	udelay(200);
 	outb(ICE1712_NATIVE, ICEREG(ice, CONTROL));
 	udelay(200);
-	if (ice->eeprom.subvendor == ICE1712_SUBDEVICE_DMX6FIRE && !ice->dxr_enable) {
-                /* Limit active ADCs and DACs to 6;  */
-                /* Note: DXR extension not supported */
-		pci_write_config_byte(ice->pci, 0x60, 0x2a);
-	} else {
-		pci_write_config_byte(ice->pci, 0x60, ice->eeprom.data[ICE_EEP1_CODEC]);
-	}
+	if (ice->eeprom.subvendor == ICE1712_SUBDEVICE_DMX6FIRE &&
+	    !ice->dxr_enable)
+		/*  Set eeprom value to limit active ADCs and DACs to 6;
+		 *  Also disable AC97 as no hardware in standard 6fire card/box
+		 *  Note: DXR extensions are not currently supported
+		 */
+		ice->eeprom.data[ICE_EEP1_CODEC] = 0x3a;
+	pci_write_config_byte(ice->pci, 0x60, ice->eeprom.data[ICE_EEP1_CODEC]);
 	pci_write_config_byte(ice->pci, 0x61, ice->eeprom.data[ICE_EEP1_ACLINK]);
 	pci_write_config_byte(ice->pci, 0x62, ice->eeprom.data[ICE_EEP1_I2SID]);
 	pci_write_config_byte(ice->pci, 0x63, ice->eeprom.data[ICE_EEP1_SPDIF]);
@@ -2737,21 +2737,38 @@ static int __devinit snd_ice1712_probe(struct pci_dev *pci,
 
 	if (! c->no_mpu401) {
 		if ((err = snd_mpu401_uart_new(card, 0, MPU401_HW_ICE1712,
-					       ICEREG(ice, MPU1_CTRL), 1,
+					       ICEREG(ice, MPU1_CTRL),
+					       (c->mpu401_1_info_flags |
+						MPU401_INFO_INTEGRATED),
 					       ice->irq, 0,
 					       &ice->rmidi[0])) < 0) {
 			snd_card_free(card);
 			return err;
 		}
+		if (c->mpu401_1_name)
+			/*  Prefered name available in card_info */
+			snprintf(ice->rmidi[0]->name,
+				 sizeof(ice->rmidi[0]->name),
+				 "%s %d", c->mpu401_1_name, card->number);
 
-		if (ice->eeprom.data[ICE_EEP1_CODEC] & ICE1712_CFG_2xMPU401)
+		if (ice->eeprom.data[ICE_EEP1_CODEC] & ICE1712_CFG_2xMPU401) {
+			/*  2nd port used  */
 			if ((err = snd_mpu401_uart_new(card, 1, MPU401_HW_ICE1712,
-						       ICEREG(ice, MPU2_CTRL), 1,
+						       ICEREG(ice, MPU2_CTRL),
+						       (c->mpu401_2_info_flags |
+							MPU401_INFO_INTEGRATED),
 						       ice->irq, 0,
 						       &ice->rmidi[1])) < 0) {
 				snd_card_free(card);
 				return err;
 			}
+			if (c->mpu401_2_name)
+				/*  Prefered name available in card_info */
+				snprintf(ice->rmidi[1]->name,
+					 sizeof(ice->rmidi[1]->name),
+					 "%s %d", c->mpu401_2_name,
+					 card->number);
+		}
 	}
 
 	snd_ice1712_set_input_clock_source(ice, 0);

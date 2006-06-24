@@ -1102,7 +1102,7 @@ ENTRY(fast_syscall_sysxtensa)
 	s32i	a7, a2, PT_AREG7
 
 	movi	a7, 4			# sizeof(unsigned int)
-	verify_area a3, a7, a0, a2, .Leac
+	access_ok a0, a3, a7, a2, .Leac
 
 	_beqi	a6, SYSXTENSA_ATOMIC_SET, .Lset
 	_beqi	a6, SYSXTENSA_ATOMIC_EXG_ADD, .Lexg

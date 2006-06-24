@@ -90,6 +90,8 @@
 
 #define pte_iterate_hashed_end() } while(0); } } while(0)
 
+#define pte_pagesize_index(pte)	\
+	(((pte) & _PAGE_COMBO)? MMU_PAGE_4K: MMU_PAGE_64K)
 
 #endif /*  __ASSEMBLY__ */
 #endif /* __KERNEL__ */

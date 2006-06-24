@@ -205,6 +205,11 @@ struct key_type {
 	/* match a key against a description */
 	int (*match)(const struct key *key, const void *desc);
 
+	/* clear some of the data from a key on revokation (optional)
+	 * - the key's semaphore will be write-locked by the caller
+	 */
+	void (*revoke)(struct key *key);
+
 	/* clear the data from a key (optional) */
 	void (*destroy)(struct key *key);
 
@@ -241,8 +246,9 @@ extern void unregister_key_type(struct key_type *ktype);
 
 extern struct key *key_alloc(struct key_type *type,
 			     const char *desc,
-			     uid_t uid, gid_t gid, key_perm_t perm,
-			     int not_in_quota);
+			     uid_t uid, gid_t gid,
+			     struct task_struct *ctx,
+			     key_perm_t perm, int not_in_quota);
 extern int key_payload_reserve(struct key *key, size_t datalen);
 extern int key_instantiate_and_link(struct key *key,
 				    const void *data,
@@ -292,7 +298,9 @@ extern int key_unlink(struct key *keyring,
 		      struct key *key);
 
 extern struct key *keyring_alloc(const char *description, uid_t uid, gid_t gid,
-				 int not_in_quota, struct key *dest);
+				 struct task_struct *ctx,
+				 int not_in_quota,
+				 struct key *dest);
 
 extern int keyring_clear(struct key *keyring);
 
@@ -313,7 +321,8 @@ extern void keyring_replace_payload(struct key *key, void *replacement);
  * the userspace interface
  */
 extern struct key root_user_keyring, root_session_keyring;
-extern int alloc_uid_keyring(struct user_struct *user);
+extern int alloc_uid_keyring(struct user_struct *user,
+			     struct task_struct *ctx);
 extern void switch_uid_keyring(struct user_struct *new_user);
 extern int copy_keys(unsigned long clone_flags, struct task_struct *tsk);
 extern int copy_thread_group_keys(struct task_struct *tsk);
@@ -342,7 +351,7 @@ extern void key_init(void);
 #define make_key_ref(k)			({ NULL; })
 #define key_ref_to_ptr(k)		({ NULL; })
 #define is_key_possessed(k)		0
-#define alloc_uid_keyring(u)		0
+#define alloc_uid_keyring(u,c)		0
 #define switch_uid_keyring(u)		do { } while(0)
 #define __install_session_keyring(t, k)	({ NULL; })
 #define copy_keys(f,t)			0
@@ -354,6 +363,10 @@ extern void key_init(void);
 #define key_fsuid_changed(t)		do { } while(0)
 #define key_fsgid_changed(t)		do { } while(0)
 #define key_init()			do { } while(0)
+
+/* Initial keyrings */
+extern struct key root_user_keyring;
+extern struct key root_session_keyring;
 
 #endif /* CONFIG_KEYS */
 #endif /* __KERNEL__ */
