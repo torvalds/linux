@@ -2568,13 +2568,9 @@ static void __init quattro_apply_ranges(struct quattro *qp, struct happy_meal *h
  */
 static struct quattro * __init quattro_sbus_find(struct sbus_dev *goal_sdev)
 {
-	struct sbus_bus *sbus;
 	struct sbus_dev *sdev;
 	struct quattro *qp;
 	int i;
-
-	if (qfe_sbus_list == NULL)
-		goto found;
 
 	for (qp = qfe_sbus_list; qp != NULL; qp = qp->next) {
 		for (i = 0, sdev = qp->quattro_dev;
@@ -2584,17 +2580,7 @@ static struct quattro * __init quattro_sbus_find(struct sbus_dev *goal_sdev)
 				return qp;
 		}
 	}
-	for_each_sbus(sbus) {
-		for_each_sbusdev(sdev, sbus) {
-			if (sdev == goal_sdev)
-				goto found;
-		}
-	}
 
-	/* Cannot find quattro parent, fail. */
-	return NULL;
-
-found:
 	qp = kmalloc(sizeof(struct quattro), GFP_KERNEL);
 	if (qp != NULL) {
 		int i;
