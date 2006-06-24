@@ -165,6 +165,7 @@ int jffs2_garbage_collect_pass(struct jffs2_sb_info *c)
 			D1(printk(KERN_DEBUG "Skipping check of ino #%d with nlink zero\n",
 				  ic->ino));
 			spin_unlock(&c->inocache_lock);
+			jffs2_xattr_delete_inode(c, ic);
 			continue;
 		}
 		switch(ic->state) {
