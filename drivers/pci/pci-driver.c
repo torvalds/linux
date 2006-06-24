@@ -264,6 +264,19 @@ static int pci_device_remove(struct device * dev)
 	return 0;
 }
 
+static int pci_device_suspend_prepare(struct device * dev, pm_message_t state)
+{
+	struct pci_dev * pci_dev = to_pci_dev(dev);
+	struct pci_driver * drv = pci_dev->driver;
+	int i = 0;
+
+	if (drv && drv->suspend_prepare) {
+		i = drv->suspend_prepare(pci_dev, state);
+		suspend_report_result(drv->suspend_prepare, i);
+	}
+	return i;
+}
+
 static int pci_device_suspend(struct device * dev, pm_message_t state)
 {
 	struct pci_dev * pci_dev = to_pci_dev(dev);
@@ -279,6 +292,18 @@ static int pci_device_suspend(struct device * dev, pm_message_t state)
 	return i;
 }
 
+static int pci_device_suspend_late(struct device * dev, pm_message_t state)
+{
+	struct pci_dev * pci_dev = to_pci_dev(dev);
+	struct pci_driver * drv = pci_dev->driver;
+	int i = 0;
+
+	if (drv && drv->suspend_late) {
+		i = drv->suspend_late(pci_dev, state);
+		suspend_report_result(drv->suspend_late, i);
+	}
+	return i;
+}
 
 /*
  * Default resume method for devices that have no driver provided resume,
@@ -310,6 +335,17 @@ static int pci_device_resume(struct device * dev)
 		error = drv->resume(pci_dev);
 	else
 		error = pci_default_resume(pci_dev);
+	return error;
+}
+
+static int pci_device_resume_early(struct device * dev)
+{
+	int error = 0;
+	struct pci_dev * pci_dev = to_pci_dev(dev);
+	struct pci_driver * drv = pci_dev->driver;
+
+	if (drv && drv->resume_early)
+		error = drv->resume_early(pci_dev);
 	return error;
 }
 
@@ -508,9 +544,12 @@ struct bus_type pci_bus_type = {
 	.uevent		= pci_uevent,
 	.probe		= pci_device_probe,
 	.remove		= pci_device_remove,
+	.suspend_prepare= pci_device_suspend_prepare,
 	.suspend	= pci_device_suspend,
-	.shutdown	= pci_device_shutdown,
+	.suspend_late	= pci_device_suspend_late,
+	.resume_early	= pci_device_resume_early,
 	.resume		= pci_device_resume,
+	.shutdown	= pci_device_shutdown,
 	.dev_attrs	= pci_dev_attrs,
 };
 
