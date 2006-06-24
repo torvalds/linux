@@ -872,6 +872,8 @@ static const char *s3c24xx_serial_type(struct uart_port *port)
 		return "S3C2410";
 	case PORT_S3C2440:
 		return "S3C2440";
+	case PORT_S3C2412:
+		return "S3C2412";
 	default:
 		return NULL;
 	}
@@ -1528,6 +1530,141 @@ static inline void s3c2440_serial_exit(void)
 #define s3c2440_uart_inf_at NULL
 #endif /* CONFIG_CPU_S3C2440 */
 
+#if defined(CONFIG_CPU_S3C2412) || defined(CONFIG_CPU_S3C2413)
+
+static int s3c2412_serial_setsource(struct uart_port *port,
+				     struct s3c24xx_uart_clksrc *clk)
+{
+	unsigned long ucon = rd_regl(port, S3C2410_UCON);
+
+	ucon &= ~S3C2412_UCON_CLKMASK;
+
+	if (strcmp(clk->name, "uclk") == 0)
+		ucon |= S3C2440_UCON_UCLK;
+	else if (strcmp(clk->name, "pclk") == 0)
+		ucon |= S3C2440_UCON_PCLK;
+	else if (strcmp(clk->name, "usysclk") == 0)
+		ucon |= S3C2412_UCON_USYSCLK;
+	else {
+		printk(KERN_ERR "unknown clock source %s\n", clk->name);
+		return -EINVAL;
+	}
+
+	wr_regl(port, S3C2410_UCON, ucon);
+	return 0;
+}
+
+
+static int s3c2412_serial_getsource(struct uart_port *port,
+				    struct s3c24xx_uart_clksrc *clk)
+{
+	unsigned long ucon = rd_regl(port, S3C2410_UCON);
+
+	switch (ucon & S3C2412_UCON_CLKMASK) {
+	case S3C2412_UCON_UCLK:
+		clk->divisor = 1;
+		clk->name = "uclk";
+		break;
+
+	case S3C2412_UCON_PCLK:
+	case S3C2412_UCON_PCLK2:
+		clk->divisor = 1;
+		clk->name = "pclk";
+		break;
+
+	case S3C2412_UCON_USYSCLK:
+		clk->divisor = 1;
+		clk->name = "usysclk";
+		break;
+	}
+
+	return 0;
+}
+
+static int s3c2412_serial_resetport(struct uart_port *port,
+				    struct s3c2410_uartcfg *cfg)
+{
+	unsigned long ucon = rd_regl(port, S3C2410_UCON);
+
+	dbg("%s: port=%p (%08lx), cfg=%p\n",
+	    __FUNCTION__, port, port->mapbase, cfg);
+
+	/* ensure we don't change the clock settings... */
+
+	ucon &= S3C2412_UCON_CLKMASK;
+
+	wr_regl(port, S3C2410_UCON,  ucon | cfg->ucon);
+	wr_regl(port, S3C2410_ULCON, cfg->ulcon);
+
+	/* reset both fifos */
+
+	wr_regl(port, S3C2410_UFCON, cfg->ufcon | S3C2410_UFCON_RESETBOTH);
+	wr_regl(port, S3C2410_UFCON, cfg->ufcon);
+
+	return 0;
+}
+
+static struct s3c24xx_uart_info s3c2412_uart_inf = {
+	.name		= "Samsung S3C2412 UART",
+	.type		= PORT_S3C2412,
+	.fifosize	= 64,
+	.rx_fifomask	= S3C2440_UFSTAT_RXMASK,
+	.rx_fifoshift	= S3C2440_UFSTAT_RXSHIFT,
+	.rx_fifofull	= S3C2440_UFSTAT_RXFULL,
+	.tx_fifofull	= S3C2440_UFSTAT_TXFULL,
+	.tx_fifomask	= S3C2440_UFSTAT_TXMASK,
+	.tx_fifoshift	= S3C2440_UFSTAT_TXSHIFT,
+	.get_clksrc	= s3c2412_serial_getsource,
+	.set_clksrc	= s3c2412_serial_setsource,
+	.reset_port	= s3c2412_serial_resetport,
+};
+
+/* device management */
+
+static int s3c2412_serial_probe(struct platform_device *dev)
+{
+	dbg("s3c2440_serial_probe: dev=%p\n", dev);
+	return s3c24xx_serial_probe(dev, &s3c2440_uart_inf);
+}
+
+static struct platform_driver s3c2412_serial_drv = {
+	.probe		= s3c2412_serial_probe,
+	.remove		= s3c24xx_serial_remove,
+	.suspend	= s3c24xx_serial_suspend,
+	.resume		= s3c24xx_serial_resume,
+	.driver		= {
+		.name	= "s3c2412-uart",
+		.owner	= THIS_MODULE,
+	},
+};
+
+
+static inline int s3c2412_serial_init(void)
+{
+	return s3c24xx_serial_init(&s3c2412_serial_drv, &s3c2412_uart_inf);
+}
+
+static inline void s3c2412_serial_exit(void)
+{
+	platform_driver_unregister(&s3c2412_serial_drv);
+}
+
+#define s3c2412_uart_inf_at &s3c2412_uart_inf
+#else
+
+static inline int s3c2412_serial_init(void)
+{
+	return 0;
+}
+
+static inline void s3c2412_serial_exit(void)
+{
+}
+
+#define s3c2412_uart_inf_at NULL
+#endif /* CONFIG_CPU_S3C2440 */
+
+
 /* module initialisation code */
 
 static int __init s3c24xx_serial_modinit(void)
@@ -1542,6 +1679,7 @@ static int __init s3c24xx_serial_modinit(void)
 
 	s3c2400_serial_init();
 	s3c2410_serial_init();
+	s3c2412_serial_init();
 	s3c2440_serial_init();
 
 	return 0;
@@ -1551,6 +1689,7 @@ static void __exit s3c24xx_serial_modexit(void)
 {
 	s3c2400_serial_exit();
 	s3c2410_serial_exit();
+	s3c2412_serial_exit();
 	s3c2440_serial_exit();
 
 	uart_unregister_driver(&s3c24xx_uart_drv);
@@ -1773,6 +1912,8 @@ static int s3c24xx_serial_initconsole(void)
 		info = s3c2410_uart_inf_at;
 	} else if (strcmp(dev->name, "s3c2440-uart") == 0) {
 		info = s3c2440_uart_inf_at;
+	} else if (strcmp(dev->name, "s3c2412-uart") == 0) {
+		info = s3c2412_uart_inf_at;
 	} else {
 		printk(KERN_ERR "s3c24xx: no driver for %s\n", dev->name);
 		return 0;
@@ -1796,4 +1937,4 @@ console_initcall(s3c24xx_serial_initconsole);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Ben Dooks <ben@simtec.co.uk>");
-MODULE_DESCRIPTION("Samsung S3C2410/S3C2440 Serial port driver");
+MODULE_DESCRIPTION("Samsung S3C2410/S3C2440/S3C2412 Serial port driver");
