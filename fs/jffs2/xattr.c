@@ -345,7 +345,7 @@ static struct jffs2_xattr_datum *create_xattr_datum(struct jffs2_sb_info *c,
 		    && xd->value_len==xsize
 		    && !strcmp(xd->xname, xname)
 		    && !memcmp(xd->xvalue, xvalue, xsize)) {
-			xd->refcnt++;
+			atomic_inc(&xd->refcnt);
 			return xd;
 		}
 	}
@@ -365,7 +365,7 @@ static struct jffs2_xattr_datum *create_xattr_datum(struct jffs2_sb_info *c,
 	strcpy(data, xname);
 	memcpy(data + name_len + 1, xvalue, xsize);
 
-	xd->refcnt = 1;
+	atomic_set(&xd->refcnt, 1);
 	xd->xid = ++c->highest_xid;
 	xd->flags |= JFFS2_XFLAGS_HOT;
 	xd->xprefix = xprefix;
@@ -397,7 +397,7 @@ static struct jffs2_xattr_datum *create_xattr_datum(struct jffs2_sb_info *c,
 static void delete_xattr_datum(struct jffs2_sb_info *c, struct jffs2_xattr_datum *xd)
 {
 	/* must be called under down_write(xattr_sem) */
-	BUG_ON(xd->refcnt);
+	BUG_ON(atomic_read(&xd->refcnt));
 
 	unload_xattr_datum(c, xd);
 	xd->flags |= JFFS2_XFLAGS_DEAD;
@@ -580,7 +580,7 @@ static void delete_xattr_ref(struct jffs2_sb_info *c, struct jffs2_xattr_ref *re
 	dbg_xattr("xref(ino=%u, xid=%u, xseqno=%u) was removed.\n",
 		  ref->ino, ref->xid, ref->xseqno);
 
-	if (!--xd->refcnt)
+	if (atomic_dec_and_test(&xd->refcnt))
 		delete_xattr_datum(c, xd);
 }
 
@@ -612,8 +612,7 @@ void jffs2_xattr_free_inode(struct jffs2_sb_info *c, struct jffs2_inode_cache *i
 	for (ref = ic->xref; ref; ref = _ref) {
 		_ref = ref->next;
 		xd = ref->xd;
-		xd->refcnt--;
-		if (!xd->refcnt) {
+		if (atomic_dec_and_test(&xd->refcnt)) {
 			unload_xattr_datum(c, xd);
 			jffs2_free_xattr_datum(xd);
 		}
@@ -835,7 +834,7 @@ void jffs2_build_xattr_subsystem(struct jffs2_sb_info *c)
 			}
 			ref->xd = xd;
 			ref->ic = ic;
-			xd->refcnt++;
+			atomic_inc(&xd->refcnt);
 			ref->next = ic->xref;
 			ic->xref = ref;
 		}
@@ -846,7 +845,7 @@ void jffs2_build_xattr_subsystem(struct jffs2_sb_info *c)
 		list_for_each_entry_safe(xd, _xd, &c->xattrindex[i], xindex) {
 			xdatum_count++;
 			list_del_init(&xd->xindex);
-			if (!xd->refcnt) {
+			if (!atomic_read(&xd->refcnt)) {
 				dbg_xattr("xdatum(xid=%u, version=%u) is orphan.\n",
 					  xd->xid, xd->version);
 				xd->flags |= JFFS2_XFLAGS_DEAD;
@@ -1120,7 +1119,7 @@ int do_jffs2_setxattr(struct inode *inode, int xprefix, const char *xname,
 					ref->next = c->xref_dead_list;
 					c->xref_dead_list = ref;
 					spin_unlock(&c->erase_completion_lock);
-					if (!--xd->refcnt)
+					if (atomic_dec_and_test(&xd->refcnt))
 						delete_xattr_datum(c, xd);
 				} else {
 					ref->ic = ic;
@@ -1157,8 +1156,7 @@ int do_jffs2_setxattr(struct inode *inode, int xprefix, const char *xname,
 	down_write(&c->xattr_sem);
 	if (rc) {
 		JFFS2_WARNING("jffs2_reserve_space()=%d, request=%u\n", rc, request);
-		xd->refcnt--;
-		if (!xd->refcnt)
+		if (atomic_dec_and_test(&xd->refcnt))
 			delete_xattr_datum(c, xd);
 		up_write(&c->xattr_sem);
 		return rc;
@@ -1172,8 +1170,7 @@ int do_jffs2_setxattr(struct inode *inode, int xprefix, const char *xname,
 			ic->xref = ref;
 		}
 		rc = PTR_ERR(newref);
-		xd->refcnt--;
-		if (!xd->refcnt)
+		if (atomic_dec_and_test(&xd->refcnt))
 			delete_xattr_datum(c, xd);
 	} else if (ref) {
 		delete_xattr_ref(c, ref);
@@ -1304,7 +1301,7 @@ int jffs2_verify_xattr(struct jffs2_sb_info *c)
 void jffs2_release_xattr_datum(struct jffs2_sb_info *c, struct jffs2_xattr_datum *xd)
 {
 	/* must be called under spin_lock(&c->erase_completion_lock) */
-	if (xd->refcnt > 0 || xd->node != (void *)xd)
+	if (atomic_read(&xd->refcnt) || xd->node != (void *)xd)
 		return;
 
 	list_del(&xd->xindex);

@@ -28,7 +28,7 @@ struct jffs2_xattr_datum
 	uint16_t xprefix;		/* see JFFS2_XATTR_PREFIX_* */
 
 	struct list_head xindex;	/* chained from c->xattrindex[n] */
-	uint32_t refcnt;		/* # of xattr_ref refers this */
+	atomic_t refcnt;		/* # of xattr_ref refers this */
 	uint32_t xid;
 	uint32_t version;
 
