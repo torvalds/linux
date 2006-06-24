@@ -117,7 +117,7 @@ $(real-objs-m:.o=.lst): quiet_modtag := [M]
 $(obj-m)              : quiet_modtag := [M]
 
 # Default for not multi-part modules
-modname = $(*F)
+modname = $(basetarget)
 
 $(multi-objs-m)         : modname = $(modname-multi)
 $(multi-objs-m:.o=.i)   : modname = $(modname-multi)
