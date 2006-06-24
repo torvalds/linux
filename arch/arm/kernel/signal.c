@@ -134,17 +134,6 @@ sys_sigaction(int sig, const struct old_sigaction __user *act,
 
 #ifdef CONFIG_IWMMXT
 
-/* iwmmxt_area is 0x98 bytes long, preceeded by 8 bytes of signature */
-#define IWMMXT_STORAGE_SIZE	(0x98 + 8)
-#define IWMMXT_MAGIC0		0x12ef842a
-#define IWMMXT_MAGIC1		0x1c07ca71
-
-struct iwmmxt_sigframe {
-	unsigned long	magic0;
-	unsigned long	magic1;
-	unsigned long	storage[0x98/4];
-};
-
 static int preserve_iwmmxt_context(struct iwmmxt_sigframe *frame)
 {
 	char kbuf[sizeof(*frame) + 8];
@@ -152,8 +141,8 @@ static int preserve_iwmmxt_context(struct iwmmxt_sigframe *frame)
 
 	/* the iWMMXt context must be 64 bit aligned */
 	kframe = (struct iwmmxt_sigframe *)((unsigned long)(kbuf + 8) & ~7);
-	kframe->magic0 = IWMMXT_MAGIC0;
-	kframe->magic1 = IWMMXT_MAGIC1;
+	kframe->magic = IWMMXT_MAGIC;
+	kframe->size = IWMMXT_STORAGE_SIZE;
 	iwmmxt_task_copy(current_thread_info(), &kframe->storage);
 	return __copy_to_user(frame, kframe, sizeof(*frame));
 }
@@ -167,8 +156,8 @@ static int restore_iwmmxt_context(struct iwmmxt_sigframe *frame)
 	kframe = (struct iwmmxt_sigframe *)((unsigned long)(kbuf + 8) & ~7);
 	if (__copy_from_user(kframe, frame, sizeof(*frame)))
 		return -1;
-	if (kframe->magic0 != IWMMXT_MAGIC0 ||
-	    kframe->magic1 != IWMMXT_MAGIC1)
+	if (kframe->magic != IWMMXT_MAGIC ||
+	    kframe->size != IWMMXT_STORAGE_SIZE)
 		return -1;
 	iwmmxt_task_restore(current_thread_info(), &kframe->storage);
 	return 0;
@@ -177,70 +166,61 @@ static int restore_iwmmxt_context(struct iwmmxt_sigframe *frame)
 #endif
 
 /*
- * Auxiliary signal frame.  This saves stuff like FP state.
- * The layout of this structure is not part of the user ABI.
- */
-struct aux_sigframe {
-#ifdef CONFIG_IWMMXT
-	struct iwmmxt_sigframe	iwmmxt;
-#endif
-#ifdef CONFIG_VFP
-	union vfp_state		vfp;
-#endif
-};
-
-/*
  * Do a signal return; undo the signal stack.  These are aligned to 64-bit.
  */
 struct sigframe {
-	struct sigcontext sc;
-	unsigned long extramask[_NSIG_WORDS-1];
+	struct ucontext uc;
 	unsigned long retcode[2];
-	struct aux_sigframe aux __attribute__((aligned(8)));
 };
 
 struct rt_sigframe {
-	struct siginfo __user *pinfo;
-	void __user *puc;
 	struct siginfo info;
-	struct ucontext uc;
-	unsigned long retcode[2];
-	struct aux_sigframe aux __attribute__((aligned(8)));
+	struct sigframe sig;
 };
 
-static int
-restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc,
-		   struct aux_sigframe __user *aux)
+static int restore_sigframe(struct pt_regs *regs, struct sigframe __user *sf)
 {
-	int err = 0;
+	struct aux_sigframe __user *aux;
+	sigset_t set;
+	int err;
 
-	__get_user_error(regs->ARM_r0, &sc->arm_r0, err);
-	__get_user_error(regs->ARM_r1, &sc->arm_r1, err);
-	__get_user_error(regs->ARM_r2, &sc->arm_r2, err);
-	__get_user_error(regs->ARM_r3, &sc->arm_r3, err);
-	__get_user_error(regs->ARM_r4, &sc->arm_r4, err);
-	__get_user_error(regs->ARM_r5, &sc->arm_r5, err);
-	__get_user_error(regs->ARM_r6, &sc->arm_r6, err);
-	__get_user_error(regs->ARM_r7, &sc->arm_r7, err);
-	__get_user_error(regs->ARM_r8, &sc->arm_r8, err);
-	__get_user_error(regs->ARM_r9, &sc->arm_r9, err);
-	__get_user_error(regs->ARM_r10, &sc->arm_r10, err);
-	__get_user_error(regs->ARM_fp, &sc->arm_fp, err);
-	__get_user_error(regs->ARM_ip, &sc->arm_ip, err);
-	__get_user_error(regs->ARM_sp, &sc->arm_sp, err);
-	__get_user_error(regs->ARM_lr, &sc->arm_lr, err);
-	__get_user_error(regs->ARM_pc, &sc->arm_pc, err);
-	__get_user_error(regs->ARM_cpsr, &sc->arm_cpsr, err);
+	err = __copy_from_user(&set, &sf->uc.uc_sigmask, sizeof(set));
+	if (err == 0) {
+		sigdelsetmask(&set, ~_BLOCKABLE);
+		spin_lock_irq(&current->sighand->siglock);
+		current->blocked = set;
+		recalc_sigpending();
+		spin_unlock_irq(&current->sighand->siglock);
+	}
+
+	__get_user_error(regs->ARM_r0, &sf->uc.uc_mcontext.arm_r0, err);
+	__get_user_error(regs->ARM_r1, &sf->uc.uc_mcontext.arm_r1, err);
+	__get_user_error(regs->ARM_r2, &sf->uc.uc_mcontext.arm_r2, err);
+	__get_user_error(regs->ARM_r3, &sf->uc.uc_mcontext.arm_r3, err);
+	__get_user_error(regs->ARM_r4, &sf->uc.uc_mcontext.arm_r4, err);
+	__get_user_error(regs->ARM_r5, &sf->uc.uc_mcontext.arm_r5, err);
+	__get_user_error(regs->ARM_r6, &sf->uc.uc_mcontext.arm_r6, err);
+	__get_user_error(regs->ARM_r7, &sf->uc.uc_mcontext.arm_r7, err);
+	__get_user_error(regs->ARM_r8, &sf->uc.uc_mcontext.arm_r8, err);
+	__get_user_error(regs->ARM_r9, &sf->uc.uc_mcontext.arm_r9, err);
+	__get_user_error(regs->ARM_r10, &sf->uc.uc_mcontext.arm_r10, err);
+	__get_user_error(regs->ARM_fp, &sf->uc.uc_mcontext.arm_fp, err);
+	__get_user_error(regs->ARM_ip, &sf->uc.uc_mcontext.arm_ip, err);
+	__get_user_error(regs->ARM_sp, &sf->uc.uc_mcontext.arm_sp, err);
+	__get_user_error(regs->ARM_lr, &sf->uc.uc_mcontext.arm_lr, err);
+	__get_user_error(regs->ARM_pc, &sf->uc.uc_mcontext.arm_pc, err);
+	__get_user_error(regs->ARM_cpsr, &sf->uc.uc_mcontext.arm_cpsr, err);
 
 	err |= !valid_user_regs(regs);
 
+	aux = (struct aux_sigframe __user *) sf->uc.uc_regspace;
 #ifdef CONFIG_IWMMXT
 	if (err == 0 && test_thread_flag(TIF_USING_IWMMXT))
 		err |= restore_iwmmxt_context(&aux->iwmmxt);
 #endif
 #ifdef CONFIG_VFP
 //	if (err == 0)
-//		err |= vfp_restore_state(&aux->vfp);
+//		err |= vfp_restore_state(&sf->aux.vfp);
 #endif
 
 	return err;
@@ -249,7 +229,6 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc,
 asmlinkage int sys_sigreturn(struct pt_regs *regs)
 {
 	struct sigframe __user *frame;
-	sigset_t set;
 
 	/* Always make any pending restarted system calls return -EINTR */
 	current_thread_info()->restart_block.fn = do_no_restart_syscall;
@@ -266,19 +245,8 @@ asmlinkage int sys_sigreturn(struct pt_regs *regs)
 
 	if (!access_ok(VERIFY_READ, frame, sizeof (*frame)))
 		goto badframe;
-	if (__get_user(set.sig[0], &frame->sc.oldmask)
-	    || (_NSIG_WORDS > 1
-	        && __copy_from_user(&set.sig[1], &frame->extramask,
-				    sizeof(frame->extramask))))
-		goto badframe;
 
-	sigdelsetmask(&set, ~_BLOCKABLE);
-	spin_lock_irq(&current->sighand->siglock);
-	current->blocked = set;
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
-
-	if (restore_sigcontext(regs, &frame->sc, &frame->aux))
+	if (restore_sigframe(regs, frame))
 		goto badframe;
 
 	/* Send SIGTRAP if we're single-stepping */
@@ -297,7 +265,6 @@ badframe:
 asmlinkage int sys_rt_sigreturn(struct pt_regs *regs)
 {
 	struct rt_sigframe __user *frame;
-	sigset_t set;
 
 	/* Always make any pending restarted system calls return -EINTR */
 	current_thread_info()->restart_block.fn = do_no_restart_syscall;
@@ -314,19 +281,11 @@ asmlinkage int sys_rt_sigreturn(struct pt_regs *regs)
 
 	if (!access_ok(VERIFY_READ, frame, sizeof (*frame)))
 		goto badframe;
-	if (__copy_from_user(&set, &frame->uc.uc_sigmask, sizeof(set)))
+
+	if (restore_sigframe(regs, &frame->sig))
 		goto badframe;
 
-	sigdelsetmask(&set, ~_BLOCKABLE);
-	spin_lock_irq(&current->sighand->siglock);
-	current->blocked = set;
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
-
-	if (restore_sigcontext(regs, &frame->uc.uc_mcontext, &frame->aux))
-		goto badframe;
-
-	if (do_sigaltstack(&frame->uc.uc_stack, NULL, regs->ARM_sp) == -EFAULT)
+	if (do_sigaltstack(&frame->sig.uc.uc_stack, NULL, regs->ARM_sp) == -EFAULT)
 		goto badframe;
 
 	/* Send SIGTRAP if we're single-stepping */
@@ -343,42 +302,46 @@ badframe:
 }
 
 static int
-setup_sigcontext(struct sigcontext __user *sc, struct aux_sigframe __user *aux,
-		 struct pt_regs *regs, unsigned long mask)
+setup_sigframe(struct sigframe __user *sf, struct pt_regs *regs, sigset_t *set)
 {
+	struct aux_sigframe __user *aux;
 	int err = 0;
 
-	__put_user_error(regs->ARM_r0, &sc->arm_r0, err);
-	__put_user_error(regs->ARM_r1, &sc->arm_r1, err);
-	__put_user_error(regs->ARM_r2, &sc->arm_r2, err);
-	__put_user_error(regs->ARM_r3, &sc->arm_r3, err);
-	__put_user_error(regs->ARM_r4, &sc->arm_r4, err);
-	__put_user_error(regs->ARM_r5, &sc->arm_r5, err);
-	__put_user_error(regs->ARM_r6, &sc->arm_r6, err);
-	__put_user_error(regs->ARM_r7, &sc->arm_r7, err);
-	__put_user_error(regs->ARM_r8, &sc->arm_r8, err);
-	__put_user_error(regs->ARM_r9, &sc->arm_r9, err);
-	__put_user_error(regs->ARM_r10, &sc->arm_r10, err);
-	__put_user_error(regs->ARM_fp, &sc->arm_fp, err);
-	__put_user_error(regs->ARM_ip, &sc->arm_ip, err);
-	__put_user_error(regs->ARM_sp, &sc->arm_sp, err);
-	__put_user_error(regs->ARM_lr, &sc->arm_lr, err);
-	__put_user_error(regs->ARM_pc, &sc->arm_pc, err);
-	__put_user_error(regs->ARM_cpsr, &sc->arm_cpsr, err);
+	__put_user_error(regs->ARM_r0, &sf->uc.uc_mcontext.arm_r0, err);
+	__put_user_error(regs->ARM_r1, &sf->uc.uc_mcontext.arm_r1, err);
+	__put_user_error(regs->ARM_r2, &sf->uc.uc_mcontext.arm_r2, err);
+	__put_user_error(regs->ARM_r3, &sf->uc.uc_mcontext.arm_r3, err);
+	__put_user_error(regs->ARM_r4, &sf->uc.uc_mcontext.arm_r4, err);
+	__put_user_error(regs->ARM_r5, &sf->uc.uc_mcontext.arm_r5, err);
+	__put_user_error(regs->ARM_r6, &sf->uc.uc_mcontext.arm_r6, err);
+	__put_user_error(regs->ARM_r7, &sf->uc.uc_mcontext.arm_r7, err);
+	__put_user_error(regs->ARM_r8, &sf->uc.uc_mcontext.arm_r8, err);
+	__put_user_error(regs->ARM_r9, &sf->uc.uc_mcontext.arm_r9, err);
+	__put_user_error(regs->ARM_r10, &sf->uc.uc_mcontext.arm_r10, err);
+	__put_user_error(regs->ARM_fp, &sf->uc.uc_mcontext.arm_fp, err);
+	__put_user_error(regs->ARM_ip, &sf->uc.uc_mcontext.arm_ip, err);
+	__put_user_error(regs->ARM_sp, &sf->uc.uc_mcontext.arm_sp, err);
+	__put_user_error(regs->ARM_lr, &sf->uc.uc_mcontext.arm_lr, err);
+	__put_user_error(regs->ARM_pc, &sf->uc.uc_mcontext.arm_pc, err);
+	__put_user_error(regs->ARM_cpsr, &sf->uc.uc_mcontext.arm_cpsr, err);
 
-	__put_user_error(current->thread.trap_no, &sc->trap_no, err);
-	__put_user_error(current->thread.error_code, &sc->error_code, err);
-	__put_user_error(current->thread.address, &sc->fault_address, err);
-	__put_user_error(mask, &sc->oldmask, err);
+	__put_user_error(current->thread.trap_no, &sf->uc.uc_mcontext.trap_no, err);
+	__put_user_error(current->thread.error_code, &sf->uc.uc_mcontext.error_code, err);
+	__put_user_error(current->thread.address, &sf->uc.uc_mcontext.fault_address, err);
+	__put_user_error(set->sig[0], &sf->uc.uc_mcontext.oldmask, err);
 
+	err |= __copy_to_user(&sf->uc.uc_sigmask, set, sizeof(*set));
+
+	aux = (struct aux_sigframe __user *) sf->uc.uc_regspace;
 #ifdef CONFIG_IWMMXT
 	if (err == 0 && test_thread_flag(TIF_USING_IWMMXT))
 		err |= preserve_iwmmxt_context(&aux->iwmmxt);
 #endif
 #ifdef CONFIG_VFP
 //	if (err == 0)
-//		err |= vfp_save_state(&aux->vfp);
+//		err |= vfp_save_state(&sf->aux.vfp);
 #endif
+	__put_user_error(0, &aux->end_magic, err);
 
 	return err;
 }
@@ -487,13 +450,12 @@ setup_frame(int usig, struct k_sigaction *ka, sigset_t *set, struct pt_regs *reg
 	if (!frame)
 		return 1;
 
-	err |= setup_sigcontext(&frame->sc, &frame->aux, regs, set->sig[0]);
+	/*
+	 * Set uc.uc_flags to a value which sc.trap_no would never have.
+	 */
+	__put_user_error(0x5ac3c35a, &frame->uc.uc_flags, err);
 
-	if (_NSIG_WORDS > 1) {
-		err |= __copy_to_user(frame->extramask, &set->sig[1],
-				      sizeof(frame->extramask));
-	}
-
+	err |= setup_sigframe(frame, regs, set);
 	if (err == 0)
 		err = setup_return(regs, ka, frame->retcode, frame, usig);
 
@@ -511,25 +473,20 @@ setup_rt_frame(int usig, struct k_sigaction *ka, siginfo_t *info,
 	if (!frame)
 		return 1;
 
-	__put_user_error(&frame->info, &frame->pinfo, err);
-	__put_user_error(&frame->uc, &frame->puc, err);
 	err |= copy_siginfo_to_user(&frame->info, info);
 
-	__put_user_error(0, &frame->uc.uc_flags, err);
-	__put_user_error(NULL, &frame->uc.uc_link, err);
+	__put_user_error(0, &frame->sig.uc.uc_flags, err);
+	__put_user_error(NULL, &frame->sig.uc.uc_link, err);
 
 	memset(&stack, 0, sizeof(stack));
 	stack.ss_sp = (void __user *)current->sas_ss_sp;
 	stack.ss_flags = sas_ss_flags(regs->ARM_sp);
 	stack.ss_size = current->sas_ss_size;
-	err |= __copy_to_user(&frame->uc.uc_stack, &stack, sizeof(stack));
+	err |= __copy_to_user(&frame->sig.uc.uc_stack, &stack, sizeof(stack));
 
-	err |= setup_sigcontext(&frame->uc.uc_mcontext, &frame->aux,
-				regs, set->sig[0]);
-	err |= __copy_to_user(&frame->uc.uc_sigmask, set, sizeof(*set));
-
+	err |= setup_sigframe(&frame->sig, regs, set);
 	if (err == 0)
-		err = setup_return(regs, ka, frame->retcode, frame, usig);
+		err = setup_return(regs, ka, frame->sig.retcode, frame, usig);
 
 	if (err == 0) {
 		/*
@@ -538,7 +495,7 @@ setup_rt_frame(int usig, struct k_sigaction *ka, siginfo_t *info,
 		 *   -- Peter Maydell <pmaydell@chiark.greenend.org.uk> 2000-12-06
 		 */
 		regs->ARM_r1 = (unsigned long)&frame->info;
-		regs->ARM_r2 = (unsigned long)&frame->uc;
+		regs->ARM_r2 = (unsigned long)&frame->sig.uc;
 	}
 
 	return err;
