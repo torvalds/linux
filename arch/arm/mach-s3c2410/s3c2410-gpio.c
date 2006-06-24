@@ -18,9 +18,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
- * Changelog
- *	15-Jan-2006  LCVR  Splitted from gpio.c
  */
 
 #include <linux/kernel.h>
@@ -47,7 +44,7 @@ int s3c2410_gpio_irqfilter(unsigned int pin, unsigned int on,
 
 	config &= 0xff;
 
-	pin -= S3C2410_GPG8_EINT16;
+	pin -= S3C2410_GPG8;
 	reg += pin & ~3;
 
 	local_irq_save(flags);
@@ -75,7 +72,7 @@ EXPORT_SYMBOL(s3c2410_gpio_irqfilter);
 
 int s3c2410_gpio_getirq(unsigned int pin)
 {
-	if (pin < S3C2410_GPF0 || pin > S3C2410_GPG15_EINT23)
+	if (pin < S3C2410_GPF0 || pin > S3C2410_GPG15)
 		return -1;	/* not valid interrupts */
 
 	if (pin < S3C2410_GPG0 && pin > S3C2410_GPF7)
