@@ -392,7 +392,7 @@ repeat:
       break;
 
     default:
-      abort();
+      exit(1);
     }
 fini:
 

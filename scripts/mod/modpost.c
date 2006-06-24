@@ -330,7 +330,7 @@ static void parse_elf(struct elf_info *info, const char *filename)
 	hdr = grab_file(filename, &info->size);
 	if (!hdr) {
 		perror(filename);
-		abort();
+		exit(1);
 	}
 	info->hdr = hdr;
 	if (info->size < sizeof(*hdr))
