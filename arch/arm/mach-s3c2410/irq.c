@@ -191,12 +191,8 @@ static struct irqchip s3c_irq_chip = {
 	.ack	   = s3c_irq_ack,
 	.mask	   = s3c_irq_mask,
 	.unmask	   = s3c_irq_unmask,
-	.set_wake	   = s3c_irq_wake
+	.set_wake  = s3c_irq_wake
 };
-
-/* S3C2410_EINTMASK
- * S3C2410_EINTPEND
- */
 
 static void
 s3c_irqext_mask(unsigned int irqno)
@@ -205,9 +201,9 @@ s3c_irqext_mask(unsigned int irqno)
 
 	irqno -= EXTINT_OFF;
 
-	mask = __raw_readl(S3C2410_EINTMASK);
+	mask = __raw_readl(S3C24XX_EINTMASK);
 	mask |= ( 1UL << irqno);
-	__raw_writel(mask, S3C2410_EINTMASK);
+	__raw_writel(mask, S3C24XX_EINTMASK);
 
 	if (irqno <= (IRQ_EINT7 - EXTINT_OFF)) {
 		/* check to see if all need masking */
@@ -232,11 +228,11 @@ s3c_irqext_ack(unsigned int irqno)
 	bit = 1UL << (irqno - EXTINT_OFF);
 
 
-	mask = __raw_readl(S3C2410_EINTMASK);
+	mask = __raw_readl(S3C24XX_EINTMASK);
 
-	__raw_writel(bit, S3C2410_EINTPEND);
+	__raw_writel(bit, S3C24XX_EINTPEND);
 
-	req = __raw_readl(S3C2410_EINTPEND);
+	req = __raw_readl(S3C24XX_EINTPEND);
 	req &= ~mask;
 
 	/* not sure if we should be acking the parent irq... */
@@ -257,9 +253,9 @@ s3c_irqext_unmask(unsigned int irqno)
 
 	irqno -= EXTINT_OFF;
 
-	mask = __raw_readl(S3C2410_EINTMASK);
+	mask = __raw_readl(S3C24XX_EINTMASK);
 	mask &= ~( 1UL << irqno);
-	__raw_writel(mask, S3C2410_EINTMASK);
+	__raw_writel(mask, S3C24XX_EINTMASK);
 
 	s3c_irq_unmask((irqno <= (IRQ_EINT7 - EXTINT_OFF)) ? IRQ_EINT4t7 : IRQ_EINT8t23);
 }
@@ -572,6 +568,23 @@ s3c_irq_demux_uart2(unsigned int irq,
 	s3c_irq_demux_uart(IRQ_S3CUART_RX2, regs);
 }
 
+static void
+s3c_irq_demux_extint(unsigned int irq,
+		     struct irqdesc *desc,
+		     struct pt_regs *regs)
+{
+	unsigned long eintpnd = __raw_readl(S3C24XX_EINTPEND);
+	unsigned long eintmsk = __raw_readl(S3C24XX_EINTMASK);
+
+	eintpnd &= ~eintmsk;
+
+	if (eintpnd) {
+		irq = fls(eintpnd);
+		irq += (IRQ_EINT4 - (4 + 1));
+
+		desc_handle_irq(irq, irq_desc + irq, regs);
+	}
+}
 
 /* s3c24xx_init_irq
  *
@@ -591,12 +604,12 @@ void __init s3c24xx_init_irq(void)
 
 	last = 0;
 	for (i = 0; i < 4; i++) {
-		pend = __raw_readl(S3C2410_EINTPEND);
+		pend = __raw_readl(S3C24XX_EINTPEND);
 
 		if (pend == 0 || pend == last)
 			break;
 
-		__raw_writel(pend, S3C2410_EINTPEND);
+		__raw_writel(pend, S3C24XX_EINTPEND);
 		printk("irq: clearing pending ext status %08x\n", (int)pend);
 		last = pend;
 	}
@@ -630,12 +643,14 @@ void __init s3c24xx_init_irq(void)
 
 	irqdbf("s3c2410_init_irq: registering s3c2410 interrupt handlers\n");
 
-	for (irqno = IRQ_BATT_FLT; irqno <= IRQ_ADCPARENT; irqno++) {
+	for (irqno = IRQ_EINT4t7; irqno <= IRQ_ADCPARENT; irqno++) {
 		/* set all the s3c2410 internal irqs */
 
 		switch (irqno) {
 			/* deal with the special IRQs (cascaded) */
 
+		case IRQ_EINT4t7:
+		case IRQ_EINT8t23:
 		case IRQ_UART0:
 		case IRQ_UART1:
 		case IRQ_UART2:
@@ -659,11 +674,13 @@ void __init s3c24xx_init_irq(void)
 
 	/* setup the cascade irq handlers */
 
+	set_irq_chained_handler(IRQ_EINT4t7, s3c_irq_demux_extint);
+	set_irq_chained_handler(IRQ_EINT8t23, s3c_irq_demux_extint);
+
 	set_irq_chained_handler(IRQ_UART0, s3c_irq_demux_uart0);
 	set_irq_chained_handler(IRQ_UART1, s3c_irq_demux_uart1);
 	set_irq_chained_handler(IRQ_UART2, s3c_irq_demux_uart2);
 	set_irq_chained_handler(IRQ_ADCPARENT, s3c_irq_demux_adc);
-
 
 	/* external interrupts */
 
