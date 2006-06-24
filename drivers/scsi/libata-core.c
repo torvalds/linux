@@ -1145,7 +1145,7 @@ unsigned ata_exec_internal(struct ata_device *dev,
  *	RETURNS:
  *	Zero on success, AC_ERR_* mask on failure
  */
-static unsigned int ata_do_simple_cmd(struct ata_device *dev, u8 cmd)
+unsigned int ata_do_simple_cmd(struct ata_device *dev, u8 cmd)
 {
 	struct ata_taskfile tf;
 
@@ -4973,7 +4973,7 @@ int ata_port_offline(struct ata_port *ap)
 	return 0;
 }
 
-static int ata_flush_cache(struct ata_device *dev)
+int ata_flush_cache(struct ata_device *dev)
 {
 	unsigned int err_mask;
 	u8 cmd;
