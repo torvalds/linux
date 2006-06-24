@@ -81,6 +81,12 @@ config SMDK2440_CPU2442
 	depends on ARCH_S3C2440
 	select CPU_S3C2442
 
+config MACH_SMDK2413
+	bool "SMDK2413"
+	select CPU_S3C2412
+	select MACH_SMDK
+	help
+	  Say Y here if you are using an SMDK2413
 
 config MACH_VR1000
 	bool "Thorcom VR1000"
