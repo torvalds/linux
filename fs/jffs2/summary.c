@@ -5,7 +5,7 @@
  *                     Zoltan Sogor <weth@inf.u-szeged.hu>,
  *                     Patrik Kluba <pajko@halom.u-szeged.hu>,
  *                     University of Szeged, Hungary
- *               2005  KaiGai Kohei <kaigai@ak.jp.nec.com>
+ *               2006  KaiGai Kohei <kaigai@ak.jp.nec.com>
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
