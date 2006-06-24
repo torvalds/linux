@@ -190,6 +190,7 @@ extern void device_resume(void);
 extern suspend_disk_method_t pm_disk_mode;
 
 extern int device_suspend(pm_message_t state);
+extern int device_prepare_suspend(pm_message_t state);
 
 #define device_set_wakeup_enable(dev,val) \
 	((dev)->power.should_wakeup = !!(val))

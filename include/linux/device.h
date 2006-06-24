@@ -51,8 +51,12 @@ struct bus_type {
 	int		(*probe)(struct device * dev);
 	int		(*remove)(struct device * dev);
 	void		(*shutdown)(struct device * dev);
-	int		(*suspend)(struct device * dev, pm_message_t state);
-	int		(*resume)(struct device * dev);
+
+	int (*suspend_prepare)(struct device * dev, pm_message_t state);
+	int (*suspend)(struct device * dev, pm_message_t state);
+	int (*suspend_late)(struct device * dev, pm_message_t state);
+	int (*resume_early)(struct device * dev);
+	int (*resume)(struct device * dev);
 };
 
 extern int bus_register(struct bus_type * bus);
@@ -154,6 +158,9 @@ struct class {
 
 	void	(*release)(struct class_device *dev);
 	void	(*class_release)(struct class *class);
+
+	int	(*suspend)(struct device *, pm_message_t state);
+	int	(*resume)(struct device *);
 };
 
 extern int class_register(struct class *);

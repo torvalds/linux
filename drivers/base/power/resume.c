@@ -38,13 +38,35 @@ int resume_device(struct device * dev)
 		dev_dbg(dev,"resuming\n");
 		error = dev->bus->resume(dev);
 	}
+	if (dev->class && dev->class->resume) {
+		dev_dbg(dev,"class resume\n");
+		error = dev->class->resume(dev);
+	}
 	up(&dev->sem);
 	TRACE_RESUME(error);
 	return error;
 }
 
 
+static int resume_device_early(struct device * dev)
+{
+	int error = 0;
 
+	TRACE_DEVICE(dev);
+	TRACE_RESUME(0);
+	if (dev->bus && dev->bus->resume_early) {
+		dev_dbg(dev,"EARLY resume\n");
+		error = dev->bus->resume_early(dev);
+	}
+	TRACE_RESUME(error);
+	return error;
+}
+
+/*
+ * Resume the devices that have either not gone through
+ * the late suspend, or that did go through it but also
+ * went through the early resume
+ */
 void dpm_resume(void)
 {
 	down(&dpm_list_sem);
@@ -99,10 +121,8 @@ void dpm_power_up(void)
 		struct list_head * entry = dpm_off_irq.next;
 		struct device * dev = to_device(entry);
 
-		get_device(dev);
-		list_move_tail(entry, &dpm_active);
-		resume_device(dev);
-		put_device(dev);
+		list_move_tail(entry, &dpm_off);
+		resume_device_early(dev);
 	}
 }
 

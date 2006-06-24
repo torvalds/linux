@@ -57,6 +57,10 @@ static int suspend_prepare(suspend_state_t state)
 	if (!pm_ops || !pm_ops->enter)
 		return -EPERM;
 
+	error = device_prepare_suspend(PMSG_SUSPEND);
+	if (error)
+		return error;
+
 	pm_prepare_console();
 
 	disable_nonboot_cpus();
