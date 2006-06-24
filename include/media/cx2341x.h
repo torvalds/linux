@@ -25,8 +25,13 @@ enum cx2341x_port {
 	CX2341X_PORT_SERIAL    = 2
 };
 
+enum cx2341x_cap {
+	CX2341X_CAP_HAS_SLICED_VBI = 1 << 0,
+};
+
 struct cx2341x_mpeg_params {
 	/* misc */
+	u32 capabilities;
 	enum cx2341x_port port;
 	u16 width;
 	u16 height;
@@ -34,6 +39,7 @@ struct cx2341x_mpeg_params {
 
 	/* stream */
 	enum v4l2_mpeg_stream_type stream_type;
+	enum v4l2_mpeg_stream_vbi_fmt stream_vbi_fmt;
 
 	/* audio */
 	enum v4l2_mpeg_audio_sampling_freq audio_sampling_freq;

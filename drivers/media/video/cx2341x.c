@@ -43,6 +43,7 @@ MODULE_PARM_DESC(debug, "Debug level (0-1)");
 const u32 cx2341x_mpeg_ctrls[] = {
 	V4L2_CID_MPEG_CLASS,
 	V4L2_CID_MPEG_STREAM_TYPE,
+	V4L2_CID_MPEG_STREAM_VBI_FMT,
 	V4L2_CID_MPEG_AUDIO_SAMPLING_FREQ,
 	V4L2_CID_MPEG_AUDIO_ENCODING,
 	V4L2_CID_MPEG_AUDIO_L2_BITRATE,
@@ -134,6 +135,9 @@ static int cx2341x_get_ctrl(struct cx2341x_mpeg_params *params,
 		break;
 	case V4L2_CID_MPEG_STREAM_TYPE:
 		ctrl->value = params->stream_type;
+		break;
+	case V4L2_CID_MPEG_STREAM_VBI_FMT:
+		ctrl->value = params->stream_vbi_fmt;
 		break;
 	case V4L2_CID_MPEG_CX2341X_VIDEO_SPATIAL_FILTER_MODE:
 		ctrl->value = params->video_spatial_filter_mode;
@@ -256,6 +260,9 @@ static int cx2341x_set_ctrl(struct cx2341x_mpeg_params *params,
 			/* MPEG-1 implies CBR */
 			params->video_bitrate_mode = V4L2_MPEG_VIDEO_BITRATE_MODE_CBR;
 		}
+		break;
+	case V4L2_CID_MPEG_STREAM_VBI_FMT:
+		params->stream_vbi_fmt = ctrl->value;
 		break;
 	case V4L2_CID_MPEG_CX2341X_VIDEO_SPATIAL_FILTER_MODE:
 		params->video_spatial_filter_mode = ctrl->value;
@@ -417,6 +424,14 @@ int cx2341x_ctrl_query(struct cx2341x_mpeg_params *params, struct v4l2_queryctrl
 		if (err == 0 && params->video_bitrate_mode == V4L2_MPEG_VIDEO_BITRATE_MODE_CBR)
 			qctrl->flags |= V4L2_CTRL_FLAG_INACTIVE;
 		return err;
+
+	case V4L2_CID_MPEG_STREAM_VBI_FMT:
+		if (params->capabilities & CX2341X_CAP_HAS_SLICED_VBI)
+			return v4l2_ctrl_query_fill_std(qctrl);
+		return cx2341x_ctrl_query_fill(qctrl,
+				V4L2_MPEG_STREAM_VBI_FMT_NONE,
+				V4L2_MPEG_STREAM_VBI_FMT_NONE, 1,
+				V4L2_MPEG_STREAM_VBI_FMT_NONE);
 
 	/* CX23415/6 specific */
 	case V4L2_CID_MPEG_CX2341X_VIDEO_SPATIAL_FILTER_MODE:
@@ -639,6 +654,7 @@ void cx2341x_fill_defaults(struct cx2341x_mpeg_params *p)
 {
 	static struct cx2341x_mpeg_params default_params = {
 	/* misc */
+	.capabilities = 0,
 	.port = CX2341X_PORT_MEMORY,
 	.width = 720,
 	.height = 480,
@@ -646,6 +662,7 @@ void cx2341x_fill_defaults(struct cx2341x_mpeg_params *p)
 
 	/* stream */
 	.stream_type = V4L2_MPEG_STREAM_TYPE_MPEG2_PS,
+	.stream_vbi_fmt = V4L2_MPEG_STREAM_VBI_FMT_NONE,
 
 	/* audio */
 	.audio_sampling_freq = V4L2_MPEG_AUDIO_SAMPLING_FREQ_48000,
