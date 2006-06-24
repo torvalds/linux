@@ -93,6 +93,31 @@ static int ata_ering_map(struct ata_ering *ering,
 	return rc;
 }
 
+static void ata_eh_clear_action(struct ata_device *dev,
+				struct ata_eh_info *ehi, unsigned int action)
+{
+	int i;
+
+	if (!dev) {
+		ehi->action &= ~action;
+		for (i = 0; i < ATA_MAX_DEVICES; i++)
+			ehi->dev_action[i] &= ~action;
+	} else {
+		/* doesn't make sense for port-wide EH actions */
+		WARN_ON(!(action & ATA_EH_PERDEV_MASK));
+
+		/* break ehi->action into ehi->dev_action */
+		if (ehi->action & action) {
+			for (i = 0; i < ATA_MAX_DEVICES; i++)
+				ehi->dev_action[i] |= ehi->action & action;
+			ehi->action &= ~action;
+		}
+
+		/* turn off the specified per-dev action */
+		ehi->dev_action[dev->devno] &= ~action;
+	}
+}
+
 /**
  *	ata_scsi_timed_out - SCSI layer time out callback
  *	@cmd: timed out SCSI command
@@ -703,31 +728,6 @@ static void ata_eh_detach_dev(struct ata_device *dev)
 	}
 
 	spin_unlock_irqrestore(ap->lock, flags);
-}
-
-static void ata_eh_clear_action(struct ata_device *dev,
-				struct ata_eh_info *ehi, unsigned int action)
-{
-	int i;
-
-	if (!dev) {
-		ehi->action &= ~action;
-		for (i = 0; i < ATA_MAX_DEVICES; i++)
-			ehi->dev_action[i] &= ~action;
-	} else {
-		/* doesn't make sense for port-wide EH actions */
-		WARN_ON(!(action & ATA_EH_PERDEV_MASK));
-
-		/* break ehi->action into ehi->dev_action */
-		if (ehi->action & action) {
-			for (i = 0; i < ATA_MAX_DEVICES; i++)
-				ehi->dev_action[i] |= ehi->action & action;
-			ehi->action &= ~action;
-		}
-
-		/* turn off the specified per-dev action */
-		ehi->dev_action[dev->devno] &= ~action;
-	}
 }
 
 /**
