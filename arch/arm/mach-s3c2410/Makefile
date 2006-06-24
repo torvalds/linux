@@ -24,6 +24,10 @@ obj-$(CONFIG_S3C2410_DMA)  += dma.o
 obj-$(CONFIG_PM)	   += pm.o sleep.o
 obj-$(CONFIG_PM_SIMTEC)	   += pm-simtec.o
 
+# S3C2412 support
+obj-$(CONFIG_CPU_S3C2412)  += s3c2412.o
+
+#
 # S3C244X support
 
 obj-$(CONFIG_CPU_S3C244X)  += s3c244x.o

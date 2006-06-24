@@ -127,6 +127,20 @@ config CPU_S3C2410
 	  Support for S3C2410 and S3C2410A family from the S3C24XX line
 	  of Samsung Mobile CPUs.
 
+# internal node to signify if we are only dealing with an S3C2412
+
+config CPU_S3C2412_ONLY
+	bool
+	depends on ARCH_S3C2410 && !CPU_S3C2400 && !CPU_S3C2410 && \
+		   !CPU_S3C2440 && !CPU_S3C2442 && CPU_S3C2412
+	default y if CPU_S3C2412
+
+config CPU_S3C2412
+	bool
+	depends on ARCH_S3C2410
+	help
+	  Support for the S3C2412 and S3C2413 SoCs from the S3C24XX line
+
 config CPU_S3C244X
 	bool
 	depends on ARCH_S3C2410 && (CPU_S3C2440 || CPU_S3C2442)
