@@ -962,10 +962,8 @@ static int setattr_chown(struct inode *inode, struct iattr *attr)
 	brelse(dibh);
 
 	if (ouid != NO_QUOTA_CHANGE || ogid != NO_QUOTA_CHANGE) {
-		gfs2_quota_change(ip, -ip->i_di.di_blocks,
-				 ouid, ogid);
-		gfs2_quota_change(ip, ip->i_di.di_blocks,
-				 nuid, ngid);
+		gfs2_quota_change(ip, -ip->i_di.di_blocks, ouid, ogid);
+		gfs2_quota_change(ip, ip->i_di.di_blocks, nuid, ngid);
 	}
 
  out_end_trans:

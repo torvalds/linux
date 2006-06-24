@@ -416,7 +416,7 @@ void gfs2_holder_uninit(struct gfs2_holder *gh)
  * @gl: the glock
  * @state: the state we're requesting
  * @flags: the modifier flags
- * @gfp_flags: __GFP_NOFAIL
+ * @gfp_flags:
  *
  * Figure out how big an impact this function has.  Either:
  * 1) Replace it with a cache of structures hanging off the struct gfs2_sbd
@@ -720,6 +720,7 @@ static void gfs2_glmutex_unlock(struct gfs2_glock *gl)
  * @gl: the glock
  * @state: the state the caller wants us to change to
  *
+ * Note: This may fail sliently if we are out of memory.
  */
 
 static void handle_callback(struct gfs2_glock *gl, unsigned int state)
@@ -744,8 +745,9 @@ restart:
 	} else {
 		spin_unlock(&gl->gl_spin);
 
-		new_gh = gfs2_holder_get(gl, state, LM_FLAG_TRY,
-					 GFP_KERNEL | __GFP_NOFAIL),
+		new_gh = gfs2_holder_get(gl, state, LM_FLAG_TRY, GFP_KERNEL);
+		if (!new_gh)
+			return;
 		set_bit(HIF_DEMOTE, &new_gh->gh_iflags);
 		set_bit(HIF_DEALLOC, &new_gh->gh_iflags);
 
