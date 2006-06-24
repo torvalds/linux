@@ -213,12 +213,17 @@ EXPORT_SYMBOL(clk_set_parent);
 
 /* base clocks */
 
-static struct clk clk_xtal = {
+struct clk clk_xtal = {
 	.name		= "xtal",
 	.id		= -1,
 	.rate		= 0,
 	.parent		= NULL,
 	.ctrlbit	= 0,
+};
+
+struct clk clk_mpll = {
+	.name		= "mpll",
+	.id		= -1,
 };
 
 struct clk clk_upll = {
@@ -232,7 +237,7 @@ struct clk clk_f = {
 	.name		= "fclk",
 	.id		= -1,
 	.rate		= 0,
-	.parent		= NULL,
+	.parent		= &clk_mpll,
 	.ctrlbit	= 0,
 };
 
@@ -413,6 +418,7 @@ int __init s3c24xx_setup_clocks(unsigned long xtal,
 	clk_xtal.rate = xtal;
 	clk_upll.rate = s3c2410_get_pll(__raw_readl(S3C2410_UPLLCON), xtal);
 
+	clk_mpll.rate = fclk;
 	clk_h.rate = hclk;
 	clk_p.rate = pclk;
 	clk_f.rate = fclk;
@@ -423,6 +429,9 @@ int __init s3c24xx_setup_clocks(unsigned long xtal,
 
 	if (s3c24xx_register_clock(&clk_xtal) < 0)
 		printk(KERN_ERR "failed to register master xtal\n");
+
+	if (s3c24xx_register_clock(&clk_mpll) < 0)
+		printk(KERN_ERR "failed to register mpll clock\n");
 
 	if (s3c24xx_register_clock(&clk_upll) < 0)
 		printk(KERN_ERR "failed to register upll clock\n");
