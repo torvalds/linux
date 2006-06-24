@@ -35,7 +35,7 @@
 int s3c2410_gpio_irqfilter(unsigned int pin, unsigned int on,
 			   unsigned int config)
 {
-	void __iomem *reg = S3C2410_EINFLT0;
+	void __iomem *reg = S3C24XX_EINFLT0;
 	unsigned long flags;
 	unsigned long val;
 
@@ -58,10 +58,10 @@ int s3c2410_gpio_irqfilter(unsigned int pin, unsigned int on,
 
 	/* update filter enable */
 
-	val = __raw_readl(S3C2410_EXTINT2);
+	val = __raw_readl(S3C24XX_EXTINT2);
 	val &= ~(1 << ((pin * 4) + 3));
 	val |= on << ((pin * 4) + 3);
-	__raw_writel(val, S3C2410_EXTINT2);
+	__raw_writel(val, S3C24XX_EXTINT2);
 
 	local_irq_restore(flags);
 

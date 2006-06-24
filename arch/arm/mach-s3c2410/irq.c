@@ -275,28 +275,28 @@ s3c_irqext_type(unsigned int irq, unsigned int type)
 	if ((irq >= IRQ_EINT0) && (irq <= IRQ_EINT3))
 	{
 		gpcon_reg = S3C2410_GPFCON;
-		extint_reg = S3C2410_EXTINT0;
+		extint_reg = S3C24XX_EXTINT0;
 		gpcon_offset = (irq - IRQ_EINT0) * 2;
 		extint_offset = (irq - IRQ_EINT0) * 4;
 	}
 	else if ((irq >= IRQ_EINT4) && (irq <= IRQ_EINT7))
 	{
 		gpcon_reg = S3C2410_GPFCON;
-		extint_reg = S3C2410_EXTINT0;
+		extint_reg = S3C24XX_EXTINT0;
 		gpcon_offset = (irq - (EXTINT_OFF)) * 2;
 		extint_offset = (irq - (EXTINT_OFF)) * 4;
 	}
 	else if ((irq >= IRQ_EINT8) && (irq <= IRQ_EINT15))
 	{
 		gpcon_reg = S3C2410_GPGCON;
-		extint_reg = S3C2410_EXTINT1;
+		extint_reg = S3C24XX_EXTINT1;
 		gpcon_offset = (irq - IRQ_EINT8) * 2;
 		extint_offset = (irq - IRQ_EINT8) * 4;
 	}
 	else if ((irq >= IRQ_EINT16) && (irq <= IRQ_EINT23))
 	{
 		gpcon_reg = S3C2410_GPGCON;
-		extint_reg = S3C2410_EXTINT2;
+		extint_reg = S3C24XX_EXTINT2;
 		gpcon_offset = (irq - IRQ_EINT8) * 2;
 		extint_offset = (irq - IRQ_EINT16) * 4;
 	} else
