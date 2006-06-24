@@ -26,4 +26,8 @@ struct map_desc {
 #define MT_IXP2000_DEVICE	7
 #define MT_NONSHARED_DEVICE	8
 
+#ifdef CONFIG_MMU
 extern void iotable_init(struct map_desc *, int);
+#else
+#define iotable_init(map,num)	do { } while (0)
+#endif
