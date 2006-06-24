@@ -734,6 +734,10 @@ static void ata_eh_detach_dev(struct ata_device *dev)
 		ap->flags |= ATA_FLAG_SCSI_HOTPLUG;
 	}
 
+	/* clear per-dev EH actions */
+	ata_eh_clear_action(dev, &ap->eh_info, ATA_EH_PERDEV_MASK);
+	ata_eh_clear_action(dev, &ap->eh_context.i, ATA_EH_PERDEV_MASK);
+
 	spin_unlock_irqrestore(ap->lock, flags);
 }
 
