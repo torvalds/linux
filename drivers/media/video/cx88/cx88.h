@@ -563,7 +563,6 @@ void cx88_newstation(struct cx88_core *core);
 void cx88_get_stereo(struct cx88_core *core, struct v4l2_tuner *t);
 void cx88_set_stereo(struct cx88_core *core, u32 mode, int manual);
 int cx88_audio_thread(void *data);
-int cx88_detect_nicam(struct cx88_core *core);
 
 /* ----------------------------------------------------------- */
 /* cx88-input.c                                                */
@@ -591,12 +590,6 @@ int cx8802_resume_common(struct pci_dev *pci_dev);
 extern int cx88_do_ioctl(struct inode *inode, struct file *file, int radio,
 				struct cx88_core *core, unsigned int cmd,
 				void *arg, v4l2_kioctl driver_ioctl);
-
-/* ----------------------------------------------------------- */
-/* cx88-blackbird.c                                            */
-extern int (*cx88_ioctl_hook)(struct inode *inode, struct file *file,
-				unsigned int cmd, void *arg);
-extern unsigned int (*cx88_ioctl_translator)(unsigned int cmd);
 
 /*
  * Local variables:

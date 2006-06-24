@@ -1700,11 +1700,6 @@ void cx88_card_setup(struct cx88_core *core)
 /* ------------------------------------------------------------------ */
 
 EXPORT_SYMBOL(cx88_boards);
-EXPORT_SYMBOL(cx88_bcount);
-EXPORT_SYMBOL(cx88_subids);
-EXPORT_SYMBOL(cx88_idcount);
-EXPORT_SYMBOL(cx88_card_list);
-EXPORT_SYMBOL(cx88_card_setup);
 
 /*
  * Local variables:
