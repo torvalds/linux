@@ -114,6 +114,7 @@ static inline unsigned int get_rtc_time(struct rtc_time *time)
 /* Set the current date and time in the real time clock. */
 static inline int set_rtc_time(struct rtc_time *time)
 {
+	unsigned long flags;
 	unsigned char mon, day, hrs, min, sec;
 	unsigned char save_control, save_freq_select;
 	unsigned int yrs;
@@ -131,7 +132,7 @@ static inline int set_rtc_time(struct rtc_time *time)
 	if (yrs > 255)	/* They are unsigned */
 		return -EINVAL;
 
-	spin_lock_irq(&rtc_lock);
+	spin_lock_irqsave(&rtc_lock, flags);
 #ifdef CONFIG_MACH_DECSTATION
 	real_yrs = yrs;
 	leap_yr = ((!((yrs + 1900) % 4) && ((yrs + 1900) % 100)) ||
@@ -152,7 +153,7 @@ static inline int set_rtc_time(struct rtc_time *time)
 	 * whether the chip is in binary mode or not.
 	 */
 	if (yrs > 169) {
-		spin_unlock_irq(&rtc_lock);
+		spin_unlock_irqrestore(&rtc_lock, flags);
 		return -EINVAL;
 	}
 
@@ -187,7 +188,7 @@ static inline int set_rtc_time(struct rtc_time *time)
 	CMOS_WRITE(save_control, RTC_CONTROL);
 	CMOS_WRITE(save_freq_select, RTC_FREQ_SELECT);
 
-	spin_unlock_irq(&rtc_lock);
+	spin_unlock_irqrestore(&rtc_lock, flags);
 
 	return 0;
 }
