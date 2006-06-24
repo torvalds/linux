@@ -1269,10 +1269,8 @@ int __init sbus_arch_preinit(void)
 void __init sbus_arch_postinit(void)
 {
 	extern void firetruck_init(void);
-	extern void auxio_probe(void);
 	extern void clock_probe(void);
 
 	firetruck_init();
-	auxio_probe();
 	clock_probe();
 }

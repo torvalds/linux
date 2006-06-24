@@ -269,10 +269,6 @@ EXPORT_SYMBOL(ebus_dma_enable);
 
 struct linux_ebus *ebus_chain = NULL;
 
-#ifdef CONFIG_SUN_AUXIO
-extern void auxio_probe(void);
-#endif
-
 static inline void *ebus_alloc(size_t size)
 {
 	void *mem;
@@ -630,8 +626,4 @@ void __init ebus_init(void)
 		++num_ebus;
 	}
 	pci_dev_put(pdev); /* XXX for the case, when ebusnd is 0, is it OK? */
-
-#ifdef CONFIG_SUN_AUXIO
-	auxio_probe();
-#endif
 }
