@@ -4,9 +4,17 @@
  * ARM uCLinux supporting functions.
  */
 #include <linux/module.h>
+#include <linux/mm.h>
+#include <linux/pagemap.h>
 
+#include <asm/cacheflush.h>
 #include <asm/io.h>
 #include <asm/page.h>
+
+void flush_dcache_page(struct page *page)
+{
+	__cpuc_flush_dcache_page(page_address(page));
+}
 
 void __iomem *__ioremap_pfn(unsigned long pfn, unsigned long offset,
 			    size_t size, unsigned long flags)

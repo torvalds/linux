@@ -3,10 +3,10 @@
 #
 
 obj-y				:= consistent.o extable.o fault-armv.o \
-				   fault.o flush.o init.o iomap.o mmap.o \
+				   fault.o init.o iomap.o mmap.o \
 				   mm-armv.o
 
-obj-$(CONFIG_MMU)		+= ioremap.o
+obj-$(CONFIG_MMU)		+= flush.o ioremap.o
 
 ifneq ($(CONFIG_MMU),y)
 obj-y				+= nommu.o
