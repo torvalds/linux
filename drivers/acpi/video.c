@@ -1645,7 +1645,7 @@ static int acpi_video_bus_put_devices(struct acpi_video_bus *video)
 			printk(KERN_WARNING PREFIX
 			       "hhuuhhuu bug in acpi video driver.\n");
 
-		if (data->brightness);
+		if (data->brightness)
 			kfree(data->brightness->levels);
 		kfree(data->brightness);
 		kfree(data);
