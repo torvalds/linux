@@ -3,7 +3,7 @@
 
 	     Maintained by Torben Mathiasen <device@lanana.org>
 
-		      Last revised: 01 March 2006
+		      Last revised: 15 May 2006
 
 This list is the Linux Device List, the official registry of allocated
 device numbers and /dev directory nodes for the Linux operating
@@ -2791,6 +2791,7 @@ Your cooperation is appreciated.
 		 170 = /dev/ttyNX0		Hilscher netX serial port 0
 		    ...
 		 185 = /dev/ttyNX15		Hilscher netX serial port 15
+		 186 = /dev/ttyJ0		JTAG1 DCC protocol based serial port emulation
 
 205 char	Low-density serial ports (alternate device)
 		  0 = /dev/culu0		Callout device for ttyLU0
@@ -3107,6 +3108,10 @@ Your cooperation is appreciated.
 		 16 = /dev/rfdb		Second RFD FTL layer
 		  ...
 		240 = /dev/rfdp		16th RFD FTL layer
+
+257 char	Phoenix Technologies Cryptographic Services Driver
+		  0 = /dev/ptlsec	Crypto Services Driver
+
 
 
  ****	ADDITIONAL /dev DIRECTORY ENTRIES
