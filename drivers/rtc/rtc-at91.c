@@ -40,11 +40,11 @@
 static DECLARE_COMPLETION(at91_rtc_updated);
 static unsigned int at91_alarm_year = AT91_RTC_EPOCH;
 
-
 /*
  * Decode time/date into rtc_time structure
  */
-static void at91_rtc_decodetime(unsigned int timereg, unsigned int calreg, struct rtc_time *tm)
+static void at91_rtc_decodetime(unsigned int timereg, unsigned int calreg,
+				struct rtc_time *tm)
 {
 	unsigned int time, date;
 
@@ -52,7 +52,8 @@ static void at91_rtc_decodetime(unsigned int timereg, unsigned int calreg, struc
 	do {
 		time = at91_sys_read(timereg);
 		date = at91_sys_read(calreg);
-	} while ((time != at91_sys_read(timereg)) || (date != at91_sys_read(calreg)));
+	} while ((time != at91_sys_read(timereg)) ||
+			(date != at91_sys_read(calreg)));
 
 	tm->tm_sec  = BCD2BIN((time & AT91_RTC_SEC) >> 0);
 	tm->tm_min  = BCD2BIN((time & AT91_RTC_MIN) >> 8);
@@ -63,8 +64,8 @@ static void at91_rtc_decodetime(unsigned int timereg, unsigned int calreg, struc
 	 * the year - so these will return an invalid value.  When an
 	 * alarm is set, at91_alarm_year wille store the current year.
 	 */
-	tm->tm_year  = BCD2BIN(date & AT91_RTC_CENT) * 100;		/* century */
-	tm->tm_year += BCD2BIN((date & AT91_RTC_YEAR) >> 8);		/* year */
+	tm->tm_year  = BCD2BIN(date & AT91_RTC_CENT) * 100;	/* century */
+	tm->tm_year += BCD2BIN((date & AT91_RTC_YEAR) >> 8);	/* year */
 
 	tm->tm_wday = BCD2BIN((date & AT91_RTC_DAY) >> 21) - 1;	/* day of the week [0-6], Sunday=0 */
 	tm->tm_mon  = BCD2BIN((date & AT91_RTC_MONTH) >> 16) - 1;
@@ -81,7 +82,8 @@ static int at91_rtc_readtime(struct device *dev, struct rtc_time *tm)
 	tm->tm_year = tm->tm_year - 1900;
 
 	pr_debug("%s(): %4d-%02d-%02d %02d:%02d:%02d\n", __FUNCTION__,
-		1900 + tm->tm_year, tm->tm_mon, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec);
+		1900 + tm->tm_year, tm->tm_mon, tm->tm_mday,
+		tm->tm_hour, tm->tm_min, tm->tm_sec);
 
 	return 0;
 }
@@ -94,14 +96,15 @@ static int at91_rtc_settime(struct device *dev, struct rtc_time *tm)
 	unsigned long cr;
 
 	pr_debug("%s(): %4d-%02d-%02d %02d:%02d:%02d\n", __FUNCTION__,
-		1900 + tm->tm_year, tm->tm_mon, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec);
+		1900 + tm->tm_year, tm->tm_mon, tm->tm_mday,
+		tm->tm_hour, tm->tm_min, tm->tm_sec);
 
 	/* Stop Time/Calendar from counting */
 	cr = at91_sys_read(AT91_RTC_CR);
 	at91_sys_write(AT91_RTC_CR, cr | AT91_RTC_UPDCAL | AT91_RTC_UPDTIM);
 
 	at91_sys_write(AT91_RTC_IER, AT91_RTC_ACKUPD);
-	wait_for_completion(&at91_rtc_updated);		/* wait for ACKUPD interrupt */
+	wait_for_completion(&at91_rtc_updated);	/* wait for ACKUPD interrupt */
 	at91_sys_write(AT91_RTC_IDR, AT91_RTC_ACKUPD);
 
 	at91_sys_write(AT91_RTC_TIMR,
@@ -110,10 +113,10 @@ static int at91_rtc_settime(struct device *dev, struct rtc_time *tm)
 			| BIN2BCD(tm->tm_hour) << 16);
 
 	at91_sys_write(AT91_RTC_CALR,
-			  BIN2BCD((tm->tm_year + 1900) / 100)		/* century */
-			| BIN2BCD(tm->tm_year % 100) << 8		/* year */
-			| BIN2BCD(tm->tm_mon + 1) << 16			/* tm_mon starts at zero */
-			| BIN2BCD(tm->tm_wday + 1) << 21		/* day of the week [0-6], Sunday=0 */
+			  BIN2BCD((tm->tm_year + 1900) / 100)	/* century */
+			| BIN2BCD(tm->tm_year % 100) << 8	/* year */
+			| BIN2BCD(tm->tm_mon + 1) << 16		/* tm_mon starts at zero */
+			| BIN2BCD(tm->tm_wday + 1) << 21	/* day of the week [0-6], Sunday=0 */
 			| BIN2BCD(tm->tm_mday) << 24);
 
 	/* Restart Time/Calendar */
@@ -135,7 +138,8 @@ static int at91_rtc_readalarm(struct device *dev, struct rtc_wkalrm *alrm)
 	tm->tm_year = at91_alarm_year - 1900;
 
 	pr_debug("%s(): %4d-%02d-%02d %02d:%02d:%02d\n", __FUNCTION__,
-		1900 + tm->tm_year, tm->tm_mon, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec);
+		1900 + tm->tm_year, tm->tm_mon, tm->tm_mday,
+		tm->tm_hour, tm->tm_min, tm->tm_sec);
 
 	return 0;
 }
@@ -166,7 +170,8 @@ static int at91_rtc_setalarm(struct device *dev, struct rtc_wkalrm *alrm)
 		| AT91_RTC_DATEEN | AT91_RTC_MTHEN);
 
 	pr_debug("%s(): %4d-%02d-%02d %02d:%02d:%02d\n", __FUNCTION__,
-		at91_alarm_year, tm.tm_mon, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+		at91_alarm_year, tm.tm_mon, tm.tm_mday, tm.tm_hour,
+		tm.tm_min, tm.tm_sec);
 
 	return 0;
 }
@@ -174,7 +179,8 @@ static int at91_rtc_setalarm(struct device *dev, struct rtc_wkalrm *alrm)
 /*
  * Handle commands from user-space
  */
-static int at91_rtc_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
+static int at91_rtc_ioctl(struct device *dev, unsigned int cmd,
+			unsigned long arg)
 {
 	int ret = 0;
 
@@ -217,10 +223,14 @@ static int at91_rtc_proc(struct device *dev, struct seq_file *seq)
 {
 	unsigned long imr = at91_sys_read(AT91_RTC_IMR);
 
-	seq_printf(seq, "alarm_IRQ\t: %s\n", (imr & AT91_RTC_ALARM) ? "yes" : "no");
-	seq_printf(seq, "update_IRQ\t: %s\n", (imr & AT91_RTC_ACKUPD) ? "yes" : "no");
-	seq_printf(seq, "periodic_IRQ\t: %s\n", (imr & AT91_RTC_SECEV) ? "yes" : "no");
-	seq_printf(seq, "periodic_freq\t: %ld\n", (unsigned long) AT91_RTC_FREQ);
+	seq_printf(seq, "alarm_IRQ\t: %s\n",
+			(imr & AT91_RTC_ALARM) ? "yes" : "no");
+	seq_printf(seq, "update_IRQ\t: %s\n",
+			(imr & AT91_RTC_ACKUPD) ? "yes" : "no");
+	seq_printf(seq, "periodic_IRQ\t: %s\n",
+			(imr & AT91_RTC_SECEV) ? "yes" : "no");
+	seq_printf(seq, "periodic_freq\t: %ld\n",
+			(unsigned long) AT91_RTC_FREQ);
 
 	return 0;
 }
@@ -228,9 +238,10 @@ static int at91_rtc_proc(struct device *dev, struct seq_file *seq)
 /*
  * IRQ handler for the RTC
  */
-static irqreturn_t at91_rtc_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t at91_rtc_interrupt(int irq, void *dev_id,
+					struct pt_regs *regs)
 {
-	struct platform_device *pdev = (struct platform_device *)dev_id;
+	struct platform_device *pdev = dev_id;
 	struct rtc_device *rtc = platform_get_drvdata(pdev);
 	unsigned int rtsr;
 	unsigned long events = 0;
@@ -244,7 +255,7 @@ static irqreturn_t at91_rtc_interrupt(int irq, void *dev_id, struct pt_regs *reg
 		if (rtsr & AT91_RTC_ACKUPD)
 			complete(&at91_rtc_updated);
 
-		at91_sys_write(AT91_RTC_SCCR, rtsr);		/* clear status reg */
+		at91_sys_write(AT91_RTC_SCCR, rtsr);	/* clear status reg */
 
 		rtc_update_irq(&rtc->class_dev, 1, events);
 
@@ -277,15 +288,20 @@ static int __init at91_rtc_probe(struct platform_device *pdev)
 	at91_sys_write(AT91_RTC_MR, 0);		/* 24 hour mode */
 
 	/* Disable all interrupts */
-	at91_sys_write(AT91_RTC_IDR, AT91_RTC_ACKUPD | AT91_RTC_ALARM | AT91_RTC_SECEV | AT91_RTC_TIMEV | AT91_RTC_CALEV);
+	at91_sys_write(AT91_RTC_IDR, AT91_RTC_ACKUPD | AT91_RTC_ALARM |
+					AT91_RTC_SECEV | AT91_RTC_TIMEV |
+					AT91_RTC_CALEV);
 
-	ret = request_irq(AT91_ID_SYS, at91_rtc_interrupt, SA_SHIRQ, "at91_rtc", pdev);
+	ret = request_irq(AT91_ID_SYS, at91_rtc_interrupt,
+				SA_SHIRQ, "at91_rtc", pdev);
 	if (ret) {
-		printk(KERN_ERR "at91_rtc: IRQ %d already in use.\n", AT91_ID_SYS);
+		printk(KERN_ERR "at91_rtc: IRQ %d already in use.\n",
+				AT91_ID_SYS);
 		return ret;
 	}
 
-	rtc = rtc_device_register(pdev->name, &pdev->dev, &at91_rtc_ops, THIS_MODULE);
+	rtc = rtc_device_register(pdev->name, &pdev->dev,
+				&at91_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rtc)) {
 		free_irq(AT91_ID_SYS, pdev);
 		return PTR_ERR(rtc);
@@ -304,7 +320,9 @@ static int __devexit at91_rtc_remove(struct platform_device *pdev)
 	struct rtc_device *rtc = platform_get_drvdata(pdev);
 
 	/* Disable all interrupts */
-	at91_sys_write(AT91_RTC_IDR, AT91_RTC_ACKUPD | AT91_RTC_ALARM | AT91_RTC_SECEV | AT91_RTC_TIMEV | AT91_RTC_CALEV);
+	at91_sys_write(AT91_RTC_IDR, AT91_RTC_ACKUPD | AT91_RTC_ALARM |
+					AT91_RTC_SECEV | AT91_RTC_TIMEV |
+					AT91_RTC_CALEV);
 	free_irq(AT91_ID_SYS, pdev);
 
 	rtc_device_unregister(rtc);
@@ -332,7 +350,8 @@ static int at91_rtc_suspend(struct platform_device *pdev, pm_message_t state)
 	save_time_delta(&at91_rtc_delta, &time);
 
 	pr_debug("%s(): %4d-%02d-%02d %02d:%02d:%02d\n", __FUNCTION__,
-		1900 + tm.tm_year, tm.tm_mon, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+		1900 + tm.tm_year, tm.tm_mon, tm.tm_mday,
+		tm.tm_hour, tm.tm_min, tm.tm_sec);
 
 	return 0;
 }
@@ -349,7 +368,8 @@ static int at91_rtc_resume(struct platform_device *pdev)
 	restore_time_delta(&at91_rtc_delta, &time);
 
 	pr_debug("%s(): %4d-%02d-%02d %02d:%02d:%02d\n", __FUNCTION__,
-		1900 + tm.tm_year, tm.tm_mon, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+		1900 + tm.tm_year, tm.tm_mon, tm.tm_mday,
+		tm.tm_hour, tm.tm_min, tm.tm_sec);
 
 	return 0;
 }
@@ -378,7 +398,6 @@ static void __exit at91_rtc_exit(void)
 {
 	platform_driver_unregister(&at91_rtc_driver);
 }
-
 
 module_init(at91_rtc_init);
 module_exit(at91_rtc_exit);
