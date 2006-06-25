@@ -317,7 +317,8 @@ static inline void __cpus_remap(cpumask_t *dstp, const cpumask_t *srcp,
 		(cpu) < NR_CPUS;		\
 		(cpu) = next_cpu((cpu), (mask)))
 #else /* NR_CPUS == 1 */
-#define for_each_cpu_mask(cpu, mask) for ((cpu) = 0; (cpu) < 1; (cpu)++)
+#define for_each_cpu_mask(cpu, mask)		\
+	for ((cpu) = 0; (cpu) < 1; (cpu)++, (void)mask)
 #endif /* NR_CPUS */
 
 /*
