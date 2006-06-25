@@ -1674,6 +1674,9 @@ sub process_state3_type($$) {
 # replace <, >, and &
 sub xml_escape($) {
 	my $text = shift;
+	if (($output_mode eq "text") || ($output_mode eq "man")) {
+		return $text;
+	}
 	$text =~ s/\&/\\\\\\amp;/g;
 	$text =~ s/\</\\\\\\lt;/g;
 	$text =~ s/\>/\\\\\\gt;/g;
