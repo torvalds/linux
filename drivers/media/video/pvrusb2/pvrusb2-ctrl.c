@@ -230,6 +230,11 @@ unsigned int pvr2_ctrl_get_v4lflags(struct pvr2_ctrl *cptr)
 		flags = cptr->info->get_v4lflags(cptr);
 	}
 
+	if (cptr->info->set_value) {
+		flags &= ~V4L2_CTRL_FLAG_READ_ONLY;
+	} else {
+		flags |= V4L2_CTRL_FLAG_READ_ONLY;
+	}
 
 	return flags;
 }

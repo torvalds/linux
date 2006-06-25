@@ -518,7 +518,13 @@ static int pvr2_v4l2_do_ioctl(struct inode *inode, struct file *file,
 		struct pvr2_ctrl *cptr;
 		struct v4l2_queryctrl *vc = (struct v4l2_queryctrl *)arg;
 		ret = 0;
-		cptr = pvr2_hdw_get_ctrl_v4l(hdw,vc->id);
+		if (vc->id & V4L2_CTRL_FLAG_NEXT_CTRL) {
+			cptr = pvr2_hdw_get_ctrl_nextv4l(
+				hdw,(vc->id & ~V4L2_CTRL_FLAG_NEXT_CTRL));
+			if (cptr) vc->id = pvr2_ctrl_get_v4lid(cptr);
+		} else {
+			cptr = pvr2_hdw_get_ctrl_v4l(hdw,vc->id);
+		}
 		if (!cptr) {
 			pvr2_trace(PVR2_TRACE_ERROR_LEGS,
 				   "QUERYCTRL id=0x%x not implemented here",
@@ -542,7 +548,7 @@ static int pvr2_v4l2_do_ioctl(struct inode *inode, struct file *file,
 			vc->step = 1;
 			break;
 		case pvr2_ctl_bool:
-			vc->type = V4L2_CTRL_TYPE_INTEGER;
+			vc->type = V4L2_CTRL_TYPE_BOOLEAN;
 			vc->minimum = 0;
 			vc->maximum = 1;
 			vc->step = 1;
@@ -590,6 +596,69 @@ static int pvr2_v4l2_do_ioctl(struct inode *inode, struct file *file,
 		struct v4l2_control *vc = (struct v4l2_control *)arg;
 		ret = pvr2_ctrl_set_value(pvr2_hdw_get_ctrl_v4l(hdw,vc->id),
 					  vc->value);
+		break;
+	}
+
+	case VIDIOC_G_EXT_CTRLS:
+	{
+		struct v4l2_ext_controls *ctls =
+			(struct v4l2_ext_controls *)arg;
+		struct v4l2_ext_control *ctrl;
+		unsigned int idx;
+		int val;
+		for (idx = 0; idx < ctls->count; idx++) {
+			ctrl = ctls->controls + idx;
+			ret = pvr2_ctrl_get_value(
+				pvr2_hdw_get_ctrl_v4l(hdw,ctrl->id),&val);
+			if (ret) {
+				ctls->error_idx = idx;
+				break;
+			}
+			/* Ensure that if read as a 64 bit value, the user
+			   will still get a hopefully sane value */
+			ctrl->value64 = 0;
+			ctrl->value = val;
+		}
+		break;
+	}
+
+	case VIDIOC_S_EXT_CTRLS:
+	{
+		struct v4l2_ext_controls *ctls =
+			(struct v4l2_ext_controls *)arg;
+		struct v4l2_ext_control *ctrl;
+		unsigned int idx;
+		for (idx = 0; idx < ctls->count; idx++) {
+			ctrl = ctls->controls + idx;
+			ret = pvr2_ctrl_set_value(
+				pvr2_hdw_get_ctrl_v4l(hdw,ctrl->id),
+				ctrl->value);
+			if (ret) {
+				ctls->error_idx = idx;
+				break;
+			}
+		}
+		break;
+	}
+
+	case VIDIOC_TRY_EXT_CTRLS:
+	{
+		struct v4l2_ext_controls *ctls =
+			(struct v4l2_ext_controls *)arg;
+		struct v4l2_ext_control *ctrl;
+		struct pvr2_ctrl *pctl;
+		unsigned int idx;
+		/* For the moment just validate that the requested control
+		   actually exists. */
+		for (idx = 0; idx < ctls->count; idx++) {
+			ctrl = ctls->controls + idx;
+			pctl = pvr2_hdw_get_ctrl_v4l(hdw,ctrl->id);
+			if (!pctl) {
+				ret = -EINVAL;
+				ctls->error_idx = idx;
+				break;
+			}
+		}
 		break;
 	}
 
