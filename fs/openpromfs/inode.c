@@ -64,6 +64,11 @@ static int openpromfs_readdir(struct file *, void *, filldir_t);
 static struct dentry *openpromfs_lookup(struct inode *, struct dentry *dentry, struct nameidata *nd);
 static int openpromfs_unlink (struct inode *, struct dentry *dentry);
 
+static inline u16 ptr_nod(void *p)
+{
+    return (long)p & 0xFFFF;
+}
+
 static ssize_t nodenum_read(struct file *file, char __user *buf,
 			    size_t count, loff_t *ppos)
 {
@@ -95,9 +100,9 @@ static ssize_t property_read(struct file *filp, char __user *buf,
 	char buffer[64];
 	
 	if (!filp->private_data) {
-		node = nodes[(u16)((long)inode->u.generic_ip)].node;
+		node = nodes[ptr_nod(inode->u.generic_ip)].node;
 		i = ((u32)(long)inode->u.generic_ip) >> 16;
-		if ((u16)((long)inode->u.generic_ip) == aliases) {
+		if (ptr_nod(inode->u.generic_ip) == aliases) {
 			if (i >= aliases_nodes)
 				p = NULL;
 			else
@@ -111,7 +116,7 @@ static ssize_t property_read(struct file *filp, char __user *buf,
 			return -EIO;
 		i = prom_getproplen (node, p);
 		if (i < 0) {
-			if ((u16)((long)inode->u.generic_ip) == aliases)
+			if (ptr_nod(inode->u.generic_ip) == aliases)
 				i = 0;
 			else
 				return -EIO;
@@ -540,8 +545,8 @@ int property_release (struct inode *inode, struct file *filp)
 	if (!op)
 		return 0;
 	lock_kernel();
-	node = nodes[(u16)((long)inode->u.generic_ip)].node;
-	if ((u16)((long)inode->u.generic_ip) == aliases) {
+	node = nodes[ptr_nod(inode->u.generic_ip)].node;
+	if (ptr_nod(inode->u.generic_ip) == aliases) {
 		if ((op->flag & OPP_DIRTY) && (op->flag & OPP_STRING)) {
 			char *p = op->name;
 			int i = (op->value - op->name) - strlen (op->name) - 1;
