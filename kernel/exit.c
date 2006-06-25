@@ -894,8 +894,8 @@ fastcall NORET_TYPE void do_exit(long code)
 	if (group_dead) {
  		hrtimer_cancel(&tsk->signal->real_timer);
 		exit_itimers(tsk->signal);
-		acct_collect();
 	}
+	acct_collect(code, group_dead);
 	if (unlikely(tsk->robust_list))
 		exit_robust_list(tsk);
 #if defined(CONFIG_FUTEX) && defined(CONFIG_COMPAT)
@@ -907,7 +907,7 @@ fastcall NORET_TYPE void do_exit(long code)
 	exit_mm(tsk);
 
 	if (group_dead)
-		acct_process(code);
+		acct_process();
 	exit_sem(tsk);
 	__exit_files(tsk);
 	__exit_fs(tsk);

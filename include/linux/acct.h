@@ -122,16 +122,16 @@ struct super_block;
 extern void acct_auto_close_mnt(struct vfsmount *m);
 extern void acct_auto_close(struct super_block *sb);
 extern void acct_init_pacct(struct pacct_struct *pacct);
-extern void acct_collect();
-extern void acct_process(long exitcode);
+extern void acct_collect(long exitcode, int group_dead);
+extern void acct_process(void);
 extern void acct_update_integrals(struct task_struct *tsk);
 extern void acct_clear_integrals(struct task_struct *tsk);
 #else
 #define acct_auto_close_mnt(x)	do { } while (0)
 #define acct_auto_close(x)	do { } while (0)
 #define acct_init_pacct(x)	do { } while (0)
-#define acct_collect()		do { } while (0)
-#define acct_process(x)		do { } while (0)
+#define acct_collect(x,y)	do { } while (0)
+#define acct_process()		do { } while (0)
 #define acct_update_integrals(x)		do { } while (0)
 #define acct_clear_integrals(task)	do { } while (0)
 #endif

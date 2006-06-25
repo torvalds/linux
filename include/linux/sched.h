@@ -359,6 +359,8 @@ struct sighand_struct {
 };
 
 struct pacct_struct {
+	int			ac_flag;
+	long			ac_exitcode;
 	unsigned long		ac_mem;
 };
 

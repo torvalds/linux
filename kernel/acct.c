@@ -75,7 +75,7 @@ int acct_parm[3] = {4, 2, 30};
 /*
  * External references and all of the globals.
  */
-static void do_acct_process(long, struct file *);
+static void do_acct_process(struct file *);
 
 /*
  * This structure is used so that all the data protected by lock
@@ -196,7 +196,7 @@ static void acct_file_reopen(struct file *file)
 	if (old_acct) {
 		mnt_unpin(old_acct->f_vfsmnt);
 		spin_unlock(&acct_globals.lock);
-		do_acct_process(0, old_acct);
+		do_acct_process(old_acct);
 		filp_close(old_acct, NULL);
 		spin_lock(&acct_globals.lock);
 	}
@@ -419,7 +419,7 @@ static u32 encode_float(u64 value)
 /*
  *  do_acct_process does all actual work. Caller holds the reference to file.
  */
-static void do_acct_process(long exitcode, struct file *file)
+static void do_acct_process(struct file *file)
 {
 	struct pacct_struct *pacct = &current->signal->pacct;
 	acct_t ac;
@@ -496,17 +496,10 @@ static void do_acct_process(long exitcode, struct file *file)
 		old_encode_dev(tty_devnum(current->signal->tty)) : 0;
 	read_unlock(&tasklist_lock);
 
-	ac.ac_flag = 0;
-	if (current->flags & PF_FORKNOEXEC)
-		ac.ac_flag |= AFORK;
-	if (current->flags & PF_SUPERPRIV)
-		ac.ac_flag |= ASU;
-	if (current->flags & PF_DUMPCORE)
-		ac.ac_flag |= ACORE;
-	if (current->flags & PF_SIGNALED)
-		ac.ac_flag |= AXSIG;
 	spin_lock(&current->sighand->siglock);
+	ac.ac_flag = pacct->ac_flag;
 	ac.ac_mem = encode_comp_t(pacct->ac_mem);
+	ac.ac_exitcode = pacct->ac_exitcode;
 	spin_unlock(&current->sighand->siglock);
 	ac.ac_io = encode_comp_t(0 /* current->io_usage */);	/* %% */
 	ac.ac_rw = encode_comp_t(ac.ac_io / 1024);
@@ -515,7 +508,6 @@ static void do_acct_process(long exitcode, struct file *file)
 	ac.ac_majflt = encode_comp_t(current->signal->maj_flt +
 				     current->maj_flt);
 	ac.ac_swaps = encode_comp_t(0);
-	ac.ac_exitcode = exitcode;
 
 	/*
          * Kernel segment override to datasegment and write it
@@ -544,13 +536,15 @@ void acct_init_pacct(struct pacct_struct *pacct)
 
 /**
  * acct_collect - collect accounting information into pacct_struct
+ * @exitcode: task exit code
+ * @group_dead: not 0, if this thread is the last one in the process.
  */
-void acct_collect(void)
+void acct_collect(long exitcode, int group_dead)
 {
 	struct pacct_struct *pacct = &current->signal->pacct;
 	unsigned long vsize = 0;
 
-	if (current->mm) {
+	if (group_dead && current->mm) {
 		struct vm_area_struct *vma;
 		down_read(&current->mm->mmap_sem);
 		vma = current->mm->mmap;
@@ -562,7 +556,19 @@ void acct_collect(void)
 	}
 
 	spin_lock(&current->sighand->siglock);
-	pacct->ac_mem = vsize / 1024;
+	if (group_dead)
+		pacct->ac_mem = vsize / 1024;
+	if (thread_group_leader(current)) {
+		pacct->ac_exitcode = exitcode;
+		if (current->flags & PF_FORKNOEXEC)
+			pacct->ac_flag |= AFORK;
+	}
+	if (current->flags & PF_SUPERPRIV)
+		pacct->ac_flag |= ASU;
+	if (current->flags & PF_DUMPCORE)
+		pacct->ac_flag |= ACORE;
+	if (current->flags & PF_SIGNALED)
+		pacct->ac_flag |= AXSIG;
 	spin_unlock(&current->sighand->siglock);
 }
 
@@ -572,7 +578,7 @@ void acct_collect(void)
  *
  * handles process accounting for an exiting task
  */
-void acct_process(long exitcode)
+void acct_process()
 {
 	struct file *file = NULL;
 
@@ -591,7 +597,7 @@ void acct_process(long exitcode)
 	get_file(file);
 	spin_unlock(&acct_globals.lock);
 
-	do_acct_process(exitcode, file);
+	do_acct_process(file);
 	fput(file);
 }
 
