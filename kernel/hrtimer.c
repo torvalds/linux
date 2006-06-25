@@ -98,7 +98,6 @@ static DEFINE_PER_CPU(struct hrtimer_base, hrtimer_bases[MAX_HRTIMER_BASES]) =
 
 /**
  * ktime_get_ts - get the monotonic clock in timespec format
- *
  * @ts:		pointer to timespec variable
  *
  * The function calculates the monotonic clock from the realtime
@@ -238,7 +237,6 @@ lock_hrtimer_base(const struct hrtimer *timer, unsigned long *flags)
 # ifndef CONFIG_KTIME_SCALAR
 /**
  * ktime_add_ns - Add a scalar nanoseconds value to a ktime_t variable
- *
  * @kt:		addend
  * @nsec:	the scalar nsec value to add
  *
@@ -299,7 +297,6 @@ void unlock_hrtimer_base(const struct hrtimer *timer, unsigned long *flags)
 
 /**
  * hrtimer_forward - forward the timer expiry
- *
  * @timer:	hrtimer to forward
  * @now:	forward past this time
  * @interval:	the interval to forward
@@ -411,7 +408,6 @@ remove_hrtimer(struct hrtimer *timer, struct hrtimer_base *base)
 
 /**
  * hrtimer_start - (re)start an relative timer on the current CPU
- *
  * @timer:	the timer to be added
  * @tim:	expiry time
  * @mode:	expiry mode: absolute (HRTIMER_ABS) or relative (HRTIMER_REL)
@@ -460,14 +456,13 @@ EXPORT_SYMBOL_GPL(hrtimer_start);
 
 /**
  * hrtimer_try_to_cancel - try to deactivate a timer
- *
  * @timer:	hrtimer to stop
  *
  * Returns:
  *  0 when the timer was not active
  *  1 when the timer was active
  * -1 when the timer is currently excuting the callback function and
- *    can not be stopped
+ *    cannot be stopped
  */
 int hrtimer_try_to_cancel(struct hrtimer *timer)
 {
@@ -489,7 +484,6 @@ EXPORT_SYMBOL_GPL(hrtimer_try_to_cancel);
 
 /**
  * hrtimer_cancel - cancel a timer and wait for the handler to finish.
- *
  * @timer:	the timer to be cancelled
  *
  * Returns:
@@ -510,7 +504,6 @@ EXPORT_SYMBOL_GPL(hrtimer_cancel);
 
 /**
  * hrtimer_get_remaining - get remaining time for the timer
- *
  * @timer:	the timer to read
  */
 ktime_t hrtimer_get_remaining(const struct hrtimer *timer)
@@ -564,7 +557,6 @@ ktime_t hrtimer_get_next_event(void)
 
 /**
  * hrtimer_init - initialize a timer to the given clock
- *
  * @timer:	the timer to be initialized
  * @clock_id:	the clock to be used
  * @mode:	timer mode abs/rel
@@ -588,7 +580,6 @@ EXPORT_SYMBOL_GPL(hrtimer_init);
 
 /**
  * hrtimer_get_res - get the timer resolution for a clock
- *
  * @which_clock: which clock to query
  * @tp:		 pointer to timespec variable to store the resolution
  *
