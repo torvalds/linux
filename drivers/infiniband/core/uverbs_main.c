@@ -188,7 +188,6 @@ static int ib_uverbs_cleanup_ucontext(struct ib_uverbs_file *file,
 
 		idr_remove_uobj(&ib_uverbs_ah_idr, uobj);
 		ib_destroy_ah(ah);
-		list_del(&uobj->list);
 		kfree(uobj);
 	}
 
@@ -200,7 +199,6 @@ static int ib_uverbs_cleanup_ucontext(struct ib_uverbs_file *file,
 		idr_remove_uobj(&ib_uverbs_qp_idr, uobj);
 		ib_uverbs_detach_umcast(qp, uqp);
 		ib_destroy_qp(qp);
-		list_del(&uobj->list);
 		ib_uverbs_release_uevent(file, &uqp->uevent);
 		kfree(uqp);
 	}
@@ -213,7 +211,6 @@ static int ib_uverbs_cleanup_ucontext(struct ib_uverbs_file *file,
 
 		idr_remove_uobj(&ib_uverbs_cq_idr, uobj);
 		ib_destroy_cq(cq);
-		list_del(&uobj->list);
 		ib_uverbs_release_ucq(file, ev_file, ucq);
 		kfree(ucq);
 	}
@@ -225,7 +222,6 @@ static int ib_uverbs_cleanup_ucontext(struct ib_uverbs_file *file,
 
 		idr_remove_uobj(&ib_uverbs_srq_idr, uobj);
 		ib_destroy_srq(srq);
-		list_del(&uobj->list);
 		ib_uverbs_release_uevent(file, uevent);
 		kfree(uevent);
 	}
@@ -243,7 +239,6 @@ static int ib_uverbs_cleanup_ucontext(struct ib_uverbs_file *file,
 		memobj = container_of(uobj, struct ib_umem_object, uobject);
 		ib_umem_release_on_close(mrdev, &memobj->umem);
 
-		list_del(&uobj->list);
 		kfree(memobj);
 	}
 
@@ -252,7 +247,6 @@ static int ib_uverbs_cleanup_ucontext(struct ib_uverbs_file *file,
 
 		idr_remove_uobj(&ib_uverbs_pd_idr, uobj);
 		ib_dealloc_pd(pd);
-		list_del(&uobj->list);
 		kfree(uobj);
 	}
 
