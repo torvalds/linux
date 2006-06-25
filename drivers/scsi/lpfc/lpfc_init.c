@@ -939,12 +939,12 @@ lpfc_get_hba_model_desc(struct lpfc_hba * phba, uint8_t * mdp, uint8_t * descp)
 					"10-port ", "PCIe"};
 			break;
 		default:
-			m = (typeof(m)){ 0 };
+			m = (typeof(m)){ NULL };
 			break;
 		}
 		break;
 	default:
-		m = (typeof(m)){ 0 };
+		m = (typeof(m)){ NULL };
 		break;
 	}
 
