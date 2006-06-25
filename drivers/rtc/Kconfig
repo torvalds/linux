@@ -73,6 +73,13 @@ config RTC_INTF_DEV
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-dev.
 
+config RTC_INTF_DEV_UIE_EMUL
+	bool "RTC UIE emulation on dev interface"
+	depends on RTC_INTF_DEV
+	help
+	  Provides an emulation for RTC_UIE if the underlaying rtc chip
+	  driver did not provide RTC_UIE ioctls.
+
 comment "RTC drivers"
 	depends on RTC_CLASS
 
