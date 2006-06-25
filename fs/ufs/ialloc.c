@@ -91,7 +91,7 @@ void ufs_free_inode (struct inode * inode)
 		unlock_super (sb);
 		return;
 	}
-	ucg = ubh_get_ucg(UCPI_UBH);
+	ucg = ubh_get_ucg(UCPI_UBH(ucpi));
 	if (!ufs_cg_chkmagic(sb, ucg))
 		ufs_panic (sb, "ufs_free_fragments", "internal error, bad cg magic number");
 
@@ -104,10 +104,10 @@ void ufs_free_inode (struct inode * inode)
 
 	clear_inode (inode);
 
-	if (ubh_isclr (UCPI_UBH, ucpi->c_iusedoff, bit))
+	if (ubh_isclr (UCPI_UBH(ucpi), ucpi->c_iusedoff, bit))
 		ufs_error(sb, "ufs_free_inode", "bit already cleared for inode %u", ino);
 	else {
-		ubh_clrbit (UCPI_UBH, ucpi->c_iusedoff, bit);
+		ubh_clrbit (UCPI_UBH(ucpi), ucpi->c_iusedoff, bit);
 		if (ino < ucpi->c_irotor)
 			ucpi->c_irotor = ino;
 		fs32_add(sb, &ucg->cg_cs.cs_nifree, 1);
@@ -121,11 +121,11 @@ void ufs_free_inode (struct inode * inode)
 		}
 	}
 
-	ubh_mark_buffer_dirty (USPI_UBH);
-	ubh_mark_buffer_dirty (UCPI_UBH);
+	ubh_mark_buffer_dirty (USPI_UBH(uspi));
+	ubh_mark_buffer_dirty (UCPI_UBH(ucpi));
 	if (sb->s_flags & MS_SYNCHRONOUS) {
 		ubh_ll_rw_block (SWRITE, 1, (struct ufs_buffer_head **) &ucpi);
-		ubh_wait_on_buffer (UCPI_UBH);
+		ubh_wait_on_buffer (UCPI_UBH(ucpi));
 	}
 	
 	sb->s_dirt = 1;
@@ -213,14 +213,14 @@ cg_found:
 	ucpi = ufs_load_cylinder (sb, cg);
 	if (!ucpi)
 		goto failed;
-	ucg = ubh_get_ucg(UCPI_UBH);
+	ucg = ubh_get_ucg(UCPI_UBH(ucpi));
 	if (!ufs_cg_chkmagic(sb, ucg)) 
 		ufs_panic (sb, "ufs_new_inode", "internal error, bad cg magic number");
 
 	start = ucpi->c_irotor;
-	bit = ubh_find_next_zero_bit (UCPI_UBH, ucpi->c_iusedoff, uspi->s_ipg, start);
+	bit = ubh_find_next_zero_bit (UCPI_UBH(ucpi), ucpi->c_iusedoff, uspi->s_ipg, start);
 	if (!(bit < uspi->s_ipg)) {
-		bit = ubh_find_first_zero_bit (UCPI_UBH, ucpi->c_iusedoff, start);
+		bit = ubh_find_first_zero_bit (UCPI_UBH(ucpi), ucpi->c_iusedoff, start);
 		if (!(bit < start)) {
 			ufs_error (sb, "ufs_new_inode",
 			    "cylinder group %u corrupted - error in inode bitmap\n", cg);
@@ -228,8 +228,8 @@ cg_found:
 		}
 	}
 	UFSD(("start = %u, bit = %u, ipg = %u\n", start, bit, uspi->s_ipg))
-	if (ubh_isclr (UCPI_UBH, ucpi->c_iusedoff, bit))
-		ubh_setbit (UCPI_UBH, ucpi->c_iusedoff, bit);
+	if (ubh_isclr (UCPI_UBH(ucpi), ucpi->c_iusedoff, bit))
+		ubh_setbit (UCPI_UBH(ucpi), ucpi->c_iusedoff, bit);
 	else {
 		ufs_panic (sb, "ufs_new_inode", "internal error");
 		goto failed;
@@ -245,11 +245,11 @@ cg_found:
 		fs32_add(sb, &sbi->fs_cs(cg).cs_ndir, 1);
 	}
 
-	ubh_mark_buffer_dirty (USPI_UBH);
-	ubh_mark_buffer_dirty (UCPI_UBH);
+	ubh_mark_buffer_dirty (USPI_UBH(uspi));
+	ubh_mark_buffer_dirty (UCPI_UBH(ucpi));
 	if (sb->s_flags & MS_SYNCHRONOUS) {
 		ubh_ll_rw_block (SWRITE, 1, (struct ufs_buffer_head **) &ucpi);
-		ubh_wait_on_buffer (UCPI_UBH);
+		ubh_wait_on_buffer (UCPI_UBH(ucpi));
 	}
 	sb->s_dirt = 1;
 

@@ -225,7 +225,7 @@ void ufs_error (struct super_block * sb, const char * function,
 	
 	if (!(sb->s_flags & MS_RDONLY)) {
 		usb1->fs_clean = UFS_FSBAD;
-		ubh_mark_buffer_dirty(USPI_UBH);
+		ubh_mark_buffer_dirty(USPI_UBH(uspi));
 		sb->s_dirt = 1;
 		sb->s_flags |= MS_RDONLY;
 	}
@@ -257,7 +257,7 @@ void ufs_panic (struct super_block * sb, const char * function,
 	
 	if (!(sb->s_flags & MS_RDONLY)) {
 		usb1->fs_clean = UFS_FSBAD;
-		ubh_mark_buffer_dirty(USPI_UBH);
+		ubh_mark_buffer_dirty(USPI_UBH(uspi));
 		sb->s_dirt = 1;
 	}
 	va_start (args, fmt);
@@ -1014,7 +1014,7 @@ static void ufs_write_super (struct super_block *sb) {
 		  || (flags & UFS_ST_MASK) == UFS_ST_SUNx86)
 			ufs_set_fs_state(sb, usb1, usb3,
 					UFS_FSOK - fs32_to_cpu(sb, usb1->fs_time));
-		ubh_mark_buffer_dirty (USPI_UBH);
+		ubh_mark_buffer_dirty (USPI_UBH(uspi));
 	}
 	sb->s_dirt = 0;
 	UFSD(("EXIT\n"))
@@ -1083,7 +1083,7 @@ static int ufs_remount (struct super_block *sb, int *mount_flags, char *data)
 		  || (flags & UFS_ST_MASK) == UFS_ST_SUNx86) 
 			ufs_set_fs_state(sb, usb1, usb3,
 				UFS_FSOK - fs32_to_cpu(sb, usb1->fs_time));
-		ubh_mark_buffer_dirty (USPI_UBH);
+		ubh_mark_buffer_dirty (USPI_UBH(uspi));
 		sb->s_dirt = 0;
 		sb->s_flags |= MS_RDONLY;
 	}

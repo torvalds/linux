@@ -666,7 +666,7 @@ struct ufs_buffer_head {
 };
 
 struct ufs_cg_private_info {
-	struct ufs_cylinder_group ucg;
+	struct ufs_buffer_head c_ubh;
 	__u32	c_cgx;		/* number of cylidner group */
 	__u16	c_ncyl;		/* number of cyl's this cg */
 	__u16	c_niblk;	/* number of inode blocks this cg */

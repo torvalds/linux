@@ -47,14 +47,14 @@ static void ufs_read_cylinder (struct super_block * sb,
 	ucpi = sbi->s_ucpi[bitmap_nr];
 	ucg = (struct ufs_cylinder_group *)sbi->s_ucg[cgno]->b_data;
 
-	UCPI_UBH->fragment = ufs_cgcmin(cgno);
-	UCPI_UBH->count = uspi->s_cgsize >> sb->s_blocksize_bits;
+	UCPI_UBH(ucpi)->fragment = ufs_cgcmin(cgno);
+	UCPI_UBH(ucpi)->count = uspi->s_cgsize >> sb->s_blocksize_bits;
 	/*
 	 * We have already the first fragment of cylinder group block in buffer
 	 */
-	UCPI_UBH->bh[0] = sbi->s_ucg[cgno];
-	for (i = 1; i < UCPI_UBH->count; i++)
-		if (!(UCPI_UBH->bh[i] = sb_bread(sb, UCPI_UBH->fragment + i)))
+	UCPI_UBH(ucpi)->bh[0] = sbi->s_ucg[cgno];
+	for (i = 1; i < UCPI_UBH(ucpi)->count; i++)
+		if (!(UCPI_UBH(ucpi)->bh[i] = sb_bread(sb, UCPI_UBH(ucpi)->fragment + i)))
 			goto failed;
 	sbi->s_cgno[bitmap_nr] = cgno;
 			
@@ -103,7 +103,7 @@ void ufs_put_cylinder (struct super_block * sb, unsigned bitmap_nr)
 		return;
 	}
 	ucpi = sbi->s_ucpi[bitmap_nr];
-	ucg = ubh_get_ucg(UCPI_UBH);
+	ucg = ubh_get_ucg(UCPI_UBH(ucpi));
 
 	if (uspi->s_ncg > UFS_MAX_GROUP_LOADED && bitmap_nr >= sbi->s_cg_loaded) {
 		ufs_panic (sb, "ufs_put_cylinder", "internal error");
@@ -116,9 +116,9 @@ void ufs_put_cylinder (struct super_block * sb, unsigned bitmap_nr)
 	ucg->cg_rotor = cpu_to_fs32(sb, ucpi->c_rotor);
 	ucg->cg_frotor = cpu_to_fs32(sb, ucpi->c_frotor);
 	ucg->cg_irotor = cpu_to_fs32(sb, ucpi->c_irotor);
-	ubh_mark_buffer_dirty (UCPI_UBH);
-	for (i = 1; i < UCPI_UBH->count; i++) {
-		brelse (UCPI_UBH->bh[i]);
+	ubh_mark_buffer_dirty (UCPI_UBH(ucpi));
+	for (i = 1; i < UCPI_UBH(ucpi)->count; i++) {
+		brelse (UCPI_UBH(ucpi)->bh[i]);
 	}
 
 	sbi->s_cgno[bitmap_nr] = UFS_CGNO_EMPTY;

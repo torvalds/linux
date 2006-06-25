@@ -17,10 +17,16 @@
 #define in_range(b,first,len)	((b)>=(first)&&(b)<(first)+(len))
 
 /*
- * macros used for retyping
+ * functions used for retyping
  */
-#define UCPI_UBH ((struct ufs_buffer_head *)ucpi)
-#define USPI_UBH ((struct ufs_buffer_head *)uspi)
+static inline struct ufs_buffer_head *UCPI_UBH(struct ufs_cg_private_info *cpi)
+{
+	return &cpi->c_ubh;
+}
+static inline struct ufs_buffer_head *USPI_UBH(struct ufs_sb_private_info *spi)
+{
+	return &spi->s_ubh;
+}
 
 
 
@@ -326,10 +332,10 @@ static inline void *get_usb_offset(struct ufs_sb_private_info *uspi,
  * Macros to access cylinder group array structures
  */
 #define ubh_cg_blktot(ucpi,cylno) \
-	(*((__fs32*)ubh_get_addr(UCPI_UBH, (ucpi)->c_btotoff + ((cylno) << 2))))
+	(*((__fs32*)ubh_get_addr(UCPI_UBH(ucpi), (ucpi)->c_btotoff + ((cylno) << 2))))
 
 #define ubh_cg_blks(ucpi,cylno,rpos) \
-	(*((__fs16*)ubh_get_addr(UCPI_UBH, \
+	(*((__fs16*)ubh_get_addr(UCPI_UBH(ucpi), \
 	(ucpi)->c_boff + (((cylno) * uspi->s_nrpos + (rpos)) << 1 ))))
 
 /*
