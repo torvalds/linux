@@ -104,11 +104,14 @@ static void set_audio(struct pvr2_v4l_cx2584x *ctxt)
 		   hdw->srate_val);
 	switch (hdw->srate_val) {
 	default:
-	case PVR2_CVAL_SRATE_48:
+	case V4L2_MPEG_AUDIO_SAMPLING_FREQ_48000:
 		val = 48000;
 		break;
-	case PVR2_CVAL_SRATE_44_1:
+	case V4L2_MPEG_AUDIO_SAMPLING_FREQ_44100:
 		val = 44100;
+		break;
+	case V4L2_MPEG_AUDIO_SAMPLING_FREQ_32000:
+		val = 32000;
 		break;
 	}
 	pvr2_i2c_client_cmd(ctxt->client,VIDIOC_INT_AUDIO_CLOCK_FREQ,&val);

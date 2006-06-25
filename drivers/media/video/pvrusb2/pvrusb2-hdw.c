@@ -130,6 +130,98 @@ MODULE_PARM_DESC(tolerance,"specify stream error tolerance");
 /* size of a firmware chunk */
 #define FIRMWARE_CHUNK_SIZE 0x2000
 
+/* Define the list of additional controls we'll dynamically construct based
+   on query of the cx2341x module. */
+struct pvr2_mpeg_ids {
+	const char *strid;
+	int id;
+};
+static const struct pvr2_mpeg_ids mpeg_ids[] = {
+	{
+		.strid = "audio_layer",
+		.id = V4L2_CID_MPEG_AUDIO_ENCODING,
+	},{
+		.strid = "audio_bitrate",
+		.id = V4L2_CID_MPEG_AUDIO_L2_BITRATE,
+	},{
+		/* Already using audio_mode elsewhere :-( */
+		.strid = "mpeg_audio_mode",
+		.id = V4L2_CID_MPEG_AUDIO_MODE,
+	},{
+		.strid = "mpeg_audio_mode_extension",
+		.id = V4L2_CID_MPEG_AUDIO_MODE_EXTENSION,
+	},{
+		.strid = "audio_emphasis",
+		.id = V4L2_CID_MPEG_AUDIO_EMPHASIS,
+	},{
+		.strid = "audio_crc",
+		.id = V4L2_CID_MPEG_AUDIO_CRC,
+	},{
+		.strid = "video_aspect",
+		.id = V4L2_CID_MPEG_VIDEO_ASPECT,
+	},{
+		.strid = "video_b_frames",
+		.id = V4L2_CID_MPEG_VIDEO_B_FRAMES,
+	},{
+		.strid = "video_gop_size",
+		.id = V4L2_CID_MPEG_VIDEO_GOP_SIZE,
+	},{
+		.strid = "video_gop_closure",
+		.id = V4L2_CID_MPEG_VIDEO_GOP_CLOSURE,
+	},{
+		.strid = "video_pulldown",
+		.id = V4L2_CID_MPEG_VIDEO_PULLDOWN,
+	},{
+		.strid = "video_bitrate_mode",
+		.id = V4L2_CID_MPEG_VIDEO_BITRATE_MODE,
+	},{
+		.strid = "video_bitrate",
+		.id = V4L2_CID_MPEG_VIDEO_BITRATE,
+	},{
+		.strid = "video_bitrate_peak",
+		.id = V4L2_CID_MPEG_VIDEO_BITRATE_PEAK,
+	},{
+		.strid = "video_temporal_decimation",
+		.id = V4L2_CID_MPEG_VIDEO_TEMPORAL_DECIMATION,
+	},{
+		.strid = "stream_type",
+		.id = V4L2_CID_MPEG_STREAM_TYPE,
+	},{
+		.strid = "video_spatial_filter_mode",
+		.id = V4L2_CID_MPEG_CX2341X_VIDEO_SPATIAL_FILTER_MODE,
+	},{
+		.strid = "video_spatial_filter",
+		.id = V4L2_CID_MPEG_CX2341X_VIDEO_SPATIAL_FILTER,
+	},{
+		.strid = "video_luma_spatial_filter_type",
+		.id = V4L2_CID_MPEG_CX2341X_VIDEO_LUMA_SPATIAL_FILTER_TYPE,
+	},{
+		.strid = "video_chroma_spatial_filter_type",
+		.id = V4L2_CID_MPEG_CX2341X_VIDEO_CHROMA_SPATIAL_FILTER_TYPE,
+	},{
+		.strid = "video_temporal_filter_mode",
+		.id = V4L2_CID_MPEG_CX2341X_VIDEO_TEMPORAL_FILTER_MODE,
+	},{
+		.strid = "video_temporal_filter",
+		.id = V4L2_CID_MPEG_CX2341X_VIDEO_TEMPORAL_FILTER,
+	},{
+		.strid = "video_median_filter_type",
+		.id = V4L2_CID_MPEG_CX2341X_VIDEO_MEDIAN_FILTER_TYPE,
+	},{
+		.strid = "video_luma_median_filter_top",
+		.id = V4L2_CID_MPEG_CX2341X_VIDEO_LUMA_MEDIAN_FILTER_TOP,
+	},{
+		.strid = "video_luma_median_filter_bottom",
+		.id = V4L2_CID_MPEG_CX2341X_VIDEO_LUMA_MEDIAN_FILTER_BOTTOM,
+	},{
+		.strid = "video_chroma_median_filter_top",
+		.id = V4L2_CID_MPEG_CX2341X_VIDEO_CHROMA_MEDIAN_FILTER_TOP,
+	},{
+		.strid = "video_chroma_median_filter_bottom",
+		.id = V4L2_CID_MPEG_CX2341X_VIDEO_CHROMA_MEDIAN_FILTER_BOTTOM,
+	}
+};
+#define MPEGDEF_COUNT (sizeof(mpeg_ids)/sizeof(mpeg_ids[0]))
 
 static const char *control_values_srate[] = {
 	[PVR2_CVAL_SRATE_48]   = "48KHz",
@@ -137,30 +229,6 @@ static const char *control_values_srate[] = {
 };
 
 
-static const char *control_values_audiobitrate[] = {
-	[PVR2_CVAL_AUDIOBITRATE_384] = "384kb/s",
-	[PVR2_CVAL_AUDIOBITRATE_320] = "320kb/s",
-	[PVR2_CVAL_AUDIOBITRATE_256] = "256kb/s",
-	[PVR2_CVAL_AUDIOBITRATE_224] = "224kb/s",
-	[PVR2_CVAL_AUDIOBITRATE_192] = "192kb/s",
-	[PVR2_CVAL_AUDIOBITRATE_160] = "160kb/s",
-	[PVR2_CVAL_AUDIOBITRATE_128] = "128kb/s",
-	[PVR2_CVAL_AUDIOBITRATE_112] = "112kb/s",
-	[PVR2_CVAL_AUDIOBITRATE_96]  = "96kb/s",
-	[PVR2_CVAL_AUDIOBITRATE_80]  = "80kb/s",
-	[PVR2_CVAL_AUDIOBITRATE_64]  = "64kb/s",
-	[PVR2_CVAL_AUDIOBITRATE_56]  = "56kb/s",
-	[PVR2_CVAL_AUDIOBITRATE_48]  = "48kb/s",
-	[PVR2_CVAL_AUDIOBITRATE_32]  = "32kb/s",
-	[PVR2_CVAL_AUDIOBITRATE_VBR] = "VBR",
-};
-
-
-static const char *control_values_audioemphasis[] = {
-	[PVR2_CVAL_AUDIOEMPHASIS_NONE]  = "None",
-	[PVR2_CVAL_AUDIOEMPHASIS_50_15] = "50/15us",
-	[PVR2_CVAL_AUDIOEMPHASIS_CCITT] = "CCITT J.17",
-};
 
 
 static const char *control_values_input[] = {
@@ -275,6 +343,76 @@ static int ctrl_freq_set(struct pvr2_ctrl *cptr,int m,int v)
 	hdw->freqDirty = !0;
 	hdw->freqSlot = 0;
 	return 0;
+}
+
+static int ctrl_cx2341x_is_dirty(struct pvr2_ctrl *cptr)
+{
+	return cptr->hdw->enc_stale != 0;
+}
+
+static void ctrl_cx2341x_clear_dirty(struct pvr2_ctrl *cptr)
+{
+	cptr->hdw->enc_stale = 0;
+}
+
+static int ctrl_cx2341x_get(struct pvr2_ctrl *cptr,int *vp)
+{
+	int ret;
+	struct v4l2_ext_controls cs;
+	struct v4l2_ext_control c1;
+	memset(&cs,0,sizeof(cs));
+	memset(&c1,0,sizeof(c1));
+	cs.controls = &c1;
+	cs.count = 1;
+	c1.id = cptr->info->v4l_id;
+	ret = cx2341x_ext_ctrls(&cptr->hdw->enc_ctl_state,&cs,
+				VIDIOC_G_EXT_CTRLS);
+	if (ret) return ret;
+	*vp = c1.value;
+	return 0;
+}
+
+static int ctrl_cx2341x_set(struct pvr2_ctrl *cptr,int m,int v)
+{
+	int ret;
+	struct v4l2_ext_controls cs;
+	struct v4l2_ext_control c1;
+	memset(&cs,0,sizeof(cs));
+	memset(&c1,0,sizeof(c1));
+	cs.controls = &c1;
+	cs.count = 1;
+	c1.id = cptr->info->v4l_id;
+	c1.value = v;
+	ret = cx2341x_ext_ctrls(&cptr->hdw->enc_ctl_state,&cs,
+				VIDIOC_S_EXT_CTRLS);
+	if (ret) return ret;
+	cptr->hdw->enc_stale = !0;
+	return 0;
+}
+
+static unsigned int ctrl_cx2341x_getv4lflags(struct pvr2_ctrl *cptr)
+{
+	struct v4l2_queryctrl qctrl;
+	struct pvr2_ctl_info *info;
+	qctrl.id = cptr->info->v4l_id;
+	cx2341x_ctrl_query(&cptr->hdw->enc_ctl_state,&qctrl);
+	/* Strip out the const so we can adjust a function pointer.  It's
+	   OK to do this here because we know this is a dynamically created
+	   control, so the underlying storage for the info pointer is (a)
+	   private to us, and (b) not in read-only storage.  Either we do
+	   this or we significantly complicate the underlying control
+	   implementation. */
+	info = (struct pvr2_ctl_info *)(cptr->info);
+	if (qctrl.flags & V4L2_CTRL_FLAG_READ_ONLY) {
+		if (info->set_value) {
+			info->set_value = 0;
+		}
+	} else {
+		if (!(info->set_value)) {
+			info->set_value = ctrl_cx2341x_set;
+		}
+	}
+	return qctrl.flags;
 }
 
 static int ctrl_streamingenabled_get(struct pvr2_ctrl *cptr,int *vp)
@@ -475,14 +613,6 @@ VCREATE_FUNCS(audiomode)
 VCREATE_FUNCS(res_hor)
 VCREATE_FUNCS(res_ver)
 VCREATE_FUNCS(srate)
-VCREATE_FUNCS(audiobitrate)
-VCREATE_FUNCS(audiocrc)
-VCREATE_FUNCS(audioemphasis)
-VCREATE_FUNCS(vbr)
-VCREATE_FUNCS(videobitrate)
-VCREATE_FUNCS(videopeak)
-VCREATE_FUNCS(interlace)
-VCREATE_FUNCS(audiolayer)
 
 #define MIN_FREQ 55250000L
 #define MAX_FREQ 850000000L
@@ -581,67 +711,12 @@ static const struct pvr2_ctl_info control_defs[] = {
 		DEFREF(res_ver),
 		DEFINT(200,625),
 	},{
-		.v4l_id = V4L2_CID_PVR_SRATE,
+		.v4l_id = V4L2_CID_MPEG_AUDIO_SAMPLING_FREQ,
 		.desc = "Sample rate",
 		.name = "srate",
 		.default_value = PVR2_CVAL_SRATE_48,
 		DEFREF(srate),
 		DEFENUM(control_values_srate),
-	},{
-		.v4l_id = V4L2_CID_PVR_AUDIOBITRATE,
-		.desc = "Audio Bitrate",
-		.name = "audio_bitrate",
-		.default_value = PVR2_CVAL_AUDIOBITRATE_224,
-		DEFREF(audiobitrate),
-		DEFENUM(control_values_audiobitrate),
-	},{
-		.v4l_id = V4L2_CID_PVR_AUDIOCRC,
-		.desc = "Audio CRC",
-		.name = "audio_crc",
-		.default_value = 1,
-		DEFREF(audiocrc),
-		DEFBOOL,
-	},{
-		.v4l_id = V4L2_CID_PVR_AUDIOEMPHASIS,
-		.desc = "Audio Emphasis",
-		.name = "audio_emphasis",
-		.default_value = PVR2_CVAL_AUDIOEMPHASIS_NONE,
-		DEFREF(audioemphasis),
-		DEFENUM(control_values_audioemphasis),
-	},{
-		.v4l_id = V4L2_CID_PVR_VBR,
-		.desc = "Variable video bitrate",
-		.name = "vbr",
-		.default_value = 0,
-		DEFREF(vbr),
-		DEFBOOL,
-	},{
-		.v4l_id = V4L2_CID_PVR_VIDEOBITRATE,
-		.desc = "Average video bitrate",
-		.name = "video_average_bitrate",
-		.default_value = 6000000,
-		DEFREF(videobitrate),
-		DEFINT(500000,20000000),
-	},{
-		.v4l_id = V4L2_CID_PVR_VIDEOPEAK,
-		.desc = "Peak video bitrate",
-		.name = "video_peak_bitrate",
-		.default_value = 6000000,
-		DEFREF(videopeak),
-		DEFINT(500000,20000000),
-	},{
-		.desc = "Interlace mode",
-		.name = "interlace",
-		.internal_id = PVR2_CID_INTERLACE,
-		.default_value = 0,
-		DEFREF(interlace),
-		DEFBOOL,
-	},{
-		.desc = "Audio Layer",
-		.name = "audio_layer",
-		.default_value = 2,
-		DEFREF(audiolayer),
-		DEFINT(0,3),
 	},{
 		.desc = "Tuner Frequency (Hz)",
 		.name = "frequency",
@@ -958,6 +1033,10 @@ int pvr2_upload_firmware2(struct pvr2_hdw *hdw)
 	if (ret < 0) return ret;
 	fwidx = ret;
 	ret = 0;
+	/* Since we're about to completely reinitialize the encoder,
+	   invalidate our cached copy of its configuration state.  Next
+	   time we configure the encoder, then we'll fully configure it. */
+	hdw->enc_cur_valid = 0;
 
 	/* First prepare firmware loading */
 	ret |= pvr2_write_register(hdw, 0x0048, 0xffffffff); /*interrupt mask*/
@@ -1654,6 +1733,8 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 	int valid_std_mask;
 	struct pvr2_ctrl *cptr;
 	__u8 ifnum;
+	struct v4l2_queryctrl qctrl;
+	struct pvr2_ctl_info *ciptr;
 
 	hdw_type = devid - pvr2_device_table;
 	if (hdw_type >=
@@ -1668,8 +1749,10 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 		   hdw,pvr2_device_names[hdw_type]);
 	if (!hdw) goto fail;
 	memset(hdw,0,sizeof(*hdw));
+	cx2341x_fill_defaults(&hdw->enc_ctl_state);
 
 	hdw->control_cnt = CTRLDEF_COUNT;
+	hdw->control_cnt += MPEGDEF_COUNT;
 	hdw->controls = kmalloc(sizeof(struct pvr2_ctrl) * hdw->control_cnt,
 				GFP_KERNEL);
 	if (!hdw->controls) goto fail;
@@ -1685,6 +1768,54 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 	for (idx = 0; idx < CTRLDEF_COUNT; idx++) {
 		cptr = hdw->controls + idx;
 		cptr->info = control_defs+idx;
+	}
+	/* Define and configure additional controls from cx2341x module. */
+	hdw->mpeg_ctrl_info = kmalloc(
+		sizeof(*(hdw->mpeg_ctrl_info)) * MPEGDEF_COUNT, GFP_KERNEL);
+	if (!hdw->mpeg_ctrl_info) goto fail;
+	memset(hdw->mpeg_ctrl_info,0,
+	       sizeof(*(hdw->mpeg_ctrl_info)) * MPEGDEF_COUNT);
+	for (idx = 0; idx < MPEGDEF_COUNT; idx++) {
+		cptr = hdw->controls + idx + CTRLDEF_COUNT;
+		ciptr = &(hdw->mpeg_ctrl_info[idx].info);
+		ciptr->desc = hdw->mpeg_ctrl_info[idx].desc;
+		ciptr->name = mpeg_ids[idx].strid;
+		ciptr->v4l_id = mpeg_ids[idx].id;
+		ciptr->skip_init = !0;
+		ciptr->get_value = ctrl_cx2341x_get;
+		ciptr->get_v4lflags = ctrl_cx2341x_getv4lflags;
+		ciptr->is_dirty = ctrl_cx2341x_is_dirty;
+		if (!idx) ciptr->clear_dirty = ctrl_cx2341x_clear_dirty;
+		qctrl.id = ciptr->v4l_id;
+		cx2341x_ctrl_query(&hdw->enc_ctl_state,&qctrl);
+		if (!(qctrl.flags & V4L2_CTRL_FLAG_READ_ONLY)) {
+			ciptr->set_value = ctrl_cx2341x_set;
+		}
+		strncpy(hdw->mpeg_ctrl_info[idx].desc,qctrl.name,
+			PVR2_CTLD_INFO_DESC_SIZE);
+		hdw->mpeg_ctrl_info[idx].desc[PVR2_CTLD_INFO_DESC_SIZE-1] = 0;
+		ciptr->default_value = qctrl.default_value;
+		switch (qctrl.type) {
+		default:
+		case V4L2_CTRL_TYPE_INTEGER:
+			ciptr->type = pvr2_ctl_int;
+			ciptr->def.type_int.min_value = qctrl.minimum;
+			ciptr->def.type_int.max_value = qctrl.maximum;
+			break;
+		case V4L2_CTRL_TYPE_BOOLEAN:
+			ciptr->type = pvr2_ctl_bool;
+			break;
+		case V4L2_CTRL_TYPE_MENU:
+			ciptr->type = pvr2_ctl_enum;
+			ciptr->def.type_enum.value_names =
+				cx2341x_ctrl_get_menu(ciptr->v4l_id);
+			for (cnt1 = 0;
+			     ciptr->def.type_enum.value_names[cnt1] != NULL;
+			     cnt1++) { }
+			ciptr->def.type_enum.count = cnt1;
+			break;
+		}
+		cptr->info = ciptr;
 	}
 
 	// Initialize video standard enum dynamic control
@@ -1788,6 +1919,7 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 		if (hdw->ctl_read_buffer) kfree(hdw->ctl_read_buffer);
 		if (hdw->ctl_write_buffer) kfree(hdw->ctl_write_buffer);
 		if (hdw->controls) kfree(hdw->controls);
+		if (hdw->mpeg_ctrl_info) kfree(hdw->mpeg_ctrl_info);
 		kfree(hdw);
 	}
 	return 0;
@@ -1853,6 +1985,7 @@ void pvr2_hdw_destroy(struct pvr2_hdw *hdw)
 		}
 	} while (0); up(&pvr2_unit_sem);
 	if (hdw->controls) kfree(hdw->controls);
+	if (hdw->mpeg_ctrl_info) kfree(hdw->mpeg_ctrl_info);
 	if (hdw->std_defs) kfree(hdw->std_defs);
 	if (hdw->std_enum_names) kfree(hdw->std_enum_names);
 	kfree(hdw);
@@ -2104,10 +2237,6 @@ int pvr2_hdw_commit_ctl_internal(struct pvr2_hdw *hdw)
 			hdw->res_ver_val = nvres;
 			hdw->res_ver_dirty = !0;
 		}
-		if (!hdw->interlace_val) {
-			hdw->interlace_val = 0;
-			hdw->interlace_dirty = !0;
-		}
 	}
 
 	if (hdw->std_dirty ||
@@ -2118,6 +2247,21 @@ int pvr2_hdw_commit_ctl_internal(struct pvr2_hdw *hdw)
 		stale_subsys_mask |= hdw->subsys_stream_mask;
 	}
 
+	if (hdw->srate_dirty) {
+		/* Write new sample rate into control structure since
+		 * the master copy is stale.  We must track srate
+		 * separate from the mpeg control structure because
+		 * other logic also uses this value. */
+		struct v4l2_ext_controls cs;
+		struct v4l2_ext_control c1;
+		memset(&cs,0,sizeof(cs));
+		memset(&c1,0,sizeof(c1));
+		cs.controls = &c1;
+		cs.count = 1;
+		c1.id = V4L2_CID_MPEG_AUDIO_SAMPLING_FREQ;
+		c1.value = hdw->srate_val;
+		cx2341x_ext_ctrls(&hdw->enc_ctl_state,&cs,VIDIOC_S_EXT_CTRLS);
+	}
 
 	/* Scan i2c core at this point - before we clear all the dirty
 	   bits.  Various parts of the i2c core will notice dirty bits as
@@ -2262,6 +2406,8 @@ void pvr2_hdw_trigger_module_log(struct pvr2_hdw *hdw)
 		pvr2_i2c_core_check_stale(hdw);
 		hdw->log_requested = 0;
 		pvr2_i2c_core_sync(hdw);
+		pvr2_trace(PVR2_TRACE_INFO,"cx2341x config:");
+		cx2341x_log_status(&hdw->enc_ctl_state,0);
 		printk(KERN_INFO "pvrusb2: ==================  END STATUS CARD #%d  ==================\n", nr);
 	} while (0); LOCK_GIVE(hdw->big_lock);
 }

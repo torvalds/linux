@@ -322,6 +322,13 @@ struct pvr2_hdw {
 	int flag_bilingual;
 	struct pvr2_audio_stat *audio_stat;
 
+	/* Control state needed for cx2341x module */
+	struct cx2341x_mpeg_params enc_cur_state;
+	struct cx2341x_mpeg_params enc_ctl_state;
+	/* True if an encoder attribute has changed */
+	int enc_stale;
+	/* True if enc_cur_state is valid */
+	int enc_cur_valid;
 
 	/* Control state */
 #define VCREATE_DATA(lab) int lab##_val; int lab##_dirty
@@ -339,16 +346,9 @@ struct pvr2_hdw {
 	VCREATE_DATA(res_hor);
 	VCREATE_DATA(res_ver);
 	VCREATE_DATA(srate);
-	VCREATE_DATA(audiobitrate);
-	VCREATE_DATA(audiocrc);
-	VCREATE_DATA(audioemphasis);
-	VCREATE_DATA(vbr);
-	VCREATE_DATA(videobitrate);
-	VCREATE_DATA(videopeak);
-	VCREATE_DATA(interlace);
-	VCREATE_DATA(audiolayer);
 #undef VCREATE_DATA
 
+	struct pvr2_ctld_info *mpeg_ctrl_info;
 
 	struct pvr2_ctrl *controls;
 	unsigned int control_cnt;

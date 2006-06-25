@@ -27,34 +27,6 @@
 #include "pvrusb2-hdw-internal.h"
 #include "pvrusb2-debug.h"
 
-static u32 pvr_tbl_emphasis [] = {
-	[PVR2_CVAL_AUDIOEMPHASIS_NONE] = 0x0 << 12,
-	[PVR2_CVAL_AUDIOEMPHASIS_50_15] = 0x1 << 12,
-	[PVR2_CVAL_AUDIOEMPHASIS_CCITT] = 0x3 << 12,
-};
-
-static u32 pvr_tbl_srate[] = {
-	[PVR2_CVAL_SRATE_48] =  0x01,
-	[PVR2_CVAL_SRATE_44_1] = 0x00,
-};
-
-static u32 pvr_tbl_audiobitrate[] = {
-	[PVR2_CVAL_AUDIOBITRATE_384] = 0xe << 4,
-	[PVR2_CVAL_AUDIOBITRATE_320] = 0xd << 4,
-	[PVR2_CVAL_AUDIOBITRATE_256] = 0xc << 4,
-	[PVR2_CVAL_AUDIOBITRATE_224] = 0xb << 4,
-	[PVR2_CVAL_AUDIOBITRATE_192] = 0xa << 4,
-	[PVR2_CVAL_AUDIOBITRATE_160] = 0x9 << 4,
-	[PVR2_CVAL_AUDIOBITRATE_128] = 0x8 << 4,
-	[PVR2_CVAL_AUDIOBITRATE_112] = 0x7 << 4,
-	[PVR2_CVAL_AUDIOBITRATE_96]  = 0x6 << 4,
-	[PVR2_CVAL_AUDIOBITRATE_80]  = 0x5 << 4,
-	[PVR2_CVAL_AUDIOBITRATE_64]  = 0x4 << 4,
-	[PVR2_CVAL_AUDIOBITRATE_56]  = 0x3 << 4,
-	[PVR2_CVAL_AUDIOBITRATE_48]  = 0x2 << 4,
-	[PVR2_CVAL_AUDIOBITRATE_32]  = 0x1 << 4,
-	[PVR2_CVAL_AUDIOBITRATE_VBR] = 0x0 << 4,
-};
 
 
 /* Firmware mailbox flags - definitions found from ivtv */
@@ -316,170 +288,66 @@ static int pvr2_encoder_vcmd(struct pvr2_hdw *hdw, int cmd,
 	return pvr2_encoder_cmd(hdw,cmd,args,0,data);
 }
 
-
 int pvr2_encoder_configure(struct pvr2_hdw *hdw)
 {
-	int ret = 0, audio, i;
-	v4l2_std_id vd_std = hdw->std_mask_cur;
-	int height = hdw->res_ver_val;
-	int width = hdw->res_hor_val;
-	int height_full = !hdw->interlace_val;
+	int ret;
+	pvr2_trace(PVR2_TRACE_ENCODER,"pvr2_encoder_configure"
+		   " (cx2341x module)");
+	hdw->enc_ctl_state.port = CX2341X_PORT_STREAMING;
+	hdw->enc_ctl_state.width = hdw->res_hor_val;
+	hdw->enc_ctl_state.height = hdw->res_ver_val;
+	hdw->enc_ctl_state.is_50hz = ((hdw->std_mask_cur &
+				       (V4L2_STD_NTSC|V4L2_STD_PAL_M)) ?
+				      0 : 1);
 
-	int is_30fps, is_ntsc;
+	ret = 0;
 
-	if (vd_std & V4L2_STD_NTSC) {
-		is_ntsc=1;
-		is_30fps=1;
-	} else if (vd_std & V4L2_STD_PAL_M) {
-		is_ntsc=0;
-		is_30fps=1;
-	} else {
-		is_ntsc=0;
-		is_30fps=0;
-	}
-
-	pvr2_trace(PVR2_TRACE_ENCODER,"pvr2_encoder_configure (native)");
-
-	/* set stream output port.  Some notes here: The ivtv-derived
-	   encoder documentation says that this command only gets a
-	   single argument.  However the Windows driver for the model
-	   29xxx series hardware has been sending 0x01 as a second
-	   argument, while the Windows driver for the model 24xxx
-	   series hardware has been sending 0x02 as a second argument.
-	   Confusing matters further are the observations that 0x01
-	   for that second argument simply won't work on the 24xxx
-	   hardware, while 0x02 will work on the 29xxx - except that
-	   when we use 0x02 then xawtv breaks due to a loss of
-	   synchronization with the mpeg packet headers.  While xawtv
-	   should be fixed to let it resync better (I did try to
-	   contact Gerd about this but he has not answered), it has
-	   also been determined that sending 0x00 as this mystery
-	   second argument seems to work on both hardware models AND
-	   xawtv works again.  So we're going to send 0x00. */
-	ret |= pvr2_encoder_vcmd(hdw, CX2341X_ENC_SET_OUTPUT_PORT, 2,
-				 0x01, 0x00);
-
-	/* set the Program Index Information. We want I,P,B frames (max 400) */
-	ret |= pvr2_encoder_vcmd(hdw, CX2341X_ENC_SET_PGM_INDEX_INFO, 2,
-				 0x07, 0x0190);
-
-	/* NOTE : windows driver sends these */
-	/* Mike Isely <isely@pobox.com> 7-Mar-2006 The windows driver
-	   sends the following commands but if we do the same then
-	   many apps are no longer able to read the video stream.
-	   Leaving these out seems to do no harm at all, so they're
-	   commented out for that reason. */
-#ifdef notdef
-	ret |= pvr2_encoder_vcmd(hdw, CX2341X_ENC_MISC,4, 5,0,0,0);
-	ret |= pvr2_encoder_vcmd(hdw, CX2341X_ENC_MISC,4, 3,1,0,0);
-	ret |= pvr2_encoder_vcmd(hdw, CX2341X_ENC_MISC,4, 8,0,0,0);
-	ret |= pvr2_encoder_vcmd(hdw, CX2341X_ENC_MISC,4, 4,1,0,0);
-	ret |= pvr2_encoder_vcmd(hdw, CX2341X_ENC_MISC,4, 0,3,0,0);
-	ret |= pvr2_encoder_vcmd(hdw, CX2341X_ENC_MISC,4,15,0,0,0);
-#endif
-
-	/* Strange compared to ivtv data. */
-	ret |= pvr2_encoder_vcmd(hdw, CX2341X_ENC_SET_NUM_VSYNC_LINES, 2,
-				 0xf0, 0xf0);
+	if (!ret) ret = pvr2_encoder_vcmd(
+		hdw,CX2341X_ENC_SET_NUM_VSYNC_LINES, 2,
+		0xf0, 0xf0);
 
 	/* setup firmware to notify us about some events (don't know why...) */
-	ret |= pvr2_encoder_vcmd(hdw, CX2341X_ENC_SET_EVENT_NOTIFICATION, 4,
-				 0, 0, 0x10000000, 0xffffffff);
+	if (!ret) ret = pvr2_encoder_vcmd(
+		hdw,CX2341X_ENC_SET_EVENT_NOTIFICATION, 4,
+		0, 0, 0x10000000, 0xffffffff);
 
-	/* set fps to 25 or 30 (1 or 0)*/
-	ret |= pvr2_encoder_vcmd(hdw, CX2341X_ENC_SET_FRAME_RATE, 1,
-				 is_30fps ? 0 : 1);
+	if (!ret) ret = pvr2_encoder_vcmd(
+		hdw,CX2341X_ENC_SET_VBI_LINE, 5,
+		0xffffffff,0,0,0,0);
 
-	/* set encoding resolution */
-	ret |= pvr2_encoder_vcmd(hdw, CX2341X_ENC_SET_FRAME_SIZE, 2,
-				 (height_full ? height : (height / 2)),
-				 width);
-	/* set encoding aspect ratio to 4:3 */
-	ret |= pvr2_encoder_vcmd(hdw, CX2341X_ENC_SET_ASPECT_RATIO, 1,
-				 0x02);
-
-	/* VBI */
-
-	if (hdw->config == pvr2_config_vbi) {
-		int lines = 2 * (is_30fps ? 12 : 18);
-		int size = (4*((lines*1443+3)/4)) / lines;
-		ret |= pvr2_encoder_vcmd(hdw, CX2341X_ENC_SET_VBI_CONFIG, 7,
-					 0xbd05, 1, 4,
-					 0x25256262, 0x387f7f7f,
-					 lines , size);
-//                                     0x25256262, 0x13135454, lines , size);
-		/* select vbi lines */
-#define line_used(l)  (is_30fps ? (l >= 10 && l <= 21) : (l >= 6 && l <= 23))
-		for (i = 2 ; i <= 24 ; i++){
-			ret |= pvr2_encoder_vcmd(
-				hdw,CX2341X_ENC_SET_VBI_LINE, 5,
-				i-1,line_used(i), 0, 0, 0);
-			ret |= pvr2_encoder_vcmd(
-				hdw,CX2341X_ENC_SET_VBI_LINE, 5,
-				(i-1) | (1 << 31),
-				line_used(i), 0, 0, 0);
-		}
-	} else {
-		ret |= pvr2_encoder_vcmd(
-			hdw,CX2341X_ENC_SET_VBI_LINE, 5,
-			0xffffffff,0,0,0,0);
+	if (ret) {
+		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
+			   "Failed to configure cx32416");
+		return ret;
 	}
 
-	/* set stream type, depending on resolution. */
-	ret |= pvr2_encoder_vcmd(hdw, CX2341X_ENC_SET_STREAM_TYPE, 1,
-				 height_full ? 0x0a : 0x0b);
-	/* set video bitrate */
-	ret |= pvr2_encoder_vcmd(
-		hdw, CX2341X_ENC_SET_BIT_RATE, 3,
-		(hdw->vbr_val ? 1 : 0),
-		hdw->videobitrate_val,
-		hdw->videopeak_val / 400);
-	/* setup GOP structure (GOP size = 0f or 0c, 3-1 = 2 B-frames) */
-	ret |= pvr2_encoder_vcmd(hdw, CX2341X_ENC_SET_GOP_PROPERTIES, 2,
-				 is_30fps ?  0x0f : 0x0c, 0x03);
-
-	/* enable 3:2 pulldown */
-	ret |= pvr2_encoder_vcmd(hdw,CX2341X_ENC_SET_3_2_PULLDOWN,1,0);
-
-	/* set GOP open/close property (open) */
-	ret |= pvr2_encoder_vcmd(hdw,CX2341X_ENC_SET_GOP_CLOSURE,1,0);
-
-	/* set audio stream properties 0x40b9? 0100 0000 1011 1001 */
-	audio = (pvr_tbl_audiobitrate[hdw->audiobitrate_val] |
-		 pvr_tbl_srate[hdw->srate_val] |
-		 hdw->audiolayer_val << 2 |
-		 (hdw->audiocrc_val ? 1 << 14 : 0) |
-		 pvr_tbl_emphasis[hdw->audioemphasis_val]);
-
-	ret |= pvr2_encoder_vcmd(hdw,CX2341X_ENC_SET_AUDIO_PROPERTIES,1,
-				 audio);
-
-	/* set dynamic noise reduction filter to manual, Horiz/Vert */
-	ret |= pvr2_encoder_vcmd(hdw, CX2341X_ENC_SET_DNR_FILTER_MODE, 2,
-				 0, 0x03);
-
-	/* dynamic noise reduction filter param */
-	ret |= pvr2_encoder_vcmd(hdw, CX2341X_ENC_SET_DNR_FILTER_PROPS, 2
-				 , 0, 0);
-
-	/* dynamic noise reduction median filter */
-	ret |= pvr2_encoder_vcmd(hdw, CX2341X_ENC_SET_CORING_LEVELS, 4,
-				 0, 0xff, 0, 0xff);
-
-	/* spacial prefiler parameter */
-	ret |= pvr2_encoder_vcmd(hdw,
-				 CX2341X_ENC_SET_SPATIAL_FILTER_TYPE, 2,
-				 0x01, 0x01);
-
-	/* initialize video input */
-	ret |= pvr2_encoder_vcmd(hdw, CX2341X_ENC_INITIALIZE_INPUT, 0);
-
-	if (!ret) {
-		hdw->subsys_enabled_mask |= (1<<PVR2_SUBSYS_B_ENC_CFG);
+	ret = cx2341x_update(hdw,pvr2_encoder_cmd,
+			     (hdw->enc_cur_valid ? &hdw->enc_cur_state : 0),
+			     &hdw->enc_ctl_state);
+	if (ret) {
+		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
+			   "Error from cx2341x module code=%d",ret);
+		return ret;
 	}
 
-	return ret;
+	ret = 0;
+
+	if (!ret) ret = pvr2_encoder_vcmd(
+		hdw, CX2341X_ENC_INITIALIZE_INPUT, 0);
+
+	if (ret) {
+		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
+			   "Failed to initialize cx32416 video input");
+		return ret;
+	}
+
+	hdw->subsys_enabled_mask |= (1<<PVR2_SUBSYS_B_ENC_CFG);
+	memcpy(&hdw->enc_cur_state,&hdw->enc_ctl_state,
+	       sizeof(struct cx2341x_mpeg_params));
+	hdw->enc_cur_valid = !0;
+	return 0;
 }
+
 
 int pvr2_encoder_start(struct pvr2_hdw *hdw)
 {

@@ -26,16 +26,6 @@
 #include "pvrusb2-io.h"
 #include "pvrusb2-ctrl.h"
 
-/* Private V4L2-compatible controls available in this driver, look these up
-   with pvr2_hdw_get_ctrl_v4l(). */
-#define V4L2_CID_PVR_SRATE          (V4L2_CID_PRIVATE_BASE)
-#define V4L2_CID_PVR_AUDIOBITRATE   (V4L2_CID_PRIVATE_BASE+1)
-#define V4L2_CID_PVR_AUDIOCRC       (V4L2_CID_PRIVATE_BASE+2)
-#define V4L2_CID_PVR_AUDIOEMPHASIS  (V4L2_CID_PRIVATE_BASE+3)
-#define V4L2_CID_PVR_VBR            (V4L2_CID_PRIVATE_BASE+4)
-#define V4L2_CID_PVR_VIDEOBITRATE   (V4L2_CID_PRIVATE_BASE+5)
-#define V4L2_CID_PVR_VIDEOPEAK      (V4L2_CID_PRIVATE_BASE+6)
-#define V4L2_CID_PVR_VIDEOSTANDARD  (V4L2_CID_PRIVATE_BASE+7)
 
 /* Private internal control ids, look these up with
    pvr2_hdw_get_ctrl_by_id() - these are NOT visible in V4L */
@@ -47,7 +37,6 @@
 #define PVR2_CID_FREQUENCY 6
 #define PVR2_CID_HRES 7
 #define PVR2_CID_VRES 8
-#define PVR2_CID_INTERLACE 9
 
 /* Legal values for the INPUT state variable */
 #define PVR2_CVAL_INPUT_TV 0
