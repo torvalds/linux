@@ -123,9 +123,9 @@ static int lxt971_config_intr(struct phy_device *phydev)
 }
 
 static struct phy_driver lxt970_driver = {
-	.phy_id		= 0x07810000,
+	.phy_id		= 0x78100000,
 	.name		= "LXT970",
-	.phy_id_mask	= 0x0fffffff,
+	.phy_id_mask	= 0xfffffff0,
 	.features	= PHY_BASIC_FEATURES,
 	.flags		= PHY_HAS_INTERRUPT,
 	.config_init	= lxt970_config_init,
@@ -137,9 +137,9 @@ static struct phy_driver lxt970_driver = {
 };
 
 static struct phy_driver lxt971_driver = {
-	.phy_id		= 0x0001378e,
+	.phy_id		= 0x001378e0,
 	.name		= "LXT971",
-	.phy_id_mask	= 0x0fffffff,
+	.phy_id_mask	= 0xfffffff0,
 	.features	= PHY_BASIC_FEATURES,
 	.flags		= PHY_HAS_INTERRUPT,
 	.config_aneg	= genphy_config_aneg,
