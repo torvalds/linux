@@ -55,6 +55,7 @@
 #include <linux/slab.h>
 #include <linux/kthread.h>
 #include <linux/mutex.h>
+#include <linux/utsrelease.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
@@ -528,7 +529,8 @@ static void get_device_info(struct us_data *us, const struct usb_device_id *id)
 		if (msg >= 0 && !(us->flags & US_FL_NEED_OVERRIDE))
 			printk(KERN_NOTICE USB_STORAGE "This device "
 				"(%04x,%04x,%04x S %02x P %02x)"
-				" has %s in unusual_devs.h\n"
+				" has %s in unusual_devs.h (kernel"
+				" %s)\n"
 				"   Please send a copy of this message to "
 				"<linux-usb-devel@lists.sourceforge.net>\n",
 				le16_to_cpu(ddesc->idVendor),
@@ -536,7 +538,8 @@ static void get_device_info(struct us_data *us, const struct usb_device_id *id)
 				le16_to_cpu(ddesc->bcdDevice),
 				idesc->bInterfaceSubClass,
 				idesc->bInterfaceProtocol,
-				msgs[msg]);
+				msgs[msg],
+				UTS_RELEASE);
 	}
 }
 
