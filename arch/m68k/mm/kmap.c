@@ -259,13 +259,15 @@ void __iounmap(void *addr, unsigned long size)
 
 		if (CPU_IS_020_OR_030) {
 			int pmd_off = (virtaddr/PTRTREESIZE) & 15;
+			int pmd_type = pmd_dir->pmd[pmd_off] & _DESCTYPE_MASK;
 
-			if ((pmd_dir->pmd[pmd_off] & _DESCTYPE_MASK) == _PAGE_PRESENT) {
+			if (pmd_type == _PAGE_PRESENT) {
 				pmd_dir->pmd[pmd_off] = 0;
 				virtaddr += PTRTREESIZE;
 				size -= PTRTREESIZE;
 				continue;
-			}
+			} else if (pmd_type == 0)
+				continue;
 		}
 
 		if (pmd_bad(*pmd_dir)) {
