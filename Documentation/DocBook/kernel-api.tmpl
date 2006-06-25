@@ -304,12 +304,13 @@ X!Ekernel/module.c
      <sect1><title>MTRR Handling</title>
 !Earch/i386/kernel/cpu/mtrr/main.c
      </sect1>
+
      <sect1><title>PCI Support Library</title>
 !Edrivers/pci/pci.c
 !Edrivers/pci/pci-driver.c
 !Edrivers/pci/remove.c
 !Edrivers/pci/pci-acpi.c
-<!-- kerneldoc does not understand to __devinit
+<!-- kerneldoc does not understand __devinit
 X!Edrivers/pci/search.c
  -->
 !Edrivers/pci/msi.c
@@ -335,6 +336,13 @@ X!Earch/i386/kernel/mca.c
 	<sect2><title>MCA Bus DMA</title>
 !Iinclude/asm-i386/mca_dma.h
 	</sect2>
+     </sect1>
+  </chapter>
+
+  <chapter id="firmware">
+     <title>Firmware Interfaces</title>
+     <sect1><title>DMI Interfaces</title>
+!Edrivers/firmware/dmi_scan.c
      </sect1>
   </chapter>
 
