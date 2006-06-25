@@ -138,6 +138,7 @@ struct bus_type ebus_bus_type = {
        .suspend	= of_device_suspend,
        .resume	= of_device_resume,
 };
+EXPORT_SYMBOL(ebus_bus_type);
 #endif
 
 #ifdef CONFIG_SBUS
@@ -149,6 +150,7 @@ struct bus_type sbus_bus_type = {
        .suspend	= of_device_suspend,
        .resume	= of_device_resume,
 };
+EXPORT_SYMBOL(sbus_bus_type);
 #endif
 
 static int __init of_bus_driver_init(void)
