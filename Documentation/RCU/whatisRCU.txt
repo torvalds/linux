@@ -184,7 +184,17 @@ synchronize_rcu()
 	blocking, it registers a function and argument which are invoked
 	after all ongoing RCU read-side critical sections have completed.
 	This callback variant is particularly useful in situations where
-	it is illegal to block.
+	it is illegal to block or where update-side performance is
+	critically important.
+
+	However, the call_rcu() API should not be used lightly, as use
+	of the synchronize_rcu() API generally results in simpler code.
+	In addition, the synchronize_rcu() API has the nice property
+	of automatically limiting update rate should grace periods
+	be delayed.  This property results in system resilience in face
+	of denial-of-service attacks.  Code using call_rcu() should limit
+	update rate in order to gain this same sort of resilience.  See
+	checklist.txt for some approaches to limiting the update rate.
 
 rcu_assign_pointer()
 
