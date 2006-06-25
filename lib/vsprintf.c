@@ -187,49 +187,49 @@ static char * number(char * buf, char * end, unsigned long long num, int base, i
 	size -= precision;
 	if (!(type&(ZEROPAD+LEFT))) {
 		while(size-->0) {
-			if (buf <= end)
+			if (buf < end)
 				*buf = ' ';
 			++buf;
 		}
 	}
 	if (sign) {
-		if (buf <= end)
+		if (buf < end)
 			*buf = sign;
 		++buf;
 	}
 	if (type & SPECIAL) {
 		if (base==8) {
-			if (buf <= end)
+			if (buf < end)
 				*buf = '0';
 			++buf;
 		} else if (base==16) {
-			if (buf <= end)
+			if (buf < end)
 				*buf = '0';
 			++buf;
-			if (buf <= end)
+			if (buf < end)
 				*buf = digits[33];
 			++buf;
 		}
 	}
 	if (!(type & LEFT)) {
 		while (size-- > 0) {
-			if (buf <= end)
+			if (buf < end)
 				*buf = c;
 			++buf;
 		}
 	}
 	while (i < precision--) {
-		if (buf <= end)
+		if (buf < end)
 			*buf = '0';
 		++buf;
 	}
 	while (i-- > 0) {
-		if (buf <= end)
+		if (buf < end)
 			*buf = tmp[i];
 		++buf;
 	}
 	while (size-- > 0) {
-		if (buf <= end)
+		if (buf < end)
 			*buf = ' ';
 		++buf;
 	}
@@ -272,7 +272,8 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 				/* 'z' changed to 'Z' --davidm 1/25/99 */
 				/* 't' added for ptrdiff_t */
 
-	/* Reject out-of-range values early */
+	/* Reject out-of-range values early.  Large positive sizes are
+	   used for unknown buffer sizes. */
 	if (unlikely((int) size < 0)) {
 		/* There can be only one.. */
 		static int warn = 1;
@@ -282,16 +283,17 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 	}
 
 	str = buf;
-	end = buf + size - 1;
+	end = buf + size;
 
-	if (end < buf - 1) {
-		end = ((void *) -1);
-		size = end - buf + 1;
+	/* Make sure end is always >= buf */
+	if (end < buf) {
+		end = ((void *)-1);
+		size = end - buf;
 	}
 
 	for (; *fmt ; ++fmt) {
 		if (*fmt != '%') {
-			if (str <= end)
+			if (str < end)
 				*str = *fmt;
 			++str;
 			continue;
@@ -357,17 +359,17 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 			case 'c':
 				if (!(flags & LEFT)) {
 					while (--field_width > 0) {
-						if (str <= end)
+						if (str < end)
 							*str = ' ';
 						++str;
 					}
 				}
 				c = (unsigned char) va_arg(args, int);
-				if (str <= end)
+				if (str < end)
 					*str = c;
 				++str;
 				while (--field_width > 0) {
-					if (str <= end)
+					if (str < end)
 						*str = ' ';
 					++str;
 				}
@@ -382,18 +384,18 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 
 				if (!(flags & LEFT)) {
 					while (len < field_width--) {
-						if (str <= end)
+						if (str < end)
 							*str = ' ';
 						++str;
 					}
 				}
 				for (i = 0; i < len; ++i) {
-					if (str <= end)
+					if (str < end)
 						*str = *s;
 					++str; ++s;
 				}
 				while (len < field_width--) {
-					if (str <= end)
+					if (str < end)
 						*str = ' ';
 					++str;
 				}
@@ -426,7 +428,7 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 				continue;
 
 			case '%':
-				if (str <= end)
+				if (str < end)
 					*str = '%';
 				++str;
 				continue;
@@ -449,11 +451,11 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 				break;
 
 			default:
-				if (str <= end)
+				if (str < end)
 					*str = '%';
 				++str;
 				if (*fmt) {
-					if (str <= end)
+					if (str < end)
 						*str = *fmt;
 					++str;
 				} else {
@@ -483,14 +485,13 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 		str = number(str, end, num, base,
 				field_width, precision, flags);
 	}
-	if (str <= end)
-		*str = '\0';
-	else if (size > 0)
-		/* don't write out a null byte if the buf size is zero */
-		*end = '\0';
-	/* the trailing null byte doesn't count towards the total
-	* ++str;
-	*/
+	if (size > 0) {
+		if (str < end)
+			*str = '\0';
+		else
+			*end = '\0';
+	}
+	/* the trailing null byte doesn't count towards the total */
 	return str-buf;
 }
 
