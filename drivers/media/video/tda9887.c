@@ -22,11 +22,11 @@
 */
 
 #define tda9887_info(fmt, arg...) do {\
-	printk(KERN_INFO "%s %d-%04x (tda9887): " fmt, t->i2c.name, \
+	printk(KERN_INFO "%s %d-%04x: " fmt, t->i2c.name, \
 			i2c_adapter_id(t->i2c.adapter), t->i2c.addr , ##arg); } while (0)
 #define tda9887_dbg(fmt, arg...) do {\
 	if (tuner_debug) \
-		printk(KERN_INFO "%s %d-%04x (tda9887): " fmt, t->i2c.name, \
+		printk(KERN_INFO "%s %d-%04x: " fmt, t->i2c.name, \
 			i2c_adapter_id(t->i2c.adapter), t->i2c.addr , ##arg); } while (0)
 
 
