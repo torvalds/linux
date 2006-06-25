@@ -925,6 +925,16 @@ int ext3_group_extend(struct super_block *sb, struct ext3_super_block *es,
 	if (n_blocks_count == 0 || n_blocks_count == o_blocks_count)
 		return 0;
 
+	if (n_blocks_count > (sector_t)(~0ULL) >> (sb->s_blocksize_bits - 9)) {
+		printk(KERN_ERR "EXT3-fs: filesystem on %s:"
+			" too large to resize to %lu blocks safely\n",
+			sb->s_id, n_blocks_count);
+		if (sizeof(sector_t) < 8)
+			ext3_warning(sb, __FUNCTION__,
+			"CONFIG_LBD not enabled\n");
+		return -EINVAL;
+	}
+
 	if (n_blocks_count < o_blocks_count) {
 		ext3_warning(sb, __FUNCTION__,
 			     "can't shrink FS - resize aborted");

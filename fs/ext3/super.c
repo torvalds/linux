@@ -1565,6 +1565,16 @@ static int ext3_fill_super (struct super_block *sb, void *data, int silent)
 		goto failed_mount;
 	}
 
+	if (le32_to_cpu(es->s_blocks_count) >
+		    (sector_t)(~0ULL) >> (sb->s_blocksize_bits - 9)) {
+		printk(KERN_ERR "EXT3-fs: filesystem on %s:"
+			" too large to mount safely\n", sb->s_id);
+		if (sizeof(sector_t) < 8)
+			printk(KERN_WARNING "EXT3-fs: CONFIG_LBD not "
+					"enabled\n");
+		goto failed_mount;
+	}
+
 	if (EXT3_BLOCKS_PER_GROUP(sb) == 0)
 		goto cantfind_ext3;
 	sbi->s_groups_count = (le32_to_cpu(es->s_blocks_count) -
