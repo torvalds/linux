@@ -53,6 +53,8 @@ int pvr2_ctrl_set_mask_value(struct pvr2_ctrl *cptr,int mask,int val)
 				if (val >= cptr->info->def.type_enum.count) {
 					break;
 				}
+			} else if (cptr->info->type != pvr2_ctl_bool) {
+				break;
 			}
 			ret = cptr->info->set_value(cptr,mask,val);
 		} else {
@@ -308,6 +310,14 @@ static unsigned int gen_bitmask_string(int msk,int val,int msk_only,
 }
 
 
+static const char *boolNames[] = {
+	"false",
+	"true",
+	"no",
+	"yes",
+};
+
+
 static int parse_token(const char *ptr,unsigned int len,
 		       int *valptr,
 		       const char **names,unsigned int namecnt)
@@ -338,7 +348,7 @@ static int parse_token(const char *ptr,unsigned int len,
 	*valptr = simple_strtol(buf,&p2,0);
 	if (negfl) *valptr = -(*valptr);
 	if (*p2) return -EINVAL;
-	return 0;
+	return 1;
 }
 
 
@@ -453,21 +463,31 @@ int pvr2_ctrl_sym_to_value(struct pvr2_ctrl *cptr,
 	LOCK_TAKE(cptr->hdw->big_lock); do {
 		if (cptr->info->type == pvr2_ctl_int) {
 			ret = parse_token(ptr,len,valptr,0,0);
-			if ((ret == 0) &&
+			if ((ret >= 0) &&
 			    ((*valptr < cptr->info->def.type_int.min_value) ||
 			     (*valptr > cptr->info->def.type_int.max_value))) {
-				ret = -EINVAL;
+				ret = -ERANGE;
 			}
 			if (maskptr) *maskptr = ~0;
+		} else if (cptr->info->type == pvr2_ctl_bool) {
+			ret = parse_token(
+				ptr,len,valptr,boolNames,
+				sizeof(boolNames)/sizeof(boolNames[0]));
+			if (ret == 1) {
+				*valptr = *valptr ? !0 : 0;
+			} else if (ret == 0) {
+				*valptr = (*valptr & 1) ? !0 : 0;
+			}
+			if (maskptr) *maskptr = 1;
 		} else if (cptr->info->type == pvr2_ctl_enum) {
 			ret = parse_token(
 				ptr,len,valptr,
 				cptr->info->def.type_enum.value_names,
 				cptr->info->def.type_enum.count);
-			if ((ret == 0) &&
+			if ((ret >= 0) &&
 			    ((*valptr < 0) ||
 			     (*valptr >= cptr->info->def.type_enum.count))) {
-				ret = -EINVAL;
+				ret = -ERANGE;
 			}
 			if (maskptr) *maskptr = ~0;
 		} else if (cptr->info->type == pvr2_ctl_bitmask) {
@@ -492,6 +512,9 @@ int pvr2_ctrl_value_to_sym_internal(struct pvr2_ctrl *cptr,
 	*len = 0;
 	if (cptr->info->type == pvr2_ctl_int) {
 		*len = scnprintf(buf,maxlen,"%d",val);
+		ret = 0;
+	} else if (cptr->info->type == pvr2_ctl_bool) {
+		*len = scnprintf(buf,maxlen,"%s",val ? "true" : "false");
 		ret = 0;
 	} else if (cptr->info->type == pvr2_ctl_enum) {
 		const char **names;

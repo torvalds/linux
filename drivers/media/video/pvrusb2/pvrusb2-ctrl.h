@@ -27,6 +27,7 @@ enum pvr2_ctl_type {
 	pvr2_ctl_int = 0,
 	pvr2_ctl_enum = 1,
 	pvr2_ctl_bitmask = 2,
+	pvr2_ctl_bool = 3,
 };
 
 

@@ -55,6 +55,7 @@ struct pvr2_sysfs_debugifc {
 
 struct pvr2_sysfs_ctl_item {
 	struct class_device_attribute attr_name;
+	struct class_device_attribute attr_type;
 	struct class_device_attribute attr_min;
 	struct class_device_attribute attr_max;
 	struct class_device_attribute attr_enum;
@@ -64,7 +65,7 @@ struct pvr2_sysfs_ctl_item {
 	struct pvr2_ctrl *cptr;
 	struct pvr2_sysfs *chptr;
 	struct pvr2_sysfs_ctl_item *item_next;
-	struct attribute *attr_gen[6];
+	struct attribute *attr_gen[7];
 	struct attribute_group grp;
 	char name[80];
 };
@@ -86,6 +87,33 @@ static ssize_t show_name(int id,struct class_device *class_dev,char *buf)
 
 	name = pvr2_ctrl_get_desc(cptr);
 	pvr2_sysfs_trace("pvr2_sysfs(%p) show_name(cid=%d) is %s",sfp,id,name);
+
+	if (!name) return -EINVAL;
+
+	return scnprintf(buf,PAGE_SIZE,"%s\n",name);
+}
+
+static ssize_t show_type(int id,struct class_device *class_dev,char *buf)
+{
+	struct pvr2_ctrl *cptr;
+	struct pvr2_sysfs *sfp;
+	const char *name;
+	enum pvr2_ctl_type tp;
+
+	sfp = (struct pvr2_sysfs *)class_dev->class_data;
+	if (!sfp) return -EINVAL;
+	cptr = pvr2_hdw_get_ctrl_by_index(sfp->channel.hdw,id);
+	if (!cptr) return -EINVAL;
+
+	tp = pvr2_ctrl_get_type(cptr);
+	switch (tp) {
+	case pvr2_ctl_int: name = "integer"; break;
+	case pvr2_ctl_enum: name = "enum"; break;
+	case pvr2_ctl_bitmask: name = "bitmask"; break;
+	case pvr2_ctl_bool: name = "boolean"; break;
+	default: name = "?"; break;
+	}
+	pvr2_sysfs_trace("pvr2_sysfs(%p) show_type(cid=%d) is %s",sfp,id,name);
 
 	if (!name) return -EINVAL;
 
@@ -289,6 +317,7 @@ static ssize_t sf_name##_##ctl_id(struct class_device *class_dev,const char *buf
 
 #define CREATE_BATCH(ctl_id) \
 CREATE_SHOW_INSTANCE(show_name,ctl_id) \
+CREATE_SHOW_INSTANCE(show_type,ctl_id) \
 CREATE_SHOW_INSTANCE(show_min,ctl_id) \
 CREATE_SHOW_INSTANCE(show_max,ctl_id) \
 CREATE_SHOW_INSTANCE(show_val_norm,ctl_id) \
@@ -361,6 +390,7 @@ CREATE_BATCH(59)
 
 struct pvr2_sysfs_func_set {
 	ssize_t (*show_name)(struct class_device *,char *);
+	ssize_t (*show_type)(struct class_device *,char *);
 	ssize_t (*show_min)(struct class_device *,char *);
 	ssize_t (*show_max)(struct class_device *,char *);
 	ssize_t (*show_enum)(struct class_device *,char *);
@@ -376,6 +406,7 @@ struct pvr2_sysfs_func_set {
 #define INIT_BATCH(ctl_id) \
 [ctl_id] = { \
     .show_name = show_name_##ctl_id, \
+    .show_type = show_type_##ctl_id, \
     .show_min = show_min_##ctl_id, \
     .show_max = show_max_##ctl_id, \
     .show_enum = show_enum_##ctl_id, \
@@ -486,6 +517,11 @@ static void pvr2_sysfs_add_control(struct pvr2_sysfs *sfp,int ctl_id)
 	cip->attr_name.attr.mode = S_IRUGO;
 	cip->attr_name.show = fp->show_name;
 
+	cip->attr_type.attr.owner = THIS_MODULE;
+	cip->attr_type.attr.name = "type";
+	cip->attr_type.attr.mode = S_IRUGO;
+	cip->attr_type.show = fp->show_type;
+
 	cip->attr_min.attr.owner = THIS_MODULE;
 	cip->attr_min.attr.name = "min_val";
 	cip->attr_min.attr.mode = S_IRUGO;
@@ -521,6 +557,7 @@ static void pvr2_sysfs_add_control(struct pvr2_sysfs *sfp,int ctl_id)
 
 	acnt = 0;
 	cip->attr_gen[acnt++] = &cip->attr_name.attr;
+	cip->attr_gen[acnt++] = &cip->attr_type.attr;
 	cip->attr_gen[acnt++] = &cip->attr_val.attr;
 	cip->attr_val.show = fp->show_val_norm;
 	cip->attr_val.store = fp->store_val_norm;

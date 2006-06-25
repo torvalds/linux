@@ -534,6 +534,12 @@ static int pvr2_v4l2_do_ioctl(struct inode *inode, struct file *file,
 			vc->maximum = pvr2_ctrl_get_cnt(cptr) - 1;
 			vc->step = 1;
 			break;
+		case pvr2_ctl_bool:
+			vc->type = V4L2_CTRL_TYPE_INTEGER;
+			vc->minimum = 0;
+			vc->maximum = 1;
+			vc->step = 1;
+			break;
 		case pvr2_ctl_int:
 			vc->type = V4L2_CTRL_TYPE_INTEGER;
 			vc->minimum = pvr2_ctrl_get_min(cptr);

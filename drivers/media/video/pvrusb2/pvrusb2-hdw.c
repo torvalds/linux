@@ -436,6 +436,9 @@ static void ctrl_stdenumcur_clear_dirty(struct pvr2_ctrl *cptr)
 	.def.type_enum.count = (sizeof(tab)/sizeof((tab)[0])), \
 	.def.type_enum.value_names = tab
 
+#define DEFBOOL \
+	.type = pvr2_ctl_bool
+
 #define DEFMASK(msk,tab) \
 	.type = pvr2_ctl_bitmask, \
 	.def.type_bitmask.valid_bits = msk, \
@@ -548,7 +551,7 @@ static const struct pvr2_ctl_info control_defs[] = {
 		.name = "mute",
 		.default_value = 0,
 		DEFREF(mute),
-		DEFINT(0,1),
+		DEFBOOL,
 	},{
 		.desc = "Video Source",
 		.name = "input",
@@ -597,7 +600,7 @@ static const struct pvr2_ctl_info control_defs[] = {
 		.name = "audio_crc",
 		.default_value = 1,
 		DEFREF(audiocrc),
-		DEFINT(0,1),
+		DEFBOOL,
 	},{
 		.v4l_id = V4L2_CID_PVR_AUDIOEMPHASIS,
 		.desc = "Audio Emphasis",
@@ -611,7 +614,7 @@ static const struct pvr2_ctl_info control_defs[] = {
 		.name = "vbr",
 		.default_value = 0,
 		DEFREF(vbr),
-		DEFINT(0,1),
+		DEFBOOL,
 	},{
 		.v4l_id = V4L2_CID_PVR_VIDEOBITRATE,
 		.desc = "Average video bitrate",
@@ -632,7 +635,7 @@ static const struct pvr2_ctl_info control_defs[] = {
 		.internal_id = PVR2_CID_INTERLACE,
 		.default_value = 0,
 		DEFREF(interlace),
-		DEFINT(0,1),
+		DEFBOOL,
 	},{
 		.desc = "Audio Layer",
 		.name = "audio_layer",
@@ -671,7 +674,7 @@ static const struct pvr2_ctl_info control_defs[] = {
 		.desc = "Streaming Enabled",
 		.name = "streaming_enabled",
 		.get_value = ctrl_streamingenabled_get,
-		DEFINT(0,1),
+		DEFBOOL,
 	},{
 		.desc = "USB Speed",
 		.name = "usb_speed",
@@ -681,7 +684,7 @@ static const struct pvr2_ctl_info control_defs[] = {
 		.desc = "Signal Present",
 		.name = "signal_present",
 		.get_value = ctrl_signal_get,
-		DEFINT(0,1),
+		DEFBOOL,
 	},{
 		.desc = "Video Standards Available Mask",
 		.name = "video_standard_mask_available",
@@ -2007,6 +2010,7 @@ static const char *get_ctrl_typename(enum pvr2_ctl_type tp)
 	switch (tp) {
 	case pvr2_ctl_int: return "integer";
 	case pvr2_ctl_enum: return "enum";
+	case pvr2_ctl_bool: return "boolean";
 	case pvr2_ctl_bitmask: return "bitmask";
 	}
 	return "";
