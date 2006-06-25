@@ -324,35 +324,15 @@ static void rp_do_receive(struct r_port *info,
 			  CHANNEL_t * cp, unsigned int ChanStatus)
 {
 	unsigned int CharNStat;
-	int ToRecv, wRecv, space = 0, count;
-	unsigned char *cbuf, *chead;
-	char *fbuf, *fhead;
-	struct tty_ldisc *ld;
-
-	ld = tty_ldisc_ref(tty);
+	int ToRecv, wRecv, space;
+	unsigned char *cbuf;
 
 	ToRecv = sGetRxCnt(cp);
-	space = tty->receive_room;
-	if (space > 2 * TTY_FLIPBUF_SIZE)
-		space = 2 * TTY_FLIPBUF_SIZE;
-	count = 0;
 #ifdef ROCKET_DEBUG_INTR
-	printk(KERN_INFO "rp_do_receive(%d, %d)...", ToRecv, space);
+	printk(KERN_INFO "rp_do_receive(%d)...", ToRecv);
 #endif
-
-	/*
-	 * determine how many we can actually read in.  If we can't
-	 * read any in then we have a software overrun condition.
-	 */
-	if (ToRecv > space)
-		ToRecv = space;
-
-	ToRecv = tty_prepare_flip_string_flags(tty, &chead, &fhead, ToRecv);
-	if (ToRecv <= 0)
-		goto done;
-
-	cbuf = chead;
-	fbuf = fhead;
+	if (ToRecv == 0)
+		return;
 
 	/*
 	 * if status indicates there are errored characters in the
@@ -380,6 +360,8 @@ static void rp_do_receive(struct r_port *info,
 		       info->read_status_mask);
 #endif
 		while (ToRecv) {
+			char flag;
+
 			CharNStat = sInW(sGetTxRxDataIO(cp));
 #ifdef ROCKET_DEBUG_RECEIVE
 			printk(KERN_INFO "%x...", CharNStat);
@@ -392,17 +374,16 @@ static void rp_do_receive(struct r_port *info,
 			}
 			CharNStat &= info->read_status_mask;
 			if (CharNStat & STMBREAKH)
-				*fbuf++ = TTY_BREAK;
+				flag = TTY_BREAK;
 			else if (CharNStat & STMPARITYH)
-				*fbuf++ = TTY_PARITY;
+				flag = TTY_PARITY;
 			else if (CharNStat & STMFRAMEH)
-				*fbuf++ = TTY_FRAME;
+				flag = TTY_FRAME;
 			else if (CharNStat & STMRCVROVRH)
-				*fbuf++ = TTY_OVERRUN;
+				flag = TTY_OVERRUN;
 			else
-				*fbuf++ = TTY_NORMAL;
-			*cbuf++ = CharNStat & 0xff;
-			count++;
+				flag = TTY_NORMAL;
+			tty_insert_flip_char(tty, CharNStat & 0xff, flag);
 			ToRecv--;
 		}
 
@@ -422,20 +403,23 @@ static void rp_do_receive(struct r_port *info,
 		 * characters at time by doing repeated word IO
 		 * transfer.
 		 */
+		space = tty_prepare_flip_string(tty, &cbuf, ToRecv);
+		if (space < ToRecv) {
+#ifdef ROCKET_DEBUG_RECEIVE
+			printk(KERN_INFO "rp_do_receive:insufficient space ToRecv=%d space=%d\n", ToRecv, space);
+#endif
+			if (space <= 0)
+				return;
+			ToRecv = space;
+		}
 		wRecv = ToRecv >> 1;
 		if (wRecv)
 			sInStrW(sGetTxRxDataIO(cp), (unsigned short *) cbuf, wRecv);
 		if (ToRecv & 1)
 			cbuf[ToRecv - 1] = sInB(sGetTxRxDataIO(cp));
-		memset(fbuf, TTY_NORMAL, ToRecv);
-		cbuf += ToRecv;
-		fbuf += ToRecv;
-		count += ToRecv;
 	}
 	/*  Push the data up to the tty layer */
-	ld->receive_buf(tty, chead, fhead, count);
-done:
-	tty_ldisc_deref(ld);
+	tty_flip_buffer_push(tty);
 }
 
 /*
