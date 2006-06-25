@@ -371,11 +371,11 @@ static int acpi_cpufreq_early_init_acpi(void)
 
 	dprintk("acpi_cpufreq_early_init\n");
 
-	for_each_cpu(i) {
+	for_each_possible_cpu(i) {
 		data = kzalloc(sizeof(struct acpi_processor_performance), 
 			GFP_KERNEL);
 		if (!data) {
-			for_each_cpu(j) {
+			for_each_possible_cpu(j) {
 				kfree(acpi_perf_data[j]);
 				acpi_perf_data[j] = NULL;
 			}
@@ -584,7 +584,7 @@ acpi_cpufreq_exit (void)
 
 	cpufreq_unregister_driver(&acpi_cpufreq_driver);
 
-	for_each_cpu(i) {
+	for_each_possible_cpu(i) {
 		kfree(acpi_perf_data[i]);
 		acpi_perf_data[i] = NULL;
 	}

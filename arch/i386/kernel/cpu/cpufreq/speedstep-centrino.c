@@ -361,11 +361,11 @@ static int centrino_cpu_early_init_acpi(void)
 	unsigned int	i, j;
 	struct acpi_processor_performance	*data;
 
-	for_each_cpu(i) {
+	for_each_possible_cpu(i) {
 		data = kzalloc(sizeof(struct acpi_processor_performance), 
 				GFP_KERNEL);
 		if (!data) {
-			for_each_cpu(j) {
+			for_each_possible_cpu(j) {
 				kfree(acpi_perf_data[j]);
 				acpi_perf_data[j] = NULL;
 			}
@@ -805,7 +805,7 @@ static void __exit centrino_exit(void)
 	cpufreq_unregister_driver(&centrino_driver);
 
 #ifdef CONFIG_X86_SPEEDSTEP_CENTRINO_ACPI
-	for_each_cpu(j) {
+	for_each_possible_cpu(j) {
 		kfree(acpi_perf_data[j]);
 		acpi_perf_data[j] = NULL;
 	}

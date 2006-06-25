@@ -405,7 +405,6 @@ int __any_online_cpu(const cpumask_t *mask);
 #define any_online_cpu(mask)		0
 #endif
 
-#define for_each_cpu(cpu)  for_each_cpu_mask((cpu), cpu_possible_map)
 #define for_each_possible_cpu(cpu)  for_each_cpu_mask((cpu), cpu_possible_map)
 #define for_each_online_cpu(cpu)  for_each_cpu_mask((cpu), cpu_online_map)
 #define for_each_present_cpu(cpu) for_each_cpu_mask((cpu), cpu_present_map)

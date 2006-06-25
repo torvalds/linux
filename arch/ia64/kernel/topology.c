@@ -166,7 +166,7 @@ static void cache_shared_cpu_map_setup( unsigned int cpu,
 
 	num_shared = (int) csi.num_shared;
 	do {
-		for_each_cpu(j)
+		for_each_possible_cpu(j)
 			if (cpu_data(cpu)->socket_id == cpu_data(j)->socket_id
 				&& cpu_data(j)->core_id == csi.log1_cid
 				&& cpu_data(j)->thread_id == csi.log1_tid)

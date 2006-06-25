@@ -180,7 +180,7 @@ static int setup_iic_hardcoded(void)
 	unsigned long regs;
 	struct iic *iic;
 
-	for_each_cpu(cpu) {
+	for_each_possible_cpu(cpu) {
 		iic = &per_cpu(iic, cpu);
 		nodeid = cpu/2;
 

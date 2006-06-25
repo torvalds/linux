@@ -1761,7 +1761,7 @@ translate_compat_table(const char *name,
 		goto free_newinfo;
 
 	/* And one copy for every other CPU */
-	for_each_cpu(i)
+	for_each_possible_cpu(i)
 		if (newinfo->entries[i] && newinfo->entries[i] != entry1)
 			memcpy(newinfo->entries[i], entry1, newinfo->size);
 
