@@ -1065,7 +1065,7 @@ sub output_struct_man(%) {
     }
     print "};\n.br\n";
 
-    print ".SH Arguments\n";
+    print ".SH Members\n";
     foreach $parameter (@{$args{'parameterlist'}}) {
 	($parameter =~ /^#/) && next;
 
