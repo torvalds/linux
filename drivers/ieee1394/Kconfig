@@ -4,7 +4,7 @@ menu "IEEE 1394 (FireWire) support"
 
 config IEEE1394
 	tristate "IEEE 1394 (FireWire) support"
-	depends on (PCI || BROKEN) && (BROKEN || !FRV)
+	depends on PCI || BROKEN
 	select NET
 	help
 	  IEEE 1394 describes a high performance serial bus, which is also
