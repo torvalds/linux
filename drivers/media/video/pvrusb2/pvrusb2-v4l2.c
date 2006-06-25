@@ -434,12 +434,6 @@ static int pvr2_v4l2_do_ioctl(struct inode *inode, struct file *file,
 			vf->fmt.pix.width = val;
 			val = 0;
 			pvr2_ctrl_get_value(
-				pvr2_hdw_get_ctrl_by_id(hdw,
-							PVR2_CID_INTERLACE),
-				&val);
-			if (val) vf->fmt.pix.width /= 2;
-			val = 0;
-			pvr2_ctrl_get_value(
 				pvr2_hdw_get_ctrl_by_id(hdw,PVR2_CID_VRES),
 				&val);
 			vf->fmt.pix.height = val;
@@ -466,25 +460,22 @@ static int pvr2_v4l2_do_ioctl(struct inode *inode, struct file *file,
 		case V4L2_BUF_TYPE_VIDEO_CAPTURE: {
 			int h = vf->fmt.pix.height;
 			int w = vf->fmt.pix.width;
-			int vd_std, hf, hh;
 
-			vd_std = 0;
-			pvr2_ctrl_get_value(
-				pvr2_hdw_get_ctrl_by_id(hdw,PVR2_CID_STDCUR),
-				&vd_std);
-			if (vd_std & V4L2_STD_525_60) {
-				hf=480;
-			} else {
-				hf=576;
+			if (h < 200) {
+				h = 200;
+			} else if (h > 625) {
+				h = 625;
 			}
-			hh = (int) (hf / 2);
+			if (w < 320) {
+				w = 320;
+			} else if (w > 720) {
+				w = 720;
+			}
 
 			memcpy(vf, &pvr_format[PVR_FORMAT_PIX],
 			       sizeof(struct v4l2_format));
-			if (w > 720)
-				vf->fmt.pix.width = 720;
-			vf->fmt.pix.width &= 0xff0;
-			vf->fmt.pix.height = (h > hh) ? hf : hh;
+			vf->fmt.pix.width = w;
+			vf->fmt.pix.height = h;
 
 			if (cmd == VIDIOC_S_FMT) {
 				pvr2_ctrl_set_value(
@@ -495,10 +486,6 @@ static int pvr2_v4l2_do_ioctl(struct inode *inode, struct file *file,
 					pvr2_hdw_get_ctrl_by_id(hdw,
 								PVR2_CID_VRES),
 					vf->fmt.pix.height);
-				pvr2_ctrl_set_value(
-					pvr2_hdw_get_ctrl_by_id(
-						hdw,PVR2_CID_INTERLACE),
-					vf->fmt.pix.height != hf);
 			}
 		} break;
 		case V4L2_BUF_TYPE_VBI_CAPTURE:
