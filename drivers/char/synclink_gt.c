@@ -2515,7 +2515,8 @@ static int set_txidle(struct slgt_info *info, int idle_mode)
 	DBGINFO(("%s set_txidle(%d)\n", info->device_name, idle_mode));
 	spin_lock_irqsave(&info->lock,flags);
 	info->idle_mode = idle_mode;
-	tx_set_idle(info);
+	if (info->params.mode != MGSL_MODE_ASYNC)
+		tx_set_idle(info);
 	spin_unlock_irqrestore(&info->lock,flags);
 	return 0;
 }
@@ -3940,8 +3941,6 @@ static void async_mode(struct slgt_info *info)
 
 	msc_set_vcr(info);
 
-	tx_set_idle(info);
-
 	/* SCR (serial control)
 	 *
 	 * 15  1=tx req on FIFO half empty
@@ -4175,17 +4174,38 @@ static void hdlc_mode(struct slgt_info *info)
  */
 static void tx_set_idle(struct slgt_info *info)
 {
-	unsigned char val = 0xff;
+	unsigned char val;
+	unsigned short tcr;
 
-	switch(info->idle_mode)
-	{
-	case HDLC_TXIDLE_FLAGS:          val = 0x7e; break;
-	case HDLC_TXIDLE_ALT_ZEROS_ONES: val = 0xaa; break;
-	case HDLC_TXIDLE_ZEROS:          val = 0x00; break;
-	case HDLC_TXIDLE_ONES:           val = 0xff; break;
-	case HDLC_TXIDLE_ALT_MARK_SPACE: val = 0xaa; break;
-	case HDLC_TXIDLE_SPACE:          val = 0x00; break;
-	case HDLC_TXIDLE_MARK:           val = 0xff; break;
+	/* if preamble enabled (tcr[6] == 1) then tx idle size = 8 bits
+	 * else tcr[5:4] = tx idle size: 00 = 8 bits, 01 = 16 bits
+	 */
+	tcr = rd_reg16(info, TCR);
+	if (info->idle_mode & HDLC_TXIDLE_CUSTOM_16) {
+		/* disable preamble, set idle size to 16 bits */
+		tcr = (tcr & ~(BIT6 + BIT5)) | BIT4;
+		/* MSB of 16 bit idle specified in tx preamble register (TPR) */
+		wr_reg8(info, TPR, (unsigned char)((info->idle_mode >> 8) & 0xff));
+	} else if (!(tcr & BIT6)) {
+		/* preamble is disabled, set idle size to 8 bits */
+		tcr &= ~(BIT5 + BIT4);
+	}
+	wr_reg16(info, TCR, tcr);
+
+	if (info->idle_mode & (HDLC_TXIDLE_CUSTOM_8 | HDLC_TXIDLE_CUSTOM_16)) {
+		/* LSB of custom tx idle specified in tx idle register */
+		val = (unsigned char)(info->idle_mode & 0xff);
+	} else {
+		/* standard 8 bit idle patterns */
+		switch(info->idle_mode)
+		{
+		case HDLC_TXIDLE_FLAGS:          val = 0x7e; break;
+		case HDLC_TXIDLE_ALT_ZEROS_ONES:
+		case HDLC_TXIDLE_ALT_MARK_SPACE: val = 0xaa; break;
+		case HDLC_TXIDLE_ZEROS:
+		case HDLC_TXIDLE_SPACE:          val = 0x00; break;
+		default:                         val = 0xff;
+		}
 	}
 
 	wr_reg8(info, TIR, val);
