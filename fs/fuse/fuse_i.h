@@ -8,12 +8,12 @@
 
 #include <linux/fuse.h>
 #include <linux/fs.h>
+#include <linux/mount.h>
 #include <linux/wait.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
 #include <linux/mm.h>
 #include <linux/backing-dev.h>
-#include <asm/semaphore.h>
 
 /** Max number of pages that can be used in a single read request */
 #define FUSE_MAX_PAGES_PER_REQ 32
@@ -135,9 +135,6 @@ struct fuse_req {
 	    fuse_conn */
 	struct list_head list;
 
-	/** Entry on the background list */
-	struct list_head bg_entry;
-
 	/** refcount */
 	atomic_t count;
 
@@ -149,6 +146,9 @@ struct fuse_req {
 
 	/** True if the request has reply */
 	unsigned isreply:1;
+
+	/** Force sending of the request even if interrupted */
+	unsigned force:1;
 
 	/** The request was interrupted */
 	unsigned interrupted:1;
@@ -192,14 +192,14 @@ struct fuse_req {
 	/** offset of data on first page */
 	unsigned page_offset;
 
-	/** Inode used in the request */
-	struct inode *inode;
-
-	/** Second inode used in the request (or NULL) */
-	struct inode *inode2;
-
 	/** File used in the request (or NULL) */
 	struct file *file;
+
+	/** vfsmount used in release */
+	struct vfsmount *vfsmount;
+
+	/** dentry used in release */
+	struct dentry *dentry;
 
 	/** Request completion callback */
 	void (*end)(struct fuse_conn *, struct fuse_req *);
@@ -243,10 +243,6 @@ struct fuse_conn {
 	/** The list of requests under I/O */
 	struct list_head io;
 
-	/** Requests put in the background (RELEASE or any other
-	    interrupted request) */
-	struct list_head background;
-
 	/** Number of requests currently in the background */
 	unsigned num_background;
 
@@ -258,14 +254,8 @@ struct fuse_conn {
 	/** waitq for blocked connection */
 	wait_queue_head_t blocked_waitq;
 
-	/** RW semaphore for exclusion with fuse_put_super() */
-	struct rw_semaphore sbput_sem;
-
 	/** The next unique request id */
 	u64 reqctr;
-
-	/** Mount is active */
-	unsigned mounted;
 
 	/** Connection established, cleared on umount, connection
 	    abort and device release */
@@ -383,12 +373,9 @@ void fuse_file_free(struct fuse_file *ff);
 void fuse_finish_open(struct inode *inode, struct file *file,
 		      struct fuse_file *ff, struct fuse_open_out *outarg);
 
-/**
- * Send a RELEASE request
- */
-void fuse_send_release(struct fuse_conn *fc, struct fuse_file *ff,
-		       u64 nodeid, struct inode *inode, int flags, int isdir);
-
+/** */
+struct fuse_req *fuse_release_fill(struct fuse_file *ff, u64 nodeid, int flags,
+				   int opcode);
 /**
  * Send RELEASE or RELEASEDIR request
  */
@@ -446,11 +433,6 @@ struct fuse_req *fuse_request_alloc(void);
 void fuse_request_free(struct fuse_req *req);
 
 /**
- * Reinitialize a request, the preallocated flag is left unmodified
- */
-void fuse_reset_request(struct fuse_req *req);
-
-/**
  * Reserve a preallocated request
  */
 struct fuse_req *fuse_get_req(struct fuse_conn *fc);
@@ -475,11 +457,6 @@ void request_send_noreply(struct fuse_conn *fc, struct fuse_req *req);
  * Send a request in the background
  */
 void request_send_background(struct fuse_conn *fc, struct fuse_req *req);
-
-/**
- * Release inodes and file associated with background request
- */
-void fuse_release_background(struct fuse_conn *fc, struct fuse_req *req);
 
 /* Abort all requests */
 void fuse_abort_conn(struct fuse_conn *fc);

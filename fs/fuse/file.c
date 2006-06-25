@@ -30,7 +30,6 @@ static int fuse_send_open(struct inode *inode, struct file *file, int isdir,
 	inarg.flags = file->f_flags & ~(O_CREAT | O_EXCL | O_NOCTTY | O_TRUNC);
 	req->in.h.opcode = isdir ? FUSE_OPENDIR : FUSE_OPEN;
 	req->in.h.nodeid = get_node_id(inode);
-	req->inode = inode;
 	req->in.numargs = 1;
 	req->in.args[0].size = sizeof(inarg);
 	req->in.args[0].value = &inarg;
@@ -113,37 +112,22 @@ int fuse_open_common(struct inode *inode, struct file *file, int isdir)
 	return err;
 }
 
-/* Special case for failed iget in CREATE */
-static void fuse_release_end(struct fuse_conn *fc, struct fuse_req *req)
+struct fuse_req *fuse_release_fill(struct fuse_file *ff, u64 nodeid, int flags,
+				   int opcode)
 {
-	/* If called from end_io_requests(), req has more than one
-	   reference and fuse_reset_request() cannot work */
-	if (fc->connected) {
-		u64 nodeid = req->in.h.nodeid;
-		fuse_reset_request(req);
-		fuse_send_forget(fc, req, nodeid, 1);
-	} else
-		fuse_put_request(fc, req);
-}
-
-void fuse_send_release(struct fuse_conn *fc, struct fuse_file *ff,
-		       u64 nodeid, struct inode *inode, int flags, int isdir)
-{
-	struct fuse_req * req = ff->release_req;
+	struct fuse_req *req = ff->release_req;
 	struct fuse_release_in *inarg = &req->misc.release_in;
 
 	inarg->fh = ff->fh;
 	inarg->flags = flags;
-	req->in.h.opcode = isdir ? FUSE_RELEASEDIR : FUSE_RELEASE;
+	req->in.h.opcode = opcode;
 	req->in.h.nodeid = nodeid;
-	req->inode = inode;
 	req->in.numargs = 1;
 	req->in.args[0].size = sizeof(struct fuse_release_in);
 	req->in.args[0].value = inarg;
-	request_send_background(fc, req);
-	if (!inode)
-		req->end = fuse_release_end;
 	kfree(ff);
+
+	return req;
 }
 
 int fuse_release_common(struct inode *inode, struct file *file, int isdir)
@@ -151,8 +135,15 @@ int fuse_release_common(struct inode *inode, struct file *file, int isdir)
 	struct fuse_file *ff = file->private_data;
 	if (ff) {
 		struct fuse_conn *fc = get_fuse_conn(inode);
-		u64 nodeid = get_node_id(inode);
-		fuse_send_release(fc, ff, nodeid, inode, file->f_flags, isdir);
+		struct fuse_req *req;
+
+		req = fuse_release_fill(ff, get_node_id(inode), file->f_flags,
+					isdir ? FUSE_RELEASEDIR : FUSE_RELEASE);
+
+		/* Hold vfsmount and dentry until release is finished */
+		req->vfsmount = mntget(file->f_vfsmnt);
+		req->dentry = dget(file->f_dentry);
+		request_send_background(fc, req);
 	}
 
 	/* Return value is ignored by VFS */
@@ -192,8 +183,6 @@ static int fuse_flush(struct file *file, fl_owner_t id)
 	inarg.fh = ff->fh;
 	req->in.h.opcode = FUSE_FLUSH;
 	req->in.h.nodeid = get_node_id(inode);
-	req->inode = inode;
-	req->file = file;
 	req->in.numargs = 1;
 	req->in.args[0].size = sizeof(inarg);
 	req->in.args[0].value = &inarg;
@@ -232,8 +221,6 @@ int fuse_fsync_common(struct file *file, struct dentry *de, int datasync,
 	inarg.fsync_flags = datasync ? 1 : 0;
 	req->in.h.opcode = isdir ? FUSE_FSYNCDIR : FUSE_FSYNC;
 	req->in.h.nodeid = get_node_id(inode);
-	req->inode = inode;
-	req->file = file;
 	req->in.numargs = 1;
 	req->in.args[0].size = sizeof(inarg);
 	req->in.args[0].value = &inarg;
@@ -266,8 +253,6 @@ void fuse_read_fill(struct fuse_req *req, struct file *file,
 	inarg->size = count;
 	req->in.h.opcode = opcode;
 	req->in.h.nodeid = get_node_id(inode);
-	req->inode = inode;
-	req->file = file;
 	req->in.numargs = 1;
 	req->in.args[0].size = sizeof(struct fuse_read_in);
 	req->in.args[0].value = inarg;
@@ -342,6 +327,8 @@ static void fuse_send_readpages(struct fuse_req *req, struct file *file,
 	req->out.page_zeroing = 1;
 	fuse_read_fill(req, file, inode, pos, count, FUSE_READ);
 	if (fc->async_read) {
+		get_file(file);
+		req->file = file;
 		req->end = fuse_readpages_end;
 		request_send_background(fc, req);
 	} else {
@@ -420,8 +407,6 @@ static size_t fuse_send_write(struct fuse_req *req, struct file *file,
 	inarg.size = count;
 	req->in.h.opcode = FUSE_WRITE;
 	req->in.h.nodeid = get_node_id(inode);
-	req->inode = inode;
-	req->file = file;
 	req->in.argpages = 1;
 	req->in.numargs = 2;
 	req->in.args[0].size = sizeof(struct fuse_write_in);

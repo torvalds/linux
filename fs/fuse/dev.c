@@ -64,18 +64,6 @@ static void restore_sigs(sigset_t *oldset)
 	sigprocmask(SIG_SETMASK, oldset, NULL);
 }
 
-/*
- * Reset request, so that it can be reused
- *
- * The caller must be _very_ careful to make sure, that it is holding
- * the only reference to req
- */
-void fuse_reset_request(struct fuse_req *req)
-{
-	BUG_ON(atomic_read(&req->count) != 1);
-	fuse_request_init(req);
-}
-
 static void __fuse_get_request(struct fuse_req *req)
 {
 	atomic_inc(&req->count);
@@ -101,6 +89,10 @@ struct fuse_req *fuse_get_req(struct fuse_conn *fc)
 	restore_sigs(&oldset);
 	err = -EINTR;
 	if (intr)
+		goto out;
+
+	err = -ENOTCONN;
+	if (!fc->connected)
 		goto out;
 
 	req = fuse_request_alloc();
@@ -129,113 +121,38 @@ void fuse_put_request(struct fuse_conn *fc, struct fuse_req *req)
 }
 
 /*
- * Called with sbput_sem held for read (request_end) or write
- * (fuse_put_super).  By the time fuse_put_super() is finished, all
- * inodes belonging to background requests must be released, so the
- * iputs have to be done within the locked region.
- */
-void fuse_release_background(struct fuse_conn *fc, struct fuse_req *req)
-{
-	iput(req->inode);
-	iput(req->inode2);
-	spin_lock(&fc->lock);
-	list_del(&req->bg_entry);
-	if (fc->num_background == FUSE_MAX_BACKGROUND) {
-		fc->blocked = 0;
-		wake_up_all(&fc->blocked_waitq);
-	}
-	fc->num_background--;
-	spin_unlock(&fc->lock);
-}
-
-/*
  * This function is called when a request is finished.  Either a reply
  * has arrived or it was interrupted (and not yet sent) or some error
  * occurred during communication with userspace, or the device file
- * was closed.  In case of a background request the reference to the
- * stored objects are released.  The requester thread is woken up (if
- * still waiting), the 'end' callback is called if given, else the
- * reference to the request is released
- *
- * Releasing extra reference for foreground requests must be done
- * within the same locked region as setting state to finished.  This
- * is because fuse_reset_request() may be called after request is
- * finished and it must be the sole possessor.  If request is
- * interrupted and put in the background, it will return with an error
- * and hence never be reset and reused.
+ * was closed.  The requester thread is woken up (if still waiting),
+ * the 'end' callback is called if given, else the reference to the
+ * request is released
  *
  * Called with fc->lock, unlocks it
  */
 static void request_end(struct fuse_conn *fc, struct fuse_req *req)
 {
+	void (*end) (struct fuse_conn *, struct fuse_req *) = req->end;
+	req->end = NULL;
 	list_del(&req->list);
 	req->state = FUSE_REQ_FINISHED;
-	if (!req->background) {
-		spin_unlock(&fc->lock);
-		wake_up(&req->waitq);
-		fuse_put_request(fc, req);
-	} else {
-		void (*end) (struct fuse_conn *, struct fuse_req *) = req->end;
-		req->end = NULL;
-		spin_unlock(&fc->lock);
-		down_read(&fc->sbput_sem);
-		if (fc->mounted)
-			fuse_release_background(fc, req);
-		up_read(&fc->sbput_sem);
-
-		/* fput must go outside sbput_sem, otherwise it can deadlock */
-		if (req->file)
-			fput(req->file);
-
-		if (end)
-			end(fc, req);
-		else
-			fuse_put_request(fc, req);
+	if (req->background) {
+		if (fc->num_background == FUSE_MAX_BACKGROUND) {
+			fc->blocked = 0;
+			wake_up_all(&fc->blocked_waitq);
+		}
+		fc->num_background--;
 	}
-}
-
-/*
- * Unfortunately request interruption not just solves the deadlock
- * problem, it causes problems too.  These stem from the fact, that an
- * interrupted request is continued to be processed in userspace,
- * while all the locks and object references (inode and file) held
- * during the operation are released.
- *
- * To release the locks is exactly why there's a need to interrupt the
- * request, so there's not a lot that can be done about this, except
- * introduce additional locking in userspace.
- *
- * More important is to keep inode and file references until userspace
- * has replied, otherwise FORGET and RELEASE could be sent while the
- * inode/file is still used by the filesystem.
- *
- * For this reason the concept of "background" request is introduced.
- * An interrupted request is backgrounded if it has been already sent
- * to userspace.  Backgrounding involves getting an extra reference to
- * inode(s) or file used in the request, and adding the request to
- * fc->background list.  When a reply is received for a background
- * request, the object references are released, and the request is
- * removed from the list.  If the filesystem is unmounted while there
- * are still background requests, the list is walked and references
- * are released as if a reply was received.
- *
- * There's one more use for a background request.  The RELEASE message is
- * always sent as background, since it doesn't return an error or
- * data.
- */
-static void background_request(struct fuse_conn *fc, struct fuse_req *req)
-{
-	req->background = 1;
-	list_add(&req->bg_entry, &fc->background);
-	fc->num_background++;
-	if (fc->num_background == FUSE_MAX_BACKGROUND)
-		fc->blocked = 1;
-	if (req->inode)
-		req->inode = igrab(req->inode);
-	if (req->inode2)
-		req->inode2 = igrab(req->inode2);
+	spin_unlock(&fc->lock);
+	dput(req->dentry);
+	mntput(req->vfsmount);
 	if (req->file)
-		get_file(req->file);
+		fput(req->file);
+	wake_up(&req->waitq);
+	if (end)
+		end(fc, req);
+	else
+		fuse_put_request(fc, req);
 }
 
 /* Called with fc->lock held.  Releases, and then reacquires it. */
@@ -244,9 +161,14 @@ static void request_wait_answer(struct fuse_conn *fc, struct fuse_req *req)
 	sigset_t oldset;
 
 	spin_unlock(&fc->lock);
-	block_sigs(&oldset);
-	wait_event_interruptible(req->waitq, req->state == FUSE_REQ_FINISHED);
-	restore_sigs(&oldset);
+	if (req->force)
+		wait_event(req->waitq, req->state == FUSE_REQ_FINISHED);
+	else {
+		block_sigs(&oldset);
+		wait_event_interruptible(req->waitq,
+					 req->state == FUSE_REQ_FINISHED);
+		restore_sigs(&oldset);
+	}
 	spin_lock(&fc->lock);
 	if (req->state == FUSE_REQ_FINISHED && !req->interrupted)
 		return;
@@ -268,8 +190,11 @@ static void request_wait_answer(struct fuse_conn *fc, struct fuse_req *req)
 	if (req->state == FUSE_REQ_PENDING) {
 		list_del(&req->list);
 		__fuse_put_request(req);
-	} else if (req->state == FUSE_REQ_SENT)
-		background_request(fc, req);
+	} else if (req->state == FUSE_REQ_SENT) {
+		spin_unlock(&fc->lock);
+		wait_event(req->waitq, req->state == FUSE_REQ_FINISHED);
+		spin_lock(&fc->lock);
+	}
 }
 
 static unsigned len_args(unsigned numargs, struct fuse_arg *args)
@@ -327,8 +252,12 @@ void request_send(struct fuse_conn *fc, struct fuse_req *req)
 static void request_send_nowait(struct fuse_conn *fc, struct fuse_req *req)
 {
 	spin_lock(&fc->lock);
-	background_request(fc, req);
 	if (fc->connected) {
+		req->background = 1;
+		fc->num_background++;
+		if (fc->num_background == FUSE_MAX_BACKGROUND)
+			fc->blocked = 1;
+
 		queue_request(fc, req);
 		spin_unlock(&fc->lock);
 	} else {
@@ -883,10 +812,12 @@ void fuse_abort_conn(struct fuse_conn *fc)
 	spin_lock(&fc->lock);
 	if (fc->connected) {
 		fc->connected = 0;
+		fc->blocked = 0;
 		end_io_requests(fc);
 		end_requests(fc, &fc->pending);
 		end_requests(fc, &fc->processing);
 		wake_up_all(&fc->waitq);
+		wake_up_all(&fc->blocked_waitq);
 		kill_fasync(&fc->fasync, SIGIO, POLL_IN);
 	}
 	spin_unlock(&fc->lock);

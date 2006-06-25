@@ -11,7 +11,6 @@
 #include <linux/pagemap.h>
 #include <linux/slab.h>
 #include <linux/file.h>
-#include <linux/mount.h>
 #include <linux/seq_file.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -204,20 +203,14 @@ static void fuse_put_super(struct super_block *sb)
 {
 	struct fuse_conn *fc = get_fuse_conn_super(sb);
 
-	down_write(&fc->sbput_sem);
-	while (!list_empty(&fc->background))
-		fuse_release_background(fc,
-					list_entry(fc->background.next,
-						   struct fuse_req, bg_entry));
-
 	spin_lock(&fc->lock);
-	fc->mounted = 0;
 	fc->connected = 0;
+	fc->blocked = 0;
 	spin_unlock(&fc->lock);
-	up_write(&fc->sbput_sem);
 	/* Flush all readers on this fs */
 	kill_fasync(&fc->fasync, SIGIO, POLL_IN);
 	wake_up_all(&fc->waitq);
+	wake_up_all(&fc->blocked_waitq);
 	kobject_del(&fc->kobj);
 	kobject_put(&fc->kobj);
 }
@@ -386,8 +379,6 @@ static struct fuse_conn *new_conn(void)
 		INIT_LIST_HEAD(&fc->pending);
 		INIT_LIST_HEAD(&fc->processing);
 		INIT_LIST_HEAD(&fc->io);
-		INIT_LIST_HEAD(&fc->background);
-		init_rwsem(&fc->sbput_sem);
 		kobj_set_kset_s(fc, connections_subsys);
 		kobject_init(&fc->kobj);
 		atomic_set(&fc->num_waiting, 0);
@@ -543,7 +534,6 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 		goto err_kobject_del;
 
 	sb->s_root = root_dentry;
-	fc->mounted = 1;
 	fc->connected = 1;
 	kobject_get(&fc->kobj);
 	file->private_data = fc;

@@ -304,25 +304,7 @@ Scenario 1 -  Simple deadlock
  |                                    |     for "file"]
  |                                    |    *DEADLOCK*
 
-The solution for this is to allow requests to be interrupted while
-they are in userspace:
-
- |      [interrupted by signal]       |
- |    <fuse_unlink()                  |
- |    [release semaphore]             |    [semaphore acquired]
- |  <sys_unlink()                     |
- |                                    |    >fuse_unlink()
- |                                    |      [queue req on fc->pending]
- |                                    |      [wake up fc->waitq]
- |                                    |      [sleep on req->waitq]
-
-If the filesystem daemon was single threaded, this will stop here,
-since there's no other thread to dequeue and execute the request.
-In this case the solution is to kill the FUSE daemon as well.  If
-there are multiple serving threads, you just have to kill them as
-long as any remain.
-
-Moral: a filesystem which deadlocks, can soon find itself dead.
+The solution for this is to allow the filesystem to be aborted.
 
 Scenario 2 - Tricky deadlock
 ----------------------------
@@ -355,24 +337,14 @@ but is caused by a pagefault.
  |                                    |           [lock page]
  |                                    |           * DEADLOCK *
 
-Solution is again to let the the request be interrupted (not
-elaborated further).
+Solution is basically the same as above.
 
 An additional problem is that while the write buffer is being
 copied to the request, the request must not be interrupted.  This
 is because the destination address of the copy may not be valid
 after the request is interrupted.
 
-This is solved with doing the copy atomically, and allowing
-interruption while the page(s) belonging to the write buffer are
-faulted with get_user_pages().  The 'req->locked' flag indicates
-when the copy is taking place, and interruption is delayed until
-this flag is unset.
-
-Scenario 3 - Tricky deadlock with asynchronous read
----------------------------------------------------
-
-The same situation as above, except thread-1 will wait on page lock
-and hence it will be uninterruptible as well.  The solution is to
-abort the connection with forced umount (if mount is attached) or
-through the abort attribute in sysfs.
+This is solved with doing the copy atomically, and allowing abort
+while the page(s) belonging to the write buffer are faulted with
+get_user_pages().  The 'req->locked' flag indicates when the copy is
+taking place, and abort is delayed until this flag is unset.
