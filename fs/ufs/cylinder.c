@@ -20,15 +20,6 @@
 #include "swab.h"
 #include "util.h"
 
-#undef UFS_CYLINDER_DEBUG
-
-#ifdef UFS_CYLINDER_DEBUG
-#define UFSD(x) printk("(%s, %d), %s:", __FILE__, __LINE__, __FUNCTION__); printk x;
-#else
-#define UFSD(x)
-#endif
-
-
 /*
  * Read cylinder group into cache. The memory space for ufs_cg_private_info
  * structure is already allocated during ufs_read_super.
@@ -42,7 +33,7 @@ static void ufs_read_cylinder (struct super_block * sb,
 	struct ufs_cylinder_group * ucg;
 	unsigned i, j;
 
-	UFSD(("ENTER, cgno %u, bitmap_nr %u\n", cgno, bitmap_nr))
+	UFSD("ENTER, cgno %u, bitmap_nr %u\n", cgno, bitmap_nr);
 	uspi = sbi->s_uspi;
 	ucpi = sbi->s_ucpi[bitmap_nr];
 	ucg = (struct ufs_cylinder_group *)sbi->s_ucg[cgno]->b_data;
@@ -73,7 +64,7 @@ static void ufs_read_cylinder (struct super_block * sb,
 	ucpi->c_clustersumoff = fs32_to_cpu(sb, ucg->cg_u.cg_44.cg_clustersumoff);
 	ucpi->c_clusteroff = fs32_to_cpu(sb, ucg->cg_u.cg_44.cg_clusteroff);
 	ucpi->c_nclusterblks = fs32_to_cpu(sb, ucg->cg_u.cg_44.cg_nclusterblks);
-	UFSD(("EXIT\n"))
+	UFSD("EXIT\n");
 	return;	
 	
 failed:
@@ -95,11 +86,11 @@ void ufs_put_cylinder (struct super_block * sb, unsigned bitmap_nr)
 	struct ufs_cylinder_group * ucg;
 	unsigned i;
 
-	UFSD(("ENTER, bitmap_nr %u\n", bitmap_nr))
+	UFSD("ENTER, bitmap_nr %u\n", bitmap_nr);
 
 	uspi = sbi->s_uspi;
 	if (sbi->s_cgno[bitmap_nr] == UFS_CGNO_EMPTY) {
-		UFSD(("EXIT\n"))
+		UFSD("EXIT\n");
 		return;
 	}
 	ucpi = sbi->s_ucpi[bitmap_nr];
@@ -122,7 +113,7 @@ void ufs_put_cylinder (struct super_block * sb, unsigned bitmap_nr)
 	}
 
 	sbi->s_cgno[bitmap_nr] = UFS_CGNO_EMPTY;
-	UFSD(("EXIT\n"))
+	UFSD("EXIT\n");
 }
 
 /*
@@ -139,7 +130,7 @@ struct ufs_cg_private_info * ufs_load_cylinder (
 	struct ufs_cg_private_info * ucpi;
 	unsigned cg, i, j;
 
-	UFSD(("ENTER, cgno %u\n", cgno))
+	UFSD("ENTER, cgno %u\n", cgno);
 
 	uspi = sbi->s_uspi;
 	if (cgno >= uspi->s_ncg) {
@@ -150,7 +141,7 @@ struct ufs_cg_private_info * ufs_load_cylinder (
 	 * Cylinder group number cg it in cache and it was last used
 	 */
 	if (sbi->s_cgno[0] == cgno) {
-		UFSD(("EXIT\n"))
+		UFSD("EXIT\n");
 		return sbi->s_ucpi[0];
 	}
 	/*
@@ -160,16 +151,16 @@ struct ufs_cg_private_info * ufs_load_cylinder (
 		if (sbi->s_cgno[cgno] != UFS_CGNO_EMPTY) {
 			if (sbi->s_cgno[cgno] != cgno) {
 				ufs_panic (sb, "ufs_load_cylinder", "internal error, wrong number of cg in cache");
-				UFSD(("EXIT (FAILED)\n"))
+				UFSD("EXIT (FAILED)\n");
 				return NULL;
 			}
 			else {
-				UFSD(("EXIT\n"))
+				UFSD("EXIT\n");
 				return sbi->s_ucpi[cgno];
 			}
 		} else {
 			ufs_read_cylinder (sb, cgno, cgno);
-			UFSD(("EXIT\n"))
+			UFSD("EXIT\n");
 			return sbi->s_ucpi[cgno];
 		}
 	}
@@ -204,6 +195,6 @@ struct ufs_cg_private_info * ufs_load_cylinder (
 		sbi->s_ucpi[0] = ucpi;
 		ufs_read_cylinder (sb, cgno, 0);
 	}
-	UFSD(("EXIT\n"))
+	UFSD("EXIT\n");
 	return sbi->s_ucpi[0];
 }

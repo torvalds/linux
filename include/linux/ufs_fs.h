@@ -220,6 +220,19 @@ typedef __u16 __bitwise __fs16;
  */
 #define UFS_MINFREE         5
 #define UFS_DEFAULTOPT      UFS_OPTTIME
+
+/*
+ * Debug code
+ */
+#ifdef CONFIG_UFS_DEBUG
+#	define UFSD(f, a...)	{					\
+		printk ("UFSD (%s, %d): %s:",				\
+			__FILE__, __LINE__, __FUNCTION__);		\
+		printk (f, ## a);					\
+	}
+#else
+#	define UFSD(f, a...)	/**/
+#endif
             
 /*
  * Turn file system block numbers into disk block addresses.

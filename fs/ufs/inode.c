@@ -41,15 +41,6 @@
 #include "swab.h"
 #include "util.h"
 
-#undef UFS_INODE_DEBUG
-#undef UFS_INODE_DEBUG_MORE
-
-#ifdef UFS_INODE_DEBUG
-#define UFSD(x) printk("(%s, %d), %s: ", __FILE__, __LINE__, __FUNCTION__); printk x;
-#else
-#define UFSD(x)
-#endif
-
 static int ufs_block_to_path(struct inode *inode, sector_t i_block, sector_t offsets[4])
 {
 	struct ufs_sb_private_info *uspi = UFS_SB(inode->i_sb)->s_uspi;
@@ -61,7 +52,7 @@ static int ufs_block_to_path(struct inode *inode, sector_t i_block, sector_t off
 	int n = 0;
 
 
-	UFSD(("ptrs=uspi->s_apb = %d,double_blocks=%ld \n",ptrs,double_blocks));
+	UFSD("ptrs=uspi->s_apb = %d,double_blocks=%ld \n",ptrs,double_blocks);
 	if (i_block < 0) {
 		ufs_warning(inode->i_sb, "ufs_block_to_path", "block < 0");
 	} else if (i_block < direct_blocks) {
@@ -104,8 +95,8 @@ u64  ufs_frag_map(struct inode *inode, sector_t frag)
 	unsigned flags = UFS_SB(sb)->s_flags;
 	u64 temp = 0L;
 
-	UFSD((": frag = %llu  depth = %d\n", (unsigned long long)frag, depth));
-	UFSD((": uspi->s_fpbshift = %d ,uspi->s_apbmask = %x, mask=%llx\n",uspi->s_fpbshift,uspi->s_apbmask,mask));
+	UFSD(": frag = %llu  depth = %d\n", (unsigned long long)frag, depth);
+	UFSD(": uspi->s_fpbshift = %d ,uspi->s_apbmask = %x, mask=%llx\n",uspi->s_fpbshift,uspi->s_apbmask,mask);
 
 	if (depth == 0)
 		return 0;
@@ -186,8 +177,8 @@ static struct buffer_head *ufs_inode_getfrag(struct inode *inode,
 	__fs32 * p, * p2;
 	unsigned flags = 0;
 
-	UFSD(("ENTER, ino %lu, fragment %u, new_fragment %u, required %u\n",
-		inode->i_ino, fragment, new_fragment, required))         
+	UFSD("ENTER, ino %lu, fragment %u, new_fragment %u, required %u\n",
+		inode->i_ino, fragment, new_fragment, required);
 
 	sb = inode->i_sb;
 	uspi = UFS_SB(sb)->s_uspi;
@@ -210,7 +201,7 @@ repeat:
 		if (metadata) {
 			result = sb_getblk(sb, uspi->s_sbbase + tmp + blockoff);
 			if (tmp == fs32_to_cpu(sb, *p)) {
-				UFSD(("EXIT, result %u\n", tmp + blockoff))
+				UFSD("EXIT, result %u\n", tmp + blockoff);
 				return result;
 			}
 			brelse (result);
@@ -288,7 +279,7 @@ repeat:
 	if (IS_SYNC(inode))
 		ufs_sync_inode (inode);
 	mark_inode_dirty(inode);
-	UFSD(("EXIT, result %u\n", tmp + blockoff))
+	UFSD("EXIT, result %u\n", tmp + blockoff);
 	return result;
 
      /* This part : To be implemented ....
@@ -323,7 +314,7 @@ static struct buffer_head *ufs_block_getfrag(struct inode *inode, struct buffer_
 	block = ufs_fragstoblks (fragment);
 	blockoff = ufs_fragnum (fragment);
 
-	UFSD(("ENTER, ino %lu, fragment %u, new_fragment %u\n", inode->i_ino, fragment, new_fragment))	
+	UFSD("ENTER, ino %lu, fragment %u, new_fragment %u\n", inode->i_ino, fragment, new_fragment);
 
 	result = NULL;
 	if (!bh)
@@ -377,10 +368,10 @@ repeat:
 		sync_dirty_buffer(bh);
 	inode->i_ctime = CURRENT_TIME_SEC;
 	mark_inode_dirty(inode);
-	UFSD(("result %u\n", tmp + blockoff));
+	UFSD("result %u\n", tmp + blockoff);
 out:
 	brelse (bh);
-	UFSD(("EXIT\n"));
+	UFSD("EXIT\n");
 	return result;
 }
 
@@ -399,7 +390,7 @@ int ufs_getfrag_block (struct inode *inode, sector_t fragment, struct buffer_hea
 	
 	if (!create) {
 		phys64 = ufs_frag_map(inode, fragment);
-		UFSD(("phys64 = %llu \n",phys64));
+		UFSD("phys64 = %llu \n",phys64);
 		if (phys64)
 			map_bh(bh_result, sb, phys64);
 		return 0;
@@ -414,7 +405,7 @@ int ufs_getfrag_block (struct inode *inode, sector_t fragment, struct buffer_hea
 
 	lock_kernel();
 
-	UFSD(("ENTER, ino %lu, fragment %llu\n", inode->i_ino, (unsigned long long)fragment))
+	UFSD("ENTER, ino %lu, fragment %llu\n", inode->i_ino, (unsigned long long)fragment);
 	if (fragment < 0)
 		goto abort_negative;
 	if (fragment >
@@ -514,7 +505,7 @@ struct buffer_head * ufs_bread (struct inode * inode, unsigned fragment,
 {
 	struct buffer_head * bh;
 
-	UFSD(("ENTER, ino %lu, fragment %u\n", inode->i_ino, fragment))
+	UFSD("ENTER, ino %lu, fragment %u\n", inode->i_ino, fragment);
 	bh = ufs_getfrag (inode, fragment, create, err);
 	if (!bh || buffer_uptodate(bh)) 		
 		return bh;
@@ -586,7 +577,7 @@ void ufs_read_inode (struct inode * inode)
 	unsigned i;
 	unsigned flags;
 	
-	UFSD(("ENTER, ino %lu\n", inode->i_ino))
+	UFSD("ENTER, ino %lu\n", inode->i_ino);
 	
 	sb = inode->i_sb;
 	uspi = UFS_SB(sb)->s_uspi;
@@ -652,7 +643,7 @@ void ufs_read_inode (struct inode * inode)
 
 	brelse (bh);
 
-	UFSD(("EXIT\n"))
+	UFSD("EXIT\n");
 	return;
 
 bad_inode:
@@ -660,7 +651,7 @@ bad_inode:
 	return;
 
 ufs2_inode :
-	UFSD(("Reading ufs2 inode, ino %lu\n", inode->i_ino))
+	UFSD("Reading ufs2 inode, ino %lu\n", inode->i_ino);
 
 	ufs2_inode = (struct ufs2_inode *)(bh->b_data + sizeof(struct ufs2_inode) * ufs_inotofsbo(inode->i_ino));
 
@@ -712,7 +703,7 @@ ufs2_inode :
 
 	brelse(bh);
 
-	UFSD(("EXIT\n"))
+	UFSD("EXIT\n");
 	return;
 }
 
@@ -726,7 +717,7 @@ static int ufs_update_inode(struct inode * inode, int do_sync)
 	unsigned i;
 	unsigned flags;
 
-	UFSD(("ENTER, ino %lu\n", inode->i_ino))
+	UFSD("ENTER, ino %lu\n", inode->i_ino);
 
 	sb = inode->i_sb;
 	uspi = UFS_SB(sb)->s_uspi;
@@ -787,7 +778,7 @@ static int ufs_update_inode(struct inode * inode, int do_sync)
 		sync_dirty_buffer(bh);
 	brelse (bh);
 	
-	UFSD(("EXIT\n"))
+	UFSD("EXIT\n");
 	return 0;
 }
 

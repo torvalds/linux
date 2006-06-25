@@ -14,15 +14,6 @@
 #include "swab.h"
 #include "util.h"
 
-#undef UFS_UTILS_DEBUG
-
-#ifdef UFS_UTILS_DEBUG
-#define UFSD(x) printk("(%s, %d), %s: ", __FILE__, __LINE__, __FUNCTION__); printk x;
-#else
-#define UFSD(x)
-#endif
-
-
 struct ufs_buffer_head * _ubh_bread_ (struct ufs_sb_private_info * uspi,
 	struct super_block *sb, u64 fragment, u64 size)
 {

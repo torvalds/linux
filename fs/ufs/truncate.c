@@ -49,14 +49,6 @@
 #include "swab.h"
 #include "util.h"
 
-#undef UFS_TRUNCATE_DEBUG
-
-#ifdef UFS_TRUNCATE_DEBUG
-#define UFSD(x) printk("(%s, %d), %s: ", __FILE__, __LINE__, __FUNCTION__); printk x;
-#else
-#define UFSD(x)
-#endif
- 
 /*
  * Secure deletion currently doesn't work. It interacts very badly
  * with buffers shared with memory mappings, and for that reason
@@ -82,7 +74,7 @@ static int ufs_trunc_direct (struct inode * inode)
 	unsigned i, tmp;
 	int retry;
 	
-	UFSD(("ENTER\n"))
+	UFSD("ENTER\n");
 
 	sb = inode->i_sb;
 	uspi = UFS_SB(sb)->s_uspi;
@@ -105,7 +97,7 @@ static int ufs_trunc_direct (struct inode * inode)
 		block2 = ufs_fragstoblks (frag3);
 	}
 
-	UFSD(("frag1 %u, frag2 %u, block1 %u, block2 %u, frag3 %u, frag4 %u\n", frag1, frag2, block1, block2, frag3, frag4))
+	UFSD("frag1 %u, frag2 %u, block1 %u, block2 %u, frag3 %u, frag4 %u\n", frag1, frag2, block1, block2, frag3, frag4);
 
 	if (frag1 >= frag2)
 		goto next1;		
@@ -171,7 +163,7 @@ next1:
 	ufs_free_fragments (inode, tmp, frag4);
  next3:
 
-	UFSD(("EXIT\n"))
+	UFSD("EXIT\n");
 	return retry;
 }
 
@@ -186,7 +178,7 @@ static int ufs_trunc_indirect (struct inode * inode, unsigned offset, __fs32 *p)
 	unsigned frag_to_free, free_count;
 	int retry;
 
-	UFSD(("ENTER\n"))
+	UFSD("ENTER\n");
 		
 	sb = inode->i_sb;
 	uspi = UFS_SB(sb)->s_uspi;
@@ -252,7 +244,7 @@ static int ufs_trunc_indirect (struct inode * inode, unsigned offset, __fs32 *p)
 	}
 	ubh_brelse (ind_ubh);
 	
-	UFSD(("EXIT\n"))
+	UFSD("EXIT\n");
 	
 	return retry;
 }
@@ -266,7 +258,7 @@ static int ufs_trunc_dindirect (struct inode *inode, unsigned offset, __fs32 *p)
 	__fs32 * dind;
 	int retry = 0;
 	
-	UFSD(("ENTER\n"))
+	UFSD("ENTER\n");
 	
 	sb = inode->i_sb;
 	uspi = UFS_SB(sb)->s_uspi;
@@ -315,7 +307,7 @@ static int ufs_trunc_dindirect (struct inode *inode, unsigned offset, __fs32 *p)
 	}
 	ubh_brelse (dind_bh);
 	
-	UFSD(("EXIT\n"))
+	UFSD("EXIT\n");
 	
 	return retry;
 }
@@ -330,7 +322,7 @@ static int ufs_trunc_tindirect (struct inode * inode)
 	__fs32 * tind, * p;
 	int retry;
 	
-	UFSD(("ENTER\n"))
+	UFSD("ENTER\n");
 
 	sb = inode->i_sb;
 	uspi = UFS_SB(sb)->s_uspi;
@@ -375,7 +367,7 @@ static int ufs_trunc_tindirect (struct inode * inode)
 	}
 	ubh_brelse (tind_bh);
 	
-	UFSD(("EXIT\n"))
+	UFSD("EXIT\n");
 	return retry;
 }
 		
@@ -386,7 +378,7 @@ void ufs_truncate (struct inode * inode)
 	struct ufs_sb_private_info * uspi;
 	int retry;
 	
-	UFSD(("ENTER\n"))
+	UFSD("ENTER\n");
 	sb = inode->i_sb;
 	uspi = UFS_SB(sb)->s_uspi;
 
@@ -417,5 +409,5 @@ void ufs_truncate (struct inode * inode)
 	ufsi->i_lastfrag = DIRECT_FRAGMENT;
 	unlock_kernel();
 	mark_inode_dirty(inode);
-	UFSD(("EXIT\n"))
+	UFSD("EXIT\n");
 }

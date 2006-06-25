@@ -25,14 +25,6 @@
 #include "swab.h"
 #include "util.h"
 
-#undef UFS_DIR_DEBUG
-
-#ifdef UFS_DIR_DEBUG
-#define UFSD(x) printk("(%s, %d), %s: ", __FILE__, __LINE__, __FUNCTION__); printk x;
-#else
-#define UFSD(x)
-#endif
-
 /*
  * NOTE! unlike strncmp, ufs_match returns 1 for success, 0 for failure.
  *
@@ -262,7 +254,7 @@ struct ufs_dir_entry *ufs_find_entry(struct inode *dir, struct dentry *dentry,
 	struct page *page = NULL;
 	struct ufs_dir_entry *de;
 
-	UFSD(("ENTER, dir_ino %lu, name %s, namlen %u\n", dir->i_ino, name, namelen));
+	UFSD("ENTER, dir_ino %lu, name %s, namlen %u\n", dir->i_ino, name, namelen);
 
 	if (npages == 0 || namelen > UFS_MAXNAMLEN)
 		goto out;
@@ -326,7 +318,7 @@ int ufs_add_link(struct dentry *dentry, struct inode *inode)
 	unsigned from, to;
 	int err;
 
-	UFSD(("ENTER, name %s, namelen %u\n", name, namelen));
+	UFSD("ENTER, name %s, namelen %u\n", name, namelen);
 
 	/*
 	 * We take care of directory expansion in the same loop.
@@ -442,7 +434,7 @@ ufs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	int need_revalidate = filp->f_version != inode->i_version;
 	unsigned flags = UFS_SB(sb)->s_flags;
 
-	UFSD(("BEGIN"));
+	UFSD("BEGIN\n");
 
 	if (pos > inode->i_size - UFS_DIR_REC_LEN(1))
 		return 0;
@@ -484,9 +476,9 @@ ufs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 
 				offset = (char *)de - kaddr;
 
-				UFSD(("filldir(%s,%u)\n", de->d_name,
-				      fs32_to_cpu(sb, de->d_ino)));
-				UFSD(("namlen %u\n", ufs_get_de_namlen(sb, de)));
+				UFSD("filldir(%s,%u)\n", de->d_name,
+				      fs32_to_cpu(sb, de->d_ino));
+				UFSD("namlen %u\n", ufs_get_de_namlen(sb, de));
 
 				if ((flags & UFS_DE_MASK) == UFS_DE_44BSD)
 					d_type = de->d_u.d_44.d_type;
@@ -524,12 +516,12 @@ int ufs_delete_entry(struct inode *inode, struct ufs_dir_entry *dir,
 	struct ufs_dir_entry *de = (struct ufs_dir_entry *) (kaddr + from);
 	int err;
 
-	UFSD(("ENTER\n"));
+	UFSD("ENTER\n");
 
-	UFSD(("ino %u, reclen %u, namlen %u, name %s\n",
+	UFSD("ino %u, reclen %u, namlen %u, name %s\n",
 	      fs32_to_cpu(sb, de->d_ino),
 	      fs16_to_cpu(sb, de->d_reclen),
-	      ufs_get_de_namlen(sb, de), de->d_name));
+	      ufs_get_de_namlen(sb, de), de->d_name);
 
 	while ((char*)de < (char*)dir) {
 		if (de->d_reclen == 0) {
@@ -554,7 +546,7 @@ int ufs_delete_entry(struct inode *inode, struct ufs_dir_entry *dir,
 	mark_inode_dirty(inode);
 out:
 	ufs_put_page(page);
-	UFSD(("EXIT\n"));
+	UFSD("EXIT\n");
 	return err;
 }
 

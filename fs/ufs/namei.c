@@ -34,17 +34,6 @@
 #include "swab.h"	/* will go away - see comment in mknod() */
 #include "util.h"
 
-/*
-#undef UFS_NAMEI_DEBUG
-*/
-#define UFS_NAMEI_DEBUG
-
-#ifdef UFS_NAMEI_DEBUG
-#define UFSD(x) printk("(%s, %d), %s: ", __FILE__, __LINE__, __FUNCTION__); printk x;
-#else
-#define UFSD(x)
-#endif
-
 static inline int ufs_add_nondir(struct dentry *dentry, struct inode *inode)
 {
 	int err = ufs_add_link(dentry, inode);
@@ -90,8 +79,13 @@ static struct dentry *ufs_lookup(struct inode * dir, struct dentry *dentry, stru
 static int ufs_create (struct inode * dir, struct dentry * dentry, int mode,
 		struct nameidata *nd)
 {
-	struct inode * inode = ufs_new_inode(dir, mode);
-	int err = PTR_ERR(inode);
+	struct inode *inode;
+	int err;
+
+	UFSD("BEGIN\n");
+	inode = ufs_new_inode(dir, mode);
+	err = PTR_ERR(inode);
+
 	if (!IS_ERR(inode)) {
 		inode->i_op = &ufs_file_inode_operations;
 		inode->i_fop = &ufs_file_operations;
@@ -101,6 +95,7 @@ static int ufs_create (struct inode * dir, struct dentry * dentry, int mode,
 		err = ufs_add_nondir(dentry, inode);
 		unlock_kernel();
 	}
+	UFSD("END: err=%d\n", err);
 	return err;
 }
 

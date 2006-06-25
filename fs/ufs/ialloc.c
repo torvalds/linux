@@ -34,14 +34,6 @@
 #include "swab.h"
 #include "util.h"
 
-#undef UFS_IALLOC_DEBUG
-
-#ifdef UFS_IALLOC_DEBUG
-#define UFSD(x) printk("(%s, %d), %s: ", __FILE__, __LINE__, __FUNCTION__); printk x;
-#else
-#define UFSD(x)
-#endif
-
 /*
  * NOTE! When we get the inode, we're the only people
  * that have access to it, and as such there are no
@@ -68,7 +60,7 @@ void ufs_free_inode (struct inode * inode)
 	int is_directory;
 	unsigned ino, cg, bit;
 	
-	UFSD(("ENTER, ino %lu\n", inode->i_ino))
+	UFSD("ENTER, ino %lu\n", inode->i_ino);
 
 	sb = inode->i_sb;
 	uspi = UFS_SB(sb)->s_uspi;
@@ -130,7 +122,7 @@ void ufs_free_inode (struct inode * inode)
 	
 	sb->s_dirt = 1;
 	unlock_super (sb);
-	UFSD(("EXIT\n"))
+	UFSD("EXIT\n");
 }
 
 /*
@@ -155,7 +147,7 @@ struct inode * ufs_new_inode(struct inode * dir, int mode)
 	unsigned cg, bit, i, j, start;
 	struct ufs_inode_info *ufsi;
 
-	UFSD(("ENTER\n"))
+	UFSD("ENTER\n");
 	
 	/* Cannot create files in a deleted directory */
 	if (!dir || !dir->i_nlink)
@@ -227,7 +219,7 @@ cg_found:
 			goto failed;
 		}
 	}
-	UFSD(("start = %u, bit = %u, ipg = %u\n", start, bit, uspi->s_ipg))
+	UFSD("start = %u, bit = %u, ipg = %u\n", start, bit, uspi->s_ipg);
 	if (ubh_isclr (UCPI_UBH(ucpi), ucpi->c_iusedoff, bit))
 		ubh_setbit (UCPI_UBH(ucpi), ucpi->c_iusedoff, bit);
 	else {
@@ -287,14 +279,14 @@ cg_found:
 		return ERR_PTR(-EDQUOT);
 	}
 
-	UFSD(("allocating inode %lu\n", inode->i_ino))
-	UFSD(("EXIT\n"))
+	UFSD("allocating inode %lu\n", inode->i_ino);
+	UFSD("EXIT\n");
 	return inode;
 
 failed:
 	unlock_super (sb);
 	make_bad_inode(inode);
 	iput (inode);
-	UFSD(("EXIT (FAILED)\n"))
+	UFSD("EXIT (FAILED)\n");
 	return ERR_PTR(-ENOSPC);
 }

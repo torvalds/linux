@@ -1375,6 +1375,14 @@ config UFS_FS_WRITE
 	  Say Y here if you want to try writing to UFS partitions. This is
 	  experimental, so you should back up your UFS partitions beforehand.
 
+config UFS_DEBUG
+	bool "UFS debugging"
+	depends on UFS_FS
+	help
+	  If you are experiencing any problems with the UFS filesystem, say
+	  Y here.  This will result in _many_ additional debugging messages to be
+	  written to the system log.
+
 endmenu
 
 menu "Network File Systems"

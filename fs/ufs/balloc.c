@@ -21,14 +21,6 @@
 #include "swab.h"
 #include "util.h"
 
-#undef UFS_BALLOC_DEBUG
-
-#ifdef UFS_BALLOC_DEBUG
-#define UFSD(x) printk("(%s, %d), %s:", __FILE__, __LINE__, __FUNCTION__); printk x;
-#else
-#define UFSD(x)
-#endif
-
 static unsigned ufs_add_fragments (struct inode *, unsigned, unsigned, unsigned, int *);
 static unsigned ufs_alloc_fragments (struct inode *, unsigned, unsigned, unsigned, int *);
 static unsigned ufs_alloccg_block (struct inode *, struct ufs_cg_private_info *, unsigned, int *);
@@ -52,7 +44,7 @@ void ufs_free_fragments(struct inode *inode, unsigned fragment, unsigned count)
 	uspi = UFS_SB(sb)->s_uspi;
 	usb1 = ubh_get_usb_first(uspi);
 	
-	UFSD(("ENTER, fragment %u, count %u\n", fragment, count))
+	UFSD("ENTER, fragment %u, count %u\n", fragment, count);
 	
 	if (ufs_fragnum(fragment) + count > uspi->s_fpg)
 		ufs_error (sb, "ufs_free_fragments", "internal error");
@@ -123,12 +115,12 @@ void ufs_free_fragments(struct inode *inode, unsigned fragment, unsigned count)
 	sb->s_dirt = 1;
 	
 	unlock_super (sb);
-	UFSD(("EXIT\n"))
+	UFSD("EXIT\n");
 	return;
 
 failed:
 	unlock_super (sb);
-	UFSD(("EXIT (FAILED)\n"))
+	UFSD("EXIT (FAILED)\n");
 	return;
 }
 
@@ -148,7 +140,7 @@ void ufs_free_blocks(struct inode *inode, unsigned fragment, unsigned count)
 	uspi = UFS_SB(sb)->s_uspi;
 	usb1 = ubh_get_usb_first(uspi);
 
-	UFSD(("ENTER, fragment %u, count %u\n", fragment, count))
+	UFSD("ENTER, fragment %u, count %u\n", fragment, count);
 	
 	if ((fragment & uspi->s_fpbmask) || (count & uspi->s_fpbmask)) {
 		ufs_error (sb, "ufs_free_blocks", "internal error, "
@@ -215,12 +207,12 @@ do_more:
 
 	sb->s_dirt = 1;
 	unlock_super (sb);
-	UFSD(("EXIT\n"))
+	UFSD("EXIT\n");
 	return;
 
 failed:
 	unlock_super (sb);
-	UFSD(("EXIT (FAILED)\n"))
+	UFSD("EXIT (FAILED)\n");
 	return;
 }
 
@@ -290,8 +282,8 @@ static void ufs_change_blocknr(struct inode *inode, unsigned int count,
 
 	baseblk = ((i_size_read(inode) - 1) >> inode->i_blkbits) + 1 - count;
 
-	UFSD(("ENTER, ino %lu, count %u, oldb %u, newb %u\n",
-	      inode->i_ino, count, oldb, newb));
+	UFSD("ENTER, ino %lu, count %u, oldb %u, newb %u\n",
+	      inode->i_ino, count, oldb, newb);
 
 	BUG_ON(!PageLocked(locked_page));
 
@@ -326,7 +318,7 @@ static void ufs_change_blocknr(struct inode *inode, unsigned int count,
 			page_cache_release(page);
 		}
  	}
-	UFSD(("EXIT\n"));
+	UFSD("EXIT\n");
 }
 
 unsigned ufs_new_fragments(struct inode * inode, __fs32 * p, unsigned fragment,
@@ -337,7 +329,7 @@ unsigned ufs_new_fragments(struct inode * inode, __fs32 * p, unsigned fragment,
 	struct ufs_super_block_first * usb1;
 	unsigned cgno, oldcount, newcount, tmp, request, result;
 	
-	UFSD(("ENTER, ino %lu, fragment %u, goal %u, count %u\n", inode->i_ino, fragment, goal, count))
+	UFSD("ENTER, ino %lu, fragment %u, goal %u, count %u\n", inode->i_ino, fragment, goal, count);
 	
 	sb = inode->i_sb;
 	uspi = UFS_SB(sb)->s_uspi;
@@ -366,14 +358,14 @@ unsigned ufs_new_fragments(struct inode * inode, __fs32 * p, unsigned fragment,
 			return (unsigned)-1;
 		}
 		if (fragment < UFS_I(inode)->i_lastfrag) {
-			UFSD(("EXIT (ALREADY ALLOCATED)\n"))
+			UFSD("EXIT (ALREADY ALLOCATED)\n");
 			unlock_super (sb);
 			return 0;
 		}
 	}
 	else {
 		if (tmp) {
-			UFSD(("EXIT (ALREADY ALLOCATED)\n"))
+			UFSD("EXIT (ALREADY ALLOCATED)\n");
 			unlock_super(sb);
 			return 0;
 		}
@@ -384,7 +376,7 @@ unsigned ufs_new_fragments(struct inode * inode, __fs32 * p, unsigned fragment,
 	 */
 	if (!capable(CAP_SYS_RESOURCE) && ufs_freespace(usb1, UFS_MINFREE) <= 0) {
 		unlock_super (sb);
-		UFSD(("EXIT (FAILED)\n"))
+		UFSD("EXIT (FAILED)\n");
 		return 0;
 	}
 
@@ -407,7 +399,7 @@ unsigned ufs_new_fragments(struct inode * inode, __fs32 * p, unsigned fragment,
 			UFS_I(inode)->i_lastfrag = max_t(u32, UFS_I(inode)->i_lastfrag, fragment + count);
 		}
 		unlock_super(sb);
-		UFSD(("EXIT, result %u\n", result))
+		UFSD("EXIT, result %u\n", result);
 		return result;
 	}
 
@@ -420,7 +412,7 @@ unsigned ufs_new_fragments(struct inode * inode, __fs32 * p, unsigned fragment,
 		inode->i_blocks += count << uspi->s_nspfshift;
 		UFS_I(inode)->i_lastfrag = max_t(u32, UFS_I(inode)->i_lastfrag, fragment + count);
 		unlock_super(sb);
-		UFSD(("EXIT, result %u\n", result))
+		UFSD("EXIT, result %u\n", result);
 		return result;
 	}
 
@@ -458,12 +450,12 @@ unsigned ufs_new_fragments(struct inode * inode, __fs32 * p, unsigned fragment,
 		if (newcount < request)
 			ufs_free_fragments (inode, result + newcount, request - newcount);
 		ufs_free_fragments (inode, tmp, oldcount);
-		UFSD(("EXIT, result %u\n", result))
+		UFSD("EXIT, result %u\n", result);
 		return result;
 	}
 
 	unlock_super(sb);
-	UFSD(("EXIT (FAILED)\n"))
+	UFSD("EXIT (FAILED)\n");
 	return 0;
 }		
 
@@ -478,7 +470,7 @@ ufs_add_fragments (struct inode * inode, unsigned fragment,
 	struct ufs_cylinder_group * ucg;
 	unsigned cgno, fragno, fragoff, count, fragsize, i;
 	
-	UFSD(("ENTER, fragment %u, oldcount %u, newcount %u\n", fragment, oldcount, newcount))
+	UFSD("ENTER, fragment %u, oldcount %u, newcount %u\n", fragment, oldcount, newcount);
 	
 	sb = inode->i_sb;
 	uspi = UFS_SB(sb)->s_uspi;
@@ -538,7 +530,7 @@ ufs_add_fragments (struct inode * inode, unsigned fragment,
 	}
 	sb->s_dirt = 1;
 
-	UFSD(("EXIT, fragment %u\n", fragment))
+	UFSD("EXIT, fragment %u\n", fragment);
 	
 	return fragment;
 }
@@ -561,7 +553,7 @@ static unsigned ufs_alloc_fragments (struct inode * inode, unsigned cgno,
 	struct ufs_cylinder_group * ucg;
 	unsigned oldcg, i, j, k, result, allocsize;
 	
-	UFSD(("ENTER, ino %lu, cgno %u, goal %u, count %u\n", inode->i_ino, cgno, goal, count))
+	UFSD("ENTER, ino %lu, cgno %u, goal %u, count %u\n", inode->i_ino, cgno, goal, count);
 
 	sb = inode->i_sb;
 	uspi = UFS_SB(sb)->s_uspi;
@@ -595,7 +587,7 @@ static unsigned ufs_alloc_fragments (struct inode * inode, unsigned cgno,
 		UFS_TEST_FREE_SPACE_CG
 	}
 	
-	UFSD(("EXIT (FAILED)\n"))
+	UFSD("EXIT (FAILED)\n");
 	return 0;
 
 cg_found:
@@ -664,7 +656,7 @@ succed:
 	sb->s_dirt = 1;
 
 	result += cgno * uspi->s_fpg;
-	UFSD(("EXIT3, result %u\n", result))
+	UFSD("EXIT3, result %u\n", result);
 	return result;
 }
 
@@ -677,7 +669,7 @@ static unsigned ufs_alloccg_block (struct inode * inode,
 	struct ufs_cylinder_group * ucg;
 	unsigned result, cylno, blkno;
 
-	UFSD(("ENTER, goal %u\n", goal))
+	UFSD("ENTER, goal %u\n", goal);
 
 	sb = inode->i_sb;
 	uspi = UFS_SB(sb)->s_uspi;
@@ -721,7 +713,7 @@ gotit:
 	fs16_sub(sb, &ubh_cg_blks(ucpi, cylno, ufs_cbtorpos(result)), 1);
 	fs32_sub(sb, &ubh_cg_blktot(ucpi, cylno), 1);
 	
-	UFSD(("EXIT, result %u\n", result))
+	UFSD("EXIT, result %u\n", result);
 
 	return result;
 }
@@ -781,7 +773,7 @@ static unsigned ufs_bitmap_search(struct super_block *sb,
 	unsigned start, length, loc, result;
 	unsigned pos, want, blockmap, mask, end;
 
-	UFSD(("ENTER, cg %u, goal %u, count %u\n", ucpi->c_cgx, goal, count));
+	UFSD("ENTER, cg %u, goal %u, count %u\n", ucpi->c_cgx, goal, count);
 
 	usb1 = ubh_get_usb_first (uspi);
 	ucg = ubh_get_ucg(UCPI_UBH(ucpi));
@@ -825,7 +817,7 @@ static unsigned ufs_bitmap_search(struct super_block *sb,
 		want = want_arr[count];
 		for (pos = 0; pos <= uspi->s_fpb - count; pos++) {
 			if ((blockmap & mask) == want) {
-				UFSD(("EXIT, result %u\n", result));
+				UFSD("EXIT, result %u\n", result);
 				return result + pos;
  			}
 			mask <<= 1;
@@ -835,7 +827,7 @@ static unsigned ufs_bitmap_search(struct super_block *sb,
 
 	ufs_error(sb, "ufs_bitmap_search", "block not in map on cg %u\n",
 		  ucpi->c_cgx);
-	UFSD(("EXIT (FAILED)\n"));
+	UFSD("EXIT (FAILED)\n");
 	return (unsigned)-1;
 }
 
