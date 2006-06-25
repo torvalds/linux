@@ -1,6 +1,8 @@
 #ifndef _M68K_DMA_MAPPING_H
 #define _M68K_DMA_MAPPING_H
 
+#include <asm/cache.h>
+
 struct scatterlist;
 
 static inline int dma_supported(struct device *dev, u64 mask)
@@ -13,10 +15,36 @@ static inline int dma_set_mask(struct device *dev, u64 mask)
 	return 0;
 }
 
+static inline int dma_get_cache_alignment(void)
+{
+	return 1 << L1_CACHE_SHIFT;
+}
+
+static inline int dma_is_consistent(dma_addr_t dma_addr)
+{
+	return 0;
+}
+
 extern void *dma_alloc_coherent(struct device *, size_t,
 				dma_addr_t *, int);
 extern void dma_free_coherent(struct device *, size_t,
 			      void *, dma_addr_t);
+
+static inline void *dma_alloc_noncoherent(struct device *dev, size_t size,
+					  dma_addr_t *handle, int flag)
+{
+	return dma_alloc_coherent(dev, size, handle, flag);
+}
+static inline void dma_free_noncoherent(struct device *dev, size_t size,
+					void *addr, dma_addr_t handle)
+{
+	dma_free_coherent(dev, size, addr, handle);
+}
+static inline void dma_cache_sync(void *vaddr, size_t size,
+				  enum dma_data_direction dir)
+{
+	/* we use coherent allocation, so not much to do here. */
+}
 
 extern dma_addr_t dma_map_single(struct device *, void *, size_t,
 				 enum dma_data_direction);
