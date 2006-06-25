@@ -145,7 +145,7 @@ static void suspend_finish(suspend_state_t state)
 
 
 
-static char *pm_states[PM_SUSPEND_MAX] = {
+static const char * const pm_states[PM_SUSPEND_MAX] = {
 	[PM_SUSPEND_STANDBY]	= "standby",
 	[PM_SUSPEND_MEM]	= "mem",
 #ifdef CONFIG_SOFTWARE_SUSPEND
@@ -262,7 +262,7 @@ static ssize_t state_show(struct subsystem * subsys, char * buf)
 static ssize_t state_store(struct subsystem * subsys, const char * buf, size_t n)
 {
 	suspend_state_t state = PM_SUSPEND_STANDBY;
-	char ** s;
+	const char * const *s;
 	char *p;
 	int error;
 	int len;
