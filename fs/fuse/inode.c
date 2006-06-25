@@ -16,6 +16,7 @@
 #include <linux/module.h>
 #include <linux/parser.h>
 #include <linux/statfs.h>
+#include <linux/random.h>
 
 MODULE_AUTHOR("Miklos Szeredi <miklos@szeredi.hu>");
 MODULE_DESCRIPTION("Filesystem in Userspace");
@@ -387,6 +388,7 @@ static struct fuse_conn *new_conn(void)
 		fc->bdi.unplug_io_fn = default_unplug_io_fn;
 		fc->reqctr = 0;
 		fc->blocked = 1;
+		get_random_bytes(&fc->scramble_key, sizeof(fc->scramble_key));
 	}
 	return fc;
 }

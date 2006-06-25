@@ -161,15 +161,25 @@ static int fuse_release(struct inode *inode, struct file *file)
 }
 
 /*
- * It would be nice to scramble the ID space, so that the value of the
- * files_struct pointer is not exposed to userspace.  Symmetric crypto
- * functions are overkill, since the inverse function doesn't need to
- * be implemented (though it does have to exist).  Is there something
- * simpler?
+ * Scramble the ID space with XTEA, so that the value of the files_struct
+ * pointer is not exposed to userspace.
  */
-static inline u64 fuse_lock_owner_id(fl_owner_t id)
+static u64 fuse_lock_owner_id(struct fuse_conn *fc, fl_owner_t id)
 {
-	return (unsigned long) id;
+	u32 *k = fc->scramble_key;
+	u64 v = (unsigned long) id;
+	u32 v0 = v;
+	u32 v1 = v >> 32;
+	u32 sum = 0;
+	int i;
+
+	for (i = 0; i < 32; i++) {
+		v0 += ((v1 << 4 ^ v1 >> 5) + v1) ^ (sum + k[sum & 3]);
+		sum += 0x9E3779B9;
+		v1 += ((v0 << 4 ^ v0 >> 5) + v0) ^ (sum + k[sum>>11 & 3]);
+	}
+
+	return (u64) v0 + ((u64) v1 << 32);
 }
 
 static int fuse_flush(struct file *file, fl_owner_t id)
@@ -190,7 +200,7 @@ static int fuse_flush(struct file *file, fl_owner_t id)
 	req = fuse_get_req_nofail(fc, file);
 	memset(&inarg, 0, sizeof(inarg));
 	inarg.fh = ff->fh;
-	inarg.lock_owner = fuse_lock_owner_id(id);
+	inarg.lock_owner = fuse_lock_owner_id(fc, id);
 	req->in.h.opcode = FUSE_FLUSH;
 	req->in.h.nodeid = get_node_id(inode);
 	req->in.numargs = 1;
@@ -644,11 +654,12 @@ static void fuse_lk_fill(struct fuse_req *req, struct file *file,
 			 const struct file_lock *fl, int opcode, pid_t pid)
 {
 	struct inode *inode = file->f_dentry->d_inode;
+	struct fuse_conn *fc = get_fuse_conn(inode);
 	struct fuse_file *ff = file->private_data;
 	struct fuse_lk_in *arg = &req->misc.lk_in;
 
 	arg->fh = ff->fh;
-	arg->owner = fuse_lock_owner_id(fl->fl_owner);
+	arg->owner = fuse_lock_owner_id(fc, fl->fl_owner);
 	arg->lk.start = fl->fl_start;
 	arg->lk.end = fl->fl_end;
 	arg->lk.type = fl->fl_type;

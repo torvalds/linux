@@ -359,6 +359,9 @@ struct fuse_conn {
 
 	/** O_ASYNC requests */
 	struct fasync_struct *fasync;
+
+	/** Key for lock owner ID scrambling */
+	u32 scramble_key[4];
 };
 
 static inline struct fuse_conn *get_fuse_conn_super(struct super_block *sb)
