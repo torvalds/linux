@@ -854,7 +854,6 @@ static int ext2_fill_super(struct super_block *sb, void *data, int silent)
 	}
 	if (!ext2_check_descriptors (sb)) {
 		printk ("EXT2-fs: group descriptors corrupted!\n");
-		db_count = i;
 		goto failed_mount2;
 	}
 	sbi->s_gdb_count = db_count;
