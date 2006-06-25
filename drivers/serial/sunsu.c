@@ -1053,7 +1053,7 @@ static void sunsu_autoconfig(struct uart_sunsu_port *up)
 	 */
 	for_each_ebus(ebus) {
 		for_each_ebusdev(dev, ebus) {
-			if (dev->prom_node == up->port_node) {
+			if (dev->prom_node->node == up->port_node) {
 				/*
 				 * The EBus is broken on sparc; it delivers
 				 * virtual addresses in resources. Oh well...
@@ -1073,7 +1073,7 @@ static void sunsu_autoconfig(struct uart_sunsu_port *up)
 #ifdef CONFIG_SPARC64
 	for_each_isa(isa_br) {
 		for_each_isadev(isa_dev, isa_br) {
-			if (isa_dev->prom_node == up->port_node) {
+			if (isa_dev->prom_node->node == up->port_node) {
 				/* Same on sparc64. Cool architecure... */
 				up->port.membase = (char *) isa_dev->resource.start;
 				up->port.mapbase = isa_dev->resource.start;

@@ -928,7 +928,7 @@ static int __init rtc_init(void)
 #ifdef __sparc__
 	for_each_ebus(ebus) {
 		for_each_ebusdev(edev, ebus) {
-			if(strcmp(edev->prom_name, "rtc") == 0) {
+			if(strcmp(edev->prom_node->name, "rtc") == 0) {
 				rtc_port = edev->resource[0].start;
 				rtc_irq = edev->irqs[0];
 				goto found;
@@ -938,7 +938,7 @@ static int __init rtc_init(void)
 #ifdef __sparc_v9__
 	for_each_isa(isa_br) {
 		for_each_isadev(isa_dev, isa_br) {
-			if (strcmp(isa_dev->prom_name, "rtc") == 0) {
+			if (strcmp(isa_dev->prom_node->name, "rtc") == 0) {
 				rtc_port = isa_dev->resource.start;
 				rtc_irq = isa_dev->irq;
 				goto found;

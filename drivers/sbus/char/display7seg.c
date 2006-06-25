@@ -184,7 +184,7 @@ static int __init d7s_init(void)
 
 	for_each_ebus(ebus) {
 		for_each_ebusdev(edev, ebus) {
-			if (!strcmp(edev->prom_name, D7S_OBPNAME))
+			if (!strcmp(edev->prom_node->name, D7S_OBPNAME))
 				goto ebus_done;
 		}
 	}

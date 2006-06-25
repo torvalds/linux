@@ -17,6 +17,7 @@
 #include <asm/iommu.h>
 #include <asm/irq.h>
 #include <asm/starfire.h>
+#include <asm/prom.h>
 
 #include "pci_impl.h"
 #include "iommu_common.h"
@@ -1291,11 +1292,12 @@ static void psycho_pbm_strbuf_init(struct pci_controller_info *p,
 #define PSYCHO_MEMSPACE_SIZE	0x07fffffffUL
 
 static void psycho_pbm_init(struct pci_controller_info *p,
-			    int prom_node, int is_pbm_a)
+			    struct device_node *dp, int is_pbm_a)
 {
-	unsigned int busrange[2];
+	unsigned int *busrange;
+	struct property *prop;
 	struct pci_pbm_info *pbm;
-	int err;
+	int len;
 
 	if (is_pbm_a) {
 		pbm = &p->pbm_A;
@@ -1310,10 +1312,14 @@ static void psycho_pbm_init(struct pci_controller_info *p,
 	}
 
 	pbm->chip_type = PBM_CHIP_TYPE_PSYCHO;
-	pbm->chip_version =
-		prom_getintdefault(prom_node, "version#", 0);
-	pbm->chip_revision =
-		prom_getintdefault(prom_node, "module-revision#", 0);
+	pbm->chip_version = 0;
+	prop = of_find_property(dp, "version#", NULL);
+	if (prop)
+		pbm->chip_version = *(int *) prop->value;
+	pbm->chip_revision = 0;
+	prop = of_find_property(dp, "module-revision#", NULL);
+	if (prop)
+		pbm->chip_revision = *(int *) prop->value;
 
 	pbm->io_space.end = pbm->io_space.start + PSYCHO_IOSPACE_SIZE;
 	pbm->io_space.flags = IORESOURCE_IO;
@@ -1322,45 +1328,36 @@ static void psycho_pbm_init(struct pci_controller_info *p,
 	pbm_register_toplevel_resources(p, pbm);
 
 	pbm->parent = p;
-	pbm->prom_node = prom_node;
-	prom_getstring(prom_node, "name",
-		       pbm->prom_name,
-		       sizeof(pbm->prom_name));
+	pbm->prom_node = dp;
+	pbm->name = dp->full_name;
 
-	err = prom_getproperty(prom_node, "ranges",
-			       (char *)pbm->pbm_ranges,
-			       sizeof(pbm->pbm_ranges));
-	if (err != -1)
+	printk("%s: PSYCHO PCI Bus Module ver[%x:%x]\n",
+	       pbm->name,
+	       pbm->chip_version, pbm->chip_revision);
+
+	prop = of_find_property(dp, "ranges", &len);
+	if (prop) {
+		pbm->pbm_ranges = prop->value;
 		pbm->num_pbm_ranges =
-			(err / sizeof(struct linux_prom_pci_ranges));
-	else
+			(len / sizeof(struct linux_prom_pci_ranges));
+	} else {
 		pbm->num_pbm_ranges = 0;
+	}
 
-	err = prom_getproperty(prom_node, "interrupt-map",
-			       (char *)pbm->pbm_intmap,
-			       sizeof(pbm->pbm_intmap));
-	if (err != -1) {
-		pbm->num_pbm_intmap = (err / sizeof(struct linux_prom_pci_intmap));
-		err = prom_getproperty(prom_node, "interrupt-map-mask",
-				       (char *)&pbm->pbm_intmask,
-				       sizeof(pbm->pbm_intmask));
-		if (err == -1) {
-			prom_printf("PSYCHO-PBM: Fatal error, no "
-				    "interrupt-map-mask.\n");
-			prom_halt();
-		}
+	prop = of_find_property(dp, "interrupt-map", &len);
+	if (prop) {
+		pbm->pbm_intmap = prop->value;
+		pbm->num_pbm_intmap =
+			(len / sizeof(struct linux_prom_pci_intmap));
+
+		prop = of_find_property(dp, "interrupt-map-mask", NULL);
+		pbm->pbm_intmask = prop->value;
 	} else {
 		pbm->num_pbm_intmap = 0;
-		memset(&pbm->pbm_intmask, 0, sizeof(pbm->pbm_intmask));
 	}
 
-	err = prom_getproperty(prom_node, "bus-range",
-			       (char *)&busrange[0],
-			       sizeof(busrange));
-	if (err == 0 || err == -1) {
-		prom_printf("PSYCHO-PBM: Fatal error, no bus-range.\n");
-		prom_halt();
-	}
+	prop = of_find_property(dp, "bus-range", NULL);
+	busrange = prop->value;
 	pbm->pci_first_busno = busrange[0];
 	pbm->pci_last_busno = busrange[1];
 
@@ -1369,20 +1366,24 @@ static void psycho_pbm_init(struct pci_controller_info *p,
 
 #define PSYCHO_CONFIGSPACE	0x001000000UL
 
-void psycho_init(int node, char *model_name)
+void psycho_init(struct device_node *dp, char *model_name)
 {
-	struct linux_prom64_registers pr_regs[3];
+	struct linux_prom64_registers *pr_regs;
 	struct pci_controller_info *p;
 	struct pci_iommu *iommu;
+	struct property *prop;
 	u32 upa_portid;
-	int is_pbm_a, err;
+	int is_pbm_a;
 
-	upa_portid = prom_getintdefault(node, "upa-portid", 0xff);
+	upa_portid = 0xff;
+	prop = of_find_property(dp, "upa-portid", NULL);
+	if (prop)
+		upa_portid = *(u32 *) prop->value;
 
 	for(p = pci_controller_root; p; p = p->next) {
 		if (p->pbm_A.portid == upa_portid) {
-			is_pbm_a = (p->pbm_A.prom_node == 0);
-			psycho_pbm_init(p, node, is_pbm_a);
+			is_pbm_a = (p->pbm_A.prom_node == NULL);
+			psycho_pbm_init(p, dp, is_pbm_a);
 			return;
 		}
 	}
@@ -1412,23 +1413,14 @@ void psycho_init(int node, char *model_name)
 	p->resource_adjust = psycho_resource_adjust;
 	p->pci_ops = &psycho_ops;
 
-	err = prom_getproperty(node, "reg",
-			       (char *)&pr_regs[0],
-			       sizeof(pr_regs));
-	if (err == 0 || err == -1) {
-		prom_printf("PSYCHO: Fatal error, no reg property.\n");
-		prom_halt();
-	}
+	prop = of_find_property(dp, "reg", NULL);
+	pr_regs = prop->value;
 
 	p->pbm_A.controller_regs = pr_regs[2].phys_addr;
 	p->pbm_B.controller_regs = pr_regs[2].phys_addr;
-	printk("PCI: Found PSYCHO, control regs at %016lx\n",
-	       p->pbm_A.controller_regs);
 
 	p->pbm_A.config_space = p->pbm_B.config_space =
 		(pr_regs[2].phys_addr + PSYCHO_CONFIGSPACE);
-	printk("PSYCHO: Shared PCI config space at %016lx\n",
-	       p->pbm_A.config_space);
 
 	/*
 	 * Psycho's PCI MEM space is mapped to a 2GB aligned area, so
@@ -1441,5 +1433,5 @@ void psycho_init(int node, char *model_name)
 	psycho_iommu_init(p);
 
 	is_pbm_a = ((pr_regs[0].phys_addr & 0x6000) == 0x2000);
-	psycho_pbm_init(p, node, is_pbm_a);
+	psycho_pbm_init(p, dp, is_pbm_a);
 }

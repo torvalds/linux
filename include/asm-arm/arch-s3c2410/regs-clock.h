@@ -1,6 +1,6 @@
 /* linux/include/asm/arch-s3c2410/regs-clock.h
  *
- * Copyright (c) 2003,2004,2005 Simtec Electronics <linux@simtec.co.uk>
+ * Copyright (c) 2003,2004,2005,2006 Simtec Electronics <linux@simtec.co.uk>
  *		      http://armlinux.simtec.co.uk/
  *
  * This program is free software; you can redistribute it and/or modify
@@ -140,5 +140,66 @@ s3c2410_get_pll(unsigned int pllval, unsigned int baseclk)
 
 #endif /* CONFIG_CPU_S3C2440 or CONFIG_CPU_S3C2442 */
 
+#if defined(CONFIG_CPU_S3C2412) || defined(CONFIG_CPU_S3C2413)
+
+#define S3C2412_OSCSET		S3C2410_CLKREG(0x18)
+#define S3C2412_CLKSRC		S3C2410_CLKREG(0x1C)
+
+#define S3C2412_PLLCON_OFF		(1<<20)
+
+#define S3C2412_CLKDIVN_PDIVN		(1<<2)
+#define S3C2412_CLKDIVN_HDIVN_MASK	(3<<0)
+#define S3C2421_CLKDIVN_ARMDIVN		(1<<3)
+#define S3C2412_CLKDIVN_USB48DIV	(1<<6)
+#define S3C2412_CLKDIVN_UARTDIV_MASK	(15<<8)
+#define S3C2412_CLKDIVN_UARTDIV_SHIFT	(8)
+#define S3C2412_CLKDIVN_I2SDIV_MASK	(15<<12)
+#define S3C2412_CLKDIVN_I2SDIV_SHIFT	(12)
+#define S3C2412_CLKDIVN_CAMDIV_MASK	(15<<16)
+#define S3C2412_CLKDIVN_CAMDIV_SHIFT	(16)
+
+#define S3C2412_CLKCON_WDT		(1<<28)
+#define S3C2412_CLKCON_SPI		(1<<27)
+#define S3C2412_CLKCON_IIS		(1<<26)
+#define S3C2412_CLKCON_IIC		(1<<25)
+#define S3C2412_CLKCON_ADC		(1<<24)
+#define S3C2412_CLKCON_RTC		(1<<23)
+#define S3C2412_CLKCON_GPIO		(1<<22)
+#define S3C2412_CLKCON_UART2		(1<<21)
+#define S3C2412_CLKCON_UART1		(1<<20)
+#define S3C2412_CLKCON_UART0		(1<<19)
+#define S3C2412_CLKCON_SDI		(1<<18)
+#define S3C2412_CLKCON_PWMT		(1<<17)
+#define S3C2412_CLKCON_USBD		(1<<16)
+#define S3C2412_CLKCON_CAMCLK		(1<<15)
+#define S3C2412_CLKCON_UARTCLK		(1<<14)
+/* missing 13 */
+#define S3C2412_CLKCON_USB_HOST48	(1<<12)
+#define S3C2412_CLKCON_USB_DEV48	(1<<11)
+#define S3C2412_CLKCON_HCLKdiv2		(1<<10)
+#define S3C2412_CLKCON_HCLKx2		(1<<9)
+#define S3C2412_CLKCON_SDRAM		(1<<8)
+/* missing 7 */
+#define S3C2412_CLKCON_USBH		S3C2410_CLKCON_USBH
+#define S3C2412_CLKCON_LCDC		S3C2410_CLKCON_LCDC
+#define S3C2412_CLKCON_NAND		S3C2410_CLKCON_NAND
+#define S3C2412_CLKCON_DMA3		(1<<3)
+#define S3C2412_CLKCON_DMA2		(1<<2)
+#define S3C2412_CLKCON_DMA1		(1<<1)
+#define S3C2412_CLKCON_DMA0		(1<<0)
+
+/* clock sourec controls */
+
+#define S3C2412_CLKSRC_EXTCLKDIV_MASK		(7 << 0)
+#define S3C2412_CLKSRC_EXTCLKDIV_SHIFT		(0)
+#define S3C2412_CLKSRC_MDIVCLK_EXTCLKDIV	(1<<3)
+#define S3C2412_CLKSRC_MSYSCLK_MPLL		(1<<4)
+#define S3C2412_CLKSRC_USYSCLK_UPLL		(1<<5)
+#define S3C2412_CLKSRC_UARTCLK_MPLL		(1<<8)
+#define S3C2412_CLKSRC_I2SCLK_MPLL		(1<<9)
+#define S3C2412_CLKSRC_USBCLK_HCLK		(1<<10)
+#define S3C2412_CLKSRC_CAMCLK_HCLK		(1<<11)
+
+#endif /* CONFIG_CPU_S3C2412 | CONFIG_CPU_S3C2413 */
 
 #endif /* __ASM_ARM_REGS_CLOCK */

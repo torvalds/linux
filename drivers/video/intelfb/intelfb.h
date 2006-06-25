@@ -237,7 +237,7 @@ struct intelfb_info {
 	u32 fb_start;
 
 	/* ring buffer */
-	u8 __iomem *ring_head;
+	u32 ring_head;
 	u32 ring_tail;
 	u32 ring_tail_mask;
 	u32 ring_space;

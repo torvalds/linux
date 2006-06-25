@@ -25,42 +25,84 @@ the bits necessary to run your device.  The most commonly
 used members of this structure, and their typical usage,
 will be detailed below.
 
-	Here is how probing is performed by an SBUS driver
-under Linux:
+	Here is a piece of skeleton code for perofming a device
+probe in an SBUS driverunder Linux:
 
-	static void init_one_mydevice(struct sbus_dev *sdev)
+	static int __devinit mydevice_probe_one(struct sbus_dev *sdev)
 	{
+		struct mysdevice *mp = kzalloc(sizeof(*mp), GFP_KERNEL);
+
+		if (!mp)
+			return -ENODEV;
+
+		...
+		dev_set_drvdata(&sdev->ofdev.dev, mp);
+		return 0;
 		...
 	}
 
-	static int mydevice_match(struct sbus_dev *sdev)
+	static int __devinit mydevice_probe(struct of_device *dev,
+				            const struct of_device_id *match)
 	{
-		if (some_criteria(sdev))
-			return 1;
-		return 0;
+		struct sbus_dev *sdev = to_sbus_device(&dev->dev);
+
+		return mydevice_probe_one(sdev);
 	}
 
-	static void mydevice_probe(void)
+	static int __devexit mydevice_remove(struct of_device *dev)
 	{
-		struct sbus_bus *sbus;
-		struct sbus_dev *sdev;
+		struct sbus_dev *sdev = to_sbus_device(&dev->dev);
+		struct mydevice *mp = dev_get_drvdata(&dev->dev);
 
-		for_each_sbus(sbus) {
-			for_each_sbusdev(sdev, sbus) {
-				if (mydevice_match(sdev))
-					init_one_mydevice(sdev);
-			}
-		}
+		return mydevice_remove_one(sdev, mp);
 	}
 
-	All this does is walk through all SBUS devices in the
-system, checks each to see if it is of the type which
-your driver is written for, and if so it calls the init
-routine to attach the device and prepare to drive it.
+	static struct of_device_id mydevice_match[] = {
+		{
+			.name = "mydevice",
+		},
+		{},
+	};
 
-	"init_one_mydevice" might do things like allocate software
-state structures, map in I/O registers, place the hardware
-into an initialized state, etc.
+	MODULE_DEVICE_TABLE(of, mydevice_match);
+
+	static struct of_platform_driver mydevice_driver = {
+		.name		= "mydevice",
+		.match_table	= mydevice_match,
+		.probe		= mydevice_probe,
+		.remove		= __devexit_p(mydevice_remove),
+	};
+
+	static int __init mydevice_init(void)
+	{
+		return of_register_driver(&mydevice_driver, &sbus_bus_type);
+	}
+
+	static void __exit mydevice_exit(void)
+	{
+		of_unregister_driver(&mydevice_driver);
+	}
+
+	module_init(mydevice_init);
+	module_exit(mydevice_exit);
+
+	The mydevice_match table is a series of entries which
+describes what SBUS devices your driver is meant for.  In the
+simplest case you specify a string for the 'name' field.  Every
+SBUS device with a 'name' property matching your string will
+be passed one-by-one to your .probe method.
+
+	You should store away your device private state structure
+pointer in the drvdata area so that you can retrieve it later on
+in your .remove method.
+
+	Any memory allocated, registers mapped, IRQs registered,
+etc. must be undone by your .remove method so that all resources
+of your device are relased by the time it returns.
+
+	You should _NOT_ use the for_each_sbus(), for_each_sbusdev(),
+and for_all_sbusdev() interfaces.  They are deprecated, will be
+removed, and no new driver should reference them ever.
 
 		Mapping and Accessing I/O Registers
 
@@ -263,10 +305,3 @@ discussed above and plus it handles both PCI and SBUS boards.
 	Lance driver abuses consistent mappings for data transfer.
 It is a nifty trick which we do not particularly recommend...
 Just check it out and know that it's legal.
-
-			Bad examples, do NOT use
-
-	drivers/video/cgsix.c
-	This one uses result of sbus_ioremap as if it is an address.
-This does NOT work on sparc64 and therefore is broken. We will
-convert it at a later date.

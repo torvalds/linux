@@ -1078,9 +1078,7 @@ static int proc_submiturb(struct dev_state *ps, void __user *arg)
 	if (copy_from_user(&uurb, arg, sizeof(uurb)))
 		return -EFAULT;
 
-	return proc_do_submiturb(ps, &uurb,
-		(struct usbdevfs_iso_packet_desc __user *)uurb.iso_frame_desc,
-		arg);
+	return proc_do_submiturb(ps, &uurb, (((struct usbdevfs_urb __user *)arg)->iso_frame_desc), arg);
 }
 
 static int proc_unlinkurb(struct dev_state *ps, void __user *arg)
@@ -1205,9 +1203,7 @@ static int proc_submiturb_compat(struct dev_state *ps, void __user *arg)
 	if (get_urb32(&uurb,(struct usbdevfs_urb32 *)arg))
 		return -EFAULT;
 
-	return proc_do_submiturb(ps, &uurb,
-		(struct usbdevfs_iso_packet_desc __user *)uurb.iso_frame_desc,
-		arg);
+	return proc_do_submiturb(ps, &uurb, ((struct usbdevfs_urb32 __user *)arg)->iso_frame_desc, arg);
 }
 
 static int processcompl_compat(struct async *as, void __user * __user *arg)

@@ -2880,17 +2880,20 @@ static int __devinit gem_get_device_address(struct gem *gp)
 #if defined(__sparc__)
 	struct pci_dev *pdev = gp->pdev;
 	struct pcidev_cookie *pcp = pdev->sysdata;
-	int node = -1;
+	int use_idprom = 1;
 
 	if (pcp != NULL) {
-		node = pcp->prom_node;
-		if (prom_getproplen(node, "local-mac-address") == 6)
-			prom_getproperty(node, "local-mac-address",
-					 dev->dev_addr, 6);
-		else
-			node = -1;
+		unsigned char *addr;
+		int len;
+
+		addr = of_get_property(pcp->prom_node, "local-mac-address",
+				       &len);
+		if (addr && len == 6) {
+			use_idprom = 0;
+			memcpy(dev->dev_addr, addr, 6);
+		}
 	}
-	if (node == -1)
+	if (use_idprom)
 		memcpy(dev->dev_addr, idprom->id_ethaddr, 6);
 #elif defined(CONFIG_PPC_PMAC)
 	unsigned char *addr;

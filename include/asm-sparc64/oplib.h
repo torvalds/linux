@@ -323,8 +323,9 @@ extern int prom_pathtoinode(const char *path);
 extern int prom_inst2pkg(int);
 
 /* CPU probing helpers.  */
-int cpu_find_by_instance(int instance, int *prom_node, int *mid);
-int cpu_find_by_mid(int mid, int *prom_node);
+struct device_node;
+int cpu_find_by_instance(int instance, struct device_node **dev_node, int *mid);
+int cpu_find_by_mid(int mid, struct device_node **prom_node);
 
 /* Client interface level routines. */
 extern void prom_set_trap_table(unsigned long tba);

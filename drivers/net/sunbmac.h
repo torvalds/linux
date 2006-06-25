@@ -332,7 +332,6 @@ struct bigmac {
 	struct sbus_dev		*qec_sdev;
 	struct sbus_dev		*bigmac_sdev;
 	struct net_device	*dev;
-	struct bigmac		*next_module;
 };
 
 /* We use this to acquire receive skb's that we can DMA directly into. */

@@ -46,6 +46,7 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/sbus.h>
+#include <asm/prom.h>
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
@@ -335,7 +336,6 @@ struct snd_amd7930 {
 	int			pgain;
 	int			mgain;
 
-	struct sbus_dev		*sdev;
 	unsigned int		irq;
 	unsigned int		regs_size;
 	struct snd_amd7930	*next;
@@ -946,11 +946,9 @@ static struct snd_device_ops snd_amd7930_dev_ops = {
 };
 
 static int __init snd_amd7930_create(struct snd_card *card,
-				     struct sbus_dev *sdev,
 				     struct resource *rp,
 				     unsigned int reg_size,
-				     struct linux_prom_irqs *irq_prop,
-				     int dev,
+				     int irq, int dev,
 				     struct snd_amd7930 **ramd)
 {
 	unsigned long flags;
@@ -964,7 +962,6 @@ static int __init snd_amd7930_create(struct snd_card *card,
 
 	spin_lock_init(&amd->lock);
 	amd->card = card;
-	amd->sdev = sdev;
 	amd->regs_size = reg_size;
 
 	amd->regs = sbus_ioremap(rp, 0, amd->regs_size, "amd7930");
@@ -975,15 +972,14 @@ static int __init snd_amd7930_create(struct snd_card *card,
 
 	amd7930_idle(amd);
 
-	if (request_irq(irq_prop->pri, snd_amd7930_interrupt,
+	if (request_irq(irq, snd_amd7930_interrupt,
 			SA_INTERRUPT | SA_SHIRQ, "amd7930", amd)) {
 		snd_printk("amd7930-%d: Unable to grab IRQ %d\n",
-			   dev,
-			   irq_prop->pri);
+			   dev, irq);
 		snd_amd7930_free(amd);
 		return -EBUSY;
 	}
-	amd->irq = irq_prop->pri;
+	amd->irq = irq;
 
 	amd7930_enable_ints(amd);
 
@@ -1017,47 +1013,21 @@ static int __init snd_amd7930_create(struct snd_card *card,
 	return 0;
 }
 
-static int __init amd7930_attach(int prom_node, struct sbus_dev *sdev)
+static int __init amd7930_attach_common(struct resource *rp, int irq)
 {
-	static int dev;
-	struct linux_prom_registers reg_prop;
-	struct linux_prom_irqs irq_prop;
-	struct resource res, *rp;
+	static int dev_num;
 	struct snd_card *card;
 	struct snd_amd7930 *amd;
 	int err;
 
-	if (dev >= SNDRV_CARDS)
+	if (dev_num >= SNDRV_CARDS)
 		return -ENODEV;
-	if (!enable[dev]) {
-		dev++;
+	if (!enable[dev_num]) {
+		dev_num++;
 		return -ENOENT;
 	}
 
-	err = prom_getproperty(prom_node, "intr",
-			       (char *) &irq_prop, sizeof(irq_prop));
-	if (err < 0) {
-		snd_printk("amd7930-%d: Firmware node lacks IRQ property.\n", dev);
-		return -ENODEV;
-	}
-
-	err = prom_getproperty(prom_node, "reg",
-			       (char *) &reg_prop, sizeof(reg_prop));
-	if (err < 0) {
-		snd_printk("amd7930-%d: Firmware node lacks register property.\n", dev);
-		return -ENODEV;
-	}
-
-	if (sdev) {
-		rp = &sdev->resource[0];
-	} else {
-		rp = &res;
-		rp->start = reg_prop.phys_addr;
-		rp->end = rp->start + reg_prop.reg_size - 1;
-		rp->flags = IORESOURCE_IO | (reg_prop.which_io & 0xff);
-	}
-
-	card = snd_card_new(index[dev], id[dev], THIS_MODULE, 0);
+	card = snd_card_new(index[dev_num], id[dev_num], THIS_MODULE, 0);
 	if (card == NULL)
 		return -ENOMEM;
 
@@ -1067,10 +1037,11 @@ static int __init amd7930_attach(int prom_node, struct sbus_dev *sdev)
 		card->shortname,
 		rp->flags & 0xffL,
 		rp->start,
-		irq_prop.pri);
+		irq);
 
-	if ((err = snd_amd7930_create(card, sdev, rp, reg_prop.reg_size,
-					  &irq_prop, dev, &amd)) < 0)
+	if ((err = snd_amd7930_create(card, rp,
+				      (rp->end - rp->start) + 1,
+				      irq, dev_num, &amd)) < 0)
 		goto out_err;
 
 	if ((err = snd_amd7930_pcm(amd)) < 0)
@@ -1085,7 +1056,8 @@ static int __init amd7930_attach(int prom_node, struct sbus_dev *sdev)
 	amd->next = amd7930_list;
 	amd7930_list = amd;
 
-	dev++;
+	dev_num++;
+
 	return 0;
 
 out_err:
@@ -1093,29 +1065,71 @@ out_err:
 	return err;
 }
 
-static int __init amd7930_init(void)
+static int __init amd7930_obio_attach(struct device_node *dp)
 {
-	struct sbus_bus *sbus;
-	struct sbus_dev *sdev;
-	int node, found;
+	struct linux_prom_registers *regs;
+	struct linux_prom_irqs *irqp;
+	struct resource res, *rp;
+	int len;
 
-	found = 0;
-
-	/* Try to find the sun4c "audio" node first. */
-	node = prom_getchild(prom_root_node);
-	node = prom_searchsiblings(node, "audio");
-	if (node && amd7930_attach(node, NULL) == 0)
-		found++;
-
-	/* Probe each SBUS for amd7930 chips. */
-	for_all_sbusdev(sdev, sbus) {
-		if (!strcmp(sdev->prom_name, "audio")) {
-			if (amd7930_attach(sdev->prom_node, sdev) == 0)
-				found++;
-		}
+	irqp = of_get_property(dp, "intr", &len);
+	if (!irqp) {
+		snd_printk("%s: Firmware node lacks IRQ property.\n",
+			   dp->full_name);
+		return -ENODEV;
 	}
 
-	return (found > 0) ? 0 : -EIO;
+	regs = of_get_property(dp, "reg", &len);
+	if (!regs) {
+		snd_printk("%s: Firmware node lacks register property.\n",
+			   dp->full_name);
+		return -ENODEV;
+	}
+
+	rp = &res;
+	rp->start = regs->phys_addr;
+	rp->end = rp->start + regs->reg_size - 1;
+	rp->flags = IORESOURCE_IO | (regs->which_io & 0xff);
+
+	return amd7930_attach_common(rp, irqp->pri);
+}
+
+static int __devinit amd7930_sbus_probe(struct of_device *dev, const struct of_device_id *match)
+{
+	struct sbus_dev *sdev = to_sbus_device(&dev->dev);
+
+	return amd7930_attach_common(&sdev->resource[0], sdev->irqs[0]);
+}
+
+static struct of_device_id amd7930_match[] = {
+	{
+		.name = "audio",
+	},
+	{},
+};
+
+static struct of_platform_driver amd7930_sbus_driver = {
+	.name		= "audio",
+	.match_table	= amd7930_match,
+	.probe		= amd7930_sbus_probe,
+};
+
+static int __init amd7930_init(void)
+{
+	struct device_node *dp;
+
+	/* Try to find the sun4c "audio" node first. */
+	dp = of_find_node_by_path("/");
+	dp = dp->child;
+	while (dp) {
+		if (!strcmp(dp->name, "audio"))
+			amd7930_obio_attach(dp);
+
+		dp = dp->sibling;
+	}
+
+	/* Probe each SBUS for amd7930 chips. */
+	return of_register_driver(&amd7930_sbus_driver, &sbus_bus_type);
 }
 
 static void __exit amd7930_exit(void)
@@ -1131,6 +1145,8 @@ static void __exit amd7930_exit(void)
 	}
 
 	amd7930_list = NULL;
+
+	of_unregister_driver(&amd7930_sbus_driver);
 }
 
 module_init(amd7930_init);

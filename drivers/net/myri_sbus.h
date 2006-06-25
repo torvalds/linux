@@ -290,7 +290,6 @@ struct myri_eth {
 	unsigned int			reg_size;	/* Size of register space.    */
 	unsigned int			shmem_base;	/* Offset to shared ram.      */
 	struct sbus_dev			*myri_sdev;	/* Our SBUS device struct.    */
-	struct myri_eth			*next_module;	/* Next in adapter chain.     */
 };
 
 /* We use this to acquire receive skb's that we can DMA directly into. */

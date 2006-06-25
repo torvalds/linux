@@ -22,6 +22,7 @@
 
 #include <linux/pci.h>
 #include <asm/oplib.h>
+#include <asm/prom.h>
 
 struct linux_pbm_info {
 	int		prom_node;
@@ -40,7 +41,7 @@ struct linux_pbm_info {
  */
 struct pcidev_cookie {
 	struct linux_pbm_info		*pbm;
-	int				prom_node;
+	struct device_node		*prom_node;
 };
 
 #endif /* !(__SPARC_PBM_H) */

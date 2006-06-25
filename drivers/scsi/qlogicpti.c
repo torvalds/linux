@@ -1,6 +1,6 @@
 /* qlogicpti.c: Performance Technologies QlogicISP sbus card driver.
  *
- * Copyright (C) 1996 David S. Miller (davem@caipfs.rutgers.edu)
+ * Copyright (C) 1996, 2006 David S. Miller (davem@davemloft.net)
  *
  * A lot of this driver was directly stolen from Erik H. Moe's PCI
  * Qlogic ISP driver.  Mucho kudos to him for this code.
@@ -46,8 +46,6 @@
 #include <scsi/scsi_tcq.h>
 #include <scsi/scsi_host.h>
 
-
-
 #define MAX_TARGETS	16
 #define MAX_LUNS	8	/* 32 for 1.31 F/W */
 
@@ -57,7 +55,6 @@
 
 static struct qlogicpti *qptichain = NULL;
 static DEFINE_SPINLOCK(qptichain_lock);
-static int qptis_running = 0;
 
 #define PACKB(a, b)			(((a)<<4)|(b))
 
@@ -815,173 +812,6 @@ static int __init qpti_map_queues(struct qlogicpti *qpti)
 	return 0;
 }
 
-/* Detect all PTI Qlogic ISP's in the machine. */
-static int __init qlogicpti_detect(struct scsi_host_template *tpnt)
-{
-	struct qlogicpti *qpti;
-	struct Scsi_Host *qpti_host;
-	struct sbus_bus *sbus;
-	struct sbus_dev *sdev;
-	int nqptis = 0, nqptis_in_use = 0;
-
-	tpnt->proc_name = "qlogicpti";
-	for_each_sbus(sbus) {
-		for_each_sbusdev(sdev, sbus) {
-			/* Is this a red snapper? */
-			if (strcmp(sdev->prom_name, "ptisp") &&
-			    strcmp(sdev->prom_name, "PTI,ptisp") &&
-			    strcmp(sdev->prom_name, "QLGC,isp") &&
-			    strcmp(sdev->prom_name, "SUNW,isp"))
-				continue;
-
-			/* Sometimes Antares cards come up not completely
-			 * setup, and we get a report of a zero IRQ.
-			 * Skip over them in such cases so we survive.
-			 */
-			if (sdev->irqs[0] == 0) {
-				printk("qpti%d: Adapter reports no interrupt, "
-				       "skipping over this card.", nqptis);
-				continue;
-			}
-
-			/* Yep, register and allocate software state. */
-			qpti_host = scsi_register(tpnt, sizeof(struct qlogicpti));
-			if (!qpti_host) {
-				printk("QPTI: Cannot register PTI Qlogic ISP SCSI host");
-				continue;
-			}
-			qpti = (struct qlogicpti *) qpti_host->hostdata;
-
-			/* We are wide capable, 16 targets. */
-			qpti_host->max_id = MAX_TARGETS;
-
-			/* Setup back pointers and misc. state. */
-			qpti->qhost = qpti_host;
-			qpti->sdev = sdev;
-			qpti->qpti_id = nqptis++;
-			qpti->prom_node = sdev->prom_node;
-			prom_getstring(qpti->prom_node, "name",
-				       qpti->prom_name,
-				       sizeof(qpti->prom_name));
-
-			/* This is not correct, actually. There's a switch
-			 * on the PTI cards that put them into "emulation"
-			 * mode- i.e., report themselves as QLGC,isp
-			 * instead of PTI,ptisp. The only real substantive
-			 * difference between non-pti and pti cards is
-			 * the tmon register. Which is possibly even
-			 * there for Qlogic cards, but non-functional.
-			 */
-			qpti->is_pti = (strcmp (qpti->prom_name, "QLGC,isp") != 0);
-
-			qpti_chain_add(qpti);
-			if (qpti_map_regs(qpti) < 0)
-				goto fail_unlink;
-
-			if (qpti_register_irq(qpti) < 0)
-				goto fail_unmap_regs;
-
-			qpti_get_scsi_id(qpti);
-			qpti_get_bursts(qpti);
-			qpti_get_clock(qpti);
-
-			/* Clear out scsi_cmnd array. */
-			memset(qpti->cmd_slots, 0, sizeof(qpti->cmd_slots));
-
-			if (qpti_map_queues(qpti) < 0)
-				goto fail_free_irq;
-
-			/* Load the firmware. */
-			if (qlogicpti_load_firmware(qpti))
-				goto fail_unmap_queues;
-			if (qpti->is_pti) {
-				/* Check the PTI status reg. */
-				if (qlogicpti_verify_tmon(qpti))
-					goto fail_unmap_queues;
-			}
-
-			/* Reset the ISP and init res/req queues. */
-			if (qlogicpti_reset_hardware(qpti_host))
-				goto fail_unmap_queues;
-
-			printk("(Firmware v%d.%d.%d)", qpti->fware_majrev,
-			    qpti->fware_minrev, qpti->fware_micrev);
-			{
-				char buffer[60];
-				
-				prom_getstring (qpti->prom_node,
-						"isp-fcode", buffer, 60);
-				if (buffer[0])
-					printk("(Firmware %s)", buffer);
-				if (prom_getbool(qpti->prom_node, "differential"))
-					qpti->differential = 1;
-			}
-			
-			printk (" [%s Wide, using %s interface]\n",
-			       (qpti->ultra ? "Ultra" : "Fast"),
-			       (qpti->differential ? "differential" : "single ended"));
-
-			nqptis_in_use++;
-			continue;
-
-		fail_unmap_queues:
-#define QSIZE(entries)	(((entries) + 1) * QUEUE_ENTRY_LEN)
-			sbus_free_consistent(qpti->sdev,
-					     QSIZE(RES_QUEUE_LEN),
-					     qpti->res_cpu, qpti->res_dvma);
-			sbus_free_consistent(qpti->sdev,
-					     QSIZE(QLOGICPTI_REQ_QUEUE_LEN),
-					     qpti->req_cpu, qpti->req_dvma);
-#undef QSIZE
-		fail_free_irq:
-			free_irq(qpti->irq, qpti);
-
-		fail_unmap_regs:
-			sbus_iounmap(qpti->qregs,
-				     qpti->sdev->reg_addrs[0].reg_size);
-			if (qpti->is_pti)
-				sbus_iounmap(qpti->sreg, sizeof(unsigned char));
-		fail_unlink:
-			qpti_chain_del(qpti);
-			scsi_unregister(qpti->qhost);
-		}
-	}
-	if (nqptis)
-		printk("QPTI: Total of %d PTI Qlogic/ISP hosts found, %d actually in use.\n",
-		       nqptis, nqptis_in_use);
-	qptis_running = nqptis_in_use;
-	return nqptis;
-}
-
-static int qlogicpti_release(struct Scsi_Host *host)
-{
-	struct qlogicpti *qpti = (struct qlogicpti *) host->hostdata;
-
-	/* Remove visibility from IRQ handlers. */
-	qpti_chain_del(qpti);
-
-	/* Shut up the card. */
-	sbus_writew(0, qpti->qregs + SBUS_CTRL);
-
-	/* Free IRQ handler and unmap Qlogic,ISP and PTI status regs. */
-	free_irq(qpti->irq, qpti);
-
-#define QSIZE(entries)	(((entries) + 1) * QUEUE_ENTRY_LEN)
-	sbus_free_consistent(qpti->sdev,
-			     QSIZE(RES_QUEUE_LEN),
-			     qpti->res_cpu, qpti->res_dvma);
-	sbus_free_consistent(qpti->sdev,
-			     QSIZE(QLOGICPTI_REQ_QUEUE_LEN),
-			     qpti->req_cpu, qpti->req_dvma);
-#undef QSIZE
-
-	sbus_iounmap(qpti->qregs, qpti->sdev->reg_addrs[0].reg_size);
-	if (qpti->is_pti)
-		sbus_iounmap(qpti->sreg, sizeof(unsigned char));
-
-	return 0;
-}
-
 const char *qlogicpti_info(struct Scsi_Host *host)
 {
 	static char buf[80];
@@ -1551,9 +1381,9 @@ static int qlogicpti_reset(struct scsi_cmnd *Cmnd)
 	return return_status;
 }
 
-static struct scsi_host_template driver_template = {
-	.detect			= qlogicpti_detect,
-	.release		= qlogicpti_release,
+static struct scsi_host_template qpti_template = {
+	.module			= THIS_MODULE,
+	.name			= "qlogicpti",
 	.info			= qlogicpti_info,
 	.queuecommand		= qlogicpti_queuecommand_slow,
 	.eh_abort_handler	= qlogicpti_abort,
@@ -1565,8 +1395,189 @@ static struct scsi_host_template driver_template = {
 	.use_clustering		= ENABLE_CLUSTERING,
 };
 
+static int __devinit qpti_sbus_probe(struct of_device *dev, const struct of_device_id *match)
+{
+	static int nqptis;
+	struct sbus_dev *sdev = to_sbus_device(&dev->dev);
+	struct device_node *dp = dev->node;
+	struct scsi_host_template *tpnt = match->data;
+	struct Scsi_Host *host;
+	struct qlogicpti *qpti;
+	char *fcode;
 
-#include "scsi_module.c"
+	/* Sometimes Antares cards come up not completely
+	 * setup, and we get a report of a zero IRQ.
+	 */
+	if (sdev->irqs[0] == 0)
+		return -ENODEV;
 
+	host = scsi_host_alloc(tpnt, sizeof(struct qlogicpti));
+	if (!host)
+		return -ENOMEM;
+
+	qpti = (struct qlogicpti *) host->hostdata;
+
+	host->max_id = MAX_TARGETS;
+	qpti->qhost = host;
+	qpti->sdev = sdev;
+	qpti->qpti_id = nqptis;
+	qpti->prom_node = sdev->prom_node;
+	strcpy(qpti->prom_name, sdev->ofdev.node->name);
+	qpti->is_pti = strcmp(qpti->prom_name, "QLGC,isp");
+
+	if (qpti_map_regs(qpti) < 0)
+		goto fail_unlink;
+
+	if (qpti_register_irq(qpti) < 0)
+		goto fail_unmap_regs;
+
+	qpti_get_scsi_id(qpti);
+	qpti_get_bursts(qpti);
+	qpti_get_clock(qpti);
+
+	/* Clear out scsi_cmnd array. */
+	memset(qpti->cmd_slots, 0, sizeof(qpti->cmd_slots));
+
+	if (qpti_map_queues(qpti) < 0)
+		goto fail_free_irq;
+
+	/* Load the firmware. */
+	if (qlogicpti_load_firmware(qpti))
+		goto fail_unmap_queues;
+	if (qpti->is_pti) {
+		/* Check the PTI status reg. */
+		if (qlogicpti_verify_tmon(qpti))
+			goto fail_unmap_queues;
+	}
+
+	/* Reset the ISP and init res/req queues. */
+	if (qlogicpti_reset_hardware(host))
+		goto fail_unmap_queues;
+
+	if (scsi_add_host(host, &dev->dev))
+		goto fail_unmap_queues;
+
+	printk("(Firmware v%d.%d.%d)", qpti->fware_majrev,
+	       qpti->fware_minrev, qpti->fware_micrev);
+
+	fcode = of_get_property(dp, "isp-fcode", NULL);
+	if (fcode && fcode[0])
+		printk("(Firmware %s)", fcode);
+	if (of_find_property(dp, "differential", NULL) != NULL)
+		qpti->differential = 1;
+			
+	printk (" [%s Wide, using %s interface]\n",
+		(qpti->ultra ? "Ultra" : "Fast"),
+		(qpti->differential ? "differential" : "single ended"));
+
+	dev_set_drvdata(&sdev->ofdev.dev, qpti);
+
+	qpti_chain_add(qpti);
+
+	scsi_scan_host(host);
+	nqptis++;
+
+	return 0;
+
+fail_unmap_queues:
+#define QSIZE(entries)	(((entries) + 1) * QUEUE_ENTRY_LEN)
+	sbus_free_consistent(qpti->sdev,
+			     QSIZE(RES_QUEUE_LEN),
+			     qpti->res_cpu, qpti->res_dvma);
+	sbus_free_consistent(qpti->sdev,
+			     QSIZE(QLOGICPTI_REQ_QUEUE_LEN),
+			     qpti->req_cpu, qpti->req_dvma);
+#undef QSIZE
+
+fail_unmap_regs:
+	sbus_iounmap(qpti->qregs,
+		     qpti->sdev->reg_addrs[0].reg_size);
+	if (qpti->is_pti)
+		sbus_iounmap(qpti->sreg, sizeof(unsigned char));
+
+fail_free_irq:
+	free_irq(qpti->irq, qpti);
+
+fail_unlink:
+	scsi_host_put(host);
+
+	return -ENODEV;
+}
+
+static int __devexit qpti_sbus_remove(struct of_device *dev)
+{
+	struct qlogicpti *qpti = dev_get_drvdata(&dev->dev);
+
+	qpti_chain_del(qpti);
+
+	scsi_remove_host(qpti->qhost);
+
+	/* Shut up the card. */
+	sbus_writew(0, qpti->qregs + SBUS_CTRL);
+
+	/* Free IRQ handler and unmap Qlogic,ISP and PTI status regs. */
+	free_irq(qpti->irq, qpti);
+
+#define QSIZE(entries)	(((entries) + 1) * QUEUE_ENTRY_LEN)
+	sbus_free_consistent(qpti->sdev,
+			     QSIZE(RES_QUEUE_LEN),
+			     qpti->res_cpu, qpti->res_dvma);
+	sbus_free_consistent(qpti->sdev,
+			     QSIZE(QLOGICPTI_REQ_QUEUE_LEN),
+			     qpti->req_cpu, qpti->req_dvma);
+#undef QSIZE
+
+	sbus_iounmap(qpti->qregs, qpti->sdev->reg_addrs[0].reg_size);
+	if (qpti->is_pti)
+		sbus_iounmap(qpti->sreg, sizeof(unsigned char));
+
+	scsi_host_put(qpti->qhost);
+
+	return 0;
+}
+
+static struct of_device_id qpti_match[] = {
+	{
+		.name = "ptisp",
+		.data = &qpti_template,
+	},
+	{
+		.name = "PTI,ptisp",
+		.data = &qpti_template,
+	},
+	{
+		.name = "QLGC,isp",
+		.data = &qpti_template,
+	},
+	{
+		.name = "SUNW,isp",
+		.data = &qpti_template,
+	},
+	{},
+};
+MODULE_DEVICE_TABLE(of, qpti_match);
+
+static struct of_platform_driver qpti_sbus_driver = {
+	.name		= "qpti",
+	.match_table	= qpti_match,
+	.probe		= qpti_sbus_probe,
+	.remove		= __devexit_p(qpti_sbus_remove),
+};
+
+static int __init qpti_init(void)
+{
+	return of_register_driver(&qpti_sbus_driver, &sbus_bus_type);
+}
+
+static void __exit qpti_exit(void)
+{
+	of_unregister_driver(&qpti_sbus_driver);
+}
+
+MODULE_DESCRIPTION("QlogicISP SBUS driver");
+MODULE_AUTHOR("David S. Miller (davem@davemloft.net)");
 MODULE_LICENSE("GPL");
+MODULE_VERSION("2.0");
 
+module_init(qpti_init);
+module_exit(qpti_exit);

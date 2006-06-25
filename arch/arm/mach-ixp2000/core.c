@@ -302,6 +302,7 @@ void gpio_line_config(int line, int direction)
 	}
 	local_irq_restore(flags);
 }
+EXPORT_SYMBOL(gpio_line_config);
 
 
 /*************************************************************************

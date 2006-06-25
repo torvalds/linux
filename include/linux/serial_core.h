@@ -130,6 +130,9 @@
 /* SUN4V Hypervisor Console */
 #define PORT_SUNHV	72
 
+#define PORT_S3C2412	73
+
+
 #ifdef __KERNEL__
 
 #include <linux/compiler.h>

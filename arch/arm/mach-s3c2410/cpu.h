@@ -74,5 +74,6 @@ extern struct sys_timer s3c24xx_timer;
 /* system device classes */
 
 extern struct sysdev_class s3c2410_sysclass;
+extern struct sysdev_class s3c2412_sysclass;
 extern struct sysdev_class s3c2440_sysclass;
 extern struct sysdev_class s3c2442_sysclass;

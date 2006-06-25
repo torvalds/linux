@@ -213,12 +213,17 @@ EXPORT_SYMBOL(clk_set_parent);
 
 /* base clocks */
 
-static struct clk clk_xtal = {
+struct clk clk_xtal = {
 	.name		= "xtal",
 	.id		= -1,
 	.rate		= 0,
 	.parent		= NULL,
 	.ctrlbit	= 0,
+};
+
+struct clk clk_mpll = {
+	.name		= "mpll",
+	.id		= -1,
 };
 
 struct clk clk_upll = {
@@ -232,7 +237,7 @@ struct clk clk_f = {
 	.name		= "fclk",
 	.id		= -1,
 	.rate		= 0,
-	.parent		= NULL,
+	.parent		= &clk_mpll,
 	.ctrlbit	= 0,
 };
 
@@ -263,14 +268,14 @@ struct clk clk_usb_bus = {
 
 static int s3c24xx_dclk_enable(struct clk *clk, int enable)
 {
-	unsigned long dclkcon = __raw_readl(S3C2410_DCLKCON);
+	unsigned long dclkcon = __raw_readl(S3C24XX_DCLKCON);
 
 	if (enable)
 		dclkcon |= clk->ctrlbit;
 	else
 		dclkcon &= ~clk->ctrlbit;
 
-	__raw_writel(dclkcon, S3C2410_DCLKCON);
+	__raw_writel(dclkcon, S3C24XX_DCLKCON);
 
 	return 0;
 }
@@ -289,7 +294,7 @@ static int s3c24xx_dclk_setparent(struct clk *clk, struct clk *parent)
 
 	clk->parent = parent;
 
-	dclkcon = __raw_readl(S3C2410_DCLKCON);
+	dclkcon = __raw_readl(S3C24XX_DCLKCON);
 
 	if (clk->ctrlbit == S3C2410_DCLKCON_DCLK0EN) {
 		if (uclk)
@@ -303,7 +308,7 @@ static int s3c24xx_dclk_setparent(struct clk *clk, struct clk *parent)
 			dclkcon &= ~S3C2410_DCLKCON_DCLK1_UCLK;
 	}
 
-	__raw_writel(dclkcon, S3C2410_DCLKCON);
+	__raw_writel(dclkcon, S3C24XX_DCLKCON);
 
 	return 0;
 }
@@ -413,6 +418,7 @@ int __init s3c24xx_setup_clocks(unsigned long xtal,
 	clk_xtal.rate = xtal;
 	clk_upll.rate = s3c2410_get_pll(__raw_readl(S3C2410_UPLLCON), xtal);
 
+	clk_mpll.rate = fclk;
 	clk_h.rate = hclk;
 	clk_p.rate = pclk;
 	clk_f.rate = fclk;
@@ -423,6 +429,9 @@ int __init s3c24xx_setup_clocks(unsigned long xtal,
 
 	if (s3c24xx_register_clock(&clk_xtal) < 0)
 		printk(KERN_ERR "failed to register master xtal\n");
+
+	if (s3c24xx_register_clock(&clk_mpll) < 0)
+		printk(KERN_ERR "failed to register mpll clock\n");
 
 	if (s3c24xx_register_clock(&clk_upll) < 0)
 		printk(KERN_ERR "failed to register upll clock\n");

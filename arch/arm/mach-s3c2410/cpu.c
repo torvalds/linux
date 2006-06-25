@@ -44,6 +44,7 @@
 #include "clock.h"
 #include "s3c2400.h"
 #include "s3c2410.h"
+#include "s3c2412.h"
 #include "s3c244x.h"
 #include "s3c2440.h"
 #include "s3c2442.h"
@@ -62,6 +63,7 @@ struct cpu_table {
 
 static const char name_s3c2400[]  = "S3C2400";
 static const char name_s3c2410[]  = "S3C2410";
+static const char name_s3c2412[]  = "S3C2412";
 static const char name_s3c2440[]  = "S3C2440";
 static const char name_s3c2442[]  = "S3C2442";
 static const char name_s3c2410a[] = "S3C2410A";
@@ -112,6 +114,15 @@ static struct cpu_table cpu_ids[] __initdata = {
 		.init_uarts	= s3c244x_init_uarts,
 		.init		= s3c2442_init,
 		.name		= name_s3c2442
+	},
+	{
+		.idcode		= 0x32412001,
+		.idmask		= 0xffffffff,
+		.map_io		= s3c2412_map_io,
+		.init_clocks	= s3c2412_init_clocks,
+		.init_uarts	= s3c2412_init_uarts,
+		.init		= s3c2412_init,
+		.name		= name_s3c2412,
 	},
 	{
 		.idcode		= 0x0,   /* S3C2400 doesn't have an idcode */
@@ -171,6 +182,24 @@ void s3c24xx_set_board(struct s3c24xx_board *b)
 
 static struct cpu_table *cpu;
 
+static unsigned long s3c24xx_read_idcode_v5(void)
+{
+#if defined(CONFIG_CPU_S3C2412) || defined(CONFIG_CPU_S3C2413)
+	return __raw_readl(S3C2412_GSTATUS1);
+#else
+	return 1UL;	/* don't look like an 2400 */
+#endif
+}
+
+static unsigned long s3c24xx_read_idcode_v4(void)
+{
+#ifndef CONFIG_CPU_S3C2400
+	return __raw_readl(S3C2410_GSTATUS1);
+#else
+	return 0UL;
+#endif
+}
+
 void __init s3c24xx_init_io(struct map_desc *mach_desc, int size)
 {
 	unsigned long idcode = 0x0;
@@ -178,9 +207,11 @@ void __init s3c24xx_init_io(struct map_desc *mach_desc, int size)
 	/* initialise the io descriptors we need for initialisation */
 	iotable_init(s3c_iodesc, ARRAY_SIZE(s3c_iodesc));
 
-#ifndef CONFIG_CPU_S3C2400
-	idcode = __raw_readl(S3C2410_GSTATUS1);
-#endif
+	if (cpu_architecture() >= CPU_ARCH_ARMv5) {
+		idcode = s3c24xx_read_idcode_v5();
+	} else {
+		idcode = s3c24xx_read_idcode_v4();
+	}
 
 	cpu = s3c_lookup_cpu(idcode);
 
