@@ -870,7 +870,7 @@ static int write(struct tty_struct *tty,
 		goto cleanup;
 	DBGINFO(("%s write count=%d\n", info->device_name, count));
 
-	if (!tty || !info->tx_buf)
+	if (!info->tx_buf)
 		goto cleanup;
 
 	if (count > info->max_frame_size) {
@@ -924,7 +924,7 @@ static void put_char(struct tty_struct *tty, unsigned char ch)
 	if (sanity_check(info, tty->name, "put_char"))
 		return;
 	DBGINFO(("%s put_char(%d)\n", info->device_name, ch));
-	if (!tty || !info->tx_buf)
+	if (!info->tx_buf)
 		return;
 	spin_lock_irqsave(&info->lock,flags);
 	if (!info->tx_active && (info->tx_count < info->max_frame_size))

@@ -1582,7 +1582,7 @@ static void mgslpc_put_char(struct tty_struct *tty, unsigned char ch)
 	if (mgslpc_paranoia_check(info, tty->name, "mgslpc_put_char"))
 		return;
 
-	if (!tty || !info->tx_buf)
+	if (!info->tx_buf)
 		return;
 
 	spin_lock_irqsave(&info->lock,flags);
@@ -1649,7 +1649,7 @@ static int mgslpc_write(struct tty_struct * tty,
 			__FILE__,__LINE__,info->device_name,count);
 	
 	if (mgslpc_paranoia_check(info, tty->name, "mgslpc_write") ||
-	    !tty || !info->tx_buf)
+		!info->tx_buf)
 		goto cleanup;
 
 	if (info->params.mode == MGSL_MODE_HDLC) {
