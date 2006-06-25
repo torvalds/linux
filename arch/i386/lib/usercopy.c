@@ -528,6 +528,97 @@ static unsigned long __copy_user_zeroing_intel_nocache(void *to,
 	return size;
 }
 
+static unsigned long __copy_user_intel_nocache(void *to,
+				const void __user *from, unsigned long size)
+{
+        int d0, d1;
+
+	__asm__ __volatile__(
+	       "        .align 2,0x90\n"
+	       "0:      movl 32(%4), %%eax\n"
+	       "        cmpl $67, %0\n"
+	       "        jbe 2f\n"
+	       "1:      movl 64(%4), %%eax\n"
+	       "        .align 2,0x90\n"
+	       "2:      movl 0(%4), %%eax\n"
+	       "21:     movl 4(%4), %%edx\n"
+	       "        movnti %%eax, 0(%3)\n"
+	       "        movnti %%edx, 4(%3)\n"
+	       "3:      movl 8(%4), %%eax\n"
+	       "31:     movl 12(%4),%%edx\n"
+	       "        movnti %%eax, 8(%3)\n"
+	       "        movnti %%edx, 12(%3)\n"
+	       "4:      movl 16(%4), %%eax\n"
+	       "41:     movl 20(%4), %%edx\n"
+	       "        movnti %%eax, 16(%3)\n"
+	       "        movnti %%edx, 20(%3)\n"
+	       "10:     movl 24(%4), %%eax\n"
+	       "51:     movl 28(%4), %%edx\n"
+	       "        movnti %%eax, 24(%3)\n"
+	       "        movnti %%edx, 28(%3)\n"
+	       "11:     movl 32(%4), %%eax\n"
+	       "61:     movl 36(%4), %%edx\n"
+	       "        movnti %%eax, 32(%3)\n"
+	       "        movnti %%edx, 36(%3)\n"
+	       "12:     movl 40(%4), %%eax\n"
+	       "71:     movl 44(%4), %%edx\n"
+	       "        movnti %%eax, 40(%3)\n"
+	       "        movnti %%edx, 44(%3)\n"
+	       "13:     movl 48(%4), %%eax\n"
+	       "81:     movl 52(%4), %%edx\n"
+	       "        movnti %%eax, 48(%3)\n"
+	       "        movnti %%edx, 52(%3)\n"
+	       "14:     movl 56(%4), %%eax\n"
+	       "91:     movl 60(%4), %%edx\n"
+	       "        movnti %%eax, 56(%3)\n"
+	       "        movnti %%edx, 60(%3)\n"
+	       "        addl $-64, %0\n"
+	       "        addl $64, %4\n"
+	       "        addl $64, %3\n"
+	       "        cmpl $63, %0\n"
+	       "        ja  0b\n"
+	       "        sfence \n"
+	       "5:      movl  %0, %%eax\n"
+	       "        shrl  $2, %0\n"
+	       "        andl $3, %%eax\n"
+	       "        cld\n"
+	       "6:      rep; movsl\n"
+	       "        movl %%eax,%0\n"
+	       "7:      rep; movsb\n"
+	       "8:\n"
+	       ".section .fixup,\"ax\"\n"
+	       "9:      lea 0(%%eax,%0,4),%0\n"
+	       "16:     jmp 8b\n"
+	       ".previous\n"
+	       ".section __ex_table,\"a\"\n"
+	       "	.align 4\n"
+	       "	.long 0b,16b\n"
+	       "	.long 1b,16b\n"
+	       "	.long 2b,16b\n"
+	       "	.long 21b,16b\n"
+	       "	.long 3b,16b\n"
+	       "	.long 31b,16b\n"
+	       "	.long 4b,16b\n"
+	       "	.long 41b,16b\n"
+	       "	.long 10b,16b\n"
+	       "	.long 51b,16b\n"
+	       "	.long 11b,16b\n"
+	       "	.long 61b,16b\n"
+	       "	.long 12b,16b\n"
+	       "	.long 71b,16b\n"
+	       "	.long 13b,16b\n"
+	       "	.long 81b,16b\n"
+	       "	.long 14b,16b\n"
+	       "	.long 91b,16b\n"
+	       "	.long 6b,9b\n"
+	       "        .long 7b,16b\n"
+	       ".previous"
+	       : "=&c"(size), "=&D" (d0), "=&S" (d1)
+	       :  "1"(to), "2"(from), "0"(size)
+	       : "eax", "edx", "memory");
+	return size;
+}
+
 #else
 
 /*
@@ -694,6 +785,19 @@ unsigned long __copy_from_user_ll(void *to, const void __user *from,
 }
 EXPORT_SYMBOL(__copy_from_user_ll);
 
+unsigned long __copy_from_user_ll_nozero(void *to, const void __user *from,
+					 unsigned long n)
+{
+	BUG_ON((long)n < 0);
+	if (movsl_is_ok(to, from, n))
+		__copy_user(to, from, n);
+	else
+		n = __copy_user_intel((void __user *)to,
+				      (const void *)from, n);
+	return n;
+}
+EXPORT_SYMBOL(__copy_from_user_ll_nozero);
+
 unsigned long __copy_from_user_ll_nocache(void *to, const void __user *from,
 					unsigned long n)
 {
@@ -705,6 +809,21 @@ unsigned long __copy_from_user_ll_nocache(void *to, const void __user *from,
 		__copy_user_zeroing(to, from, n);
 #else
         __copy_user_zeroing(to, from, n);
+#endif
+	return n;
+}
+
+unsigned long __copy_from_user_ll_nocache_nozero(void *to, const void __user *from,
+					unsigned long n)
+{
+	BUG_ON((long)n < 0);
+#ifdef CONFIG_X86_INTEL_USERCOPY
+	if ( n > 64 && cpu_has_xmm2)
+                n = __copy_user_intel_nocache(to, from, n);
+	else
+		__copy_user(to, from, n);
+#else
+        __copy_user(to, from, n);
 #endif
 	return n;
 }
