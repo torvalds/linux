@@ -33,14 +33,14 @@ struct ciabase {
 } ciaa_base = {
 	.cia		= &ciaa,
 	.int_mask	= IF_PORTS,
-	.handler_irq	= IRQ_AMIGA_AUTO_2,
+	.handler_irq	= IRQ_AUTO_2,
 	.cia_irq	= IRQ_AMIGA_CIAA,
 	.server_irq	= IRQ_AMIGA_PORTS,
 	.name		= "CIAA handler"
 }, ciab_base = {
 	.cia		= &ciab,
 	.int_mask	= IF_EXTER,
-	.handler_irq	= IRQ_AMIGA_AUTO_6,
+	.handler_irq	= IRQ_AUTO_6,
 	.cia_irq	= IRQ_AMIGA_CIAB,
 	.server_irq	= IRQ_AMIGA_EXTER,
 	.name		= "CIAB handler"
@@ -131,12 +131,11 @@ static irqreturn_t cia_handler(int irq, void *dev_id, struct pt_regs *fp)
 	unsigned char ints;
 
 	mach_irq = base->cia_irq;
-	irq = SYS_IRQS + mach_irq;
 	ints = cia_set_irq(base, CIA_ICR_ALL);
 	amiga_custom.intreq = base->int_mask;
-	for (i = 0; i < CIA_IRQS; i++, irq++, mach_irq++) {
+	for (i = 0; i < CIA_IRQS; i++, mach_irq++) {
 		if (ints & 1) {
-			kstat_cpu(0).irqs[irq]++;
+			kstat_cpu(0).irqs[mach_irq]++;
 			base->irq_list[i].handler(mach_irq, base->irq_list[i].dev_id, fp);
 		}
 		ints >>= 1;
@@ -172,7 +171,7 @@ int cia_get_irq_list(struct ciabase *base, struct seq_file *p)
 	j = base->cia_irq;
 	for (i = 0; i < CIA_IRQS; i++) {
 		seq_printf(p, "cia  %2d: %10d ", j + i,
-			       kstat_cpu(0).irqs[SYS_IRQS + j + i]);
+			       kstat_cpu(0).irqs[j + i]);
 		seq_puts(p, "  ");
 		seq_printf(p, "%s\n", base->irq_list[i].devname);
 	}

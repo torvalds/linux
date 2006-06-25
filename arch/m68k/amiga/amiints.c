@@ -61,25 +61,25 @@ extern int cia_get_irq_list(struct ciabase *base, struct seq_file *p);
 static irq_node_t *ami_irq_list[AMI_STD_IRQS];
 
 static unsigned short amiga_intena_vals[AMI_STD_IRQS] = {
-	[IRQ_AMIGA_VERTB]	= IF_VERTB,
-	[IRQ_AMIGA_COPPER]	= IF_COPER,
-	[IRQ_AMIGA_AUD0]	= IF_AUD0,
-	[IRQ_AMIGA_AUD1]	= IF_AUD1,
-	[IRQ_AMIGA_AUD2]	= IF_AUD2,
-	[IRQ_AMIGA_AUD3]	= IF_AUD3,
-	[IRQ_AMIGA_BLIT]	= IF_BLIT,
-	[IRQ_AMIGA_DSKSYN]	= IF_DSKSYN,
-	[IRQ_AMIGA_DSKBLK]	= IF_DSKBLK,
-	[IRQ_AMIGA_RBF]		= IF_RBF,
-	[IRQ_AMIGA_TBE]		= IF_TBE,
-	[IRQ_AMIGA_SOFT]	= IF_SOFT,
-	[IRQ_AMIGA_PORTS]	= IF_PORTS,
-	[IRQ_AMIGA_EXTER]	= IF_EXTER
+	[IRQ_AMIGA_VERTB-IRQ_USER]	= IF_VERTB,
+	[IRQ_AMIGA_COPPER-IRQ_USER]	= IF_COPER,
+	[IRQ_AMIGA_AUD0-IRQ_USER]	= IF_AUD0,
+	[IRQ_AMIGA_AUD1-IRQ_USER]	= IF_AUD1,
+	[IRQ_AMIGA_AUD2-IRQ_USER]	= IF_AUD2,
+	[IRQ_AMIGA_AUD3-IRQ_USER]	= IF_AUD3,
+	[IRQ_AMIGA_BLIT-IRQ_USER]	= IF_BLIT,
+	[IRQ_AMIGA_DSKSYN-IRQ_USER]	= IF_DSKSYN,
+	[IRQ_AMIGA_DSKBLK-IRQ_USER]	= IF_DSKBLK,
+	[IRQ_AMIGA_RBF-IRQ_USER]	= IF_RBF,
+	[IRQ_AMIGA_TBE-IRQ_USER]	= IF_TBE,
+	[IRQ_AMIGA_SOFT-IRQ_USER]	= IF_SOFT,
+	[IRQ_AMIGA_PORTS-IRQ_USER]	= IF_PORTS,
+	[IRQ_AMIGA_EXTER-IRQ_USER]	= IF_EXTER
 };
 static const unsigned char ami_servers[AMI_STD_IRQS] = {
-	[IRQ_AMIGA_VERTB]	= 1,
-	[IRQ_AMIGA_PORTS]	= 1,
-	[IRQ_AMIGA_EXTER]	= 1
+	[IRQ_AMIGA_VERTB-IRQ_USER]	= 1,
+	[IRQ_AMIGA_PORTS-IRQ_USER]	= 1,
+	[IRQ_AMIGA_EXTER-IRQ_USER]	= 1
 };
 
 static short ami_ablecount[AMI_IRQS];
@@ -210,9 +210,8 @@ int amiga_request_irq(unsigned int irq,
 		return -ENXIO;
 	}
 
-	if (irq >= IRQ_AMIGA_AUTO)
-		return cpu_request_irq(irq - IRQ_AMIGA_AUTO, handler,
-		                       flags, devname, dev_id);
+	if (irq < IRQ_USER)
+		return cpu_request_irq(irq, handler, flags, devname, dev_id);
 
 	if (irq >= IRQ_AMIGA_CIAB)
 		return cia_request_irq(&ciab_base, irq - IRQ_AMIGA_CIAB,
@@ -222,6 +221,7 @@ int amiga_request_irq(unsigned int irq,
 		return cia_request_irq(&ciaa_base, irq - IRQ_AMIGA_CIAA,
 		                       handler, flags, devname, dev_id);
 
+	irq -= IRQ_USER;
 	/*
 	 * IRQ_AMIGA_PORTS & IRQ_AMIGA_EXTER defaults to shared,
 	 * we could add a check here for the SA_SHIRQ flag but all drivers
@@ -257,8 +257,8 @@ void amiga_free_irq(unsigned int irq, void *dev_id)
 		return;
 	}
 
-	if (irq >= IRQ_AMIGA_AUTO)
-		cpu_free_irq(irq - IRQ_AMIGA_AUTO, dev_id);
+	if (irq < IRQ_USER)
+		cpu_free_irq(irq, dev_id);
 
 	if (irq >= IRQ_AMIGA_CIAB) {
 		cia_free_irq(&ciab_base, irq - IRQ_AMIGA_CIAB, dev_id);
@@ -270,6 +270,7 @@ void amiga_free_irq(unsigned int irq, void *dev_id)
 		return;
 	}
 
+	irq -= IRQ_USER;
 	if (ami_servers[irq]) {
 		amiga_delete_irq(&ami_irq_list[irq], dev_id);
 		/* if server list empty, disable the interrupt */
@@ -306,9 +307,9 @@ void amiga_enable_irq(unsigned int irq)
 		return;
 
 	/* No action for auto-vector interrupts */
-	if (irq >= IRQ_AMIGA_AUTO){
+	if (irq < IRQ_USER) {
 		printk("%s: Trying to enable auto-vector IRQ %i\n",
-		       __FUNCTION__, irq - IRQ_AMIGA_AUTO);
+		       __FUNCTION__, irq);
 		return;
 	}
 
@@ -327,7 +328,7 @@ void amiga_enable_irq(unsigned int irq)
 	}
 
 	/* enable the interrupt */
-	amiga_custom.intena = IF_SETCLR | amiga_intena_vals[irq];
+	amiga_custom.intena = IF_SETCLR | amiga_intena_vals[irq-IRQ_USER];
 }
 
 void amiga_disable_irq(unsigned int irq)
@@ -341,9 +342,9 @@ void amiga_disable_irq(unsigned int irq)
 		return;
 
 	/* No action for auto-vector interrupts */
-	if (irq >= IRQ_AMIGA_AUTO) {
+	if (irq < IRQ_USER) {
 		printk("%s: Trying to disable auto-vector IRQ %i\n",
-		       __FUNCTION__, irq - IRQ_AMIGA_AUTO);
+		       __FUNCTION__, irq);
 		return;
 	}
 
@@ -358,24 +359,24 @@ void amiga_disable_irq(unsigned int irq)
 	}
 
 	/* disable the interrupt */
-	amiga_custom.intena = amiga_intena_vals[irq];
+	amiga_custom.intena = amiga_intena_vals[irq-IRQ_USER];
 }
 
 inline void amiga_do_irq(int irq, struct pt_regs *fp)
 {
-	kstat_cpu(0).irqs[SYS_IRQS + irq]++;
-	ami_irq_list[irq]->handler(irq, ami_irq_list[irq]->dev_id, fp);
+	kstat_cpu(0).irqs[irq]++;
+	ami_irq_list[irq-IRQ_USER]->handler(irq, ami_irq_list[irq-IRQ_USER]->dev_id, fp);
 }
 
 void amiga_do_irq_list(int irq, struct pt_regs *fp)
 {
 	irq_node_t *node;
 
-	kstat_cpu(0).irqs[SYS_IRQS + irq]++;
+	kstat_cpu(0).irqs[irq]++;
 
-	amiga_custom.intreq = amiga_intena_vals[irq];
+	amiga_custom.intreq = amiga_intena_vals[irq-IRQ_USER];
 
-	for (node = ami_irq_list[irq]; node; node = node->next)
+	for (node = ami_irq_list[irq-IRQ_USER]; node; node = node->next)
 		node->handler(irq, node->dev_id, fp);
 }
 
@@ -498,11 +499,12 @@ int show_amiga_interrupts(struct seq_file *p, void *v)
 	int i;
 	irq_node_t *node;
 
-	for (i = 0; i < AMI_STD_IRQS; i++) {
-		if (!(node = ami_irq_list[i]))
+	for (i = IRQ_USER; i < IRQ_AMIGA_CIAA; i++) {
+		node = ami_irq_list[i - IRQ_USER];
+		if (!node)
 			continue;
 		seq_printf(p, "ami  %2d: %10u ", i,
-		               kstat_cpu(0).irqs[SYS_IRQS + i]);
+		               kstat_cpu(0).irqs[i]);
 		do {
 			if (node->flags & SA_INTERRUPT)
 				seq_puts(p, "F ");
