@@ -776,7 +776,8 @@ endmenu
 menu "Pseudo filesystems"
 
 config PROC_FS
-	bool "/proc file system support"
+	bool "/proc file system support" if EMBEDDED
+	default y
 	help
 	  This is a virtual file system providing information about the status
 	  of the system. "Virtual" means that it doesn't take up any space on
