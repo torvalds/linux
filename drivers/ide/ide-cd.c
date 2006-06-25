@@ -395,7 +395,8 @@ static int cdrom_log_sense(ide_drive_t *drive, struct request *rq,
 			 * we cannot reliably check if drive can auto-close
 			 */
 			if (rq->cmd[0] == GPCMD_START_STOP_UNIT && sense->asc == 0x24)
-				log = 0;
+				break;
+			log = 1;
 			break;
 		case UNIT_ATTENTION:
 			/*
@@ -417,6 +418,11 @@ void cdrom_analyze_sense_data(ide_drive_t *drive,
 			      struct request *failed_command,
 			      struct request_sense *sense)
 {
+	unsigned long sector;
+	unsigned long bio_sectors;
+	unsigned long valid;
+	struct cdrom_info *info = drive->driver_data;
+
 	if (!cdrom_log_sense(drive, failed_command, sense))
 		return;
 
@@ -429,6 +435,37 @@ void cdrom_analyze_sense_data(ide_drive_t *drive,
 		if (sense->sense_key == 0x05 && sense->asc == 0x24)
 			return;
 
+ 	if (sense->error_code == 0x70) {	/* Current Error */
+ 		switch(sense->sense_key) {
+		case MEDIUM_ERROR:
+		case VOLUME_OVERFLOW:
+		case ILLEGAL_REQUEST:
+			if (!sense->valid)
+				break;
+			if (failed_command == NULL ||
+					!blk_fs_request(failed_command))
+				break;
+			sector = (sense->information[0] << 24) |
+				 (sense->information[1] << 16) |
+				 (sense->information[2] <<  8) |
+				 (sense->information[3]);
+
+			bio_sectors = bio_sectors(failed_command->bio);
+			if (bio_sectors < 4)
+				bio_sectors = 4;
+			if (drive->queue->hardsect_size == 2048)
+				sector <<= 2;	/* Device sector size is 2K */
+			sector &= ~(bio_sectors -1);
+			valid = (sector - failed_command->sector) << 9;
+
+			if (valid < 0)
+				valid = 0;
+			if (sector < get_capacity(info->disk) &&
+				drive->probed_capacity - sector < 4 * 75) {
+				set_capacity(info->disk, sector);
+			}
+ 		}
+ 	}
 #if VERBOSE_IDE_CD_ERRORS
 	{
 		int i;
@@ -609,17 +646,23 @@ static void cdrom_end_request (ide_drive_t *drive, int uptodate)
 				sense = failed->sense;
 				failed->sense_len = rq->sense_len;
 			}
-
+			cdrom_analyze_sense_data(drive, failed, sense);
 			/*
 			 * now end failed request
 			 */
-			spin_lock_irqsave(&ide_lock, flags);
-			end_that_request_chunk(failed, 0, failed->data_len);
-			end_that_request_last(failed, 0);
-			spin_unlock_irqrestore(&ide_lock, flags);
-		}
-
-		cdrom_analyze_sense_data(drive, failed, sense);
+			if (blk_fs_request(failed)) {
+				if (ide_end_dequeued_request(drive, failed, 0,
+						failed->hard_nr_sectors))
+					BUG();
+			} else {
+				spin_lock_irqsave(&ide_lock, flags);
+				end_that_request_chunk(failed, 0,
+							failed->data_len);
+				end_that_request_last(failed, 0);
+				spin_unlock_irqrestore(&ide_lock, flags);
+			}
+		} else
+			cdrom_analyze_sense_data(drive, NULL, sense);
 	}
 
 	if (!rq->current_nr_sectors && blk_fs_request(rq))
@@ -631,6 +674,13 @@ static void cdrom_end_request (ide_drive_t *drive, int uptodate)
 		nsectors = 1;
 
 	ide_end_request(drive, uptodate, nsectors);
+}
+
+static void ide_dump_status_no_sense(ide_drive_t *drive, const char *msg, u8 stat)
+{
+	if (stat & 0x80)
+		return;
+	ide_dump_status(drive, msg, stat);
 }
 
 /* Returns 0 if the request should be continued.
@@ -761,16 +811,16 @@ static int cdrom_decode_status(ide_drive_t *drive, int good_stat, int *stat_ret)
 			   sense_key == DATA_PROTECT) {
 			/* No point in retrying after an illegal
 			   request or data protect error.*/
-			ide_dump_status (drive, "command error", stat);
+			ide_dump_status_no_sense (drive, "command error", stat);
 			do_end_request = 1;
 		} else if (sense_key == MEDIUM_ERROR) {
 			/* No point in re-trying a zillion times on a bad 
 			 * sector...  If we got here the error is not correctable */
-			ide_dump_status (drive, "media error (bad sector)", stat);
+			ide_dump_status_no_sense (drive, "media error (bad sector)", stat);
 			do_end_request = 1;
 		} else if (sense_key == BLANK_CHECK) {
 			/* Disk appears blank ?? */
-			ide_dump_status (drive, "media error (blank)", stat);
+			ide_dump_status_no_sense (drive, "media error (blank)", stat);
 			do_end_request = 1;
 		} else if ((err & ~ABRT_ERR) != 0) {
 			/* Go to the default handler
@@ -782,13 +832,27 @@ static int cdrom_decode_status(ide_drive_t *drive, int good_stat, int *stat_ret)
 			do_end_request = 1;
 		}
 
-		if (do_end_request)
-			cdrom_end_request(drive, 0);
+		/* End a request through request sense analysis when we have
+		   sense data. We need this in order to perform end of media
+		   processing */
 
-		/* If we got a CHECK_CONDITION status,
-		   queue a request sense command. */
-		if ((stat & ERR_STAT) != 0)
-			cdrom_queue_request_sense(drive, NULL, NULL);
+		if (do_end_request) {
+			if (stat & ERR_STAT) {
+				unsigned long flags;
+				spin_lock_irqsave(&ide_lock, flags);
+				blkdev_dequeue_request(rq);
+				HWGROUP(drive)->rq = NULL;
+				spin_unlock_irqrestore(&ide_lock, flags);
+
+				cdrom_queue_request_sense(drive, rq->sense, rq);
+			} else
+				cdrom_end_request(drive, 0);
+		} else {
+			/* If we got a CHECK_CONDITION status,
+			   queue a request sense command. */
+			if (stat & ERR_STAT)
+				cdrom_queue_request_sense(drive, NULL, NULL);
+		}
 	} else {
 		blk_dump_rq_flags(rq, "ide-cd: bad rq");
 		cdrom_end_request(drive, 0);
@@ -1491,8 +1555,7 @@ static ide_startstop_t cdrom_do_packet_command (ide_drive_t *drive)
 }
 
 
-static
-int cdrom_queue_packet_command(ide_drive_t *drive, struct request *rq)
+static int cdrom_queue_packet_command(ide_drive_t *drive, struct request *rq)
 {
 	struct request_sense sense;
 	int retries = 10;
@@ -2220,6 +2283,9 @@ static int cdrom_read_toc(ide_drive_t *drive, struct request_sense *sense)
 		toc->capacity = 0x1fffff;
 
 	set_capacity(info->disk, toc->capacity * sectors_per_frame);
+	/* Save a private copy of te TOC capacity for error handling */
+	drive->probed_capacity = toc->capacity * sectors_per_frame;
+
 	blk_queue_hardsect_size(drive->queue,
 				sectors_per_frame << SECTOR_BITS);
 
@@ -2342,6 +2408,7 @@ static int cdrom_read_toc(ide_drive_t *drive, struct request_sense *sense)
 	if (!stat && (last_written > toc->capacity)) {
 		toc->capacity = last_written;
 		set_capacity(info->disk, toc->capacity * sectors_per_frame);
+		drive->probed_capacity = toc->capacity * sectors_per_frame;
 	}
 
 	/* Remember that we've read this stuff. */
@@ -2698,14 +2765,11 @@ int ide_cdrom_drive_status (struct cdrom_device_info *cdi, int slot_nr)
 	 * any other way to detect this...
 	 */
 	if (sense.sense_key == NOT_READY) {
-		if (sense.asc == 0x3a) {
-			if (sense.ascq == 1)
-				return CDS_NO_DISC;
-			else if (sense.ascq == 0 || sense.ascq == 2)
-				return CDS_TRAY_OPEN;
-		}
+		if (sense.asc == 0x3a && sense.ascq == 1)
+			return CDS_NO_DISC;
+		else
+			return CDS_TRAY_OPEN;
 	}
-
 	return CDS_DRIVE_NOT_READY;
 }
 

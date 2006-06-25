@@ -630,6 +630,7 @@ typedef struct ide_drive_s {
 	unsigned int	usage;		/* current "open()" count for drive */
 	unsigned int	failures;	/* current failure count */
 	unsigned int	max_failures;	/* maximum allowed failure count */
+	u64		probed_capacity;/* initial reported media capacity (ide-cd only currently) */
 
 	u64		capacity64;	/* total number of sectors */
 
@@ -1005,6 +1006,8 @@ extern	ide_hwif_t	ide_hwifs[];		/* master data repository */
 extern int noautodma;
 
 extern int ide_end_request (ide_drive_t *drive, int uptodate, int nrsecs);
+int ide_end_dequeued_request(ide_drive_t *drive, struct request *rq,
+			     int uptodate, int nr_sectors);
 
 /*
  * This is used on exit from the driver to designate the next irq handler
