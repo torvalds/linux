@@ -284,6 +284,19 @@ typedef struct {
 #define OS_ID_NOVEL		5	/* NOVELL OS		*/
 #define OS_ID_LINUX		6	/* Linux		*/
 
+static inline char * os_id_to_string(u16 os_id) {
+	switch(os_id) {
+	case OS_ID_NONE:	return "No OS";
+	case OS_ID_HPUX:	return "HP-UX";
+	case OS_ID_MPEXL:	return "MPE-iX";
+	case OS_ID_OSF:		return "OSF";
+	case OS_ID_HPRT:	return "HP-RT";
+	case OS_ID_NOVEL:	return "Novell Netware";
+	case OS_ID_LINUX:	return "Linux";
+	default:	return "Unknown";
+	}
+}
+
 
 /* constants for PDC_CHASSIS */
 #define OSTAT_OFF		0

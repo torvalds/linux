@@ -622,22 +622,12 @@ static ssize_t
 pdcs_osid_read(struct subsystem *entry, char *buf)
 {
 	char *out = buf;
-	char *tmpstr = NULL;
 
 	if (!entry || !buf)
 		return -EINVAL;
 
-	switch (pdcs_osid) {
-		case 0x0000:	tmpstr = "No OS"; break;
-		case 0x0001:	tmpstr = "HP-UX"; break;
-		case 0x0002:	tmpstr = "MPE-iX"; break;
-		case 0x0003:	tmpstr = "OSF"; break;
-		case 0x0004:	tmpstr = "HP-RT"; break;
-		case 0x0005:	tmpstr = "Novell Netware"; break;
-		case 0x0006:	tmpstr = "Linux"; break;
-		default:	tmpstr = "Unknown"; break;
-	}
-	out += sprintf(out, "%s dependent data (0x%.4x)\n", tmpstr, pdcs_osid);
+	out += sprintf(out, "%s dependent data (0x%.4x)\n",
+		os_id_to_string(pdcs_osid), pdcs_osid);
 
 	return out - buf;
 }
