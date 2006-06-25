@@ -351,7 +351,7 @@ static inline void list_splice_init(struct list_head *list,
 
 /**
  * list_for_each	-	iterate over a list
- * @pos:	the &struct list_head to use as a loop counter.
+ * @pos:	the &struct list_head to use as a loop cursor.
  * @head:	the head for your list.
  */
 #define list_for_each(pos, head) \
@@ -360,7 +360,7 @@ static inline void list_splice_init(struct list_head *list,
 
 /**
  * __list_for_each	-	iterate over a list
- * @pos:	the &struct list_head to use as a loop counter.
+ * @pos:	the &struct list_head to use as a loop cursor.
  * @head:	the head for your list.
  *
  * This variant differs from list_for_each() in that it's the
@@ -373,7 +373,7 @@ static inline void list_splice_init(struct list_head *list,
 
 /**
  * list_for_each_prev	-	iterate over a list backwards
- * @pos:	the &struct list_head to use as a loop counter.
+ * @pos:	the &struct list_head to use as a loop cursor.
  * @head:	the head for your list.
  */
 #define list_for_each_prev(pos, head) \
@@ -382,7 +382,7 @@ static inline void list_splice_init(struct list_head *list,
 
 /**
  * list_for_each_safe - iterate over a list safe against removal of list entry
- * @pos:	the &struct list_head to use as a loop counter.
+ * @pos:	the &struct list_head to use as a loop cursor.
  * @n:		another &struct list_head to use as temporary storage
  * @head:	the head for your list.
  */
@@ -392,7 +392,7 @@ static inline void list_splice_init(struct list_head *list,
 
 /**
  * list_for_each_entry	-	iterate over list of given type
- * @pos:	the type * to use as a loop counter.
+ * @pos:	the type * to use as a loop cursor.
  * @head:	the head for your list.
  * @member:	the name of the list_struct within the struct.
  */
@@ -403,7 +403,7 @@ static inline void list_splice_init(struct list_head *list,
 
 /**
  * list_for_each_entry_reverse - iterate backwards over list of given type.
- * @pos:	the type * to use as a loop counter.
+ * @pos:	the type * to use as a loop cursor.
  * @head:	the head for your list.
  * @member:	the name of the list_struct within the struct.
  */
@@ -425,7 +425,7 @@ static inline void list_splice_init(struct list_head *list,
 
 /**
  * list_for_each_entry_continue - continue iteration over list of given type
- * @pos:	the type * to use as a loop counter.
+ * @pos:	the type * to use as a loop cursor.
  * @head:	the head for your list.
  * @member:	the name of the list_struct within the struct.
  *
@@ -439,7 +439,7 @@ static inline void list_splice_init(struct list_head *list,
 
 /**
  * list_for_each_entry_from - iterate over list of given type from the current point
- * @pos:	the type * to use as a loop counter.
+ * @pos:	the type * to use as a loop cursor.
  * @head:	the head for your list.
  * @member:	the name of the list_struct within the struct.
  *
@@ -451,7 +451,7 @@ static inline void list_splice_init(struct list_head *list,
 
 /**
  * list_for_each_entry_safe - iterate over list of given type safe against removal of list entry
- * @pos:	the type * to use as a loop counter.
+ * @pos:	the type * to use as a loop cursor.
  * @n:		another type * to use as temporary storage
  * @head:	the head for your list.
  * @member:	the name of the list_struct within the struct.
@@ -464,7 +464,7 @@ static inline void list_splice_init(struct list_head *list,
 
 /**
  * list_for_each_entry_safe_continue
- * @pos:	the type * to use as a loop counter.
+ * @pos:	the type * to use as a loop cursor.
  * @n:		another type * to use as temporary storage
  * @head:	the head for your list.
  * @member:	the name of the list_struct within the struct.
@@ -480,7 +480,7 @@ static inline void list_splice_init(struct list_head *list,
 
 /**
  * list_for_each_entry_safe_from
- * @pos:	the type * to use as a loop counter.
+ * @pos:	the type * to use as a loop cursor.
  * @n:		another type * to use as temporary storage
  * @head:	the head for your list.
  * @member:	the name of the list_struct within the struct.
@@ -495,7 +495,7 @@ static inline void list_splice_init(struct list_head *list,
 
 /**
  * list_for_each_entry_safe_reverse
- * @pos:	the type * to use as a loop counter.
+ * @pos:	the type * to use as a loop cursor.
  * @n:		another type * to use as temporary storage
  * @head:	the head for your list.
  * @member:	the name of the list_struct within the struct.
@@ -511,7 +511,7 @@ static inline void list_splice_init(struct list_head *list,
 
 /**
  * list_for_each_rcu	-	iterate over an rcu-protected list
- * @pos:	the &struct list_head to use as a loop counter.
+ * @pos:	the &struct list_head to use as a loop cursor.
  * @head:	the head for your list.
  *
  * This list-traversal primitive may safely run concurrently with
@@ -530,7 +530,7 @@ static inline void list_splice_init(struct list_head *list,
 
 /**
  * list_for_each_safe_rcu
- * @pos:	the &struct list_head to use as a loop counter.
+ * @pos:	the &struct list_head to use as a loop cursor.
  * @n:		another &struct list_head to use as temporary storage
  * @head:	the head for your list.
  *
@@ -547,7 +547,7 @@ static inline void list_splice_init(struct list_head *list,
 
 /**
  * list_for_each_entry_rcu	-	iterate over rcu list of given type
- * @pos:	the type * to use as a loop counter.
+ * @pos:	the type * to use as a loop cursor.
  * @head:	the head for your list.
  * @member:	the name of the list_struct within the struct.
  *
@@ -564,7 +564,7 @@ static inline void list_splice_init(struct list_head *list,
 
 /**
  * list_for_each_continue_rcu
- * @pos:	the &struct list_head to use as a loop counter.
+ * @pos:	the &struct list_head to use as a loop cursor.
  * @head:	the head for your list.
  *
  * Iterate over an rcu-protected list, continuing after current point.
@@ -814,8 +814,8 @@ static inline void hlist_add_after_rcu(struct hlist_node *prev,
 
 /**
  * hlist_for_each_entry	- iterate over list of given type
- * @tpos:	the type * to use as a loop counter.
- * @pos:	the &struct hlist_node to use as a loop counter.
+ * @tpos:	the type * to use as a loop cursor.
+ * @pos:	the &struct hlist_node to use as a loop cursor.
  * @head:	the head for your list.
  * @member:	the name of the hlist_node within the struct.
  */
@@ -827,8 +827,8 @@ static inline void hlist_add_after_rcu(struct hlist_node *prev,
 
 /**
  * hlist_for_each_entry_continue - iterate over a hlist continuing after current point
- * @tpos:	the type * to use as a loop counter.
- * @pos:	the &struct hlist_node to use as a loop counter.
+ * @tpos:	the type * to use as a loop cursor.
+ * @pos:	the &struct hlist_node to use as a loop cursor.
  * @member:	the name of the hlist_node within the struct.
  */
 #define hlist_for_each_entry_continue(tpos, pos, member)		 \
@@ -839,8 +839,8 @@ static inline void hlist_add_after_rcu(struct hlist_node *prev,
 
 /**
  * hlist_for_each_entry_from - iterate over a hlist continuing from current point
- * @tpos:	the type * to use as a loop counter.
- * @pos:	the &struct hlist_node to use as a loop counter.
+ * @tpos:	the type * to use as a loop cursor.
+ * @pos:	the &struct hlist_node to use as a loop cursor.
  * @member:	the name of the hlist_node within the struct.
  */
 #define hlist_for_each_entry_from(tpos, pos, member)			 \
@@ -850,8 +850,8 @@ static inline void hlist_add_after_rcu(struct hlist_node *prev,
 
 /**
  * hlist_for_each_entry_safe - iterate over list of given type safe against removal of list entry
- * @tpos:	the type * to use as a loop counter.
- * @pos:	the &struct hlist_node to use as a loop counter.
+ * @tpos:	the type * to use as a loop cursor.
+ * @pos:	the &struct hlist_node to use as a loop cursor.
  * @n:		another &struct hlist_node to use as temporary storage
  * @head:	the head for your list.
  * @member:	the name of the hlist_node within the struct.
@@ -864,8 +864,8 @@ static inline void hlist_add_after_rcu(struct hlist_node *prev,
 
 /**
  * hlist_for_each_entry_rcu - iterate over rcu list of given type
- * @tpos:	the type * to use as a loop counter.
- * @pos:	the &struct hlist_node to use as a loop counter.
+ * @tpos:	the type * to use as a loop cursor.
+ * @pos:	the &struct hlist_node to use as a loop cursor.
  * @head:	the head for your list.
  * @member:	the name of the hlist_node within the struct.
  *
