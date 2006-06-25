@@ -552,6 +552,28 @@ struct address_space_operations ufs_aops = {
 	.bmap = ufs_bmap
 };
 
+static void ufs_set_inode_ops(struct inode *inode)
+{
+	if (S_ISREG(inode->i_mode)) {
+		inode->i_op = &ufs_file_inode_operations;
+		inode->i_fop = &ufs_file_operations;
+		inode->i_mapping->a_ops = &ufs_aops;
+	} else if (S_ISDIR(inode->i_mode)) {
+		inode->i_op = &ufs_dir_inode_operations;
+		inode->i_fop = &ufs_dir_operations;
+		inode->i_mapping->a_ops = &ufs_aops;
+	} else if (S_ISLNK(inode->i_mode)) {
+		if (!inode->i_blocks)
+			inode->i_op = &ufs_fast_symlink_inode_operations;
+		else {
+			inode->i_op = &page_symlink_inode_operations;
+			inode->i_mapping->a_ops = &ufs_aops;
+		}
+	} else
+		init_special_inode(inode, inode->i_mode,
+				   ufs_get_inode_dev(inode->i_sb, UFS_I(inode)));
+}
+
 void ufs_read_inode (struct inode * inode)
 {
 	struct ufs_inode_info *ufsi = UFS_I(inode);
@@ -626,23 +648,7 @@ void ufs_read_inode (struct inode * inode)
 	}
 	ufsi->i_osync = 0;
 
-	if (S_ISREG(inode->i_mode)) {
-		inode->i_op = &ufs_file_inode_operations;
-		inode->i_fop = &ufs_file_operations;
-		inode->i_mapping->a_ops = &ufs_aops;
-	} else if (S_ISDIR(inode->i_mode)) {
-		inode->i_op = &ufs_dir_inode_operations;
-		inode->i_fop = &ufs_dir_operations;
-	} else if (S_ISLNK(inode->i_mode)) {
-		if (!inode->i_blocks)
-			inode->i_op = &ufs_fast_symlink_inode_operations;
-		else {
-			inode->i_op = &page_symlink_inode_operations;
-			inode->i_mapping->a_ops = &ufs_aops;
-		}
-	} else
-		init_special_inode(inode, inode->i_mode,
-			ufs_get_inode_dev(sb, ufsi));
+	ufs_set_inode_ops(inode);
 
 	brelse (bh);
 
@@ -702,23 +708,7 @@ ufs2_inode :
 	}
 	ufsi->i_osync = 0;
 
-	if (S_ISREG(inode->i_mode)) {
-		inode->i_op = &ufs_file_inode_operations;
-		inode->i_fop = &ufs_file_operations;
-		inode->i_mapping->a_ops = &ufs_aops;
-	} else if (S_ISDIR(inode->i_mode)) {
-		inode->i_op = &ufs_dir_inode_operations;
-		inode->i_fop = &ufs_dir_operations;
-	} else if (S_ISLNK(inode->i_mode)) {
-		if (!inode->i_blocks)
-			inode->i_op = &ufs_fast_symlink_inode_operations;
-		else {
-			inode->i_op = &page_symlink_inode_operations;
-			inode->i_mapping->a_ops = &ufs_aops;
-		}
-	} else   /* TODO  : here ...*/
-		init_special_inode(inode, inode->i_mode,
-			ufs_get_inode_dev(sb, ufsi));
+	ufs_set_inode_ops(inode);
 
 	brelse(bh);
 

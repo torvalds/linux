@@ -205,6 +205,7 @@ static int ufs_mkdir(struct inode * dir, struct dentry * dentry, int mode)
 
 	inode->i_op = &ufs_dir_inode_operations;
 	inode->i_fop = &ufs_dir_operations;
+	inode->i_mapping->a_ops = &ufs_aops;
 
 	inode_inc_link_count(inode);
 
