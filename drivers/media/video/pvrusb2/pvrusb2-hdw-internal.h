@@ -94,6 +94,7 @@ typedef int (*pvr2_ctlf_val_to_sym)(struct pvr2_ctrl *,int msk,int val,
 typedef int (*pvr2_ctlf_sym_to_val)(struct pvr2_ctrl *,
 				    const char *,unsigned int,
 				    int *mskp,int *valp);
+typedef unsigned int (*pvr2_ctlf_get_v4lflags)(struct pvr2_ctrl *);
 
 /* This structure describes a specific control.  A table of these is set up
    in pvrusb2-hdw.c. */
@@ -111,6 +112,7 @@ struct pvr2_ctl_info {
 	pvr2_ctlf_sym_to_val sym_to_val;    /* Custom convert symbol->value */
 	pvr2_ctlf_is_dirty is_dirty;        /* Return true if dirty */
 	pvr2_ctlf_clear_dirty clear_dirty;  /* Clear dirty state */
+	pvr2_ctlf_get_v4lflags get_v4lflags;/* Retrieve v4l flags */
 
 	/* Control's type (int, enum, bitmask) */
 	enum pvr2_ctl_type type;

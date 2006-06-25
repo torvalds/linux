@@ -1988,7 +1988,7 @@ struct pvr2_ctrl *pvr2_hdw_get_ctrl_by_id(struct pvr2_hdw *hdw,
 }
 
 
-/* Given an ID, retrieve the control structure associated with it. */
+/* Given a V4L ID, retrieve the control structure associated with it. */
 struct pvr2_ctrl *pvr2_hdw_get_ctrl_v4l(struct pvr2_hdw *hdw,unsigned int ctl_id)
 {
 	struct pvr2_ctrl *cptr;
@@ -2001,6 +2001,30 @@ struct pvr2_ctrl *pvr2_hdw_get_ctrl_v4l(struct pvr2_hdw *hdw,unsigned int ctl_id
 		i = cptr->info->v4l_id;
 		if (i && (i == ctl_id)) return cptr;
 	}
+	return 0;
+}
+
+
+/* Given a V4L ID for its immediate predecessor, retrieve the control
+   structure associated with it. */
+struct pvr2_ctrl *pvr2_hdw_get_ctrl_nextv4l(struct pvr2_hdw *hdw,
+					    unsigned int ctl_id)
+{
+	struct pvr2_ctrl *cptr,*cp2;
+	unsigned int idx;
+	int i;
+
+	/* This could be made a lot more efficient, but for now... */
+	cp2 = 0;
+	for (idx = 0; idx < hdw->control_cnt; idx++) {
+		cptr = hdw->controls + idx;
+		i = cptr->info->v4l_id;
+		if (!i) continue;
+		if (i <= ctl_id) continue;
+		if (cp2 && (cp2->info->v4l_id < i)) continue;
+		cp2 = cptr;
+	}
+	return cp2;
 	return 0;
 }
 

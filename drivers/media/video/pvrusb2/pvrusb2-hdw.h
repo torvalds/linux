@@ -153,6 +153,10 @@ struct pvr2_ctrl *pvr2_hdw_get_ctrl_by_id(struct pvr2_hdw *,unsigned int);
 /* Retrieve a control handle given its V4L ID (if any) */
 struct pvr2_ctrl *pvr2_hdw_get_ctrl_v4l(struct pvr2_hdw *,unsigned int ctl_id);
 
+/* Retrieve a control handle given its immediate predecessor V4L ID (if any) */
+struct pvr2_ctrl *pvr2_hdw_get_ctrl_nextv4l(struct pvr2_hdw *,
+					    unsigned int ctl_id);
+
 /* Commit all control changes made up to this point */
 int pvr2_hdw_commit_ctl(struct pvr2_hdw *);
 

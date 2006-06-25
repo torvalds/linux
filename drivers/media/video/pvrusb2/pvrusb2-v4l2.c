@@ -520,12 +520,19 @@ static int pvr2_v4l2_do_ioctl(struct inode *inode, struct file *file,
 		ret = 0;
 		cptr = pvr2_hdw_get_ctrl_v4l(hdw,vc->id);
 		if (!cptr) {
+			pvr2_trace(PVR2_TRACE_ERROR_LEGS,
+				   "QUERYCTRL id=0x%x not implemented here",
+				   vc->id);
 			ret = -EINVAL;
 			break;
 		}
 
-		strlcpy(vc->name,pvr2_ctrl_get_name(cptr),sizeof(vc->name));
-		vc->flags = 0;
+		pvr2_trace(PVR2_TRACE_V4LIOCTL,
+			   "QUERYCTRL id=0x%x mapping name=%s (%s)",
+			   vc->id,pvr2_ctrl_get_name(cptr),
+			   pvr2_ctrl_get_desc(cptr));
+		strlcpy(vc->name,pvr2_ctrl_get_desc(cptr),sizeof(vc->name));
+		vc->flags = pvr2_ctrl_get_v4lflags(cptr);
 		vc->default_value = pvr2_ctrl_get_def(cptr);
 		switch (pvr2_ctrl_get_type(cptr)) {
 		case pvr2_ctl_enum:
@@ -547,6 +554,9 @@ static int pvr2_v4l2_do_ioctl(struct inode *inode, struct file *file,
 			vc->step = 1;
 			break;
 		default:
+			pvr2_trace(PVR2_TRACE_ERROR_LEGS,
+				   "QUERYCTRL id=0x%x name=%s not mappable",
+				   vc->id,pvr2_ctrl_get_name(cptr));
 			ret = -EINVAL;
 			break;
 		}

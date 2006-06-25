@@ -214,6 +214,27 @@ int pvr2_ctrl_get_valname(struct pvr2_ctrl *cptr,int val,
 }
 
 
+/* Return V4L ID for this control or zero if none */
+int pvr2_ctrl_get_v4lid(struct pvr2_ctrl *cptr)
+{
+	if (!cptr) return 0;
+	return cptr->info->v4l_id;
+}
+
+
+unsigned int pvr2_ctrl_get_v4lflags(struct pvr2_ctrl *cptr)
+{
+	unsigned int flags = 0;
+
+	if (cptr->info->get_v4lflags) {
+		flags = cptr->info->get_v4lflags(cptr);
+	}
+
+
+	return flags;
+}
+
+
 /* Return true if control is writable */
 int pvr2_ctrl_is_writable(struct pvr2_ctrl *cptr)
 {
