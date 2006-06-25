@@ -589,7 +589,7 @@ void emergency_restart(void)
 }
 EXPORT_SYMBOL_GPL(emergency_restart);
 
-void kernel_restart_prepare(char *cmd)
+static void kernel_restart_prepare(char *cmd)
 {
 	blocking_notifier_call_chain(&reboot_notifier_list, SYS_RESTART, cmd);
 	system_state = SYSTEM_RESTART;
@@ -623,7 +623,7 @@ EXPORT_SYMBOL_GPL(kernel_restart);
  *	Move into place and start executing a preloaded standalone
  *	executable.  If nothing was preloaded return an error.
  */
-void kernel_kexec(void)
+static void kernel_kexec(void)
 {
 #ifdef CONFIG_KEXEC
 	struct kimage *image;
@@ -637,7 +637,6 @@ void kernel_kexec(void)
 	machine_kexec(image);
 #endif
 }
-EXPORT_SYMBOL_GPL(kernel_kexec);
 
 void kernel_shutdown_prepare(enum system_states state)
 {

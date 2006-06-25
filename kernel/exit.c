@@ -36,6 +36,7 @@
 #include <linux/compat.h>
 #include <linux/pipe_fs_i.h>
 #include <linux/audit.h> /* for audit_free() */
+#include <linux/resource.h>
 
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
@@ -44,8 +45,6 @@
 
 extern void sem_exit (void);
 extern struct task_struct *child_reaper;
-
-int getrusage(struct task_struct *, int, struct rusage __user *);
 
 static void exit_mm(struct task_struct * tsk);
 
