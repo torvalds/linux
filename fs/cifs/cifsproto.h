@@ -64,11 +64,9 @@ extern int map_smb_to_linux_error(struct smb_hdr *smb);
 extern void header_assemble(struct smb_hdr *, char /* command */ ,
 			    const struct cifsTconInfo *, int /* length of
 			    fixed section (word count) in two byte units */);
-#ifdef CONFIG_CIFS_EXPERIMENTAL
 extern int small_smb_init_no_tc(const int smb_cmd, const int wct,
 				struct cifsSesInfo *ses,
 				void ** request_buf);
-#endif
 extern int CIFS_SessSetup(unsigned int xid, struct cifsSesInfo *ses,
 			     const int stage, 
 			     const struct nls_table *nls_cp);

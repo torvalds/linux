@@ -209,7 +209,6 @@ small_smb_init(int smb_command, int wct, struct cifsTconInfo *tcon,
 	return rc;
 }
 
-#ifdef CONFIG_CIFS_EXPERIMENTAL  
 int
 small_smb_init_no_tc(const int smb_command, const int wct, 
 		     struct cifsSesInfo *ses, void **request_buf)
@@ -235,7 +234,6 @@ small_smb_init_no_tc(const int smb_command, const int wct,
 
 	return rc;
 }
-#endif  /* CONFIG_CIFS_EXPERIMENTAL */
 
 /* If the return code is zero, this function must fill in request_buf pointer */
 static int
