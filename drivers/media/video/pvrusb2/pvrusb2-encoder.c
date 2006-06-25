@@ -65,7 +65,7 @@ static u32 pvr_tbl_audiobitrate[] = {
 #define IVTV_MBOX_DRIVER_BUSY 0x00000001
 
 
-static int pvr2_write_encoder_words(struct pvr2_hdw *hdw,
+static int pvr2_encoder_write_words(struct pvr2_hdw *hdw,
 				    const u32 *data, unsigned int dlen)
 {
 	unsigned int idx;
@@ -106,7 +106,7 @@ static int pvr2_write_encoder_words(struct pvr2_hdw *hdw,
 }
 
 
-static int pvr2_read_encoder_words(struct pvr2_hdw *hdw,int statusFl,
+static int pvr2_encoder_read_words(struct pvr2_hdw *hdw,int statusFl,
 				   u32 *data, unsigned int dlen)
 {
 	unsigned int idx;
@@ -147,15 +147,24 @@ static int pvr2_read_encoder_words(struct pvr2_hdw *hdw,int statusFl,
 }
 
 
-static int pvr2_write_encoder_vcmd (struct pvr2_hdw *hdw, u8 cmd,
-				    int args, ...)
+/* This prototype is set up to be compatible with the
+   cx2341x_mbox_func prototype in cx2341x.h, which should be in
+   kernels 2.6.18 or later.  We do this so that we can enable
+   cx2341x.ko to write to our encoder (by handing it a pointer to this
+   function).  For earlier kernels this doesn't really matter. */
+static int pvr2_encoder_cmd(void *ctxt,
+			    int cmd,
+			    int arg_cnt_send,
+			    int arg_cnt_recv,
+			    u32 *argp)
 {
 	unsigned int poll_count;
 	int ret = 0;
-	va_list vl;
 	unsigned int idx;
+	/* These sizes look to be limited by the FX2 firmware implementation */
 	u32 wrData[16];
-	u32 rdData[32];
+	u32 rdData[16];
+	struct pvr2_hdw *hdw = (struct pvr2_hdw *)ctxt;
 
 	/*
 
@@ -189,6 +198,28 @@ static int pvr2_write_encoder_vcmd (struct pvr2_hdw *hdw, u8 cmd,
 
 	*/
 
+	if (arg_cnt_send > (sizeof(wrData)/sizeof(wrData[0]))-4) {
+		pvr2_trace(
+			PVR2_TRACE_ERROR_LEGS,
+			"Failed to write cx23416 command"
+			" - too many input arguments"
+			" (was given %u limit %u)",
+			arg_cnt_send,
+			(sizeof(wrData)/sizeof(wrData[0])) - 4);
+		return -EINVAL;
+	}
+
+	if (arg_cnt_recv > (sizeof(rdData)/sizeof(rdData[0]))-4) {
+		pvr2_trace(
+			PVR2_TRACE_ERROR_LEGS,
+			"Failed to write cx23416 command"
+			" - too many return arguments"
+			" (was given %u limit %u)",
+			arg_cnt_recv,
+			(sizeof(rdData)/sizeof(rdData[0])) - 4);
+		return -EINVAL;
+	}
+
 
 	LOCK_TAKE(hdw->ctl_lock); do {
 
@@ -196,25 +227,22 @@ static int pvr2_write_encoder_vcmd (struct pvr2_hdw *hdw, u8 cmd,
 		wrData[1] = cmd;
 		wrData[2] = 0;
 		wrData[3] = 0x00060000;
-		va_start(vl, args);
-		for (idx = 0; idx < args; idx++) {
-			wrData[idx+4] = va_arg(vl, u32);
+		for (idx = 0; idx < arg_cnt_send; idx++) {
+			wrData[idx+4] = argp[idx];
 		}
-		va_end(vl);
-		args += 4;
-		while (args < sizeof(wrData)/sizeof(wrData[0])) {
-			wrData[args++] = 0;
+		for (; idx < (sizeof(wrData)/sizeof(wrData[0]))-4; idx++) {
+			wrData[idx+4] = 0;
 		}
 
-		ret = pvr2_write_encoder_words(hdw,wrData,args);
+		ret = pvr2_encoder_write_words(hdw,wrData,idx);
 		if (ret) break;
 		wrData[0] = IVTV_MBOX_DRIVER_DONE|IVTV_MBOX_DRIVER_BUSY;
-		ret = pvr2_write_encoder_words(hdw,wrData,1);
+		ret = pvr2_encoder_write_words(hdw,wrData,1);
 		if (ret) break;
 		poll_count = 0;
 		while (1) {
 			if (poll_count < 10000000) poll_count++;
-			ret = pvr2_read_encoder_words(hdw,!0,rdData,1);
+			ret = pvr2_encoder_read_words(hdw,!0,rdData,1);
 			if (ret) break;
 			if (rdData[0] & IVTV_MBOX_FIRMWARE_DONE) {
 				break;
@@ -228,7 +256,7 @@ static int pvr2_write_encoder_vcmd (struct pvr2_hdw *hdw, u8 cmd,
 				pvr2_trace(
 					PVR2_TRACE_ERROR_LEGS,
 					"Encoder command: 0x%02x",cmd);
-				for (idx = 4; idx < args; idx++) {
+				for (idx = 4; idx < arg_cnt_send; idx++) {
 					pvr2_trace(
 						PVR2_TRACE_ERROR_LEGS,
 						"Encoder arg%d: 0x%08x",
@@ -245,26 +273,50 @@ static int pvr2_write_encoder_vcmd (struct pvr2_hdw *hdw, u8 cmd,
 		}
 		if (ret) break;
 		wrData[0] = 0x7;
-		ret = pvr2_read_encoder_words(hdw,0,rdData,16);
+		ret = pvr2_encoder_read_words(
+			hdw,0,rdData,
+			sizeof(rdData)/sizeof(rdData[0]));
 		if (ret) break;
-		for (idx = 0; idx < args; idx++) {
-			if (rdData[idx] != wrData[idx]) {
-				pvr2_trace(
-					PVR2_TRACE_DEBUG,
-					"pvr2_encoder idx %02x mismatch exp:"
-					" %08x got: %08x",
-					idx,wrData[idx],rdData[idx]);
-			}
+		for (idx = 0; idx < arg_cnt_recv; idx++) {
+			argp[idx] = rdData[idx+4];
 		}
 
 		wrData[0] = 0x0;
-		ret = pvr2_write_encoder_words(hdw,wrData,1);
+		ret = pvr2_encoder_write_words(hdw,wrData,1);
 		if (ret) break;
 
 	} while(0); LOCK_GIVE(hdw->ctl_lock);
 
 	return ret;
 }
+
+
+static int pvr2_encoder_vcmd(struct pvr2_hdw *hdw, int cmd,
+			     int args, ...)
+{
+	va_list vl;
+	unsigned int idx;
+	u32 data[12];
+
+	if (args > sizeof(data)/sizeof(data[0])) {
+		pvr2_trace(
+			PVR2_TRACE_ERROR_LEGS,
+			"Failed to write cx23416 command"
+			" - too many arguments"
+			" (was given %u limit %u)",
+			args,sizeof(data)/sizeof(data[0]));
+		return -EINVAL;
+	}
+
+	va_start(vl, args);
+	for (idx = 0; idx < args; idx++) {
+		data[idx] = va_arg(vl, u32);
+	}
+	va_end(vl);
+
+	return pvr2_encoder_cmd(hdw,cmd,args,0,data);
+}
+
 
 int pvr2_encoder_configure(struct pvr2_hdw *hdw)
 {
@@ -305,12 +357,12 @@ int pvr2_encoder_configure(struct pvr2_hdw *hdw)
 	   also been determined that sending 0x00 as this mystery
 	   second argument seems to work on both hardware models AND
 	   xawtv works again.  So we're going to send 0x00. */
-	ret |= pvr2_write_encoder_vcmd(hdw, CX2341X_ENC_SET_OUTPUT_PORT, 2,
-				       0x01, 0x00);
+	ret |= pvr2_encoder_vcmd(hdw, CX2341X_ENC_SET_OUTPUT_PORT, 2,
+				 0x01, 0x00);
 
 	/* set the Program Index Information. We want I,P,B frames (max 400) */
-	ret |= pvr2_write_encoder_vcmd(hdw, CX2341X_ENC_SET_PGM_INDEX_INFO, 2,
-				       0x07, 0x0190);
+	ret |= pvr2_encoder_vcmd(hdw, CX2341X_ENC_SET_PGM_INDEX_INFO, 2,
+				 0x07, 0x0190);
 
 	/* NOTE : windows driver sends these */
 	/* Mike Isely <isely@pobox.com> 7-Mar-2006 The windows driver
@@ -319,79 +371,79 @@ int pvr2_encoder_configure(struct pvr2_hdw *hdw)
 	   Leaving these out seems to do no harm at all, so they're
 	   commented out for that reason. */
 #ifdef notdef
-	ret |= pvr2_write_encoder_vcmd(hdw, CX2341X_ENC_MISC,4, 5,0,0,0);
-	ret |= pvr2_write_encoder_vcmd(hdw, CX2341X_ENC_MISC,4, 3,1,0,0);
-	ret |= pvr2_write_encoder_vcmd(hdw, CX2341X_ENC_MISC,4, 8,0,0,0);
-	ret |= pvr2_write_encoder_vcmd(hdw, CX2341X_ENC_MISC,4, 4,1,0,0);
-	ret |= pvr2_write_encoder_vcmd(hdw, CX2341X_ENC_MISC,4, 0,3,0,0);
-	ret |= pvr2_write_encoder_vcmd(hdw, CX2341X_ENC_MISC,4,15,0,0,0);
+	ret |= pvr2_encoder_vcmd(hdw, CX2341X_ENC_MISC,4, 5,0,0,0);
+	ret |= pvr2_encoder_vcmd(hdw, CX2341X_ENC_MISC,4, 3,1,0,0);
+	ret |= pvr2_encoder_vcmd(hdw, CX2341X_ENC_MISC,4, 8,0,0,0);
+	ret |= pvr2_encoder_vcmd(hdw, CX2341X_ENC_MISC,4, 4,1,0,0);
+	ret |= pvr2_encoder_vcmd(hdw, CX2341X_ENC_MISC,4, 0,3,0,0);
+	ret |= pvr2_encoder_vcmd(hdw, CX2341X_ENC_MISC,4,15,0,0,0);
 #endif
 
 	/* Strange compared to ivtv data. */
-	ret |= pvr2_write_encoder_vcmd(hdw, CX2341X_ENC_SET_NUM_VSYNC_LINES, 2,
-				       0xf0, 0xf0);
+	ret |= pvr2_encoder_vcmd(hdw, CX2341X_ENC_SET_NUM_VSYNC_LINES, 2,
+				 0xf0, 0xf0);
 
 	/* setup firmware to notify us about some events (don't know why...) */
-	ret |= pvr2_write_encoder_vcmd(hdw, CX2341X_ENC_SET_EVENT_NOTIFICATION, 4,
-				       0, 0, 0x10000000, 0xffffffff);
+	ret |= pvr2_encoder_vcmd(hdw, CX2341X_ENC_SET_EVENT_NOTIFICATION, 4,
+				 0, 0, 0x10000000, 0xffffffff);
 
 	/* set fps to 25 or 30 (1 or 0)*/
-	ret |= pvr2_write_encoder_vcmd(hdw, CX2341X_ENC_SET_FRAME_RATE, 1,
-				       is_30fps ? 0 : 1);
+	ret |= pvr2_encoder_vcmd(hdw, CX2341X_ENC_SET_FRAME_RATE, 1,
+				 is_30fps ? 0 : 1);
 
 	/* set encoding resolution */
-	ret |= pvr2_write_encoder_vcmd(hdw, CX2341X_ENC_SET_FRAME_SIZE, 2,
-				       (height_full ? height : (height / 2)),
-				       width);
+	ret |= pvr2_encoder_vcmd(hdw, CX2341X_ENC_SET_FRAME_SIZE, 2,
+				 (height_full ? height : (height / 2)),
+				 width);
 	/* set encoding aspect ratio to 4:3 */
-	ret |= pvr2_write_encoder_vcmd(hdw, CX2341X_ENC_SET_ASPECT_RATIO, 1,
-				       0x02);
+	ret |= pvr2_encoder_vcmd(hdw, CX2341X_ENC_SET_ASPECT_RATIO, 1,
+				 0x02);
 
 	/* VBI */
 
 	if (hdw->config == pvr2_config_vbi) {
 		int lines = 2 * (is_30fps ? 12 : 18);
 		int size = (4*((lines*1443+3)/4)) / lines;
-		ret |= pvr2_write_encoder_vcmd(hdw, CX2341X_ENC_SET_VBI_CONFIG, 7,
-					       0xbd05, 1, 4,
-					       0x25256262, 0x387f7f7f,
-					       lines , size);
+		ret |= pvr2_encoder_vcmd(hdw, CX2341X_ENC_SET_VBI_CONFIG, 7,
+					 0xbd05, 1, 4,
+					 0x25256262, 0x387f7f7f,
+					 lines , size);
 //                                     0x25256262, 0x13135454, lines , size);
 		/* select vbi lines */
 #define line_used(l)  (is_30fps ? (l >= 10 && l <= 21) : (l >= 6 && l <= 23))
 		for (i = 2 ; i <= 24 ; i++){
-			ret |= pvr2_write_encoder_vcmd(
+			ret |= pvr2_encoder_vcmd(
 				hdw,CX2341X_ENC_SET_VBI_LINE, 5,
 				i-1,line_used(i), 0, 0, 0);
-			ret |= pvr2_write_encoder_vcmd(
+			ret |= pvr2_encoder_vcmd(
 				hdw,CX2341X_ENC_SET_VBI_LINE, 5,
 				(i-1) | (1 << 31),
 				line_used(i), 0, 0, 0);
 		}
 	} else {
-		ret |= pvr2_write_encoder_vcmd(
+		ret |= pvr2_encoder_vcmd(
 			hdw,CX2341X_ENC_SET_VBI_LINE, 5,
 			0xffffffff,0,0,0,0);
 	}
 
 	/* set stream type, depending on resolution. */
-	ret |= pvr2_write_encoder_vcmd(hdw, CX2341X_ENC_SET_STREAM_TYPE, 1,
-				       height_full ? 0x0a : 0x0b);
+	ret |= pvr2_encoder_vcmd(hdw, CX2341X_ENC_SET_STREAM_TYPE, 1,
+				 height_full ? 0x0a : 0x0b);
 	/* set video bitrate */
-	ret |= pvr2_write_encoder_vcmd(
+	ret |= pvr2_encoder_vcmd(
 		hdw, CX2341X_ENC_SET_BIT_RATE, 3,
 		(hdw->vbr_val ? 1 : 0),
 		hdw->videobitrate_val,
 		hdw->videopeak_val / 400);
 	/* setup GOP structure (GOP size = 0f or 0c, 3-1 = 2 B-frames) */
-	ret |= pvr2_write_encoder_vcmd(hdw, CX2341X_ENC_SET_GOP_PROPERTIES, 2,
-				       is_30fps ?  0x0f : 0x0c, 0x03);
+	ret |= pvr2_encoder_vcmd(hdw, CX2341X_ENC_SET_GOP_PROPERTIES, 2,
+				 is_30fps ?  0x0f : 0x0c, 0x03);
 
 	/* enable 3:2 pulldown */
-	ret |= pvr2_write_encoder_vcmd(hdw,CX2341X_ENC_SET_3_2_PULLDOWN,1,0);
+	ret |= pvr2_encoder_vcmd(hdw,CX2341X_ENC_SET_3_2_PULLDOWN,1,0);
 
 	/* set GOP open/close property (open) */
-	ret |= pvr2_write_encoder_vcmd(hdw,CX2341X_ENC_SET_GOP_CLOSURE,1,0);
+	ret |= pvr2_encoder_vcmd(hdw,CX2341X_ENC_SET_GOP_CLOSURE,1,0);
 
 	/* set audio stream properties 0x40b9? 0100 0000 1011 1001 */
 	audio = (pvr_tbl_audiobitrate[hdw->audiobitrate_val] |
@@ -400,28 +452,28 @@ int pvr2_encoder_configure(struct pvr2_hdw *hdw)
 		 (hdw->audiocrc_val ? 1 << 14 : 0) |
 		 pvr_tbl_emphasis[hdw->audioemphasis_val]);
 
-	ret |= pvr2_write_encoder_vcmd(hdw,CX2341X_ENC_SET_AUDIO_PROPERTIES,1,
-				       audio);
+	ret |= pvr2_encoder_vcmd(hdw,CX2341X_ENC_SET_AUDIO_PROPERTIES,1,
+				 audio);
 
 	/* set dynamic noise reduction filter to manual, Horiz/Vert */
-	ret |= pvr2_write_encoder_vcmd(hdw, CX2341X_ENC_SET_DNR_FILTER_MODE, 2,
-				       0, 0x03);
+	ret |= pvr2_encoder_vcmd(hdw, CX2341X_ENC_SET_DNR_FILTER_MODE, 2,
+				 0, 0x03);
 
 	/* dynamic noise reduction filter param */
-	ret |= pvr2_write_encoder_vcmd(hdw, CX2341X_ENC_SET_DNR_FILTER_PROPS, 2
-				       , 0, 0);
+	ret |= pvr2_encoder_vcmd(hdw, CX2341X_ENC_SET_DNR_FILTER_PROPS, 2
+				 , 0, 0);
 
 	/* dynamic noise reduction median filter */
-	ret |= pvr2_write_encoder_vcmd(hdw, CX2341X_ENC_SET_CORING_LEVELS, 4,
-				       0, 0xff, 0, 0xff);
+	ret |= pvr2_encoder_vcmd(hdw, CX2341X_ENC_SET_CORING_LEVELS, 4,
+				 0, 0xff, 0, 0xff);
 
 	/* spacial prefiler parameter */
-	ret |= pvr2_write_encoder_vcmd(hdw,
-				       CX2341X_ENC_SET_SPATIAL_FILTER_TYPE, 2,
-				       0x01, 0x01);
+	ret |= pvr2_encoder_vcmd(hdw,
+				 CX2341X_ENC_SET_SPATIAL_FILTER_TYPE, 2,
+				 0x01, 0x01);
 
 	/* initialize video input */
-	ret |= pvr2_write_encoder_vcmd(hdw, CX2341X_ENC_INITIALIZE_INPUT, 0);
+	ret |= pvr2_encoder_vcmd(hdw, CX2341X_ENC_INITIALIZE_INPUT, 0);
 
 	if (!ret) {
 		hdw->subsys_enabled_mask |= (1<<PVR2_SUBSYS_B_ENC_CFG);
@@ -442,14 +494,14 @@ int pvr2_encoder_start(struct pvr2_hdw *hdw)
 	pvr2_hdw_gpio_chg_out(hdw,0xffffffff,0x00000000);
 
 	if (hdw->config == pvr2_config_vbi) {
-		status = pvr2_write_encoder_vcmd(hdw,CX2341X_ENC_START_CAPTURE,2,
-						 0x01,0x14);
+		status = pvr2_encoder_vcmd(hdw,CX2341X_ENC_START_CAPTURE,2,
+					   0x01,0x14);
 	} else if (hdw->config == pvr2_config_mpeg) {
-		status = pvr2_write_encoder_vcmd(hdw,CX2341X_ENC_START_CAPTURE,2,
-						 0,0x13);
+		status = pvr2_encoder_vcmd(hdw,CX2341X_ENC_START_CAPTURE,2,
+					   0,0x13);
 	} else {
-		status = pvr2_write_encoder_vcmd(hdw,CX2341X_ENC_START_CAPTURE,2,
-						 0,0x13);
+		status = pvr2_encoder_vcmd(hdw,CX2341X_ENC_START_CAPTURE,2,
+					   0,0x13);
 	}
 	if (!status) {
 		hdw->subsys_enabled_mask |= (1<<PVR2_SUBSYS_B_ENC_RUN);
@@ -465,14 +517,14 @@ int pvr2_encoder_stop(struct pvr2_hdw *hdw)
 	pvr2_write_register(hdw, 0x0048, 0xffffffff);
 
 	if (hdw->config == pvr2_config_vbi) {
-		status = pvr2_write_encoder_vcmd(hdw,CX2341X_ENC_STOP_CAPTURE,3,
-						 0x01,0x01,0x14);
+		status = pvr2_encoder_vcmd(hdw,CX2341X_ENC_STOP_CAPTURE,3,
+					   0x01,0x01,0x14);
 	} else if (hdw->config == pvr2_config_mpeg) {
-		status = pvr2_write_encoder_vcmd(hdw,CX2341X_ENC_STOP_CAPTURE,3,
-						 0x01,0,0x13);
+		status = pvr2_encoder_vcmd(hdw,CX2341X_ENC_STOP_CAPTURE,3,
+					   0x01,0,0x13);
 	} else {
-		status = pvr2_write_encoder_vcmd(hdw,CX2341X_ENC_STOP_CAPTURE,3,
-						 0x01,0,0x13);
+		status = pvr2_encoder_vcmd(hdw,CX2341X_ENC_STOP_CAPTURE,3,
+					   0x01,0,0x13);
 	}
 
 	/* change some GPIO data */
