@@ -7,6 +7,7 @@
 #include <linux/i2c.h>
 #include <linux/videodev.h>
 #include <media/tuner.h>
+#include <media/v4l2-common.h>
 
 static int offset = 0;
 module_param(offset, int, 0666);
@@ -128,6 +129,7 @@ static void default_set_tv_freq(struct i2c_client *c, unsigned int freq)
 	u8 buffer[4];
 	int rc, IFPCoff, i, j;
 	enum param_type desired_type;
+	struct tuner_params *params;
 
 	tun = &tuners[t->type];
 
@@ -169,19 +171,20 @@ static void default_set_tv_freq(struct i2c_client *c, unsigned int freq)
 			  IFPCoff,t->type);
 		j = 0;
 	}
+	params = &tun->params[j];
 
-	for (i = 0; i < tun->params[j].count; i++) {
-		if (freq > tun->params[j].ranges[i].limit)
+	for (i = 0; i < params->count; i++) {
+		if (freq > params->ranges[i].limit)
 			continue;
 		break;
 	}
-	if (i == tun->params[j].count) {
+	if (i == params->count) {
 		tuner_dbg("TV frequency out of range (%d > %d)",
-				freq, tun->params[j].ranges[i - 1].limit);
-		freq = tun->params[j].ranges[--i].limit;
+				freq, params->ranges[i - 1].limit);
+		freq = params->ranges[--i].limit;
 	}
-	config = tun->params[j].ranges[i].config;
-	cb     = tun->params[j].ranges[i].cb;
+	config = params->ranges[i].config;
+	cb     = params->ranges[i].cb;
 	/*  i == 0 -> VHF_LO
 	 *  i == 1 -> VHF_HI
 	 *  i == 2 -> UHF     */
@@ -281,7 +284,7 @@ static void default_set_tv_freq(struct i2c_client *c, unsigned int freq)
 		break;
 	}
 
-	if (tuners[t->type].params->cb_first_if_lower_freq && div < t->last_div) {
+	if (params->cb_first_if_lower_freq && div < t->last_div) {
 		buffer[0] = config;
 		buffer[1] = cb;
 		buffer[2] = (div>>8) & 0x7f;
@@ -293,6 +296,43 @@ static void default_set_tv_freq(struct i2c_client *c, unsigned int freq)
 		buffer[3] = cb;
 	}
 	t->last_div = div;
+	if (params->has_tda9887) {
+		int config = 0;
+		int is_secam_l = (t->std & (V4L2_STD_SECAM_L | V4L2_STD_SECAM_LC)) &&
+			!(t->std & ~(V4L2_STD_SECAM_L | V4L2_STD_SECAM_LC));
+
+		if (t->std == V4L2_STD_SECAM_LC) {
+			if (params->port1_active ^ params->port1_invert_for_secam_lc)
+				config |= TDA9887_PORT1_ACTIVE;
+			if (params->port2_active ^ params->port2_invert_for_secam_lc)
+				config |= TDA9887_PORT2_ACTIVE;
+		}
+		else {
+			if (params->port1_active)
+				config |= TDA9887_PORT1_ACTIVE;
+			if (params->port2_active)
+				config |= TDA9887_PORT2_ACTIVE;
+		}
+		if (params->intercarrier_mode)
+			config |= TDA9887_INTERCARRIER;
+		if (is_secam_l) {
+			if (i == 0 && params->default_top_secam_low)
+				config |= TDA9887_TOP(params->default_top_secam_low);
+			else if (i == 1 && params->default_top_secam_mid)
+				config |= TDA9887_TOP(params->default_top_secam_mid);
+			else if (params->default_top_secam_high)
+				config |= TDA9887_TOP(params->default_top_secam_high);
+		}
+		else {
+			if (i == 0 && params->default_top_low)
+				config |= TDA9887_TOP(params->default_top_low);
+			else if (i == 1 && params->default_top_mid)
+				config |= TDA9887_TOP(params->default_top_mid);
+			else if (params->default_top_high)
+				config |= TDA9887_TOP(params->default_top_high);
+		}
+		i2c_clients_command(c->adapter, TDA9887_SET_CONFIG, &config);
+	}
 	tuner_dbg("tv 0x%02x 0x%02x 0x%02x 0x%02x\n",
 		  buffer[0],buffer[1],buffer[2],buffer[3]);
 
@@ -339,6 +379,7 @@ static void default_set_radio_freq(struct i2c_client *c, unsigned int freq)
 	u16 div;
 	int rc, j;
 	enum param_type desired_type = TUNER_PARAM_TYPE_RADIO;
+	struct tuner_params *params;
 
 	tun = &tuners[t->type];
 
@@ -352,7 +393,8 @@ static void default_set_radio_freq(struct i2c_client *c, unsigned int freq)
 		j = 0;
 
 	div = (20 * freq / 16000) + (int)(20*10.7); /* IF 10.7 MHz */
-	buffer[2] = (tun->params[j].ranges[0].config & ~TUNER_RATIO_MASK) | TUNER_RATIO_SELECT_50; /* 50 kHz step */
+	params = &tun->params[j];
+	buffer[2] = (params->ranges[0].config & ~TUNER_RATIO_MASK) | TUNER_RATIO_SELECT_50; /* 50 kHz step */
 
 	switch (t->type) {
 	case TUNER_TENA_9533_DI:
@@ -384,7 +426,7 @@ static void default_set_radio_freq(struct i2c_client *c, unsigned int freq)
 	}
 	buffer[0] = (div>>8) & 0x7f;
 	buffer[1] = div      & 0xff;
-	if (tuners[t->type].params->cb_first_if_lower_freq && div < t->last_div) {
+	if (params->cb_first_if_lower_freq && div < t->last_div) {
 		buffer[0] = buffer[2];
 		buffer[1] = buffer[3];
 		buffer[2] = (div>>8) & 0x7f;
@@ -398,6 +440,18 @@ static void default_set_radio_freq(struct i2c_client *c, unsigned int freq)
 	       buffer[0],buffer[1],buffer[2],buffer[3]);
 	t->last_div = div;
 
+	if (params->has_tda9887) {
+		int config = 0;
+		if (params->port1_active && !params->port1_fm_high_sensitivity)
+			config |= TDA9887_PORT1_ACTIVE;
+		if (params->port2_active && !params->port2_fm_high_sensitivity)
+			config |= TDA9887_PORT2_ACTIVE;
+		if (params->intercarrier_mode)
+			config |= TDA9887_INTERCARRIER;
+/*		if (params->port1_set_for_fm_mono)
+			config &= ~TDA9887_PORT1_ACTIVE;*/
+		i2c_clients_command(c->adapter, TDA9887_SET_CONFIG, &config);
+	}
 	if (4 != (rc = i2c_master_send(c,buffer,4)))
 		tuner_warn("i2c i/o error: rc == %d (should be 4)\n",rc);
 }

@@ -416,7 +416,7 @@ static void tuner_status(struct i2c_client *client)
 
 /* ---------------------------------------------------------------------- */
 
-/* static var Used only in tuner_attach and tuner_probe */
+/* static vars: used only in tuner_attach and tuner_probe */
 static unsigned default_mode_mask;
 
 /* During client attach, set_type is called by adapter's attach_inform callback.
