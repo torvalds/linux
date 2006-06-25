@@ -473,7 +473,7 @@ void dvb_dmx_swfilter_204(struct dvb_demux *demux, const u8 *buf, size_t count)
 			goto bailout;
 		}
 		memcpy(&demux->tsbuf[i], buf, j);
-		if ((demux->tsbuf[0] == 0x47) | (demux->tsbuf[0] == 0xB8)) {
+		if ((demux->tsbuf[0] == 0x47) || (demux->tsbuf[0] == 0xB8)) {
 			memcpy(tmppack, demux->tsbuf, 188);
 			if (tmppack[0] == 0xB8)
 				tmppack[0] = 0x47;
@@ -484,7 +484,7 @@ void dvb_dmx_swfilter_204(struct dvb_demux *demux, const u8 *buf, size_t count)
 	}
 
 	while (p < count) {
-		if ((buf[p] == 0x47) | (buf[p] == 0xB8)) {
+		if ((buf[p] == 0x47) || (buf[p] == 0xB8)) {
 			if (count - p >= 204) {
 				memcpy(tmppack, &buf[p], 188);
 				if (tmppack[0] == 0xB8)

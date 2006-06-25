@@ -88,20 +88,6 @@ typedef enum
 #define DMX_PES_PCR      DMX_PES_PCR0
 
 
-typedef enum
-{
-	DMX_SCRAMBLING_EV,
-	DMX_FRONTEND_EV
-} dmx_event_t;
-
-
-typedef enum
-{
-	DMX_SCRAMBLING_OFF,
-	DMX_SCRAMBLING_ON
-} dmx_scrambling_status_t;
-
-
 typedef struct dmx_filter
 {
 	__u8  filter[DMX_FILTER_SIZE];
@@ -132,17 +118,6 @@ struct dmx_pes_filter_params
 	__u32          flags;
 };
 
-
-struct dmx_event
-{
-	dmx_event_t         event;
-	time_t              timeStamp;
-	union
-	{
-		dmx_scrambling_status_t scrambling;
-	} u;
-};
-
 typedef struct dmx_caps {
 	__u32 caps;
 	int num_decoders;
@@ -171,7 +146,6 @@ struct dmx_stc {
 #define DMX_SET_FILTER           _IOW('o', 43, struct dmx_sct_filter_params)
 #define DMX_SET_PES_FILTER       _IOW('o', 44, struct dmx_pes_filter_params)
 #define DMX_SET_BUFFER_SIZE      _IO('o', 45)
-#define DMX_GET_EVENT            _IOR('o', 46, struct dmx_event)
 #define DMX_GET_PES_PIDS         _IOR('o', 47, __u16[5])
 #define DMX_GET_CAPS             _IOR('o', 48, dmx_caps_t)
 #define DMX_SET_SOURCE           _IOW('o', 49, dmx_source_t)

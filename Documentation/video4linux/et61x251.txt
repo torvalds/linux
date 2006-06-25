@@ -1,9 +1,9 @@
 
-                       ET61X[12]51 PC Camera Controllers
-                                Driver for Linux
-                       =================================
+		       ET61X[12]51 PC Camera Controllers
+				Driver for Linux
+		       =================================
 
-                               - Documentation -
+			       - Documentation -
 
 
 Index
@@ -156,46 +156,46 @@ Name:           video_nr
 Type:           short array (min = 0, max = 64)
 Syntax:         <-1|n[,...]>
 Description:    Specify V4L2 minor mode number:
-                -1 = use next available
-                 n = use minor number n
-                You can specify up to 64 cameras this way.
-                For example:
-                video_nr=-1,2,-1 would assign minor number 2 to the second
-                registered camera and use auto for the first one and for every
-                other camera.
+		-1 = use next available
+		 n = use minor number n
+		You can specify up to 64 cameras this way.
+		For example:
+		video_nr=-1,2,-1 would assign minor number 2 to the second
+		registered camera and use auto for the first one and for every
+		other camera.
 Default:        -1
 -------------------------------------------------------------------------------
 Name:           force_munmap
 Type:           bool array (min = 0, max = 64)
 Syntax:         <0|1[,...]>
 Description:    Force the application to unmap previously mapped buffer memory
-                before calling any VIDIOC_S_CROP or VIDIOC_S_FMT ioctl's. Not
-                all the applications support this feature. This parameter is
-                specific for each detected camera.
-                0 = do not force memory unmapping
-                1 = force memory unmapping (save memory)
+		before calling any VIDIOC_S_CROP or VIDIOC_S_FMT ioctl's. Not
+		all the applications support this feature. This parameter is
+		specific for each detected camera.
+		0 = do not force memory unmapping
+		1 = force memory unmapping (save memory)
 Default:        0
 -------------------------------------------------------------------------------
 Name:           frame_timeout
 Type:           uint array (min = 0, max = 64)
 Syntax:         <n[,...]>
 Description:    Timeout for a video frame in seconds. This parameter is
-                specific for each detected camera. This parameter can be
-                changed at runtime thanks to the /sys filesystem interface.
+		specific for each detected camera. This parameter can be
+		changed at runtime thanks to the /sys filesystem interface.
 Default:        2
 -------------------------------------------------------------------------------
 Name:           debug
 Type:           ushort
 Syntax:         <n>
 Description:    Debugging information level, from 0 to 3:
-                0 = none (use carefully)
-                1 = critical errors
-                2 = significant informations
-                3 = more verbose messages
-                Level 3 is useful for testing only, when only one device
-                is used at the same time. It also shows some more informations
-                about the hardware being detected. This module parameter can be
-                changed at runtime thanks to the /sys filesystem interface.
+		0 = none (use carefully)
+		1 = critical errors
+		2 = significant informations
+		3 = more verbose messages
+		Level 3 is useful for testing only, when only one device
+		is used at the same time. It also shows some more informations
+		about the hardware being detected. This module parameter can be
+		changed at runtime thanks to the /sys filesystem interface.
 Default:        2
 -------------------------------------------------------------------------------
 

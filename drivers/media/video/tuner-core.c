@@ -199,7 +199,7 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		i2c_master_send(c, buffer, 4);
 		default_tuner_init(c);
 		break;
-	case TUNER_LG_TDVS_H062F:
+	case TUNER_LG_TDVS_H06XF:
 		/* Set the Auxiliary Byte. */
 		buffer[2] &= ~0x20;
 		buffer[2] |= 0x18;
@@ -214,6 +214,9 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		buffer[3] = 0xa4;
 		i2c_master_send(c,buffer,4);
 		default_tuner_init(c);
+		break;
+	case TUNER_TDA9887:
+		tda9887_tuner_init(c);
 		break;
 	default:
 		default_tuner_init(c);
@@ -240,6 +243,8 @@ static void set_type(struct i2c_client *c, unsigned int type,
 static void set_addr(struct i2c_client *c, struct tuner_setup *tun_setup)
 {
 	struct tuner *t = i2c_get_clientdata(c);
+
+	tuner_dbg("set addr for type %i\n", t->type);
 
 	if ( t->type == UNSET && ((tun_setup->addr == ADDR_UNSET &&
 		(t->mode_mask & tun_setup->mode_mask)) ||
@@ -436,6 +441,7 @@ static int tuner_attach(struct i2c_adapter *adap, int addr, int kind)
 	t->radio_if2 = 10700 * 1000;	/* 10.7MHz - FM radio */
 	t->audmode = V4L2_TUNER_MODE_STEREO;
 	t->mode_mask = T_UNINITIALIZED;
+	t->tuner_status = tuner_status;
 	if (tuner_debug_old) {
 		tuner_debug = tuner_debug_old;
 		printk(KERN_ERR "tuner: tuner_debug is deprecated and will be removed in 2.6.17.\n");
@@ -462,10 +468,14 @@ static int tuner_attach(struct i2c_adapter *adap, int addr, int kind)
 		case 0x4b:
 			/* If chip is not tda8290, don't register.
 			   since it can be tda9887*/
-			if (tda8290_probe(&t->i2c) != 0) {
-				tuner_dbg("chip at addr %x is not a tda8290\n", addr);
-				kfree(t);
-				return 0;
+			if (tda8290_probe(&t->i2c) == 0) {
+				tuner_dbg("chip at addr %x is a tda8290\n", addr);
+			} else {
+				/* Default is being tda9887 */
+				t->type = TUNER_TDA9887;
+				t->mode_mask = T_RADIO | T_ANALOG_TV | T_DIGITAL_TV;
+				t->mode = T_STANDBY;
+				goto register_client;
 			}
 			break;
 		case 0x60:
@@ -592,6 +602,7 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 	case TUNER_SET_STANDBY:
 		if (check_mode(t, "TUNER_SET_STANDBY") == EINVAL)
 			return 0;
+		t->mode = T_STANDBY;
 		if (t->standby)
 			t->standby (client);
 		break;
@@ -604,6 +615,14 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		/* Should be implemented, since bttv calls it */
 		tuner_dbg("VIDIOCSAUDIO not implemented.\n");
 		break;
+	case TDA9887_SET_CONFIG:
+	{
+		int *i = arg;
+
+		t->tda9887_config = *i;
+		set_freq(client, t->tv_freq);
+		break;
+	}
 	/* --- v4l ioctls --- */
 	/* take care: bttv does userspace copying, we'll get a
 	   kernel pointer here... */
@@ -744,6 +763,8 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 			switch_v4l2();
 
 			tuner->type = t->mode;
+			if (t->get_afc)
+				tuner->afc=t->get_afc(client);
 			if (t->mode == V4L2_TUNER_ANALOG_TV)
 				tuner->capability |= V4L2_TUNER_CAP_NORM;
 			if (t->mode != V4L2_TUNER_RADIO) {
@@ -787,7 +808,8 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 			break;
 		}
 	case VIDIOC_LOG_STATUS:
-		tuner_status(client);
+		if (t->tuner_status)
+			t->tuner_status(client);
 		break;
 	}
 

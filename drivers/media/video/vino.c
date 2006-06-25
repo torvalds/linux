@@ -40,7 +40,7 @@
 #include <linux/i2c-algo-sgi.h>
 
 #include <linux/videodev.h>
-#include <linux/videodev2.h>
+#include <media/v4l2-common.h>
 #include <linux/video_decoder.h>
 #include <linux/mutex.h>
 

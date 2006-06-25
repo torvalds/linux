@@ -66,11 +66,6 @@ struct tda1004x_config
 	/* AGC configuration */
 	enum tda10046_agc agc_config;
 
-	/* PLL maintenance */
-	int (*pll_init)(struct dvb_frontend* fe);
-	void (*pll_sleep)(struct dvb_frontend* fe);
-	int (*pll_set)(struct dvb_frontend* fe, struct dvb_frontend_parameters* params);
-
 	/* request firmware for device */
 	/* set this to NULL if the card has a firmware EEPROM */
 	int (*request_firmware)(struct dvb_frontend* fe, const struct firmware **fw, char* name);

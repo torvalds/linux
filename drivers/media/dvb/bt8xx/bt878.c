@@ -63,8 +63,6 @@ MODULE_PARM_DESC(debug, "Turn on/off debugging, default is 0 (off).");
 int bt878_num;
 struct bt878 bt878[BT878_MAX];
 
-EXPORT_SYMBOL(bt878_debug);
-EXPORT_SYMBOL(bt878_verbose);
 EXPORT_SYMBOL(bt878_num);
 EXPORT_SYMBOL(bt878);
 
@@ -393,7 +391,9 @@ static struct cards card_list[] __devinitdata = {
 	{ 0x07711461, BTTV_BOARD_AVDVBT_771,			"AVermedia AverTV DVB-T 771" },
 	{ 0xdb1018ac, BTTV_BOARD_DVICO_DVBT_LITE,		"DViCO FusionHDTV DVB-T Lite" },
 	{ 0xd50018ac, BTTV_BOARD_DVICO_FUSIONHDTV_5_LITE,	"DViCO FusionHDTV 5 Lite" },
-	{ 0x20007063, BTTV_BOARD_PC_HDTV,			"pcHDTV HD-2000 TV"},
+	{ 0x20007063, BTTV_BOARD_PC_HDTV,			"pcHDTV HD-2000 TV" },
+	{ 0x00261822, BTTV_BOARD_TWINHAN_DST,			"DNTV Live! Mini" },
+
 	{ 0, -1, NULL }
 };
 
@@ -417,6 +417,11 @@ static int __devinit bt878_probe(struct pci_dev *dev,
 
 	printk(KERN_INFO "bt878: Bt878 AUDIO function found (%d).\n",
 	       bt878_num);
+	if (bt878_num >= BT878_MAX) {
+		printk(KERN_ERR "bt878: Too many devices inserted\n");
+		result = -ENOMEM;
+		goto fail0;
+	}
 	if (pci_enable_device(dev))
 		return -EIO;
 

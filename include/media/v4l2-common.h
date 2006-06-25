@@ -26,7 +26,13 @@
 #ifndef V4L2_COMMON_H_
 #define V4L2_COMMON_H_
 
+#include <media/v4l2-dev.h>
+
 /* v4l debugging and diagnostics */
+
+/* Debug bitmask flags to be used on V4L2 */
+#define V4L2_DEBUG_IOCTL     0x01
+#define V4L2_DEBUG_IOCTL_ARG 0x02
 
 /* Common printk constucts for v4l-i2c drivers. These macros create a unique
    prefix consisting of the driver name, the adapter number and the i2c
@@ -78,6 +84,19 @@ extern void v4l_printk_ioctl_arg(char *s,unsigned int cmd, void *arg);
 
 /* ------------------------------------------------------------------------- */
 
+/* Control helper functions */
+
+int v4l2_ctrl_check(struct v4l2_ext_control *ctrl, struct v4l2_queryctrl *qctrl,
+		const char **menu_items);
+const char **v4l2_ctrl_get_menu(u32 id);
+int v4l2_ctrl_query_fill(struct v4l2_queryctrl *qctrl, s32 min, s32 max, s32 step, s32 def);
+int v4l2_ctrl_query_fill_std(struct v4l2_queryctrl *qctrl);
+int v4l2_ctrl_query_menu(struct v4l2_querymenu *qmenu,
+		struct v4l2_queryctrl *qctrl, const char **menu_items);
+u32 v4l2_ctrl_next(const u32 * const *ctrl_classes, u32 id);
+
+/* ------------------------------------------------------------------------- */
+
 /* Internal ioctls */
 
 /* VIDIOC_INT_G_REGISTER and VIDIOC_INT_S_REGISTER */
@@ -112,6 +131,8 @@ enum v4l2_chip_ident {
 	V4L2_IDENT_SAA7129 = 159,
 
 	/* module cx25840: reserved range 200-249 */
+	V4L2_IDENT_CX25836 = 236,
+	V4L2_IDENT_CX25837 = 237,
 	V4L2_IDENT_CX25840 = 240,
 	V4L2_IDENT_CX25841 = 241,
 	V4L2_IDENT_CX25842 = 242,
@@ -210,5 +231,16 @@ struct v4l2_routing {
 #define	VIDIOC_INT_G_AUDIO_ROUTING	_IOR ('d', 110, struct v4l2_routing)
 #define	VIDIOC_INT_S_VIDEO_ROUTING	_IOW ('d', 111, struct v4l2_routing)
 #define	VIDIOC_INT_G_VIDEO_ROUTING	_IOR ('d', 112, struct v4l2_routing)
+
+struct v4l2_crystal_freq {
+	u32 freq;	/* frequency in Hz of the crystal */
+	u32 flags; 	/* device specific flags */
+};
+
+/* Sets the frequency of the crystal used to generate the clocks.
+   An extra flags field allows device specific configuration regarding
+   clock frequency dividers, etc. If not used, then set flags to 0.
+   If the frequency is not supported, then -EINVAL is returned. */
+#define VIDIOC_INT_S_CRYSTAL_FREQ 	_IOW ('d', 113, struct v4l2_crystal_freq)
 
 #endif /* V4L2_COMMON_H_ */

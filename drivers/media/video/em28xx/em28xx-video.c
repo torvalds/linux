@@ -3,7 +3,7 @@
 
    Copyright (C) 2005 Ludovico Cavedon <cavedon@sssup.it>
 		      Markus Rechberger <mrechberger@gmail.com>
-		      Mauro Carvalho Chehab <mchehab@brturbo.com.br>
+		      Mauro Carvalho Chehab <mchehab@infradead.org>
 		      Sascha Sommer <saschasommer@freenet.de>
 
 	Some parts based on SN9C10x PC Camera Controllers GPL driver made
@@ -42,7 +42,7 @@
 
 #define DRIVER_AUTHOR "Ludovico Cavedon <cavedon@sssup.it>, " \
 		      "Markus Rechberger <mrechberger@gmail.com>, " \
-		      "Mauro Carvalho Chehab <mchehab@brturbo.com.br>, " \
+		      "Mauro Carvalho Chehab <mchehab@infradead.org>, " \
 		      "Sascha Sommer <saschasommer@freenet.de>"
 
 #define DRIVER_NAME         "em28xx"
@@ -170,8 +170,12 @@ static int em28xx_config(struct em28xx *dev)
 static void em28xx_config_i2c(struct em28xx *dev)
 {
 	struct v4l2_frequency f;
+	struct v4l2_routing route;
+
+	route.input = INPUT(dev->ctl_input)->vmux;
+	route.output = 0;
 	em28xx_i2c_call_clients(dev, VIDIOC_INT_RESET, NULL);
-	em28xx_i2c_call_clients(dev, VIDIOC_S_INPUT, &dev->ctl_input);
+	em28xx_i2c_call_clients(dev, VIDIOC_INT_S_VIDEO_ROUTING, &route);
 	em28xx_i2c_call_clients(dev, VIDIOC_STREAMON, NULL);
 
 	/* configure tuner */
@@ -206,19 +210,19 @@ static void em28xx_empty_framequeues(struct em28xx *dev)
 
 static void video_mux(struct em28xx *dev, int index)
 {
-	int input, ainput;
+	int ainput;
+	struct v4l2_routing route;
 
-	input = INPUT(index)->vmux;
+	route.input = INPUT(index)->vmux;
+	route.output = 0;
 	dev->ctl_input = index;
 	dev->ctl_ainput = INPUT(index)->amux;
 
-	em28xx_i2c_call_clients(dev, VIDIOC_S_INPUT, &input);
+	em28xx_i2c_call_clients(dev, VIDIOC_INT_S_VIDEO_ROUTING, &route);
 
-	em28xx_videodbg("Setting input index=%d, vmux=%d, amux=%d\n",index,input,dev->ctl_ainput);
+	em28xx_videodbg("Setting input index=%d, vmux=%d, amux=%d\n",index,route.input,dev->ctl_ainput);
 
 	if (dev->has_msp34xx) {
-		struct v4l2_routing route;
-
 		if (dev->i2s_speed)
 			em28xx_i2c_call_clients(dev, VIDIOC_INT_I2S_CLOCK_FREQ, &dev->i2s_speed);
 		route.input = dev->ctl_ainput;

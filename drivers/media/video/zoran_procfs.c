@@ -43,6 +43,7 @@
 #include <linux/seq_file.h>
 
 #include <linux/ctype.h>
+#include <linux/poll.h>
 #include <asm/io.h>
 
 #include "videocodec.h"

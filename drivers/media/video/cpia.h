@@ -45,6 +45,7 @@
 
 #include <asm/uaccess.h>
 #include <linux/videodev.h>
+#include <media/v4l2-common.h>
 #include <linux/list.h>
 #include <linux/smp_lock.h>
 #include <linux/mutex.h>
@@ -247,7 +248,7 @@ enum v4l_camstates {
 struct cam_data {
 	struct list_head cam_data_list;
 
-	struct mutex busy_lock;     /* guard against SMP multithreading */
+	struct mutex busy_lock;		/* guard against SMP multithreading */
 	struct cpia_camera_ops *ops;	/* lowlevel driver operations */
 	void *lowlevel_data;		/* private data for lowlevel driver */
 	u8 *raw_image;			/* buffer for raw image data */
