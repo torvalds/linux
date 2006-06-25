@@ -69,6 +69,7 @@ struct rtc_device *rtc_device_register(const char *name, struct device *dev,
 	rtc->id = id;
 	rtc->ops = ops;
 	rtc->owner = owner;
+	rtc->max_user_freq = 64;
 	rtc->class_dev.dev = dev;
 	rtc->class_dev.class = rtc_class;
 	rtc->class_dev.release = rtc_device_release;

@@ -229,8 +229,6 @@ static int sa1100_rtc_ioctl(struct device *dev, unsigned int cmd,
 		spin_unlock_irq(&sa1100_rtc_lock);
 		return 0;
 	case RTC_PIE_ON:
-		if ((rtc_freq > 64) && !capable(CAP_SYS_RESOURCE))
-			return -EACCES;
 		spin_lock_irq(&sa1100_rtc_lock);
 		OSMR1 = TIMER_FREQ/rtc_freq + OSCR;
 		OIER |= OIER_E1;
@@ -242,8 +240,6 @@ static int sa1100_rtc_ioctl(struct device *dev, unsigned int cmd,
 	case RTC_IRQP_SET:
 		if (arg < 1 || arg > TIMER_FREQ)
 			return -EINVAL;
-		if ((arg > 64) && (!capable(CAP_SYS_RESOURCE)))
-			return -EACCES;
 		rtc_freq = arg;
 		return 0;
 	}

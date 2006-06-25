@@ -155,6 +155,7 @@ struct rtc_device
 	struct rtc_task *irq_task;
 	spinlock_t irq_task_lock;
 	int irq_freq;
+	int max_user_freq;
 #ifdef CONFIG_RTC_INTF_DEV_UIE_EMUL
 	struct work_struct uie_task;
 	struct timer_list uie_timer;

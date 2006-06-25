@@ -214,6 +214,28 @@ static int rtc_dev_ioctl(struct inode *inode, struct file *file,
 	struct rtc_wkalrm alarm;
 	void __user *uarg = (void __user *) arg;
 
+	/* check that the calles has appropriate permissions
+	 * for certain ioctls. doing this check here is useful
+	 * to avoid duplicate code in each driver.
+	 */
+	switch (cmd) {
+	case RTC_EPOCH_SET:
+	case RTC_SET_TIME:
+		if (!capable(CAP_SYS_TIME))
+			return -EACCES;
+		break;
+
+	case RTC_IRQP_SET:
+		if (arg > rtc->max_user_freq && !capable(CAP_SYS_RESOURCE))
+			return -EACCES;
+		break;
+
+	case RTC_PIE_ON:
+		if (!capable(CAP_SYS_RESOURCE))
+			return -EACCES;
+		break;
+	}
+
 	/* avoid conflicting IRQ users */
 	if (cmd == RTC_PIE_ON || cmd == RTC_PIE_OFF || cmd == RTC_IRQP_SET) {
 		spin_lock(&rtc->irq_task_lock);
@@ -272,9 +294,6 @@ static int rtc_dev_ioctl(struct inode *inode, struct file *file,
 		break;
 
 	case RTC_SET_TIME:
-		if (!capable(CAP_SYS_TIME))
-			return -EACCES;
-
 		if (copy_from_user(&tm, uarg, sizeof(tm)))
 			return -EFAULT;
 
@@ -288,10 +307,6 @@ static int rtc_dev_ioctl(struct inode *inode, struct file *file,
 		 */
 		if (arg < 1900) {
 			err = -EINVAL;
-			break;
-		}
-		if (!capable(CAP_SYS_TIME)) {
-			err = -EACCES;
 			break;
 		}
 		rtc_epoch = arg;
