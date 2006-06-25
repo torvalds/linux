@@ -271,6 +271,7 @@ static int affs_fill_super(struct super_block *sb, void *data, int silent)
 	int			 reserved;
 	unsigned long		 mount_flags;
 	int			 tmp_flags;	/* fix remount prototype... */
+	u8			 sig[4];
 
 	pr_debug("AFFS: read_super(%s)\n",data ? (const char *)data : "no options");
 
@@ -370,8 +371,9 @@ got_root:
 		printk(KERN_ERR "AFFS: Cannot read boot block\n");
 		goto out_error;
 	}
-	chksum = be32_to_cpu(*(__be32 *)boot_bh->b_data);
+	memcpy(sig, boot_bh->b_data, 4);
 	brelse(boot_bh);
+	chksum = be32_to_cpu(*(__be32 *)sig);
 
 	/* Dircache filesystems are compatible with non-dircache ones
 	 * when reading. As long as they aren't supported, writing is
@@ -420,11 +422,11 @@ got_root:
 	}
 
 	if (mount_flags & SF_VERBOSE) {
-		chksum = cpu_to_be32(chksum);
-		printk(KERN_NOTICE "AFFS: Mounting volume \"%*s\": Type=%.3s\\%c, Blocksize=%d\n",
-			AFFS_ROOT_TAIL(sb, root_bh)->disk_name[0],
+		u8 len = AFFS_ROOT_TAIL(sb, root_bh)->disk_name[0];
+		printk(KERN_NOTICE "AFFS: Mounting volume \"%.*s\": Type=%.3s\\%c, Blocksize=%d\n",
+			len > 31 ? 31 : len,
 			AFFS_ROOT_TAIL(sb, root_bh)->disk_name + 1,
-			(char *)&chksum,((char *)&chksum)[3] + '0',blocksize);
+			sig, sig[3] + '0', blocksize);
 	}
 
 	sb->s_flags |= MS_NODEV | MS_NOSUID;
