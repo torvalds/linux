@@ -48,6 +48,8 @@
 .globl sys_call_table
 .globl sys_fork, sys_clone, sys_vfork
 .globl ret_from_interrupt, bad_interrupt
+.globl auto_irqhandler_fixup
+.globl user_irqvec_fixup, user_irqhandler_fixup
 
 .text
 ENTRY(buserr)
@@ -212,6 +214,7 @@ ENTRY(auto_inthandler)
 	jbra	3f
 1:
 #endif
+auto_irqhandler_fixup = . + 2
 	jsr	m68k_handle_int		|  process the IRQ
 3:	addql	#8,%sp			|  pop parameters off stack
 
@@ -234,17 +237,19 @@ ret_from_last_interrupt:
 
 /* Handler for user defined interrupt vectors */
 
-ENTRY(mach_inthandler)
+ENTRY(user_inthandler)
 	SAVE_ALL_INT
 	GET_CURRENT(%d0)
 	addqb	#1,%curptr@(TASK_INFO+TINFO_PREEMPT+1)
 					|  put exception # in d0
 	bfextu	%sp@(PT_VECTOR){#4,#10},%d0
+user_irqvec_fixup = . + 2
+	subw	#VEC_USER,%d0
 
 	movel	%sp,%sp@-
 	movel	%d0,%sp@-		|  put vector # on stack
-	movel	mach_process_int,%a0
-	jsr	%a0@			|  process the IRQ
+user_irqhandler_fixup = . + 2
+	jsr	m68k_handle_int		|  process the IRQ
 	addql	#8,%sp			|  pop parameters off stack
 
 	subqb	#1,%curptr@(TASK_INFO+TINFO_PREEMPT+1)

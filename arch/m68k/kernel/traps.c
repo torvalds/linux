@@ -87,16 +87,15 @@ void __init trap_init (void)
 {
 	int i;
 
-	vectors[VEC_SPUR] = bad_inthandler;
-	for (i = VEC_INT1; i <= VEC_INT7; i++)
-		vectors[i] = auto_inthandler;
+	for (i = VEC_SPUR; i <= VEC_INT7; i++)
+		vectors[i] = bad_inthandler;
 
 	for (i = 0; i < VEC_USER; i++)
 		if (!vectors[i])
 			vectors[i] = trap;
 
 	for (i = VEC_USER; i < 256; i++)
-		vectors[i] = mach_inthandler;
+		vectors[i] = bad_inthandler;
 
 #ifdef CONFIG_M68KFPU_EMU
 	if (FPU_IS_EMU)

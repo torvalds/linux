@@ -19,7 +19,7 @@
 typedef void (*e_vector)(void);
 
 asmlinkage void auto_inthandler(void);
-asmlinkage void mach_inthandler(void);
+asmlinkage void user_inthandler(void);
 asmlinkage void bad_inthandler(void);
 
 extern e_vector vectors[];
