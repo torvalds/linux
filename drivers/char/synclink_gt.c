@@ -3077,7 +3077,7 @@ static int block_til_ready(struct tty_struct *tty, struct file *filp,
 
 static int alloc_tmp_rbuf(struct slgt_info *info)
 {
-	info->tmp_rbuf = kmalloc(info->max_frame_size, GFP_KERNEL);
+	info->tmp_rbuf = kmalloc(info->max_frame_size + 5, GFP_KERNEL);
 	if (info->tmp_rbuf == NULL)
 		return -ENOMEM;
 	return 0;
@@ -4011,7 +4011,7 @@ static void hdlc_mode(struct slgt_info *info)
 	case HDLC_ENCODING_DIFF_BIPHASE_LEVEL: val |= BIT12 + BIT11 + BIT10; break;
 	}
 
-	switch (info->params.crc_type)
+	switch (info->params.crc_type & HDLC_CRC_MASK)
 	{
 	case HDLC_CRC_16_CCITT: val |= BIT9; break;
 	case HDLC_CRC_32_CCITT: val |= BIT9 + BIT8; break;
@@ -4072,7 +4072,7 @@ static void hdlc_mode(struct slgt_info *info)
 	case HDLC_ENCODING_DIFF_BIPHASE_LEVEL: val |= BIT12 + BIT11 + BIT10; break;
 	}
 
-	switch (info->params.crc_type)
+	switch (info->params.crc_type & HDLC_CRC_MASK)
 	{
 	case HDLC_CRC_16_CCITT: val |= BIT9; break;
 	case HDLC_CRC_32_CCITT: val |= BIT9 + BIT8; break;
@@ -4333,6 +4333,12 @@ static int rx_get_frame(struct slgt_info *info)
 	unsigned long flags;
 	struct tty_struct *tty = info->tty;
 	unsigned char addr_field = 0xff;
+	unsigned int crc_size = 0;
+
+	switch (info->params.crc_type & HDLC_CRC_MASK) {
+	case HDLC_CRC_16_CCITT: crc_size = 2; break;
+	case HDLC_CRC_32_CCITT: crc_size = 4; break;
+	}
 
 check_again:
 
@@ -4377,7 +4383,7 @@ check_again:
 	status = desc_status(info->rbufs[end]);
 
 	/* ignore CRC bit if not using CRC (bit is undefined) */
-	if (info->params.crc_type == HDLC_CRC_NONE)
+	if ((info->params.crc_type & HDLC_CRC_MASK) == HDLC_CRC_NONE)
 		status &= ~BIT1;
 
 	if (framesize == 0 ||
@@ -4386,34 +4392,34 @@ check_again:
 		goto check_again;
 	}
 
-	if (framesize < 2 || status & (BIT1+BIT0)) {
-		if (framesize < 2 || (status & BIT0))
-			info->icount.rxshort++;
-		else
-			info->icount.rxcrc++;
+	if (framesize < (2 + crc_size) || status & BIT0) {
+		info->icount.rxshort++;
 		framesize = 0;
+	} else if (status & BIT1) {
+		info->icount.rxcrc++;
+		if (!(info->params.crc_type & HDLC_CRC_RETURN_EX))
+			framesize = 0;
+	}
 
 #ifdef CONFIG_HDLC
-		{
-			struct net_device_stats *stats = hdlc_stats(info->netdev);
-			stats->rx_errors++;
-			stats->rx_frame_errors++;
-		}
-#endif
-	} else {
-		/* adjust frame size for CRC, if any */
-		if (info->params.crc_type == HDLC_CRC_16_CCITT)
-			framesize -= 2;
-		else if (info->params.crc_type == HDLC_CRC_32_CCITT)
-			framesize -= 4;
+	if (framesize == 0) {
+		struct net_device_stats *stats = hdlc_stats(info->netdev);
+		stats->rx_errors++;
+		stats->rx_frame_errors++;
 	}
+#endif
 
 	DBGBH(("%s rx frame status=%04X size=%d\n",
 		info->device_name, status, framesize));
 	DBGDATA(info, info->rbufs[start].buf, min_t(int, framesize, DMABUFSIZE), "rx");
 
 	if (framesize) {
-		if (framesize > info->max_frame_size)
+		if (!(info->params.crc_type & HDLC_CRC_RETURN_EX)) {
+			framesize -= crc_size;
+			crc_size = 0;
+		}
+
+		if (framesize > info->max_frame_size + crc_size)
 			info->icount.rxlong++;
 		else {
 			/* copy dma buffer(s) to contiguous temp buffer */
@@ -4431,6 +4437,11 @@ check_again:
 				copy_count -= partial_count;
 				if (++i == info->rbuf_count)
 					i = 0;
+			}
+
+			if (info->params.crc_type & HDLC_CRC_RETURN_EX) {
+				*p = (status & BIT1) ? RX_CRC_ERROR : RX_OK;
+				framesize++;
 			}
 
 #ifdef CONFIG_HDLC
