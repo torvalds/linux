@@ -2744,7 +2744,7 @@ static int cciss_pci_init(ctlr_info_t *c, struct pci_dev *pdev)
 	__u64 cfg_offset;
 	__u32 cfg_base_addr;
 	__u64 cfg_base_addr_index;
-	int i;
+	int i, err;
 
 	/* check to see if controller has been disabled */
 	/* BEFORE trying to enable it */
@@ -2752,13 +2752,14 @@ static int cciss_pci_init(ctlr_info_t *c, struct pci_dev *pdev)
 	if(!(command & 0x02))
 	{
 		printk(KERN_WARNING "cciss: controller appears to be disabled\n");
-		return(-1);
+		return -ENODEV;
 	}
 
-	if (pci_enable_device(pdev))
+	err = pci_enable_device(pdev);
+	if (err)
 	{
 		printk(KERN_ERR "cciss: Unable to Enable PCI device\n");
-		return( -1);
+		return err;
 	}
 
 	subsystem_vendor_id = pdev->subsystem_vendor;
@@ -2824,7 +2825,8 @@ static int cciss_pci_init(ctlr_info_t *c, struct pci_dev *pdev)
 	}
 	if (scratchpad != CCISS_FIRMWARE_READY) {
 		printk(KERN_WARNING "cciss: Board not ready.  Timed out.\n");
-		return -1;
+		err = -ENODEV;
+		goto err_out_disable_pdev;
 	}
 
 	/* get the address index number */
@@ -2841,7 +2843,8 @@ static int cciss_pci_init(ctlr_info_t *c, struct pci_dev *pdev)
 	if (cfg_base_addr_index == -1) {
 		printk(KERN_WARNING "cciss: Cannot find cfg_base_addr_index\n");
 		release_io_mem(c);
-		return -1;
+		err = -ENODEV;
+		goto err_out_disable_pdev;
 	}
 
 	cfg_offset = readl(c->vaddr + SA5_CTMEM_OFFSET);
@@ -2868,7 +2871,8 @@ static int cciss_pci_init(ctlr_info_t *c, struct pci_dev *pdev)
 		printk(KERN_WARNING "cciss: Sorry, I don't know how"
 			" to access the Smart Array controller %08lx\n", 
 				(unsigned long)board_id);
-		return -1;
+		err = -ENODEV;
+		goto err_out_disable_pdev;
 	}
 	if (  (readb(&c->cfgtable->Signature[0]) != 'C') ||
 	      (readb(&c->cfgtable->Signature[1]) != 'I') ||
@@ -2876,7 +2880,8 @@ static int cciss_pci_init(ctlr_info_t *c, struct pci_dev *pdev)
 	      (readb(&c->cfgtable->Signature[3]) != 'S') )
 	{
 		printk("Does not appear to be a valid CISS config table\n");
-		return -1;
+		err = -ENODEV;
+		goto err_out_disable_pdev;
 	}
 
 #ifdef CONFIG_X86
@@ -2920,10 +2925,14 @@ static int cciss_pci_init(ctlr_info_t *c, struct pci_dev *pdev)
 	{
 		printk(KERN_WARNING "cciss: unable to get board into"
 					" simple mode\n");
-		return -1;
+		err = -ENODEV;
+		goto err_out_disable_pdev;
 	}
 	return 0;
 
+err_out_disable_pdev:
+	pci_disable_device(pdev);
+	return err;
 }
 
 /* 
