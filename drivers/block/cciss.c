@@ -104,8 +104,6 @@ static const struct pci_device_id cciss_pci_device_id[] = {
 };
 MODULE_DEVICE_TABLE(pci, cciss_pci_device_id);
 
-#define NR_PRODUCTS ARRAY_SIZE(products)
-
 /*  board_id = Subsystem Device ID & Vendor ID
  *  product = Marketing Name for the board
  *  access = Address of the struct of function pointers 
@@ -2831,14 +2829,14 @@ static int cciss_pci_init(ctlr_info_t *c, struct pci_dev *pdev)
 	print_cfg_table(c->cfgtable);
 #endif /* CCISS_DEBUG */
 
-	for(i=0; i<NR_PRODUCTS; i++) {
+	for(i=0; i<ARRAY_SIZE(products); i++) {
 		if (board_id == products[i].board_id) {
 			c->product_name = products[i].product_name;
 			c->access = *(products[i].access);
 			break;
 		}
 	}
-	if (i == NR_PRODUCTS) {
+	if (i == ARRAY_SIZE(products)) {
 		printk(KERN_WARNING "cciss: Sorry, I don't know how"
 			" to access the Smart Array controller %08lx\n", 
 				(unsigned long)board_id);
