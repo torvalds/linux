@@ -168,8 +168,7 @@ goal_in_my_reservation(struct ext3_reserve_window *rsv, ext3_grpblk_t grp_goal,
 {
 	ext3_fsblk_t group_first_block, group_last_block;
 
-	group_first_block = le32_to_cpu(EXT3_SB(sb)->s_es->s_first_data_block) +
-				group * EXT3_BLOCKS_PER_GROUP(sb);
+	group_first_block = ext3_group_first_block_no(sb, group);
 	group_last_block = group_first_block + EXT3_BLOCKS_PER_GROUP(sb) - 1;
 
 	if ((rsv->_rsv_start > group_last_block) ||
@@ -664,9 +663,7 @@ ext3_try_to_allocate(struct super_block *sb, handle_t *handle, int group,
 
 	/* we do allocation within the reservation window if we have a window */
 	if (my_rsv) {
-		group_first_block =
-			le32_to_cpu(EXT3_SB(sb)->s_es->s_first_data_block) +
-			group * EXT3_BLOCKS_PER_GROUP(sb);
+		group_first_block = ext3_group_first_block_no(sb, group);
 		if (my_rsv->_rsv_start >= group_first_block)
 			start = my_rsv->_rsv_start - group_first_block;
 		else
@@ -900,8 +897,7 @@ static int alloc_new_reservation(struct ext3_reserve_window_node *my_rsv,
 	int ret;
 	spinlock_t *rsv_lock = &EXT3_SB(sb)->s_rsv_window_lock;
 
-	group_first_block = le32_to_cpu(EXT3_SB(sb)->s_es->s_first_data_block) +
-				group * EXT3_BLOCKS_PER_GROUP(sb);
+	group_first_block = ext3_group_first_block_no(sb, group);
 	group_end_block = group_first_block + EXT3_BLOCKS_PER_GROUP(sb) - 1;
 
 	if (grp_goal < 0)
@@ -1104,8 +1100,7 @@ ext3_try_to_allocate_with_rsv(struct super_block *sb, handle_t *handle,
 	 * first block is a filesystem wide block number
 	 * first block is the block number of the first block in this group
 	 */
-	group_first_block = le32_to_cpu(EXT3_SB(sb)->s_es->s_first_data_block) +
-			group * EXT3_BLOCKS_PER_GROUP(sb);
+	group_first_block = ext3_group_first_block_no(sb, group);
 
 	/*
 	 * Basically we will allocate a new block from inode's reservation
@@ -1371,8 +1366,7 @@ allocated:
 	if (fatal)
 		goto out;
 
-	ret_block = grp_alloc_blk + group_no * EXT3_BLOCKS_PER_GROUP(sb)
-				+ le32_to_cpu(es->s_first_data_block);
+	ret_block = grp_alloc_blk + ext3_group_first_block_no(sb, group_no);
 
 	if (in_range(le32_to_cpu(gdp->bg_block_bitmap), ret_block, num) ||
 	    in_range(le32_to_cpu(gdp->bg_inode_bitmap), ret_block, num) ||
@@ -1478,15 +1472,16 @@ ext3_fsblk_t ext3_new_block(handle_t *handle, struct inode *inode,
 	return ext3_new_blocks(handle, inode, goal, &count, errp);
 }
 
-unsigned long ext3_count_free_blocks(struct super_block *sb)
+ext3_fsblk_t ext3_count_free_blocks(struct super_block *sb)
 {
-	unsigned long desc_count;
+	ext3_fsblk_t desc_count;
 	struct ext3_group_desc *gdp;
 	int i;
 	unsigned long ngroups = EXT3_SB(sb)->s_groups_count;
 #ifdef EXT3FS_DEBUG
 	struct ext3_super_block *es;
-	unsigned long bitmap_count, x;
+	ext3_fsblk_t bitmap_count;
+	unsigned long x;
 	struct buffer_head *bitmap_bh = NULL;
 
 	es = EXT3_SB(sb)->s_es;
@@ -1511,8 +1506,10 @@ unsigned long ext3_count_free_blocks(struct super_block *sb)
 		bitmap_count += x;
 	}
 	brelse(bitmap_bh);
-	printk("ext3_count_free_blocks: stored = %u, computed = %lu, %lu\n",
-	       le32_to_cpu(es->s_free_blocks_count), desc_count, bitmap_count);
+	printk("ext3_count_free_blocks: stored = "E3FSBLK
+		", computed = "E3FSBLK", "E3FSBLK"\n",
+	       le32_to_cpu(es->s_free_blocks_count),
+		desc_count, bitmap_count);
 	return bitmap_count;
 #else
 	desc_count = 0;

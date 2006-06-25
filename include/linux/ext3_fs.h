@@ -710,6 +710,14 @@ struct dir_private_info {
 	__u32		next_hash;
 };
 
+/* calculate the first block number of the group */
+static inline ext3_fsblk_t
+ext3_group_first_block_no(struct super_block *sb, unsigned long group_no)
+{
+	return group_no * (ext3_fsblk_t)EXT3_BLOCKS_PER_GROUP(sb) +
+		le32_to_cpu(EXT3_SB(sb)->s_es->s_first_data_block);
+}
+
 /*
  * Special error return code only used by dx_probe() and its callers.
  */
@@ -739,7 +747,7 @@ extern void ext3_free_blocks (handle_t *handle, struct inode *inode,
 extern void ext3_free_blocks_sb (handle_t *handle, struct super_block *sb,
 				 ext3_fsblk_t block, unsigned long count,
 				unsigned long *pdquot_freed_blocks);
-extern unsigned long ext3_count_free_blocks (struct super_block *);
+extern ext3_fsblk_t ext3_count_free_blocks (struct super_block *);
 extern void ext3_check_blocks_bitmap (struct super_block *);
 extern struct ext3_group_desc * ext3_get_group_desc(struct super_block * sb,
 						    unsigned int block_group,
@@ -811,7 +819,7 @@ extern int ext3_group_add(struct super_block *sb,
 				struct ext3_new_group_data *input);
 extern int ext3_group_extend(struct super_block *sb,
 				struct ext3_super_block *es,
-				unsigned long n_blocks_count);
+				ext3_fsblk_t n_blocks_count);
 
 /* super.c */
 extern void ext3_error (struct super_block *, const char *, const char *, ...)

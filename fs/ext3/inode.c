@@ -407,13 +407,13 @@ no_block:
  *
  *	Caller must make sure that @ind is valid and will stay that way.
  */
-static unsigned long ext3_find_near(struct inode *inode, Indirect *ind)
+static ext3_fsblk_t ext3_find_near(struct inode *inode, Indirect *ind)
 {
 	struct ext3_inode_info *ei = EXT3_I(inode);
 	__le32 *start = ind->bh ? (__le32*) ind->bh->b_data : ei->i_data;
 	__le32 *p;
-	unsigned long bg_start;
-	unsigned long colour;
+	ext3_fsblk_t bg_start;
+	ext3_grpblk_t colour;
 
 	/* Try to find previous block */
 	for (p = ind->p - 1; p >= start; p--) {
@@ -429,8 +429,7 @@ static unsigned long ext3_find_near(struct inode *inode, Indirect *ind)
 	 * It is going to be referred to from the inode itself? OK, just put it
 	 * into the same cylinder group then.
 	 */
-	bg_start = (ei->i_block_group * EXT3_BLOCKS_PER_GROUP(inode->i_sb)) +
-		le32_to_cpu(EXT3_SB(inode->i_sb)->s_es->s_first_data_block);
+	bg_start = ext3_group_first_block_no(inode->i_sb, ei->i_block_group);
 	colour = (current->pid % 16) *
 			(EXT3_BLOCKS_PER_GROUP(inode->i_sb) / 16);
 	return bg_start + colour;
@@ -448,7 +447,7 @@ static unsigned long ext3_find_near(struct inode *inode, Indirect *ind)
  *	stores it in *@goal and returns zero.
  */
 
-static unsigned long ext3_find_goal(struct inode *inode, long block,
+static ext3_fsblk_t ext3_find_goal(struct inode *inode, long block,
 		Indirect chain[4], Indirect *partial)
 {
 	struct ext3_block_alloc_info *block_i;
@@ -516,13 +515,13 @@ static int ext3_blks_to_allocate(Indirect *branch, int k, unsigned long blks,
  *		direct blocks
  */
 static int ext3_alloc_blocks(handle_t *handle, struct inode *inode,
-			unsigned long goal, int indirect_blks, int blks,
-			unsigned long long new_blocks[4], int *err)
+			ext3_fsblk_t goal, int indirect_blks, int blks,
+			ext3_fsblk_t new_blocks[4], int *err)
 {
 	int target, i;
 	unsigned long count = 0;
 	int index = 0;
-	unsigned long current_block = 0;
+	ext3_fsblk_t current_block = 0;
 	int ret = 0;
 
 	/*
@@ -592,7 +591,7 @@ failed_out:
  *	as described above and return 0.
  */
 static int ext3_alloc_branch(handle_t *handle, struct inode *inode,
-			int indirect_blks, int *blks, unsigned long goal,
+			int indirect_blks, int *blks, ext3_fsblk_t goal,
 			int *offsets, Indirect *branch)
 {
 	int blocksize = inode->i_sb->s_blocksize;
@@ -600,8 +599,8 @@ static int ext3_alloc_branch(handle_t *handle, struct inode *inode,
 	int err = 0;
 	struct buffer_head *bh;
 	int num;
-	unsigned long long new_blocks[4];
-	unsigned long long current_block;
+	ext3_fsblk_t new_blocks[4];
+	ext3_fsblk_t current_block;
 
 	num = ext3_alloc_blocks(handle, inode, goal, indirect_blks,
 				*blks, new_blocks, &err);
@@ -688,7 +687,7 @@ static int ext3_splice_branch(handle_t *handle, struct inode *inode,
 	int i;
 	int err = 0;
 	struct ext3_block_alloc_info *block_i;
-	unsigned long current_block;
+	ext3_fsblk_t current_block;
 
 	block_i = EXT3_I(inode)->i_block_alloc_info;
 	/*
@@ -795,13 +794,13 @@ int ext3_get_blocks_handle(handle_t *handle, struct inode *inode,
 	int offsets[4];
 	Indirect chain[4];
 	Indirect *partial;
-	unsigned long goal;
+	ext3_fsblk_t goal;
 	int indirect_blks;
 	int blocks_to_boundary = 0;
 	int depth;
 	struct ext3_inode_info *ei = EXT3_I(inode);
 	int count = 0;
-	unsigned long first_block = 0;
+	ext3_fsblk_t first_block = 0;
 
 
 	J_ASSERT(handle != NULL || create == 0);
@@ -819,7 +818,7 @@ int ext3_get_blocks_handle(handle_t *handle, struct inode *inode,
 		count++;
 		/*map more blocks*/
 		while (count < maxblocks && count <= blocks_to_boundary) {
-			unsigned long blk;
+			ext3_fsblk_t blk;
 
 			if (!verify_chain(chain, partial)) {
 				/*
@@ -1759,7 +1758,7 @@ void ext3_set_aops(struct inode *inode)
 static int ext3_block_truncate_page(handle_t *handle, struct page *page,
 		struct address_space *mapping, loff_t from)
 {
-	unsigned long index = from >> PAGE_CACHE_SHIFT;
+	ext3_fsblk_t index = from >> PAGE_CACHE_SHIFT;
 	unsigned offset = from & (PAGE_CACHE_SIZE-1);
 	unsigned blocksize, iblock, length, pos;
 	struct inode *inode = mapping->host;
@@ -1960,7 +1959,7 @@ no_top:
  * than `count' because there can be holes in there.
  */
 static void ext3_clear_blocks(handle_t *handle, struct inode *inode,
-		struct buffer_head *bh, unsigned long block_to_free,
+		struct buffer_head *bh, ext3_fsblk_t block_to_free,
 		unsigned long count, __le32 *first, __le32 *last)
 {
 	__le32 *p;
@@ -2022,12 +2021,12 @@ static void ext3_free_data(handle_t *handle, struct inode *inode,
 			   struct buffer_head *this_bh,
 			   __le32 *first, __le32 *last)
 {
-	unsigned long block_to_free = 0;    /* Starting block # of a run */
+	ext3_fsblk_t block_to_free = 0;    /* Starting block # of a run */
 	unsigned long count = 0;	    /* Number of blocks in the run */ 
 	__le32 *block_to_free_p = NULL;	    /* Pointer into inode/ind
 					       corresponding to
 					       block_to_free */
-	unsigned long nr;		    /* Current block # */
+	ext3_fsblk_t nr;		    /* Current block # */
 	__le32 *p;			    /* Pointer into inode/ind
 					       for current block */
 	int err;
@@ -2089,7 +2088,7 @@ static void ext3_free_branches(handle_t *handle, struct inode *inode,
 			       struct buffer_head *parent_bh,
 			       __le32 *first, __le32 *last, int depth)
 {
-	unsigned long nr;
+	ext3_fsblk_t nr;
 	__le32 *p;
 
 	if (is_handle_aborted(handle))
@@ -2113,7 +2112,7 @@ static void ext3_free_branches(handle_t *handle, struct inode *inode,
 			 */
 			if (!bh) {
 				ext3_error(inode->i_sb, "ext3_free_branches",
-					   "Read failure, inode=%ld, block=%ld",
+					   "Read failure, inode=%ld, block="E3FSBLK,
 					   inode->i_ino, nr);
 				continue;
 			}
@@ -2394,11 +2393,12 @@ out_stop:
 	ext3_journal_stop(handle);
 }
 
-static unsigned long ext3_get_inode_block(struct super_block *sb,
+static ext3_fsblk_t ext3_get_inode_block(struct super_block *sb,
 		unsigned long ino, struct ext3_iloc *iloc)
 {
 	unsigned long desc, group_desc, block_group;
-	unsigned long offset, block;
+	unsigned long offset;
+	ext3_fsblk_t block;
 	struct buffer_head *bh;
 	struct ext3_group_desc * gdp;
 
@@ -2448,7 +2448,7 @@ static unsigned long ext3_get_inode_block(struct super_block *sb,
 static int __ext3_get_inode_loc(struct inode *inode,
 				struct ext3_iloc *iloc, int in_mem)
 {
-	unsigned long block;
+	ext3_fsblk_t block;
 	struct buffer_head *bh;
 
 	block = ext3_get_inode_block(inode->i_sb, inode->i_ino, iloc);
@@ -2459,7 +2459,8 @@ static int __ext3_get_inode_loc(struct inode *inode,
 	if (!bh) {
 		ext3_error (inode->i_sb, "ext3_get_inode_loc",
 				"unable to read inode block - "
-				"inode=%lu, block=%lu", inode->i_ino, block);
+				"inode=%lu, block="E3FSBLK,
+				 inode->i_ino, block);
 		return -EIO;
 	}
 	if (!buffer_uptodate(bh)) {
@@ -2540,7 +2541,7 @@ make_io:
 		if (!buffer_uptodate(bh)) {
 			ext3_error(inode->i_sb, "ext3_get_inode_loc",
 					"unable to read inode block - "
-					"inode=%lu, block=%lu",
+					"inode=%lu, block="E3FSBLK,
 					inode->i_ino, block);
 			brelse(bh);
 			return -EIO;

@@ -689,14 +689,15 @@ static match_table_t tokens = {
 	{Opt_resize, "resize"},
 };
 
-static unsigned long get_sb_block(void **data)
+static ext3_fsblk_t get_sb_block(void **data)
 {
-	unsigned long 	sb_block;
+	ext3_fsblk_t 	sb_block;
 	char 		*options = (char *) *data;
 
 	if (!options || strncmp(options, "sb=", 3) != 0)
 		return 1;	/* Default location */
 	options += 3;
+	/*todo: use simple_strtoll with >32bit ext3 */
 	sb_block = simple_strtoul(options, &options, 0);
 	if (*options && *options != ',') {
 		printk("EXT3-fs: Invalid sb specification: %s\n",
@@ -711,7 +712,7 @@ static unsigned long get_sb_block(void **data)
 
 static int parse_options (char *options, struct super_block *sb,
 			  unsigned long *inum, unsigned long *journal_devnum,
-			  unsigned long *n_blocks_count, int is_remount)
+			  ext3_fsblk_t *n_blocks_count, int is_remount)
 {
 	struct ext3_sb_info *sbi = EXT3_SB(sb);
 	char * p;
@@ -1128,7 +1129,7 @@ static int ext3_setup_super(struct super_block *sb, struct ext3_super_block *es,
 static int ext3_check_descriptors (struct super_block * sb)
 {
 	struct ext3_sb_info *sbi = EXT3_SB(sb);
-	unsigned long block = le32_to_cpu(sbi->s_es->s_first_data_block);
+	ext3_fsblk_t block = le32_to_cpu(sbi->s_es->s_first_data_block);
 	struct ext3_group_desc * gdp = NULL;
 	int desc_block = 0;
 	int i;
@@ -1315,15 +1316,14 @@ static loff_t ext3_max_size(int bits)
 	return res;
 }
 
-static unsigned long descriptor_loc(struct super_block *sb,
-				    unsigned long logic_sb_block,
+static ext3_fsblk_t descriptor_loc(struct super_block *sb,
+				    ext3_fsblk_t logic_sb_block,
 				    int nr)
 {
 	struct ext3_sb_info *sbi = EXT3_SB(sb);
-	unsigned long bg, first_data_block, first_meta_bg;
+	unsigned long bg, first_meta_bg;
 	int has_super = 0;
 
-	first_data_block = le32_to_cpu(sbi->s_es->s_first_data_block);
 	first_meta_bg = le32_to_cpu(sbi->s_es->s_first_meta_bg);
 
 	if (!EXT3_HAS_INCOMPAT_FEATURE(sb, EXT3_FEATURE_INCOMPAT_META_BG) ||
@@ -1332,7 +1332,7 @@ static unsigned long descriptor_loc(struct super_block *sb,
 	bg = sbi->s_desc_per_block * nr;
 	if (ext3_bg_has_super(sb, bg))
 		has_super = 1;
-	return (first_data_block + has_super + (bg * sbi->s_blocks_per_group));
+	return (has_super + ext3_group_first_block_no(sb, bg));
 }
 
 
@@ -1341,9 +1341,9 @@ static int ext3_fill_super (struct super_block *sb, void *data, int silent)
 	struct buffer_head * bh;
 	struct ext3_super_block *es = NULL;
 	struct ext3_sb_info *sbi;
-	unsigned long block;
-	unsigned long sb_block = get_sb_block(&data);
-	unsigned long logic_sb_block;
+	ext3_fsblk_t block;
+	ext3_fsblk_t sb_block = get_sb_block(&data);
+	ext3_fsblk_t logic_sb_block;
 	unsigned long offset = 0;
 	unsigned long journal_inum = 0;
 	unsigned long journal_devnum = 0;
@@ -1840,10 +1840,10 @@ static journal_t *ext3_get_dev_journal(struct super_block *sb,
 {
 	struct buffer_head * bh;
 	journal_t *journal;
-	int start;
+	ext3_fsblk_t start;
 	ext3_fsblk_t len;
 	int hblock, blocksize;
-	unsigned long sb_block;
+	ext3_fsblk_t sb_block;
 	unsigned long offset;
 	struct ext3_super_block * es;
 	struct block_device *bdev;
@@ -2216,7 +2216,7 @@ static int ext3_remount (struct super_block * sb, int * flags, char * data)
 {
 	struct ext3_super_block * es;
 	struct ext3_sb_info *sbi = EXT3_SB(sb);
-	unsigned long n_blocks_count = 0;
+	ext3_fsblk_t n_blocks_count = 0;
 	unsigned long old_sb_flags;
 	struct ext3_mount_options old_opts;
 	int err;
@@ -2336,7 +2336,7 @@ static int ext3_statfs (struct dentry * dentry, struct kstatfs * buf)
 	struct super_block *sb = dentry->d_sb;
 	struct ext3_sb_info *sbi = EXT3_SB(sb);
 	struct ext3_super_block *es = sbi->s_es;
-	unsigned long overhead;
+	ext3_fsblk_t overhead;
 	int i;
 
 	if (test_opt (sb, MINIX_DF))

@@ -204,7 +204,7 @@ flags_err:
 		return 0;
 	}
 	case EXT3_IOC_GROUP_EXTEND: {
-		unsigned long n_blocks_count;
+		ext3_fsblk_t n_blocks_count;
 		struct super_block *sb = inode->i_sb;
 		int err;
 
