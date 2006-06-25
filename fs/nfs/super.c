@@ -187,6 +187,7 @@ static struct super_operations nfs4_sops = {
 };
 #endif
 
+#ifdef CONFIG_NFS_V4
 static const int nfs_set_port_min = 0;
 static const int nfs_set_port_max = 65535;
 
@@ -202,7 +203,9 @@ static int param_set_port(const char *val, struct kernel_param *kp)
 
 module_param_call(callback_tcpport, param_set_port, param_get_int,
 		 &nfs_callback_set_tcpport, 0644);
+#endif
 
+#ifdef CONFIG_NFS_V4
 static int param_set_idmap_timeout(const char *val, struct kernel_param *kp)
 {
 	char *endp;
@@ -216,6 +219,7 @@ static int param_set_idmap_timeout(const char *val, struct kernel_param *kp)
 
 module_param_call(idmap_cache_timeout, param_set_idmap_timeout, param_get_int,
 		 &nfs_idmap_cache_timeout, 0644);
+#endif
 
 /*
  * Register the NFS filesystems
