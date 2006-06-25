@@ -100,18 +100,6 @@
 	msr	cpsr_c, \oldcpsr
 	.endm
 
-/*
- * These two are used to save LR/restore PC over a user-based access.
- * The old 26-bit architecture requires that we do.  On 32-bit
- * architecture, we can safely ignore this requirement.
- */
-	.macro	save_lr
-	.endm
-
-	.macro	restore_pc
-	mov	pc, lr
-	.endm
-
 #define USER(x...)				\
 9999:	x;					\
 	.section __ex_table,"a";		\
