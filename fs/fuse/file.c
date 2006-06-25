@@ -48,8 +48,8 @@ struct fuse_file *fuse_file_alloc(void)
 	struct fuse_file *ff;
 	ff = kmalloc(sizeof(struct fuse_file), GFP_KERNEL);
 	if (ff) {
-		ff->release_req = fuse_request_alloc();
-		if (!ff->release_req) {
+		ff->reserved_req = fuse_request_alloc();
+		if (!ff->reserved_req) {
 			kfree(ff);
 			ff = NULL;
 		}
@@ -59,7 +59,7 @@ struct fuse_file *fuse_file_alloc(void)
 
 void fuse_file_free(struct fuse_file *ff)
 {
-	fuse_request_free(ff->release_req);
+	fuse_request_free(ff->reserved_req);
 	kfree(ff);
 }
 
@@ -115,7 +115,7 @@ int fuse_open_common(struct inode *inode, struct file *file, int isdir)
 struct fuse_req *fuse_release_fill(struct fuse_file *ff, u64 nodeid, int flags,
 				   int opcode)
 {
-	struct fuse_req *req = ff->release_req;
+	struct fuse_req *req = ff->reserved_req;
 	struct fuse_release_in *inarg = &req->misc.release_in;
 
 	inarg->fh = ff->fh;
@@ -187,10 +187,7 @@ static int fuse_flush(struct file *file, fl_owner_t id)
 	if (fc->no_flush)
 		return 0;
 
-	req = fuse_get_req(fc);
-	if (IS_ERR(req))
-		return PTR_ERR(req);
-
+	req = fuse_get_req_nofail(fc, file);
 	memset(&inarg, 0, sizeof(inarg));
 	inarg.fh = ff->fh;
 	inarg.lock_owner = fuse_lock_owner_id(id);

@@ -65,7 +65,7 @@ struct fuse_inode {
 /** FUSE specific file data */
 struct fuse_file {
 	/** Request reserved for flush and release */
-	struct fuse_req *release_req;
+	struct fuse_req *reserved_req;
 
 	/** File handle used by userspace */
 	u64 fh;
@@ -213,6 +213,9 @@ struct fuse_req {
 
 	/** Request completion callback */
 	void (*end)(struct fuse_conn *, struct fuse_req *);
+
+	/** Request is stolen from fuse_file->reserved_req */
+	struct file *stolen_file;
 };
 
 /**
@@ -456,9 +459,14 @@ struct fuse_req *fuse_request_alloc(void);
 void fuse_request_free(struct fuse_req *req);
 
 /**
- * Reserve a preallocated request
+ * Get a request, may fail with -ENOMEM
  */
 struct fuse_req *fuse_get_req(struct fuse_conn *fc);
+
+/**
+ * Gets a requests for a file operation, always succeeds
+ */
+struct fuse_req *fuse_get_req_nofail(struct fuse_conn *fc, struct file *file);
 
 /**
  * Decrement reference count of a request.  If count goes to zero free

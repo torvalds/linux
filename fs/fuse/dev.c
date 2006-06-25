@@ -76,6 +76,13 @@ static void __fuse_put_request(struct fuse_req *req)
 	atomic_dec(&req->count);
 }
 
+static void fuse_req_init_context(struct fuse_req *req)
+{
+	req->in.h.uid = current->fsuid;
+	req->in.h.gid = current->fsgid;
+	req->in.h.pid = current->pid;
+}
+
 struct fuse_req *fuse_get_req(struct fuse_conn *fc)
 {
 	struct fuse_req *req;
@@ -100,9 +107,7 @@ struct fuse_req *fuse_get_req(struct fuse_conn *fc)
 	if (!req)
 		goto out;
 
-	req->in.h.uid = current->fsuid;
-	req->in.h.gid = current->fsgid;
-	req->in.h.pid = current->pid;
+	fuse_req_init_context(req);
 	req->waiting = 1;
 	return req;
 
@@ -111,12 +116,87 @@ struct fuse_req *fuse_get_req(struct fuse_conn *fc)
 	return ERR_PTR(err);
 }
 
+/*
+ * Return request in fuse_file->reserved_req.  However that may
+ * currently be in use.  If that is the case, wait for it to become
+ * available.
+ */
+static struct fuse_req *get_reserved_req(struct fuse_conn *fc,
+					 struct file *file)
+{
+	struct fuse_req *req = NULL;
+	struct fuse_file *ff = file->private_data;
+
+	do {
+		wait_event(fc->blocked_waitq, ff->reserved_req);
+		spin_lock(&fc->lock);
+		if (ff->reserved_req) {
+			req = ff->reserved_req;
+			ff->reserved_req = NULL;
+			get_file(file);
+			req->stolen_file = file;
+		}
+		spin_unlock(&fc->lock);
+	} while (!req);
+
+	return req;
+}
+
+/*
+ * Put stolen request back into fuse_file->reserved_req
+ */
+static void put_reserved_req(struct fuse_conn *fc, struct fuse_req *req)
+{
+	struct file *file = req->stolen_file;
+	struct fuse_file *ff = file->private_data;
+
+	spin_lock(&fc->lock);
+	fuse_request_init(req);
+	BUG_ON(ff->reserved_req);
+	ff->reserved_req = req;
+	wake_up(&fc->blocked_waitq);
+	spin_unlock(&fc->lock);
+	fput(file);
+}
+
+/*
+ * Gets a requests for a file operation, always succeeds
+ *
+ * This is used for sending the FLUSH request, which must get to
+ * userspace, due to POSIX locks which may need to be unlocked.
+ *
+ * If allocation fails due to OOM, use the reserved request in
+ * fuse_file.
+ *
+ * This is very unlikely to deadlock accidentally, since the
+ * filesystem should not have it's own file open.  If deadlock is
+ * intentional, it can still be broken by "aborting" the filesystem.
+ */
+struct fuse_req *fuse_get_req_nofail(struct fuse_conn *fc, struct file *file)
+{
+	struct fuse_req *req;
+
+	atomic_inc(&fc->num_waiting);
+	wait_event(fc->blocked_waitq, !fc->blocked);
+	req = fuse_request_alloc();
+	if (!req)
+		req = get_reserved_req(fc, file);
+
+	fuse_req_init_context(req);
+	req->waiting = 1;
+	return req;
+}
+
 void fuse_put_request(struct fuse_conn *fc, struct fuse_req *req)
 {
 	if (atomic_dec_and_test(&req->count)) {
 		if (req->waiting)
 			atomic_dec(&fc->num_waiting);
-		fuse_request_free(req);
+
+		if (req->stolen_file)
+			put_reserved_req(fc, req);
+		else
+			fuse_request_free(req);
 	}
 }
 
