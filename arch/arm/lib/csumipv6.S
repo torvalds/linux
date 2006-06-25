@@ -28,5 +28,5 @@ ENTRY(__csum_ipv6_magic)
 		adcs	r0, r0, r3
 		adcs	r0, r0, r2
 		adcs	r0, r0, #0
-		LOADREGS(fd, sp!, {pc})
+		ldmfd	sp!, {pc}
 

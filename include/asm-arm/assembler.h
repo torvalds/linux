@@ -63,17 +63,6 @@
 #define DEFAULT_FIQ	MODE_FIQ
 
 /*
- * LOADREGS - ldm with PC in register list (eg, ldmfd sp!, {pc})
- */
-#ifdef __STDC__
-#define LOADREGS(cond, base, reglist...)\
-	ldm##cond	base,reglist
-#else
-#define LOADREGS(cond, base, reglist...)\
-	ldm/**/cond	base,reglist
-#endif
-
-/*
  * Enable and disable interrupts
  */
 #if __LINUX_ARM_ARCH__ >= 6

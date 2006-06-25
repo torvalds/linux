@@ -105,7 +105,7 @@ USER(		strgtbt	r3, [r0], #1)			@ May fault
 		movs	ip, r2
 		bne	.Lc2u_nowords
 .Lc2u_finished:	mov	r0, #0
-		LOADREGS(fd,sp!,{r2, r4 - r7, pc})
+		ldmfd	sp!, {r2, r4 - r7, pc}
 
 .Lc2u_src_not_aligned:
 		bic	r1, r1, #3
@@ -280,7 +280,7 @@ USER(		strgtbt	r3, [r0], #1)			@ May fault
 
 		.section .fixup,"ax"
 		.align	0
-9001:		LOADREGS(fd,sp!, {r0, r4 - r7, pc})
+9001:		ldmfd	sp!, {r0, r4 - r7, pc}
 		.previous
 
 /* Prototype: unsigned long __arch_copy_from_user(void *to,const void *from,unsigned long n);
@@ -369,7 +369,7 @@ USER(		ldrgtbt	r3, [r1], #1)			@ May fault
 		bne	.Lcfu_nowords
 .Lcfu_finished:	mov	r0, #0
 		add	sp, sp, #8
-		LOADREGS(fd,sp!,{r4 - r7, pc})
+		ldmfd	sp!, {r4 - r7, pc}
 
 .Lcfu_src_not_aligned:
 		bic	r1, r1, #3
@@ -556,6 +556,6 @@ USER(		ldrgtbt	r3, [r1], #1)			@ May fault
 		movne	r1, r4
 		blne	__memzero
 		mov	r0, r4
-		LOADREGS(fd,sp!, {r4 - r7, pc})
+		ldmfd	sp!, {r4 - r7, pc}
 		.previous
 
