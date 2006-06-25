@@ -1779,7 +1779,7 @@ sub process_file($) {
 		$prototype = "";
 		$state = 3;
 		$brcount = 0;
-#	    print STDERR "end of doc comment, looking for prototype\n";
+#		print STDERR "end of doc comment, looking for prototype\n";
 	    } elsif (/$doc_content/) {
 		# miguel-style comment kludge, look for blank lines after
 		# @parameter line to signify start of description
@@ -1796,7 +1796,7 @@ sub process_file($) {
 		print STDERR "Warning(${file}:$.): bad line: $_";
 		++$warnings;
 	    }
-	} elsif ($state == 3) {	# scanning for function { (end of prototype)
+	} elsif ($state == 3) {	# scanning for function '{' (end of prototype)
 	    if ($decl_type eq 'function') {
 	        process_state3_function($_, $file);
 	    } else {
