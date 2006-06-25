@@ -1892,7 +1892,7 @@ int remove_suid(struct dentry *dentry)
 EXPORT_SYMBOL(remove_suid);
 
 size_t
-__filemap_copy_from_user_iovec(char *vaddr, 
+__filemap_copy_from_user_iovec_inatomic(char *vaddr,
 			const struct iovec *iov, size_t base, size_t bytes)
 {
 	size_t copied = 0, left = 0;
@@ -1908,12 +1908,8 @@ __filemap_copy_from_user_iovec(char *vaddr,
 		vaddr += copy;
 		iov++;
 
-		if (unlikely(left)) {
-			/* zero the rest of the target like __copy_from_user */
-			if (bytes)
-				memset(vaddr, 0, bytes);
+		if (unlikely(left))
 			break;
-		}
 	}
 	return copied - left;
 }

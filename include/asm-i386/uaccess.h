@@ -458,6 +458,12 @@ __copy_to_user(void __user *to, const void *from, unsigned long n)
  *
  * If some data could not be copied, this function will pad the copied
  * data to the requested size using zero bytes.
+ *
+ * An alternate version - __copy_from_user_inatomic() - may be called from
+ * atomic context and will fail rather than sleep.  In this case the
+ * uncopied bytes will *NOT* be padded with zeros.  See fs/filemap.h
+ * for explanation of why this is needed.
+ * FIXME this isn't implimented yet EMXIF
  */
 static __always_inline unsigned long
 __copy_from_user_inatomic(void *to, const void __user *from, unsigned long n)

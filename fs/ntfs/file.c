@@ -1358,7 +1358,7 @@ err_out:
 	goto out;
 }
 
-static size_t __ntfs_copy_from_user_iovec(char *vaddr,
+static size_t __ntfs_copy_from_user_iovec_inatomic(char *vaddr,
 		const struct iovec *iov, size_t iov_ofs, size_t bytes)
 {
 	size_t total = 0;
@@ -1376,10 +1376,6 @@ static size_t __ntfs_copy_from_user_iovec(char *vaddr,
 		bytes -= len;
 		vaddr += len;
 		if (unlikely(left)) {
-			/*
-			 * Zero the rest of the target like __copy_from_user().
-			 */
-			memset(vaddr, 0, bytes);
 			total -= left;
 			break;
 		}
@@ -1420,11 +1416,13 @@ static inline void ntfs_set_next_iovec(const struct iovec **iovp,
  * pages (out to offset + bytes), to emulate ntfs_copy_from_user()'s
  * single-segment behaviour.
  *
- * We call the same helper (__ntfs_copy_from_user_iovec()) both when atomic and
- * when not atomic.  This is ok because __ntfs_copy_from_user_iovec() calls
- * __copy_from_user_inatomic() and it is ok to call this when non-atomic.  In
- * fact, the only difference between __copy_from_user_inatomic() and
- * __copy_from_user() is that the latter calls might_sleep().  And on many
+ * We call the same helper (__ntfs_copy_from_user_iovec_inatomic()) both
+ * when atomic and when not atomic.  This is ok because
+ * __ntfs_copy_from_user_iovec_inatomic() calls __copy_from_user_inatomic()
+ * and it is ok to call this when non-atomic.
+ * Infact, the only difference between __copy_from_user_inatomic() and
+ * __copy_from_user() is that the latter calls might_sleep() and the former
+ * should not zero the tail of the buffer on error.  And on many
  * architectures __copy_from_user_inatomic() is just defined to
  * __copy_from_user() so it makes no difference at all on those architectures.
  */
@@ -1441,14 +1439,18 @@ static inline size_t ntfs_copy_from_user_iovec(struct page **pages,
 		if (len > bytes)
 			len = bytes;
 		kaddr = kmap_atomic(*pages, KM_USER0);
-		copied = __ntfs_copy_from_user_iovec(kaddr + ofs,
+		copied = __ntfs_copy_from_user_iovec_inatomic(kaddr + ofs,
 				*iov, *iov_ofs, len);
 		kunmap_atomic(kaddr, KM_USER0);
 		if (unlikely(copied != len)) {
 			/* Do it the slow way. */
 			kaddr = kmap(*pages);
-			copied = __ntfs_copy_from_user_iovec(kaddr + ofs,
+			copied = __ntfs_copy_from_user_iovec_inatomic(kaddr + ofs,
 					*iov, *iov_ofs, len);
+			/*
+			 * Zero the rest of the target like __copy_from_user().
+			 */
+			memset(kaddr + ofs + copied, 0, len - copied);
 			kunmap(*pages);
 			if (unlikely(copied != len))
 				goto err_out;
