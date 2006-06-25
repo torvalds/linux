@@ -257,7 +257,7 @@ static void __init synchronize_tsc_bp (void)
 		 * all APs synchronize but they loop on '== num_cpus'
 		 */
 		while (atomic_read(&tsc_count_start) != num_booting_cpus()-1)
-			mb();
+			cpu_relax();
 		atomic_set(&tsc_count_stop, 0);
 		wmb();
 		/*
@@ -276,7 +276,7 @@ static void __init synchronize_tsc_bp (void)
 		 * Wait for all APs to leave the synchronization point:
 		 */
 		while (atomic_read(&tsc_count_stop) != num_booting_cpus()-1)
-			mb();
+			cpu_relax();
 		atomic_set(&tsc_count_start, 0);
 		wmb();
 		atomic_inc(&tsc_count_stop);
@@ -333,19 +333,21 @@ static void __init synchronize_tsc_ap (void)
 	 * this gets called, so we first wait for the BP to
 	 * finish SMP initialization:
 	 */
-	while (!atomic_read(&tsc_start_flag)) mb();
+	while (!atomic_read(&tsc_start_flag))
+		cpu_relax();
 
 	for (i = 0; i < NR_LOOPS; i++) {
 		atomic_inc(&tsc_count_start);
 		while (atomic_read(&tsc_count_start) != num_booting_cpus())
-			mb();
+			cpu_relax();
 
 		rdtscll(tsc_values[smp_processor_id()]);
 		if (i == NR_LOOPS-1)
 			write_tsc(0, 0);
 
 		atomic_inc(&tsc_count_stop);
-		while (atomic_read(&tsc_count_stop) != num_booting_cpus()) mb();
+		while (atomic_read(&tsc_count_stop) != num_booting_cpus())
+			cpu_relax();
 	}
 }
 #undef NR_LOOPS
@@ -1433,7 +1435,7 @@ int __devinit __cpu_up(unsigned int cpu)
 	/* Unleash the CPU! */
 	cpu_set(cpu, smp_commenced_mask);
 	while (!cpu_isset(cpu, cpu_online_map))
-		mb();
+		cpu_relax();
 	return 0;
 }
 
