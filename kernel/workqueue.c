@@ -428,22 +428,34 @@ int schedule_delayed_work_on(int cpu,
 	return ret;
 }
 
-int schedule_on_each_cpu(void (*func) (void *info), void *info)
+/**
+ * schedule_on_each_cpu - call a function on each online CPU from keventd
+ * @func: the function to call
+ * @info: a pointer to pass to func()
+ *
+ * Returns zero on success.
+ * Returns -ve errno on failure.
+ *
+ * Appears to be racy against CPU hotplug.
+ *
+ * schedule_on_each_cpu() is very slow.
+ */
+int schedule_on_each_cpu(void (*func)(void *info), void *info)
 {
 	int cpu;
-	struct work_struct *work;
+	struct work_struct *works;
 
-	work = kmalloc(NR_CPUS * sizeof(struct work_struct), GFP_KERNEL);
-
-	if (!work)
+	works = alloc_percpu(struct work_struct);
+	if (!works)
 		return -ENOMEM;
+
 	for_each_online_cpu(cpu) {
-		INIT_WORK(work + cpu, func, info);
+		INIT_WORK(per_cpu_ptr(works, cpu), func, info);
 		__queue_work(per_cpu_ptr(keventd_wq->cpu_wq, cpu),
-				work + cpu);
+				per_cpu_ptr(works, cpu));
 	}
 	flush_workqueue(keventd_wq);
-	kfree(work);
+	free_percpu(works);
 	return 0;
 }
 
