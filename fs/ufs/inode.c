@@ -161,6 +161,17 @@ out:
 	return ret;
 }
 
+static void ufs_clear_block(struct inode *inode, struct buffer_head *bh)
+{
+	lock_buffer(bh);
+	memset(bh->b_data, 0, inode->i_sb->s_blocksize);
+	set_buffer_uptodate(bh);
+	mark_buffer_dirty(bh);
+	unlock_buffer(bh);
+	if (IS_SYNC(inode))
+		sync_dirty_buffer(bh);
+}
+
 static struct buffer_head * ufs_inode_getfrag (struct inode *inode,
 	unsigned int fragment, unsigned int new_fragment,
 	unsigned int required, int *err, int metadata, long *phys, int *new)
@@ -204,7 +215,7 @@ repeat:
 			brelse (result);
 			goto repeat;
 		} else {
-			*phys = tmp;
+			*phys = tmp + blockoff;
 			return NULL;
 		}
 	}
@@ -259,14 +270,11 @@ repeat:
 		return NULL;
 	}
 
-	/* The nullification of framgents done in ufs/balloc.c is
-	 * something I don't have the stomache to move into here right
-	 * now. -DaveM
-	 */
 	if (metadata) {
 		result = sb_getblk(inode->i_sb, tmp + blockoff);
+		ufs_clear_block(inode, result);
 	} else {
-		*phys = tmp;
+		*phys = tmp + blockoff;
 		result = NULL;
 		*err = 0;
 		*new = 1;
@@ -333,7 +341,7 @@ repeat:
 			brelse (result);
 			goto repeat;
 		} else {
-			*phys = tmp;
+			*phys = tmp + blockoff;
 			goto out;
 		}
 	}
@@ -349,14 +357,12 @@ repeat:
 		goto out;
 	}		
 
-	/* The nullification of framgents done in ufs/balloc.c is
-	 * something I don't have the stomache to move into here right
-	 * now. -DaveM
-	 */
+
 	if (metadata) {
 		result = sb_getblk(sb, tmp + blockoff);
+		ufs_clear_block(inode, result);
 	} else {
-		*phys = tmp;
+		*phys = tmp + blockoff;
 		*new = 1;
 	}
 

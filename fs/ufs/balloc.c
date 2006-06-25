@@ -223,18 +223,6 @@ failed:
 }
 
 
-
-#define NULLIFY_FRAGMENTS \
-	for (i = oldcount; i < newcount; i++) { \
-		bh = sb_getblk(sb, result + i); \
-		memset (bh->b_data, 0, sb->s_blocksize); \
-		set_buffer_uptodate(bh); \
-		mark_buffer_dirty (bh); \
-		if (IS_SYNC(inode)) \
-			sync_dirty_buffer(bh); \
-		brelse (bh); \
-	}
-
 unsigned ufs_new_fragments (struct inode * inode, __fs32 * p, unsigned fragment,
 	unsigned goal, unsigned count, int * err )
 {
@@ -312,7 +300,6 @@ unsigned ufs_new_fragments (struct inode * inode, __fs32 * p, unsigned fragment,
 			*err = 0;
 			inode->i_blocks += count << uspi->s_nspfshift;
 			UFS_I(inode)->i_lastfrag = max_t(u32, UFS_I(inode)->i_lastfrag, fragment + count);
-			NULLIFY_FRAGMENTS
 		}
 		unlock_super(sb);
 		UFSD(("EXIT, result %u\n", result))
@@ -327,7 +314,6 @@ unsigned ufs_new_fragments (struct inode * inode, __fs32 * p, unsigned fragment,
 		*err = 0;
 		inode->i_blocks += count << uspi->s_nspfshift;
 		UFS_I(inode)->i_lastfrag = max_t(u32, UFS_I(inode)->i_lastfrag, fragment + count);
-		NULLIFY_FRAGMENTS
 		unlock_super(sb);
 		UFSD(("EXIT, result %u\n", result))
 		return result;
@@ -379,7 +365,6 @@ unsigned ufs_new_fragments (struct inode * inode, __fs32 * p, unsigned fragment,
 		*err = 0;
 		inode->i_blocks += count << uspi->s_nspfshift;
 		UFS_I(inode)->i_lastfrag = max_t(u32, UFS_I(inode)->i_lastfrag, fragment + count);
-		NULLIFY_FRAGMENTS
 		unlock_super(sb);
 		if (newcount < request)
 			ufs_free_fragments (inode, result + newcount, request - newcount);
