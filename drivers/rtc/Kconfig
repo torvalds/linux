@@ -217,4 +217,14 @@ config RTC_DRV_TEST
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-test.
 
+config RTC_DRV_MAX6902
+	tristate "Maxim 6902"
+	depends on RTC_CLASS && SPI
+	help
+	  If you say yes here you will get support for the
+	  Maxim MAX6902 spi RTC chip.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-max6902.
+
 endmenu
