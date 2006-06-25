@@ -299,7 +299,8 @@ xfs_file_open(
 
 STATIC int
 xfs_file_close(
-	struct file	*filp)
+	struct file	*filp,
+	fl_owner_t	id)
 {
 	return -bhv_vop_close(vn_from_inode(filp->f_dentry->d_inode), 0,
 				file_count(filp) > 1 ? L_FALSE : L_TRUE, NULL);
