@@ -157,6 +157,16 @@ config RTC_DRV_VR41XX
 	  To compile this driver as a module, choose M here: the
 	  module will be called rtc-vr41xx.
 
+config RTC_DRV_PL031
+	tristate "ARM AMBA PL031 RTC"
+	depends on RTC_CLASS && ARM_AMBA
+	help
+	  If you say Y here you will get access to ARM AMBA
+	  PrimeCell PL031 UART found on certain ARM SOCs.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rtc-pl031.
+
 config RTC_DRV_TEST
 	tristate "Test driver/device"
 	depends on RTC_CLASS
