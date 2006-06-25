@@ -75,22 +75,13 @@ read_failed:
 	return NULL;
 }
 
-static void nfs_put_link(struct dentry *dentry, struct nameidata *nd, void *cookie)
-{
-	if (cookie) {
-		struct page *page = cookie;
-		kunmap(page);
-		page_cache_release(page);
-	}
-}
-
 /*
  * symlinks can't do much...
  */
 struct inode_operations nfs_symlink_inode_operations = {
 	.readlink	= generic_readlink,
 	.follow_link	= nfs_follow_link,
-	.put_link	= nfs_put_link,
+	.put_link	= page_put_link,
 	.getattr	= nfs_getattr,
 	.setattr	= nfs_setattr,
 };
