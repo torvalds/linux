@@ -1054,6 +1054,9 @@ static int v9fs_vfs_readlink(struct dentry *dentry, char __user * buffer,
 	int ret;
 	char *link = __getname();
 
+	if (unlikely(!link))
+		return -ENOMEM;
+
 	if (buflen > PATH_MAX)
 		buflen = PATH_MAX;
 
@@ -1227,6 +1230,9 @@ v9fs_vfs_link(struct dentry *old_dentry, struct inode *dir,
 	}
 
 	name = __getname();
+	if (unlikely(!name))
+		return -ENOMEM;
+
 	sprintf(name, "%d\n", oldfid->fid);
 	retval = v9fs_vfs_mkspecial(dir, dentry, V9FS_DMLINK, name);
 	__putname(name);
