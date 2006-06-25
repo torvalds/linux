@@ -428,7 +428,6 @@ static void do_acct_process(struct file *file)
 	u64 elapsed;
 	u64 run_time;
 	struct timespec uptime;
-	unsigned long jiffies;
 
 	/*
 	 * First check to see if there is enough free_space to continue
@@ -469,12 +468,6 @@ static void do_acct_process(struct file *file)
 #endif
 	do_div(elapsed, AHZ);
 	ac.ac_btime = xtime.tv_sec - elapsed;
-	jiffies = cputime_to_jiffies(cputime_add(current->utime,
-						 current->signal->utime));
-	ac.ac_utime = encode_comp_t(jiffies_to_AHZ(jiffies));
-	jiffies = cputime_to_jiffies(cputime_add(current->stime,
-						 current->signal->stime));
-	ac.ac_stime = encode_comp_t(jiffies_to_AHZ(jiffies));
 	/* we really need to bite the bullet and change layout */
 	ac.ac_uid = current->uid;
 	ac.ac_gid = current->gid;
@@ -497,16 +490,16 @@ static void do_acct_process(struct file *file)
 	read_unlock(&tasklist_lock);
 
 	spin_lock(&current->sighand->siglock);
+	ac.ac_utime = encode_comp_t(jiffies_to_AHZ(cputime_to_jiffies(pacct->ac_utime)));
+	ac.ac_stime = encode_comp_t(jiffies_to_AHZ(cputime_to_jiffies(pacct->ac_stime)));
 	ac.ac_flag = pacct->ac_flag;
 	ac.ac_mem = encode_comp_t(pacct->ac_mem);
+	ac.ac_minflt = encode_comp_t(pacct->ac_minflt);
+	ac.ac_majflt = encode_comp_t(pacct->ac_majflt);
 	ac.ac_exitcode = pacct->ac_exitcode;
 	spin_unlock(&current->sighand->siglock);
 	ac.ac_io = encode_comp_t(0 /* current->io_usage */);	/* %% */
 	ac.ac_rw = encode_comp_t(ac.ac_io / 1024);
-	ac.ac_minflt = encode_comp_t(current->signal->min_flt +
-				     current->min_flt);
-	ac.ac_majflt = encode_comp_t(current->signal->maj_flt +
-				     current->maj_flt);
 	ac.ac_swaps = encode_comp_t(0);
 
 	/*
@@ -532,6 +525,7 @@ static void do_acct_process(struct file *file)
 void acct_init_pacct(struct pacct_struct *pacct)
 {
 	memset(pacct, 0, sizeof(struct pacct_struct));
+	pacct->ac_utime = pacct->ac_stime = cputime_zero;
 }
 
 /**
@@ -555,7 +549,7 @@ void acct_collect(long exitcode, int group_dead)
 		up_read(&current->mm->mmap_sem);
 	}
 
-	spin_lock(&current->sighand->siglock);
+	spin_lock_irq(&current->sighand->siglock);
 	if (group_dead)
 		pacct->ac_mem = vsize / 1024;
 	if (thread_group_leader(current)) {
@@ -569,7 +563,11 @@ void acct_collect(long exitcode, int group_dead)
 		pacct->ac_flag |= ACORE;
 	if (current->flags & PF_SIGNALED)
 		pacct->ac_flag |= AXSIG;
-	spin_unlock(&current->sighand->siglock);
+	pacct->ac_utime = cputime_add(pacct->ac_utime, current->utime);
+	pacct->ac_stime = cputime_add(pacct->ac_stime, current->stime);
+	pacct->ac_minflt += current->min_flt;
+	pacct->ac_majflt += current->maj_flt;
+	spin_unlock_irq(&current->sighand->siglock);
 }
 
 /**
