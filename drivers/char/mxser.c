@@ -1081,7 +1081,7 @@ static int mxser_write(struct tty_struct *tty, const unsigned char *buf, int cou
 	struct mxser_struct *info = tty->driver_data;
 	unsigned long flags;
 
-	if (!tty || !info->xmit_buf)
+	if (!info->xmit_buf)
 		return (0);
 
 	while (1) {
@@ -1117,7 +1117,7 @@ static void mxser_put_char(struct tty_struct *tty, unsigned char ch)
 	struct mxser_struct *info = tty->driver_data;
 	unsigned long flags;
 
-	if (!tty || !info->xmit_buf)
+	if (!info->xmit_buf)
 		return;
 
 	if (info->xmit_cnt >= SERIAL_XMIT_SIZE - 1)
