@@ -112,13 +112,12 @@ void ubh_mark_buffer_uptodate (struct ufs_buffer_head * ubh, int flag)
 	}
 }
 
-void ubh_ll_rw_block (int rw, unsigned nr, struct ufs_buffer_head * ubh[])
+void ubh_ll_rw_block(int rw, struct ufs_buffer_head *ubh)
 {
-	unsigned i;
 	if (!ubh)
 		return;
-	for ( i = 0; i < nr; i++ )
-		ll_rw_block (rw, ubh[i]->count, ubh[i]->bh);
+
+	ll_rw_block(rw, ubh->count, ubh->bh);
 }
 
 void ubh_wait_on_buffer (struct ufs_buffer_head * ubh)

@@ -109,7 +109,7 @@ void ufs_free_fragments(struct inode *inode, unsigned fragment, unsigned count)
 	ubh_mark_buffer_dirty (USPI_UBH(uspi));
 	ubh_mark_buffer_dirty (UCPI_UBH(ucpi));
 	if (sb->s_flags & MS_SYNCHRONOUS) {
-		ubh_ll_rw_block (SWRITE, 1, (struct ufs_buffer_head **)&ucpi);
+		ubh_ll_rw_block(SWRITE, UCPI_UBH(ucpi));
 		ubh_wait_on_buffer (UCPI_UBH(ucpi));
 	}
 	sb->s_dirt = 1;
@@ -195,7 +195,7 @@ do_more:
 	ubh_mark_buffer_dirty (USPI_UBH(uspi));
 	ubh_mark_buffer_dirty (UCPI_UBH(ucpi));
 	if (sb->s_flags & MS_SYNCHRONOUS) {
-		ubh_ll_rw_block (SWRITE, 1, (struct ufs_buffer_head **)&ucpi);
+		ubh_ll_rw_block(SWRITE, UCPI_UBH(ucpi));
 		ubh_wait_on_buffer (UCPI_UBH(ucpi));
 	}
 
@@ -521,7 +521,7 @@ ufs_add_fragments (struct inode * inode, unsigned fragment,
 	ubh_mark_buffer_dirty (USPI_UBH(uspi));
 	ubh_mark_buffer_dirty (UCPI_UBH(ucpi));
 	if (sb->s_flags & MS_SYNCHRONOUS) {
-		ubh_ll_rw_block (SWRITE, 1, (struct ufs_buffer_head **)&ucpi);
+		ubh_ll_rw_block(SWRITE, UCPI_UBH(ucpi));
 		ubh_wait_on_buffer (UCPI_UBH(ucpi));
 	}
 	sb->s_dirt = 1;
@@ -646,7 +646,7 @@ succed:
 	ubh_mark_buffer_dirty (USPI_UBH(uspi));
 	ubh_mark_buffer_dirty (UCPI_UBH(ucpi));
 	if (sb->s_flags & MS_SYNCHRONOUS) {
-		ubh_ll_rw_block (SWRITE, 1, (struct ufs_buffer_head **)&ucpi);
+		ubh_ll_rw_block(SWRITE, UCPI_UBH(ucpi));
 		ubh_wait_on_buffer (UCPI_UBH(ucpi));
 	}
 	sb->s_dirt = 1;

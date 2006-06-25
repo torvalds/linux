@@ -116,7 +116,7 @@ void ufs_free_inode (struct inode * inode)
 	ubh_mark_buffer_dirty (USPI_UBH(uspi));
 	ubh_mark_buffer_dirty (UCPI_UBH(ucpi));
 	if (sb->s_flags & MS_SYNCHRONOUS) {
-		ubh_ll_rw_block (SWRITE, 1, (struct ufs_buffer_head **) &ucpi);
+		ubh_ll_rw_block(SWRITE, UCPI_UBH(ucpi));
 		ubh_wait_on_buffer (UCPI_UBH(ucpi));
 	}
 	
@@ -240,7 +240,7 @@ cg_found:
 	ubh_mark_buffer_dirty (USPI_UBH(uspi));
 	ubh_mark_buffer_dirty (UCPI_UBH(ucpi));
 	if (sb->s_flags & MS_SYNCHRONOUS) {
-		ubh_ll_rw_block (SWRITE, 1, (struct ufs_buffer_head **) &ucpi);
+		ubh_ll_rw_block(SWRITE, UCPI_UBH(ucpi));
 		ubh_wait_on_buffer (UCPI_UBH(ucpi));
 	}
 	sb->s_dirt = 1;

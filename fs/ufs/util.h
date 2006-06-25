@@ -242,7 +242,7 @@ extern void ubh_brelse (struct ufs_buffer_head *);
 extern void ubh_brelse_uspi (struct ufs_sb_private_info *);
 extern void ubh_mark_buffer_dirty (struct ufs_buffer_head *);
 extern void ubh_mark_buffer_uptodate (struct ufs_buffer_head *, int);
-extern void ubh_ll_rw_block (int, unsigned, struct ufs_buffer_head **);
+extern void ubh_ll_rw_block(int, struct ufs_buffer_head *);
 extern void ubh_wait_on_buffer (struct ufs_buffer_head *);
 extern void ubh_bforget (struct ufs_buffer_head *);
 extern int  ubh_buffer_dirty (struct ufs_buffer_head *);
