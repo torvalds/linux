@@ -1568,6 +1568,7 @@ pgprot_t PAGE_EXEC __read_mostly;
 unsigned long pg_iobits __read_mostly;
 
 unsigned long _PAGE_IE __read_mostly;
+EXPORT_SYMBOL(_PAGE_IE);
 
 unsigned long _PAGE_E __read_mostly;
 EXPORT_SYMBOL(_PAGE_E);
