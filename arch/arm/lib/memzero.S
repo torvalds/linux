@@ -77,4 +77,4 @@ ENTRY(__memzero)
 	strneb	r2, [r0], #1		@ 1
 	tst	r1, #1			@ 1 a byte left over
 	strneb	r2, [r0], #1		@ 1
-	RETINSTR(mov,pc,lr)		@ 1
+	mov	pc, lr			@ 1

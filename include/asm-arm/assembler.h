@@ -74,12 +74,6 @@
 #endif
 
 /*
- * Build a return instruction for this processor type.
- */
-#define RETINSTR(instr, regs...)\
-	instr	regs
-
-/*
  * Enable and disable interrupts
  */
 #if __LINUX_ARM_ARCH__ >= 6

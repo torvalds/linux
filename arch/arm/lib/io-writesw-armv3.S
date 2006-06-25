@@ -29,7 +29,7 @@
 		orr	r3, r3, r3, lsl #16
 		str	r3, [r0]
 		subs	r2, r2, #1
-		RETINSTR(moveq, pc, lr)
+		moveq	pc, lr
 
 ENTRY(__raw_writesw)
 		teq	r2, #0		@ do we have to check for the zero len?

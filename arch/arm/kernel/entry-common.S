@@ -340,7 +340,7 @@ sys_mmap2:
 		streq	r5, [sp, #4]
 		beq	do_mmap2
 		mov	r0, #-EINVAL
-		RETINSTR(mov,pc, lr)
+		mov	pc, lr
 #else
 		str	r5, [sp, #4]
 		b	do_mmap2

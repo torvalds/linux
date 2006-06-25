@@ -77,4 +77,4 @@ ENTRY(memset)
 	strneb	r1, [r0], #1
 	tst	r2, #1
 	strneb	r1, [r0], #1
-	RETINSTR(mov,pc,lr)
+	mov	pc, lr
