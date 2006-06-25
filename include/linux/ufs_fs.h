@@ -351,6 +351,17 @@ struct ufs2_csum_total {
 	__fs64   cs_spare[3];	/* future expansion */
 };
 
+/*
+ * File system flags
+ */
+#define UFS_UNCLEAN      0x01    /* file system not clean at mount (unused) */
+#define UFS_DOSOFTDEP    0x02    /* file system using soft dependencies */
+#define UFS_NEEDSFSCK    0x04    /* needs sync fsck (FreeBSD compat, unused) */
+#define UFS_INDEXDIRS    0x08    /* kernel supports indexed directories */
+#define UFS_ACLS         0x10    /* file system has ACLs enabled */
+#define UFS_MULTILABEL   0x20    /* file system is MAC multi-label */
+#define UFS_FLAGS_UPDATED 0x80   /* flags have been moved to new location */
+
 #if 0
 /*
  * This is the actual superblock, as it is laid out on the disk.
@@ -433,7 +444,7 @@ struct ufs_super_block {
 	__s8	fs_fmod;	/* super block modified flag */
 	__s8	fs_clean;	/* file system is clean flag */
 	__s8	fs_ronly;	/* mounted read-only flag */
-	__s8	fs_flags;	/* currently unused flag */
+	__s8	fs_flags;
 	union {
 		struct {
 			__s8	fs_fsmnt[UFS_MAXMNTLEN];/* name mounted on */
@@ -704,6 +715,7 @@ struct ufs_cg_private_info {
 
 struct ufs_sb_private_info {
 	struct ufs_buffer_head s_ubh; /* buffer containing super block */
+	struct ufs2_csum_total cs_total;
 	__u32	s_sblkno;	/* offset of super-blocks in filesys */
 	__u32	s_cblkno;	/* offset of cg-block in filesys */
 	__u32	s_iblkno;	/* offset of inode-blocks in filesys */

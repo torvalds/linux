@@ -306,9 +306,13 @@ static inline void *get_usb_offset(struct ufs_sb_private_info *uspi,
  * Determine the number of available frags given a
  * percentage to hold in reserve.
  */
-#define ufs_freespace(usb, percentreserved) \
-	(ufs_blkstofrags(fs32_to_cpu(sb, (usb)->fs_cstotal.cs_nbfree)) + \
-	fs32_to_cpu(sb, (usb)->fs_cstotal.cs_nffree) - (uspi->s_dsize * (percentreserved) / 100))
+static inline u64
+ufs_freespace(struct ufs_sb_private_info *uspi, int percentreserved)
+{
+	return ufs_blkstofrags(uspi->cs_total.cs_nbfree) +
+		uspi->cs_total.cs_nffree -
+		(uspi->s_dsize * (percentreserved) / 100);
+}
 
 /*
  * Macros to access cylinder group array structures

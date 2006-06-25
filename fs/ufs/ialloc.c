@@ -103,12 +103,12 @@ void ufs_free_inode (struct inode * inode)
 		if (ino < ucpi->c_irotor)
 			ucpi->c_irotor = ino;
 		fs32_add(sb, &ucg->cg_cs.cs_nifree, 1);
-		fs32_add(sb, &usb1->fs_cstotal.cs_nifree, 1);
+		uspi->cs_total.cs_nifree++;
 		fs32_add(sb, &UFS_SB(sb)->fs_cs(cg).cs_nifree, 1);
 
 		if (is_directory) {
 			fs32_sub(sb, &ucg->cg_cs.cs_ndir, 1);
-			fs32_sub(sb, &usb1->fs_cstotal.cs_ndir, 1);
+			uspi->cs_total.cs_ndir--;
 			fs32_sub(sb, &UFS_SB(sb)->fs_cs(cg).cs_ndir, 1);
 		}
 	}
@@ -228,12 +228,12 @@ cg_found:
 	}
 	
 	fs32_sub(sb, &ucg->cg_cs.cs_nifree, 1);
-	fs32_sub(sb, &usb1->fs_cstotal.cs_nifree, 1);
+	uspi->cs_total.cs_nifree--;
 	fs32_sub(sb, &sbi->fs_cs(cg).cs_nifree, 1);
 	
 	if (S_ISDIR(mode)) {
 		fs32_add(sb, &ucg->cg_cs.cs_ndir, 1);
-		fs32_add(sb, &usb1->fs_cstotal.cs_ndir, 1);
+		uspi->cs_total.cs_ndir++;
 		fs32_add(sb, &sbi->fs_cs(cg).cs_ndir, 1);
 	}
 

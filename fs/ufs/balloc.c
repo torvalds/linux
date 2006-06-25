@@ -83,7 +83,7 @@ void ufs_free_fragments(struct inode *inode, unsigned fragment, unsigned count)
 
 	
 	fs32_add(sb, &ucg->cg_cs.cs_nffree, count);
-	fs32_add(sb, &usb1->fs_cstotal.cs_nffree, count);
+	uspi->cs_total.cs_nffree += count;
 	fs32_add(sb, &UFS_SB(sb)->fs_cs(cgno).cs_nffree, count);
 	blkmap = ubh_blkmap (UCPI_UBH(ucpi), ucpi->c_freeoff, bbase);
 	ufs_fragacct(sb, blkmap, ucg->cg_frsum, 1);
@@ -94,12 +94,12 @@ void ufs_free_fragments(struct inode *inode, unsigned fragment, unsigned count)
 	blkno = ufs_fragstoblks (bbase);
 	if (ubh_isblockset(UCPI_UBH(ucpi), ucpi->c_freeoff, blkno)) {
 		fs32_sub(sb, &ucg->cg_cs.cs_nffree, uspi->s_fpb);
-		fs32_sub(sb, &usb1->fs_cstotal.cs_nffree, uspi->s_fpb);
+		uspi->cs_total.cs_nffree -= uspi->s_fpb;
 		fs32_sub(sb, &UFS_SB(sb)->fs_cs(cgno).cs_nffree, uspi->s_fpb);
 		if ((UFS_SB(sb)->s_flags & UFS_CG_MASK) == UFS_CG_44BSD)
 			ufs_clusteracct (sb, ucpi, blkno, 1);
 		fs32_add(sb, &ucg->cg_cs.cs_nbfree, 1);
-		fs32_add(sb, &usb1->fs_cstotal.cs_nbfree, 1);
+		uspi->cs_total.cs_nbfree++;
 		fs32_add(sb, &UFS_SB(sb)->fs_cs(cgno).cs_nbfree, 1);
 		cylno = ufs_cbtocylno (bbase);
 		fs16_add(sb, &ubh_cg_blks(ucpi, cylno, ufs_cbtorpos(bbase)), 1);
@@ -185,7 +185,7 @@ do_more:
 		DQUOT_FREE_BLOCK(inode, uspi->s_fpb);
 
 		fs32_add(sb, &ucg->cg_cs.cs_nbfree, 1);
-		fs32_add(sb, &usb1->fs_cstotal.cs_nbfree, 1);
+		uspi->cs_total.cs_nbfree++;
 		fs32_add(sb, &UFS_SB(sb)->fs_cs(cgno).cs_nbfree, 1);
 		cylno = ufs_cbtocylno(i);
 		fs16_add(sb, &ubh_cg_blks(ucpi, cylno, ufs_cbtorpos(i)), 1);
@@ -372,7 +372,7 @@ unsigned ufs_new_fragments(struct inode * inode, __fs32 * p, unsigned fragment,
 	/*
 	 * There is not enough space for user on the device
 	 */
-	if (!capable(CAP_SYS_RESOURCE) && ufs_freespace(usb1, UFS_MINFREE) <= 0) {
+	if (!capable(CAP_SYS_RESOURCE) && ufs_freespace(uspi, UFS_MINFREE) <= 0) {
 		unlock_super (sb);
 		UFSD("EXIT (FAILED)\n");
 		return 0;
@@ -418,8 +418,8 @@ unsigned ufs_new_fragments(struct inode * inode, __fs32 * p, unsigned fragment,
 	switch (fs32_to_cpu(sb, usb1->fs_optim)) {
 	    case UFS_OPTSPACE:
 		request = newcount;
-		if (uspi->s_minfree < 5 || fs32_to_cpu(sb, usb1->fs_cstotal.cs_nffree) 
-		    > uspi->s_dsize * uspi->s_minfree / (2 * 100) )
+		if (uspi->s_minfree < 5 || uspi->cs_total.cs_nffree
+		    > uspi->s_dsize * uspi->s_minfree / (2 * 100))
 			break;
 		usb1->fs_optim = cpu_to_fs32(sb, UFS_OPTTIME);
 		break;
@@ -428,7 +428,7 @@ unsigned ufs_new_fragments(struct inode * inode, __fs32 * p, unsigned fragment,
 	
 	    case UFS_OPTTIME:
 		request = uspi->s_fpb;
-		if (fs32_to_cpu(sb, usb1->fs_cstotal.cs_nffree) < uspi->s_dsize *
+		if (uspi->cs_total.cs_nffree < uspi->s_dsize *
 		    (uspi->s_minfree - 2) / 100)
 			break;
 		usb1->fs_optim = cpu_to_fs32(sb, UFS_OPTTIME);
@@ -516,7 +516,7 @@ ufs_add_fragments (struct inode * inode, unsigned fragment,
 
 	fs32_sub(sb, &ucg->cg_cs.cs_nffree, count);
 	fs32_sub(sb, &UFS_SB(sb)->fs_cs(cgno).cs_nffree, count);
-	fs32_sub(sb, &usb1->fs_cstotal.cs_nffree, count);
+	uspi->cs_total.cs_nffree -= count;
 	
 	ubh_mark_buffer_dirty (USPI_UBH(uspi));
 	ubh_mark_buffer_dirty (UCPI_UBH(ucpi));
@@ -618,7 +618,7 @@ cg_found:
 		DQUOT_FREE_BLOCK(inode, i);
 
 		fs32_add(sb, &ucg->cg_cs.cs_nffree, i);
-		fs32_add(sb, &usb1->fs_cstotal.cs_nffree, i);
+		uspi->cs_total.cs_nffree += i;
 		fs32_add(sb, &UFS_SB(sb)->fs_cs(cgno).cs_nffree, i);
 		fs32_add(sb, &ucg->cg_frsum[i], 1);
 		goto succed;
@@ -635,7 +635,7 @@ cg_found:
 		ubh_clrbit (UCPI_UBH(ucpi), ucpi->c_freeoff, result + i);
 	
 	fs32_sub(sb, &ucg->cg_cs.cs_nffree, count);
-	fs32_sub(sb, &usb1->fs_cstotal.cs_nffree, count);
+	uspi->cs_total.cs_nffree -= count;
 	fs32_sub(sb, &UFS_SB(sb)->fs_cs(cgno).cs_nffree, count);
 	fs32_sub(sb, &ucg->cg_frsum[allocsize], 1);
 
@@ -703,7 +703,7 @@ gotit:
 	}
 
 	fs32_sub(sb, &ucg->cg_cs.cs_nbfree, 1);
-	fs32_sub(sb, &usb1->fs_cstotal.cs_nbfree, 1);
+	uspi->cs_total.cs_nbfree--;
 	fs32_sub(sb, &UFS_SB(sb)->fs_cs(ucpi->c_cgx).cs_nbfree, 1);
 	cylno = ufs_cbtocylno(result);
 	fs16_sub(sb, &ubh_cg_blks(ucpi, cylno, ufs_cbtorpos(result)), 1);
