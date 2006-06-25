@@ -877,7 +877,7 @@ static int mxser_init(void)
 
 static void mxser_do_softint(void *private_)
 {
-	struct mxser_struct *info = (struct mxser_struct *) private_;
+	struct mxser_struct *info = private_;
 	struct tty_struct *tty;
 
 	tty = info->tty;
@@ -972,7 +972,7 @@ static int mxser_open(struct tty_struct *tty, struct file *filp)
  */
 static void mxser_close(struct tty_struct *tty, struct file *filp)
 {
-	struct mxser_struct *info = (struct mxser_struct *) tty->driver_data;
+	struct mxser_struct *info = tty->driver_data;
 
 	unsigned long timeout;
 	unsigned long flags;
@@ -1078,7 +1078,7 @@ static void mxser_close(struct tty_struct *tty, struct file *filp)
 static int mxser_write(struct tty_struct *tty, const unsigned char *buf, int count)
 {
 	int c, total = 0;
-	struct mxser_struct *info = (struct mxser_struct *) tty->driver_data;
+	struct mxser_struct *info = tty->driver_data;
 	unsigned long flags;
 
 	if (!tty || !info->xmit_buf)
@@ -1114,7 +1114,7 @@ static int mxser_write(struct tty_struct *tty, const unsigned char *buf, int cou
 
 static void mxser_put_char(struct tty_struct *tty, unsigned char ch)
 {
-	struct mxser_struct *info = (struct mxser_struct *) tty->driver_data;
+	struct mxser_struct *info = tty->driver_data;
 	unsigned long flags;
 
 	if (!tty || !info->xmit_buf)
@@ -1141,7 +1141,7 @@ static void mxser_put_char(struct tty_struct *tty, unsigned char ch)
 
 static void mxser_flush_chars(struct tty_struct *tty)
 {
-	struct mxser_struct *info = (struct mxser_struct *) tty->driver_data;
+	struct mxser_struct *info = tty->driver_data;
 	unsigned long flags;
 
 	if (info->xmit_cnt <= 0 || tty->stopped || !info->xmit_buf || (tty->hw_stopped && (info->type != PORT_16550A) && (!info->IsMoxaMustChipFlag)))
@@ -1157,7 +1157,7 @@ static void mxser_flush_chars(struct tty_struct *tty)
 
 static int mxser_write_room(struct tty_struct *tty)
 {
-	struct mxser_struct *info = (struct mxser_struct *) tty->driver_data;
+	struct mxser_struct *info = tty->driver_data;
 	int ret;
 
 	ret = SERIAL_XMIT_SIZE - info->xmit_cnt - 1;
@@ -1168,13 +1168,13 @@ static int mxser_write_room(struct tty_struct *tty)
 
 static int mxser_chars_in_buffer(struct tty_struct *tty)
 {
-	struct mxser_struct *info = (struct mxser_struct *) tty->driver_data;
+	struct mxser_struct *info = tty->driver_data;
 	return info->xmit_cnt;
 }
 
 static void mxser_flush_buffer(struct tty_struct *tty)
 {
-	struct mxser_struct *info = (struct mxser_struct *) tty->driver_data;
+	struct mxser_struct *info = tty->driver_data;
 	char fcr;
 	unsigned long flags;
 
@@ -1197,7 +1197,7 @@ static void mxser_flush_buffer(struct tty_struct *tty)
 
 static int mxser_ioctl(struct tty_struct *tty, struct file *file, unsigned int cmd, unsigned long arg)
 {
-	struct mxser_struct *info = (struct mxser_struct *) tty->driver_data;
+	struct mxser_struct *info = tty->driver_data;
 	int retval;
 	struct async_icount cprev, cnow;	/* kernel counter temps */
 	struct serial_icounter_struct __user *p_cuser;
@@ -1581,7 +1581,7 @@ static int mxser_ioctl_special(unsigned int cmd, void __user *argp)
 
 static void mxser_stoprx(struct tty_struct *tty)
 {
-	struct mxser_struct *info = (struct mxser_struct *) tty->driver_data;
+	struct mxser_struct *info = tty->driver_data;
 	//unsigned long flags;
 
 
@@ -1615,7 +1615,7 @@ static void mxser_stoprx(struct tty_struct *tty)
 
 static void mxser_startrx(struct tty_struct *tty)
 {
-	struct mxser_struct *info = (struct mxser_struct *) tty->driver_data;
+	struct mxser_struct *info = tty->driver_data;
 	//unsigned long flags;
 
 	info->ldisc_stop_rx = 0;
@@ -1656,7 +1656,7 @@ static void mxser_startrx(struct tty_struct *tty)
  */
 static void mxser_throttle(struct tty_struct *tty)
 {
-	//struct mxser_struct *info = (struct mxser_struct *)tty->driver_data;
+	//struct mxser_struct *info = tty->driver_data;
 	//unsigned long flags;
 	//MX_LOCK(&info->slock);
 	mxser_stoprx(tty);
@@ -1665,7 +1665,7 @@ static void mxser_throttle(struct tty_struct *tty)
 
 static void mxser_unthrottle(struct tty_struct *tty)
 {
-	//struct mxser_struct *info = (struct mxser_struct *)tty->driver_data;
+	//struct mxser_struct *info = tty->driver_data;
 	//unsigned long flags;
 	//MX_LOCK(&info->slock);
 	mxser_startrx(tty);
@@ -1674,7 +1674,7 @@ static void mxser_unthrottle(struct tty_struct *tty)
 
 static void mxser_set_termios(struct tty_struct *tty, struct termios *old_termios)
 {
-	struct mxser_struct *info = (struct mxser_struct *) tty->driver_data;
+	struct mxser_struct *info = tty->driver_data;
 	unsigned long flags;
 
 	if ((tty->termios->c_cflag != old_termios->c_cflag) || (RELEVANT_IFLAG(tty->termios->c_iflag) != RELEVANT_IFLAG(old_termios->c_iflag))) {
@@ -1711,7 +1711,7 @@ static void mxser_set_termios(struct tty_struct *tty, struct termios *old_termio
  */
 static void mxser_stop(struct tty_struct *tty)
 {
-	struct mxser_struct *info = (struct mxser_struct *) tty->driver_data;
+	struct mxser_struct *info = tty->driver_data;
 	unsigned long flags;
 
 	spin_lock_irqsave(&info->slock, flags);
@@ -1724,7 +1724,7 @@ static void mxser_stop(struct tty_struct *tty)
 
 static void mxser_start(struct tty_struct *tty)
 {
-	struct mxser_struct *info = (struct mxser_struct *) tty->driver_data;
+	struct mxser_struct *info = tty->driver_data;
 	unsigned long flags;
 
 	spin_lock_irqsave(&info->slock, flags);
@@ -1740,7 +1740,7 @@ static void mxser_start(struct tty_struct *tty)
  */
 static void mxser_wait_until_sent(struct tty_struct *tty, int timeout)
 {
-	struct mxser_struct *info = (struct mxser_struct *) tty->driver_data;
+	struct mxser_struct *info = tty->driver_data;
 	unsigned long orig_jiffies, char_time;
 	int lsr;
 
@@ -1803,7 +1803,7 @@ static void mxser_wait_until_sent(struct tty_struct *tty, int timeout)
  */
 void mxser_hangup(struct tty_struct *tty)
 {
-	struct mxser_struct *info = (struct mxser_struct *) tty->driver_data;
+	struct mxser_struct *info = tty->driver_data;
 
 	mxser_flush_buffer(tty);
 	mxser_shutdown(info);
@@ -1821,7 +1821,7 @@ void mxser_hangup(struct tty_struct *tty)
  */
 static void mxser_rs_break(struct tty_struct *tty, int break_state)
 {
-	struct mxser_struct *info = (struct mxser_struct *) tty->driver_data;
+	struct mxser_struct *info = tty->driver_data;
 	unsigned long flags;
 
 	spin_lock_irqsave(&info->slock, flags);
@@ -2886,7 +2886,7 @@ static void mxser_send_break(struct mxser_struct *info, int duration)
 
 static int mxser_tiocmget(struct tty_struct *tty, struct file *file)
 {
-	struct mxser_struct *info = (struct mxser_struct *) tty->driver_data;
+	struct mxser_struct *info = tty->driver_data;
 	unsigned char control, status;
 	unsigned long flags;
 
@@ -2909,7 +2909,7 @@ static int mxser_tiocmget(struct tty_struct *tty, struct file *file)
 
 static int mxser_tiocmset(struct tty_struct *tty, struct file *file, unsigned int set, unsigned int clear)
 {
-	struct mxser_struct *info = (struct mxser_struct *) tty->driver_data;
+	struct mxser_struct *info = tty->driver_data;
 	unsigned long flags;
 
 
