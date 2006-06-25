@@ -86,6 +86,24 @@ config RTC_DRV_X1205
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-x1205.
 
+config RTC_DRV_DS1307
+	tristate "Dallas/Maxim DS1307 and similar I2C RTC chips"
+	depends on RTC_CLASS && I2C
+	help
+	  If you say yes here you get support for various compatible RTC
+	  chips (often with battery backup) connected with I2C.  This driver
+	  should handle DS1307, DS1337, DS1338, DS1339, DS1340, ST M41T00,
+	  and probably other chips.  In some cases the RTC must already
+	  have been initialized (by manufacturing or a bootloader).
+
+	  The first seven registers on these chips hold an RTC, and other
+	  registers may add features such as NVRAM, a trickle charger for
+	  the RTC/NVRAM backup power, and alarms.  This driver may not
+	  expose all those available chip features.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-ds1307.
+
 config RTC_DRV_DS1672
 	tristate "Dallas/Maxim DS1672"
 	depends on RTC_CLASS && I2C
