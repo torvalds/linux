@@ -227,4 +227,14 @@ config RTC_DRV_MAX6902
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-max6902.
 
+config RTC_DRV_V3020
+	tristate "EM Microelectronic V3020"
+	depends on RTC_CLASS
+	help
+	  If you say yes here you will get support for the
+	  EM Microelectronic v3020 RTC chip.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-v3020.
+
 endmenu
