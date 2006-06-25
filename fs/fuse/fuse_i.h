@@ -131,6 +131,7 @@ enum fuse_req_state {
 	FUSE_REQ_PENDING,
 	FUSE_REQ_READING,
 	FUSE_REQ_SENT,
+	FUSE_REQ_WRITING,
 	FUSE_REQ_FINISHED
 };
 
@@ -144,8 +145,14 @@ struct fuse_req {
 	    fuse_conn */
 	struct list_head list;
 
+	/** Entry on the interrupts list  */
+	struct list_head intr_entry;
+
 	/** refcount */
 	atomic_t count;
+
+	/** Unique ID for the interrupt request */
+	u64 intr_unique;
 
 	/*
 	 * The following bitfields are either set once before the
@@ -164,6 +171,9 @@ struct fuse_req {
 
 	/** Request is sent in the background */
 	unsigned background:1;
+
+	/** The request has been interrupted */
+	unsigned interrupted:1;
 
 	/** Data is being copied to/from the request */
 	unsigned locked:1;
@@ -262,6 +272,9 @@ struct fuse_conn {
 	/** Number of requests currently in the background */
 	unsigned num_background;
 
+	/** Pending interrupts */
+	struct list_head interrupts;
+
 	/** Flag indicating if connection is blocked.  This will be
 	    the case before the INIT reply is received, and if there
 	    are too many outstading backgrounds requests */
@@ -319,6 +332,9 @@ struct fuse_conn {
 
 	/** Is create not implemented by fs? */
 	unsigned no_create : 1;
+
+	/** Is interrupt not implemented by fs? */
+	unsigned no_interrupt : 1;
 
 	/** The number of requests waiting for completion */
 	atomic_t num_waiting;

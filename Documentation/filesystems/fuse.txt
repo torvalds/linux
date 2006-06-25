@@ -124,6 +124,46 @@ For each connection the following files exist within this directory:
 
 Only the owner of the mount may read or write these files.
 
+Interrupting filesystem operations
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If a process issuing a FUSE filesystem request is interrupted, the
+following will happen:
+
+  1) If the request is not yet sent to userspace AND the signal is
+     fatal (SIGKILL or unhandled fatal signal), then the request is
+     dequeued and returns immediately.
+
+  2) If the request is not yet sent to userspace AND the signal is not
+     fatal, then an 'interrupted' flag is set for the request.  When
+     the request has been successfully transfered to userspace and
+     this flag is set, an INTERRUPT request is queued.
+
+  3) If the request is already sent to userspace, then an INTERRUPT
+     request is queued.
+
+INTERRUPT requests take precedence over other requests, so the
+userspace filesystem will receive queued INTERRUPTs before any others.
+
+The userspace filesystem may ignore the INTERRUPT requests entirely,
+or may honor them by sending a reply to the _original_ request, with
+the error set to EINTR.
+
+It is also possible that there's a race between processing the
+original request and it's INTERRUPT request.  There are two possibilities:
+
+  1) The INTERRUPT request is processed before the original request is
+     processed
+
+  2) The INTERRUPT request is processed after the original request has
+     been answered
+
+If the filesystem cannot find the original request, it should wait for
+some timeout and/or a number of new requests to arrive, after which it
+should reply to the INTERRUPT request with an EAGAIN error.  In case
+1) the INTERRUPT request will be requeued.  In case 2) the INTERRUPT
+reply will be ignored.
+
 Aborting a filesystem connection
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -351,10 +391,10 @@ but is caused by a pagefault.
 
 Solution is basically the same as above.
 
-An additional problem is that while the write buffer is being
-copied to the request, the request must not be interrupted.  This
-is because the destination address of the copy may not be valid
-after the request is interrupted.
+An additional problem is that while the write buffer is being copied
+to the request, the request must not be interrupted/aborted.  This is
+because the destination address of the copy may not be valid after the
+request has returned.
 
 This is solved with doing the copy atomically, and allowing abort
 while the page(s) belonging to the write buffer are faulted with

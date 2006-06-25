@@ -34,6 +34,7 @@ static void fuse_request_init(struct fuse_req *req)
 {
 	memset(req, 0, sizeof(*req));
 	INIT_LIST_HEAD(&req->list);
+	INIT_LIST_HEAD(&req->intr_entry);
 	init_waitqueue_head(&req->waitq);
 	atomic_set(&req->count, 1);
 }
@@ -215,6 +216,7 @@ static void request_end(struct fuse_conn *fc, struct fuse_req *req)
 	void (*end) (struct fuse_conn *, struct fuse_req *) = req->end;
 	req->end = NULL;
 	list_del(&req->list);
+	list_del(&req->intr_entry);
 	req->state = FUSE_REQ_FINISHED;
 	if (req->background) {
 		if (fc->num_background == FUSE_MAX_BACKGROUND) {
@@ -235,28 +237,63 @@ static void request_end(struct fuse_conn *fc, struct fuse_req *req)
 		fuse_put_request(fc, req);
 }
 
+static void wait_answer_interruptible(struct fuse_conn *fc,
+				      struct fuse_req *req)
+{
+	if (signal_pending(current))
+		return;
+
+	spin_unlock(&fc->lock);
+	wait_event_interruptible(req->waitq, req->state == FUSE_REQ_FINISHED);
+	spin_lock(&fc->lock);
+}
+
+static void queue_interrupt(struct fuse_conn *fc, struct fuse_req *req)
+{
+	list_add_tail(&req->intr_entry, &fc->interrupts);
+	wake_up(&fc->waitq);
+	kill_fasync(&fc->fasync, SIGIO, POLL_IN);
+}
+
 /* Called with fc->lock held.  Releases, and then reacquires it. */
 static void request_wait_answer(struct fuse_conn *fc, struct fuse_req *req)
 {
-	sigset_t oldset;
+	if (!fc->no_interrupt) {
+		/* Any signal may interrupt this */
+		wait_answer_interruptible(fc, req);
 
-	spin_unlock(&fc->lock);
-	if (req->force)
+		if (req->aborted)
+			goto aborted;
+		if (req->state == FUSE_REQ_FINISHED)
+			return;
+
+		req->interrupted = 1;
+		if (req->state == FUSE_REQ_SENT)
+			queue_interrupt(fc, req);
+	}
+
+	if (req->force) {
+		spin_unlock(&fc->lock);
 		wait_event(req->waitq, req->state == FUSE_REQ_FINISHED);
-	else {
+		spin_lock(&fc->lock);
+	} else {
+		sigset_t oldset;
+
+		/* Only fatal signals may interrupt this */
 		block_sigs(&oldset);
-		wait_event_interruptible(req->waitq,
-					 req->state == FUSE_REQ_FINISHED);
+		wait_answer_interruptible(fc, req);
 		restore_sigs(&oldset);
 	}
-	spin_lock(&fc->lock);
-	if (req->state == FUSE_REQ_FINISHED && !req->aborted)
-		return;
 
-	if (!req->aborted) {
-		req->out.h.error = -EINTR;
-		req->aborted = 1;
-	}
+	if (req->aborted)
+		goto aborted;
+	if (req->state == FUSE_REQ_FINISHED)
+ 		return;
+
+	req->out.h.error = -EINTR;
+	req->aborted = 1;
+
+ aborted:
 	if (req->locked) {
 		/* This is uninterruptible sleep, because data is
 		   being copied to/from the buffers of req.  During
@@ -288,13 +325,19 @@ static unsigned len_args(unsigned numargs, struct fuse_arg *args)
 	return nbytes;
 }
 
+static u64 fuse_get_unique(struct fuse_conn *fc)
+ {
+ 	fc->reqctr++;
+ 	/* zero is special */
+ 	if (fc->reqctr == 0)
+ 		fc->reqctr = 1;
+
+	return fc->reqctr;
+}
+
 static void queue_request(struct fuse_conn *fc, struct fuse_req *req)
 {
-	fc->reqctr++;
-	/* zero is special */
-	if (fc->reqctr == 0)
-		fc->reqctr = 1;
-	req->in.h.unique = fc->reqctr;
+	req->in.h.unique = fuse_get_unique(fc);
 	req->in.h.len = sizeof(struct fuse_in_header) +
 		len_args(req->in.numargs, (struct fuse_arg *) req->in.args);
 	list_add_tail(&req->list, &fc->pending);
@@ -307,9 +350,6 @@ static void queue_request(struct fuse_conn *fc, struct fuse_req *req)
 	kill_fasync(&fc->fasync, SIGIO, POLL_IN);
 }
 
-/*
- * This can only be interrupted by a SIGKILL
- */
 void request_send(struct fuse_conn *fc, struct fuse_req *req)
 {
 	req->isreply = 1;
@@ -566,13 +606,18 @@ static int fuse_copy_args(struct fuse_copy_state *cs, unsigned numargs,
 	return err;
 }
 
+static int request_pending(struct fuse_conn *fc)
+{
+	return !list_empty(&fc->pending) || !list_empty(&fc->interrupts);
+}
+
 /* Wait until a request is available on the pending list */
 static void request_wait(struct fuse_conn *fc)
 {
 	DECLARE_WAITQUEUE(wait, current);
 
 	add_wait_queue_exclusive(&fc->waitq, &wait);
-	while (fc->connected && list_empty(&fc->pending)) {
+	while (fc->connected && !request_pending(fc)) {
 		set_current_state(TASK_INTERRUPTIBLE);
 		if (signal_pending(current))
 			break;
@@ -583,6 +628,45 @@ static void request_wait(struct fuse_conn *fc)
 	}
 	set_current_state(TASK_RUNNING);
 	remove_wait_queue(&fc->waitq, &wait);
+}
+
+/*
+ * Transfer an interrupt request to userspace
+ *
+ * Unlike other requests this is assembled on demand, without a need
+ * to allocate a separate fuse_req structure.
+ *
+ * Called with fc->lock held, releases it
+ */
+static int fuse_read_interrupt(struct fuse_conn *fc, struct fuse_req *req,
+			       const struct iovec *iov, unsigned long nr_segs)
+{
+	struct fuse_copy_state cs;
+	struct fuse_in_header ih;
+	struct fuse_interrupt_in arg;
+	unsigned reqsize = sizeof(ih) + sizeof(arg);
+	int err;
+
+	list_del_init(&req->intr_entry);
+	req->intr_unique = fuse_get_unique(fc);
+	memset(&ih, 0, sizeof(ih));
+	memset(&arg, 0, sizeof(arg));
+	ih.len = reqsize;
+	ih.opcode = FUSE_INTERRUPT;
+	ih.unique = req->intr_unique;
+	arg.unique = req->in.h.unique;
+
+	spin_unlock(&fc->lock);
+	if (iov_length(iov, nr_segs) < reqsize)
+		return -EINVAL;
+
+	fuse_copy_init(&cs, fc, 1, NULL, iov, nr_segs);
+	err = fuse_copy_one(&cs, &ih, sizeof(ih));
+	if (!err)
+		err = fuse_copy_one(&cs, &arg, sizeof(arg));
+	fuse_copy_finish(&cs);
+
+	return err ? err : reqsize;
 }
 
 /*
@@ -610,7 +694,7 @@ static ssize_t fuse_dev_readv(struct file *file, const struct iovec *iov,
 	spin_lock(&fc->lock);
 	err = -EAGAIN;
 	if ((file->f_flags & O_NONBLOCK) && fc->connected &&
-	    list_empty(&fc->pending))
+	    !request_pending(fc))
 		goto err_unlock;
 
 	request_wait(fc);
@@ -618,8 +702,14 @@ static ssize_t fuse_dev_readv(struct file *file, const struct iovec *iov,
 	if (!fc->connected)
 		goto err_unlock;
 	err = -ERESTARTSYS;
-	if (list_empty(&fc->pending))
+	if (!request_pending(fc))
 		goto err_unlock;
+
+	if (!list_empty(&fc->interrupts)) {
+		req = list_entry(fc->interrupts.next, struct fuse_req,
+				 intr_entry);
+		return fuse_read_interrupt(fc, req, iov, nr_segs);
+	}
 
 	req = list_entry(fc->pending.next, struct fuse_req, list);
 	req->state = FUSE_REQ_READING;
@@ -658,6 +748,8 @@ static ssize_t fuse_dev_readv(struct file *file, const struct iovec *iov,
 	else {
 		req->state = FUSE_REQ_SENT;
 		list_move_tail(&req->list, &fc->processing);
+		if (req->interrupted)
+			queue_interrupt(fc, req);
 		spin_unlock(&fc->lock);
 	}
 	return reqsize;
@@ -684,7 +776,7 @@ static struct fuse_req *request_find(struct fuse_conn *fc, u64 unique)
 	list_for_each(entry, &fc->processing) {
 		struct fuse_req *req;
 		req = list_entry(entry, struct fuse_req, list);
-		if (req->in.h.unique == unique)
+		if (req->in.h.unique == unique || req->intr_unique == unique)
 			return req;
 	}
 	return NULL;
@@ -750,7 +842,6 @@ static ssize_t fuse_dev_writev(struct file *file, const struct iovec *iov,
 		goto err_unlock;
 
 	req = request_find(fc, oh.unique);
-	err = -EINVAL;
 	if (!req)
 		goto err_unlock;
 
@@ -761,6 +852,23 @@ static ssize_t fuse_dev_writev(struct file *file, const struct iovec *iov,
 		request_end(fc, req);
 		return -ENOENT;
 	}
+	/* Is it an interrupt reply? */
+	if (req->intr_unique == oh.unique) {
+		err = -EINVAL;
+		if (nbytes != sizeof(struct fuse_out_header))
+			goto err_unlock;
+
+		if (oh.error == -ENOSYS)
+			fc->no_interrupt = 1;
+		else if (oh.error == -EAGAIN)
+			queue_interrupt(fc, req);
+
+		spin_unlock(&fc->lock);
+		fuse_copy_finish(&cs);
+		return nbytes;
+	}
+
+	req->state = FUSE_REQ_WRITING;
 	list_move(&req->list, &fc->io);
 	req->out.h = oh;
 	req->locked = 1;
@@ -809,7 +917,7 @@ static unsigned fuse_dev_poll(struct file *file, poll_table *wait)
 	spin_lock(&fc->lock);
 	if (!fc->connected)
 		mask = POLLERR;
-	else if (!list_empty(&fc->pending))
+	else if (request_pending(fc))
 		mask |= POLLIN | POLLRDNORM;
 	spin_unlock(&fc->lock);
 

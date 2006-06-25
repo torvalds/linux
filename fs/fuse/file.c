@@ -705,6 +705,9 @@ static int fuse_setlk(struct file *file, struct file_lock *fl)
 	fuse_lk_fill(req, file, fl, opcode, pid);
 	request_send(fc, req);
 	err = req->out.h.error;
+	/* locking is restartable */
+	if (err == -EINTR)
+		err = -ERESTARTSYS;
 	fuse_put_request(fc, req);
 	return err;
 }

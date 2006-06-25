@@ -125,7 +125,8 @@ enum fuse_opcode {
 	FUSE_SETLK         = 32,
 	FUSE_SETLKW        = 33,
 	FUSE_ACCESS        = 34,
-	FUSE_CREATE        = 35
+	FUSE_CREATE        = 35,
+	FUSE_INTERRUPT     = 36,
 };
 
 /* The read buffer is required to be at least 8k, but may be much larger */
@@ -289,6 +290,10 @@ struct fuse_init_out {
 	__u32	flags;
 	__u32	unused;
 	__u32	max_write;
+};
+
+struct fuse_interrupt_in {
+	__u64	unique;
 };
 
 struct fuse_in_header {
