@@ -14,6 +14,7 @@
 #include <linux/spinlock.h>
 #include <linux/mm.h>
 #include <linux/backing-dev.h>
+#include <linux/mutex.h>
 
 /** Max number of pages that can be used in a single read request */
 #define FUSE_MAX_PAGES_PER_REQ 32
@@ -24,6 +25,9 @@
 /** It could be as large as PATH_MAX, but would that have any uses? */
 #define FUSE_NAME_MAX 1024
 
+/** Number of dentries for each connection in the control filesystem */
+#define FUSE_CTL_NUM_DENTRIES 3
+
 /** If the FUSE_DEFAULT_PERMISSIONS flag is given, the filesystem
     module will check permissions based on the file mode.  Otherwise no
     permission checking is done in the kernel */
@@ -33,6 +37,11 @@
     doing the mount will be allowed to access the filesystem */
 #define FUSE_ALLOW_OTHER         (1 << 1)
 
+/** List of active connections */
+extern struct list_head fuse_conn_list;
+
+/** Global mutex protecting fuse_conn_list and the control filesystem */
+extern struct mutex fuse_mutex;
 
 /** FUSE inode */
 struct fuse_inode {
@@ -216,6 +225,9 @@ struct fuse_conn {
 	/** Lock protecting accessess to  members of this structure */
 	spinlock_t lock;
 
+	/** Refcount */
+	atomic_t count;
+
 	/** The user id for this mount */
 	uid_t user_id;
 
@@ -310,8 +322,17 @@ struct fuse_conn {
 	/** Backing dev info */
 	struct backing_dev_info bdi;
 
-	/** kobject */
-	struct kobject kobj;
+	/** Entry on the fuse_conn_list */
+	struct list_head entry;
+
+	/** Unique ID */
+	u64 id;
+
+	/** Dentries in the control filesystem */
+	struct dentry *ctl_dentry[FUSE_CTL_NUM_DENTRIES];
+
+	/** number of dentries used in the above array */
+	int ctl_ndents;
 
 	/** O_ASYNC requests */
 	struct fasync_struct *fasync;
@@ -325,11 +346,6 @@ static inline struct fuse_conn *get_fuse_conn_super(struct super_block *sb)
 static inline struct fuse_conn *get_fuse_conn(struct inode *inode)
 {
 	return get_fuse_conn_super(inode->i_sb);
-}
-
-static inline struct fuse_conn *get_fuse_conn_kobj(struct kobject *obj)
-{
-	return container_of(obj, struct fuse_conn, kobj);
 }
 
 static inline struct fuse_inode *get_fuse_inode(struct inode *inode)
@@ -422,6 +438,9 @@ int fuse_dev_init(void);
  */
 void fuse_dev_cleanup(void);
 
+int fuse_ctl_init(void);
+void fuse_ctl_cleanup(void);
+
 /**
  * Allocate a request
  */
@@ -470,3 +489,23 @@ int fuse_do_getattr(struct inode *inode);
  * Invalidate inode attributes
  */
 void fuse_invalidate_attr(struct inode *inode);
+
+/**
+ * Acquire reference to fuse_conn
+ */
+struct fuse_conn *fuse_conn_get(struct fuse_conn *fc);
+
+/**
+ * Release reference to fuse_conn
+ */
+void fuse_conn_put(struct fuse_conn *fc);
+
+/**
+ * Add connection to control filesystem
+ */
+int fuse_ctl_add_conn(struct fuse_conn *fc);
+
+/**
+ * Remove connection from control filesystem
+ */
+void fuse_ctl_remove_conn(struct fuse_conn *fc);

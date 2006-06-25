@@ -18,6 +18,14 @@ Non-privileged mount (or user mount):
   user.  NOTE: this is not the same as mounts allowed with the "user"
   option in /etc/fstab, which is not discussed here.
 
+Filesystem connection:
+
+  A connection between the filesystem daemon and the kernel.  The
+  connection exists until either the daemon dies, or the filesystem is
+  umounted.  Note that detaching (or lazy umounting) the filesystem
+  does _not_ break the connection, in this case it will exist until
+  the last reference to the filesystem is released.
+
 Mount owner:
 
   The user who does the mounting.
@@ -86,16 +94,20 @@ Mount options
   The default is infinite.  Note that the size of read requests is
   limited anyway to 32 pages (which is 128kbyte on i386).
 
-Sysfs
-~~~~~
+Control filesystem
+~~~~~~~~~~~~~~~~~~
 
-FUSE sets up the following hierarchy in sysfs:
+There's a control filesystem for FUSE, which can be mounted by:
 
-  /sys/fs/fuse/connections/N/
+  mount -t fusectl none /sys/fs/fuse/connections
 
-where N is an increasing number allocated to each new connection.
+Mounting it under the '/sys/fs/fuse/connections' directory makes it
+backwards compatible with earlier versions.
 
-For each connection the following attributes are defined:
+Under the fuse control filesystem each connection has a directory
+named by a unique number.
+
+For each connection the following files exist within this directory:
 
  'waiting'
 
@@ -110,7 +122,7 @@ For each connection the following attributes are defined:
   connection.  This means that all waiting requests will be aborted an
   error returned for all aborted and new requests.
 
-Only a privileged user may read or write these attributes.
+Only the owner of the mount may read or write these files.
 
 Aborting a filesystem connection
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -139,8 +151,8 @@ the filesystem.  There are several ways to do this:
   - Use forced umount (umount -f).  Works in all cases but only if
     filesystem is still attached (it hasn't been lazy unmounted)
 
-  - Abort filesystem through the sysfs interface.  Most powerful
-    method, always works.
+  - Abort filesystem through the FUSE control filesystem.  Most
+    powerful method, always works.
 
 How do non-privileged mounts work?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
