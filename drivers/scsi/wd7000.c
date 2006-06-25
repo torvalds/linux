@@ -1391,7 +1391,7 @@ static int wd7000_proc_info(struct Scsi_Host *host, char *buffer, char **start, 
  *
  */
 
-static int wd7000_detect(struct scsi_host_template *tpnt)
+static __init int wd7000_detect(struct scsi_host_template *tpnt)
 {
 	short present = 0, biosaddr_ptr, sig_ptr, i, pass;
 	short biosptr[NUM_CONFIGS];
