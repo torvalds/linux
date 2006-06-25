@@ -530,9 +530,6 @@ error:
 	if (vfid)
 		v9fs_fid_destroy(vfid);
 
-	if (inode)
-		iput(inode);
-
 	return err;
 }
 
@@ -1173,9 +1170,6 @@ static int v9fs_vfs_mkspecial(struct inode *dir, struct dentry *dentry,
 error:
 	if (vfid)
 		v9fs_fid_destroy(vfid);
-
-	if (inode)
-		iput(inode);
 
 	return err;
 
