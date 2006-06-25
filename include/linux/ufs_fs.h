@@ -351,8 +351,12 @@ struct ufs2_csum_total {
 	__fs64   cs_spare[3];	/* future expansion */
 };
 
+#if 0
 /*
  * This is the actual superblock, as it is laid out on the disk.
+ * Do NOT use this structure, because of sizeof(ufs_super_block) > 512 and
+ * it may occupy several blocks, use
+ * struct ufs_super_block_(first,second,third) instead.
  */
 struct ufs_super_block {
 	__fs32	fs_link;	/* UNUSED */
@@ -498,6 +502,7 @@ struct ufs_super_block {
 	__fs32	fs_magic;		/* magic number */
 	__u8	fs_space[1];		/* list of blocks for each rotation */
 };
+#endif/*struct ufs_super_block*/
 
 /*
  * Preference for optimization.
@@ -837,16 +842,54 @@ struct ufs_super_block_first {
 };
 
 struct ufs_super_block_second {
-	__s8	fs_fsmnt[212];
-	__fs32	fs_cgrotor;
-	__fs32	fs_csp[UFS_MAXCSBUFS];
-	__fs32	fs_maxcluster;
-	__fs32	fs_cpc;
-	__fs16	fs_opostbl[82];
-};	
+	union {
+		struct {
+			__s8	fs_fsmnt[212];
+			__fs32	fs_cgrotor;
+			__fs32	fs_csp[UFS_MAXCSBUFS];
+			__fs32	fs_maxcluster;
+			__fs32	fs_cpc;
+			__fs16	fs_opostbl[82];
+		} fs_u1;
+		struct {
+			__s8  fs_fsmnt[UFS2_MAXMNTLEN - UFS_MAXMNTLEN + 212];
+			__u8   fs_volname[UFS2_MAXVOLLEN];
+			__fs64  fs_swuid;
+			__fs32  fs_pad;
+			__fs32   fs_cgrotor;
+			__fs32   fs_ocsp[UFS2_NOCSPTRS];
+			__fs32   fs_contigdirs;
+			__fs32   fs_csp;
+			__fs32   fs_maxcluster;
+			__fs32   fs_active;
+			__fs32   fs_old_cpc;
+			__fs32   fs_maxbsize;
+			__fs64   fs_sparecon64[17];
+			__fs64   fs_sblockloc;
+			__fs64	cs_ndir;
+			__fs64	cs_nbfree;
+		} fs_u2;
+	} fs_un;
+};
 
 struct ufs_super_block_third {
-	__fs16	fs_opostbl[46];
+	union {
+		struct {
+			__fs16	fs_opostbl[46];
+		} fs_u1;
+		struct {
+			__fs64	cs_nifree;	/* number of free inodes */
+			__fs64	cs_nffree;	/* number of free frags */
+			__fs64   cs_numclusters;	/* number of free clusters */
+			__fs64   cs_spare[3];	/* future expansion */
+			struct  ufs_timeval    fs_time;		/* last time written */
+			__fs64    fs_size;		/* number of blocks in fs */
+			__fs64    fs_dsize;	/* number of data blocks in fs */
+			__fs64   fs_csaddr;	/* blk addr of cyl grp summary area */
+			__fs64    fs_pendingblocks;/* blocks in process of being freed */
+			__fs32    fs_pendinginodes;/*inodes in process of being freed */
+		} fs_u2;
+	} fs_un1;
 	union {
 		struct {
 			__fs32	fs_sparecon[53];/* reserved for future constants */
@@ -874,7 +917,7 @@ struct ufs_super_block_third {
 			__fs32	fs_qfmask[2];	/* ~usb_fmask */
 			__fs32	fs_state;	/* file system state time stamp */
 		} fs_44;
-	} fs_u2;
+	} fs_un2;
 	__fs32	fs_postblformat;
 	__fs32	fs_nrpos;
 	__fs32	fs_postbloff;
