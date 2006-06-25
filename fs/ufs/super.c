@@ -100,7 +100,7 @@ void ufs_print_super_stuff(struct super_block *sb,
 	struct ufs_super_block_third * usb3)
 {
 	printk("ufs_print_super_stuff\n");
-	printk("size of usb:     %u\n", sizeof(struct ufs_super_block));
+	printk("size of usb:     %zu\n", sizeof(struct ufs_super_block));
 	printk("  magic:         0x%x\n", fs32_to_cpu(sb, usb3->fs_magic));
 	printk("  sblkno:        %u\n", fs32_to_cpu(sb, usb1->fs_sblkno));
 	printk("  cblkno:        %u\n", fs32_to_cpu(sb, usb1->fs_cblkno));
@@ -144,7 +144,7 @@ void ufs2_print_super_stuff(
       struct ufs_super_block *usb)
 {
 	printk("ufs_print_super_stuff\n");
-	printk("size of usb:     %u\n", sizeof(struct ufs_super_block));
+	printk("size of usb:     %zu\n", sizeof(struct ufs_super_block));
 	printk("  magic:         0x%x\n", fs32_to_cpu(sb, usb->fs_magic));
 	printk("  fs_size:   %llu\n",
 	       (unsigned long long)fs64_to_cpu(sb, usb->fs_u11.fs_u2.fs_size));
@@ -172,7 +172,7 @@ void ufs2_print_super_stuff(
 void ufs_print_cylinder_stuff(struct super_block *sb, struct ufs_cylinder_group *cg)
 {
 	printk("\nufs_print_cylinder_stuff\n");
-	printk("size of ucg: %u\n", sizeof(struct ufs_cylinder_group));
+	printk("size of ucg: %zu\n", sizeof(struct ufs_cylinder_group));
 	printk("  magic:        %x\n", fs32_to_cpu(sb, cg->cg_magic));
 	printk("  time:         %u\n", fs32_to_cpu(sb, cg->cg_time));
 	printk("  cgx:          %u\n", fs32_to_cpu(sb, cg->cg_cgx));
