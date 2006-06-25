@@ -730,13 +730,15 @@ struct dir_private_info {
 /* balloc.c */
 extern int ext3_bg_has_super(struct super_block *sb, int group);
 extern unsigned long ext3_bg_num_gdb(struct super_block *sb, int group);
-extern int ext3_new_block (handle_t *, struct inode *, unsigned long, int *);
-extern int ext3_new_blocks (handle_t *, struct inode *, unsigned long,
-			unsigned long *, int *);
-extern void ext3_free_blocks (handle_t *, struct inode *, unsigned long,
-			      unsigned long);
-extern void ext3_free_blocks_sb (handle_t *, struct super_block *,
-				 unsigned long, unsigned long, int *);
+extern ext3_fsblk_t ext3_new_block (handle_t *handle, struct inode *inode,
+			ext3_fsblk_t goal, int *errp);
+extern ext3_fsblk_t ext3_new_blocks (handle_t *handle, struct inode *inode,
+			ext3_fsblk_t goal, unsigned long *count, int *errp);
+extern void ext3_free_blocks (handle_t *handle, struct inode *inode,
+			ext3_fsblk_t block, unsigned long count);
+extern void ext3_free_blocks_sb (handle_t *handle, struct super_block *sb,
+				 ext3_fsblk_t block, unsigned long count,
+				unsigned long *pdquot_freed_blocks);
 extern unsigned long ext3_count_free_blocks (struct super_block *);
 extern void ext3_check_blocks_bitmap (struct super_block *);
 extern struct ext3_group_desc * ext3_get_group_desc(struct super_block * sb,
@@ -773,7 +775,8 @@ extern unsigned long ext3_count_free (struct buffer_head *, unsigned);
 
 
 /* inode.c */
-int ext3_forget(handle_t *, int, struct inode *, struct buffer_head *, int);
+int ext3_forget(handle_t *handle, int is_metadata, struct inode *inode,
+		struct buffer_head *bh, ext3_fsblk_t blocknr);
 struct buffer_head * ext3_getblk (handle_t *, struct inode *, long, int, int *);
 struct buffer_head * ext3_bread (handle_t *, struct inode *, int, int, int *);
 int ext3_get_blocks_handle(handle_t *handle, struct inode *inode,

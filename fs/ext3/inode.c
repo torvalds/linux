@@ -62,7 +62,7 @@ static int ext3_inode_is_fast_symlink(struct inode *inode)
  * still needs to be revoked.
  */
 int ext3_forget(handle_t *handle, int is_metadata, struct inode *inode,
-			struct buffer_head *bh, int blocknr)
+			struct buffer_head *bh, ext3_fsblk_t blocknr)
 {
 	int err;
 

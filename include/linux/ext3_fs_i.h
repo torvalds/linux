@@ -21,6 +21,14 @@
 #include <linux/seqlock.h>
 #include <linux/mutex.h>
 
+/* data type for block offset of block group */
+typedef int ext3_grpblk_t;
+
+/* data type for filesystem-wide blocks number */
+typedef unsigned long ext3_fsblk_t;
+
+#define E3FSBLK "%lu"
+
 struct ext3_reserve_window {
 	__u32			_rsv_start;	/* First byte reserved */
 	__u32			_rsv_end;	/* Last byte reserved or 0 */

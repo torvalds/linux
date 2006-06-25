@@ -1841,7 +1841,7 @@ static journal_t *ext3_get_dev_journal(struct super_block *sb,
 	struct buffer_head * bh;
 	journal_t *journal;
 	int start;
-	int len;
+	ext3_fsblk_t len;
 	int hblock, blocksize;
 	unsigned long sb_block;
 	unsigned long offset;
