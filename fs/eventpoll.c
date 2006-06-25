@@ -1,6 +1,6 @@
 /*
  *  fs/eventpoll.c ( Efficent event polling implementation )
- *  Copyright (C) 2001,...,2003	 Davide Libenzi
+ *  Copyright (C) 2001,...,2006	 Davide Libenzi
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -1004,7 +1004,7 @@ static int ep_insert(struct eventpoll *ep, struct epoll_event *event,
 
 		/* Notify waiting tasks that events are available */
 		if (waitqueue_active(&ep->wq))
-			wake_up(&ep->wq);
+			__wake_up_locked(&ep->wq, TASK_UNINTERRUPTIBLE | TASK_INTERRUPTIBLE);
 		if (waitqueue_active(&ep->poll_wait))
 			pwake++;
 	}
@@ -1083,7 +1083,8 @@ static int ep_modify(struct eventpoll *ep, struct epitem *epi, struct epoll_even
 
 				/* Notify waiting tasks that events are available */
 				if (waitqueue_active(&ep->wq))
-					wake_up(&ep->wq);
+					__wake_up_locked(&ep->wq, TASK_UNINTERRUPTIBLE |
+							 TASK_INTERRUPTIBLE);
 				if (waitqueue_active(&ep->poll_wait))
 					pwake++;
 			}
@@ -1260,7 +1261,8 @@ is_linked:
 	 * wait list.
 	 */
 	if (waitqueue_active(&ep->wq))
-		wake_up(&ep->wq);
+		__wake_up_locked(&ep->wq, TASK_UNINTERRUPTIBLE |
+				 TASK_INTERRUPTIBLE);
 	if (waitqueue_active(&ep->poll_wait))
 		pwake++;
 
@@ -1444,7 +1446,8 @@ static void ep_reinject_items(struct eventpoll *ep, struct list_head *txlist)
 		 * wait list.
 		 */
 		if (waitqueue_active(&ep->wq))
-			wake_up(&ep->wq);
+			__wake_up_locked(&ep->wq, TASK_UNINTERRUPTIBLE |
+					 TASK_INTERRUPTIBLE);
 		if (waitqueue_active(&ep->poll_wait))
 			pwake++;
 	}
@@ -1516,7 +1519,7 @@ retry:
 		 * ep_poll_callback() when events will become available.
 		 */
 		init_waitqueue_entry(&wait, current);
-		add_wait_queue(&ep->wq, &wait);
+		__add_wait_queue(&ep->wq, &wait);
 
 		for (;;) {
 			/*
@@ -1536,7 +1539,7 @@ retry:
 			jtimeout = schedule_timeout(jtimeout);
 			write_lock_irqsave(&ep->lock, flags);
 		}
-		remove_wait_queue(&ep->wq, &wait);
+		__remove_wait_queue(&ep->wq, &wait);
 
 		set_current_state(TASK_RUNNING);
 	}
