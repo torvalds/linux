@@ -616,15 +616,13 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
 	/*
 	 * Establish migration ptes or remove ptes
 	 */
-	if (try_to_unmap(page, 1) != SWAP_FAIL) {
-		if (!page_mapped(page))
-			rc = move_to_new_page(newpage, page);
-	} else
-		/* A vma has VM_LOCKED set -> permanent failure */
-		rc = -EPERM;
+	try_to_unmap(page, 1);
+	if (!page_mapped(page))
+		rc = move_to_new_page(newpage, page);
 
 	if (rc)
 		remove_migration_ptes(page, page);
+
 unlock:
 	unlock_page(page);
 

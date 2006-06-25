@@ -562,9 +562,8 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
 	 * If it's recently referenced (perhaps page_referenced
 	 * skipped over this mm) then we should reactivate it.
 	 */
-	if ((vma->vm_flags & VM_LOCKED) ||
-			(ptep_clear_flush_young(vma, address, pte)
-				&& !migration)) {
+	if (!migration && ((vma->vm_flags & VM_LOCKED) ||
+			(ptep_clear_flush_young(vma, address, pte)))) {
 		ret = SWAP_FAIL;
 		goto out_unmap;
 	}
@@ -771,7 +770,7 @@ static int try_to_unmap_file(struct page *page, int migration)
 
 	list_for_each_entry(vma, &mapping->i_mmap_nonlinear,
 						shared.vm_set.list) {
-		if (vma->vm_flags & VM_LOCKED)
+		if ((vma->vm_flags & VM_LOCKED) && !migration)
 			continue;
 		cursor = (unsigned long) vma->vm_private_data;
 		if (cursor > max_nl_cursor)
@@ -805,7 +804,7 @@ static int try_to_unmap_file(struct page *page, int migration)
 	do {
 		list_for_each_entry(vma, &mapping->i_mmap_nonlinear,
 						shared.vm_set.list) {
-			if (vma->vm_flags & VM_LOCKED)
+			if ((vma->vm_flags & VM_LOCKED) && !migration)
 				continue;
 			cursor = (unsigned long) vma->vm_private_data;
 			while ( cursor < max_nl_cursor &&
