@@ -88,6 +88,10 @@ int libata_fua = 0;
 module_param_named(fua, libata_fua, int, 0444);
 MODULE_PARM_DESC(fua, "FUA support (0=off, 1=on)");
 
+static int ata_probe_timeout = ATA_TMOUT_INTERNAL / HZ;
+module_param(ata_probe_timeout, int, 0444);
+MODULE_PARM_DESC(ata_probe_timeout, "Set ATA probing timeout (seconds)");
+
 MODULE_AUTHOR("Jeff Garzik");
 MODULE_DESCRIPTION("Library module for ATA devices");
 MODULE_LICENSE("GPL");
@@ -1059,7 +1063,7 @@ unsigned ata_exec_internal(struct ata_device *dev,
 
 	spin_unlock_irqrestore(ap->lock, flags);
 
-	rc = wait_for_completion_timeout(&wait, ATA_TMOUT_INTERNAL);
+	rc = wait_for_completion_timeout(&wait, ata_probe_timeout);
 
 	ata_port_flush_task(ap);
 
@@ -5738,6 +5742,7 @@ int ata_pci_device_resume(struct pci_dev *pdev)
 
 static int __init ata_init(void)
 {
+	ata_probe_timeout *= HZ;
 	ata_wq = create_workqueue("ata");
 	if (!ata_wq)
 		return -ENOMEM;
