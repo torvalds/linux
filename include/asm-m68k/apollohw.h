@@ -3,6 +3,8 @@
 #ifndef _ASMm68k_APOLLOHW_H_
 #define _ASMm68k_APOLLOHW_H_
 
+#include <linux/types.h>
+
 /*
    apollo models
 */
@@ -100,5 +102,7 @@ extern u_long timer_physaddr;
 #define addr_xlat_map ((unsigned short *)(IO_BASE + 0x17000))
 
 #define isaIO2mem(x) (((((x) & 0x3f8)  << 7) | (((x) & 0xfc00) >> 6) | ((x) & 0x7)) + 0x40000 + IO_BASE)
+
+#define IRQ_APOLLO	IRQ_USER
 
 #endif
