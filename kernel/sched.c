@@ -4756,6 +4756,8 @@ static int migration_call(struct notifier_block *nfb, unsigned long action,
 		break;
 #ifdef CONFIG_HOTPLUG_CPU
 	case CPU_UP_CANCELED:
+		if (!cpu_rq(cpu)->migration_thread)
+			break;
 		/* Unbind it from offline cpu so it can run.  Fall thru. */
 		kthread_bind(cpu_rq(cpu)->migration_thread,
 			     any_online_cpu(cpu_online_map));

@@ -590,6 +590,8 @@ static int workqueue_cpu_callback(struct notifier_block *nfb,
 
 	case CPU_UP_CANCELED:
 		list_for_each_entry(wq, &workqueues, list) {
+			if (!per_cpu_ptr(wq->cpu_wq, hotcpu)->thread)
+				continue;
 			/* Unbind so it can run. */
 			kthread_bind(per_cpu_ptr(wq->cpu_wq, hotcpu)->thread,
 				     any_online_cpu(cpu_online_map));
