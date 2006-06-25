@@ -156,7 +156,7 @@ do_more:
 	bit = ufs_dtogd (fragment);
 	if (cgno >= uspi->s_ncg) {
 		ufs_panic (sb, "ufs_free_blocks", "freeing blocks are outside device");
-		goto failed;
+		goto failed_unlock;
 	}
 	end_bit = bit + count;
 	if (end_bit > uspi->s_fpg) {
@@ -167,11 +167,11 @@ do_more:
 
 	ucpi = ufs_load_cylinder (sb, cgno);
 	if (!ucpi) 
-		goto failed;
+		goto failed_unlock;
 	ucg = ubh_get_ucg (UCPI_UBH(ucpi));
 	if (!ufs_cg_chkmagic(sb, ucg)) {
 		ufs_panic (sb, "ufs_free_blocks", "internal error, bad magic number on cg %u", cgno);
-		goto failed;
+		goto failed_unlock;
 	}
 
 	for (i = bit; i < end_bit; i += uspi->s_fpb) {
@@ -210,8 +210,9 @@ do_more:
 	UFSD("EXIT\n");
 	return;
 
-failed:
+failed_unlock:
 	unlock_super (sb);
+failed:
 	UFSD("EXIT (FAILED)\n");
 	return;
 }
