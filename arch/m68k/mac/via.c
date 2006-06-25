@@ -253,21 +253,21 @@ void __init via_init_clock(irqreturn_t (*func)(int, void *, struct pt_regs *))
 void __init via_register_interrupts(void)
 {
 	if (via_alt_mapping) {
-		cpu_request_irq(IRQ_AUTO_1, via1_irq,
+		request_irq(IRQ_AUTO_1, via1_irq,
 				IRQ_FLG_LOCK|IRQ_FLG_FAST, "software",
 				(void *) via1);
-		cpu_request_irq(IRQ_AUTO_6, via1_irq,
+		request_irq(IRQ_AUTO_6, via1_irq,
 				IRQ_FLG_LOCK|IRQ_FLG_FAST, "via1",
 				(void *) via1);
 	} else {
-		cpu_request_irq(IRQ_AUTO_1, via1_irq,
+		request_irq(IRQ_AUTO_1, via1_irq,
 				IRQ_FLG_LOCK|IRQ_FLG_FAST, "via1",
 				(void *) via1);
 	}
-	cpu_request_irq(IRQ_AUTO_2, via2_irq, IRQ_FLG_LOCK|IRQ_FLG_FAST,
+	request_irq(IRQ_AUTO_2, via2_irq, IRQ_FLG_LOCK|IRQ_FLG_FAST,
 			"via2", (void *) via2);
 	if (!psc_present) {
-		cpu_request_irq(IRQ_AUTO_4, mac_scc_dispatch, IRQ_FLG_LOCK,
+		request_irq(IRQ_AUTO_4, mac_scc_dispatch, IRQ_FLG_LOCK,
 				"scc", mac_scc_dispatch);
 	}
 	request_irq(IRQ_MAC_NUBUS, via_nubus_irq, IRQ_FLG_LOCK|IRQ_FLG_FAST,
@@ -424,7 +424,7 @@ irqreturn_t via1_irq(int irq, void *dev_id, struct pt_regs *regs)
 	for (i = 0, irq_bit = 1 ; i < 7 ; i++, irq_bit <<= 1)
 		if (events & irq_bit) {
 			via1[vIER] = irq_bit;
-			mac_do_irq_list(VIA1_SOURCE_BASE + i, regs);
+			m68k_handle_int(VIA1_SOURCE_BASE + i, regs);
 			via1[vIFR] = irq_bit;
 			via1[vIER] = irq_bit | 0x80;
 		}
@@ -439,7 +439,7 @@ irqreturn_t via1_irq(int irq, void *dev_id, struct pt_regs *regs)
 		/* No, it won't be set. that's why we're doing this. */
 		via_irq_disable(IRQ_MAC_NUBUS);
 		via_irq_clear(IRQ_MAC_NUBUS);
-		mac_do_irq_list(IRQ_MAC_NUBUS, regs);
+		m68k_handle_int(IRQ_MAC_NUBUS, regs);
 		via_irq_enable(IRQ_MAC_NUBUS);
 	}
 #endif
@@ -459,7 +459,7 @@ irqreturn_t via2_irq(int irq, void *dev_id, struct pt_regs *regs)
 		if (events & irq_bit) {
 			via2[gIER] = irq_bit;
 			via2[gIFR] = irq_bit | rbv_clear;
-			mac_do_irq_list(VIA2_SOURCE_BASE + i, regs);
+			m68k_handle_int(VIA2_SOURCE_BASE + i, regs);
 			via2[gIER] = irq_bit | 0x80;
 		}
 	return IRQ_HANDLED;
@@ -481,7 +481,7 @@ irqreturn_t via_nubus_irq(int irq, void *dev_id, struct pt_regs *regs)
 	for (i = 0, irq_bit = 1 ; i < 7 ; i++, irq_bit <<= 1) {
 		if (events & irq_bit) {
 			via_irq_disable(NUBUS_SOURCE_BASE + i);
-			mac_do_irq_list(NUBUS_SOURCE_BASE + i, regs);
+			m68k_handle_int(NUBUS_SOURCE_BASE + i, regs);
 			via_irq_enable(NUBUS_SOURCE_BASE + i);
 		}
 	}

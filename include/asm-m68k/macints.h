@@ -152,7 +152,4 @@
 #define INT_CLK   24576	    /* CLK while int_clk =2.456MHz and divide = 100 */
 #define INT_TICKS 246	    /* to make sched_time = 99.902... HZ */
 
-extern irq_node_t *mac_irq_list[NUM_MAC_SOURCES];
-extern void mac_do_irq_list(int irq, struct pt_regs *);
-
 #endif /* asm/macints.h */

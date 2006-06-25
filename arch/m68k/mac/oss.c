@@ -67,15 +67,15 @@ void __init oss_init(void)
 
 void __init oss_register_interrupts(void)
 {
-	cpu_request_irq(OSS_IRQLEV_SCSI, oss_irq, IRQ_FLG_LOCK,
+	request_irq(OSS_IRQLEV_SCSI, oss_irq, IRQ_FLG_LOCK,
 			"scsi", (void *) oss);
-	cpu_request_irq(OSS_IRQLEV_IOPSCC, mac_scc_dispatch, IRQ_FLG_LOCK,
+	request_irq(OSS_IRQLEV_IOPSCC, mac_scc_dispatch, IRQ_FLG_LOCK,
 			"scc", mac_scc_dispatch);
-	cpu_request_irq(OSS_IRQLEV_NUBUS, oss_nubus_irq, IRQ_FLG_LOCK,
+	request_irq(OSS_IRQLEV_NUBUS, oss_nubus_irq, IRQ_FLG_LOCK,
 			"nubus", (void *) oss);
-	cpu_request_irq(OSS_IRQLEV_SOUND, oss_irq, IRQ_FLG_LOCK,
+	request_irq(OSS_IRQLEV_SOUND, oss_irq, IRQ_FLG_LOCK,
 			"sound", (void *) oss);
-	cpu_request_irq(OSS_IRQLEV_VIA1, via1_irq, IRQ_FLG_LOCK,
+	request_irq(OSS_IRQLEV_VIA1, via1_irq, IRQ_FLG_LOCK,
 			"via1", (void *) via1);
 }
 
@@ -113,7 +113,7 @@ irqreturn_t oss_irq(int irq, void *dev_id, struct pt_regs *regs)
 		oss->irq_pending &= ~OSS_IP_SOUND;
 	} else if (events & OSS_IP_SCSI) {
 		oss->irq_level[OSS_SCSI] = OSS_IRQLEV_DISABLED;
-		mac_do_irq_list(IRQ_MAC_SCSI, regs);
+		m68k_handle_int(IRQ_MAC_SCSI, regs);
 		oss->irq_pending &= ~OSS_IP_SCSI;
 		oss->irq_level[OSS_SCSI] = OSS_IRQLEV_SCSI;
 	} else {
@@ -146,7 +146,7 @@ irqreturn_t oss_nubus_irq(int irq, void *dev_id, struct pt_regs *regs)
 	for (i = 0, irq_bit = 1 ; i < 6 ; i++, irq_bit <<= 1) {
 		if (events & irq_bit) {
 			oss->irq_level[i] = OSS_IRQLEV_DISABLED;
-			mac_do_irq_list(NUBUS_SOURCE_BASE + i, regs);
+			m68k_handle_int(NUBUS_SOURCE_BASE + i, regs);
 			oss->irq_pending &= ~irq_bit;
 			oss->irq_level[i] = OSS_IRQLEV_NUBUS;
 		}

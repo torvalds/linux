@@ -137,14 +137,6 @@
 #define DEBUG_SPURIOUS
 #define SHUTUP_SONIC
 
-/*
- * The mac_irq_list array is an array of linked lists of irq_node_t nodes.
- * Each node contains one handler to be called whenever the interrupt
- * occurs, with fast handlers listed before slow handlers.
- */
-
-irq_node_t *mac_irq_list[NUM_MAC_SOURCES];
-
 /* SCC interrupt mask */
 
 static int scc_mask;
@@ -209,8 +201,8 @@ extern int  baboon_irq_pending(int);
  * SCC interrupt routines
  */
 
-static void scc_irq_enable(int);
-static void scc_irq_disable(int);
+static void scc_irq_enable(unsigned int);
+static void scc_irq_disable(unsigned int);
 
 /*
  * console_loglevel determines NMI handler function
@@ -221,21 +213,25 @@ irqreturn_t mac_debug_handler(int, void *, struct pt_regs *);
 
 /* #define DEBUG_MACINTS */
 
+static void mac_enable_irq(unsigned int irq);
+static void mac_disable_irq(unsigned int irq);
+
+static struct irq_controller mac_irq_controller = {
+	.name		= "mac",
+	.lock		= SPIN_LOCK_UNLOCKED,
+	.enable		= mac_enable_irq,
+	.disable	= mac_disable_irq,
+};
+
 void mac_init_IRQ(void)
 {
-        int i;
-
 #ifdef DEBUG_MACINTS
 	printk("mac_init_IRQ(): Setting things up...\n");
 #endif
-	/* Initialize the IRQ handler lists. Initially each list is empty, */
-
-	for (i = 0; i < NUM_MAC_SOURCES; i++) {
-		mac_irq_list[i] = NULL;
-	}
-
 	scc_mask = 0;
 
+	m68k_setup_irq_controller(&mac_irq_controller, IRQ_USER,
+				  NUM_MAC_SOURCES - IRQ_USER);
 	/* Make sure the SONIC interrupt is cleared or things get ugly */
 #ifdef SHUTUP_SONIC
 	printk("Killing onboard sonic... ");
@@ -252,117 +248,20 @@ void mac_init_IRQ(void)
 	 * at levels 1-7. Most of the work is done elsewhere.
 	 */
 
-	if (oss_present) {
+	if (oss_present)
 		oss_register_interrupts();
-	} else {
+	else
 		via_register_interrupts();
-	}
-	if (psc_present) psc_register_interrupts();
-	if (baboon_present) baboon_register_interrupts();
+	if (psc_present)
+		psc_register_interrupts();
+	if (baboon_present)
+		baboon_register_interrupts();
 	iop_register_interrupts();
-	cpu_request_irq(7, mac_nmi_handler, IRQ_FLG_LOCK, "NMI",
+	request_irq(IRQ_AUTO_7, mac_nmi_handler, 0, "NMI",
 			mac_nmi_handler);
 #ifdef DEBUG_MACINTS
 	printk("mac_init_IRQ(): Done!\n");
 #endif
-}
-
-/*
- * Routines to work with irq_node_t's on linked lists lifted from
- * the Amiga code written by Roman Zippel.
- */
-
-static inline void mac_insert_irq(irq_node_t **list, irq_node_t *node)
-{
-	unsigned long flags;
-	irq_node_t *cur;
-
-	if (!node->dev_id)
-		printk("%s: Warning: dev_id of %s is zero\n",
-		       __FUNCTION__, node->devname);
-
-	local_irq_save(flags);
-
-	cur = *list;
-
-	if (node->flags & IRQ_FLG_FAST) {
-		node->flags &= ~IRQ_FLG_SLOW;
-		while (cur && cur->flags & IRQ_FLG_FAST) {
-			list = &cur->next;
-			cur = cur->next;
-		}
-	} else if (node->flags & IRQ_FLG_SLOW) {
-		while (cur) {
-			list = &cur->next;
-			cur = cur->next;
-		}
-	} else {
-		while (cur && !(cur->flags & IRQ_FLG_SLOW)) {
-			list = &cur->next;
-			cur = cur->next;
-		}
-	}
-
-	node->next = cur;
-	*list = node;
-
-	local_irq_restore(flags);
-}
-
-static inline void mac_delete_irq(irq_node_t **list, void *dev_id)
-{
-	unsigned long flags;
-	irq_node_t *node;
-
-	local_irq_save(flags);
-
-	for (node = *list; node; list = &node->next, node = *list) {
-		if (node->dev_id == dev_id) {
-			*list = node->next;
-			/* Mark it as free. */
-			node->handler = NULL;
-			local_irq_restore(flags);
-			return;
-		}
-	}
-	local_irq_restore(flags);
-	printk ("%s: tried to remove invalid irq\n", __FUNCTION__);
-}
-
-/*
- * Call all the handlers for a given interrupt. Fast handlers are called
- * first followed by slow handlers.
- *
- * This code taken from the original Amiga code written by Roman Zippel.
- */
-
-void mac_do_irq_list(int irq, struct pt_regs *fp)
-{
-	irq_node_t *node, *slow_nodes;
-	unsigned long flags;
-
-	kstat_cpu(0).irqs[irq]++;
-
-#ifdef DEBUG_SPURIOUS
-	if (!mac_irq_list[irq] && (console_loglevel > 7)) {
-		printk("mac_do_irq_list: spurious interrupt %d!\n", irq);
-		return;
-	}
-#endif
-
-	/* serve first fast and normal handlers */
-	for (node = mac_irq_list[irq];
-	     node && (!(node->flags & IRQ_FLG_SLOW));
-	     node = node->next)
-		node->handler(irq, node->dev_id, fp);
-	if (!node) return;
-	local_save_flags(flags);
-	local_irq_restore((flags & ~0x0700) | (fp->sr & 0x0700));
-	/* if slow handlers exists, serve them now */
-	slow_nodes = node;
-	for (; node; node = node->next) {
-		node->handler(irq, node->dev_id, fp);
-	}
 }
 
 /*
@@ -374,265 +273,120 @@ void mac_do_irq_list(int irq, struct pt_regs *fp)
  * These routines are just dispatchers to the VIA/OSS/PSC routines.
  */
 
-void mac_enable_irq (unsigned int irq)
+static void mac_enable_irq(unsigned int irq)
 {
-	int irq_src	= IRQ_SRC(irq);
+	int irq_src = IRQ_SRC(irq);
 
 	switch(irq_src) {
-		case 1: via_irq_enable(irq);
-			break;
-		case 2:
-		case 7: if (oss_present) {
-				oss_irq_enable(irq);
-			} else {
-				via_irq_enable(irq);
-			}
-			break;
-		case 3:
-		case 4:
-		case 5:
-		case 6: if (psc_present) {
-				psc_irq_enable(irq);
-			} else if (oss_present) {
-				oss_irq_enable(irq);
-			} else if (irq_src == 4) {
-				scc_irq_enable(irq);
-			}
-			break;
-		case 8: if (baboon_present) {
-				baboon_irq_enable(irq);
-			}
-			break;
+	case 1:
+		via_irq_enable(irq);
+		break;
+	case 2:
+	case 7:
+		if (oss_present)
+			oss_irq_enable(irq);
+		else
+			via_irq_enable(irq);
+		break;
+	case 3:
+	case 4:
+	case 5:
+	case 6:
+		if (psc_present)
+			psc_irq_enable(irq);
+		else if (oss_present)
+			oss_irq_enable(irq);
+		else if (irq_src == 4)
+			scc_irq_enable(irq);
+		break;
+	case 8:
+		if (baboon_present)
+			baboon_irq_enable(irq);
+		break;
 	}
 }
 
-void mac_disable_irq (unsigned int irq)
+static void mac_disable_irq(unsigned int irq)
 {
-	int irq_src	= IRQ_SRC(irq);
+	int irq_src = IRQ_SRC(irq);
 
 	switch(irq_src) {
-		case 1: via_irq_disable(irq);
-			break;
-		case 2:
-		case 7: if (oss_present) {
-				oss_irq_disable(irq);
-			} else {
-				via_irq_disable(irq);
-			}
-			break;
-		case 3:
-		case 4:
-		case 5:
-		case 6: if (psc_present) {
-				psc_irq_disable(irq);
-			} else if (oss_present) {
-				oss_irq_disable(irq);
-			} else if (irq_src == 4) {
-				scc_irq_disable(irq);
-			}
-			break;
-		case 8: if (baboon_present) {
-				baboon_irq_disable(irq);
-			}
-			break;
+	case 1:
+		via_irq_disable(irq);
+		break;
+	case 2:
+	case 7:
+		if (oss_present)
+			oss_irq_disable(irq);
+		else
+			via_irq_disable(irq);
+		break;
+	case 3:
+	case 4:
+	case 5:
+	case 6:
+		if (psc_present)
+			psc_irq_disable(irq);
+		else if (oss_present)
+			oss_irq_disable(irq);
+		else if (irq_src == 4)
+			scc_irq_disable(irq);
+		break;
+	case 8:
+		if (baboon_present)
+			baboon_irq_disable(irq);
+		break;
 	}
 }
 
-void mac_clear_irq( unsigned int irq )
+void mac_clear_irq(unsigned int irq)
 {
 	switch(IRQ_SRC(irq)) {
-		case 1: via_irq_clear(irq);
-			break;
-		case 2:
-		case 7: if (oss_present) {
-				oss_irq_clear(irq);
-			} else {
-				via_irq_clear(irq);
-			}
-			break;
-		case 3:
-		case 4:
-		case 5:
-		case 6: if (psc_present) {
-				psc_irq_clear(irq);
-			} else if (oss_present) {
-				oss_irq_clear(irq);
-			}
-			break;
-		case 8: if (baboon_present) {
-				baboon_irq_clear(irq);
-			}
-			break;
+	case 1:
+		via_irq_clear(irq);
+		break;
+	case 2:
+	case 7:
+		if (oss_present)
+			oss_irq_clear(irq);
+		else
+			via_irq_clear(irq);
+		break;
+	case 3:
+	case 4:
+	case 5:
+	case 6:
+		if (psc_present)
+			psc_irq_clear(irq);
+		else if (oss_present)
+			oss_irq_clear(irq);
+		break;
+	case 8:
+		if (baboon_present)
+			baboon_irq_clear(irq);
+		break;
 	}
 }
 
-int mac_irq_pending( unsigned int irq )
+int mac_irq_pending(unsigned int irq)
 {
 	switch(IRQ_SRC(irq)) {
-		case 1: return via_irq_pending(irq);
-		case 2:
-		case 7: if (oss_present) {
-				return oss_irq_pending(irq);
-			} else {
-				return via_irq_pending(irq);
-			}
-		case 3:
-		case 4:
-		case 5:
-		case 6: if (psc_present) {
-				return psc_irq_pending(irq);
-			} else if (oss_present) {
-				return oss_irq_pending(irq);
-			}
-	}
-	return 0;
-}
-
-/*
- * Add an interrupt service routine to an interrupt source.
- * Returns 0 on success.
- *
- * FIXME: You can register interrupts on nonexistent source (ie PSC4 on a
- *        non-PSC machine). We should return -EINVAL in those cases.
- */
-
-int mac_request_irq(unsigned int irq,
-		    irqreturn_t (*handler)(int, void *, struct pt_regs *),
-		    unsigned long flags, const char *devname, void *dev_id)
-{
-	irq_node_t *node;
-
-#ifdef DEBUG_MACINTS
-	printk ("%s: irq %d requested for %s\n", __FUNCTION__, irq, devname);
-#endif
-
-	if (irq < VIA1_SOURCE_BASE) {
-		return cpu_request_irq(irq, handler, flags, devname, dev_id);
-	}
-
-	if (irq >= NUM_MAC_SOURCES) {
-		printk ("%s: unknown irq %d requested by %s\n",
-		        __FUNCTION__, irq, devname);
-	}
-
-	/* Get a node and stick it onto the right list */
-
-	if (!(node = new_irq_node())) return -ENOMEM;
-
-	node->handler	= handler;
-	node->flags	= flags;
-	node->dev_id	= dev_id;
-	node->devname	= devname;
-	node->next	= NULL;
-	mac_insert_irq(&mac_irq_list[irq], node);
-
-	/* Now enable the IRQ source */
-
-	mac_enable_irq(irq);
-
-	return 0;
-}
-
-/*
- * Removes an interrupt service routine from an interrupt source.
- */
-
-void mac_free_irq(unsigned int irq, void *dev_id)
-{
-#ifdef DEBUG_MACINTS
-	printk ("%s: irq %d freed by %p\n", __FUNCTION__, irq, dev_id);
-#endif
-
-	if (irq < VIA1_SOURCE_BASE) {
-		cpu_free_irq(irq, dev_id);
-		return;
-	}
-
-	if (irq >= NUM_MAC_SOURCES) {
-		printk ("%s: unknown irq %d freed\n",
-		        __FUNCTION__, irq);
-		return;
-	}
-
-	mac_delete_irq(&mac_irq_list[irq], dev_id);
-
-	/* If the list for this interrupt is */
-	/* empty then disable the source.    */
-
-	if (!mac_irq_list[irq]) {
-		mac_disable_irq(irq);
-	}
-}
-
-/*
- * Generate a pretty listing for /proc/interrupts
- *
- * By the time we're called the autovector interrupt list has already been
- * generated, so we just need to do the machspec interrupts.
- *
- * 990506 (jmt) - rewritten to handle chained machspec interrupt handlers.
- *                Also removed display of num_spurious it is already
- *		  displayed for us as autovector irq 0.
- */
-
-int show_mac_interrupts(struct seq_file *p, void *v)
-{
-	int i;
-	irq_node_t *node;
-	char *base;
-
-	/* Don't do Nubus interrupts in this loop; we do them separately  */
-	/* below so that we can print slot numbers instead of IRQ numbers */
-
-	for (i = VIA1_SOURCE_BASE ; i < NUM_MAC_SOURCES ; ++i) {
-
-		/* Nonexistant interrupt or nothing registered; skip it. */
-
-		if ((node = mac_irq_list[i]) == NULL) continue;
-		if (node->flags & IRQ_FLG_STD) continue;
-
-		base = "";
-		switch(IRQ_SRC(i)) {
-			case 1: base = "via1";
-				break;
-			case 2: if (oss_present) {
-					base = "oss";
-				} else {
-					base = "via2";
-				}
-				break;
-			case 3:
-			case 4:
-			case 5:
-			case 6: if (psc_present) {
-					base = "psc";
-				} else if (oss_present) {
-					base = "oss";
-				} else {
-					if (IRQ_SRC(i) == 4) base = "scc";
-				}
-				break;
-			case 7: base = "nbus";
-				break;
-			case 8: base = "bbn";
-				break;
-		}
-		seq_printf(p, "%4s %2d: %10u ", base, i, kstat_cpu(0).irqs[i]);
-
-		do {
-			if (node->flags & IRQ_FLG_FAST) {
-				seq_puts(p, "F ");
-			} else if (node->flags & IRQ_FLG_SLOW) {
-				seq_puts(p, "S ");
-			} else {
-				seq_puts(p, "  ");
-			}
-			seq_printf(p, "%s\n", node->devname);
-			if ((node = node->next)) {
-				seq_puts(p, "                    ");
-			}
-		} while(node);
-
+	case 1:
+		return via_irq_pending(irq);
+	case 2:
+	case 7:
+		if (oss_present)
+			return oss_irq_pending(irq);
+		else
+			return via_irq_pending(irq);
+	case 3:
+	case 4:
+	case 5:
+	case 6:
+		if (psc_present)
+			return psc_irq_pending(irq);
+		else if (oss_present)
+			return oss_irq_pending(irq);
 	}
 	return 0;
 }
@@ -676,7 +430,7 @@ irqreturn_t mac_nmi_handler(int irq, void *dev_id, struct pt_regs *fp)
 	while (nmi_hold == 1)
 		udelay(1000);
 
-	if ( console_loglevel >= 8 ) {
+	if (console_loglevel >= 8) {
 #if 0
 		show_state();
 		printk("PC: %08lx\nSR: %04x  SP: %p\n", fp->pc, fp->sr, fp);
@@ -705,14 +459,16 @@ irqreturn_t mac_nmi_handler(int irq, void *dev_id, struct pt_regs *fp)
  * done in hardware (only the PSC can do that.)
  */
 
-static void scc_irq_enable(int irq) {
-	int irq_idx     = IRQ_IDX(irq);
+static void scc_irq_enable(unsigned int irq)
+{
+	int irq_idx = IRQ_IDX(irq);
 
 	scc_mask |= (1 << irq_idx);
 }
 
-static void scc_irq_disable(int irq) {
-	int irq_idx     = IRQ_IDX(irq);
+static void scc_irq_disable(unsigned int irq)
+{
+	int irq_idx = IRQ_IDX(irq);
 
 	scc_mask &= ~(1 << irq_idx);
 }
@@ -747,6 +503,8 @@ void mac_scc_dispatch(int irq, void *dev_id, struct pt_regs *regs)
 	/* and since they're autovector interrupts they */
 	/* pretty much kill the system.                 */
 
-	if (reg & 0x38) mac_do_irq_list(IRQ_SCCA, regs);
-	if (reg & 0x07) mac_do_irq_list(IRQ_SCCB, regs);
+	if (reg & 0x38)
+		m68k_handle_int(IRQ_SCCA, regs);
+	if (reg & 0x07)
+		m68k_handle_int(IRQ_SCCB, regs);
 }
