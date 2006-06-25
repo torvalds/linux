@@ -9,6 +9,7 @@
 /* This file defines the kernel interface of FUSE */
 
 #include <asm/types.h>
+#include <linux/major.h>
 
 /** Version number of this interface */
 #define FUSE_KERNEL_VERSION 7
@@ -20,7 +21,7 @@
 #define FUSE_ROOT_ID 1
 
 /** The major number of the fuse character device */
-#define FUSE_MAJOR 10
+#define FUSE_MAJOR MISC_MAJOR
 
 /** The minor number of the fuse character device */
 #define FUSE_MINOR 229
