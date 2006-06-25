@@ -71,7 +71,6 @@ flash_mmap(struct file *file, struct vm_area_struct *vma)
 	if (vma->vm_end - (vma->vm_start + (vma->vm_pgoff << PAGE_SHIFT)) > size)
 		size = vma->vm_end - (vma->vm_start + (vma->vm_pgoff << PAGE_SHIFT));
 
-	vma->vm_flags |= (VM_SHM | VM_LOCKED);
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 
 	if (io_remap_pfn_range(vma, vma->vm_start, addr, size, vma->vm_page_prot))

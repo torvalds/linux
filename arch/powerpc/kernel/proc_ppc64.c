@@ -115,8 +115,6 @@ static int page_map_mmap( struct file *file, struct vm_area_struct *vma )
 {
 	struct proc_dir_entry *dp = PDE(file->f_dentry->d_inode);
 
-	vma->vm_flags |= VM_SHM | VM_LOCKED;
-
 	if ((vma->vm_end - vma->vm_start) > dp->size)
 		return -EINVAL;
 

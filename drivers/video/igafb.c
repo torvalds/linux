@@ -232,9 +232,6 @@ static int igafb_mmap(struct fb_info *info,
 
 	size = vma->vm_end - vma->vm_start;
 
-	/* To stop the swapper from even considering these pages. */
-	vma->vm_flags |= (VM_SHM | VM_LOCKED);
-
 	/* Each page, see which map applies */
 	for (page = 0; page < size; ) {
 		map_size = 0;

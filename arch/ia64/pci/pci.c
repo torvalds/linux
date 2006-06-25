@@ -602,8 +602,6 @@ pci_mmap_page_range (struct pci_dev *dev, struct vm_area_struct *vma,
 	 * Leave vm_pgoff as-is, the PCI space address is the physical
 	 * address on this platform.
 	 */
-	vma->vm_flags |= (VM_SHM | VM_RESERVED | VM_IO);
-
 	if (write_combine && efi_range_is_wc(vma->vm_start,
 					     vma->vm_end - vma->vm_start))
 		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
@@ -666,7 +664,6 @@ pci_mmap_legacy_page_range(struct pci_bus *bus, struct vm_area_struct *vma)
 
 	vma->vm_pgoff += (unsigned long)addr >> PAGE_SHIFT;
 	vma->vm_page_prot = prot;
-	vma->vm_flags |= (VM_SHM | VM_RESERVED | VM_IO);
 
 	if (remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff,
 			    size, vma->vm_page_prot))
