@@ -41,6 +41,8 @@
 #include "swab.h"
 #include "util.h"
 
+static u64 ufs_frag_map(struct inode *inode, sector_t frag);
+
 static int ufs_block_to_path(struct inode *inode, sector_t i_block, sector_t offsets[4])
 {
 	struct ufs_sb_private_info *uspi = UFS_SB(inode->i_sb)->s_uspi;
@@ -80,7 +82,7 @@ static int ufs_block_to_path(struct inode *inode, sector_t i_block, sector_t off
  * the begining of the filesystem.
  */
 
-u64  ufs_frag_map(struct inode *inode, sector_t frag)
+static u64 ufs_frag_map(struct inode *inode, sector_t frag)
 {
 	struct ufs_inode_info *ufsi = UFS_I(inode);
 	struct super_block *sb = inode->i_sb;
@@ -514,8 +516,9 @@ abort_too_big:
 	goto abort;
 }
 
-struct buffer_head *ufs_getfrag(struct inode *inode, unsigned int fragment,
-				int create, int *err)
+static struct buffer_head *ufs_getfrag(struct inode *inode,
+				       unsigned int fragment,
+				       int create, int *err)
 {
 	struct buffer_head dummy;
 	int error;
