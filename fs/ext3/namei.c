@@ -1379,7 +1379,6 @@ static int ext3_add_entry (handle_t *handle, struct dentry *dentry,
 	int	dx_fallback=0;
 #endif
 	unsigned blocksize;
-	unsigned nlen, rlen;
 	u32 block, blocks;
 
 	sb = dir->i_sb;
@@ -1417,8 +1416,7 @@ static int ext3_add_entry (handle_t *handle, struct dentry *dentry,
 		return retval;
 	de = (struct ext3_dir_entry_2 *) bh->b_data;
 	de->inode = 0;
-	de->rec_len = cpu_to_le16(rlen = blocksize);
-	nlen = 0;
+	de->rec_len = cpu_to_le16(blocksize);
 	return add_dirent_to_buf(handle, dentry, inode, de, bh);
 }
 
