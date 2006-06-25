@@ -14,6 +14,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
+#include <linux/interrupt.h>
 #include <linux/seq_file.h>
 
 #include <asm/ptrace.h>

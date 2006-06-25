@@ -46,7 +46,6 @@ irqreturn_t q40_irq2_handler (int, void *, struct pt_regs *fp);
 
 
 static irqreturn_t q40_defhand (int irq, void *dev_id, struct pt_regs *fp);
-static irqreturn_t default_handler(int lev, void *dev_id, struct pt_regs *regs);
 
 
 #define DEVNAME_SIZE 24
@@ -415,22 +414,6 @@ static irqreturn_t q40_defhand (int irq, void *dev_id, struct pt_regs *fp)
 	else master_outb(-1,KEYBOARD_UNLOCK_REG);
 	return IRQ_NONE;
 }
-static irqreturn_t default_handler(int lev, void *dev_id, struct pt_regs *regs)
-{
-	printk ("Uninitialised interrupt level %d\n", lev);
-	return IRQ_NONE;
-}
-
-irqreturn_t (*q40_default_handler[SYS_IRQS])(int, void *, struct pt_regs *) = {
-	 [0] = default_handler,
-	 [1] = default_handler,
-	 [2] = default_handler,
-	 [3] = default_handler,
-	 [4] = default_handler,
-	 [5] = default_handler,
-	 [6] = default_handler,
-	 [7] = default_handler
-};
 
 
 void q40_enable_irq (unsigned int irq)

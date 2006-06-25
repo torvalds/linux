@@ -1,7 +1,8 @@
 #ifndef _M68K_IRQ_H_
 #define _M68K_IRQ_H_
 
-#include <linux/interrupt.h>
+#include <linux/hardirq.h>
+#include <linux/spinlock_types.h>
 
 /*
  * # of m68k auto vector interrupts
@@ -81,7 +82,7 @@ extern void (*disable_irq)(unsigned int);
 struct pt_regs;
 
 extern int cpu_request_irq(unsigned int,
-			   irqreturn_t (*)(int, void *, struct pt_regs *),
+			   int (*)(int, void *, struct pt_regs *),
 			   unsigned long, const char *, void *);
 extern void cpu_free_irq(unsigned int, void *);
 
@@ -103,22 +104,34 @@ extern void cpu_free_irq(unsigned int, void *);
  * interrupt source (if it supports chaining).
  */
 typedef struct irq_node {
-	irqreturn_t	(*handler)(int, void *, struct pt_regs *);
-	unsigned long	flags;
+	int		(*handler)(int, void *, struct pt_regs *);
 	void		*dev_id;
-	const char	*devname;
 	struct irq_node *next;
+	unsigned long	flags;
+	const char	*devname;
 } irq_node_t;
 
 /*
  * This structure has only 4 elements for speed reasons
  */
 typedef struct irq_handler {
-	irqreturn_t	(*handler)(int, void *, struct pt_regs *);
+	int		(*handler)(int, void *, struct pt_regs *);
 	unsigned long	flags;
 	void		*dev_id;
 	const char	*devname;
 } irq_handler_t;
+
+struct irq_controller {
+	const char *name;
+	spinlock_t lock;
+	int (*startup)(unsigned int irq);
+	void (*shutdown)(unsigned int irq);
+	void (*enable)(unsigned int irq);
+	void (*disable)(unsigned int irq);
+};
+
+extern int m68k_irq_startup(unsigned int);
+extern void m68k_irq_shutdown(unsigned int);
 
 /* count of spurious interrupts */
 extern volatile unsigned int num_spurious;

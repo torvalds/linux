@@ -94,20 +94,6 @@ static void mac_sched_init(irqreturn_t (*vector)(int, void *, struct pt_regs *))
 	via_init_clock(vector);
 }
 
-extern irqreturn_t mac_default_handler(int, void *, struct pt_regs *);
-
-irqreturn_t (*mac_handlers[8])(int, void *, struct pt_regs *)=
-{
-	mac_default_handler,
-	mac_default_handler,
-	mac_default_handler,
-	mac_default_handler,
-	mac_default_handler,
-	mac_default_handler,
-	mac_default_handler,
-	mac_default_handler
-};
-
 /*
  * Parse a Macintosh-specific record in the bootinfo
  */
@@ -188,7 +174,6 @@ void __init config_mac(void)
 	enable_irq           = mac_enable_irq;
 	disable_irq          = mac_disable_irq;
 	mach_get_model	 = mac_get_model;
-	mach_default_handler = &mac_handlers;
 	mach_get_irq_list    = show_mac_interrupts;
 	mach_gettimeoffset   = mac_gettimeoffset;
 #warning move to adb/via init

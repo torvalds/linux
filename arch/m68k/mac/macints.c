@@ -637,13 +637,6 @@ int show_mac_interrupts(struct seq_file *p, void *v)
 	return 0;
 }
 
-void mac_default_handler(int irq, void *dev_id, struct pt_regs *regs)
-{
-#ifdef DEBUG_SPURIOUS
-	printk("Unexpected IRQ %d on device %p\n", irq, dev_id);
-#endif
-}
-
 static int num_debug[8];
 
 irqreturn_t mac_debug_handler(int irq, void *dev_id, struct pt_regs *regs)

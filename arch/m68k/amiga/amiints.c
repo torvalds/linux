@@ -40,6 +40,7 @@
 #include <linux/sched.h>
 #include <linux/kernel_stat.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/errno.h>
 #include <linux/seq_file.h>
 
@@ -484,13 +485,10 @@ static irqreturn_t ami_int7(int irq, void *dev_id, struct pt_regs *fp)
 }
 
 irqreturn_t (*amiga_default_handler[SYS_IRQS])(int, void *, struct pt_regs *) = {
-	[0] = ami_badint,
 	[1] = ami_int1,
-	[2] = ami_badint,
 	[3] = ami_int3,
 	[4] = ami_int4,
 	[5] = ami_int5,
-	[6] = ami_badint,
 	[7] = ami_int7
 };
 
