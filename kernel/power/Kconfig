@@ -38,7 +38,7 @@ config PM_DEBUG
 
 config PM_TRACE
 	bool "Suspend/resume event tracing"
-	depends on PM && PM_DEBUG && X86
+	depends on PM && PM_DEBUG && X86_32
 	default y
 	---help---
 	This enables some cheesy code to save the last PM event point in the
