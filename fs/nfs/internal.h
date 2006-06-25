@@ -58,11 +58,13 @@ extern int nfs_stat_to_errno(int);
 extern u32 *nfs4_decode_dirent(u32 *p, struct nfs_entry *entry, int plus);
 
 /* nfs4proc.c */
+#ifdef CONFIG_NFS_V4
 extern struct rpc_procinfo nfs4_procedures[];
 
 extern int nfs4_proc_fs_locations(struct inode *dir, struct dentry *dentry,
 				  struct nfs4_fs_locations *fs_locations,
 				  struct page *page);
+#endif
 
 /* inode.c */
 extern struct inode *nfs_alloc_inode(struct super_block *sb);
@@ -92,9 +94,14 @@ extern char *nfs_path(const char *base, const struct dentry *dentry,
 /*
  * Determine the mount path as a string
  */
-static inline char *nfs4_path(const struct dentry *dentry, char *buffer, ssize_t buflen)
+static inline char *
+nfs4_path(const struct dentry *dentry, char *buffer, ssize_t buflen)
 {
+#ifdef CONFIG_NFS_V4
 	return nfs_path(NFS_SB(dentry->d_sb)->mnt_path, dentry, buffer, buflen);
+#else
+	return NULL;
+#endif
 }
 
 /*

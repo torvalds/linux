@@ -25,6 +25,8 @@
 #include <linux/nfs_fs.h>
 #include "internal.h"
 
+#include "internal.h"
+
 #define NFSDBG_FACILITY		NFSDBG_XDR
 /* #define NFS_PARANOIA 1 */
 

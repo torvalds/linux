@@ -1089,13 +1089,15 @@ void nfs_destroy_inode(struct inode *inode)
 	kmem_cache_free(nfs_inode_cachep, NFS_I(inode));
 }
 
-#define nfs4_init_once(nfsi) \
-	do { \
-		INIT_LIST_HEAD(&(nfsi)->open_states); \
-		nfsi->delegation = NULL; \
-		nfsi->delegation_state = 0; \
-		init_rwsem(&nfsi->rwsem); \
-	} while(0)
+static inline void nfs4_init_once(struct nfs_inode *nfsi)
+{
+#ifdef CONFIG_NFS_V4
+	INIT_LIST_HEAD(&nfsi->open_states);
+	nfsi->delegation = NULL;
+	nfsi->delegation_state = 0;
+	init_rwsem(&nfsi->rwsem);
+#endif
+}
 
 static void init_once(void * foo, kmem_cache_t * cachep, unsigned long flags)
 {
