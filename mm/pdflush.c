@@ -104,21 +104,20 @@ static int __pdflush(struct pdflush_work *my_work)
 		list_move(&my_work->list, &pdflush_list);
 		my_work->when_i_went_to_sleep = jiffies;
 		spin_unlock_irq(&pdflush_lock);
-
 		schedule();
-		if (try_to_freeze()) {
-			spin_lock_irq(&pdflush_lock);
-			continue;
-		}
-
+		try_to_freeze();
 		spin_lock_irq(&pdflush_lock);
 		if (!list_empty(&my_work->list)) {
-			printk("pdflush: bogus wakeup!\n");
+			/*
+			 * Someone woke us up, but without removing our control
+			 * structure from the global list.  swsusp will do this
+			 * in try_to_freeze()->refrigerator().  Handle it.
+			 */
 			my_work->fn = NULL;
 			continue;
 		}
 		if (my_work->fn == NULL) {
-			printk("pdflush: NULL work function\n");
+			printk("pdflush: bogus wakeup\n");
 			continue;
 		}
 		spin_unlock_irq(&pdflush_lock);
