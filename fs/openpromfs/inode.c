@@ -448,10 +448,11 @@ static ssize_t property_write(struct file *filp, const char __user *buf,
 					*q |= simple_strtoul (tmp, NULL, 16);
 					buf += last_cnt;
 				} else {
-					char tchars[17]; /* XXX yuck... */
+					char tchars[2 * sizeof(long) + 1];
 
-					if (copy_from_user(tchars, buf, 16))
+					if (copy_from_user(tchars, buf, sizeof(tchars) - 1))
 						return -EFAULT;
+                                        tchars[sizeof(tchars) - 1] = '\0';
 					*q = simple_strtoul (tchars, NULL, 16);
 					buf += 9;
 				}
