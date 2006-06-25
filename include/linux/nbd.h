@@ -77,11 +77,11 @@ struct nbd_device {
  * server. All data are in network byte order.
  */
 struct nbd_request {
-	__u32 magic;
-	__u32 type;	/* == READ || == WRITE 	*/
+	__be32 magic;
+	__be32 type;	/* == READ || == WRITE 	*/
 	char handle[8];
-	__u64 from;
-	__u32 len;
+	__be64 from;
+	__be32 len;
 }
 #ifdef __GNUC__
 	__attribute__ ((packed))
@@ -93,8 +93,8 @@ struct nbd_request {
  * it has completed an I/O request (or an error occurs).
  */
 struct nbd_reply {
-	__u32 magic;
-	__u32 error;		/* 0 = ok, else error	*/
+	__be32 magic;
+	__be32 error;		/* 0 = ok, else error	*/
 	char handle[8];		/* handle you got from request	*/
 };
 #endif
