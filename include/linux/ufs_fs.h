@@ -875,7 +875,8 @@ struct ufs_super_block_third {
 /* balloc.c */
 extern void ufs_free_fragments (struct inode *, unsigned, unsigned);
 extern void ufs_free_blocks (struct inode *, unsigned, unsigned);
-extern unsigned ufs_new_fragments (struct inode *, __fs32 *, unsigned, unsigned, unsigned, int *);
+extern unsigned ufs_new_fragments(struct inode *, __fs32 *, unsigned, unsigned,
+				  unsigned, int *, struct page *);
 
 /* cylinder.c */
 extern struct ufs_cg_private_info * ufs_load_cylinder (struct super_block *, unsigned);

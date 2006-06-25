@@ -172,9 +172,10 @@ static void ufs_clear_block(struct inode *inode, struct buffer_head *bh)
 		sync_dirty_buffer(bh);
 }
 
-static struct buffer_head * ufs_inode_getfrag (struct inode *inode,
-	unsigned int fragment, unsigned int new_fragment,
-	unsigned int required, int *err, int metadata, long *phys, int *new)
+static struct buffer_head *ufs_inode_getfrag(struct inode *inode,
+					     unsigned int fragment, unsigned int new_fragment,
+					     unsigned int required, int *err, int metadata,
+					     long *phys, int *new, struct page *locked_page)
 {
 	struct ufs_inode_info *ufsi = UFS_I(inode);
 	struct super_block * sb;
@@ -232,7 +233,8 @@ repeat:
 		if (lastblockoff) {
 			p2 = ufsi->i_u1.i_data + lastblock;
 			tmp = ufs_new_fragments (inode, p2, lastfrag, 
-				fs32_to_cpu(sb, *p2), uspi->s_fpb - lastblockoff, err);
+						 fs32_to_cpu(sb, *p2), uspi->s_fpb - lastblockoff,
+						 err, locked_page);
 			if (!tmp) {
 				if (lastfrag != ufsi->i_lastfrag)
 					goto repeat;
@@ -244,14 +246,16 @@ repeat:
 		}
 		goal = fs32_to_cpu(sb, ufsi->i_u1.i_data[lastblock]) + uspi->s_fpb;
 		tmp = ufs_new_fragments (inode, p, fragment - blockoff, 
-			goal, required + blockoff, err);
+					 goal, required + blockoff,
+					 err, locked_page);
 	}
 	/*
 	 * We will extend last allocated block
 	 */
 	else if (lastblock == block) {
-		tmp = ufs_new_fragments (inode, p, fragment - (blockoff - lastblockoff),
-			fs32_to_cpu(sb, *p), required +  (blockoff - lastblockoff), err);
+		tmp = ufs_new_fragments(inode, p, fragment - (blockoff - lastblockoff),
+					fs32_to_cpu(sb, *p), required +  (blockoff - lastblockoff),
+					err, locked_page);
 	}
 	/*
 	 * We will allocate new block before last allocated block
@@ -259,8 +263,8 @@ repeat:
 	else /* (lastblock > block) */ {
 		if (lastblock && (tmp = fs32_to_cpu(sb, ufsi->i_u1.i_data[lastblock-1])))
 			goal = tmp + uspi->s_fpb;
-		tmp = ufs_new_fragments (inode, p, fragment - blockoff, 
-			goal, uspi->s_fpb, err);
+		tmp = ufs_new_fragments(inode, p, fragment - blockoff,
+					goal, uspi->s_fpb, err, locked_page);
 	}
 	if (!tmp) {
 		if ((!blockoff && *p) || 
@@ -303,9 +307,10 @@ repeat2:
      */
 }
 
-static struct buffer_head * ufs_block_getfrag (struct inode *inode,
-	struct buffer_head *bh, unsigned int fragment, unsigned int new_fragment, 
-	unsigned int blocksize, int * err, int metadata, long *phys, int *new)
+static struct buffer_head *ufs_block_getfrag(struct inode *inode, struct buffer_head *bh,
+					     unsigned int fragment, unsigned int new_fragment,
+					     unsigned int blocksize, int * err, int metadata,
+					     long *phys, int *new, struct page *locked_page)
 {
 	struct super_block * sb;
 	struct ufs_sb_private_info * uspi;
@@ -350,7 +355,8 @@ repeat:
 		goal = tmp + uspi->s_fpb;
 	else
 		goal = bh->b_blocknr + uspi->s_fpb;
-	tmp = ufs_new_fragments (inode, p, ufs_blknum(new_fragment), goal, uspi->s_fpb, err);
+	tmp = ufs_new_fragments(inode, p, ufs_blknum(new_fragment), goal,
+				uspi->s_fpb, err, locked_page);
 	if (!tmp) {
 		if (fs32_to_cpu(sb, *p))
 			goto repeat;
@@ -424,15 +430,15 @@ int ufs_getfrag_block (struct inode *inode, sector_t fragment, struct buffer_hea
 	 * it much more readable:
 	 */
 #define GET_INODE_DATABLOCK(x) \
-		ufs_inode_getfrag(inode, x, fragment, 1, &err, 0, &phys, &new)
+	ufs_inode_getfrag(inode, x, fragment, 1, &err, 0, &phys, &new, bh_result->b_page)
 #define GET_INODE_PTR(x) \
-		ufs_inode_getfrag(inode, x, fragment, uspi->s_fpb, &err, 1, NULL, NULL)
+	ufs_inode_getfrag(inode, x, fragment, uspi->s_fpb, &err, 1, NULL, NULL, bh_result->b_page)
 #define GET_INDIRECT_DATABLOCK(x) \
-		ufs_block_getfrag(inode, bh, x, fragment, sb->s_blocksize, \
-				  &err, 0, &phys, &new);
+	ufs_block_getfrag(inode, bh, x, fragment, sb->s_blocksize,	\
+			  &err, 0, &phys, &new, bh_result->b_page);
 #define GET_INDIRECT_PTR(x) \
-		ufs_block_getfrag(inode, bh, x, fragment, sb->s_blocksize, \
-				  &err, 1, NULL, NULL);
+	ufs_block_getfrag(inode, bh, x, fragment, sb->s_blocksize,	\
+			  &err, 1, NULL, NULL, bh_result->b_page);
 
 	if (ptr < UFS_NDIR_FRAGMENT) {
 		bh = GET_INODE_DATABLOCK(ptr);

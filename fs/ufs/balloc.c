@@ -39,7 +39,8 @@ static void ufs_clusteracct(struct super_block *, struct ufs_cg_private_info *, 
 /*
  * Free 'count' fragments from fragment number 'fragment'
  */
-void ufs_free_fragments (struct inode * inode, unsigned fragment, unsigned count) {
+void ufs_free_fragments(struct inode *inode, unsigned fragment, unsigned count)
+{
 	struct super_block * sb;
 	struct ufs_sb_private_info * uspi;
 	struct ufs_super_block_first * usb1;
@@ -134,7 +135,8 @@ failed:
 /*
  * Free 'count' fragments from fragment number 'fragment' (free whole blocks)
  */
-void ufs_free_blocks (struct inode * inode, unsigned fragment, unsigned count) {
+void ufs_free_blocks(struct inode *inode, unsigned fragment, unsigned count)
+{
 	struct super_block * sb;
 	struct ufs_sb_private_info * uspi;
 	struct ufs_super_block_first * usb1;
@@ -222,15 +224,118 @@ failed:
 	return;
 }
 
+static struct page *ufs_get_locked_page(struct address_space *mapping,
+				  unsigned long index)
+{
+	struct page *page;
 
-unsigned ufs_new_fragments (struct inode * inode, __fs32 * p, unsigned fragment,
-	unsigned goal, unsigned count, int * err )
+try_again:
+	page = find_lock_page(mapping, index);
+	if (!page) {
+		page = read_cache_page(mapping, index,
+				       (filler_t*)mapping->a_ops->readpage,
+				       NULL);
+		if (IS_ERR(page)) {
+			printk(KERN_ERR "ufs_change_blocknr: "
+			       "read_cache_page error: ino %lu, index: %lu\n",
+			       mapping->host->i_ino, index);
+			goto out;
+		}
+
+		lock_page(page);
+
+		if (!PageUptodate(page) || PageError(page)) {
+			unlock_page(page);
+			page_cache_release(page);
+
+			printk(KERN_ERR "ufs_change_blocknr: "
+			       "can not read page: ino %lu, index: %lu\n",
+			       mapping->host->i_ino, index);
+
+			page = ERR_PTR(-EIO);
+			goto out;
+		}
+	}
+
+	if (unlikely(!page->mapping || !page_has_buffers(page))) {
+		unlock_page(page);
+		page_cache_release(page);
+		goto try_again;/*we really need these buffers*/
+	}
+out:
+	return page;
+}
+
+/*
+ * Modify inode page cache in such way:
+ * have - blocks with b_blocknr equal to oldb...oldb+count-1
+ * get - blocks with b_blocknr equal to newb...newb+count-1
+ * also we suppose that oldb...oldb+count-1 blocks
+ * situated at the end of file.
+ *
+ * We can come here from ufs_writepage or ufs_prepare_write,
+ * locked_page is argument of these functions, so we already lock it.
+ */
+static void ufs_change_blocknr(struct inode *inode, unsigned int count,
+			       unsigned int oldb, unsigned int newb,
+			       struct page *locked_page)
+{
+	unsigned int blk_per_page = 1 << (PAGE_CACHE_SHIFT - inode->i_blkbits);
+	sector_t baseblk;
+	struct address_space *mapping = inode->i_mapping;
+	pgoff_t index, cur_index = locked_page->index;
+	unsigned int i, j;
+	struct page *page;
+	struct buffer_head *head, *bh;
+
+	baseblk = ((i_size_read(inode) - 1) >> inode->i_blkbits) + 1 - count;
+
+	UFSD(("ENTER, ino %lu, count %u, oldb %u, newb %u\n",
+	      inode->i_ino, count, oldb, newb));
+
+	BUG_ON(!PageLocked(locked_page));
+
+	for (i = 0; i < count; i += blk_per_page) {
+		index = (baseblk+i) >> (PAGE_CACHE_SHIFT - inode->i_blkbits);
+
+		if (likely(cur_index != index)) {
+			page = ufs_get_locked_page(mapping, index);
+			if (IS_ERR(page))
+				continue;
+		} else
+			page = locked_page;
+
+		j = i;
+		head = page_buffers(page);
+		bh = head;
+		do {
+			if (likely(bh->b_blocknr == j + oldb && j < count)) {
+				unmap_underlying_metadata(bh->b_bdev,
+							  bh->b_blocknr);
+				bh->b_blocknr = newb + j++;
+				mark_buffer_dirty(bh);
+			}
+
+			bh = bh->b_this_page;
+		} while (bh != head);
+
+		set_page_dirty(page);
+
+		if (likely(cur_index != index)) {
+			unlock_page(page);
+			page_cache_release(page);
+		}
+ 	}
+	UFSD(("EXIT\n"));
+}
+
+unsigned ufs_new_fragments(struct inode * inode, __fs32 * p, unsigned fragment,
+			   unsigned goal, unsigned count, int * err, struct page *locked_page)
 {
 	struct super_block * sb;
 	struct ufs_sb_private_info * uspi;
 	struct ufs_super_block_first * usb1;
-	struct buffer_head * bh;
-	unsigned cgno, oldcount, newcount, tmp, request, i, result;
+	unsigned cgno, oldcount, newcount, tmp, request, result;
 	
 	UFSD(("ENTER, ino %lu, fragment %u, goal %u, count %u\n", inode->i_ino, fragment, goal, count))
 	
@@ -343,24 +448,8 @@ unsigned ufs_new_fragments (struct inode * inode, __fs32 * p, unsigned fragment,
 	}
 	result = ufs_alloc_fragments (inode, cgno, goal, request, err);
 	if (result) {
-		for (i = 0; i < oldcount; i++) {
-			bh = sb_bread(sb, tmp + i);
-			if(bh)
-			{
-				clear_buffer_dirty(bh);
-				bh->b_blocknr = result + i;
-				mark_buffer_dirty (bh);
-				if (IS_SYNC(inode))
-					sync_dirty_buffer(bh);
-				brelse (bh);
-			}
-			else
-			{
-				printk(KERN_ERR "ufs_new_fragments: bread fail\n");
-				unlock_super(sb);
-				return 0;
-			}
-		}
+		ufs_change_blocknr(inode, oldcount, tmp, result, locked_page);
+
 		*p = cpu_to_fs32(sb, result);
 		*err = 0;
 		inode->i_blocks += count << uspi->s_nspfshift;
