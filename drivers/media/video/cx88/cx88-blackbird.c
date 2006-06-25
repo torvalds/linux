@@ -853,6 +853,14 @@ static int mpeg_do_ioctl(struct inode *inode, struct file *file,
 			       fh->mpegq.field);
 		return 0;
 	}
+	case VIDIOC_LOG_STATUS:
+		printk("%s/2: ============  START LOG STATUS  ============\n",
+		       core->name);
+		cx88_call_i2c_clients(core, VIDIOC_LOG_STATUS, 0);
+		cx2341x_log_status(&dev->params, dev->mpeg_dev->minor);
+		printk("%s/2: =============  END LOG STATUS  =============\n",
+		       core->name);
+		return 0;
 
 	default:
 		return cx88_do_ioctl(inode, file, 0, dev->core, cmd, arg, mpeg_do_ioctl);
