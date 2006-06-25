@@ -189,6 +189,7 @@ static ssize_t show_enum(int id,struct class_device *class_dev,char *buf)
 	bcnt = 0;
 	for (val = 0; val < ecnt; val++) {
 		pvr2_ctrl_get_valname(cptr,val,buf+bcnt,PAGE_SIZE-bcnt,&ccnt);
+		if (!ccnt) continue;
 		bcnt += ccnt;
 		if (bcnt >= PAGE_SIZE) break;
 		buf[bcnt] = '\n';
