@@ -4,6 +4,7 @@
 #include <linux/cpu.h>
 #include <linux/err.h>
 #include <linux/syscalls.h>
+#include <linux/kthread.h>
 #include <asm/atomic.h>
 #include <asm/semaphore.h>
 #include <asm/uaccess.h>
@@ -25,12 +26,10 @@ static unsigned int stopmachine_num_threads;
 static atomic_t stopmachine_thread_ack;
 static DECLARE_MUTEX(stopmachine_mutex);
 
-static int stopmachine(void *cpu)
+static int stopmachine(void *unused)
 {
 	int irqs_disabled = 0;
 	int prepared = 0;
-
-	set_cpus_allowed(current, cpumask_of_cpu((int)(long)cpu));
 
 	/* Ack: we are alive */
 	smp_mb(); /* Theoretically the ack = 0 might not be on this CPU yet. */
@@ -85,7 +84,8 @@ static void stopmachine_set_state(enum stopmachine_state state)
 
 static int stop_machine(void)
 {
-	int i, ret = 0;
+	int ret = 0;
+	unsigned int i;
 	struct sched_param param = { .sched_priority = MAX_RT_PRIO-1 };
 
 	/* One high-prio thread per cpu.  We'll do this one. */
@@ -96,11 +96,16 @@ static int stop_machine(void)
 	stopmachine_state = STOPMACHINE_WAIT;
 
 	for_each_online_cpu(i) {
+		struct task_struct *tsk;
 		if (i == raw_smp_processor_id())
 			continue;
-		ret = kernel_thread(stopmachine, (void *)(long)i,CLONE_KERNEL);
-		if (ret < 0)
+		tsk = kthread_create(stopmachine, NULL, "stopmachine");
+		if (IS_ERR(tsk)) {
+			ret = PTR_ERR(tsk);
 			break;
+		}
+		kthread_bind(tsk, i);
+		wake_up_process(tsk);
 		stopmachine_num_threads++;
 	}
 
