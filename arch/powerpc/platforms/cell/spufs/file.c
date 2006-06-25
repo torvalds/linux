@@ -1150,7 +1150,7 @@ static unsigned int spufs_mfc_poll(struct file *file,poll_table *wait)
 	return mask;
 }
 
-static int spufs_mfc_flush(struct file *file)
+static int spufs_mfc_flush(struct file *file, fl_owner_t id)
 {
 	struct spu_context *ctx = file->private_data;
 	int ret;
@@ -1176,7 +1176,7 @@ out:
 static int spufs_mfc_fsync(struct file *file, struct dentry *dentry,
 			   int datasync)
 {
-	return spufs_mfc_flush(file);
+	return spufs_mfc_flush(file, NULL);
 }
 
 static int spufs_mfc_fasync(int fd, struct file *file, int on)
