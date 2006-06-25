@@ -746,9 +746,9 @@ out_fds:
 asmlinkage long sys_poll(struct pollfd __user *ufds, unsigned int nfds,
 			long timeout_msecs)
 {
-	s64 timeout_jiffies = 0;
+	s64 timeout_jiffies;
 
-	if (timeout_msecs) {
+	if (timeout_msecs > 0) {
 #if HZ > 1000
 		/* We can only overflow if HZ > 1000 */
 		if (timeout_msecs / 1000 > (s64)0x7fffffffffffffffULL / (s64)HZ)
@@ -756,6 +756,9 @@ asmlinkage long sys_poll(struct pollfd __user *ufds, unsigned int nfds,
 		else
 #endif
 			timeout_jiffies = msecs_to_jiffies(timeout_msecs);
+	} else {
+		/* Infinite (< 0) or no (0) timeout */
+		timeout_jiffies = timeout_msecs;
 	}
 
 	return do_sys_poll(ufds, nfds, &timeout_jiffies);
