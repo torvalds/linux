@@ -1284,7 +1284,7 @@ static ide_startstop_t idefloppy_do_request (ide_drive_t *drive, struct request 
 
 	debug_log(KERN_INFO "rq_status: %d, dev: %s, flags: %lx, errors: %d\n",
 			rq->rq_status,
-			rq->rq_disk ? rq->rq_disk->disk_name ? "?",
+			rq->rq_disk ? rq->rq_disk->disk_name : "?",
 			rq->flags, rq->errors);
 	debug_log(KERN_INFO "sector: %ld, nr_sectors: %ld, "
 			"current_nr_sectors: %d\n", (long)rq->sector,
