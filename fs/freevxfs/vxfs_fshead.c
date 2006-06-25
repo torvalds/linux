@@ -112,7 +112,7 @@ vxfs_read_fshead(struct super_block *sbp)
 
 	vip = vxfs_blkiget(sbp, infp->vsi_iext, infp->vsi_fshino);
 	if (!vip) {
-		printk(KERN_ERR "vxfs: unabled to read fsh inode\n");
+		printk(KERN_ERR "vxfs: unable to read fsh inode\n");
 		return -EINVAL;
 	}
 	if (!VXFS_ISFSH(vip)) {
@@ -129,13 +129,13 @@ vxfs_read_fshead(struct super_block *sbp)
 
 	infp->vsi_fship = vxfs_get_fake_inode(sbp, vip);
 	if (!infp->vsi_fship) {
-		printk(KERN_ERR "vxfs: unabled to get fsh inode\n");
+		printk(KERN_ERR "vxfs: unable to get fsh inode\n");
 		goto out_free_fship;
 	}
 
 	sfp = vxfs_getfsh(infp->vsi_fship, 0);
 	if (!sfp) {
-		printk(KERN_ERR "vxfs: unabled to get structural fsh\n");
+		printk(KERN_ERR "vxfs: unable to get structural fsh\n");
 		goto out_iput_fship;
 	} 
 
@@ -145,7 +145,7 @@ vxfs_read_fshead(struct super_block *sbp)
 
 	pfp = vxfs_getfsh(infp->vsi_fship, 1);
 	if (!pfp) {
-		printk(KERN_ERR "vxfs: unabled to get primary fsh\n");
+		printk(KERN_ERR "vxfs: unable to get primary fsh\n");
 		goto out_free_sfp;
 	}
 
@@ -159,7 +159,7 @@ vxfs_read_fshead(struct super_block *sbp)
 
 	infp->vsi_stilist = vxfs_get_fake_inode(sbp, tip);
 	if (!infp->vsi_stilist) {
-		printk(KERN_ERR "vxfs: unabled to get structual list inode\n");
+		printk(KERN_ERR "vxfs: unable to get structural list inode\n");
 		kfree(tip);
 		goto out_free_pfp;
 	}
@@ -174,7 +174,7 @@ vxfs_read_fshead(struct super_block *sbp)
 		goto out_iput_stilist;
 	infp->vsi_ilist = vxfs_get_fake_inode(sbp, tip);
 	if (!infp->vsi_ilist) {
-		printk(KERN_ERR "vxfs: unabled to get inode list inode\n");
+		printk(KERN_ERR "vxfs: unable to get inode list inode\n");
 		kfree(tip);
 		goto out_iput_stilist;
 	}
