@@ -89,7 +89,7 @@ void __init cbe_regs_init(void)
 	struct device_node *cpu;
 
 	/* Build local fast map of CPUs */
-	for_each_cpu(i)
+	for_each_possible_cpu(i)
 		cbe_thread_map[i].cpu_node = of_get_cpu_node(i, NULL);
 
 	/* Find maps for each device tree CPU */
@@ -110,7 +110,7 @@ void __init cbe_regs_init(void)
 			return;
 		}
 		map->cpu_node = cpu;
-		for_each_cpu(i)
+		for_each_possible_cpu(i)
 			if (cbe_thread_map[i].cpu_node == cpu)
 				cbe_thread_map[i].regs = map;
 
