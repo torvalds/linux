@@ -314,7 +314,7 @@ __ALIGN_STR "\n\t"
 	"rte");
 
 /* Defined in entry.S; only increments 'num_spurious' */
-asmlinkage void bad_interrupt(void);
+asmlinkage void bad_inthandler(void);
 
 extern void atari_microwire_cmd( int cmd );
 
@@ -337,7 +337,7 @@ void __init atari_init_IRQ(void)
 
 	/* initialize the vector table */
 	for (i = 0; i < NUM_INT_SOURCES; ++i) {
-		vectors[IRQ_SOURCE_TO_VECTOR(i)] = bad_interrupt;
+		vectors[IRQ_SOURCE_TO_VECTOR(i)] = bad_inthandler;
 	}
 
 	/* Initialize the MFP(s) */
@@ -461,7 +461,7 @@ int atari_request_irq(unsigned int irq, irqreturn_t (*handler)(int, void *, stru
 		return -EINVAL;
 	}
 
-	if (vectors[vector] == bad_interrupt) {
+	if (vectors[vector] == bad_inthandler) {
 		/* int has no handler yet */
 		irq_handler[irq].handler = handler;
 		irq_handler[irq].dev_id  = dev_id;
@@ -528,7 +528,7 @@ void atari_free_irq(unsigned int irq, void *dev_id)
 	}
 
 	vector = IRQ_SOURCE_TO_VECTOR(irq);
-	if (vectors[vector] == bad_interrupt)
+	if (vectors[vector] == bad_inthandler)
 		goto not_found;
 
 	local_irq_save(flags);
@@ -542,7 +542,7 @@ void atari_free_irq(unsigned int irq, void *dev_id)
 		irq_handler[irq].handler = NULL;
 		irq_handler[irq].dev_id  = NULL;
 		irq_param[irq].devname   = NULL;
-		vectors[vector] = bad_interrupt;
+		vectors[vector] = bad_inthandler;
 		/* If MFP int, also disable it */
 		atari_disable_irq(irq);
 		atari_turnoff_irq(irq);
@@ -617,7 +617,7 @@ int show_atari_interrupts(struct seq_file *p, void *v)
 	int i;
 
 	for (i = 0; i < NUM_INT_SOURCES; ++i) {
-		if (vectors[IRQ_SOURCE_TO_VECTOR(i)] == bad_interrupt)
+		if (vectors[IRQ_SOURCE_TO_VECTOR(i)] == bad_inthandler)
 			continue;
 		if (i < STMFP_SOURCE_BASE)
 			seq_printf(p, "auto %2d: %10u ",

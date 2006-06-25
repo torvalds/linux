@@ -13,7 +13,14 @@
 
 #ifndef __ASSEMBLY__
 
+#include <linux/linkage.h>
+#include <asm/ptrace.h>
+
 typedef void (*e_vector)(void);
+
+asmlinkage void auto_inthandler(void);
+asmlinkage void mach_inthandler(void);
+asmlinkage void bad_inthandler(void);
 
 extern e_vector vectors[];
 

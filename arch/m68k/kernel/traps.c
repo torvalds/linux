@@ -45,7 +45,6 @@
 asmlinkage void system_call(void);
 asmlinkage void buserr(void);
 asmlinkage void trap(void);
-asmlinkage void inthandler(void);
 asmlinkage void nmihandler(void);
 #ifdef CONFIG_M68KFPU_EMU
 asmlinkage void fpu_emu(void);
@@ -53,51 +52,7 @@ asmlinkage void fpu_emu(void);
 
 e_vector vectors[256] = {
 	[VEC_BUSERR]	= buserr,
-	[VEC_ADDRERR]	= trap,
-	[VEC_ILLEGAL]	= trap,
-	[VEC_ZERODIV]	= trap,
-	[VEC_CHK]	= trap,
-	[VEC_TRAP]	= trap,
-	[VEC_PRIV]	= trap,
-	[VEC_TRACE]	= trap,
-	[VEC_LINE10]	= trap,
-	[VEC_LINE11]	= trap,
-	[VEC_RESV12]	= trap,
-	[VEC_COPROC]	= trap,
-	[VEC_FORMAT]	= trap,
-	[VEC_UNINT]	= trap,
-	[VEC_RESV16]	= trap,
-	[VEC_RESV17]	= trap,
-	[VEC_RESV18]	= trap,
-	[VEC_RESV19]	= trap,
-	[VEC_RESV20]	= trap,
-	[VEC_RESV21]	= trap,
-	[VEC_RESV22]	= trap,
-	[VEC_RESV23]	= trap,
-	[VEC_SPUR]	= inthandler,
-	[VEC_INT1]	= inthandler,
-	[VEC_INT2]	= inthandler,
-	[VEC_INT3]	= inthandler,
-	[VEC_INT4]	= inthandler,
-	[VEC_INT5]	= inthandler,
-	[VEC_INT6]	= inthandler,
-	[VEC_INT7]	= inthandler,
 	[VEC_SYS]	= system_call,
-	[VEC_TRAP1]	= trap,
-	[VEC_TRAP2]	= trap,
-	[VEC_TRAP3]	= trap,
-	[VEC_TRAP4]	= trap,
-	[VEC_TRAP5]	= trap,
-	[VEC_TRAP6]	= trap,
-	[VEC_TRAP7]	= trap,
-	[VEC_TRAP8]	= trap,
-	[VEC_TRAP9]	= trap,
-	[VEC_TRAP10]	= trap,
-	[VEC_TRAP11]	= trap,
-	[VEC_TRAP12]	= trap,
-	[VEC_TRAP13]	= trap,
-	[VEC_TRAP14]	= trap,
-	[VEC_TRAP15]	= trap,
 };
 
 /* nmi handler for the Amiga */
@@ -132,12 +87,16 @@ void __init trap_init (void)
 {
 	int i;
 
-	for (i = 48; i < 64; i++)
+	vectors[VEC_SPUR] = bad_inthandler;
+	for (i = VEC_INT1; i <= VEC_INT7; i++)
+		vectors[i] = auto_inthandler;
+
+	for (i = 0; i < VEC_USER; i++)
 		if (!vectors[i])
 			vectors[i] = trap;
 
-	for (i = 64; i < 256; i++)
-		vectors[i] = inthandler;
+	for (i = VEC_USER; i < 256; i++)
+		vectors[i] = mach_inthandler;
 
 #ifdef CONFIG_M68KFPU_EMU
 	if (FPU_IS_EMU)
