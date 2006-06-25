@@ -1098,12 +1098,13 @@ void pvr2_hdw_subsys_bit_chg_no_lock(struct pvr2_hdw *hdw,
 	if (!hdw->flag_ok) return;
 
 	msk &= PVR2_SUBSYS_ALL;
+	nmsk = (hdw->subsys_enabled_mask & ~msk) | (val & msk);
+	nmsk &= PVR2_SUBSYS_ALL;
 
 	for (;;) {
 		tryCount++;
-		vmsk = hdw->subsys_enabled_mask & PVR2_SUBSYS_ALL;
-		nmsk = (vmsk & ~msk) | (val & msk);
-		if (!(nmsk ^ vmsk)) break;
+		if (!((nmsk ^ hdw->subsys_enabled_mask) &
+		      PVR2_SUBSYS_ALL)) break;
 		if (tryCount > 4) {
 			pvr2_trace(PVR2_TRACE_ERROR_LEGS,
 				   "Too many retries when configuring device;"
