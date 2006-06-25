@@ -1221,6 +1221,7 @@ static void cciss_softirq_done(struct request *rq)
 	printk("Done with %p\n", rq);
 #endif /* CCISS_DEBUG */
 
+	add_disk_randomness(rq->rq_disk);
 	spin_lock_irqsave(&h->lock, flags);
 	end_that_request_last(rq, rq->errors);
 	cmd_free(h, cmd,1);
@@ -3152,8 +3153,7 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
 	/* make sure the board interrupts are off */
 	hba[i]->access.set_intr_mask(hba[i], CCISS_INTR_OFF);
 	if( request_irq(hba[i]->intr[SIMPLE_MODE_INT], do_cciss_intr,
-		SA_INTERRUPT | SA_SHIRQ | SA_SAMPLE_RANDOM, 
-			hba[i]->devname, hba[i])) {
+		SA_INTERRUPT | SA_SHIRQ, hba[i]->devname, hba[i])) {
 		printk(KERN_ERR "cciss: Unable to get irq %d for %s\n",
 			hba[i]->intr[SIMPLE_MODE_INT], hba[i]->devname);
 		goto clean2;
