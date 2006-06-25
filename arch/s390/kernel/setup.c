@@ -47,6 +47,7 @@
 #include <asm/irq.h>
 #include <asm/page.h>
 #include <asm/ptrace.h>
+#include <asm/sections.h>
 
 /*
  * Machine setup..
@@ -66,11 +67,6 @@ unsigned long __initdata zholes_size[MAX_NR_ZONES];
 static unsigned long __initdata memory_end;
 
 /*
- * Setup options
- */
-extern int _text,_etext, _edata, _end;
-
-/*
  * This is set up by the setup-routine at boot-time
  * for S390 need to find out, what we have to setup
  * using address 0x10400 ...
@@ -80,15 +76,11 @@ extern int _text,_etext, _edata, _end;
 
 static struct resource code_resource = {
 	.name  = "Kernel code",
-	.start = (unsigned long) &_text,
-	.end = (unsigned long) &_etext - 1,
 	.flags = IORESOURCE_BUSY | IORESOURCE_MEM,
 };
 
 static struct resource data_resource = {
 	.name = "Kernel data",
-	.start = (unsigned long) &_etext,
-	.end = (unsigned long) &_edata - 1,
 	.flags = IORESOURCE_BUSY | IORESOURCE_MEM,
 };
 
@@ -421,6 +413,11 @@ setup_resources(void)
 {
 	struct resource *res;
 	int i;
+
+	code_resource.start = (unsigned long) &_text;
+	code_resource.end = (unsigned long) &_etext - 1;
+	data_resource.start = (unsigned long) &_etext;
+	data_resource.end = (unsigned long) &_edata - 1;
 
 	for (i = 0; i < MEMORY_CHUNKS && memory_chunk[i].size > 0; i++) {
 		res = alloc_bootmem_low(sizeof(struct resource));
