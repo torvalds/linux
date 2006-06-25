@@ -139,18 +139,6 @@ void ubh_wait_on_buffer (struct ufs_buffer_head * ubh)
 		wait_on_buffer (ubh->bh[i]);
 }
 
-unsigned ubh_max_bcount (struct ufs_buffer_head * ubh)
-{
-	unsigned i;
-	unsigned max = 0;
-	if (!ubh)
-		return 0;
-	for ( i = 0; i < ubh->count; i++ ) 
-		if ( atomic_read(&ubh->bh[i]->b_count) > max )
-			max = atomic_read(&ubh->bh[i]->b_count);
-	return max;
-}
-
 void ubh_bforget (struct ufs_buffer_head * ubh)
 {
 	unsigned i;

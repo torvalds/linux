@@ -238,7 +238,6 @@ extern void ubh_mark_buffer_dirty (struct ufs_buffer_head *);
 extern void ubh_mark_buffer_uptodate (struct ufs_buffer_head *, int);
 extern void ubh_ll_rw_block (int, unsigned, struct ufs_buffer_head **);
 extern void ubh_wait_on_buffer (struct ufs_buffer_head *);
-extern unsigned ubh_max_bcount (struct ufs_buffer_head *);
 extern void ubh_bforget (struct ufs_buffer_head *);
 extern int  ubh_buffer_dirty (struct ufs_buffer_head *);
 #define ubh_ubhcpymem(mem,ubh,size) _ubh_ubhcpymem_(uspi,mem,ubh,size)

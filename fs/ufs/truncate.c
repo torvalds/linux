@@ -238,18 +238,13 @@ static int ufs_trunc_indirect (struct inode * inode, unsigned offset, __fs32 *p)
 		if (*ubh_get_addr32(ind_ubh,i))
 			break;
 	if (i >= uspi->s_apb) {
-		if (ubh_max_bcount(ind_ubh) != 1) {
-			retry = 1;
-		}
-		else {
-			tmp = fs32_to_cpu(sb, *p);
-			*p = 0;
-			inode->i_blocks -= uspi->s_nspb;
-			mark_inode_dirty(inode);
-			ufs_free_blocks (inode, tmp, uspi->s_fpb);
-			ubh_bforget(ind_ubh);
-			ind_ubh = NULL;
-		}
+		tmp = fs32_to_cpu(sb, *p);
+		*p = 0;
+		inode->i_blocks -= uspi->s_nspb;
+		mark_inode_dirty(inode);
+		ufs_free_blocks (inode, tmp, uspi->s_fpb);
+		ubh_bforget(ind_ubh);
+		ind_ubh = NULL;
 	}
 	if (IS_SYNC(inode) && ind_ubh && ubh_buffer_dirty(ind_ubh)) {
 		ubh_ll_rw_block (SWRITE, 1, &ind_ubh);
@@ -306,17 +301,13 @@ static int ufs_trunc_dindirect (struct inode *inode, unsigned offset, __fs32 *p)
 		if (*ubh_get_addr32 (dind_bh, i))
 			break;
 	if (i >= uspi->s_apb) {
-		if (ubh_max_bcount(dind_bh) != 1)
-			retry = 1;
-		else {
-			tmp = fs32_to_cpu(sb, *p);
-			*p = 0;
-			inode->i_blocks -= uspi->s_nspb;
-			mark_inode_dirty(inode);
-			ufs_free_blocks (inode, tmp, uspi->s_fpb);
-			ubh_bforget(dind_bh);
-			dind_bh = NULL;
-		}
+		tmp = fs32_to_cpu(sb, *p);
+		*p = 0;
+		inode->i_blocks -= uspi->s_nspb;
+		mark_inode_dirty(inode);
+		ufs_free_blocks (inode, tmp, uspi->s_fpb);
+		ubh_bforget(dind_bh);
+		dind_bh = NULL;
 	}
 	if (IS_SYNC(inode) && dind_bh && ubh_buffer_dirty(dind_bh)) {
 		ubh_ll_rw_block (SWRITE, 1, &dind_bh);
@@ -370,17 +361,13 @@ static int ufs_trunc_tindirect (struct inode * inode)
 		if (*ubh_get_addr32 (tind_bh, i))
 			break;
 	if (i >= uspi->s_apb) {
-		if (ubh_max_bcount(tind_bh) != 1)
-			retry = 1;
-		else {
-			tmp = fs32_to_cpu(sb, *p);
-			*p = 0;
-			inode->i_blocks -= uspi->s_nspb;
-			mark_inode_dirty(inode);
-			ufs_free_blocks (inode, tmp, uspi->s_fpb);
-			ubh_bforget(tind_bh);
-			tind_bh = NULL;
-		}
+		tmp = fs32_to_cpu(sb, *p);
+		*p = 0;
+		inode->i_blocks -= uspi->s_nspb;
+		mark_inode_dirty(inode);
+		ufs_free_blocks (inode, tmp, uspi->s_fpb);
+		ubh_bforget(tind_bh);
+		tind_bh = NULL;
 	}
 	if (IS_SYNC(inode) && tind_bh && ubh_buffer_dirty(tind_bh)) {
 		ubh_ll_rw_block (SWRITE, 1, &tind_bh);
