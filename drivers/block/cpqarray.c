@@ -392,7 +392,7 @@ static void __devexit cpqarray_remove_one_eisa (int i)
 }
 
 /* pdev is NULL for eisa */
-static int cpqarray_register_ctlr( int i, struct pci_dev *pdev)
+static int __init cpqarray_register_ctlr( int i, struct pci_dev *pdev)
 {
 	request_queue_t *q;
 	int j;
@@ -744,7 +744,7 @@ __setup("smart2=", cpqarray_setup);
 /*
  * Find an EISA controller's signature.  Set up an hba if we find it.
  */
-static int cpqarray_eisa_detect(void)
+static int __init cpqarray_eisa_detect(void)
 {
 	int i=0, j;
 	__u32 board_id;
