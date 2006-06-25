@@ -213,7 +213,8 @@ rdcodec(struct ac97_codec *codec, u8 addr)
 	}
 	if (i == POLL_COUNT) {
 		err("rdcodec: read poll expired!");
-		return 0;
+		data = 0;
+		goto out;
 	}
 
 	/* wait for command done?
@@ -226,7 +227,8 @@ rdcodec(struct ac97_codec *codec, u8 addr)
 	}
 	if (i == POLL_COUNT) {
 		err("rdcodec: read cmdwait expired!");
-		return 0;
+		data = 0;
+		goto out;
 	}
 
 	data = au_readl(PSC_AC97CDC) & 0xffff;
@@ -237,6 +239,7 @@ rdcodec(struct ac97_codec *codec, u8 addr)
 	au_writel(PSC_AC97EVNT_CD, PSC_AC97EVNT);
 	au_sync();
 
+ out:
 	spin_unlock_irqrestore(&s->lock, flags);
 
 	return data;
