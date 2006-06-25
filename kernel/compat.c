@@ -730,17 +730,10 @@ void
 sigset_from_compat (sigset_t *set, compat_sigset_t *compat)
 {
 	switch (_NSIG_WORDS) {
-#if defined (__COMPAT_ENDIAN_SWAP__)
-	case 4: set->sig[3] = compat->sig[7] | (((long)compat->sig[6]) << 32 );
-	case 3: set->sig[2] = compat->sig[5] | (((long)compat->sig[4]) << 32 );
-	case 2: set->sig[1] = compat->sig[3] | (((long)compat->sig[2]) << 32 );
-	case 1: set->sig[0] = compat->sig[1] | (((long)compat->sig[0]) << 32 );
-#else
 	case 4: set->sig[3] = compat->sig[6] | (((long)compat->sig[7]) << 32 );
 	case 3: set->sig[2] = compat->sig[4] | (((long)compat->sig[5]) << 32 );
 	case 2: set->sig[1] = compat->sig[2] | (((long)compat->sig[3]) << 32 );
 	case 1: set->sig[0] = compat->sig[0] | (((long)compat->sig[1]) << 32 );
-#endif
 	}
 }
 
