@@ -144,7 +144,6 @@ static int data_index;
 static int data_len;
 static volatile int adb_int_pending;
 static volatile int disable_poll;
-static struct adb_request bright_req_1, bright_req_2;
 static struct device_node *vias;
 static int pmu_kind = PMU_UNKNOWN;
 static int pmu_fully_inited = 0;
@@ -161,7 +160,7 @@ static int drop_interrupts;
 #if defined(CONFIG_PM) && defined(CONFIG_PPC32)
 static int option_lid_wakeup = 1;
 #endif /* CONFIG_PM && CONFIG_PPC32 */
-#if (defined(CONFIG_PM)&&defined(CONFIG_PPC32))||defined(CONFIG_PMAC_BACKLIGHT)
+#if (defined(CONFIG_PM)&&defined(CONFIG_PPC32))||defined(CONFIG_PMAC_BACKLIGHT_LEGACY)
 static int sleep_in_progress;
 #endif
 static unsigned long async_req_locks;
@@ -208,10 +207,6 @@ static int proc_get_info(char *page, char **start, off_t off,
 			  int count, int *eof, void *data);
 static int proc_get_irqstats(char *page, char **start, off_t off,
 			  int count, int *eof, void *data);
-#ifdef CONFIG_PMAC_BACKLIGHT
-static int pmu_set_backlight_level(int level, void* data);
-static int pmu_set_backlight_enable(int on, int level, void* data);
-#endif /* CONFIG_PMAC_BACKLIGHT */
 static void pmu_pass_intr(unsigned char *data, int len);
 static int proc_get_batt(char *page, char **start, off_t off,
 			int count, int *eof, void *data);
@@ -291,13 +286,6 @@ static char *pbook_type[] = {
 	"1999 PowerBook G3",
 	"Core99"
 };
-
-#ifdef CONFIG_PMAC_BACKLIGHT
-static struct backlight_controller pmu_backlight_controller = {
-	pmu_set_backlight_enable,
-	pmu_set_backlight_level
-};
-#endif /* CONFIG_PMAC_BACKLIGHT */
 
 int __init find_via_pmu(void)
 {
@@ -417,8 +405,6 @@ static int __init via_pmu_start(void)
 	if (vias == NULL)
 		return -ENODEV;
 
-	bright_req_1.complete = 1;
-	bright_req_2.complete = 1;
 	batt_req.complete = 1;
 
 #ifndef CONFIG_PPC_MERGE
@@ -483,9 +469,9 @@ static int __init via_pmu_dev_init(void)
 		return -ENODEV;
 
 #ifdef CONFIG_PMAC_BACKLIGHT
-	/* Enable backlight */
-	register_backlight_controller(&pmu_backlight_controller, NULL, "pmu");
-#endif /* CONFIG_PMAC_BACKLIGHT */
+	/* Initialize backlight */
+	pmu_backlight_init(vias);
+#endif
 
 #ifdef CONFIG_PPC32
   	if (machine_is_compatible("AAPL,3400/2400") ||
@@ -1424,7 +1410,7 @@ next:
 #ifdef CONFIG_INPUT_ADBHID
 			if (!disable_kernel_backlight)
 #endif /* CONFIG_INPUT_ADBHID */
-				set_backlight_level(data[1] >> 4);
+				pmac_backlight_set_legacy_brightness(data[1] >> 4);
 #endif /* CONFIG_PMAC_BACKLIGHT */
 	}
 	/* Tick interrupt */
@@ -1673,61 +1659,6 @@ gpio1_interrupt(int irq, void *arg, struct pt_regs *regs)
 	}
 	return IRQ_NONE;
 }
-
-#ifdef CONFIG_PMAC_BACKLIGHT
-static int backlight_to_bright[] = {
-	0x7f, 0x46, 0x42, 0x3e, 0x3a, 0x36, 0x32, 0x2e,
-	0x2a, 0x26, 0x22, 0x1e, 0x1a, 0x16, 0x12, 0x0e
-};
- 
-static int
-pmu_set_backlight_enable(int on, int level, void* data)
-{
-	struct adb_request req;
-	
-	if (vias == NULL)
-		return -ENODEV;
-
-	if (on) {
-		pmu_request(&req, NULL, 2, PMU_BACKLIGHT_BRIGHT,
-			    backlight_to_bright[level]);
-		pmu_wait_complete(&req);
-	}
-	pmu_request(&req, NULL, 2, PMU_POWER_CTRL,
-		    PMU_POW_BACKLIGHT | (on ? PMU_POW_ON : PMU_POW_OFF));
-       	pmu_wait_complete(&req);
-
-	return 0;
-}
-
-static void
-pmu_bright_complete(struct adb_request *req)
-{
-	if (req == &bright_req_1)
-		clear_bit(1, &async_req_locks);
-	if (req == &bright_req_2)
-		clear_bit(2, &async_req_locks);
-}
-
-static int
-pmu_set_backlight_level(int level, void* data)
-{
-	if (vias == NULL)
-		return -ENODEV;
-
-	if (test_and_set_bit(1, &async_req_locks))
-		return -EAGAIN;
-	pmu_request(&bright_req_1, pmu_bright_complete, 2, PMU_BACKLIGHT_BRIGHT,
-		backlight_to_bright[level]);
-	if (test_and_set_bit(2, &async_req_locks))
-		return -EAGAIN;
-	pmu_request(&bright_req_2, pmu_bright_complete, 2, PMU_POWER_CTRL,
-		    PMU_POW_BACKLIGHT | (level > BACKLIGHT_OFF ?
-					 PMU_POW_ON : PMU_POW_OFF));
-
-	return 0;
-}
-#endif /* CONFIG_PMAC_BACKLIGHT */
 
 void
 pmu_enable_irled(int on)
@@ -2145,9 +2076,8 @@ pmac_suspend_devices(void)
 		return -EBUSY;
 	}
 
-	/* Wait for completion of async backlight requests */
-	while (!bright_req_1.complete || !bright_req_2.complete ||
-			!batt_req.complete)
+	/* Wait for completion of async requests */
+	while (!batt_req.complete)
 		pmu_poll();
 
 	/* Giveup the lazy FPU & vec so we don't have to back them
@@ -2678,26 +2608,34 @@ pmu_ioctl(struct inode * inode, struct file *filp,
 			return put_user(1, argp);
 #endif /* CONFIG_PM && CONFIG_PPC32 */
 
-#ifdef CONFIG_PMAC_BACKLIGHT
-	/* Backlight should have its own device or go via
-	 * the fbdev
-	 */
+#ifdef CONFIG_PMAC_BACKLIGHT_LEGACY
+	/* Compatibility ioctl's for backlight */
 	case PMU_IOC_GET_BACKLIGHT:
+	{
+		int brightness;
+
 		if (sleep_in_progress)
 			return -EBUSY;
-		error = get_backlight_level();
-		if (error < 0)
-			return error;
-		return put_user(error, argp);
+
+		brightness = pmac_backlight_get_legacy_brightness();
+		if (brightness < 0)
+			return brightness;
+		else
+			return put_user(brightness, argp);
+
+	}
 	case PMU_IOC_SET_BACKLIGHT:
 	{
-		__u32 value;
+		int brightness;
+
 		if (sleep_in_progress)
 			return -EBUSY;
-		error = get_user(value, argp);
-		if (!error)
-			error = set_backlight_level(value);
-		break;
+
+		error = get_user(brightness, argp);
+		if (error)
+			return error;
+
+		return pmac_backlight_set_legacy_brightness(brightness);
 	}
 #ifdef CONFIG_INPUT_ADBHID
 	case PMU_IOC_GRAB_BACKLIGHT: {
@@ -2713,7 +2651,7 @@ pmu_ioctl(struct inode * inode, struct file *filp,
 		return 0;
 	}
 #endif /* CONFIG_INPUT_ADBHID */
-#endif /* CONFIG_PMAC_BACKLIGHT */
+#endif /* CONFIG_PMAC_BACKLIGHT_LEGACY */
 	case PMU_IOC_GET_MODEL:
 	    	return put_user(pmu_kind, argp);
 	case PMU_IOC_HAS_ADB:

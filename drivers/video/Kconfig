@@ -86,6 +86,11 @@ config FB_FIRMWARE_EDID
 	 combination with certain motherboards and monitors are known to
 	 suffer from this problem.
 
+config FB_BACKLIGHT
+       bool
+       depends on FB
+       default n
+
 config FB_MODE_HELPERS
         bool "Enable Video Mode Handling Helpers"
         depends on FB
@@ -717,6 +722,16 @@ config FB_NVIDIA_I2C
 	  independently validate video mode parameters, you should say Y
 	  here.
 
+config FB_NVIDIA_BACKLIGHT
+	bool "Support for backlight control"
+	depends on FB_NVIDIA && PPC_PMAC
+	select FB_BACKLIGHT
+	select BACKLIGHT_LCD_SUPPORT
+	select BACKLIGHT_CLASS_DEVICE
+	default y
+	help
+	  Say Y here if you want to control the backlight of your display.
+
 config FB_RIVA
 	tristate "nVidia Riva support"
 	depends on FB && PCI
@@ -754,6 +769,16 @@ config FB_RIVA_DEBUG
 	  Say Y here if you want the Riva driver to output all sorts
 	  of debugging informations to provide to the maintainer when
 	  something goes wrong.
+
+config FB_RIVA_BACKLIGHT
+	bool "Support for backlight control"
+	depends on FB_RIVA && PPC_PMAC
+	select FB_BACKLIGHT
+	select BACKLIGHT_LCD_SUPPORT
+	select BACKLIGHT_CLASS_DEVICE
+	default y
+	help
+	  Say Y here if you want to control the backlight of your display.
 
 config FB_I810
 	tristate "Intel 810/815 support (EXPERIMENTAL)"
@@ -993,12 +1018,23 @@ config FB_RADEON
 
 	  There is a product page at
 	  http://apps.ati.com/ATIcompare/
+
 config FB_RADEON_I2C
 	bool "DDC/I2C for ATI Radeon support"
 	depends on FB_RADEON
 	default y
 	help
 	  Say Y here if you want DDC/I2C support for your Radeon board. 
+
+config FB_RADEON_BACKLIGHT
+	bool "Support for backlight control"
+	depends on FB_RADEON && PPC_PMAC
+	select FB_BACKLIGHT
+	select BACKLIGHT_LCD_SUPPORT
+	select BACKLIGHT_CLASS_DEVICE
+	default y
+	help
+	  Say Y here if you want to control the backlight of your display.
 
 config FB_RADEON_DEBUG
 	bool "Lots of debug output from Radeon driver"
@@ -1023,6 +1059,16 @@ config FB_ATY128
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called aty128fb.
+
+config FB_ATY128_BACKLIGHT
+	bool "Support for backlight control"
+	depends on FB_ATY128 && PPC_PMAC
+	select FB_BACKLIGHT
+	select BACKLIGHT_LCD_SUPPORT
+	select BACKLIGHT_CLASS_DEVICE
+	default y
+	help
+	  Say Y here if you want to control the backlight of your display.
 
 config FB_ATY
 	tristate "ATI Mach64 display support" if PCI || ATARI
@@ -1065,6 +1111,16 @@ config FB_ATY_GX
 	  framebuffer device.  The ATI product support page for these boards
 	  is at
 	  <http://support.ati.com/products/pc/mach64/graphics_xpression.html>.
+
+config FB_ATY_BACKLIGHT
+	bool "Support for backlight control"
+	depends on FB_ATY && PPC_PMAC
+	select FB_BACKLIGHT
+	select BACKLIGHT_LCD_SUPPORT
+	select BACKLIGHT_CLASS_DEVICE
+	default y
+	help
+	  Say Y here if you want to control the backlight of your display.
 
 config FB_S3TRIO
 	bool "S3 Trio display support"

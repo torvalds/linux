@@ -1,6 +1,7 @@
 #ifndef _LINUX_FB_H
 #define _LINUX_FB_H
 
+#include <linux/backlight.h>
 #include <asm/types.h>
 
 /* Definitions of frame buffers						*/
@@ -365,6 +366,12 @@ struct fb_cursor {
 	struct fbcurpos hot;	/* cursor hot spot */
 	struct fb_image	image;	/* Cursor image */
 };
+
+#ifdef CONFIG_FB_BACKLIGHT
+/* Settings for the generic backlight code */
+#define FB_BACKLIGHT_LEVELS	128
+#define FB_BACKLIGHT_MAX	0xFF
+#endif
 
 #ifdef __KERNEL__
 
@@ -756,6 +763,21 @@ struct fb_info {
 	struct fb_cmap cmap;		/* Current cmap */
 	struct list_head modelist;      /* mode list */
 	struct fb_videomode *mode;	/* current mode */
+
+#ifdef CONFIG_FB_BACKLIGHT
+	/* Lock ordering:
+	 * bl_mutex (protects bl_dev and bl_curve)
+	 *   bl_dev->sem (backlight class)
+	 */
+	struct mutex bl_mutex;
+
+	/* assigned backlight device */
+	struct backlight_device *bl_dev;
+
+	/* Backlight level curve */
+	u8 bl_curve[FB_BACKLIGHT_LEVELS];
+#endif
+
 	struct fb_ops *fbops;
 	struct device *device;
 	struct class_device *class_device; /* sysfs per device attrs */
@@ -895,6 +917,7 @@ extern struct fb_info *framebuffer_alloc(size_t size, struct device *dev);
 extern void framebuffer_release(struct fb_info *info);
 extern int fb_init_class_device(struct fb_info *fb_info);
 extern void fb_cleanup_class_device(struct fb_info *head);
+extern void fb_bl_default_curve(struct fb_info *fb_info, u8 off, u8 min, u8 max);
 
 /* drivers/video/fbmon.c */
 #define FB_MAXTIMINGS		0

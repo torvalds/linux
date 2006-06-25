@@ -230,4 +230,8 @@ extern int pmu_battery_count;
 extern struct pmu_battery_info pmu_batteries[PMU_MAX_BATTERIES];
 extern unsigned int pmu_power_flags;
 
+/* Backlight */
+extern int disable_kernel_backlight;
+extern void pmu_backlight_init(struct device_node*);
+
 #endif	/* __KERNEL__ */

@@ -22,16 +22,13 @@
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/console.h>
+#include <linux/backlight.h>
 #ifdef CONFIG_MTRR
 #include <asm/mtrr.h>
 #endif
 #ifdef CONFIG_PPC_OF
 #include <asm/prom.h>
 #include <asm/pci-bridge.h>
-#endif
-#ifdef CONFIG_PMAC_BACKLIGHT
-#include <asm/machdep.h>
-#include <asm/backlight.h>
 #endif
 
 #include "nv_local.h"
@@ -469,75 +466,6 @@ static struct fb_var_screeninfo __devinitdata nvidiafb_default_var = {
 	.vsync_len = 2,
 	.vmode = FB_VMODE_NONINTERLACED
 };
-
-/*
- * Backlight control
- */
-#ifdef CONFIG_PMAC_BACKLIGHT
-
-static int nvidia_backlight_levels[] = {
-	0x158,
-	0x192,
-	0x1c6,
-	0x200,
-	0x234,
-	0x268,
-	0x2a2,
-	0x2d6,
-	0x310,
-	0x344,
-	0x378,
-	0x3b2,
-	0x3e6,
-	0x41a,
-	0x454,
-	0x534,
-};
-
-/* ------------------------------------------------------------------------- *
- *
- * Backlight operations
- *
- * ------------------------------------------------------------------------- */
-
-static int nvidia_set_backlight_enable(int on, int level, void *data)
-{
-	struct nvidia_par *par = data;
-	u32 tmp_pcrt, tmp_pmc, fpcontrol;
-
-	tmp_pmc = NV_RD32(par->PMC, 0x10F0) & 0x0000FFFF;
-	tmp_pcrt = NV_RD32(par->PCRTC0, 0x081C) & 0xFFFFFFFC;
-	fpcontrol = NV_RD32(par->PRAMDAC, 0x0848) & 0xCFFFFFCC;
-
-	if (on && (level > BACKLIGHT_OFF)) {
-		tmp_pcrt |= 0x1;
-		tmp_pmc |= (1 << 31);	// backlight bit
-		tmp_pmc |= nvidia_backlight_levels[level - 1] << 16;
-	}
-
-	if (on)
-		fpcontrol |= par->fpSyncs;
-	else
-		fpcontrol |= 0x20000022;
-
-	NV_WR32(par->PCRTC0, 0x081C, tmp_pcrt);
-	NV_WR32(par->PMC, 0x10F0, tmp_pmc);
-	NV_WR32(par->PRAMDAC, 0x848, fpcontrol);
-
-	return 0;
-}
-
-static int nvidia_set_backlight_level(int level, void *data)
-{
-	return nvidia_set_backlight_enable(1, level, data);
-}
-
-static struct backlight_controller nvidia_backlight_controller = {
-	nvidia_set_backlight_enable,
-	nvidia_set_backlight_level
-};
-
-#endif				/* CONFIG_PMAC_BACKLIGHT */
 
 static void nvidiafb_load_cursor_image(struct nvidia_par *par, u8 * data8,
 				       u16 bg, u16 fg, u32 w, u32 h)
@@ -1355,10 +1283,15 @@ static int nvidiafb_blank(int blank, struct fb_info *info)
 	NVWriteSeq(par, 0x01, tmp);
 	NVWriteCrtc(par, 0x1a, vesa);
 
-#ifdef CONFIG_PMAC_BACKLIGHT
-	if (par->FlatPanel && machine_is(powermac)) {
-		set_backlight_enable(!blank);
+#ifdef CONFIG_FB_NVIDIA_BACKLIGHT
+	mutex_lock(&info->bl_mutex);
+	if (info->bl_dev) {
+		down(&info->bl_dev->sem);
+		info->bl_dev->props->power = blank;
+		info->bl_dev->props->update_status(info->bl_dev);
+		up(&info->bl_dev->sem);
 	}
+	mutex_unlock(&info->bl_mutex);
 #endif
 
 	NVTRACE_LEAVE();
@@ -1741,11 +1674,9 @@ static int __devinit nvidiafb_probe(struct pci_dev *pd,
 	       "PCI nVidia %s framebuffer (%dMB @ 0x%lX)\n",
 	       info->fix.id,
 	       par->FbMapSize / (1024 * 1024), info->fix.smem_start);
-#ifdef CONFIG_PMAC_BACKLIGHT
-	if (par->FlatPanel && machine_is(powermac))
-		register_backlight_controller(&nvidia_backlight_controller,
-					      par, "mnca");
-#endif
+
+	nvidia_bl_init(par);
+
 	NVTRACE_LEAVE();
 	return 0;
 
@@ -1774,6 +1705,8 @@ static void __exit nvidiafb_remove(struct pci_dev *pd)
 	struct nvidia_par *par = info->par;
 
 	NVTRACE_ENTER();
+
+	nvidia_bl_exit(par);
 
 	unregister_framebuffer(info);
 #ifdef CONFIG_MTRR

@@ -32,6 +32,7 @@
 #include <linux/delay.h>
 #include <linux/kprobes.h>
 #include <linux/kexec.h>
+#include <linux/backlight.h>
 
 #include <asm/kdebug.h>
 #include <asm/pgtable.h>
@@ -105,10 +106,18 @@ int die(const char *str, struct pt_regs *regs, long err)
 	spin_lock_irq(&die_lock);
 	bust_spinlocks(1);
 #ifdef CONFIG_PMAC_BACKLIGHT
-	if (machine_is(powermac)) {
-		set_backlight_enable(1);
-		set_backlight_level(BACKLIGHT_MAX);
+	mutex_lock(&pmac_backlight_mutex);
+	if (machine_is(powermac) && pmac_backlight) {
+		struct backlight_properties *props;
+
+		down(&pmac_backlight->sem);
+		props = pmac_backlight->props;
+		props->brightness = props->max_brightness;
+		props->power = FB_BLANK_UNBLANK;
+		props->update_status(pmac_backlight);
+		up(&pmac_backlight->sem);
 	}
+	mutex_unlock(&pmac_backlight_mutex);
 #endif
 	printk("Oops: %s, sig: %ld [#%d]\n", str, err, ++die_counter);
 #ifdef CONFIG_PREEMPT
