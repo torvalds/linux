@@ -898,7 +898,7 @@ fastcall NORET_TYPE void do_exit(long code)
 	}
 	if (unlikely(tsk->robust_list))
 		exit_robust_list(tsk);
-#ifdef CONFIG_COMPAT
+#if defined(CONFIG_FUTEX) && defined(CONFIG_COMPAT)
 	if (unlikely(tsk->compat_robust_list))
 		compat_exit_robust_list(tsk);
 #endif
