@@ -37,8 +37,8 @@
 #define IRQ_AMIGA_SOFT		(IRQ_USER+2)
 
 /* interrupts from external hardware */
-#define IRQ_AMIGA_PORTS		(IRQ_USER+3)
-#define IRQ_AMIGA_EXTER		(IRQ_USER+13)
+#define IRQ_AMIGA_PORTS		IRQ_AUTO_2
+#define IRQ_AMIGA_EXTER		IRQ_AUTO_6
 
 /* copper interrupt */
 #define IRQ_AMIGA_COPPER	(IRQ_USER+4)
@@ -88,9 +88,6 @@
 #define IF_DSKBLK   0x0002	/* diskblock DMA finished */
 #define IF_TBE	    0x0001	/* serial transmit buffer empty interrupt */
 
-extern void amiga_do_irq(int irq, struct pt_regs *fp);
-extern void amiga_do_irq_list(int irq, struct pt_regs *fp);
-
 /* CIA interrupt control register bits */
 
 #define CIA_ICR_TA	0x01
@@ -107,6 +104,7 @@ extern void amiga_do_irq_list(int irq, struct pt_regs *fp);
 
 extern struct ciabase ciaa_base, ciab_base;
 
+extern void cia_init_IRQ(struct ciabase *base);
 extern unsigned char cia_set_irq(struct ciabase *base, unsigned char mask);
 extern unsigned char cia_able_irq(struct ciabase *base, unsigned char mask);
 
