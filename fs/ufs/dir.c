@@ -252,6 +252,7 @@ struct ufs_dir_entry *ufs_find_entry(struct inode *dir, struct dentry *dentry,
 	unsigned long start, n;
 	unsigned long npages = ufs_dir_pages(dir);
 	struct page *page = NULL;
+	struct ufs_inode_info *ui = UFS_I(dir);
 	struct ufs_dir_entry *de;
 
 	UFSD("ENTER, dir_ino %lu, name %s, namlen %u\n", dir->i_ino, name, namelen);
@@ -262,8 +263,8 @@ struct ufs_dir_entry *ufs_find_entry(struct inode *dir, struct dentry *dentry,
 	/* OFFSET_CACHE */
 	*res_page = NULL;
 
-	/* start = ei->i_dir_start_lookup; */
-	start = 0;
+	start = ui->i_dir_start_lookup;
+
 	if (start >= npages)
 		start = 0;
 	n = start;
@@ -295,7 +296,7 @@ out:
 
 found:
 	*res_page = page;
-	/* ei->i_dir_start_lookup = n; */
+	ui->i_dir_start_lookup = n;
 	return de;
 }
 

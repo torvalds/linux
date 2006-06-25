@@ -264,6 +264,7 @@ cg_found:
 	ufsi->i_shadow = 0;
 	ufsi->i_osync = 0;
 	ufsi->i_oeftflag = 0;
+	ufsi->i_dir_start_lookup = 0;
 	memset(&ufsi->i_u1, 0, sizeof(ufsi->i_u1));
 
 	insert_inode_hash(inode);
