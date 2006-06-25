@@ -4702,13 +4702,13 @@ static int loopback_test(struct slgt_info *info)
 static int adapter_test(struct slgt_info *info)
 {
 	DBGINFO(("testing %s\n", info->device_name));
-	if ((info->init_error = register_test(info)) < 0) {
+	if (register_test(info) < 0) {
 		printk("register test failure %s addr=%08X\n",
 			info->device_name, info->phys_reg_addr);
-	} else if ((info->init_error = irq_test(info)) < 0) {
+	} else if (irq_test(info) < 0) {
 		printk("IRQ test failure %s IRQ=%d\n",
 			info->device_name, info->irq_level);
-	} else if ((info->init_error = loopback_test(info)) < 0) {
+	} else if (loopback_test(info) < 0) {
 		printk("loopback test failure %s\n", info->device_name);
 	}
 	return info->init_error;
