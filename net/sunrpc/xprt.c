@@ -41,7 +41,7 @@
 #include <linux/types.h>
 #include <linux/interrupt.h>
 #include <linux/workqueue.h>
-#include <linux/random.h>
+#include <linux/net.h>
 
 #include <linux/sunrpc/clnt.h>
 #include <linux/sunrpc/metrics.h>
@@ -830,7 +830,7 @@ static inline u32 xprt_alloc_xid(struct rpc_xprt *xprt)
 
 static inline void xprt_init_xid(struct rpc_xprt *xprt)
 {
-	get_random_bytes(&xprt->xid, sizeof(xprt->xid));
+	xprt->xid = net_random();
 }
 
 static void xprt_request_init(struct rpc_task *task, struct rpc_xprt *xprt)

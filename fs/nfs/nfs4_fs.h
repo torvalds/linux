@@ -217,6 +217,9 @@ extern int nfs4_proc_renew(struct nfs4_client *, struct rpc_cred *);
 extern int nfs4_do_close(struct inode *inode, struct nfs4_state *state);
 extern struct dentry *nfs4_atomic_open(struct inode *, struct dentry *, struct nameidata *);
 extern int nfs4_open_revalidate(struct inode *, struct dentry *, int, struct nameidata *);
+extern int nfs4_server_capabilities(struct nfs_server *server, struct nfs_fh *fhandle);
+extern int nfs4_proc_fs_locations(struct inode *dir, struct dentry *dentry,
+		struct nfs4_fs_locations *fs_locations, struct page *page);
 
 extern struct nfs4_state_recovery_ops nfs4_reboot_recovery_ops;
 extern struct nfs4_state_recovery_ops nfs4_network_partition_recovery_ops;
@@ -225,6 +228,7 @@ extern const u32 nfs4_fattr_bitmap[2];
 extern const u32 nfs4_statfs_bitmap[2];
 extern const u32 nfs4_pathconf_bitmap[2];
 extern const u32 nfs4_fsinfo_bitmap[2];
+extern const u32 nfs4_fs_locations_bitmap[2];
 
 /* nfs4renewd.c */
 extern void nfs4_schedule_state_renewal(struct nfs4_client *);

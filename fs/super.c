@@ -871,8 +871,6 @@ do_kern_mount(const char *fstype, int flags, const char *name, void *data)
 	return mnt;
 }
 
-EXPORT_SYMBOL_GPL(do_kern_mount);
-
 struct vfsmount *kern_mount(struct file_system_type *type)
 {
 	return vfs_kern_mount(type, 0, type->name, NULL);

@@ -224,7 +224,7 @@ struct dentry *securityfs_create_file(const char *name, mode_t mode,
 
 	pr_debug("securityfs: creating file '%s'\n",name);
 
-	error = simple_pin_fs("securityfs", &mount, &mount_count);
+	error = simple_pin_fs(&fs_type, &mount, &mount_count);
 	if (error) {
 		dentry = ERR_PTR(error);
 		goto exit;

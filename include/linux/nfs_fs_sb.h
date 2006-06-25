@@ -35,6 +35,7 @@ struct nfs_server {
 	char *			hostname;	/* remote hostname */
 	struct nfs_fh		fh;
 	struct sockaddr_in	addr;
+	struct nfs_fsid		fsid;
 	unsigned long		mount_time;	/* when this fs was mounted */
 #ifdef CONFIG_NFS_V4
 	/* Our own IP address, as a null-terminated string.

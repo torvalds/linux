@@ -930,6 +930,13 @@ static void xs_udp_timer(struct rpc_task *task)
 	xprt_adjust_cwnd(task, -ETIMEDOUT);
 }
 
+static unsigned short xs_get_random_port(void)
+{
+	unsigned short range = xprt_max_resvport - xprt_min_resvport;
+	unsigned short rand = (unsigned short) net_random() % range;
+	return rand + xprt_min_resvport;
+}
+
 /**
  * xs_set_port - reset the port number in the remote endpoint address
  * @xprt: generic transport
@@ -1275,7 +1282,7 @@ int xs_setup_udp(struct rpc_xprt *xprt, struct rpc_timeout *to)
 	memset(xprt->slot, 0, slot_table_size);
 
 	xprt->prot = IPPROTO_UDP;
-	xprt->port = xprt_max_resvport;
+	xprt->port = xs_get_random_port();
 	xprt->tsh_size = 0;
 	xprt->resvport = capable(CAP_NET_BIND_SERVICE) ? 1 : 0;
 	/* XXX: header size can vary due to auth type, IPv6, etc. */
@@ -1317,7 +1324,7 @@ int xs_setup_tcp(struct rpc_xprt *xprt, struct rpc_timeout *to)
 	memset(xprt->slot, 0, slot_table_size);
 
 	xprt->prot = IPPROTO_TCP;
-	xprt->port = xprt_max_resvport;
+	xprt->port = xs_get_random_port();
 	xprt->tsh_size = sizeof(rpc_fraghdr) / sizeof(u32);
 	xprt->resvport = capable(CAP_NET_BIND_SERVICE) ? 1 : 0;
 	xprt->max_payload = RPC_MAX_FRAGMENT_SIZE;

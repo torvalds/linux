@@ -118,7 +118,7 @@ static struct file_system_type configfs_fs_type = {
 
 int configfs_pin_fs(void)
 {
-	return simple_pin_fs("configfs", &configfs_mount,
+	return simple_pin_fs(&configfs_fs_type, &configfs_mount,
 			     &configfs_mnt_count);
 }
 

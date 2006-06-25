@@ -199,7 +199,7 @@ struct dentry *debugfs_create_file(const char *name, mode_t mode,
 
 	pr_debug("debugfs: creating file '%s'\n",name);
 
-	error = simple_pin_fs("debugfs", &debugfs_mount, &debugfs_mount_count);
+	error = simple_pin_fs(&debug_fs_type, &debugfs_mount, &debugfs_mount_count);
 	if (error)
 		goto exit;
 

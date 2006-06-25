@@ -569,7 +569,7 @@ static int create_special_files (void)
 	ignore_mount = 1;
 
 	/* create the devices special file */
-	retval = simple_pin_fs("usbfs", &usbfs_mount, &usbfs_mount_count);
+	retval = simple_pin_fs(&usb_fs_type, &usbfs_mount, &usbfs_mount_count);
 	if (retval) {
 		err ("Unable to get usbfs mount");
 		goto exit;

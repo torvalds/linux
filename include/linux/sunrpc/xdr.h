@@ -194,6 +194,7 @@ extern void xdr_write_pages(struct xdr_stream *xdr, struct page **pages,
 extern void xdr_init_decode(struct xdr_stream *xdr, struct xdr_buf *buf, uint32_t *p);
 extern uint32_t *xdr_inline_decode(struct xdr_stream *xdr, size_t nbytes);
 extern void xdr_read_pages(struct xdr_stream *xdr, unsigned int len);
+extern void xdr_enter_page(struct xdr_stream *xdr, unsigned int len);
 
 #endif /* __KERNEL__ */
 
