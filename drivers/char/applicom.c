@@ -166,11 +166,7 @@ static int ac_register_board(unsigned long physloc, void __iomem *loc,
 	return boardno + 1;
 }
 
-#ifdef MODULE
-
-#define applicom_init init_module
-
-void cleanup_module(void)
+static void __exit applicom_exit(void)
 {
 	unsigned int i;
 
@@ -188,9 +184,7 @@ void cleanup_module(void)
 	}
 }
 
-#endif				/* MODULE */
-
-int __init applicom_init(void)
+static int __init applicom_init(void)
 {
 	int i, numisa = 0;
 	struct pci_dev *dev = NULL;
@@ -355,10 +349,9 @@ out:
 	return ret;
 }
 
+module_init(applicom_init);
+module_exit(applicom_exit);
 
-#ifndef MODULE
-__initcall(applicom_init);
-#endif
 
 static ssize_t ac_write(struct file *file, const char __user *buf, size_t count, loff_t * ppos)
 {
@@ -850,29 +843,4 @@ static int ac_ioctl(struct inode *inode, struct file *file, unsigned int cmd, un
 	kfree(adgl);
 	return 0;
 }
-
-#ifndef MODULE
-static int __init applicom_setup(char *str)
-{
-	int ints[4];
-
-	(void) get_options(str, 4, ints);
-
-	if (ints[0] > 2) {
-		printk(KERN_WARNING "Too many arguments to 'applicom=', expected mem,irq only.\n");
-	}
-
-	if (ints[0] < 2) {
-		printk(KERN_INFO"applicom numargs: %d\n", ints[0]);
-		return 0;
-	}
-
-	mem = ints[1];
-	irq = ints[2];
-	return 1;
-}
-
-__setup("applicom=", applicom_setup);
-
-#endif				/* MODULE */
 
