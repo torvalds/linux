@@ -957,8 +957,7 @@ restart:
 		goto got_pg;
 
 	do {
-		if (cpuset_zone_allowed(*z, gfp_mask|__GFP_HARDWALL))
-			wakeup_kswapd(*z, order);
+		wakeup_kswapd(*z, order);
 	} while (*(++z));
 
 	/*
