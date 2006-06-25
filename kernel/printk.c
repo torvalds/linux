@@ -24,6 +24,7 @@
 #include <linux/console.h>
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/interrupt.h>			/* For in_interrupt() */
 #include <linux/config.h>
 #include <linux/delay.h>
@@ -439,6 +440,7 @@ static int printk_time = 1;
 #else
 static int printk_time = 0;
 #endif
+module_param(printk_time, int, S_IRUGO | S_IWUSR);
 
 static int __init printk_time_setup(char *str)
 {
