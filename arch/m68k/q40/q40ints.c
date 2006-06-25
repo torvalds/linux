@@ -93,8 +93,8 @@ void q40_init_IRQ (void)
 	}
 
 	/* setup handler for ISA ints */
-	cpu_request_irq(IRQ2, q40_irq2_handler, 0, "q40 ISA and master chip",
-			NULL);
+	cpu_request_irq(IRQ_AUTO_2, q40_irq2_handler, 0,
+			"q40 ISA and master chip", NULL);
 
 	/* now enable some ints.. */
 	master_outb(1,EXT_ENABLE_REG);  /* ISA IRQ 5-15 */

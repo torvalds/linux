@@ -4,7 +4,7 @@
 #include <linux/interrupt.h>
 
 /*
- * # of m68k interrupts
+ * # of m68k auto vector interrupts
  */
 
 #define SYS_IRQS 8
@@ -40,19 +40,17 @@
  * that routine requires service.
  */
 
-#define IRQ1		(1)	/* level 1 interrupt */
-#define IRQ2		(2)	/* level 2 interrupt */
-#define IRQ3		(3)	/* level 3 interrupt */
-#define IRQ4		(4)	/* level 4 interrupt */
-#define IRQ5		(5)	/* level 5 interrupt */
-#define IRQ6		(6)	/* level 6 interrupt */
-#define IRQ7		(7)	/* level 7 interrupt (non-maskable) */
+#define IRQ_SPURIOUS	0
 
-/*
- * "Generic" interrupt sources
- */
+#define IRQ_AUTO_1	1	/* level 1 interrupt */
+#define IRQ_AUTO_2	2	/* level 2 interrupt */
+#define IRQ_AUTO_3	3	/* level 3 interrupt */
+#define IRQ_AUTO_4	4	/* level 4 interrupt */
+#define IRQ_AUTO_5	5	/* level 5 interrupt */
+#define IRQ_AUTO_6	6	/* level 6 interrupt */
+#define IRQ_AUTO_7	7	/* level 7 interrupt (non-maskable) */
 
-#define IRQ_SCHED_TIMER	(8)    /* interrupt source for scheduling timer */
+#define IRQ_USER	8
 
 static __inline__ int irq_canonicalize(int irq)
 {

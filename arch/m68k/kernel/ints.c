@@ -153,7 +153,7 @@ int cpu_request_irq(unsigned int irq,
                     irqreturn_t (*handler)(int, void *, struct pt_regs *),
                     unsigned long flags, const char *devname, void *dev_id)
 {
-	if (irq < IRQ1 || irq > IRQ7) {
+	if (irq < IRQ_AUTO_1 || irq > IRQ_AUTO_7) {
 		printk("%s: Incorrect IRQ %d from %s\n",
 		       __FUNCTION__, irq, devname);
 		return -ENXIO;
@@ -183,7 +183,7 @@ int cpu_request_irq(unsigned int irq,
 
 void cpu_free_irq(unsigned int irq, void *dev_id)
 {
-	if (irq < IRQ1 || irq > IRQ7) {
+	if (irq < IRQ_AUTO_1 || irq > IRQ_AUTO_7) {
 		printk("%s: Incorrect IRQ %d\n", __FUNCTION__, irq);
 		return;
 	}
