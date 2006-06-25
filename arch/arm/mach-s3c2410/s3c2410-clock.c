@@ -182,7 +182,15 @@ static struct clk init_clocks[] = {
 		.id		= -1,
 		.parent		= &clk_p,
 		.ctrlbit	= 0,
-	}
+	}, {
+		.name		= "usb-bus-host",
+		.id		= -1,
+		.parent		= &clk_usb_bus,
+	}, {
+		.name		= "usb-bus-gadget",
+		.id		= -1,
+		.parent		= &clk_usb_bus,
+	},
 };
 
 /* s3c2410_baseclk_add()
