@@ -578,11 +578,7 @@ static int pvr2_v4l2_do_ioctl(struct inode *inode, struct file *file,
 
 	case VIDIOC_LOG_STATUS:
 	{
-		int nr = pvr2_hdw_get_unit_number(hdw);
-
-		printk(KERN_INFO "pvrusb2: =================  START STATUS CARD #%d  =================\n", nr);
 		pvr2_hdw_trigger_module_log(hdw);
-		printk(KERN_INFO "pvrusb2: ==================  END STATUS CARD #%d  ==================\n", nr);
 		ret = 0;
 		break;
 	}

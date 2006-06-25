@@ -2236,11 +2236,14 @@ struct pvr2_stream *pvr2_hdw_get_video_stream(struct pvr2_hdw *hp)
 
 void pvr2_hdw_trigger_module_log(struct pvr2_hdw *hdw)
 {
+	int nr = pvr2_hdw_get_unit_number(hdw);
 	LOCK_TAKE(hdw->big_lock); do {
 		hdw->log_requested = !0;
+		printk(KERN_INFO "pvrusb2: =================  START STATUS CARD #%d  =================\n", nr);
 		pvr2_i2c_core_check_stale(hdw);
 		hdw->log_requested = 0;
 		pvr2_i2c_core_sync(hdw);
+		printk(KERN_INFO "pvrusb2: ==================  END STATUS CARD #%d  ==================\n", nr);
 	} while (0); LOCK_GIVE(hdw->big_lock);
 }
 
