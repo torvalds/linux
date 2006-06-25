@@ -38,4 +38,17 @@
 #endif
 #endif
 
+#define WARN_ON_ONCE(condition)				\
+({							\
+	static int __warn_once = 1;			\
+	int __ret = 0;					\
+							\
+	if (unlikely((condition) && __warn_once)) {	\
+		__warn_once = 0;			\
+		WARN_ON(1);				\
+		__ret = 1;				\
+	}						\
+	__ret;						\
+})
+
 #endif
