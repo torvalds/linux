@@ -395,7 +395,6 @@ unsigned ufs_new_fragments(struct inode * inode, __fs32 * p, unsigned fragment,
 		if (result) {
 			*p = cpu_to_fs32(sb, result);
 			*err = 0;
-			inode->i_blocks += count << uspi->s_nspfshift;
 			UFS_I(inode)->i_lastfrag = max_t(u32, UFS_I(inode)->i_lastfrag, fragment + count);
 		}
 		unlock_super(sb);
@@ -409,7 +408,6 @@ unsigned ufs_new_fragments(struct inode * inode, __fs32 * p, unsigned fragment,
 	result = ufs_add_fragments (inode, tmp, oldcount, newcount, err);
 	if (result) {
 		*err = 0;
-		inode->i_blocks += count << uspi->s_nspfshift;
 		UFS_I(inode)->i_lastfrag = max_t(u32, UFS_I(inode)->i_lastfrag, fragment + count);
 		unlock_super(sb);
 		UFSD("EXIT, result %u\n", result);
@@ -444,7 +442,6 @@ unsigned ufs_new_fragments(struct inode * inode, __fs32 * p, unsigned fragment,
 
 		*p = cpu_to_fs32(sb, result);
 		*err = 0;
-		inode->i_blocks += count << uspi->s_nspfshift;
 		UFS_I(inode)->i_lastfrag = max_t(u32, UFS_I(inode)->i_lastfrag, fragment + count);
 		unlock_super(sb);
 		if (newcount < request)

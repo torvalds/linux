@@ -112,9 +112,8 @@ static int ufs_trunc_direct (struct inode * inode)
 	frag1 = ufs_fragnum (frag1);
 	frag2 = ufs_fragnum (frag2);
 
-	inode->i_blocks -= (frag2-frag1) << uspi->s_nspfshift;
-	mark_inode_dirty(inode);
 	ufs_free_fragments (inode, tmp + frag1, frag2 - frag1);
+	mark_inode_dirty(inode);
 	frag_to_free = tmp + frag1;
 
 next1:
@@ -128,8 +127,7 @@ next1:
 			continue;
 
 		*p = 0;
-		inode->i_blocks -= uspi->s_nspb;
-		mark_inode_dirty(inode);
+
 		if (free_count == 0) {
 			frag_to_free = tmp;
 			free_count = uspi->s_fpb;
@@ -140,6 +138,7 @@ next1:
 			frag_to_free = tmp;
 			free_count = uspi->s_fpb;
 		}
+		mark_inode_dirty(inode);
 	}
 	
 	if (free_count > 0)
@@ -158,9 +157,9 @@ next1:
 	frag4 = ufs_fragnum (frag4);
 
 	*p = 0;
-	inode->i_blocks -= frag4 << uspi->s_nspfshift;
-	mark_inode_dirty(inode);
+
 	ufs_free_fragments (inode, tmp, frag4);
+	mark_inode_dirty(inode);
  next3:
 
 	UFSD("EXIT\n");
@@ -219,7 +218,7 @@ static int ufs_trunc_indirect (struct inode * inode, unsigned offset, __fs32 *p)
 			frag_to_free = tmp;
 			free_count = uspi->s_fpb;
 		}
-		inode->i_blocks -= uspi->s_nspb;
+
 		mark_inode_dirty(inode);
 	}
 
@@ -232,9 +231,9 @@ static int ufs_trunc_indirect (struct inode * inode, unsigned offset, __fs32 *p)
 	if (i >= uspi->s_apb) {
 		tmp = fs32_to_cpu(sb, *p);
 		*p = 0;
-		inode->i_blocks -= uspi->s_nspb;
-		mark_inode_dirty(inode);
+
 		ufs_free_blocks (inode, tmp, uspi->s_fpb);
+		mark_inode_dirty(inode);
 		ubh_bforget(ind_ubh);
 		ind_ubh = NULL;
 	}
@@ -295,9 +294,9 @@ static int ufs_trunc_dindirect (struct inode *inode, unsigned offset, __fs32 *p)
 	if (i >= uspi->s_apb) {
 		tmp = fs32_to_cpu(sb, *p);
 		*p = 0;
-		inode->i_blocks -= uspi->s_nspb;
+
+		ufs_free_blocks(inode, tmp, uspi->s_fpb);
 		mark_inode_dirty(inode);
-		ufs_free_blocks (inode, tmp, uspi->s_fpb);
 		ubh_bforget(dind_bh);
 		dind_bh = NULL;
 	}
@@ -355,9 +354,9 @@ static int ufs_trunc_tindirect (struct inode * inode)
 	if (i >= uspi->s_apb) {
 		tmp = fs32_to_cpu(sb, *p);
 		*p = 0;
-		inode->i_blocks -= uspi->s_nspb;
+
+		ufs_free_blocks(inode, tmp, uspi->s_fpb);
 		mark_inode_dirty(inode);
-		ufs_free_blocks (inode, tmp, uspi->s_fpb);
 		ubh_bforget(tind_bh);
 		tind_bh = NULL;
 	}
