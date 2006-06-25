@@ -1326,7 +1326,7 @@ int is_exported(const char *name, const struct module *mod)
 	if (!mod && lookup_symbol(name, __start___ksymtab, __stop___ksymtab))
 		return 1;
 	else
-		if (lookup_symbol(name, mod->syms, mod->syms + mod->num_syms))
+		if (mod && lookup_symbol(name, mod->syms, mod->syms + mod->num_syms))
 			return 1;
 		else
 			return 0;
