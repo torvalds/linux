@@ -202,6 +202,12 @@ config RTC_DRV_PL031
 	  To compile this driver as a module, choose M here: the
 	  module will be called rtc-pl031.
 
+config RTC_DRV_AT91
+	tristate "AT91RM9200"
+	depends on RTC_CLASS && ARCH_AT91RM9200
+	help
+	  Driver for the Atmel AT91RM9200's internal RTC (Realtime Clock).
+
 config RTC_DRV_TEST
 	tristate "Test driver/device"
 	depends on RTC_CLASS
