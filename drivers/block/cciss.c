@@ -3086,11 +3086,8 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
 	int i;
 	int j;
 	int rc;
+	int dac;
 
-	printk(KERN_DEBUG "cciss: Device 0x%x has been found at"
-			" bus %d dev %d func %d\n",
-		pdev->device, pdev->bus->number, PCI_SLOT(pdev->devfn),
-			PCI_FUNC(pdev->devfn));
 	i = alloc_cciss_hba();
 	if(i < 0)
 		return (-1);
@@ -3106,11 +3103,11 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
 
 	/* configure PCI DMA stuff */
 	if (!pci_set_dma_mask(pdev, DMA_64BIT_MASK))
-		printk("cciss: using DAC cycles\n");
+		dac = 1;
 	else if (!pci_set_dma_mask(pdev, DMA_32BIT_MASK))
-		printk("cciss: not using DAC cycles\n");
+		dac = 0;
 	else {
-		printk("cciss: no suitable DMA available\n");
+		printk(KERN_ERR "cciss: no suitable DMA available\n");
 		goto clean1;
 	}
 
@@ -3141,6 +3138,11 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
 			hba[i]->intr[SIMPLE_MODE_INT], hba[i]->devname);
 		goto clean2;
 	}
+
+	printk(KERN_INFO "%s: <0x%x> at PCI %s IRQ %d%s using DAC\n",
+		hba[i]->devname, pdev->device, pci_name(pdev),
+		hba[i]->intr[SIMPLE_MODE_INT], dac ? "" : " not");
+
 	hba[i]->cmd_pool_bits = kmalloc(((NR_CMDS+BITS_PER_LONG-1)/BITS_PER_LONG)*sizeof(unsigned long), GFP_KERNEL);
 	hba[i]->cmd_pool = (CommandList_struct *)pci_alloc_consistent(
 		hba[i]->pdev, NR_CMDS * sizeof(CommandList_struct), 
