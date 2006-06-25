@@ -677,7 +677,7 @@ static int cciss_ioctl(struct inode *inode, struct file *filep,
 		pciinfo.board_id = host->board_id;
 		if (copy_to_user(argp, &pciinfo,  sizeof( cciss_pci_info_struct )))
 			return  -EFAULT;
-		return(0);
+		return 0;
 	}	
 	case CCISS_GETINTINFO:
 	{
@@ -687,7 +687,7 @@ static int cciss_ioctl(struct inode *inode, struct file *filep,
 		intinfo.count = readl(&host->cfgtable->HostWrite.CoalIntCount);
 		if (copy_to_user(argp, &intinfo, sizeof( cciss_coalint_struct )))
 			return -EFAULT;
-                return(0);
+                return 0;
         }
 	case CCISS_SETINTINFO:
         {
@@ -703,7 +703,7 @@ static int cciss_ioctl(struct inode *inode, struct file *filep,
 
 		{
 //			printk("cciss_ioctl: delay and count cannot be 0\n");
-			return( -EINVAL);
+			return -EINVAL;
 		}
 		spin_lock_irqsave(CCISS_LOCK(ctlr), flags);
 		/* Update the field, and then ring the doorbell */ 
@@ -723,7 +723,7 @@ static int cciss_ioctl(struct inode *inode, struct file *filep,
 		spin_unlock_irqrestore(CCISS_LOCK(ctlr), flags);
 		if (i >= MAX_IOCTL_CONFIG_WAIT)
 			return -EAGAIN;
-                return(0);
+                return 0;
         }
 	case CCISS_GETNODENAME:
         {
@@ -735,7 +735,7 @@ static int cciss_ioctl(struct inode *inode, struct file *filep,
 			NodeName[i] = readb(&host->cfgtable->ServerName[i]);
                 if (copy_to_user(argp, NodeName, sizeof( NodeName_type)))
                 	return  -EFAULT;
-                return(0);
+                return 0;
         }
 	case CCISS_SETNODENAME:
 	{
@@ -767,7 +767,7 @@ static int cciss_ioctl(struct inode *inode, struct file *filep,
 		spin_unlock_irqrestore(CCISS_LOCK(ctlr), flags);
 		if (i >= MAX_IOCTL_CONFIG_WAIT)
 			return -EAGAIN;
-                return(0);
+                return 0;
         }
 
 	case CCISS_GETHEARTBEAT:
@@ -778,7 +778,7 @@ static int cciss_ioctl(struct inode *inode, struct file *filep,
                 heartbeat = readl(&host->cfgtable->HeartBeat);
                 if (copy_to_user(argp, &heartbeat, sizeof( Heartbeat_type)))
                 	return -EFAULT;
-                return(0);
+                return 0;
         }
 	case CCISS_GETBUSTYPES:
         {
@@ -788,7 +788,7 @@ static int cciss_ioctl(struct inode *inode, struct file *filep,
                 BusTypes = readl(&host->cfgtable->BusTypes);
                 if (copy_to_user(argp, &BusTypes, sizeof( BusTypes_type) ))
                 	return  -EFAULT;
-                return(0);
+                return 0;
         }
 	case CCISS_GETFIRMVER:
         {
@@ -799,7 +799,7 @@ static int cciss_ioctl(struct inode *inode, struct file *filep,
 
                 if (copy_to_user(argp, firmware, sizeof( FirmwareVer_type)))
                 	return -EFAULT;
-                return(0);
+                return 0;
         }
         case CCISS_GETDRIVVER:
         {
@@ -809,7 +809,7 @@ static int cciss_ioctl(struct inode *inode, struct file *filep,
 
                 if (copy_to_user(argp, &DriverVer, sizeof( DriverVer_type) ))
                 	return -EFAULT;
-                return(0);
+                return 0;
         }
 
 	case CCISS_REVALIDVOLS:
@@ -826,7 +826,7 @@ static int cciss_ioctl(struct inode *inode, struct file *filep,
  		if (copy_to_user(argp, &luninfo,
  				sizeof(LogvolInfo_struct)))
  			return -EFAULT;
- 		return(0);
+ 		return 0;
  	}
 	case CCISS_DEREGDISK:
 		return rebuild_lun_table(host, disk);
@@ -934,7 +934,7 @@ static int cciss_ioctl(struct inode *inode, struct file *filep,
 		{
 			kfree(buff);
 			cmd_free(host, c, 0);
-			return( -EFAULT);	
+			return -EFAULT;
 		} 	
 
 		if (iocommand.Request.Type.Direction == XFER_READ)
@@ -949,7 +949,7 @@ static int cciss_ioctl(struct inode *inode, struct file *filep,
                 }
                 kfree(buff);
 		cmd_free(host, c, 0);
-                return(0);
+                return 0;
 	} 
 	case CCISS_BIG_PASSTHRU: {
 		BIG_IOCTL_Command_struct *ioc;
@@ -1101,7 +1101,7 @@ cleanup1:
 		}
 		kfree(buff_size);
 		kfree(ioc);
-		return(status);
+		return status;
 	}
 	default:
 		return -ENOTTY;
@@ -1546,7 +1546,7 @@ static int deregister_disk(struct gendisk *disk, drive_info_struct *drv,
 
 	drv->LunID = 0;
 	}
-	return(0);
+	return 0;
 }
 
 static int fill_cmd(CommandList_struct *c, __u8 cmd, int ctlr, void *buff,
@@ -1639,7 +1639,7 @@ static int fill_cmd(CommandList_struct *c, __u8 cmd, int ctlr, void *buff,
 		default:
 			printk(KERN_WARNING
 				"cciss%d:  Unknown Command 0x%c\n", ctlr, cmd);
-			return(IO_ERROR);
+			return IO_ERROR;
 		}
 	} else if (cmd_type == TYPE_MSG) {
 		switch (cmd) {
@@ -1807,7 +1807,7 @@ case CMD_HARDWARE_ERR:
 	pci_unmap_single( h->pdev, (dma_addr_t) buff_dma_handle.val,
 			c->SG[0].Len, PCI_DMA_BIDIRECTIONAL);
 	cmd_free(h, c, 0);
-        return(return_status);
+        return return_status;
 
 }
 static void cciss_geometry_inquiry(int ctlr, int logvol,
@@ -1942,7 +1942,7 @@ static unsigned long pollcomplete(int ctlr)
 		if (done == FIFO_EMPTY)
 			schedule_timeout_uninterruptible(1);
 		else
-			return (done);
+			return done;
 	}
 	/* Invalid address to tell caller we ran out of time */
 	return 1;
@@ -2019,7 +2019,7 @@ static int sendcmd(
 
 	if ((c = cmd_alloc(info_p, 1)) == NULL) {
 		printk(KERN_WARNING "cciss: unable to get memory");
-		return(IO_ERROR);
+		return IO_ERROR;
 	}
 	status = fill_cmd(c, cmd, ctlr, buff, size, use_unit_num,
 		log_unit, page_code, scsi3addr, cmd_type);
@@ -2154,7 +2154,7 @@ cleanup1:
 		do_cciss_intr(0, info_p, NULL);
 #endif
 	cmd_free(info_p, c, 1);
-	return (status);
+	return status;
 } 
 /*
  * Map (physical) PCI mem into (virtual) kernel space
@@ -3088,7 +3088,7 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
 
 	i = alloc_cciss_hba();
 	if(i < 0)
-		return (-1);
+		return -1;
 
 	hba[i]->busy_initializing = 1;
 
@@ -3230,7 +3230,7 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
 		add_disk(disk);
 	}
 
-	return(1);
+	return 1;
 
 clean4:
 #ifdef CONFIG_CISS_SCSI_TAPE
@@ -3252,7 +3252,7 @@ clean2:
 clean1:
 	hba[i]->busy_initializing = 0;
 	free_hba(i);
-	return(-1);
+	return -1;
 }
 
 static void __devexit cciss_remove_one (struct pci_dev *pdev)
