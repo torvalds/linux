@@ -2111,17 +2111,7 @@ int pvr2_hdw_commit_ctl_internal(struct pvr2_hdw *hdw)
 	}
 
 	if (hdw->std_dirty ||
-	    hdw->interlace_dirty ||
-	    hdw->vbr_dirty ||
-	    hdw->videobitrate_dirty ||
-	    hdw->videopeak_dirty ||
-	    hdw->audiobitrate_dirty ||
-	    hdw->audiolayer_dirty ||
-	    hdw->audiocrc_dirty ||
-	    hdw->audioemphasis_dirty ||
-	    hdw->srate_dirty ||
-	    hdw->res_ver_dirty ||
-	    hdw->res_hor_dirty) {
+	    0) {
 		/* If any of this changes, then the encoder needs to be
 		   reconfigured, and we need to reset the stream. */
 		stale_subsys_mask |= (1<<PVR2_SUBSYS_B_ENC_CFG);
