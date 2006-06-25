@@ -283,7 +283,7 @@ void parport_close (struct pardevice *dev)
  *
  *	This tries to locate a device on the given parallel port,
  *	multiplexor port and daisy chain address, and returns its
- *	device number or -NXIO if no device with those coordinates
+ *	device number or %-ENXIO if no device with those coordinates
  *	exists.
  **/
 

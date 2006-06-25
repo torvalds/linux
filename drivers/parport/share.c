@@ -218,7 +218,7 @@ static void free_port (struct parport *port)
  *	parport_get_port - increment a port's reference count
  *	@port: the port
  *
- *	This ensure's that a struct parport pointer remains valid
+ *	This ensures that a struct parport pointer remains valid
  *	until the matching parport_put_port() call.
  **/
 
