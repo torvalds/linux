@@ -1762,6 +1762,9 @@ sub process_file($) {
 
 		$contents = $newcontents;
 		if ($contents ne "") {
+		    if (substr($contents, 0, 1) eq " ") {
+			$contents = substr($contents, 1);
+		    }
 		    $contents .= "\n";
 		}
 		$section = $newsection;
