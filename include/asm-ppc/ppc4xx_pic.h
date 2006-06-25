@@ -17,7 +17,6 @@
 #ifndef	__PPC4XX_PIC_H__
 #define	__PPC4XX_PIC_H__
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/irq.h>
 

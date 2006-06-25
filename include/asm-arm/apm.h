@@ -13,7 +13,6 @@
 #ifndef ARM_ASM_SA1100_APM_H
 #define ARM_ASM_SA1100_APM_H
 
-#include <linux/config.h>
 #include <linux/apm_bios.h>
 
 /*

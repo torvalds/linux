@@ -6,7 +6,6 @@
 #ifndef __ASM_ARM_MACH_TYPE_H
 #define __ASM_ARM_MACH_TYPE_H
 
-#include <linux/config.h>
 
 #ifndef __ASSEMBLY__
 extern unsigned int __machine_arch_type;

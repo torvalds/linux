@@ -8,7 +8,6 @@
 #ifndef __ASM_MACH_SIM_CPU_FEATURE_OVERRIDES_H
 #define __ASM_MACH_SIM_CPU_FEATURE_OVERRIDES_H
 
-#include <linux/config.h>
 
 /*
  * CPU feature overrides for MIPS boards

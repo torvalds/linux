@@ -11,7 +11,6 @@
 #ifndef __ASM_ARM_FPSTATE_H
 #define __ASM_ARM_FPSTATE_H
 
-#include <linux/config.h>
 
 #ifndef __ASSEMBLY__
 

@@ -62,7 +62,7 @@ match_packet(const struct sk_buff *skb,
 
 	do {
 		sch = skb_header_pointer(skb, offset, sizeof(_sch), &_sch);
-		if (sch == NULL) {
+		if (sch == NULL || sch->length == 0) {
 			duprintf("Dropping invalid SCTP packet.\n");
 			*hotdrop = 1;
 			return 0;

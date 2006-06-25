@@ -522,7 +522,7 @@ nextnode:
 
 	np = of_find_node_by_type(NULL, "interrupt-controller");
 	if (!np) {
-		printk(KERN_WARNING "xics: no ISA interrupt controller\n");
+		printk(KERN_DEBUG "xics: no ISA interrupt controller\n");
 		xics_irq_8259_cascade_real = -1;
 		xics_irq_8259_cascade = -1;
 	} else {
@@ -641,23 +641,26 @@ void xics_teardown_cpu(int secondary)
 	ops->cppr_info(cpu, 0x00);
 	iosync();
 
+	/* Clear IPI */
+	ops->qirr_info(cpu, 0xff);
+
+	/*
+	 * we need to EOI the IPI if we got here from kexec down IPI
+	 *
+	 * probably need to check all the other interrupts too
+	 * should we be flagging idle loop instead?
+	 * or creating some task to be scheduled?
+	 */
+	ops->xirr_info_set(cpu, XICS_IPI);
+
 	/*
 	 * Some machines need to have at least one cpu in the GIQ,
 	 * so leave the master cpu in the group.
 	 */
-	if (secondary) {
-		/*
-		 * we need to EOI the IPI if we got here from kexec down IPI
-		 *
-		 * probably need to check all the other interrupts too
-		 * should we be flagging idle loop instead?
-		 * or creating some task to be scheduled?
-		 */
-		ops->xirr_info_set(cpu, XICS_IPI);
+	if (secondary)
 		rtas_set_indicator(GLOBAL_INTERRUPT_QUEUE,
 			(1UL << interrupt_server_size) - 1 -
 			default_distrib_server, 0);
-	}
 }
 
 #ifdef CONFIG_HOTPLUG_CPU

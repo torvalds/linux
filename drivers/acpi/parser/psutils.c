@@ -89,7 +89,7 @@ void acpi_ps_init_op(union acpi_parse_object *op, u16 opcode)
 {
 	ACPI_FUNCTION_ENTRY();
 
-	op->common.data_type = ACPI_DESC_TYPE_PARSER;
+	op->common.descriptor_type = ACPI_DESC_TYPE_PARSER;
 	op->common.aml_opcode = opcode;
 
 	ACPI_DISASM_ONLY_MEMBERS(ACPI_STRNCPY(op->common.aml_op_name,
@@ -135,6 +135,7 @@ union acpi_parse_object *acpi_ps_alloc_op(u16 opcode)
 	/* Allocate the minimum required size object */
 
 	if (flags == ACPI_PARSEOP_GENERIC) {
+
 		/* The generic op (default) is by far the most common (16 to 1) */
 
 		op = acpi_os_acquire_object(acpi_gbl_ps_node_cache);
@@ -171,7 +172,7 @@ union acpi_parse_object *acpi_ps_alloc_op(u16 opcode)
 
 void acpi_ps_free_op(union acpi_parse_object *op)
 {
-	ACPI_FUNCTION_NAME("ps_free_op");
+	ACPI_FUNCTION_NAME(ps_free_op);
 
 	if (op->common.aml_opcode == AML_INT_RETURN_VALUE_OP) {
 		ACPI_DEBUG_PRINT((ACPI_DB_ALLOCATIONS, "Free retval op: %p\n",

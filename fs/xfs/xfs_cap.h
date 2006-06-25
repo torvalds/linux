@@ -49,12 +49,12 @@ typedef struct xfs_cap_set {
 
 #include <linux/posix_cap_xattr.h>
 
-struct vnode;
+struct bhv_vnode;
 
-extern int xfs_cap_vhascap(struct vnode *);
-extern int xfs_cap_vset(struct vnode *, void *, size_t);
-extern int xfs_cap_vget(struct vnode *, void *, size_t);
-extern int xfs_cap_vremove(struct vnode *vp);
+extern int xfs_cap_vhascap(struct bhv_vnode *);
+extern int xfs_cap_vset(struct bhv_vnode *, void *, size_t);
+extern int xfs_cap_vget(struct bhv_vnode *, void *, size_t);
+extern int xfs_cap_vremove(struct bhv_vnode *);
 
 #define _CAP_EXISTS		xfs_cap_vhascap
 

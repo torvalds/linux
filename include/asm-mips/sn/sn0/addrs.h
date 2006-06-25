@@ -11,7 +11,6 @@
 #ifndef _ASM_SN_SN0_ADDRS_H
 #define _ASM_SN_SN0_ADDRS_H
 
-#include <linux/config.h>
 
 /*
  * SN0 (on a T5) Address map

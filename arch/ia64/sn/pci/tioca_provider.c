@@ -515,9 +515,15 @@ tioca_dma_unmap(struct pci_dev *pdev, dma_addr_t bus_addr, int dir)
  * use the GART mapped mode.
  */
 static u64
-tioca_dma_map(struct pci_dev *pdev, u64 paddr, size_t byte_count)
+tioca_dma_map(struct pci_dev *pdev, u64 paddr, size_t byte_count, int dma_flags)
 {
 	u64 mapaddr;
+
+	/*
+	 * Not supported for now ...
+	 */
+	if (dma_flags & SN_DMA_MSI)
+		return 0;
 
 	/*
 	 * If card is 64 or 48 bit addresable, use a direct mapping.  32

@@ -7,7 +7,6 @@
  *
  * Low level machine dependent UART functions.
  */
-#include <linux/config.h>
 
 struct uart_port;
 struct uart_info;

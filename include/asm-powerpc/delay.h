@@ -17,5 +17,18 @@
 extern void __delay(unsigned long loops);
 extern void udelay(unsigned long usecs);
 
+/*
+ * On shared processor machines the generic implementation of mdelay can
+ * result in large errors. While each iteration of the loop inside mdelay
+ * is supposed to take 1ms, the hypervisor could sleep our partition for
+ * longer (eg 10ms). With the right timing these errors can add up.
+ *
+ * Since there is no 32bit overflow issue on 64bit kernels, just call
+ * udelay directly.
+ */
+#ifdef CONFIG_PPC64
+#define mdelay(n)	udelay((n) * 1000)
+#endif
+
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_DELAY_H */

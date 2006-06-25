@@ -58,6 +58,8 @@ void *snd_lookup_oss_minor_data(unsigned int minor, int type)
 	return private_data;
 }
 
+EXPORT_SYMBOL(snd_lookup_oss_minor_data);
+
 static int snd_oss_kernel_minor(int type, struct snd_card *card, int dev)
 {
 	int minor;
@@ -158,6 +160,8 @@ int snd_register_oss_device(int type, struct snd_card *card, int dev,
       	return -EBUSY;
 }
 
+EXPORT_SYMBOL(snd_register_oss_device);
+
 int snd_unregister_oss_device(int type, struct snd_card *card, int dev)
 {
 	int minor = snd_oss_kernel_minor(type, card, dev);
@@ -197,13 +201,15 @@ int snd_unregister_oss_device(int type, struct snd_card *card, int dev)
 	return 0;
 }
 
+EXPORT_SYMBOL(snd_unregister_oss_device);
+
 /*
  *  INFO PART
  */
 
 #ifdef CONFIG_PROC_FS
 
-static struct snd_info_entry *snd_minor_info_oss_entry = NULL;
+static struct snd_info_entry *snd_minor_info_oss_entry;
 
 static const char *snd_oss_device_type_name(int type)
 {
@@ -252,7 +258,6 @@ int __init snd_minor_info_oss_init(void)
 
 	entry = snd_info_create_module_entry(THIS_MODULE, "devices", snd_oss_root);
 	if (entry) {
-		entry->c.text.read_size = PAGE_SIZE;
 		entry->c.text.read = snd_minor_info_oss_read;
 		if (snd_info_register(entry) < 0) {
 			snd_info_free_entry(entry);

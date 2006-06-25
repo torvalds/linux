@@ -944,21 +944,28 @@ static void hid_reset(void *_hid)
 	dev_dbg(&hid->intf->dev, "resetting device\n");
 	rc = rc_lock = usb_lock_device_for_reset(hid->dev, hid->intf);
 	if (rc_lock >= 0) {
-		rc = usb_reset_device(hid->dev);
+		rc = usb_reset_composite_device(hid->dev, hid->intf);
 		if (rc_lock)
 			usb_unlock_device(hid->dev);
 	}
 	clear_bit(HID_RESET_PENDING, &hid->iofl);
 
-	if (rc == 0) {
-		hid->retry_delay = 0;
-		if (hid_start_in(hid))
+	switch (rc) {
+	case 0:
+		if (!test_bit(HID_IN_RUNNING, &hid->iofl))
 			hid_io_error(hid);
-	} else if (!(rc == -ENODEV || rc == -EHOSTUNREACH || rc == -EINTR))
+		break;
+	default:
 		err("can't reset device, %s-%s/input%d, status %d",
 				hid->dev->bus->bus_name,
 				hid->dev->devpath,
 				hid->ifnum, rc);
+		/* FALLTHROUGH */
+	case -EHOSTUNREACH:
+	case -ENODEV:
+	case -EINTR:
+		break;
+	}
 }
 
 /* Main I/O error handler */
@@ -1374,9 +1381,6 @@ void hid_close(struct hid_device *hid)
 
 #define USB_VENDOR_ID_PANJIT		0x134c
 
-#define USB_VENDOR_ID_SILVERCREST	0x062a
-#define USB_DEVICE_ID_SILVERCREST_KB	0x0201
-
 /*
  * Initialize all reports
  */
@@ -1461,9 +1465,6 @@ void hid_init_reports(struct hid_device *hid)
 #define USB_VENDOR_ID_ONTRAK		0x0a07
 #define USB_DEVICE_ID_ONTRAK_ADU100	0x0064
 
-#define USB_VENDOR_ID_TANGTOP		0x0d3d
-#define USB_DEVICE_ID_TANGTOP_USBPS2	0x0001
-
 #define USB_VENDOR_ID_ESSENTIAL_REALITY	0x0d7f
 #define USB_DEVICE_ID_ESSENTIAL_REALITY_P5 0x0100
 
@@ -1520,12 +1521,6 @@ void hid_init_reports(struct hid_device *hid)
 #define USB_DEVICE_ID_MCC_PMD1024LS	0x0076
 #define USB_DEVICE_ID_MCC_PMD1208LS	0x007a
 
-#define USB_VENDOR_ID_CHICONY		0x04f2
-#define USB_DEVICE_ID_CHICONY_USBHUB_KB	0x0100
-
-#define USB_VENDOR_ID_BTC		0x046e
-#define USB_DEVICE_ID_BTC_KEYBOARD	0x5303
-
 #define USB_VENDOR_ID_VERNIER		0x08f7
 #define USB_DEVICE_ID_VERNIER_LABPRO	0x0001
 #define USB_DEVICE_ID_VERNIER_GOTEMP	0x0002
@@ -1549,20 +1544,13 @@ void hid_init_reports(struct hid_device *hid)
 #define USB_DEVICE_ID_LD_MACHINETEST	0x2040
 
 #define USB_VENDOR_ID_APPLE		0x05ac
-#define USB_DEVICE_ID_APPLE_POWERMOUSE	0x0304
+#define USB_DEVICE_ID_APPLE_MIGHTYMOUSE	0x0304
 
 #define USB_VENDOR_ID_CHERRY		0x046a
 #define USB_DEVICE_ID_CHERRY_CYMOTION	0x0023
 
-#define USB_VENDOR_ID_HP		0x03f0
-#define USB_DEVICE_ID_HP_USBHUB_KB	0x020c
-
-#define USB_VENDOR_ID_IBM		0x04b3
-#define USB_DEVICE_ID_IBM_USBHUB_KB	0x3005
-
-#define USB_VENDOR_ID_CREATIVELABS	0x062a
-#define USB_DEVICE_ID_CREATIVELABS_SILVERCREST	0x0201
-
+#define USB_VENDOR_ID_YEALINK		0x6993
+#define USB_DEVICE_ID_YEALINK_P1K_P4K_B2K	0xb001
 /*
  * Alphabetically sorted blacklist by quirk type.
  */
@@ -1671,6 +1659,7 @@ static const struct hid_blacklist {
 	{ USB_VENDOR_ID_WACOM, USB_DEVICE_ID_WACOM_DTF + 3, HID_QUIRK_IGNORE },
 	{ USB_VENDOR_ID_WISEGROUP, USB_DEVICE_ID_4_PHIDGETSERVO_20, HID_QUIRK_IGNORE },
 	{ USB_VENDOR_ID_WISEGROUP, USB_DEVICE_ID_1_PHIDGETSERVO_20, HID_QUIRK_IGNORE },
+	{ USB_VENDOR_ID_YEALINK, USB_DEVICE_ID_YEALINK_P1K_P4K_B2K, HID_QUIRK_IGNORE },
 
 	{ USB_VENDOR_ID_ACECAD, USB_DEVICE_ID_ACECAD_FLAIR, HID_QUIRK_IGNORE },
 	{ USB_VENDOR_ID_ACECAD, USB_DEVICE_ID_ACECAD_302, HID_QUIRK_IGNORE },
@@ -1680,16 +1669,9 @@ static const struct hid_blacklist {
 	{ USB_VENDOR_ID_ATEN, USB_DEVICE_ID_ATEN_2PORTKVM, HID_QUIRK_NOGET },
 	{ USB_VENDOR_ID_ATEN, USB_DEVICE_ID_ATEN_4PORTKVM, HID_QUIRK_NOGET },
 	{ USB_VENDOR_ID_ATEN, USB_DEVICE_ID_ATEN_4PORTKVMC, HID_QUIRK_NOGET },
-	{ USB_VENDOR_ID_BTC, USB_DEVICE_ID_BTC_KEYBOARD, HID_QUIRK_NOGET},
-	{ USB_VENDOR_ID_CHICONY, USB_DEVICE_ID_CHICONY_USBHUB_KB, HID_QUIRK_NOGET},
-	{ USB_VENDOR_ID_CREATIVELABS, USB_DEVICE_ID_CREATIVELABS_SILVERCREST, HID_QUIRK_NOGET },
-	{ USB_VENDOR_ID_HP, USB_DEVICE_ID_HP_USBHUB_KB, HID_QUIRK_NOGET },
-	{ USB_VENDOR_ID_IBM, USB_DEVICE_ID_IBM_USBHUB_KB, HID_QUIRK_NOGET },
-	{ USB_VENDOR_ID_TANGTOP, USB_DEVICE_ID_TANGTOP_USBPS2, HID_QUIRK_NOGET },
 	{ USB_VENDOR_ID_WISEGROUP, USB_DEVICE_ID_DUAL_USB_JOYPAD, HID_QUIRK_NOGET | HID_QUIRK_MULTI_INPUT },
-	{ USB_VENDOR_ID_SILVERCREST, USB_DEVICE_ID_SILVERCREST_KB, HID_QUIRK_NOGET },
 
-	{ USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_POWERMOUSE, HID_QUIRK_2WHEEL_POWERMOUSE },
+	{ USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_MIGHTYMOUSE, HID_QUIRK_MIGHTYMOUSE | HID_QUIRK_INVERT_HWHEEL },
 	{ USB_VENDOR_ID_A4TECH, USB_DEVICE_ID_A4TECH_WCP32PU, HID_QUIRK_2WHEEL_MOUSE_HACK_7 },
 	{ USB_VENDOR_ID_CYPRESS, USB_DEVICE_ID_CYPRESS_MOUSE, HID_QUIRK_2WHEEL_MOUSE_HACK_5 },
 
@@ -1711,6 +1693,9 @@ static const struct hid_blacklist {
 	{ USB_VENDOR_ID_APPLE, 0x0214, HID_QUIRK_POWERBOOK_HAS_FN },
 	{ USB_VENDOR_ID_APPLE, 0x0215, HID_QUIRK_POWERBOOK_HAS_FN },
 	{ USB_VENDOR_ID_APPLE, 0x0216, HID_QUIRK_POWERBOOK_HAS_FN },
+	{ USB_VENDOR_ID_APPLE, 0x0217, HID_QUIRK_POWERBOOK_HAS_FN },
+	{ USB_VENDOR_ID_APPLE, 0x0218, HID_QUIRK_POWERBOOK_HAS_FN },
+	{ USB_VENDOR_ID_APPLE, 0x0219, HID_QUIRK_POWERBOOK_HAS_FN },
 	{ USB_VENDOR_ID_APPLE, 0x030A, HID_QUIRK_POWERBOOK_HAS_FN },
 	{ USB_VENDOR_ID_APPLE, 0x030B, HID_QUIRK_POWERBOOK_HAS_FN },
 
@@ -1793,6 +1778,14 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 		if ((hid_blacklist[n].idVendor == le16_to_cpu(dev->descriptor.idVendor)) &&
 			(hid_blacklist[n].idProduct == le16_to_cpu(dev->descriptor.idProduct)))
 				quirks = hid_blacklist[n].quirks;
+
+	/* Many keyboards and mice don't like to be polled for reports,
+	 * so we will always set the HID_QUIRK_NOGET flag for them. */
+	if (interface->desc.bInterfaceSubClass == USB_INTERFACE_SUBCLASS_BOOT) {
+		if (interface->desc.bInterfaceProtocol == USB_INTERFACE_PROTOCOL_KEYBOARD ||
+			interface->desc.bInterfaceProtocol == USB_INTERFACE_PROTOCOL_MOUSE)
+				quirks |= HID_QUIRK_NOGET;
+	}
 
 	if (quirks & HID_QUIRK_IGNORE)
 		return NULL;
@@ -2080,9 +2073,27 @@ static int hid_resume(struct usb_interface *intf)
 	int status;
 
 	clear_bit(HID_SUSPENDED, &hid->iofl);
+	hid->retry_delay = 0;
 	status = hid_start_in(hid);
 	dev_dbg(&intf->dev, "resume status %d\n", status);
 	return status;
+}
+
+/* Treat USB reset pretty much the same as suspend/resume */
+static void hid_pre_reset(struct usb_interface *intf)
+{
+	/* FIXME: What if the interface is already suspended? */
+	hid_suspend(intf, PMSG_ON);
+}
+
+static void hid_post_reset(struct usb_interface *intf)
+{
+	struct usb_device *dev = interface_to_usbdev (intf);
+
+	hid_set_idle(dev, intf->cur_altsetting->desc.bInterfaceNumber, 0, 0);
+	/* FIXME: Any more reinitialization needed? */
+
+	hid_resume(intf);
 }
 
 static struct usb_device_id hid_usb_ids [] = {
@@ -2099,6 +2110,8 @@ static struct usb_driver hid_driver = {
 	.disconnect =	hid_disconnect,
 	.suspend =	hid_suspend,
 	.resume =	hid_resume,
+	.pre_reset =	hid_pre_reset,
+	.post_reset =	hid_post_reset,
 	.id_table =	hid_usb_ids,
 };
 

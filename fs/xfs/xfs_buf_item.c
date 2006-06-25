@@ -23,7 +23,6 @@
 #include "xfs_inum.h"
 #include "xfs_trans.h"
 #include "xfs_sb.h"
-#include "xfs_dir.h"
 #include "xfs_dmapi.h"
 #include "xfs_mount.h"
 #include "xfs_buf_item.h"
@@ -1030,9 +1029,9 @@ xfs_buf_iodone_callbacks(
 		if ((XFS_BUF_TARGET(bp) != lasttarg) ||
 		    (time_after(jiffies, (lasttime + 5*HZ)))) {
 			lasttime = jiffies;
-			prdev("XFS write error in file system meta-data "
-			      "block 0x%llx in %s",
-			      XFS_BUF_TARGET(bp),
+			cmn_err(CE_ALERT, "Device %s, XFS metadata write error"
+					" block 0x%llx in %s",
+				XFS_BUFTARG_NAME(XFS_BUF_TARGET(bp)),
 			      (__uint64_t)XFS_BUF_ADDR(bp), mp->m_fsname);
 		}
 		lasttarg = XFS_BUF_TARGET(bp);
@@ -1108,7 +1107,7 @@ xfs_buf_error_relse(
 	XFS_BUF_ERROR(bp,0);
 	xfs_buftrace("BUF_ERROR_RELSE", bp);
 	if (! XFS_FORCED_SHUTDOWN(mp))
-		xfs_force_shutdown(mp, XFS_METADATA_IO_ERROR);
+		xfs_force_shutdown(mp, SHUTDOWN_META_IO_ERROR);
 	/*
 	 * We have to unpin the pinned buffers so do the
 	 * callbacks.

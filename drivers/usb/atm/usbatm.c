@@ -1039,7 +1039,7 @@ static void usbatm_tasklet_schedule(unsigned long data)
 	tasklet_schedule((struct tasklet_struct *) data);
 }
 
-static inline void usbatm_init_channel(struct usbatm_channel *channel)
+static void usbatm_init_channel(struct usbatm_channel *channel)
 {
 	spin_lock_init(&channel->lock);
 	INIT_LIST_HEAD(&channel->list);

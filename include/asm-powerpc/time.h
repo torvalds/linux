@@ -14,7 +14,6 @@
 #define __POWERPC_TIME_H
 
 #ifdef __KERNEL__
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/percpu.h>
 

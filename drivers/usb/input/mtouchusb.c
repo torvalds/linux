@@ -42,11 +42,9 @@
 #include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/input.h>
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/usb.h>
-#include <linux/usb_input.h>
+#include <linux/usb/input.h>
 
 #define MTOUCHUSB_MIN_XC                0x0
 #define MTOUCHUSB_MAX_RAW_XC            0x4000

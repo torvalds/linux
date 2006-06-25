@@ -235,14 +235,14 @@ static void __init pSeries_setup_arch(void)
 	if (firmware_has_feature(FW_FEATURE_SPLPAR)) {
 		vpa_init(boot_cpuid);
 		if (get_lppaca()->shared_proc) {
-			printk(KERN_INFO "Using shared processor idle loop\n");
+			printk(KERN_DEBUG "Using shared processor idle loop\n");
 			ppc_md.power_save = pseries_shared_idle_sleep;
 		} else {
-			printk(KERN_INFO "Using dedicated idle loop\n");
+			printk(KERN_DEBUG "Using dedicated idle loop\n");
 			ppc_md.power_save = pseries_dedicated_idle_sleep;
 		}
 	} else {
-		printk(KERN_INFO "Using default idle loop\n");
+		printk(KERN_DEBUG "Using default idle loop\n");
 	}
 
 	if (firmware_has_feature(FW_FEATURE_LPAR))

@@ -694,7 +694,7 @@ asmlinkage int irix_statfs(const char __user *path,
 	if (error)
 		goto out;
 
-	error = vfs_statfs(nd.dentry->d_inode->i_sb, &kbuf);
+	error = vfs_statfs(nd.dentry, &kbuf);
 	if (error)
 		goto dput_and_out;
 
@@ -732,7 +732,7 @@ asmlinkage int irix_fstatfs(unsigned int fd, struct irix_statfs __user *buf)
 		goto out;
 	}
 
-	error = vfs_statfs(file->f_dentry->d_inode->i_sb, &kbuf);
+	error = vfs_statfs(file->f_dentry, &kbuf);
 	if (error)
 		goto out_f;
 
@@ -1360,7 +1360,7 @@ asmlinkage int irix_statvfs(char __user *fname, struct irix_statvfs __user *buf)
 	error = user_path_walk(fname, &nd);
 	if (error)
 		goto out;
-	error = vfs_statfs(nd.dentry->d_inode->i_sb, &kbuf);
+	error = vfs_statfs(nd.dentry, &kbuf);
 	if (error)
 		goto dput_and_out;
 
@@ -1406,7 +1406,7 @@ asmlinkage int irix_fstatvfs(int fd, struct irix_statvfs __user *buf)
 		error = -EBADF;
 		goto out;
 	}
-	error = vfs_statfs(file->f_dentry->d_inode->i_sb, &kbuf);
+	error = vfs_statfs(file->f_dentry, &kbuf);
 	if (error)
 		goto out_f;
 
@@ -1611,7 +1611,7 @@ asmlinkage int irix_statvfs64(char __user *fname, struct irix_statvfs64 __user *
 	error = user_path_walk(fname, &nd);
 	if (error)
 		goto out;
-	error = vfs_statfs(nd.dentry->d_inode->i_sb, &kbuf);
+	error = vfs_statfs(nd.dentry, &kbuf);
 	if (error)
 		goto dput_and_out;
 
@@ -1658,7 +1658,7 @@ asmlinkage int irix_fstatvfs64(int fd, struct irix_statvfs __user *buf)
 		error = -EBADF;
 		goto out;
 	}
-	error = vfs_statfs(file->f_dentry->d_inode->i_sb, &kbuf);
+	error = vfs_statfs(file->f_dentry, &kbuf);
 	if (error)
 		goto out_f;
 

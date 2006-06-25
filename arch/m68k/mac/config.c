@@ -89,23 +89,10 @@ extern void mac_debugging_long(int, long);
 
 static void mac_get_model(char *str);
 
-void mac_bang(int irq, void *vector, struct pt_regs *p)
-{
-	printk(KERN_INFO "Resetting ...\n");
-	mac_reset();
-}
-
 static void mac_sched_init(irqreturn_t (*vector)(int, void *, struct pt_regs *))
 {
 	via_init_clock(vector);
 }
-
-#if 0
-void mac_waitbut (void)
-{
-	;
-}
-#endif
 
 extern irqreturn_t mac_default_handler(int, void *, struct pt_regs *);
 

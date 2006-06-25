@@ -1012,7 +1012,7 @@ static void garmin_write_bulk_callback (struct urb *urb, struct pt_regs *regs)
 		garmin_data_p->flags |= CLEAR_HALT_REQUIRED;
 	}
 
-	schedule_work(&port->work);
+	usb_serial_port_softint(port);
 }
 
 

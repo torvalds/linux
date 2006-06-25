@@ -9,7 +9,6 @@
  *    Copyright (C) 2004  Hirokazu Takata <takata at linux-m32r.org>
  */
 
-#include <linux/config.h>	/* CONFIG_DEBUG_SPINLOCK, CONFIG_SMP */
 #include <linux/compiler.h>
 #include <asm/atomic.h>
 #include <asm/page.h>

@@ -9,26 +9,6 @@
 #ifndef _LINUX_NFS_FS_H
 #define _LINUX_NFS_FS_H
 
-#include <linux/config.h>
-#include <linux/in.h>
-#include <linux/mm.h>
-#include <linux/pagemap.h>
-#include <linux/rwsem.h>
-#include <linux/wait.h>
-
-#include <linux/nfs_fs_sb.h>
-
-#include <linux/sunrpc/debug.h>
-#include <linux/sunrpc/auth.h>
-#include <linux/sunrpc/clnt.h>
-
-#include <linux/nfs.h>
-#include <linux/nfs2.h>
-#include <linux/nfs3.h>
-#include <linux/nfs4.h>
-#include <linux/nfs_xdr.h>
-#include <linux/rwsem.h>
-#include <linux/mempool.h>
 
 /*
  * Enable debugging support for nfs client.
@@ -63,6 +43,25 @@
 #define FLUSH_NOCOMMIT		32	/* Don't send the NFSv3/v4 COMMIT */
 
 #ifdef __KERNEL__
+#include <linux/in.h>
+#include <linux/mm.h>
+#include <linux/pagemap.h>
+#include <linux/rwsem.h>
+#include <linux/wait.h>
+
+#include <linux/nfs_fs_sb.h>
+
+#include <linux/sunrpc/debug.h>
+#include <linux/sunrpc/auth.h>
+#include <linux/sunrpc/clnt.h>
+
+#include <linux/nfs.h>
+#include <linux/nfs2.h>
+#include <linux/nfs3.h>
+#include <linux/nfs4.h>
+#include <linux/nfs_xdr.h>
+#include <linux/rwsem.h>
+#include <linux/mempool.h>
 
 /*
  * NFSv3/v4 Access mode cache entry

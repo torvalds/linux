@@ -1119,6 +1119,10 @@ static int device_check(imm_struct *dev)
 	return -ENODEV;
 }
 
+/*
+ * imm cannot deal with highmem, so this causes all IO pages for this host
+ * to reside in low memory (hence mapped)
+ */
 static int imm_adjust_queue(struct scsi_device *device)
 {
 	blk_queue_bounce_limit(device->request_queue, BLK_BOUNCE_HIGH);
@@ -1141,10 +1145,6 @@ static struct scsi_host_template imm_template = {
 	.use_clustering		= ENABLE_CLUSTERING,
 	.can_queue		= 1,
 	.slave_alloc		= imm_adjust_queue,
-	.unchecked_isa_dma	= 1, /* imm cannot deal with highmem, so
-				      * this is an easy trick to ensure
-				      * all io pages for this host reside
-				      * in low memory */
 };
 
 /***************************************************************************

@@ -1031,8 +1031,7 @@ static int mc32_send_packet(struct sk_buff *skb, struct net_device *dev)
 		return 1;
 	}
 
-	skb = skb_padto(skb, ETH_ZLEN);
-	if (skb == NULL) {
+	if (skb_padto(skb, ETH_ZLEN)) {
 		netif_wake_queue(dev);
 		return 0;
 	}

@@ -790,7 +790,6 @@ RCU pointer update:
 
 RCU grace period:
 
-	synchronize_kernel (deprecated)
 	synchronize_net
 	synchronize_sched
 	synchronize_rcu

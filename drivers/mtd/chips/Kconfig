@@ -30,7 +30,6 @@ config MTD_JEDECPROBE
 
 config MTD_GEN_PROBE
 	tristate
-	select OBSOLETE_INTERMODULE
 
 config MTD_CFI_ADV_OPTIONS
 	bool "Flash chip driver advanced configuration options"

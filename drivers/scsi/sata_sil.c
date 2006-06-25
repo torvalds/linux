@@ -46,7 +46,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"sata_sil"
-#define DRV_VERSION	"0.9"
+#define DRV_VERSION	"1.0"
 
 enum {
 	/*
@@ -54,8 +54,9 @@ enum {
 	 */
 	SIL_FLAG_RERR_ON_DMA_ACT = (1 << 29),
 	SIL_FLAG_MOD15WRITE	= (1 << 30),
+
 	SIL_DFL_HOST_FLAGS	= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
-				  ATA_FLAG_MMIO,
+				  ATA_FLAG_MMIO | ATA_FLAG_HRST_TO_RESUME,
 
 	/*
 	 * Controller IDs
@@ -84,6 +85,20 @@ enum {
 	/* BMDMA/BMDMA2 */
 	SIL_INTR_STEERING	= (1 << 1),
 
+	SIL_DMA_ENABLE		= (1 << 0),  /* DMA run switch */
+	SIL_DMA_RDWR		= (1 << 3),  /* DMA Rd-Wr */
+	SIL_DMA_SATA_IRQ	= (1 << 4),  /* OR of all SATA IRQs */
+	SIL_DMA_ACTIVE		= (1 << 16), /* DMA running */
+	SIL_DMA_ERROR		= (1 << 17), /* PCI bus error */
+	SIL_DMA_COMPLETE	= (1 << 18), /* cmd complete / IRQ pending */
+	SIL_DMA_N_SATA_IRQ	= (1 << 6),  /* SATA_IRQ for the next channel */
+	SIL_DMA_N_ACTIVE	= (1 << 24), /* ACTIVE for the next channel */
+	SIL_DMA_N_ERROR		= (1 << 25), /* ERROR for the next channel */
+	SIL_DMA_N_COMPLETE	= (1 << 26), /* COMPLETE for the next channel */
+
+	/* SIEN */
+	SIL_SIEN_N		= (1 << 16), /* triggered by SError.N */
+
 	/*
 	 * Others
 	 */
@@ -96,6 +111,10 @@ static void sil_dev_config(struct ata_port *ap, struct ata_device *dev);
 static u32 sil_scr_read (struct ata_port *ap, unsigned int sc_reg);
 static void sil_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val);
 static void sil_post_set_mode (struct ata_port *ap);
+static irqreturn_t sil_interrupt(int irq, void *dev_instance,
+				 struct pt_regs *regs);
+static void sil_freeze(struct ata_port *ap);
+static void sil_thaw(struct ata_port *ap);
 
 
 static const struct pci_device_id sil_pci_tbl[] = {
@@ -155,6 +174,7 @@ static struct scsi_host_template sil_sht = {
 	.proc_name		= DRV_NAME,
 	.dma_boundary		= ATA_DMA_BOUNDARY,
 	.slave_configure	= ata_scsi_slave_config,
+	.slave_destroy		= ata_scsi_slave_destroy,
 	.bios_param		= ata_std_bios_param,
 };
 
@@ -166,7 +186,6 @@ static const struct ata_port_operations sil_ops = {
 	.check_status		= ata_check_status,
 	.exec_command		= ata_exec_command,
 	.dev_select		= ata_std_dev_select,
-	.probe_reset		= ata_std_probe_reset,
 	.post_set_mode		= sil_post_set_mode,
 	.bmdma_setup            = ata_bmdma_setup,
 	.bmdma_start            = ata_bmdma_start,
@@ -174,8 +193,12 @@ static const struct ata_port_operations sil_ops = {
 	.bmdma_status		= ata_bmdma_status,
 	.qc_prep		= ata_qc_prep,
 	.qc_issue		= ata_qc_issue_prot,
-	.eng_timeout		= ata_eng_timeout,
-	.irq_handler		= ata_interrupt,
+	.data_xfer		= ata_mmio_data_xfer,
+	.freeze			= sil_freeze,
+	.thaw			= sil_thaw,
+	.error_handler		= ata_bmdma_error_handler,
+	.post_internal_cmd	= ata_bmdma_post_internal_cmd,
+	.irq_handler		= sil_interrupt,
 	.irq_clear		= ata_bmdma_irq_clear,
 	.scr_read		= sil_scr_read,
 	.scr_write		= sil_scr_write,
@@ -220,6 +243,7 @@ static const struct {
 	unsigned long tf;	/* ATA taskfile register block */
 	unsigned long ctl;	/* ATA control/altstatus register block */
 	unsigned long bmdma;	/* DMA register block */
+	unsigned long bmdma2;	/* DMA register block #2 */
 	unsigned long fifo_cfg;	/* FIFO Valid Byte Count and Control */
 	unsigned long scr;	/* SATA control register block */
 	unsigned long sien;	/* SATA Interrupt Enable register */
@@ -227,10 +251,10 @@ static const struct {
 	unsigned long sfis_cfg;	/* SATA FIS reception config register */
 } sil_port[] = {
 	/* port 0 ... */
-	{ 0x80, 0x8A, 0x00, 0x40, 0x100, 0x148, 0xb4, 0x14c },
-	{ 0xC0, 0xCA, 0x08, 0x44, 0x180, 0x1c8, 0xf4, 0x1cc },
-	{ 0x280, 0x28A, 0x200, 0x240, 0x300, 0x348, 0x2b4, 0x34c },
-	{ 0x2C0, 0x2CA, 0x208, 0x244, 0x380, 0x3c8, 0x2f4, 0x3cc },
+	{ 0x80, 0x8A, 0x00, 0x10, 0x40, 0x100, 0x148, 0xb4, 0x14c },
+	{ 0xC0, 0xCA, 0x08, 0x18, 0x44, 0x180, 0x1c8, 0xf4, 0x1cc },
+	{ 0x280, 0x28A, 0x200, 0x210, 0x240, 0x300, 0x348, 0x2b4, 0x34c },
+	{ 0x2C0, 0x2CA, 0x208, 0x218, 0x244, 0x380, 0x3c8, 0x2f4, 0x3cc },
 	/* ... port 3 */
 };
 
@@ -263,7 +287,7 @@ static void sil_post_set_mode (struct ata_port *ap)
 
 	for (i = 0; i < 2; i++) {
 		dev = &ap->device[i];
-		if (!ata_dev_present(dev))
+		if (!ata_dev_enabled(dev))
 			dev_mode[i] = 0;	/* PIO0/1/2 */
 		else if (dev->flags & ATA_DFLAG_PIO)
 			dev_mode[i] = 1;	/* PIO3/4 */
@@ -314,6 +338,151 @@ static void sil_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val)
 		writel(val, mmio);
 }
 
+static void sil_host_intr(struct ata_port *ap, u32 bmdma2)
+{
+	struct ata_queued_cmd *qc = ata_qc_from_tag(ap, ap->active_tag);
+	u8 status;
+
+	if (unlikely(bmdma2 & SIL_DMA_SATA_IRQ)) {
+		u32 serror;
+
+		/* SIEN doesn't mask SATA IRQs on some 3112s.  Those
+		 * controllers continue to assert IRQ as long as
+		 * SError bits are pending.  Clear SError immediately.
+		 */
+		serror = sil_scr_read(ap, SCR_ERROR);
+		sil_scr_write(ap, SCR_ERROR, serror);
+
+		/* Trigger hotplug and accumulate SError only if the
+		 * port isn't already frozen.  Otherwise, PHY events
+		 * during hardreset makes controllers with broken SIEN
+		 * repeat probing needlessly.
+		 */
+		if (!(ap->flags & ATA_FLAG_FROZEN)) {
+			ata_ehi_hotplugged(&ap->eh_info);
+			ap->eh_info.serror |= serror;
+		}
+
+		goto freeze;
+	}
+
+	if (unlikely(!qc || qc->tf.ctl & ATA_NIEN))
+		goto freeze;
+
+	/* Check whether we are expecting interrupt in this state */
+	switch (ap->hsm_task_state) {
+	case HSM_ST_FIRST:
+		/* Some pre-ATAPI-4 devices assert INTRQ
+		 * at this state when ready to receive CDB.
+		 */
+
+		/* Check the ATA_DFLAG_CDB_INTR flag is enough here.
+		 * The flag was turned on only for atapi devices.
+		 * No need to check is_atapi_taskfile(&qc->tf) again.
+		 */
+		if (!(qc->dev->flags & ATA_DFLAG_CDB_INTR))
+			goto err_hsm;
+		break;
+	case HSM_ST_LAST:
+		if (qc->tf.protocol == ATA_PROT_DMA ||
+		    qc->tf.protocol == ATA_PROT_ATAPI_DMA) {
+			/* clear DMA-Start bit */
+			ap->ops->bmdma_stop(qc);
+
+			if (bmdma2 & SIL_DMA_ERROR) {
+				qc->err_mask |= AC_ERR_HOST_BUS;
+				ap->hsm_task_state = HSM_ST_ERR;
+			}
+		}
+		break;
+	case HSM_ST:
+		break;
+	default:
+		goto err_hsm;
+	}
+
+	/* check main status, clearing INTRQ */
+	status = ata_chk_status(ap);
+	if (unlikely(status & ATA_BUSY))
+		goto err_hsm;
+
+	/* ack bmdma irq events */
+	ata_bmdma_irq_clear(ap);
+
+	/* kick HSM in the ass */
+	ata_hsm_move(ap, qc, status, 0);
+
+	return;
+
+ err_hsm:
+	qc->err_mask |= AC_ERR_HSM;
+ freeze:
+	ata_port_freeze(ap);
+}
+
+static irqreturn_t sil_interrupt(int irq, void *dev_instance,
+				 struct pt_regs *regs)
+{
+	struct ata_host_set *host_set = dev_instance;
+	void __iomem *mmio_base = host_set->mmio_base;
+	int handled = 0;
+	int i;
+
+	spin_lock(&host_set->lock);
+
+	for (i = 0; i < host_set->n_ports; i++) {
+		struct ata_port *ap = host_set->ports[i];
+		u32 bmdma2 = readl(mmio_base + sil_port[ap->port_no].bmdma2);
+
+		if (unlikely(!ap || ap->flags & ATA_FLAG_DISABLED))
+			continue;
+
+		if (bmdma2 == 0xffffffff ||
+		    !(bmdma2 & (SIL_DMA_COMPLETE | SIL_DMA_SATA_IRQ)))
+			continue;
+
+		sil_host_intr(ap, bmdma2);
+		handled = 1;
+	}
+
+	spin_unlock(&host_set->lock);
+
+	return IRQ_RETVAL(handled);
+}
+
+static void sil_freeze(struct ata_port *ap)
+{
+	void __iomem *mmio_base = ap->host_set->mmio_base;
+	u32 tmp;
+
+	/* global IRQ mask doesn't block SATA IRQ, turn off explicitly */
+	writel(0, mmio_base + sil_port[ap->port_no].sien);
+
+	/* plug IRQ */
+	tmp = readl(mmio_base + SIL_SYSCFG);
+	tmp |= SIL_MASK_IDE0_INT << ap->port_no;
+	writel(tmp, mmio_base + SIL_SYSCFG);
+	readl(mmio_base + SIL_SYSCFG);	/* flush */
+}
+
+static void sil_thaw(struct ata_port *ap)
+{
+	void __iomem *mmio_base = ap->host_set->mmio_base;
+	u32 tmp;
+
+	/* clear IRQ */
+	ata_chk_status(ap);
+	ata_bmdma_irq_clear(ap);
+
+	/* turn on SATA IRQ */
+	writel(SIL_SIEN_N, mmio_base + sil_port[ap->port_no].sien);
+
+	/* turn on IRQ */
+	tmp = readl(mmio_base + SIL_SYSCFG);
+	tmp &= ~(SIL_MASK_IDE0_INT << ap->port_no);
+	writel(tmp, mmio_base + SIL_SYSCFG);
+}
+
 /**
  *	sil_dev_config - Apply device/host-specific errata fixups
  *	@ap: Port containing device to be examined
@@ -360,16 +529,16 @@ static void sil_dev_config(struct ata_port *ap, struct ata_device *dev)
 	if (slow_down ||
 	    ((ap->flags & SIL_FLAG_MOD15WRITE) &&
 	     (quirks & SIL_QUIRK_MOD15WRITE))) {
-		printk(KERN_INFO "ata%u(%u): applying Seagate errata fix (mod15write workaround)\n",
-		       ap->id, dev->devno);
+		ata_dev_printk(dev, KERN_INFO, "applying Seagate errata fix "
+			       "(mod15write workaround)\n");
 		dev->max_sectors = 15;
 		return;
 	}
 
 	/* limit to udma5 */
 	if (quirks & SIL_QUIRK_UDMA5MAX) {
-		printk(KERN_INFO "ata%u(%u): applying Maxtor errata fix %s\n",
-		       ap->id, dev->devno, model_num);
+		ata_dev_printk(dev, KERN_INFO,
+			       "applying Maxtor errata fix %s\n", model_num);
 		dev->udma_mask &= ATA_UDMA5;
 		return;
 	}
@@ -384,16 +553,12 @@ static int sil_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	int rc;
 	unsigned int i;
 	int pci_dev_busy = 0;
-	u32 tmp, irq_mask;
+	u32 tmp;
 	u8 cls;
 
 	if (!printed_version++)
 		dev_printk(KERN_DEBUG, &pdev->dev, "version " DRV_VERSION "\n");
 
-	/*
-	 * If this driver happens to only be useful on Apple's K2, then
-	 * we should check that here as it has a normal Serverworks ID
-	 */
 	rc = pci_enable_device(pdev);
 	if (rc)
 		return rc;
@@ -478,30 +643,12 @@ static int sil_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	if (ent->driver_data == sil_3114) {
-		irq_mask = SIL_MASK_4PORT;
-
 		/* flip the magic "make 4 ports work" bit */
 		tmp = readl(mmio_base + sil_port[2].bmdma);
 		if ((tmp & SIL_INTR_STEERING) == 0)
 			writel(tmp | SIL_INTR_STEERING,
 			       mmio_base + sil_port[2].bmdma);
-
-	} else {
-		irq_mask = SIL_MASK_2PORT;
 	}
-
-	/* make sure IDE0/1/2/3 interrupts are not masked */
-	tmp = readl(mmio_base + SIL_SYSCFG);
-	if (tmp & irq_mask) {
-		tmp &= ~irq_mask;
-		writel(tmp, mmio_base + SIL_SYSCFG);
-		readl(mmio_base + SIL_SYSCFG);	/* flush */
-	}
-
-	/* mask all SATA phy-related interrupts */
-	/* TODO: unmask bit 6 (SError N bit) for hotplug */
-	for (i = 0; i < probe_ent->n_ports; i++)
-		writel(0, mmio_base + sil_port[i].sien);
 
 	pci_set_master(pdev);
 

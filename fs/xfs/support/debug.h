@@ -33,9 +33,6 @@ extern void cmn_err(int, char *, ...)
 	__attribute__ ((format (printf, 2, 3)));
 extern void assfail(char *expr, char *f, int l);
 
-#define prdev(fmt,targ,args...) \
-	printk("Device %s - " fmt "\n", XFS_BUFTARG_NAME(targ), ## args)
-
 #define ASSERT_ALWAYS(expr)	\
 	(unlikely((expr) != 0) ? (void)0 : assfail(#expr, __FILE__, __LINE__))
 

@@ -161,7 +161,7 @@ struct SiS_Private
 	const struct SiS_Ext		*SiS_EModeIDTable;
 	const struct SiS_Ext2		*SiS_RefIndex;
 	const struct SiS_CRT1Table	*SiS_CRT1Table;
-	struct SiS_VCLKData		*SiS_VCLKData;
+	const struct SiS_VCLKData	*SiS_VCLKData;
 	const struct SiS_ModeResInfo	*SiS_ModeResInfo;
 };
 

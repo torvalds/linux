@@ -45,7 +45,7 @@
 
 #define OSS_ALSAEMULVER		_SIOR ('M', 249, int)
 
-static int dsp_map[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS-1)] = 0};
+static int dsp_map[SNDRV_CARDS];
 static int adsp_map[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS-1)] = 1};
 static int nonblock_open = 1;
 
@@ -77,6 +77,487 @@ static inline void snd_leave_user(mm_segment_t fs)
 {
 	set_fs(fs);
 }
+
+/*
+ * helper functions to process hw_params
+ */
+static int snd_interval_refine_min(struct snd_interval *i, unsigned int min, int openmin)
+{
+	int changed = 0;
+	if (i->min < min) {
+		i->min = min;
+		i->openmin = openmin;
+		changed = 1;
+	} else if (i->min == min && !i->openmin && openmin) {
+		i->openmin = 1;
+		changed = 1;
+	}
+	if (i->integer) {
+		if (i->openmin) {
+			i->min++;
+			i->openmin = 0;
+		}
+	}
+	if (snd_interval_checkempty(i)) {
+		snd_interval_none(i);
+		return -EINVAL;
+	}
+	return changed;
+}
+
+static int snd_interval_refine_max(struct snd_interval *i, unsigned int max, int openmax)
+{
+	int changed = 0;
+	if (i->max > max) {
+		i->max = max;
+		i->openmax = openmax;
+		changed = 1;
+	} else if (i->max == max && !i->openmax && openmax) {
+		i->openmax = 1;
+		changed = 1;
+	}
+	if (i->integer) {
+		if (i->openmax) {
+			i->max--;
+			i->openmax = 0;
+		}
+	}
+	if (snd_interval_checkempty(i)) {
+		snd_interval_none(i);
+		return -EINVAL;
+	}
+	return changed;
+}
+
+static int snd_interval_refine_set(struct snd_interval *i, unsigned int val)
+{
+	struct snd_interval t;
+	t.empty = 0;
+	t.min = t.max = val;
+	t.openmin = t.openmax = 0;
+	t.integer = 1;
+	return snd_interval_refine(i, &t);
+}
+
+/**
+ * snd_pcm_hw_param_value_min
+ * @params: the hw_params instance
+ * @var: parameter to retrieve
+ * @dir: pointer to the direction (-1,0,1) or NULL
+ *
+ * Return the minimum value for field PAR.
+ */
+static unsigned int
+snd_pcm_hw_param_value_min(const struct snd_pcm_hw_params *params,
+			   snd_pcm_hw_param_t var, int *dir)
+{
+	if (hw_is_mask(var)) {
+		if (dir)
+			*dir = 0;
+		return snd_mask_min(hw_param_mask_c(params, var));
+	}
+	if (hw_is_interval(var)) {
+		const struct snd_interval *i = hw_param_interval_c(params, var);
+		if (dir)
+			*dir = i->openmin;
+		return snd_interval_min(i);
+	}
+	return -EINVAL;
+}
+
+/**
+ * snd_pcm_hw_param_value_max
+ * @params: the hw_params instance
+ * @var: parameter to retrieve
+ * @dir: pointer to the direction (-1,0,1) or NULL
+ *
+ * Return the maximum value for field PAR.
+ */
+static unsigned int
+snd_pcm_hw_param_value_max(const struct snd_pcm_hw_params *params,
+			   snd_pcm_hw_param_t var, int *dir)
+{
+	if (hw_is_mask(var)) {
+		if (dir)
+			*dir = 0;
+		return snd_mask_max(hw_param_mask_c(params, var));
+	}
+	if (hw_is_interval(var)) {
+		const struct snd_interval *i = hw_param_interval_c(params, var);
+		if (dir)
+			*dir = - (int) i->openmax;
+		return snd_interval_max(i);
+	}
+	return -EINVAL;
+}
+
+static int _snd_pcm_hw_param_mask(struct snd_pcm_hw_params *params,
+				  snd_pcm_hw_param_t var,
+				  const struct snd_mask *val)
+{
+	int changed;
+	changed = snd_mask_refine(hw_param_mask(params, var), val);
+	if (changed) {
+		params->cmask |= 1 << var;
+		params->rmask |= 1 << var;
+	}
+	return changed;
+}
+
+static int snd_pcm_hw_param_mask(struct snd_pcm_substream *pcm,
+				 struct snd_pcm_hw_params *params,
+				 snd_pcm_hw_param_t var,
+				 const struct snd_mask *val)
+{
+	int changed = _snd_pcm_hw_param_mask(params, var, val);
+	if (changed < 0)
+		return changed;
+	if (params->rmask) {
+		int err = snd_pcm_hw_refine(pcm, params);
+		if (err < 0)
+			return err;
+	}
+	return 0;
+}
+
+static int _snd_pcm_hw_param_min(struct snd_pcm_hw_params *params,
+				 snd_pcm_hw_param_t var, unsigned int val,
+				 int dir)
+{
+	int changed;
+	int open = 0;
+	if (dir) {
+		if (dir > 0) {
+			open = 1;
+		} else if (dir < 0) {
+			if (val > 0) {
+				open = 1;
+				val--;
+			}
+		}
+	}
+	if (hw_is_mask(var))
+		changed = snd_mask_refine_min(hw_param_mask(params, var),
+					      val + !!open);
+	else if (hw_is_interval(var))
+		changed = snd_interval_refine_min(hw_param_interval(params, var),
+						  val, open);
+	else
+		return -EINVAL;
+	if (changed) {
+		params->cmask |= 1 << var;
+		params->rmask |= 1 << var;
+	}
+	return changed;
+}
+
+/**
+ * snd_pcm_hw_param_min
+ * @pcm: PCM instance
+ * @params: the hw_params instance
+ * @var: parameter to retrieve
+ * @val: minimal value
+ * @dir: pointer to the direction (-1,0,1) or NULL
+ *
+ * Inside configuration space defined by PARAMS remove from PAR all 
+ * values < VAL. Reduce configuration space accordingly.
+ * Return new minimum or -EINVAL if the configuration space is empty
+ */
+static int snd_pcm_hw_param_min(struct snd_pcm_substream *pcm,
+				struct snd_pcm_hw_params *params,
+				snd_pcm_hw_param_t var, unsigned int val,
+				int *dir)
+{
+	int changed = _snd_pcm_hw_param_min(params, var, val, dir ? *dir : 0);
+	if (changed < 0)
+		return changed;
+	if (params->rmask) {
+		int err = snd_pcm_hw_refine(pcm, params);
+		if (err < 0)
+			return err;
+	}
+	return snd_pcm_hw_param_value_min(params, var, dir);
+}
+
+static int _snd_pcm_hw_param_max(struct snd_pcm_hw_params *params,
+				 snd_pcm_hw_param_t var, unsigned int val,
+				 int dir)
+{
+	int changed;
+	int open = 0;
+	if (dir) {
+		if (dir < 0) {
+			open = 1;
+		} else if (dir > 0) {
+			open = 1;
+			val++;
+		}
+	}
+	if (hw_is_mask(var)) {
+		if (val == 0 && open) {
+			snd_mask_none(hw_param_mask(params, var));
+			changed = -EINVAL;
+		} else
+			changed = snd_mask_refine_max(hw_param_mask(params, var),
+						      val - !!open);
+	} else if (hw_is_interval(var))
+		changed = snd_interval_refine_max(hw_param_interval(params, var),
+						  val, open);
+	else
+		return -EINVAL;
+	if (changed) {
+		params->cmask |= 1 << var;
+		params->rmask |= 1 << var;
+	}
+	return changed;
+}
+
+/**
+ * snd_pcm_hw_param_max
+ * @pcm: PCM instance
+ * @params: the hw_params instance
+ * @var: parameter to retrieve
+ * @val: maximal value
+ * @dir: pointer to the direction (-1,0,1) or NULL
+ *
+ * Inside configuration space defined by PARAMS remove from PAR all 
+ *  values >= VAL + 1. Reduce configuration space accordingly.
+ *  Return new maximum or -EINVAL if the configuration space is empty
+ */
+static int snd_pcm_hw_param_max(struct snd_pcm_substream *pcm,
+				struct snd_pcm_hw_params *params,
+				snd_pcm_hw_param_t var, unsigned int val,
+				int *dir)
+{
+	int changed = _snd_pcm_hw_param_max(params, var, val, dir ? *dir : 0);
+	if (changed < 0)
+		return changed;
+	if (params->rmask) {
+		int err = snd_pcm_hw_refine(pcm, params);
+		if (err < 0)
+			return err;
+	}
+	return snd_pcm_hw_param_value_max(params, var, dir);
+}
+
+static int boundary_sub(int a, int adir,
+			int b, int bdir,
+			int *c, int *cdir)
+{
+	adir = adir < 0 ? -1 : (adir > 0 ? 1 : 0);
+	bdir = bdir < 0 ? -1 : (bdir > 0 ? 1 : 0);
+	*c = a - b;
+	*cdir = adir - bdir;
+	if (*cdir == -2) {
+		(*c)--;
+	} else if (*cdir == 2) {
+		(*c)++;
+	}
+	return 0;
+}
+
+static int boundary_lt(unsigned int a, int adir,
+		       unsigned int b, int bdir)
+{
+	if (adir < 0) {
+		a--;
+		adir = 1;
+	} else if (adir > 0)
+		adir = 1;
+	if (bdir < 0) {
+		b--;
+		bdir = 1;
+	} else if (bdir > 0)
+		bdir = 1;
+	return a < b || (a == b && adir < bdir);
+}
+
+/* Return 1 if min is nearer to best than max */
+static int boundary_nearer(int min, int mindir,
+			   int best, int bestdir,
+			   int max, int maxdir)
+{
+	int dmin, dmindir;
+	int dmax, dmaxdir;
+	boundary_sub(best, bestdir, min, mindir, &dmin, &dmindir);
+	boundary_sub(max, maxdir, best, bestdir, &dmax, &dmaxdir);
+	return boundary_lt(dmin, dmindir, dmax, dmaxdir);
+}
+
+/**
+ * snd_pcm_hw_param_near
+ * @pcm: PCM instance
+ * @params: the hw_params instance
+ * @var: parameter to retrieve
+ * @best: value to set
+ * @dir: pointer to the direction (-1,0,1) or NULL
+ *
+ * Inside configuration space defined by PARAMS set PAR to the available value
+ * nearest to VAL. Reduce configuration space accordingly.
+ * This function cannot be called for SNDRV_PCM_HW_PARAM_ACCESS,
+ * SNDRV_PCM_HW_PARAM_FORMAT, SNDRV_PCM_HW_PARAM_SUBFORMAT.
+ * Return the value found.
+  */
+static int snd_pcm_hw_param_near(struct snd_pcm_substream *pcm,
+				 struct snd_pcm_hw_params *params,
+				 snd_pcm_hw_param_t var, unsigned int best,
+				 int *dir)
+{
+	struct snd_pcm_hw_params *save = NULL;
+	int v;
+	unsigned int saved_min;
+	int last = 0;
+	int min, max;
+	int mindir, maxdir;
+	int valdir = dir ? *dir : 0;
+	/* FIXME */
+	if (best > INT_MAX)
+		best = INT_MAX;
+	min = max = best;
+	mindir = maxdir = valdir;
+	if (maxdir > 0)
+		maxdir = 0;
+	else if (maxdir == 0)
+		maxdir = -1;
+	else {
+		maxdir = 1;
+		max--;
+	}
+	save = kmalloc(sizeof(*save), GFP_KERNEL);
+	if (save == NULL)
+		return -ENOMEM;
+	*save = *params;
+	saved_min = min;
+	min = snd_pcm_hw_param_min(pcm, params, var, min, &mindir);
+	if (min >= 0) {
+		struct snd_pcm_hw_params *params1;
+		if (max < 0)
+			goto _end;
+		if ((unsigned int)min == saved_min && mindir == valdir)
+			goto _end;
+		params1 = kmalloc(sizeof(*params1), GFP_KERNEL);
+		if (params1 == NULL) {
+			kfree(save);
+			return -ENOMEM;
+		}
+		*params1 = *save;
+		max = snd_pcm_hw_param_max(pcm, params1, var, max, &maxdir);
+		if (max < 0) {
+			kfree(params1);
+			goto _end;
+		}
+		if (boundary_nearer(max, maxdir, best, valdir, min, mindir)) {
+			*params = *params1;
+			last = 1;
+		}
+		kfree(params1);
+	} else {
+		*params = *save;
+		max = snd_pcm_hw_param_max(pcm, params, var, max, &maxdir);
+		snd_assert(max >= 0, return -EINVAL);
+		last = 1;
+	}
+ _end:
+ 	kfree(save);
+	if (last)
+		v = snd_pcm_hw_param_last(pcm, params, var, dir);
+	else
+		v = snd_pcm_hw_param_first(pcm, params, var, dir);
+	snd_assert(v >= 0, return -EINVAL);
+	return v;
+}
+
+static int _snd_pcm_hw_param_set(struct snd_pcm_hw_params *params,
+				 snd_pcm_hw_param_t var, unsigned int val,
+				 int dir)
+{
+	int changed;
+	if (hw_is_mask(var)) {
+		struct snd_mask *m = hw_param_mask(params, var);
+		if (val == 0 && dir < 0) {
+			changed = -EINVAL;
+			snd_mask_none(m);
+		} else {
+			if (dir > 0)
+				val++;
+			else if (dir < 0)
+				val--;
+			changed = snd_mask_refine_set(hw_param_mask(params, var), val);
+		}
+	} else if (hw_is_interval(var)) {
+		struct snd_interval *i = hw_param_interval(params, var);
+		if (val == 0 && dir < 0) {
+			changed = -EINVAL;
+			snd_interval_none(i);
+		} else if (dir == 0)
+			changed = snd_interval_refine_set(i, val);
+		else {
+			struct snd_interval t;
+			t.openmin = 1;
+			t.openmax = 1;
+			t.empty = 0;
+			t.integer = 0;
+			if (dir < 0) {
+				t.min = val - 1;
+				t.max = val;
+			} else {
+				t.min = val;
+				t.max = val+1;
+			}
+			changed = snd_interval_refine(i, &t);
+		}
+	} else
+		return -EINVAL;
+	if (changed) {
+		params->cmask |= 1 << var;
+		params->rmask |= 1 << var;
+	}
+	return changed;
+}
+
+/**
+ * snd_pcm_hw_param_set
+ * @pcm: PCM instance
+ * @params: the hw_params instance
+ * @var: parameter to retrieve
+ * @val: value to set
+ * @dir: pointer to the direction (-1,0,1) or NULL
+ *
+ * Inside configuration space defined by PARAMS remove from PAR all 
+ * values != VAL. Reduce configuration space accordingly.
+ *  Return VAL or -EINVAL if the configuration space is empty
+ */
+static int snd_pcm_hw_param_set(struct snd_pcm_substream *pcm,
+				struct snd_pcm_hw_params *params,
+				snd_pcm_hw_param_t var, unsigned int val,
+				int dir)
+{
+	int changed = _snd_pcm_hw_param_set(params, var, val, dir);
+	if (changed < 0)
+		return changed;
+	if (params->rmask) {
+		int err = snd_pcm_hw_refine(pcm, params);
+		if (err < 0)
+			return err;
+	}
+	return snd_pcm_hw_param_value(params, var, NULL);
+}
+
+static int _snd_pcm_hw_param_setinteger(struct snd_pcm_hw_params *params,
+					snd_pcm_hw_param_t var)
+{
+	int changed;
+	changed = snd_interval_setinteger(hw_param_interval(params, var));
+	if (changed) {
+		params->cmask |= 1 << var;
+		params->rmask |= 1 << var;
+	}
+	return changed;
+}
+	
+/*
+ * plugin
+ */
 
 #ifdef CONFIG_SND_PCM_OSS_PLUGINS
 static int snd_pcm_oss_plugin_clear(struct snd_pcm_substream *substream)
@@ -203,7 +684,7 @@ static int snd_pcm_oss_period_size(struct snd_pcm_substream *substream,
 	oss_buffer_size = snd_pcm_plug_client_size(substream,
 						   snd_pcm_hw_param_value_max(slave_params, SNDRV_PCM_HW_PARAM_BUFFER_SIZE, NULL)) * oss_frame_size;
 	oss_buffer_size = 1 << ld2(oss_buffer_size);
-	if (atomic_read(&runtime->mmap_count)) {
+	if (atomic_read(&substream->mmap_count)) {
 		if (oss_buffer_size > runtime->oss.mmap_bytes)
 			oss_buffer_size = runtime->oss.mmap_bytes;
 	}
@@ -338,7 +819,7 @@ static int snd_pcm_oss_change_params(struct snd_pcm_substream *substream)
 		goto failure;
 	}
 
-	if (atomic_read(&runtime->mmap_count))
+	if (atomic_read(&substream->mmap_count))
 		direct = 1;
 	else
 		direct = substream->oss.setup.direct;
@@ -347,7 +828,7 @@ static int snd_pcm_oss_change_params(struct snd_pcm_substream *substream)
 	_snd_pcm_hw_param_setinteger(sparams, SNDRV_PCM_HW_PARAM_PERIODS);
 	_snd_pcm_hw_param_min(sparams, SNDRV_PCM_HW_PARAM_PERIODS, 2, 0);
 	snd_mask_none(&mask);
-	if (atomic_read(&runtime->mmap_count))
+	if (atomic_read(&substream->mmap_count))
 		snd_mask_set(&mask, SNDRV_PCM_ACCESS_MMAP_INTERLEAVED);
 	else {
 		snd_mask_set(&mask, SNDRV_PCM_ACCESS_RW_INTERLEAVED);
@@ -466,7 +947,8 @@ static int snd_pcm_oss_change_params(struct snd_pcm_substream *substream)
 	} else {
 		sw_params->start_threshold = runtime->boundary;
 	}
-	if (atomic_read(&runtime->mmap_count) || substream->stream == SNDRV_PCM_STREAM_CAPTURE)
+	if (atomic_read(&substream->mmap_count) ||
+	    substream->stream == SNDRV_PCM_STREAM_CAPTURE)
 		sw_params->stop_threshold = runtime->boundary;
 	else
 		sw_params->stop_threshold = runtime->buffer_size;
@@ -476,7 +958,7 @@ static int snd_pcm_oss_change_params(struct snd_pcm_substream *substream)
 	sw_params->avail_min = substream->stream == SNDRV_PCM_STREAM_PLAYBACK ?
 		1 : runtime->period_size;
 	sw_params->xfer_align = 1;
-	if (atomic_read(&runtime->mmap_count) ||
+	if (atomic_read(&substream->mmap_count) ||
 	    substream->oss.setup.nosilence) {
 		sw_params->silence_threshold = 0;
 		sw_params->silence_size = 0;
@@ -820,7 +1302,7 @@ static ssize_t snd_pcm_oss_write1(struct snd_pcm_substream *substream, const cha
 	ssize_t tmp;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 
-	if (atomic_read(&runtime->mmap_count))
+	if (atomic_read(&substream->mmap_count))
 		return -ENXIO;
 
 	if ((tmp = snd_pcm_oss_make_ready(substream)) < 0)
@@ -850,7 +1332,7 @@ static ssize_t snd_pcm_oss_write1(struct snd_pcm_substream *substream, const cha
 				if (runtime->oss.period_ptr == 0 ||
 				    runtime->oss.period_ptr == runtime->oss.buffer_used)
 					runtime->oss.buffer_used = 0;
-				else if ((substream->ffile->f_flags & O_NONBLOCK) != 0)
+				else if ((substream->f_flags & O_NONBLOCK) != 0)
 					return xfer > 0 ? xfer : -EAGAIN;
 			}
 		} else {
@@ -863,7 +1345,7 @@ static ssize_t snd_pcm_oss_write1(struct snd_pcm_substream *substream, const cha
 			buf += tmp;
 			bytes -= tmp;
 			xfer += tmp;
-			if ((substream->ffile->f_flags & O_NONBLOCK) != 0 &&
+			if ((substream->f_flags & O_NONBLOCK) != 0 &&
 			    tmp != runtime->oss.period_bytes)
 				break;
 		}
@@ -910,7 +1392,7 @@ static ssize_t snd_pcm_oss_read1(struct snd_pcm_substream *substream, char __use
 	ssize_t tmp;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 
-	if (atomic_read(&runtime->mmap_count))
+	if (atomic_read(&substream->mmap_count))
 		return -ENXIO;
 
 	if ((tmp = snd_pcm_oss_make_ready(substream)) < 0)
@@ -1040,7 +1522,7 @@ static int snd_pcm_oss_sync(struct snd_pcm_oss_file *pcm_oss_file)
 	substream = pcm_oss_file->streams[SNDRV_PCM_STREAM_PLAYBACK];
 	if (substream != NULL) {
 		runtime = substream->runtime;
-		if (atomic_read(&runtime->mmap_count))
+		if (atomic_read(&substream->mmap_count))
 			goto __direct;
 		if ((err = snd_pcm_oss_make_ready(substream)) < 0)
 			return err;
@@ -1101,10 +1583,10 @@ static int snd_pcm_oss_sync(struct snd_pcm_oss_file *pcm_oss_file)
 		 * finish sync: drain the buffer
 		 */
 	      __direct:
-		saved_f_flags = substream->ffile->f_flags;
-		substream->ffile->f_flags &= ~O_NONBLOCK;
+		saved_f_flags = substream->f_flags;
+		substream->f_flags &= ~O_NONBLOCK;
 		err = snd_pcm_kernel_ioctl(substream, SNDRV_PCM_IOCTL_DRAIN, NULL);
-		substream->ffile->f_flags = saved_f_flags;
+		substream->f_flags = saved_f_flags;
 		if (err < 0)
 			return err;
 		runtime->oss.prepare = 1;
@@ -1209,7 +1691,7 @@ static int snd_pcm_oss_get_formats(struct snd_pcm_oss_file *pcm_oss_file)
 
 	if ((err = snd_pcm_oss_get_active_substream(pcm_oss_file, &substream)) < 0)
 		return err;
-	if (atomic_read(&substream->runtime->mmap_count))
+	if (atomic_read(&substream->mmap_count))
 		direct = 1;
 	else
 		direct = substream->oss.setup.direct;
@@ -1419,7 +1901,7 @@ static int snd_pcm_oss_set_trigger(struct snd_pcm_oss_file *pcm_oss_file, int tr
 		if (trigger & PCM_ENABLE_OUTPUT) {
 			if (runtime->oss.trigger)
 				goto _skip1;
-			if (atomic_read(&psubstream->runtime->mmap_count))
+			if (atomic_read(&psubstream->mmap_count))
 				snd_pcm_oss_simulate_fill(psubstream, runtime->hw_ptr_interrupt);
 			runtime->oss.trigger = 1;
 			runtime->start_threshold = 1;
@@ -1537,7 +2019,7 @@ static int snd_pcm_oss_get_ptr(struct snd_pcm_oss_file *pcm_oss_file, int stream
 	if (err < 0)
 		return err;
 	info.ptr = snd_pcm_oss_bytes(substream, runtime->status->hw_ptr % runtime->buffer_size);
-	if (atomic_read(&runtime->mmap_count)) {
+	if (atomic_read(&substream->mmap_count)) {
 		snd_pcm_sframes_t n;
 		n = (delay = runtime->hw_ptr_interrupt) - runtime->oss.prev_hw_ptr_interrupt;
 		if (n < 0)
@@ -1683,9 +2165,9 @@ static void snd_pcm_oss_init_substream(struct snd_pcm_substream *substream,
 	substream->oss.oss = 1;
 	substream->oss.setup = *setup;
 	if (setup->nonblock)
-		substream->ffile->f_flags |= O_NONBLOCK;
+		substream->f_flags |= O_NONBLOCK;
 	else if (setup->block)
-		substream->ffile->f_flags &= ~O_NONBLOCK;
+		substream->f_flags &= ~O_NONBLOCK;
 	runtime = substream->runtime;
 	runtime->oss.params = 1;
 	runtime->oss.trigger = 1;
@@ -1742,6 +2224,7 @@ static int snd_pcm_oss_open_file(struct file *file,
 	    (pcm->info_flags & SNDRV_PCM_INFO_HALF_DUPLEX))
 		f_mode = FMODE_WRITE;
 
+	file->f_flags &= ~O_APPEND;
 	for (idx = 0; idx < 2; idx++) {
 		if (setup[idx].disable)
 			continue;
@@ -2059,6 +2542,7 @@ static ssize_t snd_pcm_oss_read(struct file *file, char __user *buf, size_t coun
 	substream = pcm_oss_file->streams[SNDRV_PCM_STREAM_CAPTURE];
 	if (substream == NULL)
 		return -ENXIO;
+	substream->f_flags = file->f_flags & O_NONBLOCK;
 #ifndef OSS_DEBUG
 	return snd_pcm_oss_read1(substream, buf, count);
 #else
@@ -2080,6 +2564,7 @@ static ssize_t snd_pcm_oss_write(struct file *file, const char __user *buf, size
 	substream = pcm_oss_file->streams[SNDRV_PCM_STREAM_PLAYBACK];
 	if (substream == NULL)
 		return -ENXIO;
+	substream->f_flags = file->f_flags & O_NONBLOCK;
 	result = snd_pcm_oss_write1(substream, buf, count);
 #ifdef OSS_DEBUG
 	printk("pcm_oss: write %li bytes (wrote %li bytes)\n", (long)count, (long)result);
@@ -2090,7 +2575,7 @@ static ssize_t snd_pcm_oss_write(struct file *file, const char __user *buf, size
 static int snd_pcm_oss_playback_ready(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	if (atomic_read(&runtime->mmap_count))
+	if (atomic_read(&substream->mmap_count))
 		return runtime->oss.prev_hw_ptr_interrupt != runtime->hw_ptr_interrupt;
 	else
 		return snd_pcm_playback_avail(runtime) >= runtime->oss.period_frames;
@@ -2099,7 +2584,7 @@ static int snd_pcm_oss_playback_ready(struct snd_pcm_substream *substream)
 static int snd_pcm_oss_capture_ready(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	if (atomic_read(&runtime->mmap_count))
+	if (atomic_read(&substream->mmap_count))
 		return runtime->oss.prev_hw_ptr_interrupt != runtime->hw_ptr_interrupt;
 	else
 		return snd_pcm_capture_avail(runtime) >= runtime->oss.period_frames;
@@ -2342,9 +2827,7 @@ static void snd_pcm_oss_proc_init(struct snd_pcm *pcm)
 		if ((entry = snd_info_create_card_entry(pcm->card, "oss", pstr->proc_root)) != NULL) {
 			entry->content = SNDRV_INFO_CONTENT_TEXT;
 			entry->mode = S_IFREG | S_IRUGO | S_IWUSR;
-			entry->c.text.read_size = 8192;
 			entry->c.text.read = snd_pcm_oss_proc_read;
-			entry->c.text.write_size = 8192;
 			entry->c.text.write = snd_pcm_oss_proc_write;
 			entry->private_data = pstr;
 			if (snd_info_register(entry) < 0) {

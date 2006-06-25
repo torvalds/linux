@@ -1,7 +1,6 @@
 #ifndef _M68K_IRQ_H_
 #define _M68K_IRQ_H_
 
-#include <linux/config.h>
 #include <linux/interrupt.h>
 
 /*
@@ -130,9 +129,5 @@ extern volatile unsigned int num_spurious;
  * This function returns a new irq_node_t
  */
 extern irq_node_t *new_irq_node(void);
-
-struct irqaction;
-struct pt_regs;
-int handle_IRQ_event(unsigned int, struct pt_regs *, struct irqaction *);
 
 #endif /* _M68K_IRQ_H_ */

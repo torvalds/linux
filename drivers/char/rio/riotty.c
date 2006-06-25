@@ -576,7 +576,7 @@ static void RIOClearUp(struct Port *PortP)
 */
 int RIOShortCommand(struct rio_info *p, struct Port *PortP, int command, int len, int arg)
 {
-	struct PKT *PacketP;
+	struct PKT __iomem *PacketP;
 	int retries = 20;	/* at 10 per second -> 2 seconds */
 	unsigned long flags;
 

@@ -120,12 +120,12 @@ static ssize_t bcm43xx_attr_sprom_show(struct device *dev,
 			GFP_KERNEL);
 	if (!sprom)
 		return -ENOMEM;
-	bcm43xx_lock_mmio(bcm, flags);
-	assert(bcm->initialized);
+	bcm43xx_lock_irqsafe(bcm, flags);
 	err = bcm43xx_sprom_read(bcm, sprom);
 	if (!err)
 		err = sprom2hex(sprom, buf, PAGE_SIZE);
-	bcm43xx_unlock_mmio(bcm, flags);
+	mmiowb();
+	bcm43xx_unlock_irqsafe(bcm, flags);
 	kfree(sprom);
 
 	return err;
@@ -150,10 +150,10 @@ static ssize_t bcm43xx_attr_sprom_store(struct device *dev,
 	err = hex2sprom(sprom, buf, count);
 	if (err)
 		goto out_kfree;
-	bcm43xx_lock_mmio(bcm, flags);
-	assert(bcm->initialized);
+	bcm43xx_lock_irqsafe(bcm, flags);
 	err = bcm43xx_sprom_write(bcm, sprom);
-	bcm43xx_unlock_mmio(bcm, flags);
+	mmiowb();
+	bcm43xx_unlock_irqsafe(bcm, flags);
 out_kfree:
 	kfree(sprom);
 
@@ -170,15 +170,13 @@ static ssize_t bcm43xx_attr_interfmode_show(struct device *dev,
 					    char *buf)
 {
 	struct bcm43xx_private *bcm = dev_to_bcm(dev);
-	unsigned long flags;
 	int err;
 	ssize_t count = 0;
 
 	if (!capable(CAP_NET_ADMIN))
 		return -EPERM;
 
-	bcm43xx_lock(bcm, flags);
-	assert(bcm->initialized);
+	bcm43xx_lock_noirq(bcm);
 
 	switch (bcm43xx_current_radio(bcm)->interfmode) {
 	case BCM43xx_RADIO_INTERFMODE_NONE:
@@ -195,7 +193,7 @@ static ssize_t bcm43xx_attr_interfmode_show(struct device *dev,
 	}
 	err = 0;
 
-	bcm43xx_unlock(bcm, flags);
+	bcm43xx_unlock_noirq(bcm);
 
 	return err ? err : count;
 
@@ -231,16 +229,15 @@ static ssize_t bcm43xx_attr_interfmode_store(struct device *dev,
 		return -EINVAL;
 	}
 
-	bcm43xx_lock_mmio(bcm, flags);
-	assert(bcm->initialized);
+	bcm43xx_lock_irqsafe(bcm, flags);
 
 	err = bcm43xx_radio_set_interference_mitigation(bcm, mode);
 	if (err) {
 		printk(KERN_ERR PFX "Interference Mitigation not "
 				    "supported by device\n");
 	}
-
-	bcm43xx_unlock_mmio(bcm, flags);
+	mmiowb();
+	bcm43xx_unlock_irqsafe(bcm, flags);
 
 	return err ? err : count;
 }
@@ -254,15 +251,13 @@ static ssize_t bcm43xx_attr_preamble_show(struct device *dev,
 					  char *buf)
 {
 	struct bcm43xx_private *bcm = dev_to_bcm(dev);
-	unsigned long flags;
 	int err;
 	ssize_t count;
 
 	if (!capable(CAP_NET_ADMIN))
 		return -EPERM;
 
-	bcm43xx_lock(bcm, flags);
-	assert(bcm->initialized);
+	bcm43xx_lock_noirq(bcm);
 
 	if (bcm->short_preamble)
 		count = snprintf(buf, PAGE_SIZE, "1 (Short Preamble enabled)\n");
@@ -270,7 +265,7 @@ static ssize_t bcm43xx_attr_preamble_show(struct device *dev,
 		count = snprintf(buf, PAGE_SIZE, "0 (Short Preamble disabled)\n");
 
 	err = 0;
-	bcm43xx_unlock(bcm, flags);
+	bcm43xx_unlock_noirq(bcm);
 
 	return err ? err : count;
 }
@@ -290,13 +285,12 @@ static ssize_t bcm43xx_attr_preamble_store(struct device *dev,
 	value = get_boolean(buf, count);
 	if (value < 0)
 		return value;
-	bcm43xx_lock(bcm, flags);
-	assert(bcm->initialized);
+	bcm43xx_lock_irqsafe(bcm, flags);
 
 	bcm->short_preamble = !!value;
 
 	err = 0;
-	bcm43xx_unlock(bcm, flags);
+	bcm43xx_unlock_irqsafe(bcm, flags);
 
 	return err ? err : count;
 }
@@ -310,7 +304,7 @@ int bcm43xx_sysfs_register(struct bcm43xx_private *bcm)
 	struct device *dev = &bcm->pci_dev->dev;
 	int err;
 
-	assert(bcm->initialized);
+	assert(bcm43xx_status(bcm) == BCM43xx_STAT_INITIALIZED);
 
 	err = device_create_file(dev, &dev_attr_sprom);
 	if (err)

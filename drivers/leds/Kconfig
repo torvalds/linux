@@ -63,6 +63,12 @@ config LEDS_S3C24XX
 	  This option enables support for LEDs connected to GPIO lines
 	  on Samsung S3C24XX series CPUs, such as the S3C2410 and S3C2440.
 
+config LEDS_AMS_DELTA
+	tristate "LED Support for the Amstrad Delta (E3)"
+	depends LEDS_CLASS && MACH_AMS_DELTA
+	help
+	  This option enables support for the LEDs on Amstrad Delta (E3).
+
 comment "LED Triggers"
 
 config LEDS_TRIGGERS

@@ -23,7 +23,6 @@
 #ifndef _M68K_SETUP_H
 #define _M68K_SETUP_H
 
-#include <linux/config.h>
 
 
     /*

@@ -643,7 +643,7 @@ asmlinkage long sys_shmctl (int shmid, int cmd, struct shmid_ds __user *buf)
 		err = audit_ipc_obj(&(shp->shm_perm));
 		if (err)
 			goto out_unlock_up;
-		err = audit_ipc_set_perm(0, setbuf.uid, setbuf.gid, setbuf.mode, &(shp->shm_perm));
+		err = audit_ipc_set_perm(0, setbuf.uid, setbuf.gid, setbuf.mode);
 		if (err)
 			goto out_unlock_up;
 		err=-EPERM;
@@ -698,7 +698,6 @@ long do_shmat(int shmid, char __user *shmaddr, int shmflg, ulong *raddr)
 	int    err;
 	unsigned long flags;
 	unsigned long prot;
-	unsigned long o_flags;
 	int acc_mode;
 	void *user_addr;
 
@@ -725,11 +724,9 @@ long do_shmat(int shmid, char __user *shmaddr, int shmflg, ulong *raddr)
 
 	if (shmflg & SHM_RDONLY) {
 		prot = PROT_READ;
-		o_flags = O_RDONLY;
 		acc_mode = S_IRUGO;
 	} else {
 		prot = PROT_READ | PROT_WRITE;
-		o_flags = O_RDWR;
 		acc_mode = S_IRUGO | S_IWUGO;
 	}
 	if (shmflg & SHM_EXEC) {

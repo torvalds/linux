@@ -1525,7 +1525,7 @@ struct sk_buff	*pMessage)	/* pointer to send-message              */
 	** This is to resolve faulty padding by the HW with 0xaa bytes.
 	*/
 	if (BytesSend < C_LEN_ETHERNET_MINSIZE) {
-		if ((pMessage = skb_padto(pMessage, C_LEN_ETHERNET_MINSIZE)) == NULL) {
+		if (skb_padto(pMessage, C_LEN_ETHERNET_MINSIZE)) {
 			spin_unlock_irqrestore(&pTxPort->TxDesRingLock, Flags);
 			return 0;
 		}

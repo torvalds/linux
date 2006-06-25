@@ -12,7 +12,6 @@
 #ifndef __ASM_HARDIRQ_H
 #define __ASM_HARDIRQ_H
 
-#include <linux/config.h>
 #include <linux/threads.h>
 #include <linux/irq.h>
 

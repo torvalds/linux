@@ -1,7 +1,6 @@
 #ifndef _DWARF2_H
 #define _DWARF2_H 1
 
-#include <linux/config.h>
 
 #ifndef __ASSEMBLY__
 #warning "asm/dwarf2.h should be only included in pure assembly files"

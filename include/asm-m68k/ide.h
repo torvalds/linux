@@ -31,7 +31,6 @@
 
 #ifdef __KERNEL__
 
-#include <linux/config.h>
 
 #include <asm/setup.h>
 #include <asm/io.h>

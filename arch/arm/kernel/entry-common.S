@@ -271,7 +271,7 @@ ENTRY(sys_call_table)
 @ r8 = syscall table
 		.type	sys_syscall, #function
 sys_syscall:
-		eor	scno, r0, #__NR_OABI_SYSCALL_BASE
+		bic	scno, r0, #__NR_OABI_SYSCALL_BASE
 		cmp	scno, #__NR_syscall - __NR_SYSCALL_BASE
 		cmpne	scno, #NR_syscalls	@ check range
 		stmloia	sp, {r5, r6}		@ shuffle args

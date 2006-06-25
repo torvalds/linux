@@ -11,7 +11,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <asm/machvec.h>
 #include <asm/ptrace.h>		/* for pt_regs */
 

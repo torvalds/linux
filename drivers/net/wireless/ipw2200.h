@@ -1173,6 +1173,7 @@ struct ipw_priv {
 	struct ieee80211_device *ieee;
 
 	spinlock_t lock;
+	spinlock_t irq_lock;
 	struct mutex mutex;
 
 	/* basic pci-network driver stuff */

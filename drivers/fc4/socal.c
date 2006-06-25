@@ -767,7 +767,7 @@ static inline void socal_init(struct sbus_dev *sdev, int no)
 		return;
 	}
 
-	SOD(("SOCAL uses IRQ %s\n", __irq_itoa(irq)))
+	SOD(("SOCAL uses IRQ %d\n", irq))
 	
 	s->port[0].fc.irq = irq;
 	s->port[1].fc.irq = irq;

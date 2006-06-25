@@ -125,9 +125,6 @@ EXPORT_SYMBOL(__write_lock);
 EXPORT_SYMBOL(__write_unlock);
 EXPORT_SYMBOL(__write_trylock);
 
-/* Hard IRQ locking */
-EXPORT_SYMBOL(synchronize_irq);
-
 #if defined(CONFIG_MCOUNT)
 extern void _mcount(void);
 EXPORT_SYMBOL(_mcount);
@@ -174,10 +171,6 @@ EXPORT_SYMBOL(test_and_change_bit);
 EXPORT_SYMBOL(set_bit);
 EXPORT_SYMBOL(clear_bit);
 EXPORT_SYMBOL(change_bit);
-
-EXPORT_SYMBOL(ivector_table);
-EXPORT_SYMBOL(enable_irq);
-EXPORT_SYMBOL(disable_irq);
 
 EXPORT_SYMBOL(__flushw_user);
 

@@ -37,7 +37,7 @@ config MTD_PHYSMAP_START
 config MTD_PHYSMAP_LEN
 	hex "Physical length of flash mapping"
 	depends on MTD_PHYSMAP
-	default "0x4000000"
+	default "0"
 	help
 	  This is the total length of the mapping of the flash chips on
 	  your particular board. If there is space, or aliases, in the
@@ -78,7 +78,7 @@ config MTD_PNC2000
 
 config MTD_SC520CDP
 	tristate "CFI Flash device mapped on AMD SC520 CDP"
-	depends on X86 && MTD_CFI
+	depends on X86 && MTD_CFI && MTD_CONCAT
 	help
 	  The SC520 CDP board has two banks of CFI-compliant chips and one
 	  Dual-in-line JEDEC chip. This 'mapping' driver supports that
@@ -109,7 +109,7 @@ config MTD_TS5500
 	  mtd1 allows you to reprogram your BIOS. BE VERY CAREFUL.
 
 	  Note that jumper 3 ("Write Enable Drive A") must be set
-	  otherwise detection won't succeeed.
+	  otherwise detection won't succeed.
 
 config MTD_SBC_GXX
 	tristate "CFI Flash device mapped on Arcom SBC-GXx boards"
@@ -200,8 +200,8 @@ config MTD_TSUNAMI
 	  Support for the flash chip on Tsunami TIG bus.
 
 config MTD_LASAT
-	tristate "Flash chips on LASAT board"
-	depends on LASAT
+	tristate "LASAT flash device"
+	depends on LASAT && MTD_CFI
 	help
 	  Support for the flash chips on the Lasat 100 and 200 boards.
 
@@ -561,7 +561,6 @@ config MTD_PCMCIA
 config MTD_PCMCIA_ANONYMOUS
 	bool "Use PCMCIA MTD drivers for anonymous PCMCIA cards"
 	depends on MTD_PCMCIA
-	default N
 	help
 	  If this option is enabled, PCMCIA cards which do not report
 	  anything about themselves are assumed to be MTD cards.

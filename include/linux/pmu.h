@@ -6,7 +6,6 @@
  * Copyright (C) 1998 Paul Mackerras.
  */
 
-#include <linux/config.h>
 
 #define PMU_DRIVER_VERSION	2
 

@@ -22,7 +22,7 @@
 #include "internal.h"
 
 const unsigned long hugetlb_zero = 0, hugetlb_infinity = ~0UL;
-static unsigned long nr_huge_pages, free_huge_pages, reserved_huge_pages;
+static unsigned long nr_huge_pages, free_huge_pages, resv_huge_pages;
 unsigned long max_huge_pages;
 static struct list_head hugepage_freelists[MAX_NUMNODES];
 static unsigned int nr_huge_pages_node[MAX_NUMNODES];
@@ -123,39 +123,13 @@ static int alloc_fresh_huge_page(void)
 static struct page *alloc_huge_page(struct vm_area_struct *vma,
 				    unsigned long addr)
 {
-	struct inode *inode = vma->vm_file->f_dentry->d_inode;
 	struct page *page;
-	int use_reserve = 0;
-	unsigned long idx;
 
 	spin_lock(&hugetlb_lock);
-
-	if (vma->vm_flags & VM_MAYSHARE) {
-
-		/* idx = radix tree index, i.e. offset into file in
-		 * HPAGE_SIZE units */
-		idx = ((addr - vma->vm_start) >> HPAGE_SHIFT)
-			+ (vma->vm_pgoff >> (HPAGE_SHIFT - PAGE_SHIFT));
-
-		/* The hugetlbfs specific inode info stores the number
-		 * of "guaranteed available" (huge) pages.  That is,
-		 * the first 'prereserved_hpages' pages of the inode
-		 * are either already instantiated, or have been
-		 * pre-reserved (by hugetlb_reserve_for_inode()). Here
-		 * we're in the process of instantiating the page, so
-		 * we use this to determine whether to draw from the
-		 * pre-reserved pool or the truly free pool. */
-		if (idx < HUGETLBFS_I(inode)->prereserved_hpages)
-			use_reserve = 1;
-	}
-
-	if (!use_reserve) {
-		if (free_huge_pages <= reserved_huge_pages)
-			goto fail;
-	} else {
-		BUG_ON(reserved_huge_pages == 0);
-		reserved_huge_pages--;
-	}
+	if (vma->vm_flags & VM_MAYSHARE)
+		resv_huge_pages--;
+	else if (free_huge_pages <= resv_huge_pages)
+		goto fail;
 
 	page = dequeue_huge_page(vma, addr);
 	if (!page)
@@ -165,94 +139,9 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
 	set_page_refcounted(page);
 	return page;
 
- fail:
-	WARN_ON(use_reserve); /* reserved allocations shouldn't fail */
+fail:
 	spin_unlock(&hugetlb_lock);
 	return NULL;
-}
-
-/* hugetlb_extend_reservation()
- *
- * Ensure that at least 'atleast' hugepages are, and will remain,
- * available to instantiate the first 'atleast' pages of the given
- * inode.  If the inode doesn't already have this many pages reserved
- * or instantiated, set aside some hugepages in the reserved pool to
- * satisfy later faults (or fail now if there aren't enough, rather
- * than getting the SIGBUS later).
- */
-int hugetlb_extend_reservation(struct hugetlbfs_inode_info *info,
-			       unsigned long atleast)
-{
-	struct inode *inode = &info->vfs_inode;
-	unsigned long change_in_reserve = 0;
-	int ret = 0;
-
-	spin_lock(&hugetlb_lock);
-	read_lock_irq(&inode->i_mapping->tree_lock);
-
-	if (info->prereserved_hpages >= atleast)
-		goto out;
-
-	/* Because we always call this on shared mappings, none of the
-	 * pages beyond info->prereserved_hpages can have been
-	 * instantiated, so we need to reserve all of them now. */
-	change_in_reserve = atleast - info->prereserved_hpages;
-
-	if ((reserved_huge_pages + change_in_reserve) > free_huge_pages) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	reserved_huge_pages += change_in_reserve;
-	info->prereserved_hpages = atleast;
-
- out:
-	read_unlock_irq(&inode->i_mapping->tree_lock);
-	spin_unlock(&hugetlb_lock);
-
-	return ret;
-}
-
-/* hugetlb_truncate_reservation()
- *
- * This returns pages reserved for the given inode to the general free
- * hugepage pool.  If the inode has any pages prereserved, but not
- * instantiated, beyond offset (atmost << HPAGE_SIZE), then release
- * them.
- */
-void hugetlb_truncate_reservation(struct hugetlbfs_inode_info *info,
-				  unsigned long atmost)
-{
-	struct inode *inode = &info->vfs_inode;
-	struct address_space *mapping = inode->i_mapping;
-	unsigned long idx;
-	unsigned long change_in_reserve = 0;
-	struct page *page;
-
-	spin_lock(&hugetlb_lock);
-	read_lock_irq(&inode->i_mapping->tree_lock);
-
-	if (info->prereserved_hpages <= atmost)
-		goto out;
-
-	/* Count pages which were reserved, but not instantiated, and
-	 * which we can now release. */
-	for (idx = atmost; idx < info->prereserved_hpages; idx++) {
-		page = radix_tree_lookup(&mapping->page_tree, idx);
-		if (!page)
-			/* Pages which are already instantiated can't
-			 * be unreserved (and in fact have already
-			 * been removed from the reserved pool) */
-			change_in_reserve++;
-	}
-
-	BUG_ON(reserved_huge_pages < change_in_reserve);
-	reserved_huge_pages -= change_in_reserve;
-	info->prereserved_hpages = atmost;
-
- out:
-	read_unlock_irq(&inode->i_mapping->tree_lock);
-	spin_unlock(&hugetlb_lock);
 }
 
 static int __init hugetlb_init(void)
@@ -334,7 +223,7 @@ static unsigned long set_max_huge_pages(unsigned long count)
 		return nr_huge_pages;
 
 	spin_lock(&hugetlb_lock);
-	count = max(count, reserved_huge_pages);
+	count = max(count, resv_huge_pages);
 	try_to_free_low(count);
 	while (count < nr_huge_pages) {
 		struct page *page = dequeue_huge_page(NULL, 0);
@@ -361,11 +250,11 @@ int hugetlb_report_meminfo(char *buf)
 	return sprintf(buf,
 			"HugePages_Total: %5lu\n"
 			"HugePages_Free:  %5lu\n"
-		        "HugePages_Rsvd:  %5lu\n"
+			"HugePages_Rsvd:  %5lu\n"
 			"Hugepagesize:    %5lu kB\n",
 			nr_huge_pages,
 			free_huge_pages,
-		        reserved_huge_pages,
+			resv_huge_pages,
 			HPAGE_SIZE/1024);
 }
 
@@ -754,3 +643,156 @@ void hugetlb_change_protection(struct vm_area_struct *vma,
 	flush_tlb_range(vma, start, end);
 }
 
+struct file_region {
+	struct list_head link;
+	long from;
+	long to;
+};
+
+static long region_add(struct list_head *head, long f, long t)
+{
+	struct file_region *rg, *nrg, *trg;
+
+	/* Locate the region we are either in or before. */
+	list_for_each_entry(rg, head, link)
+		if (f <= rg->to)
+			break;
+
+	/* Round our left edge to the current segment if it encloses us. */
+	if (f > rg->from)
+		f = rg->from;
+
+	/* Check for and consume any regions we now overlap with. */
+	nrg = rg;
+	list_for_each_entry_safe(rg, trg, rg->link.prev, link) {
+		if (&rg->link == head)
+			break;
+		if (rg->from > t)
+			break;
+
+		/* If this area reaches higher then extend our area to
+		 * include it completely.  If this is not the first area
+		 * which we intend to reuse, free it. */
+		if (rg->to > t)
+			t = rg->to;
+		if (rg != nrg) {
+			list_del(&rg->link);
+			kfree(rg);
+		}
+	}
+	nrg->from = f;
+	nrg->to = t;
+	return 0;
+}
+
+static long region_chg(struct list_head *head, long f, long t)
+{
+	struct file_region *rg, *nrg;
+	long chg = 0;
+
+	/* Locate the region we are before or in. */
+	list_for_each_entry(rg, head, link)
+		if (f <= rg->to)
+			break;
+
+	/* If we are below the current region then a new region is required.
+	 * Subtle, allocate a new region at the position but make it zero
+	 * size such that we can guarentee to record the reservation. */
+	if (&rg->link == head || t < rg->from) {
+		nrg = kmalloc(sizeof(*nrg), GFP_KERNEL);
+		if (nrg == 0)
+			return -ENOMEM;
+		nrg->from = f;
+		nrg->to   = f;
+		INIT_LIST_HEAD(&nrg->link);
+		list_add(&nrg->link, rg->link.prev);
+
+		return t - f;
+	}
+
+	/* Round our left edge to the current segment if it encloses us. */
+	if (f > rg->from)
+		f = rg->from;
+	chg = t - f;
+
+	/* Check for and consume any regions we now overlap with. */
+	list_for_each_entry(rg, rg->link.prev, link) {
+		if (&rg->link == head)
+			break;
+		if (rg->from > t)
+			return chg;
+
+		/* We overlap with this area, if it extends futher than
+		 * us then we must extend ourselves.  Account for its
+		 * existing reservation. */
+		if (rg->to > t) {
+			chg += rg->to - t;
+			t = rg->to;
+		}
+		chg -= rg->to - rg->from;
+	}
+	return chg;
+}
+
+static long region_truncate(struct list_head *head, long end)
+{
+	struct file_region *rg, *trg;
+	long chg = 0;
+
+	/* Locate the region we are either in or before. */
+	list_for_each_entry(rg, head, link)
+		if (end <= rg->to)
+			break;
+	if (&rg->link == head)
+		return 0;
+
+	/* If we are in the middle of a region then adjust it. */
+	if (end > rg->from) {
+		chg = rg->to - end;
+		rg->to = end;
+		rg = list_entry(rg->link.next, typeof(*rg), link);
+	}
+
+	/* Drop any remaining regions. */
+	list_for_each_entry_safe(rg, trg, rg->link.prev, link) {
+		if (&rg->link == head)
+			break;
+		chg += rg->to - rg->from;
+		list_del(&rg->link);
+		kfree(rg);
+	}
+	return chg;
+}
+
+static int hugetlb_acct_memory(long delta)
+{
+	int ret = -ENOMEM;
+
+	spin_lock(&hugetlb_lock);
+	if ((delta + resv_huge_pages) <= free_huge_pages) {
+		resv_huge_pages += delta;
+		ret = 0;
+	}
+	spin_unlock(&hugetlb_lock);
+	return ret;
+}
+
+int hugetlb_reserve_pages(struct inode *inode, long from, long to)
+{
+	long ret, chg;
+
+	chg = region_chg(&inode->i_mapping->private_list, from, to);
+	if (chg < 0)
+		return chg;
+	ret = hugetlb_acct_memory(chg);
+	if (ret < 0)
+		return ret;
+	region_add(&inode->i_mapping->private_list, from, to);
+	return 0;
+}
+
+void hugetlb_unreserve_pages(struct inode *inode, long offset, long freed)
+{
+	long chg = region_truncate(&inode->i_mapping->private_list, offset);
+	hugetlb_acct_memory(freed - chg);
+}

@@ -27,8 +27,19 @@ When a w1 master driver registers with the w1 subsystem, the following occurs:
 
 When a device is found on the bus, w1 core checks if driver for it's family is
 loaded. If so, the family driver is attached to the slave.
-If there is no driver for the family, a simple sysfs entry is created
-for the slave device.
+If there is no driver for the family, default one is assigned, which allows to perform
+almost any kind of operations. Each logical operation is a transaction
+in nature, which can contain several (two or one) low-level operations.
+Let's see how one can read EEPROM context:
+1. one must write control buffer, i.e. buffer containing command byte
+and two byte address. At this step bus is reset and appropriate device
+is selected using either W1_SKIP_ROM or W1_MATCH_ROM command.
+Then provided control buffer is being written to the wire.
+2. reading. This will issue reading eeprom response.
+
+It is possible that between 1. and 2. w1 master thread will reset bus for searching
+and slave device will be even removed, but in this case 0xff will
+be read, since no device was selected.
 
 
 W1 device families
@@ -89,4 +100,5 @@ driver             - (standard) symlink to the w1 driver
 name               - the device name, usually the same as the directory name
 w1_slave           - (optional) a binary file whose meaning depends on the
                      family driver
-
+rw		   - (optional) created for slave devices which do not have
+		     appropriate family driver. Allows to read/write binary data.

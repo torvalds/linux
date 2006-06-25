@@ -28,7 +28,7 @@ config W1_SLAVE_DS2433
 
 config W1_SLAVE_DS2433_CRC
 	bool "Protect DS2433 data with a CRC16"
-	depends on W1_DS2433
+	depends on W1_SLAVE_DS2433
 	select CRC16
 	help
 	  Say Y here to protect DS2433 data with a CRC16.

@@ -19,6 +19,7 @@ This document has the following sections:
 	- Key overview
 	- Key service overview
 	- Key access permissions
+	- SELinux support
 	- New procfs files
 	- Userspace system call interface
 	- Kernel services
@@ -230,6 +231,34 @@ six of each set of eight bits are defined. These permissions granted are:
 
 For changing the ownership, group ID or permissions mask, being the owner of
 the key or having the sysadmin capability is sufficient.
+
+
+===============
+SELINUX SUPPORT
+===============
+
+The security class "key" has been added to SELinux so that mandatory access
+controls can be applied to keys created within various contexts.  This support
+is preliminary, and is likely to change quite significantly in the near future.
+Currently, all of the basic permissions explained above are provided in SELinux
+as well; SE Linux is simply invoked after all basic permission checks have been
+performed.
+
+Each key is labeled with the same context as the task to which it belongs.
+Typically, this is the same task that was running when the key was created.
+The default keyrings are handled differently, but in a way that is very
+intuitive:
+
+ (*) The user and user session keyrings that are created when the user logs in
+     are currently labeled with the context of the login manager.
+
+ (*) The keyrings associated with new threads are each labeled with the context
+     of their associated thread, and both session and process keyrings are
+     handled similarly.
+
+Note, however, that the default keyrings associated with the root user are
+labeled with the default kernel context, since they are created early in the
+boot process, before root has a chance to log in.
 
 
 ================
@@ -933,6 +962,16 @@ The structure has a number of fields, some of which are mandatory:
      accessed (the key may not yet be instantiated).
 
      It is not safe to sleep in this method; the caller may hold spinlocks.
+
+
+ (*) void (*revoke)(struct key *key);
+
+     This method is optional.  It is called to discard part of the payload
+     data upon a key being revoked.  The caller will have the key semaphore
+     write-locked.
+
+     It is safe to sleep in this method, though care should be taken to avoid
+     a deadlock against the key semaphore.
 
 
  (*) void (*destroy)(struct key *key);

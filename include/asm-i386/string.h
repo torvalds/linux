@@ -2,7 +2,6 @@
 #define _I386_STRING_H_
 
 #ifdef __KERNEL__
-#include <linux/config.h>
 /*
  * On a 486 or Pentium, we are better off not using the
  * byte string operations. But on a 386 or a PPro the

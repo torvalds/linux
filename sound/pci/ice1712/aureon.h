@@ -58,5 +58,6 @@ extern struct snd_ice1712_card_info  snd_vt1724_aureon_cards[];
 #define PRODIGY_WM_CS		(1 << 8)
 #define PRODIGY_SPI_MOSI	(1 << 10)
 #define PRODIGY_SPI_CLK		(1 << 9)
+#define PRODIGY_HP_SEL		(1 << 5)
 
 #endif /* __SOUND_AUREON_H */

@@ -40,6 +40,18 @@ config MACH_KB9200
 	help
 	  Select this if you are using KwikByte's KB920x board
 
+config MACH_ATEB9200
+	bool "Embest's ATEB9200"
+	depends on ARCH_AT91RM9200
+	help
+	  Select this if you are using Embest's ATEB9200 board
+
+config MACH_KAFA
+	bool "Sperry-Sun KAFA board"
+	depends on ARCH_AT91RM9200
+	help
+	  Select this if you are using Sperry-Sun's KAFA board
+
 
 comment "AT91RM9200 Feature Selections"
 

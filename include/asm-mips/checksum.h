@@ -11,7 +11,6 @@
 #ifndef _ASM_CHECKSUM_H
 #define _ASM_CHECKSUM_H
 
-#include <linux/config.h>
 #include <linux/in6.h>
 
 #include <asm/uaccess.h>

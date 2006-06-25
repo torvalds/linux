@@ -51,6 +51,10 @@
 #ifdef __KERNEL__
 /*
  * Ptrace flags
+ *
+ * The owner ship rules for task->ptrace which holds the ptrace
+ * flags is simple.  When a task is running it owns it's task->ptrace
+ * flags.  When the a task is stopped the ptracer owns task->ptrace.
  */
 
 #define PT_PTRACED	0x00000001

@@ -99,6 +99,11 @@ struct sk_security_struct {
 	u32 peer_sid;			/* SID of peer */
 };
 
+struct key_security_struct {
+	struct key *obj; /* back pointer */
+	u32 sid;         /* SID of key */
+};
+
 extern unsigned int selinux_checkreqprot;
 
 #endif /* _SELINUX_OBJSEC_H_ */

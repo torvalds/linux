@@ -28,6 +28,6 @@ static inline u16 scr_readw(const u16 *addr)
 	return *addr;
 }
 
-#define VGA_MAP_MEM(x) (x)
+#define VGA_MAP_MEM(x,s) (x)
 
 #endif

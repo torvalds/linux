@@ -821,11 +821,12 @@ static void ib_uverbs_remove_one(struct ib_device *device)
 	kref_put(&uverbs_dev->ref, ib_uverbs_release_dev);
 }
 
-static struct super_block *uverbs_event_get_sb(struct file_system_type *fs_type, int flags,
-					       const char *dev_name, void *data)
+static int uverbs_event_get_sb(struct file_system_type *fs_type, int flags,
+			       const char *dev_name, void *data,
+			       struct vfsmount *mnt)
 {
 	return get_sb_pseudo(fs_type, "infinibandevent:", NULL,
-			     INFINIBANDEVENTFS_MAGIC);
+			     INFINIBANDEVENTFS_MAGIC, mnt);
 }
 
 static struct file_system_type uverbs_event_fs = {

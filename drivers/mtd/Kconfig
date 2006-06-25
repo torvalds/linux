@@ -78,7 +78,7 @@ config MTD_REDBOOT_DIRECTORY_BLOCK
 	  option.
 
 	  The option specifies which Flash sectors holds the RedBoot
-	  partition table.  A zero or positive value gives an absolete
+	  partition table.  A zero or positive value gives an absolute
 	  erase block number. A negative value specifies a number of
 	  sectors before the end of the device.
 
@@ -103,7 +103,7 @@ config MTD_CMDLINE_PARTS
 	bool "Command line partition table parsing"
 	depends on MTD_PARTITIONS = "y"
 	---help---
-	  Allow generic configuration of the MTD paritition tables via the kernel
+	  Allow generic configuration of the MTD partition tables via the kernel
 	  command line. Multiple flash resources are supported for hardware where
 	  different kinds of flash memory are available.
 

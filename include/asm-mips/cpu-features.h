@@ -9,7 +9,6 @@
 #ifndef __ASM_CPU_FEATURES_H
 #define __ASM_CPU_FEATURES_H
 
-#include <linux/config.h>
 
 #include <asm/cpu.h>
 #include <asm/cpu-info.h>

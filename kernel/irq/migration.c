@@ -30,7 +30,7 @@ void move_native_irq(int irq)
 
 	desc->move_irq = 0;
 
-	if (likely(cpus_empty(pending_irq_cpumask[irq])))
+	if (unlikely(cpus_empty(pending_irq_cpumask[irq])))
 		return;
 
 	if (!desc->handler->set_affinity)
@@ -49,7 +49,7 @@ void move_native_irq(int irq)
 	 * cause some ioapics to mal-function.
 	 * Being paranoid i guess!
 	 */
-	if (unlikely(!cpus_empty(tmp))) {
+	if (likely(!cpus_empty(tmp))) {
 		if (likely(!(desc->status & IRQ_DISABLED)))
 			desc->handler->disable(irq);
 

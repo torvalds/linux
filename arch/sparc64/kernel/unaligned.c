@@ -279,11 +279,20 @@ static void kernel_mna_trap_fault(void)
 
 asmlinkage void kernel_unaligned_trap(struct pt_regs *regs, unsigned int insn)
 {
+	static unsigned long count, last_time;
 	enum direction dir = decode_direction(insn);
 	int size = decode_access_size(insn);
 
 	current_thread_info()->kern_una_regs = regs;
 	current_thread_info()->kern_una_insn = insn;
+
+	if (jiffies - last_time > 5 * HZ)
+		count = 0;
+	if (count < 5) {
+		last_time = jiffies;
+		count++;
+		printk("Kernel unaligned access at TPC[%lx]\n", regs->tpc);
+	}
 
 	if (!ok_for_kernel(insn) || dir == both) {
 		printk("Unsupported unaligned load/store trap for kernel "

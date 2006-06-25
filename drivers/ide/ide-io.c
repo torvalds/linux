@@ -142,38 +142,41 @@ enum {
 
 static void ide_complete_power_step(ide_drive_t *drive, struct request *rq, u8 stat, u8 error)
 {
+	struct request_pm_state *pm = rq->end_io_data;
+
 	if (drive->media != ide_disk)
 		return;
 
-	switch (rq->pm->pm_step) {
+	switch (pm->pm_step) {
 	case ide_pm_flush_cache:	/* Suspend step 1 (flush cache) complete */
-		if (rq->pm->pm_state == PM_EVENT_FREEZE)
-			rq->pm->pm_step = ide_pm_state_completed;
+		if (pm->pm_state == PM_EVENT_FREEZE)
+			pm->pm_step = ide_pm_state_completed;
 		else
-			rq->pm->pm_step = idedisk_pm_standby;
+			pm->pm_step = idedisk_pm_standby;
 		break;
 	case idedisk_pm_standby:	/* Suspend step 2 (standby) complete */
-		rq->pm->pm_step = ide_pm_state_completed;
+		pm->pm_step = ide_pm_state_completed;
 		break;
 	case idedisk_pm_idle:		/* Resume step 1 (idle) complete */
-		rq->pm->pm_step = ide_pm_restore_dma;
+		pm->pm_step = ide_pm_restore_dma;
 		break;
 	}
 }
 
 static ide_startstop_t ide_start_power_step(ide_drive_t *drive, struct request *rq)
 {
+	struct request_pm_state *pm = rq->end_io_data;
 	ide_task_t *args = rq->special;
 
 	memset(args, 0, sizeof(*args));
 
 	if (drive->media != ide_disk) {
 		/* skip idedisk_pm_idle for ATAPI devices */
-		if (rq->pm->pm_step == idedisk_pm_idle)
-			rq->pm->pm_step = ide_pm_restore_dma;
+		if (pm->pm_step == idedisk_pm_idle)
+			pm->pm_step = ide_pm_restore_dma;
 	}
 
-	switch (rq->pm->pm_step) {
+	switch (pm->pm_step) {
 	case ide_pm_flush_cache:	/* Suspend step 1 (flush cache) */
 		if (drive->media != ide_disk)
 			break;
@@ -215,7 +218,7 @@ static ide_startstop_t ide_start_power_step(ide_drive_t *drive, struct request *
 		drive->hwif->ide_dma_check(drive);
 		break;
 	}
-	rq->pm->pm_step = ide_pm_state_completed;
+	pm->pm_step = ide_pm_state_completed;
 	return ide_stopped;
 }
 
@@ -362,12 +365,13 @@ void ide_end_drive_cmd (ide_drive_t *drive, u8 stat, u8 err)
 			}
 		}
 	} else if (blk_pm_request(rq)) {
+		struct request_pm_state *pm = rq->end_io_data;
 #ifdef DEBUG_PM
 		printk("%s: complete_power_step(step: %d, stat: %x, err: %x)\n",
 			drive->name, rq->pm->pm_step, stat, err);
 #endif
 		ide_complete_power_step(drive, rq, stat, err);
-		if (rq->pm->pm_step == ide_pm_state_completed)
+		if (pm->pm_step == ide_pm_state_completed)
 			ide_complete_pm_request(drive, rq);
 		return;
 	}
@@ -871,6 +875,39 @@ done:
  	return ide_stopped;
 }
 
+static void ide_check_pm_state(ide_drive_t *drive, struct request *rq)
+{
+	struct request_pm_state *pm = rq->end_io_data;
+
+	if (blk_pm_suspend_request(rq) &&
+	    pm->pm_step == ide_pm_state_start_suspend)
+		/* Mark drive blocked when starting the suspend sequence. */
+		drive->blocked = 1;
+	else if (blk_pm_resume_request(rq) &&
+		 pm->pm_step == ide_pm_state_start_resume) {
+		/* 
+		 * The first thing we do on wakeup is to wait for BSY bit to
+		 * go away (with a looong timeout) as a drive on this hwif may
+		 * just be POSTing itself.
+		 * We do that before even selecting as the "other" device on
+		 * the bus may be broken enough to walk on our toes at this
+		 * point.
+		 */
+		int rc;
+#ifdef DEBUG_PM
+		printk("%s: Wakeup request inited, waiting for !BSY...\n", drive->name);
+#endif
+		rc = ide_wait_not_busy(HWIF(drive), 35000);
+		if (rc)
+			printk(KERN_WARNING "%s: bus not ready on wakeup\n", drive->name);
+		SELECT_DRIVE(drive);
+		HWIF(drive)->OUTB(8, HWIF(drive)->io_ports[IDE_CONTROL_OFFSET]);
+		rc = ide_wait_not_busy(HWIF(drive), 10000);
+		if (rc)
+			printk(KERN_WARNING "%s: drive not ready on wakeup\n", drive->name);
+	}
+}
+
 /**
  *	start_request	-	start of I/O and command issuing for IDE
  *
@@ -909,33 +946,8 @@ static ide_startstop_t start_request (ide_drive_t *drive, struct request *rq)
 	if (block == 0 && drive->remap_0_to_1 == 1)
 		block = 1;  /* redirect MBR access to EZ-Drive partn table */
 
-	if (blk_pm_suspend_request(rq) &&
-	    rq->pm->pm_step == ide_pm_state_start_suspend)
-		/* Mark drive blocked when starting the suspend sequence. */
-		drive->blocked = 1;
-	else if (blk_pm_resume_request(rq) &&
-		 rq->pm->pm_step == ide_pm_state_start_resume) {
-		/* 
-		 * The first thing we do on wakeup is to wait for BSY bit to
-		 * go away (with a looong timeout) as a drive on this hwif may
-		 * just be POSTing itself.
-		 * We do that before even selecting as the "other" device on
-		 * the bus may be broken enough to walk on our toes at this
-		 * point.
-		 */
-		int rc;
-#ifdef DEBUG_PM
-		printk("%s: Wakeup request inited, waiting for !BSY...\n", drive->name);
-#endif
-		rc = ide_wait_not_busy(HWIF(drive), 35000);
-		if (rc)
-			printk(KERN_WARNING "%s: bus not ready on wakeup\n", drive->name);
-		SELECT_DRIVE(drive);
-		HWIF(drive)->OUTB(8, HWIF(drive)->io_ports[IDE_CONTROL_OFFSET]);
-		rc = ide_wait_not_busy(HWIF(drive), 10000);
-		if (rc)
-			printk(KERN_WARNING "%s: drive not ready on wakeup\n", drive->name);
-	}
+	if (blk_pm_request(rq))
+		ide_check_pm_state(drive, rq);
 
 	SELECT_DRIVE(drive);
 	if (ide_wait_stat(&startstop, drive, drive->ready_stat, BUSY_STAT|DRQ_STAT, WAIT_READY)) {
@@ -950,13 +962,14 @@ static ide_startstop_t start_request (ide_drive_t *drive, struct request *rq)
 		else if (rq->flags & REQ_DRIVE_TASKFILE)
 			return execute_drive_cmd(drive, rq);
 		else if (blk_pm_request(rq)) {
+			struct request_pm_state *pm = rq->end_io_data;
 #ifdef DEBUG_PM
 			printk("%s: start_power_step(step: %d)\n",
 				drive->name, rq->pm->pm_step);
 #endif
 			startstop = ide_start_power_step(drive, rq);
 			if (startstop == ide_stopped &&
-			    rq->pm->pm_step == ide_pm_state_completed)
+			    pm->pm_step == ide_pm_state_completed)
 				ide_complete_pm_request(drive, rq);
 			return startstop;
 		}

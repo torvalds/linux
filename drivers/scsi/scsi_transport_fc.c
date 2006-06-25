@@ -50,7 +50,7 @@ static const char *get_fc_##title##_name(enum table_type table_key)	\
 	int i;								\
 	char *name = NULL;						\
 									\
-	for (i = 0; i < sizeof(table)/sizeof(table[0]); i++) {		\
+	for (i = 0; i < ARRAY_SIZE(table); i++) {			\
 		if (table[i].value == table_key) {			\
 			name = table[i].name;				\
 			break;						\
@@ -65,7 +65,7 @@ static int get_fc_##title##_match(const char *table_key,		\
 {									\
 	int i;								\
 									\
-	for (i = 0; i < sizeof(table)/sizeof(table[0]); i++) {		\
+	for (i = 0; i < ARRAY_SIZE(table); i++) {			\
 		if (strncmp(table_key, table[i].name,			\
 				table[i].matchlen) == 0) {		\
 			*value = table[i].value;			\
@@ -140,7 +140,7 @@ get_fc_##title##_names(u32 table_key, char *buf)		\
 	ssize_t len = 0;					\
 	int i;							\
 								\
-	for (i = 0; i < sizeof(table)/sizeof(table[0]); i++) {	\
+	for (i = 0; i < ARRAY_SIZE(table); i++) {		\
 		if (table[i].value & table_key) {		\
 			len += sprintf(buf + len, "%s%s",	\
 				prefix, table[i].name);		\

@@ -1,7 +1,6 @@
 #ifndef __PARISC_SYSTEM_H
 #define __PARISC_SYSTEM_H
 
-#include <linux/config.h>
 #include <asm/psw.h>
 
 /* The program status word as bitfields.  */

@@ -12,7 +12,6 @@
 #define	coldfire_h
 /****************************************************************************/
 
-#include <linux/config.h>
 
 /*
  *	Define the processor support peripherals base address.

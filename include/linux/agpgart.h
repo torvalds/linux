@@ -27,8 +27,6 @@
 #ifndef _AGP_H
 #define _AGP_H 1
 
-#include <linux/agp_backend.h>
-
 #define AGPIOC_BASE       'A'
 #define AGPIOC_INFO       _IOR (AGPIOC_BASE, 0, struct agp_info*)
 #define AGPIOC_ACQUIRE    _IO  (AGPIOC_BASE, 1)
@@ -112,6 +110,7 @@ typedef struct _agp_unbind {
 
 #else				/* __KERNEL__ */
 #include <linux/mutex.h>
+#include <linux/agp_backend.h>
 
 #define AGPGART_MINOR 175
 

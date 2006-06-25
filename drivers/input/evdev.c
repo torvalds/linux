@@ -82,7 +82,7 @@ static int evdev_fasync(int fd, struct file *file, int on)
 	return retval < 0 ? retval : 0;
 }
 
-static int evdev_flush(struct file * file)
+static int evdev_flush(struct file * file, fl_owner_t id)
 {
 	struct evdev_list *list = file->private_data;
 	if (!list->evdev->exist) return -ENODEV;

@@ -331,7 +331,6 @@ long do_fsync(struct file *file, int datasync)
 		goto out;
 	}
 
-	current->flags |= PF_SYNCWRITE;
 	ret = filemap_fdatawrite(mapping);
 
 	/*
@@ -346,7 +345,6 @@ long do_fsync(struct file *file, int datasync)
 	err = filemap_fdatawait(mapping);
 	if (!ret)
 		ret = err;
-	current->flags &= ~PF_SYNCWRITE;
 out:
 	return ret;
 }

@@ -643,7 +643,7 @@ static inline void soc_init(struct sbus_dev *sdev, int no)
 		return;
 	}
 
-	SOD(("SOC uses IRQ%s\n", __irq_itoa(irq)))
+	SOD(("SOC uses IRQ %d\n", irq))
 	
 	s->port[0].fc.irq = irq;
 	s->port[1].fc.irq = irq;

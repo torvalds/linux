@@ -192,9 +192,11 @@ static int __init flash_init(void)
 	}
 	if (!sdev) {
 #ifdef CONFIG_PCI
+		struct linux_prom_registers *ebus_regs;
+
 		for_each_ebus(ebus) {
 			for_each_ebusdev(edev, ebus) {
-				if (!strcmp(edev->prom_name, "flashprom"))
+				if (!strcmp(edev->prom_node->name, "flashprom"))
 					goto ebus_done;
 			}
 		}
@@ -202,23 +204,23 @@ static int __init flash_init(void)
 		if (!edev)
 			return -ENODEV;
 
-		len = prom_getproperty(edev->prom_node, "reg", (void *)regs, sizeof(regs));
-		if ((len % sizeof(regs[0])) != 0) {
+		ebus_regs = of_get_property(edev->prom_node, "reg", &len);
+		if (!ebus_regs || (len % sizeof(regs[0])) != 0) {
 			printk("flash: Strange reg property size %d\n", len);
 			return -ENODEV;
 		}
 
-		nregs = len / sizeof(regs[0]);
+		nregs = len / sizeof(ebus_regs[0]);
 
 		flash.read_base = edev->resource[0].start;
-		flash.read_size = regs[0].reg_size;
+		flash.read_size = ebus_regs[0].reg_size;
 
 		if (nregs == 1) {
 			flash.write_base = edev->resource[0].start;
-			flash.write_size = regs[0].reg_size;
+			flash.write_size = ebus_regs[0].reg_size;
 		} else if (nregs == 2) {
 			flash.write_base = edev->resource[1].start;
-			flash.write_size = regs[1].reg_size;
+			flash.write_size = ebus_regs[1].reg_size;
 		} else {
 			printk("flash: Strange number of regs %d\n", nregs);
 			return -ENODEV;

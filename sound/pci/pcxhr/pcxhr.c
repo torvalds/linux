@@ -1150,9 +1150,9 @@ static void __devinit pcxhr_proc_init(struct snd_pcxhr *chip)
 	struct snd_info_entry *entry;
 
 	if (! snd_card_proc_new(chip->card, "info", &entry))
-		snd_info_set_text_ops(entry, chip, 1024, pcxhr_proc_info);
+		snd_info_set_text_ops(entry, chip, pcxhr_proc_info);
 	if (! snd_card_proc_new(chip->card, "sync", &entry))
-		snd_info_set_text_ops(entry, chip, 1024, pcxhr_proc_sync);
+		snd_info_set_text_ops(entry, chip, pcxhr_proc_sync);
 }
 /* end of proc interface */
 

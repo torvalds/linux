@@ -828,6 +828,11 @@ static int semctl_down(int semid, int semnum, int cmd, int version, union semun 
 	if (err)
 		goto out_unlock;
 
+	if (cmd == IPC_SET) {
+		err = audit_ipc_set_perm(0, setbuf.uid, setbuf.gid, setbuf.mode);
+		if (err)
+			goto out_unlock;
+	}
 	if (current->euid != ipcp->cuid && 
 	    current->euid != ipcp->uid && !capable(CAP_SYS_ADMIN)) {
 	    	err=-EPERM;
@@ -844,9 +849,6 @@ static int semctl_down(int semid, int semnum, int cmd, int version, union semun 
 		err = 0;
 		break;
 	case IPC_SET:
-		err = audit_ipc_set_perm(0, setbuf.uid, setbuf.gid, setbuf.mode, ipcp);
-		if (err)
-			goto out_unlock;
 		ipcp->uid = setbuf.uid;
 		ipcp->gid = setbuf.gid;
 		ipcp->mode = (ipcp->mode & ~S_IRWXUGO)

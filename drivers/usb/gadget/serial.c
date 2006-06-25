@@ -45,88 +45,16 @@
 #include <asm/uaccess.h>
 
 #include <linux/usb_ch9.h>
-#include <linux/usb_cdc.h>
+#include <linux/usb/cdc.h>
 #include <linux/usb_gadget.h>
 
 #include "gadget_chips.h"
 
 
-/* Wait Cond */
-
-#define __wait_cond_interruptible(wq, condition, lock, flags, ret)	\
-do {									\
-	wait_queue_t __wait;						\
-	init_waitqueue_entry(&__wait, current);				\
-									\
-	add_wait_queue(&wq, &__wait);					\
-	for (;;) {							\
-		set_current_state(TASK_INTERRUPTIBLE);			\
-		if (condition)						\
-			break;						\
-		if (!signal_pending(current)) {				\
-			spin_unlock_irqrestore(lock, flags);		\
-			schedule();					\
-			spin_lock_irqsave(lock, flags);			\
-			continue;					\
-		}							\
-		ret = -ERESTARTSYS;					\
-		break;							\
-	}								\
-	current->state = TASK_RUNNING;					\
-	remove_wait_queue(&wq, &__wait);				\
-} while (0)
-	
-#define wait_cond_interruptible(wq, condition, lock, flags)		\
-({									\
-	int __ret = 0;							\
-	if (!(condition))						\
-		__wait_cond_interruptible(wq, condition, lock, flags,	\
-						__ret);			\
-	__ret;								\
-})
-
-#define __wait_cond_interruptible_timeout(wq, condition, lock, flags, 	\
-						timeout, ret)		\
-do {									\
-	signed long __timeout = timeout;				\
-	wait_queue_t __wait;						\
-	init_waitqueue_entry(&__wait, current);				\
-									\
-	add_wait_queue(&wq, &__wait);					\
-	for (;;) {							\
-		set_current_state(TASK_INTERRUPTIBLE);			\
-		if (__timeout == 0)					\
-			break;						\
-		if (condition)						\
-			break;						\
-		if (!signal_pending(current)) {				\
-			spin_unlock_irqrestore(lock, flags);		\
-			__timeout = schedule_timeout(__timeout);	\
-			spin_lock_irqsave(lock, flags);			\
-			continue;					\
-		}							\
-		ret = -ERESTARTSYS;					\
-		break;							\
-	}								\
-	current->state = TASK_RUNNING;					\
-	remove_wait_queue(&wq, &__wait);				\
-} while (0)
-	
-#define wait_cond_interruptible_timeout(wq, condition, lock, flags,	\
-						timeout)		\
-({									\
-	int __ret = 0;							\
-	if (!(condition))						\
-		__wait_cond_interruptible_timeout(wq, condition, lock,	\
-						flags, timeout, __ret);	\
-	__ret;								\
-})
-
-
 /* Defines */
 
-#define GS_VERSION_STR			"v2.0"
-#define GS_VERSION_NUM			0x0200
+#define GS_VERSION_STR			"v2.2"
+#define GS_VERSION_NUM			0x0202
 
 #define GS_LONG_NAME			"Gadget Serial"
 #define GS_SHORT_NAME			"g_serial"
@@ -843,9 +771,19 @@ exit_unlock_dev:
 /*
  * gs_close
  */
+
+#define GS_WRITE_FINISHED_EVENT_SAFELY(p)			\
+({								\
+	int cond;						\
+								\
+	spin_lock_irq(&(p)->port_lock);				\
+	cond = !(p)->port_dev || !gs_buf_data_avail((p)->port_write_buf); \
+	spin_unlock_irq(&(p)->port_lock);			\
+	cond;							\
+})
+
 static void gs_close(struct tty_struct *tty, struct file *file)
 {
-	unsigned long flags;
 	struct gs_port *port = tty->driver_data;
 	struct semaphore *sem;
 
@@ -859,7 +797,7 @@ static void gs_close(struct tty_struct *tty, struct file *file)
 	sem = &gs_open_close_sem[port->port_num];
 	down(sem);
 
-	spin_lock_irqsave(&port->port_lock, flags);
+	spin_lock_irq(&port->port_lock);
 
 	if (port->port_open_count == 0) {
 		printk(KERN_ERR
@@ -887,12 +825,11 @@ static void gs_close(struct tty_struct *tty, struct file *file)
 	/* wait for write buffer to drain, or */
 	/* at most GS_CLOSE_TIMEOUT seconds */
 	if (gs_buf_data_avail(port->port_write_buf) > 0) {
-		spin_unlock_irqrestore(&port->port_lock, flags);
-		wait_cond_interruptible_timeout(port->port_write_wait,
-		port->port_dev == NULL
-		|| gs_buf_data_avail(port->port_write_buf) == 0,
-		&port->port_lock, flags, GS_CLOSE_TIMEOUT * HZ);
-		spin_lock_irqsave(&port->port_lock, flags);
+		spin_unlock_irq(&port->port_lock);
+		wait_event_interruptible_timeout(port->port_write_wait,
+					GS_WRITE_FINISHED_EVENT_SAFELY(port),
+					GS_CLOSE_TIMEOUT * HZ);
+		spin_lock_irq(&port->port_lock);
 	}
 
 	/* free disconnected port on final close */
@@ -912,7 +849,7 @@ static void gs_close(struct tty_struct *tty, struct file *file)
 		port->port_num, tty, file);
 
 exit:
-	spin_unlock_irqrestore(&port->port_lock, flags);
+	spin_unlock_irq(&port->port_lock);
 	up(sem);
 }
 

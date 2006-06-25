@@ -12,7 +12,6 @@
 #ifndef __ASM_MIPS_REG_H
 #define __ASM_MIPS_REG_H
 
-#include <linux/config.h>
 
 #if defined(CONFIG_32BIT) || defined(WANT_COMPAT_REG_H)
 

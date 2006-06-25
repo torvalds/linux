@@ -123,6 +123,7 @@ struct usbdevfs_hub_portinfo {
 	char port [127];	/* e.g. port 3 connects to device 27 */
 };
 
+#ifdef __KERNEL__
 #ifdef CONFIG_COMPAT
 #include <linux/compat.h>
 struct usbdevfs_urb32 {
@@ -147,6 +148,7 @@ struct usbdevfs_ioctl32 {
 	compat_caddr_t data;
 };
 #endif
+#endif /* __KERNEL__ */
 
 #define USBDEVFS_CONTROL           _IOWR('U', 0, struct usbdevfs_ctrltransfer)
 #define USBDEVFS_BULK              _IOWR('U', 2, struct usbdevfs_bulktransfer)

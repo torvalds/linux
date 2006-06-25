@@ -18,10 +18,11 @@ Some warnings, first.
  *
  * (*) suspend/resume support is needed to make it safe.
  *
- * If you have any filesystems on USB devices mounted before suspend,
+ * If you have any filesystems on USB devices mounted before software suspend,
  * they won't be accessible after resume and you may lose data, as though
- * you have unplugged the USB devices with mounted filesystems on them
- * (see the FAQ below for details).
+ * you have unplugged the USB devices with mounted filesystems on them;
+ * see the FAQ below for details.  (This is not true for more traditional
+ * power states like "standby", which normally don't turn USB off.)
 
 You need to append resume=/dev/your_swap_partition to kernel command
 line. Then you suspend by
@@ -204,7 +205,7 @@ Q: There don't seem to be any generally useful behavioral
 distinctions between SUSPEND and FREEZE.
 
 A: Doing SUSPEND when you are asked to do FREEZE is always correct,
-but it may be unneccessarily slow. If you want USB to stay simple,
+but it may be unneccessarily slow. If you want your driver to stay simple,
 slowness may not matter to you. It can always be fixed later.
 
 For devices like disk it does matter, you do not want to spindown for
@@ -349,25 +350,72 @@ Q: How do I make suspend more verbose?
 
 A: If you want to see any non-error kernel messages on the virtual
 terminal the kernel switches to during suspend, you have to set the
-kernel console loglevel to at least 5, for example by doing
+kernel console loglevel to at least 4 (KERN_WARNING), for example by
+doing
 
-	echo 5 > /proc/sys/kernel/printk
+	# save the old loglevel
+	read LOGLEVEL DUMMY < /proc/sys/kernel/printk
+	# set the loglevel so we see the progress bar.
+	# if the level is higher than needed, we leave it alone.
+	if [ $LOGLEVEL -lt 5 ]; then
+	        echo 5 > /proc/sys/kernel/printk
+		fi
+
+        IMG_SZ=0
+        read IMG_SZ < /sys/power/image_size
+        echo -n disk > /sys/power/state
+        RET=$?
+        #
+        # the logic here is:
+        # if image_size > 0 (without kernel support, IMG_SZ will be zero),
+        # then try again with image_size set to zero.
+	if [ $RET -ne 0 -a $IMG_SZ -ne 0 ]; then # try again with minimal image size
+                echo 0 > /sys/power/image_size
+                echo -n disk > /sys/power/state
+                RET=$?
+        fi
+
+	# restore previous loglevel
+	echo $LOGLEVEL > /proc/sys/kernel/printk
+	exit $RET
 
 Q: Is this true that if I have a mounted filesystem on a USB device and
 I suspend to disk, I can lose data unless the filesystem has been mounted
 with "sync"?
 
-A: That's right.  It depends on your hardware, and it could be true even for
-suspend-to-RAM.  In fact, even with "-o sync" you can lose data if your
-programs have information in buffers they haven't written out to disk.
+A: That's right ... if you disconnect that device, you may lose data.
+In fact, even with "-o sync" you can lose data if your programs have
+information in buffers they haven't written out to a disk you disconnect,
+or if you disconnect before the device finished saving data you wrote.
 
-If you're lucky, your hardware will support low-power modes for USB
-controllers while the system is asleep.  Lots of hardware doesn't,
-however.  Shutting off the power to a USB controller is equivalent to
-unplugging all the attached devices.
+Software suspend normally powers down USB controllers, which is equivalent
+to disconnecting all USB devices attached to your system.
+
+Your system might well support low-power modes for its USB controllers
+while the system is asleep, maintaining the connection, using true sleep
+modes like "suspend-to-RAM" or "standby".  (Don't write "disk" to the
+/sys/power/state file; write "standby" or "mem".)  We've not seen any
+hardware that can use these modes through software suspend, although in
+theory some systems might support "platform" or "firmware" modes that
+won't break the USB connections.
 
 Remember that it's always a bad idea to unplug a disk drive containing a
-mounted filesystem.  With USB that's true even when your system is asleep!
-The safest thing is to unmount all USB-based filesystems before suspending
-and remount them after resuming.
+mounted filesystem.  That's true even when your system is asleep!  The
+safest thing is to unmount all filesystems on removable media (such USB,
+Firewire, CompactFlash, MMC, external SATA, or even IDE hotplug bays)
+before suspending; then remount them after resuming.
 
+Q: I upgraded the kernel from 2.6.15 to 2.6.16. Both kernels were
+compiled with the similar configuration files. Anyway I found that
+suspend to disk (and resume) is much slower on 2.6.16 compared to
+2.6.15. Any idea for why that might happen or how can I speed it up?
+
+A: This is because the size of the suspend image is now greater than
+for 2.6.15 (by saving more data we can get more responsive system
+after resume).
+
+There's the /sys/power/image_size knob that controls the size of the
+image.  If you set it to 0 (eg. by echo 0 > /sys/power/image_size as
+root), the 2.6.15 behavior should be restored.  If it is still too
+slow, take a look at suspend.sf.net -- userland suspend is faster and
+supports LZF compression to speed it up further.

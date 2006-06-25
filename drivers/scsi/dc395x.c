@@ -230,13 +230,12 @@ struct ScsiReqBlk {
 	struct scsi_cmnd *cmd;
 
 	struct SGentry *segment_x;	/* Linear array of hw sg entries (up to 64 entries) */
-	u32 sg_bus_addr;	        /* Bus address of sg list (ie, of segment_x) */
+	dma_addr_t sg_bus_addr;	        /* Bus address of sg list (ie, of segment_x) */
 
 	u8 sg_count;			/* No of HW sg entries for this request */
 	u8 sg_index;			/* Index of HW sg entry for this request */
-	u32 total_xfer_length;		/* Total number of bytes remaining to be transfered */
-	unsigned char *virt_addr;	/* Virtual address of current transfer position */
-
+	size_t total_xfer_length;	/* Total number of bytes remaining to be transfered */
+	size_t request_length;		/* Total number of bytes in this request */
 	/*
 	 * The sense buffer handling function, request_sense, uses
 	 * the first hw sg entry (segment_x[0]) and the transfer
@@ -246,8 +245,7 @@ struct ScsiReqBlk {
 	 * total_xfer_length in xferred. These values are restored in
 	 * pci_unmap_srb_sense. This is the only place xferred is used.
 	 */
-	unsigned char *virt_addr_req;	/* Saved virtual address of the request buffer */
-	u32 xferred;		        /* Saved copy of total_xfer_length */
+	size_t xferred;		        /* Saved copy of total_xfer_length */
 
 	u16 state;
 
@@ -977,17 +975,6 @@ static void send_srb(struct AdapterCtlBlk *acb, struct ScsiReqBlk *srb)
 	}
 }
 
-static inline void pio_trigger(void)
-{
-	static int feedback_requested;
-
-	if (!feedback_requested) {
-		feedback_requested = 1;
-		printk(KERN_WARNING "%s: Please, contact <linux-scsi@vger.kernel.org> "
-		       "to help improve support for your system.\n", __FILE__);
-	}
-}
-
 /* Prepare SRB for being sent to Device DCB w/ command *cmd */
 static void build_srb(struct scsi_cmnd *cmd, struct DeviceCtlBlk *dcb,
 		struct ScsiReqBlk *srb)
@@ -1001,7 +988,6 @@ static void build_srb(struct scsi_cmnd *cmd, struct DeviceCtlBlk *dcb,
 	srb->sg_count = 0;
 	srb->total_xfer_length = 0;
 	srb->sg_bus_addr = 0;
-	srb->virt_addr = NULL;
 	srb->sg_index = 0;
 	srb->adapter_status = 0;
 	srb->target_status = 0;
@@ -1032,7 +1018,6 @@ static void build_srb(struct scsi_cmnd *cmd, struct DeviceCtlBlk *dcb,
 			reqlen, cmd->request_buffer, cmd->use_sg,
 			srb->sg_count);
 
-		srb->virt_addr = page_address(sl->page);
 		for (i = 0; i < srb->sg_count; i++) {
 			u32 busaddr = (u32)sg_dma_address(&sl[i]);
 			u32 seglen = (u32)sl[i].length;
@@ -1077,12 +1062,14 @@ static void build_srb(struct scsi_cmnd *cmd, struct DeviceCtlBlk *dcb,
 			srb->total_xfer_length++;
 
 		srb->segment_x[0].length = srb->total_xfer_length;
-		srb->virt_addr = cmd->request_buffer;
+
 		dprintkdbg(DBG_0,
 			"build_srb: [1] len=%d buf=%p use_sg=%d map=%08x\n",
 			srb->total_xfer_length, cmd->request_buffer,
 			cmd->use_sg, srb->segment_x[0].address);
 	}
+
+	srb->request_length = srb->total_xfer_length;
 }
 
 
@@ -1414,10 +1401,10 @@ static int dc395x_eh_abort(struct scsi_cmnd *cmd)
 	}
 	srb = find_cmd(cmd, &dcb->srb_going_list);
 	if (srb) {
-		dprintkl(KERN_DEBUG, "eh_abort: Command in progress");
+		dprintkl(KERN_DEBUG, "eh_abort: Command in progress\n");
 		/* XXX: Should abort the command here */
 	} else {
-		dprintkl(KERN_DEBUG, "eh_abort: Command not found");
+		dprintkl(KERN_DEBUG, "eh_abort: Command not found\n");
 	}
 	return FAILED;
 }
@@ -1976,14 +1963,11 @@ static void sg_verify_length(struct ScsiReqBlk *srb)
 
 /*
  * Compute the next Scatter Gather list index and adjust its length
- * and address if necessary; also compute virt_addr
+ * and address if necessary
  */
 static void sg_update_list(struct ScsiReqBlk *srb, u32 left)
 {
 	u8 idx;
-	struct scatterlist *sg;
-	struct scsi_cmnd *cmd = srb->cmd;
-	int segment = cmd->use_sg;
 	u32 xferred = srb->total_xfer_length - left; /* bytes transfered */
 	struct SGentry *psge = srb->segment_x + srb->sg_index;
 
@@ -2016,29 +2000,6 @@ static void sg_update_list(struct ScsiReqBlk *srb, u32 left)
 		psge++;
 	}
 	sg_verify_length(srb);
-
-	/* we need the corresponding virtual address */
-	if (!segment || (srb->flag & AUTO_REQSENSE)) {
-		srb->virt_addr += xferred;
-		return;
-	}
-
-	/* We have to walk the scatterlist to find it */
-	sg = (struct scatterlist *)cmd->request_buffer;
-	while (segment--) {
-		unsigned long mask =
-		    ~((unsigned long)sg->length - 1) & PAGE_MASK;
-		if ((sg_dma_address(sg) & mask) == (psge->address & mask)) {
-			srb->virt_addr = (page_address(sg->page)
-					   + psge->address -
-					   (psge->address & PAGE_MASK));
-			return;
-		}
-		++sg;
-	}
-
-	dprintkl(KERN_ERR, "sg_update_list: sg_to_virt failed\n");
-	srb->virt_addr = NULL;
 }
 
 
@@ -2050,15 +2011,7 @@ static void sg_update_list(struct ScsiReqBlk *srb, u32 left)
  */
 static void sg_subtract_one(struct ScsiReqBlk *srb)
 {
-	srb->total_xfer_length--;
-	srb->segment_x[srb->sg_index].length--;
-	if (srb->total_xfer_length &&
-	    !srb->segment_x[srb->sg_index].length) {
-		if (debug_enabled(DBG_PIO))
-			printk(" (next segment)");
-		srb->sg_index++;
-		sg_update_list(srb, srb->total_xfer_length);
-	}
+	sg_update_list(srb, srb->total_xfer_length - 1);
 }
 
 
@@ -2118,7 +2071,7 @@ static void data_out_phase0(struct AdapterCtlBlk *acb, struct ScsiReqBlk *srb,
 	 * If we need more data, the DMA SG list will be freshly set up, anyway
 	 */
 	dprintkdbg(DBG_PIO, "data_out_phase0: "
-		"DMA{fifcnt=0x%02x fifostat=0x%02x} "
+		"DMA{fifocnt=0x%02x fifostat=0x%02x} "
 		"SCSI{fifocnt=0x%02x cnt=0x%06x status=0x%04x} total=0x%06x\n",
 		DC395x_read8(acb, TRM_S1040_DMA_FIFOCNT),
 		DC395x_read8(acb, TRM_S1040_DMA_FIFOSTAT),
@@ -2239,12 +2192,11 @@ static void data_out_phase1(struct AdapterCtlBlk *acb, struct ScsiReqBlk *srb,
 	data_io_transfer(acb, srb, XFERDATAOUT);
 }
 
-
 static void data_in_phase0(struct AdapterCtlBlk *acb, struct ScsiReqBlk *srb,
 		u16 *pscsi_status)
 {
 	u16 scsi_status = *pscsi_status;
-	u32 d_left_counter = 0;
+
 	dprintkdbg(DBG_0, "data_in_phase0: (pid#%li) <%02i-%i>\n",
 		srb->cmd->pid, srb->cmd->device->id, srb->cmd->device->lun);
 
@@ -2262,6 +2214,9 @@ static void data_in_phase0(struct AdapterCtlBlk *acb, struct ScsiReqBlk *srb,
 	 * seem to be a bad idea, actually.
 	 */
 	if (!(srb->state & SRB_XFERPAD)) {
+		u32 d_left_counter;
+		unsigned int sc, fc;
+
 		if (scsi_status & PARITYERROR) {
 			dprintkl(KERN_INFO, "data_in_phase0: (pid#%li) "
 				"Parity Error\n", srb->cmd->pid);
@@ -2298,18 +2253,19 @@ static void data_in_phase0(struct AdapterCtlBlk *acb, struct ScsiReqBlk *srb,
 				DC395x_read8(acb, TRM_S1040_DMA_FIFOSTAT));
 		}
 		/* Now: Check remainig data: The SCSI counters should tell us ... */
-		d_left_counter = DC395x_read32(acb, TRM_S1040_SCSI_COUNTER)
-		    + ((DC395x_read8(acb, TRM_S1040_SCSI_FIFOCNT) & 0x1f)
+		sc = DC395x_read32(acb, TRM_S1040_SCSI_COUNTER);
+		fc = DC395x_read8(acb, TRM_S1040_SCSI_FIFOCNT);
+		d_left_counter = sc + ((fc & 0x1f)
 		       << ((srb->dcb->sync_period & WIDE_SYNC) ? 1 :
 			   0));
 		dprintkdbg(DBG_KG, "data_in_phase0: "
 			"SCSI{fifocnt=0x%02x%s ctr=0x%08x} "
 			"DMA{fifocnt=0x%02x fifostat=0x%02x ctr=0x%08x} "
 			"Remain{totxfer=%i scsi_fifo+ctr=%i}\n",
-			DC395x_read8(acb, TRM_S1040_SCSI_FIFOCNT),
+			fc,
 			(srb->dcb->sync_period & WIDE_SYNC) ? "words" : "bytes",
-			DC395x_read32(acb, TRM_S1040_SCSI_COUNTER),
-			DC395x_read8(acb, TRM_S1040_DMA_FIFOCNT),
+			sc,
+			fc,
 			DC395x_read8(acb, TRM_S1040_DMA_FIFOSTAT),
 			DC395x_read32(acb, TRM_S1040_DMA_CXCNT),
 			srb->total_xfer_length, d_left_counter);
@@ -2317,40 +2273,79 @@ static void data_in_phase0(struct AdapterCtlBlk *acb, struct ScsiReqBlk *srb,
 		/* KG: Less than or equal to 4 bytes can not be transfered via DMA, it seems. */
 		if (d_left_counter
 		    && srb->total_xfer_length <= DC395x_LASTPIO) {
+			size_t left_io = srb->total_xfer_length;
+
 			/*u32 addr = (srb->segment_x[srb->sg_index].address); */
 			/*sg_update_list (srb, d_left_counter); */
-			dprintkdbg(DBG_PIO, "data_in_phase0: PIO (%i %s) to "
-				"%p for remaining %i bytes:",
-				DC395x_read8(acb, TRM_S1040_SCSI_FIFOCNT) & 0x1f,
+			dprintkdbg(DBG_PIO, "data_in_phase0: PIO (%i %s) "
+				   "for remaining %i bytes:",
+				fc & 0x1f,
 				(srb->dcb->sync_period & WIDE_SYNC) ?
 				    "words" : "bytes",
-				srb->virt_addr,
 				srb->total_xfer_length);
 			if (srb->dcb->sync_period & WIDE_SYNC)
 				DC395x_write8(acb, TRM_S1040_SCSI_CONFIG2,
 					      CFG2_WIDEFIFO);
-			while (DC395x_read8(acb, TRM_S1040_SCSI_FIFOCNT) != 0x40) {
-				u8 byte = DC395x_read8(acb, TRM_S1040_SCSI_FIFO);
-				pio_trigger();
-				*(srb->virt_addr)++ = byte;
-				if (debug_enabled(DBG_PIO))
-					printk(" %02x", byte);
-				d_left_counter--;
-				sg_subtract_one(srb);
-			}
-			if (srb->dcb->sync_period & WIDE_SYNC) {
-#if 1
-                /* Read the last byte ... */
-				if (srb->total_xfer_length > 0) {
-					u8 byte = DC395x_read8(acb, TRM_S1040_SCSI_FIFO);
-					pio_trigger();
-					*(srb->virt_addr)++ = byte;
-					srb->total_xfer_length--;
+			while (left_io) {
+				unsigned char *virt, *base = NULL;
+				unsigned long flags = 0;
+				size_t len = left_io;
+
+				if (srb->cmd->use_sg) {
+					size_t offset = srb->request_length - left_io;
+					local_irq_save(flags);
+					/* Assumption: it's inside one page as it's at most 4 bytes and
+					   I just assume it's on a 4-byte boundary */
+					base = scsi_kmap_atomic_sg((struct scatterlist *)srb->cmd->request_buffer,
+								     srb->sg_count, &offset, &len);
+					virt = base + offset;
+				} else {
+					virt = srb->cmd->request_buffer + srb->cmd->request_bufflen - left_io;
+					len = left_io;
+				}
+				left_io -= len;
+
+				while (len) {
+					u8 byte;
+					byte = DC395x_read8(acb, TRM_S1040_SCSI_FIFO);
+					*virt++ = byte;
+
 					if (debug_enabled(DBG_PIO))
 						printk(" %02x", byte);
+
+					d_left_counter--;
+					sg_subtract_one(srb);
+
+					len--;
+
+					fc = DC395x_read8(acb, TRM_S1040_SCSI_FIFOCNT);
+
+					if (fc == 0x40) {
+						left_io = 0;
+						break;
+					}
 				}
-#endif
-				DC395x_write8(acb, TRM_S1040_SCSI_CONFIG2, 0);
+
+				WARN_ON((fc != 0x40) == !d_left_counter);
+
+				if (fc == 0x40 && (srb->dcb->sync_period & WIDE_SYNC)) {
+					/* Read the last byte ... */
+					if (srb->total_xfer_length > 0) {
+						u8 byte = DC395x_read8(acb, TRM_S1040_SCSI_FIFO);
+
+						*virt++ = byte;
+						srb->total_xfer_length--;
+						if (debug_enabled(DBG_PIO))
+							printk(" %02x", byte);
+					}
+
+					DC395x_write8(acb, TRM_S1040_SCSI_CONFIG2, 0);
+				}
+
+				if (srb->cmd->use_sg) {
+					scsi_kunmap_atomic_sg(base);
+					local_irq_restore(flags);
+				}
 			}
 			/*printk(" %08x", *(u32*)(bus_to_virt (addr))); */
 			/*srb->total_xfer_length = 0; */
@@ -2509,22 +2504,43 @@ static void data_io_transfer(struct AdapterCtlBlk *acb,
 				      SCMD_FIFO_IN);
 		} else {	/* write */
 			int ln = srb->total_xfer_length;
+			size_t left_io = srb->total_xfer_length;
+
 			if (srb->dcb->sync_period & WIDE_SYNC)
 				DC395x_write8(acb, TRM_S1040_SCSI_CONFIG2,
 				     CFG2_WIDEFIFO);
-			dprintkdbg(DBG_PIO,
-				"data_io_transfer: PIO %i bytes from %p:",
-				srb->total_xfer_length, srb->virt_addr);
 
-			while (srb->total_xfer_length) {
-				if (debug_enabled(DBG_PIO))
-					printk(" %02x", (unsigned char) *(srb->virt_addr));
+			while (left_io) {
+				unsigned char *virt, *base = NULL;
+				unsigned long flags = 0;
+				size_t len = left_io;
 
-				pio_trigger();
-				DC395x_write8(acb, TRM_S1040_SCSI_FIFO, 
-				     *(srb->virt_addr)++);
+				if (srb->cmd->use_sg) {
+					size_t offset = srb->request_length - left_io;
+					local_irq_save(flags);
+					/* Again, max 4 bytes */
+					base = scsi_kmap_atomic_sg((struct scatterlist *)srb->cmd->request_buffer,
+								     srb->sg_count, &offset, &len);
+					virt = base + offset;
+				} else {
+					virt = srb->cmd->request_buffer + srb->cmd->request_bufflen - left_io;
+					len = left_io;
+				}
+				left_io -= len;
 
-				sg_subtract_one(srb);
+				while (len--) {
+					if (debug_enabled(DBG_PIO))
+						printk(" %02x", *virt);
+
+					DC395x_write8(acb, TRM_S1040_SCSI_FIFO, *virt++);
+
+					sg_subtract_one(srb);
+				}
+
+				if (srb->cmd->use_sg) {
+					scsi_kunmap_atomic_sg(base);
+					local_irq_restore(flags);
+				}
 			}
 			if (srb->dcb->sync_period & WIDE_SYNC) {
 				if (ln % 2) {
@@ -3319,7 +3335,6 @@ static void pci_unmap_srb_sense(struct AdapterCtlBlk *acb,
 	    srb->segment_x[DC395x_MAX_SG_LISTENTRY - 1].address;
 	srb->segment_x[0].length =
 	    srb->segment_x[DC395x_MAX_SG_LISTENTRY - 1].length;
-	srb->virt_addr = srb->virt_addr_req;
 }
 
 
@@ -3332,21 +3347,14 @@ static void srb_done(struct AdapterCtlBlk *acb, struct DeviceCtlBlk *dcb,
 {
 	u8 tempcnt, status;
 	struct scsi_cmnd *cmd = srb->cmd;
-	struct ScsiInqData *ptr;
 	enum dma_data_direction dir = cmd->sc_data_direction;
-
-	if (cmd->use_sg) {
-		struct scatterlist* sg = (struct scatterlist *)cmd->request_buffer;
-		ptr = (struct ScsiInqData *)(page_address(sg->page) + sg->offset);
-	} else {
-		ptr = (struct ScsiInqData *)(cmd->request_buffer);
-	}
+	int ckc_only = 1;
 
 	dprintkdbg(DBG_1, "srb_done: (pid#%li) <%02i-%i>\n", srb->cmd->pid,
 		srb->cmd->device->id, srb->cmd->device->lun);
-	dprintkdbg(DBG_SG, "srb_done: srb=%p sg=%i(%i/%i) buf=%p addr=%p\n",
+	dprintkdbg(DBG_SG, "srb_done: srb=%p sg=%i(%i/%i) buf=%p\n",
 		srb, cmd->use_sg, srb->sg_index, srb->sg_count,
-		cmd->request_buffer, ptr);
+		cmd->request_buffer);
 	status = srb->target_status;
 	if (srb->flag & AUTO_REQSENSE) {
 		dprintkdbg(DBG_0, "srb_done: AUTO_REQSENSE1\n");
@@ -3485,28 +3493,46 @@ static void srb_done(struct AdapterCtlBlk *acb, struct DeviceCtlBlk *dcb,
 					    srb->segment_x[0].address,
 					    cmd->request_bufflen, dir);
 	}
-
-	if ((cmd->result & RES_DID) == 0 && cmd->cmnd[0] == INQUIRY
-	    && cmd->cmnd[2] == 0 && cmd->request_bufflen >= 8
-	    && dir != PCI_DMA_NONE && ptr && (ptr->Vers & 0x07) >= 2)
-		dcb->inquiry7 = ptr->Flags;
+	ckc_only = 0;
 /* Check Error Conditions */
       ckc_e:
 
+	if (cmd->cmnd[0] == INQUIRY) {
+		unsigned char *base = NULL;
+		struct ScsiInqData *ptr;
+		unsigned long flags = 0;
+
+		if (cmd->use_sg) {
+			struct scatterlist* sg = (struct scatterlist *)cmd->request_buffer;
+			size_t offset = 0, len = sizeof(struct ScsiInqData);
+
+			local_irq_save(flags);
+			base = scsi_kmap_atomic_sg(sg, cmd->use_sg, &offset, &len);
+			ptr = (struct ScsiInqData *)(base + offset);
+		} else
+			ptr = (struct ScsiInqData *)(cmd->request_buffer);
+
+		if (!ckc_only && (cmd->result & RES_DID) == 0
+		    && cmd->cmnd[2] == 0 && cmd->request_bufflen >= 8
+		    && dir != PCI_DMA_NONE && ptr && (ptr->Vers & 0x07) >= 2)
+			dcb->inquiry7 = ptr->Flags;
+
 	/*if( srb->cmd->cmnd[0] == INQUIRY && */
 	/*  (host_byte(cmd->result) == DID_OK || status_byte(cmd->result) & CHECK_CONDITION) ) */
-	if (cmd->cmnd[0] == INQUIRY && (cmd->result == (DID_OK << 16)
-					 || status_byte(cmd->
-							result) &
-					 CHECK_CONDITION)) {
-
-		if (!dcb->init_tcq_flag) {
-			add_dev(acb, dcb, ptr);
-			dcb->init_tcq_flag = 1;
+		if ((cmd->result == (DID_OK << 16)
+		     || status_byte(cmd->result) &
+		     CHECK_CONDITION)) {
+			if (!dcb->init_tcq_flag) {
+				add_dev(acb, dcb, ptr);
+				dcb->init_tcq_flag = 1;
+			}
 		}
 
+		if (cmd->use_sg) {
+			scsi_kunmap_atomic_sg(base);
+			local_irq_restore(flags);
+		}
 	}
-
 
 	/* Here is the info for Doug Gilbert's sg3 ... */
 	cmd->resid = srb->total_xfer_length;
@@ -3713,8 +3739,6 @@ static void request_sense(struct AdapterCtlBlk *acb, struct DeviceCtlBlk *dcb,
 	srb->xferred = srb->total_xfer_length;
 	/* srb->segment_x : a one entry of S/G list table */
 	srb->total_xfer_length = sizeof(cmd->sense_buffer);
-	srb->virt_addr_req = srb->virt_addr;
-	srb->virt_addr = cmd->sense_buffer;
 	srb->segment_x[0].length = sizeof(cmd->sense_buffer);
 	/* Map sense buffer */
 	srb->segment_x[0].address =

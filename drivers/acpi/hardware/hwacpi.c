@@ -63,7 +63,7 @@ acpi_status acpi_hw_initialize(void)
 {
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("hw_initialize");
+	ACPI_FUNCTION_TRACE(hw_initialize);
 
 	/* We must have the ACPI tables by the time we get here */
 
@@ -100,7 +100,7 @@ acpi_status acpi_hw_set_mode(u32 mode)
 	acpi_status status;
 	u32 retry;
 
-	ACPI_FUNCTION_TRACE("hw_set_mode");
+	ACPI_FUNCTION_TRACE(hw_set_mode);
 
 	/*
 	 * ACPI 2.0 clarified that if SMI_CMD in FADT is zero,
@@ -198,7 +198,7 @@ u32 acpi_hw_get_mode(void)
 	acpi_status status;
 	u32 value;
 
-	ACPI_FUNCTION_TRACE("hw_get_mode");
+	ACPI_FUNCTION_TRACE(hw_get_mode);
 
 	/*
 	 * ACPI 2.0 clarified that if SMI_CMD in FADT is zero,

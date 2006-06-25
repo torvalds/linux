@@ -1,18 +1,8 @@
 /*
+ * This file is part of the zfcp device driver for
+ * FCP adapters for IBM System z9 and zSeries.
  *
- * linux/drivers/s390/scsi/zfcp_aux.c
- *
- * FCP adapter driver for IBM eServer zSeries
- *
- * (C) Copyright IBM Corp. 2002, 2004
- *
- * Author(s): Martin Peschke <mpeschke@de.ibm.com>
- *            Raimund Schroeder <raimund.schroeder@de.ibm.com>
- *            Aron Zeh
- *            Wolfgang Taphorn
- *            Stefan Bader <stefan.bader@de.ibm.com>
- *            Heiko Carstens <heiko.carstens@de.ibm.com>
- *            Andreas Herrmann <aherrman@de.ibm.com>
+ * (C) Copyright IBM Corp. 2002, 2006
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,6 +17,20 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
+
+/*
+ * Driver authors:
+ *            Martin Peschke (originator of the driver)
+ *            Raimund Schroeder
+ *            Aron Zeh
+ *            Wolfgang Taphorn
+ *            Stefan Bader
+ *            Heiko Carstens (kernel 2.6 port of the driver)
+ *            Andreas Herrmann
+ *            Maxim Shchetynin
+ *            Volker Sameske
+ *            Ralph Wuerthner
  */
 
 #include "zfcp_ext.h"
@@ -75,15 +79,9 @@ static struct miscdevice zfcp_cfdc_misc = {
 /* declare driver module init/cleanup functions */
 module_init(zfcp_module_init);
 
-MODULE_AUTHOR("Heiko Carstens <heiko.carstens@de.ibm.com>, "
-	      "Andreas Herrman <aherrman@de.ibm.com>, "
-	      "Martin Peschke <mpeschke@de.ibm.com>, "
-	      "Raimund Schroeder <raimund.schroeder@de.ibm.com>, "
-	      "Wolfgang Taphorn <taphorn@de.ibm.com>, "
-	      "Aron Zeh <arzeh@de.ibm.com>, "
-	      "IBM Deutschland Entwicklung GmbH");
+MODULE_AUTHOR("IBM Deutschland Entwicklung GmbH - linux390@de.ibm.com");
 MODULE_DESCRIPTION
-    ("FCP (SCSI over Fibre Channel) HBA driver for IBM eServer zSeries");
+    ("FCP (SCSI over Fibre Channel) HBA driver for IBM System z9 and zSeries");
 MODULE_LICENSE("GPL");
 
 module_param(device, charp, 0400);
@@ -291,12 +289,11 @@ zfcp_cfdc_dev_ioctl(struct file *file, unsigned int command,
 		goto out;
 	}
 
-	sg_list = kmalloc(sizeof(struct zfcp_sg_list), GFP_KERNEL);
+	sg_list = kzalloc(sizeof(struct zfcp_sg_list), GFP_KERNEL);
 	if (sg_list == NULL) {
 		retval = -ENOMEM;
 		goto out;
 	}
-	memset(sg_list, 0, sizeof(*sg_list));
 
 	if (command != ZFCP_CFDC_IOC) {
 		ZFCP_LOG_INFO("IOC request code 0x%x invalid\n", command);
@@ -478,14 +475,13 @@ zfcp_sg_list_alloc(struct zfcp_sg_list *sg_list, size_t size)
 	sg_list->count = size >> PAGE_SHIFT;
 	if (size & ~PAGE_MASK)
 		sg_list->count++;
-	sg_list->sg = kmalloc(sg_list->count * sizeof(struct scatterlist),
+	sg_list->sg = kcalloc(sg_list->count, sizeof(struct scatterlist),
 			      GFP_KERNEL);
 	if (sg_list->sg == NULL) {
 		sg_list->count = 0;
 		retval = -ENOMEM;
 		goto out;
 	}
-	memset(sg_list->sg, 0, sg_list->count * sizeof(struct scatterlist));
 
 	for (i = 0, sg = sg_list->sg; i < sg_list->count; i++, sg++) {
 		sg->length = min(size, PAGE_SIZE);
@@ -744,7 +740,7 @@ struct zfcp_unit *
 zfcp_unit_enqueue(struct zfcp_port *port, fcp_lun_t fcp_lun)
 {
 	struct zfcp_unit *unit, *tmp_unit;
-	scsi_lun_t scsi_lun;
+	unsigned int scsi_lun;
 	int found;
 
 	/*
@@ -758,10 +754,9 @@ zfcp_unit_enqueue(struct zfcp_port *port, fcp_lun_t fcp_lun)
 	if (unit)
 		return NULL;
 
-	unit = kmalloc(sizeof (struct zfcp_unit), GFP_KERNEL);
+	unit = kzalloc(sizeof (struct zfcp_unit), GFP_KERNEL);
 	if (!unit)
 		return NULL;
-	memset(unit, 0, sizeof (struct zfcp_unit));
 
 	/* initialise reference count stuff */
 	atomic_set(&unit->refcount, 0);
@@ -929,13 +924,12 @@ zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 	 */
 
 	/* try to allocate new adapter data structure (zeroed) */
-	adapter = kmalloc(sizeof (struct zfcp_adapter), GFP_KERNEL);
+	adapter = kzalloc(sizeof (struct zfcp_adapter), GFP_KERNEL);
 	if (!adapter) {
 		ZFCP_LOG_INFO("error: allocation of base adapter "
 			      "structure failed\n");
 		goto out;
 	}
-	memset(adapter, 0, sizeof (struct zfcp_adapter));
 
 	ccw_device->handler = NULL;
 
@@ -996,12 +990,6 @@ zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 
 	/* intitialise SCSI ER timer */
 	init_timer(&adapter->scsi_er_timer);
-
-	/* set FC service class used per default */
-	adapter->fc_service_class = ZFCP_FC_SERVICE_CLASS_DEFAULT;
-
-	sprintf(adapter->name, "%s", zfcp_get_busid_by_adapter(adapter));
-	ASCEBC(adapter->name, strlen(adapter->name));
 
 	/* mark adapter unusable as long as sysfs registration is not complete */
 	atomic_set_mask(ZFCP_STATUS_COMMON_REMOVE, &adapter->status);
@@ -1139,10 +1127,9 @@ zfcp_port_enqueue(struct zfcp_adapter *adapter, wwn_t wwpn, u32 status,
 			return NULL;
 	}
 
-	port = kmalloc(sizeof (struct zfcp_port), GFP_KERNEL);
+	port = kzalloc(sizeof (struct zfcp_port), GFP_KERNEL);
 	if (!port)
 		return NULL;
-	memset(port, 0, sizeof (struct zfcp_port));
 
 	/* initialise reference count stuff */
 	atomic_set(&port->refcount, 0);
@@ -1354,18 +1341,19 @@ static void
 zfcp_fsf_incoming_els_plogi(struct zfcp_adapter *adapter,
 			    struct fsf_status_read_buffer *status_buffer)
 {
-	logi *els_logi = (logi *) status_buffer->payload;
+	struct fsf_plogi *els_plogi;
 	struct zfcp_port *port;
 	unsigned long flags;
 
+	els_plogi = (struct fsf_plogi *) status_buffer->payload;
 	read_lock_irqsave(&zfcp_data.config_lock, flags);
 	list_for_each_entry(port, &adapter->port_list_head, list) {
-		if (port->wwpn == (*(wwn_t *) & els_logi->nport_wwn))
+		if (port->wwpn == (*(wwn_t *) &els_plogi->serv_param.wwpn))
 			break;
 	}
 	read_unlock_irqrestore(&zfcp_data.config_lock, flags);
 
-	if (!port || (port->wwpn != (*(wwn_t *) & els_logi->nport_wwn))) {
+	if (!port || (port->wwpn != (*(wwn_t *) &els_plogi->serv_param.wwpn))) {
 		ZFCP_LOG_DEBUG("ignored incoming PLOGI for nonexisting port "
 			       "with d_id 0x%08x on adapter %s\n",
 			       status_buffer->d_id,
@@ -1758,6 +1746,27 @@ zfcp_handle_els_rjt(u32 sq, struct zfcp_ls_rjt_par *rjt_par)
 		ZFCP_LOG_INFO("unexpected SQ: 0x%02x\n", sq);
 
 	return ret;
+}
+
+/**
+ * zfcp_plogi_evaluate - evaluate PLOGI playload and copy important fields
+ * into zfcp_port structure
+ * @port: zfcp_port structure
+ * @plogi: plogi payload
+ */
+void
+zfcp_plogi_evaluate(struct zfcp_port *port, struct fsf_plogi *plogi)
+{
+	port->maxframe_size = plogi->serv_param.common_serv_param[7] |
+		((plogi->serv_param.common_serv_param[6] & 0x0F) << 8);
+	if (plogi->serv_param.class1_serv_param[0] & 0x80)
+		port->supported_classes |= FC_COS_CLASS1;
+	if (plogi->serv_param.class2_serv_param[0] & 0x80)
+		port->supported_classes |= FC_COS_CLASS2;
+	if (plogi->serv_param.class3_serv_param[0] & 0x80)
+		port->supported_classes |= FC_COS_CLASS3;
+	if (plogi->serv_param.class4_serv_param[0] & 0x80)
+		port->supported_classes |= FC_COS_CLASS4;
 }
 
 #undef ZFCP_LOG_AREA

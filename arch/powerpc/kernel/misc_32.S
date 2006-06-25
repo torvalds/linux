@@ -216,7 +216,7 @@ _GLOBAL(call_setup_cpu)
 	lwz	r4,0(r4)
 	add	r4,r4,r3
 	lwz	r5,CPU_SPEC_SETUP(r4)
-	cmpi	0,r5,0
+	cmpwi	0,r5,0
 	add	r5,r5,r3
 	beqlr
 	mtctr	r5

@@ -44,6 +44,8 @@
 #ifndef __ACTYPES_H__
 #define __ACTYPES_H__
 
+/* acpisrc:struct_defs -- for acpisrc conversion */
+
 /*
  * ACPI_MACHINE_WIDTH must be specified in an OS- or compiler-dependent header
  * and must be either 16, 32, or 64
@@ -154,7 +156,6 @@ typedef u64 acpi_physical_address;
 #define ACPI_MAX_PTR                    ACPI_UINT64_MAX
 #define ACPI_SIZE_MAX                   ACPI_UINT64_MAX
 
-#define ALIGNED_ADDRESS_BOUNDARY        0x00000008
 #define ACPI_USE_NATIVE_DIVIDE	/* Has native 64-bit integer support */
 
 /*
@@ -195,8 +196,6 @@ typedef u64 acpi_physical_address;
 #define ACPI_MAX_PTR                    ACPI_UINT32_MAX
 #define ACPI_SIZE_MAX                   ACPI_UINT32_MAX
 
-#define ALIGNED_ADDRESS_BOUNDARY        0x00000004
-
 /*******************************************************************************
  *
  * Types specific to 16-bit targets
@@ -223,7 +222,6 @@ typedef char *acpi_physical_address;
 #define ACPI_MAX_PTR                    ACPI_UINT16_MAX
 #define ACPI_SIZE_MAX                   ACPI_UINT16_MAX
 
-#define ALIGNED_ADDRESS_BOUNDARY        0x00000002
 #define ACPI_USE_NATIVE_DIVIDE	/* No 64-bit integers, ok to use native divide */
 
 /* 64-bit integers cannot be supported */
@@ -254,7 +252,7 @@ typedef acpi_native_uint acpi_size;
 /* Use C99 uintptr_t for pointer casting if available, "void *" otherwise */
 
 #ifndef acpi_uintptr_t
-#define acpi_uintptr_t                          void *
+#define acpi_uintptr_t                  void *
 #endif
 
 /*
@@ -263,7 +261,7 @@ typedef acpi_native_uint acpi_size;
  * manager implementation is to be used (ACPI_USE_LOCAL_CACHE)
  */
 #ifndef acpi_cache_t
-#define acpi_cache_t                            struct acpi_memory_list
+#define acpi_cache_t                    struct acpi_memory_list
 #endif
 
 /*
@@ -271,7 +269,7 @@ typedef acpi_native_uint acpi_size;
  * lock and unlock OSL interfaces.
  */
 #ifndef acpi_cpu_flags
-#define acpi_cpu_flags                          acpi_native_uint
+#define acpi_cpu_flags                  acpi_native_uint
 #endif
 
 /*
@@ -290,6 +288,21 @@ typedef acpi_native_uint acpi_size;
  */
 #ifndef ACPI_UNUSED_VAR
 #define ACPI_UNUSED_VAR
+#endif
+
+/*
+ * All ACPICA functions that are available to the rest of the kernel are
+ * tagged with this macro which can be defined as appropriate for the host.
+ */
+#ifndef ACPI_EXPORT_SYMBOL
+#define ACPI_EXPORT_SYMBOL(symbol)
+#endif
+
+/*
+ * thread_id is returned by acpi_os_get_thread_id.
+ */
+#ifndef acpi_thread_id
+#define acpi_thread_id                  acpi_native_uint
 #endif
 
 /*******************************************************************************
@@ -477,15 +490,15 @@ typedef u64 acpi_integer;
  */
 typedef u32 acpi_table_type;
 
-#define ACPI_TABLE_RSDP                 (acpi_table_type) 0
-#define ACPI_TABLE_DSDT                 (acpi_table_type) 1
-#define ACPI_TABLE_FADT                 (acpi_table_type) 2
-#define ACPI_TABLE_FACS                 (acpi_table_type) 3
-#define ACPI_TABLE_PSDT                 (acpi_table_type) 4
-#define ACPI_TABLE_SSDT                 (acpi_table_type) 5
-#define ACPI_TABLE_XSDT                 (acpi_table_type) 6
-#define ACPI_TABLE_MAX                  6
-#define NUM_ACPI_TABLE_TYPES            (ACPI_TABLE_MAX+1)
+#define ACPI_TABLE_ID_RSDP              (acpi_table_type) 0
+#define ACPI_TABLE_ID_DSDT              (acpi_table_type) 1
+#define ACPI_TABLE_ID_FADT              (acpi_table_type) 2
+#define ACPI_TABLE_ID_FACS              (acpi_table_type) 3
+#define ACPI_TABLE_ID_PSDT              (acpi_table_type) 4
+#define ACPI_TABLE_ID_SSDT              (acpi_table_type) 5
+#define ACPI_TABLE_ID_XSDT              (acpi_table_type) 6
+#define ACPI_TABLE_ID_MAX               6
+#define ACPI_NUM_TABLE_TYPES            (ACPI_TABLE_ID_MAX+1)
 
 /*
  * Types associated with ACPI names and objects.  The first group of
@@ -816,7 +829,7 @@ struct acpi_system_info {
 	u32 debug_level;
 	u32 debug_layer;
 	u32 num_table_types;
-	struct acpi_table_info table_info[NUM_ACPI_TABLE_TYPES];
+	struct acpi_table_info table_info[ACPI_TABLE_ID_MAX + 1];
 };
 
 /*
@@ -858,7 +871,7 @@ acpi_status(*acpi_adr_space_handler) (u32 function,
 				      void *handler_context,
 				      void *region_context);
 
-#define ACPI_DEFAULT_HANDLER        NULL
+#define ACPI_DEFAULT_HANDLER            NULL
 
 typedef
 acpi_status(*acpi_adr_space_setup) (acpi_handle region_handle,
@@ -911,12 +924,13 @@ struct acpi_compatible_id_list {
 #define ACPI_STA_DEVICE_PRESENT         0x01
 #define ACPI_STA_DEVICE_ENABLED         0x02
 #define ACPI_STA_DEVICE_UI              0x04
-#define ACPI_STA_DEVICE_OK              0x08
+#define ACPI_STA_DEVICE_FUNCTIONING     0x08
+#define ACPI_STA_DEVICE_OK              0x08	/* Synonym */
 #define ACPI_STA_BATTERY_PRESENT        0x10
 
 #define ACPI_COMMON_OBJ_INFO \
-	acpi_object_type                    type;           /* ACPI object type */ \
-	acpi_name                           name	/* ACPI object Name */
+	acpi_object_type                type;           /* ACPI object type */ \
+	acpi_name                       name	/* ACPI object Name */
 
 struct acpi_obj_info_header {
 	ACPI_COMMON_OBJ_INFO;
@@ -957,7 +971,7 @@ struct acpi_mem_space_context {
  * Definitions for Resource Attributes
  */
 typedef u16 acpi_rs_length;	/* Resource Length field is fixed at 16 bits */
-typedef u32 acpi_rsdesc_size;	/* Max Resource Descriptor size is (length+3) = (64_k-1)+3 */
+typedef u32 acpi_rsdesc_size;	/* Max Resource Descriptor size is (Length+3) = (64_k-1)+3 */
 
 /*
  *  Memory Attributes
@@ -972,8 +986,8 @@ typedef u32 acpi_rsdesc_size;	/* Max Resource Descriptor size is (length+3) = (6
 
 /*
  *  IO Attributes
- *  The ISA Io ranges are:     n000-n0_ffh, n400-n4_ffh, n800-n8_ffh, n_c00-n_cFFh.
- *  The non-ISA Io ranges are: n100-n3_ffh, n500-n7_ffh, n900-n_bFfh, n_cd0-n_fFFh.
+ *  The ISA IO ranges are:     n000-n0_fFh, n400-n4_fFh, n800-n8_fFh, n_c00-n_cFFh.
+ *  The non-ISA IO ranges are: n100-n3_fFh, n500-n7_fFh, n900-n_bFFh, n_cd0-n_fFFh.
  */
 #define ACPI_NON_ISA_ONLY_RANGES        (u8) 0x01
 #define ACPI_ISA_ONLY_RANGES            (u8) 0x02
@@ -1171,12 +1185,12 @@ struct acpi_resource_source {
 /* Fields common to all address descriptors, 16/32/64 bit */
 
 #define ACPI_RESOURCE_ADDRESS_COMMON \
-	u8                                  resource_type; \
-	u8                                  producer_consumer; \
-	u8                                  decode; \
-	u8                                  min_address_fixed; \
-	u8                                  max_address_fixed; \
-	union acpi_resource_attribute       info;
+	u8                              resource_type; \
+	u8                              producer_consumer; \
+	u8                              decode; \
+	u8                              min_address_fixed; \
+	u8                              max_address_fixed; \
+	union acpi_resource_attribute   info;
 
 struct acpi_resource_address {
 ACPI_RESOURCE_ADDRESS_COMMON};
@@ -1297,16 +1311,6 @@ struct acpi_resource {
 
 #define ACPI_NEXT_RESOURCE(res)             (struct acpi_resource *)((u8 *) res + res->length)
 
-#ifndef ACPI_MISALIGNMENT_NOT_SUPPORTED
-#define ACPI_ALIGN_RESOURCE_SIZE(length)    (length)
-#else
-#define ACPI_ALIGN_RESOURCE_SIZE(length)    ACPI_ROUND_UP_TO_NATIVE_WORD(length)
-#endif
-
-/*
- * END: of definitions for Resource Attributes
- */
-
 struct acpi_pci_routing_table {
 	u32 length;
 	u32 pin;
@@ -1314,9 +1318,5 @@ struct acpi_pci_routing_table {
 	u32 source_index;
 	char source[4];		/* pad to 64 bits so sizeof() works in all cases */
 };
-
-/*
- * END: of definitions for PCI Routing tables
- */
 
 #endif				/* __ACTYPES_H__ */

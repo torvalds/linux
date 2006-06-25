@@ -110,43 +110,82 @@ void auxio_set_lte(int on)
 	}
 }
 
-void __init auxio_probe(void)
+static void __devinit auxio_report_dev(struct device_node *dp)
 {
-        struct sbus_bus *sbus;
-        struct sbus_dev *sdev = NULL;
-
-        for_each_sbus(sbus) {
-                for_each_sbusdev(sdev, sbus) {
-                        if(!strcmp(sdev->prom_name, "auxio"))
-				goto found_sdev;
-                }
-        }
-
-found_sdev:
-	if (sdev) {
-		auxio_devtype  = AUXIO_TYPE_SBUS;
-		auxio_register = sbus_ioremap(&sdev->resource[0], 0,
-					      sdev->reg_addrs[0].reg_size,
-					      "auxiliaryIO");
-	}
-#ifdef CONFIG_PCI
-	else {
-		struct linux_ebus *ebus;
-		struct linux_ebus_device *edev = NULL;
-
-		for_each_ebus(ebus) {
-			for_each_ebusdev(edev, ebus) {
-				if (!strcmp(edev->prom_name, "auxio"))
-					goto ebus_done;
-			}
-		}
-	ebus_done:
-		if (edev) {
-			auxio_devtype  = AUXIO_TYPE_EBUS;
-			auxio_register =
-				ioremap(edev->resource[0].start, sizeof(u32));
-		}
-	}
-	auxio_set_led(AUXIO_LED_ON);
-#endif
+	printk(KERN_INFO "AUXIO: Found device at %s\n",
+	       dp->full_name);
 }
+
+static struct of_device_id auxio_match[] = {
+	{
+		.name = "auxio",
+	},
+	{},
+};
+
+MODULE_DEVICE_TABLE(of, auxio_match);
+
+#ifdef CONFIG_SBUS
+static int __devinit auxio_sbus_probe(struct of_device *dev, const struct of_device_id *match)
+{
+	struct sbus_dev *sdev = to_sbus_device(&dev->dev);
+
+	auxio_devtype  = AUXIO_TYPE_SBUS;
+	auxio_register = sbus_ioremap(&sdev->resource[0], 0,
+				      sdev->reg_addrs[0].reg_size,
+				      "auxiliaryIO");
+	if (!auxio_register)
+		return -ENODEV;
+
+	auxio_report_dev(dev->node);
+	return 0;
+}
+
+static struct of_platform_driver auxio_sbus_driver = {
+	.name		= "auxio",
+	.match_table	= auxio_match,
+	.probe		= auxio_sbus_probe,
+};
+#endif
+
+#ifdef CONFIG_PCI
+static int __devinit auxio_ebus_probe(struct of_device *dev, const struct of_device_id *match)
+{
+	struct linux_ebus_device *edev = to_ebus_device(&dev->dev);
+
+	auxio_devtype  = AUXIO_TYPE_EBUS;
+	auxio_register = ioremap(edev->resource[0].start, sizeof(u32));
+	if (!auxio_register)
+		return -ENODEV;
+
+	auxio_report_dev(dev->node);
+
+	auxio_set_led(AUXIO_LED_ON);
+
+	return 0;
+}
+
+static struct of_platform_driver auxio_ebus_driver = {
+	.name		= "auxio",
+	.match_table	= auxio_match,
+	.probe		= auxio_ebus_probe,
+};
+#endif
+
+static int __init auxio_probe(void)
+{
+#ifdef CONFIG_SBUS
+	of_register_driver(&auxio_sbus_driver, &sbus_bus_type);
+#endif
+#ifdef CONFIG_PCI
+	of_register_driver(&auxio_ebus_driver, &ebus_bus_type);
+#endif
+
+	return 0;
+}
+
+/* Must be after subsys_initcall() so that busses are probed.  Must
+ * be before device_initcall() because things like the floppy driver
+ * need to use the AUXIO register.
+ */
+fs_initcall(auxio_probe);

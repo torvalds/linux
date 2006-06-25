@@ -105,6 +105,14 @@ static int acpi_pm_enter(suspend_state_t pm_state)
 	default:
 		return -EINVAL;
 	}
+
+	/* ACPI 3.0 specs (P62) says that it's the responsabilty
+	 * of the OSPM to clear the status bit [ implying that the
+	 * POWER_BUTTON event should not reach userspace ]
+	 */
+	if (ACPI_SUCCESS(status) && (acpi_state == ACPI_STATE_S3))
+		acpi_clear_event(ACPI_EVENT_POWER_BUTTON);
+
 	local_irq_restore(flags);
 	printk(KERN_DEBUG "Back to C!\n");
 

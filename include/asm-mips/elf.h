@@ -8,7 +8,6 @@
 #ifndef _ASM_ELF_H
 #define _ASM_ELF_H
 
-#include <linux/config.h>
 
 /* ELF header e_flags defines. */
 /* MIPS architecture level. */

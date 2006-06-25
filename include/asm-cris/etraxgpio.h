@@ -25,7 +25,6 @@
 #ifndef _ASM_ETRAXGPIO_H
 #define _ASM_ETRAXGPIO_H
 
-#include <linux/config.h>
 /* etraxgpio _IOC_TYPE, bits 8 to 15 in ioctl cmd */
 #ifdef CONFIG_ETRAX_ARCH_V10
 #define ETRAXGPIO_IOCTYPE 43

@@ -194,18 +194,11 @@ static int __initdata of_platform;
 
 static char __initdata prom_cmd_line[COMMAND_LINE_SIZE];
 
-static unsigned long __initdata prom_memory_limit;
-
 static unsigned long __initdata alloc_top;
 static unsigned long __initdata alloc_top_high;
 static unsigned long __initdata alloc_bottom;
 static unsigned long __initdata rmo_top;
 static unsigned long __initdata ram_top;
-
-#ifdef CONFIG_KEXEC
-static unsigned long __initdata prom_crashk_base;
-static unsigned long __initdata prom_crashk_size;
-#endif
 
 static struct mem_map_entry __initdata mem_reserve_map[MEM_RESERVE_MAP_SIZE];
 static int __initdata mem_reserve_cnt;
@@ -574,7 +567,7 @@ static void __init early_cmdline_parse(void)
 	if ((long)_prom->chosen > 0)
 		l = prom_getprop(_prom->chosen, "bootargs", p, COMMAND_LINE_SIZE-1);
 #ifdef CONFIG_CMDLINE
-	if (l == 0) /* dbl check */
+	if (l <= 0 || p[0] == '\0') /* dbl check */
 		strlcpy(RELOC(prom_cmd_line),
 			RELOC(CONFIG_CMDLINE), sizeof(prom_cmd_line));
 #endif /* CONFIG_CMDLINE */
@@ -591,45 +584,6 @@ static void __init early_cmdline_parse(void)
 			RELOC(ppc64_iommu_off) = 1;
 		else if (!strncmp(opt, RELOC("force"), 5))
 			RELOC(iommu_force_on) = 1;
-	}
-#endif
-
-	opt = strstr(RELOC(prom_cmd_line), RELOC("mem="));
-	if (opt) {
-		opt += 4;
-		RELOC(prom_memory_limit) = prom_memparse(opt, (const char **)&opt);
-#ifdef CONFIG_PPC64
-		/* Align to 16 MB == size of ppc64 large page */
-		RELOC(prom_memory_limit) = ALIGN(RELOC(prom_memory_limit), 0x1000000);
-#endif
-	}
-
-#ifdef CONFIG_KEXEC
-	/*
-	 * crashkernel=size@addr specifies the location to reserve for
-	 * crash kernel.
-	 */
-	opt = strstr(RELOC(prom_cmd_line), RELOC("crashkernel="));
-	if (opt) {
-		opt += 12;
-		RELOC(prom_crashk_size) = 
-			prom_memparse(opt, (const char **)&opt);
-
-		if (ALIGN(RELOC(prom_crashk_size), 0x1000000) !=
-			RELOC(prom_crashk_size)) {
-			prom_printf("Warning: crashkernel size is not "
-					"aligned to 16MB\n");
-		}
-
-		/*
-		 * At present, the crash kernel always run at 32MB.
-		 * Just ignore whatever user passed.
-		 */
-		RELOC(prom_crashk_base) = 0x2000000;
-		if (*opt == '@') {
-			prom_printf("Warning: PPC64 kdump kernel always runs "
-					"at 32 MB\n");
-		}
 	}
 #endif
 }
@@ -1116,29 +1070,6 @@ static void __init prom_init_mem(void)
 	}
 
 	/*
-	 * If prom_memory_limit is set we reduce the upper limits *except* for
-	 * alloc_top_high. This must be the real top of RAM so we can put
-	 * TCE's up there.
-	 */
-
-	RELOC(alloc_top_high) = RELOC(ram_top);
-
-	if (RELOC(prom_memory_limit)) {
-		if (RELOC(prom_memory_limit) <= RELOC(alloc_bottom)) {
-			prom_printf("Ignoring mem=%x <= alloc_bottom.\n",
-				RELOC(prom_memory_limit));
-			RELOC(prom_memory_limit) = 0;
-		} else if (RELOC(prom_memory_limit) >= RELOC(ram_top)) {
-			prom_printf("Ignoring mem=%x >= ram_top.\n",
-				RELOC(prom_memory_limit));
-			RELOC(prom_memory_limit) = 0;
-		} else {
-			RELOC(ram_top) = RELOC(prom_memory_limit);
-			RELOC(rmo_top) = min(RELOC(rmo_top), RELOC(prom_memory_limit));
-		}
-	}
-
-	/*
 	 * Setup our top alloc point, that is top of RMO or top of
 	 * segment 0 when running non-LPAR.
 	 * Some RS64 machines have buggy firmware where claims up at
@@ -1150,20 +1081,14 @@ static void __init prom_init_mem(void)
 		RELOC(rmo_top) = RELOC(ram_top);
 	RELOC(rmo_top) = min(0x30000000ul, RELOC(rmo_top));
 	RELOC(alloc_top) = RELOC(rmo_top);
+	RELOC(alloc_top_high) = RELOC(ram_top);
 
 	prom_printf("memory layout at init:\n");
-	prom_printf("  memory_limit : %x (16 MB aligned)\n", RELOC(prom_memory_limit));
 	prom_printf("  alloc_bottom : %x\n", RELOC(alloc_bottom));
 	prom_printf("  alloc_top    : %x\n", RELOC(alloc_top));
 	prom_printf("  alloc_top_hi : %x\n", RELOC(alloc_top_high));
 	prom_printf("  rmo_top      : %x\n", RELOC(rmo_top));
 	prom_printf("  ram_top      : %x\n", RELOC(ram_top));
-#ifdef CONFIG_KEXEC
-	if (RELOC(prom_crashk_base)) {
-		prom_printf("  crashk_base  : %x\n",  RELOC(prom_crashk_base));
-		prom_printf("  crashk_size  : %x\n", RELOC(prom_crashk_size));
-	}
-#endif
 }
 
 
@@ -1349,16 +1274,10 @@ static void __init prom_initialize_tce_table(void)
 
 	reserve_mem(local_alloc_bottom, local_alloc_top - local_alloc_bottom);
 
-	if (RELOC(prom_memory_limit)) {
-		/*
-		 * We align the start to a 16MB boundary so we can map
-		 * the TCE area using large pages if possible.
-		 * The end should be the top of RAM so no need to align it.
-		 */
-		RELOC(prom_tce_alloc_start) = _ALIGN_DOWN(local_alloc_bottom,
-							  0x1000000);
-		RELOC(prom_tce_alloc_end) = local_alloc_top;
-	}
+	/* These are only really needed if there is a memory limit in
+	 * effect, but we don't know so export them always. */
+	RELOC(prom_tce_alloc_start) = local_alloc_bottom;
+	RELOC(prom_tce_alloc_end) = local_alloc_top;
 
 	/* Flag the first invalid entry */
 	prom_debug("ending prom_initialize_tce_table\n");
@@ -2041,11 +1960,7 @@ static void __init flatten_device_tree(void)
 	/* Version 16 is not backward compatible */
 	hdr->last_comp_version = 0x10;
 
-	/* Reserve the whole thing and copy the reserve map in, we
-	 * also bump mem_reserve_cnt to cause further reservations to
-	 * fail since it's too late.
-	 */
-	reserve_mem(RELOC(dt_header_start), hdr->totalsize);
+	/* Copy the reserve map in */
 	memcpy(rsvmap, RELOC(mem_reserve_map), sizeof(mem_reserve_map));
 
 #ifdef DEBUG_PROM
@@ -2058,6 +1973,9 @@ static void __init flatten_device_tree(void)
 				    RELOC(mem_reserve_map)[i].size);
 	}
 #endif
+	/* Bump mem_reserve_cnt to cause further reservations to fail
+	 * since it's too late.
+	 */
 	RELOC(mem_reserve_cnt) = MEM_RESERVE_MAP_SIZE;
 
 	prom_printf("Device tree strings 0x%x -> 0x%x\n",
@@ -2280,10 +2198,6 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4,
 	 */
 	prom_init_mem();
 
-#ifdef CONFIG_KEXEC
-	if (RELOC(prom_crashk_base))
-		reserve_mem(RELOC(prom_crashk_base), RELOC(prom_crashk_size));
-#endif
 	/*
 	 * Determine which cpu is actually running right _now_
 	 */
@@ -2317,10 +2231,6 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4,
 	/*
 	 * Fill in some infos for use by the kernel later on
 	 */
-	if (RELOC(prom_memory_limit))
-		prom_setprop(_prom->chosen, "/chosen", "linux,memory-limit",
-			     &RELOC(prom_memory_limit),
-			     sizeof(prom_memory_limit));
 #ifdef CONFIG_PPC64
 	if (RELOC(ppc64_iommu_off))
 		prom_setprop(_prom->chosen, "/chosen", "linux,iommu-off",
@@ -2340,16 +2250,6 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4,
 	}
 #endif
 
-#ifdef CONFIG_KEXEC
-	if (RELOC(prom_crashk_base)) {
-		prom_setprop(_prom->chosen, "/chosen", "linux,crashkernel-base",
-			PTRRELOC(&prom_crashk_base),
-			sizeof(RELOC(prom_crashk_base)));
-		prom_setprop(_prom->chosen, "/chosen", "linux,crashkernel-size",
-			PTRRELOC(&prom_crashk_size),
-			sizeof(RELOC(prom_crashk_size)));
-	}
-#endif
 	/*
 	 * Fixup any known bugs in the device-tree
 	 */

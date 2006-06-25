@@ -6,7 +6,6 @@
  * Copyright (C) 1999 by Ralf Baechle
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
  */ 
-#include <linux/config.h>
 
 #ifdef CONFIG_RTE_CB_ME2
 

@@ -454,6 +454,11 @@ asmlinkage long sys_msgctl (int msqid, int cmd, struct msqid_ds __user *buf)
 	err = audit_ipc_obj(ipcp);
 	if (err)
 		goto out_unlock_up;
+	if (cmd==IPC_SET) {
+		err = audit_ipc_set_perm(setbuf.qbytes, setbuf.uid, setbuf.gid, setbuf.mode);
+		if (err)
+			goto out_unlock_up;
+	}
 
 	err = -EPERM;
 	if (current->euid != ipcp->cuid && 
@@ -468,10 +473,6 @@ asmlinkage long sys_msgctl (int msqid, int cmd, struct msqid_ds __user *buf)
 	switch (cmd) {
 	case IPC_SET:
 	{
-		err = audit_ipc_set_perm(setbuf.qbytes, setbuf.uid, setbuf.gid, setbuf.mode, ipcp);
-		if (err)
-			goto out_unlock_up;
-
 		err = -EPERM;
 		if (setbuf.qbytes > msg_ctlmnb && !capable(CAP_SYS_RESOURCE))
 			goto out_unlock_up;

@@ -10,7 +10,6 @@
  * m68k version by Andreas Schwab
  */
 
-#include <linux/config.h>
 #include <linux/errno.h>
 
 /*

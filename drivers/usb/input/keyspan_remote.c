@@ -18,9 +18,7 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
-#include <linux/input.h>
-#include <linux/usb.h>
-#include <linux/usb_input.h>
+#include <linux/usb/input.h>
 
 #define DRIVER_VERSION	"v0.1"
 #define DRIVER_AUTHOR	"Michael Downey <downey@zymeta.com>"

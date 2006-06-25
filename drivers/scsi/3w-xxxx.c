@@ -405,7 +405,7 @@ static int tw_decode_sense(TW_Device_Extension *tw_dev, int request_id, int fill
 	/* Attempt to return intelligent sense information */
 	if (fill_sense) {
 		if ((command->status == 0xc7) || (command->status == 0xcb)) {
-			for (i=0;i<(sizeof(tw_sense_table)/sizeof(tw_sense_table[0]));i++) {
+			for (i = 0; i < ARRAY_SIZE(tw_sense_table); i++) {
 				if (command->flags == tw_sense_table[i][0]) {
 
 					/* Valid bit and 'current errors' */
@@ -625,7 +625,7 @@ static int tw_aen_complete(TW_Device_Extension *tw_dev, int request_id)
 	if (aen == 0x0ff) {
 		printk(KERN_WARNING "3w-xxxx: scsi%d: AEN: INFO: AEN queue overflow.\n", tw_dev->host->host_no);
 	} else {
-		table_max = sizeof(tw_aen_string)/sizeof(char *);
+		table_max = ARRAY_SIZE(tw_aen_string);
 		if ((aen & 0x0ff) < table_max) {
 			if ((tw_aen_string[aen & 0xff][strlen(tw_aen_string[aen & 0xff])-1]) == '#') {
 				printk(KERN_WARNING "3w-xxxx: scsi%d: AEN: %s%d.\n", tw_dev->host->host_no, tw_aen_string[aen & 0xff], aen >> 8);
@@ -786,7 +786,7 @@ static int tw_aen_drain_queue(TW_Device_Extension *tw_dev)
 					if (aen == 0x0ff) {
 						printk(KERN_WARNING "3w-xxxx: AEN: INFO: AEN queue overflow.\n");
 					} else {
-						table_max = sizeof(tw_aen_string)/sizeof(char *);
+						table_max = ARRAY_SIZE(tw_aen_string);
 						if ((aen & 0x0ff) < table_max) {
 							if ((tw_aen_string[aen & 0xff][strlen(tw_aen_string[aen & 0xff])-1]) == '#') {
 								printk(KERN_WARNING "3w-xxxx: AEN: %s%d.\n", tw_aen_string[aen & 0xff], aen >> 8);
@@ -1286,7 +1286,7 @@ static int tw_map_scsi_sg_data(struct pci_dev *pdev, struct scsi_cmnd *cmd)
 	if (cmd->use_sg == 0)
 		return 0;
 
-	use_sg = pci_map_sg(pdev, cmd->buffer, cmd->use_sg, DMA_BIDIRECTIONAL);
+	use_sg = pci_map_sg(pdev, cmd->request_buffer, cmd->use_sg, DMA_BIDIRECTIONAL);
 	
 	if (use_sg == 0) {
 		printk(KERN_WARNING "3w-xxxx: tw_map_scsi_sg_data(): pci_map_sg() failed.\n");

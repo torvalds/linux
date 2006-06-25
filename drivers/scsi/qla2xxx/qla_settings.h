@@ -16,7 +16,6 @@
 
 /* Max time to wait for the loop to be in LOOP_READY state */
 #define MAX_LOOP_TIMEOUT	(60 * 5)
-#define EH_ACTIVE		1	/* Error handler active */
 
 /*
  * Some vendor subsystems do not recover properly after a device reset.  Define

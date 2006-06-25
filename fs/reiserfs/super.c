@@ -60,7 +60,7 @@ static int is_any_reiserfs_magic_string(struct reiserfs_super_block *rs)
 }
 
 static int reiserfs_remount(struct super_block *s, int *flags, char *data);
-static int reiserfs_statfs(struct super_block *s, struct kstatfs *buf);
+static int reiserfs_statfs(struct dentry *dentry, struct kstatfs *buf);
 
 static int reiserfs_sync_fs(struct super_block *s, int wait)
 {
@@ -1938,15 +1938,15 @@ static int reiserfs_fill_super(struct super_block *s, void *data, int silent)
 	return errval;
 }
 
-static int reiserfs_statfs(struct super_block *s, struct kstatfs *buf)
+static int reiserfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
-	struct reiserfs_super_block *rs = SB_DISK_SUPER_BLOCK(s);
+	struct reiserfs_super_block *rs = SB_DISK_SUPER_BLOCK(dentry->d_sb);
 
 	buf->f_namelen = (REISERFS_MAX_NAME(s->s_blocksize));
 	buf->f_bfree = sb_free_blocks(rs);
 	buf->f_bavail = buf->f_bfree;
 	buf->f_blocks = sb_block_count(rs) - sb_bmap_nr(rs) - 1;
-	buf->f_bsize = s->s_blocksize;
+	buf->f_bsize = dentry->d_sb->s_blocksize;
 	/* changed to accommodate gcc folks. */
 	buf->f_type = REISERFS_SUPER_MAGIC;
 	return 0;
@@ -2249,11 +2249,12 @@ static ssize_t reiserfs_quota_write(struct super_block *sb, int type,
 
 #endif
 
-static struct super_block *get_super_block(struct file_system_type *fs_type,
-					   int flags, const char *dev_name,
-					   void *data)
+static int get_super_block(struct file_system_type *fs_type,
+			   int flags, const char *dev_name,
+			   void *data, struct vfsmount *mnt)
 {
-	return get_sb_bdev(fs_type, flags, dev_name, data, reiserfs_fill_super);
+	return get_sb_bdev(fs_type, flags, dev_name, data, reiserfs_fill_super,
+			   mnt);
 }
 
 static int __init init_reiserfs_fs(void)

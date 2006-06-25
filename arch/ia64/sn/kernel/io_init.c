@@ -58,7 +58,7 @@ static int max_pcibus_number = 255;	/* Default highest pci bus number */
  */
 
 static dma_addr_t
-sn_default_pci_map(struct pci_dev *pdev, unsigned long paddr, size_t size)
+sn_default_pci_map(struct pci_dev *pdev, unsigned long paddr, size_t size, int type)
 {
 	return 0;
 }
@@ -457,13 +457,6 @@ void sn_pci_fixup_slot(struct pci_dev *dev)
 		pcidev_info->pdi_sn_irq_info = NULL;
 		kfree(sn_irq_info);
 	}
-
-	/*
-	 * MSI currently not supported on altix.  Remove this when
-	 * the MSI abstraction patches are integrated into the kernel
-	 * (sometime after 2.6.16 releases)
-	 */
-	dev->no_msi = 1;
 }
 
 /*

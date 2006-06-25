@@ -9,7 +9,6 @@
 #ifndef _ASM_SN_ADDRS_H
 #define _ASM_SN_ADDRS_H
 
-#include <linux/config.h>
 
 #ifndef __ASSEMBLY__
 #include <linux/types.h>

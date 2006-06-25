@@ -68,7 +68,7 @@ acpi_status acpi_ev_initialize_events(void)
 {
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("ev_initialize_events");
+	ACPI_FUNCTION_TRACE(ev_initialize_events);
 
 	/* Make sure we have ACPI tables */
 
@@ -118,7 +118,7 @@ acpi_status acpi_ev_install_fadt_gpes(void)
 {
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("ev_install_fadt_gpes");
+	ACPI_FUNCTION_TRACE(ev_install_fadt_gpes);
 
 	/* Namespace must be locked */
 
@@ -157,7 +157,7 @@ acpi_status acpi_ev_install_xrupt_handlers(void)
 {
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("ev_install_xrupt_handlers");
+	ACPI_FUNCTION_TRACE(ev_install_xrupt_handlers);
 
 	/* Install the SCI handler */
 
@@ -241,7 +241,7 @@ u32 acpi_ev_fixed_event_detect(void)
 	u32 fixed_enable;
 	acpi_native_uint i;
 
-	ACPI_FUNCTION_NAME("ev_fixed_event_detect");
+	ACPI_FUNCTION_NAME(ev_fixed_event_detect);
 
 	/*
 	 * Read the fixed feature status and enable registers, as all the cases
@@ -260,12 +260,14 @@ u32 acpi_ev_fixed_event_detect(void)
 	 * Check for all possible Fixed Events and dispatch those that are active
 	 */
 	for (i = 0; i < ACPI_NUM_FIXED_EVENTS; i++) {
+
 		/* Both the status and enable bits must be on for this event */
 
 		if ((fixed_status & acpi_gbl_fixed_event_info[i].
 		     status_bit_mask)
 		    && (fixed_enable & acpi_gbl_fixed_event_info[i].
 			enable_bit_mask)) {
+
 			/* Found an active (signalled) event */
 
 			int_status |= acpi_ev_fixed_event_dispatch((u32) i);

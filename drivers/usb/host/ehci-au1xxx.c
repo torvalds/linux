@@ -16,10 +16,6 @@
 #include <linux/platform_device.h>
 #include <asm/mach-au1x00/au1000.h>
 
-#ifndef CONFIG_SOC_AU1200
-#error "this Alchemy chip doesn't have EHCI"
-#else				/* Au1200 */
-
 #define USB_HOST_CONFIG   (USB_MSR_BASE + USB_MSR_MCFG)
 #define USB_MCFG_PFEN     (1<<31)
 #define USB_MCFG_RDCOMB   (1<<30)
@@ -272,6 +268,8 @@ static int ehci_hcd_au1xxx_drv_resume(struct device *dev)
 	return 0;
 }
 */
+MODULE_ALIAS("au1xxx-ehci");
+/* FIXME use "struct platform_driver" */
 static struct device_driver ehci_hcd_au1xxx_driver = {
 	.name = "au1xxx-ehci",
 	.bus = &platform_bus_type,
@@ -280,18 +278,3 @@ static struct device_driver ehci_hcd_au1xxx_driver = {
 	/*.suspend      = ehci_hcd_au1xxx_drv_suspend, */
 	/*.resume       = ehci_hcd_au1xxx_drv_resume, */
 };
-
-static int __init ehci_hcd_au1xxx_init(void)
-{
-	pr_debug(DRIVER_INFO " (Au1xxx)\n");
-
-	return driver_register(&ehci_hcd_au1xxx_driver);
-}
-
-static void __exit ehci_hcd_au1xxx_cleanup(void)
-{
-	driver_unregister(&ehci_hcd_au1xxx_driver);
-}
-
-module_init(ehci_hcd_au1xxx_init);
-module_exit(ehci_hcd_au1xxx_cleanup);

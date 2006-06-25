@@ -79,7 +79,7 @@ acpi_ps_get_next_package_length(struct acpi_parse_state *parser_state)
 	acpi_native_uint byte_count;
 	u8 byte_zero_mask = 0x3F;	/* Default [0:5] */
 
-	ACPI_FUNCTION_TRACE("ps_get_next_package_length");
+	ACPI_FUNCTION_TRACE(ps_get_next_package_length);
 
 	/*
 	 * Byte 0 bits [6:7] contain the number of additional bytes
@@ -128,7 +128,7 @@ u8 *acpi_ps_get_next_package_end(struct acpi_parse_state *parser_state)
 	u8 *start = parser_state->aml;
 	u32 package_length;
 
-	ACPI_FUNCTION_TRACE("ps_get_next_package_end");
+	ACPI_FUNCTION_TRACE(ps_get_next_package_end);
 
 	/* Function below updates parser_state->Aml */
 
@@ -157,7 +157,7 @@ char *acpi_ps_get_next_namestring(struct acpi_parse_state *parser_state)
 	u8 *start = parser_state->aml;
 	u8 *end = parser_state->aml;
 
-	ACPI_FUNCTION_TRACE("ps_get_next_namestring");
+	ACPI_FUNCTION_TRACE(ps_get_next_namestring);
 
 	/* Point past any namestring prefix characters (backslash or carat) */
 
@@ -237,7 +237,7 @@ acpi_ps_get_next_namepath(struct acpi_walk_state *walk_state,
 	struct acpi_namespace_node *node;
 	union acpi_generic_state scope_info;
 
-	ACPI_FUNCTION_TRACE("ps_get_next_namepath");
+	ACPI_FUNCTION_TRACE(ps_get_next_namepath);
 
 	path = acpi_ps_get_next_namestring(parser_state);
 	acpi_ps_init_op(arg, AML_INT_NAMEPATH_OP);
@@ -275,6 +275,7 @@ acpi_ps_get_next_namepath(struct acpi_walk_state *walk_state,
 	 */
 	if (ACPI_SUCCESS(status) &&
 	    possible_method_call && (node->type == ACPI_TYPE_METHOD)) {
+
 		/* This name is actually a control method invocation */
 
 		method_desc = acpi_ns_get_attached_object(node);
@@ -319,6 +320,7 @@ acpi_ps_get_next_namepath(struct acpi_walk_state *walk_state,
 	 * some not_found cases are allowed
 	 */
 	if (status == AE_NOT_FOUND) {
+
 		/* 1) not_found is ok during load pass 1/2 (allow forward references) */
 
 		if ((walk_state->parse_flags & ACPI_PARSE_MODE_MASK) !=
@@ -354,6 +356,7 @@ acpi_ps_get_next_namepath(struct acpi_walk_state *walk_state,
 
 		if ((walk_state->parse_flags & ACPI_PARSE_MODE_MASK) ==
 		    ACPI_PARSE_EXECUTE) {
+
 			/* Report a control method execution error */
 
 			status = acpi_ds_method_error(status, walk_state);
@@ -388,7 +391,7 @@ acpi_ps_get_next_simple_arg(struct acpi_parse_state *parser_state,
 	u16 opcode;
 	u8 *aml = parser_state->aml;
 
-	ACPI_FUNCTION_TRACE_U32("ps_get_next_simple_arg", arg_type);
+	ACPI_FUNCTION_TRACE_U32(ps_get_next_simple_arg, arg_type);
 
 	switch (arg_type) {
 	case ARGP_BYTEDATA:
@@ -453,7 +456,7 @@ acpi_ps_get_next_simple_arg(struct acpi_parse_state *parser_state,
 
 	default:
 
-		ACPI_ERROR((AE_INFO, "Invalid arg_type %X", arg_type));
+		ACPI_ERROR((AE_INFO, "Invalid ArgType %X", arg_type));
 		return_VOID;
 	}
 
@@ -484,7 +487,7 @@ static union acpi_parse_object *acpi_ps_get_next_field(struct acpi_parse_state
 	u16 opcode;
 	u32 name;
 
-	ACPI_FUNCTION_TRACE("ps_get_next_field");
+	ACPI_FUNCTION_TRACE(ps_get_next_field);
 
 	/* Determine field type */
 
@@ -590,7 +593,7 @@ acpi_ps_get_next_arg(struct acpi_walk_state *walk_state,
 	u32 subop;
 	acpi_status status = AE_OK;
 
-	ACPI_FUNCTION_TRACE_PTR("ps_get_next_arg", parser_state);
+	ACPI_FUNCTION_TRACE_PTR(ps_get_next_arg, parser_state);
 
 	switch (arg_type) {
 	case ARGP_BYTEDATA:
@@ -620,6 +623,7 @@ acpi_ps_get_next_arg(struct acpi_walk_state *walk_state,
 	case ARGP_FIELDLIST:
 
 		if (parser_state->aml < parser_state->pkg_end) {
+
 			/* Non-empty list */
 
 			while (parser_state->aml < parser_state->pkg_end) {
@@ -645,6 +649,7 @@ acpi_ps_get_next_arg(struct acpi_walk_state *walk_state,
 	case ARGP_BYTELIST:
 
 		if (parser_state->aml < parser_state->pkg_end) {
+
 			/* Non-empty list */
 
 			arg = acpi_ps_alloc_op(AML_INT_BYTELIST_OP);
@@ -673,6 +678,7 @@ acpi_ps_get_next_arg(struct acpi_walk_state *walk_state,
 		if (subop == 0 ||
 		    acpi_ps_is_leading_char(subop) ||
 		    acpi_ps_is_prefix_char(subop)) {
+
 			/* null_name or name_string */
 
 			arg = acpi_ps_alloc_op(AML_INT_NAMEPATH_OP);
@@ -703,6 +709,7 @@ acpi_ps_get_next_arg(struct acpi_walk_state *walk_state,
 	case ARGP_OBJLIST:
 
 		if (parser_state->aml < parser_state->pkg_end) {
+
 			/* Non-empty list of variable arguments, nothing returned */
 
 			walk_state->arg_count = ACPI_VAR_ARGS;
@@ -711,7 +718,7 @@ acpi_ps_get_next_arg(struct acpi_walk_state *walk_state,
 
 	default:
 
-		ACPI_ERROR((AE_INFO, "Invalid arg_type: %X", arg_type));
+		ACPI_ERROR((AE_INFO, "Invalid ArgType: %X", arg_type));
 		status = AE_AML_OPERAND_TYPE;
 		break;
 	}

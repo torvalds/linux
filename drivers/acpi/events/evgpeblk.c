@@ -131,14 +131,14 @@ u8 acpi_ev_valid_gpe_event(struct acpi_gpe_event_info *gpe_event_info)
  *
  ******************************************************************************/
 
-acpi_status acpi_ev_walk_gpe_list(ACPI_GPE_CALLBACK gpe_walk_callback)
+acpi_status acpi_ev_walk_gpe_list(acpi_gpe_callback gpe_walk_callback)
 {
 	struct acpi_gpe_block_info *gpe_block;
 	struct acpi_gpe_xrupt_info *gpe_xrupt_info;
 	acpi_status status = AE_OK;
 	acpi_cpu_flags flags;
 
-	ACPI_FUNCTION_TRACE("ev_walk_gpe_list");
+	ACPI_FUNCTION_TRACE(ev_walk_gpe_list);
 
 	flags = acpi_os_acquire_lock(acpi_gbl_gpe_lock);
 
@@ -146,10 +146,12 @@ acpi_status acpi_ev_walk_gpe_list(ACPI_GPE_CALLBACK gpe_walk_callback)
 
 	gpe_xrupt_info = acpi_gbl_gpe_xrupt_list_head;
 	while (gpe_xrupt_info) {
+
 		/* Walk all Gpe Blocks attached to this interrupt level */
 
 		gpe_block = gpe_xrupt_info->gpe_block_list_head;
 		while (gpe_block) {
+
 			/* One callback per GPE block */
 
 			status = gpe_walk_callback(gpe_xrupt_info, gpe_block);
@@ -190,11 +192,12 @@ acpi_ev_delete_gpe_handlers(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 	acpi_native_uint i;
 	acpi_native_uint j;
 
-	ACPI_FUNCTION_TRACE("ev_delete_gpe_handlers");
+	ACPI_FUNCTION_TRACE(ev_delete_gpe_handlers);
 
 	/* Examine each GPE Register within the block */
 
 	for (i = 0; i < gpe_block->register_count; i++) {
+
 		/* Now look at the individual GPEs in this byte register */
 
 		for (j = 0; j < ACPI_GPE_REGISTER_WIDTH; j++) {
@@ -204,7 +207,7 @@ acpi_ev_delete_gpe_handlers(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 
 			if ((gpe_event_info->flags & ACPI_GPE_DISPATCH_MASK) ==
 			    ACPI_GPE_DISPATCH_HANDLER) {
-				ACPI_MEM_FREE(gpe_event_info->dispatch.handler);
+				ACPI_FREE(gpe_event_info->dispatch.handler);
 				gpe_event_info->dispatch.handler = NULL;
 				gpe_event_info->flags &=
 				    ~ACPI_GPE_DISPATCH_MASK;
@@ -248,7 +251,7 @@ acpi_ev_save_method_info(acpi_handle obj_handle,
 	u8 type;
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("ev_save_method_info");
+	ACPI_FUNCTION_TRACE(ev_save_method_info);
 
 	/*
 	 * _Lxx and _Exx GPE method support
@@ -279,9 +282,9 @@ acpi_ev_save_method_info(acpi_handle obj_handle,
 	default:
 		/* Unknown method type, just ignore it! */
 
-		ACPI_ERROR((AE_INFO,
-			    "Unknown GPE method type: %s (name not of form _Lxx or _Exx)",
-			    name));
+		ACPI_DEBUG_PRINT((ACPI_DB_LOAD,
+				  "Ignoring unknown GPE method type: %s (name not of form _Lxx or _Exx)",
+				  name));
 		return_ACPI_STATUS(AE_OK);
 	}
 
@@ -289,11 +292,12 @@ acpi_ev_save_method_info(acpi_handle obj_handle,
 
 	gpe_number = ACPI_STRTOUL(&name[2], NULL, 16);
 	if (gpe_number == ACPI_UINT32_MAX) {
+
 		/* Conversion failed; invalid method, just ignore it */
 
-		ACPI_ERROR((AE_INFO,
-			    "Could not extract GPE number from name: %s (name is not of form _Lxx or _Exx)",
-			    name));
+		ACPI_DEBUG_PRINT((ACPI_DB_LOAD,
+				  "Could not extract GPE number from name: %s (name is not of form _Lxx or _Exx)",
+				  name));
 		return_ACPI_STATUS(AE_OK);
 	}
 
@@ -364,13 +368,14 @@ acpi_ev_match_prw_and_gpe(acpi_handle obj_handle,
 	u32 gpe_number;
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("ev_match_prw_and_gpe");
+	ACPI_FUNCTION_TRACE(ev_match_prw_and_gpe);
 
 	/* Check for a _PRW method under this device */
 
 	status = acpi_ut_evaluate_object(obj_handle, METHOD_NAME__PRW,
 					 ACPI_BTYPE_PACKAGE, &pkg_desc);
 	if (ACPI_FAILURE(status)) {
+
 		/* Ignore all errors from _PRW, we don't want to abort the subsystem */
 
 		return_ACPI_STATUS(AE_OK);
@@ -394,6 +399,7 @@ acpi_ev_match_prw_and_gpe(acpi_handle obj_handle,
 	obj_desc = pkg_desc->package.elements[0];
 
 	if (ACPI_GET_OBJECT_TYPE(obj_desc) == ACPI_TYPE_INTEGER) {
+
 		/* Use FADT-defined GPE device (from definition of _PRW) */
 
 		target_gpe_device = acpi_gbl_fadt_gpe_device;
@@ -402,6 +408,7 @@ acpi_ev_match_prw_and_gpe(acpi_handle obj_handle,
 
 		gpe_number = (u32) obj_desc->integer.value;
 	} else if (ACPI_GET_OBJECT_TYPE(obj_desc) == ACPI_TYPE_PACKAGE) {
+
 		/* Package contains a GPE reference and GPE number within a GPE block */
 
 		if ((obj_desc->package.count < 2) ||
@@ -482,7 +489,7 @@ static struct acpi_gpe_xrupt_info *acpi_ev_get_gpe_xrupt_block(u32
 	acpi_status status;
 	acpi_cpu_flags flags;
 
-	ACPI_FUNCTION_TRACE("ev_get_gpe_xrupt_block");
+	ACPI_FUNCTION_TRACE(ev_get_gpe_xrupt_block);
 
 	/* No need for lock since we are not changing any list elements here */
 
@@ -497,7 +504,7 @@ static struct acpi_gpe_xrupt_info *acpi_ev_get_gpe_xrupt_block(u32
 
 	/* Not found, must allocate a new xrupt descriptor */
 
-	gpe_xrupt = ACPI_MEM_CALLOCATE(sizeof(struct acpi_gpe_xrupt_info));
+	gpe_xrupt = ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_gpe_xrupt_info));
 	if (!gpe_xrupt) {
 		return_PTR(NULL);
 	}
@@ -556,7 +563,7 @@ acpi_ev_delete_gpe_xrupt(struct acpi_gpe_xrupt_info *gpe_xrupt)
 	acpi_status status;
 	acpi_cpu_flags flags;
 
-	ACPI_FUNCTION_TRACE("ev_delete_gpe_xrupt");
+	ACPI_FUNCTION_TRACE(ev_delete_gpe_xrupt);
 
 	/* We never want to remove the SCI interrupt handler */
 
@@ -588,7 +595,7 @@ acpi_ev_delete_gpe_xrupt(struct acpi_gpe_xrupt_info *gpe_xrupt)
 
 	/* Free the block */
 
-	ACPI_MEM_FREE(gpe_xrupt);
+	ACPI_FREE(gpe_xrupt);
 	return_ACPI_STATUS(AE_OK);
 }
 
@@ -614,7 +621,7 @@ acpi_ev_install_gpe_block(struct acpi_gpe_block_info *gpe_block,
 	acpi_status status;
 	acpi_cpu_flags flags;
 
-	ACPI_FUNCTION_TRACE("ev_install_gpe_block");
+	ACPI_FUNCTION_TRACE(ev_install_gpe_block);
 
 	status = acpi_ut_acquire_mutex(ACPI_MTX_EVENTS);
 	if (ACPI_FAILURE(status)) {
@@ -667,7 +674,7 @@ acpi_status acpi_ev_delete_gpe_block(struct acpi_gpe_block_info *gpe_block)
 	acpi_status status;
 	acpi_cpu_flags flags;
 
-	ACPI_FUNCTION_TRACE("ev_install_gpe_block");
+	ACPI_FUNCTION_TRACE(ev_install_gpe_block);
 
 	status = acpi_ut_acquire_mutex(ACPI_MTX_EVENTS);
 	if (ACPI_FAILURE(status)) {
@@ -679,6 +686,7 @@ acpi_status acpi_ev_delete_gpe_block(struct acpi_gpe_block_info *gpe_block)
 	status = acpi_hw_disable_gpe_block(gpe_block->xrupt_block, gpe_block);
 
 	if (!gpe_block->previous && !gpe_block->next) {
+
 		/* This is the last gpe_block on this interrupt */
 
 		status = acpi_ev_delete_gpe_xrupt(gpe_block->xrupt_block);
@@ -704,9 +712,9 @@ acpi_status acpi_ev_delete_gpe_block(struct acpi_gpe_block_info *gpe_block)
 
 	/* Free the gpe_block */
 
-	ACPI_MEM_FREE(gpe_block->register_info);
-	ACPI_MEM_FREE(gpe_block->event_info);
-	ACPI_MEM_FREE(gpe_block);
+	ACPI_FREE(gpe_block->register_info);
+	ACPI_FREE(gpe_block->event_info);
+	ACPI_FREE(gpe_block);
 
       unlock_and_exit:
 	status = acpi_ut_release_mutex(ACPI_MTX_EVENTS);
@@ -736,17 +744,17 @@ acpi_ev_create_gpe_info_blocks(struct acpi_gpe_block_info *gpe_block)
 	acpi_native_uint j;
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("ev_create_gpe_info_blocks");
+	ACPI_FUNCTION_TRACE(ev_create_gpe_info_blocks);
 
 	/* Allocate the GPE register information block */
 
-	gpe_register_info = ACPI_MEM_CALLOCATE((acpi_size) gpe_block->
-					       register_count *
-					       sizeof(struct
-						      acpi_gpe_register_info));
+	gpe_register_info = ACPI_ALLOCATE_ZEROED((acpi_size) gpe_block->
+						 register_count *
+						 sizeof(struct
+							acpi_gpe_register_info));
 	if (!gpe_register_info) {
 		ACPI_ERROR((AE_INFO,
-			    "Could not allocate the gpe_register_info table"));
+			    "Could not allocate the GpeRegisterInfo table"));
 		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
 
@@ -754,13 +762,14 @@ acpi_ev_create_gpe_info_blocks(struct acpi_gpe_block_info *gpe_block)
 	 * Allocate the GPE event_info block. There are eight distinct GPEs
 	 * per register. Initialization to zeros is sufficient.
 	 */
-	gpe_event_info = ACPI_MEM_CALLOCATE(((acpi_size) gpe_block->
-					     register_count *
-					     ACPI_GPE_REGISTER_WIDTH) *
-					    sizeof(struct acpi_gpe_event_info));
+	gpe_event_info = ACPI_ALLOCATE_ZEROED(((acpi_size) gpe_block->
+					       register_count *
+					       ACPI_GPE_REGISTER_WIDTH) *
+					      sizeof(struct
+						     acpi_gpe_event_info));
 	if (!gpe_event_info) {
 		ACPI_ERROR((AE_INFO,
-			    "Could not allocate the gpe_event_info table"));
+			    "Could not allocate the GpeEventInfo table"));
 		status = AE_NO_MEMORY;
 		goto error_exit;
 	}
@@ -780,6 +789,7 @@ acpi_ev_create_gpe_info_blocks(struct acpi_gpe_block_info *gpe_block)
 	this_event = gpe_event_info;
 
 	for (i = 0; i < gpe_block->register_count; i++) {
+
 		/* Init the register_info for this GPE register (8 GPEs) */
 
 		this_register->base_gpe_number =
@@ -839,10 +849,10 @@ acpi_ev_create_gpe_info_blocks(struct acpi_gpe_block_info *gpe_block)
 
       error_exit:
 	if (gpe_register_info) {
-		ACPI_MEM_FREE(gpe_register_info);
+		ACPI_FREE(gpe_register_info);
 	}
 	if (gpe_event_info) {
-		ACPI_MEM_FREE(gpe_event_info);
+		ACPI_FREE(gpe_event_info);
 	}
 
 	return_ACPI_STATUS(status);
@@ -878,7 +888,7 @@ acpi_ev_create_gpe_block(struct acpi_namespace_node *gpe_device,
 	acpi_status status;
 	struct acpi_gpe_block_info *gpe_block;
 
-	ACPI_FUNCTION_TRACE("ev_create_gpe_block");
+	ACPI_FUNCTION_TRACE(ev_create_gpe_block);
 
 	if (!register_count) {
 		return_ACPI_STATUS(AE_OK);
@@ -886,7 +896,7 @@ acpi_ev_create_gpe_block(struct acpi_namespace_node *gpe_device,
 
 	/* Allocate a new GPE block */
 
-	gpe_block = ACPI_MEM_CALLOCATE(sizeof(struct acpi_gpe_block_info));
+	gpe_block = ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_gpe_block_info));
 	if (!gpe_block) {
 		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
@@ -906,7 +916,7 @@ acpi_ev_create_gpe_block(struct acpi_namespace_node *gpe_device,
 	 */
 	status = acpi_ev_create_gpe_info_blocks(gpe_block);
 	if (ACPI_FAILURE(status)) {
-		ACPI_MEM_FREE(gpe_block);
+		ACPI_FREE(gpe_block);
 		return_ACPI_STATUS(status);
 	}
 
@@ -914,7 +924,7 @@ acpi_ev_create_gpe_block(struct acpi_namespace_node *gpe_device,
 
 	status = acpi_ev_install_gpe_block(gpe_block, interrupt_number);
 	if (ACPI_FAILURE(status)) {
-		ACPI_MEM_FREE(gpe_block);
+		ACPI_FREE(gpe_block);
 		return_ACPI_STATUS(status);
 	}
 
@@ -971,7 +981,7 @@ acpi_ev_initialize_gpe_block(struct acpi_namespace_node *gpe_device,
 	acpi_native_uint i;
 	acpi_native_uint j;
 
-	ACPI_FUNCTION_TRACE("ev_initialize_gpe_block");
+	ACPI_FUNCTION_TRACE(ev_initialize_gpe_block);
 
 	/* Ignore a null GPE block (e.g., if no GPE block 1 exists) */
 
@@ -1013,6 +1023,7 @@ acpi_ev_initialize_gpe_block(struct acpi_namespace_node *gpe_device,
 
 	for (i = 0; i < gpe_block->register_count; i++) {
 		for (j = 0; j < 8; j++) {
+
 			/* Get the info block for this particular GPE */
 
 			gpe_event_info =
@@ -1040,7 +1051,7 @@ acpi_ev_initialize_gpe_block(struct acpi_namespace_node *gpe_device,
 
 	status = acpi_hw_enable_runtime_gpe_block(NULL, gpe_block);
 	if (ACPI_FAILURE(status)) {
-		ACPI_ERROR((AE_INFO, "Could not enable GPEs in gpe_block %p",
+		ACPI_ERROR((AE_INFO, "Could not enable GPEs in GpeBlock %p",
 			    gpe_block));
 	}
 
@@ -1066,7 +1077,7 @@ acpi_status acpi_ev_gpe_initialize(void)
 	u32 gpe_number_max = 0;
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("ev_gpe_initialize");
+	ACPI_FUNCTION_TRACE(ev_gpe_initialize);
 
 	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
 	if (ACPI_FAILURE(status)) {
@@ -1099,6 +1110,7 @@ acpi_status acpi_ev_gpe_initialize(void)
 	 * particular block is not supported.
 	 */
 	if (acpi_gbl_FADT->gpe0_blk_len && acpi_gbl_FADT->xgpe0_blk.address) {
+
 		/* GPE block 0 exists (has both length and address > 0) */
 
 		register_count0 = (u16) (acpi_gbl_FADT->gpe0_blk_len / 2);
@@ -1121,6 +1133,7 @@ acpi_status acpi_ev_gpe_initialize(void)
 	}
 
 	if (acpi_gbl_FADT->gpe1_blk_len && acpi_gbl_FADT->xgpe1_blk.address) {
+
 		/* GPE block 1 exists (has both length and address > 0) */
 
 		register_count1 = (u16) (acpi_gbl_FADT->gpe1_blk_len / 2);
@@ -1168,6 +1181,7 @@ acpi_status acpi_ev_gpe_initialize(void)
 	/* Exit if there are no GPE registers */
 
 	if ((register_count0 + register_count1) == 0) {
+
 		/* GPEs are not required by ACPI, this is OK */
 
 		ACPI_DEBUG_PRINT((ACPI_DB_INIT,

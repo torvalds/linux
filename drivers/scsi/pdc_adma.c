@@ -46,7 +46,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"pdc_adma"
-#define DRV_VERSION	"0.03"
+#define DRV_VERSION	"0.04"
 
 /* macro to calculate base address for ATA regs */
 #define ADMA_ATA_REGS(base,port_no)	((base) + ((port_no) * 0x40))
@@ -152,6 +152,7 @@ static struct scsi_host_template adma_ata_sht = {
 	.proc_name		= DRV_NAME,
 	.dma_boundary		= ADMA_DMA_BOUNDARY,
 	.slave_configure	= ata_scsi_slave_config,
+	.slave_destroy		= ata_scsi_slave_destroy,
 	.bios_param		= ata_std_bios_param,
 };
 
@@ -167,6 +168,7 @@ static const struct ata_port_operations adma_ata_ops = {
 	.qc_prep		= adma_qc_prep,
 	.qc_issue		= adma_qc_issue,
 	.eng_timeout		= adma_eng_timeout,
+	.data_xfer		= ata_mmio_data_xfer,
 	.irq_handler		= adma_intr,
 	.irq_clear		= adma_irq_clear,
 	.port_start		= adma_port_start,
@@ -455,13 +457,13 @@ static inline unsigned int adma_intr_pkt(struct ata_host_set *host_set)
 			continue;
 		handled = 1;
 		adma_enter_reg_mode(ap);
-		if (ap->flags & (ATA_FLAG_PORT_DISABLED | ATA_FLAG_NOINTR))
+		if (ap->flags & ATA_FLAG_DISABLED)
 			continue;
 		pp = ap->private_data;
 		if (!pp || pp->state != adma_state_pkt)
 			continue;
 		qc = ata_qc_from_tag(ap, ap->active_tag);
-		if (qc && (!(qc->tf.ctl & ATA_NIEN))) {
+		if (qc && (!(qc->tf.flags & ATA_TFLAG_POLLING))) {
 			if ((status & (aPERR | aPSD | aUIRQ)))
 				qc->err_mask |= AC_ERR_OTHER;
 			else if (pp->pkt[0] != cDONE)
@@ -480,13 +482,13 @@ static inline unsigned int adma_intr_mmio(struct ata_host_set *host_set)
 	for (port_no = 0; port_no < host_set->n_ports; ++port_no) {
 		struct ata_port *ap;
 		ap = host_set->ports[port_no];
-		if (ap && (!(ap->flags & (ATA_FLAG_PORT_DISABLED | ATA_FLAG_NOINTR)))) {
+		if (ap && (!(ap->flags & ATA_FLAG_DISABLED))) {
 			struct ata_queued_cmd *qc;
 			struct adma_port_priv *pp = ap->private_data;
 			if (!pp || pp->state != adma_state_mmio)
 				continue;
 			qc = ata_qc_from_tag(ap, ap->active_tag);
-			if (qc && (!(qc->tf.ctl & ATA_NIEN))) {
+			if (qc && (!(qc->tf.flags & ATA_TFLAG_POLLING))) {
 
 				/* check main status, clearing INTRQ */
 				u8 status = ata_check_status(ap);

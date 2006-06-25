@@ -298,9 +298,29 @@ static void __init ixdp2351_map_io(void)
 	iotable_init(ixdp2351_io_desc, ARRAY_SIZE(ixdp2351_io_desc));
 }
 
+static struct physmap_flash_data ixdp2351_flash_data = {
+	.width		= 1,
+};
+
+static struct resource ixdp2351_flash_resource = {
+	.start		= 0x90000000,
+	.end		= 0x94000000,
+	.flags		= IORESOURCE_MEM,
+};
+
+static struct platform_device ixdp2351_flash = {
+	.name		= "physmap-flash",
+	.id		= 0,
+	.dev		= {
+		.platform_data	= &ixdp2351_flash_data,
+	},
+	.num_resources	= 1,
+	.resource	= &ixdp2351_flash_resource,
+};
+
 static void __init ixdp2351_init(void)
 {
-	physmap_configure(0x90000000, 0x04000000, 1, NULL);
+	platform_device_register(&ixdp2351_flash);
 
 	/*
 	 * Mark flash as writeable

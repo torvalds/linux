@@ -66,7 +66,9 @@ ENTRY(s3c2410_cpu_suspend)
 	@@ flush the caches to ensure everything is back out to
 	@@ SDRAM before the core powers down
 
+#ifndef CONFIG_CPU_DCACHE_WRITETHROUGH
 	bl	arm920_flush_kern_cache_all
+#endif
 
 	@@ prepare cpu to sleep
 

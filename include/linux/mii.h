@@ -9,7 +9,6 @@
 #define __LINUX_MII_H__
 
 #include <linux/types.h>
-#include <linux/if.h>
 
 /* Generic MII registers. */
 
@@ -136,6 +135,20 @@
 #define LPA_1000FULL            0x0800  /* Link partner 1000BASE-T full duplex */
 #define LPA_1000HALF            0x0400  /* Link partner 1000BASE-T half duplex */
 
+/* This structure is used in all SIOCxMIIxxx ioctl calls */
+struct mii_ioctl_data {
+	__u16		phy_id;
+	__u16		reg_num;
+	__u16		val_in;
+	__u16		val_out;
+};
+
+#ifdef __KERNEL__ 
+
+#include <linux/if.h>
+
+struct ethtool_cmd;
+
 struct mii_if_info {
 	int phy_id;
 	int advertising;
@@ -151,9 +164,6 @@ struct mii_if_info {
 	void (*mdio_write) (struct net_device *dev, int phy_id, int location, int val);
 };
 
-struct ethtool_cmd;
-struct mii_ioctl_data;
-
 extern int mii_link_ok (struct mii_if_info *mii);
 extern int mii_nway_restart (struct mii_if_info *mii);
 extern int mii_ethtool_gset(struct mii_if_info *mii, struct ethtool_cmd *ecmd);
@@ -166,16 +176,6 @@ extern unsigned int mii_check_media (struct mii_if_info *mii,
 extern int generic_mii_ioctl(struct mii_if_info *mii_if,
                       	     struct mii_ioctl_data *mii_data, int cmd,
 			     unsigned int *duplex_changed);
-
-
-
-/* This structure is used in all SIOCxMIIxxx ioctl calls */
-struct mii_ioctl_data {
-	u16		phy_id;
-	u16		reg_num;
-	u16		val_in;
-	u16		val_out;
-};
 
 
 static inline struct mii_ioctl_data *if_mii(struct ifreq *rq)
@@ -235,5 +235,5 @@ static inline unsigned int mii_duplex (unsigned int duplex_lock,
 	return 0;
 }
 
-
+#endif /* __KERNEL__ */
 #endif /* __LINUX_MII_H__ */

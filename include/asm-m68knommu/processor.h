@@ -13,7 +13,6 @@
  */
 #define current_text_addr() ({ __label__ _l; _l: &&_l;})
 
-#include <linux/config.h>
 #include <linux/threads.h>
 #include <asm/types.h>
 #include <asm/segment.h>

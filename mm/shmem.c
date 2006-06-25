@@ -1081,14 +1081,6 @@ repeat:
 			page_cache_release(swappage);
 			goto repeat;
 		}
-		if (!PageSwapCache(swappage)) {
-			/* Page migration has occured */
-			shmem_swp_unmap(entry);
-			spin_unlock(&info->lock);
-			unlock_page(swappage);
-			page_cache_release(swappage);
-			goto repeat;
-		}
 		if (PageWriteback(swappage)) {
 			shmem_swp_unmap(entry);
 			spin_unlock(&info->lock);
@@ -1654,9 +1646,9 @@ static ssize_t shmem_file_sendfile(struct file *in_file, loff_t *ppos,
 	return desc.error;
 }
 
-static int shmem_statfs(struct super_block *sb, struct kstatfs *buf)
+static int shmem_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
-	struct shmem_sb_info *sbinfo = SHMEM_SB(sb);
+	struct shmem_sb_info *sbinfo = SHMEM_SB(dentry->d_sb);
 
 	buf->f_type = TMPFS_MAGIC;
 	buf->f_bsize = PAGE_CACHE_SIZE;
@@ -2233,10 +2225,10 @@ static struct vm_operations_struct shmem_vm_ops = {
 };
 
 
-static struct super_block *shmem_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data)
+static int shmem_get_sb(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
 {
-	return get_sb_nodev(fs_type, flags, data, shmem_fill_super);
+	return get_sb_nodev(fs_type, flags, data, shmem_fill_super, mnt);
 }
 
 static struct file_system_type tmpfs_fs_type = {

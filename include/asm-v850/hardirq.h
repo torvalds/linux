@@ -1,7 +1,6 @@
 #ifndef __V850_HARDIRQ_H__
 #define __V850_HARDIRQ_H__
 
-#include <linux/config.h>
 #include <linux/threads.h>
 #include <linux/cache.h>
 

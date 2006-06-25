@@ -50,8 +50,11 @@
 #define AT91_VA_BASE_TCB0	AT91_IO_P2V(AT91_BASE_TCB0)
 
 /* Internal SRAM */
-#define AT91_BASE_SRAM		0x00200000	/* Internal SRAM base address */
+#define AT91_SRAM_BASE		0x00200000	/* Internal SRAM base address */
 #define AT91_SRAM_SIZE		0x00004000	/* Internal SRAM SIZE (16Kb) */
+
+ /* Internal SRAM is mapped below the IO devices */
+#define AT91_SRAM_VIRT_BASE	(AT91_IO_VIRT_BASE - AT91_SRAM_SIZE)
 
 /* Serial ports */
 #define AT91_NR_UART		5		/* 4 USART3's and one DBGU port */
@@ -81,14 +84,14 @@ static inline unsigned int at91_sys_read(unsigned int reg_offset)
 {
 	void __iomem *addr = (void __iomem *)AT91_VA_BASE_SYS;
 
-	return readl(addr + reg_offset);
+	return __raw_readl(addr + reg_offset);
 }
 
 static inline void at91_sys_write(unsigned int reg_offset, unsigned long value)
 {
 	void __iomem *addr = (void __iomem *)AT91_VA_BASE_SYS;
 
-	writel(value, addr + reg_offset);
+	__raw_writel(value, addr + reg_offset);
 }
 #endif
 

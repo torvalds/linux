@@ -117,6 +117,7 @@ X!Ilib/string.c
   <chapter id="mm">
      <title>Memory Management in Linux</title>
      <sect1><title>The Slab Cache</title>
+!Iinclude/linux/slab.h
 !Emm/slab.c
      </sect1>
      <sect1><title>User Space Memory Access</title>
@@ -329,6 +330,18 @@ X!Earch/i386/kernel/mca.c
   <chapter id="security">
      <title>Security Framework</title>
 !Esecurity/security.c
+  </chapter>
+
+  <chapter id="audit">
+     <title>Audit Interfaces</title>
+!Ekernel/audit.c
+!Ikernel/auditsc.c
+!Ikernel/auditfilter.c
+  </chapter>
+
+  <chapter id="accounting">
+     <title>Accounting Framework</title>
+!Ikernel/acct.c
   </chapter>
 
   <chapter id="pmfuncs">

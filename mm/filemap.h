@@ -13,7 +13,7 @@
 #include <linux/highmem.h>
 #include <linux/uio.h>
 #include <linux/config.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 size_t
 __filemap_copy_from_user_iovec(char *vaddr,
@@ -34,13 +34,13 @@ filemap_copy_from_user(struct page *page, unsigned long offset,
 	int left;
 
 	kaddr = kmap_atomic(page, KM_USER0);
-	left = __copy_from_user_inatomic(kaddr + offset, buf, bytes);
+	left = __copy_from_user_inatomic_nocache(kaddr + offset, buf, bytes);
 	kunmap_atomic(kaddr, KM_USER0);
 
 	if (left != 0) {
 		/* Do it the slow way */
 		kaddr = kmap(page);
-		left = __copy_from_user(kaddr + offset, buf, bytes);
+		left = __copy_from_user_nocache(kaddr + offset, buf, bytes);
 		kunmap(page);
 	}
 	return bytes - left;

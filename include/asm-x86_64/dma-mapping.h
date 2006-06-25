@@ -6,7 +6,6 @@
  * documentation.
  */
 
-#include <linux/config.h>
 
 #include <asm/scatterlist.h>
 #include <asm/io.h>

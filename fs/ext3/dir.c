@@ -284,7 +284,7 @@ static void free_rb_tree_fname(struct rb_root *root)
 		 * beginning of the loop and try to free the parent
 		 * node.
 		 */
-		parent = n->rb_parent;
+		parent = rb_parent(n);
 		fname = rb_entry(n, struct fname, rb_hash);
 		while (fname) {
 			struct fname * old = fname;

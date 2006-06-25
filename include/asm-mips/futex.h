@@ -3,7 +3,6 @@
 
 #ifdef __KERNEL__
 
-#include <linux/config.h>
 #include <linux/futex.h>
 #include <asm/errno.h>
 #include <asm/uaccess.h>

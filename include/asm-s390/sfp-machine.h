@@ -25,7 +25,6 @@
 #ifndef _SFP_MACHINE_H
 #define _SFP_MACHINE_H
    
-#include <linux/config.h>
 
 #define _FP_W_TYPE_SIZE		32
 #define _FP_W_TYPE		unsigned long

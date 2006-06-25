@@ -40,7 +40,7 @@ struct Port {
 	struct gs_port gs;
 	int PortNum;			/* RIO port no., 0-511 */
 	struct Host *HostP;
-	caddr_t Caddr;
+	void __iomem *Caddr;
 	unsigned short HostPort;	/* Port number on host card */
 	unsigned char RupNum;		/* Number of RUP for port */
 	unsigned char ID2;		/* Second ID of RTA for port */
@@ -92,13 +92,13 @@ struct Port {
 #define RIO_RTSFLOW	0x0400		/* RIO's own RTSFLOW flag */
 
 
-	struct PHB *PhbP;		/* pointer to PHB for port */
-	u16 *TxAdd;			/* Add packets here */
-	u16 *TxStart;			/* Start of add array */
-	u16 *TxEnd;			/* End of add array */
-	u16 *RxRemove;			/* Remove packets here */
-	u16 *RxStart;			/* Start of remove array */
-	u16 *RxEnd;			/* End of remove array */
+	struct PHB __iomem *PhbP;	/* pointer to PHB for port */
+	u16 __iomem *TxAdd;		/* Add packets here */
+	u16 __iomem *TxStart;		/* Start of add array */
+	u16 __iomem *TxEnd;		/* End of add array */
+	u16 __iomem *RxRemove;		/* Remove packets here */
+	u16 __iomem *RxStart;		/* Start of remove array */
+	u16 __iomem *RxEnd;		/* End of remove array */
 	unsigned int RtaUniqueNum;	/* Unique number of RTA */
 	unsigned short PortState;	/* status of port */
 	unsigned short ModemState;	/* status of modem lines */

@@ -31,8 +31,7 @@ int hfsplus_block_allocate(struct super_block *sb, u32 size, u32 offset, u32 *ma
 	dprint(DBG_BITMAP, "block_allocate: %u,%u,%u\n", size, offset, len);
 	mutex_lock(&HFSPLUS_SB(sb).alloc_file->i_mutex);
 	mapping = HFSPLUS_SB(sb).alloc_file->i_mapping;
-	page = read_cache_page(mapping, offset / PAGE_CACHE_BITS,
-			       (filler_t *)mapping->a_ops->readpage, NULL);
+	page = read_mapping_page(mapping, offset / PAGE_CACHE_BITS, NULL);
 	pptr = kmap(page);
 	curr = pptr + (offset & (PAGE_CACHE_BITS - 1)) / 32;
 	i = offset % 32;
@@ -72,8 +71,8 @@ int hfsplus_block_allocate(struct super_block *sb, u32 size, u32 offset, u32 *ma
 		offset += PAGE_CACHE_BITS;
 		if (offset >= size)
 			break;
-		page = read_cache_page(mapping, offset / PAGE_CACHE_BITS,
-				       (filler_t *)mapping->a_ops->readpage, NULL);
+		page = read_mapping_page(mapping, offset / PAGE_CACHE_BITS,
+					 NULL);
 		curr = pptr = kmap(page);
 		if ((size ^ offset) / PAGE_CACHE_BITS)
 			end = pptr + PAGE_CACHE_BITS / 32;
@@ -119,8 +118,8 @@ found:
 		set_page_dirty(page);
 		kunmap(page);
 		offset += PAGE_CACHE_BITS;
-		page = read_cache_page(mapping, offset / PAGE_CACHE_BITS,
-				       (filler_t *)mapping->a_ops->readpage, NULL);
+		page = read_mapping_page(mapping, offset / PAGE_CACHE_BITS,
+					 NULL);
 		pptr = kmap(page);
 		curr = pptr;
 		end = pptr + PAGE_CACHE_BITS / 32;
@@ -167,7 +166,7 @@ int hfsplus_block_free(struct super_block *sb, u32 offset, u32 count)
 	mutex_lock(&HFSPLUS_SB(sb).alloc_file->i_mutex);
 	mapping = HFSPLUS_SB(sb).alloc_file->i_mapping;
 	pnr = offset / PAGE_CACHE_BITS;
-	page = read_cache_page(mapping, pnr, (filler_t *)mapping->a_ops->readpage, NULL);
+	page = read_mapping_page(mapping, pnr, NULL);
 	pptr = kmap(page);
 	curr = pptr + (offset & (PAGE_CACHE_BITS - 1)) / 32;
 	end = pptr + PAGE_CACHE_BITS / 32;
@@ -199,7 +198,7 @@ int hfsplus_block_free(struct super_block *sb, u32 offset, u32 count)
 			break;
 		set_page_dirty(page);
 		kunmap(page);
-		page = read_cache_page(mapping, ++pnr, (filler_t *)mapping->a_ops->readpage, NULL);
+		page = read_mapping_page(mapping, ++pnr, NULL);
 		pptr = kmap(page);
 		curr = pptr;
 		end = pptr + PAGE_CACHE_BITS / 32;

@@ -24,7 +24,6 @@
 #include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
-#include "xfs_dir.h"
 #include "xfs_dir2.h"
 #include "xfs_dmapi.h"
 #include "xfs_mount.h"
@@ -36,7 +35,6 @@
 #include "xfs_ialloc_btree.h"
 #include "xfs_log_recover.h"
 #include "xfs_trans_priv.h"
-#include "xfs_dir_sf.h"
 #include "xfs_dir2_sf.h"
 #include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
@@ -402,7 +400,7 @@ xfs_log_release_iclog(xfs_mount_t *mp,
 	xlog_in_core_t	  *iclog = (xlog_in_core_t *)iclog_hndl;
 
 	if (xlog_state_release_iclog(log, iclog)) {
-		xfs_force_shutdown(mp, XFS_LOG_IO_ERROR);
+		xfs_force_shutdown(mp, SHUTDOWN_LOG_IO_ERROR);
 		return EIO;
 	}
 
@@ -498,9 +496,8 @@ xfs_log_mount(xfs_mount_t	*mp,
 	 * just worked.
 	 */
 	if (!(mp->m_flags & XFS_MOUNT_NORECOVERY)) {
-		int	error;
-		vfs_t	*vfsp = XFS_MTOVFS(mp);
-		int	readonly = (vfsp->vfs_flag & VFS_RDONLY);
+		bhv_vfs_t	*vfsp = XFS_MTOVFS(mp);
+		int		error, readonly = (vfsp->vfs_flag & VFS_RDONLY);
 
 		if (readonly)
 			vfsp->vfs_flag &= ~VFS_RDONLY;
@@ -726,7 +723,7 @@ xfs_log_write(xfs_mount_t *	mp,
 		return XFS_ERROR(EIO);
 
 	if ((error = xlog_write(mp, reg, nentries, tic, start_lsn, NULL, 0))) {
-		xfs_force_shutdown(mp, XFS_LOG_IO_ERROR);
+		xfs_force_shutdown(mp, SHUTDOWN_LOG_IO_ERROR);
 	}
 	return error;
 }	/* xfs_log_write */
@@ -816,9 +813,9 @@ xfs_log_need_covered(xfs_mount_t *mp)
 	SPLDECL(s);
 	int		needed = 0, gen;
 	xlog_t		*log = mp->m_log;
-	vfs_t		*vfsp = XFS_MTOVFS(mp);
+	bhv_vfs_t	*vfsp = XFS_MTOVFS(mp);
 
-	if (fs_frozen(vfsp) || XFS_FORCED_SHUTDOWN(mp) ||
+	if (vfs_test_for_freeze(vfsp) || XFS_FORCED_SHUTDOWN(mp) ||
 	    (vfsp->vfs_flag & VFS_RDONLY))
 		return 0;
 
@@ -956,7 +953,7 @@ xlog_iodone(xfs_buf_t *bp)
 			XFS_ERRTAG_IODONE_IOERR, XFS_RANDOM_IODONE_IOERR)) {
 		xfs_ioerror_alert("xlog_iodone", l->l_mp, bp, XFS_BUF_ADDR(bp));
 		XFS_BUF_STALE(bp);
-		xfs_force_shutdown(l->l_mp, XFS_LOG_IO_ERROR);
+		xfs_force_shutdown(l->l_mp, SHUTDOWN_LOG_IO_ERROR);
 		/*
 		 * This flag will be propagated to the trans-committed
 		 * callback routines to let them know that the log-commit
@@ -1261,7 +1258,7 @@ xlog_commit_record(xfs_mount_t  *mp,
 	ASSERT_ALWAYS(iclog);
 	if ((error = xlog_write(mp, reg, 1, ticket, commitlsnp,
 			       iclog, XLOG_COMMIT_TRANS))) {
-		xfs_force_shutdown(mp, XFS_LOG_IO_ERROR);
+		xfs_force_shutdown(mp, SHUTDOWN_LOG_IO_ERROR);
 	}
 	return error;
 }	/* xlog_commit_record */
@@ -1790,7 +1787,7 @@ xlog_write(xfs_mount_t *	mp,
 	xfs_cmn_err(XFS_PTAG_LOGRES, CE_ALERT, mp,
 		"xfs_log_write: reservation ran out. Need to up reservation");
 	/* If we did not panic, shutdown the filesystem */
-	xfs_force_shutdown(mp, XFS_CORRUPT_INCORE);
+	xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
 #endif
     } else
 	ticket->t_curr_res -= len;

@@ -184,7 +184,7 @@ static void __init geode_configure(void)
 
 
 #ifdef CONFIG_PCI
-static struct pci_device_id cyrix_55x0[] = {
+static struct pci_device_id __initdata cyrix_55x0[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_CYRIX, PCI_DEVICE_ID_CYRIX_5510) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_CYRIX, PCI_DEVICE_ID_CYRIX_5520) },
 	{ },
@@ -272,14 +272,15 @@ static void __init init_cyrix(struct cpuinfo_x86 *c)
 
 		printk(KERN_INFO "Working around Cyrix MediaGX virtual DMA bugs.\n");
 		isa_dma_bridge_buggy = 2;
-#endif		
-		c->x86_cache_size=16;	/* Yep 16K integrated cache thats it */
- 
+
+
 		/*
 		 *  The 5510/5520 companion chips have a funky PIT.
 		 */  
 		if (pci_dev_present(cyrix_55x0))
 			pit_latch_buggy = 1;
+#endif
+		c->x86_cache_size=16;	/* Yep 16K integrated cache thats it */
 
 		/* GXm supports extended cpuid levels 'ala' AMD */
 		if (c->cpuid_level == 2) {

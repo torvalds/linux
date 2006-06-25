@@ -262,8 +262,10 @@ static void tx_tasklet(unsigned long d)
 	int err;
 	u16 txctl;
 
-	bcm43xx_lock_mmio(bcm, flags);
+	bcm43xx_lock_irqonly(bcm, flags);
 
+	if (queue->tx_frozen)
+		goto out_unlock;
 	txctl = bcm43xx_pio_read(queue, BCM43xx_PIO_TXCTL);
 	if (txctl & BCM43xx_PIO_TXCTL_SUSPEND)
 		goto out_unlock;
@@ -298,7 +300,7 @@ static void tx_tasklet(unsigned long d)
 		continue;
 	}
 out_unlock:
-	bcm43xx_unlock_mmio(bcm, flags);
+	bcm43xx_unlock_irqonly(bcm, flags);
 }
 
 static void setup_txqueues(struct bcm43xx_pioqueue *queue)
@@ -374,7 +376,6 @@ static void cancel_transfers(struct bcm43xx_pioqueue *queue)
 	struct bcm43xx_pio_txpacket *packet, *tmp_packet;
 
 	netif_tx_disable(queue->bcm->net_dev);
-	assert(queue->bcm->shutting_down);
 	tasklet_disable(&queue->txtask);
 
 	list_for_each_entry_safe(packet, tmp_packet, &queue->txrunning, list)
@@ -634,5 +635,40 @@ void bcm43xx_pio_tx_resume(struct bcm43xx_pioqueue *queue)
 			  bcm43xx_pio_read(queue, BCM43xx_PIO_TXCTL)
 			  & ~BCM43xx_PIO_TXCTL_SUSPEND);
 	bcm43xx_power_saving_ctl_bits(queue->bcm, -1, -1);
-	tasklet_schedule(&queue->txtask);
+	if (!list_empty(&queue->txqueue))
+		tasklet_schedule(&queue->txtask);
 }
+
+void bcm43xx_pio_freeze_txqueues(struct bcm43xx_private *bcm)
+{
+	struct bcm43xx_pio *pio;
+
+	assert(bcm43xx_using_pio(bcm));
+	pio = bcm43xx_current_pio(bcm);
+	pio->queue0->tx_frozen = 1;
+	pio->queue1->tx_frozen = 1;
+	pio->queue2->tx_frozen = 1;
+	pio->queue3->tx_frozen = 1;
+}
+
+void bcm43xx_pio_thaw_txqueues(struct bcm43xx_private *bcm)
+{
+	struct bcm43xx_pio *pio;
+
+	assert(bcm43xx_using_pio(bcm));
+	pio = bcm43xx_current_pio(bcm);
+	pio->queue0->tx_frozen = 0;
+	pio->queue1->tx_frozen = 0;
+	pio->queue2->tx_frozen = 0;
+	pio->queue3->tx_frozen = 0;
+	if (!list_empty(&pio->queue0->txqueue))
+		tasklet_schedule(&pio->queue0->txtask);
+	if (!list_empty(&pio->queue1->txqueue))
+		tasklet_schedule(&pio->queue1->txtask);
+	if (!list_empty(&pio->queue2->txqueue))
+		tasklet_schedule(&pio->queue2->txtask);
+	if (!list_empty(&pio->queue3->txqueue))
+		tasklet_schedule(&pio->queue3->txtask);
+}
+
+

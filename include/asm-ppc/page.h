@@ -1,7 +1,6 @@
 #ifndef _PPC_PAGE_H
 #define _PPC_PAGE_H
 
-#include <linux/config.h>
 #include <asm/asm-compat.h>
 
 /* PAGE_SHIFT determines the page size */
@@ -15,7 +14,6 @@
 #define PAGE_MASK	(~((1 << PAGE_SHIFT) - 1))
 
 #ifdef __KERNEL__
-#include <linux/config.h>
 
 /* This must match what is in arch/ppc/Makefile */
 #define PAGE_OFFSET	CONFIG_KERNEL_START

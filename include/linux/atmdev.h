@@ -209,7 +209,6 @@ struct atm_cirange {
 
 #ifdef __KERNEL__
 
-#include <linux/config.h>
 #include <linux/wait.h> /* wait_queue_head_t */
 #include <linux/time.h> /* struct timeval */
 #include <linux/net.h>

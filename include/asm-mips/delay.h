@@ -10,7 +10,6 @@
 #ifndef _ASM_DELAY_H
 #define _ASM_DELAY_H
 
-#include <linux/config.h>
 #include <linux/param.h>
 #include <linux/smp.h>
 #include <asm/compiler.h>

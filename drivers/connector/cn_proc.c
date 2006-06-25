@@ -26,6 +26,7 @@
 #include <linux/kernel.h>
 #include <linux/ktime.h>
 #include <linux/init.h>
+#include <linux/connector.h>
 #include <asm/atomic.h>
 
 #include <linux/cn_proc.h>

@@ -376,7 +376,7 @@ static void ipw_write_bulk_callback(struct urb *urb, struct pt_regs *regs)
 	if (urb->status)
 		dbg("%s - nonzero write bulk status received: %d", __FUNCTION__, urb->status);
 
-	schedule_work(&port->work);
+	usb_serial_port_softint(port);
 }
 
 static int ipw_write(struct usb_serial_port *port, const unsigned char *buf, int count)

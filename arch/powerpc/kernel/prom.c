@@ -50,6 +50,7 @@
 #include <asm/machdep.h>
 #include <asm/pSeries_reconfig.h>
 #include <asm/pci-bridge.h>
+#include <asm/kexec.h>
 
 #ifdef DEBUG
 #define DBG(fmt...) printk(KERN_ERR fmt)
@@ -836,6 +837,42 @@ static unsigned long __init unflatten_dt_node(unsigned long mem,
 	return mem;
 }
 
+static int __init early_parse_mem(char *p)
+{
+	if (!p)
+		return 1;
+
+	memory_limit = PAGE_ALIGN(memparse(p, &p));
+	DBG("memory limit = 0x%lx\n", memory_limit);
+
+	return 0;
+}
+early_param("mem", early_parse_mem);
+
+/*
+ * The device tree may be allocated below our memory limit, or inside the
+ * crash kernel region for kdump. If so, move it out now.
+ */
+static void move_device_tree(void)
+{
+	unsigned long start, size;
+	void *p;
+
+	DBG("-> move_device_tree\n");
+
+	start = __pa(initial_boot_params);
+	size = initial_boot_params->totalsize;
+
+	if ((memory_limit && (start + size) > memory_limit) ||
+			overlaps_crashkernel(start, size)) {
+		p = __va(lmb_alloc_base(size, PAGE_SIZE, lmb.rmo_size));
+		memcpy(p, initial_boot_params, size);
+		initial_boot_params = (struct boot_param_header *)p;
+		DBG("Moved device tree to 0x%p\n", p);
+	}
+
+	DBG("<- move_device_tree\n");
+}
 
 /**
  * unflattens the device-tree passed by the firmware, creating the
@@ -911,7 +948,10 @@ static struct ibm_pa_feature {
 	{CPU_FTR_CTRL, 0,		0, 3, 0},
 	{CPU_FTR_NOEXECUTE, 0,		0, 6, 0},
 	{CPU_FTR_NODSISRALIGN, 0,	1, 1, 1},
+#if 0
+	/* put this back once we know how to test if firmware does 64k IO */
 	{CPU_FTR_CI_LARGE_PAGE, 0,	1, 2, 0},
+#endif
 };
 
 static void __init check_cpu_pa_features(unsigned long node)
@@ -1070,6 +1110,7 @@ static int __init early_init_dt_scan_chosen(unsigned long node,
 		iommu_force_on = 1;
 #endif
 
+	/* mem=x on the command line is the preferred mechanism */
  	lprop = of_get_flat_dt_prop(node, "linux,memory-limit", NULL);
  	if (lprop)
  		memory_limit = *lprop;
@@ -1122,17 +1163,6 @@ static int __init early_init_dt_scan_chosen(unsigned long node,
 #endif /* CONFIG_CMDLINE */
 
 	DBG("Command line is: %s\n", cmd_line);
-
-	if (strstr(cmd_line, "mem=")) {
-		char *p, *q;
-
-		for (q = cmd_line; (p = strstr(q, "mem=")) != 0; ) {
-			q = p + 4;
-			if (p > cmd_line && p[-1] != ' ')
-				continue;
-			memory_limit = memparse(q, &q);
-		}
-	}
 
 	/* break now */
 	return 1;
@@ -1237,9 +1267,17 @@ static void __init early_reserve_mem(void)
 {
 	u64 base, size;
 	u64 *reserve_map;
+	unsigned long self_base;
+	unsigned long self_size;
 
 	reserve_map = (u64 *)(((unsigned long)initial_boot_params) +
 					initial_boot_params->off_mem_rsvmap);
+
+	/* before we do anything, lets reserve the dt blob */
+	self_base = __pa((unsigned long)initial_boot_params);
+	self_size = initial_boot_params->totalsize;
+	lmb_reserve(self_base, self_size);
+
 #ifdef CONFIG_PPC32
 	/* 
 	 * Handle the case where we might be booting from an old kexec
@@ -1254,6 +1292,9 @@ static void __init early_reserve_mem(void)
 			size_32 = *(reserve_map_32++);
 			if (size_32 == 0)
 				break;
+			/* skip if the reservation is for the blob */
+			if (base_32 == self_base && size_32 == self_size)
+				continue;
 			DBG("reserving: %x -> %x\n", base_32, size_32);
 			lmb_reserve(base_32, size_32);
 		}
@@ -1265,6 +1306,9 @@ static void __init early_reserve_mem(void)
 		size = *(reserve_map++);
 		if (size == 0)
 			break;
+		/* skip if the reservation is for the blob */
+		if (base == self_base && size == self_size)
+			continue;
 		DBG("reserving: %llx -> %llx\n", base, size);
 		lmb_reserve(base, size);
 	}
@@ -1292,17 +1336,25 @@ void __init early_init_devtree(void *params)
 	lmb_init();
 	of_scan_flat_dt(early_init_dt_scan_root, NULL);
 	of_scan_flat_dt(early_init_dt_scan_memory, NULL);
+
+	/* Save command line for /proc/cmdline and then parse parameters */
+	strlcpy(saved_command_line, cmd_line, COMMAND_LINE_SIZE);
+	parse_early_param();
+
+	/* Reserve LMB regions used by kernel, initrd, dt, etc... */
+	lmb_reserve(PHYSICAL_START, __pa(klimit) - PHYSICAL_START);
+	reserve_kdump_trampoline();
+	reserve_crashkernel();
+	early_reserve_mem();
+
 	lmb_enforce_memory_limit(memory_limit);
 	lmb_analyze();
 
 	DBG("Phys. mem: %lx\n", lmb_phys_mem_size());
 
-	/* Reserve LMB regions used by kernel, initrd, dt, etc... */
-	lmb_reserve(PHYSICAL_START, __pa(klimit) - PHYSICAL_START);
-#ifdef CONFIG_CRASH_DUMP
-	lmb_reserve(0, KDUMP_RESERVE_LIMIT);
-#endif
-	early_reserve_mem();
+	/* We may need to relocate the flat tree, do it now.
+	 * FIXME .. and the initrd too? */
+	move_device_tree();
 
 	DBG("Scanning CPUs ...\n");
 
@@ -2053,29 +2105,46 @@ int prom_update_property(struct device_node *np,
 	return 0;
 }
 
-#ifdef CONFIG_KEXEC
-/* We may have allocated the flat device tree inside the crash kernel region
- * in prom_init. If so we need to move it out into regular memory. */
-void kdump_move_device_tree(void)
+
+/* Find the device node for a given logical cpu number, also returns the cpu
+ * local thread number (index in ibm,interrupt-server#s) if relevant and
+ * asked for (non NULL)
+ */
+struct device_node *of_get_cpu_node(int cpu, unsigned int *thread)
 {
-	unsigned long start, end;
-	struct boot_param_header *new;
+	int hardid;
+	struct device_node *np;
 
-	start = __pa((unsigned long)initial_boot_params);
-	end = start + initial_boot_params->totalsize;
+	hardid = get_hard_smp_processor_id(cpu);
 
-	if (end < crashk_res.start || start > crashk_res.end)
-		return;
+	for_each_node_by_type(np, "cpu") {
+		u32 *intserv;
+		unsigned int plen, t;
 
-	new = (struct boot_param_header*)
-		__va(lmb_alloc(initial_boot_params->totalsize, PAGE_SIZE));
-
-	memcpy(new, initial_boot_params, initial_boot_params->totalsize);
-
-	initial_boot_params = new;
-
-	DBG("Flat device tree blob moved to %p\n", initial_boot_params);
-
-	/* XXX should we unreserve the old DT? */
+		/* Check for ibm,ppc-interrupt-server#s. If it doesn't exist
+		 * fallback to "reg" property and assume no threads
+		 */
+		intserv = (u32 *)get_property(np, "ibm,ppc-interrupt-server#s",
+					      &plen);
+		if (intserv == NULL) {
+			u32 *reg = (u32 *)get_property(np, "reg", NULL);
+			if (reg == NULL)
+				continue;
+			if (*reg == hardid) {
+				if (thread)
+					*thread = 0;
+				return np;
+			}
+		} else {
+			plen /= sizeof(u32);
+			for (t = 0; t < plen; t++) {
+				if (hardid == intserv[t]) {
+					if (thread)
+						*thread = t;
+					return np;
+				}
+			}
+		}
+	}
+	return NULL;
 }
-#endif /* CONFIG_KEXEC */

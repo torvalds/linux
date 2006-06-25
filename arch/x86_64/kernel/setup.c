@@ -47,6 +47,7 @@
 #include <linux/dmi.h>
 #include <linux/dma-mapping.h>
 #include <linux/ctype.h>
+#include <linux/suspend.h>
 
 #include <asm/mtrr.h>
 #include <asm/uaccess.h>
@@ -594,6 +595,100 @@ static void discover_ebda(void)
 	if (ebda_size > 64*1024)
 		ebda_size = 64*1024;
 }
+
+#ifdef CONFIG_SOFTWARE_SUSPEND
+static void __init mark_nosave_page_range(unsigned long start, unsigned long end)
+{
+	struct page *page;
+	while (start <= end) {
+		page = pfn_to_page(start);
+		SetPageNosave(page);
+		start++;
+	}
+}
+
+static void __init e820_nosave_reserved_pages(void)
+{
+	int i;
+	unsigned long r_start = 0, r_end = 0;
+
+	/* Assume e820 map is sorted */
+	for (i = 0; i < e820.nr_map; i++) {
+		struct e820entry *ei = &e820.map[i];
+		unsigned long start, end;
+
+		start = round_down(ei->addr, PAGE_SIZE);
+		end = round_up(ei->addr + ei->size, PAGE_SIZE);
+		if (start >= end)
+			continue;
+		if (ei->type == E820_RESERVED)
+			continue;
+		r_end = start>>PAGE_SHIFT;
+		/* swsusp ignores invalid pfn, ignore these pages here */
+		if (r_end > end_pfn)
+			r_end = end_pfn;
+		if (r_end > r_start)
+			mark_nosave_page_range(r_start, r_end-1);
+		if (r_end >= end_pfn)
+			break;
+		r_start = end>>PAGE_SHIFT;
+	}
+}
+
+static void __init e820_save_acpi_pages(void)
+{
+	int i;
+
+	/* Assume e820 map is sorted */
+	for (i = 0; i < e820.nr_map; i++) {
+		struct e820entry *ei = &e820.map[i];
+		unsigned long start, end;
+
+		start = ei->addr, PAGE_SIZE;
+		end = ei->addr + ei->size;
+		if (start >= end)
+			continue;
+		if (ei->type != E820_ACPI && ei->type != E820_NVS)
+			continue;
+		/*
+		 * If the region is below end_pfn, it will be
+		 * saved/restored by swsusp follow 'RAM' type.
+		 */
+		if (start < (end_pfn << PAGE_SHIFT))
+			start = end_pfn << PAGE_SHIFT;
+		if (end > start)
+			swsusp_add_arch_pages(start, end);
+	}
+}
+
+extern char __start_rodata, __end_rodata;
+/*
+ * BIOS reserved region/hole - no save/restore
+ * ACPI NVS - save/restore
+ * ACPI Data - this is a little tricky, the mem could be used by OS after OS
+ * reads tables from the region, but anyway save/restore the memory hasn't any
+ * side effect and Linux runtime module load/unload might use it.
+ * kernel rodata - no save/restore (kernel rodata isn't changed)
+ */
+static int __init mark_nosave_pages(void)
+{
+	unsigned long pfn_start, pfn_end;
+
+	/* BIOS reserved regions & holes */
+	e820_nosave_reserved_pages();
+
+	/* kernel rodata */
+	pfn_start = round_up(__pa_symbol(&__start_rodata), PAGE_SIZE) >> PAGE_SHIFT;
+	pfn_end = round_down(__pa_symbol(&__end_rodata), PAGE_SIZE) >> PAGE_SHIFT;
+	mark_nosave_page_range(pfn_start, pfn_end-1);
+
+	/* record ACPI Data/NVS as saveable */
+	e820_save_acpi_pages();
+
+	return 0;
+}
+core_initcall(mark_nosave_pages);
+#endif
 
 void __init setup_arch(char **cmdline_p)
 {

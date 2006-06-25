@@ -231,8 +231,7 @@ do_non_resident_extend:
 		 * Read the page.  If the page is not present, this will zero
 		 * the uninitialized regions for us.
 		 */
-		page = read_cache_page(mapping, index,
-				(filler_t*)mapping->a_ops->readpage, NULL);
+		page = read_mapping_page(mapping, index, NULL);
 		if (IS_ERR(page)) {
 			err = PTR_ERR(page);
 			goto init_err_out;
@@ -1484,14 +1483,15 @@ static inline void ntfs_flush_dcache_pages(struct page **pages,
 		unsigned nr_pages)
 {
 	BUG_ON(!nr_pages);
+	/*
+	 * Warning: Do not do the decrement at the same time as the call to
+	 * flush_dcache_page() because it is a NULL macro on i386 and hence the
+	 * decrement never happens so the loop never terminates.
+	 */
 	do {
-		/*
-		 * Warning: Do not do the decrement at the same time as the
-		 * call because flush_dcache_page() is a NULL macro on i386
-		 * and hence the decrement never happens.
-		 */
+		--nr_pages;
 		flush_dcache_page(pages[nr_pages]);
-	} while (--nr_pages > 0);
+	} while (nr_pages > 0);
 }
 
 /**

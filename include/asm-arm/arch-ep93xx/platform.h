@@ -8,6 +8,7 @@ void ep93xx_map_io(void);
 void ep93xx_init_irq(void);
 void ep93xx_init_time(unsigned long);
 void ep93xx_init_devices(void);
+void ep93xx_clock_init(void);
 extern struct sys_timer ep93xx_timer;
 
 

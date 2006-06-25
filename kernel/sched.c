@@ -3886,6 +3886,10 @@ long sched_setaffinity(pid_t pid, cpumask_t new_mask)
 			!capable(CAP_SYS_NICE))
 		goto out_unlock;
 
+	retval = security_task_setscheduler(p, 0, NULL);
+	if (retval)
+		goto out_unlock;
+
 	cpus_allowed = cpuset_cpus_allowed(p);
 	cpus_and(new_mask, new_mask, cpus_allowed);
 	retval = set_cpus_allowed(p, new_mask);
@@ -3954,7 +3958,10 @@ long sched_getaffinity(pid_t pid, cpumask_t *mask)
 	if (!p)
 		goto out_unlock;
 
-	retval = 0;
+	retval = security_task_getscheduler(p);
+	if (retval)
+		goto out_unlock;
+
 	cpus_and(*mask, p->cpus_allowed, cpu_online_map);
 
 out_unlock:
@@ -4046,6 +4053,9 @@ asmlinkage long sys_sched_yield(void)
 
 static inline void __cond_resched(void)
 {
+#ifdef CONFIG_DEBUG_SPINLOCK_SLEEP
+	__might_sleep(__FILE__, __LINE__);
+#endif
 	/*
 	 * The BKS might be reacquired before we have dropped
 	 * PREEMPT_ACTIVE, which could trigger a second

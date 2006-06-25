@@ -53,9 +53,29 @@ static int __init espresso_pci_init(void)
 };
 subsys_initcall(espresso_pci_init);
 
+static struct physmap_flash_data espresso_flash_data = {
+	.width		= 2,
+};
+
+static struct resource espresso_flash_resource = {
+	.start		= 0x90000000,
+	.end		= 0x92000000,
+	.flags		= IORESOURCE_MEM,
+};
+
+static struct platform_device espresso_flash = {
+	.name		= "physmap-flash",
+	.id		= 0,
+	.dev		= {
+		.platform_data	= &espresso_flash_data,
+	},
+	.num_resources	= 1,
+	.resource	= &espresso_flash_resource,
+};
+
 static void __init espresso_init(void)
 {
-	physmap_configure(0x90000000, 0x02000000, 2, NULL);
+	platform_device_register(&espresso_flash);
 
 	/*
 	 * Mark flash as writeable.

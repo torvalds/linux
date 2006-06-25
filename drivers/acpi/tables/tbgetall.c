@@ -77,7 +77,7 @@ acpi_tb_get_primary_table(struct acpi_pointer *address,
 	acpi_status status;
 	struct acpi_table_header header;
 
-	ACPI_FUNCTION_TRACE("tb_get_primary_table");
+	ACPI_FUNCTION_TRACE(tb_get_primary_table);
 
 	/* Ignore a NULL address in the RSDT */
 
@@ -140,7 +140,7 @@ acpi_tb_get_secondary_table(struct acpi_pointer *address,
 	acpi_status status;
 	struct acpi_table_header header;
 
-	ACPI_FUNCTION_TRACE_STR("tb_get_secondary_table", signature);
+	ACPI_FUNCTION_TRACE_STR(tb_get_secondary_table, signature);
 
 	/* Get the header in order to match the signature */
 
@@ -151,7 +151,7 @@ acpi_tb_get_secondary_table(struct acpi_pointer *address,
 
 	/* Signature must match request */
 
-	if (ACPI_STRNCMP(header.signature, signature, ACPI_NAME_SIZE)) {
+	if (!ACPI_COMPARE_NAME(header.signature, signature)) {
 		ACPI_ERROR((AE_INFO,
 			    "Incorrect table signature - wanted [%s] found [%4.4s]",
 			    signature, header.signature));
@@ -207,7 +207,7 @@ acpi_status acpi_tb_get_required_tables(void)
 	struct acpi_table_desc table_info;
 	struct acpi_pointer address;
 
-	ACPI_FUNCTION_TRACE("tb_get_required_tables");
+	ACPI_FUNCTION_TRACE(tb_get_required_tables);
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "%d ACPI tables in RSDT\n",
 			  acpi_gbl_rsdt_table_count));
@@ -223,6 +223,7 @@ acpi_status acpi_tb_get_required_tables(void)
 	 * any SSDTs.
 	 */
 	for (i = 0; i < acpi_gbl_rsdt_table_count; i++) {
+
 		/* Get the table address from the common internal XSDT */
 
 		address.pointer.value = acpi_gbl_XSDT->table_offset_entry[i];
@@ -305,6 +306,6 @@ acpi_status acpi_tb_get_required_tables(void)
 
 	/* Always delete the RSDP mapping, we are done with it */
 
-	acpi_tb_delete_tables_by_type(ACPI_TABLE_RSDP);
+	acpi_tb_delete_tables_by_type(ACPI_TABLE_ID_RSDP);
 	return_ACPI_STATUS(status);
 }

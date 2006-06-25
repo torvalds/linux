@@ -171,6 +171,7 @@ config THERM_PM72
 
 config WINDFARM
 	tristate "New PowerMac thermal control infrastructure"
+	depends on PPC
 
 config WINDFARM_PM81
 	tristate "Support for thermal management on iMac G5"

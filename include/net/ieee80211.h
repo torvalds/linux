@@ -968,6 +968,7 @@ enum ieee80211_state {
 
 enum {
 	IEEE80211_CH_PASSIVE_ONLY = (1 << 0),
+	IEEE80211_CH_80211H_RULES = (1 << 1),
 	IEEE80211_CH_B_ONLY = (1 << 2),
 	IEEE80211_CH_NO_IBSS = (1 << 3),
 	IEEE80211_CH_UNIFORM_SPREADING = (1 << 4),
@@ -976,10 +977,10 @@ enum {
 };
 
 struct ieee80211_channel {
-	u32 freq;
+	u32 freq;	/* in MHz */
 	u8 channel;
 	u8 flags;
-	u8 max_power;
+	u8 max_power;	/* in dBm */
 };
 
 struct ieee80211_geo {

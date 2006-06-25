@@ -92,10 +92,6 @@ static int at91rm9200_irq_type(unsigned irq, unsigned type)
 {
 	unsigned int smr, srctype;
 
-	/* change triggering only for FIQ and external IRQ0..IRQ6 */
-	if ((irq < AT91_ID_IRQ0) && (irq != AT91_ID_FIQ))
-		return -EINVAL;
-
 	switch (type) {
 	case IRQT_HIGH:
 		srctype = AT91_AIC_SRCTYPE_HIGH;
@@ -104,9 +100,13 @@ static int at91rm9200_irq_type(unsigned irq, unsigned type)
 		srctype = AT91_AIC_SRCTYPE_RISING;
 		break;
 	case IRQT_LOW:
+		if ((irq > AT91_ID_FIQ) && (irq < AT91_ID_IRQ0))	/* only supported on external interrupts */
+			return -EINVAL;
 		srctype = AT91_AIC_SRCTYPE_LOW;
 		break;
 	case IRQT_FALLING:
+		if ((irq > AT91_ID_FIQ) && (irq < AT91_ID_IRQ0))	/* only supported on external interrupts */
+			return -EINVAL;
 		srctype = AT91_AIC_SRCTYPE_FALLING;
 		break;
 	default:
@@ -118,11 +118,47 @@ static int at91rm9200_irq_type(unsigned irq, unsigned type)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+
+static u32 wakeups;
+static u32 backups;
+
+static int at91rm9200_irq_set_wake(unsigned irq, unsigned value)
+{
+	if (unlikely(irq >= 32))
+		return -EINVAL;
+
+	if (value)
+		wakeups |= (1 << irq);
+	else
+		wakeups &= ~(1 << irq);
+
+	return 0;
+}
+
+void at91_irq_suspend(void)
+{
+	backups = at91_sys_read(AT91_AIC_IMR);
+	at91_sys_write(AT91_AIC_IDCR, backups);
+	at91_sys_write(AT91_AIC_IECR, wakeups);
+}
+
+void at91_irq_resume(void)
+{
+	at91_sys_write(AT91_AIC_IDCR, wakeups);
+	at91_sys_write(AT91_AIC_IECR, backups);
+}
+
+#else
+#define at91rm9200_irq_set_wake	NULL
+#endif
+
 static struct irqchip at91rm9200_irq_chip = {
 	.ack		= at91rm9200_mask_irq,
 	.mask		= at91rm9200_mask_irq,
 	.unmask		= at91rm9200_unmask_irq,
 	.set_type	= at91rm9200_irq_type,
+	.set_wake	= at91rm9200_irq_set_wake,
 };
 
 /*

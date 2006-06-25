@@ -27,6 +27,24 @@ typedef struct xfs_extent {
 } xfs_extent_t;
 
 /*
+ * Since an xfs_extent_t has types (start:64, len: 32)
+ * there are different alignments on 32 bit and 64 bit kernels.
+ * So we provide the different variants for use by a
+ * conversion routine.
+ */
+
+typedef struct xfs_extent_32 {
+	xfs_dfsbno_t	ext_start;
+	xfs_extlen_t	ext_len;
+} __attribute__((packed)) xfs_extent_32_t;
+
+typedef struct xfs_extent_64 {
+	xfs_dfsbno_t	ext_start;
+	xfs_extlen_t	ext_len;
+	__uint32_t	ext_pad;
+} xfs_extent_64_t;
+
+/*
  * This is the structure used to lay out an efi log item in the
  * log.  The efi_extents field is a variable size array whose
  * size is given by efi_nextents.
@@ -38,6 +56,22 @@ typedef struct xfs_efi_log_format {
 	__uint64_t		efi_id;		/* efi identifier */
 	xfs_extent_t		efi_extents[1];	/* array of extents to free */
 } xfs_efi_log_format_t;
+
+typedef struct xfs_efi_log_format_32 {
+	unsigned short		efi_type;	/* efi log item type */
+	unsigned short		efi_size;	/* size of this item */
+	uint			efi_nextents;	/* # extents to free */
+	__uint64_t		efi_id;		/* efi identifier */
+	xfs_extent_32_t		efi_extents[1];	/* array of extents to free */
+} __attribute__((packed)) xfs_efi_log_format_32_t;
+
+typedef struct xfs_efi_log_format_64 {
+	unsigned short		efi_type;	/* efi log item type */
+	unsigned short		efi_size;	/* size of this item */
+	uint			efi_nextents;	/* # extents to free */
+	__uint64_t		efi_id;		/* efi identifier */
+	xfs_extent_64_t		efi_extents[1];	/* array of extents to free */
+} xfs_efi_log_format_64_t;
 
 /*
  * This is the structure used to lay out an efd log item in the
@@ -51,6 +85,22 @@ typedef struct xfs_efd_log_format {
 	__uint64_t		efd_efi_id;	/* id of corresponding efi */
 	xfs_extent_t		efd_extents[1];	/* array of extents freed */
 } xfs_efd_log_format_t;
+
+typedef struct xfs_efd_log_format_32 {
+	unsigned short		efd_type;	/* efd log item type */
+	unsigned short		efd_size;	/* size of this item */
+	uint			efd_nextents;	/* # of extents freed */
+	__uint64_t		efd_efi_id;	/* id of corresponding efi */
+	xfs_extent_32_t		efd_extents[1];	/* array of extents freed */
+} __attribute__((packed)) xfs_efd_log_format_32_t;
+
+typedef struct xfs_efd_log_format_64 {
+	unsigned short		efd_type;	/* efd log item type */
+	unsigned short		efd_size;	/* size of this item */
+	uint			efd_nextents;	/* # of extents freed */
+	__uint64_t		efd_efi_id;	/* id of corresponding efi */
+	xfs_extent_64_t		efd_extents[1];	/* array of extents freed */
+} xfs_efd_log_format_64_t;
 
 
 #ifdef __KERNEL__
@@ -103,7 +153,8 @@ extern struct kmem_zone	*xfs_efd_zone;
 xfs_efi_log_item_t	*xfs_efi_init(struct xfs_mount *, uint);
 xfs_efd_log_item_t	*xfs_efd_init(struct xfs_mount *, xfs_efi_log_item_t *,
 				      uint);
-
+int			xfs_efi_copy_format(xfs_log_iovec_t *buf,
+					    xfs_efi_log_format_t *dst_efi_fmt);
 void			xfs_efi_item_free(xfs_efi_log_item_t *);
 
 #endif	/* __KERNEL__ */

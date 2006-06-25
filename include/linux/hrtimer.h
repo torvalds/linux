@@ -127,7 +127,7 @@ extern ktime_t hrtimer_get_next_event(void);
 
 static inline int hrtimer_active(const struct hrtimer *timer)
 {
-	return timer->node.rb_parent != HRTIMER_INACTIVE;
+	return rb_parent(&timer->node) != &timer->node;
 }
 
 /* Forward a hrtimer so it expires after now: */

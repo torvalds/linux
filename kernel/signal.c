@@ -23,12 +23,12 @@
 #include <linux/syscalls.h>
 #include <linux/ptrace.h>
 #include <linux/signal.h>
-#include <linux/audit.h>
 #include <linux/capability.h>
 #include <asm/param.h>
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
 #include <asm/siginfo.h>
+#include "audit.h"	/* audit_signal_info() */
 
 /*
  * SLAB caches for signal bits.

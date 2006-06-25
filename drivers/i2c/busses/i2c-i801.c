@@ -1,5 +1,5 @@
 /*
-    i801.c - Part of lm_sensors, Linux kernel modules for hardware
+    i2c-i801.c - Part of lm_sensors, Linux kernel modules for hardware
               monitoring
     Copyright (c) 1998 - 2002  Frodo Looijaard <frodol@dds.nl>,
     Philip Edelbrock <phil@netroedge.com>, and Mark D. Studebaker
@@ -36,7 +36,7 @@
     This driver supports several versions of Intel's I/O Controller Hubs (ICH).
     For SMBus support, they are similar to the PIIX4 and are part
     of Intel's '810' and other chipsets.
-    See the doc/busses/i2c-i801 file for details.
+    See the file Documentation/i2c/busses/i2c-i801 for details.
     I2C Block Read and Process Call are not supported.
 */
 
@@ -66,9 +66,8 @@
 #define SMBAUXCTL	(13 + i801_smba)	/* ICH4 only */
 
 /* PCI Address Constants */
-#define SMBBA		0x020
+#define SMBBAR		4
 #define SMBHSTCFG	0x040
-#define SMBREV		0x008
 
 /* Host configuration bits for SMBHSTCFG */
 #define SMBHSTCFG_HST_EN	1
@@ -92,91 +91,15 @@
 #define I801_START		0x40
 #define I801_PEC_EN		0x80	/* ICH4 only */
 
-/* insmod parameters */
-
-/* If force_addr is set to anything different from 0, we forcibly enable
-   the I801 at the given address. VERY DANGEROUS! */
-static u16 force_addr;
-module_param(force_addr, ushort, 0);
-MODULE_PARM_DESC(force_addr,
-		 "Forcibly enable the I801 at the given address. "
-		 "EXTREMELY DANGEROUS!");
 
 static int i801_transaction(void);
 static int i801_block_transaction(union i2c_smbus_data *data, char read_write,
 				  int command, int hwpec);
 
-static unsigned short i801_smba;
+static unsigned long i801_smba;
 static struct pci_driver i801_driver;
 static struct pci_dev *I801_dev;
 static int isich4;
-
-static int i801_setup(struct pci_dev *dev)
-{
-	int error_return = 0;
-	unsigned char temp;
-
-	/* Note: we keep on searching until we have found 'function 3' */
-	if(PCI_FUNC(dev->devfn) != 3)
-		return -ENODEV;
-
-	I801_dev = dev;
-	if ((dev->device == PCI_DEVICE_ID_INTEL_82801DB_3) ||
-	    (dev->device == PCI_DEVICE_ID_INTEL_82801EB_3) ||
-	    (dev->device == PCI_DEVICE_ID_INTEL_ESB_4))
-		isich4 = 1;
-	else
-		isich4 = 0;
-
-	/* Determine the address of the SMBus areas */
-	if (force_addr) {
-		i801_smba = force_addr & 0xfff0;
-	} else {
-		pci_read_config_word(I801_dev, SMBBA, &i801_smba);
-		i801_smba &= 0xfff0;
-		if(i801_smba == 0) {
-			dev_err(&dev->dev, "SMB base address uninitialized "
-				"- upgrade BIOS or use force_addr=0xaddr\n");
-			return -ENODEV;
-		}
-	}
-
-	if (!request_region(i801_smba, (isich4 ? 16 : 8), i801_driver.name)) {
-		dev_err(&dev->dev, "I801_smb region 0x%x already in use!\n",
-			i801_smba);
-		error_return = -EBUSY;
-		goto END;
-	}
-
-	pci_read_config_byte(I801_dev, SMBHSTCFG, &temp);
-	temp &= ~SMBHSTCFG_I2C_EN;	/* SMBus timing */
-	pci_write_config_byte(I801_dev, SMBHSTCFG, temp);
-
-	/* If force_addr is set, we program the new address here. Just to make
-	   sure, we disable the device first. */
-	if (force_addr) {
-		pci_write_config_byte(I801_dev, SMBHSTCFG, temp & 0xfe);
-		pci_write_config_word(I801_dev, SMBBA, i801_smba);
-		pci_write_config_byte(I801_dev, SMBHSTCFG, temp | 0x01);
-		dev_warn(&dev->dev, "WARNING: I801 SMBus interface set to "
-			"new address %04x!\n", i801_smba);
-	} else if ((temp & 1) == 0) {
-		pci_write_config_byte(I801_dev, SMBHSTCFG, temp | 1);
-		dev_warn(&dev->dev, "enabling SMBus device\n");
-	}
-
-	if (temp & 0x02)
-		dev_dbg(&dev->dev, "I801 using Interrupt SMI# for SMBus.\n");
-	else
-		dev_dbg(&dev->dev, "I801 using PCI Interrupt for SMBus.\n");
-
-	pci_read_config_byte(I801_dev, SMBREV, &temp);
-	dev_dbg(&dev->dev, "SMBREV = 0x%X\n", temp);
-	dev_dbg(&dev->dev, "I801_smba = 0x%X\n", i801_smba);
-
-END:
-	return error_return;
-}
 
 static int i801_transaction(void)
 {
@@ -334,8 +257,8 @@ static int i801_block_transaction(union i2c_smbus_data *data, char read_write,
 		/* We will always wait for a fraction of a second! */
 		timeout = 0;
 		do {
-			temp = inb_p(SMBHSTSTS);
 			msleep(1);
+			temp = inb_p(SMBHSTSTS);
 		}
 		    while ((!(temp & 0x80))
 			   && (timeout++ < MAX_TIMEOUT));
@@ -393,8 +316,8 @@ static int i801_block_transaction(union i2c_smbus_data *data, char read_write,
 		/* wait for INTR bit as advised by Intel */
 		timeout = 0;
 		do {
-			temp = inb_p(SMBHSTSTS);
 			msleep(1);
+			temp = inb_p(SMBHSTSTS);
 		} while ((!(temp & 0x02))
 			   && (timeout++ < MAX_TIMEOUT));
 
@@ -541,25 +464,76 @@ MODULE_DEVICE_TABLE (pci, i801_ids);
 
 static int __devinit i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
+	unsigned char temp;
+	int err;
 
-	if (i801_setup(dev)) {
-		dev_warn(&dev->dev,
-			"I801 not detected, module not inserted.\n");
-		return -ENODEV;
+	I801_dev = dev;
+	if ((dev->device == PCI_DEVICE_ID_INTEL_82801DB_3) ||
+	    (dev->device == PCI_DEVICE_ID_INTEL_82801EB_3) ||
+	    (dev->device == PCI_DEVICE_ID_INTEL_ESB_4))
+		isich4 = 1;
+	else
+		isich4 = 0;
+
+	err = pci_enable_device(dev);
+	if (err) {
+		dev_err(&dev->dev, "Failed to enable SMBus PCI device (%d)\n",
+			err);
+		goto exit;
 	}
+
+	/* Determine the address of the SMBus area */
+	i801_smba = pci_resource_start(dev, SMBBAR);
+	if (!i801_smba) {
+		dev_err(&dev->dev, "SMBus base address uninitialized, "
+			"upgrade BIOS\n");
+		err = -ENODEV;
+		goto exit_disable;
+	}
+
+	err = pci_request_region(dev, SMBBAR, i801_driver.name);
+	if (err) {
+		dev_err(&dev->dev, "Failed to request SMBus region "
+			"0x%lx-0x%lx\n", i801_smba,
+			pci_resource_end(dev, SMBBAR));
+		goto exit_disable;
+	}
+
+	pci_read_config_byte(I801_dev, SMBHSTCFG, &temp);
+	temp &= ~SMBHSTCFG_I2C_EN;	/* SMBus timing */
+	if (!(temp & SMBHSTCFG_HST_EN)) {
+		dev_info(&dev->dev, "Enabling SMBus device\n");
+		temp |= SMBHSTCFG_HST_EN;
+	}
+	pci_write_config_byte(I801_dev, SMBHSTCFG, temp);
+
+	if (temp & SMBHSTCFG_SMB_SMI_EN)
+		dev_dbg(&dev->dev, "SMBus using interrupt SMI#\n");
+	else
+		dev_dbg(&dev->dev, "SMBus using PCI Interrupt\n");
 
 	/* set up the driverfs linkage to our parent device */
 	i801_adapter.dev.parent = &dev->dev;
 
 	snprintf(i801_adapter.name, I2C_NAME_SIZE,
-		"SMBus I801 adapter at %04x", i801_smba);
-	return i2c_add_adapter(&i801_adapter);
+		"SMBus I801 adapter at %04lx", i801_smba);
+	err = i2c_add_adapter(&i801_adapter);
+	if (err) {
+		dev_err(&dev->dev, "Failed to add SMBus adapter\n");
+		goto exit_disable;
+	}
+
+exit_disable:
+	pci_disable_device(dev);
+exit:
+	return err;
 }
 
 static void __devexit i801_remove(struct pci_dev *dev)
 {
 	i2c_del_adapter(&i801_adapter);
-	release_region(i801_smba, (isich4 ? 16 : 8));
+	pci_release_region(dev, SMBBAR);
+	pci_disable_device(dev);
 }
 
 static struct pci_driver i801_driver = {

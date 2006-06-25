@@ -37,8 +37,6 @@
 
 #include <linux/errno.h>
 #include <linux/types.h>
-#include <linux/spinlock.h>
-#include <linux/mutex.h>
 
 #define __DQUOT_VERSION__	"dquot_6.5.1"
 #define __DQUOT_NUM_VERSION__	6*10000+5*100+1
@@ -133,6 +131,8 @@ struct if_dqinfo {
 };
 
 #ifdef __KERNEL__
+#include <linux/spinlock.h>
+#include <linux/mutex.h>
 
 #include <linux/dqblk_xfs.h>
 #include <linux/dqblk_v1.h>

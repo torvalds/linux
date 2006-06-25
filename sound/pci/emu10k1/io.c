@@ -62,6 +62,8 @@ unsigned int snd_emu10k1_ptr_read(struct snd_emu10k1 * emu, unsigned int reg, un
 	}
 }
 
+EXPORT_SYMBOL(snd_emu10k1_ptr_read);
+
 void snd_emu10k1_ptr_write(struct snd_emu10k1 *emu, unsigned int reg, unsigned int chn, unsigned int data)
 {
 	unsigned int regptr;
@@ -91,6 +93,8 @@ void snd_emu10k1_ptr_write(struct snd_emu10k1 *emu, unsigned int reg, unsigned i
 		spin_unlock_irqrestore(&emu->emu_lock, flags);
 	}
 }
+
+EXPORT_SYMBOL(snd_emu10k1_ptr_write);
 
 unsigned int snd_emu10k1_ptr20_read(struct snd_emu10k1 * emu, 
 					  unsigned int reg, 

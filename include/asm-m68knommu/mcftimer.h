@@ -12,7 +12,6 @@
 #define	mcftimer_h
 /****************************************************************************/
 
-#include <linux/config.h>
 
 /*
  *	Get address specific defines for this ColdFire member.

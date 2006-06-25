@@ -48,7 +48,8 @@ static int call_sbin_request_key(struct key *key,
 	/* allocate a new session keyring */
 	sprintf(desc, "_req.%u", key->serial);
 
-	keyring = keyring_alloc(desc, current->fsuid, current->fsgid, 1, NULL);
+	keyring = keyring_alloc(desc, current->fsuid, current->fsgid,
+				current, 1, NULL);
 	if (IS_ERR(keyring)) {
 		ret = PTR_ERR(keyring);
 		goto error_alloc;
@@ -137,7 +138,8 @@ static struct key *__request_key_construction(struct key_type *type,
 
 	/* create a key and add it to the queue */
 	key = key_alloc(type, description,
-			current->fsuid, current->fsgid, KEY_POS_ALL, 0);
+			current->fsuid, current->fsgid,
+			current, KEY_POS_ALL, 0);
 	if (IS_ERR(key))
 		goto alloc_failed;
 

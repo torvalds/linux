@@ -115,19 +115,6 @@ static void usb_stor_blocking_completion(struct urb *urb, struct pt_regs *regs)
 
 	complete(urb_done_ptr);
 }
- 
-/* This is the timeout handler which will cancel an URB when its timeout
- * expires.
- */
-static void timeout_handler(unsigned long us_)
-{
-	struct us_data *us = (struct us_data *) us_;
-
-	if (test_and_clear_bit(US_FLIDX_URB_ACTIVE, &us->flags)) {
-		US_DEBUGP("Timeout -- cancelling URB\n");
-		usb_unlink_urb(us->current_urb);
-	}
-}
 
 /* This is the common part of the URB message submission code
  *
@@ -138,7 +125,7 @@ static void timeout_handler(unsigned long us_)
 static int usb_stor_msg_common(struct us_data *us, int timeout)
 {
 	struct completion urb_done;
-	struct timer_list to_timer;
+	long timeleft;
 	int status;
 
 	/* don't submit URBs during abort/disconnect processing */
@@ -185,22 +172,17 @@ static int usb_stor_msg_common(struct us_data *us, int timeout)
 		}
 	}
  
-	/* submit the timeout timer, if a timeout was requested */
-	if (timeout > 0) {
-		init_timer(&to_timer);
-		to_timer.expires = jiffies + timeout;
-		to_timer.function = timeout_handler;
-		to_timer.data = (unsigned long) us;
-		add_timer(&to_timer);
-	}
-
 	/* wait for the completion of the URB */
-	wait_for_completion(&urb_done);
-	clear_bit(US_FLIDX_URB_ACTIVE, &us->flags);
+	timeleft = wait_for_completion_interruptible_timeout(
+			&urb_done, timeout ? : MAX_SCHEDULE_TIMEOUT);
  
-	/* clean up the timeout timer */
-	if (timeout > 0)
-		del_timer_sync(&to_timer);
+	clear_bit(US_FLIDX_URB_ACTIVE, &us->flags);
+
+	if (timeleft <= 0) {
+		US_DEBUGP("%s -- cancelling URB\n",
+			  timeleft == 0 ? "Timeout" : "Signal");
+		usb_unlink_urb(us->current_urb);
+	}
 
 	/* return the URB status */
 	return us->current_urb->status;
@@ -721,16 +703,19 @@ void usb_stor_invoke_transport(struct scsi_cmnd *srb, struct us_data *us)
 	 * device reset. */
   Handle_Errors:
 
-	/* Let the SCSI layer know we are doing a reset, set the
-	 * RESETTING bit, and clear the ABORTING bit so that the reset
-	 * may proceed. */
+	/* Set the RESETTING bit, and clear the ABORTING bit so that
+	 * the reset may proceed. */
 	scsi_lock(us_to_host(us));
-	usb_stor_report_bus_reset(us);
 	set_bit(US_FLIDX_RESETTING, &us->flags);
 	clear_bit(US_FLIDX_ABORTING, &us->flags);
 	scsi_unlock(us_to_host(us));
 
+	/* We must release the device lock because the pre_reset routine
+	 * will want to acquire it. */
+	mutex_unlock(&us->dev_mutex);
 	result = usb_stor_port_reset(us);
+	mutex_lock(&us->dev_mutex);
+
 	if (result < 0) {
 		scsi_lock(us_to_host(us));
 		usb_stor_report_device_reset(us);
@@ -1214,31 +1199,30 @@ int usb_stor_Bulk_reset(struct us_data *us)
 				 0, us->ifnum, NULL, 0);
 }
 
-/* Issue a USB port reset to the device.  But don't do anything if
- * there's more than one interface in the device, so that other users
- * are not affected. */
+/* Issue a USB port reset to the device.  The caller must not hold
+ * us->dev_mutex.
+ */
 int usb_stor_port_reset(struct us_data *us)
 {
-	int result, rc;
+	int result, rc_lock;
 
-	if (test_bit(US_FLIDX_DISCONNECTING, &us->flags)) {
-		result = -EIO;
-		US_DEBUGP("No reset during disconnect\n");
-	} else if (us->pusb_dev->actconfig->desc.bNumInterfaces != 1) {
-		result = -EBUSY;
-		US_DEBUGP("Refusing to reset a multi-interface device\n");
-	} else {
-		result = rc =
-			usb_lock_device_for_reset(us->pusb_dev, us->pusb_intf);
-		if (result < 0) {
-			US_DEBUGP("unable to lock device for reset: %d\n",
-					result);
+	result = rc_lock =
+		usb_lock_device_for_reset(us->pusb_dev, us->pusb_intf);
+	if (result < 0)
+		US_DEBUGP("unable to lock device for reset: %d\n", result);
+	else {
+		/* Were we disconnected while waiting for the lock? */
+		if (test_bit(US_FLIDX_DISCONNECTING, &us->flags)) {
+			result = -EIO;
+			US_DEBUGP("No reset during disconnect\n");
 		} else {
-			result = usb_reset_device(us->pusb_dev);
-			if (rc)
-				usb_unlock_device(us->pusb_dev);
-			US_DEBUGP("usb_reset_device returns %d\n", result);
+			result = usb_reset_composite_device(
+					us->pusb_dev, us->pusb_intf);
+			US_DEBUGP("usb_reset_composite_device returns %d\n",
+					result);
 		}
+		if (rc_lock)
+			usb_unlock_device(us->pusb_dev);
 	}
 	return result;
 }

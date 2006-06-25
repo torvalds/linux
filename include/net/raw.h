@@ -17,7 +17,6 @@
 #ifndef _RAW_H
 #define _RAW_H
 
-#include <linux/config.h>
 
 #include <net/protocol.h>
 

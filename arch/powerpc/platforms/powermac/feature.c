@@ -2510,7 +2510,7 @@ found:
 		if (get_property(np, "flush-on-lock", NULL))
 			break;
 		powersave_nap = 1;
-		printk(KERN_INFO "Processor NAP mode on idle enabled.\n");
+		printk(KERN_DEBUG "Processor NAP mode on idle enabled.\n");
 		break;
 	}
 

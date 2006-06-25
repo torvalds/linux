@@ -31,4 +31,11 @@ static inline int getprop(void *phandle, const char *name,
 	return call_prom("getprop", 4, 1, phandle, name, buf, buflen);
 }
 
+
+static inline int setprop(void *phandle, const char *name,
+			  void *buf, int buflen)
+{
+	return call_prom("setprop", 4, 1, phandle, name, buf, buflen);
+}
+
 #endif				/* _PPC_BOOT_PROM_H_ */

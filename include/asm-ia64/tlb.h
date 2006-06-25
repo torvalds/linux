@@ -37,7 +37,6 @@
  *	}
  *	tlb_finish_mmu(tlb, start, end);	// finish unmap for address space MM
  */
-#include <linux/config.h>
 #include <linux/mm.h>
 #include <linux/pagemap.h>
 #include <linux/swap.h>

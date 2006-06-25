@@ -10,7 +10,6 @@
 
 #ifdef __KERNEL__
 
-#include <linux/config.h>
 
 #endif
 

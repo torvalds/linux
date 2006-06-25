@@ -171,6 +171,12 @@
 #define dbg_memalloc(fmt, ...)
 #endif
 
+/* Watch the XATTR subsystem */
+#ifdef JFFS2_DBG_XATTR_MESSAGES
+#define dbg_xattr(fmt, ...)  JFFS2_DEBUG(fmt, ##__VA_ARGS__)
+#else
+#define dbg_xattr(fmt, ...)
+#endif 
 
 /* "Sanity" checks */
 void

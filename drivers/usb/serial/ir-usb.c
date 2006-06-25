@@ -408,7 +408,7 @@ static void ir_write_bulk_callback (struct urb *urb, struct pt_regs *regs)
 		urb->actual_length,
 		urb->transfer_buffer);
 
-	schedule_work(&port->work);
+	usb_serial_port_softint(port);
 }
 
 static void ir_read_bulk_callback (struct urb *urb, struct pt_regs *regs)

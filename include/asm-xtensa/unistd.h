@@ -11,8 +11,6 @@
 #ifndef _XTENSA_UNISTD_H
 #define _XTENSA_UNISTD_H
 
-#include <linux/linkage.h>
-
 #define __NR_spill		  0
 #define __NR_exit		  1
 #define __NR_read		  3
@@ -221,21 +219,9 @@
 #define SYSXTENSA_COUNT		   5	/* count of syscall0 functions*/
 
 #ifdef __KERNEL__
-#define __syscall_return(type, res) return ((type)(res))
-#else
-#define __syscall_return(type, res) \
-do { \
-	if ((unsigned long)(res) >= (unsigned long)(-125)) { \
-	/* Avoid using "res" which is declared to be in register r2; \
-	 * errno might expand to a function call and clobber it.  */ \
-		int __err = -(res); \
-		errno = __err; \
-		res = -1; \
-	} \
-	return (type) (res); \
-} while (0)
-#endif
+#include <linux/linkage.h>
 
+#define __syscall_return(type, res) return ((type)(res))
 
 /* Tensilica's xt-xcc compiler is much more agressive at code
  * optimization than gcc.  Multiple __asm__ statements are
@@ -429,11 +415,10 @@ static __inline__ _syscall3(int,execve,const char*,file,char**,argv,char**,envp)
  */
 #define cond_syscall(x) asm(".weak\t" #x "\n\t.set\t" #x ",sys_ni_syscall");
 
-#ifdef __KERNEL__
 #define __ARCH_WANT_STAT64
 #define __ARCH_WANT_SYS_UTIME
 #define __ARCH_WANT_SYS_LLSEEK
 #define __ARCH_WANT_SYS_RT_SIGACTION
-#endif
+#endif /* __KERNEL__ */
 
 #endif	/* _XTENSA_UNISTD_H */

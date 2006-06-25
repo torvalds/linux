@@ -267,7 +267,7 @@ static void set_ioapic_affinity_irq(unsigned int irq, cpumask_t cpumask)
 # include <linux/slab.h>		/* kmalloc() */
 # include <linux/timer.h>	/* time_after() */
  
-# ifdef CONFIG_BALANCED_IRQ_DEBUG
+#ifdef CONFIG_BALANCED_IRQ_DEBUG
 #  define TDprintk(x...) do { printk("<%ld:%s:%d>: ", jiffies, __FILE__, __LINE__); printk(x); } while (0)
 #  define Dprintk(x...) do { TDprintk(x); } while (0)
 # else
@@ -275,10 +275,15 @@ static void set_ioapic_affinity_irq(unsigned int irq, cpumask_t cpumask)
 #  define Dprintk(x...) 
 # endif
 
-
 #define IRQBALANCE_CHECK_ARCH -999
-static int irqbalance_disabled = IRQBALANCE_CHECK_ARCH;
-static int physical_balance = 0;
+#define MAX_BALANCED_IRQ_INTERVAL	(5*HZ)
+#define MIN_BALANCED_IRQ_INTERVAL	(HZ/2)
+#define BALANCED_IRQ_MORE_DELTA		(HZ/10)
+#define BALANCED_IRQ_LESS_DELTA		(HZ)
+
+static int irqbalance_disabled __read_mostly = IRQBALANCE_CHECK_ARCH;
+static int physical_balance __read_mostly;
+static long balanced_irq_interval __read_mostly = MAX_BALANCED_IRQ_INTERVAL;
 
 static struct irq_cpu_info {
 	unsigned long * last_irq;
@@ -297,12 +302,14 @@ static struct irq_cpu_info {
 
 #define CPU_TO_PACKAGEINDEX(i) (first_cpu(cpu_sibling_map[i]))
 
-#define MAX_BALANCED_IRQ_INTERVAL	(5*HZ)
-#define MIN_BALANCED_IRQ_INTERVAL	(HZ/2)
-#define BALANCED_IRQ_MORE_DELTA		(HZ/10)
-#define BALANCED_IRQ_LESS_DELTA		(HZ)
+static cpumask_t balance_irq_affinity[NR_IRQS] = {
+	[0 ... NR_IRQS-1] = CPU_MASK_ALL
+};
 
-static long balanced_irq_interval = MAX_BALANCED_IRQ_INTERVAL;
+void set_balance_irq_affinity(unsigned int irq, cpumask_t mask)
+{
+	balance_irq_affinity[irq] = mask;
+}
 
 static unsigned long move(int curr_cpu, cpumask_t allowed_mask,
 			unsigned long now, int direction)
@@ -340,7 +347,7 @@ static inline void balance_irq(int cpu, int irq)
 	if (irqbalance_disabled)
 		return; 
 
-	cpus_and(allowed_mask, cpu_online_map, irq_affinity[irq]);
+	cpus_and(allowed_mask, cpu_online_map, balance_irq_affinity[irq]);
 	new_cpu = move(cpu, allowed_mask, now, 1);
 	if (cpu != new_cpu) {
 		set_pending_irq(irq, cpumask_of_cpu(new_cpu));
@@ -529,7 +536,9 @@ tryanotherirq:
 		}
 	}
 
-	cpus_and(allowed_mask, cpu_online_map, irq_affinity[selected_irq]);
+	cpus_and(allowed_mask,
+		cpu_online_map,
+		balance_irq_affinity[selected_irq]);
 	target_cpu_mask = cpumask_of_cpu(min_loaded);
 	cpus_and(tmp, target_cpu_mask, allowed_mask);
 

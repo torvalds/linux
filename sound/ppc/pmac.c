@@ -867,8 +867,6 @@ static int __init snd_pmac_detect(struct snd_pmac *chip)
 	unsigned int *prop, l;
 	struct macio_chip* macio;
 
-	u32 layout_id = 0;
-
 	if (!machine_is(powermac))
 		return -ENODEV;
 
@@ -929,8 +927,14 @@ static int __init snd_pmac_detect(struct snd_pmac *chip)
 	if (prop && *prop < 16)
 		chip->subframe = *prop;
 	prop = (unsigned int *) get_property(sound, "layout-id", NULL);
-	if (prop)
-		layout_id = *prop;
+	if (prop) {
+		/* partly deprecate snd-powermac, for those machines
+		 * that have a layout-id property for now */
+		printk(KERN_INFO "snd-powermac no longer handles any "
+				 "machines with a layout-id property "
+				 "in the device-tree, use snd-aoa.\n");
+		return -ENODEV;
+	}
 	/* This should be verified on older screamers */
 	if (device_is_compatible(sound, "screamer")) {
 		chip->model = PMAC_SCREAMER;
@@ -962,38 +966,6 @@ static int __init snd_pmac_detect(struct snd_pmac *chip)
 		chip->num_freqs = ARRAY_SIZE(tumbler_freqs);
 		chip->freq_table = tumbler_freqs;
 		chip->control_mask = MASK_IEPC | 0x11; /* disable IEE */
-	}
-	if (device_is_compatible(sound, "AOAKeylargo") ||
-	    device_is_compatible(sound, "AOAbase") ||
-	    device_is_compatible(sound, "AOAK2")) {
-		/* For now, only support very basic TAS3004 based machines with
-		 * single frequency until proper i2s control is implemented
-		 */
-		switch(layout_id) {
-		case 0x24:
-		case 0x29:
-		case 0x33:
-		case 0x46:
-		case 0x48:
-		case 0x50:
-		case 0x5c:
-			chip->num_freqs = ARRAY_SIZE(tumbler_freqs);
-			chip->model = PMAC_SNAPPER;
-			chip->can_byte_swap = 0; /* FIXME: check this */
-			chip->control_mask = MASK_IEPC | 0x11;/* disable IEE */
-			break;
-		case 0x3a:
-			chip->num_freqs = ARRAY_SIZE(tumbler_freqs);
-			chip->model = PMAC_TOONIE;
-			chip->can_byte_swap = 0; /* FIXME: check this */
-			chip->control_mask = MASK_IEPC | 0x11;/* disable IEE */
-			break;
-		default:
-			printk(KERN_ERR "snd: Unknown layout ID 0x%x\n",
-			       layout_id);
-			return -ENODEV;
-
-		}
 	}
 	prop = (unsigned int *)get_property(sound, "device-id", NULL);
 	if (prop)

@@ -379,7 +379,7 @@ static int timer_dyn_tick_enable(void)
 	int ret = -ENODEV;
 
 	if (dyn_tick) {
-		write_seqlock_irqsave(&xtime_lock, flags);
+		spin_lock_irqsave(&dyn_tick->lock, flags);
 		ret = 0;
 		if (!(dyn_tick->state & DYN_TICK_ENABLED)) {
 			ret = dyn_tick->enable();
@@ -387,7 +387,7 @@ static int timer_dyn_tick_enable(void)
 			if (ret == 0)
 				dyn_tick->state |= DYN_TICK_ENABLED;
 		}
-		write_sequnlock_irqrestore(&xtime_lock, flags);
+		spin_unlock_irqrestore(&dyn_tick->lock, flags);
 	}
 
 	return ret;
@@ -400,7 +400,7 @@ static int timer_dyn_tick_disable(void)
 	int ret = -ENODEV;
 
 	if (dyn_tick) {
-		write_seqlock_irqsave(&xtime_lock, flags);
+		spin_lock_irqsave(&dyn_tick->lock, flags);
 		ret = 0;
 		if (dyn_tick->state & DYN_TICK_ENABLED) {
 			ret = dyn_tick->disable();
@@ -408,7 +408,7 @@ static int timer_dyn_tick_disable(void)
 			if (ret == 0)
 				dyn_tick->state &= ~DYN_TICK_ENABLED;
 		}
-		write_sequnlock_irqrestore(&xtime_lock, flags);
+		spin_unlock_irqrestore(&dyn_tick->lock, flags);
 	}
 
 	return ret;
@@ -422,15 +422,20 @@ static int timer_dyn_tick_disable(void)
 void timer_dyn_reprogram(void)
 {
 	struct dyn_tick_timer *dyn_tick = system_timer->dyn_tick;
-	unsigned long next, seq;
+	unsigned long next, seq, flags;
 
-	if (dyn_tick && (dyn_tick->state & DYN_TICK_ENABLED)) {
+	if (!dyn_tick)
+		return;
+
+	spin_lock_irqsave(&dyn_tick->lock, flags);
+	if (dyn_tick->state & DYN_TICK_ENABLED) {
 		next = next_timer_interrupt();
 		do {
 			seq = read_seqbegin(&xtime_lock);
-			dyn_tick->reprogram(next_timer_interrupt() - jiffies);
+			dyn_tick->reprogram(next - jiffies);
 		} while (read_seqretry(&xtime_lock, seq));
 	}
+	spin_unlock_irqrestore(&dyn_tick->lock, flags);
 }
 
 static ssize_t timer_show_dyn_tick(struct sys_device *dev, char *buf)
@@ -499,5 +504,10 @@ void __init time_init(void)
 	if (system_timer->offset == NULL)
 		system_timer->offset = dummy_gettimeoffset;
 	system_timer->init();
+
+#ifdef CONFIG_NO_IDLE_HZ
+	if (system_timer->dyn_tick)
+		system_timer->dyn_tick->lock = SPIN_LOCK_UNLOCKED;
+#endif
 }
 

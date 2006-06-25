@@ -9,7 +9,6 @@
 #include <asm-generic/pgtable-nopmd.h>
 
 #ifndef __ASSEMBLY__
-#include <linux/config.h>
 #include <linux/sched.h>
 #include <asm/mmu.h>
 #endif

@@ -52,7 +52,7 @@ static int __init proc_ppc64_create(void)
 	if (!root)
 		return 1;
 
-	if (!machine_is(pseries) && !machine_is(cell))
+	if (!of_find_node_by_path("/rtas"))
 		return 0;
 
 	if (!proc_mkdir("rtas", root))

@@ -64,6 +64,8 @@ int snd_oss_info_register(int dev, int num, char *string)
 	return 0;
 }
 
+EXPORT_SYMBOL(snd_oss_info_register);
+
 extern void snd_card_info_read_oss(struct snd_info_buffer *buffer);
 
 static int snd_sndstat_show_strings(struct snd_info_buffer *buf, char *id, int dev)
@@ -117,7 +119,6 @@ int snd_info_minor_register(void)
 
 	memset(snd_sndstat_strings, 0, sizeof(snd_sndstat_strings));
 	if ((entry = snd_info_create_module_entry(THIS_MODULE, "sndstat", snd_oss_root)) != NULL) {
-		entry->c.text.read_size = 2048;
 		entry->c.text.read = snd_sndstat_proc_read;
 		if (snd_info_register(entry) < 0) {
 			snd_info_free_entry(entry);

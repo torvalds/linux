@@ -10,6 +10,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <asm/proc-fns.h>
 #include "hardware.h"
 #include "pxa-regs.h"
 

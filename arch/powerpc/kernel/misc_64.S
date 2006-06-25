@@ -482,7 +482,9 @@ _GLOBAL(identify_cpu)
 	sub	r0,r3,r5
 	std	r0,0(r4)
 	ld	r4,CPU_SPEC_SETUP(r3)
+	cmpdi	0,r4,0
 	add	r4,r4,r5
+	beqlr
 	ld	r4,0(r4)
 	add	r4,r4,r5
 	mtctr	r4
@@ -767,9 +769,6 @@ _GLOBAL(giveup_altivec)
 	blr
 
 #endif /* CONFIG_ALTIVEC */
-
-_GLOBAL(__setup_cpu_power3)
-	blr
 
 _GLOBAL(execve)
 	li	r0,__NR_execve

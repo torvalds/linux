@@ -24,6 +24,7 @@
 #define RTAS_RMOBUF_MAX (64 * 1024)
 
 /* RTAS return status codes */
+#define RTAS_NOT_SUSPENDABLE	-9004
 #define RTAS_BUSY		-2    /* RTAS Busy */
 #define RTAS_EXTENDED_DELAY_MIN	9900
 #define RTAS_EXTENDED_DELAY_MAX	9905
@@ -177,12 +178,8 @@ extern unsigned long rtas_get_boot_time(void);
 extern void rtas_get_rtc_time(struct rtc_time *rtc_time);
 extern int rtas_set_rtc_time(struct rtc_time *rtc_time);
 
-/* Given an RTAS status code of 9900..9905 compute the hinted delay */
-unsigned int rtas_extended_busy_delay_time(int status);
-static inline int rtas_is_extended_busy(int status)
-{
-	return status >= 9900 && status <= 9909;
-}
+extern unsigned int rtas_busy_delay_time(int status);
+extern unsigned int rtas_busy_delay(int status);
 
 extern void pSeries_log_error(char *buf, unsigned int err_type, int fatal);
 

@@ -131,7 +131,7 @@ void hpte_update(struct mm_struct *mm, unsigned long addr,
 {
 	struct ppc64_tlb_batch *batch = &__get_cpu_var(ppc64_tlb_batch);
 	unsigned long vsid;
-	unsigned int psize = mmu_virtual_psize;
+	unsigned int psize;
 	int i;
 
 	i = batch->index;
@@ -148,7 +148,8 @@ void hpte_update(struct mm_struct *mm, unsigned long addr,
 #else
 		BUG();
 #endif
-	}
+	} else
+		psize = pte_pagesize_index(pte);
 
 	/*
 	 * This can happen when we are in the middle of a TLB batch and

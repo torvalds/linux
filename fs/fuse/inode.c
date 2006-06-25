@@ -236,8 +236,9 @@ static void convert_fuse_statfs(struct kstatfs *stbuf, struct fuse_kstatfs *attr
 	/* fsid is left zero */
 }
 
-static int fuse_statfs(struct super_block *sb, struct kstatfs *buf)
+static int fuse_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
+	struct super_block *sb = dentry->d_sb;
 	struct fuse_conn *fc = get_fuse_conn_super(sb);
 	struct fuse_req *req;
 	struct fuse_statfs_out outarg;
@@ -569,11 +570,11 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 	return err;
 }
 
-static struct super_block *fuse_get_sb(struct file_system_type *fs_type,
-				       int flags, const char *dev_name,
-				       void *raw_data)
+static int fuse_get_sb(struct file_system_type *fs_type,
+		       int flags, const char *dev_name,
+		       void *raw_data, struct vfsmount *mnt)
 {
-	return get_sb_nodev(fs_type, flags, raw_data, fuse_fill_super);
+	return get_sb_nodev(fs_type, flags, raw_data, fuse_fill_super, mnt);
 }
 
 static struct file_system_type fuse_fs_type = {

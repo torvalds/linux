@@ -1980,7 +1980,7 @@ int selinux_audit_rule_match(u32 ctxid, u32 field, u32 op,
 		break;
 	case AUDIT_SE_SEN:
 	case AUDIT_SE_CLR:
-		level = (op == AUDIT_SE_SEN ?
+		level = (field == AUDIT_SE_SEN ?
 		         &ctxt->range.level[0] : &ctxt->range.level[1]);
 		switch (op) {
 		case AUDIT_EQUAL:

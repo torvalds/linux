@@ -61,7 +61,7 @@
 #undef DEBUG
 
 #define ibmveth_printk(fmt, args...) \
-  printk(KERN_INFO "%s: " fmt, __FILE__, ## args)
+  printk(KERN_DEBUG "%s: " fmt, __FILE__, ## args)
 
 #define ibmveth_error_printk(fmt, args...) \
   printk(KERN_ERR "(%s:%3.3d ua:%x) ERROR: " fmt, __FILE__, __LINE__ , adapter->vdev->unit_address, ## args)

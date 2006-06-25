@@ -1160,7 +1160,7 @@ static unsigned tx_le_req(const struct sk_buff *skb)
 	count = sizeof(dma_addr_t) / sizeof(u32);
 	count += skb_shinfo(skb)->nr_frags * count;
 
-	if (skb_shinfo(skb)->tso_size)
+	if (skb_shinfo(skb)->gso_size)
 		++count;
 
 	if (skb->ip_summed == CHECKSUM_HW)
@@ -1232,7 +1232,7 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	/* Check for TCP Segmentation Offload */
-	mss = skb_shinfo(skb)->tso_size;
+	mss = skb_shinfo(skb)->gso_size;
 	if (mss != 0) {
 		/* just drop the packet if non-linear expansion fails */
 		if (skb_header_cloned(skb) &&

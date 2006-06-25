@@ -6,7 +6,6 @@
 #ifndef _AX25_H
 #define _AX25_H 
 
-#include <linux/config.h>
 #include <linux/ax25.h>
 #include <linux/spinlock.h>
 #include <linux/timer.h>

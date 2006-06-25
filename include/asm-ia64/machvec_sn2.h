@@ -67,6 +67,8 @@ extern ia64_mv_dma_sync_sg_for_device	sn_dma_sync_sg_for_device;
 extern ia64_mv_dma_mapping_error	sn_dma_mapping_error;
 extern ia64_mv_dma_supported		sn_dma_supported;
 extern ia64_mv_migrate_t		sn_migrate;
+extern ia64_mv_msi_init_t		sn_msi_init;
+
 
 /*
  * This stuff has dual use!
@@ -117,6 +119,11 @@ extern ia64_mv_migrate_t		sn_migrate;
 #define platform_dma_mapping_error		sn_dma_mapping_error
 #define platform_dma_supported		sn_dma_supported
 #define platform_migrate		sn_migrate
+#ifdef CONFIG_PCI_MSI
+#define platform_msi_init		sn_msi_init
+#else
+#define platform_msi_init		((ia64_mv_msi_init_t*)NULL)
+#endif
 
 #include <asm/sn/io.h>
 

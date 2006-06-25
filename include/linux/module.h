@@ -6,7 +6,6 @@
  * Rewritten by Richard Henderson <rth@tamu.edu> Dec 1996
  * Rewritten again by Rusty Russell, 2002
  */
-#include <linux/config.h>
 #include <linux/sched.h>
 #include <linux/spinlock.h>
 #include <linux/list.h>
@@ -106,6 +105,8 @@ extern struct module __this_module;
  *	"GPL and additional rights"	[GNU Public License v2 rights and more]
  *	"Dual BSD/GPL"			[GNU Public License v2
  *					 or BSD license choice]
+ *	"Dual MIT/GPL"			[GNU Public License v2
+ *					 or MIT license choice]
  *	"Dual MPL/GPL"			[GNU Public License v2
  *					 or Mozilla license choice]
  *
@@ -556,14 +557,5 @@ static inline void module_remove_driver(struct device_driver *driver)
 /* BELOW HERE ALL THESE ARE OBSOLETE AND WILL VANISH */
 
 #define __MODULE_STRING(x) __stringify(x)
-
-/* Use symbol_get and symbol_put instead.  You'll thank me. */
-#define HAVE_INTER_MODULE
-extern void __deprecated inter_module_register(const char *,
-		struct module *, const void *);
-extern void __deprecated inter_module_unregister(const char *);
-extern const void * __deprecated inter_module_get_request(const char *,
-		const char *);
-extern void __deprecated inter_module_put(const char *);
 
 #endif /* _LINUX_MODULE_H */

@@ -4,7 +4,6 @@
 #ifndef __ARCH_ALPHA_CACHE_H
 #define __ARCH_ALPHA_CACHE_H
 
-#include <linux/config.h>
 
 /* Bytes per L1 (data) cache line. */
 #if defined(CONFIG_ALPHA_GENERIC) || defined(CONFIG_ALPHA_EV6)

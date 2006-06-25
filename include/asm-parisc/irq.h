@@ -7,7 +7,6 @@
 #ifndef _ASM_PARISC_IRQ_H
 #define _ASM_PARISC_IRQ_H
 
-#include <linux/config.h>
 #include <linux/cpumask.h>
 #include <asm/types.h>
 

@@ -2,7 +2,6 @@
 #define _ASM_GENERIC_BUG_H
 
 #include <linux/compiler.h>
-#include <linux/config.h>
 
 #ifdef CONFIG_BUG
 #ifndef HAVE_ARCH_BUG

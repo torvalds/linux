@@ -267,7 +267,7 @@ static const long wd7000_biosaddr[] = {
 	0xc0000, 0xc2000, 0xc4000, 0xc6000, 0xc8000, 0xca000, 0xcc000, 0xce000,
 	0xd0000, 0xd2000, 0xd4000, 0xd6000, 0xd8000, 0xda000, 0xdc000, 0xde000
 };
-#define NUM_ADDRS (sizeof(wd7000_biosaddr)/sizeof(long))
+#define NUM_ADDRS ARRAY_SIZE(wd7000_biosaddr)
 
 static const unsigned short wd7000_iobase[] = {
 	0x0300, 0x0308, 0x0310, 0x0318, 0x0320, 0x0328, 0x0330, 0x0338,
@@ -275,13 +275,13 @@ static const unsigned short wd7000_iobase[] = {
 	0x0380, 0x0388, 0x0390, 0x0398, 0x03a0, 0x03a8, 0x03b0, 0x03b8,
 	0x03c0, 0x03c8, 0x03d0, 0x03d8, 0x03e0, 0x03e8, 0x03f0, 0x03f8
 };
-#define NUM_IOPORTS (sizeof(wd7000_iobase)/sizeof(unsigned short))
+#define NUM_IOPORTS ARRAY_SIZE(wd7000_iobase)
 
 static const short wd7000_irq[] = { 3, 4, 5, 7, 9, 10, 11, 12, 14, 15 };
-#define NUM_IRQS (sizeof(wd7000_irq)/sizeof(short))
+#define NUM_IRQS ARRAY_SIZE(wd7000_irq)
 
 static const short wd7000_dma[] = { 5, 6, 7 };
-#define NUM_DMAS (sizeof(wd7000_dma)/sizeof(short))
+#define NUM_DMAS ARRAY_SIZE(wd7000_dma)
 
 /*
  * The following is set up by wd7000_detect, and used thereafter for
@@ -317,7 +317,7 @@ static Config configs[] = {
 	{7, 6, 0x350, BUS_ON, BUS_OFF},	/* My configuration (Zaga)     */
 	{-1, -1, 0x0, BUS_ON, BUS_OFF}	/* Empty slot                  */
 };
-#define NUM_CONFIGS (sizeof(configs)/sizeof(Config))
+#define NUM_CONFIGS ARRAY_SIZE(configs)
 
 /*
  *  The following list defines strings to look for in the BIOS that identify
@@ -333,7 +333,7 @@ typedef struct signature {
 static const Signature signatures[] = {
 	{"SSTBIOS", 0x0000d, 7}	/* "SSTBIOS" @ offset 0x0000d */
 };
-#define NUM_SIGNATURES (sizeof(signatures)/sizeof(Signature))
+#define NUM_SIGNATURES ARRAY_SIZE(signatures)
 
 
 /*

@@ -3,7 +3,6 @@
 
 /* $Id$ */
 
-#include <linux/config.h>
 
 #ifdef CONFIG_SMP
 #ifndef __ASSEMBLY__

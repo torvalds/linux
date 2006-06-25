@@ -4,7 +4,6 @@
 #include <asm/atomic.h>
 #include <asm/rwlock.h>
 #include <asm/page.h>
-#include <linux/config.h>
 #include <linux/compiler.h>
 
 /*

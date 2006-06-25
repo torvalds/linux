@@ -32,7 +32,6 @@
 
 #include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/time.h>
 #include <linux/stat.h>
 #include <linux/fs.h>
 

@@ -473,6 +473,16 @@ static int cell_dma_supported(struct device *dev, u64 mask)
 	return mask < 0x100000000ull;
 }
 
+static struct dma_mapping_ops cell_iommu_ops = {
+	.alloc_coherent = cell_alloc_coherent,
+	.free_coherent = cell_free_coherent,
+	.map_single = cell_map_single,
+	.unmap_single = cell_unmap_single,
+	.map_sg = cell_map_sg,
+	.unmap_sg = cell_unmap_sg,
+	.dma_supported = cell_dma_supported,
+};
+
 void cell_init_iommu(void)
 {
 	int setup_bus = 0;
@@ -498,11 +508,5 @@ void cell_init_iommu(void)
 		}
 	}
 
-	pci_dma_ops.alloc_coherent = cell_alloc_coherent;
-	pci_dma_ops.free_coherent = cell_free_coherent;
-	pci_dma_ops.map_single = cell_map_single;
-	pci_dma_ops.unmap_single = cell_unmap_single;
-	pci_dma_ops.map_sg = cell_map_sg;
-	pci_dma_ops.unmap_sg = cell_unmap_sg;
-	pci_dma_ops.dma_supported = cell_dma_supported;
+	pci_dma_ops = cell_iommu_ops;
 }

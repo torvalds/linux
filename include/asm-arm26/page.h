@@ -1,7 +1,6 @@
 #ifndef _ASMARM_PAGE_H
 #define _ASMARM_PAGE_H
 
-#include <linux/config.h>
 
 #ifdef __KERNEL__
 #ifndef __ASSEMBLY__

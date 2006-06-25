@@ -17,6 +17,11 @@
 #include <linux/spinlock.h>
 #include <asm/atomic.h>
 
+struct super_block;
+struct vfsmount;
+struct dentry;
+struct namespace;
+
 #define MNT_NOSUID	0x01
 #define MNT_NODEV	0x02
 #define MNT_NOEXEC	0x04

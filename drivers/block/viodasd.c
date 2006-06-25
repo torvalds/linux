@@ -747,7 +747,7 @@ static int viodasd_remove(struct vio_dev *vdev)
  * support.
  */
 static struct vio_device_id viodasd_device_table[] __devinitdata = {
-	{ "viodasd", "" },
+	{ "block", "IBM,iSeries-viodasd" },
 	{ "", "" }
 };
 MODULE_DEVICE_TABLE(vio, viodasd_device_table);

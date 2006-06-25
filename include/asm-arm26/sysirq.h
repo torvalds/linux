@@ -11,7 +11,6 @@
  *   04-04-1998 PJB     Merged arc and a5k versions
  */
 
-#include <linux/config.h>
 
 #if defined(CONFIG_ARCH_A5K)
 #define IRQ_PRINTER             0

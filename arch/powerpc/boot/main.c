@@ -33,6 +33,14 @@ extern char _vmlinux_end[];
 extern char _initrd_start[];
 extern char _initrd_end[];
 
+/* A buffer that may be edited by tools operating on a zImage binary so as to
+ * edit the command line passed to vmlinux (by setting /chosen/bootargs).
+ * The buffer is put in it's own section so that tools may locate it easier.
+ */
+static char builtin_cmdline[512]
+	__attribute__((section("__builtin_cmdline")));
+
+
 struct addr_range {
 	unsigned long addr;
 	unsigned long size;
@@ -204,6 +212,23 @@ static int is_elf32(void *hdr)
 	return 1;
 }
 
+void export_cmdline(void* chosen_handle)
+{
+        int len;
+        char cmdline[2] = { 0, 0 };
+
+	if (builtin_cmdline[0] == 0)
+		return;
+
+        len = getprop(chosen_handle, "bootargs", cmdline, sizeof(cmdline));
+        if (len > 0 && cmdline[0] != 0)
+		return;
+
+	setprop(chosen_handle, "bootargs", builtin_cmdline,
+		strlen(builtin_cmdline) + 1);
+}
+
+
 void start(unsigned long a1, unsigned long a2, void *promptr, void *sp)
 {
 	int len;
@@ -288,6 +313,8 @@ void start(unsigned long a1, unsigned long a2, void *promptr, void *sp)
 	} else {
 		memmove((void *)vmlinux.addr,(void *)vmlinuz.addr,vmlinuz.size);
 	}
+
+	export_cmdline(chosen_handle);
 
 	/* Skip over the ELF header */
 #ifdef DEBUG

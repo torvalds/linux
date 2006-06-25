@@ -532,6 +532,16 @@ config SCSI_PDC_ADMA
 
 	  If unsure, say N.
 
+config SCSI_HPTIOP
+	tristate "HighPoint RocketRAID 3xxx Controller support"
+	depends on SCSI && PCI
+	help
+	  This option enables support for HighPoint RocketRAID 3xxx
+	  controllers.
+
+	  To compile this driver as a module, choose M here; the module
+	  will be called hptiop. If unsure, say N.
+
 config SCSI_SATA_QSTOR
 	tristate "Pacific Digital SATA QStor support"
 	depends on SCSI_SATA && PCI

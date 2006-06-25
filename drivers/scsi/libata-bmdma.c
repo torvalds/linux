@@ -652,6 +652,151 @@ void ata_bmdma_stop(struct ata_queued_cmd *qc)
 	ata_altstatus(ap);        /* dummy read */
 }
 
+/**
+ *	ata_bmdma_freeze - Freeze BMDMA controller port
+ *	@ap: port to freeze
+ *
+ *	Freeze BMDMA controller port.
+ *
+ *	LOCKING:
+ *	Inherited from caller.
+ */
+void ata_bmdma_freeze(struct ata_port *ap)
+{
+	struct ata_ioports *ioaddr = &ap->ioaddr;
+
+	ap->ctl |= ATA_NIEN;
+	ap->last_ctl = ap->ctl;
+
+	if (ap->flags & ATA_FLAG_MMIO)
+		writeb(ap->ctl, (void __iomem *)ioaddr->ctl_addr);
+	else
+		outb(ap->ctl, ioaddr->ctl_addr);
+}
+
+/**
+ *	ata_bmdma_thaw - Thaw BMDMA controller port
+ *	@ap: port to thaw
+ *
+ *	Thaw BMDMA controller port.
+ *
+ *	LOCKING:
+ *	Inherited from caller.
+ */
+void ata_bmdma_thaw(struct ata_port *ap)
+{
+	/* clear & re-enable interrupts */
+	ata_chk_status(ap);
+	ap->ops->irq_clear(ap);
+	if (ap->ioaddr.ctl_addr)	/* FIXME: hack. create a hook instead */
+		ata_irq_on(ap);
+}
+
+/**
+ *	ata_bmdma_drive_eh - Perform EH with given methods for BMDMA controller
+ *	@ap: port to handle error for
+ *	@prereset: prereset method (can be NULL)
+ *	@softreset: softreset method (can be NULL)
+ *	@hardreset: hardreset method (can be NULL)
+ *	@postreset: postreset method (can be NULL)
+ *
+ *	Handle error for ATA BMDMA controller.  It can handle both
+ *	PATA and SATA controllers.  Many controllers should be able to
+ *	use this EH as-is or with some added handling before and
+ *	after.
+ *
+ *	This function is intended to be used for constructing
+ *	->error_handler callback by low level drivers.
+ *
+ *	LOCKING:
+ *	Kernel thread context (may sleep)
+ */
+void ata_bmdma_drive_eh(struct ata_port *ap, ata_prereset_fn_t prereset,
+			ata_reset_fn_t softreset, ata_reset_fn_t hardreset,
+			ata_postreset_fn_t postreset)
+{
+	struct ata_eh_context *ehc = &ap->eh_context;
+	struct ata_queued_cmd *qc;
+	unsigned long flags;
+	int thaw = 0;
+
+	qc = __ata_qc_from_tag(ap, ap->active_tag);
+	if (qc && !(qc->flags & ATA_QCFLAG_FAILED))
+		qc = NULL;
+
+	/* reset PIO HSM and stop DMA engine */
+	spin_lock_irqsave(ap->lock, flags);
+
+	ap->hsm_task_state = HSM_ST_IDLE;
+
+	if (qc && (qc->tf.protocol == ATA_PROT_DMA ||
+		   qc->tf.protocol == ATA_PROT_ATAPI_DMA)) {
+		u8 host_stat;
+
+		host_stat = ata_bmdma_status(ap);
+
+		ata_ehi_push_desc(&ehc->i, "BMDMA stat 0x%x", host_stat);
+
+		/* BMDMA controllers indicate host bus error by
+		 * setting DMA_ERR bit and timing out.  As it wasn't
+		 * really a timeout event, adjust error mask and
+		 * cancel frozen state.
+		 */
+		if (qc->err_mask == AC_ERR_TIMEOUT && host_stat & ATA_DMA_ERR) {
+			qc->err_mask = AC_ERR_HOST_BUS;
+			thaw = 1;
+		}
+
+		ap->ops->bmdma_stop(qc);
+	}
+
+	ata_altstatus(ap);
+	ata_chk_status(ap);
+	ap->ops->irq_clear(ap);
+
+	spin_unlock_irqrestore(ap->lock, flags);
+
+	if (thaw)
+		ata_eh_thaw_port(ap);
+
+	/* PIO and DMA engines have been stopped, perform recovery */
+	ata_do_eh(ap, prereset, softreset, hardreset, postreset);
+}
+
+/**
+ *	ata_bmdma_error_handler - Stock error handler for BMDMA controller
+ *	@ap: port to handle error for
+ *
+ *	Stock error handler for BMDMA controller.
+ *
+ *	LOCKING:
+ *	Kernel thread context (may sleep)
+ */
+void ata_bmdma_error_handler(struct ata_port *ap)
+{
+	ata_reset_fn_t hardreset;
+
+	hardreset = NULL;
+	if (sata_scr_valid(ap))
+		hardreset = sata_std_hardreset;
+
+	ata_bmdma_drive_eh(ap, ata_std_prereset, ata_std_softreset, hardreset,
+			   ata_std_postreset);
+}
+
+/**
+ *	ata_bmdma_post_internal_cmd - Stock post_internal_cmd for
+ *				      BMDMA controller
+ *	@qc: internal command to clean up
+ *
+ *	LOCKING:
+ *	Kernel thread context (may sleep)
+ */
+void ata_bmdma_post_internal_cmd(struct ata_queued_cmd *qc)
+{
+	ata_bmdma_stop(qc);
+}
+
 #ifdef CONFIG_PCI
 static struct ata_probe_ent *
 ata_probe_ent_alloc(struct device *dev, const struct ata_port_info *port)
@@ -930,10 +1075,21 @@ int ata_pci_init_one (struct pci_dev *pdev, struct ata_port_info **port_info,
 
 	/* FIXME: check ata_device_add return */
 	if (legacy_mode) {
-		if (legacy_mode & (1 << 0))
+		struct device *dev = &pdev->dev;
+		struct ata_host_set *host_set = NULL;
+
+		if (legacy_mode & (1 << 0)) {
 			ata_device_add(probe_ent);
-		if (legacy_mode & (1 << 1))
+			host_set = dev_get_drvdata(dev);
+		}
+
+		if (legacy_mode & (1 << 1)) {
 			ata_device_add(probe_ent2);
+			if (host_set) {
+				host_set->next = dev_get_drvdata(dev);
+				dev_set_drvdata(dev, host_set);
+			}
+		}
 	} else
 		ata_device_add(probe_ent);
 

@@ -1,5 +1,4 @@
 
-#include <linux/config.h>
 
 /* This handles the memory map.. */
 

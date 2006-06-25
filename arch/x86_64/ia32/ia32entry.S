@@ -696,4 +696,5 @@ ia32_sys_call_table:
 	.quad sys_sync_file_range
 	.quad sys_tee
 	.quad compat_sys_vmsplice
+	.quad compat_sys_move_pages
 ia32_syscall_end:		

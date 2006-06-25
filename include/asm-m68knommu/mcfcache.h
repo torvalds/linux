@@ -11,7 +11,6 @@
 #define	__M68KNOMMU_MCFCACHE_H
 /****************************************************************************/
 
-#include <linux/config.h>
 
 /*
  *	The different ColdFire families have different cache arrangments.

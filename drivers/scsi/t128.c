@@ -126,15 +126,15 @@
 static struct override {
     unsigned long address;
     int irq;
-} overrides 
+} overrides
 #ifdef T128_OVERRIDE
     [] __initdata = T128_OVERRIDE;
 #else
-    [4] __initdata = {{0, IRQ_AUTO}, {0, IRQ_AUTO}, 
+    [4] __initdata = {{0, IRQ_AUTO}, {0, IRQ_AUTO},
         {0 ,IRQ_AUTO}, {0, IRQ_AUTO}};
 #endif
 
-#define NO_OVERRIDES (sizeof(overrides) / sizeof(struct override))
+#define NO_OVERRIDES ARRAY_SIZE(overrides)
 
 static struct base {
     unsigned int address;
@@ -143,7 +143,7 @@ static struct base {
     { 0xcc000, 0}, { 0xc8000, 0}, { 0xdc000, 0}, { 0xd8000, 0}
 };
 
-#define NO_BASES (sizeof (bases) / sizeof (struct base))
+#define NO_BASES ARRAY_SIZE(bases)
 
 static struct signature {
     const char *string;
@@ -152,7 +152,7 @@ static struct signature {
 {"TSROM: SCSI BIOS, Version 1.12", 0x36},
 };
 
-#define NO_SIGNATURES (sizeof (signatures) /  sizeof (struct signature))
+#define NO_SIGNATURES ARRAY_SIZE(signatures)
 
 /*
  * Function : t128_setup(char *str, int *ints)

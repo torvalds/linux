@@ -1714,6 +1714,8 @@ int snd_seq_set_queue_tempo(int client, struct snd_seq_queue_tempo *tempo)
 	return snd_seq_queue_timer_set_tempo(tempo->queue, client, tempo);
 }
 
+EXPORT_SYMBOL(snd_seq_set_queue_tempo);
+
 static int snd_seq_ioctl_set_queue_tempo(struct snd_seq_client *client,
 					 void __user *arg)
 {
@@ -2264,6 +2266,8 @@ int snd_seq_create_kernel_client(struct snd_card *card, int client_index,
 	return client->number;
 }
 
+EXPORT_SYMBOL(snd_seq_create_kernel_client);
+
 /* exported to kernel modules */
 int snd_seq_delete_kernel_client(int client)
 {
@@ -2280,6 +2284,7 @@ int snd_seq_delete_kernel_client(int client)
 	return 0;
 }
 
+EXPORT_SYMBOL(snd_seq_delete_kernel_client);
 
 /* skeleton to enqueue event, called from snd_seq_kernel_client_enqueue
  * and snd_seq_kernel_client_enqueue_blocking
@@ -2328,6 +2333,8 @@ int snd_seq_kernel_client_enqueue(int client, struct snd_seq_event * ev,
 	return kernel_client_enqueue(client, ev, NULL, 0, atomic, hop);
 }
 
+EXPORT_SYMBOL(snd_seq_kernel_client_enqueue);
+
 /*
  * exported, called by kernel clients to enqueue events (with blocking)
  *
@@ -2340,6 +2347,7 @@ int snd_seq_kernel_client_enqueue_blocking(int client, struct snd_seq_event * ev
 	return kernel_client_enqueue(client, ev, file, 1, atomic, hop);
 }
 
+EXPORT_SYMBOL(snd_seq_kernel_client_enqueue_blocking);
 
 /* 
  * exported, called by kernel clients to dispatch events directly to other
@@ -2376,6 +2384,7 @@ int snd_seq_kernel_client_dispatch(int client, struct snd_seq_event * ev,
 	return result;
 }
 
+EXPORT_SYMBOL(snd_seq_kernel_client_dispatch);
 
 /*
  * exported, called by kernel clients to perform same functions as with
@@ -2396,6 +2405,7 @@ int snd_seq_kernel_client_ctl(int clientid, unsigned int cmd, void *arg)
 	return result;
 }
 
+EXPORT_SYMBOL(snd_seq_kernel_client_ctl);
 
 /* exported (for OSS emulator) */
 int snd_seq_kernel_client_write_poll(int clientid, struct file *file, poll_table *wait)
@@ -2412,6 +2422,8 @@ int snd_seq_kernel_client_write_poll(int clientid, struct file *file, poll_table
 		return 1;
 	return 0;
 }
+
+EXPORT_SYMBOL(snd_seq_kernel_client_write_poll);
 
 /*---------------------------------------------------------------------------*/
 

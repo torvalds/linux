@@ -690,7 +690,7 @@ static const struct SiS_CRT1Table SiSUSB_CRT1Table[] =
    0x41}}   /* 0x54 */
 };
 
-static struct SiS_VCLKData SiSUSB_VCLKData[] =
+static const struct SiS_VCLKData SiSUSB_VCLKData[] =
 {
 	{ 0x1b,0xe1, 25}, /* 0x00 */
 	{ 0x4e,0xe4, 28}, /* 0x01 */
@@ -808,8 +808,8 @@ static struct SiS_VCLKData SiSUSB_VCLKData[] =
 	{ 0x2b,0xc2, 35}  /* 0x71 768@576@60 */
 };
 
-void		SiSUSBRegInit(struct SiS_Private *SiS_Pr, unsigned long BaseAddr);
-unsigned short	SiSUSB_GetModeID(int HDisplay, int VDisplay, int Depth);
+extern struct mutex disconnect_mutex;
+
 int		SiSUSBSetMode(struct SiS_Private *SiS_Pr, unsigned short ModeNo);
 int		SiSUSBSetVESAMode(struct SiS_Private *SiS_Pr, unsigned short VModeNo);
 
@@ -825,6 +825,20 @@ extern int	sisusb_setidxregor(struct sisusb_usb_data *sisusb, int port,
 					u8 index, u8 myor);
 extern int	sisusb_setidxregand(struct sisusb_usb_data *sisusb, int port,
 					u8 idx, u8 myand);
+
+void sisusb_delete(struct kref *kref);
+int sisusb_writeb(struct sisusb_usb_data *sisusb, u32 adr, u8 data);
+int sisusb_readb(struct sisusb_usb_data *sisusb, u32 adr, u8 *data);
+int sisusb_copy_memory(struct sisusb_usb_data *sisusb, char *src,
+		       u32 dest, int length, size_t *bytes_written);
+int sisusb_reset_text_mode(struct sisusb_usb_data *sisusb, int init);
+int sisusbcon_do_font_op(struct sisusb_usb_data *sisusb, int set, int slot,
+			 u8 *arg, int cmapsz, int ch512, int dorecalc,
+			 struct vc_data *c, int fh, int uplock);
+void sisusb_set_cursor(struct sisusb_usb_data *sisusb, unsigned int location);
+int sisusb_console_init(struct sisusb_usb_data *sisusb, int first, int last);
+void sisusb_console_exit(struct sisusb_usb_data *sisusb);
+void sisusb_init_concode(void);
 
 #endif
 

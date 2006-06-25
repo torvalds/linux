@@ -2003,9 +2003,8 @@ static int __init snd_cs4231_sbus_create(struct snd_card *card,
 
 	if (request_irq(sdev->irqs[0], snd_cs4231_sbus_interrupt,
 			SA_SHIRQ, "cs4231", chip)) {
-		snd_printdd("cs4231-%d: Unable to grab SBUS IRQ %s\n",
-			   dev,
-			   __irq_itoa(sdev->irqs[0]));
+		snd_printdd("cs4231-%d: Unable to grab SBUS IRQ %d\n",
+			    dev, sdev->irqs[0]);
 		snd_cs4231_sbus_free(chip);
 		return -EBUSY;
 	}
@@ -2038,11 +2037,11 @@ static int __init cs4231_sbus_attach(struct sbus_dev *sdev)
 	if (err)
 		return err;
 
-	sprintf(card->longname, "%s at 0x%02lx:0x%08lx, irq %s",
+	sprintf(card->longname, "%s at 0x%02lx:0x%08lx, irq %d",
 		card->shortname,
 		rp->flags & 0xffL,
 		rp->start,
-		__irq_itoa(sdev->irqs[0]));
+		sdev->irqs[0]);
 
 	if ((err = snd_cs4231_sbus_create(card, sdev, dev, &cp)) < 0) {
 		snd_card_free(card);
@@ -2244,10 +2243,10 @@ static int __init cs4231_ebus_attach(struct linux_ebus_device *edev)
 	if (err)
 		return err;
 
-	sprintf(card->longname, "%s at 0x%lx, irq %s",
+	sprintf(card->longname, "%s at 0x%lx, irq %d",
 		card->shortname,
 		edev->resource[0].start,
-		__irq_itoa(edev->irqs[0]));
+		edev->irqs[0]);
 
 	if ((err = snd_cs4231_ebus_create(card, edev, dev, &chip)) < 0) {
 		snd_card_free(card);
@@ -2285,15 +2284,14 @@ static int __init cs4231_init(void)
 		for_each_ebusdev(edev, ebus) {
 			int match = 0;
 
-			if (!strcmp(edev->prom_name, "SUNW,CS4231")) {
+			if (!strcmp(edev->prom_node->name, "SUNW,CS4231")) {
 				match = 1;
-			} else if (!strcmp(edev->prom_name, "audio")) {
-				char compat[16];
+			} else if (!strcmp(edev->prom_node->name, "audio")) {
+				char *compat;
 
-				prom_getstring(edev->prom_node, "compatible",
-					       compat, sizeof(compat));
-				compat[15] = '\0';
-				if (!strcmp(compat, "SUNW,CS4231"))
+				compat = of_get_property(edev->prom_node,
+							 "compatible", NULL);
+				if (compat && !strcmp(compat, "SUNW,CS4231"))
 					match = 1;
 			}
 

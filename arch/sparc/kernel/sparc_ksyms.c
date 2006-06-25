@@ -163,7 +163,6 @@ EXPORT_SYMBOL(BTFIXUP_CALL(__hard_smp_processor_id));
 #endif
 EXPORT_SYMBOL(BTFIXUP_CALL(enable_irq));
 EXPORT_SYMBOL(BTFIXUP_CALL(disable_irq));
-EXPORT_SYMBOL(BTFIXUP_CALL(__irq_itoa));
 EXPORT_SYMBOL(BTFIXUP_CALL(mmu_unlockarea));
 EXPORT_SYMBOL(BTFIXUP_CALL(mmu_lockarea));
 EXPORT_SYMBOL(BTFIXUP_CALL(mmu_get_scsi_sgl));

@@ -24,7 +24,6 @@
 #ifndef _PROTOCOL_H
 #define _PROTOCOL_H
 
-#include <linux/config.h>
 #include <linux/in6.h>
 #if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)
 #include <linux/ipv6.h>
@@ -37,6 +36,7 @@
 struct net_protocol {
 	int			(*handler)(struct sk_buff *skb);
 	void			(*err_handler)(struct sk_buff *skb, u32 info);
+	struct sk_buff	       *(*gso_segment)(struct sk_buff *skb, int sg);
 	int			no_policy;
 };
 

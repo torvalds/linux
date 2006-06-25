@@ -93,15 +93,49 @@ choice
 	prompt "ARM system type"
 	default ARCH_VERSATILE
 
+config ARCH_AAEC2000
+	bool "Agilent AAEC-2000 based"
+	select ARM_AMBA
+	help
+	  This enables support for systems based on the Agilent AAEC-2000
+
+config ARCH_INTEGRATOR
+	bool "ARM Ltd. Integrator family"
+	select ARM_AMBA
+	select ICST525
+	help
+	  Support for ARM's Integrator platform.
+
+config ARCH_REALVIEW
+	bool "ARM Ltd. RealView family"
+	select ARM_AMBA
+	select ICST307
+	help
+	  This enables support for ARM Ltd RealView boards.
+
+config ARCH_VERSATILE
+	bool "ARM Ltd. Versatile family"
+	select ARM_AMBA
+	select ARM_VIC
+	select ICST307
+	help
+	  This enables support for ARM Ltd Versatile board.
+
+config ARCH_AT91RM9200
+	bool "Atmel AT91RM9200"
+	help
+	  Say Y here if you intend to run this kernel on an Atmel
+	  AT91RM9200-based board.
+
 config ARCH_CLPS7500
-	bool "Cirrus-CL-PS7500FE"
+	bool "Cirrus CL-PS7500FE"
 	select TIMER_ACORN
 	select ISA
 	help
 	  Support for the Cirrus Logic PS7500FE system-on-a-chip.
 
 config ARCH_CLPS711X
-	bool "CLPS711x/EP721x-based"
+	bool "Cirrus Logic CLPS711x/EP721x-based"
 	help
 	  Support for Cirrus Logic 711x/721x based boards.
 
@@ -135,12 +169,22 @@ config ARCH_FOOTBRIDGE
 	  Support for systems based on the DC21285 companion chip
 	  ("FootBridge"), such as the Simtec CATS and the Rebel NetWinder.
 
-config ARCH_INTEGRATOR
-	bool "Integrator"
-	select ARM_AMBA
-	select ICST525
+config ARCH_NETX
+	bool "Hilscher NetX based"
+	select ARM_VIC
 	help
-	  Support for ARM's Integrator platform.
+	  This enables support for systems based on the Hilscher NetX Soc
+
+config ARCH_H720X
+	bool "Hynix HMS720x-based"
+	select ISA_DMA_API
+	help
+	  This enables support for systems based on the Hynix HMS720x
+
+config ARCH_IMX
+	bool "IMX"
+	help
+	  Support for Motorola's i.MX family of processors (MX1, MXL).
 
 config ARCH_IOP3XX
 	bool "IOP3xx-based"
@@ -177,6 +221,11 @@ config ARCH_L7200
 
 	  If you have any questions or comments about the Linux kernel port
 	  to this board, send e-mail to <sjhill@cotw.com>.
+
+config ARCH_PNX4008
+	bool "Philips Nexperia PNX4008 Mobile"
+	help
+	  This enables support for Philips PNX4008 mobile platform.
 
 config ARCH_PXA
 	bool "PXA2xx-based"
@@ -232,44 +281,6 @@ config ARCH_OMAP
 	help
 	  Support for TI's OMAP platform (OMAP1 and OMAP2).
 
-config ARCH_VERSATILE
-	bool "Versatile"
-	select ARM_AMBA
-	select ARM_VIC
-	select ICST307
-	help
-	  This enables support for ARM Ltd Versatile board.
-
-config ARCH_REALVIEW
-	bool "RealView"
-	select ARM_AMBA
-	select ICST307
-	help
-	  This enables support for ARM Ltd RealView boards.
-
-config ARCH_IMX
-	bool "IMX"
-	help
-	  Support for Motorola's i.MX family of processors (MX1, MXL).
-
-config ARCH_H720X
-	bool "Hynix-HMS720x-based"
-	select ISA_DMA_API
-	help
-	  This enables support for systems based on the Hynix HMS720x
-
-config ARCH_AAEC2000
-	bool "Agilent AAEC-2000 based"
-	select ARM_AMBA
-	help
-	  This enables support for systems based on the Agilent AAEC-2000
-
-config ARCH_AT91RM9200
-	bool "AT91RM9200"
-	help
-	  Say Y here if you intend to run this kernel on an Atmel
-	  AT91RM9200-based board.
-
 endchoice
 
 source "arch/arm/mach-clps711x/Kconfig"
@@ -313,6 +324,8 @@ source "arch/arm/mach-aaec2000/Kconfig"
 source "arch/arm/mach-realview/Kconfig"
 
 source "arch/arm/mach-at91rm9200/Kconfig"
+
+source "arch/arm/mach-netx/Kconfig"
 
 # Definitions to make life easier
 config ARCH_ACORN

@@ -86,6 +86,8 @@ unsigned int snd_hda_codec_read(struct hda_codec *codec, hda_nid_t nid, int dire
 	return res;
 }
 
+EXPORT_SYMBOL(snd_hda_codec_read);
+
 /**
  * snd_hda_codec_write - send a single command without waiting for response
  * @codec: the HDA codec
@@ -108,6 +110,8 @@ int snd_hda_codec_write(struct hda_codec *codec, hda_nid_t nid, int direct,
 	return err;
 }
 
+EXPORT_SYMBOL(snd_hda_codec_write);
+
 /**
  * snd_hda_sequence_write - sequence writes
  * @codec: the HDA codec
@@ -121,6 +125,8 @@ void snd_hda_sequence_write(struct hda_codec *codec, const struct hda_verb *seq)
 	for (; seq->nid; seq++)
 		snd_hda_codec_write(codec, seq->nid, 0, seq->verb, seq->param);
 }
+
+EXPORT_SYMBOL(snd_hda_sequence_write);
 
 /**
  * snd_hda_get_sub_nodes - get the range of sub nodes
@@ -139,6 +145,8 @@ int snd_hda_get_sub_nodes(struct hda_codec *codec, hda_nid_t nid, hda_nid_t *sta
 	*start_id = (parm >> 16) & 0x7fff;
 	return (int)(parm & 0x7fff);
 }
+
+EXPORT_SYMBOL(snd_hda_get_sub_nodes);
 
 /**
  * snd_hda_get_connections - get connection list
@@ -255,6 +263,8 @@ int snd_hda_queue_unsol_event(struct hda_bus *bus, u32 res, u32 res_ex)
 
 	return 0;
 }
+
+EXPORT_SYMBOL(snd_hda_queue_unsol_event);
 
 /*
  * process queueud unsolicited events
@@ -384,6 +394,7 @@ int snd_hda_bus_new(struct snd_card *card, const struct hda_bus_template *temp,
 	return 0;
 }
 
+EXPORT_SYMBOL(snd_hda_bus_new);
 
 /*
  * find a matching codec preset
@@ -587,6 +598,8 @@ int snd_hda_codec_new(struct hda_bus *bus, unsigned int codec_addr,
 	return 0;
 }
 
+EXPORT_SYMBOL(snd_hda_codec_new);
+
 /**
  * snd_hda_codec_setup_stream - set up the codec for streaming
  * @codec: the CODEC to set up
@@ -609,6 +622,7 @@ void snd_hda_codec_setup_stream(struct hda_codec *codec, hda_nid_t nid, u32 stre
 	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_STREAM_FORMAT, format);
 }
 
+EXPORT_SYMBOL(snd_hda_codec_setup_stream);
 
 /*
  * amp access functions
@@ -1294,6 +1308,7 @@ int snd_hda_build_controls(struct hda_bus *bus)
 	return 0;
 }
 
+EXPORT_SYMBOL(snd_hda_build_controls);
 
 /*
  * stream formats
@@ -1381,6 +1396,8 @@ unsigned int snd_hda_calc_stream_format(unsigned int rate,
 
 	return val;
 }
+
+EXPORT_SYMBOL(snd_hda_calc_stream_format);
 
 /**
  * snd_hda_query_supported_pcm - query the supported PCM rates and formats
@@ -1663,6 +1680,7 @@ int snd_hda_build_pcms(struct hda_bus *bus)
 	return 0;
 }
 
+EXPORT_SYMBOL(snd_hda_build_pcms);
 
 /**
  * snd_hda_check_board_config - compare the current codec with the config table
@@ -2165,6 +2183,8 @@ int snd_hda_suspend(struct hda_bus *bus, pm_message_t state)
 	return 0;
 }
 
+EXPORT_SYMBOL(snd_hda_suspend);
+
 /**
  * snd_hda_resume - resume the codecs
  * @bus: the HDA bus
@@ -2186,6 +2206,8 @@ int snd_hda_resume(struct hda_bus *bus)
 	}
 	return 0;
 }
+
+EXPORT_SYMBOL(snd_hda_resume);
 
 /**
  * snd_hda_resume_ctls - resume controls in the new control list
@@ -2244,25 +2266,6 @@ int snd_hda_resume_spdif_in(struct hda_codec *codec)
 {
 	return snd_hda_resume_ctls(codec, dig_in_ctls);
 }
-#endif
-
-/*
- * symbols exported for controller modules
- */
-EXPORT_SYMBOL(snd_hda_codec_read);
-EXPORT_SYMBOL(snd_hda_codec_write);
-EXPORT_SYMBOL(snd_hda_sequence_write);
-EXPORT_SYMBOL(snd_hda_get_sub_nodes);
-EXPORT_SYMBOL(snd_hda_queue_unsol_event);
-EXPORT_SYMBOL(snd_hda_bus_new);
-EXPORT_SYMBOL(snd_hda_codec_new);
-EXPORT_SYMBOL(snd_hda_codec_setup_stream);
-EXPORT_SYMBOL(snd_hda_calc_stream_format);
-EXPORT_SYMBOL(snd_hda_build_pcms);
-EXPORT_SYMBOL(snd_hda_build_controls);
-#ifdef CONFIG_PM
-EXPORT_SYMBOL(snd_hda_suspend);
-EXPORT_SYMBOL(snd_hda_resume);
 #endif
 
 /*

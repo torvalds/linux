@@ -268,9 +268,9 @@ static int ep_poll(struct eventpoll *ep, struct epoll_event __user *events,
 		   int maxevents, long timeout);
 static int eventpollfs_delete_dentry(struct dentry *dentry);
 static struct inode *ep_eventpoll_inode(void);
-static struct super_block *eventpollfs_get_sb(struct file_system_type *fs_type,
-					      int flags, const char *dev_name,
-					      void *data);
+static int eventpollfs_get_sb(struct file_system_type *fs_type,
+			      int flags, const char *dev_name,
+			      void *data, struct vfsmount *mnt);
 
 /*
  * This semaphore is used to serialize ep_free() and eventpoll_release_file().
@@ -337,20 +337,20 @@ static inline int ep_cmp_ffd(struct epoll_filefd *p1,
 /* Special initialization for the rb-tree node to detect linkage */
 static inline void ep_rb_initnode(struct rb_node *n)
 {
-	n->rb_parent = n;
+	rb_set_parent(n, n);
 }
 
 /* Removes a node from the rb-tree and marks it for a fast is-linked check */
 static inline void ep_rb_erase(struct rb_node *n, struct rb_root *r)
 {
 	rb_erase(n, r);
-	n->rb_parent = n;
+	rb_set_parent(n, n);
 }
 
 /* Fast check to verify that the item is linked to the main rb-tree */
 static inline int ep_rb_linked(struct rb_node *n)
 {
-	return n->rb_parent != n;
+	return rb_parent(n) != n;
 }
 
 /*
@@ -1595,11 +1595,12 @@ eexit_1:
 }
 
 
-static struct super_block *
+static int
 eventpollfs_get_sb(struct file_system_type *fs_type, int flags,
-		   const char *dev_name, void *data)
+		   const char *dev_name, void *data, struct vfsmount *mnt)
 {
-	return get_sb_pseudo(fs_type, "eventpoll:", NULL, EVENTPOLLFS_MAGIC);
+	return get_sb_pseudo(fs_type, "eventpoll:", NULL, EVENTPOLLFS_MAGIC,
+			     mnt);
 }
 
 

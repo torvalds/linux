@@ -59,10 +59,19 @@ _GLOBAL(slb_miss_kernel_load_linear)
 	li	r11,0
 	b	slb_finish_load
 
-1:	/* vmalloc/ioremap mapping encoding bits, the "li" instruction below
+1:	/* vmalloc/ioremap mapping encoding bits, the "li" instructions below
 	 * will be patched by the kernel at boot
 	 */
-_GLOBAL(slb_miss_kernel_load_virtual)
+BEGIN_FTR_SECTION
+	/* check whether this is in vmalloc or ioremap space */
+	clrldi	r11,r10,48
+	cmpldi	r11,(VMALLOC_SIZE >> 28) - 1
+	bgt	5f
+	lhz	r11,PACAVMALLOCSLLP(r13)
+	b	slb_finish_load
+5:
+END_FTR_SECTION_IFCLR(CPU_FTR_CI_LARGE_PAGE)
+_GLOBAL(slb_miss_kernel_load_io)
 	li	r11,0
 	b	slb_finish_load
 
@@ -96,9 +105,7 @@ _GLOBAL(slb_miss_user_load_huge)
 1:
 #endif /* CONFIG_HUGETLB_PAGE */
 
-_GLOBAL(slb_miss_user_load_normal)
-	li	r11,0
-
+	lhz	r11,PACACONTEXTSLLP(r13)
 2:
 	ld	r9,PACACONTEXTID(r13)
 	rldimi	r10,r9,USER_ESID_BITS,0

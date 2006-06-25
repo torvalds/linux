@@ -1,5 +1,5 @@
 #
-# I2C Sensor chip drivers configuration
+# Hardware monitoring chip drivers configuration
 #
 
 menu "Hardware Monitoring support"
@@ -16,12 +16,28 @@ config HWMON
 	  should say Y here and also to the specific driver(s) for your
 	  sensors chip(s) below.
 
+	  To find out which specific driver(s) you need, use the
+	  sensors-detect script from the lm_sensors package.  Read
+	  <file:Documentation/hwmon/userspace-tools> for details.
+
 	  This support can also be built as a module.  If so, the module
 	  will be called hwmon.
 
 config HWMON_VID
 	tristate
 	default n
+
+config SENSORS_ABITUGURU
+	tristate "Abit uGuru"
+	depends on HWMON && EXPERIMENTAL
+	help
+	  If you say yes here you get support for the Abit uGuru chips
+	  sensor part. The voltage and frequency control parts of the Abit
+	  uGuru are not supported. The Abit uGuru chip can be found on Abit
+	  uGuru featuring motherboards (most modern Abit motherboards).
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called abituguru.
 
 config SENSORS_ADM1021
 	tristate "Analog Devices ADM1021 and compatibles"
@@ -188,6 +204,16 @@ config SENSORS_LM63
 	  This driver can also be built as a module.  If so, the module
 	  will be called lm63.
 
+config SENSORS_LM70
+	tristate "National Semiconductor LM70"
+	depends on HWMON && SPI_MASTER && EXPERIMENTAL
+	help
+	  If you say yes here you get support for the National Semiconductor
+	  LM70 digital temperature sensor chip.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called lm70.
+
 config SENSORS_LM75
 	tristate "National Semiconductor LM75 and compatibles"
 	depends on HWMON && I2C
@@ -236,11 +262,11 @@ config SENSORS_LM80
 	  will be called lm80.
 
 config SENSORS_LM83
-	tristate "National Semiconductor LM83"
+	tristate "National Semiconductor LM83 and compatibles"
 	depends on HWMON && I2C
 	help
 	  If you say yes here you get support for National Semiconductor
-	  LM83 sensor chips.
+	  LM82 and LM83 sensor chips.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called lm83.
@@ -333,10 +359,31 @@ config SENSORS_SMSC47M1
 	help
 	  If you say yes here you get support for the integrated fan
 	  monitoring and control capabilities of the SMSC LPC47B27x,
-	  LPC47M10x, LPC47M13x, LPC47M14x, LPC47M15x and LPC47M192 chips.
+	  LPC47M10x, LPC47M13x, LPC47M14x, LPC47M15x, LPC47M192 and
+	  LPC47M997 chips.
+
+	  The temperature and voltage sensor features of the LPC47M192
+	  and LPC47M997 are supported by another driver, select also
+	  "SMSC LPC47M192 and compatibles" below for those.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called smsc47m1.
+
+config SENSORS_SMSC47M192
+	tristate "SMSC LPC47M192 and compatibles"
+	depends on HWMON && I2C && EXPERIMENTAL
+	select HWMON_VID
+	help
+	  If you say yes here you get support for the temperature and
+	  voltage sensors of the SMSC LPC47M192 and LPC47M997 chips.
+
+	  The fan monitoring and control capabilities of these chips
+	  are supported by another driver, select
+	  "SMSC LPC47M10x and compatibles" above. You need both drivers
+	  if you want fan control and voltage/temperature sensor support.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called smsc47m192.
 
 config SENSORS_SMSC47B397
 	tristate "SMSC LPC47B397-NC"
@@ -384,6 +431,16 @@ config SENSORS_W83781D
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called w83781d.
+
+config SENSORS_W83791D
+	tristate "Winbond W83791D"
+	depends on HWMON && I2C && EXPERIMENTAL
+	select HWMON_VID
+	help
+	  If you say yes here you get support for the Winbond W83791D chip.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called w83791d.
 
 config SENSORS_W83792D
 	tristate "Winbond W83792D"

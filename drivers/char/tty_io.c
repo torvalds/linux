@@ -2961,12 +2961,14 @@ static struct class *tty_class;
  *	This field is optional, if there is no known struct device for this
  *	tty device it can be set to NULL safely.
  *
+ * Returns a pointer to the class device (or ERR_PTR(-EFOO) on error).
+ *
  * This call is required to be made to register an individual tty device if
  * the tty driver's flags have the TTY_DRIVER_NO_DEVFS bit set.  If that
  * bit is not set, this function should not be called.
  */
-void tty_register_device(struct tty_driver *driver, unsigned index,
-			 struct device *device)
+struct class_device *tty_register_device(struct tty_driver *driver,
+					 unsigned index, struct device *device)
 {
 	char name[64];
 	dev_t dev = MKDEV(driver->major, driver->minor_start) + index;
@@ -2974,7 +2976,7 @@ void tty_register_device(struct tty_driver *driver, unsigned index,
 	if (index >= driver->num) {
 		printk(KERN_ERR "Attempt to register invalid tty line number "
 		       " (%d).\n", index);
-		return;
+		return ERR_PTR(-EINVAL);
 	}
 
 	devfs_mk_cdev(dev, S_IFCHR | S_IRUSR | S_IWUSR,
@@ -2984,7 +2986,8 @@ void tty_register_device(struct tty_driver *driver, unsigned index,
 		pty_line_name(driver, index, name);
 	else
 		tty_line_name(driver, index, name);
-	class_device_create(tty_class, NULL, dev, device, "%s", name);
+
+	return class_device_create(tty_class, NULL, dev, device, "%s", name);
 }
 
 /**

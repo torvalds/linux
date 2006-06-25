@@ -2489,7 +2489,7 @@ static void __devinit snd_hdspm_proc_init(struct hdspm * hdspm)
 	struct snd_info_entry *entry;
 
 	if (!snd_card_proc_new(hdspm->card, "hdspm", &entry))
-		snd_info_set_text_ops(entry, hdspm, 1024,
+		snd_info_set_text_ops(entry, hdspm,
 				      snd_hdspm_proc_read);
 }
 

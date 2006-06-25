@@ -531,11 +531,11 @@ int current_is_keventd(void)
 static void take_over_work(struct workqueue_struct *wq, unsigned int cpu)
 {
 	struct cpu_workqueue_struct *cwq = per_cpu_ptr(wq->cpu_wq, cpu);
-	LIST_HEAD(list);
+	struct list_head list;
 	struct work_struct *work;
 
 	spin_lock_irq(&cwq->lock);
-	list_splice_init(&cwq->worklist, &list);
+	list_replace_init(&cwq->worklist, &list);
 
 	while (!list_empty(&list)) {
 		printk("Taking work for %s\n", wq->name);

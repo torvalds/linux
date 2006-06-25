@@ -1,7 +1,6 @@
 #ifndef __NET_SCHED_RED_H
 #define __NET_SCHED_RED_H
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <net/pkt_sched.h>
 #include <net/inet_ecn.h>

@@ -7,7 +7,6 @@
 #ifndef _H8300_KEYBOARD_H
 #define _H8300_KEYBOARD_H
 
-#include <linux/config.h>
 
 /* dummy i.e. no real keyboard */
 #define kbd_setkeycode(x...)	(-ENOSYS)

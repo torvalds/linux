@@ -12,7 +12,6 @@
 #include <asm/types.h>
 #include <asm/sigcontext.h>
 #include <asm/cpufeature.h>
-#include <linux/config.h>
 #include <linux/threads.h>
 #include <asm/msr.h>
 #include <asm/current.h>

@@ -144,8 +144,9 @@ static void iommu_flush_iotlb(iopte_t *iopte, unsigned int niopte)
 	unsigned long start;
 	unsigned long end;
 
-	start = (unsigned long)iopte & PAGE_MASK;
+	start = (unsigned long)iopte;
 	end = PAGE_ALIGN(start + niopte*sizeof(iopte_t));
+	start &= PAGE_MASK;
 	if (viking_mxcc_present) {
 		while(start < end) {
 			viking_mxcc_flush_page(start);

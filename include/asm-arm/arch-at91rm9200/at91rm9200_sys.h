@@ -68,8 +68,17 @@
 #define AT91_DBGU_RHR		(AT91_DBGU + 0x18)	/* Receiver Holding Register */
 #define AT91_DBGU_THR		(AT91_DBGU + 0x1c)	/* Transmitter Holding Register */
 #define AT91_DBGU_BRGR		(AT91_DBGU + 0x20)	/* Baud Rate Generator Register */
+
 #define AT91_DBGU_CIDR		(AT91_DBGU + 0x40)	/* Chip ID Register */
 #define AT91_DBGU_EXID		(AT91_DBGU + 0x44)	/* Chip ID Extension Register */
+#define		AT91_CIDR_VERSION	(0x1f << 0)		/* Version of the Device */
+#define		AT91_CIDR_EPROC		(7    << 5)		/* Embedded Processor */
+#define		AT91_CIDR_NVPSIZ	(0xf  << 8)		/* Nonvolatile Program Memory Size */
+#define		AT91_CIDR_NVPSIZ2	(0xf  << 12)		/* Second Nonvolatile Program Memory Size */
+#define		AT91_CIDR_SRAMSIZ	(0xf  << 16)		/* Internal SRAM Size */
+#define		AT91_CIDR_ARCH		(0xff << 20)		/* Architecture Identifier */
+#define		AT91_CIDR_NVPTYP	(7    << 28)		/* Nonvolatile Program Memory Type */
+#define		AT91_CIDR_EXT		(1    << 31)		/* Extension Flag */
 
 
 /*
@@ -241,7 +250,7 @@
 #define		AT91_RTC_SEC		(0x7f <<  0)		/* Current Second */
 #define		AT91_RTC_MIN		(0x7f <<  8)		/* Current Minute */
 #define		AT91_RTC_HOUR 		(0x3f << 16)		/* Current Hour */
-#define		At91_RTC_AMPM		(1    << 22)		/* Ante Meridiem Post Meridiem Indicator */
+#define		AT91_RTC_AMPM		(1    << 22)		/* Ante Meridiem Post Meridiem Indicator */
 
 #define	AT91_RTC_CALR		(AT91_RTC + 0x0c)	/* Calendar Register */
 #define		AT91_RTC_CENT		(0x7f <<  0)		/* Current Century */

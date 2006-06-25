@@ -95,6 +95,12 @@ void __init init_IRQ(void)
 {
 	int i;
 
+	/* assembly irq entry code relies on this... */
+	if (HARDIRQ_MASK != 0x00ff0000) {
+		extern void hardirq_mask_is_broken(void);
+		hardirq_mask_is_broken();
+	}
+
 	for (i = 0; i < SYS_IRQS; i++) {
 		if (mach_default_handler)
 			irq_list[i].handler = (*mach_default_handler)[i];

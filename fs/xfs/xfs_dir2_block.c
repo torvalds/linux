@@ -22,19 +22,16 @@
 #include "xfs_inum.h"
 #include "xfs_trans.h"
 #include "xfs_sb.h"
-#include "xfs_dir.h"
 #include "xfs_dir2.h"
 #include "xfs_dmapi.h"
 #include "xfs_mount.h"
 #include "xfs_da_btree.h"
 #include "xfs_bmap_btree.h"
-#include "xfs_dir_sf.h"
 #include "xfs_dir2_sf.h"
 #include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
 #include "xfs_inode_item.h"
-#include "xfs_dir_leaf.h"
 #include "xfs_dir2_data.h"
 #include "xfs_dir2_leaf.h"
 #include "xfs_dir2_block.h"
@@ -50,6 +47,18 @@ static void xfs_dir2_block_log_tail(xfs_trans_t *tp, xfs_dabuf_t *bp);
 static int xfs_dir2_block_lookup_int(xfs_da_args_t *args, xfs_dabuf_t **bpp,
 				     int *entno);
 static int xfs_dir2_block_sort(const void *a, const void *b);
+
+static xfs_dahash_t xfs_dir_hash_dot, xfs_dir_hash_dotdot;
+
+/*
+ * One-time startup routine called from xfs_init().
+ */
+void
+xfs_dir_startup(void)
+{
+	xfs_dir_hash_dot = xfs_da_hashname(".", 1);
+	xfs_dir_hash_dotdot = xfs_da_hashname("..", 2);
+}
 
 /*
  * Add an entry to a block directory.
@@ -400,7 +409,7 @@ xfs_dir2_block_addname(
 	/*
 	 * Create the new data entry.
 	 */
-	INT_SET(dep->inumber, ARCH_CONVERT, args->inumber);
+	dep->inumber = cpu_to_be64(args->inumber);
 	dep->namelen = args->namelen;
 	memcpy(dep->name, args->name, args->namelen);
 	tagp = XFS_DIR2_DATA_ENTRY_TAG_P(dep);
@@ -508,7 +517,7 @@ xfs_dir2_block_getdents(
 
 		p.cook = XFS_DIR2_DB_OFF_TO_DATAPTR(mp, mp->m_dirdatablk,
 						    ptr - (char *)block);
-		p.ino = INT_GET(dep->inumber, ARCH_CONVERT);
+		p.ino = be64_to_cpu(dep->inumber);
 #if XFS_BIG_INUMS
 		p.ino += mp->m_inoadd;
 #endif
@@ -626,7 +635,7 @@ xfs_dir2_block_lookup(
 	/*
 	 * Fill in inode number, release the block.
 	 */
-	args->inumber = INT_GET(dep->inumber, ARCH_CONVERT);
+	args->inumber = be64_to_cpu(dep->inumber);
 	xfs_da_brelse(args->trans, bp);
 	return XFS_ERROR(EEXIST);
 }
@@ -844,11 +853,11 @@ xfs_dir2_block_replace(
 	 */
 	dep = (xfs_dir2_data_entry_t *)
 	      ((char *)block + XFS_DIR2_DATAPTR_TO_OFF(mp, be32_to_cpu(blp[ent].address)));
-	ASSERT(INT_GET(dep->inumber, ARCH_CONVERT) != args->inumber);
+	ASSERT(be64_to_cpu(dep->inumber) != args->inumber);
 	/*
 	 * Change the inode number to the new value.
 	 */
-	INT_SET(dep->inumber, ARCH_CONVERT, args->inumber);
+	dep->inumber = cpu_to_be64(args->inumber);
 	xfs_dir2_data_log_entry(args->trans, bp, dep);
 	xfs_dir2_data_check(dp, bp);
 	xfs_da_buf_done(bp);
@@ -1130,7 +1139,7 @@ xfs_dir2_sf_to_block(
 	 */
 	dep = (xfs_dir2_data_entry_t *)
 	      ((char *)block + XFS_DIR2_DATA_DOT_OFFSET);
-	INT_SET(dep->inumber, ARCH_CONVERT, dp->i_ino);
+	dep->inumber = cpu_to_be64(dp->i_ino);
 	dep->namelen = 1;
 	dep->name[0] = '.';
 	tagp = XFS_DIR2_DATA_ENTRY_TAG_P(dep);
@@ -1144,7 +1153,7 @@ xfs_dir2_sf_to_block(
 	 */
 	dep = (xfs_dir2_data_entry_t *)
 		((char *)block + XFS_DIR2_DATA_DOTDOT_OFFSET);
-	INT_SET(dep->inumber, ARCH_CONVERT, XFS_DIR2_SF_GET_INUMBER(sfp, &sfp->hdr.parent));
+	dep->inumber = cpu_to_be64(XFS_DIR2_SF_GET_INUMBER(sfp, &sfp->hdr.parent));
 	dep->namelen = 2;
 	dep->name[0] = dep->name[1] = '.';
 	tagp = XFS_DIR2_DATA_ENTRY_TAG_P(dep);
@@ -1193,7 +1202,7 @@ xfs_dir2_sf_to_block(
 		 * Copy a real entry.
 		 */
 		dep = (xfs_dir2_data_entry_t *)((char *)block + newoffset);
-		INT_SET(dep->inumber, ARCH_CONVERT, XFS_DIR2_SF_GET_INUMBER(sfp,
+		dep->inumber = cpu_to_be64(XFS_DIR2_SF_GET_INUMBER(sfp,
 				XFS_DIR2_SF_INUMBERP(sfep)));
 		dep->namelen = sfep->namelen;
 		memcpy(dep->name, sfep->name, dep->namelen);

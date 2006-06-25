@@ -10,7 +10,6 @@
  * This hopefully works with any standard Alpha page-size, as defined
  * in <asm/page.h> (currently 8192).
  */
-#include <linux/config.h>
 #include <linux/mmzone.h>
 
 #include <asm/page.h>

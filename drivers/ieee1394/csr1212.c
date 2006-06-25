@@ -779,7 +779,7 @@ static int csr1212_append_new_cache(struct csr1212_csr *csr, size_t romsize)
 	romsize = (romsize + (csr->max_rom - 1)) & ~(csr->max_rom - 1);
 
 	csr_addr = csr->ops->allocate_addr_range(romsize, csr->max_rom, csr->private);
-	if (csr_addr == ~0ULL) {
+	if (csr_addr == CSR1212_INVALID_ADDR_SPACE) {
 		return CSR1212_ENOMEM;
 	}
 	if (csr_addr < CSR1212_REGISTER_SPACE_BASE) {

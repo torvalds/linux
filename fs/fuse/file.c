@@ -169,7 +169,7 @@ static int fuse_release(struct inode *inode, struct file *file)
 	return fuse_release_common(inode, file, 0);
 }
 
-static int fuse_flush(struct file *file)
+static int fuse_flush(struct file *file, fl_owner_t id)
 {
 	struct inode *inode = file->f_dentry->d_inode;
 	struct fuse_conn *fc = get_fuse_conn(inode);

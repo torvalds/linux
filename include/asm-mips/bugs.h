@@ -7,7 +7,6 @@
 #ifndef _ASM_BUGS_H
 #define _ASM_BUGS_H
 
-#include <linux/config.h>
 #include <linux/delay.h>
 #include <asm/cpu.h>
 #include <asm/cpu-info.h>
