@@ -205,18 +205,9 @@ ENTRY(auto_inthandler)
 
 	movel	%sp,%sp@-
 	movel	%d0,%sp@-		|  put vector # on stack
-#if defined(MACH_Q40_ONLY) && defined(CONFIG_BLK_DEV_FD)
-	btstb	#4,0xff000000		| Q40 floppy needs very special treatment ...
-	jbeq	1f
-	btstb	#3,0xff000004
-	jbeq	1f
-	jbsr	floppy_hardint
-	jbra	3f
-1:
-#endif
 auto_irqhandler_fixup = . + 2
 	jsr	m68k_handle_int		|  process the IRQ
-3:	addql	#8,%sp			|  pop parameters off stack
+	addql	#8,%sp			|  pop parameters off stack
 
 ret_from_interrupt:
 	subqb	#1,%curptr@(TASK_INFO+TINFO_PREEMPT+1)

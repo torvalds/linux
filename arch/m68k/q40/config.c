@@ -38,13 +38,8 @@
 
 extern irqreturn_t q40_process_int (int level, struct pt_regs *regs);
 extern void q40_init_IRQ (void);
-extern void q40_free_irq (unsigned int, void *);
-extern int  show_q40_interrupts (struct seq_file *, void *);
-extern void q40_enable_irq (unsigned int);
-extern void q40_disable_irq (unsigned int);
 static void q40_get_model(char *model);
 static int  q40_get_hardware_list(char *buffer);
-extern int  q40_request_irq(unsigned int irq, irqreturn_t (*handler)(int, void *, struct pt_regs *), unsigned long flags, const char *devname, void *dev_id);
 extern void q40_sched_init(irqreturn_t (*handler)(int, void *, struct pt_regs *));
 
 extern unsigned long q40_gettimeoffset (void);
@@ -174,12 +169,6 @@ void __init config_q40(void)
     mach_set_clock_mmss	 = q40_set_clock_mmss;
 
     mach_reset		 = q40_reset;
-    mach_free_irq	 = q40_free_irq;
-    mach_process_int	 = q40_process_int;
-    mach_get_irq_list	 = show_q40_interrupts;
-    mach_request_irq	 = q40_request_irq;
-    enable_irq		 = q40_enable_irq;
-    disable_irq          = q40_disable_irq;
     mach_get_model       = q40_get_model;
     mach_get_hardware_list = q40_get_hardware_list;
 
