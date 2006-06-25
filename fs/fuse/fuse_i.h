@@ -159,8 +159,8 @@ struct fuse_req {
 	/** Force sending of the request even if interrupted */
 	unsigned force:1;
 
-	/** The request was interrupted */
-	unsigned interrupted:1;
+	/** The request was aborted */
+	unsigned aborted:1;
 
 	/** Request is sent in the background */
 	unsigned background:1;
