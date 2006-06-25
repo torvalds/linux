@@ -874,6 +874,7 @@ static inline int copy_signal(unsigned long clone_flags, struct task_struct * ts
 		tsk->it_prof_expires =
 			secs_to_cputime(sig->rlim[RLIMIT_CPU].rlim_cur);
 	}
+	acct_init_pacct(&sig->pacct);
 
 	return 0;
 }

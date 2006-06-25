@@ -421,9 +421,9 @@ static u32 encode_float(u64 value)
  */
 static void do_acct_process(long exitcode, struct file *file)
 {
+	struct pacct_struct *pacct = &current->signal->pacct;
 	acct_t ac;
 	mm_segment_t fs;
-	unsigned long vsize;
 	unsigned long flim;
 	u64 elapsed;
 	u64 run_time;
@@ -505,20 +505,9 @@ static void do_acct_process(long exitcode, struct file *file)
 		ac.ac_flag |= ACORE;
 	if (current->flags & PF_SIGNALED)
 		ac.ac_flag |= AXSIG;
-
-	vsize = 0;
-	if (current->mm) {
-		struct vm_area_struct *vma;
-		down_read(&current->mm->mmap_sem);
-		vma = current->mm->mmap;
-		while (vma) {
-			vsize += vma->vm_end - vma->vm_start;
-			vma = vma->vm_next;
-		}
-		up_read(&current->mm->mmap_sem);
-	}
-	vsize = vsize / 1024;
-	ac.ac_mem = encode_comp_t(vsize);
+	spin_lock(&current->sighand->siglock);
+	ac.ac_mem = encode_comp_t(pacct->ac_mem);
+	spin_unlock(&current->sighand->siglock);
 	ac.ac_io = encode_comp_t(0 /* current->io_usage */);	/* %% */
 	ac.ac_rw = encode_comp_t(ac.ac_io / 1024);
 	ac.ac_minflt = encode_comp_t(current->signal->min_flt +
@@ -543,6 +532,38 @@ static void do_acct_process(long exitcode, struct file *file)
 			       sizeof(acct_t), &file->f_pos);
 	current->signal->rlim[RLIMIT_FSIZE].rlim_cur = flim;
 	set_fs(fs);
+}
+
+/**
+ * acct_init_pacct - initialize a new pacct_struct
+ */
+void acct_init_pacct(struct pacct_struct *pacct)
+{
+	memset(pacct, 0, sizeof(struct pacct_struct));
+}
+
+/**
+ * acct_collect - collect accounting information into pacct_struct
+ */
+void acct_collect(void)
+{
+	struct pacct_struct *pacct = &current->signal->pacct;
+	unsigned long vsize = 0;
+
+	if (current->mm) {
+		struct vm_area_struct *vma;
+		down_read(&current->mm->mmap_sem);
+		vma = current->mm->mmap;
+		while (vma) {
+			vsize += vma->vm_end - vma->vm_start;
+			vma = vma->vm_next;
+		}
+		up_read(&current->mm->mmap_sem);
+	}
+
+	spin_lock(&current->sighand->siglock);
+	pacct->ac_mem = vsize / 1024;
+	spin_unlock(&current->sighand->siglock);
 }
 
 /**

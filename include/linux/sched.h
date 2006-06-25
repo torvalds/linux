@@ -358,6 +358,10 @@ struct sighand_struct {
 	spinlock_t		siglock;
 };
 
+struct pacct_struct {
+	unsigned long		ac_mem;
+};
+
 /*
  * NOTE! "signal_struct" does not have it's own
  * locking, because a shared signal_struct always
@@ -448,6 +452,9 @@ struct signal_struct {
 #ifdef CONFIG_KEYS
 	struct key *session_keyring;	/* keyring inherited over fork */
 	struct key *process_keyring;	/* keyring private to this process */
+#endif
+#ifdef CONFIG_BSD_PROCESS_ACCT
+	struct pacct_struct pacct;	/* per-process accounting information */
 #endif
 };
 
