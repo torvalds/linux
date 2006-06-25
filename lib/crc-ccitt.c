@@ -53,9 +53,9 @@ EXPORT_SYMBOL(crc_ccitt_table);
 
 /**
  *	crc_ccitt - recompute the CRC for the data buffer
- *	@crc - previous CRC value
- *	@buffer - data pointer
- *	@len - number of bytes in the buffer
+ *	@crc: previous CRC value
+ *	@buffer: data pointer
+ *	@len: number of bytes in the buffer
  */
 u16 crc_ccitt(u16 crc, u8 const *buffer, size_t len)
 {
