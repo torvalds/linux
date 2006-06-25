@@ -22,8 +22,6 @@
 
 #include <linux/device.h>   // for linux/firmware.h
 #include <linux/firmware.h>
-#include <linux/videodev2.h>
-#include <media/cx2341x.h>
 #include "pvrusb2-util.h"
 #include "pvrusb2-encoder.h"
 #include "pvrusb2-hdw-internal.h"
@@ -165,6 +163,7 @@ static int pvr2_encoder_cmd(void *ctxt,
 	u32 wrData[16];
 	u32 rdData[16];
 	struct pvr2_hdw *hdw = (struct pvr2_hdw *)ctxt;
+
 
 	/*
 
@@ -339,7 +338,7 @@ int pvr2_encoder_configure(struct pvr2_hdw *hdw)
 		is_30fps=0;
 	}
 
-	pvr2_trace(PVR2_TRACE_ENCODER,"pvr2_encoder_configure");
+	pvr2_trace(PVR2_TRACE_ENCODER,"pvr2_encoder_configure (native)");
 
 	/* set stream output port.  Some notes here: The ivtv-derived
 	   encoder documentation says that this command only gets a

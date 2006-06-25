@@ -39,6 +39,7 @@
 #include <linux/mutex.h>
 #include "pvrusb2-hdw.h"
 #include "pvrusb2-io.h"
+#include <media/cx2341x.h>
 
 /* Legal values for the SRATE state variable */
 #define PVR2_CVAL_SRATE_48 0
@@ -143,6 +144,13 @@ struct pvr2_ctl_info {
 	} def;
 };
 
+
+/* Same as pvr2_ctl_info, but includes storage for the control description */
+#define PVR2_CTLD_INFO_DESC_SIZE 32
+struct pvr2_ctld_info {
+	struct pvr2_ctl_info info;
+	char desc[PVR2_CTLD_INFO_DESC_SIZE];
+};
 
 struct pvr2_ctrl {
 	const struct pvr2_ctl_info *info;
@@ -312,6 +320,7 @@ struct pvr2_hdw {
 	int flag_bilingual;
 	struct pvr2_audio_stat *audio_stat;
 
+
 	/* Control state */
 #define VCREATE_DATA(lab) int lab##_val; int lab##_dirty
 	VCREATE_DATA(brightness);
@@ -323,6 +332,10 @@ struct pvr2_hdw {
 	VCREATE_DATA(bass);
 	VCREATE_DATA(treble);
 	VCREATE_DATA(mute);
+	VCREATE_DATA(input);
+	VCREATE_DATA(audiomode);
+	VCREATE_DATA(res_hor);
+	VCREATE_DATA(res_ver);
 	VCREATE_DATA(srate);
 	VCREATE_DATA(audiobitrate);
 	VCREATE_DATA(audiocrc);
@@ -330,15 +343,13 @@ struct pvr2_hdw {
 	VCREATE_DATA(vbr);
 	VCREATE_DATA(videobitrate);
 	VCREATE_DATA(videopeak);
-	VCREATE_DATA(input);
-	VCREATE_DATA(audiomode);
-	VCREATE_DATA(res_hor);
-	VCREATE_DATA(res_ver);
 	VCREATE_DATA(interlace);
 	VCREATE_DATA(audiolayer);
 #undef VCREATE_DATA
 
+
 	struct pvr2_ctrl *controls;
+	unsigned int control_cnt;
 };
 
 int pvr2_hdw_commit_ctl_internal(struct pvr2_hdw *hdw);

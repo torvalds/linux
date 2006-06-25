@@ -25,7 +25,6 @@
 #include <linux/firmware.h>
 #include <linux/videodev2.h>
 #include <asm/semaphore.h>
-#include <media/cx2341x.h>
 #include "pvrusb2.h"
 #include "pvrusb2-std.h"
 #include "pvrusb2-util.h"
@@ -130,6 +129,7 @@ MODULE_PARM_DESC(tolerance,"specify stream error tolerance");
 
 /* size of a firmware chunk */
 #define FIRMWARE_CHUNK_SIZE 0x2000
+
 
 static const char *control_values_srate[] = {
 	[PVR2_CVAL_SRATE_48]   = "48KHz",
@@ -467,6 +467,10 @@ VCREATE_FUNCS(balance)
 VCREATE_FUNCS(bass)
 VCREATE_FUNCS(treble)
 VCREATE_FUNCS(mute)
+VCREATE_FUNCS(input)
+VCREATE_FUNCS(audiomode)
+VCREATE_FUNCS(res_hor)
+VCREATE_FUNCS(res_ver)
 VCREATE_FUNCS(srate)
 VCREATE_FUNCS(audiobitrate)
 VCREATE_FUNCS(audiocrc)
@@ -474,10 +478,6 @@ VCREATE_FUNCS(audioemphasis)
 VCREATE_FUNCS(vbr)
 VCREATE_FUNCS(videobitrate)
 VCREATE_FUNCS(videopeak)
-VCREATE_FUNCS(input)
-VCREATE_FUNCS(audiomode)
-VCREATE_FUNCS(res_hor)
-VCREATE_FUNCS(res_ver)
 VCREATE_FUNCS(interlace)
 VCREATE_FUNCS(audiolayer)
 
@@ -550,6 +550,34 @@ static const struct pvr2_ctl_info control_defs[] = {
 		DEFREF(mute),
 		DEFINT(0,1),
 	},{
+		.desc = "Video Source",
+		.name = "input",
+		.internal_id = PVR2_CID_INPUT,
+		.default_value = PVR2_CVAL_INPUT_TV,
+		DEFREF(input),
+		DEFENUM(control_values_input),
+	},{
+		.desc = "Audio Mode",
+		.name = "audio_mode",
+		.internal_id = PVR2_CID_AUDIOMODE,
+		.default_value = V4L2_TUNER_MODE_STEREO,
+		DEFREF(audiomode),
+		DEFENUM(control_values_audiomode),
+	},{
+		.desc = "Horizontal capture resolution",
+		.name = "resolution_hor",
+		.internal_id = PVR2_CID_HRES,
+		.default_value = 720,
+		DEFREF(res_hor),
+		DEFINT(320,720),
+	},{
+		.desc = "Vertical capture resolution",
+		.name = "resolution_ver",
+		.internal_id = PVR2_CID_VRES,
+		.default_value = 480,
+		DEFREF(res_ver),
+		DEFINT(200,625),
+	},{
 		.v4l_id = V4L2_CID_PVR_SRATE,
 		.desc = "Sample rate",
 		.name = "srate",
@@ -571,25 +599,12 @@ static const struct pvr2_ctl_info control_defs[] = {
 		DEFREF(audiocrc),
 		DEFINT(0,1),
 	},{
-		.desc = "Audio Layer",
-		.name = "audio_layer",
-		.default_value = 2,
-		DEFREF(audiolayer),
-		DEFINT(0,3),
-	},{
 		.v4l_id = V4L2_CID_PVR_AUDIOEMPHASIS,
 		.desc = "Audio Emphasis",
 		.name = "audio_emphasis",
 		.default_value = PVR2_CVAL_AUDIOEMPHASIS_NONE,
 		DEFREF(audioemphasis),
 		DEFENUM(control_values_audioemphasis),
-	},{
-		.desc = "Interlace mode",
-		.name = "interlace",
-		.internal_id = PVR2_CID_INTERLACE,
-		.default_value = 0,
-		DEFREF(interlace),
-		DEFINT(0,1),
 	},{
 		.v4l_id = V4L2_CID_PVR_VBR,
 		.desc = "Variable video bitrate",
@@ -612,19 +627,18 @@ static const struct pvr2_ctl_info control_defs[] = {
 		DEFREF(videopeak),
 		DEFINT(500000,20000000),
 	},{
-		.desc = "Video Source",
-		.name = "input",
-		.internal_id = PVR2_CID_INPUT,
-		.default_value = PVR2_CVAL_INPUT_TV,
-		DEFREF(input),
-		DEFENUM(control_values_input),
+		.desc = "Interlace mode",
+		.name = "interlace",
+		.internal_id = PVR2_CID_INTERLACE,
+		.default_value = 0,
+		DEFREF(interlace),
+		DEFINT(0,1),
 	},{
-		.desc = "Audio Mode",
-		.name = "audio_mode",
-		.internal_id = PVR2_CID_AUDIOMODE,
-		.default_value = V4L2_TUNER_MODE_STEREO,
-		DEFREF(audiomode),
-		DEFENUM(control_values_audiomode),
+		.desc = "Audio Layer",
+		.name = "audio_layer",
+		.default_value = 2,
+		DEFREF(audiolayer),
+		DEFINT(0,3),
 	},{
 		.desc = "Tuner Frequency (Hz)",
 		.name = "frequency",
@@ -653,20 +667,6 @@ static const struct pvr2_ctl_info control_defs[] = {
 		.set_value = ctrl_channelprog_set,
 		.get_value = ctrl_channelprog_get,
 		DEFINT(0,FREQTABLE_SIZE),
-	},{
-		.desc = "Horizontal capture resolution",
-		.name = "resolution_hor",
-		.internal_id = PVR2_CID_HRES,
-		.default_value = 720,
-		DEFREF(res_hor),
-		DEFINT(320,720),
-	},{
-		.desc = "Vertical capture resolution",
-		.name = "resolution_ver",
-		.internal_id = PVR2_CID_VRES,
-		.default_value = 480,
-		DEFREF(res_ver),
-		DEFINT(200,625),
 	},{
 		.desc = "Streaming Enabled",
 		.name = "streaming_enabled",
@@ -731,7 +731,7 @@ static const struct pvr2_ctl_info control_defs[] = {
 	}
 };
 
-#define CTRL_COUNT (sizeof(control_defs)/sizeof(control_defs[0]))
+#define CTRLDEF_COUNT (sizeof(control_defs)/sizeof(control_defs[0]))
 
 
 const char *pvr2_config_get_name(enum pvr2_config cfg)
@@ -1508,7 +1508,7 @@ static void pvr2_hdw_setup_low(struct pvr2_hdw *hdw)
 	pvr2_i2c_core_init(hdw);
 	if (!pvr2_hdw_dev_ok(hdw)) return;
 
-	for (idx = 0; idx < CTRL_COUNT; idx++) {
+	for (idx = 0; idx < CTRLDEF_COUNT; idx++) {
 		cptr = hdw->controls + idx;
 		if (cptr->info->skip_init) continue;
 		if (!cptr->info->set_value) continue;
@@ -1665,19 +1665,21 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 	if (!hdw) goto fail;
 	memset(hdw,0,sizeof(*hdw));
 
-	hdw->controls = kmalloc(sizeof(struct pvr2_ctrl) * CTRL_COUNT,
+	hdw->control_cnt = CTRLDEF_COUNT;
+	hdw->controls = kmalloc(sizeof(struct pvr2_ctrl) * hdw->control_cnt,
 				GFP_KERNEL);
 	if (!hdw->controls) goto fail;
-	memset(hdw->controls,0,sizeof(struct pvr2_ctrl) * CTRL_COUNT);
+	memset(hdw->controls,0,sizeof(struct pvr2_ctrl) * hdw->control_cnt);
 	hdw->hdw_type = hdw_type;
-
+	for (idx = 0; idx < hdw->control_cnt; idx++) {
+		cptr = hdw->controls + idx;
+		cptr->hdw = hdw;
+	}
 	for (idx = 0; idx < 32; idx++) {
 		hdw->std_mask_ptrs[idx] = hdw->std_mask_names[idx];
 	}
-
-	for (idx = 0; idx < CTRL_COUNT; idx++) {
+	for (idx = 0; idx < CTRLDEF_COUNT; idx++) {
 		cptr = hdw->controls + idx;
-		cptr->hdw = hdw;
 		cptr->info = control_defs+idx;
 	}
 
@@ -1846,7 +1848,7 @@ void pvr2_hdw_destroy(struct pvr2_hdw *hdw)
 			unit_pointers[hdw->unit_number] = 0;
 		}
 	} while (0); up(&pvr2_unit_sem);
-	kfree(hdw->controls);
+	if (hdw->controls) kfree(hdw->controls);
 	if (hdw->std_defs) kfree(hdw->std_defs);
 	if (hdw->std_enum_names) kfree(hdw->std_enum_names);
 	kfree(hdw);
@@ -1952,7 +1954,7 @@ int pvr2_hdw_get_stdenum_value(struct pvr2_hdw *hdw,
 /* Get the number of defined controls */
 unsigned int pvr2_hdw_get_ctrl_count(struct pvr2_hdw *hdw)
 {
-	return CTRL_COUNT;
+	return hdw->control_cnt;
 }
 
 
@@ -1960,7 +1962,7 @@ unsigned int pvr2_hdw_get_ctrl_count(struct pvr2_hdw *hdw)
 struct pvr2_ctrl *pvr2_hdw_get_ctrl_by_index(struct pvr2_hdw *hdw,
 					     unsigned int idx)
 {
-	if (idx >= CTRL_COUNT) return 0;
+	if (idx >= hdw->control_cnt) return 0;
 	return hdw->controls + idx;
 }
 
@@ -1974,7 +1976,7 @@ struct pvr2_ctrl *pvr2_hdw_get_ctrl_by_id(struct pvr2_hdw *hdw,
 	int i;
 
 	/* This could be made a lot more efficient, but for now... */
-	for (idx = 0; idx < CTRL_COUNT; idx++) {
+	for (idx = 0; idx < hdw->control_cnt; idx++) {
 		cptr = hdw->controls + idx;
 		i = cptr->info->internal_id;
 		if (i && (i == ctl_id)) return cptr;
@@ -1991,7 +1993,7 @@ struct pvr2_ctrl *pvr2_hdw_get_ctrl_v4l(struct pvr2_hdw *hdw,unsigned int ctl_id
 	int i;
 
 	/* This could be made a lot more efficient, but for now... */
-	for (idx = 0; idx < CTRL_COUNT; idx++) {
+	for (idx = 0; idx < hdw->control_cnt; idx++) {
 		cptr = hdw->controls + idx;
 		i = cptr->info->v4l_id;
 		if (i && (i == ctl_id)) return cptr;
@@ -2029,7 +2031,7 @@ int pvr2_hdw_commit_ctl_internal(struct pvr2_hdw *hdw)
 	char buf[100];
 	unsigned int bcnt,ccnt;
 
-	for (idx = 0; idx < CTRL_COUNT; idx++) {
+	for (idx = 0; idx < hdw->control_cnt; idx++) {
 		cptr = hdw->controls + idx;
 		if (cptr->info->is_dirty == 0) continue;
 		if (!cptr->info->is_dirty(cptr)) continue;
@@ -2080,22 +2082,23 @@ int pvr2_hdw_commit_ctl_internal(struct pvr2_hdw *hdw)
 	}
 
 	if (hdw->std_dirty ||
-	    hdw->res_ver_dirty ||
-	    hdw->res_hor_dirty ||
 	    hdw->interlace_dirty ||
 	    hdw->vbr_dirty ||
 	    hdw->videobitrate_dirty ||
 	    hdw->videopeak_dirty ||
 	    hdw->audiobitrate_dirty ||
-	    hdw->srate_dirty ||
 	    hdw->audiolayer_dirty ||
 	    hdw->audiocrc_dirty ||
-	    hdw->audioemphasis_dirty) {
+	    hdw->audioemphasis_dirty ||
+	    hdw->srate_dirty ||
+	    hdw->res_ver_dirty ||
+	    hdw->res_hor_dirty) {
 		/* If any of this changes, then the encoder needs to be
 		   reconfigured, and we need to reset the stream. */
 		stale_subsys_mask |= (1<<PVR2_SUBSYS_B_ENC_CFG);
 		stale_subsys_mask |= hdw->subsys_stream_mask;
 	}
+
 
 	/* Scan i2c core at this point - before we clear all the dirty
 	   bits.  Various parts of the i2c core will notice dirty bits as
@@ -2103,7 +2106,7 @@ int pvr2_hdw_commit_ctl_internal(struct pvr2_hdw *hdw)
 	   the client drivers in order to keep everything in sync */
 	pvr2_i2c_core_check_stale(hdw);
 
-	for (idx = 0; idx < CTRL_COUNT; idx++) {
+	for (idx = 0; idx < hdw->control_cnt; idx++) {
 		cptr = hdw->controls + idx;
 		if (!cptr->info->clear_dirty) continue;
 		cptr->info->clear_dirty(cptr);
