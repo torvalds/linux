@@ -576,7 +576,7 @@ void hrtimer_init(struct hrtimer *timer, clockid_t clock_id,
 
 	memset(timer, 0, sizeof(struct hrtimer));
 
-	bases = per_cpu(hrtimer_bases, raw_smp_processor_id());
+	bases = __raw_get_cpu_var(hrtimer_bases);
 
 	if (clock_id == CLOCK_REALTIME && mode != HRTIMER_ABS)
 		clock_id = CLOCK_MONOTONIC;
@@ -599,7 +599,7 @@ int hrtimer_get_res(const clockid_t which_clock, struct timespec *tp)
 {
 	struct hrtimer_base *bases;
 
-	bases = per_cpu(hrtimer_bases, raw_smp_processor_id());
+	bases = __raw_get_cpu_var(hrtimer_bases);
 	*tp = ktime_to_timespec(bases[which_clock].resolution);
 
 	return 0;

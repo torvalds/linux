@@ -36,7 +36,7 @@ static struct notifier_block panic_block = {
 
 void touch_softlockup_watchdog(void)
 {
-	per_cpu(touch_timestamp, raw_smp_processor_id()) = jiffies;
+	__raw_get_cpu_var(touch_timestamp) = jiffies;
 }
 EXPORT_SYMBOL(touch_softlockup_watchdog);
 

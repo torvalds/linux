@@ -4152,7 +4152,7 @@ EXPORT_SYMBOL(yield);
  */
 void __sched io_schedule(void)
 {
-	struct runqueue *rq = &per_cpu(runqueues, raw_smp_processor_id());
+	struct runqueue *rq = &__raw_get_cpu_var(runqueues);
 
 	atomic_inc(&rq->nr_iowait);
 	schedule();
@@ -4163,7 +4163,7 @@ EXPORT_SYMBOL(io_schedule);
 
 long __sched io_schedule_timeout(long timeout)
 {
-	struct runqueue *rq = &per_cpu(runqueues, raw_smp_processor_id());
+	struct runqueue *rq = &__raw_get_cpu_var(runqueues);
 	long ret;
 
 	atomic_inc(&rq->nr_iowait);

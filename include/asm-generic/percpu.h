@@ -14,6 +14,7 @@ extern unsigned long __per_cpu_offset[NR_CPUS];
 /* var is in discarded region: offset to particular copy we want */
 #define per_cpu(var, cpu) (*RELOC_HIDE(&per_cpu__##var, __per_cpu_offset[cpu]))
 #define __get_cpu_var(var) per_cpu(var, smp_processor_id())
+#define __raw_get_cpu_var(var) per_cpu(var, raw_smp_processor_id())
 
 /* A macro to avoid #include hell... */
 #define percpu_modcopy(pcpudst, src, size)			\
@@ -30,6 +31,7 @@ do {								\
 
 #define per_cpu(var, cpu)			(*((void)(cpu), &per_cpu__##var))
 #define __get_cpu_var(var)			per_cpu__##var
+#define __raw_get_cpu_var(var)			per_cpu__##var
 
 #endif	/* SMP */
 

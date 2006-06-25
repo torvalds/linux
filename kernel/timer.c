@@ -146,7 +146,7 @@ static void internal_add_timer(tvec_base_t *base, struct timer_list *timer)
 void fastcall init_timer(struct timer_list *timer)
 {
 	timer->entry.next = NULL;
-	timer->base = per_cpu(tvec_bases, raw_smp_processor_id());
+	timer->base = __raw_get_cpu_var(tvec_bases);
 }
 EXPORT_SYMBOL(init_timer);
 
