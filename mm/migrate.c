@@ -976,3 +976,23 @@ out2:
 }
 #endif
 
+/*
+ * Call migration functions in the vma_ops that may prepare
+ * memory in a vm for migration. migration functions may perform
+ * the migration for vmas that do not have an underlying page struct.
+ */
+int migrate_vmas(struct mm_struct *mm, const nodemask_t *to,
+	const nodemask_t *from, unsigned long flags)
+{
+ 	struct vm_area_struct *vma;
+ 	int err = 0;
+
+ 	for(vma = mm->mmap; vma->vm_next && !err; vma = vma->vm_next) {
+ 		if (vma->vm_ops && vma->vm_ops->migrate) {
+ 			err = vma->vm_ops->migrate(vma, to, from, flags);
+ 			if (err)
+ 				break;
+ 		}
+ 	}
+ 	return err;
+}
