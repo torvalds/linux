@@ -1603,7 +1603,7 @@ static int ext3_fill_super (struct super_block *sb, void *data, int silent)
 		}
 	}
 	if (!ext3_check_descriptors (sb)) {
-		printk (KERN_ERR "EXT3-fs: group descriptors corrupted !\n");
+		printk(KERN_ERR "EXT3-fs: group descriptors corrupted!\n");
 		goto failed_mount2;
 	}
 	sbi->s_gdb_count = db_count;
