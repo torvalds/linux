@@ -406,7 +406,7 @@ static void prune_dcache(int count, struct super_block *sb)
 		cond_resched_lock(&dcache_lock);
 
 		tmp = dentry_unused.prev;
-		if (unlikely(sb)) {
+		if (sb) {
 			/* Try to find a dentry for this sb, but don't try
 			 * too hard, if they aren't near the tail they will
 			 * be moved down again soon
