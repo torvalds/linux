@@ -55,13 +55,6 @@
 #define PLD(code...)
 #endif
 
-#define MODE_USR	USR_MODE
-#define MODE_FIQ	FIQ_MODE
-#define MODE_IRQ	IRQ_MODE
-#define MODE_SVC	SVC_MODE
-
-#define DEFAULT_FIQ	MODE_FIQ
-
 /*
  * Enable and disable interrupts
  */
