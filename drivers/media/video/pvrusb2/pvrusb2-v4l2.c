@@ -525,6 +525,7 @@ static int pvr2_v4l2_do_ioctl(struct inode *inode, struct file *file,
 		}
 
 		strlcpy(vc->name,pvr2_ctrl_get_name(cptr),sizeof(vc->name));
+		vc->flags = 0;
 		vc->default_value = pvr2_ctrl_get_def(cptr);
 		switch (pvr2_ctrl_get_type(cptr)) {
 		case pvr2_ctl_enum:
