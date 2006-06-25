@@ -530,7 +530,7 @@ int radix_tree_tag_get(struct radix_tree_root *root,
 			int ret = tag_get(slot, tag, offset);
 
 			BUG_ON(ret && saw_unset_tag);
-			return ret;
+			return !!ret;
 		}
 		slot = slot->slots[offset];
 		shift -= RADIX_TREE_MAP_SHIFT;
