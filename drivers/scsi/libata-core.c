@@ -781,11 +781,9 @@ void ata_std_dev_select (struct ata_port *ap, unsigned int device)
 void ata_dev_select(struct ata_port *ap, unsigned int device,
 			   unsigned int wait, unsigned int can_sleep)
 {
-	if (ata_msg_probe(ap)) {
+	if (ata_msg_probe(ap))
 		ata_port_printk(ap, KERN_INFO, "ata_dev_select: ENTER, ata%u: "
-				"device %u, wait %u\n",
-				ap->id, device, wait);
-	}
+				"device %u, wait %u\n", ap->id, device, wait);
 
 	if (wait)
 		ata_wait_idle(ap);
@@ -954,7 +952,8 @@ void ata_port_flush_task(struct ata_port *ap)
 	 */
 	if (!cancel_delayed_work(&ap->port_task)) {
 		if (ata_msg_ctl(ap))
-			ata_port_printk(ap, KERN_DEBUG, "%s: flush #2\n", __FUNCTION__);
+			ata_port_printk(ap, KERN_DEBUG, "%s: flush #2\n",
+					__FUNCTION__);
 		flush_workqueue(ata_wq);
 	}
 
@@ -1085,7 +1084,7 @@ unsigned ata_exec_internal(struct ata_device *dev,
 
 			if (ata_msg_warn(ap))
 				ata_dev_printk(dev, KERN_WARNING,
-				       "qc timeout (cmd 0x%x)\n", command);
+					"qc timeout (cmd 0x%x)\n", command);
 		}
 
 		spin_unlock_irqrestore(ap->lock, flags);
@@ -1097,9 +1096,9 @@ unsigned ata_exec_internal(struct ata_device *dev,
 
 	if (qc->flags & ATA_QCFLAG_FAILED && !qc->err_mask) {
 		if (ata_msg_warn(ap))
-			ata_dev_printk(dev, KERN_WARNING, 
+			ata_dev_printk(dev, KERN_WARNING,
 				"zero err_mask for failed "
-			       "internal command, assuming AC_ERR_OTHER\n");
+				"internal command, assuming AC_ERR_OTHER\n");
 		qc->err_mask |= AC_ERR_OTHER;
 	}
 
@@ -1224,8 +1223,8 @@ int ata_dev_read_id(struct ata_device *dev, unsigned int *p_class,
 	int rc;
 
 	if (ata_msg_ctl(ap))
-		ata_dev_printk(dev, KERN_DEBUG, "%s: ENTER, host %u, dev %u\n", 
-				__FUNCTION__, ap->id, dev->devno);
+		ata_dev_printk(dev, KERN_DEBUG, "%s: ENTER, host %u, dev %u\n",
+			       __FUNCTION__, ap->id, dev->devno);
 
 	ata_dev_select(ap, dev->devno, 1, 1); /* select device 0/1 */
 
@@ -1294,9 +1293,9 @@ int ata_dev_read_id(struct ata_device *dev, unsigned int *p_class,
 	return 0;
 
  err_out:
-	if (ata_msg_warn(ap)) 
+	if (ata_msg_warn(ap))
 		ata_dev_printk(dev, KERN_WARNING, "failed to IDENTIFY "
-		       "(%s, err_mask=0x%x)\n", reason, err_mask);
+			       "(%s, err_mask=0x%x)\n", reason, err_mask);
 	return rc;
 }
 
@@ -1349,19 +1348,21 @@ int ata_dev_configure(struct ata_device *dev, int print_info)
 	int i, rc;
 
 	if (!ata_dev_enabled(dev) && ata_msg_info(ap)) {
-		ata_dev_printk(dev, KERN_INFO, "%s: ENTER/EXIT (host %u, dev %u) -- nodev\n",
-			__FUNCTION__, ap->id, dev->devno);
+		ata_dev_printk(dev, KERN_INFO,
+			       "%s: ENTER/EXIT (host %u, dev %u) -- nodev\n",
+			       __FUNCTION__, ap->id, dev->devno);
 		return 0;
 	}
 
 	if (ata_msg_probe(ap))
-		ata_dev_printk(dev, KERN_DEBUG, "%s: ENTER, host %u, dev %u\n", 
-			__FUNCTION__, ap->id, dev->devno);
+		ata_dev_printk(dev, KERN_DEBUG, "%s: ENTER, host %u, dev %u\n",
+			       __FUNCTION__, ap->id, dev->devno);
 
 	/* print device capabilities */
 	if (ata_msg_probe(ap))
-		ata_dev_printk(dev, KERN_DEBUG, "%s: cfg 49:%04x 82:%04x 83:%04x "
-			       "84:%04x 85:%04x 86:%04x 87:%04x 88:%04x\n",
+		ata_dev_printk(dev, KERN_DEBUG,
+			       "%s: cfg 49:%04x 82:%04x 83:%04x 84:%04x "
+			       "85:%04x 86:%04x 87:%04x 88:%04x\n",
 			       __FUNCTION__,
 			       id[49], id[82], id[83], id[84],
 			       id[85], id[86], id[87], id[88]);
@@ -1433,14 +1434,16 @@ int ata_dev_configure(struct ata_device *dev, int print_info)
 					ata_id_major_version(id),
 					ata_mode_string(xfer_mask),
 					(unsigned long long)dev->n_sectors,
-					dev->cylinders, dev->heads, dev->sectors);
+					dev->cylinders, dev->heads,
+					dev->sectors);
 		}
 
 		if (dev->id[59] & 0x100) {
 			dev->multi_count = dev->id[59] & 0xff;
 			if (ata_msg_info(ap))
-				ata_dev_printk(dev, KERN_INFO, "ata%u: dev %u multi count %u\n",
-				ap->id, dev->devno, dev->multi_count);
+				ata_dev_printk(dev, KERN_INFO,
+					"ata%u: dev %u multi count %u\n",
+					ap->id, dev->devno, dev->multi_count);
 		}
 
 		dev->cdb_len = 16;
@@ -1453,8 +1456,8 @@ int ata_dev_configure(struct ata_device *dev, int print_info)
 		rc = atapi_cdb_len(id);
 		if ((rc < 12) || (rc > ATAPI_CDB_LEN)) {
 			if (ata_msg_warn(ap))
-				ata_dev_printk(dev, KERN_WARNING, 
-					"unsupported CDB len\n");
+				ata_dev_printk(dev, KERN_WARNING,
+					       "unsupported CDB len\n");
 			rc = -EINVAL;
 			goto err_out_nosup;
 		}
@@ -1497,8 +1500,8 @@ int ata_dev_configure(struct ata_device *dev, int print_info)
 
 err_out_nosup:
 	if (ata_msg_probe(ap))
-		ata_dev_printk(dev, KERN_DEBUG, 
-				"%s: EXIT, err\n", __FUNCTION__);
+		ata_dev_printk(dev, KERN_DEBUG,
+			       "%s: EXIT, err\n", __FUNCTION__);
 	return rc;
 }
 
@@ -3558,7 +3561,7 @@ void swap_buf_le16(u16 *buf, unsigned int buf_words)
  *	Inherited from caller.
  */
 
-void ata_mmio_data_xfer(struct ata_device *adev, unsigned char *buf, 
+void ata_mmio_data_xfer(struct ata_device *adev, unsigned char *buf,
 			unsigned int buflen, int write_data)
 {
 	struct ata_port *ap = adev->ap;
@@ -3604,7 +3607,7 @@ void ata_mmio_data_xfer(struct ata_device *adev, unsigned char *buf,
  *	Inherited from caller.
  */
 
-void ata_pio_data_xfer(struct ata_device *adev, unsigned char *buf, 
+void ata_pio_data_xfer(struct ata_device *adev, unsigned char *buf,
 		       unsigned int buflen, int write_data)
 {
 	struct ata_port *ap = adev->ap;
@@ -3638,7 +3641,7 @@ void ata_pio_data_xfer(struct ata_device *adev, unsigned char *buf,
  *	@buflen: buffer length
  *	@write_data: read/write
  *
- *	Transfer data from/to the device data register by PIO. Do the 
+ *	Transfer data from/to the device data register by PIO. Do the
  *	transfer with interrupts disabled.
  *
  *	LOCKING:
@@ -5245,7 +5248,7 @@ static void ata_host_init(struct ata_port *ap, struct Scsi_Host *host,
 	ap->msg_enable = 0x00FF;
 #elif defined(ATA_DEBUG)
 	ap->msg_enable = ATA_MSG_DRV | ATA_MSG_INFO | ATA_MSG_CTL | ATA_MSG_WARN | ATA_MSG_ERR;
-#else 
+#else
 	ap->msg_enable = ATA_MSG_DRV | ATA_MSG_ERR | ATA_MSG_WARN;
 #endif
 
