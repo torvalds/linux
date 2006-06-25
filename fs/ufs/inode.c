@@ -175,6 +175,7 @@ ufs_clear_frags(struct inode *inode, sector_t beg,
 	for (++beg; beg < end; ++beg) {
 		bh = sb_getblk(inode->i_sb, beg);
 		ufs_clear_frag(inode, bh);
+		brelse(bh);
 	}
 	return res;
 }

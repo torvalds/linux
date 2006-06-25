@@ -269,19 +269,16 @@ out:
  * We can come here from ufs_writepage or ufs_prepare_write,
  * locked_page is argument of these functions, so we already lock it.
  */
-static void ufs_change_blocknr(struct inode *inode, unsigned int count,
-			       unsigned int oldb, unsigned int newb,
-			       struct page *locked_page)
+static void ufs_change_blocknr(struct inode *inode, unsigned int baseblk,
+			       unsigned int count, unsigned int oldb,
+			       unsigned int newb, struct page *locked_page)
 {
 	unsigned int blk_per_page = 1 << (PAGE_CACHE_SHIFT - inode->i_blkbits);
-	sector_t baseblk;
 	struct address_space *mapping = inode->i_mapping;
 	pgoff_t index, cur_index = locked_page->index;
 	unsigned int i, j;
 	struct page *page;
 	struct buffer_head *head, *bh;
-
-	baseblk = ((i_size_read(inode) - 1) >> inode->i_blkbits) + 1 - count;
 
 	UFSD("ENTER, ino %lu, count %u, oldb %u, newb %u\n",
 	      inode->i_ino, count, oldb, newb);
@@ -439,7 +436,8 @@ unsigned ufs_new_fragments(struct inode * inode, __fs32 * p, unsigned fragment,
 	}
 	result = ufs_alloc_fragments (inode, cgno, goal, request, err);
 	if (result) {
-		ufs_change_blocknr(inode, oldcount, tmp, result, locked_page);
+		ufs_change_blocknr(inode, fragment - oldcount, oldcount, tmp,
+				   result, locked_page);
 
 		*p = cpu_to_fs32(sb, result);
 		*err = 0;
