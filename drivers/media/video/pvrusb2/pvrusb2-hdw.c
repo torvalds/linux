@@ -23,8 +23,8 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/firmware.h>
-#include <asm/semaphore.h>
 #include <linux/videodev2.h>
+#include <asm/semaphore.h>
 #include <media/cx2341x.h>
 #include "pvrusb2.h"
 #include "pvrusb2-std.h"
