@@ -715,18 +715,22 @@ UNUSUAL_DEV(  0x05dc, 0xb002, 0x0000, 0x0113,
  * They were originally reported by Alexander Oltu
  * <alexander@all-2.com> and Peter Marks <peter.marks@turner.com>
  * respectively.
+ *
+ * US_FL_GO_SLOW and US_FL_MAX_SECTORS_64 added by Phil Dibowitz
+ * <phil@ipom.com> as these flags were made and hard-coded
+ * special-cases were pulled from scsiglue.c.
  */
 UNUSUAL_DEV(  0x05e3, 0x0701, 0x0000, 0xffff,
 		"Genesys Logic",
 		"USB to IDE Optical",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
-		US_FL_GO_SLOW ),
+		US_FL_GO_SLOW | US_FL_MAX_SECTORS_64 ),
 
 UNUSUAL_DEV(  0x05e3, 0x0702, 0x0000, 0xffff,
 		"Genesys Logic",
 		"USB to IDE Disk",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
-		US_FL_GO_SLOW ),
+		US_FL_GO_SLOW | US_FL_MAX_SECTORS_64 ),
 
 /* Reported by Hanno Boeck <hanno@gmx.de>
  * Taken from the Lycoris Kernel */
@@ -1202,6 +1206,14 @@ UNUSUAL_DEV(  0x0ea0, 0x6828, 0x0110, 0x0110,
 		"Flash Disk",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_IGNORE_RESIDUE ),
+
+/* Reported by Benjamin Schiller <sbenni@gmx.de>
+ * It is also sold by Easylite as DJ 20 */
+UNUSUAL_DEV(  0x0ed1, 0x7636, 0x0103, 0x0103,
+		"Typhoon",
+		"My DJ 1820",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_IGNORE_RESIDUE | US_FL_GO_SLOW | US_FL_MAX_SECTORS_64),
 
 /* Reported by Michael Stattmann <michael@stattmann.com> */
 UNUSUAL_DEV(  0x0fce, 0xd008, 0x0000, 0x0000,
