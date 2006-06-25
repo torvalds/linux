@@ -11,7 +11,6 @@ config VIDEO_CX88
 	select VIDEO_BUF
 	select VIDEO_TUNER
 	select VIDEO_TVEEPROM
-	select VIDEO_CX2341X
 	select VIDEO_IR
 	---help---
 	  This is a video4linux driver for Conexant 2388x based
@@ -36,13 +35,25 @@ config VIDEO_CX88_ALSA
 	  To compile this driver as a module, choose M here: the
 	  module will be called cx88-alsa.
 
+config VIDEO_CX88_BLACKBIRD
+	tristate "Blackbird MPEG encoder support (cx2388x + cx23416)"
+	depends on VIDEO_CX88
+	select VIDEO_CX2341X
+	---help---
+	  This adds support for MPEG encoder cards based on the
+	  Blackbird reference design, using the Conexant 2388x
+	  and 23416 chips.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cx88-blackbird.
+
 config VIDEO_CX88_DVB
 	tristate "DVB/ATSC Support for cx2388x based TV cards"
 	depends on VIDEO_CX88 && DVB_CORE
 	select VIDEO_BUF_DVB
 	---help---
 	  This adds support for DVB/ATSC cards based on the
-	  Connexant 2388x chip.
+	  Conexant 2388x chip.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called cx88-dvb.
