@@ -136,6 +136,18 @@ config PARPORT_SUNBPP
 	  found on many Sun machines. Note that many of the newer Ultras
 	  actually have pc style hardware instead.
 
+config PARPORT_AX88796
+	tristate "AX88796 Parallel Port"
+	depends on PARPORT
+	select PARPORT_NOT_PC
+	help
+	  Say Y here if you need support for the parallel port hardware on
+	  the AX88796 network controller chip. This code is also available
+	  as a module (say M), called parport_ax88796.
+
+	  The driver is not dependant on the AX88796 network driver, and
+	  should not interfere with the networking functions of the chip.
+
 config PARPORT_1284
 	bool "IEEE 1284 transfer modes"
 	depends on PARPORT
