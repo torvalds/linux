@@ -413,7 +413,7 @@ config PPC_CELL_NATIVE
 	default n
 
 config PPC_IBM_CELL_BLADE
-	bool "  IBM Cell Blade"
+	bool "IBM Cell Blade"
 	depends on PPC_MULTIPLATFORM && PPC64
 	select PPC_CELL_NATIVE
 	select PPC_RTAS
