@@ -253,6 +253,7 @@ my $lineprefix="";
 # 3 - scanning prototype.
 # 4 - documentation block
 my $state;
+my $in_doc_sect;
 
 #declaration types: can be
 # 'function', 'struct', 'union', 'enum', 'typedef'
@@ -1706,6 +1707,7 @@ sub process_file($) {
 	if ($state == 0) {
 	    if (/$doc_start/o) {
 		$state = 1;		# next line is always the function name
+		$in_doc_sect = 0;
 	    }
 	} elsif ($state == 1) {	# this line is the function name (always)
 	    if (/$doc_block/o) {
@@ -1756,10 +1758,15 @@ sub process_file($) {
 		$newcontents = $2;
 
 		if ($contents ne "") {
+		    if (!$in_doc_sect && $verbose) {
+			print STDERR "Warning(${file}:$.): contents before sections\n";
+			++$warnings;
+		    }
 		    dump_section($section, xml_escape($contents));
 		    $section = $section_default;
 		}
 
+		$in_doc_sect = 1;
 		$contents = $newcontents;
 		if ($contents ne "") {
 		    if (substr($contents, 0, 1) eq " ") {
