@@ -95,6 +95,14 @@ fastcall unsigned int do_IRQ(struct pt_regs *regs)
 		irqctx->tinfo.task = curctx->tinfo.task;
 		irqctx->tinfo.previous_esp = current_stack_pointer;
 
+		/*
+		 * Copy the softirq bits in preempt_count so that the
+		 * softirq checks work in the hardirq context.
+		 */
+		irqctx->tinfo.preempt_count =
+			irqctx->tinfo.preempt_count & ~SOFTIRQ_MASK |
+			curctx->tinfo.preempt_count & SOFTIRQ_MASK;
+
 		asm volatile(
 			"       xchgl   %%ebx,%%esp      \n"
 			"       call    __do_IRQ         \n"
