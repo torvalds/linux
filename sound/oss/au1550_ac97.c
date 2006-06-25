@@ -1895,6 +1895,8 @@ static /*const */ struct file_operations au1550_audio_fops = {
 
 MODULE_AUTHOR("Advanced Micro Devices (AMD), dan@embeddededge.com");
 MODULE_DESCRIPTION("Au1550 AC97 Audio Driver");
+MODULE_LICENSE("GPL");
+
 
 static int __devinit
 au1550_probe(void)
