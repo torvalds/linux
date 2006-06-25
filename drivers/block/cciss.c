@@ -2638,16 +2638,6 @@ static void print_cfg_table( CfgTable_struct *tb)
 }
 #endif /* CCISS_DEBUG */ 
 
-static void release_io_mem(ctlr_info_t *c)
-{
-	/* if IO mem was not protected do nothing */
-	if( c->io_mem_addr == 0)
-		return;
-	release_region(c->io_mem_addr, c->io_mem_length);
-	c->io_mem_addr = 0;
-	c->io_mem_length = 0;
-}
-
 static int find_PCI_BAR_index(struct pci_dev *pdev,
 				unsigned long pci_bar_addr)
 {
@@ -2762,35 +2752,17 @@ static int cciss_pci_init(ctlr_info_t *c, struct pci_dev *pdev)
 		return err;
 	}
 
+	err = pci_request_regions(pdev, "cciss");
+	if (err) {
+		printk(KERN_ERR "cciss: Cannot obtain PCI resources, "
+			"aborting\n");
+		goto err_out_disable_pdev;
+	}
+
 	subsystem_vendor_id = pdev->subsystem_vendor;
 	subsystem_device_id = pdev->subsystem_device;
 	board_id = (((__u32) (subsystem_device_id << 16) & 0xffff0000) |
 					subsystem_vendor_id);
-
-	/* search for our IO range so we can protect it */
-	for(i=0; i<DEVICE_COUNT_RESOURCE; i++)
-	{
-		/* is this an IO range */ 
-		if( pci_resource_flags(pdev, i) & 0x01 ) {
-			c->io_mem_addr = pci_resource_start(pdev, i);
-			c->io_mem_length = pci_resource_end(pdev, i) -
-				pci_resource_start(pdev, i) +1;
-#ifdef CCISS_DEBUG
-			printk("IO value found base_addr[%d] %lx %lx\n", i,
-				c->io_mem_addr, c->io_mem_length);
-#endif /* CCISS_DEBUG */
-			/* register the IO range */ 
-			if(!request_region( c->io_mem_addr,
-                                        c->io_mem_length, "cciss"))
-			{
-				printk(KERN_WARNING "cciss I/O memory range already in use addr=%lx length=%ld\n",
-				c->io_mem_addr, c->io_mem_length);
-				c->io_mem_addr= 0;
-				c->io_mem_length = 0;
-			} 
-			break;
-		}
-	}
 
 #ifdef CCISS_DEBUG
 	printk("command = %x\n", command);
@@ -2826,7 +2798,7 @@ static int cciss_pci_init(ctlr_info_t *c, struct pci_dev *pdev)
 	if (scratchpad != CCISS_FIRMWARE_READY) {
 		printk(KERN_WARNING "cciss: Board not ready.  Timed out.\n");
 		err = -ENODEV;
-		goto err_out_disable_pdev;
+		goto err_out_free_res;
 	}
 
 	/* get the address index number */
@@ -2842,9 +2814,8 @@ static int cciss_pci_init(ctlr_info_t *c, struct pci_dev *pdev)
 #endif /* CCISS_DEBUG */
 	if (cfg_base_addr_index == -1) {
 		printk(KERN_WARNING "cciss: Cannot find cfg_base_addr_index\n");
-		release_io_mem(c);
 		err = -ENODEV;
-		goto err_out_disable_pdev;
+		goto err_out_free_res;
 	}
 
 	cfg_offset = readl(c->vaddr + SA5_CTMEM_OFFSET);
@@ -2872,7 +2843,7 @@ static int cciss_pci_init(ctlr_info_t *c, struct pci_dev *pdev)
 			" to access the Smart Array controller %08lx\n", 
 				(unsigned long)board_id);
 		err = -ENODEV;
-		goto err_out_disable_pdev;
+		goto err_out_free_res;
 	}
 	if (  (readb(&c->cfgtable->Signature[0]) != 'C') ||
 	      (readb(&c->cfgtable->Signature[1]) != 'I') ||
@@ -2881,7 +2852,7 @@ static int cciss_pci_init(ctlr_info_t *c, struct pci_dev *pdev)
 	{
 		printk("Does not appear to be a valid CISS config table\n");
 		err = -ENODEV;
-		goto err_out_disable_pdev;
+		goto err_out_free_res;
 	}
 
 #ifdef CONFIG_X86
@@ -2926,9 +2897,12 @@ static int cciss_pci_init(ctlr_info_t *c, struct pci_dev *pdev)
 		printk(KERN_WARNING "cciss: unable to get board into"
 					" simple mode\n");
 		err = -ENODEV;
-		goto err_out_disable_pdev;
+		goto err_out_free_res;
 	}
 	return 0;
+
+err_out_free_res:
+	pci_release_regions(pdev);
 
 err_out_disable_pdev:
 	pci_disable_device(pdev);
@@ -3276,7 +3250,6 @@ clean4:
 clean2:
 	unregister_blkdev(hba[i]->major, hba[i]->devname);
 clean1:
-	release_io_mem(hba[i]);
 	hba[i]->busy_initializing = 0;
 	free_hba(i);
 	return(-1);
@@ -3322,7 +3295,6 @@ static void __devexit cciss_remove_one (struct pci_dev *pdev)
                 pci_disable_msi(hba[i]->pdev);
 #endif /* CONFIG_PCI_MSI */
 
-	pci_set_drvdata(pdev, NULL);
 	iounmap(hba[i]->vaddr);
 	cciss_unregister_scsi(i);  /* unhook from SCSI subsystem */
 	unregister_blkdev(hba[i]->major, hba[i]->devname);
@@ -3349,7 +3321,9 @@ static void __devexit cciss_remove_one (struct pci_dev *pdev)
 #ifdef CONFIG_CISS_SCSI_TAPE
 	kfree(hba[i]->scsi_rejects.complete);
 #endif
- 	release_io_mem(hba[i]);
+ 	pci_release_regions(pdev);
+	pci_disable_device(pdev);
+	pci_set_drvdata(pdev, NULL);
 	free_hba(i);
 }	
 
