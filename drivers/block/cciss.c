@@ -129,7 +129,7 @@ static struct board_type products[] = {
 	{ 0x3215103C, "Smart Array E200i", &SA5_access},
 };
 
-/* How long to wait (in millesconds) for board to go into simple mode */
+/* How long to wait (in milliseconds) for board to go into simple mode */
 #define MAX_CONFIG_WAIT 30000 
 #define MAX_IOCTL_CONFIG_WAIT 1000
 
@@ -1117,7 +1117,7 @@ cleanup1:
  *
  * Right now I'm using the getgeometry() function to do this, but this
  * function should probably be finer grained and allow you to revalidate one
- * particualar logical volume (instead of all of them on a particular
+ * particular logical volume (instead of all of them on a particular
  * controller).
  */
 static int revalidate_allvol(ctlr_info_t *host)
@@ -1260,7 +1260,7 @@ static void cciss_update_drive_info(int ctlr, int drv_index)
 		return;
 
 
-	/* Get information about the disk and modify the driver sturcture */
+	/* Get information about the disk and modify the driver structure */
 	size_buff = kmalloc(sizeof( ReadCapdata_struct), GFP_KERNEL);
         if (size_buff == NULL)
 		goto mem_msg;
@@ -1335,7 +1335,7 @@ static int cciss_find_free_drive_index(int ctlr)
 }
 
 /* This function will add and remove logical drives from the Logical
- * drive array of the controller and maintain persistancy of ordering
+ * drive array of the controller and maintain persistency of ordering
  * so that mount points are preserved until the next reboot.  This allows
  * for the removal of logical drives in the middle of the drive array
  * without a re-ordering of those drives.
@@ -1482,7 +1482,7 @@ mem_msg:
  * clear_all = This flag determines whether or not the disk information
  *             is going to be completely cleared out and the highest_lun
  *             reset.  Sometimes we want to clear out information about
- *             the disk in preperation for re-adding it.  In this case
+ *             the disk in preparation for re-adding it.  In this case
  *             the highest_lun should be left unchanged and the LunID
  *             should not be cleared.
 */
@@ -2597,7 +2597,7 @@ cleanup:
 	return IRQ_HANDLED;
 }
 /* 
- *  We cannot read the structure directly, for portablity we must use 
+ *  We cannot read the structure directly, for portability we must use
  *   the io functions.
  *   This is for debug only. 
  */
@@ -2620,9 +2620,9 @@ static void print_cfg_table( CfgTable_struct *tb)
 				readl(&(tb->TransportActive)));
 	printk("   Requested transport Method = 0x%x\n", 
 			readl(&(tb->HostWrite.TransportRequest)));
-	printk("   Coalese Interrupt Delay = 0x%x\n", 
+	printk("   Coalesce Interrupt Delay = 0x%x\n",
 			readl(&(tb->HostWrite.CoalIntDelay)));
-	printk("   Coalese Interrupt Count = 0x%x\n", 
+	printk("   Coalesce Interrupt Count = 0x%x\n",
 			readl(&(tb->HostWrite.CoalIntCount)));
 	printk("   Max outstanding commands = 0x%d\n", 
 			readl(&(tb->CmdsOutMax)));
