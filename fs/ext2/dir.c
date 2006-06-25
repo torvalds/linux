@@ -399,8 +399,7 @@ ino_t ext2_inode_by_name(struct inode * dir, struct dentry *dentry)
 	de = ext2_find_entry (dir, dentry, &page);
 	if (de) {
 		res = le32_to_cpu(de->inode);
-		kunmap(page);
-		page_cache_release(page);
+		ext2_put_page(page);
 	}
 	return res;
 }
