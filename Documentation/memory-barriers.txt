@@ -262,9 +262,14 @@ What is required is some way of intervening to instruct the compiler and the
 CPU to restrict the order.
 
 Memory barriers are such interventions.  They impose a perceived partial
-ordering between the memory operations specified on either side of the barrier.
-They request that the sequence of memory events generated appears to other
-parts of the system as if the barrier is effective on that CPU.
+ordering over the memory operations on either side of the barrier.
+
+Such enforcement is important because the CPUs and other devices in a system
+can use a variety of tricks to improve performance - including reordering,
+deferral and combination of memory operations; speculative loads; speculative
+branch prediction and various types of caching.  Memory barriers are used to
+override or suppress these tricks, allowing the code to sanely control the
+interaction of multiple CPUs and/or devices.
 
 
 VARIETIES OF MEMORY BARRIER
@@ -461,8 +466,8 @@ Whilst this may seem like a failure of coherency or causality maintenance, it
 isn't, and this behaviour can be observed on certain real CPUs (such as the DEC
 Alpha).
 
-To deal with this, a data dependency barrier must be inserted between the
-address load and the data load:
+To deal with this, a data dependency barrier or better must be inserted
+between the address load and the data load:
 
 	CPU 1		CPU 2
 	===============	===============
