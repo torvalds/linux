@@ -101,6 +101,7 @@ MODULE_LICENSE("GPL");
 
 static struct pci_device_id pci_table[] = {
 	{PCI_VENDOR_ID_MICROGATE, SYNCLINK_GT_DEVICE_ID, PCI_ANY_ID, PCI_ANY_ID,},
+	{PCI_VENDOR_ID_MICROGATE, SYNCLINK_GT2_DEVICE_ID, PCI_ANY_ID, PCI_ANY_ID,},
 	{PCI_VENDOR_ID_MICROGATE, SYNCLINK_GT4_DEVICE_ID, PCI_ANY_ID, PCI_ANY_ID,},
 	{PCI_VENDOR_ID_MICROGATE, SYNCLINK_AC_DEVICE_ID, PCI_ANY_ID, PCI_ANY_ID,},
 	{0,}, /* terminate list */
@@ -3277,6 +3278,9 @@ static void add_device(struct slgt_info *info)
 	case SYNCLINK_GT_DEVICE_ID:
 		devstr = "GT";
 		break;
+	case SYNCLINK_GT2_DEVICE_ID:
+		devstr = "GT2";
+		break;
 	case SYNCLINK_GT4_DEVICE_ID:
 		devstr = "GT4";
 		break;
@@ -3354,7 +3358,9 @@ static void device_init(int adapter_num, struct pci_dev *pdev)
 	int i;
 	int port_count = 1;
 
-	if (pdev->device == SYNCLINK_GT4_DEVICE_ID)
+	if (pdev->device == SYNCLINK_GT2_DEVICE_ID)
+		port_count = 2;
+	else if (pdev->device == SYNCLINK_GT4_DEVICE_ID)
 		port_count = 4;
 
 	/* allocate device instances for all ports */
