@@ -1045,6 +1045,7 @@ static int ext2_statfs (struct dentry * dentry, struct kstatfs * buf)
 	unsigned long overhead;
 	int i;
 
+	lock_super(sb);
 	if (test_opt (sb, MINIX_DF))
 		overhead = 0;
 	else {
@@ -1085,6 +1086,7 @@ static int ext2_statfs (struct dentry * dentry, struct kstatfs * buf)
 	buf->f_files = le32_to_cpu(sbi->s_es->s_inodes_count);
 	buf->f_ffree = ext2_count_free_inodes (sb);
 	buf->f_namelen = EXT2_NAME_LEN;
+	unlock_super(sb);
 	return 0;
 }
 
