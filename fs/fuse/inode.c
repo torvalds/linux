@@ -98,6 +98,14 @@ static void fuse_clear_inode(struct inode *inode)
 	}
 }
 
+static int fuse_remount_fs(struct super_block *sb, int *flags, char *data)
+{
+	if (*flags & MS_MANDLOCK)
+		return -EINVAL;
+
+	return 0;
+}
+
 void fuse_change_attributes(struct inode *inode, struct fuse_attr *attr)
 {
 	if (S_ISREG(inode->i_mode) && i_size_read(inode) != attr->size)
@@ -409,6 +417,7 @@ static struct super_operations fuse_super_operations = {
 	.destroy_inode  = fuse_destroy_inode,
 	.read_inode	= fuse_read_inode,
 	.clear_inode	= fuse_clear_inode,
+	.remount_fs	= fuse_remount_fs,
 	.put_super	= fuse_put_super,
 	.umount_begin	= fuse_umount_begin,
 	.statfs		= fuse_statfs,
@@ -428,8 +437,12 @@ static void process_init_reply(struct fuse_conn *fc, struct fuse_req *req)
 			ra_pages = arg->max_readahead / PAGE_CACHE_SIZE;
 			if (arg->flags & FUSE_ASYNC_READ)
 				fc->async_read = 1;
-		} else
+			if (!(arg->flags & FUSE_POSIX_LOCKS))
+				fc->no_lock = 1;
+		} else {
 			ra_pages = fc->max_read / PAGE_CACHE_SIZE;
+			fc->no_lock = 1;
+		}
 
 		fc->bdi.ra_pages = min(fc->bdi.ra_pages, ra_pages);
 		fc->minor = arg->minor;
@@ -447,7 +460,7 @@ static void fuse_send_init(struct fuse_conn *fc, struct fuse_req *req)
 	arg->major = FUSE_KERNEL_VERSION;
 	arg->minor = FUSE_KERNEL_MINOR_VERSION;
 	arg->max_readahead = fc->bdi.ra_pages * PAGE_CACHE_SIZE;
-	arg->flags |= FUSE_ASYNC_READ;
+	arg->flags |= FUSE_ASYNC_READ | FUSE_POSIX_LOCKS;
 	req->in.h.opcode = FUSE_INIT;
 	req->in.numargs = 1;
 	req->in.args[0].size = sizeof(*arg);
@@ -478,6 +491,9 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 	struct dentry *root_dentry;
 	struct fuse_req *init_req;
 	int err;
+
+	if (sb->s_flags & MS_MANDLOCK)
+		return -EINVAL;
 
 	if (!parse_fuse_opt((char *) data, &d))
 		return -EINVAL;

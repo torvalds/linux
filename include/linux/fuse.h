@@ -1,6 +1,6 @@
 /*
     FUSE: Filesystem in Userspace
-    Copyright (C) 2001-2005  Miklos Szeredi <miklos@szeredi.hu>
+    Copyright (C) 2001-2006  Miklos Szeredi <miklos@szeredi.hu>
 
     This program can be distributed under the terms of the GNU GPL.
     See the file COPYING.
@@ -15,7 +15,7 @@
 #define FUSE_KERNEL_VERSION 7
 
 /** Minor version number of this interface */
-#define FUSE_KERNEL_MINOR_VERSION 6
+#define FUSE_KERNEL_MINOR_VERSION 7
 
 /** The node ID of the root inode */
 #define FUSE_ROOT_ID 1
@@ -59,6 +59,13 @@ struct fuse_kstatfs {
 	__u32	spare[6];
 };
 
+struct fuse_file_lock {
+	__u64	start;
+	__u64	end;
+	__u32	type;
+	__u32	pid; /* tgid */
+};
+
 /**
  * Bitmasks for fuse_setattr_in.valid
  */
@@ -83,6 +90,7 @@ struct fuse_kstatfs {
  * INIT request/reply flags
  */
 #define FUSE_ASYNC_READ		(1 << 0)
+#define FUSE_POSIX_LOCKS	(1 << 1)
 
 enum fuse_opcode {
 	FUSE_LOOKUP	   = 1,
@@ -113,6 +121,9 @@ enum fuse_opcode {
 	FUSE_READDIR       = 28,
 	FUSE_RELEASEDIR    = 29,
 	FUSE_FSYNCDIR      = 30,
+	FUSE_GETLK         = 31,
+	FUSE_SETLK         = 32,
+	FUSE_SETLKW        = 33,
 	FUSE_ACCESS        = 34,
 	FUSE_CREATE        = 35
 };
@@ -200,6 +211,7 @@ struct fuse_flush_in {
 	__u64	fh;
 	__u32	flush_flags;
 	__u32	padding;
+	__u64	lock_owner;
 };
 
 struct fuse_read_in {
@@ -246,6 +258,16 @@ struct fuse_getxattr_in {
 struct fuse_getxattr_out {
 	__u32	size;
 	__u32	padding;
+};
+
+struct fuse_lk_in {
+	__u64	fh;
+	__u64	owner;
+	struct fuse_file_lock lk;
+};
+
+struct fuse_lk_out {
+	struct fuse_file_lock lk;
 };
 
 struct fuse_access_in {

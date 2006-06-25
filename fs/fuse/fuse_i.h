@@ -190,6 +190,7 @@ struct fuse_req {
 		struct fuse_init_in init_in;
 		struct fuse_init_out init_out;
 		struct fuse_read_in read_in;
+		struct fuse_lk_in lk_in;
 	} misc;
 
 	/** page vector */
@@ -306,6 +307,9 @@ struct fuse_conn {
 
 	/** Is removexattr not implemented by fs? */
 	unsigned no_removexattr : 1;
+
+	/** Are file locking primitives not implemented by fs? */
+	unsigned no_lock : 1;
 
 	/** Is access not implemented by fs? */
 	unsigned no_access : 1;

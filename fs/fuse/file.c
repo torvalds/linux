@@ -160,6 +160,18 @@ static int fuse_release(struct inode *inode, struct file *file)
 	return fuse_release_common(inode, file, 0);
 }
 
+/*
+ * It would be nice to scramble the ID space, so that the value of the
+ * files_struct pointer is not exposed to userspace.  Symmetric crypto
+ * functions are overkill, since the inverse function doesn't need to
+ * be implemented (though it does have to exist).  Is there something
+ * simpler?
+ */
+static inline u64 fuse_lock_owner_id(fl_owner_t id)
+{
+	return (unsigned long) id;
+}
+
 static int fuse_flush(struct file *file, fl_owner_t id)
 {
 	struct inode *inode = file->f_dentry->d_inode;
@@ -181,11 +193,13 @@ static int fuse_flush(struct file *file, fl_owner_t id)
 
 	memset(&inarg, 0, sizeof(inarg));
 	inarg.fh = ff->fh;
+	inarg.lock_owner = fuse_lock_owner_id(id);
 	req->in.h.opcode = FUSE_FLUSH;
 	req->in.h.nodeid = get_node_id(inode);
 	req->in.numargs = 1;
 	req->in.args[0].size = sizeof(inarg);
 	req->in.args[0].value = &inarg;
+	req->force = 1;
 	request_send(fc, req);
 	err = req->out.h.error;
 	fuse_put_request(fc, req);
@@ -604,6 +618,122 @@ static int fuse_set_page_dirty(struct page *page)
 	return 0;
 }
 
+static int convert_fuse_file_lock(const struct fuse_file_lock *ffl,
+				  struct file_lock *fl)
+{
+	switch (ffl->type) {
+	case F_UNLCK:
+		break;
+
+	case F_RDLCK:
+	case F_WRLCK:
+		if (ffl->start > OFFSET_MAX || ffl->end > OFFSET_MAX ||
+		    ffl->end < ffl->start)
+			return -EIO;
+
+		fl->fl_start = ffl->start;
+		fl->fl_end = ffl->end;
+		fl->fl_pid = ffl->pid;
+		break;
+
+	default:
+		return -EIO;
+	}
+	fl->fl_type = ffl->type;
+	return 0;
+}
+
+static void fuse_lk_fill(struct fuse_req *req, struct file *file,
+			 const struct file_lock *fl, int opcode, pid_t pid)
+{
+	struct inode *inode = file->f_dentry->d_inode;
+	struct fuse_file *ff = file->private_data;
+	struct fuse_lk_in *arg = &req->misc.lk_in;
+
+	arg->fh = ff->fh;
+	arg->owner = fuse_lock_owner_id(fl->fl_owner);
+	arg->lk.start = fl->fl_start;
+	arg->lk.end = fl->fl_end;
+	arg->lk.type = fl->fl_type;
+	arg->lk.pid = pid;
+	req->in.h.opcode = opcode;
+	req->in.h.nodeid = get_node_id(inode);
+	req->in.numargs = 1;
+	req->in.args[0].size = sizeof(*arg);
+	req->in.args[0].value = arg;
+}
+
+static int fuse_getlk(struct file *file, struct file_lock *fl)
+{
+	struct inode *inode = file->f_dentry->d_inode;
+	struct fuse_conn *fc = get_fuse_conn(inode);
+	struct fuse_req *req;
+	struct fuse_lk_out outarg;
+	int err;
+
+	req = fuse_get_req(fc);
+	if (IS_ERR(req))
+		return PTR_ERR(req);
+
+	fuse_lk_fill(req, file, fl, FUSE_GETLK, 0);
+	req->out.numargs = 1;
+	req->out.args[0].size = sizeof(outarg);
+	req->out.args[0].value = &outarg;
+	request_send(fc, req);
+	err = req->out.h.error;
+	fuse_put_request(fc, req);
+	if (!err)
+		err = convert_fuse_file_lock(&outarg.lk, fl);
+
+	return err;
+}
+
+static int fuse_setlk(struct file *file, struct file_lock *fl)
+{
+	struct inode *inode = file->f_dentry->d_inode;
+	struct fuse_conn *fc = get_fuse_conn(inode);
+	struct fuse_req *req;
+	int opcode = (fl->fl_flags & FL_SLEEP) ? FUSE_SETLKW : FUSE_SETLK;
+	pid_t pid = fl->fl_type != F_UNLCK ? current->tgid : 0;
+	int err;
+
+	/* Unlock on close is handled by the flush method */
+	if (fl->fl_flags & FL_CLOSE)
+		return 0;
+
+	req = fuse_get_req(fc);
+	if (IS_ERR(req))
+		return PTR_ERR(req);
+
+	fuse_lk_fill(req, file, fl, opcode, pid);
+	request_send(fc, req);
+	err = req->out.h.error;
+	fuse_put_request(fc, req);
+	return err;
+}
+
+static int fuse_file_lock(struct file *file, int cmd, struct file_lock *fl)
+{
+	struct inode *inode = file->f_dentry->d_inode;
+	struct fuse_conn *fc = get_fuse_conn(inode);
+	int err;
+
+	if (cmd == F_GETLK) {
+		if (fc->no_lock) {
+			if (!posix_test_lock(file, fl, fl))
+				fl->fl_type = F_UNLCK;
+			err = 0;
+		} else
+			err = fuse_getlk(file, fl);
+	} else {
+		if (fc->no_lock)
+			err = posix_lock_file_wait(file, fl);
+		else
+			err = fuse_setlk(file, fl);
+	}
+	return err;
+}
+
 static const struct file_operations fuse_file_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= generic_file_read,
@@ -613,6 +743,7 @@ static const struct file_operations fuse_file_operations = {
 	.flush		= fuse_flush,
 	.release	= fuse_release,
 	.fsync		= fuse_fsync,
+	.lock		= fuse_file_lock,
 	.sendfile	= generic_file_sendfile,
 };
 
@@ -624,6 +755,7 @@ static const struct file_operations fuse_direct_io_file_operations = {
 	.flush		= fuse_flush,
 	.release	= fuse_release,
 	.fsync		= fuse_fsync,
+	.lock		= fuse_file_lock,
 	/* no mmap and sendfile */
 };
 
