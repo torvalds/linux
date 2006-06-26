@@ -279,14 +279,10 @@ static void netpoll_send_skb(struct netpoll *np, struct sk_buff *skb)
 		 * network drivers do not expect to be called if the queue is
 		 * stopped.
 		 */
-		if (netif_queue_stopped(np->dev)) {
-			netif_tx_unlock(np->dev);
-			netpoll_poll(np);
-			udelay(50);
-			continue;
-		}
+		status = NETDEV_TX_BUSY;
+		if (!netif_queue_stopped(np->dev))
+			status = np->dev->hard_start_xmit(skb, np->dev);
 
-		status = np->dev->hard_start_xmit(skb, np->dev);
 		netif_tx_unlock(np->dev);
 
 		/* success */
