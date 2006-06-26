@@ -405,6 +405,25 @@ config IOMMU
 	  device) unless CONFIG_IOMMU_DEBUG or iommu=force is specified
 	  too.
 
+config CALGARY_IOMMU
+	bool "IBM Calgary IOMMU support"
+	default y
+	select SWIOTLB
+	depends on PCI && EXPERIMENTAL
+	help
+	  Support for hardware IOMMUs in IBM's xSeries x366 and x460
+	  systems. Needed to run systems with more than 3GB of memory
+	  properly with 32-bit PCI devices that do not support DAC
+	  (Double Address Cycle). Calgary also supports bus level
+	  isolation, where all DMAs pass through the IOMMU.  This
+	  prevents them from going anywhere except their intended
+	  destination. This catches hard-to-find kernel bugs and
+	  mis-behaving drivers and devices that do not use the DMA-API
+	  properly to set up their DMA buffers.  The IOMMU can be
+	  turned off at boot time with the iommu=off parameter.
+	  Normally the kernel will make the right choice by itself.
+	  If unsure, say Y.
+
 # need this always selected by IOMMU for the VIA workaround
 config SWIOTLB
 	bool

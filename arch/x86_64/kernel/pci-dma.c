@@ -9,6 +9,7 @@
 #include <linux/module.h>
 #include <asm/io.h>
 #include <asm/proto.h>
+#include <asm/calgary.h>
 
 int iommu_merge __read_mostly = 0;
 EXPORT_SYMBOL(iommu_merge);
@@ -291,6 +292,10 @@ void __init pci_iommu_alloc(void)
 	iommu_hole_init();
 #endif
 
+#ifdef CONFIG_CALGARY_IOMMU
+	detect_calgary();
+#endif
+
 #ifdef CONFIG_SWIOTLB
 	pci_swiotlb_init();
 #endif
@@ -298,6 +303,10 @@ void __init pci_iommu_alloc(void)
 
 static int __init pci_iommu_init(void)
 {
+#ifdef CONFIG_CALGARY_IOMMU
+	calgary_iommu_init();
+#endif
+
 #ifdef CONFIG_IOMMU
 	gart_iommu_init();
 #endif

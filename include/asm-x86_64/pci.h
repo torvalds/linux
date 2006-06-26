@@ -52,7 +52,7 @@ extern int iommu_setup(char *opt);
  */
 #define PCI_DMA_BUS_IS_PHYS (dma_ops->is_phys)
 
-#ifdef CONFIG_IOMMU
+#if defined(CONFIG_IOMMU) || defined(CONFIG_CALGARY_IOMMU)
 
 /*
  * x86-64 always supports DAC, but sometimes it is useful to force
