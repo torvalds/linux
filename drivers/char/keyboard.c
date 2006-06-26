@@ -151,6 +151,7 @@ unsigned char kbd_sysrq_xlate[KEY_MAX + 1] =
         "230\177\000\000\213\214\000\000\000\000\000\000\000\000\000\000" /* 0x50 - 0x5f */
         "\r\000/";                                      /* 0x60 - 0x6f */
 static int sysrq_down;
+static int sysrq_alt_use;
 #endif
 static int sysrq_alt;
 
@@ -1143,7 +1144,7 @@ static void kbd_keycode(unsigned int keycode, int down,
 	kbd = kbd_table + fg_console;
 
 	if (keycode == KEY_LEFTALT || keycode == KEY_RIGHTALT)
-		sysrq_alt = down;
+		sysrq_alt = down ? keycode : 0;
 #ifdef CONFIG_SPARC
 	if (keycode == KEY_STOP)
 		sparc_l1_a_state = down;
@@ -1163,9 +1164,14 @@ static void kbd_keycode(unsigned int keycode, int down,
 
 #ifdef CONFIG_MAGIC_SYSRQ	       /* Handle the SysRq Hack */
 	if (keycode == KEY_SYSRQ && (sysrq_down || (down == 1 && sysrq_alt))) {
-		sysrq_down = down;
+		if (!sysrq_down) {
+			sysrq_down = down;
+			sysrq_alt_use = sysrq_alt;
+		}
 		return;
 	}
+	if (sysrq_down && !down && keycode == sysrq_alt_use)
+		sysrq_down = 0;
 	if (sysrq_down && down && !rep) {
 		handle_sysrq(kbd_sysrq_xlate[keycode], regs, tty);
 		return;
