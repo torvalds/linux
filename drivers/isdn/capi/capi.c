@@ -87,6 +87,11 @@ struct capincci;
 #ifdef CONFIG_ISDN_CAPI_MIDDLEWARE
 struct capiminor;
 
+struct datahandle_queue {
+	struct list_head	list;
+	u16			datahandle;
+};
+
 struct capiminor {
 	struct list_head list;
 	struct capincci  *nccip;
@@ -109,12 +114,9 @@ struct capiminor {
 	int                 outbytes;
 
 	/* transmit path */
-	struct datahandle_queue {
-		    struct datahandle_queue *next;
-		    u16                    datahandle;
-	} *ackqueue;
+	struct list_head ackqueue;
 	int nack;
-
+	spinlock_t ackqlock;
 };
 #endif /* CONFIG_ISDN_CAPI_MIDDLEWARE */
 
@@ -156,48 +158,54 @@ static LIST_HEAD(capiminor_list);
 
 static int capincci_add_ack(struct capiminor *mp, u16 datahandle)
 {
-	struct datahandle_queue *n, **pp;
+	struct datahandle_queue *n;
+	unsigned long flags;
 
 	n = kmalloc(sizeof(*n), GFP_ATOMIC);
-	if (!n) {
-	   printk(KERN_ERR "capi: alloc datahandle failed\n");
-	   return -1;
+	if (unlikely(!n)) {
+		printk(KERN_ERR "capi: alloc datahandle failed\n");
+		return -1;
 	}
-	n->next = NULL;
 	n->datahandle = datahandle;
-	for (pp = &mp->ackqueue; *pp; pp = &(*pp)->next) ;
-	*pp = n;
+	INIT_LIST_HEAD(&n->list);
+	spin_lock_irqsave(&mp->ackqlock, flags);
+	list_add_tail(&n->list, &mp->ackqueue);
 	mp->nack++;
+	spin_unlock_irqrestore(&mp->ackqlock, flags);
 	return 0;
 }
 
 static int capiminor_del_ack(struct capiminor *mp, u16 datahandle)
 {
-	struct datahandle_queue **pp, *p;
+	struct datahandle_queue *p, *tmp;
+	unsigned long flags;
 
-	for (pp = &mp->ackqueue; *pp; pp = &(*pp)->next) {
- 		if ((*pp)->datahandle == datahandle) {
-			p = *pp;
-			*pp = (*pp)->next;
+	spin_lock_irqsave(&mp->ackqlock, flags);
+	list_for_each_entry_safe(p, tmp, &mp->ackqueue, list) {
+ 		if (p->datahandle == datahandle) {
+			list_del(&p->list);
 			kfree(p);
 			mp->nack--;
+			spin_unlock_irqrestore(&mp->ackqlock, flags);
 			return 0;
 		}
 	}
+	spin_unlock_irqrestore(&mp->ackqlock, flags);
 	return -1;
 }
 
 static void capiminor_del_all_ack(struct capiminor *mp)
 {
-	struct datahandle_queue **pp, *p;
+	struct datahandle_queue *p, *tmp;
+	unsigned long flags;
 
-	pp = &mp->ackqueue;
-	while (*pp) {
-		p = *pp;
-		*pp = (*pp)->next;
+	spin_lock_irqsave(&mp->ackqlock, flags);
+	list_for_each_entry_safe(p, tmp, &mp->ackqueue, list) {
+		list_del(&p->list);
 		kfree(p);
 		mp->nack--;
 	}
+	spin_unlock_irqrestore(&mp->ackqlock, flags);
 }
 
 
@@ -220,6 +228,8 @@ static struct capiminor *capiminor_alloc(struct capi20_appl *ap, u32 ncci)
 	mp->ncci = ncci;
 	mp->msgid = 0;
 	atomic_set(&mp->ttyopencount,0);
+	INIT_LIST_HEAD(&mp->ackqueue);
+	spin_lock_init(&mp->ackqlock);
 
 	skb_queue_head_init(&mp->inqueue);
 	skb_queue_head_init(&mp->outqueue);
