@@ -28,6 +28,7 @@ struct key_type key_type_user = {
 	.instantiate	= user_instantiate,
 	.update		= user_update,
 	.match		= user_match,
+	.revoke		= user_revoke,
 	.destroy	= user_destroy,
 	.describe	= user_describe,
 	.read		= user_read,
@@ -67,6 +68,7 @@ error:
 	return ret;
 
 } /* end user_instantiate() */
+
 EXPORT_SYMBOL_GPL(user_instantiate);
 
 /*****************************************************************************/
@@ -141,7 +143,28 @@ EXPORT_SYMBOL_GPL(user_match);
 
 /*****************************************************************************/
 /*
- * dispose of the data dangling from the corpse of a user
+ * dispose of the links from a revoked keyring
+ * - called with the key sem write-locked
+ */
+void user_revoke(struct key *key)
+{
+	struct user_key_payload *upayload = key->payload.data;
+
+	/* clear the quota */
+	key_payload_reserve(key, 0);
+
+	if (upayload) {
+		rcu_assign_pointer(key->payload.data, NULL);
+		call_rcu(&upayload->rcu, user_update_rcu_disposal);
+	}
+
+} /* end user_revoke() */
+
+EXPORT_SYMBOL(user_revoke);
+
+/*****************************************************************************/
+/*
+ * dispose of the data dangling from the corpse of a user key
  */
 void user_destroy(struct key *key)
 {

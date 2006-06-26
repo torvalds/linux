@@ -49,6 +49,7 @@ static inline unsigned keyring_hash(const char *desc)
 static int keyring_instantiate(struct key *keyring,
 			       const void *data, size_t datalen);
 static int keyring_match(const struct key *keyring, const void *criterion);
+static void keyring_revoke(struct key *keyring);
 static void keyring_destroy(struct key *keyring);
 static void keyring_describe(const struct key *keyring, struct seq_file *m);
 static long keyring_read(const struct key *keyring,
@@ -59,6 +60,7 @@ struct key_type key_type_keyring = {
 	.def_datalen	= sizeof(struct keyring_list),
 	.instantiate	= keyring_instantiate,
 	.match		= keyring_match,
+	.revoke		= keyring_revoke,
 	.destroy	= keyring_destroy,
 	.describe	= keyring_describe,
 	.read		= keyring_read,
@@ -953,3 +955,22 @@ int keyring_clear(struct key *keyring)
 } /* end keyring_clear() */
 
 EXPORT_SYMBOL(keyring_clear);
+
+/*****************************************************************************/
+/*
+ * dispose of the links from a revoked keyring
+ * - called with the key sem write-locked
+ */
+static void keyring_revoke(struct key *keyring)
+{
+	struct keyring_list *klist = keyring->payload.subscriptions;
+
+	/* adjust the quota */
+	key_payload_reserve(keyring, 0);
+
+	if (klist) {
+		rcu_assign_pointer(keyring->payload.subscriptions, NULL);
+		call_rcu(&klist->rcu, keyring_clear_rcu_disposal);
+	}
+
+} /* end keyring_revoke() */
