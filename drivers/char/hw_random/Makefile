@@ -4,3 +4,4 @@
 
 obj-$(CONFIG_HW_RANDOM) += core.o
 obj-$(CONFIG_HW_RANDOM_INTEL) += intel-rng.o
+obj-$(CONFIG_HW_RANDOM_AMD) += amd-rng.o
