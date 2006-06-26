@@ -1402,6 +1402,7 @@ static struct dentry *proc_lookupfd(struct inode * dir, struct dentry * dentry, 
 {
 	struct task_struct *task = proc_task(dir);
 	unsigned fd = name_to_int(dentry);
+	struct dentry *result = ERR_PTR(-ENOENT);
 	struct file * file;
 	struct files_struct * files;
 	struct inode *inode;
@@ -1441,15 +1442,18 @@ static struct dentry *proc_lookupfd(struct inode * dir, struct dentry * dentry, 
 	ei->op.proc_get_link = proc_fd_link;
 	dentry->d_op = &tid_fd_dentry_operations;
 	d_add(dentry, inode);
-	return NULL;
+	/* Close the race of the process dying before we return the dentry */
+	if (tid_fd_revalidate(dentry, NULL))
+		result = NULL;
+out:
+	return result;
 
 out_unlock2:
 	spin_unlock(&files->file_lock);
 	put_files_struct(files);
 out_unlock:
 	iput(inode);
-out:
-	return ERR_PTR(-ENOENT);
+	goto out;
 }
 
 static int proc_task_readdir(struct file * filp, void * dirent, filldir_t filldir);
@@ -1549,12 +1553,12 @@ static struct dentry *proc_pident_lookup(struct inode *dir,
 					 struct pid_entry *ents)
 {
 	struct inode *inode;
-	int error;
+	struct dentry *error;
 	struct task_struct *task = proc_task(dir);
 	struct pid_entry *p;
 	struct proc_inode *ei;
 
-	error = -ENOENT;
+	error = ERR_PTR(-ENOENT);
 	inode = NULL;
 
 	if (!pid_alive(task))
@@ -1569,7 +1573,7 @@ static struct dentry *proc_pident_lookup(struct inode *dir,
 	if (!p->name)
 		goto out;
 
-	error = -EINVAL;
+	error = ERR_PTR(-EINVAL);
 	inode = proc_pid_make_inode(dir->i_sb, task, p->type);
 	if (!inode)
 		goto out;
@@ -1736,14 +1740,16 @@ static struct dentry *proc_pident_lookup(struct inode *dir,
 		default:
 			printk("procfs: impossible type (%d)",p->type);
 			iput(inode);
-			return ERR_PTR(-EINVAL);
+			error = ERR_PTR(-EINVAL);
+			goto out;
 	}
 	dentry->d_op = &pid_dentry_operations;
 	d_add(dentry, inode);
-	return NULL;
-
+	/* Close the race of the process dying before we return the dentry */
+	if (pid_revalidate(dentry, NULL))
+		error = NULL;
 out:
-	return ERR_PTR(error);
+	return error;
 }
 
 static struct dentry *proc_tgid_base_lookup(struct inode *dir, struct dentry *dentry, struct nameidata *nd){
@@ -1911,6 +1917,7 @@ out:
 /* SMP-safe */
 struct dentry *proc_pid_lookup(struct inode *dir, struct dentry * dentry, struct nameidata *nd)
 {
+	struct dentry *result = ERR_PTR(-ENOENT);
 	struct task_struct *task;
 	struct inode *inode;
 	struct proc_inode *ei;
@@ -1944,12 +1951,9 @@ struct dentry *proc_pid_lookup(struct inode *dir, struct dentry * dentry, struct
 		goto out;
 
 	inode = proc_pid_make_inode(dir->i_sb, task, PROC_TGID_INO);
+	if (!inode)
+		goto out_put_task;
 
-
-	if (!inode) {
-		put_task_struct(task);
-		goto out;
-	}
 	inode->i_mode = S_IFDIR|S_IRUGO|S_IXUGO;
 	inode->i_op = &proc_tgid_base_inode_operations;
 	inode->i_fop = &proc_tgid_base_operations;
@@ -1963,21 +1967,20 @@ struct dentry *proc_pid_lookup(struct inode *dir, struct dentry * dentry, struct
 	dentry->d_op = &pid_dentry_operations;
 
 	d_add(dentry, inode);
-	if (!pid_alive(task)) {
-		d_drop(dentry);
-		shrink_dcache_parent(dentry);
-		goto out;
-	}
+	/* Close the race of the process dying before we return the dentry */
+	if (pid_revalidate(dentry, NULL))
+		result = NULL;
 
+out_put_task:
 	put_task_struct(task);
-	return NULL;
 out:
-	return ERR_PTR(-ENOENT);
+	return result;
 }
 
 /* SMP-safe */
 static struct dentry *proc_task_lookup(struct inode *dir, struct dentry * dentry, struct nameidata *nd)
 {
+	struct dentry *result = ERR_PTR(-ENOENT);
 	struct task_struct *task;
 	struct task_struct *leader = proc_task(dir);
 	struct inode *inode;
@@ -2015,13 +2018,14 @@ static struct dentry *proc_task_lookup(struct inode *dir, struct dentry * dentry
 	dentry->d_op = &pid_dentry_operations;
 
 	d_add(dentry, inode);
+	/* Close the race of the process dying before we return the dentry */
+	if (pid_revalidate(dentry, NULL))
+		result = NULL;
 
-	put_task_struct(task);
-	return NULL;
 out_drop_task:
 	put_task_struct(task);
 out:
-	return ERR_PTR(-ENOENT);
+	return result;
 }
 
 #define PROC_NUMBUF 10
