@@ -3601,10 +3601,13 @@ static int set_bitmap_file(mddev_t *mddev, int fd)
 		mddev->pers->quiesce(mddev, 1);
 		if (fd >= 0)
 			err = bitmap_create(mddev);
-		if (fd < 0 || err)
+		if (fd < 0 || err) {
 			bitmap_destroy(mddev);
+			fd = -1; /* make sure to put the file */
+		}
 		mddev->pers->quiesce(mddev, 0);
-	} else if (fd < 0) {
+	}
+	if (fd < 0) {
 		if (mddev->bitmap_file)
 			fput(mddev->bitmap_file);
 		mddev->bitmap_file = NULL;
