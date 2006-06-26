@@ -39,90 +39,8 @@ static unsigned int nr_copy_pages;
 static unsigned int nr_meta_pages;
 static unsigned long *buffer;
 
-struct arch_saveable_page {
-	unsigned long start;
-	unsigned long end;
-	char *data;
-	struct arch_saveable_page *next;
-};
-static struct arch_saveable_page *arch_pages;
-
-int swsusp_add_arch_pages(unsigned long start, unsigned long end)
-{
-	struct arch_saveable_page *tmp;
-
-	while (start < end) {
-		tmp = kzalloc(sizeof(struct arch_saveable_page), GFP_KERNEL);
-		if (!tmp)
-			return -ENOMEM;
-		tmp->start = start;
-		tmp->end = ((start >> PAGE_SHIFT) + 1) << PAGE_SHIFT;
-		if (tmp->end > end)
-			tmp->end = end;
-		tmp->next = arch_pages;
-		start = tmp->end;
-		arch_pages = tmp;
-	}
-	return 0;
-}
-
-static unsigned int count_arch_pages(void)
-{
-	unsigned int count = 0;
-	struct arch_saveable_page *tmp = arch_pages;
-	while (tmp) {
-		count++;
-		tmp = tmp->next;
-	}
-	return count;
-}
-
-static int save_arch_mem(void)
-{
-	char *kaddr;
-	struct arch_saveable_page *tmp = arch_pages;
-	int offset;
-
-	pr_debug("swsusp: Saving arch specific memory");
-	while (tmp) {
-		tmp->data = (char *)__get_free_page(GFP_ATOMIC);
-		if (!tmp->data)
-			return -ENOMEM;
-		offset = tmp->start - (tmp->start & PAGE_MASK);
-		/* arch pages might haven't a 'struct page' */
-		kaddr = kmap_atomic_pfn(tmp->start >> PAGE_SHIFT, KM_USER0);
-		memcpy(tmp->data + offset, kaddr + offset,
-			tmp->end - tmp->start);
-		kunmap_atomic(kaddr, KM_USER0);
-
-		tmp = tmp->next;
-	}
-	return 0;
-}
-
-static int restore_arch_mem(void)
-{
-	char *kaddr;
-	struct arch_saveable_page *tmp = arch_pages;
-	int offset;
-
-	while (tmp) {
-		if (!tmp->data)
-			continue;
-		offset = tmp->start - (tmp->start & PAGE_MASK);
-		kaddr = kmap_atomic_pfn(tmp->start >> PAGE_SHIFT, KM_USER0);
-		memcpy(kaddr + offset, tmp->data + offset,
-			tmp->end - tmp->start);
-		kunmap_atomic(kaddr, KM_USER0);
-		free_page((long)tmp->data);
-		tmp->data = NULL;
-		tmp = tmp->next;
-	}
-	return 0;
-}
-
 #ifdef CONFIG_HIGHMEM
-static unsigned int count_highmem_pages(void)
+unsigned int count_highmem_pages(void)
 {
 	struct zone *zone;
 	unsigned long zone_pfn;
@@ -199,7 +117,7 @@ static int save_highmem_zone(struct zone *zone)
 	return 0;
 }
 
-static int save_highmem(void)
+int save_highmem(void)
 {
 	struct zone *zone;
 	int res = 0;
@@ -216,7 +134,7 @@ static int save_highmem(void)
 	return 0;
 }
 
-static int restore_highmem(void)
+int restore_highmem(void)
 {
 	printk("swsusp: Restoring Highmem\n");
 	while (highmem_copy) {
@@ -237,29 +155,6 @@ static inline unsigned int count_highmem_pages(void) {return 0;}
 static inline int save_highmem(void) {return 0;}
 static inline int restore_highmem(void) {return 0;}
 #endif
-
-unsigned int count_special_pages(void)
-{
-	return count_arch_pages() + count_highmem_pages();
-}
-
-int save_special_mem(void)
-{
-	int ret;
-	ret = save_arch_mem();
-	if (!ret)
-		ret = save_highmem();
-	return ret;
-}
-
-int restore_special_mem(void)
-{
-	int ret;
-	ret = restore_arch_mem();
-	if (!ret)
-		ret = restore_highmem();
-	return ret;
-}
 
 static int pfn_is_nosave(unsigned long pfn)
 {
@@ -286,6 +181,7 @@ static int saveable(struct zone *zone, unsigned long *zone_pfn)
 		return 0;
 
 	page = pfn_to_page(pfn);
+	BUG_ON(PageReserved(page) && PageNosave(page));
 	if (PageNosave(page))
 		return 0;
 	if (PageReserved(page) && pfn_is_nosave(pfn))
