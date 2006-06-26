@@ -61,7 +61,7 @@ static void __init omap2_gp_timer_init(void)
 	u32 tick_period;
 
 	omap_dm_timer_init();
-	gptimer = omap_dm_timer_request_specific(2);
+	gptimer = omap_dm_timer_request_specific(1);
 	BUG_ON(gptimer == NULL);
 
 	omap_dm_timer_set_source(gptimer, OMAP_TIMER_SRC_SYS_CLK);

@@ -753,7 +753,7 @@ static u32 omap2_get_src_field(u32 *type_to_addr, u32 reg_offset,
 			val = 0x2;
 		break;
 	case CM_WKUP_SEL1:
-		src_reg_addr = (u32)&CM_CLKSEL2_CORE;
+		src_reg_addr = (u32)&CM_CLKSEL_WKUP;
 		mask = 0x3;
 		if (src_clk == &func_32k_ck)
 			val = 0x0;

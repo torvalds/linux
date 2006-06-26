@@ -147,9 +147,10 @@ static void omap_dm_timer_reset(struct omap_dm_timer *timer)
 {
 	u32 l;
 
-	omap_dm_timer_write_reg(timer, OMAP_TIMER_IF_CTRL_REG, 0x06);
-	omap_dm_timer_wait_for_reset(timer);
-
+	if (timer != &dm_timers[0]) {
+		omap_dm_timer_write_reg(timer, OMAP_TIMER_IF_CTRL_REG, 0x06);
+		omap_dm_timer_wait_for_reset(timer);
+	}
 	omap_dm_timer_set_source(timer, OMAP_TIMER_SRC_SYS_CLK);
 
 	/* Set to smart-idle mode */
@@ -335,7 +336,7 @@ void omap_dm_timer_set_source(struct omap_dm_timer *timer, int source)
 
 	/* When the functional clock disappears, too quick writes seem to
 	 * cause an abort. */
-	udelay(50);
+	__delay(15000);
 }
 
 #endif
