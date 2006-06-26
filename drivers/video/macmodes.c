@@ -327,7 +327,6 @@ int mac_var_to_vmode(const struct fb_var_screeninfo *var, int *vmode,
     }
     return -EINVAL;
 }
-EXPORT_SYMBOL(mac_var_to_vmode);
 
 /**
  *	mac_map_monitor_sense - Convert monitor sense to vmode

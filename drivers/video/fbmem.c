@@ -1509,7 +1509,6 @@ int fb_con_duit(struct fb_info *info, int event, void *data)
 
 	return blocking_notifier_call_chain(&fb_notifier_list, event, &evnt);
 }
-EXPORT_SYMBOL(fb_con_duit);
 
 static char *video_options[FB_MAX];
 static int ofonly;
@@ -1620,6 +1619,5 @@ EXPORT_SYMBOL(fb_set_suspend);
 EXPORT_SYMBOL(fb_register_client);
 EXPORT_SYMBOL(fb_unregister_client);
 EXPORT_SYMBOL(fb_get_options);
-EXPORT_SYMBOL(fb_new_modelist);
 
 MODULE_LICENSE("GPL");
