@@ -61,3 +61,16 @@ config HW_RANDOM_VIA
 	  module will be called via-rng.
 
 	  If unsure, say Y.
+
+config HW_RANDOM_IXP4XX
+	tristate "Intel IXP4xx NPU HW Random Number Generator support"
+	depends on HW_RANDOM && ARCH_IXP4XX
+	default y
+	---help---
+	  This driver provides kernel-side support for the Random
+	  Number Generator hardware found on the Intel IXP4xx NPU.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ixp4xx-rng.
+
+	  If unsure, say Y.
