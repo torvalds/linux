@@ -4,6 +4,7 @@
 
 #include <linux/pci.h>
 #include <linux/irq.h>
+#include <asm/smp.h>
 
 #include "msi.h"
 
