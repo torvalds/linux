@@ -177,6 +177,10 @@ static struct platform_device innovator_kp_device = {
 
 #ifdef CONFIG_ARCH_OMAP15XX
 
+#include <linux/spi/spi.h>
+#include <linux/spi/ads7846.h>
+
+
 /* Only FPGA needs to be mapped here. All others are done with ioremap */
 static struct map_desc innovator1510_io_desc[] __initdata = {
 	{
@@ -212,13 +216,43 @@ static struct platform_device innovator1510_lcd_device = {
 	.id		= -1,
 };
 
+static struct platform_device innovator1510_spi_device = {
+	.name		= "spi_inn1510",
+	.id		= -1,
+};
+
 static struct platform_device *innovator1510_devices[] __initdata = {
 	&innovator_flash_device,
 	&innovator1510_smc91x_device,
 	&innovator_mcbsp1_device,
 	&innovator_kp_device,
 	&innovator1510_lcd_device,
+	&innovator1510_spi_device,
 };
+
+static int innovator_get_pendown_state(void)
+{
+	return !(fpga_read(OMAP1510_FPGA_TOUCHSCREEN) & (1 << 5));
+}
+
+static const struct ads7846_platform_data innovator1510_ts_info = {
+	.model			= 7846,
+	.vref_delay_usecs	= 100,	/* internal, no capacitor */
+	.x_plate_ohms		= 419,
+	.y_plate_ohms		= 486,
+	.get_pendown_state	= innovator_get_pendown_state,
+};
+
+static struct spi_board_info __initdata innovator1510_boardinfo[] = { {
+	/* FPGA (bus "10") CS0 has an ads7846e */
+	.modalias		= "ads7846",
+	.platform_data		= &innovator1510_ts_info,
+	.irq			= OMAP1510_INT_FPGA_TS,
+	.max_speed_hz		= 120000 /* max sample rate at 3V */
+					* 26 /* command + data + overhead */,
+	.bus_num		= 10,
+	.chip_select		= 0,
+} };
 
 #endif /* CONFIG_ARCH_OMAP15XX */
 
@@ -350,6 +384,8 @@ static void __init innovator_init(void)
 #ifdef CONFIG_ARCH_OMAP15XX
 	if (cpu_is_omap1510()) {
 		platform_add_devices(innovator1510_devices, ARRAY_SIZE(innovator1510_devices));
+		spi_register_board_info(innovator1510_boardinfo,
+				ARRAY_SIZE(innovator1510_boardinfo));
 	}
 #endif
 #ifdef CONFIG_ARCH_OMAP16XX
