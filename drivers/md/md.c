@@ -2155,6 +2155,32 @@ level_store(mddev_t *mddev, const char *buf, size_t len)
 static struct md_sysfs_entry md_level =
 __ATTR(level, 0644, level_show, level_store);
 
+
+static ssize_t
+layout_show(mddev_t *mddev, char *page)
+{
+	/* just a number, not meaningful for all levels */
+	return sprintf(page, "%d\n", mddev->layout);
+}
+
+static ssize_t
+layout_store(mddev_t *mddev, const char *buf, size_t len)
+{
+	char *e;
+	unsigned long n = simple_strtoul(buf, &e, 10);
+	if (mddev->pers)
+		return -EBUSY;
+
+	if (!*buf || (*e && *e != '\n'))
+		return -EINVAL;
+
+	mddev->layout = n;
+	return len;
+}
+static struct md_sysfs_entry md_layout =
+__ATTR(layout, 0655, layout_show, layout_store);
+
+
 static ssize_t
 raid_disks_show(mddev_t *mddev, char *page)
 {
@@ -2741,6 +2767,7 @@ __ATTR(suspend_hi, S_IRUGO|S_IWUSR, suspend_hi_show, suspend_hi_store);
 
 static struct attribute *md_default_attrs[] = {
 	&md_level.attr,
+	&md_layout.attr,
 	&md_raid_disks.attr,
 	&md_chunk_size.attr,
 	&md_size.attr,
