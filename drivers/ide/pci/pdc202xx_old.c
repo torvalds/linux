@@ -370,7 +370,6 @@ chipset_is_set:
 	if (!(speed)) {
 		/* restore original pci-config space */
 		pci_write_config_dword(dev, drive_pci, drive_conf);
-		hwif->tuneproc(drive, 5);
 		return 0;
 	}
 
