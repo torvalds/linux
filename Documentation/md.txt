@@ -216,6 +216,45 @@ All md devices contain:
      period as a number of seconds.  The default is 200msec (0.200).
      Writing a value of 0 disables safemode.
 
+   array_state
+     This file contains a single word which describes the current
+     state of the array.  In many cases, the state can be set by
+     writing the word for the desired state, however some states
+     cannot be explicitly set, and some transitions are not allowed.
+
+     clear
+         No devices, no size, no level
+         Writing is equivalent to STOP_ARRAY ioctl
+     inactive
+         May have some settings, but array is not active
+            all IO results in error
+         When written, doesn't tear down array, but just stops it
+     suspended (not supported yet)
+         All IO requests will block. The array can be reconfigured.
+         Writing this, if accepted, will block until array is quiessent
+     readonly
+         no resync can happen.  no superblocks get written.
+         write requests fail
+     read-auto
+         like readonly, but behaves like 'clean' on a write request.
+
+     clean - no pending writes, but otherwise active.
+         When written to inactive array, starts without resync
+         If a write request arrives then
+           if metadata is known, mark 'dirty' and switch to 'active'.
+           if not known, block and switch to write-pending
+         If written to an active array that has pending writes, then fails.
+     active
+         fully active: IO and resync can be happening.
+         When written to inactive array, starts with resync
+
+     write-pending
+         clean, but writes are blocked waiting for 'active' to be written.
+
+     active-idle
+         like active, but no writes have been seen for a while (safe_mode_delay).
+
+
    sync_speed_min
    sync_speed_max
      This are similar to /proc/sys/dev/raid/speed_limit_{min,max}

@@ -2185,6 +2185,176 @@ chunk_size_store(mddev_t *mddev, const char *buf, size_t len)
 static struct md_sysfs_entry md_chunk_size =
 __ATTR(chunk_size, 0644, chunk_size_show, chunk_size_store);
 
+/*
+ * The array state can be:
+ *
+ * clear
+ *     No devices, no size, no level
+ *     Equivalent to STOP_ARRAY ioctl
+ * inactive
+ *     May have some settings, but array is not active
+ *        all IO results in error
+ *     When written, doesn't tear down array, but just stops it
+ * suspended (not supported yet)
+ *     All IO requests will block. The array can be reconfigured.
+ *     Writing this, if accepted, will block until array is quiessent
+ * readonly
+ *     no resync can happen.  no superblocks get written.
+ *     write requests fail
+ * read-auto
+ *     like readonly, but behaves like 'clean' on a write request.
+ *
+ * clean - no pending writes, but otherwise active.
+ *     When written to inactive array, starts without resync
+ *     If a write request arrives then
+ *       if metadata is known, mark 'dirty' and switch to 'active'.
+ *       if not known, block and switch to write-pending
+ *     If written to an active array that has pending writes, then fails.
+ * active
+ *     fully active: IO and resync can be happening.
+ *     When written to inactive array, starts with resync
+ *
+ * write-pending
+ *     clean, but writes are blocked waiting for 'active' to be written.
+ *
+ * active-idle
+ *     like active, but no writes have been seen for a while (100msec).
+ *
+ */
+enum array_state { clear, inactive, suspended, readonly, read_auto, clean, active,
+		   write_pending, active_idle, bad_word};
+char *array_states[] = {
+	"clear", "inactive", "suspended", "readonly", "read-auto", "clean", "active",
+	"write-pending", "active-idle", NULL };
+
+static int match_word(const char *word, char **list)
+{
+	int n;
+	for (n=0; list[n]; n++)
+		if (cmd_match(word, list[n]))
+			break;
+	return n;
+}
+
+static ssize_t
+array_state_show(mddev_t *mddev, char *page)
+{
+	enum array_state st = inactive;
+
+	if (mddev->pers)
+		switch(mddev->ro) {
+		case 1:
+			st = readonly;
+			break;
+		case 2:
+			st = read_auto;
+			break;
+		case 0:
+			if (mddev->in_sync)
+				st = clean;
+			else if (mddev->safemode)
+				st = active_idle;
+			else
+				st = active;
+		}
+	else {
+		if (list_empty(&mddev->disks) &&
+		    mddev->raid_disks == 0 &&
+		    mddev->size == 0)
+			st = clear;
+		else
+			st = inactive;
+	}
+	return sprintf(page, "%s\n", array_states[st]);
+}
+
+static int do_md_stop(mddev_t * mddev, int ro);
+static int do_md_run(mddev_t * mddev);
+static int restart_array(mddev_t *mddev);
+
+static ssize_t
+array_state_store(mddev_t *mddev, const char *buf, size_t len)
+{
+	int err = -EINVAL;
+	enum array_state st = match_word(buf, array_states);
+	switch(st) {
+	case bad_word:
+		break;
+	case clear:
+		/* stopping an active array */
+		if (mddev->pers) {
+			if (atomic_read(&mddev->active) > 1)
+				return -EBUSY;
+			err = do_md_stop(mddev, 0);
+		}
+		break;
+	case inactive:
+		/* stopping an active array */
+		if (mddev->pers) {
+			if (atomic_read(&mddev->active) > 1)
+				return -EBUSY;
+			err = do_md_stop(mddev, 2);
+		}
+		break;
+	case suspended:
+		break; /* not supported yet */
+	case readonly:
+		if (mddev->pers)
+			err = do_md_stop(mddev, 1);
+		else {
+			mddev->ro = 1;
+			err = do_md_run(mddev);
+		}
+		break;
+	case read_auto:
+		/* stopping an active array */
+		if (mddev->pers) {
+			err = do_md_stop(mddev, 1);
+			if (err == 0)
+				mddev->ro = 2; /* FIXME mark devices writable */
+		} else {
+			mddev->ro = 2;
+			err = do_md_run(mddev);
+		}
+		break;
+	case clean:
+		if (mddev->pers) {
+			restart_array(mddev);
+			spin_lock_irq(&mddev->write_lock);
+			if (atomic_read(&mddev->writes_pending) == 0) {
+				mddev->in_sync = 1;
+				mddev->sb_dirty = 1;
+			}
+			spin_unlock_irq(&mddev->write_lock);
+		} else {
+			mddev->ro = 0;
+			mddev->recovery_cp = MaxSector;
+			err = do_md_run(mddev);
+		}
+		break;
+	case active:
+		if (mddev->pers) {
+			restart_array(mddev);
+			mddev->sb_dirty = 0;
+			wake_up(&mddev->sb_wait);
+			err = 0;
+		} else {
+			mddev->ro = 0;
+			err = do_md_run(mddev);
+		}
+		break;
+	case write_pending:
+	case active_idle:
+		/* these cannot be set */
+		break;
+	}
+	if (err)
+		return err;
+	else
+		return len;
+}
+static struct md_sysfs_entry md_array_state = __ATTR(array_state, 0644, array_state_show, array_state_store);
+
 static ssize_t
 null_show(mddev_t *mddev, char *page)
 {
@@ -2553,6 +2723,7 @@ static struct attribute *md_default_attrs[] = {
 	&md_metadata.attr,
 	&md_new_device.attr,
 	&md_safe_delay.attr,
+	&md_array_state.attr,
 	NULL,
 };
 
@@ -2919,11 +3090,8 @@ static int restart_array(mddev_t *mddev)
 		md_wakeup_thread(mddev->thread);
 		md_wakeup_thread(mddev->sync_thread);
 		err = 0;
-	} else {
-		printk(KERN_ERR "md: %s has no personality assigned.\n",
-			mdname(mddev));
+	} else
 		err = -EINVAL;
-	}
 
 out:
 	return err;
@@ -2955,7 +3123,12 @@ static void restore_bitmap_write_access(struct file *file)
 	spin_unlock(&inode->i_lock);
 }
 
-static int do_md_stop(mddev_t * mddev, int ro)
+/* mode:
+ *   0 - completely stop and dis-assemble array
+ *   1 - switch to readonly
+ *   2 - stop but do not disassemble array
+ */
+static int do_md_stop(mddev_t * mddev, int mode)
 {
 	int err = 0;
 	struct gendisk *disk = mddev->gendisk;
@@ -2977,12 +3150,15 @@ static int do_md_stop(mddev_t * mddev, int ro)
 
 		invalidate_partition(disk, 0);
 
-		if (ro) {
+		switch(mode) {
+		case 1: /* readonly */
 			err  = -ENXIO;
 			if (mddev->ro==1)
 				goto out;
 			mddev->ro = 1;
-		} else {
+			break;
+		case 0: /* disassemble */
+		case 2: /* stop */
 			bitmap_flush(mddev);
 			md_super_wait(mddev);
 			if (mddev->ro)
@@ -3002,7 +3178,7 @@ static int do_md_stop(mddev_t * mddev, int ro)
 			mddev->in_sync = 1;
 			md_update_sb(mddev);
 		}
-		if (ro)
+		if (mode == 1)
 			set_disk_ro(disk, 1);
 		clear_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
 	}
@@ -3010,7 +3186,7 @@ static int do_md_stop(mddev_t * mddev, int ro)
 	/*
 	 * Free resources if final stop
 	 */
-	if (!ro) {
+	if (mode == 0) {
 		mdk_rdev_t *rdev;
 		struct list_head *tmp;
 		struct gendisk *disk;
@@ -3034,6 +3210,9 @@ static int do_md_stop(mddev_t * mddev, int ro)
 		export_array(mddev);
 
 		mddev->array_size = 0;
+		mddev->size = 0;
+		mddev->raid_disks = 0;
+
 		disk = mddev->gendisk;
 		if (disk)
 			set_capacity(disk, 0);
