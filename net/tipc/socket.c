@@ -565,15 +565,15 @@ static int send_packet(struct kiocb *iocb, struct socket *sock,
 		return -ERESTARTSYS;
         }
 
-        if (unlikely(sock->state != SS_CONNECTED)) {
-                if (sock->state == SS_DISCONNECTING)
-                        res = -EPIPE;   
-                else
-                        res = -ENOTCONN;
-                goto exit;
-        }
-
         do {
+		if (unlikely(sock->state != SS_CONNECTED)) {
+			if (sock->state == SS_DISCONNECTING)
+				res = -EPIPE;   
+			else
+				res = -ENOTCONN;
+			goto exit;
+		}
+
                 res = tipc_send(tsock->p->ref, m->msg_iovlen, m->msg_iov);
                 if (likely(res != -ELINKCONG)) {
 exit:
