@@ -7,8 +7,6 @@
 #include <asm/mpspec.h>
 #include <asm/bitops.h>
 
-/* Map the K8 CPU local memory controllers to a simple 1:1 CPU:NODE topology */
-
 extern cpumask_t cpu_online_map;
 
 extern unsigned char cpu_to_node[];
