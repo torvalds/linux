@@ -776,12 +776,15 @@ static void atkbd_set_device_attrs(struct atkbd *atkbd)
 	int i;
 
 	if (atkbd->extra)
-		sprintf(atkbd->name, "AT Set 2 Extra keyboard");
+		snprintf(atkbd->name, sizeof(atkbd->name),
+			 "AT Set 2 Extra keyboard");
 	else
-		sprintf(atkbd->name, "AT %s Set %d keyboard",
-			atkbd->translated ? "Translated" : "Raw", atkbd->set);
+		snprintf(atkbd->name, sizeof(atkbd->name),
+			 "AT %s Set %d keyboard",
+			 atkbd->translated ? "Translated" : "Raw", atkbd->set);
 
-	sprintf(atkbd->phys, "%s/input0", atkbd->ps2dev.serio->phys);
+	snprintf(atkbd->phys, sizeof(atkbd->phys),
+		 "%s/input0", atkbd->ps2dev.serio->phys);
 
 	input_dev->name = atkbd->name;
 	input_dev->phys = atkbd->phys;

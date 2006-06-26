@@ -384,18 +384,21 @@ lkkbd_detection_done (struct lkkbd *lk)
 	 */
 	switch (lk->id[4]) {
 		case 1:
-			sprintf (lk->name, "DEC LK201 keyboard");
+			strlcpy (lk->name, "DEC LK201 keyboard",
+				 sizeof (lk->name));
 
 			if (lk201_compose_is_alt)
 				lk->keycode[0xb1] = KEY_LEFTALT;
 			break;
 
 		case 2:
-			sprintf (lk->name, "DEC LK401 keyboard");
+			strlcpy (lk->name, "DEC LK401 keyboard",
+				 sizeof (lk->name));
 			break;
 
 		default:
-			sprintf (lk->name, "Unknown DEC keyboard");
+			strlcpy (lk->name, "Unknown DEC keyboard",
+				 sizeof (lk->name));
 			printk (KERN_ERR "lkkbd: keyboard on %s is unknown, "
 					"please report to Jan-Benedict Glaw "
 					"<jbglaw@lug-owl.de>\n", lk->phys);
