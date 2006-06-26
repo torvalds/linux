@@ -54,6 +54,8 @@ union map_info *dm_get_mapinfo(struct bio *bio)
         return NULL;
 }
 
+#define MINOR_ALLOCED ((void *)-1)
+
 /*
  * Bits for the md->flags field.
  */
@@ -777,7 +779,7 @@ static int specific_minor(struct mapped_device *md, unsigned int minor)
 		goto out;
 	}
 
-	r = idr_get_new_above(&_minor_idr, md, minor, &m);
+	r = idr_get_new_above(&_minor_idr, MINOR_ALLOCED, minor, &m);
 	if (r) {
 		goto out;
 	}
@@ -806,7 +808,7 @@ static int next_free_minor(struct mapped_device *md, unsigned int *minor)
 		goto out;
 	}
 
-	r = idr_get_new(&_minor_idr, md, &m);
+	r = idr_get_new(&_minor_idr, MINOR_ALLOCED, &m);
 	if (r) {
 		goto out;
 	}
@@ -833,6 +835,7 @@ static struct mapped_device *alloc_dev(unsigned int minor, int persistent)
 {
 	int r;
 	struct mapped_device *md = kmalloc(sizeof(*md), GFP_KERNEL);
+	void *old_md;
 
 	if (!md) {
 		DMWARN("unable to allocate device, out of memory.");
@@ -887,6 +890,13 @@ static struct mapped_device *alloc_dev(unsigned int minor, int persistent)
 	atomic_set(&md->pending, 0);
 	init_waitqueue_head(&md->wait);
 	init_waitqueue_head(&md->eventq);
+
+	/* Populate the mapping, nobody knows we exist yet */
+	mutex_lock(&_minor_lock);
+	old_md = idr_replace(&_minor_idr, md, minor);
+	mutex_unlock(&_minor_lock);
+
+	BUG_ON(old_md != MINOR_ALLOCED);
 
 	return md;
 
@@ -1018,7 +1028,7 @@ static struct mapped_device *dm_find_md(dev_t dev)
 	mutex_lock(&_minor_lock);
 
 	md = idr_find(&_minor_idr, minor);
-	if (!md || (dm_disk(md)->first_minor != minor))
+	if (md && (md == MINOR_ALLOCED || (dm_disk(md)->first_minor != minor)))
 		md = NULL;
 
 	mutex_unlock(&_minor_lock);
@@ -1057,6 +1067,9 @@ void dm_put(struct mapped_device *md)
 
 	if (atomic_dec_and_test(&md->holders)) {
 		map = dm_get_table(md);
+		mutex_lock(&_minor_lock);
+		idr_replace(&_minor_idr, MINOR_ALLOCED, dm_disk(md)->first_minor);
+		mutex_unlock(&_minor_lock);
 		if (!dm_suspended(md)) {
 			dm_table_presuspend_targets(map);
 			dm_table_postsuspend_targets(map);
