@@ -125,6 +125,8 @@ void tipc_node_link_up(struct node *n_ptr, struct link *l_ptr)
 {
 	struct link **active = &n_ptr->active_links[0];
 
+	n_ptr->working_links++;
+
 	info("Established link <%s> on network plane %c\n",
 	     l_ptr->name, l_ptr->b_ptr->net_plane);
 	
@@ -185,6 +187,8 @@ void tipc_node_link_down(struct node *n_ptr, struct link *l_ptr)
 {
 	struct link **active;
 
+	n_ptr->working_links--;
+
 	if (!tipc_link_is_active(l_ptr)) {
 		info("Lost standby link <%s> on network plane %c\n",
 		     l_ptr->name, l_ptr->b_ptr->net_plane);
@@ -214,8 +218,7 @@ int tipc_node_has_active_links(struct node *n_ptr)
 
 int tipc_node_has_redundant_links(struct node *n_ptr)
 {
-	return (tipc_node_has_active_links(n_ptr) &&
-		(n_ptr->active_links[0] != n_ptr->active_links[1]));
+	return (n_ptr->working_links > 1);
 }
 
 static int tipc_node_has_active_routes(struct node *n_ptr)

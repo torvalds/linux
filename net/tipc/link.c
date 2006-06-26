@@ -690,6 +690,7 @@ void tipc_link_reset(struct link *l_ptr)
 	struct sk_buff *buf;
 	u32 prev_state = l_ptr->state;
 	u32 checkpoint = l_ptr->next_in_no;
+	int was_active_link = tipc_link_is_active(l_ptr);
 	
 	msg_set_session(l_ptr->pmsg, msg_session(l_ptr->pmsg) + 1);
 
@@ -711,7 +712,7 @@ void tipc_link_reset(struct link *l_ptr)
 	tipc_printf(TIPC_CONS, "\nReset link <%s>\n", l_ptr->name);
 	dbg_link_dump();
 #endif
-	if (tipc_node_has_active_links(l_ptr->owner) &&
+	if (was_active_link && tipc_node_has_active_links(l_ptr->owner) &&
 	    l_ptr->owner->permit_changeover) {
 		l_ptr->reset_checkpoint = checkpoint;
 		l_ptr->exp_msg_count = START_CHANGEOVER;
@@ -754,7 +755,7 @@ void tipc_link_reset(struct link *l_ptr)
 
 static void link_activate(struct link *l_ptr)
 {
-	l_ptr->next_in_no = 1;
+	l_ptr->next_in_no = l_ptr->stats.recv_info = 1;
 	tipc_node_link_up(l_ptr->owner, l_ptr);
 	tipc_bearer_add_dest(l_ptr->b_ptr, l_ptr->addr);
 	link_send_event(tipc_cfg_link_event, l_ptr, 1);
@@ -2303,12 +2304,18 @@ void tipc_link_tunnel(struct link *l_ptr,
 	u32 length = msg_size(msg);
 
 	tunnel = l_ptr->owner->active_links[selector & 1];
-	if (!tipc_link_is_up(tunnel))
+	if (!tipc_link_is_up(tunnel)) {
+		warn("Link changeover error, "
+		     "tunnel link no longer available\n");
 		return;
+	}
 	msg_set_size(tunnel_hdr, length + INT_H_SIZE);
 	buf = buf_acquire(length + INT_H_SIZE);
-	if (!buf)
+	if (!buf) {
+		warn("Link changeover error, "
+		     "unable to send tunnel msg\n");
 		return;
+	}
 	memcpy(buf->data, (unchar *)tunnel_hdr, INT_H_SIZE);
 	memcpy(buf->data + INT_H_SIZE, (unchar *)msg, length);
 	dbg("%c->%c:", l_ptr->b_ptr->net_plane, tunnel->b_ptr->net_plane);
@@ -2328,19 +2335,23 @@ void tipc_link_changeover(struct link *l_ptr)
 	u32 msgcount = l_ptr->out_queue_size;
 	struct sk_buff *crs = l_ptr->first_out;
 	struct link *tunnel = l_ptr->owner->active_links[0];
-	int split_bundles = tipc_node_has_redundant_links(l_ptr->owner);
 	struct tipc_msg tunnel_hdr;
+	int split_bundles;
 
 	if (!tunnel)
 		return;
 
-	if (!l_ptr->owner->permit_changeover)
+	if (!l_ptr->owner->permit_changeover) {
+		warn("Link changeover error, "
+		     "peer did not permit changeover\n");
 		return;
+	}
 
 	msg_init(&tunnel_hdr, CHANGEOVER_PROTOCOL,
 		 ORIGINAL_MSG, TIPC_OK, INT_H_SIZE, l_ptr->addr);
 	msg_set_bearer_id(&tunnel_hdr, l_ptr->peer_bearer_id);
 	msg_set_msgcnt(&tunnel_hdr, msgcount);
+	dbg("Link changeover requires %u tunnel messages\n", msgcount);
 
 	if (!l_ptr->first_out) {
 		struct sk_buff *buf;
@@ -2359,6 +2370,9 @@ void tipc_link_changeover(struct link *l_ptr)
 		}
 		return;
 	}
+
+	split_bundles = (l_ptr->owner->active_links[0] != 
+			 l_ptr->owner->active_links[1]);
 
 	while (crs) {
 		struct tipc_msg *msg = buf_msg(crs);
@@ -2497,11 +2511,13 @@ static int link_recv_changeover_msg(struct link **l_ptr,
 		     dest_link->name);
 		tipc_link_reset(dest_link);
 		dest_link->exp_msg_count = msg_count;
+		dbg("Expecting %u tunnelled messages\n", msg_count);
 		if (!msg_count)
 			goto exit;
 	} else if (dest_link->exp_msg_count == START_CHANGEOVER) {
 		msg_dbg(tunnel_msg, "BLK/FIRST/<REC<");
 		dest_link->exp_msg_count = msg_count;
+		dbg("Expecting %u tunnelled messages\n", msg_count);
 		if (!msg_count)
 			goto exit;
 	}
@@ -2509,6 +2525,8 @@ static int link_recv_changeover_msg(struct link **l_ptr,
 	/* Receive original message */
 
 	if (dest_link->exp_msg_count == 0) {
+		warn("Link switchover error, "
+		     "got too many tunnelled messages\n");
 		msg_dbg(tunnel_msg, "OVERDUE/DROP/<REC<");
 		dbg_print_link(dest_link, "LINK:");
 		goto exit;
