@@ -60,17 +60,37 @@ MUX_CFG_24XX("W15_24XX_MCBSP2_DR",	0x126,	1,	1,	0,	1)
 MUX_CFG_24XX("V15_24XX_MCBSP2_DX",	0x127,	1,	1,	0,	1)
 
 /* 24xx GPIO */
-MUX_CFG_24XX("M21_242X_GPIO11",	 0x0c9,  3,      1,      1,      1)
+MUX_CFG_24XX("M21_242X_GPIO11",		0x0c9,  3,      1,      1,      1)
 MUX_CFG_24XX("AA10_242X_GPIO13",	0x0e5,  3,      0,      0,      1)
-MUX_CFG_24XX("AA6_242X_GPIO14",	 0x0e6,  3,      0,      0,      1)
-MUX_CFG_24XX("AA4_242X_GPIO15",	 0x0e7,  3,      0,      0,      1)
-MUX_CFG_24XX("Y11_242X_GPIO16",	 0x0e8,  3,      0,      0,      1)
+MUX_CFG_24XX("AA6_242X_GPIO14",		0x0e6,  3,      0,      0,      1)
+MUX_CFG_24XX("AA4_242X_GPIO15",		0x0e7,  3,      0,      0,      1)
+MUX_CFG_24XX("Y11_242X_GPIO16",		0x0e8,  3,      0,      0,      1)
 MUX_CFG_24XX("AA12_242X_GPIO17",	0x0e9,  3,      0,      0,      1)
-MUX_CFG_24XX("AA8_242X_GPIO58",	 0x0ea,  3,      0,      0,      1)
+MUX_CFG_24XX("AA8_242X_GPIO58",		0x0ea,  3,      0,      0,      1)
 MUX_CFG_24XX("Y20_24XX_GPIO60",		0x12c,	3,	0,	0,	1)
-MUX_CFG_24XX("W4__24XX_GPIO74",	 0x0f2,  3,      0,      0,      1)
+MUX_CFG_24XX("W4__24XX_GPIO74",		0x0f2,  3,      0,      0,      1)
 MUX_CFG_24XX("M15_24XX_GPIO92",		0x10a,	3,	0,	0,	1)
 MUX_CFG_24XX("V14_24XX_GPIO117",	0x128,	3,	1,	0,	1)
+
+/* 242x DBG GPIO */
+MUX_CFG_24XX("V4_242X_GPIO49",		0xd3,	3,	0,	0,	1)
+MUX_CFG_24XX("W2_242X_GPIO50",		0xd4,	3,	0,	0,	1)
+MUX_CFG_24XX("U4_242X_GPIO51",		0xd5,	3,	0,	0,	1)
+MUX_CFG_24XX("V3_242X_GPIO52",		0xd6,	3,	0,	0,	1)
+MUX_CFG_24XX("V2_242X_GPIO53",		0xd7,	3,	0,	0,	1)
+MUX_CFG_24XX("V6_242X_GPIO53",		0xcf,	3,	0,	0,	1)
+MUX_CFG_24XX("T4_242X_GPIO54",		0xd8,	3,	0,	0,	1)
+MUX_CFG_24XX("Y4_242X_GPIO54",		0xd0,	3,	0,	0,	1)
+MUX_CFG_24XX("T3_242X_GPIO55",		0xd9,	3,	0,	0,	1)
+MUX_CFG_24XX("U2_242X_GPIO56",		0xda,	3,	0,	0,	1)
+
+/* 24xx external DMA requests */
+MUX_CFG_24XX("AA10_242X_DMAREQ0",	0x0e5,  2,      0,      0,      1)
+MUX_CFG_24XX("AA6_242X_DMAREQ1",	0x0e6,  2,      0,      0,      1)
+MUX_CFG_24XX("E4_242X_DMAREQ2",		0x074,  2,      0,      0,      1)
+MUX_CFG_24XX("G4_242X_DMAREQ3",		0x073,  2,      0,      0,      1)
+MUX_CFG_24XX("D3_242X_DMAREQ4",		0x072,  2,      0,      0,      1)
+MUX_CFG_24XX("E3_242X_DMAREQ5",		0x071,  2,      0,      0,      1)
 
 /* TSC IRQ */
 MUX_CFG_24XX("P20_24XX_TSC_IRQ",	0x108,	0,	0,	0,	1)
