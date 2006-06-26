@@ -1074,8 +1074,7 @@ static inline int update_partial_datagram(struct list_head *pdgl, struct list_he
 
 	/* Move list entry to beginnig of list so that oldest partial
 	 * datagrams percolate to the end of the list */
-	list_del(lh);
-	list_add(lh, pdgl);
+	list_move(lh, pdgl);
 
 	return 0;
 }

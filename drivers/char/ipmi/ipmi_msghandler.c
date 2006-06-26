@@ -936,11 +936,8 @@ int ipmi_set_gets_events(ipmi_user_t user, int val)
 
 	if (val) {
 		/* Deliver any queued events. */
-		list_for_each_entry_safe(msg, msg2, &intf->waiting_events,
-					 link) {
-			list_del(&msg->link);
-			list_add_tail(&msg->link, &msgs);
-		}
+		list_for_each_entry_safe(msg, msg2, &intf->waiting_events, link)
+			list_move_tail(&msg->link, &msgs);
 		intf->waiting_events_count = 0;
 	}
 

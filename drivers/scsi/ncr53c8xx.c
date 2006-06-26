@@ -5118,8 +5118,7 @@ static void ncr_ccb_skipped(struct ncb *np, struct ccb *cp)
 		cp->host_status &= ~HS_SKIPMASK;
 		cp->start.schedule.l_paddr = 
 			cpu_to_scr(NCB_SCRIPT_PHYS (np, select));
-		list_del(&cp->link_ccbq);
-		list_add_tail(&cp->link_ccbq, &lp->skip_ccbq);
+		list_move_tail(&cp->link_ccbq, &lp->skip_ccbq);
 		if (cp->queued) {
 			--lp->queuedccbs;
 		}

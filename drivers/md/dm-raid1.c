@@ -458,11 +458,9 @@ static int __rh_recovery_prepare(struct region_hash *rh)
 	/* Already quiesced ? */
 	if (atomic_read(&reg->pending))
 		list_del_init(&reg->list);
+	else
+		list_move(&reg->list, &rh->quiesced_regions);
 
-	else {
-		list_del_init(&reg->list);
-		list_add(&reg->list, &rh->quiesced_regions);
-	}
 	spin_unlock_irq(&rh->region_lock);
 
 	return 1;

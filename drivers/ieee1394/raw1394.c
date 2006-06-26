@@ -132,8 +132,7 @@ static void free_pending_request(struct pending_request *req)
 static void __queue_complete_req(struct pending_request *req)
 {
 	struct file_info *fi = req->file_info;
-	list_del(&req->list);
-	list_add_tail(&req->list, &fi->req_complete);
+	list_move_tail(&req->list, &fi->req_complete);
 
 	up(&fi->complete_sem);
 	wake_up_interruptible(&fi->poll_wait_complete);
