@@ -2911,7 +2911,7 @@ static int do_md_stop(mddev_t * mddev, int ro)
 		if (disk)
 			set_capacity(disk, 0);
 		mddev->changed = 1;
-	} else
+	} else if (mddev->pers)
 		printk(KERN_INFO "md: %s switched to read-only mode.\n",
 			mdname(mddev));
 	err = 0;
