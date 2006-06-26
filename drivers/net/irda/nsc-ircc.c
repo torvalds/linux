@@ -115,8 +115,12 @@ static nsc_chip_t chips[] = {
 	/* Contributed by Jan Frey - IBM A30/A31 */
 	{ "PC8739x", { 0x2e, 0x4e, 0x0 }, 0x20, 0xea, 0xff, 
 	  nsc_ircc_probe_39x, nsc_ircc_init_39x },
-	{ "IBM", { 0x2e, 0x4e, 0x0 }, 0x20, 0xf4, 0xff,
- 	  nsc_ircc_probe_39x, nsc_ircc_init_39x },
+	/* IBM ThinkPads using PC8738x (T60/X60/Z60) */
+	{ "IBM-PC8738x", { 0x2e, 0x4e, 0x0 }, 0x20, 0xf4, 0xff,
+	  nsc_ircc_probe_39x, nsc_ircc_init_39x },
+	/* IBM ThinkPads using PC8394T (T43/R52/?) */
+	{ "IBM-PC8394T", { 0x2e, 0x4e, 0x0 }, 0x20, 0xf9, 0xff,
+	  nsc_ircc_probe_39x, nsc_ircc_init_39x },
 	{ NULL }
 };
 
