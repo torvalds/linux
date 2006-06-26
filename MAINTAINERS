@@ -1396,7 +1396,8 @@ S:	Supported
 
 INPUT (KEYBOARD, MOUSE, JOYSTICK) DRIVERS
 P:	Dmitry Torokhov
-M:	dtor_core@ameritech.net
+M:	dmitry.torokhov@gmail.com
+M:	dtor@mail.ru
 L:	linux-input@atrey.karlin.mff.cuni.cz
 L:	linux-joystick@atrey.karlin.mff.cuni.cz
 T:	git kernel.org:/pub/scm/linux/kernel/git/dtor/input.git
