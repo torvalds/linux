@@ -470,6 +470,10 @@ static int send_msg(struct kiocb *iocb, struct socket *sock,
 		if ((tsock->p->published) ||
 		    ((sock->type == SOCK_STREAM) && (total_len != 0)))
 			return -EOPNOTSUPP;
+		if (dest->addrtype == TIPC_ADDR_NAME) {
+			tsock->p->conn_type = dest->addr.name.name.type;
+			tsock->p->conn_instance = dest->addr.name.name.instance;
+		}
 	}
 
 	if (down_interruptible(&tsock->sem))
@@ -1269,10 +1273,6 @@ static int connect(struct socket *sock, struct sockaddr *dest, int destlen,
 	   msg = buf_msg(buf);
            res = auto_connect(sock, tsock, msg);
            if (!res) {
-		   if (dst->addrtype == TIPC_ADDR_NAME) {
-			   tsock->p->conn_type = dst->addr.name.name.type;
-			   tsock->p->conn_instance = dst->addr.name.name.instance;
-		   }
 		   if (!msg_data_sz(msg))
 			   advance_queue(tsock);
 	   }
