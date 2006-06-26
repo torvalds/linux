@@ -5,7 +5,7 @@
 
 mainmenu "uClinux/68k (w/o MMU) Kernel Configuration"
 
-config M68KNOMMU
+config M68K
 	bool
 	default y
 
