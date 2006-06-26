@@ -891,6 +891,10 @@ static struct mapped_device *alloc_dev(unsigned int minor, int persistent)
 	if (!md->disk)
 		goto bad4;
 
+	atomic_set(&md->pending, 0);
+	init_waitqueue_head(&md->wait);
+	init_waitqueue_head(&md->eventq);
+
 	md->disk->major = _major;
 	md->disk->first_minor = minor;
 	md->disk->fops = &dm_blk_dops;
@@ -899,10 +903,6 @@ static struct mapped_device *alloc_dev(unsigned int minor, int persistent)
 	sprintf(md->disk->disk_name, "dm-%d", minor);
 	add_disk(md->disk);
 	format_dev_t(md->name, MKDEV(_major, minor));
-
-	atomic_set(&md->pending, 0);
-	init_waitqueue_head(&md->wait);
-	init_waitqueue_head(&md->eventq);
 
 	/* Populate the mapping, nobody knows we exist yet */
 	spin_lock(&_minor_lock);
