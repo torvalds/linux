@@ -361,54 +361,6 @@ static int proc_root_link(struct inode *inode, struct dentry **dentry, struct vf
 	return result;
 }
 
-
-/* Same as proc_root_link, but this addionally tries to get fs from other
- * threads in the group */
-static int proc_task_root_link(struct inode *inode, struct dentry **dentry,
-				struct vfsmount **mnt)
-{
-	struct fs_struct *fs;
-	int result = -ENOENT;
-	struct task_struct *leader = proc_task(inode);
-
-	task_lock(leader);
-	fs = leader->fs;
-	if (fs) {
-		atomic_inc(&fs->count);
-		task_unlock(leader);
-	} else {
-		/* Try to get fs from other threads */
-		task_unlock(leader);
-		read_lock(&tasklist_lock);
-		if (pid_alive(leader)) {
-			struct task_struct *task = leader;
-
-			while ((task = next_thread(task)) != leader) {
-				task_lock(task);
-				fs = task->fs;
-				if (fs) {
-					atomic_inc(&fs->count);
-					task_unlock(task);
-					break;
-				}
-				task_unlock(task);
-			}
-		}
-		read_unlock(&tasklist_lock);
-	}
-
-	if (fs) {
-		read_lock(&fs->lock);
-		*mnt = mntget(fs->rootmnt);
-		*dentry = dget(fs->root);
-		read_unlock(&fs->lock);
-		result = 0;
-		put_fs_struct(fs);
-	}
-	return result;
-}
-
-
 #define MAY_PTRACE(task) \
 	(task == current || \
 	(task->parent == current && \
@@ -598,20 +550,6 @@ static int proc_permission(struct inode *inode, int mask, struct nameidata *nd)
 	if (generic_permission(inode, mask, NULL) != 0)
 		return -EACCES;
 	return proc_check_root(inode);
-}
-
-static int proc_task_permission(struct inode *inode, int mask, struct nameidata *nd)
-{
-	struct dentry *root;
-	struct vfsmount *vfsmnt;
-
-	if (generic_permission(inode, mask, NULL) != 0)
-		return -EACCES;
-
-	if (proc_task_root_link(inode, &root, &vfsmnt))
-		return -ENOENT;
-
-	return proc_check_chroot(root, vfsmnt);
 }
 
 extern struct seq_operations proc_pid_maps_op;
@@ -1583,7 +1521,6 @@ static struct inode_operations proc_fd_inode_operations = {
 
 static struct inode_operations proc_task_inode_operations = {
 	.lookup		= proc_task_lookup,
-	.permission	= proc_task_permission,
 };
 
 #ifdef CONFIG_SECURITY
