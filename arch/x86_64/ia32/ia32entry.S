@@ -179,7 +179,7 @@ ENDPROC(ia32_sysenter_target)
  */ 	
 ENTRY(ia32_cstar_target)
 	CFI_STARTPROC32	simple
-	CFI_DEF_CFA	rsp,0
+	CFI_DEF_CFA	rsp,PDA_STACKOFFSET
 	CFI_REGISTER	rip,rcx
 	/*CFI_REGISTER	rflags,r11*/
 	swapgs

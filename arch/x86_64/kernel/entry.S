@@ -189,7 +189,7 @@ END(ret_from_fork)
 
 ENTRY(system_call)
 	CFI_STARTPROC	simple
-	CFI_DEF_CFA	rsp,0
+	CFI_DEF_CFA	rsp,PDA_STACKOFFSET
 	CFI_REGISTER	rip,rcx
 	/*CFI_REGISTER	rflags,r11*/
 	swapgs
