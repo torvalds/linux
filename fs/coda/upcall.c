@@ -725,7 +725,7 @@ static int coda_upcall(struct coda_sb_info *sbi,
 	((union inputArgs *)buffer)->ih.unique = req->uc_unique;
 
 	/* Append msg to pending queue and poke Venus. */
-	list_add(&(req->uc_chain), vcommp->vc_pending.prev);
+	list_add_tail(&(req->uc_chain), &vcommp->vc_pending);
         
 	wake_up_interruptible(&vcommp->vc_waitq);
 	/* We can be interrupted while we wait for Venus to process
