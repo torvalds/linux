@@ -1,9 +1,7 @@
-#ifndef _I386_ALTERNATIVE_H
-#define _I386_ALTERNATIVE_H
+#ifndef _X86_64_ALTERNATIVE_H
+#define _X86_64_ALTERNATIVE_H
 
 #ifdef __KERNEL__
-
-#include <asm/types.h>
 
 #include <linux/types.h>
 
@@ -13,7 +11,7 @@ struct alt_instr {
 	u8  cpuid;		/* cpuid bit set for replacement */
 	u8  instrlen;		/* length of original instruction */
 	u8  replacementlen; 	/* length of new instruction, <= instrlen */
-	u8  pad;
+	u8  pad[5];
 };
 
 extern void apply_alternatives(struct alt_instr *start, struct alt_instr *end);
@@ -39,18 +37,18 @@ extern void alternatives_smp_switch(int smp);
  * For non barrier like inlines please define new variants
  * without volatile and memory clobber.
  */
-#define alternative(oldinstr, newinstr, feature)			\
-	asm volatile ("661:\n\t" oldinstr "\n662:\n" 			\
-		      ".section .altinstructions,\"a\"\n"		\
-		      "  .align 4\n"					\
-		      "  .long 661b\n"            /* label */		\
-		      "  .long 663f\n"		  /* new instruction */	\
-		      "  .byte %c0\n"             /* feature bit */	\
-		      "  .byte 662b-661b\n"       /* sourcelen */	\
-		      "  .byte 664f-663f\n"       /* replacementlen */	\
+#define alternative(oldinstr, newinstr, feature) 	\
+	asm volatile ("661:\n\t" oldinstr "\n662:\n" 		     \
+		      ".section .altinstructions,\"a\"\n"     	     \
+		      "  .align 8\n"				       \
+		      "  .quad 661b\n"            /* label */          \
+		      "  .quad 663f\n"		  /* new instruction */ \
+		      "  .byte %c0\n"             /* feature bit */    \
+		      "  .byte 662b-661b\n"       /* sourcelen */      \
+		      "  .byte 664f-663f\n"       /* replacementlen */ \
 		      ".previous\n"					\
 		      ".section .altinstr_replacement,\"ax\"\n"		\
-		      "663:\n\t" newinstr "\n664:\n"   /* replacement */\
+		      "663:\n\t" newinstr "\n664:\n"   /* replacement */ \
 		      ".previous" :: "i" (feature) : "memory")
 
 /*
@@ -61,21 +59,36 @@ extern void alternatives_smp_switch(int smp);
  * Argument numbers start with 1.
  * Best is to use constraints that are fixed size (like (%1) ... "r")
  * If you use variable sized constraints like "m" or "g" in the
- * replacement maake sure to pad to the worst case length.
+ * replacement make sure to pad to the worst case length.
  */
 #define alternative_input(oldinstr, newinstr, feature, input...)	\
 	asm volatile ("661:\n\t" oldinstr "\n662:\n"			\
 		      ".section .altinstructions,\"a\"\n"		\
-		      "  .align 4\n"					\
-		      "  .long 661b\n"            /* label */		\
-		      "  .long 663f\n"		  /* new instruction */ \
+		      "  .align 8\n"					\
+		      "  .quad 661b\n"            /* label */		\
+		      "  .quad 663f\n"		  /* new instruction */	\
 		      "  .byte %c0\n"             /* feature bit */	\
 		      "  .byte 662b-661b\n"       /* sourcelen */	\
-		      "  .byte 664f-663f\n"       /* replacementlen */ 	\
+		      "  .byte 664f-663f\n"       /* replacementlen */	\
 		      ".previous\n"					\
 		      ".section .altinstr_replacement,\"ax\"\n"		\
-		      "663:\n\t" newinstr "\n664:\n"   /* replacement */\
+		      "663:\n\t" newinstr "\n664:\n"   /* replacement */ \
 		      ".previous" :: "i" (feature), ##input)
+
+/* Like alternative_input, but with a single output argument */
+#define alternative_io(oldinstr, newinstr, feature, output, input...) \
+	asm volatile ("661:\n\t" oldinstr "\n662:\n"			\
+		      ".section .altinstructions,\"a\"\n"		\
+		      "  .align 8\n"					\
+		      "  .quad 661b\n"            /* label */		\
+		      "  .quad 663f\n"		  /* new instruction */	\
+		      "  .byte %c[feat]\n"        /* feature bit */	\
+		      "  .byte 662b-661b\n"       /* sourcelen */	\
+		      "  .byte 664f-663f\n"       /* replacementlen */	\
+		      ".previous\n"					\
+		      ".section .altinstr_replacement,\"ax\"\n"		\
+		      "663:\n\t" newinstr "\n664:\n"   /* replacement */ \
+		      ".previous" : output : [feat] "i" (feature), ##input)
 
 /*
  * Alternative inline assembly for SMP.
@@ -103,24 +116,24 @@ extern void alternatives_smp_switch(int smp);
 
 #ifdef CONFIG_SMP
 #define alternative_smp(smpinstr, upinstr, args...)			\
-	asm volatile ("661:\n\t" smpinstr "\n662:\n" 			\
+	asm volatile ("661:\n\t" smpinstr "\n662:\n"			\
 		      ".section .smp_altinstructions,\"a\"\n"		\
-		      "  .align 4\n"					\
-		      "  .long 661b\n"            /* label */		\
-		      "  .long 663f\n"		  /* new instruction */	\
-		      "  .byte 0x68\n"            /* X86_FEATURE_UP */	\
+		      "  .align 8\n"					\
+		      "  .quad 661b\n"            /* label */		\
+		      "  .quad 663f\n"		  /* new instruction */	\
+		      "  .byte 0x66\n"            /* X86_FEATURE_UP */	\
 		      "  .byte 662b-661b\n"       /* sourcelen */	\
 		      "  .byte 664f-663f\n"       /* replacementlen */	\
 		      ".previous\n"					\
-		      ".section .smp_altinstr_replacement,\"awx\"\n"   	\
+		      ".section .smp_altinstr_replacement,\"awx\"\n"	\
 		      "663:\n\t" upinstr "\n"     /* replacement */	\
 		      "664:\n\t.fill 662b-661b,1,0x42\n" /* space for original */ \
 		      ".previous" : args)
 
 #define LOCK_PREFIX \
 		".section .smp_locks,\"a\"\n"	\
-		"  .align 4\n"			\
-		"  .long 661f\n" /* address */	\
+		"  .align 8\n"			\
+		"  .quad 661f\n" /* address */	\
 		".previous\n"			\
 	       	"661:\n\tlock; "
 
@@ -130,4 +143,4 @@ extern void alternatives_smp_switch(int smp);
 #define LOCK_PREFIX ""
 #endif
 
-#endif /* _I386_ALTERNATIVE_H */
+#endif /* _X86_64_ALTERNATIVE_H */

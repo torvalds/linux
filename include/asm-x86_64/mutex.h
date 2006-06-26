@@ -24,7 +24,7 @@ do {									\
 	typecheck_fn(fastcall void (*)(atomic_t *), fail_fn);		\
 									\
 	__asm__ __volatile__(						\
-		LOCK	"   decl (%%rdi)	\n"			\
+		LOCK_PREFIX "   decl (%%rdi)	\n"			\
 			"   js 2f		\n"			\
 			"1:			\n"			\
 									\
@@ -74,7 +74,7 @@ do {									\
 	typecheck_fn(fastcall void (*)(atomic_t *), fail_fn);		\
 									\
 	__asm__ __volatile__(						\
-		LOCK	"   incl (%%rdi)	\n"			\
+		LOCK_PREFIX "   incl (%%rdi)	\n"			\
 			"   jle 2f		\n"			\
 			"1:			\n"			\
 									\
