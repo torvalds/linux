@@ -172,6 +172,8 @@ void __init unwind_init(void)
 	                  __start_unwind, __end_unwind - __start_unwind);
 }
 
+#ifdef CONFIG_MODULES
+
 /* Must be called with module_mutex held. */
 void *unwind_add_table(struct module *module,
                        const void *table_start,
@@ -252,6 +254,8 @@ void unwind_remove_table(void *handle, int init_only)
 	if (info.table)
 		kfree(table);
 }
+
+#endif /* CONFIG_MODULES */
 
 static uleb128_t get_uleb128(const u8 **pcur, const u8 *end)
 {

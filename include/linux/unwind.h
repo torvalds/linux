@@ -29,11 +29,15 @@ struct module;
  */
 extern void unwind_init(void);
 
+#ifdef CONFIG_MODULES
+
 extern void *unwind_add_table(struct module *,
                               const void *table_start,
                               unsigned long table_size);
 
 extern void unwind_remove_table(void *handle, int init_only);
+
+#endif
 
 extern int unwind_init_frame_info(struct unwind_frame_info *,
                                   struct task_struct *,
@@ -72,12 +76,16 @@ struct unwind_frame_info {};
 
 static inline void unwind_init(void) {}
 
+#ifdef CONFIG_MODULES
+
 static inline void *unwind_add_table(struct module *mod,
                                      const void *table_start,
                                      unsigned long table_size)
 {
 	return NULL;
 }
+
+#endif
 
 static inline void unwind_remove_table(void *handle, int init_only)
 {
