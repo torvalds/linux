@@ -4247,7 +4247,7 @@ long sys_sched_rr_get_interval(pid_t pid, struct timespec __user *interval)
 	if (retval)
 		goto out_unlock;
 
-	jiffies_to_timespec(p->policy & SCHED_FIFO ?
+	jiffies_to_timespec(p->policy == SCHED_FIFO ?
 				0 : task_timeslice(p), &t);
 	read_unlock(&tasklist_lock);
 	retval = copy_to_user(interval, &t, sizeof(t)) ? -EFAULT : 0;
