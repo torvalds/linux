@@ -1061,6 +1061,7 @@ int tipc_createport(u32 user_ref,
 
 	up_ptr = (struct user_port *)kmalloc(sizeof(*up_ptr), GFP_ATOMIC);
 	if (up_ptr == NULL) {
+		warn("Port creation failed, no memory\n");
 		return -ENOMEM;
 	}
 	ref = tipc_createport_raw(NULL, port_dispatcher, port_wakeup, importance);
