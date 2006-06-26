@@ -27,6 +27,11 @@
 
 static struct device_node *allnodes;
 
+/* use when traversing tree through the allnext, child, sibling,
+ * or parent members of struct device_node.
+ */
+static DEFINE_RWLOCK(devtree_lock);
+
 int of_device_is_compatible(struct device_node *device, const char *compat)
 {
 	const char* cp;
@@ -184,6 +189,54 @@ int of_getintprop_default(struct device_node *np, const char *name, int def)
 	return *(int *) prop->value;
 }
 EXPORT_SYMBOL(of_getintprop_default);
+
+int of_set_property(struct device_node *dp, const char *name, void *val, int len)
+{
+	struct property **prevp;
+	void *new_val;
+	int err;
+
+	new_val = kmalloc(len, GFP_KERNEL);
+	if (!new_val)
+		return -ENOMEM;
+
+	memcpy(new_val, val, len);
+
+	err = -ENODEV;
+
+	write_lock(&devtree_lock);
+	prevp = &dp->properties;
+	while (*prevp) {
+		struct property *prop = *prevp;
+
+		if (!strcmp(prop->name, name)) {
+			void *old_val = prop->value;
+			int ret;
+
+			ret = prom_setprop(dp->node, name, val, len);
+			err = -EINVAL;
+			if (ret >= 0) {
+				prop->value = new_val;
+				prop->length = len;
+
+				if (OF_IS_DYNAMIC(prop))
+					kfree(old_val);
+
+				OF_MARK_DYNAMIC(prop);
+
+				err = 0;
+			}
+			break;
+		}
+		prevp = &(*prevp)->next;
+	}
+	write_unlock(&devtree_lock);
+
+	/* XXX Upate procfs if necessary... */
+
+	return err;
+}
+EXPORT_SYMBOL(of_set_property);
 
 static unsigned int prom_early_allocated;
 
