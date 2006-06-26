@@ -1357,7 +1357,6 @@ static struct inode *proc_pid_make_inode(struct super_block * sb, struct task_st
 
 	/* Common stuff */
 	ei = PROC_I(inode);
-	ei->task = NULL;
 	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME;
 	inode->i_ino = fake_ino(task->pid, ino);
 
@@ -1382,7 +1381,6 @@ out:
 	return inode;
 
 out_unlock:
-	ei->pde = NULL;
 	iput(inode);
 	return NULL;
 }
