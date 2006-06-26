@@ -1476,7 +1476,8 @@ fc_rport_final_delete(void *data)
 	transport_remove_device(dev);
 	device_del(dev);
 	transport_destroy_device(dev);
-	put_device(&shost->shost_gendev);
+	put_device(&shost->shost_gendev);	/* for fc_host->rport list */
+	put_device(dev);			/* for self-reference */
 }
 
 
@@ -1537,13 +1538,13 @@ fc_rport_create(struct Scsi_Host *shost, int channel,
 	else
 		rport->scsi_target_id = -1;
 	list_add_tail(&rport->peers, &fc_host->rports);
-	get_device(&shost->shost_gendev);
+	get_device(&shost->shost_gendev);	/* for fc_host->rport list */
 
 	spin_unlock_irqrestore(shost->host_lock, flags);
 
 	dev = &rport->dev;
-	device_initialize(dev);
-	dev->parent = get_device(&shost->shost_gendev);
+	device_initialize(dev);			/* takes self reference */
+	dev->parent = get_device(&shost->shost_gendev); /* parent reference */
 	dev->release = fc_rport_dev_release;
 	sprintf(dev->bus_id, "rport-%d:%d-%d",
 		shost->host_no, channel, rport->number);
@@ -1567,10 +1568,9 @@ fc_rport_create(struct Scsi_Host *shost, int channel,
 
 delete_rport:
 	transport_destroy_device(dev);
-	put_device(dev->parent);
 	spin_lock_irqsave(shost->host_lock, flags);
 	list_del(&rport->peers);
-	put_device(&shost->shost_gendev);
+	put_device(&shost->shost_gendev);	/* for fc_host->rport list */
 	spin_unlock_irqrestore(shost->host_lock, flags);
 	put_device(dev->parent);
 	kfree(rport);
