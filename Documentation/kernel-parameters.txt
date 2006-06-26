@@ -180,6 +180,11 @@ running once the system is up.
 			override platform specific driver.
 			See also Documentation/acpi-hotkey.txt.
 
+	acpi_pm_good	[IA-32,X86-64]
+			Override the pmtimer bug detection: force the kernel
+			to assume that this machine's pmtimer latches its value
+			and always returns good values.
+
 	enable_timer_pin_1 [i386,x86-64]
 			Enable PIN 1 of APIC timer
 			Can be useful to work around chipset bugs

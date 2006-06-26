@@ -174,7 +174,7 @@ EXPORT_SYMBOL(register_clocksource);
  * reselect_clocksource - Rescan list for next clocksource
  *
  * A quick helper function to be used if a clocksource changes its
- * rating. Forces the clocksource list to be re-scaned for the best
+ * rating. Forces the clocksource list to be re-scanned for the best
  * clocksource.
  */
 void reselect_clocksource(void)
@@ -336,8 +336,13 @@ __setup("clocksource=", boot_override_clocksource);
  */
 static int __init boot_override_clock(char* str)
 {
-	printk("Warning! clock= boot option is deprecated.\n");
-
+	if (!strcmp(str, "pmtmr")) {
+		printk("Warning: clock=pmtmr is deprecated. "
+			"Use clocksource=acpi_pm.\n");
+		return boot_override_clocksource("acpi_pm");
+	}
+	printk("Warning! clock= boot option is deprecated. "
+		"Use clocksource=xyz\n");
 	return boot_override_clocksource(str);
 }
 

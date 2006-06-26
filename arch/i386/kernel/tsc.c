@@ -4,11 +4,14 @@
  * See comments there for proper credits.
  */
 
+#include <linux/clocksource.h>
 #include <linux/workqueue.h>
 #include <linux/cpufreq.h>
 #include <linux/jiffies.h>
 #include <linux/init.h>
+#include <linux/dmi.h>
 
+#include <asm/delay.h>
 #include <asm/tsc.h>
 #include <asm/delay.h>
 #include <asm/io.h>
@@ -315,3 +318,161 @@ static int __init cpufreq_tsc(void)
 core_initcall(cpufreq_tsc);
 
 #endif
+
+/* clock source code */
+
+static unsigned long current_tsc_khz = 0;
+static int tsc_update_callback(void);
+
+static cycle_t read_tsc(void)
+{
+	cycle_t ret;
+
+	rdtscll(ret);
+
+	return ret;
+}
+
+static struct clocksource clocksource_tsc = {
+	.name			= "tsc",
+	.rating			= 300,
+	.read			= read_tsc,
+	.mask			= (cycle_t)-1,
+	.mult			= 0, /* to be set */
+	.shift			= 22,
+	.update_callback	= tsc_update_callback,
+	.is_continuous		= 1,
+};
+
+static int tsc_update_callback(void)
+{
+	int change = 0;
+
+	/* check to see if we should switch to the safe clocksource: */
+	if (clocksource_tsc.rating != 50 && check_tsc_unstable()) {
+		clocksource_tsc.rating = 50;
+		reselect_clocksource();
+		change = 1;
+	}
+
+	/* only update if tsc_khz has changed: */
+	if (current_tsc_khz != tsc_khz) {
+		current_tsc_khz = tsc_khz;
+		clocksource_tsc.mult = clocksource_khz2mult(current_tsc_khz,
+							clocksource_tsc.shift);
+		change = 1;
+	}
+
+	return change;
+}
+
+static int __init dmi_mark_tsc_unstable(struct dmi_system_id *d)
+{
+	printk(KERN_NOTICE "%s detected: marking TSC unstable.\n",
+		       d->ident);
+	mark_tsc_unstable();
+	return 0;
+}
+
+/* List of systems that have known TSC problems */
+static struct dmi_system_id __initdata bad_tsc_dmi_table[] = {
+	{
+	 .callback = dmi_mark_tsc_unstable,
+	 .ident = "IBM Thinkpad 380XD",
+	 .matches = {
+		     DMI_MATCH(DMI_BOARD_VENDOR, "IBM"),
+		     DMI_MATCH(DMI_BOARD_NAME, "2635FA0"),
+		     },
+	 },
+	 {}
+};
+
+#define TSC_FREQ_CHECK_INTERVAL (10*MSEC_PER_SEC) /* 10sec in MS */
+static struct timer_list verify_tsc_freq_timer;
+
+/* XXX - Probably should add locking */
+static void verify_tsc_freq(unsigned long unused)
+{
+	static u64 last_tsc;
+	static unsigned long last_jiffies;
+
+	u64 now_tsc, interval_tsc;
+	unsigned long now_jiffies, interval_jiffies;
+
+
+	if (check_tsc_unstable())
+		return;
+
+	rdtscll(now_tsc);
+	now_jiffies = jiffies;
+
+	if (!last_jiffies) {
+		goto out;
+	}
+
+	interval_jiffies = now_jiffies - last_jiffies;
+	interval_tsc = now_tsc - last_tsc;
+	interval_tsc *= HZ;
+	do_div(interval_tsc, cpu_khz*1000);
+
+	if (interval_tsc < (interval_jiffies * 3 / 4)) {
+		printk("TSC appears to be running slowly. "
+			"Marking it as unstable\n");
+		mark_tsc_unstable();
+		return;
+	}
+
+out:
+	last_tsc = now_tsc;
+	last_jiffies = now_jiffies;
+	/* set us up to go off on the next interval: */
+	mod_timer(&verify_tsc_freq_timer,
+		jiffies + msecs_to_jiffies(TSC_FREQ_CHECK_INTERVAL));
+}
+
+/*
+ * Make an educated guess if the TSC is trustworthy and synchronized
+ * over all CPUs.
+ */
+static __init int unsynchronized_tsc(void)
+{
+	/*
+	 * Intel systems are normally all synchronized.
+	 * Exceptions must mark TSC as unstable:
+	 */
+	if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL)
+ 		return 0;
+
+	/* assume multi socket systems are not synchronized: */
+ 	return num_possible_cpus() > 1;
+}
+
+static int __init init_tsc_clocksource(void)
+{
+
+	if (cpu_has_tsc && tsc_khz && !tsc_disable) {
+		/* check blacklist */
+		dmi_check_system(bad_tsc_dmi_table);
+
+		if (unsynchronized_tsc()) /* mark unstable if unsynced */
+			mark_tsc_unstable();
+		current_tsc_khz = tsc_khz;
+		clocksource_tsc.mult = clocksource_khz2mult(current_tsc_khz,
+							clocksource_tsc.shift);
+		/* lower the rating if we already know its unstable: */
+		if (check_tsc_unstable())
+			clocksource_tsc.rating = 50;
+
+		init_timer(&verify_tsc_freq_timer);
+		verify_tsc_freq_timer.function = verify_tsc_freq;
+		verify_tsc_freq_timer.expires =
+			jiffies + msecs_to_jiffies(TSC_FREQ_CHECK_INTERVAL);
+		add_timer(&verify_tsc_freq_timer);
+
+		return register_clocksource(&clocksource_tsc);
+	}
+
+	return 0;
+}
+
+module_init(init_tsc_clocksource);
