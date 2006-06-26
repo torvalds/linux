@@ -1940,11 +1940,11 @@ struct dentry *proc_pid_lookup(struct inode *dir, struct dentry * dentry, struct
 	if (tgid == ~0U)
 		goto out;
 
-	read_lock(&tasklist_lock);
+	rcu_read_lock();
 	task = find_task_by_pid(tgid);
 	if (task)
 		get_task_struct(task);
-	read_unlock(&tasklist_lock);
+	rcu_read_unlock();
 	if (!task)
 		goto out;
 
@@ -1988,11 +1988,11 @@ static struct dentry *proc_task_lookup(struct inode *dir, struct dentry * dentry
 	if (tid == ~0U)
 		goto out;
 
-	read_lock(&tasklist_lock);
+	rcu_read_lock();
 	task = find_task_by_pid(tid);
 	if (task)
 		get_task_struct(task);
-	read_unlock(&tasklist_lock);
+	rcu_read_unlock();
 	if (!task)
 		goto out;
 	if (leader->tgid != task->tgid)
