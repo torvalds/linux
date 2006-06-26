@@ -2,7 +2,7 @@
  * net/tipc/discover.c
  * 
  * Copyright (c) 2003-2006, Ericsson AB
- * Copyright (c) 2005, Wind River Systems
+ * Copyright (c) 2005-2006, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -267,8 +267,8 @@ static void disc_timeout(struct link_req *req)
 		/* leave timer interval "as is" if already at a "normal" rate */
 	} else {
 		req->timer_intv *= 2;
-		if (req->timer_intv > TIPC_LINK_REQ_SLOW)
-			req->timer_intv = TIPC_LINK_REQ_SLOW;
+		if (req->timer_intv > TIPC_LINK_REQ_FAST)
+			req->timer_intv = TIPC_LINK_REQ_FAST;
 		if ((req->timer_intv == TIPC_LINK_REQ_FAST) && 
 		    (req->bearer->nodes.count))
 			req->timer_intv = TIPC_LINK_REQ_SLOW;
