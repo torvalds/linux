@@ -31,6 +31,7 @@ struct netpoll_info {
 	int rx_flags;
 	spinlock_t rx_lock;
 	struct netpoll *rx_np; /* netpoll that registered an rx_hook */
+	struct sk_buff_head arp_tx; /* list of arp requests to reply to */
 };
 
 void netpoll_poll(struct netpoll *np);

@@ -54,6 +54,7 @@ static atomic_t trapped;
 				sizeof(struct iphdr) + sizeof(struct ethhdr))
 
 static void zap_completion_queue(void);
+static void arp_reply(struct sk_buff *skb);
 
 static void queue_process(void *p)
 {
@@ -153,6 +154,22 @@ static void poll_napi(struct netpoll *np)
 	}
 }
 
+static void service_arp_queue(struct netpoll_info *npi)
+{
+	struct sk_buff *skb;
+
+	if (unlikely(!npi))
+		return;
+
+	skb = skb_dequeue(&npi->arp_tx);
+
+	while (skb != NULL) {
+		arp_reply(skb);
+		skb = skb_dequeue(&npi->arp_tx);
+	}
+	return;
+}
+
 void netpoll_poll(struct netpoll *np)
 {
 	if(!np->dev || !netif_running(np->dev) || !np->dev->poll_controller)
@@ -162,6 +179,8 @@ void netpoll_poll(struct netpoll *np)
 	np->dev->poll_controller(np->dev);
 	if (np->dev->poll)
 		poll_napi(np);
+
+	service_arp_queue(np->dev->npinfo);
 
 	zap_completion_queue();
 }
@@ -442,7 +461,9 @@ int __netpoll_rx(struct sk_buff *skb)
 	int proto, len, ulen;
 	struct iphdr *iph;
 	struct udphdr *uh;
-	struct netpoll *np = skb->dev->npinfo->rx_np;
+	struct netpoll_info *npi = skb->dev->npinfo;
+	struct netpoll *np = npi->rx_np;
+
 
 	if (!np)
 		goto out;
@@ -452,7 +473,7 @@ int __netpoll_rx(struct sk_buff *skb)
 	/* check if netpoll clients need ARP */
 	if (skb->protocol == __constant_htons(ETH_P_ARP) &&
 	    atomic_read(&trapped)) {
-		arp_reply(skb);
+		skb_queue_tail(&npi->arp_tx, skb);
 		return 1;
 	}
 
@@ -647,6 +668,7 @@ int netpoll_setup(struct netpoll *np)
 		npinfo->poll_owner = -1;
 		npinfo->tries = MAX_RETRIES;
 		spin_lock_init(&npinfo->rx_lock);
+		skb_queue_head_init(&npinfo->arp_tx);
 	} else
 		npinfo = ndev->npinfo;
 
