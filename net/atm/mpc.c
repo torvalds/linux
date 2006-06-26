@@ -1113,10 +1113,9 @@ static void check_qos_and_open_shortcut(struct k_message *msg, struct mpoa_clien
 
 static void MPOA_res_reply_rcvd(struct k_message *msg, struct mpoa_client *mpc)
 {
-	unsigned char *ip;
-
 	uint32_t dst_ip = msg->content.in_info.in_dst_ip;
 	in_cache_entry *entry = mpc->in_ops->get(dst_ip, mpc);
+
 	dprintk("mpoa: (%s) MPOA_res_reply_rcvd: ip %u.%u.%u.%u\n", mpc->dev->name, NIPQUAD(dst_ip));
 	ddprintk("mpoa: (%s) MPOA_res_reply_rcvd() entry = %p", mpc->dev->name, entry);
 	if(entry == NULL){

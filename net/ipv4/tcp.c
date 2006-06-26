@@ -2166,7 +2166,7 @@ struct sk_buff *tcp_tso_segment(struct sk_buff *skb, int sg)
 	if (!pskb_may_pull(skb, thlen))
 		goto out;
 
-	oldlen = ~htonl(skb->len);
+	oldlen = (u16)~skb->len;
 	__skb_pull(skb, thlen);
 
 	segs = skb_segment(skb, sg);
@@ -2174,7 +2174,7 @@ struct sk_buff *tcp_tso_segment(struct sk_buff *skb, int sg)
 		goto out;
 
 	len = skb_shinfo(skb)->gso_size;
-	delta = csum_add(oldlen, htonl(thlen + len));
+	delta = htonl(oldlen + (thlen + len));
 
 	skb = segs;
 	th = skb->h.th;
@@ -2183,10 +2183,10 @@ struct sk_buff *tcp_tso_segment(struct sk_buff *skb, int sg)
 	do {
 		th->fin = th->psh = 0;
 
-		if (skb->ip_summed == CHECKSUM_NONE) {
-			th->check = csum_fold(csum_partial(
-				skb->h.raw, thlen, csum_add(skb->csum, delta)));
-		}
+		th->check = ~csum_fold(th->check + delta);
+		if (skb->ip_summed != CHECKSUM_HW)
+			th->check = csum_fold(csum_partial(skb->h.raw, thlen,
+							   skb->csum));
 
 		seq += len;
 		skb = skb->next;
@@ -2196,11 +2196,11 @@ struct sk_buff *tcp_tso_segment(struct sk_buff *skb, int sg)
 		th->cwr = 0;
 	} while (skb->next);
 
-	if (skb->ip_summed == CHECKSUM_NONE) {
-		delta = csum_add(oldlen, htonl(skb->tail - skb->h.raw));
-		th->check = csum_fold(csum_partial(
-			skb->h.raw, thlen, csum_add(skb->csum, delta)));
-	}
+	delta = htonl(oldlen + (skb->tail - skb->h.raw) + skb->data_len);
+	th->check = ~csum_fold(th->check + delta);
+	if (skb->ip_summed != CHECKSUM_HW)
+		th->check = csum_fold(csum_partial(skb->h.raw, thlen,
+						   skb->csum));
 
 out:
 	return segs;

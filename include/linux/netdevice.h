@@ -699,7 +699,6 @@ extern int		dev_hard_start_xmit(struct sk_buff *skb,
 
 extern void		dev_init(void);
 
-extern int		netdev_nit;
 extern int		netdev_budget;
 
 /* Called by rtnetlink.c:rtnl_unlock() */

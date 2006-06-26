@@ -419,7 +419,7 @@ struct link *tipc_link_create(struct bearer *b_ptr, const u32 peer,
 
 	l_ptr = (struct link *)kmalloc(sizeof(*l_ptr), GFP_ATOMIC);
 	if (!l_ptr) {
-		warn("Memory squeeze; Failed to create link\n");
+		warn("Link creation failed, no memory\n");
 		return NULL;
 	}
 	memset(l_ptr, 0, sizeof(*l_ptr));
@@ -469,7 +469,7 @@ struct link *tipc_link_create(struct bearer *b_ptr, const u32 peer,
 
 		if (!pb) {
 			kfree(l_ptr);
-			warn("Memory squeeze; Failed to create link\n");
+			warn("Link creation failed, no memory for print buffer\n");
 			return NULL;
 		}
 		tipc_printbuf_init(&l_ptr->print_buf, pb, LINK_LOG_BUF_SIZE);
@@ -574,7 +574,6 @@ void tipc_link_wakeup_ports(struct link *l_ptr, int all)
 			break;
 		list_del_init(&p_ptr->wait_list);
 		p_ptr->congested_link = NULL;
-		assert(p_ptr->wakeup);
 		spin_lock_bh(p_ptr->publ.lock);
 		p_ptr->publ.congested = 0;
 		p_ptr->wakeup(&p_ptr->publ);
@@ -691,6 +690,7 @@ void tipc_link_reset(struct link *l_ptr)
 	struct sk_buff *buf;
 	u32 prev_state = l_ptr->state;
 	u32 checkpoint = l_ptr->next_in_no;
+	int was_active_link = tipc_link_is_active(l_ptr);
 	
 	msg_set_session(l_ptr->pmsg, msg_session(l_ptr->pmsg) + 1);
 
@@ -712,7 +712,7 @@ void tipc_link_reset(struct link *l_ptr)
 	tipc_printf(TIPC_CONS, "\nReset link <%s>\n", l_ptr->name);
 	dbg_link_dump();
 #endif
-	if (tipc_node_has_active_links(l_ptr->owner) &&
+	if (was_active_link && tipc_node_has_active_links(l_ptr->owner) &&
 	    l_ptr->owner->permit_changeover) {
 		l_ptr->reset_checkpoint = checkpoint;
 		l_ptr->exp_msg_count = START_CHANGEOVER;
@@ -755,7 +755,7 @@ void tipc_link_reset(struct link *l_ptr)
 
 static void link_activate(struct link *l_ptr)
 {
-	l_ptr->next_in_no = 1;
+	l_ptr->next_in_no = l_ptr->stats.recv_info = 1;
 	tipc_node_link_up(l_ptr->owner, l_ptr);
 	tipc_bearer_add_dest(l_ptr->b_ptr, l_ptr->addr);
 	link_send_event(tipc_cfg_link_event, l_ptr, 1);
@@ -820,6 +820,8 @@ static void link_state_event(struct link *l_ptr, unsigned event)
 			break;
 		case RESET_MSG:
 			dbg_link("RES -> RR\n");
+			info("Resetting link <%s>, requested by peer\n", 
+			     l_ptr->name);
 			tipc_link_reset(l_ptr);
 			l_ptr->state = RESET_RESET;
 			l_ptr->fsm_msg_cnt = 0;
@@ -844,6 +846,8 @@ static void link_state_event(struct link *l_ptr, unsigned event)
 			break;
 		case RESET_MSG:
 			dbg_link("RES -> RR\n");
+			info("Resetting link <%s>, requested by peer "
+			     "while probing\n", l_ptr->name);
 			tipc_link_reset(l_ptr);
 			l_ptr->state = RESET_RESET;
 			l_ptr->fsm_msg_cnt = 0;
@@ -875,6 +879,8 @@ static void link_state_event(struct link *l_ptr, unsigned event)
 			} else {	/* Link has failed */
 				dbg_link("-> RU (%u probes unanswered)\n",
 					 l_ptr->fsm_msg_cnt);
+				warn("Resetting link <%s>, peer not responding\n",
+				     l_ptr->name);
 				tipc_link_reset(l_ptr);
 				l_ptr->state = RESET_UNKNOWN;
 				l_ptr->fsm_msg_cnt = 0;
@@ -1050,7 +1056,7 @@ int tipc_link_send_buf(struct link *l_ptr, struct sk_buff *buf)
 		msg_dbg(msg, "TIPC: Congestion, throwing away\n");
 		buf_discard(buf);
 		if (imp > CONN_MANAGER) {
-			warn("Resetting <%s>, send queue full", l_ptr->name);
+			warn("Resetting link <%s>, send queue full", l_ptr->name);
 			tipc_link_reset(l_ptr);
 		}
 		return dsz;
@@ -1135,9 +1141,13 @@ int tipc_link_send(struct sk_buff *buf, u32 dest, u32 selector)
 	if (n_ptr) {
 		tipc_node_lock(n_ptr);
 		l_ptr = n_ptr->active_links[selector & 1];
-		dbg("tipc_link_send: found link %x for dest %x\n", l_ptr, dest);
 		if (l_ptr) {
+			dbg("tipc_link_send: found link %x for dest %x\n", l_ptr, dest);
 			res = tipc_link_send_buf(l_ptr, buf);
+		} else {
+			dbg("Attempt to send msg to unreachable node:\n");
+			msg_dbg(buf_msg(buf),">>>");
+			buf_discard(buf);
 		}
 		tipc_node_unlock(n_ptr);
 	} else {
@@ -1241,8 +1251,6 @@ int tipc_link_send_sections_fast(struct port *sender,
 	struct node *node;
 	int res;
 	u32 selector = msg_origport(hdr) & 1;
-
-	assert(destaddr != tipc_own_addr);
 
 again:
 	/*
@@ -1604,40 +1612,121 @@ void tipc_link_push_queue(struct link *l_ptr)
 		tipc_bearer_schedule(l_ptr->b_ptr, l_ptr);
 }
 
+static void link_reset_all(unsigned long addr)
+{
+	struct node *n_ptr;
+	char addr_string[16];
+	u32 i;
+
+	read_lock_bh(&tipc_net_lock);
+	n_ptr = tipc_node_find((u32)addr);
+	if (!n_ptr) {
+		read_unlock_bh(&tipc_net_lock);
+		return;	/* node no longer exists */
+	}
+
+	tipc_node_lock(n_ptr);
+
+	warn("Resetting all links to %s\n", 
+	     addr_string_fill(addr_string, n_ptr->addr));
+
+	for (i = 0; i < MAX_BEARERS; i++) {
+		if (n_ptr->links[i]) {
+			link_print(n_ptr->links[i], TIPC_OUTPUT, 
+				   "Resetting link\n");
+			tipc_link_reset(n_ptr->links[i]);
+		}
+	}
+
+	tipc_node_unlock(n_ptr);
+	read_unlock_bh(&tipc_net_lock);
+}
+
+static void link_retransmit_failure(struct link *l_ptr, struct sk_buff *buf)
+{
+	struct tipc_msg *msg = buf_msg(buf);
+
+	warn("Retransmission failure on link <%s>\n", l_ptr->name);
+	tipc_msg_print(TIPC_OUTPUT, msg, ">RETR-FAIL>");
+
+	if (l_ptr->addr) {
+
+		/* Handle failure on standard link */
+
+		link_print(l_ptr, TIPC_OUTPUT, "Resetting link\n");
+		tipc_link_reset(l_ptr);
+
+	} else {
+
+		/* Handle failure on broadcast link */
+
+		struct node *n_ptr;
+		char addr_string[16];
+
+		tipc_printf(TIPC_OUTPUT, "Msg seq number: %u,  ", msg_seqno(msg));
+		tipc_printf(TIPC_OUTPUT, "Outstanding acks: %u\n", (u32)TIPC_SKB_CB(buf)->handle);
+		
+		n_ptr = l_ptr->owner->next;
+		tipc_node_lock(n_ptr);
+
+		addr_string_fill(addr_string, n_ptr->addr);
+		tipc_printf(TIPC_OUTPUT, "Multicast link info for %s\n", addr_string);
+		tipc_printf(TIPC_OUTPUT, "Supported: %d,  ", n_ptr->bclink.supported);
+		tipc_printf(TIPC_OUTPUT, "Acked: %u\n", n_ptr->bclink.acked);
+		tipc_printf(TIPC_OUTPUT, "Last in: %u,  ", n_ptr->bclink.last_in);
+		tipc_printf(TIPC_OUTPUT, "Gap after: %u,  ", n_ptr->bclink.gap_after);
+		tipc_printf(TIPC_OUTPUT, "Gap to: %u\n", n_ptr->bclink.gap_to);
+		tipc_printf(TIPC_OUTPUT, "Nack sync: %u\n\n", n_ptr->bclink.nack_sync);
+
+		tipc_k_signal((Handler)link_reset_all, (unsigned long)n_ptr->addr);
+
+		tipc_node_unlock(n_ptr);
+
+		l_ptr->stale_count = 0;
+	}
+}
+
 void tipc_link_retransmit(struct link *l_ptr, struct sk_buff *buf, 
 			  u32 retransmits)
 {
 	struct tipc_msg *msg;
 
+	if (!buf)
+		return;
+
+	msg = buf_msg(buf);
+	
 	dbg("Retransmitting %u in link %x\n", retransmits, l_ptr);
 
-	if (tipc_bearer_congested(l_ptr->b_ptr, l_ptr) && buf && !skb_cloned(buf)) {
-		msg_dbg(buf_msg(buf), ">NO_RETR->BCONG>");
-		dbg_print_link(l_ptr, "   ");
-		l_ptr->retransm_queue_head = msg_seqno(buf_msg(buf));
-		l_ptr->retransm_queue_size = retransmits;
-		return;
+	if (tipc_bearer_congested(l_ptr->b_ptr, l_ptr)) {
+		if (!skb_cloned(buf)) {
+			msg_dbg(msg, ">NO_RETR->BCONG>");
+			dbg_print_link(l_ptr, "   ");
+			l_ptr->retransm_queue_head = msg_seqno(msg);
+			l_ptr->retransm_queue_size = retransmits;
+			return;
+		} else {
+			/* Don't retransmit if driver already has the buffer */
+		}
+	} else {
+		/* Detect repeated retransmit failures on uncongested bearer */
+
+		if (l_ptr->last_retransmitted == msg_seqno(msg)) {
+			if (++l_ptr->stale_count > 100) {
+				link_retransmit_failure(l_ptr, buf);
+				return;
+			}
+		} else {
+			l_ptr->last_retransmitted = msg_seqno(msg);
+			l_ptr->stale_count = 1;
+		}
 	}
+
 	while (retransmits && (buf != l_ptr->next_out) && buf && !skb_cloned(buf)) {
 		msg = buf_msg(buf);
 		msg_set_ack(msg, mod(l_ptr->next_in_no - 1));
 		msg_set_bcast_ack(msg, l_ptr->owner->bclink.last_in); 
 		if (tipc_bearer_send(l_ptr->b_ptr, buf, &l_ptr->media_addr)) {
-                        /* Catch if retransmissions fail repeatedly: */
-                        if (l_ptr->last_retransmitted == msg_seqno(msg)) {
-                                if (++l_ptr->stale_count > 100) {
-                                        tipc_msg_print(TIPC_CONS, buf_msg(buf), ">RETR>");
-                                        info("...Retransmitted %u times\n",
-					     l_ptr->stale_count);
-                                        link_print(l_ptr, TIPC_CONS, "Resetting Link\n");
-                                        tipc_link_reset(l_ptr);
-                                        break;
-                                }
-                        } else {
-                                l_ptr->stale_count = 0;
-                        }
-                        l_ptr->last_retransmitted = msg_seqno(msg);
-
 			msg_dbg(buf_msg(buf), ">RETR>");
 			buf = buf->next;
 			retransmits--;
@@ -1650,6 +1739,7 @@ void tipc_link_retransmit(struct link *l_ptr, struct sk_buff *buf,
 			return;
 		}
 	}
+
 	l_ptr->retransm_queue_head = l_ptr->retransm_queue_size = 0;
 }
 
@@ -1720,6 +1810,11 @@ void tipc_recv_msg(struct sk_buff *head, struct tipc_bearer *tb_ptr)
 			link_recv_non_seq(buf);
 			continue;
 		}
+		
+		if (unlikely(!msg_short(msg) &&
+			     (msg_destnode(msg) != tipc_own_addr)))
+			goto cont;
+		
 		n_ptr = tipc_node_find(msg_prevnode(msg));
 		if (unlikely(!n_ptr))
 			goto cont;
@@ -2140,7 +2235,7 @@ static void link_recv_proto_msg(struct link *l_ptr, struct sk_buff *buf)
 		
 		if (msg_linkprio(msg) && 
 		    (msg_linkprio(msg) != l_ptr->priority)) {
-			warn("Changing prio <%s>: %u->%u\n",
+			warn("Resetting link <%s>, priority change %u->%u\n",
 			     l_ptr->name, l_ptr->priority, msg_linkprio(msg));
 			l_ptr->priority = msg_linkprio(msg);
 			tipc_link_reset(l_ptr); /* Enforce change to take effect */
@@ -2209,17 +2304,22 @@ void tipc_link_tunnel(struct link *l_ptr,
 	u32 length = msg_size(msg);
 
 	tunnel = l_ptr->owner->active_links[selector & 1];
-	if (!tipc_link_is_up(tunnel))
+	if (!tipc_link_is_up(tunnel)) {
+		warn("Link changeover error, "
+		     "tunnel link no longer available\n");
 		return;
+	}
 	msg_set_size(tunnel_hdr, length + INT_H_SIZE);
 	buf = buf_acquire(length + INT_H_SIZE);
-	if (!buf)
+	if (!buf) {
+		warn("Link changeover error, "
+		     "unable to send tunnel msg\n");
 		return;
+	}
 	memcpy(buf->data, (unchar *)tunnel_hdr, INT_H_SIZE);
 	memcpy(buf->data + INT_H_SIZE, (unchar *)msg, length);
 	dbg("%c->%c:", l_ptr->b_ptr->net_plane, tunnel->b_ptr->net_plane);
 	msg_dbg(buf_msg(buf), ">SEND>");
-	assert(tunnel);
 	tipc_link_send_buf(tunnel, buf);
 }
 
@@ -2235,23 +2335,27 @@ void tipc_link_changeover(struct link *l_ptr)
 	u32 msgcount = l_ptr->out_queue_size;
 	struct sk_buff *crs = l_ptr->first_out;
 	struct link *tunnel = l_ptr->owner->active_links[0];
-	int split_bundles = tipc_node_has_redundant_links(l_ptr->owner);
 	struct tipc_msg tunnel_hdr;
+	int split_bundles;
 
 	if (!tunnel)
 		return;
 
-	if (!l_ptr->owner->permit_changeover)
+	if (!l_ptr->owner->permit_changeover) {
+		warn("Link changeover error, "
+		     "peer did not permit changeover\n");
 		return;
+	}
 
 	msg_init(&tunnel_hdr, CHANGEOVER_PROTOCOL,
 		 ORIGINAL_MSG, TIPC_OK, INT_H_SIZE, l_ptr->addr);
 	msg_set_bearer_id(&tunnel_hdr, l_ptr->peer_bearer_id);
 	msg_set_msgcnt(&tunnel_hdr, msgcount);
+	dbg("Link changeover requires %u tunnel messages\n", msgcount);
+
 	if (!l_ptr->first_out) {
 		struct sk_buff *buf;
 
-		assert(!msgcount);
 		buf = buf_acquire(INT_H_SIZE);
 		if (buf) {
 			memcpy(buf->data, (unchar *)&tunnel_hdr, INT_H_SIZE);
@@ -2261,10 +2365,15 @@ void tipc_link_changeover(struct link *l_ptr)
 			msg_dbg(&tunnel_hdr, "EMPTY>SEND>");
 			tipc_link_send_buf(tunnel, buf);
 		} else {
-			warn("Memory squeeze; link changeover failed\n");
+			warn("Link changeover error, "
+			     "unable to send changeover msg\n");
 		}
 		return;
 	}
+
+	split_bundles = (l_ptr->owner->active_links[0] != 
+			 l_ptr->owner->active_links[1]);
+
 	while (crs) {
 		struct tipc_msg *msg = buf_msg(crs);
 
@@ -2310,7 +2419,8 @@ void tipc_link_send_duplicate(struct link *l_ptr, struct link *tunnel)
 		msg_set_size(&tunnel_hdr, length + INT_H_SIZE);
 		outbuf = buf_acquire(length + INT_H_SIZE);
 		if (outbuf == NULL) {
-			warn("Memory squeeze; buffer duplication failed\n");
+			warn("Link changeover error, "
+			     "unable to send duplicate msg\n");
 			return;
 		}
 		memcpy(outbuf->data, (unchar *)&tunnel_hdr, INT_H_SIZE);
@@ -2364,9 +2474,13 @@ static int link_recv_changeover_msg(struct link **l_ptr,
 	u32 msg_count = msg_msgcnt(tunnel_msg);
 
 	dest_link = (*l_ptr)->owner->links[msg_bearer_id(tunnel_msg)];
-	assert(dest_link != *l_ptr);
 	if (!dest_link) {
 		msg_dbg(tunnel_msg, "NOLINK/<REC<");
+		goto exit;
+	}
+	if (dest_link == *l_ptr) {
+		err("Unexpected changeover message on link <%s>\n", 
+		    (*l_ptr)->name);
 		goto exit;
 	}
 	dbg("%c<-%c:", dest_link->b_ptr->net_plane,
@@ -2381,7 +2495,7 @@ static int link_recv_changeover_msg(struct link **l_ptr,
 		}
 		*buf = buf_extract(tunnel_buf,INT_H_SIZE);
 		if (*buf == NULL) {
-			warn("Memory squeeze; failed to extract msg\n");
+			warn("Link changeover error, duplicate msg dropped\n");
 			goto exit;
 		}
 		msg_dbg(tunnel_msg, "TNL<REC<");
@@ -2393,13 +2507,17 @@ static int link_recv_changeover_msg(struct link **l_ptr,
 
 	if (tipc_link_is_up(dest_link)) {
 		msg_dbg(tunnel_msg, "UP/FIRST/<REC<");
+		info("Resetting link <%s>, changeover initiated by peer\n",
+		     dest_link->name);
 		tipc_link_reset(dest_link);
 		dest_link->exp_msg_count = msg_count;
+		dbg("Expecting %u tunnelled messages\n", msg_count);
 		if (!msg_count)
 			goto exit;
 	} else if (dest_link->exp_msg_count == START_CHANGEOVER) {
 		msg_dbg(tunnel_msg, "BLK/FIRST/<REC<");
 		dest_link->exp_msg_count = msg_count;
+		dbg("Expecting %u tunnelled messages\n", msg_count);
 		if (!msg_count)
 			goto exit;
 	}
@@ -2407,6 +2525,8 @@ static int link_recv_changeover_msg(struct link **l_ptr,
 	/* Receive original message */
 
 	if (dest_link->exp_msg_count == 0) {
+		warn("Link switchover error, "
+		     "got too many tunnelled messages\n");
 		msg_dbg(tunnel_msg, "OVERDUE/DROP/<REC<");
 		dbg_print_link(dest_link, "LINK:");
 		goto exit;
@@ -2422,7 +2542,7 @@ static int link_recv_changeover_msg(struct link **l_ptr,
 			buf_discard(tunnel_buf);
 			return 1;
 		} else {
-			warn("Memory squeeze; dropped incoming msg\n");
+			warn("Link changeover error, original msg dropped\n");
 		}
 	}
 exit:
@@ -2444,13 +2564,8 @@ void tipc_link_recv_bundle(struct sk_buff *buf)
 	while (msgcount--) {
 		obuf = buf_extract(buf, pos);
 		if (obuf == NULL) {
-			char addr_string[16];
-
-			warn("Buffer allocation failure;\n");
-			warn("  incoming message(s) from %s lost\n",
-			     addr_string_fill(addr_string, 
-					      msg_orignode(buf_msg(buf))));
-			return;
+			warn("Link unable to unbundle message(s)\n");
+			break;
 		};
 		pos += align(msg_size(buf_msg(obuf)));
 		msg_dbg(buf_msg(obuf), "     /");
@@ -2508,7 +2623,7 @@ int tipc_link_send_long_buf(struct link *l_ptr, struct sk_buff *buf)
 		}
 		fragm = buf_acquire(fragm_sz + INT_H_SIZE);
 		if (fragm == NULL) {
-			warn("Memory squeeze; failed to fragment msg\n");
+			warn("Link unable to fragment message\n");
 			dsz = -ENOMEM;
 			goto exit;
 		}
@@ -2623,7 +2738,7 @@ int tipc_link_recv_fragment(struct sk_buff **pending, struct sk_buff **fb,
 			set_fragm_size(pbuf,fragm_sz); 
 			set_expected_frags(pbuf,exp_fragm_cnt - 1); 
 		} else {
-			warn("Memory squeeze; got no defragmenting buffer\n");
+			warn("Link unable to reassemble fragmented message\n");
 		}
 		buf_discard(fbuf);
 		return 0;
