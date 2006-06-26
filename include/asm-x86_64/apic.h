@@ -49,7 +49,8 @@ static __inline unsigned int apic_read(unsigned long reg)
 
 static __inline__ void apic_wait_icr_idle(void)
 {
-	while ( apic_read( APIC_ICR ) & APIC_ICR_BUSY );
+	while (apic_read( APIC_ICR ) & APIC_ICR_BUSY)
+		cpu_relax();
 }
 
 static inline void ack_APIC_irq(void)
