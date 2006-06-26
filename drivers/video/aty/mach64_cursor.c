@@ -187,7 +187,7 @@ static int atyfb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 	return 0;
 }
 
-int __init aty_init_cursor(struct fb_info *info)
+int __devinit aty_init_cursor(struct fb_info *info)
 {
 	unsigned long addr;
 
