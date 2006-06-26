@@ -118,7 +118,7 @@ static int amd_create_gatt_pages(int nr_tables)
 	return retval;
 }
 
-/* Since we don't need contigious memory we just try
+/* Since we don't need contiguous memory we just try
  * to get the gatt table once
  */
 

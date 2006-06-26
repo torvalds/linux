@@ -3674,7 +3674,7 @@ static void send_panic_events(char *str)
 }
 #endif /* CONFIG_IPMI_PANIC_EVENT */
 
-static int has_paniced = 0;
+static int has_panicked = 0;
 
 static int panic_event(struct notifier_block *this,
 		       unsigned long         event,
@@ -3683,9 +3683,9 @@ static int panic_event(struct notifier_block *this,
 	int        i;
 	ipmi_smi_t intf;
 
-	if (has_paniced)
+	if (has_panicked)
 		return NOTIFY_DONE;
-	has_paniced = 1;
+	has_panicked = 1;
 
 	/* For every registered interface, set it to run to completion. */
 	for (i = 0; i < MAX_IPMI_INTERFACES; i++) {

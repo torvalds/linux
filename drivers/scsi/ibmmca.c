@@ -760,7 +760,7 @@ static int device_inquiry(int host_index, int ldn)
 		while (!got_interrupt(host_index))
 			barrier();
 
-		/*if command succesful, break */
+		/*if command successful, break */
 		if ((stat_result(host_index) == IM_SCB_CMD_COMPLETED) || (stat_result(host_index) == IM_SCB_CMD_COMPLETED_WITH_RETRIES))
 			return 1;
 	}
@@ -885,7 +885,7 @@ static int immediate_assign(int host_index, unsigned int pun, unsigned int lun, 
 		while (!got_interrupt(host_index))
 			barrier();
 
-		/*if command succesful, break */
+		/*if command successful, break */
 		if (stat_result(host_index) == IM_IMMEDIATE_CMD_COMPLETED)
 			return 1;
 	}
@@ -921,7 +921,7 @@ static int immediate_feature(int host_index, unsigned int speed, unsigned int ti
 			return 2;
 		} else
 			global_command_error_excuse = 0;
-		/*if command succesful, break */
+		/*if command successful, break */
 		if (stat_result(host_index) == IM_IMMEDIATE_CMD_COMPLETED)
 			return 1;
 	}
@@ -959,7 +959,7 @@ static int immediate_reset(int host_index, unsigned int ldn)
 			/* did not work, finish */
 			return 1;
 		}
-		/*if command succesful, break */
+		/*if command successful, break */
 		if (stat_result(host_index) == IM_IMMEDIATE_CMD_COMPLETED)
 			return 1;
 	}

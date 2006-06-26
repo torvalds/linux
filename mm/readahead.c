@@ -390,8 +390,8 @@ int do_page_cache_readahead(struct address_space *mapping, struct file *filp,
  * Read 'nr_to_read' pages starting at page 'offset'. If the flag 'block'
  * is set wait till the read completes.  Otherwise attempt to read without
  * blocking.
- * Returns 1 meaning 'success' if read is succesfull without switching off
- * readhaead mode. Otherwise return failure.
+ * Returns 1 meaning 'success' if read is successful without switching off
+ * readahead mode. Otherwise return failure.
  */
 static int
 blockable_page_cache_readahead(struct address_space *mapping, struct file *filp,

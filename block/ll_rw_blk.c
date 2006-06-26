@@ -2745,7 +2745,7 @@ static int attempt_merge(request_queue_t *q, struct request *req,
 		return 0;
 
 	/*
-	 * not contigious
+	 * not contiguous
 	 */
 	if (req->sector + req->nr_sectors != next->sector)
 		return 0;
@@ -3415,7 +3415,7 @@ static struct notifier_block blk_cpu_notifier = {
  *
  * Description:
  *     Ends all I/O on a request. It does not handle partial completions,
- *     unless the driver actually implements this in its completionc callback
+ *     unless the driver actually implements this in its completion callback
  *     through requeueing. Theh actual completion happens out-of-order,
  *     through a softirq handler. The user must have registered a completion
  *     callback through blk_queue_softirq_done().

@@ -5712,7 +5712,7 @@ static int ixj_daa_write(IXJ *j)
 	return 1;
 }
 
-int ixj_set_tone_off(unsigned short arg, IXJ *j)
+static int ixj_set_tone_off(unsigned short arg, IXJ *j)
 {
 	j->tone_off_time = arg;
 	if (ixj_WriteDSPCommand(0x6E05, j))		/* Set Tone Off Period */

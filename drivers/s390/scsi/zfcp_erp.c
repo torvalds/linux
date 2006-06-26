@@ -167,7 +167,7 @@ zfcp_fsf_scsi_er_timeout_handler(unsigned long data)
  *		initiates adapter recovery which is done
  *		asynchronously
  *
- * returns:	0	- initiated action succesfully
+ * returns:	0	- initiated action successfully
  *		<0	- failed to initiate action
  */
 int
@@ -203,7 +203,7 @@ zfcp_erp_adapter_reopen_internal(struct zfcp_adapter *adapter, int clear_mask)
  * purpose:	Wrappper for zfcp_erp_adapter_reopen_internal
  *              used to ensure the correct locking
  *
- * returns:	0	- initiated action succesfully
+ * returns:	0	- initiated action successfully
  *		<0	- failed to initiate action
  */
 int
@@ -469,7 +469,7 @@ zfcp_test_link(struct zfcp_port *port)
  *		initiates Forced Reopen recovery which is done
  *		asynchronously
  *
- * returns:	0	- initiated action succesfully
+ * returns:	0	- initiated action successfully
  *		<0	- failed to initiate action
  */
 static int
@@ -509,7 +509,7 @@ zfcp_erp_port_forced_reopen_internal(struct zfcp_port *port, int clear_mask)
  * purpose:	Wrappper for zfcp_erp_port_forced_reopen_internal
  *              used to ensure the correct locking
  *
- * returns:	0	- initiated action succesfully
+ * returns:	0	- initiated action successfully
  *		<0	- failed to initiate action
  */
 int
@@ -536,7 +536,7 @@ zfcp_erp_port_forced_reopen(struct zfcp_port *port, int clear_mask)
  *		initiates Reopen recovery which is done
  *		asynchronously
  *
- * returns:	0	- initiated action succesfully
+ * returns:	0	- initiated action successfully
  *		<0	- failed to initiate action
  */
 static int
@@ -605,7 +605,7 @@ zfcp_erp_port_reopen(struct zfcp_port *port, int clear_mask)
  *		initiates Reopen recovery which is done
  *		asynchronously
  *
- * returns:	0	- initiated action succesfully
+ * returns:	0	- initiated action successfully
  *		<0	- failed to initiate action
  */
 static int
@@ -1805,7 +1805,7 @@ zfcp_erp_modify_unit_status(struct zfcp_unit *unit, u32 mask, int set_or_clear)
  * purpose:	Wrappper for zfcp_erp_port_reopen_all_internal
  *              used to ensure the correct locking
  *
- * returns:	0	- initiated action succesfully
+ * returns:	0	- initiated action successfully
  *		<0	- failed to initiate action
  */
 int

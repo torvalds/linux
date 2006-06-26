@@ -169,7 +169,7 @@ gss_import_sec_context_kerberos(const void *p,
 	}
 
 	ctx_id->internal_ctx_id = ctx;
-	dprintk("RPC:      Succesfully imported new context.\n");
+	dprintk("RPC:      Successfully imported new context.\n");
 	return 0;
 
 out_err_free_key2:

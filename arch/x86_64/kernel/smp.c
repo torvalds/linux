@@ -474,7 +474,7 @@ void smp_send_stop(void)
 		return;
 	/* Don't deadlock on the call lock in panic */
 	if (!spin_trylock(&call_lock)) {
-		/* ignore locking because we have paniced anyways */
+		/* ignore locking because we have panicked anyways */
 		nolock = 1;
 	}
 	__smp_call_function(smp_really_stop_cpu, NULL, 0, 0);

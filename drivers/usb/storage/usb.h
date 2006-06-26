@@ -160,10 +160,10 @@ struct us_data {
 };
 
 /* Convert between us_data and the corresponding Scsi_Host */
-static struct Scsi_Host inline *us_to_host(struct us_data *us) {
+static inline struct Scsi_Host *us_to_host(struct us_data *us) {
 	return container_of((void *) us, struct Scsi_Host, hostdata);
 }
-static struct us_data inline *host_to_us(struct Scsi_Host *host) {
+static inline struct us_data *host_to_us(struct Scsi_Host *host) {
 	return (struct us_data *) host->hostdata;
 }
 

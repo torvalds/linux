@@ -161,7 +161,7 @@ void machine_crash_shutdown(struct pt_regs *regs)
 {
 	/*
 	 * This function is only called after the system
-	 * has paniced or is otherwise in a critical state.
+	 * has panicked or is otherwise in a critical state.
 	 * The minimum amount of code to allow a kexec'd kernel
 	 * to run successfully needs to happen here.
 	 *

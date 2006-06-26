@@ -3,9 +3,6 @@
  * 
  * (The IMM is the embedded controller in the ZIP Plus drive.)
  * 
- * Current Maintainer: David Campbell (Perth, Western Australia)
- *                     campbell@torque.net
- *
  * My unoffical company acronym list is 21 pages long:
  *      FLA:    Four letter acronym with built in facility for
  *              future expansion to five letters.

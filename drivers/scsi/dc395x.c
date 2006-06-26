@@ -3771,7 +3771,7 @@ static void request_sense(struct AdapterCtlBlk *acb, struct DeviceCtlBlk *dcb,
  * @target: The target for the new device.
  * @lun: The lun for the new device.
  *
- * Return the new device if succesfull or NULL on failure.
+ * Return the new device if successful or NULL on failure.
  **/
 static struct DeviceCtlBlk *device_alloc(struct AdapterCtlBlk *acb,
 		u8 target, u8 lun)

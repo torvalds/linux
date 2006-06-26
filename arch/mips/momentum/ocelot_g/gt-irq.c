@@ -59,7 +59,7 @@ void hook_irq_handler(int int_cause, int bit_num, void *isr_ptr)
  * bit_num   - Indicates which bit number in the cause register
  *
  * Outputs :
- * 1 if succesful, 0 if failure
+ * 1 if successful, 0 if failure
  */
 int enable_galileo_irq(int int_cause, int bit_num)
 {
@@ -83,7 +83,7 @@ int enable_galileo_irq(int int_cause, int bit_num)
  * bit_num   - Indicates which bit number in the cause register
  *
  * Outputs :
- * 1 if succesful, 0 if failure
+ * 1 if successful, 0 if failure
  */
 int disable_galileo_irq(int int_cause, int bit_num)
 {

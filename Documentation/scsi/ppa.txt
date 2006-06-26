@@ -12,5 +12,3 @@ http://www.torque.net/parport/
 Email list for Linux Parport
 linux-parport@torque.net
 
-Email for problems with ZIP or ZIP Plus drivers
-campbell@torque.net

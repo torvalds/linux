@@ -1485,7 +1485,7 @@ static int ipw2100_hw_stop_adapter(struct ipw2100_priv *priv)
 		 *
 		 * Sending the PREPARE_FOR_POWER_DOWN will restrict the
 		 * hardware from going into standby mode and will transition
-		 * out of D0-standy if it is already in that state.
+		 * out of D0-standby if it is already in that state.
 		 *
 		 * STATUS_PREPARE_POWER_DOWN_COMPLETE will be sent by the
 		 * driver upon completion.  Once received, the driver can

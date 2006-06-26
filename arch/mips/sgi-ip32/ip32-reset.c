@@ -28,13 +28,13 @@
 
 #define POWERDOWN_TIMEOUT	120
 /*
- * Blink frequency during reboot grace period and when paniced.
+ * Blink frequency during reboot grace period and when panicked.
  */
 #define POWERDOWN_FREQ		(HZ / 4)
 #define PANIC_FREQ		(HZ / 8)
 
 static struct timer_list power_timer, blink_timer, debounce_timer;
-static int has_paniced, shuting_down;
+static int has_panicked, shuting_down;
 
 static void ip32_machine_restart(char *command) __attribute__((noreturn));
 static void ip32_machine_halt(void) __attribute__((noreturn));
@@ -109,7 +109,7 @@ static void debounce(unsigned long data)
 	}
 	CMOS_WRITE(reg_a & ~DS_REGA_DV0, RTC_REG_A);
 
-	if (has_paniced)
+	if (has_panicked)
 		ip32_machine_restart(NULL);
 
 	enable_irq(MACEISA_RTC_IRQ);
@@ -117,7 +117,7 @@ static void debounce(unsigned long data)
 
 static inline void ip32_power_button(void)
 {
-	if (has_paniced)
+	if (has_panicked)
 		return;
 
 	if (shuting_down || kill_proc(1, SIGINT, 1)) {
@@ -161,9 +161,9 @@ static int panic_event(struct notifier_block *this, unsigned long event,
 {
 	unsigned long led;
 
-	if (has_paniced)
+	if (has_panicked)
 		return NOTIFY_DONE;
-	has_paniced = 1;
+	has_panicked = 1;
 
 	/* turn off the green LED */
 	led = mace->perif.ctrl.misc | MACEISA_LED_GREEN;

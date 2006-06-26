@@ -25,8 +25,8 @@ typedef NORET_TYPE void (*relocate_new_kernel_t)(
 				unsigned long start_address,
 				unsigned long vbr_reg) ATTRIB_NORET;
 
-const extern unsigned char relocate_new_kernel[];
-const extern unsigned int relocate_new_kernel_size;
+extern const unsigned char relocate_new_kernel[];
+extern const unsigned int relocate_new_kernel_size;
 extern void *gdb_vbr_vector;
 
 /*

@@ -1665,7 +1665,7 @@ irqreturn_t ide_intr (int irq, void *dev_id, struct pt_regs *regs)
  *	Initialize a request before we fill it in and send it down to
  *	ide_do_drive_cmd. Commands must be set up by this function. Right
  *	now it doesn't do a lot, but if that changes abusers will have a
- *	nasty suprise.
+ *	nasty surprise.
  */
 
 void ide_init_drive_cmd (struct request *rq)

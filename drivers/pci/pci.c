@@ -369,7 +369,7 @@ pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 
 	/*
 	 * Give firmware a chance to be called, such as ACPI _PRx, _PSx
-	 * Firmware method after natice method ?
+	 * Firmware method after native method ?
 	 */
 	if (platform_pci_set_power_state)
 		platform_pci_set_power_state(dev, state);

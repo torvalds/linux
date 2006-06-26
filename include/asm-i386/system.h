@@ -427,7 +427,7 @@ static inline unsigned long long __cmpxchg64(volatile void *ptr, unsigned long l
  * does not enforce ordering, since there is no data dependency between
  * the read of "a" and the read of "b".  Therefore, on some CPUs, such
  * as Alpha, "y" could be set to 3 and "x" to 0.  Use rmb()
- * in cases like thiswhere there are no data dependencies.
+ * in cases like this where there are no data dependencies.
  **/
 
 #define read_barrier_depends()	do { } while(0)

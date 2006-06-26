@@ -177,7 +177,7 @@ static int efficeon_free_gatt_table(struct agp_bridge_data *bridge)
 
 
 /*
- * Since we don't need contigious memory we just try
+ * Since we don't need contiguous memory we just try
  * to get the gatt table once
  */
 

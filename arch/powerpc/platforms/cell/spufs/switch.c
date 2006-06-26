@@ -2100,7 +2100,7 @@ EXPORT_SYMBOL_GPL(spu_save);
  * @spu: pointer to SPU iomem structure.
  *
  * Perform harvest + restore, as we may not be coming
- * from a previous succesful save operation, and the
+ * from a previous successful save operation, and the
  * hardware state is unknown.
  */
 int spu_restore(struct spu_state *new, struct spu *spu)

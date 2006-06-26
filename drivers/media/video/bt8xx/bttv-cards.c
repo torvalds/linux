@@ -4848,7 +4848,7 @@ static void picolo_tetra_muxsel (struct bttv* btv, unsigned int input)
  *
  * The IVC120G security card has 4 i2c controlled TDA8540 matrix
  * swichers to provide 16 channels to MUX0. The TDA8540's have
- * 4 indepedant outputs and as such the IVC120G also has the
+ * 4 independent outputs and as such the IVC120G also has the
  * optional "Monitor Out" bus. This allows the card to be looking
  * at one input while the monitor is looking at another.
  *

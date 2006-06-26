@@ -43,7 +43,7 @@ int jffs2_sum_init(struct jffs2_sb_info *c)
 		return -ENOMEM;
 	}
 
-	dbg_summary("returned succesfully\n");
+	dbg_summary("returned successfully\n");
 
 	return 0;
 }

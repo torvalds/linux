@@ -508,11 +508,11 @@ static int el_start_xmit(struct sk_buff *skb, struct net_device *dev)
  * speak of. We simply pull the packet out of its PIO buffer (which is slow)
  * and queue it for the kernel. Then we reset the card for the next packet.
  *
- * We sometimes get suprise interrupts late both because the SMP IRQ delivery
+ * We sometimes get surprise interrupts late both because the SMP IRQ delivery
  * is message passing and because the card sometimes seems to deliver late. I
  * think if it is part way through a receive and the mode is changed it carries
  * on receiving and sends us an interrupt. We have to band aid all these cases
- * to get a sensible 150kbytes/second performance. Even then you want a small
+ * to get a sensible 150kBytes/second performance. Even then you want a small
  * TCP window.
  */
 

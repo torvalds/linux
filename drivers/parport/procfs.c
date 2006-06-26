@@ -1,6 +1,6 @@
 /* Sysctl interface for parport devices.
  * 
- * Authors: David Campbell <campbell@torque.net>
+ * Authors: David Campbell
  *          Tim Waugh <tim@cyberelk.demon.co.uk>
  *          Philip Blundell <philb@gnu.org>
  *          Andrea Arcangeli
