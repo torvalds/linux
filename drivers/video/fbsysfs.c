@@ -100,13 +100,22 @@ static int mode_string(char *buf, unsigned int offset,
 		       const struct fb_videomode *mode)
 {
 	char m = 'U';
+	char v = 'p';
+
 	if (mode->flag & FB_MODE_IS_DETAILED)
 		m = 'D';
 	if (mode->flag & FB_MODE_IS_VESA)
 		m = 'V';
 	if (mode->flag & FB_MODE_IS_STANDARD)
 		m = 'S';
-	return snprintf(&buf[offset], PAGE_SIZE - offset, "%c:%dx%d-%d\n", m, mode->xres, mode->yres, mode->refresh);
+
+	if (mode->vmode & FB_VMODE_INTERLACED)
+		v = 'i';
+	if (mode->vmode & FB_VMODE_DOUBLE)
+		v = 'd';
+
+	return snprintf(&buf[offset], PAGE_SIZE - offset, "%c:%dx%d%c-%d\n",
+	                m, mode->xres, mode->yres, v, mode->refresh);
 }
 
 static ssize_t store_mode(struct class_device *class_device, const char * buf,
