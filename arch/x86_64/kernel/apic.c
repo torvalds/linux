@@ -983,7 +983,7 @@ void smp_apic_timer_interrupt(struct pt_regs *regs)
 }
 
 /*
- * oem_force_hpet_timer -- force HPET mode for some boxes.
+ * apic_is_clustered_box() -- Check if we can expect good TSC
  *
  * Thus far, the major user of this is IBM's Summit2 series:
  *
@@ -991,7 +991,7 @@ void smp_apic_timer_interrupt(struct pt_regs *regs)
  * multi-chassis. Use available data to take a good guess.
  * If in doubt, go HPET.
  */
-__cpuinit int oem_force_hpet_timer(void)
+__cpuinit int apic_is_clustered_box(void)
 {
 	int i, clusters, zeros;
 	unsigned id;
@@ -1022,8 +1022,7 @@ __cpuinit int oem_force_hpet_timer(void)
 	}
 
 	/*
-	 * If clusters > 2, then should be multi-chassis.  Return 1 for HPET.
-	 * Else return 0 to use TSC.
+	 * If clusters > 2, then should be multi-chassis.
 	 * May have to revisit this when multi-core + hyperthreaded CPUs come
 	 * out, but AFAIK this will work even for them.
 	 */

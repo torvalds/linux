@@ -55,7 +55,7 @@
 
 extern int is_hpet_enabled(void);
 extern int hpet_rtc_timer_init(void);
-extern int oem_force_hpet_timer(void);
+extern int apic_is_clustered_box(void);
 
 extern int hpet_use_timer;
 

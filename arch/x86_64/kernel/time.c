@@ -956,10 +956,10 @@ void __init time_init(void)
 __cpuinit int unsynchronized_tsc(void)
 {
 #ifdef CONFIG_SMP
-	if (oem_force_hpet_timer())
+	if (apic_is_clustered_box())
 		return 1;
  	/* Intel systems are normally all synchronized. Exceptions
- 	   are handled in the OEM check above. */
+ 	   are handled in the check above. */
  	if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL)
  		return 0;
 #endif
