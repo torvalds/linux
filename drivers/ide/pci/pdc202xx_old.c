@@ -414,8 +414,6 @@ static void pdc202xx_old_ide_dma_start(ide_drive_t *drive)
 	if (drive->addressing == 1) {
 		struct request *rq	= HWGROUP(drive)->rq;
 		ide_hwif_t *hwif	= HWIF(drive);
-//		struct pci_dev *dev	= hwif->pci_dev;
-//		unsgned long high_16	= pci_resource_start(dev, 4);
 		unsigned long high_16   = hwif->dma_master;
 		unsigned long atapi_reg	= high_16 + (hwif->channel ? 0x24 : 0x20);
 		u32 word_count	= 0;
@@ -435,7 +433,6 @@ static int pdc202xx_old_ide_dma_end(ide_drive_t *drive)
 {
 	if (drive->addressing == 1) {
 		ide_hwif_t *hwif	= HWIF(drive);
-//		unsigned long high_16	= pci_resource_start(hwif->pci_dev, 4);
 		unsigned long high_16	= hwif->dma_master;
 		unsigned long atapi_reg	= high_16 + (hwif->channel ? 0x24 : 0x20);
 		u8 clock		= 0;
@@ -452,8 +449,6 @@ static int pdc202xx_old_ide_dma_end(ide_drive_t *drive)
 static int pdc202xx_old_ide_dma_test_irq(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
-//	struct pci_dev *dev	= hwif->pci_dev;
-//	unsigned long high_16	= pci_resource_start(dev, 4);
 	unsigned long high_16	= hwif->dma_master;
 	u8 dma_stat		= hwif->INB(hwif->dma_status);
 	u8 sc1d			= hwif->INB((high_16 + 0x001d));
@@ -491,7 +486,6 @@ static int pdc202xx_ide_dma_timeout(ide_drive_t *drive)
 
 static void pdc202xx_reset_host (ide_hwif_t *hwif)
 {
-//	unsigned long high_16	= hwif->dma_base - (8*(hwif->channel));
 	unsigned long high_16	= hwif->dma_master;
 	u8 udma_speed_flag	= hwif->INB(high_16|0x001f);
 
