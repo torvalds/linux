@@ -259,6 +259,10 @@ static const struct fb_videomode modedb[] = {
 	/* 1152x768, 60 Hz, PowerBook G4 Titanium I and II */
 	NULL, 60, 1152, 768, 15386, 158, 26, 29, 3, 136, 6,
 	FB_SYNC_HOR_HIGH_ACT|FB_SYNC_VERT_HIGH_ACT, FB_VMODE_NONINTERLACED
+    }, {
+	/* 1366x768, 60 Hz, 47.403 kHz hsync, WXGA 16:9 aspect ratio */
+	NULL, 60, 1366, 768, 13806, 120, 10, 14, 3, 32, 5,
+	0, FB_VMODE_NONINTERLACED
     },
 };
 
