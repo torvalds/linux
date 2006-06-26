@@ -969,7 +969,7 @@ static int recv_stream(struct kiocb *iocb, struct socket *sock,
 restart:
 	if (unlikely((skb_queue_len(&sock->sk->sk_receive_queue) == 0) &&
 		     (flags & MSG_DONTWAIT))) {
-		res = (sz_copied == 0) ? -EWOULDBLOCK : 0;
+		res = -EWOULDBLOCK;
 		goto exit;
 	}
 
@@ -1060,7 +1060,7 @@ restart:
 
 exit:
 	up(&tsock->sem);
-	return res ? res : sz_copied;
+	return sz_copied ? sz_copied : res;
 }
 
 /**
