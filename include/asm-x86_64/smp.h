@@ -53,8 +53,6 @@ extern int smp_call_function_single(int cpuid, void (*func) (void *info),
 
 extern cpumask_t cpu_sibling_map[NR_CPUS];
 extern cpumask_t cpu_core_map[NR_CPUS];
-extern u8 phys_proc_id[NR_CPUS];
-extern u8 cpu_core_id[NR_CPUS];
 extern u8 cpu_llc_id[NR_CPUS];
 
 #define SMP_TRAMPOLINE_BASE 0x6000

@@ -115,7 +115,7 @@ void __cpuinit mce_amd_feature_init(struct cpuinfo_x86 *c)
 		per_cpu(bank_map, cpu) |= (1 << bank);
 
 #ifdef CONFIG_SMP
-		if (shared_bank[bank] && cpu_core_id[cpu])
+		if (shared_bank[bank] && c->cpu_core_id)
 			continue;
 #endif
 
@@ -323,10 +323,10 @@ static __cpuinit int threshold_create_bank(unsigned int cpu, int bank)
 	struct threshold_bank *b = NULL;
 
 #ifdef CONFIG_SMP
-	if (cpu_core_id[cpu] && shared_bank[bank]) {	/* symlink */
+	if (cpu_data[cpu].cpu_core_id && shared_bank[bank]) {	/* symlink */
 		char name[16];
 		unsigned lcpu = first_cpu(cpu_core_map[cpu]);
-		if (cpu_core_id[lcpu])
+		if (cpu_data[lcpu].cpu_core_id)
 			goto out;	/* first core not up yet */
 
 		b = per_cpu(threshold_banks, lcpu)[bank];
@@ -434,7 +434,7 @@ static __cpuinit int threshold_create_symlinks(unsigned int cpu)
 	int bank, err = 0;
 	unsigned int lcpu = 0;
 
-	if (cpu_core_id[cpu])
+	if (cpu_data[cpu].cpu_core_id)
 		return 0;
 	for_each_cpu_mask(lcpu, cpu_core_map[cpu]) {
 		if (lcpu == cpu)
@@ -455,7 +455,7 @@ static __cpuinit void threshold_remove_symlinks(unsigned int cpu)
 {
 	int bank;
 	unsigned int lcpu = 0;
-	if (cpu_core_id[cpu])
+	if (cpu_data[cpu].cpu_core_id)
 		return;
 	for_each_cpu_mask(lcpu, cpu_core_map[cpu]) {
 		if (lcpu == cpu)

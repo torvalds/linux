@@ -785,9 +785,9 @@ static int nearby_node(int apicid)
 static void __init amd_detect_cmp(struct cpuinfo_x86 *c)
 {
 #ifdef CONFIG_SMP
-	int cpu = smp_processor_id();
 	unsigned bits;
 #ifdef CONFIG_NUMA
+	int cpu = smp_processor_id();
 	int node = 0;
 	unsigned apicid = hard_smp_processor_id();
 #endif
@@ -805,12 +805,12 @@ static void __init amd_detect_cmp(struct cpuinfo_x86 *c)
 	}
 
 	/* Low order bits define the core id (index of core in socket) */
-	cpu_core_id[cpu] = phys_proc_id[cpu] & ((1 << bits)-1);
+	c->cpu_core_id = c->phys_proc_id & ((1 << bits)-1);
 	/* Convert the APIC ID into the socket ID */
-	phys_proc_id[cpu] = phys_pkg_id(bits);
+	c->phys_proc_id = phys_pkg_id(bits);
 
 #ifdef CONFIG_NUMA
-  	node = phys_proc_id[cpu];
+  	node = c->phys_proc_id;
  	if (apicid_to_node[apicid] != NUMA_NO_NODE)
  		node = apicid_to_node[apicid];
  	if (!node_online(node)) {
@@ -823,7 +823,7 @@ static void __init amd_detect_cmp(struct cpuinfo_x86 *c)
  		   but in the same order as the HT nodeids.
  		   If that doesn't result in a usable node fall back to the
  		   path for the previous case.  */
- 		int ht_nodeid = apicid - (phys_proc_id[0] << bits);
+ 		int ht_nodeid = apicid - (cpu_data[0].phys_proc_id << bits);
  		if (ht_nodeid >= 0 &&
  		    apicid_to_node[ht_nodeid] != NUMA_NO_NODE)
  			node = apicid_to_node[ht_nodeid];
@@ -834,7 +834,7 @@ static void __init amd_detect_cmp(struct cpuinfo_x86 *c)
 	numa_set_node(cpu, node);
 
   	printk(KERN_INFO "CPU %d/%x(%d) -> Node %d -> Core %d\n",
-  			cpu, apicid, c->x86_max_cores, node, cpu_core_id[cpu]);
+  			cpu, apicid, c->x86_max_cores, node, c->cpu_core_id);
 #endif
 #endif
 }
@@ -905,7 +905,6 @@ static void __cpuinit detect_ht(struct cpuinfo_x86 *c)
 #ifdef CONFIG_SMP
 	u32 	eax, ebx, ecx, edx;
 	int 	index_msb, core_bits;
-	int 	cpu = smp_processor_id();
 
 	cpuid(1, &eax, &ebx, &ecx, &edx);
 
@@ -926,10 +925,10 @@ static void __cpuinit detect_ht(struct cpuinfo_x86 *c)
 		}
 
 		index_msb = get_count_order(smp_num_siblings);
-		phys_proc_id[cpu] = phys_pkg_id(index_msb);
+		c->phys_proc_id = phys_pkg_id(index_msb);
 
 		printk(KERN_INFO  "CPU: Physical Processor ID: %d\n",
-		       phys_proc_id[cpu]);
+		       c->phys_proc_id);
 
 		smp_num_siblings = smp_num_siblings / c->x86_max_cores;
 
@@ -937,12 +936,12 @@ static void __cpuinit detect_ht(struct cpuinfo_x86 *c)
 
 		core_bits = get_count_order(c->x86_max_cores);
 
-		cpu_core_id[cpu] = phys_pkg_id(index_msb) &
+		c->cpu_core_id = phys_pkg_id(index_msb) &
 					       ((1 << core_bits) - 1);
 
 		if (c->x86_max_cores > 1)
 			printk(KERN_INFO  "CPU: Processor Core ID: %d\n",
-			       cpu_core_id[cpu]);
+			       c->cpu_core_id);
 	}
 #endif
 }
@@ -1080,7 +1079,7 @@ void __cpuinit early_identify_cpu(struct cpuinfo_x86 *c)
 	}
 
 #ifdef CONFIG_SMP
-	phys_proc_id[smp_processor_id()] = (cpuid_ebx(1) >> 24) & 0xff;
+	c->phys_proc_id = (cpuid_ebx(1) >> 24) & 0xff;
 #endif
 }
 
@@ -1288,9 +1287,9 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 #ifdef CONFIG_SMP
 	if (smp_num_siblings * c->x86_max_cores > 1) {
 		int cpu = c - cpu_data;
-		seq_printf(m, "physical id\t: %d\n", phys_proc_id[cpu]);
+		seq_printf(m, "physical id\t: %d\n", c->phys_proc_id);
 		seq_printf(m, "siblings\t: %d\n", cpus_weight(cpu_core_map[cpu]));
-		seq_printf(m, "core id\t\t: %d\n", cpu_core_id[cpu]);
+		seq_printf(m, "core id\t\t: %d\n", c->cpu_core_id);
 		seq_printf(m, "cpu cores\t: %d\n", c->booted_cores);
 	}
 #endif	

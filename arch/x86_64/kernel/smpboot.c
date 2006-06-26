@@ -63,10 +63,6 @@
 
 /* Number of siblings per CPU package */
 int smp_num_siblings = 1;
-/* Package ID of each logical CPU */
-u8 phys_proc_id[NR_CPUS] __read_mostly = { [0 ... NR_CPUS-1] = BAD_APICID };
-/* core ID of each logical CPU */
-u8 cpu_core_id[NR_CPUS] __read_mostly = { [0 ... NR_CPUS-1] = BAD_APICID };
 
 /* Last level cache ID of each logical CPU */
 u8 cpu_llc_id[NR_CPUS] __cpuinitdata  = {[0 ... NR_CPUS-1] = BAD_APICID};
@@ -472,8 +468,8 @@ static inline void set_cpu_sibling_map(int cpu)
 
 	if (smp_num_siblings > 1) {
 		for_each_cpu_mask(i, cpu_sibling_setup_map) {
-			if (phys_proc_id[cpu] == phys_proc_id[i] &&
-			    cpu_core_id[cpu] == cpu_core_id[i]) {
+			if (c[cpu].phys_proc_id == c[i].phys_proc_id &&
+			    c[cpu].cpu_core_id == c[i].cpu_core_id) {
 				cpu_set(i, cpu_sibling_map[cpu]);
 				cpu_set(cpu, cpu_sibling_map[i]);
 				cpu_set(i, cpu_core_map[cpu]);
@@ -500,7 +496,7 @@ static inline void set_cpu_sibling_map(int cpu)
 			cpu_set(i, c[cpu].llc_shared_map);
 			cpu_set(cpu, c[i].llc_shared_map);
 		}
-		if (phys_proc_id[cpu] == phys_proc_id[i]) {
+		if (c[cpu].phys_proc_id == c[i].phys_proc_id) {
 			cpu_set(i, cpu_core_map[cpu]);
 			cpu_set(cpu, cpu_core_map[i]);
 			/*
@@ -1201,8 +1197,8 @@ static void remove_siblinginfo(int cpu)
 		cpu_clear(cpu, cpu_sibling_map[sibling]);
 	cpus_clear(cpu_sibling_map[cpu]);
 	cpus_clear(cpu_core_map[cpu]);
-	phys_proc_id[cpu] = BAD_APICID;
-	cpu_core_id[cpu] = BAD_APICID;
+	c[cpu].phys_proc_id = 0;
+	c[cpu].cpu_core_id = 0;
 	cpu_clear(cpu, cpu_sibling_setup_map);
 }
 

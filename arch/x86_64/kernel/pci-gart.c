@@ -680,9 +680,6 @@ void __init gart_iommu_init(void)
 	dma_ops = &gart_dma_ops;
 } 
 
-/* Must execute after PCI subsystem */
-fs_initcall(gart_iommu_init);
-
 void gart_parse_options(char *p)
 {
 	int arg;
