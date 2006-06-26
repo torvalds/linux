@@ -141,122 +141,40 @@ config COLDFIRE
 	depends on (M5206 || M5206e || M520x || M523x || M5249 || M527x || M5272 || M528x || M5307 || M532x || M5407)
 	default y
 
-choice
-	prompt "CPU CLOCK Frequency"
-	default AUTO
-
-config CLOCK_AUTO
-	bool "AUTO"
-	---help---
-	  Define the CPU clock frequency in use. On many boards you don't
-	  really need to know, so you can select the AUTO option. On some
-	  boards you need to know the real clock frequency to determine other
-	  system timing (for example baud rate dividors, etc). Some processors
-	  have an internal PLL and you can select a frequency to run at.
-	  You need to know a little about the internals of your processor to
-	  set this. If in doubt choose the AUTO option.
-
-config CLOCK_11MHz
-	bool "11MHz"
+config CLOCK_SET
+	bool "Enable setting the CPU clock frequency"
+	default n
 	help
-	  Select a 11MHz CPU clock frequency.
+	  On some CPU's you do not need to know what the core CPU clock
+	  frequency is. On these you can disable clock setting. On some
+	  traditional 68K parts, and on all ColdFire parts you need to set
+	  the appropriate CPU clock frequency. On these devices many of the
+	  onboard peripherals derive their timing from the master CPU clock
+	  frequency.
 
-config CLOCK_16MHz
-	bool "16MHz"
+config CLOCK_FREQ
+	int "Set the core clock frequency"
+	default "66666666"
+	depends on CLOCK_SET
 	help
-	  Select a 16MHz CPU clock frequency.
+	  Define the CPU clock frequency in use. This is the core clock
+	  frequency, it may or may not be the same as the external clock
+	  crystal fitted to your board. Some processors have an internal
+	  PLL and can have their frequency programmed at run time, others
+	  use internal dividers. In gernal the kernel won't setup a PLL
+	  if it is fitted (there are some expections). This value will be
+	  specific to the exact CPU that you are using.
 
-config CLOCK_20MHz
-	bool "20MHz"
+config CLOCK_DIV
+	int "Set the core/bus clock divide ratio"
+	default "1"
+	depends on CLOCK_SET
 	help
-	  Select a 20MHz CPU clock frequency.
-
-config CLOCK_24MHz
-	bool "24MHz"
-	help
-	  Select a 24MHz CPU clock frequency.
-
-config CLOCK_25MHz
-	bool "25MHz"
-	help
-	  Select a 25MHz CPU clock frequency.
-
-config CLOCK_33MHz
-	bool "33MHz"
-	help
-	  Select a 33MHz CPU clock frequency.
-
-config CLOCK_40MHz
-	bool "40MHz"
-	help
-	  Select a 40MHz CPU clock frequency.
-
-config CLOCK_45MHz
-	bool "45MHz"
-	help
-	  Select a 45MHz CPU clock frequency.
-
-config CLOCK_48MHz
-	bool "48MHz"
-	help
-	  Select a 48MHz CPU clock frequency.
-
-config CLOCK_50MHz
-	bool "50MHz"
-	help
-	  Select a 50MHz CPU clock frequency.
-
-config CLOCK_54MHz
-	bool "54MHz"
-	help
-	  Select a 54MHz CPU clock frequency.
-
-config CLOCK_60MHz
-	bool "60MHz"
-	help
-	  Select a 60MHz CPU clock frequency.
-
-config CLOCK_62_5MHz
-	bool "62.5MHz"
-	help
-	  Select a 62.5MHz CPU clock frequency.
-
-config CLOCK_64MHz
-	bool "64MHz"
-	help
-	  Select a 64MHz CPU clock frequency.
-
-config CLOCK_66MHz
-	bool "66MHz"
-	help
-	  Select a 66MHz CPU clock frequency.
-
-config CLOCK_70MHz
-	bool "70MHz"
-	help
-	  Select a 70MHz CPU clock frequency.
-
-config CLOCK_100MHz
-	bool "100MHz"
-	help
-	  Select a 100MHz CPU clock frequency.
-
-config CLOCK_140MHz
-	bool "140MHz"
-	help
-	  Select a 140MHz CPU clock frequency.
-
-config CLOCK_150MHz
-	bool "150MHz"
-	help
-	  Select a 150MHz CPU clock frequency.
-
-config CLOCK_166MHz
-	bool "166MHz"
-	help
-	  Select a 166MHz CPU clock frequency.
-
-endchoice
+	  On many SoC style CPUs the master CPU clock is also used to drive 
+	  on-chip peripherals. The clock that is distributed to these
+	  peripherals is sometimes a fixed ratio of the master clock
+	  frequency. If so then set this to the divider ration of the
+	  master clock to the peripheral clock. If not sure then select 1.
 
 config OLDMASK
 	bool "Old mask 5307 (1H55J) silicon"
