@@ -73,8 +73,21 @@ static inline struct thread_info *stack_thread_info(void)
 }
 
 /* thread information allocation */
+#ifdef CONFIG_DEBUG_STACK_USAGE
+#define alloc_thread_info(tsk)					\
+    ({								\
+	struct thread_info *ret;				\
+								\
+	ret = ((struct thread_info *) __get_free_pages(GFP_KERNEL,THREAD_ORDER)); \
+	if (ret)						\
+		memset(ret, 0, THREAD_SIZE);			\
+	ret;							\
+    })
+#else
 #define alloc_thread_info(tsk) \
 	((struct thread_info *) __get_free_pages(GFP_KERNEL,THREAD_ORDER))
+#endif
+
 #define free_thread_info(ti) free_pages((unsigned long) (ti), THREAD_ORDER)
 
 #else /* !__ASSEMBLY__ */
