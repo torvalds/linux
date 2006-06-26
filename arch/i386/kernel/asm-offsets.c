@@ -4,6 +4,7 @@
  * to extract and format the required data.
  */
 
+#include <linux/crypto.h>
 #include <linux/sched.h>
 #include <linux/signal.h>
 #include <linux/personality.h>
@@ -69,4 +70,6 @@ void foo(void)
 
 	DEFINE(PAGE_SIZE_asm, PAGE_SIZE);
 	DEFINE(VSYSCALL_BASE, __fix_to_virt(FIX_VSYSCALL));
+
+	OFFSET(crypto_tfm_ctx_offset, crypto_tfm, __crt_ctx);
 }

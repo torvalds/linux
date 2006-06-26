@@ -37,10 +37,10 @@ struct s390_aes_ctx {
 	int key_len;
 };
 
-static int aes_set_key(void *ctx, const u8 *in_key, unsigned int key_len,
-		       u32 *flags)
+static int aes_set_key(struct crypto_tfm *tfm, const u8 *in_key,
+		       unsigned int key_len, u32 *flags)
 {
-	struct s390_aes_ctx *sctx = ctx;
+	struct s390_aes_ctx *sctx = crypto_tfm_ctx(tfm);
 
 	switch (key_len) {
 	case 16:
@@ -70,9 +70,9 @@ fail:
 	return -EINVAL;
 }
 
-static void aes_encrypt(void *ctx, u8 *out, const u8 *in)
+static void aes_encrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 {
-	const struct s390_aes_ctx *sctx = ctx;
+	const struct s390_aes_ctx *sctx = crypto_tfm_ctx(tfm);
 
 	switch (sctx->key_len) {
 	case 16:
@@ -90,9 +90,9 @@ static void aes_encrypt(void *ctx, u8 *out, const u8 *in)
 	}
 }
 
-static void aes_decrypt(void *ctx, u8 *out, const u8 *in)
+static void aes_decrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 {
-	const struct s390_aes_ctx *sctx = ctx;
+	const struct s390_aes_ctx *sctx = crypto_tfm_ctx(tfm);
 
 	switch (sctx->key_len) {
 	case 16:

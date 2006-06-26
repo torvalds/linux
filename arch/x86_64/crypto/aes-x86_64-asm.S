@@ -15,6 +15,10 @@
 
 .text
 
+#include <asm/asm-offsets.h>
+
+#define BASE crypto_tfm_ctx_offset
+
 #define R1	%rax
 #define R1E	%eax
 #define R1X	%ax
@@ -46,19 +50,19 @@
 #define R10	%r10
 #define R11	%r11
 
-#define prologue(FUNC,BASE,B128,B192,r1,r2,r3,r4,r5,r6,r7,r8,r9,r10,r11) \
+#define prologue(FUNC,KEY,B128,B192,r1,r2,r3,r4,r5,r6,r7,r8,r9,r10,r11) \
 	.global	FUNC;			\
 	.type	FUNC,@function;		\
 	.align	8;			\
 FUNC:	movq	r1,r2;			\
 	movq	r3,r4;			\
-	leaq	BASE+52(r8),r9;		\
+	leaq	BASE+KEY+52(r8),r9;	\
 	movq	r10,r11;		\
 	movl	(r7),r5 ## E;		\
 	movl	4(r7),r1 ## E;		\
 	movl	8(r7),r6 ## E;		\
 	movl	12(r7),r7 ## E;		\
-	movl	(r8),r10 ## E;		\
+	movl	BASE(r8),r10 ## E;	\
 	xorl	-48(r9),r5 ## E;	\
 	xorl	-44(r9),r1 ## E;	\
 	xorl	-40(r9),r6 ## E;	\
@@ -128,8 +132,8 @@ FUNC:	movq	r1,r2;			\
 	movl	r3 ## E,r1 ## E;	\
 	movl	r4 ## E,r2 ## E;
 
-#define entry(FUNC,BASE,B128,B192) \
-	prologue(FUNC,BASE,B128,B192,R2,R8,R7,R9,R1,R3,R4,R6,R10,R5,R11)
+#define entry(FUNC,KEY,B128,B192) \
+	prologue(FUNC,KEY,B128,B192,R2,R8,R7,R9,R1,R3,R4,R6,R10,R5,R11)
 
 #define return epilogue(R8,R2,R9,R7,R5,R6,R3,R4,R11)
 
@@ -147,9 +151,9 @@ FUNC:	movq	r1,r2;			\
 #define decrypt_final(TAB,OFFSET) \
 	round(TAB,OFFSET,R2,R1,R4,R3,R6,R5,R7,R10,R5,R6,R3,R4)
 
-/* void aes_encrypt(void *ctx, u8 *out, const u8 *in) */
+/* void aes_enc_blk(stuct crypto_tfm *tfm, u8 *out, const u8 *in) */
 
-	entry(aes_encrypt,0,enc128,enc192)
+	entry(aes_enc_blk,0,enc128,enc192)
 	encrypt_round(aes_ft_tab,-96)
 	encrypt_round(aes_ft_tab,-80)
 enc192:	encrypt_round(aes_ft_tab,-64)
@@ -166,9 +170,9 @@ enc128:	encrypt_round(aes_ft_tab,-32)
 	encrypt_final(aes_fl_tab,112)
 	return
 
-/* void aes_decrypt(void *ctx, u8 *out, const u8 *in) */
+/* void aes_dec_blk(struct crypto_tfm *tfm, u8 *out, const u8 *in) */
 
-	entry(aes_decrypt,240,dec128,dec192)
+	entry(aes_dec_blk,240,dec128,dec192)
 	decrypt_round(aes_it_tab,-96)
 	decrypt_round(aes_it_tab,-80)
 dec192:	decrypt_round(aes_it_tab,-64)

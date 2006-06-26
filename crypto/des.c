@@ -783,9 +783,10 @@ static void dkey(u32 *pe, const u8 *k)
 	}
 }
 
-static int des_setkey(void *ctx, const u8 *key, unsigned int keylen, u32 *flags)
+static int des_setkey(struct crypto_tfm *tfm, const u8 *key,
+		      unsigned int keylen, u32 *flags)
 {
-	struct des_ctx *dctx = ctx;
+	struct des_ctx *dctx = crypto_tfm_ctx(tfm);
 	u32 tmp[DES_EXPKEY_WORDS];
 	int ret;
 
@@ -803,9 +804,10 @@ static int des_setkey(void *ctx, const u8 *key, unsigned int keylen, u32 *flags)
 	return 0;
 }
 
-static void des_encrypt(void *ctx, u8 *dst, const u8 *src)
+static void des_encrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
 {
-	const u32 *K = ((struct des_ctx *)ctx)->expkey;
+	struct des_ctx *ctx = crypto_tfm_ctx(tfm);
+	const u32 *K = ctx->expkey;
 	const __le32 *s = (const __le32 *)src;
 	__le32 *d = (__le32 *)dst;
 	u32 L, R, A, B;
@@ -825,9 +827,10 @@ static void des_encrypt(void *ctx, u8 *dst, const u8 *src)
 	d[1] = cpu_to_le32(L);
 }
 
-static void des_decrypt(void *ctx, u8 *dst, const u8 *src)
+static void des_decrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
 {
-	const u32 *K = ((struct des_ctx *)ctx)->expkey + DES_EXPKEY_WORDS - 2;
+	struct des_ctx *ctx = crypto_tfm_ctx(tfm);
+	const u32 *K = ctx->expkey + DES_EXPKEY_WORDS - 2;
 	const __le32 *s = (const __le32 *)src;
 	__le32 *d = (__le32 *)dst;
 	u32 L, R, A, B;
@@ -860,11 +863,11 @@ static void des_decrypt(void *ctx, u8 *dst, const u8 *src)
  *   property.
  *
  */
-static int des3_ede_setkey(void *ctx, const u8 *key,
+static int des3_ede_setkey(struct crypto_tfm *tfm, const u8 *key,
 			   unsigned int keylen, u32 *flags)
 {
 	const u32 *K = (const u32 *)key;
-	struct des3_ede_ctx *dctx = ctx;
+	struct des3_ede_ctx *dctx = crypto_tfm_ctx(tfm);
 	u32 *expkey = dctx->expkey;
 
 	if (unlikely(!((K[0] ^ K[2]) | (K[1] ^ K[3])) ||
@@ -881,9 +884,9 @@ static int des3_ede_setkey(void *ctx, const u8 *key,
 	return 0;
 }
 
-static void des3_ede_encrypt(void *ctx, u8 *dst, const u8 *src)
+static void des3_ede_encrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
 {
-	struct des3_ede_ctx *dctx = ctx;
+	struct des3_ede_ctx *dctx = crypto_tfm_ctx(tfm);
 	const u32 *K = dctx->expkey;
 	const __le32 *s = (const __le32 *)src;
 	__le32 *d = (__le32 *)dst;
@@ -912,9 +915,9 @@ static void des3_ede_encrypt(void *ctx, u8 *dst, const u8 *src)
 	d[1] = cpu_to_le32(L);
 }
 
-static void des3_ede_decrypt(void *ctx, u8 *dst, const u8 *src)
+static void des3_ede_decrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
 {
-	struct des3_ede_ctx *dctx = ctx;
+	struct des3_ede_ctx *dctx = crypto_tfm_ctx(tfm);
 	const u32 *K = dctx->expkey + DES3_EDE_EXPKEY_WORDS - 2;
 	const __le32 *s = (const __le32 *)src;
 	__le32 *d = (__le32 *)dst;

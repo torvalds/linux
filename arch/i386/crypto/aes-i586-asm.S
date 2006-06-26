@@ -36,22 +36,19 @@
 .file "aes-i586-asm.S"
 .text
 
-// aes_rval aes_enc_blk(const unsigned char in_blk[], unsigned char out_blk[], const aes_ctx cx[1])//
-// aes_rval aes_dec_blk(const unsigned char in_blk[], unsigned char out_blk[], const aes_ctx cx[1])//
-	
+#include <asm/asm-offsets.h>
+
 #define tlen 1024   // length of each of 4 'xor' arrays (256 32-bit words)
 
-// offsets to parameters with one register pushed onto stack
+/* offsets to parameters with one register pushed onto stack */
+#define tfm 8
+#define out_blk 12
+#define in_blk 16
 
-#define in_blk    8  // input byte array address parameter
-#define out_blk  12  // output byte array address parameter
-#define ctx      16  // AES context structure
-
-// offsets in context structure
-
-#define ekey     0   // encryption key schedule base address
-#define nrnd   256   // number of rounds
-#define dkey   260   // decryption key schedule base address
+/* offsets in crypto_tfm structure */
+#define ekey (crypto_tfm_ctx_offset + 0)
+#define nrnd (crypto_tfm_ctx_offset + 256)
+#define dkey (crypto_tfm_ctx_offset + 260)
 
 // register mapping for encrypt and decrypt subroutines
 
@@ -220,6 +217,7 @@
 	do_col (table, r5,r0,r1,r4, r2,r3);		/* idx=r5 */
 
 // AES (Rijndael) Encryption Subroutine
+/* void aes_enc_blk(struct crypto_tfm *tfm, u8 *out_blk, const u8 *in_blk) */
 
 .global  aes_enc_blk
 
@@ -230,7 +228,7 @@
 
 aes_enc_blk:
 	push    %ebp
-	mov     ctx(%esp),%ebp      // pointer to context
+	mov     tfm(%esp),%ebp
 
 // CAUTION: the order and the values used in these assigns 
 // rely on the register mappings
@@ -295,6 +293,7 @@ aes_enc_blk:
 	ret
 
 // AES (Rijndael) Decryption Subroutine
+/* void aes_dec_blk(struct crypto_tfm *tfm, u8 *out_blk, const u8 *in_blk) */
 
 .global  aes_dec_blk
 
@@ -305,7 +304,7 @@ aes_enc_blk:
 
 aes_dec_blk:
 	push    %ebp
-	mov     ctx(%esp),%ebp       // pointer to context
+	mov     tfm(%esp),%ebp
 
 // CAUTION: the order and the values used in these assigns 
 // rely on the register mappings

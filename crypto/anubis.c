@@ -460,15 +460,14 @@ static const u32 rc[] = {
 	0xf726ffedU, 0xe89d6f8eU, 0x19a0f089U,
 };
 
-static int anubis_setkey(void *ctx_arg, const u8 *in_key,
+static int anubis_setkey(struct crypto_tfm *tfm, const u8 *in_key,
 			 unsigned int key_len, u32 *flags)
 {
+	struct anubis_ctx *ctx = crypto_tfm_ctx(tfm);
 	const __be32 *key = (const __be32 *)in_key;
 	int N, R, i, r;
 	u32 kappa[ANUBIS_MAX_N];
 	u32 inter[ANUBIS_MAX_N];
-
-	struct anubis_ctx *ctx = ctx_arg;
 
 	switch (key_len)
 	{
@@ -660,15 +659,15 @@ static void anubis_crypt(u32 roundKey[ANUBIS_MAX_ROUNDS + 1][4],
 		dst[i] = cpu_to_be32(inter[i]);
 }
 
-static void anubis_encrypt(void *ctx_arg, u8 *dst, const u8 *src)
+static void anubis_encrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
 {
-	struct anubis_ctx *ctx = ctx_arg;
+	struct anubis_ctx *ctx = crypto_tfm_ctx(tfm);
 	anubis_crypt(ctx->E, dst, src, ctx->R);
 }
 
-static void anubis_decrypt(void *ctx_arg, u8 *dst, const u8 *src)
+static void anubis_decrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
 {
-	struct anubis_ctx *ctx = ctx_arg;
+	struct anubis_ctx *ctx = crypto_tfm_ctx(tfm);
 	anubis_crypt(ctx->D, dst, src, ctx->R);
 }
 

@@ -66,7 +66,7 @@ struct crypto_tfm;
 
 struct cipher_desc {
 	struct crypto_tfm *tfm;
-	void (*crfn)(void *ctx, u8 *dst, const u8 *src);
+	void (*crfn)(struct crypto_tfm *tfm, u8 *dst, const u8 *src);
 	unsigned int (*prfn)(const struct cipher_desc *desc, u8 *dst,
 			     const u8 *src, unsigned int nbytes);
 	void *info;
@@ -79,10 +79,10 @@ struct cipher_desc {
 struct cipher_alg {
 	unsigned int cia_min_keysize;
 	unsigned int cia_max_keysize;
-	int (*cia_setkey)(void *ctx, const u8 *key,
+	int (*cia_setkey)(struct crypto_tfm *tfm, const u8 *key,
 	                  unsigned int keylen, u32 *flags);
-	void (*cia_encrypt)(void *ctx, u8 *dst, const u8 *src);
-	void (*cia_decrypt)(void *ctx, u8 *dst, const u8 *src);
+	void (*cia_encrypt)(struct crypto_tfm *tfm, u8 *dst, const u8 *src);
+	void (*cia_decrypt)(struct crypto_tfm *tfm, u8 *dst, const u8 *src);
 
 	unsigned int (*cia_encrypt_ecb)(const struct cipher_desc *desc,
 					u8 *dst, const u8 *src,
@@ -100,20 +100,19 @@ struct cipher_alg {
 
 struct digest_alg {
 	unsigned int dia_digestsize;
-	void (*dia_init)(void *ctx);
-	void (*dia_update)(void *ctx, const u8 *data, unsigned int len);
-	void (*dia_final)(void *ctx, u8 *out);
-	int (*dia_setkey)(void *ctx, const u8 *key,
+	void (*dia_init)(struct crypto_tfm *tfm);
+	void (*dia_update)(struct crypto_tfm *tfm, const u8 *data,
+			   unsigned int len);
+	void (*dia_final)(struct crypto_tfm *tfm, u8 *out);
+	int (*dia_setkey)(struct crypto_tfm *tfm, const u8 *key,
 	                  unsigned int keylen, u32 *flags);
 };
 
 struct compress_alg {
-	int (*coa_init)(void *ctx);
-	void (*coa_exit)(void *ctx);
-	int (*coa_compress)(void *ctx, const u8 *src, unsigned int slen,
-	                    u8 *dst, unsigned int *dlen);
-	int (*coa_decompress)(void *ctx, const u8 *src, unsigned int slen,
-	                      u8 *dst, unsigned int *dlen);
+	int (*coa_compress)(struct crypto_tfm *tfm, const u8 *src,
+			    unsigned int slen, u8 *dst, unsigned int *dlen);
+	int (*coa_decompress)(struct crypto_tfm *tfm, const u8 *src,
+			      unsigned int slen, u8 *dst, unsigned int *dlen);
 };
 
 #define cra_cipher	cra_u.cipher
@@ -129,14 +128,17 @@ struct crypto_alg {
 
 	int cra_priority;
 
-	const char cra_name[CRYPTO_MAX_ALG_NAME];
-	const char cra_driver_name[CRYPTO_MAX_ALG_NAME];
+	char cra_name[CRYPTO_MAX_ALG_NAME];
+	char cra_driver_name[CRYPTO_MAX_ALG_NAME];
 
 	union {
 		struct cipher_alg cipher;
 		struct digest_alg digest;
 		struct compress_alg compress;
 	} cra_u;
+
+	int (*cra_init)(struct crypto_tfm *tfm);
+	void (*cra_exit)(struct crypto_tfm *tfm);
 	
 	struct module *cra_module;
 };

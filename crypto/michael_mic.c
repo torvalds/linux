@@ -45,16 +45,17 @@ do {				\
 } while (0)
 
 
-static void michael_init(void *ctx)
+static void michael_init(struct crypto_tfm *tfm)
 {
-	struct michael_mic_ctx *mctx = ctx;
+	struct michael_mic_ctx *mctx = crypto_tfm_ctx(tfm);
 	mctx->pending_len = 0;
 }
 
 
-static void michael_update(void *ctx, const u8 *data, unsigned int len)
+static void michael_update(struct crypto_tfm *tfm, const u8 *data,
+			   unsigned int len)
 {
-	struct michael_mic_ctx *mctx = ctx;
+	struct michael_mic_ctx *mctx = crypto_tfm_ctx(tfm);
 	const __le32 *src;
 
 	if (mctx->pending_len) {
@@ -90,9 +91,9 @@ static void michael_update(void *ctx, const u8 *data, unsigned int len)
 }
 
 
-static void michael_final(void *ctx, u8 *out)
+static void michael_final(struct crypto_tfm *tfm, u8 *out)
 {
-	struct michael_mic_ctx *mctx = ctx;
+	struct michael_mic_ctx *mctx = crypto_tfm_ctx(tfm);
 	u8 *data = mctx->pending;
 	__le32 *dst = (__le32 *)out;
 
@@ -121,10 +122,10 @@ static void michael_final(void *ctx, u8 *out)
 }
 
 
-static int michael_setkey(void *ctx, const u8 *key, unsigned int keylen,
-			  u32 *flags)
+static int michael_setkey(struct crypto_tfm *tfm, const u8 *key,
+			  unsigned int keylen, u32 *flags)
 {
-	struct michael_mic_ctx *mctx = ctx;
+	struct michael_mic_ctx *mctx = crypto_tfm_ctx(tfm);
 	const __le32 *data = (const __le32 *)key;
 
 	if (keylen != 8) {
@@ -145,6 +146,7 @@ static struct crypto_alg michael_mic_alg = {
 	.cra_blocksize	= 8,
 	.cra_ctxsize	= sizeof(struct michael_mic_ctx),
 	.cra_module	= THIS_MODULE,
+	.cra_alignmask	= 3,
 	.cra_list	= LIST_HEAD_INIT(michael_mic_alg.cra_list),
 	.cra_u		= { .digest = {
 	.dia_digestsize	= 8,
