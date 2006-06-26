@@ -179,7 +179,7 @@ u8 adb_to_linux_keycodes[128] = {
 	/* 0x65 */ KEY_F9,		/*  67 */
 	/* 0x66 */ KEY_HANJA,		/* 123 */
 	/* 0x67 */ KEY_F11,		/*  87 */
-	/* 0x68 */ KEY_HANGUEL,		/* 122 */
+	/* 0x68 */ KEY_HANGEUL,		/* 122 */
 	/* 0x69 */ KEY_SYSRQ,		/*  99 */
 	/* 0x6a */ 0,
 	/* 0x6b */ KEY_SCROLLLOCK,	/*  70 */

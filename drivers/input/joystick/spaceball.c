@@ -220,7 +220,7 @@ static int spaceball_connect(struct serio *serio, struct serio_driver *drv)
 		goto fail;
 
 	spaceball->dev = input_dev;
-	sprintf(spaceball->phys, "%s/input0", serio->phys);
+	snprintf(spaceball->phys, sizeof(spaceball->phys), "%s/input0", serio->phys);
 
 	input_dev->name = spaceball_names[id];
 	input_dev->phys = spaceball->phys;

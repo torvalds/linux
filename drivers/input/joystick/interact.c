@@ -251,7 +251,7 @@ static int interact_connect(struct gameport *gameport, struct gameport_driver *d
 	gameport_set_poll_handler(gameport, interact_poll);
 	gameport_set_poll_interval(gameport, 20);
 
-	sprintf(interact->phys, "%s/input0", gameport->phys);
+	snprintf(interact->phys, sizeof(interact->phys), "%s/input0", gameport->phys);
 
 	interact->type = i;
 	interact->length = interact_type[i].length;

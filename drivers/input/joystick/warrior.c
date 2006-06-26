@@ -154,7 +154,7 @@ static int warrior_connect(struct serio *serio, struct serio_driver *drv)
 		goto fail;
 
 	warrior->dev = input_dev;
-	sprintf(warrior->phys, "%s/input0", serio->phys);
+	snprintf(warrior->phys, sizeof(warrior->phys), "%s/input0", serio->phys);
 
 	input_dev->name = "Logitech WingMan Warrior";
 	input_dev->phys = warrior->phys;

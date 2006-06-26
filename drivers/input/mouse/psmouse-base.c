@@ -150,9 +150,20 @@ static psmouse_ret_t psmouse_process_byte(struct psmouse *psmouse, struct pt_reg
  */
 
 	if (psmouse->type == PSMOUSE_IMEX) {
-		input_report_rel(dev, REL_WHEEL, (int) (packet[3] & 8) - (int) (packet[3] & 7));
-		input_report_key(dev, BTN_SIDE, (packet[3] >> 4) & 1);
-		input_report_key(dev, BTN_EXTRA, (packet[3] >> 5) & 1);
+		switch (packet[3] & 0xC0) {
+			case 0x80: /* vertical scroll on IntelliMouse Explorer 4.0 */
+				input_report_rel(dev, REL_WHEEL, (int) (packet[3] & 32) - (int) (packet[3] & 31));
+				break;
+			case 0x40: /* horizontal scroll on IntelliMouse Explorer 4.0 */
+				input_report_rel(dev, REL_HWHEEL, (int) (packet[3] & 32) - (int) (packet[3] & 31));
+				break;
+			case 0x00:
+			case 0xC0:
+				input_report_rel(dev, REL_WHEEL, (int) (packet[3] & 8) - (int) (packet[3] & 7));
+				input_report_key(dev, BTN_SIDE, (packet[3] >> 4) & 1);
+				input_report_key(dev, BTN_EXTRA, (packet[3] >> 5) & 1);
+				break;
+		}
 	}
 
 /*
@@ -466,9 +477,25 @@ static int im_explorer_detect(struct psmouse *psmouse, int set_properties)
 	if (param[0] != 4)
 		return -1;
 
+/* Magic to enable horizontal scrolling on IntelliMouse 4.0 */
+	param[0] = 200;
+	ps2_command(ps2dev, param, PSMOUSE_CMD_SETRATE);
+	param[0] =  80;
+	ps2_command(ps2dev, param, PSMOUSE_CMD_SETRATE);
+	param[0] =  40;
+	ps2_command(ps2dev, param, PSMOUSE_CMD_SETRATE);
+
+	param[0] = 200;
+	ps2_command(ps2dev, param, PSMOUSE_CMD_SETRATE);
+	param[0] = 200;
+	ps2_command(ps2dev, param, PSMOUSE_CMD_SETRATE);
+	param[0] =  60;
+	ps2_command(ps2dev, param, PSMOUSE_CMD_SETRATE);
+
 	if (set_properties) {
 		set_bit(BTN_MIDDLE, psmouse->dev->keybit);
 		set_bit(REL_WHEEL, psmouse->dev->relbit);
+		set_bit(REL_HWHEEL, psmouse->dev->relbit);
 		set_bit(BTN_SIDE, psmouse->dev->keybit);
 		set_bit(BTN_EXTRA, psmouse->dev->keybit);
 
@@ -1057,8 +1084,8 @@ static int psmouse_switch_protocol(struct psmouse *psmouse, struct psmouse_proto
 	if (psmouse->resync_time && psmouse->poll(psmouse))
 		psmouse->resync_time = 0;
 
-	sprintf(psmouse->devname, "%s %s %s",
-		psmouse_protocol_by_type(psmouse->type)->name, psmouse->vendor, psmouse->name);
+	snprintf(psmouse->devname, sizeof(psmouse->devname), "%s %s %s",
+		 psmouse_protocol_by_type(psmouse->type)->name, psmouse->vendor, psmouse->name);
 
 	input_dev->name = psmouse->devname;
 	input_dev->phys = psmouse->phys;
@@ -1099,7 +1126,7 @@ static int psmouse_connect(struct serio *serio, struct serio_driver *drv)
 	ps2_init(&psmouse->ps2dev, serio);
 	INIT_WORK(&psmouse->resync_work, psmouse_resync, psmouse);
 	psmouse->dev = input_dev;
-	sprintf(psmouse->phys, "%s/input0", serio->phys);
+	snprintf(psmouse->phys, sizeof(psmouse->phys), "%s/input0", serio->phys);
 
 	psmouse_set_state(psmouse, PSMOUSE_INITIALIZING);
 

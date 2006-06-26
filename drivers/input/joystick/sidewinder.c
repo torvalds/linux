@@ -541,7 +541,7 @@ static void sw_print_packet(char *name, int length, unsigned char *buf, char bit
  * Unfortunately I don't know how to do this for the other SW types.
  */
 
-static void sw_3dp_id(unsigned char *buf, char *comment)
+static void sw_3dp_id(unsigned char *buf, char *comment, size_t size)
 {
 	int i;
 	char pnp[8], rev[9];
@@ -554,7 +554,7 @@ static void sw_3dp_id(unsigned char *buf, char *comment)
 
 	pnp[7] = rev[8] = 0;
 
-	sprintf(comment, " [PnP %d.%02d id %s rev %s]",
+	snprintf(comment, size, " [PnP %d.%02d id %s rev %s]",
 		(int) ((sw_get_bits(buf, 8, 6, 1) << 6) |		/* Two 6-bit values */
 			sw_get_bits(buf, 16, 6, 1)) / 100,
 		(int) ((sw_get_bits(buf, 8, 6, 1) << 6) |
@@ -695,7 +695,7 @@ static int sw_connect(struct gameport *gameport, struct gameport_driver *drv)
 						sw->type = SW_ID_FFP;
 						sprintf(comment, " [AC %s]", sw_get_bits(idbuf,38,1,3) ? "off" : "on");
 					} else
-					sw->type = SW_ID_PP;
+						sw->type = SW_ID_PP;
 					break;
 				case 66:
 					sw->bits = 3;
@@ -703,7 +703,8 @@ static int sw_connect(struct gameport *gameport, struct gameport_driver *drv)
 					sw->length = 22;
 				case 64:
 					sw->type = SW_ID_3DP;
-					if (j == 160) sw_3dp_id(idbuf, comment);
+					if (j == 160)
+						sw_3dp_id(idbuf, comment, sizeof(comment));
 					break;
 			}
 		}
@@ -733,8 +734,10 @@ static int sw_connect(struct gameport *gameport, struct gameport_driver *drv)
 	for (i = 0; i < sw->number; i++) {
 		int bits, code;
 
-		sprintf(sw->name, "Microsoft SideWinder %s", sw_name[sw->type]);
-		sprintf(sw->phys[i], "%s/input%d", gameport->phys, i);
+		snprintf(sw->name, sizeof(sw->name),
+			 "Microsoft SideWinder %s", sw_name[sw->type]);
+		snprintf(sw->phys[i], sizeof(sw->phys[i]),
+			 "%s/input%d", gameport->phys, i);
 
 		sw->dev[i] = input_dev = input_allocate_device();
 		if (!input_dev) {

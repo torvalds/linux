@@ -674,7 +674,7 @@ static void k_dead2(struct vc_data *vc, unsigned char value, char up_flag, struc
  */
 static void k_dead(struct vc_data *vc, unsigned char value, char up_flag, struct pt_regs *regs)
 {
-	static unsigned char ret_diacr[NR_DEAD] = {'`', '\'', '^', '~', '"', ',' };
+	static const unsigned char ret_diacr[NR_DEAD] = {'`', '\'', '^', '~', '"', ',' };
 	value = ret_diacr[value];
 	k_deadunicode(vc, value, up_flag, regs);
 }
@@ -711,8 +711,8 @@ static void k_cur(struct vc_data *vc, unsigned char value, char up_flag, struct 
 
 static void k_pad(struct vc_data *vc, unsigned char value, char up_flag, struct pt_regs *regs)
 {
-	static const char *pad_chars = "0123456789+-*/\015,.?()#";
-	static const char *app_map = "pqrstuvwxylSRQMnnmPQS";
+	static const char pad_chars[] = "0123456789+-*/\015,.?()#";
+	static const char app_map[] = "pqrstuvwxylSRQMnnmPQS";
 
 	if (up_flag)
 		return;		/* no action, if this is a key release */
@@ -1037,7 +1037,7 @@ static void kbd_refresh_leds(struct input_handle *handle)
 #define HW_RAW(dev) (test_bit(EV_MSC, dev->evbit) && test_bit(MSC_RAW, dev->mscbit) &&\
 			((dev)->id.bustype == BUS_I8042) && ((dev)->id.vendor == 0x0001) && ((dev)->id.product == 0x0001))
 
-static unsigned short x86_keycodes[256] =
+static const unsigned short x86_keycodes[256] =
 	{ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
 	 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
 	 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
@@ -1075,11 +1075,13 @@ static int emulate_raw(struct vc_data *vc, unsigned int keycode,
 			put_queue(vc, 0x1d | up_flag);
 			put_queue(vc, 0x45 | up_flag);
 			return 0;
-		case KEY_HANGUEL:
-			if (!up_flag) put_queue(vc, 0xf1);
+		case KEY_HANGEUL:
+			if (!up_flag)
+				put_queue(vc, 0xf2);
 			return 0;
 		case KEY_HANJA:
-			if (!up_flag) put_queue(vc, 0xf2);
+			if (!up_flag)
+				put_queue(vc, 0xf1);
 			return 0;
 	}
 

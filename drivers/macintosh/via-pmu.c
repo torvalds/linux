@@ -69,6 +69,8 @@
 #include <asm/open_pic.h>
 #endif
 
+#include "via-pmu-event.h"
+
 /* Some compile options */
 #undef SUSPEND_USES_PMU
 #define DEBUG_SLEEP
@@ -1427,6 +1429,12 @@ next:
 		if (pmu_battery_count)
 			query_battery_state();
 		pmu_pass_intr(data, len);
+		/* len == 6 is probably a bad check. But how do I
+		 * know what PMU versions send what events here? */
+		if (len == 6) {
+			via_pmu_event(PMU_EVT_POWER, !!(data[1]&8));
+			via_pmu_event(PMU_EVT_LID, data[1]&1);
+		}
 	} else {
 	       pmu_pass_intr(data, len);
 	}

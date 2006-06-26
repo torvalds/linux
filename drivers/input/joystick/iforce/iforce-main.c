@@ -86,7 +86,7 @@ static struct iforce_device iforce_device[] = {
 
 static int iforce_input_event(struct input_dev *dev, unsigned int type, unsigned int code, int value)
 {
-	struct iforce* iforce = (struct iforce*)(dev->private);
+	struct iforce* iforce = dev->private;
 	unsigned char data[3];
 
 	if (type != EV_FF)
@@ -138,7 +138,7 @@ static int iforce_input_event(struct input_dev *dev, unsigned int type, unsigned
  */
 static int iforce_upload_effect(struct input_dev *dev, struct ff_effect *effect)
 {
-	struct iforce* iforce = (struct iforce*)(dev->private);
+	struct iforce* iforce = dev->private;
 	int id;
 	int ret;
 	int is_update;
@@ -218,7 +218,7 @@ static int iforce_upload_effect(struct input_dev *dev, struct ff_effect *effect)
  */
 static int iforce_erase_effect(struct input_dev *dev, int effect_id)
 {
-	struct iforce* iforce = (struct iforce*)(dev->private);
+	struct iforce* iforce = dev->private;
 	int err = 0;
 	struct iforce_core_effect* core_effect;
 
