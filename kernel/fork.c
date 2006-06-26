@@ -1156,18 +1156,6 @@ static task_t *copy_process(unsigned long clone_flags,
 	}
 
 	if (clone_flags & CLONE_THREAD) {
-		/*
-		 * Important: if an exit-all has been started then
-		 * do not create this new thread - the whole thread
-		 * group is supposed to exit anyway.
-		 */
-		if (current->signal->flags & SIGNAL_GROUP_EXIT) {
-			spin_unlock(&current->sighand->siglock);
-			write_unlock_irq(&tasklist_lock);
-			retval = -EAGAIN;
-			goto bad_fork_cleanup_namespace;
-		}
-
 		p->group_leader = current->group_leader;
 		list_add_tail_rcu(&p->thread_group, &p->group_leader->thread_group);
 
