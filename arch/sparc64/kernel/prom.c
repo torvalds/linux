@@ -27,6 +27,11 @@
 
 static struct device_node *allnodes;
 
+/* use when traversing tree through the allnext, child, sibling,
+ * or parent members of struct device_node.
+ */
+static DEFINE_RWLOCK(devtree_lock);
+
 int of_device_is_compatible(struct device_node *device, const char *compat)
 {
 	const char* cp;
@@ -184,6 +189,54 @@ int of_getintprop_default(struct device_node *np, const char *name, int def)
 	return *(int *) prop->value;
 }
 EXPORT_SYMBOL(of_getintprop_default);
+
+int of_set_property(struct device_node *dp, const char *name, void *val, int len)
+{
+	struct property **prevp;
+	void *new_val;
+	int err;
+
+	new_val = kmalloc(len, GFP_KERNEL);
+	if (!new_val)
+		return -ENOMEM;
+
+	memcpy(new_val, val, len);
+
+	err = -ENODEV;
+
+	write_lock(&devtree_lock);
+	prevp = &dp->properties;
+	while (*prevp) {
+		struct property *prop = *prevp;
+
+		if (!strcmp(prop->name, name)) {
+			void *old_val = prop->value;
+			int ret;
+
+			ret = prom_setprop(dp->node, name, val, len);
+			err = -EINVAL;
+			if (ret >= 0) {
+				prop->value = new_val;
+				prop->length = len;
+
+				if (OF_IS_DYNAMIC(prop))
+					kfree(old_val);
+
+				OF_MARK_DYNAMIC(prop);
+
+				err = 0;
+			}
+			break;
+		}
+		prevp = &(*prevp)->next;
+	}
+	write_unlock(&devtree_lock);
+
+	/* XXX Upate procfs if necessary... */
+
+	return err;
+}
+EXPORT_SYMBOL(of_set_property);
 
 static unsigned int prom_early_allocated;
 
@@ -531,7 +584,9 @@ static char * __init build_full_name(struct device_node *dp)
 	return n;
 }
 
-static struct property * __init build_one_prop(phandle node, char *prev)
+static unsigned int unique_id;
+
+static struct property * __init build_one_prop(phandle node, char *prev, char *special_name, void *special_val, int special_len)
 {
 	static struct property *tmp = NULL;
 	struct property *p;
@@ -540,25 +595,35 @@ static struct property * __init build_one_prop(phandle node, char *prev)
 		p = tmp;
 		memset(p, 0, sizeof(*p) + 32);
 		tmp = NULL;
-	} else
+	} else {
 		p = prom_early_alloc(sizeof(struct property) + 32);
+		p->unique_id = unique_id++;
+	}
 
 	p->name = (char *) (p + 1);
-	if (prev == NULL) {
-		prom_firstprop(node, p->name);
+	if (special_name) {
+		strcpy(p->name, special_name);
+		p->length = special_len;
+		p->value = prom_early_alloc(special_len);
+		memcpy(p->value, special_val, special_len);
 	} else {
-		prom_nextprop(node, prev, p->name);
-	}
-	if (strlen(p->name) == 0) {
-		tmp = p;
-		return NULL;
-	}
-	p->length = prom_getproplen(node, p->name);
-	if (p->length <= 0) {
-		p->length = 0;
-	} else {
-		p->value = prom_early_alloc(p->length);
-		prom_getproperty(node, p->name, p->value, p->length);
+		if (prev == NULL) {
+			prom_firstprop(node, p->name);
+		} else {
+			prom_nextprop(node, prev, p->name);
+		}
+		if (strlen(p->name) == 0) {
+			tmp = p;
+			return NULL;
+		}
+		p->length = prom_getproplen(node, p->name);
+		if (p->length <= 0) {
+			p->length = 0;
+		} else {
+			p->value = prom_early_alloc(p->length + 1);
+			prom_getproperty(node, p->name, p->value, p->length);
+			((unsigned char *)p->value)[p->length] = '\0';
+		}
 	}
 	return p;
 }
@@ -567,9 +632,14 @@ static struct property * __init build_prop_list(phandle node)
 {
 	struct property *head, *tail;
 
-	head = tail = build_one_prop(node, NULL);
+	head = tail = build_one_prop(node, NULL,
+				     ".node", &node, sizeof(node));
+
+	tail->next = build_one_prop(node, NULL, NULL, NULL, 0);
+	tail = tail->next;
 	while(tail) {
-		tail->next = build_one_prop(node, tail->name);
+		tail->next = build_one_prop(node, tail->name,
+					    NULL, NULL, 0);
 		tail = tail->next;
 	}
 
@@ -598,6 +668,7 @@ static struct device_node * __init create_node(phandle node)
 		return NULL;
 
 	dp = prom_early_alloc(sizeof(*dp));
+	dp->unique_id = unique_id++;
 
 	kref_init(&dp->kref);
 

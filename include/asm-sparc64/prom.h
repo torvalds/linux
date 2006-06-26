@@ -35,6 +35,8 @@ struct property {
 	int	length;
 	void	*value;
 	struct property *next;
+	unsigned long _flags;
+	unsigned int unique_id;
 };
 
 struct device_node {
@@ -58,7 +60,14 @@ struct device_node {
 	struct  kref kref;
 	unsigned long _flags;
 	void	*data;
+	unsigned int unique_id;
 };
+
+/* flag descriptions */
+#define OF_DYNAMIC 1 /* node and properties were allocated via kmalloc */
+
+#define OF_IS_DYNAMIC(x) test_bit(OF_DYNAMIC, &x->_flags)
+#define OF_MARK_DYNAMIC(x) set_bit(OF_DYNAMIC, &x->_flags)
 
 static inline void set_node_proc_entry(struct device_node *dn, struct proc_dir_entry *de)
 {
@@ -88,6 +97,7 @@ extern struct property *of_find_property(struct device_node *np,
 extern int of_device_is_compatible(struct device_node *device, const char *);
 extern void *of_get_property(struct device_node *node, const char *name,
 			     int *lenp);
+extern int of_set_property(struct device_node *node, const char *name, void *val, int len);
 extern int of_getintprop_default(struct device_node *np,
 				 const char *name,
 				 int def);

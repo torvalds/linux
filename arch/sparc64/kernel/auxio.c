@@ -6,6 +6,7 @@
  */
 
 #include <linux/config.h>
+#include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
@@ -16,8 +17,8 @@
 #include <asm/ebus.h>
 #include <asm/auxio.h>
 
-/* This cannot be static, as it is referenced in irq.c */
 void __iomem *auxio_register = NULL;
+EXPORT_SYMBOL(auxio_register);
 
 enum auxio_type {
 	AUXIO_TYPE_NODEV,

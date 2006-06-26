@@ -211,7 +211,7 @@ static int __init riowd_bbc_init(void)
 
 	for_each_ebus(ebus) {
 		for_each_ebusdev(edev, ebus) {
-			if (!strcmp(edev->prom_name, "bbc"))
+			if (!strcmp(edev->ofdev.node->name, "bbc"))
 				goto found_bbc;
 		}
 	}
@@ -238,7 +238,7 @@ static int __init riowd_init(void)
 
 	for_each_ebus(ebus) {
 		for_each_ebusdev(edev, ebus) {
-			if (!strcmp(edev->prom_name, RIOWD_NAME))
+			if (!strcmp(edev->ofdev.node->name, RIOWD_NAME))
 				goto ebus_done;
 		}
 	}
