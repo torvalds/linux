@@ -289,6 +289,28 @@ dma_addr_t gart_map_single(struct device *dev, void *addr, size_t size, int dir)
 }
 
 /*
+ * Free a DMA mapping.
+ */
+void gart_unmap_single(struct device *dev, dma_addr_t dma_addr,
+		      size_t size, int direction)
+{
+	unsigned long iommu_page;
+	int npages;
+	int i;
+
+	if (dma_addr < iommu_bus_base + EMERGENCY_PAGES*PAGE_SIZE ||
+	    dma_addr >= iommu_bus_base + iommu_size)
+		return;
+	iommu_page = (dma_addr - iommu_bus_base)>>PAGE_SHIFT;
+	npages = to_pages(dma_addr, size);
+	for (i = 0; i < npages; i++) {
+		iommu_gatt_base[iommu_page + i] = gart_unmapped_entry;
+		CLEAR_LEAK(iommu_page + i);
+	}
+	free_iommu(iommu_page, npages);
+}
+
+/*
  * Wrapper for pci_unmap_single working with scatterlists.
  */
 void gart_unmap_sg(struct device *dev, struct scatterlist *sg, int nents, int dir)
@@ -299,7 +321,7 @@ void gart_unmap_sg(struct device *dev, struct scatterlist *sg, int nents, int di
 		struct scatterlist *s = &sg[i];
 		if (!s->dma_length || !s->length)
 			break;
-		dma_unmap_single(dev, s->dma_address, s->dma_length, dir);
+		gart_unmap_single(dev, s->dma_address, s->dma_length, dir);
 	}
 }
 
@@ -457,28 +479,6 @@ error:
 		sg[i].dma_address = bad_dma_address;
 	return 0;
 } 
-
-/*
- * Free a DMA mapping.
- */ 
-void gart_unmap_single(struct device *dev, dma_addr_t dma_addr,
-		      size_t size, int direction)
-{
-	unsigned long iommu_page; 
-	int npages;
-	int i;
-
-	if (dma_addr < iommu_bus_base + EMERGENCY_PAGES*PAGE_SIZE || 
-	    dma_addr >= iommu_bus_base + iommu_size)
-		return;
-	iommu_page = (dma_addr - iommu_bus_base)>>PAGE_SHIFT;	
-	npages = to_pages(dma_addr, size);
-	for (i = 0; i < npages; i++) { 
-		iommu_gatt_base[iommu_page + i] = gart_unmapped_entry; 
-		CLEAR_LEAK(iommu_page + i);
-	}
-	free_iommu(iommu_page, npages);
-}
 
 static int no_agp;
 
