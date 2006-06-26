@@ -120,14 +120,9 @@ static int crash_nmi_callback(struct pt_regs *regs, int cpu)
 	return 1;
 }
 
-/*
- * By using the NMI code instead of a vector we just sneak thru the
- * word generator coming out with just what we want.  AND it does
- * not matter if clustered_apic_mode is set or not.
- */
 static void smp_send_nmi_allbutself(void)
 {
-	send_IPI_allbutself(APIC_DM_NMI);
+	send_IPI_allbutself(NMI_VECTOR);
 }
 
 static void nmi_shootdown_cpus(void)
