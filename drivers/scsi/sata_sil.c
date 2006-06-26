@@ -52,6 +52,7 @@ enum {
 	/*
 	 * host flags
 	 */
+	SIL_FLAG_NO_SATA_IRQ	= (1 << 28),
 	SIL_FLAG_RERR_ON_DMA_ACT = (1 << 29),
 	SIL_FLAG_MOD15WRITE	= (1 << 30),
 
@@ -62,8 +63,9 @@ enum {
 	 * Controller IDs
 	 */
 	sil_3112		= 0,
-	sil_3512		= 1,
-	sil_3114		= 2,
+	sil_3112_no_sata_irq	= 1,
+	sil_3512		= 2,
+	sil_3114		= 3,
 
 	/*
 	 * Register offsets
@@ -123,8 +125,8 @@ static const struct pci_device_id sil_pci_tbl[] = {
 	{ 0x1095, 0x3512, PCI_ANY_ID, PCI_ANY_ID, 0, 0, sil_3512 },
 	{ 0x1095, 0x3114, PCI_ANY_ID, PCI_ANY_ID, 0, 0, sil_3114 },
 	{ 0x1002, 0x436e, PCI_ANY_ID, PCI_ANY_ID, 0, 0, sil_3112 },
-	{ 0x1002, 0x4379, PCI_ANY_ID, PCI_ANY_ID, 0, 0, sil_3112 },
-	{ 0x1002, 0x437a, PCI_ANY_ID, PCI_ANY_ID, 0, 0, sil_3112 },
+	{ 0x1002, 0x4379, PCI_ANY_ID, PCI_ANY_ID, 0, 0, sil_3112_no_sata_irq },
+	{ 0x1002, 0x437a, PCI_ANY_ID, PCI_ANY_ID, 0, 0, sil_3112_no_sata_irq },
 	{ }	/* terminate list */
 };
 
@@ -212,6 +214,16 @@ static const struct ata_port_info sil_port_info[] = {
 	{
 		.sht		= &sil_sht,
 		.host_flags	= SIL_DFL_HOST_FLAGS | SIL_FLAG_MOD15WRITE,
+		.pio_mask	= 0x1f,			/* pio0-4 */
+		.mwdma_mask	= 0x07,			/* mwdma0-2 */
+		.udma_mask	= 0x3f,			/* udma0-5 */
+		.port_ops	= &sil_ops,
+	},
+	/* sil_3112_no_sata_irq */
+	{
+		.sht		= &sil_sht,
+		.host_flags	= SIL_DFL_HOST_FLAGS | SIL_FLAG_MOD15WRITE |
+				  SIL_FLAG_NO_SATA_IRQ,
 		.pio_mask	= 0x1f,			/* pio0-4 */
 		.mwdma_mask	= 0x07,			/* mwdma0-2 */
 		.udma_mask	= 0x3f,			/* udma0-5 */
@@ -437,6 +449,10 @@ static irqreturn_t sil_interrupt(int irq, void *dev_instance,
 		if (unlikely(!ap || ap->flags & ATA_FLAG_DISABLED))
 			continue;
 
+		/* turn off SATA_IRQ if not supported */
+		if (ap->flags & SIL_FLAG_NO_SATA_IRQ)
+			bmdma2 &= ~SIL_DMA_SATA_IRQ;
+
 		if (bmdma2 == 0xffffffff ||
 		    !(bmdma2 & (SIL_DMA_COMPLETE | SIL_DMA_SATA_IRQ)))
 			continue;
@@ -474,8 +490,9 @@ static void sil_thaw(struct ata_port *ap)
 	ata_chk_status(ap);
 	ata_bmdma_irq_clear(ap);
 
-	/* turn on SATA IRQ */
-	writel(SIL_SIEN_N, mmio_base + sil_port[ap->port_no].sien);
+	/* turn on SATA IRQ if supported */
+	if (!(ap->flags & SIL_FLAG_NO_SATA_IRQ))
+		writel(SIL_SIEN_N, mmio_base + sil_port[ap->port_no].sien);
 
 	/* turn on IRQ */
 	tmp = readl(mmio_base + SIL_SYSCFG);
