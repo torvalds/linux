@@ -2060,7 +2060,13 @@ static int run(mddev_t *mddev)
 	/*
 	 * Ok, everything is just fine now
 	 */
-	size = conf->stride * conf->raid_disks;
+	if (conf->far_offset) {
+		size = mddev->size >> (conf->chunk_shift-1);
+		size *= conf->raid_disks;
+		size <<= conf->chunk_shift;
+		sector_div(size, conf->far_copies);
+	} else
+		size = conf->stride * conf->raid_disks;
 	sector_div(size, conf->near_copies);
 	mddev->array_size = size/2;
 	mddev->resync_max_sectors = size;
