@@ -73,6 +73,10 @@ static void autostart_arrays (int part);
 static LIST_HEAD(pers_list);
 static DEFINE_SPINLOCK(pers_lock);
 
+static void md_print_devices(void);
+
+#define MD_BUG(x...) { printk("md: bug in file %s, line %d\n", __FILE__, __LINE__); md_print_devices(); }
+
 /*
  * Current RAID-1,4,5 parallel reconstruction 'guaranteed speed limit'
  * is 1000 KB/sec, so the extra system load does not show up that much.
@@ -1522,7 +1526,7 @@ static void print_rdev(mdk_rdev_t *rdev)
 		printk(KERN_INFO "md: no rdev superblock!\n");
 }
 
-void md_print_devices(void)
+static void md_print_devices(void)
 {
 	struct list_head *tmp, *tmp2;
 	mdk_rdev_t *rdev;
@@ -5345,7 +5349,6 @@ EXPORT_SYMBOL(md_write_end);
 EXPORT_SYMBOL(md_register_thread);
 EXPORT_SYMBOL(md_unregister_thread);
 EXPORT_SYMBOL(md_wakeup_thread);
-EXPORT_SYMBOL(md_print_devices);
 EXPORT_SYMBOL(md_check_recovery);
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("md");
