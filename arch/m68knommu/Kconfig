@@ -382,6 +382,12 @@ config COBRA5272
 	help
 	  Support for the senTec COBRA5272 board.
 
+config AVNET5282
+	bool "Avnet 5282 board support"
+	depends on M528x
+	help
+	  Support for the Avnet 5282 board.  
+	  
 config M5282EVB
 	bool "Motorola M5282EVB board support"
 	depends on M528x
@@ -525,6 +531,11 @@ config SNEHA
         bool
 	default y
 	depends on CPU16B
+	
+config AVNET
+	bool
+	default y
+	depends on (AVNET5282)
 
 config LARGE_ALLOCS
 	bool "Allow allocating large blocks (> 1MB) of memory"
