@@ -71,6 +71,7 @@
  */
 
 struct cpuinfo_x86 boot_cpu_data __read_mostly;
+EXPORT_SYMBOL(boot_cpu_data);
 
 unsigned long mmu_cr4_features;
 
@@ -99,6 +100,7 @@ char dmi_alloc_data[DMI_MAX_DATA];
  * Setup options
  */
 struct screen_info screen_info;
+EXPORT_SYMBOL(screen_info);
 struct sys_desc_table_struct {
 	unsigned short length;
 	unsigned char table[0];

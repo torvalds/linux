@@ -51,6 +51,7 @@ extern int using_apic_timer;
 static char *time_init_gtod(void);
 
 DEFINE_SPINLOCK(rtc_lock);
+EXPORT_SYMBOL(rtc_lock);
 DEFINE_SPINLOCK(i8253_lock);
 
 int nohpet __initdata = 0;
@@ -64,6 +65,7 @@ static int notsc __initdata = 0;
 #define US_SCALE	32 /* 2^32, arbitralrily chosen */
 
 unsigned int cpu_khz;					/* TSC clocks / usec, not used here */
+EXPORT_SYMBOL(cpu_khz);
 static unsigned long hpet_period;			/* fsecs / HPET clock */
 unsigned long hpet_tick;				/* HPET clocks / interrupt */
 int hpet_use_timer;				/* Use counter of hpet for time keeping, otherwise PIT */

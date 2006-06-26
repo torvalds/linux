@@ -70,6 +70,7 @@ asmlinkage void machine_check(void);
 asmlinkage void spurious_interrupt_bug(void);
 
 ATOMIC_NOTIFIER_HEAD(die_chain);
+EXPORT_SYMBOL(die_chain);
 
 int register_die_notifier(struct notifier_block *nb)
 {
@@ -431,6 +432,7 @@ void out_of_line_bug(void)
 { 
 	BUG(); 
 } 
+EXPORT_SYMBOL(out_of_line_bug);
 #endif
 
 static DEFINE_SPINLOCK(die_lock);

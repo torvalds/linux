@@ -109,6 +109,7 @@ csum_partial_copy_nocheck(const unsigned char *src, unsigned char *dst, int len,
 { 
 	return csum_partial_copy_generic(src,dst,len,sum,NULL,NULL);
 } 
+EXPORT_SYMBOL(csum_partial_copy_nocheck);
 
 unsigned short csum_ipv6_magic(struct in6_addr *saddr, struct in6_addr *daddr,
 			       __u32 len, unsigned short proto, unsigned int sum) 

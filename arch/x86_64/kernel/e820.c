@@ -620,6 +620,7 @@ void __init parse_memmapopt(char *p, char **from)
 }
 
 unsigned long pci_mem_start = 0xaeedbabe;
+EXPORT_SYMBOL(pci_mem_start);
 
 /*
  * Search for the biggest gap in the low 32 bits of the e820

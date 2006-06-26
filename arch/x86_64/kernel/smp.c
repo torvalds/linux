@@ -224,6 +224,7 @@ void flush_tlb_current_task(void)
 		flush_tlb_others(cpu_mask, mm, FLUSH_ALL);
 	preempt_enable();
 }
+EXPORT_SYMBOL(flush_tlb_current_task);
 
 void flush_tlb_mm (struct mm_struct * mm)
 {
@@ -244,6 +245,7 @@ void flush_tlb_mm (struct mm_struct * mm)
 
 	preempt_enable();
 }
+EXPORT_SYMBOL(flush_tlb_mm);
 
 void flush_tlb_page(struct vm_area_struct * vma, unsigned long va)
 {
@@ -266,6 +268,7 @@ void flush_tlb_page(struct vm_area_struct * vma, unsigned long va)
 
 	preempt_enable();
 }
+EXPORT_SYMBOL(flush_tlb_page);
 
 static void do_flush_tlb_all(void* info)
 {
@@ -443,6 +446,7 @@ int smp_call_function (void (*func) (void *info), void *info, int nonatomic,
 	spin_unlock(&call_lock);
 	return 0;
 }
+EXPORT_SYMBOL(smp_call_function);
 
 void smp_stop_cpu(void)
 {

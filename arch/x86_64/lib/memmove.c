@@ -3,6 +3,7 @@
  */
 #define _STRING_C
 #include <linux/string.h>
+#include <linux/module.h>
 
 #undef memmove
 void *memmove(void * dest,const void *src,size_t count)
@@ -17,3 +18,4 @@ void *memmove(void * dest,const void *src,size_t count)
 	}
 	return dest;
 } 
+EXPORT_SYMBOL(memmove);

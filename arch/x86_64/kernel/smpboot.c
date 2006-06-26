@@ -63,9 +63,11 @@
 
 /* Number of siblings per CPU package */
 int smp_num_siblings = 1;
+EXPORT_SYMBOL(smp_num_siblings);
 
 /* Last level cache ID of each logical CPU */
 u8 cpu_llc_id[NR_CPUS] __cpuinitdata  = {[0 ... NR_CPUS-1] = BAD_APICID};
+EXPORT_SYMBOL(cpu_llc_id);
 
 /* Bitmask of currently online CPUs */
 cpumask_t cpu_online_map __read_mostly;
@@ -78,18 +80,21 @@ EXPORT_SYMBOL(cpu_online_map);
  */
 cpumask_t cpu_callin_map;
 cpumask_t cpu_callout_map;
+EXPORT_SYMBOL(cpu_callout_map);
 
 cpumask_t cpu_possible_map;
 EXPORT_SYMBOL(cpu_possible_map);
 
 /* Per CPU bogomips and other parameters */
 struct cpuinfo_x86 cpu_data[NR_CPUS] __cacheline_aligned;
+EXPORT_SYMBOL(cpu_data);
 
 /* Set when the idlers are all forked */
 int smp_threads_ready;
 
 /* representing HT siblings of each logical CPU */
 cpumask_t cpu_sibling_map[NR_CPUS] __read_mostly;
+EXPORT_SYMBOL(cpu_sibling_map);
 
 /* representing HT and core siblings of each logical CPU */
 cpumask_t cpu_core_map[NR_CPUS] __read_mostly;
