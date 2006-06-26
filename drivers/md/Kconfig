@@ -137,7 +137,7 @@ config MD_RAID456
 
 config MD_RAID5_RESHAPE
 	bool "Support adding drives to a raid-5 array (experimental)"
-	depends on MD_RAID5 && EXPERIMENTAL
+	depends on MD_RAID456 && EXPERIMENTAL
 	---help---
 	  A RAID-5 set can be expanded by adding extra drives. This
 	  requires "restriping" the array which means (almost) every
