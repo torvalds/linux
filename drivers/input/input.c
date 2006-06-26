@@ -64,11 +64,13 @@ void input_event(struct input_dev *dev, unsigned int type, unsigned int code, in
 		case EV_SYN:
 			switch (code) {
 				case SYN_CONFIG:
-					if (dev->event) dev->event(dev, type, code, value);
+					if (dev->event)
+						dev->event(dev, type, code, value);
 					break;
 
 				case SYN_REPORT:
-					if (dev->sync) return;
+					if (dev->sync)
+						return;
 					dev->sync = 1;
 					break;
 			}
@@ -137,7 +139,8 @@ void input_event(struct input_dev *dev, unsigned int type, unsigned int code, in
 			if (code > MSC_MAX || !test_bit(code, dev->mscbit))
 				return;
 
-			if (dev->event) dev->event(dev, type, code, value);
+			if (dev->event)
+				dev->event(dev, type, code, value);
 
 			break;
 
@@ -147,7 +150,9 @@ void input_event(struct input_dev *dev, unsigned int type, unsigned int code, in
 				return;
 
 			change_bit(code, dev->led);
-			if (dev->event) dev->event(dev, type, code, value);
+
+			if (dev->event)
+				dev->event(dev, type, code, value);
 
 			break;
 
@@ -159,21 +164,25 @@ void input_event(struct input_dev *dev, unsigned int type, unsigned int code, in
 			if (!!test_bit(code, dev->snd) != !!value)
 				change_bit(code, dev->snd);
 
-			if (dev->event) dev->event(dev, type, code, value);
+			if (dev->event)
+				dev->event(dev, type, code, value);
 
 			break;
 
 		case EV_REP:
 
-			if (code > REP_MAX || value < 0 || dev->rep[code] == value) return;
+			if (code > REP_MAX || value < 0 || dev->rep[code] == value)
+				return;
 
 			dev->rep[code] = value;
-			if (dev->event) dev->event(dev, type, code, value);
+			if (dev->event)
+				dev->event(dev, type, code, value);
 
 			break;
 
 		case EV_FF:
-			if (dev->event) dev->event(dev, type, code, value);
+			if (dev->event)
+				dev->event(dev, type, code, value);
 			break;
 	}
 
@@ -336,9 +345,11 @@ static inline void input_wakeup_procfs_readers(void)
 static unsigned int input_proc_devices_poll(struct file *file, poll_table *wait)
 {
 	int state = input_devices_state;
+
 	poll_wait(file, &input_devices_poll_wait, wait);
 	if (state != input_devices_state)
 		return POLLIN | POLLRDNORM;
+
 	return 0;
 }
 
@@ -972,9 +983,10 @@ int input_register_device(struct input_dev *dev)
 
 void input_unregister_device(struct input_dev *dev)
 {
-	struct list_head * node, * next;
+	struct list_head *node, *next;
 
-	if (!dev) return;
+	if (!dev)
+		return;
 
 	del_timer_sync(&dev->timer);
 
@@ -1005,7 +1017,8 @@ void input_register_handler(struct input_handler *handler)
 	struct input_handle *handle;
 	struct input_device_id *id;
 
-	if (!handler) return;
+	if (!handler)
+		return;
 
 	INIT_LIST_HEAD(&handler->h_list);
 
@@ -1025,7 +1038,7 @@ void input_register_handler(struct input_handler *handler)
 
 void input_unregister_handler(struct input_handler *handler)
 {
-	struct list_head * node, * next;
+	struct list_head *node, *next;
 
 	list_for_each_safe(node, next, &handler->h_list) {
 		struct input_handle * handle = to_handle_h(node);

@@ -35,7 +35,7 @@
  * e-mail - mail your message to <jsimmons@infradead.org>.
  */
 
-#define TSDEV_MINOR_BASE 	128
+#define TSDEV_MINOR_BASE	128
 #define TSDEV_MINORS		32
 /* First 16 devices are h3600_ts compatible; second 16 are h3600_tsraw */
 #define TSDEV_MINOR_MASK	15
@@ -230,6 +230,7 @@ static ssize_t tsdev_read(struct file *file, char __user *buffer, size_t count,
 static unsigned int tsdev_poll(struct file *file, poll_table * wait)
 {
 	struct tsdev_list *list = file->private_data;
+
 	poll_wait(file, &list->tsdev->wait, wait);
 	return ((list->head == list->tail) ? 0 : (POLLIN | POLLRDNORM)) |
 		(list->tsdev->exist ? 0 : (POLLHUP | POLLERR));
@@ -248,11 +249,13 @@ static int tsdev_ioctl(struct inode *inode, struct file *file,
 				  sizeof (struct ts_calibration)))
 			retval = -EFAULT;
 		break;
+
 	case TS_SET_CAL:
 		if (copy_from_user (&tsdev->cal, (void __user *)arg,
 				    sizeof (struct ts_calibration)))
 			retval = -EFAULT;
 		break;
+
 	default:
 		retval = -EINVAL;
 		break;
@@ -284,9 +287,11 @@ static void tsdev_event(struct input_handle *handle, unsigned int type,
 		case ABS_X:
 			tsdev->x = value;
 			break;
+
 		case ABS_Y:
 			tsdev->y = value;
 			break;
+
 		case ABS_PRESSURE:
 			if (value > handle->dev->absmax[ABS_PRESSURE])
 				value = handle->dev->absmax[ABS_PRESSURE];
@@ -307,6 +312,7 @@ static void tsdev_event(struct input_handle *handle, unsigned int type,
 			else if (tsdev->x > xres)
 				tsdev->x = xres;
 			break;
+
 		case REL_Y:
 			tsdev->y += value;
 			if (tsdev->y < 0)
@@ -323,6 +329,7 @@ static void tsdev_event(struct input_handle *handle, unsigned int type,
 			case 0:
 				tsdev->pressure = 0;
 				break;
+
 			case 1:
 				if (!tsdev->pressure)
 					tsdev->pressure = 1;
@@ -370,9 +377,8 @@ static struct input_handle *tsdev_connect(struct input_handler *handler,
 	struct class_device *cdev;
 	int minor, delta;
 
-	for (minor = 0; minor < TSDEV_MINORS/2 && tsdev_table[minor];
-	     minor++);
-	if (minor >= TSDEV_MINORS/2) {
+	for (minor = 0; minor < TSDEV_MINORS / 2 && tsdev_table[minor]; minor++);
+	if (minor >= TSDEV_MINORS / 2) {
 		printk(KERN_ERR
 		       "tsdev: You have way too many touchscreens\n");
 		return NULL;
@@ -444,22 +450,22 @@ static struct input_device_id tsdev_ids[] = {
 	      .evbit	= { BIT(EV_KEY) | BIT(EV_REL) },
 	      .keybit	= { [LONG(BTN_LEFT)] = BIT(BTN_LEFT) },
 	      .relbit	= { BIT(REL_X) | BIT(REL_Y) },
-	 },/* A mouse like device, at least one button, two relative axes */
+	}, /* A mouse like device, at least one button, two relative axes */
 
 	{
 	      .flags	= INPUT_DEVICE_ID_MATCH_EVBIT | INPUT_DEVICE_ID_MATCH_KEYBIT | INPUT_DEVICE_ID_MATCH_ABSBIT,
 	      .evbit	= { BIT(EV_KEY) | BIT(EV_ABS) },
 	      .keybit	= { [LONG(BTN_TOUCH)] = BIT(BTN_TOUCH) },
 	      .absbit	= { BIT(ABS_X) | BIT(ABS_Y) },
-	 },/* A tablet like device, at least touch detection, two absolute axes */
+	}, /* A tablet like device, at least touch detection, two absolute axes */
 
 	{
 	      .flags	= INPUT_DEVICE_ID_MATCH_EVBIT | INPUT_DEVICE_ID_MATCH_ABSBIT,
 	      .evbit	= { BIT(EV_ABS) },
 	      .absbit	= { BIT(ABS_X) | BIT(ABS_Y) | BIT(ABS_PRESSURE) },
-	 },/* A tablet like device with several gradations of pressure */
+	}, /* A tablet like device with several gradations of pressure */
 
-	{},/* Terminating entry */
+	{} /* Terminating entry */
 };
 
 MODULE_DEVICE_TABLE(input, tsdev_ids);
