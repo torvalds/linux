@@ -303,7 +303,7 @@ ieee80211softmac_assoc_work(void *d)
 		dprintk(KERN_INFO PFX "Already requested authentication, waiting...\n");
 		if(!mac->associnfo.assoc_wait) {
 			mac->associnfo.assoc_wait = 1;
-			ieee80211softmac_notify_internal(mac, IEEE80211SOFTMAC_EVENT_ANY, found, ieee80211softmac_assoc_notify, NULL, GFP_KERNEL);
+			ieee80211softmac_notify_internal(mac, IEEE80211SOFTMAC_EVENT_ANY, found, ieee80211softmac_assoc_notify_auth, NULL, GFP_KERNEL);
 		}
 		return;
 	}
@@ -314,7 +314,7 @@ ieee80211softmac_assoc_work(void *d)
 			if(!mac->associnfo.assoc_wait) {
 				dprintk(KERN_INFO PFX "Cannot associate without being authenticated, requested authentication\n");
 				mac->associnfo.assoc_wait = 1;
-				ieee80211softmac_notify_internal(mac, IEEE80211SOFTMAC_EVENT_ANY, found, ieee80211softmac_assoc_notify, NULL, GFP_KERNEL);
+				ieee80211softmac_notify_internal(mac, IEEE80211SOFTMAC_EVENT_ANY, found, ieee80211softmac_assoc_notify_auth, NULL, GFP_KERNEL);
 			}
 		} else {
 			printkl(KERN_WARNING PFX "Not authenticated, but requesting authentication failed. Giving up to associate\n");
