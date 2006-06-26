@@ -1135,9 +1135,13 @@ int tipc_link_send(struct sk_buff *buf, u32 dest, u32 selector)
 	if (n_ptr) {
 		tipc_node_lock(n_ptr);
 		l_ptr = n_ptr->active_links[selector & 1];
-		dbg("tipc_link_send: found link %x for dest %x\n", l_ptr, dest);
 		if (l_ptr) {
+			dbg("tipc_link_send: found link %x for dest %x\n", l_ptr, dest);
 			res = tipc_link_send_buf(l_ptr, buf);
+		} else {
+			dbg("Attempt to send msg to unreachable node:\n");
+			msg_dbg(buf_msg(buf),">>>");
+			buf_discard(buf);
 		}
 		tipc_node_unlock(n_ptr);
 	} else {
