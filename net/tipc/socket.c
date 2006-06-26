@@ -1244,7 +1244,7 @@ static int connect(struct socket *sock, struct sockaddr *dest, int destlen,
    if (sock->state != SS_UNCONNECTED)
            return -EISCONN;
 
-   if ((dst->family != AF_TIPC) ||
+   if ((destlen < sizeof(*dst)) || (dst->family != AF_TIPC) ||
        ((dst->addrtype != TIPC_ADDR_NAME) && (dst->addrtype != TIPC_ADDR_ID)))
            return -EINVAL;
 
