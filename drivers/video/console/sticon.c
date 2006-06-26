@@ -75,7 +75,7 @@ static inline void cursor_undrawn(void)
     cursor_drawn = 0;
 }
 
-static const char *__init sticon_startup(void)
+static const char *sticon_startup(void)
 {
     return "STI console";
 }
