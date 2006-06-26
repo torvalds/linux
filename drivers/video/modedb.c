@@ -791,8 +791,9 @@ struct fb_videomode *fb_find_best_mode(struct fb_var_screeninfo *var,
 			if (diff > d) {
 				diff = d;
 				best = mode;
-			} else if (diff == d && mode->refresh > best->refresh)
-			    best = mode;
+			} else if (diff == d && best &&
+				   mode->refresh > best->refresh)
+				best = mode;
 		}
 	}
 	return best;
