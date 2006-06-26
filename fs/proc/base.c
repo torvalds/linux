@@ -1074,24 +1074,27 @@ static int proc_check_dentry_visible(struct inode *inode,
 	 * namespace, or are simply process local (like pipes).
 	 */
 	struct task_struct *task;
-	struct files_struct *task_files, *files;
 	int error = -EACCES;
 
 	/* See if the the two tasks share a commone set of
 	 * file descriptors.  If so everything is visible.
 	 */
-	task = get_proc_task(inode);
-	if (!task)
-		goto out;
-	files = get_files_struct(current);
-	task_files = get_files_struct(task);
-	if (files && task_files && (files == task_files))
-		error = 0;
-	if (task_files)
-		put_files_struct(task_files);
-	if (files)
-		put_files_struct(files);
-	put_task_struct(task);
+	rcu_read_lock();
+	task = tref_task(proc_tref(inode));
+	if (task) {
+		struct files_struct *task_files, *files;
+		/* This test answeres the question:
+		 * Is there a point in time since we looked up the
+		 * file descriptor where the two tasks share the
+		 * same files struct?
+		 */
+		rmb();
+		files = current->files;
+		task_files = task->files;
+		if (files && (files == task_files))
+			error = 0;
+	}
+	rcu_read_unlock();
 	if (!error)
 		goto out;
 
