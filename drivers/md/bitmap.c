@@ -14,9 +14,6 @@
  *
  * flush after percent set rather than just time based. (maybe both).
  * wait if count gets too high, wake when it drops to half.
- * allow bitmap to be mirrored with superblock (before or after...)
- * allow hot-add to re-instate a current device.
- * allow hot-add of bitmap after quiessing device
  */
 
 #include <linux/module.h>
@@ -68,23 +65,6 @@
 static inline char * bmname(struct bitmap *bitmap)
 {
 	return bitmap->mddev ? mdname(bitmap->mddev) : "mdX";
-}
-
-
-/*
- * test if the bitmap is active
- */
-int bitmap_active(struct bitmap *bitmap)
-{
-	unsigned long flags;
-	int res = 0;
-
-	if (!bitmap)
-		return res;
-	spin_lock_irqsave(&bitmap->lock, flags);
-	res = bitmap->flags & BITMAP_ACTIVE;
-	spin_unlock_irqrestore(&bitmap->lock, flags);
-	return res;
 }
 
 #define WRITE_POOL_SIZE 256
@@ -1495,8 +1475,6 @@ int bitmap_create(mddev_t *mddev)
 	err = -ENOMEM;
 	if (!bitmap->bp)
 		goto error;
-
-	bitmap->flags |= BITMAP_ACTIVE;
 
 	/* now that we have some pages available, initialize the in-memory
 	 * bitmap from the on-disk bitmap */
