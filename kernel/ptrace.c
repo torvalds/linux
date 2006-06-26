@@ -214,7 +214,7 @@ out:
 	return retval;
 }
 
-void __ptrace_detach(struct task_struct *child, unsigned int data)
+static inline void __ptrace_detach(struct task_struct *child, unsigned int data)
 {
 	child->exit_code = data;
 	/* .. re-parent .. */
@@ -233,6 +233,7 @@ int ptrace_detach(struct task_struct *child, unsigned int data)
 	ptrace_disable(child);
 
 	write_lock_irq(&tasklist_lock);
+	/* protect against de_thread()->release_task() */
 	if (child->ptrace)
 		__ptrace_detach(child, data);
 	write_unlock_irq(&tasklist_lock);

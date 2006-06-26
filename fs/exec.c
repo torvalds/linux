@@ -1368,12 +1368,14 @@ static void format_corename(char *corename, const char *pattern, long signr)
 	*out_ptr = 0;
 }
 
-static void zap_process(struct task_struct *start, int *ptraced)
+static void zap_process(struct task_struct *start)
 {
 	struct task_struct *t;
 	unsigned long flags;
 
 	spin_lock_irqsave(&start->sighand->siglock, flags);
+	start->signal->flags = SIGNAL_GROUP_EXIT;
+	start->signal->group_stop_count = 0;
 
 	t = start;
 	do {
@@ -1381,22 +1383,17 @@ static void zap_process(struct task_struct *start, int *ptraced)
 			t->mm->core_waiters++;
 			sigaddset(&t->pending.signal, SIGKILL);
 			signal_wake_up(t, 1);
-
-			if (unlikely(t->ptrace) &&
-			    unlikely(t->parent->mm == t->mm))
-				*ptraced = 1;
 		}
 	} while ((t = next_thread(t)) != start);
 
 	spin_unlock_irqrestore(&start->sighand->siglock, flags);
 }
 
-static void zap_threads (struct mm_struct *mm)
+static void zap_threads(struct mm_struct *mm)
 {
 	struct task_struct *g, *p;
 	struct task_struct *tsk = current;
 	struct completion *vfork_done = tsk->vfork_done;
-	int traced = 0;
 
 	/*
 	 * Make sure nobody is waiting for us to release the VM,
@@ -1413,29 +1410,12 @@ static void zap_threads (struct mm_struct *mm)
 		do {
 			if (p->mm) {
 				if (p->mm == mm)
-					zap_process(p, &traced);
+					zap_process(p);
 				break;
 			}
 		} while ((p = next_thread(p)) != g);
 	}
 	read_unlock(&tasklist_lock);
-
-	if (unlikely(traced)) {
-		/*
-		 * We are zapping a thread and the thread it ptraces.
-		 * If the tracee went into a ptrace stop for exit tracing,
-		 * we could deadlock since the tracer is waiting for this
-		 * coredump to finish.  Detach them so they can both die.
-		 */
-		write_lock_irq(&tasklist_lock);
-		do_each_thread(g,p) {
-			if (mm == p->mm && p != tsk &&
-			    p->ptrace && p->parent->mm == mm) {
-				__ptrace_detach(p, 0);
-			}
-		} while_each_thread(g,p);
-		write_unlock_irq(&tasklist_lock);
-	}
 }
 
 static void coredump_wait(struct mm_struct *mm)
