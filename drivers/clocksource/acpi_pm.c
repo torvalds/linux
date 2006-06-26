@@ -30,7 +30,7 @@
  * The location is detected during setup_arch(),
  * in arch/i386/acpi/boot.c
  */
-u32 pmtmr_ioport;
+u32 pmtmr_ioport __read_mostly;
 
 #define ACPI_PM_MASK 0xFFFFFF /* limit it to 24 bits */
 
@@ -47,7 +47,7 @@ static cycle_t acpi_pm_read_verified(void)
 	/*
 	 * It has been reported that because of various broken
 	 * chipsets (ICH4, PIIX4 and PIIX4E) where the ACPI PM clock
-	 * source is not latched, so you must read it multiple
+	 * source is not latched, you must read it multiple
 	 * times to ensure a safe value is read:
 	 */
 	do {
