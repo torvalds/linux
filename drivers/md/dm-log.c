@@ -295,10 +295,10 @@ static int create_log_context(struct dirty_log *log, struct dm_target *ti,
 	 * Work out how many "unsigned long"s we need to hold the bitset.
 	 */
 	bitset_size = dm_round_up(region_count,
-				  sizeof(unsigned long) << BYTE_SHIFT);
+				  sizeof(*lc->clean_bits) << BYTE_SHIFT);
 	bitset_size >>= BYTE_SHIFT;
 
-	lc->bitset_uint32_count = bitset_size / 4;
+	lc->bitset_uint32_count = bitset_size / sizeof(*lc->clean_bits);
 
 	/*
 	 * Disk log?
