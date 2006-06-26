@@ -802,7 +802,7 @@ sector_t dm_table_get_size(struct dm_table *t)
 
 struct dm_target *dm_table_get_target(struct dm_table *t, unsigned int index)
 {
-	if (index > t->num_targets)
+	if (index >= t->num_targets)
 		return NULL;
 
 	return t->targets + index;
