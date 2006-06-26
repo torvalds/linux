@@ -113,6 +113,14 @@ noquota
 grpquota
 usrquota
 
+bh		(*)	ext3 associates buffer heads to data pages to
+nobh			(a) cache disk block mapping information
+			(b) link pages into transaction to provide
+			    ordering guarantees.
+			"bh" option forces use of buffer heads.
+			"nobh" option tries to avoid associating buffer
+			heads (supported only for "writeback" mode).
+
 
 Specification
 =============
