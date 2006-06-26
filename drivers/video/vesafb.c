@@ -460,9 +460,7 @@ static struct platform_driver vesafb_driver = {
 	},
 };
 
-static struct platform_device vesafb_device = {
-	.name	= "vesafb",
-};
+static struct platform_device *vesafb_device;
 
 static int __init vesafb_init(void)
 {
@@ -475,10 +473,19 @@ static int __init vesafb_init(void)
 	ret = platform_driver_register(&vesafb_driver);
 
 	if (!ret) {
-		ret = platform_device_register(&vesafb_device);
-		if (ret)
+		vesafb_device = platform_device_alloc("vesafb", 0);
+
+		if (vesafb_device)
+			ret = platform_device_add(vesafb_device);
+		else
+			ret = -ENOMEM;
+
+		if (ret) {
+			platform_device_put(vesafb_device);
 			platform_driver_unregister(&vesafb_driver);
+		}
 	}
+
 	return ret;
 }
 module_init(vesafb_init);
