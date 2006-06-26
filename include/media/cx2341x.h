@@ -91,7 +91,7 @@ const char **cx2341x_ctrl_get_menu(u32 id);
 int cx2341x_ext_ctrls(struct cx2341x_mpeg_params *params,
 		struct v4l2_ext_controls *ctrls, unsigned int cmd);
 void cx2341x_fill_defaults(struct cx2341x_mpeg_params *p);
-void cx2341x_log_status(struct cx2341x_mpeg_params *p, int cardid);
+void cx2341x_log_status(struct cx2341x_mpeg_params *p, const char *prefix);
 
 /* Firmware names */
 #define CX2341X_FIRM_ENC_FILENAME "v4l-cx2341x-enc.fw"
