@@ -318,6 +318,16 @@ static enum dlm_status dlm_send_remote_unlock_request(struct dlm_ctxt *dlm,
 
 	mlog_entry("%.*s\n", res->lockname.len, res->lockname.name);
 
+	if (owner == dlm->node_num) {
+		/* ended up trying to contact ourself.  this means
+		 * that the lockres had been remote but became local
+		 * via a migration.  just retry it, now as local */
+		mlog(0, "%s:%.*s: this node became the master due to a "
+		     "migration, re-evaluate now\n", dlm->name,
+		     res->lockname.len, res->lockname.name);
+		return DLM_FORWARD;
+	}
+
 	memset(&unlock, 0, sizeof(unlock));
 	unlock.node_idx = dlm->node_num;
 	unlock.flags = cpu_to_be32(flags);
