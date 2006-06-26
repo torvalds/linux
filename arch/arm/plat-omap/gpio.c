@@ -540,29 +540,44 @@ static inline void _clear_gpio_irqstatus(struct gpio_bank *bank, int gpio)
 static u32 _get_gpio_irqbank_mask(struct gpio_bank *bank)
 {
 	void __iomem *reg = bank->base;
+	int inv = 0;
+	u32 l;
+	u32 mask;
 
 	switch (bank->method) {
 	case METHOD_MPUIO:
 		reg += OMAP_MPUIO_GPIO_MASKIT;
+		mask = 0xffff;
+		inv = 1;
 		break;
 	case METHOD_GPIO_1510:
 		reg += OMAP1510_GPIO_INT_MASK;
+		mask = 0xffff;
+		inv = 1;
 		break;
 	case METHOD_GPIO_1610:
 		reg += OMAP1610_GPIO_IRQENABLE1;
+		mask = 0xffff;
 		break;
 	case METHOD_GPIO_730:
 		reg += OMAP730_GPIO_INT_MASK;
+		mask = 0xffffffff;
+		inv = 1;
 		break;
 	case METHOD_GPIO_24XX:
 		reg += OMAP24XX_GPIO_IRQENABLE1;
+		mask = 0xffffffff;
 		break;
 	default:
 		BUG();
 		return 0;
 	}
 
-	return __raw_readl(reg);
+	l = __raw_readl(reg);
+	if (inv)
+		l = ~l;
+	l &= mask;
+	return l;
 }
 
 static void _enable_gpio_irqbank(struct gpio_bank *bank, int gpio_mask, int enable)
