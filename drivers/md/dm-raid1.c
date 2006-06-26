@@ -602,7 +602,7 @@ static void recovery_complete(int read_err, unsigned int write_err,
 	struct region *reg = (struct region *) context;
 
 	/* FIXME: better error handling */
-	rh_recovery_end(reg, read_err || write_err);
+	rh_recovery_end(reg, !(read_err || write_err));
 }
 
 static int recover(struct mirror_set *ms, struct region *reg)
