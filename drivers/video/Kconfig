@@ -551,11 +551,6 @@ config FB_VESA
 	  You will get a boot time penguin logo at no additional cost. Please
 	  read <file:Documentation/fb/vesafb.txt>. If unsure, say Y.
 
-config VIDEO_SELECT
-	bool
-	depends on FB_VESA
-	default y
-
 config FB_HGA
 	tristate "Hercules mono graphics support"
 	depends on FB && X86
@@ -577,12 +572,6 @@ config FB_HGA_ACCEL
 	---help---
 	This will compile the Hercules mono graphics with
 	acceleration functions.
-
-
-config VIDEO_SELECT
-	bool
-	depends on (FB = y) && X86
-	default y
 
 config FB_SGIVW
 	tristate "SGI Visual Workstation framebuffer support"
