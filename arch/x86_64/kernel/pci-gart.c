@@ -581,7 +581,7 @@ static int __init pci_iommu_init(void)
 
 	if (cache_k8_northbridges() < 0 || num_k8_northbridges == 0) {
 		printk(KERN_INFO "PCI-GART: No AMD northbridge found.\n");
-		return -1;
+		return -ENODEV;
 	}
 
 #ifndef CONFIG_AGP_AMD64
@@ -595,7 +595,7 @@ static int __init pci_iommu_init(void)
 #endif	
 
 	if (swiotlb)
-		return -1; 
+		return -ENODEV;
 
 	if (no_iommu ||
 	    (!force_iommu && end_pfn <= MAX_DMA32_PFN) ||
@@ -607,7 +607,7 @@ static int __init pci_iommu_init(void)
 					"but IOMMU not available.\n"
 			       KERN_ERR "WARNING 32bit PCI may malfunction.\n");
 		}
-		return -1;
+		return -ENODEV;
 	}
 
 	printk(KERN_INFO "PCI-DMA: using GART IOMMU.\n");
