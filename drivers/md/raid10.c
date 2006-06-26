@@ -2015,7 +2015,8 @@ static int run(mddev_t *mddev)
 
 		disk = conf->mirrors + i;
 
-		if (!disk->rdev) {
+		if (!disk->rdev ||
+		    !test_bit(In_sync, &rdev->flags)) {
 			disk->head_position = 0;
 			mddev->degraded++;
 		}

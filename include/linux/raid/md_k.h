@@ -88,6 +88,10 @@ struct mdk_rdev_s
 					 * array and could again if we did a partial
 					 * resync from the bitmap
 					 */
+	sector_t	recovery_offset;/* If this device has been partially
+					 * recovered, this is where we were
+					 * up to.
+					 */
 
 	atomic_t	nr_pending;	/* number of pending requests.
 					 * only maintained for arrays that
@@ -183,6 +187,8 @@ struct mddev_s
 #define	MD_RECOVERY_REQUESTED	6
 #define	MD_RECOVERY_CHECK	7
 #define MD_RECOVERY_RESHAPE	8
+#define	MD_RECOVERY_FROZEN	9
+
 	unsigned long			recovery;
 
 	int				in_sync;	/* know to not need resync */

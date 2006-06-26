@@ -1175,7 +1175,11 @@ static int super_1_validate(mddev_t *mddev, mdk_rdev_t *rdev)
 			set_bit(Faulty, &rdev->flags);
 			break;
 		default:
-			set_bit(In_sync, &rdev->flags);
+			if ((le32_to_cpu(sb->feature_map) &
+			     MD_FEATURE_RECOVERY_OFFSET))
+				rdev->recovery_offset = le64_to_cpu(sb->recovery_offset);
+			else
+				set_bit(In_sync, &rdev->flags);
 			rdev->raid_disk = role;
 			break;
 		}
@@ -1199,6 +1203,7 @@ static void super_1_sync(mddev_t *mddev, mdk_rdev_t *rdev)
 
 	sb->feature_map = 0;
 	sb->pad0 = 0;
+	sb->recovery_offset = cpu_to_le64(0);
 	memset(sb->pad1, 0, sizeof(sb->pad1));
 	memset(sb->pad2, 0, sizeof(sb->pad2));
 	memset(sb->pad3, 0, sizeof(sb->pad3));
@@ -1219,6 +1224,14 @@ static void super_1_sync(mddev_t *mddev, mdk_rdev_t *rdev)
 		sb->bitmap_offset = cpu_to_le32((__u32)mddev->bitmap_offset);
 		sb->feature_map = cpu_to_le32(MD_FEATURE_BITMAP_OFFSET);
 	}
+
+	if (rdev->raid_disk >= 0 &&
+	    !test_bit(In_sync, &rdev->flags) &&
+	    rdev->recovery_offset > 0) {
+		sb->feature_map |= cpu_to_le32(MD_FEATURE_RECOVERY_OFFSET);
+		sb->recovery_offset = cpu_to_le64(rdev->recovery_offset);
+	}
+
 	if (mddev->reshape_position != MaxSector) {
 		sb->feature_map |= cpu_to_le32(MD_FEATURE_RESHAPE_ACTIVE);
 		sb->reshape_position = cpu_to_le64(mddev->reshape_position);
@@ -1243,11 +1256,12 @@ static void super_1_sync(mddev_t *mddev, mdk_rdev_t *rdev)
 			sb->dev_roles[i] = cpu_to_le16(0xfffe);
 		else if (test_bit(In_sync, &rdev2->flags))
 			sb->dev_roles[i] = cpu_to_le16(rdev2->raid_disk);
+		else if (rdev2->raid_disk >= 0 && rdev2->recovery_offset > 0)
+			sb->dev_roles[i] = cpu_to_le16(rdev2->raid_disk);
 		else
 			sb->dev_roles[i] = cpu_to_le16(0xffff);
 	}
 
-	sb->recovery_offset = cpu_to_le64(0); /* not supported yet */
 	sb->sb_csum = calc_sb_1_csum(sb);
 }
 
@@ -2603,8 +2617,6 @@ static struct kobject *md_probe(dev_t dev, int *part, void *data)
 	return NULL;
 }
 
-void md_wakeup_thread(mdk_thread_t *thread);
-
 static void md_safemode_timeout(unsigned long data)
 {
 	mddev_t *mddev = (mddev_t *) data;
@@ -2786,6 +2798,36 @@ static int do_md_run(mddev_t * mddev)
 	mddev->queue->queuedata = mddev;
 	mddev->queue->make_request_fn = mddev->pers->make_request;
 
+	/* If there is a partially-recovered drive we need to
+	 * start recovery here.  If we leave it to md_check_recovery,
+	 * it will remove the drives and not do the right thing
+	 */
+	if (mddev->degraded) {
+		struct list_head *rtmp;
+		int spares = 0;
+		ITERATE_RDEV(mddev,rdev,rtmp)
+			if (rdev->raid_disk >= 0 &&
+			    !test_bit(In_sync, &rdev->flags) &&
+			    !test_bit(Faulty, &rdev->flags))
+				/* complete an interrupted recovery */
+				spares++;
+		if (spares && mddev->pers->sync_request) {
+			mddev->recovery = 0;
+			set_bit(MD_RECOVERY_RUNNING, &mddev->recovery);
+			mddev->sync_thread = md_register_thread(md_do_sync,
+								mddev,
+								"%s_resync");
+			if (!mddev->sync_thread) {
+				printk(KERN_ERR "%s: could not start resync"
+				       " thread...\n",
+				       mdname(mddev));
+				/* leave the spares where they are, it shouldn't hurt */
+				mddev->recovery = 0;
+			} else
+				md_wakeup_thread(mddev->sync_thread);
+		}
+	}
+
 	mddev->changed = 1;
 	md_new_event(mddev);
 	return 0;
@@ -2819,6 +2861,7 @@ static int restart_array(mddev_t *mddev)
 		 */
 		set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
 		md_wakeup_thread(mddev->thread);
+		md_wakeup_thread(mddev->sync_thread);
 		err = 0;
 	} else {
 		printk(KERN_ERR "md: %s has no personality assigned.\n",
@@ -2842,6 +2885,7 @@ static int do_md_stop(mddev_t * mddev, int ro)
 		}
 
 		if (mddev->sync_thread) {
+			set_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
 			set_bit(MD_RECOVERY_INTR, &mddev->recovery);
 			md_unregister_thread(mddev->sync_thread);
 			mddev->sync_thread = NULL;
@@ -2871,13 +2915,14 @@ static int do_md_stop(mddev_t * mddev, int ro)
 			if (mddev->ro)
 				mddev->ro = 0;
 		}
-		if (!mddev->in_sync) {
+		if (!mddev->in_sync || mddev->sb_dirty) {
 			/* mark array as shutdown cleanly */
 			mddev->in_sync = 1;
 			md_update_sb(mddev);
 		}
 		if (ro)
 			set_disk_ro(disk, 1);
+		clear_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
 	}
 
 	/*
@@ -4665,9 +4710,13 @@ void md_do_sync(mddev_t *mddev)
 	struct list_head *tmp;
 	sector_t last_check;
 	int skipped = 0;
+	struct list_head *rtmp;
+	mdk_rdev_t *rdev;
 
 	/* just incase thread restarts... */
 	if (test_bit(MD_RECOVERY_DONE, &mddev->recovery))
+		return;
+	if (mddev->ro) /* never try to sync a read-only array */
 		return;
 
 	/* we overload curr_resync somewhat here.
@@ -4727,17 +4776,30 @@ void md_do_sync(mddev_t *mddev)
 		}
 	} while (mddev->curr_resync < 2);
 
+	j = 0;
 	if (test_bit(MD_RECOVERY_SYNC, &mddev->recovery)) {
 		/* resync follows the size requested by the personality,
 		 * which defaults to physical size, but can be virtual size
 		 */
 		max_sectors = mddev->resync_max_sectors;
 		mddev->resync_mismatches = 0;
+		/* we don't use the checkpoint if there's a bitmap */
+		if (!mddev->bitmap &&
+		    !test_bit(MD_RECOVERY_REQUESTED, &mddev->recovery))
+			j = mddev->recovery_cp;
 	} else if (test_bit(MD_RECOVERY_RESHAPE, &mddev->recovery))
 		max_sectors = mddev->size << 1;
-	else
+	else {
 		/* recovery follows the physical size of devices */
 		max_sectors = mddev->size << 1;
+		j = MaxSector;
+		ITERATE_RDEV(mddev,rdev,rtmp)
+			if (rdev->raid_disk >= 0 &&
+			    !test_bit(Faulty, &rdev->flags) &&
+			    !test_bit(In_sync, &rdev->flags) &&
+			    rdev->recovery_offset < j)
+				j = rdev->recovery_offset;
+	}
 
 	printk(KERN_INFO "md: syncing RAID array %s\n", mdname(mddev));
 	printk(KERN_INFO "md: minimum _guaranteed_ reconstruction speed:"
@@ -4747,12 +4809,7 @@ void md_do_sync(mddev_t *mddev)
 	       speed_max(mddev));
 
 	is_mddev_idle(mddev); /* this also initializes IO event counters */
-	/* we don't use the checkpoint if there's a bitmap */
-	if (test_bit(MD_RECOVERY_SYNC, &mddev->recovery) && !mddev->bitmap
-	    && ! test_bit(MD_RECOVERY_REQUESTED, &mddev->recovery))
-		j = mddev->recovery_cp;
-	else
-		j = 0;
+
 	io_sectors = 0;
 	for (m = 0; m < SYNC_MARKS; m++) {
 		mark[m] = jiffies;
@@ -4873,15 +4930,28 @@ void md_do_sync(mddev_t *mddev)
 	if (!test_bit(MD_RECOVERY_ERR, &mddev->recovery) &&
 	    test_bit(MD_RECOVERY_SYNC, &mddev->recovery) &&
 	    !test_bit(MD_RECOVERY_CHECK, &mddev->recovery) &&
-	    mddev->curr_resync > 2 &&
-	    mddev->curr_resync >= mddev->recovery_cp) {
-		if (test_bit(MD_RECOVERY_INTR, &mddev->recovery)) {
-			printk(KERN_INFO 
-				"md: checkpointing recovery of %s.\n",
-				mdname(mddev));
-			mddev->recovery_cp = mddev->curr_resync;
-		} else
-			mddev->recovery_cp = MaxSector;
+	    mddev->curr_resync > 2) {
+		if (test_bit(MD_RECOVERY_SYNC, &mddev->recovery)) {
+			if (test_bit(MD_RECOVERY_INTR, &mddev->recovery)) {
+				if (mddev->curr_resync >= mddev->recovery_cp) {
+					printk(KERN_INFO
+					       "md: checkpointing recovery of %s.\n",
+					       mdname(mddev));
+					mddev->recovery_cp = mddev->curr_resync;
+				}
+			} else
+				mddev->recovery_cp = MaxSector;
+		} else {
+			if (!test_bit(MD_RECOVERY_INTR, &mddev->recovery))
+				mddev->curr_resync = MaxSector;
+			ITERATE_RDEV(mddev,rdev,rtmp)
+				if (rdev->raid_disk >= 0 &&
+				    !test_bit(Faulty, &rdev->flags) &&
+				    !test_bit(In_sync, &rdev->flags) &&
+				    rdev->recovery_offset < mddev->curr_resync)
+					rdev->recovery_offset = mddev->curr_resync;
+			mddev->sb_dirty = 1;
+		}
 	}
 
  skip:
@@ -5002,6 +5072,8 @@ void md_check_recovery(mddev_t *mddev)
 		clear_bit(MD_RECOVERY_INTR, &mddev->recovery);
 		clear_bit(MD_RECOVERY_DONE, &mddev->recovery);
 
+		if (test_bit(MD_RECOVERY_FROZEN, &mddev->recovery))
+			goto unlock;
 		/* no recovery is running.
 		 * remove any failed drives, then
 		 * add spares if possible.
@@ -5024,6 +5096,7 @@ void md_check_recovery(mddev_t *mddev)
 			ITERATE_RDEV(mddev,rdev,rtmp)
 				if (rdev->raid_disk < 0
 				    && !test_bit(Faulty, &rdev->flags)) {
+					rdev->recovery_offset = 0;
 					if (mddev->pers->hot_add_disk(mddev,rdev)) {
 						char nm[20];
 						sprintf(nm, "rd%d", rdev->raid_disk);

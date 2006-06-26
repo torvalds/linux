@@ -3555,6 +3555,7 @@ static int raid5_start_reshape(mddev_t *mddev)
 				set_bit(In_sync, &rdev->flags);
 				conf->working_disks++;
 				added_devices++;
+				rdev->recovery_offset = 0;
 				sprintf(nm, "rd%d", rdev->raid_disk);
 				sysfs_create_link(&mddev->kobj, &rdev->kobj, nm);
 			} else
