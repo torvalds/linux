@@ -766,6 +766,10 @@ static int specific_minor(struct mapped_device *md, unsigned int minor)
 	if (minor >= (1 << MINORBITS))
 		return -EINVAL;
 
+	r = idr_pre_get(&_minor_idr, GFP_KERNEL);
+	if (!r)
+		return -ENOMEM;
+
 	mutex_lock(&_minor_lock);
 
 	if (idr_find(&_minor_idr, minor)) {
@@ -773,16 +777,9 @@ static int specific_minor(struct mapped_device *md, unsigned int minor)
 		goto out;
 	}
 
-	r = idr_pre_get(&_minor_idr, GFP_KERNEL);
-	if (!r) {
-		r = -ENOMEM;
-		goto out;
-	}
-
 	r = idr_get_new_above(&_minor_idr, MINOR_ALLOCED, minor, &m);
-	if (r) {
+	if (r)
 		goto out;
-	}
 
 	if (m != minor) {
 		idr_remove(&_minor_idr, m);
@@ -800,13 +797,11 @@ static int next_free_minor(struct mapped_device *md, unsigned int *minor)
 	int r;
 	unsigned int m;
 
-	mutex_lock(&_minor_lock);
-
 	r = idr_pre_get(&_minor_idr, GFP_KERNEL);
-	if (!r) {
-		r = -ENOMEM;
-		goto out;
-	}
+	if (!r)
+		return -ENOMEM;
+
+	mutex_lock(&_minor_lock);
 
 	r = idr_get_new(&_minor_idr, MINOR_ALLOCED, &m);
 	if (r) {
