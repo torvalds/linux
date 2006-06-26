@@ -549,31 +549,6 @@ static void pdc202xx_reset (ide_drive_t *drive)
 #endif
 }
 
-/*
- * Since SUN Cobalt is attempting to do this operation, I should disclose
- * this has been a long time ago Thu Jul 27 16:40:57 2000 was the patch date
- * HOTSWAP ATA Infrastructure.
- */
-static int pdc202xx_tristate (ide_drive_t * drive, int state)
-{
-	ide_hwif_t *hwif	= HWIF(drive);
-//	unsigned long high_16	= hwif->dma_base - (8*(hwif->channel));
-	unsigned long high_16	= hwif->dma_master;
-	u8 sc1f			= hwif->INB(high_16|0x001f);
-
-	if (!hwif)
-		return -EINVAL;
-
-//	hwif->bus_state = state;
-
-	if (state) {
-		hwif->OUTB(sc1f | 0x08, (high_16|0x001f));
-	} else {
-		hwif->OUTB(sc1f & ~0x08, (high_16|0x001f));
-	}
-	return 0;
-}
-
 static unsigned int __devinit init_chipset_pdc202xx(struct pci_dev *dev, const char *name)
 {
 	if (dev->resource[PCI_ROM_RESOURCE].start) {
@@ -623,10 +598,8 @@ static void __devinit init_hwif_pdc202xx(ide_hwif_t *hwif)
 	hwif->tuneproc  = &config_chipset_for_pio;
 	hwif->quirkproc = &pdc202xx_quirkproc;
 
-	if (hwif->pci_dev->device != PCI_DEVICE_ID_PROMISE_20246) {
-		hwif->busproc   = &pdc202xx_tristate;
+	if (hwif->pci_dev->device != PCI_DEVICE_ID_PROMISE_20246)
 		hwif->resetproc = &pdc202xx_reset;
-	}
 
 	hwif->speedproc = &pdc202xx_tune_chipset;
 
