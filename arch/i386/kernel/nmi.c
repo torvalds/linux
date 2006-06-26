@@ -14,20 +14,15 @@
  */
 
 #include <linux/config.h>
-#include <linux/mm.h>
 #include <linux/delay.h>
-#include <linux/bootmem.h>
-#include <linux/smp_lock.h>
 #include <linux/interrupt.h>
-#include <linux/mc146818rtc.h>
-#include <linux/kernel_stat.h>
 #include <linux/module.h>
 #include <linux/nmi.h>
 #include <linux/sysdev.h>
 #include <linux/sysctl.h>
+#include <linux/percpu.h>
 
 #include <asm/smp.h>
-#include <asm/div64.h>
 #include <asm/nmi.h>
 
 #include "mach_traps.h"

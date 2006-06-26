@@ -38,6 +38,7 @@
 #include <asm/desc.h>
 #include <asm/timer.h>
 #include <asm/i8259.h>
+#include <asm/nmi.h>
 
 #include <mach_apic.h>
 

@@ -41,6 +41,7 @@
 #include <asm/mach_apic.h>
 #include <asm/acpi.h>
 #include <asm/dma.h>
+#include <asm/nmi.h>
 
 #define __apicdebuginit  __init
 

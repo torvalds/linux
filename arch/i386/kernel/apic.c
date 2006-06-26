@@ -36,6 +36,7 @@
 #include <asm/arch_hooks.h>
 #include <asm/hpet.h>
 #include <asm/i8253.h>
+#include <asm/nmi.h>
 
 #include <mach_apic.h>
 #include <mach_apicdef.h>

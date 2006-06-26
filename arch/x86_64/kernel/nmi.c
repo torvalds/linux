@@ -15,11 +15,7 @@
 #include <linux/config.h>
 #include <linux/mm.h>
 #include <linux/delay.h>
-#include <linux/bootmem.h>
-#include <linux/smp_lock.h>
 #include <linux/interrupt.h>
-#include <linux/mc146818rtc.h>
-#include <linux/kernel_stat.h>
 #include <linux/module.h>
 #include <linux/sysdev.h>
 #include <linux/nmi.h>
@@ -27,13 +23,9 @@
 #include <linux/kprobes.h>
 
 #include <asm/smp.h>
-#include <asm/mtrr.h>
-#include <asm/mpspec.h>
 #include <asm/nmi.h>
-#include <asm/msr.h>
 #include <asm/proto.h>
 #include <asm/kdebug.h>
-#include <asm/local.h>
 #include <asm/mce.h>
 
 /*
