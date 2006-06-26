@@ -63,6 +63,7 @@ union map_info *dm_get_mapinfo(struct bio *bio)
 #define DMF_BLOCK_IO 0
 #define DMF_SUSPENDED 1
 #define DMF_FROZEN 2
+#define DMF_FREEING 3
 
 struct mapped_device {
 	struct rw_semaphore io_lock;
@@ -221,9 +222,23 @@ static int dm_blk_open(struct inode *inode, struct file *file)
 {
 	struct mapped_device *md;
 
+	spin_lock(&_minor_lock);
+
 	md = inode->i_bdev->bd_disk->private_data;
+	if (!md)
+		goto out;
+
+	if (test_bit(DMF_FREEING, &md->flags)) {
+		md = NULL;
+		goto out;
+	}
+
 	dm_get(md);
-	return 0;
+
+out:
+	spin_unlock(&_minor_lock);
+
+	return md ? 0 : -ENXIO;
 }
 
 static int dm_blk_close(struct inode *inode, struct file *file)
@@ -919,6 +934,11 @@ static void free_dev(struct mapped_device *md)
 	mempool_destroy(md->io_pool);
 	del_gendisk(md->disk);
 	free_minor(minor);
+
+	spin_lock(&_minor_lock);
+	md->disk->private_data = NULL;
+	spin_unlock(&_minor_lock);
+
 	put_disk(md->disk);
 	blk_cleanup_queue(md->queue);
 	kfree(md);
@@ -1023,9 +1043,14 @@ static struct mapped_device *dm_find_md(dev_t dev)
 	spin_lock(&_minor_lock);
 
 	md = idr_find(&_minor_idr, minor);
-	if (md && (md == MINOR_ALLOCED || (dm_disk(md)->first_minor != minor)))
+	if (md && (md == MINOR_ALLOCED ||
+		   (dm_disk(md)->first_minor != minor) ||
+	           test_bit(DMF_FREEING, &md->flags))) {
 		md = NULL;
+		goto out;
+	}
 
+out:
 	spin_unlock(&_minor_lock);
 
 	return md;
@@ -1060,9 +1085,12 @@ void dm_put(struct mapped_device *md)
 {
 	struct dm_table *map;
 
+	BUG_ON(test_bit(DMF_FREEING, &md->flags));
+
 	if (atomic_dec_and_lock(&md->holders, &_minor_lock)) {
 		map = dm_get_table(md);
 		idr_replace(&_minor_idr, MINOR_ALLOCED, dm_disk(md)->first_minor);
+		set_bit(DMF_FREEING, &md->flags);
 		spin_unlock(&_minor_lock);
 		if (!dm_suspended(md)) {
 			dm_table_presuspend_targets(map);
