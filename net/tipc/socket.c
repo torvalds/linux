@@ -731,6 +731,7 @@ static int anc_data_recv(struct msghdr *m, struct tipc_msg *msg,
 	u32 anc_data[3];
 	u32 err;
 	u32 dest_type;
+	int has_name;
 	int res;
 
 	if (likely(m->msg_controllen == 0))
@@ -755,24 +756,27 @@ static int anc_data_recv(struct msghdr *m, struct tipc_msg *msg,
 	dest_type = msg ? msg_type(msg) : TIPC_DIRECT_MSG;
 	switch (dest_type) {
 	case TIPC_NAMED_MSG:
+		has_name = 1;
 		anc_data[0] = msg_nametype(msg);
 		anc_data[1] = msg_namelower(msg);
 		anc_data[2] = msg_namelower(msg);
 		break;
 	case TIPC_MCAST_MSG:
+		has_name = 1;
 		anc_data[0] = msg_nametype(msg);
 		anc_data[1] = msg_namelower(msg);
 		anc_data[2] = msg_nameupper(msg);
 		break;
 	case TIPC_CONN_MSG:
+		has_name = (tport->conn_type != 0);
 		anc_data[0] = tport->conn_type;
 		anc_data[1] = tport->conn_instance;
 		anc_data[2] = tport->conn_instance;
 		break;
 	default:
-		anc_data[0] = 0;
+		has_name = 0;
 	}
-	if (anc_data[0] &&
+	if (has_name &&
 	    (res = put_cmsg(m, SOL_SOCKET, TIPC_DESTNAME, 12, anc_data)))
 		return res;
 
