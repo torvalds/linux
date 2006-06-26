@@ -100,7 +100,7 @@ void clear_local_APIC(void)
 	maxlvt = get_maxlvt();
 
 	/*
-	 * Masking an LVT entry on a P6 can trigger a local APIC error
+	 * Masking an LVT entry can trigger a local APIC error
 	 * if the vector is zero. Mask LVTERR first to prevent this.
 	 */
 	if (maxlvt >= 3) {
@@ -851,7 +851,18 @@ void disable_APIC_timer(void)
 		unsigned long v;
 
 		v = apic_read(APIC_LVTT);
-		apic_write(APIC_LVTT, v | APIC_LVT_MASKED);
+		/*
+		 * When an illegal vector value (0-15) is written to an LVT
+		 * entry and delivery mode is Fixed, the APIC may signal an
+		 * illegal vector error, with out regard to whether the mask
+		 * bit is set or whether an interrupt is actually seen on input.
+		 *
+		 * Boot sequence might call this function when the LVTT has
+		 * '0' vector value. So make sure vector field is set to
+		 * valid value.
+		 */
+		v |= (APIC_LVT_MASKED | LOCAL_TIMER_VECTOR);
+		apic_write(APIC_LVTT, v);
 	}
 }
 
