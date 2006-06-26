@@ -1821,7 +1821,7 @@ static inline void check_huge_range(struct vm_area_struct *vma,
 
 int show_numa_map(struct seq_file *m, void *v)
 {
-	struct task_struct *task = m->private;
+	struct proc_maps_private *priv = m->private;
 	struct vm_area_struct *vma = v;
 	struct numa_maps *md;
 	struct file *file = vma->vm_file;
@@ -1837,7 +1837,7 @@ int show_numa_map(struct seq_file *m, void *v)
 		return 0;
 
 	mpol_to_str(buffer, sizeof(buffer),
-			get_vma_policy(task, vma, vma->vm_start));
+			    get_vma_policy(priv->task, vma, vma->vm_start));
 
 	seq_printf(m, "%08lx %s", vma->vm_start, buffer);
 
@@ -1891,7 +1891,7 @@ out:
 	kfree(md);
 
 	if (m->count < m->size)
-		m->version = (vma != get_gate_vma(task)) ? vma->vm_start : 0;
+		m->version = (vma != priv->tail_vma) ? vma->vm_start : 0;
 	return 0;
 }
 

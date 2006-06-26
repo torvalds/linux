@@ -50,6 +50,7 @@
 #include <linux/time.h>
 #include <linux/backing-dev.h>
 #include <linux/sort.h>
+#include <linux/task_ref.h>
 
 #include <asm/uaccess.h>
 #include <asm/atomic.h>
@@ -2442,31 +2443,43 @@ void __cpuset_memory_pressure_bump(void)
  */
 static int proc_cpuset_show(struct seq_file *m, void *v)
 {
+	struct task_ref *tref;
 	struct task_struct *tsk;
 	char *buf;
-	int retval = 0;
+	int retval;
 
+	retval = -ENOMEM;
 	buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		goto out;
 
-	tsk = m->private;
+	retval = -ESRCH;
+	tref = m->private;
+	tsk = get_tref_task(tref);
+	if (!tsk)
+		goto out_free;
+
+	retval = -EINVAL;
 	mutex_lock(&manage_mutex);
+
 	retval = cpuset_path(tsk->cpuset, buf, PAGE_SIZE);
 	if (retval < 0)
-		goto out;
+		goto out_unlock;
 	seq_puts(m, buf);
 	seq_putc(m, '\n');
-out:
+out_unlock:
 	mutex_unlock(&manage_mutex);
+	put_task_struct(tsk);
+out_free:
 	kfree(buf);
+out:
 	return retval;
 }
 
 static int cpuset_open(struct inode *inode, struct file *file)
 {
-	struct task_struct *tsk = PROC_I(inode)->task;
-	return single_open(file, proc_cpuset_show, tsk);
+	struct task_ref *tref = PROC_I(inode)->tref;
+	return single_open(file, proc_cpuset_show, tref);
 }
 
 struct file_operations proc_cpuset_operations = {

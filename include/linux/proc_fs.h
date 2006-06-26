@@ -246,7 +246,7 @@ extern void kclist_add(struct kcore_list *, void *, size_t);
 #endif
 
 struct proc_inode {
-	struct task_struct *task;
+	struct task_ref *tref;
 	int fd;
 	union {
 		int (*proc_get_link)(struct inode *, struct dentry **, struct vfsmount **);
@@ -265,5 +265,11 @@ static inline struct proc_dir_entry *PDE(const struct inode *inode)
 {
 	return PROC_I(inode)->pde;
 }
+
+struct proc_maps_private {
+	struct task_ref *tref;
+	struct task_struct *task;
+	struct vm_area_struct *tail_vma;
+};
 
 #endif /* _LINUX_PROC_FS_H */

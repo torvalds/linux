@@ -75,9 +75,13 @@ int proc_exe_link(struct inode *inode, struct dentry **dentry, struct vfsmount *
 {
 	struct vm_area_struct * vma;
 	int result = -ENOENT;
-	struct task_struct *task = proc_task(inode);
-	struct mm_struct * mm = get_task_mm(task);
+	struct task_struct *task = get_proc_task(inode);
+	struct mm_struct * mm = NULL;
 
+	if (task) {
+		mm = get_task_mm(task);
+		put_task_struct(task);
+	}
 	if (!mm)
 		goto out;
 	down_read(&mm->mmap_sem);
@@ -120,7 +124,8 @@ struct mem_size_stats
 
 static int show_map_internal(struct seq_file *m, void *v, struct mem_size_stats *mss)
 {
-	struct task_struct *task = m->private;
+	struct proc_maps_private *priv = m->private;
+	struct task_struct *task = priv->task;
 	struct vm_area_struct *vma = v;
 	struct mm_struct *mm = vma->vm_mm;
 	struct file *file = vma->vm_file;
@@ -295,11 +300,15 @@ static int show_smap(struct seq_file *m, void *v)
 
 static void *m_start(struct seq_file *m, loff_t *pos)
 {
-	struct task_struct *task = m->private;
+	struct proc_maps_private *priv = m->private;
 	unsigned long last_addr = m->version;
 	struct mm_struct *mm;
-	struct vm_area_struct *vma, *tail_vma;
+	struct vm_area_struct *vma, *tail_vma = NULL;
 	loff_t l = *pos;
+
+	/* Clear the per syscall fields in priv */
+	priv->task = NULL;
+	priv->tail_vma = NULL;
 
 	/*
 	 * We remember last_addr rather than next_addr to hit with
@@ -311,11 +320,15 @@ static void *m_start(struct seq_file *m, loff_t *pos)
 	if (last_addr == -1UL)
 		return NULL;
 
-	mm = get_task_mm(task);
+	priv->task = get_tref_task(priv->tref);
+	if (!priv->task)
+		return NULL;
+
+	mm = get_task_mm(priv->task);
 	if (!mm)
 		return NULL;
 
-	tail_vma = get_gate_vma(task);
+	priv->tail_vma = tail_vma = get_gate_vma(priv->task);
 	down_read(&mm->mmap_sem);
 
 	/* Start with last addr hint */
@@ -350,11 +363,9 @@ out:
 	return tail_vma;
 }
 
-static void m_stop(struct seq_file *m, void *v)
+static void vma_stop(struct proc_maps_private *priv, struct vm_area_struct *vma)
 {
-	struct task_struct *task = m->private;
-	struct vm_area_struct *vma = v;
-	if (vma && vma != get_gate_vma(task)) {
+	if (vma && vma != priv->tail_vma) {
 		struct mm_struct *mm = vma->vm_mm;
 		up_read(&mm->mmap_sem);
 		mmput(mm);
@@ -363,15 +374,25 @@ static void m_stop(struct seq_file *m, void *v)
 
 static void *m_next(struct seq_file *m, void *v, loff_t *pos)
 {
-	struct task_struct *task = m->private;
+	struct proc_maps_private *priv = m->private;
 	struct vm_area_struct *vma = v;
-	struct vm_area_struct *tail_vma = get_gate_vma(task);
+	struct vm_area_struct *tail_vma = priv->tail_vma;
 
 	(*pos)++;
 	if (vma && (vma != tail_vma) && vma->vm_next)
 		return vma->vm_next;
-	m_stop(m, v);
+	vma_stop(priv, vma);
 	return (vma != tail_vma)? tail_vma: NULL;
+}
+
+static void m_stop(struct seq_file *m, void *v)
+{
+	struct proc_maps_private *priv = m->private;
+	struct vm_area_struct *vma = v;
+
+	vma_stop(priv, vma);
+	if (priv->task)
+		put_task_struct(priv->task);
 }
 
 static struct seq_operations proc_pid_maps_op = {
@@ -391,11 +412,18 @@ static struct seq_operations proc_pid_smaps_op = {
 static int do_maps_open(struct inode *inode, struct file *file,
 			struct seq_operations *ops)
 {
-	struct task_struct *task = proc_task(inode);
-	int ret = seq_open(file, ops);
-	if (!ret) {
-		struct seq_file *m = file->private_data;
-		m->private = task;
+	struct proc_maps_private *priv;
+	int ret = -ENOMEM;
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	if (priv) {
+		priv->tref = proc_tref(inode);
+		ret = seq_open(file, ops);
+		if (!ret) {
+			struct seq_file *m = file->private_data;
+			m->private = priv;
+		} else {
+			kfree(priv);
+		}
 	}
 	return ret;
 }
@@ -409,7 +437,7 @@ struct file_operations proc_maps_operations = {
 	.open		= maps_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= seq_release,
+	.release	= seq_release_private,
 };
 
 #ifdef CONFIG_NUMA
@@ -431,7 +459,7 @@ struct file_operations proc_numa_maps_operations = {
 	.open		= numa_maps_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= seq_release,
+	.release	= seq_release_private,
 };
 #endif
 
@@ -444,5 +472,5 @@ struct file_operations proc_smaps_operations = {
 	.open		= smaps_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= seq_release,
+	.release	= seq_release_private,
 };
