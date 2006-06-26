@@ -365,7 +365,9 @@ static void acpi_processor_idle(void)
 		t1 = inl(acpi_fadt.xpm_tmr_blk.address);
 		/* Invoke C2 */
 		inb(cx->address);
-		/* Dummy op - must do something useless after P_LVL2 read */
+		/* Dummy wait op - must do something useless after P_LVL2 read
+		   because chipsets cannot guarantee that STPCLK# signal
+		   gets asserted in time to freeze execution properly. */
 		t2 = inl(acpi_fadt.xpm_tmr_blk.address);
 		/* Get end time (ticks) */
 		t2 = inl(acpi_fadt.xpm_tmr_blk.address);
@@ -403,7 +405,7 @@ static void acpi_processor_idle(void)
 		t1 = inl(acpi_fadt.xpm_tmr_blk.address);
 		/* Invoke C3 */
 		inb(cx->address);
-		/* Dummy op - must do something useless after P_LVL3 read */
+		/* Dummy wait op (see above) */
 		t2 = inl(acpi_fadt.xpm_tmr_blk.address);
 		/* Get end time (ticks) */
 		t2 = inl(acpi_fadt.xpm_tmr_blk.address);
