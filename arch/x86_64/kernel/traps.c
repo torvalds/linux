@@ -106,7 +106,7 @@ static inline void preempt_conditional_cli(struct pt_regs *regs)
 	preempt_enable_no_resched();
 }
 
-static int kstack_depth_to_print = 10;
+static int kstack_depth_to_print = 12;
 static int call_trace = 1;
 
 #ifdef CONFIG_KALLSYMS
