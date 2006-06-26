@@ -2665,7 +2665,7 @@ int __init vty_init(void)
 
 int take_over_console(const struct consw *csw, int first, int last, int deflt)
 {
-	int i, j = -1;
+	int i, j = -1, k = -1;
 	const char *desc;
 	struct module *owner;
 
@@ -2701,8 +2701,11 @@ int take_over_console(const struct consw *csw, int first, int last, int deflt)
 			continue;
 
 		j = i;
-		if (CON_IS_VISIBLE(vc))
+		if (CON_IS_VISIBLE(vc)) {
+			k = i;
 			save_screen(vc);
+		}
+
 		old_was_color = vc->vc_can_do_color;
 		vc->vc_sw->con_deinit(vc);
 		vc->vc_origin = (unsigned long)vc->vc_screenbuf;
@@ -2718,18 +2721,23 @@ int take_over_console(const struct consw *csw, int first, int last, int deflt)
 		 */
 		if (old_was_color != vc->vc_can_do_color)
 			clear_buffer_attributes(vc);
-
-		if (CON_IS_VISIBLE(vc))
-			update_screen(vc);
 	}
+
 	printk("Console: switching ");
 	if (!deflt)
 		printk("consoles %d-%d ", first+1, last+1);
-	if (j >= 0)
+	if (j >= 0) {
+		struct vc_data *vc = vc_cons[j].d;
+
 		printk("to %s %s %dx%d\n",
-		       vc_cons[j].d->vc_can_do_color ? "colour" : "mono",
-		       desc, vc_cons[j].d->vc_cols, vc_cons[j].d->vc_rows);
-	else
+		       vc->vc_can_do_color ? "colour" : "mono",
+		       desc, vc->vc_cols, vc->vc_rows);
+
+		if (k >= 0) {
+			vc = vc_cons[k].d;
+			update_screen(vc);
+		}
+	} else
 		printk("to %s\n", desc);
 
 	release_console_sem();
