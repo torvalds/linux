@@ -84,9 +84,18 @@ extern void disable_APIC_timer(void);
 extern void enable_APIC_timer(void);
 extern void clustered_apic_check(void);
 
+extern void setup_APIC_extened_lvt(unsigned char lvt_off, unsigned char vector,
+				   unsigned char msg_type, unsigned char mask);
+
+#define K8_APIC_EXT_LVT_BASE    0x500
+#define K8_APIC_EXT_INT_MSG_FIX 0x0
+#define K8_APIC_EXT_INT_MSG_SMI 0x2
+#define K8_APIC_EXT_INT_MSG_NMI 0x4
+#define K8_APIC_EXT_INT_MSG_EXT 0x7
+#define K8_APIC_EXT_LVT_ENTRY_THRESHOLD    0
+
 extern int disable_timer_pin_1;
 
-extern void setup_threshold_lvt(unsigned long lvt_off);
 
 void smp_send_timer_broadcast_ipi(void);
 void switch_APIC_timer_to_ipi(void *cpumask);

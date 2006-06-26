@@ -909,15 +909,13 @@ int setup_profiling_timer(unsigned int multiplier)
 	return -EINVAL;
 }
 
-#ifdef CONFIG_X86_MCE_AMD
-void setup_threshold_lvt(unsigned long lvt_off)
+void setup_APIC_extened_lvt(unsigned char lvt_off, unsigned char vector,
+			    unsigned char msg_type, unsigned char mask)
 {
-	unsigned int v = 0;
-	unsigned long reg = (lvt_off << 4) + 0x500;
-	v |= THRESHOLD_APIC_VECTOR;
+	unsigned long reg = (lvt_off << 4) + K8_APIC_EXT_LVT_BASE;
+	unsigned int  v   = (mask << 16) | (msg_type << 8) | vector;
 	apic_write(reg, v);
 }
-#endif /* CONFIG_X86_MCE_AMD */
 
 #undef APIC_DIVISOR
 
