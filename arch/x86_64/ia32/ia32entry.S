@@ -377,7 +377,6 @@ END(ia32_ptregs_common)
 
 	.section .rodata,"a"
 	.align 8
-	.globl ia32_sys_call_table
 ia32_sys_call_table:
 	.quad sys_restart_syscall
 	.quad sys_exit

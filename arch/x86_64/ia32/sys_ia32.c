@@ -929,5 +929,3 @@ long sys32_lookup_dcookie(u32 addr_low, u32 addr_high,
 	return sys_lookup_dcookie(((u64)addr_high << 32) | addr_low, buf, len);
 }
 
-extern unsigned long ia32_sys_call_table[];
-EXPORT_SYMBOL(ia32_sys_call_table);
