@@ -107,7 +107,7 @@ static __always_inline long time_syscall(long *t)
 
 int __vsyscall(0) vgettimeofday(struct timeval * tv, struct timezone * tz)
 {
-	if (unlikely(!__sysctl_vsyscall))
+	if (!__sysctl_vsyscall)
 		return gettimeofday(tv,tz);
 	if (tv)
 		do_vgettimeofday(tv);
@@ -120,7 +120,7 @@ int __vsyscall(0) vgettimeofday(struct timeval * tv, struct timezone * tz)
  * unlikely */
 time_t __vsyscall(1) vtime(time_t *t)
 {
-	if (unlikely(!__sysctl_vsyscall))
+	if (!__sysctl_vsyscall)
 		return time_syscall(t);
 	else if (t)
 		*t = __xtime.tv_sec;		
