@@ -1,3 +1,4 @@
+//kernel/linux-omap-fsample/arch/arm/mach-omap1/clock.c#2 - edit change 3808 (text)
 /*
  *  linux/arch/arm/mach-omap1/clock.c
  *
@@ -20,6 +21,7 @@
 
 #include <asm/io.h>
 
+#include <asm/arch/cpu.h>
 #include <asm/arch/usb.h>
 #include <asm/arch/clock.h>
 #include <asm/arch/sram.h>
@@ -270,8 +272,12 @@ static int omap1_select_table_rate(struct clk * clk, unsigned long rate)
 	/*
 	 * In most cases we should not need to reprogram DPLL.
 	 * Reprogramming the DPLL is tricky, it must be done from SRAM.
+	 * (on 730, bit 13 must always be 1)
 	 */
-	omap_sram_reprogram_clock(ptr->dpllctl_val, ptr->ckctl_val);
+	if (cpu_is_omap730())
+		omap_sram_reprogram_clock(ptr->dpllctl_val, ptr->ckctl_val | 0x2000);
+	else
+		omap_sram_reprogram_clock(ptr->dpllctl_val, ptr->ckctl_val);
 
 	ck_dpll1.rate = ptr->pll_rate;
 	propagate_rate(&ck_dpll1);
@@ -748,7 +754,7 @@ int __init omap1_clk_init(void)
 		printk(KERN_ERR "System frequencies not set. Check your config.\n");
 		/* Guess sane values (60MHz) */
 		omap_writew(0x2290, DPLL_CTL);
-		omap_writew(0x1005, ARM_CKCTL);
+		omap_writew(cpu_is_omap730() ? 0x3005 : 0x1005, ARM_CKCTL);
 		ck_dpll1.rate = 60000000;
 		propagate_rate(&ck_dpll1);
 	}
@@ -761,13 +767,17 @@ int __init omap1_clk_init(void)
 	       ck_dpll1.rate / 1000000, (ck_dpll1.rate / 100000) % 10,
 	       arm_ck.rate / 1000000, (arm_ck.rate / 100000) % 10);
 
-#ifdef CONFIG_MACH_OMAP_PERSEUS2
+#if defined(CONFIG_MACH_OMAP_PERSEUS2) || defined(CONFIG_MACH_OMAP_FSAMPLE)
 	/* Select slicer output as OMAP input clock */
 	omap_writew(omap_readw(OMAP730_PCC_UPLD_CTRL) & ~0x1, OMAP730_PCC_UPLD_CTRL);
 #endif
 
 	/* Turn off DSP and ARM_TIMXO. Make sure ARM_INTHCK is not divided */
-	omap_writew(omap_readw(ARM_CKCTL) & 0x0fff, ARM_CKCTL);
+	/* (on 730, bit 13 must not be cleared) */
+	if (cpu_is_omap730())
+		omap_writew(omap_readw(ARM_CKCTL) & 0x2fff, ARM_CKCTL);
+	else
+		omap_writew(omap_readw(ARM_CKCTL) & 0x0fff, ARM_CKCTL);
 
 	/* Put DSP/MPUI into reset until needed */
 	omap_writew(0, ARM_RSTCT1);
