@@ -10,7 +10,6 @@ obj-y	:= process.o semaphore.o signal.o entry.o traps.o irq.o \
 		quirks.o i8237.o topology.o alternative.o i8253.o tsc.o
 
 obj-y				+= cpu/
-obj-y				+= timers/
 obj-y				+= acpi/
 obj-$(CONFIG_X86_BIOS_REBOOT)	+= reboot.o
 obj-$(CONFIG_MCA)		+= mca.o

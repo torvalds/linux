@@ -10,6 +10,7 @@
 #include <linux/init.h>
 
 #include <asm/tsc.h>
+#include <asm/delay.h>
 #include <asm/io.h>
 
 #include "mach_timer.h"
@@ -44,7 +45,6 @@ static int __init tsc_setup(char *str)
 #endif
 
 __setup("notsc", tsc_setup);
-
 
 /*
  * code to mark and check if the TSC is unstable
@@ -205,6 +205,7 @@ void tsc_init(void)
 				(unsigned long)cpu_khz % 1000);
 
 	set_cyc2ns_scale(cpu_khz);
+	use_tsc_delay();
 }
 
 #ifdef CONFIG_CPU_FREQ
