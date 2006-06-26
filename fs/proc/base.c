@@ -1545,8 +1545,6 @@ static struct file_operations proc_tgid_attr_operations;
 static struct inode_operations proc_tgid_attr_inode_operations;
 #endif
 
-static int get_tid_list(int index, unsigned int *tids, struct inode *dir);
-
 /* SMP-safe */
 static struct dentry *proc_pident_lookup(struct inode *dir, 
 					 struct dentry *dentry,
@@ -2029,88 +2027,83 @@ out:
 }
 
 #define PROC_NUMBUF 10
-#define PROC_MAXPIDS 20
 
 /*
- * Get a few tgid's to return for filldir - we need to hold the
- * tasklist lock while doing this, and we must release it before
- * we actually do the filldir itself, so we use a temp buffer..
+ * Find the first tgid to return to user space.
+ *
+ * Usually this is just whatever follows &init_task, but if the users
+ * buffer was too small to hold the full list or there was a seek into
+ * the middle of the directory we have more work to do.
+ *
+ * In the case of a short read we start with find_task_by_pid.
+ *
+ * In the case of a seek we start with &init_task and walk nr
+ * threads past it.
  */
-static int get_tgid_list(int index, unsigned long version, unsigned int *tgids)
+static struct task_struct *first_tgid(int tgid, int nr)
 {
-	struct task_struct *p;
-	int nr_tgids = 0;
-
-	index--;
+	struct task_struct *pos = NULL;
 	read_lock(&tasklist_lock);
-	p = NULL;
-	if (version) {
-		p = find_task_by_pid(version);
-		if (p && !thread_group_leader(p))
-			p = NULL;
+	if (tgid && nr) {
+		pos = find_task_by_pid(tgid);
+		if (pos && !thread_group_leader(pos))
+			pos = NULL;
+		if (pos)
+			nr = 0;
 	}
+	/* If nr exceeds the number of processes get out quickly */
+	if (nr && nr >= nr_processes())
+		goto done;
 
-	if (p)
-		index = 0;
-	else
-		p = next_task(&init_task);
+	/* If we haven't found our starting place yet start with
+	 * the init_task and walk nr tasks forward.
+	 */
+	if (!pos && (nr >= 0))
+		pos = next_task(&init_task);
 
-	for ( ; p != &init_task; p = next_task(p)) {
-		int tgid = p->pid;
-		if (!pid_alive(p))
+	for (; pos && pid_alive(pos); pos = next_task(pos)) {
+		if (--nr > 0)
 			continue;
-		if (--index >= 0)
-			continue;
-		tgids[nr_tgids] = tgid;
-		nr_tgids++;
-		if (nr_tgids >= PROC_MAXPIDS)
-			break;
+		get_task_struct(pos);
+		goto done;
 	}
+	pos = NULL;
+done:
 	read_unlock(&tasklist_lock);
-	return nr_tgids;
+	return pos;
 }
 
 /*
- * Get a few tid's to return for filldir - we need to hold the
- * tasklist lock while doing this, and we must release it before
- * we actually do the filldir itself, so we use a temp buffer..
+ * Find the next task in the task list.
+ * Return NULL if we loop or there is any error.
+ *
+ * The reference to the input task_struct is released.
  */
-static int get_tid_list(int index, unsigned int *tids, struct inode *dir)
+static struct task_struct *next_tgid(struct task_struct *start)
 {
-	struct task_struct *leader_task = proc_task(dir);
-	struct task_struct *task = leader_task;
-	int nr_tids = 0;
-
-	index -= 2;
+	struct task_struct *pos;
 	read_lock(&tasklist_lock);
-	/*
-	 * The starting point task (leader_task) might be an already
-	 * unlinked task, which cannot be used to access the task-list
-	 * via next_thread().
-	 */
-	if (pid_alive(task)) do {
-		int tid = task->pid;
-
-		if (--index >= 0)
-			continue;
-		if (tids != NULL)
-			tids[nr_tids] = tid;
-		nr_tids++;
-		if (nr_tids >= PROC_MAXPIDS)
-			break;
-	} while ((task = next_thread(task)) != leader_task);
+	pos = start;
+	if (pid_alive(start))
+		pos = next_task(start);
+	if (pid_alive(pos) && (pos != &init_task)) {
+		get_task_struct(pos);
+		goto done;
+	}
+	pos = NULL;
+done:
 	read_unlock(&tasklist_lock);
-	return nr_tids;
+	put_task_struct(start);
+	return pos;
 }
 
 /* for the /proc/ directory itself, after non-process stuff has been done */
 int proc_pid_readdir(struct file * filp, void * dirent, filldir_t filldir)
 {
-	unsigned int tgid_array[PROC_MAXPIDS];
 	char buf[PROC_NUMBUF];
 	unsigned int nr = filp->f_pos - FIRST_PROCESS_ENTRY;
-	unsigned int nr_tgids, i;
-	int next_tgid;
+	struct task_struct *task;
+	int tgid;
 
 	if (!nr) {
 		ino_t ino = fake_ino(0,PROC_TGID_INO);
@@ -2119,62 +2112,123 @@ int proc_pid_readdir(struct file * filp, void * dirent, filldir_t filldir)
 		filp->f_pos++;
 		nr++;
 	}
+	nr -= 1;
 
 	/* f_version caches the tgid value that the last readdir call couldn't
 	 * return. lseek aka telldir automagically resets f_version to 0.
 	 */
-	next_tgid = filp->f_version;
+	tgid = filp->f_version;
 	filp->f_version = 0;
-	for (;;) {
-		nr_tgids = get_tgid_list(nr, next_tgid, tgid_array);
-		if (!nr_tgids) {
-			/* no more entries ! */
+	for (task = first_tgid(tgid, nr);
+	     task;
+	     task = next_tgid(task), filp->f_pos++) {
+		int len;
+		ino_t ino;
+		tgid = task->pid;
+		len = snprintf(buf, sizeof(buf), "%d", tgid);
+		ino = fake_ino(tgid, PROC_TGID_INO);
+		if (filldir(dirent, buf, len, filp->f_pos, ino, DT_DIR) < 0) {
+			/* returning this tgid failed, save it as the first
+			 * pid for the next readir call */
+			filp->f_version = tgid;
+			put_task_struct(task);
 			break;
 		}
-		next_tgid = 0;
-
-		/* do not use the last found pid, reserve it for next_tgid */
-		if (nr_tgids == PROC_MAXPIDS) {
-			nr_tgids--;
-			next_tgid = tgid_array[nr_tgids];
-		}
-
-		for (i=0;i<nr_tgids;i++) {
-			int tgid = tgid_array[i];
-			ino_t ino = fake_ino(tgid,PROC_TGID_INO);
-			unsigned long j = PROC_NUMBUF;
-
-			do
-				buf[--j] = '0' + (tgid % 10);
-			while ((tgid /= 10) != 0);
-
-			if (filldir(dirent, buf+j, PROC_NUMBUF-j, filp->f_pos, ino, DT_DIR) < 0) {
-				/* returning this tgid failed, save it as the first
-				 * pid for the next readir call */
-				filp->f_version = tgid_array[i];
-				goto out;
-			}
-			filp->f_pos++;
-			nr++;
-		}
 	}
-out:
 	return 0;
+}
+
+/*
+ * Find the first tid of a thread group to return to user space.
+ *
+ * Usually this is just the thread group leader, but if the users
+ * buffer was too small or there was a seek into the middle of the
+ * directory we have more work todo.
+ *
+ * In the case of a short read we start with find_task_by_pid.
+ *
+ * In the case of a seek we start with the leader and walk nr
+ * threads past it.
+ */
+static struct task_struct *first_tid(struct task_struct *leader, int tid, int nr)
+{
+	struct task_struct *pos = NULL;
+	read_lock(&tasklist_lock);
+
+	/* Attempt to start with the pid of a thread */
+	if (tid && (nr > 0)) {
+		pos = find_task_by_pid(tid);
+		if (pos && (pos->group_leader != leader))
+			pos = NULL;
+		if (pos)
+			nr = 0;
+	}
+
+	/* If nr exceeds the number of threads there is nothing todo */
+	if (nr) {
+		int threads = 0;
+		task_lock(leader);
+		if (leader->signal)
+			threads = atomic_read(&leader->signal->count);
+		task_unlock(leader);
+		if (nr >= threads)
+			goto done;
+	}
+
+	/* If we haven't found our starting place yet start with the
+	 * leader and walk nr threads forward.
+	 */
+	if (!pos && (nr >= 0))
+		pos = leader;
+
+	for (; pos && pid_alive(pos); pos = next_thread(pos)) {
+		if (--nr > 0)
+			continue;
+		get_task_struct(pos);
+		goto done;
+	}
+	pos = NULL;
+done:
+	read_unlock(&tasklist_lock);
+	return pos;
+}
+
+/*
+ * Find the next thread in the thread list.
+ * Return NULL if there is an error or no next thread.
+ *
+ * The reference to the input task_struct is released.
+ */
+static struct task_struct *next_tid(struct task_struct *start)
+{
+	struct task_struct *pos;
+	read_lock(&tasklist_lock);
+	pos = start;
+	if (pid_alive(start))
+		pos = next_thread(start);
+	if (pid_alive(pos) && (pos != start->group_leader))
+		get_task_struct(pos);
+	else
+		pos = NULL;
+	read_unlock(&tasklist_lock);
+	put_task_struct(start);
+	return pos;
 }
 
 /* for the /proc/TGID/task/ directories */
 static int proc_task_readdir(struct file * filp, void * dirent, filldir_t filldir)
 {
-	unsigned int tid_array[PROC_MAXPIDS];
 	char buf[PROC_NUMBUF];
-	unsigned int nr_tids, i;
 	struct dentry *dentry = filp->f_dentry;
 	struct inode *inode = dentry->d_inode;
+	struct task_struct *leader = proc_task(inode);
+	struct task_struct *task;
 	int retval = -ENOENT;
 	ino_t ino;
+	int tid;
 	unsigned long pos = filp->f_pos;  /* avoiding "long long" filp->f_pos */
 
-	if (!pid_alive(proc_task(inode)))
+	if (!pid_alive(leader))
 		goto out;
 	retval = 0;
 
@@ -2193,21 +2247,25 @@ static int proc_task_readdir(struct file * filp, void * dirent, filldir_t filldi
 		/* fall through */
 	}
 
-	nr_tids = get_tid_list(pos, tid_array, inode);
-
-	for (i = 0; i < nr_tids; i++) {
-		unsigned long j = PROC_NUMBUF;
-		int tid = tid_array[i];
-
-		ino = fake_ino(tid,PROC_TID_INO);
-
-		do
-			buf[--j] = '0' + (tid % 10);
-		while ((tid /= 10) != 0);
-
-		if (filldir(dirent, buf+j, PROC_NUMBUF-j, pos, ino, DT_DIR) < 0)
+	/* f_version caches the tgid value that the last readdir call couldn't
+	 * return. lseek aka telldir automagically resets f_version to 0.
+	 */
+	tid = filp->f_version;
+	filp->f_version = 0;
+	for (task = first_tid(leader, tid, pos - 2);
+	     task;
+	     task = next_tid(task), pos++) {
+		int len;
+		tid = task->pid;
+		len = snprintf(buf, sizeof(buf), "%d", tid);
+		ino = fake_ino(tid, PROC_TID_INO);
+		if (filldir(dirent, buf, len, pos, ino, DT_DIR < 0)) {
+			/* returning this tgid failed, save it as the first
+			 * pid for the next readir call */
+			filp->f_version = tid;
+			put_task_struct(task);
 			break;
-		pos++;
+		}
 	}
 out:
 	filp->f_pos = pos;
