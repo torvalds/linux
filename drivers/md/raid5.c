@@ -2858,7 +2858,7 @@ static inline sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *ski
 	 * to resync, then assert that we are finished, because there is
 	 * nothing we can do.
 	 */
-	if (mddev->degraded >= (data_disks - raid_disks) &&
+	if (mddev->degraded >= conf->max_degraded &&
 	    test_bit(MD_RECOVERY_SYNC, &mddev->recovery)) {
 		sector_t rv = (mddev->size << 1) - sector_nr;
 		*skipped = 1;
