@@ -93,7 +93,7 @@ static unsigned long alloc_iommu(int size)
 	offset = find_next_zero_string(iommu_gart_bitmap,next_bit,iommu_pages,size);
 	if (offset == -1) {
 		need_flush = 1;
-	       	offset = find_next_zero_string(iommu_gart_bitmap,0,next_bit,size);
+		offset = find_next_zero_string(iommu_gart_bitmap,0,iommu_pages,size);
 	}
 	if (offset != -1) { 
 		set_bit_string(iommu_gart_bitmap, offset, size); 
