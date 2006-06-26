@@ -220,6 +220,12 @@ static int ide_timing_compute(ide_drive_t *drive, short speed, struct ide_timing
 		return -EINVAL;
 
 /*
+ * Copy the timing from the table.
+ */
+
+	*t = *s;
+
+/*
  * If the drive is an EIDE drive, it can tell us it needs extended
  * PIO/MWDMA cycle timing.
  */
@@ -247,7 +253,7 @@ static int ide_timing_compute(ide_drive_t *drive, short speed, struct ide_timing
  * Convert the timing to bus clock counts.
  */
 
-	ide_timing_quantize(s, t, T, UT);
+	ide_timing_quantize(t, t, T, UT);
 
 /*
  * Even in DMA/UDMA modes we still use PIO access for IDENTIFY, S.M.A.R.T
