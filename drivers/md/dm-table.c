@@ -590,6 +590,12 @@ int dm_split_args(int *argc, char ***argvp, char *input)
 	unsigned array_size = 0;
 
 	*argc = 0;
+
+	if (!input) {
+		*argvp = NULL;
+		return 0;
+	}
+
 	argv = realloc_argv(&array_size, argv);
 	if (!argv)
 		return -ENOMEM;
