@@ -105,6 +105,51 @@ static inline void omap_init_sti(void)
 static inline void omap_init_sti(void) {}
 #endif
 
+#if defined(CONFIG_SPI_OMAP24XX)
+
+#include <asm/arch/mcspi.h>
+
+#define OMAP2_MCSPI1_BASE		0x48098000
+#define OMAP2_MCSPI2_BASE		0x4809a000
+
+/* FIXME: use resources instead */
+
+static struct omap2_mcspi_platform_config omap2_mcspi1_config = {
+	.base		= io_p2v(OMAP2_MCSPI1_BASE),
+	.num_cs		= 4,
+};
+
+struct platform_device omap2_mcspi1 = {
+	.name		= "omap2_mcspi",
+	.id		= 1,
+	.dev		= {
+		.platform_data = &omap2_mcspi1_config,
+	},
+};
+
+static struct omap2_mcspi_platform_config omap2_mcspi2_config = {
+	.base		= io_p2v(OMAP2_MCSPI2_BASE),
+	.num_cs		= 2,
+};
+
+struct platform_device omap2_mcspi2 = {
+	.name		= "omap2_mcspi",
+	.id		= 2,
+	.dev		= {
+		.platform_data = &omap2_mcspi2_config,
+	},
+};
+
+static void omap_init_mcspi(void)
+{
+	platform_device_register(&omap2_mcspi1);
+	platform_device_register(&omap2_mcspi2);
+}
+
+#else
+static inline void omap_init_mcspi(void) {}
+#endif
+
 /*-------------------------------------------------------------------------*/
 
 static int __init omap2_init_devices(void)
@@ -113,6 +158,7 @@ static int __init omap2_init_devices(void)
 	 * in alphabetical order so they're easier to sort through.
 	 */
 	omap_init_i2c();
+	omap_init_mcspi();
 	omap_init_sti();
 
 	return 0;
