@@ -30,17 +30,17 @@
 #include <asm/percpu.h>
 #include <asm/idle.h>
 
-#define PFX "mce_threshold: "
-#define VERSION "version 1.1.0"
-#define NR_BANKS 6
-#define NR_BLOCKS 9
-#define THRESHOLD_MAX 0xFFF
-#define INT_TYPE_APIC 0x00020000
-#define MASK_VALID_HI 0x80000000
-#define MASK_LVTOFF_HI 0x00F00000
-#define MASK_COUNT_EN_HI 0x00080000
-#define MASK_INT_TYPE_HI 0x00060000
-#define MASK_OVERFLOW_HI 0x00010000
+#define PFX               "mce_threshold: "
+#define VERSION           "version 1.1.1"
+#define NR_BANKS          6
+#define NR_BLOCKS         9
+#define THRESHOLD_MAX     0xFFF
+#define INT_TYPE_APIC     0x00020000
+#define MASK_VALID_HI     0x80000000
+#define MASK_LVTOFF_HI    0x00F00000
+#define MASK_COUNT_EN_HI  0x00080000
+#define MASK_INT_TYPE_HI  0x00060000
+#define MASK_OVERFLOW_HI  0x00010000
 #define MASK_ERR_COUNT_HI 0x00000FFF
 #define MASK_BLKPTR_LO    0xFF000000
 #define MCG_XBLK_ADDR     0xC0000400
@@ -222,7 +222,7 @@ asmlinkage void mce_threshold_interrupt(void)
 			}
 		}
 	}
-      out:
+out:
 	irq_exit();
 }
 
@@ -231,7 +231,7 @@ asmlinkage void mce_threshold_interrupt(void)
  */
 
 struct threshold_attr {
-        struct attribute attr;
+	struct attribute attr;
 	ssize_t(*show) (struct threshold_block *, char *);
 	ssize_t(*store) (struct threshold_block *, const char *, size_t count);
 };
@@ -250,11 +250,11 @@ static void affinity_restore(cpumask_t oldmask)
 	set_cpus_allowed(current, oldmask);
 }
 
-#define SHOW_FIELDS(name) \
-        static ssize_t show_ ## name(struct threshold_block * b, char *buf) \
-        { \
-                return sprintf(buf, "%lx\n", (unsigned long) b->name); \
-        }
+#define SHOW_FIELDS(name)                                           \
+static ssize_t show_ ## name(struct threshold_block * b, char *buf) \
+{                                                                   \
+        return sprintf(buf, "%lx\n", (unsigned long) b->name);      \
+}
 SHOW_FIELDS(interrupt_enable)
 SHOW_FIELDS(threshold_limit)
 
@@ -325,13 +325,13 @@ static ssize_t store_error_count(struct threshold_block *b,
         .store = _store,                                      \
 };
 
-#define ATTR_FIELDS(name) \
-        static struct threshold_attr name = \
+#define RW_ATTR(name)                                           \
+static struct threshold_attr name =                             \
         THRESHOLD_ATTR(name, 0644, show_## name, store_## name)
 
-ATTR_FIELDS(interrupt_enable);
-ATTR_FIELDS(threshold_limit);
-ATTR_FIELDS(error_count);
+RW_ATTR(interrupt_enable);
+RW_ATTR(threshold_limit);
+RW_ATTR(error_count);
 
 static struct attribute *default_attrs[] = {
 	&interrupt_enable.attr,
@@ -341,7 +341,7 @@ static struct attribute *default_attrs[] = {
 };
 
 #define to_block(k) container_of(k, struct threshold_block, kobj)
-#define to_attr(a) container_of(a,struct threshold_attr,attr)
+#define to_attr(a) container_of(a, struct threshold_attr, attr)
 
 static ssize_t show(struct kobject *kobj, struct attribute *attr, char *buf)
 {
@@ -530,14 +530,14 @@ static __cpuinit int threshold_create_bank(unsigned int cpu, unsigned int bank)
 out_free:
 	per_cpu(threshold_banks, cpu)[bank] = NULL;
 	kfree(b);
-      out:
+out:
 	return err;
 }
 
 /* create dir/files for all valid threshold banks */
 static __cpuinit int threshold_create_device(unsigned int cpu)
 {
-	int bank;
+	unsigned int bank;
 	int err = 0;
 
 	for (bank = 0; bank < NR_BANKS; ++bank) {
@@ -547,7 +547,7 @@ static __cpuinit int threshold_create_device(unsigned int cpu)
 		if (err)
 			goto out;
 	}
-      out:
+out:
 	return err;
 }
 
@@ -620,7 +620,7 @@ free_out:
 
 static __cpuinit void threshold_remove_device(unsigned int cpu)
 {
-	int bank;
+	unsigned int bank;
 
 	for (bank = 0; bank < NR_BANKS; ++bank) {
 		if (!(per_cpu(bank_map, cpu) & 1 << bank))
@@ -629,54 +629,7 @@ static __cpuinit void threshold_remove_device(unsigned int cpu)
 	}
 }
 
-/* link all existing siblings when first core comes up */
-static __cpuinit int threshold_create_symlinks(unsigned int cpu)
-{
-	int bank, err = 0;
-	unsigned int lcpu = 0;
-
-	if (cpu_data[cpu].cpu_core_id)
-		return 0;
-	for_each_cpu_mask(lcpu, cpu_core_map[cpu]) {
-		if (lcpu == cpu)
-			continue;
-		for (bank = 0; bank < NR_BANKS; ++bank) {
-			if (!(per_cpu(bank_map, cpu) & 1 << bank))
-				continue;
-			if (!shared_bank[bank])
-				continue;
-			err = threshold_create_bank(lcpu, bank);
-		}
-	}
-	return err;
-}
-
-/* remove all symlinks before first core dies. */
-static __cpuinit void threshold_remove_symlinks(unsigned int cpu)
-{
-	int bank;
-	unsigned int lcpu = 0;
-	if (cpu_data[cpu].cpu_core_id)
-		return;
-	for_each_cpu_mask(lcpu, cpu_core_map[cpu]) {
-		if (lcpu == cpu)
-			continue;
-		for (bank = 0; bank < NR_BANKS; ++bank) {
-			if (!(per_cpu(bank_map, cpu) & 1 << bank))
-				continue;
-			if (!shared_bank[bank])
-				continue;
-			threshold_remove_bank(lcpu, bank);
-		}
-	}
-}
 #else /* !CONFIG_HOTPLUG_CPU */
-static __cpuinit void threshold_create_symlinks(unsigned int cpu)
-{
-}
-static __cpuinit void threshold_remove_symlinks(unsigned int cpu)
-{
-}
 static void threshold_remove_device(unsigned int cpu)
 {
 }
@@ -695,13 +648,6 @@ static int threshold_cpu_callback(struct notifier_block *nfb,
 	switch (action) {
 	case CPU_ONLINE:
 		threshold_create_device(cpu);
-		threshold_create_symlinks(cpu);
-		break;
-	case CPU_DOWN_PREPARE:
-		threshold_remove_symlinks(cpu);
-		break;
-	case CPU_DOWN_FAILED:
-		threshold_create_symlinks(cpu);
 		break;
 	case CPU_DEAD:
 		threshold_remove_device(cpu);
@@ -719,7 +665,7 @@ static struct notifier_block threshold_cpu_notifier = {
 
 static __init int threshold_init_device(void)
 {
-	int lcpu = 0;
+	unsigned lcpu = 0;
 
 	/* to hit CPUs online before the notifier is up */
 	for_each_online_cpu(lcpu) {
