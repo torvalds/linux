@@ -369,6 +369,11 @@ static void acpi_processor_idle(void)
 		t2 = inl(acpi_fadt.xpm_tmr_blk.address);
 		/* Get end time (ticks) */
 		t2 = inl(acpi_fadt.xpm_tmr_blk.address);
+
+#ifdef CONFIG_GENERIC_TIME
+		/* TSC halts in C2, so notify users */
+		mark_tsc_unstable();
+#endif
 		/* Re-enable interrupts */
 		local_irq_enable();
 		set_thread_flag(TIF_POLLING_NRFLAG);
@@ -409,6 +414,10 @@ static void acpi_processor_idle(void)
 					  ACPI_MTX_DO_NOT_LOCK);
 		}
 
+#ifdef CONFIG_GENERIC_TIME
+		/* TSC halts in C3, so notify users */
+		mark_tsc_unstable();
+#endif
 		/* Re-enable interrupts */
 		local_irq_enable();
 		set_thread_flag(TIF_POLLING_NRFLAG);

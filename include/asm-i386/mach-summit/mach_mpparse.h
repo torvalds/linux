@@ -2,6 +2,7 @@
 #define __ASM_MACH_MPPARSE_H
 
 #include <mach_apic.h>
+#include <asm/tsc.h>
 
 extern int use_cyclone;
 
@@ -29,6 +30,7 @@ static inline int mps_oem_check(struct mp_config_table *mpc, char *oem,
 			(!strncmp(productid, "VIGIL SMP", 9) 
 			 || !strncmp(productid, "EXA", 3)
 			 || !strncmp(productid, "RUTHLESS SMP", 12))){
+		mark_tsc_unstable();
 		use_cyclone = 1; /*enable cyclone-timer*/
 		setup_summit();
 		return 1;
@@ -42,6 +44,7 @@ static inline int acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 	if (!strncmp(oem_id, "IBM", 3) &&
 	    (!strncmp(oem_table_id, "SERVIGIL", 8)
 	     || !strncmp(oem_table_id, "EXA", 3))){
+		mark_tsc_unstable();
 		use_cyclone = 1; /*enable cyclone-timer*/
 		setup_summit();
 		return 1;
