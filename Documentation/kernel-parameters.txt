@@ -61,6 +61,7 @@ parameter is applicable:
 	MTD	MTD support is enabled.
 	NET	Appropriate network support is enabled.
 	NUMA	NUMA support is enabled.
+	GENERIC_TIME The generic timeofday code is enabled.
 	NFS	Appropriate NFS support is enabled.
 	OSS	OSS sound support is enabled.
 	PARIDE	The ParIDE subsystem is enabled.
@@ -341,10 +342,11 @@ running once the system is up.
 			Value can be changed at runtime via
 				/selinux/checkreqprot.
 
- 	clock=		[BUGS=IA-32,HW] gettimeofday timesource override.
-			Forces specified timesource (if avaliable) to be used
-			when calculating gettimeofday(). If specicified
-			timesource is not avalible, it defaults to PIT.
+	clock=		[BUGS=IA-32, HW] gettimeofday clocksource override.
+			[Deprecated]
+			Forces specified clocksource (if avaliable) to be used
+			when calculating gettimeofday(). If specified
+			clocksource is not avalible, it defaults to PIT.
 			Format: { pit | tsc | cyclone | pmtmr }
 
 	disable_8254_timer
@@ -1616,6 +1618,10 @@ running once the system is up.
 			Set number of hash buckets for TCP connection
 
 	time		Show timing data prefixed to each printk message line
+
+	clocksource=	[GENERIC_TIME] Override the default clocksource
+			Override the default clocksource and use the clocksource
+			with the name specified.
 
 	tipar.timeout=	[HW,PPT]
 			Set communications timeout in tenths of a second
