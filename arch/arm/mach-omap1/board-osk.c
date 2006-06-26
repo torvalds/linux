@@ -299,12 +299,17 @@ static struct platform_device *mistral_devices[] __initdata = {
 	&osk5912_lcd_device,
 };
 
+static int mistral_get_pendown_state(void)
+{
+	return !omap_get_gpio_datain(4);
+}
+
 static const struct ads7846_platform_data mistral_ts_info = {
 	.model			= 7846,
 	.vref_delay_usecs	= 100,	/* internal, no capacitor */
 	.x_plate_ohms		= 419,
 	.y_plate_ohms		= 486,
-	// .{x,y,pressure}_{min,max}
+	.get_pendown_state	= mistral_get_pendown_state,
 };
 
 static struct spi_board_info __initdata mistral_boardinfo[] = { {
