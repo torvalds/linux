@@ -1196,7 +1196,8 @@ static struct inode_operations proc_pid_link_inode_operations = {
 
 static int proc_readfd(struct file * filp, void * dirent, filldir_t filldir)
 {
-	struct inode *inode = filp->f_dentry->d_inode;
+	struct dentry *dentry = filp->f_dentry;
+	struct inode *inode = dentry->d_inode;
 	struct task_struct *p = proc_task(inode);
 	unsigned int fd, tid, ino;
 	int retval;
@@ -1217,7 +1218,7 @@ static int proc_readfd(struct file * filp, void * dirent, filldir_t filldir)
 				goto out;
 			filp->f_pos++;
 		case 1:
-			ino = fake_ino(tid, PROC_TID_INO);
+			ino = parent_ino(dentry);
 			if (filldir(dirent, "..", 2, 1, ino, DT_DIR) < 0)
 				goto out;
 			filp->f_pos++;
