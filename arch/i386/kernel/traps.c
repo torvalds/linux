@@ -93,6 +93,7 @@ asmlinkage void spurious_interrupt_bug(void);
 asmlinkage void machine_check(void);
 
 static int kstack_depth_to_print = 24;
+static int call_trace = 1;
 ATOMIC_NOTIFIER_HEAD(i386die_chain);
 
 int register_die_notifier(struct notifier_block *nb)
@@ -171,40 +172,47 @@ static inline unsigned long print_context_stack(struct thread_info *tinfo,
 	return ebp;
 }
 
-static asmlinkage void show_trace_unwind(struct unwind_frame_info *info, void *log_lvl)
+static asmlinkage int show_trace_unwind(struct unwind_frame_info *info, void *log_lvl)
 {
+	int n = 0;
 	int printed = 0; /* nr of entries already printed on current line */
 
 	while (unwind(info) == 0 && UNW_PC(info)) {
+		++n;
 		printed = print_addr_and_symbol(UNW_PC(info), log_lvl, printed);
 		if (arch_unw_user_mode(info))
 			break;
 	}
 	if (printed)
 		printk("\n");
+	return n;
 }
 
 static void show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
 			       unsigned long *stack, char *log_lvl)
 {
 	unsigned long ebp;
-	struct unwind_frame_info info;
 
 	if (!task)
 		task = current;
 
-	if (regs) {
-		if (unwind_init_frame_info(&info, task, regs) == 0) {
-			show_trace_unwind(&info, log_lvl);
-			return;
+	if (call_trace >= 0) {
+		int unw_ret = 0;
+		struct unwind_frame_info info;
+
+		if (regs) {
+			if (unwind_init_frame_info(&info, task, regs) == 0)
+				unw_ret = show_trace_unwind(&info, log_lvl);
+		} else if (task == current)
+			unw_ret = unwind_init_running(&info, show_trace_unwind, log_lvl);
+		else {
+			if (unwind_init_blocked(&info, task) == 0)
+				unw_ret = show_trace_unwind(&info, log_lvl);
 		}
-	} else if (task == current) {
-		if (unwind_init_running(&info, show_trace_unwind, log_lvl) == 0)
-			return;
-	} else {
-		if (unwind_init_blocked(&info, task) == 0) {
-			show_trace_unwind(&info, log_lvl);
-			return;
+		if (unw_ret > 0) {
+			if (call_trace > 0)
+				return;
+			printk("%sLegacy call trace:\n", log_lvl);
 		}
 	}
 
@@ -1245,3 +1253,15 @@ static int __init kstack_setup(char *s)
 	return 1;
 }
 __setup("kstack=", kstack_setup);
+
+static int __init call_trace_setup(char *s)
+{
+	if (strcmp(s, "old") == 0)
+		call_trace = -1;
+	else if (strcmp(s, "both") == 0)
+		call_trace = 0;
+	else if (strcmp(s, "new") == 0)
+		call_trace = 1;
+	return 1;
+}
+__setup("call_trace=", call_trace_setup);

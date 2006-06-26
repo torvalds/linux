@@ -66,10 +66,10 @@ static inline void arch_unw_init_blocked(struct unwind_frame_info *info)
 	info->regs.xes = __USER_DS;
 }
 
-extern asmlinkage void arch_unwind_init_running(struct unwind_frame_info *,
-                                                asmlinkage void (*callback)(struct unwind_frame_info *,
-                                                                            void *arg),
-                                                void *arg);
+extern asmlinkage int arch_unwind_init_running(struct unwind_frame_info *,
+                                               asmlinkage int (*callback)(struct unwind_frame_info *,
+                                                                          void *arg),
+                                               void *arg);
 
 static inline int arch_unw_user_mode(const struct unwind_frame_info *info)
 {

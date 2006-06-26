@@ -885,14 +885,13 @@ EXPORT_SYMBOL(unwind_init_blocked);
  * Prepare to unwind the currently running thread.
  */
 int unwind_init_running(struct unwind_frame_info *info,
-                        asmlinkage void (*callback)(struct unwind_frame_info *,
-                                                    void *arg),
+                        asmlinkage int (*callback)(struct unwind_frame_info *,
+                                                   void *arg),
                         void *arg)
 {
 	info->task = current;
-	arch_unwind_init_running(info, callback, arg);
 
-	return 0;
+	return arch_unwind_init_running(info, callback, arg);
 }
 EXPORT_SYMBOL(unwind_init_running);
 

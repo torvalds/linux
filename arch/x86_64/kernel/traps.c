@@ -107,6 +107,7 @@ static inline void preempt_conditional_cli(struct pt_regs *regs)
 }
 
 static int kstack_depth_to_print = 10;
+static int call_trace = 1;
 
 #ifdef CONFIG_KALLSYMS
 #include <linux/kallsyms.h> 
@@ -190,11 +191,12 @@ static unsigned long *in_exception_stack(unsigned cpu, unsigned long stack,
 	return NULL;
 }
 
-static void show_trace_unwind(struct unwind_frame_info *info, void *context)
+static int show_trace_unwind(struct unwind_frame_info *info, void *context)
 {
-	int i = 11;
+	int i = 11, n = 0;
 
 	while (unwind(info) == 0 && UNW_PC(info)) {
+		++n;
 		if (i > 50) {
 			printk("\n       ");
 			i = 7;
@@ -205,6 +207,7 @@ static void show_trace_unwind(struct unwind_frame_info *info, void *context)
 			break;
 	}
 	printk("\n");
+	return n;
 }
 
 /*
@@ -218,27 +221,32 @@ void show_trace(struct task_struct *tsk, struct pt_regs *regs, unsigned long * s
 {
 	const unsigned cpu = safe_smp_processor_id();
 	unsigned long *irqstack_end = (unsigned long *)cpu_pda(cpu)->irqstackptr;
-	int i;
+	int i = 11;
 	unsigned used = 0;
-	struct unwind_frame_info info;
 
 	printk("\nCall Trace:");
 
 	if (!tsk)
 		tsk = current;
 
-	if (regs) {
-		if (unwind_init_frame_info(&info, tsk, regs) == 0) {
-			show_trace_unwind(&info, NULL);
-			return;
+	if (call_trace >= 0) {
+		int unw_ret = 0;
+		struct unwind_frame_info info;
+
+		if (regs) {
+			if (unwind_init_frame_info(&info, tsk, regs) == 0)
+				unw_ret = show_trace_unwind(&info, NULL);
+		} else if (tsk == current)
+			unw_ret = unwind_init_running(&info, show_trace_unwind, NULL);
+		else {
+			if (unwind_init_blocked(&info, tsk) == 0)
+				unw_ret = show_trace_unwind(&info, NULL);
 		}
-	} else if (tsk == current) {
-		if (unwind_init_running(&info, show_trace_unwind, NULL) == 0)
-			return;
-	} else {
-		if (unwind_init_blocked(&info, tsk) == 0) {
-			show_trace_unwind(&info, NULL);
-			return;
+		if (unw_ret > 0) {
+			if (call_trace > 0)
+				return;
+			printk("Legacy call trace:");
+			i = 18;
 		}
 	}
 
@@ -264,7 +272,7 @@ void show_trace(struct task_struct *tsk, struct pt_regs *regs, unsigned long * s
 		} \
 	} while (0)
 
-	for(i = 11; ; ) {
+	for(; ; ) {
 		const char *id;
 		unsigned long *estack_end;
 		estack_end = in_exception_stack(cpu, (unsigned long)stack,
@@ -1052,3 +1060,14 @@ static int __init kstack_setup(char *s)
 }
 __setup("kstack=", kstack_setup);
 
+static int __init call_trace_setup(char *s)
+{
+	if (strcmp(s, "old") == 0)
+		call_trace = -1;
+	else if (strcmp(s, "both") == 0)
+		call_trace = 0;
+	else if (strcmp(s, "new") == 0)
+		call_trace = 1;
+	return 1;
+}
+__setup("call_trace=", call_trace_setup);

@@ -49,8 +49,8 @@ extern int unwind_init_blocked(struct unwind_frame_info *,
  * Prepare to unwind the currently running thread.
  */
 extern int unwind_init_running(struct unwind_frame_info *,
-                               asmlinkage void (*callback)(struct unwind_frame_info *,
-                                                           void *arg),
+                               asmlinkage int (*callback)(struct unwind_frame_info *,
+                                                          void *arg),
                                void *arg);
 
 /*
@@ -97,8 +97,8 @@ static inline int unwind_init_blocked(struct unwind_frame_info *info,
 }
 
 static inline int unwind_init_running(struct unwind_frame_info *info,
-                                      asmlinkage void (*cb)(struct unwind_frame_info *,
-                                                            void *arg),
+                                      asmlinkage int (*cb)(struct unwind_frame_info *,
+                                                           void *arg),
                                       void *arg)
 {
 	return -ENOSYS;
