@@ -41,7 +41,7 @@ config M386
 	  - "GeodeGX1" for Geode GX1 (Cyrix MediaGX).
 	  - "Geode GX/LX" For AMD Geode GX and LX processors.
 	  - "CyrixIII/VIA C3" for VIA Cyrix III or VIA C3.
-	  - "VIA C3-2 for VIA C3-2 "Nehemiah" (model 9 and above).
+	  - "VIA C3-2" for VIA C3-2 "Nehemiah" (model 9 and above).
 
 	  If you don't know what to do, choose "386".
 
