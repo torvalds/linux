@@ -1205,21 +1205,14 @@ static struct hw_interrupt_type ioapic_edge_type;
 
 static inline void ioapic_register_intr(int irq, int vector, unsigned long trigger)
 {
-	if (use_pci_vector() && !platform_legacy_irq(irq)) {
-		if ((trigger == IOAPIC_AUTO && IO_APIC_irq_trigger(irq)) ||
-				trigger == IOAPIC_LEVEL)
-			irq_desc[vector].handler = &ioapic_level_type;
-		else
-			irq_desc[vector].handler = &ioapic_edge_type;
-		set_intr_gate(vector, interrupt[vector]);
-	} else	{
-		if ((trigger == IOAPIC_AUTO && IO_APIC_irq_trigger(irq)) ||
-				trigger == IOAPIC_LEVEL)
-			irq_desc[irq].handler = &ioapic_level_type;
-		else
-			irq_desc[irq].handler = &ioapic_edge_type;
-		set_intr_gate(vector, interrupt[irq]);
-	}
+	unsigned idx = use_pci_vector() && !platform_legacy_irq(irq) ? vector : irq;
+
+	if ((trigger == IOAPIC_AUTO && IO_APIC_irq_trigger(irq)) ||
+			trigger == IOAPIC_LEVEL)
+		irq_desc[idx].handler = &ioapic_level_type;
+	else
+		irq_desc[idx].handler = &ioapic_edge_type;
+	set_intr_gate(vector, interrupt[idx]);
 }
 
 static void __init setup_IO_APIC_irqs(void)
