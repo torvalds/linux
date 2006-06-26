@@ -1604,40 +1604,121 @@ void tipc_link_push_queue(struct link *l_ptr)
 		tipc_bearer_schedule(l_ptr->b_ptr, l_ptr);
 }
 
+static void link_reset_all(unsigned long addr)
+{
+	struct node *n_ptr;
+	char addr_string[16];
+	u32 i;
+
+	read_lock_bh(&tipc_net_lock);
+	n_ptr = tipc_node_find((u32)addr);
+	if (!n_ptr) {
+		read_unlock_bh(&tipc_net_lock);
+		return;	/* node no longer exists */
+	}
+
+	tipc_node_lock(n_ptr);
+
+	warn("Resetting all links to %s\n", 
+	     addr_string_fill(addr_string, n_ptr->addr));
+
+	for (i = 0; i < MAX_BEARERS; i++) {
+		if (n_ptr->links[i]) {
+			link_print(n_ptr->links[i], TIPC_OUTPUT, 
+				   "Resetting link\n");
+			tipc_link_reset(n_ptr->links[i]);
+		}
+	}
+
+	tipc_node_unlock(n_ptr);
+	read_unlock_bh(&tipc_net_lock);
+}
+
+static void link_retransmit_failure(struct link *l_ptr, struct sk_buff *buf)
+{
+	struct tipc_msg *msg = buf_msg(buf);
+
+	warn("Retransmission failure on link <%s>\n", l_ptr->name);
+	tipc_msg_print(TIPC_OUTPUT, msg, ">RETR-FAIL>");
+
+	if (l_ptr->addr) {
+
+		/* Handle failure on standard link */
+
+		link_print(l_ptr, TIPC_OUTPUT, "Resetting link\n");
+		tipc_link_reset(l_ptr);
+
+	} else {
+
+		/* Handle failure on broadcast link */
+
+		struct node *n_ptr;
+		char addr_string[16];
+
+		tipc_printf(TIPC_OUTPUT, "Msg seq number: %u,  ", msg_seqno(msg));
+		tipc_printf(TIPC_OUTPUT, "Outstanding acks: %u\n", (u32)TIPC_SKB_CB(buf)->handle);
+		
+		n_ptr = l_ptr->owner->next;
+		tipc_node_lock(n_ptr);
+
+		addr_string_fill(addr_string, n_ptr->addr);
+		tipc_printf(TIPC_OUTPUT, "Multicast link info for %s\n", addr_string);
+		tipc_printf(TIPC_OUTPUT, "Supported: %d,  ", n_ptr->bclink.supported);
+		tipc_printf(TIPC_OUTPUT, "Acked: %u\n", n_ptr->bclink.acked);
+		tipc_printf(TIPC_OUTPUT, "Last in: %u,  ", n_ptr->bclink.last_in);
+		tipc_printf(TIPC_OUTPUT, "Gap after: %u,  ", n_ptr->bclink.gap_after);
+		tipc_printf(TIPC_OUTPUT, "Gap to: %u\n", n_ptr->bclink.gap_to);
+		tipc_printf(TIPC_OUTPUT, "Nack sync: %u\n\n", n_ptr->bclink.nack_sync);
+
+		tipc_k_signal((Handler)link_reset_all, (unsigned long)n_ptr->addr);
+
+		tipc_node_unlock(n_ptr);
+
+		l_ptr->stale_count = 0;
+	}
+}
+
 void tipc_link_retransmit(struct link *l_ptr, struct sk_buff *buf, 
 			  u32 retransmits)
 {
 	struct tipc_msg *msg;
 
+	if (!buf)
+		return;
+
+	msg = buf_msg(buf);
+	
 	dbg("Retransmitting %u in link %x\n", retransmits, l_ptr);
 
-	if (tipc_bearer_congested(l_ptr->b_ptr, l_ptr) && buf && !skb_cloned(buf)) {
-		msg_dbg(buf_msg(buf), ">NO_RETR->BCONG>");
-		dbg_print_link(l_ptr, "   ");
-		l_ptr->retransm_queue_head = msg_seqno(buf_msg(buf));
-		l_ptr->retransm_queue_size = retransmits;
-		return;
+	if (tipc_bearer_congested(l_ptr->b_ptr, l_ptr)) {
+		if (!skb_cloned(buf)) {
+			msg_dbg(msg, ">NO_RETR->BCONG>");
+			dbg_print_link(l_ptr, "   ");
+			l_ptr->retransm_queue_head = msg_seqno(msg);
+			l_ptr->retransm_queue_size = retransmits;
+			return;
+		} else {
+			/* Don't retransmit if driver already has the buffer */
+		}
+	} else {
+		/* Detect repeated retransmit failures on uncongested bearer */
+
+		if (l_ptr->last_retransmitted == msg_seqno(msg)) {
+			if (++l_ptr->stale_count > 100) {
+				link_retransmit_failure(l_ptr, buf);
+				return;
+			}
+		} else {
+			l_ptr->last_retransmitted = msg_seqno(msg);
+			l_ptr->stale_count = 1;
+		}
 	}
+
 	while (retransmits && (buf != l_ptr->next_out) && buf && !skb_cloned(buf)) {
 		msg = buf_msg(buf);
 		msg_set_ack(msg, mod(l_ptr->next_in_no - 1));
 		msg_set_bcast_ack(msg, l_ptr->owner->bclink.last_in); 
 		if (tipc_bearer_send(l_ptr->b_ptr, buf, &l_ptr->media_addr)) {
-                        /* Catch if retransmissions fail repeatedly: */
-                        if (l_ptr->last_retransmitted == msg_seqno(msg)) {
-                                if (++l_ptr->stale_count > 100) {
-                                        tipc_msg_print(TIPC_CONS, buf_msg(buf), ">RETR>");
-                                        info("...Retransmitted %u times\n",
-					     l_ptr->stale_count);
-                                        link_print(l_ptr, TIPC_CONS, "Resetting Link\n");
-                                        tipc_link_reset(l_ptr);
-                                        break;
-                                }
-                        } else {
-                                l_ptr->stale_count = 0;
-                        }
-                        l_ptr->last_retransmitted = msg_seqno(msg);
-
 			msg_dbg(buf_msg(buf), ">RETR>");
 			buf = buf->next;
 			retransmits--;
@@ -1650,6 +1731,7 @@ void tipc_link_retransmit(struct link *l_ptr, struct sk_buff *buf,
 			return;
 		}
 	}
+
 	l_ptr->retransm_queue_head = l_ptr->retransm_queue_size = 0;
 }
 

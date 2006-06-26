@@ -49,12 +49,18 @@
 #include "name_table.h"
 #include "bcast.h"
 
-
 #define MAX_PKT_DEFAULT_MCAST 1500	/* bcast link max packet size (fixed) */
 
 #define BCLINK_WIN_DEFAULT 20		/* bcast link window size (default) */
 
 #define BCLINK_LOG_BUF_SIZE 0
+
+/*
+ * Loss rate for incoming broadcast frames; used to test retransmission code.
+ * Set to N to cause every N'th frame to be discarded; 0 => don't discard any.
+ */
+ 
+#define TIPC_BCAST_LOSS_RATE 0
 
 /**
  * struct bcbearer_pair - a pair of bearers used by broadcast link
@@ -165,21 +171,18 @@ static int bclink_ack_allowed(u32 n)
  * @after: sequence number of last packet to *not* retransmit
  * @to: sequence number of last packet to retransmit
  * 
- * Called with 'node' locked, bc_lock unlocked
+ * Called with bc_lock locked
  */
 
 static void bclink_retransmit_pkt(u32 after, u32 to)
 {
 	struct sk_buff *buf;
 
-	spin_lock_bh(&bc_lock);
 	buf = bcl->first_out;
 	while (buf && less_eq(buf_seqno(buf), after)) {
 		buf = buf->next;                
 	}
-	if (buf != NULL)
-		tipc_link_retransmit(bcl, buf, mod(to - after));
-	spin_unlock_bh(&bc_lock);              
+	tipc_link_retransmit(bcl, buf, mod(to - after));
 }
 
 /** 
@@ -399,7 +402,10 @@ int tipc_bclink_send_msg(struct sk_buff *buf)
  */
 
 void tipc_bclink_recv_pkt(struct sk_buff *buf)
-{        
+{
+#if (TIPC_BCAST_LOSS_RATE)
+	static int rx_count = 0;
+#endif
 	struct tipc_msg *msg = buf_msg(buf);
 	struct node* node = tipc_node_find(msg_prevnode(msg));
 	u32 next_in;
@@ -420,9 +426,13 @@ void tipc_bclink_recv_pkt(struct sk_buff *buf)
 			tipc_node_lock(node);
 			tipc_bclink_acknowledge(node, msg_bcast_ack(msg));
 			tipc_node_unlock(node);
+			spin_lock_bh(&bc_lock);
 			bcl->stats.recv_nacks++;
+			bcl->owner->next = node;   /* remember requestor */
 			bclink_retransmit_pkt(msg_bcgap_after(msg),
 					      msg_bcgap_to(msg));
+			bcl->owner->next = NULL;
+			spin_unlock_bh(&bc_lock);              
 		} else {
 			tipc_bclink_peek_nack(msg_destnode(msg),
 					      msg_bcast_tag(msg),
@@ -432,6 +442,14 @@ void tipc_bclink_recv_pkt(struct sk_buff *buf)
 		buf_discard(buf);
 		return;
 	}
+
+#if (TIPC_BCAST_LOSS_RATE)
+	if (++rx_count == TIPC_BCAST_LOSS_RATE) {
+		rx_count = 0;
+		buf_discard(buf);
+		return;
+	}
+#endif
 
 	tipc_node_lock(node);
 receive:
