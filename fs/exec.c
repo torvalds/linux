@@ -1373,7 +1373,11 @@ static void zap_process(struct task_struct *start)
 	struct task_struct *t;
 	unsigned long flags;
 
-	spin_lock_irqsave(&start->sighand->siglock, flags);
+	/*
+	 * start->sighand can't disappear, but may be
+	 * changed by de_thread()
+	 */
+	lock_task_sighand(start, &flags);
 	start->signal->flags = SIGNAL_GROUP_EXIT;
 	start->signal->group_stop_count = 0;
 
@@ -1386,7 +1390,7 @@ static void zap_process(struct task_struct *start)
 		}
 	} while ((t = next_thread(t)) != start);
 
-	spin_unlock_irqrestore(&start->sighand->siglock, flags);
+	unlock_task_sighand(start, &flags);
 }
 
 static void zap_threads(struct mm_struct *mm)
@@ -1404,7 +1408,7 @@ static void zap_threads(struct mm_struct *mm)
 		complete(vfork_done);
 	}
 
-	read_lock(&tasklist_lock);
+	rcu_read_lock();
 	for_each_process(g) {
 		p = g;
 		do {
@@ -1415,7 +1419,7 @@ static void zap_threads(struct mm_struct *mm)
 			}
 		} while ((p = next_thread(p)) != g);
 	}
-	read_unlock(&tasklist_lock);
+	rcu_read_unlock();
 }
 
 static void coredump_wait(struct mm_struct *mm)
