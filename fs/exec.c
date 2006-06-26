@@ -1368,6 +1368,22 @@ static void format_corename(char *corename, const char *pattern, long signr)
 	*out_ptr = 0;
 }
 
+static void zap_process(struct task_struct *start, int *ptraced)
+{
+	struct task_struct *t;
+
+	t = start;
+	do {
+		if (t != current && t->mm) {
+			t->mm->core_waiters++;
+			force_sig_specific(SIGKILL, t);
+			if (unlikely(t->ptrace) &&
+			    unlikely(t->parent->mm == t->mm))
+				*ptraced = 1;
+		}
+	} while ((t = next_thread(t)) != start);
+}
+
 static void zap_threads (struct mm_struct *mm)
 {
 	struct task_struct *g, *p;
@@ -1385,16 +1401,16 @@ static void zap_threads (struct mm_struct *mm)
 	}
 
 	read_lock(&tasklist_lock);
-	do_each_thread(g,p)
-		if (mm == p->mm && p != tsk) {
-			force_sig_specific(SIGKILL, p);
-			mm->core_waiters++;
-			if (unlikely(p->ptrace) &&
-			    unlikely(p->parent->mm == mm))
-				traced = 1;
-		}
-	while_each_thread(g,p);
-
+	for_each_process(g) {
+		p = g;
+		do {
+			if (p->mm) {
+				if (p->mm == mm)
+					zap_process(p, &traced);
+				break;
+			}
+		} while ((p = next_thread(p)) != g);
+	}
 	read_unlock(&tasklist_lock);
 
 	if (unlikely(traced)) {
