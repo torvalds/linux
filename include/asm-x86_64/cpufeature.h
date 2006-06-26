@@ -46,6 +46,7 @@
 #define X86_FEATURE_SYSCALL	(1*32+11) /* SYSCALL/SYSRET */
 #define X86_FEATURE_MMXEXT	(1*32+22) /* AMD MMX extensions */
 #define X86_FEATURE_FXSR_OPT	(1*32+25) /* FXSR optimizations */
+#define X86_FEATURE_RDTSCP	(1*32+27) /* RDTSCP */
 #define X86_FEATURE_LM		(1*32+29) /* Long Mode (x86-64) */
 #define X86_FEATURE_3DNOWEXT	(1*32+30) /* AMD 3DNow! extensions */
 #define X86_FEATURE_3DNOW	(1*32+31) /* 3DNow! */
