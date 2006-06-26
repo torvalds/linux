@@ -239,8 +239,7 @@ static enum dlm_status dlmlock_remote(struct dlm_ctxt *dlm,
 		mlog(0, "%s: $RECOVERY lock for this node (%u) is "
 		     "mastered by %u; got lock, manually granting (no ast)\n",
 		     dlm->name, dlm->node_num, res->owner);
-		list_del_init(&lock->list);
-		list_add_tail(&lock->list, &res->granted);
+		list_move_tail(&lock->list, &res->granted);
 	}
 	spin_unlock(&res->spinlock);
 

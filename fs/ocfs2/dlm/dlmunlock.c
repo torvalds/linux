@@ -271,8 +271,7 @@ void dlm_commit_pending_unlock(struct dlm_lock_resource *res,
 void dlm_commit_pending_cancel(struct dlm_lock_resource *res,
 			       struct dlm_lock *lock)
 {
-	list_del_init(&lock->list);
-	list_add_tail(&lock->list, &res->granted);
+	list_move_tail(&lock->list, &res->granted);
 	lock->ml.convert_type = LKM_IVMODE;
 }
 

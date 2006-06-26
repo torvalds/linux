@@ -231,8 +231,7 @@ switch_queues:
 
 	lock->ml.convert_type = type;
 	/* do not alter lock refcount.  switching lists. */
-	list_del_init(&lock->list);
-	list_add_tail(&lock->list, &res->converting);
+	list_move_tail(&lock->list, &res->converting);
 
 unlock_exit:
 	spin_unlock(&lock->spinlock);
@@ -248,8 +247,7 @@ void dlm_revert_pending_convert(struct dlm_lock_resource *res,
 				struct dlm_lock *lock)
 {
 	/* do not alter lock refcount.  switching lists. */
-	list_del_init(&lock->list);
-	list_add_tail(&lock->list, &res->granted);
+	list_move_tail(&lock->list, &res->granted);
 	lock->ml.convert_type = LKM_IVMODE;
 	lock->lksb->flags &= ~(DLM_LKSB_GET_LVB|DLM_LKSB_PUT_LVB);
 }
@@ -294,8 +292,7 @@ enum dlm_status dlmconvert_remote(struct dlm_ctxt *dlm,
 	res->state |= DLM_LOCK_RES_IN_PROGRESS;
 	/* move lock to local convert queue */
 	/* do not alter lock refcount.  switching lists. */
-	list_del_init(&lock->list);
-	list_add_tail(&lock->list, &res->converting);
+	list_move_tail(&lock->list, &res->converting);
 	lock->convert_pending = 1;
 	lock->ml.convert_type = type;
 

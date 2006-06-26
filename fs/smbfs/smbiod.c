@@ -193,8 +193,7 @@ int smbiod_retry(struct smb_sb_info *server)
 		if (req->rq_flags & SMB_REQ_RETRY) {
 			/* must move the request to the xmitq */
 			VERBOSE("retrying request %p on recvq\n", req);
-			list_del(&req->rq_queue);
-			list_add(&req->rq_queue, &server->xmitq);
+			list_move(&req->rq_queue, &server->xmitq);
 			continue;
 		}
 #endif

@@ -222,8 +222,7 @@ void ocfs2_handle_add_inode(struct ocfs2_journal_handle *handle,
 	BUG_ON(!list_empty(&OCFS2_I(inode)->ip_handle_list));
 
 	OCFS2_I(inode)->ip_handle = handle;
-	list_del(&(OCFS2_I(inode)->ip_handle_list));
-	list_add_tail(&(OCFS2_I(inode)->ip_handle_list), &(handle->inode_list));
+	list_move_tail(&(OCFS2_I(inode)->ip_handle_list), &(handle->inode_list));
 }
 
 static void ocfs2_handle_unlock_inodes(struct ocfs2_journal_handle *handle)

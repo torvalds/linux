@@ -318,8 +318,7 @@ converting:
 
 		target->ml.type = target->ml.convert_type;
 		target->ml.convert_type = LKM_IVMODE;
-		list_del_init(&target->list);
-		list_add_tail(&target->list, &res->granted);
+		list_move_tail(&target->list, &res->granted);
 
 		BUG_ON(!target->lksb);
 		target->lksb->status = DLM_NORMAL;
@@ -380,8 +379,7 @@ blocked:
 		     target->ml.type, target->ml.node);
 
 		// target->ml.type is already correct
-		list_del_init(&target->list);
-		list_add_tail(&target->list, &res->granted);
+		list_move_tail(&target->list, &res->granted);
 
 		BUG_ON(!target->lksb);
 		target->lksb->status = DLM_NORMAL;

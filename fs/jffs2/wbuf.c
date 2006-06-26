@@ -495,8 +495,7 @@ static void jffs2_wbuf_recover(struct jffs2_sb_info *c)
 	/* Fix up the original jeb now it's on the bad_list */
 	if (first_raw == jeb->first_node) {
 		D1(printk(KERN_DEBUG "Failing block at %08x is now empty. Moving to erase_pending_list\n", jeb->offset));
-		list_del(&jeb->list);
-		list_add(&jeb->list, &c->erase_pending_list);
+		list_move(&jeb->list, &c->erase_pending_list);
 		c->nr_erasing_blocks++;
 		jffs2_erase_pending_trigger(c);
 	}

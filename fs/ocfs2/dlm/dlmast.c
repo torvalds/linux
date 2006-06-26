@@ -381,8 +381,7 @@ do_ast:
 	ret = DLM_NORMAL;
 	if (past->type == DLM_AST) {
 		/* do not alter lock refcount.  switching lists. */
-		list_del_init(&lock->list);
-		list_add_tail(&lock->list, &res->granted);
+		list_move_tail(&lock->list, &res->granted);
 		mlog(0, "ast: adding to granted list... type=%d, "
 			  "convert_type=%d\n", lock->ml.type, lock->ml.convert_type);
 		if (lock->ml.convert_type != LKM_IVMODE) {

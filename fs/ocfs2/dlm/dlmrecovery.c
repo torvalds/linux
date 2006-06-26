@@ -905,13 +905,11 @@ static void dlm_move_reco_locks_to_list(struct dlm_ctxt *dlm,
 			mlog(0, "found lockres owned by dead node while "
 				  "doing recovery for node %u. sending it.\n",
 				  dead_node);
-			list_del_init(&res->recovering);
-			list_add_tail(&res->recovering, list);
+			list_move_tail(&res->recovering, list);
 		} else if (res->owner == DLM_LOCK_RES_OWNER_UNKNOWN) {
 			mlog(0, "found UNKNOWN owner while doing recovery "
 				  "for node %u. sending it.\n", dead_node);
-			list_del_init(&res->recovering);
-			list_add_tail(&res->recovering, list);
+			list_move_tail(&res->recovering, list);
 		}
 	}
 	spin_unlock(&dlm->spinlock);
@@ -1529,8 +1527,7 @@ static int dlm_process_recovery_data(struct dlm_ctxt *dlm,
 
 			/* move the lock to its proper place */
 			/* do not alter lock refcount.  switching lists. */
-			list_del_init(&lock->list);
-			list_add_tail(&lock->list, queue);
+			list_move_tail(&lock->list, queue);
 			spin_unlock(&res->spinlock);
 
 			mlog(0, "just reordered a local lock!\n");

@@ -211,8 +211,7 @@ static int jffs2_find_nextblock(struct jffs2_sb_info *c)
 			struct jffs2_eraseblock *ejeb;
 
 			ejeb = list_entry(c->erasable_list.next, struct jffs2_eraseblock, list);
-			list_del(&ejeb->list);
-			list_add_tail(&ejeb->list, &c->erase_pending_list);
+			list_move_tail(&ejeb->list, &c->erase_pending_list);
 			c->nr_erasing_blocks++;
 			jffs2_erase_pending_trigger(c);
 			D1(printk(KERN_DEBUG "jffs2_find_nextblock: Triggering erase of erasable block at 0x%08x\n",
