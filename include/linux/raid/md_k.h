@@ -58,6 +58,7 @@ struct mdk_rdev_s
 
 	struct page	*sb_page;
 	int		sb_loaded;
+	__u64		sb_events;
 	sector_t	data_offset;	/* start of data in array */
 	sector_t	sb_offset;
 	int		sb_size;	/* bytes in the superblock */

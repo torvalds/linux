@@ -1558,15 +1558,30 @@ static void md_print_devices(void)
 }
 
 
-static void sync_sbs(mddev_t * mddev)
+static void sync_sbs(mddev_t * mddev, int nospares)
 {
+	/* Update each superblock (in-memory image), but
+	 * if we are allowed to, skip spares which already
+	 * have the right event counter, or have one earlier
+	 * (which would mean they aren't being marked as dirty
+	 * with the rest of the array)
+	 */
 	mdk_rdev_t *rdev;
 	struct list_head *tmp;
 
 	ITERATE_RDEV(mddev,rdev,tmp) {
-		super_types[mddev->major_version].
-			sync_super(mddev, rdev);
-		rdev->sb_loaded = 1;
+		if (rdev->sb_events == mddev->events ||
+		    (nospares &&
+		     rdev->raid_disk < 0 &&
+		     (rdev->sb_events&1)==0 &&
+		     rdev->sb_events+1 == mddev->events)) {
+			/* Don't update this superblock */
+			rdev->sb_loaded = 2;
+		} else {
+			super_types[mddev->major_version].
+				sync_super(mddev, rdev);
+			rdev->sb_loaded = 1;
+		}
 	}
 }
 
@@ -1576,12 +1591,42 @@ void md_update_sb(mddev_t * mddev)
 	struct list_head *tmp;
 	mdk_rdev_t *rdev;
 	int sync_req;
+	int nospares = 0;
 
 repeat:
 	spin_lock_irq(&mddev->write_lock);
 	sync_req = mddev->in_sync;
 	mddev->utime = get_seconds();
-	mddev->events ++;
+	if (mddev->sb_dirty == 3)
+		/* just a clean<-> dirty transition, possibly leave spares alone,
+		 * though if events isn't the right even/odd, we will have to do
+		 * spares after all
+		 */
+		nospares = 1;
+
+	/* If this is just a dirty<->clean transition, and the array is clean
+	 * and 'events' is odd, we can roll back to the previous clean state */
+	if (mddev->sb_dirty == 3
+	    && (mddev->in_sync && mddev->recovery_cp == MaxSector)
+	    && (mddev->events & 1))
+		mddev->events--;
+	else {
+		/* otherwise we have to go forward and ... */
+		mddev->events ++;
+		if (!mddev->in_sync || mddev->recovery_cp != MaxSector) { /* not clean */
+			/* .. if the array isn't clean, insist on an odd 'events' */
+			if ((mddev->events&1)==0) {
+				mddev->events++;
+				nospares = 0;
+			}
+		} else {
+			/* otherwise insist on an even 'events' (for clean states) */
+			if ((mddev->events&1)) {
+				mddev->events++;
+				nospares = 0;
+			}
+		}
+	}
 
 	if (!mddev->events) {
 		/*
@@ -1593,7 +1638,7 @@ repeat:
 		mddev->events --;
 	}
 	mddev->sb_dirty = 2;
-	sync_sbs(mddev);
+	sync_sbs(mddev, nospares);
 
 	/*
 	 * do not write anything to disk if using
@@ -1615,6 +1660,8 @@ repeat:
 	ITERATE_RDEV(mddev,rdev,tmp) {
 		char b[BDEVNAME_SIZE];
 		dprintk(KERN_INFO "md: ");
+		if (rdev->sb_loaded != 1)
+			continue; /* no noise on spare devices */
 		if (test_bit(Faulty, &rdev->flags))
 			dprintk("(skipping faulty ");
 
@@ -1626,6 +1673,7 @@ repeat:
 			dprintk(KERN_INFO "(write) %s's sb offset: %llu\n",
 				bdevname(rdev->bdev,b),
 				(unsigned long long)rdev->sb_offset);
+			rdev->sb_events = mddev->events;
 
 		} else
 			dprintk(")\n");
@@ -1895,6 +1943,7 @@ static mdk_rdev_t *md_import_device(dev_t newdev, int super_format, int super_mi
 	rdev->desc_nr = -1;
 	rdev->flags = 0;
 	rdev->data_offset = 0;
+	rdev->sb_events = 0;
 	atomic_set(&rdev->nr_pending, 0);
 	atomic_set(&rdev->read_errors, 0);
 	atomic_set(&rdev->corrected_errors, 0);
@@ -4708,7 +4757,7 @@ void md_write_start(mddev_t *mddev, struct bio *bi)
 		spin_lock_irq(&mddev->write_lock);
 		if (mddev->in_sync) {
 			mddev->in_sync = 0;
-			mddev->sb_dirty = 1;
+			mddev->sb_dirty = 3;
 			md_wakeup_thread(mddev->thread);
 		}
 		spin_unlock_irq(&mddev->write_lock);
@@ -5055,7 +5104,7 @@ void md_check_recovery(mddev_t *mddev)
 		if (mddev->safemode && !atomic_read(&mddev->writes_pending) &&
 		    !mddev->in_sync && mddev->recovery_cp == MaxSector) {
 			mddev->in_sync = 1;
-			mddev->sb_dirty = 1;
+			mddev->sb_dirty = 3;
 		}
 		if (mddev->safemode == 1)
 			mddev->safemode = 0;
