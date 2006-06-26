@@ -69,7 +69,7 @@ static struct clocksource clocksource_pit = {
 	.name	= "pit",
 	.rating = 110,
 	.read	= pit_read,
-	.mask	= (cycle_t)-1,
+	.mask	= CLOCKSOURCE_MASK(64),
 	.mult	= 0,
 	.shift	= 20,
 };

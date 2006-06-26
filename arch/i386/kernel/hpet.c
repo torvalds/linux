@@ -6,7 +6,7 @@
 #include <asm/hpet.h>
 #include <asm/io.h>
 
-#define HPET_MASK	0xFFFFFFFF
+#define HPET_MASK	CLOCKSOURCE_MASK(32)
 #define HPET_SHIFT	22
 
 /* FSEC = 10^-15 NSEC = 10^-9 */
@@ -23,7 +23,7 @@ static struct clocksource clocksource_hpet = {
 	.name		= "hpet",
 	.rating		= 250,
 	.read		= read_hpet,
-	.mask		= (cycle_t)HPET_MASK,
+	.mask		= HPET_MASK,
 	.mult		= 0, /* set below */
 	.shift		= HPET_SHIFT,
 	.is_continuous	= 1,

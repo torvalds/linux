@@ -32,7 +32,7 @@
  */
 u32 pmtmr_ioport __read_mostly;
 
-#define ACPI_PM_MASK 0xFFFFFF /* limit it to 24 bits */
+#define ACPI_PM_MASK CLOCKSOURCE_MASK(24) /* limit it to 24 bits */
 
 static inline u32 read_pmtmr(void)
 {

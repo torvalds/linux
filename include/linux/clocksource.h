@@ -65,6 +65,8 @@ struct clocksource {
 	u64 interval_snsecs;
 };
 
+/* simplify initialization of mask field */
+#define CLOCKSOURCE_MASK(bits) (cycle_t)(bits<64 ? ((1ULL<<bits)-1) : -1)
 
 /**
  * clocksource_khz2mult - calculates mult from khz and shift

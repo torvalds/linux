@@ -14,7 +14,7 @@
 #define CYCLONE_MPCS_OFFSET	0x51A8		/* offset to select register */
 #define CYCLONE_MPMC_OFFSET	0x51D0		/* offset to count register */
 #define CYCLONE_TIMER_FREQ	99780000	/* 100Mhz, but not really */
-#define CYCLONE_TIMER_MASK	0xFFFFFFFF	/* 32 bit mask */
+#define CYCLONE_TIMER_MASK	CLOCKSOURCE_MASK(32) /* 32 bit mask */
 
 int use_cyclone = 0;
 static void __iomem *cyclone_ptr;
@@ -28,7 +28,7 @@ static struct clocksource clocksource_cyclone = {
 	.name		= "cyclone",
 	.rating		= 250,
 	.read		= read_cyclone,
-	.mask		= (cycle_t)CYCLONE_TIMER_MASK,
+	.mask		= CYCLONE_TIMER_MASK,
 	.mult		= 10,
 	.shift		= 0,
 	.is_continuous	= 1,
