@@ -374,26 +374,26 @@ static int raid1_end_write_request(struct bio *bio, unsigned int bytes_done, int
 	 * already.
 	 */
 	if (atomic_dec_and_test(&r1_bio->remaining)) {
-		if (test_bit(R1BIO_BarrierRetry, &r1_bio->state)) {
+		if (test_bit(R1BIO_BarrierRetry, &r1_bio->state))
 			reschedule_retry(r1_bio);
-			goto out;
+		else {
+			/* it really is the end of this request */
+			if (test_bit(R1BIO_BehindIO, &r1_bio->state)) {
+				/* free extra copy of the data pages */
+				int i = bio->bi_vcnt;
+				while (i--)
+					safe_put_page(bio->bi_io_vec[i].bv_page);
+			}
+			/* clear the bitmap if all writes complete successfully */
+			bitmap_endwrite(r1_bio->mddev->bitmap, r1_bio->sector,
+					r1_bio->sectors,
+					!test_bit(R1BIO_Degraded, &r1_bio->state),
+					behind);
+			md_write_end(r1_bio->mddev);
+			raid_end_bio_io(r1_bio);
 		}
-		/* it really is the end of this request */
-		if (test_bit(R1BIO_BehindIO, &r1_bio->state)) {
-			/* free extra copy of the data pages */
-			int i = bio->bi_vcnt;
-			while (i--)
-				safe_put_page(bio->bi_io_vec[i].bv_page);
-		}
-		/* clear the bitmap if all writes complete successfully */
-		bitmap_endwrite(r1_bio->mddev->bitmap, r1_bio->sector,
-				r1_bio->sectors,
-				!test_bit(R1BIO_Degraded, &r1_bio->state),
-				behind);
-		md_write_end(r1_bio->mddev);
-		raid_end_bio_io(r1_bio);
 	}
- out:
+
 	if (to_put)
 		bio_put(to_put);
 
