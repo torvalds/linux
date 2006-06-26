@@ -2043,7 +2043,7 @@ out:
 static struct task_struct *first_tgid(int tgid, int nr)
 {
 	struct task_struct *pos = NULL;
-	read_lock(&tasklist_lock);
+	rcu_read_lock();
 	if (tgid && nr) {
 		pos = find_task_by_pid(tgid);
 		if (pos && !thread_group_leader(pos))
@@ -2069,7 +2069,7 @@ static struct task_struct *first_tgid(int tgid, int nr)
 	}
 	pos = NULL;
 done:
-	read_unlock(&tasklist_lock);
+	rcu_read_unlock();
 	return pos;
 }
 
@@ -2082,7 +2082,7 @@ done:
 static struct task_struct *next_tgid(struct task_struct *start)
 {
 	struct task_struct *pos;
-	read_lock(&tasklist_lock);
+	rcu_read_lock();
 	pos = start;
 	if (pid_alive(start))
 		pos = next_task(start);
@@ -2092,7 +2092,7 @@ static struct task_struct *next_tgid(struct task_struct *start)
 	}
 	pos = NULL;
 done:
-	read_unlock(&tasklist_lock);
+	rcu_read_unlock();
 	put_task_struct(start);
 	return pos;
 }
