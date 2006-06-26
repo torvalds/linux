@@ -100,12 +100,14 @@
 
 #define MAX_NR_CON_DRIVER 16
 
-#define CON_DRIVER_FLAG_BIND 1
+#define CON_DRIVER_FLAG_MODULE 1
 #define CON_DRIVER_FLAG_INIT 2
 
 struct con_driver {
 	const struct consw *con;
 	const char *desc;
+	struct class_device *class_dev;
+	int node;
 	int first;
 	int last;
 	int flag;
@@ -2685,6 +2687,25 @@ int __init vty_init(void)
 }
 
 #ifndef VT_SINGLE_DRIVER
+#include <linux/device.h>
+
+static struct class *vtconsole_class;
+
+static int con_is_graphics(const struct consw *csw, int first, int last)
+{
+	int i, retval = 0;
+
+	for (i = first; i <= last; i++) {
+		struct vc_data *vc = vc_cons[i].d;
+
+		if (vc && vc->vc_mode == KD_GRAPHICS) {
+			retval = 1;
+			break;
+		}
+	}
+
+	return retval;
+}
 
 static int bind_con_driver(const struct consw *csw, int first, int last,
 			   int deflt)
@@ -2805,7 +2826,7 @@ static int unbind_con_driver(const struct consw *csw, int first, int last,
 		con_driver = &registered_con_driver[i];
 
 		if (con_driver->con == csw &&
-		    con_driver->flag & CON_DRIVER_FLAG_BIND) {
+		    con_driver->flag & CON_DRIVER_FLAG_MODULE) {
 			retval = 0;
 			break;
 		}
@@ -2816,12 +2837,14 @@ static int unbind_con_driver(const struct consw *csw, int first, int last,
 		goto err;
 	}
 
+	retval = -ENODEV;
+
 	/* check if backup driver exists */
 	for (i = 0; i < MAX_NR_CON_DRIVER; i++) {
 		con_back = &registered_con_driver[i];
 
 		if (con_back->con &&
-		    !(con_back->flag & CON_DRIVER_FLAG_BIND)) {
+		    !(con_back->flag & CON_DRIVER_FLAG_MODULE)) {
 			defcsw = con_back->con;
 			retval = 0;
 			break;
@@ -2849,19 +2872,175 @@ static int unbind_con_driver(const struct consw *csw, int first, int last,
 	}
 
 	if (!con_is_bound(defcsw)) {
+		const struct consw *defconsw = conswitchp;
+
 		defcsw->con_startup();
 		con_back->flag |= CON_DRIVER_FLAG_INIT;
+		/*
+		 * vgacon may change the default driver to point
+		 * to dummycon, we restore it here...
+		 */
+		conswitchp = defconsw;
 	}
 
 	if (!con_is_bound(csw))
 		con_driver->flag &= ~CON_DRIVER_FLAG_INIT;
 
 	release_console_sem();
-	retval = bind_con_driver(defcsw, first, last, deflt);
+	/* ignore return value, binding should not fail */
+	bind_con_driver(defcsw, first, last, deflt);
 err:
 	module_put(owner);
 	return retval;
 
+}
+
+static int vt_bind(struct con_driver *con)
+{
+	const struct consw *defcsw = NULL, *csw = NULL;
+	int i, more = 1, first = -1, last = -1, deflt = 0;
+
+ 	if (!con->con || !(con->flag & CON_DRIVER_FLAG_MODULE) ||
+	    con_is_graphics(con->con, con->first, con->last))
+		goto err;
+
+	csw = con->con;
+
+	for (i = 0; i < MAX_NR_CON_DRIVER; i++) {
+		struct con_driver *con = &registered_con_driver[i];
+
+		if (con->con && !(con->flag & CON_DRIVER_FLAG_MODULE)) {
+			defcsw = con->con;
+			break;
+		}
+	}
+
+	if (!defcsw)
+		goto err;
+
+	while (more) {
+		more = 0;
+
+		for (i = con->first; i <= con->last; i++) {
+			if (con_driver_map[i] == defcsw) {
+				if (first == -1)
+					first = i;
+				last = i;
+				more = 1;
+			} else if (first != -1)
+				break;
+		}
+
+		if (first == 0 && last == MAX_NR_CONSOLES -1)
+			deflt = 1;
+
+		if (first != -1)
+			bind_con_driver(csw, first, last, deflt);
+
+		first = -1;
+		last = -1;
+		deflt = 0;
+	}
+
+err:
+	return 0;
+}
+
+static int vt_unbind(struct con_driver *con)
+{
+	const struct consw *csw = NULL;
+	int i, more = 1, first = -1, last = -1, deflt = 0;
+
+ 	if (!con->con || !(con->flag & CON_DRIVER_FLAG_MODULE) ||
+	    con_is_graphics(con->con, con->first, con->last))
+		goto err;
+
+	csw = con->con;
+
+	while (more) {
+		more = 0;
+
+		for (i = con->first; i <= con->last; i++) {
+			if (con_driver_map[i] == csw) {
+				if (first == -1)
+					first = i;
+				last = i;
+				more = 1;
+			} else if (first != -1)
+				break;
+		}
+
+		if (first == 0 && last == MAX_NR_CONSOLES -1)
+			deflt = 1;
+
+		if (first != -1)
+			unbind_con_driver(csw, first, last, deflt);
+
+		first = -1;
+		last = -1;
+		deflt = 0;
+	}
+
+err:
+	return 0;
+}
+
+static ssize_t store_bind(struct class_device *class_device,
+			  const char *buf, size_t count)
+{
+	struct con_driver *con = class_get_devdata(class_device);
+	int bind = simple_strtoul(buf, NULL, 0);
+
+	if (bind)
+		vt_bind(con);
+	else
+		vt_unbind(con);
+
+	return count;
+}
+
+static ssize_t show_bind(struct class_device *class_device, char *buf)
+{
+	struct con_driver *con = class_get_devdata(class_device);
+	int bind = con_is_bound(con->con);
+
+	return snprintf(buf, PAGE_SIZE, "%i\n", bind);
+}
+
+static ssize_t show_name(struct class_device *class_device, char *buf)
+{
+	struct con_driver *con = class_get_devdata(class_device);
+
+	return snprintf(buf, PAGE_SIZE, "%s %s\n",
+			(con->flag & CON_DRIVER_FLAG_MODULE) ? "(M)" : "(S)",
+			 con->desc);
+
+}
+
+static struct class_device_attribute class_device_attrs[] = {
+	__ATTR(bind, S_IRUGO|S_IWUSR, show_bind, store_bind),
+	__ATTR(name, S_IRUGO, show_name, NULL),
+};
+
+static int vtconsole_init_class_device(struct con_driver *con)
+{
+	int i;
+
+	class_set_devdata(con->class_dev, con);
+	for (i = 0; i < ARRAY_SIZE(class_device_attrs); i++)
+		class_device_create_file(con->class_dev,
+					 &class_device_attrs[i]);
+
+	return 0;
+}
+
+static void vtconsole_deinit_class_device(struct con_driver *con)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(class_device_attrs); i++)
+		class_device_remove_file(con->class_dev,
+					 &class_device_attrs[i]);
 }
 
 /**
@@ -2934,7 +3113,8 @@ int register_con_driver(const struct consw *csw, int first, int last)
 		if (con_driver->con == NULL) {
 			con_driver->con = csw;
 			con_driver->desc = desc;
-			con_driver->flag = CON_DRIVER_FLAG_BIND |
+			con_driver->node = i;
+			con_driver->flag = CON_DRIVER_FLAG_MODULE |
 			                   CON_DRIVER_FLAG_INIT;
 			con_driver->first = first;
 			con_driver->last = last;
@@ -2943,6 +3123,22 @@ int register_con_driver(const struct consw *csw, int first, int last)
 		}
 	}
 
+	if (retval)
+		goto err;
+
+	con_driver->class_dev = class_device_create(vtconsole_class, NULL,
+						    MKDEV(0, con_driver->node),
+						    NULL, "vtcon%i",
+						    con_driver->node);
+
+	if (IS_ERR(con_driver->class_dev)) {
+		printk(KERN_WARNING "Unable to create class_device for %s; "
+		       "errno = %ld\n", con_driver->desc,
+		       PTR_ERR(con_driver->class_dev));
+		con_driver->class_dev = NULL;
+	} else {
+		vtconsole_init_class_device(con_driver);
+	}
 err:
 	release_console_sem();
 	module_put(owner);
@@ -2975,9 +3171,14 @@ int unregister_con_driver(const struct consw *csw)
 		struct con_driver *con_driver = &registered_con_driver[i];
 
 		if (con_driver->con == csw &&
-		    con_driver->flag & CON_DRIVER_FLAG_BIND) {
+		    con_driver->flag & CON_DRIVER_FLAG_MODULE) {
+			vtconsole_deinit_class_device(con_driver);
+			class_device_destroy(vtconsole_class,
+					     MKDEV(0, con_driver->node));
 			con_driver->con = NULL;
 			con_driver->desc = NULL;
+			con_driver->class_dev = NULL;
+			con_driver->node = 0;
 			con_driver->flag = 0;
 			con_driver->first = 0;
 			con_driver->last = 0;
@@ -2985,7 +3186,6 @@ int unregister_con_driver(const struct consw *csw)
 			break;
 		}
 	}
-
 err:
 	release_console_sem();
 	return retval;
@@ -3006,7 +3206,7 @@ int take_over_console(const struct consw *csw, int first, int last, int deflt)
 	err = register_con_driver(csw, first, last);
 
 	if (!err)
-		err = bind_con_driver(csw, first, last, deflt);
+		bind_con_driver(csw, first, last, deflt);
 
 	return err;
 }
@@ -3020,158 +3220,43 @@ void give_up_console(const struct consw *csw)
 	unregister_con_driver(csw);
 }
 
-/*
- * this function is intended to be called by the tty layer only
- */
-int vt_bind(int index)
+static int __init vtconsole_class_init(void)
 {
-	const struct consw *defcsw = NULL, *csw = NULL;
-	struct con_driver *con;
-	int i, more = 1, first = -1, last = -1, deflt = 0;
+	int i;
 
-	if (index >= MAX_NR_CON_DRIVER)
-		goto err;
+	vtconsole_class = class_create(THIS_MODULE, "vtconsole");
+	if (IS_ERR(vtconsole_class)) {
+		printk(KERN_WARNING "Unable to create vt console class; "
+		       "errno = %ld\n", PTR_ERR(vtconsole_class));
+		vtconsole_class = NULL;
+	}
 
-	con = &registered_con_driver[index];
-
- 	if (!con->con || !(con->flag & CON_DRIVER_FLAG_BIND))
-		goto err;
-
-	csw = con->con;
-
+	/* Add system drivers to sysfs */
 	for (i = 0; i < MAX_NR_CON_DRIVER; i++) {
 		struct con_driver *con = &registered_con_driver[i];
 
-		if (con->con && !(con->flag & CON_DRIVER_FLAG_BIND)) {
-			defcsw = con->con;
-			break;
-		}
-	}
+		if (con->con && !con->class_dev) {
+			con->class_dev =
+				class_device_create(vtconsole_class, NULL,
+						    MKDEV(0, con->node), NULL,
+						    "vtcon%i", con->node);
 
-	if (!defcsw)
-		goto err;
-
-	while (more) {
-		more = 0;
-
-		for (i = con->first; i <= con->last; i++) {
-			if (con_driver_map[i] == defcsw) {
-				if (first == -1)
-					first = i;
-				last = i;
-				more = 1;
-			} else if (first != -1)
-				break;
-		}
-
-		if (first == 0 && last == MAX_NR_CONSOLES -1)
-			deflt = 1;
-
-		if (first != -1)
-			bind_con_driver(csw, first, last, deflt);
-
-		first = -1;
-		last = -1;
-		deflt = 0;
-	}
-
-err:
-	return 0;
-}
-
-/*
- * this function is intended to be called by the tty layer only
- */
-int vt_unbind(int index)
-{
-	const struct consw *csw = NULL;
-	struct con_driver *con;
-	int i, more = 1, first = -1, last = -1, deflt = 0;
-
-	if (index >= MAX_NR_CON_DRIVER)
-		goto err;
-
-	con = &registered_con_driver[index];
-
- 	if (!con->con || !(con->flag & CON_DRIVER_FLAG_BIND))
-		goto err;
-
-	csw = con->con;
-
-	while (more) {
-		more = 0;
-
-		for (i = con->first; i <= con->last; i++) {
-			if (con_driver_map[i] == csw) {
-				if (first == -1)
-					first = i;
-				last = i;
-				more = 1;
-			} else if (first != -1)
-				break;
-		}
-
-		if (first == 0 && last == MAX_NR_CONSOLES -1)
-			deflt = 1;
-
-		if (first != -1)
-			unbind_con_driver(csw, first, last, deflt);
-
-		first = -1;
-		last = -1;
-		deflt = 0;
-	}
-
-err:
-	return 0;
-}
-#else
-int vt_bind(int index)
-{
-	return 0;
-}
-
-int vt_unbind(int index)
-{
-	return 0;
-}
-#endif
-
-/*
- * this function is intended to be called by the tty layer only
- */
-int vt_show_drivers(char *buf)
-{
-	int i, j, read, offset = 0, cnt = PAGE_SIZE;
-
-	for (i = 0; i < MAX_NR_CON_DRIVER; i++) {
-		struct con_driver *con_driver = &registered_con_driver[i];
-
-		if (con_driver->con != NULL) {
-			int sys = 0;
-
-			if (con_driver->flag & CON_DRIVER_FLAG_BIND) {
-				sys = 2;
-
-				for (j = 0; j < MAX_NR_CONSOLES; j++) {
-					if (con_driver_map[j] ==
-					    con_driver->con) {
-						sys = 1;
-						break;
-					}
-				}
+			if (IS_ERR(con->class_dev)) {
+				printk(KERN_WARNING "Unable to create "
+				       "class_device for %s; errno = %ld\n",
+				       con->desc, PTR_ERR(con->class_dev));
+				con->class_dev = NULL;
+			} else {
+				vtconsole_init_class_device(con);
 			}
-
-			read = snprintf(buf + offset, cnt, "%i %s: %s\n",
-					i, (sys) ? ((sys == 1) ? "B" : "U") :
-					"S", con_driver->desc);
-			offset += read;
-			cnt -= read;
 		}
 	}
 
-	return offset;
+	return 0;
 }
+postcore_initcall(vtconsole_class_init);
+
+#endif
 
 /*
  *	Screen blanking
