@@ -605,11 +605,6 @@ static void clearfb16(struct fb_info *info)
 		fb_writeb(0, dst);
 }
 
-static void epson1355fb_platform_release(struct device *device)
-{
-	dev_err(device, "This driver is broken, please bug the authors so they will fix it.\n");
-}
-
 static int epson1355fb_remove(struct platform_device *dev)
 {
 	struct fb_info *info = platform_get_drvdata(dev);
@@ -733,13 +728,7 @@ static struct platform_driver epson1355fb_driver = {
 	},
 };
 
-static struct platform_device epson1355fb_device = {
-	.name	= "epson1355fb",
-	.id	= 0,
-	.dev	= {
-		.release = epson1355fb_platform_release,
-	}
-};
+static struct platform_device *epson1355fb_device;
 
 int __init epson1355fb_init(void)
 {
@@ -749,11 +738,21 @@ int __init epson1355fb_init(void)
 		return -ENODEV;
 
 	ret = platform_driver_register(&epson1355fb_driver);
+
 	if (!ret) {
-		ret = platform_device_register(&epson1355fb_device);
-		if (ret)
+		epson1355fb_device = platform_device_alloc("epson1355fb", 0);
+
+		if (epson1355fb_device)
+			ret = platform_device_add(epson1355fb_device);
+		else
+			ret = -ENOMEM;
+
+		if (ret) {
+			platform_device_put(epson1355fb_device);
 			platform_driver_unregister(&epson1355fb_driver);
+		}
 	}
+
 	return ret;
 }
 
@@ -762,7 +761,7 @@ module_init(epson1355fb_init);
 #ifdef MODULE
 static void __exit epson1355fb_exit(void)
 {
-	platform_device_unregister(&epson1355fb_device);
+	platform_device_unregister(epson1355fb_device);
 	platform_driver_unregister(&epson1355fb_driver);
 }
 
