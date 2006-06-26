@@ -147,77 +147,7 @@ struct xtimings {
 	int	       interlaced;
 };
 
-
-/* --------------------------------------------------------------------- */
-
-#define NR_PALETTE	256
-
-
-struct savagefb_par;
-
-struct savagefb_i2c_chan {
-	struct savagefb_par *par;
-	struct i2c_adapter adapter;
-	struct i2c_algo_bit_data algo;
-	volatile u8 __iomem *ioaddr;
-	u32   reg;
-};
-
-struct savagefb_par {
-	struct pci_dev *pcidev;
-	savage_chipset  chip;
-	struct savagefb_i2c_chan chan;
-	unsigned char   *edid;
-	u32 pseudo_palette[16];
-	int paletteEnabled;
-	int pm_state;
-	int display_type;
-	int dvi;
-	int crtonly;
-	int dacSpeedBpp;
-	int maxClock;
-	int minClock;
-	int numClocks;
-	int clock[4];
-	struct {
-		u8   __iomem *vbase;
-		u32    pbase;
-		u32    len;
-#ifdef CONFIG_MTRR
-		int    mtrr;
-#endif
-	} video;
-
-	struct {
-		volatile u8  __iomem *vbase;
-		u32           pbase;
-		u32           len;
-	} mmio;
-
-	volatile u32  __iomem *bci_base;
-	unsigned int  bci_ptr;
-
-	u32           cob_offset;
-	u32           cob_size;
-	int           cob_index;
-
-	void (*SavageWaitIdle) (struct savagefb_par *par);
-	void (*SavageWaitFifo) (struct savagefb_par *par, int space);
-
-	int MCLK, REFCLK, LCDclk;
-	int HorizScaleFactor;
-
-	/* Panels size */
-	int SavagePanelWidth;
-	int SavagePanelHeight;
-
-	struct {
-		u16 red, green, blue, transp;
-	} palette[NR_PALETTE];
-
-	int depth;
-	int vwidth;
-
+struct savage_reg {
 	unsigned char MiscOutReg;     /* Misc */
 	unsigned char CRTC[25];       /* Crtc Controller */
 	unsigned char Sequencer[5];   /* Video Sequencer */
@@ -237,6 +167,77 @@ struct savagefb_par {
 	unsigned char CR90, CR91, CRB0;
 	unsigned int  STREAMS[22];	/* yuck, streams regs */
 	unsigned int  MMPR0, MMPR1, MMPR2, MMPR3;
+};
+/* --------------------------------------------------------------------- */
+
+#define NR_PALETTE	256
+
+
+struct savagefb_par;
+
+struct savagefb_i2c_chan {
+	struct savagefb_par *par;
+	struct i2c_adapter adapter;
+	struct i2c_algo_bit_data algo;
+	volatile u8 __iomem *ioaddr;
+	u32   reg;
+};
+
+struct savagefb_par {
+	struct pci_dev *pcidev;
+	savage_chipset  chip;
+	struct savagefb_i2c_chan chan;
+	struct savage_reg state;
+	struct savage_reg save;
+	unsigned char   *edid;
+	u32 pseudo_palette[16];
+	int paletteEnabled;
+	int pm_state;
+	int display_type;
+	int dvi;
+	int crtonly;
+	int dacSpeedBpp;
+	int maxClock;
+	int minClock;
+	int numClocks;
+	int clock[4];
+	int MCLK, REFCLK, LCDclk;
+	struct {
+		u8   __iomem *vbase;
+		u32    pbase;
+		u32    len;
+#ifdef CONFIG_MTRR
+		int    mtrr;
+#endif
+	} video;
+
+	struct {
+		volatile u8  __iomem *vbase;
+		u32           pbase;
+		u32           len;
+	} mmio;
+
+	volatile u32  __iomem *bci_base;
+	unsigned int  bci_ptr;
+	u32           cob_offset;
+	u32           cob_size;
+	int           cob_index;
+
+	void (*SavageWaitIdle) (struct savagefb_par *par);
+	void (*SavageWaitFifo) (struct savagefb_par *par, int space);
+
+	int HorizScaleFactor;
+
+	/* Panels size */
+	int SavagePanelWidth;
+	int SavagePanelHeight;
+
+	struct {
+		u16 red, green, blue, transp;
+	} palette[NR_PALETTE];
+
+	int depth;
+	int vwidth;
 };
 
 #define BCI_BD_BW_DISABLE            0x10000000
