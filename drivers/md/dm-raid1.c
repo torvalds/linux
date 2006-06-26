@@ -106,12 +106,42 @@ struct region {
 	struct bio_list delayed_bios;
 };
 
+
+/*-----------------------------------------------------------------
+ * Mirror set structures.
+ *---------------------------------------------------------------*/
+struct mirror {
+	atomic_t error_count;
+	struct dm_dev *dev;
+	sector_t offset;
+};
+
+struct mirror_set {
+	struct dm_target *ti;
+	struct list_head list;
+	struct region_hash rh;
+	struct kcopyd_client *kcopyd_client;
+
+	spinlock_t lock;	/* protects the next two lists */
+	struct bio_list reads;
+	struct bio_list writes;
+
+	/* recovery */
+	region_t nr_regions;
+	int in_sync;
+
+	struct mirror *default_mirror;	/* Default mirror */
+
+	unsigned int nr_mirrors;
+	struct mirror mirror[0];
+};
+
 /*
  * Conversion fns
  */
 static inline region_t bio_to_region(struct region_hash *rh, struct bio *bio)
 {
-	return bio->bi_sector >> rh->region_shift;
+	return (bio->bi_sector - rh->ms->ti->begin) >> rh->region_shift;
 }
 
 static inline sector_t region_to_sector(struct region_hash *rh, region_t region)
@@ -538,35 +568,6 @@ static void rh_start_recovery(struct region_hash *rh)
 
 	wake();
 }
-
-/*-----------------------------------------------------------------
- * Mirror set structures.
- *---------------------------------------------------------------*/
-struct mirror {
-	atomic_t error_count;
-	struct dm_dev *dev;
-	sector_t offset;
-};
-
-struct mirror_set {
-	struct dm_target *ti;
-	struct list_head list;
-	struct region_hash rh;
-	struct kcopyd_client *kcopyd_client;
-
-	spinlock_t lock;	/* protects the next two lists */
-	struct bio_list reads;
-	struct bio_list writes;
-
-	/* recovery */
-	region_t nr_regions;
-	int in_sync;
-
-	struct mirror *default_mirror;	/* Default mirror */
-
-	unsigned int nr_mirrors;
-	struct mirror mirror[0];
-};
 
 /*
  * Every mirror should look like this one.
@@ -1113,7 +1114,7 @@ static int mirror_map(struct dm_target *ti, struct bio *bio,
 	struct mirror *m;
 	struct mirror_set *ms = ti->private;
 
-	map_context->ll = bio->bi_sector >> ms->rh.region_shift;
+	map_context->ll = bio_to_region(&ms->rh, bio);
 
 	if (rw == WRITE) {
 		queue_bio(ms, bio, rw);
