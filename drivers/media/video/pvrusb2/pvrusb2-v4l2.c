@@ -526,7 +526,7 @@ static int pvr2_v4l2_do_ioctl(struct inode *inode, struct file *file,
 			cptr = pvr2_hdw_get_ctrl_v4l(hdw,vc->id);
 		}
 		if (!cptr) {
-			pvr2_trace(PVR2_TRACE_ERROR_LEGS,
+			pvr2_trace(PVR2_TRACE_V4LIOCTL,
 				   "QUERYCTRL id=0x%x not implemented here",
 				   vc->id);
 			ret = -EINVAL;
@@ -560,7 +560,7 @@ static int pvr2_v4l2_do_ioctl(struct inode *inode, struct file *file,
 			vc->step = 1;
 			break;
 		default:
-			pvr2_trace(PVR2_TRACE_ERROR_LEGS,
+			pvr2_trace(PVR2_TRACE_V4LIOCTL,
 				   "QUERYCTRL id=0x%x name=%s not mappable",
 				   vc->id,pvr2_ctrl_get_name(cptr));
 			ret = -EINVAL;
@@ -678,11 +678,11 @@ static int pvr2_v4l2_do_ioctl(struct inode *inode, struct file *file,
 
 	if (ret < 0) {
 		if (pvrusb2_debug & PVR2_TRACE_V4LIOCTL) {
-			pvr2_trace(PVR2_TRACE_ERROR_LEGS,
+			pvr2_trace(PVR2_TRACE_V4LIOCTL,
 				   "pvr2_v4l2_do_ioctl failure, ret=%d",ret);
 		} else {
-			if (pvrusb2_debug & PVR2_TRACE_ERROR_LEGS) {
-				pvr2_trace(PVR2_TRACE_ERROR_LEGS,
+			if (pvrusb2_debug & PVR2_TRACE_V4LIOCTL) {
+				pvr2_trace(PVR2_TRACE_V4LIOCTL,
 					   "pvr2_v4l2_do_ioctl failure, ret=%d"
 					   " command was:",ret);
 				v4l_print_ioctl(pvr2_hdw_get_driver_name(hdw),

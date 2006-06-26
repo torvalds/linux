@@ -46,14 +46,6 @@
 			    PVR2_TRACE_INFO| \
 			    PVR2_TRACE_TOLERANCE| \
 			    PVR2_TRACE_TRAP| \
-			    PVR2_TRACE_FIRMWARE| \
-			    PVR2_TRACE_EEPROM | \
-			    PVR2_TRACE_INIT | \
-			    PVR2_TRACE_I2C | \
-			    PVR2_TRACE_CHIPS | \
-			    PVR2_TRACE_START_STOP | \
-			    PVR2_TRACE_CTL | \
-			    PVR2_TRACE_DEBUGIFC | \
 			    0)
 
 int pvrusb2_debug = DEFAULT_DEBUG_MASK;

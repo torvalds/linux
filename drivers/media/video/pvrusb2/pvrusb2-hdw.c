@@ -1532,7 +1532,7 @@ static void pvr2_hdw_setup_std(struct pvr2_hdw *hdw)
 		return;
 	}
 
-	pvr2_trace(PVR2_TRACE_EEPROM,
+	pvr2_trace(PVR2_TRACE_ERROR_LEGS,
 		   "Unable to select a viable initial video standard");
 }
 
