@@ -153,13 +153,13 @@ next:
 			continue;
 		count++;
 		cursor = curr->next;
-		debug_spin_lock_restore(&debug_mutex_lock, flags);
+		debug_spin_unlock_restore(&debug_mutex_lock, flags);
 
 		printk("\n#%03d:            ", count);
 		printk_lock(lock, filter ? 0 : 1);
 		goto next;
 	}
-	debug_spin_lock_restore(&debug_mutex_lock, flags);
+	debug_spin_unlock_restore(&debug_mutex_lock, flags);
 	printk("\n");
 }
 
@@ -316,7 +316,7 @@ void mutex_debug_check_no_locks_held(struct task_struct *task)
 			continue;
 		list_del_init(curr);
 		DEBUG_OFF();
-		debug_spin_lock_restore(&debug_mutex_lock, flags);
+		debug_spin_unlock_restore(&debug_mutex_lock, flags);
 
 		printk("BUG: %s/%d, lock held at task exit time!\n",
 			task->comm, task->pid);
@@ -325,7 +325,7 @@ void mutex_debug_check_no_locks_held(struct task_struct *task)
 			printk("exiting task is not even the owner??\n");
 		return;
 	}
-	debug_spin_lock_restore(&debug_mutex_lock, flags);
+	debug_spin_unlock_restore(&debug_mutex_lock, flags);
 }
 
 /*
@@ -352,7 +352,7 @@ void mutex_debug_check_no_locks_freed(const void *from, unsigned long len)
 			continue;
 		list_del_init(curr);
 		DEBUG_OFF();
-		debug_spin_lock_restore(&debug_mutex_lock, flags);
+		debug_spin_unlock_restore(&debug_mutex_lock, flags);
 
 		printk("BUG: %s/%d, active lock [%p(%p-%p)] freed!\n",
 			current->comm, current->pid, lock, from, to);
@@ -362,7 +362,7 @@ void mutex_debug_check_no_locks_freed(const void *from, unsigned long len)
 			printk("freeing task is not even the owner??\n");
 		return;
 	}
-	debug_spin_lock_restore(&debug_mutex_lock, flags);
+	debug_spin_unlock_restore(&debug_mutex_lock, flags);
 }
 
 /*
