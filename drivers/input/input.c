@@ -629,7 +629,7 @@ static ssize_t input_dev_show_modalias(struct class_device *dev, char *buf)
 
 	len = input_print_modalias(buf, PAGE_SIZE, id, 1);
 
-	return max_t(int, len, PAGE_SIZE);
+	return min_t(int, len, PAGE_SIZE);
 }
 static CLASS_DEVICE_ATTR(modalias, S_IRUGO, input_dev_show_modalias, NULL);
 
