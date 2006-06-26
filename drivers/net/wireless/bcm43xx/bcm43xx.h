@@ -1,6 +1,7 @@
 #ifndef BCM43xx_H_
 #define BCM43xx_H_
 
+#include <linux/hw_random.h>
 #include <linux/version.h>
 #include <linux/kernel.h>
 #include <linux/spinlock.h>
@@ -82,6 +83,7 @@
 #define BCM43xx_MMIO_TSF_1		0x634 /* core rev < 3 only */
 #define BCM43xx_MMIO_TSF_2		0x636 /* core rev < 3 only */
 #define BCM43xx_MMIO_TSF_3		0x638 /* core rev < 3 only */
+#define BCM43xx_MMIO_RNG		0x65A
 #define BCM43xx_MMIO_POWERUP_DELAY	0x6A8
 
 /* SPROM offsets. */
@@ -749,6 +751,10 @@ struct bcm43xx_private {
 	const struct firmware *pcm;
 	const struct firmware *initvals0;
 	const struct firmware *initvals1;
+
+	/* Random Number Generator. */
+	struct hwrng rng;
+	char rng_name[20 + 1];
 
 	/* Debugging stuff follows. */
 #ifdef CONFIG_BCM43XX_DEBUG

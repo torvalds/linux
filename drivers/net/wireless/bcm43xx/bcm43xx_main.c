@@ -3237,6 +3237,39 @@ static void bcm43xx_security_init(struct bcm43xx_private *bcm)
 	bcm43xx_clear_keys(bcm);
 }
 
+static int bcm43xx_rng_read(struct hwrng *rng, u32 *data)
+{
+	struct bcm43xx_private *bcm = (struct bcm43xx_private *)rng->priv;
+	unsigned long flags;
+
+	bcm43xx_lock_irqonly(bcm, flags);
+	*data = bcm43xx_read16(bcm, BCM43xx_MMIO_RNG);
+	bcm43xx_unlock_irqonly(bcm, flags);
+
+	return (sizeof(u16));
+}
+
+static void bcm43xx_rng_exit(struct bcm43xx_private *bcm)
+{
+	hwrng_unregister(&bcm->rng);
+}
+
+static int bcm43xx_rng_init(struct bcm43xx_private *bcm)
+{
+	int err;
+
+	snprintf(bcm->rng_name, ARRAY_SIZE(bcm->rng_name),
+		 "%s_%s", KBUILD_MODNAME, bcm->net_dev->name);
+	bcm->rng.name = bcm->rng_name;
+	bcm->rng.data_read = bcm43xx_rng_read;
+	bcm->rng.priv = (unsigned long)bcm;
+	err = hwrng_register(&bcm->rng);
+	if (err)
+		printk(KERN_ERR PFX "RNG init failed (%d)\n", err);
+
+	return err;
+}
+
 /* This is the opposite of bcm43xx_init_board() */
 static void bcm43xx_free_board(struct bcm43xx_private *bcm)
 {
@@ -3248,6 +3281,7 @@ static void bcm43xx_free_board(struct bcm43xx_private *bcm)
 
 	bcm43xx_set_status(bcm, BCM43xx_STAT_SHUTTINGDOWN);
 
+	bcm43xx_rng_exit(bcm);
 	for (i = 0; i < BCM43xx_MAX_80211_CORES; i++) {
 		if (!bcm->core_80211[i].available)
 			continue;
@@ -3325,6 +3359,9 @@ static int bcm43xx_init_board(struct bcm43xx_private *bcm)
 		bcm43xx_switch_core(bcm, &bcm->core_80211[0]);
 		bcm43xx_mac_enable(bcm);
 	}
+	err = bcm43xx_rng_init(bcm);
+	if (err)
+		goto err_80211_unwind;
 	bcm43xx_macfilter_clear(bcm, BCM43xx_MACFILTER_ASSOC);
 	bcm43xx_macfilter_set(bcm, BCM43xx_MACFILTER_SELF, (u8 *)(bcm->net_dev->dev_addr));
 	dprintk(KERN_INFO PFX "80211 cores initialized\n");
