@@ -473,29 +473,18 @@ END(stub_rt_sigreturn)
 /* 0(%rsp): interrupt number */ 
 	.macro interrupt func
 	cld
-#ifdef CONFIG_DEBUG_INFO
-	SAVE_ALL	
-	movq %rsp,%rdi
-	/*
-	 * Setup a stack frame pointer.  This allows gdb to trace
-	 * back to the original stack.
-	 */
-	movq %rsp,%rbp
-	CFI_DEF_CFA_REGISTER	rbp
-#else		
 	SAVE_ARGS
 	leaq -ARGOFFSET(%rsp),%rdi	# arg1 for handler
-#endif	
+	pushq %rbp
+	CFI_ADJUST_CFA_OFFSET	8
+	CFI_REL_OFFSET		rbp, 0
+	movq %rsp,%rbp
+	CFI_DEF_CFA_REGISTER	rbp
 	testl $3,CS(%rdi)
 	je 1f
 	swapgs	
 1:	incl	%gs:pda_irqcount	# RED-PEN should check preempt count
-	movq %gs:pda_irqstackptr,%rax
-	cmoveq %rax,%rsp /*todo This needs CFI annotation! */
-	pushq %rdi			# save old stack	
-#ifndef CONFIG_DEBUG_INFO
-	CFI_ADJUST_CFA_OFFSET	8
-#endif
+	cmoveq %gs:pda_irqstackptr,%rsp
 	call \func
 	.endm
 
@@ -504,17 +493,11 @@ ENTRY(common_interrupt)
 	interrupt do_IRQ
 	/* 0(%rsp): oldrsp-ARGOFFSET */
 ret_from_intr:
-	popq  %rdi
-#ifndef CONFIG_DEBUG_INFO
-	CFI_ADJUST_CFA_OFFSET	-8
-#endif
 	cli	
 	decl %gs:pda_irqcount
-#ifdef CONFIG_DEBUG_INFO
-	movq RBP(%rdi),%rbp
+	leaveq
 	CFI_DEF_CFA_REGISTER	rsp
-#endif
-	leaq ARGOFFSET(%rdi),%rsp /*todo This needs CFI annotation! */
+	CFI_ADJUST_CFA_OFFSET	-8
 exit_intr:
 	GET_THREAD_INFO(%rcx)
 	testl $3,CS-ARGOFFSET(%rsp)
