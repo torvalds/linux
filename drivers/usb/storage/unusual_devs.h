@@ -112,6 +112,13 @@ UNUSUAL_DEV(  0x0411, 0x001c, 0x0113, 0x0113,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_FIX_INQUIRY ),
 
+/* Submitted by Ernestas Vaiciukevicius <ernisv@gmail.com> */
+UNUSUAL_DEV(  0x0419, 0x0100, 0x0100, 0x0100,
+                "Samsung Info. Systems America, Inc.",
+                "MP3 Player",
+                US_SC_DEVICE, US_PR_DEVICE, NULL,
+                US_FL_IGNORE_RESIDUE ),
+
 /* Reported by Christian Leber <christian@leber.de> */
 UNUSUAL_DEV(  0x0419, 0xaaf5, 0x0100, 0x0100,
 		"TrekStor",
