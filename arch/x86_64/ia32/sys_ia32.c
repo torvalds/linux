@@ -514,7 +514,7 @@ int sys32_ni_syscall(int call)
 	static char lastcomm[sizeof(me->comm)];
 
 	if (strncmp(lastcomm, me->comm, sizeof(lastcomm))) {
-		printk(KERN_INFO "IA32 syscall %d from %s not implemented\n",
+		compat_printk(KERN_INFO "IA32 syscall %d from %s not implemented\n",
 		       call, me->comm);
 		strncpy(lastcomm, me->comm, sizeof(lastcomm));
 	} 
@@ -916,7 +916,7 @@ long sys32_vm86_warning(void)
 	struct task_struct *me = current;
 	static char lastcomm[sizeof(me->comm)];
 	if (strncmp(lastcomm, me->comm, sizeof(lastcomm))) {
-		printk(KERN_INFO "%s: vm86 mode not supported on 64 bit kernel\n",
+		compat_printk(KERN_INFO "%s: vm86 mode not supported on 64 bit kernel\n",
 		       me->comm);
 		strncpy(lastcomm, me->comm, sizeof(lastcomm));
 	} 
