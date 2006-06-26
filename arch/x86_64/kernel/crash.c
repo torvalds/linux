@@ -111,7 +111,7 @@ static int crash_nmi_callback(struct pt_regs *regs, int cpu)
 	atomic_dec(&waiting_for_crash_ipi);
 	/* Assume hlt works */
 	for(;;)
-		asm("hlt");
+		halt();
 
 	return 1;
 }
