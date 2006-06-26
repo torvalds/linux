@@ -247,6 +247,8 @@ static struct page *read_sb_page(mddev_t *mddev, long offset, unsigned long inde
 
 		if (sync_page_io(rdev->bdev, target, PAGE_SIZE, page, READ)) {
 			page->index = index;
+			attach_page_buffers(page, NULL); /* so that free_buffer will
+							  * quietly no-op */
 			return page;
 		}
 	}
@@ -349,11 +351,8 @@ static struct page *read_page(struct file *file, unsigned long index,
 {
 	struct page *page = NULL;
 	struct inode *inode = file->f_dentry->d_inode;
-	loff_t pos = index << PAGE_SHIFT;
-	int ret;
 	struct buffer_head *bh;
 	sector_t block;
-	mm_segment_t oldfs;
 
 	PRINTK("read bitmap file (%dB @ %Lu)\n", (int)PAGE_SIZE,
 			(unsigned long long)index << PAGE_SHIFT);
@@ -364,18 +363,6 @@ static struct page *read_page(struct file *file, unsigned long index,
 	if (IS_ERR(page))
 		goto out;
 
-	oldfs = get_fs();
-	set_fs(KERNEL_DS);
-	ret = vfs_read(file, (char __user*) page_address(page), count, &pos);
-	set_fs(oldfs);
-
-	if (ret >= 0 && ret != count)
-		ret = -EIO;
-	if (ret < 0) {
-		put_page(page);
-		page = ERR_PTR(ret);
-		goto out;
-	}
 	bh = alloc_page_buffers(page, 1<<inode->i_blkbits, 0);
 	if (!bh) {
 		put_page(page);
@@ -403,12 +390,22 @@ static struct page *read_page(struct file *file, unsigned long index,
 
 			bh->b_end_io = end_bitmap_write;
 			bh->b_private = bitmap;
+			atomic_inc(&bitmap->pending_writes);
+			set_buffer_locked(bh);
+			set_buffer_mapped(bh);
+			submit_bh(READ, bh);
 		}
 		block++;
 		bh = bh->b_this_page;
 	}
-
 	page->index = index;
+
+	wait_event(bitmap->write_wait,
+		   atomic_read(&bitmap->pending_writes)==0);
+	if (bitmap->flags & BITMAP_WRITE_ERROR) {
+		free_buffers(page);
+		page = ERR_PTR(-EIO);
+	}
 out:
 	if (IS_ERR(page))
 		printk(KERN_ALERT "md: bitmap read error: (%dB @ %Lu): %ld\n",
@@ -1415,15 +1412,20 @@ int bitmap_create(mddev_t *mddev)
 		return -ENOMEM;
 
 	spin_lock_init(&bitmap->lock);
+	atomic_set(&bitmap->pending_writes, 0);
+	init_waitqueue_head(&bitmap->write_wait);
+
 	bitmap->mddev = mddev;
 
 	bitmap->file = file;
 	bitmap->offset = mddev->bitmap_offset;
-	if (file) get_file(file);
-
-	/* Ensure we read fresh data */
-	invalidate_inode_pages(file->f_dentry->d_inode->i_mapping);
-
+	if (file) {
+		get_file(file);
+		do_sync_file_range(file, 0, LLONG_MAX,
+				   SYNC_FILE_RANGE_WAIT_BEFORE |
+				   SYNC_FILE_RANGE_WRITE |
+				   SYNC_FILE_RANGE_WAIT_AFTER);
+	}
 	/* read superblock from bitmap file (this sets bitmap->chunksize) */
 	err = bitmap_read_sb(bitmap);
 	if (err)
@@ -1445,9 +1447,6 @@ int bitmap_create(mddev_t *mddev)
 	bitmap->counter_bits = COUNTER_BITS;
 
 	bitmap->syncchunk = ~0UL;
-
-	atomic_set(&bitmap->pending_writes, 0);
-	init_waitqueue_head(&bitmap->write_wait);
 
 #ifdef INJECT_FATAL_FAULT_1
 	bitmap->bp = NULL;
