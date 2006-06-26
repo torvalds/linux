@@ -886,7 +886,10 @@ void NVCalcStateExt(struct nvidia_par *par,
 	case NV_ARCH_20:
 	case NV_ARCH_30:
 	default:
-		if (((par->Chipset & 0xffff) == 0x01A0) ||
+		if ((par->Chipset & 0xfff0) == 0x0240) {
+			state->arbitration0 = 256;
+			state->arbitration1 = 0x0480;
+		} else if (((par->Chipset & 0xffff) == 0x01A0) ||
 		    ((par->Chipset & 0xffff) == 0x01f0)) {
 			nForceUpdateArbitrationSettings(VClk,
 							pixelDepth * 8,
@@ -1235,6 +1238,7 @@ void NVLoadStateExt(struct nvidia_par *par, RIVA_HW_STATE * state)
 					break;
 				case 0x0160:
 				case 0x01D0:
+				case 0x0240:
 					NV_WR32(par->PMC, 0x1700,
 						NV_RD32(par->PFB, 0x020C));
 					NV_WR32(par->PMC, 0x1704, 0);
@@ -1359,7 +1363,9 @@ void NVLoadStateExt(struct nvidia_par *par, RIVA_HW_STATE * state)
 						if(((par->Chipset & 0xfff0)
 						    != 0x0160) &&
 						   ((par->Chipset & 0xfff0)
-						    != 0x0220))
+						    != 0x0220) &&
+						   ((par->Chipset & 0xfff0)
+						    != 0x240))
 							NV_WR32(par->PGRAPH,
 								0x6900 + i*4,
 								NV_RD32(par->PFB,

@@ -1171,6 +1171,7 @@ static u32 __devinit nvidia_get_arch(struct fb_info *info)
 	case 0x0210:
 	case 0x0220:
 	case 0x0230:
+	case 0x0240:
 	case 0x0290:
 	case 0x0390:
 		arch = NV_ARCH_40;
