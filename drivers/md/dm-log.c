@@ -155,8 +155,6 @@ struct log_c {
 
 	struct io_region header_location;
 	struct log_header *disk_header;
-
-	struct io_region bits_location;
 };
 
 /*
@@ -238,29 +236,6 @@ static inline int write_header(struct log_c *log)
 	header_to_disk(&log->header, log->disk_header);
 	return dm_io_sync_vm(1, &log->header_location, WRITE,
 			     log->disk_header, &ebits);
-}
-
-/*----------------------------------------------------------------
- * Bits IO
- *--------------------------------------------------------------*/
-static int read_bits(struct log_c *log)
-{
-	int r;
-	unsigned long ebits;
-
-	r = dm_io_sync_vm(1, &log->bits_location, READ,
-			  log->clean_bits, &ebits);
-	if (r)
-		return r;
-
-	return 0;
-}
-
-static int write_bits(struct log_c *log)
-{
-	unsigned long ebits;
-	return dm_io_sync_vm(1, &log->bits_location, WRITE,
-			     log->clean_bits, &ebits);
 }
 
 /*----------------------------------------------------------------
@@ -373,9 +348,10 @@ static int disk_ctr(struct dirty_log *log, struct dm_target *ti,
 		    unsigned int argc, char **argv)
 {
 	int r;
-	size_t size;
+	size_t size, bitset_size;
 	struct log_c *lc;
 	struct dm_dev *dev;
+	uint32_t *clean_bits;
 
 	if (argc < 2 || argc > 3) {
 		DMWARN("wrong number of arguments to disk mirror log");
@@ -399,23 +375,26 @@ static int disk_ctr(struct dirty_log *log, struct dm_target *ti,
 	/* setup the disk header fields */
 	lc->header_location.bdev = lc->log_dev->bdev;
 	lc->header_location.sector = 0;
-	lc->header_location.count = 1;
 
-	/*
-	 * We can't read less than this amount, even though we'll
-	 * not be using most of this space.
-	 */
-	lc->disk_header = vmalloc(1 << SECTOR_SHIFT);
+	/* Include both the header and the bitset in one buffer. */
+	bitset_size = lc->bitset_uint32_count * sizeof(uint32_t);
+	size = dm_round_up((LOG_OFFSET << SECTOR_SHIFT) + bitset_size,
+			   ti->limits.hardsect_size);
+	lc->header_location.count = size >> SECTOR_SHIFT;
+
+	lc->disk_header = vmalloc(size);
 	if (!lc->disk_header)
 		goto bad;
 
-	/* setup the disk bitset fields */
-	lc->bits_location.bdev = lc->log_dev->bdev;
-	lc->bits_location.sector = LOG_OFFSET;
+	/*
+	 * Deallocate the clean_bits buffer that was allocated in core_ctr()
+	 * and point it at the appropriate place in the disk_header buffer.
+	 */
+	clean_bits = lc->clean_bits;
+	lc->clean_bits = (void *)lc->disk_header + (LOG_OFFSET << SECTOR_SHIFT);
+	memcpy(lc->clean_bits, clean_bits, bitset_size);
+	vfree(clean_bits);
 
-	size = dm_round_up(lc->bitset_uint32_count * sizeof(uint32_t),
-			   1 << SECTOR_SHIFT);
-	lc->bits_location.count = size >> SECTOR_SHIFT;
 	return 0;
 
  bad:
@@ -429,6 +408,7 @@ static void disk_dtr(struct dirty_log *log)
 	struct log_c *lc = (struct log_c *) log->context;
 	dm_put_device(lc->ti, lc->log_dev);
 	vfree(lc->disk_header);
+	lc->clean_bits = NULL;
 	core_dtr(log);
 }
 
@@ -454,11 +434,6 @@ static int disk_resume(struct dirty_log *log)
 	if (r)
 		return r;
 
-	/* read the bits */
-	r = read_bits(lc);
-	if (r)
-		return r;
-
 	/* set or clear any new bits */
 	if (lc->sync == NOSYNC)
 		for (i = lc->header.nr_regions; i < lc->region_count; i++)
@@ -472,11 +447,6 @@ static int disk_resume(struct dirty_log *log)
 	/* copy clean across to sync */
 	memcpy(lc->sync_bits, lc->clean_bits, size);
 	lc->sync_count = count_bits32(lc->clean_bits, lc->bitset_uint32_count);
-
-	/* write the bits */
-	r = write_bits(lc);
-	if (r)
-		return r;
 
 	/* set the correct number of regions in the header */
 	lc->header.nr_regions = lc->region_count;
@@ -518,7 +488,7 @@ static int disk_flush(struct dirty_log *log)
 	if (!lc->touched)
 		return 0;
 
-	r = write_bits(lc);
+	r = write_header(lc);
 	if (!r)
 		lc->touched = 0;
 

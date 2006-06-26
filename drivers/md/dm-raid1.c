@@ -1220,7 +1220,7 @@ static int mirror_status(struct dm_target *ti, status_type_t type,
 
 static struct target_type mirror_target = {
 	.name	 = "mirror",
-	.version = {1, 0, 1},
+	.version = {1, 0, 2},
 	.module	 = THIS_MODULE,
 	.ctr	 = mirror_ctr,
 	.dtr	 = mirror_dtr,
