@@ -2235,6 +2235,30 @@ chunk_size_store(mddev_t *mddev, const char *buf, size_t len)
 static struct md_sysfs_entry md_chunk_size =
 __ATTR(chunk_size, 0644, chunk_size_show, chunk_size_store);
 
+static ssize_t
+resync_start_show(mddev_t *mddev, char *page)
+{
+	return sprintf(page, "%llu\n", (unsigned long long)mddev->recovery_cp);
+}
+
+static ssize_t
+resync_start_store(mddev_t *mddev, const char *buf, size_t len)
+{
+	/* can only set chunk_size if array is not yet active */
+	char *e;
+	unsigned long long n = simple_strtoull(buf, &e, 10);
+
+	if (mddev->pers)
+		return -EBUSY;
+	if (!*buf || (*e && *e != '\n'))
+		return -EINVAL;
+
+	mddev->recovery_cp = n;
+	return len;
+}
+static struct md_sysfs_entry md_resync_start =
+__ATTR(resync_start, 0644, resync_start_show, resync_start_store);
+
 /*
  * The array state can be:
  *
@@ -2771,6 +2795,7 @@ static struct attribute *md_default_attrs[] = {
 	&md_raid_disks.attr,
 	&md_chunk_size.attr,
 	&md_size.attr,
+	&md_resync_start.attr,
 	&md_metadata.attr,
 	&md_new_device.attr,
 	&md_safe_delay.attr,
@@ -3263,6 +3288,7 @@ static int do_md_stop(mddev_t * mddev, int mode)
 		mddev->array_size = 0;
 		mddev->size = 0;
 		mddev->raid_disks = 0;
+		mddev->recovery_cp = 0;
 
 		disk = mddev->gendisk;
 		if (disk)

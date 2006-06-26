@@ -205,6 +205,12 @@ All md devices contain:
      simply a number that is interpretted differently by different
      levels.  It can be written while assembling an array.
 
+  resync_start
+     The point at which resync should start.  If no resync is needed,
+     this will be a very large number.  At array creation it will
+     default to 0, though starting the array as 'clean' will
+     set it much larger.
+
    new_dev
      This file can be written but not read.  The value written should
      be a block device number as major:minor.  e.g. 8:0
