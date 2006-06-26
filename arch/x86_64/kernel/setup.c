@@ -833,15 +833,13 @@ static void __init amd_detect_cmp(struct cpuinfo_x86 *c)
  	}
 	numa_set_node(cpu, node);
 
-  	printk(KERN_INFO "CPU %d/%x(%d) -> Node %d -> Core %d\n",
-  			cpu, apicid, c->x86_max_cores, node, c->cpu_core_id);
+	printk(KERN_INFO "CPU %d/%x -> Node %d\n", cpu, apicid, node);
 #endif
 #endif
 }
 
-static int __init init_amd(struct cpuinfo_x86 *c)
+static void __init init_amd(struct cpuinfo_x86 *c)
 {
-	int r;
 	unsigned level;
 
 #ifdef CONFIG_SMP
@@ -874,8 +872,8 @@ static int __init init_amd(struct cpuinfo_x86 *c)
 	if (c->x86 >= 6)
 		set_bit(X86_FEATURE_FXSAVE_LEAK, &c->x86_capability);
 
-	r = get_model_name(c);
-	if (!r) { 
+	level = get_model_name(c);
+	if (!level) {
 		switch (c->x86) { 
 		case 15:
 			/* Should distinguish Models here, but this is only
@@ -896,8 +894,6 @@ static int __init init_amd(struct cpuinfo_x86 *c)
 
 	/* Fix cpuid4 emulation for more */
 	num_cache_leaves = 3;
-
-	return r;
 }
 
 static void __cpuinit detect_ht(struct cpuinfo_x86 *c)
@@ -909,8 +905,10 @@ static void __cpuinit detect_ht(struct cpuinfo_x86 *c)
 	cpuid(1, &eax, &ebx, &ecx, &edx);
 
 
-	if (!cpu_has(c, X86_FEATURE_HT) || cpu_has(c, X86_FEATURE_CMP_LEGACY))
+	if (!cpu_has(c, X86_FEATURE_HT))
 		return;
+ 	if (cpu_has(c, X86_FEATURE_CMP_LEGACY))
+		goto out;
 
 	smp_num_siblings = (ebx & 0xff0000) >> 16;
 
@@ -927,9 +925,6 @@ static void __cpuinit detect_ht(struct cpuinfo_x86 *c)
 		index_msb = get_count_order(smp_num_siblings);
 		c->phys_proc_id = phys_pkg_id(index_msb);
 
-		printk(KERN_INFO  "CPU: Physical Processor ID: %d\n",
-		       c->phys_proc_id);
-
 		smp_num_siblings = smp_num_siblings / c->x86_max_cores;
 
 		index_msb = get_count_order(smp_num_siblings) ;
@@ -938,11 +933,13 @@ static void __cpuinit detect_ht(struct cpuinfo_x86 *c)
 
 		c->cpu_core_id = phys_pkg_id(index_msb) &
 					       ((1 << core_bits) - 1);
-
-		if (c->x86_max_cores > 1)
-			printk(KERN_INFO  "CPU: Processor Core ID: %d\n",
-			       c->cpu_core_id);
 	}
+out:
+	if ((c->x86_max_cores * smp_num_siblings) > 1) {
+		printk(KERN_INFO  "CPU: Physical Processor ID: %d\n", c->phys_proc_id);
+		printk(KERN_INFO  "CPU: Processor Core ID: %d\n", c->cpu_core_id);
+	}
+
 #endif
 }
 
@@ -969,16 +966,17 @@ static void srat_detect_node(void)
 #ifdef CONFIG_NUMA
 	unsigned node;
 	int cpu = smp_processor_id();
+	int apicid = hard_smp_processor_id();
 
 	/* Don't do the funky fallback heuristics the AMD version employs
 	   for now. */
-	node = apicid_to_node[hard_smp_processor_id()];
+	node = apicid_to_node[apicid];
 	if (node == NUMA_NO_NODE)
 		node = first_node(node_online_map);
 	numa_set_node(cpu, node);
 
 	if (acpi_numa > 0)
-		printk(KERN_INFO "CPU %d -> Node %d\n", cpu, node);
+		printk(KERN_INFO "CPU %d/%x -> Node %d\n", cpu, apicid, node);
 #endif
 }
 
