@@ -73,6 +73,7 @@ void omap_dm_timer_set_int_enable(struct omap_dm_timer *timer, unsigned int valu
 unsigned int omap_dm_timer_read_status(struct omap_dm_timer *timer);
 void omap_dm_timer_write_status(struct omap_dm_timer *timer, unsigned int value);
 unsigned int omap_dm_timer_read_counter(struct omap_dm_timer *timer);
+void omap_dm_timer_write_counter(struct omap_dm_timer *timer, unsigned int value);
 
 int omap_dm_timers_active(void);
 

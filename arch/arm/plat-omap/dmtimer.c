@@ -107,6 +107,14 @@ static struct omap_dm_timer dm_timers[] = {
 	{ .phys_base = 0x4808a000, .irq = INT_24XX_GPTIMER12 },
 };
 
+static const char *dm_source_names[] = {
+	"sys_ck",
+	"func_32k_ck",
+	"alt_ck"
+};
+
+static struct clk *dm_source_clocks[3];
+
 #else
 
 #error OMAP architecture not supported!
@@ -114,7 +122,6 @@ static struct omap_dm_timer dm_timers[] = {
 #endif
 
 static const int dm_timer_count = ARRAY_SIZE(dm_timers);
-
 static spinlock_t dm_timer_lock;
 
 static inline u32 omap_dm_timer_read_reg(struct omap_dm_timer *timer, int reg)
@@ -159,9 +166,8 @@ static void omap_dm_timer_reset(struct omap_dm_timer *timer)
 	omap_dm_timer_write_reg(timer, OMAP_TIMER_OCP_CFG_REG, l);
 }
 
-static void omap_dm_timer_reserve(struct omap_dm_timer *timer)
+static void omap_dm_timer_prepare(struct omap_dm_timer *timer)
 {
-	timer->reserved = 1;
 #ifdef CONFIG_ARCH_OMAP2
 	clk_enable(timer->iclk);
 	clk_enable(timer->fclk);
@@ -181,10 +187,13 @@ struct omap_dm_timer *omap_dm_timer_request(void)
 			continue;
 
 		timer = &dm_timers[i];
-		omap_dm_timer_reserve(timer);
+		timer->reserved = 1;
 		break;
 	}
 	spin_unlock_irqrestore(&dm_timer_lock, flags);
+
+	if (timer != NULL)
+		omap_dm_timer_prepare(timer);
 
 	return timer;
 }
@@ -204,8 +213,10 @@ struct omap_dm_timer *omap_dm_timer_request_specific(int id)
 	}
 
 	timer = &dm_timers[id-1];
-	omap_dm_timer_reserve(timer);
+	timer->reserved = 1;
 	spin_unlock_irqrestore(&dm_timer_lock, flags);
+
+	omap_dm_timer_prepare(timer);
 
 	return timer;
 }
@@ -318,21 +329,12 @@ void omap_dm_timer_set_source(struct omap_dm_timer *timer, int source)
 
 void omap_dm_timer_set_source(struct omap_dm_timer *timer, int source)
 {
-	static const char *source_timers[] = {
-		"sys_ck",
-		"func_32k_ck",
-		"alt_ck"
-	};
-	struct clk *parent;
-
 	if (source < 0 || source >= 3)
 		return;
 
-	parent = clk_get(NULL, source_timers[source]);
 	clk_disable(timer->fclk);
-	clk_set_parent(timer->fclk, parent);
+	clk_set_parent(timer->fclk, dm_source_clocks[source]);
 	clk_enable(timer->fclk);
-	clk_put(parent);
 
 	/* When the functional clock disappears, too quick writes seem to
 	 * cause an abort. */
@@ -362,7 +364,7 @@ void omap_dm_timer_set_match(struct omap_dm_timer *timer, int enable,
 	u32 l;
 
 	l = omap_dm_timer_read_reg(timer, OMAP_TIMER_CTRL_REG);
-        if (enable)
+	if (enable)
 		l |= OMAP_TIMER_CTRL_CE;
 	else
 		l &= ~OMAP_TIMER_CTRL_CE;
@@ -421,6 +423,11 @@ unsigned int omap_dm_timer_read_counter(struct omap_dm_timer *timer)
 	return omap_dm_timer_read_reg(timer, OMAP_TIMER_COUNTER_REG);
 }
 
+void omap_dm_timer_write_counter(struct omap_dm_timer *timer, unsigned int value)
+{
+	return omap_dm_timer_write_reg(timer, OMAP_TIMER_COUNTER_REG, value);
+}
+
 int omap_dm_timers_active(void)
 {
 	int i;
@@ -445,6 +452,13 @@ int omap_dm_timer_init(void)
 		return -ENODEV;
 
 	spin_lock_init(&dm_timer_lock);
+#ifdef CONFIG_ARCH_OMAP2
+	for (i = 0; i < ARRAY_SIZE(dm_source_names); i++) {
+		dm_source_clocks[i] = clk_get(NULL, dm_source_names[i]);
+		BUG_ON(dm_source_clocks[i] == NULL);
+	}
+#endif
+
 	for (i = 0; i < dm_timer_count; i++) {
 #ifdef CONFIG_ARCH_OMAP2
 		char clk_name[16];
