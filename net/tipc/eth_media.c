@@ -254,7 +254,9 @@ int tipc_eth_media_start(void)
 	if (eth_started)
 		return -EINVAL;
 
-	memset(&bcast_addr, 0xff, sizeof(bcast_addr));
+	bcast_addr.type = htonl(TIPC_MEDIA_TYPE_ETH);
+	memset(&bcast_addr.dev_addr, 0xff, ETH_ALEN);
+
 	memset(eth_bearers, 0, sizeof(eth_bearers));
 
 	res = tipc_register_media(TIPC_MEDIA_TYPE_ETH, "eth",
