@@ -1171,8 +1171,6 @@ int tipc_withdraw(u32 ref, unsigned int scope, struct tipc_name_seq const *seq)
 	p_ptr = tipc_port_lock(ref);
 	if (!p_ptr)
 		return -EINVAL;
-	if (!p_ptr->publ.published)
-		goto exit;
 	if (!seq) {
 		list_for_each_entry_safe(publ, tpubl, 
 					 &p_ptr->publications, pport_list) {
@@ -1199,7 +1197,6 @@ int tipc_withdraw(u32 ref, unsigned int scope, struct tipc_name_seq const *seq)
 	}
 	if (list_empty(&p_ptr->publications))
 		p_ptr->publ.published = 0;
-exit:
 	tipc_port_unlock(p_ptr);
 	return res;
 }
