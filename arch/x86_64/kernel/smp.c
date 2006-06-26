@@ -520,13 +520,13 @@ asmlinkage void smp_call_function_interrupt(void)
 
 int safe_smp_processor_id(void)
 {
-	int apicid, i;
+	unsigned apicid, i;
 
 	if (disable_apic)
 		return 0;
 
 	apicid = hard_smp_processor_id();
-	if (x86_cpu_to_apicid[apicid] == apicid)
+	if (apicid < NR_CPUS && x86_cpu_to_apicid[apicid] == apicid)
 		return apicid;
 
 	for (i = 0; i < NR_CPUS; ++i) {
