@@ -29,6 +29,7 @@ MODULE_DESCRIPTION("Input core");
 MODULE_LICENSE("GPL");
 
 EXPORT_SYMBOL(input_allocate_device);
+EXPORT_SYMBOL(input_free_device);
 EXPORT_SYMBOL(input_register_device);
 EXPORT_SYMBOL(input_unregister_device);
 EXPORT_SYMBOL(input_register_handler);
@@ -872,11 +873,24 @@ struct input_dev *input_allocate_device(void)
 		dev->dynalloc = 1;
 		dev->cdev.class = &input_class;
 		class_device_initialize(&dev->cdev);
+		mutex_init(&dev->mutex);
 		INIT_LIST_HEAD(&dev->h_list);
 		INIT_LIST_HEAD(&dev->node);
 	}
 
 	return dev;
+}
+
+void input_free_device(struct input_dev *dev)
+{
+	if (dev) {
+
+		mutex_lock(&dev->mutex);
+		dev->name = dev->phys = dev->uniq = NULL;
+		mutex_unlock(&dev->mutex);
+
+		input_put_device(dev);
+	}
 }
 
 int input_register_device(struct input_dev *dev)
@@ -895,7 +909,6 @@ int input_register_device(struct input_dev *dev)
 		return -EINVAL;
 	}
 
-	mutex_init(&dev->mutex);
 	set_bit(EV_SYN, dev->evbit);
 
 	/*
@@ -978,6 +991,10 @@ void input_unregister_device(struct input_dev *dev)
 	sysfs_remove_group(&dev->cdev.kobj, &input_dev_id_attr_group);
 	sysfs_remove_group(&dev->cdev.kobj, &input_dev_attr_group);
 	class_device_unregister(&dev->cdev);
+
+	mutex_lock(&dev->mutex);
+	dev->name = dev->phys = dev->uniq = NULL;
+	mutex_unlock(&dev->mutex);
 
 	input_wakeup_procfs_readers();
 }

@@ -1005,6 +1005,7 @@ static inline void init_input_dev(struct input_dev *dev)
 }
 
 struct input_dev *input_allocate_device(void);
+void input_free_device(struct input_dev *dev);
 
 static inline struct input_dev *input_get_device(struct input_dev *dev)
 {
@@ -1014,12 +1015,6 @@ static inline struct input_dev *input_get_device(struct input_dev *dev)
 static inline void input_put_device(struct input_dev *dev)
 {
 	class_device_put(&dev->cdev);
-}
-
-static inline void input_free_device(struct input_dev *dev)
-{
-	if (dev)
-		input_put_device(dev);
 }
 
 int input_register_device(struct input_dev *);
