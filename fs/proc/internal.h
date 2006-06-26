@@ -10,7 +10,6 @@
  */
 
 #include <linux/proc_fs.h>
-#include <linux/task_ref.h>
 
 struct vmalloc_info {
 	unsigned long	used;
@@ -51,14 +50,14 @@ void free_proc_entry(struct proc_dir_entry *de);
 
 int proc_init_inodecache(void);
 
-static inline struct task_ref *proc_tref(struct inode *inode)
+static inline struct pid *proc_pid(struct inode *inode)
 {
-	return PROC_I(inode)->tref;
+	return PROC_I(inode)->pid;
 }
 
 static inline struct task_struct *get_proc_task(struct inode *inode)
 {
-	return get_tref_task(proc_tref(inode));
+	return get_pid_task(proc_pid(inode), PIDTYPE_PID);
 }
 
 static inline int proc_fd(struct inode *inode)

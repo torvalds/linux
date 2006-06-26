@@ -62,7 +62,7 @@ static void proc_delete_inode(struct inode *inode)
 	truncate_inode_pages(&inode->i_data, 0);
 
 	/* Stop tracking associated processes */
-	tref_put(PROC_I(inode)->tref);
+	put_pid(PROC_I(inode)->pid);
 
 	/* Let go of any associated proc directory entry */
 	de = PROC_I(inode)->pde;
@@ -91,7 +91,7 @@ static struct inode *proc_alloc_inode(struct super_block *sb)
 	ei = (struct proc_inode *)kmem_cache_alloc(proc_inode_cachep, SLAB_KERNEL);
 	if (!ei)
 		return NULL;
-	ei->tref = NULL;
+	ei->pid = NULL;
 	ei->fd = 0;
 	ei->op.proc_get_link = NULL;
 	ei->pde = NULL;

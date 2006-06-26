@@ -951,7 +951,7 @@ static ssize_t proc_loginuid_write(struct file * file, const char __user * buf,
 	if (!capable(CAP_AUDIT_CONTROL))
 		return -EPERM;
 
-	if (current != proc_tref(inode)->task)
+	if (current != pid_task(proc_pid(inode), PIDTYPE_PID))
 		return -EPERM;
 
 	if (count >= PAGE_SIZE)
@@ -1363,8 +1363,8 @@ static struct inode *proc_pid_make_inode(struct super_block * sb, struct task_st
 	/*
 	 * grab the reference to task.
 	 */
-	ei->tref = tref_get_by_task(task);
-	if (!tref_task(ei->tref))
+	ei->pid = get_pid(task->pids[PIDTYPE_PID].pid);
+	if (!ei->pid)
 		goto out_unlock;
 
 	inode->i_uid = 0;
@@ -1482,7 +1482,7 @@ static int pid_delete_dentry(struct dentry * dentry)
 	 * If so, then don't put the dentry on the lru list,
 	 * kill it immediately.
 	 */
-	return !proc_tref(dentry->d_inode)->task;
+	return !proc_pid(dentry->d_inode)->tasks[PIDTYPE_PID].first;
 }
 
 static struct dentry_operations tid_fd_dentry_operations =

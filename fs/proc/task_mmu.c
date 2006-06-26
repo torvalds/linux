@@ -320,7 +320,7 @@ static void *m_start(struct seq_file *m, loff_t *pos)
 	if (last_addr == -1UL)
 		return NULL;
 
-	priv->task = get_tref_task(priv->tref);
+	priv->task = get_pid_task(priv->pid, PIDTYPE_PID);
 	if (!priv->task)
 		return NULL;
 
@@ -416,7 +416,7 @@ static int do_maps_open(struct inode *inode, struct file *file,
 	int ret = -ENOMEM;
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (priv) {
-		priv->tref = proc_tref(inode);
+		priv->pid = proc_pid(inode);
 		ret = seq_open(file, ops);
 		if (!ret) {
 			struct seq_file *m = file->private_data;
