@@ -9,3 +9,16 @@ config HW_RANDOM
 	  Hardware Random Number Generator Core infrastructure.
 
 	  If unsure, say Y.
+
+config HW_RANDOM_INTEL
+	tristate "Intel HW Random Number Generator support"
+	depends on HW_RANDOM && (X86 || IA64) && PCI
+	default y
+	---help---
+	  This driver provides kernel-side support for the Random Number
+	  Generator hardware found on Intel i8xx-based motherboards.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called intel-rng.
+
+	  If unsure, say Y.
