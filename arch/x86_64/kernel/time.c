@@ -8,7 +8,7 @@
  *  Copyright (c) 1995  Markus Kuhn
  *  Copyright (c) 1996  Ingo Molnar
  *  Copyright (c) 1998  Andrea Arcangeli
- *  Copyright (c) 2002  Vojtech Pavlik
+ *  Copyright (c) 2002,2006  Vojtech Pavlik
  *  Copyright (c) 2003  Andi Kleen
  *  RTC support code taken from arch/i386/kernel/timers/time_hpet.c
  */
