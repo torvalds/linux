@@ -44,6 +44,7 @@
 #include <linux/suspend.h>
 #include <linux/poll.h>
 #include <linux/mutex.h>
+#include <linux/ctype.h>
 
 #include <linux/init.h>
 
@@ -1978,6 +1979,54 @@ static void analyze_sbs(mddev_t * mddev)
 }
 
 static ssize_t
+safe_delay_show(mddev_t *mddev, char *page)
+{
+	int msec = (mddev->safemode_delay*1000)/HZ;
+	return sprintf(page, "%d.%03d\n", msec/1000, msec%1000);
+}
+static ssize_t
+safe_delay_store(mddev_t *mddev, const char *cbuf, size_t len)
+{
+	int scale=1;
+	int dot=0;
+	int i;
+	unsigned long msec;
+	char buf[30];
+	char *e;
+	/* remove a period, and count digits after it */
+	if (len >= sizeof(buf))
+		return -EINVAL;
+	strlcpy(buf, cbuf, len);
+	buf[len] = 0;
+	for (i=0; i<len; i++) {
+		if (dot) {
+			if (isdigit(buf[i])) {
+				buf[i-1] = buf[i];
+				scale *= 10;
+			}
+			buf[i] = 0;
+		} else if (buf[i] == '.') {
+			dot=1;
+			buf[i] = 0;
+		}
+	}
+	msec = simple_strtoul(buf, &e, 10);
+	if (e == buf || (*e && *e != '\n'))
+		return -EINVAL;
+	msec = (msec * 1000) / scale;
+	if (msec == 0)
+		mddev->safemode_delay = 0;
+	else {
+		mddev->safemode_delay = (msec*HZ)/1000;
+		if (mddev->safemode_delay == 0)
+			mddev->safemode_delay = 1;
+	}
+	return len;
+}
+static struct md_sysfs_entry md_safe_delay =
+__ATTR(safe_mode_delay, 0644,safe_delay_show, safe_delay_store);
+
+static ssize_t
 level_show(mddev_t *mddev, char *page)
 {
 	struct mdk_personality *p = mddev->pers;
@@ -2433,6 +2482,7 @@ static struct attribute *md_default_attrs[] = {
 	&md_size.attr,
 	&md_metadata.attr,
 	&md_new_device.attr,
+	&md_safe_delay.attr,
 	NULL,
 };
 
@@ -2708,7 +2758,7 @@ static int do_md_run(mddev_t * mddev)
 	mddev->safemode = 0;
 	mddev->safemode_timer.function = md_safemode_timeout;
 	mddev->safemode_timer.data = (unsigned long) mddev;
-	mddev->safemode_delay = (20 * HZ)/1000 +1; /* 20 msec delay */
+	mddev->safemode_delay = (200 * HZ)/1000 +1; /* 200 msec delay */
 	mddev->in_sync = 1;
 
 	ITERATE_RDEV(mddev,rdev,tmp)
@@ -4594,7 +4644,7 @@ void md_write_end(mddev_t *mddev)
 	if (atomic_dec_and_test(&mddev->writes_pending)) {
 		if (mddev->safemode == 2)
 			md_wakeup_thread(mddev->thread);
-		else
+		else if (mddev->safemode_delay)
 			mod_timer(&mddev->safemode_timer, jiffies + mddev->safemode_delay);
 	}
 }

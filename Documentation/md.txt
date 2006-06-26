@@ -207,6 +207,15 @@ All md devices contain:
      available.  It will then appear at md/dev-XXX (depending on the
      name of the device) and further configuration is then possible.
 
+   safe_mode_delay
+     When an md array has seen no write requests for a certain period
+     of time, it will be marked as 'clean'.  When another write
+     request arrive, the array is marked as 'dirty' before the write
+     commenses.  This is known as 'safe_mode'.
+     The 'certain period' is controlled by this file which stores the
+     period as a number of seconds.  The default is 200msec (0.200).
+     Writing a value of 0 disables safemode.
+
    sync_speed_min
    sync_speed_max
      This are similar to /proc/sys/dev/raid/speed_limit_{min,max}
