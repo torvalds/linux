@@ -1745,8 +1745,32 @@ state_show(mdk_rdev_t *rdev, char *page)
 	return len+sprintf(page+len, "\n");
 }
 
+static ssize_t
+state_store(mdk_rdev_t *rdev, const char *buf, size_t len)
+{
+	/* can write
+	 *  faulty  - simulates and error
+	 *  remove  - disconnects the device
+	 */
+	int err = -EINVAL;
+	if (cmd_match(buf, "faulty") && rdev->mddev->pers) {
+		md_error(rdev->mddev, rdev);
+		err = 0;
+	} else if (cmd_match(buf, "remove")) {
+		if (rdev->raid_disk >= 0)
+			err = -EBUSY;
+		else {
+			mddev_t *mddev = rdev->mddev;
+			kick_rdev_from_array(rdev);
+			md_update_sb(mddev);
+			md_new_event(mddev);
+			err = 0;
+		}
+	}
+	return err ? err : len;
+}
 static struct rdev_sysfs_entry
-rdev_state = __ATTR_RO(state);
+rdev_state = __ATTR(state, 0644, state_show, state_store);
 
 static ssize_t
 super_show(mdk_rdev_t *rdev, char *page)

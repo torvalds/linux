@@ -302,6 +302,9 @@ Each directory contains:
 			 This includes spares that are in the process
 			 of being recoverred to
 	This list make grow in future.
+	This can be written to.
+	Writing "faulty"  simulates a failure on the device.
+	Writing "remove" removes the device from the array.
 
       errors
 	An approximate count of read errors that have been detected on
