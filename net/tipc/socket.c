@@ -169,12 +169,6 @@ static int tipc_create(struct socket *sock, int protocol)
 	struct sock *sk;
         u32 ref;
 
-	if ((sock->type != SOCK_STREAM) && 
-	    (sock->type != SOCK_SEQPACKET) &&
-	    (sock->type != SOCK_DGRAM) &&
-	    (sock->type != SOCK_RDM))
-		return -EPROTOTYPE;
-
 	if (unlikely(protocol != 0))
 		return -EPROTONOSUPPORT;
 
@@ -199,6 +193,9 @@ static int tipc_create(struct socket *sock, int protocol)
 		sock->ops = &msg_ops;
 		sock->state = SS_READY;
 		break;
+	default:
+		tipc_deleteport(ref);
+		return -EPROTOTYPE;
 	}
 
 	sk = sk_alloc(AF_TIPC, GFP_KERNEL, &tipc_proto, 1);
