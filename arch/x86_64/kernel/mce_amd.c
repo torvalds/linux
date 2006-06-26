@@ -30,7 +30,7 @@
 #include <asm/idle.h>
 
 #define PFX "mce_threshold: "
-#define VERSION "version 1.00.9"
+#define VERSION "version 1.0.10"
 #define NR_BANKS 5
 #define THRESHOLD_MAX 0xFFF
 #define INT_TYPE_APIC 0x00020000
@@ -165,12 +165,6 @@ asmlinkage void mce_threshold_interrupt(void)
 /*
  * Sysfs Interface
  */
-
-static struct sysdev_class threshold_sysclass = {
-	set_kset_name("threshold"),
-};
-
-static DEFINE_PER_CPU(struct sys_device, device_threshold);
 
 struct threshold_attr {
         struct attribute attr;
@@ -332,8 +326,8 @@ static __cpuinit int threshold_create_bank(unsigned int cpu, int bank)
 		b = per_cpu(threshold_banks, lcpu)[bank];
 		if (!b)
 			goto out;
-		sprintf(name, "bank%i", bank);
-		err = sysfs_create_link(&per_cpu(device_threshold, cpu).kobj,
+		sprintf(name, "threshold_bank%i", bank);
+		err = sysfs_create_link(&per_cpu(device_mce, cpu).kobj,
 					&b->kobj, name);
 		if (err)
 			goto out;
@@ -353,8 +347,8 @@ static __cpuinit int threshold_create_bank(unsigned int cpu, int bank)
 	b->bank = bank;
 	b->interrupt_enable = 0;
 	b->threshold_limit = THRESHOLD_MAX;
-	kobject_set_name(&b->kobj, "bank%i", bank);
-	b->kobj.parent = &per_cpu(device_threshold, cpu).kobj;
+	kobject_set_name(&b->kobj, "threshold_bank%i", bank);
+	b->kobj.parent = &per_cpu(device_mce, cpu).kobj;
 	b->kobj.ktype = &threshold_ktype;
 
 	err = kobject_register(&b->kobj);
@@ -372,12 +366,6 @@ static __cpuinit int threshold_create_device(unsigned int cpu)
 {
 	int bank;
 	int err = 0;
-
-	per_cpu(device_threshold, cpu).id = cpu;
-	per_cpu(device_threshold, cpu).cls = &threshold_sysclass;
-	err = sysdev_register(&per_cpu(device_threshold, cpu));
-	if (err)
-		goto out;
 
 	for (bank = 0; bank < NR_BANKS; ++bank) {
 		if (!(per_cpu(bank_map, cpu) & 1 << bank))
@@ -407,8 +395,8 @@ static __cpuinit void threshold_remove_bank(unsigned int cpu, int bank)
 	if (!b)
 		return;
 	if (shared_bank[bank] && atomic_read(&b->kobj.kref.refcount) > 2) {
-		sprintf(name, "bank%i", bank);
-		sysfs_remove_link(&per_cpu(device_threshold, cpu).kobj, name);
+		sprintf(name, "threshold_bank%i", bank);
+		sysfs_remove_link(&per_cpu(device_mce, cpu).kobj, name);
 		per_cpu(threshold_banks, cpu)[bank] = NULL;
 	} else {
 		kobject_unregister(&b->kobj);
@@ -425,7 +413,6 @@ static __cpuinit void threshold_remove_device(unsigned int cpu)
 			continue;
 		threshold_remove_bank(cpu, bank);
 	}
-	sysdev_unregister(&per_cpu(device_threshold, cpu));
 }
 
 /* link all existing siblings when first core comes up */
@@ -518,23 +505,16 @@ static struct notifier_block threshold_cpu_notifier = {
 
 static __init int threshold_init_device(void)
 {
-	int err;
 	int lcpu = 0;
-
-	err = sysdev_class_register(&threshold_sysclass);
-	if (err)
-		goto out;
 
 	/* to hit CPUs online before the notifier is up */
 	for_each_online_cpu(lcpu) {
-		err = threshold_create_device(lcpu);
+		int err = threshold_create_device(lcpu);
 		if (err)
-			goto out;
+			return err;
 	}
 	register_cpu_notifier(&threshold_cpu_notifier);
-
-      out:
-	return err;
+	return 0;
 }
 
 device_initcall(threshold_init_device);

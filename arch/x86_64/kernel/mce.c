@@ -562,7 +562,7 @@ static struct sysdev_class mce_sysclass = {
 	set_kset_name("machinecheck"),
 };
 
-static DEFINE_PER_CPU(struct sys_device, device_mce);
+DEFINE_PER_CPU(struct sys_device, device_mce);
 
 /* Why are there no generic functions for this? */
 #define ACCESSOR(name, var, start) \

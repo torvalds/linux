@@ -74,6 +74,8 @@ struct mce_log {
 #include <asm/atomic.h>
 
 void mce_log(struct mce *m);
+DECLARE_PER_CPU(struct sys_device, device_mce);
+
 #ifdef CONFIG_X86_MCE_INTEL
 void mce_intel_feature_init(struct cpuinfo_x86 *c);
 #else
