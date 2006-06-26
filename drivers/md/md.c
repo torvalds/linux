@@ -2877,6 +2877,32 @@ out:
 	return err;
 }
 
+/* similar to deny_write_access, but accounts for our holding a reference
+ * to the file ourselves */
+static int deny_bitmap_write_access(struct file * file)
+{
+	struct inode *inode = file->f_mapping->host;
+
+	spin_lock(&inode->i_lock);
+	if (atomic_read(&inode->i_writecount) > 1) {
+		spin_unlock(&inode->i_lock);
+		return -ETXTBSY;
+	}
+	atomic_set(&inode->i_writecount, -1);
+	spin_unlock(&inode->i_lock);
+
+	return 0;
+}
+
+static void restore_bitmap_write_access(struct file *file)
+{
+	struct inode *inode = file->f_mapping->host;
+
+	spin_lock(&inode->i_lock);
+	atomic_set(&inode->i_writecount, 1);
+	spin_unlock(&inode->i_lock);
+}
+
 static int do_md_stop(mddev_t * mddev, int ro)
 {
 	int err = 0;
@@ -2940,7 +2966,7 @@ static int do_md_stop(mddev_t * mddev, int ro)
 
 		bitmap_destroy(mddev);
 		if (mddev->bitmap_file) {
-			atomic_set(&mddev->bitmap_file->f_dentry->d_inode->i_writecount, 1);
+			restore_bitmap_write_access(mddev->bitmap_file);
 			fput(mddev->bitmap_file);
 			mddev->bitmap_file = NULL;
 		}
@@ -3544,23 +3570,6 @@ abort_export:
 	return err;
 }
 
-/* similar to deny_write_access, but accounts for our holding a reference
- * to the file ourselves */
-static int deny_bitmap_write_access(struct file * file)
-{
-	struct inode *inode = file->f_mapping->host;
-
-	spin_lock(&inode->i_lock);
-	if (atomic_read(&inode->i_writecount) > 1) {
-		spin_unlock(&inode->i_lock);
-		return -ETXTBSY;
-	}
-	atomic_set(&inode->i_writecount, -1);
-	spin_unlock(&inode->i_lock);
-
-	return 0;
-}
-
 static int set_bitmap_file(mddev_t *mddev, int fd)
 {
 	int err;
@@ -3608,8 +3617,10 @@ static int set_bitmap_file(mddev_t *mddev, int fd)
 		mddev->pers->quiesce(mddev, 0);
 	}
 	if (fd < 0) {
-		if (mddev->bitmap_file)
+		if (mddev->bitmap_file) {
+			restore_bitmap_write_access(mddev->bitmap_file);
 			fput(mddev->bitmap_file);
+		}
 		mddev->bitmap_file = NULL;
 	}
 
