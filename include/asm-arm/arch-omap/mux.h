@@ -410,6 +410,12 @@ enum omap24xx_index {
 	/* 24xx clock */
 	W14_24XX_SYS_CLKOUT,
 
+	/* 24xx GPMC wait pin monitoring */
+	L3_GPMC_WAIT0,
+	N7_GPMC_WAIT1,
+	M1_GPMC_WAIT2,
+	P1_GPMC_WAIT3,
+
 	/* 242X McBSP */
 	Y15_24XX_MCBSP2_CLKX,
 	R14_24XX_MCBSP2_FSX,
