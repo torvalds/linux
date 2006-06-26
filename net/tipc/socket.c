@@ -437,7 +437,7 @@ static int dest_name_check(struct sockaddr_tipc *dest, struct msghdr *m)
  * @iocb: (unused)
  * @sock: socket structure
  * @m: message to send
- * @total_len: (unused)
+ * @total_len: length of message
  * 
  * Message must have an destination specified explicitly.
  * Used for SOCK_RDM and SOCK_DGRAM messages, 
@@ -538,7 +538,7 @@ exit:
  * @iocb: (unused)
  * @sock: socket structure
  * @m: message to send
- * @total_len: (unused)
+ * @total_len: length of message
  * 
  * Used for SOCK_SEQPACKET messages and SOCK_STREAM data.
  * 
@@ -1386,7 +1386,7 @@ exit:
 /**
  * shutdown - shutdown socket connection
  * @sock: socket structure
- * @how: direction to close (always treated as read + write)
+ * @how: direction to close (unused; always treated as read + write)
  *
  * Terminates connection (if necessary), then purges socket's receive queue.
  * 
@@ -1469,7 +1469,8 @@ restart:
  * Returns 0 on success, errno otherwise
  */
 
-static int setsockopt(struct socket *sock, int lvl, int opt, char *ov, int ol)
+static int setsockopt(struct socket *sock, 
+		      int lvl, int opt, char __user *ov, int ol)
 {
 	struct tipc_sock *tsock = tipc_sk(sock->sk);
 	u32 value;
@@ -1525,7 +1526,8 @@ static int setsockopt(struct socket *sock, int lvl, int opt, char *ov, int ol)
  * Returns 0 on success, errno otherwise
  */
 
-static int getsockopt(struct socket *sock, int lvl, int opt, char *ov, int *ol)
+static int getsockopt(struct socket *sock, 
+		      int lvl, int opt, char __user *ov, int *ol)
 {
 	struct tipc_sock *tsock = tipc_sk(sock->sk);
         int len;
