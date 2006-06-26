@@ -120,7 +120,7 @@ static struct publication *publ_create(u32 type, u32 lower, u32 upper,
 	struct publication *publ =
 		(struct publication *)kmalloc(sizeof(*publ), GFP_ATOMIC);
 	if (publ == NULL) {
-		warn("Memory squeeze; failed to create publication\n");
+		warn("Publication creation failure, no memory\n");
 		return NULL;
 	}
 
@@ -165,7 +165,7 @@ static struct name_seq *tipc_nameseq_create(u32 type, struct hlist_head *seq_hea
 	struct sub_seq *sseq = tipc_subseq_alloc(1);
 
 	if (!nseq || !sseq) {
-		warn("Memory squeeze; failed to create name sequence\n");
+		warn("Name sequence creation failed, no memory\n");
 		kfree(nseq);
 		kfree(sseq);
 		return NULL;
@@ -759,7 +759,7 @@ struct publication *tipc_nametbl_publish(u32 type, u32 lower, u32 upper,
 	struct publication *publ;
 
 	if (table.local_publ_count >= tipc_max_publications) {
-		warn("Failed publish: max %u local publication\n", 
+		warn("Publication failed, local publication limit reached (%u)\n", 
 		     tipc_max_publications);
 		return NULL;
 	}

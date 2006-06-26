@@ -642,7 +642,7 @@ static void cfg_named_msg_event(void *userdata,
 	if ((size < sizeof(*req_hdr)) ||
 	    (size != TCM_ALIGN(ntohl(req_hdr->tcm_len))) ||
 	    (ntohs(req_hdr->tcm_flags) != TCM_F_REQUEST)) {
-		warn("discarded invalid configuration message\n");
+		warn("Invalid configuration message discarded\n");
 		return;
 	}
 

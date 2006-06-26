@@ -785,7 +785,7 @@ int tipc_bclink_init(void)
 	bclink = kmalloc(sizeof(*bclink), GFP_ATOMIC);
 	if (!bcbearer || !bclink) {
  nomem:
-	 	warn("Memory squeeze; Failed to create multicast link\n");
+	 	warn("Multicast link creation failed, no memory\n");
 		kfree(bcbearer);
 		bcbearer = NULL;
 		kfree(bclink);

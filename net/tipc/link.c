@@ -419,7 +419,7 @@ struct link *tipc_link_create(struct bearer *b_ptr, const u32 peer,
 
 	l_ptr = (struct link *)kmalloc(sizeof(*l_ptr), GFP_ATOMIC);
 	if (!l_ptr) {
-		warn("Memory squeeze; Failed to create link\n");
+		warn("Link creation failed, no memory\n");
 		return NULL;
 	}
 	memset(l_ptr, 0, sizeof(*l_ptr));
@@ -469,7 +469,7 @@ struct link *tipc_link_create(struct bearer *b_ptr, const u32 peer,
 
 		if (!pb) {
 			kfree(l_ptr);
-			warn("Memory squeeze; Failed to create link\n");
+			warn("Link creation failed, no memory for print buffer\n");
 			return NULL;
 		}
 		tipc_printbuf_init(&l_ptr->print_buf, pb, LINK_LOG_BUF_SIZE);
@@ -819,6 +819,8 @@ static void link_state_event(struct link *l_ptr, unsigned event)
 			break;
 		case RESET_MSG:
 			dbg_link("RES -> RR\n");
+			info("Resetting link <%s>, requested by peer\n", 
+			     l_ptr->name);
 			tipc_link_reset(l_ptr);
 			l_ptr->state = RESET_RESET;
 			l_ptr->fsm_msg_cnt = 0;
@@ -843,6 +845,8 @@ static void link_state_event(struct link *l_ptr, unsigned event)
 			break;
 		case RESET_MSG:
 			dbg_link("RES -> RR\n");
+			info("Resetting link <%s>, requested by peer "
+			     "while probing\n", l_ptr->name);
 			tipc_link_reset(l_ptr);
 			l_ptr->state = RESET_RESET;
 			l_ptr->fsm_msg_cnt = 0;
@@ -874,6 +878,8 @@ static void link_state_event(struct link *l_ptr, unsigned event)
 			} else {	/* Link has failed */
 				dbg_link("-> RU (%u probes unanswered)\n",
 					 l_ptr->fsm_msg_cnt);
+				warn("Resetting link <%s>, peer not responding\n",
+				     l_ptr->name);
 				tipc_link_reset(l_ptr);
 				l_ptr->state = RESET_UNKNOWN;
 				l_ptr->fsm_msg_cnt = 0;
@@ -1049,7 +1055,7 @@ int tipc_link_send_buf(struct link *l_ptr, struct sk_buff *buf)
 		msg_dbg(msg, "TIPC: Congestion, throwing away\n");
 		buf_discard(buf);
 		if (imp > CONN_MANAGER) {
-			warn("Resetting <%s>, send queue full", l_ptr->name);
+			warn("Resetting link <%s>, send queue full", l_ptr->name);
 			tipc_link_reset(l_ptr);
 		}
 		return dsz;
@@ -2228,7 +2234,7 @@ static void link_recv_proto_msg(struct link *l_ptr, struct sk_buff *buf)
 		
 		if (msg_linkprio(msg) && 
 		    (msg_linkprio(msg) != l_ptr->priority)) {
-			warn("Changing prio <%s>: %u->%u\n",
+			warn("Resetting link <%s>, priority change %u->%u\n",
 			     l_ptr->name, l_ptr->priority, msg_linkprio(msg));
 			l_ptr->priority = msg_linkprio(msg);
 			tipc_link_reset(l_ptr); /* Enforce change to take effect */
@@ -2348,7 +2354,8 @@ void tipc_link_changeover(struct link *l_ptr)
 			msg_dbg(&tunnel_hdr, "EMPTY>SEND>");
 			tipc_link_send_buf(tunnel, buf);
 		} else {
-			warn("Memory squeeze; link changeover failed\n");
+			warn("Link changeover error, "
+			     "unable to send changeover msg\n");
 		}
 		return;
 	}
@@ -2398,7 +2405,8 @@ void tipc_link_send_duplicate(struct link *l_ptr, struct link *tunnel)
 		msg_set_size(&tunnel_hdr, length + INT_H_SIZE);
 		outbuf = buf_acquire(length + INT_H_SIZE);
 		if (outbuf == NULL) {
-			warn("Memory squeeze; buffer duplication failed\n");
+			warn("Link changeover error, "
+			     "unable to send duplicate msg\n");
 			return;
 		}
 		memcpy(outbuf->data, (unchar *)&tunnel_hdr, INT_H_SIZE);
@@ -2473,7 +2481,7 @@ static int link_recv_changeover_msg(struct link **l_ptr,
 		}
 		*buf = buf_extract(tunnel_buf,INT_H_SIZE);
 		if (*buf == NULL) {
-			warn("Memory squeeze; failed to extract msg\n");
+			warn("Link changeover error, duplicate msg dropped\n");
 			goto exit;
 		}
 		msg_dbg(tunnel_msg, "TNL<REC<");
@@ -2485,6 +2493,8 @@ static int link_recv_changeover_msg(struct link **l_ptr,
 
 	if (tipc_link_is_up(dest_link)) {
 		msg_dbg(tunnel_msg, "UP/FIRST/<REC<");
+		info("Resetting link <%s>, changeover initiated by peer\n",
+		     dest_link->name);
 		tipc_link_reset(dest_link);
 		dest_link->exp_msg_count = msg_count;
 		if (!msg_count)
@@ -2514,7 +2524,7 @@ static int link_recv_changeover_msg(struct link **l_ptr,
 			buf_discard(tunnel_buf);
 			return 1;
 		} else {
-			warn("Memory squeeze; dropped incoming msg\n");
+			warn("Link changeover error, original msg dropped\n");
 		}
 	}
 exit:
@@ -2536,13 +2546,8 @@ void tipc_link_recv_bundle(struct sk_buff *buf)
 	while (msgcount--) {
 		obuf = buf_extract(buf, pos);
 		if (obuf == NULL) {
-			char addr_string[16];
-
-			warn("Buffer allocation failure;\n");
-			warn("  incoming message(s) from %s lost\n",
-			     addr_string_fill(addr_string, 
-					      msg_orignode(buf_msg(buf))));
-			return;
+			warn("Link unable to unbundle message(s)\n");
+			break;
 		};
 		pos += align(msg_size(buf_msg(obuf)));
 		msg_dbg(buf_msg(obuf), "     /");
@@ -2600,7 +2605,7 @@ int tipc_link_send_long_buf(struct link *l_ptr, struct sk_buff *buf)
 		}
 		fragm = buf_acquire(fragm_sz + INT_H_SIZE);
 		if (fragm == NULL) {
-			warn("Memory squeeze; failed to fragment msg\n");
+			warn("Link unable to fragment message\n");
 			dsz = -ENOMEM;
 			goto exit;
 		}
@@ -2715,7 +2720,7 @@ int tipc_link_recv_fragment(struct sk_buff **pending, struct sk_buff **fb,
 			set_fragm_size(pbuf,fragm_sz); 
 			set_expected_frags(pbuf,exp_fragm_cnt - 1); 
 		} else {
-			warn("Memory squeeze; got no defragmenting buffer\n");
+			warn("Link unable to reassemble fragmented message\n");
 		}
 		buf_discard(fbuf);
 		return 0;

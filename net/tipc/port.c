@@ -195,7 +195,7 @@ void tipc_port_recv_mcast(struct sk_buff *buf, struct port_list *dp)
 			struct sk_buff *b = skb_clone(buf, GFP_ATOMIC);
 
 			if (b == NULL) {
-				warn("Buffer allocation failure\n");
+				warn("Unable to deliver multicast message(s)\n");
 				msg_dbg(msg, "LOST:");
 				goto exit;
 			}
@@ -227,14 +227,14 @@ u32 tipc_createport_raw(void *usr_handle,
 	u32 ref;
 
 	p_ptr = kmalloc(sizeof(*p_ptr), GFP_ATOMIC);
-	if (p_ptr == NULL) {
-		warn("Memory squeeze; failed to create port\n");
+	if (!p_ptr) {
+		warn("Port creation failed, no memory\n");
 		return 0;
 	}
 	memset(p_ptr, 0, sizeof(*p_ptr));
 	ref = tipc_ref_acquire(p_ptr, &p_ptr->publ.lock);
 	if (!ref) {
-		warn("Reference Table Exhausted\n");
+		warn("Port creation failed, reference table exhausted\n");
 		kfree(p_ptr);
 		return 0;
 	}
@@ -1059,7 +1059,7 @@ int tipc_createport(u32 user_ref,
 	u32 ref;
 
 	up_ptr = (struct user_port *)kmalloc(sizeof(*up_ptr), GFP_ATOMIC);
-	if (up_ptr == NULL) {
+	if (!up_ptr) {
 		warn("Port creation failed, no memory\n");
 		return -ENOMEM;
 	}

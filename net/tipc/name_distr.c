@@ -127,7 +127,7 @@ void tipc_named_publish(struct publication *publ)
 
 	buf = named_prepare_buf(PUBLICATION, ITEM_SIZE, 0);
 	if (!buf) {
-		warn("Memory squeeze; failed to distribute publication\n");
+		warn("Publication distribution failure\n");
 		return;
 	}
 
@@ -151,7 +151,7 @@ void tipc_named_withdraw(struct publication *publ)
 
 	buf = named_prepare_buf(WITHDRAWAL, ITEM_SIZE, 0);
 	if (!buf) {
-		warn("Memory squeeze; failed to distribute withdrawal\n");
+		warn("Withdrawl distribution failure\n");
 		return;
 	}
 
@@ -184,8 +184,8 @@ void tipc_named_node_up(unsigned long node)
 			left = (rest <= max_item_buf) ? rest : max_item_buf;
 			rest -= left;
 			buf = named_prepare_buf(PUBLICATION, left, node);       
-			if (buf == NULL) {
-				warn("Memory Squeeze; could not send publication\n");
+			if (!buf) {
+				warn("Bulk publication distribution failure\n");
 				goto exit;
 			}
 			item = (struct distr_item *)msg_data(buf_msg(buf));
@@ -291,7 +291,7 @@ void tipc_named_recv(struct sk_buff *buf)
 				    ntohl(item->ref), ntohl(item->key));
 			}
 		} else {
-			warn("tipc_named_recv: unknown msg\n");
+			warn("Unrecognized name table message received\n");
 		}
 		item++;
 	}
