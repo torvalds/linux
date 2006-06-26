@@ -483,6 +483,10 @@ int dlm_unlock_lock_handler(struct o2net_msg *msg, u32 len, void *data)
 
 	/* lock was found on queue */
 	lksb = lock->lksb;
+	if (flags & (LKM_VALBLK|LKM_PUT_LVB) &&
+	    lock->ml.type != LKM_EXMODE)
+		flags &= ~(LKM_VALBLK|LKM_PUT_LVB);
+
 	/* unlockast only called on originating node */
 	if (flags & LKM_PUT_LVB) {
 		lksb->flags |= DLM_LKSB_PUT_LVB;
@@ -632,6 +636,8 @@ retry:
 
 	spin_lock(&res->spinlock);
 	is_master = (res->owner == dlm->node_num);
+	if (flags & LKM_VALBLK && lock->ml.type != LKM_EXMODE)
+		flags &= ~LKM_VALBLK;
 	spin_unlock(&res->spinlock);
 
 	if (is_master) {
