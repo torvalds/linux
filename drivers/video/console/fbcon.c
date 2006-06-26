@@ -195,6 +195,8 @@ static void fbcon_redraw_move(struct vc_data *vc, struct display *p,
 static void fbcon_modechanged(struct fb_info *info);
 static void fbcon_set_all_vcs(struct fb_info *info);
 
+static struct class_device *fbcon_class_device;
+
 #ifdef CONFIG_MAC
 /*
  * On the Macintoy, there may or may not be a working VBL int. We need to probe
@@ -2945,14 +2947,6 @@ static int fbcon_event_notify(struct notifier_block *self,
 	case FB_EVENT_NEW_MODELIST:
 		fbcon_new_modelist(info);
 		break;
-	case FB_EVENT_SET_CON_ROTATE:
-		fbcon_rotate(info, *(int *)event->data);
-		break;
-	case FB_EVENT_GET_CON_ROTATE:
-		ret = fbcon_get_rotate(info);
-		break;
-	case FB_EVENT_SET_CON_ROTATE_ALL:
-		fbcon_rotate_all(info, *(int *)event->data);
 	}
 
 	return ret;
@@ -2992,6 +2986,81 @@ static struct notifier_block fbcon_event_notifier = {
 	.notifier_call	= fbcon_event_notify,
 };
 
+static ssize_t store_rotate(struct class_device *class_device,
+			    const char *buf, size_t count)
+{
+	struct fb_info *info;
+	int rotate, idx;
+	char **last = NULL;
+
+	acquire_console_sem();
+	idx = con2fb_map[fg_console];
+
+	if (idx == -1 || registered_fb[idx] == NULL)
+		goto err;
+
+	info = registered_fb[idx];
+	rotate = simple_strtoul(buf, last, 0);
+	fbcon_rotate(info, rotate);
+err:
+	release_console_sem();
+	return count;
+}
+
+static ssize_t store_rotate_all(struct class_device *class_device,
+				const char *buf, size_t count)
+{
+	struct fb_info *info;
+	int rotate, idx;
+	char **last = NULL;
+
+	acquire_console_sem();
+	idx = con2fb_map[fg_console];
+
+	if (idx == -1 || registered_fb[idx] == NULL)
+		goto err;
+
+	info = registered_fb[idx];
+	rotate = simple_strtoul(buf, last, 0);
+	fbcon_rotate_all(info, rotate);
+err:
+	release_console_sem();
+	return count;
+}
+
+static ssize_t show_rotate(struct class_device *class_device, char *buf)
+{
+	struct fb_info *info;
+	int rotate = 0, idx;
+
+	acquire_console_sem();
+	idx = con2fb_map[fg_console];
+
+	if (idx == -1 || registered_fb[idx] == NULL)
+		goto err;
+
+	info = registered_fb[idx];
+	rotate = fbcon_get_rotate(info);
+err:
+	release_console_sem();
+	return snprintf(buf, PAGE_SIZE, "%d\n", rotate);
+}
+
+static struct class_device_attribute class_device_attrs[] = {
+	__ATTR(rotate, S_IRUGO|S_IWUSR, show_rotate, store_rotate),
+	__ATTR(rotate_all, S_IWUSR, NULL, store_rotate_all),
+};
+
+static int fbcon_init_class_device(void)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(class_device_attrs); i++)
+		class_device_create_file(fbcon_class_device,
+					 &class_device_attrs[i]);
+	return 0;
+}
+
 static int __init fb_console_init(void)
 {
 	int i;
@@ -2999,6 +3068,18 @@ static int __init fb_console_init(void)
 	acquire_console_sem();
 	fb_register_client(&fbcon_event_notifier);
 	release_console_sem();
+
+	fbcon_class_device =
+	    class_device_create(fb_class, NULL,
+				MKDEV(FB_MAJOR, FB_MAX), NULL,
+				"fbcon");
+	if (IS_ERR(fbcon_class_device)) {
+	    printk(KERN_WARNING "Unable to create class_device "
+		   "for fbcon; errno = %ld\n",
+		   PTR_ERR(fbcon_class_device));
+	    fbcon_class_device = NULL;
+	} else
+	    fbcon_init_class_device();
 
 	for (i = 0; i < MAX_NR_CONSOLES; i++)
 		con2fb_map[i] = -1;
@@ -3020,10 +3101,26 @@ module_init(fb_console_init);
 
 #ifdef MODULE
 
+static void __exit fbcon_deinit_class_device(void)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(class_device_attrs); i++)
+		class_device_remove_file(fbcon_class_device,
+					 &class_device_attrs[i]);
+}
+
+static void __exit fbcon_exit(void)
+{
+	fbcon_deinit_class_device();
+	class_device_destroy(fb_class, MKDEV(FB_MAJOR, FB_MAX));
+}
+
 static void __exit fb_console_exit(void)
 {
 	acquire_console_sem();
 	fb_unregister_client(&fbcon_event_notifier);
+	fbcon_exit();
 	release_console_sem();
 	give_up_console(&fb_con);
 }	

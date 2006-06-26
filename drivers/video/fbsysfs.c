@@ -247,45 +247,6 @@ static ssize_t show_rotate(struct class_device *class_device, char *buf)
 	return snprintf(buf, PAGE_SIZE, "%d\n", fb_info->var.rotate);
 }
 
-static ssize_t store_con_rotate(struct class_device *class_device,
-				const char *buf, size_t count)
-{
-	struct fb_info *fb_info = class_get_devdata(class_device);
-	int rotate;
-	char **last = NULL;
-
-	acquire_console_sem();
-	rotate = simple_strtoul(buf, last, 0);
-	fb_con_duit(fb_info, FB_EVENT_SET_CON_ROTATE, &rotate);
-	release_console_sem();
-	return count;
-}
-
-static ssize_t store_con_rotate_all(struct class_device *class_device,
-				const char *buf, size_t count)
-{
-	struct fb_info *fb_info = class_get_devdata(class_device);
-	int rotate;
-	char **last = NULL;
-
-	acquire_console_sem();
-	rotate = simple_strtoul(buf, last, 0);
-	fb_con_duit(fb_info, FB_EVENT_SET_CON_ROTATE_ALL, &rotate);
-	release_console_sem();
-	return count;
-}
-
-static ssize_t show_con_rotate(struct class_device *class_device, char *buf)
-{
-	struct fb_info *fb_info = class_get_devdata(class_device);
-	int rotate;
-
-	acquire_console_sem();
-	rotate = fb_con_duit(fb_info, FB_EVENT_GET_CON_ROTATE, NULL);
-	release_console_sem();
-	return snprintf(buf, PAGE_SIZE, "%d\n", rotate);
-}
-
 static ssize_t store_virtual(struct class_device *class_device,
 			     const char * buf, size_t count)
 {
@@ -502,8 +463,6 @@ static struct class_device_attribute class_device_attrs[] = {
 	__ATTR(name, S_IRUGO, show_name, NULL),
 	__ATTR(stride, S_IRUGO, show_stride, NULL),
 	__ATTR(rotate, S_IRUGO|S_IWUSR, show_rotate, store_rotate),
-	__ATTR(con_rotate, S_IRUGO|S_IWUSR, show_con_rotate, store_con_rotate),
-	__ATTR(con_rotate_all, S_IWUSR, NULL, store_con_rotate_all),
 	__ATTR(state, S_IRUGO|S_IWUSR, show_fbstate, store_fbstate),
 #ifdef CONFIG_FB_BACKLIGHT
 	__ATTR(bl_curve, S_IRUGO|S_IWUSR, show_bl_curve, store_bl_curve),

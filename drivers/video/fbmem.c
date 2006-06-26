@@ -1276,8 +1276,8 @@ static struct file_operations fb_fops = {
 #endif
 };
 
-static struct class *fb_class;
-
+struct class *fb_class;
+EXPORT_SYMBOL(fb_class);
 /**
  *	register_framebuffer - registers a frame buffer device
  *	@fb_info: frame buffer info structure
@@ -1487,27 +1487,6 @@ int fb_new_modelist(struct fb_info *info)
 	}
 
 	return err;
-}
-
-/**
- * fb_con_duit - user<->fbcon passthrough
- * @info: struct fb_info
- * @event: notification event to be passed to fbcon
- * @data: private data
- *
- * DESCRIPTION
- * This function is an fbcon-user event passing channel
- * which bypasses fbdev.  This is hopefully temporary
- * until a user interface for fbcon is created
- */
-int fb_con_duit(struct fb_info *info, int event, void *data)
-{
-	struct fb_event evnt;
-
-	evnt.info = info;
-	evnt.data = data;
-
-	return blocking_notifier_call_chain(&fb_notifier_list, event, &evnt);
 }
 
 static char *video_options[FB_MAX];
