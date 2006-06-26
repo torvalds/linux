@@ -1333,17 +1333,22 @@ static int neofb_blank(int blank_mode, struct fb_info *info)
 	 *  run "setterm -powersave powerdown" to take advantage
 	 */
 	struct neofb_par *par = info->par;
-	int seqflags, lcdflags, dpmsflags, reg;
-
+	int seqflags, lcdflags, dpmsflags, reg, tmpdisp;
 
 	/*
-	 * Reload the value stored in the register, if sensible. It might have
-	 * been changed via FN keystroke.
+	 * Read back the register bits related to display configuration. They might
+	 * have been changed underneath the driver via Fn key stroke.
+	 */
+	neoUnlock();
+	tmpdisp = vga_rgfx(NULL, 0x20) & 0x03;
+	neoLock(&par->state);
+
+	/* In case we blank the screen, we want to store the possibly new
+	 * configuration in the driver. During un-blank, we re-apply this setting,
+	 * since the LCD bit will be cleared in order to switch off the backlight.
 	 */
 	if (par->PanelDispCntlRegRead) {
-		neoUnlock();
-		par->PanelDispCntlReg1 = vga_rgfx(NULL, 0x20) & 0x03;
-		neoLock(&par->state);
+		par->PanelDispCntlReg1 = tmpdisp;
 	}
 	par->PanelDispCntlRegRead = !blank_mode;
 
@@ -1378,12 +1383,21 @@ static int neofb_blank(int blank_mode, struct fb_info *info)
 		break;
 	case FB_BLANK_NORMAL:		/* just blank screen (backlight stays on) */
 		seqflags = VGA_SR01_SCREEN_OFF;	/* Disable sequencer */
-		lcdflags = par->PanelDispCntlReg1 & 0x02; /* LCD normal */
+		/*
+		 * During a blank operation with the LID shut, we might store "LCD off"
+		 * by mistake. Due to timing issues, the BIOS may switch the lights
+		 * back on, and we turn it back off once we "unblank".
+		 *
+		 * So here is an attempt to implement ">=" - if we are in the process
+		 * of unblanking, and the LCD bit is unset in the driver but set in the
+		 * register, we must keep it.
+		 */
+		lcdflags = ((par->PanelDispCntlReg1 | tmpdisp) & 0x02); /* LCD normal */
 		dpmsflags = 0x00;	/* no hsync/vsync suppression */
 		break;
 	case FB_BLANK_UNBLANK:		/* unblank */
 		seqflags = 0;			/* Enable sequencer */
-		lcdflags = par->PanelDispCntlReg1 & 0x02; /* LCD normal */
+		lcdflags = ((par->PanelDispCntlReg1 | tmpdisp) & 0x02); /* LCD normal */
 		dpmsflags = 0x00;	/* no hsync/vsync suppression */
 #ifdef CONFIG_TOSHIBA
 		/* Do we still need this ? */
