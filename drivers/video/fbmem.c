@@ -334,11 +334,11 @@ static void fb_rotate_logo_ud(const u8 *in, u8 *out, u32 width, u32 height)
 
 static void fb_rotate_logo_cw(const u8 *in, u8 *out, u32 width, u32 height)
 {
-	int i, j, w = width - 1;
+	int i, j, h = height - 1;
 
 	for (i = 0; i < height; i++)
 		for (j = 0; j < width; j++)
-			out[height * j + w - i] = *in++;
+				out[height * j + h - i] = *in++;
 }
 
 static void fb_rotate_logo_ccw(const u8 *in, u8 *out, u32 width, u32 height)
@@ -356,24 +356,24 @@ static void fb_rotate_logo(struct fb_info *info, u8 *dst,
 	u32 tmp;
 
 	if (rotate == FB_ROTATE_UD) {
-		image->dx = info->var.xres - image->width;
-		image->dy = info->var.yres - image->height;
 		fb_rotate_logo_ud(image->data, dst, image->width,
 				  image->height);
+		image->dx = info->var.xres - image->width;
+		image->dy = info->var.yres - image->height;
 	} else if (rotate == FB_ROTATE_CW) {
-		tmp = image->width;
-		image->width = image->height;
-		image->height = tmp;
-		image->dx = info->var.xres - image->height;
 		fb_rotate_logo_cw(image->data, dst, image->width,
 				  image->height);
-	} else if (rotate == FB_ROTATE_CCW) {
 		tmp = image->width;
 		image->width = image->height;
 		image->height = tmp;
-		image->dy = info->var.yres - image->width;
+		image->dx = info->var.xres - image->width;
+	} else if (rotate == FB_ROTATE_CCW) {
 		fb_rotate_logo_ccw(image->data, dst, image->width,
 				   image->height);
+		tmp = image->width;
+		image->width = image->height;
+		image->height = tmp;
+		image->dy = info->var.yres - image->height;
 	}
 
 	image->data = dst;
