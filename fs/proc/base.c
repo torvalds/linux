@@ -2224,11 +2224,12 @@ int proc_pid_readdir(struct file * filp, void * dirent, filldir_t filldir)
  * In the case of a seek we start with the leader and walk nr
  * threads past it.
  */
-static struct task_struct *first_tid(struct task_struct *leader, int tid, int nr)
+static struct task_struct *first_tid(struct task_struct *leader,
+					int tid, int nr)
 {
 	struct task_struct *pos = NULL;
-	read_lock(&tasklist_lock);
 
+	rcu_read_lock();
 	/* Attempt to start with the pid of a thread */
 	if (tid && (nr > 0)) {
 		pos = find_task_by_pid(tid);
@@ -2258,7 +2259,7 @@ static struct task_struct *first_tid(struct task_struct *leader, int tid, int nr
 	}
 	pos = NULL;
 done:
-	read_unlock(&tasklist_lock);
+	rcu_read_unlock();
 	return pos;
 }
 
@@ -2271,7 +2272,7 @@ done:
 static struct task_struct *next_tid(struct task_struct *start)
 {
 	struct task_struct *pos;
-	read_lock(&tasklist_lock);
+	rcu_read_lock();
 	pos = start;
 	if (pid_alive(start))
 		pos = next_thread(start);
@@ -2279,7 +2280,7 @@ static struct task_struct *next_tid(struct task_struct *start)
 		get_task_struct(pos);
 	else
 		pos = NULL;
-	read_unlock(&tasklist_lock);
+	rcu_read_unlock();
 	put_task_struct(start);
 	return pos;
 }
