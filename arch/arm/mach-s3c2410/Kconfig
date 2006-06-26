@@ -71,13 +71,13 @@ config ARCH_S3C2440
 	  Say Y here if you are using the SMDK2440.
 
 config SMDK2440_CPU2440
-	bool "SMDK2440 with S3C2440 cpu module"
+	bool "SMDK2440 with S3C2440 CPU module"
 	depends on ARCH_S3C2440
 	default y if ARCH_S3C2440
 	select CPU_S3C2440
 
 config SMDK2440_CPU2442
-	bool "SMDM2440 with S3C2442 cpu module"
+	bool "SMDM2440 with S3C2442 CPU module"
 	depends on ARCH_S3C2440
 	select CPU_S3C2442
 

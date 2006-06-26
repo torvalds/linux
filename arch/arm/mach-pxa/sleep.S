@@ -189,7 +189,7 @@ ENTRY(pxa_cpu_suspend)
 	.data
 	.align 5
 ENTRY(pxa_cpu_resume)
-	mov	r0, #PSR_I_BIT | PSR_F_BIT | MODE_SVC	@ set SVC, irqs off
+	mov	r0, #PSR_I_BIT | PSR_F_BIT | SVC_MODE	@ set SVC, irqs off
 	msr	cpsr_c, r0
 
 	ldr	r0, sleep_save_sp		@ stack phys addr

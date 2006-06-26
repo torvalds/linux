@@ -29,38 +29,6 @@
 #define TTB_RGN_WT	(2 << 3)
 #define TTB_RGN_WB	(3 << 3)
 
-	.macro	cpsie, flags
-	.ifc \flags, f
-	.long	0xf1080040
-	.exitm
-	.endif
-	.ifc \flags, i
-	.long	0xf1080080
-	.exitm
-	.endif
-	.ifc \flags, if
-	.long	0xf10800c0
-	.exitm
-	.endif
-	.err
-	.endm
-
-	.macro	cpsid, flags
-	.ifc \flags, f
-	.long	0xf10c0040
-	.exitm
-	.endif
-	.ifc \flags, i
-	.long	0xf10c0080
-	.exitm
-	.endif
-	.ifc \flags, if
-	.long	0xf10c00c0
-	.exitm
-	.endif
-	.err
-	.endm
-
 ENTRY(cpu_v6_proc_init)
 	mov	pc, lr
 

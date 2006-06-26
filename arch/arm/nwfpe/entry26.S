@@ -26,7 +26,7 @@
 It is called from the kernel with code similar to this:
 
 	mov	fp, #0
-	teqp	pc, #PSR_I_BIT | MODE_SVC
+	teqp	pc, #PSR_I_BIT | SVC_MODE
 	ldr	r4, .LC2
 	ldr	pc, [r4]		@ Call FP module USR entry point
 

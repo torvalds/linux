@@ -128,7 +128,7 @@ s3c2410_sleep_save_phys:
 	*/
 
 ENTRY(s3c2410_cpu_resume)
-	mov	r0, #PSR_I_BIT | PSR_F_BIT | MODE_SVC
+	mov	r0, #PSR_I_BIT | PSR_F_BIT | SVC_MODE
 	msr	cpsr_c, r0
 
 	@@ load UART to allow us to print the two characters for

@@ -41,7 +41,7 @@ ENTRY(c_backtrace)
 		movne	r0, #0
 		movs	frame, r0
 1:		moveq	r0, #-2
-		LOADREGS(eqfd, sp!, {r4 - r8, pc})
+		ldmeqfd	sp!, {r4 - r8, pc}
 
 2:		stmfd	sp!, {pc}		@ calculate offset of PC in STMIA instruction
 		ldr	r0, [sp], #4
@@ -85,7 +85,7 @@ ENTRY(c_backtrace)
 		 * A zero next framepointer means we're done.
 		 */
 		teq	next, #0
-		LOADREGS(eqfd, sp!, {r4 - r8, pc})
+		ldmeqfd	sp!, {r4 - r8, pc}
 
 		/*
 		 * The next framepointer must be above the
@@ -104,7 +104,7 @@ ENTRY(c_backtrace)
 1007:		ldr	r0, =.Lbad
 		mov	r1, frame
 		bl	printk
-		LOADREGS(fd, sp!, {r4 - r8, pc})
+		ldmfd	sp!, {r4 - r8, pc}
 		.ltorg
 		.previous
 		
@@ -145,7 +145,7 @@ ENTRY(c_backtrace)
 		adrne	r0, .Lcr
 		blne	printk
 		mov	r0, stack
-		LOADREGS(fd, sp!, {instr, reg, stack, r7, r8, pc})
+		ldmfd	sp!, {instr, reg, stack, r7, r8, pc}
 
 .Lfp:		.asciz	" r%d = %08X%c"
 .Lcr:		.asciz	"\n"

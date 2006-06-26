@@ -10,6 +10,7 @@ obj-		:=
 obj-$(CONFIG_PM)		+= pm.o
 
 # Board-specific support
+obj-$(CONFIG_MACH_ONEARM)	+= board-1arm.o
 obj-$(CONFIG_ARCH_AT91RM9200DK)	+= board-dk.o
 obj-$(CONFIG_MACH_AT91RM9200EK)	+= board-ek.o
 obj-$(CONFIG_MACH_CSB337)	+= board-csb337.o
