@@ -198,7 +198,7 @@ static int __init tipc_init(void)
 	tipc_max_publications = 10000;
 	tipc_max_subscriptions = 2000;
 	tipc_max_ports = delimit(CONFIG_TIPC_PORTS, 127, 65536);
-	tipc_max_zones = delimit(CONFIG_TIPC_ZONES, 1, 511);
+	tipc_max_zones = delimit(CONFIG_TIPC_ZONES, 1, 255);
 	tipc_max_clusters = delimit(CONFIG_TIPC_CLUSTERS, 1, 1);
 	tipc_max_nodes = delimit(CONFIG_TIPC_NODES, 8, 2047);
 	tipc_max_slaves = delimit(CONFIG_TIPC_SLAVE_NODES, 0, 2047);
