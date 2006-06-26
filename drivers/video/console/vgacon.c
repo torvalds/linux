@@ -114,6 +114,7 @@ static int 		vga_512_chars;
 static int 		vga_video_font_height;
 static int 		vga_scan_lines;
 static unsigned int 	vga_rolled_over = 0;
+static int              vga_init_done;
 
 static int __init no_scroll(char *str)
 {
@@ -190,7 +191,7 @@ static void vgacon_scrollback_init(int pitch)
 	}
 }
 
-static void __init vgacon_scrollback_startup(void)
+static void vgacon_scrollback_startup(void)
 {
 	vgacon_scrollback = alloc_bootmem(CONFIG_VGACON_SOFT_SCROLLBACK_SIZE
 					  * 1024);
@@ -355,7 +356,7 @@ static int vgacon_scrolldelta(struct vc_data *c, int lines)
 }
 #endif /* CONFIG_VGACON_SOFT_SCROLLBACK */
 
-static const char __init *vgacon_startup(void)
+static const char *vgacon_startup(void)
 {
 	const char *display_desc = NULL;
 	u16 saved1, saved2;
@@ -523,7 +524,12 @@ static const char __init *vgacon_startup(void)
 
 	vgacon_xres = ORIG_VIDEO_COLS * VGA_FONTWIDTH;
 	vgacon_yres = vga_scan_lines;
-	vgacon_scrollback_startup();
+
+	if (!vga_init_done) {
+		vgacon_scrollback_startup();
+		vga_init_done = 1;
+	}
+
 	return display_desc;
 }
 
@@ -531,10 +537,20 @@ static void vgacon_init(struct vc_data *c, int init)
 {
 	unsigned long p;
 
-	/* We cannot be loaded as a module, therefore init is always 1 */
+	/*
+	 * We cannot be loaded as a module, therefore init is always 1,
+	 * but vgacon_init can be called more than once, and init will
+	 * not be 1.
+	 */
 	c->vc_can_do_color = vga_can_do_color;
-	c->vc_cols = vga_video_num_columns;
-	c->vc_rows = vga_video_num_lines;
+
+	/* set dimensions manually if init != 0 since vc_resize() will fail */
+	if (init) {
+		c->vc_cols = vga_video_num_columns;
+		c->vc_rows = vga_video_num_lines;
+	} else
+		vc_resize(c, vga_video_num_columns, vga_video_num_lines);
+
 	c->vc_scan_lines = vga_scan_lines;
 	c->vc_font.height = vga_video_font_height;
 	c->vc_complement_mask = 0x7700;
