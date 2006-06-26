@@ -2173,8 +2173,7 @@ CIFSSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 				if (remaining_words > 0) {
 					len = UniStrnlen((wchar_t *)bcc_ptr,
 							 remaining_words-1);
-					if(ses->serverNOS)
-						kfree(ses->serverNOS);
+					kfree(ses->serverNOS);
 					ses->serverNOS = kzalloc(2 * (len + 1),GFP_KERNEL);
 					if(ses->serverNOS == NULL)
 						goto sesssetup_nomem;
@@ -2214,12 +2213,10 @@ CIFSSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 					/* if these kcallocs fail not much we
 					   can do, but better to not fail the
 					   sesssetup itself */
-					if(ses->serverDomain)
-						kfree(ses->serverDomain);
+					kfree(ses->serverDomain);
 					ses->serverDomain =
 					    kzalloc(2, GFP_KERNEL);
-					if(ses->serverNOS)
-						kfree(ses->serverNOS);
+					kfree(ses->serverNOS);
 					ses->serverNOS =
 					    kzalloc(2, GFP_KERNEL);
 				}
@@ -2228,8 +2225,7 @@ CIFSSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 				if (((long) bcc_ptr + len) - (long)
 				    pByteArea(smb_buffer_response)
 					    <= BCC(smb_buffer_response)) {
-					if(ses->serverOS)
-						kfree(ses->serverOS);
+					kfree(ses->serverOS);
 					ses->serverOS = kzalloc(len + 1,GFP_KERNEL);
 					if(ses->serverOS == NULL)
 						goto sesssetup_nomem;
@@ -2240,8 +2236,7 @@ CIFSSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 					bcc_ptr++;
 
 					len = strnlen(bcc_ptr, 1024);
-					if(ses->serverNOS)
-						kfree(ses->serverNOS);
+					kfree(ses->serverNOS);
 					ses->serverNOS = kzalloc(len + 1,GFP_KERNEL);
 					if(ses->serverNOS == NULL)
 						goto sesssetup_nomem;
@@ -2508,8 +2503,7 @@ CIFSNTLMSSPNegotiateSessSetup(unsigned int xid,
 								 bcc_ptr,
 								 remaining_words
 								 - 1);
-						if(ses->serverNOS)
-							kfree(ses->serverNOS);
+						kfree(ses->serverNOS);
 						ses->serverNOS =
 						    kzalloc(2 * (len + 1),
 							    GFP_KERNEL);
@@ -2527,8 +2521,7 @@ CIFSNTLMSSPNegotiateSessSetup(unsigned int xid,
 						if (remaining_words > 0) {
 							len = UniStrnlen((wchar_t *) bcc_ptr, remaining_words);	
            /* last string is not always null terminated (for e.g. for Windows XP & 2000) */
-							if(ses->serverDomain)
-								kfree(ses->serverDomain);
+							kfree(ses->serverDomain);
 							ses->serverDomain =
 							    kzalloc(2 *
 								    (len +
@@ -2547,19 +2540,16 @@ CIFSNTLMSSPNegotiateSessSetup(unsigned int xid,
 							    = 0;
 						} /* else no more room so create dummy domain string */
 						else {
-							if(ses->serverDomain)
-								kfree(ses->serverDomain);
+							kfree(ses->serverDomain);
 							ses->serverDomain =
 							    kzalloc(2,
 								    GFP_KERNEL);
 						}
 					} else {	/* no room so create dummy domain and NOS string */
-						if(ses->serverDomain);
-							kfree(ses->serverDomain);
+						kfree(ses->serverDomain);
 						ses->serverDomain =
 						    kzalloc(2, GFP_KERNEL);
-						if(ses->serverNOS)
-							kfree(ses->serverNOS);
+						kfree(ses->serverNOS);
 						ses->serverNOS =
 						    kzalloc(2, GFP_KERNEL);
 					}
@@ -2581,8 +2571,7 @@ CIFSNTLMSSPNegotiateSessSetup(unsigned int xid,
 						bcc_ptr++;
 
 						len = strnlen(bcc_ptr, 1024);
-						if(ses->serverNOS)
-							kfree(ses->serverNOS);
+						kfree(ses->serverNOS);
 						ses->serverNOS =
 						    kzalloc(len + 1,
 							    GFP_KERNEL);
@@ -2592,8 +2581,7 @@ CIFSNTLMSSPNegotiateSessSetup(unsigned int xid,
 						bcc_ptr++;
 
 						len = strnlen(bcc_ptr, 1024);
-						if(ses->serverDomain)
-							kfree(ses->serverDomain);
+						kfree(ses->serverDomain);
 						ses->serverDomain =
 						    kzalloc(len + 1,
 							    GFP_KERNEL);
@@ -2915,8 +2903,7 @@ CIFSNTLMSSPAuthSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 								 bcc_ptr,
 								 remaining_words
 								 - 1);
-						if(ses->serverNOS)
-							kfree(ses->serverNOS);
+						kfree(ses->serverNOS);
 						ses->serverNOS =
 						    kzalloc(2 * (len + 1),
 							    GFP_KERNEL);
@@ -2969,8 +2956,7 @@ CIFSNTLMSSPAuthSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 						if(ses->serverDomain)
 							kfree(ses->serverDomain);
 						ses->serverDomain = kzalloc(2, GFP_KERNEL);
-						if(ses->serverNOS)
-							kfree(ses->serverNOS);
+						kfree(ses->serverNOS);
 						ses->serverNOS = kzalloc(2, GFP_KERNEL);
 					}
 				} else {	/* ASCII */
@@ -2988,8 +2974,7 @@ CIFSNTLMSSPAuthSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 						bcc_ptr++;
 
 						len = strnlen(bcc_ptr, 1024);
-						if(ses->serverNOS)
-							kfree(ses->serverNOS);
+						kfree(ses->serverNOS);
 						ses->serverNOS = kzalloc(len+1,GFP_KERNEL);
 						strncpy(ses->serverNOS, bcc_ptr, len);	
 						bcc_ptr += len;
