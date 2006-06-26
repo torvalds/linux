@@ -810,18 +810,20 @@ static void port_dispatcher_sigh(void *dummy)
 		void *usr_handle;
 		int connected;
 		int published;
+		u32 message_type;
 
 		struct sk_buff *next = buf->next;
 		struct tipc_msg *msg = buf_msg(buf);
 		u32 dref = msg_destport(msg);
 		
+		message_type = msg_type(msg);
+		if (message_type > TIPC_DIRECT_MSG)
+			goto reject;	/* Unsupported message type */
+
 		p_ptr = tipc_port_lock(dref);
-		if (!p_ptr) {
-			/* Port deleted while msg in queue */
-			tipc_reject_msg(buf, TIPC_ERR_NO_PORT);
-			buf = next;
-			continue;
-		}
+		if (!p_ptr)
+			goto reject;	/* Port deleted while msg in queue */
+
 		orig.ref = msg_origport(msg);
 		orig.node = msg_orignode(msg);
 		up_ptr = p_ptr->user_port;
@@ -832,7 +834,7 @@ static void port_dispatcher_sigh(void *dummy)
 		if (unlikely(msg_errcode(msg)))
 			goto err;
 
-		switch (msg_type(msg)) {
+		switch (message_type) {
 		
 		case TIPC_CONN_MSG:{
 				tipc_conn_msg_event cb = up_ptr->conn_msg_cb;
@@ -874,6 +876,7 @@ static void port_dispatcher_sigh(void *dummy)
 				   &orig);
 				break;
 			}
+		case TIPC_MCAST_MSG:
 		case TIPC_NAMED_MSG:{
 				tipc_named_msg_event cb = up_ptr->named_msg_cb;
 
@@ -886,7 +889,8 @@ static void port_dispatcher_sigh(void *dummy)
 					goto reject;
 				dseq.type =  msg_nametype(msg);
 				dseq.lower = msg_nameinst(msg);
-				dseq.upper = dseq.lower;
+				dseq.upper = (message_type == TIPC_NAMED_MSG)
+					? dseq.lower : msg_nameupper(msg);
 				skb_pull(buf, msg_hdr_sz(msg));
 				cb(usr_handle, dref, &buf, msg_data(msg), 
 				   msg_data_sz(msg), msg_importance(msg),
@@ -899,7 +903,7 @@ static void port_dispatcher_sigh(void *dummy)
 		buf = next;
 		continue;
 err:
-		switch (msg_type(msg)) {
+		switch (message_type) {
 		
 		case TIPC_CONN_MSG:{
 				tipc_conn_shutdown_event cb = 
@@ -931,6 +935,7 @@ err:
 				   msg_data_sz(msg), msg_errcode(msg), &orig);
 				break;
 			}
+		case TIPC_MCAST_MSG:
 		case TIPC_NAMED_MSG:{
 				tipc_named_msg_err_event cb = 
 					up_ptr->named_err_cb;
@@ -940,7 +945,8 @@ err:
 					break;
 				dseq.type =  msg_nametype(msg);
 				dseq.lower = msg_nameinst(msg);
-				dseq.upper = dseq.lower;
+				dseq.upper = (message_type == TIPC_NAMED_MSG)
+					? dseq.lower : msg_nameupper(msg);
 				skb_pull(buf, msg_hdr_sz(msg));
 				cb(usr_handle, dref, &buf, msg_data(msg), 
 				   msg_data_sz(msg), msg_errcode(msg), &dseq);
