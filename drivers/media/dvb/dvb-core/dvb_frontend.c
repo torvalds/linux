@@ -556,22 +556,23 @@ static int dvb_frontend_thread(void *data)
 		}
 
 		/* do an iteration of the tuning loop */
-		if (fe->ops.get_frontend_algo(fe) == FE_ALGO_HW) {
-			/* have we been asked to retune? */
-			params = NULL;
-			if (fepriv->state & FESTATE_RETUNE) {
-				params = &fepriv->parameters;
-				fepriv->state = FESTATE_TUNED;
-			}
+		if (fe->ops.get_frontend_algo) {
+			if (fe->ops.get_frontend_algo(fe) == FE_ALGO_HW) {
+				/* have we been asked to retune? */
+				params = NULL;
+				if (fepriv->state & FESTATE_RETUNE) {
+					params = &fepriv->parameters;
+					fepriv->state = FESTATE_TUNED;
+				}
 
-			fe->ops.tune(fe, params, fepriv->tune_mode_flags, &fepriv->delay, &s);
-			if (s != fepriv->status) {
-				dvb_frontend_add_event(fe, s);
-				fepriv->status = s;
+				fe->ops.tune(fe, params, fepriv->tune_mode_flags, &fepriv->delay, &s);
+				if (s != fepriv->status) {
+					dvb_frontend_add_event(fe, s);
+					fepriv->status = s;
+				}
 			}
-		} else {
+		} else
 			dvb_frontend_swzigzag(fe);
-		}
 	}
 
 	if (dvb_shutdown_timeout) {

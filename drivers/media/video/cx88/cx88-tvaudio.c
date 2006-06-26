@@ -726,7 +726,7 @@ static void set_audio_standard_FM(struct cx88_core *core,
 
 /* ----------------------------------------------------------- */
 
-int cx88_detect_nicam(struct cx88_core *core)
+static int cx88_detect_nicam(struct cx88_core *core)
 {
 	int i, j = 0;
 
