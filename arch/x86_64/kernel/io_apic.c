@@ -836,14 +836,15 @@ u8 irq_vector[NR_IRQ_VECTORS] __read_mostly = { FIRST_DEVICE_VECTOR , 0 };
 int assign_irq_vector(int irq)
 {
 	static int current_vector = FIRST_DEVICE_VECTOR, offset = 0;
+	unsigned long flags;
 	int vector;
 
 	BUG_ON(irq != AUTO_ASSIGN && (unsigned)irq >= NR_IRQ_VECTORS);
 
-	spin_lock(&vector_lock);
+	spin_lock_irqsave(&vector_lock, flags);
 
 	if (irq != AUTO_ASSIGN && IO_APIC_VECTOR(irq) > 0) {
-		spin_unlock(&vector_lock);
+		spin_unlock_irqrestore(&vector_lock, flags);
 		return IO_APIC_VECTOR(irq);
 	}
 next:
@@ -862,7 +863,7 @@ next:
 	if (irq != AUTO_ASSIGN)
 		IO_APIC_VECTOR(irq) = vector;
 
-	spin_unlock(&vector_lock);
+	spin_unlock_irqrestore(&vector_lock, flags);
 
 	return vector;
 }
