@@ -1281,6 +1281,14 @@ static int atyfb_set_par(struct fb_info *info)
 
 	par->accel_flags = var->accel_flags; /* hack */
 
+	if (var->accel_flags) {
+		info->fbops->fb_sync = atyfb_sync;
+		info->flags &= ~FBINFO_HWACCEL_DISABLED;
+	} else {
+		info->fbops->fb_sync = NULL;
+		info->flags |= FBINFO_HWACCEL_DISABLED;
+	}
+
 	if (par->blitter_may_be_busy)
 		wait_for_idle(par);
 
@@ -2604,7 +2612,11 @@ static int __init aty_init(struct fb_info *info, const char *name)
 
 	info->fbops = &atyfb_ops;
 	info->pseudo_palette = pseudo_palette;
-	info->flags = FBINFO_FLAG_DEFAULT;
+	info->flags = FBINFO_DEFAULT           |
+	              FBINFO_HWACCEL_IMAGEBLIT |
+	              FBINFO_HWACCEL_FILLRECT  |
+	              FBINFO_HWACCEL_COPYAREA  |
+	              FBINFO_HWACCEL_YPAN;
 
 #ifdef CONFIG_PMAC_BACKLIGHT
 	if (M64_HAS(G3_PB_1_1) && machine_is_compatible("PowerBook1,1")) {
