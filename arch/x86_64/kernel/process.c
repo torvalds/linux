@@ -110,7 +110,7 @@ static void default_idle(void)
 {
 	local_irq_enable();
 
-	clear_thread_flag(TIF_POLLING_NRFLAG);
+	current_thread_info()->status &= ~TS_POLLING;
 	smp_mb__after_clear_bit();
 	while (!need_resched()) {
 		local_irq_disable();
@@ -119,7 +119,7 @@ static void default_idle(void)
 		else
 			local_irq_enable();
 	}
-	set_thread_flag(TIF_POLLING_NRFLAG);
+	current_thread_info()->status |= TS_POLLING;
 }
 
 /*
@@ -202,8 +202,7 @@ static inline void play_dead(void)
  */
 void cpu_idle (void)
 {
-	set_thread_flag(TIF_POLLING_NRFLAG);
-
+	current_thread_info()->status |= TS_POLLING;
 	/* endless idle loop with no priority at all */
 	while (1) {
 		while (!need_resched()) {

@@ -764,9 +764,9 @@ static int apm_do_idle(void)
 	int	idled = 0;
 	int	polling;
 
-	polling = test_thread_flag(TIF_POLLING_NRFLAG);
+	polling = !!(current_thread_info()->status & TS_POLLING);
 	if (polling) {
-		clear_thread_flag(TIF_POLLING_NRFLAG);
+		current_thread_info()->status &= ~TS_POLLING;
 		smp_mb__after_clear_bit();
 	}
 	if (!need_resched()) {
@@ -774,7 +774,7 @@ static int apm_do_idle(void)
 		ret = apm_bios_call_simple(APM_FUNC_IDLE, 0, 0, &eax);
 	}
 	if (polling)
-		set_thread_flag(TIF_POLLING_NRFLAG);
+		current_thread_info()->status |= TS_POLLING;
 
 	if (!idled)
 		return 0;

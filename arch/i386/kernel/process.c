@@ -102,7 +102,7 @@ void default_idle(void)
 	local_irq_enable();
 
 	if (!hlt_counter && boot_cpu_data.hlt_works_ok) {
-		clear_thread_flag(TIF_POLLING_NRFLAG);
+		current_thread_info()->status &= ~TS_POLLING;
 		smp_mb__after_clear_bit();
 		while (!need_resched()) {
 			local_irq_disable();
@@ -111,7 +111,7 @@ void default_idle(void)
 			else
 				local_irq_enable();
 		}
-		set_thread_flag(TIF_POLLING_NRFLAG);
+		current_thread_info()->status |= TS_POLLING;
 	} else {
 		while (!need_resched())
 			cpu_relax();
@@ -174,7 +174,7 @@ void cpu_idle(void)
 {
 	int cpu = smp_processor_id();
 
-	set_thread_flag(TIF_POLLING_NRFLAG);
+	current_thread_info()->status |= TS_POLLING;
 
 	/* endless idle loop with no priority at all */
 	while (1) {

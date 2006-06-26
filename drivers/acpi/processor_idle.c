@@ -206,11 +206,11 @@ acpi_processor_power_activate(struct acpi_processor *pr,
 
 static void acpi_safe_halt(void)
 {
-	clear_thread_flag(TIF_POLLING_NRFLAG);
+	current_thread_info()->status &= ~TS_POLLING;
 	smp_mb__after_clear_bit();
 	if (!need_resched())
 		safe_halt();
-	set_thread_flag(TIF_POLLING_NRFLAG);
+	current_thread_info()->status |= TS_POLLING;
 }
 
 static atomic_t c3_cpu_count;
@@ -330,10 +330,10 @@ static void acpi_processor_idle(void)
 	 * Invoke the current Cx state to put the processor to sleep.
 	 */
 	if (cx->type == ACPI_STATE_C2 || cx->type == ACPI_STATE_C3) {
-		clear_thread_flag(TIF_POLLING_NRFLAG);
+		current_thread_info()->status &= ~TS_POLLING;
 		smp_mb__after_clear_bit();
 		if (need_resched()) {
-			set_thread_flag(TIF_POLLING_NRFLAG);
+			current_thread_info()->status |= TS_POLLING;
 			local_irq_enable();
 			return;
 		}
@@ -371,7 +371,7 @@ static void acpi_processor_idle(void)
 		t2 = inl(acpi_fadt.xpm_tmr_blk.address);
 		/* Re-enable interrupts */
 		local_irq_enable();
-		set_thread_flag(TIF_POLLING_NRFLAG);
+		current_thread_info()->status |= TS_POLLING;
 		/* Compute time (ticks) that we were actually asleep */
 		sleep_ticks =
 		    ticks_elapsed(t1, t2) - cx->latency_ticks - C2_OVERHEAD;
@@ -411,7 +411,7 @@ static void acpi_processor_idle(void)
 
 		/* Re-enable interrupts */
 		local_irq_enable();
-		set_thread_flag(TIF_POLLING_NRFLAG);
+		current_thread_info()->status |= TS_POLLING;
 		/* Compute time (ticks) that we were actually asleep */
 		sleep_ticks =
 		    ticks_elapsed(t1, t2) - cx->latency_ticks - C3_OVERHEAD;

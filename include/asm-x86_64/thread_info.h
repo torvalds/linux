@@ -101,7 +101,7 @@ static inline struct thread_info *stack_thread_info(void)
 #define TIF_IRET		5	/* force IRET */
 #define TIF_SYSCALL_AUDIT	7	/* syscall auditing active */
 #define TIF_SECCOMP		8	/* secure computing */
-#define TIF_POLLING_NRFLAG	16	/* true if poll_idle() is polling TIF_NEED_RESCHED */
+/* 16 free */
 #define TIF_IA32		17	/* 32bit process */ 
 #define TIF_FORK		18	/* ret_from_fork */
 #define TIF_ABI_PENDING		19
@@ -115,7 +115,6 @@ static inline struct thread_info *stack_thread_info(void)
 #define _TIF_IRET		(1<<TIF_IRET)
 #define _TIF_SYSCALL_AUDIT	(1<<TIF_SYSCALL_AUDIT)
 #define _TIF_SECCOMP		(1<<TIF_SECCOMP)
-#define _TIF_POLLING_NRFLAG	(1<<TIF_POLLING_NRFLAG)
 #define _TIF_IA32		(1<<TIF_IA32)
 #define _TIF_FORK		(1<<TIF_FORK)
 #define _TIF_ABI_PENDING	(1<<TIF_ABI_PENDING)
@@ -137,6 +136,9 @@ static inline struct thread_info *stack_thread_info(void)
  */
 #define TS_USEDFPU		0x0001	/* FPU was used by this task this quantum (SMP) */
 #define TS_COMPAT		0x0002	/* 32bit syscall active */
+#define TS_POLLING		0x0004	/* true if in idle loop and not sleeping */
+
+#define tsk_is_polling(t) ((t)->thread_info->status & TS_POLLING)
 
 #endif /* __KERNEL__ */
 
