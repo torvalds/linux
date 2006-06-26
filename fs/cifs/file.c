@@ -110,7 +110,6 @@ static inline int cifs_open_inode_helper(struct inode *inode, struct file *file,
 			 &pCifsInode->openFileList);
 	}
 	write_unlock(&GlobalSMBSeslock);
-	write_unlock(&file->f_owner.lock);
 	if (pCifsInode->clientCanCacheRead) {
 		/* we have the inode open somewhere else
 		   no need to discard cache data */
@@ -287,7 +286,6 @@ int cifs_open(struct inode *inode, struct file *file)
 		goto out;
 	}
 	pCifsFile = cifs_init_private(file->private_data, inode, file, netfid);
-	write_lock(&file->f_owner.lock);
 	write_lock(&GlobalSMBSeslock);
 	list_add(&pCifsFile->tlist, &pTcon->openFileList);
 
@@ -298,7 +296,6 @@ int cifs_open(struct inode *inode, struct file *file)
 					    &oplock, buf, full_path, xid);
 	} else {
 		write_unlock(&GlobalSMBSeslock);
-		write_unlock(&file->f_owner.lock);
 	}
 
 	if (oplock & CIFS_CREATE_ACTION) {           
@@ -477,7 +474,6 @@ int cifs_close(struct inode *inode, struct file *file)
 	pTcon = cifs_sb->tcon;
 	if (pSMBFile) {
 		pSMBFile->closePend = TRUE;
-		write_lock(&file->f_owner.lock);
 		if (pTcon) {
 			/* no sense reconnecting to close a file that is
 			   already closed */
@@ -492,23 +488,18 @@ int cifs_close(struct inode *inode, struct file *file)
 					the struct would be in each open file,
 					but this should give enough time to 
 					clear the socket */
-					write_unlock(&file->f_owner.lock);
 					cERROR(1,("close with pending writes"));
 					msleep(timeout);
-					write_lock(&file->f_owner.lock);
 					timeout *= 4;
 				} 
-				write_unlock(&file->f_owner.lock);
 				rc = CIFSSMBClose(xid, pTcon,
 						  pSMBFile->netfid);
-				write_lock(&file->f_owner.lock);
 			}
 		}
 		write_lock(&GlobalSMBSeslock);
 		list_del(&pSMBFile->flist);
 		list_del(&pSMBFile->tlist);
 		write_unlock(&GlobalSMBSeslock);
-		write_unlock(&file->f_owner.lock);
 		kfree(pSMBFile->search_resume_name);
 		kfree(file->private_data);
 		file->private_data = NULL;
