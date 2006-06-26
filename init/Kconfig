@@ -1,3 +1,11 @@
+config DEFCONFIG_LIST
+	string
+	option defconfig_list
+	default "/lib/modules/$UNAME_RELEASE/.config"
+	default "/etc/kernel-config"
+	default "/boot/config-$UNAME_RELEASE"
+	default "arch/$ARCH/defconfig"
+
 menu "Code maturity level options"
 
 config EXPERIMENTAL

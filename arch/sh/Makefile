@@ -147,7 +147,7 @@ endif
 #	them changed.  We use .arch and .mach to indicate when they were
 #	updated last, otherwise make uses the target directory mtime.
 
-include/asm-sh/.cpu: $(wildcard include/config/cpu/*.h) include/config/MARKER
+include/asm-sh/.cpu: $(wildcard include/config/cpu/*.h) include/config/auto.conf
 	@echo '  SYMLINK include/asm-sh/cpu -> include/asm-sh/$(cpuincdir-y)'
 	$(Q)if [ ! -d include/asm-sh ]; then mkdir -p include/asm-sh; fi
 	$(Q)ln -fsn $(incdir-prefix)$(cpuincdir-y) include/asm-sh/cpu
@@ -157,7 +157,7 @@ include/asm-sh/.cpu: $(wildcard include/config/cpu/*.h) include/config/MARKER
 #	don't, just reference the parent directory so the semantics are
 #	kept roughly the same.
 
-include/asm-sh/.mach: $(wildcard include/config/sh/*.h) include/config/MARKER
+include/asm-sh/.mach: $(wildcard include/config/sh/*.h) include/config/auto.conf
 	@echo -n '  SYMLINK include/asm-sh/mach -> '
 	$(Q)if [ ! -d include/asm-sh ]; then mkdir -p include/asm-sh; fi
 	$(Q)if [ -d $(incdir-prefix)$(incdir-y) ]; then \

@@ -2,8 +2,9 @@
 /* confdata.c */
 P(conf_parse,void,(const char *name));
 P(conf_read,int,(const char *name));
-P(conf_read_simple,int,(const char *name));
+P(conf_read_simple,int,(const char *name, int));
 P(conf_write,int,(const char *name));
+P(conf_write_autoconf,int,(void));
 
 /* menu.c */
 P(rootmenu,struct menu,);
@@ -38,4 +39,4 @@ P(prop_get_type_name,const char *,(enum prop_type type));
 
 /* expr.c */
 P(expr_compare_type,int,(enum expr_type t1, enum expr_type t2));
-P(expr_print,void,(struct expr *e, void (*fn)(void *, const char *), void *data, int prevtoken));
+P(expr_print,void,(struct expr *e, void (*fn)(void *, struct symbol *, const char *), void *data, int prevtoken));

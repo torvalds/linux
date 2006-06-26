@@ -15,15 +15,15 @@
 struct symbol symbol_yes = {
 	.name = "y",
 	.curr = { "y", yes },
-	.flags = SYMBOL_YES|SYMBOL_VALID,
+	.flags = SYMBOL_CONST|SYMBOL_VALID,
 }, symbol_mod = {
 	.name = "m",
 	.curr = { "m", mod },
-	.flags = SYMBOL_MOD|SYMBOL_VALID,
+	.flags = SYMBOL_CONST|SYMBOL_VALID,
 }, symbol_no = {
 	.name = "n",
 	.curr = { "n", no },
-	.flags = SYMBOL_NO|SYMBOL_VALID,
+	.flags = SYMBOL_CONST|SYMBOL_VALID,
 }, symbol_empty = {
 	.name = "",
 	.curr = { "", no },
@@ -31,6 +31,7 @@ struct symbol symbol_yes = {
 };
 
 int sym_change_count;
+struct symbol *sym_defconfig_list;
 struct symbol *modules_sym;
 tristate modules_val;
 
@@ -227,7 +228,7 @@ static struct symbol *sym_calc_choice(struct symbol *sym)
 	struct expr *e;
 
 	/* is the user choice visible? */
-	def_sym = sym->user.val;
+	def_sym = sym->def[S_DEF_USER].val;
 	if (def_sym) {
 		sym_calc_visibility(def_sym);
 		if (def_sym->visible != no)
@@ -306,7 +307,7 @@ void sym_calc_value(struct symbol *sym)
 		} else if (E_OR(sym->visible, sym->rev_dep.tri) != no) {
 			sym->flags |= SYMBOL_WRITE;
 			if (sym_has_value(sym))
-				newval.tri = sym->user.tri;
+				newval.tri = sym->def[S_DEF_USER].tri;
 			else if (!sym_is_choice(sym)) {
 				prop = sym_get_default_prop(sym);
 				if (prop)
@@ -329,7 +330,7 @@ void sym_calc_value(struct symbol *sym)
 		if (sym->visible != no) {
 			sym->flags |= SYMBOL_WRITE;
 			if (sym_has_value(sym)) {
-				newval.val = sym->user.val;
+				newval.val = sym->def[S_DEF_USER].val;
 				break;
 			}
 		}
@@ -352,10 +353,13 @@ void sym_calc_value(struct symbol *sym)
 		sym->curr.val = sym_calc_choice(sym);
 	sym_validate_range(sym);
 
-	if (memcmp(&oldval, &sym->curr, sizeof(oldval)))
+	if (memcmp(&oldval, &sym->curr, sizeof(oldval))) {
 		sym_set_changed(sym);
-	if (modules_sym == sym)
-		modules_val = modules_sym->curr.tri;
+		if (modules_sym == sym) {
+			sym_set_all_changed();
+			modules_val = modules_sym->curr.tri;
+		}
+	}
 
 	if (sym_is_choice(sym)) {
 		int flags = sym->flags & (SYMBOL_CHANGED | SYMBOL_WRITE);
@@ -426,8 +430,8 @@ bool sym_set_tristate_value(struct symbol *sym, tristate val)
 	if (oldval != val && !sym_tristate_within_range(sym, val))
 		return false;
 
-	if (sym->flags & SYMBOL_NEW) {
-		sym->flags &= ~SYMBOL_NEW;
+	if (!(sym->flags & SYMBOL_DEF_USER)) {
+		sym->flags |= SYMBOL_DEF_USER;
 		sym_set_changed(sym);
 	}
 	/*
@@ -439,21 +443,18 @@ bool sym_set_tristate_value(struct symbol *sym, tristate val)
 		struct property *prop;
 		struct expr *e;
 
-		cs->user.val = sym;
-		cs->flags &= ~SYMBOL_NEW;
+		cs->def[S_DEF_USER].val = sym;
+		cs->flags |= SYMBOL_DEF_USER;
 		prop = sym_get_choice_prop(cs);
 		for (e = prop->expr; e; e = e->left.expr) {
 			if (e->right.sym->visible != no)
-				e->right.sym->flags &= ~SYMBOL_NEW;
+				e->right.sym->flags |= SYMBOL_DEF_USER;
 		}
 	}
 
-	sym->user.tri = val;
-	if (oldval != val) {
+	sym->def[S_DEF_USER].tri = val;
+	if (oldval != val)
 		sym_clear_all_valid();
-		if (sym == modules_sym)
-			sym_set_all_changed();
-	}
 
 	return true;
 }
@@ -591,20 +592,20 @@ bool sym_set_string_value(struct symbol *sym, const char *newval)
 	if (!sym_string_within_range(sym, newval))
 		return false;
 
-	if (sym->flags & SYMBOL_NEW) {
-		sym->flags &= ~SYMBOL_NEW;
+	if (!(sym->flags & SYMBOL_DEF_USER)) {
+		sym->flags |= SYMBOL_DEF_USER;
 		sym_set_changed(sym);
 	}
 
-	oldval = sym->user.val;
+	oldval = sym->def[S_DEF_USER].val;
 	size = strlen(newval) + 1;
 	if (sym->type == S_HEX && (newval[0] != '0' || (newval[1] != 'x' && newval[1] != 'X'))) {
 		size += 2;
-		sym->user.val = val = malloc(size);
+		sym->def[S_DEF_USER].val = val = malloc(size);
 		*val++ = '0';
 		*val++ = 'x';
 	} else if (!oldval || strcmp(oldval, newval))
-		sym->user.val = val = malloc(size);
+		sym->def[S_DEF_USER].val = val = malloc(size);
 	else
 		return true;
 
@@ -679,7 +680,6 @@ struct symbol *sym_lookup(const char *name, int isconst)
 	memset(symbol, 0, sizeof(*symbol));
 	symbol->name = new_name;
 	symbol->type = S_UNKNOWN;
-	symbol->flags = SYMBOL_NEW;
 	if (isconst)
 		symbol->flags |= SYMBOL_CONST;
 
