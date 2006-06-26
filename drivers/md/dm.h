@@ -123,5 +123,7 @@ void dm_stripe_exit(void);
 
 void *dm_vcalloc(unsigned long nmemb, unsigned long elem_size);
 union map_info *dm_get_mapinfo(struct bio *bio);
+int dm_open_count(struct mapped_device *md);
+int dm_lock_for_deletion(struct mapped_device *md);
 
 #endif

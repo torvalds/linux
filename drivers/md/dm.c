@@ -64,12 +64,14 @@ union map_info *dm_get_mapinfo(struct bio *bio)
 #define DMF_SUSPENDED 1
 #define DMF_FROZEN 2
 #define DMF_FREEING 3
+#define DMF_DELETING 4
 
 struct mapped_device {
 	struct rw_semaphore io_lock;
 	struct semaphore suspend_lock;
 	rwlock_t map_lock;
 	atomic_t holders;
+	atomic_t open_count;
 
 	unsigned long flags;
 
@@ -228,12 +230,14 @@ static int dm_blk_open(struct inode *inode, struct file *file)
 	if (!md)
 		goto out;
 
-	if (test_bit(DMF_FREEING, &md->flags)) {
+	if (test_bit(DMF_FREEING, &md->flags) ||
+	    test_bit(DMF_DELETING, &md->flags)) {
 		md = NULL;
 		goto out;
 	}
 
 	dm_get(md);
+	atomic_inc(&md->open_count);
 
 out:
 	spin_unlock(&_minor_lock);
@@ -246,8 +250,33 @@ static int dm_blk_close(struct inode *inode, struct file *file)
 	struct mapped_device *md;
 
 	md = inode->i_bdev->bd_disk->private_data;
+	atomic_dec(&md->open_count);
 	dm_put(md);
 	return 0;
+}
+
+int dm_open_count(struct mapped_device *md)
+{
+	return atomic_read(&md->open_count);
+}
+
+/*
+ * Guarantees nothing is using the device before it's deleted.
+ */
+int dm_lock_for_deletion(struct mapped_device *md)
+{
+	int r = 0;
+
+	spin_lock(&_minor_lock);
+
+	if (dm_open_count(md))
+		r = -EBUSY;
+	else
+		set_bit(DMF_DELETING, &md->flags);
+
+	spin_unlock(&_minor_lock);
+
+	return r;
 }
 
 static int dm_blk_getgeo(struct block_device *bdev, struct hd_geometry *geo)
@@ -867,6 +896,7 @@ static struct mapped_device *alloc_dev(int minor)
 	init_MUTEX(&md->suspend_lock);
 	rwlock_init(&md->map_lock);
 	atomic_set(&md->holders, 1);
+	atomic_set(&md->open_count, 0);
 	atomic_set(&md->event_nr, 0);
 
 	md->queue = blk_alloc_queue(GFP_KERNEL);
