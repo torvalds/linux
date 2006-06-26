@@ -80,10 +80,11 @@ static int vesafb_pan_display(struct fb_var_screeninfo *var,
 	return 0;
 }
 
-static void vesa_setpalette(int regno, unsigned red, unsigned green,
+static int vesa_setpalette(int regno, unsigned red, unsigned green,
 			    unsigned blue)
 {
 	int shift = 16 - depth;
+	int err = -EINVAL;
 
 #ifdef __i386__
 	struct { u_char blue, green, red, pad; } entry;
@@ -102,7 +103,7 @@ static void vesa_setpalette(int regno, unsigned red, unsigned green,
                   "d" (regno),          /* EDX */
                   "D" (&entry),         /* EDI */
                   "S" (&pmi_pal));      /* ESI */
-		return;
+		err = 0;
 	}
 #endif
 
@@ -110,18 +111,23 @@ static void vesa_setpalette(int regno, unsigned red, unsigned green,
  * without protected mode interface and if VGA compatible,
  * try VGA registers...
  */
-	if (vga_compat) {
+	if (err && vga_compat) {
 		outb_p(regno,       dac_reg);
 		outb_p(red   >> shift, dac_val);
 		outb_p(green >> shift, dac_val);
 		outb_p(blue  >> shift, dac_val);
+		err = 0;
 	}
+
+	return err;
 }
 
 static int vesafb_setcolreg(unsigned regno, unsigned red, unsigned green,
 			    unsigned blue, unsigned transp,
 			    struct fb_info *info)
 {
+	int err = 0;
+
 	/*
 	 *  Set a single color register. The values supplied are
 	 *  already rounded down to the hardware's capabilities
@@ -133,7 +139,7 @@ static int vesafb_setcolreg(unsigned regno, unsigned red, unsigned green,
 		return 1;
 
 	if (info->var.bits_per_pixel == 8)
-		vesa_setpalette(regno,red,green,blue);
+		err = vesa_setpalette(regno,red,green,blue);
 	else if (regno < 16) {
 		switch (info->var.bits_per_pixel) {
 		case 16:
@@ -164,7 +170,7 @@ static int vesafb_setcolreg(unsigned regno, unsigned red, unsigned green,
 		}
 	}
 
-	return 0;
+	return err;
 }
 
 static struct fb_ops vesafb_ops = {
