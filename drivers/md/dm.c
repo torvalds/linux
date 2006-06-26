@@ -21,6 +21,8 @@
 #include <linux/hdreg.h>
 #include <linux/blktrace_api.h>
 
+#define DM_MSG_PREFIX "core"
+
 static const char *_name = DM_NAME;
 
 static unsigned int major = 0;
@@ -1107,6 +1109,12 @@ void dm_get(struct mapped_device *md)
 {
 	atomic_inc(&md->holders);
 }
+
+const char *dm_device_name(struct mapped_device *md)
+{
+	return md->name;
+}
+EXPORT_SYMBOL_GPL(dm_device_name);
 
 void dm_put(struct mapped_device *md)
 {

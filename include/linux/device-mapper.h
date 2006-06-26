@@ -171,6 +171,7 @@ int dm_wait_event(struct mapped_device *md, int event_nr);
 /*
  * Info functions.
  */
+const char *dm_device_name(struct mapped_device *md);
 struct gendisk *dm_disk(struct mapped_device *md);
 int dm_suspended(struct mapped_device *md);
 

@@ -12,6 +12,8 @@
 #include "dm-log.h"
 #include "dm-io.h"
 
+#define DM_MSG_PREFIX "mirror log"
+
 static LIST_HEAD(_log_types);
 static DEFINE_SPINLOCK(_lock);
 

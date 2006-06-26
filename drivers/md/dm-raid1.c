@@ -20,6 +20,8 @@
 #include <linux/vmalloc.h>
 #include <linux/workqueue.h>
 
+#define DM_MSG_PREFIX "raid1"
+
 static struct workqueue_struct *_kmirrord_wq;
 static struct work_struct _kmirrord_work;
 
@@ -892,7 +894,7 @@ static struct mirror_set *alloc_context(unsigned int nr_mirrors,
 
 	ms = kmalloc(len, GFP_KERNEL);
 	if (!ms) {
-		ti->error = "dm-mirror: Cannot allocate mirror context";
+		ti->error = "Cannot allocate mirror context";
 		return NULL;
 	}
 
@@ -906,7 +908,7 @@ static struct mirror_set *alloc_context(unsigned int nr_mirrors,
 	ms->default_mirror = &ms->mirror[DEFAULT_MIRROR];
 
 	if (rh_init(&ms->rh, ms, dl, region_size, ms->nr_regions)) {
-		ti->error = "dm-mirror: Error creating dirty region hash";
+		ti->error = "Error creating dirty region hash";
 		kfree(ms);
 		return NULL;
 	}
@@ -936,14 +938,14 @@ static int get_mirror(struct mirror_set *ms, struct dm_target *ti,
 	unsigned long long offset;
 
 	if (sscanf(argv[1], "%llu", &offset) != 1) {
-		ti->error = "dm-mirror: Invalid offset";
+		ti->error = "Invalid offset";
 		return -EINVAL;
 	}
 
 	if (dm_get_device(ti, argv[0], offset, ti->len,
 			  dm_table_get_mode(ti->table),
 			  &ms->mirror[mirror].dev)) {
-		ti->error = "dm-mirror: Device lookup failure";
+		ti->error = "Device lookup failure";
 		return -ENXIO;
 	}
 
@@ -980,30 +982,30 @@ static struct dirty_log *create_dirty_log(struct dm_target *ti,
 	struct dirty_log *dl;
 
 	if (argc < 2) {
-		ti->error = "dm-mirror: Insufficient mirror log arguments";
+		ti->error = "Insufficient mirror log arguments";
 		return NULL;
 	}
 
 	if (sscanf(argv[1], "%u", &param_count) != 1) {
-		ti->error = "dm-mirror: Invalid mirror log argument count";
+		ti->error = "Invalid mirror log argument count";
 		return NULL;
 	}
 
 	*args_used = 2 + param_count;
 
 	if (argc < *args_used) {
-		ti->error = "dm-mirror: Insufficient mirror log arguments";
+		ti->error = "Insufficient mirror log arguments";
 		return NULL;
 	}
 
 	dl = dm_create_dirty_log(argv[0], ti, param_count, argv + 2);
 	if (!dl) {
-		ti->error = "dm-mirror: Error creating mirror dirty log";
+		ti->error = "Error creating mirror dirty log";
 		return NULL;
 	}
 
 	if (!_check_region_size(ti, dl->type->get_region_size(dl))) {
-		ti->error = "dm-mirror: Invalid region size";
+		ti->error = "Invalid region size";
 		dm_destroy_dirty_log(dl);
 		return NULL;
 	}
@@ -1037,7 +1039,7 @@ static int mirror_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	if (!argc || sscanf(argv[0], "%u", &nr_mirrors) != 1 ||
 	    nr_mirrors < 2 || nr_mirrors > KCOPYD_MAX_REGIONS + 1) {
-		ti->error = "dm-mirror: Invalid number of mirrors";
+		ti->error = "Invalid number of mirrors";
 		dm_destroy_dirty_log(dl);
 		return -EINVAL;
 	}
@@ -1045,7 +1047,7 @@ static int mirror_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	argv++, argc--;
 
 	if (argc != nr_mirrors * 2) {
-		ti->error = "dm-mirror: Wrong number of mirror arguments";
+		ti->error = "Wrong number of mirror arguments";
 		dm_destroy_dirty_log(dl);
 		return -EINVAL;
 	}

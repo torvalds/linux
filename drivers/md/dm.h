@@ -17,9 +17,10 @@
 #include <linux/hdreg.h>
 
 #define DM_NAME "device-mapper"
-#define DMWARN(f, x...) printk(KERN_WARNING DM_NAME ": " f "\n" , ## x)
-#define DMERR(f, x...) printk(KERN_ERR DM_NAME ": " f "\n" , ## x)
-#define DMINFO(f, x...) printk(KERN_INFO DM_NAME ": " f "\n" , ## x)
+
+#define DMERR(f, arg...) printk(KERN_ERR DM_NAME ": " DM_MSG_PREFIX ": " f "\n", ## arg)
+#define DMWARN(f, arg...) printk(KERN_WARNING DM_NAME ": " DM_MSG_PREFIX ": " f "\n", ## arg)
+#define DMINFO(f, arg...) printk(KERN_INFO DM_NAME ": " DM_MSG_PREFIX ": " f "\n", ## arg)
 
 #define DMEMIT(x...) sz += ((sz >= maxlen) ? \
 			  0 : scnprintf(result + sz, maxlen - sz, x))

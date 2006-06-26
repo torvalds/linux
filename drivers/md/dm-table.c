@@ -17,6 +17,8 @@
 #include <linux/mutex.h>
 #include <asm/atomic.h>
 
+#define DM_MSG_PREFIX "table"
+
 #define MAX_DEPTH 16
 #define NODE_SIZE L1_CACHE_BYTES
 #define KEYS_PER_NODE (NODE_SIZE / sizeof(sector_t))
@@ -715,15 +717,14 @@ int dm_table_add_target(struct dm_table *t, const char *type,
 	memset(tgt, 0, sizeof(*tgt));
 
 	if (!len) {
-		tgt->error = "zero-length target";
-		DMERR("%s", tgt->error);
+		DMERR("%s: zero-length target", dm_device_name(t->md));
 		return -EINVAL;
 	}
 
 	tgt->type = dm_get_target_type(type);
 	if (!tgt->type) {
-		tgt->error = "unknown target type";
-		DMERR("%s", tgt->error);
+		DMERR("%s: %s: unknown target type", dm_device_name(t->md),
+		      type);
 		return -EINVAL;
 	}
 
@@ -760,7 +761,7 @@ int dm_table_add_target(struct dm_table *t, const char *type,
 	return 0;
 
  bad:
-	DMERR("%s", tgt->error);
+	DMERR("%s: %s: %s", dm_device_name(t->md), type, tgt->error);
 	dm_put_target_type(tgt->type);
 	return r;
 }
