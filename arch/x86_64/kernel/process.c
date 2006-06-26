@@ -364,8 +364,11 @@ void flush_thread(void)
 	struct task_struct *tsk = current;
 	struct thread_info *t = current_thread_info();
 
-	if (t->flags & _TIF_ABI_PENDING)
+	if (t->flags & _TIF_ABI_PENDING) {
 		t->flags ^= (_TIF_ABI_PENDING | _TIF_IA32);
+		if (t->flags & _TIF_IA32)
+			current_thread_info()->status |= TS_COMPAT;
+	}
 
 	tsk->thread.debugreg0 = 0;
 	tsk->thread.debugreg1 = 0;
