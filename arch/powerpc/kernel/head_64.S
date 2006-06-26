@@ -1664,6 +1664,9 @@ _STATIC(__after_prom_start)
 					/*   i.e. where we are running	 */
 					/*	the source addr		 */
 
+	cmpdi	r4,0			/* In some cases the loader may  */
+	beq	.start_here_multiplatform /* have already put us at zero */
+					/* so we can skip the copy.      */
 	LOAD_REG_IMMEDIATE(r5,copy_to_here) /* # bytes of memory to copy */
 	sub	r5,r5,r27
 
