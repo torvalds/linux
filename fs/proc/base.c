@@ -927,10 +927,6 @@ static struct file_operations proc_oom_adjust_operations = {
 	.write		= oom_adjust_write,
 };
 
-static struct inode_operations proc_mem_inode_operations = {
-	.permission	= proc_permission,
-};
-
 #ifdef CONFIG_AUDITSYSCALL
 #define TMPBUFLEN 21
 static ssize_t proc_loginuid_read(struct file * file, char __user * buf,
@@ -1697,7 +1693,6 @@ static struct dentry *proc_pident_lookup(struct inode *dir,
 #endif
 		case PROC_TID_MEM:
 		case PROC_TGID_MEM:
-			inode->i_op = &proc_mem_inode_operations;
 			inode->i_fop = &proc_mem_operations;
 			break;
 #ifdef CONFIG_SECCOMP
