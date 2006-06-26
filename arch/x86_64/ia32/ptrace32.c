@@ -7,8 +7,6 @@
  * 
  * This allows to access 64bit processes too; but there is no way to see the extended 
  * register contents.
- *
- * $Id: ptrace32.c,v 1.16 2003/03/14 16:06:35 ak Exp $
  */ 
 
 #include <linux/kernel.h>

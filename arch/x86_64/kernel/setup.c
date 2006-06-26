@@ -5,8 +5,6 @@
  *
  *  Nov 2001 Dave Jones <davej@suse.de>
  *  Forked from i386 setup code.
- *
- *  $Id$
  */
 
 /*

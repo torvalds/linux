@@ -929,13 +929,5 @@ long sys32_lookup_dcookie(u32 addr_low, u32 addr_high,
 	return sys_lookup_dcookie(((u64)addr_high << 32) | addr_low, buf, len);
 }
 
-static int __init ia32_init (void)
-{
-	printk("IA32 emulation $Id: sys_ia32.c,v 1.32 2002/03/24 13:02:28 ak Exp $\n");  
-	return 0;
-}
-
-__initcall(ia32_init);
-
 extern unsigned long ia32_sys_call_table[];
 EXPORT_SYMBOL(ia32_sys_call_table);
