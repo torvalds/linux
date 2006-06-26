@@ -433,7 +433,7 @@ int fb_prepare_logo(struct fb_info *info, int rotate)
 			depth = info->var.green.length;
 	}
 
-	if (info->fix.visual == FB_VISUAL_STATIC_PSEUDOCOLOR) {
+	if (info->fix.visual == FB_VISUAL_STATIC_PSEUDOCOLOR && depth > 4) {
 		/* assume console colormap */
 		depth = 4;
 	}
