@@ -601,7 +601,8 @@ exit:
  * 
  * Used for SOCK_STREAM data.
  * 
- * Returns the number of bytes sent on success, or errno otherwise
+ * Returns the number of bytes sent on success (or partial success), 
+ * or errno if no data sent
  */
 
 
@@ -615,6 +616,7 @@ static int send_stream(struct kiocb *iocb, struct socket *sock,
 	char __user *curr_start;
 	int curr_left;
 	int bytes_to_send;
+	int bytes_sent;
 	int res;
 	
 	if (likely(total_len <= TIPC_MAX_USER_MSG_SIZE))
@@ -637,11 +639,11 @@ static int send_stream(struct kiocb *iocb, struct socket *sock,
 	 * of small iovec entries into send_packet().
 	 */
 
-	my_msg = *m;
-	curr_iov = my_msg.msg_iov;
-	curr_iovlen = my_msg.msg_iovlen;
+	curr_iov = m->msg_iov;
+	curr_iovlen = m->msg_iovlen;
 	my_msg.msg_iov = &my_iov;
 	my_msg.msg_iovlen = 1;
+	bytes_sent = 0;
 
 	while (curr_iovlen--) {
 		curr_start = curr_iov->iov_base;
@@ -652,16 +654,18 @@ static int send_stream(struct kiocb *iocb, struct socket *sock,
 				? curr_left : TIPC_MAX_USER_MSG_SIZE;
 			my_iov.iov_base = curr_start;
 			my_iov.iov_len = bytes_to_send;
-                        if ((res = send_packet(iocb, sock, &my_msg, 0)) < 0)
-                                return res;
+                        if ((res = send_packet(iocb, sock, &my_msg, 0)) < 0) {
+				return bytes_sent ? bytes_sent : res;
+			}
 			curr_left -= bytes_to_send;
 			curr_start += bytes_to_send;
+			bytes_sent += bytes_to_send;
 		}
 
 		curr_iov++;
 	}
 
-	return total_len;
+	return bytes_sent;
 }
 
 /**
