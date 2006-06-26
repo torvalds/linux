@@ -285,6 +285,9 @@ struct module
 	/* The size of the executable code in each section.  */
 	unsigned long init_text_size, core_text_size;
 
+	/* The handle returned from unwind_add_table. */
+	void *unwind_info;
+
 	/* Arch-specific module values */
 	struct mod_arch_specific arch;
 

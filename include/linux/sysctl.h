@@ -148,7 +148,9 @@ enum
 	KERN_SPIN_RETRY=70,	/* int: number of spinlock retries */
 	KERN_ACPI_VIDEO_FLAGS=71, /* int: flags for setting up video after ACPI sleep */
 	KERN_IA64_UNALIGNED=72, /* int: ia64 unaligned userland trap enable */
+	KERN_COMPAT_LOG=73,	/* int: print compat layer  messages */
 };
+
 
 
 /* CTL_VM names: */

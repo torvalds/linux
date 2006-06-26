@@ -224,15 +224,17 @@ static void __init init_amd(struct cpuinfo_x86 *c)
 
 #ifdef CONFIG_X86_HT
 	/*
-	 * On a AMD dual core setup the lower bits of the APIC id
-	 * distingush the cores.  Assumes number of cores is a power
-	 * of two.
+	 * On a AMD multi core setup the lower bits of the APIC id
+	 * distingush the cores.
 	 */
 	if (c->x86_max_cores > 1) {
 		int cpu = smp_processor_id();
-		unsigned bits = 0;
-		while ((1 << bits) < c->x86_max_cores)
-			bits++;
+		unsigned bits = (cpuid_ecx(0x80000008) >> 12) & 0xf;
+
+		if (bits == 0) {
+			while ((1 << bits) < c->x86_max_cores)
+				bits++;
+		}
 		cpu_core_id[cpu] = phys_proc_id[cpu] & ((1<<bits)-1);
 		phys_proc_id[cpu] >>= bits;
 		printk(KERN_INFO "CPU %d(%d) -> Core %d\n",
@@ -240,6 +242,8 @@ static void __init init_amd(struct cpuinfo_x86 *c)
 	}
 #endif
 
+	if (cpuid_eax(0x80000000) >= 0x80000006)
+		num_cache_leaves = 3;
 }
 
 static unsigned int amd_size_cache(struct cpuinfo_x86 * c, unsigned int size)

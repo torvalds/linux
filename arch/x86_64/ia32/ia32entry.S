@@ -155,6 +155,7 @@ sysenter_tracesys:
 	.previous
 	jmp	sysenter_do_call
 	CFI_ENDPROC
+ENDPROC(ia32_sysenter_target)
 
 /*
  * 32bit SYSCALL instruction entry.
@@ -178,7 +179,7 @@ sysenter_tracesys:
  */ 	
 ENTRY(ia32_cstar_target)
 	CFI_STARTPROC32	simple
-	CFI_DEF_CFA	rsp,0
+	CFI_DEF_CFA	rsp,PDA_STACKOFFSET
 	CFI_REGISTER	rip,rcx
 	/*CFI_REGISTER	rflags,r11*/
 	swapgs
@@ -249,6 +250,7 @@ cstar_tracesys:
 	.quad 1b,ia32_badarg
 	.previous
 	jmp cstar_do_call
+END(ia32_cstar_target)
 				
 ia32_badarg:
 	movq $-EFAULT,%rax
@@ -314,15 +316,12 @@ ia32_tracesys:
 	LOAD_ARGS ARGOFFSET  /* reload args from stack in case ptrace changed it */
 	RESTORE_REST
 	jmp ia32_do_syscall
+END(ia32_syscall)
 
 ia32_badsys:
 	movq $0,ORIG_RAX-ARGOFFSET(%rsp)
 	movq $-ENOSYS,RAX-ARGOFFSET(%rsp)
 	jmp int_ret_from_sys_call
-
-ni_syscall:
-	movq %rax,%rdi
-	jmp  sys32_ni_syscall			
 
 quiet_ni_syscall:
 	movq $-ENOSYS,%rax
@@ -370,10 +369,10 @@ ENTRY(ia32_ptregs_common)
 	RESTORE_REST
 	jmp  ia32_sysret	/* misbalances the return cache */
 	CFI_ENDPROC
+END(ia32_ptregs_common)
 
 	.section .rodata,"a"
 	.align 8
-	.globl ia32_sys_call_table
 ia32_sys_call_table:
 	.quad sys_restart_syscall
 	.quad sys_exit

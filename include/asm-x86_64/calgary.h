@@ -1,0 +1,66 @@
+/*
+ * Derived from include/asm-powerpc/iommu.h
+ *
+ * Copyright (C) 2006 Jon Mason <jdmason@us.ibm.com>, IBM Corporation
+ * Copyright (C) 2006 Muli Ben-Yehuda <muli@il.ibm.com>, IBM Corporation
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
+ */
+
+#ifndef _ASM_X86_64_CALGARY_H
+#define _ASM_X86_64_CALGARY_H
+
+#include <linux/config.h>
+#include <linux/spinlock.h>
+#include <linux/device.h>
+#include <linux/dma-mapping.h>
+#include <asm/types.h>
+
+struct iommu_table {
+	unsigned long  it_base;      /* mapped address of tce table */
+	unsigned long  it_hint;      /* Hint for next alloc */
+	unsigned long *it_map;       /* A simple allocation bitmap for now */
+	spinlock_t     it_lock;      /* Protects it_map */
+	unsigned int   it_size;      /* Size of iommu table in entries */
+	unsigned char  it_busno;     /* Bus number this table belongs to */
+	void __iomem  *bbar;
+	u64	       tar_val;
+	struct timer_list watchdog_timer;
+};
+
+#define TCE_TABLE_SIZE_UNSPECIFIED	~0
+#define TCE_TABLE_SIZE_64K		0
+#define TCE_TABLE_SIZE_128K		1
+#define TCE_TABLE_SIZE_256K		2
+#define TCE_TABLE_SIZE_512K		3
+#define TCE_TABLE_SIZE_1M		4
+#define TCE_TABLE_SIZE_2M		5
+#define TCE_TABLE_SIZE_4M		6
+#define TCE_TABLE_SIZE_8M		7
+
+#ifdef CONFIG_CALGARY_IOMMU
+extern int calgary_iommu_init(void);
+extern void detect_calgary(void);
+#else
+static inline int calgary_iommu_init(void) { return 1; }
+static inline void detect_calgary(void) { return; }
+#endif
+
+static inline unsigned int bus_to_phb(unsigned char busno)
+{
+	return ((busno % 15 == 0) ? 0 : busno / 2 + 1);
+}
+
+#endif /* _ASM_X86_64_CALGARY_H */

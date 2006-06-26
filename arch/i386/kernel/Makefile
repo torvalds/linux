@@ -37,6 +37,7 @@ obj-$(CONFIG_DOUBLEFAULT) 	+= doublefault.o
 obj-$(CONFIG_VM86)		+= vm86.o
 obj-$(CONFIG_EARLY_PRINTK)	+= early_printk.o
 obj-$(CONFIG_HPET_TIMER) 	+= hpet.o
+obj-$(CONFIG_K8_NB)		+= k8.o
 
 EXTRA_AFLAGS   := -traditional
 
@@ -76,3 +77,6 @@ SYSCFLAGS_vsyscall-syms.o = -r
 $(obj)/vsyscall-syms.o: $(src)/vsyscall.lds \
 			$(obj)/vsyscall-sysenter.o $(obj)/vsyscall-note.o FORCE
 	$(call if_changed,syscall)
+
+k8-y                      += ../../x86_64/kernel/k8.o
+

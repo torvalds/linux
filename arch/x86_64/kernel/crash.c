@@ -111,14 +111,14 @@ static int crash_nmi_callback(struct pt_regs *regs, int cpu)
 	atomic_dec(&waiting_for_crash_ipi);
 	/* Assume hlt works */
 	for(;;)
-		asm("hlt");
+		halt();
 
 	return 1;
 }
 
 static void smp_send_nmi_allbutself(void)
 {
-	send_IPI_allbutself(APIC_DM_NMI);
+	send_IPI_allbutself(NMI_VECTOR);
 }
 
 /*

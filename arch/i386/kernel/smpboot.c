@@ -52,6 +52,7 @@
 #include <asm/tlbflush.h>
 #include <asm/desc.h>
 #include <asm/arch_hooks.h>
+#include <asm/nmi.h>
 
 #include <mach_apic.h>
 #include <mach_wakecpu.h>

@@ -328,6 +328,15 @@ config X86_MCE_P4THERMAL
 	  Enabling this feature will cause a message to be printed when the P4
 	  enters thermal throttling.
 
+config VM86
+	default y
+	bool "Enable VM86 support" if EMBEDDED
+	help
+          This option is required by programs like DOSEMU to run 16-bit legacy
+	  code on X86 processors. It also may be needed by software like
+          XFree86 to initialize some video cards via BIOS. Disabling this
+          option saves about 6k.
+
 config TOSHIBA
 	tristate "Toshiba Laptop support"
 	---help---
@@ -1067,6 +1076,10 @@ config SCx200HR_TIMER
 	  NSC Geode SC-1100's buggy TSC, which loses time when the
 	  processor goes idle (as is done by the scheduler).  The
 	  other workaround is idle=poll boot option.
+
+config K8_NB
+	def_bool y
+	depends on AGP_AMD64
 
 source "drivers/pcmcia/Kconfig"
 

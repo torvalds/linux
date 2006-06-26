@@ -112,6 +112,7 @@ extern char ignore_fpu_irq;
 extern void identify_cpu(struct cpuinfo_x86 *);
 extern void print_cpu_info(struct cpuinfo_x86 *);
 extern unsigned int init_intel_cacheinfo(struct cpuinfo_x86 *c);
+extern unsigned short num_cache_leaves;
 
 #ifdef CONFIG_X86_HT
 extern void detect_ht(struct cpuinfo_x86 *c);
@@ -554,7 +555,7 @@ extern void prepare_to_copy(struct task_struct *tsk);
 extern int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags);
 
 extern unsigned long thread_saved_pc(struct task_struct *tsk);
-void show_trace(struct task_struct *task, unsigned long *stack);
+void show_trace(struct task_struct *task, struct pt_regs *regs, unsigned long *stack);
 
 unsigned long get_wchan(struct task_struct *p);
 

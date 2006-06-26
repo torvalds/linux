@@ -69,7 +69,11 @@ struct cpuinfo_x86 {
 	cpumask_t llc_shared_map;	/* cpus sharing the last level cache */
 #endif
 	__u8	apicid;
+#ifdef CONFIG_SMP
 	__u8	booted_cores;	/* number of cores as seen by OS */
+	__u8	phys_proc_id;	/* Physical Processor id. */
+	__u8	cpu_core_id;	/* Core id. */
+#endif
 } ____cacheline_aligned;
 
 #define X86_VENDOR_INTEL 0
@@ -96,6 +100,7 @@ extern char ignore_irq13;
 extern void identify_cpu(struct cpuinfo_x86 *);
 extern void print_cpu_info(struct cpuinfo_x86 *);
 extern unsigned int init_intel_cacheinfo(struct cpuinfo_x86 *c);
+extern unsigned short num_cache_leaves;
 
 /*
  * EFLAGS bits

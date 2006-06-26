@@ -19,6 +19,8 @@
 
 struct hw_interrupt_type;
 
+#define NMI_VECTOR		0x02
+
 /*
  * Various low-level irq details needed by irq.c, process.c,
  * time.c, io_apic.c and smp.c

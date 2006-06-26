@@ -31,15 +31,19 @@
 	"jmp 1b\n" \
 	LOCK_SECTION_END
 
+#define __raw_spin_lock_string_up \
+	"\n\tdecl %0"
+
 #define __raw_spin_unlock_string \
 	"movl $1,%0" \
 		:"=m" (lock->slock) : : "memory"
 
 static inline void __raw_spin_lock(raw_spinlock_t *lock)
 {
-	__asm__ __volatile__(
-		__raw_spin_lock_string
-		:"=m" (lock->slock) : : "memory");
+	alternative_smp(
+		__raw_spin_lock_string,
+		__raw_spin_lock_string_up,
+		"=m" (lock->slock) : : "memory");
 }
 
 #define __raw_spin_lock_flags(lock, flags) __raw_spin_lock(lock)

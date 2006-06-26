@@ -2,6 +2,7 @@
 #include <linux/pci.h>
 #include <asm/mpspec.h>
 #include <linux/cpumask.h>
+#include <asm/k8.h>
 
 /*
  * This discovers the pcibus <-> node mapping on AMD K8.
@@ -18,7 +19,6 @@
 #define NR_LDT_BUS_NUMBER_REGISTERS 3
 #define SECONDARY_LDT_BUS_NUMBER(dword) ((dword >> 8) & 0xFF)
 #define SUBORDINATE_LDT_BUS_NUMBER(dword) ((dword >> 16) & 0xFF)
-#define PCI_DEVICE_ID_K8HTCONFIG 0x1100
 
 /**
  * fill_mp_bus_to_cpumask()
@@ -28,8 +28,7 @@
 __init static int
 fill_mp_bus_to_cpumask(void)
 {
-	struct pci_dev *nb_dev = NULL;
-	int i, j;
+	int i, j, k;
 	u32 ldtbus, nid;
 	static int lbnr[3] = {
 		LDT_BUS_NUMBER_REGISTER_0,
@@ -37,8 +36,9 @@ fill_mp_bus_to_cpumask(void)
 		LDT_BUS_NUMBER_REGISTER_2
 	};
 
-	while ((nb_dev = pci_get_device(PCI_VENDOR_ID_AMD,
-			PCI_DEVICE_ID_K8HTCONFIG, nb_dev))) {
+	cache_k8_northbridges();
+	for (k = 0; k < num_k8_northbridges; k++) {
+		struct pci_dev *nb_dev = k8_northbridges[k];
 		pci_read_config_dword(nb_dev, NODE_ID_REGISTER, &nid);
 
 		for (i = 0; i < NR_LDT_BUS_NUMBER_REGISTERS; i++) {

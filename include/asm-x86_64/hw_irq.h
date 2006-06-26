@@ -12,8 +12,6 @@
  *	<tomsoft@informatik.tu-chemnitz.de>
  *
  *	hacked by Andi Kleen for x86-64.
- * 
- *  $Id: hw_irq.h,v 1.24 2001/09/14 20:55:03 vojtech Exp $
  */
 
 #ifndef __ASSEMBLY__

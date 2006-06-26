@@ -55,6 +55,13 @@ extern dma_addr_t bad_dma_address;
 extern struct dma_mapping_ops* dma_ops;
 extern int iommu_merge;
 
+static inline int valid_dma_direction(int dma_direction)
+{
+	return ((dma_direction == DMA_BIDIRECTIONAL) ||
+		(dma_direction == DMA_TO_DEVICE) ||
+		(dma_direction == DMA_FROM_DEVICE));
+}
+
 static inline int dma_mapping_error(dma_addr_t dma_addr)
 {
 	if (dma_ops->mapping_error)
@@ -72,6 +79,7 @@ static inline dma_addr_t
 dma_map_single(struct device *hwdev, void *ptr, size_t size,
 	       int direction)
 {
+	BUG_ON(!valid_dma_direction(direction));
 	return dma_ops->map_single(hwdev, ptr, size, direction);
 }
 
@@ -79,6 +87,7 @@ static inline void
 dma_unmap_single(struct device *dev, dma_addr_t addr,size_t size,
 		 int direction)
 {
+	BUG_ON(!valid_dma_direction(direction));
 	dma_ops->unmap_single(dev, addr, size, direction);
 }
 
@@ -91,6 +100,7 @@ static inline void
 dma_sync_single_for_cpu(struct device *hwdev, dma_addr_t dma_handle,
 			size_t size, int direction)
 {
+	BUG_ON(!valid_dma_direction(direction));
 	if (dma_ops->sync_single_for_cpu)
 		dma_ops->sync_single_for_cpu(hwdev, dma_handle, size,
 					     direction);
@@ -101,6 +111,7 @@ static inline void
 dma_sync_single_for_device(struct device *hwdev, dma_addr_t dma_handle,
 			   size_t size, int direction)
 {
+	BUG_ON(!valid_dma_direction(direction));
 	if (dma_ops->sync_single_for_device)
 		dma_ops->sync_single_for_device(hwdev, dma_handle, size,
 						direction);
@@ -111,6 +122,7 @@ static inline void
 dma_sync_single_range_for_cpu(struct device *hwdev, dma_addr_t dma_handle,
 			      unsigned long offset, size_t size, int direction)
 {
+	BUG_ON(!valid_dma_direction(direction));
 	if (dma_ops->sync_single_range_for_cpu) {
 		dma_ops->sync_single_range_for_cpu(hwdev, dma_handle, offset, size, direction);
 	}
@@ -122,6 +134,7 @@ static inline void
 dma_sync_single_range_for_device(struct device *hwdev, dma_addr_t dma_handle,
 				 unsigned long offset, size_t size, int direction)
 {
+	BUG_ON(!valid_dma_direction(direction));
 	if (dma_ops->sync_single_range_for_device)
 		dma_ops->sync_single_range_for_device(hwdev, dma_handle,
 						      offset, size, direction);
@@ -133,6 +146,7 @@ static inline void
 dma_sync_sg_for_cpu(struct device *hwdev, struct scatterlist *sg,
 		    int nelems, int direction)
 {
+	BUG_ON(!valid_dma_direction(direction));
 	if (dma_ops->sync_sg_for_cpu)
 		dma_ops->sync_sg_for_cpu(hwdev, sg, nelems, direction);
 	flush_write_buffers();
@@ -142,6 +156,7 @@ static inline void
 dma_sync_sg_for_device(struct device *hwdev, struct scatterlist *sg,
 		       int nelems, int direction)
 {
+	BUG_ON(!valid_dma_direction(direction));
 	if (dma_ops->sync_sg_for_device) {
 		dma_ops->sync_sg_for_device(hwdev, sg, nelems, direction);
 	}
@@ -152,6 +167,7 @@ dma_sync_sg_for_device(struct device *hwdev, struct scatterlist *sg,
 static inline int
 dma_map_sg(struct device *hwdev, struct scatterlist *sg, int nents, int direction)
 {
+	BUG_ON(!valid_dma_direction(direction));
 	return dma_ops->map_sg(hwdev, sg, nents, direction);
 }
 
@@ -159,6 +175,7 @@ static inline void
 dma_unmap_sg(struct device *hwdev, struct scatterlist *sg, int nents,
 	     int direction)
 {
+	BUG_ON(!valid_dma_direction(direction));
 	dma_ops->unmap_sg(hwdev, sg, nents, direction);
 }
 

@@ -111,23 +111,11 @@ extern void init_apic_mappings (void);
 extern void smp_local_timer_interrupt (struct pt_regs * regs);
 extern void setup_boot_APIC_clock (void);
 extern void setup_secondary_APIC_clock (void);
-extern void setup_apic_nmi_watchdog (void);
-extern int reserve_lapic_nmi(void);
-extern void release_lapic_nmi(void);
-extern void disable_timer_nmi_watchdog(void);
-extern void enable_timer_nmi_watchdog(void);
-extern void nmi_watchdog_tick (struct pt_regs * regs);
 extern int APIC_init_uniprocessor (void);
 extern void disable_APIC_timer(void);
 extern void enable_APIC_timer(void);
 
 extern void enable_NMI_through_LVT0 (void * dummy);
-
-extern unsigned int nmi_watchdog;
-#define NMI_NONE	0
-#define NMI_IO_APIC	1
-#define NMI_LOCAL_APIC	2
-#define NMI_INVALID	3
 
 extern int disable_timer_pin_1;
 

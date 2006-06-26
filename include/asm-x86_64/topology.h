@@ -7,8 +7,6 @@
 #include <asm/mpspec.h>
 #include <asm/bitops.h>
 
-/* Map the K8 CPU local memory controllers to a simple 1:1 CPU:NODE topology */
-
 extern cpumask_t cpu_online_map;
 
 extern unsigned char cpu_to_node[];
@@ -57,10 +55,8 @@ extern int __node_distance(int, int);
 #endif
 
 #ifdef CONFIG_SMP
-#define topology_physical_package_id(cpu)				\
-	(phys_proc_id[cpu] == BAD_APICID ? -1 : phys_proc_id[cpu])
-#define topology_core_id(cpu)						\
-	(cpu_core_id[cpu] == BAD_APICID ? 0 : cpu_core_id[cpu])
+#define topology_physical_package_id(cpu)	(cpu_data[cpu].phys_proc_id)
+#define topology_core_id(cpu)			(cpu_data[cpu].cpu_core_id)
 #define topology_core_siblings(cpu)		(cpu_core_map[cpu])
 #define topology_thread_siblings(cpu)		(cpu_sibling_map[cpu])
 #endif

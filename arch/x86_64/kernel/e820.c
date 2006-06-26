@@ -1,7 +1,6 @@
 /* 
  * Handle the memory map.
  * The functions here do the job until bootmem takes over.
- * $Id: e820.c,v 1.4 2002/09/19 19:25:32 ak Exp $
  *
  *  Getting sanitize_e820_map() in sync with i386 version by applying change:
  *  -  Provisions for empty E820 memory regions (reported by certain BIOSes).
@@ -621,6 +620,7 @@ void __init parse_memmapopt(char *p, char **from)
 }
 
 unsigned long pci_mem_start = 0xaeedbabe;
+EXPORT_SYMBOL(pci_mem_start);
 
 /*
  * Search for the biggest gap in the low 32 bits of the e820
