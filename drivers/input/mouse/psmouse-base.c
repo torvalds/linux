@@ -1057,8 +1057,8 @@ static int psmouse_switch_protocol(struct psmouse *psmouse, struct psmouse_proto
 	if (psmouse->resync_time && psmouse->poll(psmouse))
 		psmouse->resync_time = 0;
 
-	sprintf(psmouse->devname, "%s %s %s",
-		psmouse_protocol_by_type(psmouse->type)->name, psmouse->vendor, psmouse->name);
+	snprintf(psmouse->devname, sizeof(psmouse->devname), "%s %s %s",
+		 psmouse_protocol_by_type(psmouse->type)->name, psmouse->vendor, psmouse->name);
 
 	input_dev->name = psmouse->devname;
 	input_dev->phys = psmouse->phys;
@@ -1099,7 +1099,7 @@ static int psmouse_connect(struct serio *serio, struct serio_driver *drv)
 	ps2_init(&psmouse->ps2dev, serio);
 	INIT_WORK(&psmouse->resync_work, psmouse_resync, psmouse);
 	psmouse->dev = input_dev;
-	sprintf(psmouse->phys, "%s/input0", serio->phys);
+	snprintf(psmouse->phys, sizeof(psmouse->phys), "%s/input0", serio->phys);
 
 	psmouse_set_state(psmouse, PSMOUSE_INITIALIZING);
 
