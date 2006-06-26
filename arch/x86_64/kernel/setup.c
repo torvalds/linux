@@ -873,10 +873,18 @@ static void __init amd_detect_cmp(struct cpuinfo_x86 *c)
 	int node = 0;
 	unsigned apicid = hard_smp_processor_id();
 #endif
+	unsigned ecx = cpuid_ecx(0x80000008);
 
-	bits = 0;
-	while ((1 << bits) < c->x86_max_cores)
-		bits++;
+	c->x86_max_cores = (ecx & 0xff) + 1;
+
+	/* CPU telling us the core id bits shift? */
+	bits = (ecx >> 12) & 0xF;
+
+	/* Otherwise recompute */
+	if (bits == 0) {
+		while ((1 << bits) < c->x86_max_cores)
+			bits++;
+	}
 
 	/* Low order bits define the core id (index of core in socket) */
 	cpu_core_id[cpu] = phys_proc_id[cpu] & ((1 << bits)-1);
@@ -964,11 +972,9 @@ static int __init init_amd(struct cpuinfo_x86 *c)
 	if (c->x86_power & (1<<8))
 		set_bit(X86_FEATURE_CONSTANT_TSC, &c->x86_capability);
 
-	if (c->extended_cpuid_level >= 0x80000008) {
-		c->x86_max_cores = (cpuid_ecx(0x80000008) & 0xff) + 1;
-
+	/* Multi core CPU? */
+	if (c->extended_cpuid_level >= 0x80000008)
 		amd_detect_cmp(c);
-	}
 
 	return r;
 }
