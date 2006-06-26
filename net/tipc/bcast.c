@@ -349,8 +349,10 @@ static void tipc_bclink_peek_nack(u32 dest, u32 sender_tag, u32 gap_after, u32 g
 		for (; buf; buf = buf->next) {
 			u32 seqno = buf_seqno(buf);
 
-			if (mod(seqno - prev) != 1)
+			if (mod(seqno - prev) != 1) {
 				buf = NULL;
+				break;
+			}
 			if (seqno == gap_after)
 				break;
 			prev = seqno;
