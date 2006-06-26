@@ -40,7 +40,8 @@ typedef struct mdk_rdev_s mdk_rdev_t;
  * options passed in raidrun:
  */
 
-#define MAX_CHUNK_SIZE (4096*1024)
+/* Currently this must fix in an 'int' */
+#define MAX_CHUNK_SIZE (1<<30)
 
 /*
  * MD's 'extended' device

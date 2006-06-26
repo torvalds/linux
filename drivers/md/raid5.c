@@ -2382,8 +2382,8 @@ static int run(mddev_t *mddev)
 	 * 2 * (n-1) * chunksize where 'n' is the number of raid devices
 	 */
 	{
-		int stripe = (mddev->raid_disks-1) * mddev->chunk_size
-			/ PAGE_SIZE;
+		int stripe = (mddev->raid_disks-1) *
+			(mddev->chunk_size / PAGE_SIZE);
 		if (mddev->queue->backing_dev_info.ra_pages < 2 * stripe)
 			mddev->queue->backing_dev_info.ra_pages = 2 * stripe;
 	}
