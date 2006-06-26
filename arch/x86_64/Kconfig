@@ -386,24 +386,26 @@ config HPET_EMULATE_RTC
 	bool "Provide RTC interrupt"
 	depends on HPET_TIMER && RTC=y
 
-config GART_IOMMU
-	bool "K8 GART IOMMU support"
+# Mark as embedded because too many people got it wrong.
+# The code disables itself when not needed.
+config IOMMU
+	bool "IOMMU support" if EMBEDDED
 	default y
 	select SWIOTLB
 	select AGP
 	depends on PCI
 	help
-	  Support for hardware IOMMU in AMD's Opteron/Athlon64 Processors
-	  and for the bounce buffering software IOMMU.
-	  Needed to run systems with more than 3GB of memory properly with
-	  32-bit PCI devices that do not support DAC (Double Address Cycle).
-	  The IOMMU can be turned off at runtime with the iommu=off parameter.
-  	  Normally the kernel will take the right choice by itself.
-  	  This option includes a driver for the AMD Opteron/Athlon64 IOMMU
-  	  northbridge and a software emulation used on other systems without
-	  hardware IOMMU.  If unsure, say Y.
+	  Support for full DMA access of devices with 32bit memory access only
+	  on systems with more than 3GB. This is usually needed for USB,
+	  sound, many IDE/SATA chipsets and some other devices.
+	  Provides a driver for the AMD Athlon64/Opteron/Turion/Sempron GART
+	  based IOMMU and a software bounce buffer based IOMMU used on Intel
+	  systems and as fallback.
+	  The code is only active when needed (enough memory and limited
+	  device) unless CONFIG_IOMMU_DEBUG or iommu=force is specified
+	  too.
 
-# need this always selected by GART_IOMMU for the VIA workaround
+# need this always selected by IOMMU for the VIA workaround
 config SWIOTLB
 	bool
 
@@ -503,7 +505,7 @@ config REORDER
 
 config K8_NB
 	def_bool y
-	depends on AGP_AMD64 || GART_IOMMU || (PCI && NUMA)
+	depends on AGP_AMD64 || IOMMU || (PCI && NUMA)
 
 endmenu
 

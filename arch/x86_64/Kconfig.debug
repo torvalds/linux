@@ -13,7 +13,7 @@ config DEBUG_RODATA
 	 If in doubt, say "N".
 
 config IOMMU_DEBUG
-       depends on GART_IOMMU && DEBUG_KERNEL
+       depends on IOMMU && DEBUG_KERNEL
        bool "Enable IOMMU debugging"
        help
          Force the IOMMU to on even when you have less than 4GB of

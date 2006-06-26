@@ -266,7 +266,7 @@ __init int iommu_setup(char *p)
 		    swiotlb = 1;
 #endif
 
-#ifdef CONFIG_GART_IOMMU
+#ifdef CONFIG_IOMMU
 	    gart_parse_options(p);
 #endif
 

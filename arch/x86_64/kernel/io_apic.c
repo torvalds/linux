@@ -319,7 +319,7 @@ void __init check_ioapic(void)
 				vendor &= 0xffff;
 				switch (vendor) { 
 				case PCI_VENDOR_ID_VIA:
-#ifdef CONFIG_GART_IOMMU
+#ifdef CONFIG_IOMMU
 					if ((end_pfn > MAX_DMA32_PFN ||
 					     force_iommu) &&
 					    !iommu_aperture_allowed) {

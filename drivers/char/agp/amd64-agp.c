@@ -292,7 +292,7 @@ static int __devinit aperture_valid(u64 aper, u32 size)
 /*
  * W*s centric BIOS sometimes only set up the aperture in the AGP
  * bridge, not the northbridge. On AMD64 this is handled early
- * in aperture.c, but when GART_IOMMU is not enabled or we run
+ * in aperture.c, but when IOMMU is not enabled or we run
  * on a 32bit kernel this needs to be redone.
  * Unfortunately it is impossible to fix the aperture here because it's too late
  * to allocate that much memory. But at least error out cleanly instead of
@@ -775,7 +775,7 @@ static void __exit agp_amd64_cleanup(void)
 
 /* On AMD64 the PCI driver needs to initialize this driver early
    for the IOMMU, so it has to be called via a backdoor. */
-#ifndef CONFIG_GART_IOMMU
+#ifndef CONFIG_IOMMU
 module_init(agp_amd64_init);
 module_exit(agp_amd64_cleanup);
 #endif

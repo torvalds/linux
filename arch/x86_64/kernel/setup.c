@@ -702,7 +702,7 @@ void __init setup_arch(char **cmdline_p)
 
 	e820_setup_gap();
 
-#ifdef CONFIG_GART_IOMMU
+#ifdef CONFIG_IOMMU
 	iommu_hole_init();
 #endif
 
