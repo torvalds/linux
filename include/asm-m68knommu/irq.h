@@ -83,7 +83,7 @@ extern void (*mach_disable_irq)(unsigned int);
 /*
  * Some drivers want these entry points
  */
-#define enable_irq(x)	0
+#define enable_irq(x)	do { } while (0)
 #define disable_irq(x)	do { } while (0)
 #define disable_irq_nosync(x)	disable_irq(x)
 
