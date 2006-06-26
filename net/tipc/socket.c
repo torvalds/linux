@@ -426,7 +426,7 @@ static int dest_name_check(struct sockaddr_tipc *dest, struct msghdr *m)
 
         if (copy_from_user(&hdr, m->msg_iov[0].iov_base, sizeof(hdr)))
 		return -EFAULT;
-	if ((ntohs(hdr.tcm_type) & 0xC000) & (!capable(CAP_NET_ADMIN)))
+	if ((ntohs(hdr.tcm_type) & 0xC000) && (!capable(CAP_NET_ADMIN)))
 		return -EACCES;
         
 	return 0;
