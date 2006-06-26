@@ -97,6 +97,7 @@ obj-$(CONFIG_FB_S3C2410)	  += s3c2410fb.o
 
 # Platform or fallback drivers go here
 obj-$(CONFIG_FB_VESA)             += vesafb.o
+obj-$(CONFIG_FB_IMAC)             += imacfb.o
 obj-$(CONFIG_FB_VGA16)            += vga16fb.o vgastate.o
 obj-$(CONFIG_FB_OF)               += offb.o
 
