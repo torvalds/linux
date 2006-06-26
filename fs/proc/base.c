@@ -1532,6 +1532,7 @@ out:
 
 static int proc_task_readdir(struct file * filp, void * dirent, filldir_t filldir);
 static struct dentry *proc_task_lookup(struct inode *dir, struct dentry * dentry, struct nameidata *nd);
+static int proc_task_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat);
 
 static struct file_operations proc_fd_operations = {
 	.read		= generic_read_dir,
@@ -1552,6 +1553,7 @@ static struct inode_operations proc_fd_inode_operations = {
 
 static struct inode_operations proc_task_inode_operations = {
 	.lookup		= proc_task_lookup,
+	.getattr	= proc_task_getattr,
 };
 
 #ifdef CONFIG_SECURITY
@@ -1658,7 +1660,7 @@ static struct dentry *proc_pident_lookup(struct inode *dir,
 	 */
 	switch(p->type) {
 		case PROC_TGID_TASK:
-			inode->i_nlink = 2 + get_tid_list(2, NULL, dir);
+			inode->i_nlink = 2;
 			inode->i_op = &proc_task_inode_operations;
 			inode->i_fop = &proc_task_operations;
 			break;
@@ -2261,7 +2263,6 @@ static int proc_task_readdir(struct file * filp, void * dirent, filldir_t filldi
 	}
 
 	nr_tids = get_tid_list(pos, tid_array, inode);
-	inode->i_nlink = pos + nr_tids;
 
 	for (i = 0; i < nr_tids; i++) {
 		unsigned long j = PROC_NUMBUF;
@@ -2280,4 +2281,20 @@ static int proc_task_readdir(struct file * filp, void * dirent, filldir_t filldi
 out:
 	filp->f_pos = pos;
 	return retval;
+}
+
+static int proc_task_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat)
+{
+	struct inode *inode = dentry->d_inode;
+	struct task_struct *p = proc_task(inode);
+	generic_fillattr(inode, stat);
+
+	if (pid_alive(p)) {
+		task_lock(p);
+		if (p->signal)
+			stat->nlink += atomic_read(&p->signal->count);
+		task_unlock(p);
+	}
+
+	return 0;
 }
