@@ -1393,20 +1393,22 @@ static void zap_process(struct task_struct *start)
 	unlock_task_sighand(start, &flags);
 }
 
-static void zap_threads(struct mm_struct *mm)
+static inline int zap_threads(struct task_struct *tsk, struct mm_struct *mm,
+				int exit_code)
 {
 	struct task_struct *g, *p;
-	struct task_struct *tsk = current;
-	struct completion *vfork_done = tsk->vfork_done;
+	int err = -EAGAIN;
 
-	/*
-	 * Make sure nobody is waiting for us to release the VM,
-	 * otherwise we can deadlock when we wait on each other
-	 */
-	if (vfork_done) {
-		tsk->vfork_done = NULL;
-		complete(vfork_done);
+	spin_lock_irq(&tsk->sighand->siglock);
+	if (!(tsk->signal->flags & SIGNAL_GROUP_EXIT)) {
+		tsk->signal->flags = SIGNAL_GROUP_EXIT;
+		tsk->signal->group_exit_code = exit_code;
+		tsk->signal->group_stop_count = 0;
+		err = 0;
 	}
+	spin_unlock_irq(&tsk->sighand->siglock);
+	if (err)
+		return err;
 
 	rcu_read_lock();
 	for_each_process(g) {
@@ -1420,22 +1422,43 @@ static void zap_threads(struct mm_struct *mm)
 		} while ((p = next_thread(p)) != g);
 	}
 	rcu_read_unlock();
+
+	return mm->core_waiters;
 }
 
-static void coredump_wait(struct mm_struct *mm)
+static int coredump_wait(int exit_code)
 {
-	DECLARE_COMPLETION(startup_done);
+	struct task_struct *tsk = current;
+	struct mm_struct *mm = tsk->mm;
+	struct completion startup_done;
+	struct completion *vfork_done;
 	int core_waiters;
 
+	init_completion(&mm->core_done);
+	init_completion(&startup_done);
 	mm->core_startup_done = &startup_done;
 
-	zap_threads(mm);
-	core_waiters = mm->core_waiters;
+	core_waiters = zap_threads(tsk, mm, exit_code);
 	up_write(&mm->mmap_sem);
+
+	if (unlikely(core_waiters < 0))
+		goto fail;
+
+	/*
+	 * Make sure nobody is waiting for us to release the VM,
+	 * otherwise we can deadlock when we wait on each other
+	 */
+	vfork_done = tsk->vfork_done;
+	if (vfork_done) {
+		tsk->vfork_done = NULL;
+		complete(vfork_done);
+	}
 
 	if (core_waiters)
 		wait_for_completion(&startup_done);
+fail:
 	BUG_ON(mm->core_waiters);
+	return core_waiters;
 }
 
 int do_coredump(long signr, int exit_code, struct pt_regs * regs)
@@ -1469,22 +1492,9 @@ int do_coredump(long signr, int exit_code, struct pt_regs * regs)
 	}
 	mm->dumpable = 0;
 
-	retval = -EAGAIN;
-	spin_lock_irq(&current->sighand->siglock);
-	if (!(current->signal->flags & SIGNAL_GROUP_EXIT)) {
-		current->signal->flags = SIGNAL_GROUP_EXIT;
-		current->signal->group_exit_code = exit_code;
-		current->signal->group_stop_count = 0;
-		retval = 0;
-	}
-	spin_unlock_irq(&current->sighand->siglock);
-	if (retval) {
-		up_write(&mm->mmap_sem);
+	retval = coredump_wait(exit_code);
+	if (retval < 0)
 		goto fail;
-	}
-
-	init_completion(&mm->core_done);
-	coredump_wait(mm);
 
 	/*
 	 * Clear any false indication of pending signals that might
