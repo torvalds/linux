@@ -318,7 +318,7 @@ static inline struct sk_buff *buf_acquire(u32 size)
  * buf_discard - frees a TIPC message buffer
  * @skb: message buffer
  *
- * Frees a new buffer.  If passed NULL, just returns.
+ * Frees a message buffer.  If passed NULL, just returns.
  */
 
 static inline void buf_discard(struct sk_buff *skb)
