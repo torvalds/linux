@@ -102,7 +102,7 @@ EXPORT_SYMBOL(tb_ticks_per_sec);	/* for cputime_t conversions */
 u64 tb_to_xs;
 unsigned tb_to_us;
 
-#define TICKLEN_SCALE	(SHIFT_SCALE - 10)
+#define TICKLEN_SCALE	TICK_LENGTH_SHIFT
 u64 last_tick_len;	/* units are ns / 2^TICKLEN_SCALE */
 u64 ticklen_to_xs;	/* 0.64 fraction */
 
@@ -534,7 +534,7 @@ static __inline__ void timer_recalc_offset(u64 cur_tb)
 
 	if (__USE_RTC())
 		return;
-	tlen = current_tick_length(SHIFT_SCALE - 10);
+	tlen = current_tick_length();
 	offset = cur_tb - do_gtod.varp->tb_orig_stamp;
 	if (tlen == last_tick_len && offset < 0x80000000u)
 		return;
