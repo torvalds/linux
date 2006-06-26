@@ -43,6 +43,7 @@
 
 #define OMAP_DMA_ACTIVE		0x01
 #define OMAP_DMA_CCR_EN		(1 << 7)
+#define OMAP2_DMA_CSR_CLEAR_MASK	0xffe
 
 #define OMAP_FUNC_MUX_ARM_BASE	(0xfffe1000 + 0xec)
 
@@ -409,8 +410,11 @@ static inline void omap_enable_channel_irq(int lch)
 {
 	u32 status;
 
-	/* Read CSR to make sure it's cleared. */
-	status = OMAP_DMA_CSR_REG(lch);
+	/* Clear CSR */
+	if (cpu_class_is_omap1())
+		status = OMAP_DMA_CSR_REG(lch);
+	else if (cpu_is_omap24xx())
+		OMAP_DMA_CSR_REG(lch) = OMAP2_DMA_CSR_CLEAR_MASK;
 
 	/* Enable some nice interrupts. */
 	OMAP_DMA_CICR_REG(lch) = dma_chan[lch].enabled_irqs;
@@ -509,11 +513,13 @@ int omap_request_dma(int dev_id, const char *dev_name,
 	chan->dev_name = dev_name;
 	chan->callback = callback;
 	chan->data = data;
-	chan->enabled_irqs = OMAP_DMA_TOUT_IRQ | OMAP_DMA_DROP_IRQ |
-				OMAP_DMA_BLOCK_IRQ;
+	chan->enabled_irqs = OMAP_DMA_DROP_IRQ | OMAP_DMA_BLOCK_IRQ;
 
-	if (cpu_is_omap24xx())
-		chan->enabled_irqs |= OMAP2_DMA_TRANS_ERR_IRQ;
+	if (cpu_class_is_omap1())
+		chan->enabled_irqs |= OMAP1_DMA_TOUT_IRQ;
+	else if (cpu_is_omap24xx())
+		chan->enabled_irqs |= OMAP2_DMA_MISALIGNED_ERR_IRQ |
+			OMAP2_DMA_TRANS_ERR_IRQ;
 
 	if (cpu_is_omap16xx()) {
 		/* If the sync device is set, configure it dynamically. */
@@ -533,7 +539,7 @@ int omap_request_dma(int dev_id, const char *dev_name,
 
 		omap_enable_channel_irq(free_ch);
 		/* Clear the CSR register and IRQ status register */
-		OMAP_DMA_CSR_REG(free_ch) = 0x0;
+		OMAP_DMA_CSR_REG(free_ch) = OMAP2_DMA_CSR_CLEAR_MASK;
 		omap_writel(~0x0, OMAP_DMA4_IRQSTATUS_L0);
 	}
 
@@ -573,7 +579,7 @@ void omap_free_dma(int lch)
 		omap_writel(val, OMAP_DMA4_IRQENABLE_L0);
 
 		/* Clear the CSR register and IRQ status register */
-		OMAP_DMA_CSR_REG(lch) = 0x0;
+		OMAP_DMA_CSR_REG(lch) = OMAP2_DMA_CSR_CLEAR_MASK;
 
 		val = omap_readl(OMAP_DMA4_IRQSTATUS_L0);
 		val |= 1 << lch;
@@ -837,7 +843,7 @@ static int omap1_dma_handle_ch(int ch)
 		       "%d (CSR %04x)\n", ch, csr);
 		return 0;
 	}
-	if (unlikely(csr & OMAP_DMA_TOUT_IRQ))
+	if (unlikely(csr & OMAP1_DMA_TOUT_IRQ))
 		printk(KERN_WARNING "DMA timeout with device %d\n",
 		       dma_chan[ch].dev_id);
 	if (unlikely(csr & OMAP_DMA_DROP_IRQ))
@@ -885,20 +891,21 @@ static int omap2_dma_handle_ch(int ch)
 		return 0;
 	if (unlikely(dma_chan[ch].dev_id == -1))
 		return 0;
-	/* REVISIT: According to 24xx TRM, there's no TOUT_IE */
-	if (unlikely(status & OMAP_DMA_TOUT_IRQ))
-		printk(KERN_INFO "DMA timeout with device %d\n",
-		       dma_chan[ch].dev_id);
 	if (unlikely(status & OMAP_DMA_DROP_IRQ))
 		printk(KERN_INFO
 		       "DMA synchronization event drop occurred with device "
 		       "%d\n", dma_chan[ch].dev_id);
-
 	if (unlikely(status & OMAP2_DMA_TRANS_ERR_IRQ))
 		printk(KERN_INFO "DMA transaction error with device %d\n",
 		       dma_chan[ch].dev_id);
+	if (unlikely(status & OMAP2_DMA_SECURE_ERR_IRQ))
+		printk(KERN_INFO "DMA secure error with device %d\n",
+		       dma_chan[ch].dev_id);
+	if (unlikely(status & OMAP2_DMA_MISALIGNED_ERR_IRQ))
+		printk(KERN_INFO "DMA misaligned error with device %d\n",
+		       dma_chan[ch].dev_id);
 
-	OMAP_DMA_CSR_REG(ch) = 0x20;
+	OMAP_DMA_CSR_REG(ch) = OMAP2_DMA_CSR_CLEAR_MASK;
 
 	val = omap_readl(OMAP_DMA4_IRQSTATUS_L0);
 	/* ch in this function is from 0-31 while in register it is 1-32 */
