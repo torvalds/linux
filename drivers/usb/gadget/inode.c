@@ -1696,16 +1696,17 @@ gadgetfs_disconnect (struct usb_gadget *gadget)
 {
 	struct dev_data		*dev = get_gadget_data (gadget);
 
+	spin_lock (&dev->lock);
 	if (dev->state == STATE_UNCONNECTED) {
 		DBG (dev, "already unconnected\n");
-		return;
+		goto exit;
 	}
 	dev->state = STATE_UNCONNECTED;
 
 	INFO (dev, "disconnected\n");
-	spin_lock (&dev->lock);
 	next_event (dev, GADGETFS_DISCONNECT);
 	ep0_readable (dev);
+exit:
 	spin_unlock (&dev->lock);
 }
 
