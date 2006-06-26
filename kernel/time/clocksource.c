@@ -56,7 +56,7 @@ static int finished_booting;
  *
  * Hack to avoid lots of clocksource churn at boot time
  */
-static int clocksource_done_booting(void)
+static int __init clocksource_done_booting(void)
 {
 	finished_booting = 1;
 	return 0;
@@ -289,7 +289,7 @@ static struct sys_device device_clocksource = {
 	.cls	= &clocksource_sysclass,
 };
 
-static int init_clocksource_sysfs(void)
+static int __init init_clocksource_sysfs(void)
 {
 	int error = sysdev_class_register(&clocksource_sysclass);
 

@@ -77,6 +77,8 @@ extern struct timespec xtime;
 extern struct timespec wall_to_monotonic;
 extern seqlock_t xtime_lock;
 
+void timekeeping_init(void);
+
 static inline unsigned long get_seconds(void)
 {
 	return xtime.tv_sec;
