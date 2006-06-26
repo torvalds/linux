@@ -284,18 +284,18 @@ static struct publication *tipc_nameseq_insert_publ(struct name_seq *nseq,
 		/* Ensure there is space for new sub-sequence */
 
 		if (nseq->first_free == nseq->alloc) {
-			struct sub_seq *sseqs = nseq->sseqs;
-			nseq->sseqs = tipc_subseq_alloc(nseq->alloc * 2);
-			if (nseq->sseqs != NULL) {
-				memcpy(nseq->sseqs, sseqs,
-				       nseq->alloc * sizeof (struct sub_seq));
-				kfree(sseqs);
-				dbg("Allocated %u sseqs\n", nseq->alloc);
-				nseq->alloc *= 2;
-			} else {
+			struct sub_seq *sseqs = tipc_subseq_alloc(nseq->alloc * 2);
+
+			if (!sseqs) {
 				warn("Memory squeeze; failed to create sub-sequence\n");
 				return NULL;
 			}
+			dbg("Allocated %u more sseqs\n", nseq->alloc);
+			memcpy(sseqs, nseq->sseqs,
+			       nseq->alloc * sizeof(struct sub_seq));
+			kfree(nseq->sseqs);
+			nseq->sseqs = sseqs;
+			nseq->alloc *= 2;
 		}
 		dbg("Have %u sseqs for type %u\n", nseq->alloc, type);
 
