@@ -242,6 +242,8 @@ static void __init init_amd(struct cpuinfo_x86 *c)
 	}
 #endif
 
+	if (cpuid_eax(0x80000000) >= 0x80000006)
+		num_cache_leaves = 3;
 }
 
 static unsigned int amd_size_cache(struct cpuinfo_x86 * c, unsigned int size)

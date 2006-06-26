@@ -976,6 +976,9 @@ static int __init init_amd(struct cpuinfo_x86 *c)
 	if (c->extended_cpuid_level >= 0x80000008)
 		amd_detect_cmp(c);
 
+	/* Fix cpuid4 emulation for more */
+	num_cache_leaves = 3;
+
 	return r;
 }
 
