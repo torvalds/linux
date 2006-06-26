@@ -557,6 +557,11 @@ valid_p:
 
 static struct notifier_block kprobe_exceptions_nb = {
 	.notifier_call = kprobe_exceptions_notify,
+	.priority = 0x7fffffff /* we need to be notified first */
+};
+
+static struct notifier_block kprobe_page_fault_nb = {
+	.notifier_call = kprobe_exceptions_notify,
 	.priority = 0x7fffffff /* we need to notified first */
 };
 
@@ -672,6 +677,9 @@ static int __init init_kprobes(void)
 	err = arch_init_kprobes();
 	if (!err)
 		err = register_die_notifier(&kprobe_exceptions_nb);
+
+	if (!err)
+		err = register_page_fault_notifier(&kprobe_page_fault_nb);
 
 	return err;
 }
