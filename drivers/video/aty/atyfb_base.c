@@ -2402,12 +2402,15 @@ static int __init aty_init(struct fb_info *info, const char *name)
 			break;
 		}
 		switch (clk_type) {
+#ifdef CONFIG_ATARI
 		case CLK_ATI18818_1:
 			par->pll_ops = &aty_pll_ati18818_1;
 			break;
+#else
 		case CLK_IBMRGB514:
 			par->pll_ops = &aty_pll_ibm514;
 			break;
+#endif
 #if 0 /* dead code */
 		case CLK_STG1703:
 			par->pll_ops = &aty_pll_stg1703;
