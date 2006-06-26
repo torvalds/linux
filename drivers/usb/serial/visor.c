@@ -302,7 +302,6 @@ static int visor_open (struct usb_serial_port *port, struct file *filp)
 	spin_lock_irqsave(&priv->lock, flags);
 	priv->bytes_in = 0;
 	priv->bytes_out = 0;
-	priv->outstanding_urbs = 0;
 	priv->throttled = 0;
 	spin_unlock_irqrestore(&priv->lock, flags);
 
