@@ -432,10 +432,10 @@ static void saa6752hs_old_set_params(struct i2c_client* client,
 }
 
 static int handle_ctrl(struct saa6752hs_mpeg_params *params,
-		struct v4l2_ext_control *ctrl, int cmd)
+		struct v4l2_ext_control *ctrl, unsigned int cmd)
 {
 	int old = 0, new;
-	int set = cmd == VIDIOC_S_EXT_CTRLS;
+	int set = (cmd == VIDIOC_S_EXT_CTRLS);
 
 	new = ctrl->value;
 	switch (ctrl->id) {

@@ -601,7 +601,7 @@ static void cx2341x_calc_audio_properties(struct cx2341x_mpeg_params *params)
 }
 
 int cx2341x_ext_ctrls(struct cx2341x_mpeg_params *params,
-		  struct v4l2_ext_controls *ctrls, int cmd)
+		  struct v4l2_ext_controls *ctrls, unsigned int cmd)
 {
 	int err = 0;
 	int i;
