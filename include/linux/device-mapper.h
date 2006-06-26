@@ -227,5 +227,11 @@ void dm_table_event(struct dm_table *t);
  */
 int dm_swap_table(struct mapped_device *md, struct dm_table *t);
 
+/*
+ * Prepare a table for a device that will error all I/O.
+ * To make it active, call dm_suspend(), dm_swap_table() then dm_resume().
+ */
+int dm_create_error_table(struct dm_table **result, struct mapped_device *md);
+
 #endif	/* __KERNEL__ */
 #endif	/* _LINUX_DEVICE_MAPPER_H */
