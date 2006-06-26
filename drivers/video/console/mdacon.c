@@ -308,7 +308,7 @@ static void __init mda_initialize(void)
 	outb_p(0x00, mda_gfx_port);
 }
 
-static const char __init *mdacon_startup(void)
+static const char *mdacon_startup(void)
 {
 	mda_num_columns = 80;
 	mda_num_lines   = 25;
