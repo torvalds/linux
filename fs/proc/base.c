@@ -1167,7 +1167,6 @@ static int proc_pid_readlink(struct dentry * dentry, char __user * buffer, int b
 	struct dentry *de;
 	struct vfsmount *mnt = NULL;
 
-	lock_kernel();
 
 	if (current->fsuid != inode->i_uid && !capable(CAP_DAC_OVERRIDE))
 		goto out;
@@ -1183,7 +1182,6 @@ static int proc_pid_readlink(struct dentry * dentry, char __user * buffer, int b
 	dput(de);
 	mntput(mnt);
 out:
-	unlock_kernel();
 	return error;
 }
 
