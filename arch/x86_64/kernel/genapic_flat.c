@@ -108,10 +108,7 @@ static unsigned int flat_cpu_mask_to_apicid(cpumask_t cpumask)
 
 static unsigned int phys_pkg_id(int index_msb)
 {
-	u32 ebx;
-
-	ebx = cpuid_ebx(1);
-	return ((ebx >> 24) & 0xFF) >> index_msb;
+	return hard_smp_processor_id() >> index_msb;
 }
 
 struct genapic apic_flat =  {
