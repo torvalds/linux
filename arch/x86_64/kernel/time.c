@@ -795,8 +795,8 @@ static int hpet_timer_stop_set_go(unsigned long tick)
 	if (hpet_use_timer) {
 		hpet_writel(HPET_TN_ENABLE | HPET_TN_PERIODIC | HPET_TN_SETVAL |
 		    HPET_TN_32BIT, HPET_T0_CFG);
-		hpet_writel(hpet_tick, HPET_T0_CMP);
-		hpet_writel(hpet_tick, HPET_T0_CMP); /* AK: why twice? */
+		hpet_writel(hpet_tick, HPET_T0_CMP); /* next interrupt */
+		hpet_writel(hpet_tick, HPET_T0_CMP); /* period */
 		cfg |= HPET_CFG_LEGACY;
 	}
 /*
