@@ -741,7 +741,7 @@ ep_config (struct file *fd, const char __user *buf, size_t len, loff_t *ptr)
 	struct ep_data		*data = fd->private_data;
 	struct usb_ep		*ep;
 	u32			tag;
-	int			value;
+	int			value, length = len;
 
 	if ((value = down_interruptible (&data->lock)) < 0)
 		return value;
@@ -792,7 +792,6 @@ ep_config (struct file *fd, const char __user *buf, size_t len, loff_t *ptr)
 			goto fail0;
 		}
 	}
-	value = len;
 
 	spin_lock_irq (&data->dev->lock);
 	if (data->dev->state == STATE_DEV_UNBOUND) {
@@ -822,8 +821,10 @@ ep_config (struct file *fd, const char __user *buf, size_t len, loff_t *ptr)
 				data->name);
 		data->state = STATE_EP_DEFER_ENABLE;
 	}
-	if (value == 0)
+	if (value == 0) {
 		fd->f_op = &ep_io_operations;
+		value = length;
+	}
 gone:
 	spin_unlock_irq (&data->dev->lock);
 	if (value < 0) {
