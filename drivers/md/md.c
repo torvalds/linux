@@ -817,8 +817,8 @@ static int super_90_validate(mddev_t *mddev, mdk_rdev_t *rdev)
 
 		if (desc->state & (1<<MD_DISK_FAULTY))
 			set_bit(Faulty, &rdev->flags);
-		else if (desc->state & (1<<MD_DISK_SYNC) &&
-			 desc->raid_disk < mddev->raid_disks) {
+		else if (desc->state & (1<<MD_DISK_SYNC) /* &&
+			    desc->raid_disk < mddev->raid_disks */) {
 			set_bit(In_sync, &rdev->flags);
 			rdev->raid_disk = desc->raid_disk;
 		}
@@ -3359,6 +3359,17 @@ static int add_new_disk(mddev_t * mddev, mdu_disk_info_t *info)
 
 		rdev->raid_disk = -1;
 		err = bind_rdev_to_array(rdev, mddev);
+		if (!err && !mddev->pers->hot_remove_disk) {
+			/* If there is hot_add_disk but no hot_remove_disk
+			 * then added disks for geometry changes,
+			 * and should be added immediately.
+			 */
+			super_types[mddev->major_version].
+				validate_super(mddev, rdev);
+			err = mddev->pers->hot_add_disk(mddev, rdev);
+			if (err)
+				unbind_rdev_from_array(rdev);
+		}
 		if (err)
 			export_rdev(rdev);
 
