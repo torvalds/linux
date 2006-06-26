@@ -2040,34 +2040,32 @@ out:
  * In the case of a seek we start with &init_task and walk nr
  * threads past it.
  */
-static struct task_struct *first_tgid(int tgid, int nr)
+static struct task_struct *first_tgid(int tgid, unsigned int nr)
 {
-	struct task_struct *pos = NULL;
+	struct task_struct *pos;
 	rcu_read_lock();
 	if (tgid && nr) {
 		pos = find_task_by_pid(tgid);
-		if (pos && !thread_group_leader(pos))
-			pos = NULL;
-		if (pos)
-			nr = 0;
+		if (pos && thread_group_leader(pos))
+			goto found;
 	}
 	/* If nr exceeds the number of processes get out quickly */
+	pos = NULL;
 	if (nr && nr >= nr_processes())
 		goto done;
 
 	/* If we haven't found our starting place yet start with
 	 * the init_task and walk nr tasks forward.
 	 */
-	if (!pos && (nr >= 0))
-		pos = next_task(&init_task);
-
-	for (; pos && pid_alive(pos); pos = next_task(pos)) {
-		if (--nr > 0)
-			continue;
-		get_task_struct(pos);
-		goto done;
+	for (pos = next_task(&init_task); nr > 0; --nr) {
+		pos = next_task(pos);
+		if (pos == &init_task) {
+			pos = NULL;
+			goto done;
+		}
 	}
-	pos = NULL;
+found:
+	get_task_struct(pos);
 done:
 	rcu_read_unlock();
 	return pos;
