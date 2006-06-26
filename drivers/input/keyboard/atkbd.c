@@ -150,7 +150,7 @@ static unsigned char atkbd_unxlate_table[128] = {
 #define ATKBD_RET_EMUL0		0xe0
 #define ATKBD_RET_EMUL1		0xe1
 #define ATKBD_RET_RELEASE	0xf0
-#define ATKBD_RET_HANGUEL	0xf1
+#define ATKBD_RET_HANGEUL	0xf1
 #define ATKBD_RET_HANJA		0xf2
 #define ATKBD_RET_ERR		0xff
 
@@ -304,7 +304,7 @@ static irqreturn_t atkbd_interrupt(struct serio *serio, unsigned char data,
 
 		if (atkbd->emul ||
 		    (code != ATKBD_RET_EMUL0 && code != ATKBD_RET_EMUL1 &&
-		     code != ATKBD_RET_HANGUEL && code != ATKBD_RET_HANJA &&
+		     code != ATKBD_RET_HANGEUL && code != ATKBD_RET_HANJA &&
 		     (code != ATKBD_RET_ERR || atkbd->err_xl) &&
 	             (code != ATKBD_RET_BAT || atkbd->bat_xl))) {
 			atkbd->release = code >> 7;
@@ -333,8 +333,8 @@ static irqreturn_t atkbd_interrupt(struct serio *serio, unsigned char data,
 		case ATKBD_RET_RELEASE:
 			atkbd->release = 1;
 			goto out;
-		case ATKBD_RET_HANGUEL:
-			atkbd_report_key(atkbd->dev, regs, KEY_HANGUEL, 3);
+		case ATKBD_RET_HANGEUL:
+			atkbd_report_key(atkbd->dev, regs, KEY_HANGEUL, 3);
 			goto out;
 		case ATKBD_RET_HANJA:
 			atkbd_report_key(atkbd->dev, regs, KEY_HANJA, 3);

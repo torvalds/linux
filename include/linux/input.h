@@ -232,7 +232,8 @@ struct input_absinfo {
 #define KEY_PAUSE		119
 
 #define KEY_KPCOMMA		121
-#define KEY_HANGUEL		122
+#define KEY_HANGEUL		122
+#define KEY_HANGUEL		KEY_HANGEUL
 #define KEY_HANJA		123
 #define KEY_YEN			124
 #define KEY_LEFTMETA		125
