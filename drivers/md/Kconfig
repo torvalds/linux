@@ -90,7 +90,7 @@ config MD_RAID10
 	depends on BLK_DEV_MD && EXPERIMENTAL
 	---help---
 	  RAID-10 provides a combination of striping (RAID-0) and
-	  mirroring (RAID-1) with easier configuration and more flexable
+	  mirroring (RAID-1) with easier configuration and more flexible
 	  layout.
 	  Unlike RAID-0, but like RAID-1, RAID-10 requires all devices to
 	  be the same size (or at least, only as much as the smallest device
@@ -147,7 +147,7 @@ config MD_RAID5_RESHAPE
 	  is online.  However it is still EXPERIMENTAL code.  It should
 	  work, but please be sure that you have backups.
 
-	  You will need mdadm verion 2.4.1 or later to use this
+	  You will need mdadm version 2.4.1 or later to use this
 	  feature safely.  During the early stage of reshape there is
 	  a critical section where live data is being over-written.  A
 	  crash during this time needs extra care for recovery.  The
@@ -221,7 +221,7 @@ config DM_SNAPSHOT
        tristate "Snapshot target (EXPERIMENTAL)"
        depends on BLK_DEV_DM && EXPERIMENTAL
        ---help---
-         Allow volume managers to take writeable snapshots of a device.
+         Allow volume managers to take writable snapshots of a device.
 
 config DM_MIRROR
        tristate "Mirror target (EXPERIMENTAL)"
