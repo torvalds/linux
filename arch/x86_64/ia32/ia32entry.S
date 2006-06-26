@@ -323,10 +323,6 @@ ia32_badsys:
 	movq $-ENOSYS,RAX-ARGOFFSET(%rsp)
 	jmp int_ret_from_sys_call
 
-ni_syscall:
-	movq %rax,%rdi
-	jmp  sys32_ni_syscall			
-
 quiet_ni_syscall:
 	movq $-ENOSYS,%rax
 	ret

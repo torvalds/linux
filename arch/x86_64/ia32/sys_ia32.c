@@ -508,19 +508,6 @@ sys32_waitpid(compat_pid_t pid, unsigned int *stat_addr, int options)
 	return compat_sys_wait4(pid, stat_addr, options, NULL);
 }
 
-int sys32_ni_syscall(int call)
-{ 
-	struct task_struct *me = current;
-	static char lastcomm[sizeof(me->comm)];
-
-	if (strncmp(lastcomm, me->comm, sizeof(lastcomm))) {
-		compat_printk(KERN_INFO "IA32 syscall %d from %s not implemented\n",
-		       call, me->comm);
-		strncpy(lastcomm, me->comm, sizeof(lastcomm));
-	} 
-	return -ENOSYS;	       
-} 
-
 /* 32-bit timeval and related flotsam.  */
 
 asmlinkage long
