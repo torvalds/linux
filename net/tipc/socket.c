@@ -744,10 +744,10 @@ static int anc_data_recv(struct msghdr *m, struct tipc_msg *msg,
 	if (unlikely(err)) {
 		anc_data[0] = err;
 		anc_data[1] = msg_data_sz(msg);
-		if ((res = put_cmsg(m, SOL_SOCKET, TIPC_ERRINFO, 8, anc_data)))
+		if ((res = put_cmsg(m, SOL_TIPC, TIPC_ERRINFO, 8, anc_data)))
 			return res;
 		if (anc_data[1] &&
-		    (res = put_cmsg(m, SOL_SOCKET, TIPC_RETDATA, anc_data[1], 
+		    (res = put_cmsg(m, SOL_TIPC, TIPC_RETDATA, anc_data[1], 
 				    msg_data(msg))))
 			return res;
 	}
@@ -778,7 +778,7 @@ static int anc_data_recv(struct msghdr *m, struct tipc_msg *msg,
 		has_name = 0;
 	}
 	if (has_name &&
-	    (res = put_cmsg(m, SOL_SOCKET, TIPC_DESTNAME, 12, anc_data)))
+	    (res = put_cmsg(m, SOL_TIPC, TIPC_DESTNAME, 12, anc_data)))
 		return res;
 
 	return 0;
