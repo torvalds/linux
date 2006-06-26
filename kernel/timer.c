@@ -780,16 +780,29 @@ static void update_wall_time_one_tick(void)
  * Return how long ticks are at the moment, that is, how much time
  * update_wall_time_one_tick will add to xtime next time we call it
  * (assuming no calls to do_adjtimex in the meantime).
- * The return value is in fixed-point nanoseconds with SHIFT_SCALE-10
- * bits to the right of the binary point.
+ * The return value is in fixed-point nanoseconds shifted by the
+ * specified number of bits to the right of the binary point.
  * This function has no side-effects.
  */
-u64 current_tick_length(void)
+u64 current_tick_length(long shift)
 {
 	long delta_nsec;
+	u64 ret;
 
+	/* calculate the finest interval NTP will allow.
+	 *    ie: nanosecond value shifted by (SHIFT_SCALE - 10)
+	 */
 	delta_nsec = tick_nsec + adjtime_adjustment() * 1000;
-	return ((u64) delta_nsec << (SHIFT_SCALE - 10)) + time_adj;
+	ret = ((u64) delta_nsec << (SHIFT_SCALE - 10)) + time_adj;
+
+	/* convert from (SHIFT_SCALE - 10) to specified shift scale: */
+	shift = shift - (SHIFT_SCALE - 10);
+	if (shift < 0)
+		ret >>= -shift;
+	else
+		ret <<= shift;
+
+	return ret;
 }
 
 /* XXX - all of this timekeeping code should be later moved to time.c */

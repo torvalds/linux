@@ -534,7 +534,7 @@ static __inline__ void timer_recalc_offset(u64 cur_tb)
 
 	if (__USE_RTC())
 		return;
-	tlen = current_tick_length();
+	tlen = current_tick_length(SHIFT_SCALE - 10);
 	offset = cur_tb - do_gtod.varp->tb_orig_stamp;
 	if (tlen == last_tick_len && offset < 0x80000000u)
 		return;
