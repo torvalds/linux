@@ -1050,13 +1050,23 @@ config SCx200
 	tristate "NatSemi SCx200 support"
 	depends on !X86_VOYAGER
 	help
-	  This provides basic support for the National Semiconductor SCx200
-	  processor.  Right now this is just a driver for the GPIO pins.
+	  This provides basic support for National Semiconductor's
+	  (now AMD's) Geode processors.  The driver probes for the
+	  PCI-IDs of several on-chip devices, so its a good dependency
+	  for other scx200_* drivers.
 
-	  If you don't know what to do here, say N.
+	  If compiled as a module, the driver is named scx200.
 
-	  This support is also available as a module.  If compiled as a
-	  module, it will be called scx200.
+config SCx200HR_TIMER
+	tristate "NatSemi SCx200 27MHz High-Resolution Timer Support"
+	depends on SCx200 && GENERIC_TIME
+	default y
+	help
+	  This driver provides a clocksource built upon the on-chip
+	  27MHz high-resolution timer.  Its also a workaround for
+	  NSC Geode SC-1100's buggy TSC, which loses time when the
+	  processor goes idle (as is done by the scheduler).  The
+	  other workaround is idle=poll boot option.
 
 source "drivers/pcmcia/Kconfig"
 
