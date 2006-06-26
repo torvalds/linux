@@ -1737,6 +1737,10 @@ state_show(mdk_rdev_t *rdev, char *page)
 		len += sprintf(page+len, "%sin_sync",sep);
 		sep = ",";
 	}
+	if (test_bit(WriteMostly, &rdev->flags)) {
+		len += sprintf(page+len, "%swrite_mostly",sep);
+		sep = ",";
+	}
 	if (!test_bit(Faulty, &rdev->flags) &&
 	    !test_bit(In_sync, &rdev->flags)) {
 		len += sprintf(page+len, "%sspare", sep);
@@ -1751,6 +1755,8 @@ state_store(mdk_rdev_t *rdev, const char *buf, size_t len)
 	/* can write
 	 *  faulty  - simulates and error
 	 *  remove  - disconnects the device
+	 *  writemostly - sets write_mostly
+	 *  -writemostly - clears write_mostly
 	 */
 	int err = -EINVAL;
 	if (cmd_match(buf, "faulty") && rdev->mddev->pers) {
@@ -1766,6 +1772,12 @@ state_store(mdk_rdev_t *rdev, const char *buf, size_t len)
 			md_new_event(mddev);
 			err = 0;
 		}
+	} else if (cmd_match(buf, "writemostly")) {
+		set_bit(WriteMostly, &rdev->flags);
+		err = 0;
+	} else if (cmd_match(buf, "-writemostly")) {
+		clear_bit(WriteMostly, &rdev->flags);
+		err = 0;
 	}
 	return err ? err : len;
 }
