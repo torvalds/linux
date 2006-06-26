@@ -532,42 +532,34 @@ static int proc_oom_score(struct task_struct *task, char *buffer)
 /************************************************************************/
 
 /* permission checks */
-
-/* If the process being read is separated by chroot from the reading process,
- * don't let the reader access the threads.
- */
-static int proc_check_chroot(struct dentry *de, struct vfsmount *mnt)
+static int proc_fd_access_allowed(struct inode *inode)
 {
-	struct dentry *base;
-	struct vfsmount *our_vfsmnt;
-	int res = 0;
+	struct task_struct *task;
+	int allowed = 0;
+	/* Allow access to a task's file descriptors if either we may
+	 * use ptrace attach to the process and find out that
+	 * information, or if the task cannot possibly be ptraced
+	 * allow access if we have the proper capability.
+	 */
+	task = get_proc_task(inode);
+	if (task == current)
+		allowed = 1;
+	if (task && !allowed) {
+		int alive;
 
-	read_lock(&current->fs->lock);
-	our_vfsmnt = mntget(current->fs->rootmnt);
-	base = dget(current->fs->root);
-	read_unlock(&current->fs->lock);
-
-	spin_lock(&vfsmount_lock);
-
-	while (mnt != our_vfsmnt) {
-		if (mnt == mnt->mnt_parent)
-			goto out;
-		de = mnt->mnt_mountpoint;
-		mnt = mnt->mnt_parent;
+		task_lock(task);
+		alive = !!task->mm;
+		task_unlock(task);
+		if (alive)
+			/* For a living task obey ptrace_may_attach */
+			allowed = ptrace_may_attach(task);
+		else
+			/* For a special task simply check the capability */
+			allowed = capable(CAP_SYS_PTRACE);
 	}
-
-	if (!is_subdir(de, base))
-		goto out;
-	spin_unlock(&vfsmount_lock);
-
-exit:
-	dput(base);
-	mntput(our_vfsmnt);
-	return res;
-out:
-	spin_unlock(&vfsmount_lock);
-	res = -EACCES;
-	goto exit;
+	if (task)
+		put_task_struct(task);
+	return allowed;
 }
 
 extern struct seq_operations mounts_op;
@@ -1062,52 +1054,6 @@ static struct file_operations proc_seccomp_operations = {
 };
 #endif /* CONFIG_SECCOMP */
 
-static int proc_check_dentry_visible(struct inode *inode,
-	struct dentry *dentry, struct vfsmount *mnt)
-{
-	/* Verify that the current process can already see the
-	 * file pointed at by the file descriptor.
-	 * This prevents /proc from being an accidental information leak.
-	 *
-	 * This prevents access to files that are not visible do to
-	 * being on the otherside of a chroot, in a different
-	 * namespace, or are simply process local (like pipes).
-	 */
-	struct task_struct *task;
-	int error = -EACCES;
-
-	/* See if the the two tasks share a commone set of
-	 * file descriptors.  If so everything is visible.
-	 */
-	rcu_read_lock();
-	task = tref_task(proc_tref(inode));
-	if (task) {
-		struct files_struct *task_files, *files;
-		/* This test answeres the question:
-		 * Is there a point in time since we looked up the
-		 * file descriptor where the two tasks share the
-		 * same files struct?
-		 */
-		rmb();
-		files = current->files;
-		task_files = task->files;
-		if (files && (files == task_files))
-			error = 0;
-	}
-	rcu_read_unlock();
-	if (!error)
-		goto out;
-
-	/* If the two tasks don't share a common set of file
-	 * descriptors see if the destination dentry is already
-	 * visible in the current tasks filesystem namespace.
-	 */
-	error = proc_check_chroot(dentry, mnt);
-out:
-	return error;
-
-}
-
 static void *proc_pid_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
 	struct inode *inode = dentry->d_inode;
@@ -1116,18 +1062,12 @@ static void *proc_pid_follow_link(struct dentry *dentry, struct nameidata *nd)
 	/* We don't need a base pointer in the /proc filesystem */
 	path_release(nd);
 
-	if (current->fsuid != inode->i_uid && !capable(CAP_DAC_OVERRIDE))
+	/* Are we allowed to snoop on the tasks file descriptors? */
+	if (!proc_fd_access_allowed(inode))
 		goto out;
 
 	error = PROC_I(inode)->op.proc_get_link(inode, &nd->dentry, &nd->mnt);
 	nd->last_type = LAST_BIND;
-	if (error)
-		goto out;
-
-	/* Only return files this task can already see */
-	error = proc_check_dentry_visible(inode, nd->dentry, nd->mnt);
-	if (error)
-		path_release(nd);
 out:
 	return ERR_PTR(error);
 }
@@ -1165,21 +1105,15 @@ static int proc_pid_readlink(struct dentry * dentry, char __user * buffer, int b
 	struct dentry *de;
 	struct vfsmount *mnt = NULL;
 
-
-	if (current->fsuid != inode->i_uid && !capable(CAP_DAC_OVERRIDE))
+	/* Are we allowed to snoop on the tasks file descriptors? */
+	if (!proc_fd_access_allowed(inode))
 		goto out;
 
 	error = PROC_I(inode)->op.proc_get_link(inode, &de, &mnt);
 	if (error)
 		goto out;
 
-	/* Only return files this task can already see */
-	error = proc_check_dentry_visible(inode, de, mnt);
-	if (error)
-		goto out_put;
-
 	error = do_proc_readlink(de, mnt, buffer, buflen);
-out_put:
 	dput(de);
 	mntput(mnt);
 out:
