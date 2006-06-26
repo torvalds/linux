@@ -2379,7 +2379,6 @@ err_release_pci0:
 err_release_fb:
         framebuffer_release(info);
 err_disable:
-	pci_disable_device(pdev);
 err_out:
 	return ret;
 }
@@ -2436,7 +2435,6 @@ static void __devexit radeonfb_pci_unregister (struct pci_dev *pdev)
 #endif        
 	fb_dealloc_cmap(&info->cmap);
         framebuffer_release(info);
-	pci_disable_device(pdev);
 }
 
 

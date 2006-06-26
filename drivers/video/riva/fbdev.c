@@ -2152,7 +2152,6 @@ err_iounmap_ctrl_base:
 err_release_region:
 	pci_release_regions(pd);
 err_disable_device:
-	pci_disable_device(pd);
 err_free_pixmap:
 	kfree(info->pixmap.addr);
 err_framebuffer_release:
@@ -2187,7 +2186,6 @@ static void __exit rivafb_remove(struct pci_dev *pd)
 	if (par->riva.Architecture == NV_ARCH_03)
 		iounmap(par->riva.PRAMIN);
 	pci_release_regions(pd);
-	pci_disable_device(pd);
 	kfree(info->pixmap.addr);
 	framebuffer_release(info);
 	pci_set_drvdata(pd, NULL);

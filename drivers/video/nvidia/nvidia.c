@@ -1219,7 +1219,7 @@ static int __devinit nvidiafb_probe(struct pci_dev *pd,
 
 	if (pci_request_regions(pd, "nvidiafb")) {
 		printk(KERN_ERR PFX "cannot request PCI regions\n");
-		goto err_out_request;
+		goto err_out_enable;
 	}
 
 	par->FlatPanel = flatpanel;
@@ -1338,10 +1338,8 @@ err_out_free_base1:
 	nvidia_delete_i2c_busses(par);
 err_out_arch:
 	iounmap(par->REGS);
-err_out_free_base0:
+ err_out_free_base0:
 	pci_release_regions(pd);
-err_out_request:
-	pci_disable_device(pd);
 err_out_enable:
 	kfree(info->pixmap.addr);
 err_out_kfree:
@@ -1371,7 +1369,6 @@ static void __exit nvidiafb_remove(struct pci_dev *pd)
 	nvidia_delete_i2c_busses(par);
 	iounmap(par->REGS);
 	pci_release_regions(pd);
-	pci_disable_device(pd);
 	kfree(info->pixmap.addr);
 	framebuffer_release(info);
 	pci_set_drvdata(pd, NULL);
