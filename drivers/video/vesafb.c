@@ -51,7 +51,7 @@ static int             inverse   = 0;
 static int             mtrr      = 0; /* disable mtrr */
 static int	       vram_remap __initdata = 0; /* Set amount of memory to be used */
 static int	       vram_total __initdata = 0; /* Set total amount of memory */
-static int             pmi_setpal = 0;	/* pmi for palette changes ??? */
+static int             pmi_setpal = 1;	/* pmi for palette changes ??? */
 static int             ypan       = 0;  /* 0..nothing, 1..ypan, 2..ywrap */
 static unsigned short  *pmi_base  = NULL;
 static void            (*pmi_start)(void);
@@ -86,10 +86,24 @@ static int vesa_setpalette(int regno, unsigned red, unsigned green,
 	int shift = 16 - depth;
 	int err = -EINVAL;
 
-#ifdef __i386__
-	struct { u_char blue, green, red, pad; } entry;
+/*
+ * Try VGA registers first...
+ */
+	if (vga_compat) {
+		outb_p(regno,       dac_reg);
+		outb_p(red   >> shift, dac_val);
+		outb_p(green >> shift, dac_val);
+		outb_p(blue  >> shift, dac_val);
+		err = 0;
+	}
 
-	if (pmi_setpal) {
+#ifdef __i386__
+/*
+ * Fallback to the PMI....
+ */
+	if (err && pmi_setpal) {
+		struct { u_char blue, green, red, pad; } entry;
+
 		entry.red   = red   >> shift;
 		entry.green = green >> shift;
 		entry.blue  = blue  >> shift;
@@ -106,18 +120,6 @@ static int vesa_setpalette(int regno, unsigned red, unsigned green,
 		err = 0;
 	}
 #endif
-
-/*
- * without protected mode interface and if VGA compatible,
- * try VGA registers...
- */
-	if (err && vga_compat) {
-		outb_p(regno,       dac_reg);
-		outb_p(red   >> shift, dac_val);
-		outb_p(green >> shift, dac_val);
-		outb_p(blue  >> shift, dac_val);
-		err = 0;
-	}
 
 	return err;
 }
