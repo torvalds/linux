@@ -2267,15 +2267,15 @@ out:
  */
 static struct task_struct *next_tid(struct task_struct *start)
 {
-	struct task_struct *pos;
+	struct task_struct *pos = NULL;
 	rcu_read_lock();
-	pos = start;
-	if (pid_alive(start))
+	if (pid_alive(start)) {
 		pos = next_thread(start);
-	if (pid_alive(pos) && (pos != start->group_leader))
-		get_task_struct(pos);
-	else
-		pos = NULL;
+		if (thread_group_leader(pos))
+			pos = NULL;
+		else
+			get_task_struct(pos);
+	}
 	rcu_read_unlock();
 	put_task_struct(start);
 	return pos;
