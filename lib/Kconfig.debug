@@ -199,7 +199,7 @@ config UNWIND_INFO
 config STACK_UNWIND
 	bool "Stack unwind support"
 	depends on UNWIND_INFO
-	depends on X86_64
+	depends on X86
 	help
 	  This enables more precise stack traces, omitting all unrelated
 	  occurrences of pointers into kernel code from the dump.

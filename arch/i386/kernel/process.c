@@ -312,7 +312,7 @@ void show_regs(struct pt_regs * regs)
 	cr3 = read_cr3();
 	cr4 = read_cr4_safe();
 	printk("CR0: %08lx CR2: %08lx CR3: %08lx CR4: %08lx\n", cr0, cr2, cr3, cr4);
-	show_trace(NULL, &regs->esp);
+	show_trace(NULL, regs, &regs->esp);
 }
 
 /*

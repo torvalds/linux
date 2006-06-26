@@ -663,6 +663,35 @@ ENTRY(spurious_interrupt_bug)
 	pushl $do_spurious_interrupt_bug
 	jmp error_code
 
+#ifdef CONFIG_STACK_UNWIND
+ENTRY(arch_unwind_init_running)
+	movl	4(%esp), %edx
+	movl	(%esp), %ecx
+	leal	4(%esp), %eax
+	movl	%ebx, EBX(%edx)
+	xorl	%ebx, %ebx
+	movl	%ebx, ECX(%edx)
+	movl	%ebx, EDX(%edx)
+	movl	%esi, ESI(%edx)
+	movl	%edi, EDI(%edx)
+	movl	%ebp, EBP(%edx)
+	movl	%ebx, EAX(%edx)
+	movl	$__USER_DS, DS(%edx)
+	movl	$__USER_DS, ES(%edx)
+	movl	%ebx, ORIG_EAX(%edx)
+	movl	%ecx, EIP(%edx)
+	movl	12(%esp), %ecx
+	movl	$__KERNEL_CS, CS(%edx)
+	movl	%ebx, EFLAGS(%edx)
+	movl	%eax, OLDESP(%edx)
+	movl	8(%esp), %eax
+	movl	%ecx, 8(%esp)
+	movl	EBX(%edx), %ebx
+	movl	$__KERNEL_DS, OLDSS(%edx)
+	jmpl	*%eax
+ENDPROC(arch_unwind_init_running)
+#endif
+
 .section .rodata,"a"
 #include "syscall_table.S"
 
