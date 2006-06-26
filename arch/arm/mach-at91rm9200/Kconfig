@@ -4,6 +4,12 @@ menu "AT91RM9200 Implementations"
 
 comment "AT91RM9200 Board Type"
 
+config MACH_ONEARM
+	bool "Ajeco 1ARM Single Board Computer"
+	depends on ARCH_AT91RM9200
+	help
+	  Select this if you are using Ajeco's 1ARM Single Board Computer
+
 config ARCH_AT91RM9200DK
 	bool "Atmel AT91RM9200-DK Development board"
 	depends on ARCH_AT91RM9200
