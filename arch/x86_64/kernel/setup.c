@@ -988,6 +988,13 @@ static void __cpuinit init_intel(struct cpuinfo_x86 *c)
 	unsigned n;
 
 	init_intel_cacheinfo(c);
+	if (c->cpuid_level > 9 ) {
+		unsigned eax = cpuid_eax(10);
+		/* Check for version and the number of counters */
+		if ((eax & 0xff) && (((eax>>8) & 0xff) > 1))
+			set_bit(X86_FEATURE_ARCH_PERFMON, &c->x86_capability);
+	}
+
 	n = c->extended_cpuid_level;
 	if (n >= 0x80000008) {
 		unsigned eax = cpuid_eax(0x80000008);
