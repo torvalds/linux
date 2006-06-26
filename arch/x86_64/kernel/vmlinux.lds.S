@@ -45,6 +45,15 @@ SECTIONS
 
   RODATA
 
+#ifdef CONFIG_STACK_UNWIND
+  . = ALIGN(8);
+  .eh_frame : AT(ADDR(.eh_frame) - LOAD_OFFSET) {
+	__start_unwind = .;
+  	*(.eh_frame)
+	__end_unwind = .;
+  }
+#endif
+
 				/* Data */
   .data : AT(ADDR(.data) - LOAD_OFFSET) {
 	*(.data)

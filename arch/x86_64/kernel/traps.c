@@ -29,6 +29,7 @@
 #include <linux/nmi.h>
 #include <linux/kprobes.h>
 #include <linux/kexec.h>
+#include <linux/unwind.h>
 
 #include <asm/system.h>
 #include <asm/uaccess.h>
@@ -39,7 +40,7 @@
 #include <asm/i387.h>
 #include <asm/kdebug.h>
 #include <asm/processor.h>
-
+#include <asm/unwind.h>
 #include <asm/smp.h>
 #include <asm/pgalloc.h>
 #include <asm/pda.h>
@@ -189,6 +190,23 @@ static unsigned long *in_exception_stack(unsigned cpu, unsigned long stack,
 	return NULL;
 }
 
+static void show_trace_unwind(struct unwind_frame_info *info, void *context)
+{
+	int i = 11;
+
+	while (unwind(info) == 0 && UNW_PC(info)) {
+		if (i > 50) {
+			printk("\n       ");
+			i = 7;
+		} else
+			i += printk(" ");
+		i += printk_address(UNW_PC(info));
+		if (arch_unw_user_mode(info))
+			break;
+	}
+	printk("\n");
+}
+
 /*
  * x86-64 can have upto three kernel stacks: 
  * process stack
@@ -196,14 +214,33 @@ static unsigned long *in_exception_stack(unsigned cpu, unsigned long stack,
  * severe exception (double fault, nmi, stack fault, debug, mce) hardware stack
  */
 
-void show_trace(unsigned long *stack)
+void show_trace(struct task_struct *tsk, struct pt_regs *regs, unsigned long * stack)
 {
 	const unsigned cpu = safe_smp_processor_id();
 	unsigned long *irqstack_end = (unsigned long *)cpu_pda(cpu)->irqstackptr;
 	int i;
 	unsigned used = 0;
+	struct unwind_frame_info info;
 
 	printk("\nCall Trace:");
+
+	if (!tsk)
+		tsk = current;
+
+	if (regs) {
+		if (unwind_init_frame_info(&info, tsk, regs) == 0) {
+			show_trace_unwind(&info, NULL);
+			return;
+		}
+	} else if (tsk == current) {
+		if (unwind_init_running(&info, show_trace_unwind, NULL) == 0)
+			return;
+	} else {
+		if (unwind_init_blocked(&info, tsk) == 0) {
+			show_trace_unwind(&info, NULL);
+			return;
+		}
+	}
 
 #define HANDLE_STACK(cond) \
 	do while (cond) { \
@@ -262,7 +299,7 @@ void show_trace(unsigned long *stack)
 	printk("\n");
 }
 
-void show_stack(struct task_struct *tsk, unsigned long * rsp)
+static void _show_stack(struct task_struct *tsk, struct pt_regs *regs, unsigned long * rsp)
 {
 	unsigned long *stack;
 	int i;
@@ -296,7 +333,12 @@ void show_stack(struct task_struct *tsk, unsigned long * rsp)
 		printk("%016lx ", *stack++);
 		touch_nmi_watchdog();
 	}
-	show_trace((unsigned long *)rsp);
+	show_trace(tsk, regs, rsp);
+}
+
+void show_stack(struct task_struct *tsk, unsigned long * rsp)
+{
+	_show_stack(tsk, NULL, rsp);
 }
 
 /*
@@ -305,7 +347,7 @@ void show_stack(struct task_struct *tsk, unsigned long * rsp)
 void dump_stack(void)
 {
 	unsigned long dummy;
-	show_trace(&dummy);
+	show_trace(NULL, NULL, &dummy);
 }
 
 EXPORT_SYMBOL(dump_stack);
@@ -332,7 +374,7 @@ void show_registers(struct pt_regs *regs)
 	if (in_kernel) {
 
 		printk("Stack: ");
-		show_stack(NULL, (unsigned long*)rsp);
+		_show_stack(NULL, regs, (unsigned long*)rsp);
 
 		printk("\nCode: ");
 		if (regs->rip < PAGE_OFFSET)

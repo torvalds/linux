@@ -75,7 +75,7 @@ extern void main_timer_handler(struct pt_regs *regs);
 
 extern unsigned long end_pfn_map; 
 
-extern void show_trace(unsigned long * rsp);
+extern void show_trace(struct task_struct *, struct pt_regs *, unsigned long * rsp);
 extern void show_registers(struct pt_regs *regs);
 
 extern void exception_table_check(void);
