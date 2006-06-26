@@ -116,12 +116,10 @@ int device_suspend(pm_message_t state)
 		/* Check if the device got removed */
 		if (!list_empty(&dev->power.entry)) {
 			/* Move it to the dpm_off or dpm_off_irq list */
-			if (!error) {
-				list_del(&dev->power.entry);
-				list_add(&dev->power.entry, &dpm_off);
-			} else if (error == -EAGAIN) {
-				list_del(&dev->power.entry);
-				list_add(&dev->power.entry, &dpm_off_irq);
+			if (!error)
+				list_move(&dev->power.entry, &dpm_off);
+			else if (error == -EAGAIN) {
+				list_move(&dev->power.entry, &dpm_off_irq);
 				error = 0;
 			}
 		}
@@ -139,8 +137,7 @@ int device_suspend(pm_message_t state)
 		 */
 		while (!list_empty(&dpm_off_irq)) {
 			struct list_head * entry = dpm_off_irq.next;
-			list_del(entry);
-			list_add(entry, &dpm_off);
+			list_move(entry, &dpm_off);
 		}
 		dpm_resume();
 	}

@@ -86,8 +86,7 @@ int rotate_reclaimable_page(struct page *page)
 	zone = page_zone(page);
 	spin_lock_irqsave(&zone->lru_lock, flags);
 	if (PageLRU(page) && !PageActive(page)) {
-		list_del(&page->lru);
-		list_add_tail(&page->lru, &zone->inactive_list);
+		list_move_tail(&page->lru, &zone->inactive_list);
 		inc_page_state(pgrotated);
 	}
 	if (!test_clear_page_writeback(page))

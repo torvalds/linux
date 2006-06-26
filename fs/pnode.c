@@ -53,8 +53,7 @@ static int do_make_slave(struct vfsmount *mnt)
 	if (master) {
 		list_for_each_entry(slave_mnt, &mnt->mnt_slave_list, mnt_slave)
 			slave_mnt->mnt_master = master;
-		list_del(&mnt->mnt_slave);
-		list_add(&mnt->mnt_slave, &master->mnt_slave_list);
+		list_move(&mnt->mnt_slave, &master->mnt_slave_list);
 		list_splice(&mnt->mnt_slave_list, master->mnt_slave_list.prev);
 		INIT_LIST_HEAD(&mnt->mnt_slave_list);
 	} else {
@@ -283,10 +282,8 @@ static void __propagate_umount(struct vfsmount *mnt)
 		 * umount the child only if the child has no
 		 * other children
 		 */
-		if (child && list_empty(&child->mnt_mounts)) {
-			list_del(&child->mnt_hash);
-			list_add_tail(&child->mnt_hash, &mnt->mnt_hash);
-		}
+		if (child && list_empty(&child->mnt_mounts))
+			list_move_tail(&child->mnt_hash, &mnt->mnt_hash);
 	}
 }
 
