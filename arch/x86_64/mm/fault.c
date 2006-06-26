@@ -410,8 +410,10 @@ asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
 	if (!(vma->vm_flags & VM_GROWSDOWN))
 		goto bad_area;
 	if (error_code & 4) {
-		// XXX: align red zone size with ABI 
-		if (address + 128 < regs->rsp)
+		/* Allow userspace just enough access below the stack pointer
+		 * to let the 'enter' instruction work.
+		 */
+		if (address + 65536 + 32 * sizeof(unsigned long) < regs->rsp)
 			goto bad_area;
 	}
 	if (expand_stack(vma, address))
