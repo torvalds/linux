@@ -90,7 +90,7 @@ unsigned int gpmc_ns_to_ticks(unsigned int time_ns)
 
 #ifdef DEBUG
 static int set_gpmc_timing_reg(int cs, int reg, int st_bit, int end_bit,
-			       int time, int div, const char *name)
+			       int time, const char *name)
 #else
 static int set_gpmc_timing_reg(int cs, int reg, int st_bit, int end_bit,
 			       int time)
@@ -111,7 +111,7 @@ static int set_gpmc_timing_reg(int cs, int reg, int st_bit, int end_bit,
 	l = gpmc_cs_read_reg(cs, reg);
 #ifdef DEBUG
 	printk(KERN_INFO "GPMC CS%d: %-10s: %d ticks, %3lu ns (was %i ticks)\n",
-	       cs, name, ticks, gpmc_get_clk_period(div) * ticks / 1000,
+	       cs, name, ticks, gpmc_get_fclk_period() * ticks / 1000,
 	       (l >> st_bit) & mask);
 #endif
 	l &= ~(mask << st_bit);
@@ -176,8 +176,8 @@ int gpmc_cs_set_timings(int cs, const struct gpmc_timings *t)
 	GPMC_SET_ONE(GPMC_CS_CONFIG5, 24, 27, page_burst_access);
 
 #ifdef DEBUG
-	printk(KERN_INFO "GPMC CLK period is %d (div %d)\n",
-	       cs, get_gpmc_clk_period(div), div);
+	printk(KERN_INFO "GPMC CS%d CLK period is %lu (div %d)\n",
+	       cs, gpmc_get_fclk_period(), div);
 #endif
 
 	l = gpmc_cs_read_reg(cs, GPMC_CS_CONFIG1);
