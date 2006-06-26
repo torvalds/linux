@@ -620,7 +620,8 @@ static struct db9 __init *db9_probe(int parport, int mode)
 			goto err_unreg_devs;
 		}
 
-		sprintf(db9->phys[i], "%s/input%d", db9->pd->port->name, i);
+		snprintf(db9->phys[i], sizeof(db9->phys[i]),
+			 "%s/input%d", db9->pd->port->name, i);
 
 		input_dev->name = db9_mode->name;
 		input_dev->phys = db9->phys[i];

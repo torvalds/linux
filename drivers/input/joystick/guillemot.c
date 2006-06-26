@@ -222,7 +222,7 @@ static int guillemot_connect(struct gameport *gameport, struct gameport_driver *
 	gameport_set_poll_handler(gameport, guillemot_poll);
 	gameport_set_poll_interval(gameport, 20);
 
-	sprintf(guillemot->phys, "%s/input0", gameport->phys);
+	snprintf(guillemot->phys, sizeof(guillemot->phys), "%s/input0", gameport->phys);
 	guillemot->type = guillemot_type + i;
 
 	input_dev->name = guillemot_type[i].name;
