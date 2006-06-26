@@ -3247,9 +3247,7 @@ static int __init fb_console_init(void)
 	acquire_console_sem();
 	fb_register_client(&fbcon_event_notifier);
 	fbcon_class_device =
-	    class_device_create(fb_class, NULL,
-				MKDEV(FB_MAJOR, FB_MAX), NULL,
-				"fbcon");
+	    class_device_create(fb_class, NULL, MKDEV(0, 0), NULL, "fbcon");
 
 	if (IS_ERR(fbcon_class_device)) {
 		printk(KERN_WARNING "Unable to create class_device "
@@ -3285,7 +3283,7 @@ static void __exit fb_console_exit(void)
 	acquire_console_sem();
 	fb_unregister_client(&fbcon_event_notifier);
 	fbcon_deinit_class_device();
-	class_device_destroy(fb_class, MKDEV(FB_MAJOR, FB_MAX));
+	class_device_destroy(fb_class, MKDEV(0, 0));
 	fbcon_exit();
 	release_console_sem();
 	unregister_con_driver(&fb_con);
