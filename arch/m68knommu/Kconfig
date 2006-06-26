@@ -119,6 +119,11 @@ config M5307
 	help
 	  Motorola ColdFire 5307 processor support.
 
+config M532x
+	bool "MCF532x"
+	help
+	  Freescale (Motorola) ColdFire 532x processor support.
+
 config M5407
 	bool "MCF5407"
 	help
@@ -133,7 +138,7 @@ config M527x
 
 config COLDFIRE
 	bool
-	depends on (M5206 || M5206e || M520x || M523x || M5249 || M527x || M5272 || M528x || M5307 || M5407)
+	depends on (M5206 || M5206e || M520x || M523x || M5249 || M527x || M5272 || M528x || M5307 || M532x || M5407)
 	default y
 
 choice
@@ -419,6 +424,18 @@ config SECUREEDGEMP3
 	help
 	  Support for the SnapGear SecureEdge/MP3 platform.
 
+config M5329EVB
+	bool "Freescale (Motorola) M5329EVB board support"
+	depends on M532x
+	help
+	  Support for the Freescale (Motorola) M5329EVB board.
+
+config COBRA5329
+	bool "senTec COBRA5329 board support"
+	depends on M532x
+	help
+	  Support for the senTec COBRA5329 board.
+
 config M5407C3
 	bool "Motorola M5407C3 board support"
 	depends on M5407
@@ -487,7 +504,7 @@ config ARNEWSH
 config FREESCALE
 	bool
 	default y
-	depends on (M5206eC3 || M5208EVB || M5235EVB || M5249C3 || M5271EVB || M5272C3 || M5275EVB || M5282EVB || M5307C3 || M5407C3)
+	depends on (M5206eC3 || M5208EVB || M5235EVB || M5249C3 || M5271EVB || M5272C3 || M5275EVB || M5282EVB || M5307C3 || M5329EVB || M5407C3)
 
 config HW_FEITH
 	bool
