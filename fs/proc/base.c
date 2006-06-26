@@ -185,6 +185,9 @@ enum pid_directory_inos {
 	PROC_TID_FD_DIR = 0x8000,	/* 0x8000-0xffff */
 };
 
+/* Worst case buffer size needed for holding an integer. */
+#define PROC_NUMBUF 10
+
 struct pid_entry {
 	int type;
 	int len;
@@ -807,12 +810,12 @@ static ssize_t oom_adjust_read(struct file *file, char __user *buf,
 				size_t count, loff_t *ppos)
 {
 	struct task_struct *task = proc_task(file->f_dentry->d_inode);
-	char buffer[8];
+	char buffer[PROC_NUMBUF];
 	size_t len;
 	int oom_adjust = task->oomkilladj;
 	loff_t __ppos = *ppos;
 
-	len = sprintf(buffer, "%i\n", oom_adjust);
+	len = snprintf(buffer, sizeof(buffer), "%i\n", oom_adjust);
 	if (__ppos >= len)
 		return 0;
 	if (count > len-__ppos)
@@ -827,14 +830,14 @@ static ssize_t oom_adjust_write(struct file *file, const char __user *buf,
 				size_t count, loff_t *ppos)
 {
 	struct task_struct *task = proc_task(file->f_dentry->d_inode);
-	char buffer[8], *end;
+	char buffer[PROC_NUMBUF], *end;
 	int oom_adjust;
 
 	if (!capable(CAP_SYS_RESOURCE))
 		return -EPERM;
-	memset(buffer, 0, 8);
-	if (count > 6)
-		count = 6;
+	memset(buffer, 0, sizeof(buffer));
+	if (count > sizeof(buffer) - 1)
+		count = sizeof(buffer) - 1;
 	if (copy_from_user(buffer, buf, count))
 		return -EFAULT;
 	oom_adjust = simple_strtol(buffer, &end, 0);
@@ -1099,8 +1102,6 @@ static struct inode_operations proc_pid_link_inode_operations = {
 	.follow_link	= proc_pid_follow_link
 };
 
-#define NUMBUF 10
-
 static int proc_readfd(struct file * filp, void * dirent, filldir_t filldir)
 {
 	struct dentry *dentry = filp->f_dentry;
@@ -1108,7 +1109,7 @@ static int proc_readfd(struct file * filp, void * dirent, filldir_t filldir)
 	struct task_struct *p = proc_task(inode);
 	unsigned int fd, tid, ino;
 	int retval;
-	char buf[NUMBUF];
+	char buf[PROC_NUMBUF];
 	struct files_struct * files;
 	struct fdtable *fdt;
 
@@ -1144,7 +1145,7 @@ static int proc_readfd(struct file * filp, void * dirent, filldir_t filldir)
 					continue;
 				rcu_read_unlock();
 
-				j = NUMBUF;
+				j = PROC_NUMBUF;
 				i = fd;
 				do {
 					j--;
@@ -1153,7 +1154,7 @@ static int proc_readfd(struct file * filp, void * dirent, filldir_t filldir)
 				} while (i);
 
 				ino = fake_ino(tid, PROC_TID_FD_DIR + fd);
-				if (filldir(dirent, buf+j, NUMBUF-j, fd+2, ino, DT_LNK) < 0) {
+				if (filldir(dirent, buf+j, PROC_NUMBUF-j, fd+2, ino, DT_LNK) < 0) {
 					rcu_read_lock();
 					break;
 				}
@@ -1828,14 +1829,14 @@ static struct inode_operations proc_tid_attr_inode_operations = {
 static int proc_self_readlink(struct dentry *dentry, char __user *buffer,
 			      int buflen)
 {
-	char tmp[30];
+	char tmp[PROC_NUMBUF];
 	sprintf(tmp, "%d", current->tgid);
 	return vfs_readlink(dentry,buffer,buflen,tmp);
 }
 
 static void *proc_self_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
-	char tmp[30];
+	char tmp[PROC_NUMBUF];
 	sprintf(tmp, "%d", current->tgid);
 	return ERR_PTR(vfs_follow_link(nd,tmp));
 }	
@@ -1869,7 +1870,7 @@ static struct inode_operations proc_self_inode_operations = {
 void proc_flush_task(struct task_struct *task)
 {
 	struct dentry *dentry, *leader, *dir;
-	char buf[30];
+	char buf[PROC_NUMBUF];
 	struct qstr name;
 
 	name.name = buf;
@@ -2025,8 +2026,6 @@ out_drop_task:
 out:
 	return result;
 }
-
-#define PROC_NUMBUF 10
 
 /*
  * Find the first tgid to return to user space.
