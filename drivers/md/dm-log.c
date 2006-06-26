@@ -447,7 +447,7 @@ static int disk_resume(struct dirty_log *log)
 	if (r)
 		return r;
 
-	/* set or clear any new bits */
+	/* set or clear any new bits -- device has grown */
 	if (lc->sync == NOSYNC)
 		for (i = lc->header.nr_regions; i < lc->region_count; i++)
 			/* FIXME: amazingly inefficient */
@@ -456,6 +456,10 @@ static int disk_resume(struct dirty_log *log)
 		for (i = lc->header.nr_regions; i < lc->region_count; i++)
 			/* FIXME: amazingly inefficient */
 			log_clear_bit(lc, lc->clean_bits, i);
+
+	/* clear any old bits -- device has shrunk */
+	for (i = lc->region_count; i % (sizeof(*lc->clean_bits) << BYTE_SHIFT); i++)
+		log_clear_bit(lc, lc->clean_bits, i);
 
 	/* copy clean across to sync */
 	memcpy(lc->sync_bits, lc->clean_bits, size);
