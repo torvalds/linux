@@ -957,15 +957,12 @@ static void __cpuinit detect_ht(struct cpuinfo_x86 *c)
  */
 static int __cpuinit intel_num_cpu_cores(struct cpuinfo_x86 *c)
 {
-	unsigned int eax;
+	unsigned int eax, t;
 
 	if (c->cpuid_level < 4)
 		return 1;
 
-	__asm__("cpuid"
-		: "=a" (eax)
-		: "0" (4), "c" (0)
-		: "bx", "dx");
+	cpuid_count(4, 0, &eax, &t, &t, &t);
 
 	if (eax & 0x1f)
 		return ((eax >> 26) + 1);
