@@ -700,27 +700,27 @@ static void bitmap_file_kick(struct bitmap *bitmap)
 }
 
 enum bitmap_page_attr {
-	BITMAP_PAGE_DIRTY = 1, // there are set bits that need to be synced
-	BITMAP_PAGE_CLEAN = 2, // there are bits that might need to be cleared
-	BITMAP_PAGE_NEEDWRITE=4, // there are cleared bits that need to be synced
+	BITMAP_PAGE_DIRTY = 0, // there are set bits that need to be synced
+	BITMAP_PAGE_CLEAN = 1, // there are bits that might need to be cleared
+	BITMAP_PAGE_NEEDWRITE=2, // there are cleared bits that need to be synced
 };
 
 static inline void set_page_attr(struct bitmap *bitmap, struct page *page,
 				enum bitmap_page_attr attr)
 {
-	bitmap->filemap_attr[page->index] |= attr;
+	__set_bit((page->index<<2) + attr, bitmap->filemap_attr);
 }
 
 static inline void clear_page_attr(struct bitmap *bitmap, struct page *page,
 				enum bitmap_page_attr attr)
 {
-	bitmap->filemap_attr[page->index] &= ~attr;
+	__clear_bit((page->index<<2) + attr, bitmap->filemap_attr);
 }
 
 static inline unsigned long test_page_attr(struct bitmap *bitmap, struct page *page,
 					   enum bitmap_page_attr attr)
 {
-	return bitmap->filemap_attr[page->index] & attr;
+	return test_bit((page->index<<2) + attr, bitmap->filemap_attr);
 }
 
 /*
@@ -872,7 +872,12 @@ static int bitmap_init_from_disk(struct bitmap *bitmap, sector_t start)
 	if (!bitmap->filemap)
 		goto out;
 
-	bitmap->filemap_attr = kzalloc(sizeof(long) * num_pages, GFP_KERNEL);
+	/* We need 4 bits per page, rounded up to a multiple of sizeof(unsigned long) */
+	bitmap->filemap_attr = kzalloc(
+		(((num_pages*4/8)+sizeof(unsigned long)-1)
+		 /sizeof(unsigned long))
+		*sizeof(unsigned long),
+		GFP_KERNEL);
 	if (!bitmap->filemap_attr)
 		goto out;
 
