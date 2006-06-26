@@ -56,6 +56,13 @@ DEFINE_SPINLOCK(i8253_lock);
 int nohpet __initdata = 0;
 static int notsc __initdata = 0;
 
+#define USEC_PER_TICK (USEC_PER_SEC / HZ)
+#define NSEC_PER_TICK (NSEC_PER_SEC / HZ)
+#define FSEC_PER_TICK (FSEC_PER_SEC / HZ)
+
+#define NS_SCALE	10 /* 2^10, carefully chosen */
+#define US_SCALE	32 /* 2^32, arbitralrily chosen */
+
 unsigned int cpu_khz;					/* TSC clocks / usec, not used here */
 static unsigned long hpet_period;			/* fsecs / HPET clock */
 unsigned long hpet_tick;				/* HPET clocks / interrupt */
@@ -88,7 +95,7 @@ static inline unsigned int do_gettimeoffset_tsc(void)
 	t = get_cycles_sync();
 	if (t < vxtime.last_tsc) 
 		t = vxtime.last_tsc; /* hack */
-	x = ((t - vxtime.last_tsc) * vxtime.tsc_quot) >> 32;
+	x = ((t - vxtime.last_tsc) * vxtime.tsc_quot) >> US_SCALE;
 	return x;
 }
 
@@ -96,7 +103,7 @@ static inline unsigned int do_gettimeoffset_hpet(void)
 {
 	/* cap counter read to one tick to avoid inconsistencies */
 	unsigned long counter = hpet_readl(HPET_COUNTER) - vxtime.last;
-	return (min(counter,hpet_tick) * vxtime.quot) >> 32;
+	return (min(counter,hpet_tick) * vxtime.quot) >> US_SCALE;
 }
 
 unsigned int (*do_gettimeoffset)(void) = do_gettimeoffset_tsc;
@@ -116,7 +123,7 @@ void do_gettimeofday(struct timeval *tv)
 		seq = read_seqbegin(&xtime_lock);
 
 		sec = xtime.tv_sec;
-		usec = xtime.tv_nsec / 1000;
+		usec = xtime.tv_nsec / NSEC_PER_USEC;
 
 		/* i386 does some correction here to keep the clock 
 		   monotonous even when ntpd is fixing drift.
@@ -127,14 +134,14 @@ void do_gettimeofday(struct timeval *tv)
 		   in arch/x86_64/kernel/vsyscall.c and export all needed
 		   variables in vmlinux.lds. -AK */ 
 
-		t = (jiffies - wall_jiffies) * (1000000L / HZ) +
+		t = (jiffies - wall_jiffies) * USEC_PER_TICK +
 			do_gettimeoffset();
 		usec += t;
 
 	} while (read_seqretry(&xtime_lock, seq));
 
-	tv->tv_sec = sec + usec / 1000000;
-	tv->tv_usec = usec % 1000000;
+	tv->tv_sec = sec + usec / USEC_PER_SEC;
+	tv->tv_usec = usec % USEC_PER_SEC;
 }
 
 EXPORT_SYMBOL(do_gettimeofday);
@@ -155,8 +162,8 @@ int do_settimeofday(struct timespec *tv)
 
 	write_seqlock_irq(&xtime_lock);
 
-	nsec -= do_gettimeoffset() * 1000 +
-		(jiffies - wall_jiffies) * (NSEC_PER_SEC/HZ);
+	nsec -= do_gettimeoffset() * NSEC_PER_USEC +
+		(jiffies - wall_jiffies) * NSEC_PER_TICK;
 
 	wtm_sec  = wall_to_monotonic.tv_sec + (xtime.tv_sec - sec);
 	wtm_nsec = wall_to_monotonic.tv_nsec + (xtime.tv_nsec - nsec);
@@ -286,7 +293,7 @@ unsigned long long monotonic_clock(void)
 			this_offset = hpet_readl(HPET_COUNTER);
 		} while (read_seqretry(&xtime_lock, seq));
 		offset = (this_offset - last_offset);
-		offset *= (NSEC_PER_SEC/HZ) / hpet_tick;
+		offset *= NSEC_PER_TICK / hpet_tick;
 	} else {
 		do {
 			seq = read_seqbegin(&xtime_lock);
@@ -295,7 +302,8 @@ unsigned long long monotonic_clock(void)
 			base = monotonic_base;
 		} while (read_seqretry(&xtime_lock, seq));
 		this_offset = get_cycles_sync();
-		offset = (this_offset - last_offset)*1000 / cpu_khz; 
+		/* FIXME: 1000 or 1000000? */
+		offset = (this_offset - last_offset)*1000 / cpu_khz;
 	}
 	return base + offset;
 }
@@ -380,7 +388,7 @@ void main_timer_handler(struct pt_regs *regs)
 		}
 
 		monotonic_base += 
-			(offset - vxtime.last)*(NSEC_PER_SEC/HZ) / hpet_tick;
+			(offset - vxtime.last) * NSEC_PER_TICK / hpet_tick;
 
 		vxtime.last = offset;
 #ifdef CONFIG_X86_PM_TIMER
@@ -389,24 +397,25 @@ void main_timer_handler(struct pt_regs *regs)
 #endif
 	} else {
 		offset = (((tsc - vxtime.last_tsc) *
-			   vxtime.tsc_quot) >> 32) - (USEC_PER_SEC / HZ);
+			   vxtime.tsc_quot) >> US_SCALE) - USEC_PER_TICK;
 
 		if (offset < 0)
 			offset = 0;
 
-		if (offset > (USEC_PER_SEC / HZ)) {
-			lost = offset / (USEC_PER_SEC / HZ);
-			offset %= (USEC_PER_SEC / HZ);
+		if (offset > USEC_PER_TICK) {
+			lost = offset / USEC_PER_TICK;
+			offset %= USEC_PER_TICK;
 		}
 
-		monotonic_base += (tsc - vxtime.last_tsc)*1000000/cpu_khz ;
+		/* FIXME: 1000 or 1000000? */
+		monotonic_base += (tsc - vxtime.last_tsc) * 1000000 / cpu_khz;
 
 		vxtime.last_tsc = tsc - vxtime.quot * delay / vxtime.tsc_quot;
 
 		if ((((tsc - vxtime.last_tsc) *
-		      vxtime.tsc_quot) >> 32) < offset)
+		      vxtime.tsc_quot) >> US_SCALE) < offset)
 			vxtime.last_tsc = tsc -
-				(((long) offset << 32) / vxtime.tsc_quot) - 1;
+				(((long) offset << US_SCALE) / vxtime.tsc_quot) - 1;
 	}
 
 	if (lost > 0) {
@@ -466,16 +475,15 @@ static irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 }
 
 static unsigned int cyc2ns_scale __read_mostly;
-#define CYC2NS_SCALE_FACTOR 10 /* 2^10, carefully chosen */
 
 static inline void set_cyc2ns_scale(unsigned long cpu_khz)
 {
-	cyc2ns_scale = (1000000 << CYC2NS_SCALE_FACTOR)/cpu_khz;
+	cyc2ns_scale = (NSEC_PER_MSEC << NS_SCALE) / cpu_khz;
 }
 
 static inline unsigned long long cycles_2_ns(unsigned long long cyc)
 {
-	return (cyc * cyc2ns_scale) >> CYC2NS_SCALE_FACTOR;
+	return (cyc * cyc2ns_scale) >> NS_SCALE;
 }
 
 unsigned long long sched_clock(void)
@@ -488,7 +496,7 @@ unsigned long long sched_clock(void)
            Disadvantage is a small drift between CPUs in some configurations,
 	   but that should be tolerable. */
 	if (__vxtime.mode == VXTIME_HPET)
-		return (hpet_readl(HPET_COUNTER) * vxtime.quot) >> 32;
+		return (hpet_readl(HPET_COUNTER) * vxtime.quot) >> US_SCALE;
 #endif
 
 	/* Could do CPU core sync here. Opteron can execute rdtsc speculatively,
@@ -631,7 +639,7 @@ static int time_cpufreq_notifier(struct notifier_block *nb, unsigned long val,
 
 		cpu_khz = cpufreq_scale(cpu_khz_ref, ref_freq, freq->new);
 		if (!(freq->flags & CPUFREQ_CONST_LOOPS))
-			vxtime.tsc_quot = (1000L << 32) / cpu_khz;
+			vxtime.tsc_quot = (USEC_PER_MSEC << US_SCALE) / cpu_khz;
 	}
 	
 	set_cyc2ns_scale(cpu_khz_ref);
@@ -823,8 +831,7 @@ static int hpet_init(void)
 	if (hpet_period < 100000 || hpet_period > 100000000)
 		return -1;
 
-	hpet_tick = (1000000000L * (USEC_PER_SEC / HZ) + hpet_period / 2) /
-		hpet_period;
+	hpet_tick = (FSEC_PER_TICK + hpet_period / 2) / hpet_period;
 
 	hpet_use_timer = (id & HPET_ID_LEGSUP);
 
@@ -898,7 +905,7 @@ void __init time_init(void)
 	                        -xtime.tv_sec, -xtime.tv_nsec);
 
 	if (!hpet_init())
-                vxtime_hz = (1000000000000000L + hpet_period / 2) / hpet_period;
+                vxtime_hz = (FSEC_PER_SEC + hpet_period / 2) / hpet_period;
 	else
 		vxtime.hpet_address = 0;
 
@@ -927,8 +934,8 @@ void __init time_init(void)
 	       vxtime_hz / 1000000, vxtime_hz % 1000000, timename, gtod);
 	printk(KERN_INFO "time.c: Detected %d.%03d MHz processor.\n",
 		cpu_khz / 1000, cpu_khz % 1000);
-	vxtime.quot = (1000000L << 32) / vxtime_hz;
-	vxtime.tsc_quot = (1000L << 32) / cpu_khz;
+	vxtime.quot = (USEC_PER_SEC << US_SCALE) / vxtime_hz;
+	vxtime.tsc_quot = (USEC_PER_MSEC << US_SCALE) / cpu_khz;
 	vxtime.last_tsc = get_cycles_sync();
 	setup_irq(0, &irq0);
 
