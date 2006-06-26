@@ -63,7 +63,6 @@
 #include <asm/setup.h>
 #include <asm/mach_apic.h>
 #include <asm/numa.h>
-#include <asm/swiotlb.h>
 #include <asm/sections.h>
 #include <asm/dmi.h>
 
@@ -701,10 +700,6 @@ void __init setup_arch(char **cmdline_p)
 	}
 
 	e820_setup_gap();
-
-#ifdef CONFIG_IOMMU
-	iommu_hole_init();
-#endif
 
 #ifdef CONFIG_VT
 #if defined(CONFIG_VGA_CONSOLE)

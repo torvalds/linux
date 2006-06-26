@@ -571,7 +571,7 @@ static struct dma_mapping_ops gart_dma_ops = {
 	.unmap_sg = gart_unmap_sg,
 };
 
-static int __init pci_iommu_init(void)
+void __init gart_iommu_init(void)
 { 
 	struct agp_kern_info info;
 	unsigned long aper_size;
@@ -581,7 +581,7 @@ static int __init pci_iommu_init(void)
 
 	if (cache_k8_northbridges() < 0 || num_k8_northbridges == 0) {
 		printk(KERN_INFO "PCI-GART: No AMD northbridge found.\n");
-		return -ENODEV;
+		return;
 	}
 
 #ifndef CONFIG_AGP_AMD64
@@ -595,11 +595,11 @@ static int __init pci_iommu_init(void)
 #endif	
 
 	if (swiotlb)
-		return -ENODEV;
+		return;
 
 	/* Did we detect a different HW IOMMU? */
 	if (iommu_detected && !iommu_aperture)
-		return -1;
+		return;
 
 	if (no_iommu ||
 	    (!force_iommu && end_pfn <= MAX_DMA32_PFN) ||
@@ -611,7 +611,7 @@ static int __init pci_iommu_init(void)
 					"but IOMMU not available.\n"
 			       KERN_ERR "WARNING 32bit PCI may malfunction.\n");
 		}
-		return -ENODEV;
+		return;
 	}
 
 	printk(KERN_INFO "PCI-DMA: using GART IOMMU.\n");
@@ -678,11 +678,10 @@ static int __init pci_iommu_init(void)
 
 	flush_gart();
 	dma_ops = &gart_dma_ops;
-	return 0;
 } 
 
 /* Must execute after PCI subsystem */
-fs_initcall(pci_iommu_init);
+fs_initcall(gart_iommu_init);
 
 void gart_parse_options(char *p)
 {

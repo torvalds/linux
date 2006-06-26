@@ -279,3 +279,32 @@ __init int iommu_setup(char *p)
     }
     return 1;
 }
+__setup("iommu=", iommu_setup);
+
+void __init pci_iommu_alloc(void)
+{
+	/*
+	 * The order of these functions is important for
+	 * fall-back/fail-over reasons
+	 */
+#ifdef CONFIG_IOMMU
+	iommu_hole_init();
+#endif
+
+#ifdef CONFIG_SWIOTLB
+	pci_swiotlb_init();
+#endif
+}
+
+static int __init pci_iommu_init(void)
+{
+#ifdef CONFIG_IOMMU
+	gart_iommu_init();
+#endif
+
+	no_iommu_init();
+	return 0;
+}
+
+/* Must execute after PCI subsystem */
+fs_initcall(pci_iommu_init);

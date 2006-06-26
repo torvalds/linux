@@ -39,8 +39,8 @@ int pcibios_set_irq_routing(struct pci_dev *dev, int pin, int irq);
 #include <asm/scatterlist.h>
 #include <linux/string.h>
 #include <asm/page.h>
-#include <linux/dma-mapping.h> /* for have_iommu */
 
+extern void pci_iommu_alloc(void);
 extern int iommu_setup(char *opt);
 
 /* The PCI address space does equal the physical memory

@@ -41,8 +41,6 @@
 #include <asm/proto.h>
 #include <asm/smp.h>
 #include <asm/sections.h>
-#include <asm/dma-mapping.h>
-#include <asm/swiotlb.h>
 
 #ifndef Dprintk
 #define Dprintk(x...)
@@ -587,10 +585,7 @@ void __init mem_init(void)
 {
 	long codesize, reservedpages, datasize, initsize;
 
-#ifdef CONFIG_SWIOTLB
-	pci_swiotlb_init();
-#endif
-	no_iommu_init();
+	pci_iommu_alloc();
 
 	/* How many end-of-memory variables you have, grandma! */
 	max_low_pfn = end_pfn;
