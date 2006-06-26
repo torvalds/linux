@@ -172,6 +172,17 @@ config OMAP_WATCHDOG
 	  Support for TI OMAP1610/OMAP1710/OMAP2420 watchdog.  Say 'Y' here to
 	  enable the OMAP1610/OMAP1710 watchdog timer.
 
+config PNX4008_WATCHDOG
+	tristate "PNX4008 Watchdog"
+	depends on WATCHDOG && ARCH_PNX4008
+	help
+	  Say Y here if to include support for the watchdog timer
+	  in the PNX4008 processor.
+	  This driver can be built as a module by choosing M. The module
+	  will be called pnx4008_wdt.
+
+	  Say N if you are unsure.
+
 # X86 (i386 + ia64 + x86_64) Architecture
 
 config ACQUIRE_WDT
