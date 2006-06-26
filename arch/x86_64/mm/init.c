@@ -88,8 +88,6 @@ void show_mem(void)
 	printk(KERN_INFO "%lu pages swap cached\n",cached);
 }
 
-/* References to section boundaries */
-
 int after_bootmem;
 
 static __init void *spp_getpage(void)
@@ -259,9 +257,10 @@ phys_pmd_init(pmd_t *pmd, unsigned long address, unsigned long end)
 	for (i = 0; i < PTRS_PER_PMD; pmd++, i++, address += PMD_SIZE) {
 		unsigned long entry;
 
-		if (address > end) {
-			for (; i < PTRS_PER_PMD; i++, pmd++)
-				set_pmd(pmd, __pmd(0));
+		if (address >= end) {
+			if (!after_bootmem)
+				for (; i < PTRS_PER_PMD; i++, pmd++)
+					set_pmd(pmd, __pmd(0));
 			break;
 		}
 		entry = _PAGE_NX|_PAGE_PSE|_KERNPG_TABLE|_PAGE_GLOBAL|address;
@@ -339,7 +338,8 @@ static void __init find_early_table_space(unsigned long end)
 	table_end = table_start;
 
 	early_printk("kernel direct mapping tables up to %lx @ %lx-%lx\n",
-		end, table_start << PAGE_SHIFT, table_end << PAGE_SHIFT);
+		end, table_start << PAGE_SHIFT,
+		(table_start << PAGE_SHIFT) + tables);
 }
 
 /* Setup the direct mapping of the physical memory at PAGE_OFFSET.
