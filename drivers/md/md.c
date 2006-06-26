@@ -175,7 +175,7 @@ EXPORT_SYMBOL_GPL(md_new_event);
 /* Alternate version that can be called from interrupts
  * when calling sysfs_notify isn't needed.
  */
-void md_new_event_inintr(mddev_t *mddev)
+static void md_new_event_inintr(mddev_t *mddev)
 {
 	atomic_inc(&md_event_count);
 	wake_up(&md_event_waiters);
@@ -2309,7 +2309,7 @@ __ATTR(resync_start, 0644, resync_start_show, resync_start_store);
  */
 enum array_state { clear, inactive, suspended, readonly, read_auto, clean, active,
 		   write_pending, active_idle, bad_word};
-char *array_states[] = {
+static char *array_states[] = {
 	"clear", "inactive", "suspended", "readonly", "read-auto", "clean", "active",
 	"write-pending", "active-idle", NULL };
 
