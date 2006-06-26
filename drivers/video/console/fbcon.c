@@ -125,6 +125,8 @@ static int softback_lines;
 static int first_fb_vc;
 static int last_fb_vc = MAX_NR_CONSOLES - 1;
 static int fbcon_is_default = 1; 
+static int fbcon_has_exited;
+
 /* font data */
 static char fontname[40];
 
@@ -140,7 +142,6 @@ static const struct consw fb_con;
 
 #define advance_row(p, delta) (unsigned short *)((unsigned long)(p) + (delta) * vc->vc_size_row)
 
-static void fbcon_free_font(struct display *);
 static int fbcon_set_origin(struct vc_data *);
 
 #define CURSOR_DRAW_DELAY		(1)
@@ -255,7 +256,7 @@ static void fbcon_rotate_all(struct fb_info *info, u32 rotate)
 	if (!ops || ops->currcon < 0 || rotate > 3)
 		return;
 
-	for (i = 0; i < MAX_NR_CONSOLES; i++) {
+	for (i = first_fb_vc; i <= last_fb_vc; i++) {
 		vc = vc_cons[i].d;
 		if (!vc || vc->vc_mode != KD_TEXT ||
 		    registered_fb[con2fb_map[i]] != info)
@@ -534,7 +535,7 @@ static int search_fb_in_map(int idx)
 {
 	int i, retval = 0;
 
-	for (i = 0; i < MAX_NR_CONSOLES; i++) {
+	for (i = first_fb_vc; i <= last_fb_vc; i++) {
 		if (con2fb_map[i] == idx)
 			retval = 1;
 	}
@@ -545,7 +546,7 @@ static int search_for_mapped_con(void)
 {
 	int i, retval = 0;
 
-	for (i = 0; i < MAX_NR_CONSOLES; i++) {
+	for (i = first_fb_vc; i <= last_fb_vc; i++) {
 		if (con2fb_map[i] != -1)
 			retval = 1;
 	}
@@ -567,6 +568,7 @@ static int fbcon_takeover(int show_logo)
 
 	err = take_over_console(&fb_con, first_fb_vc, last_fb_vc,
 				fbcon_is_default);
+
 	if (err) {
 		for (i = first_fb_vc; i <= last_fb_vc; i++) {
 			con2fb_map[i] = -1;
@@ -801,8 +803,8 @@ static int set_con2fb_map(int unit, int newidx, int user)
 	if (oldidx == newidx)
 		return 0;
 
-	if (!info)
- 		err =  -EINVAL;
+	if (!info || fbcon_has_exited)
+		return -EINVAL;
 
  	if (!err && !search_for_mapped_con()) {
 		info_idx = newidx;
@@ -837,6 +839,9 @@ static int set_con2fb_map(int unit, int newidx, int user)
  		con2fb_map_boot[unit] = newidx;
  		con2fb_init_display(vc, info, unit, show_logo);
 	}
+
+	if (!search_fb_in_map(info_idx))
+		info_idx = newidx;
 
 	release_console_sem();
  	return err;
@@ -1040,6 +1045,7 @@ static const char *fbcon_startup(void)
 #endif				/* CONFIG_MAC */
 
 	fbcon_add_cursor_timer(info);
+	fbcon_has_exited = 0;
 	return display_desc;
 }
 
@@ -1067,17 +1073,36 @@ static void fbcon_init(struct vc_data *vc, int init)
 
 	/* If we are not the first console on this
 	   fb, copy the font from that console */
-	t = &fb_display[svc->vc_num];
-	if (!vc->vc_font.data) {
-		vc->vc_font.data = (void *)(p->fontdata = t->fontdata);
-		vc->vc_font.width = (*default_mode)->vc_font.width;
-		vc->vc_font.height = (*default_mode)->vc_font.height;
-		p->userfont = t->userfont;
-		if (p->userfont)
-			REFCOUNT(p->fontdata)++;
+	t = &fb_display[fg_console];
+	if (!p->fontdata) {
+		if (t->fontdata) {
+			struct vc_data *fvc = vc_cons[fg_console].d;
+
+			vc->vc_font.data = (void *)(p->fontdata =
+						    fvc->vc_font.data);
+			vc->vc_font.width = fvc->vc_font.width;
+			vc->vc_font.height = fvc->vc_font.height;
+			p->userfont = t->userfont;
+
+			if (p->userfont)
+				REFCOUNT(p->fontdata)++;
+		} else {
+			const struct font_desc *font = NULL;
+
+			if (!fontname[0] || !(font = find_font(fontname)))
+				font = get_default_font(info->var.xres,
+							info->var.yres);
+			vc->vc_font.width = font->width;
+			vc->vc_font.height = font->height;
+			vc->vc_font.data = (void *)(p->fontdata = font->data);
+			vc->vc_font.charcount = 256; /* FIXME  Need to
+							support more fonts */
+		}
 	}
+
 	if (p->userfont)
 		charcnt = FNTCHARCNT(p->fontdata);
+
 	vc->vc_can_do_color = (fb_get_color_depth(&info->var, &info->fix)!=1);
 	vc->vc_complement_mask = vc->vc_can_do_color ? 0x7700 : 0x0800;
 	if (charcnt == 256) {
@@ -1151,13 +1176,47 @@ static void fbcon_init(struct vc_data *vc, int init)
 	ops->p = &fb_display[fg_console];
 }
 
+static void fbcon_free_font(struct display *p)
+{
+	if (p->userfont && p->fontdata && (--REFCOUNT(p->fontdata) == 0))
+		kfree(p->fontdata - FONT_EXTRA_WORDS * sizeof(int));
+	p->fontdata = NULL;
+	p->userfont = 0;
+}
+
 static void fbcon_deinit(struct vc_data *vc)
 {
 	struct display *p = &fb_display[vc->vc_num];
+	struct fb_info *info;
+	struct fbcon_ops *ops;
+	int idx;
 
-	if (info_idx != -1)
-	    return;
 	fbcon_free_font(p);
+	idx = con2fb_map[vc->vc_num];
+
+	if (idx == -1)
+		goto finished;
+
+	info = registered_fb[idx];
+
+	if (!info)
+		goto finished;
+
+	ops = info->fbcon_par;
+
+	if (!ops)
+		goto finished;
+
+	if (CON_IS_VISIBLE(vc))
+		fbcon_del_cursor_timer(info);
+
+	ops->flags &= ~FBCON_FLAGS_INIT;
+finished:
+
+	if (!con_is_bound(&fb_con))
+		fbcon_exit();
+
+	return;
 }
 
 /* ====================================================================== */
@@ -2227,14 +2286,6 @@ static int fbcon_blank(struct vc_data *vc, int blank, int mode_switch)
 	return 0;
 }
 
-static void fbcon_free_font(struct display *p)
-{
-	if (p->userfont && p->fontdata && (--REFCOUNT(p->fontdata) == 0))
-		kfree(p->fontdata - FONT_EXTRA_WORDS * sizeof(int));
-	p->fontdata = NULL;
-	p->userfont = 0;
-}
-
 static int fbcon_get_font(struct vc_data *vc, struct console_font *font)
 {
 	u8 *fontdata = vc->vc_font.data;
@@ -2448,7 +2499,7 @@ static int fbcon_set_font(struct vc_data *vc, struct console_font *font, unsigne
 
 	FNTSUM(new_data) = csum;
 	/* Check if the same font is on some other console already */
-	for (i = 0; i < MAX_NR_CONSOLES; i++) {
+	for (i = first_fb_vc; i <= last_fb_vc; i++) {
 		struct vc_data *tmp = vc_cons[i].d;
 		
 		if (fb_display[i].userfont &&
@@ -2773,7 +2824,7 @@ static void fbcon_set_all_vcs(struct fb_info *info)
 	if (!ops || ops->currcon < 0)
 		return;
 
-	for (i = 0; i < MAX_NR_CONSOLES; i++) {
+	for (i = first_fb_vc; i <= last_fb_vc; i++) {
 		vc = vc_cons[i].d;
 		if (!vc || vc->vc_mode != KD_TEXT ||
 		    registered_fb[con2fb_map[i]] != info)
@@ -2835,21 +2886,55 @@ static int fbcon_mode_deleted(struct fb_info *info,
 	return found;
 }
 
+static int fbcon_fb_unregistered(int idx)
+{
+	int i;
+
+	for (i = first_fb_vc; i <= last_fb_vc; i++) {
+		if (con2fb_map[i] == idx)
+			con2fb_map[i] = -1;
+	}
+
+	if (idx == info_idx) {
+		info_idx = -1;
+
+		for (i = 0; i < FB_MAX; i++) {
+			if (registered_fb[i] != NULL) {
+				info_idx = i;
+				break;
+			}
+		}
+	}
+
+	if (info_idx != -1) {
+		for (i = first_fb_vc; i <= last_fb_vc; i++) {
+			if (con2fb_map[i] == -1)
+				con2fb_map[i] = info_idx;
+		}
+	}
+
+	if (!num_registered_fb)
+		unregister_con_driver(&fb_con);
+
+	return 0;
+}
+
 static int fbcon_fb_registered(int idx)
 {
 	int ret = 0, i;
 
 	if (info_idx == -1) {
-		for (i = 0; i < MAX_NR_CONSOLES; i++) {
+		for (i = first_fb_vc; i <= last_fb_vc; i++) {
 			if (con2fb_map_boot[i] == idx) {
 				info_idx = idx;
 				break;
 			}
 		}
+
 		if (info_idx != -1)
 			ret = fbcon_takeover(1);
 	} else {
-		for (i = 0; i < MAX_NR_CONSOLES; i++) {
+		for (i = first_fb_vc; i <= last_fb_vc; i++) {
 			if (con2fb_map_boot[i] == idx &&
 			    con2fb_map[i] == -1)
 				set_con2fb_map(i, idx, 0);
@@ -2888,7 +2973,7 @@ static void fbcon_new_modelist(struct fb_info *info)
 	struct fb_var_screeninfo var;
 	struct fb_videomode *mode;
 
-	for (i = 0; i < MAX_NR_CONSOLES; i++) {
+	for (i = first_fb_vc; i <= last_fb_vc; i++) {
 		if (registered_fb[con2fb_map[i]] != info)
 			continue;
 		if (!fb_display[i].mode)
@@ -2916,6 +3001,14 @@ static int fbcon_event_notify(struct notifier_block *self,
 	struct fb_con2fbmap *con2fb;
 	int ret = 0;
 
+	/*
+	 * ignore all events except driver registration and deregistration
+	 * if fbcon is not active
+	 */
+	if (fbcon_has_exited && !(action == FB_EVENT_FB_REGISTERED ||
+				  action == FB_EVENT_FB_UNREGISTERED))
+		goto done;
+
 	switch(action) {
 	case FB_EVENT_SUSPEND:
 		fbcon_suspended(info);
@@ -2936,6 +3029,9 @@ static int fbcon_event_notify(struct notifier_block *self,
 	case FB_EVENT_FB_REGISTERED:
 		ret = fbcon_fb_registered(info->node);
 		break;
+	case FB_EVENT_FB_UNREGISTERED:
+		ret = fbcon_fb_unregistered(info->node);
+		break;
 	case FB_EVENT_SET_CONSOLE_MAP:
 		con2fb = event->data;
 		ret = set_con2fb_map(con2fb->console - 1,
@@ -2953,6 +3049,7 @@ static int fbcon_event_notify(struct notifier_block *self,
 		break;
 	}
 
+done:
 	return ret;
 }
 
@@ -2997,6 +3094,9 @@ static ssize_t store_rotate(struct class_device *class_device,
 	int rotate, idx;
 	char **last = NULL;
 
+	if (fbcon_has_exited)
+		return count;
+
 	acquire_console_sem();
 	idx = con2fb_map[fg_console];
 
@@ -3018,6 +3118,9 @@ static ssize_t store_rotate_all(struct class_device *class_device,
 	int rotate, idx;
 	char **last = NULL;
 
+	if (fbcon_has_exited)
+		return count;
+
 	acquire_console_sem();
 	idx = con2fb_map[fg_console];
 
@@ -3037,6 +3140,9 @@ static ssize_t show_rotate(struct class_device *class_device, char *buf)
 	struct fb_info *info;
 	int rotate = 0, idx;
 
+	if (fbcon_has_exited)
+		return 0;
+
 	acquire_console_sem();
 	idx = con2fb_map[fg_console];
 
@@ -3050,32 +3156,9 @@ err:
 	return snprintf(buf, PAGE_SIZE, "%d\n", rotate);
 }
 
-static ssize_t store_attach(struct class_device *class_device,
-			    const char *buf, size_t count)
-{
-	if (info_idx == -1)
-		fbcon_start();
-
-	return count;
-}
-
-static ssize_t store_detach(struct class_device *class_device,
-			    const char *buf, size_t count)
-{
-	if (info_idx != -1) {
-		fbcon_exit();
-		give_up_console(&fb_con);
-	}
-
-	info_idx = -1;
-	return count;
-}
-
 static struct class_device_attribute class_device_attrs[] = {
 	__ATTR(rotate, S_IRUGO|S_IWUSR, show_rotate, store_rotate),
 	__ATTR(rotate_all, S_IWUSR, NULL, store_rotate_all),
-	__ATTR(attach, S_IWUSR, NULL, store_attach),
-	__ATTR(detach, S_IWUSR, NULL, store_detach),
 };
 
 static int fbcon_init_class_device(void)
@@ -3112,7 +3195,9 @@ static void fbcon_exit(void)
 	struct fb_info *info;
 	int i, j, mapped;
 
-	acquire_console_sem();
+	if (fbcon_has_exited)
+		return;
+
 #ifdef CONFIG_ATARI
 	free_irq(IRQ_AUTO_4, fbcon_vbl_handler);
 #endif
@@ -3131,11 +3216,9 @@ static void fbcon_exit(void)
 		if (info == NULL)
 			continue;
 
-		for (j = 0; j < MAX_NR_CONSOLES; j++) {
-			if (con2fb_map[j] == i) {
-				con2fb_map[j] = -1;
+		for (j = first_fb_vc; j <= last_fb_vc; j++) {
+			if (con2fb_map[j] == i)
 				mapped = 1;
-			}
 		}
 
 		if (mapped) {
@@ -3151,11 +3234,10 @@ static void fbcon_exit(void)
 
 			if (info->queue.func == fb_flashcursor)
 				info->queue.func = NULL;
-
 		}
 	}
 
-	release_console_sem();
+	fbcon_has_exited = 1;
 }
 
 static int __init fb_console_init(void)
@@ -3189,7 +3271,7 @@ module_init(fb_console_init);
 
 #ifdef MODULE
 
-static void fbcon_deinit_class_device(void)
+static void __exit fbcon_deinit_class_device(void)
 {
 	int i;
 
@@ -3204,7 +3286,9 @@ static void __exit fb_console_exit(void)
 	fb_unregister_client(&fbcon_event_notifier);
 	fbcon_deinit_class_device();
 	class_device_destroy(fb_class, MKDEV(FB_MAJOR, FB_MAX));
+	fbcon_exit();
 	release_console_sem();
+	unregister_con_driver(&fb_con);
 }	
 
 module_exit(fb_console_exit);

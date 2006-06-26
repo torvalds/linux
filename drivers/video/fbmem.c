@@ -1353,6 +1353,7 @@ register_framebuffer(struct fb_info *fb_info)
 int
 unregister_framebuffer(struct fb_info *fb_info)
 {
+	struct fb_event event;
 	int i;
 
 	i = fb_info->node;
@@ -1360,13 +1361,17 @@ unregister_framebuffer(struct fb_info *fb_info)
 		return -EINVAL;
 	devfs_remove("fb/%d", i);
 
-	if (fb_info->pixmap.addr && (fb_info->pixmap.flags & FB_PIXMAP_DEFAULT))
+	if (fb_info->pixmap.addr &&
+	    (fb_info->pixmap.flags & FB_PIXMAP_DEFAULT))
 		kfree(fb_info->pixmap.addr);
 	fb_destroy_modelist(&fb_info->modelist);
 	registered_fb[i]=NULL;
 	num_registered_fb--;
 	fb_cleanup_class_device(fb_info);
 	class_device_destroy(fb_class, MKDEV(FB_MAJOR, i));
+	event.info = fb_info;
+	blocking_notifier_call_chain(&fb_notifier_list,
+				     FB_EVENT_FB_UNREGISTERED, &event);
 	return 0;
 }
 

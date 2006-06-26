@@ -504,17 +504,19 @@ struct fb_cursor_user {
 #define FB_EVENT_MODE_DELETE            0x04
 /*      A driver registered itself */
 #define FB_EVENT_FB_REGISTERED          0x05
+/*      A driver unregistered itself */
+#define FB_EVENT_FB_UNREGISTERED        0x06
 /*      CONSOLE-SPECIFIC: get console to framebuffer mapping */
-#define FB_EVENT_GET_CONSOLE_MAP        0x06
+#define FB_EVENT_GET_CONSOLE_MAP        0x07
 /*      CONSOLE-SPECIFIC: set console to framebuffer mapping */
-#define FB_EVENT_SET_CONSOLE_MAP        0x07
+#define FB_EVENT_SET_CONSOLE_MAP        0x08
 /*      A display blank is requested       */
-#define FB_EVENT_BLANK                  0x08
+#define FB_EVENT_BLANK                  0x09
 /*      Private modelist is to be replaced */
-#define FB_EVENT_NEW_MODELIST           0x09
+#define FB_EVENT_NEW_MODELIST           0x0A
 /*	The resolution of the passed in fb_info about to change and
         all vc's should be changed         */
-#define FB_EVENT_MODE_CHANGE_ALL	0x0A
+#define FB_EVENT_MODE_CHANGE_ALL	0x0B
 
 struct fb_event {
 	struct fb_info *info;
