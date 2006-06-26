@@ -4264,7 +4264,8 @@ static int selinux_setprocattr(struct task_struct *p,
 
 #ifdef CONFIG_KEYS
 
-static int selinux_key_alloc(struct key *k, struct task_struct *tsk)
+static int selinux_key_alloc(struct key *k, struct task_struct *tsk,
+			     unsigned long flags)
 {
 	struct task_security_struct *tsec = tsk->security;
 	struct key_security_struct *ksec;
@@ -4513,8 +4514,10 @@ static __init int selinux_init(void)
 
 #ifdef CONFIG_KEYS
 	/* Add security information to initial keyrings */
-	security_key_alloc(&root_user_keyring, current);
-	security_key_alloc(&root_session_keyring, current);
+	security_key_alloc(&root_user_keyring, current,
+			   KEY_ALLOC_NOT_IN_QUOTA);
+	security_key_alloc(&root_session_keyring, current,
+			   KEY_ALLOC_NOT_IN_QUOTA);
 #endif
 
 	return 0;

@@ -102,7 +102,7 @@ asmlinkage long sys_add_key(const char __user *_type,
 	/* create or update the requested key and add it to the target
 	 * keyring */
 	key_ref = key_create_or_update(keyring_ref, type, description,
-				       payload, plen, 0);
+				       payload, plen, KEY_ALLOC_IN_QUOTA);
 	if (!IS_ERR(key_ref)) {
 		ret = key_ref_to_ptr(key_ref)->serial;
 		key_ref_put(key_ref);
@@ -184,7 +184,8 @@ asmlinkage long sys_request_key(const char __user *_type,
 
 	/* do the search */
 	key = request_key_and_link(ktype, description, callout_info,
-				   key_ref_to_ptr(dest_ref));
+				   key_ref_to_ptr(dest_ref),
+				   KEY_ALLOC_IN_QUOTA);
 	if (IS_ERR(key)) {
 		ret = PTR_ERR(key);
 		goto error5;

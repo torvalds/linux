@@ -77,7 +77,8 @@ int alloc_uid_keyring(struct user_struct *user,
 	/* concoct a default session keyring */
 	sprintf(buf, "_uid_ses.%u", user->uid);
 
-	session_keyring = keyring_alloc(buf, user->uid, (gid_t) -1, ctx, 0, NULL);
+	session_keyring = keyring_alloc(buf, user->uid, (gid_t) -1, ctx,
+					KEY_ALLOC_IN_QUOTA, NULL);
 	if (IS_ERR(session_keyring)) {
 		ret = PTR_ERR(session_keyring);
 		goto error;
@@ -87,8 +88,8 @@ int alloc_uid_keyring(struct user_struct *user,
 	 * keyring */
 	sprintf(buf, "_uid.%u", user->uid);
 
-	uid_keyring = keyring_alloc(buf, user->uid, (gid_t) -1, ctx, 0,
-				    session_keyring);
+	uid_keyring = keyring_alloc(buf, user->uid, (gid_t) -1, ctx,
+				    KEY_ALLOC_IN_QUOTA, session_keyring);
 	if (IS_ERR(uid_keyring)) {
 		key_put(session_keyring);
 		ret = PTR_ERR(uid_keyring);
@@ -144,7 +145,8 @@ int install_thread_keyring(struct task_struct *tsk)
 
 	sprintf(buf, "_tid.%u", tsk->pid);
 
-	keyring = keyring_alloc(buf, tsk->uid, tsk->gid, tsk, 1, NULL);
+	keyring = keyring_alloc(buf, tsk->uid, tsk->gid, tsk,
+				KEY_ALLOC_QUOTA_OVERRUN, NULL);
 	if (IS_ERR(keyring)) {
 		ret = PTR_ERR(keyring);
 		goto error;
@@ -178,7 +180,8 @@ int install_process_keyring(struct task_struct *tsk)
 	if (!tsk->signal->process_keyring) {
 		sprintf(buf, "_pid.%u", tsk->tgid);
 
-		keyring = keyring_alloc(buf, tsk->uid, tsk->gid, tsk, 1, NULL);
+		keyring = keyring_alloc(buf, tsk->uid, tsk->gid, tsk,
+					KEY_ALLOC_QUOTA_OVERRUN, NULL);
 		if (IS_ERR(keyring)) {
 			ret = PTR_ERR(keyring);
 			goto error;
@@ -209,6 +212,7 @@ error:
 static int install_session_keyring(struct task_struct *tsk,
 				   struct key *keyring)
 {
+	unsigned long flags;
 	struct key *old;
 	char buf[20];
 
@@ -218,7 +222,12 @@ static int install_session_keyring(struct task_struct *tsk,
 	if (!keyring) {
 		sprintf(buf, "_ses.%u", tsk->tgid);
 
-		keyring = keyring_alloc(buf, tsk->uid, tsk->gid, tsk, 1, NULL);
+		flags = KEY_ALLOC_QUOTA_OVERRUN;
+		if (tsk->signal->session_keyring)
+			flags = KEY_ALLOC_IN_QUOTA;
+
+		keyring = keyring_alloc(buf, tsk->uid, tsk->gid, tsk,
+					flags, NULL);
 		if (IS_ERR(keyring))
 			return PTR_ERR(keyring);
 	}
@@ -728,7 +737,8 @@ long join_session_keyring(const char *name)
 	keyring = find_keyring_by_name(name, 0);
 	if (PTR_ERR(keyring) == -ENOKEY) {
 		/* not found - try and create a new one */
-		keyring = keyring_alloc(name, tsk->uid, tsk->gid, tsk, 0, NULL);
+		keyring = keyring_alloc(name, tsk->uid, tsk->gid, tsk,
+					KEY_ALLOC_IN_QUOTA, NULL);
 		if (IS_ERR(keyring)) {
 			ret = PTR_ERR(keyring);
 			goto error2;

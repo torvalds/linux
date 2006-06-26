@@ -48,8 +48,8 @@ static int call_sbin_request_key(struct key *key,
 	/* allocate a new session keyring */
 	sprintf(desc, "_req.%u", key->serial);
 
-	keyring = keyring_alloc(desc, current->fsuid, current->fsgid,
-				current, 1, NULL);
+	keyring = keyring_alloc(desc, current->fsuid, current->fsgid, current,
+				KEY_ALLOC_QUOTA_OVERRUN, NULL);
 	if (IS_ERR(keyring)) {
 		ret = PTR_ERR(keyring);
 		goto error_alloc;
@@ -126,7 +126,8 @@ error_alloc:
  */
 static struct key *__request_key_construction(struct key_type *type,
 					      const char *description,
-					      const char *callout_info)
+					      const char *callout_info,
+					      unsigned long flags)
 {
 	request_key_actor_t actor;
 	struct key_construction cons;
@@ -134,12 +135,12 @@ static struct key *__request_key_construction(struct key_type *type,
 	struct key *key, *authkey;
 	int ret, negated;
 
-	kenter("%s,%s,%s", type->name, description, callout_info);
+	kenter("%s,%s,%s,%lx", type->name, description, callout_info, flags);
 
 	/* create a key and add it to the queue */
 	key = key_alloc(type, description,
-			current->fsuid, current->fsgid,
-			current, KEY_POS_ALL, 0);
+			current->fsuid, current->fsgid, current, KEY_POS_ALL,
+			flags);
 	if (IS_ERR(key))
 		goto alloc_failed;
 
@@ -258,15 +259,16 @@ alloc_failed:
 static struct key *request_key_construction(struct key_type *type,
 					    const char *description,
 					    struct key_user *user,
-					    const char *callout_info)
+					    const char *callout_info,
+					    unsigned long flags)
 {
 	struct key_construction *pcons;
 	struct key *key, *ckey;
 
 	DECLARE_WAITQUEUE(myself, current);
 
-	kenter("%s,%s,{%d},%s",
-	       type->name, description, user->uid, callout_info);
+	kenter("%s,%s,{%d},%s,%lx",
+	       type->name, description, user->uid, callout_info, flags);
 
 	/* see if there's such a key under construction already */
 	down_write(&key_construction_sem);
@@ -282,7 +284,8 @@ static struct key *request_key_construction(struct key_type *type,
 	}
 
 	/* see about getting userspace to construct the key */
-	key = __request_key_construction(type, description, callout_info);
+	key = __request_key_construction(type, description, callout_info,
+					 flags);
  error:
 	kleave(" = %p", key);
 	return key;
@@ -389,14 +392,15 @@ static void request_key_link(struct key *key, struct key *dest_keyring)
 struct key *request_key_and_link(struct key_type *type,
 				 const char *description,
 				 const char *callout_info,
-				 struct key *dest_keyring)
+				 struct key *dest_keyring,
+				 unsigned long flags)
 {
 	struct key_user *user;
 	struct key *key;
 	key_ref_t key_ref;
 
-	kenter("%s,%s,%s,%p",
-	       type->name, description, callout_info, dest_keyring);
+	kenter("%s,%s,%s,%p,%lx",
+	       type->name, description, callout_info, dest_keyring, flags);
 
 	/* search all the process keyrings for a key */
 	key_ref = search_process_keyrings(type, description, type->match,
@@ -429,7 +433,8 @@ struct key *request_key_and_link(struct key_type *type,
 			/* ask userspace (returns NULL if it waited on a key
 			 * being constructed) */
 			key = request_key_construction(type, description,
-						       user, callout_info);
+						       user, callout_info,
+						       flags);
 			if (key)
 				break;
 
@@ -485,7 +490,8 @@ struct key *request_key(struct key_type *type,
 			const char *description,
 			const char *callout_info)
 {
-	return request_key_and_link(type, description, callout_info, NULL);
+	return request_key_and_link(type, description, callout_info, NULL,
+				    KEY_ALLOC_IN_QUOTA);
 
 } /* end request_key() */
 

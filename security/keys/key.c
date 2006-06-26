@@ -248,7 +248,7 @@ static inline void key_alloc_serial(struct key *key)
  */
 struct key *key_alloc(struct key_type *type, const char *desc,
 		      uid_t uid, gid_t gid, struct task_struct *ctx,
-		      key_perm_t perm, int not_in_quota)
+		      key_perm_t perm, unsigned long flags)
 {
 	struct key_user *user = NULL;
 	struct key *key;
@@ -269,12 +269,14 @@ struct key *key_alloc(struct key_type *type, const char *desc,
 
 	/* check that the user's quota permits allocation of another key and
 	 * its description */
-	if (!not_in_quota) {
+	if (!(flags & KEY_ALLOC_NOT_IN_QUOTA)) {
 		spin_lock(&user->lock);
-		if (user->qnkeys + 1 >= KEYQUOTA_MAX_KEYS ||
-		    user->qnbytes + quotalen >= KEYQUOTA_MAX_BYTES
-		    )
-			goto no_quota;
+		if (!(flags & KEY_ALLOC_QUOTA_OVERRUN)) {
+			if (user->qnkeys + 1 >= KEYQUOTA_MAX_KEYS ||
+			    user->qnbytes + quotalen >= KEYQUOTA_MAX_BYTES
+			    )
+				goto no_quota;
+		}
 
 		user->qnkeys++;
 		user->qnbytes += quotalen;
@@ -308,7 +310,7 @@ struct key *key_alloc(struct key_type *type, const char *desc,
 	key->payload.data = NULL;
 	key->security = NULL;
 
-	if (!not_in_quota)
+	if (!(flags & KEY_ALLOC_NOT_IN_QUOTA))
 		key->flags |= 1 << KEY_FLAG_IN_QUOTA;
 
 	memset(&key->type_data, 0, sizeof(key->type_data));
@@ -318,7 +320,7 @@ struct key *key_alloc(struct key_type *type, const char *desc,
 #endif
 
 	/* let the security module know about the key */
-	ret = security_key_alloc(key, ctx);
+	ret = security_key_alloc(key, ctx, flags);
 	if (ret < 0)
 		goto security_error;
 
@@ -332,7 +334,7 @@ error:
 security_error:
 	kfree(key->description);
 	kmem_cache_free(key_jar, key);
-	if (!not_in_quota) {
+	if (!(flags & KEY_ALLOC_NOT_IN_QUOTA)) {
 		spin_lock(&user->lock);
 		user->qnkeys--;
 		user->qnbytes -= quotalen;
@@ -345,7 +347,7 @@ security_error:
 no_memory_3:
 	kmem_cache_free(key_jar, key);
 no_memory_2:
-	if (!not_in_quota) {
+	if (!(flags & KEY_ALLOC_NOT_IN_QUOTA)) {
 		spin_lock(&user->lock);
 		user->qnkeys--;
 		user->qnbytes -= quotalen;
@@ -761,7 +763,7 @@ key_ref_t key_create_or_update(key_ref_t keyring_ref,
 			       const char *description,
 			       const void *payload,
 			       size_t plen,
-			       int not_in_quota)
+			       unsigned long flags)
 {
 	struct key_type *ktype;
 	struct key *keyring, *key = NULL;
@@ -822,7 +824,7 @@ key_ref_t key_create_or_update(key_ref_t keyring_ref,
 
 	/* allocate a new key */
 	key = key_alloc(ktype, description, current->fsuid, current->fsgid,
-			current, perm, not_in_quota);
+			current, perm, flags);
 	if (IS_ERR(key)) {
 		key_ref = ERR_PTR(PTR_ERR(key));
 		goto error_3;

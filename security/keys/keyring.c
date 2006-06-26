@@ -240,7 +240,7 @@ static long keyring_read(const struct key *keyring,
  * allocate a keyring and link into the destination keyring
  */
 struct key *keyring_alloc(const char *description, uid_t uid, gid_t gid,
-			  struct task_struct *ctx, int not_in_quota,
+			  struct task_struct *ctx, unsigned long flags,
 			  struct key *dest)
 {
 	struct key *keyring;
@@ -249,7 +249,7 @@ struct key *keyring_alloc(const char *description, uid_t uid, gid_t gid,
 	keyring = key_alloc(&key_type_keyring, description,
 			    uid, gid, ctx,
 			    (KEY_POS_ALL & ~KEY_POS_SETATTR) | KEY_USR_ALL,
-			    not_in_quota);
+			    flags);
 
 	if (!IS_ERR(keyring)) {
 		ret = key_instantiate_and_link(keyring, NULL, 0, dest, NULL);
