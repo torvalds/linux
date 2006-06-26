@@ -230,7 +230,7 @@ extern void netdev_unregister_sysfs(struct net_device *);
  *	For efficiency
  */
 
-int netdev_nit;
+static int netdev_nit;
 
 /*
  *	Add a protocol ID to the list. Now that the input handler is
