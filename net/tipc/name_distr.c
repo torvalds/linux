@@ -174,7 +174,6 @@ void tipc_named_node_up(unsigned long node)
 	u32 rest;
 	u32 max_item_buf;
 
-	assert(in_own_cluster(node));
 	read_lock_bh(&tipc_nametbl_lock); 
 	max_item_buf = TIPC_MAX_USER_MSG_SIZE / ITEM_SIZE;
 	max_item_buf *= ITEM_SIZE;
@@ -221,15 +220,24 @@ exit:
 static void node_is_down(struct publication *publ)
 {
 	struct publication *p;
+
         write_lock_bh(&tipc_nametbl_lock);
 	dbg("node_is_down: withdrawing %u, %u, %u\n", 
 	    publ->type, publ->lower, publ->upper);
         publ->key += 1222345;
 	p = tipc_nametbl_remove_publ(publ->type, publ->lower, 
 				     publ->node, publ->ref, publ->key);
-        assert(p == publ);
 	write_unlock_bh(&tipc_nametbl_lock);
-	kfree(publ);
+
+        if (p != publ) {
+		err("Unable to remove publication from failed node\n"
+		    "(type=%u, lower=%u, node=0x%x, ref=%u, key=%u)\n",
+		    publ->type, publ->lower, publ->node, publ->ref, publ->key);
+	}
+
+	if (p) {
+		kfree(p);
+	}
 }
 
 /**
@@ -275,6 +283,12 @@ void tipc_named_recv(struct sk_buff *buf)
 			if (publ) {
 				tipc_nodesub_unsubscribe(&publ->subscr);
         			kfree(publ);
+			} else {
+				err("Unable to remove publication by node 0x%x\n"
+				    "(type=%u, lower=%u, ref=%u, key=%u)\n",
+				    msg_orignode(msg),
+				    ntohl(item->type), ntohl(item->lower),
+				    ntohl(item->ref), ntohl(item->key));
 			}
 		} else {
 			warn("tipc_named_recv: unknown msg\n");

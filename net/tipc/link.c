@@ -574,7 +574,6 @@ void tipc_link_wakeup_ports(struct link *l_ptr, int all)
 			break;
 		list_del_init(&p_ptr->wait_list);
 		p_ptr->congested_link = NULL;
-		assert(p_ptr->wakeup);
 		spin_lock_bh(p_ptr->publ.lock);
 		p_ptr->publ.congested = 0;
 		p_ptr->wakeup(&p_ptr->publ);
@@ -1245,8 +1244,6 @@ int tipc_link_send_sections_fast(struct port *sender,
 	struct node *node;
 	int res;
 	u32 selector = msg_origport(hdr) & 1;
-
-	assert(destaddr != tipc_own_addr);
 
 again:
 	/*
@@ -2310,7 +2307,6 @@ void tipc_link_tunnel(struct link *l_ptr,
 	memcpy(buf->data + INT_H_SIZE, (unchar *)msg, length);
 	dbg("%c->%c:", l_ptr->b_ptr->net_plane, tunnel->b_ptr->net_plane);
 	msg_dbg(buf_msg(buf), ">SEND>");
-	assert(tunnel);
 	tipc_link_send_buf(tunnel, buf);
 }
 
@@ -2339,10 +2335,10 @@ void tipc_link_changeover(struct link *l_ptr)
 		 ORIGINAL_MSG, TIPC_OK, INT_H_SIZE, l_ptr->addr);
 	msg_set_bearer_id(&tunnel_hdr, l_ptr->peer_bearer_id);
 	msg_set_msgcnt(&tunnel_hdr, msgcount);
+
 	if (!l_ptr->first_out) {
 		struct sk_buff *buf;
 
-		assert(!msgcount);
 		buf = buf_acquire(INT_H_SIZE);
 		if (buf) {
 			memcpy(buf->data, (unchar *)&tunnel_hdr, INT_H_SIZE);
@@ -2356,6 +2352,7 @@ void tipc_link_changeover(struct link *l_ptr)
 		}
 		return;
 	}
+
 	while (crs) {
 		struct tipc_msg *msg = buf_msg(crs);
 
@@ -2455,9 +2452,13 @@ static int link_recv_changeover_msg(struct link **l_ptr,
 	u32 msg_count = msg_msgcnt(tunnel_msg);
 
 	dest_link = (*l_ptr)->owner->links[msg_bearer_id(tunnel_msg)];
-	assert(dest_link != *l_ptr);
 	if (!dest_link) {
 		msg_dbg(tunnel_msg, "NOLINK/<REC<");
+		goto exit;
+	}
+	if (dest_link == *l_ptr) {
+		err("Unexpected changeover message on link <%s>\n", 
+		    (*l_ptr)->name);
 		goto exit;
 	}
 	dbg("%c<-%c:", dest_link->b_ptr->net_plane,

@@ -234,7 +234,6 @@ struct node *tipc_node_attach_link(struct link *l_ptr)
 		u32 bearer_id = l_ptr->b_ptr->identity;
 		char addr_string[16];
 
-                assert(bearer_id < MAX_BEARERS);
                 if (n_ptr->link_cnt >= 2) {
 			char addr_string[16];
 
@@ -314,7 +313,7 @@ static void node_established_contact(struct node *n_ptr)
 	struct cluster *c_ptr;
 
 	dbg("node_established_contact:-> %x\n", n_ptr->addr);
-	if (!tipc_node_has_active_routes(n_ptr)) { 
+	if (!tipc_node_has_active_routes(n_ptr) && in_own_cluster(n_ptr->addr)) { 
 		tipc_k_signal((Handler)tipc_named_node_up, n_ptr->addr);
 	}
 

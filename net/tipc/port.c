@@ -168,7 +168,6 @@ void tipc_port_recv_mcast(struct sk_buff *buf, struct port_list *dp)
 	struct port_list *item = dp;
 	int cnt = 0;
 
-	assert(buf);
 	msg = buf_msg(buf);
 
 	/* Create destination port list, if one wasn't supplied */
