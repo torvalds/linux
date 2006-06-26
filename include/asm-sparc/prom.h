@@ -36,6 +36,7 @@ struct property {
 	void	*value;
 	struct property *next;
 	unsigned long _flags;
+	unsigned int unique_id;
 };
 
 struct device_node {
@@ -59,6 +60,7 @@ struct device_node {
 	struct  kref kref;
 	unsigned long _flags;
 	void	*data;
+	unsigned int unique_id;
 };
 
 /* flag descriptions */
