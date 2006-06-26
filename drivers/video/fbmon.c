@@ -29,9 +29,9 @@
 #include <linux/tty.h>
 #include <linux/fb.h>
 #include <linux/module.h>
+#include <linux/pci.h>
 #include <video/edid.h>
 #ifdef CONFIG_PPC_OF
-#include <linux/pci.h>
 #include <asm/prom.h>
 #include <asm/pci-bridge.h>
 #endif
@@ -1282,7 +1282,6 @@ int fb_validate_mode(const struct fb_var_screeninfo *var, struct fb_info *info)
 }
 
 #if defined(CONFIG_FB_FIRMWARE_EDID) && defined(__i386__)
-#include <linux/pci.h>
 
 /*
  * We need to ensure that the EDID block is only returned for
