@@ -536,29 +536,15 @@ static int proc_fd_access_allowed(struct inode *inode)
 {
 	struct task_struct *task;
 	int allowed = 0;
-	/* Allow access to a task's file descriptors if either we may
-	 * use ptrace attach to the process and find out that
-	 * information, or if the task cannot possibly be ptraced
-	 * allow access if we have the proper capability.
+	/* Allow access to a task's file descriptors if it is us or we
+	 * may use ptrace attach to the process and find out that
+	 * information.
 	 */
 	task = get_proc_task(inode);
-	if (task == current)
-		allowed = 1;
-	if (task && !allowed) {
-		int alive;
-
-		task_lock(task);
-		alive = !!task->mm;
-		task_unlock(task);
-		if (alive)
-			/* For a living task obey ptrace_may_attach */
-			allowed = ptrace_may_attach(task);
-		else
-			/* For a special task simply check the capability */
-			allowed = capable(CAP_SYS_PTRACE);
-	}
-	if (task)
+	if (task) {
+		allowed = ptrace_may_attach(task);
 		put_task_struct(task);
+	}
 	return allowed;
 }
 
