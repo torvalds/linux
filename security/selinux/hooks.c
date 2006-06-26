@@ -1532,8 +1532,9 @@ static int selinux_bprm_set_security(struct linux_binprm *bprm)
 	/* Default to the current task SID. */
 	bsec->sid = tsec->sid;
 
-	/* Reset create SID on execve. */
+	/* Reset create and sockcreate SID on execve. */
 	tsec->create_sid = 0;
+	tsec->sockcreate_sid = 0;
 
 	if (tsec->exec_sid) {
 		newsid = tsec->exec_sid;
@@ -2585,9 +2586,10 @@ static int selinux_task_alloc_security(struct task_struct *tsk)
 	tsec2->osid = tsec1->osid;
 	tsec2->sid = tsec1->sid;
 
-	/* Retain the exec and create SIDs across fork */
+	/* Retain the exec, create, and sock SIDs across fork */
 	tsec2->exec_sid = tsec1->exec_sid;
 	tsec2->create_sid = tsec1->create_sid;
+	tsec2->sockcreate_sid = tsec1->sockcreate_sid;
 
 	/* Retain ptracer SID across fork, if any.
 	   This will be reset by the ptrace hook upon any
@@ -2937,12 +2939,14 @@ static int selinux_socket_create(int family, int type,
 {
 	int err = 0;
 	struct task_security_struct *tsec;
+	u32 newsid;
 
 	if (kern)
 		goto out;
 
 	tsec = current->security;
-	err = avc_has_perm(tsec->sid, tsec->sid,
+	newsid = tsec->sockcreate_sid ? : tsec->sid;
+	err = avc_has_perm(tsec->sid, newsid,
 			   socket_type_to_security_class(family, type,
 			   protocol), SOCKET__CREATE, NULL);
 
@@ -2955,12 +2959,14 @@ static void selinux_socket_post_create(struct socket *sock, int family,
 {
 	struct inode_security_struct *isec;
 	struct task_security_struct *tsec;
+	u32 newsid;
 
 	isec = SOCK_INODE(sock)->i_security;
 
 	tsec = current->security;
+	newsid = tsec->sockcreate_sid ? : tsec->sid;
 	isec->sclass = socket_type_to_security_class(family, type, protocol);
-	isec->sid = kern ? SECINITSID_KERNEL : tsec->sid;
+	isec->sid = kern ? SECINITSID_KERNEL : newsid;
 	isec->initialized = 1;
 
 	return;
@@ -4163,6 +4169,8 @@ static int selinux_getprocattr(struct task_struct *p,
 		sid = tsec->create_sid;
 	else if (!strcmp(name, "keycreate"))
 		sid = tsec->keycreate_sid;
+	else if (!strcmp(name, "sockcreate"))
+		sid = tsec->sockcreate_sid;
 	else
 		return -EINVAL;
 
@@ -4197,6 +4205,8 @@ static int selinux_setprocattr(struct task_struct *p,
 		error = task_has_perm(current, p, PROCESS__SETFSCREATE);
 	else if (!strcmp(name, "keycreate"))
 		error = task_has_perm(current, p, PROCESS__SETKEYCREATE);
+	else if (!strcmp(name, "sockcreate"))
+		error = task_has_perm(current, p, PROCESS__SETSOCKCREATE);
 	else if (!strcmp(name, "current"))
 		error = task_has_perm(current, p, PROCESS__SETCURRENT);
 	else
@@ -4231,7 +4241,9 @@ static int selinux_setprocattr(struct task_struct *p,
 		if (error)
 			return error;
 		tsec->keycreate_sid = sid;
-	} else if (!strcmp(name, "current")) {
+	} else if (!strcmp(name, "sockcreate"))
+		tsec->sockcreate_sid = sid;
+	else if (!strcmp(name, "current")) {
 		struct av_decision avd;
 
 		if (sid == 0)
