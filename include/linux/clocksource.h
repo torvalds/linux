@@ -173,6 +173,103 @@ static inline void calculate_clocksource_interval(struct clocksource *c,
 	c->interval_snsecs = (u64)c->interval_cycles * c->mult;
 }
 
+
+/**
+ * error_aproximation - calculates an error adjustment for a given error
+ *
+ * @error:	Error value (unsigned)
+ * @unit:	Adjustment unit
+ *
+ * For a given error value, this function takes the adjustment unit
+ * and uses binary approximation to return a power of two adjustment value.
+ *
+ * This function is only for use by the the make_ntp_adj() function
+ * and you must hold a write on the xtime_lock when calling.
+ */
+static inline int error_aproximation(u64 error, u64 unit)
+{
+	static int saved_adj = 0;
+	u64 adjusted_unit = unit << saved_adj;
+
+	if (error > (adjusted_unit * 2)) {
+		/* large error, so increment the adjustment factor */
+		saved_adj++;
+	} else if (error > adjusted_unit) {
+		/* just right, don't touch it */
+	} else if (saved_adj) {
+		/* small error, so drop the adjustment factor */
+		saved_adj--;
+		return 0;
+	}
+
+	return saved_adj;
+}
+
+
+/**
+ * make_ntp_adj - Adjusts the specified clocksource for a given error
+ *
+ * @clock:		Pointer to clock to be adjusted
+ * @cycles_delta:	Current unacounted cycle delta
+ * @error:		Pointer to current error value
+ *
+ * Returns clock shifted nanosecond adjustment to be applied against
+ * the accumulated time value (ie: xtime).
+ *
+ * If the error value is large enough, this function calulates the
+ * (power of two) adjustment value, and adjusts the clock's mult and
+ * interval_snsecs values accordingly.
+ *
+ * However, since there may be some unaccumulated cycles, to avoid
+ * time inconsistencies we must adjust the accumulation value
+ * accordingly.
+ *
+ * This is not very intuitive, so the following proof should help:
+ * The basic timeofday algorithm:  base + cycle * mult
+ * Thus:
+ *    new_base + cycle * new_mult = old_base + cycle * old_mult
+ *    new_base = old_base + cycle * old_mult - cycle * new_mult
+ *    new_base = old_base + cycle * (old_mult - new_mult)
+ *    new_base - old_base = cycle * (old_mult - new_mult)
+ *    base_delta = cycle * (old_mult - new_mult)
+ *    base_delta = cycle * (mult_delta)
+ *
+ * Where mult_delta is the adjustment value made to mult
+ *
+ */
+static inline s64 make_ntp_adj(struct clocksource *clock,
+				cycles_t cycles_delta, s64* error)
+{
+	s64 ret = 0;
+	if (*error  > ((s64)clock->interval_cycles+1)/2) {
+		/* calculate adjustment value */
+		int adjustment = error_aproximation(*error,
+						clock->interval_cycles);
+		/* adjust clock */
+		clock->mult += 1 << adjustment;
+		clock->interval_snsecs += clock->interval_cycles << adjustment;
+
+		/* adjust the base and error for the adjustment */
+		ret =  -(cycles_delta << adjustment);
+		*error -= clock->interval_cycles << adjustment;
+		/* XXX adj error for cycle_delta offset? */
+	} else if ((-(*error))  > ((s64)clock->interval_cycles+1)/2) {
+		/* calculate adjustment value */
+		int adjustment = error_aproximation(-(*error),
+						clock->interval_cycles);
+		/* adjust clock */
+		clock->mult -= 1 << adjustment;
+		clock->interval_snsecs -= clock->interval_cycles << adjustment;
+
+		/* adjust the base and error for the adjustment */
+		ret =  cycles_delta << adjustment;
+		*error += clock->interval_cycles << adjustment;
+		/* XXX adj error for cycle_delta offset? */
+	}
+	return ret;
+}
+
+
 /* used to install a new clocksource */
 int register_clocksource(struct clocksource*);
 void reselect_clocksource(void);

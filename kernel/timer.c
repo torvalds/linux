@@ -597,7 +597,6 @@ long time_tolerance = MAXFREQ;		/* frequency tolerance (ppm)	*/
 long time_precision = 1;		/* clock precision (us)		*/
 long time_maxerror = NTP_PHASE_LIMIT;	/* maximum error (us)		*/
 long time_esterror = NTP_PHASE_LIMIT;	/* estimated error (us)		*/
-static long time_phase;			/* phase offset (scaled us)	*/
 long time_freq = (((NSEC_PER_SEC + HZ/2) % HZ - HZ/2) << SHIFT_USEC) / NSEC_PER_USEC;
 					/* frequency offset (scaled ppm)*/
 static long time_adj;			/* tick adjust (scaled 1 / HZ)	*/
@@ -747,27 +746,14 @@ static long adjtime_adjustment(void)
 }
 
 /* in the NTP reference this is called "hardclock()" */
-static void update_wall_time_one_tick(void)
+static void update_ntp_one_tick(void)
 {
-	long time_adjust_step, delta_nsec;
+	long time_adjust_step;
 
 	time_adjust_step = adjtime_adjustment();
 	if (time_adjust_step)
 		/* Reduce by this step the amount of time left  */
 		time_adjust -= time_adjust_step;
-	delta_nsec = tick_nsec + time_adjust_step * 1000;
-	/*
-	 * Advance the phase, once it gets to one microsecond, then
-	 * advance the tick more.
-	 */
-	time_phase += time_adj;
-	if ((time_phase >= FINENSEC) || (time_phase <= -FINENSEC)) {
-		long ltemp = shift_right(time_phase, (SHIFT_SCALE - 10));
-		time_phase -= ltemp << (SHIFT_SCALE - 10);
-		delta_nsec += ltemp;
-	}
-	xtime.tv_nsec += delta_nsec;
-	time_interpolator_update(delta_nsec);
 
 	/* Changes by adjtime() do not take effect till next tick. */
 	if (time_next_adjust != 0) {
@@ -872,7 +858,12 @@ device_initcall(timekeeping_init_device);
  */
 static void update_wall_time(void)
 {
+	static s64 remainder_snsecs, error;
+	s64 snsecs_per_sec;
 	cycle_t now, offset;
+
+	snsecs_per_sec = (s64)NSEC_PER_SEC << clock->shift;
+	remainder_snsecs += (s64)xtime.tv_nsec << clock->shift;
 
 	now = read_clocksource(clock);
 	offset = (now - last_clock_cycle)&clock->mask;
@@ -881,17 +872,35 @@ static void update_wall_time(void)
 	 * case of lost or late ticks, it will accumulate correctly.
 	 */
 	while (offset > clock->interval_cycles) {
+		/* get the ntp interval in clock shifted nanoseconds */
+		s64 ntp_snsecs	= current_tick_length(clock->shift);
+
 		/* accumulate one interval */
+		remainder_snsecs += clock->interval_snsecs;
 		last_clock_cycle += clock->interval_cycles;
 		offset -= clock->interval_cycles;
 
-		update_wall_time_one_tick();
-		if (xtime.tv_nsec >= 1000000000) {
-			xtime.tv_nsec -= 1000000000;
+		/* interpolator bits */
+		time_interpolator_update(clock->interval_snsecs
+						>> clock->shift);
+		/* increment the NTP state machine */
+		update_ntp_one_tick();
+
+		/* accumulate error between NTP and clock interval */
+		error += (ntp_snsecs - (s64)clock->interval_snsecs);
+
+		/* correct the clock when NTP error is too big */
+		remainder_snsecs += make_ntp_adj(clock, offset, &error);
+
+		if (remainder_snsecs >= snsecs_per_sec) {
+			remainder_snsecs -= snsecs_per_sec;
 			xtime.tv_sec++;
 			second_overflow();
 		}
 	}
+	/* store full nanoseconds into xtime */
+	xtime.tv_nsec = remainder_snsecs >> clock->shift;
+	remainder_snsecs -= (s64)xtime.tv_nsec << clock->shift;
 }
 
 /*
