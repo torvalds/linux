@@ -180,10 +180,13 @@ fbcon.
 So, how do we unbind fbcon from the console? Part of the answer is in
 Documentation/console/console.txt. To summarize:
 
-Echo the ID number of the 'frame buffer driver' to:
+Echo a value to the bind file that represents the framebuffer console
+driver. So assuming vtcon1 represents fbcon, then:
 
-sys/class/tty/console/bind - attach framebuffer console to console layer
-sys/class/tty/console/unbind - detach framebuffer console from console layer
+echo 1 > sys/class/vtconsole/vtcon1/bind - attach framebuffer console to
+                                           console layer
+echo 0 > sys/class/vtconsole/vtcon1/bind - detach framebuffer console from
+                                           console layer
 
 If fbcon is detached from the console layer, your boot console driver (which is
 usually VGA text mode) will take over.  A few drivers (rivafb and i810fb) will
@@ -211,19 +214,15 @@ restored properly. The following is one of the several methods that you can do:
 
 5. Now to detach fbcon:
 
-       'cat /sys/class/tty/console/backend' and take note of the ID
-
-The above is probably needed only once. Then:
-
        vbetool vbestate restore < <vga state file> && \
-       echo <ID> > /sys/class/tty/console/unbind
+       echo 0 > /sys/class/vtconsole/vtcon1/bind
 
 6. That's it, you're back to VGA mode. And if you compiled fbcon as a module,
    you can unload it by 'rmmod fbcon'
 
 7. To reattach fbcon:
 
-       echo <ID> > /sys/class/tty/console/bind
+       echo 1 > /sys/class/vtconsole/vtcon1/bind
 
 8. Once fbcon is unbound, all drivers registered to the system will also
 become unbound.  This means that fbcon and individual framebuffer drivers
@@ -254,6 +253,8 @@ Variation 1:
     c. Attach fbcon
 
         vbetool vbestate restore < <vesa state file> && \
+	echo 1 > /sys/class/vtconsole/vtcon1/bind
+
 Variation 2:
 
     a. Before detaching fbcon, do:
@@ -269,7 +270,55 @@ Variation 2:
     c. Attach fbcon:
 
        vbetool vbemode set <mode number> && \
-	echo <ID> > /sys/class/tty/console/bind
+       echo 1 > /sys/class/vtconsole/vtcon1/bind
+
+Samples:
+========
+
+Here are 2 sample bash scripts that you can use to bind or unbind the
+framebuffer console driver if you are in an X86 box:
+
+---------------------------------------------------------------------------
+#!/bin/bash
+# Unbind fbcon
+
+# Change this to where your actual vgastate file is located
+# Or Use VGASTATE=$1 to indicate the state file at runtime
+VGASTATE=/tmp/vgastate
+
+# path to vbetool
+VBETOOL=/usr/local/bin
+
+
+for (( i = 0; i < 16; i++))
+do
+  if test -x /sys/class/vtconsole/vtcon$i; then
+      if [ `cat /sys/class/vtconsole/vtcon$i/name | grep -c "frame buffer"` \
+           = 1 ]; then
+	    if test -x $VBETOOL/vbetool; then
+	       echo Unbinding vtcon$i
+	       $VBETOOL/vbetool vbestate restore < $VGASTATE
+	       echo 0 > /sys/class/vtconsole/vtcon$i/bind
+	    fi
+      fi
+  fi
+done
+
+---------------------------------------------------------------------------
+#!/bin/bash
+# Bind fbcon
+
+for (( i = 0; i < 16; i++))
+do
+  if test -x /sys/class/vtconsole/vtcon$i; then
+      if [ `cat /sys/class/vtconsole/vtcon$i/name | grep -c "frame buffer"` \
+           = 1 ]; then
+	  echo Unbinding vtcon$i
+	  echo 1 > /sys/class/vtconsole/vtcon$i/bind
+      fi
+  fi
+done
+---------------------------------------------------------------------------
 
 --
 Antonino Daplas <adaplas@pol.net>

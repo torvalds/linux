@@ -27,44 +27,61 @@ In newer kernels, the following are also available:
 	 register_con_driver()
 	 unregister_con_driver()
 
-If sysfs is enabled, the contents of /sys/class/tty/console/backend can be
-examined. This shows the console drivers currently registered by the system. On
-an x86 system with the framebuffer console enabled, the contents of this
-attribute may be like this:
+If sysfs is enabled, the contents of /sys/class/vtconsole can be
+examined. This shows the console backends currently registered by the
+system which are named vtcon<n> where <n> is an integer fro 0 to 15. Thus:
 
-cat /sys/class/tty/console/backend
-0 S: VGA+
-1 B: frame buffer device
+       ls /sys/class/vtconsole
+       .  ..  vtcon0  vtcon1
 
-The first line shows the VGA console driver, while the second line shows
-the framebuffer console driver.
+Each directory in /sys/class/vtconsole has 3 files:
 
-The leftmost numeric character is the driver ID.  The middle character with
-the colon describes the status of the driver.
+     ls /sys/class/vtconsole/vtcon0
+     .  ..  bind  name  uevent
 
-    S: - system driver (binding unspecified)
-    B: - bound modular driver
-    U: - unbound modular driver
+What do these files signify?
 
-The last column is the description of the driver.
+     1. bind - this is a read/write file. It shows the status of the driver if
+        read, or acts to bind or unbind the driver to the virtual consoles
+        when written to. The possible values are:
 
-Under /sys/class/tty/console are two other attributes, 'bind' and
-'unbind'. What does these 2 attributes do? As their name implies, echo'ing the
-driver ID to 'bind' will bind an unbound modular driver, and to 'unbind' will
-unbind a bound modular driver. Echo'ing the ID of a system driver to either
-attribute will do nothing.
+	0 - means the driver is not bound and if echo'ed, commands the driver
+	    to unbind
 
-Thus:
+        1 - means the driver is bound and if echo'ed, commands the driver to
+	    bind
 
-echo 1 > /sys/class/tty/console/unbind
-cat /sys/class/tty/console/backend
-0 S: VGA+
-1 U: frame buffer device
+     2. name - read-only file. Shows the name of the driver in this format:
+
+	cat /sys/class/vtconsole/vtcon0/name
+	(S) VGA+
+
+	    '(S)' stands for a (S)ystem driver, ie, it cannot be directly
+	    commanded to bind or unbind
+
+	    'VGA+' is the name of the driver
+
+	cat /sys/class/vtconsole/vtcon1/name
+	(M) frame buffer device
+
+	    In this case, '(M)' stands for a (M)odular driver, one that can be
+	    directly commanded to bind or unbind.
+
+     3. uevent - ignore this file
 
 When unbinding, the modular driver is detached first, and then the system
 driver takes over the consoles vacated by the driver. Binding, on the other
 hand, will bind the driver to the consoles that are currently occupied by a
 system driver.
+
+NOTE1: Binding and binding must be selected in Kconfig. It's under:
+
+Device Drivers -> Character devices -> Support for binding and unbinding
+console drivers
+
+NOTE2: If any of the virtual consoles are in KD_GRAPHICS mode, then binding or
+unbinding will not succeed. An example of an application that sets the console
+to KD_GRAPHICS is X.
 
 How useful is this feature? This is very useful for console driver
 developers. By unbinding the driver from the console layer, one can unload the
