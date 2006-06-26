@@ -65,7 +65,6 @@
 #include <asm/numa.h>
 #include <asm/swiotlb.h>
 #include <asm/sections.h>
-#include <asm/gart-mapping.h>
 #include <asm/dmi.h>
 
 /*
