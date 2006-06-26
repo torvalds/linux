@@ -7,7 +7,6 @@
  * additions, Copyright (C) 2003-2004, Paul Clements, SteelEye Technology, Inc.:
  * - added disk storage for bitmap
  * - changes to allow various bitmap chunk sizes
- * - added bitmap daemon (to asynchronously clear bitmap bits from disk)
  */
 
 /*
@@ -330,14 +329,13 @@ static int write_page(struct bitmap *bitmap, struct page *page, int wait)
 	set_page_dirty(page); /* force it to be written out */
 
 	if (!wait) {
-		/* add to list to be waited for by daemon */
+		/* add to list to be waited for */
 		struct page_list *item = mempool_alloc(bitmap->write_pool, GFP_NOIO);
 		item->page = page;
 		get_page(page);
 		spin_lock(&bitmap->write_lock);
 		list_add(&item->list, &bitmap->complete_pages);
 		spin_unlock(&bitmap->write_lock);
-		md_wakeup_thread(bitmap->writeback_daemon);
 	}
 	return write_one_page(page, wait);
 }
@@ -621,8 +619,6 @@ static void bitmap_file_unmap(struct bitmap *bitmap)
 	safe_put_page(sb_page);
 }
 
-static void bitmap_stop_daemon(struct bitmap *bitmap);
-
 /* dequeue the next item in a page list -- don't call from irq context */
 static struct page_list *dequeue_page(struct bitmap *bitmap)
 {
@@ -648,8 +644,6 @@ static void drain_write_queues(struct bitmap *bitmap)
 		put_page(item->page);
 		mempool_free(item, bitmap->write_pool);
 	}
-
-	wake_up(&bitmap->write_wait);
 }
 
 static void bitmap_file_put(struct bitmap *bitmap)
@@ -662,8 +656,6 @@ static void bitmap_file_put(struct bitmap *bitmap)
 	file = bitmap->file;
 	bitmap->file = NULL;
 	spin_unlock_irqrestore(&bitmap->lock, flags);
-
-	bitmap_stop_daemon(bitmap);
 
 	drain_write_queues(bitmap);
 
@@ -770,6 +762,8 @@ static void bitmap_file_set_bit(struct bitmap *bitmap, sector_t block)
 
 }
 
+static void bitmap_writeback(struct bitmap *bitmap);
+
 /* this gets called when the md device is ready to unplug its underlying
  * (slave) device queues -- before we let any writes go down, we need to
  * sync the dirty pages of the bitmap file to disk */
@@ -812,13 +806,9 @@ int bitmap_unplug(struct bitmap *bitmap)
 		}
 	}
 	if (wait) { /* if any writes were performed, we need to wait on them */
-		if (bitmap->file) {
-			spin_lock_irq(&bitmap->write_lock);
-			wait_event_lock_irq(bitmap->write_wait,
-					    list_empty(&bitmap->complete_pages), bitmap->write_lock,
-					    wake_up_process(bitmap->writeback_daemon->tsk));
-			spin_unlock_irq(&bitmap->write_lock);
-		} else
+		if (bitmap->file)
+			bitmap_writeback(bitmap);
+		else
 			md_super_wait(bitmap->mddev);
 	}
 	return 0;
@@ -1126,40 +1116,11 @@ int bitmap_daemon_work(struct bitmap *bitmap)
 	return err;
 }
 
-static void daemon_exit(struct bitmap *bitmap, mdk_thread_t **daemon)
+static void bitmap_writeback(struct bitmap *bitmap)
 {
-	mdk_thread_t *dmn;
-	unsigned long flags;
-
-	/* if no one is waiting on us, we'll free the md thread struct
-	 * and exit, otherwise we let the waiter clean things up */
-	spin_lock_irqsave(&bitmap->lock, flags);
-	if ((dmn = *daemon)) { /* no one is waiting, cleanup and exit */
-		*daemon = NULL;
-		spin_unlock_irqrestore(&bitmap->lock, flags);
-		kfree(dmn);
-		complete_and_exit(NULL, 0); /* do_exit not exported */
-	}
-	spin_unlock_irqrestore(&bitmap->lock, flags);
-}
-
-static void bitmap_writeback_daemon(mddev_t *mddev)
-{
-	struct bitmap *bitmap = mddev->bitmap;
 	struct page *page;
 	struct page_list *item;
 	int err = 0;
-
-	if (signal_pending(current)) {
-		printk(KERN_INFO
-		       "%s: bitmap writeback daemon got signal, exiting...\n",
-		       bmname(bitmap));
-		err = -EINTR;
-		goto out;
-	}
-	if (bitmap == NULL)
-		/* about to be stopped. */
-		return;
 
 	PRINTK("%s: bitmap writeback daemon woke up...\n", bmname(bitmap));
 	/* wait on bitmap page writebacks */
@@ -1177,58 +1138,8 @@ static void bitmap_writeback_daemon(mddev_t *mddev)
 			       "failed (page %lu): %d\n",
 			       bmname(bitmap), page->index, err);
 			bitmap_file_kick(bitmap);
-			goto out;
+			break;
 		}
-	}
- out:
-	wake_up(&bitmap->write_wait);
-	if (err) {
-		printk(KERN_INFO "%s: bitmap writeback daemon exiting (%d)\n",
-		       bmname(bitmap), err);
-		daemon_exit(bitmap, &bitmap->writeback_daemon);
-	}
-}
-
-static mdk_thread_t *bitmap_start_daemon(struct bitmap *bitmap,
-				void (*func)(mddev_t *), char *name)
-{
-	mdk_thread_t *daemon;
-	char namebuf[32];
-
-#ifdef INJECT_FATAL_FAULT_2
-	daemon = NULL;
-#else
-	sprintf(namebuf, "%%s_%s", name);
-	daemon = md_register_thread(func, bitmap->mddev, namebuf);
-#endif
-	if (!daemon) {
-		printk(KERN_ERR "%s: failed to start bitmap daemon\n",
-			bmname(bitmap));
-		return ERR_PTR(-ECHILD);
-	}
-
-	md_wakeup_thread(daemon); /* start it running */
-
-	PRINTK("%s: %s daemon (pid %d) started...\n",
-		bmname(bitmap), name, daemon->tsk->pid);
-
-	return daemon;
-}
-
-static void bitmap_stop_daemon(struct bitmap *bitmap)
-{
-	/* the daemon can't stop itself... it'll just exit instead... */
-	if (bitmap->writeback_daemon && ! IS_ERR(bitmap->writeback_daemon) &&
-	    current->pid != bitmap->writeback_daemon->tsk->pid) {
-		mdk_thread_t *daemon;
-		unsigned long flags;
-
-		spin_lock_irqsave(&bitmap->lock, flags);
-		daemon = bitmap->writeback_daemon;
-		bitmap->writeback_daemon = NULL;
-		spin_unlock_irqrestore(&bitmap->lock, flags);
-		if (daemon && ! IS_ERR(daemon))
-			md_unregister_thread(daemon); /* destroy the thread */
 	}
 }
 
@@ -1553,7 +1464,6 @@ int bitmap_create(mddev_t *mddev)
 
 	spin_lock_init(&bitmap->write_lock);
 	INIT_LIST_HEAD(&bitmap->complete_pages);
-	init_waitqueue_head(&bitmap->write_wait);
 	bitmap->write_pool = mempool_create_kmalloc_pool(WRITE_POOL_SIZE,
 						sizeof(struct page_list));
 	err = -ENOMEM;
@@ -1613,15 +1523,6 @@ int bitmap_create(mddev_t *mddev)
 
 	mddev->bitmap = bitmap;
 
-	if (file)
-		/* kick off the bitmap writeback daemon */
-		bitmap->writeback_daemon =
-			bitmap_start_daemon(bitmap,
-					    bitmap_writeback_daemon,
-					    "bitmap_wb");
-
-	if (IS_ERR(bitmap->writeback_daemon))
-		return PTR_ERR(bitmap->writeback_daemon);
 	mddev->thread->timeout = bitmap->daemon_sleep * HZ;
 
 	return bitmap_update_sb(bitmap);

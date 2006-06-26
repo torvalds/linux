@@ -244,13 +244,7 @@ struct bitmap {
 	unsigned long daemon_lastrun; /* jiffies of last run */
 	unsigned long daemon_sleep; /* how many seconds between updates? */
 
-	/*
-	 * bitmap_writeback_daemon waits for file-pages that have been written,
-	 * as there is no way to get a call-back when a page write completes.
-	 */
-	mdk_thread_t *writeback_daemon;
 	spinlock_t write_lock;
-	wait_queue_head_t write_wait;
 	struct list_head complete_pages;
 	mempool_t *write_pool;
 };
