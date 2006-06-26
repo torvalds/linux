@@ -28,21 +28,6 @@ MODULE_AUTHOR("Vojtech Pavlik <vojtech@suse.cz>");
 MODULE_DESCRIPTION("Input core");
 MODULE_LICENSE("GPL");
 
-EXPORT_SYMBOL(input_allocate_device);
-EXPORT_SYMBOL(input_free_device);
-EXPORT_SYMBOL(input_register_device);
-EXPORT_SYMBOL(input_unregister_device);
-EXPORT_SYMBOL(input_register_handler);
-EXPORT_SYMBOL(input_unregister_handler);
-EXPORT_SYMBOL(input_grab_device);
-EXPORT_SYMBOL(input_release_device);
-EXPORT_SYMBOL(input_open_device);
-EXPORT_SYMBOL(input_close_device);
-EXPORT_SYMBOL(input_accept_process);
-EXPORT_SYMBOL(input_flush_device);
-EXPORT_SYMBOL(input_event);
-EXPORT_SYMBOL_GPL(input_class);
-
 #define INPUT_DEVICES	256
 
 static LIST_HEAD(input_dev_list);
@@ -196,6 +181,7 @@ void input_event(struct input_dev *dev, unsigned int type, unsigned int code, in
 			if (handle->open)
 				handle->handler->event(handle, type, code, value);
 }
+EXPORT_SYMBOL(input_event);
 
 static void input_repeat_key(unsigned long data)
 {
@@ -218,6 +204,7 @@ int input_accept_process(struct input_handle *handle, struct file *file)
 
 	return 0;
 }
+EXPORT_SYMBOL(input_accept_process);
 
 int input_grab_device(struct input_handle *handle)
 {
@@ -227,12 +214,14 @@ int input_grab_device(struct input_handle *handle)
 	handle->dev->grab = handle;
 	return 0;
 }
+EXPORT_SYMBOL(input_grab_device);
 
 void input_release_device(struct input_handle *handle)
 {
 	if (handle->dev->grab == handle)
 		handle->dev->grab = NULL;
 }
+EXPORT_SYMBOL(input_release_device);
 
 int input_open_device(struct input_handle *handle)
 {
@@ -255,6 +244,7 @@ int input_open_device(struct input_handle *handle)
 
 	return err;
 }
+EXPORT_SYMBOL(input_open_device);
 
 int input_flush_device(struct input_handle* handle, struct file* file)
 {
@@ -263,6 +253,7 @@ int input_flush_device(struct input_handle* handle, struct file* file)
 
 	return 0;
 }
+EXPORT_SYMBOL(input_flush_device);
 
 void input_close_device(struct input_handle *handle)
 {
@@ -278,6 +269,7 @@ void input_close_device(struct input_handle *handle)
 
 	mutex_unlock(&dev->mutex);
 }
+EXPORT_SYMBOL(input_close_device);
 
 static void input_link_handle(struct input_handle *handle)
 {
@@ -874,6 +866,7 @@ struct class input_class = {
 	.release		= input_dev_release,
 	.uevent			= input_dev_uevent,
 };
+EXPORT_SYMBOL_GPL(input_class);
 
 struct input_dev *input_allocate_device(void)
 {
@@ -891,6 +884,7 @@ struct input_dev *input_allocate_device(void)
 
 	return dev;
 }
+EXPORT_SYMBOL(input_allocate_device);
 
 void input_free_device(struct input_dev *dev)
 {
@@ -903,6 +897,7 @@ void input_free_device(struct input_dev *dev)
 		input_put_device(dev);
 	}
 }
+EXPORT_SYMBOL(input_free_device);
 
 int input_register_device(struct input_dev *dev)
 {
@@ -980,6 +975,7 @@ int input_register_device(struct input_dev *dev)
  fail1:	class_device_del(&dev->cdev);
 	return error;
 }
+EXPORT_SYMBOL(input_register_device);
 
 void input_unregister_device(struct input_dev *dev)
 {
@@ -1010,6 +1006,7 @@ void input_unregister_device(struct input_dev *dev)
 
 	input_wakeup_procfs_readers();
 }
+EXPORT_SYMBOL(input_unregister_device);
 
 void input_register_handler(struct input_handler *handler)
 {
@@ -1035,6 +1032,7 @@ void input_register_handler(struct input_handler *handler)
 
 	input_wakeup_procfs_readers();
 }
+EXPORT_SYMBOL(input_register_handler);
 
 void input_unregister_handler(struct input_handler *handler)
 {
@@ -1054,6 +1052,7 @@ void input_unregister_handler(struct input_handler *handler)
 
 	input_wakeup_procfs_readers();
 }
+EXPORT_SYMBOL(input_unregister_handler);
 
 static int input_open_file(struct inode *inode, struct file *file)
 {
