@@ -47,6 +47,7 @@
 #include <linux/rmap.h>
 #include <linux/mempolicy.h>
 #include <linux/key.h>
+#include <linux/unwind.h>
 
 #include <asm/io.h>
 #include <asm/bugs.h>
@@ -482,6 +483,7 @@ asmlinkage void __init start_kernel(void)
 		   __stop___param - __start___param,
 		   &unknown_bootoption);
 	sort_main_extable();
+	unwind_init();
 	trap_init();
 	rcu_init();
 	init_IRQ();
