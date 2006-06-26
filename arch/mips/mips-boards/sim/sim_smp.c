@@ -51,27 +51,6 @@ void core_send_ipi(int cpu, unsigned int action)
 }
 
 /*
- * Detect available CPUs/VPEs/TCs and populate phys_cpu_present_map
- */
-
-void __init prom_build_cpu_map(void)
-{
-#ifdef CONFIG_MIPS_MT_SMTC
-	int nextslot;
-
-	/*
-	 * As of November, 2004, MIPSsim only simulates one core
-	 * at a time.  However, that core may be a MIPS MT core
-	 * with multiple virtual processors and thread contexts.
-	 */
-
-	if (read_c0_config3() & (1<<2)) {
-		nextslot = mipsmt_build_cpu_map(1);
-	}
-#endif /* CONFIG_MIPS_MT_SMTC */
-}
-
-/*
  * Platform "CPU" startup hook
  */
 

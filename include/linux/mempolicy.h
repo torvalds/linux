@@ -28,7 +28,6 @@
 
 #ifdef __KERNEL__
 
-#include <linux/config.h>
 #include <linux/mmzone.h>
 #include <linux/slab.h>
 #include <linux/rbtree.h>
@@ -36,6 +35,7 @@
 #include <linux/nodemask.h>
 
 struct vm_area_struct;
+struct mm_struct;
 
 #ifdef CONFIG_NUMA
 

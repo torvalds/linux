@@ -9,7 +9,6 @@
 #ifndef _ASM_UACCESS_H
 #define _ASM_UACCESS_H
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/thread_info.h>

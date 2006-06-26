@@ -41,3 +41,8 @@ void __init cobalt_early_console(void)
 
 	printk("Cobalt: early console registered\n");
 }
+
+void __init disable_early_printk(void)
+{
+	unregister_console(&cons_info);
+}

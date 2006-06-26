@@ -1,7 +1,6 @@
 #ifndef _ALPHA_HW_IRQ_H
 #define _ALPHA_HW_IRQ_H
 
-#include <linux/config.h>
 
 static inline void hw_resend_irq(struct hw_interrupt_type *h, unsigned int i) {}
 

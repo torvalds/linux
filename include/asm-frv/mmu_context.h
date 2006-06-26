@@ -12,7 +12,6 @@
 #ifndef _ASM_MMU_CONTEXT_H
 #define _ASM_MMU_CONTEXT_H
 
-#include <linux/config.h>
 #include <asm/setup.h>
 #include <asm/page.h>
 #include <asm/pgalloc.h>

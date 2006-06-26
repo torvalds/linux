@@ -89,18 +89,23 @@ static long __init lmb_regions_adjacent(struct lmb_region *rgn,
 	return lmb_addrs_adjacent(base1, size1, base2, size2);
 }
 
+static void __init lmb_remove_region(struct lmb_region *rgn, unsigned long r)
+{
+	unsigned long i;
+
+	for (i = r; i < rgn->cnt - 1; i++) {
+		rgn->region[i].base = rgn->region[i + 1].base;
+		rgn->region[i].size = rgn->region[i + 1].size;
+	}
+	rgn->cnt--;
+}
+
 /* Assumption: base addr of region 1 < base addr of region 2 */
 static void __init lmb_coalesce_regions(struct lmb_region *rgn,
 		unsigned long r1, unsigned long r2)
 {
-	unsigned long i;
-
 	rgn->region[r1].size += rgn->region[r2].size;
-	for (i=r2; i < rgn->cnt-1; i++) {
-		rgn->region[i].base = rgn->region[i+1].base;
-		rgn->region[i].size = rgn->region[i+1].size;
-	}
-	rgn->cnt--;
+	lmb_remove_region(rgn, r2);
 }
 
 /* This routine called with relocation disabled. */
@@ -294,17 +299,16 @@ unsigned long __init lmb_end_of_DRAM(void)
 	return (lmb.memory.region[idx].base + lmb.memory.region[idx].size);
 }
 
-/*
- * Truncate the lmb list to memory_limit if it's set
- * You must call lmb_analyze() after this.
- */
+/* You must call lmb_analyze() after this. */
 void __init lmb_enforce_memory_limit(unsigned long memory_limit)
 {
 	unsigned long i, limit;
+	struct lmb_property *p;
 
 	if (! memory_limit)
 		return;
 
+	/* Truncate the lmb regions to satisfy the memory limit. */
 	limit = memory_limit;
 	for (i = 0; i < lmb.memory.cnt; i++) {
 		if (limit > lmb.memory.region[i].size) {
@@ -315,5 +319,22 @@ void __init lmb_enforce_memory_limit(unsigned long memory_limit)
 		lmb.memory.region[i].size = limit;
 		lmb.memory.cnt = i + 1;
 		break;
+	}
+
+	lmb.rmo_size = lmb.memory.region[0].size;
+
+	/* And truncate any reserves above the limit also. */
+	for (i = 0; i < lmb.reserved.cnt; i++) {
+		p = &lmb.reserved.region[i];
+
+		if (p->base > memory_limit)
+			p->size = 0;
+		else if ((p->base + p->size) > memory_limit)
+			p->size = memory_limit - p->base;
+
+		if (p->size == 0) {
+			lmb_remove_region(&lmb.reserved, i);
+			i--;
+		}
 	}
 }

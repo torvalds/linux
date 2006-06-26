@@ -112,6 +112,7 @@
 #define ONENAND_CMD_LOCK_TIGHT		(0x2C)
 #define ONENAND_CMD_ERASE		(0x94)
 #define ONENAND_CMD_RESET		(0xF0)
+#define ONENAND_CMD_OTP_ACCESS		(0x65)
 #define ONENAND_CMD_READID		(0x90)
 
 /* NOTE: Those are not *REAL* commands */
@@ -152,6 +153,8 @@
 #define ONENAND_CTRL_ERASE		(1 << 11)
 #define ONENAND_CTRL_ERROR		(1 << 10)
 #define ONENAND_CTRL_RSTB		(1 << 7)
+#define ONENAND_CTRL_OTP_L		(1 << 6)
+#define ONENAND_CTRL_OTP_BL		(1 << 5)
 
 /*
  * Interrupt Status Register F241h (R)
@@ -176,5 +179,10 @@
 #define ONENAND_ECC_1BIT		(1 << 0)
 #define ONENAND_ECC_2BIT		(1 << 1)
 #define ONENAND_ECC_2BIT_ALL		(0xAAAA)
+
+/*
+ * One-Time Programmable (OTP)
+ */
+#define ONENAND_OTP_LOCK_OFFSET		(14)
 
 #endif	/* __ONENAND_REG_H */

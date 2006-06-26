@@ -409,6 +409,10 @@ void __init prepare_namespace(void)
 
 	if (saved_root_name[0]) {
 		root_device_name = saved_root_name;
+		if (!strncmp(root_device_name, "mtd", 3)) {
+			mount_block_root(root_device_name, root_mountflags);
+			goto out;
+		}
 		ROOT_DEV = name_to_dev_t(root_device_name);
 		if (strncmp(root_device_name, "/dev/", 5) == 0)
 			root_device_name += 5;

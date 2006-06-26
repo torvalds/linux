@@ -1193,7 +1193,7 @@ static int st_open(struct inode *inode, struct file *filp)
 
 
 /* Flush the tape buffer before close */
-static int st_flush(struct file *filp)
+static int st_flush(struct file *filp, fl_owner_t id)
 {
 	int result = 0, result2;
 	unsigned char cmd[MAX_COMMAND_SIZE];
@@ -3839,7 +3839,7 @@ static int __init st_setup(char *str)
 					break;
 				}
 			}
-			if (i >= sizeof(parms) / sizeof(struct st_dev_parm))
+			if (i >= ARRAY_SIZE(parms))
 				 printk(KERN_WARNING "st: invalid parameter in '%s'\n",
 					stp);
 			stp = strchr(stp, ',');

@@ -1,5 +1,5 @@
 /*
- * (C) 2004  Sebastian Witt <se.witt@gmx.net>
+ * (C) 2004-2006  Sebastian Witt <se.witt@gmx.net>
  *
  *  Licensed under the terms of the GNU GPL License version 2.
  *  Based upon reverse engineered information
@@ -90,7 +90,7 @@ static int nforce2_calc_pll(unsigned int fsb)
 
 	/* Try to calculate multiplier and divider up to 4 times */
 	while (((mul == 0) || (div == 0)) && (tried <= 3)) {
-		for (xdiv = 1; xdiv <= 0x80; xdiv++)
+		for (xdiv = 2; xdiv <= 0x80; xdiv++)
 			for (xmul = 1; xmul <= 0xfe; xmul++)
 				if (nforce2_calc_fsb(NFORCE2_PLL(xmul, xdiv)) ==
 				    fsb + tried) {
@@ -117,8 +117,7 @@ static void nforce2_write_pll(int pll)
 	int temp;
 
 	/* Set the pll addr. to 0x00 */
-	temp = 0x00;
-	pci_write_config_dword(nforce2_chipset_dev, NFORCE2_PLLADR, temp);
+	pci_write_config_dword(nforce2_chipset_dev, NFORCE2_PLLADR, 0);
 
 	/* Now write the value in all 64 registers */
 	for (temp = 0; temp <= 0x3f; temp++)
@@ -266,7 +265,7 @@ static int nforce2_target(struct cpufreq_policy *policy,
 	if (freqs.old == freqs.new)
 		return 0;
 
-	dprintk(KERN_INFO "cpufreq: Old CPU frequency %d kHz, new %d kHz\n",
+	dprintk("Old CPU frequency %d kHz, new %d kHz\n",
 	       freqs.old, freqs.new);
 
 	cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
@@ -278,7 +277,7 @@ static int nforce2_target(struct cpufreq_policy *policy,
 		printk(KERN_ERR "cpufreq: Changing FSB to %d failed\n",
                        target_fsb);
 	else
-		dprintk(KERN_INFO "cpufreq: Changed FSB successfully to %d\n",
+		dprintk("Changed FSB successfully to %d\n",
                        target_fsb);
 
 	/* Enable IRQs */

@@ -11,23 +11,24 @@
 #define __futex_atomic_fixup \
 		     ".section __ex_table,\"a\"\n"			\
 		     "   .align 4\n"					\
-		     "   .long  0b,2b,1b,2b\n"				\
+		     "   .long  0b,4b,2b,4b,3b,4b\n"			\
 		     ".previous"
 #else /* __s390x__ */
 #define __futex_atomic_fixup \
 		     ".section __ex_table,\"a\"\n"			\
 		     "   .align 8\n"					\
-		     "   .quad  0b,2b,1b,2b\n"				\
+		     "   .quad  0b,4b,2b,4b,3b,4b\n"			\
 		     ".previous"
 #endif /* __s390x__ */
 
 #define __futex_atomic_op(insn, ret, oldval, newval, uaddr, oparg)	\
-	asm volatile("   l   %1,0(%6)\n"				\
-		     "0: " insn						\
-		     "   cs  %1,%2,0(%6)\n"				\
-		     "1: jl  0b\n"					\
+	asm volatile("   sacf 256\n"					\
+		     "0: l   %1,0(%6)\n"				\
+		     "1: " insn						\
+		     "2: cs  %1,%2,0(%6)\n"				\
+		     "3: jl  1b\n"					\
 		     "   lhi %0,0\n"					\
-		     "2:\n"						\
+		     "4: sacf 0\n"					\
 		     __futex_atomic_fixup				\
 		     : "=d" (ret), "=&d" (oldval), "=&d" (newval),	\
 		       "=m" (*uaddr)					\

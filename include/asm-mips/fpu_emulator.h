@@ -12,8 +12,8 @@
  *  with this program; if not, write to the Free Software Foundation, Inc.,
  *  59 Temple Place - Suite 330, Boston MA 02111-1307, USA.
  *
- * Further private data for which no space exists in mips_fpu_soft_struct.
- * This should be subsumed into the mips_fpu_soft_struct structure as
+ * Further private data for which no space exists in mips_fpu_struct.
+ * This should be subsumed into the mips_fpu_struct structure as
  * defined in processor.h as soon as the absurd wired absolute assembler
  * offsets become dynamic at compile time.
  *

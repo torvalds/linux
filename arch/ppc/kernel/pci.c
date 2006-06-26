@@ -1032,7 +1032,6 @@ int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
 		return -EINVAL;
 
 	vma->vm_pgoff = offset >> PAGE_SHIFT;
-	vma->vm_flags |= VM_SHM | VM_LOCKED | VM_IO;
 	vma->vm_page_prot = __pci_mmap_set_pgprot(dev, rp,
 						  vma->vm_page_prot,
 						  mmap_state, write_combine);

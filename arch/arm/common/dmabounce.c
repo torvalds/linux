@@ -77,6 +77,8 @@ struct dmabounce_device_info {
 #endif
 	struct dmabounce_pool	small;
 	struct dmabounce_pool	large;
+
+	rwlock_t lock;
 };
 
 static LIST_HEAD(dmabounce_devs);
@@ -116,6 +118,7 @@ alloc_safe_buffer(struct dmabounce_device_info *device_info, void *ptr,
 	struct safe_buffer *buf;
 	struct dmabounce_pool *pool;
 	struct device *dev = device_info->dev;
+	unsigned long flags;
 
 	dev_dbg(dev, "%s(ptr=%p, size=%d, dir=%d)\n",
 		__func__, ptr, size, dir);
@@ -163,7 +166,11 @@ alloc_safe_buffer(struct dmabounce_device_info *device_info, void *ptr,
 		print_alloc_stats(device_info);
 #endif
 
+	write_lock_irqsave(&device_info->lock, flags);
+
 	list_add(&buf->node, &device_info->safe_buffers);
+
+	write_unlock_irqrestore(&device_info->lock, flags);
 
 	return buf;
 }
@@ -172,21 +179,31 @@ alloc_safe_buffer(struct dmabounce_device_info *device_info, void *ptr,
 static inline struct safe_buffer *
 find_safe_buffer(struct dmabounce_device_info *device_info, dma_addr_t safe_dma_addr)
 {
-	struct safe_buffer *b;
+	struct safe_buffer *b = NULL;
+	unsigned long flags;
+
+	read_lock_irqsave(&device_info->lock, flags);
 
 	list_for_each_entry(b, &device_info->safe_buffers, node)
 		if (b->safe_dma_addr == safe_dma_addr)
-			return b;
+			break;
 
-	return NULL;
+	read_unlock_irqrestore(&device_info->lock, flags);
+	return b;
 }
 
 static inline void
 free_safe_buffer(struct dmabounce_device_info *device_info, struct safe_buffer *buf)
 {
+	unsigned long flags;
+
 	dev_dbg(device_info->dev, "%s(buf=%p)\n", __func__, buf);
 
+	write_lock_irqsave(&device_info->lock, flags);
+
 	list_del(&buf->node);
+
+	write_unlock_irqrestore(&device_info->lock, flags);
 
 	if (buf->pool)
 		dma_pool_free(buf->pool->pool, buf->safe, buf->safe_dma_addr);
@@ -396,7 +413,6 @@ dma_addr_t
 dma_map_single(struct device *dev, void *ptr, size_t size,
 		enum dma_data_direction dir)
 {
-	unsigned long flags;
 	dma_addr_t dma_addr;
 
 	dev_dbg(dev, "%s(ptr=%p,size=%d,dir=%x)\n",
@@ -404,11 +420,7 @@ dma_map_single(struct device *dev, void *ptr, size_t size,
 
 	BUG_ON(dir == DMA_NONE);
 
-	local_irq_save(flags);
-
 	dma_addr = map_single(dev, ptr, size, dir);
-
-	local_irq_restore(flags);
 
 	return dma_addr;
 }
@@ -424,33 +436,24 @@ void
 dma_unmap_single(struct device *dev, dma_addr_t dma_addr, size_t size,
 			enum dma_data_direction dir)
 {
-	unsigned long flags;
-
 	dev_dbg(dev, "%s(ptr=%p,size=%d,dir=%x)\n",
 		__func__, (void *) dma_addr, size, dir);
 
 	BUG_ON(dir == DMA_NONE);
 
-	local_irq_save(flags);
-
 	unmap_single(dev, dma_addr, size, dir);
-
-	local_irq_restore(flags);
 }
 
 int
 dma_map_sg(struct device *dev, struct scatterlist *sg, int nents,
 		enum dma_data_direction dir)
 {
-	unsigned long flags;
 	int i;
 
 	dev_dbg(dev, "%s(sg=%p,nents=%d,dir=%x)\n",
 		__func__, sg, nents, dir);
 
 	BUG_ON(dir == DMA_NONE);
-
-	local_irq_save(flags);
 
 	for (i = 0; i < nents; i++, sg++) {
 		struct page *page = sg->page;
@@ -462,8 +465,6 @@ dma_map_sg(struct device *dev, struct scatterlist *sg, int nents,
 			map_single(dev, ptr, length, dir);
 	}
 
-	local_irq_restore(flags);
-
 	return nents;
 }
 
@@ -471,15 +472,12 @@ void
 dma_unmap_sg(struct device *dev, struct scatterlist *sg, int nents,
 		enum dma_data_direction dir)
 {
-	unsigned long flags;
 	int i;
 
 	dev_dbg(dev, "%s(sg=%p,nents=%d,dir=%x)\n",
 		__func__, sg, nents, dir);
 
 	BUG_ON(dir == DMA_NONE);
-
-	local_irq_save(flags);
 
 	for (i = 0; i < nents; i++, sg++) {
 		dma_addr_t dma_addr = sg->dma_address;
@@ -487,47 +485,32 @@ dma_unmap_sg(struct device *dev, struct scatterlist *sg, int nents,
 
 		unmap_single(dev, dma_addr, length, dir);
 	}
-
-	local_irq_restore(flags);
 }
 
 void
 dma_sync_single_for_cpu(struct device *dev, dma_addr_t dma_addr, size_t size,
 				enum dma_data_direction dir)
 {
-	unsigned long flags;
-
 	dev_dbg(dev, "%s(ptr=%p,size=%d,dir=%x)\n",
 		__func__, (void *) dma_addr, size, dir);
 
-	local_irq_save(flags);
-
 	sync_single(dev, dma_addr, size, dir);
-
-	local_irq_restore(flags);
 }
 
 void
 dma_sync_single_for_device(struct device *dev, dma_addr_t dma_addr, size_t size,
 				enum dma_data_direction dir)
 {
-	unsigned long flags;
-
 	dev_dbg(dev, "%s(ptr=%p,size=%d,dir=%x)\n",
 		__func__, (void *) dma_addr, size, dir);
 
-	local_irq_save(flags);
-
 	sync_single(dev, dma_addr, size, dir);
-
-	local_irq_restore(flags);
 }
 
 void
 dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sg, int nents,
 			enum dma_data_direction dir)
 {
-	unsigned long flags;
 	int i;
 
 	dev_dbg(dev, "%s(sg=%p,nents=%d,dir=%x)\n",
@@ -535,23 +518,18 @@ dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sg, int nents,
 
 	BUG_ON(dir == DMA_NONE);
 
-	local_irq_save(flags);
-
 	for (i = 0; i < nents; i++, sg++) {
 		dma_addr_t dma_addr = sg->dma_address;
 		unsigned int length = sg->length;
 
 		sync_single(dev, dma_addr, length, dir);
 	}
-
-	local_irq_restore(flags);
 }
 
 void
 dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg, int nents,
 			enum dma_data_direction dir)
 {
-	unsigned long flags;
 	int i;
 
 	dev_dbg(dev, "%s(sg=%p,nents=%d,dir=%x)\n",
@@ -559,16 +537,12 @@ dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg, int nents,
 
 	BUG_ON(dir == DMA_NONE);
 
-	local_irq_save(flags);
-
 	for (i = 0; i < nents; i++, sg++) {
 		dma_addr_t dma_addr = sg->dma_address;
 		unsigned int length = sg->length;
 
 		sync_single(dev, dma_addr, length, dir);
 	}
-
-	local_irq_restore(flags);
 }
 
 static int
@@ -622,6 +596,7 @@ dmabounce_register_dev(struct device *dev, unsigned long small_buffer_size,
 
 	device_info->dev = dev;
 	INIT_LIST_HEAD(&device_info->safe_buffers);
+	rwlock_init(&device_info->lock);
 
 #ifdef STATS
 	device_info->total_allocs = 0;

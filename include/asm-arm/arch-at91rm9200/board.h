@@ -31,14 +31,9 @@
 #ifndef __ASM_ARCH_BOARD_H
 #define __ASM_ARCH_BOARD_H
 
- /* Clocks */
-extern unsigned long at91_master_clock;
-
- /* Serial Port */
-extern int at91_serial_map[AT91_NR_UART];
-extern int at91_console_port;
-
 #include <linux/mtd/partitions.h>
+#include <linux/device.h>
+#include <linux/spi/spi.h>
 
  /* USB Device */
 struct at91_udc_data {
@@ -91,10 +86,25 @@ struct at91_nand_data {
 extern void __init at91_add_device_nand(struct at91_nand_data *data);
 
  /* I2C*/
-void __init at91_add_device_i2c(void);
+extern void __init at91_add_device_i2c(void);
 
- /* RTC */
-void __init at91_add_device_rtc(void);
+ /* SPI */
+extern void __init at91_add_device_spi(struct spi_board_info *devices, int nr_devices);
+
+ /* Serial */
+struct at91_uart_config {
+	unsigned short	console_tty;	/* tty number of serial console */
+	unsigned short	nr_tty;		/* number of serial tty's */
+	short		tty_map[];	/* map UART to tty number */
+};
+extern struct platform_device *at91_default_console_device;
+extern void __init at91_init_serial(struct at91_uart_config *config);
+
+struct at91_uart_data {
+	short		use_dma_tx;	/* use transmit DMA? */
+	short		use_dma_rx;	/* use receive DMA? */
+};
+extern void __init at91_add_device_serial(void);
 
  /* LEDs */
 extern u8 at91_leds_cpu;

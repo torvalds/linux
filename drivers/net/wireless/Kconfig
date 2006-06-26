@@ -235,7 +235,35 @@ config IPW2200_MONITOR
 	  promiscuous mode via the Wireless Tool's Monitor mode.  While in this
 	  mode, no packets can be sent.
 
-config IPW_QOS
+config IPW2200_RADIOTAP
+	bool "Enable radiotap format 802.11 raw packet support"
+	depends on IPW2200_MONITOR
+
+config IPW2200_PROMISCUOUS
+	bool "Enable creation of a RF radiotap promiscuous interface"
+	depends on IPW2200_MONITOR
+	select IPW2200_RADIOTAP
+	---help---
+          Enables the creation of a second interface prefixed 'rtap'. 
+          This second interface will provide every received in radiotap
+	  format.
+
+          This is useful for performing wireless network analysis while
+          maintaining an active association.
+
+          Example usage:
+
+            % modprobe ipw2200 rtap_iface=1
+            % ifconfig rtap0 up
+            % tethereal -i rtap0
+
+          If you do not specify 'rtap_iface=1' as a module parameter then 
+          the rtap interface will not be created and you will need to turn 
+          it on via sysfs:
+	
+            % echo 1 > /sys/bus/pci/drivers/ipw2200/*/rtap_iface
+
+config IPW2200_QOS
         bool "Enable QoS support"
         depends on IPW2200 && EXPERIMENTAL
 
@@ -502,6 +530,23 @@ config PRISM54
 	  inserted in and removed from the running kernel whenever you want),
 	  say M here and read <file:Documentation/modules.txt>.  The module
 	  will be called prism54.ko.
+
+config USB_ZD1201
+	tristate "USB ZD1201 based Wireless device support"
+	depends on USB && NET_RADIO
+	select FW_LOADER
+	---help---
+	  Say Y if you want to use wireless LAN adapters based on the ZyDAS
+	  ZD1201 chip.
+
+	  This driver makes the adapter appear as a normal Ethernet interface,
+	  typically on wlan0.
+
+	  The zd1201 device requires external firmware to be loaded.
+	  This can be found at http://linux-lc100020.sourceforge.net/
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called zd1201.
 
 source "drivers/net/wireless/hostap/Kconfig"
 source "drivers/net/wireless/bcm43xx/Kconfig"

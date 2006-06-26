@@ -1106,7 +1106,7 @@ static struct zilog_layout __iomem * __init get_zs_sun4u(int chip, int zsnode)
 				+ FHC_UREGS_ICLR;
 			imap = central_bus->child->fhc_regs.uregs
 				+ FHC_UREGS_IMAP;
-			zilog_irq = build_irq(12, 0, iclr, imap);
+			zilog_irq = build_irq(0, iclr, imap);
 		} else {
 			err = prom_getproperty(zsnode, "interrupts",
 					       (char *) &sun4u_ino,
@@ -1540,8 +1540,8 @@ static void __init sunzilog_init_kbdms(struct uart_sunzilog_port *up, int channe
 		up->cflag = B4800 | CS8 | CLOCAL | CREAD;
 		baud = 4800;
 	}
-	printk(KERN_INFO "zs%d at 0x%p (irq = %s) is a SunZilog\n",
-	       channel, up->port.membase, __irq_itoa(zilog_irq));
+	printk(KERN_INFO "zs%d at 0x%p (irq = %d) is a SunZilog\n",
+	       channel, up->port.membase, zilog_irq);
 
 	up->curregs[R15] = BRKIE;
 	brg = BPS_TO_BRG(baud, ZS_CLOCK / ZS_CLOCK_DIVISOR);

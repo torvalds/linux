@@ -36,13 +36,13 @@
  *========================================================================*/
 
 struct cred;
-struct vnode;
+struct bhv_vnode;
 
-typedef int (*attrset_t)(struct vnode *, char *, void *, size_t, int);
-typedef int (*attrget_t)(struct vnode *, char *, void *, size_t, int);
-typedef int (*attrremove_t)(struct vnode *, char *, int);
-typedef int (*attrexists_t)(struct vnode *);
-typedef int (*attrcapable_t)(struct vnode *, struct cred *);
+typedef int (*attrset_t)(struct bhv_vnode *, char *, void *, size_t, int);
+typedef int (*attrget_t)(struct bhv_vnode *, char *, void *, size_t, int);
+typedef int (*attrremove_t)(struct bhv_vnode *, char *, int);
+typedef int (*attrexists_t)(struct bhv_vnode *);
+typedef int (*attrcapable_t)(struct bhv_vnode *, struct cred *);
 
 typedef struct attrnames {
 	char *		attr_name;
@@ -63,7 +63,7 @@ extern struct attrnames attr_trusted;
 extern struct attrnames *attr_namespaces[ATTR_NAMECOUNT];
 
 extern attrnames_t *attr_lookup_namespace(char *, attrnames_t **, int);
-extern int attr_generic_list(struct vnode *, void *, size_t, int, ssize_t *);
+extern int attr_generic_list(struct bhv_vnode *, void *, size_t, int, ssize_t *);
 
 #define ATTR_DONTFOLLOW	0x0001	/* -- unused, from IRIX -- */
 #define ATTR_ROOT	0x0002	/* use attrs in root (trusted) namespace */

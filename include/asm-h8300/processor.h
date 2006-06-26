@@ -17,7 +17,6 @@
  */
 #define current_text_addr() ({ __label__ _l; _l: &&_l;})
 
-#include <linux/config.h>
 #include <asm/segment.h>
 #include <asm/fpu.h>
 #include <asm/ptrace.h>

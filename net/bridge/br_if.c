@@ -300,25 +300,20 @@ int br_add_bridge(const char *name)
 	rtnl_lock();
 	if (strchr(dev->name, '%')) {
 		ret = dev_alloc_name(dev, dev->name);
-		if (ret < 0)
-			goto err1;
+		if (ret < 0) {
+			free_netdev(dev);
+			goto out;
+		}
 	}
 
 	ret = register_netdevice(dev);
 	if (ret)
-		goto err2;
+		goto out;
 
 	ret = br_sysfs_addbr(dev);
 	if (ret)
-		goto err3;
-	rtnl_unlock();
-	return 0;
-
- err3:
-	unregister_netdev(dev);
- err2:
-	free_netdev(dev);
- err1:
+		unregister_netdevice(dev);
+ out:
 	rtnl_unlock();
 	return ret;
 }
@@ -377,14 +372,24 @@ void br_features_recompute(struct net_bridge *br)
 	struct net_bridge_port *p;
 	unsigned long features, checksum;
 
-	features = br->feature_mask &~ NETIF_F_IP_CSUM;
-	checksum = br->feature_mask & NETIF_F_IP_CSUM;
+	checksum = br->feature_mask & NETIF_F_ALL_CSUM ? NETIF_F_NO_CSUM : 0;
+	features = br->feature_mask & ~NETIF_F_ALL_CSUM;
 
 	list_for_each_entry(p, &br->port_list, list) {
-		if (!(p->dev->features 
-		      & (NETIF_F_IP_CSUM|NETIF_F_NO_CSUM|NETIF_F_HW_CSUM)))
+		unsigned long feature = p->dev->features;
+
+		if (checksum & NETIF_F_NO_CSUM && !(feature & NETIF_F_NO_CSUM))
+			checksum ^= NETIF_F_NO_CSUM | NETIF_F_HW_CSUM;
+		if (checksum & NETIF_F_HW_CSUM && !(feature & NETIF_F_HW_CSUM))
+			checksum ^= NETIF_F_HW_CSUM | NETIF_F_IP_CSUM;
+		if (!(feature & NETIF_F_IP_CSUM))
 			checksum = 0;
-		features &= p->dev->features;
+
+		if (feature & NETIF_F_GSO)
+			feature |= NETIF_F_TSO;
+		feature |= NETIF_F_GSO;
+
+		features &= feature;
 	}
 
 	br->dev->features = features | checksum | NETIF_F_LLTX;

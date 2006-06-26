@@ -9,13 +9,7 @@
  *		<drew@colorado.edu>
  */
 
-#include <linux/config.h>
 #include <linux/types.h>
-#include <linux/major.h>
-#include <linux/device.h>
-#include <linux/smp.h>
-#include <linux/string.h>
-#include <linux/fs.h>
 
 enum {
 /* These three have identical behaviour; use the second one if DOS FDISK gets
@@ -61,6 +55,12 @@ struct partition {
 #endif
 
 #ifdef __KERNEL__
+#include <linux/major.h>
+#include <linux/device.h>
+#include <linux/smp.h>
+#include <linux/string.h>
+#include <linux/fs.h>
+
 struct partition {
 	unsigned char boot_ind;		/* 0x80 - active */
 	unsigned char head;		/* starting head */

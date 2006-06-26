@@ -67,12 +67,13 @@ static struct inode *debugfs_get_inode(struct super_block *sb, int mode, dev_t d
 static int debugfs_mknod(struct inode *dir, struct dentry *dentry,
 			 int mode, dev_t dev)
 {
-	struct inode *inode = debugfs_get_inode(dir->i_sb, mode, dev);
+	struct inode *inode;
 	int error = -EPERM;
 
 	if (dentry->d_inode)
 		return -EEXIST;
 
+	inode = debugfs_get_inode(dir->i_sb, mode, dev);
 	if (inode) {
 		d_instantiate(dentry, inode);
 		dget(dentry);
@@ -110,11 +111,11 @@ static int debug_fill_super(struct super_block *sb, void *data, int silent)
 	return simple_fill_super(sb, DEBUGFS_MAGIC, debug_files);
 }
 
-static struct super_block *debug_get_sb(struct file_system_type *fs_type,
-				        int flags, const char *dev_name,
-					void *data)
+static int debug_get_sb(struct file_system_type *fs_type,
+			int flags, const char *dev_name,
+			void *data, struct vfsmount *mnt)
 {
-	return get_sb_single(fs_type, flags, data, debug_fill_super);
+	return get_sb_single(fs_type, flags, data, debug_fill_super, mnt);
 }
 
 static struct file_system_type debug_fs_type = {
@@ -198,7 +199,7 @@ struct dentry *debugfs_create_file(const char *name, mode_t mode,
 
 	pr_debug("debugfs: creating file '%s'\n",name);
 
-	error = simple_pin_fs("debugfs", &debugfs_mount, &debugfs_mount_count);
+	error = simple_pin_fs(&debug_fs_type, &debugfs_mount, &debugfs_mount_count);
 	if (error)
 		goto exit;
 

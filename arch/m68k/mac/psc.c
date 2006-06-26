@@ -117,10 +117,10 @@ void __init psc_init(void)
 
 void __init psc_register_interrupts(void)
 {
-	cpu_request_irq(3, psc_irq, IRQ_FLG_LOCK, "psc3", (void *) 0x30);
-	cpu_request_irq(4, psc_irq, IRQ_FLG_LOCK, "psc4", (void *) 0x40);
-	cpu_request_irq(5, psc_irq, IRQ_FLG_LOCK, "psc5", (void *) 0x50);
-	cpu_request_irq(6, psc_irq, IRQ_FLG_LOCK, "psc6", (void *) 0x60);
+	request_irq(IRQ_AUTO_3, psc_irq, 0, "psc3", (void *) 0x30);
+	request_irq(IRQ_AUTO_4, psc_irq, 0, "psc4", (void *) 0x40);
+	request_irq(IRQ_AUTO_5, psc_irq, 0, "psc5", (void *) 0x50);
+	request_irq(IRQ_AUTO_6, psc_irq, 0, "psc6", (void *) 0x60);
 }
 
 /*
@@ -149,7 +149,7 @@ irqreturn_t psc_irq(int irq, void *dev_id, struct pt_regs *regs)
 	for (i = 0, irq_bit = 1 ; i < 4 ; i++, irq_bit <<= 1) {
 	        if (events & irq_bit) {
 			psc_write_byte(pIER, irq_bit);
-			mac_do_irq_list(base_irq + i, regs);
+			m68k_handle_int(base_irq + i, regs);
 			psc_write_byte(pIFR, irq_bit);
 			psc_write_byte(pIER, irq_bit | 0x80);
 		}

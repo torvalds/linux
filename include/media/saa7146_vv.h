@@ -2,7 +2,7 @@
 #define __SAA7146_VV__
 
 #include <linux/videodev.h>
-
+#include <media/v4l2-common.h>
 #include <media/saa7146.h>
 #include <media/video-buf.h>
 

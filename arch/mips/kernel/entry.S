@@ -101,7 +101,7 @@ FEXPORT(restore_all)			# restore full frame
 	EMT
 1:
 	mfc0	v1, CP0_TCSTATUS
-	/* We set IXMT above, XOR should cler it here */
+	/* We set IXMT above, XOR should clear it here */
 	xori	v1, v1, TCSTATUS_IXMT
 	or	v1, v0, v1
 	mtc0	v1, CP0_TCSTATUS

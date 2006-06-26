@@ -6,7 +6,6 @@
  * ELF register definitions..
  */
 
-#include <linux/config.h>
 #include <asm/ptrace.h>
 
 #ifdef __KERNEL__

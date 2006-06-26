@@ -1,7 +1,6 @@
 #ifndef _ASM_CRIS_ARCH_SYSTEM_H
 #define _ASM_CRIS_ARCH_SYSTEM_H
 
-#include <linux/config.h>
 
 /* Read the CPU version register. */
 static inline unsigned long rdvr(void)

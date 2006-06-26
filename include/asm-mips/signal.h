@@ -9,7 +9,6 @@
 #ifndef _ASM_SIGNAL_H
 #define _ASM_SIGNAL_H
 
-#include <linux/config.h>
 #include <linux/types.h>
 
 #define _NSIG		128

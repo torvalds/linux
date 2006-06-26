@@ -584,10 +584,10 @@ mmc_omap_prepare_dma(struct mmc_omap_host *host, struct mmc_data *data)
 	int sync_dev = 0;
 
 	data_addr = io_v2p((u32) host->base) + OMAP_MMC_REG_DATA;
-	frame = 1 << data->blksz_bits;
+	frame = data->blksz;
 	count = sg_dma_len(sg);
 
-	if ((data->blocks == 1) && (count > (1 << data->blksz_bits)))
+	if ((data->blocks == 1) && (count > data->blksz))
 		count = frame;
 
 	host->dma_len = count;
@@ -776,7 +776,7 @@ mmc_omap_prepare_data(struct mmc_omap_host *host, struct mmc_request *req)
 	}
 
 
-	block_size = 1 << data->blksz_bits;
+	block_size = data->blksz;
 
 	OMAP_MMC_WRITE(host->base, NBLK, data->blocks - 1);
 	OMAP_MMC_WRITE(host->base, BLEN, block_size - 1);

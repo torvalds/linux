@@ -109,23 +109,23 @@ typedef struct {
 
 #define BVME_IRQ_TYPE_PRIO	0
 
-#define BVME_IRQ_PRN		0x54
-#define BVME_IRQ_I596		0x1a
-#define BVME_IRQ_SCSI		0x1b
-#define BVME_IRQ_TIMER		0x59
-#define BVME_IRQ_RTC		0x1e
-#define BVME_IRQ_ABORT		0x1f
+#define BVME_IRQ_PRN		(IRQ_USER+20)
+#define BVME_IRQ_TIMER		(IRQ_USER+25)
+#define BVME_IRQ_I596		IRQ_AUTO_2
+#define BVME_IRQ_SCSI		IRQ_AUTO_3
+#define BVME_IRQ_RTC		IRQ_AUTO_6
+#define BVME_IRQ_ABORT		IRQ_AUTO_7
 
 /* SCC interrupts */
-#define BVME_IRQ_SCC_BASE		0x40
-#define BVME_IRQ_SCCB_TX		0x40
-#define BVME_IRQ_SCCB_STAT		0x42
-#define BVME_IRQ_SCCB_RX		0x44
-#define BVME_IRQ_SCCB_SPCOND		0x46
-#define BVME_IRQ_SCCA_TX		0x48
-#define BVME_IRQ_SCCA_STAT		0x4a
-#define BVME_IRQ_SCCA_RX		0x4c
-#define BVME_IRQ_SCCA_SPCOND		0x4e
+#define BVME_IRQ_SCC_BASE		IRQ_USER
+#define BVME_IRQ_SCCB_TX		IRQ_USER
+#define BVME_IRQ_SCCB_STAT		(IRQ_USER+2)
+#define BVME_IRQ_SCCB_RX		(IRQ_USER+4)
+#define BVME_IRQ_SCCB_SPCOND		(IRQ_USER+6)
+#define BVME_IRQ_SCCA_TX		(IRQ_USER+8)
+#define BVME_IRQ_SCCA_STAT		(IRQ_USER+10)
+#define BVME_IRQ_SCCA_RX		(IRQ_USER+12)
+#define BVME_IRQ_SCCA_SPCOND		(IRQ_USER+14)
 
 /* Address control registers */
 

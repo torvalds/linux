@@ -232,8 +232,6 @@ static void __init intcp_init_irq(void)
 	for (i = IRQ_PIC_START; i <= IRQ_PIC_END; i++) {
 		if (i == 11)
 			i = 22;
-		if (i == IRQ_CP_CPPLDINT)
-			i++;
 		if (i == 29)
 			break;
 		set_irq_chip(i, &pic_chip);
@@ -259,8 +257,7 @@ static void __init intcp_init_irq(void)
 		set_irq_flags(i, IRQF_VALID | IRQF_PROBE);
 	}
 
-	set_irq_handler(IRQ_CP_CPPLDINT, sic_handle_irq);
-	pic_unmask_irq(IRQ_CP_CPPLDINT);
+	set_irq_chained_handler(IRQ_CP_CPPLDINT, sic_handle_irq);
 }
 
 /*

@@ -29,6 +29,27 @@
 #include <asm/war.h>
 #include <asm/cacheflush.h> /* for run_uncached() */
 
+
+/*
+ * Special Variant of smp_call_function for use by cache functions:
+ *
+ *  o No return value
+ *  o collapses to normal function call on UP kernels
+ *  o collapses to normal function call on systems with a single shared
+ *    primary cache.
+ */
+static inline void r4k_on_each_cpu(void (*func) (void *info), void *info,
+                                   int retry, int wait)
+{
+	preempt_disable();
+
+#if !defined(CONFIG_MIPS_MT_SMP) && !defined(CONFIG_MIPS_MT_SMTC)
+	smp_call_function(func, info, retry, wait);
+#endif
+	func(info);
+	preempt_enable();
+}
+
 /*
  * Must die.
  */
@@ -299,7 +320,7 @@ static void r4k_flush_cache_all(void)
 	if (!cpu_has_dc_aliases)
 		return;
 
-	on_each_cpu(local_r4k_flush_cache_all, NULL, 1, 1);
+	r4k_on_each_cpu(local_r4k_flush_cache_all, NULL, 1, 1);
 }
 
 static inline void local_r4k___flush_cache_all(void * args)
@@ -314,13 +335,14 @@ static inline void local_r4k___flush_cache_all(void * args)
 	case CPU_R4400MC:
 	case CPU_R10000:
 	case CPU_R12000:
+	case CPU_R14000:
 		r4k_blast_scache();
 	}
 }
 
 static void r4k___flush_cache_all(void)
 {
-	on_each_cpu(local_r4k___flush_cache_all, NULL, 1, 1);
+	r4k_on_each_cpu(local_r4k___flush_cache_all, NULL, 1, 1);
 }
 
 static inline void local_r4k_flush_cache_range(void * args)
@@ -341,7 +363,7 @@ static inline void local_r4k_flush_cache_range(void * args)
 static void r4k_flush_cache_range(struct vm_area_struct *vma,
 	unsigned long start, unsigned long end)
 {
-	on_each_cpu(local_r4k_flush_cache_range, vma, 1, 1);
+	r4k_on_each_cpu(local_r4k_flush_cache_range, vma, 1, 1);
 }
 
 static inline void local_r4k_flush_cache_mm(void * args)
@@ -370,7 +392,7 @@ static void r4k_flush_cache_mm(struct mm_struct *mm)
 	if (!cpu_has_dc_aliases)
 		return;
 
-	on_each_cpu(local_r4k_flush_cache_mm, mm, 1, 1);
+	r4k_on_each_cpu(local_r4k_flush_cache_mm, mm, 1, 1);
 }
 
 struct flush_cache_page_args {
@@ -461,7 +483,7 @@ static void r4k_flush_cache_page(struct vm_area_struct *vma,
 	args.addr = addr;
 	args.pfn = pfn;
 
-	on_each_cpu(local_r4k_flush_cache_page, &args, 1, 1);
+	r4k_on_each_cpu(local_r4k_flush_cache_page, &args, 1, 1);
 }
 
 static inline void local_r4k_flush_data_cache_page(void * addr)
@@ -471,7 +493,7 @@ static inline void local_r4k_flush_data_cache_page(void * addr)
 
 static void r4k_flush_data_cache_page(unsigned long addr)
 {
-	on_each_cpu(local_r4k_flush_data_cache_page, (void *) addr, 1, 1);
+	r4k_on_each_cpu(local_r4k_flush_data_cache_page, (void *) addr, 1, 1);
 }
 
 struct flush_icache_range_args {
@@ -514,7 +536,7 @@ static void r4k_flush_icache_range(unsigned long start, unsigned long end)
 	args.start = start;
 	args.end = end;
 
-	on_each_cpu(local_r4k_flush_icache_range, &args, 1, 1);
+	r4k_on_each_cpu(local_r4k_flush_icache_range, &args, 1, 1);
 	instruction_hazard();
 }
 
@@ -590,7 +612,7 @@ static void r4k_flush_icache_page(struct vm_area_struct *vma,
 	args.vma = vma;
 	args.page = page;
 
-	on_each_cpu(local_r4k_flush_icache_page, &args, 1, 1);
+	r4k_on_each_cpu(local_r4k_flush_icache_page, &args, 1, 1);
 }
 
 
@@ -689,7 +711,7 @@ static void local_r4k_flush_cache_sigtramp(void * arg)
 
 static void r4k_flush_cache_sigtramp(unsigned long addr)
 {
-	on_each_cpu(local_r4k_flush_cache_sigtramp, (void *) addr, 1, 1);
+	r4k_on_each_cpu(local_r4k_flush_cache_sigtramp, (void *) addr, 1, 1);
 }
 
 static void r4k_flush_icache_all(void)
@@ -812,6 +834,7 @@ static void __init probe_pcache(void)
 
 	case CPU_R10000:
 	case CPU_R12000:
+	case CPU_R14000:
 		icache_size = 1 << (12 + ((config & R10K_CONF_IC) >> 29));
 		c->icache.linesz = 64;
 		c->icache.ways = 2;
@@ -965,9 +988,11 @@ static void __init probe_pcache(void)
 		c->dcache.flags |= MIPS_CACHE_PINDEX;
 	case CPU_R10000:
 	case CPU_R12000:
+	case CPU_R14000:
 	case CPU_SB1:
 		break;
 	case CPU_24K:
+	case CPU_34K:
 		if (!(read_c0_config7() & (1 << 16)))
 	default:
 			if (c->dcache.waysize > PAGE_SIZE)
@@ -1091,6 +1116,7 @@ static void __init setup_scache(void)
 
 	case CPU_R10000:
 	case CPU_R12000:
+	case CPU_R14000:
 		scache_size = 0x80000 << ((config & R10K_CONF_SS) >> 16);
 		c->scache.linesz = 64 << ((config >> 13) & 1);
 		c->scache.ways = 2;
@@ -1135,6 +1161,31 @@ static void __init setup_scache(void)
 	c->options |= MIPS_CPU_SUBSET_CACHES;
 }
 
+void au1x00_fixup_config_od(void)
+{
+	/*
+	 * c0_config.od (bit 19) was write only (and read as 0)
+	 * on the early revisions of Alchemy SOCs.  It disables the bus
+	 * transaction overlapping and needs to be set to fix various errata.
+	 */
+	switch (read_c0_prid()) {
+	case 0x00030100: /* Au1000 DA */
+	case 0x00030201: /* Au1000 HA */
+	case 0x00030202: /* Au1000 HB */
+	case 0x01030200: /* Au1500 AB */
+	/*
+	 * Au1100 errata actually keeps silence about this bit, so we set it
+	 * just in case for those revisions that require it to be set according
+	 * to arch/mips/au1000/common/cputable.c
+	 */
+	case 0x02030200: /* Au1100 AB */
+	case 0x02030201: /* Au1100 BA */
+	case 0x02030202: /* Au1100 BC */
+		set_c0_config(1 << 19);
+		break;
+	}
+}
+
 static inline void coherency_setup(void)
 {
 	change_c0_config(CONF_CM_CMASK, CONF_CM_DEFAULT);
@@ -1154,6 +1205,15 @@ static inline void coherency_setup(void)
 	case CPU_R4400SC:
 	case CPU_R4400MC:
 		clear_c0_config(CONF_CU);
+		break;
+	/*
+	 * We need to catch the ealry Alchemy SOCs with
+	 * the write-only co_config.od bit and set it back to one...
+	 */
+	case CPU_AU1000: /* rev. DA, HA, HB */
+	case CPU_AU1100: /* rev. AB, BA, BC ?? */
+	case CPU_AU1500: /* rev. AB */
+		au1x00_fixup_config_od();
 		break;
 	}
 }

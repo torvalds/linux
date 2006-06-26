@@ -151,7 +151,8 @@ config BSD_PROCESS_ACCT_V3
 	  at <http://www.physik3.uni-rostock.de/tim/kernel/utils/acct/>.
 
 config SYSCTL
-	bool "Sysctl support"
+	bool "Sysctl support" if EMBEDDED
+	default y
 	---help---
 	  The sysctl interface provides a means of dynamically changing
 	  certain kernel parameters and variables on the fly without requiring
@@ -182,7 +183,8 @@ config AUDITSYSCALL
 	help
 	  Enable low-overhead system-call auditing infrastructure that
 	  can be used independently or with another kernel subsystem,
-	  such as SELinux.
+	  such as SELinux.  To use audit's filesystem watch feature, please
+	  ensure that INOTIFY is configured.
 
 config IKCONFIG
 	bool "Kernel .config support"
@@ -388,9 +390,6 @@ config BASE_SMALL
 config SLOB
 	default !SLAB
 	bool
-
-config OBSOLETE_INTERMODULE
-	tristate
 
 menu "Loadable module support"
 

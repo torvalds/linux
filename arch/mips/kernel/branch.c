@@ -178,7 +178,7 @@ int __compute_return_epc(struct pt_regs *regs)
 		if (is_fpu_owner())
 			asm volatile("cfc1\t%0,$31" : "=r" (fcr31));
 		else
-			fcr31 = current->thread.fpu.hard.fcr31;
+			fcr31 = current->thread.fpu.fcr31;
 		preempt_enable();
 
 		bit = (insn.i_format.rt >> 2);

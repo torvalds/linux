@@ -399,16 +399,14 @@ static int h3600ts_connect(struct serio *serio, struct serio_driver *drv)
 	set_GPIO_IRQ_edge(GPIO_BITSY_NPOWER_BUTTON, GPIO_RISING_EDGE);
 
 	if (request_irq(IRQ_GPIO_BITSY_ACTION_BUTTON, action_button_handler,
-			SA_SHIRQ | SA_INTERRUPT | SA_SAMPLE_RANDOM,
-			"h3600_action", &ts->dev)) {
+			SA_SHIRQ | SA_INTERRUPT, "h3600_action", &ts->dev)) {
 		printk(KERN_ERR "h3600ts.c: Could not allocate Action Button IRQ!\n");
 		err = -EBUSY;
 		goto fail2;
 	}
 
 	if (request_irq(IRQ_GPIO_BITSY_NPOWER_BUTTON, npower_button_handler,
-			SA_SHIRQ | SA_INTERRUPT | SA_SAMPLE_RANDOM,
-			"h3600_suspend", &ts->dev)) {
+			SA_SHIRQ | SA_INTERRUPT, "h3600_suspend", &ts->dev)) {
 		printk(KERN_ERR "h3600ts.c: Could not allocate Power Button IRQ!\n");
 		err = -EBUSY;
 		goto fail3;

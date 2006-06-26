@@ -939,6 +939,7 @@ wd33c93_intr(struct Scsi_Host *instance)
 		DB(DB_INTR, printk("%02x", cmd->SCp.Status))
 		    if (hostdata->level2 >= L2_BASIC) {
 			sr = read_wd33c93(regs, WD_SCSI_STATUS);	/* clear interrupt */
+			udelay(7);
 			hostdata->state = S_RUNNING_LEVEL2;
 			write_wd33c93(regs, WD_COMMAND_PHASE, 0x50);
 			write_wd33c93_cmd(regs, WD_CMD_SEL_ATN_XFER);
@@ -955,6 +956,7 @@ wd33c93_intr(struct Scsi_Host *instance)
 
 		msg = read_1_byte(regs);
 		sr = read_wd33c93(regs, WD_SCSI_STATUS);	/* clear interrupt */
+		udelay(7);
 
 		hostdata->incoming_msg[hostdata->incoming_ptr] = msg;
 		if (hostdata->incoming_msg[0] == EXTENDED_MESSAGE)
@@ -1358,6 +1360,7 @@ wd33c93_intr(struct Scsi_Host *instance)
 			} else {
 				/* Verify this is a change to MSG_IN and read the message */
 				sr = read_wd33c93(regs, WD_SCSI_STATUS);
+				udelay(7);
 				if (sr == (CSR_ABORT | PHS_MESS_IN) ||
 				    sr == (CSR_UNEXP | PHS_MESS_IN) ||
 				    sr == (CSR_SRV_REQ | PHS_MESS_IN)) {
@@ -1374,6 +1377,7 @@ wd33c93_intr(struct Scsi_Host *instance)
 							     asr);
 					}
 					sr = read_wd33c93(regs, WD_SCSI_STATUS);
+					udelay(7);
 					if (sr != CSR_MSGIN)
 						printk
 						    ("wd33c93: Not paused with ACK on RESEL (%02x)\n",
@@ -1701,7 +1705,7 @@ wd33c93_abort(struct scsi_cmnd * cmd)
 }
 
 #define MAX_WD33C93_HOSTS 4
-#define MAX_SETUP_ARGS ((int)(sizeof(setup_args) / sizeof(char *)))
+#define MAX_SETUP_ARGS ARRAY_SIZE(setup_args)
 #define SETUP_BUFFER_SIZE 200
 static char setup_buffer[SETUP_BUFFER_SIZE];
 static char setup_used[MAX_SETUP_ARGS];

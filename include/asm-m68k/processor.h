@@ -13,7 +13,6 @@
  */
 #define current_text_addr() ({ __label__ _l; _l: &&_l;})
 
-#include <linux/config.h>
 #include <linux/thread_info.h>
 #include <asm/segment.h>
 #include <asm/fpu.h>
@@ -72,10 +71,10 @@ struct thread_struct {
 };
 
 #define INIT_THREAD  {							\
-	ksp:	sizeof(init_stack) + (unsigned long) init_stack,	\
-	sr:	PS_S,							\
-	fs:	__KERNEL_DS,						\
-	info:	INIT_THREAD_INFO(init_task)				\
+	.ksp	= sizeof(init_stack) + (unsigned long) init_stack,	\
+	.sr	= PS_S,							\
+	.fs	= __KERNEL_DS,						\
+	.info	= INIT_THREAD_INFO(init_task),				\
 }
 
 /*

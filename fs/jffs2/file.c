@@ -54,7 +54,12 @@ const struct file_operations jffs2_file_operations =
 
 struct inode_operations jffs2_file_inode_operations =
 {
-	.setattr =	jffs2_setattr
+	.permission =	jffs2_permission,
+	.setattr =	jffs2_setattr,
+	.setxattr =	jffs2_setxattr,
+	.getxattr =	jffs2_getxattr,
+	.listxattr =	jffs2_listxattr,
+	.removexattr =	jffs2_removexattr
 };
 
 struct address_space_operations jffs2_file_address_operations =
@@ -129,13 +134,13 @@ static int jffs2_prepare_write (struct file *filp, struct page *pg,
 		struct jffs2_sb_info *c = JFFS2_SB_INFO(inode->i_sb);
 		struct jffs2_raw_inode ri;
 		struct jffs2_full_dnode *fn;
-		uint32_t phys_ofs, alloc_len;
+		uint32_t alloc_len;
 
 		D1(printk(KERN_DEBUG "Writing new hole frag 0x%x-0x%x between current EOF and new page\n",
 			  (unsigned int)inode->i_size, pageofs));
 
-		ret = jffs2_reserve_space(c, sizeof(ri), &phys_ofs, &alloc_len,
-					ALLOC_NORMAL, JFFS2_SUMMARY_INODE_SIZE);
+		ret = jffs2_reserve_space(c, sizeof(ri), &alloc_len,
+					  ALLOC_NORMAL, JFFS2_SUMMARY_INODE_SIZE);
 		if (ret)
 			return ret;
 
@@ -161,7 +166,7 @@ static int jffs2_prepare_write (struct file *filp, struct page *pg,
 		ri.node_crc = cpu_to_je32(crc32(0, &ri, sizeof(ri)-8));
 		ri.data_crc = cpu_to_je32(0);
 
-		fn = jffs2_write_dnode(c, f, &ri, NULL, 0, phys_ofs, ALLOC_NORMAL);
+		fn = jffs2_write_dnode(c, f, &ri, NULL, 0, ALLOC_NORMAL);
 
 		if (IS_ERR(fn)) {
 			ret = PTR_ERR(fn);
@@ -215,12 +220,20 @@ static int jffs2_commit_write (struct file *filp, struct page *pg,
 	D1(printk(KERN_DEBUG "jffs2_commit_write(): ino #%lu, page at 0x%lx, range %d-%d, flags %lx\n",
 		  inode->i_ino, pg->index << PAGE_CACHE_SHIFT, start, end, pg->flags));
 
-	if (!start && end == PAGE_CACHE_SIZE) {
-		/* We need to avoid deadlock with page_cache_read() in
-		   jffs2_garbage_collect_pass(). So we have to mark the
-		   page up to date, to prevent page_cache_read() from
-		   trying to re-lock it. */
-		SetPageUptodate(pg);
+	if (end == PAGE_CACHE_SIZE) {
+		if (!start) {
+			/* We need to avoid deadlock with page_cache_read() in
+			   jffs2_garbage_collect_pass(). So we have to mark the
+			   page up to date, to prevent page_cache_read() from
+			   trying to re-lock it. */
+			SetPageUptodate(pg);
+		} else {
+			/* When writing out the end of a page, write out the 
+			   _whole_ page. This helps to reduce the number of
+			   nodes in files which have many short writes, like
+			   syslog files. */
+			start = aligned_start = 0;
+		}
 	}
 
 	ri = jffs2_alloc_raw_inode();

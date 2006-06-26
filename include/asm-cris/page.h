@@ -1,7 +1,6 @@
 #ifndef _CRIS_PAGE_H
 #define _CRIS_PAGE_H
 
-#include <linux/config.h>
 #include <asm/arch/page.h>
 
 /* PAGE_SHIFT determines the page size */

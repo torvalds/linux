@@ -272,8 +272,7 @@ int ipoib_dev_init(struct net_device *dev, struct ib_device *ca, int port);
 void ipoib_dev_cleanup(struct net_device *dev);
 
 void ipoib_mcast_join_task(void *dev_ptr);
-void ipoib_mcast_send(struct net_device *dev, union ib_gid *mgid,
-		      struct sk_buff *skb);
+void ipoib_mcast_send(struct net_device *dev, void *mgid, struct sk_buff *skb);
 
 void ipoib_mcast_restart_task(void *dev_ptr);
 int ipoib_mcast_start_thread(struct net_device *dev);
@@ -369,15 +368,26 @@ extern int ipoib_debug_level;
 #endif /* CONFIG_INFINIBAND_IPOIB_DEBUG_DATA */
 
 
-#define IPOIB_GID_FMT		"%x:%x:%x:%x:%x:%x:%x:%x"
+#define IPOIB_GID_FMT		"%2.2x%2.2x:%2.2x%2.2x:%2.2x%2.2x:%2.2x%2.2x:" \
+				"%2.2x%2.2x:%2.2x%2.2x:%2.2x%2.2x:%2.2x%2.2x"
 
-#define IPOIB_GID_ARG(gid)	be16_to_cpup((__be16 *) ((gid).raw +  0)), \
-				be16_to_cpup((__be16 *) ((gid).raw +  2)), \
-				be16_to_cpup((__be16 *) ((gid).raw +  4)), \
-				be16_to_cpup((__be16 *) ((gid).raw +  6)), \
-				be16_to_cpup((__be16 *) ((gid).raw +  8)), \
-				be16_to_cpup((__be16 *) ((gid).raw + 10)), \
-				be16_to_cpup((__be16 *) ((gid).raw + 12)), \
-				be16_to_cpup((__be16 *) ((gid).raw + 14))
+#define IPOIB_GID_RAW_ARG(gid)	((u8 *)(gid))[0], \
+				((u8 *)(gid))[1], \
+				((u8 *)(gid))[2], \
+				((u8 *)(gid))[3], \
+				((u8 *)(gid))[4], \
+				((u8 *)(gid))[5], \
+				((u8 *)(gid))[6], \
+				((u8 *)(gid))[7], \
+				((u8 *)(gid))[8], \
+				((u8 *)(gid))[9], \
+				((u8 *)(gid))[10],\
+				((u8 *)(gid))[11],\
+				((u8 *)(gid))[12],\
+				((u8 *)(gid))[13],\
+				((u8 *)(gid))[14],\
+				((u8 *)(gid))[15]
+
+#define IPOIB_GID_ARG(gid)	IPOIB_GID_RAW_ARG((gid).raw)
 
 #endif /* _IPOIB_H */

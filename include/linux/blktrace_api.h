@@ -1,7 +1,6 @@
 #ifndef BLKTRACE_H
 #define BLKTRACE_H
 
-#include <linux/config.h>
 #include <linux/blkdev.h>
 #include <linux/relay.h>
 
@@ -91,9 +90,9 @@ struct blk_io_trace {
  * The remap event
  */
 struct blk_io_trace_remap {
-	u32 device;
+	__be32 device;
 	u32 __pad;
-	u64 sector;
+	__be64 sector;
 };
 
 enum {
@@ -225,7 +224,7 @@ static inline void blk_add_trace_pdu_int(struct request_queue *q, u32 what,
 					 struct bio *bio, unsigned int pdu)
 {
 	struct blk_trace *bt = q->blk_trace;
-	u64 rpdu = cpu_to_be64(pdu);
+	__be64 rpdu = cpu_to_be64(pdu);
 
 	if (likely(!bt))
 		return;

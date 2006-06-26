@@ -3,7 +3,6 @@
 
 #ifdef __KERNEL__
 
-#include <linux/config.h>
 
 /* bytes per L1 cache line */
 #if defined(CONFIG_8xx) || defined(CONFIG_403GCX)

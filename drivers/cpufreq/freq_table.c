@@ -20,7 +20,7 @@ int cpufreq_frequency_table_cpuinfo(struct cpufreq_policy *policy,
 {
 	unsigned int min_freq = ~0;
 	unsigned int max_freq = 0;
-	unsigned int i = 0;
+	unsigned int i;
 
 	for (i=0; (table[i].frequency != CPUFREQ_TABLE_END); i++) {
 		unsigned int freq = table[i].frequency;
@@ -51,7 +51,7 @@ int cpufreq_frequency_table_verify(struct cpufreq_policy *policy,
 				   struct cpufreq_frequency_table *table)
 {
 	unsigned int next_larger = ~0;
-	unsigned int i = 0;
+	unsigned int i;
 	unsigned int count = 0;
 
 	dprintk("request for verification of policy (%u - %u kHz) for cpu %u\n", policy->min, policy->max, policy->cpu);
@@ -91,20 +91,24 @@ int cpufreq_frequency_table_target(struct cpufreq_policy *policy,
 				   unsigned int relation,
 				   unsigned int *index)
 {
-	struct cpufreq_frequency_table optimal = { .index = ~0, };
-	struct cpufreq_frequency_table suboptimal = { .index = ~0, };
+	struct cpufreq_frequency_table optimal = {
+		.index = ~0,
+		.frequency = 0,
+	};
+	struct cpufreq_frequency_table suboptimal = {
+		.index = ~0,
+		.frequency = 0,
+	};
 	unsigned int i;
 
 	dprintk("request for target %u kHz (relation: %u) for cpu %u\n", target_freq, relation, policy->cpu);
 
 	switch (relation) {
 	case CPUFREQ_RELATION_H:
-		optimal.frequency = 0;
 		suboptimal.frequency = ~0;
 		break;
 	case CPUFREQ_RELATION_L:
 		optimal.frequency = ~0;
-		suboptimal.frequency = 0;
 		break;
 	}
 

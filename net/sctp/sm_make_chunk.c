@@ -1402,14 +1402,14 @@ struct sctp_association *sctp_unpack_cookie(
 	sg.length = bodysize;
 	key = (char *)ep->secret_key[ep->current_key];
 
-	memset(digest, 0x00, sizeof(digest));
+	memset(digest, 0x00, SCTP_SIGNATURE_SIZE);
 	sctp_crypto_hmac(sctp_sk(ep->base.sk)->hmac, key, &keylen, &sg,
 			 1, digest);
 
 	if (memcmp(digest, cookie->signature, SCTP_SIGNATURE_SIZE)) {
 		/* Try the previous key. */
 		key = (char *)ep->secret_key[ep->last_key];
-		memset(digest, 0x00, sizeof(digest));
+		memset(digest, 0x00, SCTP_SIGNATURE_SIZE);
 		sctp_crypto_hmac(sctp_sk(ep->base.sk)->hmac, key, &keylen,
 				 &sg, 1, digest);
 

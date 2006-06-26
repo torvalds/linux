@@ -139,22 +139,22 @@ int tulip_poll(struct net_device *dev, int *budget)
 		}
                /* Acknowledge current RX interrupt sources. */
                iowrite32((RxIntr | RxNoBuf), tp->base_addr + CSR5);
- 
- 
+
+
                /* If we own the next entry, it is a new packet. Send it up. */
                while ( ! (tp->rx_ring[entry].status & cpu_to_le32(DescOwned))) {
                        s32 status = le32_to_cpu(tp->rx_ring[entry].status);
- 
- 
+
+
                        if (tp->dirty_rx + RX_RING_SIZE == tp->cur_rx)
                                break;
- 
+
                        if (tulip_debug > 5)
                                printk(KERN_DEBUG "%s: In tulip_rx(), entry %d %8.8x.\n",
                                       dev->name, entry, status);
                        if (--rx_work_limit < 0)
                                goto not_done;
- 
+
                        if ((status & 0x38008300) != 0x0300) {
                                if ((status & 0x38000300) != 0x0300) {
                                 /* Ingore earlier buffers. */
@@ -180,7 +180,7 @@ int tulip_poll(struct net_device *dev, int *budget)
                                /* Omit the four octet CRC from the length. */
                                short pkt_len = ((status >> 16) & 0x7ff) - 4;
                                struct sk_buff *skb;
-  
+
 #ifndef final_version
                                if (pkt_len > 1518) {
                                        printk(KERN_WARNING "%s: Bogus packet size of %d (%#x).\n",
@@ -213,7 +213,7 @@ int tulip_poll(struct net_device *dev, int *budget)
                                } else {        /* Pass up the skb already on the Rx ring. */
                                        char *temp = skb_put(skb = tp->rx_buffers[entry].skb,
                                                             pkt_len);
-  
+
 #ifndef final_version
                                        if (tp->rx_buffers[entry].mapping !=
                                            le32_to_cpu(tp->rx_ring[entry].buffer1)) {
@@ -225,17 +225,17 @@ int tulip_poll(struct net_device *dev, int *budget)
                                                       skb->head, temp);
                                        }
 #endif
-  
+
                                        pci_unmap_single(tp->pdev, tp->rx_buffers[entry].mapping,
                                                         PKT_BUF_SZ, PCI_DMA_FROMDEVICE);
-  
+
                                        tp->rx_buffers[entry].skb = NULL;
                                        tp->rx_buffers[entry].mapping = 0;
                                }
                                skb->protocol = eth_type_trans(skb, dev);
-  
+
                                netif_receive_skb(skb);
- 
+
                                dev->last_rx = jiffies;
                                tp->stats.rx_packets++;
                                tp->stats.rx_bytes += pkt_len;
@@ -245,12 +245,12 @@ int tulip_poll(struct net_device *dev, int *budget)
                        entry = (++tp->cur_rx) % RX_RING_SIZE;
                        if (tp->cur_rx - tp->dirty_rx > RX_RING_SIZE/4)
                                tulip_refill_rx(dev);
- 
+
                 }
- 
+
                /* New ack strategy... irq does not ack Rx any longer
                   hopefully this helps */
- 
+
                /* Really bad things can happen here... If new packet arrives
                 * and an irq arrives (tx or just due to occasionally unset
                 * mask), it will be acked by irq handler, but new thread
@@ -259,28 +259,28 @@ int tulip_poll(struct net_device *dev, int *budget)
                 * tomorrow (night 011029). If it will not fail, we won
                 * finally: amount of IO did not increase at all. */
        } while ((ioread32(tp->base_addr + CSR5) & RxIntr));
- 
+
 done:
- 
+
  #ifdef CONFIG_TULIP_NAPI_HW_MITIGATION
-  
+
           /* We use this simplistic scheme for IM. It's proven by
              real life installations. We can have IM enabled
-            continuesly but this would cause unnecessary latency. 
-            Unfortunely we can't use all the NET_RX_* feedback here. 
-            This would turn on IM for devices that is not contributing 
-            to backlog congestion with unnecessary latency. 
-  
+            continuesly but this would cause unnecessary latency.
+            Unfortunely we can't use all the NET_RX_* feedback here.
+            This would turn on IM for devices that is not contributing
+            to backlog congestion with unnecessary latency.
+
              We monitor the the device RX-ring and have:
-  
+
              HW Interrupt Mitigation either ON or OFF.
-  
-            ON:  More then 1 pkt received (per intr.) OR we are dropping 
+
+            ON:  More then 1 pkt received (per intr.) OR we are dropping
              OFF: Only 1 pkt received
-            
+
              Note. We only use min and max (0, 15) settings from mit_table */
-  
-  
+
+
           if( tp->flags &  HAS_INTR_MITIGATION) {
                  if( received > 1 ) {
                          if( ! tp->mit_on ) {
@@ -297,20 +297,20 @@ done:
           }
 
 #endif /* CONFIG_TULIP_NAPI_HW_MITIGATION */
- 
+
          dev->quota -= received;
          *budget -= received;
- 
+
          tulip_refill_rx(dev);
-         
+
          /* If RX ring is not full we are out of memory. */
          if (tp->rx_buffers[tp->dirty_rx % RX_RING_SIZE].skb == NULL) goto oom;
- 
+
          /* Remove us from polling list and enable RX intr. */
- 
+
          netif_rx_complete(dev);
          iowrite32(tulip_tbl[tp->chip_id].valid_intrs, tp->base_addr+CSR7);
- 
+
          /* The last op happens after poll completion. Which means the following:
           * 1. it can race with disabling irqs in irq handler
           * 2. it can race with dise/enabling irqs in other poll threads
@@ -321,9 +321,9 @@ done:
           * due to races in masking and due to too late acking of already
           * processed irqs. But it must not result in losing events.
           */
- 
+
          return 0;
- 
+
  not_done:
          if (!received) {
 
@@ -331,29 +331,29 @@ done:
          }
          dev->quota -= received;
          *budget -= received;
- 
+
          if (tp->cur_rx - tp->dirty_rx > RX_RING_SIZE/2 ||
              tp->rx_buffers[tp->dirty_rx % RX_RING_SIZE].skb == NULL)
                  tulip_refill_rx(dev);
- 
+
          if (tp->rx_buffers[tp->dirty_rx % RX_RING_SIZE].skb == NULL) goto oom;
- 
+
          return 1;
- 
- 
+
+
  oom:    /* Executed with RX ints disabled */
- 
-         
+
+
          /* Start timer, stop polling, but do not enable rx interrupts. */
          mod_timer(&tp->oom_timer, jiffies+1);
-       
+
          /* Think: timer_pending() was an explicit signature of bug.
           * Timer can be pending now but fired and completed
           * before we did netif_rx_complete(). See? We would lose it. */
- 
+
          /* remove ourselves from the polling list */
          netif_rx_complete(dev);
- 
+
          return 0;
 }
 
@@ -521,9 +521,9 @@ irqreturn_t tulip_interrupt(int irq, void *dev_instance, struct pt_regs *regs)
 	/* Let's see whether the interrupt really is for us */
 	csr5 = ioread32(ioaddr + CSR5);
 
-        if (tp->flags & HAS_PHY_IRQ) 
+        if (tp->flags & HAS_PHY_IRQ)
 	        handled = phy_interrupt (dev);
-    
+
 	if ((csr5 & (NormalIntr|AbnormalIntr)) == 0)
 		return IRQ_RETVAL(handled);
 
@@ -538,17 +538,17 @@ irqreturn_t tulip_interrupt(int irq, void *dev_instance, struct pt_regs *regs)
 			/* Mask RX intrs and add the device to poll list. */
 			iowrite32(tulip_tbl[tp->chip_id].valid_intrs&~RxPollInt, ioaddr + CSR7);
 			netif_rx_schedule(dev);
-			
+
 			if (!(csr5&~(AbnormalIntr|NormalIntr|RxPollInt|TPLnkPass)))
                                break;
 		}
-		
+
                /* Acknowledge the interrupt sources we handle here ASAP
                   the poll function does Rx and RxNoBuf acking */
-		
+
 		iowrite32(csr5 & 0x0001ff3f, ioaddr + CSR5);
 
-#else 
+#else
 		/* Acknowledge all of the current interrupt sources ASAP. */
 		iowrite32(csr5 & 0x0001ffff, ioaddr + CSR5);
 
@@ -559,11 +559,11 @@ irqreturn_t tulip_interrupt(int irq, void *dev_instance, struct pt_regs *regs)
 		}
 
 #endif /*  CONFIG_TULIP_NAPI */
-		
+
 		if (tulip_debug > 4)
 			printk(KERN_DEBUG "%s: interrupt  csr5=%#8.8x new csr5=%#8.8x.\n",
 			       dev->name, csr5, ioread32(ioaddr + CSR5));
-		
+
 
 		if (csr5 & (TxNoBuf | TxDied | TxIntr | TimerInt)) {
 			unsigned int dirty_tx;
@@ -737,17 +737,17 @@ irqreturn_t tulip_interrupt(int irq, void *dev_instance, struct pt_regs *regs)
 #ifdef CONFIG_TULIP_NAPI
 		if (rxd)
 			csr5 &= ~RxPollInt;
-	} while ((csr5 & (TxNoBuf | 
-			  TxDied | 
-			  TxIntr | 
+	} while ((csr5 & (TxNoBuf |
+			  TxDied |
+			  TxIntr |
 			  TimerInt |
 			  /* Abnormal intr. */
-			  RxDied | 
-			  TxFIFOUnderflow | 
-			  TxJabber | 
-			  TPLnkFail |  
+			  RxDied |
+			  TxFIFOUnderflow |
+			  TxJabber |
+			  TPLnkFail |
 			  SytemError )) != 0);
-#else 
+#else
 	} while ((csr5 & (NormalIntr|AbnormalIntr)) != 0);
 
 	tulip_refill_rx(dev);

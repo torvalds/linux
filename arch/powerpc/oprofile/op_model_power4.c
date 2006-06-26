@@ -24,10 +24,6 @@
 static unsigned long reset_value[OP_MAX_COUNTER];
 
 static int oprofile_running;
-static int mmcra_has_sihv;
-/* Unfortunately these bits vary between CPUs */
-static unsigned long mmcra_sihv = MMCRA_SIHV;
-static unsigned long mmcra_sipr = MMCRA_SIPR;
 
 /* mmcr values are set in power4_reg_setup, used in power4_cpu_setup */
 static u32 mmcr0_val;
@@ -39,16 +35,6 @@ static void power4_reg_setup(struct op_counter_config *ctr,
 			     int num_ctrs)
 {
 	int i;
-
-	/*
-	 * SIHV / SIPR bits are only implemented on POWER4+ (GQ) and above.
-	 * However we disable it on all POWER4 until we verify it works
-	 * (I was seeing some strange behaviour last time I tried).
-	 *
-	 * It has been verified to work on POWER5 so we enable it there.
-	 */
-	if (cpu_has_feature(CPU_FTR_MMCRA_SIHV))
-		mmcra_has_sihv = 1;
 
 	/*
 	 * The performance counter event settings are given in the mmcr0,
@@ -202,18 +188,19 @@ static unsigned long get_pc(struct pt_regs *regs)
 	unsigned long mmcra;
 
 	/* Cant do much about it */
-	if (!mmcra_has_sihv)
+	if (!cur_cpu_spec->oprofile_mmcra_sihv)
 		return pc;
 
 	mmcra = mfspr(SPRN_MMCRA);
 
 	/* Were we in the hypervisor? */
-	if (firmware_has_feature(FW_FEATURE_LPAR) && (mmcra & mmcra_sihv))
+	if (firmware_has_feature(FW_FEATURE_LPAR) &&
+	    (mmcra & cur_cpu_spec->oprofile_mmcra_sihv))
 		/* function descriptor madness */
 		return *((unsigned long *)hypervisor_bucket);
 
 	/* We were in userspace, nothing to do */
-	if (mmcra & mmcra_sipr)
+	if (mmcra & cur_cpu_spec->oprofile_mmcra_sipr)
 		return pc;
 
 #ifdef CONFIG_PPC_RTAS
@@ -235,15 +222,14 @@ static unsigned long get_pc(struct pt_regs *regs)
 	return pc;
 }
 
-static int get_kernel(unsigned long pc)
+static int get_kernel(unsigned long pc, unsigned long mmcra)
 {
 	int is_kernel;
 
-	if (!mmcra_has_sihv) {
+	if (!cur_cpu_spec->oprofile_mmcra_sihv) {
 		is_kernel = is_kernel_addr(pc);
 	} else {
-		unsigned long mmcra = mfspr(SPRN_MMCRA);
-		is_kernel = ((mmcra & mmcra_sipr) == 0);
+		is_kernel = ((mmcra & cur_cpu_spec->oprofile_mmcra_sipr) == 0);
 	}
 
 	return is_kernel;
@@ -257,9 +243,12 @@ static void power4_handle_interrupt(struct pt_regs *regs,
 	int val;
 	int i;
 	unsigned int mmcr0;
+	unsigned long mmcra;
+
+	mmcra = mfspr(SPRN_MMCRA);
 
 	pc = get_pc(regs);
-	is_kernel = get_kernel(pc);
+	is_kernel = get_kernel(pc, mmcra);
 
 	/* set the PMM bit (see comment below) */
 	mtmsrd(mfmsr() | MSR_PMM);
@@ -286,6 +275,10 @@ static void power4_handle_interrupt(struct pt_regs *regs,
 	 * all the time
 	 */
 	mmcr0 &= ~MMCR0_PMAO;
+
+	/* Clear the appropriate bits in the MMCRA */
+	mmcra &= ~cur_cpu_spec->oprofile_mmcra_clear;
+	mtspr(SPRN_MMCRA, mmcra);
 
 	/*
 	 * now clear the freeze bit, counting will not start until we

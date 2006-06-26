@@ -185,6 +185,9 @@ int usb_hcd_pxa27x_probe (const struct hc_driver *driver, struct platform_device
 	/* Select Power Management Mode */
 	pxa27x_ohci_select_pmm(inf->port_mode);
 
+	if (inf->power_budget)
+		hcd->power_budget = inf->power_budget;
+
 	ohci_hcd_init(hcd_to_ohci(hcd));
 
 	retval = usb_add_hcd(hcd, pdev->resource[1].start, SA_INTERRUPT);

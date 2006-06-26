@@ -1,7 +1,6 @@
 #ifndef _I386_TLBFLUSH_H
 #define _I386_TLBFLUSH_H
 
-#include <linux/config.h>
 #include <linux/mm.h>
 #include <asm/processor.h>
 

@@ -44,8 +44,6 @@ struct sp8870_state {
 
 	struct i2c_adapter* i2c;
 
-	struct dvb_frontend_ops ops;
-
 	const struct sp8870_config* config;
 
 	struct dvb_frontend frontend;
@@ -262,9 +260,10 @@ static int sp8870_set_frontend_parameters (struct dvb_frontend* fe,
 	sp8870_microcontroller_stop(state);
 
 	// set tuner parameters
-	sp8870_writereg(state, 0x206, 0x001);
-	state->config->pll_set(fe, p);
-	sp8870_writereg(state, 0x206, 0x000);
+	if (fe->ops.tuner_ops.set_params) {
+		fe->ops.tuner_ops.set_params(fe, p);
+		if (fe->ops.i2c_gate_ctrl) fe->ops.i2c_gate_ctrl(fe, 0);
+	}
 
 	// sample rate correction bit [23..17]
 	sp8870_writereg(state, 0x0319, 0x000A);
@@ -348,13 +347,6 @@ static int sp8870_init (struct dvb_frontend* fe)
 	/* bit 0x010: enable data valid signal */
 	sp8870_writereg(state, 0x0D00, 0x010);
 	sp8870_writereg(state, 0x0D01, 0x000);
-
-	/* setup PLL */
-	if (state->config->pll_init) {
-		sp8870_writereg(state, 0x206, 0x001);
-		state->config->pll_init(fe);
-		sp8870_writereg(state, 0x206, 0x000);
-	}
 
 	return 0;
 }
@@ -541,6 +533,17 @@ static int sp8870_get_tune_settings(struct dvb_frontend* fe, struct dvb_frontend
 	return 0;
 }
 
+static int sp8870_i2c_gate_ctrl(struct dvb_frontend* fe, int enable)
+{
+	struct sp8870_state* state = fe->demodulator_priv;
+
+	if (enable) {
+		return sp8870_writereg(state, 0x206, 0x001);
+	} else {
+		return sp8870_writereg(state, 0x206, 0x000);
+	}
+}
+
 static void sp8870_release(struct dvb_frontend* fe)
 {
 	struct sp8870_state* state = fe->demodulator_priv;
@@ -561,14 +564,13 @@ struct dvb_frontend* sp8870_attach(const struct sp8870_config* config,
 	/* setup the state */
 	state->config = config;
 	state->i2c = i2c;
-	memcpy(&state->ops, &sp8870_ops, sizeof(struct dvb_frontend_ops));
 	state->initialised = 0;
 
 	/* check if the demod is there */
 	if (sp8870_readreg(state, 0x0200) < 0) goto error;
 
 	/* create dvb_frontend */
-	state->frontend.ops = &state->ops;
+	memcpy(&state->frontend.ops, &sp8870_ops, sizeof(struct dvb_frontend_ops));
 	state->frontend.demodulator_priv = state;
 	return &state->frontend;
 
@@ -597,6 +599,7 @@ static struct dvb_frontend_ops sp8870_ops = {
 
 	.init = sp8870_init,
 	.sleep = sp8870_sleep,
+	.i2c_gate_ctrl = sp8870_i2c_gate_ctrl,
 
 	.set_frontend = sp8870_set_frontend,
 	.get_tune_settings = sp8870_get_tune_settings,

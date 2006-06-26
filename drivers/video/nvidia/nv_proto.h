@@ -63,4 +63,14 @@ extern void nvidiafb_imageblit(struct fb_info *info,
 			       const struct fb_image *image);
 extern int nvidiafb_sync(struct fb_info *info);
 extern u8 byte_rev[256];
+
+/* in nv_backlight.h */
+#ifdef CONFIG_FB_NVIDIA_BACKLIGHT
+extern void nvidia_bl_init(struct nvidia_par *par);
+extern void nvidia_bl_exit(struct nvidia_par *par);
+#else
+static inline void nvidia_bl_init(struct nvidia_par *par) {}
+static inline void nvidia_bl_exit(struct nvidia_par *par) {}
+#endif
+
 #endif				/* __NV_PROTO_H__ */

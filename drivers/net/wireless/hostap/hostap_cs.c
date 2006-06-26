@@ -881,6 +881,12 @@ static struct pcmcia_device_id hostap_cs_ids[] = {
 	PCMCIA_DEVICE_PROD_ID12(
 		"ZoomAir 11Mbps High", "Rate wireless Networking",
 		0x273fe3db, 0x32a1eaee),
+	PCMCIA_DEVICE_PROD_ID123(
+		"Pretec", "CompactWLAN Card 802.11b", "2.5",
+		0x1cadd3e5, 0xe697636c, 0x7a5bfcf1),
+	PCMCIA_DEVICE_PROD_ID123(
+		"U.S. Robotics", "IEEE 802.11b PC-CARD", "Version 01.02",
+		0xc7b8df9d, 0x1700d087, 0x4b74baa0),
 	PCMCIA_DEVICE_NULL
 };
 MODULE_DEVICE_TABLE(pcmcia, hostap_cs_ids);

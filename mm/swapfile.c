@@ -395,6 +395,9 @@ void free_swap_and_cache(swp_entry_t entry)
 	struct swap_info_struct * p;
 	struct page *page = NULL;
 
+	if (is_migration_entry(entry))
+		return;
+
 	p = swap_info_get(entry);
 	if (p) {
 		if (swap_entry_free(p, swp_offset(entry)) == 1) {
@@ -615,15 +618,6 @@ static int unuse_mm(struct mm_struct *mm,
 	return 0;
 }
 
-#ifdef CONFIG_MIGRATION
-int remove_vma_swap(struct vm_area_struct *vma, struct page *page)
-{
-	swp_entry_t entry = { .val = page_private(page) };
-
-	return unuse_vma(vma, entry, page);
-}
-#endif
-
 /*
  * Scan swap_map from current position to next entry still in use.
  * Recycle to start on reaching the end, returning 0 when empty.
@@ -716,7 +710,6 @@ static int try_to_unuse(unsigned int type)
 		 */
 		swap_map = &si->swap_map[i];
 		entry = swp_entry(type, i);
-again:
 		page = read_swap_cache_async(entry, NULL, 0);
 		if (!page) {
 			/*
@@ -751,12 +744,6 @@ again:
 		wait_on_page_locked(page);
 		wait_on_page_writeback(page);
 		lock_page(page);
-		if (!PageSwapCache(page)) {
-			/* Page migration has occured */
-			unlock_page(page);
-			page_cache_release(page);
-			goto again;
-		}
 		wait_on_page_writeback(page);
 
 		/*
@@ -785,10 +772,8 @@ again:
 			while (*swap_map > 1 && !retval &&
 					(p = p->next) != &start_mm->mmlist) {
 				mm = list_entry(p, struct mm_struct, mmlist);
-				if (atomic_inc_return(&mm->mm_users) == 1) {
-					atomic_dec(&mm->mm_users);
+				if (!atomic_inc_not_zero(&mm->mm_users))
 					continue;
-				}
 				spin_unlock(&mmlist_lock);
 				mmput(prev_mm);
 				prev_mm = mm;
@@ -1407,19 +1392,7 @@ asmlinkage long sys_swapon(const char __user * specialfile, int swap_flags)
 		if (!(p->flags & SWP_USED))
 			break;
 	error = -EPERM;
-	/*
-	 * Test if adding another swap device is possible. There are
-	 * two limiting factors: 1) the number of bits for the swap
-	 * type swp_entry_t definition and 2) the number of bits for
-	 * the swap type in the swap ptes as defined by the different
-	 * architectures. To honor both limitations a swap entry
-	 * with swap offset 0 and swap type ~0UL is created, encoded
-	 * to a swap pte, decoded to a swp_entry_t again and finally
-	 * the swap type part is extracted. This will mask all bits
-	 * from the initial ~0UL that can't be encoded in either the
-	 * swp_entry_t or the architecture definition of a swap pte.
-	 */
-	if (type > swp_type(pte_to_swp_entry(swp_entry_to_pte(swp_entry(~0UL,0))))) {
+	if (type >= MAX_SWAPFILES) {
 		spin_unlock(&swap_lock);
 		goto out;
 	}
@@ -1504,8 +1477,7 @@ asmlinkage long sys_swapon(const char __user * specialfile, int swap_flags)
 		error = -EINVAL;
 		goto bad_swap;
 	}
-	page = read_cache_page(mapping, 0,
-			(filler_t *)mapping->a_ops->readpage, swap_file);
+	page = read_mapping_page(mapping, 0, swap_file);
 	if (IS_ERR(page)) {
 		error = PTR_ERR(page);
 		goto bad_swap;
@@ -1708,6 +1680,9 @@ int swap_duplicate(swp_entry_t entry)
 	struct swap_info_struct * p;
 	unsigned long offset, type;
 	int result = 0;
+
+	if (is_migration_entry(entry))
+		return 1;
 
 	type = swp_type(entry);
 	if (type >= nr_swapfiles)

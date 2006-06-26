@@ -60,6 +60,18 @@ config NF_CONNTRACK_MARK
 	  of packets, but this mark value is kept in the conntrack session
 	  instead of the individual packets.
 
+config NF_CONNTRACK_SECMARK
+	bool  'Connection tracking security mark support'
+	depends on NF_CONNTRACK && NETWORK_SECMARK
+	help
+	  This option enables security markings to be applied to
+	  connections.  Typically they are copied to connections from
+	  packets using the CONNSECMARK target and copied back from
+	  connections to packets with the same target, with the packets
+	  being originally labeled via SECMARK.
+
+	  If unsure, say 'N'.
+
 config NF_CONNTRACK_EVENTS
 	bool "Connection tracking events (EXPERIMENTAL)"
 	depends on EXPERIMENTAL && NF_CONNTRACK
@@ -173,6 +185,26 @@ config NETFILTER_XT_TARGET_NOTRACK
 	
 	  If you want to compile it as a module, say M here and read
 	  <file:Documentation/modules.txt>.  If unsure, say `N'.
+
+config NETFILTER_XT_TARGET_SECMARK
+	tristate '"SECMARK" target support'
+	depends on NETFILTER_XTABLES && NETWORK_SECMARK
+	help
+	  The SECMARK target allows security marking of network
+	  packets, for use with security subsystems.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NETFILTER_XT_TARGET_CONNSECMARK
+	tristate '"CONNSECMARK" target support'
+	depends on NETFILTER_XTABLES && (NF_CONNTRACK_SECMARK || IP_NF_CONNTRACK_SECMARK)
+	help
+	  The CONNSECMARK target copies security markings from packets
+	  to connections, and restores security markings from connections
+	  to packets (if the packets are not already marked).  This would
+	  normally be used in conjunction with the SECMARK target.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
 
 config NETFILTER_XT_MATCH_COMMENT
 	tristate  '"comment" match support'
@@ -329,6 +361,16 @@ config NETFILTER_XT_MATCH_PKTTYPE
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
+config NETFILTER_XT_MATCH_QUOTA
+	tristate '"quota" match support'
+	depends on NETFILTER_XTABLES
+	help
+	  This option adds a `quota' match, which allows to match on a
+	  byte counter.
+
+	  If you want to compile it as a module, say M here and read
+	  <file:Documentation/modules.txt>.  If unsure, say `N'.
+
 config NETFILTER_XT_MATCH_REALM
 	tristate  '"realm" match support'
 	depends on NETFILTER_XTABLES
@@ -364,6 +406,12 @@ config NETFILTER_XT_MATCH_STATE
 	  is a powerful tool for packet classification.
 
 	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NETFILTER_XT_MATCH_STATISTIC
+	tristate '"statistic" match support'
+	depends on NETFILTER_XTABLES
+	help
+	  statistic module
 
 config NETFILTER_XT_MATCH_STRING
 	tristate  '"string" match support'

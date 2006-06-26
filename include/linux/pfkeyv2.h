@@ -159,7 +159,7 @@ struct sadb_spirange {
 struct sadb_x_kmprivate {
 	uint16_t	sadb_x_kmprivate_len;
 	uint16_t	sadb_x_kmprivate_exttype;
-	u_int32_t	sadb_x_kmprivate_reserved;
+	uint32_t	sadb_x_kmprivate_reserved;
 } __attribute__((packed));
 /* sizeof(struct sadb_x_kmprivate) == 8 */
 

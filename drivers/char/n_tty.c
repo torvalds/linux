@@ -1384,8 +1384,10 @@ do_it_again:
 		 * longer than TTY_THRESHOLD_UNTHROTTLE in canonical mode,
 		 * we won't get any more characters.
 		 */
-		if (n_tty_chars_in_buffer(tty) <= TTY_THRESHOLD_UNTHROTTLE)
+		if (n_tty_chars_in_buffer(tty) <= TTY_THRESHOLD_UNTHROTTLE) {
+			n_tty_set_room(tty);
 			check_unthrottle(tty);
+		}
 
 		if (b - buf >= minimum)
 			break;

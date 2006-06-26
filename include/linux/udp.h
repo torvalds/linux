@@ -35,7 +35,6 @@ struct udphdr {
 #define UDP_ENCAP_ESPINUDP	2 /* draft-ietf-ipsec-udp-encaps-06 */
 
 #ifdef __KERNEL__
-#include <linux/config.h>
 #include <linux/types.h>
 
 #include <net/inet_sock.h>

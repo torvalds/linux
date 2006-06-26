@@ -81,9 +81,10 @@ acpi_rs_convert_aml_to_resource(struct acpi_resource *resource,
 	u16 item_count = 0;
 	u16 temp16 = 0;
 
-	ACPI_FUNCTION_TRACE("rs_get_resource");
+	ACPI_FUNCTION_TRACE(rs_convert_aml_to_resource);
 
 	if (((acpi_native_uint) resource) & 0x3) {
+
 		/* Each internal resource struct is expected to be 32-bit aligned */
 
 		ACPI_WARNING((AE_INFO,
@@ -295,9 +296,11 @@ acpi_rs_convert_aml_to_resource(struct acpi_resource *resource,
 
       exit:
 	if (!flags_mode) {
-		/* Round the resource struct length up to the next 32-bit boundary */
 
-		resource->length = ACPI_ROUND_UP_to_32_bITS(resource->length);
+		/* Round the resource struct length up to the next boundary (32 or 64) */
+
+		resource->length =
+		    (u32) ACPI_ROUND_UP_TO_NATIVE_WORD(resource->length);
 	}
 	return_ACPI_STATUS(AE_OK);
 }
@@ -329,7 +332,7 @@ acpi_rs_convert_resource_to_aml(struct acpi_resource *resource,
 	u16 temp16 = 0;
 	u16 item_count = 0;
 
-	ACPI_FUNCTION_TRACE("rs_convert_resource_to_aml");
+	ACPI_FUNCTION_TRACE(rs_convert_resource_to_aml);
 
 	/*
 	 * First table entry must be ACPI_RSC_INITxxx and must contain the
@@ -535,6 +538,7 @@ if (((aml->irq.flags & 0x09) == 0x00) || ((aml->irq.flags & 0x09) == 0x09)) {
 
 resource->data.extended_irq.interrupt_count = temp8;
 if (temp8 < 1) {
+
 	/* Must have at least one IRQ */
 
 	return_ACPI_STATUS(AE_AML_BAD_RESOURCE_LENGTH);

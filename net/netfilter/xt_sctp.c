@@ -62,7 +62,7 @@ match_packet(const struct sk_buff *skb,
 
 	do {
 		sch = skb_header_pointer(skb, offset, sizeof(_sch), &_sch);
-		if (sch == NULL) {
+		if (sch == NULL || sch->length == 0) {
 			duprintf("Dropping invalid SCTP packet.\n");
 			*hotdrop = 1;
 			return 0;
@@ -129,10 +129,8 @@ match(const struct sk_buff *skb,
       unsigned int protoff,
       int *hotdrop)
 {
-	const struct xt_sctp_info *info;
+	const struct xt_sctp_info *info = matchinfo;
 	sctp_sctphdr_t _sh, *sh;
-
-	info = (const struct xt_sctp_info *)matchinfo;
 
 	if (offset) {
 		duprintf("Dropping non-first fragment.. FIXME\n");

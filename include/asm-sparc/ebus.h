@@ -13,13 +13,14 @@
 #include <linux/ioport.h>
 #endif
 #include <asm/oplib.h>
+#include <asm/prom.h>
+#include <asm/of_device.h>
 
 struct linux_ebus_child {
 	struct linux_ebus_child		*next;
 	struct linux_ebus_device	*parent;
 	struct linux_ebus		*bus;
-	int				 prom_node;
-	char				 prom_name[64];
+	struct device_node		*prom_node;
 	struct resource			 resource[PROMREG_MAX];
 	int				 num_addrs;
 	unsigned int			 irqs[PROMINTR_MAX];
@@ -27,27 +28,27 @@ struct linux_ebus_child {
 };
 
 struct linux_ebus_device {
+	struct of_device		ofdev;
 	struct linux_ebus_device	*next;
 	struct linux_ebus_child		*children;
 	struct linux_ebus		*bus;
-	int				 prom_node;
-	char				 prom_name[64];
+	struct device_node		*prom_node;
 	struct resource			 resource[PROMREG_MAX];
 	int				 num_addrs;
 	unsigned int			 irqs[PROMINTR_MAX];
 	int				 num_irqs;
 };
+#define to_ebus_device(d) container_of(d, struct linux_ebus_device, ofdev.dev)
 
 struct linux_ebus {
+	struct of_device		ofdev;
 	struct linux_ebus		*next;
 	struct linux_ebus_device	*devices;
 	struct linux_pbm_info		*parent;
 	struct pci_dev			*self;
-	int				 prom_node;
-	char				 prom_name[64];
-	struct linux_prom_ebus_ranges	 ebus_ranges[PROMREG_MAX];
-	int				 num_ebus_ranges;
+	struct device_node		*prom_node;
 };
+#define to_ebus(d) container_of(d, struct linux_ebus, ofdev.dev)
 
 struct linux_ebus_dma {
 	unsigned int dcsr;

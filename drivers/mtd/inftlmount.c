@@ -43,6 +43,11 @@
 
 char inftlmountrev[]="$Revision: 1.18 $";
 
+extern int inftl_read_oob(struct mtd_info *mtd, loff_t offs, size_t len,
+			  size_t *retlen, uint8_t *buf);
+extern int inftl_write_oob(struct mtd_info *mtd, loff_t offs, size_t len,
+			   size_t *retlen, uint8_t *buf);
+
 /*
  * find_boot_record: Find the INFTL Media Header and its Spare copy which
  *	contains the various device information of the INFTL partition and
@@ -57,6 +62,7 @@ static int find_boot_record(struct INFTLrecord *inftl)
 	unsigned int i, block;
 	u8 buf[SECTORSIZE];
 	struct INFTLMediaHeader *mh = &inftl->MediaHdr;
+	struct mtd_info *mtd = inftl->mbd.mtd;
 	struct INFTLPartition *ip;
 	size_t retlen;
 
@@ -80,8 +86,8 @@ static int find_boot_record(struct INFTLrecord *inftl)
 		 * Check for BNAND header first. Then whinge if it's found
 		 * but later checks fail.
 		 */
-		ret = MTD_READ(inftl->mbd.mtd, block * inftl->EraseSize,
-		    SECTORSIZE, &retlen, buf);
+		ret = mtd->read(mtd, block * inftl->EraseSize,
+				SECTORSIZE, &retlen, buf);
 		/* We ignore ret in case the ECC of the MediaHeader is invalid
 		   (which is apparently acceptable) */
 		if (retlen != SECTORSIZE) {
@@ -106,8 +112,9 @@ static int find_boot_record(struct INFTLrecord *inftl)
 		}
 
 		/* To be safer with BIOS, also use erase mark as discriminant */
-		if ((ret = MTD_READOOB(inftl->mbd.mtd, block * inftl->EraseSize +
-		    SECTORSIZE + 8, 8, &retlen, (char *)&h1) < 0)) {
+		if ((ret = inftl_read_oob(mtd, block * inftl->EraseSize +
+					  SECTORSIZE + 8, 8, &retlen,
+					  (char *)&h1) < 0)) {
 			printk(KERN_WARNING "INFTL: ANAND header found at "
 				"0x%x in mtd%d, but OOB data read failed "
 				"(err %d)\n", block * inftl->EraseSize,
@@ -123,8 +130,8 @@ static int find_boot_record(struct INFTLrecord *inftl)
 		memcpy(mh, buf, sizeof(struct INFTLMediaHeader));
 
 		/* Read the spare media header at offset 4096 */
-		MTD_READ(inftl->mbd.mtd, block * inftl->EraseSize + 4096,
-		    SECTORSIZE, &retlen, buf);
+		mtd->read(mtd, block * inftl->EraseSize + 4096,
+			  SECTORSIZE, &retlen, buf);
 		if (retlen != SECTORSIZE) {
 			printk(KERN_WARNING "INFTL: Unable to read spare "
 			       "Media Header\n");
@@ -233,7 +240,7 @@ static int find_boot_record(struct INFTLrecord *inftl)
 				 */
 				instr->addr = ip->Reserved0 * inftl->EraseSize;
 				instr->len = inftl->EraseSize;
-				MTD_ERASE(inftl->mbd.mtd, instr);
+				mtd->erase(mtd, instr);
 			}
 			if ((ip->lastUnit - ip->firstUnit + 1) < ip->virtualUnits) {
 				printk(KERN_WARNING "INFTL: Media Header "
@@ -350,21 +357,21 @@ static int check_free_sectors(struct INFTLrecord *inftl, unsigned int address,
 	int len, int check_oob)
 {
 	u8 buf[SECTORSIZE + inftl->mbd.mtd->oobsize];
+	struct mtd_info *mtd = inftl->mbd.mtd;
 	size_t retlen;
 	int i;
 
-	DEBUG(MTD_DEBUG_LEVEL3, "INFTL: check_free_sectors(inftl=%p,"
-		"address=0x%x,len=%d,check_oob=%d)\n", inftl,
-		address, len, check_oob);
-
 	for (i = 0; i < len; i += SECTORSIZE) {
-		if (MTD_READECC(inftl->mbd.mtd, address, SECTORSIZE, &retlen, buf, &buf[SECTORSIZE], &inftl->oobinfo) < 0)
+		if (mtd->read(mtd, address, SECTORSIZE, &retlen, buf))
 			return -1;
 		if (memcmpb(buf, 0xff, SECTORSIZE) != 0)
 			return -1;
 
 		if (check_oob) {
-			if (memcmpb(buf + SECTORSIZE, 0xff, inftl->mbd.mtd->oobsize) != 0)
+			if(inftl_read_oob(mtd, address, mtd->oobsize,
+					  &retlen, &buf[SECTORSIZE]) < 0)
+				return -1;
+			if (memcmpb(buf + SECTORSIZE, 0xff, mtd->oobsize) != 0)
 				return -1;
 		}
 		address += SECTORSIZE;
@@ -387,6 +394,7 @@ int INFTL_formatblock(struct INFTLrecord *inftl, int block)
 	size_t retlen;
 	struct inftl_unittail uci;
 	struct erase_info *instr = &inftl->instr;
+	struct mtd_info *mtd = inftl->mbd.mtd;
 	int physblock;
 
 	DEBUG(MTD_DEBUG_LEVEL3, "INFTL: INFTL_formatblock(inftl=%p,"
@@ -404,8 +412,9 @@ int INFTL_formatblock(struct INFTLrecord *inftl, int block)
 	/* Erase one physical eraseblock at a time, even though the NAND api
 	   allows us to group them.  This way we if we have a failure, we can
 	   mark only the failed block in the bbt. */
-	for (physblock = 0; physblock < inftl->EraseSize; physblock += instr->len, instr->addr += instr->len) {
-		MTD_ERASE(inftl->mbd.mtd, instr);
+	for (physblock = 0; physblock < inftl->EraseSize;
+	     physblock += instr->len, instr->addr += instr->len) {
+		mtd->erase(inftl->mbd.mtd, instr);
 
 		if (instr->state == MTD_ERASE_FAILED) {
 			printk(KERN_WARNING "INFTL: error while formatting block %d\n",
@@ -414,10 +423,10 @@ int INFTL_formatblock(struct INFTLrecord *inftl, int block)
 		}
 
 		/*
-	 	* Check the "freeness" of Erase Unit before updating metadata.
-	 	* FixMe: is this check really necessary? Since we have check the
-	 	*        return code after the erase operation.
-	 	*/
+		 * Check the "freeness" of Erase Unit before updating metadata.
+		 * FixMe: is this check really necessary? Since we have check
+		 * the return code after the erase operation.
+		 */
 		if (check_free_sectors(inftl, instr->addr, instr->len, 1) != 0)
 			goto fail;
 	}
@@ -429,8 +438,7 @@ int INFTL_formatblock(struct INFTLrecord *inftl, int block)
 	uci.Reserved[2] = 0;
 	uci.Reserved[3] = 0;
 	instr->addr = block * inftl->EraseSize + SECTORSIZE * 2;
-	if (MTD_WRITEOOB(inftl->mbd.mtd, instr->addr +
-	    8, 8, &retlen, (char *)&uci) < 0)
+	if (inftl_write_oob(mtd, instr->addr + 8, 8, &retlen, (char *)&uci) < 0)
 		goto fail;
 	return 0;
 fail:
@@ -549,6 +557,7 @@ void INFTL_dumpVUchains(struct INFTLrecord *s)
 
 int INFTL_mount(struct INFTLrecord *s)
 {
+	struct mtd_info *mtd = s->mbd.mtd;
 	unsigned int block, first_block, prev_block, last_block;
 	unsigned int first_logical_block, logical_block, erase_mark;
 	int chain_length, do_format_chain;
@@ -607,10 +616,11 @@ int INFTL_mount(struct INFTLrecord *s)
 				break;
 			}
 
-			if (MTD_READOOB(s->mbd.mtd, block * s->EraseSize + 8,
-			    8, &retlen, (char *)&h0) < 0 ||
-			    MTD_READOOB(s->mbd.mtd, block * s->EraseSize +
-			    2 * SECTORSIZE + 8, 8, &retlen, (char *)&h1) < 0) {
+			if (inftl_read_oob(mtd, block * s->EraseSize + 8,
+					   8, &retlen, (char *)&h0) < 0 ||
+			    inftl_read_oob(mtd, block * s->EraseSize +
+					   2 * SECTORSIZE + 8, 8, &retlen,
+					   (char *)&h1) < 0) {
 				/* Should never happen? */
 				do_format_chain++;
 				break;

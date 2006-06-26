@@ -17,7 +17,6 @@
 #include <asm/msr.h>
 #include <asm/system.h>
 #include <linux/cache.h>
-#include <linux/config.h>
 #include <linux/threads.h>
 #include <asm/percpu.h>
 #include <linux/cpumask.h>
@@ -728,19 +727,5 @@ extern void select_idle_routine(const struct cpuinfo_x86 *c);
 extern unsigned long boot_option_idle_override;
 extern void enable_sep_cpu(void);
 extern int sysenter_setup(void);
-
-#ifdef CONFIG_MTRR
-extern void mtrr_ap_init(void);
-extern void mtrr_bp_init(void);
-#else
-#define mtrr_ap_init() do {} while (0)
-#define mtrr_bp_init() do {} while (0)
-#endif
-
-#ifdef CONFIG_X86_MCE
-extern void mcheck_init(struct cpuinfo_x86 *c);
-#else
-#define mcheck_init(c) do {} while(0)
-#endif
 
 #endif /* __ASM_I386_PROCESSOR_H */

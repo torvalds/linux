@@ -155,6 +155,46 @@ int pci_assign_resource(struct pci_dev *dev, int resno)
 	return ret;
 }
 
+#ifdef CONFIG_EMBEDDED
+int pci_assign_resource_fixed(struct pci_dev *dev, int resno)
+{
+	struct pci_bus *bus = dev->bus;
+	struct resource *res = dev->resource + resno;
+	unsigned int type_mask;
+	int i, ret = -EBUSY;
+
+	type_mask = IORESOURCE_IO | IORESOURCE_MEM | IORESOURCE_PREFETCH;
+
+	for (i = 0; i < PCI_BUS_NUM_RESOURCES; i++) {
+		struct resource *r = bus->resource[i];
+		if (!r)
+			continue;
+
+		/* type_mask must match */
+		if ((res->flags ^ r->flags) & type_mask)
+			continue;
+
+		ret = request_resource(r, res);
+
+		if (ret == 0)
+			break;
+	}
+
+	if (ret) {
+		printk(KERN_ERR "PCI: Failed to allocate %s resource "
+				"#%d:%llx@%llx for %s\n",
+			res->flags & IORESOURCE_IO ? "I/O" : "mem",
+			resno, (unsigned long long)(res->end - res->start + 1),
+			(unsigned long long)res->start, pci_name(dev));
+	} else if (resno < PCI_BRIDGE_RESOURCES) {
+		pci_update_resource(dev, res, resno);
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(pci_assign_resource_fixed);
+#endif
+
 /* Sort resources by alignment */
 void __devinit
 pdev_sort_resources(struct pci_dev *dev, struct resource_list *head)

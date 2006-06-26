@@ -36,7 +36,7 @@ static struct notifier_block panic_block = {
 
 void touch_softlockup_watchdog(void)
 {
-	per_cpu(touch_timestamp, raw_smp_processor_id()) = jiffies;
+	__raw_get_cpu_var(touch_timestamp) = jiffies;
 }
 EXPORT_SYMBOL(touch_softlockup_watchdog);
 
@@ -127,6 +127,8 @@ cpu_callback(struct notifier_block *nfb, unsigned long action, void *hcpu)
 		break;
 #ifdef CONFIG_HOTPLUG_CPU
 	case CPU_UP_CANCELED:
+		if (!per_cpu(watchdog_task, hotcpu))
+			break;
 		/* Unbind so it can run.  Fall thru. */
 		kthread_bind(per_cpu(watchdog_task, hotcpu),
 			     any_online_cpu(cpu_online_map));

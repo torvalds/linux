@@ -1,3 +1,10 @@
+Version 1.43
+------------
+POSIX locking to servers which support CIFS POSIX Extensions
+(disabled by default controlled by proc/fs/cifs/Experimental).
+Handle conversion of long share names (especially Asian languages)
+to Unicode during mount. 
+
 Version 1.42
 ------------
 Fix slow oplock break when mounted to different servers at the same time and

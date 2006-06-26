@@ -5,7 +5,6 @@
  * Copyright 1992, Linus Torvalds.
  */
 
-#include <linux/config.h>
 
 #ifdef CONFIG_SMP
 #define LOCK_PREFIX "lock ; "

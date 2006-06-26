@@ -497,9 +497,9 @@ static long snd_pcm_ioctl_compat(struct file *file, unsigned int cmd, unsigned l
 	case SNDRV_PCM_IOCTL_LINK:
 	case SNDRV_PCM_IOCTL_UNLINK:
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-			return snd_pcm_playback_ioctl1(substream, cmd, argp);
+			return snd_pcm_playback_ioctl1(file, substream, cmd, argp);
 		else
-			return snd_pcm_capture_ioctl1(substream, cmd, argp);
+			return snd_pcm_capture_ioctl1(file, substream, cmd, argp);
 	case SNDRV_PCM_IOCTL_HW_REFINE32:
 		return snd_pcm_ioctl_hw_params_compat(substream, 1, argp);
 	case SNDRV_PCM_IOCTL_HW_PARAMS32:

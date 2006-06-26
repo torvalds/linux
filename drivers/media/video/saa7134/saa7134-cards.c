@@ -2160,7 +2160,7 @@ struct saa7134_board saa7134_boards[] = {
 		.radio = {
 			  .name = name_radio,
 			  .amux = LINE2,
-    		},
+		},
 	},
 	[SAA7134_BOARD_GOTVIEW_7135] = {
 		/* Mike Baikov <mike@baikov.com> */
@@ -2842,6 +2842,55 @@ struct saa7134_board saa7134_boards[] = {
 			.gpio = 0x000000,	/* GPIO21=Low for FM radio antenna */
 		},
 	},
+	[SAA7134_BOARD_FLYVIDEO3000_NTSC] = {
+		/* "Zac Bowling" <zac@zacbowling.com> */
+		.name           = "LifeView FlyVIDEO3000 (NTSC)",
+		.audio_clock    = 0x00200000,
+		.tuner_type     = TUNER_PHILIPS_NTSC,
+		.radio_type     = UNSET,
+		.tuner_addr     = ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+
+		.gpiomask       = 0xe000,
+		.inputs         = {{
+			.name = name_tv,
+			.vmux = 1,
+			.amux = TV,
+			.gpio = 0x8000,
+			.tv   = 1,
+		},{
+			.name = name_tv_mono,
+			.vmux = 1,
+			.amux = LINE2,
+			.gpio = 0x0000,
+			.tv   = 1,
+		},{
+			.name = name_comp1,
+			.vmux = 0,
+			.amux = LINE2,
+			.gpio = 0x4000,
+		},{
+			.name = name_comp2,
+			.vmux = 3,
+			.amux = LINE2,
+			.gpio = 0x4000,
+		},{
+			.name = name_svideo,
+			.vmux = 8,
+			.amux = LINE2,
+			.gpio = 0x4000,
+		}},
+		.radio = {
+			.name = name_radio,
+			.amux = LINE2,
+			.gpio = 0x2000,
+		},
+			.mute = {
+			.name = name_mute,
+			.amux = TV,
+			.gpio = 0x8000,
+		},
+	},
 };
 
 const unsigned int saa7134_bcount = ARRAY_SIZE(saa7134_boards);
@@ -2898,6 +2947,12 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subvendor    = 0x153b,
 		.subdevice    = 0x1162,
 		.driver_data  = SAA7134_BOARD_CINERGY400_CARDBUS,
+	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
+		.subvendor    = 0x5169,
+		.subdevice    = 0x0138,
+		.driver_data  = SAA7134_BOARD_FLYVIDEO3000_NTSC,
 	},{
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
@@ -3459,6 +3514,7 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 	switch (dev->board) {
 	case SAA7134_BOARD_FLYVIDEO2000:
 	case SAA7134_BOARD_FLYVIDEO3000:
+	case SAA7134_BOARD_FLYVIDEO3000_NTSC:
 		dev->has_remote = SAA7134_REMOTE_GPIO;
 		board_flyvideo(dev);
 		break;

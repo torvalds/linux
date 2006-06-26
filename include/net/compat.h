@@ -1,7 +1,8 @@
 #ifndef NET_COMPAT_H
 #define NET_COMPAT_H
 
-#include <linux/config.h>
+
+struct sock;
 
 #if defined(CONFIG_COMPAT)
 
@@ -23,7 +24,6 @@ struct compat_cmsghdr {
 	compat_int_t	cmsg_type;
 };
 
-struct sock;
 extern int compat_sock_get_timestamp(struct sock *, struct timeval __user *);
 
 #else /* defined(CONFIG_COMPAT) */

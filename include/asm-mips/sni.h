@@ -15,9 +15,6 @@
 /*
  * ASIC PCI registers for little endian configuration.
  */
-#ifndef __MIPSEL__
-#error "Fix me for big endian"
-#endif
 #define PCIMT_UCONF		0xbfff0000
 #define PCIMT_IOADTIMEOUT2	0xbfff0008
 #define PCIMT_IOMEMCONF		0xbfff0010
@@ -51,9 +48,9 @@
 #define PCIMT_PCI_CONF		0xbfff0100
 
 /*
- * Data port for the PCI bus.
+ * Data port for the PCI bus in IO space
  */
-#define PCIMT_CONFIG_DATA	0xb4000cfc
+#define PCIMT_CONFIG_DATA	0x0cfc
 
 /*
  * Board specific registers

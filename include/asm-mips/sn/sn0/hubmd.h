@@ -11,7 +11,6 @@
 #ifndef	_ASM_SN_SN0_HUBMD_H
 #define	_ASM_SN_SN0_HUBMD_H
 
-#include <linux/config.h>
 
 /*
  * Hub Memory/Directory interface registers
@@ -92,7 +91,7 @@
 #define MD_UREG1_14		0x2200f0 /* uController/UART 1 register     */
 #define MD_UREG1_15		0x2200f8 /* uController/UART 1 register     */
 
-#ifdef CONFIG_SGI_SN0_N_MODE
+#ifdef CONFIG_SGI_SN_N_MODE
 #define MD_MEM_BANKS		4	 /* 4 banks of memory max in N mode */
 #else
 #define MD_MEM_BANKS		8	 /* 8 banks of memory max in M mode */

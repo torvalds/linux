@@ -51,14 +51,11 @@ struct nfs_read_data *nfs_readdata_alloc(unsigned int pagecount)
 	if (p) {
 		memset(p, 0, sizeof(*p));
 		INIT_LIST_HEAD(&p->pages);
-		if (pagecount < NFS_PAGEVEC_SIZE)
-			p->pagevec = &p->page_array[0];
+		if (pagecount <= ARRAY_SIZE(p->page_array))
+			p->pagevec = p->page_array;
 		else {
-			size_t size = ++pagecount * sizeof(struct page *);
-			p->pagevec = kmalloc(size, GFP_NOFS);
-			if (p->pagevec) {
-				memset(p->pagevec, 0, size);
-			} else {
+			p->pagevec = kcalloc(pagecount, sizeof(struct page *), GFP_NOFS);
+			if (!p->pagevec) {
 				mempool_free(p, nfs_rdata_mempool);
 				p = NULL;
 			}
@@ -102,6 +99,28 @@ int nfs_return_empty_page(struct page *page)
 	SetPageUptodate(page);
 	unlock_page(page);
 	return 0;
+}
+
+static void nfs_readpage_truncate_uninitialised_page(struct nfs_read_data *data)
+{
+	unsigned int remainder = data->args.count - data->res.count;
+	unsigned int base = data->args.pgbase + data->res.count;
+	unsigned int pglen;
+	struct page **pages;
+
+	if (data->res.eof == 0 || remainder == 0)
+		return;
+	/*
+	 * Note: "remainder" can never be negative, since we check for
+	 * 	this in the XDR code.
+	 */
+	pages = &data->args.pages[base >> PAGE_CACHE_SHIFT];
+	base &= ~PAGE_CACHE_MASK;
+	pglen = PAGE_CACHE_SIZE - base;
+	if (pglen < remainder)
+		memclear_highpage_flush(*pages, base, pglen);
+	else
+		memclear_highpage_flush(*pages, base, remainder);
 }
 
 /*
@@ -177,11 +196,9 @@ static int nfs_readpage_sync(struct nfs_open_context *ctx, struct inode *inode,
 	NFS_I(inode)->cache_validity |= NFS_INO_INVALID_ATIME;
 	spin_unlock(&inode->i_lock);
 
-	if (count)
-		memclear_highpage_flush(page, rdata->args.pgbase, count);
-	SetPageUptodate(page);
-	if (PageError(page))
-		ClearPageError(page);
+	nfs_readpage_truncate_uninitialised_page(rdata);
+	if (rdata->res.eof || rdata->res.count == rdata->args.count)
+		SetPageUptodate(page);
 	result = 0;
 
 io_error:
@@ -436,20 +453,12 @@ static void nfs_readpage_result_partial(struct rpc_task *task, void *calldata)
 	struct nfs_page *req = data->req;
 	struct page *page = req->wb_page;
  
+	if (likely(task->tk_status >= 0))
+		nfs_readpage_truncate_uninitialised_page(data);
+	else
+		SetPageError(page);
 	if (nfs_readpage_result(task, data) != 0)
 		return;
-	if (task->tk_status >= 0) {
-		unsigned int request = data->args.count;
-		unsigned int result = data->res.count;
-
-		if (result < request) {
-			memclear_highpage_flush(page,
-						data->args.pgbase + result,
-						request - result);
-		}
-	} else
-		SetPageError(page);
-
 	if (atomic_dec_and_test(&req->wb_complete)) {
 		if (!PageError(page))
 			SetPageUptodate(page);
@@ -462,6 +471,40 @@ static const struct rpc_call_ops nfs_read_partial_ops = {
 	.rpc_release = nfs_readdata_release,
 };
 
+static void nfs_readpage_set_pages_uptodate(struct nfs_read_data *data)
+{
+	unsigned int count = data->res.count;
+	unsigned int base = data->args.pgbase;
+	struct page **pages;
+
+	if (unlikely(count == 0))
+		return;
+	pages = &data->args.pages[base >> PAGE_CACHE_SHIFT];
+	base &= ~PAGE_CACHE_MASK;
+	count += base;
+	for (;count >= PAGE_CACHE_SIZE; count -= PAGE_CACHE_SIZE, pages++)
+		SetPageUptodate(*pages);
+	/*
+	 * Was this an eof or a short read? If the latter, don't mark the page
+	 * as uptodate yet.
+	 */
+	if (count > 0 && (data->res.eof || data->args.count == data->res.count))
+		SetPageUptodate(*pages);
+}
+
+static void nfs_readpage_set_pages_error(struct nfs_read_data *data)
+{
+	unsigned int count = data->args.count;
+	unsigned int base = data->args.pgbase;
+	struct page **pages;
+
+	pages = &data->args.pages[base >> PAGE_CACHE_SHIFT];
+	base &= ~PAGE_CACHE_MASK;
+	count += base;
+	for (;count >= PAGE_CACHE_SIZE; count -= PAGE_CACHE_SIZE, pages++)
+		SetPageError(*pages);
+}
+
 /*
  * This is the callback from RPC telling us whether a reply was
  * received or some error occurred (timeout or socket shutdown).
@@ -469,27 +512,24 @@ static const struct rpc_call_ops nfs_read_partial_ops = {
 static void nfs_readpage_result_full(struct rpc_task *task, void *calldata)
 {
 	struct nfs_read_data *data = calldata;
-	unsigned int count = data->res.count;
 
+	/*
+	 * Note: nfs_readpage_result may change the values of
+	 * data->args. In the multi-page case, we therefore need
+	 * to ensure that we call the next nfs_readpage_set_page_uptodate()
+	 * first in the multi-page case.
+	 */
+	if (likely(task->tk_status >= 0)) {
+		nfs_readpage_truncate_uninitialised_page(data);
+		nfs_readpage_set_pages_uptodate(data);
+	} else
+		nfs_readpage_set_pages_error(data);
 	if (nfs_readpage_result(task, data) != 0)
 		return;
 	while (!list_empty(&data->pages)) {
 		struct nfs_page *req = nfs_list_entry(data->pages.next);
-		struct page *page = req->wb_page;
-		nfs_list_remove_request(req);
 
-		if (task->tk_status >= 0) {
-			if (count < PAGE_CACHE_SIZE) {
-				if (count < req->wb_bytes)
-					memclear_highpage_flush(page,
-							req->wb_pgbase + count,
-							req->wb_bytes - count);
-				count = 0;
-			} else
-				count -= PAGE_CACHE_SIZE;
-			SetPageUptodate(page);
-		} else
-			SetPageError(page);
+		nfs_list_remove_request(req);
 		nfs_readpage_release(req);
 	}
 }
@@ -654,7 +694,7 @@ int nfs_readpages(struct file *filp, struct address_space *mapping,
 	return ret;
 }
 
-int nfs_init_readpagecache(void)
+int __init nfs_init_readpagecache(void)
 {
 	nfs_rdata_cachep = kmem_cache_create("nfs_read_data",
 					     sizeof(struct nfs_read_data),
@@ -671,7 +711,7 @@ int nfs_init_readpagecache(void)
 	return 0;
 }
 
-void nfs_destroy_readpagecache(void)
+void __exit nfs_destroy_readpagecache(void)
 {
 	mempool_destroy(nfs_rdata_mempool);
 	if (kmem_cache_destroy(nfs_rdata_cachep))

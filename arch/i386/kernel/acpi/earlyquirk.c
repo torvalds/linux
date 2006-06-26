@@ -5,17 +5,34 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>
+#include <linux/acpi.h>
+
 #include <asm/pci-direct.h>
 #include <asm/acpi.h>
 #include <asm/apic.h>
 
+#ifdef CONFIG_ACPI
+
+static int nvidia_hpet_detected __initdata;
+
+static int __init nvidia_hpet_check(unsigned long phys, unsigned long size)
+{
+	nvidia_hpet_detected = 1;
+	return 0;
+}
+#endif
+
 static int __init check_bridge(int vendor, int device)
 {
 #ifdef CONFIG_ACPI
-	/* According to Nvidia all timer overrides are bogus. Just ignore
-	   them all. */
+	/* According to Nvidia all timer overrides are bogus unless HPET
+	   is enabled. */
 	if (vendor == PCI_VENDOR_ID_NVIDIA) {
-		acpi_skip_timer_override = 1;
+		nvidia_hpet_detected = 0;
+		acpi_table_parse(ACPI_HPET, nvidia_hpet_check);
+		if (nvidia_hpet_detected == 0) {
+			acpi_skip_timer_override = 1;
+		}
 	}
 #endif
 	if (vendor == PCI_VENDOR_ID_ATI && timer_over_8254 == 1) {

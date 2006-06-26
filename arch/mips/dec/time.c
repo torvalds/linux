@@ -181,7 +181,7 @@ void __init dec_time_init(void)
 	}
 
 	/* Set up the rate of periodic DS1287 interrupts.  */
-	CMOS_WRITE(RTC_REF_CLCK_32KHZ | (16 - LOG_2_HZ), RTC_REG_A);
+	CMOS_WRITE(RTC_REF_CLCK_32KHZ | (16 - __ffs(HZ)), RTC_REG_A);
 }
 
 EXPORT_SYMBOL(do_settimeofday);

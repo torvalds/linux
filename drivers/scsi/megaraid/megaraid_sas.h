@@ -1077,9 +1077,8 @@ struct megasas_instance {
 	struct pci_dev *pdev;
 	u32 unique_id;
 
-	u32 fw_outstanding;
+	atomic_t fw_outstanding;
 	u32 hw_crit_error;
-	spinlock_t instance_lock;
 
 	struct megasas_instance_template *instancet;
 };

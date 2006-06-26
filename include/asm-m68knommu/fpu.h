@@ -1,7 +1,6 @@
 #ifndef __M68KNOMMU_FPU_H
 #define __M68KNOMMU_FPU_H
 
-#include <linux/config.h>
 
 /*
  * MAX floating point unit state size (FSAVE/FRESTORE)

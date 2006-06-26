@@ -909,7 +909,7 @@ MODULE_PARM_DESC(irq, "EtherLink IRQ number");
  * here also causes the module to be unloaded
  */
  
-int init_module(void)
+int __init init_module(void)
 {
 	dev_3c501 = el1_probe(-1);
 	if (IS_ERR(dev_3c501))

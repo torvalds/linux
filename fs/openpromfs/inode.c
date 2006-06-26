@@ -64,6 +64,11 @@ static int openpromfs_readdir(struct file *, void *, filldir_t);
 static struct dentry *openpromfs_lookup(struct inode *, struct dentry *dentry, struct nameidata *nd);
 static int openpromfs_unlink (struct inode *, struct dentry *dentry);
 
+static inline u16 ptr_nod(void *p)
+{
+    return (long)p & 0xFFFF;
+}
+
 static ssize_t nodenum_read(struct file *file, char __user *buf,
 			    size_t count, loff_t *ppos)
 {
@@ -72,7 +77,7 @@ static ssize_t nodenum_read(struct file *file, char __user *buf,
 	
 	if (count < 0 || !inode->u.generic_ip)
 		return -EINVAL;
-	sprintf (buffer, "%8.8x\n", (u32)(long)(inode->u.generic_ip));
+	sprintf (buffer, "%8.8lx\n", (long)inode->u.generic_ip);
 	if (file->f_pos >= 9)
 		return 0;
 	if (count > 9 - file->f_pos)
@@ -95,9 +100,9 @@ static ssize_t property_read(struct file *filp, char __user *buf,
 	char buffer[64];
 	
 	if (!filp->private_data) {
-		node = nodes[(u16)((long)inode->u.generic_ip)].node;
+		node = nodes[ptr_nod(inode->u.generic_ip)].node;
 		i = ((u32)(long)inode->u.generic_ip) >> 16;
-		if ((u16)((long)inode->u.generic_ip) == aliases) {
+		if (ptr_nod(inode->u.generic_ip) == aliases) {
 			if (i >= aliases_nodes)
 				p = NULL;
 			else
@@ -111,7 +116,7 @@ static ssize_t property_read(struct file *filp, char __user *buf,
 			return -EIO;
 		i = prom_getproplen (node, p);
 		if (i < 0) {
-			if ((u16)((long)inode->u.generic_ip) == aliases)
+			if (ptr_nod(inode->u.generic_ip) == aliases)
 				i = 0;
 			else
 				return -EIO;
@@ -123,7 +128,7 @@ static ssize_t property_read(struct file *filp, char __user *buf,
 					      GFP_KERNEL);
 		if (!filp->private_data)
 			return -ENOMEM;
-		op = (openprom_property *)filp->private_data;
+		op = filp->private_data;
 		op->flag = 0;
 		op->alloclen = 2 * i;
 		strcpy (op->name, p);
@@ -163,7 +168,7 @@ static ssize_t property_read(struct file *filp, char __user *buf,
 				op->len--;
 		}
 	} else
-		op = (openprom_property *)filp->private_data;
+		op = filp->private_data;
 	if (!count || !(op->len || (op->flag & OPP_ASCIIZ)))
 		return 0;
 	if (*ppos >= 0xffffff || count >= 0xffffff)
@@ -335,7 +340,7 @@ static ssize_t property_write(struct file *filp, const char __user *buf,
 			return i;
 	}
 	k = *ppos;
-	op = (openprom_property *)filp->private_data;
+	op = filp->private_data;
 	if (!(op->flag & OPP_STRING)) {
 		u32 *first, *last;
 		int first_off, last_cnt;
@@ -388,13 +393,13 @@ static ssize_t property_write(struct file *filp, const char __user *buf,
 			memcpy (b, filp->private_data,
 				sizeof (openprom_property)
 				+ strlen (op->name) + op->alloclen);
-			memset (((char *)b) + sizeof (openprom_property)
+			memset (b + sizeof (openprom_property)
 				+ strlen (op->name) + op->alloclen, 
 				0, 2 * i - op->alloclen);
-			op = (openprom_property *)b;
+			op = b;
 			op->alloclen = 2*i;
 			b = filp->private_data;
-			filp->private_data = (void *)op;
+			filp->private_data = op;
 			kfree (b);
 		}
 		first = ((u32 *)op->value) + (k / 9);
@@ -448,10 +453,11 @@ static ssize_t property_write(struct file *filp, const char __user *buf,
 					*q |= simple_strtoul (tmp, NULL, 16);
 					buf += last_cnt;
 				} else {
-					char tchars[17]; /* XXX yuck... */
+					char tchars[2 * sizeof(long) + 1];
 
-					if (copy_from_user(tchars, buf, 16))
+					if (copy_from_user(tchars, buf, sizeof(tchars) - 1))
 						return -EFAULT;
+                                        tchars[sizeof(tchars) - 1] = '\0';
 					*q = simple_strtoul (tchars, NULL, 16);
 					buf += 9;
 				}
@@ -497,13 +503,13 @@ write_try_string:
 			memcpy (b, filp->private_data,
 				sizeof (openprom_property)
 				+ strlen (op->name) + op->alloclen);
-			memset (((char *)b) + sizeof (openprom_property)
+			memset (b + sizeof (openprom_property)
 				+ strlen (op->name) + op->alloclen, 
 				0, 2*(count - *ppos) - op->alloclen);
-			op = (openprom_property *)b;
+			op = b;
 			op->alloclen = 2*(count + *ppos);
 			b = filp->private_data;
-			filp->private_data = (void *)op;
+			filp->private_data = op;
 			kfree (b);
 		}
 		p = op->value + *ppos - ((op->flag & OPP_QUOTED) ? 1 : 0);
@@ -532,15 +538,15 @@ write_try_string:
 
 int property_release (struct inode *inode, struct file *filp)
 {
-	openprom_property *op = (openprom_property *)filp->private_data;
+	openprom_property *op = filp->private_data;
 	int error;
 	u32 node;
 	
 	if (!op)
 		return 0;
 	lock_kernel();
-	node = nodes[(u16)((long)inode->u.generic_ip)].node;
-	if ((u16)((long)inode->u.generic_ip) == aliases) {
+	node = nodes[ptr_nod(inode->u.generic_ip)].node;
+	if (ptr_nod(inode->u.generic_ip) == aliases) {
 		if ((op->flag & OPP_DIRTY) && (op->flag & OPP_STRING)) {
 			char *p = op->name;
 			int i = (op->value - op->name) - strlen (op->name) - 1;
@@ -931,7 +937,7 @@ static int __init check_space (u16 n)
 			return -1;
 
 		if (nodes) {
-			memcpy ((char *)pages, (char *)nodes,
+			memcpy ((char *)pages, nodes,
 				(1 << alloced) * PAGE_SIZE);
 			free_pages ((unsigned long)nodes, alloced);
 		}
@@ -1054,10 +1060,10 @@ out_no_root:
 	return -ENOMEM;
 }
 
-static struct super_block *openprom_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data)
+static int openprom_get_sb(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
 {
-	return get_sb_single(fs_type, flags, data, openprom_fill_super);
+	return get_sb_single(fs_type, flags, data, openprom_fill_super, mnt);
 }
 
 static struct file_system_type openprom_fs_type = {

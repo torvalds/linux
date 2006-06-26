@@ -164,7 +164,6 @@ int pci_bus_find_capability(struct pci_bus *bus, unsigned int devfn, int cap)
 	return __pci_bus_find_cap(bus, devfn, hdr_type & 0x7f, cap);
 }
 
-#if 0
 /**
  * pci_find_ext_capability - Find an extended capability
  * @dev: PCI device to query
@@ -212,7 +211,7 @@ int pci_find_ext_capability(struct pci_dev *dev, int cap)
 
 	return 0;
 }
-#endif  /*  0  */
+EXPORT_SYMBOL_GPL(pci_find_ext_capability);
 
 /**
  * pci_find_parent_resource - return resource region of parent bus of given region
@@ -461,9 +460,23 @@ int
 pci_restore_state(struct pci_dev *dev)
 {
 	int i;
+	int val;
 
-	for (i = 0; i < 16; i++)
-		pci_write_config_dword(dev,i * 4, dev->saved_config_space[i]);
+	/*
+	 * The Base Address register should be programmed before the command
+	 * register(s)
+	 */
+	for (i = 15; i >= 0; i--) {
+		pci_read_config_dword(dev, i * 4, &val);
+		if (val != dev->saved_config_space[i]) {
+			printk(KERN_DEBUG "PM: Writing back config space on "
+				"device %s at offset %x (was %x, writing %x)\n",
+				pci_name(dev), i,
+				val, (int)dev->saved_config_space[i]);
+			pci_write_config_dword(dev,i * 4,
+				dev->saved_config_space[i]);
+		}
+	}
 	pci_restore_msi_state(dev);
 	pci_restore_msix_state(dev);
 	return 0;
@@ -504,7 +517,12 @@ pci_enable_device_bars(struct pci_dev *dev, int bars)
 int
 pci_enable_device(struct pci_dev *dev)
 {
-	int err = pci_enable_device_bars(dev, (1 << PCI_NUM_RESOURCES) - 1);
+	int err;
+
+	if (dev->is_enabled)
+		return 0;
+
+	err = pci_enable_device_bars(dev, (1 << PCI_NUM_RESOURCES) - 1);
 	if (err)
 		return err;
 	pci_fixup_device(pci_fixup_enable, dev);
@@ -533,7 +551,14 @@ void
 pci_disable_device(struct pci_dev *dev)
 {
 	u16 pci_command;
-	
+
+	if (dev->msi_enabled)
+		disable_msi_mode(dev, pci_find_capability(dev, PCI_CAP_ID_MSI),
+			PCI_CAP_ID_MSI);
+	if (dev->msix_enabled)
+		disable_msi_mode(dev, pci_find_capability(dev, PCI_CAP_ID_MSI),
+			PCI_CAP_ID_MSIX);
+
 	pci_read_config_word(dev, PCI_COMMAND, &pci_command);
 	if (pci_command & PCI_COMMAND_MASTER) {
 		pci_command &= ~PCI_COMMAND_MASTER;

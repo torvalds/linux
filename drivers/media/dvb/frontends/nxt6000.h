@@ -31,10 +31,6 @@ struct nxt6000_config
 
 	/* should clock inversion be used? */
 	u8 clock_inversion:1;
-
-	/* PLL maintenance */
-	int (*pll_init)(struct dvb_frontend* fe);
-	int (*pll_set)(struct dvb_frontend* fe, struct dvb_frontend_parameters* params);
 };
 
 extern struct dvb_frontend* nxt6000_attach(const struct nxt6000_config* config,

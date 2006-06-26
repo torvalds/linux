@@ -127,7 +127,7 @@ static void
 imx_gpio_ack_irq(unsigned int irq)
 {
 	DEBUG_IRQ("%s: irq %d\n", __FUNCTION__, irq);
-	ISR(IRQ_TO_REG(irq)) |= 1 << ((irq - IRQ_GPIOA(0)) % 32);
+	ISR(IRQ_TO_REG(irq)) = 1 << ((irq - IRQ_GPIOA(0)) % 32);
 }
 
 static void

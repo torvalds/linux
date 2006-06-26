@@ -70,7 +70,7 @@ static struct mtd_info *map_ram_probe(struct map_info *map)
 	mtd->read = mapram_read;
 	mtd->write = mapram_write;
 	mtd->sync = mapram_nop;
-	mtd->flags = MTD_CAP_RAM | MTD_VOLATILE;
+	mtd->flags = MTD_CAP_RAM;
 
 	mtd->erasesize = PAGE_SIZE;
  	while(mtd->size & (mtd->erasesize - 1))

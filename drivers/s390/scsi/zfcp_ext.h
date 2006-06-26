@@ -1,18 +1,8 @@
 /* 
- * 
- * linux/drivers/s390/scsi/zfcp_ext.h
- * 
- * FCP adapter driver for IBM eServer zSeries 
- * 
- * (C) Copyright IBM Corp. 2002, 2004
+ * This file is part of the zfcp device driver for
+ * FCP adapters for IBM System z9 and zSeries.
  *
- * Author(s): Martin Peschke <mpeschke@de.ibm.com> 
- *            Raimund Schroeder <raimund.schroeder@de.ibm.com> 
- *            Aron Zeh
- *            Wolfgang Taphorn
- *            Stefan Bader <stefan.bader@de.ibm.com> 
- *            Heiko Carstens <heiko.carstens@de.ibm.com> 
- *            Andreas Herrmann <aherrman@de.ibm.com>
+ * (C) Copyright IBM Corp. 2002, 2006
  * 
  * This program is free software; you can redistribute it and/or modify 
  * it under the terms of the GNU General Public License as published by 
@@ -125,6 +115,7 @@ extern int  zfcp_nameserver_enqueue(struct zfcp_adapter *);
 extern int  zfcp_ns_gid_pn_request(struct zfcp_erp_action *);
 extern int  zfcp_check_ct_response(struct ct_hdr *);
 extern int  zfcp_handle_els_rjt(u32, struct zfcp_ls_rjt_par *);
+extern void zfcp_plogi_evaluate(struct zfcp_port *, struct fsf_plogi *);
 
 /******************************* SCSI ****************************************/
 extern int  zfcp_adapter_scsi_register(struct zfcp_adapter *);
@@ -141,8 +132,6 @@ extern int zfcp_scsi_command_async(struct zfcp_adapter *,struct zfcp_unit *,
 				   struct scsi_cmnd *, struct timer_list *);
 extern int zfcp_scsi_command_sync(struct zfcp_unit *, struct scsi_cmnd *,
 				  struct timer_list *);
-extern void zfcp_set_fc_host_attrs(struct zfcp_adapter *);
-extern void zfcp_set_fc_rport_attrs(struct zfcp_port *);
 extern struct scsi_transport_template *zfcp_transport_template;
 extern struct fc_function_template zfcp_transport_functions;
 

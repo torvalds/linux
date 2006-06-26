@@ -149,6 +149,12 @@ static inline unsigned long print_context_stack(struct thread_info *tinfo,
 	while (valid_stack_ptr(tinfo, (void *)ebp)) {
 		addr = *(unsigned long *)(ebp + 4);
 		printed = print_addr_and_symbol(addr, log_lvl, printed);
+		/*
+		 * break out of recursive entries (such as
+		 * end_of_stack_stop_unwind_function):
+	 	 */
+		if (ebp == *(unsigned long *)ebp)
+			break;
 		ebp = *(unsigned long *)ebp;
 	}
 #else
@@ -268,8 +274,9 @@ void show_registers(struct pt_regs *regs)
 		regs->esi, regs->edi, regs->ebp, esp);
 	printk(KERN_EMERG "ds: %04x   es: %04x   ss: %04x\n",
 		regs->xds & 0xffff, regs->xes & 0xffff, ss);
-	printk(KERN_EMERG "Process %s (pid: %d, threadinfo=%p task=%p)",
-		current->comm, current->pid, current_thread_info(), current);
+	printk(KERN_EMERG "Process %.*s (pid: %d, ti=%p task=%p task.ti=%p)",
+		TASK_COMM_LEN, current->comm, current->pid,
+		current_thread_info(), current, current->thread_info);
 	/*
 	 * When in-kernel, we also print out the stack and code at the
 	 * time of the fault..

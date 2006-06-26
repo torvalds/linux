@@ -257,7 +257,7 @@ void cpufreq_notify_transition(struct cpufreq_freqs *freqs, unsigned int state)
 		if (!(cpufreq_driver->flags & CPUFREQ_CONST_LOOPS)) {
 			if ((policy) && (policy->cpu == freqs->cpu) &&
 			    (policy->cur) && (policy->cur != freqs->old)) {
-				dprintk(KERN_WARNING "Warning: CPU frequency is"
+				dprintk("Warning: CPU frequency is"
 					" %u, cpufreq assumed %u kHz.\n",
 					freqs->old, policy->cur);
 				freqs->old = policy->cur;
@@ -874,7 +874,7 @@ static void cpufreq_out_of_sync(unsigned int cpu, unsigned int old_freq, unsigne
 {
 	struct cpufreq_freqs freqs;
 
-	dprintk(KERN_WARNING "Warning: CPU frequency out of sync: cpufreq and timing "
+	dprintk("Warning: CPU frequency out of sync: cpufreq and timing "
 	       "core thinks of %u, is %u kHz.\n", old_freq, new_freq);
 
 	freqs.cpu = cpu;
@@ -1006,7 +1006,7 @@ static int cpufreq_suspend(struct sys_device * sysdev, pm_message_t pmsg)
 		struct cpufreq_freqs freqs;
 
 		if (!(cpufreq_driver->flags & CPUFREQ_PM_NO_WARN))
-			dprintk(KERN_DEBUG "Warning: CPU frequency is %u, "
+			dprintk("Warning: CPU frequency is %u, "
 			       "cpufreq assumed %u kHz.\n",
 			       cur_freq, cpu_policy->cur);
 
@@ -1087,7 +1087,7 @@ static int cpufreq_resume(struct sys_device * sysdev)
 			struct cpufreq_freqs freqs;
 
 			if (!(cpufreq_driver->flags & CPUFREQ_PM_NO_WARN))
-				dprintk(KERN_WARNING "Warning: CPU frequency"
+				dprintk("Warning: CPU frequency"
 				       "is %u, cpufreq assumed %u kHz.\n",
 				       cur_freq, cpu_policy->cur);
 

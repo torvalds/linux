@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   
-  Copyright(c) 1999 - 2005 Intel Corporation. All rights reserved.
+  Copyright(c) 1999 - 2006 Intel Corporation. All rights reserved.
   
   This program is free software; you can redistribute it and/or modify it 
   under the terms of the GNU General Public License as published by the Free 
@@ -43,6 +43,8 @@
 #define IXGB_SUBDEVICE_ID_A11F      0xA11F   
 #define IXGB_SUBDEVICE_ID_A01F      0xA01F   
 
-#endif /* #ifndef _IXGB_IDS_H_ */
+#define IXGB_DEVICE_ID_82597EX_CX4   0x109E
+#define IXGB_SUBDEVICE_ID_A00C  0xA00C
 
+#endif /* #ifndef _IXGB_IDS_H_ */
 /* End of File */

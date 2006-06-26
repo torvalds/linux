@@ -112,6 +112,11 @@ sdsleep:
 	mtc0	k0, CP0_PAGEMASK
 	lw	k0, 0x14(sp)
 	mtc0	k0, CP0_CONFIG
+
+	/* We need to catch the ealry Alchemy SOCs with
+	 * the write-only Config[OD] bit and set it back to one...
+	 */
+	jal	au1x00_fixup_config_od
 	lw	$1, PT_R1(sp)
 	lw	$2, PT_R2(sp)
 	lw	$3, PT_R3(sp)

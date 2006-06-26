@@ -58,7 +58,7 @@ static void __init timer_init(void)
 	board_timer_setup = setup_timer_irq;
 }
 
-void __init plat_setup(void)
+void __init plat_mem_setup(void)
 {
 	vr41xx_calculate_clock_frequency();
 

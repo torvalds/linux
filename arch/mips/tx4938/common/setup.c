@@ -61,7 +61,7 @@ tx4938_write_buffer_flush(void)
 }
 
 void __init
-plat_setup(void)
+plat_mem_setup(void)
 {
 	board_time_init = tx4938_time_init;
 	board_timer_setup = tx4938_timer_setup;

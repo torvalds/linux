@@ -365,11 +365,17 @@ static int sctp_v4_is_any(const union sctp_addr *addr)
  * Return 0 - If the address is a non-unicast or an illegal address.
  * Return 1 - If the address is a unicast.
  */
-static int sctp_v4_addr_valid(union sctp_addr *addr, struct sctp_sock *sp)
+static int sctp_v4_addr_valid(union sctp_addr *addr,
+			      struct sctp_sock *sp,
+			      const struct sk_buff *skb)
 {
 	/* Is this a non-unicast address or a unusable SCTP address? */
 	if (IS_IPV4_UNUSABLE_ADDRESS(&addr->v4.sin_addr.s_addr))
 		return 0;
+
+ 	/* Is this a broadcast address? */
+ 	if (skb && ((struct rtable *)skb->dst)->rt_flags & RTCF_BROADCAST)
+ 		return 0;
 
 	return 1;
 }

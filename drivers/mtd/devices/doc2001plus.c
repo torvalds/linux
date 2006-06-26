@@ -47,10 +47,10 @@ static int doc_read_ecc(struct mtd_info *mtd, loff_t from, size_t len,
 static int doc_write_ecc(struct mtd_info *mtd, loff_t to, size_t len,
 		size_t *retlen, const u_char *buf, u_char *eccbuf,
 		struct nand_oobinfo *oobsel);
-static int doc_read_oob(struct mtd_info *mtd, loff_t ofs, size_t len,
-		size_t *retlen, u_char *buf);
-static int doc_write_oob(struct mtd_info *mtd, loff_t ofs, size_t len,
-		size_t *retlen, const u_char *buf);
+static int doc_read_oob(struct mtd_info *mtd, loff_t ofs,
+			struct mtd_oob_ops *ops);
+static int doc_write_oob(struct mtd_info *mtd, loff_t ofs,
+			 struct mtd_oob_ops *ops);
 static int doc_erase (struct mtd_info *mtd, struct erase_info *instr);
 
 static struct mtd_info *docmilpluslist = NULL;
@@ -447,16 +447,9 @@ static int DoCMilPlus_is_alias(struct DiskOnChip *doc1, struct DiskOnChip *doc2)
 	return retval;
 }
 
-static const char im_name[] = "DoCMilPlus_init";
-
-/* This routine is made available to other mtd code via
- * inter_module_register.  It must only be accessed through
- * inter_module_get which will bump the use count of this module.  The
- * addresses passed back in mtd are valid as long as the use count of
- * this module is non-zero, i.e. between inter_module_get and
- * inter_module_put.  Keith Owens <kaos@ocs.com.au> 29 Oct 2000.
- */
-static void DoCMilPlus_init(struct mtd_info *mtd)
+/* This routine is found from the docprobe code by symbol_get(),
+ * which will bump the use count of this module. */
+void DoCMilPlus_init(struct mtd_info *mtd)
 {
 	struct DiskOnChip *this = mtd->priv;
 	struct DiskOnChip *old = NULL;
@@ -490,7 +483,7 @@ static void DoCMilPlus_init(struct mtd_info *mtd)
 	mtd->size = 0;
 
 	mtd->erasesize = 0;
-	mtd->oobblock = 512;
+	mtd->writesize = 512;
 	mtd->oobsize = 16;
 	mtd->owner = THIS_MODULE;
 	mtd->erase = doc_erase;
@@ -498,8 +491,6 @@ static void DoCMilPlus_init(struct mtd_info *mtd)
 	mtd->unpoint = NULL;
 	mtd->read = doc_read;
 	mtd->write = doc_write;
-	mtd->read_ecc = doc_read_ecc;
-	mtd->write_ecc = doc_write_ecc;
 	mtd->read_oob = doc_read_oob;
 	mtd->write_oob = doc_write_oob;
 	mtd->sync = NULL;
@@ -524,6 +515,7 @@ static void DoCMilPlus_init(struct mtd_info *mtd)
 		return;
 	}
 }
+EXPORT_SYMBOL_GPL(DoCMilPlus_init);
 
 #if 0
 static int doc_dumpblk(struct mtd_info *mtd, loff_t from)
@@ -876,14 +868,20 @@ static int doc_write_ecc(struct mtd_info *mtd, loff_t to, size_t len,
 	return ret;
 }
 
-static int doc_read_oob(struct mtd_info *mtd, loff_t ofs, size_t len,
-			size_t *retlen, u_char *buf)
+static int doc_read_oob(struct mtd_info *mtd, loff_t ofs,
+			struct mtd_oob_ops *ops)
 {
 	loff_t fofs, base;
 	struct DiskOnChip *this = mtd->priv;
 	void __iomem * docptr = this->virtadr;
 	struct Nand *mychip = &this->chips[ofs >> this->chipshift];
 	size_t i, size, got, want;
+	uint8_t *buf = ops->oobbuf;
+	size_t len = ops->len;
+
+	BUG_ON(ops->mode != MTD_OOB_PLACE);
+
+	ofs += ops->ooboffs;
 
 	DoC_CheckASIC(docptr);
 
@@ -949,12 +947,12 @@ static int doc_read_oob(struct mtd_info *mtd, loff_t ofs, size_t len,
 	/* Disable flash internally */
 	WriteDOC(0, docptr, Mplus_FlashSelect);
 
-	*retlen = len;
+	ops->retlen = len;
 	return 0;
 }
 
-static int doc_write_oob(struct mtd_info *mtd, loff_t ofs, size_t len,
-			 size_t *retlen, const u_char *buf)
+static int doc_write_oob(struct mtd_info *mtd, loff_t ofs,
+			 struct mtd_oob_ops *ops)
 {
 	volatile char dummy;
 	loff_t fofs, base;
@@ -963,6 +961,12 @@ static int doc_write_oob(struct mtd_info *mtd, loff_t ofs, size_t len,
 	struct Nand *mychip = &this->chips[ofs >> this->chipshift];
 	size_t i, size, got, want;
 	int ret = 0;
+	uint8_t *buf = ops->oobbuf;
+	size_t len = ops->len;
+
+	BUG_ON(ops->mode != MTD_OOB_PLACE);
+
+	ofs += ops->ooboffs;
 
 	DoC_CheckASIC(docptr);
 
@@ -1038,7 +1042,7 @@ static int doc_write_oob(struct mtd_info *mtd, loff_t ofs, size_t len,
 			printk("MTD: Error 0x%x programming oob at 0x%x\n",
 				dummy, (int)ofs);
 			/* FIXME: implement Bad Block Replacement */
-			*retlen = 0;
+			ops->retlen = 0;
 			ret = -EIO;
 		}
 		dummy = ReadDOC(docptr, Mplus_LastDataRead);
@@ -1051,7 +1055,7 @@ static int doc_write_oob(struct mtd_info *mtd, loff_t ofs, size_t len,
 	/* Disable flash internally */
 	WriteDOC(0, docptr, Mplus_FlashSelect);
 
-	*retlen = len;
+	ops->retlen = len;
 	return ret;
 }
 
@@ -1122,12 +1126,6 @@ int doc_erase(struct mtd_info *mtd, struct erase_info *instr)
  *
  ****************************************************************************/
 
-static int __init init_doc2001plus(void)
-{
-	inter_module_register(im_name, THIS_MODULE, &DoCMilPlus_init);
-	return 0;
-}
-
 static void __exit cleanup_doc2001plus(void)
 {
 	struct mtd_info *mtd;
@@ -1143,11 +1141,9 @@ static void __exit cleanup_doc2001plus(void)
 		kfree(this->chips);
 		kfree(mtd);
 	}
-	inter_module_unregister(im_name);
 }
 
 module_exit(cleanup_doc2001plus);
-module_init(init_doc2001plus);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Greg Ungerer <gerg@snapgear.com> et al.");

@@ -106,6 +106,26 @@ config INET6_TUNNEL
 	tristate
 	default n
 
+config INET6_XFRM_MODE_TRANSPORT
+	tristate "IPv6: IPsec transport mode"
+	depends on IPV6
+	default IPV6
+	select XFRM
+	---help---
+	  Support for IPsec transport mode.
+
+	  If unsure, say Y.
+
+config INET6_XFRM_MODE_TUNNEL
+	tristate "IPv6: IPsec tunnel mode"
+	depends on IPV6
+	default IPV6
+	select XFRM
+	---help---
+	  Support for IPsec tunnel mode.
+
+	  If unsure, say Y.
+
 config IPV6_TUNNEL
 	tristate "IPv6: IPv6-in-IPv6 tunnel"
 	select INET6_TUNNEL

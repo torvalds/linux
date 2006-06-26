@@ -1031,8 +1031,7 @@ static int mc32_send_packet(struct sk_buff *skb, struct net_device *dev)
 		return 1;
 	}
 
-	skb = skb_padto(skb, ETH_ZLEN);
-	if (skb == NULL) {
+	if (skb_padto(skb, ETH_ZLEN)) {
 		netif_wake_queue(dev);
 		return 0;
 	}
@@ -1646,7 +1645,7 @@ static struct net_device *this_device;
  *	insmod multiple modules for now but it's a hack.
  */
 
-int init_module(void)
+int __init init_module(void)
 {
 	this_device = mc32_probe(-1);
 	if (IS_ERR(this_device))

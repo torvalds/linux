@@ -1200,7 +1200,7 @@ static int mv643xx_eth_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	if (has_tiny_unaligned_frags(skb)) {
-		if ((skb_linearize(skb, GFP_ATOMIC) != 0)) {
+		if (__skb_linearize(skb)) {
 			stats->tx_dropped++;
 			printk(KERN_DEBUG "%s: failed to linearize tiny "
 					"unaligned fragment\n", dev->name);

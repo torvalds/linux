@@ -16,6 +16,7 @@ struct sharpsl_charger_machinfo {
 	void (*exit)(void);
 	int gpio_acin;
 	int gpio_batfull;
+	int batfull_irq;
 	int gpio_batlock;
 	int gpio_fatal;
 	void (*discharge)(int);
@@ -34,9 +35,19 @@ struct sharpsl_charger_machinfo {
 #define SHARPSL_STATUS_FATAL    7
 	unsigned long (*charger_wakeup)(void);
 	int (*should_wakeup)(unsigned int resume_on_alarm);
+	void (*backlight_limit)(int);
+	int (*backlight_get_status) (void);
+	int charge_on_volt;
+	int charge_on_temp;
+	int charge_acin_high;
+	int charge_acin_low;
+	int fatal_acin_volt;
+	int fatal_noacin_volt;
 	int bat_levels;
 	struct battery_thresh *bat_levels_noac;
 	struct battery_thresh *bat_levels_acin;
+	struct battery_thresh *bat_levels_noac_bl;
+	struct battery_thresh *bat_levels_acin_bl;
 	int status_high_acin;
 	int status_low_acin;
 	int status_high_noac;

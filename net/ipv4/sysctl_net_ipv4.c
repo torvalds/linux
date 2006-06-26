@@ -182,14 +182,6 @@ ctl_table ipv4_table[] = {
 		.strategy	= &ipv4_doint_and_flush_strategy,
 	},
         {
-		.ctl_name	= NET_IPV4_AUTOCONFIG,
-		.procname	= "ip_autoconfig",
-		.data		= &ipv4_config.autoconfig,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec
-	},
-        {
 		.ctl_name	= NET_IPV4_NO_PMTU_DISC,
 		.procname	= "ip_no_pmtu_disc",
 		.data		= &ipv4_config.no_pmtu_disc,
@@ -684,6 +676,24 @@ ctl_table ipv4_table[] = {
 		.ctl_name	= NET_IPV4_TCP_WORKAROUND_SIGNED_WINDOWS,
 		.procname	= "tcp_workaround_signed_windows",
 		.data		= &sysctl_tcp_workaround_signed_windows,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec
+	},
+#ifdef CONFIG_NET_DMA
+	{
+		.ctl_name	= NET_TCP_DMA_COPYBREAK,
+		.procname	= "tcp_dma_copybreak",
+		.data		= &sysctl_tcp_dma_copybreak,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec
+	},
+#endif
+	{
+		.ctl_name	= NET_TCP_SLOW_START_AFTER_IDLE,
+		.procname	= "tcp_slow_start_after_idle",
+		.data		= &sysctl_tcp_slow_start_after_idle,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec

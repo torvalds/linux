@@ -84,6 +84,15 @@ static struct omap_board_config_kernel ams_delta_config[] = {
 	{ OMAP_TAG_UART,	&ams_delta_uart_config },
 };
 
+static struct platform_device ams_delta_led_device = {
+	.name	= "ams-delta-led",
+	.id	= -1
+};
+
+static struct platform_device *ams_delta_devices[] __initdata = {
+	&ams_delta_led_device,
+};
+
 static void __init ams_delta_init(void)
 {
 	iotable_init(ams_delta_io_desc, ARRAY_SIZE(ams_delta_io_desc));
@@ -94,6 +103,8 @@ static void __init ams_delta_init(void)
 
 	/* Clear latch2 (NAND, LCD, modem enable) */
 	ams_delta_latch2_write(~0, 0);
+
+	platform_add_devices(ams_delta_devices, ARRAY_SIZE(ams_delta_devices));
 }
 
 static void __init ams_delta_map_io(void)

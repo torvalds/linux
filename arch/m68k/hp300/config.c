@@ -21,7 +21,6 @@
 #include <asm/hp300hw.h>
 #include <asm/rtc.h>
 
-#include "ints.h"
 #include "time.h"
 
 unsigned long hp300_model;
@@ -64,8 +63,6 @@ static char *hp300_models[] __initdata = {
 static char hp300_model_name[13] = "HP9000/";
 
 extern void hp300_reset(void);
-extern irqreturn_t (*hp300_default_handler[])(int, void *, struct pt_regs *);
-extern int show_hp300_interrupts(struct seq_file *, void *);
 #ifdef CONFIG_SERIAL_8250_CONSOLE
 extern int hp300_setup_serial_console(void) __init;
 #endif
@@ -245,16 +242,16 @@ static unsigned int hp300_get_ss(void)
 		hp300_rtc_read(RTC_REG_SEC2);
 }
 
+static void __init hp300_init_IRQ(void)
+{
+}
+
 void __init config_hp300(void)
 {
 	mach_sched_init      = hp300_sched_init;
 	mach_init_IRQ        = hp300_init_IRQ;
-	mach_request_irq     = hp300_request_irq;
-	mach_free_irq        = hp300_free_irq;
 	mach_get_model       = hp300_get_model;
-	mach_get_irq_list    = show_hp300_interrupts;
 	mach_gettimeoffset   = hp300_gettimeoffset;
-	mach_default_handler = &hp300_default_handler;
 	mach_hwclk	     = hp300_hwclk;
 	mach_get_ss	     = hp300_get_ss;
 	mach_reset           = hp300_reset;

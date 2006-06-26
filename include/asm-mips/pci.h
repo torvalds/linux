@@ -6,7 +6,6 @@
 #ifndef _ASM_PCI_H
 #define _ASM_PCI_H
 
-#include <linux/config.h>
 #include <linux/mm.h>
 
 #ifdef __KERNEL__

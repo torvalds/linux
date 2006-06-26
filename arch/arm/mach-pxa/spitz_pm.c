@@ -27,6 +27,13 @@
 #include <asm/arch/pxa-regs.h>
 #include "sharpsl.h"
 
+#define SHARPSL_CHARGE_ON_VOLT         0x99  /* 2.9V */
+#define SHARPSL_CHARGE_ON_TEMP         0xe0  /* 2.9V */
+#define SHARPSL_CHARGE_ON_ACIN_HIGH    0x9b  /* 6V */
+#define SHARPSL_CHARGE_ON_ACIN_LOW     0x34  /* 2V */
+#define SHARPSL_FATAL_ACIN_VOLT        182   /* 3.45V */
+#define SHARPSL_FATAL_NOACIN_VOLT      170   /* 3.40V */
+
 static int spitz_last_ac_status;
 
 static void spitz_charger_init(void)
@@ -190,6 +197,7 @@ struct sharpsl_charger_machinfo spitz_pm_machinfo = {
 	.gpio_batlock     = SPITZ_GPIO_BAT_COVER,
 	.gpio_acin        = SPITZ_GPIO_AC_IN,
 	.gpio_batfull     = SPITZ_GPIO_CHRG_FULL,
+	.batfull_irq	  = 1,
 	.gpio_fatal       = SPITZ_GPIO_FATAL_BAT,
 	.discharge        = spitz_discharge,
 	.discharge1       = spitz_discharge1,
@@ -200,6 +208,13 @@ struct sharpsl_charger_machinfo spitz_pm_machinfo = {
 	.read_devdata     = spitzpm_read_devdata,
 	.charger_wakeup   = spitz_charger_wakeup,
 	.should_wakeup    = spitz_should_wakeup,
+        .backlight_limit  = corgibl_limit_intensity,
+	.charge_on_volt	  = SHARPSL_CHARGE_ON_VOLT,
+	.charge_on_temp	  = SHARPSL_CHARGE_ON_TEMP,
+	.charge_acin_high = SHARPSL_CHARGE_ON_ACIN_HIGH,
+	.charge_acin_low  = SHARPSL_CHARGE_ON_ACIN_LOW,
+	.fatal_acin_volt  = SHARPSL_FATAL_ACIN_VOLT,
+	.fatal_noacin_volt= SHARPSL_FATAL_NOACIN_VOLT,
 	.bat_levels       = 40,
 	.bat_levels_noac  = spitz_battery_levels_noac,
 	.bat_levels_acin  = spitz_battery_levels_acin,

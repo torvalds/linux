@@ -68,6 +68,13 @@ static int ca_set_pid(void)
 	return -EOPNOTSUPP;
 }
 
+static void put_command_and_length(u8 *data, int command, int length)
+{
+	data[0] = (command >> 16) & 0xff;
+	data[1] = (command >> 8) & 0xff;
+	data[2] = command & 0xff;
+	data[3] = length;
+}
 
 static void put_checksum(u8 *check_string, int length)
 {
@@ -124,14 +131,17 @@ static int dst_put_ci(struct dst_state *state, u8 *data, int len, u8 *ca_string,
 	u8 dst_ca_comm_err = 0;
 
 	while (dst_ca_comm_err < RETRIES) {
-		dst_comm_init(state);
 		dprintk(verbose, DST_CA_NOTICE, 1, " Put Command");
 		if (dst_ci_command(state, data, ca_string, len, read)) {	// If error
 			dst_error_recovery(state);
 			dst_ca_comm_err++; // work required here.
+		} else {
+			break;
 		}
-		break;
 	}
+
+	if(dst_ca_comm_err == RETRIES)
+		return -1;
 
 	return 0;
 }
@@ -140,6 +150,7 @@ static int dst_put_ci(struct dst_state *state, u8 *data, int len, u8 *ca_string,
 
 static int ca_get_app_info(struct dst_state *state)
 {
+	int length, str_length;
 	static u8 command[8] = {0x07, 0x40, 0x01, 0x00, 0x01, 0x00, 0x00, 0xff};
 
 	put_checksum(&command[0], command[0]);
@@ -153,6 +164,68 @@ static int ca_get_app_info(struct dst_state *state)
 		state->messages[7], (state->messages[8] << 8) | state->messages[9],
 		(state->messages[10] << 8) | state->messages[11], __FUNCTION__, (char *)(&state->messages[12]));
 	dprintk(verbose, DST_CA_INFO, 1, " ==================================================================================================");
+
+	// Transform dst message to correct application_info message
+	length = state->messages[5];
+	str_length = length - 6;
+	if (str_length < 0) {
+		str_length = 0;
+		dprintk(verbose, DST_CA_ERROR, 1, "Invalid string length returned in ca_get_app_info(). Recovering.");
+	}
+
+	// First, the command and length fields
+	put_command_and_length(&state->messages[0], CA_APP_INFO, length);
+
+	// Copy application_type, application_manufacturer and manufacturer_code
+	memcpy(&state->messages[4], &state->messages[7], 5);
+
+	// Set string length and copy string
+	state->messages[9] = str_length;
+	memcpy(&state->messages[10], &state->messages[12], str_length);
+
+	return 0;
+}
+
+static int ca_get_ca_info(struct dst_state *state)
+{
+	int srcPtr, dstPtr, i, num_ids;
+	static u8 slot_command[8] = {0x07, 0x40, 0x00, 0x00, 0x02, 0x00, 0x00, 0xff};
+	const int in_system_id_pos = 8, out_system_id_pos = 4, in_num_ids_pos = 7;
+
+	put_checksum(&slot_command[0], slot_command[0]);
+	if ((dst_put_ci(state, slot_command, sizeof (slot_command), state->messages, GET_REPLY)) < 0) {
+		dprintk(verbose, DST_CA_ERROR, 1, " -->dst_put_ci FAILED !");
+		return -1;
+	}
+	dprintk(verbose, DST_CA_INFO, 1, " -->dst_put_ci SUCCESS !");
+
+	// Print raw data
+	dprintk(verbose, DST_CA_INFO, 0, " DST data = [");
+	for (i = 0; i < state->messages[0] + 1; i++) {
+		dprintk(verbose, DST_CA_INFO, 0, " 0x%02x", state->messages[i]);
+	}
+	dprintk(verbose, DST_CA_INFO, 0, "]\n");
+
+	// Set the command and length of the output
+	num_ids = state->messages[in_num_ids_pos];
+	if (num_ids >= 100) {
+		num_ids = 100;
+		dprintk(verbose, DST_CA_ERROR, 1, "Invalid number of ids (>100). Recovering.");
+	}
+	put_command_and_length(&state->messages[0], CA_INFO, num_ids * 2);
+
+	dprintk(verbose, DST_CA_INFO, 0, " CA_INFO = [");
+	srcPtr = in_system_id_pos;
+	dstPtr = out_system_id_pos;
+	for(i = 0; i < num_ids; i++) {
+		dprintk(verbose, DST_CA_INFO, 0, " 0x%02x%02x", state->messages[srcPtr + 0], state->messages[srcPtr + 1]);
+		// Append to output
+		state->messages[dstPtr + 0] = state->messages[srcPtr + 0];
+		state->messages[dstPtr + 1] = state->messages[srcPtr + 1];
+		srcPtr += 2;
+		dstPtr += 2;
+	}
+	dprintk(verbose, DST_CA_INFO, 0, "]\n");
 
 	return 0;
 }
@@ -174,7 +247,7 @@ static int ca_get_slot_caps(struct dst_state *state, struct ca_caps *p_ca_caps, 
 
 	dprintk(verbose, DST_CA_INFO, 1, " Slot cap = [%d]", slot_cap[7]);
 	dprintk(verbose, DST_CA_INFO, 0, "===================================\n");
-	for (i = 0; i < 8; i++)
+	for (i = 0; i < slot_cap[0] + 1; i++)
 		dprintk(verbose, DST_CA_INFO, 0, " %d", slot_cap[i]);
 	dprintk(verbose, DST_CA_INFO, 0, "\n");
 
@@ -260,6 +333,11 @@ static int ca_get_message(struct dst_state *state, struct ca_msg *p_ca_message, 
 			if (copy_to_user(arg, p_ca_message, sizeof (struct ca_msg)) )
 				return -EFAULT;
 			break;
+		case CA_INFO:
+			memcpy(p_ca_message->msg, state->messages, 128);
+			if (copy_to_user(arg, p_ca_message, sizeof (struct ca_msg)) )
+				return -EFAULT;
+			break;
 		}
 	}
 
@@ -302,7 +380,7 @@ static int write_to_8820(struct dst_state *state, struct ca_msg *hw_buffer, u8 l
 		rdc_reset_state(state);
 		return -1;
 	}
-	dprintk(verbose, DST_CA_NOTICE, 1, " DST-CI Command succes.");
+	dprintk(verbose, DST_CA_NOTICE, 1, " DST-CI Command success.");
 
 	return 0;
 }
@@ -339,6 +417,7 @@ static int debug_string(u8 *msg, u32 length, u32 offset)
 
 	return 0;
 }
+
 
 static int ca_set_pmt(struct dst_state *state, struct ca_msg *p_ca_message, struct ca_msg *hw_buffer, u8 reply, u8 query)
 {
@@ -455,6 +534,16 @@ static int ca_send_message(struct dst_state *state, struct ca_msg *p_ca_message,
 			}
 			dprintk(verbose, DST_CA_INFO, 1, " -->CA_APP_INFO_ENQUIRY Success !");
 			break;
+		case CA_INFO_ENQUIRY:
+			dprintk(verbose, DST_CA_INFO, 1, " Getting CA Information");
+
+			if ((ca_get_ca_info(state)) < 0) {
+				dprintk(verbose, DST_CA_ERROR, 1, " -->CA_INFO_ENQUIRY Failed !");
+				result = -1;
+				goto free_mem_and_exit;
+			}
+			dprintk(verbose, DST_CA_INFO, 1, " -->CA_INFO_ENQUIRY Success !");
+			break;
 		}
 	}
 free_mem_and_exit:
@@ -473,18 +562,15 @@ static int dst_ca_ioctl(struct inode *inode, struct file *file, unsigned int cmd
 	void __user *arg = (void __user *)ioctl_arg;
 	int result = 0;
 
-	if ((p_ca_message = (struct ca_msg *) kmalloc(sizeof (struct ca_msg), GFP_KERNEL)) == NULL) {
+	p_ca_message = kmalloc(sizeof (struct ca_msg), GFP_KERNEL);
+	p_ca_slot_info = kmalloc(sizeof (struct ca_slot_info), GFP_KERNEL);
+	p_ca_caps = kmalloc(sizeof (struct ca_caps), GFP_KERNEL);
+	if (!p_ca_message || !p_ca_slot_info || !p_ca_caps) {
 		dprintk(verbose, DST_CA_ERROR, 1, " Memory allocation failure");
-		return -ENOMEM;
+		result = -ENOMEM;
+		goto free_mem_and_exit;
 	}
-	if ((p_ca_slot_info = (struct ca_slot_info *) kmalloc(sizeof (struct ca_slot_info), GFP_KERNEL)) == NULL) {
-		dprintk(verbose, DST_CA_ERROR, 1, " Memory allocation failure");
-		return -ENOMEM;
-	}
-	if ((p_ca_caps = (struct ca_caps *) kmalloc(sizeof (struct ca_caps), GFP_KERNEL)) == NULL) {
-		dprintk(verbose, DST_CA_ERROR, 1, " Memory allocation failure");
-		return -ENOMEM;
-	}
+
 	/*	We have now only the standard ioctl's, the driver is upposed to handle internals.	*/
 	switch (cmd) {
 	case CA_SEND_MSG:
@@ -582,7 +668,7 @@ static int dst_ca_release(struct inode *inode, struct file *file)
 
 static ssize_t dst_ca_read(struct file *file, char __user *buffer, size_t length, loff_t *offset)
 {
-	int bytes_read = 0;
+	ssize_t bytes_read = 0;
 
 	dprintk(verbose, DST_CA_DEBUG, 1, " Device read.");
 

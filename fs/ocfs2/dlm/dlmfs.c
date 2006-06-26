@@ -574,10 +574,10 @@ static struct inode_operations dlmfs_file_inode_operations = {
 	.getattr	= simple_getattr,
 };
 
-static struct super_block *dlmfs_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data)
+static int dlmfs_get_sb(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
 {
-	return get_sb_nodev(fs_type, flags, data, dlmfs_fill_super);
+	return get_sb_nodev(fs_type, flags, data, dlmfs_fill_super, mnt);
 }
 
 static struct file_system_type dlmfs_fs_type = {

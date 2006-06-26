@@ -345,9 +345,9 @@ static int bcm5421_enable_fiber(struct mii_phy* phy)
 
 static int bcm5461_enable_fiber(struct mii_phy* phy)
 {
-        phy_write(phy, MII_NCONFIG, 0xfc0c);
-        phy_write(phy, MII_BMCR, 0x4140);
-        phy_write(phy, MII_NCONFIG, 0xfc0b);
+	phy_write(phy, MII_NCONFIG, 0xfc0c);
+	phy_write(phy, MII_BMCR, 0x4140);
+	phy_write(phy, MII_NCONFIG, 0xfc0b);
 	phy_write(phy, MII_BMCR, 0x0140);
 
 	return 0;

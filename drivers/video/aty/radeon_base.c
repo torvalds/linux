@@ -78,10 +78,6 @@
 #include <asm/pci-bridge.h>
 #include "../macmodes.h"
 
-#ifdef CONFIG_PMAC_BACKLIGHT
-#include <asm/backlight.h>
-#endif
-
 #ifdef CONFIG_BOOTX_TEXT
 #include <asm/btext.h>
 #endif
@@ -276,20 +272,6 @@ static int nomtrr = 0;
 /*
  * prototypes
  */
-
-
-#ifdef CONFIG_PPC_OF
-
-#ifdef CONFIG_PMAC_BACKLIGHT
-static int radeon_set_backlight_enable(int on, int level, void *data);
-static int radeon_set_backlight_level(int level, void *data);
-static struct backlight_controller radeon_backlight_controller = {
-	radeon_set_backlight_enable,
-	radeon_set_backlight_level
-};
-#endif /* CONFIG_PMAC_BACKLIGHT */
-
-#endif /* CONFIG_PPC_OF */
 
 static void radeon_unmap_ROM(struct radeonfb_info *rinfo, struct pci_dev *dev)
 {
@@ -1913,116 +1895,6 @@ static int __devinit radeon_set_fbinfo (struct radeonfb_info *rinfo)
         return 0;
 }
 
-
-#ifdef CONFIG_PMAC_BACKLIGHT
-
-/* TODO: Dbl check these tables, we don't go up to full ON backlight
- * in these, possibly because we noticed MacOS doesn't, but I'd prefer
- * having some more official numbers from ATI
- */
-static int backlight_conv_m6[] = {
-	0xff, 0xc0, 0xb5, 0xaa, 0x9f, 0x94, 0x89, 0x7e,
-	0x73, 0x68, 0x5d, 0x52, 0x47, 0x3c, 0x31, 0x24
-};
-static int backlight_conv_m7[] = {
-	0x00, 0x3f, 0x4a, 0x55, 0x60, 0x6b, 0x76, 0x81,
-	0x8c, 0x97, 0xa2, 0xad, 0xb8, 0xc3, 0xce, 0xd9
-};
-
-#define BACKLIGHT_LVDS_OFF
-#undef BACKLIGHT_DAC_OFF
-
-/* We turn off the LCD completely instead of just dimming the backlight.
- * This provides some greater power saving and the display is useless
- * without backlight anyway.
- */
-static int radeon_set_backlight_enable(int on, int level, void *data)
-{
-	struct radeonfb_info *rinfo = (struct radeonfb_info *)data;
-	u32 lvds_gen_cntl, tmpPixclksCntl;
-	int* conv_table;
-
-	if (rinfo->mon1_type != MT_LCD)
-		return 0;
-
-	/* Pardon me for that hack... maybe some day we can figure
-	 * out in what direction backlight should work on a given
-	 * panel ?
-	 */
-	if ((rinfo->family == CHIP_FAMILY_RV200 ||
-	     rinfo->family == CHIP_FAMILY_RV250 ||
-	     rinfo->family == CHIP_FAMILY_RV280 ||
-	     rinfo->family == CHIP_FAMILY_RV350) &&
-	    !machine_is_compatible("PowerBook4,3") &&
-	    !machine_is_compatible("PowerBook6,3") &&
-	    !machine_is_compatible("PowerBook6,5"))
-		conv_table = backlight_conv_m7;
-	else
-		conv_table = backlight_conv_m6;
-
-	del_timer_sync(&rinfo->lvds_timer);
-	radeon_engine_idle();
-
-	lvds_gen_cntl = INREG(LVDS_GEN_CNTL);
-	if (on && (level > BACKLIGHT_OFF)) {
-		lvds_gen_cntl &= ~LVDS_DISPLAY_DIS;
-		if (!(lvds_gen_cntl & LVDS_BLON) || !(lvds_gen_cntl & LVDS_ON)) {
-			lvds_gen_cntl |= (rinfo->init_state.lvds_gen_cntl & LVDS_DIGON);
-			lvds_gen_cntl |= LVDS_BLON | LVDS_EN;
-			OUTREG(LVDS_GEN_CNTL, lvds_gen_cntl);
-			lvds_gen_cntl &= ~LVDS_BL_MOD_LEVEL_MASK;
-			lvds_gen_cntl |= (conv_table[level] <<
-					  LVDS_BL_MOD_LEVEL_SHIFT);
-			lvds_gen_cntl |= LVDS_ON;
-			lvds_gen_cntl |= (rinfo->init_state.lvds_gen_cntl & LVDS_BL_MOD_EN);
-			rinfo->pending_lvds_gen_cntl = lvds_gen_cntl;
-			mod_timer(&rinfo->lvds_timer,
-				  jiffies + msecs_to_jiffies(rinfo->panel_info.pwr_delay));
-		} else {
-			lvds_gen_cntl &= ~LVDS_BL_MOD_LEVEL_MASK;
-			lvds_gen_cntl |= (conv_table[level] <<
-					  LVDS_BL_MOD_LEVEL_SHIFT);
-			OUTREG(LVDS_GEN_CNTL, lvds_gen_cntl);
-		}
-		rinfo->init_state.lvds_gen_cntl &= ~LVDS_STATE_MASK;
-		rinfo->init_state.lvds_gen_cntl |= rinfo->pending_lvds_gen_cntl
-			& LVDS_STATE_MASK;
-	} else {
-		/* Asic bug, when turning off LVDS_ON, we have to make sure
-		   RADEON_PIXCLK_LVDS_ALWAYS_ON bit is off
-		*/
-		tmpPixclksCntl = INPLL(PIXCLKS_CNTL);
-		if (rinfo->is_mobility || rinfo->is_IGP)
-			OUTPLLP(PIXCLKS_CNTL, 0, ~PIXCLK_LVDS_ALWAYS_ONb);
-		lvds_gen_cntl &= ~(LVDS_BL_MOD_LEVEL_MASK | LVDS_BL_MOD_EN);
-		lvds_gen_cntl |= (conv_table[0] <<
-				  LVDS_BL_MOD_LEVEL_SHIFT);
-		lvds_gen_cntl |= LVDS_DISPLAY_DIS;
-		OUTREG(LVDS_GEN_CNTL, lvds_gen_cntl);
-		udelay(100);
-		lvds_gen_cntl &= ~(LVDS_ON | LVDS_EN);
-		OUTREG(LVDS_GEN_CNTL, lvds_gen_cntl);
-		lvds_gen_cntl &= ~(LVDS_DIGON);
-		rinfo->pending_lvds_gen_cntl = lvds_gen_cntl;
-		mod_timer(&rinfo->lvds_timer,
-			  jiffies + msecs_to_jiffies(rinfo->panel_info.pwr_delay));
-		if (rinfo->is_mobility || rinfo->is_IGP)
-			OUTPLL(PIXCLKS_CNTL, tmpPixclksCntl);
-	}
-	rinfo->init_state.lvds_gen_cntl &= ~LVDS_STATE_MASK;
-	rinfo->init_state.lvds_gen_cntl |= (lvds_gen_cntl & LVDS_STATE_MASK);
-
-	return 0;
-}
-
-
-static int radeon_set_backlight_level(int level, void *data)
-{
-	return radeon_set_backlight_enable(1, level, data);
-}
-#endif /* CONFIG_PMAC_BACKLIGHT */
-
-
 /*
  * This reconfigure the card's internal memory map. In theory, we'd like
  * to setup the card's memory at the same address as it's PCI bus address,
@@ -2477,14 +2349,7 @@ static int __devinit radeonfb_pci_register (struct pci_dev *pdev,
 						 MTRR_TYPE_WRCOMB, 1);
 #endif
 
-#ifdef CONFIG_PMAC_BACKLIGHT
-	if (rinfo->mon1_type == MT_LCD) {
-		register_backlight_controller(&radeon_backlight_controller,
-					      rinfo, "ati");
-		register_backlight_controller(&radeon_backlight_controller,
-					      rinfo, "mnca");
-	}
-#endif
+	radeonfb_bl_init(rinfo);
 
 	printk ("radeonfb (%s): %s\n", pci_name(rinfo->pdev), rinfo->name);
 
@@ -2528,7 +2393,8 @@ static void __devexit radeonfb_pci_unregister (struct pci_dev *pdev)
  
         if (!rinfo)
                 return;
- 
+
+	radeonfb_bl_exit(rinfo);
 	radeonfb_pm_exit(rinfo);
 
 	if (rinfo->mon1_EDID)

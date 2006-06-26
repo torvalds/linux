@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   
-  Copyright(c) 1999 - 2005 Intel Corporation. All rights reserved.
+  Copyright(c) 1999 - 2006 Intel Corporation. All rights reserved.
   
   This program is free software; you can redistribute it and/or modify it 
   under the terms of the GNU General Public License as published by the Free 
@@ -57,6 +57,7 @@ typedef enum {
 typedef enum {
 	ixgb_media_type_unknown = 0,
 	ixgb_media_type_fiber = 1,
+	ixgb_media_type_copper = 2,
 	ixgb_num_media_types
 } ixgb_media_type;
 

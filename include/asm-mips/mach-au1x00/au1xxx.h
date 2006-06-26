@@ -23,7 +23,6 @@
 #ifndef _AU1XXX_H_
 #define _AU1XXX_H_
 
-#include <linux/config.h>
 
 #include <asm/mach-au1x00/au1000.h>
 

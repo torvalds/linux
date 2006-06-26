@@ -223,7 +223,6 @@ static unsigned int __init longrun_determine_freqs(unsigned int *low_freq,
 		/* set to 0 to try_hi perf_pctg */
 		msr_lo &= 0xFFFFFF80;
 		msr_hi &= 0xFFFFFF80;
-		msr_lo |= 0;
 		msr_hi |= try_hi;
 		wrmsr(MSR_TMTA_LONGRUN_CTRL, msr_lo, msr_hi);
 

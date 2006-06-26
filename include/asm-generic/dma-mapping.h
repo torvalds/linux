@@ -7,7 +7,6 @@
 #ifndef _ASM_GENERIC_DMA_MAPPING_H
 #define _ASM_GENERIC_DMA_MAPPING_H
 
-#include <linux/config.h>
 
 #ifdef CONFIG_PCI
 

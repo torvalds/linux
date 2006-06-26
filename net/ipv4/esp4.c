@@ -143,10 +143,9 @@ static int esp_input(struct xfrm_state *x, struct sk_buff *skb)
 	int alen = esp->auth.icv_trunc_len;
 	int elen = skb->len - sizeof(struct ip_esp_hdr) - esp->conf.ivlen - alen;
 	int nfrags;
-	int encap_len = 0;
+	int ihl;
 	u8 nexthdr[2];
 	struct scatterlist *sg;
-	u8 workbuf[60];
 	int padlen;
 
 	if (!pskb_may_pull(skb, sizeof(struct ip_esp_hdr)))
@@ -177,7 +176,6 @@ static int esp_input(struct xfrm_state *x, struct sk_buff *skb)
 	skb->ip_summed = CHECKSUM_NONE;
 
 	esph = (struct ip_esp_hdr*)skb->data;
-	iph = skb->nh.iph;
 
 	/* Get ivec. This can be wrong, check against another impls. */
 	if (esp->conf.ivlen)
@@ -204,12 +202,12 @@ static int esp_input(struct xfrm_state *x, struct sk_buff *skb)
 
 	/* ... check padding bits here. Silly. :-) */ 
 
+	iph = skb->nh.iph;
+	ihl = iph->ihl * 4;
+
 	if (x->encap) {
 		struct xfrm_encap_tmpl *encap = x->encap;
-		struct udphdr *uh;
-
-		uh = (struct udphdr *)(iph + 1);
-		encap_len = (void*)esph - (void*)uh;
+		struct udphdr *uh = (void *)(skb->nh.raw + ihl);
 
 		/*
 		 * 1) if the NAT-T peer's IP or port changed then
@@ -246,11 +244,7 @@ static int esp_input(struct xfrm_state *x, struct sk_buff *skb)
 
 	iph->protocol = nexthdr[1];
 	pskb_trim(skb, skb->len - alen - padlen - 2);
-	memcpy(workbuf, skb->nh.raw, iph->ihl*4);
-	skb->h.raw = skb_pull(skb, sizeof(struct ip_esp_hdr) + esp->conf.ivlen);
-	skb->nh.raw += encap_len + sizeof(struct ip_esp_hdr) + esp->conf.ivlen;
-	memcpy(skb->nh.raw, workbuf, iph->ihl*4);
-	skb->nh.iph->tot_len = htons(skb->len);
+	skb->h.raw = __skb_pull(skb, sizeof(*esph) + esp->conf.ivlen) - ihl;
 
 	return 0;
 

@@ -65,7 +65,7 @@ get_sas_##title##_names(u32 table_key, char *buf)		\
 	ssize_t len = 0;					\
 	int i;							\
 								\
-	for (i = 0; i < sizeof(table)/sizeof(table[0]); i++) {	\
+	for (i = 0; i < ARRAY_SIZE(table); i++) {		\
 		if (table[i].value & table_key) {		\
 			len += sprintf(buf + len, "%s%s",	\
 				prefix, table[i].name);		\
@@ -83,7 +83,7 @@ get_sas_##title##_names(u32 table_key, char *buf)		\
 	ssize_t len = 0;					\
 	int i;							\
 								\
-	for (i = 0; i < sizeof(table)/sizeof(table[0]); i++) {	\
+	for (i = 0; i < ARRAY_SIZE(table); i++) {		\
 		if (table[i].value == table_key) {		\
 			len += sprintf(buf + len, "%s",		\
 				table[i].name);			\
@@ -748,6 +748,18 @@ static void sas_end_device_release(struct device *dev)
 }
 
 /**
+ * sas_rphy_initialize - common rphy intialization
+ * @rphy:	rphy to initialise
+ *
+ * Used by both sas_end_device_alloc() and sas_expander_alloc() to
+ * initialise the common rphy component of each.
+ */
+static void sas_rphy_initialize(struct sas_rphy *rphy)
+{
+	INIT_LIST_HEAD(&rphy->list);
+}
+
+/**
  * sas_end_device_alloc - allocate an rphy for an end device
  *
  * Allocates an SAS remote PHY structure, connected to @parent.
@@ -771,6 +783,7 @@ struct sas_rphy *sas_end_device_alloc(struct sas_phy *parent)
 	sprintf(rdev->rphy.dev.bus_id, "end_device-%d:%d-%d",
 		shost->host_no, parent->port_identifier, parent->number);
 	rdev->rphy.identify.device_type = SAS_END_DEVICE;
+	sas_rphy_initialize(&rdev->rphy);
 	transport_setup_device(&rdev->rphy.dev);
 
 	return &rdev->rphy;
@@ -809,6 +822,7 @@ struct sas_rphy *sas_expander_alloc(struct sas_phy *parent,
 	sprintf(rdev->rphy.dev.bus_id, "expander-%d:%d",
 		shost->host_no, rdev->rphy.scsi_target_id);
 	rdev->rphy.identify.device_type = type;
+	sas_rphy_initialize(&rdev->rphy);
 	transport_setup_device(&rdev->rphy.dev);
 
 	return &rdev->rphy;
@@ -955,7 +969,8 @@ static int sas_user_scan(struct Scsi_Host *shost, uint channel,
 	list_for_each_entry(rphy, &sas_host->rphy_list, list) {
 		struct sas_phy *parent = dev_to_phy(rphy->dev.parent);
 
-		if (rphy->scsi_target_id == -1)
+		if (rphy->identify.device_type != SAS_END_DEVICE ||
+		    rphy->scsi_target_id == -1)
 			continue;
 
 		if ((channel == SCAN_WILD_CARD || channel == parent->port_identifier) &&
@@ -977,7 +992,6 @@ static int sas_user_scan(struct Scsi_Host *shost, uint channel,
 #define SETUP_TEMPLATE(attrb, field, perm, test)				\
 	i->private_##attrb[count] = class_device_attr_##field;		\
 	i->private_##attrb[count].attr.mode = perm;			\
-	i->private_##attrb[count].store = NULL;				\
 	i->attrb[count] = &i->private_##attrb[count];			\
 	if (test)							\
 		count++

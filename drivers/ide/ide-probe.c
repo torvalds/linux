@@ -1138,16 +1138,11 @@ static int init_irq (ide_hwif_t *hwif)
 		spin_unlock_irq(&ide_lock);
 	}
 
-#if !defined(__mc68000__) && !defined(CONFIG_APUS) && !defined(__sparc__)
+#if !defined(__mc68000__) && !defined(CONFIG_APUS)
 	printk("%s at 0x%03lx-0x%03lx,0x%03lx on irq %d", hwif->name,
 		hwif->io_ports[IDE_DATA_OFFSET],
 		hwif->io_ports[IDE_DATA_OFFSET]+7,
 		hwif->io_ports[IDE_CONTROL_OFFSET], hwif->irq);
-#elif defined(__sparc__)
-	printk("%s at 0x%03lx-0x%03lx,0x%03lx on irq %s", hwif->name,
-		hwif->io_ports[IDE_DATA_OFFSET],
-		hwif->io_ports[IDE_DATA_OFFSET]+7,
-		hwif->io_ports[IDE_CONTROL_OFFSET], __irq_itoa(hwif->irq));
 #else
 	printk("%s at 0x%08lx on irq %d", hwif->name,
 		hwif->io_ports[IDE_DATA_OFFSET], hwif->irq);

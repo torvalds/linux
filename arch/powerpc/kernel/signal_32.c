@@ -419,9 +419,7 @@ static long restore_user_regs(struct pt_regs *regs,
 {
 	long err;
 	unsigned int save_r2 = 0;
-#if defined(CONFIG_ALTIVEC) || defined(CONFIG_SPE)
 	unsigned long msr;
-#endif
 
 	/*
 	 * restore general registers but not including MSR or SOFTE. Also
@@ -430,10 +428,15 @@ static long restore_user_regs(struct pt_regs *regs,
 	if (!sig)
 		save_r2 = (unsigned int)regs->gpr[2];
 	err = restore_general_regs(regs, sr);
+	err |= __get_user(msr, &sr->mc_gregs[PT_MSR]);
 	if (!sig)
 		regs->gpr[2] = (unsigned long) save_r2;
 	if (err)
 		return 1;
+
+	/* if doing signal return, restore the previous little-endian mode */
+	if (sig)
+		regs->msr = (regs->msr & ~MSR_LE) | (msr & MSR_LE);
 
 	/*
 	 * Do this before updating the thread state in
@@ -455,7 +458,7 @@ static long restore_user_regs(struct pt_regs *regs,
 	/* force the process to reload the altivec registers from
 	   current->thread when it next does altivec instructions */
 	regs->msr &= ~MSR_VEC;
-	if (!__get_user(msr, &sr->mc_gregs[PT_MSR]) && (msr & MSR_VEC) != 0) {
+	if (msr & MSR_VEC) {
 		/* restore altivec registers from the stack */
 		if (__copy_from_user(current->thread.vr, &sr->mc_vregs,
 				     sizeof(sr->mc_vregs)))
@@ -472,7 +475,7 @@ static long restore_user_regs(struct pt_regs *regs,
 	/* force the process to reload the spe registers from
 	   current->thread when it next does spe instructions */
 	regs->msr &= ~MSR_SPE;
-	if (!__get_user(msr, &sr->mc_gregs[PT_MSR]) && (msr & MSR_SPE) != 0) {
+	if (msr & MSR_SPE) {
 		/* restore spe registers from the stack */
 		if (__copy_from_user(current->thread.evr, &sr->mc_vregs,
 				     ELF_NEVRREG * sizeof(u32)))
@@ -757,10 +760,10 @@ static int handle_rt_signal(unsigned long sig, struct k_sigaction *ka,
 
 	/* Save user registers on the stack */
 	frame = &rt_sf->uc.uc_mcontext;
-	if (vdso32_rt_sigtramp && current->thread.vdso_base) {
+	if (vdso32_rt_sigtramp && current->mm->context.vdso_base) {
 		if (save_user_regs(regs, frame, 0))
 			goto badframe;
-		regs->link = current->thread.vdso_base + vdso32_rt_sigtramp;
+		regs->link = current->mm->context.vdso_base + vdso32_rt_sigtramp;
 	} else {
 		if (save_user_regs(regs, frame, __NR_rt_sigreturn))
 			goto badframe;
@@ -777,6 +780,8 @@ static int handle_rt_signal(unsigned long sig, struct k_sigaction *ka,
 	regs->gpr[5] = (unsigned long) &rt_sf->uc;
 	regs->gpr[6] = (unsigned long) rt_sf;
 	regs->nip = (unsigned long) ka->sa.sa_handler;
+	/* enter the signal handler in big-endian mode */
+	regs->msr &= ~MSR_LE;
 	regs->trap = 0;
 	return 1;
 
@@ -803,9 +808,12 @@ static int do_setcontext(struct ucontext __user *ucp, struct pt_regs *regs, int 
 		if (__get_user(cmcp, &ucp->uc_regs))
 			return -EFAULT;
 		mcp = (struct mcontext __user *)(u64)cmcp;
+		/* no need to check access_ok(mcp), since mcp < 4GB */
 	}
 #else
 	if (__get_user(mcp, &ucp->uc_regs))
+		return -EFAULT;
+	if (!access_ok(VERIFY_READ, mcp, sizeof(*mcp)))
 		return -EFAULT;
 #endif
 	restore_sigmask(&set);
@@ -908,13 +916,14 @@ int sys_debug_setcontext(struct ucontext __user *ctx,
 {
 	struct sig_dbg_op op;
 	int i;
+	unsigned char tmp;
 	unsigned long new_msr = regs->msr;
 #if defined(CONFIG_4xx) || defined(CONFIG_BOOKE)
 	unsigned long new_dbcr0 = current->thread.dbcr0;
 #endif
 
 	for (i=0; i<ndbg; i++) {
-		if (__copy_from_user(&op, dbg, sizeof(op)))
+		if (copy_from_user(&op, dbg + i, sizeof(op)))
 			return -EFAULT;
 		switch (op.dbg_type) {
 		case SIG_DBG_SINGLE_STEPPING:
@@ -958,6 +967,11 @@ int sys_debug_setcontext(struct ucontext __user *ctx,
 #if defined(CONFIG_4xx) || defined(CONFIG_BOOKE)
 	current->thread.dbcr0 = new_dbcr0;
 #endif
+
+	if (!access_ok(VERIFY_READ, ctx, sizeof(*ctx))
+	    || __get_user(tmp, (u8 __user *) ctx)
+	    || __get_user(tmp, (u8 __user *) (ctx + 1) - 1))
+		return -EFAULT;
 
 	/*
 	 * If we get a fault copying the context into the kernel's
@@ -1029,10 +1043,10 @@ static int handle_signal(unsigned long sig, struct k_sigaction *ka,
 	    || __put_user(sig, &sc->signal))
 		goto badframe;
 
-	if (vdso32_sigtramp && current->thread.vdso_base) {
+	if (vdso32_sigtramp && current->mm->context.vdso_base) {
 		if (save_user_regs(regs, &frame->mctx, 0))
 			goto badframe;
-		regs->link = current->thread.vdso_base + vdso32_sigtramp;
+		regs->link = current->mm->context.vdso_base + vdso32_sigtramp;
 	} else {
 		if (save_user_regs(regs, &frame->mctx, __NR_sigreturn))
 			goto badframe;
@@ -1047,6 +1061,8 @@ static int handle_signal(unsigned long sig, struct k_sigaction *ka,
 	regs->gpr[3] = sig;
 	regs->gpr[4] = (unsigned long) sc;
 	regs->nip = (unsigned long) ka->sa.sa_handler;
+	/* enter the signal handler in big-endian mode */
+	regs->msr &= ~MSR_LE;
 	regs->trap = 0;
 
 	return 1;

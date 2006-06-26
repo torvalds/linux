@@ -1850,7 +1850,6 @@ static int goku_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	unsigned long		resource, len;
 	void __iomem		*base = NULL;
 	int			retval;
-	char			buf [8], *bufp;
 
 	/* if you want to support more than one controller in a system,
 	 * usb_gadget_driver_{register,unregister}() must change.
@@ -1913,20 +1912,14 @@ static int goku_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	pci_set_drvdata(pdev, dev);
 	INFO(dev, "%s\n", driver_desc);
 	INFO(dev, "version: " DRIVER_VERSION " %s\n", dmastr());
-#ifndef __sparc__
-	scnprintf(buf, sizeof buf, "%d", pdev->irq);
-	bufp = buf;
-#else
-	bufp = __irq_itoa(pdev->irq);
-#endif
-	INFO(dev, "irq %s, pci mem %p\n", bufp, base);
+	INFO(dev, "irq %d, pci mem %p\n", pdev->irq, base);
 
 	/* init to known state, then setup irqs */
 	udc_reset(dev);
 	udc_reinit (dev);
 	if (request_irq(pdev->irq, goku_irq, SA_SHIRQ/*|SA_SAMPLE_RANDOM*/,
 			driver_name, dev) != 0) {
-		DBG(dev, "request interrupt %s failed\n", bufp);
+		DBG(dev, "request interrupt %d failed\n", pdev->irq);
 		retval = -EBUSY;
 		goto done;
 	}

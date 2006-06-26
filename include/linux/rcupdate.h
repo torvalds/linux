@@ -246,7 +246,7 @@ extern int rcu_needs_cpu(int cpu);
  * softirq handlers will have completed, since in some kernels, these
  * handlers can run in process context, and can block.
  *
- * This primitive provides the guarantees made by the (deprecated)
+ * This primitive provides the guarantees made by the (now removed)
  * synchronize_kernel() API.  In contrast, synchronize_rcu() only
  * guarantees that rcu_read_lock() sections will have completed.
  * In "classic RCU", these two guarantees happen to be one and
@@ -264,7 +264,6 @@ extern void FASTCALL(call_rcu(struct rcu_head *head,
 				void (*func)(struct rcu_head *head)));
 extern void FASTCALL(call_rcu_bh(struct rcu_head *head,
 				void (*func)(struct rcu_head *head)));
-extern __deprecated_for_modules void synchronize_kernel(void);
 extern void synchronize_rcu(void);
 void synchronize_idle(void);
 extern void rcu_barrier(void);

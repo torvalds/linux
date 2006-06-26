@@ -388,7 +388,7 @@ static int whiteheat_attach (struct usb_serial *serial)
 	if (ret) {
 		err("%s: Couldn't send command [%d]", serial->type->description, ret);
 		goto no_firmware;
-	} else if (alen != sizeof(command)) {
+	} else if (alen != 2) {
 		err("%s: Send command incomplete [%d]", serial->type->description, alen);
 		goto no_firmware;
 	}
@@ -400,7 +400,7 @@ static int whiteheat_attach (struct usb_serial *serial)
 	if (ret) {
 		err("%s: Couldn't get results [%d]", serial->type->description, ret);
 		goto no_firmware;
-	} else if (alen != sizeof(result)) {
+	} else if (alen != sizeof(*hw_info) + 1) {
 		err("%s: Get results incomplete [%d]", serial->type->description, alen);
 		goto no_firmware;
 	} else if (result[0] != command[0]) {
@@ -1089,9 +1089,7 @@ static void whiteheat_write_callback(struct urb *urb, struct pt_regs *regs)
 		return;
 	}
 
-	usb_serial_port_softint((void *)port);
-
-	schedule_work(&port->work);
+	usb_serial_port_softint(port);
 }
 
 

@@ -569,8 +569,7 @@ static void klsi_105_write_bulk_callback ( struct urb *urb, struct pt_regs *regs
 		return;
 	}
 
-	/* from generic_write_bulk_callback */
-	schedule_work(&port->work);
+	usb_serial_port_softint(port);
 } /* klsi_105_write_bulk_completion_callback */
 
 

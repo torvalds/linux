@@ -370,7 +370,7 @@ static int in2000_queuecommand(Scsi_Cmnd * cmd, void (*done) (Scsi_Cmnd *))
  */
 
 	if (cmd->use_sg) {
-		cmd->SCp.buffer = (struct scatterlist *) cmd->buffer;
+		cmd->SCp.buffer = (struct scatterlist *) cmd->request_buffer;
 		cmd->SCp.buffers_residual = cmd->use_sg - 1;
 		cmd->SCp.ptr = (char *) page_address(cmd->SCp.buffer->page) + cmd->SCp.buffer->offset;
 		cmd->SCp.this_residual = cmd->SCp.buffer->length;
@@ -1809,7 +1809,7 @@ static int in2000_abort(Scsi_Cmnd * cmd)
 
 
 #define MAX_IN2000_HOSTS 3
-#define MAX_SETUP_ARGS (sizeof(setup_args) / sizeof(char *))
+#define MAX_SETUP_ARGS ARRAY_SIZE(setup_args)
 #define SETUP_BUFFER_SIZE 200
 static char setup_buffer[SETUP_BUFFER_SIZE];
 static char setup_used[MAX_SETUP_ARGS];

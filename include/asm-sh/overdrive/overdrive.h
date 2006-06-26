@@ -6,7 +6,6 @@
  *
  */
 
-#include <linux/config.h>
 
 #ifndef __OVERDRIVE_H__
 #define __OVERDRIVE_H__

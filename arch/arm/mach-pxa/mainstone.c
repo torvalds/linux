@@ -493,6 +493,7 @@ static void __init mainstone_map_io(void)
 MACHINE_START(MAINSTONE, "Intel HCDDBBVA0 Development Platform (aka Mainstone)")
 	/* Maintainer: MontaVista Software Inc. */
 	.phys_io	= 0x40000000,
+	.boot_params	= 0xa0000100,	/* BLOB boot parameter setting */
 	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.map_io		= mainstone_map_io,
 	.init_irq	= mainstone_init_irq,

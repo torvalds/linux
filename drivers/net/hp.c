@@ -384,7 +384,7 @@ hp_block_output(struct net_device *dev, int count,
 }
 
 /* This function resets the ethercard if something screws up. */
-static void
+static void __init
 hp_init_card(struct net_device *dev)
 {
 	int irq = dev->irq;
@@ -409,7 +409,7 @@ MODULE_LICENSE("GPL");
 
 /* This is set up so that only a single autoprobe takes place per call.
 ISA device autoprobes on a running machine are not recommended. */
-int
+int __init
 init_module(void)
 {
 	struct net_device *dev;

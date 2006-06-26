@@ -1,15 +1,15 @@
-/* 
+/*
  * RNDIS	Definitions for Remote NDIS
- * 
+ *
  * Version:	$Id: rndis.h,v 1.15 2004/03/25 21:33:46 robert Exp $
- * 
+ *
  * Authors:	Benedikt Spranger, Pengutronix
- * 		Robert Schwebel, Pengutronix
- * 
- * 		This program is free software; you can redistribute it and/or
+ *		Robert Schwebel, Pengutronix
+ *
+ *		This program is free software; you can redistribute it and/or
  *		modify it under the terms of the GNU General Public License
- *		version 2, as published by the Free Software Foundation. 
- * 
+ *		version 2, as published by the Free Software Foundation.
+ *
  *		This software was originally developed in conformance with
  *		Microsoft's Remote NDIS Specification License Agreement.
  */
@@ -34,7 +34,7 @@
 #define RNDIS_STATUS_MEDIA_CONNECT	0x4001000BU	/* Device connected  */
 #define RNDIS_STATUS_MEDIA_DISCONNECT	0x4001000CU	/* Device disconnected */
 /* For all not specified status messages:
- * RNDIS_STATUS_Xxx -> NDIS_STATUS_Xxx 
+ * RNDIS_STATUS_Xxx -> NDIS_STATUS_Xxx
  */
 
 /* Message Set for Connectionless (802.3) Devices */
@@ -69,7 +69,7 @@
 #define OID_PNP_ENABLE_WAKE_UP			0xFD010106
 
 
-typedef struct rndis_init_msg_type 
+typedef struct rndis_init_msg_type
 {
 	__le32	MessageType;
 	__le32	MessageLength;
@@ -234,12 +234,12 @@ typedef struct rndis_params
 
 	const u8		*host_mac;
 	u16			*filter;
-	struct net_device 	*dev;
+	struct net_device	*dev;
 	struct net_device_stats *stats;
 
 	u32			vendorID;
 	const char		*vendorDescr;
-	int 			(*ack) (struct net_device *);
+	int			(*ack) (struct net_device *);
 	struct list_head	resp_queue;
 } rndis_params;
 
@@ -250,7 +250,7 @@ void rndis_deregister (int configNr);
 int  rndis_set_param_dev (u8 configNr, struct net_device *dev,
 			 struct net_device_stats *stats,
 			 u16 *cdc_filter);
-int  rndis_set_param_vendor (u8 configNr, u32 vendorID, 
+int  rndis_set_param_vendor (u8 configNr, u32 vendorID,
 			    const char *vendorDescr);
 int  rndis_set_param_medium (u8 configNr, u32 medium, u32 speed);
 void rndis_add_hdr (struct sk_buff *skb);

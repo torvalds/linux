@@ -165,8 +165,9 @@ csum_partial_end_cruft:
 	sll		%g1, 8, %g1
 	or		%o5, %g1, %o4
 
-1:	add		%o2, %o4, %o2
+1:	addcc		%o2, %o4, %o2
+	addc		%g0, %o2, %o2
 
 csum_partial_finish:
 	retl
-	 mov		%o2, %o0
+	 srl		%o2, 0, %o0

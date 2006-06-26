@@ -1,0 +1,401 @@
+/*
+ * Copyright (c) 2004, 2005, 2006 Voltaire, Inc. All rights reserved.
+ *
+ * This software is available to you under a choice of one of two
+ * licenses.  You may choose to be licensed under the terms of the GNU
+ * General Public License (GPL) Version 2, available from the file
+ * COPYING in the main directory of this source tree, or the
+ * OpenIB.org BSD license below:
+ *
+ *     Redistribution and use in source and binary forms, with or
+ *     without modification, are permitted provided that the following
+ *     conditions are met:
+ *
+ *	- Redistributions of source code must retain the above
+ *	  copyright notice, this list of conditions and the following
+ *	  disclaimer.
+ *
+ *	- Redistributions in binary form must reproduce the above
+ *	  copyright notice, this list of conditions and the following
+ *	  disclaimer in the documentation and/or other materials
+ *	  provided with the distribution.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ * $Id: iser_memory.c 6964 2006-05-07 11:11:43Z ogerlitz $
+ */
+#include <linux/module.h>
+#include <linux/kernel.h>
+#include <linux/slab.h>
+#include <linux/mm.h>
+#include <asm/io.h>
+#include <asm/scatterlist.h>
+#include <linux/scatterlist.h>
+
+#include "iscsi_iser.h"
+
+#define ISER_KMALLOC_THRESHOLD 0x20000 /* 128K - kmalloc limit */
+/**
+ * Decrements the reference count for the
+ * registered buffer & releases it
+ *
+ * returns 0 if released, 1 if deferred
+ */
+int iser_regd_buff_release(struct iser_regd_buf *regd_buf)
+{
+	struct device *dma_device;
+
+	if ((atomic_read(&regd_buf->ref_count) == 0) ||
+	    atomic_dec_and_test(&regd_buf->ref_count)) {
+		/* if we used the dma mr, unreg is just NOP */
+		if (regd_buf->reg.rkey != 0)
+			iser_unreg_mem(&regd_buf->reg);
+
+		if (regd_buf->dma_addr) {
+			dma_device = regd_buf->device->ib_device->dma_device;
+			dma_unmap_single(dma_device,
+					 regd_buf->dma_addr,
+					 regd_buf->data_size,
+					 regd_buf->direction);
+		}
+		/* else this regd buf is associated with task which we */
+		/* dma_unmap_single/sg later */
+		return 0;
+	} else {
+		iser_dbg("Release deferred, regd.buff: 0x%p\n", regd_buf);
+		return 1;
+	}
+}
+
+/**
+ * iser_reg_single - fills registered buffer descriptor with
+ *		     registration information
+ */
+void iser_reg_single(struct iser_device *device,
+		     struct iser_regd_buf *regd_buf,
+		     enum dma_data_direction direction)
+{
+	dma_addr_t dma_addr;
+
+	dma_addr  = dma_map_single(device->ib_device->dma_device,
+				   regd_buf->virt_addr,
+				   regd_buf->data_size, direction);
+	BUG_ON(dma_mapping_error(dma_addr));
+
+	regd_buf->reg.lkey = device->mr->lkey;
+	regd_buf->reg.rkey = 0; /* indicate there's no need to unreg */
+	regd_buf->reg.len  = regd_buf->data_size;
+	regd_buf->reg.va   = dma_addr;
+
+	regd_buf->dma_addr  = dma_addr;
+	regd_buf->direction = direction;
+}
+
+/**
+ * iser_start_rdma_unaligned_sg
+ */
+int iser_start_rdma_unaligned_sg(struct iscsi_iser_cmd_task  *iser_ctask,
+				 enum iser_data_dir cmd_dir)
+{
+	int dma_nents;
+	struct device *dma_device;
+	char *mem = NULL;
+	struct iser_data_buf *data = &iser_ctask->data[cmd_dir];
+	unsigned long  cmd_data_len = data->data_len;
+
+	if (cmd_data_len > ISER_KMALLOC_THRESHOLD)
+		mem = (void *)__get_free_pages(GFP_NOIO,
+		      long_log2(roundup_pow_of_two(cmd_data_len)) - PAGE_SHIFT);
+	else
+		mem = kmalloc(cmd_data_len, GFP_NOIO);
+
+	if (mem == NULL) {
+		iser_err("Failed to allocate mem size %d %d for copying sglist\n",
+			 data->size,(int)cmd_data_len);
+		return -ENOMEM;
+	}
+
+	if (cmd_dir == ISER_DIR_OUT) {
+		/* copy the unaligned sg the buffer which is used for RDMA */
+		struct scatterlist *sg = (struct scatterlist *)data->buf;
+		int i;
+		char *p, *from;
+
+		for (p = mem, i = 0; i < data->size; i++) {
+			from = kmap_atomic(sg[i].page, KM_USER0);
+			memcpy(p,
+			       from + sg[i].offset,
+			       sg[i].length);
+			kunmap_atomic(from, KM_USER0);
+			p += sg[i].length;
+		}
+	}
+
+	sg_init_one(&iser_ctask->data_copy[cmd_dir].sg_single, mem, cmd_data_len);
+	iser_ctask->data_copy[cmd_dir].buf  =
+		&iser_ctask->data_copy[cmd_dir].sg_single;
+	iser_ctask->data_copy[cmd_dir].size = 1;
+
+	iser_ctask->data_copy[cmd_dir].copy_buf  = mem;
+
+	dma_device = iser_ctask->iser_conn->ib_conn->device->ib_device->dma_device;
+
+	if (cmd_dir == ISER_DIR_OUT)
+		dma_nents = dma_map_sg(dma_device,
+				       &iser_ctask->data_copy[cmd_dir].sg_single,
+				       1, DMA_TO_DEVICE);
+	else
+		dma_nents = dma_map_sg(dma_device,
+				       &iser_ctask->data_copy[cmd_dir].sg_single,
+				       1, DMA_FROM_DEVICE);
+
+	BUG_ON(dma_nents == 0);
+
+	iser_ctask->data_copy[cmd_dir].dma_nents = dma_nents;
+	return 0;
+}
+
+/**
+ * iser_finalize_rdma_unaligned_sg
+ */
+void iser_finalize_rdma_unaligned_sg(struct iscsi_iser_cmd_task *iser_ctask,
+				     enum iser_data_dir         cmd_dir)
+{
+	struct device *dma_device;
+	struct iser_data_buf *mem_copy;
+	unsigned long  cmd_data_len;
+
+	dma_device = iser_ctask->iser_conn->ib_conn->device->ib_device->dma_device;
+	mem_copy   = &iser_ctask->data_copy[cmd_dir];
+
+	if (cmd_dir == ISER_DIR_OUT)
+		dma_unmap_sg(dma_device, &mem_copy->sg_single, 1,
+			     DMA_TO_DEVICE);
+	else
+		dma_unmap_sg(dma_device, &mem_copy->sg_single, 1,
+			     DMA_FROM_DEVICE);
+
+	if (cmd_dir == ISER_DIR_IN) {
+		char *mem;
+		struct scatterlist *sg;
+		unsigned char *p, *to;
+		unsigned int sg_size;
+		int i;
+
+		/* copy back read RDMA to unaligned sg */
+		mem	= mem_copy->copy_buf;
+
+		sg	= (struct scatterlist *)iser_ctask->data[ISER_DIR_IN].buf;
+		sg_size = iser_ctask->data[ISER_DIR_IN].size;
+
+		for (p = mem, i = 0; i < sg_size; i++){
+			to = kmap_atomic(sg[i].page, KM_SOFTIRQ0);
+			memcpy(to + sg[i].offset,
+			       p,
+			       sg[i].length);
+			kunmap_atomic(to, KM_SOFTIRQ0);
+			p += sg[i].length;
+		}
+	}
+
+	cmd_data_len = iser_ctask->data[cmd_dir].data_len;
+
+	if (cmd_data_len > ISER_KMALLOC_THRESHOLD)
+		free_pages((unsigned long)mem_copy->copy_buf,
+			   long_log2(roundup_pow_of_two(cmd_data_len)) - PAGE_SHIFT);
+	else
+		kfree(mem_copy->copy_buf);
+
+	mem_copy->copy_buf = NULL;
+}
+
+/**
+ * iser_sg_to_page_vec - Translates scatterlist entries to physical addresses
+ * and returns the length of resulting physical address array (may be less than
+ * the original due to possible compaction).
+ *
+ * we build a "page vec" under the assumption that the SG meets the RDMA
+ * alignment requirements. Other then the first and last SG elements, all
+ * the "internal" elements can be compacted into a list whose elements are
+ * dma addresses of physical pages. The code supports also the weird case
+ * where --few fragments of the same page-- are present in the SG as
+ * consecutive elements. Also, it handles one entry SG.
+ */
+static int iser_sg_to_page_vec(struct iser_data_buf *data,
+			       struct iser_page_vec *page_vec)
+{
+	struct scatterlist *sg = (struct scatterlist *)data->buf;
+	dma_addr_t first_addr, last_addr, page;
+	int start_aligned, end_aligned;
+	unsigned int cur_page = 0;
+	unsigned long total_sz = 0;
+	int i;
+
+	/* compute the offset of first element */
+	page_vec->offset = (u64) sg[0].offset;
+
+	for (i = 0; i < data->dma_nents; i++) {
+		total_sz += sg_dma_len(&sg[i]);
+
+		first_addr = sg_dma_address(&sg[i]);
+		last_addr  = first_addr + sg_dma_len(&sg[i]);
+
+		start_aligned = !(first_addr & ~PAGE_MASK);
+		end_aligned   = !(last_addr  & ~PAGE_MASK);
+
+		/* continue to collect page fragments till aligned or SG ends */
+		while (!end_aligned && (i + 1 < data->dma_nents)) {
+			i++;
+			total_sz += sg_dma_len(&sg[i]);
+			last_addr = sg_dma_address(&sg[i]) + sg_dma_len(&sg[i]);
+			end_aligned = !(last_addr  & ~PAGE_MASK);
+		}
+
+		first_addr = first_addr & PAGE_MASK;
+
+		for (page = first_addr; page < last_addr; page += PAGE_SIZE)
+			page_vec->pages[cur_page++] = page;
+
+	}
+	page_vec->data_size = total_sz;
+	iser_dbg("page_vec->data_size:%d cur_page %d\n", page_vec->data_size,cur_page);
+	return cur_page;
+}
+
+#define MASK_4K			((1UL << 12) - 1) /* 0xFFF */
+#define IS_4K_ALIGNED(addr)	((((unsigned long)addr) & MASK_4K) == 0)
+
+/**
+ * iser_data_buf_aligned_len - Tries to determine the maximal correctly aligned
+ * for RDMA sub-list of a scatter-gather list of memory buffers, and  returns
+ * the number of entries which are aligned correctly. Supports the case where
+ * consecutive SG elements are actually fragments of the same physcial page.
+ */
+static unsigned int iser_data_buf_aligned_len(struct iser_data_buf *data)
+{
+	struct scatterlist *sg;
+	dma_addr_t end_addr, next_addr;
+	int i, cnt;
+	unsigned int ret_len = 0;
+
+	sg = (struct scatterlist *)data->buf;
+
+	for (cnt = 0, i = 0; i < data->dma_nents; i++, cnt++) {
+		/* iser_dbg("Checking sg iobuf [%d]: phys=0x%08lX "
+		   "offset: %ld sz: %ld\n", i,
+		   (unsigned long)page_to_phys(sg[i].page),
+		   (unsigned long)sg[i].offset,
+		   (unsigned long)sg[i].length); */
+		end_addr = sg_dma_address(&sg[i]) +
+			   sg_dma_len(&sg[i]);
+		/* iser_dbg("Checking sg iobuf end address "
+		       "0x%08lX\n", end_addr); */
+		if (i + 1 < data->dma_nents) {
+			next_addr = sg_dma_address(&sg[i+1]);
+			/* are i, i+1 fragments of the same page? */
+			if (end_addr == next_addr)
+				continue;
+			else if (!IS_4K_ALIGNED(end_addr)) {
+				ret_len = cnt + 1;
+				break;
+			}
+		}
+	}
+	if (i == data->dma_nents)
+		ret_len = cnt;	/* loop ended */
+	iser_dbg("Found %d aligned entries out of %d in sg:0x%p\n",
+		 ret_len, data->dma_nents, data);
+	return ret_len;
+}
+
+static void iser_data_buf_dump(struct iser_data_buf *data)
+{
+	struct scatterlist *sg = (struct scatterlist *)data->buf;
+	int i;
+
+	for (i = 0; i < data->size; i++)
+		iser_err("sg[%d] dma_addr:0x%lX page:0x%p "
+			 "off:%d sz:%d dma_len:%d\n",
+			 i, (unsigned long)sg_dma_address(&sg[i]),
+			 sg[i].page, sg[i].offset,
+			 sg[i].length,sg_dma_len(&sg[i]));
+}
+
+static void iser_dump_page_vec(struct iser_page_vec *page_vec)
+{
+	int i;
+
+	iser_err("page vec length %d data size %d\n",
+		 page_vec->length, page_vec->data_size);
+	for (i = 0; i < page_vec->length; i++)
+		iser_err("%d %lx\n",i,(unsigned long)page_vec->pages[i]);
+}
+
+static void iser_page_vec_build(struct iser_data_buf *data,
+				struct iser_page_vec *page_vec)
+{
+	int page_vec_len = 0;
+
+	page_vec->length = 0;
+	page_vec->offset = 0;
+
+	iser_dbg("Translating sg sz: %d\n", data->dma_nents);
+	page_vec_len = iser_sg_to_page_vec(data,page_vec);
+	iser_dbg("sg len %d page_vec_len %d\n", data->dma_nents,page_vec_len);
+
+	page_vec->length = page_vec_len;
+
+	if (page_vec_len * PAGE_SIZE < page_vec->data_size) {
+		iser_err("page_vec too short to hold this SG\n");
+		iser_data_buf_dump(data);
+		iser_dump_page_vec(page_vec);
+		BUG();
+	}
+}
+
+/**
+ * iser_reg_rdma_mem - Registers memory intended for RDMA,
+ * obtaining rkey and va
+ *
+ * returns 0 on success, errno code on failure
+ */
+int iser_reg_rdma_mem(struct iscsi_iser_cmd_task *iser_ctask,
+		      enum   iser_data_dir        cmd_dir)
+{
+	struct iser_conn     *ib_conn = iser_ctask->iser_conn->ib_conn;
+	struct iser_data_buf *mem = &iser_ctask->data[cmd_dir];
+	struct iser_regd_buf *regd_buf;
+	int aligned_len;
+	int err;
+
+	regd_buf = &iser_ctask->rdma_regd[cmd_dir];
+
+	aligned_len = iser_data_buf_aligned_len(mem);
+	if (aligned_len != mem->size) {
+		iser_err("rdma alignment violation %d/%d aligned\n",
+			 aligned_len, mem->size);
+		iser_data_buf_dump(mem);
+		/* allocate copy buf, if we are writing, copy the */
+		/* unaligned scatterlist, dma map the copy        */
+		if (iser_start_rdma_unaligned_sg(iser_ctask, cmd_dir) != 0)
+				return -ENOMEM;
+		mem = &iser_ctask->data_copy[cmd_dir];
+	}
+
+	iser_page_vec_build(mem, ib_conn->page_vec);
+	err = iser_reg_page_vec(ib_conn, ib_conn->page_vec, &regd_buf->reg);
+	if (err)
+		return err;
+
+	/* take a reference on this regd buf such that it will not be released *
+	 * (eg in send dto completion) before we get the scsi response         */
+	atomic_inc(&regd_buf->ref_count);
+	return 0;
+}

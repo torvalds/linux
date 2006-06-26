@@ -11,6 +11,8 @@ struct pxaohci_platform_data {
 #define PMM_NPS_MODE           1
 #define PMM_GLOBAL_MODE        2
 #define PMM_PERPORT_MODE       3
+
+	int power_budget;
 };
 
 extern void pxa_set_ohci_info(struct pxaohci_platform_data *info);

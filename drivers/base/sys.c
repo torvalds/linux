@@ -80,10 +80,59 @@ void sysdev_remove_file(struct sys_device * s, struct sysdev_attribute * a)
 EXPORT_SYMBOL_GPL(sysdev_create_file);
 EXPORT_SYMBOL_GPL(sysdev_remove_file);
 
+#define to_sysdev_class(k) container_of(k, struct sysdev_class, kset.kobj)
+#define to_sysdev_class_attr(a) container_of(a, \
+	struct sysdev_class_attribute, attr)
+
+static ssize_t sysdev_class_show(struct kobject *kobj, struct attribute *attr,
+				 char *buffer)
+{
+	struct sysdev_class * class = to_sysdev_class(kobj);
+	struct sysdev_class_attribute *class_attr = to_sysdev_class_attr(attr);
+
+	if (class_attr->show)
+		return class_attr->show(class, buffer);
+	return -EIO;
+}
+
+static ssize_t sysdev_class_store(struct kobject *kobj, struct attribute *attr,
+				  const char *buffer, size_t count)
+{
+	struct sysdev_class * class = to_sysdev_class(kobj);
+	struct sysdev_class_attribute * class_attr = to_sysdev_class_attr(attr);
+
+	if (class_attr->store)
+		return class_attr->store(class, buffer, count);
+	return -EIO;
+}
+
+static struct sysfs_ops sysfs_class_ops = {
+	.show	= sysdev_class_show,
+	.store	= sysdev_class_store,
+};
+
+static struct kobj_type ktype_sysdev_class = {
+	.sysfs_ops	= &sysfs_class_ops,
+};
+
+int sysdev_class_create_file(struct sysdev_class *c,
+			     struct sysdev_class_attribute *a)
+{
+	return sysfs_create_file(&c->kset.kobj, &a->attr);
+}
+EXPORT_SYMBOL_GPL(sysdev_class_create_file);
+
+void sysdev_class_remove_file(struct sysdev_class *c,
+			      struct sysdev_class_attribute *a)
+{
+	sysfs_remove_file(&c->kset.kobj, &a->attr);
+}
+EXPORT_SYMBOL_GPL(sysdev_class_remove_file);
+
 /*
  * declare system_subsys
  */
-static decl_subsys(system, &ktype_sysdev, NULL);
+static decl_subsys(system, &ktype_sysdev_class, NULL);
 
 int sysdev_class_register(struct sysdev_class * cls)
 {

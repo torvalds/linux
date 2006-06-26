@@ -625,7 +625,7 @@ static struct proc_dir_entry * irq_dir [NR_IRQS];
 
 #define HEX_DIGITS 8
 
-static unsigned int parse_hex_value (const char *buffer,
+static unsigned int parse_hex_value (const char __user *buffer,
 				     unsigned long count, unsigned long *ret)
 {
 	unsigned char hexnum [HEX_DIGITS];
@@ -672,7 +672,7 @@ static int prof_cpu_mask_read_proc (char *page, char **start, off_t off,
 	return sprintf (page, "%08lx\n", *mask);
 }
 
-static int prof_cpu_mask_write_proc (struct file *file, const char *buffer,
+static int prof_cpu_mask_write_proc (struct file *file, const char __user *buffer,
 					unsigned long count, void *data)
 {
 	unsigned long *mask = (unsigned long *) data, full_count = count, err;
@@ -711,7 +711,7 @@ void init_irq_proc (void)
 	int i;
 
 	/* create /proc/irq */
-	root_irq_dir = proc_mkdir("irq", 0);
+	root_irq_dir = proc_mkdir("irq", NULL);
 
 	/* create /proc/irq/prof_cpu_mask */
 	entry = create_proc_entry("prof_cpu_mask", 0600, root_irq_dir);

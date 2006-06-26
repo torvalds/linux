@@ -42,8 +42,8 @@ union irq_ctx {
 	u32                     stack[THREAD_SIZE/sizeof(u32)];
 };
 
-static union irq_ctx *hardirq_ctx[NR_CPUS];
-static union irq_ctx *softirq_ctx[NR_CPUS];
+static union irq_ctx *hardirq_ctx[NR_CPUS] __read_mostly;
+static union irq_ctx *softirq_ctx[NR_CPUS] __read_mostly;
 #endif
 
 /*
@@ -94,6 +94,14 @@ fastcall unsigned int do_IRQ(struct pt_regs *regs)
 		isp = (u32*) ((char*)irqctx + sizeof(*irqctx));
 		irqctx->tinfo.task = curctx->tinfo.task;
 		irqctx->tinfo.previous_esp = current_stack_pointer;
+
+		/*
+		 * Copy the softirq bits in preempt_count so that the
+		 * softirq checks work in the hardirq context.
+		 */
+		irqctx->tinfo.preempt_count =
+			irqctx->tinfo.preempt_count & ~SOFTIRQ_MASK |
+			curctx->tinfo.preempt_count & SOFTIRQ_MASK;
 
 		asm volatile(
 			"       xchgl   %%ebx,%%esp      \n"

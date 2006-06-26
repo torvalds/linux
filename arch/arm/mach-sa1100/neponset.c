@@ -59,6 +59,14 @@ neponset_irq_handler(unsigned int irq, struct irqdesc *desc, struct pt_regs *reg
 		if (irr & (IRR_ETHERNET | IRR_USAR)) {
 			desc->chip->mask(irq);
 
+			/*
+			 * Ack the interrupt now to prevent re-entering
+			 * this neponset handler.  Again, this is safe
+			 * since we'll check the IRR register prior to
+			 * leaving.
+			 */
+			desc->chip->ack(irq);
+
 			if (irr & IRR_ETHERNET) {
 				d = irq_desc + IRQ_NEPONSET_SMC9196;
 				desc_handle_irq(IRQ_NEPONSET_SMC9196, d, regs);

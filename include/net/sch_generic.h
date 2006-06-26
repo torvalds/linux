@@ -1,7 +1,6 @@
 #ifndef __NET_SCHED_GENERIC_H
 #define __NET_SCHED_GENERIC_H
 
-#include <linux/config.h>
 #include <linux/netdevice.h>
 #include <linux/types.h>
 #include <linux/rcupdate.h>

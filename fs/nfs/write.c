@@ -98,11 +98,10 @@ struct nfs_write_data *nfs_commit_alloc(unsigned int pagecount)
 	if (p) {
 		memset(p, 0, sizeof(*p));
 		INIT_LIST_HEAD(&p->pages);
-		if (pagecount < NFS_PAGEVEC_SIZE)
-			p->pagevec = &p->page_array[0];
+		if (pagecount <= ARRAY_SIZE(p->page_array))
+			p->pagevec = p->page_array;
 		else {
-			size_t size = ++pagecount * sizeof(struct page *);
-			p->pagevec = kzalloc(size, GFP_NOFS);
+			p->pagevec = kcalloc(pagecount, sizeof(struct page *), GFP_NOFS);
 			if (!p->pagevec) {
 				mempool_free(p, nfs_commit_mempool);
 				p = NULL;
@@ -126,14 +125,11 @@ struct nfs_write_data *nfs_writedata_alloc(unsigned int pagecount)
 	if (p) {
 		memset(p, 0, sizeof(*p));
 		INIT_LIST_HEAD(&p->pages);
-		if (pagecount < NFS_PAGEVEC_SIZE)
-			p->pagevec = &p->page_array[0];
+		if (pagecount <= ARRAY_SIZE(p->page_array))
+			p->pagevec = p->page_array;
 		else {
-			size_t size = ++pagecount * sizeof(struct page *);
-			p->pagevec = kmalloc(size, GFP_NOFS);
-			if (p->pagevec) {
-				memset(p->pagevec, 0, size);
-			} else {
+			p->pagevec = kcalloc(pagecount, sizeof(struct page *), GFP_NOFS);
+			if (!p->pagevec) {
 				mempool_free(p, nfs_wdata_mempool);
 				p = NULL;
 			}
@@ -583,6 +579,17 @@ static int nfs_wait_on_requests(struct inode *inode, unsigned long idx_start, un
 	return ret;
 }
 
+static void nfs_cancel_requests(struct list_head *head)
+{
+	struct nfs_page *req;
+	while(!list_empty(head)) {
+		req = nfs_list_entry(head->next);
+		nfs_list_remove_request(req);
+		nfs_inode_remove_request(req);
+		nfs_clear_page_writeback(req);
+	}
+}
+
 /*
  * nfs_scan_dirty - Scan an inode for dirty requests
  * @inode: NFS inode to scan
@@ -627,7 +634,7 @@ nfs_scan_commit(struct inode *inode, struct list_head *dst, unsigned long idx_st
 	int res = 0;
 
 	if (nfsi->ncommit != 0) {
-		res = nfs_scan_list(&nfsi->commit, dst, idx_start, npages);
+		res = nfs_scan_list(nfsi, &nfsi->commit, dst, idx_start, npages);
 		nfsi->ncommit -= res;
 		if ((nfsi->ncommit == 0) != list_empty(&nfsi->commit))
 			printk(KERN_ERR "NFS: desynchronized value of nfs_i.ncommit.\n");
@@ -1495,15 +1502,25 @@ int nfs_sync_inode_wait(struct inode *inode, unsigned long idx_start,
 		pages = nfs_scan_dirty(inode, &head, idx_start, npages);
 		if (pages != 0) {
 			spin_unlock(&nfsi->req_lock);
-			ret = nfs_flush_list(inode, &head, pages, how);
+			if (how & FLUSH_INVALIDATE)
+				nfs_cancel_requests(&head);
+			else
+				ret = nfs_flush_list(inode, &head, pages, how);
 			spin_lock(&nfsi->req_lock);
 			continue;
 		}
 		if (nocommit)
 			break;
-		pages = nfs_scan_commit(inode, &head, 0, 0);
+		pages = nfs_scan_commit(inode, &head, idx_start, npages);
 		if (pages == 0)
 			break;
+		if (how & FLUSH_INVALIDATE) {
+			spin_unlock(&nfsi->req_lock);
+			nfs_cancel_requests(&head);
+			spin_lock(&nfsi->req_lock);
+			continue;
+		}
+		pages += nfs_scan_commit(inode, &head, 0, 0);
 		spin_unlock(&nfsi->req_lock);
 		ret = nfs_commit_list(inode, &head, how);
 		spin_lock(&nfsi->req_lock);
@@ -1512,7 +1529,7 @@ int nfs_sync_inode_wait(struct inode *inode, unsigned long idx_start,
 	return ret;
 }
 
-int nfs_init_writepagecache(void)
+int __init nfs_init_writepagecache(void)
 {
 	nfs_wdata_cachep = kmem_cache_create("nfs_write_data",
 					     sizeof(struct nfs_write_data),
@@ -1534,7 +1551,7 @@ int nfs_init_writepagecache(void)
 	return 0;
 }
 
-void nfs_destroy_writepagecache(void)
+void __exit nfs_destroy_writepagecache(void)
 {
 	mempool_destroy(nfs_commit_mempool);
 	mempool_destroy(nfs_wdata_mempool);

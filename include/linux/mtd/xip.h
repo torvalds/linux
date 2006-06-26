@@ -18,7 +18,6 @@
 #ifndef __LINUX_MTD_XIP_H__
 #define __LINUX_MTD_XIP_H__
 
-#include <linux/config.h>
 
 #ifdef CONFIG_MTD_XIP
 

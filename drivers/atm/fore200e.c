@@ -167,13 +167,9 @@ fore200e_atm2fore_aal(int aal)
 static char*
 fore200e_irq_itoa(int irq)
 {
-#if defined(__sparc_v9__)
-    return __irq_itoa(irq);
-#else
     static char str[8];
     sprintf(str, "%d", irq);
     return str;
-#endif
 }
 
 

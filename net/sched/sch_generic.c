@@ -72,9 +72,9 @@ void qdisc_unlock_tree(struct net_device *dev)
    dev->queue_lock serializes queue accesses for this device
    AND dev->qdisc pointer itself.
 
-   dev->xmit_lock serializes accesses to device driver.
+   netif_tx_lock serializes accesses to device driver.
 
-   dev->queue_lock and dev->xmit_lock are mutually exclusive,
+   dev->queue_lock and netif_tx_lock are mutually exclusive,
    if one is grabbed, another must be free.
  */
 
@@ -90,14 +90,17 @@ void qdisc_unlock_tree(struct net_device *dev)
    NOTE: Called under dev->queue_lock with locally disabled BH.
 */
 
-int qdisc_restart(struct net_device *dev)
+static inline int qdisc_restart(struct net_device *dev)
 {
 	struct Qdisc *q = dev->qdisc;
 	struct sk_buff *skb;
 
 	/* Dequeue packet */
-	if ((skb = q->dequeue(q)) != NULL) {
+	if (((skb = dev->gso_skb)) || ((skb = q->dequeue(q)))) {
 		unsigned nolock = (dev->features & NETIF_F_LLTX);
+
+		dev->gso_skb = NULL;
+
 		/*
 		 * When the driver has LLTX set it does its own locking
 		 * in start_xmit. No need to add additional overhead by
@@ -108,7 +111,7 @@ int qdisc_restart(struct net_device *dev)
 		 * will be requeued.
 		 */
 		if (!nolock) {
-			if (!spin_trylock(&dev->xmit_lock)) {
+			if (!netif_tx_trylock(dev)) {
 			collision:
 				/* So, someone grabbed the driver. */
 				
@@ -126,8 +129,6 @@ int qdisc_restart(struct net_device *dev)
 				__get_cpu_var(netdev_rx_stat).cpu_collision++;
 				goto requeue;
 			}
-			/* Remember that the driver is grabbed by us. */
-			dev->xmit_lock_owner = smp_processor_id();
 		}
 		
 		{
@@ -136,14 +137,11 @@ int qdisc_restart(struct net_device *dev)
 
 			if (!netif_queue_stopped(dev)) {
 				int ret;
-				if (netdev_nit)
-					dev_queue_xmit_nit(skb, dev);
 
-				ret = dev->hard_start_xmit(skb, dev);
+				ret = dev_hard_start_xmit(skb, dev);
 				if (ret == NETDEV_TX_OK) { 
 					if (!nolock) {
-						dev->xmit_lock_owner = -1;
-						spin_unlock(&dev->xmit_lock);
+						netif_tx_unlock(dev);
 					}
 					spin_lock(&dev->queue_lock);
 					return -1;
@@ -157,8 +155,7 @@ int qdisc_restart(struct net_device *dev)
 			/* NETDEV_TX_BUSY - we need to requeue */
 			/* Release the driver */
 			if (!nolock) { 
-				dev->xmit_lock_owner = -1;
-				spin_unlock(&dev->xmit_lock);
+				netif_tx_unlock(dev);
 			} 
 			spin_lock(&dev->queue_lock);
 			q = dev->qdisc;
@@ -175,7 +172,10 @@ int qdisc_restart(struct net_device *dev)
 		 */
 
 requeue:
-		q->ops->requeue(skb, q);
+		if (skb->next)
+			dev->gso_skb = skb;
+		else
+			q->ops->requeue(skb, q);
 		netif_schedule(dev);
 		return 1;
 	}
@@ -183,11 +183,23 @@ requeue:
 	return q->q.qlen;
 }
 
+void __qdisc_run(struct net_device *dev)
+{
+	if (unlikely(dev->qdisc == &noop_qdisc))
+		goto out;
+
+	while (qdisc_restart(dev) < 0 && !netif_queue_stopped(dev))
+		/* NOTHING */;
+
+out:
+	clear_bit(__LINK_STATE_QDISC_RUNNING, &dev->state);
+}
+
 static void dev_watchdog(unsigned long arg)
 {
 	struct net_device *dev = (struct net_device *)arg;
 
-	spin_lock(&dev->xmit_lock);
+	netif_tx_lock(dev);
 	if (dev->qdisc != &noop_qdisc) {
 		if (netif_device_present(dev) &&
 		    netif_running(dev) &&
@@ -203,7 +215,7 @@ static void dev_watchdog(unsigned long arg)
 				dev_hold(dev);
 		}
 	}
-	spin_unlock(&dev->xmit_lock);
+	netif_tx_unlock(dev);
 
 	dev_put(dev);
 }
@@ -227,17 +239,17 @@ void __netdev_watchdog_up(struct net_device *dev)
 
 static void dev_watchdog_up(struct net_device *dev)
 {
-	spin_lock_bh(&dev->xmit_lock);
+	netif_tx_lock_bh(dev);
 	__netdev_watchdog_up(dev);
-	spin_unlock_bh(&dev->xmit_lock);
+	netif_tx_unlock_bh(dev);
 }
 
 static void dev_watchdog_down(struct net_device *dev)
 {
-	spin_lock_bh(&dev->xmit_lock);
+	netif_tx_lock_bh(dev);
 	if (del_timer(&dev->watchdog_timer))
 		dev_put(dev);
-	spin_unlock_bh(&dev->xmit_lock);
+	netif_tx_unlock_bh(dev);
 }
 
 void netif_carrier_on(struct net_device *dev)
@@ -579,10 +591,17 @@ void dev_deactivate(struct net_device *dev)
 
 	dev_watchdog_down(dev);
 
-	while (test_bit(__LINK_STATE_SCHED, &dev->state))
+	/* Wait for outstanding dev_queue_xmit calls. */
+	synchronize_rcu();
+
+	/* Wait for outstanding qdisc_run calls. */
+	while (test_bit(__LINK_STATE_QDISC_RUNNING, &dev->state))
 		yield();
 
-	spin_unlock_wait(&dev->xmit_lock);
+	if (dev->gso_skb) {
+		kfree_skb(dev->gso_skb);
+		dev->gso_skb = NULL;
+	}
 }
 
 void dev_init_scheduler(struct net_device *dev)
@@ -624,6 +643,5 @@ EXPORT_SYMBOL(qdisc_create_dflt);
 EXPORT_SYMBOL(qdisc_alloc);
 EXPORT_SYMBOL(qdisc_destroy);
 EXPORT_SYMBOL(qdisc_reset);
-EXPORT_SYMBOL(qdisc_restart);
 EXPORT_SYMBOL(qdisc_lock_tree);
 EXPORT_SYMBOL(qdisc_unlock_tree);

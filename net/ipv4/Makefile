@@ -24,6 +24,8 @@ obj-$(CONFIG_INET_ESP) += esp4.o
 obj-$(CONFIG_INET_IPCOMP) += ipcomp.o
 obj-$(CONFIG_INET_XFRM_TUNNEL) += xfrm4_tunnel.o
 obj-$(CONFIG_INET_TUNNEL) += tunnel4.o
+obj-$(CONFIG_INET_XFRM_MODE_TRANSPORT) += xfrm4_mode_transport.o
+obj-$(CONFIG_INET_XFRM_MODE_TUNNEL) += xfrm4_mode_tunnel.o
 obj-$(CONFIG_IP_PNP) += ipconfig.o
 obj-$(CONFIG_IP_ROUTE_MULTIPATH_RR) += multipath_rr.o
 obj-$(CONFIG_IP_ROUTE_MULTIPATH_RANDOM) += multipath_random.o
@@ -34,6 +36,7 @@ obj-$(CONFIG_IP_VS) += ipvs/
 obj-$(CONFIG_INET_DIAG) += inet_diag.o 
 obj-$(CONFIG_IP_ROUTE_MULTIPATH_CACHED) += multipath.o
 obj-$(CONFIG_INET_TCP_DIAG) += tcp_diag.o
+obj-$(CONFIG_NET_TCPPROBE) += tcp_probe.o
 obj-$(CONFIG_TCP_CONG_BIC) += tcp_bic.o
 obj-$(CONFIG_TCP_CONG_CUBIC) += tcp_cubic.o
 obj-$(CONFIG_TCP_CONG_WESTWOOD) += tcp_westwood.o
@@ -41,7 +44,10 @@ obj-$(CONFIG_TCP_CONG_HSTCP) += tcp_highspeed.o
 obj-$(CONFIG_TCP_CONG_HYBLA) += tcp_hybla.o
 obj-$(CONFIG_TCP_CONG_HTCP) += tcp_htcp.o
 obj-$(CONFIG_TCP_CONG_VEGAS) += tcp_vegas.o
+obj-$(CONFIG_TCP_CONG_VENO) += tcp_veno.o
 obj-$(CONFIG_TCP_CONG_SCALABLE) += tcp_scalable.o
+obj-$(CONFIG_TCP_CONG_LP) += tcp_lp.o
+obj-$(CONFIG_TCP_CONG_COMPOUND) += tcp_compound.o
 
 obj-$(CONFIG_XFRM) += xfrm4_policy.o xfrm4_state.o xfrm4_input.o \
 		      xfrm4_output.o

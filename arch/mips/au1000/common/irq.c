@@ -68,6 +68,7 @@
 
 extern void set_debug_traps(void);
 extern irq_cpustat_t irq_stat [NR_CPUS];
+extern void mips_timer_interrupt(struct pt_regs *regs);
 
 static void setup_local_irq(unsigned int irq, int type, int int_req);
 static unsigned int startup_irq(unsigned int irq);

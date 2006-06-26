@@ -198,12 +198,6 @@ static u32 bictcp_undo_cwnd(struct sock *sk)
 	return max(tp->snd_cwnd, ca->last_max_cwnd);
 }
 
-static u32 bictcp_min_cwnd(struct sock *sk)
-{
-	const struct tcp_sock *tp = tcp_sk(sk);
-	return tp->snd_ssthresh;
-}
-
 static void bictcp_state(struct sock *sk, u8 new_state)
 {
 	if (new_state == TCP_CA_Loss)
@@ -231,7 +225,6 @@ static struct tcp_congestion_ops bictcp = {
 	.cong_avoid	= bictcp_cong_avoid,
 	.set_state	= bictcp_state,
 	.undo_cwnd	= bictcp_undo_cwnd,
-	.min_cwnd	= bictcp_min_cwnd,
 	.pkts_acked     = bictcp_acked,
 	.owner		= THIS_MODULE,
 	.name		= "bic",

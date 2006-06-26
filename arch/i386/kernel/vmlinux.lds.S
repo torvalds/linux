@@ -37,6 +37,13 @@ SECTIONS
 
   RODATA
 
+  . = ALIGN(4);
+  __tracedata_start = .;
+  .tracedata : AT(ADDR(.tracedata) - LOAD_OFFSET) {
+	*(.tracedata)
+  }
+  __tracedata_end = .;
+
   /* writeable */
   .data : AT(ADDR(.data) - LOAD_OFFSET) {	/* Data */
 	*(.data)

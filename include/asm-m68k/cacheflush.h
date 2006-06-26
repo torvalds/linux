@@ -3,26 +3,30 @@
 
 #include <linux/mm.h>
 
+/* cache code */
+#define FLUSH_I_AND_D	(0x00000808)
+#define FLUSH_I		(0x00000008)
+
 /*
  * Cache handling functions
  */
 
-#define flush_icache()						\
-({								\
-	if (CPU_IS_040_OR_060)					\
-		__asm__ __volatile__("nop\n\t"			\
-				     ".chip 68040\n\t"		\
-				     "cinva %%ic\n\t"		\
-				     ".chip 68k" : );		\
-	else {							\
-		unsigned long _tmp;				\
-		__asm__ __volatile__("movec %%cacr,%0\n\t"	\
-				     "orw %1,%0\n\t"		\
-				     "movec %0,%%cacr"		\
-				     : "=&d" (_tmp)		\
-				     : "id" (FLUSH_I));	\
-	}							\
-})
+static inline void flush_icache(void)
+{
+	if (CPU_IS_040_OR_060)
+		asm volatile (	"nop\n"
+			"	.chip	68040\n"
+			"	cpusha	%bc\n"
+			"	.chip	68k");
+	else {
+		unsigned long tmp;
+		asm volatile (	"movec	%%cacr,%0\n"
+			"	or.w	%1,%0\n"
+			"	movec	%0,%%cacr"
+			: "=&d" (tmp)
+			: "id" (FLUSH_I));
+	}
+}
 
 /*
  * invalidate the cache for the specified memory range.
@@ -42,10 +46,6 @@ extern void cache_push(unsigned long paddr, int len);
  * memory range.
  */
 extern void cache_push_v(unsigned long vaddr, int len);
-
-/* cache code */
-#define FLUSH_I_AND_D	(0x00000808)
-#define FLUSH_I		(0x00000008)
 
 /* This is needed whenever the virtual mapping of the current
    process changes.  */

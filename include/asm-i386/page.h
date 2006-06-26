@@ -12,7 +12,6 @@
 #ifdef __KERNEL__
 #ifndef __ASSEMBLY__
 
-#include <linux/config.h>
 
 #ifdef CONFIG_X86_USE_3DNOW
 
@@ -137,9 +136,9 @@ extern int page_is_ram(unsigned long pagenr);
 	((current->personality & READ_IMPLIES_EXEC) ? VM_EXEC : 0 ) | \
 		 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
 
-#endif /* __KERNEL__ */
-
 #include <asm-generic/memory_model.h>
 #include <asm-generic/page.h>
+
+#endif /* __KERNEL__ */
 
 #endif /* _I386_PAGE_H */

@@ -119,7 +119,7 @@ XFS_DQ_IS_LOCKED(xfs_dquot_t *dqp)
  */
 #define xfs_dqflock(dqp)	 { psema(&((dqp)->q_flock), PINOD | PRECALC);\
 				   (dqp)->dq_flags |= XFS_DQ_FLOCKED; }
-#define xfs_dqfunlock(dqp)	 { ASSERT(valusema(&((dqp)->q_flock)) <= 0); \
+#define xfs_dqfunlock(dqp)	 { ASSERT(issemalocked(&((dqp)->q_flock))); \
 				   vsema(&((dqp)->q_flock)); \
 				   (dqp)->dq_flags &= ~(XFS_DQ_FLOCKED); }
 
@@ -128,7 +128,7 @@ XFS_DQ_IS_LOCKED(xfs_dquot_t *dqp)
 #define XFS_DQ_PINUNLOCK(dqp, s)   mutex_spinunlock( \
 				     &(XFS_DQ_TO_QINF(dqp)->qi_pinlock), s)
 
-#define XFS_DQ_IS_FLUSH_LOCKED(dqp) (valusema(&((dqp)->q_flock)) <= 0)
+#define XFS_DQ_IS_FLUSH_LOCKED(dqp) (issemalocked(&((dqp)->q_flock)))
 #define XFS_DQ_IS_ON_FREELIST(dqp)  ((dqp)->dq_flnext != (dqp))
 #define XFS_DQ_IS_DIRTY(dqp)	((dqp)->dq_flags & XFS_DQ_DIRTY)
 #define XFS_QM_ISUDQ(dqp)	((dqp)->dq_flags & XFS_DQ_USER)

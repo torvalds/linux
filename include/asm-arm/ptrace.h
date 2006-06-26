@@ -10,7 +10,6 @@
 #ifndef __ASM_ARM_PTRACE_H
 #define __ASM_ARM_PTRACE_H
 
-#include <linux/config.h>
 
 #define PTRACE_GETREGS		12
 #define PTRACE_SETREGS		13

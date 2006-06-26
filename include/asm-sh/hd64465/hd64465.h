@@ -11,7 +11,6 @@
  * Derived from <asm/hd64461.h> which bore the message:
  * Copyright (C) 2000 YAEGASHI Takeshi
  */
-#include <linux/config.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 

@@ -174,7 +174,6 @@ enum {
 
 struct mthca_cmd_context {
 	struct completion done;
-	struct timer_list timer;
 	int               result;
 	int               next;
 	u64               out_param;
@@ -362,15 +361,6 @@ void mthca_cmd_event(struct mthca_dev *dev,
 	complete(&context->done);
 }
 
-static void event_timeout(unsigned long context_ptr)
-{
-	struct mthca_cmd_context *context =
-		(struct mthca_cmd_context *) context_ptr;
-
-	context->result = -EBUSY;
-	complete(&context->done);
-}
-
 static int mthca_cmd_wait(struct mthca_dev *dev,
 			  u64 in_param,
 			  u64 *out_param,
@@ -401,11 +391,10 @@ static int mthca_cmd_wait(struct mthca_dev *dev,
 	if (err)
 		goto out;
 
-	context->timer.expires  = jiffies + timeout;
-	add_timer(&context->timer);
-
-	wait_for_completion(&context->done);
-	del_timer_sync(&context->timer);
+	if (!wait_for_completion_timeout(&context->done, timeout)) {
+		err = -EBUSY;
+		goto out;
+	}
 
 	err = context->result;
 	if (err)
@@ -535,10 +524,6 @@ int mthca_cmd_use_events(struct mthca_dev *dev)
 	for (i = 0; i < dev->cmd.max_cmds; ++i) {
 		dev->cmd.context[i].token = i;
 		dev->cmd.context[i].next = i + 1;
-		init_timer(&dev->cmd.context[i].timer);
-		dev->cmd.context[i].timer.data     =
-			(unsigned long) &dev->cmd.context[i];
-		dev->cmd.context[i].timer.function = event_timeout;
 	}
 
 	dev->cmd.context[dev->cmd.max_cmds - 1].next = -1;

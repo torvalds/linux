@@ -1,7 +1,6 @@
 #ifndef __I386_SCHED_H
 #define __I386_SCHED_H
 
-#include <linux/config.h>
 #include <asm/desc.h>
 #include <asm/atomic.h>
 #include <asm/pgalloc.h>

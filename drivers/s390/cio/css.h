@@ -45,11 +45,11 @@ struct pgid {
 	union {
 		__u8 fc;   	/* SPID function code */
 		struct path_state ps;	/* SNID path state */
-	} inf;
+	} __attribute__ ((packed)) inf;
 	union {
 		__u32 cpu_addr	: 16;	/* CPU address */
 		struct extended_cssid ext_cssid;
-	} pgid_high;
+	} __attribute__ ((packed)) pgid_high;
 	__u32 cpu_id	: 24;	/* CPU identification */
 	__u32 cpu_model : 16;	/* CPU model */
 	__u32 tod_high;		/* high word TOD clock */

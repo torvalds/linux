@@ -11,7 +11,6 @@
 
 #ifdef __KERNEL__
 
-#include <linux/config.h>
 #include <linux/in.h>
 #include <linux/fs.h>
 #include <linux/kref.h>
@@ -50,11 +49,12 @@ struct nlm_host {
 				h_killed     : 1,
 				h_monitored  : 1;
 	wait_queue_head_t	h_gracewait;	/* wait while reclaiming */
+	struct rw_semaphore	h_rwsem;	/* Reboot recovery lock */
 	u32			h_state;	/* pseudo-state counter */
 	u32			h_nsmstate;	/* true remote NSM state */
 	u32			h_pidcount;	/* Pseudopids */
 	atomic_t		h_count;	/* reference count */
-	struct semaphore	h_sema;		/* mutex for pmap binding */
+	struct mutex		h_mutex;	/* mutex for pmap binding */
 	unsigned long		h_nextrebind;	/* next portmap call */
 	unsigned long		h_expires;	/* eligible for GC */
 	struct list_head	h_lockowners;	/* Lockowners for the client */
@@ -220,6 +220,7 @@ static __inline__ int
 nlm_compare_locks(const struct file_lock *fl1, const struct file_lock *fl2)
 {
 	return	fl1->fl_pid   == fl2->fl_pid
+	     && fl1->fl_owner == fl2->fl_owner
 	     && fl1->fl_start == fl2->fl_start
 	     && fl1->fl_end   == fl2->fl_end
 	     &&(fl1->fl_type  == fl2->fl_type || fl2->fl_type == F_UNLCK);

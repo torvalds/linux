@@ -134,7 +134,8 @@ static int udp_error(struct sk_buff *skb, unsigned int dataoff,
 	 * because the semantic of CHECKSUM_HW is different there
 	 * and moreover root might send raw packets.
 	 * FIXME: Source route IP option packets --RR */
-	if (((pf == PF_INET && hooknum == NF_IP_PRE_ROUTING) ||
+	if (nf_conntrack_checksum &&
+	    ((pf == PF_INET && hooknum == NF_IP_PRE_ROUTING) ||
 	     (pf == PF_INET6 && hooknum == NF_IP6_PRE_ROUTING)) &&
 	    nf_checksum(skb, hooknum, dataoff, IPPROTO_UDP, pf)) {
 		if (LOG_INVALID(IPPROTO_UDP))

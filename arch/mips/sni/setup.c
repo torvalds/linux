@@ -21,8 +21,11 @@
 #include <linux/fb.h>
 #include <linux/tty.h>
 
+#ifdef CONFIG_ARC
 #include <asm/arc/types.h>
 #include <asm/sgialib.h>
+#endif
+
 #include <asm/bcache.h>
 #include <asm/bootinfo.h>
 #include <asm/io.h>
@@ -72,8 +75,7 @@ static inline void sni_pcimt_detect(void)
 
 static void __init sni_display_setup(void)
 {
-#ifdef CONFIG_VT
-#if defined(CONFIG_VGA_CONSOLE)
+#if defined(CONFIG_VT) && defined(CONFIG_VGA_CONSOLE) && defined(CONFIG_ARC)
 	struct screen_info *si = &screen_info;
 	DISPLAY_STATUS *di;
 
@@ -88,24 +90,54 @@ static void __init sni_display_setup(void)
 		si->orig_video_points	= 16;
 	}
 #endif
-#endif
 }
 
 static struct resource sni_io_resource = {
-	"PCIMT IO MEM", 0x00001000UL, 0x03bfffffUL, IORESOURCE_IO,
+	.start	= 0x00001000UL,
+	.end	= 0x03bfffffUL,
+	.name	= "PCIMT IO MEM",
+	.flags	= IORESOURCE_IO,
 };
 
 static struct resource pcimt_io_resources[] = {
-	{ "dma1", 0x00, 0x1f, IORESOURCE_BUSY },
-	{ "timer", 0x40, 0x5f, IORESOURCE_BUSY },
-	{ "keyboard", 0x60, 0x6f, IORESOURCE_BUSY },
-	{ "dma page reg", 0x80, 0x8f, IORESOURCE_BUSY },
-	{ "dma2", 0xc0, 0xdf, IORESOURCE_BUSY },
-	{ "PCI config data", 0xcfc, 0xcff, IORESOURCE_BUSY }
+	{
+		.start	= 0x00,
+		.end	= 0x1f,
+		.name	= "dma1",
+		.flags	= IORESOURCE_BUSY
+	}, {
+		.start	=  0x40,
+		.end	= 0x5f,
+		.name	= "timer",
+		.flags	= IORESOURCE_BUSY
+	}, {
+		.start	=  0x60,
+		.end	= 0x6f,
+		.name	= "keyboard",
+		.flags	= IORESOURCE_BUSY
+	}, {
+		.start	=  0x80,
+		.end	= 0x8f,
+		.name	= "dma page reg",
+		.flags	= IORESOURCE_BUSY
+	}, {
+		.start	=  0xc0,
+		.end	= 0xdf,
+		.name	= "dma2",
+		.flags	= IORESOURCE_BUSY
+	}, {
+		.start	=  0xcfc,
+		.end	= 0xcff,
+		.name	= "PCI config data",
+		.flags	= IORESOURCE_BUSY
+	}
 };
 
 static struct resource sni_mem_resource = {
-	"PCIMT PCI MEM", 0x10000000UL, 0xffffffffUL, IORESOURCE_MEM
+	.start	= 0x10000000UL,
+	.end	= 0xffffffffUL,
+	.name	= "PCIMT PCI MEM",
+	.flags	= IORESOURCE_MEM
 };
 
 /*
@@ -122,19 +154,72 @@ static struct resource sni_mem_resource = {
  * 0xa0000000 - 0xffffffff (1.5GB) PCI/EISA Bus Memory
  */
 static struct resource pcimt_mem_resources[] = {
-	{ "Video RAM area", 0x100a0000, 0x100bffff, IORESOURCE_BUSY },
-	{ "ISA Reserved", 0x100c0000, 0x100fffff, IORESOURCE_BUSY },
-	{ "PCI IO", 0x14000000, 0x17bfffff, IORESOURCE_BUSY },
-	{ "Cache Replacement Area", 0x17c00000, 0x17ffffff, IORESOURCE_BUSY},
-	{ "PCI INT Acknowledge", 0x1a000000, 0x1a000003, IORESOURCE_BUSY },
-	{ "Boot PROM", 0x1fc00000, 0x1fc7ffff, IORESOURCE_BUSY},
-	{ "Diag PROM", 0x1fc80000, 0x1fcfffff, IORESOURCE_BUSY},
-	{ "X-Bus", 0x1fd00000, 0x1fdfffff, IORESOURCE_BUSY},
-	{ "BIOS map", 0x1fe00000, 0x1fefffff, IORESOURCE_BUSY},
-	{ "NVRAM / EEPROM", 0x1ff00000, 0x1ff7ffff, IORESOURCE_BUSY},
-	{ "ASIC PCI", 0x1fff0000, 0x1fffefff, IORESOURCE_BUSY},
-	{ "MP Agent", 0x1ffff000, 0x1fffffff, IORESOURCE_BUSY},
-	{ "Main Memory", 0x20000000, 0x9fffffff, IORESOURCE_BUSY}
+	{
+		.start	= 0x100a0000,
+		.end	= 0x100bffff,
+		.name	= "Video RAM area",
+		.flags	= IORESOURCE_BUSY
+	}, {
+		.start	= 0x100c0000,
+		.end	= 0x100fffff,
+		.name	= "ISA Reserved",
+		.flags	= IORESOURCE_BUSY
+	}, {
+		.start	= 0x14000000,
+		.end	= 0x17bfffff,
+		.name	= "PCI IO",
+		.flags	= IORESOURCE_BUSY
+	}, {
+		.start	= 0x17c00000,
+		.end	= 0x17ffffff,
+		.name	= "Cache Replacement Area",
+		.flags	= IORESOURCE_BUSY
+	}, {
+		.start	= 0x1a000000,
+		.end	= 0x1a000003,
+		.name	= "PCI INT Acknowledge",
+		.flags	= IORESOURCE_BUSY
+	}, {
+		.start	= 0x1fc00000,
+		.end	= 0x1fc7ffff,
+		.name	= "Boot PROM",
+		.flags	= IORESOURCE_BUSY
+	}, {
+		.start	= 0x1fc80000,
+		.end	= 0x1fcfffff,
+		.name	= "Diag PROM",
+		.flags	= IORESOURCE_BUSY
+	}, {
+		.start	= 0x1fd00000,
+		.end	= 0x1fdfffff,
+		.name	= "X-Bus",
+		.flags	= IORESOURCE_BUSY
+	}, {
+		.start	= 0x1fe00000,
+		.end	= 0x1fefffff,
+		.name	= "BIOS map",
+		.flags	= IORESOURCE_BUSY
+	}, {
+		.start	= 0x1ff00000,
+		.end	= 0x1ff7ffff,
+		.name	= "NVRAM / EEPROM",
+		.flags	= IORESOURCE_BUSY
+	}, {
+		.start	= 0x1fff0000,
+		.end	= 0x1fffefff,
+		.name	= "ASIC PCI",
+		.flags	= IORESOURCE_BUSY
+	}, {
+		.start	= 0x1ffff000,
+		.end	= 0x1fffffff,
+		.name	= "MP Agent",
+		.flags	= IORESOURCE_BUSY
+	}, {
+		.start	= 0x20000000,
+		.end	= 0x9fffffff,
+		.name	= "Main Memory",
+		.flags	= IORESOURCE_BUSY
+	}
 };
 
 static void __init sni_resource_init(void)
@@ -168,7 +253,7 @@ static inline void sni_pcimt_time_init(void)
 	rtc_mips_set_time = mc146818_set_rtc_mmss;
 }
 
-void __init plat_setup(void)
+void __init plat_mem_setup(void)
 {
 	sni_pcimt_detect();
 	sni_pcimt_sc_init();

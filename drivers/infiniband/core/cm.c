@@ -32,7 +32,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * $Id: cm.c 2821 2005-07-08 17:07:28Z sean.hefty $
+ * $Id: cm.c 4311 2005-12-05 18:42:01Z sean.hefty $
  */
 
 #include <linux/completion.h>
@@ -132,6 +132,7 @@ struct cm_id_private {
 	/* todo: use alternate port on send failure */
 	struct cm_av av;
 	struct cm_av alt_av;
+	struct ib_cm_compare_data *compare_data;
 
 	void *private_data;
 	__be64 tid;
@@ -253,23 +254,13 @@ static void cm_set_private_data(struct cm_id_private *cm_id_priv,
 	cm_id_priv->private_data_len = private_data_len;
 }
 
-static void cm_set_ah_attr(struct ib_ah_attr *ah_attr, u8 port_num,
-			   u16 dlid, u8 sl, u16 src_path_bits)
-{
-	memset(ah_attr, 0, sizeof ah_attr);
-	ah_attr->dlid = dlid;
-	ah_attr->sl = sl;
-	ah_attr->src_path_bits = src_path_bits;
-	ah_attr->port_num = port_num;
-}
-
-static void cm_init_av_for_response(struct cm_port *port,
-				    struct ib_wc *wc, struct cm_av *av)
+static void cm_init_av_for_response(struct cm_port *port, struct ib_wc *wc,
+				    struct ib_grh *grh, struct cm_av *av)
 {
 	av->port = port;
 	av->pkey_index = wc->pkey_index;
-	cm_set_ah_attr(&av->ah_attr, port->port_num, wc->slid,
-		       wc->sl, wc->dlid_path_bits);
+	ib_init_ah_from_wc(port->cm_dev->device, port->port_num, wc,
+			   grh, &av->ah_attr);
 }
 
 static int cm_init_av_by_path(struct ib_sa_path_rec *path, struct cm_av *av)
@@ -299,9 +290,8 @@ static int cm_init_av_by_path(struct ib_sa_path_rec *path, struct cm_av *av)
 		return ret;
 
 	av->port = port;
-	cm_set_ah_attr(&av->ah_attr, av->port->port_num,
-		       be16_to_cpu(path->dlid), path->sl,
-		       be16_to_cpu(path->slid) & 0x7F);
+	ib_init_ah_from_path(cm_dev->device, port->port_num, path,
+			     &av->ah_attr);
 	av->packet_life_time = path->packet_life_time;
 	return 0;
 }
@@ -357,6 +347,41 @@ static struct cm_id_private * cm_acquire_id(__be32 local_id, __be32 remote_id)
 	return cm_id_priv;
 }
 
+static void cm_mask_copy(u8 *dst, u8 *src, u8 *mask)
+{
+	int i;
+
+	for (i = 0; i < IB_CM_COMPARE_SIZE / sizeof(unsigned long); i++)
+		((unsigned long *) dst)[i] = ((unsigned long *) src)[i] &
+					     ((unsigned long *) mask)[i];
+}
+
+static int cm_compare_data(struct ib_cm_compare_data *src_data,
+			   struct ib_cm_compare_data *dst_data)
+{
+	u8 src[IB_CM_COMPARE_SIZE];
+	u8 dst[IB_CM_COMPARE_SIZE];
+
+	if (!src_data || !dst_data)
+		return 0;
+
+	cm_mask_copy(src, src_data->data, dst_data->mask);
+	cm_mask_copy(dst, dst_data->data, src_data->mask);
+	return memcmp(src, dst, IB_CM_COMPARE_SIZE);
+}
+
+static int cm_compare_private_data(u8 *private_data,
+				   struct ib_cm_compare_data *dst_data)
+{
+	u8 src[IB_CM_COMPARE_SIZE];
+
+	if (!dst_data)
+		return 0;
+
+	cm_mask_copy(src, private_data, dst_data->mask);
+	return memcmp(src, dst_data->data, IB_CM_COMPARE_SIZE);
+}
+
 static struct cm_id_private * cm_insert_listen(struct cm_id_private *cm_id_priv)
 {
 	struct rb_node **link = &cm.listen_service_table.rb_node;
@@ -364,14 +389,18 @@ static struct cm_id_private * cm_insert_listen(struct cm_id_private *cm_id_priv)
 	struct cm_id_private *cur_cm_id_priv;
 	__be64 service_id = cm_id_priv->id.service_id;
 	__be64 service_mask = cm_id_priv->id.service_mask;
+	int data_cmp;
 
 	while (*link) {
 		parent = *link;
 		cur_cm_id_priv = rb_entry(parent, struct cm_id_private,
 					  service_node);
+		data_cmp = cm_compare_data(cm_id_priv->compare_data,
+					   cur_cm_id_priv->compare_data);
 		if ((cur_cm_id_priv->id.service_mask & service_id) ==
 		    (service_mask & cur_cm_id_priv->id.service_id) &&
-		    (cm_id_priv->id.device == cur_cm_id_priv->id.device))
+		    (cm_id_priv->id.device == cur_cm_id_priv->id.device) &&
+		    !data_cmp)
 			return cur_cm_id_priv;
 
 		if (cm_id_priv->id.device < cur_cm_id_priv->id.device)
@@ -379,6 +408,10 @@ static struct cm_id_private * cm_insert_listen(struct cm_id_private *cm_id_priv)
 		else if (cm_id_priv->id.device > cur_cm_id_priv->id.device)
 			link = &(*link)->rb_right;
 		else if (service_id < cur_cm_id_priv->id.service_id)
+			link = &(*link)->rb_left;
+		else if (service_id > cur_cm_id_priv->id.service_id)
+			link = &(*link)->rb_right;
+		else if (data_cmp < 0)
 			link = &(*link)->rb_left;
 		else
 			link = &(*link)->rb_right;
@@ -389,16 +422,20 @@ static struct cm_id_private * cm_insert_listen(struct cm_id_private *cm_id_priv)
 }
 
 static struct cm_id_private * cm_find_listen(struct ib_device *device,
-					     __be64 service_id)
+					     __be64 service_id,
+					     u8 *private_data)
 {
 	struct rb_node *node = cm.listen_service_table.rb_node;
 	struct cm_id_private *cm_id_priv;
+	int data_cmp;
 
 	while (node) {
 		cm_id_priv = rb_entry(node, struct cm_id_private, service_node);
+		data_cmp = cm_compare_private_data(private_data,
+						   cm_id_priv->compare_data);
 		if ((cm_id_priv->id.service_mask & service_id) ==
 		     cm_id_priv->id.service_id &&
-		    (cm_id_priv->id.device == device))
+		    (cm_id_priv->id.device == device) && !data_cmp)
 			return cm_id_priv;
 
 		if (device < cm_id_priv->id.device)
@@ -406,6 +443,10 @@ static struct cm_id_private * cm_find_listen(struct ib_device *device,
 		else if (device > cm_id_priv->id.device)
 			node = node->rb_right;
 		else if (service_id < cm_id_priv->id.service_id)
+			node = node->rb_left;
+		else if (service_id > cm_id_priv->id.service_id)
+			node = node->rb_right;
+		else if (data_cmp < 0)
 			node = node->rb_left;
 		else
 			node = node->rb_right;
@@ -730,15 +771,14 @@ retest:
 	wait_for_completion(&cm_id_priv->comp);
 	while ((work = cm_dequeue_work(cm_id_priv)) != NULL)
 		cm_free_work(work);
-	if (cm_id_priv->private_data && cm_id_priv->private_data_len)
-		kfree(cm_id_priv->private_data);
+	kfree(cm_id_priv->compare_data);
+	kfree(cm_id_priv->private_data);
 	kfree(cm_id_priv);
 }
 EXPORT_SYMBOL(ib_destroy_cm_id);
 
-int ib_cm_listen(struct ib_cm_id *cm_id,
-		 __be64 service_id,
-		 __be64 service_mask)
+int ib_cm_listen(struct ib_cm_id *cm_id, __be64 service_id, __be64 service_mask,
+		 struct ib_cm_compare_data *compare_data)
 {
 	struct cm_id_private *cm_id_priv, *cur_cm_id_priv;
 	unsigned long flags;
@@ -752,7 +792,19 @@ int ib_cm_listen(struct ib_cm_id *cm_id,
 		return -EINVAL;
 
 	cm_id_priv = container_of(cm_id, struct cm_id_private, id);
-	BUG_ON(cm_id->state != IB_CM_IDLE);
+	if (cm_id->state != IB_CM_IDLE)
+		return -EINVAL;
+
+	if (compare_data) {
+		cm_id_priv->compare_data = kzalloc(sizeof *compare_data,
+						   GFP_KERNEL);
+		if (!cm_id_priv->compare_data)
+			return -ENOMEM;
+		cm_mask_copy(cm_id_priv->compare_data->data,
+			     compare_data->data, compare_data->mask);
+		memcpy(cm_id_priv->compare_data->mask, compare_data->mask,
+		       IB_CM_COMPARE_SIZE);
+	}
 
 	cm_id->state = IB_CM_LISTEN;
 
@@ -769,6 +821,8 @@ int ib_cm_listen(struct ib_cm_id *cm_id,
 
 	if (cur_cm_id_priv) {
 		cm_id->state = IB_CM_IDLE;
+		kfree(cm_id_priv->compare_data);
+		cm_id_priv->compare_data = NULL;
 		ret = -EBUSY;
 	}
 	return ret;
@@ -1241,7 +1295,8 @@ static struct cm_id_private * cm_match_req(struct cm_work *work,
 
 	/* Find matching listen request. */
 	listen_cm_id_priv = cm_find_listen(cm_id_priv->id.device,
-					   req_msg->service_id);
+					   req_msg->service_id,
+					   req_msg->private_data);
 	if (!listen_cm_id_priv) {
 		spin_unlock_irqrestore(&cm.lock, flags);
 		cm_issue_rej(work->port, work->mad_recv_wc,
@@ -1276,6 +1331,7 @@ static int cm_req_handler(struct cm_work *work)
 	cm_id_priv = container_of(cm_id, struct cm_id_private, id);
 	cm_id_priv->id.remote_id = req_msg->local_comm_id;
 	cm_init_av_for_response(work->port, work->mad_recv_wc->wc,
+				work->mad_recv_wc->recv_buf.grh,
 				&cm_id_priv->av);
 	cm_id_priv->timewait_info = cm_create_timewait_info(cm_id_priv->
 							    id.local_id);
@@ -2549,7 +2605,7 @@ static void cm_format_sidr_req(struct cm_sidr_req_msg *sidr_req_msg,
 	cm_format_mad_hdr(&sidr_req_msg->hdr, CM_SIDR_REQ_ATTR_ID,
 			  cm_form_tid(cm_id_priv, CM_MSG_SEQUENCE_SIDR));
 	sidr_req_msg->request_id = cm_id_priv->id.local_id;
-	sidr_req_msg->pkey = cpu_to_be16(param->pkey);
+	sidr_req_msg->pkey = cpu_to_be16(param->path->pkey);
 	sidr_req_msg->service_id = param->service_id;
 
 	if (param->private_data && param->private_data_len)
@@ -2641,6 +2697,7 @@ static int cm_sidr_req_handler(struct cm_work *work)
 	cm_id_priv->av.dgid.global.subnet_prefix = cpu_to_be64(wc->slid);
 	cm_id_priv->av.dgid.global.interface_id = 0;
 	cm_init_av_for_response(work->port, work->mad_recv_wc->wc,
+				work->mad_recv_wc->recv_buf.grh,
 				&cm_id_priv->av);
 	cm_id_priv->id.remote_id = sidr_req_msg->request_id;
 	cm_id_priv->id.state = IB_CM_SIDR_REQ_RCVD;
@@ -2654,7 +2711,8 @@ static int cm_sidr_req_handler(struct cm_work *work)
 		goto out; /* Duplicate message. */
 	}
 	cur_cm_id_priv = cm_find_listen(cm_id->device,
-					sidr_req_msg->service_id);
+					sidr_req_msg->service_id,
+					sidr_req_msg->private_data);
 	if (!cur_cm_id_priv) {
 		rb_erase(&cm_id_priv->sidr_id_node, &cm.remote_sidr_table);
 		spin_unlock_irqrestore(&cm.lock, flags);
@@ -3291,7 +3349,6 @@ error:
 
 static void __exit ib_cm_cleanup(void)
 {
-	flush_workqueue(cm.wq);
 	destroy_workqueue(cm.wq);
 	ib_unregister_client(&cm_client);
 	idr_destroy(&cm.local_id_table);

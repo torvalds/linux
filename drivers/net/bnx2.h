@@ -231,6 +231,7 @@ struct statistics_block {
 	u32 stat_GenStat13;
 	u32 stat_GenStat14;
 	u32 stat_GenStat15;
+	u32 stat_FwRxDrop;
 };
 
 
@@ -3481,6 +3482,8 @@ struct l2_fhdr {
 
 #define BNX2_COM_SCRATCH				0x00120000
 
+#define BNX2_FW_RX_DROP_COUNT				 0x00120084
+
 
 /*
  *  cp_reg definition
@@ -3747,7 +3750,12 @@ struct l2_fhdr {
 #define DMA_READ_CHANS	5
 #define DMA_WRITE_CHANS	3
 
-#define BCM_PAGE_BITS	12
+/* Use CPU native page size up to 16K for the ring sizes.  */
+#if (PAGE_SHIFT > 14)
+#define BCM_PAGE_BITS	14
+#else
+#define BCM_PAGE_BITS	PAGE_SHIFT
+#endif
 #define BCM_PAGE_SIZE	(1 << BCM_PAGE_BITS)
 
 #define TX_DESC_CNT  (BCM_PAGE_SIZE / sizeof(struct tx_bd))
@@ -3770,7 +3778,7 @@ struct l2_fhdr {
 
 #define RX_RING_IDX(x) ((x) & bp->rx_max_ring_idx)
 
-#define RX_RING(x) (((x) & ~MAX_RX_DESC_CNT) >> 8)
+#define RX_RING(x) (((x) & ~MAX_RX_DESC_CNT) >> (BCM_PAGE_BITS - 4))
 #define RX_IDX(x) ((x) & MAX_RX_DESC_CNT)
 
 /* Context size. */
@@ -4048,6 +4056,9 @@ struct bnx2 {
 	u32			flash_size;
 
 	int			status_stats_size;
+
+	struct z_stream_s	*strm;
+	void			*gunzip_buf;
 };
 
 static u32 bnx2_reg_rd_ind(struct bnx2 *bp, u32 offset);

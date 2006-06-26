@@ -1,7 +1,6 @@
 #ifndef _LINUX_HIGHUID_H
 #define _LINUX_HIGHUID_H
 
-#include <linux/config.h>
 #include <linux/types.h>
 
 /*

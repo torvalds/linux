@@ -452,6 +452,7 @@ found:
 					      (unsigned long long)
 					      avr->dccpavr_ack_ackno);
 				dccp_ackvec_throw_record(av, avr);
+				break;
 			}
 			/*
 			 * If it wasn't received, continue scanning... we might

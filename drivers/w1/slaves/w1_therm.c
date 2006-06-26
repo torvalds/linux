@@ -29,7 +29,6 @@
 #include <linux/delay.h>
 
 #include "../w1.h"
-#include "../w1_io.h"
 #include "../w1_int.h"
 #include "../w1_family.h"
 
@@ -166,12 +165,7 @@ static ssize_t w1_therm_read_bin(struct kobject *kobj, char *buf, loff_t off, si
 	u8 rom[9], crc, verdict;
 	int i, max_trying = 10;
 
-	atomic_inc(&sl->refcnt);
-	smp_mb__after_atomic_inc();
-	if (down_interruptible(&sl->master->mutex)) {
-		count = 0;
-		goto out_dec;
-	}
+	mutex_lock(&sl->master->mutex);
 
 	if (off > W1_SLAVE_DATA_SIZE) {
 		count = 0;
@@ -234,10 +228,7 @@ static ssize_t w1_therm_read_bin(struct kobject *kobj, char *buf, loff_t off, si
 
 	count += sprintf(buf + count, "t=%d\n", w1_convert_temp(rom, sl->family->fid));
 out:
-	up(&dev->mutex);
-out_dec:
-	smp_mb__before_atomic_inc();
-	atomic_dec(&sl->refcnt);
+	mutex_unlock(&dev->mutex);
 
 	return count;
 }

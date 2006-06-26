@@ -453,7 +453,7 @@ config ALPHA_IRONGATE
 
 config GENERIC_HWEIGHT
 	bool
-	default y if !ALPHA_EV6 && !ALPHA_EV67
+	default y if !ALPHA_EV67
 
 config ALPHA_AVANTI
 	bool

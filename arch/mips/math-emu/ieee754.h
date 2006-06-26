@@ -329,7 +329,7 @@ struct _ieee754_csr {
 	unsigned pad0:7;
 #endif
 };
-#define ieee754_csr (*(struct _ieee754_csr *)(&current->thread.fpu.soft.fcr31))
+#define ieee754_csr (*(struct _ieee754_csr *)(&current->thread.fpu.fcr31))
 
 static inline unsigned ieee754_getrm(void)
 {

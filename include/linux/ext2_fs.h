@@ -17,7 +17,6 @@
 #define _LINUX_EXT2_FS_H
 
 #include <linux/types.h>
-#include <linux/ext2_fs_sb.h>
 
 /*
  * The second extended filesystem constants/structures
@@ -70,6 +69,7 @@
 #define EXT2_SUPER_MAGIC	0xEF53
 
 #ifdef __KERNEL__
+#include <linux/ext2_fs_sb.h>
 static inline struct ext2_sb_info *EXT2_SB(struct super_block *sb)
 {
 	return sb->s_fs_info;

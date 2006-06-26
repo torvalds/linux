@@ -68,19 +68,46 @@ static void __init cobalt_timer_setup(struct irqaction *irq)
 extern struct pci_ops gt64111_pci_ops;
 
 static struct resource cobalt_mem_resource = {
-	"PCI memory", GT64111_MEM_BASE, GT64111_MEM_END, IORESOURCE_MEM
+	.start	= GT64111_MEM_BASE,
+	.end	= GT64111_MEM_END,
+	.name	= "PCI memory",
+	.flags	= IORESOURCE_MEM
 };
 
 static struct resource cobalt_io_resource = {
-	"PCI I/O", 0x1000, 0xffff, IORESOURCE_IO
+	.start	= 0x1000,
+	.end	= 0xffff,
+	.name	= "PCI I/O",
+	.flags	= IORESOURCE_IO
 };
 
 static struct resource cobalt_io_resources[] = {
-	{ "dma1", 0x00, 0x1f, IORESOURCE_BUSY },
-	{ "timer", 0x40, 0x5f, IORESOURCE_BUSY },
-	{ "keyboard", 0x60, 0x6f, IORESOURCE_BUSY },
-	{ "dma page reg", 0x80, 0x8f, IORESOURCE_BUSY },
-	{ "dma2", 0xc0, 0xdf, IORESOURCE_BUSY },
+	{
+		.start	= 0x00,
+		.end	= 0x1f,
+		.name	= "dma1",
+		.flags	= IORESOURCE_BUSY
+	}, {
+		.start	= 0x40,
+		.end	= 0x5f,
+		.name	= "timer",
+		.flags	= IORESOURCE_BUSY
+	}, {
+		.start	= 0x60,
+		.end	= 0x6f,
+		.name	= "keyboard",
+		.flags	= IORESOURCE_BUSY
+	}, {
+		.start	= 0x80,
+		.end	= 0x8f,
+		.name	= "dma page reg",
+		.flags	= IORESOURCE_BUSY
+	}, {
+		.start	= 0xc0,
+		.end	= 0xdf,
+		.name	= "dma2",
+		.flags	= IORESOURCE_BUSY
+	},
 };
 
 #define COBALT_IO_RESOURCES (sizeof(cobalt_io_resources)/sizeof(struct resource))
@@ -93,7 +120,7 @@ static struct pci_controller cobalt_pci_controller = {
 	.io_offset	= 0 - GT64111_IO_BASE
 };
 
-void __init plat_setup(void)
+void __init plat_mem_setup(void)
 {
 	static struct uart_port uart;
 	unsigned int devfn = PCI_DEVFN(COBALT_PCICONF_VIA, 0);

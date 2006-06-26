@@ -13,6 +13,8 @@
 #ifndef __ASM_ARCH_AT91RM9200_GPIO_H
 #define __ASM_ARCH_AT91RM9200_GPIO_H
 
+#include <asm/irq.h>
+
 #define PIN_BASE		NR_AIC_IRQS
 
 #define PQFP_GPIO_BANKS		3	/* PQFP package has 3 banks */
@@ -188,6 +190,9 @@ extern int at91_set_multi_drive(unsigned pin, int is_on);
 /* callable at any time */
 extern int at91_set_gpio_value(unsigned pin, int value);
 extern int at91_get_gpio_value(unsigned pin);
+
+extern void at91_gpio_suspend(void);
+extern void at91_gpio_resume(void);
 #endif
 
 #endif

@@ -41,11 +41,11 @@
 
 #define __get_user(x, ptr) \
 ({ \
-	const __typeof__(ptr) __private_ptr = ptr;	\
+	const __typeof__(*(ptr)) __user *__private_ptr = (ptr);	\
 	__typeof__(x) __private_val;			\
 	int __private_ret = -EFAULT;			\
 	(x) = (__typeof__(*(__private_ptr)))0;				\
-	if (__copy_from_user((void *) &__private_val, (__private_ptr),	\
+	if (__copy_from_user((__force void *)&__private_val, (__private_ptr),\
 			     sizeof(*(__private_ptr))) == 0) {		\
 		(x) = (__typeof__(*(__private_ptr))) __private_val;	\
 		__private_ret = 0;					\
@@ -62,7 +62,7 @@
 
 #define __put_user(x, ptr) \
 ({ \
-        __typeof__(ptr) __private_ptr = ptr; \
+        __typeof__(*(ptr)) __user *__private_ptr = ptr; \
         __typeof__(*(__private_ptr)) __private_val; \
         int __private_ret = -EFAULT; \
         __private_val = (__typeof__(*(__private_ptr))) (x); \

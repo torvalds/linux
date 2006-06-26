@@ -135,7 +135,6 @@ __xfrm6_find_acq(u8 mode, u32 reqid, u8 proto,
 
 static struct xfrm_state_afinfo xfrm6_state_afinfo = {
 	.family			= AF_INET6,
-	.lock			= RW_LOCK_UNLOCKED,
 	.init_tempsel		= __xfrm6_init_tempsel,
 	.state_lookup		= __xfrm6_state_lookup,
 	.find_acq		= __xfrm6_find_acq,

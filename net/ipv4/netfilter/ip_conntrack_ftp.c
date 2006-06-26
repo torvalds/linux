@@ -56,37 +56,48 @@ static int try_eprt(const char *, size_t, u_int32_t [], char);
 static int try_epsv_response(const char *, size_t, u_int32_t [], char);
 
 static const struct ftp_search {
-	enum ip_conntrack_dir dir;
 	const char *pattern;
 	size_t plen;
 	char skip;
 	char term;
 	enum ip_ct_ftp_type ftptype;
 	int (*getnum)(const char *, size_t, u_int32_t[], char);
-} search[] = {
-	{
-		IP_CT_DIR_ORIGINAL,
-		"PORT",	sizeof("PORT") - 1, ' ', '\r',
-		IP_CT_FTP_PORT,
-		try_rfc959,
+} search[IP_CT_DIR_MAX][2] = {
+	[IP_CT_DIR_ORIGINAL] = {
+		{
+			.pattern	=  "PORT",
+			.plen		= sizeof("PORT") - 1,
+			.skip		= ' ',
+			.term		= '\r',
+			.ftptype	= IP_CT_FTP_PORT,
+			.getnum		= try_rfc959,
+		},
+		{
+			.pattern	= "EPRT",
+			.plen		= sizeof("EPRT") - 1,
+			.skip		= ' ',
+			.term		= '\r',
+			.ftptype	= IP_CT_FTP_EPRT,
+			.getnum		= try_eprt,
+		},
 	},
-	{
-		IP_CT_DIR_REPLY,
-		"227 ",	sizeof("227 ") - 1, '(', ')',
-		IP_CT_FTP_PASV,
-		try_rfc959,
-	},
-	{
-		IP_CT_DIR_ORIGINAL,
-		"EPRT", sizeof("EPRT") - 1, ' ', '\r',
-		IP_CT_FTP_EPRT,
-		try_eprt,
-	},
-	{
-		IP_CT_DIR_REPLY,
-		"229 ", sizeof("229 ") - 1, '(', ')',
-		IP_CT_FTP_EPSV,
-		try_epsv_response,
+	[IP_CT_DIR_REPLY] = {
+		{
+			.pattern	= "227 ",
+			.plen		= sizeof("227 ") - 1,
+			.skip		= '(',
+			.term		= ')',
+			.ftptype	= IP_CT_FTP_PASV,
+			.getnum		= try_rfc959,
+		},
+		{
+			.pattern	= "229 ",
+			.plen		= sizeof("229 ") - 1,
+			.skip		= '(',
+			.term		= ')',
+			.ftptype	= IP_CT_FTP_EPSV,
+			.getnum		= try_epsv_response,
+		},
 	},
 };
 
@@ -346,17 +357,15 @@ static int help(struct sk_buff **pskb,
 	array[2] = (ntohl(ct->tuplehash[dir].tuple.src.ip) >> 8) & 0xFF;
 	array[3] = ntohl(ct->tuplehash[dir].tuple.src.ip) & 0xFF;
 
-	for (i = 0; i < ARRAY_SIZE(search); i++) {
-		if (search[i].dir != dir) continue;
-
+	for (i = 0; i < ARRAY_SIZE(search[dir]); i++) {
 		found = find_pattern(fb_ptr, (*pskb)->len - dataoff,
-				     search[i].pattern,
-				     search[i].plen,
-				     search[i].skip,
-				     search[i].term,
+				     search[dir][i].pattern,
+				     search[dir][i].plen,
+				     search[dir][i].skip,
+				     search[dir][i].term,
 				     &matchoff, &matchlen,
 				     array,
-				     search[i].getnum);
+				     search[dir][i].getnum);
 		if (found) break;
 	}
 	if (found == -1) {
@@ -366,7 +375,7 @@ static int help(struct sk_buff **pskb,
 		   this case. */
 		if (net_ratelimit())
 			printk("conntrack_ftp: partial %s %u+%u\n",
-			       search[i].pattern,
+			       search[dir][i].pattern,
 			       ntohl(th->seq), datalen);
 		ret = NF_DROP;
 		goto out;
@@ -426,7 +435,7 @@ static int help(struct sk_buff **pskb,
 	/* Now, NAT might want to mangle the packet, and register the
 	 * (possibly changed) expectation itself. */
 	if (ip_nat_ftp_hook)
-		ret = ip_nat_ftp_hook(pskb, ctinfo, search[i].ftptype,
+		ret = ip_nat_ftp_hook(pskb, ctinfo, search[dir][i].ftptype,
 				      matchoff, matchlen, exp, &seq);
 	else {
 		/* Can't expect this?  Best to drop packet now. */

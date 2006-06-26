@@ -107,6 +107,12 @@ struct w1_family * w1_family_registered(u8 fid)
 	return (ret) ? f : NULL;
 }
 
+static void __w1_family_put(struct w1_family *f)
+{
+	if (atomic_dec_and_test(&f->refcnt))
+		f->need_exit = 1;
+}
+
 void w1_family_put(struct w1_family *f)
 {
 	spin_lock(&w1_flock);
@@ -114,19 +120,14 @@ void w1_family_put(struct w1_family *f)
 	spin_unlock(&w1_flock);
 }
 
-void __w1_family_put(struct w1_family *f)
-{
-	if (atomic_dec_and_test(&f->refcnt))
-		f->need_exit = 1;
-}
-
+#if 0
 void w1_family_get(struct w1_family *f)
 {
 	spin_lock(&w1_flock);
 	__w1_family_get(f);
 	spin_unlock(&w1_flock);
-
 }
+#endif  /*  0  */
 
 void __w1_family_get(struct w1_family *f)
 {
@@ -135,8 +136,5 @@ void __w1_family_get(struct w1_family *f)
 	smp_mb__after_atomic_inc();
 }
 
-EXPORT_SYMBOL(w1_family_get);
-EXPORT_SYMBOL(w1_family_put);
-EXPORT_SYMBOL(w1_family_registered);
 EXPORT_SYMBOL(w1_unregister_family);
 EXPORT_SYMBOL(w1_register_family);

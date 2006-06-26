@@ -76,6 +76,30 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 	dbg_hcs_params(ehci, "reset");
 	dbg_hcc_params(ehci, "reset");
 
+        /* ehci_init() causes memory for DMA transfers to be
+         * allocated.  Thus, any vendor-specific workarounds based on
+         * limiting the type of memory used for DMA transfers must
+         * happen before ehci_init() is called. */
+	switch (pdev->vendor) {
+	case PCI_VENDOR_ID_NVIDIA:
+		/* NVidia reports that certain chips don't handle
+		 * QH, ITD, or SITD addresses above 2GB.  (But TD,
+		 * data buffer, and periodic schedule are normal.)
+		 */
+		switch (pdev->device) {
+		case 0x003c:	/* MCP04 */
+		case 0x005b:	/* CK804 */
+		case 0x00d8:	/* CK8 */
+		case 0x00e8:	/* CK8S */
+			if (pci_set_consistent_dma_mask(pdev,
+						DMA_31BIT_MASK) < 0)
+				ehci_warn(ehci, "can't enable NVidia "
+					"workaround for >2GB RAM\n");
+			break;
+		}
+		break;
+	}
+
 	/* cache this readonly data; minimize chip reads */
 	ehci->hcs_params = readl(&ehci->caps->hcs_params);
 
@@ -87,8 +111,6 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 	retval = ehci_init(hcd);
 	if (retval)
 		return retval;
-
-	/* NOTE:  only the parts below this line are PCI-specific */
 
 	switch (pdev->vendor) {
 	case PCI_VENDOR_ID_TDI:
@@ -107,19 +129,6 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 		break;
 	case PCI_VENDOR_ID_NVIDIA:
 		switch (pdev->device) {
-		/* NVidia reports that certain chips don't handle
-		 * QH, ITD, or SITD addresses above 2GB.  (But TD,
-		 * data buffer, and periodic schedule are normal.)
-		 */
-		case 0x003c:	/* MCP04 */
-		case 0x005b:	/* CK804 */
-		case 0x00d8:	/* CK8 */
-		case 0x00e8:	/* CK8S */
-			if (pci_set_consistent_dma_mask(pdev,
-						DMA_31BIT_MASK) < 0)
-				ehci_warn(ehci, "can't enable NVidia "
-					"workaround for >2GB RAM\n");
-			break;
 		/* Some NForce2 chips have problems with selective suspend;
 		 * fixed in newer silicon.
 		 */
@@ -370,23 +379,3 @@ static struct pci_driver ehci_pci_driver = {
 	.resume =	usb_hcd_pci_resume,
 #endif
 };
-
-static int __init ehci_hcd_pci_init(void)
-{
-	if (usb_disabled())
-		return -ENODEV;
-
-	pr_debug("%s: block sizes: qh %Zd qtd %Zd itd %Zd sitd %Zd\n",
-		hcd_name,
-		sizeof(struct ehci_qh), sizeof(struct ehci_qtd),
-		sizeof(struct ehci_itd), sizeof(struct ehci_sitd));
-
-	return pci_register_driver(&ehci_pci_driver);
-}
-module_init(ehci_hcd_pci_init);
-
-static void __exit ehci_hcd_pci_cleanup(void)
-{
-	pci_unregister_driver(&ehci_pci_driver);
-}
-module_exit(ehci_hcd_pci_cleanup);

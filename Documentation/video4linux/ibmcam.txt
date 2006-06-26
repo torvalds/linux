@@ -21,7 +21,7 @@ Internal interface: Video For Linux (V4L)
 Supported controls:
 - by V4L: Contrast,  Brightness, Color, Hue
 - by driver options: frame rate, lighting conditions, video format,
-                     default picture settings, sharpness.
+		     default picture settings, sharpness.
 
 SUPPORTED CAMERAS:
 
@@ -191,66 +191,66 @@ init_model2_sat Integer         0..255 [0x34]   init_model2_sat=65
 init_model2_yb  Integer         0..255 [0xa0]   init_model2_yb=200
 
 debug           You don't need this option unless you are a developer.
-                If you are a developer then you will see in the code
-                what values do what. 0=off.
+		If you are a developer then you will see in the code
+		what values do what. 0=off.
 
 flags           This is a bit mask, and you can combine any number of
-                bits to produce what you want. Usually you don't want
-                any of extra features this option provides:
+		bits to produce what you want. Usually you don't want
+		any of extra features this option provides:
 
-                FLAGS_RETRY_VIDIOCSYNC  1  This bit allows to retry failed
-                                           VIDIOCSYNC ioctls without failing.
-                                           Will work with xawtv, will not
-                                           with xrealproducer. Default is
-                                           not set.
-                FLAGS_MONOCHROME        2  Activates monochrome (b/w) mode.
-                FLAGS_DISPLAY_HINTS     4  Shows colored pixels which have
-                                           magic meaning to developers.
-                FLAGS_OVERLAY_STATS     8  Shows tiny numbers on screen,
-                                           useful only for debugging.
-                FLAGS_FORCE_TESTPATTERN 16 Shows blue screen with numbers.
-                FLAGS_SEPARATE_FRAMES   32 Shows each frame separately, as
-                                           it was received from the camera.
-                                           Default (not set) is to mix the
-                                           preceding frame in to compensate
-                                           for occasional loss of Isoc data
-                                           on high frame rates.
-                FLAGS_CLEAN_FRAMES      64 Forces "cleanup" of each frame
-                                           prior to use; relevant only if
-                                           FLAGS_SEPARATE_FRAMES is set.
-                                           Default is not to clean frames,
-                                           this is a little faster but may
-                                           produce flicker if frame rate is
-                                           too high and Isoc data gets lost.
-                FLAGS_NO_DECODING      128 This flag turns the video stream
-                                           decoder off, and dumps the raw
-                                           Isoc data from the camera into
-                                           the reading process. Useful to
-                                           developers, but not to users.
+		FLAGS_RETRY_VIDIOCSYNC  1  This bit allows to retry failed
+					   VIDIOCSYNC ioctls without failing.
+					   Will work with xawtv, will not
+					   with xrealproducer. Default is
+					   not set.
+		FLAGS_MONOCHROME        2  Activates monochrome (b/w) mode.
+		FLAGS_DISPLAY_HINTS     4  Shows colored pixels which have
+					   magic meaning to developers.
+		FLAGS_OVERLAY_STATS     8  Shows tiny numbers on screen,
+					   useful only for debugging.
+		FLAGS_FORCE_TESTPATTERN 16 Shows blue screen with numbers.
+		FLAGS_SEPARATE_FRAMES   32 Shows each frame separately, as
+					   it was received from the camera.
+					   Default (not set) is to mix the
+					   preceding frame in to compensate
+					   for occasional loss of Isoc data
+					   on high frame rates.
+		FLAGS_CLEAN_FRAMES      64 Forces "cleanup" of each frame
+					   prior to use; relevant only if
+					   FLAGS_SEPARATE_FRAMES is set.
+					   Default is not to clean frames,
+					   this is a little faster but may
+					   produce flicker if frame rate is
+					   too high and Isoc data gets lost.
+		FLAGS_NO_DECODING      128 This flag turns the video stream
+					   decoder off, and dumps the raw
+					   Isoc data from the camera into
+					   the reading process. Useful to
+					   developers, but not to users.
 
 framerate       This setting controls frame rate of the camera. This is
-                an approximate setting (in terms of "worst" ... "best")
-                because camera changes frame rate depending on amount
-                of light available. Setting 0 is slowest, 6 is fastest.
-                Beware - fast settings are very demanding and may not
-                work well with all video sizes. Be conservative.
+		an approximate setting (in terms of "worst" ... "best")
+		because camera changes frame rate depending on amount
+		of light available. Setting 0 is slowest, 6 is fastest.
+		Beware - fast settings are very demanding and may not
+		work well with all video sizes. Be conservative.
 
 hue_correction  This highly optional setting allows to adjust the
-                hue of the image in a way slightly different from
-                what usual "hue" control does. Both controls affect
-                YUV colorspace: regular "hue" control adjusts only
-                U component, and this "hue_correction" option similarly
-                adjusts only V component. However usually it is enough
-                to tweak only U or V to compensate for colored light or
-                color temperature; this option simply allows more
-                complicated correction when and if it is necessary.
+		hue of the image in a way slightly different from
+		what usual "hue" control does. Both controls affect
+		YUV colorspace: regular "hue" control adjusts only
+		U component, and this "hue_correction" option similarly
+		adjusts only V component. However usually it is enough
+		to tweak only U or V to compensate for colored light or
+		color temperature; this option simply allows more
+		complicated correction when and if it is necessary.
 
 init_brightness These settings specify _initial_ values which will be
 init_contrast   used to set up the camera. If your V4L application has
 init_color      its own controls to adjust the picture then these
 init_hue        controls will be used too. These options allow you to
-                preconfigure the camera when it gets connected, before
-                any V4L application connects to it. Good for webcams.
+		preconfigure the camera when it gets connected, before
+		any V4L application connects to it. Good for webcams.
 
 init_model2_rg  These initial settings alter color balance of the
 init_model2_rg2 camera on hardware level. All four settings may be used
@@ -258,47 +258,47 @@ init_model2_sat to tune the camera to specific lighting conditions. These
 init_model2_yb  settings only apply to Model 2 cameras.
 
 lighting        This option selects one of three hardware-defined
-                photosensitivity settings of the camera. 0=bright light,
-                1=Medium (default), 2=Low light. This setting affects
-                frame rate: the dimmer the lighting the lower the frame
-                rate (because longer exposition time is needed). The
-                Model 2 cameras allow values more than 2 for this option,
-                thus enabling extremely high sensitivity at cost of frame
-                rate, color saturation and imaging sensor noise.
+		photosensitivity settings of the camera. 0=bright light,
+		1=Medium (default), 2=Low light. This setting affects
+		frame rate: the dimmer the lighting the lower the frame
+		rate (because longer exposition time is needed). The
+		Model 2 cameras allow values more than 2 for this option,
+		thus enabling extremely high sensitivity at cost of frame
+		rate, color saturation and imaging sensor noise.
 
 sharpness       This option controls smoothing (noise reduction)
-                made by camera. Setting 0 is most smooth, setting 6
-                is most sharp. Be aware that CMOS sensor used in the
-                camera is pretty noisy, so if you choose 6 you will
-                be greeted with "snowy" image. Default is 4. Model 2
-                cameras do not support this feature.
+		made by camera. Setting 0 is most smooth, setting 6
+		is most sharp. Be aware that CMOS sensor used in the
+		camera is pretty noisy, so if you choose 6 you will
+		be greeted with "snowy" image. Default is 4. Model 2
+		cameras do not support this feature.
 
 size            This setting chooses one of several image sizes that are
-                supported by this driver. Cameras may support more, but
-                it's difficult to reverse-engineer all formats.
-                Following video sizes are supported:
+		supported by this driver. Cameras may support more, but
+		it's difficult to reverse-engineer all formats.
+		Following video sizes are supported:
 
-                size=0     128x96  (Model 1 only)
-                size=1     160x120
-                size=2     176x144
-                size=3     320x240 (Model 2 only)
-                size=4     352x240 (Model 2 only)
-                size=5     352x288
-                size=6     640x480 (Model 3 only)
+		size=0     128x96  (Model 1 only)
+		size=1     160x120
+		size=2     176x144
+		size=3     320x240 (Model 2 only)
+		size=4     352x240 (Model 2 only)
+		size=5     352x288
+		size=6     640x480 (Model 3 only)
 
-                The 352x288 is the native size of the Model 1 sensor
-                array, so it's the best resolution the camera can
-                yield. The best resolution of Model 2 is 176x144, and
-                larger images are produced by stretching the bitmap.
-                Model 3 has sensor with 640x480 grid, and it works too,
-                but the frame rate will be exceptionally low (1-2 FPS);
-                it may be still OK for some applications, like security.
-                Choose the image size you need. The smaller image can
-                support faster frame rate. Default is 352x288.
+		The 352x288 is the native size of the Model 1 sensor
+		array, so it's the best resolution the camera can
+		yield. The best resolution of Model 2 is 176x144, and
+		larger images are produced by stretching the bitmap.
+		Model 3 has sensor with 640x480 grid, and it works too,
+		but the frame rate will be exceptionally low (1-2 FPS);
+		it may be still OK for some applications, like security.
+		Choose the image size you need. The smaller image can
+		support faster frame rate. Default is 352x288.
 
 For more information and the Troubleshooting FAQ visit this URL:
 
-                http://www.linux-usb.org/ibmcam/
+		http://www.linux-usb.org/ibmcam/
 
 WHAT NEEDS TO BE DONE:
 

@@ -20,7 +20,6 @@
 
 #ifndef __ASSEMBLY__
 
-#include <linux/config.h>
 #include <linux/threads.h>
 #include <asm/processor.h>
 #include <asm/addrspace.h>

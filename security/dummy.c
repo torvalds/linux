@@ -191,7 +191,7 @@ static int dummy_sb_kern_mount (struct super_block *sb, void *data)
 	return 0;
 }
 
-static int dummy_sb_statfs (struct super_block *sb)
+static int dummy_sb_statfs (struct dentry *dentry)
 {
 	return 0;
 }
@@ -516,6 +516,11 @@ static int dummy_task_setnice (struct task_struct *p, int nice)
 	return 0;
 }
 
+static int dummy_task_setioprio (struct task_struct *p, int ioprio)
+{
+	return 0;
+}
+
 static int dummy_task_setrlimit (unsigned int resource, struct rlimit *new_rlim)
 {
 	return 0;
@@ -528,6 +533,11 @@ static int dummy_task_setscheduler (struct task_struct *p, int policy,
 }
 
 static int dummy_task_getscheduler (struct task_struct *p)
+{
+	return 0;
+}
+
+static int dummy_task_movememory (struct task_struct *p)
 {
 	return 0;
 }
@@ -810,6 +820,11 @@ static void dummy_xfrm_policy_free_security(struct xfrm_policy *xp)
 {
 }
 
+static int dummy_xfrm_policy_delete_security(struct xfrm_policy *xp)
+{
+	return 0;
+}
+
 static int dummy_xfrm_state_alloc_security(struct xfrm_state *x, struct xfrm_user_sec_ctx *sec_ctx)
 {
 	return 0;
@@ -817,6 +832,11 @@ static int dummy_xfrm_state_alloc_security(struct xfrm_state *x, struct xfrm_use
 
 static void dummy_xfrm_state_free_security(struct xfrm_state *x)
 {
+}
+
+static int dummy_xfrm_state_delete_security(struct xfrm_state *x)
+{
+	return 0;
 }
 
 static int dummy_xfrm_policy_lookup(struct xfrm_policy *xp, u32 sk_sid, u8 dir)
@@ -850,7 +870,7 @@ static int dummy_setprocattr(struct task_struct *p, char *name, void *value, siz
 }
 
 #ifdef CONFIG_KEYS
-static inline int dummy_key_alloc(struct key *key)
+static inline int dummy_key_alloc(struct key *key, struct task_struct *ctx)
 {
 	return 0;
 }
@@ -962,9 +982,11 @@ void security_fixup_ops (struct security_operations *ops)
 	set_to_dummy_if_null(ops, task_getsid);
 	set_to_dummy_if_null(ops, task_setgroups);
 	set_to_dummy_if_null(ops, task_setnice);
+	set_to_dummy_if_null(ops, task_setioprio);
 	set_to_dummy_if_null(ops, task_setrlimit);
 	set_to_dummy_if_null(ops, task_setscheduler);
 	set_to_dummy_if_null(ops, task_getscheduler);
+	set_to_dummy_if_null(ops, task_movememory);
 	set_to_dummy_if_null(ops, task_wait);
 	set_to_dummy_if_null(ops, task_kill);
 	set_to_dummy_if_null(ops, task_prctl);
@@ -1024,8 +1046,10 @@ void security_fixup_ops (struct security_operations *ops)
 	set_to_dummy_if_null(ops, xfrm_policy_alloc_security);
 	set_to_dummy_if_null(ops, xfrm_policy_clone_security);
 	set_to_dummy_if_null(ops, xfrm_policy_free_security);
+	set_to_dummy_if_null(ops, xfrm_policy_delete_security);
 	set_to_dummy_if_null(ops, xfrm_state_alloc_security);
 	set_to_dummy_if_null(ops, xfrm_state_free_security);
+	set_to_dummy_if_null(ops, xfrm_state_delete_security);
 	set_to_dummy_if_null(ops, xfrm_policy_lookup);
 #endif	/* CONFIG_SECURITY_NETWORK_XFRM */
 #ifdef CONFIG_KEYS

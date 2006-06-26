@@ -3,7 +3,6 @@
 
 /* $Id$ */
 
-#include <linux/config.h>
 
 struct sigcontext {
 	/* CPU registers */

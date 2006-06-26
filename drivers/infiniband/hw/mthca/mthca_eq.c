@@ -695,10 +695,6 @@ static void mthca_unmap_reg(struct mthca_dev *dev, unsigned long offset,
 
 static int __devinit mthca_map_eq_regs(struct mthca_dev *dev)
 {
-	unsigned long mthca_base;
-
-	mthca_base = pci_resource_start(dev->pdev, 0);
-
 	if (mthca_is_memfree(dev)) {
 		/*
 		 * We assume that the EQ arm and EQ set CI registers

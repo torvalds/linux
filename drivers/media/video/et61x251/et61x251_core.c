@@ -2341,11 +2341,9 @@ static int et61x251_ioctl_v4l2(struct inode* inode, struct file* filp,
 	case VIDIOC_G_CTRL:
 		return et61x251_vidioc_g_ctrl(cam, arg);
 
-	case VIDIOC_S_CTRL_OLD:
 	case VIDIOC_S_CTRL:
 		return et61x251_vidioc_s_ctrl(cam, arg);
 
-	case VIDIOC_CROPCAP_OLD:
 	case VIDIOC_CROPCAP:
 		return et61x251_vidioc_cropcap(cam, arg);
 
@@ -2392,7 +2390,6 @@ static int et61x251_ioctl_v4l2(struct inode* inode, struct file* filp,
 	case VIDIOC_G_PARM:
 		return et61x251_vidioc_g_parm(cam, arg);
 
-	case VIDIOC_S_PARM_OLD:
 	case VIDIOC_S_PARM:
 		return et61x251_vidioc_s_parm(cam, arg);
 

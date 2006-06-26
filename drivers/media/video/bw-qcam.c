@@ -73,6 +73,7 @@ OTHER DEALINGS IN THE SOFTWARE.
 #include <linux/parport.h>
 #include <linux/sched.h>
 #include <linux/videodev.h>
+#include <media/v4l2-common.h>
 #include <linux/mutex.h>
 #include <asm/uaccess.h>
 
@@ -759,7 +760,7 @@ static int qcam_do_ioctl(struct inode *inode, struct file *file,
 		{
 			struct video_picture *p = arg;
 			if(p->palette!=VIDEO_PALETTE_GREY)
-			    	return -EINVAL;
+				return -EINVAL;
 			if(p->depth!=4 && p->depth!=6)
 				return -EINVAL;
 

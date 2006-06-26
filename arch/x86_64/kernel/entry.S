@@ -281,12 +281,7 @@ tracesys:
 	ja  1f
 	movq %r10,%rcx	/* fixup for C */
 	call *sys_call_table(,%rax,8)
-	movq %rax,RAX-ARGOFFSET(%rsp)
-1:	SAVE_REST
-	movq %rsp,%rdi
-	call syscall_trace_leave
-	RESTORE_TOP_OF_STACK %rbx
-	RESTORE_REST
+1:	movq %rax,RAX-ARGOFFSET(%rsp)
 	/* Use IRET because user could have changed frame */
 	jmp int_ret_from_sys_call
 	CFI_ENDPROC

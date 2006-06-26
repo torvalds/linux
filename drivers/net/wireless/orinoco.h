@@ -7,7 +7,7 @@
 #ifndef _ORINOCO_H
 #define _ORINOCO_H
 
-#define DRIVER_VERSION "0.15rc3"
+#define DRIVER_VERSION "0.15"
 
 #include <linux/netdevice.h>
 #include <linux/wireless.h>
@@ -28,20 +28,6 @@
 struct orinoco_key {
 	__le16 len;	/* always stored as little-endian */
 	char data[ORINOCO_MAX_KEY_SIZE];
-} __attribute__ ((packed));
-
-struct header_struct {
-	/* 802.3 */
-	u8 dest[ETH_ALEN];
-	u8 src[ETH_ALEN];
-	__be16 len;
-	/* 802.2 */
-	u8 dsap;
-	u8 ssap;
-	u8 ctrl;
-	/* SNAP */
-	u8 oui[3];
-	unsigned short ethertype;
 } __attribute__ ((packed));
 
 typedef enum {
@@ -131,9 +117,6 @@ extern int orinoco_debug;
 #else
 #define DEBUG(n, args...) do { } while (0)
 #endif	/* ORINOCO_DEBUG */
-
-#define TRACE_ENTER(devname) DEBUG(2, "%s: -> %s()\n", devname, __FUNCTION__);
-#define TRACE_EXIT(devname)  DEBUG(2, "%s: <- %s()\n", devname, __FUNCTION__);
 
 /********************************************************************/
 /* Exported prototypes                                              */

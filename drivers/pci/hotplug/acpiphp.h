@@ -75,6 +75,10 @@ struct acpiphp_bridge {
 	struct list_head list;
 	acpi_handle handle;
 	struct acpiphp_slot *slots;
+
+	/* Ejectable PCI-to-PCI bridge (PCI bridge and PCI function) */
+	struct acpiphp_func *func;
+
 	int type;
 	int nr_slots;
 
@@ -122,6 +126,7 @@ struct acpiphp_slot {
  */
 struct acpiphp_func {
 	struct acpiphp_slot *slot;	/* parent */
+	struct acpiphp_bridge *bridge;	/* Ejectable PCI-to-PCI bridge */
 
 	struct list_head sibling;
 	struct pci_dev *pci_dev;

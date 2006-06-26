@@ -664,7 +664,10 @@ static struct resource rbtx4938_fpga_resource;
 
 static char pcode_str[8];
 static struct resource tx4938_reg_resource = {
-	pcode_str, TX4938_REG_BASE, TX4938_REG_BASE+TX4938_REG_SIZE, IORESOURCE_MEM
+	.start	= TX4938_REG_BASE,
+	.end	= TX4938_REG_BASE + TX4938_REG_SIZE,
+	.name	= pcode_str,
+	.flags	= IORESOURCE_MEM
 };
 
 void __init tx4938_board_setup(void)

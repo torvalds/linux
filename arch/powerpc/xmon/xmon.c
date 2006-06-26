@@ -26,9 +26,6 @@
 #include <asm/prom.h>
 #include <asm/machdep.h>
 #include <asm/xmon.h>
-#ifdef CONFIG_PMAC_BACKLIGHT
-#include <asm/backlight.h>
-#endif
 #include <asm/processor.h>
 #include <asm/pgtable.h>
 #include <asm/mmu.h>

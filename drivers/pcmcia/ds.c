@@ -1143,6 +1143,12 @@ static int ds_event(struct pcmcia_socket *skt, event_t event, int priority)
 {
 	struct pcmcia_socket *s = pcmcia_get_socket(skt);
 
+	if (!s) {
+		printk(KERN_ERR "PCMCIA obtaining reference to socket %p " \
+			"failed, event 0x%x lost!\n", skt, event);
+		return -ENODEV;
+	}
+
 	ds_dbg(1, "ds_event(0x%06x, %d, 0x%p)\n",
 	       event, priority, skt);
 

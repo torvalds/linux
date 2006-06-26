@@ -224,6 +224,12 @@ config VIDEO_ZORAN_LML33R10
 	  support for the Linux Media Labs LML33R10 MJPEG capture/playback
 	  card.
 
+config VIDEO_ZORAN_AVS6EYES
+	tristate "AverMedia 6 Eyes support (EXPERIMENTAL)"
+	depends on VIDEO_ZORAN && EXPERIMENTAL && VIDEO_V4L1
+	help
+	  Support for the AverMedia 6 Eyes video surveillance card.
+
 config VIDEO_ZR36120
 	tristate "Zoran ZR36120/36125 Video For Linux"
 	depends on PCI && I2C && VIDEO_V4L1 && BROKEN
@@ -306,17 +312,6 @@ config VIDEO_HEXIUM_GEMINI
 
 source "drivers/media/video/cx88/Kconfig"
 
-config VIDEO_OVCAMCHIP
-	tristate "OmniVision Camera Chip support"
-	depends on I2C && VIDEO_V4L1
-	---help---
-	  Support for the OmniVision OV6xxx and OV7xxx series of camera chips.
-	  This driver is intended to be used with the ov511 and w9968cf USB
-	  camera drivers.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called ovcamchip.
-
 config VIDEO_M32R_AR
 	tristate "AR devices"
 	depends on M32R && VIDEO_V4L1
@@ -357,6 +352,15 @@ config VIDEO_CS53L32A
 	  To compile this driver as a module, choose M here: the
 	  module will be called cs53l32a.
 
+config VIDEO_TLV320AIC23B
+	tristate "Texas Instruments TLV320AIC23B audio codec"
+	depends on VIDEO_DEV && I2C && EXPERIMENTAL
+	---help---
+	  Support for the Texas Instruments TLV320AIC23B audio codec.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called tlv320aic23b.
+
 config VIDEO_WM8775
 	tristate "Wolfson Microelectronics WM8775 audio ADC with input mixer"
 	depends on VIDEO_DEV && I2C && EXPERIMENTAL
@@ -380,10 +384,10 @@ config VIDEO_WM8739
 source "drivers/media/video/cx25840/Kconfig"
 
 config VIDEO_SAA711X
-	tristate "Philips SAA7113/4/5 video decoders (OBSOLETED)"
-	depends on VIDEO_V4L1 && I2C && EXPERIMENTAL
+	tristate "Philips SAA7113/4/5 video decoders"
+	depends on VIDEO_DEV && I2C && EXPERIMENTAL
 	---help---
-	  Old support for the Philips SAA7113/4 video decoders.
+	  Support for the Philips SAA7113/4/5 video decoders.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called saa7115.
@@ -447,6 +451,35 @@ source "drivers/media/video/usbvideo/Kconfig"
 
 source "drivers/media/video/et61x251/Kconfig"
 
+config VIDEO_OVCAMCHIP
+	tristate "OmniVision Camera Chip support"
+	depends on I2C && VIDEO_V4L1
+	---help---
+	  Support for the OmniVision OV6xxx and OV7xxx series of camera chips.
+	  This driver is intended to be used with the ov511 and w9968cf USB
+	  camera drivers.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ovcamchip.
+
+config USB_W9968CF
+	tristate "USB W996[87]CF JPEG Dual Mode Camera support"
+	depends on USB && VIDEO_V4L1 && I2C
+	select VIDEO_OVCAMCHIP
+	---help---
+	  Say Y here if you want support for cameras based on OV681 or
+	  Winbond W9967CF/W9968CF JPEG USB Dual Mode Camera Chips.
+
+	  This driver has an optional plugin, which is distributed as a
+	  separate module only (released under GPL). It allows to use higher
+	  resolutions and framerates, but cannot be included in the official
+	  Linux kernel for performance purposes.
+
+	  See <file:Documentation/video4linux/w9968cf.txt> for more info.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called w9968cf.
+
 config USB_OV511
 	tristate "USB OV511 Camera support"
 	depends on USB && VIDEO_V4L1
@@ -482,24 +515,6 @@ config USB_STV680
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called stv680.
-
-config USB_W9968CF
-	tristate "USB W996[87]CF JPEG Dual Mode Camera support"
-	depends on USB && VIDEO_V4L1 && I2C
-	select VIDEO_OVCAMCHIP
-	---help---
-	  Say Y here if you want support for cameras based on OV681 or
-	  Winbond W9967CF/W9968CF JPEG USB Dual Mode Camera Chips.
-
-	  This driver has an optional plugin, which is distributed as a
-	  separate module only (released under GPL). It allows to use higher
-	  resolutions and framerates, but cannot be included in the official
-	  Linux kernel for performance purposes.
-
-	  See <file:Documentation/video4linux/w9968cf.txt> for more info.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called w9968cf.
 
 source "drivers/media/video/zc0301/Kconfig"
 

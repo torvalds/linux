@@ -728,7 +728,7 @@ void __init setup_arch(char **cmdline_p)
 #endif
 #ifdef CONFIG_KEXEC
 	if (crashk_res.start != crashk_res.end) {
-		reserve_bootmem(crashk_res.start,
+		reserve_bootmem_generic(crashk_res.start,
 			crashk_res.end - crashk_res.start + 1);
 	}
 #endif
@@ -1051,7 +1051,7 @@ static void srat_detect_node(void)
 	   for now. */
 	node = apicid_to_node[hard_smp_processor_id()];
 	if (node == NUMA_NO_NODE)
-		node = 0;
+		node = first_node(node_online_map);
 	numa_set_node(cpu, node);
 
 	if (acpi_numa > 0)

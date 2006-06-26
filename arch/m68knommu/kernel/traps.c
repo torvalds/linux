@@ -93,12 +93,12 @@ asmlinkage void buserr_c(struct frame *fp)
 	if (user_mode(&fp->ptregs))
 		current->thread.esp0 = (unsigned long) fp;
 
-#if DEBUG
+#if defined(DEBUG)
 	printk (KERN_DEBUG "*** Bus Error *** Format is %x\n", fp->ptregs.format);
 #endif
 
 	die_if_kernel("bad frame format",&fp->ptregs,0);
-#if DEBUG
+#if defined(DEBUG)
 	printk(KERN_DEBUG "Unknown SIGSEGV - 4\n");
 #endif
 	force_sig(SIGSEGV, current);

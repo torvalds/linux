@@ -159,8 +159,7 @@ fail:
 static struct page * ext2_get_page(struct inode *dir, unsigned long n)
 {
 	struct address_space *mapping = dir->i_mapping;
-	struct page *page = read_cache_page(mapping, n,
-				(filler_t*)mapping->a_ops->readpage, NULL);
+	struct page *page = read_mapping_page(mapping, n, NULL);
 	if (!IS_ERR(page)) {
 		wait_on_page_locked(page);
 		kmap(page);
@@ -400,8 +399,7 @@ ino_t ext2_inode_by_name(struct inode * dir, struct dentry *dentry)
 	de = ext2_find_entry (dir, dentry, &page);
 	if (de) {
 		res = le32_to_cpu(de->inode);
-		kunmap(page);
-		page_cache_release(page);
+		ext2_put_page(page);
 	}
 	return res;
 }

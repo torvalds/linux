@@ -32,7 +32,6 @@
 /* We have dependencies all over the place for the host system
    for xsim being a linux system, so let's not pretend anything
    else with #ifdef:s here until fixed.  */
-#include <linux/config.h>
 #include <linux/limits.h>
 
 /* Maybe do sanity checking if file input. */

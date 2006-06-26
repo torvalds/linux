@@ -1157,6 +1157,7 @@ EXPORT_SYMBOL_GPL(pmac_i2c_xfer);
 /* some quirks for platform function decoding */
 enum {
 	pmac_i2c_quirk_invmask = 0x00000001u,
+	pmac_i2c_quirk_skip = 0x00000002u,
 };
 
 static void pmac_i2c_devscan(void (*callback)(struct device_node *dev,
@@ -1172,6 +1173,15 @@ static void pmac_i2c_devscan(void (*callback)(struct device_node *dev,
 		/* XXX Study device-tree's & apple drivers are get the quirks
 		 * right !
 		 */
+		/* Workaround: It seems that running the clockspreading
+		 * properties on the eMac will cause lockups during boot.
+		 * The machine seems to work fine without that. So for now,
+		 * let's make sure i2c-hwclock doesn't match about "imic"
+		 * clocks and we'll figure out if we really need to do
+		 * something special about those later.
+		 */
+		{ "i2c-hwclock", "imic5002", pmac_i2c_quirk_skip },
+		{ "i2c-hwclock", "imic5003", pmac_i2c_quirk_skip },
 		{ "i2c-hwclock", NULL, pmac_i2c_quirk_invmask },
 		{ "i2c-cpu-voltage", NULL, 0},
 		{  "temp-monitor", NULL, 0 },
@@ -1198,6 +1208,8 @@ static void pmac_i2c_devscan(void (*callback)(struct device_node *dev,
 				if (p->compatible &&
 				    !device_is_compatible(np, p->compatible))
 					continue;
+				if (p->quirks & pmac_i2c_quirk_skip)
+					break;
 				callback(np, p->quirks);
 				break;
 			}

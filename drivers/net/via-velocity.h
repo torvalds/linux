@@ -307,7 +307,7 @@ enum  velocity_owner {
 #define TX_QUEUE_NO         4
 
 #define MAX_HW_MIB_COUNTER  32
-#define VELOCITY_MIN_MTU    (1514-14)
+#define VELOCITY_MIN_MTU    (64)
 #define VELOCITY_MAX_MTU    (9000)
 
 /*

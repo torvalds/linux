@@ -166,10 +166,7 @@ asmlinkage int sys32_ptrace(int request, int pid, int addr, int data)
 			tmp = regs->lo;
 			break;
 		case FPC_CSR:
-			if (cpu_has_fpu)
-				tmp = child->thread.fpu.hard.fcr31;
-			else
-				tmp = child->thread.fpu.soft.fcr31;
+			tmp = child->thread.fpu.fcr31;
 			break;
 		case FPC_EIR: {	/* implementation / version register */
 			unsigned int flags;
@@ -288,9 +285,9 @@ asmlinkage int sys32_ptrace(int request, int pid, int addr, int data)
 
 			if (!tsk_used_math(child)) {
 				/* FP not yet used  */
-				memset(&child->thread.fpu.hard, ~0,
-				       sizeof(child->thread.fpu.hard));
-				child->thread.fpu.hard.fcr31 = 0;
+				memset(&child->thread.fpu, ~0,
+				       sizeof(child->thread.fpu));
+				child->thread.fpu.fcr31 = 0;
 			}
 			/*
 			 * The odd registers are actually the high order bits
@@ -318,10 +315,7 @@ asmlinkage int sys32_ptrace(int request, int pid, int addr, int data)
 			regs->lo = data;
 			break;
 		case FPC_CSR:
-			if (cpu_has_fpu)
-				child->thread.fpu.hard.fcr31 = data;
-			else
-				child->thread.fpu.soft.fcr31 = data;
+			child->thread.fpu.fcr31 = data;
 			break;
 		case DSP_BASE ... DSP_BASE + 5: {
 			dspreg_t *dregs;

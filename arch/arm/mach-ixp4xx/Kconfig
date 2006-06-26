@@ -141,7 +141,7 @@ config IXP4XX_INDIRECT_PCI
           2) If > 64MB of memory space is required, the IXP4xx can be 
 	     configured to use indirect registers to access PCI This allows 
 	     for up to 128MB (0x48000000 to 0x4fffffff) of memory on the bus. 
-	     The disadvantadge of this is that every PCI access requires 
+	     The disadvantage of this is that every PCI access requires 
 	     three local register accesses plus a spinlock, but in some 
 	     cases the performance hit is acceptable. In addition, you cannot 
 	     mmap() PCI devices in this case due to the indirect nature

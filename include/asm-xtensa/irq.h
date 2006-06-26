@@ -11,7 +11,6 @@
 #ifndef _XTENSA_IRQ_H
 #define _XTENSA_IRQ_H
 
-#include <linux/config.h>
 #include <asm/platform/hardware.h>
 
 #include <xtensa/config/core.h>

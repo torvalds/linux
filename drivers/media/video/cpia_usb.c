@@ -474,12 +474,6 @@ static int cpia_usb_close(void *privdata)
 	return 0;
 }
 
-int cpia_usb_init(void)
-{
-	/* return -ENODEV; */
-	return 0;
-}
-
 /* Probing and initializing */
 
 static int cpia_probe(struct usb_interface *intf,

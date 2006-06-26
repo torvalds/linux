@@ -370,5 +370,12 @@ ib_sa_mcmember_rec_delete(struct ib_device *device, u8 port_num,
 					context, query);
 }
 
+/**
+ * ib_init_ah_from_path - Initialize address handle attributes based on an SA
+ *   path record.
+ */
+int ib_init_ah_from_path(struct ib_device *device, u8 port_num,
+			 struct ib_sa_path_rec *rec,
+			 struct ib_ah_attr *ah_attr);
 
 #endif /* IB_SA_H */

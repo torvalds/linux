@@ -31,6 +31,8 @@
 #define SUCCESS 0
 #define FAILURE -1
 
+#define CHECKBIT(value, nbit) (value & (1 << nbit))
+
 /* Maximum time to flicker LED when asked to identify NIC using ethtool */
 #define MAX_FLICKER_TIME	60000 /* 60 Secs */
 
@@ -78,6 +80,11 @@ static int debug_level = ERR_DBG;
 typedef struct {
 	unsigned long long single_ecc_errs;
 	unsigned long long double_ecc_errs;
+	unsigned long long parity_err_cnt;
+	unsigned long long serious_err_cnt;
+	unsigned long long soft_reset_cnt;
+	unsigned long long fifo_full_cnt;
+	unsigned long long ring_full_cnt;
 	/* LRO statistics */
 	unsigned long long clubbed_frms_cnt;
 	unsigned long long sending_both;
@@ -86,6 +93,25 @@ typedef struct {
 	unsigned long long sum_avg_pkts_aggregated;
 	unsigned long long num_aggregations;
 } swStat_t;
+
+/* Xpak releated alarm and warnings */
+typedef struct {
+	u64 alarm_transceiver_temp_high;
+	u64 alarm_transceiver_temp_low;
+	u64 alarm_laser_bias_current_high;
+	u64 alarm_laser_bias_current_low;
+	u64 alarm_laser_output_power_high;
+	u64 alarm_laser_output_power_low;
+	u64 warn_transceiver_temp_high;
+	u64 warn_transceiver_temp_low;
+	u64 warn_laser_bias_current_high;
+	u64 warn_laser_bias_current_low;
+	u64 warn_laser_output_power_high;
+	u64 warn_laser_output_power_low;
+	u64 xpak_regs_stat;
+	u32 xpak_timer_count;
+} xpakStat_t;
+
 
 /* The statistics block of Xena */
 typedef struct stat_block {
@@ -263,7 +289,9 @@ typedef struct stat_block {
 	u32 rmac_accepted_ip_oflow;
 	u32 reserved_14;
 	u32 link_fault_cnt;
+	u8  buffer[20];
 	swStat_t sw_stat;
+	xpakStat_t xpak_stat;
 } StatInfo_t;
 
 /*
@@ -659,7 +687,8 @@ typedef struct {
 } usr_addr_t;
 
 /* Default Tunable parameters of the NIC. */
-#define DEFAULT_FIFO_LEN 4096
+#define DEFAULT_FIFO_0_LEN 4096
+#define DEFAULT_FIFO_1_7_LEN 512
 #define SMALL_BLK_CNT	30
 #define LARGE_BLK_CNT	100
 
@@ -732,7 +761,7 @@ struct s2io_nic {
 	int device_close_flag;
 	int device_enabled_once;
 
-	char name[50];
+	char name[60];
 	struct tasklet_struct task;
 	volatile unsigned long tasklet_status;
 
@@ -803,6 +832,8 @@ struct s2io_nic {
 	char desc1[35];
 	char desc2[35];
 
+	int avail_msix_vectors; /* No. of MSI-X vectors granted by system */
+
 	struct msix_info_st msix_info[0x3f];
 
 #define XFRAME_I_DEVICE		1
@@ -824,6 +855,8 @@ struct s2io_nic {
 	spinlock_t	rx_lock;
 	atomic_t	isr_cnt;
 	u64 *ufo_in_band_v;
+#define VPD_PRODUCT_NAME_LEN 50
+	u8  product_name[VPD_PRODUCT_NAME_LEN];
 };
 
 #define RESET_ERROR 1;
@@ -848,28 +881,32 @@ static inline void writeq(u64 val, void __iomem *addr)
 	writel((u32) (val), addr);
 	writel((u32) (val >> 32), (addr + 4));
 }
+#endif
 
-/* In 32 bit modes, some registers have to be written in a
- * particular order to expect correct hardware operation. The
- * macro SPECIAL_REG_WRITE is used to perform such ordered
- * writes. Defines UF (Upper First) and LF (Lower First) will
- * be used to specify the required write order.
+/* 
+ * Some registers have to be written in a particular order to 
+ * expect correct hardware operation. The macro SPECIAL_REG_WRITE 
+ * is used to perform such ordered writes. Defines UF (Upper First) 
+ * and LF (Lower First) will be used to specify the required write order.
  */
 #define UF	1
 #define LF	2
 static inline void SPECIAL_REG_WRITE(u64 val, void __iomem *addr, int order)
 {
+	u32 ret;
+
 	if (order == LF) {
 		writel((u32) (val), addr);
+		ret = readl(addr);
 		writel((u32) (val >> 32), (addr + 4));
+		ret = readl(addr + 4);
 	} else {
 		writel((u32) (val >> 32), (addr + 4));
+		ret = readl(addr + 4);
 		writel((u32) (val), addr);
+		ret = readl(addr);
 	}
 }
-#else
-#define SPECIAL_REG_WRITE(val, addr, dummy) writeq(val, addr)
-#endif
 
 /*  Interrupt related values of Xena */
 
@@ -965,7 +1002,7 @@ static int verify_xena_quiescence(nic_t *sp, u64 val64, int flag);
 static struct ethtool_ops netdev_ethtool_ops;
 static void s2io_set_link(unsigned long data);
 static int s2io_set_swapper(nic_t * sp);
-static void s2io_card_down(nic_t *nic);
+static void s2io_card_down(nic_t *nic, int flag);
 static int s2io_card_up(nic_t *nic);
 static int get_xena_rev_id(struct pci_dev *pdev);
 static void restore_xmsi_data(nic_t *nic);

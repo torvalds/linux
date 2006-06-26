@@ -21,8 +21,6 @@
 #ifndef ISCSI_PROTO_H
 #define ISCSI_PROTO_H
 
-#define ISCSI_VERSION_STR	"0.3"
-#define ISCSI_DATE_STR		"22-Apr-2005"
 #define ISCSI_DRAFT20_VERSION	0x00
 
 /* default iSCSI listen port for incoming connections */

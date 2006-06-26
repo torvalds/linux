@@ -30,13 +30,13 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * $Id: ib_user_cm.h 2576 2005-06-09 17:00:30Z libor $
+ * $Id: ib_user_cm.h 4019 2005-11-11 00:33:09Z sean.hefty $
  */
 
 #ifndef IB_USER_CM_H
 #define IB_USER_CM_H
 
-#include <linux/types.h>
+#include <rdma/ib_user_sa.h>
 
 #define IB_USER_CM_ABI_VERSION 4
 
@@ -110,58 +110,6 @@ struct ib_ucm_init_qp_attr {
 	__u32 qp_state;
 };
 
-struct ib_ucm_ah_attr {
-	__u8	grh_dgid[16];
-	__u32	grh_flow_label;
-	__u16	dlid;
-	__u16	reserved;
-	__u8	grh_sgid_index;
-	__u8	grh_hop_limit;
-	__u8	grh_traffic_class;
-	__u8	sl;
-	__u8	src_path_bits;
-	__u8	static_rate;
-	__u8	is_global;
-	__u8	port_num;
-};
-
-struct ib_ucm_init_qp_attr_resp {
-	__u32	qp_attr_mask;
-	__u32	qp_state;
-	__u32	cur_qp_state;
-	__u32	path_mtu;
-	__u32	path_mig_state;
-	__u32	qkey;
-	__u32	rq_psn;
-	__u32	sq_psn;
-	__u32	dest_qp_num;
-	__u32	qp_access_flags;
-
-	struct ib_ucm_ah_attr	ah_attr;
-	struct ib_ucm_ah_attr	alt_ah_attr;
-
-	/* ib_qp_cap */
-	__u32	max_send_wr;
-	__u32	max_recv_wr;
-	__u32	max_send_sge;
-	__u32	max_recv_sge;
-	__u32	max_inline_data;
-
-	__u16	pkey_index;
-	__u16	alt_pkey_index;
-	__u8	en_sqd_async_notify;
-	__u8	sq_draining;
-	__u8	max_rd_atomic;
-	__u8	max_dest_rd_atomic;
-	__u8	min_rnr_timer;
-	__u8	port_num;
-	__u8	timeout;
-	__u8	retry_cnt;
-	__u8	rnr_retry;
-	__u8	alt_port_num;
-	__u8	alt_timeout;
-};
-
 struct ib_ucm_listen {
 	__be64 service_id;
 	__be64 service_mask;
@@ -178,28 +126,6 @@ struct ib_ucm_private_data {
 	__u32 id;
 	__u8  len;
 	__u8  reserved[3];
-};
-
-struct ib_ucm_path_rec {
-	__u8  dgid[16];
-	__u8  sgid[16];
-	__be16 dlid;
-	__be16 slid;
-	__u32 raw_traffic;
-	__be32 flow_label;
-	__u32 reversible;
-	__u32 mtu;
-	__be16 pkey;
-	__u8  hop_limit;
-	__u8  traffic_class;
-	__u8  numb_path;
-	__u8  sl;
-	__u8  mtu_selector;
-	__u8  rate_selector;
-	__u8  rate;
-	__u8  packet_life_time_selector;
-	__u8  packet_life_time;
-	__u8  preference;
 };
 
 struct ib_ucm_req {
@@ -274,7 +200,7 @@ struct ib_ucm_sidr_req {
 	__be64 sid;
 	__u64 data;
 	__u64 path;
-	__u16 pkey;
+	__u16 reserved_pkey;
 	__u8  len;
 	__u8  max_cm_retries;
 	__u8  reserved[4];
@@ -304,8 +230,8 @@ struct ib_ucm_event_get {
 };
 
 struct ib_ucm_req_event_resp {
-	struct ib_ucm_path_rec primary_path;
-	struct ib_ucm_path_rec alternate_path;
+	struct ib_user_path_rec primary_path;
+	struct ib_user_path_rec alternate_path;
 	__be64                 remote_ca_guid;
 	__u32                  remote_qkey;
 	__u32                  remote_qpn;
@@ -349,7 +275,7 @@ struct ib_ucm_mra_event_resp {
 };
 
 struct ib_ucm_lap_event_resp {
-	struct ib_ucm_path_rec path;
+	struct ib_user_path_rec path;
 };
 
 struct ib_ucm_apr_event_resp {

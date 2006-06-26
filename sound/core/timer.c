@@ -1061,7 +1061,6 @@ static int snd_timer_register_system(void)
 static void snd_timer_proc_read(struct snd_info_entry *entry,
 				struct snd_info_buffer *buffer)
 {
-	unsigned long flags;
 	struct snd_timer *timer;
 	struct snd_timer_instance *ti;
 	struct list_head *p, *q;
@@ -1095,7 +1094,6 @@ static void snd_timer_proc_read(struct snd_info_entry *entry,
 		if (timer->hw.flags & SNDRV_TIMER_HW_SLAVE)
 			snd_iprintf(buffer, " SLAVE");
 		snd_iprintf(buffer, "\n");
-		spin_lock_irqsave(&timer->lock, flags);
 		list_for_each(q, &timer->open_list_head) {
 			ti = list_entry(q, struct snd_timer_instance, open_list);
 			snd_iprintf(buffer, "  Client %s : %s\n",
@@ -1104,12 +1102,11 @@ static void snd_timer_proc_read(struct snd_info_entry *entry,
 						 SNDRV_TIMER_IFLG_RUNNING)
 				    ? "running" : "stopped");
 		}
-		spin_unlock_irqrestore(&timer->lock, flags);
 	}
 	mutex_unlock(&register_mutex);
 }
 
-static struct snd_info_entry *snd_timer_proc_entry = NULL;
+static struct snd_info_entry *snd_timer_proc_entry;
 
 static void __init snd_timer_proc_init(void)
 {
@@ -1117,7 +1114,6 @@ static void __init snd_timer_proc_init(void)
 
 	entry = snd_info_create_module_entry(THIS_MODULE, "timers", NULL);
 	if (entry != NULL) {
-		entry->c.text.read_size = SNDRV_TIMER_DEVICES * 128;
 		entry->c.text.read = snd_timer_proc_read;
 		if (snd_info_register(entry) < 0) {
 			snd_info_free_entry(entry);

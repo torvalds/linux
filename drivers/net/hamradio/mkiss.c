@@ -357,9 +357,9 @@ static int ax_set_mac_address(struct net_device *dev, void *addr)
 {
 	struct sockaddr_ax25 *sa = addr;
 
-	spin_lock_irq(&dev->xmit_lock);
+	netif_tx_lock_bh(dev);
 	memcpy(dev->dev_addr, &sa->sax25_call, AX25_ADDR_LEN);
-	spin_unlock_irq(&dev->xmit_lock);
+	netif_tx_unlock_bh(dev);
 
 	return 0;
 }
@@ -886,9 +886,9 @@ static int mkiss_ioctl(struct tty_struct *tty, struct file *file,
 			break;
 		}
 
-		spin_lock_irq(&dev->xmit_lock);
+		netif_tx_lock_bh(dev);
 		memcpy(dev->dev_addr, addr, AX25_ADDR_LEN);
-		spin_unlock_irq(&dev->xmit_lock);
+		netif_tx_unlock_bh(dev);
 
 		err = 0;
 		break;

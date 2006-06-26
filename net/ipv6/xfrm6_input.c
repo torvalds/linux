@@ -13,20 +13,8 @@
 #include <linux/string.h>
 #include <linux/netfilter.h>
 #include <linux/netfilter_ipv6.h>
-#include <net/dsfield.h>
-#include <net/inet_ecn.h>
-#include <net/ip.h>
 #include <net/ipv6.h>
 #include <net/xfrm.h>
-
-static inline void ipip6_ecn_decapsulate(struct sk_buff *skb)
-{
-	struct ipv6hdr *outer_iph = skb->nh.ipv6h;
-	struct ipv6hdr *inner_iph = skb->h.ipv6h;
-
-	if (INET_ECN_is_ce(ipv6_get_dsfield(outer_iph)))
-		IP6_ECN_set_ce(inner_iph);
-}
 
 int xfrm6_rcv_spi(struct sk_buff *skb, u32 spi)
 {
@@ -81,21 +69,10 @@ int xfrm6_rcv_spi(struct sk_buff *skb, u32 spi)
 
 		xfrm_vec[xfrm_nr++] = x;
 
+		if (x->mode->input(x, skb))
+			goto drop;
+
 		if (x->props.mode) { /* XXX */
-			if (nexthdr != IPPROTO_IPV6)
-				goto drop;
-			if (!pskb_may_pull(skb, sizeof(struct ipv6hdr)))
-				goto drop;
-			if (skb_cloned(skb) &&
-			    pskb_expand_head(skb, 0, 0, GFP_ATOMIC))
-				goto drop;
-			if (x->props.flags & XFRM_STATE_DECAP_DSCP)
-				ipv6_copy_dscp(skb->nh.ipv6h, skb->h.ipv6h);
-			if (!(x->props.flags & XFRM_STATE_NOECN))
-				ipip6_ecn_decapsulate(skb);
-			skb->mac.raw = memmove(skb->data - skb->mac_len,
-					       skb->mac.raw, skb->mac_len);
-			skb->nh.raw = skb->data;
 			decaps = 1;
 			break;
 		}

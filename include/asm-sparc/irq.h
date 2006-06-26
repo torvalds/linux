@@ -7,7 +7,6 @@
 #ifndef _SPARC_IRQ_H
 #define _SPARC_IRQ_H
 
-#include <linux/config.h>
 #include <linux/linkage.h>
 #include <linux/threads.h>     /* For NR_CPUS */
 #include <linux/interrupt.h>
@@ -17,8 +16,6 @@
 
 #define __irq_ino(irq) irq
 #define __irq_pil(irq) irq
-BTFIXUPDEF_CALL(char *, __irq_itoa, unsigned int)
-#define __irq_itoa(irq) BTFIXUP_CALL(__irq_itoa)(irq)
 
 #define NR_IRQS    16
 
@@ -183,9 +180,5 @@ extern struct sun4m_intregs *sun4m_interrupts;
 
 #define SUN4M_INT_SBUS(x)	(1 << (x+7))
 #define SUN4M_INT_VME(x)	(1 << (x))
-
-struct irqaction;
-struct pt_regs;
-int handle_IRQ_event(unsigned int, struct pt_regs *, struct irqaction *);
 
 #endif

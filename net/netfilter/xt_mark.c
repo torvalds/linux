@@ -42,7 +42,7 @@ checkentry(const char *tablename,
            unsigned int matchsize,
            unsigned int hook_mask)
 {
-	struct xt_mark_info *minfo = (struct xt_mark_info *) matchinfo;
+	const struct xt_mark_info *minfo = matchinfo;
 
 	if (minfo->mark > 0xffffffff || minfo->mask > 0xffffffff) {
 		printk(KERN_WARNING "mark: only supports 32bit mark\n");

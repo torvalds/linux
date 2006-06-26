@@ -159,7 +159,7 @@ extern int dump_task_fpu (struct task_struct *, elf_fpregset_t *);
 #define ELF_CORE_COPY_FPREGS(tsk, elf_fpregs) dump_task_fpu(tsk, elf_fpregs)
 
 /* 1GB for 64bit, 8MB for 32bit */
-#define STACK_RND_MASK (is_compat_task() ? 0x7ff : 0x3fffff)
+#define STACK_RND_MASK (test_thread_flag(TIF_IA32) ? 0x7ff : 0x3fffff)
 
 #endif
 

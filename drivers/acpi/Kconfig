@@ -10,9 +10,8 @@ menu "ACPI (Advanced Configuration and Power Interface) Support"
 config ACPI
 	bool "ACPI Support"
 	depends on IA64 || X86
+	depends on PCI
 	select PM
-	select PCI
-
 	default y
 	---help---
 	  Advanced Configuration and Power Interface (ACPI) support for 
@@ -162,7 +161,7 @@ config ACPI_THERMAL
 config ACPI_NUMA
 	bool "NUMA support"
 	depends on NUMA
-	depends on (IA64 || X86_64)
+	depends on (X86 || IA64)
 	default y if IA64_GENERIC || IA64_SGI_SN2
 
 config ACPI_ASUS

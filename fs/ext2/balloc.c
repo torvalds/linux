@@ -521,6 +521,26 @@ io_error:
 	goto out_release;
 }
 
+#ifdef EXT2FS_DEBUG
+
+static int nibblemap[] = {4, 3, 3, 2, 3, 2, 2, 1, 3, 2, 2, 1, 2, 1, 1, 0};
+
+unsigned long ext2_count_free (struct buffer_head * map, unsigned int numchars)
+{
+	unsigned int i;
+	unsigned long sum = 0;
+
+	if (!map)
+		return (0);
+	for (i = 0; i < numchars; i++)
+		sum += nibblemap[map->b_data[i] & 0xf] +
+			nibblemap[(map->b_data[i] >> 4) & 0xf];
+	return (sum);
+}
+
+#endif  /*  EXT2FS_DEBUG  */
+
+/* Superblock must be locked */
 unsigned long ext2_count_free_blocks (struct super_block * sb)
 {
 	struct ext2_group_desc * desc;
@@ -530,7 +550,6 @@ unsigned long ext2_count_free_blocks (struct super_block * sb)
 	unsigned long bitmap_count, x;
 	struct ext2_super_block *es;
 
-	lock_super (sb);
 	es = EXT2_SB(sb)->s_es;
 	desc_count = 0;
 	bitmap_count = 0;
@@ -554,7 +573,6 @@ unsigned long ext2_count_free_blocks (struct super_block * sb)
 	printk("ext2_count_free_blocks: stored = %lu, computed = %lu, %lu\n",
 		(long)le32_to_cpu(es->s_free_blocks_count),
 		desc_count, bitmap_count);
-	unlock_super (sb);
 	return bitmap_count;
 #else
         for (i = 0; i < EXT2_SB(sb)->s_groups_count; i++) {

@@ -87,7 +87,7 @@ void __init ip32_timer_setup(struct irqaction *irq)
 	setup_irq(IP32_R4K_TIMER_IRQ, irq);
 }
 
-void __init plat_setup(void)
+void __init plat_mem_setup(void)
 {
 	board_be_init = ip32_be_init;
 

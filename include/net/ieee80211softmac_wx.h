@@ -91,4 +91,9 @@ ieee80211softmac_wx_get_genie(struct net_device *dev,
 			      struct iw_request_info *info,
 			      union iwreq_data *wrqu,
 			      char *extra);
+extern int
+ieee80211softmac_wx_set_mlme(struct net_device *dev,
+			     struct iw_request_info *info,
+			     union iwreq_data *wrqu,
+			     char *extra);
 #endif /* _IEEE80211SOFTMAC_WX */

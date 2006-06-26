@@ -328,16 +328,6 @@ struct hermes_multicast {
 	u8 addr[HERMES_MAX_MULTICAST][ETH_ALEN];
 } __attribute__ ((packed));
 
-// #define HERMES_DEBUG_BUFFER 1
-#define HERMES_DEBUG_BUFSIZE 4096
-struct hermes_debug_entry {
-	int bap;
-	u16 id, offset;
-	int cycles;
-};
-
-#ifdef __KERNEL__
-
 /* Timeouts */
 #define HERMES_BAP_BUSY_TIMEOUT (10000) /* In iterations of ~1us */
 
@@ -347,14 +337,7 @@ typedef struct hermes {
 	int reg_spacing;
 #define HERMES_16BIT_REGSPACING	0
 #define HERMES_32BIT_REGSPACING	1
-
 	u16 inten; /* Which interrupts should be enabled? */
-
-#ifdef HERMES_DEBUG_BUFFER
-	struct hermes_debug_entry dbuf[HERMES_DEBUG_BUFSIZE];
-	unsigned long dbufp;
-	unsigned long profile[HERMES_BAP_BUSY_TIMEOUT+1];
-#endif
 } hermes_t;
 
 /* Register access convenience macros */
@@ -376,8 +359,6 @@ int hermes_bap_pread(hermes_t *hw, int bap, void *buf, int len,
 		       u16 id, u16 offset);
 int hermes_bap_pwrite(hermes_t *hw, int bap, const void *buf, int len,
 			u16 id, u16 offset);
-int hermes_bap_pwrite_pad(hermes_t *hw, int bap, const void *buf,
-			unsigned data_len, int len, u16 id, u16 offset);
 int hermes_read_ltv(hermes_t *hw, int bap, u16 rid, unsigned buflen,
 		    u16 *length, void *buf);
 int hermes_write_ltv(hermes_t *hw, int bap, u16 rid,
@@ -425,10 +406,13 @@ static inline void hermes_read_words(struct hermes *hw, int off, void *buf, unsi
 	ioread16_rep(hw->iobase + off, buf, count);
 }
 
-static inline void hermes_write_words(struct hermes *hw, int off, const void *buf, unsigned count)
+static inline void hermes_write_bytes(struct hermes *hw, int off,
+				      const char *buf, unsigned count)
 {
 	off = off << hw->reg_spacing;
-	iowrite16_rep(hw->iobase + off, buf, count);
+	iowrite16_rep(hw->iobase + off, buf, count >> 1);
+	if (unlikely(count & 1))
+		iowrite8(buf[count - 1], hw->iobase + off);
 }
 
 static inline void hermes_clear_words(struct hermes *hw, int off, unsigned count)
@@ -461,22 +445,5 @@ static inline int hermes_write_wordrec(hermes_t *hw, int bap, u16 rid, u16 word)
 	__le16 rec = cpu_to_le16(word);
 	return HERMES_WRITE_RECORD(hw, bap, rid, &rec);
 }
-
-#else /* ! __KERNEL__ */
-
-/* These are provided for the benefit of userspace drivers and testing programs
-   which use ioperm() or iopl() */
-
-#define hermes_read_reg(base, off) (inw((base) + (off)))
-#define hermes_write_reg(base, off, val) (outw((val), (base) + (off)))
-
-#define hermes_read_regn(base, name) (hermes_read_reg((base), HERMES_##name))
-#define hermes_write_regn(base, name, val) (hermes_write_reg((base), HERMES_##name, (val)))
-
-/* Note that for the next two, the count is in 16-bit words, not bytes */
-#define hermes_read_data(base, off, buf, count) (insw((base) + (off), (buf), (count)))
-#define hermes_write_data(base, off, buf, count) (outsw((base) + (off), (buf), (count)))
-
-#endif /* ! __KERNEL__ */
 
 #endif  /* _HERMES_H */

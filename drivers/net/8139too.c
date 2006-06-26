@@ -165,7 +165,7 @@ static int multicast_filter_limit = 32;
 static int debug = -1;
 
 /*
- * Receive ring size 
+ * Receive ring size
  * Warning: 64K ring has hardware issues and may lock up.
  */
 #if defined(CONFIG_SH_DREAMCAST)
@@ -257,7 +257,7 @@ static struct pci_device_id rtl8139_pci_tbl[] = {
 	{0x018a, 0x0106, PCI_ANY_ID, PCI_ANY_ID, 0, 0, RTL8139 },
 	{0x126c, 0x1211, PCI_ANY_ID, PCI_ANY_ID, 0, 0, RTL8139 },
 	{0x1743, 0x8139, PCI_ANY_ID, PCI_ANY_ID, 0, 0, RTL8139 },
-	{0x021b, 0x8139, PCI_ANY_ID, PCI_ANY_ID, 0, 0, RTL8139 }, 
+	{0x021b, 0x8139, PCI_ANY_ID, PCI_ANY_ID, 0, 0, RTL8139 },
 
 #ifdef CONFIG_SH_SECUREEDGE5410
 	/* Bogus 8139 silicon reports 8129 without external PROM :-( */
@@ -1824,7 +1824,7 @@ static void rtl8139_rx_err (u32 rx_status, struct net_device *dev,
 	int tmp_work;
 #endif
 
-	if (netif_msg_rx_err (tp)) 
+	if (netif_msg_rx_err (tp))
 		printk(KERN_DEBUG "%s: Ethernet frame had errors, status %8.8x.\n",
 			dev->name, rx_status);
 	tp->stats.rx_errors++;
@@ -1944,7 +1944,7 @@ static int rtl8139_rx(struct net_device *dev, struct rtl8139_private *tp,
 		 RTL_R16 (RxBufAddr),
 		 RTL_R16 (RxBufPtr), RTL_R8 (ChipCmd));
 
-	while (netif_running(dev) && received < budget 
+	while (netif_running(dev) && received < budget
 	       && (RTL_R8 (ChipCmd) & RxBufEmpty) == 0) {
 		u32 ring_offset = cur_rx % RX_BUF_LEN;
 		u32 rx_status;
@@ -2031,7 +2031,7 @@ no_early_rx:
 
 			netif_receive_skb (skb);
 		} else {
-			if (net_ratelimit()) 
+			if (net_ratelimit())
 				printk (KERN_WARNING
 					"%s: Memory squeeze, dropping packet.\n",
 					dev->name);
@@ -2158,13 +2158,13 @@ static irqreturn_t rtl8139_interrupt (int irq, void *dev_instance,
 	status = RTL_R16 (IntrStatus);
 
 	/* shared irq? */
-	if (unlikely((status & rtl8139_intr_mask) == 0)) 
+	if (unlikely((status & rtl8139_intr_mask) == 0))
 		goto out;
 
 	handled = 1;
 
 	/* h/w no longer present (hotplug?) or major error, bail */
-	if (unlikely(status == 0xFFFF)) 
+	if (unlikely(status == 0xFFFF))
 		goto out;
 
 	/* close possible race's with dev_close */

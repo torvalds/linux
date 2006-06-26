@@ -53,12 +53,12 @@
 	sdc1	$f31, THREAD_FPR31(\thread)
 	.endm
 
-	.macro	fpu_save_double thread status tmp1 tmp2
-	sll	\tmp2, \tmp1, 5
-	bgez	\tmp2, 2f
+	.macro	fpu_save_double thread status tmp
+	sll	\tmp, \status, 5
+	bgez	\tmp, 2f
 	fpu_save_16odd \thread
 2:
-	fpu_save_16even \thread \tmp1			# clobbers t1
+	fpu_save_16even \thread \tmp
 	.endm
 
 	.macro	fpu_restore_16even thread tmp=t0
@@ -101,13 +101,12 @@
 	ldc1	$f31, THREAD_FPR31(\thread)
 	.endm
 
-	.macro	fpu_restore_double thread tmp
-	mfc0	t0, CP0_STATUS
-	sll	t1, t0, 5
-	bgez	t1, 1f				# 16 register mode?
+	.macro	fpu_restore_double thread status tmp
+	sll	\tmp, \status, 5
+	bgez	\tmp, 1f				# 16 register mode?
 
-	fpu_restore_16odd a0
-1:	fpu_restore_16even a0, t0		# clobbers t0
+	fpu_restore_16odd \thread
+1:	fpu_restore_16even \thread \tmp
 	.endm
 
 	.macro	cpu_save_nonscratch thread

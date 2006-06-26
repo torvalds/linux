@@ -427,23 +427,25 @@ static int xfrm_del_sa(struct sk_buff *skb, struct nlmsghdr *nlh, void **xfrma)
 	if (x == NULL)
 		return -ESRCH;
 
+	if ((err = security_xfrm_state_delete(x)) != 0)
+		goto out;
+
 	if (xfrm_state_kern(x)) {
-		xfrm_state_put(x);
-		return -EPERM;
+		err = -EPERM;
+		goto out;
 	}
 
 	err = xfrm_state_delete(x);
-	if (err < 0) {
-		xfrm_state_put(x);
-		return err;
-	}
+	if (err < 0)
+		goto out;
 
 	c.seq = nlh->nlmsg_seq;
 	c.pid = nlh->nlmsg_pid;
 	c.event = nlh->nlmsg_type;
 	km_state_notify(x, &c);
-	xfrm_state_put(x);
 
+out:
+	xfrm_state_put(x);
 	return err;
 }
 
@@ -1055,6 +1057,8 @@ static int xfrm_get_policy(struct sk_buff *skb, struct nlmsghdr *nlh, void **xfr
 					      MSG_DONTWAIT);
 		}
 	} else {
+		if ((err = security_xfrm_policy_delete(xp)) != 0)
+			goto out;
 		c.data.byid = p->index;
 		c.event = nlh->nlmsg_type;
 		c.seq = nlh->nlmsg_seq;
@@ -1064,6 +1068,7 @@ static int xfrm_get_policy(struct sk_buff *skb, struct nlmsghdr *nlh, void **xfr
 
 	xfrm_pol_put(xp);
 
+out:
 	return err;
 }
 

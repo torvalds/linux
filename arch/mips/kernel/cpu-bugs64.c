@@ -206,7 +206,7 @@ static inline void check_daddi(void)
 		"daddi	%0, %1, %3\n\t"
 		".set	pop"
 		: "=r" (v), "=&r" (tmp)
-		: "I" (0xffffffffffffdb9a), "I" (0x1234));
+		: "I" (0xffffffffffffdb9aUL), "I" (0x1234));
 	set_except_vector(12, handler);
 	local_irq_restore(flags);
 
@@ -224,7 +224,7 @@ static inline void check_daddi(void)
 		"dsrl	%1, %1, 1\n\t"
 		"daddi	%0, %1, %3"
 		: "=r" (v), "=&r" (tmp)
-		: "I" (0xffffffffffffdb9a), "I" (0x1234));
+		: "I" (0xffffffffffffdb9aUL), "I" (0x1234));
 	set_except_vector(12, handler);
 	local_irq_restore(flags);
 
@@ -280,7 +280,7 @@ static inline void check_daddiu(void)
 		"daddu	%1, %2\n\t"
 		".set	pop"
 		: "=&r" (v), "=&r" (w), "=&r" (tmp)
-		: "I" (0xffffffffffffdb9a), "I" (0x1234));
+		: "I" (0xffffffffffffdb9aUL), "I" (0x1234));
 
 	if (v == w) {
 		printk("no.\n");
@@ -296,7 +296,7 @@ static inline void check_daddiu(void)
 		"addiu	%1, $0, %4\n\t"
 		"daddu	%1, %2"
 		: "=&r" (v), "=&r" (w), "=&r" (tmp)
-		: "I" (0xffffffffffffdb9a), "I" (0x1234));
+		: "I" (0xffffffffffffdb9aUL), "I" (0x1234));
 
 	if (v == w) {
 		printk("yes.\n");

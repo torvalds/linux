@@ -736,7 +736,7 @@ static int intel_i915_remove_entries(struct agp_memory *mem,off_t pg_start,
 static int intel_i915_fetch_size(void)
 {
 	struct aper_size_info_fixed *values;
-	u32 temp, offset = 0;
+	u32 temp, offset;
 
 #define I915_256MB_ADDRESS_MASK (1<<27)
 

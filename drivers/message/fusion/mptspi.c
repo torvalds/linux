@@ -831,6 +831,7 @@ mptspi_ioc_reset(MPT_ADAPTER *ioc, int reset_phase)
 	return rc;
 }
 
+#ifdef CONFIG_PM
 /*
  * spi module resume handler
  */
@@ -846,6 +847,7 @@ mptspi_resume(struct pci_dev *pdev)
 
 	return rc;
 }
+#endif
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/

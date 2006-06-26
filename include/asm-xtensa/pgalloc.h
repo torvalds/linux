@@ -13,7 +13,6 @@
 
 #ifdef __KERNEL__
 
-#include <linux/config.h>
 #include <linux/threads.h>
 #include <linux/highmem.h>
 #include <asm/processor.h>

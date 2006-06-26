@@ -137,9 +137,29 @@ static int __init roadrunner_pci_init(void)
 
 subsys_initcall(roadrunner_pci_init);
 
+static struct physmap_flash_data roadrunner_flash_data = {
+	.width		= 2,
+};
+
+static struct resource roadrunner_flash_resource = {
+	.start		= 0x90000000,
+	.end		= 0x94000000,
+	.flags		= IORESOURCE_MEM,
+};
+
+static struct platform_device roadrunner_flash = {
+	.name		= "physmap-flash",
+	.id		= 0,
+	.dev		= {
+		.platform_data	= &roadrunner_flash_data,
+	},
+	.num_resources	= 1,
+	.resource	= &roadrunner_flash_resource,
+};
+
 static void __init roadrunner_init(void)
 {
-	physmap_configure(0x90000000, 0x04000000, 2, NULL);
+	platform_device_register(&roadrunner_flash);
 
 	/*
 	 * Mark flash as writeable

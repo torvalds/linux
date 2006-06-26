@@ -13,7 +13,6 @@
 #ifndef _ASM_FIXMAP_H
 #define _ASM_FIXMAP_H
 
-#include <linux/config.h>
 
 /* used by vmalloc.c, vsyscall.lds.S.
  *

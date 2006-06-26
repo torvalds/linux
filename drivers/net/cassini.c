@@ -2915,8 +2915,7 @@ static int cas_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	 */
 	static int ring; 
 
-	skb = skb_padto(skb, cp->min_frame_size);
-	if (!skb)
+	if (skb_padto(skb, cp->min_frame_size))
 		return 0;
 
 	/* XXX: we need some higher-level QoS hooks to steer packets to
@@ -4877,7 +4876,7 @@ static int __devinit cas_init_one(struct pci_dev *pdev,
 				  const struct pci_device_id *ent)
 {
 	static int cas_version_printed = 0;
-	unsigned long casreg_base, casreg_len;
+	unsigned long casreg_len;
 	struct net_device *dev;
 	struct cas *cp;
 	int i, err, pci_using_dac;
@@ -4972,7 +4971,6 @@ static int __devinit cas_init_one(struct pci_dev *pdev,
 		pci_using_dac = 0;
 	}
 
-	casreg_base = pci_resource_start(pdev, 0);
 	casreg_len = pci_resource_len(pdev, 0);
 
 	cp = netdev_priv(dev);
@@ -5024,7 +5022,7 @@ static int __devinit cas_init_one(struct pci_dev *pdev,
 	cp->timer_ticks = 0;
 
 	/* give us access to cassini registers */
-	cp->regs = ioremap(casreg_base, casreg_len);
+	cp->regs = pci_iomap(pdev, 0, casreg_len);
 	if (cp->regs == 0UL) {
 		printk(KERN_ERR PFX "Cannot map device registers, "
 		       "aborting.\n");
@@ -5123,7 +5121,7 @@ err_out_iounmap:
 		cas_shutdown(cp);
 	mutex_unlock(&cp->pm_mutex);
 
-	iounmap(cp->regs);
+	pci_iounmap(pdev, cp->regs);
 
 
 err_out_free_res:
@@ -5171,7 +5169,7 @@ static void __devexit cas_remove_one(struct pci_dev *pdev)
 #endif
 	pci_free_consistent(pdev, sizeof(struct cas_init_block),
 			    cp->init_block, cp->block_dvma);
-	iounmap(cp->regs);
+	pci_iounmap(pdev, cp->regs);
 	free_netdev(dev);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);

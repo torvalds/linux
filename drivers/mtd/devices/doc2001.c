@@ -43,10 +43,10 @@ static int doc_read_ecc(struct mtd_info *mtd, loff_t from, size_t len,
 static int doc_write_ecc(struct mtd_info *mtd, loff_t to, size_t len,
 			 size_t *retlen, const u_char *buf, u_char *eccbuf,
 			 struct nand_oobinfo *oobsel);
-static int doc_read_oob(struct mtd_info *mtd, loff_t ofs, size_t len,
-			size_t *retlen, u_char *buf);
-static int doc_write_oob(struct mtd_info *mtd, loff_t ofs, size_t len,
-			 size_t *retlen, const u_char *buf);
+static int doc_read_oob(struct mtd_info *mtd, loff_t ofs,
+			struct mtd_oob_ops *ops);
+static int doc_write_oob(struct mtd_info *mtd, loff_t ofs,
+			 struct mtd_oob_ops *ops);
 static int doc_erase (struct mtd_info *mtd, struct erase_info *instr);
 
 static struct mtd_info *docmillist = NULL;
@@ -324,16 +324,9 @@ static int DoCMil_is_alias(struct DiskOnChip *doc1, struct DiskOnChip *doc2)
 	return retval;
 }
 
-static const char im_name[] = "DoCMil_init";
-
-/* This routine is made available to other mtd code via
- * inter_module_register.  It must only be accessed through
- * inter_module_get which will bump the use count of this module.  The
- * addresses passed back in mtd are valid as long as the use count of
- * this module is non-zero, i.e. between inter_module_get and
- * inter_module_put.  Keith Owens <kaos@ocs.com.au> 29 Oct 2000.
- */
-static void DoCMil_init(struct mtd_info *mtd)
+/* This routine is found from the docprobe code by symbol_get(),
+ * which will bump the use count of this module. */
+void DoCMil_init(struct mtd_info *mtd)
 {
 	struct DiskOnChip *this = mtd->priv;
 	struct DiskOnChip *old = NULL;
@@ -368,7 +361,7 @@ static void DoCMil_init(struct mtd_info *mtd)
 	/* FIXME: erase size is not always 8KiB */
 	mtd->erasesize = 0x2000;
 
-	mtd->oobblock = 512;
+	mtd->writesize = 512;
 	mtd->oobsize = 16;
 	mtd->owner = THIS_MODULE;
 	mtd->erase = doc_erase;
@@ -376,8 +369,6 @@ static void DoCMil_init(struct mtd_info *mtd)
 	mtd->unpoint = NULL;
 	mtd->read = doc_read;
 	mtd->write = doc_write;
-	mtd->read_ecc = doc_read_ecc;
-	mtd->write_ecc = doc_write_ecc;
 	mtd->read_oob = doc_read_oob;
 	mtd->write_oob = doc_write_oob;
 	mtd->sync = NULL;
@@ -401,6 +392,7 @@ static void DoCMil_init(struct mtd_info *mtd)
 		return;
 	}
 }
+EXPORT_SYMBOL_GPL(DoCMil_init);
 
 static int doc_read (struct mtd_info *mtd, loff_t from, size_t len,
 		     size_t *retlen, u_char *buf)
@@ -670,8 +662,8 @@ static int doc_write_ecc (struct mtd_info *mtd, loff_t to, size_t len,
 	return ret;
 }
 
-static int doc_read_oob(struct mtd_info *mtd, loff_t ofs, size_t len,
-			size_t *retlen, u_char *buf)
+static int doc_read_oob(struct mtd_info *mtd, loff_t ofs,
+			struct mtd_oob_ops *ops)
 {
 #ifndef USE_MEMCPY
 	int i;
@@ -680,6 +672,12 @@ static int doc_read_oob(struct mtd_info *mtd, loff_t ofs, size_t len,
 	struct DiskOnChip *this = mtd->priv;
 	void __iomem *docptr = this->virtadr;
 	struct Nand *mychip = &this->chips[ofs >> this->chipshift];
+	uint8_t *buf = ops->oobbuf;
+	size_t len = ops->len;
+
+	BUG_ON(ops->mode != MTD_OOB_PLACE);
+
+	ofs += ops->ooboffs;
 
 	/* Find the chip which is to be used and select it */
 	if (this->curfloor != mychip->floor) {
@@ -716,13 +714,13 @@ static int doc_read_oob(struct mtd_info *mtd, loff_t ofs, size_t len,
 #endif
 	buf[len - 1] = ReadDOC(docptr, LastDataRead);
 
-	*retlen = len;
+	ops->retlen = len;
 
 	return 0;
 }
 
-static int doc_write_oob(struct mtd_info *mtd, loff_t ofs, size_t len,
-			 size_t *retlen, const u_char *buf)
+static int doc_write_oob(struct mtd_info *mtd, loff_t ofs,
+			 struct mtd_oob_ops *ops)
 {
 #ifndef USE_MEMCPY
 	int i;
@@ -732,6 +730,12 @@ static int doc_write_oob(struct mtd_info *mtd, loff_t ofs, size_t len,
 	struct DiskOnChip *this = mtd->priv;
 	void __iomem *docptr = this->virtadr;
 	struct Nand *mychip = &this->chips[ofs >> this->chipshift];
+	uint8_t *buf = ops->oobbuf;
+	size_t len = ops->len;
+
+	BUG_ON(ops->mode != MTD_OOB_PLACE);
+
+	ofs += ops->ooboffs;
 
 	/* Find the chip which is to be used and select it */
 	if (this->curfloor != mychip->floor) {
@@ -783,12 +787,12 @@ static int doc_write_oob(struct mtd_info *mtd, loff_t ofs, size_t len,
 	if (ReadDOC(docptr, Mil_CDSN_IO) & 1) {
 		printk("Error programming oob data\n");
 		/* FIXME: implement Bad Block Replacement (in nftl.c ??) */
-		*retlen = 0;
+		ops->retlen = 0;
 		ret = -EIO;
 	}
 	dummy = ReadDOC(docptr, LastDataRead);
 
-	*retlen = len;
+	ops->retlen = len;
 
 	return ret;
 }
@@ -856,12 +860,6 @@ int doc_erase (struct mtd_info *mtd, struct erase_info *instr)
  *
  ****************************************************************************/
 
-static int __init init_doc2001(void)
-{
-	inter_module_register(im_name, THIS_MODULE, &DoCMil_init);
-	return 0;
-}
-
 static void __exit cleanup_doc2001(void)
 {
 	struct mtd_info *mtd;
@@ -877,11 +875,9 @@ static void __exit cleanup_doc2001(void)
 		kfree(this->chips);
 		kfree(mtd);
 	}
-	inter_module_unregister(im_name);
 }
 
 module_exit(cleanup_doc2001);
-module_init(init_doc2001);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("David Woodhouse <dwmw2@infradead.org> et al.");

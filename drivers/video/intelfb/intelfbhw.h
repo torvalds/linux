@@ -133,6 +133,7 @@
 #define DPLL_VGA_MODE_DISABLE		(1 << 28)
 #define DPLL_P2_MASK			1
 #define DPLL_P2_SHIFT			23
+#define DPLL_I9XX_P2_SHIFT              24
 #define DPLL_P1_FORCE_DIV2		(1 << 21)
 #define DPLL_P1_MASK			0x1f
 #define DPLL_P1_SHIFT			16
@@ -155,29 +156,8 @@
 /* PLL parameters (these are for 852GM/855GM/865G, check earlier chips). */
 /* Clock values are in units of kHz */
 #define PLL_REFCLK		48000
-#define MIN_VCO_FREQ		930000
-#define MAX_VCO_FREQ		1400000
 #define MIN_CLOCK		25000
 #define MAX_CLOCK		350000
-#define P_TRANSITION_CLOCK	165000
-#define MIN_M			108
-#define MAX_M			140
-#define MIN_M1			18
-#define MAX_M1			26
-#define MIN_M2			6
-#define MAX_M2			16
-#define MIN_P			4
-#define MAX_P			128
-#define MIN_P1			0
-#define MAX_P1			31
-#define MIN_N			3
-#define MAX_N			16
-
-#define CALC_VCLOCK(m1, m2, n, p1, p2) \
-        ((PLL_REFCLK * (5 * ((m1) + 2) + ((m2) + 2)) / ((n) + 2)) / \
-        (((p1) + 2) * (1 << (p2 + 1))))
-
-#define CALC_VCLOCK3(m, n, p)	((PLL_REFCLK * (m) / (n)) / (p))
 
 /* Two pipes */
 #define PIPE_A			0
@@ -522,8 +502,7 @@
 
 
 /* function protoypes */
-extern int intelfbhw_get_chipset(struct pci_dev *pdev, const char **name,
-				 int *chipset, int *mobile);
+extern int intelfbhw_get_chipset(struct pci_dev *pdev, struct intelfb_info *dinfo);
 extern int intelfbhw_get_memory(struct pci_dev *pdev, int *aperture_size,
 				int *stolen_size);
 extern int intelfbhw_check_non_crt(struct intelfb_info *dinfo);

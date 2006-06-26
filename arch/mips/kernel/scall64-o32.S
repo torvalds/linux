@@ -209,7 +209,7 @@ sys_call_table:
 	PTR	sys_fork
 	PTR	sys_read
 	PTR	sys_write
-	PTR	sys_open			/* 4005 */
+	PTR	compat_sys_open			/* 4005 */
 	PTR	sys_close
 	PTR	sys_waitpid
 	PTR	sys_creat

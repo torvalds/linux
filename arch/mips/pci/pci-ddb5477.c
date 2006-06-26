@@ -22,31 +22,31 @@
 #include <asm/ddb5xxx/ddb5xxx.h>
 
 static struct resource extpci_io_resource = {
-	"ext pci IO space",
-	DDB_PCI0_IO_BASE - DDB_PCI_IO_BASE + 0x4000,
-	DDB_PCI0_IO_BASE - DDB_PCI_IO_BASE + DDB_PCI0_IO_SIZE - 1,
-	IORESOURCE_IO
+	.start	= DDB_PCI0_IO_BASE - DDB_PCI_IO_BASE + 0x4000,
+	.end	= DDB_PCI0_IO_BASE - DDB_PCI_IO_BASE + DDB_PCI0_IO_SIZE - 1,
+	.name	= "ext pci IO space",
+	.flags	= IORESOURCE_IO
 };
 
 static struct resource extpci_mem_resource = {
-	"ext pci memory space",
-	DDB_PCI0_MEM_BASE + 0x100000,
-	DDB_PCI0_MEM_BASE + DDB_PCI0_MEM_SIZE - 1,
-	IORESOURCE_MEM
+	.start	= DDB_PCI0_MEM_BASE + 0x100000,
+	.end	= DDB_PCI0_MEM_BASE + DDB_PCI0_MEM_SIZE - 1,
+	.name	= "ext pci memory space",
+	.flags	= IORESOURCE_MEM
 };
 
 static struct resource iopci_io_resource = {
-	"io pci IO space",
-	DDB_PCI1_IO_BASE - DDB_PCI_IO_BASE,
-	DDB_PCI1_IO_BASE - DDB_PCI_IO_BASE + DDB_PCI1_IO_SIZE - 1,
-	IORESOURCE_IO
+	.start	= DDB_PCI1_IO_BASE - DDB_PCI_IO_BASE,
+	.end	= DDB_PCI1_IO_BASE - DDB_PCI_IO_BASE + DDB_PCI1_IO_SIZE - 1,
+	.name	= "io pci IO space",
+	.flags	= IORESOURCE_IO
 };
 
 static struct resource iopci_mem_resource = {
-	"ext pci memory space",
-	DDB_PCI1_MEM_BASE,
-	DDB_PCI1_MEM_BASE + DDB_PCI1_MEM_SIZE - 1,
-	IORESOURCE_MEM
+	.start	= DDB_PCI1_MEM_BASE,
+	.end	= DDB_PCI1_MEM_BASE + DDB_PCI1_MEM_SIZE - 1,
+	.name	= "ext pci memory space",
+	.flags	= IORESOURCE_MEM
 };
 
 extern struct pci_ops ddb5477_ext_pci_ops;

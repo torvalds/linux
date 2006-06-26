@@ -15,7 +15,6 @@
 #ifndef _LINUX_SS_H
 #define _LINUX_SS_H
 
-#include <linux/config.h>
 #include <linux/device.h>
 #include <linux/sched.h>	/* task_struct, completion */
 #include <linux/mutex.h>

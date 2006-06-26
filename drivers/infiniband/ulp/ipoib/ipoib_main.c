@@ -185,8 +185,7 @@ static int ipoib_change_mtu(struct net_device *dev, int new_mtu)
 	return 0;
 }
 
-static struct ipoib_path *__path_find(struct net_device *dev,
-				      union ib_gid *gid)
+static struct ipoib_path *__path_find(struct net_device *dev, void *gid)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	struct rb_node *n = priv->path_tree.rb_node;
@@ -196,7 +195,7 @@ static struct ipoib_path *__path_find(struct net_device *dev,
 	while (n) {
 		path = rb_entry(n, struct ipoib_path, rb_node);
 
-		ret = memcmp(gid->raw, path->pathrec.dgid.raw,
+		ret = memcmp(gid, path->pathrec.dgid.raw,
 			     sizeof (union ib_gid));
 
 		if (ret < 0)
@@ -424,8 +423,7 @@ static void path_rec_completion(int status,
 	}
 }
 
-static struct ipoib_path *path_rec_create(struct net_device *dev,
-					  union ib_gid *gid)
+static struct ipoib_path *path_rec_create(struct net_device *dev, void *gid)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	struct ipoib_path *path;
@@ -440,7 +438,7 @@ static struct ipoib_path *path_rec_create(struct net_device *dev,
 
 	INIT_LIST_HEAD(&path->neigh_list);
 
-	memcpy(path->pathrec.dgid.raw, gid->raw, sizeof (union ib_gid));
+	memcpy(path->pathrec.dgid.raw, gid, sizeof (union ib_gid));
 	path->pathrec.sgid      = priv->local_gid;
 	path->pathrec.pkey      = cpu_to_be16(priv->pkey);
 	path->pathrec.numb_path = 1;
@@ -498,10 +496,9 @@ static void neigh_add_path(struct sk_buff *skb, struct net_device *dev)
 	 */
 	spin_lock(&priv->lock);
 
-	path = __path_find(dev, (union ib_gid *) (skb->dst->neighbour->ha + 4));
+	path = __path_find(dev, skb->dst->neighbour->ha + 4);
 	if (!path) {
-		path = path_rec_create(dev,
-				       (union ib_gid *) (skb->dst->neighbour->ha + 4));
+		path = path_rec_create(dev, skb->dst->neighbour->ha + 4);
 		if (!path)
 			goto err_path;
 
@@ -551,7 +548,7 @@ static void ipoib_path_lookup(struct sk_buff *skb, struct net_device *dev)
 	/* Add in the P_Key for multicasts */
 	skb->dst->neighbour->ha[8] = (priv->pkey >> 8) & 0xff;
 	skb->dst->neighbour->ha[9] = priv->pkey & 0xff;
-	ipoib_mcast_send(dev, (union ib_gid *) (skb->dst->neighbour->ha + 4), skb);
+	ipoib_mcast_send(dev, skb->dst->neighbour->ha + 4, skb);
 }
 
 static void unicast_arp_send(struct sk_buff *skb, struct net_device *dev,
@@ -566,10 +563,9 @@ static void unicast_arp_send(struct sk_buff *skb, struct net_device *dev,
 	 */
 	spin_lock(&priv->lock);
 
-	path = __path_find(dev, (union ib_gid *) (phdr->hwaddr + 4));
+	path = __path_find(dev, phdr->hwaddr + 4);
 	if (!path) {
-		path = path_rec_create(dev,
-				       (union ib_gid *) (phdr->hwaddr + 4));
+		path = path_rec_create(dev, phdr->hwaddr + 4);
 		if (path) {
 			/* put pseudoheader back on for next time */
 			skb_push(skb, sizeof *phdr);
@@ -660,7 +656,7 @@ static int ipoib_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			phdr->hwaddr[8] = (priv->pkey >> 8) & 0xff;
 			phdr->hwaddr[9] = priv->pkey & 0xff;
 
-			ipoib_mcast_send(dev, (union ib_gid *) (phdr->hwaddr + 4), skb);
+			ipoib_mcast_send(dev, phdr->hwaddr + 4, skb);
 		} else {
 			/* unicast GID -- should be ARP or RARP reply */
 
@@ -671,7 +667,7 @@ static int ipoib_start_xmit(struct sk_buff *skb, struct net_device *dev)
 					   skb->dst ? "neigh" : "dst",
 					   be16_to_cpup((__be16 *) skb->data),
 					   be32_to_cpup((__be32 *) phdr->hwaddr),
-					   IPOIB_GID_ARG(*(union ib_gid *) (phdr->hwaddr + 4)));
+					   IPOIB_GID_RAW_ARG(phdr->hwaddr + 4));
 				dev_kfree_skb_any(skb);
 				++priv->stats.tx_dropped;
 				goto out;
@@ -754,7 +750,7 @@ static void ipoib_neigh_destructor(struct neighbour *n)
 	ipoib_dbg(priv,
 		  "neigh_destructor for %06x " IPOIB_GID_FMT "\n",
 		  be32_to_cpup((__be32 *) n->ha),
-		  IPOIB_GID_ARG(*((union ib_gid *) (n->ha + 4))));
+		  IPOIB_GID_RAW_ARG(n->ha + 4));
 
 	spin_lock_irqsave(&priv->lock, flags);
 

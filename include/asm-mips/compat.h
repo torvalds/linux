@@ -145,8 +145,5 @@ static inline void __user *compat_alloc_user_space(long len)
 
 	return (void __user *) (regs->regs[29] - len);
 }
-#if defined (__MIPSEL__)
-#define __COMPAT_ENDIAN_SWAP__ 	1
-#endif
 
 #endif /* _ASM_COMPAT_H */

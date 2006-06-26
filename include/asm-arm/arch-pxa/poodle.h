@@ -31,6 +31,7 @@
 #define POODLE_GPIO_CF_CD		(14)
 #define POODLE_GPIO_CF_STSCHG		(14)
 #define POODLE_GPIO_SD_PWR		(33)
+#define POODLE_GPIO_SD_PWR1		(3)
 #define POODLE_GPIO_nSD_CLK		(6)
 #define POODLE_GPIO_nSD_WP		(7)
 #define POODLE_GPIO_nSD_INT		(8)
@@ -42,6 +43,7 @@
 #define POODLE_GPIO_BYPASS_ON		(36)
 #define POODLE_GPIO_CHRG_ON		(38)
 #define POODLE_GPIO_CHRG_FULL		(16)
+#define POODLE_GPIO_DISCHARGE_ON        (42) /* Enable battery discharge */
 
 /* PXA GPIOs */
 #define POODLE_IRQ_GPIO_ON_KEY		IRQ_GPIO(0)
@@ -67,5 +69,7 @@
 
 #define POODLE_SCOOP_IO_DIR	( POODLE_SCOOP_VPEN | POODLE_SCOOP_HS_OUT )
 #define POODLE_SCOOP_IO_OUT	( 0 )
+
+extern struct platform_device poodle_locomo_device;
 
 #endif /* __ASM_ARCH_POODLE_H  */

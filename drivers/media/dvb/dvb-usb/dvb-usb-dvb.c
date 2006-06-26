@@ -82,7 +82,7 @@ int dvb_usb_dvb_init(struct dvb_usb_device *d)
 	int ret;
 
 	if ((ret = dvb_register_adapter(&d->dvb_adap, d->desc->name,
-			d->owner)) < 0) {
+			d->owner, &d->udev->dev)) < 0) {
 		deb_info("dvb_register_adapter failed: error %d", ret);
 		goto err;
 	}
@@ -121,16 +121,15 @@ int dvb_usb_dvb_init(struct dvb_usb_device *d)
 
 	dvb_net_init(&d->dvb_adap, &d->dvb_net, &d->demux.dmx);
 
-	goto success;
+	d->state |= DVB_USB_STATE_DVB;
+	return 0;
+
 err_dmx_dev:
 	dvb_dmx_release(&d->demux);
 err_dmx:
 	dvb_unregister_adapter(&d->dvb_adap);
 err:
 	return ret;
-success:
-	d->state |= DVB_USB_STATE_DVB;
-	return 0;
 }
 
 int dvb_usb_dvb_exit(struct dvb_usb_device *d)
@@ -184,13 +183,13 @@ int dvb_usb_fe_init(struct dvb_usb_device* d)
 
 	/* re-assign sleep and wakeup functions */
 	if (d->fe != NULL) {
-		d->fe_init = d->fe->ops->init;   d->fe->ops->init  = dvb_usb_fe_wakeup;
-		d->fe_sleep = d->fe->ops->sleep; d->fe->ops->sleep = dvb_usb_fe_sleep;
+		d->fe_init = d->fe->ops.init;   d->fe->ops.init  = dvb_usb_fe_wakeup;
+		d->fe_sleep = d->fe->ops.sleep; d->fe->ops.sleep = dvb_usb_fe_sleep;
 
 		if (dvb_register_frontend(&d->dvb_adap, d->fe)) {
 			err("Frontend registration failed.");
-			if (d->fe->ops->release)
-				d->fe->ops->release(d->fe);
+			if (d->fe->ops.release)
+				d->fe->ops.release(d->fe);
 			d->fe = NULL;
 			return -ENODEV;
 		}

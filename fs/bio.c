@@ -654,9 +654,10 @@ static struct bio *__bio_map_user_iov(request_queue_t *q,
 				     write_to_vm, 0, &pages[cur_page], NULL);
 		up_read(&current->mm->mmap_sem);
 
-		if (ret < local_nr_pages)
+		if (ret < local_nr_pages) {
+			ret = -EFAULT;
 			goto out_unmap;
-
+		}
 
 		offset = uaddr & ~PAGE_MASK;
 		for (j = cur_page; j < page_limit; j++) {

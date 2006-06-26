@@ -677,7 +677,7 @@ static unsigned int inline norm_htotal(struct cx88_tvnorm *norm)
 
 static unsigned int inline norm_vbipack(struct cx88_tvnorm *norm)
 {
-	return (norm->id & V4L2_STD_625_50) ? 511 : 288;
+	return (norm->id & V4L2_STD_625_50) ? 511 : 400;
 }
 
 int cx88_set_scale(struct cx88_core *core, unsigned int width, unsigned int height,
@@ -932,9 +932,9 @@ int cx88_set_tvnorm(struct cx88_core *core, struct cx88_tvnorm *norm)
 		htotal, cx_read(MO_HTOTAL), (u32)tmp64);
 	cx_write(MO_HTOTAL, htotal);
 
-	// vbi stuff
-	cx_write(MO_VBI_PACKET, ((1 << 11) | /* (norm_vdelay(norm)   << 11) | */
-				 norm_vbipack(norm)));
+	// vbi stuff, set vbi offset to 10 (for 20 Clk*2 pixels), this makes
+	// the effective vbi offset ~244 samples, the same as the Bt8x8
+	cx_write(MO_VBI_PACKET, (10<<11) | norm_vbipack(norm));
 
 	// this is needed as well to set all tvnorm parameter
 	cx88_set_scale(core, 320, 240, V4L2_FIELD_INTERLACED);

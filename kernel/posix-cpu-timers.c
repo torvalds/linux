@@ -555,9 +555,6 @@ static void arm_timer(struct k_itimer *timer, union cpu_time_count now)
 	struct cpu_timer_list *next;
 	unsigned long i;
 
-	if (CPUCLOCK_PERTHREAD(timer->it_clock)	&& (p->flags & PF_EXITING))
-		return;
-
 	head = (CPUCLOCK_PERTHREAD(timer->it_clock) ?
 		p->cpu_timers : p->signal->cpu_timers);
 	head += CPUCLOCK_WHICH(timer->it_clock);
@@ -1173,6 +1170,9 @@ static void check_process_timers(struct task_struct *tsk,
 		}
 		t = tsk;
 		do {
+			if (unlikely(t->flags & PF_EXITING))
+				continue;
+
 			ticks = cputime_add(cputime_add(t->utime, t->stime),
 					    prof_left);
 			if (!cputime_eq(prof_expires, cputime_zero) &&
@@ -1193,11 +1193,7 @@ static void check_process_timers(struct task_struct *tsk,
 					      t->it_sched_expires > sched)) {
 				t->it_sched_expires = sched;
 			}
-
-			do {
-				t = next_thread(t);
-			} while (unlikely(t->flags & PF_EXITING));
-		} while (t != tsk);
+		} while ((t = next_thread(t)) != tsk);
 	}
 }
 
@@ -1289,30 +1285,30 @@ void run_posix_cpu_timers(struct task_struct *tsk)
 
 #undef	UNEXPIRED
 
-	BUG_ON(tsk->exit_state);
-
 	/*
 	 * Double-check with locks held.
 	 */
 	read_lock(&tasklist_lock);
-	spin_lock(&tsk->sighand->siglock);
+	if (likely(tsk->signal != NULL)) {
+		spin_lock(&tsk->sighand->siglock);
 
-	/*
-	 * Here we take off tsk->cpu_timers[N] and tsk->signal->cpu_timers[N]
-	 * all the timers that are firing, and put them on the firing list.
-	 */
-	check_thread_timers(tsk, &firing);
-	check_process_timers(tsk, &firing);
+		/*
+		 * Here we take off tsk->cpu_timers[N] and tsk->signal->cpu_timers[N]
+		 * all the timers that are firing, and put them on the firing list.
+		 */
+		check_thread_timers(tsk, &firing);
+		check_process_timers(tsk, &firing);
 
-	/*
-	 * We must release these locks before taking any timer's lock.
-	 * There is a potential race with timer deletion here, as the
-	 * siglock now protects our private firing list.  We have set
-	 * the firing flag in each timer, so that a deletion attempt
-	 * that gets the timer lock before we do will give it up and
-	 * spin until we've taken care of that timer below.
-	 */
-	spin_unlock(&tsk->sighand->siglock);
+		/*
+		 * We must release these locks before taking any timer's lock.
+		 * There is a potential race with timer deletion here, as the
+		 * siglock now protects our private firing list.  We have set
+		 * the firing flag in each timer, so that a deletion attempt
+		 * that gets the timer lock before we do will give it up and
+		 * spin until we've taken care of that timer below.
+		 */
+		spin_unlock(&tsk->sighand->siglock);
+	}
 	read_unlock(&tasklist_lock);
 
 	/*

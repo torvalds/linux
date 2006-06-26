@@ -15,6 +15,8 @@
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/init.h>
+
+#include <asm/thread_notify.h>
 #include <asm/vfp.h>
 
 #include "vfpinstr.h"
@@ -36,37 +38,54 @@ union vfp_state *last_VFP_context;
  */
 unsigned int VFP_arch;
 
-/*
- * Per-thread VFP initialisation.
- */
-void vfp_flush_thread(union vfp_state *vfp)
+static int vfp_notifier(struct notifier_block *self, unsigned long cmd, void *v)
 {
-	memset(vfp, 0, sizeof(union vfp_state));
+	struct thread_info *thread = v;
+	union vfp_state *vfp = &thread->vfpstate;
 
-	vfp->hard.fpexc = FPEXC_ENABLE;
-	vfp->hard.fpscr = FPSCR_ROUND_NEAREST;
+	switch (cmd) {
+	case THREAD_NOTIFY_FLUSH:
+		/*
+		 * Per-thread VFP initialisation.
+		 */
+		memset(vfp, 0, sizeof(union vfp_state));
 
-	/*
-	 * Disable VFP to ensure we initialise it first.
-	 */
-	fmxr(FPEXC, fmrx(FPEXC) & ~FPEXC_ENABLE);
+		vfp->hard.fpexc = FPEXC_ENABLE;
+		vfp->hard.fpscr = FPSCR_ROUND_NEAREST;
 
-	/*
-	 * Ensure we don't try to overwrite our newly initialised
-	 * state information on the first fault.
-	 */
-	if (last_VFP_context == vfp)
-		last_VFP_context = NULL;
+		/*
+		 * Disable VFP to ensure we initialise it first.
+		 */
+		fmxr(FPEXC, fmrx(FPEXC) & ~FPEXC_ENABLE);
+
+		/*
+		 * FALLTHROUGH: Ensure we don't try to overwrite our newly
+		 * initialised state information on the first fault.
+		 */
+
+	case THREAD_NOTIFY_RELEASE:
+		/*
+		 * Per-thread VFP cleanup.
+		 */
+		if (last_VFP_context == vfp)
+			last_VFP_context = NULL;
+		break;
+
+	case THREAD_NOTIFY_SWITCH:
+		/*
+		 * Always disable VFP so we can lazily save/restore the
+		 * old state.
+		 */
+		fmxr(FPEXC, fmrx(FPEXC) & ~FPEXC_ENABLE);
+		break;
+	}
+
+	return NOTIFY_DONE;
 }
 
-/*
- * Per-thread VFP cleanup.
- */
-void vfp_release_thread(union vfp_state *vfp)
-{
-	if (last_VFP_context == vfp)
-		last_VFP_context = NULL;
-}
+static struct notifier_block vfp_notifier_block = {
+	.notifier_call	= vfp_notifier,
+};
 
 /*
  * Raise a SIGFPE for the current process.
@@ -281,6 +300,8 @@ static int __init vfp_init(void)
 			(vfpsid & FPSID_VARIANT_MASK) >> FPSID_VARIANT_BIT,
 			(vfpsid & FPSID_REV_MASK) >> FPSID_REV_BIT);
 		vfp_vector = vfp_support_entry;
+
+		thread_register_notifier(&vfp_notifier_block);
 	}
 	return 0;
 }

@@ -275,7 +275,7 @@ int platform_device_add(struct platform_device *pdev)
 	pr_debug("Registering platform device '%s'. Parent at %s\n",
 		 pdev->dev.bus_id, pdev->dev.parent->bus_id);
 
-	ret = device_register(&pdev->dev);
+	ret = device_add(&pdev->dev);
 	if (ret == 0)
 		return ret;
 
@@ -452,6 +452,37 @@ void platform_driver_unregister(struct platform_driver *drv)
 EXPORT_SYMBOL_GPL(platform_driver_unregister);
 
 
+/* modalias support enables more hands-off userspace setup:
+ * (a) environment variable lets new-style hotplug events work once system is
+ *     fully running:  "modprobe $MODALIAS"
+ * (b) sysfs attribute lets new-style coldplug recover from hotplug events
+ *     mishandled before system is fully running:  "modprobe $(cat modalias)"
+ */
+static ssize_t
+modalias_show(struct device *dev, struct device_attribute *a, char *buf)
+{
+	struct platform_device	*pdev = to_platform_device(dev);
+	int len = snprintf(buf, PAGE_SIZE, "%s\n", pdev->name);
+
+	return (len >= PAGE_SIZE) ? (PAGE_SIZE - 1) : len;
+}
+
+static struct device_attribute platform_dev_attrs[] = {
+	__ATTR_RO(modalias),
+	__ATTR_NULL,
+};
+
+static int platform_uevent(struct device *dev, char **envp, int num_envp,
+		char *buffer, int buffer_size)
+{
+	struct platform_device	*pdev = to_platform_device(dev);
+
+	envp[0] = buffer;
+	snprintf(buffer, buffer_size, "MODALIAS=%s", pdev->name);
+	return 0;
+}
+
+
 /**
  *	platform_match - bind platform device to platform driver.
  *	@dev:	device.
@@ -496,7 +527,9 @@ static int platform_resume(struct device * dev)
 
 struct bus_type platform_bus_type = {
 	.name		= "platform",
+	.dev_attrs	= platform_dev_attrs,
 	.match		= platform_match,
+	.uevent		= platform_uevent,
 	.suspend	= platform_suspend,
 	.resume		= platform_resume,
 };

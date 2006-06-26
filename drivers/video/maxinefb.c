@@ -55,7 +55,7 @@ static struct fb_var_screeninfo maxinefb_defined = {
 };
 
 static struct fb_fix_screeninfo maxinefb_fix = {
-	.id =		"Maxine onboard graphics 1024x768x8",
+	.id =		"Maxine",
 	.smem_len =	(1024*768),
 	.type =		FB_TYPE_PACKED_PIXELS,
 	.visual =	FB_VISUAL_PSEUDOCOLOR,
@@ -107,8 +107,6 @@ static int maxinefb_setcolreg(unsigned regno, unsigned red, unsigned green,
 
 static struct fb_ops maxinefb_ops = {
 	.owner		= THIS_MODULE,
-	.fb_get_fix	= gen_get_fix,
-	.fb_get_var	= gen_get_var,
 	.fb_setcolreg	= maxinefb_setcolreg,
 	.fb_fillrect	= cfb_fillrect,
 	.fb_copyarea	= cfb_copyarea,

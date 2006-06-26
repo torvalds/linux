@@ -128,13 +128,15 @@ MODULE_PARM_DESC(fwpostfix, "Postfix for .fw files. Useful for debugging.");
 	static struct pci_device_id bcm43xx_pci_tbl[] = {
 	/* Broadcom 4303 802.11b */
 	{ PCI_VENDOR_ID_BROADCOM, 0x4301, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-		/* Broadcom 4307 802.11b */
+	/* Broadcom 4307 802.11b */
 	{ PCI_VENDOR_ID_BROADCOM, 0x4307, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-		/* Broadcom 4318 802.11b/g */
+	/* Broadcom 4318 802.11b/g */
 	{ PCI_VENDOR_ID_BROADCOM, 0x4318, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	/* Broadcom 4319 802.11a/b/g */
+	{ PCI_VENDOR_ID_BROADCOM, 0x4319, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	/* Broadcom 4306 802.11b/g */
 	{ PCI_VENDOR_ID_BROADCOM, 0x4320, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-		/* Broadcom 4306 802.11a */
+	/* Broadcom 4306 802.11a */
 //	{ PCI_VENDOR_ID_BROADCOM, 0x4321, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	/* Broadcom 4309 802.11a/b/g */
 	{ PCI_VENDOR_ID_BROADCOM, 0x4324, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
@@ -496,20 +498,31 @@ static inline u32 bcm43xx_interrupt_disable(struct bcm43xx_private *bcm, u32 mas
 	return old_mask;
 }
 
+/* Synchronize IRQ top- and bottom-half.
+ * IRQs must be masked before calling this.
+ * This must not be called with the irq_lock held.
+ */
+static void bcm43xx_synchronize_irq(struct bcm43xx_private *bcm)
+{
+	synchronize_irq(bcm->irq);
+	tasklet_disable(&bcm->isr_tasklet);
+}
+
 /* Make sure we don't receive more data from the device. */
 static int bcm43xx_disable_interrupts_sync(struct bcm43xx_private *bcm, u32 *oldstate)
 {
-	u32 old;
 	unsigned long flags;
+	u32 old;
 
-	bcm43xx_lock_mmio(bcm, flags);
-	if (bcm43xx_is_initializing(bcm) || bcm->shutting_down) {
-		bcm43xx_unlock_mmio(bcm, flags);
+	bcm43xx_lock_irqonly(bcm, flags);
+	if (unlikely(bcm43xx_status(bcm) != BCM43xx_STAT_INITIALIZED)) {
+		bcm43xx_unlock_irqonly(bcm, flags);
 		return -EBUSY;
 	}
 	old = bcm43xx_interrupt_disable(bcm, BCM43xx_IRQ_ALL);
-	tasklet_disable(&bcm->isr_tasklet);
-	bcm43xx_unlock_mmio(bcm, flags);
+	bcm43xx_unlock_irqonly(bcm, flags);
+	bcm43xx_synchronize_irq(bcm);
+
 	if (oldstate)
 		*oldstate = old;
 
@@ -1387,7 +1400,7 @@ void bcm43xx_wireless_core_reset(struct bcm43xx_private *bcm, int connect_phy)
 			bcm43xx_dmacontroller_rx_reset(bcm, BCM43xx_MMIO_DMA4_BASE);
 #endif
 	}
-	if (bcm->shutting_down) {
+	if (bcm43xx_status(bcm) == BCM43xx_STAT_SHUTTINGDOWN) {
 		bcm43xx_write32(bcm, BCM43xx_MMIO_STATUS_BITFIELD,
 		                bcm43xx_read32(bcm, BCM43xx_MMIO_STATUS_BITFIELD)
 				& ~(BCM43xx_SBF_MAC_ENABLED | 0x00000002));
@@ -1707,7 +1720,7 @@ static void bcm43xx_interrupt_tasklet(struct bcm43xx_private *bcm)
 # define bcmirq_handled(irq)	do { /* nothing */ } while (0)
 #endif /* CONFIG_BCM43XX_DEBUG*/
 
-	bcm43xx_lock_mmio(bcm, flags);
+	bcm43xx_lock_irqonly(bcm, flags);
 	reason = bcm->irq_reason;
 	dma_reason[0] = bcm->dma_reason[0];
 	dma_reason[1] = bcm->dma_reason[1];
@@ -1732,7 +1745,8 @@ static void bcm43xx_interrupt_tasklet(struct bcm43xx_private *bcm)
 		        dma_reason[0], dma_reason[1],
 			dma_reason[2], dma_reason[3]);
 		bcm43xx_controller_restart(bcm, "DMA error");
-		bcm43xx_unlock_mmio(bcm, flags);
+		mmiowb();
+		bcm43xx_unlock_irqonly(bcm, flags);
 		return;
 	}
 	if (unlikely((dma_reason[0] & BCM43xx_DMAIRQ_NONFATALMASK) |
@@ -1819,7 +1833,8 @@ static void bcm43xx_interrupt_tasklet(struct bcm43xx_private *bcm)
 	if (!modparam_noleds)
 		bcm43xx_leds_update(bcm, activity);
 	bcm43xx_interrupt_enable(bcm, bcm->irq_savedstate);
-	bcm43xx_unlock_mmio(bcm, flags);
+	mmiowb();
+	bcm43xx_unlock_irqonly(bcm, flags);
 }
 
 static void pio_irq_workaround(struct bcm43xx_private *bcm,
@@ -1868,7 +1883,7 @@ static irqreturn_t bcm43xx_interrupt_handler(int irq, void *dev_id, struct pt_re
 	if (!bcm)
 		return IRQ_NONE;
 
-	spin_lock(&bcm->_lock);
+	spin_lock(&bcm->irq_lock);
 
 	reason = bcm43xx_read32(bcm, BCM43xx_MMIO_GEN_IRQ_REASON);
 	if (reason == 0xffffffff) {
@@ -1897,7 +1912,7 @@ static irqreturn_t bcm43xx_interrupt_handler(int irq, void *dev_id, struct pt_re
 	 * completely, but some careful work is needed to fix this. I think it
 	 * is best to stay with this cheap workaround for now... .
 	 */
-	if (likely(bcm->initialized)) {
+	if (likely(bcm43xx_status(bcm) == BCM43xx_STAT_INITIALIZED)) {
 		/* disable all IRQs. They are enabled again in the bottom half. */
 		bcm->irq_savedstate = bcm43xx_interrupt_disable(bcm, BCM43xx_IRQ_ALL);
 		/* save the reason code and call our bottom half. */
@@ -1907,7 +1922,7 @@ static irqreturn_t bcm43xx_interrupt_handler(int irq, void *dev_id, struct pt_re
 
 out:
 	mmiowb();
-	spin_unlock(&bcm->_lock);
+	spin_unlock(&bcm->irq_lock);
 
 	return ret;
 }
@@ -2131,6 +2146,13 @@ out:
 	return err;
 }
 
+#ifdef CONFIG_BCM947XX
+static struct pci_device_id bcm43xx_47xx_ids[] = {
+	{ PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, 0x4324) },
+	{ 0 }
+};
+#endif
+
 static int bcm43xx_initialize_irq(struct bcm43xx_private *bcm)
 {
 	int res;
@@ -2140,11 +2162,15 @@ static int bcm43xx_initialize_irq(struct bcm43xx_private *bcm)
 	bcm->irq = bcm->pci_dev->irq;
 #ifdef CONFIG_BCM947XX
 	if (bcm->pci_dev->bus->number == 0) {
-		struct pci_dev *d = NULL;
-		/* FIXME: we will probably need more device IDs here... */
-		d = pci_find_device(PCI_VENDOR_ID_BROADCOM, 0x4324, NULL);
-		if (d != NULL) {
-			bcm->irq = d->irq;
+		struct pci_dev *d;
+		struct pci_device_id *id;
+		for (id = bcm43xx_47xx_ids; id->vendor; id++) {
+			d = pci_get_device(id->vendor, id->device, NULL);
+			if (d != NULL) {
+				bcm->irq = d->irq;
+				pci_dev_put(d);
+				break;
+			}
 		}
 	}
 #endif
@@ -3104,15 +3130,10 @@ static void bcm43xx_periodic_every15sec(struct bcm43xx_private *bcm)
 	//TODO for APHY (temperature?)
 }
 
-static void bcm43xx_periodic_task_handler(unsigned long d)
+static void do_periodic_work(struct bcm43xx_private *bcm)
 {
-	struct bcm43xx_private *bcm = (struct bcm43xx_private *)d;
-	unsigned long flags;
 	unsigned int state;
 
-	bcm43xx_lock_mmio(bcm, flags);
-
-	assert(bcm->initialized);
 	state = bcm->periodic_state;
 	if (state % 8 == 0)
 		bcm43xx_periodic_every120sec(bcm);
@@ -3120,29 +3141,93 @@ static void bcm43xx_periodic_task_handler(unsigned long d)
 		bcm43xx_periodic_every60sec(bcm);
 	if (state % 2 == 0)
 		bcm43xx_periodic_every30sec(bcm);
-	bcm43xx_periodic_every15sec(bcm);
+	if (state % 1 == 0)
+		bcm43xx_periodic_every15sec(bcm);
 	bcm->periodic_state = state + 1;
 
-	mod_timer(&bcm->periodic_tasks, jiffies + (HZ * 15));
+	schedule_delayed_work(&bcm->periodic_work, HZ * 15);
+}
 
-	bcm43xx_unlock_mmio(bcm, flags);
+/* Estimate a "Badness" value based on the periodic work
+ * state-machine state. "Badness" is worse (bigger), if the
+ * periodic work will take longer.
+ */
+static int estimate_periodic_work_badness(unsigned int state)
+{
+	int badness = 0;
+
+	if (state % 8 == 0) /* every 120 sec */
+		badness += 10;
+	if (state % 4 == 0) /* every 60 sec */
+		badness += 5;
+	if (state % 2 == 0) /* every 30 sec */
+		badness += 1;
+	if (state % 1 == 0) /* every 15 sec */
+		badness += 1;
+
+#define BADNESS_LIMIT	4
+	return badness;
+}
+
+static void bcm43xx_periodic_work_handler(void *d)
+{
+	struct bcm43xx_private *bcm = d;
+	unsigned long flags;
+	u32 savedirqs = 0;
+	int badness;
+
+	badness = estimate_periodic_work_badness(bcm->periodic_state);
+	if (badness > BADNESS_LIMIT) {
+		/* Periodic work will take a long time, so we want it to
+		 * be preemtible.
+		 */
+		bcm43xx_lock_irqonly(bcm, flags);
+		netif_stop_queue(bcm->net_dev);
+		if (bcm43xx_using_pio(bcm))
+			bcm43xx_pio_freeze_txqueues(bcm);
+		savedirqs = bcm43xx_interrupt_disable(bcm, BCM43xx_IRQ_ALL);
+		bcm43xx_unlock_irqonly(bcm, flags);
+		bcm43xx_lock_noirq(bcm);
+		bcm43xx_synchronize_irq(bcm);
+	} else {
+		/* Periodic work should take short time, so we want low
+		 * locking overhead.
+		 */
+		bcm43xx_lock_irqsafe(bcm, flags);
+	}
+
+	do_periodic_work(bcm);
+
+	if (badness > BADNESS_LIMIT) {
+		bcm43xx_lock_irqonly(bcm, flags);
+		if (likely(bcm43xx_status(bcm) == BCM43xx_STAT_INITIALIZED)) {
+			tasklet_enable(&bcm->isr_tasklet);
+			bcm43xx_interrupt_enable(bcm, savedirqs);
+			if (bcm43xx_using_pio(bcm))
+				bcm43xx_pio_thaw_txqueues(bcm);
+		}
+		netif_wake_queue(bcm->net_dev);
+		mmiowb();
+		bcm43xx_unlock_irqonly(bcm, flags);
+		bcm43xx_unlock_noirq(bcm);
+	} else {
+		mmiowb();
+		bcm43xx_unlock_irqsafe(bcm, flags);
+	}
 }
 
 static void bcm43xx_periodic_tasks_delete(struct bcm43xx_private *bcm)
 {
-	del_timer_sync(&bcm->periodic_tasks);
+	cancel_rearming_delayed_work(&bcm->periodic_work);
 }
 
 static void bcm43xx_periodic_tasks_setup(struct bcm43xx_private *bcm)
 {
-	struct timer_list *timer = &(bcm->periodic_tasks);
+	struct work_struct *work = &(bcm->periodic_work);
 
-	assert(bcm->initialized);
-	setup_timer(timer,
-		    bcm43xx_periodic_task_handler,
-		    (unsigned long)bcm);
-	timer->expires = jiffies;
-	add_timer(timer);
+	assert(bcm43xx_status(bcm) == BCM43xx_STAT_INITIALIZED);
+	INIT_WORK(work, bcm43xx_periodic_work_handler, bcm);
+	schedule_work(work);
 }
 
 static void bcm43xx_security_init(struct bcm43xx_private *bcm)
@@ -3156,16 +3241,12 @@ static void bcm43xx_security_init(struct bcm43xx_private *bcm)
 static void bcm43xx_free_board(struct bcm43xx_private *bcm)
 {
 	int i, err;
-	unsigned long flags;
 
+	bcm43xx_lock_noirq(bcm);
 	bcm43xx_sysfs_unregister(bcm);
-
 	bcm43xx_periodic_tasks_delete(bcm);
 
-	bcm43xx_lock(bcm, flags);
-	bcm->initialized = 0;
-	bcm->shutting_down = 1;
-	bcm43xx_unlock(bcm, flags);
+	bcm43xx_set_status(bcm, BCM43xx_STAT_SHUTTINGDOWN);
 
 	for (i = 0; i < BCM43xx_MAX_80211_CORES; i++) {
 		if (!bcm->core_80211[i].available)
@@ -3180,23 +3261,19 @@ static void bcm43xx_free_board(struct bcm43xx_private *bcm)
 
 	bcm43xx_pctl_set_crystal(bcm, 0);
 
-	bcm43xx_lock(bcm, flags);
-	bcm->shutting_down = 0;
-	bcm43xx_unlock(bcm, flags);
+	bcm43xx_set_status(bcm, BCM43xx_STAT_UNINIT);
+	bcm43xx_unlock_noirq(bcm);
 }
 
 static int bcm43xx_init_board(struct bcm43xx_private *bcm)
 {
 	int i, err;
 	int connect_phy;
-	unsigned long flags;
 
 	might_sleep();
 
-	bcm43xx_lock(bcm, flags);
-	bcm->initialized = 0;
-	bcm->shutting_down = 0;
-	bcm43xx_unlock(bcm, flags);
+	bcm43xx_lock_noirq(bcm);
+	bcm43xx_set_status(bcm, BCM43xx_STAT_INITIALIZING);
 
 	err = bcm43xx_pctl_set_crystal(bcm, 1);
 	if (err)
@@ -3263,9 +3340,7 @@ static int bcm43xx_init_board(struct bcm43xx_private *bcm)
 	}
 
 	/* Initialization of the board is done. Flag it as such. */
-	bcm43xx_lock(bcm, flags);
-	bcm->initialized = 1;
-	bcm43xx_unlock(bcm, flags);
+	bcm43xx_set_status(bcm, BCM43xx_STAT_INITIALIZED);
 
 	bcm43xx_periodic_tasks_setup(bcm);
 	bcm43xx_sysfs_register(bcm);
@@ -3276,6 +3351,8 @@ static int bcm43xx_init_board(struct bcm43xx_private *bcm)
 
 	assert(err == 0);
 out:
+	bcm43xx_unlock_noirq(bcm);
+
 	return err;
 
 err_80211_unwind:
@@ -3299,8 +3376,7 @@ static void bcm43xx_detach_board(struct bcm43xx_private *bcm)
 
 	bcm43xx_chipset_detach(bcm);
 	/* Do _not_ access the chip, after it is detached. */
-	iounmap(bcm->mmio_addr);
-	
+	pci_iounmap(pci_dev, bcm->mmio_addr);
 	pci_release_regions(pci_dev);
 	pci_disable_device(pci_dev);
 
@@ -3390,40 +3466,26 @@ static int bcm43xx_attach_board(struct bcm43xx_private *bcm)
 	struct net_device *net_dev = bcm->net_dev;
 	int err;
 	int i;
-	unsigned long mmio_start, mmio_flags, mmio_len;
 	u32 coremask;
 
 	err = pci_enable_device(pci_dev);
 	if (err) {
-		printk(KERN_ERR PFX "unable to wake up pci device (%i)\n", err);
+		printk(KERN_ERR PFX "pci_enable_device() failed\n");
 		goto out;
-	}
-	mmio_start = pci_resource_start(pci_dev, 0);
-	mmio_flags = pci_resource_flags(pci_dev, 0);
-	mmio_len = pci_resource_len(pci_dev, 0);
-	if (!(mmio_flags & IORESOURCE_MEM)) {
-		printk(KERN_ERR PFX
-		       "%s, region #0 not an MMIO resource, aborting\n",
-		       pci_name(pci_dev));
-		err = -ENODEV;
-		goto err_pci_disable;
 	}
 	err = pci_request_regions(pci_dev, KBUILD_MODNAME);
 	if (err) {
-		printk(KERN_ERR PFX
-		       "could not access PCI resources (%i)\n", err);
+		printk(KERN_ERR PFX "pci_request_regions() failed\n");
 		goto err_pci_disable;
 	}
 	/* enable PCI bus-mastering */
 	pci_set_master(pci_dev);
-	bcm->mmio_addr = ioremap(mmio_start, mmio_len);
+	bcm->mmio_addr = pci_iomap(pci_dev, 0, ~0UL);
 	if (!bcm->mmio_addr) {
-		printk(KERN_ERR PFX "%s: cannot remap MMIO, aborting\n",
-		       pci_name(pci_dev));
+		printk(KERN_ERR PFX "pci_iomap() failed\n");
 		err = -EIO;
 		goto err_pci_release;
 	}
-	bcm->mmio_len = mmio_len;
 	net_dev->base_addr = (unsigned long)bcm->mmio_addr;
 
 	bcm43xx_pci_read_config16(bcm, PCI_SUBSYSTEM_VENDOR_ID,
@@ -3517,7 +3579,7 @@ err_80211_unwind:
 err_chipset_detach:
 	bcm43xx_chipset_detach(bcm);
 err_iounmap:
-	iounmap(bcm->mmio_addr);
+	pci_iounmap(pci_dev, bcm->mmio_addr);
 err_pci_release:
 	pci_release_regions(pci_dev);
 err_pci_disable:
@@ -3547,8 +3609,8 @@ static void bcm43xx_ieee80211_set_chan(struct net_device *net_dev,
 	struct bcm43xx_radioinfo *radio;
 	unsigned long flags;
 
-	bcm43xx_lock_mmio(bcm, flags);
-	if (bcm->initialized) {
+	bcm43xx_lock_irqsafe(bcm, flags);
+	if (bcm43xx_status(bcm) == BCM43xx_STAT_INITIALIZED) {
 		bcm43xx_mac_suspend(bcm);
 		bcm43xx_radio_selectchannel(bcm, channel, 0);
 		bcm43xx_mac_enable(bcm);
@@ -3556,7 +3618,7 @@ static void bcm43xx_ieee80211_set_chan(struct net_device *net_dev,
 		radio = bcm43xx_current_radio(bcm);
 		radio->initial_channel = channel;
 	}
-	bcm43xx_unlock_mmio(bcm, flags);
+	bcm43xx_unlock_irqsafe(bcm, flags);
 }
 
 /* set_security() callback in struct ieee80211_device */
@@ -3568,9 +3630,9 @@ static void bcm43xx_ieee80211_set_security(struct net_device *net_dev,
 	unsigned long flags;
 	int keyidx;
 	
-	dprintk(KERN_INFO PFX "set security called\n");
+	dprintk(KERN_INFO PFX "set security called");
 
-	bcm43xx_lock_mmio(bcm, flags);
+	bcm43xx_lock_irqsafe(bcm, flags);
 
 	for (keyidx = 0; keyidx<WEP_KEYS; keyidx++)
 		if (sec->flags & (1<<keyidx)) {
@@ -3581,25 +3643,27 @@ static void bcm43xx_ieee80211_set_security(struct net_device *net_dev,
 	
 	if (sec->flags & SEC_ACTIVE_KEY) {
 		secinfo->active_key = sec->active_key;
-		dprintk(KERN_INFO PFX "   .active_key = %d\n", sec->active_key);
+		dprintk(", .active_key = %d", sec->active_key);
 	}
 	if (sec->flags & SEC_UNICAST_GROUP) {
 		secinfo->unicast_uses_group = sec->unicast_uses_group;
-		dprintk(KERN_INFO PFX "   .unicast_uses_group = %d\n", sec->unicast_uses_group);
+		dprintk(", .unicast_uses_group = %d", sec->unicast_uses_group);
 	}
 	if (sec->flags & SEC_LEVEL) {
 		secinfo->level = sec->level;
-		dprintk(KERN_INFO PFX "   .level = %d\n", sec->level);
+		dprintk(", .level = %d", sec->level);
 	}
 	if (sec->flags & SEC_ENABLED) {
 		secinfo->enabled = sec->enabled;
-		dprintk(KERN_INFO PFX "   .enabled = %d\n", sec->enabled);
+		dprintk(", .enabled = %d", sec->enabled);
 	}
 	if (sec->flags & SEC_ENCRYPT) {
 		secinfo->encrypt = sec->encrypt;
-		dprintk(KERN_INFO PFX "   .encrypt = %d\n", sec->encrypt);
+		dprintk(", .encrypt = %d", sec->encrypt);
 	}
-	if (bcm->initialized && !bcm->ieee->host_encrypt) {
+	dprintk("\n");
+	if (bcm43xx_status(bcm) == BCM43xx_STAT_INITIALIZED &&
+	    !bcm->ieee->host_encrypt) {
 		if (secinfo->enabled) {
 			/* upload WEP keys to hardware */
 			char null_address[6] = { 0 };
@@ -3633,7 +3697,7 @@ static void bcm43xx_ieee80211_set_security(struct net_device *net_dev,
 		} else
 				bcm43xx_clear_keys(bcm);
 	}
-	bcm43xx_unlock_mmio(bcm, flags);
+	bcm43xx_unlock_irqsafe(bcm, flags);
 }
 
 /* hard_start_xmit() callback in struct ieee80211_device */
@@ -3645,10 +3709,10 @@ static int bcm43xx_ieee80211_hard_start_xmit(struct ieee80211_txb *txb,
 	int err = -ENODEV;
 	unsigned long flags;
 
-	bcm43xx_lock_mmio(bcm, flags);
-	if (likely(bcm->initialized))
+	bcm43xx_lock_irqonly(bcm, flags);
+	if (likely(bcm43xx_status(bcm) == BCM43xx_STAT_INITIALIZED))
 		err = bcm43xx_tx(bcm, txb);
-	bcm43xx_unlock_mmio(bcm, flags);
+	bcm43xx_unlock_irqonly(bcm, flags);
 
 	return err;
 }
@@ -3663,9 +3727,9 @@ static void bcm43xx_net_tx_timeout(struct net_device *net_dev)
 	struct bcm43xx_private *bcm = bcm43xx_priv(net_dev);
 	unsigned long flags;
 
-	bcm43xx_lock_mmio(bcm, flags);
+	bcm43xx_lock_irqonly(bcm, flags);
 	bcm43xx_controller_restart(bcm, "TX timeout");
-	bcm43xx_unlock_mmio(bcm, flags);
+	bcm43xx_unlock_irqonly(bcm, flags);
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -3690,9 +3754,11 @@ static int bcm43xx_net_open(struct net_device *net_dev)
 static int bcm43xx_net_stop(struct net_device *net_dev)
 {
 	struct bcm43xx_private *bcm = bcm43xx_priv(net_dev);
+	int err;
 
 	ieee80211softmac_stop(net_dev);
-	bcm43xx_disable_interrupts_sync(bcm, NULL);
+	err = bcm43xx_disable_interrupts_sync(bcm, NULL);
+	assert(!err);
 	bcm43xx_free_board(bcm);
 
 	return 0;
@@ -3704,6 +3770,7 @@ static int bcm43xx_init_private(struct bcm43xx_private *bcm,
 {
 	int err;
 
+	bcm43xx_set_status(bcm, BCM43xx_STAT_UNINIT);
 	bcm->ieee = netdev_priv(net_dev);
 	bcm->softmac = ieee80211_priv(net_dev);
 	bcm->softmac->set_channel = bcm43xx_ieee80211_set_chan;
@@ -3712,7 +3779,8 @@ static int bcm43xx_init_private(struct bcm43xx_private *bcm,
 	bcm->pci_dev = pci_dev;
 	bcm->net_dev = net_dev;
 	bcm->bad_frames_preempt = modparam_bad_frames_preempt;
-	spin_lock_init(&bcm->_lock);
+	spin_lock_init(&bcm->irq_lock);
+	mutex_init(&bcm->mutex);
 	tasklet_init(&bcm->isr_tasklet,
 		     (void (*)(unsigned long))bcm43xx_interrupt_tasklet,
 		     (unsigned long)bcm);
@@ -3843,7 +3911,7 @@ static void bcm43xx_chip_reset(void *_bcm)
 	struct net_device *net_dev = bcm->net_dev;
 	struct pci_dev *pci_dev = bcm->pci_dev;
 	int err;
-	int was_initialized = bcm->initialized;
+	int was_initialized = (bcm43xx_status(bcm) == BCM43xx_STAT_INITIALIZED);
 
 	netif_stop_queue(bcm->net_dev);
 	tasklet_disable(&bcm->isr_tasklet);
@@ -3878,6 +3946,7 @@ failure:
 */
 void bcm43xx_controller_restart(struct bcm43xx_private *bcm, const char *reason)
 {
+	bcm43xx_set_status(bcm, BCM43xx_STAT_RESTARTING);
 	bcm43xx_interrupt_disable(bcm, BCM43xx_IRQ_ALL);
 	bcm43xx_read32(bcm, BCM43xx_MMIO_STATUS_BITFIELD); /* dummy read */
 	printk(KERN_ERR PFX "Controller RESET (%s) ...\n", reason);
@@ -3896,11 +3965,11 @@ static int bcm43xx_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	dprintk(KERN_INFO PFX "Suspending...\n");
 
-	bcm43xx_lock(bcm, flags);
-	bcm->was_initialized = bcm->initialized;
-	if (bcm->initialized)
+	bcm43xx_lock_irqsafe(bcm, flags);
+	bcm->was_initialized = (bcm43xx_status(bcm) == BCM43xx_STAT_INITIALIZED);
+	if (bcm->was_initialized)
 		try_to_shutdown = 1;
-	bcm43xx_unlock(bcm, flags);
+	bcm43xx_unlock_irqsafe(bcm, flags);
 
 	netif_device_detach(net_dev);
 	if (try_to_shutdown) {

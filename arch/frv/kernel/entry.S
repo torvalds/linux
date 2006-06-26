@@ -1474,7 +1474,7 @@ sys_call_table:
 	.long sys_mknodat
 	.long sys_fchownat
 	.long sys_futimesat
-	.long sys_newfstatat		/* 300 */
+	.long sys_fstatat64		/* 300 */
 	.long sys_unlinkat
 	.long sys_renameat
 	.long sys_linkat

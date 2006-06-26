@@ -28,7 +28,7 @@
 #define UARTDR			0x00	/* Tx/Rx data */
 #define RXSTAT			0x04	/* Rx status */
 #define H_UBRLCR		0x08	/* mode register high */
-#define M_UBRLCR		0x0C	/* mode reg mid (MSB of buad)*/
+#define M_UBRLCR		0x0C	/* mode reg mid (MSB of baud)*/
 #define L_UBRLCR		0x10	/* mode reg low (LSB of baud)*/
 #define UARTCON			0x14	/* control register */
 #define UARTFLG			0x18	/* flag register */

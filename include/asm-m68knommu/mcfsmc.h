@@ -17,7 +17,6 @@
  *	allow 8 bit accesses. So this code is 16bit access only.
  */
 
-#include <linux/config.h>
 
 #undef	outb
 #undef	inb

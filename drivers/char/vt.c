@@ -3238,14 +3238,6 @@ void vcs_scr_writew(struct vc_data *vc, u16 val, u16 *org)
 	}
 }
 
-int is_console_suspend_safe(void)
-{
-	/* It is unsafe to suspend devices while X has control of the
-	 * hardware. Make sure we are running on a kernel-controlled console.
-	 */
-	return vc_cons[fg_console].d->vc_mode == KD_TEXT;
-}
-
 /*
  *	Visible symbols for modules
  */

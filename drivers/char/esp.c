@@ -1212,7 +1212,7 @@ static void rs_put_char(struct tty_struct *tty, unsigned char ch)
 	if (serial_paranoia_check(info, tty->name, "rs_put_char"))
 		return;
 
-	if (!tty || !info->xmit_buf)
+	if (!info->xmit_buf)
 		return;
 
 	spin_lock_irqsave(&info->lock, flags);
@@ -1256,7 +1256,7 @@ static int rs_write(struct tty_struct * tty,
 	if (serial_paranoia_check(info, tty->name, "rs_write"))
 		return 0;
 
-	if (!tty || !info->xmit_buf)
+	if (!info->xmit_buf)
 		return 0;
 	    
 	while (1) {

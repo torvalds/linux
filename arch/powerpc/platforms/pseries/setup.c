@@ -235,14 +235,14 @@ static void __init pSeries_setup_arch(void)
 	if (firmware_has_feature(FW_FEATURE_SPLPAR)) {
 		vpa_init(boot_cpuid);
 		if (get_lppaca()->shared_proc) {
-			printk(KERN_INFO "Using shared processor idle loop\n");
+			printk(KERN_DEBUG "Using shared processor idle loop\n");
 			ppc_md.power_save = pseries_shared_idle_sleep;
 		} else {
-			printk(KERN_INFO "Using dedicated idle loop\n");
+			printk(KERN_DEBUG "Using dedicated idle loop\n");
 			ppc_md.power_save = pseries_dedicated_idle_sleep;
 		}
 	} else {
-		printk(KERN_INFO "Using default idle loop\n");
+		printk(KERN_DEBUG "Using default idle loop\n");
 	}
 
 	if (firmware_has_feature(FW_FEATURE_LPAR))
@@ -389,11 +389,19 @@ static int __init pSeries_probe_hypertas(unsigned long node,
 
 static int __init pSeries_probe(void)
 {
+	unsigned long root = of_get_flat_dt_root();
  	char *dtype = of_get_flat_dt_prop(of_get_flat_dt_root(),
  					  "device_type", NULL);
  	if (dtype == NULL)
  		return 0;
  	if (strcmp(dtype, "chrp"))
+		return 0;
+
+	/* Cell blades firmware claims to be chrp while it's not. Until this
+	 * is fixed, we need to avoid those here.
+	 */
+	if (of_flat_dt_is_compatible(root, "IBM,CPBW-1.0") ||
+	    of_flat_dt_is_compatible(root, "IBM,CBEA"))
 		return 0;
 
 	DBG("pSeries detected, looking for LPAR capability...\n");

@@ -131,7 +131,7 @@ snd_emu8000_dma_chan(struct snd_emu8000 *emu, int ch, int mode)
 
 /*
  */
-static void __init
+static void __devinit
 snd_emu8000_read_wait(struct snd_emu8000 *emu)
 {
 	while ((EMU8000_SMALR_READ(emu) & 0x80000000) != 0) {
@@ -143,7 +143,7 @@ snd_emu8000_read_wait(struct snd_emu8000 *emu)
 
 /*
  */
-static void __init
+static void __devinit
 snd_emu8000_write_wait(struct snd_emu8000 *emu)
 {
 	while ((EMU8000_SMALW_READ(emu) & 0x80000000) != 0) {
@@ -156,7 +156,7 @@ snd_emu8000_write_wait(struct snd_emu8000 *emu)
 /*
  * detect a card at the given port
  */
-static int __init
+static int __devinit
 snd_emu8000_detect(struct snd_emu8000 *emu)
 {
 	/* Initialise */
@@ -182,7 +182,7 @@ snd_emu8000_detect(struct snd_emu8000 *emu)
 /*
  * intiailize audio channels
  */
-static void __init
+static void __devinit
 init_audio(struct snd_emu8000 *emu)
 {
 	int ch;
@@ -223,7 +223,7 @@ init_audio(struct snd_emu8000 *emu)
 /*
  * initialize DMA address
  */
-static void __init
+static void __devinit
 init_dma(struct snd_emu8000 *emu)
 {
 	EMU8000_SMALR_WRITE(emu, 0);
@@ -327,7 +327,7 @@ static unsigned short init4[128] /*__devinitdata*/ = {
  * Taken from the oss driver, not obvious from the doc how this
  * is meant to work
  */
-static void __init
+static void __devinit
 send_array(struct snd_emu8000 *emu, unsigned short *data, int size)
 {
 	int i;
@@ -349,7 +349,7 @@ send_array(struct snd_emu8000 *emu, unsigned short *data, int size)
  * Send initialization arrays to start up, this just follows the
  * initialisation sequence in the adip.
  */
-static void __init
+static void __devinit
 init_arrays(struct snd_emu8000 *emu)
 {
 	send_array(emu, init1, ARRAY_SIZE(init1)/4);
@@ -375,7 +375,7 @@ init_arrays(struct snd_emu8000 *emu)
  * seems that the only way to do this is to use the one channel and keep
  * reallocating between read and write.
  */
-static void __init
+static void __devinit
 size_dram(struct snd_emu8000 *emu)
 {
 	int i, size;
@@ -500,7 +500,7 @@ snd_emu8000_init_fm(struct snd_emu8000 *emu)
 /*
  * The main initialization routine.
  */
-static void __init
+static void __devinit
 snd_emu8000_init_hw(struct snd_emu8000 *emu)
 {
 	int i;
@@ -1019,7 +1019,7 @@ static struct snd_kcontrol_new *mixer_defs[EMU8000_NUM_CONTROLS] = {
 /*
  * create and attach mixer elements for WaveTable treble/bass controls
  */
-static int __init
+static int __devinit
 snd_emu8000_create_mixer(struct snd_card *card, struct snd_emu8000 *emu)
 {
 	int i, err = 0;
@@ -1069,7 +1069,7 @@ static int snd_emu8000_dev_free(struct snd_device *device)
 /*
  * initialize and register emu8000 synth device.
  */
-int __init
+int __devinit
 snd_emu8000_new(struct snd_card *card, int index, long port, int seq_ports,
 		struct snd_seq_device **awe_ret)
 {

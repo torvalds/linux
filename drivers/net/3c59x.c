@@ -1382,17 +1382,12 @@ static int __devinit vortex_probe1(struct device *gendev,
 	for (i = 0; i < 6; i++)
 		iowrite8(dev->dev_addr[i], ioaddr + i);
 
-#ifdef __sparc__
-	if (print_info)
-		printk(", IRQ %s\n", __irq_itoa(dev->irq));
-#else
 	if (print_info)
 		printk(", IRQ %d\n", dev->irq);
 	/* Tell them about an invalid IRQ. */
 	if (dev->irq <= 0 || dev->irq >= NR_IRQS)
 		printk(KERN_WARNING " *** Warning: IRQ %d is unlikely to work! ***\n",
 			   dev->irq);
-#endif
 
 	EL3WINDOW(4);
 	step = (ioread8(ioaddr + Wn4_NetDiag) & 0x1e) >> 1;

@@ -1,7 +1,6 @@
 #ifndef _ASM_M32R_CACHEFLUSH_H
 #define _ASM_M32R_CACHEFLUSH_H
 
-#include <linux/config.h>
 #include <linux/mm.h>
 
 extern void _flush_cache_all(void);

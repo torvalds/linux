@@ -389,7 +389,7 @@ MODULE_SUPPORTED_DEVICE("{{RME Hammerfall-DSP},"
 
 /* use hotplug firmeare loader? */
 #if defined(CONFIG_FW_LOADER) || defined(CONFIG_FW_LOADER_MODULE)
-#ifndef HDSP_USE_HWDEP_LOADER
+#if !defined(HDSP_USE_HWDEP_LOADER) && !defined(CONFIG_SND_HDSP)
 #define HDSP_FW_LOADER
 #endif
 #endif
@@ -3169,9 +3169,10 @@ snd_hdsp_proc_read(struct snd_info_entry *entry, struct snd_info_buffer *buffer)
 	char *clock_source;
 	int x;
 
-	if (hdsp_check_for_iobox (hdsp))
+	if (hdsp_check_for_iobox (hdsp)) {
 		snd_iprintf(buffer, "No I/O box connected.\nPlease connect one and upload firmware.\n");
 		return;
+        }
 
 	if (hdsp_check_for_firmware(hdsp, 0)) {
 		if (hdsp->state & HDSP_FirmwareCached) {
@@ -3470,7 +3471,7 @@ static void __devinit snd_hdsp_proc_init(struct hdsp *hdsp)
 	struct snd_info_entry *entry;
 
 	if (! snd_card_proc_new(hdsp->card, "hdsp", &entry))
-		snd_info_set_text_ops(entry, hdsp, 1024, snd_hdsp_proc_read);
+		snd_info_set_text_ops(entry, hdsp, snd_hdsp_proc_read);
 }
 
 static void snd_hdsp_free_buffers(struct hdsp *hdsp)

@@ -1,5 +1,7 @@
+infiniband-$(CONFIG_INFINIBAND_ADDR_TRANS)	:= ib_addr.o rdma_cm.o
+
 obj-$(CONFIG_INFINIBAND) +=		ib_core.o ib_mad.o ib_sa.o \
-					ib_cm.o
+					ib_cm.o $(infiniband-y)
 obj-$(CONFIG_INFINIBAND_USER_MAD) +=	ib_umad.o
 obj-$(CONFIG_INFINIBAND_USER_ACCESS) +=	ib_uverbs.o ib_ucm.o
 
@@ -12,8 +14,13 @@ ib_sa-y :=			sa_query.o
 
 ib_cm-y :=			cm.o
 
+rdma_cm-y :=			cma.o
+
+ib_addr-y :=			addr.o
+
 ib_umad-y :=			user_mad.o
 
 ib_ucm-y :=			ucm.o
 
-ib_uverbs-y :=			uverbs_main.o uverbs_cmd.o uverbs_mem.o
+ib_uverbs-y :=			uverbs_main.o uverbs_cmd.o uverbs_mem.o \
+				uverbs_marshall.o

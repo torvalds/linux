@@ -47,7 +47,7 @@
 #define BIO_BUG_ON
 #endif
 
-#define BIO_MAX_PAGES		(256)
+#define BIO_MAX_PAGES		256
 #define BIO_MAX_SIZE		(BIO_MAX_PAGES << PAGE_CACHE_SHIFT)
 #define BIO_MAX_SECTORS		(BIO_MAX_SIZE >> 9)
 

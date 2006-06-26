@@ -48,6 +48,8 @@ MODULE_LICENSE("GPL");
 
 static int acpi_fan_add(struct acpi_device *device);
 static int acpi_fan_remove(struct acpi_device *device, int type);
+static int acpi_fan_suspend(struct acpi_device *device, int state);
+static int acpi_fan_resume(struct acpi_device *device, int state);
 
 static struct acpi_driver acpi_fan_driver = {
 	.name = ACPI_FAN_DRIVER_NAME,
@@ -56,6 +58,8 @@ static struct acpi_driver acpi_fan_driver = {
 	.ops = {
 		.add = acpi_fan_add,
 		.remove = acpi_fan_remove,
+		.suspend = acpi_fan_suspend,
+		.resume = acpi_fan_resume,
 		},
 };
 
@@ -206,6 +210,10 @@ static int acpi_fan_add(struct acpi_device *device)
 		goto end;
 	}
 
+	device->flags.force_power_state = 1;
+	acpi_bus_set_power(device->handle, state);
+	device->flags.force_power_state = 0;
+
 	result = acpi_fan_add_fs(device);
 	if (result)
 		goto end;
@@ -237,6 +245,38 @@ static int acpi_fan_remove(struct acpi_device *device, int type)
 	kfree(fan);
 
 	return_VALUE(0);
+}
+
+static int acpi_fan_suspend(struct acpi_device *device, int state)
+{
+	if (!device)
+		return -EINVAL;
+
+	acpi_bus_set_power(device->handle, ACPI_STATE_D0);
+
+	return AE_OK;
+}
+
+static int acpi_fan_resume(struct acpi_device *device, int state)
+{
+	int result = 0;
+	int power_state = 0;
+
+	if (!device)
+		return -EINVAL;
+
+	result = acpi_bus_get_power(device->handle, &power_state);
+	if (result) {
+		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
+				  "Error reading fan power state\n"));
+		return result;
+	}
+
+	device->flags.force_power_state = 1;
+	acpi_bus_set_power(device->handle, power_state);
+	device->flags.force_power_state = 0;
+
+	return result;
 }
 
 static int __init acpi_fan_init(void)

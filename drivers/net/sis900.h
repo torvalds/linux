@@ -310,8 +310,14 @@ enum sis630_revision_id {
 #define CRC_SIZE                4
 #define MAC_HEADER_SIZE         14
 
-#define TX_BUF_SIZE     1536
-#define RX_BUF_SIZE     1536
+#if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
+#define MAX_FRAME_SIZE  (1518 + 4)
+#else
+#define MAX_FRAME_SIZE  1518
+#endif /* CONFIG_VLAN_802_1Q */
+
+#define TX_BUF_SIZE     (MAX_FRAME_SIZE+18)
+#define RX_BUF_SIZE     (MAX_FRAME_SIZE+18)
 
 #define NUM_TX_DESC     16      	/* Number of Tx descriptor registers. */
 #define NUM_RX_DESC     16       	/* Number of Rx descriptor registers. */

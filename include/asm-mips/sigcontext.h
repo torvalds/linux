@@ -55,8 +55,14 @@ struct sigcontext {
 struct sigcontext {
 	unsigned long	sc_regs[32];
 	unsigned long	sc_fpregs[32];
-	unsigned long	sc_hi[4];
-	unsigned long	sc_lo[4];
+	unsigned long	sc_mdhi;
+	unsigned long	sc_hi1;
+	unsigned long	sc_hi2;
+	unsigned long	sc_hi3;
+	unsigned long	sc_mdlo;
+	unsigned long	sc_lo1;
+	unsigned long	sc_lo2;
+	unsigned long	sc_lo3;
 	unsigned long	sc_pc;
 	unsigned int	sc_fpc_csr;
 	unsigned int	sc_used_math;

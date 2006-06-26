@@ -641,6 +641,7 @@ void saa7146_set_hps_source_and_sync(struct saa7146_dev *dev, int source, int sy
 	vv->current_hps_source = source;
 	vv->current_hps_sync = sync;
 }
+EXPORT_SYMBOL_GPL(saa7146_set_hps_source_and_sync);
 
 int saa7146_enable_overlay(struct saa7146_fh *fh)
 {

@@ -87,7 +87,7 @@
  86 -> Osprey 101/151 w/ svid
  87 -> Osprey 200/201/250/251
  88 -> Osprey 200/250                                      [0070:ff01]
- 89 -> Osprey 210/220
+ 89 -> Osprey 210/220/230
  90 -> Osprey 500                                          [0070:ff02]
  91 -> Osprey 540                                          [0070:ff04]
  92 -> Osprey 2000                                         [0070:ff03]
@@ -111,7 +111,7 @@
 110 -> IVC-100                                             [ff00:a132]
 111 -> IVC-120G                                            [ff00:a182,ff01:a182,ff02:a182,ff03:a182,ff04:a182,ff05:a182,ff06:a182,ff07:a182,ff08:a182,ff09:a182,ff0a:a182,ff0b:a182,ff0c:a182,ff0d:a182,ff0e:a182,ff0f:a182]
 112 -> pcHDTV HD-2000 TV                                   [7063:2000]
-113 -> Twinhan DST + clones                                [11bd:0026,1822:0001,270f:fc00]
+113 -> Twinhan DST + clones                                [11bd:0026,1822:0001,270f:fc00,1822:0026]
 114 -> Winfast VC100                                       [107d:6607]
 115 -> Teppro TEV-560/InterVision IV-560
 116 -> SIMUS GVC1100                                       [aa6a:82b2]

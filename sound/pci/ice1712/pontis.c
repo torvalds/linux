@@ -680,9 +680,8 @@ static void wm_proc_init(struct snd_ice1712 *ice)
 {
 	struct snd_info_entry *entry;
 	if (! snd_card_proc_new(ice->card, "wm_codec", &entry)) {
-		snd_info_set_text_ops(entry, ice, 1024, wm_proc_regs_read);
+		snd_info_set_text_ops(entry, ice, wm_proc_regs_read);
 		entry->mode |= S_IWUSR;
-		entry->c.text.write_size = 1024;
 		entry->c.text.write = wm_proc_regs_write;
 	}
 }
@@ -705,9 +704,8 @@ static void cs_proc_regs_read(struct snd_info_entry *entry, struct snd_info_buff
 static void cs_proc_init(struct snd_ice1712 *ice)
 {
 	struct snd_info_entry *entry;
-	if (! snd_card_proc_new(ice->card, "cs_codec", &entry)) {
-		snd_info_set_text_ops(entry, ice, 1024, cs_proc_regs_read);
-	}
+	if (! snd_card_proc_new(ice->card, "cs_codec", &entry))
+		snd_info_set_text_ops(entry, ice, cs_proc_regs_read);
 }
 
 

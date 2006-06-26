@@ -214,12 +214,13 @@ hardware.
 	The interaction of the iflag bits is as follows (parity error
 	given as an example):
 	Parity error	INPCK	IGNPAR
-	None		n/a	n/a	character received
-	Yes		n/a	0	character discarded
-	Yes		0	1	character received, marked as
+	n/a		0	n/a	character received, marked as
 					TTY_NORMAL
-	Yes		1	1	character received, marked as
+	None		1	n/a	character received, marked as
+					TTY_NORMAL
+	Yes		1	0	character received, marked as
 					TTY_PARITY
+	Yes		1	1	character discarded
 
 	Other flags may be used (eg, xon/xoff characters) if your
 	hardware supports hardware "soft" flow control.

@@ -6,7 +6,6 @@
 #ifndef _SPARC_ASMMACRO_H
 #define _SPARC_ASMMACRO_H
 
-#include <linux/config.h>
 #include <asm/btfixup.h>
 #include <asm/asi.h>
 

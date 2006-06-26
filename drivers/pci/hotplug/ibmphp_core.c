@@ -285,7 +285,7 @@ static int get_attention_status(struct hotplug_slot *hotplug_slot, u8 * value)
 					(ulong) hotplug_slot, (ulong) value);
         
 	ibmphp_lock_operations();
-	if (hotplug_slot && value) {
+	if (hotplug_slot) {
 		pslot = hotplug_slot->private;
 		if (pslot) {
 			memcpy(&myslot, pslot, sizeof(struct slot));
@@ -315,7 +315,7 @@ static int get_latch_status(struct hotplug_slot *hotplug_slot, u8 * value)
 	debug("get_latch_status - Entry hotplug_slot[%lx] pvalue[%lx]\n",
 					(ulong) hotplug_slot, (ulong) value);
 	ibmphp_lock_operations();
-	if (hotplug_slot && value) {
+	if (hotplug_slot) {
 		pslot = hotplug_slot->private;
 		if (pslot) {
 			memcpy(&myslot, pslot, sizeof(struct slot));
@@ -342,7 +342,7 @@ static int get_power_status(struct hotplug_slot *hotplug_slot, u8 * value)
 	debug("get_power_status - Entry hotplug_slot[%lx] pvalue[%lx]\n",
 					(ulong) hotplug_slot, (ulong) value);
 	ibmphp_lock_operations();
-	if (hotplug_slot && value) {
+	if (hotplug_slot) {
 		pslot = hotplug_slot->private;
 		if (pslot) {
 			memcpy(&myslot, pslot, sizeof(struct slot));
@@ -369,7 +369,7 @@ static int get_adapter_present(struct hotplug_slot *hotplug_slot, u8 * value)
 	debug("get_adapter_status - Entry hotplug_slot[%lx] pvalue[%lx]\n",
 					(ulong) hotplug_slot, (ulong) value);
 	ibmphp_lock_operations();
-	if (hotplug_slot && value) {
+	if (hotplug_slot) {
 		pslot = hotplug_slot->private;
 		if (pslot) {
 			memcpy(&myslot, pslot, sizeof(struct slot));
@@ -401,7 +401,7 @@ static int get_max_bus_speed(struct hotplug_slot *hotplug_slot, enum pci_bus_spe
 
 	ibmphp_lock_operations();
 
-	if (hotplug_slot && value) {
+	if (hotplug_slot) {
 		pslot = hotplug_slot->private;
 		if (pslot) {
 			rc = 0;
@@ -441,7 +441,7 @@ static int get_cur_bus_speed(struct hotplug_slot *hotplug_slot, enum pci_bus_spe
 
 	ibmphp_lock_operations();
 
-	if (hotplug_slot && value) {
+	if (hotplug_slot) {
 		pslot = hotplug_slot->private;
 		if (pslot) {
 			rc = get_cur_bus_info(&pslot);

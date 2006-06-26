@@ -212,8 +212,6 @@ struct ib_mad_port_private {
 	struct ib_mad_qp_info qp_info[IB_MAD_QPS_CORE];
 };
 
-extern kmem_cache_t *ib_mad_cache;
-
 int ib_send_mad(struct ib_mad_send_wr_private *mad_send_wr);
 
 struct ib_mad_send_wr_private *

@@ -87,6 +87,11 @@ enum srp_login_rej_reason {
 	SRP_LOGIN_REJ_CHANNEL_LIMIT_REACHED		= 0x00010006
 };
 
+enum {
+	SRP_REV10_IB_IO_CLASS	= 0xff00,
+	SRP_REV16A_IB_IO_CLASS	= 0x0100
+};
+
 struct srp_direct_buf {
 	__be64	va;
 	__be32	key;

@@ -988,7 +988,7 @@ static int write(struct tty_struct *tty,
 	if (sanity_check(info, tty->name, "write"))
 		goto cleanup;
 
-	if (!tty || !info->tx_buf)
+	if (!info->tx_buf)
 		goto cleanup;
 
 	if (info->params.mode == MGSL_MODE_HDLC) {
@@ -1067,7 +1067,7 @@ static void put_char(struct tty_struct *tty, unsigned char ch)
 	if (sanity_check(info, tty->name, "put_char"))
 		return;
 
-	if (!tty || !info->tx_buf)
+	if (!info->tx_buf)
 		return;
 
 	spin_lock_irqsave(&info->lock,flags);

@@ -39,7 +39,6 @@
 #define NODE_ARRAY_OFFSET(x)	((x) % 8)	/* 8 bits/char */
 #define BMAP_SET(bmap, bit)	((bmap)[NODE_ARRAY_INDEX(bit)] |= 1 << NODE_ARRAY_OFFSET(bit))
 #define BMAP_TEST(bmap, bit)	((bmap)[NODE_ARRAY_INDEX(bit)] & (1 << NODE_ARRAY_OFFSET(bit)))
-#define MAX_PXM_DOMAINS		256	/* 1 byte and no promises about values */
 /* bitmap length; _PXM is at most 255 */
 #define PXM_BITMAP_LEN (MAX_PXM_DOMAINS / 8) 
 static u8 pxm_bitmap[PXM_BITMAP_LEN];	/* bitmap of proximity domains */
@@ -213,19 +212,11 @@ static __init void node_read_chunk(int nid, struct node_memory_chunk_s *memory_c
 		node_end_pfn[nid] = memory_chunk->end_pfn;
 }
 
-static u8 pxm_to_nid_map[MAX_PXM_DOMAINS];/* _PXM to logical node ID map */
-
-int pxm_to_node(int pxm)
-{
-	return pxm_to_nid_map[pxm];
-}
-
 /* Parse the ACPI Static Resource Affinity Table */
 static int __init acpi20_parse_srat(struct acpi_table_srat *sratp)
 {
 	u8 *start, *end, *p;
 	int i, j, nid;
-	u8 nid_to_pxm_map[MAX_NUMNODES];/* logical node ID to _PXM map */
 
 	start = (u8 *)(&(sratp->reserved) + 1);	/* skip header */
 	p = start;
@@ -234,10 +225,6 @@ static int __init acpi20_parse_srat(struct acpi_table_srat *sratp)
 	memset(pxm_bitmap, 0, sizeof(pxm_bitmap));	/* init proximity domain bitmap */
 	memset(node_memory_chunk, 0, sizeof(node_memory_chunk));
 	memset(zholes_size, 0, sizeof(zholes_size));
-
-	/* -1 in these maps means not available */
-	memset(pxm_to_nid_map, -1, sizeof(pxm_to_nid_map));
-	memset(nid_to_pxm_map, -1, sizeof(nid_to_pxm_map));
 
 	num_memory_chunks = 0;
 	while (p < end) {
@@ -278,9 +265,7 @@ static int __init acpi20_parse_srat(struct acpi_table_srat *sratp)
 	nodes_clear(node_online_map);
 	for (i = 0; i < MAX_PXM_DOMAINS; i++) {
 		if (BMAP_TEST(pxm_bitmap, i)) {
-			nid = num_online_nodes();
-			pxm_to_nid_map[i] = nid;
-			nid_to_pxm_map[nid] = i;
+			int nid = acpi_map_pxm_to_node(i);
 			node_set_online(nid);
 		}
 	}
@@ -288,7 +273,7 @@ static int __init acpi20_parse_srat(struct acpi_table_srat *sratp)
 
 	/* set cnode id in memory chunk structure */
 	for (i = 0; i < num_memory_chunks; i++)
-		node_memory_chunk[i].nid = pxm_to_nid_map[node_memory_chunk[i].pxm];
+		node_memory_chunk[i].nid = pxm_to_node(node_memory_chunk[i].pxm);
 
 	printk("pxm bitmap: ");
 	for (i = 0; i < sizeof(pxm_bitmap); i++) {

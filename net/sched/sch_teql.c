@@ -302,20 +302,17 @@ restart:
 
 		switch (teql_resolve(skb, skb_res, slave)) {
 		case 0:
-			if (spin_trylock(&slave->xmit_lock)) {
-				slave->xmit_lock_owner = smp_processor_id();
+			if (netif_tx_trylock(slave)) {
 				if (!netif_queue_stopped(slave) &&
 				    slave->hard_start_xmit(skb, slave) == 0) {
-					slave->xmit_lock_owner = -1;
-					spin_unlock(&slave->xmit_lock);
+					netif_tx_unlock(slave);
 					master->slaves = NEXT_SLAVE(q);
 					netif_wake_queue(dev);
 					master->stats.tx_packets++;
 					master->stats.tx_bytes += len;
 					return 0;
 				}
-				slave->xmit_lock_owner = -1;
-				spin_unlock(&slave->xmit_lock);
+				netif_tx_unlock(slave);
 			}
 			if (netif_queue_stopped(dev))
 				busy = 1;

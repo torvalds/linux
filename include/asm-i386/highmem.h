@@ -20,7 +20,6 @@
 
 #ifdef __KERNEL__
 
-#include <linux/config.h>
 #include <linux/interrupt.h>
 #include <linux/threads.h>
 #include <asm/kmap_types.h>

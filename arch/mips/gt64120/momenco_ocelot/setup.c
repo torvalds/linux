@@ -152,7 +152,7 @@ void PMON_v2_setup()
 	gt64120_base = 0xe0000000;
 }
 
-void __init plat_setup(void)
+void __init plat_mem_setup(void)
 {
 	void (*l3func)(unsigned long)=KSEG1ADDR(&setup_l3cache);
 	unsigned int tmpword;

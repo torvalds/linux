@@ -212,24 +212,16 @@ static int set_param_str(const char *val, struct kernel_param *kp)
 {
 	action_fn  fn = (action_fn) kp->arg;
 	int        rv = 0;
-	const char *end;
-	char       valcp[16];
-	int        len;
+	char       *dup, *s;
 
-	/* Truncate leading and trailing spaces. */
-	while (isspace(*val))
-		val++;
-	end = val + strlen(val) - 1;
-	while ((end >= val) && isspace(*end))
-		end--;
-	len = end - val + 1;
-	if (len > sizeof(valcp) - 1)
-		return -EINVAL;
-	memcpy(valcp, val, len);
-	valcp[len] = '\0';
+	dup = kstrdup(val, GFP_KERNEL);
+	if (!dup)
+		return -ENOMEM;
+
+	s = strstrip(dup);
 
 	down_read(&register_sem);
-	rv = fn(valcp, NULL);
+	rv = fn(s, NULL);
 	if (rv)
 		goto out_unlock;
 
@@ -239,6 +231,7 @@ static int set_param_str(const char *val, struct kernel_param *kp)
 
  out_unlock:
 	up_read(&register_sem);
+	kfree(dup);
 	return rv;
 }
 

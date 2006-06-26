@@ -414,6 +414,24 @@ config INET_TUNNEL
 	tristate
 	default n
 
+config INET_XFRM_MODE_TRANSPORT
+	tristate "IP: IPsec transport mode"
+	default y
+	select XFRM
+	---help---
+	  Support for IPsec transport mode.
+
+	  If unsure, say Y.
+
+config INET_XFRM_MODE_TUNNEL
+	tristate "IP: IPsec tunnel mode"
+	default y
+	select XFRM
+	---help---
+	  Support for IPsec tunnel mode.
+
+	  If unsure, say Y.
+
 config INET_DIAG
 	tristate "INET: socket monitoring interface"
 	default y
@@ -531,6 +549,38 @@ config TCP_CONG_SCALABLE
 	MIMD congestion control algorithm which has some nice scaling
 	properties, though is known to have fairness issues.
 	See http://www-lce.eng.cam.ac.uk/~ctk21/scalable/
+
+config TCP_CONG_LP
+	tristate "TCP Low Priority"
+	depends on EXPERIMENTAL
+	default n
+	---help---
+	TCP Low Priority (TCP-LP), a distributed algorithm whose goal is
+	to utiliza only the excess network bandwidth as compared to the
+	``fair share`` of bandwidth as targeted by TCP.
+	See http://www-ece.rice.edu/networks/TCP-LP/
+
+config TCP_CONG_VENO
+	tristate "TCP Veno"
+	depends on EXPERIMENTAL
+	default n
+	---help---
+	TCP Veno is a sender-side only enhancement of TCP to obtain better
+	throughput over wireless networks. TCP Veno makes use of state
+	distinguishing to circumvent the difficult judgment of the packet loss
+	type. TCP Veno cuts down less congestion window in response to random
+	loss packets.
+	See http://www.ntu.edu.sg/home5/ZHOU0022/papers/CPFu03a.pdf
+
+config TCP_CONG_COMPOUND
+	tristate "TCP Compound"
+	depends on EXPERIMENTAL
+	default n
+	---help---
+	TCP Compound is a sender-side only change to TCP that uses
+	a mixed Reno/Vegas approach to calculate the cwnd.
+	For further details look here:
+	  ftp://ftp.research.microsoft.com/pub/tr/TR-2005-86.pdf
 
 endmenu
 

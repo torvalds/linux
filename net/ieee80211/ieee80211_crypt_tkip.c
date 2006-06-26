@@ -501,8 +501,11 @@ static int michael_mic(struct ieee80211_tkip_data *tkey, u8 * key, u8 * hdr,
 static void michael_mic_hdr(struct sk_buff *skb, u8 * hdr)
 {
 	struct ieee80211_hdr_4addr *hdr11;
+	u16 stype;
 
 	hdr11 = (struct ieee80211_hdr_4addr *)skb->data;
+	stype  = WLAN_FC_GET_STYPE(le16_to_cpu(hdr11->frame_ctl));
+
 	switch (le16_to_cpu(hdr11->frame_ctl) &
 		(IEEE80211_FCTL_FROMDS | IEEE80211_FCTL_TODS)) {
 	case IEEE80211_FCTL_TODS:
@@ -523,7 +526,13 @@ static void michael_mic_hdr(struct sk_buff *skb, u8 * hdr)
 		break;
 	}
 
-	hdr[12] = 0;		/* priority */
+	if (stype & IEEE80211_STYPE_QOS_DATA) {
+		const struct ieee80211_hdr_3addrqos *qoshdr =
+			(struct ieee80211_hdr_3addrqos *)skb->data;
+		hdr[12] = le16_to_cpu(qoshdr->qos_ctl) & IEEE80211_QCTL_TID;
+	} else
+		hdr[12] = 0;		/* priority */
+
 	hdr[13] = hdr[14] = hdr[15] = 0;	/* reserved */
 }
 

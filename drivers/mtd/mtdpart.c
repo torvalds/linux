@@ -51,16 +51,21 @@ static int part_read (struct mtd_info *mtd, loff_t from, size_t len,
 			size_t *retlen, u_char *buf)
 {
 	struct mtd_part *part = PART(mtd);
+	int res;
+
 	if (from >= mtd->size)
 		len = 0;
 	else if (from + len > mtd->size)
 		len = mtd->size - from;
-	if (part->master->read_ecc == NULL)
-		return part->master->read (part->master, from + part->offset,
-					len, retlen, buf);
-	else
-		return part->master->read_ecc (part->master, from + part->offset,
-					len, retlen, buf, NULL, &mtd->oobinfo);
+	res = part->master->read (part->master, from + part->offset,
+				   len, retlen, buf);
+	if (unlikely(res)) {
+		if (res == -EUCLEAN)
+			mtd->ecc_stats.corrected++;
+		if (res == -EBADMSG)
+			mtd->ecc_stats.failed++;
+	}
+	return res;
 }
 
 static int part_point (struct mtd_info *mtd, loff_t from, size_t len,
@@ -74,6 +79,7 @@ static int part_point (struct mtd_info *mtd, loff_t from, size_t len,
 	return part->master->point (part->master, from + part->offset,
 				    len, retlen, buf);
 }
+
 static void part_unpoint (struct mtd_info *mtd, u_char *addr, loff_t from, size_t len)
 {
 	struct mtd_part *part = PART(mtd);
@@ -81,31 +87,25 @@ static void part_unpoint (struct mtd_info *mtd, u_char *addr, loff_t from, size_
 	part->master->unpoint (part->master, addr, from + part->offset, len);
 }
 
-
-static int part_read_ecc (struct mtd_info *mtd, loff_t from, size_t len,
-			size_t *retlen, u_char *buf, u_char *eccbuf, struct nand_oobinfo *oobsel)
+static int part_read_oob(struct mtd_info *mtd, loff_t from,
+			 struct mtd_oob_ops *ops)
 {
 	struct mtd_part *part = PART(mtd);
-	if (oobsel == NULL)
-		oobsel = &mtd->oobinfo;
-	if (from >= mtd->size)
-		len = 0;
-	else if (from + len > mtd->size)
-		len = mtd->size - from;
-	return part->master->read_ecc (part->master, from + part->offset,
-					len, retlen, buf, eccbuf, oobsel);
-}
+	int res;
 
-static int part_read_oob (struct mtd_info *mtd, loff_t from, size_t len,
-			size_t *retlen, u_char *buf)
-{
-	struct mtd_part *part = PART(mtd);
 	if (from >= mtd->size)
-		len = 0;
-	else if (from + len > mtd->size)
-		len = mtd->size - from;
-	return part->master->read_oob (part->master, from + part->offset,
-					len, retlen, buf);
+		return -EINVAL;
+	if (from + ops->len > mtd->size)
+		return -EINVAL;
+	res = part->master->read_oob(part->master, from + part->offset, ops);
+
+	if (unlikely(res)) {
+		if (res == -EUCLEAN)
+			mtd->ecc_stats.corrected++;
+		if (res == -EBADMSG)
+			mtd->ecc_stats.failed++;
+	}
+	return res;
 }
 
 static int part_read_user_prot_reg (struct mtd_info *mtd, loff_t from, size_t len,
@@ -148,44 +148,23 @@ static int part_write (struct mtd_info *mtd, loff_t to, size_t len,
 		len = 0;
 	else if (to + len > mtd->size)
 		len = mtd->size - to;
-	if (part->master->write_ecc == NULL)
-		return part->master->write (part->master, to + part->offset,
-					len, retlen, buf);
-	else
-		return part->master->write_ecc (part->master, to + part->offset,
-					len, retlen, buf, NULL, &mtd->oobinfo);
-
+	return part->master->write (part->master, to + part->offset,
+				    len, retlen, buf);
 }
 
-static int part_write_ecc (struct mtd_info *mtd, loff_t to, size_t len,
-			size_t *retlen, const u_char *buf,
-			 u_char *eccbuf, struct nand_oobinfo *oobsel)
+static int part_write_oob(struct mtd_info *mtd, loff_t to,
+			 struct mtd_oob_ops *ops)
 {
 	struct mtd_part *part = PART(mtd);
-	if (!(mtd->flags & MTD_WRITEABLE))
-		return -EROFS;
-	if (oobsel == NULL)
-		oobsel = &mtd->oobinfo;
-	if (to >= mtd->size)
-		len = 0;
-	else if (to + len > mtd->size)
-		len = mtd->size - to;
-	return part->master->write_ecc (part->master, to + part->offset,
-					len, retlen, buf, eccbuf, oobsel);
-}
 
-static int part_write_oob (struct mtd_info *mtd, loff_t to, size_t len,
-			size_t *retlen, const u_char *buf)
-{
-	struct mtd_part *part = PART(mtd);
 	if (!(mtd->flags & MTD_WRITEABLE))
 		return -EROFS;
+
 	if (to >= mtd->size)
-		len = 0;
-	else if (to + len > mtd->size)
-		len = mtd->size - to;
-	return part->master->write_oob (part->master, to + part->offset,
-					len, retlen, buf);
+		return -EINVAL;
+	if (to + ops->len > mtd->size)
+		return -EINVAL;
+	return part->master->write_oob(part->master, to + part->offset, ops);
 }
 
 static int part_write_user_prot_reg (struct mtd_info *mtd, loff_t from, size_t len,
@@ -208,52 +187,8 @@ static int part_writev (struct mtd_info *mtd,  const struct kvec *vecs,
 	struct mtd_part *part = PART(mtd);
 	if (!(mtd->flags & MTD_WRITEABLE))
 		return -EROFS;
-	if (part->master->writev_ecc == NULL)
-		return part->master->writev (part->master, vecs, count,
+	return part->master->writev (part->master, vecs, count,
 					to + part->offset, retlen);
-	else
-		return part->master->writev_ecc (part->master, vecs, count,
-					to + part->offset, retlen,
-					NULL, &mtd->oobinfo);
-}
-
-static int part_readv (struct mtd_info *mtd,  struct kvec *vecs,
-			 unsigned long count, loff_t from, size_t *retlen)
-{
-	struct mtd_part *part = PART(mtd);
-	if (part->master->readv_ecc == NULL)
-		return part->master->readv (part->master, vecs, count,
-					from + part->offset, retlen);
-	else
-		return part->master->readv_ecc (part->master, vecs, count,
-					from + part->offset, retlen,
-					NULL, &mtd->oobinfo);
-}
-
-static int part_writev_ecc (struct mtd_info *mtd,  const struct kvec *vecs,
-			 unsigned long count, loff_t to, size_t *retlen,
-			 u_char *eccbuf,  struct nand_oobinfo *oobsel)
-{
-	struct mtd_part *part = PART(mtd);
-	if (!(mtd->flags & MTD_WRITEABLE))
-		return -EROFS;
-	if (oobsel == NULL)
-		oobsel = &mtd->oobinfo;
-	return part->master->writev_ecc (part->master, vecs, count,
-					to + part->offset, retlen,
-					eccbuf, oobsel);
-}
-
-static int part_readv_ecc (struct mtd_info *mtd,  struct kvec *vecs,
-			 unsigned long count, loff_t from, size_t *retlen,
-			 u_char *eccbuf,  struct nand_oobinfo *oobsel)
-{
-	struct mtd_part *part = PART(mtd);
-	if (oobsel == NULL)
-		oobsel = &mtd->oobinfo;
-	return part->master->readv_ecc (part->master, vecs, count,
-					from + part->offset, retlen,
-					eccbuf, oobsel);
 }
 
 static int part_erase (struct mtd_info *mtd, struct erase_info *instr)
@@ -329,12 +264,17 @@ static int part_block_isbad (struct mtd_info *mtd, loff_t ofs)
 static int part_block_markbad (struct mtd_info *mtd, loff_t ofs)
 {
 	struct mtd_part *part = PART(mtd);
+	int res;
+
 	if (!(mtd->flags & MTD_WRITEABLE))
 		return -EROFS;
 	if (ofs >= mtd->size)
 		return -EINVAL;
 	ofs += part->offset;
-	return part->master->block_markbad(part->master, ofs);
+	res = part->master->block_markbad(part->master, ofs);
+	if (!res)
+		mtd->ecc_stats.badblocks++;
+	return res;
 }
 
 /*
@@ -398,7 +338,7 @@ int add_mtd_partitions(struct mtd_info *master,
 		slave->mtd.type = master->type;
 		slave->mtd.flags = master->flags & ~parts[i].mask_flags;
 		slave->mtd.size = parts[i].size;
-		slave->mtd.oobblock = master->oobblock;
+		slave->mtd.writesize = master->writesize;
 		slave->mtd.oobsize = master->oobsize;
 		slave->mtd.ecctype = master->ecctype;
 		slave->mtd.eccsize = master->eccsize;
@@ -415,10 +355,6 @@ int add_mtd_partitions(struct mtd_info *master,
 			slave->mtd.unpoint = part_unpoint;
 		}
 
-		if (master->read_ecc)
-			slave->mtd.read_ecc = part_read_ecc;
-		if (master->write_ecc)
-			slave->mtd.write_ecc = part_write_ecc;
 		if (master->read_oob)
 			slave->mtd.read_oob = part_read_oob;
 		if (master->write_oob)
@@ -443,12 +379,6 @@ int add_mtd_partitions(struct mtd_info *master,
 		}
 		if (master->writev)
 			slave->mtd.writev = part_writev;
-		if (master->readv)
-			slave->mtd.readv = part_readv;
-		if (master->writev_ecc)
-			slave->mtd.writev_ecc = part_writev_ecc;
-		if (master->readv_ecc)
-			slave->mtd.readv_ecc = part_readv_ecc;
 		if (master->lock)
 			slave->mtd.lock = part_lock;
 		if (master->unlock)
@@ -528,8 +458,17 @@ int add_mtd_partitions(struct mtd_info *master,
 				parts[i].name);
 		}
 
-		/* copy oobinfo from master */
-		memcpy(&slave->mtd.oobinfo, &master->oobinfo, sizeof(slave->mtd.oobinfo));
+		slave->mtd.ecclayout = master->ecclayout;
+		if (master->block_isbad) {
+			uint32_t offs = 0;
+
+			while(offs < slave->mtd.size) {
+				if (master->block_isbad(master,
+							offs + slave->offset))
+					slave->mtd.ecc_stats.badblocks++;
+				offs += slave->mtd.erasesize;
+			}
+		}
 
 		if(parts[i].mtdp)
 		{	/* store the object pointer (caller may or may not register it */

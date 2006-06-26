@@ -12,7 +12,6 @@
 #ifndef _ASM_IRQ_H_
 #define _ASM_IRQ_H_
 
-#include <linux/config.h>
 
 /*
  * the system has an on-CPU PIC and another PIC on the FPGA and other PICs on other peripherals,

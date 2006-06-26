@@ -332,11 +332,11 @@ static void dma_mmu_get_scsi_sgl (struct NCR_ESP *esp, Scsi_Cmnd *sp)
     struct scatterlist *sg = sp->SCp.buffer;
 
     while (sz >= 0) {
-	    sg[sz].dvma_address = dvma_map((unsigned long)page_address(sg[sz].page) +
+	    sg[sz].dma_address = dvma_map((unsigned long)page_address(sg[sz].page) +
 					   sg[sz].offset, sg[sz].length);
 	    sz--;
     }
-    sp->SCp.ptr=(char *)((unsigned long)sp->SCp.buffer->dvma_address);
+    sp->SCp.ptr=(char *)((unsigned long)sp->SCp.buffer->dma_address);
 }
 
 static void dma_mmu_release_scsi_one (struct NCR_ESP *esp, Scsi_Cmnd *sp)
@@ -350,14 +350,14 @@ static void dma_mmu_release_scsi_sgl (struct NCR_ESP *esp, Scsi_Cmnd *sp)
     struct scatterlist *sg = (struct scatterlist *)sp->buffer;
                         
     while(sz >= 0) {
-        dvma_unmap((char *)sg[sz].dvma_address);
+        dvma_unmap((char *)sg[sz].dma_address);
         sz--;
     }
 }
 
 static void dma_advance_sg (Scsi_Cmnd *sp)
 {
-    sp->SCp.ptr = (char *)((unsigned long)sp->SCp.buffer->dvma_address);
+    sp->SCp.ptr = (char *)((unsigned long)sp->SCp.buffer->dma_address);
 }
 
 static int sun3x_esp_release(struct Scsi_Host *instance)

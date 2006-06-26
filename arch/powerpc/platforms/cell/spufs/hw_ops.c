@@ -32,6 +32,7 @@
 
 #include <asm/io.h>
 #include <asm/spu.h>
+#include <asm/spu_priv1.h>
 #include <asm/spu_csa.h>
 #include <asm/mmu_context.h>
 #include "spufs.h"

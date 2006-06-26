@@ -18,6 +18,14 @@ Non-privileged mount (or user mount):
   user.  NOTE: this is not the same as mounts allowed with the "user"
   option in /etc/fstab, which is not discussed here.
 
+Filesystem connection:
+
+  A connection between the filesystem daemon and the kernel.  The
+  connection exists until either the daemon dies, or the filesystem is
+  umounted.  Note that detaching (or lazy umounting) the filesystem
+  does _not_ break the connection, in this case it will exist until
+  the last reference to the filesystem is released.
+
 Mount owner:
 
   The user who does the mounting.
@@ -86,16 +94,20 @@ Mount options
   The default is infinite.  Note that the size of read requests is
   limited anyway to 32 pages (which is 128kbyte on i386).
 
-Sysfs
-~~~~~
+Control filesystem
+~~~~~~~~~~~~~~~~~~
 
-FUSE sets up the following hierarchy in sysfs:
+There's a control filesystem for FUSE, which can be mounted by:
 
-  /sys/fs/fuse/connections/N/
+  mount -t fusectl none /sys/fs/fuse/connections
 
-where N is an increasing number allocated to each new connection.
+Mounting it under the '/sys/fs/fuse/connections' directory makes it
+backwards compatible with earlier versions.
 
-For each connection the following attributes are defined:
+Under the fuse control filesystem each connection has a directory
+named by a unique number.
+
+For each connection the following files exist within this directory:
 
  'waiting'
 
@@ -110,7 +122,47 @@ For each connection the following attributes are defined:
   connection.  This means that all waiting requests will be aborted an
   error returned for all aborted and new requests.
 
-Only a privileged user may read or write these attributes.
+Only the owner of the mount may read or write these files.
+
+Interrupting filesystem operations
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If a process issuing a FUSE filesystem request is interrupted, the
+following will happen:
+
+  1) If the request is not yet sent to userspace AND the signal is
+     fatal (SIGKILL or unhandled fatal signal), then the request is
+     dequeued and returns immediately.
+
+  2) If the request is not yet sent to userspace AND the signal is not
+     fatal, then an 'interrupted' flag is set for the request.  When
+     the request has been successfully transfered to userspace and
+     this flag is set, an INTERRUPT request is queued.
+
+  3) If the request is already sent to userspace, then an INTERRUPT
+     request is queued.
+
+INTERRUPT requests take precedence over other requests, so the
+userspace filesystem will receive queued INTERRUPTs before any others.
+
+The userspace filesystem may ignore the INTERRUPT requests entirely,
+or may honor them by sending a reply to the _original_ request, with
+the error set to EINTR.
+
+It is also possible that there's a race between processing the
+original request and it's INTERRUPT request.  There are two possibilities:
+
+  1) The INTERRUPT request is processed before the original request is
+     processed
+
+  2) The INTERRUPT request is processed after the original request has
+     been answered
+
+If the filesystem cannot find the original request, it should wait for
+some timeout and/or a number of new requests to arrive, after which it
+should reply to the INTERRUPT request with an EAGAIN error.  In case
+1) the INTERRUPT request will be requeued.  In case 2) the INTERRUPT
+reply will be ignored.
 
 Aborting a filesystem connection
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -139,8 +191,8 @@ the filesystem.  There are several ways to do this:
   - Use forced umount (umount -f).  Works in all cases but only if
     filesystem is still attached (it hasn't been lazy unmounted)
 
-  - Abort filesystem through the sysfs interface.  Most powerful
-    method, always works.
+  - Abort filesystem through the FUSE control filesystem.  Most
+    powerful method, always works.
 
 How do non-privileged mounts work?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -304,25 +356,7 @@ Scenario 1 -  Simple deadlock
  |                                    |     for "file"]
  |                                    |    *DEADLOCK*
 
-The solution for this is to allow requests to be interrupted while
-they are in userspace:
-
- |      [interrupted by signal]       |
- |    <fuse_unlink()                  |
- |    [release semaphore]             |    [semaphore acquired]
- |  <sys_unlink()                     |
- |                                    |    >fuse_unlink()
- |                                    |      [queue req on fc->pending]
- |                                    |      [wake up fc->waitq]
- |                                    |      [sleep on req->waitq]
-
-If the filesystem daemon was single threaded, this will stop here,
-since there's no other thread to dequeue and execute the request.
-In this case the solution is to kill the FUSE daemon as well.  If
-there are multiple serving threads, you just have to kill them as
-long as any remain.
-
-Moral: a filesystem which deadlocks, can soon find itself dead.
+The solution for this is to allow the filesystem to be aborted.
 
 Scenario 2 - Tricky deadlock
 ----------------------------
@@ -355,24 +389,14 @@ but is caused by a pagefault.
  |                                    |           [lock page]
  |                                    |           * DEADLOCK *
 
-Solution is again to let the the request be interrupted (not
-elaborated further).
+Solution is basically the same as above.
 
-An additional problem is that while the write buffer is being
-copied to the request, the request must not be interrupted.  This
-is because the destination address of the copy may not be valid
-after the request is interrupted.
+An additional problem is that while the write buffer is being copied
+to the request, the request must not be interrupted/aborted.  This is
+because the destination address of the copy may not be valid after the
+request has returned.
 
-This is solved with doing the copy atomically, and allowing
-interruption while the page(s) belonging to the write buffer are
-faulted with get_user_pages().  The 'req->locked' flag indicates
-when the copy is taking place, and interruption is delayed until
-this flag is unset.
-
-Scenario 3 - Tricky deadlock with asynchronous read
----------------------------------------------------
-
-The same situation as above, except thread-1 will wait on page lock
-and hence it will be uninterruptible as well.  The solution is to
-abort the connection with forced umount (if mount is attached) or
-through the abort attribute in sysfs.
+This is solved with doing the copy atomically, and allowing abort
+while the page(s) belonging to the write buffer are faulted with
+get_user_pages().  The 'req->locked' flag indicates when the copy is
+taking place, and abort is delayed until this flag is unset.

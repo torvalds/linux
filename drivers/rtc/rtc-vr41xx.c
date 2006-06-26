@@ -81,7 +81,6 @@ MODULE_LICENSE("GPL");
 
 #define RTC_FREQUENCY		32768
 #define MAX_PERIODIC_RATE	6553
-#define MAX_USER_PERIODIC_RATE	64
 
 static void __iomem *rtc1_base;
 static void __iomem *rtc2_base;
@@ -240,9 +239,6 @@ static int vr41xx_rtc_ioctl(struct device *dev, unsigned int cmd, unsigned long 
 		if (arg > MAX_PERIODIC_RATE)
 			return -EINVAL;
 
-		if (arg > MAX_USER_PERIODIC_RATE && capable(CAP_SYS_RESOURCE) == 0)
-			return -EACCES;
-
 		periodic_frequency = arg;
 
 		count = RTC_FREQUENCY;
@@ -263,10 +259,6 @@ static int vr41xx_rtc_ioctl(struct device *dev, unsigned int cmd, unsigned long 
 		/* Doesn't support before 1900 */
 		if (arg < 1900)
 			return -EINVAL;
-
-		if (capable(CAP_SYS_TIME) == 0)
-			return -EACCES;
-
 		epoch = arg;
 		break;
 	default:

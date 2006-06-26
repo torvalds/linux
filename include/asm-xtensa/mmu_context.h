@@ -13,7 +13,6 @@
 #ifndef _XTENSA_MMU_CONTEXT_H
 #define _XTENSA_MMU_CONTEXT_H
 
-#include <linux/config.h>
 #include <linux/stringify.h>
 
 #include <asm/pgtable.h>

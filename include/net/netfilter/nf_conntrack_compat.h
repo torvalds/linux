@@ -20,6 +20,19 @@ static inline u_int32_t *nf_ct_get_mark(const struct sk_buff *skb,
 }
 #endif /* CONFIG_IP_NF_CONNTRACK_MARK */
 
+#ifdef CONFIG_IP_NF_CONNTRACK_SECMARK
+static inline u_int32_t *nf_ct_get_secmark(const struct sk_buff *skb,
+					   u_int32_t *ctinfo)
+{
+	struct ip_conntrack *ct = ip_conntrack_get(skb, ctinfo);
+
+	if (ct)
+		return &ct->secmark;
+	else
+		return NULL;
+}
+#endif /* CONFIG_IP_NF_CONNTRACK_SECMARK */
+
 #ifdef CONFIG_IP_NF_CT_ACCT
 static inline struct ip_conntrack_counter *
 nf_ct_get_counters(const struct sk_buff *skb)
@@ -65,6 +78,19 @@ static inline u_int32_t *nf_ct_get_mark(const struct sk_buff *skb,
 
 	if (ct)
 		return &ct->mark;
+	else
+		return NULL;
+}
+#endif /* CONFIG_NF_CONNTRACK_MARK */
+
+#ifdef CONFIG_NF_CONNTRACK_SECMARK
+static inline u_int32_t *nf_ct_get_secmark(const struct sk_buff *skb,
+					   u_int32_t *ctinfo)
+{
+	struct nf_conn *ct = nf_ct_get(skb, ctinfo);
+
+	if (ct)
+		return &ct->secmark;
 	else
 		return NULL;
 }

@@ -55,7 +55,7 @@ static char *version = "sun3lance.c: v1.2 1/12/2001  Sam Creasey (sammy@sammy.ne
 /* sun3/60 addr/irq for the lance chip.  If your sun is different,
    change this. */
 #define LANCE_OBIO 0x120000
-#define LANCE_IRQ IRQ3
+#define LANCE_IRQ IRQ_AUTO_3
 
 /* Debug level:
  *  0 = silent, print only serious errors

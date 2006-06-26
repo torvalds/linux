@@ -24,7 +24,6 @@
 * 1998/08/08	acme		Version 0.0.1
 */
 
-#include <linux/config.h>
 #include <linux/wanrouter.h>
 #include <linux/spinlock.h>
 

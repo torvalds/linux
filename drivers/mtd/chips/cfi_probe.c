@@ -349,12 +349,12 @@ static void print_cfi_ident(struct cfi_ident *cfip)
 	else
 		printk("No Vpp line\n");
 
-	printk("Typical byte/word write timeout: %d µs\n", 1<<cfip->WordWriteTimeoutTyp);
-	printk("Maximum byte/word write timeout: %d µs\n", (1<<cfip->WordWriteTimeoutMax) * (1<<cfip->WordWriteTimeoutTyp));
+	printk("Typical byte/word write timeout: %d Âµs\n", 1<<cfip->WordWriteTimeoutTyp);
+	printk("Maximum byte/word write timeout: %d Âµs\n", (1<<cfip->WordWriteTimeoutMax) * (1<<cfip->WordWriteTimeoutTyp));
 
 	if (cfip->BufWriteTimeoutTyp || cfip->BufWriteTimeoutMax) {
-		printk("Typical full buffer write timeout: %d µs\n", 1<<cfip->BufWriteTimeoutTyp);
-		printk("Maximum full buffer write timeout: %d µs\n", (1<<cfip->BufWriteTimeoutMax) * (1<<cfip->BufWriteTimeoutTyp));
+		printk("Typical full buffer write timeout: %d Âµs\n", 1<<cfip->BufWriteTimeoutTyp);
+		printk("Maximum full buffer write timeout: %d Âµs\n", (1<<cfip->BufWriteTimeoutMax) * (1<<cfip->BufWriteTimeoutTyp));
 	}
 	else
 		printk("Full buffer write not supported\n");

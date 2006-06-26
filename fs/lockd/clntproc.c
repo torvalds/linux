@@ -508,7 +508,10 @@ nlmclnt_lock(struct nlm_rqst *req, struct file_lock *fl)
 	}
 
 	block = nlmclnt_prepare_block(host, fl);
+again:
 	for(;;) {
+		/* Reboot protection */
+		fl->fl_u.nfs_fl.state = host->h_state;
 		status = nlmclnt_call(req, NLMPROC_LOCK);
 		if (status < 0)
 			goto out_unblock;
@@ -531,10 +534,16 @@ nlmclnt_lock(struct nlm_rqst *req, struct file_lock *fl)
 	}
 
 	if (resp->status == NLM_LCK_GRANTED) {
-		fl->fl_u.nfs_fl.state = host->h_state;
+		down_read(&host->h_rwsem);
+		/* Check whether or not the server has rebooted */
+		if (fl->fl_u.nfs_fl.state != host->h_state) {
+			up_read(&host->h_rwsem);
+			goto again;
+		}
 		fl->fl_flags |= FL_SLEEP;
 		/* Ensure the resulting lock will get added to granted list */
 		do_vfs_lock(fl);
+		up_read(&host->h_rwsem);
 	}
 	status = nlm_stat_to_errno(resp->status);
 out_unblock:
@@ -596,6 +605,7 @@ nlmclnt_reclaim(struct nlm_host *host, struct file_lock *fl)
 static int
 nlmclnt_unlock(struct nlm_rqst *req, struct file_lock *fl)
 {
+	struct nlm_host	*host = req->a_host;
 	struct nlm_res	*resp = &req->a_res;
 	int		status;
 
@@ -604,7 +614,9 @@ nlmclnt_unlock(struct nlm_rqst *req, struct file_lock *fl)
 	 * request, or to deny it with NLM_LCK_DENIED_GRACE_PERIOD. In either
 	 * case, we want to unlock.
 	 */
+	down_read(&host->h_rwsem);
 	do_vfs_lock(fl);
+	up_read(&host->h_rwsem);
 
 	if (req->a_flags & RPC_TASK_ASYNC)
 		return nlm_async_call(req, NLMPROC_UNLOCK, &nlmclnt_unlock_ops);

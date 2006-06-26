@@ -1,7 +1,6 @@
 #ifndef __M68KNOMMU_MMU_CONTEXT_H
 #define __M68KNOMMU_MMU_CONTEXT_H
 
-#include <linux/config.h>
 #include <asm/setup.h>
 #include <asm/page.h>
 #include <asm/pgalloc.h>

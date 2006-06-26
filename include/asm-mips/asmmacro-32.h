@@ -12,7 +12,7 @@
 #include <asm/fpregdef.h>
 #include <asm/mipsregs.h>
 
-	.macro	fpu_save_double thread status tmp1=t0 tmp2
+	.macro	fpu_save_double thread status tmp1=t0
 	cfc1	\tmp1,  fcr31
 	sdc1	$f0,  THREAD_FPR0(\thread)
 	sdc1	$f2,  THREAD_FPR2(\thread)
@@ -70,7 +70,7 @@
 	sw	\tmp, THREAD_FCR31(\thread)
 	.endm
 
-	.macro	fpu_restore_double thread tmp=t0
+	.macro	fpu_restore_double thread status tmp=t0
 	lw	\tmp, THREAD_FCR31(\thread)
 	ldc1	$f0,  THREAD_FPR0(\thread)
 	ldc1	$f2,  THREAD_FPR2(\thread)

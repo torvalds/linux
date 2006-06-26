@@ -2,6 +2,7 @@ config IEEE80211_SOFTMAC
 	tristate "Software MAC add-on to the IEEE 802.11 networking stack"
 	depends on IEEE80211 && EXPERIMENTAL
 	select WIRELESS_EXT
+	select IEEE80211_CRYPT_WEP
 	---help---
 	This option enables the hardware independent software MAC addon
 	for the IEEE 802.11 networking stack.

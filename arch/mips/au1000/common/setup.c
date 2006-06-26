@@ -49,17 +49,13 @@ extern void __init board_setup(void);
 extern void au1000_restart(char *);
 extern void au1000_halt(void);
 extern void au1000_power_off(void);
-extern struct resource ioport_resource;
-extern struct resource iomem_resource;
-extern void (*board_time_init)(void);
 extern void au1x_time_init(void);
-extern void (*board_timer_setup)(struct irqaction *irq);
 extern void au1x_timer_setup(struct irqaction *irq);
 extern void au1xxx_time_init(void);
 extern void au1xxx_timer_setup(struct irqaction *irq);
 extern void set_cpuspec(void);
 
-void __init plat_setup(void)
+void __init plat_mem_setup(void)
 {
 	struct	cpu_spec *sp;
 	char *argptr;

@@ -18,6 +18,7 @@
 #include <linux/kernel.h>
 #include <linux/fb.h>
 #include <linux/console.h>
+#include <linux/module.h>
 
 /**
  * framebuffer_alloc - creates a new frame buffer info structure
@@ -54,6 +55,10 @@ struct fb_info *framebuffer_alloc(size_t size, struct device *dev)
 		info->par = p + fb_info_size;
 
 	info->device = dev;
+
+#ifdef CONFIG_FB_BACKLIGHT
+	mutex_init(&info->bl_mutex);
+#endif
 
 	return info;
 #undef PADDING
@@ -414,6 +419,65 @@ static ssize_t show_fbstate(struct class_device *class_device, char *buf)
 	return snprintf(buf, PAGE_SIZE, "%d\n", fb_info->state);
 }
 
+#ifdef CONFIG_FB_BACKLIGHT
+static ssize_t store_bl_curve(struct class_device *class_device,
+		const char *buf, size_t count)
+{
+	struct fb_info *fb_info = class_get_devdata(class_device);
+	u8 tmp_curve[FB_BACKLIGHT_LEVELS];
+	unsigned int i;
+
+	if (count != (FB_BACKLIGHT_LEVELS / 8 * 24))
+		return -EINVAL;
+
+	for (i = 0; i < (FB_BACKLIGHT_LEVELS / 8); ++i)
+		if (sscanf(&buf[i * 24],
+			"%2hhx %2hhx %2hhx %2hhx %2hhx %2hhx %2hhx %2hhx\n",
+			&tmp_curve[i * 8 + 0],
+			&tmp_curve[i * 8 + 1],
+			&tmp_curve[i * 8 + 2],
+			&tmp_curve[i * 8 + 3],
+			&tmp_curve[i * 8 + 4],
+			&tmp_curve[i * 8 + 5],
+			&tmp_curve[i * 8 + 6],
+			&tmp_curve[i * 8 + 7]) != 8)
+			return -EINVAL;
+
+	/* If there has been an error in the input data, we won't
+	 * reach this loop.
+	 */
+	mutex_lock(&fb_info->bl_mutex);
+	for (i = 0; i < FB_BACKLIGHT_LEVELS; ++i)
+		fb_info->bl_curve[i] = tmp_curve[i];
+	mutex_unlock(&fb_info->bl_mutex);
+
+	return count;
+}
+
+static ssize_t show_bl_curve(struct class_device *class_device, char *buf)
+{
+	struct fb_info *fb_info = class_get_devdata(class_device);
+	ssize_t len = 0;
+	unsigned int i;
+
+	mutex_lock(&fb_info->bl_mutex);
+	for (i = 0; i < FB_BACKLIGHT_LEVELS; i += 8)
+		len += snprintf(&buf[len], PAGE_SIZE,
+				"%02x %02x %02x %02x %02x %02x %02x %02x\n",
+				fb_info->bl_curve[i + 0],
+				fb_info->bl_curve[i + 1],
+				fb_info->bl_curve[i + 2],
+				fb_info->bl_curve[i + 3],
+				fb_info->bl_curve[i + 4],
+				fb_info->bl_curve[i + 5],
+				fb_info->bl_curve[i + 6],
+				fb_info->bl_curve[i + 7]);
+	mutex_unlock(&fb_info->bl_mutex);
+
+	return len;
+}
+#endif
+
 /* When cmap is added back in it should be a binary attribute
  * not a text one. Consideration should also be given to converting
  * fbdev to use configfs instead of sysfs */
@@ -432,6 +496,9 @@ static struct class_device_attribute class_device_attrs[] = {
 	__ATTR(con_rotate, S_IRUGO|S_IWUSR, show_con_rotate, store_con_rotate),
 	__ATTR(con_rotate_all, S_IWUSR, NULL, store_con_rotate_all),
 	__ATTR(state, S_IRUGO|S_IWUSR, show_fbstate, store_fbstate),
+#ifdef CONFIG_FB_BACKLIGHT
+	__ATTR(bl_curve, S_IRUGO|S_IWUSR, show_bl_curve, store_bl_curve),
+#endif
 };
 
 int fb_init_class_device(struct fb_info *fb_info)
@@ -454,4 +521,25 @@ void fb_cleanup_class_device(struct fb_info *fb_info)
 					 &class_device_attrs[i]);
 }
 
+#ifdef CONFIG_FB_BACKLIGHT
+/* This function generates a linear backlight curve
+ *
+ *     0: off
+ *   1-7: min
+ * 8-127: linear from min to max
+ */
+void fb_bl_default_curve(struct fb_info *fb_info, u8 off, u8 min, u8 max)
+{
+	unsigned int i, flat, count, range = (max - min);
 
+	fb_info->bl_curve[0] = off;
+
+	for (flat = 1; flat < (FB_BACKLIGHT_LEVELS / 16); ++flat)
+		fb_info->bl_curve[flat] = min;
+
+	count = FB_BACKLIGHT_LEVELS * 15 / 16;
+	for (i = 0; i < count; ++i)
+		fb_info->bl_curve[flat + i] = min + (range * (i + 1) / count);
+}
+EXPORT_SYMBOL_GPL(fb_bl_default_curve);
+#endif

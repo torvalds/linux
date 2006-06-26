@@ -6,6 +6,7 @@
  * for more details.
  *
  * Copyright (C) 1996, 2000 by Ralf Baechle
+ * Copyright (C) 2006 by Thiemo Seufer
  */
 #ifndef _ASM_INST_H
 #define _ASM_INST_H
@@ -21,14 +22,14 @@ enum major_op {
 	cop0_op, cop1_op, cop2_op, cop1x_op,
 	beql_op, bnel_op, blezl_op, bgtzl_op,
 	daddi_op, daddiu_op, ldl_op, ldr_op,
-	major_1c_op, jalx_op, major_1e_op, major_1f_op,
+	spec2_op, jalx_op, mdmx_op, spec3_op,
 	lb_op, lh_op, lwl_op, lw_op,
 	lbu_op, lhu_op, lwr_op, lwu_op,
 	sb_op, sh_op, swl_op, sw_op,
 	sdl_op, sdr_op, swr_op, cache_op,
 	ll_op, lwc1_op, lwc2_op, pref_op,
 	lld_op, ldc1_op, ldc2_op, ld_op,
-	sc_op, swc1_op, swc2_op, rdhwr_op,
+	sc_op, swc1_op, swc2_op, major_3b_op,
 	scd_op, sdc1_op, sdc2_op, sd_op
 };
 
@@ -37,7 +38,7 @@ enum major_op {
  */
 enum spec_op {
 	sll_op, movc_op, srl_op, sra_op,
-	sllv_op, srlv_op, srav_op, spec1_unused_op, /* Opcode 0x07 is unused */
+	sllv_op, pmon_op, srlv_op, srav_op,
 	jr_op, jalr_op, movz_op, movn_op,
 	syscall_op, break_op, spim_op, sync_op,
 	mfhi_op, mthi_op, mflo_op, mtlo_op,
@@ -52,6 +53,28 @@ enum spec_op {
 	teq_op, spec5_unused_op, tne_op, spec6_unused_op,
 	dsll_op, spec7_unused_op, dsrl_op, dsra_op,
 	dsll32_op, spec8_unused_op, dsrl32_op, dsra32_op
+};
+
+/*
+ * func field of spec2 opcode.
+ */
+enum spec2_op {
+	madd_op, maddu_op, mul_op, spec2_3_unused_op,
+	msub_op, msubu_op, /* more unused ops */
+	clz_op = 0x20, clo_op,
+	dclz_op = 0x24, dclo_op,
+	sdbpp_op = 0x3f
+};
+
+/*
+ * func field of spec3 opcode.
+ */
+enum spec3_op {
+	ext_op, dextm_op, dextu_op, dext_op,
+	ins_op, dinsm_op, dinsu_op, dins_op,
+	bshfl_op = 0x20,
+	dbshfl_op = 0x24,
+	rdhwr_op = 0x3f
 };
 
 /*
@@ -151,8 +174,8 @@ enum cop1x_func {
  * func field for mad opcodes (MIPS IV).
  */
 enum mad_func {
-	madd_op      = 0x08, msub_op      = 0x0a,
-	nmadd_op     = 0x0c, nmsub_op     = 0x0e
+	madd_fp_op      = 0x08, msub_fp_op      = 0x0a,
+	nmadd_fp_op     = 0x0c, nmsub_fp_op     = 0x0e
 };
 
 /*

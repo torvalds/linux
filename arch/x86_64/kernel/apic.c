@@ -51,7 +51,7 @@ int disable_apic_timer __initdata;
 static cpumask_t timer_interrupt_broadcast_ipi_mask;
 
 /* Using APIC to generate smp_local_timer_interrupt? */
-int using_apic_timer = 0;
+int using_apic_timer __read_mostly = 0;
 
 static void apic_pm_activate(void);
 

@@ -107,7 +107,7 @@ static int init_netconsole(void)
 
 	if(!configured) {
 		printk("netconsole: not configured, aborting\n");
-		return -EINVAL;
+		return 0;
 	}
 
 	if(netpoll_setup(&np))

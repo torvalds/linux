@@ -157,7 +157,7 @@
 	movel	%d0,0x180(%a1)			/* set PLL register */
 	nop
 
-#ifdef CONFIG_CLOCK_140MHz
+#if CONFIG_CLOCK_FREQ == 140000000
 	/*
 	 *	Set initial clock frequency. This assumes M5249C3 board
 	 *	is fitted with 11.2896MHz crystal. It will program the

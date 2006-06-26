@@ -15,6 +15,7 @@
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <asm/xtalk/xwidget.h>		/* generic widget header */
+#include <asm/sn/types.h>
 
 /* I/O page size */
 
@@ -847,5 +848,7 @@ struct bridge_controller {
 
 extern void register_bridge_irq(unsigned int irq);
 extern int request_bridge_irq(struct bridge_controller *bc);
+
+extern struct pci_ops bridge_pci_ops;
 
 #endif /* _ASM_PCI_BRIDGE_H */

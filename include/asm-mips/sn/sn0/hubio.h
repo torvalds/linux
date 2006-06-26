@@ -486,22 +486,6 @@ typedef union h1_icrba_u {
 #define ICRBN_A_CERR_SHFT	54
 #define ICRBN_A_ERR_MASK	0x3ff
 
-#if 0	/* Disabled, this causes namespace polution and break allmodconfig */
-/*
- * Easy access macros.
- */
-#define	a_error		icrba_fields_s.error
-#define	a_ecode		icrba_fields_s.ecode
-#define	a_lnetuce	icrba_fields_s.lnetuce
-#define	a_mark		icrba_fields_s.mark
-#define	a_xerr		icrba_fields_s.xerr
-#define	a_sidn		icrba_fields_s.sidn
-#define	a_tnum		icrba_fields_s.tnum
-#define	a_addr		icrba_fields_s.addr
-#define	a_valid		icrba_fields_s.valid
-#define	a_iow		icrba_fields_s.iow
-#endif
-
 #endif /* !__ASSEMBLY__ */
 
 #define	IIO_ICRB_ADDR_SHFT	2	/* Shift to get proper address */

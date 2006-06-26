@@ -87,6 +87,7 @@ void give_up_console(const struct consw *sw);
 #define CON_CONSDEV	(2) /* Last on the command line */
 #define CON_ENABLED	(4)
 #define CON_BOOT	(8)
+#define CON_ANYTIME	(16) /* Safe to call when cpu is offline */
 
 struct console
 {
@@ -116,6 +117,10 @@ extern struct tty_driver *console_device(int *);
 extern void console_stop(struct console *);
 extern void console_start(struct console *);
 extern int is_console_locked(void);
+
+/* Suspend and resume console messages over PM events */
+extern void suspend_console(void);
+extern void resume_console(void);
 
 /* Some debug stub to catch some of the obvious races in the VT code */
 #if 1

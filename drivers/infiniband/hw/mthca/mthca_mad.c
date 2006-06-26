@@ -114,14 +114,22 @@ static void smp_snoop(struct ib_device *ibdev,
 	     mad->mad_hdr.mgmt_class  == IB_MGMT_CLASS_SUBN_DIRECTED_ROUTE) &&
 	    mad->mad_hdr.method     == IB_MGMT_METHOD_SET) {
 		if (mad->mad_hdr.attr_id == IB_SMP_ATTR_PORT_INFO) {
+			struct ib_port_info *pinfo =
+				(struct ib_port_info *) ((struct ib_smp *) mad)->data;
+
 			mthca_update_rate(to_mdev(ibdev), port_num);
 			update_sm_ah(to_mdev(ibdev), port_num,
-				     be16_to_cpup((__be16 *) (mad->data + 58)),
-				     (*(u8 *) (mad->data + 76)) & 0xf);
+				     be16_to_cpu(pinfo->lid),
+				     pinfo->neighbormtu_mastersmsl & 0xf);
 
 			event.device           = ibdev;
-			event.event            = IB_EVENT_LID_CHANGE;
 			event.element.port_num = port_num;
+
+			if(pinfo->clientrereg_resv_subnetto & 0x80)
+				event.event    = IB_EVENT_CLIENT_REREGISTER;
+			else
+				event.event    = IB_EVENT_LID_CHANGE;
+
 			ib_dispatch_event(&event);
 		}
 

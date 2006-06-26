@@ -164,8 +164,7 @@ u8 ide_rate_filter (u8 mode, u8 speed)
 //	printk("%s: mode 0x%02x, speed 0x%02x\n", __FUNCTION__, mode, speed);
 
 	/* So that we remember to update this if new modes appear */
-	if (mode > 4)
-		BUG();
+	BUG_ON(mode > 4);
 	return min(speed, speed_max[mode]);
 #else /* !CONFIG_BLK_DEV_IDEDMA */
 	return min(speed, (u8)XFER_PIO_4);

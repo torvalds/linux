@@ -1,7 +1,6 @@
 #ifndef _ASM_ARCH_IRQ_H
 #define _ASM_ARCH_IRQ_H
 
-#include <linux/config.h>
 #include "hwregs/intr_vect.h"
 
 /* Number of non-cpu interrupts. */

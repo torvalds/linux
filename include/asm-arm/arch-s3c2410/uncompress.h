@@ -22,7 +22,6 @@
 #ifndef __ASM_ARCH_UNCOMPRESS_H
 #define __ASM_ARCH_UNCOMPRESS_H
 
-#include <linux/config.h>
 
 /* defines for UART registers */
 #include "asm/arch/regs-serial.h"
@@ -82,7 +81,8 @@ static void putc(int ch)
 		while (1) {
 			level = uart_rd(S3C2410_UFSTAT);
 
-			if (cpuid == S3C2410_GSTATUS1_2440) {
+			if (cpuid == S3C2410_GSTATUS1_2440 ||
+			    cpuid == S3C2410_GSTATUS1_2442) {
 				level &= S3C2440_UFSTAT_TXMASK;
 				level >>= S3C2440_UFSTAT_TXSHIFT;
 			} else {
@@ -130,7 +130,7 @@ static void arch_decomp_wdog_start(void)
 {
 	__raw_writel(WDOG_COUNT, S3C2410_WTDAT);
 	__raw_writel(WDOG_COUNT, S3C2410_WTCNT);
-	__raw_writel(S3C2410_WTCON_ENABLE | S3C2410_WTCON_DIV128 | S3C2410_WTCON_RSTEN | S3C2410_WTCON_PRESCALE(0x40), S3C2410_WTCON);
+	__raw_writel(S3C2410_WTCON_ENABLE | S3C2410_WTCON_DIV128 | S3C2410_WTCON_RSTEN | S3C2410_WTCON_PRESCALE(0x80), S3C2410_WTCON);
 }
 
 #else

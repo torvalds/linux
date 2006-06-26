@@ -31,12 +31,12 @@
 /* issue a PIO read to make sure no PIO writes are pending */
 static void inline flush_crime_bus(void)
 {
-	volatile unsigned long junk = crime->control;
+	crime->control;
 }
 
 static void inline flush_mace_bus(void)
 {
-	volatile unsigned long junk = mace->perif.ctrl.misc;
+	mace->perif.ctrl.misc;
 }
 
 #undef DEBUG_IRQ

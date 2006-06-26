@@ -60,15 +60,15 @@
 
 /* Function which emulates a floating point instruction. */
 
-static int fpu_emu(struct pt_regs *, struct mips_fpu_soft_struct *,
+static int fpu_emu(struct pt_regs *, struct mips_fpu_struct *,
 	mips_instruction);
 
 #if __mips >= 4 && __mips != 32
 static int fpux_emu(struct pt_regs *,
-	struct mips_fpu_soft_struct *, mips_instruction);
+	struct mips_fpu_struct *, mips_instruction);
 #endif
 
-/* Further private data for which no space exists in mips_fpu_soft_struct */
+/* Further private data for which no space exists in mips_fpu_struct */
 
 struct mips_fpu_emulator_stats fpuemustats;
 
@@ -203,7 +203,7 @@ static int isBranchInstr(mips_instruction * i)
  * Two instructions if the instruction is in a branch delay slot.
  */
 
-static int cop1Emulate(struct pt_regs *xcp, struct mips_fpu_soft_struct *ctx)
+static int cop1Emulate(struct pt_regs *xcp, struct mips_fpu_struct *ctx)
 {
 	mips_instruction ir;
 	void * emulpc, *contpc;
@@ -595,7 +595,7 @@ DEF3OP(msub, dp, ieee754dp_mul, ieee754dp_sub,);
 DEF3OP(nmadd, dp, ieee754dp_mul, ieee754dp_add, ieee754dp_neg);
 DEF3OP(nmsub, dp, ieee754dp_mul, ieee754dp_sub, ieee754dp_neg);
 
-static int fpux_emu(struct pt_regs *xcp, struct mips_fpu_soft_struct *ctx,
+static int fpux_emu(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 	mips_instruction ir)
 {
 	unsigned rcsr = 0;	/* resulting csr */
@@ -759,7 +759,7 @@ static int fpux_emu(struct pt_regs *xcp, struct mips_fpu_soft_struct *ctx,
 /*
  * Emulate a single COP1 arithmetic instruction.
  */
-static int fpu_emu(struct pt_regs *xcp, struct mips_fpu_soft_struct *ctx,
+static int fpu_emu(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 	mips_instruction ir)
 {
 	int rfmt;		/* resulting format */
@@ -1233,8 +1233,7 @@ static int fpu_emu(struct pt_regs *xcp, struct mips_fpu_soft_struct *ctx,
 	return 0;
 }
 
-int fpu_emulator_cop1Handler(struct pt_regs *xcp,
-	struct mips_fpu_soft_struct *ctx)
+int fpu_emulator_cop1Handler(struct pt_regs *xcp, struct mips_fpu_struct *ctx)
 {
 	unsigned long oldepc, prevepc;
 	mips_instruction insn;

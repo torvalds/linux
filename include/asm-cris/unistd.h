@@ -295,11 +295,11 @@
 #define __NR_request_key	287
 #define __NR_keyctl		288
 
+#ifdef __KERNEL__
+
 #define NR_syscalls 289
 
 
-
-#ifdef __KERNEL__
 #define __ARCH_WANT_IPC_PARSE_VERSION
 #define __ARCH_WANT_OLD_READDIR
 #define __ARCH_WANT_OLD_STAT
@@ -379,12 +379,10 @@ asmlinkage long sys_rt_sigaction(int sig,
  * complaints.  We don't want to use -fno-builtin, so just use a
  * different name when in the kernel.
  */
-#ifdef __KERNEL__
 #define _exit kernel_syscall_exit
-#endif
 static inline _syscall1(int,_exit,int,exitcode)
 static inline _syscall3(pid_t,waitpid,pid_t,pid,int *,wait_stat,int,options)
-#endif
+#endif /* __KERNEL_SYSCALLS__ */
 
 
 /*
@@ -395,4 +393,5 @@ static inline _syscall3(pid_t,waitpid,pid_t,pid,int *,wait_stat,int,options)
  */
 #define cond_syscall(x) asm(".weak\t" #x "\n\t.set\t" #x ",sys_ni_syscall")
 
+#endif /* __KERNEL__ */
 #endif /* _ASM_CRIS_UNISTD_H_ */

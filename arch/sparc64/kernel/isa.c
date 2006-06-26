@@ -15,23 +15,19 @@ static void __init fatal_err(const char *reason)
 static void __init report_dev(struct sparc_isa_device *isa_dev, int child)
 {
 	if (child)
-		printk(" (%s)", isa_dev->prom_name);
+		printk(" (%s)", isa_dev->prom_node->name);
 	else
-		printk(" [%s", isa_dev->prom_name);
+		printk(" [%s", isa_dev->prom_node->name);
 }
 
-static void __init isa_dev_get_resource(struct sparc_isa_device *isa_dev,
-					struct linux_prom_registers *pregs,
-					int pregs_size)
+static struct linux_prom_registers * __init
+isa_dev_get_resource(struct sparc_isa_device *isa_dev)
 {
+	struct linux_prom_registers *pregs;
 	unsigned long base, len;
 	int prop_len;
 
-	prop_len = prom_getproperty(isa_dev->prom_node, "reg",
-				    (char *) pregs, pregs_size);
-
-	if (prop_len <= 0)
-		return;
+	pregs = of_get_property(isa_dev->prom_node, "reg", &prop_len);
 
 	/* Only the first one is interesting. */
 	len = pregs[0].reg_size;
@@ -42,10 +38,12 @@ static void __init isa_dev_get_resource(struct sparc_isa_device *isa_dev,
 	isa_dev->resource.start = base;
 	isa_dev->resource.end   = (base + len - 1UL);
 	isa_dev->resource.flags = IORESOURCE_IO;
-	isa_dev->resource.name  = isa_dev->prom_name;
+	isa_dev->resource.name  = isa_dev->prom_node->name;
 
 	request_resource(&isa_dev->bus->parent->io_space,
 			 &isa_dev->resource);
+
+	return pregs;
 }
 
 /* I can't believe they didn't put a real INO in the isa device
@@ -74,19 +72,30 @@ static struct {
 static int __init isa_dev_get_irq_using_imap(struct sparc_isa_device *isa_dev,
 					     struct sparc_isa_bridge *isa_br,
 					     int *interrupt,
-					     struct linux_prom_registers *pregs)
+					     struct linux_prom_registers *reg)
 {
+	struct linux_prom_ebus_intmap *imap;
+	struct linux_prom_ebus_intmap *imask;
 	unsigned int hi, lo, irq;
-	int i;
+	int i, len, n_imap;
 
-	hi = pregs->which_io & isa_br->isa_intmask.phys_hi;
-	lo = pregs->phys_addr & isa_br->isa_intmask.phys_lo;
-	irq = *interrupt & isa_br->isa_intmask.interrupt;
-	for (i = 0; i < isa_br->num_isa_intmap; i++) {
-		if ((isa_br->isa_intmap[i].phys_hi == hi) &&
-		    (isa_br->isa_intmap[i].phys_lo == lo) &&
-		    (isa_br->isa_intmap[i].interrupt == irq)) {
-			*interrupt = isa_br->isa_intmap[i].cinterrupt;
+	imap = of_get_property(isa_br->prom_node, "interrupt-map", &len);
+	if (!imap)
+		return 0;
+	n_imap = len / sizeof(imap[0]);
+
+	imask = of_get_property(isa_br->prom_node, "interrupt-map-mask", NULL);
+	if (!imask)
+		return 0;
+
+	hi = reg->which_io & imask->phys_hi;
+	lo = reg->phys_addr & imask->phys_lo;
+	irq = *interrupt & imask->interrupt;
+	for (i = 0; i < n_imap; i++) {
+		if ((imap[i].phys_hi == hi) &&
+		    (imap[i].phys_lo == lo) &&
+		    (imap[i].interrupt == irq)) {
+			*interrupt = imap[i].cinterrupt;
 			return 0;
 		}
 	}
@@ -98,8 +107,8 @@ static void __init isa_dev_get_irq(struct sparc_isa_device *isa_dev,
 {
 	int irq_prop;
 
-	irq_prop = prom_getintdefault(isa_dev->prom_node,
-				      "interrupts", -1);
+	irq_prop = of_getintprop_default(isa_dev->prom_node,
+					 "interrupts", -1);
 	if (irq_prop <= 0) {
 		goto no_irq;
 	} else {
@@ -107,7 +116,8 @@ static void __init isa_dev_get_irq(struct sparc_isa_device *isa_dev,
 		struct pci_pbm_info *pbm;
 		int i;
 
-		if (isa_dev->bus->num_isa_intmap) {
+		if (of_find_property(isa_dev->bus->prom_node,
+				     "interrupt-map", NULL)) {
 			if (!isa_dev_get_irq_using_imap(isa_dev,
 							isa_dev->bus,
 							&irq_prop,
@@ -141,16 +151,15 @@ no_irq:
 
 static void __init isa_fill_children(struct sparc_isa_device *parent_isa_dev)
 {
-	int node = prom_getchild(parent_isa_dev->prom_node);
+	struct device_node *dp = parent_isa_dev->prom_node->child;
 
-	if (node == 0)
+	if (!dp)
 		return;
 
 	printk(" ->");
-	while (node != 0) {
-		struct linux_prom_registers regs[PROMREG_MAX];
+	while (dp) {
+		struct linux_prom_registers *regs;
 		struct sparc_isa_device *isa_dev;
-		int prop_len;
 
 		isa_dev = kmalloc(sizeof(*isa_dev), GFP_KERNEL);
 		if (!isa_dev) {
@@ -165,48 +174,45 @@ static void __init isa_fill_children(struct sparc_isa_device *parent_isa_dev)
 		parent_isa_dev->child = isa_dev;
 
 		isa_dev->bus = parent_isa_dev->bus;
-		isa_dev->prom_node = node;
-		prop_len = prom_getproperty(node, "name",
-					    (char *) isa_dev->prom_name,
-					    sizeof(isa_dev->prom_name));
-		if (prop_len <= 0) {
-			fatal_err("cannot get child isa_dev OBP node name");
-			prom_halt();
-		}
+		isa_dev->prom_node = dp;
 
-		prop_len = prom_getproperty(node, "compatible",
-					    (char *) isa_dev->compatible,
-					    sizeof(isa_dev->compatible));
-
-		/* Not having this is OK. */
-		if (prop_len <= 0)
-			isa_dev->compatible[0] = '\0';
-
-		isa_dev_get_resource(isa_dev, regs, sizeof(regs));
+		regs = isa_dev_get_resource(isa_dev);
 		isa_dev_get_irq(isa_dev, regs);
 
 		report_dev(isa_dev, 1);
 
-		node = prom_getsibling(node);
+		dp = dp->sibling;
 	}
 }
 
 static void __init isa_fill_devices(struct sparc_isa_bridge *isa_br)
 {
-	int node = prom_getchild(isa_br->prom_node);
+	struct device_node *dp = isa_br->prom_node->child;
 
-	while (node != 0) {
-		struct linux_prom_registers regs[PROMREG_MAX];
+	while (dp) {
+		struct linux_prom_registers *regs;
 		struct sparc_isa_device *isa_dev;
-		int prop_len;
 
 		isa_dev = kmalloc(sizeof(*isa_dev), GFP_KERNEL);
 		if (!isa_dev) {
-			fatal_err("cannot allocate isa_dev");
-			prom_halt();
+			printk(KERN_DEBUG "ISA: cannot allocate isa_dev");
+			return;
 		}
 
 		memset(isa_dev, 0, sizeof(*isa_dev));
+
+		isa_dev->ofdev.node = dp;
+		isa_dev->ofdev.dev.parent = &isa_br->ofdev.dev;
+		isa_dev->ofdev.dev.bus = &isa_bus_type;
+		strcpy(isa_dev->ofdev.dev.bus_id, dp->path_component_name);
+
+		/* Register with core */
+		if (of_device_register(&isa_dev->ofdev) != 0) {
+			printk(KERN_DEBUG "isa: device registration error for %s!\n",
+			       isa_dev->ofdev.dev.bus_id);
+			kfree(isa_dev);
+			goto next_sibling;
+		}
 
 		/* Link it in. */
 		isa_dev->next = NULL;
@@ -222,24 +228,9 @@ static void __init isa_fill_devices(struct sparc_isa_bridge *isa_br)
 		}
 
 		isa_dev->bus = isa_br;
-		isa_dev->prom_node = node;
-		prop_len = prom_getproperty(node, "name",
-					    (char *) isa_dev->prom_name,
-					    sizeof(isa_dev->prom_name));
-		if (prop_len <= 0) {
-			fatal_err("cannot get isa_dev OBP node name");
-			prom_halt();
-		}
+		isa_dev->prom_node = dp;
 
-		prop_len = prom_getproperty(node, "compatible",
-					    (char *) isa_dev->compatible,
-					    sizeof(isa_dev->compatible));
-
-		/* Not having this is OK. */
-		if (prop_len <= 0)
-			isa_dev->compatible[0] = '\0';
-
-		isa_dev_get_resource(isa_dev, regs, sizeof(regs));
+		regs = isa_dev_get_resource(isa_dev);
 		isa_dev_get_irq(isa_dev, regs);
 
 		report_dev(isa_dev, 0);
@@ -248,7 +239,8 @@ static void __init isa_fill_devices(struct sparc_isa_bridge *isa_br)
 
 		printk("]");
 
-		node = prom_getsibling(node);
+	next_sibling:
+		dp = dp->sibling;
 	}
 }
 
@@ -266,7 +258,7 @@ void __init isa_init(void)
 		struct pcidev_cookie *pdev_cookie;
 		struct pci_pbm_info *pbm;
 		struct sparc_isa_bridge *isa_br;
-		int prop_len;
+		struct device_node *dp;
 
 		pdev_cookie = pdev->sysdata;
 		if (!pdev_cookie) {
@@ -275,14 +267,28 @@ void __init isa_init(void)
 			continue;
 		}
 		pbm = pdev_cookie->pbm;
+		dp = pdev_cookie->prom_node;
 
 		isa_br = kmalloc(sizeof(*isa_br), GFP_KERNEL);
 		if (!isa_br) {
-			fatal_err("cannot allocate sparc_isa_bridge");
-			prom_halt();
+			printk(KERN_DEBUG "isa: cannot allocate sparc_isa_bridge");
+			return;
 		}
 
 		memset(isa_br, 0, sizeof(*isa_br));
+
+		isa_br->ofdev.node = dp;
+		isa_br->ofdev.dev.parent = &pdev->dev;
+		isa_br->ofdev.dev.bus = &isa_bus_type;
+		strcpy(isa_br->ofdev.dev.bus_id, dp->path_component_name);
+
+		/* Register with core */
+		if (of_device_register(&isa_br->ofdev) != 0) {
+			printk(KERN_DEBUG "isa: device registration error for %s!\n",
+			       isa_br->ofdev.dev.bus_id);
+			kfree(isa_br);
+			return;
+		}
 
 		/* Link it in. */
 		isa_br->next = isa_chain;
@@ -292,33 +298,6 @@ void __init isa_init(void)
 		isa_br->self = pdev;
 		isa_br->index = index++;
 		isa_br->prom_node = pdev_cookie->prom_node;
-		strncpy(isa_br->prom_name, pdev_cookie->prom_name,
-			sizeof(isa_br->prom_name));
-
-		prop_len = prom_getproperty(isa_br->prom_node,
-					    "ranges",
-					    (char *) isa_br->isa_ranges,
-					    sizeof(isa_br->isa_ranges));
-		if (prop_len <= 0)
-			isa_br->num_isa_ranges = 0;
-		else
-			isa_br->num_isa_ranges =
-				(prop_len / sizeof(struct linux_prom_isa_ranges));
-
-		prop_len = prom_getproperty(isa_br->prom_node,
-					    "interrupt-map",
-					    (char *) isa_br->isa_intmap,
-					    sizeof(isa_br->isa_intmap));
-		if (prop_len <= 0)
-			isa_br->num_isa_intmap = 0;
-		else
-			isa_br->num_isa_intmap =
-				(prop_len / sizeof(struct linux_prom_isa_intmap));
-
-		prop_len = prom_getproperty(isa_br->prom_node,
-					    "interrupt-map-mask",
-					    (char *) &(isa_br->isa_intmask),
-					    sizeof(isa_br->isa_intmask));
 
 		printk("isa%d:", isa_br->index);
 

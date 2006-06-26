@@ -8,7 +8,6 @@
 #ifndef __ASM_PPC_MPC8260_H__
 #define __ASM_PPC_MPC8260_H__
 
-#include <linux/config.h>
 
 #ifdef CONFIG_8260
 

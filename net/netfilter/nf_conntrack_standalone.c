@@ -213,6 +213,11 @@ static int ct_seq_show(struct seq_file *s, void *v)
 		return -ENOSPC;
 #endif
 
+#ifdef CONFIG_NF_CONNTRACK_SECMARK
+	if (seq_printf(s, "secmark=%u ", conntrack->secmark))
+		return -ENOSPC;
+#endif
+
 	if (seq_printf(s, "use=%u\n", atomic_read(&conntrack->ct_general.use)))
 		return -ENOSPC;
 	
@@ -455,6 +460,8 @@ extern unsigned int nf_ct_generic_timeout;
 static int log_invalid_proto_min = 0;
 static int log_invalid_proto_max = 255;
 
+int nf_conntrack_checksum = 1;
+
 static struct ctl_table_header *nf_ct_sysctl_header;
 
 static ctl_table nf_ct_sysctl_table[] = {
@@ -481,6 +488,14 @@ static ctl_table nf_ct_sysctl_table[] = {
 		.maxlen         = sizeof(unsigned int),
 		.mode           = 0444,
 		.proc_handler   = &proc_dointvec,
+	},
+	{
+		.ctl_name	= NET_NF_CONNTRACK_CHECKSUM,
+		.procname	= "nf_conntrack_checksum",
+		.data		= &nf_conntrack_checksum,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
 	},
 	{
 		.ctl_name	= NET_NF_CONNTRACK_TCP_TIMEOUT_SYN_SENT,
@@ -851,6 +866,7 @@ EXPORT_SYMBOL(nf_ct_proto_put);
 EXPORT_SYMBOL(nf_ct_l3proto_find_get);
 EXPORT_SYMBOL(nf_ct_l3proto_put);
 EXPORT_SYMBOL(nf_ct_l3protos);
+EXPORT_SYMBOL_GPL(nf_conntrack_checksum);
 EXPORT_SYMBOL(nf_conntrack_expect_alloc);
 EXPORT_SYMBOL(nf_conntrack_expect_put);
 EXPORT_SYMBOL(nf_conntrack_expect_related);

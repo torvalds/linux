@@ -1,7 +1,6 @@
 #ifndef _ALPHA_PGALLOC_H
 #define _ALPHA_PGALLOC_H
 
-#include <linux/config.h>
 #include <linux/mm.h>
 #include <linux/mmzone.h>
 

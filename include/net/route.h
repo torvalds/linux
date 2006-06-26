@@ -24,7 +24,6 @@
 #ifndef _ROUTE_H
 #define _ROUTE_H
 
-#include <linux/config.h>
 #include <net/dst.h>
 #include <net/inetpeer.h>
 #include <net/flow.h>

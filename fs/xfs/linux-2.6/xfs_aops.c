@@ -21,7 +21,6 @@
 #include "xfs_inum.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
-#include "xfs_dir.h"
 #include "xfs_dir2.h"
 #include "xfs_trans.h"
 #include "xfs_dmapi.h"
@@ -29,7 +28,6 @@
 #include "xfs_bmap_btree.h"
 #include "xfs_alloc_btree.h"
 #include "xfs_ialloc_btree.h"
-#include "xfs_dir_sf.h"
 #include "xfs_dir2_sf.h"
 #include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
@@ -76,7 +74,7 @@ xfs_page_trace(
 	int		mask)
 {
 	xfs_inode_t	*ip;
-	vnode_t		*vp = vn_from_inode(inode);
+	bhv_vnode_t	*vp = vn_from_inode(inode);
 	loff_t		isize = i_size_read(inode);
 	loff_t		offset = page_offset(page);
 	int		delalloc = -1, unmapped = -1, unwritten = -1;
@@ -136,9 +134,10 @@ xfs_destroy_ioend(
 
 	for (bh = ioend->io_buffer_head; bh; bh = next) {
 		next = bh->b_private;
-		bh->b_end_io(bh, ioend->io_uptodate);
+		bh->b_end_io(bh, !ioend->io_error);
 	}
-
+	if (unlikely(ioend->io_error))
+		vn_ioerror(ioend->io_vnode, ioend->io_error, __FILE__,__LINE__);
 	vn_iowake(ioend->io_vnode);
 	mempool_free(ioend, xfs_ioend_pool);
 }
@@ -180,13 +179,12 @@ xfs_end_bio_unwritten(
 	void			*data)
 {
 	xfs_ioend_t		*ioend = data;
-	vnode_t			*vp = ioend->io_vnode;
+	bhv_vnode_t		*vp = ioend->io_vnode;
 	xfs_off_t		offset = ioend->io_offset;
 	size_t			size = ioend->io_size;
-	int			error;
 
-	if (ioend->io_uptodate)
-		VOP_BMAP(vp, offset, size, BMAPI_UNWRITTEN, NULL, NULL, error);
+	if (likely(!ioend->io_error))
+		bhv_vop_bmap(vp, offset, size, BMAPI_UNWRITTEN, NULL, NULL);
 	xfs_destroy_ioend(ioend);
 }
 
@@ -211,7 +209,7 @@ xfs_alloc_ioend(
 	 * all the I/O from calling the completion routine too early.
 	 */
 	atomic_set(&ioend->io_remaining, 1);
-	ioend->io_uptodate = 1; /* cleared if any I/O fails */
+	ioend->io_error = 0;
 	ioend->io_list = NULL;
 	ioend->io_type = type;
 	ioend->io_vnode = vn_from_inode(inode);
@@ -239,10 +237,10 @@ xfs_map_blocks(
 	xfs_iomap_t		*mapp,
 	int			flags)
 {
-	vnode_t			*vp = vn_from_inode(inode);
+	bhv_vnode_t		*vp = vn_from_inode(inode);
 	int			error, nmaps = 1;
 
-	VOP_BMAP(vp, offset, count, flags, mapp, &nmaps, error);
+	error = bhv_vop_bmap(vp, offset, count, flags, mapp, &nmaps);
 	if (!error && (flags & (BMAPI_WRITE|BMAPI_ALLOCATE)))
 		VMODIFY(vp);
 	return -error;
@@ -271,16 +269,14 @@ xfs_end_bio(
 	if (bio->bi_size)
 		return 1;
 
-	ASSERT(ioend);
 	ASSERT(atomic_read(&bio->bi_cnt) >= 1);
+	ioend->io_error = test_bit(BIO_UPTODATE, &bio->bi_flags) ? 0 : error;
 
 	/* Toss bio and pass work off to an xfsdatad thread */
-	if (!test_bit(BIO_UPTODATE, &bio->bi_flags))
-		ioend->io_uptodate = 0;
 	bio->bi_private = NULL;
 	bio->bi_end_io = NULL;
-
 	bio_put(bio);
+
 	xfs_finish_ioend(ioend);
 	return 0;
 }
@@ -1127,7 +1123,7 @@ xfs_vm_writepage(
 	 * then mark the page dirty again and leave the page
 	 * as is.
 	 */
-	if (PFLAGS_TEST_FSTRANS() && need_trans)
+	if (current_test_flags(PF_FSTRANS) && need_trans)
 		goto out_fail;
 
 	/*
@@ -1156,6 +1152,18 @@ out_fail:
 out_unlock:
 	unlock_page(page);
 	return error;
+}
+
+STATIC int
+xfs_vm_writepages(
+	struct address_space	*mapping,
+	struct writeback_control *wbc)
+{
+	struct bhv_vnode	*vp = vn_from_inode(mapping->host);
+
+	if (VN_TRUNC(vp))
+		VUNTRUNCATE(vp);
+	return generic_writepages(mapping, wbc);
 }
 
 /*
@@ -1204,7 +1212,7 @@ xfs_vm_releasepage(
 	/* If we are already inside a transaction or the thread cannot
 	 * do I/O, we cannot release this page.
 	 */
-	if (PFLAGS_TEST_FSTRANS())
+	if (current_test_flags(PF_FSTRANS))
 		return 0;
 
 	/*
@@ -1231,7 +1239,7 @@ __xfs_get_blocks(
 	int			direct,
 	bmapi_flags_t		flags)
 {
-	vnode_t			*vp = vn_from_inode(inode);
+	bhv_vnode_t		*vp = vn_from_inode(inode);
 	xfs_iomap_t		iomap;
 	xfs_off_t		offset;
 	ssize_t			size;
@@ -1241,8 +1249,8 @@ __xfs_get_blocks(
 	offset = (xfs_off_t)iblock << inode->i_blkbits;
 	ASSERT(bh_result->b_size >= (1 << inode->i_blkbits));
 	size = bh_result->b_size;
-	VOP_BMAP(vp, offset, size,
-		create ? flags : BMAPI_READ, &iomap, &niomap, error);
+	error = bhv_vop_bmap(vp, offset, size,
+			     create ? flags : BMAPI_READ, &iomap, &niomap);
 	if (error)
 		return -error;
 	if (niomap == 0)
@@ -1370,13 +1378,13 @@ xfs_vm_direct_IO(
 {
 	struct file	*file = iocb->ki_filp;
 	struct inode	*inode = file->f_mapping->host;
-	vnode_t		*vp = vn_from_inode(inode);
+	bhv_vnode_t	*vp = vn_from_inode(inode);
 	xfs_iomap_t	iomap;
 	int		maps = 1;
 	int		error;
 	ssize_t		ret;
 
-	VOP_BMAP(vp, offset, 0, BMAPI_DEVICE, &iomap, &maps, error);
+	error = bhv_vop_bmap(vp, offset, 0, BMAPI_DEVICE, &iomap, &maps);
 	if (error)
 		return -error;
 
@@ -1409,14 +1417,12 @@ xfs_vm_bmap(
 	sector_t		block)
 {
 	struct inode		*inode = (struct inode *)mapping->host;
-	vnode_t			*vp = vn_from_inode(inode);
-	int			error;
+	bhv_vnode_t		*vp = vn_from_inode(inode);
 
 	vn_trace_entry(vp, __FUNCTION__, (inst_t *)__return_address);
-
-	VOP_RWLOCK(vp, VRWLOCK_READ);
-	VOP_FLUSH_PAGES(vp, (xfs_off_t)0, -1, 0, FI_REMAPF, error);
-	VOP_RWUNLOCK(vp, VRWLOCK_READ);
+	bhv_vop_rwlock(vp, VRWLOCK_READ);
+	bhv_vop_flush_pages(vp, (xfs_off_t)0, -1, 0, FI_REMAPF);
+	bhv_vop_rwunlock(vp, VRWLOCK_READ);
 	return generic_block_bmap(mapping, block, xfs_get_blocks);
 }
 
@@ -1452,6 +1458,7 @@ struct address_space_operations xfs_address_space_operations = {
 	.readpage		= xfs_vm_readpage,
 	.readpages		= xfs_vm_readpages,
 	.writepage		= xfs_vm_writepage,
+	.writepages		= xfs_vm_writepages,
 	.sync_page		= block_sync_page,
 	.releasepage		= xfs_vm_releasepage,
 	.invalidatepage		= xfs_vm_invalidatepage,

@@ -246,7 +246,7 @@ static inline int parse_rd_cmdline(unsigned long* rd_start, unsigned long* rd_en
 #ifdef CONFIG_64BIT
 	/* HACK: Guess if the sign extension was forgotten */
 	if (start > 0x0000000080000000 && start < 0x00000000ffffffff)
-		start |= 0xffffffff00000000;
+		start |= 0xffffffff00000000UL;
 #endif
 
 	end = start + size;
@@ -355,8 +355,6 @@ static inline void bootmem_init(void)
 	}
 #endif
 
-	memory_present(0, first_usable_pfn, max_low_pfn);
-
 	/* Initialize the boot-time allocator with low memory only.  */
 	bootmap_size = init_bootmem(first_usable_pfn, max_low_pfn);
 
@@ -410,6 +408,7 @@ static inline void bootmem_init(void)
 
 		/* Register lowmem ranges */
 		free_bootmem(PFN_PHYS(curr_pfn), PFN_PHYS(size));
+		memory_present(0, curr_pfn, curr_pfn + size - 1);
 	}
 
 	/* Reserve the bootmap memory.  */
@@ -419,17 +418,20 @@ static inline void bootmem_init(void)
 #ifdef CONFIG_BLK_DEV_INITRD
 	initrd_below_start_ok = 1;
 	if (initrd_start) {
-		unsigned long initrd_size = ((unsigned char *)initrd_end) - ((unsigned char *)initrd_start);
+		unsigned long initrd_size = ((unsigned char *)initrd_end) -
+			((unsigned char *)initrd_start);
+		const int width = sizeof(long) * 2;
+
 		printk("Initial ramdisk at: 0x%p (%lu bytes)\n",
 		       (void *)initrd_start, initrd_size);
 
 		if (CPHYSADDR(initrd_end) > PFN_PHYS(max_low_pfn)) {
 			printk("initrd extends beyond end of memory "
 			       "(0x%0*Lx > 0x%0*Lx)\ndisabling initrd\n",
-			       sizeof(long) * 2,
-			       (unsigned long long)CPHYSADDR(initrd_end),
-			       sizeof(long) * 2,
-			       (unsigned long long)PFN_PHYS(max_low_pfn));
+			       width,
+			       (unsigned long long) CPHYSADDR(initrd_end),
+			       width,
+			       (unsigned long long) PFN_PHYS(max_low_pfn));
 			initrd_start = initrd_end = 0;
 			initrd_reserve_bootmem = 0;
 		}
@@ -438,6 +440,48 @@ static inline void bootmem_init(void)
 			reserve_bootmem(CPHYSADDR(initrd_start), initrd_size);
 	}
 #endif /* CONFIG_BLK_DEV_INITRD  */
+}
+
+/*
+ * arch_mem_init - initialize memory managment subsystem
+ *
+ *  o plat_mem_setup() detects the memory configuration and will record detected
+ *    memory areas using add_memory_region.
+ *  o parse_cmdline_early() parses the command line for mem= options which,
+ *    iff detected, will override the results of the automatic detection.
+ *
+ * At this stage the memory configuration of the system is known to the
+ * kernel but generic memory managment system is still entirely uninitialized.
+ *
+ *  o bootmem_init()
+ *  o sparse_init()
+ *  o paging_init()
+ *
+ * At this stage the bootmem allocator is ready to use.
+ *
+ * NOTE: historically plat_mem_setup did the entire platform initialization.
+ *       This was rather impractical because it meant plat_mem_setup had to
+ * get away without any kind of memory allocator.  To keep old code from
+ * breaking plat_setup was just renamed to plat_setup and a second platform
+ * initialization hook for anything else was introduced.
+ */
+
+extern void plat_mem_setup(void);
+
+static void __init arch_mem_init(char **cmdline_p)
+{
+	/* call board setup routine */
+	plat_mem_setup();
+
+	strlcpy(command_line, arcs_cmdline, sizeof(command_line));
+	strlcpy(saved_command_line, command_line, COMMAND_LINE_SIZE);
+
+	*cmdline_p = command_line;
+
+	parse_cmdline_early();
+	bootmem_init();
+	sparse_init();
+	paging_init();
 }
 
 static inline void resource_init(void)
@@ -493,8 +537,6 @@ static inline void resource_init(void)
 #undef MAXMEM
 #undef MAXMEM_PFN
 
-extern void plat_setup(void);
-
 void __init setup_arch(char **cmdline_p)
 {
 	cpu_probe();
@@ -509,18 +551,8 @@ void __init setup_arch(char **cmdline_p)
 #endif
 #endif
 
-	/* call board setup routine */
-	plat_setup();
+	arch_mem_init(cmdline_p);
 
-	strlcpy(command_line, arcs_cmdline, sizeof(command_line));
-	strlcpy(saved_command_line, command_line, COMMAND_LINE_SIZE);
-
-	*cmdline_p = command_line;
-
-	parse_cmdline_early();
-	bootmem_init();
-	sparse_init();
-	paging_init();
 	resource_init();
 #ifdef CONFIG_SMP
 	plat_smp_setup();

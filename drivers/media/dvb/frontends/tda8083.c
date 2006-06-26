@@ -37,7 +37,6 @@
 
 struct tda8083_state {
 	struct i2c_adapter* i2c;
-	struct dvb_frontend_ops ops;
 	/* configuration settings */
 	const struct tda8083_config* config;
 	struct dvb_frontend frontend;
@@ -293,7 +292,11 @@ static int tda8083_set_frontend(struct dvb_frontend* fe, struct dvb_frontend_par
 {
 	struct tda8083_state* state = fe->demodulator_priv;
 
-	state->config->pll_set(fe, p);
+	if (fe->ops.tuner_ops.set_params) {
+		fe->ops.tuner_ops.set_params(fe, p);
+		if (fe->ops.i2c_gate_ctrl) fe->ops.i2c_gate_ctrl(fe, 0);
+	}
+
 	tda8083_set_inversion (state, p->inversion);
 	tda8083_set_fec (state, p->u.qpsk.fec_inner);
 	tda8083_set_symbolrate (state, p->u.qpsk.symbol_rate);
@@ -333,8 +336,6 @@ static int tda8083_init(struct dvb_frontend* fe)
 
 	for (i=0; i<44; i++)
 		tda8083_writereg (state, i, tda8083_init_tab[i]);
-
-	if (state->config->pll_init) state->config->pll_init(fe);
 
 	tda8083_writereg (state, 0x00, 0x3c);
 	tda8083_writereg (state, 0x00, 0x04);
@@ -395,13 +396,12 @@ struct dvb_frontend* tda8083_attach(const struct tda8083_config* config,
 	/* setup the state */
 	state->config = config;
 	state->i2c = i2c;
-	memcpy(&state->ops, &tda8083_ops, sizeof(struct dvb_frontend_ops));
 
 	/* check if the demod is there */
 	if ((tda8083_readreg(state, 0x00)) != 0x05) goto error;
 
 	/* create dvb_frontend */
-	state->frontend.ops = &state->ops;
+	memcpy(&state->frontend.ops, &tda8083_ops, sizeof(struct dvb_frontend_ops));
 	state->frontend.demodulator_priv = state;
 	return &state->frontend;
 

@@ -9,7 +9,6 @@
 #ifndef _ASM_PAGE_H
 #define _ASM_PAGE_H
 
-#include <linux/config.h>
 
 #ifdef __KERNEL__
 
@@ -139,8 +138,29 @@ typedef struct { unsigned long pgprot; } pgprot_t;
 
 #define pfn_to_kaddr(pfn)	__va((pfn) << PAGE_SHIFT)
 
+#ifndef CONFIG_SPARSEMEM
 #ifndef CONFIG_NEED_MULTIPLE_NODES
 #define pfn_valid(pfn)		((pfn) < max_mapnr)
+#endif
+#endif
+
+#ifdef CONFIG_FLATMEM
+
+#define pfn_valid(pfn)		((pfn) < max_mapnr)
+
+#elif defined(CONFIG_NEED_MULTIPLE_NODES)
+
+#define pfn_valid(pfn)							\
+({									\
+	unsigned long __pfn = (pfn);					\
+	int __n = pfn_to_nid(__pfn);					\
+	((__n >= 0) ? (__pfn < NODE_DATA(__n)->node_start_pfn +		\
+	                       NODE_DATA(__n)->node_spanned_pages)	\
+	            : 0);						\
+})
+
+#else
+#error Provide a definition of pfn_valid
 #endif
 
 #define virt_to_page(kaddr)	pfn_to_page(__pa(kaddr) >> PAGE_SHIFT)

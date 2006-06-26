@@ -85,8 +85,9 @@ static void sysv_put_super(struct super_block *sb)
 	kfree(sbi);
 }
 
-static int sysv_statfs(struct super_block *sb, struct kstatfs *buf)
+static int sysv_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
+	struct super_block *sb = dentry->d_sb;
 	struct sysv_sb_info *sbi = SYSV_SB(sb);
 
 	buf->f_type = sb->s_magic;

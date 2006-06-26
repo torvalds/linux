@@ -21,7 +21,7 @@
 #ifndef __ASM_ARCH_TIMEX_H
 #define __ASM_ARCH_TIMEX_H
 
-#include <asm/arch/hardware.h>
+#include <asm/hardware.h>
 
 #define CLOCK_TICK_RATE		(AT91_SLOW_CLOCK)
 

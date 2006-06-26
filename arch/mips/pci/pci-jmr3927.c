@@ -35,17 +35,17 @@
 #include <asm/debug.h>
 
 struct resource pci_io_resource = {
-	"IO MEM",
-	0x1000,			/* reserve regacy I/O space */
-	0x1000 + JMR3927_PCIIO_SIZE - 1,
-	IORESOURCE_IO
+	.name	= "IO MEM",
+	.start	= 0x1000,			/* reserve regacy I/O space */
+	.end	= 0x1000 + JMR3927_PCIIO_SIZE - 1,
+	.flags	= IORESOURCE_IO
 };
 
 struct resource pci_mem_resource = {
-	"PCI MEM",
-	JMR3927_PCIMEM,
-	JMR3927_PCIMEM + JMR3927_PCIMEM_SIZE - 1,
-	IORESOURCE_MEM
+	.name	= "PCI MEM",
+	.start	= JMR3927_PCIMEM,
+	.end	= JMR3927_PCIMEM + JMR3927_PCIMEM_SIZE - 1,
+	.flags	= IORESOURCE_MEM
 };
 
 extern struct pci_ops jmr3927_pci_ops;

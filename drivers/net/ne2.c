@@ -780,7 +780,7 @@ MODULE_PARM_DESC(bad, "(ignored)");
 
 /* Module code fixed by David Weinehall */
 
-int init_module(void)
+int __init init_module(void)
 {
 	struct net_device *dev;
 	int this_dev, found = 0;

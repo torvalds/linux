@@ -55,11 +55,11 @@
 #define PB1200_INT_END DB1200_INT_END
 #endif
 
-au1xxx_irq_map_t au1xxx_irq_map[] = {
+au1xxx_irq_map_t __initdata au1xxx_irq_map[] = {
 	{ AU1000_GPIO_7, INTC_INT_LOW_LEVEL, 0 }, // This is exteranl interrupt cascade
 };
 
-int au1xxx_nr_irqs = sizeof(au1xxx_irq_map)/sizeof(au1xxx_irq_map_t);
+int __initdata au1xxx_nr_irqs = ARRAY_SIZE(au1xxx_irq_map);
 
 /*
  *	Support for External interrupts on the PbAu1200 Development platform.

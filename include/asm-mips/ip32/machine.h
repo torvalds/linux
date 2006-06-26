@@ -10,7 +10,6 @@
 #ifndef _ASM_IP32_MACHINE_H
 #define _ASM_IP32_MACHINE_H
 
-#include <linux/config.h>
 
 #ifdef CONFIG_SGI_IP32
 

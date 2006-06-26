@@ -1,14 +1,9 @@
 #ifndef _M68K_IRQ_H_
 #define _M68K_IRQ_H_
 
-#include <linux/config.h>
-#include <linux/interrupt.h>
-
-/*
- * # of m68k interrupts
- */
-
-#define SYS_IRQS 8
+#include <linux/linkage.h>
+#include <linux/hardirq.h>
+#include <linux/spinlock_types.h>
 
 /*
  * This should be the same as the max(NUM_X_SOURCES) for all the
@@ -16,10 +11,20 @@
  * Currently the Atari has 72 and the Amiga 24, but if both are
  * supported in the kernel it is better to make room for 72.
  */
-#if defined(CONFIG_ATARI) || defined(CONFIG_MAC)
-#define NR_IRQS (72+SYS_IRQS)
+#if defined(CONFIG_VME) || defined(CONFIG_SUN3) || defined(CONFIG_SUN3X)
+#define NR_IRQS 200
+#elif defined(CONFIG_ATARI) || defined(CONFIG_MAC)
+#define NR_IRQS 72
+#elif defined(CONFIG_Q40)
+#define NR_IRQS	43
+#elif defined(CONFIG_AMIGA)
+#define NR_IRQS	32
+#elif defined(CONFIG_APOLLO)
+#define NR_IRQS	24
+#elif defined(CONFIG_HP300)
+#define NR_IRQS	8
 #else
-#define NR_IRQS (24+SYS_IRQS)
+#error unknown nr of irqs
 #endif
 
 /*
@@ -41,52 +46,24 @@
  * that routine requires service.
  */
 
-#define IRQ1		(1)	/* level 1 interrupt */
-#define IRQ2		(2)	/* level 2 interrupt */
-#define IRQ3		(3)	/* level 3 interrupt */
-#define IRQ4		(4)	/* level 4 interrupt */
-#define IRQ5		(5)	/* level 5 interrupt */
-#define IRQ6		(6)	/* level 6 interrupt */
-#define IRQ7		(7)	/* level 7 interrupt (non-maskable) */
+#define IRQ_SPURIOUS	0
 
-/*
- * "Generic" interrupt sources
- */
+#define IRQ_AUTO_1	1	/* level 1 interrupt */
+#define IRQ_AUTO_2	2	/* level 2 interrupt */
+#define IRQ_AUTO_3	3	/* level 3 interrupt */
+#define IRQ_AUTO_4	4	/* level 4 interrupt */
+#define IRQ_AUTO_5	5	/* level 5 interrupt */
+#define IRQ_AUTO_6	6	/* level 6 interrupt */
+#define IRQ_AUTO_7	7	/* level 7 interrupt (non-maskable) */
 
-#define IRQ_SCHED_TIMER	(8)    /* interrupt source for scheduling timer */
+#define IRQ_USER	8
 
-static __inline__ int irq_canonicalize(int irq)
-{
-	return irq;
-}
-
-/*
- * Machine specific interrupt sources.
- *
- * Adding an interrupt service routine for a source with this bit
- * set indicates a special machine specific interrupt source.
- * The machine specific files define these sources.
- *
- * The IRQ_MACHSPEC bit is now gone - the only thing it did was to
- * introduce unnecessary overhead.
- *
- * All interrupt handling is actually machine specific so it is better
- * to use function pointers, as used by the Sparc port, and select the
- * interrupt handling functions when initializing the kernel. This way
- * we save some unnecessary overhead at run-time.
- *                                                      01/11/97 - Jes
- */
-
-extern void (*enable_irq)(unsigned int);
-extern void (*disable_irq)(unsigned int);
+extern unsigned int irq_canonicalize(unsigned int irq);
+extern void enable_irq(unsigned int);
+extern void disable_irq(unsigned int);
 #define disable_irq_nosync	disable_irq
 
 struct pt_regs;
-
-extern int cpu_request_irq(unsigned int,
-			   irqreturn_t (*)(int, void *, struct pt_regs *),
-			   unsigned long, const char *, void *);
-extern void cpu_free_irq(unsigned int, void *);
 
 /*
  * various flags for request_irq() - the Amiga now uses the standard
@@ -106,33 +83,45 @@ extern void cpu_free_irq(unsigned int, void *);
  * interrupt source (if it supports chaining).
  */
 typedef struct irq_node {
-	irqreturn_t	(*handler)(int, void *, struct pt_regs *);
-	unsigned long	flags;
+	int		(*handler)(int, void *, struct pt_regs *);
 	void		*dev_id;
-	const char	*devname;
 	struct irq_node *next;
+	unsigned long	flags;
+	const char	*devname;
 } irq_node_t;
 
 /*
  * This structure has only 4 elements for speed reasons
  */
 typedef struct irq_handler {
-	irqreturn_t	(*handler)(int, void *, struct pt_regs *);
+	int		(*handler)(int, void *, struct pt_regs *);
 	unsigned long	flags;
 	void		*dev_id;
 	const char	*devname;
 } irq_handler_t;
 
-/* count of spurious interrupts */
-extern volatile unsigned int num_spurious;
+struct irq_controller {
+	const char *name;
+	spinlock_t lock;
+	int (*startup)(unsigned int irq);
+	void (*shutdown)(unsigned int irq);
+	void (*enable)(unsigned int irq);
+	void (*disable)(unsigned int irq);
+};
+
+extern int m68k_irq_startup(unsigned int);
+extern void m68k_irq_shutdown(unsigned int);
 
 /*
  * This function returns a new irq_node_t
  */
 extern irq_node_t *new_irq_node(void);
 
-struct irqaction;
-struct pt_regs;
-int handle_IRQ_event(unsigned int, struct pt_regs *, struct irqaction *);
+extern void m68k_setup_auto_interrupt(void (*handler)(unsigned int, struct pt_regs *));
+extern void m68k_setup_user_interrupt(unsigned int vec, unsigned int cnt,
+				      void (*handler)(unsigned int, struct pt_regs *));
+extern void m68k_setup_irq_controller(struct irq_controller *, unsigned int, unsigned int);
+
+asmlinkage void m68k_handle_int(unsigned int, struct pt_regs *);
 
 #endif /* _M68K_IRQ_H_ */

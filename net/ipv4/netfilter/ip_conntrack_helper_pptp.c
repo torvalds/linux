@@ -469,8 +469,8 @@ pptp_inbound_pkt(struct sk_buff **pskb,
 			DEBUGP("%s but no session\n", pptp_msg_name[msg]);
 			break;
 		}
-		if (info->sstate != PPTP_CALL_IN_REP
-		    && info->sstate != PPTP_CALL_IN_CONF) {
+		if (info->cstate != PPTP_CALL_IN_REP
+		    && info->cstate != PPTP_CALL_IN_CONF) {
 			DEBUGP("%s but never sent IN_CALL_REPLY\n",
 				pptp_msg_name[msg]);
 			break;

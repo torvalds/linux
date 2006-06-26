@@ -20,6 +20,7 @@
 #include <asm/glue.h>
 #include <asm/vfpmacros.h>
 #include <asm/arch/entry-macro.S>
+#include <asm/thread_notify.h>
 
 #include "entry-header.S"
 
@@ -560,10 +561,8 @@ ENTRY(__switch_to)
 	add	ip, r1, #TI_CPU_SAVE
 	ldr	r3, [r2, #TI_TP_VALUE]
 	stmia	ip!, {r4 - sl, fp, sp, lr}	@ Store most regs on stack
-#ifndef CONFIG_MMU
-	add	r2, r2, #TI_CPU_DOMAIN
-#else
-	ldr	r6, [r2, #TI_CPU_DOMAIN]!
+#ifdef CONFIG_MMU
+	ldr	r6, [r2, #TI_CPU_DOMAIN]
 #endif
 #if __LINUX_ARM_ARCH__ >= 6
 #ifdef CONFIG_CPU_32v6K
@@ -585,21 +584,20 @@ ENTRY(__switch_to)
 #ifdef CONFIG_MMU
 	mcr	p15, 0, r6, c3, c0, 0		@ Set domain register
 #endif
-#ifdef CONFIG_VFP
-	@ Always disable VFP so we can lazily save/restore the old
-	@ state. This occurs in the context of the previous thread.
-	VFPFMRX	r4, FPEXC
-	bic	r4, r4, #FPEXC_ENABLE
-	VFPFMXR	FPEXC, r4
-#endif
 #if defined(CONFIG_IWMMXT)
 	bl	iwmmxt_task_switch
 #elif defined(CONFIG_CPU_XSCALE)
-	add	r4, r2, #40			@ cpu_context_save->extra
+	add	r4, r2, #TI_CPU_DOMAIN + 40	@ cpu_context_save->extra
 	ldmib	r4, {r4, r5}
 	mar	acc0, r4, r5
 #endif
-	ldmib	r2, {r4 - sl, fp, sp, pc}	@ Load all regs saved previously
+	mov	r5, r0
+	add	r4, r2, #TI_CPU_SAVE
+	ldr	r0, =thread_notify_head
+	mov	r1, #THREAD_NOTIFY_SWITCH
+	bl	atomic_notifier_call_chain
+	mov	r0, r5
+	ldmia	r4, {r4 - sl, fp, sp, pc}	@ Load all regs saved previously
 
 	__INIT
 

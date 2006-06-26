@@ -227,7 +227,7 @@ static int sal_cache_flush_drops_interrupts;
 static void __init
 check_sal_cache_flush (void)
 {
-	unsigned long flags, itv;
+	unsigned long flags;
 	int cpu;
 	u64 vector;
 
@@ -238,9 +238,6 @@ check_sal_cache_flush (void)
 	 * Schedule a timer interrupt, wait until it's reported, and see if
 	 * SAL_CACHE_FLUSH drops it.
 	 */
-	itv = ia64_get_itv();
-	BUG_ON((itv & (1 << 16)) == 0);
-
 	ia64_set_itv(IA64_TIMER_VECTOR);
 	ia64_set_itm(ia64_get_itc() + 1000);
 
@@ -260,7 +257,6 @@ check_sal_cache_flush (void)
 		ia64_eoi();
 	}
 
-	ia64_set_itv(itv);
 	local_irq_restore(flags);
 	put_cpu();
 }

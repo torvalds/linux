@@ -607,8 +607,7 @@ static int ariadne_start_xmit(struct sk_buff *skb, struct net_device *dev)
     /* FIXME: is the 79C960 new enough to do its own padding right ? */
     if (skb->len < ETH_ZLEN)
     {
-    	skb = skb_padto(skb, ETH_ZLEN);
-    	if (skb == NULL)
+    	if (skb_padto(skb, ETH_ZLEN))
     	    return 0;
     	len = ETH_ZLEN;
     }

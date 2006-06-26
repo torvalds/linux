@@ -105,7 +105,7 @@ static int tuner_stereo(struct i2c_client *c)
 
 	switch (t->type) {
 		case TUNER_PHILIPS_FM1216ME_MK3:
-    		case TUNER_PHILIPS_FM1236_MK3:
+		case TUNER_PHILIPS_FM1236_MK3:
 		case TUNER_PHILIPS_FM1256_IH3:
 			stereo = ((status & TUNER_SIGNAL) == TUNER_STEREO_MK3);
 			break;

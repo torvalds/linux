@@ -1,7 +1,6 @@
 #ifndef _ASM_IO_H
 #define _ASM_IO_H
 
-#include <linux/config.h>
 
 /*
  * This file contains the definitions for the x86 IO instructions

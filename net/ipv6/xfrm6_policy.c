@@ -23,8 +23,6 @@
 static struct dst_ops xfrm6_dst_ops;
 static struct xfrm_policy_afinfo xfrm6_policy_afinfo;
 
-static struct xfrm_type_map xfrm6_type_map = { .lock = RW_LOCK_UNLOCKED };
-
 static int xfrm6_dst_lookup(struct xfrm_dst **dst, struct flowi *fl)
 {
 	int err = 0;
@@ -249,9 +247,7 @@ _decode_session6(struct sk_buff *skb, struct flowi *fl)
 
 static inline int xfrm6_garbage_collect(void)
 {
-	read_lock(&xfrm6_policy_afinfo.lock);
 	xfrm6_policy_afinfo.garbage_collect();
-	read_unlock(&xfrm6_policy_afinfo.lock);
 	return (atomic_read(&xfrm6_dst_ops.entries) > xfrm6_dst_ops.gc_thresh*2);
 }
 
@@ -311,8 +307,6 @@ static struct dst_ops xfrm6_dst_ops = {
 
 static struct xfrm_policy_afinfo xfrm6_policy_afinfo = {
 	.family =		AF_INET6,
-	.lock = 		RW_LOCK_UNLOCKED,
-	.type_map = 		&xfrm6_type_map,
 	.dst_ops =		&xfrm6_dst_ops,
 	.dst_lookup =		xfrm6_dst_lookup,
 	.find_bundle =		__xfrm6_find_bundle,

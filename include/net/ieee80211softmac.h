@@ -86,6 +86,9 @@ struct ieee80211softmac_assoc_info {
 	
 	/* BSSID we're trying to associate to */
 	char bssid[ETH_ALEN];
+
+	/* Rates supported by the network */
+	struct ieee80211softmac_ratesinfo supported_rates;
 	
 	/* some flags.
 	 * static_essid is valid if the essid is constant,
@@ -132,23 +135,26 @@ enum {
 struct ieee80211softmac_txrates {
 	/* The Bit-Rate to be used for multicast frames. */
 	u8 mcast_rate;
-	/* The Bit-Rate to be used for multicast fallback
-	 * (If the device supports fallback and hardware-retry)
-	 */
-	u8 mcast_fallback;
+
+	/* The Bit-Rate to be used for multicast management frames. */
+	u8 mgt_mcast_rate;
+
 	/* The Bit-Rate to be used for any other (normal) data packet. */
 	u8 default_rate;
 	/* The Bit-Rate to be used for default fallback
 	 * (If the device supports fallback and hardware-retry)
 	 */
 	u8 default_fallback;
+
+	/* This is the rate that the user asked for */
+	u8 user_rate;
 };
 
 /* Bits for txrates_change callback. */
 #define IEEE80211SOFTMAC_TXRATECHG_DEFAULT		(1 << 0) /* default_rate */
 #define IEEE80211SOFTMAC_TXRATECHG_DEFAULT_FBACK	(1 << 1) /* default_fallback */
 #define IEEE80211SOFTMAC_TXRATECHG_MCAST		(1 << 2) /* mcast_rate */
-#define IEEE80211SOFTMAC_TXRATECHG_MCAST_FBACK		(1 << 3) /* mcast_fallback */
+#define IEEE80211SOFTMAC_TXRATECHG_MGT_MCAST		(1 << 3) /* mgt_mcast_rate */
 
 struct ieee80211softmac_device {
 	/* 802.11 structure for data stuff */
@@ -250,6 +256,28 @@ extern void ieee80211softmac_fragment_lost(struct net_device *dev,
  * Note that the rates need to be sorted. */
 extern void ieee80211softmac_set_rates(struct net_device *dev, u8 count, u8 *rates);
 
+/* Helper function which advises you the rate at which a frame should be
+ * transmitted at. */
+static inline u8 ieee80211softmac_suggest_txrate(struct ieee80211softmac_device *mac,
+						 int is_multicast,
+						 int is_mgt)
+{
+	struct ieee80211softmac_txrates *txrates = &mac->txrates;
+
+	if (!mac->associated)
+		return txrates->mgt_mcast_rate;
+
+	/* We are associated, sending unicast frame */
+	if (!is_multicast)
+		return txrates->default_rate;
+
+	/* We are associated, sending multicast frame */
+	if (is_mgt)
+		return txrates->mgt_mcast_rate;
+	else
+		return txrates->mcast_rate;
+}
+
 /* Start the SoftMAC. Call this after you initialized the device
  * and it is ready to run.
  */
@@ -282,7 +310,7 @@ extern void ieee80211softmac_stop(struct net_device *dev);
  *	- context set to the context data you want passed
  * The return value is 0, or an error.
  */
-typedef void (*notify_function_ptr)(struct net_device *dev, void *context);
+typedef void (*notify_function_ptr)(struct net_device *dev, int event_type, void *context);
 
 #define ieee80211softmac_notify(dev, event, fun, context) ieee80211softmac_notify_gfp(dev, event, fun, context, GFP_KERNEL);
 #define ieee80211softmac_notify_atomic(dev, event, fun, context) ieee80211softmac_notify_gfp(dev, event, fun, context, GFP_ATOMIC);

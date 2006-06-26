@@ -196,7 +196,7 @@ extern void ip27_setup_console(void);
 extern void ip27_time_init(void);
 extern void ip27_reboot_setup(void);
 
-void __init plat_setup(void)
+void __init plat_mem_setup(void)
 {
 	hubreg_t p, e, n_mode;
 	nasid_t nid;
@@ -228,7 +228,7 @@ void __init plat_setup(void)
 	 */
 	n_mode = LOCAL_HUB_L(NI_STATUS_REV_ID) & NSRI_MORENODES_MASK;
 	printk("Machine is in %c mode.\n", n_mode ? 'N' : 'M');
-#ifdef CONFIG_SGI_SN0_N_MODE
+#ifdef CONFIG_SGI_SN_N_MODE
 	if (!n_mode)
 		panic("Kernel compiled for M mode.");
 #else

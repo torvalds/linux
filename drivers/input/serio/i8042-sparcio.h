@@ -74,7 +74,7 @@ static int __init i8042_platform_init(void)
 
 		for_each_ebus(ebus) {
 			for_each_ebusdev(edev, ebus) {
-				if (!strcmp(edev->prom_name, "8042"))
+				if (!strcmp(edev->prom_node->name, "8042"))
 					goto edev_found;
 			}
 		}
@@ -82,14 +82,14 @@ static int __init i8042_platform_init(void)
 
 	edev_found:
 		for_each_edevchild(edev, child) {
-			if (!strcmp(child->prom_name, OBP_PS2KBD_NAME1) ||
-			    !strcmp(child->prom_name, OBP_PS2KBD_NAME2)) {
+			if (!strcmp(child->prom_node->name, OBP_PS2KBD_NAME1) ||
+			    !strcmp(child->prom_node->name, OBP_PS2KBD_NAME2)) {
 				i8042_kbd_irq = child->irqs[0];
 				kbd_iobase =
 					ioremap(child->resource[0].start, 8);
 			}
-			if (!strcmp(child->prom_name, OBP_PS2MS_NAME1) ||
-			    !strcmp(child->prom_name, OBP_PS2MS_NAME2))
+			if (!strcmp(child->prom_node->name, OBP_PS2MS_NAME1) ||
+			    !strcmp(child->prom_node->name, OBP_PS2MS_NAME2))
 				i8042_aux_irq = child->irqs[0];
 		}
 		if (i8042_kbd_irq == -1 ||

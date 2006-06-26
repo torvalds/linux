@@ -269,7 +269,7 @@ static struct CARD {
 	{ 0x41a0a051, BTTV_BOARD_FLYVIDEO_98FM, "Lifeview FlyVideo 98 LR50 Rev Q" },
 	{ 0x18501f7f, BTTV_BOARD_FLYVIDEO_98,   "Lifeview Flyvideo 98" },
 
-    	{ 0x010115cb, BTTV_BOARD_GMV1,          "AG GMV1" },
+	{ 0x010115cb, BTTV_BOARD_GMV1,          "AG GMV1" },
 	{ 0x010114c7, BTTV_BOARD_MODTEC_205,    "Modular Technology MM201/MM202/MM205/MM210/MM215 PCTV" },
 
 	{ 0x10b42636, BTTV_BOARD_HAUPPAUGE878,  "STB ???" },
@@ -309,6 +309,7 @@ static struct CARD {
 	{ 0x07611461, BTTV_BOARD_AVDVBT_761,    "AverMedia AverTV DVB-T 761" },
 	{ 0xdb1018ac, BTTV_BOARD_DVICO_DVBT_LITE,    "DViCO FusionHDTV DVB-T Lite" },
 	{ 0xd50018ac, BTTV_BOARD_DVICO_FUSIONHDTV_5_LITE,    "DViCO FusionHDTV 5 Lite" },
+	{ 0x00261822, BTTV_BOARD_TWINHAN_DST,	"DNTV Live! Mini "},
 
 	{ 0, -1, NULL }
 };
@@ -1903,7 +1904,7 @@ struct tvcard bttv_tvcards[] = {
 		.no_tda7432     = 1,
 	},
 	[BTTV_BOARD_OSPREY2x0] = {
-		.name           = "Osprey 210/220",   /* 0x1(A|B)-04C0-C1 */
+		.name           = "Osprey 210/220/230",   /* 0x1(A|B)-04C0-C1 */
 		.video_inputs   = 2,
 		.audio_inputs   = 1,
 		.tuner          = -1,
@@ -2745,7 +2746,7 @@ struct tvcard bttv_tvcards[] = {
 		/* Michael Krufky <mkrufky@m1k.net> */
 		.name           = "DViCO FusionHDTV 5 Lite",
 		.tuner          = 0,
-		.tuner_type     = TUNER_LG_TDVS_H062F,
+		.tuner_type     = TUNER_LG_TDVS_H06XF, /* TDVS-H064F */
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 		.video_inputs   = 3,
@@ -2762,7 +2763,7 @@ struct tvcard bttv_tvcards[] = {
 	},
 		/* ---- card 0x88---------------------------------- */
 	[BTTV_BOARD_ACORP_Y878F] = {
-		/* Mauro Carvalho Chehab <mchehab@brturbo.com.br> */
+		/* Mauro Carvalho Chehab <mchehab@infradead.org> */
 		.name		= "Acorp Y878F",
 		.video_inputs	= 3,
 		.audio_inputs	= 1,
@@ -3790,6 +3791,7 @@ static void __devinit osprey_eeprom(struct bttv *btv)
 		       break;
 	       case 0x0060:
 	       case 0x0070:
+	       case 0x00A0:
 		       btv->c.type = BTTV_BOARD_OSPREY2x0;
 		       /* enable output on select control lines */
 		       gpio_inout(0xffffff,0x000303);

@@ -54,9 +54,11 @@
 		 */
 		mfc0	k0, CP0_CAUSE
 		andi	k0, k0, 0x7c
-		add	k1, k1, k0
-		PTR_L	k0, saved_vectors(k1)
-		jr	k0
+#ifdef CONFIG_64BIT
+		dsll	k0, k0, 1
+#endif
+		PTR_L	k1, saved_vectors(k0)
+		jr	k1
 		nop
 1:
 		move	k0, sp

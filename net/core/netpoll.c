@@ -273,24 +273,21 @@ static void netpoll_send_skb(struct netpoll *np, struct sk_buff *skb)
 
 	do {
 		npinfo->tries--;
-		spin_lock(&np->dev->xmit_lock);
-		np->dev->xmit_lock_owner = smp_processor_id();
+		netif_tx_lock(np->dev);
 
 		/*
 		 * network drivers do not expect to be called if the queue is
 		 * stopped.
 		 */
 		if (netif_queue_stopped(np->dev)) {
-			np->dev->xmit_lock_owner = -1;
-			spin_unlock(&np->dev->xmit_lock);
+			netif_tx_unlock(np->dev);
 			netpoll_poll(np);
 			udelay(50);
 			continue;
 		}
 
 		status = np->dev->hard_start_xmit(skb, np->dev);
-		np->dev->xmit_lock_owner = -1;
-		spin_unlock(&np->dev->xmit_lock);
+		netif_tx_unlock(np->dev);
 
 		/* success */
 		if(!status) {

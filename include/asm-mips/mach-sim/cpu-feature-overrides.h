@@ -8,7 +8,6 @@
 #ifndef __ASM_MACH_SIM_CPU_FEATURE_OVERRIDES_H
 #define __ASM_MACH_SIM_CPU_FEATURE_OVERRIDES_H
 
-#include <linux/config.h>
 
 /*
  * CPU feature overrides for MIPS boards
@@ -16,7 +15,7 @@
 #ifdef CONFIG_CPU_MIPS32
 #define cpu_has_tlb		1
 #define cpu_has_4kex		1
-#define cpu_has_4kcache		1
+#define cpu_has_4k_cache	1
 #define cpu_has_fpu		0
 /* #define cpu_has_32fpr	? */
 #define cpu_has_counter		1
@@ -41,7 +40,7 @@
 #ifdef CONFIG_CPU_MIPS64
 #define cpu_has_tlb		1
 #define cpu_has_4kex		1
-#define cpu_has_4kcache		1
+#define cpu_has_4k_cache	1
 /* #define cpu_has_fpu		? */
 /* #define cpu_has_32fpr	? */
 #define cpu_has_counter		1

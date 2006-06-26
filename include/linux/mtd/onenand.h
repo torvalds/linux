@@ -35,6 +35,8 @@ typedef enum {
 	FL_SYNCING,
 	FL_UNLOCKING,
 	FL_LOCKING,
+	FL_RESETING,
+	FL_OTPING,
 	FL_PM_SUSPENDED,
 } onenand_state_t;
 
@@ -75,7 +77,7 @@ struct onenand_bufferram {
  * @param chip_lock	[INTERN] spinlock used to protect access to this structure and the chip
  * @param wq		[INTERN] wait queue to sleep on if a OneNAND operation is in progress
  * @param state		[INTERN] the current state of the OneNAND device
- * @param autooob	[REPLACEABLE] the default (auto)placement scheme
+ * @param ecclayout	[REPLACEABLE] the default ecc placement scheme
  * @param bbm		[REPLACEABLE] pointer to Bad Block Management
  * @param priv		[OPTIONAL] pointer to private chip date
  */
@@ -111,9 +113,9 @@ struct onenand_chip {
 	onenand_state_t		state;
 	unsigned char		*page_buf;
 
-	struct nand_oobinfo	*autooob;
+	struct nand_ecclayout	*ecclayout;
 
-	void 			*bbm;
+	void			*bbm;
 
 	void			*priv;
 };
@@ -129,6 +131,9 @@ struct onenand_chip {
 	(this->read_word(this->base + ONENAND_REG_SYS_CFG1))
 #define ONENAND_SET_SYS_CFG1(v, this)					\
 	(this->write_word(v, this->base + ONENAND_REG_SYS_CFG1))
+
+/* Check byte access in OneNAND */
+#define ONENAND_CHECK_BYTE_ACCESS(addr)		(addr & 0x1)
 
 /*
  * Options bits

@@ -65,7 +65,7 @@ extern asmlinkage void handle_mcheck(void);
 extern asmlinkage void handle_reserved(void);
 
 extern int fpu_emulator_cop1Handler(struct pt_regs *xcp,
-	struct mips_fpu_soft_struct *ctx);
+	struct mips_fpu_struct *ctx);
 
 void (*board_be_init)(void);
 int (*board_be_handler)(struct pt_regs *regs, int is_fixup);
@@ -600,8 +600,7 @@ asmlinkage void do_fpe(struct pt_regs *regs, unsigned long fcr31)
 		preempt_enable();
 
 		/* Run the emulator */
-		sig = fpu_emulator_cop1Handler (regs,
-			&current->thread.fpu.soft);
+		sig = fpu_emulator_cop1Handler (regs, &current->thread.fpu);
 
 		preempt_disable();
 
@@ -610,7 +609,7 @@ asmlinkage void do_fpe(struct pt_regs *regs, unsigned long fcr31)
 		 * We can't allow the emulated instruction to leave any of
 		 * the cause bit set in $fcr31.
 		 */
-		current->thread.fpu.soft.fcr31 &= ~FPU_CSR_ALL_X;
+		current->thread.fpu.fcr31 &= ~FPU_CSR_ALL_X;
 
 		/* Restore the hardware register state */
 		restore_fp(current);
@@ -755,7 +754,7 @@ asmlinkage void do_cpu(struct pt_regs *regs)
 
 		if (!cpu_has_fpu) {
 			int sig = fpu_emulator_cop1Handler(regs,
-						&current->thread.fpu.soft);
+						&current->thread.fpu);
 			if (sig)
 				force_sig(sig, current);
 #ifdef CONFIG_MIPS_MT_FPAFF
@@ -819,15 +818,30 @@ asmlinkage void do_watch(struct pt_regs *regs)
 
 asmlinkage void do_mcheck(struct pt_regs *regs)
 {
+	const int field = 2 * sizeof(unsigned long);
+	int multi_match = regs->cp0_status & ST0_TS;
+
 	show_regs(regs);
-	dump_tlb_all();
+
+	if (multi_match) {
+		printk("Index   : %0x\n", read_c0_index());
+		printk("Pagemask: %0x\n", read_c0_pagemask());
+		printk("EntryHi : %0*lx\n", field, read_c0_entryhi());
+		printk("EntryLo0: %0*lx\n", field, read_c0_entrylo0());
+		printk("EntryLo1: %0*lx\n", field, read_c0_entrylo1());
+		printk("\n");
+		dump_tlb_all();
+	}
+
+	show_code((unsigned int *) regs->cp0_epc);
+
 	/*
 	 * Some chips may have other causes of machine check (e.g. SB1
 	 * graduation timer)
 	 */
 	panic("Caught Machine Check exception - %scaused by multiple "
 	      "matching entries in the TLB.",
-	      (regs->cp0_status & ST0_TS) ? "" : "not ");
+	      (multi_match) ? "" : "not ");
 }
 
 asmlinkage void do_mt(struct pt_regs *regs)
@@ -902,6 +916,7 @@ static inline void parity_protection_init(void)
 {
 	switch (current_cpu_data.cputype) {
 	case CPU_24K:
+	case CPU_34K:
 	case CPU_5KC:
 		write_c0_ecc(0x80000000);
 		back_to_back_c0_hazard();

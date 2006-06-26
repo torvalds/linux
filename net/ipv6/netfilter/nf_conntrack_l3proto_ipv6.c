@@ -189,7 +189,7 @@ static unsigned int ipv6_confirm(unsigned int hooknum,
 
 	/* This is where we call the helper: as the packet goes out. */
 	ct = nf_ct_get(*pskb, &ctinfo);
-	if (!ct)
+	if (!ct || ctinfo == IP_CT_RELATED + IP_CT_IS_REPLY)
 		goto out;
 
 	help = nfct_help(ct);

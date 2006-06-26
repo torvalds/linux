@@ -51,6 +51,8 @@
 static void sctp_ulpevent_receive_data(struct sctp_ulpevent *event,
 				       struct sctp_association *asoc);
 static void sctp_ulpevent_release_data(struct sctp_ulpevent *event);
+static void sctp_ulpevent_release_frag_data(struct sctp_ulpevent *event);
+
 
 /* Initialize an ULP event from an given skb.  */
 SCTP_STATIC void sctp_ulpevent_init(struct sctp_ulpevent *event, int msg_flags)
@@ -883,6 +885,7 @@ static void sctp_ulpevent_receive_data(struct sctp_ulpevent *event,
 static void sctp_ulpevent_release_data(struct sctp_ulpevent *event)
 {
 	struct sk_buff *skb, *frag;
+	unsigned int	len;
 
 	/* Current stack structures assume that the rcv buffer is
 	 * per socket.   For UDP style sockets this is not true as
@@ -892,7 +895,7 @@ static void sctp_ulpevent_release_data(struct sctp_ulpevent *event)
 	 */
 
 	skb = sctp_event2skb(event);
-	sctp_assoc_rwnd_increase(event->asoc, skb_headlen(skb));
+	len = skb->len;
 
 	if (!skb->data_len)
 		goto done;
@@ -903,7 +906,30 @@ static void sctp_ulpevent_release_data(struct sctp_ulpevent *event)
 		 * skb's with only 1 level of fragments, SCTP reassembly can
 		 * increase the levels.
 		 */
-		sctp_ulpevent_release_data(sctp_skb2event(frag));
+		sctp_ulpevent_release_frag_data(sctp_skb2event(frag));
+	}
+
+done:
+	sctp_assoc_rwnd_increase(event->asoc, len);
+	sctp_ulpevent_release_owner(event);
+}
+
+static void sctp_ulpevent_release_frag_data(struct sctp_ulpevent *event)
+{
+	struct sk_buff *skb, *frag;
+
+	skb = sctp_event2skb(event);
+
+	if (!skb->data_len)
+		goto done;
+
+	/* Don't forget the fragments. */
+	for (frag = skb_shinfo(skb)->frag_list; frag; frag = frag->next) {
+		/* NOTE:  skb_shinfos are recursive. Although IP returns
+		 * skb's with only 1 level of fragments, SCTP reassembly can
+		 * increase the levels.
+		 */
+		sctp_ulpevent_release_frag_data(sctp_skb2event(frag));
 	}
 
 done:

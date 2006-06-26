@@ -72,7 +72,7 @@ u8 shpchp_handle_attention_button(u8 hp_slot, void *inst_id)
 	/*
 	 *  Button pressed - See if need to TAKE ACTION!!!
 	 */
-	info("Button pressed on Slot(%d)\n", ctrl->first_slot + hp_slot);
+	info("Button pressed on Slot(%s)\n", p_slot->name);
 	event_type = INT_BUTTON_PRESS;
 
 	queue_interrupt_event(p_slot, event_type);
@@ -101,7 +101,7 @@ u8 shpchp_handle_switch_change(u8 hp_slot, void *inst_id)
 		/*
 		 * Switch opened
 		 */
-		info("Latch open on Slot(%d)\n", ctrl->first_slot + hp_slot);
+		info("Latch open on Slot(%s)\n", p_slot->name);
 		event_type = INT_SWITCH_OPEN;
 		if (p_slot->pwr_save && p_slot->presence_save) {
 			event_type = INT_POWER_FAULT;
@@ -111,7 +111,7 @@ u8 shpchp_handle_switch_change(u8 hp_slot, void *inst_id)
 		/*
 		 *  Switch closed
 		 */
-		info("Latch close on Slot(%d)\n", ctrl->first_slot + hp_slot);
+		info("Latch close on Slot(%s)\n", p_slot->name);
 		event_type = INT_SWITCH_CLOSE;
 	}
 
@@ -139,13 +139,13 @@ u8 shpchp_handle_presence_change(u8 hp_slot, void *inst_id)
 		/*
 		 * Card Present
 		 */
-		info("Card present on Slot(%d)\n", ctrl->first_slot + hp_slot);
+		info("Card present on Slot(%s)\n", p_slot->name);
 		event_type = INT_PRESENCE_ON;
 	} else {
 		/*
 		 * Not Present
 		 */
-		info("Card not present on Slot(%d)\n", ctrl->first_slot + hp_slot);
+		info("Card not present on Slot(%s)\n", p_slot->name);
 		event_type = INT_PRESENCE_OFF;
 	}
 
@@ -169,14 +169,14 @@ u8 shpchp_handle_power_fault(u8 hp_slot, void *inst_id)
 		/*
 		 * Power fault Cleared
 		 */
-		info("Power fault cleared on Slot(%d)\n", ctrl->first_slot + hp_slot);
+		info("Power fault cleared on Slot(%s)\n", p_slot->name);
 		p_slot->status = 0x00;
 		event_type = INT_POWER_FAULT_CLEAR;
 	} else {
 		/*
 		 *   Power fault
 		 */
-		info("Power fault on Slot(%d)\n", ctrl->first_slot + hp_slot);
+		info("Power fault on Slot(%s)\n", p_slot->name);
 		event_type = INT_POWER_FAULT;
 		/* set power fault status for this board */
 		p_slot->status = 0xFF;
@@ -496,10 +496,10 @@ static void handle_button_press_event(struct slot *p_slot)
 		p_slot->hpc_ops->get_power_status(p_slot, &getstatus);
 		if (getstatus) {
 			p_slot->state = BLINKINGOFF_STATE;
-			info(msg_button_off, p_slot->number);
+			info(msg_button_off, p_slot->name);
 		} else {
 			p_slot->state = BLINKINGON_STATE;
-			info(msg_button_on, p_slot->number);
+			info(msg_button_on, p_slot->name);
 		}
 		/* blink green LED and turn off amber */
 		p_slot->hpc_ops->green_led_blink(p_slot);
@@ -522,7 +522,7 @@ static void handle_button_press_event(struct slot *p_slot)
 		else
 			p_slot->hpc_ops->green_led_off(p_slot);
 		p_slot->hpc_ops->set_attention_status(p_slot, 0);
-		info(msg_button_cancel, p_slot->number);
+		info(msg_button_cancel, p_slot->name);
 		p_slot->state = STATIC_STATE;
 		break;
 	case POWEROFF_STATE:
@@ -575,17 +575,17 @@ static int shpchp_enable_slot (struct slot *p_slot)
 	mutex_lock(&p_slot->ctrl->crit_sect);
 	rc = p_slot->hpc_ops->get_adapter_status(p_slot, &getstatus);
 	if (rc || !getstatus) {
-		info("%s: no adapter on slot(%x)\n", __FUNCTION__, p_slot->number);
+		info("No adapter on slot(%s)\n", p_slot->name);
 		goto out;
 	}
 	rc = p_slot->hpc_ops->get_latch_status(p_slot, &getstatus);
 	if (rc || getstatus) {
-		info("%s: latch open on slot(%x)\n", __FUNCTION__, p_slot->number);
+		info("Latch open on slot(%s)\n", p_slot->name);
 		goto out;
 	}
 	rc = p_slot->hpc_ops->get_power_status(p_slot, &getstatus);
 	if (rc || getstatus) {
-		info("%s: already enabled on slot(%x)\n", __FUNCTION__, p_slot->number);
+		info("Already enabled on slot(%s)\n", p_slot->name);
 		goto out;
 	}
 
@@ -634,17 +634,17 @@ static int shpchp_disable_slot (struct slot *p_slot)
 
 	rc = p_slot->hpc_ops->get_adapter_status(p_slot, &getstatus);
 	if (rc || !getstatus) {
-		info("%s: no adapter on slot(%x)\n", __FUNCTION__, p_slot->number);
+		info("No adapter on slot(%s)\n", p_slot->name);
 		goto out;
 	}
 	rc = p_slot->hpc_ops->get_latch_status(p_slot, &getstatus);
 	if (rc || getstatus) {
-		info("%s: latch open on slot(%x)\n", __FUNCTION__, p_slot->number);
+		info("Latch open on slot(%s)\n", p_slot->name);
 		goto out;
 	}
 	rc = p_slot->hpc_ops->get_power_status(p_slot, &getstatus);
 	if (rc || !getstatus) {
-		info("%s: already disabled slot(%x)\n", __FUNCTION__, p_slot->number);
+		info("Already disabled slot(%s)\n", p_slot->name);
 		goto out;
 	}
 

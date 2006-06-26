@@ -6,7 +6,6 @@
  *		Alan Cox. <alan@redhat.com>
  */
 
-#include <linux/config.h>
 
 extern void cpu_idle(void);
 

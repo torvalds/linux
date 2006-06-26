@@ -76,8 +76,8 @@
 #define COPYRIGHT	"Copyright (c) 1999-2005 " MODULEAUTHOR
 #endif
 
-#define MPT_LINUX_VERSION_COMMON	"3.03.09"
-#define MPT_LINUX_PACKAGE_NAME		"@(#)mptlinux-3.03.09"
+#define MPT_LINUX_VERSION_COMMON	"3.03.10"
+#define MPT_LINUX_PACKAGE_NAME		"@(#)mptlinux-3.03.10"
 #define WHAT_MAGIC_STRING		"@" "(" "#" ")"
 
 #define show_mptmod_ver(s,ver)  \
@@ -487,6 +487,15 @@ typedef	struct _RaidCfgData {
 	int		 isRaid;		/* bit field, 1 if RAID */
 }RaidCfgData;
 
+typedef struct _FcCfgData {
+	/* will ultimately hold fc_port_page0 also */
+	struct {
+		FCPortPage1_t	*data;
+		dma_addr_t	 dma;
+		int		 pg_sz;
+	}			 fc_port_page1[2];
+} FcCfgData;
+
 #define MPT_RPORT_INFO_FLAGS_REGISTERED	0x01	/* rport registered */
 #define MPT_RPORT_INFO_FLAGS_MISSING	0x02	/* missing from DevPage0 scan */
 
@@ -565,6 +574,7 @@ typedef struct _MPT_ADAPTER
 	SpiCfgData		spi_data;	/* Scsi config. data */
 	RaidCfgData		raid_data;	/* Raid config. data */
 	SasCfgData		sas_data;	/* Sas config. data */
+	FcCfgData		fc_data;	/* Fc config. data */
 	MPT_IOCTL		*ioctl;		/* ioctl data pointer */
 	struct proc_dir_entry	*ioc_dentry;
 	struct _MPT_ADAPTER	*alt_ioc;	/* ptr to 929 bound adapter port */
@@ -625,6 +635,7 @@ typedef struct _MPT_ADAPTER
 	int			 num_ports;
 	struct work_struct	 mptscsih_persistTask;
 
+	struct work_struct	 fc_setup_reset_work;
 	struct list_head	 fc_rports;
 	spinlock_t		 fc_rescan_work_lock;
 	int			 fc_rescan_work_count;
@@ -1027,7 +1038,6 @@ extern void	 mpt_alloc_fw_memory(MPT_ADAPTER *ioc, int size);
 extern void	 mpt_free_fw_memory(MPT_ADAPTER *ioc);
 extern int	 mpt_findImVolumes(MPT_ADAPTER *ioc);
 extern int	 mptbase_sas_persist_operation(MPT_ADAPTER *ioc, u8 persist_opcode);
-extern int	 mptbase_GetFcPortPage0(MPT_ADAPTER *ioc, int portnum);
 
 /*
  *  Public data decl's...

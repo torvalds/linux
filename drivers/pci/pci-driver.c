@@ -285,9 +285,9 @@ static int pci_device_suspend(struct device * dev, pm_message_t state)
  * Default resume method for devices that have no driver provided resume,
  * or not even a driver at all.
  */
-static void pci_default_resume(struct pci_dev *pci_dev)
+static int pci_default_resume(struct pci_dev *pci_dev)
 {
-	int retval;
+	int retval = 0;
 
 	/* restore the PCI config space */
 	pci_restore_state(pci_dev);
@@ -297,18 +297,21 @@ static void pci_default_resume(struct pci_dev *pci_dev)
 	/* if the device was busmaster before the suspend, make it busmaster again */
 	if (pci_dev->is_busmaster)
 		pci_set_master(pci_dev);
+
+	return retval;
 }
 
 static int pci_device_resume(struct device * dev)
 {
+	int error;
 	struct pci_dev * pci_dev = to_pci_dev(dev);
 	struct pci_driver * drv = pci_dev->driver;
 
 	if (drv && drv->resume)
-		drv->resume(pci_dev);
+		error = drv->resume(pci_dev);
 	else
-		pci_default_resume(pci_dev);
-	return 0;
+		error = pci_default_resume(pci_dev);
+	return error;
 }
 
 static void pci_device_shutdown(struct device *dev)

@@ -34,12 +34,73 @@
 #include <asm/irq.h>
 
 #include <asm/arch/regs-gpio.h>
+#include <asm/arch/leds-gpio.h>
 
 #include <asm/arch/nand.h>
 
 #include "common-smdk.h"
 #include "devs.h"
 #include "pm.h"
+
+/* LED devices */
+
+static struct s3c24xx_led_platdata smdk_pdata_led4 = {
+	.gpio		= S3C2410_GPF4,
+	.flags		= S3C24XX_LEDF_ACTLOW | S3C24XX_LEDF_TRISTATE,
+	.name		= "led4",
+	.def_trigger	= "timer",
+};
+
+static struct s3c24xx_led_platdata smdk_pdata_led5 = {
+	.gpio		= S3C2410_GPF5,
+	.flags		= S3C24XX_LEDF_ACTLOW | S3C24XX_LEDF_TRISTATE,
+	.name		= "led5",
+	.def_trigger	= "nand-disk",
+};
+
+static struct s3c24xx_led_platdata smdk_pdata_led6 = {
+	.gpio		= S3C2410_GPF6,
+	.flags		= S3C24XX_LEDF_ACTLOW | S3C24XX_LEDF_TRISTATE,
+	.name		= "led6",
+};
+
+static struct s3c24xx_led_platdata smdk_pdata_led7 = {
+	.gpio		= S3C2410_GPF7,
+	.flags		= S3C24XX_LEDF_ACTLOW | S3C24XX_LEDF_TRISTATE,
+	.name		= "led7",
+};
+
+static struct platform_device smdk_led4 = {
+	.name		= "s3c24xx_led",
+	.id		= 0,
+	.dev		= {
+		.platform_data = &smdk_pdata_led4,
+	},
+};
+
+static struct platform_device smdk_led5 = {
+	.name		= "s3c24xx_led",
+	.id		= 1,
+	.dev		= {
+		.platform_data = &smdk_pdata_led5,
+	},
+};
+
+static struct platform_device smdk_led6 = {
+	.name		= "s3c24xx_led",
+	.id		= 2,
+	.dev		= {
+		.platform_data = &smdk_pdata_led6,
+	},
+};
+
+static struct platform_device smdk_led7 = {
+	.name		= "s3c24xx_led",
+	.id		= 3,
+	.dev		= {
+		.platform_data = &smdk_pdata_led7,
+	},
+};
 
 /* NAND parititon from 2.4.18-swl5 */
 
@@ -111,6 +172,10 @@ static struct s3c2410_platform_nand smdk_nand_info = {
 
 static struct platform_device __initdata *smdk_devs[] = {
 	&s3c_device_nand,
+	&smdk_led4,
+	&smdk_led5,
+	&smdk_led6,
+	&smdk_led7,
 };
 
 void __init smdk_machine_init(void)

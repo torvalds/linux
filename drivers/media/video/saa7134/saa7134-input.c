@@ -37,6 +37,10 @@ static unsigned int ir_debug = 0;
 module_param(ir_debug, int, 0644);
 MODULE_PARM_DESC(ir_debug,"enable debug messages [IR]");
 
+static int pinnacle_remote = 0;
+module_param(pinnacle_remote, int, 0644);    /* Choose Pinnacle PCTV remote */
+MODULE_PARM_DESC(pinnacle_remote, "Specify Pinnacle PCTV remote: 0=coloured, 1=grey (defaults to 0)");
+
 #define dprintk(fmt, arg...)	if (ir_debug) \
 	printk(KERN_DEBUG "%s/ir: " fmt, dev->name , ## arg)
 #define i2cdprintk(fmt, arg...)    if (ir_debug) \
@@ -316,8 +320,13 @@ void saa7134_set_i2c_ir(struct saa7134_dev *dev, struct IR_i2c *ir)
 	switch (dev->board) {
 	case SAA7134_BOARD_PINNACLE_PCTV_110i:
 		snprintf(ir->c.name, sizeof(ir->c.name), "Pinnacle PCTV");
-		ir->get_key   = get_key_pinnacle;
-		ir->ir_codes  = ir_codes_pinnacle;
+		if (pinnacle_remote == 0) {
+			ir->get_key   = get_key_pinnacle_color;
+			ir->ir_codes = ir_codes_pinnacle_color;
+		} else {
+			ir->get_key   = get_key_pinnacle_grey;
+			ir->ir_codes = ir_codes_pinnacle_grey;
+		}
 		break;
 	case SAA7134_BOARD_UPMOST_PURPLE_TV:
 		snprintf(ir->c.name, sizeof(ir->c.name), "Purple TV");

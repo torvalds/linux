@@ -149,7 +149,7 @@ struct cm4000_dev {
 #define	ZERO_DEV(dev)  						\
 	memset(&dev->atr_csum,0,				\
 		sizeof(struct cm4000_dev) - 			\
-		/*link*/ sizeof(struct pcmcia_device) - 	\
+		/*link*/ sizeof(struct pcmcia_device *) - 	\
 		/*node*/ sizeof(dev_node_t) - 			\
 		/*atr*/ MAX_ATR*sizeof(char) - 			\
 		/*rbuf*/ 512*sizeof(char) - 			\

@@ -1,7 +1,6 @@
 #ifndef _LINUX_INIT_H
 #define _LINUX_INIT_H
 
-#include <linux/config.h>
 #include <linux/compiler.h>
 
 /* These macros are used to mark some functions or 

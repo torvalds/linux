@@ -87,7 +87,7 @@ acpi_ex_resolve_node_to_value(struct acpi_namespace_node **object_ptr,
 	struct acpi_namespace_node *node;
 	acpi_object_type entry_type;
 
-	ACPI_FUNCTION_TRACE("ex_resolve_node_to_value");
+	ACPI_FUNCTION_TRACE(ex_resolve_node_to_value);
 
 	/*
 	 * The stack pointer points to a struct acpi_namespace_node (Node).  Get the
@@ -97,12 +97,13 @@ acpi_ex_resolve_node_to_value(struct acpi_namespace_node **object_ptr,
 	source_desc = acpi_ns_get_attached_object(node);
 	entry_type = acpi_ns_get_type((acpi_handle) node);
 
-	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Entry=%p source_desc=%p [%s]\n",
+	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Entry=%p SourceDesc=%p [%s]\n",
 			  node, source_desc,
 			  acpi_ut_get_type_name(entry_type)));
 
 	if ((entry_type == ACPI_TYPE_LOCAL_ALIAS) ||
 	    (entry_type == ACPI_TYPE_LOCAL_METHOD_ALIAS)) {
+
 		/* There is always exactly one level of indirection */
 
 		node = ACPI_CAST_PTR(struct acpi_namespace_node, node->object);
@@ -113,10 +114,11 @@ acpi_ex_resolve_node_to_value(struct acpi_namespace_node **object_ptr,
 
 	/*
 	 * Several object types require no further processing:
-	 * 1) Devices rarely have an attached object, return the Node
+	 * 1) Device/Thermal objects don't have a "real" subobject, return the Node
 	 * 2) Method locals and arguments have a pseudo-Node
 	 */
-	if (entry_type == ACPI_TYPE_DEVICE ||
+	if ((entry_type == ACPI_TYPE_DEVICE) ||
+	    (entry_type == ACPI_TYPE_THERMAL) ||
 	    (node->flags & (ANOBJ_METHOD_ARG | ANOBJ_METHOD_LOCAL))) {
 		return_ACPI_STATUS(AE_OK);
 	}
@@ -141,6 +143,7 @@ acpi_ex_resolve_node_to_value(struct acpi_namespace_node **object_ptr,
 
 		status = acpi_ds_get_package_arguments(source_desc);
 		if (ACPI_SUCCESS(status)) {
+
 			/* Return an additional reference to the object */
 
 			obj_desc = source_desc;
@@ -158,6 +161,7 @@ acpi_ex_resolve_node_to_value(struct acpi_namespace_node **object_ptr,
 
 		status = acpi_ds_get_buffer_arguments(source_desc);
 		if (ACPI_SUCCESS(status)) {
+
 			/* Return an additional reference to the object */
 
 			obj_desc = source_desc;
@@ -199,7 +203,7 @@ acpi_ex_resolve_node_to_value(struct acpi_namespace_node **object_ptr,
 	case ACPI_TYPE_LOCAL_INDEX_FIELD:
 
 		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
-				  "field_read Node=%p source_desc=%p Type=%X\n",
+				  "FieldRead Node=%p SourceDesc=%p Type=%X\n",
 				  node, source_desc, entry_type));
 
 		status =
@@ -213,7 +217,6 @@ acpi_ex_resolve_node_to_value(struct acpi_namespace_node **object_ptr,
 	case ACPI_TYPE_METHOD:
 	case ACPI_TYPE_POWER:
 	case ACPI_TYPE_PROCESSOR:
-	case ACPI_TYPE_THERMAL:
 	case ACPI_TYPE_EVENT:
 	case ACPI_TYPE_REGION:
 
@@ -239,6 +242,8 @@ acpi_ex_resolve_node_to_value(struct acpi_namespace_node **object_ptr,
 
 			/* This is a ddb_handle */
 			/* Return an additional reference to the object */
+
+		case AML_REF_OF_OP:
 
 			obj_desc = source_desc;
 			acpi_ut_add_reference(obj_desc);

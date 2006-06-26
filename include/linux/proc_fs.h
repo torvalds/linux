@@ -1,7 +1,6 @@
 #ifndef _LINUX_PROC_FS_H
 #define _LINUX_PROC_FS_H
 
-#include <linux/config.h>
 #include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/spinlock.h>

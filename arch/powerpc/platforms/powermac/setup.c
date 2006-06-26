@@ -458,7 +458,7 @@ static int pmac_pm_finish(suspend_state_t state)
 	printk(KERN_DEBUG "%s(%d)\n", __FUNCTION__, state);
 
 	/* Restore userland MMU context */
-	set_context(current->active_mm->context, current->active_mm->pgd);
+	set_context(current->active_mm->context.id, current->active_mm->pgd);
 
 	return 0;
 }

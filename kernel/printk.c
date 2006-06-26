@@ -24,6 +24,7 @@
 #include <linux/console.h>
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/interrupt.h>			/* For in_interrupt() */
 #include <linux/config.h>
 #include <linux/delay.h>
@@ -67,6 +68,7 @@ EXPORT_SYMBOL(oops_in_progress);
  * driver system.
  */
 static DECLARE_MUTEX(console_sem);
+static DECLARE_MUTEX(secondary_console_sem);
 struct console *console_drivers;
 /*
  * This is used for debugging the mess that is the VT code by
@@ -76,7 +78,7 @@ struct console *console_drivers;
  * path in the console code where we end up in places I want
  * locked without the console sempahore held
  */
-static int console_locked;
+static int console_locked, console_suspended;
 
 /*
  * logbuf_lock protects log_buf, log_start, log_end, con_start and logged_chars
@@ -326,7 +328,9 @@ static void __call_console_drivers(unsigned long start, unsigned long end)
 	struct console *con;
 
 	for (con = console_drivers; con; con = con->next) {
-		if ((con->flags & CON_ENABLED) && con->write)
+		if ((con->flags & CON_ENABLED) && con->write &&
+				(cpu_online(smp_processor_id()) ||
+				(con->flags & CON_ANYTIME)))
 			con->write(con, &LOG_BUF(start), end - start);
 	}
 }
@@ -436,6 +440,7 @@ static int printk_time = 1;
 #else
 static int printk_time = 0;
 #endif
+module_param(printk_time, int, S_IRUGO | S_IWUSR);
 
 static int __init printk_time_setup(char *str)
 {
@@ -450,6 +455,18 @@ __setup("time", printk_time_setup);
 __attribute__((weak)) unsigned long long printk_clock(void)
 {
 	return sched_clock();
+}
+
+/* Check if we have any console registered that can be called early in boot. */
+static int have_callable_console(void)
+{
+	struct console *con;
+
+	for (con = console_drivers; con; con = con->next)
+		if (con->flags & CON_ANYTIME)
+			return 1;
+
+	return 0;
 }
 
 /**
@@ -565,27 +582,29 @@ asmlinkage int vprintk(const char *fmt, va_list args)
 			log_level_unknown = 1;
 	}
 
-	if (!cpu_online(smp_processor_id())) {
-		/*
-		 * Some console drivers may assume that per-cpu resources have
-		 * been allocated.  So don't allow them to be called by this
-		 * CPU until it is officially up.  We shouldn't be calling into
-		 * random console drivers on a CPU which doesn't exist yet..
-		 */
-		printk_cpu = UINT_MAX;
-		spin_unlock_irqrestore(&logbuf_lock, flags);
-		goto out;
-	}
 	if (!down_trylock(&console_sem)) {
-		console_locked = 1;
 		/*
-		 * We own the drivers.  We can drop the spinlock and let
-		 * release_console_sem() print the text
+		 * We own the drivers.  We can drop the spinlock and
+		 * let release_console_sem() print the text, maybe ...
 		 */
+		console_locked = 1;
 		printk_cpu = UINT_MAX;
 		spin_unlock_irqrestore(&logbuf_lock, flags);
-		console_may_schedule = 0;
-		release_console_sem();
+
+		/*
+		 * Console drivers may assume that per-cpu resources have
+		 * been allocated. So unless they're explicitly marked as
+		 * being able to cope (CON_ANYTIME) don't call them until
+		 * this CPU is officially up.
+		 */
+		if (cpu_online(smp_processor_id()) || have_callable_console()) {
+			console_may_schedule = 0;
+			release_console_sem();
+		} else {
+			/* Release by hand to avoid flushing the buffer. */
+			console_locked = 0;
+			up(&console_sem);
+		}
 	} else {
 		/*
 		 * Someone else owns the drivers.  We drop the spinlock, which
@@ -595,7 +614,7 @@ asmlinkage int vprintk(const char *fmt, va_list args)
 		printk_cpu = UINT_MAX;
 		spin_unlock_irqrestore(&logbuf_lock, flags);
 	}
-out:
+
 	preempt_enable();
 	return printed_len;
 }
@@ -698,6 +717,23 @@ int __init add_preferred_console(char *name, int idx, char *options)
 }
 
 /**
+ * suspend_console - suspend the console subsystem
+ *
+ * This disables printk() while we go into suspend states
+ */
+void suspend_console(void)
+{
+	acquire_console_sem();
+	console_suspended = 1;
+}
+
+void resume_console(void)
+{
+	console_suspended = 0;
+	release_console_sem();
+}
+
+/**
  * acquire_console_sem - lock the console system for exclusive use.
  *
  * Acquires a semaphore which guarantees that the caller has
@@ -708,6 +744,10 @@ int __init add_preferred_console(char *name, int idx, char *options)
 void acquire_console_sem(void)
 {
 	BUG_ON(in_interrupt());
+	if (console_suspended) {
+		down(&secondary_console_sem);
+		return;
+	}
 	down(&console_sem);
 	console_locked = 1;
 	console_may_schedule = 1;
@@ -750,6 +790,10 @@ void release_console_sem(void)
 	unsigned long _con_start, _log_end;
 	unsigned long wake_klogd = 0;
 
+	if (console_suspended) {
+		up(&secondary_console_sem);
+		return;
+	}
 	for ( ; ; ) {
 		spin_lock_irqsave(&logbuf_lock, flags);
 		wake_klogd |= log_start - log_end;

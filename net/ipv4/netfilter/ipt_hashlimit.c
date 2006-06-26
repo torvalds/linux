@@ -28,9 +28,6 @@
 #include <linux/jhash.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
-#include <linux/tcp.h>
-#include <linux/udp.h>
-#include <linux/sctp.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/list.h>
@@ -83,6 +80,7 @@ struct ipt_hashlimit_htable {
 	/* used internally */
 	spinlock_t lock;		/* lock for list_head */
 	u_int32_t rnd;			/* random seed for hash */
+	int rnd_initialized;
 	struct timer_list timer;	/* timer for gc */
 	atomic_t count;			/* number entries in table */
 
@@ -137,8 +135,10 @@ __dsthash_alloc_init(struct ipt_hashlimit_htable *ht, struct dsthash_dst *dst)
 
 	/* initialize hash with random val at the time we allocate
 	 * the first hashtable entry */
-	if (!ht->rnd)
+	if (!ht->rnd_initialized) {
 		get_random_bytes(&ht->rnd, 4);
+		ht->rnd_initialized = 1;
+	}
 
 	if (ht->cfg.max &&
 	    atomic_read(&ht->count) >= ht->cfg.max) {
@@ -217,7 +217,7 @@ static int htable_create(struct ipt_hashlimit_info *minfo)
 
 	atomic_set(&hinfo->count, 0);
 	atomic_set(&hinfo->use, 1);
-	hinfo->rnd = 0;
+	hinfo->rnd_initialized = 0;
 	spin_lock_init(&hinfo->lock);
 	hinfo->pde = create_proc_entry(minfo->name, 0, hashlimit_procdir);
 	if (!hinfo->pde) {
@@ -381,49 +381,6 @@ static inline void rateinfo_recalc(struct dsthash_ent *dh, unsigned long now)
 		dh->rateinfo.credit = dh->rateinfo.credit_cap;
 }
 
-static inline int get_ports(const struct sk_buff *skb, int offset, 
-			    u16 ports[2])
-{
-	union {
-		struct tcphdr th;
-		struct udphdr uh;
-		sctp_sctphdr_t sctph;
-	} hdr_u, *ptr_u;
-
-	/* Must not be a fragment. */
-	if (offset)
-		return 1;
-
-	/* Must be big enough to read ports (both UDP and TCP have
-	   them at the start). */
-	ptr_u = skb_header_pointer(skb, skb->nh.iph->ihl*4, 8, &hdr_u); 
-	if (!ptr_u)
-		return 1;
-
-	switch (skb->nh.iph->protocol) {
-		case IPPROTO_TCP:
-			ports[0] = ptr_u->th.source;
-			ports[1] = ptr_u->th.dest;
-			break;
-		case IPPROTO_UDP:
-			ports[0] = ptr_u->uh.source;
-			ports[1] = ptr_u->uh.dest;
-			break;
-		case IPPROTO_SCTP:
-			ports[0] = ptr_u->sctph.source;
-			ports[1] = ptr_u->sctph.dest;
-			break;
-		default:
-			/* all other protocols don't supprot per-port hash
-			 * buckets */
-			ports[0] = ports[1] = 0;
-			break;
-	}
-
-	return 0;
-}
-
-
 static int
 hashlimit_match(const struct sk_buff *skb,
 		const struct net_device *in,
@@ -449,8 +406,22 @@ hashlimit_match(const struct sk_buff *skb,
 		dst.src_ip = skb->nh.iph->saddr;
 	if (hinfo->cfg.mode & IPT_HASHLIMIT_HASH_DPT
 	    ||hinfo->cfg.mode & IPT_HASHLIMIT_HASH_SPT) {
-		u_int16_t ports[2];
-		if (get_ports(skb, offset, ports)) {
+		u_int16_t _ports[2], *ports;
+
+		switch (skb->nh.iph->protocol) {
+		case IPPROTO_TCP:
+		case IPPROTO_UDP:
+		case IPPROTO_SCTP:
+		case IPPROTO_DCCP:
+			ports = skb_header_pointer(skb, skb->nh.iph->ihl*4,
+						   sizeof(_ports), &_ports);
+			break;
+		default:
+			_ports[0] = _ports[1] = 0;
+			ports = _ports;
+			break;
+		}
+		if (!ports) {
 			/* We've been asked to examine this packet, and we
 		 	  can't.  Hence, no choice but to drop. */
 			*hotdrop = 1;
@@ -561,7 +532,7 @@ static void
 hashlimit_destroy(const struct xt_match *match, void *matchinfo,
 		  unsigned int matchsize)
 {
-	struct ipt_hashlimit_info *r = (struct ipt_hashlimit_info *) matchinfo;
+	struct ipt_hashlimit_info *r = matchinfo;
 
 	htable_put(r->hinfo);
 }

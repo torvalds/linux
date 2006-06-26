@@ -19,6 +19,7 @@ Contents:
      - Control dependencies.
      - SMP barrier pairing.
      - Examples of memory barrier sequences.
+     - Read memory barriers vs load speculation.
 
  (*) Explicit kernel barriers.
 
@@ -248,7 +249,7 @@ And there are a number of things that _must_ or _must_not_ be assumed:
      we may get either of:
 
 	STORE *A = X; Y = LOAD *A;
-	STORE *A = Y;
+	STORE *A = Y = X;
 
 
 =========================
@@ -261,9 +262,14 @@ What is required is some way of intervening to instruct the compiler and the
 CPU to restrict the order.
 
 Memory barriers are such interventions.  They impose a perceived partial
-ordering between the memory operations specified on either side of the barrier.
-They request that the sequence of memory events generated appears to other
-parts of the system as if the barrier is effective on that CPU.
+ordering over the memory operations on either side of the barrier.
+
+Such enforcement is important because the CPUs and other devices in a system
+can use a variety of tricks to improve performance - including reordering,
+deferral and combination of memory operations; speculative loads; speculative
+branch prediction and various types of caching.  Memory barriers are used to
+override or suppress these tricks, allowing the code to sanely control the
+interaction of multiple CPUs and/or devices.
 
 
 VARIETIES OF MEMORY BARRIER
@@ -281,7 +287,7 @@ Memory barriers come in four basic varieties:
      A write barrier is a partial ordering on stores only; it is not required
      to have any effect on loads.
 
-     A CPU can be viewed as as commiting a sequence of store operations to the
+     A CPU can be viewed as committing a sequence of store operations to the
      memory system as time progresses.  All stores before a write barrier will
      occur in the sequence _before_ all the stores after the write barrier.
 
@@ -344,9 +350,12 @@ Memory barriers come in four basic varieties:
 
  (4) General memory barriers.
 
-     A general memory barrier is a combination of both a read memory barrier
-     and a write memory barrier.  It is a partial ordering over both loads and
-     stores.
+     A general memory barrier gives a guarantee that all the LOAD and STORE
+     operations specified before the barrier will appear to happen before all
+     the LOAD and STORE operations specified after the barrier with respect to
+     the other components of the system.
+
+     A general memory barrier is a partial ordering over both loads and stores.
 
      General memory barriers imply both read and write memory barriers, and so
      can substitute for either.
@@ -409,7 +418,7 @@ There are certain things that the Linux kernel memory barriers do not guarantee:
      indirect effect will be the order in which the second CPU sees the effects
      of the first CPU's accesses occur, but see the next point:
 
- (*) There is no guarantee that the a CPU will see the correct order of effects
+ (*) There is no guarantee that a CPU will see the correct order of effects
      from a second CPU's accesses, even _if_ the second CPU uses a memory
      barrier, unless the first CPU _also_ uses a matching memory barrier (see
      the subsection on "SMP Barrier Pairing").
@@ -457,8 +466,8 @@ Whilst this may seem like a failure of coherency or causality maintenance, it
 isn't, and this behaviour can be observed on certain real CPUs (such as the DEC
 Alpha).
 
-To deal with this, a data dependency barrier must be inserted between the
-address load and the data load:
+To deal with this, a data dependency barrier or better must be inserted
+between the address load and the data load:
 
 	CPU 1		CPU 2
 	===============	===============
@@ -480,7 +489,7 @@ lines.  The pointer P might be stored in an odd-numbered cache line, and the
 variable B might be stored in an even-numbered cache line.  Then, if the
 even-numbered bank of the reading CPU's cache is extremely busy while the
 odd-numbered bank is idle, one can see the new value of the pointer P (&B),
-but the old value of the variable B (1).
+but the old value of the variable B (2).
 
 
 Another example of where data dependency barriers might by required is where a
@@ -546,9 +555,9 @@ write barrier, though, again, a general barrier is viable:
 	===============	===============
 	a = 1;
 	<write barrier>
-	b = 2;		x = a;
+	b = 2;		x = b;
 			<read barrier>
-			y = b;
+			y = a;
 
 Or:
 
@@ -562,6 +571,18 @@ Or:
 
 Basically, the read barrier always has to be there, even though it can be of
 the "weaker" type.
+
+[!] Note that the stores before the write barrier would normally be expected to
+match the loads after the read barrier or data dependency barrier, and vice
+versa:
+
+	CPU 1                           CPU 2
+	===============                 ===============
+	a = 1;           }----   --->{  v = c
+	b = 2;           }    \ /    {  w = d
+	<write barrier>        \        <read barrier>
+	c = 3;           }    / \    {  x = a;
+	d = 4;           }----   --->{  y = b;
 
 
 EXAMPLES OF MEMORY BARRIER SEQUENCES
@@ -600,8 +621,8 @@ STORE B, STORE C } all occuring before the unordered set of { STORE D, STORE E
 	|       |       +------+
 	+-------+       :      :
 	                   |
-	                   | Sequence in which stores committed to memory system
-	                   | by CPU 1
+	                   | Sequence in which stores are committed to the
+	                   | memory system by CPU 1
 	                   V
 
 
@@ -683,14 +704,12 @@ then the following will occur:
 	                               |        :       :       |       |
 	                               |        :       :       | CPU 2 |
 	                               |        +-------+       |       |
-	                                \       | X->9  |------>|       |
-	                                 \      +-------+       |       |
-	                                  ----->| B->2  |       |       |
-	                                        +-------+       |       |
-	     Makes sure all effects --->    ddddddddddddddddd   |       |
-	     prior to the store of C            +-------+       |       |
-	     are perceptible to                 | B->2  |------>|       |
-	     successive loads                   +-------+       |       |
+	                               |        | X->9  |------>|       |
+	                               |        +-------+       |       |
+	  Makes sure all effects --->   \   ddddddddddddddddd   |       |
+	  prior to the store of C        \      +-------+       |       |
+	  are perceptible to              ----->| B->2  |------>|       |
+	  subsequent loads                      +-------+       |       |
 	                                        :       :       +-------+
 
 
@@ -699,73 +718,239 @@ following sequence of events:
 
 	CPU 1			CPU 2
 	=======================	=======================
+		{ A = 0, B = 9 }
 	STORE A=1
-	STORE B=2
-	STORE C=3
 	<write barrier>
-	STORE D=4
-	STORE E=5
-				LOAD A
+	STORE B=2
 				LOAD B
-				LOAD C
-				LOAD D
-				LOAD E
+				LOAD A
 
 Without intervention, CPU 2 may then choose to perceive the events on CPU 1 in
 some effectively random order, despite the write barrier issued by CPU 1:
 
-	+-------+       :      :
-	|       |       +------+
-	|       |------>| C=3  | }
-	|       |  :    +------+ }
-	|       |  :    | A=1  | }
-	|       |  :    +------+ }
-	| CPU 1 |  :    | B=2  | }---
-	|       |       +------+ }   \
-	|       |   wwwwwwwwwwwww}    \
-	|       |       +------+ }     \          :       :       +-------+
-	|       |  :    | E=5  | }      \         +-------+       |       |
-	|       |  :    +------+ }       \      { | C->3  |------>|       |
-	|       |------>| D=4  | }        \     { +-------+    :  |       |
-	|       |       +------+           \    { | E->5  |    :  |       |
-	+-------+       :      :            \   { +-------+    :  |       |
-	                           Transfer  -->{ | A->1  |    :  | CPU 2 |
-	                          from CPU 1    { +-------+    :  |       |
-	                           to CPU 2     { | D->4  |    :  |       |
-	                                        { +-------+    :  |       |
-	                                        { | B->2  |------>|       |
-	                                          +-------+       |       |
-	                                          :       :       +-------+
+	+-------+       :      :                :       :
+	|       |       +------+                +-------+
+	|       |------>| A=1  |------      --->| A->0  |
+	|       |       +------+      \         +-------+
+	| CPU 1 |   wwwwwwwwwwwwwwww   \    --->| B->9  |
+	|       |       +------+        |       +-------+
+	|       |------>| B=2  |---     |       :       :
+	|       |       +------+   \    |       :       :       +-------+
+	+-------+       :      :    \   |       +-------+       |       |
+	                             ---------->| B->2  |------>|       |
+	                                |       +-------+       | CPU 2 |
+	                                |       | A->0  |------>|       |
+	                                |       +-------+       |       |
+	                                |       :       :       +-------+
+	                                 \      :       :
+	                                  \     +-------+
+	                                   ---->| A->1  |
+	                                        +-------+
+	                                        :       :
 
 
-If, however, a read barrier were to be placed between the load of C and the
-load of D on CPU 2, then the partial ordering imposed by CPU 1 will be
-perceived correctly by CPU 2.
+If, however, a read barrier were to be placed between the load of B and the
+load of A on CPU 2:
 
-	+-------+       :      :
-	|       |       +------+
-	|       |------>| C=3  | }
-	|       |  :    +------+ }
-	|       |  :    | A=1  | }---
-	|       |  :    +------+ }   \
-	| CPU 1 |  :    | B=2  | }    \
-	|       |       +------+       \
-	|       |   wwwwwwwwwwwwwwww    \
-	|       |       +------+         \        :       :       +-------+
-	|       |  :    | E=5  | }        \       +-------+       |       |
-	|       |  :    +------+ }---      \    { | C->3  |------>|       |
-	|       |------>| D=4  | }   \      \   { +-------+    :  |       |
-	|       |       +------+      \      -->{ | B->2  |    :  |       |
-	+-------+       :      :       \        { +-------+    :  |       |
-	                                \       { | A->1  |    :  | CPU 2 |
-	                                 \        +-------+       |       |
-	   At this point the read ---->   \   rrrrrrrrrrrrrrrrr   |       |
-	   barrier causes all effects      \      +-------+       |       |
-	   prior to the storage of C        \   { | E->5  |    :  |       |
-	   to be perceptible to CPU 2        -->{ +-------+    :  |       |
-	                                        { | D->4  |------>|       |
-	                                          +-------+       |       |
-	                                          :       :       +-------+
+	CPU 1			CPU 2
+	=======================	=======================
+		{ A = 0, B = 9 }
+	STORE A=1
+	<write barrier>
+	STORE B=2
+				LOAD B
+				<read barrier>
+				LOAD A
+
+then the partial ordering imposed by CPU 1 will be perceived correctly by CPU
+2:
+
+	+-------+       :      :                :       :
+	|       |       +------+                +-------+
+	|       |------>| A=1  |------      --->| A->0  |
+	|       |       +------+      \         +-------+
+	| CPU 1 |   wwwwwwwwwwwwwwww   \    --->| B->9  |
+	|       |       +------+        |       +-------+
+	|       |------>| B=2  |---     |       :       :
+	|       |       +------+   \    |       :       :       +-------+
+	+-------+       :      :    \   |       +-------+       |       |
+	                             ---------->| B->2  |------>|       |
+	                                |       +-------+       | CPU 2 |
+	                                |       :       :       |       |
+	                                |       :       :       |       |
+	  At this point the read ---->   \  rrrrrrrrrrrrrrrrr   |       |
+	  barrier causes all effects      \     +-------+       |       |
+	  prior to the storage of B        ---->| A->1  |------>|       |
+	  to be perceptible to CPU 2            +-------+       |       |
+	                                        :       :       +-------+
+
+
+To illustrate this more completely, consider what could happen if the code
+contained a load of A either side of the read barrier:
+
+	CPU 1			CPU 2
+	=======================	=======================
+		{ A = 0, B = 9 }
+	STORE A=1
+	<write barrier>
+	STORE B=2
+				LOAD B
+				LOAD A [first load of A]
+				<read barrier>
+				LOAD A [second load of A]
+
+Even though the two loads of A both occur after the load of B, they may both
+come up with different values:
+
+	+-------+       :      :                :       :
+	|       |       +------+                +-------+
+	|       |------>| A=1  |------      --->| A->0  |
+	|       |       +------+      \         +-------+
+	| CPU 1 |   wwwwwwwwwwwwwwww   \    --->| B->9  |
+	|       |       +------+        |       +-------+
+	|       |------>| B=2  |---     |       :       :
+	|       |       +------+   \    |       :       :       +-------+
+	+-------+       :      :    \   |       +-------+       |       |
+	                             ---------->| B->2  |------>|       |
+	                                |       +-------+       | CPU 2 |
+	                                |       :       :       |       |
+	                                |       :       :       |       |
+	                                |       +-------+       |       |
+	                                |       | A->0  |------>| 1st   |
+	                                |       +-------+       |       |
+	  At this point the read ---->   \  rrrrrrrrrrrrrrrrr   |       |
+	  barrier causes all effects      \     +-------+       |       |
+	  prior to the storage of B        ---->| A->1  |------>| 2nd   |
+	  to be perceptible to CPU 2            +-------+       |       |
+	                                        :       :       +-------+
+
+
+But it may be that the update to A from CPU 1 becomes perceptible to CPU 2
+before the read barrier completes anyway:
+
+	+-------+       :      :                :       :
+	|       |       +------+                +-------+
+	|       |------>| A=1  |------      --->| A->0  |
+	|       |       +------+      \         +-------+
+	| CPU 1 |   wwwwwwwwwwwwwwww   \    --->| B->9  |
+	|       |       +------+        |       +-------+
+	|       |------>| B=2  |---     |       :       :
+	|       |       +------+   \    |       :       :       +-------+
+	+-------+       :      :    \   |       +-------+       |       |
+	                             ---------->| B->2  |------>|       |
+	                                |       +-------+       | CPU 2 |
+	                                |       :       :       |       |
+	                                 \      :       :       |       |
+	                                  \     +-------+       |       |
+	                                   ---->| A->1  |------>| 1st   |
+	                                        +-------+       |       |
+	                                    rrrrrrrrrrrrrrrrr   |       |
+	                                        +-------+       |       |
+	                                        | A->1  |------>| 2nd   |
+	                                        +-------+       |       |
+	                                        :       :       +-------+
+
+
+The guarantee is that the second load will always come up with A == 1 if the
+load of B came up with B == 2.  No such guarantee exists for the first load of
+A; that may come up with either A == 0 or A == 1.
+
+
+READ MEMORY BARRIERS VS LOAD SPECULATION
+----------------------------------------
+
+Many CPUs speculate with loads: that is they see that they will need to load an
+item from memory, and they find a time where they're not using the bus for any
+other loads, and so do the load in advance - even though they haven't actually
+got to that point in the instruction execution flow yet.  This permits the
+actual load instruction to potentially complete immediately because the CPU
+already has the value to hand.
+
+It may turn out that the CPU didn't actually need the value - perhaps because a
+branch circumvented the load - in which case it can discard the value or just
+cache it for later use.
+
+Consider:
+
+	CPU 1	   		CPU 2
+	=======================	=======================
+	 	   		LOAD B
+	 	   		DIVIDE		} Divide instructions generally
+	 	   		DIVIDE		} take a long time to perform
+	 	   		LOAD A
+
+Which might appear as this:
+
+	                                        :       :       +-------+
+	                                        +-------+       |       |
+	                                    --->| B->2  |------>|       |
+	                                        +-------+       | CPU 2 |
+	                                        :       :DIVIDE |       |
+	                                        +-------+       |       |
+	The CPU being busy doing a --->     --->| A->0  |~~~~   |       |
+	division speculates on the              +-------+   ~   |       |
+	LOAD of A                               :       :   ~   |       |
+	                                        :       :DIVIDE |       |
+	                                        :       :   ~   |       |
+	Once the divisions are complete -->     :       :   ~-->|       |
+	the CPU can then perform the            :       :       |       |
+	LOAD with immediate effect              :       :       +-------+
+
+
+Placing a read barrier or a data dependency barrier just before the second
+load:
+
+	CPU 1	   		CPU 2
+	=======================	=======================
+	 	   		LOAD B
+	 	   		DIVIDE
+	 	   		DIVIDE
+				<read barrier>
+	 	   		LOAD A
+
+will force any value speculatively obtained to be reconsidered to an extent
+dependent on the type of barrier used.  If there was no change made to the
+speculated memory location, then the speculated value will just be used:
+
+	                                        :       :       +-------+
+	                                        +-------+       |       |
+	                                    --->| B->2  |------>|       |
+	                                        +-------+       | CPU 2 |
+	                                        :       :DIVIDE |       |
+	                                        +-------+       |       |
+	The CPU being busy doing a --->     --->| A->0  |~~~~   |       |
+	division speculates on the              +-------+   ~   |       |
+	LOAD of A                               :       :   ~   |       |
+	                                        :       :DIVIDE |       |
+	                                        :       :   ~   |       |
+	                                        :       :   ~   |       |
+	                                    rrrrrrrrrrrrrrrr~   |       |
+	                                        :       :   ~   |       |
+	                                        :       :   ~-->|       |
+	                                        :       :       |       |
+	                                        :       :       +-------+
+
+
+but if there was an update or an invalidation from another CPU pending, then
+the speculation will be cancelled and the value reloaded:
+
+	                                        :       :       +-------+
+	                                        +-------+       |       |
+	                                    --->| B->2  |------>|       |
+	                                        +-------+       | CPU 2 |
+	                                        :       :DIVIDE |       |
+	                                        +-------+       |       |
+	The CPU being busy doing a --->     --->| A->0  |~~~~   |       |
+	division speculates on the              +-------+   ~   |       |
+	LOAD of A                               :       :   ~   |       |
+	                                        :       :DIVIDE |       |
+	                                        :       :   ~   |       |
+	                                        :       :   ~   |       |
+	                                    rrrrrrrrrrrrrrrrr   |       |
+	                                        +-------+       |       |
+	The speculation is discarded --->   --->| A->1  |------>|       |
+	and an updated value is                 +-------+       |       |
+	retrieved                               :       :       +-------+
 
 
 ========================
@@ -901,7 +1086,7 @@ IMPLICIT KERNEL MEMORY BARRIERS
 ===============================
 
 Some of the other functions in the linux kernel imply memory barriers, amongst
-which are locking, scheduling and memory allocation functions.
+which are locking and scheduling functions.
 
 This specification is a _minimum_ guarantee; any particular architecture may
 provide more substantial guarantees, but these may not be relied upon outside
@@ -966,6 +1151,20 @@ equivalent to a full barrier, but a LOCK followed by an UNLOCK is not.
     barriers is that the effects instructions outside of a critical section may
     seep into the inside of the critical section.
 
+A LOCK followed by an UNLOCK may not be assumed to be full memory barrier
+because it is possible for an access preceding the LOCK to happen after the
+LOCK, and an access following the UNLOCK to happen before the UNLOCK, and the
+two accesses can themselves then cross:
+
+	*A = a;
+	LOCK
+	UNLOCK
+	*B = b;
+
+may occur as:
+
+	LOCK, STORE *B, STORE *A, UNLOCK
+
 Locks and semaphores may not provide any guarantee of ordering on UP compiled
 systems, and so cannot be counted on in such a situation to actually achieve
 anything at all - especially with respect to I/O accesses - unless combined
@@ -1015,8 +1214,6 @@ MISCELLANEOUS FUNCTIONS
 Other functions that imply barriers:
 
  (*) schedule() and similar imply full memory barriers.
-
- (*) Memory allocation and release functions imply full memory barriers.
 
 
 =================================
@@ -1269,9 +1466,8 @@ instruction itself is complete.
 
 On a UP system - where this wouldn't be a problem - the smp_mb() is just a
 compiler barrier, thus making sure the compiler emits the instructions in the
-right order without actually intervening in the CPU.  Since there there's only
-one CPU, that CPU's dependency ordering logic will take care of everything
-else.
+right order without actually intervening in the CPU.  Since there's only one
+CPU, that CPU's dependency ordering logic will take care of everything else.
 
 
 ATOMIC OPERATIONS
@@ -1448,9 +1644,9 @@ functions:
 
      The PCI bus, amongst others, defines an I/O space concept - which on such
      CPUs as i386 and x86_64 cpus readily maps to the CPU's concept of I/O
-     space.  However, it may also mapped as a virtual I/O space in the CPU's
-     memory map, particularly on those CPUs that don't support alternate
-     I/O spaces.
+     space.  However, it may also be mapped as a virtual I/O space in the CPU's
+     memory map, particularly on those CPUs that don't support alternate I/O
+     spaces.
 
      Accesses to this space may be fully synchronous (as on i386), but
      intermediary bridges (such as the PCI host bridge) may not fully honour

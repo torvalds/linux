@@ -103,7 +103,7 @@ static void raw_v4_unhash(struct sock *sk)
 }
 
 struct sock *__raw_v4_lookup(struct sock *sk, unsigned short num,
-			     unsigned long raddr, unsigned long laddr,
+			     __be32 raddr, __be32 laddr,
 			     int dif)
 {
 	struct hlist_node *node;

@@ -92,9 +92,14 @@ unsigned long htab_size_bytes;
 unsigned long htab_hash_mask;
 int mmu_linear_psize = MMU_PAGE_4K;
 int mmu_virtual_psize = MMU_PAGE_4K;
+int mmu_vmalloc_psize = MMU_PAGE_4K;
+int mmu_io_psize = MMU_PAGE_4K;
 #ifdef CONFIG_HUGETLB_PAGE
 int mmu_huge_psize = MMU_PAGE_16M;
 unsigned int HPAGE_SHIFT;
+#endif
+#ifdef CONFIG_PPC_64K_PAGES
+int mmu_ci_restrictions;
 #endif
 
 /* There are definitions of page sizes arrays to be used when none
@@ -308,20 +313,31 @@ static void __init htab_init_page_sizes(void)
 	else if (mmu_psize_defs[MMU_PAGE_1M].shift)
 		mmu_linear_psize = MMU_PAGE_1M;
 
+#ifdef CONFIG_PPC_64K_PAGES
 	/*
 	 * Pick a size for the ordinary pages. Default is 4K, we support
-	 * 64K if cache inhibited large pages are supported by the
-	 * processor
+	 * 64K for user mappings and vmalloc if supported by the processor.
+	 * We only use 64k for ioremap if the processor
+	 * (and firmware) support cache-inhibited large pages.
+	 * If not, we use 4k and set mmu_ci_restrictions so that
+	 * hash_page knows to switch processes that use cache-inhibited
+	 * mappings to 4k pages.
 	 */
-#ifdef CONFIG_PPC_64K_PAGES
-	if (mmu_psize_defs[MMU_PAGE_64K].shift &&
-	    cpu_has_feature(CPU_FTR_CI_LARGE_PAGE))
+	if (mmu_psize_defs[MMU_PAGE_64K].shift) {
 		mmu_virtual_psize = MMU_PAGE_64K;
+		mmu_vmalloc_psize = MMU_PAGE_64K;
+		if (cpu_has_feature(CPU_FTR_CI_LARGE_PAGE))
+			mmu_io_psize = MMU_PAGE_64K;
+		else
+			mmu_ci_restrictions = 1;
+	}
 #endif
 
-	printk(KERN_INFO "Page orders: linear mapping = %d, others = %d\n",
+	printk(KERN_DEBUG "Page orders: linear mapping = %d, "
+	       "virtual = %d, io = %d\n",
 	       mmu_psize_defs[mmu_linear_psize].shift,
-	       mmu_psize_defs[mmu_virtual_psize].shift);
+	       mmu_psize_defs[mmu_virtual_psize].shift,
+	       mmu_psize_defs[mmu_io_psize].shift);
 
 #ifdef CONFIG_HUGETLB_PAGE
 	/* Init large page size. Currently, we pick 16M or 1M depending
@@ -556,6 +572,7 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 	pte_t *ptep;
 	cpumask_t tmp;
 	int rc, user_region = 0, local = 0;
+	int psize;
 
 	DBG_LOW("hash_page(ea=%016lx, access=%lx, trap=%lx\n",
 		ea, access, trap);
@@ -575,10 +592,15 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 			return 1;
 		}
 		vsid = get_vsid(mm->context.id, ea);
+		psize = mm->context.user_psize;
 		break;
 	case VMALLOC_REGION_ID:
 		mm = &init_mm;
 		vsid = get_kernel_vsid(ea);
+		if (ea < VMALLOC_END)
+			psize = mmu_vmalloc_psize;
+		else
+			psize = mmu_io_psize;
 		break;
 	default:
 		/* Not a valid range
@@ -629,7 +651,40 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 #ifndef CONFIG_PPC_64K_PAGES
 	rc = __hash_page_4K(ea, access, vsid, ptep, trap, local);
 #else
-	if (mmu_virtual_psize == MMU_PAGE_64K)
+	if (mmu_ci_restrictions) {
+		/* If this PTE is non-cacheable, switch to 4k */
+		if (psize == MMU_PAGE_64K &&
+		    (pte_val(*ptep) & _PAGE_NO_CACHE)) {
+			if (user_region) {
+				psize = MMU_PAGE_4K;
+				mm->context.user_psize = MMU_PAGE_4K;
+				mm->context.sllp = SLB_VSID_USER |
+					mmu_psize_defs[MMU_PAGE_4K].sllp;
+			} else if (ea < VMALLOC_END) {
+				/*
+				 * some driver did a non-cacheable mapping
+				 * in vmalloc space, so switch vmalloc
+				 * to 4k pages
+				 */
+				printk(KERN_ALERT "Reducing vmalloc segment "
+				       "to 4kB pages because of "
+				       "non-cacheable mapping\n");
+				psize = mmu_vmalloc_psize = MMU_PAGE_4K;
+			}
+		}
+		if (user_region) {
+			if (psize != get_paca()->context.user_psize) {
+				get_paca()->context = mm->context;
+				slb_flush_and_rebolt();
+			}
+		} else if (get_paca()->vmalloc_sllp !=
+			   mmu_psize_defs[mmu_vmalloc_psize].sllp) {
+			get_paca()->vmalloc_sllp =
+				mmu_psize_defs[mmu_vmalloc_psize].sllp;
+			slb_flush_and_rebolt();
+		}
+	}
+	if (psize == MMU_PAGE_64K)
 		rc = __hash_page_64K(ea, access, vsid, ptep, trap, local);
 	else
 		rc = __hash_page_4K(ea, access, vsid, ptep, trap, local);
@@ -681,7 +736,18 @@ void hash_preload(struct mm_struct *mm, unsigned long ea,
 #ifndef CONFIG_PPC_64K_PAGES
 	__hash_page_4K(ea, access, vsid, ptep, trap, local);
 #else
-	if (mmu_virtual_psize == MMU_PAGE_64K)
+	if (mmu_ci_restrictions) {
+		/* If this PTE is non-cacheable, switch to 4k */
+		if (mm->context.user_psize == MMU_PAGE_64K &&
+		    (pte_val(*ptep) & _PAGE_NO_CACHE)) {
+			mm->context.user_psize = MMU_PAGE_4K;
+			mm->context.sllp = SLB_VSID_USER |
+				mmu_psize_defs[MMU_PAGE_4K].sllp;
+			get_paca()->context = mm->context;
+			slb_flush_and_rebolt();
+		}
+	}
+	if (mm->context.user_psize == MMU_PAGE_64K)
 		__hash_page_64K(ea, access, vsid, ptep, trap, local);
 	else
 		__hash_page_4K(ea, access, vsid, ptep, trap, local);

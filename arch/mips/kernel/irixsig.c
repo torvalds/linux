@@ -13,6 +13,7 @@
 #include <linux/smp_lock.h>
 #include <linux/time.h>
 #include <linux/ptrace.h>
+#include <linux/resource.h>
 
 #include <asm/ptrace.h>
 #include <asm/uaccess.h>
@@ -260,7 +261,7 @@ irix_sigreturn(struct pt_regs *regs)
 
 		for(i = 0; i < 32; i++)
 			error |= __get_user(fregs[i], &context->fpregs[i]);
-		error |= __get_user(current->thread.fpu.hard.fcr31, &context->fpcsr);
+		error |= __get_user(current->thread.fpu.fcr31, &context->fpcsr);
 	}
 
 	/* XXX do sigstack crapola here... XXX */
@@ -539,8 +540,6 @@ out:
 #define IRIX_P_PID    0
 #define IRIX_P_PGID   2
 #define IRIX_P_ALL    7
-
-extern int getrusage(struct task_struct *, int, struct rusage __user *);
 
 #define W_EXITED     1
 #define W_TRAPPED    2

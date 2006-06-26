@@ -6,7 +6,6 @@
 #ifndef __SPARC64_SPINLOCK_H
 #define __SPARC64_SPINLOCK_H
 
-#include <linux/config.h>
 #include <linux/threads.h>	/* For NR_CPUS */
 
 #ifndef __ASSEMBLY__

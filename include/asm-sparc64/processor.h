@@ -13,7 +13,6 @@
  */
 #define current_text_addr() ({ void *pc; __asm__("rd %%pc, %0" : "=r" (pc)); pc; })
 
-#include <linux/config.h>
 #include <asm/asi.h>
 #include <asm/a.out.h>
 #include <asm/pstate.h>

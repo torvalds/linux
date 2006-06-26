@@ -8,6 +8,7 @@
  * directory of the kernel sources for details.
  */
 
+#include <linux/bitmap.h>
 #include <linux/kernel.h>
 #include <linux/config.h>
 #include <linux/list.h>
@@ -38,6 +39,7 @@ struct nodemgr_csr_info {
 	struct hpsb_host *host;
 	nodeid_t nodeid;
 	unsigned int generation;
+	unsigned int speed_unverified:1;
 };
 
 
@@ -57,23 +59,75 @@ static char *nodemgr_find_oui_name(int oui)
 	return NULL;
 }
 
+/*
+ * Correct the speed map entry.  This is necessary
+ *  - for nodes with link speed < phy speed,
+ *  - for 1394b nodes with negotiated phy port speed < IEEE1394_SPEED_MAX.
+ * A possible speed is determined by trial and error, using quadlet reads.
+ */
+static int nodemgr_check_speed(struct nodemgr_csr_info *ci, u64 addr,
+			       quadlet_t *buffer)
+{
+	quadlet_t q;
+	u8 i, *speed, old_speed, good_speed;
+	int ret;
+
+	speed = ci->host->speed + NODEID_TO_NODE(ci->nodeid);
+	old_speed = *speed;
+	good_speed = IEEE1394_SPEED_MAX + 1;
+
+	/* Try every speed from S100 to old_speed.
+	 * If we did it the other way around, a too low speed could be caught
+	 * if the retry succeeded for some other reason, e.g. because the link
+	 * just finished its initialization. */
+	for (i = IEEE1394_SPEED_100; i <= old_speed; i++) {
+		*speed = i;
+		ret = hpsb_read(ci->host, ci->nodeid, ci->generation, addr,
+				&q, sizeof(quadlet_t));
+		if (ret)
+			break;
+		*buffer = q;
+		good_speed = i;
+	}
+	if (good_speed <= IEEE1394_SPEED_MAX) {
+		HPSB_DEBUG("Speed probe of node " NODE_BUS_FMT " yields %s",
+			   NODE_BUS_ARGS(ci->host, ci->nodeid),
+			   hpsb_speedto_str[good_speed]);
+		*speed = good_speed;
+		ci->speed_unverified = 0;
+		return 0;
+	}
+	*speed = old_speed;
+	return ret;
+}
 
 static int nodemgr_bus_read(struct csr1212_csr *csr, u64 addr, u16 length,
                             void *buffer, void *__ci)
 {
 	struct nodemgr_csr_info *ci = (struct nodemgr_csr_info*)__ci;
-	int i, ret = 0;
+	int i, ret;
 
 	for (i = 1; ; i++) {
 		ret = hpsb_read(ci->host, ci->nodeid, ci->generation, addr,
 				buffer, length);
-		if (!ret || i == 3)
+		if (!ret) {
+			ci->speed_unverified = 0;
+			break;
+		}
+		/* Give up after 3rd failure. */
+		if (i == 3)
 			break;
 
+		/* The ieee1394_core guessed the node's speed capability from
+		 * the self ID.  Check whether a lower speed works. */
+		if (ci->speed_unverified && length == sizeof(quadlet_t)) {
+			ret = nodemgr_check_speed(ci, addr, buffer);
+			if (!ret)
+				break;
+		}
 		if (msleep_interruptible(334))
 			return -EINTR;
 	}
-
 	return ret;
 }
 
@@ -281,10 +335,12 @@ static ssize_t fw_show_ne_bus_options(struct device *dev, struct device_attribut
 static DEVICE_ATTR(bus_options,S_IRUGO,fw_show_ne_bus_options,NULL);
 
 
+/* tlabels_free, tlabels_allocations, tlabels_mask are read non-atomically
+ * here, therefore displayed values may be occasionally wrong. */
 static ssize_t fw_show_ne_tlabels_free(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct node_entry *ne = container_of(dev, struct node_entry, device);
-	return sprintf(buf, "%d\n", atomic_read(&ne->tpool->count.count) + 1);
+	return sprintf(buf, "%d\n", 64 - bitmap_weight(ne->tpool->pool, 64));
 }
 static DEVICE_ATTR(tlabels_free,S_IRUGO,fw_show_ne_tlabels_free,NULL);
 
@@ -1204,6 +1260,8 @@ static void nodemgr_node_scan_one(struct host_info *hi,
 	ci->host = host;
 	ci->nodeid = nodeid;
 	ci->generation = generation;
+	ci->speed_unverified =
+		host->speed[NODEID_TO_NODE(nodeid)] > IEEE1394_SPEED_100;
 
 	/* We need to detect when the ConfigROM's generation has changed,
 	 * so we only update the node's info when it needs to be.  */

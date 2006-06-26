@@ -2,7 +2,6 @@
 #ifndef _PPC_PGALLOC_H
 #define _PPC_PGALLOC_H
 
-#include <linux/config.h>
 #include <linux/threads.h>
 
 extern void __bad_pte(pmd_t *pmd);

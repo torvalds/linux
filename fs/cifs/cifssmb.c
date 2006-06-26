@@ -1355,7 +1355,8 @@ CIFSSMBLock(const int xid, struct cifsTconInfo *tcon,
 int
 CIFSSMBPosixLock(const int xid, struct cifsTconInfo *tcon,
 		const __u16 smb_file_id, const int get_flag, const __u64 len,
-		const __u64 lkoffset, const __u16 lock_type, const int waitFlag)
+		struct file_lock *pLockData, const __u16 lock_type, 
+		const int waitFlag)
 {
 	struct smb_com_transaction2_sfi_req *pSMB  = NULL;
 	struct smb_com_transaction2_sfi_rsp *pSMBr = NULL;
@@ -1366,6 +1367,10 @@ CIFSSMBPosixLock(const int xid, struct cifsTconInfo *tcon,
 	__u16 params, param_offset, offset, byte_count, count;
 
 	cFYI(1, ("Posix Lock"));
+
+	if(pLockData == NULL)
+		return EINVAL;
+
 	rc = small_smb_init(SMB_COM_TRANSACTION2, 15, tcon, (void **) &pSMB);
 
 	if (rc)
@@ -1404,10 +1409,10 @@ CIFSSMBPosixLock(const int xid, struct cifsTconInfo *tcon,
 
 	parm_data->lock_type = cpu_to_le16(lock_type);
 	if(waitFlag)
-		parm_data->lock_flags = 1;
+		parm_data->lock_flags = cpu_to_le16(1);
 	parm_data->pid = cpu_to_le32(current->tgid);
-	parm_data->start = lkoffset;
-	parm_data->length = len;  /* normalize negative numbers */
+	parm_data->start = cpu_to_le64(pLockData->fl_start);
+	parm_data->length = cpu_to_le64(len);  /* normalize negative numbers */
 
 	pSMB->DataOffset = cpu_to_le16(offset);
 	pSMB->Fid = smb_file_id;
@@ -1419,8 +1424,33 @@ CIFSSMBPosixLock(const int xid, struct cifsTconInfo *tcon,
 			(struct smb_hdr *) pSMBr, &bytes_returned, 0);
 	if (rc) {
 		cFYI(1, ("Send error in Posix Lock = %d", rc));
-	}
+	} else if (get_flag) {
+		/* lock structure can be returned on get */
+		__u16 data_offset;
+		__u16 data_count;
+		rc = validate_t2((struct smb_t2_rsp *)pSMBr);
 
+		if (rc || (pSMBr->ByteCount < sizeof(struct cifs_posix_lock))) {
+			rc = -EIO;      /* bad smb */
+			goto plk_err_exit;
+		}
+		if(pLockData == NULL) {
+			rc = -EINVAL;
+			goto plk_err_exit;
+		}
+		data_offset = le16_to_cpu(pSMBr->t2.DataOffset);
+		data_count  = le16_to_cpu(pSMBr->t2.DataCount);
+		if(data_count < sizeof(struct cifs_posix_lock)) {
+			rc = -EIO;
+			goto plk_err_exit;
+		}
+		parm_data = (struct cifs_posix_lock *)
+			((char *)&pSMBr->hdr.Protocol + data_offset);
+		if(parm_data->lock_type == cpu_to_le16(CIFS_UNLCK))
+			pLockData->fl_type = F_UNLCK;
+	}
+ 
+plk_err_exit:
 	if (pSMB)
 		cifs_small_buf_release(pSMB);
 

@@ -18,7 +18,6 @@
 #ifndef __ASM_ARCH_IRQS_H
 #define __ASM_ARCH_IRQS_H
 
-#include <linux/config.h>
 
 #define FIQ_START	80
 
@@ -154,9 +153,10 @@
 #if !defined (IRQ_GPIO0INTR)
 # define IRQ_GPIO0INTR	IRQ_GPIO0FIQ
 #endif
-#define IRQ_TICK 	IRQ_TINTR
+#define IRQ_TICK	IRQ_TINTR
 #define IRQ_PCC1_RDY	IRQ_GPIO6INTR	/* PCCard 1 ready */
 #define IRQ_PCC2_RDY	IRQ_GPIO7INTR	/* PCCard 2 ready */
+#define IRQ_USB		IRQ_USBINTR	/* USB device */
 
 #ifdef CONFIG_MACH_KEV7A400
 # define IRQ_TS		IRQ_GPIOFIQ	/* Touchscreen */
@@ -189,6 +189,10 @@
 # define NR_IRQ_BOARD		2
 # define IRQ_LPD7A40X_ETH_INT	IRQ_LPD7A40X_CPLD + 0	/* Ethernet chip */
 # define IRQ_LPD7A400_TS	IRQ_LPD7A40X_CPLD + 1	/* Touch screen */
+#endif
+
+#if defined (CONFIG_MACH_LPD7A400)
+# define IRQ_TOUCH		IRQ_LPD7A400_TS
 #endif
 
 #define NR_IRQS		(NR_IRQ_CPU + NR_IRQ_BOARD)

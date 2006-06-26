@@ -617,6 +617,9 @@ static int agp_amd64_resume(struct pci_dev *pdev)
 	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
 
+	if (pdev->vendor == PCI_VENDOR_ID_NVIDIA)
+		nforce3_agp_init(pdev);
+
 	return amd_8151_configure();
 }
 

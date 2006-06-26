@@ -3886,6 +3886,10 @@ long sched_setaffinity(pid_t pid, cpumask_t new_mask)
 			!capable(CAP_SYS_NICE))
 		goto out_unlock;
 
+	retval = security_task_setscheduler(p, 0, NULL);
+	if (retval)
+		goto out_unlock;
+
 	cpus_allowed = cpuset_cpus_allowed(p);
 	cpus_and(new_mask, new_mask, cpus_allowed);
 	retval = set_cpus_allowed(p, new_mask);
@@ -3954,7 +3958,10 @@ long sched_getaffinity(pid_t pid, cpumask_t *mask)
 	if (!p)
 		goto out_unlock;
 
-	retval = 0;
+	retval = security_task_getscheduler(p);
+	if (retval)
+		goto out_unlock;
+
 	cpus_and(*mask, p->cpus_allowed, cpu_online_map);
 
 out_unlock:
@@ -4046,6 +4053,9 @@ asmlinkage long sys_sched_yield(void)
 
 static inline void __cond_resched(void)
 {
+#ifdef CONFIG_DEBUG_SPINLOCK_SLEEP
+	__might_sleep(__FILE__, __LINE__);
+#endif
 	/*
 	 * The BKS might be reacquired before we have dropped
 	 * PREEMPT_ACTIVE, which could trigger a second
@@ -4142,7 +4152,7 @@ EXPORT_SYMBOL(yield);
  */
 void __sched io_schedule(void)
 {
-	struct runqueue *rq = &per_cpu(runqueues, raw_smp_processor_id());
+	struct runqueue *rq = &__raw_get_cpu_var(runqueues);
 
 	atomic_inc(&rq->nr_iowait);
 	schedule();
@@ -4153,7 +4163,7 @@ EXPORT_SYMBOL(io_schedule);
 
 long __sched io_schedule_timeout(long timeout)
 {
-	struct runqueue *rq = &per_cpu(runqueues, raw_smp_processor_id());
+	struct runqueue *rq = &__raw_get_cpu_var(runqueues);
 	long ret;
 
 	atomic_inc(&rq->nr_iowait);
@@ -4746,6 +4756,8 @@ static int migration_call(struct notifier_block *nfb, unsigned long action,
 		break;
 #ifdef CONFIG_HOTPLUG_CPU
 	case CPU_UP_CANCELED:
+		if (!cpu_rq(cpu)->migration_thread)
+			break;
 		/* Unbind it from offline cpu so it can run.  Fall thru. */
 		kthread_bind(cpu_rq(cpu)->migration_thread,
 			     any_online_cpu(cpu_online_map));

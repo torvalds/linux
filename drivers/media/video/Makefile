@@ -6,7 +6,7 @@ zoran-objs      :=	zr36120.o zr36120_i2c.o zr36120_mem.o
 zr36067-objs	:=	zoran_procfs.o zoran_device.o \
 			zoran_driver.o zoran_card.o
 tuner-objs	:=	tuner-core.o tuner-types.o tuner-simple.o \
-			mt20xx.o tda8290.o tea5767.o
+			mt20xx.o tda8290.o tea5767.o tda9887.o
 
 msp3400-objs	:=	msp3400-driver.o msp3400-kthreads.o
 
@@ -33,6 +33,7 @@ obj-$(CONFIG_VIDEO_ZORAN_DC30) += adv7175.o vpx3220.o zr36050.o \
 	zr36016.o
 obj-$(CONFIG_VIDEO_ZORAN_LML33) += bt819.o bt856.o zr36060.o
 obj-$(CONFIG_VIDEO_ZORAN_LML33R10) += saa7114.o adv7170.o zr36060.o
+obj-$(CONFIG_VIDEO_ZORAN_AVS6EYES) += bt866.o ks0127.o zr36060.o
 obj-$(CONFIG_VIDEO_ZORAN) += zr36067.o videocodec.o
 obj-$(CONFIG_VIDEO_PMS) += pms.o
 obj-$(CONFIG_VIDEO_PLANB) += planb.o
@@ -48,6 +49,7 @@ obj-$(CONFIG_VIDEO_EM28XX) += em28xx/
 obj-$(CONFIG_VIDEO_EM28XX) += tvp5150.o
 obj-$(CONFIG_VIDEO_MSP3400) += msp3400.o
 obj-$(CONFIG_VIDEO_CS53L32A) += cs53l32a.o
+obj-$(CONFIG_VIDEO_TLV320AIC23B) += tlv320aic23b.o
 obj-$(CONFIG_VIDEO_WM8775) += wm8775.o
 obj-$(CONFIG_VIDEO_WM8739) += wm8739.o
 obj-$(CONFIG_VIDEO_OVCAMCHIP) += ovcamchip/
@@ -58,7 +60,7 @@ obj-$(CONFIG_VIDEO_HEXIUM_GEMINI) += hexium_gemini.o
 obj-$(CONFIG_VIDEO_DPC) += saa7111.o dpc7146.o
 obj-$(CONFIG_TUNER_3036) += tuner-3036.o
 
-obj-$(CONFIG_VIDEO_TUNER) += tuner.o tda9887.o
+obj-$(CONFIG_VIDEO_TUNER) += tuner.o
 obj-$(CONFIG_VIDEO_BUF)   += video-buf.o
 obj-$(CONFIG_VIDEO_BUF_DVB) += video-buf-dvb.o
 obj-$(CONFIG_VIDEO_BTCX)  += btcx-risc.o
@@ -71,6 +73,7 @@ obj-$(CONFIG_VIDEO_SAA711X) += saa7115.o
 obj-$(CONFIG_VIDEO_SAA7127) += saa7127.o
 obj-$(CONFIG_VIDEO_UPD64031A) += upd64031a.o
 obj-$(CONFIG_VIDEO_UPD64083) += upd64083.o
+obj-$(CONFIG_VIDEO_CX2341X) += cx2341x.o
 
 obj-$(CONFIG_USB_DABUSB)        += dabusb.o
 obj-$(CONFIG_USB_DSBR)          += dsbr100.o

@@ -1609,8 +1609,6 @@ ppp_receive_nonmp_frame(struct ppp *ppp, struct sk_buff *skb)
 			kfree_skb(skb);
 			skb = ns;
 		}
-		else if (!pskb_may_pull(skb, skb->len))
-			goto err;
 		else
 			skb->ip_summed = CHECKSUM_NONE;
 

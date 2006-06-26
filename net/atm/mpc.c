@@ -229,20 +229,15 @@ int atm_mpoa_delete_qos(struct atm_mpoa_qos *entry)
 /* this is buggered - we need locking for qos_head */
 void atm_mpoa_disp_qos(struct seq_file *m)
 {
-	unsigned char *ip;
-	char ipaddr[16];
 	struct atm_mpoa_qos *qos;
 
 	qos = qos_head;
 	seq_printf(m, "QoS entries for shortcuts:\n");
 	seq_printf(m, "IP address\n  TX:max_pcr pcr     min_pcr max_cdv max_sdu\n  RX:max_pcr pcr     min_pcr max_cdv max_sdu\n");
 
-	ipaddr[sizeof(ipaddr)-1] = '\0';
 	while (qos != NULL) {
-		ip = (unsigned char *)&qos->ipaddr;
-		sprintf(ipaddr, "%u.%u.%u.%u", NIPQUAD(ip));
 		seq_printf(m, "%u.%u.%u.%u\n     %-7d %-7d %-7d %-7d %-7d\n     %-7d %-7d %-7d %-7d %-7d\n",
-				NIPQUAD(ipaddr),
+				NIPQUAD(qos->ipaddr),
 				qos->qos.txtp.max_pcr, qos->qos.txtp.pcr, qos->qos.txtp.min_pcr, qos->qos.txtp.max_cdv, qos->qos.txtp.max_sdu,
 				qos->qos.rxtp.max_pcr, qos->qos.rxtp.pcr, qos->qos.rxtp.min_pcr, qos->qos.rxtp.max_cdv, qos->qos.rxtp.max_sdu);
 		qos = qos->next;
@@ -1083,7 +1078,6 @@ static void MPOA_trigger_rcvd(struct k_message *msg, struct mpoa_client *mpc)
 static void check_qos_and_open_shortcut(struct k_message *msg, struct mpoa_client *client, in_cache_entry *entry)
 {
 	uint32_t dst_ip = msg->content.in_info.in_dst_ip;
-	unsigned char *ip __attribute__ ((unused)) = (unsigned char *)&dst_ip;
 	struct atm_mpoa_qos *qos = atm_mpoa_search_qos(dst_ip);
 	eg_cache_entry *eg_entry = client->eg_ops->get_by_src_ip(dst_ip, client);
 
@@ -1097,7 +1091,7 @@ static void check_qos_and_open_shortcut(struct k_message *msg, struct mpoa_clien
 				    entry->shortcut = eg_entry->shortcut;
 		}
 	 	if(entry->shortcut){
-			dprintk("mpoa: (%s) using egress SVC to reach %u.%u.%u.%u\n",client->dev->name, NIPQUAD(ip));
+			dprintk("mpoa: (%s) using egress SVC to reach %u.%u.%u.%u\n",client->dev->name, NIPQUAD(dst_ip));
 			client->eg_ops->put(eg_entry);
 			return;
 		}
@@ -1123,8 +1117,7 @@ static void MPOA_res_reply_rcvd(struct k_message *msg, struct mpoa_client *mpc)
 
 	uint32_t dst_ip = msg->content.in_info.in_dst_ip;
 	in_cache_entry *entry = mpc->in_ops->get(dst_ip, mpc);
-	ip = (unsigned char *)&dst_ip;
-	dprintk("mpoa: (%s) MPOA_res_reply_rcvd: ip %u.%u.%u.%u\n", mpc->dev->name, NIPQUAD(ip));
+	dprintk("mpoa: (%s) MPOA_res_reply_rcvd: ip %u.%u.%u.%u\n", mpc->dev->name, NIPQUAD(dst_ip));
 	ddprintk("mpoa: (%s) MPOA_res_reply_rcvd() entry = %p", mpc->dev->name, entry);
 	if(entry == NULL){
 		printk("\nmpoa: (%s) ARGH, received res. reply for an entry that doesn't exist.\n", mpc->dev->name);

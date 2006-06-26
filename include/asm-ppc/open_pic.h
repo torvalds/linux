@@ -12,7 +12,6 @@
 #ifndef _PPC_KERNEL_OPEN_PIC_H
 #define _PPC_KERNEL_OPEN_PIC_H
 
-#include <linux/config.h>
 #include <linux/irq.h>
 
 #define OPENPIC_SIZE	0x40000

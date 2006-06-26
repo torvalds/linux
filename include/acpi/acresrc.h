@@ -164,23 +164,26 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
 /*
  * rsutils
  */
-acpi_status
-acpi_rs_get_prt_method_data(acpi_handle handle, struct acpi_buffer *ret_buffer);
 
 acpi_status
-acpi_rs_get_crs_method_data(acpi_handle handle, struct acpi_buffer *ret_buffer);
+acpi_rs_get_prt_method_data(struct acpi_namespace_node *node,
+			    struct acpi_buffer *ret_buffer);
 
-#ifdef	ACPI_FUTURE_USAGE
 acpi_status
-acpi_rs_get_prs_method_data(acpi_handle handle, struct acpi_buffer *ret_buffer);
-#endif				/* ACPI_FUTURE_USAGE */
+acpi_rs_get_crs_method_data(struct acpi_namespace_node *node,
+			    struct acpi_buffer *ret_buffer);
+
+acpi_status
+acpi_rs_get_prs_method_data(struct acpi_namespace_node *node,
+			    struct acpi_buffer *ret_buffer);
 
 acpi_status
 acpi_rs_get_method_data(acpi_handle handle,
 			char *path, struct acpi_buffer *ret_buffer);
 
 acpi_status
-acpi_rs_set_srs_method_data(acpi_handle handle, struct acpi_buffer *ret_buffer);
+acpi_rs_set_srs_method_data(struct acpi_namespace_node *node,
+			    struct acpi_buffer *ret_buffer);
 
 /*
  * rscalc
@@ -198,8 +201,9 @@ acpi_rs_get_pci_routing_table_length(union acpi_operand_object *package_object,
 				     acpi_size * buffer_size_needed);
 
 acpi_status
-acpi_rs_convert_aml_to_resources(u8 * aml_buffer,
-				 u32 aml_buffer_length, u8 * output_buffer);
+acpi_rs_convert_aml_to_resources(u8 * aml,
+				 u32 length,
+				 u32 offset, u8 resource_index, void **context);
 
 acpi_status
 acpi_rs_convert_resources_to_aml(struct acpi_resource *resource,

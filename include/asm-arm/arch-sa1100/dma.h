@@ -10,7 +10,6 @@
 #ifndef __ASM_ARCH_DMA_H
 #define __ASM_ARCH_DMA_H
 
-#include <linux/config.h>
 #include "hardware.h"
 
 

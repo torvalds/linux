@@ -184,6 +184,7 @@ static const struct {
 
 static struct pci_device_id rtl8169_pci_tbl[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_REALTEK,	0x8169), },
+	{ PCI_DEVICE(PCI_VENDOR_ID_REALTEK,	0x8129), },
 	{ PCI_DEVICE(PCI_VENDOR_ID_DLINK,	0x4300), },
 	{ PCI_DEVICE(0x16ec,			0x0116), },
 	{ PCI_VENDOR_ID_LINKSYS,		0x1032, PCI_ANY_ID, 0x0024, },
@@ -2171,7 +2172,7 @@ static int rtl8169_xmit_frags(struct rtl8169_private *tp, struct sk_buff *skb,
 static inline u32 rtl8169_tso_csum(struct sk_buff *skb, struct net_device *dev)
 {
 	if (dev->features & NETIF_F_TSO) {
-		u32 mss = skb_shinfo(skb)->tso_size;
+		u32 mss = skb_shinfo(skb)->gso_size;
 
 		if (mss)
 			return LargeSend | ((mss & MSSMask) << MSSShift);
@@ -2221,8 +2222,7 @@ static int rtl8169_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		len = skb->len;
 
 		if (unlikely(len < ETH_ZLEN)) {
-			skb = skb_padto(skb, ETH_ZLEN);
-			if (!skb)
+			if (skb_padto(skb, ETH_ZLEN))
 				goto err_update_stats;
 			len = ETH_ZLEN;
 		}

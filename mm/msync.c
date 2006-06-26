@@ -170,8 +170,6 @@ asmlinkage long sys_msync(unsigned long start, size_t len, int flags)
 	 * just ignore them, but return -ENOMEM at the end.
 	 */
 	down_read(&current->mm->mmap_sem);
-	if (flags & MS_SYNC)
-		current->flags |= PF_SYNCWRITE;
 	vma = find_vma(current->mm, start);
 	if (!vma) {
 		error = -ENOMEM;
@@ -228,7 +226,6 @@ asmlinkage long sys_msync(unsigned long start, size_t len, int flags)
 		}
 	} while (vma && !done);
 out_unlock:
-	current->flags &= ~PF_SYNCWRITE;
 	up_read(&current->mm->mmap_sem);
 out:
 	return error;

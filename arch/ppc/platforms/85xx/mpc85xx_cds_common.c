@@ -379,13 +379,12 @@ mpc85xx_cds_pcibios_fixup(void)
                                         PCI_DEVICE_ID_VIA_82C586_2, NULL))) {
                 dev->irq = 10;
                 pci_write_config_byte(dev, PCI_INTERRUPT_LINE, 10);
-		pci_dev_put(dev);
-        }
 
-	if ((dev = pci_get_device(PCI_VENDOR_ID_VIA,
+		if ((dev = pci_get_device(PCI_VENDOR_ID_VIA,
                                         PCI_DEVICE_ID_VIA_82C586_2, dev))) {
-                dev->irq = 11;
-                pci_write_config_byte(dev, PCI_INTERRUPT_LINE, 11);
+	                dev->irq = 11;
+	                pci_write_config_byte(dev, PCI_INTERRUPT_LINE, 11);
+		}
 		pci_dev_put(dev);
         }
 }

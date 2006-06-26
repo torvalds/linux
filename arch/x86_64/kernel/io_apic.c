@@ -271,6 +271,18 @@ __setup("enable_8254_timer", setup_enable_8254_timer);
 #include <linux/pci_ids.h>
 #include <linux/pci.h>
 
+
+#ifdef CONFIG_ACPI
+
+static int nvidia_hpet_detected __initdata;
+
+static int __init nvidia_hpet_check(unsigned long phys, unsigned long size)
+{
+	nvidia_hpet_detected = 1;
+	return 0;
+}
+#endif
+
 /* Temporary Hack. Nvidia and VIA boards currently only work with IO-APIC
    off. Check for an Nvidia or VIA PCI bridge and turn it off.
    Use pci direct infrastructure because this runs before the PCI subsystem. 
@@ -317,11 +329,19 @@ void __init check_ioapic(void)
 					return;
 				case PCI_VENDOR_ID_NVIDIA:
 #ifdef CONFIG_ACPI
-					/* All timer overrides on Nvidia
-				           seem to be wrong. Skip them. */
-					acpi_skip_timer_override = 1;
-					printk(KERN_INFO 
-	     "Nvidia board detected. Ignoring ACPI timer override.\n");
+					/*
+					 * All timer overrides on Nvidia are
+					 * wrong unless HPET is enabled.
+					 */
+					nvidia_hpet_detected = 0;
+					acpi_table_parse(ACPI_HPET,
+							nvidia_hpet_check);
+					if (nvidia_hpet_detected == 0) {
+						acpi_skip_timer_override = 1;
+						printk(KERN_INFO "Nvidia board "
+						    "detected. Ignoring ACPI "
+						    "timer override.\n");
+					}
 #endif
 					/* RED-PEN skip them on mptables too? */
 					return;

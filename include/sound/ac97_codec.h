@@ -378,6 +378,7 @@
 #define AC97_HAS_NO_MIC	(1<<15) /* no MIC volume */
 #define AC97_HAS_NO_TONE	(1<<16) /* no Tone volume */
 #define AC97_HAS_NO_STD_PCM	(1<<17)	/* no standard AC97 PCM volume and mute */
+#define AC97_HAS_NO_AUX		(1<<18) /* no standard AC97 AUX volume and mute */
 
 /* rates indexes */
 #define AC97_RATES_FRONT_DAC	0

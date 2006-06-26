@@ -26,8 +26,6 @@
 #include <net/llc_c_st.h>
 #include <net/tcp_states.h>
 
-u8 llc_mac_null_var[IFHWADDRLEN];
-
 /**
  *	llc_build_and_send_pkt - Connection data sending for upper layers.
  *	@sk: connection

@@ -56,7 +56,7 @@ static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;	/* Enable this card *
  *    3 = MediaForte 64-PCR
  *  High 16-bits are video (radio) device number + 1
  */
-static int tea575x_tuner[SNDRV_CARDS] = { [0 ... (SNDRV_CARDS-1)] = 0 };
+static int tea575x_tuner[SNDRV_CARDS];
 
 module_param_array(index, int, NULL, 0444);
 MODULE_PARM_DESC(index, "Index value for the FM801 soundcard.");
@@ -1448,7 +1448,8 @@ static int __devinit snd_card_fm801_probe(struct pci_dev *pci,
 		return err;
 	}
 	if ((err = snd_mpu401_uart_new(card, 0, MPU401_HW_FM801,
-				       FM801_REG(chip, MPU401_DATA), 1,
+				       FM801_REG(chip, MPU401_DATA),
+				       MPU401_INFO_INTEGRATED,
 				       chip->irq, 0, &chip->rmidi)) < 0) {
 		snd_card_free(card);
 		return err;

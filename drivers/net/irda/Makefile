@@ -19,6 +19,7 @@ obj-$(CONFIG_ALI_FIR)		+= ali-ircc.o
 obj-$(CONFIG_VLSI_FIR)		+= vlsi_ir.o
 obj-$(CONFIG_VIA_FIR)		+= via-ircc.o
 obj-$(CONFIG_PXA_FICP)	        += pxaficp_ir.o
+obj-$(CONFIG_MCS_FIR)	        += mcs7780.o
 # Old dongle drivers for old SIR drivers
 obj-$(CONFIG_ESI_DONGLE_OLD)		+= esi.o
 obj-$(CONFIG_TEKRAM_DONGLE_OLD)	+= tekram.o

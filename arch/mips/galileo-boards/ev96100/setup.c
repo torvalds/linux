@@ -55,7 +55,7 @@ extern void mips_reboot_setup(void);
 
 unsigned char mac_0_1[12];
 
-void __init plat_setup(void)
+void __init plat_mem_setup(void)
 {
 	unsigned int config = read_c0_config();
 	unsigned int status = read_c0_status();

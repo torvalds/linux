@@ -22,7 +22,6 @@
 #ifndef _IP_H
 #define _IP_H
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/ip.h>
 #include <linux/in.h>
@@ -147,7 +146,6 @@ void ip_send_reply(struct sock *sk, struct sk_buff *skb, struct ip_reply_arg *ar
 struct ipv4_config
 {
 	int	log_martians;
-	int	autoconfig;
 	int	no_pmtu_disc;
 };
 

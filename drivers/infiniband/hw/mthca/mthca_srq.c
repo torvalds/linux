@@ -243,6 +243,7 @@ int mthca_alloc_srq(struct mthca_dev *dev, struct mthca_pd *pd,
 	spin_lock_init(&srq->lock);
 	srq->refcount = 1;
 	init_waitqueue_head(&srq->wait);
+	mutex_init(&srq->mutex);
 
 	if (mthca_is_memfree(dev))
 		mthca_arbel_init_srq_context(dev, pd, srq, mailbox->buf);
@@ -371,7 +372,11 @@ int mthca_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
 	if (attr_mask & IB_SRQ_LIMIT) {
 		if (attr->srq_limit > srq->max)
 			return -EINVAL;
+
+		mutex_lock(&srq->mutex);
 		ret = mthca_ARM_SRQ(dev, srq->srqn, attr->srq_limit, &status);
+		mutex_unlock(&srq->mutex);
+
 		if (ret)
 			return ret;
 		if (status)

@@ -248,6 +248,7 @@ static void velocity_free_rd_ring(struct velocity_info *vptr);
 static void velocity_free_tx_buf(struct velocity_info *vptr, struct velocity_td_info *);
 static int velocity_soft_reset(struct velocity_info *vptr);
 static void mii_init(struct velocity_info *vptr, u32 mii_status);
+static u32 velocity_get_link(struct net_device *dev);
 static u32 velocity_get_opt_media_mode(struct velocity_info *vptr);
 static void velocity_print_link_status(struct velocity_info *vptr);
 static void safe_disable_mii_autopoll(struct mac_regs __iomem * regs);
@@ -797,6 +798,9 @@ static int __devinit velocity_found1(struct pci_dev *pdev, const struct pci_devi
 	ret = register_netdev(dev);
 	if (ret < 0)
 		goto err_iounmap;
+
+	if (velocity_get_link(dev))
+		netif_carrier_off(dev);
 
 	velocity_print_info(vptr);
 	pci_set_drvdata(pdev, dev);
@@ -1653,8 +1657,10 @@ static void velocity_error(struct velocity_info *vptr, int status)
 
 		if (linked) {
 			vptr->mii_status &= ~VELOCITY_LINK_FAIL;
+			netif_carrier_on(vptr->dev);
 		} else {
 			vptr->mii_status |= VELOCITY_LINK_FAIL;
+			netif_carrier_off(vptr->dev);
 		}
 
 		velocity_print_link_status(vptr);
@@ -1899,6 +1905,13 @@ static int velocity_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	int pktlen = skb->len;
 
+#ifdef VELOCITY_ZERO_COPY_SUPPORT
+	if (skb_shinfo(skb)->nr_frags > 6 && __skb_linearize(skb)) {
+		kfree_skb(skb);
+		return 0;
+	}
+#endif
+
 	spin_lock_irqsave(&vptr->lock, flags);
 
 	index = vptr->td_curr[qnum];
@@ -1914,8 +1927,6 @@ static int velocity_xmit(struct sk_buff *skb, struct net_device *dev)
 	 */
 	if (pktlen < ETH_ZLEN) {
 		/* Cannot occur until ZC support */
-		if(skb_linearize(skb, GFP_ATOMIC))
-			return 0; 
 		pktlen = ETH_ZLEN;
 		memcpy(tdinfo->buf, skb->data, skb->len);
 		memset(tdinfo->buf + skb->len, 0, ETH_ZLEN - skb->len);
@@ -1933,7 +1944,6 @@ static int velocity_xmit(struct sk_buff *skb, struct net_device *dev)
 		int nfrags = skb_shinfo(skb)->nr_frags;
 		tdinfo->skb = skb;
 		if (nfrags > 6) {
-			skb_linearize(skb, GFP_ATOMIC);
 			memcpy(tdinfo->buf, skb->data, skb->len);
 			tdinfo->skb_dma[0] = tdinfo->buf_dma;
 			td_ptr->tdesc0.pktsize = 

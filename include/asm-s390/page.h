@@ -9,7 +9,6 @@
 #ifndef _S390_PAGE_H
 #define _S390_PAGE_H
 
-#include <asm/setup.h>
 #include <asm/types.h>
 
 /* PAGE_SHIFT determines the page size */
@@ -20,6 +19,7 @@
 #define PAGE_DEFAULT_KEY	(PAGE_DEFAULT_ACC << 4)
 
 #ifdef __KERNEL__
+#include <asm/setup.h>
 #ifndef __ASSEMBLY__
 
 #ifndef __s390x__
@@ -189,9 +189,9 @@ page_get_storage_key(unsigned long addr)
 #define VM_DATA_DEFAULT_FLAGS	(VM_READ | VM_WRITE | VM_EXEC | \
 				 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
 
-#endif /* __KERNEL__ */
-
 #include <asm-generic/memory_model.h>
 #include <asm-generic/page.h>
+
+#endif /* __KERNEL__ */
 
 #endif /* _S390_PAGE_H */

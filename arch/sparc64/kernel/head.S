@@ -10,6 +10,7 @@
 #include <linux/config.h>
 #include <linux/version.h>
 #include <linux/errno.h>
+#include <linux/threads.h>
 #include <asm/thread_info.h>
 #include <asm/asi.h>
 #include <asm/pstate.h>
@@ -492,6 +493,35 @@ tlb_fixup_done:
 	mov	%l6, %o1			! OpenPROM stack
 	call	prom_init
 	 mov	%l7, %o0			! OpenPROM cif handler
+
+	/* Initialize current_thread_info()->cpu as early as possible.
+	 * In order to do that accurately we have to patch up the get_cpuid()
+	 * assembler sequences.  And that, in turn, requires that we know
+	 * if we are on a Starfire box or not.  While we're here, patch up
+	 * the sun4v sequences as well.
+	 */
+	call	check_if_starfire
+	 nop
+	call	per_cpu_patch
+	 nop
+	call	sun4v_patch
+	 nop
+
+#ifdef CONFIG_SMP
+	call	hard_smp_processor_id
+	 nop
+	cmp	%o0, NR_CPUS
+	blu,pt	%xcc, 1f
+	 nop
+	call	boot_cpu_id_too_large
+	 nop
+	/* Not reached... */
+
+1:
+#else
+	mov	0, %o0
+#endif
+	stb	%o0, [%g6 + TI_CPU]
 
 	/* Off we go.... */
 	call	start_kernel

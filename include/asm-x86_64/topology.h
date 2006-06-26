@@ -1,7 +1,6 @@
 #ifndef _ASM_X86_64_TOPOLOGY_H
 #define _ASM_X86_64_TOPOLOGY_H
 
-#include <linux/config.h>
 
 #ifdef CONFIG_NUMA
 

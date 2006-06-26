@@ -52,7 +52,7 @@ static struct resource jazz_io_resources[] = {
 	{ "dma2", 0xc0, 0xdf, IORESOURCE_BUSY },
 };
 
-void __init plat_setup(void)
+void __init plat_mem_setup(void)
 {
 	int i;
 

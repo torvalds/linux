@@ -116,8 +116,7 @@ aoenet_rcv(struct sk_buff *skb, struct net_device *ifp, struct packet_type *pt, 
 	skb = skb_share_check(skb, GFP_ATOMIC);
 	if (skb == NULL)
 		return 0;
-	if (skb_is_nonlinear(skb))
-	if (skb_linearize(skb, GFP_ATOMIC) < 0)
+	if (skb_linearize(skb))
 		goto exit;
 	if (!is_aoe_netif(ifp))
 		goto exit;

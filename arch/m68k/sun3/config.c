@@ -36,7 +36,6 @@ extern char _text, _end;
 char sun3_reserved_pmeg[SUN3_PMEGS_NUM];
 
 extern unsigned long sun3_gettimeoffset(void);
-extern int show_sun3_interrupts (struct seq_file *, void *);
 extern void sun3_sched_init(irqreturn_t (*handler)(int, void *, struct pt_regs *));
 extern void sun3_get_model (char* model);
 extern void idprom_init (void);
@@ -147,13 +146,6 @@ void __init config_sun3(void)
 
         mach_sched_init      =  sun3_sched_init;
         mach_init_IRQ        =  sun3_init_IRQ;
-        mach_default_handler = &sun3_default_handler;
-        mach_request_irq     =  sun3_request_irq;
-        mach_free_irq        =  sun3_free_irq;
-	enable_irq	     =  sun3_enable_irq;
-        disable_irq	     =  sun3_disable_irq;
-	mach_process_int     =  sun3_process_int;
-        mach_get_irq_list    =  show_sun3_interrupts;
         mach_reset           =  sun3_reboot;
 	mach_gettimeoffset   =  sun3_gettimeoffset;
 	mach_get_model	     =  sun3_get_model;

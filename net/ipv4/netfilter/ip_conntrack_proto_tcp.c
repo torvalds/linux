@@ -870,7 +870,7 @@ static int tcp_error(struct sk_buff *skb,
 	 * and moreover root might send raw packets.
 	 */
 	/* FIXME: Source route IP option packets --RR */
-	if (hooknum == NF_IP_PRE_ROUTING &&
+	if (ip_conntrack_checksum && hooknum == NF_IP_PRE_ROUTING &&
 	    nf_ip_checksum(skb, hooknum, iph->ihl * 4, IPPROTO_TCP)) {
 		if (LOG_INVALID(IPPROTO_TCP))
 			nf_log_packet(PF_INET, 0, skb, NULL, NULL, NULL,

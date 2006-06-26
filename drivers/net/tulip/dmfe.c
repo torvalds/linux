@@ -50,7 +50,7 @@
     forget to unmap PCI mapped skbs.
 
     Alan Cox <alan@redhat.com>
-    Added new PCI identifiers provided by Clear Zhang at ALi 
+    Added new PCI identifiers provided by Clear Zhang at ALi
     for their 1563 ethernet device.
 
     TODO

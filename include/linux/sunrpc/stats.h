@@ -9,7 +9,6 @@
 #ifndef _LINUX_SUNRPC_STATS_H
 #define _LINUX_SUNRPC_STATS_H
 
-#include <linux/config.h>
 #include <linux/proc_fs.h>
 
 struct rpc_stat {

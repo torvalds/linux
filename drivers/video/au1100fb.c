@@ -214,9 +214,12 @@ int au1100fb_setmode(struct au1100fb_device *fbdev)
  */
 int au1100fb_fb_setcolreg(unsigned regno, unsigned red, unsigned green, unsigned blue, unsigned transp, struct fb_info *fbi)
 {
-	struct au1100fb_device *fbdev = to_au1100fb_device(fbi);
-	u32 *palette = fbdev->regs->lcd_pallettebase;
+	struct au1100fb_device *fbdev;
+	u32 *palette;
 	u32 value;
+
+	fbdev = to_au1100fb_device(fbi);
+	palette = fbdev->regs->lcd_pallettebase;
 
 	if (regno > (AU1100_LCD_NBR_PALETTE_ENTRIES - 1))
 		return -EINVAL;
@@ -316,8 +319,10 @@ int au1100fb_fb_blank(int blank_mode, struct fb_info *fbi)
  */
 int au1100fb_fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *fbi)
 {
-	struct au1100fb_device *fbdev = to_au1100fb_device(fbi);
+	struct au1100fb_device *fbdev;
 	int dy;
+
+	fbdev = to_au1100fb_device(fbi);
 
 	print_dbg("fb_pan_display %p %p", var, fbi);
 
@@ -382,9 +387,11 @@ void au1100fb_fb_rotate(struct fb_info *fbi, int angle)
  */
 int au1100fb_fb_mmap(struct fb_info *fbi, struct vm_area_struct *vma)
 {
-	struct au1100fb_device *fbdev = to_au1100fb_device(fbi);
+	struct au1100fb_device *fbdev;
 	unsigned int len;
 	unsigned long start=0, off;
+
+	fbdev = to_au1100fb_device(fbi);
 
 	if (vma->vm_pgoff > (~0UL >> PAGE_SHIFT)) {
 		return -EINVAL;
@@ -467,7 +474,7 @@ int au1100fb_drv_probe(struct device *dev)
 
 	if (!request_mem_region(au1100fb_fix.mmio_start, au1100fb_fix.mmio_len,
 				DRIVER_NAME)) {
-		print_err("fail to lock memory region at 0x%08x",
+		print_err("fail to lock memory region at 0x%08lx",
 				au1100fb_fix.mmio_start);
 		return -EBUSY;
 	}
@@ -595,13 +602,13 @@ int au1100fb_drv_remove(struct device *dev)
 	return 0;
 }
 
-int au1100fb_drv_suspend(struct device *dev, u32 state, u32 level)
+int au1100fb_drv_suspend(struct device *dev, pm_message_t state)
 {
 	/* TODO */
 	return 0;
 }
 
-int au1100fb_drv_resume(struct device *dev, u32 level)
+int au1100fb_drv_resume(struct device *dev)
 {
 	/* TODO */
 	return 0;

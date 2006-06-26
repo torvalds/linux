@@ -94,7 +94,7 @@ common_shutdown_1(void *generic_ptr)
 	if (cpuid != boot_cpuid) {
 		flags |= 0x00040000UL; /* "remain halted" */
 		*pflags = flags;
-		clear_bit(cpuid, &cpu_present_mask);
+		cpu_clear(cpuid, cpu_present_map);
 		halt();
 	}
 #endif
@@ -120,8 +120,8 @@ common_shutdown_1(void *generic_ptr)
 
 #ifdef CONFIG_SMP
 	/* Wait for the secondaries to halt. */
-	cpu_clear(boot_cpuid, cpu_possible_map);
-	while (cpus_weight(cpu_possible_map))
+	cpu_clear(boot_cpuid, cpu_present_map);
+	while (cpus_weight(cpu_present_map))
 		barrier();
 #endif
 

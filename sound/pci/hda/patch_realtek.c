@@ -2174,6 +2174,7 @@ static struct hda_board_config alc880_cfg_tbl[] = {
 
 	{ .modelname = "lg", .config = ALC880_LG },
 	{ .pci_subvendor = 0x1854, .pci_subdevice = 0x003b, .config = ALC880_LG },
+	{ .pci_subvendor = 0x1854, .pci_subdevice = 0x0068, .config = ALC880_LG },
 
 	{ .modelname = "lg-lw", .config = ALC880_LG_LW },
 	{ .pci_subvendor = 0x1854, .pci_subdevice = 0x0018, .config = ALC880_LG_LW },
@@ -3105,6 +3106,7 @@ static struct hda_verb alc260_init_verbs[] = {
 	{ }
 };
 
+#if 0 /* should be identical with alc260_init_verbs? */
 static struct hda_verb alc260_hp_init_verbs[] = {
 	/* Headphone and output */
 	{0x10, AC_VERB_SET_PIN_WIDGET_CONTROL, 0xc0},
@@ -3151,6 +3153,7 @@ static struct hda_verb alc260_hp_init_verbs[] = {
 	{0x0a, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x01 << 8))},
 	{ }
 };
+#endif
 
 static struct hda_verb alc260_hp_3013_init_verbs[] = {
 	/* Line out and output */
@@ -3822,12 +3825,16 @@ static struct hda_board_config alc260_cfg_tbl[] = {
 	{ .modelname = "basic", .config = ALC260_BASIC },
 	{ .pci_subvendor = 0x104d, .pci_subdevice = 0x81bb,
 	  .config = ALC260_BASIC }, /* Sony VAIO */
+	{ .pci_subvendor = 0x104d, .pci_subdevice = 0x81cc,
+	  .config = ALC260_BASIC }, /* Sony VAIO VGN-S3HP */
+	{ .pci_subvendor = 0x104d, .pci_subdevice = 0x81cd,
+	  .config = ALC260_BASIC }, /* Sony VAIO */
 	{ .pci_subvendor = 0x152d, .pci_subdevice = 0x0729,
 	  .config = ALC260_BASIC }, /* CTL Travel Master U553W */
 	{ .modelname = "hp", .config = ALC260_HP },
 	{ .pci_subvendor = 0x103c, .pci_subdevice = 0x3010, .config = ALC260_HP },
 	{ .pci_subvendor = 0x103c, .pci_subdevice = 0x3011, .config = ALC260_HP },
-	{ .pci_subvendor = 0x103c, .pci_subdevice = 0x3012, .config = ALC260_HP },
+	{ .pci_subvendor = 0x103c, .pci_subdevice = 0x3012, .config = ALC260_HP_3013 },
 	{ .pci_subvendor = 0x103c, .pci_subdevice = 0x3013, .config = ALC260_HP_3013 },
 	{ .pci_subvendor = 0x103c, .pci_subdevice = 0x3014, .config = ALC260_HP },
 	{ .pci_subvendor = 0x103c, .pci_subdevice = 0x3015, .config = ALC260_HP },
@@ -3862,7 +3869,7 @@ static struct alc_config_preset alc260_presets[] = {
 		.mixers = { alc260_base_output_mixer,
 			    alc260_input_mixer,
 			    alc260_capture_alt_mixer },
-		.init_verbs = { alc260_hp_init_verbs },
+		.init_verbs = { alc260_init_verbs },
 		.num_dacs = ARRAY_SIZE(alc260_dac_nids),
 		.dac_nids = alc260_dac_nids,
 		.num_adc_nids = ARRAY_SIZE(alc260_hp_adc_nids),
@@ -4094,21 +4101,6 @@ static struct snd_kcontrol_new alc882_base_mixer[] = {
 	HDA_CODEC_MUTE("Front Mic Playback Switch", 0x0b, 0x1, HDA_INPUT),
 	HDA_CODEC_VOLUME("PC Speaker Playback Volume", 0x0b, 0x05, HDA_INPUT),
 	HDA_CODEC_MUTE("PC Speaker Playback Switch", 0x0b, 0x05, HDA_INPUT),
-	HDA_CODEC_VOLUME("Capture Volume", 0x07, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE("Capture Switch", 0x07, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME_IDX("Capture Volume", 1, 0x08, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE_IDX("Capture Switch", 1, 0x08, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME_IDX("Capture Volume", 2, 0x09, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE_IDX("Capture Switch", 2, 0x09, 0x0, HDA_INPUT),
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		/* .name = "Capture Source", */
-		.name = "Input Source",
-		.count = 3,
-		.info = alc882_mux_enum_info,
-		.get = alc882_mux_enum_get,
-		.put = alc882_mux_enum_put,
-	},
 	{ } /* end */
 };
 
@@ -4342,8 +4334,6 @@ static struct alc_config_preset alc882_presets[] = {
 		.num_dacs = ARRAY_SIZE(alc882_dac_nids),
 		.dac_nids = alc882_dac_nids,
 		.dig_out_nid = ALC882_DIGOUT_NID,
-		.num_adc_nids = ARRAY_SIZE(alc882_adc_nids),
-		.adc_nids = alc882_adc_nids,
 		.dig_in_nid = ALC882_DIGIN_NID,
 		.num_channel_mode = ARRAY_SIZE(alc882_ch_modes),
 		.channel_mode = alc882_ch_modes,
@@ -4355,8 +4345,6 @@ static struct alc_config_preset alc882_presets[] = {
 		.num_dacs = ARRAY_SIZE(alc882_dac_nids),
 		.dac_nids = alc882_dac_nids,
 		.dig_out_nid = ALC882_DIGOUT_NID,
-		.num_adc_nids = ARRAY_SIZE(alc882_adc_nids),
-		.adc_nids = alc882_adc_nids,
 		.dig_in_nid = ALC882_DIGIN_NID,
 		.num_channel_mode = ARRAY_SIZE(alc882_sixstack_modes),
 		.channel_mode = alc882_sixstack_modes,

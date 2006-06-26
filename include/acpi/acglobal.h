@@ -107,6 +107,7 @@ ACPI_EXTERN u32 acpi_gbl_trace_flags;
  * 3) Allow access to uninitialized locals/args (auto-init to integer 0)
  * 4) Allow ANY object type to be a source operand for the Store() operator
  * 5) Allow unresolved references (invalid target name) in package objects
+ * 6) Enable warning messages for behavior that is not ACPI spec compliant
  */
 ACPI_EXTERN u8 ACPI_INIT_GLOBAL(acpi_gbl_enable_interpreter_slack, FALSE);
 
@@ -114,7 +115,7 @@ ACPI_EXTERN u8 ACPI_INIT_GLOBAL(acpi_gbl_enable_interpreter_slack, FALSE);
  * Automatically serialize ALL control methods? Default is FALSE, meaning
  * to use the Serialized/not_serialized method flags on a per method basis.
  * Only change this if the ASL code is poorly written and cannot handle
- * reentrancy even though methods are marked "not_serialized".
+ * reentrancy even though methods are marked "NotSerialized".
  */
 ACPI_EXTERN u8 ACPI_INIT_GLOBAL(acpi_gbl_all_methods_serialized, FALSE);
 
@@ -149,10 +150,10 @@ ACPI_EXTERN u8 ACPI_INIT_GLOBAL(acpi_gbl_leave_wake_gpes_disabled, TRUE);
 ACPI_EXTERN u32 acpi_gbl_table_flags;
 ACPI_EXTERN u32 acpi_gbl_rsdt_table_count;
 ACPI_EXTERN struct rsdp_descriptor *acpi_gbl_RSDP;
-ACPI_EXTERN XSDT_DESCRIPTOR *acpi_gbl_XSDT;
-ACPI_EXTERN FADT_DESCRIPTOR *acpi_gbl_FADT;
+ACPI_EXTERN struct xsdt_descriptor *acpi_gbl_XSDT;
+ACPI_EXTERN struct fadt_descriptor *acpi_gbl_FADT;
 ACPI_EXTERN struct acpi_table_header *acpi_gbl_DSDT;
-ACPI_EXTERN FACS_DESCRIPTOR *acpi_gbl_FACS;
+ACPI_EXTERN struct facs_descriptor *acpi_gbl_FACS;
 ACPI_EXTERN struct acpi_common_facs acpi_gbl_common_fACS;
 /*
  * Since there may be multiple SSDTs and PSDTs, a single pointer is not
@@ -177,15 +178,15 @@ ACPI_EXTERN u8 acpi_gbl_integer_nybble_width;
 /*
  * ACPI Table info arrays
  */
-extern struct acpi_table_list acpi_gbl_table_lists[NUM_ACPI_TABLE_TYPES];
-extern struct acpi_table_support acpi_gbl_table_data[NUM_ACPI_TABLE_TYPES];
+extern struct acpi_table_list acpi_gbl_table_lists[ACPI_TABLE_ID_MAX + 1];
+extern struct acpi_table_support acpi_gbl_table_data[ACPI_TABLE_ID_MAX + 1];
 
 /*
  * Predefined mutex objects.  This array contains the
  * actual OS mutex handles, indexed by the local ACPI_MUTEX_HANDLEs.
  * (The table maps local handles to the real OS handles)
  */
-ACPI_EXTERN struct acpi_mutex_info acpi_gbl_mutex_info[NUM_MUTEX];
+ACPI_EXTERN struct acpi_mutex_info acpi_gbl_mutex_info[ACPI_NUM_MUTEX];
 
 /*****************************************************************************
  *
@@ -203,6 +204,7 @@ ACPI_EXTERN struct acpi_memory_list *acpi_gbl_ns_node_list;
 
 /* Object caches */
 
+ACPI_EXTERN acpi_cache_t *acpi_gbl_namespace_cache;
 ACPI_EXTERN acpi_cache_t *acpi_gbl_state_cache;
 ACPI_EXTERN acpi_cache_t *acpi_gbl_ps_node_cache;
 ACPI_EXTERN acpi_cache_t *acpi_gbl_ps_node_ext_cache;
@@ -244,7 +246,6 @@ extern const char *acpi_gbl_sleep_state_names[ACPI_S_STATE_COUNT];
 extern const char *acpi_gbl_highest_dstate_names[4];
 extern const struct acpi_opcode_info acpi_gbl_aml_op_info[AML_NUM_OPCODES];
 extern const char *acpi_gbl_region_types[ACPI_NUM_PREDEFINED_REGIONS];
-extern const char *acpi_gbl_valid_osi_strings[ACPI_NUM_OSI_STRINGS];
 
 /*****************************************************************************
  *
@@ -291,14 +292,6 @@ ACPI_EXTERN u8 acpi_gbl_cm_single_step;
 
 /*****************************************************************************
  *
- * Parser globals
- *
- ****************************************************************************/
-
-ACPI_EXTERN union acpi_parse_object *acpi_gbl_parsed_namespace_root;
-
-/*****************************************************************************
- *
  * Hardware globals
  *
  ****************************************************************************/
@@ -321,7 +314,11 @@ ACPI_EXTERN struct acpi_fixed_event_handler
 ACPI_EXTERN struct acpi_gpe_xrupt_info *acpi_gbl_gpe_xrupt_list_head;
 ACPI_EXTERN struct acpi_gpe_block_info
     *acpi_gbl_gpe_fadt_blocks[ACPI_MAX_GPE_BLOCKS];
+
+/* Spinlocks */
+
 ACPI_EXTERN acpi_handle acpi_gbl_gpe_lock;
+ACPI_EXTERN acpi_handle acpi_gbl_hardware_lock;
 
 /*****************************************************************************
  *

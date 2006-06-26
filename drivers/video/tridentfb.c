@@ -551,7 +551,7 @@ static inline void enable_mmio(void)
 #define crtc_unlock()	write3X4(CRTVSyncEnd, read3X4(CRTVSyncEnd) & 0x7F)
 
 /*  Return flat panel's maximum x resolution */
-static int __init get_nativex(void)
+static int __devinit get_nativex(void)
 {
 	int x,y,tmp;
 
@@ -658,7 +658,7 @@ static void set_number_of_lines(int lines)
  * If we see that FP is active we assume we have one.
  * Otherwise we have a CRT display.User can override.
  */
-static unsigned int __init get_displaytype(void)
+static unsigned int __devinit get_displaytype(void)
 {
 	if (fp)
 		return DISPLAY_FP;
@@ -668,7 +668,7 @@ static unsigned int __init get_displaytype(void)
 }
 
 /* Try detecting the video memory size */
-static unsigned int __init get_memsize(void)
+static unsigned int __devinit get_memsize(void)
 {
 	unsigned char tmp, tmp2;
 	unsigned int k;

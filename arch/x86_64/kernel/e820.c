@@ -149,7 +149,7 @@ unsigned long __init find_e820_area(unsigned long start, unsigned long end, unsi
 			addr = start;
 		if (addr > ei->addr + ei->size) 
 			continue; 
-		while (bad_addr(&addr, size) && addr+size < ei->addr + ei->size)
+		while (bad_addr(&addr, size) && addr+size <= ei->addr+ei->size)
 			;
 		last = addr + size;
 		if (last > ei->addr + ei->size)

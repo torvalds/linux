@@ -35,7 +35,6 @@
 
 struct ves1820_state {
 	struct i2c_adapter* i2c;
-	struct dvb_frontend_ops ops;
 	/* configuration settings */
 	const struct ves1820_config* config;
 	struct dvb_frontend frontend;
@@ -204,9 +203,6 @@ static int ves1820_init(struct dvb_frontend* fe)
 
 	ves1820_writereg(state, 0x34, state->pwm);
 
-	if (state->config->pll_init)
-		state->config->pll_init(fe);
-
 	return 0;
 }
 
@@ -223,7 +219,11 @@ static int ves1820_set_parameters(struct dvb_frontend* fe, struct dvb_frontend_p
 	if (real_qam < 0 || real_qam > 4)
 		return -EINVAL;
 
-	state->config->pll_set(fe, p);
+	if (fe->ops.tuner_ops.set_params) {
+		fe->ops.tuner_ops.set_params(fe, p);
+		if (fe->ops.i2c_gate_ctrl) fe->ops.i2c_gate_ctrl(fe, 0);
+	}
+
 	ves1820_set_symbolrate(state, p->u.qam.symbol_rate);
 	ves1820_writereg(state, 0x34, state->pwm);
 
@@ -380,7 +380,6 @@ struct dvb_frontend* ves1820_attach(const struct ves1820_config* config,
 		goto error;
 
 	/* setup the state */
-	memcpy(&state->ops, &ves1820_ops, sizeof(struct dvb_frontend_ops));
 	state->reg0 = ves1820_inittab[0];
 	state->config = config;
 	state->i2c = i2c;
@@ -393,12 +392,12 @@ struct dvb_frontend* ves1820_attach(const struct ves1820_config* config,
 	if (verbose)
 		printk("ves1820: pwm=0x%02x\n", state->pwm);
 
-	state->ops.info.symbol_rate_min = (state->config->xin / 2) / 64;      /* SACLK/64 == (XIN/2)/64 */
-	state->ops.info.symbol_rate_max = (state->config->xin / 2) / 4;       /* SACLK/4 */
-
 	/* create dvb_frontend */
-	state->frontend.ops = &state->ops;
+	memcpy(&state->frontend.ops, &ves1820_ops, sizeof(struct dvb_frontend_ops));
+	state->frontend.ops.info.symbol_rate_min = (state->config->xin / 2) / 64;      /* SACLK/64 == (XIN/2)/64 */
+	state->frontend.ops.info.symbol_rate_max = (state->config->xin / 2) / 4;       /* SACLK/4 */
 	state->frontend.demodulator_priv = state;
+
 	return &state->frontend;
 
 error:

@@ -184,7 +184,7 @@ acpi_ds_init_one_object(acpi_handle obj_handle,
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Walk the namespace starting at "start_node" and perform any
+ * DESCRIPTION: Walk the namespace starting at "StartNode" and perform any
  *              necessary initialization on the objects found therein
  *
  ******************************************************************************/
@@ -196,7 +196,7 @@ acpi_ds_initialize_objects(struct acpi_table_desc * table_desc,
 	acpi_status status;
 	struct acpi_init_walk_info info;
 
-	ACPI_FUNCTION_TRACE("ds_initialize_objects");
+	ACPI_FUNCTION_TRACE(ds_initialize_objects);
 
 	ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
 			  "**** Starting initialization of namespace objects ****\n"));
@@ -213,7 +213,7 @@ acpi_ds_initialize_objects(struct acpi_table_desc * table_desc,
 	status = acpi_walk_namespace(ACPI_TYPE_ANY, start_node, ACPI_UINT32_MAX,
 				     acpi_ds_init_one_object, &info, NULL);
 	if (ACPI_FAILURE(status)) {
-		ACPI_EXCEPTION((AE_INFO, status, "During walk_namespace"));
+		ACPI_EXCEPTION((AE_INFO, status, "During WalkNamespace"));
 	}
 
 	ACPI_DEBUG_PRINT_RAW((ACPI_DB_INIT,

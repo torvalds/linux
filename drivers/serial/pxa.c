@@ -269,7 +269,6 @@ static unsigned int serial_pxa_get_mctrl(struct uart_port *port)
 	unsigned char status;
 	unsigned int ret;
 
-return TIOCM_CTS | TIOCM_DSR | TIOCM_CAR;
 	status = serial_in(up, UART_MSR);
 
 	ret = 0;

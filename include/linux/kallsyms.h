@@ -5,7 +5,6 @@
 #ifndef _LINUX_KALLSYMS_H
 #define _LINUX_KALLSYMS_H
 
-#include <linux/config.h>
 
 #define KSYM_NAME_LEN 127
 

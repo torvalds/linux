@@ -227,12 +227,12 @@ enum {
 	SROMC0InfoLeaf		= 27,
 	MediaBlockMask		= 0x3f,
 	MediaCustomCSRs		= (1 << 6),
-	
+
 	/* PCIPM bits */
 	PM_Sleep		= (1 << 31),
 	PM_Snooze		= (1 << 30),
 	PM_Mask			= PM_Sleep | PM_Snooze,
-	
+
 	/* SIAStatus bits */
 	NWayState		= (1 << 14) | (1 << 13) | (1 << 12),
 	NWayRestart		= (1 << 12),
@@ -858,7 +858,7 @@ static void de_stop_rxtx (struct de_private *de)
 			return;
 		cpu_relax();
 	}
-	
+
 	printk(KERN_WARNING "%s: timeout expired stopping DMA\n", de->dev->name);
 }
 
@@ -931,7 +931,7 @@ static void de_set_media (struct de_private *de)
 		macmode |= FullDuplex;
 	else
 		macmode &= ~FullDuplex;
-	
+
 	if (netif_msg_link(de)) {
 		printk(KERN_INFO "%s: set link %s\n"
 		       KERN_INFO "%s:    mode 0x%x, sia 0x%x,0x%x,0x%x,0x%x\n"
@@ -966,9 +966,9 @@ static void de21040_media_timer (unsigned long data)
 	u32 status = dr32(SIAStatus);
 	unsigned int carrier;
 	unsigned long flags;
-	
+
 	carrier = (status & NetCxnErr) ? 0 : 1;
-		
+
 	if (carrier) {
 		if (de->media_type != DE_MEDIA_AUI && (status & LinkFailStatus))
 			goto no_link_yet;
@@ -985,7 +985,7 @@ static void de21040_media_timer (unsigned long data)
 		return;
 	}
 
-	de_link_down(de);	
+	de_link_down(de);
 
 	if (de->media_lock)
 		return;
@@ -1039,7 +1039,7 @@ static unsigned int de_ok_to_advertise (struct de_private *de, u32 new_media)
 			return 0;
 		break;
 	}
-	
+
 	return 1;
 }
 
@@ -1050,9 +1050,9 @@ static void de21041_media_timer (unsigned long data)
 	u32 status = dr32(SIAStatus);
 	unsigned int carrier;
 	unsigned long flags;
-	
+
 	carrier = (status & NetCxnErr) ? 0 : 1;
-		
+
 	if (carrier) {
 		if ((de->media_type == DE_MEDIA_TP_AUTO ||
 		     de->media_type == DE_MEDIA_TP ||
@@ -1072,7 +1072,7 @@ static void de21041_media_timer (unsigned long data)
 		return;
 	}
 
-	de_link_down(de);	
+	de_link_down(de);
 
 	/* if media type locked, don't switch media */
 	if (de->media_lock)
@@ -1124,7 +1124,7 @@ static void de21041_media_timer (unsigned long data)
 		u32 next_states[] = { DE_MEDIA_AUI, DE_MEDIA_BNC, DE_MEDIA_TP_AUTO };
 		de_next_media(de, next_states, ARRAY_SIZE(next_states));
 	}
-	
+
 set_media:
 	spin_lock_irqsave(&de->lock, flags);
 	de_stop_rxtx(de);
@@ -1148,7 +1148,7 @@ static void de_media_interrupt (struct de_private *de, u32 status)
 		mod_timer(&de->media_timer, jiffies + DE_TIMER_LINK);
 		return;
 	}
-	
+
 	BUG_ON(!(status & LinkFail));
 
 	if (netif_carrier_ok(de->dev)) {
@@ -1227,7 +1227,7 @@ static int de_init_hw (struct de_private *de)
 	int rc;
 
 	de_adapter_wake(de);
-	
+
 	macmode = dr32(MacMode) & ~MacModeClear;
 
 	rc = de_reset_mac(de);
@@ -1413,7 +1413,7 @@ static int de_close (struct net_device *dev)
 	netif_stop_queue(dev);
 	netif_carrier_off(dev);
 	spin_unlock_irqrestore(&de->lock, flags);
-	
+
 	free_irq(dev->irq, dev);
 
 	de_free_rings(de);
@@ -1441,7 +1441,7 @@ static void de_tx_timeout (struct net_device *dev)
 
 	spin_unlock_irq(&de->lock);
 	enable_irq(dev->irq);
-		
+
 	/* Update the error counts. */
 	__de_get_stats(de);
 
@@ -1451,7 +1451,7 @@ static void de_tx_timeout (struct net_device *dev)
 	de_init_rings(de);
 
 	de_init_hw(de);
-	
+
 	netif_wake_queue(dev);
 }
 
@@ -1459,7 +1459,7 @@ static void __de_get_regs(struct de_private *de, u8 *buf)
 {
 	int i;
 	u32 *rbuf = (u32 *)buf;
-	
+
 	/* read all CSRs */
 	for (i = 0; i < DE_NUM_REGS; i++)
 		rbuf[i] = dr32(i * 8);
@@ -1474,7 +1474,7 @@ static int __de_get_settings(struct de_private *de, struct ethtool_cmd *ecmd)
 	ecmd->transceiver = XCVR_INTERNAL;
 	ecmd->phy_address = 0;
 	ecmd->advertising = de->media_advertise;
-	
+
 	switch (de->media_type) {
 	case DE_MEDIA_AUI:
 		ecmd->port = PORT_AUI;
@@ -1489,7 +1489,7 @@ static int __de_get_settings(struct de_private *de, struct ethtool_cmd *ecmd)
 		ecmd->speed = SPEED_10;
 		break;
 	}
-	
+
 	if (dr32(MacMode) & FullDuplex)
 		ecmd->duplex = DUPLEX_FULL;
 	else
@@ -1529,7 +1529,7 @@ static int __de_set_settings(struct de_private *de, struct ethtool_cmd *ecmd)
 	if (ecmd->autoneg == AUTONEG_ENABLE &&
 	    (!(ecmd->advertising & ADVERTISED_Autoneg)))
 		return -EINVAL;
-	
+
 	switch (ecmd->port) {
 	case PORT_AUI:
 		new_media = DE_MEDIA_AUI;
@@ -1554,22 +1554,22 @@ static int __de_set_settings(struct de_private *de, struct ethtool_cmd *ecmd)
 			return -EINVAL;
 		break;
 	}
-	
+
 	media_lock = (ecmd->autoneg == AUTONEG_ENABLE) ? 0 : 1;
-	
+
 	if ((new_media == de->media_type) &&
 	    (media_lock == de->media_lock) &&
 	    (ecmd->advertising == de->media_advertise))
 		return 0; /* nothing to change */
-	    
+
 	de_link_down(de);
 	de_stop_rxtx(de);
-	
+
 	de->media_type = new_media;
 	de->media_lock = media_lock;
 	de->media_advertise = ecmd->advertising;
 	de_set_media(de);
-	
+
 	return 0;
 }
 
@@ -1817,7 +1817,7 @@ static void __init de21041_get_srom_info (struct de_private *de)
 	case 0x0204:  de->media_type = DE_MEDIA_TP_FD; break;
 	default: de->media_type = DE_MEDIA_TP_AUTO; break;
 	}
-	
+
 	if (netif_msg_probe(de))
 		printk(KERN_INFO "de%d: SROM leaf offset %u, default media %s\n",
 		       de->board_idx, ofs,
@@ -1886,7 +1886,7 @@ static void __init de21041_get_srom_info (struct de_private *de)
 				       de->media[idx].csr13,
 				       de->media[idx].csr14,
 				       de->media[idx].csr15);
-				       
+
 		} else if (netif_msg_probe(de))
 			printk("\n");
 
@@ -2118,7 +2118,7 @@ static int de_suspend (struct pci_dev *pdev, pm_message_t state)
 
 		spin_unlock_irq(&de->lock);
 		enable_irq(dev->irq);
-		
+
 		/* Update the error counts. */
 		__de_get_stats(de);
 

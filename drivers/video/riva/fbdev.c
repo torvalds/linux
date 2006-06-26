@@ -41,6 +41,7 @@
 #include <linux/fb.h>
 #include <linux/init.h>
 #include <linux/pci.h>
+#include <linux/backlight.h>
 #ifdef CONFIG_MTRR
 #include <asm/mtrr.h>
 #endif
@@ -272,34 +273,154 @@ static const struct riva_regs reg_template = {
 /*
  * Backlight control
  */
+#ifdef CONFIG_FB_RIVA_BACKLIGHT
+/* We do not have any information about which values are allowed, thus
+ * we used safe values.
+ */
+#define MIN_LEVEL 0x158
+#define MAX_LEVEL 0x534
+
+static struct backlight_properties riva_bl_data;
+
+static int riva_bl_get_level_brightness(struct riva_par *par,
+		int level)
+{
+	struct fb_info *info = pci_get_drvdata(par->pdev);
+	int nlevel;
+
+	/* Get and convert the value */
+	mutex_lock(&info->bl_mutex);
+	nlevel = info->bl_curve[level] * FB_BACKLIGHT_MAX / MAX_LEVEL;
+	mutex_unlock(&info->bl_mutex);
+
+	if (nlevel < 0)
+		nlevel = 0;
+	else if (nlevel < MIN_LEVEL)
+		nlevel = MIN_LEVEL;
+	else if (nlevel > MAX_LEVEL)
+		nlevel = MAX_LEVEL;
+
+	return nlevel;
+}
+
+static int riva_bl_update_status(struct backlight_device *bd)
+{
+	struct riva_par *par = class_get_devdata(&bd->class_dev);
+	U032 tmp_pcrt, tmp_pmc;
+	int level;
+
+	if (bd->props->power != FB_BLANK_UNBLANK ||
+	    bd->props->fb_blank != FB_BLANK_UNBLANK)
+		level = 0;
+	else
+		level = bd->props->brightness;
+
+	tmp_pmc = par->riva.PMC[0x10F0/4] & 0x0000FFFF;
+	tmp_pcrt = par->riva.PCRTC0[0x081C/4] & 0xFFFFFFFC;
+	if(level > 0) {
+		tmp_pcrt |= 0x1;
+		tmp_pmc |= (1 << 31); /* backlight bit */
+		tmp_pmc |= riva_bl_get_level_brightness(par, level) << 16; /* level */
+	}
+	par->riva.PCRTC0[0x081C/4] = tmp_pcrt;
+	par->riva.PMC[0x10F0/4] = tmp_pmc;
+
+	return 0;
+}
+
+static int riva_bl_get_brightness(struct backlight_device *bd)
+{
+	return bd->props->brightness;
+}
+
+static struct backlight_properties riva_bl_data = {
+	.owner    = THIS_MODULE,
+	.get_brightness = riva_bl_get_brightness,
+	.update_status	= riva_bl_update_status,
+	.max_brightness = (FB_BACKLIGHT_LEVELS - 1),
+};
+
+static void riva_bl_init(struct riva_par *par)
+{
+	struct fb_info *info = pci_get_drvdata(par->pdev);
+	struct backlight_device *bd;
+	char name[12];
+
+	if (!par->FlatPanel)
+		return;
+
 #ifdef CONFIG_PMAC_BACKLIGHT
+	if (!machine_is(powermac) ||
+	    !pmac_has_backlight_type("mnca"))
+		return;
+#endif
 
-static int riva_backlight_levels[] = {
-    0x158,
-    0x192,
-    0x1c6,
-    0x200,
-    0x234,
-    0x268,
-    0x2a2,
-    0x2d6,
-    0x310,
-    0x344,
-    0x378,
-    0x3b2,
-    0x3e6,
-    0x41a,
-    0x454,
-    0x534,
-};
+	snprintf(name, sizeof(name), "rivabl%d", info->node);
 
-static int riva_set_backlight_enable(int on, int level, void *data);
-static int riva_set_backlight_level(int level, void *data);
-static struct backlight_controller riva_backlight_controller = {
-	riva_set_backlight_enable,
-	riva_set_backlight_level
-};
-#endif /* CONFIG_PMAC_BACKLIGHT */
+	bd = backlight_device_register(name, par, &riva_bl_data);
+	if (IS_ERR(bd)) {
+		info->bl_dev = NULL;
+		printk("riva: Backlight registration failed\n");
+		goto error;
+	}
+
+	mutex_lock(&info->bl_mutex);
+	info->bl_dev = bd;
+	fb_bl_default_curve(info, 0,
+		0x158 * FB_BACKLIGHT_MAX / MAX_LEVEL,
+		0x534 * FB_BACKLIGHT_MAX / MAX_LEVEL);
+	mutex_unlock(&info->bl_mutex);
+
+	up(&bd->sem);
+	bd->props->brightness = riva_bl_data.max_brightness;
+	bd->props->power = FB_BLANK_UNBLANK;
+	bd->props->update_status(bd);
+	down(&bd->sem);
+
+#ifdef CONFIG_PMAC_BACKLIGHT
+	mutex_lock(&pmac_backlight_mutex);
+	if (!pmac_backlight)
+		pmac_backlight = bd;
+	mutex_unlock(&pmac_backlight_mutex);
+#endif
+
+	printk("riva: Backlight initialized (%s)\n", name);
+
+	return;
+
+error:
+	return;
+}
+
+static void riva_bl_exit(struct riva_par *par)
+{
+	struct fb_info *info = pci_get_drvdata(par->pdev);
+
+#ifdef CONFIG_PMAC_BACKLIGHT
+	mutex_lock(&pmac_backlight_mutex);
+#endif
+
+	mutex_lock(&info->bl_mutex);
+	if (info->bl_dev) {
+#ifdef CONFIG_PMAC_BACKLIGHT
+		if (pmac_backlight == info->bl_dev)
+			pmac_backlight = NULL;
+#endif
+
+		backlight_device_unregister(info->bl_dev);
+
+		printk("riva: Backlight unloaded\n");
+	}
+	mutex_unlock(&info->bl_mutex);
+
+#ifdef CONFIG_PMAC_BACKLIGHT
+	mutex_unlock(&pmac_backlight_mutex);
+#endif
+}
+#else
+static inline void riva_bl_init(struct riva_par *par) {}
+static inline void riva_bl_exit(struct riva_par *par) {}
+#endif /* CONFIG_FB_RIVA_BACKLIGHT */
 
 /* ------------------------------------------------------------------------- *
  *
@@ -973,36 +1094,6 @@ static int riva_get_cmap_len(const struct fb_var_screeninfo *var)
 
 /* ------------------------------------------------------------------------- *
  *
- * Backlight operations
- *
- * ------------------------------------------------------------------------- */
-
-#ifdef CONFIG_PMAC_BACKLIGHT
-static int riva_set_backlight_enable(int on, int level, void *data)
-{
-	struct riva_par *par = data;
-	U032 tmp_pcrt, tmp_pmc;
-
-	tmp_pmc = par->riva.PMC[0x10F0/4] & 0x0000FFFF;
-	tmp_pcrt = par->riva.PCRTC0[0x081C/4] & 0xFFFFFFFC;
-	if(on && (level > BACKLIGHT_OFF)) {
-		tmp_pcrt |= 0x1;
-		tmp_pmc |= (1 << 31); // backlight bit
-		tmp_pmc |= riva_backlight_levels[level-1] << 16; // level
-	}
-	par->riva.PCRTC0[0x081C/4] = tmp_pcrt;
-	par->riva.PMC[0x10F0/4] = tmp_pmc;
-	return 0;
-}
-
-static int riva_set_backlight_level(int level, void *data)
-{
-	return riva_set_backlight_enable(1, level, data);
-}
-#endif /* CONFIG_PMAC_BACKLIGHT */
-
-/* ------------------------------------------------------------------------- *
- *
  * framebuffer operations
  *
  * ------------------------------------------------------------------------- */
@@ -1247,10 +1338,15 @@ static int rivafb_blank(int blank, struct fb_info *info)
 	SEQout(par, 0x01, tmp);
 	CRTCout(par, 0x1a, vesa);
 
-#ifdef CONFIG_PMAC_BACKLIGHT
-	if ( par->FlatPanel && machine_is(powermac)) {
-		set_backlight_enable(!blank);
+#ifdef CONFIG_FB_RIVA_BACKLIGHT
+	mutex_lock(&info->bl_mutex);
+	if (info->bl_dev) {
+		down(&info->bl_dev->sem);
+		info->bl_dev->props->power = blank;
+		info->bl_dev->props->update_status(info->bl_dev);
+		up(&info->bl_dev->sem);
 	}
+	mutex_unlock(&info->bl_mutex);
 #endif
 
 	NVTRACE_LEAVE();
@@ -2037,11 +2133,9 @@ static int __devinit rivafb_probe(struct pci_dev *pd,
 		RIVAFB_VERSION,
 		info->fix.smem_len / (1024 * 1024),
 		info->fix.smem_start);
-#ifdef CONFIG_PMAC_BACKLIGHT
-	if (default_par->FlatPanel && machine_is(powermac))
-		register_backlight_controller(&riva_backlight_controller,
-					      default_par, "mnca");
-#endif
+
+	riva_bl_init(info->par);
+
 	NVTRACE_LEAVE();
 	return 0;
 
@@ -2073,6 +2167,8 @@ static void __exit rivafb_remove(struct pci_dev *pd)
 	struct riva_par *par = info->par;
 	
 	NVTRACE_ENTER();
+
+	riva_bl_exit(par);
 
 #ifdef CONFIG_FB_RIVA_I2C
 	riva_delete_i2c_busses(par);

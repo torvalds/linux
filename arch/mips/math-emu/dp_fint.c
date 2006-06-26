@@ -29,7 +29,9 @@
 
 ieee754dp ieee754dp_fint(int x)
 {
-	COMPXDP;
+	u64 xm;
+	int xe;
+	int xs;
 
 	CLEARCX;
 

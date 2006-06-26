@@ -22,7 +22,6 @@
 #define UL(x) (x)
 #endif
 
-#include <linux/config.h>
 #include <linux/compiler.h>
 #include <asm/arch/memory.h>
 #include <asm/sizes.h>

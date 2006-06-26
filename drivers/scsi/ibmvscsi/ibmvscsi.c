@@ -121,10 +121,9 @@ static int initialize_event_pool(struct event_pool *pool,
 
 	pool->size = size;
 	pool->next = 0;
-	pool->events = kmalloc(pool->size * sizeof(*pool->events), GFP_KERNEL);
+	pool->events = kcalloc(pool->size, sizeof(*pool->events), GFP_KERNEL);
 	if (!pool->events)
 		return -ENOMEM;
-	memset(pool->events, 0x00, pool->size * sizeof(*pool->events));
 
 	pool->iu_storage =
 	    dma_alloc_coherent(hostdata->dev,

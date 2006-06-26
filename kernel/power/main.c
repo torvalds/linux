@@ -15,7 +15,7 @@
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/pm.h>
-
+#include <linux/console.h>
 
 #include "power.h"
 
@@ -86,6 +86,7 @@ static int suspend_prepare(suspend_state_t state)
 			goto Thaw;
 	}
 
+	suspend_console();
 	if ((error = device_suspend(PMSG_SUSPEND))) {
 		printk(KERN_ERR "Some devices failed to suspend\n");
 		goto Finish;
@@ -133,6 +134,7 @@ int suspend_enter(suspend_state_t state)
 static void suspend_finish(suspend_state_t state)
 {
 	device_resume();
+	resume_console();
 	thaw_processes();
 	enable_nonboot_cpus();
 	if (pm_ops && pm_ops->finish)
@@ -143,7 +145,7 @@ static void suspend_finish(suspend_state_t state)
 
 
 
-static char *pm_states[PM_SUSPEND_MAX] = {
+static const char * const pm_states[PM_SUSPEND_MAX] = {
 	[PM_SUSPEND_STANDBY]	= "standby",
 	[PM_SUSPEND_MEM]	= "mem",
 #ifdef CONFIG_SOFTWARE_SUSPEND
@@ -260,7 +262,7 @@ static ssize_t state_show(struct subsystem * subsys, char * buf)
 static ssize_t state_store(struct subsystem * subsys, const char * buf, size_t n)
 {
 	suspend_state_t state = PM_SUSPEND_STANDBY;
-	char ** s;
+	const char * const *s;
 	char *p;
 	int error;
 	int len;

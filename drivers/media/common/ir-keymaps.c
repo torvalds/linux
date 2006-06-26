@@ -618,7 +618,7 @@ IR_KEYTAB_TYPE ir_codes_em_terratec[IR_KEYTAB_SIZE] = {
 
 EXPORT_SYMBOL_GPL(ir_codes_em_terratec);
 
-IR_KEYTAB_TYPE ir_codes_em_pinnacle_usb[IR_KEYTAB_SIZE] = {
+IR_KEYTAB_TYPE ir_codes_pinnacle_grey[IR_KEYTAB_SIZE] = {
 	[ 0x3a ] = KEY_0,
 	[ 0x31 ] = KEY_1,
 	[ 0x32 ] = KEY_2,
@@ -670,7 +670,7 @@ IR_KEYTAB_TYPE ir_codes_em_pinnacle_usb[IR_KEYTAB_SIZE] = {
 	[ 0x27 ] = KEY_RECORD,
 };
 
-EXPORT_SYMBOL_GPL(ir_codes_em_pinnacle_usb);
+EXPORT_SYMBOL_GPL(ir_codes_pinnacle_grey);
 
 IR_KEYTAB_TYPE ir_codes_flyvideo[IR_KEYTAB_SIZE] = {
 	[ 0x0f ] = KEY_0,
@@ -1263,34 +1263,51 @@ IR_KEYTAB_TYPE ir_codes_winfast[IR_KEYTAB_SIZE] = {
 	[ 0x0f ] = KEY_9,
 
 	[ 0x00 ] = KEY_POWER,
-	[ 0x02 ] = KEY_TUNER,		/* TV/FM */
-	[ 0x1e ] = KEY_VIDEO,
+	[ 0x1b ] = KEY_AUDIO,           /* Audio Source */
+	[ 0x02 ] = KEY_TUNER,		/* TV/FM, not on Y0400052 */
+	[ 0x1e ] = KEY_VIDEO,           /* Video Source */
+	[ 0x16 ] = KEY_INFO,            /* Display information */
 	[ 0x04 ] = KEY_VOLUMEUP,
 	[ 0x08 ] = KEY_VOLUMEDOWN,
 	[ 0x0c ] = KEY_CHANNELUP,
 	[ 0x10 ] = KEY_CHANNELDOWN,
 	[ 0x03 ] = KEY_ZOOM,		/* fullscreen */
-	[ 0x1f ] = KEY_SUBTITLE,		/* closed caption/teletext */
+	[ 0x1f ] = KEY_TEXT,		/* closed caption/teletext */
 	[ 0x20 ] = KEY_SLEEP,
+	[ 0x29 ] = KEY_CLEAR,           /* boss key */
 	[ 0x14 ] = KEY_MUTE,
 	[ 0x2b ] = KEY_RED,
 	[ 0x2c ] = KEY_GREEN,
 	[ 0x2d ] = KEY_YELLOW,
 	[ 0x2e ] = KEY_BLUE,
-	[ 0x18 ] = KEY_KPPLUS,		/* fine tune + */
-	[ 0x19 ] = KEY_KPMINUS,		/* fine tune - */
+	[ 0x18 ] = KEY_KPPLUS,		/* fine tune + , not on Y040052 */
+	[ 0x19 ] = KEY_KPMINUS,		/* fine tune - , not on Y040052 */
+	[ 0x2a ] = KEY_MEDIA,           /* PIP (Picture in picture */
 	[ 0x21 ] = KEY_DOT,
 	[ 0x13 ] = KEY_ENTER,
-	[ 0x22 ] = KEY_BACK,
+	[ 0x11 ] = KEY_LAST,            /* Recall (last channel */
+	[ 0x22 ] = KEY_PREVIOUS,
 	[ 0x23 ] = KEY_PLAYPAUSE,
 	[ 0x24 ] = KEY_NEXT,
+	[ 0x25 ] = KEY_ARCHIVE,       /* Time Shifting */
 	[ 0x26 ] = KEY_STOP,
-	[ 0x27 ] = KEY_RECORD
+	[ 0x27 ] = KEY_RECORD,
+	[ 0x28 ] = KEY_SAVE,          /* Screenshot */
+	[ 0x2f ] = KEY_MENU,
+	[ 0x30 ] = KEY_CANCEL,
+	[ 0x31 ] = KEY_CHANNEL,       /* Channel Surf */
+	[ 0x32 ] = KEY_SUBTITLE,
+	[ 0x33 ] = KEY_LANGUAGE,
+	[ 0x34 ] = KEY_REWIND,
+	[ 0x35 ] = KEY_FASTFORWARD,
+	[ 0x36 ] = KEY_TV,
+	[ 0x37 ] = KEY_RADIO,         /* FM */
+	[ 0x38 ] = KEY_DVD
 };
 
 EXPORT_SYMBOL_GPL(ir_codes_winfast);
 
-IR_KEYTAB_TYPE ir_codes_pinnacle[IR_KEYTAB_SIZE] = {
+IR_KEYTAB_TYPE ir_codes_pinnacle_color[IR_KEYTAB_SIZE] = {
 	[ 0x59 ] = KEY_MUTE,
 	[ 0x4a ] = KEY_POWER,
 
@@ -1348,7 +1365,7 @@ IR_KEYTAB_TYPE ir_codes_pinnacle[IR_KEYTAB_SIZE] = {
 	[ 0x0a ] = KEY_BACKSPACE,
 };
 
-EXPORT_SYMBOL_GPL(ir_codes_pinnacle);
+EXPORT_SYMBOL_GPL(ir_codes_pinnacle_color);
 
 /* Hauppauge: the newer, gray remotes (seems there are multiple
  * slightly different versions), shipped with cx88+ivtv cards.
@@ -1413,3 +1430,46 @@ IR_KEYTAB_TYPE ir_codes_hauppauge_new[IR_KEYTAB_SIZE] = {
 
 EXPORT_SYMBOL_GPL(ir_codes_hauppauge_new);
 
+IR_KEYTAB_TYPE ir_codes_npgtech[IR_KEYTAB_SIZE] = {
+	[ 0x1d ] = KEY_SWITCHVIDEOMODE, /* switch inputs */
+	[ 0x2a ] = KEY_FRONT,
+
+	[ 0x3e ] = KEY_1,
+	[ 0x02 ] = KEY_2,
+	[ 0x06 ] = KEY_3,
+	[ 0x0a ] = KEY_4,
+	[ 0x0e ] = KEY_5,
+	[ 0x12 ] = KEY_6,
+	[ 0x16 ] = KEY_7,
+	[ 0x1a ] = KEY_8,
+	[ 0x1e ] = KEY_9,
+	[ 0x3a ] = KEY_0,
+	[ 0x22 ] = KEY_NUMLOCK,         /* -/-- */
+	[ 0x20 ] = KEY_REFRESH,
+
+	[ 0x03 ] = KEY_BRIGHTNESSDOWN,
+	[ 0x28 ] = KEY_AUDIO,
+	[ 0x3c ] = KEY_UP,
+	[ 0x3f ] = KEY_LEFT,
+	[ 0x2e ] = KEY_MUTE,
+	[ 0x3b ] = KEY_RIGHT,
+	[ 0x00 ] = KEY_DOWN,
+	[ 0x07 ] = KEY_BRIGHTNESSUP,
+	[ 0x2c ] = KEY_TEXT,
+
+	[ 0x37 ] = KEY_RECORD,
+	[ 0x17 ] = KEY_PLAY,
+	[ 0x13 ] = KEY_PAUSE,
+	[ 0x26 ] = KEY_STOP,
+	[ 0x18 ] = KEY_FASTFORWARD,
+	[ 0x14 ] = KEY_REWIND,
+	[ 0x33 ] = KEY_ZOOM,
+	[ 0x32 ] = KEY_KEYBOARD,
+	[ 0x30 ] = KEY_GOTO,            /* Pointing arrow */
+	[ 0x36 ] = KEY_MACRO,           /* Maximize/Minimize (yellow) */
+	[ 0x0b ] = KEY_RADIO,
+	[ 0x10 ] = KEY_POWER,
+
+};
+
+EXPORT_SYMBOL_GPL(ir_codes_npgtech);

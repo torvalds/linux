@@ -523,8 +523,7 @@ static int smc_wait_to_send_packet( struct sk_buff * skb, struct net_device * de
 	length = skb->len;
 
 	if (length < ETH_ZLEN) {
-		skb = skb_padto(skb, ETH_ZLEN);
-		if (skb == NULL) {
+		if (skb_padto(skb, ETH_ZLEN)) {
 			netif_wake_queue(dev);
 			return 0;
 		}
@@ -732,12 +731,9 @@ static int ifport;
 struct net_device * __init smc_init(int unit)
 {
 	struct net_device *dev = alloc_etherdev(sizeof(struct smc_local));
-	static struct devlist *smcdev = smc_devlist;
+	struct devlist *smcdev = smc_devlist;
 	int err = 0;
 
-#ifndef NO_AUTOPROBE
-	smcdev = smc_devlist;
-#endif
 	if (!dev)
 		return ERR_PTR(-ENODEV);
 
@@ -1607,7 +1603,7 @@ MODULE_PARM_DESC(io, "SMC 99194 I/O base address");
 MODULE_PARM_DESC(irq, "SMC 99194 IRQ number");
 MODULE_PARM_DESC(ifport, "SMC 99194 interface port (0-default, 1-TP, 2-AUI)");
 
-int init_module(void)
+int __init init_module(void)
 {
 	if (io == 0)
 		printk(KERN_WARNING

@@ -48,7 +48,7 @@ static int rds_f_release(struct inode *in, struct file *fi)
 
 static void print_matrix(char *ch, char out[])
 {
-        int j;
+	int j;
 
 	for (j=7; j>=0; j--) {
 		 out[7-j] = ((*ch >> j) & 0x1) + '0';

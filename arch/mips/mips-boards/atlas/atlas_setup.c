@@ -50,7 +50,7 @@ const char *get_system_type(void)
 	return "MIPS Atlas";
 }
 
-void __init plat_setup(void)
+void __init plat_mem_setup(void)
 {
 	mips_pcibios_init();
 

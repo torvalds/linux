@@ -53,7 +53,7 @@ EXPORT_SYMBOL(ip22_do_break);
 extern void ip22_be_init(void) __init;
 extern void ip22_time_init(void) __init;
 
-void __init plat_setup(void)
+void __init plat_mem_setup(void)
 {
 	char *ctype;
 	char *cserial;

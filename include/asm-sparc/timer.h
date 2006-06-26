@@ -4,7 +4,6 @@
  * Copyright (C) 1995 David S. Miller (davem@caip.rutgers.edu)
  */
 
-#include <linux/config.h>
 
 #ifndef _SPARC_TIMER_H
 #define _SPARC_TIMER_H

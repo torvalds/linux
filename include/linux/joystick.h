@@ -111,25 +111,25 @@ struct js_corr {
 #define JS_SET_ALL		8
 
 struct JS_DATA_TYPE {
-	int32_t buttons;
-	int32_t x;
-	int32_t y;
+	__s32 buttons;
+	__s32 x;
+	__s32 y;
 };
 
 struct JS_DATA_SAVE_TYPE_32 {
-	int32_t JS_TIMEOUT;
-	int32_t BUSY;
-	int32_t JS_EXPIRETIME;
-	int32_t JS_TIMELIMIT;
+	__s32 JS_TIMEOUT;
+	__s32 BUSY;
+	__s32 JS_EXPIRETIME;
+	__s32 JS_TIMELIMIT;
 	struct JS_DATA_TYPE JS_SAVE;
 	struct JS_DATA_TYPE JS_CORR;
 };
 
 struct JS_DATA_SAVE_TYPE_64 {
-	int32_t JS_TIMEOUT;
-	int32_t BUSY;
-	int64_t JS_EXPIRETIME;
-	int64_t JS_TIMELIMIT;
+	__s32 JS_TIMEOUT;
+	__s32 BUSY;
+	__s64 JS_EXPIRETIME;
+	__s64 JS_TIMELIMIT;
 	struct JS_DATA_TYPE JS_SAVE;
 	struct JS_DATA_TYPE JS_CORR;
 };

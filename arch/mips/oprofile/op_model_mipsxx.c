@@ -23,7 +23,7 @@
 
 #define M_COUNTER_OVERFLOW		(1UL    << 31)
 
-struct op_mips_model op_model_mipsxx;
+struct op_mips_model op_model_mipsxx_ops;
 
 static struct mipsxx_register_config {
 	unsigned int control[4];
@@ -34,7 +34,7 @@ static struct mipsxx_register_config {
 
 static void mipsxx_reg_setup(struct op_counter_config *ctr)
 {
-	unsigned int counters = op_model_mipsxx.num_counters;
+	unsigned int counters = op_model_mipsxx_ops.num_counters;
 	int i;
 
 	/* Compute the performance counter control word.  */
@@ -62,7 +62,7 @@ static void mipsxx_reg_setup(struct op_counter_config *ctr)
 
 static void mipsxx_cpu_setup (void *args)
 {
-	unsigned int counters = op_model_mipsxx.num_counters;
+	unsigned int counters = op_model_mipsxx_ops.num_counters;
 
 	switch (counters) {
 	case 4:
@@ -83,7 +83,7 @@ static void mipsxx_cpu_setup (void *args)
 /* Start all counters on current CPU */
 static void mipsxx_cpu_start(void *args)
 {
-	unsigned int counters = op_model_mipsxx.num_counters;
+	unsigned int counters = op_model_mipsxx_ops.num_counters;
 
 	switch (counters) {
 	case 4:
@@ -100,7 +100,7 @@ static void mipsxx_cpu_start(void *args)
 /* Stop all counters on current CPU */
 static void mipsxx_cpu_stop(void *args)
 {
-	unsigned int counters = op_model_mipsxx.num_counters;
+	unsigned int counters = op_model_mipsxx_ops.num_counters;
 
 	switch (counters) {
 	case 4:
@@ -116,7 +116,7 @@ static void mipsxx_cpu_stop(void *args)
 
 static int mipsxx_perfcount_handler(struct pt_regs *regs)
 {
-	unsigned int counters = op_model_mipsxx.num_counters;
+	unsigned int counters = op_model_mipsxx_ops.num_counters;
 	unsigned int control;
 	unsigned int counter;
 	int handled = 0;
@@ -187,33 +187,37 @@ static int __init mipsxx_init(void)
 
 	reset_counters(counters);
 
-	op_model_mipsxx.num_counters = counters;
+	op_model_mipsxx_ops.num_counters = counters;
 	switch (current_cpu_data.cputype) {
 	case CPU_20KC:
-		op_model_mipsxx.cpu_type = "mips/20K";
+		op_model_mipsxx_ops.cpu_type = "mips/20K";
 		break;
 
 	case CPU_24K:
-		op_model_mipsxx.cpu_type = "mips/24K";
+		op_model_mipsxx_ops.cpu_type = "mips/24K";
 		break;
 
 	case CPU_25KF:
-		op_model_mipsxx.cpu_type = "mips/25K";
+		op_model_mipsxx_ops.cpu_type = "mips/25K";
 		break;
 
 #ifndef CONFIG_SMP
 	case CPU_34K:
-		op_model_mipsxx.cpu_type = "mips/34K";
+		op_model_mipsxx_ops.cpu_type = "mips/34K";
+		break;
+
+	case CPU_74K:
+		op_model_mipsxx_ops.cpu_type = "mips/74K";
 		break;
 #endif
 
 	case CPU_5KC:
-		op_model_mipsxx.cpu_type = "mips/5K";
+		op_model_mipsxx_ops.cpu_type = "mips/5K";
 		break;
 
 	case CPU_SB1:
 	case CPU_SB1A:
-		op_model_mipsxx.cpu_type = "mips/sb1";
+		op_model_mipsxx_ops.cpu_type = "mips/sb1";
 		break;
 
 	default:
@@ -229,12 +233,12 @@ static int __init mipsxx_init(void)
 
 static void mipsxx_exit(void)
 {
-	reset_counters(op_model_mipsxx.num_counters);
+	reset_counters(op_model_mipsxx_ops.num_counters);
 
 	perf_irq = null_perf_irq;
 }
 
-struct op_mips_model op_model_mipsxx = {
+struct op_mips_model op_model_mipsxx_ops = {
 	.reg_setup	= mipsxx_reg_setup,
 	.cpu_setup	= mipsxx_cpu_setup,
 	.init		= mipsxx_init,

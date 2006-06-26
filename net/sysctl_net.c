@@ -37,14 +37,6 @@ struct ctl_table net_table[] = {
 		.mode		= 0555,
 		.child		= core_table,
 	},
-#ifdef CONFIG_NET
-	{
-		.ctl_name	= NET_ETHER,
-		.procname	= "ethernet",
-		.mode		= 0555,
-		.child		= ether_table,
-	},
-#endif
 #ifdef CONFIG_INET
 	{
 		.ctl_name	= NET_IPV4,

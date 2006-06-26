@@ -8,6 +8,8 @@
  * Copyright (C) 1999-2003 Hewlett-Packard Co.
  *	David Mosberger-Tang <davidm@hpl.hp.com>
  *	Stephane Eranian <eranian@hpl.hp.com>
+ * (c) Copyright 2006 Hewlett-Packard Development Company, L.P.
+ *	Bjorn Helgaas <bjorn.helgaas@hp.com>
  *
  * All EFI Runtime Services are not implemented yet as EFI only
  * supports physical mode addressing on SoftSDV. This is to be fixed
@@ -622,6 +624,18 @@ efi_get_iobase (void)
 	return 0;
 }
 
+static struct kern_memdesc *
+kern_memory_descriptor (unsigned long phys_addr)
+{
+	struct kern_memdesc *md;
+
+	for (md = kern_memmap; md->start != ~0UL; md++) {
+		if (phys_addr - md->start < (md->num_pages << EFI_PAGE_SHIFT))
+			 return md;
+	}
+	return 0;
+}
+
 static efi_memory_desc_t *
 efi_memory_descriptor (unsigned long phys_addr)
 {
@@ -638,26 +652,6 @@ efi_memory_descriptor (unsigned long phys_addr)
 
 		if (phys_addr - md->phys_addr < (md->num_pages << EFI_PAGE_SHIFT))
 			 return md;
-	}
-	return 0;
-}
-
-static int
-efi_memmap_has_mmio (void)
-{
-	void *efi_map_start, *efi_map_end, *p;
-	efi_memory_desc_t *md;
-	u64 efi_desc_size;
-
-	efi_map_start = __va(ia64_boot_param->efi_memmap);
-	efi_map_end   = efi_map_start + ia64_boot_param->efi_memmap_size;
-	efi_desc_size = ia64_boot_param->efi_memdesc_size;
-
-	for (p = efi_map_start; p < efi_map_end; p += efi_desc_size) {
-		md = p;
-
-		if (md->type == EFI_MEMORY_MAPPED_IO)
-			return 1;
 	}
 	return 0;
 }
@@ -683,71 +677,125 @@ efi_mem_attributes (unsigned long phys_addr)
 }
 EXPORT_SYMBOL(efi_mem_attributes);
 
-/*
- * Determines whether the memory at phys_addr supports the desired
- * attribute (WB, UC, etc).  If this returns 1, the caller can safely
- * access size bytes at phys_addr with the specified attribute.
- */
-int
-efi_mem_attribute_range (unsigned long phys_addr, unsigned long size, u64 attr)
+u64
+efi_mem_attribute (unsigned long phys_addr, unsigned long size)
 {
 	unsigned long end = phys_addr + size;
 	efi_memory_desc_t *md = efi_memory_descriptor(phys_addr);
+	u64 attr;
+
+	if (!md)
+		return 0;
 
 	/*
-	 * Some firmware doesn't report MMIO regions in the EFI memory
-	 * map.  The Intel BigSur (a.k.a. HP i2000) has this problem.
-	 * On those platforms, we have to assume UC is valid everywhere.
+	 * EFI_MEMORY_RUNTIME is not a memory attribute; it just tells
+	 * the kernel that firmware needs this region mapped.
 	 */
-	if (!md || (md->attribute & attr) != attr) {
-		if (attr == EFI_MEMORY_UC && !efi_memmap_has_mmio())
-			return 1;
-		return 0;
-	}
-
+	attr = md->attribute & ~EFI_MEMORY_RUNTIME;
 	do {
 		unsigned long md_end = efi_md_end(md);
 
 		if (end <= md_end)
-			return 1;
+			return attr;
 
 		md = efi_memory_descriptor(md_end);
-		if (!md || (md->attribute & attr) != attr)
+		if (!md || (md->attribute & ~EFI_MEMORY_RUNTIME) != attr)
 			return 0;
 	} while (md);
 	return 0;
 }
 
-/*
- * For /dev/mem, we only allow read & write system calls to access
- * write-back memory, because read & write don't allow the user to
- * control access size.
- */
+u64
+kern_mem_attribute (unsigned long phys_addr, unsigned long size)
+{
+	unsigned long end = phys_addr + size;
+	struct kern_memdesc *md;
+	u64 attr;
+
+	/*
+	 * This is a hack for ioremap calls before we set up kern_memmap.
+	 * Maybe we should do efi_memmap_init() earlier instead.
+	 */
+	if (!kern_memmap) {
+		attr = efi_mem_attribute(phys_addr, size);
+		if (attr & EFI_MEMORY_WB)
+			return EFI_MEMORY_WB;
+		return 0;
+	}
+
+	md = kern_memory_descriptor(phys_addr);
+	if (!md)
+		return 0;
+
+	attr = md->attribute;
+	do {
+		unsigned long md_end = kmd_end(md);
+
+		if (end <= md_end)
+			return attr;
+
+		md = kern_memory_descriptor(md_end);
+		if (!md || md->attribute != attr)
+			return 0;
+	} while (md);
+	return 0;
+}
+EXPORT_SYMBOL(kern_mem_attribute);
+
 int
 valid_phys_addr_range (unsigned long phys_addr, unsigned long size)
 {
-	return efi_mem_attribute_range(phys_addr, size, EFI_MEMORY_WB);
+	u64 attr;
+
+	/*
+	 * /dev/mem reads and writes use copy_to_user(), which implicitly
+	 * uses a granule-sized kernel identity mapping.  It's really
+	 * only safe to do this for regions in kern_memmap.  For more
+	 * details, see Documentation/ia64/aliasing.txt.
+	 */
+	attr = kern_mem_attribute(phys_addr, size);
+	if (attr & EFI_MEMORY_WB || attr & EFI_MEMORY_UC)
+		return 1;
+	return 0;
 }
 
-/*
- * We allow mmap of anything in the EFI memory map that supports
- * either write-back or uncacheable access.  For uncacheable regions,
- * the supported access sizes are system-dependent, and the user is
- * responsible for using the correct size.
- *
- * Note that this doesn't currently allow access to hot-added memory,
- * because that doesn't appear in the boot-time EFI memory map.
- */
 int
 valid_mmap_phys_addr_range (unsigned long phys_addr, unsigned long size)
 {
-	if (efi_mem_attribute_range(phys_addr, size, EFI_MEMORY_WB))
-		return 1;
+	/*
+	 * MMIO regions are often missing from the EFI memory map.
+	 * We must allow mmap of them for programs like X, so we
+	 * currently can't do any useful validation.
+	 */
+	return 1;
+}
 
-	if (efi_mem_attribute_range(phys_addr, size, EFI_MEMORY_UC))
-		return 1;
+pgprot_t
+phys_mem_access_prot(struct file *file, unsigned long pfn, unsigned long size,
+		     pgprot_t vma_prot)
+{
+	unsigned long phys_addr = pfn << PAGE_SHIFT;
+	u64 attr;
 
-	return 0;
+	/*
+	 * For /dev/mem mmap, we use user mappings, but if the region is
+	 * in kern_memmap (and hence may be covered by a kernel mapping),
+	 * we must use the same attribute as the kernel mapping.
+	 */
+	attr = kern_mem_attribute(phys_addr, size);
+	if (attr & EFI_MEMORY_WB)
+		return pgprot_cacheable(vma_prot);
+	else if (attr & EFI_MEMORY_UC)
+		return pgprot_noncached(vma_prot);
+
+	/*
+	 * Some chipsets don't support UC access to memory.  If
+	 * WB is supported, we prefer that.
+	 */
+	if (efi_mem_attribute(phys_addr, size) & EFI_MEMORY_WB)
+		return pgprot_cacheable(vma_prot);
+
+	return pgprot_noncached(vma_prot);
 }
 
 int __init

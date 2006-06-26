@@ -1055,8 +1055,7 @@ static int __devinit snd_emu10k1x_proc_init(struct emu10k1x * emu)
 	struct snd_info_entry *entry;
 	
 	if(! snd_card_proc_new(emu->card, "emu10k1x_regs", &entry)) {
-		snd_info_set_text_ops(entry, emu, 1024, snd_emu10k1x_proc_reg_read);
-		entry->c.text.write_size = 64;
+		snd_info_set_text_ops(entry, emu, snd_emu10k1x_proc_reg_read);
 		entry->c.text.write = snd_emu10k1x_proc_reg_write;
 		entry->mode |= S_IWUSR;
 		entry->private_data = emu;

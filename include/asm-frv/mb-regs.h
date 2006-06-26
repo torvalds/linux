@@ -16,6 +16,17 @@
 #include <asm/sections.h>
 #include <asm/mem-layout.h>
 
+#ifndef __ASSEMBLY__
+/* gcc builtins, annotated */
+
+unsigned long __builtin_read8(volatile void __iomem *);
+unsigned long __builtin_read16(volatile void __iomem *);
+unsigned long __builtin_read32(volatile void __iomem *);
+void __builtin_write8(volatile void __iomem *, unsigned char);
+void __builtin_write16(volatile void __iomem *, unsigned short);
+void __builtin_write32(volatile void __iomem *, unsigned long);
+#endif
+
 #define __region_IO	KERNEL_IO_START	/* the region from 0xe0000000 to 0xffffffff has suitable
 					 * protection laid over the top for use in memory-mapped
 					 * I/O
@@ -59,7 +70,7 @@
 #define __region_PCI_MEM	(__region_CS2 + 0x08000000UL)
 #define __flush_PCI_writes()						\
 do {									\
-	__builtin_write8((volatile void *) __region_PCI_MEM, 0);	\
+	__builtin_write8((volatile void __iomem *) __region_PCI_MEM, 0);	\
 } while(0)
 
 #define __is_PCI_IO(addr) \
@@ -83,15 +94,15 @@ extern int __nongprelbss mb93090_mb00_detected;
 #define __set_LEDS(X)							\
 do {									\
 	if (mb93090_mb00_detected)					\
-		__builtin_write32((void *) __addr_LEDS(), ~(X));	\
+		__builtin_write32((void __iomem *) __addr_LEDS(), ~(X));	\
 } while (0)
 #else
 #define __set_LEDS(X)
 #endif
 
 #define __addr_LCD()		(__region_CS2 + 0x01200008UL)
-#define __get_LCD(B)		__builtin_read32((volatile void *) (B))
-#define __set_LCD(B,X)		__builtin_write32((volatile void *) (B), (X))
+#define __get_LCD(B)		__builtin_read32((volatile void __iomem *) (B))
+#define __set_LCD(B,X)		__builtin_write32((volatile void __iomem *) (B), (X))
 
 #define LCD_D			0x000000ff		/* LCD data bus */
 #define LCD_RW			0x00000100		/* LCD R/W signal */
@@ -161,11 +172,11 @@ do {									\
 #define __get_CLKIN()		66000000UL
 
 #define __addr_LEDS()		(__region_CS2 + 0x00000023UL)
-#define __set_LEDS(X)		__builtin_write8((volatile void *) __addr_LEDS(), (X))
+#define __set_LEDS(X)		__builtin_write8((volatile void __iomem *) __addr_LEDS(), (X))
 
 #define __addr_FPGATR()		(__region_CS2 + 0x00000030UL)
-#define __set_FPGATR(X)		__builtin_write32((volatile void *) __addr_FPGATR(), (X))
-#define __get_FPGATR()		__builtin_read32((volatile void *) __addr_FPGATR())
+#define __set_FPGATR(X)		__builtin_write32((volatile void __iomem *) __addr_FPGATR(), (X))
+#define __get_FPGATR()		__builtin_read32((volatile void __iomem *) __addr_FPGATR())
 
 #define MB93093_FPGA_FPGATR_AUDIO_CLK	0x00000003
 
@@ -180,7 +191,7 @@ do {									\
 #define MB93093_FPGA_SWR_PUSHSWMASK	(0x1F<<26)
 #define MB93093_FPGA_SWR_PUSHSW4	(1<<29)
 
-#define __addr_FPGA_SWR		((volatile void *)(__region_CS2 + 0x28UL))
+#define __addr_FPGA_SWR		((volatile void __iomem *)(__region_CS2 + 0x28UL))
 #define __get_FPGA_PUSHSW1_5()	(__builtin_read32(__addr_FPGA_SWR) & MB93093_FPGA_SWR_PUSHSWMASK)
 
 

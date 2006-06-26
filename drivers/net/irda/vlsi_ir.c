@@ -959,7 +959,7 @@ static int vlsi_hard_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 			    ||  (now.tv_sec==ready.tv_sec && now.tv_usec>=ready.tv_usec))
 			    	break;
 			udelay(100);
-			/* must not sleep here - we are called under xmit_lock! */
+			/* must not sleep here - called under netif_tx_lock! */
 		}
 	}
 

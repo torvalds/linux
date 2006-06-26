@@ -189,7 +189,7 @@ void __init maple_setup_arch(void)
 	conswitchp = &dummy_con;
 #endif
 
-	printk(KERN_INFO "Using native/NAP idle loop\n");
+	printk(KERN_DEBUG "Using native/NAP idle loop\n");
 }
 
 /* 

@@ -247,6 +247,9 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	current_thread_info()->cpu = 0;
 	smp_tune_scheduling();
 	plat_prepare_cpus(max_cpus);
+#ifndef CONFIG_HOTPLUG_CPU
+	cpu_present_map = cpu_possible_map;
+#endif
 }
 
 /* preload SMP state for boot cpu */
@@ -442,7 +445,7 @@ static int __init topology_init(void)
 	int cpu;
 	int ret;
 
-	for_each_cpu(cpu) {
+	for_each_present_cpu(cpu) {
 		ret = register_cpu(&per_cpu(cpu_devices, cpu), cpu, NULL);
 		if (ret)
 			printk(KERN_WARNING "topology_init: register_cpu %d "

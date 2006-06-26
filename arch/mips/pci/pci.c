@@ -76,11 +76,6 @@ pcibios_align_resource(void *data, struct resource *res,
 	res->start = start;
 }
 
-struct pci_controller * __init alloc_pci_controller(void)
-{
-	return alloc_bootmem(sizeof(struct pci_controller));
-}
-
 void __init register_pci_controller(struct pci_controller *hose)
 {
 	*hose_tail = hose;

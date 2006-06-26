@@ -523,7 +523,9 @@ static int sctp_v6_available(union sctp_addr *addr, struct sctp_sock *sp)
  * Return 0 - If the address is a non-unicast or an illegal address.
  * Return 1 - If the address is a unicast.
  */
-static int sctp_v6_addr_valid(union sctp_addr *addr, struct sctp_sock *sp)
+static int sctp_v6_addr_valid(union sctp_addr *addr,
+			      struct sctp_sock *sp,
+			      const struct sk_buff *skb)
 {
 	int ret = ipv6_addr_type(&addr->v6.sin6_addr);
 
@@ -537,7 +539,7 @@ static int sctp_v6_addr_valid(union sctp_addr *addr, struct sctp_sock *sp)
 		if (sp && ipv6_only_sock(sctp_opt2sk(sp)))
 			return 0;
 		sctp_v6_map_v4(addr);
-		return sctp_get_af_specific(AF_INET)->addr_valid(addr, sp);
+		return sctp_get_af_specific(AF_INET)->addr_valid(addr, sp, skb);
 	}
 
 	/* Is this a non-unicast address */

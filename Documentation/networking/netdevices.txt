@@ -42,9 +42,9 @@ dev->get_stats:
 	Context: nominally process, but don't sleep inside an rwlock
 
 dev->hard_start_xmit:
-	Synchronization: dev->xmit_lock spinlock.
+	Synchronization: netif_tx_lock spinlock.
 	When the driver sets NETIF_F_LLTX in dev->features this will be
-	called without holding xmit_lock. In this case the driver 
+	called without holding netif_tx_lock. In this case the driver
 	has to lock by itself when needed. It is recommended to use a try lock
 	for this and return -1 when the spin lock fails. 
 	The locking there should also properly protect against 
@@ -62,12 +62,12 @@ dev->hard_start_xmit:
 	  Only valid when NETIF_F_LLTX is set.
 
 dev->tx_timeout:
-	Synchronization: dev->xmit_lock spinlock.
+	Synchronization: netif_tx_lock spinlock.
 	Context: BHs disabled
 	Notes: netif_queue_stopped() is guaranteed true
 
 dev->set_multicast_list:
-	Synchronization: dev->xmit_lock spinlock.
+	Synchronization: netif_tx_lock spinlock.
 	Context: BHs disabled
 
 dev->poll:

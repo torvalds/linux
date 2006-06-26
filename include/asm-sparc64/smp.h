@@ -6,7 +6,6 @@
 #ifndef _SPARC64_SMP_H
 #define _SPARC64_SMP_H
 
-#include <linux/config.h>
 #include <linux/threads.h>
 #include <asm/asi.h>
 #include <asm/starfire.h>

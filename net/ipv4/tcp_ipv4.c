@@ -71,6 +71,7 @@
 #include <net/inet_common.h>
 #include <net/timewait_sock.h>
 #include <net/xfrm.h>
+#include <net/netdma.h>
 
 #include <linux/inet.h>
 #include <linux/ipv6.h>
@@ -1091,8 +1092,18 @@ process:
 	bh_lock_sock(sk);
 	ret = 0;
 	if (!sock_owned_by_user(sk)) {
-		if (!tcp_prequeue(sk, skb))
+#ifdef CONFIG_NET_DMA
+		struct tcp_sock *tp = tcp_sk(sk);
+		if (!tp->ucopy.dma_chan && tp->ucopy.pinned_list)
+			tp->ucopy.dma_chan = get_softnet_dma();
+		if (tp->ucopy.dma_chan)
 			ret = tcp_v4_do_rcv(sk, skb);
+		else
+#endif
+		{
+			if (!tcp_prequeue(sk, skb))
+			ret = tcp_v4_do_rcv(sk, skb);
+		}
 	} else
 		sk_add_backlog(sk, skb);
 	bh_unlock_sock(sk);
@@ -1295,6 +1306,11 @@ int tcp_v4_destroy_sock(struct sock *sk)
 
 	/* Cleans up our, hopefully empty, out_of_order_queue. */
   	__skb_queue_purge(&tp->out_of_order_queue);
+
+#ifdef CONFIG_NET_DMA
+	/* Cleans up our sk_async_wait_queue */
+  	__skb_queue_purge(&sk->sk_async_wait_queue);
+#endif
 
 	/* Clean prequeue, it must be empty really */
 	__skb_queue_purge(&tp->ucopy.prequeue);

@@ -33,6 +33,21 @@ Inputs/outputs: Composite and S-video
 Norms: PAL, SECAM (720x576 @ 25 fps), NTSC (720x480 @ 29.97 fps)
 Card number: 7
 
+AverMedia 6 Eyes AVS6EYES:
+* Zoran zr36067 PCI controller
+* Zoran zr36060 MJPEG codec
+* Samsung ks0127 TV decoder
+* Conexant bt866  TV encoder
+Drivers to use: videodev, i2c-core, i2c-algo-bit,
+		videocodec, ks0127, bt866, zr36060, zr36067
+Inputs/outputs: Six physical inputs. 1-6 are composite,
+		1-2, 3-4, 5-6 doubles as S-video,
+		1-3 triples as component.
+		One composite output.
+Norms: PAL, SECAM (720x576 @ 25 fps), NTSC (720x480 @ 29.97 fps)
+Card number: 8
+Not autodetected, card=8 is necessary.
+
 Linux Media Labs LML33:
 * Zoran zr36067 PCI controller
 * Zoran zr36060 MJPEG codec
@@ -192,6 +207,10 @@ Micronas vpx3220a TV decoder
 was introduced in 1996, is used in the DC30 and DC30+ and
 can handle: PAL B/G/H/I, PAL N, PAL M, NTSC M, NTSC 44, PAL 60, SECAM,NTSC Comb
 
+Samsung ks0127 TV decoder
+is used in the AVS6EYES card and
+can handle: NTSC-M/N/44, PAL-M/N/B/G/H/I/D/K/L and SECAM
+
 ===========================
 
 1.2 What the TV encoder can do an what not
@@ -220,6 +239,10 @@ can generate: PAL B/D/G/H/I/N, PAL M, NTSC M
 ITT mse3000 TV encoder
 was introduced in 1991, is used in the DC10 old
 can generate: PAL , NTSC , SECAM
+
+Conexant bt866 TV encoder
+is used in AVS6EYES, and
+can generate: NTSC/PAL, PAL­M, PAL­N
 
 The adv717x, should be able to produce PAL N. But you find nothing PAL N
 specific in the registers. Seem that you have to reuse a other standard

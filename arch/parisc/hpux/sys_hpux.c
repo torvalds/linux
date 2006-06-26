@@ -145,7 +145,7 @@ static int hpux_ustat(dev_t dev, struct hpux_ustat __user *ubuf)
 	s = user_get_super(dev);
 	if (s == NULL)
 		goto out;
-	err = vfs_statfs(s, &sbuf);
+	err = vfs_statfs(s->s_root, &sbuf);
 	drop_super(s);
 	if (err)
 		goto out;
@@ -186,12 +186,12 @@ struct hpux_statfs {
      int16_t f_pad;
 };
 
-static int vfs_statfs_hpux(struct super_block *sb, struct hpux_statfs *buf)
+static int vfs_statfs_hpux(struct dentry *dentry, struct hpux_statfs *buf)
 {
 	struct kstatfs st;
 	int retval;
 	
-	retval = vfs_statfs(sb, &st);
+	retval = vfs_statfs(dentry, &st);
 	if (retval)
 		return retval;
 
@@ -219,7 +219,7 @@ asmlinkage long hpux_statfs(const char __user *path,
 	error = user_path_walk(path, &nd);
 	if (!error) {
 		struct hpux_statfs tmp;
-		error = vfs_statfs_hpux(nd.dentry->d_inode->i_sb, &tmp);
+		error = vfs_statfs_hpux(nd.dentry, &tmp);
 		if (!error && copy_to_user(buf, &tmp, sizeof(tmp)))
 			error = -EFAULT;
 		path_release(&nd);
@@ -237,7 +237,7 @@ asmlinkage long hpux_fstatfs(unsigned int fd, struct hpux_statfs __user * buf)
 	file = fget(fd);
 	if (!file)
 		goto out;
-	error = vfs_statfs_hpux(file->f_dentry->d_inode->i_sb, &tmp);
+	error = vfs_statfs_hpux(file->f_dentry, &tmp);
 	if (!error && copy_to_user(buf, &tmp, sizeof(tmp)))
 		error = -EFAULT;
 	fput(file);

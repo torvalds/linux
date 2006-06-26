@@ -1080,8 +1080,8 @@ static int fastcall do_path_lookup(int dfd, const char *name,
 	nd->flags = flags;
 	nd->depth = 0;
 
-	read_lock(&current->fs->lock);
 	if (*name=='/') {
+		read_lock(&current->fs->lock);
 		if (current->fs->altroot && !(nd->flags & LOOKUP_NOALT)) {
 			nd->mnt = mntget(current->fs->altrootmnt);
 			nd->dentry = dget(current->fs->altroot);
@@ -1092,48 +1092,49 @@ static int fastcall do_path_lookup(int dfd, const char *name,
 		}
 		nd->mnt = mntget(current->fs->rootmnt);
 		nd->dentry = dget(current->fs->root);
+		read_unlock(&current->fs->lock);
 	} else if (dfd == AT_FDCWD) {
+		read_lock(&current->fs->lock);
 		nd->mnt = mntget(current->fs->pwdmnt);
 		nd->dentry = dget(current->fs->pwd);
+		read_unlock(&current->fs->lock);
 	} else {
 		struct dentry *dentry;
 
 		file = fget_light(dfd, &fput_needed);
 		retval = -EBADF;
 		if (!file)
-			goto unlock_fail;
+			goto out_fail;
 
 		dentry = file->f_dentry;
 
 		retval = -ENOTDIR;
 		if (!S_ISDIR(dentry->d_inode->i_mode))
-			goto fput_unlock_fail;
+			goto fput_fail;
 
 		retval = file_permission(file, MAY_EXEC);
 		if (retval)
-			goto fput_unlock_fail;
+			goto fput_fail;
 
 		nd->mnt = mntget(file->f_vfsmnt);
 		nd->dentry = dget(dentry);
 
 		fput_light(file, fput_needed);
 	}
-	read_unlock(&current->fs->lock);
 	current->total_link_count = 0;
 	retval = link_path_walk(name, nd);
 out:
 	if (likely(retval == 0)) {
 		if (unlikely(current->audit_context && nd && nd->dentry &&
 				nd->dentry->d_inode))
-		audit_inode(name, nd->dentry->d_inode, flags);
+		audit_inode(name, nd->dentry->d_inode);
 	}
+out_fail:
 	return retval;
 
-fput_unlock_fail:
+fput_fail:
 	fput_light(file, fput_needed);
-unlock_fail:
-	read_unlock(&current->fs->lock);
-	return retval;
+	goto out_fail;
 }
 
 int fastcall path_lookup(const char *name, unsigned int flags,
@@ -2242,14 +2243,16 @@ asmlinkage long sys_linkat(int olddfd, const char __user *oldname,
 	int error;
 	char * to;
 
-	if (flags != 0)
+	if ((flags & ~AT_SYMLINK_FOLLOW) != 0)
 		return -EINVAL;
 
 	to = getname(newname);
 	if (IS_ERR(to))
 		return PTR_ERR(to);
 
-	error = __user_walk_fd(olddfd, oldname, 0, &old_nd);
+	error = __user_walk_fd(olddfd, oldname,
+			       flags & AT_SYMLINK_FOLLOW ? LOOKUP_FOLLOW : 0,
+			       &old_nd);
 	if (error)
 		goto exit;
 	error = do_path_lookup(newdfd, to, LOOKUP_PARENT, &nd);
@@ -2576,8 +2579,7 @@ static char *page_getlink(struct dentry * dentry, struct page **ppage)
 {
 	struct page * page;
 	struct address_space *mapping = dentry->d_inode->i_mapping;
-	page = read_cache_page(mapping, 0, (filler_t *)mapping->a_ops->readpage,
-				NULL);
+	page = read_mapping_page(mapping, 0, NULL);
 	if (IS_ERR(page))
 		goto sync_fail;
 	wait_on_page_locked(page);

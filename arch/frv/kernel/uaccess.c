@@ -17,7 +17,7 @@
 /*
  * copy a null terminated string from userspace
  */
-long strncpy_from_user(char *dst, const char *src, long count)
+long strncpy_from_user(char *dst, const char __user *src, long count)
 {
 	unsigned long max;
 	char *p, ch;
@@ -70,9 +70,9 @@ EXPORT_SYMBOL(strncpy_from_user);
  *
  * Return 0 on exception, a value greater than N if too long
  */
-long strnlen_user(const char *src, long count)
+long strnlen_user(const char __user *src, long count)
 {
-	const char *p;
+	const char __user *p;
 	long err = 0;
 	char ch;
 

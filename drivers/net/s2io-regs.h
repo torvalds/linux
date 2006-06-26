@@ -167,6 +167,7 @@ typedef struct _XENA_dev_config {
 	u8 unused4[0x08];
 
 	u64 gpio_int_reg;
+#define GPIO_INT_REG_DP_ERR_INT                BIT(0)
 #define GPIO_INT_REG_LINK_DOWN                 BIT(1)
 #define GPIO_INT_REG_LINK_UP                   BIT(2)
 	u64 gpio_int_mask;
@@ -187,7 +188,7 @@ typedef struct _XENA_dev_config {
 /* PIC Control registers */
 	u64 pic_control;
 #define PIC_CNTL_RX_ALARM_MAP_1                BIT(0)
-#define PIC_CNTL_SHARED_SPLITS(n)              vBIT(n,11,4)
+#define PIC_CNTL_SHARED_SPLITS(n)              vBIT(n,11,5)
 
 	u64 swapper_ctrl;
 #define SWAPPER_CTRL_PIF_R_FE                  BIT(0)
@@ -267,6 +268,21 @@ typedef struct _XENA_dev_config {
 
 	/* General Configuration */
 	u64 mdio_control;
+#define MDIO_MMD_INDX_ADDR(val)		vBIT(val, 0, 16)
+#define MDIO_MMD_DEV_ADDR(val)		vBIT(val, 19, 5)
+#define MDIO_MMD_PMA_DEV_ADDR		0x1
+#define MDIO_MMD_PMD_DEV_ADDR		0x1
+#define MDIO_MMD_WIS_DEV_ADDR		0x2
+#define MDIO_MMD_PCS_DEV_ADDR		0x3
+#define MDIO_MMD_PHYXS_DEV_ADDR		0x4
+#define MDIO_MMS_PRT_ADDR(val)		vBIT(val, 27, 5)
+#define MDIO_CTRL_START_TRANS(val)	vBIT(val, 56, 4)
+#define MDIO_OP(val)			vBIT(val, 60, 2)
+#define MDIO_OP_ADDR_TRANS		0x0
+#define MDIO_OP_WRITE_TRANS		0x1
+#define MDIO_OP_READ_POST_INC_TRANS	0x2
+#define MDIO_OP_READ_TRANS		0x3
+#define MDIO_MDIO_DATA(val)		vBIT(val, 32, 16)
 
 	u64 dtx_control;
 
@@ -284,9 +300,13 @@ typedef struct _XENA_dev_config {
 	u64 gpio_control;
 #define GPIO_CTRL_GPIO_0		BIT(8)
 	u64 misc_control;
+#define EXT_REQ_EN			BIT(1)
 #define MISC_LINK_STABILITY_PRD(val)   vBIT(val,29,3)
 
-	u8 unused7_1[0x240 - 0x208];
+	u8 unused7_1[0x230 - 0x208];
+
+	u64 pic_control2;
+	u64 ini_dperr_ctrl;
 
 	u64 wreq_split_mask;
 #define	WREQ_SPLIT_MASK_SET_MASK(val)	vBIT(val, 52, 12)
@@ -493,6 +513,7 @@ typedef struct _XENA_dev_config {
 #define PRC_CTRL_NO_SNOOP_DESC                 BIT(22)
 #define PRC_CTRL_NO_SNOOP_BUFF                 BIT(23)
 #define PRC_CTRL_BIMODAL_INTERRUPT             BIT(37)
+#define PRC_CTRL_GROUP_READS                   BIT(38)
 #define PRC_CTRL_RXD_BACKOFF_INTERVAL(val)     vBIT(val,40,24)
 
 	u64 prc_alarm_action;
@@ -541,7 +562,12 @@ typedef struct _XENA_dev_config {
 #define RX_PA_CFG_IGNORE_LLC_CTRL          BIT(3)
 #define RX_PA_CFG_IGNORE_L2_ERR            BIT(6)
 
-	u8 unused12[0x700 - 0x1D8];
+	u64 unused_11_1;
+
+	u64 ring_bump_counter1;
+	u64 ring_bump_counter2;
+
+	u8 unused12[0x700 - 0x1F0];
 
 	u64 rxdma_debug_ctrl;
 

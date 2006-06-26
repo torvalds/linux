@@ -15,7 +15,6 @@
 #include <linux/netfilter/nf_conntrack_common.h>
 
 #ifdef __KERNEL__
-#include <linux/config.h>
 #include <linux/bitops.h>
 #include <linux/compiler.h>
 #include <asm/atomic.h>
@@ -112,6 +111,10 @@ struct nf_conn
 
 #if defined(CONFIG_NF_CONNTRACK_MARK)
 	u_int32_t mark;
+#endif
+
+#ifdef CONFIG_NF_CONNTRACK_SECMARK
+	u_int32_t secmark;
 #endif
 
 	/* Storage reserved for other modules: */
@@ -285,6 +288,7 @@ static inline int nf_ct_is_dying(struct nf_conn *ct)
 }
 
 extern unsigned int nf_conntrack_htable_size;
+extern int nf_conntrack_checksum;
 
 #define NF_CT_STAT_INC(count) (__get_cpu_var(nf_conntrack_stat).count++)
 

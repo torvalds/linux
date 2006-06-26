@@ -131,7 +131,6 @@ __xfrm4_find_acq(u8 mode, u32 reqid, u8 proto,
 
 static struct xfrm_state_afinfo xfrm4_state_afinfo = {
 	.family			= AF_INET,
-	.lock			= RW_LOCK_UNLOCKED,
 	.init_flags		= xfrm4_init_flags,
 	.init_tempsel		= __xfrm4_init_tempsel,
 	.state_lookup		= __xfrm4_state_lookup,

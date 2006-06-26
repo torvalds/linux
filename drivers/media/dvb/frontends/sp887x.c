@@ -24,7 +24,6 @@
 
 struct sp887x_state {
 	struct i2c_adapter* i2c;
-	struct dvb_frontend_ops ops;
 	const struct sp887x_config* config;
 	struct dvb_frontend frontend;
 
@@ -208,15 +207,6 @@ static int sp887x_initial_setup (struct dvb_frontend* fe, const struct firmware 
 	/* bit 0x010: enable data valid signal */
 	sp887x_writereg(state, 0xd00, 0x010);
 	sp887x_writereg(state, 0x0d1, 0x000);
-
-	/* setup the PLL */
-	if (state->config->pll_init) {
-		sp887x_writereg(state, 0x206, 0x001);
-		state->config->pll_init(fe);
-		sp887x_writereg(state, 0x206, 0x000);
-	}
-
-	printk ("done.\n");
 	return 0;
 };
 
@@ -362,9 +352,16 @@ static int sp887x_setup_frontend_parameters (struct dvb_frontend* fe,
 	sp887x_microcontroller_stop(state);
 
 	/* setup the PLL */
-	sp887x_writereg(state, 0x206, 0x001);
-	actual_freq = state->config->pll_set(fe, p);
-	sp887x_writereg(state, 0x206, 0x000);
+	if (fe->ops.tuner_ops.set_params) {
+		fe->ops.tuner_ops.set_params(fe, p);
+		if (fe->ops.i2c_gate_ctrl) fe->ops.i2c_gate_ctrl(fe, 0);
+	}
+	if (fe->ops.tuner_ops.get_frequency) {
+		fe->ops.tuner_ops.get_frequency(fe, &actual_freq);
+		if (fe->ops.i2c_gate_ctrl) fe->ops.i2c_gate_ctrl(fe, 0);
+	} else {
+		actual_freq = p->frequency;
+	}
 
 	/* read status reg in order to clear <pending irqs */
 	sp887x_readreg(state, 0x200);
@@ -486,6 +483,17 @@ static int sp887x_read_ucblocks(struct dvb_frontend* fe, u32* ucblocks)
 	return 0;
 }
 
+static int sp887x_i2c_gate_ctrl(struct dvb_frontend* fe, int enable)
+{
+	struct sp887x_state* state = fe->demodulator_priv;
+
+	if (enable) {
+		return sp887x_writereg(state, 0x206, 0x001);
+	} else {
+		return sp887x_writereg(state, 0x206, 0x000);
+	}
+}
+
 static int sp887x_sleep(struct dvb_frontend* fe)
 {
 	struct sp887x_state* state = fe->demodulator_priv;
@@ -555,14 +563,13 @@ struct dvb_frontend* sp887x_attach(const struct sp887x_config* config,
 	/* setup the state */
 	state->config = config;
 	state->i2c = i2c;
-	memcpy(&state->ops, &sp887x_ops, sizeof(struct dvb_frontend_ops));
 	state->initialised = 0;
 
 	/* check if the demod is there */
 	if (sp887x_readreg(state, 0x0200) < 0) goto error;
 
 	/* create dvb_frontend */
-	state->frontend.ops = &state->ops;
+	memcpy(&state->frontend.ops, &sp887x_ops, sizeof(struct dvb_frontend_ops));
 	state->frontend.demodulator_priv = state;
 	return &state->frontend;
 
@@ -589,6 +596,7 @@ static struct dvb_frontend_ops sp887x_ops = {
 
 	.init = sp887x_init,
 	.sleep = sp887x_sleep,
+	.i2c_gate_ctrl = sp887x_i2c_gate_ctrl,
 
 	.set_frontend = sp887x_setup_frontend_parameters,
 	.get_tune_settings = sp887x_get_tune_settings,

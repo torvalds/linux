@@ -24,6 +24,8 @@ static struct proc_dir_entry *smp_affinity_entry[NR_IRQS];
 #ifdef CONFIG_GENERIC_PENDING_IRQ
 void proc_set_irq_affinity(unsigned int irq, cpumask_t mask_val)
 {
+	set_balance_irq_affinity(irq, mask_val);
+
 	/*
 	 * Save these away for later use. Re-progam when the
 	 * interrupt is pending
@@ -33,6 +35,7 @@ void proc_set_irq_affinity(unsigned int irq, cpumask_t mask_val)
 #else
 void proc_set_irq_affinity(unsigned int irq, cpumask_t mask_val)
 {
+	set_balance_irq_affinity(irq, mask_val);
 	irq_affinity[irq] = mask_val;
 	irq_desc[irq].handler->set_affinity(irq, mask_val);
 }

@@ -22,6 +22,7 @@
 #include <linux/elf.h>
 #include <linux/elfcore.h>
 #include <linux/init.h>
+#include <linux/irq.h>
 #include <linux/types.h>
 
 #include <asm/processor.h>
@@ -174,6 +175,8 @@ static void crash_kexec_prepare_cpus(void)
 
 void default_machine_crash_shutdown(struct pt_regs *regs)
 {
+	unsigned int irq;
+
 	/*
 	 * This function is only called after the system
 	 * has paniced or is otherwise in a critical state.
@@ -185,6 +188,16 @@ void default_machine_crash_shutdown(struct pt_regs *regs)
 	 * The kernel is broken so disable interrupts.
 	 */
 	local_irq_disable();
+
+	for_each_irq(irq) {
+		struct irq_desc *desc = irq_descp(irq);
+
+		if (desc->status & IRQ_INPROGRESS)
+			desc->handler->end(irq);
+
+		if (!(desc->status & IRQ_DISABLED))
+			desc->handler->disable(irq);
+	}
 
 	if (ppc_md.kexec_cpu_down)
 		ppc_md.kexec_cpu_down(1, 0);

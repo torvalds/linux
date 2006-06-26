@@ -14,8 +14,8 @@ Copyright (C) 2004-2006, Intel Corporation
 
 README.ipw2200
 
-Version: 1.0.8
-Date   : October 20, 2005
+Version: 1.1.2
+Date   : March 30, 2006
 
 
 Index
@@ -103,7 +103,7 @@ file.
 
 1.1. Overview of Features
 -----------------------------------------------
-The current release (1.0.8) supports the following features:
+The current release (1.1.2) supports the following features:
 
 + BSS mode (Infrastructure, Managed)
 + IBSS mode (Ad-Hoc)
@@ -247,8 +247,8 @@ and can set the contents via echo.  For example:
 % cat /sys/bus/pci/drivers/ipw2200/debug_level
 
 Will report the current debug level of the driver's logging subsystem 
-(only available if CONFIG_IPW_DEBUG was configured when the driver was 
-built).
+(only available if CONFIG_IPW2200_DEBUG was configured when the driver
+was built).
 
 You can set the debug level via:
 

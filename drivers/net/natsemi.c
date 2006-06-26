@@ -318,12 +318,12 @@ performance critical codepaths:
 The rx process only runs in the interrupt handler. Access from outside
 the interrupt handler is only permitted after disable_irq().
 
-The rx process usually runs under the dev->xmit_lock. If np->intr_tx_reap
+The rx process usually runs under the netif_tx_lock. If np->intr_tx_reap
 is set, then access is permitted under spin_lock_irq(&np->lock).
 
 Thus configuration functions that want to access everything must call
 	disable_irq(dev->irq);
-	spin_lock_bh(dev->xmit_lock);
+	netif_tx_lock_bh(dev);
 	spin_lock_irq(&np->lock);
 
 IV. Notes

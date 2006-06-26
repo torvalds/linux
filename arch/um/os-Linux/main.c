@@ -59,7 +59,7 @@ static __init void do_uml_initcalls(void)
 	initcall_t *call;
 
 	call = &__uml_initcall_start;
-	while (call < &__uml_initcall_end){;
+	while (call < &__uml_initcall_end){
 		(*call)();
 		call++;
 	}

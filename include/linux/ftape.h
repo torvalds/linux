@@ -35,7 +35,6 @@
 #include <linux/mm.h>
 #endif
 #include <linux/types.h>
-#include <linux/config.h>
 #include <linux/mtio.h>
 
 #define FT_SECTOR(x)		(x+1)	/* sector offset into real sector */

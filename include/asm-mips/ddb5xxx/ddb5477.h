@@ -17,7 +17,6 @@
 #ifndef __ASM_DDB5XXX_DDB5477_H
 #define __ASM_DDB5XXX_DDB5477_H
 
-#include <linux/config.h>
 
 /*
  * This contains macros that are specific to DDB5477 or renamed from

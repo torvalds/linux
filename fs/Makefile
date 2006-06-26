@@ -13,6 +13,7 @@ obj-y :=	open.o read_write.o file_table.o buffer.o  bio.o super.o \
 		ioprio.o pnode.o drop_caches.o splice.o sync.o
 
 obj-$(CONFIG_INOTIFY)		+= inotify.o
+obj-$(CONFIG_INOTIFY_USER)	+= inotify_user.o
 obj-$(CONFIG_EPOLL)		+= eventpoll.o
 obj-$(CONFIG_COMPAT)		+= compat.o compat_ioctl.o
 

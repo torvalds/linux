@@ -221,11 +221,12 @@ FUNC_NAME:		/* %o0=src, %o1=dst, %o2=len, %o3=sum */
 	sll		%g1, 8, %g1
 	or		%o5, %g1, %o4
 
-1:	add		%o3, %o4, %o3
+1:	addcc		%o3, %o4, %o3
+	addc		%g0, %o3, %o3
 
 70:
 	retl
-	 mov		%o3, %o0
+	 srl		%o3, 0, %o0
 
 95:	mov		0, GLOBAL_SPARE
 	brlez,pn	%o2, 4f

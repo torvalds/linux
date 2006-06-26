@@ -421,7 +421,7 @@ static struct net_device *dev_ultra[MAX_ULTRA32_CARDS];
 MODULE_DESCRIPTION("SMC Ultra32 EISA ethernet driver");
 MODULE_LICENSE("GPL");
 
-int init_module(void)
+int __init init_module(void)
 {
 	int this_dev, found = 0;
 

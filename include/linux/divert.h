@@ -27,10 +27,10 @@ struct divert_blk
 {
 	int		divert;  /* are we active */
 	unsigned int protos;	/* protocols */
-	u16		tcp_dst[MAX_DIVERT_PORTS]; /* specific tcp dst ports to divert */
-	u16		tcp_src[MAX_DIVERT_PORTS]; /* specific tcp src ports to divert */
-	u16		udp_dst[MAX_DIVERT_PORTS]; /* specific udp dst ports to divert */
-	u16		udp_src[MAX_DIVERT_PORTS]; /* specific udp src ports to divert */
+	__u16		tcp_dst[MAX_DIVERT_PORTS]; /* specific tcp dst ports to divert */
+	__u16		tcp_src[MAX_DIVERT_PORTS]; /* specific tcp src ports to divert */
+	__u16		udp_dst[MAX_DIVERT_PORTS]; /* specific udp dst ports to divert */
+	__u16		udp_src[MAX_DIVERT_PORTS]; /* specific udp src ports to divert */
 };
 
 /*
@@ -40,12 +40,12 @@ struct divert_blk
 
 typedef union _divert_cf_arg
 {
-	s16		int16;
-	u16		uint16;
-	s32		int32;
-	u32		uint32;
-	s64		int64;
-	u64		uint64;
+	__s16		int16;
+	__u16		uint16;
+	__s32		int32;
+	__u32		uint32;
+	__s64		int64;
+	__u64		uint64;
 	void	__user *ptr;
 } divert_cf_arg;
 

@@ -345,6 +345,12 @@ static struct agp_device_ids via_agp_device_ids[] __devinitdata =
 		.chipset_name	= "PT880",
 	},
 
+	/* PT880 Ultra */
+	{
+		.device_id	= PCI_DEVICE_ID_VIA_PT880ULTRA,
+		.chipset_name	= "PT880 Ultra",
+	},
+
 	/* PT890 */
 	{
 		.device_id	= PCI_DEVICE_ID_VIA_8783_0,
@@ -511,6 +517,7 @@ static struct pci_device_id agp_via_pci_table[] = {
 	ID(PCI_DEVICE_ID_VIA_8763_0),
 	ID(PCI_DEVICE_ID_VIA_8378_0),
 	ID(PCI_DEVICE_ID_VIA_PT880),
+	ID(PCI_DEVICE_ID_VIA_PT880ULTRA),
 	ID(PCI_DEVICE_ID_VIA_8783_0),
 	ID(PCI_DEVICE_ID_VIA_PX8X0_0),
 	ID(PCI_DEVICE_ID_VIA_3269_0),

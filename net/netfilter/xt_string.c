@@ -30,8 +30,8 @@ static int match(const struct sk_buff *skb,
 		 unsigned int protoff,
 		 int *hotdrop)
 {
+	const struct xt_string_info *conf = matchinfo;
 	struct ts_state state;
-	struct xt_string_info *conf = (struct xt_string_info *) matchinfo;
 
 	memset(&state, 0, sizeof(struct ts_state));
 

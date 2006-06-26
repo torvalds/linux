@@ -318,6 +318,7 @@ int saa7146_start_preview(struct saa7146_fh *fh)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(saa7146_start_preview);
 
 int saa7146_stop_preview(struct saa7146_fh *fh)
 {
@@ -352,6 +353,7 @@ int saa7146_stop_preview(struct saa7146_fh *fh)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(saa7146_stop_preview);
 
 static int s_fmt(struct saa7146_fh *fh, struct v4l2_format *f)
 {

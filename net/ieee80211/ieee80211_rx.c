@@ -369,7 +369,6 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 
 	/* Put this code here so that we avoid duplicating it in all
 	 * Rx paths. - Jean II */
-#ifdef CONFIG_WIRELESS_EXT
 #ifdef IW_WIRELESS_SPY		/* defined in iw_handler.h */
 	/* If spy monitoring on */
 	if (ieee->spy_data.spy_number > 0) {
@@ -398,7 +397,6 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 		wireless_spy_update(ieee->dev, hdr->addr2, &wstats);
 	}
 #endif				/* IW_WIRELESS_SPY */
-#endif				/* CONFIG_WIRELESS_EXT */
 
 #ifdef NOT_YET
 	hostap_update_rx_stats(local->ap, hdr, rx_stats);
@@ -1692,8 +1690,8 @@ void ieee80211_rx_mgt(struct ieee80211_device *ieee,
 				     WLAN_FC_GET_STYPE(le16_to_cpu
 						       (header->frame_ctl)));
 
-		IEEE80211_WARNING("%s: IEEE80211_REASSOC_REQ received\n",
-				  ieee->dev->name);
+		IEEE80211_DEBUG_MGMT("%s: IEEE80211_REASSOC_REQ received\n",
+				     ieee->dev->name);
 		if (ieee->handle_reassoc_request != NULL)
 			ieee->handle_reassoc_request(ieee->dev,
 						    (struct ieee80211_reassoc_request *)
@@ -1705,8 +1703,8 @@ void ieee80211_rx_mgt(struct ieee80211_device *ieee,
 				     WLAN_FC_GET_STYPE(le16_to_cpu
 						       (header->frame_ctl)));
 
-		IEEE80211_WARNING("%s: IEEE80211_ASSOC_REQ received\n",
-				  ieee->dev->name);
+		IEEE80211_DEBUG_MGMT("%s: IEEE80211_ASSOC_REQ received\n",
+				     ieee->dev->name);
 		if (ieee->handle_assoc_request != NULL)
 			ieee->handle_assoc_request(ieee->dev);
 		break;
@@ -1722,10 +1720,10 @@ void ieee80211_rx_mgt(struct ieee80211_device *ieee,
 		IEEE80211_DEBUG_MGMT("received UNKNOWN (%d)\n",
 				     WLAN_FC_GET_STYPE(le16_to_cpu
 						       (header->frame_ctl)));
-		IEEE80211_WARNING("%s: Unknown management packet: %d\n",
-				  ieee->dev->name,
-				  WLAN_FC_GET_STYPE(le16_to_cpu
-						    (header->frame_ctl)));
+		IEEE80211_DEBUG_MGMT("%s: Unknown management packet: %d\n",
+				     ieee->dev->name,
+				     WLAN_FC_GET_STYPE(le16_to_cpu
+						       (header->frame_ctl)));
 		break;
 	}
 }

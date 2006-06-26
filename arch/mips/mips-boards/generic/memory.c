@@ -76,6 +76,15 @@ struct prom_pmemblock * __init prom_getmdesc(void)
 			memsize = simple_strtol(memsize_str, NULL, 0);
 		}
 	}
+
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	/*
+	 * SOC-it swaps, or perhaps doesn't swap, when DMA'ing the last
+	 * word of physical memory
+	 */
+	memsize -= PAGE_SIZE;
+#endif
+
 	memset(mdesc, 0, sizeof(mdesc));
 
 	mdesc[0].type = yamon_dontuse;

@@ -77,10 +77,10 @@ static inline int gre_key_cmpfn(const struct ip_ct_gre_keymap *km,
 }
 
 /* look up the source key for a given tuple */
-static u_int32_t gre_keymap_lookup(struct ip_conntrack_tuple *t)
+static __be16 gre_keymap_lookup(struct ip_conntrack_tuple *t)
 {
 	struct ip_ct_gre_keymap *km;
-	u_int32_t key = 0;
+	__be16 key = 0;
 
 	read_lock_bh(&ip_ct_gre_lock);
 	km = LIST_FIND(&gre_keymap_list, gre_key_cmpfn,
@@ -190,7 +190,7 @@ static int gre_pkt_to_tuple(const struct sk_buff *skb,
 			   struct ip_conntrack_tuple *tuple)
 {
 	struct gre_hdr_pptp _pgrehdr, *pgrehdr;
-	u_int32_t srckey;
+	__be16 srckey;
 	struct gre_hdr _grehdr, *grehdr;
 
 	/* first only delinearize old RFC1701 GRE header */

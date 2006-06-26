@@ -112,10 +112,9 @@ void __init versatile_init_irq(void)
 {
 	unsigned int i;
 
-	vic_init(VA_VIC_BASE, IRQ_VIC_START, ~(1 << 31));
+	vic_init(VA_VIC_BASE, IRQ_VIC_START, ~0);
 
-	set_irq_handler(IRQ_VICSOURCE31, sic_handle_irq);
-	enable_irq(IRQ_VICSOURCE31);
+	set_irq_chained_handler(IRQ_VICSOURCE31, sic_handle_irq);
 
 	/* Do second interrupt controller */
 	writel(~0, VA_SIC_BASE + SIC_IRQ_ENABLE_CLEAR);

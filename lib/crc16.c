@@ -47,12 +47,12 @@ u16 const crc16_table[256] = {
 EXPORT_SYMBOL(crc16_table);
 
 /**
- * Compute the CRC-16 for the data buffer
+ * crc16 - compute the CRC-16 for the data buffer
+ * @crc:	previous CRC value
+ * @buffer:	data pointer
+ * @len:	number of bytes in the buffer
  *
- * @param crc     previous CRC value
- * @param buffer  data pointer
- * @param len     number of bytes in the buffer
- * @return        the updated CRC value
+ * Returns the updated CRC value.
  */
 u16 crc16(u16 crc, u8 const *buffer, size_t len)
 {

@@ -11,7 +11,6 @@
 
 #ifdef __KERNEL__
 
-#include <linux/config.h>
 #include <asm/pgtable.h>
 #include <asm/io.h>
 #include <asm/psr.h>

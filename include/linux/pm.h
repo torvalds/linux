@@ -23,7 +23,6 @@
 
 #ifdef __KERNEL__
 
-#include <linux/config.h>
 #include <linux/list.h>
 #include <asm/atomic.h>
 

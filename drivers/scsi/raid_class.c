@@ -131,7 +131,7 @@ static const char *raid_state_name(enum raid_state state)
 	int i;
 	char *name = NULL;
 
-	for (i = 0; i < sizeof(raid_states)/sizeof(raid_states[0]); i++) {
+	for (i = 0; i < ARRAY_SIZE(raid_states); i++) {
 		if (raid_states[i].value == state) {
 			name = raid_states[i].name;
 			break;
@@ -161,7 +161,7 @@ static const char *raid_level_name(enum raid_level level)
 	int i;
 	char *name = NULL;
 
-	for (i = 0; i < sizeof(raid_levels)/sizeof(raid_levels[0]); i++) {
+	for (i = 0; i < ARRAY_SIZE(raid_levels); i++) {
 		if (raid_levels[i].value == level) {
 			name = raid_levels[i].name;
 			break;

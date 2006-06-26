@@ -18,7 +18,6 @@
 #ifndef __ASM_DDB5XXX_DDB5XXX_H
 #define __ASM_DDB5XXX_DDB5XXX_H
 
-#include <linux/config.h>
 #include <linux/types.h>
 
 /*
@@ -174,13 +173,8 @@
 
 static inline void ddb_sync(void)
 {
-/* The DDB5074 doesn't seem to like these accesses. They kill the board on
- * interrupt load
- */
-#ifndef CONFIG_DDB5074
     volatile u32 *p = (volatile u32 *)0xbfc00000;
     (void)(*p);
-#endif
 }
 
 static inline void ddb_out32(u32 offset, u32 val)
@@ -260,11 +254,7 @@ extern void ddb_pci_reset_bus(void);
 /*
  * include the board dependent part
  */
-#if defined(CONFIG_DDB5074)
-#include <asm/ddb5xxx/ddb5074.h>
-#elif defined(CONFIG_DDB5476)
-#include <asm/ddb5xxx/ddb5476.h>
-#elif defined(CONFIG_DDB5477)
+#if defined(CONFIG_DDB5477)
 #include <asm/ddb5xxx/ddb5477.h>
 #else
 #error "Unknown DDB board!"

@@ -142,25 +142,17 @@ static int esp6_input(struct xfrm_state *x, struct sk_buff *skb)
 
 	int hdr_len = skb->h.raw - skb->nh.raw;
 	int nfrags;
-	unsigned char *tmp_hdr = NULL;
 	int ret = 0;
 
 	if (!pskb_may_pull(skb, sizeof(struct ipv6_esp_hdr))) {
 		ret = -EINVAL;
-		goto out_nofree;
+		goto out;
 	}
 
 	if (elen <= 0 || (elen & (blksize-1))) {
 		ret = -EINVAL;
-		goto out_nofree;
+		goto out;
 	}
-
-	tmp_hdr = kmalloc(hdr_len, GFP_ATOMIC);
-	if (!tmp_hdr) {
-		ret = -ENOMEM;
-		goto out_nofree;
-	}
-	memcpy(tmp_hdr, skb->nh.raw, hdr_len);
 
 	/* If integrity check is required, do this. */
         if (esp->auth.icv_full_len) {
@@ -222,16 +214,12 @@ static int esp6_input(struct xfrm_state *x, struct sk_buff *skb)
 		/* ... check padding bits here. Silly. :-) */ 
 
 		pskb_trim(skb, skb->len - alen - padlen - 2);
-		skb->h.raw = skb_pull(skb, sizeof(struct ipv6_esp_hdr) + esp->conf.ivlen);
-		skb->nh.raw += sizeof(struct ipv6_esp_hdr) + esp->conf.ivlen;
-		memcpy(skb->nh.raw, tmp_hdr, hdr_len);
-		skb->nh.ipv6h->payload_len = htons(skb->len - sizeof(struct ipv6hdr));
 		ret = nexthdr[1];
 	}
 
+	skb->h.raw = __skb_pull(skb, sizeof(*esph) + esp->conf.ivlen) - hdr_len;
+
 out:
-	kfree(tmp_hdr);
-out_nofree:
 	return ret;
 }
 

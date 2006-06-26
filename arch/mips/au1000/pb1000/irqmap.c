@@ -47,8 +47,8 @@
 #include <asm/system.h>
 #include <asm/mach-au1x00/au1000.h>
 
-au1xxx_irq_map_t au1xxx_irq_map[] = {
+au1xxx_irq_map_t __initdata au1xxx_irq_map[] = {
 	{ AU1000_GPIO_15, INTC_INT_LOW_LEVEL, 0 },
 };
 
-int au1xxx_nr_irqs = sizeof(au1xxx_irq_map)/sizeof(au1xxx_irq_map_t);
+int __initdata au1xxx_nr_irqs = ARRAY_SIZE(au1xxx_irq_map);

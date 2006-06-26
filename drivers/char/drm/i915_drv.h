@@ -45,9 +45,10 @@
  * 1.2: Add Power Management
  * 1.3: Add vblank support
  * 1.4: Fix cmdbuffer path, add heap destroy
+ * 1.5: Add vblank pipe configuration
  */
 #define DRIVER_MAJOR		1
-#define DRIVER_MINOR		4
+#define DRIVER_MINOR		5
 #define DRIVER_PATCHLEVEL	0
 
 typedef struct _drm_i915_ring_buffer {
@@ -96,6 +97,7 @@ typedef struct drm_i915_private {
 	int allow_batchbuffer;
 	struct mem_block *agp_heap;
 	unsigned int sr01, adpa, ppcr, dvob, dvoc, lvds;
+	int vblank_pipe;
 } drm_i915_private_t;
 
 extern drm_ioctl_desc_t i915_ioctls[];
@@ -119,6 +121,8 @@ extern irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS);
 extern void i915_driver_irq_preinstall(drm_device_t * dev);
 extern void i915_driver_irq_postinstall(drm_device_t * dev);
 extern void i915_driver_irq_uninstall(drm_device_t * dev);
+extern int i915_vblank_pipe_set(DRM_IOCTL_ARGS);
+extern int i915_vblank_pipe_get(DRM_IOCTL_ARGS);
 
 /* i915_mem.c */
 extern int i915_mem_alloc(DRM_IOCTL_ARGS);

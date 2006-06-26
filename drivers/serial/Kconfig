@@ -300,21 +300,22 @@ config SERIAL_AMBA_PL011_CONSOLE
 	  kernel at boot time.)
 
 config SERIAL_AT91
-	bool "AT91RM9200 serial port support"
-	depends on ARM && ARCH_AT91RM9200
+	bool "AT91RM9200 / AT91SAM9261 serial port support"
+	depends on ARM && (ARCH_AT91RM9200 || ARCH_AT91SAM9261)
 	select SERIAL_CORE
 	help
-	  This enables the driver for the on-chip UARTs of the AT91RM9200
-	  processor.
+	  This enables the driver for the on-chip UARTs of the Atmel
+	  AT91RM9200 and AT91SAM926 processor.
 
 config SERIAL_AT91_CONSOLE
-	bool "Support for console on AT91RM9200 serial port"
+	bool "Support for console on AT91RM9200 / AT91SAM9261 serial port"
 	depends on SERIAL_AT91=y
 	select SERIAL_CORE_CONSOLE
 	help
-	  Say Y here if you wish to use a UART on the AT91RM9200 as the system
-	  console (the system console is the device which receives all kernel
-	  messages and warnings and which allows logins in single user mode).
+	  Say Y here if you wish to use a UART on the Atmel AT91RM9200 or
+	  AT91SAM9261 as the system console (the system console is the device
+	  which receives all kernel messages and warnings and which allows
+	  logins in single user mode).
 
 config SERIAL_AT91_TTYAT
 	bool "Install as device ttyAT0-4 instead of ttyS0-4"
@@ -353,21 +354,24 @@ config SERIAL_CLPS711X_CONSOLE
 	  kernel at boot time.)
 
 config SERIAL_S3C2410
-	tristate "Samsung S3C2410 Serial port support"
+	tristate "Samsung S3C2410/S3C2440/S3C2442/S3C2412 Serial port support"
 	depends on ARM && ARCH_S3C2410
 	select SERIAL_CORE
 	help
-	  Support for the on-chip UARTs on the Samsung S3C2410X CPU,
+	  Support for the on-chip UARTs on the Samsung S3C24XX series CPUs,
 	  providing /dev/ttySAC0, 1 and 2 (note, some machines may not
 	  provide all of these ports, depending on how the serial port
 	  pins are configured.
+
+	  Currently this driver supports the UARTS on the S3C2410, S3C2440,
+	  S3C2442, S3C2412 and S3C2413 CPUs.
 
 config SERIAL_S3C2410_CONSOLE
 	bool "Support for console on S3C2410 serial port"
 	depends on SERIAL_S3C2410=y
 	select SERIAL_CORE_CONSOLE
 	help
-	  Allow selection of the S3C2410 on-board serial ports for use as
+	  Allow selection of the S3C24XX on-board serial ports for use as
 	  an virtual console.
 
 	  Even if you say Y here, the currently visible virtual console
@@ -935,5 +939,24 @@ config SERIAL_SGI_IOC3
 	help
 	  If you have an SGI Altix with an IOC3 serial card,
 	  say Y or M.  Otherwise, say N.
+
+config SERIAL_NETX
+	bool "NetX serial port support"
+	depends on ARM && ARCH_NETX
+	select SERIAL_CORE
+	help
+	  If you have a machine based on a Hilscher NetX SoC you
+	  can enable its onboard serial port by enabling this option.
+
+          To compile this driver as a module, choose M here: the
+          module will be called netx-serial.
+
+config SERIAL_NETX_CONSOLE
+	bool "Console on NetX serial port"
+	depends on SERIAL_NETX
+	select SERIAL_CORE_CONSOLE
+	help
+	  If you have enabled the serial port on the Motorola IMX
+	  CPU you can make it the console by answering Y to this option.
 
 endmenu

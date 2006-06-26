@@ -543,10 +543,10 @@ static void fs_remove_file (struct dentry *dentry)
 
 /* --------------------------------------------------------------------- */
 
-static struct super_block *usb_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data)
+static int usb_get_sb(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
 {
-	return get_sb_single(fs_type, flags, data, usbfs_fill_super);
+	return get_sb_single(fs_type, flags, data, usbfs_fill_super, mnt);
 }
 
 static struct file_system_type usb_fs_type = {
@@ -569,7 +569,7 @@ static int create_special_files (void)
 	ignore_mount = 1;
 
 	/* create the devices special file */
-	retval = simple_pin_fs("usbfs", &usbfs_mount, &usbfs_mount_count);
+	retval = simple_pin_fs(&usb_fs_type, &usbfs_mount, &usbfs_mount_count);
 	if (retval) {
 		err ("Unable to get usbfs mount");
 		goto exit;

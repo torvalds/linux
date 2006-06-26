@@ -22,10 +22,11 @@
 #include <linux/jiffies.h>
 #include <linux/cpuset.h>
 
+int sysctl_panic_on_oom;
 /* #define DEBUG */
 
 /**
- * oom_badness - calculate a numeric value for how bad this task has been
+ * badness - calculate a numeric value for how bad this task has been
  * @p: task struct of which task we should calculate
  * @uptime: current uptime in seconds
  *
@@ -200,7 +201,7 @@ static struct task_struct *select_bad_process(unsigned long *ppoints)
 			continue;
 
 		/*
-		 * This is in the process of releasing memory so for wait it
+		 * This is in the process of releasing memory so wait for it
 		 * to finish before killing some other task by mistake.
 		 */
 		releasing = test_tsk_thread_flag(p, TIF_MEMDIE) ||
@@ -306,7 +307,7 @@ static int oom_kill_process(struct task_struct *p, unsigned long points,
 }
 
 /**
- * oom_kill - kill the "best" process when we run out of memory
+ * out_of_memory - kill the "best" process when we run out of memory
  *
  * If we run out of memory, we have the choice between either
  * killing a random task (bad), letting the system crash (worse)
@@ -344,6 +345,8 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask, int order)
 		break;
 
 	case CONSTRAINT_NONE:
+		if (sysctl_panic_on_oom)
+			panic("out of memory. panic_on_oom is selected\n");
 retry:
 		/*
 		 * Rambo mode: Shoot down a process and hope it solves whatever

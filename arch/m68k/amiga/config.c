@@ -87,17 +87,8 @@ extern char m68k_debug_device[];
 static void amiga_sched_init(irqreturn_t (*handler)(int, void *, struct pt_regs *));
 /* amiga specific irq functions */
 extern void amiga_init_IRQ (void);
-extern irqreturn_t (*amiga_default_handler[]) (int, void *, struct pt_regs *);
-extern int amiga_request_irq (unsigned int irq,
-			      irqreturn_t (*handler)(int, void *, struct pt_regs *),
-                              unsigned long flags, const char *devname,
-			      void *dev_id);
-extern void amiga_free_irq (unsigned int irq, void *dev_id);
-extern void amiga_enable_irq (unsigned int);
-extern void amiga_disable_irq (unsigned int);
 static void amiga_get_model(char *model);
 static int amiga_get_hardware_list(char *buffer);
-extern int show_amiga_interrupts (struct seq_file *, void *);
 /* amiga specific timer functions */
 static unsigned long amiga_gettimeoffset (void);
 static int a3000_hwclk (int, struct rtc_time *);
@@ -392,14 +383,8 @@ void __init config_amiga(void)
 
   mach_sched_init      = amiga_sched_init;
   mach_init_IRQ        = amiga_init_IRQ;
-  mach_default_handler = &amiga_default_handler;
-  mach_request_irq     = amiga_request_irq;
-  mach_free_irq        = amiga_free_irq;
-  enable_irq           = amiga_enable_irq;
-  disable_irq          = amiga_disable_irq;
   mach_get_model       = amiga_get_model;
   mach_get_hardware_list = amiga_get_hardware_list;
-  mach_get_irq_list    = show_amiga_interrupts;
   mach_gettimeoffset   = amiga_gettimeoffset;
   if (AMIGAHW_PRESENT(A3000_CLK)){
     mach_hwclk         = a3000_hwclk;

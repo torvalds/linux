@@ -2,7 +2,6 @@
  *  linux/drivers/char/at91_serial.c
  *
  *  Driver for Atmel AT91RM9200 Serial ports
- *
  *  Copyright (C) 2003 Rick Bronson
  *
  *  Based on drivers/char/serial_sa1100.c, by Deep Blue Solutions Ltd.
@@ -30,17 +29,19 @@
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/serial.h>
+#include <linux/clk.h>
 #include <linux/console.h>
 #include <linux/sysrq.h>
 #include <linux/tty_flip.h>
+#include <linux/platform_device.h>
 
 #include <asm/io.h>
 
 #include <asm/arch/at91rm9200_usart.h>
-#include <asm/mach/serial_at91rm9200.h>
+#include <asm/arch/at91rm9200_pdc.h>
+#include <asm/mach/serial_at91.h>
 #include <asm/arch/board.h>
-#include <asm/arch/pio.h>
-
+#include <asm/arch/system.h>
 
 #if defined(CONFIG_SERIAL_AT91_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
 #define SUPPORT_SYSRQ
@@ -67,7 +68,6 @@
 
 #endif
 
-#define AT91_VA_BASE_DBGU	((unsigned long) AT91_VA_BASE_SYS + AT91_DBGU)
 #define AT91_ISR_PASS_LIMIT	256
 
 #define UART_PUT_CR(port,v)	writel(v, (port)->membase + AT91_US_CR)
@@ -87,15 +87,32 @@
 
  /* PDC registers */
 #define UART_PUT_PTCR(port,v)	writel(v, (port)->membase + AT91_PDC_PTCR)
+#define UART_GET_PTSR(port)	readl((port)->membase + AT91_PDC_PTSR)
+
 #define UART_PUT_RPR(port,v)	writel(v, (port)->membase + AT91_PDC_RPR)
+#define UART_GET_RPR(port)	readl((port)->membase + AT91_PDC_RPR)
 #define UART_PUT_RCR(port,v)	writel(v, (port)->membase + AT91_PDC_RCR)
-#define UART_GET_RCR(port)	readl((port)->membase + AT91_PDC_RCR)
 #define UART_PUT_RNPR(port,v)	writel(v, (port)->membase + AT91_PDC_RNPR)
 #define UART_PUT_RNCR(port,v)	writel(v, (port)->membase + AT91_PDC_RNCR)
 
+#define UART_PUT_TPR(port,v)	writel(v, (port)->membase + AT91_PDC_TPR)
+#define UART_PUT_TCR(port,v)	writel(v, (port)->membase + AT91_PDC_TCR)
+//#define UART_PUT_TNPR(port,v)	writel(v, (port)->membase + AT91_PDC_TNPR)
+//#define UART_PUT_TNCR(port,v)	writel(v, (port)->membase + AT91_PDC_TNCR)
 
 static int (*at91_open)(struct uart_port *);
 static void (*at91_close)(struct uart_port *);
+
+/*
+ * We wrap our port structure around the generic uart_port.
+ */
+struct at91_uart_port {
+	struct uart_port	uart;		/* uart */
+	struct clk		*clk;		/* uart clock */
+	unsigned short		suspended;	/* is port suspended? */
+};
+
+static struct at91_uart_port at91_ports[AT91_NR_UART];
 
 #ifdef SUPPORT_SYSRQ
 static struct console at91_console;
@@ -115,16 +132,19 @@ static u_int at91_tx_empty(struct uart_port *port)
 static void at91_set_mctrl(struct uart_port *port, u_int mctrl)
 {
 	unsigned int control = 0;
+	unsigned int mode;
 
-	/*
-	 * Errata #39: RTS0 is not internally connected to PA21.  We need to drive
-	 *  the pin manually.
-	 */
-	if (port->mapbase == AT91_VA_BASE_US0) {
-		if (mctrl & TIOCM_RTS)
-			at91_sys_write(AT91_PIOA + PIO_CODR, AT91_PA21_RTS0);
-		else
-			at91_sys_write(AT91_PIOA + PIO_SODR, AT91_PA21_RTS0);
+	if (arch_identify() == ARCH_ID_AT91RM9200) {
+		/*
+		 * AT91RM9200 Errata #39: RTS0 is not internally connected to PA21.
+		 *  We need to drive the pin manually.
+		 */
+		if (port->mapbase == AT91_BASE_US0) {
+			if (mctrl & TIOCM_RTS)
+				at91_sys_write(AT91_PIOA + PIO_CODR, AT91_PA21_RTS0);
+			else
+				at91_sys_write(AT91_PIOA + PIO_SODR, AT91_PA21_RTS0);
+		}
 	}
 
 	if (mctrl & TIOCM_RTS)
@@ -137,7 +157,15 @@ static void at91_set_mctrl(struct uart_port *port, u_int mctrl)
 	else
 		control |= AT91_US_DTRDIS;
 
-	UART_PUT_CR(port,control);
+	UART_PUT_CR(port, control);
+
+	/* Local loopback mode? */
+	mode = UART_GET_MR(port) & ~AT91_US_CHMODE;
+	if (mctrl & TIOCM_LOOP)
+		mode |= AT91_US_CHMODE_LOC_LOOP;
+	else
+		mode |= AT91_US_CHMODE_NORMAL;
+	UART_PUT_MR(port, mode);
 }
 
 /*
@@ -169,8 +197,9 @@ static u_int at91_get_mctrl(struct uart_port *port)
  */
 static void at91_stop_tx(struct uart_port *port)
 {
+	struct at91_uart_port *at91_port = (struct at91_uart_port *) port;
+
 	UART_PUT_IDR(port, AT91_US_TXRDY);
-	port->read_status_mask &= ~AT91_US_TXRDY;
 }
 
 /*
@@ -178,7 +207,8 @@ static void at91_stop_tx(struct uart_port *port)
  */
 static void at91_start_tx(struct uart_port *port)
 {
-	port->read_status_mask |= AT91_US_TXRDY;
+	struct at91_uart_port *at91_port = (struct at91_uart_port *) port;
+
 	UART_PUT_IER(port, AT91_US_TXRDY);
 }
 
@@ -187,6 +217,8 @@ static void at91_start_tx(struct uart_port *port)
  */
 static void at91_stop_rx(struct uart_port *port)
 {
+	struct at91_uart_port *at91_port = (struct at91_uart_port *) port;
+
 	UART_PUT_IDR(port, AT91_US_RXRDY);
 }
 
@@ -195,7 +227,6 @@ static void at91_stop_rx(struct uart_port *port)
  */
 static void at91_enable_ms(struct uart_port *port)
 {
-	port->read_status_mask |= (AT91_US_RIIC | AT91_US_DSRIC | AT91_US_DCDIC | AT91_US_CTSIC);
 	UART_PUT_IER(port, AT91_US_RIIC | AT91_US_DSRIC | AT91_US_DCDIC | AT91_US_CTSIC);
 }
 
@@ -218,8 +249,8 @@ static void at91_rx_chars(struct uart_port *port, struct pt_regs *regs)
 	struct tty_struct *tty = port->info->tty;
 	unsigned int status, ch, flg;
 
-	status = UART_GET_CSR(port) & port->read_status_mask;
-	while (status & (AT91_US_RXRDY)) {
+	status = UART_GET_CSR(port);
+	while (status & AT91_US_RXRDY) {
 		ch = UART_GET_CHAR(port);
 
 		port->icount.rx++;
@@ -230,40 +261,38 @@ static void at91_rx_chars(struct uart_port *port, struct pt_regs *regs)
 		 * note that the error handling code is
 		 * out of the main execution path
 		 */
-		if (unlikely(status & (AT91_US_PARE | AT91_US_FRAME | AT91_US_OVRE))) {
+		if (unlikely(status & (AT91_US_PARE | AT91_US_FRAME | AT91_US_OVRE | AT91_US_RXBRK))) {
 			UART_PUT_CR(port, AT91_US_RSTSTA);	/* clear error */
-			if (status & (AT91_US_PARE))
+			if (status & AT91_US_RXBRK) {
+				status &= ~(AT91_US_PARE | AT91_US_FRAME);	/* ignore side-effect */
+				port->icount.brk++;
+				if (uart_handle_break(port))
+					goto ignore_char;
+			}
+			if (status & AT91_US_PARE)
 				port->icount.parity++;
-			if (status & (AT91_US_FRAME))
+			if (status & AT91_US_FRAME)
 				port->icount.frame++;
-			if (status & (AT91_US_OVRE))
+			if (status & AT91_US_OVRE)
 				port->icount.overrun++;
 
-			if (status & AT91_US_PARE)
+			status &= port->read_status_mask;
+
+			if (status & AT91_US_RXBRK)
+				flg = TTY_BREAK;
+			else if (status & AT91_US_PARE)
 				flg = TTY_PARITY;
 			else if (status & AT91_US_FRAME)
 				flg = TTY_FRAME;
-			if (status & AT91_US_OVRE) {
-				/*
-				 * overrun does *not* affect the character
-				 * we read from the FIFO
-				 */
-				tty_insert_flip_char(tty, ch, flg);
-				ch = 0;
-				flg = TTY_OVERRUN;
-			}
-#ifdef SUPPORT_SYSRQ
-			port->sysrq = 0;
-#endif
 		}
 
 		if (uart_handle_sysrq_char(port, ch, regs))
 			goto ignore_char;
 
-		tty_insert_flip_char(tty, ch, flg);
+		uart_insert_char(port, status, AT91_US_OVRE, ch, flg);
 
 	ignore_char:
-		status = UART_GET_CSR(port) & port->read_status_mask;
+		status = UART_GET_CSR(port);
 	}
 
 	tty_flip_buffer_push(tty);
@@ -308,40 +337,35 @@ static void at91_tx_chars(struct uart_port *port)
 static irqreturn_t at91_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
 	struct uart_port *port = dev_id;
+	struct at91_uart_port *at91_port = (struct at91_uart_port *) port;
 	unsigned int status, pending, pass_counter = 0;
 
 	status = UART_GET_CSR(port);
-	pending = status & port->read_status_mask;
-	if (pending) {
-		do {
-			if (pending & AT91_US_RXRDY)
-				at91_rx_chars(port, regs);
+	pending = status & UART_GET_IMR(port);
+	while (pending) {
+		/* Interrupt receive */
+		if (pending & AT91_US_RXRDY)
+			at91_rx_chars(port, regs);
 
-			/* Clear the relevent break bits */
-			if (pending & AT91_US_RXBRK) {
-				UART_PUT_CR(port, AT91_US_RSTSTA);
-				port->icount.brk++;
-				uart_handle_break(port);
-			}
+		// TODO: All reads to CSR will clear these interrupts!
+		if (pending & AT91_US_RIIC) port->icount.rng++;
+		if (pending & AT91_US_DSRIC) port->icount.dsr++;
+		if (pending & AT91_US_DCDIC)
+			uart_handle_dcd_change(port, !(status & AT91_US_DCD));
+		if (pending & AT91_US_CTSIC)
+			uart_handle_cts_change(port, !(status & AT91_US_CTS));
+		if (pending & (AT91_US_RIIC | AT91_US_DSRIC | AT91_US_DCDIC | AT91_US_CTSIC))
+			wake_up_interruptible(&port->info->delta_msr_wait);
 
-			// TODO: All reads to CSR will clear these interrupts!
-			if (pending & AT91_US_RIIC) port->icount.rng++;
-			if (pending & AT91_US_DSRIC) port->icount.dsr++;
-			if (pending & AT91_US_DCDIC)
-				uart_handle_dcd_change(port, !(status & AT91_US_DCD));
-			if (pending & AT91_US_CTSIC)
-				uart_handle_cts_change(port, !(status & AT91_US_CTS));
-			if (pending & (AT91_US_RIIC | AT91_US_DSRIC | AT91_US_DCDIC | AT91_US_CTSIC))
-				wake_up_interruptible(&port->info->delta_msr_wait);
+		/* Interrupt transmit */
+		if (pending & AT91_US_TXRDY)
+			at91_tx_chars(port);
 
-			if (pending & AT91_US_TXRDY)
-				at91_tx_chars(port);
-			if (pass_counter++ > AT91_ISR_PASS_LIMIT)
-				break;
+		if (pass_counter++ > AT91_ISR_PASS_LIMIT)
+			break;
 
-			status = UART_GET_CSR(port);
-			pending = status & port->read_status_mask;
-		} while (pending);
+		status = UART_GET_CSR(port);
+		pending = status & UART_GET_IMR(port);
 	}
 	return IRQ_HANDLED;
 }
@@ -351,6 +375,7 @@ static irqreturn_t at91_interrupt(int irq, void *dev_id, struct pt_regs *regs)
  */
 static int at91_startup(struct uart_port *port)
 {
+	struct at91_uart_port *at91_port = (struct at91_uart_port *) port;
 	int retval;
 
 	/*
@@ -381,14 +406,14 @@ static int at91_startup(struct uart_port *port)
 		}
 	}
 
-	port->read_status_mask = AT91_US_RXRDY | AT91_US_TXRDY | AT91_US_OVRE
-			| AT91_US_FRAME | AT91_US_PARE | AT91_US_RXBRK;
 	/*
 	 * Finally, enable the serial port
 	 */
 	UART_PUT_CR(port, AT91_US_RSTSTA | AT91_US_RSTRX);
 	UART_PUT_CR(port, AT91_US_TXEN | AT91_US_RXEN);		/* enable xmit & rcvr */
-	UART_PUT_IER(port, AT91_US_RXRDY);			/* do receive only */
+
+	UART_PUT_IER(port, AT91_US_RXRDY);		/* enable receive only */
+
 	return 0;
 }
 
@@ -397,6 +422,8 @@ static int at91_startup(struct uart_port *port)
  */
 static void at91_shutdown(struct uart_port *port)
 {
+	struct at91_uart_port *at91_port = (struct at91_uart_port *) port;
+
 	/*
 	 * Disable all interrupts, port and break condition.
 	 */
@@ -421,21 +448,22 @@ static void at91_shutdown(struct uart_port *port)
  */
 static void at91_serial_pm(struct uart_port *port, unsigned int state, unsigned int oldstate)
 {
+	struct at91_uart_port *at91_port = (struct at91_uart_port *) port;
+
 	switch (state) {
 		case 0:
 			/*
 			 * Enable the peripheral clock for this serial port.
 			 * This is called on uart_open() or a resume event.
 			 */
-			at91_sys_write(AT91_PMC_PCER, 1 << port->irq);
+			clk_enable(at91_port->clk);
 			break;
 		case 3:
 			/*
 			 * Disable the peripheral clock for this serial port.
 			 * This is called on uart_close() or a suspend event.
 			 */
-			if (port->irq != AT91_ID_SYS)			/* is this a shared clock? */
-				at91_sys_write(AT91_PMC_PCDR, 1 << port->irq);
+			clk_disable(at91_port->clk);
 			break;
 		default:
 			printk(KERN_ERR "at91_serial: unknown pm %d\n", state);
@@ -494,9 +522,9 @@ static void at91_set_termios(struct uart_port *port, struct termios * termios, s
 
 	spin_lock_irqsave(&port->lock, flags);
 
-	port->read_status_mask |= AT91_US_OVRE;
+	port->read_status_mask = AT91_US_OVRE;
 	if (termios->c_iflag & INPCK)
-		port->read_status_mask |= AT91_US_FRAME | AT91_US_PARE;
+		port->read_status_mask |= (AT91_US_FRAME | AT91_US_PARE);
 	if (termios->c_iflag & (BRKINT | PARMRK))
 		port->read_status_mask |= AT91_US_RXBRK;
 
@@ -552,7 +580,7 @@ static void at91_set_termios(struct uart_port *port, struct termios * termios, s
  */
 static const char *at91_type(struct uart_port *port)
 {
-	return (port->type == PORT_AT91RM9200) ? "AT91_SERIAL" : NULL;
+	return (port->type == PORT_AT91) ? "AT91_SERIAL" : NULL;
 }
 
 /*
@@ -560,8 +588,15 @@ static const char *at91_type(struct uart_port *port)
  */
 static void at91_release_port(struct uart_port *port)
 {
-	release_mem_region(port->mapbase,
-		(port->mapbase == AT91_VA_BASE_DBGU) ? 512 : SZ_16K);
+	struct platform_device *pdev = to_platform_device(port->dev);
+	int size = pdev->resource[0].end - pdev->resource[0].start + 1;
+
+	release_mem_region(port->mapbase, size);
+
+	if (port->flags & UPF_IOREMAP) {
+		iounmap(port->membase);
+		port->membase = NULL;
+	}
 }
 
 /*
@@ -569,10 +604,21 @@ static void at91_release_port(struct uart_port *port)
  */
 static int at91_request_port(struct uart_port *port)
 {
-	return request_mem_region(port->mapbase,
-		(port->mapbase == AT91_VA_BASE_DBGU) ? 512 : SZ_16K,
-		"at91_serial") != NULL ? 0 : -EBUSY;
+	struct platform_device *pdev = to_platform_device(port->dev);
+	int size = pdev->resource[0].end - pdev->resource[0].start + 1;
 
+	if (!request_mem_region(port->mapbase, size, "at91_serial"))
+		return -EBUSY;
+
+	if (port->flags & UPF_IOREMAP) {
+		port->membase = ioremap(port->mapbase, size);
+		if (port->membase == NULL) {
+			release_mem_region(port->mapbase, size);
+			return -ENOMEM;
+		}
+	}
+
+	return 0;
 }
 
 /*
@@ -581,7 +627,7 @@ static int at91_request_port(struct uart_port *port)
 static void at91_config_port(struct uart_port *port, int flags)
 {
 	if (flags & UART_CONFIG_TYPE) {
-		port->type = PORT_AT91RM9200;
+		port->type = PORT_AT91;
 		at91_request_port(port);
 	}
 }
@@ -592,7 +638,7 @@ static void at91_config_port(struct uart_port *port, int flags)
 static int at91_verify_port(struct uart_port *port, struct serial_struct *ser)
 {
 	int ret = 0;
-	if (ser->type != PORT_UNKNOWN && ser->type != PORT_AT91RM9200)
+	if (ser->type != PORT_UNKNOWN && ser->type != PORT_AT91)
 		ret = -EINVAL;
 	if (port->irq != ser->irq)
 		ret = -EINVAL;
@@ -624,33 +670,47 @@ static struct uart_ops at91_pops = {
 	.type		= at91_type,
 	.release_port	= at91_release_port,
 	.request_port	= at91_request_port,
-	.config_port 	= at91_config_port,
-	.verify_port 	= at91_verify_port,
+	.config_port	= at91_config_port,
+	.verify_port	= at91_verify_port,
 	.pm		= at91_serial_pm,
 };
 
-static struct uart_port at91_ports[AT91_NR_UART];
-
-void __init at91_init_ports(void)
+/*
+ * Configure the port from the platform device resource info.
+ */
+static void __devinit at91_init_port(struct at91_uart_port *at91_port, struct platform_device *pdev)
 {
-	static int first = 1;
-	int i;
+	struct uart_port *port = &at91_port->uart;
+	struct at91_uart_data *data = pdev->dev.platform_data;
 
-	if (!first)
-		return;
-	first = 0;
+	port->iotype	= UPIO_MEM;
+	port->flags     = UPF_BOOT_AUTOCONF;
+	port->ops	= &at91_pops;
+	port->fifosize  = 1;
+	port->line	= pdev->id;
+	port->dev	= &pdev->dev;
 
-	for (i = 0; i < AT91_NR_UART; i++) {
-		at91_ports[i].iotype	= UPIO_MEM;
-		at91_ports[i].flags     = UPF_BOOT_AUTOCONF;
-		at91_ports[i].uartclk   = at91_master_clock;
-		at91_ports[i].ops	= &at91_pops;
-		at91_ports[i].fifosize  = 1;
-		at91_ports[i].line	= i;
- 	}
+	port->mapbase	= pdev->resource[0].start;
+	port->irq	= pdev->resource[1].start;
+
+	if (port->mapbase == AT91_VA_BASE_SYS + AT91_DBGU)		/* Part of system perpherals - already mapped */
+		port->membase = (void __iomem *) port->mapbase;
+	else {
+		port->flags	|= UPF_IOREMAP;
+		port->membase	= NULL;
+	}
+
+	if (!at91_port->clk) {		/* for console, the clock could already be configured */
+		at91_port->clk = clk_get(&pdev->dev, "usart");
+		clk_enable(at91_port->clk);
+		port->uartclk = clk_get_rate(at91_port->clk);
+	}
 }
 
-void __init at91_register_uart_fns(struct at91rm9200_port_fns *fns)
+/*
+ * Register board-specific modem-control line handlers.
+ */
+void __init at91_register_uart_fns(struct at91_port_fns *fns)
 {
 	if (fns->enable_ms)
 		at91_pops.enable_ms = fns->enable_ms;
@@ -664,51 +724,6 @@ void __init at91_register_uart_fns(struct at91rm9200_port_fns *fns)
 	at91_pops.set_wake = fns->set_wake;
 }
 
-/*
- * Setup ports.
- */
-void __init at91_register_uart(int idx, int port)
-{
-	if ((idx < 0) || (idx >= AT91_NR_UART)) {
-		printk(KERN_ERR "%s: bad index number %d\n", __FUNCTION__, idx);
-		return;
-	}
-
-	switch (port) {
-	case 0:
-		at91_ports[idx].membase = (void __iomem *) AT91_VA_BASE_US0;
-		at91_ports[idx].mapbase = AT91_VA_BASE_US0;
-		at91_ports[idx].irq     = AT91_ID_US0;
-		AT91_CfgPIO_USART0();
-		break;
-	case 1:
-		at91_ports[idx].membase = (void __iomem *) AT91_VA_BASE_US1;
-		at91_ports[idx].mapbase = AT91_VA_BASE_US1;
-		at91_ports[idx].irq     = AT91_ID_US1;
-		AT91_CfgPIO_USART1();
-		break;
-	case 2:
-		at91_ports[idx].membase = (void __iomem *) AT91_VA_BASE_US2;
-		at91_ports[idx].mapbase = AT91_VA_BASE_US2;
-		at91_ports[idx].irq     = AT91_ID_US2;
-		AT91_CfgPIO_USART2();
-		break;
-	case 3:
-		at91_ports[idx].membase = (void __iomem *) AT91_VA_BASE_US3;
-		at91_ports[idx].mapbase = AT91_VA_BASE_US3;
-		at91_ports[idx].irq     = AT91_ID_US3;
-		AT91_CfgPIO_USART3();
-		break;
-	case 4:
-		at91_ports[idx].membase = (void __iomem *) AT91_VA_BASE_DBGU;
-		at91_ports[idx].mapbase = AT91_VA_BASE_DBGU;
-		at91_ports[idx].irq     = AT91_ID_SYS;
-		AT91_CfgPIO_DBGU();
-		break;
-	default:
-		printk(KERN_ERR  "%s : bad port number %d\n", __FUNCTION__, port);
-	}
-}
 
 #ifdef CONFIG_SERIAL_AT91_CONSOLE
 static void at91_console_putchar(struct uart_port *port, int ch)
@@ -723,7 +738,7 @@ static void at91_console_putchar(struct uart_port *port, int ch)
  */
 static void at91_console_write(struct console *co, const char *s, u_int count)
 {
-	struct uart_port *port = at91_ports + co->index;
+	struct uart_port *port = &at91_ports[co->index].uart;
 	unsigned int status, imr;
 
 	/*
@@ -778,23 +793,15 @@ static void __init at91_console_get_options(struct uart_port *port, int *baud, i
 
 static int __init at91_console_setup(struct console *co, char *options)
 {
-	struct uart_port *port;
+	struct uart_port *port = &at91_ports[co->index].uart;
 	int baud = 115200;
 	int bits = 8;
 	int parity = 'n';
 	int flow = 'n';
 
-	/*
-	 * Check whether an invalid uart number has been specified, and
-	 * if so, search for the first available port that does have
-	 * console support.
-	 */
-	port = uart_get_console(at91_ports, AT91_NR_UART, co);
+	if (port->membase == 0)		/* Port not initialized yet - delay setup */
+		return -ENODEV;
 
-	/*
-	 * Enable the serial console, in-case bootloader did not do it.
-	 */
-	at91_sys_write(AT91_PMC_PCER, 1 << port->irq);	/* enable clock */
 	UART_PUT_IDR(port, -1);				/* disable interrupts */
 	UART_PUT_CR(port, AT91_US_RSTSTA | AT91_US_RSTRX);
 	UART_PUT_CR(port, AT91_US_TXEN | AT91_US_RXEN);
@@ -821,15 +828,32 @@ static struct console at91_console = {
 
 #define AT91_CONSOLE_DEVICE	&at91_console
 
-static int  __init at91_console_init(void)
+/*
+ * Early console initialization (before VM subsystem initialized).
+ */
+static int __init at91_console_init(void)
 {
-	at91_init_ports();
+	if (at91_default_console_device) {
+		add_preferred_console(AT91_DEVICENAME, at91_default_console_device->id, NULL);
+		at91_init_port(&(at91_ports[at91_default_console_device->id]), at91_default_console_device);
+		register_console(&at91_console);
+	}
 
-	at91_console.index = at91_console_port;
-	register_console(&at91_console);
 	return 0;
 }
 console_initcall(at91_console_init);
+
+/*
+ * Late console initialization.
+ */
+static int __init at91_late_console_init(void)
+{
+	if (at91_default_console_device && !(at91_console.flags & CON_ENABLED))
+		register_console(&at91_console);
+
+	return 0;
+}
+core_initcall(at91_late_console_init);
 
 #else
 #define AT91_CONSOLE_DEVICE	NULL
@@ -837,7 +861,7 @@ console_initcall(at91_console_init);
 
 static struct uart_driver at91_uart = {
 	.owner			= THIS_MODULE,
-	.driver_name		= AT91_DEVICENAME,
+	.driver_name		= "at91_serial",
 	.dev_name		= AT91_DEVICENAME,
 	.devfs_name		= AT91_DEVICENAME,
 	.major			= SERIAL_AT91_MAJOR,
@@ -846,33 +870,106 @@ static struct uart_driver at91_uart = {
 	.cons			= AT91_CONSOLE_DEVICE,
 };
 
-static int __init at91_serial_init(void)
+#ifdef CONFIG_PM
+static int at91_serial_suspend(struct platform_device *pdev, pm_message_t state)
 {
-	int ret, i;
+	struct uart_port *port = platform_get_drvdata(pdev);
+	struct at91_uart_port *at91_port = (struct at91_uart_port *) port;
 
-	at91_init_ports();
-
-	ret = uart_register_driver(&at91_uart);
-	if (ret)
-		return ret;
-
-	for (i = 0; i < AT91_NR_UART; i++) {
-		if (at91_serial_map[i] >= 0)
-			uart_add_one_port(&at91_uart, &at91_ports[i]);
+	if (device_may_wakeup(&pdev->dev) && !at91_suspend_entering_slow_clock())
+		enable_irq_wake(port->irq);
+	else {
+		disable_irq_wake(port->irq);
+		uart_suspend_port(&at91_uart, port);
+		at91_port->suspended = 1;
 	}
 
 	return 0;
 }
 
+static int at91_serial_resume(struct platform_device *pdev)
+{
+	struct uart_port *port = platform_get_drvdata(pdev);
+	struct at91_uart_port *at91_port = (struct at91_uart_port *) port;
+
+	if (at91_port->suspended) {
+		uart_resume_port(&at91_uart, port);
+		at91_port->suspended = 0;
+	}
+
+	return 0;
+}
+#else
+#define at91_serial_suspend NULL
+#define at91_serial_resume NULL
+#endif
+
+static int __devinit at91_serial_probe(struct platform_device *pdev)
+{
+	struct at91_uart_port *port;
+	int ret;
+
+	port = &at91_ports[pdev->id];
+	at91_init_port(port, pdev);
+
+	ret = uart_add_one_port(&at91_uart, &port->uart);
+	if (!ret) {
+		device_init_wakeup(&pdev->dev, 1);
+		platform_set_drvdata(pdev, port);
+	}
+
+	return ret;
+}
+
+static int __devexit at91_serial_remove(struct platform_device *pdev)
+{
+	struct uart_port *port = platform_get_drvdata(pdev);
+	struct at91_uart_port *at91_port = (struct at91_uart_port *) port;
+	int ret = 0;
+
+	clk_disable(at91_port->clk);
+	clk_put(at91_port->clk);
+
+	device_init_wakeup(&pdev->dev, 0);
+	platform_set_drvdata(pdev, NULL);
+
+	if (port) {
+		ret = uart_remove_one_port(&at91_uart, port);
+		kfree(port);
+	}
+
+	return ret;
+}
+
+static struct platform_driver at91_serial_driver = {
+	.probe		= at91_serial_probe,
+	.remove		= __devexit_p(at91_serial_remove),
+	.suspend	= at91_serial_suspend,
+	.resume		= at91_serial_resume,
+	.driver		= {
+		.name	= "at91_usart",
+		.owner	= THIS_MODULE,
+	},
+};
+
+static int __init at91_serial_init(void)
+{
+	int ret;
+
+	ret = uart_register_driver(&at91_uart);
+	if (ret)
+		return ret;
+
+	ret = platform_driver_register(&at91_serial_driver);
+	if (ret)
+		uart_unregister_driver(&at91_uart);
+
+	return ret;
+}
+
 static void __exit at91_serial_exit(void)
 {
-	int i;
-
-	for (i = 0; i < AT91_NR_UART; i++) {
- 		if (at91_serial_map[i] >= 0)
-			uart_remove_one_port(&at91_uart, &at91_ports[i]);
-  	}
-
+	platform_driver_unregister(&at91_serial_driver);
 	uart_unregister_driver(&at91_uart);
 }
 

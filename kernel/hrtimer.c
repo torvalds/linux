@@ -98,7 +98,6 @@ static DEFINE_PER_CPU(struct hrtimer_base, hrtimer_bases[MAX_HRTIMER_BASES]) =
 
 /**
  * ktime_get_ts - get the monotonic clock in timespec format
- *
  * @ts:		pointer to timespec variable
  *
  * The function calculates the monotonic clock from the realtime
@@ -238,7 +237,6 @@ lock_hrtimer_base(const struct hrtimer *timer, unsigned long *flags)
 # ifndef CONFIG_KTIME_SCALAR
 /**
  * ktime_add_ns - Add a scalar nanoseconds value to a ktime_t variable
- *
  * @kt:		addend
  * @nsec:	the scalar nsec value to add
  *
@@ -299,7 +297,6 @@ void unlock_hrtimer_base(const struct hrtimer *timer, unsigned long *flags)
 
 /**
  * hrtimer_forward - forward the timer expiry
- *
  * @timer:	hrtimer to forward
  * @now:	forward past this time
  * @interval:	the interval to forward
@@ -393,7 +390,7 @@ static void __remove_hrtimer(struct hrtimer *timer, struct hrtimer_base *base)
 	if (base->first == &timer->node)
 		base->first = rb_next(&timer->node);
 	rb_erase(&timer->node, &base->active);
-	timer->node.rb_parent = HRTIMER_INACTIVE;
+	rb_set_parent(&timer->node, &timer->node);
 }
 
 /*
@@ -411,7 +408,6 @@ remove_hrtimer(struct hrtimer *timer, struct hrtimer_base *base)
 
 /**
  * hrtimer_start - (re)start an relative timer on the current CPU
- *
  * @timer:	the timer to be added
  * @tim:	expiry time
  * @mode:	expiry mode: absolute (HRTIMER_ABS) or relative (HRTIMER_REL)
@@ -456,17 +452,17 @@ hrtimer_start(struct hrtimer *timer, ktime_t tim, const enum hrtimer_mode mode)
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(hrtimer_start);
 
 /**
  * hrtimer_try_to_cancel - try to deactivate a timer
- *
  * @timer:	hrtimer to stop
  *
  * Returns:
  *  0 when the timer was not active
  *  1 when the timer was active
  * -1 when the timer is currently excuting the callback function and
- *    can not be stopped
+ *    cannot be stopped
  */
 int hrtimer_try_to_cancel(struct hrtimer *timer)
 {
@@ -484,10 +480,10 @@ int hrtimer_try_to_cancel(struct hrtimer *timer)
 	return ret;
 
 }
+EXPORT_SYMBOL_GPL(hrtimer_try_to_cancel);
 
 /**
  * hrtimer_cancel - cancel a timer and wait for the handler to finish.
- *
  * @timer:	the timer to be cancelled
  *
  * Returns:
@@ -504,10 +500,10 @@ int hrtimer_cancel(struct hrtimer *timer)
 		cpu_relax();
 	}
 }
+EXPORT_SYMBOL_GPL(hrtimer_cancel);
 
 /**
  * hrtimer_get_remaining - get remaining time for the timer
- *
  * @timer:	the timer to read
  */
 ktime_t hrtimer_get_remaining(const struct hrtimer *timer)
@@ -522,6 +518,7 @@ ktime_t hrtimer_get_remaining(const struct hrtimer *timer)
 
 	return rem;
 }
+EXPORT_SYMBOL_GPL(hrtimer_get_remaining);
 
 #ifdef CONFIG_NO_IDLE_HZ
 /**
@@ -560,7 +557,6 @@ ktime_t hrtimer_get_next_event(void)
 
 /**
  * hrtimer_init - initialize a timer to the given clock
- *
  * @timer:	the timer to be initialized
  * @clock_id:	the clock to be used
  * @mode:	timer mode abs/rel
@@ -572,18 +568,18 @@ void hrtimer_init(struct hrtimer *timer, clockid_t clock_id,
 
 	memset(timer, 0, sizeof(struct hrtimer));
 
-	bases = per_cpu(hrtimer_bases, raw_smp_processor_id());
+	bases = __raw_get_cpu_var(hrtimer_bases);
 
 	if (clock_id == CLOCK_REALTIME && mode != HRTIMER_ABS)
 		clock_id = CLOCK_MONOTONIC;
 
 	timer->base = &bases[clock_id];
-	timer->node.rb_parent = HRTIMER_INACTIVE;
+	rb_set_parent(&timer->node, &timer->node);
 }
+EXPORT_SYMBOL_GPL(hrtimer_init);
 
 /**
  * hrtimer_get_res - get the timer resolution for a clock
- *
  * @which_clock: which clock to query
  * @tp:		 pointer to timespec variable to store the resolution
  *
@@ -594,11 +590,12 @@ int hrtimer_get_res(const clockid_t which_clock, struct timespec *tp)
 {
 	struct hrtimer_base *bases;
 
-	bases = per_cpu(hrtimer_bases, raw_smp_processor_id());
+	bases = __raw_get_cpu_var(hrtimer_bases);
 	*tp = ktime_to_timespec(bases[which_clock].resolution);
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(hrtimer_get_res);
 
 /*
  * Expire the per base hrtimer-queue:

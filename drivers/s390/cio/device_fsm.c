@@ -749,7 +749,7 @@ ccw_device_irq(struct ccw_device *cdev, enum dev_event dev_event)
 			/* Unit check but no sense data. Need basic sense. */
 			if (ccw_device_do_sense(cdev, irb) != 0)
 				goto call_handler_unsol;
-			memcpy(irb, &cdev->private->irb, sizeof(struct irb));
+			memcpy(&cdev->private->irb, irb, sizeof(struct irb));
 			cdev->private->state = DEV_STATE_W4SENSE;
 			cdev->private->intparm = 0;
 			return;

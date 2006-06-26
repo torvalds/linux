@@ -42,6 +42,7 @@
 #ifdef CONFIG_KMOD
 #include <linux/kmod.h>
 #endif
+#include <asm/prom.h>
 
 ATOMIC_NOTIFIER_HEAD(sparc64die_chain);
 
@@ -807,7 +808,8 @@ extern unsigned int cheetah_deferred_trap_vector[], cheetah_deferred_trap_vector
 void __init cheetah_ecache_flush_init(void)
 {
 	unsigned long largest_size, smallest_linesize, order, ver;
-	int node, i, instance;
+	struct device_node *dp;
+	int i, instance, sz;
 
 	/* Scan all cpu device tree nodes, note two values:
 	 * 1) largest E-cache size
@@ -817,14 +819,14 @@ void __init cheetah_ecache_flush_init(void)
 	smallest_linesize = ~0UL;
 
 	instance = 0;
-	while (!cpu_find_by_instance(instance, &node, NULL)) {
+	while (!cpu_find_by_instance(instance, &dp, NULL)) {
 		unsigned long val;
 
-		val = prom_getintdefault(node, "ecache-size",
-					 (2 * 1024 * 1024));
+		val = of_getintprop_default(dp, "ecache-size",
+					    (2 * 1024 * 1024));
 		if (val > largest_size)
 			largest_size = val;
-		val = prom_getintdefault(node, "ecache-line-size", 64);
+		val = of_getintprop_default(dp, "ecache-line-size", 64);
 		if (val < smallest_linesize)
 			smallest_linesize = val;
 		instance++;
@@ -849,16 +851,16 @@ void __init cheetah_ecache_flush_init(void)
 	}
 
 	/* Now allocate error trap reporting scoreboard. */
-	node = NR_CPUS * (2 * sizeof(struct cheetah_err_info));
+	sz = NR_CPUS * (2 * sizeof(struct cheetah_err_info));
 	for (order = 0; order < MAX_ORDER; order++) {
-		if ((PAGE_SIZE << order) >= node)
+		if ((PAGE_SIZE << order) >= sz)
 			break;
 	}
 	cheetah_error_log = (struct cheetah_err_info *)
 		__get_free_pages(GFP_KERNEL, order);
 	if (!cheetah_error_log) {
 		prom_printf("cheetah_ecache_flush_init: Failed to allocate "
-			    "error logging scoreboard (%d bytes).\n", node);
+			    "error logging scoreboard (%d bytes).\n", sz);
 		prom_halt();
 	}
 	memset(cheetah_error_log, 0, PAGE_SIZE << order);
@@ -1797,7 +1799,9 @@ static const char *sun4v_err_type_to_str(u32 type)
 	};
 }
 
-static void sun4v_log_error(struct sun4v_error_entry *ent, int cpu, const char *pfx, atomic_t *ocnt)
+extern void __show_regs(struct pt_regs * regs);
+
+static void sun4v_log_error(struct pt_regs *regs, struct sun4v_error_entry *ent, int cpu, const char *pfx, atomic_t *ocnt)
 {
 	int cnt;
 
@@ -1829,6 +1833,8 @@ static void sun4v_log_error(struct sun4v_error_entry *ent, int cpu, const char *
 	printk("%s: err_raddr[%016lx] err_size[%u] err_cpu[%u]\n",
 	       pfx,
 	       ent->err_raddr, ent->err_size, ent->err_cpu);
+
+	__show_regs(regs);
 
 	if ((cnt = atomic_read(ocnt)) != 0) {
 		atomic_set(ocnt, 0);
@@ -1862,7 +1868,7 @@ void sun4v_resum_error(struct pt_regs *regs, unsigned long offset)
 
 	put_cpu();
 
-	sun4v_log_error(&local_copy, cpu,
+	sun4v_log_error(regs, &local_copy, cpu,
 			KERN_ERR "RESUMABLE ERROR",
 			&sun4v_resum_oflow_cnt);
 }
@@ -1910,7 +1916,7 @@ void sun4v_nonresum_error(struct pt_regs *regs, unsigned long offset)
 	}
 #endif
 
-	sun4v_log_error(&local_copy, cpu,
+	sun4v_log_error(regs, &local_copy, cpu,
 			KERN_EMERG "NON-RESUMABLE ERROR",
 			&sun4v_nonresum_oflow_cnt);
 
@@ -2200,7 +2206,6 @@ static inline struct reg_window *kernel_stack_up(struct reg_window *rw)
 void die_if_kernel(char *str, struct pt_regs *regs)
 {
 	static int die_counter;
-	extern void __show_regs(struct pt_regs * regs);
 	extern void smp_report_regs(void);
 	int count = 0;
 	
@@ -2541,7 +2546,9 @@ void __init trap_init(void)
 	    (TRAP_PER_CPU_TSB_HUGE !=
 	     offsetof(struct trap_per_cpu, tsb_huge)) ||
 	    (TRAP_PER_CPU_TSB_HUGE_TEMP !=
-	     offsetof(struct trap_per_cpu, tsb_huge_temp)))
+	     offsetof(struct trap_per_cpu, tsb_huge_temp)) ||
+	    (TRAP_PER_CPU_IRQ_WORKLIST !=
+	     offsetof(struct trap_per_cpu, irq_worklist)))
 		trap_per_cpu_offsets_are_bolixed_dave();
 
 	if ((TSB_CONFIG_TSB !=

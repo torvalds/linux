@@ -360,7 +360,7 @@ static struct hw_interrupt_type bridge_irq_type = {
 
 static unsigned long irq_map[NR_IRQS / BITS_PER_LONG];
 
-static int allocate_irqno(void)
+int allocate_irqno(void)
 {
 	int irq;
 

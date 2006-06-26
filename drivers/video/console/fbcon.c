@@ -1745,7 +1745,7 @@ static int fbcon_scroll(struct vc_data *vc, int t, int b, int dir,
 					fbcon_redraw_move(vc, p, 0, t, count);
 				ypan_up_redraw(vc, t, count);
 				if (vc->vc_rows - b > 0)
-					fbcon_redraw_move(vc, p, b - count,
+					fbcon_redraw_move(vc, p, b,
 							  vc->vc_rows - b, b);
 			} else
 				fbcon_redraw_move(vc, p, t + count, b - t - count, t);
@@ -2631,7 +2631,7 @@ static int fbcon_scrolldelta(struct vc_data *vc, int lines)
 					scr_memcpyw((u16 *) q, (u16 *) p,
 						    vc->vc_size_row);
 				}
-				softback_in = p;
+				softback_in = softback_curr = p;
 				update_region(vc, vc->vc_origin,
 					      logo_lines * vc->vc_cols);
 			}
