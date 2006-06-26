@@ -368,16 +368,15 @@ static inline void copy_kprobe(struct kprobe *old_p, struct kprobe *p)
 */
 static int __kprobes add_new_kprobe(struct kprobe *old_p, struct kprobe *p)
 {
-        struct kprobe *kp;
-
 	if (p->break_handler) {
-		list_for_each_entry_rcu(kp, &old_p->list, list) {
-			if (kp->break_handler)
-				return -EEXIST;
-		}
+		if (old_p->break_handler)
+			return -EEXIST;
 		list_add_tail_rcu(&p->list, &old_p->list);
+		old_p->break_handler = aggr_break_handler;
 	} else
 		list_add_rcu(&p->list, &old_p->list);
+	if (p->post_handler && !old_p->post_handler)
+		old_p->post_handler = aggr_post_handler;
 	return 0;
 }
 
@@ -390,9 +389,11 @@ static inline void add_aggr_kprobe(struct kprobe *ap, struct kprobe *p)
 	copy_kprobe(p, ap);
 	ap->addr = p->addr;
 	ap->pre_handler = aggr_pre_handler;
-	ap->post_handler = aggr_post_handler;
 	ap->fault_handler = aggr_fault_handler;
-	ap->break_handler = aggr_break_handler;
+	if (p->post_handler)
+		ap->post_handler = aggr_post_handler;
+	if (p->break_handler)
+		ap->break_handler = aggr_break_handler;
 
 	INIT_LIST_HEAD(&ap->list);
 	list_add_rcu(&p->list, &ap->list);
@@ -536,6 +537,21 @@ valid_p:
 			kfree(old_p);
 		}
 		arch_remove_kprobe(p);
+	} else {
+		mutex_lock(&kprobe_mutex);
+		if (p->break_handler)
+			old_p->break_handler = NULL;
+		if (p->post_handler){
+			list_for_each_entry_rcu(list_p, &old_p->list, list){
+				if (list_p->post_handler){
+					cleanup_p = 2;
+					break;
+				}
+			}
+			if (cleanup_p == 0)
+				old_p->post_handler = NULL;
+		}
+		mutex_unlock(&kprobe_mutex);
 	}
 }
 
