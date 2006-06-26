@@ -160,7 +160,7 @@ void dump_pagetable(unsigned long address)
 	printk("PGD %lx ", pgd_val(*pgd));
 	if (!pgd_present(*pgd)) goto ret; 
 
-	pud = __pud_offset_k((pud_t *)pgd_page(*pgd), address);
+	pud = pud_offset(pgd, address);
 	if (bad_address(pud)) goto bad;
 	printk("PUD %lx ", pud_val(*pud));
 	if (!pud_present(*pud))	goto ret;
