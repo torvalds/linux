@@ -17,6 +17,8 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/interrupt.h>
+#include <linux/fb.h>
+#include <linux/backlight.h>
 
 #include <asm/hardware/locomo.h>
 #include <asm/irq.h>
@@ -25,7 +27,10 @@
 
 #include "../../../arch/arm/mach-sa1100/generic.h"
 
+static struct backlight_device *locomolcd_bl_device;
 static struct locomo_dev *locomolcd_dev;
+static unsigned long locomolcd_flags;
+#define LOCOMOLCD_SUSPENDED     0x01
 
 static void locomolcd_on(int comadj)
 {
@@ -89,12 +94,10 @@ void locomolcd_power(int on)
 	}
 
 	/* read comadj */
-	if (comadj == -1) {
-		if (machine_is_poodle())
-			comadj = 118;
-		if (machine_is_collie())
-			comadj = 128;
-	}
+	if (comadj == -1 && machine_is_collie())
+		comadj = 128;
+	if (comadj == -1 && machine_is_poodle())
+		comadj = 118;
 
 	if (on)
 		locomolcd_on(comadj);
@@ -105,26 +108,100 @@ void locomolcd_power(int on)
 }
 EXPORT_SYMBOL(locomolcd_power);
 
-static int poodle_lcd_probe(struct locomo_dev *dev)
+
+static int current_intensity;
+
+static int locomolcd_set_intensity(struct backlight_device *bd)
+{
+	int intensity = bd->props->brightness;
+
+	if (bd->props->power != FB_BLANK_UNBLANK)
+		intensity = 0;
+	if (bd->props->fb_blank != FB_BLANK_UNBLANK)
+		intensity = 0;
+	if (locomolcd_flags & LOCOMOLCD_SUSPENDED)
+		intensity = 0;
+
+	switch (intensity) {
+	/* AC and non-AC are handled differently, but produce same results in sharp code? */
+	case 0: locomo_frontlight_set(locomolcd_dev, 0, 0, 161); break;
+	case 1: locomo_frontlight_set(locomolcd_dev, 117, 0, 161); break;
+	case 2: locomo_frontlight_set(locomolcd_dev, 163, 0, 148); break;
+	case 3: locomo_frontlight_set(locomolcd_dev, 194, 0, 161); break;
+	case 4: locomo_frontlight_set(locomolcd_dev, 194, 1, 161); break;
+
+	default:
+		return -ENODEV;
+	}
+	current_intensity = intensity;
+	return 0;
+}
+
+static int locomolcd_get_intensity(struct backlight_device *bd)
+{
+	return current_intensity;
+}
+
+static struct backlight_properties locomobl_data = {
+	.owner		= THIS_MODULE,
+	.get_brightness = locomolcd_get_intensity,
+	.update_status  = locomolcd_set_intensity,
+	.max_brightness = 4,
+};
+
+#ifdef CONFIG_PM
+static int locomolcd_suspend(struct locomo_dev *dev, pm_message_t state)
+{
+	locomolcd_flags |= LOCOMOLCD_SUSPENDED;
+	locomolcd_set_intensity(locomolcd_bl_device);
+	return 0;
+}
+
+static int locomolcd_resume(struct locomo_dev *dev)
+{
+	locomolcd_flags &= ~LOCOMOLCD_SUSPENDED;
+	locomolcd_set_intensity(locomolcd_bl_device);
+	return 0;
+}
+#else
+#define locomolcd_suspend	NULL
+#define locomolcd_resume	NULL
+#endif
+
+static int locomolcd_probe(struct locomo_dev *dev)
 {
 	unsigned long flags;
 
 	local_irq_save(flags);
 	locomolcd_dev = dev;
 
+	locomo_gpio_set_dir(dev, LOCOMO_GPIO_FL_VR, 0);
+
 	/* the poodle_lcd_power function is called for the first time
 	 * from fs_initcall, which is before locomo is activated.
 	 * We need to recall poodle_lcd_power here*/
-#ifdef CONFIG_MACH_POODLE
-	locomolcd_power(1);
-#endif
+	if (machine_is_poodle())
+		locomolcd_power(1);
+
 	local_irq_restore(flags);
+
+	locomolcd_bl_device = backlight_device_register("locomo-bl", NULL, &locomobl_data);
+
+	if (IS_ERR (locomolcd_bl_device))
+		return PTR_ERR (locomolcd_bl_device);
+
+	/* Set up frontlight so that screen is readable */
+	locomobl_data.brightness = 2;
+	locomolcd_set_intensity(locomolcd_bl_device);
+
 	return 0;
 }
 
-static int poodle_lcd_remove(struct locomo_dev *dev)
+static int locomolcd_remove(struct locomo_dev *dev)
 {
 	unsigned long flags;
+
+	backlight_device_unregister(locomolcd_bl_device);
 	local_irq_save(flags);
 	locomolcd_dev = NULL;
 	local_irq_restore(flags);
@@ -136,19 +213,33 @@ static struct locomo_driver poodle_lcd_driver = {
 		.name = "locomo-backlight",
 	},
 	.devid	= LOCOMO_DEVID_BACKLIGHT,
-	.probe	= poodle_lcd_probe,
-	.remove	= poodle_lcd_remove,
+	.probe	= locomolcd_probe,
+	.remove	= locomolcd_remove,
+	.suspend = locomolcd_suspend,
+	.resume = locomolcd_resume,
 };
 
-static int __init poodle_lcd_init(void)
+
+static int __init locomolcd_init(void)
 {
 	int ret = locomo_driver_register(&poodle_lcd_driver);
-	if (ret) return ret;
+	if (ret)
+		return ret;
 
 #ifdef CONFIG_SA1100_COLLIE
 	sa1100fb_lcd_power = locomolcd_power;
 #endif
 	return 0;
 }
-device_initcall(poodle_lcd_init);
 
+static void __exit locomolcd_exit(void)
+{
+	locomo_driver_unregister(&poodle_lcd_driver);
+}
+
+module_init(locomolcd_init);
+module_exit(locomolcd_exit);
+
+MODULE_AUTHOR("John Lenz <lenz@cs.wisc.edu>, Pavel Machek <pavel@suse.cz>");
+MODULE_DESCRIPTION("Collie LCD driver");
+MODULE_LICENSE("GPL");

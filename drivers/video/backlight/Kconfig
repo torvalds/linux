@@ -50,6 +50,14 @@ config BACKLIGHT_CORGI
 	  If you have a Sharp Zaurus SL-C7xx, SL-Cxx00 or SL-6000x say y to enable the
 	  backlight driver.
 
+config BACKLIGHT_LOCOMO
+	tristate "Sharp LOCOMO LCD/Backlight Driver"
+	depends on BACKLIGHT_DEVICE && SHARP_LOCOMO
+	default y
+	help
+	  If you have a Sharp Zaurus SL-5500 (Collie) or SL-5600 (Poodle) say y to
+	  enable the LCD/backlight driver.
+
 config BACKLIGHT_HP680
 	tristate "HP Jornada 680 Backlight Driver"
 	depends on BACKLIGHT_DEVICE && SH_HP6XX

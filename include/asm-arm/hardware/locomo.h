@@ -111,6 +111,8 @@
 #define LOCOMO_ALS		0x00	/* Adjust light cycle */
 #define LOCOMO_ALD		0x04	/* Adjust light duty */
 
+#define LOCOMO_ALC_EN		0x8000
+
 /* Backlight controller: TFT signal */
 #define LOCOMO_BACKLIGHT	0x38
 #define LOCOMO_TC		0x00		/* TFT control signal */
@@ -202,5 +204,8 @@ void locomo_gpio_write(struct locomo_dev *ldev, unsigned int bits, unsigned int 
 
 /* M62332 control function */
 void locomo_m62332_senddata(struct locomo_dev *ldev, unsigned int dac_data, int channel);
+
+/* Frontlight control */
+void locomo_frontlight_set(struct locomo_dev *dev, int duty, int vr, int bpwf);
 
 #endif
