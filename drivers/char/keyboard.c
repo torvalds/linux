@@ -1075,10 +1075,12 @@ static int emulate_raw(struct vc_data *vc, unsigned int keycode,
 			put_queue(vc, 0x45 | up_flag);
 			return 0;
 		case KEY_HANGEUL:
-			if (!up_flag) put_queue(vc, 0xf1);
+			if (!up_flag)
+				put_queue(vc, 0xf2);
 			return 0;
 		case KEY_HANJA:
-			if (!up_flag) put_queue(vc, 0xf2);
+			if (!up_flag)
+				put_queue(vc, 0xf1);
 			return 0;
 	}
 
