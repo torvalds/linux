@@ -455,7 +455,8 @@ static int send_msg(struct kiocb *iocb, struct socket *sock,
 
 	if (unlikely(!dest))
 		return -EDESTADDRREQ;
-	if (unlikely(dest->family != AF_TIPC))
+	if (unlikely((m->msg_namelen < sizeof(*dest)) ||
+		     (dest->family != AF_TIPC)))
 		return -EINVAL;
 
 	needs_conn = (sock->state != SS_READY);
@@ -1245,7 +1246,8 @@ static int connect(struct socket *sock, struct sockaddr *dest, int destlen,
    if (sock->state == SS_READY)
 	   return -EOPNOTSUPP;
 
-   /* MOVE THE REST OF THIS ERROR CHECKING TO send_msg()? */
+   /* Issue Posix-compliant error code if socket is in the wrong state */
+
    if (sock->state == SS_LISTENING)
 	   return -EOPNOTSUPP;
    if (sock->state == SS_CONNECTING)
@@ -1253,13 +1255,20 @@ static int connect(struct socket *sock, struct sockaddr *dest, int destlen,
    if (sock->state != SS_UNCONNECTED)
            return -EISCONN;
 
-   if ((destlen < sizeof(*dst)) || (dst->family != AF_TIPC) ||
-       ((dst->addrtype != TIPC_ADDR_NAME) && (dst->addrtype != TIPC_ADDR_ID)))
+   /*
+    * Reject connection attempt using multicast address
+    *
+    * Note: send_msg() validates the rest of the address fields,
+    *       so there's no need to do it here
+    */
+
+   if (dst->addrtype == TIPC_ADDR_MCAST)
            return -EINVAL;
 
    /* Send a 'SYN-' to destination */
 
    m.msg_name = dest;
+   m.msg_namelen = destlen;
    if ((res = send_msg(NULL, sock, &m, 0)) < 0) {
 	   sock->state = SS_DISCONNECTING;
 	   return res;
