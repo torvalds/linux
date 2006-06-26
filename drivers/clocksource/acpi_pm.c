@@ -171,7 +171,7 @@ static int __init init_acpi_pm_clocksource(void)
 	return -ENODEV;
 
 pm_good:
-	return register_clocksource(&clocksource_acpi_pm);
+	return clocksource_register(&clocksource_acpi_pm);
 }
 
 module_init(init_acpi_pm_clocksource);

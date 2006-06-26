@@ -67,7 +67,7 @@ struct clocksource clocksource_jiffies = {
 
 static int __init init_jiffies_clocksource(void)
 {
-	return register_clocksource(&clocksource_jiffies);
+	return clocksource_register(&clocksource_jiffies);
 }
 
 module_init(init_jiffies_clocksource);

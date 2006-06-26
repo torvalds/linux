@@ -113,7 +113,7 @@ static int __init init_cyclone_clocksource(void)
 	clocksource_cyclone.mult = clocksource_hz2mult(CYCLONE_TIMER_FREQ,
 						clocksource_cyclone.shift);
 
-	return register_clocksource(&clocksource_cyclone);
+	return clocksource_register(&clocksource_cyclone);
 }
 
 module_init(init_cyclone_clocksource);

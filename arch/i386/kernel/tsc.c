@@ -351,7 +351,7 @@ static int tsc_update_callback(void)
 	/* check to see if we should switch to the safe clocksource: */
 	if (clocksource_tsc.rating != 50 && check_tsc_unstable()) {
 		clocksource_tsc.rating = 50;
-		reselect_clocksource();
+		clocksource_reselect();
 		change = 1;
 	}
 
@@ -469,7 +469,7 @@ static int __init init_tsc_clocksource(void)
 			jiffies + msecs_to_jiffies(TSC_FREQ_CHECK_INTERVAL);
 		add_timer(&verify_tsc_freq_timer);
 
-		return register_clocksource(&clocksource_tsc);
+		return clocksource_register(&clocksource_tsc);
 	}
 
 	return 0;

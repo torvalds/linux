@@ -65,10 +65,10 @@ static int __init clocksource_done_booting(void)
 late_initcall(clocksource_done_booting);
 
 /**
- * get_next_clocksource - Returns the selected clocksource
+ * clocksource_get_next - Returns the selected clocksource
  *
  */
-struct clocksource *get_next_clocksource(void)
+struct clocksource *clocksource_get_next(void)
 {
 	unsigned long flags;
 
@@ -142,12 +142,12 @@ static int is_registered_source(struct clocksource *c)
 }
 
 /**
- * register_clocksource - Used to install new clocksources
+ * clocksource_register - Used to install new clocksources
  * @t:		clocksource to be registered
  *
  * Returns -EBUSY if registration fails, zero otherwise.
  */
-int register_clocksource(struct clocksource *c)
+int clocksource_register(struct clocksource *c)
 {
 	int ret = 0;
 	unsigned long flags;
@@ -167,17 +167,16 @@ int register_clocksource(struct clocksource *c)
 	spin_unlock_irqrestore(&clocksource_lock, flags);
 	return ret;
 }
-
-EXPORT_SYMBOL(register_clocksource);
+EXPORT_SYMBOL(clocksource_register);
 
 /**
- * reselect_clocksource - Rescan list for next clocksource
+ * clocksource_reselect - Rescan list for next clocksource
  *
  * A quick helper function to be used if a clocksource changes its
  * rating. Forces the clocksource list to be re-scanned for the best
  * clocksource.
  */
-void reselect_clocksource(void)
+void clocksource_reselect(void)
 {
 	unsigned long flags;
 
@@ -185,6 +184,7 @@ void reselect_clocksource(void)
 	next_clocksource = select_clocksource();
 	spin_unlock_irqrestore(&clocksource_lock, flags);
 }
+EXPORT_SYMBOL(clocksource_reselect);
 
 /**
  * sysfs_show_current_clocksources - sysfs interface for current clocksource

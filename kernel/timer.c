@@ -810,7 +810,7 @@ static inline s64 __get_nsec_offset(void)
 	s64 ns_offset;
 
 	/* read clocksource: */
-	cycle_now = read_clocksource(clock);
+	cycle_now = clocksource_read(clock);
 
 	/* calculate the delta since the last update_wall_time: */
 	cycle_delta = (cycle_now - last_clock_cycle) & clock->mask;
@@ -845,7 +845,7 @@ static inline void __get_realtime_clock_ts(struct timespec *ts)
 }
 
 /**
- * get_realtime_clock_ts - Returns the time of day in a timespec
+ * getnstimeofday - Returns the time of day in a timespec
  * @ts:		pointer to the timespec to be set
  *
  * Returns the time of day in a timespec.
@@ -920,9 +920,9 @@ static int change_clocksource(void)
 	struct clocksource *new;
 	cycle_t now;
 	u64 nsec;
-	new = get_next_clocksource();
+	new = clocksource_get_next();
 	if (clock != new) {
-		now = read_clocksource(new);
+		now = clocksource_read(new);
 		nsec =  __get_nsec_offset();
 		timespec_add_ns(&xtime, nsec);
 
@@ -966,9 +966,9 @@ void __init timekeeping_init(void)
 	unsigned long flags;
 
 	write_seqlock_irqsave(&xtime_lock, flags);
-	clock = get_next_clocksource();
-	calculate_clocksource_interval(clock, tick_nsec);
-	last_clock_cycle = read_clocksource(clock);
+	clock = clocksource_get_next();
+	clocksource_calculate_interval(clock, tick_nsec);
+	last_clock_cycle = clocksource_read(clock);
 	ntp_clear();
 	write_sequnlock_irqrestore(&xtime_lock, flags);
 }
@@ -988,7 +988,7 @@ static int timekeeping_resume(struct sys_device *dev)
 
 	write_seqlock_irqsave(&xtime_lock, flags);
 	/* restart the last cycle value */
-	last_clock_cycle = read_clocksource(clock);
+	last_clock_cycle = clocksource_read(clock);
 	write_sequnlock_irqrestore(&xtime_lock, flags);
 	return 0;
 }
@@ -1028,7 +1028,7 @@ static void update_wall_time(void)
 	snsecs_per_sec = (s64)NSEC_PER_SEC << clock->shift;
 	remainder_snsecs += (s64)xtime.tv_nsec << clock->shift;
 
-	now = read_clocksource(clock);
+	now = clocksource_read(clock);
 	offset = (now - last_clock_cycle)&clock->mask;
 
 	/* normally this loop will run just once, however in the
@@ -1069,7 +1069,7 @@ static void update_wall_time(void)
 	if (change_clocksource()) {
 		error = 0;
 		remainder_snsecs = 0;
-		calculate_clocksource_interval(clock, tick_nsec);
+		clocksource_calculate_interval(clock, tick_nsec);
 	}
 }
 

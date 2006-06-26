@@ -80,6 +80,6 @@ static int __init init_pit_clocksource(void)
 		return 0;
 
 	clocksource_pit.mult = clocksource_hz2mult(CLOCK_TICK_RATE, 20);
-	return register_clocksource(&clocksource_pit);
+	return clocksource_register(&clocksource_pit);
 }
 module_init(init_pit_clocksource);

@@ -61,7 +61,7 @@ static int __init init_hpet_clocksource(void)
 	do_div(tmp, FSEC_PER_NSEC);
 	clocksource_hpet.mult = (u32)tmp;
 
-	return register_clocksource(&clocksource_hpet);
+	return clocksource_register(&clocksource_hpet);
 }
 
 module_init(init_hpet_clocksource);

@@ -118,12 +118,12 @@ static inline u32 clocksource_hz2mult(u32 hz, u32 shift_constant)
 }
 
 /**
- * read_clocksource: - Access the clocksource's current cycle value
+ * clocksource_read: - Access the clocksource's current cycle value
  * @cs:		pointer to clocksource being read
  *
  * Uses the clocksource to return the current cycle_t value
  */
-static inline cycle_t read_clocksource(struct clocksource *cs)
+static inline cycle_t clocksource_read(struct clocksource *cs)
 {
 	return cs->read();
 }
@@ -145,7 +145,7 @@ static inline s64 cyc2ns(struct clocksource *cs, cycle_t cycles)
 }
 
 /**
- * calculate_clocksource_interval - Calculates a clocksource interval struct
+ * clocksource_calculate_interval - Calculates a clocksource interval struct
  *
  * @c:		Pointer to clocksource.
  * @length_nsec: Desired interval length in nanoseconds.
@@ -155,7 +155,7 @@ static inline s64 cyc2ns(struct clocksource *cs, cycle_t cycles)
  *
  * Unless you're the timekeeping code, you should not be using this!
  */
-static inline void calculate_clocksource_interval(struct clocksource *c,
+static inline void clocksource_calculate_interval(struct clocksource *c,
 						unsigned long length_nsec)
 {
 	u64 tmp;
@@ -271,8 +271,8 @@ static inline s64 make_ntp_adj(struct clocksource *clock,
 
 
 /* used to install a new clocksource */
-int register_clocksource(struct clocksource*);
-void reselect_clocksource(void);
-struct clocksource* get_next_clocksource(void);
+int clocksource_register(struct clocksource*);
+void clocksource_reselect(void);
+struct clocksource* clocksource_get_next(void);
 
 #endif /* _LINUX_CLOCKSOURCE_H */
