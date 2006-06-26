@@ -1371,17 +1371,24 @@ static void format_corename(char *corename, const char *pattern, long signr)
 static void zap_process(struct task_struct *start, int *ptraced)
 {
 	struct task_struct *t;
+	unsigned long flags;
+
+	spin_lock_irqsave(&start->sighand->siglock, flags);
 
 	t = start;
 	do {
 		if (t != current && t->mm) {
 			t->mm->core_waiters++;
-			force_sig_specific(SIGKILL, t);
+			sigaddset(&t->pending.signal, SIGKILL);
+			signal_wake_up(t, 1);
+
 			if (unlikely(t->ptrace) &&
 			    unlikely(t->parent->mm == t->mm))
 				*ptraced = 1;
 		}
 	} while ((t = next_thread(t)) != start);
+
+	spin_unlock_irqrestore(&start->sighand->siglock, flags);
 }
 
 static void zap_threads (struct mm_struct *mm)
