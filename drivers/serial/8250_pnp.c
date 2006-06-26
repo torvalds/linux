@@ -323,8 +323,10 @@ static const struct pnp_device_id pnp_dev_table[] = {
 	{	"USR9180",		0	},
 	/* U.S. Robotics 56K Voice INT PnP*/
 	{	"USR9190",		0	},
-	/* HP Compaq Tablet PC tc1100 Wacom tablet */
+	/* Wacom tablets */
+	{	"WACF004",		0	},
 	{	"WACF005",		0	},
+	{       "WACF006",              0       },
 	/* Rockwell's (PORALiNK) 33600 INT PNP */
 	{	"WCI0003",		0	},
 	/* Unkown PnP modems */
