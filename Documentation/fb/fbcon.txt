@@ -135,10 +135,10 @@ C. Boot options
 
 	The angle can be changed anytime afterwards by 'echoing' the same
 	numbers to any one of the 2 attributes found in
-	/sys/class/graphics/fb{x}
+	 /sys/class/graphics/fbcon
 
-		con_rotate     - rotate the display of the active console
-		con_rotate_all - rotate the display of all consoles
+		rotate     - rotate the display of the active console
+		rotate_all - rotate the display of all consoles
 
 	Console rotation will only become available if Console Rotation
 	Support is compiled in your kernel.
@@ -148,5 +148,101 @@ C. Boot options
 	Actually, the underlying fb driver is totally ignorant of console
 	rotation.
 
----
+C. Attaching, Detaching and Unloading
+
+It's possible to detach/attach the framebuffer console from the vt layer by
+echoing anything to the following sysfs attributes found
+/sys/class/graphics/fbcon.
+
+	   attach - attach framebuffer console to vt layer
+	   detach - detach framebuffer console to vt layer
+
+If fbcon is detached from the vt layer, your boot console driver (which is
+usually VGA text mode) will take over.  A few drivers (rivafb and i810fb) will
+restore VGA text mode for you.  With the rest, before detaching fbcon, you
+must take a few additional steps to make sure that your VGA text mode is
+restored properly. The following is one of the several methods that you can do:
+
+1. Download or install vbetool.  This utility is included with most
+   distributions nowadays, and is usually part of the suspend/resume tool.
+
+2. In your kernel configuration, ensure that CONFIG_FRAMEBUFFER_CONSOLE is set
+   to 'y' or 'm'. Enable one or more of your favorite framebuffer drivers.
+
+3. Boot into text mode and as root run:
+
+	vbetool vbestate save > <vga state file>
+
+	The above command saves the register contents of your graphics
+	hardware to <vga state file>.  You need to do this step only once as
+	the state file can be reused.
+
+4. If fbcon is compiled as a module, load fbcon by doing:
+
+       modprobe fbcon
+
+5. Now to detach fbcon:
+
+       vbetool vbestate restore < <vga state file> && \
+       echo 1 > /sys/class/graphics/fbcon/detach
+
+6. That's it, you're back to VGA mode. And if you compiled your drivers as
+   modules, you can unload them at will.  So if you want to change your driver
+   from xxxfb to yyyfb, you can do this:
+
+	detach fbcon
+	rmmod xxxfb
+	modprobe yyyfb
+
+	Of course, con2fbmap can do the same thing but will not work if xxxfb
+	and yyyfb are not compatible (ie, cannot be loaded at the same time).
+
+7. To reattach fbcon:
+
+       echo 1 > /sys/class/graphics/fbcon/attach
+
+8. Once the framebuffer console is detached, and if it is compiled as a module,
+the module can be unloaded with 'rmmod fbcon'.  This feature is great for
+developers.
+
+Notes for vesafb users:
+=======================
+
+Unfortunately, if your bootline includes a vga=xxx parameter that sets the
+hardware in graphics mode, such as when loading vesafb, vgacon will not load.
+Instead, vgacon will replace the default boot console with dummycon, and you
+won't get any display after detaching fbcon. Your machine is still alive, so
+you can reattach vesafb. However, to reattach vesafb, you need to do one of
+the following:
+
+Variation 1:
+
+    a. Before detaching fbcon, do
+
+       vbetool vbemode save > <vesa state file> # do once for each vesafb mode,
+						# the file can be reused
+
+    b. Detach fbcon as in step 5.
+
+    c. Attach fbcon
+
+        vbetool vbestate restore < <vesa state file> && \
+	echo 1 > /sys/class/graphics/fbcon/attach
+
+Variation 2:
+
+    a. Before detaching fbcon, do:
+
+       vbetool vbemode get
+
+    b. Take note of the mode number
+
+    b. Detach fbcon as in step 5.
+
+    c. Attach fbcon:
+
+       vbetool vbemode set <mode number> && \
+       echo 1 > /sys/class/graphics/fbcon/attach
+
+--
 Antonino Daplas <adaplas@pol.net>
