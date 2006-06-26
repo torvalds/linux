@@ -1361,7 +1361,7 @@ struct seq_operations cpuinfo_op = {
 	.show =	show_cpuinfo,
 };
 
-#ifdef CONFIG_INPUT_PCSPKR
+#if defined(CONFIG_INPUT_PCSPKR) || defined(CONFIG_INPUT_PCSPKR_MODULE)
 #include <linux/platform_device.h>
 static __init int add_pcspkr(void)
 {
