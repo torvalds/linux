@@ -116,6 +116,7 @@ extern int skip_ioapic_setup;
 extern int acpi_ht;
 extern int acpi_disabled;
 
+extern int iommu_detected;
 #ifdef CONFIG_IOMMU
 extern int fallback_aper_order;
 extern int fallback_aper_force;

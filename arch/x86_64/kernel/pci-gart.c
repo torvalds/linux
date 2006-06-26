@@ -597,6 +597,10 @@ static int __init pci_iommu_init(void)
 	if (swiotlb)
 		return -ENODEV;
 
+	/* Did we detect a different HW IOMMU? */
+	if (iommu_detected && !iommu_aperture)
+		return -1;
+
 	if (no_iommu ||
 	    (!force_iommu && end_pfn <= MAX_DMA32_PFN) ||
 	    !iommu_aperture ||

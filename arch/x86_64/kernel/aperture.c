@@ -209,6 +209,7 @@ void __init iommu_hole_init(void)
 		if (!early_is_k8_nb(read_pci_config(0, num, 3, 0x00)))
 			continue;
 
+		iommu_detected = 1;
 		iommu_aperture = 1; 
 
 		aper_order = (read_pci_config(0, num, 3, 0x90) >> 1) & 7; 

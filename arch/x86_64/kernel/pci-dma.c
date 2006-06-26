@@ -33,6 +33,9 @@ int panic_on_overflow __read_mostly = 0;
 int force_iommu __read_mostly= 0;
 #endif
 
+/* Set this to 1 if there is a HW IOMMU in the system */
+int iommu_detected __read_mostly = 0;
+
 /* Dummy device used for NULL arguments (normally ISA). Better would
    be probably a smaller DMA mask, but this is bug-to-bug compatible
    to i386. */
