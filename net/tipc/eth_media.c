@@ -98,17 +98,19 @@ static int recv_msg(struct sk_buff *buf, struct net_device *dev,
 	u32 size;
 
 	if (likely(eb_ptr->bearer)) {
-		size = msg_size((struct tipc_msg *)buf->data);
-		skb_trim(buf, size);
-		if (likely(buf->len == size)) {
-			buf->next = NULL;
-			tipc_recv_msg(buf, eb_ptr->bearer);
-		} else {
-			kfree_skb(buf);
+	       if (likely(!dev->promiscuity) ||
+	           !memcmp(buf->mac.raw,dev->dev_addr,ETH_ALEN) ||
+	           !memcmp(buf->mac.raw,dev->broadcast,ETH_ALEN)) {
+		        size = msg_size((struct tipc_msg *)buf->data);
+	                skb_trim(buf, size);
+	        	if (likely(buf->len == size)) {
+		        	buf->next = NULL;
+			        tipc_recv_msg(buf, eb_ptr->bearer);
+			        return TIPC_OK;
+			}
 		}
-	} else {
-		kfree_skb(buf);
 	}
+	kfree_skb(buf);
 	return TIPC_OK;
 }
 
