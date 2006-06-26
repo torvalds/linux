@@ -270,9 +270,17 @@ about the status of the key service:
 
  (*) /proc/keys
 
-     This lists all the keys on the system, giving information about their
-     type, description and permissions. The payload of the key is not available
-     this way:
+     This lists the keys that are currently viewable by the task reading the
+     file, giving information about their type, description and permissions.
+     It is not possible to view the payload of the key this way, though some
+     information about it may be given.
+
+     The only keys included in the list are those that grant View permission to
+     the reading process whether or not it possesses them.  Note that LSM
+     security checks are still performed, and may further filter out keys that
+     the current process is not authorised to view.
+
+     The contents of the file look like this:
 
 	SERIAL   FLAGS  USAGE EXPY PERM     UID   GID   TYPE      DESCRIPTION: SUMMARY
 	00000001 I-----    39 perm 1f3f0000     0     0 keyring   _uid_ses.0: 1/4
@@ -300,7 +308,7 @@ about the status of the key service:
  (*) /proc/key-users
 
      This file lists the tracking data for each user that has at least one key
-     on the system. Such data includes quota information and statistics:
+     on the system.  Such data includes quota information and statistics:
 
 	[root@andromeda root]# cat /proc/key-users
 	0:     46 45/45 1/100 13/10000
