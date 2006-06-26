@@ -50,9 +50,9 @@ struct target_io {
 
 union map_info *dm_get_mapinfo(struct bio *bio)
 {
-        if (bio && bio->bi_private)
-                return &((struct target_io *)bio->bi_private)->info;
-        return NULL;
+	if (bio && bio->bi_private)
+		return &((struct target_io *)bio->bi_private)->info;
+	return NULL;
 }
 
 #define MINOR_ALLOCED ((void *)-1)
@@ -474,8 +474,8 @@ static void __map_bio(struct dm_target *ti, struct bio *clone,
 	if (r > 0) {
 		/* the bio has been remapped so dispatch it */
 
-		blk_add_trace_remap(bdev_get_queue(clone->bi_bdev), clone, 
-				    tio->io->bio->bi_bdev->bd_dev, sector, 
+		blk_add_trace_remap(bdev_get_queue(clone->bi_bdev), clone,
+				    tio->io->bio->bi_bdev->bd_dev, sector,
 				    clone->bi_sector);
 
 		generic_make_request(clone);
@@ -1042,7 +1042,7 @@ static struct mapped_device *dm_find_md(dev_t dev)
 	md = idr_find(&_minor_idr, minor);
 	if (md && (md == MINOR_ALLOCED ||
 		   (dm_disk(md)->first_minor != minor) ||
-	           test_bit(DMF_FREEING, &md->flags))) {
+		   test_bit(DMF_FREEING, &md->flags))) {
 		md = NULL;
 		goto out;
 	}
