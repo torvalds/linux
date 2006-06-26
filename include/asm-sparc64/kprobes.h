@@ -12,6 +12,7 @@ typedef u32 kprobe_opcode_t;
 
 #define JPROBE_ENTRY(pentry)	(kprobe_opcode_t *)pentry
 #define arch_remove_kprobe(p)	do {} while (0)
+#define  ARCH_INACTIVE_KPROBE_COUNT 0
 
 /* Architecture specific copy of original instruction*/
 struct arch_specific_insn {
