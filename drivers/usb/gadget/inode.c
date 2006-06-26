@@ -477,6 +477,10 @@ static int
 ep_release (struct inode *inode, struct file *fd)
 {
 	struct ep_data		*data = fd->private_data;
+	int value;
+
+	if ((value = down_interruptible(&data->lock)) < 0)
+		return value;
 
 	/* clean up if this can be reopened */
 	if (data->state != STATE_EP_UNBOUND) {
@@ -485,6 +489,7 @@ ep_release (struct inode *inode, struct file *fd)
 		data->hs_desc.bDescriptorType = 0;
 		usb_ep_disable(data->ep);
 	}
+	up (&data->lock);
 	put_ep (data);
 	return 0;
 }
