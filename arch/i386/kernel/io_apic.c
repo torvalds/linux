@@ -50,6 +50,7 @@ atomic_t irq_mis_count;
 static struct { int pin, apic; } ioapic_i8259 = { -1, -1 };
 
 static DEFINE_SPINLOCK(ioapic_lock);
+static DEFINE_SPINLOCK(vector_lock);
 
 int timer_over_8254 __initdata = 1;
 
@@ -1161,10 +1162,16 @@ u8 irq_vector[NR_IRQ_VECTORS] __read_mostly = { FIRST_DEVICE_VECTOR , 0 };
 int assign_irq_vector(int irq)
 {
 	static int current_vector = FIRST_DEVICE_VECTOR, offset = 0;
+	int vector;
 
-	BUG_ON(irq >= NR_IRQ_VECTORS);
-	if (irq != AUTO_ASSIGN && IO_APIC_VECTOR(irq) > 0)
+	BUG_ON(irq != AUTO_ASSIGN && (unsigned)irq >= NR_IRQ_VECTORS);
+
+	spin_lock(&vector_lock);
+
+	if (irq != AUTO_ASSIGN && IO_APIC_VECTOR(irq) > 0) {
+		spin_unlock(&vector_lock);
 		return IO_APIC_VECTOR(irq);
+	}
 next:
 	current_vector += 8;
 	if (current_vector == SYSCALL_VECTOR)
@@ -1172,16 +1179,21 @@ next:
 
 	if (current_vector >= FIRST_SYSTEM_VECTOR) {
 		offset++;
-		if (!(offset%8))
+		if (!(offset%8)) {
+			spin_unlock(&vector_lock);
 			return -ENOSPC;
+		}
 		current_vector = FIRST_DEVICE_VECTOR + offset;
 	}
 
-	vector_irq[current_vector] = irq;
+	vector = current_vector;
+	vector_irq[vector] = irq;
 	if (irq != AUTO_ASSIGN)
-		IO_APIC_VECTOR(irq) = current_vector;
+		IO_APIC_VECTOR(irq) = vector;
 
-	return current_vector;
+	spin_unlock(&vector_lock);
+
+	return vector;
 }
 
 static struct hw_interrupt_type ioapic_level_type;
