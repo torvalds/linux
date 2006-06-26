@@ -3,7 +3,8 @@
 #
 
 # Common support
-obj-y := irq.o id.o io.o sram-fn.o memory.o prcm.o clock.o mux.o devices.o serial.o
+obj-y := irq.o id.o io.o sram-fn.o memory.o prcm.o clock.o mux.o devices.o \
+	 serial.o gpmc.o
 
 obj-$(CONFIG_OMAP_MPU_TIMER)		+= timer-gp.o
 

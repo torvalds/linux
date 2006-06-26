@@ -27,6 +27,7 @@
 extern void omap_sram_init(void);
 extern int omap2_clk_init(void);
 extern void omap2_check_revision(void);
+extern void gpmc_init(void);
 
 /*
  * The machine specific code may provide the extra mapping besides the
@@ -67,4 +68,5 @@ void __init omap2_init_common_hw(void)
 {
 	omap2_mux_init();
 	omap2_clk_init();
+	gpmc_init();
 }
