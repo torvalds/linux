@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2001, 2002 Sistina Software (UK) Limited.
- * Copyright (C) 2004 - 2005 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2004 - 2006 Red Hat, Inc. All rights reserved.
  *
  * This file is released under the GPL.
  */
@@ -578,7 +578,7 @@ static int __dev_status(struct mapped_device *md, struct dm_ioctl *param)
 
 static int dev_create(struct dm_ioctl *param, size_t param_size)
 {
-	int r;
+	int r, m = DM_ANY_MINOR;
 	struct mapped_device *md;
 
 	r = check_name(param->name);
@@ -586,10 +586,9 @@ static int dev_create(struct dm_ioctl *param, size_t param_size)
 		return r;
 
 	if (param->flags & DM_PERSISTENT_DEV_FLAG)
-		r = dm_create_with_minor(MINOR(huge_decode_dev(param->dev)), &md);
-	else
-		r = dm_create(&md);
+		m = MINOR(huge_decode_dev(param->dev));
 
+	r = dm_create(m, &md);
 	if (r)
 		return r;
 

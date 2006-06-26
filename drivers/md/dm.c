@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2001, 2002 Sistina Software (UK) Limited.
- * Copyright (C) 2004 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2004-2006 Red Hat, Inc. All rights reserved.
  *
  * This file is released under the GPL.
  */
@@ -764,7 +764,7 @@ static int dm_any_congested(void *congested_data, int bdi_bits)
  *---------------------------------------------------------------*/
 static DEFINE_IDR(_minor_idr);
 
-static void free_minor(unsigned int minor)
+static void free_minor(int minor)
 {
 	spin_lock(&_minor_lock);
 	idr_remove(&_minor_idr, minor);
@@ -774,7 +774,7 @@ static void free_minor(unsigned int minor)
 /*
  * See if the device with a specific minor # is free.
  */
-static int specific_minor(struct mapped_device *md, unsigned int minor)
+static int specific_minor(struct mapped_device *md, int minor)
 {
 	int r, m;
 
@@ -807,10 +807,9 @@ out:
 	return r;
 }
 
-static int next_free_minor(struct mapped_device *md, unsigned int *minor)
+static int next_free_minor(struct mapped_device *md, int *minor)
 {
-	int r;
-	unsigned int m;
+	int r, m;
 
 	r = idr_pre_get(&_minor_idr, GFP_KERNEL);
 	if (!r)
@@ -841,7 +840,7 @@ static struct block_device_operations dm_blk_dops;
 /*
  * Allocate and initialise a blank device with a given minor.
  */
-static struct mapped_device *alloc_dev(unsigned int minor, int persistent)
+static struct mapped_device *alloc_dev(int minor)
 {
 	int r;
 	struct mapped_device *md = kmalloc(sizeof(*md), GFP_KERNEL);
@@ -856,7 +855,10 @@ static struct mapped_device *alloc_dev(unsigned int minor, int persistent)
 		goto bad0;
 
 	/* get a minor number for the dev */
-	r = persistent ? specific_minor(md, minor) : next_free_minor(md, &minor);
+	if (minor == DM_ANY_MINOR)
+		r = next_free_minor(md, &minor);
+	else
+		r = specific_minor(md, minor);
 	if (r < 0)
 		goto bad1;
 
@@ -929,7 +931,7 @@ static struct mapped_device *alloc_dev(unsigned int minor, int persistent)
 
 static void free_dev(struct mapped_device *md)
 {
-	unsigned int minor = md->disk->first_minor;
+	int minor = md->disk->first_minor;
 
 	if (md->suspended_bdev) {
 		thaw_bdev(md->suspended_bdev, NULL);
@@ -1015,27 +1017,16 @@ static void __unbind(struct mapped_device *md)
 /*
  * Constructor for a new device.
  */
-static int create_aux(unsigned int minor, int persistent,
-		      struct mapped_device **result)
+int dm_create(int minor, struct mapped_device **result)
 {
 	struct mapped_device *md;
 
-	md = alloc_dev(minor, persistent);
+	md = alloc_dev(minor);
 	if (!md)
 		return -ENXIO;
 
 	*result = md;
 	return 0;
-}
-
-int dm_create(struct mapped_device **result)
-{
-	return create_aux(0, 0, result);
-}
-
-int dm_create_with_minor(unsigned int minor, struct mapped_device **result)
-{
-	return create_aux(minor, 1, result);
 }
 
 static struct mapped_device *dm_find_md(dev_t dev)

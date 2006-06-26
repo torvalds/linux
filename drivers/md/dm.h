@@ -2,7 +2,7 @@
  * Internal header file for device mapper
  *
  * Copyright (C) 2001, 2002 Sistina Software
- * Copyright (C) 2004 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2004-2006 Red Hat, Inc. All rights reserved.
  *
  * This file is released under the LGPL.
  */
@@ -45,16 +45,21 @@ struct mapped_device;
  * Functions for manipulating a struct mapped_device.
  * Drop the reference with dm_put when you finish with the object.
  *---------------------------------------------------------------*/
-int dm_create(struct mapped_device **md);
-int dm_create_with_minor(unsigned int minor, struct mapped_device **md);
+
+/*
+ * DM_ANY_MINOR allocates any available minor number.
+ */
+#define DM_ANY_MINOR (-1)
+int dm_create(int minor, struct mapped_device **md);
+
 void dm_set_mdptr(struct mapped_device *md, void *ptr);
 void *dm_get_mdptr(struct mapped_device *md);
-struct mapped_device *dm_get_md(dev_t dev);
 
 /*
  * Reference counting for md.
  */
 void dm_get(struct mapped_device *md);
+struct mapped_device *dm_get_md(dev_t dev);
 void dm_put(struct mapped_device *md);
 
 /*
