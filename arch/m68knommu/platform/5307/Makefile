@@ -25,6 +25,7 @@ obj-$(CONFIG_M5249)	+= timers.o
 obj-$(CONFIG_M527x)     += pit.o
 obj-$(CONFIG_M5272)	+= timers.o
 obj-$(CONFIG_M5307)	+= config.o timers.o
+obj-$(CONFIG_M532x)	+= timers.o
 obj-$(CONFIG_M528x)     += pit.o
 obj-$(CONFIG_M5407)	+= timers.o
 
