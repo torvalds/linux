@@ -1352,16 +1352,6 @@ static int tid_fd_revalidate(struct dentry *dentry, struct nameidata *nd)
 	return 0;
 }
 
-static void pid_base_iput(struct dentry *dentry, struct inode *inode)
-{
-	struct task_struct *task = proc_task(inode);
-	spin_lock(&task->proc_lock);
-	if (task->proc_dentry == dentry)
-		task->proc_dentry = NULL;
-	spin_unlock(&task->proc_lock);
-	iput(inode);
-}
-
 static int pid_delete_dentry(struct dentry * dentry)
 {
 	/* Is the task we represent dead?
@@ -1380,13 +1370,6 @@ static struct dentry_operations tid_fd_dentry_operations =
 static struct dentry_operations pid_dentry_operations =
 {
 	.d_revalidate	= pid_revalidate,
-	.d_delete	= pid_delete_dentry,
-};
-
-static struct dentry_operations pid_base_dentry_operations =
-{
-	.d_revalidate	= pid_revalidate,
-	.d_iput		= pid_base_iput,
 	.d_delete	= pid_delete_dentry,
 };
 
@@ -1859,57 +1842,70 @@ static struct inode_operations proc_self_inode_operations = {
 };
 
 /**
- * proc_pid_unhash -  Unhash /proc/@pid entry from the dcache.
- * @p: task that should be flushed.
+ * proc_flush_task -  Remove dcache entries for @task from the /proc dcache.
  *
- * Drops the /proc/@pid dcache entry from the hash chains.
+ * @task: task that should be flushed.
  *
- * Dropping /proc/@pid entries and detach_pid must be synchroneous,
- * otherwise e.g. /proc/@pid/exe might point to the wrong executable,
- * if the pid value is immediately reused. This is enforced by
- * - caller must acquire spin_lock(p->proc_lock)
- * - must be called before detach_pid()
- * - proc_pid_lookup acquires proc_lock, and checks that
- *   the target is not dead by looking at the attach count
- *   of PIDTYPE_PID.
+ * Looks in the dcache for
+ * /proc/@pid
+ * /proc/@tgid/task/@pid
+ * if either directory is present flushes it and all of it'ts children
+ * from the dcache.
+ *
+ * It is safe and reasonable to cache /proc entries for a task until
+ * that task exits.  After that they just clog up the dcache with
+ * useless entries, possibly causing useful dcache entries to be
+ * flushed instead.  This routine is proved to flush those useless
+ * dcache entries at process exit time.
+ *
+ * NOTE: This routine is just an optimization so it does not guarantee
+ *       that no dcache entries will exist at process exit time it
+ *       just makes it very unlikely that any will persist.
  */
-
-struct dentry *proc_pid_unhash(struct task_struct *p)
+void proc_flush_task(struct task_struct *task)
 {
-	struct dentry *proc_dentry;
+	struct dentry *dentry, *leader, *dir;
+	char buf[30];
+	struct qstr name;
 
-	proc_dentry = p->proc_dentry;
-	if (proc_dentry != NULL) {
-
-		spin_lock(&dcache_lock);
-		spin_lock(&proc_dentry->d_lock);
-		if (!d_unhashed(proc_dentry)) {
-			dget_locked(proc_dentry);
-			__d_drop(proc_dentry);
-			spin_unlock(&proc_dentry->d_lock);
-		} else {
-			spin_unlock(&proc_dentry->d_lock);
-			proc_dentry = NULL;
-		}
-		spin_unlock(&dcache_lock);
+	name.name = buf;
+	name.len = snprintf(buf, sizeof(buf), "%d", task->pid);
+	dentry = d_hash_and_lookup(proc_mnt->mnt_root, &name);
+	if (dentry) {
+		shrink_dcache_parent(dentry);
+		d_drop(dentry);
+		dput(dentry);
 	}
-	return proc_dentry;
-}
 
-/**
- * proc_pid_flush - recover memory used by stale /proc/@pid/x entries
- * @proc_dentry: directoy to prune.
- *
- * Shrink the /proc directory that was used by the just killed thread.
- */
-	
-void proc_pid_flush(struct dentry *proc_dentry)
-{
-	might_sleep();
-	if(proc_dentry != NULL) {
-		shrink_dcache_parent(proc_dentry);
-		dput(proc_dentry);
+	if (thread_group_leader(task))
+		goto out;
+
+	name.name = buf;
+	name.len = snprintf(buf, sizeof(buf), "%d", task->tgid);
+	leader = d_hash_and_lookup(proc_mnt->mnt_root, &name);
+	if (!leader)
+		goto out;
+
+	name.name = "task";
+	name.len = strlen(name.name);
+	dir = d_hash_and_lookup(leader, &name);
+	if (!dir)
+		goto out_put_leader;
+
+	name.name = buf;
+	name.len = snprintf(buf, sizeof(buf), "%d", task->pid);
+	dentry = d_hash_and_lookup(dir, &name);
+	if (dentry) {
+		shrink_dcache_parent(dentry);
+		d_drop(dentry);
+		dput(dentry);
 	}
+
+	dput(dir);
+out_put_leader:
+	dput(leader);
+out:
+	return;
 }
 
 /* SMP-safe */
@@ -1919,7 +1915,6 @@ struct dentry *proc_pid_lookup(struct inode *dir, struct dentry * dentry, struct
 	struct inode *inode;
 	struct proc_inode *ei;
 	unsigned tgid;
-	int died;
 
 	if (dentry->d_name.len == 4 && !memcmp(dentry->d_name.name,"self",4)) {
 		inode = new_inode(dir->i_sb);
@@ -1965,23 +1960,16 @@ struct dentry *proc_pid_lookup(struct inode *dir, struct dentry * dentry, struct
 	inode->i_nlink = 4;
 #endif
 
-	dentry->d_op = &pid_base_dentry_operations;
+	dentry->d_op = &pid_dentry_operations;
 
-	died = 0;
 	d_add(dentry, inode);
-	spin_lock(&task->proc_lock);
-	task->proc_dentry = dentry;
 	if (!pid_alive(task)) {
-		dentry = proc_pid_unhash(task);
-		died = 1;
-	}
-	spin_unlock(&task->proc_lock);
-
-	put_task_struct(task);
-	if (died) {
-		proc_pid_flush(dentry);
+		d_drop(dentry);
+		shrink_dcache_parent(dentry);
 		goto out;
 	}
+
+	put_task_struct(task);
 	return NULL;
 out:
 	return ERR_PTR(-ENOENT);
@@ -2024,7 +2012,7 @@ static struct dentry *proc_task_lookup(struct inode *dir, struct dentry * dentry
 	inode->i_nlink = 3;
 #endif
 
-	dentry->d_op = &pid_base_dentry_operations;
+	dentry->d_op = &pid_dentry_operations;
 
 	d_add(dentry, inode);
 

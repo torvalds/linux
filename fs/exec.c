@@ -666,8 +666,6 @@ static int de_thread(struct task_struct *tsk)
 	 * and to assume its PID:
 	 */
 	if (!thread_group_leader(current)) {
-		struct dentry *proc_dentry1, *proc_dentry2;
-
 		/*
 		 * Wait for the thread group leader to be a zombie.
 		 * It should already be zombie at this point, most
@@ -689,10 +687,6 @@ static int de_thread(struct task_struct *tsk)
 		 */
 		current->start_time = leader->start_time;
 
-		spin_lock(&leader->proc_lock);
-		spin_lock(&current->proc_lock);
-		proc_dentry1 = proc_pid_unhash(current);
-		proc_dentry2 = proc_pid_unhash(leader);
 		write_lock_irq(&tasklist_lock);
 
 		BUG_ON(leader->tgid != current->tgid);
@@ -729,10 +723,6 @@ static int de_thread(struct task_struct *tsk)
 		leader->exit_state = EXIT_DEAD;
 
 		write_unlock_irq(&tasklist_lock);
-		spin_unlock(&leader->proc_lock);
-		spin_unlock(&current->proc_lock);
-		proc_pid_flush(proc_dentry1);
-		proc_pid_flush(proc_dentry2);
         }
 
 	/*

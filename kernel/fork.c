@@ -993,13 +993,10 @@ static task_t *copy_process(unsigned long clone_flags,
 		if (put_user(p->pid, parent_tidptr))
 			goto bad_fork_cleanup;
 
-	p->proc_dentry = NULL;
-
 	INIT_LIST_HEAD(&p->children);
 	INIT_LIST_HEAD(&p->sibling);
 	p->vfork_done = NULL;
 	spin_lock_init(&p->alloc_lock);
-	spin_lock_init(&p->proc_lock);
 
 	clear_tsk_thread_flag(p, TIF_SIGPENDING);
 	init_sigpending(&p->pending);
