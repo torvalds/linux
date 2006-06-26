@@ -501,6 +501,10 @@ config REORDER
          optimal TLB usage. If you have pretty much any version of binutils, 
 	 this can increase your kernel build time by roughly one minute.
 
+config K8_NB
+	def_bool y
+	depends on AGP_AMD64 || GART_IOMMU || (PCI && NUMA)
+
 endmenu
 
 #

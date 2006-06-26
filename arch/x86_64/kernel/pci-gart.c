@@ -32,6 +32,7 @@
 #include <asm/kdebug.h>
 #include <asm/swiotlb.h>
 #include <asm/dma.h>
+#include <asm/k8.h>
 
 unsigned long iommu_bus_base;	/* GART remapping area (physical) */
 static unsigned long iommu_size; 	/* size of remapping area bytes */
@@ -45,8 +46,6 @@ u32 *iommu_gatt_base; 		/* Remapping table */
    bugs with some popular PCI cards, in particular 3ware (but has been also
    also seen with Qlogic at least). */
 int iommu_fullflush = 1;
-
-#define MAX_NB 8
 
 /* Allocation bitmap for the remapping area */ 
 static DEFINE_SPINLOCK(iommu_bitmap_lock);
@@ -62,13 +61,6 @@ static u32 gart_unmapped_entry;
 
 #define to_pages(addr,size) \
 	(round_up(((addr) & ~PAGE_MASK) + (size), PAGE_SIZE) >> PAGE_SHIFT)
-
-#define for_all_nb(dev) \
-	dev = NULL;	\
-	while ((dev = pci_get_device(PCI_VENDOR_ID_AMD, 0x1103, dev))!=NULL)
-
-static struct pci_dev *northbridges[MAX_NB];
-static u32 northbridge_flush_word[MAX_NB];
 
 #define EMERGENCY_PAGES 32 /* = 128KB */ 
 
@@ -120,43 +112,16 @@ static void free_iommu(unsigned long offset, int size)
 /* 
  * Use global flush state to avoid races with multiple flushers.
  */
-static void flush_gart(struct device *dev)
+static void flush_gart(void)
 { 
 	unsigned long flags;
-	int flushed = 0;
-	int i, max;
-
 	spin_lock_irqsave(&iommu_bitmap_lock, flags);
-	if (need_flush) { 
-		max = 0;
-		for (i = 0; i < MAX_NB; i++) {
-			if (!northbridges[i]) 
-				continue;
-			pci_write_config_dword(northbridges[i], 0x9c, 
-					       northbridge_flush_word[i] | 1); 
-			flushed++;
-			max = i;
-		}
-		for (i = 0; i <= max; i++) {
-			u32 w;
-			if (!northbridges[i])
-				continue;
-			/* Make sure the hardware actually executed the flush. */
-			for (;;) { 
-				pci_read_config_dword(northbridges[i], 0x9c, &w);
-				if (!(w & 1))
-					break;
-				cpu_relax();
-			}
-		} 
-		if (!flushed) 
-			printk("nothing to flush?\n");
+	if (need_flush) {
+		k8_flush_garts();
 		need_flush = 0;
 	} 
 	spin_unlock_irqrestore(&iommu_bitmap_lock, flags);
 } 
-
-
 
 #ifdef CONFIG_IOMMU_LEAK
 
@@ -266,7 +231,7 @@ static dma_addr_t gart_map_simple(struct device *dev, char *buf,
 				 size_t size, int dir)
 {
 	dma_addr_t map = dma_map_area(dev, virt_to_bus(buf), size, dir);
-	flush_gart(dev);
+	flush_gart();
 	return map;
 }
 
@@ -351,7 +316,7 @@ static int dma_map_sg_nonforce(struct device *dev, struct scatterlist *sg,
 		s->dma_address = addr;
 		s->dma_length = s->length;
 	}
-	flush_gart(dev);
+	flush_gart();
 	return nents;
 }
 
@@ -458,13 +423,13 @@ int gart_map_sg(struct device *dev, struct scatterlist *sg, int nents, int dir)
 	if (dma_map_cont(sg, start, i, sg+out, pages, need) < 0)
 		goto error;
 	out++;
-	flush_gart(dev);
+	flush_gart();
 	if (out < nents) 
 		sg[out].dma_length = 0; 
 	return out;
 
 error:
-	flush_gart(NULL);
+	flush_gart();
 	gart_unmap_sg(dev, sg, nents, dir);
 	/* When it was forced or merged try again in a dumb way */
 	if (force_iommu || iommu_merge) {
@@ -532,10 +497,13 @@ static __init int init_k8_gatt(struct agp_kern_info *info)
 	void *gatt;
 	unsigned aper_base, new_aper_base;
 	unsigned aper_size, gatt_size, new_aper_size;
-	
+	int i;
+
 	printk(KERN_INFO "PCI-DMA: Disabling AGP.\n");
 	aper_size = aper_base = info->aper_size = 0;
-	for_all_nb(dev) { 
+	dev = NULL;
+	for (i = 0; i < num_k8_northbridges; i++) {
+		dev = k8_northbridges[i];
 		new_aper_base = read_aperture(dev, &new_aper_size); 
 		if (!new_aper_base) 
 			goto nommu; 
@@ -558,11 +526,12 @@ static __init int init_k8_gatt(struct agp_kern_info *info)
 		panic("Cannot allocate GATT table"); 
 	memset(gatt, 0, gatt_size); 
 	agp_gatt_table = gatt;
-	
-	for_all_nb(dev) { 
+
+	for (i = 0; i < num_k8_northbridges; i++) {
 		u32 ctl; 
 		u32 gatt_reg; 
 
+		dev = k8_northbridges[i];
 		gatt_reg = __pa(gatt) >> 12; 
 		gatt_reg <<= 4; 
 		pci_write_config_dword(dev, 0x98, gatt_reg);
@@ -573,7 +542,7 @@ static __init int init_k8_gatt(struct agp_kern_info *info)
 
 		pci_write_config_dword(dev, 0x90, ctl); 
 	}
-	flush_gart(NULL); 
+	flush_gart();
 	
 	printk("PCI-DMA: aperture base @ %x size %u KB\n",aper_base, aper_size>>10); 
 	return 0;
@@ -607,9 +576,13 @@ static int __init pci_iommu_init(void)
 	struct agp_kern_info info;
 	unsigned long aper_size;
 	unsigned long iommu_start;
-	struct pci_dev *dev;
 	unsigned long scratch;
 	long i;
+
+	if (cache_k8_northbridges() < 0 || num_k8_northbridges == 0) {
+		printk(KERN_INFO "PCI-GART: No AMD northbridge found.\n");
+		return -1;
+	}
 
 #ifndef CONFIG_AGP_AMD64
 	no_agp = 1; 
@@ -634,14 +607,6 @@ static int __init pci_iommu_init(void)
 					"but IOMMU not available.\n"
 			       KERN_ERR "WARNING 32bit PCI may malfunction.\n");
 		}
-		return -1;
-	}
-
-	i = 0;
-	for_all_nb(dev)
-		i++;
-	if (i > MAX_NB) {
-		printk(KERN_ERR "PCI-GART: Too many northbridges (%ld). Disabled\n", i);
 		return -1;
 	}
 
@@ -707,20 +672,8 @@ static int __init pci_iommu_init(void)
 	for (i = EMERGENCY_PAGES; i < iommu_pages; i++) 
 		iommu_gatt_base[i] = gart_unmapped_entry;
 
-	for_all_nb(dev) {
-		u32 flag; 
-		int cpu = PCI_SLOT(dev->devfn) - 24;
-		if (cpu >= MAX_NB)
-			continue;
-		northbridges[cpu] = dev;
-		pci_read_config_dword(dev, 0x9c, &flag); /* cache flush word */
-		northbridge_flush_word[cpu] = flag; 
-	}
-		     
-	flush_gart(NULL);
-
+	flush_gart();
 	dma_ops = &gart_dma_ops;
-
 	return 0;
 } 
 

@@ -33,6 +33,7 @@ obj-$(CONFIG_SWIOTLB)		+= pci-swiotlb.o
 obj-$(CONFIG_KPROBES)		+= kprobes.o
 obj-$(CONFIG_X86_PM_TIMER)	+= pmtimer.o
 obj-$(CONFIG_X86_VSMP)		+= vsmp.o
+obj-$(CONFIG_K8_NB)		+= k8.o
 
 obj-$(CONFIG_MODULES)		+= module.o
 
