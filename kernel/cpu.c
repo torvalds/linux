@@ -13,10 +13,10 @@
 #include <linux/module.h>
 #include <linux/kthread.h>
 #include <linux/stop_machine.h>
-#include <asm/semaphore.h>
+#include <linux/mutex.h>
 
 /* This protects CPUs going up and down... */
-static DECLARE_MUTEX(cpucontrol);
+static DEFINE_MUTEX(cpucontrol);
 
 static BLOCKING_NOTIFIER_HEAD(cpu_chain);
 
@@ -30,9 +30,9 @@ static int __lock_cpu_hotplug(int interruptible)
 
 	if (lock_cpu_hotplug_owner != current) {
 		if (interruptible)
-			ret = down_interruptible(&cpucontrol);
+			ret = mutex_lock_interruptible(&cpucontrol);
 		else
-			down(&cpucontrol);
+			mutex_lock(&cpucontrol);
 	}
 
 	/*
@@ -56,7 +56,7 @@ void unlock_cpu_hotplug(void)
 {
 	if (--lock_cpu_hotplug_depth == 0) {
 		lock_cpu_hotplug_owner = NULL;
-		up(&cpucontrol);
+		mutex_unlock(&cpucontrol);
 	}
 }
 EXPORT_SYMBOL_GPL(unlock_cpu_hotplug);
