@@ -56,8 +56,6 @@ DEFINE_SPINLOCK(i8253_lock);
 int nohpet __initdata = 0;
 static int notsc __initdata = 0;
 
-#undef HPET_HACK_ENABLE_DANGEROUS
-
 unsigned int cpu_khz;					/* TSC clocks / usec, not used here */
 static unsigned long hpet_period;			/* fsecs / HPET clock */
 unsigned long hpet_tick;				/* HPET clocks / interrupt */
@@ -890,18 +888,6 @@ void __init time_init(void)
 	char *timename;
 	char *gtod;
 
-#ifdef HPET_HACK_ENABLE_DANGEROUS
-        if (!vxtime.hpet_address) {
-		printk(KERN_WARNING "time.c: WARNING: Enabling HPET base "
-		       "manually!\n");
-                outl(0x800038a0, 0xcf8);
-                outl(0xff000001, 0xcfc);
-                outl(0x800038a0, 0xcf8);
-                vxtime.hpet_address = inl(0xcfc) & 0xfffffffe;
-		printk(KERN_WARNING "time.c: WARNING: Enabled HPET "
-		       "at %#lx.\n", vxtime.hpet_address);
-        }
-#endif
 	if (nohpet)
 		vxtime.hpet_address = 0;
 
