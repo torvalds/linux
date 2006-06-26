@@ -417,7 +417,7 @@ config USB_SERIAL_MCT_U232
 	  Magic Control Technology Corp. (U232 is one of the model numbers).
 
 	  This driver also works with Sitecom U232-P25 and D-Link DU-H3SP USB
-	  BAY devices.
+	  BAY, Belkin F5U109, and Belkin F5U409 devices.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called mct_u232.
@@ -491,15 +491,21 @@ config USB_SERIAL_XIRCOM
 	  module will be called keyspan_pda.
 
 config USB_SERIAL_OPTION
-	tristate "USB Option PCMCIA serial driver"
-	depends on USB_SERIAL && USB_OHCI_HCD && PCCARD
+	tristate "USB driver for GSM modems"
+	depends on USB_SERIAL
 	help
-	  Say Y here if you want to use an Option card. This is a
-	  GSM card, controlled by three serial ports which are connected
-	  via an OHCI adapter located on a PC card.
+	  Say Y here if you have an "Option" GSM PCMCIA card
+	  (or an OEM version: branded Huawei, Audiovox, or Novatel).
+
+	  These cards feature a built-in OHCI-USB adapter and an
+	  internally-connected GSM modem. The USB bus is not
+	  accessible externally.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called option.
+
+	  If this driver doesn't recognize your device,
+	  it might be accessible via the FTDI_SIO driver.
 
 config USB_SERIAL_OMNINET
 	tristate "USB ZyXEL omni.net LCD Plus Driver (EXPERIMENTAL)"

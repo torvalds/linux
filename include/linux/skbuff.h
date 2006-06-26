@@ -134,9 +134,10 @@ struct skb_frag_struct {
 struct skb_shared_info {
 	atomic_t	dataref;
 	unsigned short	nr_frags;
-	unsigned short	tso_size;
-	unsigned short	tso_segs;
-	unsigned short  ufo_size;
+	unsigned short	gso_size;
+	/* Warning: this field is not always filled in (UFO)! */
+	unsigned short	gso_segs;
+	unsigned short  gso_type;
 	unsigned int    ip6_frag_id;
 	struct sk_buff	*frag_list;
 	skb_frag_t	frags[MAX_SKB_FRAGS];
@@ -166,6 +167,11 @@ enum {
 	SKB_FCLONE_UNAVAILABLE,
 	SKB_FCLONE_ORIG,
 	SKB_FCLONE_CLONE,
+};
+
+enum {
+	SKB_GSO_TCPV4 = 1 << 0,
+	SKB_GSO_UDPV4 = 1 << 1,
 };
 
 /** 
@@ -209,6 +215,8 @@ enum {
  *	@nf_bridge: Saved data about a bridged frame - see br_netfilter.c
  *	@tc_index: Traffic control index
  *	@tc_verd: traffic control verdict
+ *	@dma_cookie: a cookie to one of several possible DMA operations
+ *		done by skb DMA functions
  *	@secmark: security marking
  */
 
@@ -345,7 +353,7 @@ extern struct sk_buff *skb_realloc_headroom(struct sk_buff *skb,
 extern struct sk_buff *skb_copy_expand(const struct sk_buff *skb,
 				       int newheadroom, int newtailroom,
 				       gfp_t priority);
-extern struct sk_buff *		skb_pad(struct sk_buff *skb, int pad);
+extern int	       skb_pad(struct sk_buff *skb, int pad);
 #define dev_kfree_skb(a)	kfree_skb(a)
 extern void	      skb_over_panic(struct sk_buff *skb, int len,
 				     void *here);
@@ -1122,16 +1130,15 @@ static inline int skb_cow(struct sk_buff *skb, unsigned int headroom)
  *
  *	Pads up a buffer to ensure the trailing bytes exist and are
  *	blanked. If the buffer already contains sufficient data it
- *	is untouched. Returns the buffer, which may be a replacement
- *	for the original, or NULL for out of memory - in which case
- *	the original buffer is still freed.
+ *	is untouched. Otherwise it is extended. Returns zero on
+ *	success. The skb is freed on error.
  */
  
-static inline struct sk_buff *skb_padto(struct sk_buff *skb, unsigned int len)
+static inline int skb_padto(struct sk_buff *skb, unsigned int len)
 {
 	unsigned int size = skb->len;
 	if (likely(size >= len))
-		return skb;
+		return 0;
 	return skb_pad(skb, len-size);
 }
 
@@ -1292,6 +1299,7 @@ extern void	       skb_split(struct sk_buff *skb,
 				 struct sk_buff *skb1, const u32 len);
 
 extern void	       skb_release_data(struct sk_buff *skb);
+extern struct sk_buff *skb_segment(struct sk_buff *skb, int sg);
 
 static inline void *skb_header_pointer(const struct sk_buff *skb, int offset,
 				       int len, void *buffer)

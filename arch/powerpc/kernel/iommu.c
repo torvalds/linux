@@ -418,10 +418,11 @@ void iommu_unmap_sg(struct iommu_table *tbl, struct scatterlist *sglist,
  * Build a iommu_table structure.  This contains a bit map which
  * is used to manage allocation of the tce space.
  */
-struct iommu_table *iommu_init_table(struct iommu_table *tbl)
+struct iommu_table *iommu_init_table(struct iommu_table *tbl, int nid)
 {
 	unsigned long sz;
 	static int welcomed = 0;
+	struct page *page;
 
 	/* Set aside 1/4 of the table for large allocations. */
 	tbl->it_halfpoint = tbl->it_size * 3 / 4;
@@ -429,10 +430,10 @@ struct iommu_table *iommu_init_table(struct iommu_table *tbl)
 	/* number of bytes needed for the bitmap */
 	sz = (tbl->it_size + 7) >> 3;
 
-	tbl->it_map = (unsigned long *)__get_free_pages(GFP_ATOMIC, get_order(sz));
-	if (!tbl->it_map)
+	page = alloc_pages_node(nid, GFP_ATOMIC, get_order(sz));
+	if (!page)
 		panic("iommu_init_table: Can't allocate %ld bytes\n", sz);
-
+	tbl->it_map = page_address(page);
 	memset(tbl->it_map, 0, sz);
 
 	tbl->it_hint = 0;
@@ -536,11 +537,12 @@ void iommu_unmap_single(struct iommu_table *tbl, dma_addr_t dma_handle,
  * to the dma address (mapping) of the first page.
  */
 void *iommu_alloc_coherent(struct iommu_table *tbl, size_t size,
-		dma_addr_t *dma_handle, unsigned long mask, gfp_t flag)
+		dma_addr_t *dma_handle, unsigned long mask, gfp_t flag, int node)
 {
 	void *ret = NULL;
 	dma_addr_t mapping;
 	unsigned int npages, order;
+	struct page *page;
 
 	size = PAGE_ALIGN(size);
 	npages = size >> PAGE_SHIFT;
@@ -560,9 +562,10 @@ void *iommu_alloc_coherent(struct iommu_table *tbl, size_t size,
 		return NULL;
 
 	/* Alloc enough pages (and possibly more) */
-	ret = (void *)__get_free_pages(flag, order);
-	if (!ret)
+	page = alloc_pages_node(node, flag, order);
+	if (!page)
 		return NULL;
+	ret = page_address(page);
 	memset(ret, 0, size);
 
 	/* Set up tces to cover the allocated range */
@@ -570,9 +573,9 @@ void *iommu_alloc_coherent(struct iommu_table *tbl, size_t size,
 			      mask >> PAGE_SHIFT, order);
 	if (mapping == DMA_ERROR_CODE) {
 		free_pages((unsigned long)ret, order);
-		ret = NULL;
-	} else
-		*dma_handle = mapping;
+		return NULL;
+	}
+	*dma_handle = mapping;
 	return ret;
 }
 

@@ -316,21 +316,19 @@ ia64_phys_addr_valid (unsigned long addr)
 #define pte_mkhuge(pte)		(__pte(pte_val(pte)))
 
 /*
- * Macro to a page protection value as "uncacheable".  Note that "protection" is really a
- * misnomer here as the protection value contains the memory attribute bits, dirty bits,
- * and various other bits as well.
+ * Make page protection values cacheable, uncacheable, or write-
+ * combining.  Note that "protection" is really a misnomer here as the
+ * protection value contains the memory attribute bits, dirty bits, and
+ * various other bits as well.
  */
+#define pgprot_cacheable(prot)		__pgprot((pgprot_val(prot) & ~_PAGE_MA_MASK) | _PAGE_MA_WB)
 #define pgprot_noncached(prot)		__pgprot((pgprot_val(prot) & ~_PAGE_MA_MASK) | _PAGE_MA_UC)
-
-/*
- * Macro to make mark a page protection value as "write-combining".
- * Note that "protection" is really a misnomer here as the protection
- * value contains the memory attribute bits, dirty bits, and various
- * other bits as well.  Accesses through a write-combining translation
- * works bypasses the caches, but does allow for consecutive writes to
- * be combined into single (but larger) write transactions.
- */
 #define pgprot_writecombine(prot)	__pgprot((pgprot_val(prot) & ~_PAGE_MA_MASK) | _PAGE_MA_WC)
+
+struct file;
+extern pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
+				     unsigned long size, pgprot_t vma_prot);
+#define __HAVE_PHYS_MEM_ACCESS_PROT
 
 static inline unsigned long
 pgd_index (unsigned long address)

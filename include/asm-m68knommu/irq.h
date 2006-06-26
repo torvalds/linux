@@ -83,12 +83,8 @@ extern void (*mach_disable_irq)(unsigned int);
 /*
  * Some drivers want these entry points
  */
-#define enable_irq(x)	0
+#define enable_irq(x)	do { } while (0)
 #define disable_irq(x)	do { } while (0)
 #define disable_irq_nosync(x)	disable_irq(x)
-
-struct irqaction;
-struct pt_regs;
-int handle_IRQ_event(unsigned int, struct pt_regs *, struct irqaction *);
 
 #endif /* _M68K_IRQ_H_ */

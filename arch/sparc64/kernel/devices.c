@@ -33,7 +33,7 @@ extern void cpu_probe(void);
 extern void central_probe(void);
 
 u32 sun4v_vdev_devhandle;
-int sun4v_vdev_root;
+struct device_node *sun4v_vdev_root;
 
 struct vdev_intmap {
 	unsigned int phys;
@@ -50,102 +50,68 @@ struct vdev_intmask {
 
 static struct vdev_intmap *vdev_intmap;
 static int vdev_num_intmap;
-static struct vdev_intmask vdev_intmask;
+static struct vdev_intmask *vdev_intmask;
 
 static void __init sun4v_virtual_device_probe(void)
 {
-	struct linux_prom64_registers regs;
-	struct vdev_intmap *ip;
-	int node, sz, err;
+	struct linux_prom64_registers *regs;
+	struct property *prop;
+	struct device_node *dp;
+	int sz;
 
 	if (tlb_type != hypervisor)
 		return;
 
-	node = prom_getchild(prom_root_node);
-	node = prom_searchsiblings(node, "virtual-devices");
-	if (!node) {
+	dp = of_find_node_by_name(NULL, "virtual-devices");
+	if (!dp) {
 		prom_printf("SUN4V: Fatal error, no virtual-devices node.\n");
 		prom_halt();
 	}
 
-	sun4v_vdev_root = node;
+	sun4v_vdev_root = dp;
 
-	prom_getproperty(node, "reg", (char *)&regs, sizeof(regs));
-	sun4v_vdev_devhandle = (regs.phys_addr >> 32UL) & 0x0fffffff;
+	prop = of_find_property(dp, "reg", NULL);
+	regs = prop->value;
+	sun4v_vdev_devhandle = (regs[0].phys_addr >> 32UL) & 0x0fffffff;
 
-	sz = prom_getproplen(node, "interrupt-map");
-	if (sz <= 0) {
-		prom_printf("SUN4V: Error, no vdev interrupt-map.\n");
-		prom_halt();
-	}
+	prop = of_find_property(dp, "interrupt-map", &sz);
+	vdev_intmap = prop->value;
+	vdev_num_intmap = sz / sizeof(struct vdev_intmap);
 
-	if ((sz % sizeof(*ip)) != 0) {
-		prom_printf("SUN4V: Bogus interrupt-map property size %d\n",
-			    sz);
-		prom_halt();
-	}
+	prop = of_find_property(dp, "interrupt-map-mask", NULL);
+	vdev_intmask = prop->value;
 
-	vdev_intmap = ip = alloc_bootmem_low_pages(sz);
-	if (!vdev_intmap) {
-		prom_printf("SUN4V: Error, cannot allocate vdev_intmap.\n");
-		prom_halt();
-	}
-
-	err = prom_getproperty(node, "interrupt-map", (char *) ip, sz);
-	if (err == -1) {
-		prom_printf("SUN4V: Fatal error, no vdev interrupt-map.\n");
-		prom_halt();
-	}
-	if (err != sz) {
-		prom_printf("SUN4V: Inconsistent interrupt-map size, "
-			    "proplen(%d) vs getprop(%d).\n", sz,err);
-		prom_halt();
-	}
-
-	vdev_num_intmap = err / sizeof(*ip);
-
-	err = prom_getproperty(node, "interrupt-map-mask",
-			       (char *) &vdev_intmask,
-			       sizeof(vdev_intmask));
-	if (err <= 0) {
-		prom_printf("SUN4V: Fatal error, no vdev "
-			    "interrupt-map-mask.\n");
-		prom_halt();
-	}
-	if (err % sizeof(vdev_intmask)) {
-		prom_printf("SUN4V: Bogus interrupt-map-mask "
-			    "property size %d\n", err);
-		prom_halt();
-	}
-
-	printk("SUN4V: virtual-devices devhandle[%x]\n",
-	       sun4v_vdev_devhandle);
+	printk("%s: Virtual Device Bus devhandle[%x]\n",
+	       dp->full_name, sun4v_vdev_devhandle);
 }
 
-unsigned int sun4v_vdev_device_interrupt(unsigned int dev_node)
+unsigned int sun4v_vdev_device_interrupt(struct device_node *dev_node)
 {
+	struct property *prop;
 	unsigned int irq, reg;
-	int err, i;
+	int i;
 
-	err = prom_getproperty(dev_node, "interrupts",
-			       (char *) &irq, sizeof(irq));
-	if (err <= 0) {
+	prop = of_find_property(dev_node, "interrupts", NULL);
+	if (!prop) {
 		printk("VDEV: Cannot get \"interrupts\" "
-		       "property for OBP node %x\n", dev_node);
+		       "property for OBP node %s\n",
+		       dev_node->full_name);
 		return 0;
 	}
+	irq = *(unsigned int *) prop->value;
 
-	err = prom_getproperty(dev_node, "reg",
-			       (char *) &reg, sizeof(reg));
-	if (err <= 0) {
+	prop = of_find_property(dev_node, "reg", NULL);
+	if (!prop) {
 		printk("VDEV: Cannot get \"reg\" "
-		       "property for OBP node %x\n", dev_node);
+		       "property for OBP node %s\n",
+		       dev_node->full_name);
 		return 0;
 	}
+	reg = *(unsigned int *) prop->value;
 
 	for (i = 0; i < vdev_num_intmap; i++) {
-		if (vdev_intmap[i].phys == (reg & vdev_intmask.phys) &&
-		    vdev_intmap[i].irq == (irq & vdev_intmask.interrupt)) {
+		if (vdev_intmap[i].phys == (reg & vdev_intmask->phys) &&
+		    vdev_intmap[i].irq == (irq & vdev_intmask->interrupt)) {
 			irq = vdev_intmap[i].cinterrupt;
 			break;
 		}
@@ -153,7 +119,7 @@ unsigned int sun4v_vdev_device_interrupt(unsigned int dev_node)
 
 	if (i == vdev_num_intmap) {
 		printk("VDEV: No matching interrupt map entry "
-		       "for OBP node %x\n", dev_node);
+		       "for OBP node %s\n", dev_node->full_name);
 		return 0;
 	}
 
@@ -167,38 +133,44 @@ static const char *cpu_mid_prop(void)
 	return "portid";
 }
 
-static int get_cpu_mid(int prom_node)
+static int get_cpu_mid(struct device_node *dp)
 {
+	struct property *prop;
+
 	if (tlb_type == hypervisor) {
-		struct linux_prom64_registers reg;
+		struct linux_prom64_registers *reg;
+		int len;
 
-		if (prom_getproplen(prom_node, "cpuid") == 4)
-			return prom_getintdefault(prom_node, "cpuid", 0);
+		prop = of_find_property(dp, "cpuid", &len);
+		if (prop && len == 4)
+			return *(int *) prop->value;
 
-		prom_getproperty(prom_node, "reg", (char *) &reg, sizeof(reg));
-		return (reg.phys_addr >> 32) & 0x0fffffffUL;
+		prop = of_find_property(dp, "reg", NULL);
+		reg = prop->value;
+		return (reg[0].phys_addr >> 32) & 0x0fffffffUL;
 	} else {
 		const char *prop_name = cpu_mid_prop();
 
-		return prom_getintdefault(prom_node, prop_name, 0);
+		prop = of_find_property(dp, prop_name, NULL);
+		if (prop)
+			return *(int *) prop->value;
+		return 0;
 	}
 }
 
-static int check_cpu_node(int nd, int *cur_inst,
-			  int (*compare)(int, int, void *), void *compare_arg,
-			  int *prom_node, int *mid)
+static int check_cpu_node(struct device_node *dp, int *cur_inst,
+			  int (*compare)(struct device_node *, int, void *),
+			  void *compare_arg,
+			  struct device_node **dev_node, int *mid)
 {
-	char node_str[128];
-
-	prom_getstring(nd, "device_type", node_str, sizeof(node_str));
-	if (strcmp(node_str, "cpu"))
+	if (strcmp(dp->type, "cpu"))
 		return -ENODEV;
 
-	if (!compare(nd, *cur_inst, compare_arg)) {
-		if (prom_node)
-			*prom_node = nd;
+	if (!compare(dp, *cur_inst, compare_arg)) {
+		if (dev_node)
+			*dev_node = dp;
 		if (mid)
-			*mid = get_cpu_mid(nd);
+			*mid = get_cpu_mid(dp);
 		return 0;
 	}
 
@@ -207,25 +179,18 @@ static int check_cpu_node(int nd, int *cur_inst,
 	return -ENODEV;
 }
 
-static int __cpu_find_by(int (*compare)(int, int, void *), void *compare_arg,
-			 int *prom_node, int *mid)
+static int __cpu_find_by(int (*compare)(struct device_node *, int, void *),
+			 void *compare_arg,
+			 struct device_node **dev_node, int *mid)
 {
-	int nd, cur_inst, err;
+	struct device_node *dp;
+	int cur_inst;
 
-	nd = prom_root_node;
 	cur_inst = 0;
-
-	err = check_cpu_node(nd, &cur_inst,
-			     compare, compare_arg,
-			     prom_node, mid);
-	if (err == 0)
-		return 0;
-
-	nd = prom_getchild(nd);
-	while ((nd = prom_getsibling(nd)) != 0) {
-		err = check_cpu_node(nd, &cur_inst,
-				     compare, compare_arg,
-				     prom_node, mid);
+	for_each_node_by_type(dp, "cpu") {
+		int err = check_cpu_node(dp, &cur_inst,
+					 compare, compare_arg,
+					 dev_node, mid);
 		if (err == 0)
 			return 0;
 	}
@@ -233,7 +198,7 @@ static int __cpu_find_by(int (*compare)(int, int, void *), void *compare_arg,
 	return -ENODEV;
 }
 
-static int cpu_instance_compare(int nd, int instance, void *_arg)
+static int cpu_instance_compare(struct device_node *dp, int instance, void *_arg)
 {
 	int desired_instance = (int) (long) _arg;
 
@@ -242,27 +207,27 @@ static int cpu_instance_compare(int nd, int instance, void *_arg)
 	return -ENODEV;
 }
 
-int cpu_find_by_instance(int instance, int *prom_node, int *mid)
+int cpu_find_by_instance(int instance, struct device_node **dev_node, int *mid)
 {
 	return __cpu_find_by(cpu_instance_compare, (void *)(long)instance,
-			     prom_node, mid);
+			     dev_node, mid);
 }
 
-static int cpu_mid_compare(int nd, int instance, void *_arg)
+static int cpu_mid_compare(struct device_node *dp, int instance, void *_arg)
 {
 	int desired_mid = (int) (long) _arg;
 	int this_mid;
 
-	this_mid = get_cpu_mid(nd);
+	this_mid = get_cpu_mid(dp);
 	if (this_mid == desired_mid)
 		return 0;
 	return -ENODEV;
 }
 
-int cpu_find_by_mid(int mid, int *prom_node)
+int cpu_find_by_mid(int mid, struct device_node **dev_node)
 {
 	return __cpu_find_by(cpu_mid_compare, (void *)(long)mid,
-			     prom_node, NULL);
+			     dev_node, NULL);
 }
 
 void __init device_scan(void)
@@ -274,50 +239,47 @@ void __init device_scan(void)
 
 #ifndef CONFIG_SMP
 	{
-		int err, cpu_node, def;
+		struct device_node *dp;
+		int err, def;
 
-		err = cpu_find_by_instance(0, &cpu_node, NULL);
+		err = cpu_find_by_instance(0, &dp, NULL);
 		if (err) {
 			prom_printf("No cpu nodes, cannot continue\n");
 			prom_halt();
 		}
-		cpu_data(0).clock_tick = prom_getintdefault(cpu_node,
-							    "clock-frequency",
-							    0);
+		cpu_data(0).clock_tick =
+			of_getintprop_default(dp, "clock-frequency", 0);
 
 		def = ((tlb_type == hypervisor) ?
 		       (8 * 1024) :
 		       (16 * 1024));
-		cpu_data(0).dcache_size = prom_getintdefault(cpu_node,
-							     "dcache-size",
-							     def);
+		cpu_data(0).dcache_size = of_getintprop_default(dp,
+								"dcache-size",
+								def);
 
 		def = 32;
 		cpu_data(0).dcache_line_size =
-			prom_getintdefault(cpu_node, "dcache-line-size",
-					   def);
+			of_getintprop_default(dp, "dcache-line-size", def);
 
 		def = 16 * 1024;
-		cpu_data(0).icache_size = prom_getintdefault(cpu_node,
-							     "icache-size",
-							     def);
+		cpu_data(0).icache_size = of_getintprop_default(dp,
+								"icache-size",
+								def);
 
 		def = 32;
 		cpu_data(0).icache_line_size =
-			prom_getintdefault(cpu_node, "icache-line-size",
-					   def);
+			of_getintprop_default(dp, "icache-line-size", def);
 
 		def = ((tlb_type == hypervisor) ?
 		       (3 * 1024 * 1024) :
 		       (4 * 1024 * 1024));
-		cpu_data(0).ecache_size = prom_getintdefault(cpu_node,
-							     "ecache-size",
-							     def);
+		cpu_data(0).ecache_size = of_getintprop_default(dp,
+								"ecache-size",
+								def);
 
 		def = 64;
 		cpu_data(0).ecache_line_size =
-			prom_getintdefault(cpu_node, "ecache-line-size",
-					   def);
+			of_getintprop_default(dp, "ecache-line-size", def);
 		printk("CPU[0]: Caches "
 		       "D[sz(%d):line_sz(%d)] "
 		       "I[sz(%d):line_sz(%d)] "

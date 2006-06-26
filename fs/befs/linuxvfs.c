@@ -49,7 +49,7 @@ static int befs_nls2utf(struct super_block *sb, const char *in, int in_len,
 			char **out, int *out_len);
 static void befs_put_super(struct super_block *);
 static int befs_remount(struct super_block *, int *, char *);
-static int befs_statfs(struct super_block *, struct kstatfs *);
+static int befs_statfs(struct dentry *, struct kstatfs *);
 static int parse_options(char *, befs_mount_options *);
 
 static const struct super_operations befs_sops = {
@@ -880,8 +880,9 @@ befs_remount(struct super_block *sb, int *flags, char *data)
 }
 
 static int
-befs_statfs(struct super_block *sb, struct kstatfs *buf)
+befs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
+	struct super_block *sb = dentry->d_sb;
 
 	befs_debug(sb, "---> befs_statfs()");
 
@@ -899,11 +900,12 @@ befs_statfs(struct super_block *sb, struct kstatfs *buf)
 	return 0;
 }
 
-static struct super_block *
+static int
 befs_get_sb(struct file_system_type *fs_type, int flags, const char *dev_name,
-	    void *data)
+	    void *data, struct vfsmount *mnt)
 {
-	return get_sb_bdev(fs_type, flags, dev_name, data, befs_fill_super);
+	return get_sb_bdev(fs_type, flags, dev_name, data, befs_fill_super,
+			   mnt);
 }
 
 static struct file_system_type befs_fs_type = {

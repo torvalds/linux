@@ -44,6 +44,11 @@ config CICADA_PHY
 	depends on PHYLIB
 	---help---
 	  Currently supports the cis8204
+config VITESSE_PHY
+        tristate "Drivers for the Vitesse PHYs"
+        depends on PHYLIB
+        ---help---
+          Currently supports the vsc8244
 
 config SMSC_PHY
 	tristate "Drivers for SMSC PHYs"

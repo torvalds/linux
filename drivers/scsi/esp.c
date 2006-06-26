@@ -1,7 +1,6 @@
-/* $Id: esp.c,v 1.101 2002/01/15 06:48:55 davem Exp $
- * esp.c:  EnhancedScsiProcessor Sun SCSI driver code.
+/* esp.c: ESP Sun SCSI driver.
  *
- * Copyright (C) 1995, 1998 David S. Miller (davem@caip.rutgers.edu)
+ * Copyright (C) 1995, 1998, 2006 David S. Miller (davem@davemloft.net)
  */
 
 /* TODO:
@@ -184,11 +183,6 @@ enum {
 /*4*/	do_work_bus,
 /*5*/	do_intr_end
 };
-
-/* The master ring of all esp hosts we are managing in this driver. */
-static struct esp *espchain;
-static DEFINE_SPINLOCK(espchain_lock);
-static int esps_running = 0;
 
 /* Forward declarations. */
 static irqreturn_t esp_intr(int irq, void *dev_id, struct pt_regs *pregs);
@@ -694,36 +688,6 @@ static void __init esp_bootup_reset(struct esp *esp)
 	sbus_readb(esp->eregs + ESP_INTRPT);
 }
 
-static void esp_chain_add(struct esp *esp)
-{
-	spin_lock_irq(&espchain_lock);
-	if (espchain) {
-		struct esp *elink = espchain;
-		while (elink->next)
-			elink = elink->next;
-		elink->next = esp;
-	} else {
-		espchain = esp;
-	}
-	esp->next = NULL;
-	spin_unlock_irq(&espchain_lock);
-}
-
-static void esp_chain_del(struct esp *esp)
-{
-	spin_lock_irq(&espchain_lock);
-	if (espchain == esp) {
-		espchain = esp->next;
-	} else {
-		struct esp *elink = espchain;
-		while (elink->next != esp)
-			elink = elink->next;
-		elink->next = esp->next;
-	}
-	esp->next = NULL;
-	spin_unlock_irq(&espchain_lock);
-}
-
 static int __init esp_find_dvma(struct esp *esp, struct sbus_dev *dma_sdev)
 {
 	struct sbus_dev *sdev = esp->sdev;
@@ -830,19 +794,20 @@ static int __init esp_register_irq(struct esp *esp)
 static void __init esp_get_scsi_id(struct esp *esp)
 {
 	struct sbus_dev *sdev = esp->sdev;
+	struct device_node *dp = sdev->ofdev.node;
 
-	esp->scsi_id = prom_getintdefault(esp->prom_node,
-					  "initiator-id",
-					  -1);
+	esp->scsi_id = of_getintprop_default(dp,
+					     "initiator-id",
+					     -1);
 	if (esp->scsi_id == -1)
-		esp->scsi_id = prom_getintdefault(esp->prom_node,
-						  "scsi-initiator-id",
-						  -1);
+		esp->scsi_id = of_getintprop_default(dp,
+						     "scsi-initiator-id",
+						     -1);
 	if (esp->scsi_id == -1)
 		esp->scsi_id = (sdev->bus == NULL) ? 7 :
-			prom_getintdefault(sdev->bus->prom_node,
-					   "scsi-initiator-id",
-					   7);
+			of_getintprop_default(sdev->bus->ofdev.node,
+					      "scsi-initiator-id",
+					      7);
 	esp->ehost->this_id = esp->scsi_id;
 	esp->scsi_id_mask = (1 << esp->scsi_id);
 
@@ -1067,28 +1032,30 @@ static void __init esp_init_swstate(struct esp *esp)
 	esp->prev_hme_dmacsr = 0xffffffff;
 }
 
-static int __init detect_one_esp(struct scsi_host_template *tpnt, struct sbus_dev *esp_dev,
-				 struct sbus_dev *espdma, struct sbus_bus *sbus,
-				 int id, int hme)
+static int __init detect_one_esp(struct scsi_host_template *tpnt,
+				 struct device *dev,
+				 struct sbus_dev *esp_dev,
+				 struct sbus_dev *espdma,
+				 struct sbus_bus *sbus,
+				 int hme)
 {
-	struct Scsi_Host *esp_host = scsi_register(tpnt, sizeof(struct esp));
+	static int instance;
+	struct Scsi_Host *esp_host = scsi_host_alloc(tpnt, sizeof(struct esp));
 	struct esp *esp;
 	
-	if (!esp_host) {
-		printk("ESP: Cannot register SCSI host\n");
-		return -1;
-	}
+	if (!esp_host)
+		return -ENOMEM;
+
 	if (hme)
 		esp_host->max_id = 16;
 	esp = (struct esp *) esp_host->hostdata;
 	esp->ehost = esp_host;
 	esp->sdev = esp_dev;
-	esp->esp_id = id;
+	esp->esp_id = instance;
 	esp->prom_node = esp_dev->prom_node;
 	prom_getstring(esp->prom_node, "name", esp->prom_name,
 		       sizeof(esp->prom_name));
 
-	esp_chain_add(esp);
 	if (esp_find_dvma(esp, espdma) < 0)
 		goto fail_unlink;
 	if (esp_map_regs(esp, hme) < 0) {
@@ -1115,7 +1082,18 @@ static int __init detect_one_esp(struct scsi_host_template *tpnt, struct sbus_de
 
 	esp_bootup_reset(esp);
 
+	if (scsi_add_host(esp_host, dev))
+		goto fail_free_irq;
+
+	dev_set_drvdata(&esp_dev->ofdev.dev, esp);
+
+	scsi_scan_host(esp_host);
+	instance++;
+
 	return 0;
+
+fail_free_irq:
+	free_irq(esp->ehost->irq, esp);
 
 fail_unmap_cmdarea:
 	sbus_free_consistent(esp->sdev, 16,
@@ -1129,102 +1107,18 @@ fail_dvma_release:
 	esp->dma->allocated = 0;
 
 fail_unlink:
-	esp_chain_del(esp);
-	scsi_unregister(esp_host);
+	scsi_host_put(esp_host);
 	return -1;
 }
 
 /* Detecting ESP chips on the machine.  This is the simple and easy
  * version.
  */
-
-#ifdef CONFIG_SUN4
-
-#include <asm/sun4paddr.h>
-
-static int __init esp_detect(struct scsi_host_template *tpnt)
+static int __devexit esp_remove_common(struct esp *esp)
 {
-	static struct sbus_dev esp_dev;
-	int esps_in_use = 0;
+	unsigned int irq = esp->ehost->irq;
 
-	espchain = NULL;
-
-	if (sun4_esp_physaddr) {
-		memset (&esp_dev, 0, sizeof(esp_dev));
-		esp_dev.reg_addrs[0].phys_addr = sun4_esp_physaddr;
-		esp_dev.irqs[0] = 4;
-		esp_dev.resource[0].start = sun4_esp_physaddr;
-		esp_dev.resource[0].end = sun4_esp_physaddr + ESP_REG_SIZE - 1;
-		esp_dev.resource[0].flags = IORESOURCE_IO;
-
-		if (!detect_one_esp(tpnt, &esp_dev, NULL, NULL, 0, 0))
-			esps_in_use++;
-		printk("ESP: Total of 1 ESP hosts found, %d actually in use.\n", esps_in_use);
-		esps_running =  esps_in_use;
-	}
-	return esps_in_use;
-}
-
-#else /* !CONFIG_SUN4 */
-
-static int __init esp_detect(struct scsi_host_template *tpnt)
-{
-	struct sbus_bus *sbus;
-	struct sbus_dev *esp_dev, *sbdev_iter;
-	int nesps = 0, esps_in_use = 0;
-
-	espchain = 0;
-	if (!sbus_root) {
-#ifdef CONFIG_PCI
-		return 0;
-#else
-		panic("No SBUS in esp_detect()");
-#endif
-	}
-	for_each_sbus(sbus) {
-		for_each_sbusdev(sbdev_iter, sbus) {
-			struct sbus_dev *espdma = NULL;
-			int hme = 0;
-
-			/* Is it an esp sbus device? */
-			esp_dev = sbdev_iter;
-			if (strcmp(esp_dev->prom_name, "esp") &&
-			    strcmp(esp_dev->prom_name, "SUNW,esp")) {
-				if (!strcmp(esp_dev->prom_name, "SUNW,fas")) {
-					hme = 1;
-					espdma = esp_dev;
-				} else {
-					if (!esp_dev->child ||
-					    (strcmp(esp_dev->prom_name, "espdma") &&
-					     strcmp(esp_dev->prom_name, "dma")))
-						continue; /* nope... */
-					espdma = esp_dev;
-					esp_dev = esp_dev->child;
-					if (strcmp(esp_dev->prom_name, "esp") &&
-					    strcmp(esp_dev->prom_name, "SUNW,esp"))
-						continue; /* how can this happen? */
-				}
-			}
-			
-			if (detect_one_esp(tpnt, esp_dev, espdma, sbus, nesps++, hme) < 0)
-				continue;
-				
-			esps_in_use++;
-		} /* for each sbusdev */
-	} /* for each sbus */
-	printk("ESP: Total of %d ESP hosts found, %d actually in use.\n", nesps,
-	       esps_in_use);
-	esps_running = esps_in_use;
-	return esps_in_use;
-}
-
-#endif /* !CONFIG_SUN4 */
-
-/*
- */
-static int esp_release(struct Scsi_Host *host)
-{
-	struct esp *esp = (struct esp *) host->hostdata;
+	scsi_remove_host(esp->ehost);
 
 	ESP_INTSOFF(esp->dregs);
 #if 0
@@ -1232,15 +1126,78 @@ static int esp_release(struct Scsi_Host *host)
 	esp_reset_esp(esp);
 #endif
 
-	free_irq(esp->ehost->irq, esp);
+	free_irq(irq, esp);
 	sbus_free_consistent(esp->sdev, 16,
 			     (void *) esp->esp_command, esp->esp_command_dvma);
 	sbus_iounmap(esp->eregs, ESP_REG_SIZE);
 	esp->dma->allocated = 0;
-	esp_chain_del(esp);
 
-        return 0;
+	scsi_host_put(esp->ehost);
+
+	return 0;
 }
+
+
+#ifdef CONFIG_SUN4
+
+#include <asm/sun4paddr.h>
+
+static struct sbus_dev sun4_esp_dev;
+
+static int __init esp_sun4_probe(struct scsi_host_template *tpnt)
+{
+	if (sun4_esp_physaddr) {
+		memset(&sun4_esp_dev, 0, sizeof(esp_dev));
+		sun4_esp_dev.reg_addrs[0].phys_addr = sun4_esp_physaddr;
+		sun4_esp_dev.irqs[0] = 4;
+		sun4_esp_dev.resource[0].start = sun4_esp_physaddr;
+		sun4_esp_dev.resource[0].end =
+			sun4_esp_physaddr + ESP_REG_SIZE - 1;
+		sun4_esp_dev.resource[0].flags = IORESOURCE_IO;
+
+		return detect_one_esp(tpnt, NULL,
+				      &sun4_esp_dev, NULL, NULL, 0);
+	}
+	return 0;
+}
+
+static int __devexit esp_sun4_remove(void)
+{
+	struct esp *esp = dev_get_drvdata(&dev->dev);
+
+	return esp_remove_common(esp);
+}
+
+#else /* !CONFIG_SUN4 */
+
+static int __devinit esp_sbus_probe(struct of_device *dev, const struct of_device_id *match)
+{
+	struct sbus_dev *sdev = to_sbus_device(&dev->dev);
+	struct device_node *dp = dev->node;
+	struct sbus_dev *dma_sdev = NULL;
+	int hme = 0;
+
+	if (dp->parent &&
+	    (!strcmp(dp->parent->name, "espdma") ||
+	     !strcmp(dp->parent->name, "dma")))
+		dma_sdev = sdev->parent;
+	else if (!strcmp(dp->name, "SUNW,fas")) {
+		dma_sdev = sdev;
+		hme = 1;
+	}
+
+	return detect_one_esp(match->data, &dev->dev,
+			      sdev, dma_sdev, sdev->bus, hme);
+}
+
+static int __devexit esp_sbus_remove(struct of_device *dev)
+{
+	struct esp *esp = dev_get_drvdata(&dev->dev);
+
+	return esp_remove_common(esp);
+}
+
+#endif /* !CONFIG_SUN4 */
 
 /* The info function will return whatever useful
  * information the developer sees fit.  If not provided, then
@@ -1415,17 +1372,10 @@ static int esp_host_info(struct esp *esp, char *ptr, off_t offset, int len)
 static int esp_proc_info(struct Scsi_Host *host, char *buffer, char **start, off_t offset,
 			 int length, int inout)
 {
-	struct esp *esp;
+	struct esp *esp = (struct esp *) host->hostdata;
 
 	if (inout)
 		return -EINVAL; /* not yet */
-
-	for_each_esp(esp) {
-		if (esp->ehost == host)
-			break;
-	}
-	if (!esp)
-		return -EINVAL;
 
 	if (start)
 		*start = buffer;
@@ -4377,15 +4327,12 @@ static void esp_slave_destroy(struct scsi_device *SDptr)
 	SDptr->hostdata = NULL;
 }
 
-static struct scsi_host_template driver_template = {
-	.proc_name		= "esp",
-	.proc_info		= esp_proc_info,
-	.name			= "Sun ESP 100/100a/200",
-	.detect			= esp_detect,
+static struct scsi_host_template esp_template = {
+	.module			= THIS_MODULE,
+	.name			= "esp",
+	.info			= esp_info,
 	.slave_alloc		= esp_slave_alloc,
 	.slave_destroy		= esp_slave_destroy,
-	.release		= esp_release,
-	.info			= esp_info,
 	.queuecommand		= esp_queue,
 	.eh_abort_handler	= esp_abort,
 	.eh_bus_reset_handler	= esp_reset,
@@ -4394,12 +4341,58 @@ static struct scsi_host_template driver_template = {
 	.sg_tablesize		= SG_ALL,
 	.cmd_per_lun		= 1,
 	.use_clustering		= ENABLE_CLUSTERING,
+	.proc_name		= "esp",
+	.proc_info		= esp_proc_info,
 };
 
-#include "scsi_module.c"
+#ifndef CONFIG_SUN4
+static struct of_device_id esp_match[] = {
+	{
+		.name = "SUNW,esp",
+		.data = &esp_template,
+	},
+	{
+		.name = "SUNW,fas",
+		.data = &esp_template,
+	},
+	{
+		.name = "esp",
+		.data = &esp_template,
+	},
+	{},
+};
+MODULE_DEVICE_TABLE(of, esp_match);
 
-MODULE_DESCRIPTION("EnhancedScsiProcessor Sun SCSI driver");
-MODULE_AUTHOR("David S. Miller (davem@redhat.com)");
+static struct of_platform_driver esp_sbus_driver = {
+	.name		= "esp",
+	.match_table	= esp_match,
+	.probe		= esp_sbus_probe,
+	.remove		= __devexit_p(esp_sbus_remove),
+};
+#endif
+
+static int __init esp_init(void)
+{
+#ifdef CONFIG_SUN4
+	return esp_sun4_probe(&esp_template);
+#else
+	return of_register_driver(&esp_sbus_driver, &sbus_bus_type);
+#endif
+}
+
+static void __exit esp_exit(void)
+{
+#ifdef CONFIG_SUN4
+	esp_sun4_remove();
+#else
+	of_unregister_driver(&esp_sbus_driver);
+#endif
+}
+
+MODULE_DESCRIPTION("ESP Sun SCSI driver");
+MODULE_AUTHOR("David S. Miller (davem@davemloft.net)");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
 
+module_init(esp_init);
+module_exit(esp_exit);

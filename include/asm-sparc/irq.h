@@ -181,8 +181,4 @@ extern struct sun4m_intregs *sun4m_interrupts;
 #define SUN4M_INT_SBUS(x)	(1 << (x+7))
 #define SUN4M_INT_VME(x)	(1 << (x))
 
-struct irqaction;
-struct pt_regs;
-int handle_IRQ_event(unsigned int, struct pt_regs *, struct irqaction *);
-
 #endif

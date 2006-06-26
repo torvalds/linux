@@ -71,8 +71,7 @@ vxfs_get_page(struct address_space *mapping, u_long n)
 {
 	struct page *			pp;
 
-	pp = read_cache_page(mapping, n,
-			(filler_t*)mapping->a_ops->readpage, NULL);
+	pp = read_mapping_page(mapping, n, NULL);
 
 	if (!IS_ERR(pp)) {
 		wait_on_page_locked(pp);

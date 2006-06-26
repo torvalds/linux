@@ -17316,7 +17316,7 @@ AdvWaitEEPCmd(AdvPortAddr iop_base)
 /*
  * Write the EEPROM from 'cfg_buf'.
  */
-void
+void __init
 AdvSet3550EEPConfig(AdvPortAddr iop_base, ADVEEP_3550_CONFIG *cfg_buf)
 {
     ushort *wbuf;
@@ -17383,7 +17383,7 @@ AdvSet3550EEPConfig(AdvPortAddr iop_base, ADVEEP_3550_CONFIG *cfg_buf)
 /*
  * Write the EEPROM from 'cfg_buf'.
  */
-void
+void __init
 AdvSet38C0800EEPConfig(AdvPortAddr iop_base,
                        ADVEEP_38C0800_CONFIG *cfg_buf)
 {
@@ -17451,7 +17451,7 @@ AdvSet38C0800EEPConfig(AdvPortAddr iop_base,
 /*
  * Write the EEPROM from 'cfg_buf'.
  */
-void
+void __init
 AdvSet38C1600EEPConfig(AdvPortAddr iop_base,
                        ADVEEP_38C1600_CONFIG *cfg_buf)
 {

@@ -65,9 +65,7 @@
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_cmnd.h>
-#include <scsi/scsi_request.h>
 #include <scsi/sg.h>
-#include <scsi/sg_request.h>
 
 #define OSM_NAME	"scsi-osm"
 #define OSM_VERSION	"1.316"
@@ -588,6 +586,7 @@ static int i2o_scsi_queuecommand(struct scsi_cmnd *SCpnt,
 
 	mptr = &msg->body[0];
 
+#if 0 /* this code can't work */
 #ifdef CONFIG_I2O_EXT_ADAPTEC
 	if (c->adaptec) {
 		u32 adpt_flags = 0;
@@ -624,6 +623,7 @@ static int i2o_scsi_queuecommand(struct scsi_cmnd *SCpnt,
 		*mptr++ = cpu_to_le32(I2O_VENDOR_DPT << 16 | I2O_CMD_SCSI_EXEC);
 		*mptr++ = cpu_to_le32(adpt_flags | tid);
 	}
+#endif
 #endif
 
 	msg->u.head[1] = cpu_to_le32(cmd | HOST_TID << 12 | tid);

@@ -1737,7 +1737,7 @@ int
 nfsd_statfs(struct svc_rqst *rqstp, struct svc_fh *fhp, struct kstatfs *stat)
 {
 	int err = fh_verify(rqstp, fhp, 0, MAY_NOP);
-	if (!err && vfs_statfs(fhp->fh_dentry->d_inode->i_sb,stat))
+	if (!err && vfs_statfs(fhp->fh_dentry,stat))
 		err = nfserr_io;
 	return err;
 }

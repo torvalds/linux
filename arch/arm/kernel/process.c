@@ -33,6 +33,7 @@
 #include <asm/leds.h>
 #include <asm/processor.h>
 #include <asm/system.h>
+#include <asm/thread_notify.h>
 #include <asm/uaccess.h>
 #include <asm/mach/time.h>
 
@@ -338,13 +339,9 @@ void exit_thread(void)
 {
 }
 
-static void default_fp_init(union fp_state *fp)
-{
-	memset(fp, 0, sizeof(union fp_state));
-}
+ATOMIC_NOTIFIER_HEAD(thread_notify_head);
 
-void (*fp_init)(union fp_state *) = default_fp_init;
-EXPORT_SYMBOL(fp_init);
+EXPORT_SYMBOL_GPL(thread_notify_head);
 
 void flush_thread(void)
 {
@@ -353,22 +350,21 @@ void flush_thread(void)
 
 	memset(thread->used_cp, 0, sizeof(thread->used_cp));
 	memset(&tsk->thread.debug, 0, sizeof(struct debug_info));
+	memset(&thread->fpstate, 0, sizeof(union fp_state));
+
+	thread_notify(THREAD_NOTIFY_FLUSH, thread);
 #if defined(CONFIG_IWMMXT)
 	iwmmxt_task_release(thread);
-#endif
-	fp_init(&thread->fpstate);
-#if defined(CONFIG_VFP)
-	vfp_flush_thread(&thread->vfpstate);
 #endif
 }
 
 void release_thread(struct task_struct *dead_task)
 {
-#if defined(CONFIG_VFP)
-	vfp_release_thread(&task_thread_info(dead_task)->vfpstate);
-#endif
+	struct thread_info *thread = task_thread_info(dead_task);
+
+	thread_notify(THREAD_NOTIFY_RELEASE, thread);
 #if defined(CONFIG_IWMMXT)
-	iwmmxt_task_release(task_thread_info(dead_task));
+	iwmmxt_task_release(thread);
 #endif
 }
 

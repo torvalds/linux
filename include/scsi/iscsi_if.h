@@ -43,6 +43,10 @@ enum iscsi_uevent_e {
 	ISCSI_UEVENT_GET_STATS		= UEVENT_BASE + 10,
 	ISCSI_UEVENT_GET_PARAM		= UEVENT_BASE + 11,
 
+	ISCSI_UEVENT_TRANSPORT_EP_CONNECT	= UEVENT_BASE + 12,
+	ISCSI_UEVENT_TRANSPORT_EP_POLL		= UEVENT_BASE + 13,
+	ISCSI_UEVENT_TRANSPORT_EP_DISCONNECT	= UEVENT_BASE + 14,
+
 	/* up events */
 	ISCSI_KEVENT_RECV_PDU		= KEVENT_BASE + 1,
 	ISCSI_KEVENT_CONN_ERROR		= KEVENT_BASE + 2,
@@ -60,61 +64,83 @@ struct iscsi_uevent {
 			uint32_t	initial_cmdsn;
 		} c_session;
 		struct msg_destroy_session {
-			uint64_t	session_handle;
 			uint32_t	sid;
 		} d_session;
 		struct msg_create_conn {
-			uint64_t	session_handle;
-			uint32_t	cid;
 			uint32_t	sid;
+			uint32_t	cid;
 		} c_conn;
 		struct msg_bind_conn {
-			uint64_t	session_handle;
-			uint64_t	conn_handle;
-			uint32_t	transport_fd;
+			uint32_t	sid;
+			uint32_t	cid;
+			uint64_t	transport_eph;
 			uint32_t	is_leading;
 		} b_conn;
 		struct msg_destroy_conn {
-			uint64_t	conn_handle;
+			uint32_t	sid;
 			uint32_t	cid;
 		} d_conn;
 		struct msg_send_pdu {
+			uint32_t	sid;
+			uint32_t	cid;
 			uint32_t	hdr_size;
 			uint32_t	data_size;
-			uint64_t	conn_handle;
 		} send_pdu;
 		struct msg_set_param {
-			uint64_t	conn_handle;
+			uint32_t	sid;
+			uint32_t	cid;
 			uint32_t	param; /* enum iscsi_param */
-			uint32_t	value;
+			uint32_t	len;
 		} set_param;
 		struct msg_start_conn {
-			uint64_t	conn_handle;
+			uint32_t	sid;
+			uint32_t	cid;
 		} start_conn;
 		struct msg_stop_conn {
+			uint32_t	sid;
+			uint32_t	cid;
 			uint64_t	conn_handle;
 			uint32_t	flag;
 		} stop_conn;
 		struct msg_get_stats {
-			uint64_t	conn_handle;
+			uint32_t	sid;
+			uint32_t	cid;
 		} get_stats;
+		struct msg_transport_connect {
+			uint32_t	non_blocking;
+		} ep_connect;
+		struct msg_transport_poll {
+			uint64_t	ep_handle;
+			uint32_t	timeout_ms;
+		} ep_poll;
+		struct msg_transport_disconnect {
+			uint64_t	ep_handle;
+		} ep_disconnect;
 	} u;
 	union {
 		/* messages k -> u */
-		uint64_t		handle;
 		int			retcode;
 		struct msg_create_session_ret {
-			uint64_t	session_handle;
 			uint32_t	sid;
+			uint32_t	host_no;
 		} c_session_ret;
+		struct msg_create_conn_ret {
+			uint32_t	sid;
+			uint32_t	cid;
+		} c_conn_ret;
 		struct msg_recv_req {
+			uint32_t	sid;
+			uint32_t	cid;
 			uint64_t	recv_handle;
-			uint64_t	conn_handle;
 		} recv_req;
 		struct msg_conn_error {
-			uint64_t	conn_handle;
+			uint32_t	sid;
+			uint32_t	cid;
 			uint32_t	error; /* enum iscsi_err */
 		} connerror;
+		struct msg_transport_connect_ret {
+			uint64_t	handle;
+		} ep_connect_ret;
 	} r;
 } __attribute__ ((aligned (sizeof(uint64_t))));
 
@@ -139,29 +165,66 @@ enum iscsi_err {
 	ISCSI_ERR_SESSION_FAILED	= ISCSI_ERR_BASE + 13,
 	ISCSI_ERR_HDR_DGST		= ISCSI_ERR_BASE + 14,
 	ISCSI_ERR_DATA_DGST		= ISCSI_ERR_BASE + 15,
-	ISCSI_ERR_PARAM_NOT_FOUND	= ISCSI_ERR_BASE + 16
+	ISCSI_ERR_PARAM_NOT_FOUND	= ISCSI_ERR_BASE + 16,
+	ISCSI_ERR_NO_SCSI_CMD		= ISCSI_ERR_BASE + 17,
 };
 
 /*
  * iSCSI Parameters (RFC3720)
  */
 enum iscsi_param {
-	ISCSI_PARAM_MAX_RECV_DLENGTH	= 0,
-	ISCSI_PARAM_MAX_XMIT_DLENGTH	= 1,
-	ISCSI_PARAM_HDRDGST_EN		= 2,
-	ISCSI_PARAM_DATADGST_EN		= 3,
-	ISCSI_PARAM_INITIAL_R2T_EN	= 4,
-	ISCSI_PARAM_MAX_R2T		= 5,
-	ISCSI_PARAM_IMM_DATA_EN		= 6,
-	ISCSI_PARAM_FIRST_BURST		= 7,
-	ISCSI_PARAM_MAX_BURST		= 8,
-	ISCSI_PARAM_PDU_INORDER_EN	= 9,
-	ISCSI_PARAM_DATASEQ_INORDER_EN	= 10,
-	ISCSI_PARAM_ERL			= 11,
-	ISCSI_PARAM_IFMARKER_EN		= 12,
-	ISCSI_PARAM_OFMARKER_EN		= 13,
+	/* passed in using netlink set param */
+	ISCSI_PARAM_MAX_RECV_DLENGTH,
+	ISCSI_PARAM_MAX_XMIT_DLENGTH,
+	ISCSI_PARAM_HDRDGST_EN,
+	ISCSI_PARAM_DATADGST_EN,
+	ISCSI_PARAM_INITIAL_R2T_EN,
+	ISCSI_PARAM_MAX_R2T,
+	ISCSI_PARAM_IMM_DATA_EN,
+	ISCSI_PARAM_FIRST_BURST,
+	ISCSI_PARAM_MAX_BURST,
+	ISCSI_PARAM_PDU_INORDER_EN,
+	ISCSI_PARAM_DATASEQ_INORDER_EN,
+	ISCSI_PARAM_ERL,
+	ISCSI_PARAM_IFMARKER_EN,
+	ISCSI_PARAM_OFMARKER_EN,
+	ISCSI_PARAM_EXP_STATSN,
+	ISCSI_PARAM_TARGET_NAME,
+	ISCSI_PARAM_TPGT,
+	ISCSI_PARAM_PERSISTENT_ADDRESS,
+	ISCSI_PARAM_PERSISTENT_PORT,
+	ISCSI_PARAM_SESS_RECOVERY_TMO,
+
+	/* pased in through bind conn using transport_fd */
+	ISCSI_PARAM_CONN_PORT,
+	ISCSI_PARAM_CONN_ADDRESS,
+
+	/* must always be last */
+	ISCSI_PARAM_MAX,
 };
-#define ISCSI_PARAM_MAX			14
+
+#define ISCSI_MAX_RECV_DLENGTH		(1 << ISCSI_PARAM_MAX_RECV_DLENGTH)
+#define ISCSI_MAX_XMIT_DLENGTH		(1 << ISCSI_PARAM_MAX_XMIT_DLENGTH)
+#define ISCSI_HDRDGST_EN		(1 << ISCSI_PARAM_HDRDGST_EN)
+#define ISCSI_DATADGST_EN		(1 << ISCSI_PARAM_DATADGST_EN)
+#define ISCSI_INITIAL_R2T_EN		(1 << ISCSI_PARAM_INITIAL_R2T_EN)
+#define ISCSI_MAX_R2T			(1 << ISCSI_PARAM_MAX_R2T)
+#define ISCSI_IMM_DATA_EN		(1 << ISCSI_PARAM_IMM_DATA_EN)
+#define ISCSI_FIRST_BURST		(1 << ISCSI_PARAM_FIRST_BURST)
+#define ISCSI_MAX_BURST			(1 << ISCSI_PARAM_MAX_BURST)
+#define ISCSI_PDU_INORDER_EN		(1 << ISCSI_PARAM_PDU_INORDER_EN)
+#define ISCSI_DATASEQ_INORDER_EN	(1 << ISCSI_PARAM_DATASEQ_INORDER_EN)
+#define ISCSI_ERL			(1 << ISCSI_PARAM_ERL)
+#define ISCSI_IFMARKER_EN		(1 << ISCSI_PARAM_IFMARKER_EN)
+#define ISCSI_OFMARKER_EN		(1 << ISCSI_PARAM_OFMARKER_EN)
+#define ISCSI_EXP_STATSN		(1 << ISCSI_PARAM_EXP_STATSN)
+#define ISCSI_TARGET_NAME		(1 << ISCSI_PARAM_TARGET_NAME)
+#define ISCSI_TPGT			(1 << ISCSI_PARAM_TPGT)
+#define ISCSI_PERSISTENT_ADDRESS	(1 << ISCSI_PARAM_PERSISTENT_ADDRESS)
+#define ISCSI_PERSISTENT_PORT		(1 << ISCSI_PARAM_PERSISTENT_PORT)
+#define ISCSI_SESS_RECOVERY_TMO		(1 << ISCSI_PARAM_SESS_RECOVERY_TMO)
+#define ISCSI_CONN_PORT			(1 << ISCSI_PARAM_CONN_PORT)
+#define ISCSI_CONN_ADDRESS		(1 << ISCSI_PARAM_CONN_ADDRESS)
 
 #define iscsi_ptr(_handle) ((void*)(unsigned long)_handle)
 #define iscsi_handle(_ptr) ((uint64_t)(unsigned long)_ptr)

@@ -31,15 +31,15 @@
  * Map some physical address range into the kernel address space.
  */
 
-void *__ioremap(unsigned long physaddr, unsigned long size, int cacheflag)
+void __iomem *__ioremap(unsigned long physaddr, unsigned long size, int cacheflag)
 {
-	return (void *)physaddr;
+	return (void __iomem *)physaddr;
 }
 
 /*
  * Unmap a ioremap()ed region again
  */
-void iounmap(void *addr)
+void iounmap(void volatile __iomem *addr)
 {
 }
 

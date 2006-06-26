@@ -767,6 +767,54 @@ static struct clk *onchip_clks[] = {
 	&uart6_ck,
 };
 
+static int local_clk_enable(struct clk *clk)
+{
+	int ret = 0;
+
+	if (!(clk->flags & FIXED_RATE) && !clk->rate && clk->set_rate
+	    && clk->user_rate)
+		ret = clk->set_rate(clk, clk->user_rate);
+	return ret;
+}
+
+static void local_clk_disable(struct clk *clk)
+{
+	if (!(clk->flags & FIXED_RATE) && clk->rate && clk->set_rate)
+		clk->set_rate(clk, 0);
+}
+
+static void local_clk_unuse(struct clk *clk)
+{
+	if (clk->usecount > 0 && !(--clk->usecount)) {
+		local_clk_disable(clk);
+		if (clk->parent)
+			local_clk_unuse(clk->parent);
+	}
+}
+
+static int local_clk_use(struct clk *clk)
+{
+	int ret = 0;
+	if (clk->usecount++ == 0) {
+		if (clk->parent)
+			ret = local_clk_use(clk->parent);
+
+		if (ret != 0) {
+			clk->usecount--;
+			goto out;
+		}
+
+		ret = local_clk_enable(clk);
+
+		if (ret != 0 && clk->parent) {
+			local_clk_unuse(clk->parent);
+			clk->usecount--;
+		}
+	}
+out:
+	return ret;
+}
+
 static int local_set_rate(struct clk *clk, u32 rate)
 {
 	int ret = -EINVAL;
@@ -847,28 +895,12 @@ unsigned long clk_get_rate(struct clk *clk)
 }
 EXPORT_SYMBOL(clk_get_rate);
 
-static int local_clk_enable(struct clk *clk)
-{
-	int ret = 0;
-
-	if (!(clk->flags & FIXED_RATE) && !clk->rate && clk->set_rate
-	    && clk->user_rate)
-		ret = clk->set_rate(clk, clk->user_rate);
-	return ret;
-}
-
-static void local_clk_disable(struct clk *clk)
-{
-	if (!(clk->flags & FIXED_RATE) && clk->rate && clk->set_rate)
-		clk->set_rate(clk, 0);
-}
-
 int clk_enable(struct clk *clk)
 {
 	int ret = 0;
 
 	clock_lock();
-	ret = local_clk_enable(clk);
+	ret = local_clk_use(clk);
 	clock_unlock();
 	return ret;
 }
@@ -878,70 +910,11 @@ EXPORT_SYMBOL(clk_enable);
 void clk_disable(struct clk *clk)
 {
 	clock_lock();
-	local_clk_disable(clk);
-	clock_unlock();
-}
-
-EXPORT_SYMBOL(clk_disable);
-
-static void local_clk_unuse(struct clk *clk)
-{
-	if (clk->usecount > 0 && !(--clk->usecount)) {
-		local_clk_disable(clk);
-		if (clk->parent)
-			local_clk_unuse(clk->parent);
-	}
-}
-
-static int local_clk_use(struct clk *clk)
-{
-	int ret = 0;
-	if (clk->usecount++ == 0) {
-		if (clk->parent)
-			ret = local_clk_use(clk->parent);
-
-		if (ret != 0) {
-			clk->usecount--;
-			goto out;
-		}
-
-		ret = local_clk_enable(clk);
-
-		if (ret != 0 && clk->parent) {
-			local_clk_unuse(clk->parent);
-			clk->usecount--;
-		}
-	}
-out:
-	return ret;
-}
-
-/* The main purpose of clk_use ans clk_unuse functions
- * is to control switching 13MHz oscillator and PLL1 (13'MHz),
- * so that they are disabled whenever none of PLL2-5 is using them.
- * Although in theory these functions should work with any clock,
- * please use them only on PLL2 - PLL5 to avoid confusion.
- */
-int clk_use(struct clk *clk)
-{
-	int ret = 0;
-
-	clock_lock();
-	ret = local_clk_use(clk);
-	clock_unlock();
-	return ret;
-}
-EXPORT_SYMBOL(clk_use);
-
-void clk_unuse(struct clk *clk)
-{
-
-	clock_lock();
 	local_clk_unuse(clk);
 	clock_unlock();
 }
 
-EXPORT_SYMBOL(clk_unuse);
+EXPORT_SYMBOL(clk_disable);
 
 long clk_round_rate(struct clk *clk, unsigned long rate)
 {
@@ -995,7 +968,7 @@ static int __init clk_init(void)
 			__FUNCTION__, (*clkp)->name, (*clkp)->rate);
 	}
 
-	clk_use(&ck_pll4);
+	local_clk_use(&ck_pll4);
 
 	/* if ck_13MHz is not used, disable it. */
 	if (ck_13MHz.usecount == 0)

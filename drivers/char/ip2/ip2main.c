@@ -305,7 +305,7 @@ static struct class *ip2_class;
 
 // Some functions to keep track of what irq's we have
 
-static int __init
+static int
 is_valid_irq(int irq)
 {
 	int *i = Valid_Irqs;
@@ -316,14 +316,14 @@ is_valid_irq(int irq)
 	return (*i);
 }
 
-static void __init
+static void
 mark_requested_irq( char irq )
 {
 	rirqs[iindx++] = irq;
 }
 
 #ifdef MODULE
-static int __init
+static int
 clear_requested_irq( char irq )
 {
 	int i;
@@ -337,7 +337,7 @@ clear_requested_irq( char irq )
 }
 #endif
 
-static int __init
+static int
 have_requested_irq( char irq )
 {
 	// array init to zeros so 0 irq will not be requested as a side effect
@@ -818,7 +818,7 @@ EXPORT_SYMBOL(ip2_loadmain);
 /* the board, the channel structures are initialized, and the board details   */
 /* are reported on the console.                                               */
 /******************************************************************************/
-static void __init
+static void
 ip2_init_board( int boardnum )
 {
 	int i;
@@ -961,7 +961,7 @@ err_initialize:
 /* EISA motherboard, or no valid board ID is selected it returns 0. Otherwise */
 /* it returns the base address of the controller.                             */
 /******************************************************************************/
-static unsigned short __init
+static unsigned short
 find_eisa_board( int start_slot )
 {
 	int i, j;

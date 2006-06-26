@@ -1495,8 +1495,8 @@ static int nv_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	np->tx_skbuff[nr] = skb;
 
 #ifdef NETIF_F_TSO
-	if (skb_shinfo(skb)->tso_size)
-		tx_flags_extra = NV_TX2_TSO | (skb_shinfo(skb)->tso_size << NV_TX2_TSO_SHIFT);
+	if (skb_shinfo(skb)->gso_size)
+		tx_flags_extra = NV_TX2_TSO | (skb_shinfo(skb)->gso_size << NV_TX2_TSO_SHIFT);
 	else
 #endif
 	tx_flags_extra = (skb->ip_summed == CHECKSUM_HW ? (NV_TX2_CHECKSUM_L3|NV_TX2_CHECKSUM_L4) : 0);
@@ -2076,7 +2076,7 @@ static void nv_set_multicast(struct net_device *dev)
 	spin_unlock_irq(&np->lock);
 }
 
-void nv_update_pause(struct net_device *dev, u32 pause_flags)
+static void nv_update_pause(struct net_device *dev, u32 pause_flags)
 {
 	struct fe_priv *np = netdev_priv(dev);
 	u8 __iomem *base = get_hwbase(dev);

@@ -537,9 +537,9 @@
 #endif
 
 #define ADC_MUX_MASK		0x0000000f	//Mask for ADC Mux
+#define ADC_MUX_PHONE		0x00000001	//Value to select TAD at ADC Mux (Not used)
 #define ADC_MUX_MIC		0x00000002	//Value to select Mic at ADC Mux
 #define ADC_MUX_LINEIN		0x00000004	//Value to select LineIn at ADC Mux
-#define ADC_MUX_PHONE		0x00000001	//Value to select TAD at ADC Mux (Not used)
 #define ADC_MUX_AUX		0x00000008	//Value to select Aux at ADC Mux
 
 #define SET_CHANNEL 0  /* Testing channel outputs 0=Front, 1=Center/LFE, 2=Unknown, 3=Rear */
@@ -604,6 +604,8 @@ struct snd_ca0106 {
 	u32 spdif_bits[4];             /* s/pdif out setup */
 	int spdif_enable;
 	int capture_source;
+	int i2c_capture_source;
+	u8 i2c_capture_volume[4][2];
 	int capture_mic_line_in;
 
 	struct snd_dma_buffer buffer;

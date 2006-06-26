@@ -22,6 +22,10 @@
 #define		MPIC_GREG_GCONF_8259_PTHROU_DIS		0x20000000
 #define		MPIC_GREG_GCONF_BASE_MASK		0x000fffff
 #define MPIC_GREG_GLOBAL_CONF_1		0x00030
+#define		MPIC_GREG_GLOBAL_CONF_1_SIE		0x08000000
+#define		MPIC_GREG_GLOBAL_CONF_1_CLK_RATIO_MASK	0x70000000
+#define		MPIC_GREG_GLOBAL_CONF_1_CLK_RATIO(r)	\
+			(((r) << 28) & MPIC_GREG_GLOBAL_CONF_1_CLK_RATIO_MASK)
 #define MPIC_GREG_VENDOR_0		0x00040
 #define MPIC_GREG_VENDOR_1		0x00050
 #define MPIC_GREG_VENDOR_2		0x00060
@@ -283,6 +287,12 @@ void smp_mpic_message_pass(int target, int msg);
 extern int mpic_get_one_irq(struct mpic *mpic, struct pt_regs *regs);
 /* This one gets to the primary mpic */
 extern int mpic_get_irq(struct pt_regs *regs);
+
+/* Set the EPIC clock ratio */
+void mpic_set_clk_ratio(struct mpic *mpic, u32 clock_ratio);
+
+/* Enable/Disable EPIC serial interrupt mode */
+void mpic_set_serial_int(struct mpic *mpic, int enable);
 
 /* global mpic for pSeries */
 extern struct mpic *pSeries_mpic;

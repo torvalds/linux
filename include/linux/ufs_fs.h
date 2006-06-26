@@ -220,6 +220,19 @@ typedef __u16 __bitwise __fs16;
  */
 #define UFS_MINFREE         5
 #define UFS_DEFAULTOPT      UFS_OPTTIME
+
+/*
+ * Debug code
+ */
+#ifdef CONFIG_UFS_DEBUG
+#	define UFSD(f, a...)	{					\
+		printk ("UFSD (%s, %d): %s:",				\
+			__FILE__, __LINE__, __FUNCTION__);		\
+		printk (f, ## a);					\
+	}
+#else
+#	define UFSD(f, a...)	/**/
+#endif
             
 /*
  * Turn file system block numbers into disk block addresses.
@@ -339,7 +352,22 @@ struct ufs2_csum_total {
 };
 
 /*
+ * File system flags
+ */
+#define UFS_UNCLEAN      0x01    /* file system not clean at mount (unused) */
+#define UFS_DOSOFTDEP    0x02    /* file system using soft dependencies */
+#define UFS_NEEDSFSCK    0x04    /* needs sync fsck (FreeBSD compat, unused) */
+#define UFS_INDEXDIRS    0x08    /* kernel supports indexed directories */
+#define UFS_ACLS         0x10    /* file system has ACLs enabled */
+#define UFS_MULTILABEL   0x20    /* file system is MAC multi-label */
+#define UFS_FLAGS_UPDATED 0x80   /* flags have been moved to new location */
+
+#if 0
+/*
  * This is the actual superblock, as it is laid out on the disk.
+ * Do NOT use this structure, because of sizeof(ufs_super_block) > 512 and
+ * it may occupy several blocks, use
+ * struct ufs_super_block_(first,second,third) instead.
  */
 struct ufs_super_block {
 	__fs32	fs_link;	/* UNUSED */
@@ -416,7 +444,7 @@ struct ufs_super_block {
 	__s8	fs_fmod;	/* super block modified flag */
 	__s8	fs_clean;	/* file system is clean flag */
 	__s8	fs_ronly;	/* mounted read-only flag */
-	__s8	fs_flags;	/* currently unused flag */
+	__s8	fs_flags;
 	union {
 		struct {
 			__s8	fs_fsmnt[UFS_MAXMNTLEN];/* name mounted on */
@@ -485,6 +513,7 @@ struct ufs_super_block {
 	__fs32	fs_magic;		/* magic number */
 	__u8	fs_space[1];		/* list of blocks for each rotation */
 };
+#endif/*struct ufs_super_block*/
 
 /*
  * Preference for optimization.
@@ -666,7 +695,7 @@ struct ufs_buffer_head {
 };
 
 struct ufs_cg_private_info {
-	struct ufs_cylinder_group ucg;
+	struct ufs_buffer_head c_ubh;
 	__u32	c_cgx;		/* number of cylidner group */
 	__u16	c_ncyl;		/* number of cyl's this cg */
 	__u16	c_niblk;	/* number of inode blocks this cg */
@@ -686,6 +715,7 @@ struct ufs_cg_private_info {
 
 struct ufs_sb_private_info {
 	struct ufs_buffer_head s_ubh; /* buffer containing super block */
+	struct ufs2_csum_total cs_total;
 	__u32	s_sblkno;	/* offset of super-blocks in filesys */
 	__u32	s_cblkno;	/* offset of cg-block in filesys */
 	__u32	s_iblkno;	/* offset of inode-blocks in filesys */
@@ -824,16 +854,54 @@ struct ufs_super_block_first {
 };
 
 struct ufs_super_block_second {
-	__s8	fs_fsmnt[212];
-	__fs32	fs_cgrotor;
-	__fs32	fs_csp[UFS_MAXCSBUFS];
-	__fs32	fs_maxcluster;
-	__fs32	fs_cpc;
-	__fs16	fs_opostbl[82];
-};	
+	union {
+		struct {
+			__s8	fs_fsmnt[212];
+			__fs32	fs_cgrotor;
+			__fs32	fs_csp[UFS_MAXCSBUFS];
+			__fs32	fs_maxcluster;
+			__fs32	fs_cpc;
+			__fs16	fs_opostbl[82];
+		} fs_u1;
+		struct {
+			__s8  fs_fsmnt[UFS2_MAXMNTLEN - UFS_MAXMNTLEN + 212];
+			__u8   fs_volname[UFS2_MAXVOLLEN];
+			__fs64  fs_swuid;
+			__fs32  fs_pad;
+			__fs32   fs_cgrotor;
+			__fs32   fs_ocsp[UFS2_NOCSPTRS];
+			__fs32   fs_contigdirs;
+			__fs32   fs_csp;
+			__fs32   fs_maxcluster;
+			__fs32   fs_active;
+			__fs32   fs_old_cpc;
+			__fs32   fs_maxbsize;
+			__fs64   fs_sparecon64[17];
+			__fs64   fs_sblockloc;
+			__fs64	cs_ndir;
+			__fs64	cs_nbfree;
+		} fs_u2;
+	} fs_un;
+};
 
 struct ufs_super_block_third {
-	__fs16	fs_opostbl[46];
+	union {
+		struct {
+			__fs16	fs_opostbl[46];
+		} fs_u1;
+		struct {
+			__fs64	cs_nifree;	/* number of free inodes */
+			__fs64	cs_nffree;	/* number of free frags */
+			__fs64   cs_numclusters;	/* number of free clusters */
+			__fs64   cs_spare[3];	/* future expansion */
+			struct  ufs_timeval    fs_time;		/* last time written */
+			__fs64    fs_size;		/* number of blocks in fs */
+			__fs64    fs_dsize;	/* number of data blocks in fs */
+			__fs64   fs_csaddr;	/* blk addr of cyl grp summary area */
+			__fs64    fs_pendingblocks;/* blocks in process of being freed */
+			__fs32    fs_pendinginodes;/*inodes in process of being freed */
+		} fs_u2;
+	} fs_un1;
 	union {
 		struct {
 			__fs32	fs_sparecon[53];/* reserved for future constants */
@@ -861,7 +929,7 @@ struct ufs_super_block_third {
 			__fs32	fs_qfmask[2];	/* ~usb_fmask */
 			__fs32	fs_state;	/* file system state time stamp */
 		} fs_44;
-	} fs_u2;
+	} fs_un2;
 	__fs32	fs_postblformat;
 	__fs32	fs_nrpos;
 	__fs32	fs_postbloff;
@@ -875,7 +943,8 @@ struct ufs_super_block_third {
 /* balloc.c */
 extern void ufs_free_fragments (struct inode *, unsigned, unsigned);
 extern void ufs_free_blocks (struct inode *, unsigned, unsigned);
-extern unsigned ufs_new_fragments (struct inode *, __fs32 *, unsigned, unsigned, unsigned, int *);
+extern unsigned ufs_new_fragments(struct inode *, __fs32 *, unsigned, unsigned,
+				  unsigned, int *, struct page *);
 
 /* cylinder.c */
 extern struct ufs_cg_private_info * ufs_load_cylinder (struct super_block *, unsigned);
@@ -886,11 +955,12 @@ extern struct inode_operations ufs_dir_inode_operations;
 extern int ufs_add_link (struct dentry *, struct inode *);
 extern ino_t ufs_inode_by_name(struct inode *, struct dentry *);
 extern int ufs_make_empty(struct inode *, struct inode *);
-extern struct ufs_dir_entry * ufs_find_entry (struct dentry *, struct buffer_head **);
-extern int ufs_delete_entry (struct inode *, struct ufs_dir_entry *, struct buffer_head *);
+extern struct ufs_dir_entry *ufs_find_entry(struct inode *, struct dentry *, struct page **);
+extern int ufs_delete_entry(struct inode *, struct ufs_dir_entry *, struct page *);
 extern int ufs_empty_dir (struct inode *);
-extern struct ufs_dir_entry * ufs_dotdot (struct inode *, struct buffer_head **);
-extern void ufs_set_link(struct inode *, struct ufs_dir_entry *, struct buffer_head *, struct inode *);
+extern struct ufs_dir_entry *ufs_dotdot(struct inode *, struct page **);
+extern void ufs_set_link(struct inode *dir, struct ufs_dir_entry *de,
+			 struct page *page, struct inode *inode);
 
 /* file.c */
 extern struct inode_operations ufs_file_inode_operations;
@@ -903,13 +973,11 @@ extern void ufs_free_inode (struct inode *inode);
 extern struct inode * ufs_new_inode (struct inode *, int);
 
 /* inode.c */
-extern u64  ufs_frag_map (struct inode *, sector_t);
 extern void ufs_read_inode (struct inode *);
 extern void ufs_put_inode (struct inode *);
 extern int ufs_write_inode (struct inode *, int);
 extern int ufs_sync_inode (struct inode *);
 extern void ufs_delete_inode (struct inode *);
-extern struct buffer_head * ufs_getfrag (struct inode *, unsigned, int, int *);
 extern struct buffer_head * ufs_bread (struct inode *, unsigned, int, int *);
 extern int ufs_getfrag_block (struct inode *inode, sector_t fragment, struct buffer_head *bh_result, int create);
 

@@ -1006,7 +1006,7 @@ static int mcdx_talk(struct s_drive_stuff *stuffp,
 
 /* MODULE STUFF ***********************************************************/
 
-int __mcdx_init(void)
+static int __init __mcdx_init(void)
 {
 	int i;
 	int drives = 0;

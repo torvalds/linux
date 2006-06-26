@@ -98,6 +98,7 @@ static int uhci_show_urbp(struct urb_priv *urbp, char *buf, int len, int space)
 	char *out = buf;
 	struct uhci_td *td;
 	int i, nactive, ninactive;
+	char *ptype;
 
 	if (len < 200)
 		return 0;
@@ -110,13 +111,15 @@ static int uhci_show_urbp(struct urb_priv *urbp, char *buf, int len, int space)
 			(usb_pipein(urbp->urb->pipe) ? "IN" : "OUT"));
 
 	switch (usb_pipetype(urbp->urb->pipe)) {
-	case PIPE_ISOCHRONOUS: out += sprintf(out, "ISO"); break;
-	case PIPE_INTERRUPT: out += sprintf(out, "INT"); break;
-	case PIPE_BULK: out += sprintf(out, "BLK"); break;
-	case PIPE_CONTROL: out += sprintf(out, "CTL"); break;
+	case PIPE_ISOCHRONOUS: ptype = "ISO"; break;
+	case PIPE_INTERRUPT: ptype = "INT"; break;
+	case PIPE_BULK: ptype = "BLK"; break;
+	default:
+	case PIPE_CONTROL: ptype = "CTL"; break;
 	}
 
-	out += sprintf(out, "%s", (urbp->fsbr ? " FSBR" : ""));
+	out += sprintf(out, "%s%s", ptype, (urbp->fsbr ? " FSBR" : ""));
+	out += sprintf(out, " Actlen=%d", urbp->urb->actual_length);
 
 	if (urbp->urb->status != -EINPROGRESS)
 		out += sprintf(out, " Status=%d", urbp->urb->status);
@@ -124,7 +127,8 @@ static int uhci_show_urbp(struct urb_priv *urbp, char *buf, int len, int space)
 
 	i = nactive = ninactive = 0;
 	list_for_each_entry(td, &urbp->td_list, list) {
-		if (++i <= 10 || debug > 2) {
+		if (urbp->qh->type != USB_ENDPOINT_XFER_ISOC &&
+				(++i <= 10 || debug > 2)) {
 			out += sprintf(out, "%*s%d: ", space + 2, "", i);
 			out += uhci_show_td(td, out, len - (out - buf), 0);
 		} else {
@@ -147,13 +151,27 @@ static int uhci_show_qh(struct uhci_qh *qh, char *buf, int len, int space)
 	char *out = buf;
 	int i, nurbs;
 	__le32 element = qh_element(qh);
+	char *qtype;
 
 	/* Try to make sure there's enough memory */
-	if (len < 80 * 6)
+	if (len < 80 * 7)
 		return 0;
 
-	out += sprintf(out, "%*s[%p] link (%08x) element (%08x)\n", space, "",
-			qh, le32_to_cpu(qh->link), le32_to_cpu(element));
+	switch (qh->type) {
+	case USB_ENDPOINT_XFER_ISOC: qtype = "ISO"; break;
+	case USB_ENDPOINT_XFER_INT: qtype = "INT"; break;
+	case USB_ENDPOINT_XFER_BULK: qtype = "BLK"; break;
+	case USB_ENDPOINT_XFER_CONTROL: qtype = "CTL"; break;
+	default: qtype = "Skel" ; break;
+	}
+
+	out += sprintf(out, "%*s[%p] %s QH link (%08x) element (%08x)\n",
+			space, "", qh, qtype,
+			le32_to_cpu(qh->link), le32_to_cpu(element));
+	if (qh->type == USB_ENDPOINT_XFER_ISOC)
+		out += sprintf(out, "%*s    period %d frame %x desc [%p]\n",
+				space, "", qh->period, qh->iso_frame,
+				qh->iso_packet_desc);
 
 	if (element & UHCI_PTR_QH)
 		out += sprintf(out, "%*s  Element points to QH (bug?)\n", space, "");
@@ -261,7 +279,8 @@ static int uhci_show_root_hub_state(struct uhci_hcd *uhci, char *buf, int len)
 	    default:
 		rh_state = "?";			break;
 	}
-	out += sprintf(out, "Root-hub state: %s\n", rh_state);
+	out += sprintf(out, "Root-hub state: %s   FSBR: %d\n",
+			rh_state, uhci->fsbr_is_on);
 	return out - buf;
 }
 
@@ -275,7 +294,7 @@ static int uhci_show_status(struct uhci_hcd *uhci, char *buf, int len)
 	unsigned short portsc1, portsc2;
 
 	/* Try to make sure there's enough memory */
-	if (len < 80 * 6)
+	if (len < 80 * 9)
 		return 0;
 
 	usbcmd    = inw(io_addr + 0);
@@ -314,6 +333,10 @@ static int uhci_show_status(struct uhci_hcd *uhci, char *buf, int len)
 	out += sprintf(out, "  sof       =       %02x\n", sof);
 	out += uhci_show_sc(1, portsc1, out, len - (out - buf));
 	out += uhci_show_sc(2, portsc2, out, len - (out - buf));
+	out += sprintf(out, "Most recent frame: %x (%d)   "
+			"Last ISO frame: %x (%d)\n",
+			uhci->frame_number, uhci->frame_number & 1023,
+			uhci->last_iso_frame, uhci->last_iso_frame & 1023);
 
 	return out - buf;
 }

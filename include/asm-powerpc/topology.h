@@ -31,8 +31,13 @@ static inline int node_to_first_cpu(int node)
 
 int of_node_to_nid(struct device_node *device);
 
-#define pcibus_to_node(node)    (-1)
-#define pcibus_to_cpumask(bus)	(cpu_online_map)
+struct pci_bus;
+extern int pcibus_to_node(struct pci_bus *bus);
+
+#define pcibus_to_cpumask(bus)	(pcibus_to_node(bus) == -1 ? \
+					CPU_MASK_ALL : \
+					node_to_cpumask(pcibus_to_node(bus)) \
+				)
 
 /* sched_domains SD_NODE_INIT for PPC64 machines */
 #define SD_NODE_INIT (struct sched_domain) {		\

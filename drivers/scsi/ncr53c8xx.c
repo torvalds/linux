@@ -529,7 +529,7 @@ static void __unmap_scsi_data(struct device *dev, struct scsi_cmnd *cmd)
 {
 	switch(cmd->__data_mapped) {
 	case 2:
-		dma_unmap_sg(dev, cmd->buffer, cmd->use_sg,
+		dma_unmap_sg(dev, cmd->request_buffer, cmd->use_sg,
 				cmd->sc_data_direction);
 		break;
 	case 1:
@@ -564,7 +564,7 @@ static int __map_scsi_sg_data(struct device *dev, struct scsi_cmnd *cmd)
 	if (cmd->use_sg == 0)
 		return 0;
 
-	use_sg = dma_map_sg(dev, cmd->buffer, cmd->use_sg,
+	use_sg = dma_map_sg(dev, cmd->request_buffer, cmd->use_sg,
 			cmd->sc_data_direction);
 	cmd->__data_mapped = 2;
 	cmd->__data_mapping = use_sg;
@@ -7697,7 +7697,7 @@ static int ncr_scatter(struct ncb *np, struct ccb *cp, struct scsi_cmnd *cmd)
 	if (!use_sg)
 		segment = ncr_scatter_no_sglist(np, cp, cmd);
 	else if ((use_sg = map_scsi_sg_data(np, cmd)) > 0) {
-		struct scatterlist *scatter = (struct scatterlist *)cmd->buffer;
+		struct scatterlist *scatter = (struct scatterlist *)cmd->request_buffer;
 		struct scr_tblmove *data;
 
 		if (use_sg > MAX_SCATTER) {

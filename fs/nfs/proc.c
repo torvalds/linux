@@ -44,10 +44,9 @@
 #include <linux/nfs_page.h>
 #include <linux/lockd/bind.h>
 #include <linux/smp_lock.h>
+#include "internal.h"
 
 #define NFSDBG_FACILITY		NFSDBG_PROC
-
-extern struct rpc_procinfo nfs_procedures[];
 
 /*
  * Bare-bones access to getattr: this is for nfs_read_super.
@@ -610,8 +609,6 @@ nfs_proc_pathconf(struct nfs_server *server, struct nfs_fh *fhandle,
 	info->max_namelen = NFS2_MAXNAMLEN;
 	return 0;
 }
-
-extern u32 * nfs_decode_dirent(u32 *, struct nfs_entry *, int);
 
 static int nfs_read_done(struct rpc_task *task, struct nfs_read_data *data)
 {

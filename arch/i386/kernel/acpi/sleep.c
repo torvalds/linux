@@ -8,29 +8,16 @@
 #include <linux/acpi.h>
 #include <linux/bootmem.h>
 #include <linux/dmi.h>
+#include <linux/cpumask.h>
+
 #include <asm/smp.h>
-#include <asm/tlbflush.h>
 
 /* address in low memory of the wakeup routine. */
 unsigned long acpi_wakeup_address = 0;
 unsigned long acpi_video_flags;
 extern char wakeup_start, wakeup_end;
 
-extern void zap_low_mappings(void);
-
 extern unsigned long FASTCALL(acpi_copy_wakeup_routine(unsigned long));
-
-static void init_low_mapping(pgd_t * pgd, int pgd_limit)
-{
-	int pgd_ofs = 0;
-
-	while ((pgd_ofs < pgd_limit)
-	       && (pgd_ofs + USER_PTRS_PER_PGD < PTRS_PER_PGD)) {
-		set_pgd(pgd, *(pgd + USER_PTRS_PER_PGD));
-		pgd_ofs++, pgd++;
-	}
-	flush_tlb_all();
-}
 
 /**
  * acpi_save_state_mem - save kernel state
@@ -42,7 +29,6 @@ int acpi_save_state_mem(void)
 {
 	if (!acpi_wakeup_address)
 		return 1;
-	init_low_mapping(swapper_pg_dir, USER_PTRS_PER_PGD);
 	memcpy((void *)acpi_wakeup_address, &wakeup_start,
 	       &wakeup_end - &wakeup_start);
 	acpi_copy_wakeup_routine(acpi_wakeup_address);
@@ -55,7 +41,6 @@ int acpi_save_state_mem(void)
  */
 void acpi_restore_state_mem(void)
 {
-	zap_low_mappings();
 }
 
 /**

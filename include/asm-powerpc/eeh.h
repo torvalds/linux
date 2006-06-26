@@ -292,8 +292,6 @@ static inline void eeh_memcpy_toio(volatile void __iomem *dest, const void *src,
 static inline u8 eeh_inb(unsigned long port)
 {
 	u8 val;
-	if (!_IO_IS_VALID(port))
-		return ~0;
 	val = in_8((u8 __iomem *)(port+pci_io_base));
 	if (EEH_POSSIBLE_ERROR(val, u8))
 		return eeh_check_failure((void __iomem *)(port), val);
@@ -302,15 +300,12 @@ static inline u8 eeh_inb(unsigned long port)
 
 static inline void eeh_outb(u8 val, unsigned long port)
 {
-	if (_IO_IS_VALID(port))
-		out_8((u8 __iomem *)(port+pci_io_base), val);
+	out_8((u8 __iomem *)(port+pci_io_base), val);
 }
 
 static inline u16 eeh_inw(unsigned long port)
 {
 	u16 val;
-	if (!_IO_IS_VALID(port))
-		return ~0;
 	val = in_le16((u16 __iomem *)(port+pci_io_base));
 	if (EEH_POSSIBLE_ERROR(val, u16))
 		return eeh_check_failure((void __iomem *)(port), val);
@@ -319,15 +314,12 @@ static inline u16 eeh_inw(unsigned long port)
 
 static inline void eeh_outw(u16 val, unsigned long port)
 {
-	if (_IO_IS_VALID(port))
-		out_le16((u16 __iomem *)(port+pci_io_base), val);
+	out_le16((u16 __iomem *)(port+pci_io_base), val);
 }
 
 static inline u32 eeh_inl(unsigned long port)
 {
 	u32 val;
-	if (!_IO_IS_VALID(port))
-		return ~0;
 	val = in_le32((u32 __iomem *)(port+pci_io_base));
 	if (EEH_POSSIBLE_ERROR(val, u32))
 		return eeh_check_failure((void __iomem *)(port), val);
@@ -336,8 +328,7 @@ static inline u32 eeh_inl(unsigned long port)
 
 static inline void eeh_outl(u32 val, unsigned long port)
 {
-	if (_IO_IS_VALID(port))
-		out_le32((u32 __iomem *)(port+pci_io_base), val);
+	out_le32((u32 __iomem *)(port+pci_io_base), val);
 }
 
 /* in-string eeh macros */

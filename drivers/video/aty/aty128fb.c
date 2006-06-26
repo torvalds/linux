@@ -64,6 +64,7 @@
 #include <linux/pci.h>
 #include <linux/ioport.h>
 #include <linux/console.h>
+#include <linux/backlight.h>
 #include <asm/io.h>
 
 #ifdef CONFIG_PPC_PMAC
@@ -479,16 +480,6 @@ static struct fb_ops aty128fb_ops = {
 	.fb_copyarea	= cfb_copyarea,
 	.fb_imageblit	= cfb_imageblit,
 };
-
-#ifdef CONFIG_PMAC_BACKLIGHT
-static int aty128_set_backlight_enable(int on, int level, void* data);
-static int aty128_set_backlight_level(int level, void* data);
-
-static struct backlight_controller aty128_backlight_controller = {
-	aty128_set_backlight_enable,
-	aty128_set_backlight_level
-};
-#endif /* CONFIG_PMAC_BACKLIGHT */
 
     /*
      * Functions to read from/write to the mmio registers
@@ -1258,19 +1249,35 @@ static void aty128_set_crt_enable(struct aty128fb_par *par, int on)
 static void aty128_set_lcd_enable(struct aty128fb_par *par, int on)
 {
 	u32 reg;
+#ifdef CONFIG_FB_ATY128_BACKLIGHT
+	struct fb_info *info = pci_get_drvdata(par->pdev);
+#endif
 
 	if (on) {
 		reg = aty_ld_le32(LVDS_GEN_CNTL);
 		reg |= LVDS_ON | LVDS_EN | LVDS_BLON | LVDS_DIGION;
 		reg &= ~LVDS_DISPLAY_DIS;
 		aty_st_le32(LVDS_GEN_CNTL, reg);
-#ifdef CONFIG_PMAC_BACKLIGHT
-		aty128_set_backlight_enable(get_backlight_enable(),
-					    get_backlight_level(), par);
+#ifdef CONFIG_FB_ATY128_BACKLIGHT
+		mutex_lock(&info->bl_mutex);
+		if (info->bl_dev) {
+			down(&info->bl_dev->sem);
+			info->bl_dev->props->update_status(info->bl_dev);
+			up(&info->bl_dev->sem);
+		}
+		mutex_unlock(&info->bl_mutex);
 #endif	
 	} else {
-#ifdef CONFIG_PMAC_BACKLIGHT
-		aty128_set_backlight_enable(0, 0, par);
+#ifdef CONFIG_FB_ATY128_BACKLIGHT
+		mutex_lock(&info->bl_mutex);
+		if (info->bl_dev) {
+			down(&info->bl_dev->sem);
+			info->bl_dev->props->brightness = 0;
+			info->bl_dev->props->power = FB_BLANK_POWERDOWN;
+			info->bl_dev->props->update_status(info->bl_dev);
+			up(&info->bl_dev->sem);
+		}
+		mutex_unlock(&info->bl_mutex);
 #endif	
 		reg = aty_ld_le32(LVDS_GEN_CNTL);
 		reg |= LVDS_DISPLAY_DIS;
@@ -1691,6 +1698,184 @@ static int __init aty128fb_setup(char *options)
 }
 #endif  /*  MODULE  */
 
+/* Backlight */
+#ifdef CONFIG_FB_ATY128_BACKLIGHT
+#define MAX_LEVEL 0xFF
+
+static struct backlight_properties aty128_bl_data;
+
+static int aty128_bl_get_level_brightness(struct aty128fb_par *par,
+		int level)
+{
+	struct fb_info *info = pci_get_drvdata(par->pdev);
+	int atylevel;
+
+	/* Get and convert the value */
+	mutex_lock(&info->bl_mutex);
+	atylevel = MAX_LEVEL -
+		(info->bl_curve[level] * FB_BACKLIGHT_MAX / MAX_LEVEL);
+	mutex_unlock(&info->bl_mutex);
+
+	if (atylevel < 0)
+		atylevel = 0;
+	else if (atylevel > MAX_LEVEL)
+		atylevel = MAX_LEVEL;
+
+	return atylevel;
+}
+
+/* We turn off the LCD completely instead of just dimming the backlight.
+ * This provides greater power saving and the display is useless without
+ * backlight anyway
+ */
+#define BACKLIGHT_LVDS_OFF
+/* That one prevents proper CRT output with LCD off */
+#undef BACKLIGHT_DAC_OFF
+
+static int aty128_bl_update_status(struct backlight_device *bd)
+{
+	struct aty128fb_par *par = class_get_devdata(&bd->class_dev);
+	unsigned int reg = aty_ld_le32(LVDS_GEN_CNTL);
+	int level;
+
+	if (bd->props->power != FB_BLANK_UNBLANK ||
+	    bd->props->fb_blank != FB_BLANK_UNBLANK ||
+	    !par->lcd_on)
+		level = 0;
+	else
+		level = bd->props->brightness;
+
+	reg |= LVDS_BL_MOD_EN | LVDS_BLON;
+	if (level > 0) {
+		reg |= LVDS_DIGION;
+		if (!(reg & LVDS_ON)) {
+			reg &= ~LVDS_BLON;
+			aty_st_le32(LVDS_GEN_CNTL, reg);
+			aty_ld_le32(LVDS_GEN_CNTL);
+			mdelay(10);
+			reg |= LVDS_BLON;
+			aty_st_le32(LVDS_GEN_CNTL, reg);
+		}
+		reg &= ~LVDS_BL_MOD_LEVEL_MASK;
+		reg |= (aty128_bl_get_level_brightness(par, level) << LVDS_BL_MOD_LEVEL_SHIFT);
+#ifdef BACKLIGHT_LVDS_OFF
+		reg |= LVDS_ON | LVDS_EN;
+		reg &= ~LVDS_DISPLAY_DIS;
+#endif
+		aty_st_le32(LVDS_GEN_CNTL, reg);
+#ifdef BACKLIGHT_DAC_OFF
+		aty_st_le32(DAC_CNTL, aty_ld_le32(DAC_CNTL) & (~DAC_PDWN));
+#endif
+	} else {
+		reg &= ~LVDS_BL_MOD_LEVEL_MASK;
+		reg |= (aty128_bl_get_level_brightness(par, 0) << LVDS_BL_MOD_LEVEL_SHIFT);
+#ifdef BACKLIGHT_LVDS_OFF
+		reg |= LVDS_DISPLAY_DIS;
+		aty_st_le32(LVDS_GEN_CNTL, reg);
+		aty_ld_le32(LVDS_GEN_CNTL);
+		udelay(10);
+		reg &= ~(LVDS_ON | LVDS_EN | LVDS_BLON | LVDS_DIGION);
+#endif
+		aty_st_le32(LVDS_GEN_CNTL, reg);
+#ifdef BACKLIGHT_DAC_OFF
+		aty_st_le32(DAC_CNTL, aty_ld_le32(DAC_CNTL) | DAC_PDWN);
+#endif
+	}
+
+	return 0;
+}
+
+static int aty128_bl_get_brightness(struct backlight_device *bd)
+{
+	return bd->props->brightness;
+}
+
+static struct backlight_properties aty128_bl_data = {
+	.owner		= THIS_MODULE,
+	.get_brightness	= aty128_bl_get_brightness,
+	.update_status	= aty128_bl_update_status,
+	.max_brightness	= (FB_BACKLIGHT_LEVELS - 1),
+};
+
+static void aty128_bl_init(struct aty128fb_par *par)
+{
+	struct fb_info *info = pci_get_drvdata(par->pdev);
+	struct backlight_device *bd;
+	char name[12];
+
+	/* Could be extended to Rage128Pro LVDS output too */
+	if (par->chip_gen != rage_M3)
+		return;
+
+#ifdef CONFIG_PMAC_BACKLIGHT
+	if (!pmac_has_backlight_type("ati"))
+		return;
+#endif
+
+	snprintf(name, sizeof(name), "aty128bl%d", info->node);
+
+	bd = backlight_device_register(name, par, &aty128_bl_data);
+	if (IS_ERR(bd)) {
+		info->bl_dev = NULL;
+		printk("aty128: Backlight registration failed\n");
+		goto error;
+	}
+
+	mutex_lock(&info->bl_mutex);
+	info->bl_dev = bd;
+	fb_bl_default_curve(info, 0,
+		 63 * FB_BACKLIGHT_MAX / MAX_LEVEL,
+		219 * FB_BACKLIGHT_MAX / MAX_LEVEL);
+	mutex_unlock(&info->bl_mutex);
+
+	up(&bd->sem);
+	bd->props->brightness = aty128_bl_data.max_brightness;
+	bd->props->power = FB_BLANK_UNBLANK;
+	bd->props->update_status(bd);
+	down(&bd->sem);
+
+#ifdef CONFIG_PMAC_BACKLIGHT
+	mutex_lock(&pmac_backlight_mutex);
+	if (!pmac_backlight)
+		pmac_backlight = bd;
+	mutex_unlock(&pmac_backlight_mutex);
+#endif
+
+	printk("aty128: Backlight initialized (%s)\n", name);
+
+	return;
+
+error:
+	return;
+}
+
+static void aty128_bl_exit(struct aty128fb_par *par)
+{
+	struct fb_info *info = pci_get_drvdata(par->pdev);
+
+#ifdef CONFIG_PMAC_BACKLIGHT
+	mutex_lock(&pmac_backlight_mutex);
+#endif
+
+	mutex_lock(&info->bl_mutex);
+	if (info->bl_dev) {
+#ifdef CONFIG_PMAC_BACKLIGHT
+		if (pmac_backlight == info->bl_dev)
+			pmac_backlight = NULL;
+#endif
+
+		backlight_device_unregister(info->bl_dev);
+		info->bl_dev = NULL;
+
+		printk("aty128: Backlight unloaded\n");
+	}
+	mutex_unlock(&info->bl_mutex);
+
+#ifdef CONFIG_PMAC_BACKLIGHT
+	mutex_unlock(&pmac_backlight_mutex);
+#endif
+}
+#endif /* CONFIG_FB_ATY128_BACKLIGHT */
 
 /*
  *  Initialisation
@@ -1835,17 +2020,15 @@ static int __init aty128_init(struct pci_dev *pdev, const struct pci_device_id *
 	if (register_framebuffer(info) < 0)
 		return 0;
 
-#ifdef CONFIG_PMAC_BACKLIGHT
-	/* Could be extended to Rage128Pro LVDS output too */
-	if (par->chip_gen == rage_M3)
-		register_backlight_controller(&aty128_backlight_controller, par, "ati");
-#endif /* CONFIG_PMAC_BACKLIGHT */
-
 	par->pm_reg = pci_find_capability(pdev, PCI_CAP_ID_PM);
 	par->pdev = pdev;
 	par->asleep = 0;
 	par->lock_blank = 0;
-	
+
+#ifdef CONFIG_FB_ATY128_BACKLIGHT
+	aty128_bl_init(par);
+#endif
+
 	printk(KERN_INFO "fb%d: %s frame buffer device on %s\n",
 	       info->node, info->fix.id, video_card);
 
@@ -1981,6 +2164,10 @@ static void __devexit aty128_remove(struct pci_dev *pdev)
 
 	par = info->par;
 
+#ifdef CONFIG_FB_ATY128_BACKLIGHT
+	aty128_bl_exit(par);
+#endif
+
 	unregister_framebuffer(info);
 #ifdef CONFIG_MTRR
 	if (par->mtrr.vram_valid)
@@ -2011,10 +2198,14 @@ static int aty128fb_blank(int blank, struct fb_info *fb)
 	if (par->lock_blank || par->asleep)
 		return 0;
 
-#ifdef CONFIG_PMAC_BACKLIGHT
-	if (machine_is(powermac) && blank)
-		set_backlight_enable(0);
-#endif /* CONFIG_PMAC_BACKLIGHT */
+#ifdef CONFIG_FB_ATY128_BACKLIGHT
+	if (machine_is(powermac) && blank) {
+		down(&fb->bl_dev->sem);
+		fb->bl_dev->props->power = FB_BLANK_POWERDOWN;
+		fb->bl_dev->props->update_status(fb->bl_dev);
+		up(&fb->bl_dev->sem);
+	}
+#endif
 
 	if (blank & FB_BLANK_VSYNC_SUSPEND)
 		state |= 2;
@@ -2029,10 +2220,14 @@ static int aty128fb_blank(int blank, struct fb_info *fb)
 		aty128_set_crt_enable(par, par->crt_on && !blank);
 		aty128_set_lcd_enable(par, par->lcd_on && !blank);
 	}
-#ifdef CONFIG_PMAC_BACKLIGHT
-	if (machine_is(powermac) && !blank)
-		set_backlight_enable(1);
-#endif /* CONFIG_PMAC_BACKLIGHT */
+#ifdef CONFIG_FB_ATY128_BACKLIGHT
+	if (machine_is(powermac) && !blank) {
+		down(&fb->bl_dev->sem);
+		fb->bl_dev->props->power = FB_BLANK_UNBLANK;
+		fb->bl_dev->props->update_status(fb->bl_dev);
+		up(&fb->bl_dev->sem);
+	}
+#endif
 	return 0;
 }
 
@@ -2137,73 +2332,6 @@ static int aty128fb_ioctl(struct fb_info *info, u_int cmd, u_long arg)
 	}
 	return -EINVAL;
 }
-
-#ifdef CONFIG_PMAC_BACKLIGHT
-static int backlight_conv[] = {
-	0xff, 0xc0, 0xb5, 0xaa, 0x9f, 0x94, 0x89, 0x7e,
-	0x73, 0x68, 0x5d, 0x52, 0x47, 0x3c, 0x31, 0x24
-};
-
-/* We turn off the LCD completely instead of just dimming the backlight.
- * This provides greater power saving and the display is useless without
- * backlight anyway
- */
-#define BACKLIGHT_LVDS_OFF
-/* That one prevents proper CRT output with LCD off */
-#undef BACKLIGHT_DAC_OFF
-
-static int aty128_set_backlight_enable(int on, int level, void *data)
-{
-	struct aty128fb_par *par = data;
-	unsigned int reg = aty_ld_le32(LVDS_GEN_CNTL);
-
-	if (!par->lcd_on)
-		on = 0;
-	reg |= LVDS_BL_MOD_EN | LVDS_BLON;
-	if (on && level > BACKLIGHT_OFF) {
-		reg |= LVDS_DIGION;
-		if (!(reg & LVDS_ON)) {
-			reg &= ~LVDS_BLON;
-			aty_st_le32(LVDS_GEN_CNTL, reg);
-			(void)aty_ld_le32(LVDS_GEN_CNTL);
-			mdelay(10);
-			reg |= LVDS_BLON;
-			aty_st_le32(LVDS_GEN_CNTL, reg);
-		}
-		reg &= ~LVDS_BL_MOD_LEVEL_MASK;
-		reg |= (backlight_conv[level] << LVDS_BL_MOD_LEVEL_SHIFT);
-#ifdef BACKLIGHT_LVDS_OFF
-		reg |= LVDS_ON | LVDS_EN;
-		reg &= ~LVDS_DISPLAY_DIS;
-#endif
-		aty_st_le32(LVDS_GEN_CNTL, reg);
-#ifdef BACKLIGHT_DAC_OFF
-		aty_st_le32(DAC_CNTL, aty_ld_le32(DAC_CNTL) & (~DAC_PDWN));
-#endif		
-	} else {
-		reg &= ~LVDS_BL_MOD_LEVEL_MASK;
-		reg |= (backlight_conv[0] << LVDS_BL_MOD_LEVEL_SHIFT);
-#ifdef BACKLIGHT_LVDS_OFF
-		reg |= LVDS_DISPLAY_DIS;
-		aty_st_le32(LVDS_GEN_CNTL, reg);
-		(void)aty_ld_le32(LVDS_GEN_CNTL);
-		udelay(10);
-		reg &= ~(LVDS_ON | LVDS_EN | LVDS_BLON | LVDS_DIGION);
-#endif		
-		aty_st_le32(LVDS_GEN_CNTL, reg);
-#ifdef BACKLIGHT_DAC_OFF
-		aty_st_le32(DAC_CNTL, aty_ld_le32(DAC_CNTL) | DAC_PDWN);
-#endif		
-	}
-
-	return 0;
-}
-
-static int aty128_set_backlight_level(int level, void* data)
-{
-	return aty128_set_backlight_enable(1, level, data);
-}
-#endif /* CONFIG_PMAC_BACKLIGHT */
 
 #if 0
     /*

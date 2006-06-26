@@ -569,13 +569,13 @@ struct tcp_skb_cb {
  */
 static inline int tcp_skb_pcount(const struct sk_buff *skb)
 {
-	return skb_shinfo(skb)->tso_segs;
+	return skb_shinfo(skb)->gso_segs;
 }
 
 /* This is valid iff tcp_skb_pcount() > 1. */
 static inline int tcp_skb_mss(const struct sk_buff *skb)
 {
-	return skb_shinfo(skb)->tso_size;
+	return skb_shinfo(skb)->gso_size;
 }
 
 static inline void tcp_dec_pcount_approx(__u32 *count,
@@ -1085,6 +1085,8 @@ extern void tcp_proc_unregister(struct tcp_seq_afinfo *afinfo);
 extern struct request_sock_ops tcp_request_sock_ops;
 
 extern int tcp_v4_destroy_sock(struct sock *sk);
+
+extern struct sk_buff *tcp_tso_segment(struct sk_buff *skb, int sg);
 
 #ifdef CONFIG_PROC_FS
 extern int  tcp4_proc_init(void);

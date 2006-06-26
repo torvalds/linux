@@ -102,6 +102,7 @@ struct rtc_pll_info {
 #include <linux/interrupt.h>
 
 extern int rtc_month_days(unsigned int month, unsigned int year);
+extern int rtc_year_days(unsigned int day, unsigned int month, unsigned int year);
 extern int rtc_valid_tm(struct rtc_time *tm);
 extern int rtc_tm_to_time(struct rtc_time *tm, unsigned long *time);
 extern void rtc_time_to_tm(unsigned long time, struct rtc_time *tm);
@@ -155,6 +156,17 @@ struct rtc_device
 	struct rtc_task *irq_task;
 	spinlock_t irq_task_lock;
 	int irq_freq;
+	int max_user_freq;
+#ifdef CONFIG_RTC_INTF_DEV_UIE_EMUL
+	struct work_struct uie_task;
+	struct timer_list uie_timer;
+	/* Those fields are protected by rtc->irq_lock */
+	unsigned int oldsecs;
+	unsigned int irq_active:1;
+	unsigned int stop_uie_polling:1;
+	unsigned int uie_task_active:1;
+	unsigned int uie_timer_active:1;
+#endif
 };
 #define to_rtc_device(d) container_of(d, struct rtc_device, class_dev)
 

@@ -147,11 +147,10 @@ u32 nlmclnt_grant(const struct sockaddr_in *addr, const struct nlm_lock *lock)
  * Someone has sent us an SM_NOTIFY. Ensure we bind to the new port number,
  * that we mark locks for reclaiming, and that we bump the pseudo NSM state.
  */
-static inline
-void nlmclnt_prepare_reclaim(struct nlm_host *host, u32 newstate)
+static void nlmclnt_prepare_reclaim(struct nlm_host *host)
 {
+	down_write(&host->h_rwsem);
 	host->h_monitored = 0;
-	host->h_nsmstate = newstate;
 	host->h_state++;
 	host->h_nextrebind = 0;
 	nlm_rebind_host(host);
@@ -164,6 +163,13 @@ void nlmclnt_prepare_reclaim(struct nlm_host *host, u32 newstate)
 	dprintk("NLM: reclaiming locks for host %s", host->h_name);
 }
 
+static void nlmclnt_finish_reclaim(struct nlm_host *host)
+{
+	host->h_reclaiming = 0;
+	up_write(&host->h_rwsem);
+	dprintk("NLM: done reclaiming locks for host %s", host->h_name);
+}
+
 /*
  * Reclaim all locks on server host. We do this by spawning a separate
  * reclaimer thread.
@@ -171,12 +177,10 @@ void nlmclnt_prepare_reclaim(struct nlm_host *host, u32 newstate)
 void
 nlmclnt_recovery(struct nlm_host *host, u32 newstate)
 {
-	if (host->h_reclaiming++) {
-		if (host->h_nsmstate == newstate)
-			return;
-		nlmclnt_prepare_reclaim(host, newstate);
-	} else {
-		nlmclnt_prepare_reclaim(host, newstate);
+	if (host->h_nsmstate == newstate)
+		return;
+	host->h_nsmstate = newstate;
+	if (!host->h_reclaiming++) {
 		nlm_get_host(host);
 		__module_get(THIS_MODULE);
 		if (kernel_thread(reclaimer, host, CLONE_KERNEL) < 0)
@@ -190,6 +194,7 @@ reclaimer(void *ptr)
 	struct nlm_host	  *host = (struct nlm_host *) ptr;
 	struct nlm_wait	  *block;
 	struct file_lock *fl, *next;
+	u32 nsmstate;
 
 	daemonize("%s-reclaim", host->h_name);
 	allow_signal(SIGKILL);
@@ -199,19 +204,25 @@ reclaimer(void *ptr)
 	lock_kernel();
 	lockd_up();
 
+	nlmclnt_prepare_reclaim(host);
 	/* First, reclaim all locks that have been marked. */
 restart:
+	nsmstate = host->h_nsmstate;
 	list_for_each_entry_safe(fl, next, &host->h_reclaim, fl_u.nfs_fl.list) {
 		list_del_init(&fl->fl_u.nfs_fl.list);
 
 		if (signalled())
 			continue;
-		if (nlmclnt_reclaim(host, fl) == 0)
-			list_add_tail(&fl->fl_u.nfs_fl.list, &host->h_granted);
-		goto restart;
+		if (nlmclnt_reclaim(host, fl) != 0)
+			continue;
+		list_add_tail(&fl->fl_u.nfs_fl.list, &host->h_granted);
+		if (host->h_nsmstate != nsmstate) {
+			/* Argh! The server rebooted again! */
+			list_splice_init(&host->h_granted, &host->h_reclaim);
+			goto restart;
+		}
 	}
-
-	host->h_reclaiming = 0;
+	nlmclnt_finish_reclaim(host);
 
 	/* Now, wake up all processes that sleep on a blocked lock */
 	list_for_each_entry(block, &nlm_blocked, b_list) {

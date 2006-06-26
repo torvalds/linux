@@ -216,14 +216,19 @@ config SND_CS46XX_NEW_DSP
 	  This works better than the old code, so say Y.
 
 config SND_CS5535AUDIO
-	tristate "CS5535 Audio"
+	tristate "CS5535/CS5536 Audio"
 	depends on SND && X86 && !X86_64
 	select SND_PCM
 	select SND_AC97_CODEC
 	help
 	  Say Y here to include support for audio on CS5535 chips. It is
 	  referred to as NS CS5535 IO or AMD CS5535 IO companion in
-	  various literature.
+	  various literature. This driver also supports the CS5536 audio
+	  device. However, for both chips, on certain boards, you may
+	  need to use ac97_quirk=hp_only if your board has physically 
+	  mapped headphone out to master output. If that works for you,
+	  send lspci -vvv output to the mailing list so that your board
+	  can be identified in the quirks list.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-cs5535audio.

@@ -11,7 +11,7 @@
 
 #include <linux/module.h>
 #include <asm/dma.h>
-#include <asm/sn/pcibr_provider.h>
+#include <asm/sn/intr.h>
 #include <asm/sn/pcibus_provider_defs.h>
 #include <asm/sn/pcidev.h>
 #include <asm/sn/sn_sal.h>
@@ -113,7 +113,8 @@ void *sn_dma_alloc_coherent(struct device *dev, size_t size,
 	 * resources.
 	 */
 
-	*dma_handle = provider->dma_map_consistent(pdev, phys_addr, size);
+	*dma_handle = provider->dma_map_consistent(pdev, phys_addr, size,
+						   SN_DMA_ADDR_PHYS);
 	if (!*dma_handle) {
 		printk(KERN_ERR "%s: out of ATEs\n", __FUNCTION__);
 		free_pages((unsigned long)cpuaddr, get_order(size));
@@ -176,7 +177,7 @@ dma_addr_t sn_dma_map_single(struct device *dev, void *cpu_addr, size_t size,
 	BUG_ON(dev->bus != &pci_bus_type);
 
 	phys_addr = __pa(cpu_addr);
-	dma_addr = provider->dma_map(pdev, phys_addr, size);
+	dma_addr = provider->dma_map(pdev, phys_addr, size, SN_DMA_ADDR_PHYS);
 	if (!dma_addr) {
 		printk(KERN_ERR "%s: out of ATEs\n", __FUNCTION__);
 		return 0;
@@ -260,7 +261,8 @@ int sn_dma_map_sg(struct device *dev, struct scatterlist *sg, int nhwentries,
 	for (i = 0; i < nhwentries; i++, sg++) {
 		phys_addr = SG_ENT_PHYS_ADDRESS(sg);
 		sg->dma_address = provider->dma_map(pdev,
-						    phys_addr, sg->length);
+						    phys_addr, sg->length,
+						    SN_DMA_ADDR_PHYS);
 
 		if (!sg->dma_address) {
 			printk(KERN_ERR "%s: out of ATEs\n", __FUNCTION__);

@@ -35,6 +35,18 @@
 #  define MAX_WBITS   15 /* 32K LZ77 window */
 #endif
 
+/* default windowBits for decompression. MAX_WBITS is for compression only */
+#ifndef DEF_WBITS
+#  define DEF_WBITS MAX_WBITS
+#endif
+
+/* default memLevel */
+#if MAX_MEM_LEVEL >= 8
+#  define DEF_MEM_LEVEL 8
+#else
+#  define DEF_MEM_LEVEL  MAX_MEM_LEVEL
+#endif
+
                         /* Type declarations */
 
 typedef unsigned char  Byte;  /* 8 bits */

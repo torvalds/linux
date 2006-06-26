@@ -21,4 +21,6 @@ extern unsigned long iSeries_get_boot_time(void);
 extern int iSeries_set_rtc_time(struct rtc_time *tm);
 extern void iSeries_get_rtc_time(struct rtc_time *tm);
 
+extern void *build_flat_dt(unsigned long phys_mem_size);
+
 #endif /* __ISERIES_SETUP_H__ */

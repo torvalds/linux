@@ -247,8 +247,8 @@ static inline void key_alloc_serial(struct key *key)
  *   instantiate the key or discard it before returning
  */
 struct key *key_alloc(struct key_type *type, const char *desc,
-		      uid_t uid, gid_t gid, key_perm_t perm,
-		      int not_in_quota)
+		      uid_t uid, gid_t gid, struct task_struct *ctx,
+		      key_perm_t perm, int not_in_quota)
 {
 	struct key_user *user = NULL;
 	struct key *key;
@@ -318,7 +318,7 @@ struct key *key_alloc(struct key_type *type, const char *desc,
 #endif
 
 	/* let the security module know about the key */
-	ret = security_key_alloc(key);
+	ret = security_key_alloc(key, ctx);
 	if (ret < 0)
 		goto security_error;
 
@@ -822,7 +822,7 @@ key_ref_t key_create_or_update(key_ref_t keyring_ref,
 
 	/* allocate a new key */
 	key = key_alloc(ktype, description, current->fsuid, current->fsgid,
-			perm, not_in_quota);
+			current, perm, not_in_quota);
 	if (IS_ERR(key)) {
 		key_ref = ERR_PTR(PTR_ERR(key));
 		goto error_3;
@@ -907,6 +907,10 @@ void key_revoke(struct key *key)
 	 * it */
 	down_write(&key->sem);
 	set_bit(KEY_FLAG_REVOKED, &key->flags);
+
+	if (key->type->revoke)
+		key->type->revoke(key);
+
 	up_write(&key->sem);
 
 } /* end key_revoke() */

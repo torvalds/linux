@@ -1156,8 +1156,7 @@ static int sis190_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	dma_addr_t mapping;
 
 	if (unlikely(skb->len < ETH_ZLEN)) {
-		skb = skb_padto(skb, ETH_ZLEN);
-		if (!skb) {
+		if (skb_padto(skb, ETH_ZLEN)) {
 			tp->stats.tx_dropped++;
 			goto out;
 		}

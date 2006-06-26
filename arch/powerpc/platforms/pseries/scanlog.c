@@ -107,9 +107,9 @@ static ssize_t scanlog_read(struct file *file, char __user *buf,
 			/* Break to sleep default time */
 			break;
 		    default:
-			if (status > 9900 && status <= 9905) {
-				wait_time = rtas_extended_busy_delay_time(status);
-			} else {
+			/* Assume extended busy */
+			wait_time = rtas_busy_delay_time(status);
+			if (!wait_time) {
 				printk(KERN_ERR "scanlog: unknown error from rtas: %d\n", status);
 				return -EIO;
 			}

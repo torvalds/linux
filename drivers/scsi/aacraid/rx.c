@@ -444,14 +444,14 @@ int aac_rx_init(struct aac_dev *dev)
 	while ((!(rx_readl(dev, IndexRegs.Mailbox[7]) & KERNEL_UP_AND_RUNNING))
 		|| (!(rx_readl(dev, MUnit.OMRx[0]) & KERNEL_UP_AND_RUNNING)))
 	{
-		if(time_after(jiffies, start+180*HZ))
+		if(time_after(jiffies, start+startup_timeout*HZ))
 		{
 			status = rx_readl(dev, IndexRegs.Mailbox[7]);
 			printk(KERN_ERR "%s%d: adapter kernel failed to start, init status = %lx.\n", 
 					dev->name, instance, status);
 			goto error_iounmap;
 		}
-		schedule_timeout_uninterruptible(1);
+		msleep(1);
 	}
 	if (request_irq(dev->scsi_host_ptr->irq, aac_rx_intr, SA_SHIRQ|SA_INTERRUPT, "aacraid", (void *)dev)<0) 
 	{

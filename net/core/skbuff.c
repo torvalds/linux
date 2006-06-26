@@ -172,9 +172,9 @@ struct sk_buff *__alloc_skb(unsigned int size, gfp_t gfp_mask,
 	shinfo = skb_shinfo(skb);
 	atomic_set(&shinfo->dataref, 1);
 	shinfo->nr_frags  = 0;
-	shinfo->tso_size = 0;
-	shinfo->tso_segs = 0;
-	shinfo->ufo_size = 0;
+	shinfo->gso_size = 0;
+	shinfo->gso_segs = 0;
+	shinfo->gso_type = 0;
 	shinfo->ip6_frag_id = 0;
 	shinfo->frag_list = NULL;
 
@@ -238,8 +238,9 @@ struct sk_buff *alloc_skb_from_cache(kmem_cache_t *cp,
 
 	atomic_set(&(skb_shinfo(skb)->dataref), 1);
 	skb_shinfo(skb)->nr_frags  = 0;
-	skb_shinfo(skb)->tso_size = 0;
-	skb_shinfo(skb)->tso_segs = 0;
+	skb_shinfo(skb)->gso_size = 0;
+	skb_shinfo(skb)->gso_segs = 0;
+	skb_shinfo(skb)->gso_type = 0;
 	skb_shinfo(skb)->frag_list = NULL;
 out:
 	return skb;
@@ -528,8 +529,9 @@ static void copy_skb_header(struct sk_buff *new, const struct sk_buff *old)
 #endif
 	skb_copy_secmark(new, old);
 	atomic_set(&new->users, 1);
-	skb_shinfo(new)->tso_size = skb_shinfo(old)->tso_size;
-	skb_shinfo(new)->tso_segs = skb_shinfo(old)->tso_segs;
+	skb_shinfo(new)->gso_size = skb_shinfo(old)->gso_size;
+	skb_shinfo(new)->gso_segs = skb_shinfo(old)->gso_segs;
+	skb_shinfo(new)->gso_type = skb_shinfo(old)->gso_type;
 }
 
 /**
@@ -781,24 +783,40 @@ struct sk_buff *skb_copy_expand(const struct sk_buff *skb,
  *	filled. Used by network drivers which may DMA or transfer data
  *	beyond the buffer end onto the wire.
  *
- *	May return NULL in out of memory cases.
+ *	May return error in out of memory cases. The skb is freed on error.
  */
  
-struct sk_buff *skb_pad(struct sk_buff *skb, int pad)
+int skb_pad(struct sk_buff *skb, int pad)
 {
-	struct sk_buff *nskb;
+	int err;
+	int ntail;
 	
 	/* If the skbuff is non linear tailroom is always zero.. */
-	if (skb_tailroom(skb) >= pad) {
+	if (!skb_cloned(skb) && skb_tailroom(skb) >= pad) {
 		memset(skb->data+skb->len, 0, pad);
-		return skb;
+		return 0;
 	}
-	
-	nskb = skb_copy_expand(skb, skb_headroom(skb), skb_tailroom(skb) + pad, GFP_ATOMIC);
+
+	ntail = skb->data_len + pad - (skb->end - skb->tail);
+	if (likely(skb_cloned(skb) || ntail > 0)) {
+		err = pskb_expand_head(skb, 0, ntail, GFP_ATOMIC);
+		if (unlikely(err))
+			goto free_skb;
+	}
+
+	/* FIXME: The use of this function with non-linear skb's really needs
+	 * to be audited.
+	 */
+	err = skb_linearize(skb);
+	if (unlikely(err))
+		goto free_skb;
+
+	memset(skb->data + skb->len, 0, pad);
+	return 0;
+
+free_skb:
 	kfree_skb(skb);
-	if (nskb)
-		memset(nskb->data+nskb->len, 0, pad);
-	return nskb;
+	return err;
 }	
  
 /* Trims skb to length len. It can change skb pointers.
@@ -1823,6 +1841,132 @@ unsigned char *skb_pull_rcsum(struct sk_buff *skb, unsigned int len)
 }
 
 EXPORT_SYMBOL_GPL(skb_pull_rcsum);
+
+/**
+ *	skb_segment - Perform protocol segmentation on skb.
+ *	@skb: buffer to segment
+ *	@sg: whether scatter-gather can be used for generated segments
+ *
+ *	This function performs segmentation on the given skb.  It returns
+ *	the segment at the given position.  It returns NULL if there are
+ *	no more segments to generate, or when an error is encountered.
+ */
+struct sk_buff *skb_segment(struct sk_buff *skb, int sg)
+{
+	struct sk_buff *segs = NULL;
+	struct sk_buff *tail = NULL;
+	unsigned int mss = skb_shinfo(skb)->gso_size;
+	unsigned int doffset = skb->data - skb->mac.raw;
+	unsigned int offset = doffset;
+	unsigned int headroom;
+	unsigned int len;
+	int nfrags = skb_shinfo(skb)->nr_frags;
+	int err = -ENOMEM;
+	int i = 0;
+	int pos;
+
+	__skb_push(skb, doffset);
+	headroom = skb_headroom(skb);
+	pos = skb_headlen(skb);
+
+	do {
+		struct sk_buff *nskb;
+		skb_frag_t *frag;
+		int hsize, nsize;
+		int k;
+		int size;
+
+		len = skb->len - offset;
+		if (len > mss)
+			len = mss;
+
+		hsize = skb_headlen(skb) - offset;
+		if (hsize < 0)
+			hsize = 0;
+		nsize = hsize + doffset;
+		if (nsize > len + doffset || !sg)
+			nsize = len + doffset;
+
+		nskb = alloc_skb(nsize + headroom, GFP_ATOMIC);
+		if (unlikely(!nskb))
+			goto err;
+
+		if (segs)
+			tail->next = nskb;
+		else
+			segs = nskb;
+		tail = nskb;
+
+		nskb->dev = skb->dev;
+		nskb->priority = skb->priority;
+		nskb->protocol = skb->protocol;
+		nskb->dst = dst_clone(skb->dst);
+		memcpy(nskb->cb, skb->cb, sizeof(skb->cb));
+		nskb->pkt_type = skb->pkt_type;
+		nskb->mac_len = skb->mac_len;
+
+		skb_reserve(nskb, headroom);
+		nskb->mac.raw = nskb->data;
+		nskb->nh.raw = nskb->data + skb->mac_len;
+		nskb->h.raw = nskb->nh.raw + (skb->h.raw - skb->nh.raw);
+		memcpy(skb_put(nskb, doffset), skb->data, doffset);
+
+		if (!sg) {
+			nskb->csum = skb_copy_and_csum_bits(skb, offset,
+							    skb_put(nskb, len),
+							    len, 0);
+			continue;
+		}
+
+		frag = skb_shinfo(nskb)->frags;
+		k = 0;
+
+		nskb->ip_summed = CHECKSUM_HW;
+		nskb->csum = skb->csum;
+		memcpy(skb_put(nskb, hsize), skb->data + offset, hsize);
+
+		while (pos < offset + len) {
+			BUG_ON(i >= nfrags);
+
+			*frag = skb_shinfo(skb)->frags[i];
+			get_page(frag->page);
+			size = frag->size;
+
+			if (pos < offset) {
+				frag->page_offset += offset - pos;
+				frag->size -= offset - pos;
+			}
+
+			k++;
+
+			if (pos + size <= offset + len) {
+				i++;
+				pos += size;
+			} else {
+				frag->size -= pos + size - (offset + len);
+				break;
+			}
+
+			frag++;
+		}
+
+		skb_shinfo(nskb)->nr_frags = k;
+		nskb->data_len = len - hsize;
+		nskb->len += nskb->data_len;
+		nskb->truesize += nskb->data_len;
+	} while ((offset += len) < skb->len);
+
+	return segs;
+
+err:
+	while ((skb = segs)) {
+		segs = skb->next;
+		kfree(skb);
+	}
+	return ERR_PTR(err);
+}
+
+EXPORT_SYMBOL_GPL(skb_segment);
 
 void __init skb_init(void)
 {

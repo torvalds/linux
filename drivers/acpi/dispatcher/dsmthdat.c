@@ -81,7 +81,7 @@ acpi_ds_method_data_get_type(u16 opcode,
  *              special data types.
  *
  * NOTES:       walk_state fields are initialized to zero by the
- *              ACPI_MEM_CALLOCATE().
+ *              ACPI_ALLOCATE_ZEROED().
  *
  *              A pseudo-Namespace Node is assigned to each argument and local
  *              so that ref_of() can return a pointer to the Node.
@@ -92,7 +92,7 @@ void acpi_ds_method_data_init(struct acpi_walk_state *walk_state)
 {
 	u32 i;
 
-	ACPI_FUNCTION_TRACE("ds_method_data_init");
+	ACPI_FUNCTION_TRACE(ds_method_data_init);
 
 	/* Init the method arguments */
 
@@ -100,10 +100,10 @@ void acpi_ds_method_data_init(struct acpi_walk_state *walk_state)
 		ACPI_MOVE_32_TO_32(&walk_state->arguments[i].name,
 				   NAMEOF_ARG_NTE);
 		walk_state->arguments[i].name.integer |= (i << 24);
-		walk_state->arguments[i].descriptor = ACPI_DESC_TYPE_NAMED;
+		walk_state->arguments[i].descriptor_type = ACPI_DESC_TYPE_NAMED;
 		walk_state->arguments[i].type = ACPI_TYPE_ANY;
-		walk_state->arguments[i].flags = ANOBJ_END_OF_PEER_LIST |
-		    ANOBJ_METHOD_ARG;
+		walk_state->arguments[i].flags =
+		    ANOBJ_END_OF_PEER_LIST | ANOBJ_METHOD_ARG;
 	}
 
 	/* Init the method locals */
@@ -113,11 +113,11 @@ void acpi_ds_method_data_init(struct acpi_walk_state *walk_state)
 				   NAMEOF_LOCAL_NTE);
 
 		walk_state->local_variables[i].name.integer |= (i << 24);
-		walk_state->local_variables[i].descriptor =
+		walk_state->local_variables[i].descriptor_type =
 		    ACPI_DESC_TYPE_NAMED;
 		walk_state->local_variables[i].type = ACPI_TYPE_ANY;
-		walk_state->local_variables[i].flags = ANOBJ_END_OF_PEER_LIST |
-		    ANOBJ_METHOD_LOCAL;
+		walk_state->local_variables[i].flags =
+		    ANOBJ_END_OF_PEER_LIST | ANOBJ_METHOD_LOCAL;
 	}
 
 	return_VOID;
@@ -140,7 +140,7 @@ void acpi_ds_method_data_delete_all(struct acpi_walk_state *walk_state)
 {
 	u32 index;
 
-	ACPI_FUNCTION_TRACE("ds_method_data_delete_all");
+	ACPI_FUNCTION_TRACE(ds_method_data_delete_all);
 
 	/* Detach the locals */
 
@@ -199,7 +199,7 @@ acpi_ds_method_data_init_args(union acpi_operand_object **params,
 	acpi_status status;
 	u32 index = 0;
 
-	ACPI_FUNCTION_TRACE_PTR("ds_method_data_init_args", params);
+	ACPI_FUNCTION_TRACE_PTR(ds_method_data_init_args, params);
 
 	if (!params) {
 		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
@@ -251,7 +251,7 @@ acpi_ds_method_data_get_node(u16 opcode,
 			     struct acpi_walk_state *walk_state,
 			     struct acpi_namespace_node **node)
 {
-	ACPI_FUNCTION_TRACE("ds_method_data_get_node");
+	ACPI_FUNCTION_TRACE(ds_method_data_get_node);
 
 	/*
 	 * Method Locals and Arguments are supported
@@ -318,10 +318,10 @@ acpi_ds_method_data_set_value(u16 opcode,
 	acpi_status status;
 	struct acpi_namespace_node *node;
 
-	ACPI_FUNCTION_TRACE("ds_method_data_set_value");
+	ACPI_FUNCTION_TRACE(ds_method_data_set_value);
 
 	ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
-			  "new_obj %p Opcode %X, Refs=%d [%s]\n", object,
+			  "NewObj %p Opcode %X, Refs=%d [%s]\n", object,
 			  opcode, object->common.reference_count,
 			  acpi_ut_get_type_name(object->common.type)));
 
@@ -336,7 +336,7 @@ acpi_ds_method_data_set_value(u16 opcode,
 	 * Increment ref count so object can't be deleted while installed.
 	 * NOTE: We do not copy the object in order to preserve the call by
 	 * reference semantics of ACPI Control Method invocation.
-	 * (See ACPI specification 2.0_c)
+	 * (See ACPI Specification 2.0_c)
 	 */
 	acpi_ut_add_reference(object);
 
@@ -351,7 +351,7 @@ acpi_ds_method_data_set_value(u16 opcode,
  * FUNCTION:    acpi_ds_method_data_get_value
  *
  * PARAMETERS:  Opcode              - Either AML_LOCAL_OP or AML_ARG_OP
- *              Index               - which local_var or argument to get
+ *              Index               - Which local_var or argument to get
  *              walk_state          - Current walk state object
  *              dest_desc           - Where Arg or Local value is returned
  *
@@ -372,7 +372,7 @@ acpi_ds_method_data_get_value(u16 opcode,
 	struct acpi_namespace_node *node;
 	union acpi_operand_object *object;
 
-	ACPI_FUNCTION_TRACE("ds_method_data_get_value");
+	ACPI_FUNCTION_TRACE(ds_method_data_get_value);
 
 	/* Validate the object descriptor */
 
@@ -459,7 +459,7 @@ acpi_ds_method_data_get_value(u16 opcode,
  * FUNCTION:    acpi_ds_method_data_delete_value
  *
  * PARAMETERS:  Opcode              - Either AML_LOCAL_OP or AML_ARG_OP
- *              Index               - which local_var or argument to delete
+ *              Index               - Which local_var or argument to delete
  *              walk_state          - Current walk state object
  *
  * RETURN:      None
@@ -477,7 +477,7 @@ acpi_ds_method_data_delete_value(u16 opcode,
 	struct acpi_namespace_node *node;
 	union acpi_operand_object *object;
 
-	ACPI_FUNCTION_TRACE("ds_method_data_delete_value");
+	ACPI_FUNCTION_TRACE(ds_method_data_delete_value);
 
 	/* Get the namespace node for the arg/local */
 
@@ -538,7 +538,7 @@ acpi_ds_store_object_to_local(u16 opcode,
 	union acpi_operand_object *current_obj_desc;
 	union acpi_operand_object *new_obj_desc;
 
-	ACPI_FUNCTION_TRACE("ds_store_object_to_local");
+	ACPI_FUNCTION_TRACE(ds_store_object_to_local);
 	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Opcode=%X Index=%d Obj=%p\n",
 			  opcode, index, obj_desc));
 
@@ -614,7 +614,7 @@ acpi_ds_store_object_to_local(u16 opcode,
 			    && (current_obj_desc->reference.opcode ==
 				AML_REF_OF_OP)) {
 				ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
-						  "Arg (%p) is an obj_ref(Node), storing in node %p\n",
+						  "Arg (%p) is an ObjRef(Node), storing in node %p\n",
 						  new_obj_desc,
 						  current_obj_desc));
 
@@ -688,7 +688,7 @@ acpi_ds_method_data_get_type(u16 opcode,
 	struct acpi_namespace_node *node;
 	union acpi_operand_object *object;
 
-	ACPI_FUNCTION_TRACE("ds_method_data_get_type");
+	ACPI_FUNCTION_TRACE(ds_method_data_get_type);
 
 	/* Get the namespace node for the arg/local */
 
@@ -701,6 +701,7 @@ acpi_ds_method_data_get_type(u16 opcode,
 
 	object = acpi_ns_get_attached_object(node);
 	if (!object) {
+
 		/* Uninitialized local/arg, return TYPE_ANY */
 
 		return_VALUE(ACPI_TYPE_ANY);

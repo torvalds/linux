@@ -989,7 +989,7 @@ static int viotape_remove(struct vio_dev *vdev)
  * support.
  */
 static struct vio_device_id viotape_device_table[] __devinitdata = {
-	{ "viotape", "" },
+	{ "byte", "IBM,iSeries-viotape" },
 	{ "", "" }
 };
 MODULE_DEVICE_TABLE(vio, viotape_device_table);

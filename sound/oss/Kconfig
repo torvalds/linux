@@ -114,8 +114,9 @@ config SOUND_VRC5477
 	  with the AC97 codec.
 
 config SOUND_AU1550_AC97
-	tristate "Au1550 AC97 Sound"
-	depends on SOUND_PRIME && SOC_AU1550
+	tristate "Au1550/Au1200 AC97 Sound"
+	select SND_AC97_CODEC
+	depends on SOUND_PRIME && (SOC_AU1550 || SOC_AU1200)
 
 config SOUND_TRIDENT
 	tristate "Trident 4DWave DX/NX, SiS 7018 or ALi 5451 PCI Audio Core"

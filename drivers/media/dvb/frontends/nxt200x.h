@@ -38,10 +38,6 @@ struct nxt200x_config
 	/* the demodulator's i2c address */
 	u8 demod_address;
 
-	/* tuner information */
-	u8 pll_address;
-	struct dvb_pll_desc *pll_desc;
-
 	/* used to set pll input */
 	int (*set_pll_input)(u8* buf, int input);
 

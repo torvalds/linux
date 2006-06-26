@@ -365,20 +365,12 @@ static int rtas_excl_release(struct inode *inode, struct file *file)
 
 static void manage_flash(struct rtas_manage_flash_t *args_buf)
 {
-	unsigned int wait_time;
 	s32 rc;
 
-	while (1) {
+	do {
 		rc = rtas_call(rtas_token("ibm,manage-flash-image"), 1, 
 			       1, NULL, args_buf->op);
-		if (rc == RTAS_RC_BUSY)
-			udelay(1);
-		else if (rtas_is_extended_busy(rc)) {
-			wait_time = rtas_extended_busy_delay_time(rc);
-			udelay(wait_time * 1000);
-		} else
-			break;
-	}
+	} while (rtas_busy_delay(rc));
 
 	args_buf->status = rc;
 }
@@ -451,27 +443,18 @@ static ssize_t manage_flash_write(struct file *file, const char __user *buf,
 static void validate_flash(struct rtas_validate_flash_t *args_buf)
 {
 	int token = rtas_token("ibm,validate-flash-image");
-	unsigned int wait_time;
 	int update_results;
 	s32 rc;	
 
 	rc = 0;
-	while(1) {
+	do {
 		spin_lock(&rtas_data_buf_lock);
 		memcpy(rtas_data_buf, args_buf->buf, VALIDATE_BUF_SIZE);
 		rc = rtas_call(token, 2, 2, &update_results, 
 			       (u32) __pa(rtas_data_buf), args_buf->buf_size);
 		memcpy(args_buf->buf, rtas_data_buf, VALIDATE_BUF_SIZE);
 		spin_unlock(&rtas_data_buf_lock);
-			
-		if (rc == RTAS_RC_BUSY)
-			udelay(1);
-		else if (rtas_is_extended_busy(rc)) {
-			wait_time = rtas_extended_busy_delay_time(rc);
-			udelay(wait_time * 1000);
-		} else
-			break;
-	}
+	} while (rtas_busy_delay(rc));
 
 	args_buf->status = rc;
 	args_buf->update_results = update_results;

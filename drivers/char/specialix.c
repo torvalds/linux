@@ -1683,7 +1683,7 @@ static int sx_write(struct tty_struct * tty,
 
 	bp = port_Board(port);
 
-	if (!tty || !port->xmit_buf || !tmp_buf) {
+	if (!port->xmit_buf || !tmp_buf) {
 		func_exit();
 		return 0;
 	}
@@ -1733,7 +1733,7 @@ static void sx_put_char(struct tty_struct * tty, unsigned char ch)
 		return;
 	}
 	dprintk (SX_DEBUG_TX, "check tty: %p %p\n", tty, port->xmit_buf);
-	if (!tty || !port->xmit_buf) {
+	if (!port->xmit_buf) {
 		func_exit();
 		return;
 	}

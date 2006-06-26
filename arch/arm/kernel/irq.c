@@ -52,7 +52,7 @@
  */
 #define MAX_IRQ_CNT	100000
 
-static int noirqdebug;
+static int noirqdebug __read_mostly;
 static volatile unsigned long irq_err_count;
 static DEFINE_SPINLOCK(irq_controller_lock);
 static LIST_HEAD(irq_pending);
@@ -81,7 +81,7 @@ irqreturn_t no_action(int irq, void *dev_id, struct pt_regs *regs)
 
 void do_bad_IRQ(unsigned int irq, struct irqdesc *desc, struct pt_regs *regs)
 {
-	irq_err_count += 1;
+	irq_err_count++;
 	printk(KERN_ERR "IRQ: spurious interrupt %d\n", irq);
 }
 

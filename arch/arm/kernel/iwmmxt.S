@@ -273,7 +273,7 @@ ENTRY(iwmmxt_task_restore)
  *
  * r0 = previous task_struct pointer (must be preserved)
  * r1 = previous thread_info pointer
- * r2 = next thread_info.cpu_domain pointer (must be preserved)
+ * r2 = next thread_info pointer (must be preserved)
  *
  * Called only from __switch_to with task preemption disabled.
  * No need to care about preserving r4 and above.
@@ -285,7 +285,7 @@ ENTRY(iwmmxt_task_switch)
 	bne	1f				@ yes: block them for next task
 
 	ldr	r5, =concan_owner
-	add	r6, r2, #(TI_IWMMXT_STATE - TI_CPU_DOMAIN) @ get next task Concan save area
+	add	r6, r2, #TI_IWMMXT_STATE	@ get next task Concan save area
 	ldr	r5, [r5]			@ get current Concan owner
 	teq	r5, r6				@ next task owns it?
 	movne	pc, lr				@ no: leave Concan disabled

@@ -2243,14 +2243,16 @@ asmlinkage long sys_linkat(int olddfd, const char __user *oldname,
 	int error;
 	char * to;
 
-	if (flags != 0)
+	if ((flags & ~AT_SYMLINK_FOLLOW) != 0)
 		return -EINVAL;
 
 	to = getname(newname);
 	if (IS_ERR(to))
 		return PTR_ERR(to);
 
-	error = __user_walk_fd(olddfd, oldname, 0, &old_nd);
+	error = __user_walk_fd(olddfd, oldname,
+			       flags & AT_SYMLINK_FOLLOW ? LOOKUP_FOLLOW : 0,
+			       &old_nd);
 	if (error)
 		goto exit;
 	error = do_path_lookup(newdfd, to, LOOKUP_PARENT, &nd);
@@ -2577,8 +2579,7 @@ static char *page_getlink(struct dentry * dentry, struct page **ppage)
 {
 	struct page * page;
 	struct address_space *mapping = dentry->d_inode->i_mapping;
-	page = read_cache_page(mapping, 0, (filler_t *)mapping->a_ops->readpage,
-				NULL);
+	page = read_mapping_page(mapping, 0, NULL);
 	if (IS_ERR(page))
 		goto sync_fail;
 	wait_on_page_locked(page);

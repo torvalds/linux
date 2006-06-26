@@ -27,8 +27,10 @@
 
 #include "cx22702.h"
 #include "lgdt330x.h"
+#include "lg_h06xf.h"
 #include "mt352.h"
 #include "mt352_priv.h"
+#include "zl10353.h"
 
 /* debug */
 int dvb_usb_cxusb_debug;
@@ -322,32 +324,37 @@ static int cxusb_mt352_demod_init(struct dvb_frontend* fe)
 	return 0;
 }
 
+static int cxusb_lgh064f_tuner_set_params(struct dvb_frontend *fe,
+					  struct dvb_frontend_parameters *fep)
+{
+	struct dvb_usb_device *d = fe->dvb->priv;
+	return lg_h06xf_pll_set(fe, &d->i2c_adap, fep);
+}
+
 static struct cx22702_config cxusb_cx22702_config = {
 	.demod_address = 0x63,
 
 	.output_mode = CX22702_PARALLEL_OUTPUT,
-
-	.pll_init = dvb_usb_pll_init_i2c,
-	.pll_set  = dvb_usb_pll_set_i2c,
 };
 
 static struct lgdt330x_config cxusb_lgdt3303_config = {
 	.demod_address = 0x0e,
 	.demod_chip    = LGDT3303,
-	.pll_set       = dvb_usb_pll_set_i2c,
 };
 
 static struct mt352_config cxusb_dee1601_config = {
 	.demod_address = 0x0f,
 	.demod_init    = cxusb_dee1601_demod_init,
-	.pll_set       = dvb_usb_pll_set,
 };
 
-struct mt352_config cxusb_mt352_config = {
+static struct zl10353_config cxusb_zl10353_dee1601_config = {
+	.demod_address = 0x0f,
+};
+
+static struct mt352_config cxusb_mt352_config = {
 	/* used in both lgz201 and th7579 */
 	.demod_address = 0x0f,
 	.demod_init    = cxusb_mt352_demod_init,
-	.pll_set       = dvb_usb_pll_set,
 };
 
 /* Callbacks for DVB USB */
@@ -357,17 +364,10 @@ static int cxusb_fmd1216me_tuner_attach(struct dvb_usb_device *d)
 	d->pll_addr = 0x61;
 	memcpy(d->pll_init, bpll, 4);
 	d->pll_desc = &dvb_pll_fmd1216me;
-	return 0;
-}
 
-static int cxusb_lgh064f_tuner_attach(struct dvb_usb_device *d)
-{
-	u8 bpll[4] = { 0x00, 0x00, 0x18, 0x50 };
-	/* bpll[2] : unset bit 3, set bits 4&5
-	   bpll[3] : 0x50 - digital, 0x20 - analog */
-	d->pll_addr = 0x61;
-	memcpy(d->pll_init, bpll, 4);
-	d->pll_desc = &dvb_pll_tdvs_tua6034;
+	d->fe->ops.tuner_ops.init = dvb_usb_tuner_init_i2c;
+	d->fe->ops.tuner_ops.set_params = dvb_usb_tuner_set_params_i2c;
+
 	return 0;
 }
 
@@ -375,6 +375,7 @@ static int cxusb_dee1601_tuner_attach(struct dvb_usb_device *d)
 {
 	d->pll_addr = 0x61;
 	d->pll_desc = &dvb_pll_thomson_dtt7579;
+	d->fe->ops.tuner_ops.calc_regs = dvb_usb_tuner_calc_regs;
 	return 0;
 }
 
@@ -382,6 +383,7 @@ static int cxusb_lgz201_tuner_attach(struct dvb_usb_device *d)
 {
 	d->pll_addr = 0x61;
 	d->pll_desc = &dvb_pll_lg_z201;
+	d->fe->ops.tuner_ops.calc_regs = dvb_usb_tuner_calc_regs;
 	return 0;
 }
 
@@ -389,6 +391,13 @@ static int cxusb_dtt7579_tuner_attach(struct dvb_usb_device *d)
 {
 	d->pll_addr = 0x60;
 	d->pll_desc = &dvb_pll_thomson_dtt7579;
+	d->fe->ops.tuner_ops.calc_regs = dvb_usb_tuner_calc_regs;
+	return 0;
+}
+
+static int cxusb_lgdt3303_tuner_attach(struct dvb_usb_device *d)
+{
+	d->fe->ops.tuner_ops.set_params = cxusb_lgh064f_tuner_set_params;
 	return 0;
 }
 
@@ -439,7 +448,8 @@ static int cxusb_dee1601_frontend_attach(struct dvb_usb_device *d)
 
 	cxusb_ctrl_msg(d,CMD_DIGITAL, NULL, 0, NULL, 0);
 
-	if ((d->fe = mt352_attach(&cxusb_dee1601_config, &d->i2c_adap)) != NULL)
+	if (((d->fe = mt352_attach(&cxusb_dee1601_config, &d->i2c_adap)) != NULL) ||
+	    ((d->fe = zl10353_attach(&cxusb_zl10353_dee1601_config, &d->i2c_adap)) != NULL))
 		return 0;
 
 	return -EIO;
@@ -555,7 +565,7 @@ static struct dvb_usb_properties cxusb_bluebird_lgh064f_properties = {
 	.streaming_ctrl   = cxusb_streaming_ctrl,
 	.power_ctrl       = cxusb_bluebird_power_ctrl,
 	.frontend_attach  = cxusb_lgdt3303_frontend_attach,
-	.tuner_attach     = cxusb_lgh064f_tuner_attach,
+	.tuner_attach     = cxusb_lgdt3303_tuner_attach,
 
 	.i2c_algo         = &cxusb_i2c_algo,
 

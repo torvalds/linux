@@ -1113,9 +1113,10 @@ check_for_io_childs(struct pci_bus *bus, struct resource* res, int *found_vga)
 	int	i;
 	int	rc = 0;
 
-#define push_end(res, size) do { unsigned long __sz = (size) ; \
-	res->end = ((res->end + __sz) / (__sz + 1)) * (__sz + 1) + __sz; \
-    } while (0)
+#define push_end(res, mask) do {		\
+	BUG_ON((mask+1) & mask);		\
+	res->end = (res->end + mask) | mask;	\
+} while (0)
 
 	list_for_each_entry(dev, &bus->devices, bus_list) {
 		u16 class = dev->class >> 8;
@@ -1653,7 +1654,6 @@ int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
 		return -EINVAL;
 
 	vma->vm_pgoff = offset >> PAGE_SHIFT;
-	vma->vm_flags |= VM_SHM | VM_LOCKED | VM_IO;
 	vma->vm_page_prot = __pci_mmap_set_pgprot(dev, rp,
 						  vma->vm_page_prot,
 						  mmap_state, write_combine);

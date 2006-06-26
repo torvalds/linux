@@ -29,6 +29,15 @@
  * lists. This way, the ancestors will be accessed before their descendents.
  */
 
+static inline char *suspend_verb(u32 event)
+{
+	switch (event) {
+	case PM_EVENT_SUSPEND:	return "suspend";
+	case PM_EVENT_FREEZE:	return "freeze";
+	default:		return "(unknown suspend event)";
+	}
+}
+
 
 /**
  *	suspend_device - Save state of one device.
@@ -57,7 +66,13 @@ int suspend_device(struct device * dev, pm_message_t state)
 	dev->power.prev_state = dev->power.power_state;
 
 	if (dev->bus && dev->bus->suspend && !dev->power.power_state.event) {
-		dev_dbg(dev, "suspending\n");
+		dev_dbg(dev, "%s%s\n",
+			suspend_verb(state.event),
+			((state.event == PM_EVENT_SUSPEND)
+					&& device_may_wakeup(dev))
+				? ", may wakeup"
+				: ""
+			);
 		error = dev->bus->suspend(dev, state);
 		suspend_report_result(dev->bus->suspend, error);
 	}

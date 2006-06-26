@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2005 Silicon Graphics, Inc.
+ * Copyright (c) 2000-2006 Silicon Graphics, Inc.
  * All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -28,7 +28,7 @@ typedef struct {
 } mrlock_t;
 
 #define mrinit(mrp, name)	\
-	( (mrp)->mr_writer = 0, init_rwsem(&(mrp)->mr_lock) )
+	do { (mrp)->mr_writer = 0; init_rwsem(&(mrp)->mr_lock); } while (0)
 #define mrlock_init(mrp, t,n,s)	mrinit(mrp, n)
 #define mrfree(mrp)		do { } while (0)
 #define mraccess(mrp)		mraccessf(mrp, 0)

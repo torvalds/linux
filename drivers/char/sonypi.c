@@ -512,7 +512,7 @@ static struct sonypi_device {
 
 #ifdef CONFIG_ACPI
 static struct acpi_device *sonypi_acpi_device;
-static int acpi_enabled;
+static int acpi_driver_registered;
 #endif
 
 static int sonypi_ec_write(u8 addr, u8 value)
@@ -869,7 +869,7 @@ found:
 		sonypi_report_input_event(event);
 
 #ifdef CONFIG_ACPI
-	if (acpi_enabled)
+	if (sonypi_acpi_device)
 		acpi_bus_generate_event(sonypi_acpi_device, 1, event);
 #endif
 
@@ -1551,8 +1551,8 @@ static int __init sonypi_init(void)
 		goto err_free_device;
 
 #ifdef CONFIG_ACPI
-	if (acpi_bus_register_driver(&sonypi_acpi_driver) > 0)
-		acpi_enabled = 1;
+	if (acpi_bus_register_driver(&sonypi_acpi_driver) >= 0)
+		acpi_driver_registered = 1;
 #endif
 
 	return 0;
@@ -1567,7 +1567,7 @@ static int __init sonypi_init(void)
 static void __exit sonypi_exit(void)
 {
 #ifdef CONFIG_ACPI
-	if (acpi_enabled)
+	if (acpi_driver_registered)
 		acpi_bus_unregister_driver(&sonypi_acpi_driver);
 #endif
 	platform_device_unregister(sonypi_platform_device);

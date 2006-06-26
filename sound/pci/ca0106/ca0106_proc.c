@@ -431,33 +431,30 @@ int __devinit snd_ca0106_proc_init(struct snd_ca0106 * emu)
 	struct snd_info_entry *entry;
 	
 	if(! snd_card_proc_new(emu->card, "iec958", &entry))
-		snd_info_set_text_ops(entry, emu, 1024, snd_ca0106_proc_iec958);
+		snd_info_set_text_ops(entry, emu, snd_ca0106_proc_iec958);
 	if(! snd_card_proc_new(emu->card, "ca0106_reg32", &entry)) {
-		snd_info_set_text_ops(entry, emu, 1024, snd_ca0106_proc_reg_read32);
-		entry->c.text.write_size = 64;
+		snd_info_set_text_ops(entry, emu, snd_ca0106_proc_reg_read32);
 		entry->c.text.write = snd_ca0106_proc_reg_write32;
 		entry->mode |= S_IWUSR;
 	}
 	if(! snd_card_proc_new(emu->card, "ca0106_reg16", &entry))
-		snd_info_set_text_ops(entry, emu, 1024, snd_ca0106_proc_reg_read16);
+		snd_info_set_text_ops(entry, emu, snd_ca0106_proc_reg_read16);
 	if(! snd_card_proc_new(emu->card, "ca0106_reg8", &entry))
-		snd_info_set_text_ops(entry, emu, 1024, snd_ca0106_proc_reg_read8);
+		snd_info_set_text_ops(entry, emu, snd_ca0106_proc_reg_read8);
 	if(! snd_card_proc_new(emu->card, "ca0106_regs1", &entry)) {
-		snd_info_set_text_ops(entry, emu, 1024, snd_ca0106_proc_reg_read1);
-		entry->c.text.write_size = 64;
+		snd_info_set_text_ops(entry, emu, snd_ca0106_proc_reg_read1);
 		entry->c.text.write = snd_ca0106_proc_reg_write;
 		entry->mode |= S_IWUSR;
 //		entry->private_data = emu;
 	}
 	if(! snd_card_proc_new(emu->card, "ca0106_i2c", &entry)) {
-		snd_info_set_text_ops(entry, emu, 1024, snd_ca0106_proc_i2c_write);
-		entry->c.text.write_size = 64;
+		snd_info_set_text_ops(entry, emu, snd_ca0106_proc_i2c_write);
 		entry->c.text.write = snd_ca0106_proc_i2c_write;
 		entry->mode |= S_IWUSR;
 //		entry->private_data = emu;
 	}
 	if(! snd_card_proc_new(emu->card, "ca0106_regs2", &entry)) 
-		snd_info_set_text_ops(entry, emu, 1024, snd_ca0106_proc_reg_read2);
+		snd_info_set_text_ops(entry, emu, snd_ca0106_proc_reg_read2);
 	return 0;
 }
 

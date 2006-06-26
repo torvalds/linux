@@ -1106,7 +1106,7 @@ static struct zilog_layout __iomem * __init get_zs_sun4u(int chip, int zsnode)
 				+ FHC_UREGS_ICLR;
 			imap = central_bus->child->fhc_regs.uregs
 				+ FHC_UREGS_IMAP;
-			zilog_irq = build_irq(12, 0, iclr, imap);
+			zilog_irq = build_irq(0, iclr, imap);
 		} else {
 			err = prom_getproperty(zsnode, "interrupts",
 					       (char *) &sun4u_ino,

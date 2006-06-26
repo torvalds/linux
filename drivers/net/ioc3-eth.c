@@ -145,7 +145,7 @@ static inline struct sk_buff * ioc3_alloc_skb(unsigned long length,
 static inline unsigned long ioc3_map(void *ptr, unsigned long vdev)
 {
 #ifdef CONFIG_SGI_IP27
-	vdev <<= 58;   /* Shift to PCI64_ATTR_VIRTUAL */
+	vdev <<= 57;   /* Shift to PCI64_ATTR_VIRTUAL */
 
 	return vdev | (0xaUL << PCI64_ATTR_TARG_SHFT) | PCI64_ATTR_PREF |
 	       ((unsigned long)ptr & TO_PHYS_MASK);

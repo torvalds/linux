@@ -3,7 +3,7 @@
  * I2C address is allways 0xC0.
  *
  *
- * Copyright (c) 2005 Mauro Carvalho Chehab (mchehab@brturbo.com.br)
+ * Copyright (c) 2005 Mauro Carvalho Chehab (mchehab@infradead.org)
  * This code is placed under the terms of the GNU General Public License
  *
  * tea5767 autodetection thanks to Torsten Seeboth and Atsushi Nakagawa

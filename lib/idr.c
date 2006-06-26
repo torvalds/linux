@@ -48,15 +48,21 @@ static struct idr_layer *alloc_layer(struct idr *idp)
 	return(p);
 }
 
+/* only called when idp->lock is held */
+static void __free_layer(struct idr *idp, struct idr_layer *p)
+{
+	p->ary[0] = idp->id_free;
+	idp->id_free = p;
+	idp->id_free_cnt++;
+}
+
 static void free_layer(struct idr *idp, struct idr_layer *p)
 {
 	/*
 	 * Depends on the return element being zeroed.
 	 */
 	spin_lock(&idp->lock);
-	p->ary[0] = idp->id_free;
-	idp->id_free = p;
-	idp->id_free_cnt++;
+	__free_layer(idp, p);
 	spin_unlock(&idp->lock);
 }
 
@@ -184,12 +190,14 @@ build_up:
 			 * The allocation failed.  If we built part of
 			 * the structure tear it down.
 			 */
+			spin_lock(&idp->lock);
 			for (new = p; p && p != idp->top; new = p) {
 				p = p->ary[0];
 				new->ary[0] = NULL;
 				new->bitmap = new->count = 0;
-				free_layer(idp, new);
+				__free_layer(idp, new);
 			}
+			spin_unlock(&idp->lock);
 			return -1;
 		}
 		new->ary[0] = p;

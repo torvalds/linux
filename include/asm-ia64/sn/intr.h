@@ -10,6 +10,7 @@
 #define _ASM_IA64_SN_INTR_H
 
 #include <linux/rcupdate.h>
+#include <asm/sn/types.h>
 
 #define SGI_UART_VECTOR		0xe9
 
@@ -40,6 +41,7 @@ struct sn_irq_info {
 	int		irq_cpuid;	/* kernel logical cpuid	     */
 	int		irq_irq;	/* the IRQ number */
 	int		irq_int_bit;	/* Bridge interrupt pin */
+					/* <0 means MSI */
 	u64	irq_xtalkaddr;	/* xtalkaddr IRQ is sent to  */
 	int		irq_bridge_type;/* pciio asic type (pciio.h) */
 	void	       *irq_bridge;	/* bridge generating irq     */
@@ -53,6 +55,12 @@ struct sn_irq_info {
 };
 
 extern void sn_send_IPI_phys(int, long, int, int);
+extern u64 sn_intr_alloc(nasid_t, int,
+			      struct sn_irq_info *,
+			      int, nasid_t, int);
+extern void sn_intr_free(nasid_t, int, struct sn_irq_info *);
+extern struct sn_irq_info *sn_retarget_vector(struct sn_irq_info *, nasid_t, int);
+extern struct list_head **sn_irq_lh;
 
 #define CPU_VECTOR_TO_IRQ(cpuid,vector) (vector)
 

@@ -65,8 +65,6 @@ static int nfs4_async_handle_error(struct rpc_task *, const struct nfs_server *)
 static int _nfs4_proc_access(struct inode *inode, struct nfs_access_entry *entry);
 static int nfs4_handle_exception(const struct nfs_server *server, int errorcode, struct nfs4_exception *exception);
 static int nfs4_wait_clnt_recover(struct rpc_clnt *clnt, struct nfs4_client *clp);
-extern u32 *nfs4_decode_dirent(u32 *p, struct nfs_entry *entry, int plus);
-extern struct rpc_procinfo nfs4_procedures[];
 
 /* Prevent leaks of NFSv4 errors into userland */
 int nfs4_map_errors(int err)
@@ -119,6 +117,25 @@ const u32 nfs4_fsinfo_bitmap[2] = { FATTR4_WORD0_MAXFILESIZE
 			| FATTR4_WORD0_MAXWRITE
 			| FATTR4_WORD0_LEASE_TIME,
 			0
+};
+
+const u32 nfs4_fs_locations_bitmap[2] = {
+	FATTR4_WORD0_TYPE
+	| FATTR4_WORD0_CHANGE
+	| FATTR4_WORD0_SIZE
+	| FATTR4_WORD0_FSID
+	| FATTR4_WORD0_FILEID
+	| FATTR4_WORD0_FS_LOCATIONS,
+	FATTR4_WORD1_MODE
+	| FATTR4_WORD1_NUMLINKS
+	| FATTR4_WORD1_OWNER
+	| FATTR4_WORD1_OWNER_GROUP
+	| FATTR4_WORD1_RAWDEV
+	| FATTR4_WORD1_SPACE_USED
+	| FATTR4_WORD1_TIME_ACCESS
+	| FATTR4_WORD1_TIME_METADATA
+	| FATTR4_WORD1_TIME_MODIFY
+	| FATTR4_WORD1_MOUNTED_ON_FILEID
 };
 
 static void nfs4_setup_readdir(u64 cookie, u32 *verifier, struct dentry *dentry,
@@ -185,15 +202,15 @@ static void renew_lease(const struct nfs_server *server, unsigned long timestamp
 	spin_unlock(&clp->cl_lock);
 }
 
-static void update_changeattr(struct inode *inode, struct nfs4_change_info *cinfo)
+static void update_changeattr(struct inode *dir, struct nfs4_change_info *cinfo)
 {
-	struct nfs_inode *nfsi = NFS_I(inode);
+	struct nfs_inode *nfsi = NFS_I(dir);
 
-	spin_lock(&inode->i_lock);
-	nfsi->cache_validity |= NFS_INO_INVALID_ATTR;
+	spin_lock(&dir->i_lock);
+	nfsi->cache_validity |= NFS_INO_INVALID_ATTR|NFS_INO_REVAL_PAGECACHE|NFS_INO_INVALID_DATA;
 	if (cinfo->before == nfsi->change_attr && cinfo->atomic)
 		nfsi->change_attr = cinfo->after;
-	spin_unlock(&inode->i_lock);
+	spin_unlock(&dir->i_lock);
 }
 
 struct nfs4_opendata {
@@ -1331,7 +1348,7 @@ static int _nfs4_server_capabilities(struct nfs_server *server, struct nfs_fh *f
 	return status;
 }
 
-static int nfs4_server_capabilities(struct nfs_server *server, struct nfs_fh *fhandle)
+int nfs4_server_capabilities(struct nfs_server *server, struct nfs_fh *fhandle)
 {
 	struct nfs4_exception exception = { };
 	int err;
@@ -1443,6 +1460,50 @@ out:
 	return nfs4_map_errors(status);
 }
 
+/*
+ * Get locations and (maybe) other attributes of a referral.
+ * Note that we'll actually follow the referral later when
+ * we detect fsid mismatch in inode revalidation
+ */
+static int nfs4_get_referral(struct inode *dir, struct qstr *name, struct nfs_fattr *fattr, struct nfs_fh *fhandle)
+{
+	int status = -ENOMEM;
+	struct page *page = NULL;
+	struct nfs4_fs_locations *locations = NULL;
+	struct dentry dentry = {};
+
+	page = alloc_page(GFP_KERNEL);
+	if (page == NULL)
+		goto out;
+	locations = kmalloc(sizeof(struct nfs4_fs_locations), GFP_KERNEL);
+	if (locations == NULL)
+		goto out;
+
+	dentry.d_name.name = name->name;
+	dentry.d_name.len = name->len;
+	status = nfs4_proc_fs_locations(dir, &dentry, locations, page);
+	if (status != 0)
+		goto out;
+	/* Make sure server returned a different fsid for the referral */
+	if (nfs_fsid_equal(&NFS_SERVER(dir)->fsid, &locations->fattr.fsid)) {
+		dprintk("%s: server did not return a different fsid for a referral at %s\n", __FUNCTION__, name->name);
+		status = -EIO;
+		goto out;
+	}
+
+	memcpy(fattr, &locations->fattr, sizeof(struct nfs_fattr));
+	fattr->valid |= NFS_ATTR_FATTR_V4_REFERRAL;
+	if (!fattr->mode)
+		fattr->mode = S_IFDIR;
+	memset(fhandle, 0, sizeof(struct nfs_fh));
+out:
+	if (page)
+		__free_page(page);
+	if (locations)
+		kfree(locations);
+	return status;
+}
+
 static int _nfs4_proc_getattr(struct nfs_server *server, struct nfs_fh *fhandle, struct nfs_fattr *fattr)
 {
 	struct nfs4_getattr_arg args = {
@@ -1547,6 +1608,8 @@ static int _nfs4_proc_lookup(struct inode *dir, struct qstr *name,
 	
 	dprintk("NFS call  lookup %s\n", name->name);
 	status = rpc_call_sync(NFS_CLIENT(dir), &msg, 0);
+	if (status == -NFS4ERR_MOVED)
+		status = nfs4_get_referral(dir, name, fattr, fhandle);
 	dprintk("NFS reply lookup: %d\n", status);
 	return status;
 }
@@ -2008,7 +2071,7 @@ static int _nfs4_proc_link(struct inode *inode, struct inode *dir, struct qstr *
 	if (!status) {
 		update_changeattr(dir, &res.cinfo);
 		nfs_post_op_update_inode(dir, res.dir_attr);
-		nfs_refresh_inode(inode, res.fattr);
+		nfs_post_op_update_inode(inode, res.fattr);
 	}
 
 	return status;
@@ -3568,6 +3631,36 @@ ssize_t nfs4_listxattr(struct dentry *dentry, char *buf, size_t buflen)
 	if (buf)
 		memcpy(buf, XATTR_NAME_NFSV4_ACL, len);
 	return len;
+}
+
+int nfs4_proc_fs_locations(struct inode *dir, struct dentry *dentry,
+		struct nfs4_fs_locations *fs_locations, struct page *page)
+{
+	struct nfs_server *server = NFS_SERVER(dir);
+	u32 bitmask[2] = {
+		[0] = FATTR4_WORD0_FSID | FATTR4_WORD0_FS_LOCATIONS,
+		[1] = FATTR4_WORD1_MOUNTED_ON_FILEID,
+	};
+	struct nfs4_fs_locations_arg args = {
+		.dir_fh = NFS_FH(dir),
+		.name = &dentry->d_name,
+		.page = page,
+		.bitmask = bitmask,
+	};
+	struct rpc_message msg = {
+		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_FS_LOCATIONS],
+		.rpc_argp = &args,
+		.rpc_resp = fs_locations,
+	};
+	int status;
+
+	dprintk("%s: start\n", __FUNCTION__);
+	fs_locations->fattr.valid = 0;
+	fs_locations->server = server;
+	fs_locations->nlocations = 0;
+	status = rpc_call_sync(server->client, &msg, 0);
+	dprintk("%s: returned status = %d\n", __FUNCTION__, status);
+	return status;
 }
 
 struct nfs4_state_recovery_ops nfs4_reboot_recovery_ops = {

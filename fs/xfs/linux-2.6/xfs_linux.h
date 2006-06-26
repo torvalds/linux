@@ -134,14 +134,21 @@ BUFFER_FNS(PrivateStart, unwritten);
 #define xfs_buf_age_centisecs	xfs_params.xfs_buf_age.val
 #define xfs_inherit_nosymlinks	xfs_params.inherit_nosym.val
 #define xfs_rotorstep		xfs_params.rotorstep.val
+#define xfs_inherit_nodefrag	xfs_params.inherit_nodfrg.val
 
-#ifndef raw_smp_processor_id
-#define raw_smp_processor_id()	smp_processor_id()
-#endif
-#define current_cpu()		raw_smp_processor_id()
+#define current_cpu()		(raw_smp_processor_id())
 #define current_pid()		(current->pid)
 #define current_fsuid(cred)	(current->fsuid)
 #define current_fsgid(cred)	(current->fsgid)
+#define current_set_flags(f)	(current->flags |= (f))
+#define current_test_flags(f)	(current->flags & (f))
+#define current_clear_flags(f)	(current->flags & ~(f))
+#define current_set_flags_nested(sp, f)		\
+		(*(sp) = current->flags, current->flags |= (f))
+#define current_clear_flags_nested(sp, f)	\
+		(*(sp) = current->flags, current->flags &= ~(f))
+#define current_restore_flags_nested(sp, f)	\
+		(current->flags = ((current->flags & ~(f)) | (*(sp) & (f))))
 
 #define NBPP		PAGE_SIZE
 #define DPPSHFT		(PAGE_SHIFT - 9)
@@ -187,25 +194,9 @@ BUFFER_FNS(PrivateStart, unwritten);
 /* bytes to clicks */
 #define btoc(x)         (((__psunsigned_t)(x)+(NBPC-1))>>BPCSHIFT)
 
-#ifndef ENOATTR
 #define ENOATTR		ENODATA		/* Attribute not found */
-#endif
-
-/* Note: EWRONGFS never visible outside the kernel */
-#define	EWRONGFS	EINVAL		/* Mount with wrong filesystem type */
-
-/*
- * XXX EFSCORRUPTED needs a real value in errno.h. asm-i386/errno.h won't
- *     return codes out of its known range in errno.
- * XXX Also note: needs to be < 1000 and fairly unique on Linux (mustn't
- *     conflict with any code we use already or any code a driver may use)
- * XXX Some options (currently we do #2):
- *	1/ New error code ["Filesystem is corrupted", _after_ glibc updated]
- *	2/ 990 ["Unknown error 990"]
- *	3/ EUCLEAN ["Structure needs cleaning"]
- *	4/ Convert EFSCORRUPTED to EIO [just prior to return into userspace]
- */
-#define EFSCORRUPTED    990		/* Filesystem is corrupted */
+#define EWRONGFS	EINVAL		/* Mount with wrong filesystem type */
+#define EFSCORRUPTED	EUCLEAN		/* Filesystem is corrupted */
 
 #define SYNCHRONIZE()	barrier()
 #define __return_address __builtin_return_address(0)

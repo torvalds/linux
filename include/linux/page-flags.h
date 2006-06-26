@@ -7,6 +7,8 @@
 
 #include <linux/percpu.h>
 #include <linux/cache.h>
+#include <linux/types.h>
+
 #include <asm/pgtable.h>
 
 /*
@@ -88,7 +90,17 @@
 #define PG_nosave_free		18	/* Free, should not be written */
 #define PG_buddy		19	/* Page is free, on buddy lists */
 
-#define PG_uncached		20	/* Page has been mapped as uncached */
+
+#if (BITS_PER_LONG > 32)
+/*
+ * 64-bit-only flags build down from bit 31
+ *
+ * 32 bit  -------------------------------| FIELDS |       FLAGS         |
+ * 64 bit  |           FIELDS             | ??????         FLAGS         |
+ *         63                            32                              0
+ */
+#define PG_uncached		31	/* Page has been mapped as uncached */
+#endif
 
 /*
  * Global page accounting.  One instance per CPU.  Only unsigned longs are

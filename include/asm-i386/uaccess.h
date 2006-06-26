@@ -58,7 +58,7 @@ extern struct movsl_mask {
 	__chk_user_ptr(addr); \
 	asm("addl %3,%1 ; sbbl %0,%0; cmpl %1,%4; sbbl $0,%0" \
 		:"=&r" (flag), "=r" (sum) \
-		:"1" (addr),"g" ((int)(size)),"g" (current_thread_info()->addr_limit.seg)); \
+		:"1" (addr),"g" ((int)(size)),"rm" (current_thread_info()->addr_limit.seg)); \
 	flag; })
 
 /**
@@ -390,6 +390,12 @@ unsigned long __must_check __copy_to_user_ll(void __user *to,
 				const void *from, unsigned long n);
 unsigned long __must_check __copy_from_user_ll(void *to,
 				const void __user *from, unsigned long n);
+unsigned long __must_check __copy_from_user_ll_nozero(void *to,
+				const void __user *from, unsigned long n);
+unsigned long __must_check __copy_from_user_ll_nocache(void *to,
+				const void __user *from, unsigned long n);
+unsigned long __must_check __copy_from_user_ll_nocache_nozero(void *to,
+				const void __user *from, unsigned long n);
 
 /*
  * Here we special-case 1, 2 and 4-byte copy_*_user invocations.  On a fault
@@ -456,10 +462,41 @@ __copy_to_user(void __user *to, const void *from, unsigned long n)
  *
  * If some data could not be copied, this function will pad the copied
  * data to the requested size using zero bytes.
+ *
+ * An alternate version - __copy_from_user_inatomic() - may be called from
+ * atomic context and will fail rather than sleep.  In this case the
+ * uncopied bytes will *NOT* be padded with zeros.  See fs/filemap.h
+ * for explanation of why this is needed.
  */
 static __always_inline unsigned long
 __copy_from_user_inatomic(void *to, const void __user *from, unsigned long n)
 {
+	/* Avoid zeroing the tail if the copy fails..
+	 * If 'n' is constant and 1, 2, or 4, we do still zero on a failure,
+	 * but as the zeroing behaviour is only significant when n is not
+	 * constant, that shouldn't be a problem.
+	 */
+	if (__builtin_constant_p(n)) {
+		unsigned long ret;
+
+		switch (n) {
+		case 1:
+			__get_user_size(*(u8 *)to, from, 1, ret, 1);
+			return ret;
+		case 2:
+			__get_user_size(*(u16 *)to, from, 2, ret, 2);
+			return ret;
+		case 4:
+			__get_user_size(*(u32 *)to, from, 4, ret, 4);
+			return ret;
+		}
+	}
+	return __copy_from_user_ll_nozero(to, from, n);
+}
+static __always_inline unsigned long
+__copy_from_user(void *to, const void __user *from, unsigned long n)
+{
+	might_sleep();
 	if (__builtin_constant_p(n)) {
 		unsigned long ret;
 
@@ -478,12 +515,36 @@ __copy_from_user_inatomic(void *to, const void __user *from, unsigned long n)
 	return __copy_from_user_ll(to, from, n);
 }
 
-static __always_inline unsigned long
-__copy_from_user(void *to, const void __user *from, unsigned long n)
+#define ARCH_HAS_NOCACHE_UACCESS
+
+static __always_inline unsigned long __copy_from_user_nocache(void *to,
+				const void __user *from, unsigned long n)
 {
-       might_sleep();
-       return __copy_from_user_inatomic(to, from, n);
+	might_sleep();
+	if (__builtin_constant_p(n)) {
+		unsigned long ret;
+
+		switch (n) {
+		case 1:
+			__get_user_size(*(u8 *)to, from, 1, ret, 1);
+			return ret;
+		case 2:
+			__get_user_size(*(u16 *)to, from, 2, ret, 2);
+			return ret;
+		case 4:
+			__get_user_size(*(u32 *)to, from, 4, ret, 4);
+			return ret;
+		}
+	}
+	return __copy_from_user_ll_nocache(to, from, n);
 }
+
+static __always_inline unsigned long
+__copy_from_user_inatomic_nocache(void *to, const void __user *from, unsigned long n)
+{
+       return __copy_from_user_ll_nocache_nozero(to, from, n);
+}
+
 unsigned long __must_check copy_to_user(void __user *to,
 				const void *from, unsigned long n);
 unsigned long __must_check copy_from_user(void *to,

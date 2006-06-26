@@ -217,16 +217,24 @@ void foo(void)
 	DEFINE(IA64_MCA_CPU_INIT_STACK_OFFSET,
 	       offsetof (struct ia64_mca_cpu, init_stack));
 	BLANK();
-	DEFINE(IA64_SAL_OS_STATE_COMMON_OFFSET,
-	       offsetof (struct ia64_sal_os_state, sal_ra));
 	DEFINE(IA64_SAL_OS_STATE_OS_GP_OFFSET,
 	       offsetof (struct ia64_sal_os_state, os_gp));
-	DEFINE(IA64_SAL_OS_STATE_PAL_MIN_STATE_OFFSET,
-	       offsetof (struct ia64_sal_os_state, pal_min_state));
 	DEFINE(IA64_SAL_OS_STATE_PROC_STATE_PARAM_OFFSET,
 	       offsetof (struct ia64_sal_os_state, proc_state_param));
+	DEFINE(IA64_SAL_OS_STATE_SAL_RA_OFFSET,
+	       offsetof (struct ia64_sal_os_state, sal_ra));
+	DEFINE(IA64_SAL_OS_STATE_SAL_GP_OFFSET,
+	       offsetof (struct ia64_sal_os_state, sal_gp));
+	DEFINE(IA64_SAL_OS_STATE_PAL_MIN_STATE_OFFSET,
+	       offsetof (struct ia64_sal_os_state, pal_min_state));
+	DEFINE(IA64_SAL_OS_STATE_OS_STATUS_OFFSET,
+	       offsetof (struct ia64_sal_os_state, os_status));
+	DEFINE(IA64_SAL_OS_STATE_CONTEXT_OFFSET,
+	       offsetof (struct ia64_sal_os_state, context));
 	DEFINE(IA64_SAL_OS_STATE_SIZE,
 	       sizeof (struct ia64_sal_os_state));
+	BLANK();
+
 	DEFINE(IA64_PMSA_GR_OFFSET,
 	       offsetof (struct pal_min_state_area_s, pmsa_gr));
 	DEFINE(IA64_PMSA_BANK1_GR_OFFSET,

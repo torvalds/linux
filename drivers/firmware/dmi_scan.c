@@ -255,10 +255,15 @@ void __init dmi_scan_machine(void)
 /**
  *	dmi_check_system - check system DMI data
  *	@list: array of dmi_system_id structures to match against
+ *		All non-null elements of the list must match
+ *		their slot's (field index's) data (i.e., each
+ *		list string must be a substring of the specified
+ *		DMI slot's string data) to be considered a
+ *		successful match.
  *
  *	Walk the blacklist table running matching functions until someone
  *	returns non zero or we hit the end. Callback function is called for
- *	each successfull match. Returns the number of matches.
+ *	each successful match. Returns the number of matches.
  */
 int dmi_check_system(struct dmi_system_id *list)
 {
@@ -287,7 +292,7 @@ EXPORT_SYMBOL(dmi_check_system);
 
 /**
  *	dmi_get_system_info - return DMI data value
- *	@field: data index (see enum dmi_filed)
+ *	@field: data index (see enum dmi_field)
  *
  *	Returns one DMI data value, can be used to perform
  *	complex DMI data checks.
@@ -301,13 +306,13 @@ EXPORT_SYMBOL(dmi_get_system_info);
 /**
  *	dmi_find_device - find onboard device by type/name
  *	@type: device type or %DMI_DEV_TYPE_ANY to match all device types
- *	@desc: device name string or %NULL to match all
+ *	@name: device name string or %NULL to match all
  *	@from: previous device found in search, or %NULL for new search.
  *
  *	Iterates through the list of known onboard devices. If a device is
  *	found with a matching @vendor and @device, a pointer to its device
  *	structure is returned.  Otherwise, %NULL is returned.
- *	A new search is initiated by passing %NULL to the @from argument.
+ *	A new search is initiated by passing %NULL as the @from argument.
  *	If @from is not %NULL, searches continue from next device.
  */
 struct dmi_device * dmi_find_device(int type, const char *name,

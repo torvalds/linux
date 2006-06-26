@@ -433,11 +433,10 @@ static int flexcop_usb_transfer_init(struct flexcop_usb *fc_usb)
 	flexcop_wan_set_speed(fc_usb->fc_dev,FC_WAN_SPEED_8MBITS);
 	flexcop_sram_ctrl(fc_usb->fc_dev,1,1,1);
 
-	ret = 0;
-	goto success;
+	return 0;
+
 urb_error:
 	flexcop_usb_transfer_exit(fc_usb);
-success:
 	return ret;
 }
 
@@ -515,15 +514,14 @@ static int flexcop_usb_probe(struct usb_interface *intf,
 		goto err_fc_exit;
 
 	info("%s successfully initialized and connected.",DRIVER_NAME);
-	ret = 0;
-	goto success;
+	return 0;
+
 err_fc_exit:
 	flexcop_device_exit(fc);
 err_usb_exit:
 	flexcop_usb_exit(fc_usb);
 err_kfree:
 	flexcop_device_kfree(fc);
-success:
 	return ret;
 }
 

@@ -1068,9 +1068,6 @@ void __init pmac_pci_init(void)
 	/* Tell pci.c to not use the common resource allocation mechanism */
 	pci_probe_only = 1;
 
-	/* Allow all IO */
-	io_page_mask = -1;
-
 #else /* CONFIG_PPC64 */
 	init_p2pbridge();
 	fixup_nec_usb2();

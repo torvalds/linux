@@ -237,6 +237,11 @@ struct machdep_calls {
 	 */
 	void (*machine_kexec)(struct kimage *image);
 #endif /* CONFIG_KEXEC */
+
+#ifdef CONFIG_PCI_MSI
+	int (*enable_msi)(struct pci_dev *pdev);
+	void (*disable_msi)(struct pci_dev *pdev);
+#endif /* CONFIG_PCI_MSI */
 };
 
 extern void power4_idle(void);

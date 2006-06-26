@@ -46,6 +46,7 @@
 
 #include <asm/io.h>
 #include <asm/spu.h>
+#include <asm/spu_priv1.h>
 #include <asm/spu_csa.h>
 #include <asm/mmu_context.h>
 
@@ -622,12 +623,17 @@ static inline void save_ppuint_mb(struct spu_state *csa, struct spu *spu)
 static inline void save_ch_part1(struct spu_state *csa, struct spu *spu)
 {
 	struct spu_priv2 __iomem *priv2 = spu->priv2;
-	u64 idx, ch_indices[7] = { 0UL, 1UL, 3UL, 4UL, 24UL, 25UL, 27UL };
+	u64 idx, ch_indices[7] = { 0UL, 3UL, 4UL, 24UL, 25UL, 27UL };
 	int i;
 
 	/* Save, Step 42:
-	 *     Save the following CH: [0,1,3,4,24,25,27]
 	 */
+
+	/* Save CH 1, without channel count */
+	out_be64(&priv2->spu_chnlcntptr_RW, 1);
+	csa->spu_chnldata_RW[1] = in_be64(&priv2->spu_chnldata_RW);
+
+	/* Save the following CH: [0,3,4,24,25,27] */
 	for (i = 0; i < 7; i++) {
 		idx = ch_indices[i];
 		out_be64(&priv2->spu_chnlcntptr_RW, idx);
@@ -718,13 +724,15 @@ static inline void invalidate_slbs(struct spu_state *csa, struct spu *spu)
 
 static inline void get_kernel_slb(u64 ea, u64 slb[2])
 {
-	slb[0] = (get_kernel_vsid(ea) << SLB_VSID_SHIFT) | SLB_VSID_KERNEL;
-	slb[1] = (ea & ESID_MASK) | SLB_ESID_V;
+	u64 llp;
 
-	/* Large pages are used for kernel text/data, but not vmalloc.  */
-	if (cpu_has_feature(CPU_FTR_16M_PAGE)
-	    && REGION_ID(ea) == KERNEL_REGION_ID)
-		slb[0] |= SLB_VSID_L;
+	if (REGION_ID(ea) == KERNEL_REGION_ID)
+		llp = mmu_psize_defs[mmu_linear_psize].sllp;
+	else
+		llp = mmu_psize_defs[mmu_virtual_psize].sllp;
+	slb[0] = (get_kernel_vsid(ea) << SLB_VSID_SHIFT) |
+		SLB_VSID_KERNEL | llp;
+	slb[1] = (ea & ESID_MASK) | SLB_ESID_V;
 }
 
 static inline void load_mfc_slb(struct spu *spu, u64 slb[2], int slbe)
@@ -1103,13 +1111,18 @@ static inline void clear_spu_status(struct spu_state *csa, struct spu *spu)
 static inline void reset_ch_part1(struct spu_state *csa, struct spu *spu)
 {
 	struct spu_priv2 __iomem *priv2 = spu->priv2;
-	u64 ch_indices[7] = { 0UL, 1UL, 3UL, 4UL, 24UL, 25UL, 27UL };
+	u64 ch_indices[7] = { 0UL, 3UL, 4UL, 24UL, 25UL, 27UL };
 	u64 idx;
 	int i;
 
 	/* Restore, Step 20:
-	 *     Reset the following CH: [0,1,3,4,24,25,27]
 	 */
+
+	/* Reset CH 1 */
+	out_be64(&priv2->spu_chnlcntptr_RW, 1);
+	out_be64(&priv2->spu_chnldata_RW, 0UL);
+
+	/* Reset the following CH: [0,3,4,24,25,27] */
 	for (i = 0; i < 7; i++) {
 		idx = ch_indices[i];
 		out_be64(&priv2->spu_chnlcntptr_RW, idx);
@@ -1570,12 +1583,17 @@ static inline void restore_decr_wrapped(struct spu_state *csa, struct spu *spu)
 static inline void restore_ch_part1(struct spu_state *csa, struct spu *spu)
 {
 	struct spu_priv2 __iomem *priv2 = spu->priv2;
-	u64 idx, ch_indices[7] = { 0UL, 1UL, 3UL, 4UL, 24UL, 25UL, 27UL };
+	u64 idx, ch_indices[7] = { 0UL, 3UL, 4UL, 24UL, 25UL, 27UL };
 	int i;
 
 	/* Restore, Step 59:
-	 *     Restore the following CH: [0,1,3,4,24,25,27]
 	 */
+
+	/* Restore CH 1 without count */
+	out_be64(&priv2->spu_chnlcntptr_RW, 1);
+	out_be64(&priv2->spu_chnldata_RW, csa->spu_chnldata_RW[1]);
+
+	/* Restore the following CH: [0,3,4,24,25,27] */
 	for (i = 0; i < 7; i++) {
 		idx = ch_indices[i];
 		out_be64(&priv2->spu_chnlcntptr_RW, idx);
@@ -2074,6 +2092,7 @@ int spu_save(struct spu_state *prev, struct spu *spu)
 	}
 	return rc;
 }
+EXPORT_SYMBOL_GPL(spu_save);
 
 /**
  * spu_restore - SPU context restore, with harvest and locking.
@@ -2090,7 +2109,6 @@ int spu_restore(struct spu_state *new, struct spu *spu)
 
 	acquire_spu_lock(spu);
 	harvest(NULL, spu);
-	spu->stop_code = 0;
 	spu->dar = 0;
 	spu->dsisr = 0;
 	spu->slb_replace = 0;
@@ -2103,6 +2121,7 @@ int spu_restore(struct spu_state *new, struct spu *spu)
 	}
 	return rc;
 }
+EXPORT_SYMBOL_GPL(spu_restore);
 
 /**
  * spu_harvest - SPU harvest (reset) operation
@@ -2125,6 +2144,7 @@ static void init_prob(struct spu_state *csa)
 	csa->spu_chnlcnt_RW[28] = 1;
 	csa->spu_chnlcnt_RW[30] = 1;
 	csa->prob.spu_runcntl_RW = SPU_RUNCNTL_STOP;
+	csa->prob.mb_stat_R = 0x000400;
 }
 
 static void init_priv1(struct spu_state *csa)
@@ -2193,6 +2213,7 @@ void spu_init_csa(struct spu_state *csa)
 	init_priv1(csa);
 	init_priv2(csa);
 }
+EXPORT_SYMBOL_GPL(spu_init_csa);
 
 void spu_fini_csa(struct spu_state *csa)
 {
@@ -2203,3 +2224,4 @@ void spu_fini_csa(struct spu_state *csa)
 
 	vfree(csa->lscsa);
 }
+EXPORT_SYMBOL_GPL(spu_fini_csa);

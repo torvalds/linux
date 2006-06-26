@@ -78,7 +78,7 @@ acpi_tb_get_table(struct acpi_pointer *address,
 	acpi_status status;
 	struct acpi_table_header header;
 
-	ACPI_FUNCTION_TRACE("tb_get_table");
+	ACPI_FUNCTION_TRACE(tb_get_table);
 
 	/* Get the header in order to get signature and table size */
 
@@ -124,7 +124,7 @@ acpi_tb_get_table_header(struct acpi_pointer *address,
 	acpi_status status = AE_OK;
 	struct acpi_table_header *header = NULL;
 
-	ACPI_FUNCTION_TRACE("tb_get_table_header");
+	ACPI_FUNCTION_TRACE(tb_get_table_header);
 
 	/*
 	 * Flags contains the current processor mode (Virtual or Physical
@@ -148,6 +148,10 @@ acpi_tb_get_table_header(struct acpi_pointer *address,
 					    sizeof(struct acpi_table_header),
 					    (void *)&header);
 		if (ACPI_FAILURE(status)) {
+			ACPI_ERROR((AE_INFO,
+				    "Could not map memory at %8.8X%8.8X for table header",
+				    ACPI_FORMAT_UINT64(address->pointer.
+						       physical)));
 			return_ACPI_STATUS(status);
 		}
 
@@ -198,7 +202,7 @@ acpi_tb_get_table_body(struct acpi_pointer *address,
 {
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("tb_get_table_body");
+	ACPI_FUNCTION_TRACE(tb_get_table_body);
 
 	if (!table_info || !address) {
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
@@ -208,6 +212,7 @@ acpi_tb_get_table_body(struct acpi_pointer *address,
 
 	status = acpi_tb_table_override(header, table_info);
 	if (ACPI_SUCCESS(status)) {
+
 		/* Table was overridden by the host OS */
 
 		return_ACPI_STATUS(status);
@@ -241,7 +246,7 @@ acpi_tb_table_override(struct acpi_table_header *header,
 	acpi_status status;
 	struct acpi_pointer address;
 
-	ACPI_FUNCTION_TRACE("tb_table_override");
+	ACPI_FUNCTION_TRACE(tb_table_override);
 
 	/*
 	 * The OSL will examine the header and decide whether to override this
@@ -250,6 +255,7 @@ acpi_tb_table_override(struct acpi_table_header *header,
 	 */
 	status = acpi_os_table_override(header, &new_table);
 	if (ACPI_FAILURE(status)) {
+
 		/* Some severe error from the OSL, but we basically ignore it */
 
 		ACPI_EXCEPTION((AE_INFO, status,
@@ -258,6 +264,7 @@ acpi_tb_table_override(struct acpi_table_header *header,
 	}
 
 	if (!new_table) {
+
 		/* No table override */
 
 		return_ACPI_STATUS(AE_NO_ACPI_TABLES);
@@ -311,7 +318,7 @@ acpi_tb_get_this_table(struct acpi_pointer *address,
 	u8 allocation;
 	acpi_status status = AE_OK;
 
-	ACPI_FUNCTION_TRACE("tb_get_this_table");
+	ACPI_FUNCTION_TRACE(tb_get_this_table);
 
 	/*
 	 * Flags contains the current processor mode (Virtual or Physical
@@ -323,7 +330,7 @@ acpi_tb_get_this_table(struct acpi_pointer *address,
 
 		/* Pointer matches processor mode, copy the table to a new buffer */
 
-		full_table = ACPI_MEM_ALLOCATE(header->length);
+		full_table = ACPI_ALLOCATE(header->length);
 		if (!full_table) {
 			ACPI_ERROR((AE_INFO,
 				    "Could not allocate table memory for [%4.4s] length %X",
@@ -376,11 +383,12 @@ acpi_tb_get_this_table(struct acpi_pointer *address,
 	 * Validate checksum for _most_ tables,
 	 * even the ones whose signature we don't recognize
 	 */
-	if (table_info->type != ACPI_TABLE_FACS) {
+	if (table_info->type != ACPI_TABLE_ID_FACS) {
 		status = acpi_tb_verify_table_checksum(full_table);
 
 #if (!ACPI_CHECKSUM_ABORT)
 		if (ACPI_FAILURE(status)) {
+
 			/* Ignore the error if configuration says so */
 
 			status = AE_OK;
@@ -409,7 +417,7 @@ acpi_tb_get_this_table(struct acpi_pointer *address,
  *
  * PARAMETERS:  table_type      - one of the defined table types
  *              Instance        - Which table of this type
- *              table_ptr_loc   - pointer to location to place the pointer for
+ *              return_table    - pointer to location to place the pointer for
  *                                return
  *
  * RETURN:      Status
@@ -420,57 +428,34 @@ acpi_tb_get_this_table(struct acpi_pointer *address,
 
 acpi_status
 acpi_tb_get_table_ptr(acpi_table_type table_type,
-		      u32 instance, struct acpi_table_header **table_ptr_loc)
+		      u32 instance, struct acpi_table_header **return_table)
 {
 	struct acpi_table_desc *table_desc;
 	u32 i;
 
-	ACPI_FUNCTION_TRACE("tb_get_table_ptr");
+	ACPI_FUNCTION_TRACE(tb_get_table_ptr);
 
-	if (!acpi_gbl_DSDT) {
-		return_ACPI_STATUS(AE_NO_ACPI_TABLES);
-	}
-
-	if (table_type > ACPI_TABLE_MAX) {
+	if (table_type > ACPI_TABLE_ID_MAX) {
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
-	/*
-	 * For all table types (Single/Multiple), the first
-	 * instance is always in the list head.
-	 */
-	if (instance == 1) {
-		/* Get the first */
-
-		*table_ptr_loc = NULL;
-		if (acpi_gbl_table_lists[table_type].next) {
-			*table_ptr_loc =
-			    acpi_gbl_table_lists[table_type].next->pointer;
-		}
-		return_ACPI_STATUS(AE_OK);
-	}
-
-	/* Check for instance out of range */
+	/* Check for instance out of range of the current table count */
 
 	if (instance > acpi_gbl_table_lists[table_type].count) {
 		return_ACPI_STATUS(AE_NOT_EXIST);
 	}
 
-	/* Walk the list to get the desired table
-	 * Since the if (Instance == 1) check above checked for the
-	 * first table, setting table_desc equal to the .Next member
-	 * is actually pointing to the second table.  Therefore, we
-	 * need to walk from the 2nd table until we reach the Instance
-	 * that the user is looking for and return its table pointer.
+	/*
+	 * Walk the list to get the desired table
+	 * Note: Instance is one-based
 	 */
 	table_desc = acpi_gbl_table_lists[table_type].next;
-	for (i = 2; i < instance; i++) {
+	for (i = 1; i < instance; i++) {
 		table_desc = table_desc->next;
 	}
 
 	/* We are now pointing to the requested table's descriptor */
 
-	*table_ptr_loc = table_desc->pointer;
-
+	*return_table = table_desc->pointer;
 	return_ACPI_STATUS(AE_OK);
 }

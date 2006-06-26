@@ -47,6 +47,7 @@
 #include <linux/cpumask.h>
 #include <linux/profile.h>
 #include <linux/bitops.h>
+#include <linux/pci.h>
 
 #include <asm/uaccess.h>
 #include <asm/system.h>
@@ -379,8 +380,8 @@ unsigned int real_irq_to_virt_slowpath(unsigned int real_irq)
 #endif /* CONFIG_PPC64 */
 
 #ifdef CONFIG_IRQSTACKS
-struct thread_info *softirq_ctx[NR_CPUS];
-struct thread_info *hardirq_ctx[NR_CPUS];
+struct thread_info *softirq_ctx[NR_CPUS] __read_mostly;
+struct thread_info *hardirq_ctx[NR_CPUS] __read_mostly;
 
 void irq_ctx_init(void)
 {
@@ -435,6 +436,30 @@ void do_softirq(void)
 	local_irq_restore(flags);
 }
 EXPORT_SYMBOL(do_softirq);
+
+#ifdef CONFIG_PCI_MSI
+int pci_enable_msi(struct pci_dev * pdev)
+{
+	if (ppc_md.enable_msi)
+		return ppc_md.enable_msi(pdev);
+	else
+		return -1;
+}
+
+void pci_disable_msi(struct pci_dev * pdev)
+{
+	if (ppc_md.disable_msi)
+		ppc_md.disable_msi(pdev);
+}
+
+void pci_scan_msi_device(struct pci_dev *dev) {}
+int pci_enable_msix(struct pci_dev* dev, struct msix_entry *entries, int nvec) {return -1;}
+void pci_disable_msix(struct pci_dev *dev) {}
+void msi_remove_pci_irq_vectors(struct pci_dev *dev) {}
+void disable_msi_mode(struct pci_dev *dev, int pos, int type) {}
+void pci_no_msi(void) {}
+
+#endif
 
 #ifdef CONFIG_PPC64
 static int __init setup_noirqdistrib(char *str)

@@ -358,6 +358,14 @@ struct sighand_struct {
 	spinlock_t		siglock;
 };
 
+struct pacct_struct {
+	int			ac_flag;
+	long			ac_exitcode;
+	unsigned long		ac_mem;
+	cputime_t		ac_utime, ac_stime;
+	unsigned long		ac_minflt, ac_majflt;
+};
+
 /*
  * NOTE! "signal_struct" does not have it's own
  * locking, because a shared signal_struct always
@@ -448,6 +456,9 @@ struct signal_struct {
 #ifdef CONFIG_KEYS
 	struct key *session_keyring;	/* keyring inherited over fork */
 	struct key *process_keyring;	/* keyring private to this process */
+#endif
+#ifdef CONFIG_BSD_PROCESS_ACCT
+	struct pacct_struct pacct;	/* per-process accounting information */
 #endif
 };
 
@@ -941,12 +952,11 @@ static inline void put_task_struct(struct task_struct *t)
 #define PF_KSWAPD	0x00040000	/* I am kswapd */
 #define PF_SWAPOFF	0x00080000	/* I am in swapoff */
 #define PF_LESS_THROTTLE 0x00100000	/* Throttle me less: I clean memory */
-#define PF_SYNCWRITE	0x00200000	/* I am doing a sync write */
-#define PF_BORROWED_MM	0x00400000	/* I am a kthread doing use_mm */
-#define PF_RANDOMIZE	0x00800000	/* randomize virtual address space */
-#define PF_SWAPWRITE	0x01000000	/* Allowed to write to swap */
-#define PF_SPREAD_PAGE	0x04000000	/* Spread page cache over cpuset */
-#define PF_SPREAD_SLAB	0x08000000	/* Spread some slab caches over cpuset */
+#define PF_BORROWED_MM	0x00200000	/* I am a kthread doing use_mm */
+#define PF_RANDOMIZE	0x00400000	/* randomize virtual address space */
+#define PF_SWAPWRITE	0x00800000	/* Allowed to write to swap */
+#define PF_SPREAD_PAGE	0x01000000	/* Spread page cache over cpuset */
+#define PF_SPREAD_SLAB	0x02000000	/* Spread some slab caches over cpuset */
 #define PF_MEMPOLICY	0x10000000	/* Non-default NUMA mempolicy */
 
 /*
@@ -1225,7 +1235,7 @@ static inline int thread_group_empty(task_t *p)
 		(thread_group_leader(p) && !thread_group_empty(p))
 
 /*
- * Protects ->fs, ->files, ->mm, ->ptrace, ->group_info, ->comm, keyring
+ * Protects ->fs, ->files, ->mm, ->group_info, ->comm, keyring
  * subscriptions and synchronises with wait4().  Also used in procfs.  Also
  * pins the final release of task.io_context.  Also protects ->cpuset.
  *

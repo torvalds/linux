@@ -15,6 +15,9 @@
  *             Changed to support scatter gather DMA
  *             by taking Russell's code from RiscPC
  *
+ *  2006-05-31 Pavel Pisa <pisa@cmp.felk.cvut.cz>
+ *             Corrected error handling code.
+ *
  */
 
 #undef DEBUG
@@ -277,7 +280,7 @@ imx_dma_setup_sg(imx_dmach_t dma_ch,
 int
 imx_dma_setup_handlers(imx_dmach_t dma_ch,
 		       void (*irq_handler) (int, void *, struct pt_regs *),
-		       void (*err_handler) (int, void *, struct pt_regs *),
+		       void (*err_handler) (int, void *, struct pt_regs *, int),
 		       void *data)
 {
 	struct imx_dma_channel *imxdma = &imx_dma_channels[dma_ch];
@@ -463,43 +466,53 @@ static irqreturn_t dma_err_handler(int irq, void *dev_id, struct pt_regs *regs)
 	int i, disr = DISR;
 	struct imx_dma_channel *channel;
 	unsigned int err_mask = DBTOSR | DRTOSR | DSESR | DBOSR;
+	int errcode;
 
-	DISR = disr;
+	DISR = disr & err_mask;
 	for (i = 0; i < IMX_DMA_CHANNELS; i++) {
+		if(!(err_mask & (1 << i)))
+			continue;
 		channel = &imx_dma_channels[i];
+		errcode = 0;
 
-		if ((err_mask & 1 << i) && channel->name
-		    && channel->err_handler) {
-			channel->err_handler(i, channel->data, regs);
+		if (DBTOSR & (1 << i)) {
+			DBTOSR = (1 << i);
+			errcode |= IMX_DMA_ERR_BURST;
+		}
+		if (DRTOSR & (1 << i)) {
+			DRTOSR = (1 << i);
+			errcode |= IMX_DMA_ERR_REQUEST;
+		}
+		if (DSESR & (1 << i)) {
+			DSESR = (1 << i);
+			errcode |= IMX_DMA_ERR_TRANSFER;
+		}
+		if (DBOSR & (1 << i)) {
+			DBOSR = (1 << i);
+			errcode |= IMX_DMA_ERR_BUFFER;
+		}
+
+		/*
+		 * The cleaning of @sg field would be questionable
+		 * there, because its value can help to compute
+		 * remaining/transfered bytes count in the handler
+		 */
+		/*imx_dma_channels[i].sg = NULL;*/
+
+		if (channel->name && channel->err_handler) {
+			channel->err_handler(i, channel->data, regs, errcode);
 			continue;
 		}
 
 		imx_dma_channels[i].sg = NULL;
 
-		if (DBTOSR & (1 << i)) {
-			printk(KERN_WARNING
-			       "Burst timeout on channel %d (%s)\n",
-			       i, channel->name);
-			DBTOSR |= (1 << i);
-		}
-		if (DRTOSR & (1 << i)) {
-			printk(KERN_WARNING
-			       "Request timeout on channel %d (%s)\n",
-			       i, channel->name);
-			DRTOSR |= (1 << i);
-		}
-		if (DSESR & (1 << i)) {
-			printk(KERN_WARNING
-			       "Transfer timeout on channel %d (%s)\n",
-			       i, channel->name);
-			DSESR |= (1 << i);
-		}
-		if (DBOSR & (1 << i)) {
-			printk(KERN_WARNING
-			       "Buffer overflow timeout on channel %d (%s)\n",
-			       i, channel->name);
-			DBOSR |= (1 << i);
-		}
+		printk(KERN_WARNING
+		       "DMA timeout on channel %d (%s) -%s%s%s%s\n",
+		       i, channel->name,
+		       errcode&IMX_DMA_ERR_BURST?    " burst":"",
+		       errcode&IMX_DMA_ERR_REQUEST?  " request":"",
+		       errcode&IMX_DMA_ERR_TRANSFER? " transfer":"",
+		       errcode&IMX_DMA_ERR_BUFFER?   " buffer":"");
 	}
 	return IRQ_HANDLED;
 }

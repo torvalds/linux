@@ -31,6 +31,7 @@
 #define USB_VID_VISIONPLUS					0x13d3
 #define USB_VID_TWINHAN						0x1822
 #define USB_VID_ULTIMA_ELECTRONIC			0x05d8
+#define USB_VID_GENPIX					0x09c0
 
 /* Product IDs */
 #define USB_PID_ADSTECH_USB2_COLD			0xa333
@@ -104,5 +105,6 @@
 #define USB_PID_KYE_DVB_T_WARM				0x701f
 #define USB_PID_PCTV_200E					0x020e
 #define USB_PID_PCTV_400E					0x020f
-
+#define USB_PID_GENPIX_8PSK_COLD				0x0200
+#define USB_PID_GENPIX_8PSK_WARM				0x0201
 #endif

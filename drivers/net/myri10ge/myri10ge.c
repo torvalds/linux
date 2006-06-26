@@ -1879,7 +1879,7 @@ again:
 
 #ifdef NETIF_F_TSO
 	if (skb->len > (dev->mtu + ETH_HLEN)) {
-		mss = skb_shinfo(skb)->tso_size;
+		mss = skb_shinfo(skb)->gso_size;
 		if (mss != 0)
 			max_segments = MYRI10GE_MAX_SEND_DESC_TSO;
 	}
@@ -1939,8 +1939,7 @@ again:
 
 		/* pad frames to at least ETH_ZLEN bytes */
 		if (unlikely(skb->len < ETH_ZLEN)) {
-			skb = skb_padto(skb, ETH_ZLEN);
-			if (skb == NULL) {
+			if (skb_padto(skb, ETH_ZLEN)) {
 				/* The packet is gone, so we must
 				 * return 0 */
 				mgp->stats.tx_dropped += 1;
@@ -2113,14 +2112,14 @@ abort_linearize:
 		}
 		idx = (idx + 1) & tx->mask;
 	} while (idx != last_idx);
-	if (skb_shinfo(skb)->tso_size) {
+	if (skb_shinfo(skb)->gso_size) {
 		printk(KERN_ERR
 		       "myri10ge: %s: TSO but wanted to linearize?!?!?\n",
 		       mgp->dev->name);
 		goto drop;
 	}
 
-	if (skb_linearize(skb, GFP_ATOMIC))
+	if (skb_linearize(skb))
 		goto drop;
 
 	mgp->tx_linearized++;
@@ -2251,12 +2250,6 @@ static void myri10ge_enable_ecrc(struct myri10ge_priv *mgp)
 	}
 
 	cap = pci_find_ext_capability(bridge, PCI_EXT_CAP_ID_ERR);
-	/* nvidia ext cap is not always linked in ext cap chain */
-	if (!cap
-	    && bridge->vendor == PCI_VENDOR_ID_NVIDIA
-	    && bridge->device == PCI_DEVICE_ID_NVIDIA_NFORCE_CK804_PCIE)
-		cap = 0x160;
-
 	if (!cap)
 		return;
 
@@ -2732,8 +2725,6 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* Save configuration space to be restored if the
 	 * nic resets due to a parity error */
 	myri10ge_save_state(mgp);
-	/* Restore state immediately since pci_save_msi_state disables MSI */
-	myri10ge_restore_state(mgp);
 
 	/* Setup the watchdog timer */
 	setup_timer(&mgp->watchdog_timer, myri10ge_watchdog_timer,

@@ -39,6 +39,7 @@
 #include <linux/vt_kern.h>
 #include <linux/sysrq.h>
 #include <linux/input.h>
+#include <linux/reboot.h>
 
 static void kbd_disconnect(struct input_handle *handle);
 extern void ctrl_alt_del(void);

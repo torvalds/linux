@@ -151,6 +151,7 @@ struct atyfb_par {
 	int lock_blank;
 	unsigned long res_start;
 	unsigned long res_size;
+	struct pci_dev *pdev;
 #ifdef __sparc__
 	struct pci_mmap_map *mmap_map;
 	u8 mmaped;

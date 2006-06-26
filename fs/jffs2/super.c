@@ -111,9 +111,10 @@ static int jffs2_sb_set(struct super_block *sb, void *data)
 	return 0;
 }
 
-static struct super_block *jffs2_get_sb_mtd(struct file_system_type *fs_type,
-					      int flags, const char *dev_name,
-					      void *data, struct mtd_info *mtd)
+static int jffs2_get_sb_mtd(struct file_system_type *fs_type,
+			    int flags, const char *dev_name,
+			    void *data, struct mtd_info *mtd,
+			    struct vfsmount *mnt)
 {
 	struct super_block *sb;
 	struct jffs2_sb_info *c;
@@ -121,19 +122,20 @@ static struct super_block *jffs2_get_sb_mtd(struct file_system_type *fs_type,
 
 	c = kmalloc(sizeof(*c), GFP_KERNEL);
 	if (!c)
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 	memset(c, 0, sizeof(*c));
 	c->mtd = mtd;
 
 	sb = sget(fs_type, jffs2_sb_compare, jffs2_sb_set, c);
 
 	if (IS_ERR(sb))
-		goto out_put;
+		goto out_error;
 
 	if (sb->s_root) {
 		/* New mountpoint for JFFS2 which is already mounted */
 		D1(printk(KERN_DEBUG "jffs2_get_sb_mtd(): Device %d (\"%s\") is already mounted\n",
 			  mtd->index, mtd->name));
+		ret = simple_set_mnt(mnt, sb);
 		goto out_put;
 	}
 
@@ -161,44 +163,47 @@ static struct super_block *jffs2_get_sb_mtd(struct file_system_type *fs_type,
 		/* Failure case... */
 		up_write(&sb->s_umount);
 		deactivate_super(sb);
-		return ERR_PTR(ret);
+		return ret;
 	}
 
 	sb->s_flags |= MS_ACTIVE;
-	return sb;
+	return simple_set_mnt(mnt, sb);
 
+out_error:
+	ret = PTR_ERR(sb);
  out_put:
 	kfree(c);
 	put_mtd_device(mtd);
 
-	return sb;
+	return ret;
 }
 
-static struct super_block *jffs2_get_sb_mtdnr(struct file_system_type *fs_type,
-					      int flags, const char *dev_name,
-					      void *data, int mtdnr)
+static int jffs2_get_sb_mtdnr(struct file_system_type *fs_type,
+			      int flags, const char *dev_name,
+			      void *data, int mtdnr,
+			      struct vfsmount *mnt)
 {
 	struct mtd_info *mtd;
 
 	mtd = get_mtd_device(NULL, mtdnr);
 	if (!mtd) {
 		D1(printk(KERN_DEBUG "jffs2: MTD device #%u doesn't appear to exist\n", mtdnr));
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 	}
 
-	return jffs2_get_sb_mtd(fs_type, flags, dev_name, data, mtd);
+	return jffs2_get_sb_mtd(fs_type, flags, dev_name, data, mtd, mnt);
 }
 
-static struct super_block *jffs2_get_sb(struct file_system_type *fs_type,
-					int flags, const char *dev_name,
-					void *data)
+static int jffs2_get_sb(struct file_system_type *fs_type,
+			int flags, const char *dev_name,
+			void *data, struct vfsmount *mnt)
 {
 	int err;
 	struct nameidata nd;
 	int mtdnr;
 
 	if (!dev_name)
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 
 	D1(printk(KERN_DEBUG "jffs2_get_sb(): dev_name \"%s\"\n", dev_name));
 
@@ -220,7 +225,7 @@ static struct super_block *jffs2_get_sb(struct file_system_type *fs_type,
 				mtd = get_mtd_device(NULL, mtdnr);
 				if (mtd) {
 					if (!strcmp(mtd->name, dev_name+4))
-						return jffs2_get_sb_mtd(fs_type, flags, dev_name, data, mtd);
+						return jffs2_get_sb_mtd(fs_type, flags, dev_name, data, mtd, mnt);
 					put_mtd_device(mtd);
 				}
 			}
@@ -233,7 +238,7 @@ static struct super_block *jffs2_get_sb(struct file_system_type *fs_type,
 			if (!*endptr) {
 				/* It was a valid number */
 				D1(printk(KERN_DEBUG "jffs2_get_sb(): mtd%%d, mtdnr %d\n", mtdnr));
-				return jffs2_get_sb_mtdnr(fs_type, flags, dev_name, data, mtdnr);
+				return jffs2_get_sb_mtdnr(fs_type, flags, dev_name, data, mtdnr, mnt);
 			}
 		}
 	}
@@ -247,7 +252,7 @@ static struct super_block *jffs2_get_sb(struct file_system_type *fs_type,
 		  err, nd.dentry->d_inode));
 
 	if (err)
-		return ERR_PTR(err);
+		return err;
 
 	err = -EINVAL;
 
@@ -269,11 +274,11 @@ static struct super_block *jffs2_get_sb(struct file_system_type *fs_type,
 	mtdnr = iminor(nd.dentry->d_inode);
 	path_release(&nd);
 
-	return jffs2_get_sb_mtdnr(fs_type, flags, dev_name, data, mtdnr);
+	return jffs2_get_sb_mtdnr(fs_type, flags, dev_name, data, mtdnr, mnt);
 
 out:
 	path_release(&nd);
-	return ERR_PTR(err);
+	return err;
 }
 
 static void jffs2_put_super (struct super_block *sb)

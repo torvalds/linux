@@ -553,7 +553,7 @@ get_sigframe(struct k_sigaction *ka, struct pt_regs *regs, size_t frame_size)
 
 	/* This is the X/Open sanctioned signal stack switching.  */
 	if (ka->sa.sa_flags & SA_ONSTACK) {
-		if (!on_sig_stack(usp))
+		if (!sas_ss_flags(usp))
 			usp = current->sas_ss_sp + current->sas_ss_size;
 	}
 	return (void *)((usp - frame_size) & -8UL);
@@ -608,7 +608,7 @@ adjust_stack:
 	if (regs->stkadj) {
 		struct pt_regs *tregs =
 			(struct pt_regs *)((ulong)regs + regs->stkadj);
-#if DEBUG
+#if defined(DEBUG)
 		printk(KERN_DEBUG "Performing stackadjust=%04x\n", regs->stkadj);
 #endif
 		/* This must be copied with decreasing addresses to
@@ -678,7 +678,7 @@ adjust_stack:
 	if (regs->stkadj) {
 		struct pt_regs *tregs =
 			(struct pt_regs *)((ulong)regs + regs->stkadj);
-#if DEBUG
+#if defined(DEBUG)
 		printk(KERN_DEBUG "Performing stackadjust=%04x\n", regs->stkadj);
 #endif
 		/* This must be copied with decreasing addresses to

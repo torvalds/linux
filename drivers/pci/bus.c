@@ -81,9 +81,9 @@ void __devinit pci_bus_add_device(struct pci_dev *dev)
 {
 	device_add(&dev->dev);
 
-	spin_lock(&pci_bus_lock);
+	down_write(&pci_bus_sem);
 	list_add_tail(&dev->global_list, &pci_devices);
-	spin_unlock(&pci_bus_lock);
+	up_write(&pci_bus_sem);
 
 	pci_proc_attach_device(dev);
 	pci_create_sysfs_dev_files(dev);
@@ -125,10 +125,10 @@ void __devinit pci_bus_add_devices(struct pci_bus *bus)
 		 */
 		if (dev->subordinate) {
 		       if (list_empty(&dev->subordinate->node)) {
-			       spin_lock(&pci_bus_lock);
+			       down_write(&pci_bus_sem);
 			       list_add_tail(&dev->subordinate->node,
 					       &dev->bus->children);
-			       spin_unlock(&pci_bus_lock);
+			       up_write(&pci_bus_sem);
 		       }
 			pci_bus_add_devices(dev->subordinate);
 
@@ -168,7 +168,7 @@ void pci_walk_bus(struct pci_bus *top, void (*cb)(struct pci_dev *, void *),
 	struct list_head *next;
 
 	bus = top;
-	spin_lock(&pci_bus_lock);
+	down_read(&pci_bus_sem);
 	next = top->devices.next;
 	for (;;) {
 		if (next == &bus->devices) {
@@ -180,22 +180,19 @@ void pci_walk_bus(struct pci_bus *top, void (*cb)(struct pci_dev *, void *),
 			continue;
 		}
 		dev = list_entry(next, struct pci_dev, bus_list);
-		pci_dev_get(dev);
 		if (dev->subordinate) {
 			/* this is a pci-pci bridge, do its devices next */
 			next = dev->subordinate->devices.next;
 			bus = dev->subordinate;
 		} else
 			next = dev->bus_list.next;
-		spin_unlock(&pci_bus_lock);
 
-		/* Run device routines with the bus unlocked */
+		/* Run device routines with the device locked */
+		down(&dev->dev.sem);
 		cb(dev, userdata);
-
-		spin_lock(&pci_bus_lock);
-		pci_dev_put(dev);
+		up(&dev->dev.sem);
 	}
-	spin_unlock(&pci_bus_lock);
+	up_read(&pci_bus_sem);
 }
 EXPORT_SYMBOL_GPL(pci_walk_bus);
 

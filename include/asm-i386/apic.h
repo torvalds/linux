@@ -138,8 +138,6 @@ void switch_ipi_to_APIC_timer(void *cpumask);
 
 extern int timer_over_8254;
 
-extern int modern_apic(void);
-
 #else /* !CONFIG_X86_LOCAL_APIC */
 static inline void lapic_shutdown(void) { }
 

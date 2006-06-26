@@ -49,6 +49,33 @@ ACPI_MODULE_NAME("utmisc")
 
 /*******************************************************************************
  *
+ * FUNCTION:    acpi_ut_is_aml_table
+ *
+ * PARAMETERS:  Table               - An ACPI table
+ *
+ * RETURN:      TRUE if table contains executable AML; FALSE otherwise
+ *
+ * DESCRIPTION: Check ACPI Signature for a table that contains AML code.
+ *              Currently, these are DSDT,SSDT,PSDT. All other table types are
+ *              data tables that do not contain AML code.
+ *
+ ******************************************************************************/
+u8 acpi_ut_is_aml_table(struct acpi_table_header *table)
+{
+
+	/* Ignore tables that contain AML */
+
+	if (ACPI_COMPARE_NAME(table->signature, DSDT_SIG) ||
+	    ACPI_COMPARE_NAME(table->signature, PSDT_SIG) ||
+	    ACPI_COMPARE_NAME(table->signature, SSDT_SIG)) {
+		return (TRUE);
+	}
+
+	return (FALSE);
+}
+
+/*******************************************************************************
+ *
  * FUNCTION:    acpi_ut_allocate_owner_id
  *
  * PARAMETERS:  owner_id        - Where the new owner ID is returned
@@ -60,6 +87,7 @@ ACPI_MODULE_NAME("utmisc")
  *              when the method exits or the table is unloaded.
  *
  ******************************************************************************/
+
 acpi_status acpi_ut_allocate_owner_id(acpi_owner_id * owner_id)
 {
 	acpi_native_uint i;
@@ -67,7 +95,7 @@ acpi_status acpi_ut_allocate_owner_id(acpi_owner_id * owner_id)
 	acpi_native_uint k;
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("ut_allocate_owner_id");
+	ACPI_FUNCTION_TRACE(ut_allocate_owner_id);
 
 	/* Guard against multiple allocations of ID to the same location */
 
@@ -97,6 +125,7 @@ acpi_status acpi_ut_allocate_owner_id(acpi_owner_id * owner_id)
 
 		for (k = acpi_gbl_next_owner_id_offset; k < 32; k++) {
 			if (acpi_gbl_owner_id_mask[j] == ACPI_UINT32_MAX) {
+
 				/* There are no free IDs in this mask */
 
 				break;
@@ -123,7 +152,7 @@ acpi_status acpi_ut_allocate_owner_id(acpi_owner_id * owner_id)
 				    (acpi_owner_id) ((k + 1) + ACPI_MUL_32(j));
 
 				ACPI_DEBUG_PRINT((ACPI_DB_VALUES,
-						  "Allocated owner_id: %2.2X\n",
+						  "Allocated OwnerId: %2.2X\n",
 						  (unsigned int)*owner_id));
 				goto exit;
 			}
@@ -144,7 +173,7 @@ acpi_status acpi_ut_allocate_owner_id(acpi_owner_id * owner_id)
 	 */
 	status = AE_OWNER_ID_LIMIT;
 	ACPI_ERROR((AE_INFO,
-		    "Could not allocate new owner_id (255 max), AE_OWNER_ID_LIMIT"));
+		    "Could not allocate new OwnerId (255 max), AE_OWNER_ID_LIMIT"));
 
       exit:
 	(void)acpi_ut_release_mutex(ACPI_MTX_CACHES);
@@ -172,7 +201,7 @@ void acpi_ut_release_owner_id(acpi_owner_id * owner_id_ptr)
 	acpi_native_uint index;
 	u32 bit;
 
-	ACPI_FUNCTION_TRACE_U32("ut_release_owner_id", owner_id);
+	ACPI_FUNCTION_TRACE_U32(ut_release_owner_id, owner_id);
 
 	/* Always clear the input owner_id (zero is an invalid ID) */
 
@@ -181,7 +210,7 @@ void acpi_ut_release_owner_id(acpi_owner_id * owner_id_ptr)
 	/* Zero is not a valid owner_iD */
 
 	if (owner_id == 0) {
-		ACPI_ERROR((AE_INFO, "Invalid owner_id: %2.2X", owner_id));
+		ACPI_ERROR((AE_INFO, "Invalid OwnerId: %2.2X", owner_id));
 		return_VOID;
 	}
 
@@ -207,7 +236,7 @@ void acpi_ut_release_owner_id(acpi_owner_id * owner_id_ptr)
 		acpi_gbl_owner_id_mask[index] ^= bit;
 	} else {
 		ACPI_ERROR((AE_INFO,
-			    "Release of non-allocated owner_id: %2.2X",
+			    "Release of non-allocated OwnerId: %2.2X",
 			    owner_id + 1));
 	}
 
@@ -273,6 +302,7 @@ void acpi_ut_print_string(char *string, u8 max_length)
 
 	acpi_os_printf("\"");
 	for (i = 0; string[i] && (i < max_length); i++) {
+
 		/* Escape sequences */
 
 		switch (string[i]) {
@@ -461,9 +491,44 @@ acpi_ut_display_init_pathname(u8 type,
 	}
 	acpi_os_printf("\n");
 
-	ACPI_MEM_FREE(buffer.pointer);
+	ACPI_FREE(buffer.pointer);
 }
 #endif
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ut_valid_acpi_char
+ *
+ * PARAMETERS:  Char            - The character to be examined
+ *
+ * RETURN:      TRUE if the character is valid, FALSE otherwise
+ *
+ * DESCRIPTION: Check for a valid ACPI character. Must be one of:
+ *              1) Upper case alpha
+ *              2) numeric
+ *              3) underscore
+ *
+ *              We allow a '!' as the last character because of the ASF! table
+ *
+ ******************************************************************************/
+
+u8 acpi_ut_valid_acpi_char(char character, acpi_native_uint position)
+{
+
+	if (!((character >= 'A' && character <= 'Z') ||
+	      (character >= '0' && character <= '9') || (character == '_'))) {
+
+		/* Allow a '!' in the last position */
+
+		if (character == '!' && position == 3) {
+			return (TRUE);
+		}
+
+		return (FALSE);
+	}
+
+	return (TRUE);
+}
 
 /*******************************************************************************
  *
@@ -482,19 +547,13 @@ acpi_ut_display_init_pathname(u8 type,
 
 u8 acpi_ut_valid_acpi_name(u32 name)
 {
-	char *name_ptr = (char *)&name;
-	char character;
 	acpi_native_uint i;
 
 	ACPI_FUNCTION_ENTRY();
 
 	for (i = 0; i < ACPI_NAME_SIZE; i++) {
-		character = *name_ptr;
-		name_ptr++;
-
-		if (!((character == '_') ||
-		      (character >= 'A' && character <= 'Z') ||
-		      (character >= '0' && character <= '9'))) {
+		if (!acpi_ut_valid_acpi_char
+		    ((ACPI_CAST_PTR(char, &name))[i], i)) {
 			return (FALSE);
 		}
 	}
@@ -504,24 +563,37 @@ u8 acpi_ut_valid_acpi_name(u32 name)
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_ut_valid_acpi_character
+ * FUNCTION:    acpi_ut_repair_name
  *
- * PARAMETERS:  Character           - The character to be examined
+ * PARAMETERS:  Name            - The ACPI name to be repaired
  *
- * RETURN:      1 if Character may appear in a name, else 0
+ * RETURN:      Repaired version of the name
  *
- * DESCRIPTION: Check for a printable character
+ * DESCRIPTION: Repair an ACPI name: Change invalid characters to '*' and
+ *              return the new name.
  *
  ******************************************************************************/
 
-u8 acpi_ut_valid_acpi_character(char character)
+acpi_name acpi_ut_repair_name(acpi_name name)
 {
+	char *name_ptr = ACPI_CAST_PTR(char, &name);
+	char new_name[ACPI_NAME_SIZE];
+	acpi_native_uint i;
 
-	ACPI_FUNCTION_ENTRY();
+	for (i = 0; i < ACPI_NAME_SIZE; i++) {
+		new_name[i] = name_ptr[i];
 
-	return ((u8) ((character == '_') ||
-		      (character >= 'A' && character <= 'Z') ||
-		      (character >= '0' && character <= '9')));
+		/*
+		 * Replace a bad character with something printable, yet technically
+		 * still invalid. This prevents any collisions with existing "good"
+		 * names in the namespace.
+		 */
+		if (!acpi_ut_valid_acpi_char(name_ptr[i], i)) {
+			new_name[i] = '*';
+		}
+	}
+
+	return (*ACPI_CAST_PTR(u32, new_name));
 }
 
 /*******************************************************************************
@@ -529,7 +601,8 @@ u8 acpi_ut_valid_acpi_character(char character)
  * FUNCTION:    acpi_ut_strtoul64
  *
  * PARAMETERS:  String          - Null terminated string
- *              Base            - Radix of the string: 10, 16, or ACPI_ANY_BASE
+ *              Base            - Radix of the string: 16 or ACPI_ANY_BASE;
+ *                                ACPI_ANY_BASE means 'in behalf of to_integer'
  *              ret_integer     - Where the converted integer is returned
  *
  * RETURN:      Status and Converted value
@@ -545,16 +618,17 @@ acpi_ut_strtoul64(char *string, u32 base, acpi_integer * ret_integer)
 	u32 this_digit = 0;
 	acpi_integer return_value = 0;
 	acpi_integer quotient;
+	acpi_integer dividend;
+	u32 to_integer_op = (base == ACPI_ANY_BASE);
+	u32 mode32 = (acpi_gbl_integer_byte_width == 4);
+	u8 valid_digits = 0;
+	u8 sign_of0x = 0;
+	u8 term = 0;
 
-	ACPI_FUNCTION_TRACE("ut_stroul64");
-
-	if ((!string) || !(*string)) {
-		goto error_exit;
-	}
+	ACPI_FUNCTION_TRACE(ut_stroul64);
 
 	switch (base) {
 	case ACPI_ANY_BASE:
-	case 10:
 	case 16:
 		break;
 
@@ -563,76 +637,110 @@ acpi_ut_strtoul64(char *string, u32 base, acpi_integer * ret_integer)
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
+	if (!string) {
+		goto error_exit;
+	}
+
 	/* Skip over any white space in the buffer */
 
-	while (ACPI_IS_SPACE(*string) || *string == '\t') {
+	while ((*string) && (ACPI_IS_SPACE(*string) || *string == '\t')) {
 		string++;
 	}
 
-	/*
-	 * If the input parameter Base is zero, then we need to
-	 * determine if it is decimal or hexadecimal:
-	 */
-	if (base == 0) {
+	if (to_integer_op) {
+		/*
+		 * Base equal to ACPI_ANY_BASE means 'to_integer operation case'.
+		 * We need to determine if it is decimal or hexadecimal.
+		 */
 		if ((*string == '0') && (ACPI_TOLOWER(*(string + 1)) == 'x')) {
+			sign_of0x = 1;
 			base = 16;
+
+			/* Skip over the leading '0x' */
 			string += 2;
 		} else {
 			base = 10;
 		}
 	}
 
-	/*
-	 * For hexadecimal base, skip over the leading
-	 * 0 or 0x, if they are present.
-	 */
-	if ((base == 16) &&
-	    (*string == '0') && (ACPI_TOLOWER(*(string + 1)) == 'x')) {
-		string += 2;
+	/* Any string left? Check that '0x' is not followed by white space. */
+
+	if (!(*string) || ACPI_IS_SPACE(*string) || *string == '\t') {
+		if (to_integer_op) {
+			goto error_exit;
+		} else {
+			goto all_done;
+		}
 	}
 
-	/* Any string left? */
+	dividend = (mode32) ? ACPI_UINT32_MAX : ACPI_UINT64_MAX;
 
-	if (!(*string)) {
-		goto error_exit;
-	}
+	/* At least one character in the string here */
 
 	/* Main loop: convert the string to a 64-bit integer */
 
 	while (*string) {
 		if (ACPI_IS_DIGIT(*string)) {
+
 			/* Convert ASCII 0-9 to Decimal value */
 
 			this_digit = ((u8) * string) - '0';
+		} else if (base == 10) {
+
+			/* Digit is out of range; possible in to_integer case only */
+
+			term = 1;
 		} else {
-			if (base == 10) {
-				/* Digit is out of range */
-
-				goto error_exit;
-			}
-
 			this_digit = (u8) ACPI_TOUPPER(*string);
 			if (ACPI_IS_XDIGIT((char)this_digit)) {
+
 				/* Convert ASCII Hex char to value */
 
 				this_digit = this_digit - 'A' + 10;
 			} else {
-				/*
-				 * We allow non-hex chars, just stop now, same as end-of-string.
-				 * See ACPI spec, string-to-integer conversion.
-				 */
+				term = 1;
+			}
+		}
+
+		if (term) {
+			if (to_integer_op) {
+				goto error_exit;
+			} else {
 				break;
 			}
+		} else if ((valid_digits == 0) && (this_digit == 0)
+			   && !sign_of0x) {
+
+			/* Skip zeros */
+			string++;
+			continue;
+		}
+
+		valid_digits++;
+
+		if (sign_of0x
+		    && ((valid_digits > 16)
+			|| ((valid_digits > 8) && mode32))) {
+			/*
+			 * This is to_integer operation case.
+			 * No any restrictions for string-to-integer conversion,
+			 * see ACPI spec.
+			 */
+			goto error_exit;
 		}
 
 		/* Divide the digit into the correct position */
 
 		(void)
-		    acpi_ut_short_divide((ACPI_INTEGER_MAX -
-					  (acpi_integer) this_digit), base,
-					 &quotient, NULL);
+		    acpi_ut_short_divide((dividend - (acpi_integer) this_digit),
+					 base, &quotient, NULL);
+
 		if (return_value > quotient) {
-			goto error_exit;
+			if (to_integer_op) {
+				goto error_exit;
+			} else {
+				break;
+			}
 		}
 
 		return_value *= base;
@@ -641,6 +749,8 @@ acpi_ut_strtoul64(char *string, u32 base, acpi_integer * ret_integer)
 	}
 
 	/* All done, normal exit */
+
+      all_done:
 
 	*ret_integer = return_value;
 	return_ACPI_STATUS(AE_OK);
@@ -719,7 +829,7 @@ acpi_ut_walk_package_tree(union acpi_operand_object * source_object,
 	u32 this_index;
 	union acpi_operand_object *this_source_obj;
 
-	ACPI_FUNCTION_TRACE("ut_walk_package_tree");
+	ACPI_FUNCTION_TRACE(ut_walk_package_tree);
 
 	state = acpi_ut_create_pkg_state(source_object, target_object, 0);
 	if (!state) {
@@ -727,6 +837,7 @@ acpi_ut_walk_package_tree(union acpi_operand_object * source_object,
 	}
 
 	while (state) {
+
 		/* Get one element of the package */
 
 		this_index = state->pkg.index;
@@ -814,31 +925,6 @@ acpi_ut_walk_package_tree(union acpi_operand_object * source_object,
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_ut_generate_checksum
- *
- * PARAMETERS:  Buffer          - Buffer to be scanned
- *              Length          - number of bytes to examine
- *
- * RETURN:      The generated checksum
- *
- * DESCRIPTION: Generate a checksum on a raw buffer
- *
- ******************************************************************************/
-
-u8 acpi_ut_generate_checksum(u8 * buffer, u32 length)
-{
-	u32 i;
-	signed char sum = 0;
-
-	for (i = 0; i < length; i++) {
-		sum = (signed char)(sum + buffer[i]);
-	}
-
-	return ((u8) (0 - sum));
-}
-
-/*******************************************************************************
- *
  * FUNCTION:    acpi_ut_error, acpi_ut_warning, acpi_ut_info
  *
  * PARAMETERS:  module_name         - Caller's module name (for error output)
@@ -899,37 +985,4 @@ acpi_ut_info(char *module_name, u32 line_number, char *format, ...)
 	va_start(args, format);
 	acpi_os_vprintf(format, args);
 	acpi_os_printf(" [%X]\n", ACPI_CA_VERSION);
-}
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_ut_report_error, Warning, Info
- *
- * PARAMETERS:  module_name         - Caller's module name (for error output)
- *              line_number         - Caller's line number (for error output)
- *
- * RETURN:      None
- *
- * DESCRIPTION: Print error message
- *
- * Note: Legacy only, should be removed when no longer used by drivers.
- *
- ******************************************************************************/
-
-void acpi_ut_report_error(char *module_name, u32 line_number)
-{
-
-	acpi_os_printf("ACPI Error (%s-%04d): ", module_name, line_number);
-}
-
-void acpi_ut_report_warning(char *module_name, u32 line_number)
-{
-
-	acpi_os_printf("ACPI Warning (%s-%04d): ", module_name, line_number);
-}
-
-void acpi_ut_report_info(char *module_name, u32 line_number)
-{
-
-	acpi_os_printf("ACPI (%s-%04d): ", module_name, line_number);
 }

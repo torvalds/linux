@@ -773,8 +773,7 @@ static int __devinit ads7846_probe(struct spi_device *spi)
 
 	ts->last_msg = m;
 
-	if (request_irq(spi->irq, ads7846_irq,
-			SA_SAMPLE_RANDOM | SA_TRIGGER_FALLING,
+	if (request_irq(spi->irq, ads7846_irq, SA_TRIGGER_FALLING,
 			spi->dev.driver->name, ts)) {
 		dev_dbg(&spi->dev, "irq %d busy?\n", spi->irq);
 		err = -EBUSY;

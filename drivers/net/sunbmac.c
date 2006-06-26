@@ -72,8 +72,6 @@ MODULE_LICENSE("GPL");
 #define DIRQ(x)
 #endif
 
-static struct bigmac *root_bigmac_dev;
-
 #define DEFAULT_JAMSIZE    4 /* Toe jam */
 
 #define QEC_RESET_TRIES 200
@@ -491,7 +489,7 @@ static void bigmac_tcvr_init(struct bigmac *bp)
 	}
 }
 
-static int bigmac_init(struct bigmac *, int);
+static int bigmac_init_hw(struct bigmac *, int);
 
 static int try_next_permutation(struct bigmac *bp, void __iomem *tregs)
 {
@@ -551,7 +549,7 @@ static void bigmac_timer(unsigned long data)
 				if (ret == -1) {
 					printk(KERN_ERR "%s: Link down, cable problem?\n",
 					       bp->dev->name);
-					ret = bigmac_init(bp, 0);
+					ret = bigmac_init_hw(bp, 0);
 					if (ret) {
 						printk(KERN_ERR "%s: Error, cannot re-init the "
 						       "BigMAC.\n", bp->dev->name);
@@ -621,7 +619,7 @@ static void bigmac_begin_auto_negotiation(struct bigmac *bp)
 	add_timer(&bp->bigmac_timer);
 }
 
-static int bigmac_init(struct bigmac *bp, int from_irq)
+static int bigmac_init_hw(struct bigmac *bp, int from_irq)
 {
 	void __iomem *gregs        = bp->gregs;
 	void __iomem *cregs        = bp->creg;
@@ -752,7 +750,7 @@ static void bigmac_is_medium_rare(struct bigmac *bp, u32 qec_status, u32 bmac_st
 	}
 
 	printk(" RESET\n");
-	bigmac_init(bp, 1);
+	bigmac_init_hw(bp, 1);
 }
 
 /* BigMAC transmit complete service routines. */
@@ -926,7 +924,7 @@ static int bigmac_open(struct net_device *dev)
 		return ret;
 	}
 	init_timer(&bp->bigmac_timer);
-	ret = bigmac_init(bp, 0);
+	ret = bigmac_init_hw(bp, 0);
 	if (ret)
 		free_irq(dev->irq, bp);
 	return ret;
@@ -950,7 +948,7 @@ static void bigmac_tx_timeout(struct net_device *dev)
 {
 	struct bigmac *bp = (struct bigmac *) dev->priv;
 
-	bigmac_init(bp, 0);
+	bigmac_init_hw(bp, 0);
 	netif_wake_queue(dev);
 }
 
@@ -1104,6 +1102,8 @@ static int __init bigmac_ether_init(struct sbus_dev *qec_sdev)
 	bp->qec_sdev = qec_sdev;
 	bp->bigmac_sdev = qec_sdev->child;
 
+	SET_NETDEV_DEV(dev, &bp->bigmac_sdev->ofdev.dev);
+
 	spin_lock_init(&bp->lock);
 
 	/* Verify the registers we expect, are actually there. */
@@ -1226,11 +1226,7 @@ static int __init bigmac_ether_init(struct sbus_dev *qec_sdev)
 		goto fail_and_cleanup;
 	}
 
-	/* Put us into the list of instances attached for later driver
-	 * exit.
-	 */
-	bp->next_module = root_bigmac_dev;
-	root_bigmac_dev = bp;
+	dev_set_drvdata(&bp->bigmac_sdev->ofdev.dev, bp);
 
 	printk(KERN_INFO "%s: BigMAC 100baseT Ethernet ", dev->name);
 	for (i = 0; i < 6; i++)
@@ -1266,69 +1262,68 @@ fail_and_cleanup:
 /* QEC can be the parent of either QuadEthernet or
  * a BigMAC.  We want the latter.
  */
-static int __init bigmac_match(struct sbus_dev *sdev)
+static int __devinit bigmac_sbus_probe(struct of_device *dev, const struct of_device_id *match)
 {
-	struct sbus_dev *child = sdev->child;
+	struct sbus_dev *sdev = to_sbus_device(&dev->dev);
+	struct device_node *dp = dev->node;
 
-	if (strcmp(sdev->prom_name, "qec") != 0)
-		return 0;
+	if (!strcmp(dp->name, "be"))
+		sdev = sdev->parent;
 
-	if (child == NULL)
-		return 0;
-
-	if (strcmp(child->prom_name, "be") != 0)
-		return 0;
-
-	return 1;
+	return bigmac_ether_init(sdev);
 }
 
-static int __init bigmac_probe(void)
+static int __devexit bigmac_sbus_remove(struct of_device *dev)
 {
-	struct sbus_bus *sbus;
-	struct sbus_dev *sdev = NULL;
-	static int called;
-	int cards = 0, v;
+	struct bigmac *bp = dev_get_drvdata(&dev->dev);
+	struct net_device *net_dev = bp->dev;
 
-	root_bigmac_dev = NULL;
+	unregister_netdevice(net_dev);
 
-	if (called)
-		return -ENODEV;
-	called++;
+	sbus_iounmap(bp->gregs, GLOB_REG_SIZE);
+	sbus_iounmap(bp->creg, CREG_REG_SIZE);
+	sbus_iounmap(bp->bregs, BMAC_REG_SIZE);
+	sbus_iounmap(bp->tregs, TCVR_REG_SIZE);
+	sbus_free_consistent(bp->bigmac_sdev,
+			     PAGE_SIZE,
+			     bp->bmac_block,
+			     bp->bblock_dvma);
 
-	for_each_sbus(sbus) {
-		for_each_sbusdev(sdev, sbus) {
-			if (bigmac_match(sdev)) {
-				cards++;
-				if ((v = bigmac_ether_init(sdev)))
-					return v;
-			}
-		}
-	}
-	if (!cards)
-		return -ENODEV;
+	free_netdev(net_dev);
+
+	dev_set_drvdata(&dev->dev, NULL);
+
 	return 0;
 }
 
-static void __exit bigmac_cleanup(void)
+static struct of_device_id bigmac_sbus_match[] = {
+	{
+		.name = "qec",
+	},
+	{
+		.name = "be",
+	},
+	{},
+};
+
+MODULE_DEVICE_TABLE(of, bigmac_sbus_match);
+
+static struct of_platform_driver bigmac_sbus_driver = {
+	.name		= "sunbmac",
+	.match_table	= bigmac_sbus_match,
+	.probe		= bigmac_sbus_probe,
+	.remove		= __devexit_p(bigmac_sbus_remove),
+};
+
+static int __init bigmac_init(void)
 {
-	while (root_bigmac_dev) {
-		struct bigmac *bp = root_bigmac_dev;
-		struct bigmac *bp_nxt = root_bigmac_dev->next_module;
-
-		sbus_iounmap(bp->gregs, GLOB_REG_SIZE);
-		sbus_iounmap(bp->creg, CREG_REG_SIZE);
-		sbus_iounmap(bp->bregs, BMAC_REG_SIZE);
-		sbus_iounmap(bp->tregs, TCVR_REG_SIZE);
-		sbus_free_consistent(bp->bigmac_sdev,
-				     PAGE_SIZE,
-				     bp->bmac_block,
-				     bp->bblock_dvma);
-
-		unregister_netdev(bp->dev);
-		free_netdev(bp->dev);
-		root_bigmac_dev = bp_nxt;
-	}
+	return of_register_driver(&bigmac_sbus_driver, &sbus_bus_type);
 }
 
-module_init(bigmac_probe);
-module_exit(bigmac_cleanup);
+static void __exit bigmac_exit(void)
+{
+	of_unregister_driver(&bigmac_sbus_driver);
+}
+
+module_init(bigmac_init);
+module_exit(bigmac_exit);

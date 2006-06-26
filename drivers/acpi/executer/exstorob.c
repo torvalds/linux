@@ -67,7 +67,7 @@ acpi_ex_store_buffer_to_buffer(union acpi_operand_object *source_desc,
 	u32 length;
 	u8 *buffer;
 
-	ACPI_FUNCTION_TRACE_PTR("ex_store_buffer_to_buffer", source_desc);
+	ACPI_FUNCTION_TRACE_PTR(ex_store_buffer_to_buffer, source_desc);
 
 	/* We know that source_desc is a buffer by now */
 
@@ -80,7 +80,7 @@ acpi_ex_store_buffer_to_buffer(union acpi_operand_object *source_desc,
 	 */
 	if ((target_desc->buffer.length == 0) ||
 	    (target_desc->common.flags & AOPOBJ_STATIC_POINTER)) {
-		target_desc->buffer.pointer = ACPI_MEM_ALLOCATE(length);
+		target_desc->buffer.pointer = ACPI_ALLOCATE(length);
 		if (!target_desc->buffer.pointer) {
 			return_ACPI_STATUS(AE_NO_MEMORY);
 		}
@@ -91,6 +91,7 @@ acpi_ex_store_buffer_to_buffer(union acpi_operand_object *source_desc,
 	/* Copy source buffer to target buffer */
 
 	if (length <= target_desc->buffer.length) {
+
 		/* Clear existing buffer and copy in the new one */
 
 		ACPI_MEMSET(target_desc->buffer.pointer, 0,
@@ -102,7 +103,7 @@ acpi_ex_store_buffer_to_buffer(union acpi_operand_object *source_desc,
 		 * NOTE: ACPI versions up to 3.0 specified that the buffer must be
 		 * truncated if the string is smaller than the buffer.  However, "other"
 		 * implementations of ACPI never did this and thus became the defacto
-		 * standard. ACPi 3.0_a changes this behavior such that the buffer
+		 * standard. ACPI 3.0_a changes this behavior such that the buffer
 		 * is no longer truncated.
 		 */
 
@@ -113,6 +114,7 @@ acpi_ex_store_buffer_to_buffer(union acpi_operand_object *source_desc,
 		 * copy must not truncate the original buffer.
 		 */
 		if (original_src_type == ACPI_TYPE_STRING) {
+
 			/* Set the new length of the target */
 
 			target_desc->buffer.length = length;
@@ -156,7 +158,7 @@ acpi_ex_store_string_to_string(union acpi_operand_object *source_desc,
 	u32 length;
 	u8 *buffer;
 
-	ACPI_FUNCTION_TRACE_PTR("ex_store_string_to_string", source_desc);
+	ACPI_FUNCTION_TRACE_PTR(ex_store_string_to_string, source_desc);
 
 	/* We know that source_desc is a string by now */
 
@@ -183,13 +185,14 @@ acpi_ex_store_string_to_string(union acpi_operand_object *source_desc,
 		 */
 		if (target_desc->string.pointer &&
 		    (!(target_desc->common.flags & AOPOBJ_STATIC_POINTER))) {
+
 			/* Only free if not a pointer into the DSDT */
 
-			ACPI_MEM_FREE(target_desc->string.pointer);
+			ACPI_FREE(target_desc->string.pointer);
 		}
 
-		target_desc->string.pointer = ACPI_MEM_CALLOCATE((acpi_size)
-								 length + 1);
+		target_desc->string.pointer = ACPI_ALLOCATE_ZEROED((acpi_size)
+								   length + 1);
 		if (!target_desc->string.pointer) {
 			return_ACPI_STATUS(AE_NO_MEMORY);
 		}

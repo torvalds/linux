@@ -75,7 +75,7 @@ int acct_parm[3] = {4, 2, 30};
 /*
  * External references and all of the globals.
  */
-static void do_acct_process(long, struct file *);
+static void do_acct_process(struct file *);
 
 /*
  * This structure is used so that all the data protected by lock
@@ -118,7 +118,7 @@ static int check_free_space(struct file *file)
 	spin_unlock(&acct_globals.lock);
 
 	/* May block */
-	if (vfs_statfs(file->f_dentry->d_inode->i_sb, &sbuf))
+	if (vfs_statfs(file->f_dentry, &sbuf))
 		return res;
 	suspend = sbuf.f_blocks * SUSPEND;
 	resume = sbuf.f_blocks * RESUME;
@@ -196,7 +196,7 @@ static void acct_file_reopen(struct file *file)
 	if (old_acct) {
 		mnt_unpin(old_acct->f_vfsmnt);
 		spin_unlock(&acct_globals.lock);
-		do_acct_process(0, old_acct);
+		do_acct_process(old_acct);
 		filp_close(old_acct, NULL);
 		spin_lock(&acct_globals.lock);
 	}
@@ -419,16 +419,15 @@ static u32 encode_float(u64 value)
 /*
  *  do_acct_process does all actual work. Caller holds the reference to file.
  */
-static void do_acct_process(long exitcode, struct file *file)
+static void do_acct_process(struct file *file)
 {
+	struct pacct_struct *pacct = &current->signal->pacct;
 	acct_t ac;
 	mm_segment_t fs;
-	unsigned long vsize;
 	unsigned long flim;
 	u64 elapsed;
 	u64 run_time;
 	struct timespec uptime;
-	unsigned long jiffies;
 
 	/*
 	 * First check to see if there is enough free_space to continue
@@ -469,12 +468,6 @@ static void do_acct_process(long exitcode, struct file *file)
 #endif
 	do_div(elapsed, AHZ);
 	ac.ac_btime = xtime.tv_sec - elapsed;
-	jiffies = cputime_to_jiffies(cputime_add(current->utime,
-						 current->signal->utime));
-	ac.ac_utime = encode_comp_t(jiffies_to_AHZ(jiffies));
-	jiffies = cputime_to_jiffies(cputime_add(current->stime,
-						 current->signal->stime));
-	ac.ac_stime = encode_comp_t(jiffies_to_AHZ(jiffies));
 	/* we really need to bite the bullet and change layout */
 	ac.ac_uid = current->uid;
 	ac.ac_gid = current->gid;
@@ -496,37 +489,18 @@ static void do_acct_process(long exitcode, struct file *file)
 		old_encode_dev(tty_devnum(current->signal->tty)) : 0;
 	read_unlock(&tasklist_lock);
 
-	ac.ac_flag = 0;
-	if (current->flags & PF_FORKNOEXEC)
-		ac.ac_flag |= AFORK;
-	if (current->flags & PF_SUPERPRIV)
-		ac.ac_flag |= ASU;
-	if (current->flags & PF_DUMPCORE)
-		ac.ac_flag |= ACORE;
-	if (current->flags & PF_SIGNALED)
-		ac.ac_flag |= AXSIG;
-
-	vsize = 0;
-	if (current->mm) {
-		struct vm_area_struct *vma;
-		down_read(&current->mm->mmap_sem);
-		vma = current->mm->mmap;
-		while (vma) {
-			vsize += vma->vm_end - vma->vm_start;
-			vma = vma->vm_next;
-		}
-		up_read(&current->mm->mmap_sem);
-	}
-	vsize = vsize / 1024;
-	ac.ac_mem = encode_comp_t(vsize);
+	spin_lock(&current->sighand->siglock);
+	ac.ac_utime = encode_comp_t(jiffies_to_AHZ(cputime_to_jiffies(pacct->ac_utime)));
+	ac.ac_stime = encode_comp_t(jiffies_to_AHZ(cputime_to_jiffies(pacct->ac_stime)));
+	ac.ac_flag = pacct->ac_flag;
+	ac.ac_mem = encode_comp_t(pacct->ac_mem);
+	ac.ac_minflt = encode_comp_t(pacct->ac_minflt);
+	ac.ac_majflt = encode_comp_t(pacct->ac_majflt);
+	ac.ac_exitcode = pacct->ac_exitcode;
+	spin_unlock(&current->sighand->siglock);
 	ac.ac_io = encode_comp_t(0 /* current->io_usage */);	/* %% */
 	ac.ac_rw = encode_comp_t(ac.ac_io / 1024);
-	ac.ac_minflt = encode_comp_t(current->signal->min_flt +
-				     current->min_flt);
-	ac.ac_majflt = encode_comp_t(current->signal->maj_flt +
-				     current->maj_flt);
 	ac.ac_swaps = encode_comp_t(0);
-	ac.ac_exitcode = exitcode;
 
 	/*
          * Kernel segment override to datasegment and write it
@@ -546,12 +520,63 @@ static void do_acct_process(long exitcode, struct file *file)
 }
 
 /**
+ * acct_init_pacct - initialize a new pacct_struct
+ */
+void acct_init_pacct(struct pacct_struct *pacct)
+{
+	memset(pacct, 0, sizeof(struct pacct_struct));
+	pacct->ac_utime = pacct->ac_stime = cputime_zero;
+}
+
+/**
+ * acct_collect - collect accounting information into pacct_struct
+ * @exitcode: task exit code
+ * @group_dead: not 0, if this thread is the last one in the process.
+ */
+void acct_collect(long exitcode, int group_dead)
+{
+	struct pacct_struct *pacct = &current->signal->pacct;
+	unsigned long vsize = 0;
+
+	if (group_dead && current->mm) {
+		struct vm_area_struct *vma;
+		down_read(&current->mm->mmap_sem);
+		vma = current->mm->mmap;
+		while (vma) {
+			vsize += vma->vm_end - vma->vm_start;
+			vma = vma->vm_next;
+		}
+		up_read(&current->mm->mmap_sem);
+	}
+
+	spin_lock_irq(&current->sighand->siglock);
+	if (group_dead)
+		pacct->ac_mem = vsize / 1024;
+	if (thread_group_leader(current)) {
+		pacct->ac_exitcode = exitcode;
+		if (current->flags & PF_FORKNOEXEC)
+			pacct->ac_flag |= AFORK;
+	}
+	if (current->flags & PF_SUPERPRIV)
+		pacct->ac_flag |= ASU;
+	if (current->flags & PF_DUMPCORE)
+		pacct->ac_flag |= ACORE;
+	if (current->flags & PF_SIGNALED)
+		pacct->ac_flag |= AXSIG;
+	pacct->ac_utime = cputime_add(pacct->ac_utime, current->utime);
+	pacct->ac_stime = cputime_add(pacct->ac_stime, current->stime);
+	pacct->ac_minflt += current->min_flt;
+	pacct->ac_majflt += current->maj_flt;
+	spin_unlock_irq(&current->sighand->siglock);
+}
+
+/**
  * acct_process - now just a wrapper around do_acct_process
  * @exitcode: task exit code
  *
  * handles process accounting for an exiting task
  */
-void acct_process(long exitcode)
+void acct_process()
 {
 	struct file *file = NULL;
 
@@ -570,7 +595,7 @@ void acct_process(long exitcode)
 	get_file(file);
 	spin_unlock(&acct_globals.lock);
 
-	do_acct_process(exitcode, file);
+	do_acct_process(file);
 	fput(file);
 }
 
@@ -599,9 +624,7 @@ void acct_update_integrals(struct task_struct *tsk)
  */
 void acct_clear_integrals(struct task_struct *tsk)
 {
-	if (tsk) {
-		tsk->acct_stimexpd = 0;
-		tsk->acct_rss_mem1 = 0;
-		tsk->acct_vm_mem1 = 0;
-	}
+	tsk->acct_stimexpd = 0;
+	tsk->acct_rss_mem1 = 0;
+	tsk->acct_vm_mem1 = 0;
 }

@@ -77,6 +77,7 @@ acpi_ex_check_object_type(acpi_object_type type_needed,
 	ACPI_FUNCTION_ENTRY();
 
 	if (type_needed == ACPI_TYPE_ANY) {
+
 		/* All types OK, so we don't perform any typechecks */
 
 		return (AE_OK);
@@ -143,7 +144,7 @@ acpi_ex_resolve_operands(u16 opcode,
 	acpi_object_type type_needed;
 	u16 target_op = 0;
 
-	ACPI_FUNCTION_TRACE_U32("ex_resolve_operands", opcode);
+	ACPI_FUNCTION_TRACE_U32(ex_resolve_operands, opcode);
 
 	op_info = acpi_ps_get_opcode_info(opcode);
 	if (op_info->class == AML_CLASS_UNKNOWN) {
@@ -158,7 +159,7 @@ acpi_ex_resolve_operands(u16 opcode,
 	}
 
 	ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
-			  "Opcode %X [%s] required_operand_types=%8.8X\n",
+			  "Opcode %X [%s] RequiredOperandTypes=%8.8X\n",
 			  opcode, op_info->name, arg_types));
 
 	/*
@@ -224,6 +225,7 @@ acpi_ex_resolve_operands(u16 opcode,
 			}
 
 			if (object_type == (u8) ACPI_TYPE_LOCAL_REFERENCE) {
+
 				/* Decode the Reference */
 
 				op_info = acpi_ps_get_opcode_info(opcode);
@@ -247,7 +249,7 @@ acpi_ex_resolve_operands(u16 opcode,
 
 					ACPI_DEBUG_ONLY_MEMBERS(ACPI_DEBUG_PRINT
 								((ACPI_DB_EXEC,
-								  "Operand is a Reference, ref_opcode [%s]\n",
+								  "Operand is a Reference, RefOpcode [%s]\n",
 								  (acpi_ps_get_opcode_info
 								   (obj_desc->
 								    reference.
@@ -332,6 +334,7 @@ acpi_ex_resolve_operands(u16 opcode,
 			}
 
 			if (obj_desc->reference.opcode == AML_NAME_OP) {
+
 				/* Convert a named reference to the actual named object */
 
 				temp_node = obj_desc->reference.object;
@@ -623,7 +626,7 @@ acpi_ex_resolve_operands(u16 opcode,
 
 			default:
 				ACPI_ERROR((AE_INFO,
-					    "Needed [Region/region_field], found [%s] %p",
+					    "Needed [Region/RegionField], found [%s] %p",
 					    acpi_ut_get_object_type_name
 					    (obj_desc), obj_desc));
 
@@ -662,6 +665,7 @@ acpi_ex_resolve_operands(u16 opcode,
 				}
 
 				if (target_op == AML_DEBUG_OP) {
+
 					/* Allow store of any object to the Debug object */
 
 					break;

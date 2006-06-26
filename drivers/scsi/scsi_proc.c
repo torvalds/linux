@@ -266,8 +266,6 @@ static ssize_t proc_scsi_write(struct file *file, const char __user *buf,
 		lun = simple_strtoul(p + 1, &p, 0);
 
 		err = scsi_add_single_device(host, channel, id, lun);
-		if (err >= 0)
-			err = length;
 
 	/*
 	 * Usage: echo "scsi remove-single-device 0 1 2 3" >/proc/scsi/scsi
@@ -283,6 +281,13 @@ static ssize_t proc_scsi_write(struct file *file, const char __user *buf,
 
 		err = scsi_remove_single_device(host, channel, id, lun);
 	}
+
+	/*
+	 * convert success returns so that we return the 
+	 * number of bytes consumed.
+	 */
+	if (!err)
+		err = length;
 
  out:
 	free_page((unsigned long)buffer);

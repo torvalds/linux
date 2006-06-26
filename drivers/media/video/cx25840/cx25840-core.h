@@ -24,6 +24,8 @@
 #include <linux/videodev2.h>
 #include <linux/i2c.h>
 
+extern int cx25840_debug;
+
 /* ENABLE_PVR150_WORKAROUND activates a workaround for a hardware bug that is
    present in Hauppauge PVR-150 (and possibly PVR-500) cards that have
    certain NTSC tuners (tveeprom tuner model numbers 85, 99 and 112). The
@@ -33,12 +35,16 @@
 #define CX25840_CID_ENABLE_PVR150_WORKAROUND (V4L2_CID_PRIVATE_BASE+0)
 
 struct cx25840_state {
+	struct i2c_client c;
 	int pvr150_workaround;
 	int radio;
 	enum cx25840_video_input vid_input;
 	enum cx25840_audio_input aud_input;
 	u32 audclk_freq;
 	int audmode;
+	int vbi_line_offset;
+	enum v4l2_chip_ident id;
+	int is_cx25836;
 };
 
 /* ----------------------------------------------------------------------- */
@@ -47,7 +53,7 @@ int cx25840_write(struct i2c_client *client, u16 addr, u8 value);
 int cx25840_write4(struct i2c_client *client, u16 addr, u32 value);
 u8 cx25840_read(struct i2c_client *client, u16 addr);
 u32 cx25840_read4(struct i2c_client *client, u16 addr);
-int cx25840_and_or(struct i2c_client *client, u16 addr, u8 mask, u8 value);
+int cx25840_and_or(struct i2c_client *client, u16 addr, unsigned mask, u8 value);
 v4l2_std_id cx25840_get_v4lstd(struct i2c_client *client);
 
 /* ----------------------------------------------------------------------- */

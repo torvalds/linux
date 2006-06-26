@@ -94,7 +94,7 @@ error_nolock:
 	goto out_exit;
 }
 
-static int xfrm6_output_finish(struct sk_buff *skb)
+static int xfrm6_output_finish2(struct sk_buff *skb)
 {
 	int err;
 
@@ -110,12 +110,47 @@ static int xfrm6_output_finish(struct sk_buff *skb)
 			return dst_output(skb);
 
 		err = nf_hook(PF_INET6, NF_IP6_POST_ROUTING, &skb, NULL,
-			      skb->dst->dev, xfrm6_output_finish);
+			      skb->dst->dev, xfrm6_output_finish2);
 		if (unlikely(err != 1))
 			break;
 	}
 
 	return err;
+}
+
+static int xfrm6_output_finish(struct sk_buff *skb)
+{
+	struct sk_buff *segs;
+
+	if (!skb_shinfo(skb)->gso_size)
+		return xfrm6_output_finish2(skb);
+
+	skb->protocol = htons(ETH_P_IP);
+	segs = skb_gso_segment(skb, 0);
+	kfree_skb(skb);
+	if (unlikely(IS_ERR(segs)))
+		return PTR_ERR(segs);
+
+	do {
+		struct sk_buff *nskb = segs->next;
+		int err;
+
+		segs->next = NULL;
+		err = xfrm6_output_finish2(segs);
+
+		if (unlikely(err)) {
+			while ((segs = nskb)) {
+				nskb = segs->next;
+				segs->next = NULL;
+				kfree_skb(segs);
+			}
+			return err;
+		}
+
+		segs = nskb;
+	} while (segs);
+
+	return 0;
 }
 
 int xfrm6_output(struct sk_buff *skb)

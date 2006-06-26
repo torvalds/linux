@@ -352,7 +352,7 @@ pci_acpi_scan_root(struct acpi_device *device, int domain, int bus)
 	pxm = acpi_get_pxm(controller->acpi_handle);
 #ifdef CONFIG_NUMA
 	if (pxm >= 0)
-		controller->node = pxm_to_nid_map[pxm];
+		controller->node = pxm_to_node(pxm);
 #endif
 
 	acpi_walk_resources(device->handle, METHOD_NAME__CRS, count_window,
@@ -602,8 +602,6 @@ pci_mmap_page_range (struct pci_dev *dev, struct vm_area_struct *vma,
 	 * Leave vm_pgoff as-is, the PCI space address is the physical
 	 * address on this platform.
 	 */
-	vma->vm_flags |= (VM_SHM | VM_RESERVED | VM_IO);
-
 	if (write_combine && efi_range_is_wc(vma->vm_start,
 					     vma->vm_end - vma->vm_start))
 		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
@@ -645,18 +643,30 @@ char *ia64_pci_get_legacy_mem(struct pci_bus *bus)
 int
 pci_mmap_legacy_page_range(struct pci_bus *bus, struct vm_area_struct *vma)
 {
+	unsigned long size = vma->vm_end - vma->vm_start;
+	pgprot_t prot;
 	char *addr;
+
+	/*
+	 * Avoid attribute aliasing.  See Documentation/ia64/aliasing.txt
+	 * for more details.
+	 */
+	if (!valid_mmap_phys_addr_range(vma->vm_pgoff << PAGE_SHIFT, size))
+		return -EINVAL;
+	prot = phys_mem_access_prot(NULL, vma->vm_pgoff, size,
+				    vma->vm_page_prot);
+	if (pgprot_val(prot) != pgprot_val(pgprot_noncached(vma->vm_page_prot)))
+		return -EINVAL;
 
 	addr = pci_get_legacy_mem(bus);
 	if (IS_ERR(addr))
 		return PTR_ERR(addr);
 
 	vma->vm_pgoff += (unsigned long)addr >> PAGE_SHIFT;
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-	vma->vm_flags |= (VM_SHM | VM_RESERVED | VM_IO);
+	vma->vm_page_prot = prot;
 
 	if (remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff,
-			    vma->vm_end - vma->vm_start, vma->vm_page_prot))
+			    size, vma->vm_page_prot))
 		return -EAGAIN;
 
 	return 0;

@@ -51,27 +51,22 @@
 
 #include <linux/string.h>
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/ctype.h>
 #include <asm/system.h>
 #include <asm/atomic.h>
 #include <asm/div64.h>
 #include <asm/acpi.h>
-
-#define strtoul simple_strtoul
-
-#define ACPI_MACHINE_WIDTH  BITS_PER_LONG
-
-/* Type(s) for the OSL */
-
-#ifdef ACPI_USE_LOCAL_CACHE
-#define acpi_cache_t	struct acpi_memory_list
-#else
 #include <linux/slab.h>
-#define acpi_cache_t	kmem_cache_t
-#endif
+
+/* Host-dependent types and defines */
+
+#define ACPI_MACHINE_WIDTH          BITS_PER_LONG
+#define acpi_cache_t                        kmem_cache_t
+#define ACPI_EXPORT_SYMBOL(symbol)  EXPORT_SYMBOL(symbol);
+#define strtoul                     simple_strtoul
 
 /* Full namespace pathname length limit - arbitrary */
-
 #define ACPI_PATHNAME_MAX              256
 
 #else				/* !__KERNEL__ */
@@ -102,5 +97,9 @@
 #include "acgcc.h"
 
 #define acpi_cpu_flags unsigned long
+
+#define acpi_thread_id u32
+
+static inline acpi_thread_id acpi_os_get_thread_id(void) { return 0; }
 
 #endif				/* __ACLINUX_H__ */

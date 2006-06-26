@@ -41,8 +41,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#include <linux/module.h>
-
 #include <acpi/acpi.h>
 #include <acpi/acevents.h>
 #include <acpi/acnamesp.h>
@@ -67,7 +65,7 @@ acpi_status acpi_initialize_subsystem(void)
 {
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("acpi_initialize_subsystem");
+	ACPI_FUNCTION_TRACE(acpi_initialize_subsystem);
 
 	ACPI_DEBUG_EXEC(acpi_ut_init_stack_ptr_trace());
 
@@ -109,6 +107,8 @@ acpi_status acpi_initialize_subsystem(void)
 	return_ACPI_STATUS(status);
 }
 
+ACPI_EXPORT_SYMBOL(acpi_initialize_subsystem)
+
 /*******************************************************************************
  *
  * FUNCTION:    acpi_enable_subsystem
@@ -121,12 +121,11 @@ acpi_status acpi_initialize_subsystem(void)
  *              Puts system into ACPI mode if it isn't already.
  *
  ******************************************************************************/
-
 acpi_status acpi_enable_subsystem(u32 flags)
 {
 	acpi_status status = AE_OK;
 
-	ACPI_FUNCTION_TRACE("acpi_enable_subsystem");
+	ACPI_FUNCTION_TRACE(acpi_enable_subsystem);
 
 	/*
 	 * We must initialize the hardware before we can enable ACPI.
@@ -152,7 +151,7 @@ acpi_status acpi_enable_subsystem(u32 flags)
 
 		status = acpi_enable();
 		if (ACPI_FAILURE(status)) {
-			ACPI_WARNING((AE_INFO, "acpi_enable failed"));
+			ACPI_WARNING((AE_INFO, "AcpiEnable failed"));
 			return_ACPI_STATUS(status);
 		}
 	}
@@ -229,6 +228,8 @@ acpi_status acpi_enable_subsystem(u32 flags)
 	return_ACPI_STATUS(status);
 }
 
+ACPI_EXPORT_SYMBOL(acpi_enable_subsystem)
+
 /*******************************************************************************
  *
  * FUNCTION:    acpi_initialize_objects
@@ -241,12 +242,11 @@ acpi_status acpi_enable_subsystem(u32 flags)
  *              objects and executing AML code for Regions, buffers, etc.
  *
  ******************************************************************************/
-
 acpi_status acpi_initialize_objects(u32 flags)
 {
 	acpi_status status = AE_OK;
 
-	ACPI_FUNCTION_TRACE("acpi_initialize_objects");
+	ACPI_FUNCTION_TRACE(acpi_initialize_objects);
 
 	/*
 	 * Run all _REG methods
@@ -257,7 +257,7 @@ acpi_status acpi_initialize_objects(u32 flags)
 	 */
 	if (!(flags & ACPI_NO_ADDRESS_SPACE_INIT)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
-				  "[Init] Executing _REG op_region methods\n"));
+				  "[Init] Executing _REG OpRegion methods\n"));
 
 		status = acpi_ev_initialize_op_regions();
 		if (ACPI_FAILURE(status)) {
@@ -305,6 +305,8 @@ acpi_status acpi_initialize_objects(u32 flags)
 	return_ACPI_STATUS(status);
 }
 
+ACPI_EXPORT_SYMBOL(acpi_initialize_objects)
+
 /*******************************************************************************
  *
  * FUNCTION:    acpi_terminate
@@ -316,12 +318,11 @@ acpi_status acpi_initialize_objects(u32 flags)
  * DESCRIPTION: Shutdown the ACPI subsystem.  Release all resources.
  *
  ******************************************************************************/
-
 acpi_status acpi_terminate(void)
 {
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("acpi_terminate");
+	ACPI_FUNCTION_TRACE(acpi_terminate);
 
 	/* Terminate the AML Debugger if present */
 
@@ -348,6 +349,8 @@ acpi_status acpi_terminate(void)
 	return_ACPI_STATUS(status);
 }
 
+ACPI_EXPORT_SYMBOL(acpi_terminate)
+
 #ifdef ACPI_FUTURE_USAGE
 /*******************************************************************************
  *
@@ -362,7 +365,6 @@ acpi_status acpi_terminate(void)
  *              initialized successfully.
  *
  ******************************************************************************/
-
 acpi_status acpi_subsystem_status(void)
 {
 
@@ -372,6 +374,8 @@ acpi_status acpi_subsystem_status(void)
 		return (AE_ERROR);
 	}
 }
+
+ACPI_EXPORT_SYMBOL(acpi_subsystem_status)
 
 /*******************************************************************************
  *
@@ -390,14 +394,13 @@ acpi_status acpi_subsystem_status(void)
  *              and the value of out_buffer is undefined.
  *
  ******************************************************************************/
-
 acpi_status acpi_get_system_info(struct acpi_buffer * out_buffer)
 {
 	struct acpi_system_info *info_ptr;
 	acpi_status status;
 	u32 i;
 
-	ACPI_FUNCTION_TRACE("acpi_get_system_info");
+	ACPI_FUNCTION_TRACE(acpi_get_system_info);
 
 	/* Parameter validation */
 
@@ -448,15 +451,15 @@ acpi_status acpi_get_system_info(struct acpi_buffer * out_buffer)
 
 	/* Current status of the ACPI tables, per table type */
 
-	info_ptr->num_table_types = NUM_ACPI_TABLE_TYPES;
-	for (i = 0; i < NUM_ACPI_TABLE_TYPES; i++) {
+	info_ptr->num_table_types = ACPI_TABLE_ID_MAX + 1;
+	for (i = 0; i < (ACPI_TABLE_ID_MAX + 1); i++) {
 		info_ptr->table_info[i].count = acpi_gbl_table_lists[i].count;
 	}
 
 	return_ACPI_STATUS(AE_OK);
 }
 
-EXPORT_SYMBOL(acpi_get_system_info);
+ACPI_EXPORT_SYMBOL(acpi_get_system_info)
 
 /*****************************************************************************
  *
@@ -472,7 +475,6 @@ EXPORT_SYMBOL(acpi_get_system_info);
  * TBD: When a second function is added, must save the Function also.
  *
  ****************************************************************************/
-
 acpi_status
 acpi_install_initialization_handler(acpi_init_handler handler, u32 function)
 {
@@ -489,6 +491,7 @@ acpi_install_initialization_handler(acpi_init_handler handler, u32 function)
 	return AE_OK;
 }
 
+ACPI_EXPORT_SYMBOL(acpi_install_initialization_handler)
 #endif				/*  ACPI_FUTURE_USAGE  */
 
 /*****************************************************************************
@@ -502,10 +505,9 @@ acpi_install_initialization_handler(acpi_init_handler handler, u32 function)
  * DESCRIPTION: Empty all caches (delete the cached objects)
  *
  ****************************************************************************/
-
 acpi_status acpi_purge_cached_objects(void)
 {
-	ACPI_FUNCTION_TRACE("acpi_purge_cached_objects");
+	ACPI_FUNCTION_TRACE(acpi_purge_cached_objects);
 
 	(void)acpi_os_purge_cache(acpi_gbl_state_cache);
 	(void)acpi_os_purge_cache(acpi_gbl_operand_cache);
@@ -513,3 +515,5 @@ acpi_status acpi_purge_cached_objects(void)
 	(void)acpi_os_purge_cache(acpi_gbl_ps_node_ext_cache);
 	return_ACPI_STATUS(AE_OK);
 }
+
+ACPI_EXPORT_SYMBOL(acpi_purge_cached_objects)

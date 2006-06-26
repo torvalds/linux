@@ -2549,11 +2549,11 @@ static int devfs_fill_super(struct super_block *sb, void *data, int silent)
 	return -EINVAL;
 }				/*  End Function devfs_fill_super  */
 
-static struct super_block *devfs_get_sb(struct file_system_type *fs_type,
-					int flags, const char *dev_name,
-					void *data)
+static int devfs_get_sb(struct file_system_type *fs_type,
+			int flags, const char *dev_name,
+			void *data, struct vfsmount *mnt)
 {
-	return get_sb_single(fs_type, flags, data, devfs_fill_super);
+	return get_sb_single(fs_type, flags, data, devfs_fill_super, mnt);
 }
 
 static struct file_system_type devfs_fs_type = {

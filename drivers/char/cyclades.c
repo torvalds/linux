@@ -2833,9 +2833,8 @@ cy_write(struct tty_struct * tty, const unsigned char *buf, int count)
         return 0;
     }
         
-    if (!tty || !info->xmit_buf || !tmp_buf){
-        return 0;
-    }
+    if (!info->xmit_buf || !tmp_buf)
+	return 0;
 
     CY_LOCK(info, flags);
     while (1) {
@@ -2884,7 +2883,7 @@ cy_put_char(struct tty_struct *tty, unsigned char ch)
     if (serial_paranoia_check(info, tty->name, "cy_put_char"))
         return;
 
-    if (!tty || !info->xmit_buf)
+    if (!info->xmit_buf)
         return;
 
     CY_LOCK(info, flags);

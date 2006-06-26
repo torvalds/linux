@@ -92,7 +92,7 @@ MODULE_PARM_DESC(enable, "Enable Sun DBRI soundcard.");
 #define D_USR	(1<<4)
 #define D_DESC	(1<<5)
 
-static int dbri_debug = 0;
+static int dbri_debug;
 module_param(dbri_debug, int, 0644);
 MODULE_PARM_DESC(dbri_debug, "Debug value for Sun DBRI soundcard.");
 
@@ -593,7 +593,7 @@ struct snd_dbri {
 /* Return a pointer to dbri_streaminfo */
 #define DBRI_STREAM(dbri, substream)	&dbri->stream_info[DBRI_STREAMNO(substream)]
 
-static struct snd_dbri *dbri_list = NULL;	/* All DBRI devices */
+static struct snd_dbri *dbri_list;	/* All DBRI devices */
 
 /*
  * Short data pipes transmit LSB first. The CS4215 receives MSB first. Grrr.
@@ -2521,11 +2521,11 @@ void snd_dbri_proc(struct snd_dbri * dbri)
 	struct snd_info_entry *entry;
 
 	if (! snd_card_proc_new(dbri->card, "regs", &entry))
-		snd_info_set_text_ops(entry, dbri, 1024, dbri_regs_read);
+		snd_info_set_text_ops(entry, dbri, dbri_regs_read);
 
 #ifdef DBRI_DEBUG
 	if (! snd_card_proc_new(dbri->card, "debug", &entry)) {
-		snd_info_set_text_ops(entry, dbri, 4096, dbri_debug_read);
+		snd_info_set_text_ops(entry, dbri, dbri_debug_read);
 		entry->mode = S_IFREG | S_IRUGO;	/* Readable only. */
 	}
 #endif

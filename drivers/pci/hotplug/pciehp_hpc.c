@@ -1288,7 +1288,7 @@ int pciehp_acpi_get_hp_hw_control_from_firmware(struct pci_dev *dev)
 		if (ACPI_SUCCESS(status)) {
 			dbg("Gained control for hotplug HW for pci %s (%s)\n",
 				pci_name(dev), (char *)string.pointer);
-			acpi_os_free(string.pointer);
+			kfree(string.pointer);
 			return 0;
 		}
 		if (acpi_root_bridge(handle))
@@ -1302,7 +1302,7 @@ int pciehp_acpi_get_hp_hw_control_from_firmware(struct pci_dev *dev)
 	err("Cannot get control of hotplug hardware for pci %s\n",
 			pci_name(dev));
 
-	acpi_os_free(string.pointer);
+	kfree(string.pointer);
 	return -1;
 }
 #endif
@@ -1404,9 +1404,6 @@ int pcie_init(struct controller * ctrl, struct pcie_device *dev)
 	info("HPC vendor_id %x device_id %x ss_vid %x ss_did %x\n", pdev->vendor, pdev->device, 
 		pdev->subsystem_vendor, pdev->subsystem_device);
 
-	if (pci_enable_device(pdev))
-		goto abort_free_ctlr;
-	
 	mutex_init(&ctrl->crit_sect);
 	/* setup wait queue */
 	init_waitqueue_head(&ctrl->queue);
@@ -1474,7 +1471,7 @@ int pcie_init(struct controller * ctrl, struct pcie_device *dev)
 	rc = hp_register_read_word(pdev, SLOT_CTRL(ctrl->cap_base), temp_word);
 	if (rc) {
 		err("%s : hp_register_read_word SLOT_CTRL failed\n", __FUNCTION__);
-		goto abort_free_ctlr;
+		goto abort_free_irq;
 	}
 
 	intr_enable = intr_enable | PRSN_DETECT_ENABLE;
@@ -1500,19 +1497,19 @@ int pcie_init(struct controller * ctrl, struct pcie_device *dev)
 	rc = hp_register_write_word(pdev, SLOT_CTRL(ctrl->cap_base), temp_word);
 	if (rc) {
 		err("%s : hp_register_write_word SLOT_CTRL failed\n", __FUNCTION__);
-		goto abort_free_ctlr;
+		goto abort_free_irq;
 	}
 	rc = hp_register_read_word(php_ctlr->pci_dev, SLOT_STATUS(ctrl->cap_base), slot_status);
 	if (rc) {
 		err("%s : hp_register_read_word SLOT_STATUS failed\n", __FUNCTION__);
-		goto abort_free_ctlr;
+		goto abort_disable_intr;
 	}
 	
 	temp_word =  0x1F; /* Clear all events */
 	rc = hp_register_write_word(php_ctlr->pci_dev, SLOT_STATUS(ctrl->cap_base), temp_word);
 	if (rc) {
 		err("%s : hp_register_write_word SLOT_STATUS failed\n", __FUNCTION__);
-		goto abort_free_ctlr;
+		goto abort_disable_intr;
 	}
 	
 	if (pciehp_force) {
@@ -1521,7 +1518,7 @@ int pcie_init(struct controller * ctrl, struct pcie_device *dev)
 	} else {
 		rc = pciehp_get_hp_hw_control_from_firmware(ctrl->pci_dev);
 		if (rc)
-			goto abort_free_ctlr;
+			goto abort_disable_intr;
 	}
 
 	/*  Add this HPC instance into the HPC list */
@@ -1548,6 +1545,21 @@ int pcie_init(struct controller * ctrl, struct pcie_device *dev)
 	return 0;
 
 	/* We end up here for the many possible ways to fail this API.  */
+abort_disable_intr:
+	rc = hp_register_read_word(pdev, SLOT_CTRL(ctrl->cap_base), temp_word);
+	if (!rc) {
+		temp_word &= ~(intr_enable | HP_INTR_ENABLE);
+		rc = hp_register_write_word(pdev, SLOT_CTRL(ctrl->cap_base), temp_word);
+	}
+	if (rc)
+		err("%s : disabling interrupts failed\n", __FUNCTION__);
+
+abort_free_irq:
+	if (pciehp_poll_mode)
+		del_timer_sync(&php_ctlr->int_poll_timer);
+	else
+		free_irq(php_ctlr->irq, ctrl);
+
 abort_free_ctlr:
 	pcie_cap_base = saved_cap_base;
 	kfree(php_ctlr);

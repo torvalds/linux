@@ -40,6 +40,8 @@ struct usb_driver;
  * Devices may also have class-specific or vendor-specific descriptors.
  */
 
+struct ep_device;
+
 /**
  * struct usb_host_endpoint - host-side endpoint descriptor and queue
  * @desc: descriptor for this endpoint, wMaxPacketSize in native byteorder
@@ -57,7 +59,7 @@ struct usb_host_endpoint {
 	struct usb_endpoint_descriptor	desc;
 	struct list_head		urb_list;
 	void				*hcpriv;
-	struct kobject			*kobj;	/* For sysfs info */
+	struct ep_device 		*ep_dev;	/* For sysfs info */
 
 	unsigned char *extra;   /* Extra descriptors */
 	int extralen;
@@ -101,7 +103,8 @@ enum usb_interface_condition {
  * @condition: binding state of the interface: not bound, binding
  *	(in probe()), bound to a driver, or unbinding (in disconnect())
  * @dev: driver model's view of this device
- * @class_dev: driver model's class view of this device.
+ * @usb_dev: if an interface is bound to the USB major, this will point
+ *	to the sysfs representation for that device.
  *
  * USB device drivers attach to interfaces on a physical device.  Each
  * interface encapsulates a single high level function, such as feeding
@@ -141,7 +144,7 @@ struct usb_interface {
 					 * bound to */
 	enum usb_interface_condition condition;		/* state of binding */
 	struct device dev;		/* interface specific device info */
-	struct class_device *class_dev;
+	struct device *usb_dev;		/* pointer to the usb class's device, if any */
 };
 #define	to_usb_interface(d) container_of(d, struct usb_interface, dev)
 #define	interface_to_usbdev(intf) \
@@ -358,7 +361,7 @@ struct usb_device {
 	char *serial;			/* iSerialNumber string, if present */
 
 	struct list_head filelist;
-	struct class_device *class_dev;
+	struct device *usbfs_dev;
 	struct dentry *usbfs_dentry;	/* usbfs dentry entry for the device */
 
 	/*
@@ -386,6 +389,8 @@ extern int usb_lock_device_for_reset(struct usb_device *udev,
 
 /* USB port reset for device reinitialization */
 extern int usb_reset_device(struct usb_device *dev);
+extern int usb_reset_composite_device(struct usb_device *dev,
+		struct usb_interface *iface);
 
 extern struct usb_device *usb_find_device(u16 vendor_id, u16 product_id);
 
@@ -554,6 +559,10 @@ struct usb_dynids {
  *	do (or don't) show up otherwise in the filesystem.
  * @suspend: Called when the device is going to be suspended by the system.
  * @resume: Called when the device is being resumed by the system.
+ * @pre_reset: Called by usb_reset_composite_device() when the device
+ *	is about to be reset.
+ * @post_reset: Called by usb_reset_composite_device() after the device
+ *	has been reset.
  * @id_table: USB drivers use ID table to support hotplugging.
  *	Export this with MODULE_DEVICE_TABLE(usb,...).  This must be set
  *	or your driver's probe function will never get called.
@@ -591,6 +600,9 @@ struct usb_driver {
 
 	int (*suspend) (struct usb_interface *intf, pm_message_t message);
 	int (*resume) (struct usb_interface *intf);
+
+	void (*pre_reset) (struct usb_interface *intf);
+	void (*post_reset) (struct usb_interface *intf);
 
 	const struct usb_device_id *id_table;
 
@@ -1008,6 +1020,8 @@ void usb_buffer_unmap_sg (struct usb_device *dev, unsigned pipe,
 extern int usb_control_msg(struct usb_device *dev, unsigned int pipe,
 	__u8 request, __u8 requesttype, __u16 value, __u16 index,
 	void *data, __u16 size, int timeout);
+extern int usb_interrupt_msg(struct usb_device *usb_dev, unsigned int pipe,
+	void *data, int len, int *actual_length, int timeout);
 extern int usb_bulk_msg(struct usb_device *usb_dev, unsigned int pipe,
 	void *data, int len, int *actual_length,
 	int timeout);

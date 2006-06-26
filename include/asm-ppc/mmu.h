@@ -23,25 +23,18 @@ extern phys_addr_t fixup_bigphys_addr(phys_addr_t, phys_addr_t);
 #define PHYS_FMT	"%16Lx"
 #endif
 
-/* Default "unsigned long" context */
-typedef unsigned long mm_context_t;
+typedef struct {
+	unsigned long id;
+	unsigned long vdso_base;
+} mm_context_t;
 
 /* Hardware Page Table Entry */
 typedef struct _PTE {
-#ifdef CONFIG_PPC64BRIDGE
-	unsigned long long vsid:52;
-	unsigned long api:5;
-	unsigned long :5;
-	unsigned long h:1;
-	unsigned long v:1;
-	unsigned long long rpn:52;
-#else /* CONFIG_PPC64BRIDGE */
 	unsigned long v:1;	/* Entry is valid */
 	unsigned long vsid:24;	/* Virtual segment identifier */
 	unsigned long h:1;	/* Hash algorithm indicator */
 	unsigned long api:6;	/* Abbreviated page index */
 	unsigned long rpn:20;	/* Real (physical) page number */
-#endif /* CONFIG_PPC64BRIDGE */
 	unsigned long    :3;	/* Unused */
 	unsigned long r:1;	/* Referenced */
 	unsigned long c:1;	/* Changed */
@@ -82,11 +75,7 @@ typedef struct _P601_BATU {	/* Upper part of BAT for 601 processor */
 } P601_BATU;
 
 typedef struct _BATU {		/* Upper part of BAT (all except 601) */
-#ifdef CONFIG_PPC64BRIDGE
-	unsigned long long bepi:47;
-#else /* CONFIG_PPC64BRIDGE */
 	unsigned long bepi:15;	/* Effective page index (virtual address) */
-#endif /* CONFIG_PPC64BRIDGE */
 	unsigned long :4;	/* Unused */
 	unsigned long bl:11;	/* Block size mask */
 	unsigned long vs:1;	/* Supervisor valid */
@@ -101,11 +90,7 @@ typedef struct _P601_BATL {	/* Lower part of BAT for 601 processor */
 } P601_BATL;
 
 typedef struct _BATL {		/* Lower part of BAT (all except 601) */
-#ifdef CONFIG_PPC64BRIDGE
-	unsigned long long brpn:47;
-#else /* CONFIG_PPC64BRIDGE */
 	unsigned long brpn:15;	/* Real page index (physical address) */
-#endif /* CONFIG_PPC64BRIDGE */
 	unsigned long :10;	/* Unused */
 	unsigned long w:1;	/* Write-thru cache */
 	unsigned long i:1;	/* Cache inhibit */

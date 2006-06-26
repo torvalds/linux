@@ -22,18 +22,15 @@
 #include "xfs_inum.h"
 #include "xfs_trans.h"
 #include "xfs_sb.h"
-#include "xfs_dir.h"
 #include "xfs_dir2.h"
 #include "xfs_dmapi.h"
 #include "xfs_mount.h"
 #include "xfs_da_btree.h"
 #include "xfs_bmap_btree.h"
-#include "xfs_dir_sf.h"
 #include "xfs_dir2_sf.h"
 #include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
-#include "xfs_dir_leaf.h"
 #include "xfs_dir2_data.h"
 #include "xfs_dir2_leaf.h"
 #include "xfs_dir2_block.h"
@@ -133,7 +130,7 @@ xfs_dir2_data_check(
 		 */
 		dep = (xfs_dir2_data_entry_t *)p;
 		ASSERT(dep->namelen != 0);
-		ASSERT(xfs_dir_ino_validate(mp, INT_GET(dep->inumber, ARCH_CONVERT)) == 0);
+		ASSERT(xfs_dir_ino_validate(mp, be64_to_cpu(dep->inumber)) == 0);
 		ASSERT(be16_to_cpu(*XFS_DIR2_DATA_ENTRY_TAG_P(dep)) ==
 		       (char *)dep - (char *)d);
 		count++;

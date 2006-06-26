@@ -24,14 +24,13 @@
 #include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
-#include "xfs_dir.h"
 #include "xfs_dir2.h"
+#include "xfs_dfrag.h"
 #include "xfs_dmapi.h"
 #include "xfs_mount.h"
 #include "xfs_bmap_btree.h"
 #include "xfs_alloc_btree.h"
 #include "xfs_ialloc_btree.h"
-#include "xfs_dir_sf.h"
 #include "xfs_dir2_sf.h"
 #include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
@@ -58,7 +57,7 @@ xfs_size_fn(
 
 STATIC int
 xfs_ioinit(
-	struct vfs		*vfsp,
+	struct bhv_vfs		*vfsp,
 	struct xfs_mount_args	*mntargs,
 	int			flags)
 {
@@ -68,6 +67,7 @@ xfs_ioinit(
 xfs_ioops_t	xfs_iocore_xfs = {
 	.xfs_ioinit		= (xfs_ioinit_t) xfs_ioinit,
 	.xfs_bmapi_func		= (xfs_bmapi_t) xfs_bmapi,
+	.xfs_bunmapi_func	= (xfs_bunmapi_t) xfs_bunmapi,
 	.xfs_bmap_eof_func	= (xfs_bmap_eof_t) xfs_bmap_eof,
 	.xfs_iomap_write_direct =
 			(xfs_iomap_write_direct_t) xfs_iomap_write_direct,
@@ -84,6 +84,7 @@ xfs_ioops_t	xfs_iocore_xfs = {
 	.xfs_unlock		= (xfs_unlk_t) xfs_iunlock,
 	.xfs_size_func		= (xfs_size_t) xfs_size_fn,
 	.xfs_iodone		= (xfs_iodone_t) fs_noerr,
+	.xfs_swap_extents_func	= (xfs_swap_extents_t) xfs_swap_extents,
 };
 
 void

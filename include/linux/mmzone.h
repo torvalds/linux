@@ -197,7 +197,7 @@ struct zone {
 
 	/*
 	 * wait_table		-- the array holding the hash table
-	 * wait_table_size	-- the size of the hash table array
+	 * wait_table_hash_nr_entries	-- the size of the hash table array
 	 * wait_table_bits	-- wait_table_size == (1 << wait_table_bits)
 	 *
 	 * The purpose of all these is to keep track of the people
@@ -220,7 +220,7 @@ struct zone {
 	 * free_area_init_core() performs the initialization of them.
 	 */
 	wait_queue_head_t	* wait_table;
-	unsigned long		wait_table_size;
+	unsigned long		wait_table_hash_nr_entries;
 	unsigned long		wait_table_bits;
 
 	/*
@@ -332,6 +332,9 @@ void build_all_zonelists(void);
 void wakeup_kswapd(struct zone *zone, int order);
 int zone_watermark_ok(struct zone *z, int order, unsigned long mark,
 		int classzone_idx, int alloc_flags);
+
+extern int init_currently_empty_zone(struct zone *zone, unsigned long start_pfn,
+				     unsigned long size);
 
 #ifdef CONFIG_HAVE_MEMORY_PRESENT
 void memory_present(int nid, unsigned long start, unsigned long end);
@@ -506,6 +509,10 @@ struct mem_section {
 	 * pages.  However, it is stored with some other magic.
 	 * (see sparse.c::sparse_init_one_section())
 	 *
+	 * Additionally during early boot we encode node id of
+	 * the location of the section here to guide allocation.
+	 * (see sparse.c::memory_present())
+	 *
 	 * Making it a UL at least makes someone do a cast
 	 * before using it wrong.
 	 */
@@ -545,6 +552,7 @@ extern int __section_nr(struct mem_section* ms);
 #define SECTION_HAS_MEM_MAP	(1UL<<1)
 #define SECTION_MAP_LAST_BIT	(1UL<<2)
 #define SECTION_MAP_MASK	(~(SECTION_MAP_LAST_BIT-1))
+#define SECTION_NID_SHIFT	2
 
 static inline struct page *__section_mem_map_addr(struct mem_section *section)
 {

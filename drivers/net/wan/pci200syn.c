@@ -354,6 +354,7 @@ static int __devinit pci200_pci_init_one(struct pci_dev *pdev,
 	    card->rambase == NULL) {
 		printk(KERN_ERR "pci200syn: ioremap() failed\n");
 		pci200_pci_remove_one(pdev);
+		return -EFAULT;
 	}
 
 	/* Reset PLX */

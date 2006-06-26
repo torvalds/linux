@@ -47,9 +47,19 @@ typedef u8 ia64_vector;
 #define IA64_CMC_VECTOR			0x1f	/* corrected machine-check interrupt vector */
 /*
  * Vectors 0x20-0x2f are reserved for legacy ISA IRQs.
+ * Use vectors 0x30-0xe7 as the default device vector range for ia64.
+ * Platforms may choose to reduce this range in platform_irq_setup, but the
+ * platform range must fall within
+ *	[IA64_DEF_FIRST_DEVICE_VECTOR..IA64_DEF_LAST_DEVICE_VECTOR]
  */
-#define IA64_FIRST_DEVICE_VECTOR	0x30
-#define IA64_LAST_DEVICE_VECTOR		0xe7
+extern int ia64_first_device_vector;
+extern int ia64_last_device_vector;
+
+#define IA64_DEF_FIRST_DEVICE_VECTOR	0x30
+#define IA64_DEF_LAST_DEVICE_VECTOR	0xe7
+#define IA64_FIRST_DEVICE_VECTOR	ia64_first_device_vector
+#define IA64_LAST_DEVICE_VECTOR		ia64_last_device_vector
+#define IA64_MAX_DEVICE_VECTORS		(IA64_DEF_LAST_DEVICE_VECTOR - IA64_DEF_FIRST_DEVICE_VECTOR + 1)
 #define IA64_NUM_DEVICE_VECTORS		(IA64_LAST_DEVICE_VECTOR - IA64_FIRST_DEVICE_VECTOR + 1)
 
 #define IA64_MCA_RENDEZ_VECTOR		0xe8	/* MCA rendez interrupt */
@@ -83,6 +93,7 @@ extern struct hw_interrupt_type irq_type_ia64_lsapic;	/* CPU-internal interrupt 
 
 extern int assign_irq_vector (int irq);	/* allocate a free vector */
 extern void free_irq_vector (int vector);
+extern int reserve_irq_vector (int vector);
 extern void ia64_send_ipi (int cpu, int vector, int delivery_mode, int redirect);
 extern void register_percpu_irq (ia64_vector vec, struct irqaction *action);
 

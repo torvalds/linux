@@ -392,7 +392,7 @@ static void __devexit cpqarray_remove_one_eisa (int i)
 }
 
 /* pdev is NULL for eisa */
-static int cpqarray_register_ctlr( int i, struct pci_dev *pdev)
+static int __init cpqarray_register_ctlr( int i, struct pci_dev *pdev)
 {
 	request_queue_t *q;
 	int j;
@@ -410,8 +410,7 @@ static int cpqarray_register_ctlr( int i, struct pci_dev *pdev)
 	}
 	hba[i]->access.set_intr_mask(hba[i], 0);
 	if (request_irq(hba[i]->intr, do_ida_intr,
-		SA_INTERRUPT|SA_SHIRQ|SA_SAMPLE_RANDOM,
-		hba[i]->devname, hba[i]))
+		SA_INTERRUPT|SA_SHIRQ, hba[i]->devname, hba[i]))
 	{
 		printk(KERN_ERR "cpqarray: Unable to get irq %d for %s\n",
 				hba[i]->intr, hba[i]->devname);
@@ -745,7 +744,7 @@ __setup("smart2=", cpqarray_setup);
 /*
  * Find an EISA controller's signature.  Set up an hba if we find it.
  */
-static int cpqarray_eisa_detect(void)
+static int __init cpqarray_eisa_detect(void)
 {
 	int i=0, j;
 	__u32 board_id;
@@ -1035,6 +1034,8 @@ static inline void complete_command(cmdlist_t *cmd, int timeout)
 				cmd->req.sg[i].size, ddir);
 
 	complete_buffers(cmd->rq->bio, ok);
+
+	add_disk_randomness(cmd->rq->rq_disk);
 
         DBGPX(printk("Done with %p\n", cmd->rq););
 	end_that_request_last(cmd->rq, ok ? 1 : -EIO);

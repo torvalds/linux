@@ -59,6 +59,7 @@ extern int proc_nr_files(ctl_table *table, int write, struct file *filp,
 extern int C_A_D;
 extern int sysctl_overcommit_memory;
 extern int sysctl_overcommit_ratio;
+extern int sysctl_panic_on_oom;
 extern int max_threads;
 extern int sysrq_enabled;
 extern int core_uses_pid;
@@ -142,7 +143,6 @@ static struct ctl_table_header root_table_header =
 
 static ctl_table kern_table[];
 static ctl_table vm_table[];
-static ctl_table proc_table[];
 static ctl_table fs_table[];
 static ctl_table debug_table[];
 static ctl_table dev_table[];
@@ -201,12 +201,6 @@ static ctl_table root_table[] = {
 		.child		= net_table,
 	},
 #endif
-	{
-		.ctl_name	= CTL_PROC,
-		.procname	= "proc",
-		.mode		= 0555,
-		.child		= proc_table,
-	},
 	{
 		.ctl_name	= CTL_FS,
 		.procname	= "fs",
@@ -398,7 +392,7 @@ static ctl_table kern_table[] = {
 		.strategy	= &sysctl_string,
 	},
 #endif
-#ifdef CONFIG_HOTPLUG
+#if defined(CONFIG_HOTPLUG) && defined(CONFIG_NET)
 	{
 		.ctl_name	= KERN_HOTPLUG,
 		.procname	= "hotplug",
@@ -702,6 +696,14 @@ static ctl_table vm_table[] = {
 		.proc_handler	= &proc_dointvec,
 	},
 	{
+		.ctl_name	= VM_PANIC_ON_OOM,
+		.procname	= "panic_on_oom",
+		.data		= &sysctl_panic_on_oom,
+		.maxlen		= sizeof(sysctl_panic_on_oom),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
+	},
+	{
 		.ctl_name	= VM_OVERCOMMIT_RATIO,
 		.procname	= "overcommit_ratio",
 		.data		= &sysctl_overcommit_ratio,
@@ -915,10 +917,6 @@ static ctl_table vm_table[] = {
 		.strategy	= &sysctl_jiffies,
 	},
 #endif
-	{ .ctl_name = 0 }
-};
-
-static ctl_table proc_table[] = {
 	{ .ctl_name = 0 }
 };
 

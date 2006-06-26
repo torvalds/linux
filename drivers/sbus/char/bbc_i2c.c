@@ -423,7 +423,7 @@ static int __init bbc_present(void)
 
 	for_each_ebus(ebus) {
 		for_each_ebusdev(edev, ebus) {
-			if (!strcmp(edev->prom_name, "bbc"))
+			if (!strcmp(edev->prom_node->name, "bbc"))
 				return 1;
 		}
 	}
@@ -446,7 +446,7 @@ static int __init bbc_i2c_init(void)
 
 	for_each_ebus(ebus) {
 		for_each_ebusdev(edev, ebus) {
-			if (!strcmp(edev->prom_name, "i2c")) {
+			if (!strcmp(edev->prom_node->name, "i2c")) {
 				if (!attach_one_i2c(edev, index))
 					index++;
 			}

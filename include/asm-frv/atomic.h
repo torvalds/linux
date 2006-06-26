@@ -227,7 +227,7 @@ extern unsigned long atomic_test_and_XOR_mask(unsigned long mask, volatile unsig
 		break;								\
 										\
 	default:								\
-		__xg_orig = 0;							\
+		__xg_orig = (__typeof__(__xg_orig))0;				\
 		asm volatile("break");						\
 		break;								\
 	}									\
@@ -247,7 +247,7 @@ extern uint32_t __xchg_32(uint32_t i, volatile void *v);
 	switch (sizeof(__xg_orig)) {								\
 	case 4: __xg_orig = (__typeof__(*(ptr))) __xchg_32((uint32_t) x, __xg_ptr);	break;	\
 	default:										\
-		__xg_orig = 0;									\
+		__xg_orig = (__typeof__(__xg_orig))0;									\
 		asm volatile("break");								\
 		break;										\
 	}											\

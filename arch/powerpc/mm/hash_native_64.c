@@ -238,7 +238,7 @@ static long native_hpte_updatepp(unsigned long slot, unsigned long newpp,
 		DBG_LOW(" -> hit\n");
 		/* Update the HPTE */
 		hptep->r = (hptep->r & ~(HPTE_R_PP | HPTE_R_N)) |
-			(newpp & (HPTE_R_PP | HPTE_R_N));
+			(newpp & (HPTE_R_PP | HPTE_R_N | HPTE_R_C));
 		native_unlock_hpte(hptep);
 	}
 

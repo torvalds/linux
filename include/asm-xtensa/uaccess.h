@@ -154,35 +154,6 @@
 .Laccess_ok_\@:
 	.endm
 
-/*
- * verify_area determines whether a memory access is allowed.  It's
- * mostly an unnecessary wrapper for access_ok, but we provide it as a
- * duplicate of the verify_area() C inline function below.  See the
- * equivalent C version below for clarity.
- *
- * On error, verify_area branches to a label indicated by parameter
- * <error>.  This implies that the macro falls through to the next
- * instruction on success.
- *
- * Note that we assume success is the common case, and we optimize the
- * branch fall-through case on success.
- *
- * On Entry:
- * 	<aa>	register containing memory address
- * 	<as>	register containing memory size
- * 	<at>	temp register
- * 	<error>	label to branch to on error; implies fall-through
- * 		macro on success
- * On Exit:
- * 	<aa>	preserved
- * 	<as>	preserved
- * 	<at>	destroyed
- */
-	.macro	verify_area	aa, as, at, sp, error
-	access_ok  \at, \aa, \as, \sp, \error
-	.endm
-
-
 #else /* __ASSEMBLY__ not defined */
 
 #include <linux/sched.h>
@@ -210,11 +181,6 @@
 #define __user_ok(addr,size) (((size) <= TASK_SIZE)&&((addr) <= TASK_SIZE-(size)))
 #define __access_ok(addr,size) (__kernel_ok || __user_ok((addr),(size)))
 #define access_ok(type,addr,size) __access_ok((unsigned long)(addr),(size))
-
-static inline int verify_area(int type, const void * addr, unsigned long size)
-{
-	return access_ok(type,addr,size) ? 0 : -EFAULT;
-}
 
 /*
  * These are the main single-value transfer routines.  They

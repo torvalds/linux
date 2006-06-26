@@ -26,7 +26,7 @@
 
 extern void zonetable_add(struct zone *zone, int nid, int zid, unsigned long pfn,
 			  unsigned long size);
-static void __add_zone(struct zone *zone, unsigned long phys_start_pfn)
+static int __add_zone(struct zone *zone, unsigned long phys_start_pfn)
 {
 	struct pglist_data *pgdat = zone->zone_pgdat;
 	int nr_pages = PAGES_PER_SECTION;
@@ -34,8 +34,15 @@ static void __add_zone(struct zone *zone, unsigned long phys_start_pfn)
 	int zone_type;
 
 	zone_type = zone - pgdat->node_zones;
+	if (!populated_zone(zone)) {
+		int ret = 0;
+		ret = init_currently_empty_zone(zone, phys_start_pfn, nr_pages);
+		if (ret < 0)
+			return ret;
+	}
 	memmap_init_zone(nr_pages, nid, zone_type, phys_start_pfn);
 	zonetable_add(zone, nid, zone_type, phys_start_pfn, nr_pages);
+	return 0;
 }
 
 extern int sparse_add_one_section(struct zone *zone, unsigned long start_pfn,
@@ -50,7 +57,11 @@ static int __add_section(struct zone *zone, unsigned long phys_start_pfn)
 	if (ret < 0)
 		return ret;
 
-	__add_zone(zone, phys_start_pfn);
+	ret = __add_zone(zone, phys_start_pfn);
+
+	if (ret < 0)
+		return ret;
+
 	return register_new_memory(__pfn_to_section(phys_start_pfn));
 }
 
@@ -116,6 +127,7 @@ int online_pages(unsigned long pfn, unsigned long nr_pages)
 	unsigned long flags;
 	unsigned long onlined_pages = 0;
 	struct zone *zone;
+	int need_zonelists_rebuild = 0;
 
 	/*
 	 * This doesn't need a lock to do pfn_to_page().
@@ -128,6 +140,14 @@ int online_pages(unsigned long pfn, unsigned long nr_pages)
 	grow_pgdat_span(zone->zone_pgdat, pfn, pfn + nr_pages);
 	pgdat_resize_unlock(zone->zone_pgdat, &flags);
 
+	/*
+	 * If this zone is not populated, then it is not in zonelist.
+	 * This means the page allocator ignores this zone.
+	 * So, zonelist must be updated after online.
+	 */
+	if (!populated_zone(zone))
+		need_zonelists_rebuild = 1;
+
 	for (i = 0; i < nr_pages; i++) {
 		struct page *page = pfn_to_page(pfn + i);
 		online_page(page);
@@ -138,5 +158,8 @@ int online_pages(unsigned long pfn, unsigned long nr_pages)
 
 	setup_per_zone_pages_min();
 
+	if (need_zonelists_rebuild)
+		build_all_zonelists();
+	vm_total_pages = nr_free_pagecache_pages();
 	return 0;
 }

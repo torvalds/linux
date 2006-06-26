@@ -41,8 +41,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#include <linux/module.h>
-
 #include <acpi/acpi.h>
 #include <acpi/acevents.h>
 #include <acpi/acnamesp.h>
@@ -65,7 +63,7 @@ acpi_status acpi_enable(void)
 {
 	acpi_status status = AE_OK;
 
-	ACPI_FUNCTION_TRACE("acpi_enable");
+	ACPI_FUNCTION_TRACE(acpi_enable);
 
 	/* Make sure we have the FADT */
 
@@ -94,6 +92,8 @@ acpi_status acpi_enable(void)
 	return_ACPI_STATUS(status);
 }
 
+ACPI_EXPORT_SYMBOL(acpi_enable)
+
 /*******************************************************************************
  *
  * FUNCTION:    acpi_disable
@@ -105,12 +105,11 @@ acpi_status acpi_enable(void)
  * DESCRIPTION: Transfers the system into LEGACY (non-ACPI) mode.
  *
  ******************************************************************************/
-
 acpi_status acpi_disable(void)
 {
 	acpi_status status = AE_OK;
 
-	ACPI_FUNCTION_TRACE("acpi_disable");
+	ACPI_FUNCTION_TRACE(acpi_disable);
 
 	if (!acpi_gbl_FADT) {
 		ACPI_WARNING((AE_INFO, "No FADT information present!"));
@@ -137,6 +136,8 @@ acpi_status acpi_disable(void)
 	return_ACPI_STATUS(status);
 }
 
+ACPI_EXPORT_SYMBOL(acpi_disable)
+
 /*******************************************************************************
  *
  * FUNCTION:    acpi_enable_event
@@ -149,13 +150,12 @@ acpi_status acpi_disable(void)
  * DESCRIPTION: Enable an ACPI event (fixed)
  *
  ******************************************************************************/
-
 acpi_status acpi_enable_event(u32 event, u32 flags)
 {
 	acpi_status status = AE_OK;
 	u32 value;
 
-	ACPI_FUNCTION_TRACE("acpi_enable_event");
+	ACPI_FUNCTION_TRACE(acpi_enable_event);
 
 	/* Decode the Fixed Event */
 
@@ -193,7 +193,7 @@ acpi_status acpi_enable_event(u32 event, u32 flags)
 	return_ACPI_STATUS(status);
 }
 
-EXPORT_SYMBOL(acpi_enable_event);
+ACPI_EXPORT_SYMBOL(acpi_enable_event)
 
 /*******************************************************************************
  *
@@ -208,13 +208,12 @@ EXPORT_SYMBOL(acpi_enable_event);
  * DESCRIPTION: Set the type of an individual GPE
  *
  ******************************************************************************/
-
 acpi_status acpi_set_gpe_type(acpi_handle gpe_device, u32 gpe_number, u8 type)
 {
 	acpi_status status = AE_OK;
 	struct acpi_gpe_event_info *gpe_event_info;
 
-	ACPI_FUNCTION_TRACE("acpi_set_gpe_type");
+	ACPI_FUNCTION_TRACE(acpi_set_gpe_type);
 
 	/* Ensure that we have a valid GPE number */
 
@@ -236,7 +235,7 @@ acpi_status acpi_set_gpe_type(acpi_handle gpe_device, u32 gpe_number, u8 type)
 	return_ACPI_STATUS(status);
 }
 
-EXPORT_SYMBOL(acpi_set_gpe_type);
+ACPI_EXPORT_SYMBOL(acpi_set_gpe_type)
 
 /*******************************************************************************
  *
@@ -252,13 +251,12 @@ EXPORT_SYMBOL(acpi_set_gpe_type);
  * DESCRIPTION: Enable an ACPI event (general purpose)
  *
  ******************************************************************************/
-
 acpi_status acpi_enable_gpe(acpi_handle gpe_device, u32 gpe_number, u32 flags)
 {
 	acpi_status status = AE_OK;
 	struct acpi_gpe_event_info *gpe_event_info;
 
-	ACPI_FUNCTION_TRACE("acpi_enable_gpe");
+	ACPI_FUNCTION_TRACE(acpi_enable_gpe);
 
 	/* Use semaphore lock if not executing at interrupt level */
 
@@ -288,7 +286,7 @@ acpi_status acpi_enable_gpe(acpi_handle gpe_device, u32 gpe_number, u32 flags)
 	return_ACPI_STATUS(status);
 }
 
-EXPORT_SYMBOL(acpi_enable_gpe);
+ACPI_EXPORT_SYMBOL(acpi_enable_gpe)
 
 /*******************************************************************************
  *
@@ -304,13 +302,12 @@ EXPORT_SYMBOL(acpi_enable_gpe);
  * DESCRIPTION: Disable an ACPI event (general purpose)
  *
  ******************************************************************************/
-
 acpi_status acpi_disable_gpe(acpi_handle gpe_device, u32 gpe_number, u32 flags)
 {
 	acpi_status status = AE_OK;
 	struct acpi_gpe_event_info *gpe_event_info;
 
-	ACPI_FUNCTION_TRACE("acpi_disable_gpe");
+	ACPI_FUNCTION_TRACE(acpi_disable_gpe);
 
 	/* Use semaphore lock if not executing at interrupt level */
 
@@ -338,6 +335,8 @@ acpi_status acpi_disable_gpe(acpi_handle gpe_device, u32 gpe_number, u32 flags)
 	return_ACPI_STATUS(status);
 }
 
+ACPI_EXPORT_SYMBOL(acpi_disable_gpe)
+
 /*******************************************************************************
  *
  * FUNCTION:    acpi_disable_event
@@ -350,13 +349,12 @@ acpi_status acpi_disable_gpe(acpi_handle gpe_device, u32 gpe_number, u32 flags)
  * DESCRIPTION: Disable an ACPI event (fixed)
  *
  ******************************************************************************/
-
 acpi_status acpi_disable_event(u32 event, u32 flags)
 {
 	acpi_status status = AE_OK;
 	u32 value;
 
-	ACPI_FUNCTION_TRACE("acpi_disable_event");
+	ACPI_FUNCTION_TRACE(acpi_disable_event);
 
 	/* Decode the Fixed Event */
 
@@ -392,7 +390,7 @@ acpi_status acpi_disable_event(u32 event, u32 flags)
 	return_ACPI_STATUS(status);
 }
 
-EXPORT_SYMBOL(acpi_disable_event);
+ACPI_EXPORT_SYMBOL(acpi_disable_event)
 
 /*******************************************************************************
  *
@@ -405,12 +403,11 @@ EXPORT_SYMBOL(acpi_disable_event);
  * DESCRIPTION: Clear an ACPI event (fixed)
  *
  ******************************************************************************/
-
 acpi_status acpi_clear_event(u32 event)
 {
 	acpi_status status = AE_OK;
 
-	ACPI_FUNCTION_TRACE("acpi_clear_event");
+	ACPI_FUNCTION_TRACE(acpi_clear_event);
 
 	/* Decode the Fixed Event */
 
@@ -429,7 +426,7 @@ acpi_status acpi_clear_event(u32 event)
 	return_ACPI_STATUS(status);
 }
 
-EXPORT_SYMBOL(acpi_clear_event);
+ACPI_EXPORT_SYMBOL(acpi_clear_event)
 
 /*******************************************************************************
  *
@@ -444,13 +441,12 @@ EXPORT_SYMBOL(acpi_clear_event);
  * DESCRIPTION: Clear an ACPI event (general purpose)
  *
  ******************************************************************************/
-
 acpi_status acpi_clear_gpe(acpi_handle gpe_device, u32 gpe_number, u32 flags)
 {
 	acpi_status status = AE_OK;
 	struct acpi_gpe_event_info *gpe_event_info;
 
-	ACPI_FUNCTION_TRACE("acpi_clear_gpe");
+	ACPI_FUNCTION_TRACE(acpi_clear_gpe);
 
 	/* Use semaphore lock if not executing at interrupt level */
 
@@ -478,6 +474,8 @@ acpi_status acpi_clear_gpe(acpi_handle gpe_device, u32 gpe_number, u32 flags)
 	return_ACPI_STATUS(status);
 }
 
+ACPI_EXPORT_SYMBOL(acpi_clear_gpe)
+
 #ifdef ACPI_FUTURE_USAGE
 /*******************************************************************************
  *
@@ -492,12 +490,11 @@ acpi_status acpi_clear_gpe(acpi_handle gpe_device, u32 gpe_number, u32 flags)
  * DESCRIPTION: Obtains and returns the current status of the event
  *
  ******************************************************************************/
-
 acpi_status acpi_get_event_status(u32 event, acpi_event_status * event_status)
 {
 	acpi_status status = AE_OK;
 
-	ACPI_FUNCTION_TRACE("acpi_get_event_status");
+	ACPI_FUNCTION_TRACE(acpi_get_event_status);
 
 	if (!event_status) {
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
@@ -518,6 +515,8 @@ acpi_status acpi_get_event_status(u32 event, acpi_event_status * event_status)
 	return_ACPI_STATUS(status);
 }
 
+ACPI_EXPORT_SYMBOL(acpi_get_event_status)
+
 /*******************************************************************************
  *
  * FUNCTION:    acpi_get_gpe_status
@@ -533,7 +532,6 @@ acpi_status acpi_get_event_status(u32 event, acpi_event_status * event_status)
  * DESCRIPTION: Get status of an event (general purpose)
  *
  ******************************************************************************/
-
 acpi_status
 acpi_get_gpe_status(acpi_handle gpe_device,
 		    u32 gpe_number, u32 flags, acpi_event_status * event_status)
@@ -541,7 +539,7 @@ acpi_get_gpe_status(acpi_handle gpe_device,
 	acpi_status status = AE_OK;
 	struct acpi_gpe_event_info *gpe_event_info;
 
-	ACPI_FUNCTION_TRACE("acpi_get_gpe_status");
+	ACPI_FUNCTION_TRACE(acpi_get_gpe_status);
 
 	/* Use semaphore lock if not executing at interrupt level */
 
@@ -570,6 +568,8 @@ acpi_get_gpe_status(acpi_handle gpe_device,
 	}
 	return_ACPI_STATUS(status);
 }
+
+ACPI_EXPORT_SYMBOL(acpi_get_gpe_status)
 #endif				/*  ACPI_FUTURE_USAGE  */
 
 /*******************************************************************************
@@ -586,7 +586,6 @@ acpi_get_gpe_status(acpi_handle gpe_device,
  * DESCRIPTION: Create and Install a block of GPE registers
  *
  ******************************************************************************/
-
 acpi_status
 acpi_install_gpe_block(acpi_handle gpe_device,
 		       struct acpi_generic_address *gpe_block_address,
@@ -597,7 +596,7 @@ acpi_install_gpe_block(acpi_handle gpe_device,
 	struct acpi_namespace_node *node;
 	struct acpi_gpe_block_info *gpe_block;
 
-	ACPI_FUNCTION_TRACE("acpi_install_gpe_block");
+	ACPI_FUNCTION_TRACE(acpi_install_gpe_block);
 
 	if ((!gpe_device) || (!gpe_block_address) || (!register_count)) {
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
@@ -636,6 +635,7 @@ acpi_install_gpe_block(acpi_handle gpe_device,
 
 	obj_desc = acpi_ns_get_attached_object(node);
 	if (!obj_desc) {
+
 		/* No object, create a new one */
 
 		obj_desc = acpi_ut_create_internal_object(ACPI_TYPE_DEVICE);
@@ -665,7 +665,7 @@ acpi_install_gpe_block(acpi_handle gpe_device,
 	return_ACPI_STATUS(status);
 }
 
-EXPORT_SYMBOL(acpi_install_gpe_block);
+ACPI_EXPORT_SYMBOL(acpi_install_gpe_block)
 
 /*******************************************************************************
  *
@@ -678,14 +678,13 @@ EXPORT_SYMBOL(acpi_install_gpe_block);
  * DESCRIPTION: Remove a previously installed block of GPE registers
  *
  ******************************************************************************/
-
 acpi_status acpi_remove_gpe_block(acpi_handle gpe_device)
 {
 	union acpi_operand_object *obj_desc;
 	acpi_status status;
 	struct acpi_namespace_node *node;
 
-	ACPI_FUNCTION_TRACE("acpi_remove_gpe_block");
+	ACPI_FUNCTION_TRACE(acpi_remove_gpe_block);
 
 	if (!gpe_device) {
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
@@ -721,4 +720,4 @@ acpi_status acpi_remove_gpe_block(acpi_handle gpe_device)
 	return_ACPI_STATUS(status);
 }
 
-EXPORT_SYMBOL(acpi_remove_gpe_block);
+ACPI_EXPORT_SYMBOL(acpi_remove_gpe_block)

@@ -14,6 +14,21 @@
 
 #ifndef __ASSEMBLY__
 
+extern inline unsigned long ixp2000_reg_read(volatile void *reg)
+{
+	return *((volatile unsigned long *)reg);
+}
+
+extern inline void ixp2000_reg_write(volatile void *reg, unsigned long val)
+{
+	*((volatile unsigned long *)reg) = val;
+}
+
+extern inline void ixp2000_reg_wrb(volatile void *reg, unsigned long val)
+{
+	*((volatile unsigned long *)reg) = val;
+}
+
 struct pci_sys_data;
 
 void ixp23xx_map_io(void);

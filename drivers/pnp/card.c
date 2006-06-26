@@ -60,30 +60,34 @@ static void card_remove_first(struct pnp_dev * dev)
 	card_remove(dev);
 }
 
-static int card_probe(struct pnp_card * card, struct pnp_card_driver * drv)
+static int card_probe(struct pnp_card *card, struct pnp_card_driver *drv)
 {
-	const struct pnp_card_device_id *id = match_card(drv,card);
-	if (id) {
-		struct pnp_card_link * clink = pnp_alloc(sizeof(struct pnp_card_link));
-		if (!clink)
-			return 0;
-		clink->card = card;
-		clink->driver = drv;
-		clink->pm_state = PMSG_ON;
-		if (drv->probe) {
-			if (drv->probe(clink, id)>=0)
-				return 1;
-			else {
-				struct pnp_dev * dev;
-				card_for_each_dev(card, dev) {
-					if (dev->card_link == clink)
-						pnp_release_card_device(dev);
-				}
-				kfree(clink);
-			}
-		} else
-			return 1;
+	const struct pnp_card_device_id *id;
+	struct pnp_card_link *clink;
+	struct pnp_dev *dev;
+
+	if (!drv->probe)
+		return 0;
+	id = match_card(drv,card);
+	if (!id)
+		return 0;
+
+	clink = pnp_alloc(sizeof(*clink));
+	if (!clink)
+		return 0;
+	clink->card = card;
+	clink->driver = drv;
+	clink->pm_state = PMSG_ON;
+
+	if (drv->probe(clink, id) >= 0)
+		return 1;
+
+	/* Recovery */
+	card_for_each_dev(card, dev) {
+		if (dev->card_link == clink)
+			pnp_release_card_device(dev);
 	}
+	kfree(clink);
 	return 0;
 }
 

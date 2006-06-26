@@ -625,4 +625,13 @@ extern int radeon_screen_blank(struct radeonfb_info *rinfo, int blank, int mode_
 extern void radeon_write_mode (struct radeonfb_info *rinfo, struct radeon_regs *mode,
 			       int reg_only);
 
+/* Backlight functions */
+#ifdef CONFIG_FB_RADEON_BACKLIGHT
+extern void radeonfb_bl_init(struct radeonfb_info *rinfo);
+extern void radeonfb_bl_exit(struct radeonfb_info *rinfo);
+#else
+static inline void radeonfb_bl_init(struct radeonfb_info *rinfo) {}
+static inline void radeonfb_bl_exit(struct radeonfb_info *rinfo) {}
+#endif
+
 #endif /* __RADEONFB_H__ */

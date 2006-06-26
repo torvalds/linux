@@ -1276,8 +1276,7 @@ static struct sym_chip sym_dev_table[] = {
  FE_RAM|FE_IO256|FE_LEDC}
 };
 
-#define sym_num_devs \
-	(sizeof(sym_dev_table) / sizeof(sym_dev_table[0]))
+#define sym_num_devs (ARRAY_SIZE(sym_dev_table))
 
 /*
  *  Look up the chip table.

@@ -175,7 +175,7 @@ static ssize_t sd_store_cache_type(struct class_device *cdev, const char *buf,
 		 * it's not worth the risk */
 		return -EINVAL;
 
-	for (i = 0; i < sizeof(sd_cache_types)/sizeof(sd_cache_types[0]); i++) {
+	for (i = 0; i < ARRAY_SIZE(sd_cache_types); i++) {
 		const int len = strlen(sd_cache_types[i]);
 		if (strncmp(sd_cache_types[i], buf, len) == 0 &&
 		    buf[len] == '\n') {
@@ -891,7 +891,7 @@ static struct block_device_operations sd_fops = {
 static void sd_rw_intr(struct scsi_cmnd * SCpnt)
 {
 	int result = SCpnt->result;
-	int this_count = SCpnt->bufflen;
+	int this_count = SCpnt->request_bufflen;
 	int good_bytes = (result == 0 ? this_count : 0);
 	sector_t block_sectors = 1;
 	u64 first_err_block;

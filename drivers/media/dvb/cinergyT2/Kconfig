@@ -64,7 +64,7 @@ config DVB_CINERGYT2_QUERY_INTERVAL
 config DVB_CINERGYT2_ENABLE_RC_INPUT_DEVICE
 	bool "Register the onboard IR Remote Control Receiver as Input Device"
 	depends on DVB_CINERGYT2_TUNING
-	default "yes"
+	default y
 	help
 	  Enable this option if you want to use the onboard Infrared Remote
 	  Control Receiver as Linux-Input device.

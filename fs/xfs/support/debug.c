@@ -47,7 +47,7 @@ cmn_err(register int level, char *fmt, ...)
 	va_start(ap, fmt);
 	if (*fmt == '!') fp++;
 	len = vsprintf(message, fp, ap);
-	if (message[len-1] != '\n')
+	if (level != CE_DEBUG && message[len-1] != '\n')
 		strcat(message, "\n");
 	printk("%s%s", err_level[level], message);
 	va_end(ap);
@@ -68,7 +68,7 @@ icmn_err(register int level, char *fmt, va_list ap)
 		level = XFS_MAX_ERR_LEVEL;
 	spin_lock_irqsave(&xfs_err_lock,flags);
 	len = vsprintf(message, fmt, ap);
-	if (message[len-1] != '\n')
+	if (level != CE_DEBUG && message[len-1] != '\n')
 		strcat(message, "\n");
 	spin_unlock_irqrestore(&xfs_err_lock,flags);
 	printk("%s%s", err_level[level], message);

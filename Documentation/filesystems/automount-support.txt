@@ -19,7 +19,7 @@ following procedure:
 
  (2) Have the follow_link() op do the following steps:
 
-     (a) Call do_kern_mount() to call the appropriate filesystem to set up a
+     (a) Call vfs_kern_mount() to call the appropriate filesystem to set up a
          superblock and gain a vfsmount structure representing it.
 
      (b) Copy the nameidata provided as an argument and substitute the dentry

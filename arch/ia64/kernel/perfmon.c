@@ -532,7 +532,6 @@ static ctl_table pfm_sysctl_root[] = {
 static struct ctl_table_header *pfm_sysctl_header;
 
 static int pfm_context_unload(pfm_context_t *ctx, void *arg, int count, struct pt_regs *regs);
-static int pfm_flush(struct file *filp);
 
 #define pfm_get_cpu_var(v)		__ia64_per_cpu_var(v)
 #define pfm_get_cpu_data(a,b)		per_cpu(a, b)
@@ -595,10 +594,11 @@ pfm_get_unmapped_area(struct file *file, unsigned long addr, unsigned long len, 
 }
 
 
-static struct super_block *
-pfmfs_get_sb(struct file_system_type *fs_type, int flags, const char *dev_name, void *data)
+static int
+pfmfs_get_sb(struct file_system_type *fs_type, int flags, const char *dev_name, void *data,
+	     struct vfsmount *mnt)
 {
-	return get_sb_pseudo(fs_type, "pfm:", NULL, PFMFS_MAGIC);
+	return get_sb_pseudo(fs_type, "pfm:", NULL, PFMFS_MAGIC, mnt);
 }
 
 static struct file_system_type pfm_fs_type = {
@@ -1773,7 +1773,7 @@ pfm_syswide_cleanup_other_cpu(pfm_context_t *ctx)
  * When caller is self-monitoring, the context is unloaded.
  */
 static int
-pfm_flush(struct file *filp)
+pfm_flush(struct file *filp, fl_owner_t id)
 {
 	pfm_context_t *ctx;
 	struct task_struct *task;

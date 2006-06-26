@@ -42,6 +42,7 @@
 #ifdef CONFIG_KMOD
 #include <linux/kmod.h>
 #endif
+#include <asm/prom.h>
 
 ATOMIC_NOTIFIER_HEAD(sparc64die_chain);
 
@@ -807,7 +808,8 @@ extern unsigned int cheetah_deferred_trap_vector[], cheetah_deferred_trap_vector
 void __init cheetah_ecache_flush_init(void)
 {
 	unsigned long largest_size, smallest_linesize, order, ver;
-	int node, i, instance;
+	struct device_node *dp;
+	int i, instance, sz;
 
 	/* Scan all cpu device tree nodes, note two values:
 	 * 1) largest E-cache size
@@ -817,14 +819,14 @@ void __init cheetah_ecache_flush_init(void)
 	smallest_linesize = ~0UL;
 
 	instance = 0;
-	while (!cpu_find_by_instance(instance, &node, NULL)) {
+	while (!cpu_find_by_instance(instance, &dp, NULL)) {
 		unsigned long val;
 
-		val = prom_getintdefault(node, "ecache-size",
-					 (2 * 1024 * 1024));
+		val = of_getintprop_default(dp, "ecache-size",
+					    (2 * 1024 * 1024));
 		if (val > largest_size)
 			largest_size = val;
-		val = prom_getintdefault(node, "ecache-line-size", 64);
+		val = of_getintprop_default(dp, "ecache-line-size", 64);
 		if (val < smallest_linesize)
 			smallest_linesize = val;
 		instance++;
@@ -849,16 +851,16 @@ void __init cheetah_ecache_flush_init(void)
 	}
 
 	/* Now allocate error trap reporting scoreboard. */
-	node = NR_CPUS * (2 * sizeof(struct cheetah_err_info));
+	sz = NR_CPUS * (2 * sizeof(struct cheetah_err_info));
 	for (order = 0; order < MAX_ORDER; order++) {
-		if ((PAGE_SIZE << order) >= node)
+		if ((PAGE_SIZE << order) >= sz)
 			break;
 	}
 	cheetah_error_log = (struct cheetah_err_info *)
 		__get_free_pages(GFP_KERNEL, order);
 	if (!cheetah_error_log) {
 		prom_printf("cheetah_ecache_flush_init: Failed to allocate "
-			    "error logging scoreboard (%d bytes).\n", node);
+			    "error logging scoreboard (%d bytes).\n", sz);
 		prom_halt();
 	}
 	memset(cheetah_error_log, 0, PAGE_SIZE << order);

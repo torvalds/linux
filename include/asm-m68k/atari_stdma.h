@@ -3,7 +3,7 @@
 #define _atari_stdma_h
 
 
-#include <asm/irq.h>
+#include <linux/interrupt.h>
 
 
 /***************************** Prototypes *****************************/

@@ -59,7 +59,6 @@ xfs-$(CONFIG_XFS_POSIX_ACL)	+= xfs_acl.o
 xfs-$(CONFIG_PROC_FS)		+= $(XFS_LINUX)/xfs_stats.o
 xfs-$(CONFIG_SYSCTL)		+= $(XFS_LINUX)/xfs_sysctl.o
 xfs-$(CONFIG_COMPAT)		+= $(XFS_LINUX)/xfs_ioctl32.o
-xfs-$(CONFIG_XFS_EXPORT)	+= $(XFS_LINUX)/xfs_export.o
 
 
 xfs-y				+= xfs_alloc.o \
@@ -73,14 +72,12 @@ xfs-y				+= xfs_alloc.o \
 				   xfs_btree.o \
 				   xfs_buf_item.o \
 				   xfs_da_btree.o \
-				   xfs_dir.o \
 				   xfs_dir2.o \
 				   xfs_dir2_block.o \
 				   xfs_dir2_data.o \
 				   xfs_dir2_leaf.o \
 				   xfs_dir2_node.o \
 				   xfs_dir2_sf.o \
-				   xfs_dir_leaf.o \
 				   xfs_error.o \
 				   xfs_extfree_item.o \
 				   xfs_fsops.o \
@@ -117,6 +114,7 @@ xfs-y				+= $(addprefix $(XFS_LINUX)/, \
 				   kmem.o \
 				   xfs_aops.o \
 				   xfs_buf.o \
+				   xfs_export.o \
 				   xfs_file.o \
 				   xfs_fs_subr.o \
 				   xfs_globals.o \

@@ -2138,7 +2138,7 @@ static void proc_pcm_format_add(struct snd_usb_stream *stream)
 
 	sprintf(name, "stream%d", stream->pcm_index);
 	if (! snd_card_proc_new(card, name, &entry))
-		snd_info_set_text_ops(entry, stream, 1024, proc_pcm_format_read);
+		snd_info_set_text_ops(entry, stream, proc_pcm_format_read);
 }
 
 #else
@@ -2627,9 +2627,10 @@ static int parse_audio_endpoints(struct snd_usb_audio *chip, int iface_no)
 		if (!csep && altsd->bNumEndpoints >= 2)
 			csep = snd_usb_find_desc(alts->endpoint[1].extra, alts->endpoint[1].extralen, NULL, USB_DT_CS_ENDPOINT);
 		if (!csep || csep[0] < 7 || csep[2] != EP_GENERAL) {
-			snd_printk(KERN_ERR "%d:%u:%d : no or invalid class specific endpoint descriptor\n",
+			snd_printk(KERN_WARNING "%d:%u:%d : no or invalid"
+				   " class specific endpoint descriptor\n",
 				   dev->devnum, iface_no, altno);
-			continue;
+			csep = NULL;
 		}
 
 		fp = kmalloc(sizeof(*fp), GFP_KERNEL);
@@ -2648,7 +2649,7 @@ static int parse_audio_endpoints(struct snd_usb_audio *chip, int iface_no)
 		if (snd_usb_get_speed(dev) == USB_SPEED_HIGH)
 			fp->maxpacksize = (((fp->maxpacksize >> 11) & 3) + 1)
 					* (fp->maxpacksize & 0x7ff);
-		fp->attributes = csep[3];
+		fp->attributes = csep ? csep[3] : 0;
 
 		/* some quirks for attributes here */
 
@@ -2980,7 +2981,7 @@ static int create_ua1000_quirk(struct snd_usb_audio *chip,
 		return -ENXIO;
 	alts = &iface->altsetting[1];
 	altsd = get_iface_desc(alts);
-	if (alts->extralen != 11 || alts->extra[1] != CS_AUDIO_INTERFACE ||
+	if (alts->extralen != 11 || alts->extra[1] != USB_DT_CS_INTERFACE ||
 	    altsd->bNumEndpoints != 1)
 		return -ENXIO;
 
@@ -3197,9 +3198,9 @@ static void snd_usb_audio_create_proc(struct snd_usb_audio *chip)
 {
 	struct snd_info_entry *entry;
 	if (! snd_card_proc_new(chip->card, "usbbus", &entry))
-		snd_info_set_text_ops(entry, chip, 1024, proc_audio_usbbus_read);
+		snd_info_set_text_ops(entry, chip, proc_audio_usbbus_read);
 	if (! snd_card_proc_new(chip->card, "usbid", &entry))
-		snd_info_set_text_ops(entry, chip, 1024, proc_audio_usbid_read);
+		snd_info_set_text_ops(entry, chip, proc_audio_usbid_read);
 }
 
 /*

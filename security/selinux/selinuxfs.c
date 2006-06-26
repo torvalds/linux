@@ -1345,10 +1345,11 @@ err:
 	goto out;
 }
 
-static struct super_block *sel_get_sb(struct file_system_type *fs_type,
-				      int flags, const char *dev_name, void *data)
+static int sel_get_sb(struct file_system_type *fs_type,
+		      int flags, const char *dev_name, void *data,
+		      struct vfsmount *mnt)
 {
-	return get_sb_single(fs_type, flags, data, sel_fill_super);
+	return get_sb_single(fs_type, flags, data, sel_fill_super, mnt);
 }
 
 static struct file_system_type sel_fs_type = {

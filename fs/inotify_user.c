@@ -672,11 +672,11 @@ out:
 	return ret;
 }
 
-static struct super_block *
+static int
 inotify_get_sb(struct file_system_type *fs_type, int flags,
-	       const char *dev_name, void *data)
+	       const char *dev_name, void *data, struct vfsmount *mnt)
 {
-    return get_sb_pseudo(fs_type, "inotify", NULL, 0xBAD1DEA);
+	return get_sb_pseudo(fs_type, "inotify", NULL, 0xBAD1DEA, mnt);
 }
 
 static struct file_system_type inotify_fs_type = {

@@ -568,8 +568,7 @@ EXPORT_SYMBOL(xdr_inline_decode);
  *
  * Moves data beyond the current pointer position from the XDR head[] buffer
  * into the page list. Any data that lies beyond current position + "len"
- * bytes is moved into the XDR tail[]. The current pointer is then
- * repositioned at the beginning of the XDR tail.
+ * bytes is moved into the XDR tail[].
  */
 void xdr_read_pages(struct xdr_stream *xdr, unsigned int len)
 {
@@ -605,6 +604,31 @@ void xdr_read_pages(struct xdr_stream *xdr, unsigned int len)
 	xdr->end = (uint32_t *)((char *)iov->iov_base + end);
 }
 EXPORT_SYMBOL(xdr_read_pages);
+
+/**
+ * xdr_enter_page - decode data from the XDR page
+ * @xdr: pointer to xdr_stream struct
+ * @len: number of bytes of page data
+ *
+ * Moves data beyond the current pointer position from the XDR head[] buffer
+ * into the page list. Any data that lies beyond current position + "len"
+ * bytes is moved into the XDR tail[]. The current pointer is then
+ * repositioned at the beginning of the first XDR page.
+ */
+void xdr_enter_page(struct xdr_stream *xdr, unsigned int len)
+{
+	char * kaddr = page_address(xdr->buf->pages[0]);
+	xdr_read_pages(xdr, len);
+	/*
+	 * Position current pointer at beginning of tail, and
+	 * set remaining message length.
+	 */
+	if (len > PAGE_CACHE_SIZE - xdr->buf->page_base)
+		len = PAGE_CACHE_SIZE - xdr->buf->page_base;
+	xdr->p = (uint32_t *)(kaddr + xdr->buf->page_base);
+	xdr->end = (uint32_t *)((char *)xdr->p + len);
+}
+EXPORT_SYMBOL(xdr_enter_page);
 
 static struct kvec empty_iov = {.iov_base = NULL, .iov_len = 0};
 

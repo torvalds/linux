@@ -141,6 +141,7 @@ struct acpi_rsdump_info *acpi_gbl_dump_resource_dispatch[] = {
 	acpi_rs_dump_generic_reg,	/* ACPI_RESOURCE_TYPE_GENERIC_REGISTER */
 };
 #endif
+
 #endif	/* ACPI_FUTURE_USAGE */
 /*
  * Base sizes for external AML resource descriptors, indexed by internal type.

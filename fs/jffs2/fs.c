@@ -192,9 +192,9 @@ int jffs2_setattr(struct dentry *dentry, struct iattr *iattr)
 	return rc;
 }
 
-int jffs2_statfs(struct super_block *sb, struct kstatfs *buf)
+int jffs2_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
-	struct jffs2_sb_info *c = JFFS2_SB_INFO(sb);
+	struct jffs2_sb_info *c = JFFS2_SB_INFO(dentry->d_sb);
 	unsigned long avail;
 
 	buf->f_type = JFFS2_SUPER_MAGIC;

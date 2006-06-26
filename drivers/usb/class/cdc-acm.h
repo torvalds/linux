@@ -56,11 +56,11 @@
  * in line disciplines. They ask for empty space amount, receive our URB size,
  * and proceed to issue several 1-character writes, assuming they will fit.
  * The very first write takes a complete URB. Fortunately, this only happens
- * when processing onlcr, so we only need 2 buffers.
+ * when processing onlcr, so we only need 2 buffers. These values must be
+ * powers of 2.
  */
-#define ACM_NWB  2
-#define ACM_NRU  16
-#define ACM_NRB  16
+#define ACM_NW  2
+#define ACM_NR  16
 
 struct acm_wb {
 	unsigned char *buf;
@@ -91,9 +91,10 @@ struct acm {
 	struct urb *ctrlurb, *writeurb;			/* urbs */
 	u8 *ctrl_buffer;				/* buffers of urbs */
 	dma_addr_t ctrl_dma;				/* dma handles of buffers */
-	struct acm_wb wb[ACM_NWB];
-	struct acm_ru ru[ACM_NRU];
-	struct acm_rb rb[ACM_NRB];
+	struct acm_wb wb[ACM_NW];
+	struct acm_ru ru[ACM_NR];
+	struct acm_rb rb[ACM_NR];
+	int rx_buflimit;
 	int rx_endpoint;
 	spinlock_t read_lock;
 	struct list_head spare_read_urbs;
@@ -122,3 +123,4 @@ struct acm {
 
 /* constants describing various quirks and errors */
 #define NO_UNION_NORMAL			1
+#define SINGLE_RX_URB			2

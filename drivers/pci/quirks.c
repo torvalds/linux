@@ -24,6 +24,17 @@
 #include <linux/acpi.h>
 #include "pci.h"
 
+/* The Mellanox Tavor device gives false positive parity errors
+ * Mark this device with a broken_parity_status, to allow
+ * PCI scanning code to "skip" this now blacklisted device.
+ */
+static void __devinit quirk_mellanox_tavor(struct pci_dev *dev)
+{
+	dev->broken_parity_status = 1;	/* This device gives false positives */
+}
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_MELLANOX,PCI_DEVICE_ID_MELLANOX_TAVOR,quirk_mellanox_tavor);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_MELLANOX,PCI_DEVICE_ID_MELLANOX_TAVOR_BRIDGE,quirk_mellanox_tavor);
+
 /* Deal with broken BIOS'es that neglect to enable passive release,
    which can cause problems in combination with the 82441FX/PPro MTRRs */
 static void __devinit quirk_passive_release(struct pci_dev *dev)
@@ -878,27 +889,30 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_82375,	quirk_e
  * when a PCI-Soundcard is added. The BIOS only gives Options
  * "Disabled" and "AUTO". This Quirk Sets the corresponding
  * Register-Value to enable the Soundcard.
+ *
+ * FIXME: Presently this quirk will run on anything that has an 8237
+ * which isn't correct, we need to check DMI tables or something in
+ * order to make sure it only runs on the MSI-K8T-Neo2Fir.  Because it
+ * runs everywhere at present we suppress the printk output in most
+ * irrelevant cases.
  */
 static void __init k8t_sound_hostbridge(struct pci_dev *dev)
 {
 	unsigned char val;
 
-	printk(KERN_INFO "PCI: Quirk-MSI-K8T Soundcard On\n");
 	pci_read_config_byte(dev, 0x50, &val);
 	if (val == 0x88 || val == 0xc8) {
+		/* Assume it's probably a MSI-K8T-Neo2Fir */
+		printk(KERN_INFO "PCI: MSI-K8T-Neo2Fir, attempting to turn soundcard ON\n");
 		pci_write_config_byte(dev, 0x50, val & (~0x40));
 
 		/* Verify the Change for Status output */
 		pci_read_config_byte(dev, 0x50, &val);
 		if (val & 0x40)
-			printk(KERN_INFO "PCI: MSI-K8T soundcard still off\n");
+			printk(KERN_INFO "PCI: MSI-K8T-Neo2Fir, soundcard still off\n");
 		else
-			printk(KERN_INFO "PCI: MSI-K8T soundcard on\n");
-	} else {
-		printk(KERN_INFO "PCI: Unexpected Value in PCI-Register: "
-					"no Change!\n");
+			printk(KERN_INFO "PCI: MSI-K8T-Neo2Fir, soundcard on\n");
 	}
-
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8237, k8t_sound_hostbridge);
 
@@ -1484,6 +1498,25 @@ static void __devinit quirk_p64h2_1k_io(struct pci_dev *dev)
 	}
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL,	0x1460,		quirk_p64h2_1k_io);
+
+/* Under some circumstances, AER is not linked with extended capabilities.
+ * Force it to be linked by setting the corresponding control bit in the
+ * config space.
+ */
+static void __devinit quirk_nvidia_ck804_pcie_aer_ext_cap(struct pci_dev *dev)
+{
+	uint8_t b;
+	if (pci_read_config_byte(dev, 0xf41, &b) == 0) {
+		if (!(b & 0x20)) {
+			pci_write_config_byte(dev, 0xf41, b | 0x20);
+			printk(KERN_INFO
+			       "PCI: Linking AER extended capability on %s\n",
+			       pci_name(dev));
+		}
+	}
+}
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_NVIDIA,  PCI_DEVICE_ID_NVIDIA_CK804_PCIE,
+			quirk_nvidia_ck804_pcie_aer_ext_cap);
 
 EXPORT_SYMBOL(pcie_mch_quirk);
 #ifdef CONFIG_HOTPLUG

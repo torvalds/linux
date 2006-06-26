@@ -28,16 +28,16 @@ static int verify_group_input(struct super_block *sb,
 {
 	struct ext3_sb_info *sbi = EXT3_SB(sb);
 	struct ext3_super_block *es = sbi->s_es;
-	unsigned start = le32_to_cpu(es->s_blocks_count);
-	unsigned end = start + input->blocks_count;
+	ext3_fsblk_t start = le32_to_cpu(es->s_blocks_count);
+	ext3_fsblk_t end = start + input->blocks_count;
 	unsigned group = input->group;
-	unsigned itend = input->inode_table + sbi->s_itb_per_group;
+	ext3_fsblk_t itend = input->inode_table + sbi->s_itb_per_group;
 	unsigned overhead = ext3_bg_has_super(sb, group) ?
 		(1 + ext3_bg_num_gdb(sb, group) +
 		 le16_to_cpu(es->s_reserved_gdt_blocks)) : 0;
-	unsigned metaend = start + overhead;
+	ext3_fsblk_t metaend = start + overhead;
 	struct buffer_head *bh = NULL;
-	int free_blocks_count;
+	ext3_grpblk_t free_blocks_count;
 	int err = -EINVAL;
 
 	input->free_blocks_count = free_blocks_count =
@@ -64,7 +64,8 @@ static int verify_group_input(struct super_block *sb,
 		ext3_warning(sb, __FUNCTION__, "Bad blocks count %u",
 			     input->blocks_count);
 	else if (!(bh = sb_bread(sb, end - 1)))
-		ext3_warning(sb, __FUNCTION__, "Cannot read last block (%u)",
+		ext3_warning(sb, __FUNCTION__,
+			     "Cannot read last block ("E3FSBLK")",
 			     end - 1);
 	else if (outside(input->block_bitmap, start, end))
 		ext3_warning(sb, __FUNCTION__,
@@ -77,7 +78,7 @@ static int verify_group_input(struct super_block *sb,
 	else if (outside(input->inode_table, start, end) ||
 	         outside(itend - 1, start, end))
 		ext3_warning(sb, __FUNCTION__,
-			     "Inode table not in group (blocks %u-%u)",
+			     "Inode table not in group (blocks %u-"E3FSBLK")",
 			     input->inode_table, itend - 1);
 	else if (input->inode_bitmap == input->block_bitmap)
 		ext3_warning(sb, __FUNCTION__,
@@ -85,24 +86,27 @@ static int verify_group_input(struct super_block *sb,
 			     input->block_bitmap);
 	else if (inside(input->block_bitmap, input->inode_table, itend))
 		ext3_warning(sb, __FUNCTION__,
-			     "Block bitmap (%u) in inode table (%u-%u)",
+			     "Block bitmap (%u) in inode table (%u-"E3FSBLK")",
 			     input->block_bitmap, input->inode_table, itend-1);
 	else if (inside(input->inode_bitmap, input->inode_table, itend))
 		ext3_warning(sb, __FUNCTION__,
-			     "Inode bitmap (%u) in inode table (%u-%u)",
+			     "Inode bitmap (%u) in inode table (%u-"E3FSBLK")",
 			     input->inode_bitmap, input->inode_table, itend-1);
 	else if (inside(input->block_bitmap, start, metaend))
 		ext3_warning(sb, __FUNCTION__,
-			     "Block bitmap (%u) in GDT table (%u-%u)",
+			     "Block bitmap (%u) in GDT table"
+			     " ("E3FSBLK"-"E3FSBLK")",
 			     input->block_bitmap, start, metaend - 1);
 	else if (inside(input->inode_bitmap, start, metaend))
 		ext3_warning(sb, __FUNCTION__,
-			     "Inode bitmap (%u) in GDT table (%u-%u)",
+			     "Inode bitmap (%u) in GDT table"
+			     " ("E3FSBLK"-"E3FSBLK")",
 			     input->inode_bitmap, start, metaend - 1);
 	else if (inside(input->inode_table, start, metaend) ||
 	         inside(itend - 1, start, metaend))
 		ext3_warning(sb, __FUNCTION__,
-			     "Inode table (%u-%u) overlaps GDT table (%u-%u)",
+			     "Inode table (%u-"E3FSBLK") overlaps"
+			     "GDT table ("E3FSBLK"-"E3FSBLK")",
 			     input->inode_table, itend - 1, start, metaend - 1);
 	else
 		err = 0;
@@ -112,7 +116,7 @@ static int verify_group_input(struct super_block *sb,
 }
 
 static struct buffer_head *bclean(handle_t *handle, struct super_block *sb,
-				  unsigned long blk)
+				  ext3_fsblk_t blk)
 {
 	struct buffer_head *bh;
 	int err;
@@ -163,15 +167,14 @@ static int setup_new_group_blocks(struct super_block *sb,
 				  struct ext3_new_group_data *input)
 {
 	struct ext3_sb_info *sbi = EXT3_SB(sb);
-	unsigned long start = input->group * sbi->s_blocks_per_group +
-		le32_to_cpu(sbi->s_es->s_first_data_block);
+	ext3_fsblk_t start = ext3_group_first_block_no(sb, input->group);
 	int reserved_gdb = ext3_bg_has_super(sb, input->group) ?
 		le16_to_cpu(sbi->s_es->s_reserved_gdt_blocks) : 0;
 	unsigned long gdblocks = ext3_bg_num_gdb(sb, input->group);
 	struct buffer_head *bh;
 	handle_t *handle;
-	unsigned long block;
-	int bit;
+	ext3_fsblk_t block;
+	ext3_grpblk_t bit;
 	int i;
 	int err = 0, err2;
 
@@ -328,7 +331,7 @@ static unsigned ext3_list_backups(struct super_block *sb, unsigned *three,
 static int verify_reserved_gdb(struct super_block *sb,
 			       struct buffer_head *primary)
 {
-	const unsigned long blk = primary->b_blocknr;
+	const ext3_fsblk_t blk = primary->b_blocknr;
 	const unsigned long end = EXT3_SB(sb)->s_groups_count;
 	unsigned three = 1;
 	unsigned five = 5;
@@ -340,7 +343,8 @@ static int verify_reserved_gdb(struct super_block *sb,
 	while ((grp = ext3_list_backups(sb, &three, &five, &seven)) < end) {
 		if (le32_to_cpu(*p++) != grp * EXT3_BLOCKS_PER_GROUP(sb) + blk){
 			ext3_warning(sb, __FUNCTION__,
-				     "reserved GDT %ld missing grp %d (%ld)",
+				     "reserved GDT "E3FSBLK
+				     " missing grp %d ("E3FSBLK")",
 				     blk, grp,
 				     grp * EXT3_BLOCKS_PER_GROUP(sb) + blk);
 			return -EINVAL;
@@ -372,7 +376,7 @@ static int add_new_gdb(handle_t *handle, struct inode *inode,
 	struct super_block *sb = inode->i_sb;
 	struct ext3_super_block *es = EXT3_SB(sb)->s_es;
 	unsigned long gdb_num = input->group / EXT3_DESC_PER_BLOCK(sb);
-	unsigned long gdblock = EXT3_SB(sb)->s_sbh->b_blocknr + 1 + gdb_num;
+	ext3_fsblk_t gdblock = EXT3_SB(sb)->s_sbh->b_blocknr + 1 + gdb_num;
 	struct buffer_head **o_group_desc, **n_group_desc;
 	struct buffer_head *dind;
 	int gdbackups;
@@ -417,7 +421,7 @@ static int add_new_gdb(handle_t *handle, struct inode *inode,
 	data = (__u32 *)dind->b_data;
 	if (le32_to_cpu(data[gdb_num % EXT3_ADDR_PER_BLOCK(sb)]) != gdblock) {
 		ext3_warning(sb, __FUNCTION__,
-			     "new group %u GDT block %lu not reserved",
+			     "new group %u GDT block "E3FSBLK" not reserved",
 			     input->group, gdblock);
 		err = -EINVAL;
 		goto exit_dind;
@@ -515,7 +519,7 @@ static int reserve_backup_gdb(handle_t *handle, struct inode *inode,
 	struct buffer_head **primary;
 	struct buffer_head *dind;
 	struct ext3_iloc iloc;
-	unsigned long blk;
+	ext3_fsblk_t blk;
 	__u32 *data, *end;
 	int gdbackups = 0;
 	int res, i;
@@ -540,7 +544,8 @@ static int reserve_backup_gdb(handle_t *handle, struct inode *inode,
 	for (res = 0; res < reserved_gdb; res++, blk++) {
 		if (le32_to_cpu(*data) != blk) {
 			ext3_warning(sb, __FUNCTION__,
-				     "reserved block %lu not at offset %ld",
+				     "reserved block "E3FSBLK
+				     " not at offset %ld",
 				     blk, (long)(data - (__u32 *)dind->b_data));
 			err = -EINVAL;
 			goto exit_bh;
@@ -902,15 +907,16 @@ exit_put:
  * GDT blocks are reserved to grow to the desired size.
  */
 int ext3_group_extend(struct super_block *sb, struct ext3_super_block *es,
-		      unsigned long n_blocks_count)
+		      ext3_fsblk_t n_blocks_count)
 {
-	unsigned long o_blocks_count;
+	ext3_fsblk_t o_blocks_count;
 	unsigned long o_groups_count;
-	unsigned long last;
-	int add;
+	ext3_grpblk_t last;
+	ext3_grpblk_t add;
 	struct buffer_head * bh;
 	handle_t *handle;
-	int err, freed_blocks;
+	int err;
+	unsigned long freed_blocks;
 
 	/* We don't need to worry about locking wrt other resizers just
 	 * yet: we're going to revalidate es->s_blocks_count after
@@ -919,11 +925,21 @@ int ext3_group_extend(struct super_block *sb, struct ext3_super_block *es,
 	o_groups_count = EXT3_SB(sb)->s_groups_count;
 
 	if (test_opt(sb, DEBUG))
-		printk(KERN_DEBUG "EXT3-fs: extending last group from %lu to %lu blocks\n",
+		printk(KERN_DEBUG "EXT3-fs: extending last group from "E3FSBLK" uto "E3FSBLK" blocks\n",
 		       o_blocks_count, n_blocks_count);
 
 	if (n_blocks_count == 0 || n_blocks_count == o_blocks_count)
 		return 0;
+
+	if (n_blocks_count > (sector_t)(~0ULL) >> (sb->s_blocksize_bits - 9)) {
+		printk(KERN_ERR "EXT3-fs: filesystem on %s:"
+			" too large to resize to %lu blocks safely\n",
+			sb->s_id, n_blocks_count);
+		if (sizeof(sector_t) < 8)
+			ext3_warning(sb, __FUNCTION__,
+			"CONFIG_LBD not enabled\n");
+		return -EINVAL;
+	}
 
 	if (n_blocks_count < o_blocks_count) {
 		ext3_warning(sb, __FUNCTION__,
@@ -948,7 +964,8 @@ int ext3_group_extend(struct super_block *sb, struct ext3_super_block *es,
 
 	if (o_blocks_count + add < n_blocks_count)
 		ext3_warning(sb, __FUNCTION__,
-			     "will only finish group (%lu blocks, %u new)",
+			     "will only finish group ("E3FSBLK
+			     " blocks, %u new)",
 			     o_blocks_count + add, add);
 
 	/* See if the device is actually as big as what was requested */
@@ -991,10 +1008,10 @@ int ext3_group_extend(struct super_block *sb, struct ext3_super_block *es,
 	ext3_journal_dirty_metadata(handle, EXT3_SB(sb)->s_sbh);
 	sb->s_dirt = 1;
 	unlock_super(sb);
-	ext3_debug("freeing blocks %ld through %ld\n", o_blocks_count,
+	ext3_debug("freeing blocks %lu through "E3FSBLK"\n", o_blocks_count,
 		   o_blocks_count + add);
 	ext3_free_blocks_sb(handle, sb, o_blocks_count, add, &freed_blocks);
-	ext3_debug("freed blocks %ld through %ld\n", o_blocks_count,
+	ext3_debug("freed blocks "E3FSBLK" through "E3FSBLK"\n", o_blocks_count,
 		   o_blocks_count + add);
 	if ((err = ext3_journal_stop(handle)))
 		goto exit_put;

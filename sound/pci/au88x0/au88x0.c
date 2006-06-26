@@ -261,6 +261,13 @@ snd_vortex_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 		return err;
 	}
 	snd_vortex_workaround(pci, pcifix[dev]);
+
+	// Card details needed in snd_vortex_midi
+	strcpy(card->driver, CARD_NAME_SHORT);
+	sprintf(card->shortname, "Aureal Vortex %s", CARD_NAME_SHORT);
+	sprintf(card->longname, "%s at 0x%lx irq %i",
+		card->shortname, chip->io, chip->irq);
+
 	// (4) Alloc components.
 	// ADB pcm.
 	if ((err = snd_vortex_new_pcm(chip, VORTEX_PCM_ADB, NR_ADB)) < 0) {
@@ -323,11 +330,6 @@ snd_vortex_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 #endif
 
 	// (5)
-	strcpy(card->driver, CARD_NAME_SHORT);
-	strcpy(card->shortname, CARD_NAME_SHORT);
-	sprintf(card->longname, "%s at 0x%lx irq %i",
-		card->shortname, chip->io, chip->irq);
-
 	if ((err = pci_read_config_word(pci, PCI_DEVICE_ID,
 				  &(chip->device))) < 0) {
 		snd_card_free(card);

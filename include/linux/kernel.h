@@ -24,6 +24,9 @@ extern const char linux_banner[];
 #define LONG_MAX	((long)(~0UL>>1))
 #define LONG_MIN	(-LONG_MAX - 1)
 #define ULONG_MAX	(~0UL)
+#define LLONG_MAX	((long long)(~0ULL>>1))
+#define LLONG_MIN	(-LLONG_MAX - 1)
+#define ULLONG_MAX	(~0ULL)
 
 #define STACK_MAGIC	0xdeadbeef
 
@@ -75,7 +78,7 @@ extern int cond_resched(void);
 # define might_sleep() do { might_resched(); } while (0)
 #endif
 
-#define might_sleep_if(cond) do { if (unlikely(cond)) might_sleep(); } while (0)
+#define might_sleep_if(cond) do { if (cond) might_sleep(); } while (0)
 
 #define abs(x) ({				\
 		int __x = (x);			\
@@ -114,6 +117,8 @@ extern int scnprintf(char * buf, size_t size, const char * fmt, ...)
 	__attribute__ ((format (printf, 3, 4)));
 extern int vscnprintf(char *buf, size_t size, const char *fmt, va_list args)
 	__attribute__ ((format (printf, 3, 0)));
+extern char *kasprintf(gfp_t gfp, const char *fmt, ...)
+	__attribute__ ((format (printf, 2, 3)));
 
 extern int sscanf(const char *, const char *, ...)
 	__attribute__ ((format (scanf, 2, 3)));

@@ -41,6 +41,7 @@
 #include <linux/rcupdate.h>
 #include <linux/sched.h>
 #include <linux/seq_file.h>
+#include <linux/security.h>
 #include <linux/slab.h>
 #include <linux/smp_lock.h>
 #include <linux/spinlock.h>
@@ -392,11 +393,11 @@ static int cpuset_fill_super(struct super_block *sb, void *unused_data,
 	return 0;
 }
 
-static struct super_block *cpuset_get_sb(struct file_system_type *fs_type,
-					int flags, const char *unused_dev_name,
-					void *data)
+static int cpuset_get_sb(struct file_system_type *fs_type,
+			 int flags, const char *unused_dev_name,
+			 void *data, struct vfsmount *mnt)
 {
-	return get_sb_single(fs_type, flags, data, cpuset_fill_super);
+	return get_sb_single(fs_type, flags, data, cpuset_fill_super, mnt);
 }
 
 static struct file_system_type cpuset_fs_type = {
@@ -1177,6 +1178,7 @@ static int attach_task(struct cpuset *cs, char *pidbuf, char **ppathbuf)
 	cpumask_t cpus;
 	nodemask_t from, to;
 	struct mm_struct *mm;
+	int retval;
 
 	if (sscanf(pidbuf, "%d", &pid) != 1)
 		return -EIO;
@@ -1203,6 +1205,12 @@ static int attach_task(struct cpuset *cs, char *pidbuf, char **ppathbuf)
 	} else {
 		tsk = current;
 		get_task_struct(tsk);
+	}
+
+	retval = security_task_setscheduler(tsk, 0, NULL);
+	if (retval) {
+		put_task_struct(tsk);
+		return retval;
 	}
 
 	mutex_lock(&callback_mutex);

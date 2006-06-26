@@ -57,12 +57,6 @@ static int atari_get_hardware_list(char *buffer);
 
 /* atari specific irq functions */
 extern void atari_init_IRQ (void);
-extern int atari_request_irq (unsigned int irq, irqreturn_t (*handler)(int, void *, struct pt_regs *),
-                              unsigned long flags, const char *devname, void *dev_id);
-extern void atari_free_irq (unsigned int irq, void *dev_id);
-extern void atari_enable_irq (unsigned int);
-extern void atari_disable_irq (unsigned int);
-extern int show_atari_interrupts (struct seq_file *, void *);
 extern void atari_mksound( unsigned int count, unsigned int ticks );
 #ifdef CONFIG_HEARTBEAT
 static void atari_heartbeat( int on );
@@ -232,13 +226,8 @@ void __init config_atari(void)
 
     mach_sched_init      = atari_sched_init;
     mach_init_IRQ        = atari_init_IRQ;
-    mach_request_irq     = atari_request_irq;
-    mach_free_irq        = atari_free_irq;
-    enable_irq           = atari_enable_irq;
-    disable_irq          = atari_disable_irq;
     mach_get_model	 = atari_get_model;
     mach_get_hardware_list = atari_get_hardware_list;
-    mach_get_irq_list	 = show_atari_interrupts;
     mach_gettimeoffset   = atari_gettimeoffset;
     mach_reset           = atari_reset;
     mach_max_dma_address = 0xffffff;

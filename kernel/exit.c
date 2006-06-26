@@ -36,6 +36,7 @@
 #include <linux/compat.h>
 #include <linux/pipe_fs_i.h>
 #include <linux/audit.h> /* for audit_free() */
+#include <linux/resource.h>
 
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
@@ -44,8 +45,6 @@
 
 extern void sem_exit (void);
 extern struct task_struct *child_reaper;
-
-int getrusage(struct task_struct *, int, struct rusage __user *);
 
 static void exit_mm(struct task_struct * tsk);
 
@@ -579,7 +578,7 @@ static void exit_mm(struct task_struct * tsk)
 		down_read(&mm->mmap_sem);
 	}
 	atomic_inc(&mm->mm_count);
-	if (mm != tsk->active_mm) BUG();
+	BUG_ON(mm != tsk->active_mm);
 	/* more a memory barrier than a real lock */
 	task_lock(tsk);
 	tsk->mm = NULL;
@@ -895,11 +894,11 @@ fastcall NORET_TYPE void do_exit(long code)
 	if (group_dead) {
  		hrtimer_cancel(&tsk->signal->real_timer);
 		exit_itimers(tsk->signal);
-		acct_process(code);
 	}
+	acct_collect(code, group_dead);
 	if (unlikely(tsk->robust_list))
 		exit_robust_list(tsk);
-#ifdef CONFIG_COMPAT
+#if defined(CONFIG_FUTEX) && defined(CONFIG_COMPAT)
 	if (unlikely(tsk->compat_robust_list))
 		compat_exit_robust_list(tsk);
 #endif
@@ -907,6 +906,8 @@ fastcall NORET_TYPE void do_exit(long code)
 		audit_free(tsk);
 	exit_mm(tsk);
 
+	if (group_dead)
+		acct_process();
 	exit_sem(tsk);
 	__exit_files(tsk);
 	__exit_fs(tsk);
@@ -1530,8 +1531,7 @@ check_continued:
 		if (options & __WNOTHREAD)
 			break;
 		tsk = next_thread(tsk);
-		if (tsk->signal != current->signal)
-			BUG();
+		BUG_ON(tsk->signal != current->signal);
 	} while (tsk != current);
 
 	read_unlock(&tasklist_lock);

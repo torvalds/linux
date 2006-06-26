@@ -539,18 +539,18 @@ static int fat_remount(struct super_block *sb, int *flags, char *data)
 	return 0;
 }
 
-static int fat_statfs(struct super_block *sb, struct kstatfs *buf)
+static int fat_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
-	struct msdos_sb_info *sbi = MSDOS_SB(sb);
+	struct msdos_sb_info *sbi = MSDOS_SB(dentry->d_sb);
 
 	/* If the count of free cluster is still unknown, counts it here. */
 	if (sbi->free_clusters == -1) {
-		int err = fat_count_free_clusters(sb);
+		int err = fat_count_free_clusters(dentry->d_sb);
 		if (err)
 			return err;
 	}
 
-	buf->f_type = sb->s_magic;
+	buf->f_type = dentry->d_sb->s_magic;
 	buf->f_bsize = sbi->cluster_size;
 	buf->f_blocks = sbi->max_cluster - FAT_START_ENT;
 	buf->f_bfree = sbi->free_clusters;

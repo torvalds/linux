@@ -227,7 +227,8 @@ repeat_locked:
 	spin_unlock(&transaction->t_handle_lock);
 	spin_unlock(&journal->j_state_lock);
 out:
-	kfree(new_transaction);
+	if (unlikely(new_transaction))		/* It's usually NULL */
+		kfree(new_transaction);
 	return ret;
 }
 
@@ -724,7 +725,8 @@ done:
 	journal_cancel_revoke(handle, jh);
 
 out:
-	kfree(frozen_buffer);
+	if (unlikely(frozen_buffer))	/* It's usually NULL */
+		kfree(frozen_buffer);
 
 	JBUFFER_TRACE(jh, "exit");
 	return error;
@@ -903,7 +905,8 @@ repeat:
 	jbd_unlock_bh_state(bh);
 out:
 	journal_put_journal_head(jh);
-	kfree(committed_data);
+	if (unlikely(committed_data))
+		kfree(committed_data);
 	return err;
 }
 
@@ -2038,7 +2041,8 @@ void __journal_refile_buffer(struct journal_head *jh)
 	__journal_temp_unlink_buffer(jh);
 	jh->b_transaction = jh->b_next_transaction;
 	jh->b_next_transaction = NULL;
-	__journal_file_buffer(jh, jh->b_transaction, BJ_Metadata);
+	__journal_file_buffer(jh, jh->b_transaction,
+				was_dirty ? BJ_Metadata : BJ_Reserved);
 	J_ASSERT_JH(jh, jh->b_transaction->t_state == T_RUNNING);
 
 	if (was_dirty)

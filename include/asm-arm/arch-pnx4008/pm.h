@@ -29,34 +29,5 @@ extern void pnx4008_cpu_standby(void);
 extern int pnx4008_startup_pll(struct clk *);
 extern int pnx4008_shutdown_pll(struct clk *);
 
-static inline void start_int_umask(u8 irq)
-{
-	__raw_writel(__raw_readl(START_INT_ER_REG(irq)) |
-		     START_INT_REG_BIT(irq), START_INT_ER_REG(irq));
-}
-
-static inline void start_int_mask(u8 irq)
-{
-	__raw_writel(__raw_readl(START_INT_ER_REG(irq)) &
-		     ~START_INT_REG_BIT(irq), START_INT_ER_REG(irq));
-}
-
-static inline void start_int_ack(u8 irq)
-{
-	__raw_writel(START_INT_REG_BIT(irq), START_INT_RSR_REG(irq));
-}
-
-static inline void start_int_set_falling_edge(u8 irq)
-{
-	__raw_writel(__raw_readl(START_INT_APR_REG(irq)) &
-		     ~START_INT_REG_BIT(irq), START_INT_APR_REG(irq));
-}
-
-static inline void start_int_set_rising_edge(u8 irq)
-{
-	__raw_writel(__raw_readl(START_INT_APR_REG(irq)) |
-		     START_INT_REG_BIT(irq), START_INT_APR_REG(irq));
-}
-
 #endif				/* ASSEMBLER */
 #endif				/* __ASM_ARCH_PNX4008_PM_H */

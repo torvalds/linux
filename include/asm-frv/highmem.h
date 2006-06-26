@@ -134,7 +134,7 @@ static inline void *kmap_atomic(struct page *page, enum km_type type)
 
 	default:
 		BUG();
-		return 0;
+		return NULL;
 	}
 }
 

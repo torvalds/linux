@@ -210,8 +210,7 @@ static inline int ip_finish_output(struct sk_buff *skb)
 		return dst_output(skb);
 	}
 #endif
-	if (skb->len > dst_mtu(skb->dst) &&
-	    !(skb_shinfo(skb)->ufo_size || skb_shinfo(skb)->tso_size))
+	if (skb->len > dst_mtu(skb->dst) && !skb_shinfo(skb)->gso_size)
 		return ip_fragment(skb, ip_finish_output2);
 	else
 		return ip_finish_output2(skb);
@@ -362,7 +361,7 @@ packet_routed:
 	}
 
 	ip_select_ident_more(iph, &rt->u.dst, sk,
-			     (skb_shinfo(skb)->tso_segs ?: 1) - 1);
+			     (skb_shinfo(skb)->gso_segs ?: 1) - 1);
 
 	/* Add an IP checksum. */
 	ip_send_check(iph);
@@ -744,7 +743,8 @@ static inline int ip_ufo_append_data(struct sock *sk,
 			       (length - transhdrlen));
 	if (!err) {
 		/* specify the length of each IP datagram fragment*/
-		skb_shinfo(skb)->ufo_size = (mtu - fragheaderlen);
+		skb_shinfo(skb)->gso_size = mtu - fragheaderlen;
+		skb_shinfo(skb)->gso_type = SKB_GSO_UDPV4;
 		__skb_queue_tail(&sk->sk_write_queue, skb);
 
 		return 0;
@@ -1087,14 +1087,16 @@ ssize_t	ip_append_page(struct sock *sk, struct page *page,
 
 	inet->cork.length += size;
 	if ((sk->sk_protocol == IPPROTO_UDP) &&
-	    (rt->u.dst.dev->features & NETIF_F_UFO))
-		skb_shinfo(skb)->ufo_size = (mtu - fragheaderlen);
+	    (rt->u.dst.dev->features & NETIF_F_UFO)) {
+		skb_shinfo(skb)->gso_size = mtu - fragheaderlen;
+		skb_shinfo(skb)->gso_type = SKB_GSO_UDPV4;
+	}
 
 
 	while (size > 0) {
 		int i;
 
-		if (skb_shinfo(skb)->ufo_size)
+		if (skb_shinfo(skb)->gso_size)
 			len = size;
 		else {
 

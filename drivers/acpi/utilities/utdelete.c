@@ -76,7 +76,7 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 	union acpi_operand_object *second_desc;
 	union acpi_operand_object *next_desc;
 
-	ACPI_FUNCTION_TRACE_PTR("ut_delete_internal_obj", object);
+	ACPI_FUNCTION_TRACE_PTR(ut_delete_internal_obj, object);
 
 	if (!object) {
 		return_VOID;
@@ -96,6 +96,7 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 		/* Free the actual string buffer */
 
 		if (!(object->common.flags & AOPOBJ_STATIC_POINTER)) {
+
 			/* But only if it is NOT a pointer into an ACPI table */
 
 			obj_pointer = object->string.pointer;
@@ -111,6 +112,7 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 		/* Free the actual buffer */
 
 		if (!(object->common.flags & AOPOBJ_STATIC_POINTER)) {
+
 			/* But only if it is NOT a pointer into an ACPI table */
 
 			obj_pointer = object->buffer.pointer;
@@ -198,11 +200,22 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 			 */
 			handler_desc = object->region.handler;
 			if (handler_desc) {
-				if (handler_desc->address_space.
-				    hflags &
+				if (handler_desc->address_space.handler_flags &
 				    ACPI_ADDR_HANDLER_DEFAULT_INSTALLED) {
-					obj_pointer =
-					    second_desc->extra.region_context;
+
+					/* Deactivate region and free region context */
+
+					if (handler_desc->address_space.setup) {
+						(void)handler_desc->
+						    address_space.setup(object,
+									ACPI_REGION_DEACTIVATE,
+									handler_desc->
+									address_space.
+									context,
+									&second_desc->
+									extra.
+									region_context);
+					}
 				}
 
 				acpi_ut_remove_reference(handler_desc);
@@ -234,7 +247,7 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 	if (obj_pointer) {
 		ACPI_DEBUG_PRINT((ACPI_DB_ALLOCATIONS,
 				  "Deleting Object Subptr %p\n", obj_pointer));
-		ACPI_MEM_FREE(obj_pointer);
+		ACPI_FREE(obj_pointer);
 	}
 
 	/* Now the object can be safely deleted */
@@ -263,7 +276,7 @@ void acpi_ut_delete_internal_object_list(union acpi_operand_object **obj_list)
 {
 	union acpi_operand_object **internal_obj;
 
-	ACPI_FUNCTION_TRACE("ut_delete_internal_object_list");
+	ACPI_FUNCTION_TRACE(ut_delete_internal_object_list);
 
 	/* Walk the null-terminated internal list */
 
@@ -273,7 +286,7 @@ void acpi_ut_delete_internal_object_list(union acpi_operand_object **obj_list)
 
 	/* Free the combined parameter pointer list and object array */
 
-	ACPI_MEM_FREE(obj_list);
+	ACPI_FREE(obj_list);
 	return_VOID;
 }
 
@@ -296,7 +309,7 @@ acpi_ut_update_ref_count(union acpi_operand_object *object, u32 action)
 	u16 count;
 	u16 new_count;
 
-	ACPI_FUNCTION_NAME("ut_update_ref_count");
+	ACPI_FUNCTION_NAME(ut_update_ref_count);
 
 	if (!object) {
 		return;
@@ -306,11 +319,9 @@ acpi_ut_update_ref_count(union acpi_operand_object *object, u32 action)
 	new_count = count;
 
 	/*
-	 * Perform the reference count action
-	 * (increment, decrement, or force delete)
+	 * Perform the reference count action (increment, decrement, force delete)
 	 */
 	switch (action) {
-
 	case REF_INCREMENT:
 
 		new_count++;
@@ -347,7 +358,6 @@ acpi_ut_update_ref_count(union acpi_operand_object *object, u32 action)
 		if (new_count == 0) {
 			acpi_ut_delete_internal_obj(object);
 		}
-
 		break;
 
 	case REF_FORCE_DELETE:
@@ -372,13 +382,10 @@ acpi_ut_update_ref_count(union acpi_operand_object *object, u32 action)
 	 * (A deleted object will have a huge reference count)
 	 */
 	if (count > ACPI_MAX_REFERENCE_COUNT) {
-
 		ACPI_WARNING((AE_INFO,
-			      "Large Reference Count (%X) in object %p",
-			      count, object));
+			      "Large Reference Count (%X) in object %p", count,
+			      object));
 	}
-
-	return;
 }
 
 /*******************************************************************************
@@ -404,7 +411,7 @@ acpi_ut_update_ref_count(union acpi_operand_object *object, u32 action)
  ******************************************************************************/
 
 acpi_status
-acpi_ut_update_object_reference(union acpi_operand_object * object, u16 action)
+acpi_ut_update_object_reference(union acpi_operand_object *object, u16 action)
 {
 	acpi_status status = AE_OK;
 	union acpi_generic_state *state_list = NULL;
@@ -412,9 +419,10 @@ acpi_ut_update_object_reference(union acpi_operand_object * object, u16 action)
 	union acpi_generic_state *state;
 	acpi_native_uint i;
 
-	ACPI_FUNCTION_TRACE_PTR("ut_update_object_reference", object);
+	ACPI_FUNCTION_TRACE_PTR(ut_update_object_reference, object);
 
 	while (object) {
+
 		/* Make sure that this isn't a namespace handle */
 
 		if (ACPI_GET_DESCRIPTOR_TYPE(object) == ACPI_DESC_TYPE_NAMED) {
@@ -507,11 +515,11 @@ acpi_ut_update_object_reference(union acpi_operand_object * object, u16 action)
 
 		case ACPI_TYPE_REGION:
 		default:
-			break;	/* No subobjects */
+			break;	/* No subobjects for all other types */
 		}
 
 		/*
-		 * Now we can update the count in the main object.  This can only
+		 * Now we can update the count in the main object. This can only
 		 * happen after we update the sub-objects in case this causes the
 		 * main object to be deleted.
 		 */
@@ -556,7 +564,7 @@ acpi_ut_update_object_reference(union acpi_operand_object * object, u16 action)
 void acpi_ut_add_reference(union acpi_operand_object *object)
 {
 
-	ACPI_FUNCTION_TRACE_PTR("ut_add_reference", object);
+	ACPI_FUNCTION_TRACE_PTR(ut_add_reference, object);
 
 	/* Ensure that we have a valid object */
 
@@ -589,11 +597,11 @@ void acpi_ut_add_reference(union acpi_operand_object *object)
 void acpi_ut_remove_reference(union acpi_operand_object *object)
 {
 
-	ACPI_FUNCTION_TRACE_PTR("ut_remove_reference", object);
+	ACPI_FUNCTION_TRACE_PTR(ut_remove_reference, object);
 
 	/*
-	 * Allow a NULL pointer to be passed in, just ignore it.  This saves
-	 * each caller from having to check.  Also, ignore NS nodes.
+	 * Allow a NULL pointer to be passed in, just ignore it. This saves
+	 * each caller from having to check. Also, ignore NS nodes.
 	 *
 	 */
 	if (!object ||
@@ -613,7 +621,7 @@ void acpi_ut_remove_reference(union acpi_operand_object *object)
 
 	/*
 	 * Decrement the reference count, and only actually delete the object
-	 * if the reference count becomes 0.  (Must also decrement the ref count
+	 * if the reference count becomes 0. (Must also decrement the ref count
 	 * of all subobjects!)
 	 */
 	(void)acpi_ut_update_object_reference(object, REF_DECREMENT);

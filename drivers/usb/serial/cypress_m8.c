@@ -824,7 +824,7 @@ send:
 	priv->bytes_out += count; /* do not count the line control and size bytes */
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	schedule_work(&port->work);
+	usb_serial_port_softint(port);
 } /* cypress_send */
 
 

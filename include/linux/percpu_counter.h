@@ -10,13 +10,14 @@
 #include <linux/smp.h>
 #include <linux/threads.h>
 #include <linux/percpu.h>
+#include <linux/types.h>
 
 #ifdef CONFIG_SMP
 
 struct percpu_counter {
 	spinlock_t lock;
-	long count;
-	long *counters;
+	s64 count;
+	s32 *counters;
 };
 
 #if NR_CPUS >= 16
@@ -25,11 +26,11 @@ struct percpu_counter {
 #define FBC_BATCH	(NR_CPUS*4)
 #endif
 
-static inline void percpu_counter_init(struct percpu_counter *fbc)
+static inline void percpu_counter_init(struct percpu_counter *fbc, s64 amount)
 {
 	spin_lock_init(&fbc->lock);
-	fbc->count = 0;
-	fbc->counters = alloc_percpu(long);
+	fbc->count = amount;
+	fbc->counters = alloc_percpu(s32);
 }
 
 static inline void percpu_counter_destroy(struct percpu_counter *fbc)
@@ -37,10 +38,10 @@ static inline void percpu_counter_destroy(struct percpu_counter *fbc)
 	free_percpu(fbc->counters);
 }
 
-void percpu_counter_mod(struct percpu_counter *fbc, long amount);
-long percpu_counter_sum(struct percpu_counter *fbc);
+void percpu_counter_mod(struct percpu_counter *fbc, s32 amount);
+s64 percpu_counter_sum(struct percpu_counter *fbc);
 
-static inline long percpu_counter_read(struct percpu_counter *fbc)
+static inline s64 percpu_counter_read(struct percpu_counter *fbc)
 {
 	return fbc->count;
 }
@@ -48,13 +49,14 @@ static inline long percpu_counter_read(struct percpu_counter *fbc)
 /*
  * It is possible for the percpu_counter_read() to return a small negative
  * number for some counter which should never be negative.
+ *
  */
-static inline long percpu_counter_read_positive(struct percpu_counter *fbc)
+static inline s64 percpu_counter_read_positive(struct percpu_counter *fbc)
 {
-	long ret = fbc->count;
+	s64 ret = fbc->count;
 
 	barrier();		/* Prevent reloads of fbc->count */
-	if (ret > 0)
+	if (ret >= 0)
 		return ret;
 	return 1;
 }
@@ -62,12 +64,12 @@ static inline long percpu_counter_read_positive(struct percpu_counter *fbc)
 #else
 
 struct percpu_counter {
-	long count;
+	s64 count;
 };
 
-static inline void percpu_counter_init(struct percpu_counter *fbc)
+static inline void percpu_counter_init(struct percpu_counter *fbc, s64 amount)
 {
-	fbc->count = 0;
+	fbc->count = amount;
 }
 
 static inline void percpu_counter_destroy(struct percpu_counter *fbc)
@@ -75,24 +77,24 @@ static inline void percpu_counter_destroy(struct percpu_counter *fbc)
 }
 
 static inline void
-percpu_counter_mod(struct percpu_counter *fbc, long amount)
+percpu_counter_mod(struct percpu_counter *fbc, s32 amount)
 {
 	preempt_disable();
 	fbc->count += amount;
 	preempt_enable();
 }
 
-static inline long percpu_counter_read(struct percpu_counter *fbc)
+static inline s64 percpu_counter_read(struct percpu_counter *fbc)
 {
 	return fbc->count;
 }
 
-static inline long percpu_counter_read_positive(struct percpu_counter *fbc)
+static inline s64 percpu_counter_read_positive(struct percpu_counter *fbc)
 {
 	return fbc->count;
 }
 
-static inline long percpu_counter_sum(struct percpu_counter *fbc)
+static inline s64 percpu_counter_sum(struct percpu_counter *fbc)
 {
 	return percpu_counter_read_positive(fbc);
 }

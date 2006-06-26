@@ -777,11 +777,11 @@ out:
 static int __aio_run_iocbs(struct kioctx *ctx)
 {
 	struct kiocb *iocb;
-	LIST_HEAD(run_list);
+	struct list_head run_list;
 
 	assert_spin_locked(&ctx->ctx_lock);
 
-	list_splice_init(&ctx->run_list, &run_list);
+	list_replace_init(&ctx->run_list, &run_list);
 	while (!list_empty(&run_list)) {
 		iocb = list_entry(run_list.next, struct kiocb,
 			ki_run_list);

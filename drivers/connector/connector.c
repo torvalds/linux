@@ -121,6 +121,7 @@ nlmsg_failure:
 	kfree_skb(skb);
 	return -EINVAL;
 }
+EXPORT_SYMBOL_GPL(cn_netlink_send);
 
 /*
  * Callback helper - queues work and setup destructor for given data.
@@ -319,6 +320,7 @@ int cn_add_callback(struct cb_id *id, char *name, void (*callback)(void *))
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(cn_add_callback);
 
 /*
  * Callback remove routing - removes callback
@@ -335,6 +337,7 @@ void cn_del_callback(struct cb_id *id)
 	cn_queue_del_callback(dev->cbdev, id);
 	cn_notify(id, 1);
 }
+EXPORT_SYMBOL_GPL(cn_del_callback);
 
 /*
  * Checks two connector's control messages to be the same.
@@ -488,7 +491,3 @@ static void __devexit cn_fini(void)
 
 subsys_initcall(cn_init);
 module_exit(cn_fini);
-
-EXPORT_SYMBOL_GPL(cn_add_callback);
-EXPORT_SYMBOL_GPL(cn_del_callback);
-EXPORT_SYMBOL_GPL(cn_netlink_send);

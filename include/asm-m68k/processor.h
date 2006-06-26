@@ -71,10 +71,10 @@ struct thread_struct {
 };
 
 #define INIT_THREAD  {							\
-	ksp:	sizeof(init_stack) + (unsigned long) init_stack,	\
-	sr:	PS_S,							\
-	fs:	__KERNEL_DS,						\
-	info:	INIT_THREAD_INFO(init_task)				\
+	.ksp	= sizeof(init_stack) + (unsigned long) init_stack,	\
+	.sr	= PS_S,							\
+	.fs	= __KERNEL_DS,						\
+	.info	= INIT_THREAD_INFO(init_task),				\
 }
 
 /*

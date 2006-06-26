@@ -1,5 +1,5 @@
 /* gdth_proc.c 
- * $Id: gdth_proc.c,v 1.42 2004/03/05 15:50:20 achim Exp $
+ * $Id: gdth_proc.c,v 1.43 2006/01/11 16:15:00 achim Exp $
  */
 
 #include <linux/completion.h>
@@ -51,57 +51,26 @@ int gdth_proc_info(char *buffer,char **start,off_t offset,int length,int hostno,
 static int gdth_set_info(char *buffer,int length,struct Scsi_Host *host,
                          int hanum,int busnum)
 {
-    int             ret_val = -EINVAL;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
-    Scsi_Request    *scp;
-    struct scsi_device     *sdev;
-#else
-    Scsi_Cmnd       *scp;
-    struct scsi_device     *sdev;
-#endif
-    TRACE2(("gdth_set_info() ha %d bus %d\n",hanum,busnum));
+    int ret_val = -EINVAL;
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
-    sdev = scsi_get_host_dev(host);
-    scp  = scsi_allocate_request(sdev, GFP_KERNEL);
-    if (!scp)
-        return -ENOMEM;
-    scp->sr_cmd_len = 12;
-    scp->sr_use_sg = 0;
-#else
-    sdev = scsi_get_host_dev(host);
-    scp  = scsi_allocate_device(sdev, 1, FALSE);
-    if (!scp)
-        return -ENOMEM;
-    scp->cmd_len = 12;
-    scp->use_sg = 0;
-#endif
+    TRACE2(("gdth_set_info() ha %d bus %d\n",hanum,busnum));
 
     if (length >= 4) {
         if (strncmp(buffer,"gdth",4) == 0) {
             buffer += 5;
             length -= 5;
-            ret_val = gdth_set_asc_info( buffer, length, hanum, scp );
+            ret_val = gdth_set_asc_info(host, buffer, length, hanum);
         }
     }
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
-    scsi_release_request(scp);
-    scsi_free_host_dev(sdev);
-#else
-    scsi_release_command(scp);
-    scsi_free_host_dev(sdev);
-#endif
+
     return ret_val;
 }
          
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
-static int gdth_set_asc_info(char *buffer,int length,int hanum,Scsi_Request *scp)
-#else
-static int gdth_set_asc_info(char *buffer,int length,int hanum,Scsi_Cmnd *scp)
-#endif
+static int gdth_set_asc_info(struct Scsi_Host *host, char *buffer,
+                        int length,int hanum)
 {
-    int             orig_length, drive, wb_mode;
-    int             i, found;
+    int orig_length, drive, wb_mode;
+    int i, found;
     gdth_ha_str     *ha;
     gdth_cmd_str    gdtcmd;
     gdth_cpar_str   *pcpar;
@@ -146,11 +115,8 @@ static int gdth_set_asc_info(char *buffer,int length,int hanum,Scsi_Cmnd *scp)
                     gdtcmd.u.cache.DeviceNo = i;
                     gdtcmd.u.cache.BlockNo = 1;
                 }
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
-                gdth_do_req(scp, &gdtcmd, cmnd, 30);
-#else
-                gdth_do_cmd(scp, &gdtcmd, cmnd, 30);
-#endif
+
+                gdth_execute(host, &gdtcmd, cmnd, 30, NULL);
             }
         }
         if (!found)
@@ -202,11 +168,9 @@ static int gdth_set_asc_info(char *buffer,int length,int hanum,Scsi_Cmnd *scp)
         gdtcmd.u.ioctl.subfunc = CACHE_CONFIG;
         gdtcmd.u.ioctl.channel = INVALID_CHANNEL;
         pcpar->write_back = wb_mode==1 ? 0:1;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
-        gdth_do_req(scp, &gdtcmd, cmnd, 30);
-#else
-        gdth_do_cmd(scp, &gdtcmd, cmnd, 30);
-#endif
+
+        gdth_execute(host, &gdtcmd, cmnd, 30, NULL);
+
         gdth_ioctl_free(hanum, GDTH_SCRATCH, ha->pscratch, paddr);
         printk("Done.\n");
         return(orig_length);
@@ -230,13 +194,6 @@ static int gdth_get_info(char *buffer,char **start,off_t offset,int length,
 
     gdth_cmd_str *gdtcmd;
     gdth_evt_str *estr;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
-    Scsi_Request *scp;
-    struct scsi_device *sdev;
-#else
-    Scsi_Cmnd *scp;
-    struct scsi_device *sdev;
-#endif
     char hrec[161];
     struct timeval tv;
 
@@ -252,7 +209,7 @@ static int gdth_get_info(char *buffer,char **start,off_t offset,int length,
     gdtcmd = kmalloc(sizeof(*gdtcmd), GFP_KERNEL);
     estr = kmalloc(sizeof(*estr), GFP_KERNEL);
     if (!gdtcmd || !estr)
-	goto free_fail;
+        goto free_fail;
 
     memset(cmnd, 0xff, 12);
     memset(gdtcmd, 0, sizeof(gdth_cmd_str));
@@ -260,28 +217,6 @@ static int gdth_get_info(char *buffer,char **start,off_t offset,int length,
     TRACE2(("gdth_get_info() ha %d bus %d\n",hanum,busnum));
     ha = HADATA(gdth_ctr_tab[hanum]);
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
-    sdev = scsi_get_host_dev(host);
-    scp  = scsi_allocate_request(sdev, GFP_KERNEL);
-    if (!scp)
-        goto free_fail;
-    scp->sr_cmd_len = 12;
-    scp->sr_use_sg = 0;
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,0)
-    sdev = scsi_get_host_dev(host);
-    scp  = scsi_allocate_device(sdev, 1, FALSE);
-    if (!scp)
-        goto free_fail;
-    scp->cmd_len = 12;
-    scp->use_sg = 0;
-#else
-    memset(&sdev,0,sizeof(struct scsi_device));
-    memset(&scp, 0,sizeof(Scsi_Cmnd));
-    sdev.host = scp.host = host;
-    sdev.id = scp.target = sdev.host->this_id;
-    scp.device = &sdev;
-#endif
-    
     
     /* request is i.e. "cat /proc/scsi/gdth/0" */ 
     /* format: %-15s\t%-10s\t%-15s\t%s */
@@ -386,16 +321,9 @@ static int gdth_get_info(char *buffer,char **start,off_t offset,int length,
                 sizeof(pds->list[0]);
             if (pds->entries > cnt)
                 pds->entries = cnt;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
-            gdth_do_req(scp, gdtcmd, cmnd, 30);
-            if (scp->sr_command->SCp.Status != S_OK) 
-#else
-            gdth_do_cmd(scp, gdtcmd, cmnd, 30);
-            if (scp->SCp.Status != S_OK) 
-#endif
-            { 
+
+            if (gdth_execute(host, gdtcmd, cmnd, 30, NULL) != S_OK)
                 pds->count = 0;
-            }
 
             /* other IOCTLs must fit into area GDTH_SCRATCH/4 */
             for (j = 0; j < ha->raw[i].pdev_cnt; ++j) {
@@ -410,14 +338,8 @@ static int gdth_get_info(char *buffer,char **start,off_t offset,int length,
                 gdtcmd->u.ioctl.subfunc = SCSI_DR_INFO | L_CTRL_PATTERN;
                 gdtcmd->u.ioctl.channel = 
                     ha->raw[i].address | ha->raw[i].id_list[j];
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
-                gdth_do_req(scp, gdtcmd, cmnd, 30);
-                if (scp->sr_command->SCp.Status == S_OK) 
-#else
-                gdth_do_cmd(scp, gdtcmd, cmnd, 30);
-                if (scp->SCp.Status == S_OK) 
-#endif
-                {
+
+                if (gdth_execute(host, gdtcmd, cmnd, 30, NULL) == S_OK) {
                     strncpy(hrec,pdi->vendor,8);
                     strncpy(hrec+8,pdi->product,16);
                     strncpy(hrec+24,pdi->revision,4);
@@ -466,14 +388,8 @@ static int gdth_get_info(char *buffer,char **start,off_t offset,int length,
                     gdtcmd->u.ioctl.channel = 
                         ha->raw[i].address | ha->raw[i].id_list[j];
                     pdef->sddc_type = 0x08;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
-                    gdth_do_req(scp, gdtcmd, cmnd, 30);
-                    if (scp->sr_command->SCp.Status == S_OK) 
-#else
-                    gdth_do_cmd(scp, gdtcmd, cmnd, 30);
-                    if (scp->SCp.Status == S_OK) 
-#endif
-                    {
+
+                    if (gdth_execute(host, gdtcmd, cmnd, 30, NULL) == S_OK) {
                         size = sprintf(buffer+len,
                                        " Grown Defects:\t%d\n",
                                        pdef->sddc_cnt);
@@ -519,16 +435,8 @@ static int gdth_get_info(char *buffer,char **start,off_t offset,int length,
                 gdtcmd->u.ioctl.param_size = sizeof(gdth_cdrinfo_str);
                 gdtcmd->u.ioctl.subfunc = CACHE_DRV_INFO;
                 gdtcmd->u.ioctl.channel = drv_no;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
-                gdth_do_req(scp, gdtcmd, cmnd, 30);
-                if (scp->sr_command->SCp.Status != S_OK) 
-#else
-                gdth_do_cmd(scp, gdtcmd, cmnd, 30);
-                if (scp->SCp.Status != S_OK)
-#endif
-                {
+                if (gdth_execute(host, gdtcmd, cmnd, 30, NULL) != S_OK)
                     break;
-                }
                 pcdi->ld_dtype >>= 16;
                 j++;
                 if (pcdi->ld_dtype > 2) {
@@ -629,14 +537,7 @@ static int gdth_get_info(char *buffer,char **start,off_t offset,int length,
             gdtcmd->u.ioctl.param_size = sizeof(gdth_arrayinf_str);
             gdtcmd->u.ioctl.subfunc = ARRAY_INFO | LA_CTRL_PATTERN;
             gdtcmd->u.ioctl.channel = i;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
-            gdth_do_req(scp, gdtcmd, cmnd, 30);
-            if (scp->sr_command->SCp.Status == S_OK) 
-#else
-            gdth_do_cmd(scp, gdtcmd, cmnd, 30);
-            if (scp->SCp.Status == S_OK) 
-#endif
-            {
+            if (gdth_execute(host, gdtcmd, cmnd, 30, NULL) == S_OK) {
                 if (pai->ai_state == 0)
                     strcpy(hrec, "idle");
                 else if (pai->ai_state == 2)
@@ -710,14 +611,7 @@ static int gdth_get_info(char *buffer,char **start,off_t offset,int length,
             gdtcmd->u.ioctl.channel = i;
             phg->entries = MAX_HDRIVES;
             phg->offset = GDTOFFSOF(gdth_hget_str, entry[0]); 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
-            gdth_do_req(scp, gdtcmd, cmnd, 30);
-            if (scp->sr_command->SCp.Status != S_OK) 
-#else
-            gdth_do_cmd(scp, gdtcmd, cmnd, 30);
-            if (scp->SCp.Status != S_OK) 
-#endif
-            {
+            if (gdth_execute(host, gdtcmd, cmnd, 30, NULL) == S_OK) {
                 ha->hdr[i].ldr_no = i;
                 ha->hdr[i].rw_attribs = 0;
                 ha->hdr[i].start_sec = 0;
@@ -791,13 +685,6 @@ static int gdth_get_info(char *buffer,char **start,off_t offset,int length,
     }
 
 stop_output:
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
-    scsi_release_request(scp);
-    scsi_free_host_dev(sdev);
-#else
-    scsi_release_command(scp);
-    scsi_free_host_dev(sdev);
-#endif
     *start = buffer +(offset-begin);
     len -= (offset-begin);
     if (len > length)
@@ -810,64 +697,6 @@ free_fail:
     kfree(gdtcmd);
     kfree(estr);
     return rc;
-}
-
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
-static void gdth_do_req(Scsi_Request *scp, gdth_cmd_str *gdtcmd, 
-                        char *cmnd, int timeout)
-{
-    unsigned bufflen;
-    DECLARE_COMPLETION(wait);
-
-    TRACE2(("gdth_do_req()\n"));
-    if (gdtcmd != NULL) { 
-        bufflen = sizeof(gdth_cmd_str);
-    } else {
-        bufflen = 0;
-    }
-    scp->sr_request->rq_status = RQ_SCSI_BUSY;
-    scp->sr_request->waiting = &wait;
-    scsi_do_req(scp, cmnd, gdtcmd, bufflen, gdth_scsi_done, timeout*HZ, 1);
-    wait_for_completion(&wait);
-}
-
-#else
-static void gdth_do_cmd(Scsi_Cmnd *scp, gdth_cmd_str *gdtcmd, 
-                        char *cmnd, int timeout)
-{
-    unsigned bufflen;
-    DECLARE_COMPLETION(wait);
-
-    TRACE2(("gdth_do_cmd()\n"));
-    if (gdtcmd != NULL) { 
-        scp->SCp.this_residual = IOCTL_PRI;
-        bufflen = sizeof(gdth_cmd_str);
-    } else {
-        scp->SCp.this_residual = DEFAULT_PRI;
-        bufflen = 0;
-    }
-
-    scp->request.rq_status = RQ_SCSI_BUSY;
-    scp->request.waiting = &wait;
-    scsi_do_cmd(scp, cmnd, gdtcmd, bufflen, gdth_scsi_done, timeout*HZ, 1);
-    wait_for_completion(&wait);
-}
-#endif
-
-void gdth_scsi_done(Scsi_Cmnd *scp)
-{
-    TRACE2(("gdth_scsi_done()\n"));
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
-    scp->request->rq_status = RQ_SCSI_DONE;
-    if (scp->request->waiting != NULL)
-        complete(scp->request->waiting);
-#else
-    scp->request.rq_status = RQ_SCSI_DONE;
-    if (scp->request.waiting != NULL)
-        complete(scp->request.waiting);
-#endif
 }
 
 static char *gdth_ioctl_alloc(int hanum, int size, int scratch, 
@@ -976,11 +805,14 @@ static void gdth_stop_timeout(int hanum, int busnum, int id)
     spin_lock_irqsave(&ha->smp_lock, flags);
 
     for (scp = ha->req_first; scp; scp = (Scsi_Cmnd *)scp->SCp.ptr) {
-        b = virt_ctr ? NUMDATA(scp->device->host)->busnum : scp->device->channel;
-        t = scp->device->id;
-        if (t == (unchar)id && b == (unchar)busnum) {
-            TRACE2(("gdth_stop_timeout(): update_timeout()\n"));
-            scp->SCp.buffers_residual = gdth_update_timeout(hanum, scp, 0);
+        if (scp->done != gdth_scsi_done) {
+            b = virt_ctr ?
+                NUMDATA(scp->device->host)->busnum : scp->device->channel;
+            t = scp->device->id;
+            if (t == (unchar)id && b == (unchar)busnum) {
+                TRACE2(("gdth_stop_timeout(): update_timeout()\n"));
+                scp->SCp.buffers_residual = gdth_update_timeout(hanum, scp, 0);
+            }
         }
     }
     spin_unlock_irqrestore(&ha->smp_lock, flags);
@@ -997,11 +829,14 @@ static void gdth_start_timeout(int hanum, int busnum, int id)
     spin_lock_irqsave(&ha->smp_lock, flags);
 
     for (scp = ha->req_first; scp; scp = (Scsi_Cmnd *)scp->SCp.ptr) {
-        b = virt_ctr ? NUMDATA(scp->device->host)->busnum : scp->device->channel;
-        t = scp->device->id;
-        if (t == (unchar)id && b == (unchar)busnum) {
-            TRACE2(("gdth_start_timeout(): update_timeout()\n"));
-            gdth_update_timeout(hanum, scp, scp->SCp.buffers_residual);
+        if (scp->done != gdth_scsi_done) {
+            b = virt_ctr ?
+                NUMDATA(scp->device->host)->busnum : scp->device->channel;
+            t = scp->device->id;
+            if (t == (unchar)id && b == (unchar)busnum) {
+                TRACE2(("gdth_start_timeout(): update_timeout()\n"));
+                gdth_update_timeout(hanum, scp, scp->SCp.buffers_residual);
+            }
         }
     }
     spin_unlock_irqrestore(&ha->smp_lock, flags);

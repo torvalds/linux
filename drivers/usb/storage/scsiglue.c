@@ -286,11 +286,7 @@ static int bus_reset(struct scsi_cmnd *srb)
 	int result;
 
 	US_DEBUGP("%s called\n", __FUNCTION__);
-
-	mutex_lock(&(us->dev_mutex));
 	result = usb_stor_port_reset(us);
-	mutex_unlock(&us->dev_mutex);
-
 	return result < 0 ? FAILED : SUCCESS;
 }
 

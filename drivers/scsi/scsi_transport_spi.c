@@ -146,7 +146,7 @@ static inline const char *spi_signal_to_string(enum spi_signal_type type)
 {
 	int i;
 
-	for (i = 0; i < sizeof(signal_types)/sizeof(signal_types[0]); i++) {
+	for (i = 0; i < ARRAY_SIZE(signal_types); i++) {
 		if (type == signal_types[i].value)
 			return signal_types[i].name;
 	}
@@ -156,7 +156,7 @@ static inline enum spi_signal_type spi_signal_to_value(const char *name)
 {
 	int i, len;
 
-	for (i = 0; i < sizeof(signal_types)/sizeof(signal_types[0]); i++) {
+	for (i = 0; i < ARRAY_SIZE(signal_types); i++) {
 		len =  strlen(signal_types[i].name);
 		if (strncmp(name, signal_types[i].name, len) == 0 &&
 		    (name[len] == '\n' || name[len] == '\0'))
@@ -785,6 +785,7 @@ spi_dv_device_internal(struct scsi_device *sdev, u8 *buffer)
 {
 	struct spi_internal *i = to_spi_internal(sdev->host->transportt);
 	struct scsi_target *starget = sdev->sdev_target;
+	struct Scsi_Host *shost = sdev->host;
 	int len = sdev->inquiry_len;
 	/* first set us up for narrow async */
 	DV_SET(offset, 0);
@@ -844,6 +845,14 @@ spi_dv_device_internal(struct scsi_device *sdev, u8 *buffer)
 		if (spi_min_period(starget) == 8)
 			DV_SET(pcomp_en, 1);
 	}
+	/* now that we've done all this, actually check the bus
+	 * signal type (if known).  Some devices are stupid on
+	 * a SE bus and still claim they can try LVD only settings */
+	if (i->f->get_signalling)
+		i->f->get_signalling(shost);
+	if (spi_signalling(shost) == SPI_SIGNAL_SE ||
+	    spi_signalling(shost) == SPI_SIGNAL_HVD)
+		DV_SET(dt, 0);
 	/* Do the read only INQUIRY tests */
 	spi_dv_retrain(sdev, buffer, buffer + sdev->inquiry_len,
 		       spi_dv_device_compare_inquiry);

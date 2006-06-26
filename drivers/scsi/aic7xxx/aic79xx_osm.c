@@ -916,7 +916,7 @@ ahd_linux_setup_iocell_info(u_long index, int instance, int targ, int32_t value)
 {
 
 	if ((instance >= 0)
-	 && (instance < NUM_ELEMENTS(aic79xx_iocell_info))) {
+	 && (instance < ARRAY_SIZE(aic79xx_iocell_info))) {
 		uint8_t *iocell_info;
 
 		iocell_info = (uint8_t*)&aic79xx_iocell_info[instance];
@@ -934,7 +934,7 @@ ahd_linux_setup_tag_info_global(char *p)
 	tags = simple_strtoul(p + 1, NULL, 0) & 0xff;
 	printf("Setting Global Tags= %d\n", tags);
 
-	for (i = 0; i < NUM_ELEMENTS(aic79xx_tag_info); i++) {
+	for (i = 0; i < ARRAY_SIZE(aic79xx_tag_info); i++) {
 		for (j = 0; j < AHD_NUM_TARGETS; j++) {
 			aic79xx_tag_info[i].tag_commands[j] = tags;
 		}
@@ -946,7 +946,7 @@ ahd_linux_setup_tag_info(u_long arg, int instance, int targ, int32_t value)
 {
 
 	if ((instance >= 0) && (targ >= 0)
-	 && (instance < NUM_ELEMENTS(aic79xx_tag_info))
+	 && (instance < ARRAY_SIZE(aic79xx_tag_info))
 	 && (targ < AHD_NUM_TARGETS)) {
 		aic79xx_tag_info[instance].tag_commands[targ] = value & 0x1FF;
 		if (bootverbose)
@@ -1072,21 +1072,21 @@ aic79xx_setup(char *s)
 	end = strchr(s, '\0');
 
 	/*
-	 * XXX ia64 gcc isn't smart enough to know that NUM_ELEMENTS
+	 * XXX ia64 gcc isn't smart enough to know that ARRAY_SIZE
 	 * will never be 0 in this case.
-	 */      
-	n = 0;  
+	 */
+	n = 0;
 
 	while ((p = strsep(&s, ",.")) != NULL) {
 		if (*p == '\0')
 			continue;
-		for (i = 0; i < NUM_ELEMENTS(options); i++) {
+		for (i = 0; i < ARRAY_SIZE(options); i++) {
 
 			n = strlen(options[i].name);
 			if (strncmp(options[i].name, p, n) == 0)
 				break;
 		}
-		if (i == NUM_ELEMENTS(options))
+		if (i == ARRAY_SIZE(options))
 			continue;
 
 		if (strncmp(p, "global_tag_depth", n) == 0) {
@@ -1294,7 +1294,7 @@ ahd_platform_init(struct ahd_softc *ahd)
 	/*
 	 * Lookup and commit any modified IO Cell options.
 	 */
-	if (ahd->unit < NUM_ELEMENTS(aic79xx_iocell_info)) {
+	if (ahd->unit < ARRAY_SIZE(aic79xx_iocell_info)) {
 		struct ahd_linux_iocell_opts *iocell_opts;
 
 		iocell_opts = &aic79xx_iocell_info[ahd->unit];
@@ -1426,7 +1426,7 @@ ahd_linux_user_tagdepth(struct ahd_softc *ahd, struct ahd_devinfo *devinfo)
 
 	tags = 0;
 	if ((ahd->user_discenable & devinfo->target_mask) != 0) {
-		if (ahd->unit >= NUM_ELEMENTS(aic79xx_tag_info)) {
+		if (ahd->unit >= ARRAY_SIZE(aic79xx_tag_info)) {
 
 			if (warned_user == 0) {
 				printf(KERN_WARNING

@@ -88,6 +88,20 @@ config USB_LED
 	  To compile this driver as a module, choose M here: the
 	  module will be called usbled.
 
+config USB_CY7C63
+	tristate "Cypress CY7C63xxx USB driver support"
+	depends on USB
+	help
+	  Say Y here if you want to connect a Cypress CY7C63xxx
+	  micro controller to your computer's USB port. This driver
+	  supports the pre-programmed devices (incl. firmware) by
+	  AK Modul-Bus Computer GmbH.
+
+	  Please see: http://www.ak-modul-bus.de/stat/mikrocontroller.html
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cy7c63.
+
 config USB_CYTHERM
 	tristate "Cypress USB thermometer driver support"
 	depends on USB
@@ -136,6 +150,15 @@ config USB_IDMOUSE
 	  which can be used by, e.g.,"cat /dev/idmouse0 > fingerprint.pnm".
 
 	  See also <http://www.fs.tum.de/~echtler/idmouse/>.
+
+config USB_APPLEDISPLAY
+	tristate "Apple Cinema Display support"
+	depends on USB
+	select BACKLIGHT_LCD_SUPPORT
+	select BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y here if you want to control the backlight of Apple Cinema
+	  Displays over USB. This driver provides a sysfs interface.
 
 source "drivers/usb/misc/sisusbvga/Kconfig"
 

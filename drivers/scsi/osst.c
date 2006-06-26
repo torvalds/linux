@@ -4724,7 +4724,7 @@ err_out:
 
 
 /* Flush the tape buffer before close */
-static int os_scsi_tape_flush(struct file * filp)
+static int os_scsi_tape_flush(struct file * filp, fl_owner_t id)
 {
 	int		      result = 0, result2;
 	struct osst_tape    * STp    = filp->private_data;
@@ -5492,7 +5492,7 @@ static int __init osst_setup (char *str)
   char *stp;
 
   stp = get_options(str, ARRAY_SIZE(ints), ints);
-	
+
   if (ints[0] > 0) {
 	for (i = 0; i < ints[0] && i < ARRAY_SIZE(parms); i++)
 		  *parms[i].val = ints[i + 1];
@@ -5507,7 +5507,7 @@ static int __init osst_setup (char *str)
 				break;
 			}
 		}
-		if (i >= sizeof(parms) / sizeof(struct osst_dev_parm))
+		if (i >= ARRAY_SIZE(parms))
 			printk(KERN_INFO "osst :I: Illegal parameter in '%s'\n",
 			       stp);
 		stp = strchr(stp, ',');

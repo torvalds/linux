@@ -43,7 +43,6 @@
 
 #define DEFINE_ACPI_GLOBALS
 
-#include <linux/module.h>
 #include <acpi/acpi.h>
 #include <acpi/acnamesp.h>
 
@@ -119,6 +118,7 @@ const char *acpi_format_exception(acpi_status status)
 	}
 
 	if (!exception) {
+
 		/* Exception code was not recognized */
 
 		ACPI_ERROR((AE_INFO,
@@ -143,12 +143,10 @@ const char *acpi_format_exception(acpi_status status)
 
 /* Debug switch - level and trace mask */
 u32 acpi_dbg_level = ACPI_DEBUG_DEFAULT;
-EXPORT_SYMBOL(acpi_dbg_level);
 
 /* Debug switch - layer (component) mask */
 
 u32 acpi_dbg_layer = ACPI_COMPONENT_DEFAULT | ACPI_ALL_DRIVERS;
-EXPORT_SYMBOL(acpi_dbg_layer);
 u32 acpi_gbl_nesting_level = 0;
 
 /* Debugger globals */
@@ -181,28 +179,6 @@ const char *acpi_gbl_highest_dstate_names[4] = {
 	"_S2D",
 	"_S3D",
 	"_S4D"
-};
-
-/*
- * Strings supported by the _OSI predefined (internal) method.
- * When adding strings, be sure to update ACPI_NUM_OSI_STRINGS.
- */
-const char *acpi_gbl_valid_osi_strings[ACPI_NUM_OSI_STRINGS] = {
-	/* Operating System Vendor Strings */
-
-	"Linux",
-	"Windows 2000",
-	"Windows 2001",
-	"Windows 2001.1",
-	"Windows 2001 SP0",
-	"Windows 2001 SP1",
-	"Windows 2001 SP2",
-	"Windows 2001 SP3",
-	"Windows 2001 SP4",
-
-	/* Feature Group Strings */
-
-	"Extended Address Space Descriptor"
 };
 
 /*******************************************************************************
@@ -317,9 +293,9 @@ char acpi_ut_hex_to_ascii_char(acpi_integer integer, u32 position)
  *
  ******************************************************************************/
 
-struct acpi_table_list acpi_gbl_table_lists[NUM_ACPI_TABLE_TYPES];
+struct acpi_table_list acpi_gbl_table_lists[ACPI_TABLE_ID_MAX + 1];
 
-struct acpi_table_support acpi_gbl_table_data[NUM_ACPI_TABLE_TYPES] = {
+struct acpi_table_support acpi_gbl_table_data[ACPI_TABLE_ID_MAX + 1] = {
 	/***********    Name,   Signature, Global typed pointer     Signature size,      Type                  How many allowed?,    Contains valid AML? */
 
 	/* RSDP 0 */ {RSDP_NAME, RSDP_SIG, NULL, sizeof(RSDP_SIG) - 1,
@@ -467,7 +443,6 @@ struct acpi_fixed_event_info acpi_gbl_fixed_event_info[ACPI_NUM_FIXED_EVENTS] = 
 /* Region type decoding */
 
 const char *acpi_gbl_region_types[ACPI_NUM_PREDEFINED_REGIONS] = {
-/*! [Begin] no source code translation (keep these ASL Keywords as-is) */
 	"SystemMemory",
 	"SystemIO",
 	"PCI_Config",
@@ -476,16 +451,15 @@ const char *acpi_gbl_region_types[ACPI_NUM_PREDEFINED_REGIONS] = {
 	"CMOS",
 	"PCIBARTarget",
 	"DataTable"
-/*! [End] no source code translation !*/
 };
 
 char *acpi_ut_get_region_name(u8 space_id)
 {
 
 	if (space_id >= ACPI_USER_REGION_BEGIN) {
-		return ("user_defined_region");
+		return ("UserDefinedRegion");
 	} else if (space_id >= ACPI_NUM_PREDEFINED_REGIONS) {
-		return ("invalid_space_id");
+		return ("InvalidSpaceId");
 	}
 
 	return (ACPI_CAST_PTR(char, acpi_gbl_region_types[space_id]));
@@ -506,20 +480,18 @@ char *acpi_ut_get_region_name(u8 space_id)
 /* Event type decoding */
 
 static const char *acpi_gbl_event_types[ACPI_NUM_FIXED_EVENTS] = {
-/*! [Begin] no source code translation (keep these strings as-is) */
 	"PM_Timer",
 	"GlobalLock",
 	"PowerButton",
 	"SleepButton",
 	"RealTimeClock",
-/*! [End] no source code translation !*/
 };
 
 char *acpi_ut_get_event_name(u32 event_id)
 {
 
 	if (event_id > ACPI_EVENT_MAX) {
-		return ("invalid_event_iD");
+		return ("InvalidEventID");
 	}
 
 	return (ACPI_CAST_PTR(char, acpi_gbl_event_types[event_id]));
@@ -550,7 +522,6 @@ static const char acpi_gbl_bad_type[] = "UNDEFINED";
 /* Printable names of the ACPI object types */
 
 static const char *acpi_gbl_ns_type_names[] = {
-/*! [Begin] no source code translation (keep these strings as-is) */
 	/* 00 */ "Untyped",
 	/* 01 */ "Integer",
 	/* 02 */ "String",
@@ -582,7 +553,6 @@ static const char *acpi_gbl_ns_type_names[] = {
 	/* 28 */ "Extra",
 	/* 29 */ "Data",
 	/* 30 */ "Invalid"
-/*! [End] no source code translation !*/
 };
 
 char *acpi_ut_get_type_name(acpi_object_type type)
@@ -635,14 +605,14 @@ char *acpi_ut_get_node_name(void *object)
 
 	/* Descriptor must be a namespace node */
 
-	if (node->descriptor != ACPI_DESC_TYPE_NAMED) {
+	if (ACPI_GET_DESCRIPTOR_TYPE(node) != ACPI_DESC_TYPE_NAMED) {
 		return ("####");
 	}
 
 	/* Name must be a valid ACPI name */
 
 	if (!acpi_ut_valid_acpi_name(node->name.integer)) {
-		return ("????");
+		node->name.integer = acpi_ut_repair_name(node->name.integer);
 	}
 
 	/* Return the name */
@@ -665,7 +635,6 @@ char *acpi_ut_get_node_name(void *object)
 /* Printable names of object descriptor types */
 
 static const char *acpi_gbl_desc_type_names[] = {
-/*! [Begin] no source code translation (keep these ASL Keywords as-is) */
 	/* 00 */ "Invalid",
 	/* 01 */ "Cached",
 	/* 02 */ "State-Generic",
@@ -682,7 +651,6 @@ static const char *acpi_gbl_desc_type_names[] = {
 	/* 13 */ "Parser",
 	/* 14 */ "Operand",
 	/* 15 */ "Node"
-/*! [End] no source code translation !*/
 };
 
 char *acpi_ut_get_descriptor_name(void *object)
@@ -723,7 +691,7 @@ char *acpi_ut_get_descriptor_name(void *object)
 char *acpi_ut_get_mutex_name(u32 mutex_id)
 {
 
-	if (mutex_id > MAX_MUTEX) {
+	if (mutex_id > ACPI_MAX_MUTEX) {
 		return ("Invalid Mutex ID");
 	}
 
@@ -747,6 +715,7 @@ u8 acpi_ut_valid_object_type(acpi_object_type type)
 {
 
 	if (type > ACPI_TYPE_LOCAL_MAX) {
+
 		/* Note: Assumes all TYPEs are contiguous (external/local) */
 
 		return (FALSE);
@@ -773,7 +742,7 @@ void acpi_ut_init_globals(void)
 	acpi_status status;
 	u32 i;
 
-	ACPI_FUNCTION_TRACE("ut_init_globals");
+	ACPI_FUNCTION_TRACE(ut_init_globals);
 
 	/* Create all memory caches */
 
@@ -784,14 +753,14 @@ void acpi_ut_init_globals(void)
 
 	/* ACPI table structure */
 
-	for (i = 0; i < NUM_ACPI_TABLE_TYPES; i++) {
+	for (i = 0; i < (ACPI_TABLE_ID_MAX + 1); i++) {
 		acpi_gbl_table_lists[i].next = NULL;
 		acpi_gbl_table_lists[i].count = 0;
 	}
 
 	/* Mutex locked flags */
 
-	for (i = 0; i < NUM_MUTEX; i++) {
+	for (i = 0; i < ACPI_NUM_MUTEX; i++) {
 		acpi_gbl_mutex_info[i].mutex = NULL;
 		acpi_gbl_mutex_info[i].thread_id = ACPI_MUTEX_NOT_ACQUIRED;
 		acpi_gbl_mutex_info[i].use_count = 0;
@@ -856,7 +825,7 @@ void acpi_ut_init_globals(void)
 
 	acpi_gbl_root_node = NULL;
 	acpi_gbl_root_node_struct.name.integer = ACPI_ROOT_NAME;
-	acpi_gbl_root_node_struct.descriptor = ACPI_DESC_TYPE_NAMED;
+	acpi_gbl_root_node_struct.descriptor_type = ACPI_DESC_TYPE_NAMED;
 	acpi_gbl_root_node_struct.type = ACPI_TYPE_DEVICE;
 	acpi_gbl_root_node_struct.child = NULL;
 	acpi_gbl_root_node_struct.peer = NULL;
@@ -869,3 +838,6 @@ void acpi_ut_init_globals(void)
 
 	return_VOID;
 }
+
+ACPI_EXPORT_SYMBOL(acpi_dbg_level)
+ACPI_EXPORT_SYMBOL(acpi_dbg_layer)

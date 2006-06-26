@@ -365,7 +365,7 @@ typedef struct xfs_dqtrxops {
 extern int xfs_qm_dqcheck(xfs_disk_dquot_t *, xfs_dqid_t, uint, uint, char *);
 extern int xfs_mount_reset_sbqflags(struct xfs_mount *);
 
-extern struct bhv_vfsops xfs_qmops;
+extern struct bhv_module_vfsops xfs_qmops;
 
 #endif	/* __KERNEL__ */
 

@@ -1293,7 +1293,7 @@ static void __devinit snd_vt1724_proc_init(struct snd_ice1712 * ice)
 	struct snd_info_entry *entry;
 
 	if (! snd_card_proc_new(ice->card, "ice1724", &entry))
-		snd_info_set_text_ops(entry, ice, 1024, snd_vt1724_proc_read);
+		snd_info_set_text_ops(entry, ice, snd_vt1724_proc_read);
 }
 
 /*
@@ -2388,7 +2388,8 @@ static int __devinit snd_vt1724_probe(struct pci_dev *pci,
 	if (! c->no_mpu401) {
 		if (ice->eeprom.data[ICE_EEP2_SYSCONF] & VT1724_CFG_MPU401) {
 			if ((err = snd_mpu401_uart_new(card, 0, MPU401_HW_ICE1712,
-						       ICEREG1724(ice, MPU_CTRL), 1,
+						       ICEREG1724(ice, MPU_CTRL),
+						       MPU401_INFO_INTEGRATED,
 						       ice->irq, 0,
 						       &ice->rmidi[0])) < 0) {
 				snd_card_free(card);

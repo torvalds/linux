@@ -53,8 +53,7 @@ static int dir_commit_chunk(struct page *page, unsigned from, unsigned to)
 static struct page * dir_get_page(struct inode *dir, unsigned long n)
 {
 	struct address_space *mapping = dir->i_mapping;
-	struct page *page = read_cache_page(mapping, n,
-				(filler_t*)mapping->a_ops->readpage, NULL);
+	struct page *page = read_mapping_page(mapping, n, NULL);
 	if (!IS_ERR(page)) {
 		wait_on_page_locked(page);
 		kmap(page);

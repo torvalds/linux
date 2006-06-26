@@ -13,6 +13,7 @@
 #include <linux/cpumask.h>
 #include <linux/smp.h>
 #include <linux/init.h>
+#include <linux/reboot.h>
 #include <asm/atomic.h>
 #include <asm/ptrace.h>
 #include <asm/sigp.h>
@@ -65,8 +66,6 @@ do_machine_quiesce(void)
 	__load_psw(quiesce_psw);
 }
 #endif
-
-extern void ctrl_alt_del(void);
 
 /* Handler for quiesce event. Start shutdown procedure. */
 static void

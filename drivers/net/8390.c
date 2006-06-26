@@ -275,12 +275,14 @@ static int ei_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct ei_device *ei_local = (struct ei_device *) netdev_priv(dev);
 	int send_length = skb->len, output_page;
 	unsigned long flags;
+	char buf[ETH_ZLEN];
+	char *data = skb->data;
 
 	if (skb->len < ETH_ZLEN) {
-		skb = skb_padto(skb, ETH_ZLEN);
-		if (skb == NULL)
-			return 0;
+		memset(buf, 0, ETH_ZLEN);	/* more efficient than doing just the needed bits */
+		memcpy(buf, data, skb->len);
 		send_length = ETH_ZLEN;
+		data = buf;
 	}
 
 	/* Mask interrupts from the ethercard. 
@@ -347,7 +349,7 @@ static int ei_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	 * trigger the send later, upon receiving a Tx done interrupt.
 	 */
 	 
-	ei_block_output(dev, send_length, skb->data, output_page);
+	ei_block_output(dev, send_length, data, output_page);
 		
 	if (! ei_local->txing) 
 	{

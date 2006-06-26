@@ -44,7 +44,8 @@ irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 	u16 temp;
 
 	temp = I915_READ16(I915REG_INT_IDENTITY_R);
-	temp &= (USER_INT_FLAG | VSYNC_PIPEA_FLAG);
+
+	temp &= (USER_INT_FLAG | VSYNC_PIPEA_FLAG | VSYNC_PIPEB_FLAG);
 
 	DRM_DEBUG("%s flag=%08x\n", __FUNCTION__, temp);
 
@@ -58,7 +59,7 @@ irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 	if (temp & USER_INT_FLAG)
 		DRM_WAKEUP(&dev_priv->irq_queue);
 
-	if (temp & VSYNC_PIPEA_FLAG) {
+	if (temp & (VSYNC_PIPEA_FLAG | VSYNC_PIPEB_FLAG)) {
 		atomic_inc(&dev->vbl_received);
 		DRM_WAKEUP(&dev->vbl_queue);
 		drm_vbl_send_signals(dev);
@@ -182,6 +183,68 @@ int i915_irq_wait(DRM_IOCTL_ARGS)
 	return i915_wait_irq(dev, irqwait.irq_seq);
 }
 
+static int i915_enable_interrupt (drm_device_t *dev)
+{
+	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
+	u16 flag;
+
+	flag = 0;
+	if (dev_priv->vblank_pipe & DRM_I915_VBLANK_PIPE_A)
+		flag |= VSYNC_PIPEA_FLAG;
+	if (dev_priv->vblank_pipe & DRM_I915_VBLANK_PIPE_B)
+		flag |= VSYNC_PIPEB_FLAG;
+	if (dev_priv->vblank_pipe & ~(DRM_I915_VBLANK_PIPE_A|DRM_I915_VBLANK_PIPE_B)) {
+		DRM_ERROR("%s called with invalid pipe 0x%x\n",
+			  __FUNCTION__, dev_priv->vblank_pipe);
+		return DRM_ERR(EINVAL);
+	}
+	I915_WRITE16(I915REG_INT_ENABLE_R, USER_INT_FLAG | flag);
+	return 0;
+}
+
+/* Set the vblank monitor pipe
+ */
+int i915_vblank_pipe_set(DRM_IOCTL_ARGS)
+{
+	DRM_DEVICE;
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	drm_i915_vblank_pipe_t pipe;
+
+	if (!dev_priv) {
+		DRM_ERROR("%s called with no initialization\n", __FUNCTION__);
+		return DRM_ERR(EINVAL);
+	}
+
+	DRM_COPY_FROM_USER_IOCTL(pipe, (drm_i915_vblank_pipe_t __user *) data,
+				 sizeof(pipe));
+
+	dev_priv->vblank_pipe = pipe.pipe;
+	return i915_enable_interrupt (dev);
+}
+
+int i915_vblank_pipe_get(DRM_IOCTL_ARGS)
+{
+	DRM_DEVICE;
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	drm_i915_vblank_pipe_t pipe;
+	u16 flag;
+
+	if (!dev_priv) {
+		DRM_ERROR("%s called with no initialization\n", __FUNCTION__);
+		return DRM_ERR(EINVAL);
+	}
+
+	flag = I915_READ(I915REG_INT_ENABLE_R);
+	pipe.pipe = 0;
+	if (flag & VSYNC_PIPEA_FLAG)
+		pipe.pipe |= DRM_I915_VBLANK_PIPE_A;
+	if (flag & VSYNC_PIPEB_FLAG)
+		pipe.pipe |= DRM_I915_VBLANK_PIPE_B;
+	DRM_COPY_TO_USER_IOCTL((drm_i915_vblank_pipe_t __user *) data, pipe,
+				 sizeof(pipe));
+	return 0;
+}
+
 /* drm_dma.h hooks
 */
 void i915_driver_irq_preinstall(drm_device_t * dev)
@@ -197,7 +260,7 @@ void i915_driver_irq_postinstall(drm_device_t * dev)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 
-	I915_WRITE16(I915REG_INT_ENABLE_R, USER_INT_FLAG | VSYNC_PIPEA_FLAG);
+	i915_enable_interrupt(dev);
 	DRM_INIT_WAITQUEUE(&dev_priv->irq_queue);
 }
 

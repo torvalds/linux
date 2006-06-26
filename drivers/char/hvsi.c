@@ -1179,7 +1179,7 @@ static int __init hvsi_init(void)
 	if (tty_register_driver(hvsi_driver))
 		panic("Couldn't register hvsi console driver\n");
 
-	printk(KERN_INFO "HVSI: registered %i devices\n", hvsi_count);
+	printk(KERN_DEBUG "HVSI: registered %i devices\n", hvsi_count);
 
 	return 0;
 }

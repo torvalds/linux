@@ -1030,9 +1030,13 @@ static inline void sk_setup_caps(struct sock *sk, struct dst_entry *dst)
 {
 	__sk_dst_set(sk, dst);
 	sk->sk_route_caps = dst->dev->features;
+	if (sk->sk_route_caps & NETIF_F_GSO)
+		sk->sk_route_caps |= NETIF_F_TSO;
 	if (sk->sk_route_caps & NETIF_F_TSO) {
 		if (sock_flag(sk, SOCK_NO_LARGESEND) || dst->header_len)
 			sk->sk_route_caps &= ~NETIF_F_TSO;
+		else 
+			sk->sk_route_caps |= NETIF_F_SG | NETIF_F_HW_CSUM;
 	}
 }
 
@@ -1265,6 +1269,7 @@ sock_recv_timestamp(struct msghdr *msg, struct sock *sk, struct sk_buff *skb)
  * sk_eat_skb - Release a skb if it is no longer needed
  * @sk: socket to eat this skb from
  * @skb: socket buffer to eat
+ * @copied_early: flag indicating whether DMA operations copied this data early
  *
  * This routine must be called with interrupts disabled or with the socket
  * locked so that the sk_buff queue operation is ok.

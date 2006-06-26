@@ -102,7 +102,7 @@ static int s3c2442_camif_upll_setrate(struct clk *clk, unsigned long rate)
 static struct clk s3c2442_clk_cam = {
 	.name		= "camif",
 	.id		= -1,
-	.enable		= s3c24xx_clkcon_enable,
+	.enable		= s3c2410_clkcon_enable,
 	.ctrlbit	= S3C2440_CLKCON_CAMERA,
 };
 

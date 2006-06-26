@@ -8,6 +8,7 @@
  * directory of the kernel sources for details.
  */
 
+#include <linux/bitmap.h>
 #include <linux/kernel.h>
 #include <linux/config.h>
 #include <linux/list.h>
@@ -334,10 +335,12 @@ static ssize_t fw_show_ne_bus_options(struct device *dev, struct device_attribut
 static DEVICE_ATTR(bus_options,S_IRUGO,fw_show_ne_bus_options,NULL);
 
 
+/* tlabels_free, tlabels_allocations, tlabels_mask are read non-atomically
+ * here, therefore displayed values may be occasionally wrong. */
 static ssize_t fw_show_ne_tlabels_free(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct node_entry *ne = container_of(dev, struct node_entry, device);
-	return sprintf(buf, "%d\n", atomic_read(&ne->tpool->count.count) + 1);
+	return sprintf(buf, "%d\n", 64 - bitmap_weight(ne->tpool->pool, 64));
 }
 static DEVICE_ATTR(tlabels_free,S_IRUGO,fw_show_ne_tlabels_free,NULL);
 

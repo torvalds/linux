@@ -33,7 +33,8 @@
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/init.h>
-/* XXX */
+
+#include <asm/thread_notify.h>
 
 #include "softfloat.h"
 #include "fpopcode.h"
@@ -56,16 +57,28 @@ void fp_send_sig(unsigned long sig, struct task_struct *p, int priv);
 extern char fpe_type[];
 #endif
 
+static int nwfpe_notify(struct notifier_block *self, unsigned long cmd, void *v)
+{
+	struct thread_info *thread = v;
+
+	if (cmd == THREAD_NOTIFY_FLUSH)
+		nwfpe_init_fpa(&thread->fpstate);
+
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block nwfpe_notifier_block = {
+	.notifier_call = nwfpe_notify,
+};
+
 /* kernel function prototypes required */
 void fp_setup(void);
 
 /* external declarations for saved kernel symbols */
 extern void (*kern_fp_enter)(void);
-extern void (*fp_init)(union fp_state *);
 
 /* Original value of fp_enter from kernel before patched by fpe_init. */
 static void (*orig_fp_enter)(void);
-static void (*orig_fp_init)(union fp_state *);
 
 /* forward declarations */
 extern void nwfpe_enter(void);
@@ -88,20 +101,20 @@ static int __init fpe_init(void)
 	printk(KERN_WARNING "NetWinder Floating Point Emulator V0.97 ("
 	       NWFPE_BITS " precision)\n");
 
+	thread_register_notifier(&nwfpe_notifier_block);
+
 	/* Save pointer to the old FP handler and then patch ourselves in */
 	orig_fp_enter = kern_fp_enter;
-	orig_fp_init = fp_init;
 	kern_fp_enter = nwfpe_enter;
-	fp_init = nwfpe_init_fpa;
 
 	return 0;
 }
 
 static void __exit fpe_exit(void)
 {
+	thread_unregister_notifier(&nwfpe_notifier_block);
 	/* Restore the values we saved earlier. */
 	kern_fp_enter = orig_fp_enter;
-	fp_init = orig_fp_init;
 }
 
 /*

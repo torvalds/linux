@@ -439,7 +439,7 @@ struct vfsmount *rpc_get_mount(void)
 {
 	int err;
 
-	err = simple_pin_fs("rpc_pipefs", &rpc_mount, &rpc_mount_count);
+	err = simple_pin_fs(&rpc_pipe_fs_type, &rpc_mount, &rpc_mount_count);
 	if (err != 0)
 		return ERR_PTR(err);
 	return rpc_mount;
@@ -815,11 +815,11 @@ out:
 	return -ENOMEM;
 }
 
-static struct super_block *
+static int
 rpc_get_sb(struct file_system_type *fs_type,
-		int flags, const char *dev_name, void *data)
+		int flags, const char *dev_name, void *data, struct vfsmount *mnt)
 {
-	return get_sb_single(fs_type, flags, data, rpc_fill_super);
+	return get_sb_single(fs_type, flags, data, rpc_fill_super, mnt);
 }
 
 static struct file_system_type rpc_pipe_fs_type = {

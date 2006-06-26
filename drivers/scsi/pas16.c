@@ -156,7 +156,7 @@ static int default_irqs[] __initdata =
 static struct override {
     unsigned short io_port;
     int  irq;
-} overrides 
+} overrides
 #ifdef PAS16_OVERRIDE
     [] __initdata = PAS16_OVERRIDE;
 #else
@@ -164,19 +164,19 @@ static struct override {
 	{0,IRQ_AUTO}};
 #endif
 
-#define NO_OVERRIDES (sizeof(overrides) / sizeof(struct override))
+#define NO_OVERRIDES ARRAY_SIZE(overrides)
 
 static struct base {
     unsigned short io_port;
     int noauto;
-} bases[] __initdata = 
+} bases[] __initdata =
 	{ {PAS16_DEFAULT_BASE_1, 0},
 	  {PAS16_DEFAULT_BASE_2, 0},
 	  {PAS16_DEFAULT_BASE_3, 0},
 	  {PAS16_DEFAULT_BASE_4, 0}
 	};
 
-#define NO_BASES (sizeof (bases) / sizeof (struct base))
+#define NO_BASES ARRAY_SIZE(bases)
 
 static const unsigned short  pas16_offset[ 8 ] =
     {

@@ -41,10 +41,9 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#include <linux/module.h>
-
 #include <acpi/acpi.h>
 #include <acpi/acresrc.h>
+#include <acpi/acnamesp.h>
 
 #define _COMPONENT          ACPI_RESOURCES
 ACPI_MODULE_NAME("rsxface")
@@ -68,19 +67,80 @@ ACPI_MODULE_NAME("rsxface")
 static acpi_status
 acpi_rs_match_vendor_resource(struct acpi_resource *resource, void *context);
 
+static acpi_status
+acpi_rs_validate_parameters(acpi_handle device_handle,
+			    struct acpi_buffer *buffer,
+			    struct acpi_namespace_node **return_node);
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_rs_validate_parameters
+ *
+ * PARAMETERS:  device_handle   - Handle to a device
+ *              Buffer          - Pointer to a data buffer
+ *              return_node     - Pointer to where the device node is returned
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Common parameter validation for resource interfaces
+ *
+ ******************************************************************************/
+
+static acpi_status
+acpi_rs_validate_parameters(acpi_handle device_handle,
+			    struct acpi_buffer *buffer,
+			    struct acpi_namespace_node **return_node)
+{
+	acpi_status status;
+	struct acpi_namespace_node *node;
+
+	ACPI_FUNCTION_TRACE(rs_validate_parameters);
+
+	/*
+	 * Must have a valid handle to an ACPI device
+	 */
+	if (!device_handle) {
+		return_ACPI_STATUS(AE_BAD_PARAMETER);
+	}
+
+	node = acpi_ns_map_handle_to_node(device_handle);
+	if (!node) {
+		return_ACPI_STATUS(AE_BAD_PARAMETER);
+	}
+
+	if (node->type != ACPI_TYPE_DEVICE) {
+		return_ACPI_STATUS(AE_TYPE);
+	}
+
+	/*
+	 * Validate the user buffer object
+	 *
+	 * if there is a non-zero buffer length we also need a valid pointer in
+	 * the buffer. If it's a zero buffer length, we'll be returning the
+	 * needed buffer size (later), so keep going.
+	 */
+	status = acpi_ut_validate_buffer(buffer);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
+	}
+
+	*return_node = node;
+	return_ACPI_STATUS(AE_OK);
+}
+
 /*******************************************************************************
  *
  * FUNCTION:    acpi_get_irq_routing_table
  *
- * PARAMETERS:  device_handle   - a handle to the Bus device we are querying
- *              ret_buffer      - a pointer to a buffer to receive the
+ * PARAMETERS:  device_handle   - Handle to the Bus device we are querying
+ *              ret_buffer      - Pointer to a buffer to receive the
  *                                current resources for the device
  *
  * RETURN:      Status
  *
  * DESCRIPTION: This function is called to get the IRQ routing table for a
- *              specific bus.  The caller must first acquire a handle for the
- *              desired bus.  The routine table is placed in the buffer pointed
+ *              specific bus. The caller must first acquire a handle for the
+ *              desired bus. The routine table is placed in the buffer pointed
  *              to by the ret_buffer variable parameter.
  *
  *              If the function fails an appropriate status will be returned
@@ -96,42 +156,37 @@ acpi_get_irq_routing_table(acpi_handle device_handle,
 			   struct acpi_buffer *ret_buffer)
 {
 	acpi_status status;
+	struct acpi_namespace_node *node;
 
-	ACPI_FUNCTION_TRACE("acpi_get_irq_routing_table ");
+	ACPI_FUNCTION_TRACE(acpi_get_irq_routing_table);
 
-	/*
-	 * Must have a valid handle and buffer, So we have to have a handle
-	 * and a return buffer structure, and if there is a non-zero buffer length
-	 * we also need a valid pointer in the buffer. If it's a zero buffer length,
-	 * we'll be returning the needed buffer size, so keep going.
-	 */
-	if (!device_handle) {
-		return_ACPI_STATUS(AE_BAD_PARAMETER);
-	}
+	/* Validate parameters then dispatch to internal routine */
 
-	status = acpi_ut_validate_buffer(ret_buffer);
+	status = acpi_rs_validate_parameters(device_handle, ret_buffer, &node);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
 
-	status = acpi_rs_get_prt_method_data(device_handle, ret_buffer);
+	status = acpi_rs_get_prt_method_data(node, ret_buffer);
 	return_ACPI_STATUS(status);
 }
+
+ACPI_EXPORT_SYMBOL(acpi_get_irq_routing_table)
 
 /*******************************************************************************
  *
  * FUNCTION:    acpi_get_current_resources
  *
- * PARAMETERS:  device_handle   - a handle to the device object for the
+ * PARAMETERS:  device_handle   - Handle to the device object for the
  *                                device we are querying
- *              ret_buffer      - a pointer to a buffer to receive the
+ *              ret_buffer      - Pointer to a buffer to receive the
  *                                current resources for the device
  *
  * RETURN:      Status
  *
  * DESCRIPTION: This function is called to get the current resources for a
- *              specific device.  The caller must first acquire a handle for
- *              the desired device.  The resource data is placed in the buffer
+ *              specific device. The caller must first acquire a handle for
+ *              the desired device. The resource data is placed in the buffer
  *              pointed to by the ret_buffer variable parameter.
  *
  *              If the function fails an appropriate status will be returned
@@ -141,239 +196,133 @@ acpi_get_irq_routing_table(acpi_handle device_handle,
  *              the object indicated by the passed device_handle.
  *
  ******************************************************************************/
-
 acpi_status
 acpi_get_current_resources(acpi_handle device_handle,
 			   struct acpi_buffer *ret_buffer)
 {
 	acpi_status status;
+	struct acpi_namespace_node *node;
 
-	ACPI_FUNCTION_TRACE("acpi_get_current_resources");
+	ACPI_FUNCTION_TRACE(acpi_get_current_resources);
 
-	/*
-	 * Must have a valid handle and buffer, So we have to have a handle
-	 * and a return buffer structure, and if there is a non-zero buffer length
-	 * we also need a valid pointer in the buffer. If it's a zero buffer length,
-	 * we'll be returning the needed buffer size, so keep going.
-	 */
-	if (!device_handle) {
-		return_ACPI_STATUS(AE_BAD_PARAMETER);
-	}
+	/* Validate parameters then dispatch to internal routine */
 
-	status = acpi_ut_validate_buffer(ret_buffer);
+	status = acpi_rs_validate_parameters(device_handle, ret_buffer, &node);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
 
-	status = acpi_rs_get_crs_method_data(device_handle, ret_buffer);
+	status = acpi_rs_get_crs_method_data(node, ret_buffer);
 	return_ACPI_STATUS(status);
 }
 
-EXPORT_SYMBOL(acpi_get_current_resources);
+ACPI_EXPORT_SYMBOL(acpi_get_current_resources)
 
+#ifdef ACPI_FUTURE_USAGE
 /*******************************************************************************
  *
  * FUNCTION:    acpi_get_possible_resources
  *
- * PARAMETERS:  device_handle   - a handle to the device object for the
+ * PARAMETERS:  device_handle   - Handle to the device object for the
  *                                device we are querying
- *              ret_buffer      - a pointer to a buffer to receive the
+ *              ret_buffer      - Pointer to a buffer to receive the
  *                                resources for the device
  *
  * RETURN:      Status
  *
  * DESCRIPTION: This function is called to get a list of the possible resources
- *              for a specific device.  The caller must first acquire a handle
- *              for the desired device.  The resource data is placed in the
+ *              for a specific device. The caller must first acquire a handle
+ *              for the desired device. The resource data is placed in the
  *              buffer pointed to by the ret_buffer variable.
  *
  *              If the function fails an appropriate status will be returned
  *              and the value of ret_buffer is undefined.
  *
  ******************************************************************************/
-
-#ifdef ACPI_FUTURE_USAGE
 acpi_status
 acpi_get_possible_resources(acpi_handle device_handle,
 			    struct acpi_buffer *ret_buffer)
 {
 	acpi_status status;
+	struct acpi_namespace_node *node;
 
-	ACPI_FUNCTION_TRACE("acpi_get_possible_resources");
+	ACPI_FUNCTION_TRACE(acpi_get_possible_resources);
 
-	/*
-	 * Must have a valid handle and buffer, So we have to have a handle
-	 * and a return buffer structure, and if there is a non-zero buffer length
-	 * we also need a valid pointer in the buffer. If it's a zero buffer length,
-	 * we'll be returning the needed buffer size, so keep going.
-	 */
-	if (!device_handle) {
-		return_ACPI_STATUS(AE_BAD_PARAMETER);
-	}
+	/* Validate parameters then dispatch to internal routine */
 
-	status = acpi_ut_validate_buffer(ret_buffer);
+	status = acpi_rs_validate_parameters(device_handle, ret_buffer, &node);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
 
-	status = acpi_rs_get_prs_method_data(device_handle, ret_buffer);
+	status = acpi_rs_get_prs_method_data(node, ret_buffer);
 	return_ACPI_STATUS(status);
 }
 
-EXPORT_SYMBOL(acpi_get_possible_resources);
+ACPI_EXPORT_SYMBOL(acpi_get_possible_resources)
 #endif				/*  ACPI_FUTURE_USAGE  */
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_walk_resources
- *
- * PARAMETERS:  device_handle   - Handle to the device object for the
- *                                device we are querying
- *              Name            - Method name of the resources we want
- *                                (METHOD_NAME__CRS or METHOD_NAME__PRS)
- *              user_function   - Called for each resource
- *              Context         - Passed to user_function
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Retrieves the current or possible resource list for the
- *              specified device.  The user_function is called once for
- *              each resource in the list.
- *
- ******************************************************************************/
-
-acpi_status
-acpi_walk_resources(acpi_handle device_handle,
-		    char *name,
-		    ACPI_WALK_RESOURCE_CALLBACK user_function, void *context)
-{
-	acpi_status status;
-	struct acpi_buffer buffer;
-	struct acpi_resource *resource;
-	struct acpi_resource *resource_end;
-
-	ACPI_FUNCTION_TRACE("acpi_walk_resources");
-
-	/* Parameter validation */
-
-	if (!device_handle || !user_function || !name ||
-	    (ACPI_STRNCMP(name, METHOD_NAME__CRS, sizeof(METHOD_NAME__CRS)) &&
-	     ACPI_STRNCMP(name, METHOD_NAME__PRS, sizeof(METHOD_NAME__PRS)))) {
-		return_ACPI_STATUS(AE_BAD_PARAMETER);
-	}
-
-	/* Get the _CRS or _PRS resource list */
-
-	buffer.length = ACPI_ALLOCATE_LOCAL_BUFFER;
-	status = acpi_rs_get_method_data(device_handle, name, &buffer);
-	if (ACPI_FAILURE(status)) {
-		return_ACPI_STATUS(status);
-	}
-
-	/* Buffer now contains the resource list */
-
-	resource = ACPI_CAST_PTR(struct acpi_resource, buffer.pointer);
-	resource_end =
-	    ACPI_ADD_PTR(struct acpi_resource, buffer.pointer, buffer.length);
-
-	/* Walk the resource list until the end_tag is found (or buffer end) */
-
-	while (resource < resource_end) {
-		/* Sanity check the resource */
-
-		if (resource->type > ACPI_RESOURCE_TYPE_MAX) {
-			status = AE_AML_INVALID_RESOURCE_TYPE;
-			break;
-		}
-
-		/* Invoke the user function, abort on any error returned */
-
-		status = user_function(resource, context);
-		if (ACPI_FAILURE(status)) {
-			if (status == AE_CTRL_TERMINATE) {
-				/* This is an OK termination by the user function */
-
-				status = AE_OK;
-			}
-			break;
-		}
-
-		/* end_tag indicates end-of-list */
-
-		if (resource->type == ACPI_RESOURCE_TYPE_END_TAG) {
-			break;
-		}
-
-		/* Get the next resource descriptor */
-
-		resource =
-		    ACPI_ADD_PTR(struct acpi_resource, resource,
-				 resource->length);
-	}
-
-	ACPI_MEM_FREE(buffer.pointer);
-	return_ACPI_STATUS(status);
-}
-
-EXPORT_SYMBOL(acpi_walk_resources);
 
 /*******************************************************************************
  *
  * FUNCTION:    acpi_set_current_resources
  *
- * PARAMETERS:  device_handle   - a handle to the device object for the
- *                                device we are changing the resources of
- *              in_buffer       - a pointer to a buffer containing the
+ * PARAMETERS:  device_handle   - Handle to the device object for the
+ *                                device we are setting resources
+ *              in_buffer       - Pointer to a buffer containing the
  *                                resources to be set for the device
  *
  * RETURN:      Status
  *
  * DESCRIPTION: This function is called to set the current resources for a
- *              specific device.  The caller must first acquire a handle for
- *              the desired device.  The resource data is passed to the routine
+ *              specific device. The caller must first acquire a handle for
+ *              the desired device. The resource data is passed to the routine
  *              the buffer pointed to by the in_buffer variable.
  *
  ******************************************************************************/
-
 acpi_status
 acpi_set_current_resources(acpi_handle device_handle,
 			   struct acpi_buffer *in_buffer)
 {
 	acpi_status status;
+	struct acpi_namespace_node *node;
 
-	ACPI_FUNCTION_TRACE("acpi_set_current_resources");
+	ACPI_FUNCTION_TRACE(acpi_set_current_resources);
 
-	/* Must have a valid handle and buffer */
+	/* Validate the buffer, don't allow zero length */
 
-	if ((!device_handle) ||
-	    (!in_buffer) || (!in_buffer->pointer) || (!in_buffer->length)) {
+	if ((!in_buffer) || (!in_buffer->pointer) || (!in_buffer->length)) {
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
-	status = acpi_rs_set_srs_method_data(device_handle, in_buffer);
+	/* Validate parameters then dispatch to internal routine */
+
+	status = acpi_rs_validate_parameters(device_handle, in_buffer, &node);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
+	}
+
+	status = acpi_rs_set_srs_method_data(node, in_buffer);
 	return_ACPI_STATUS(status);
 }
 
-EXPORT_SYMBOL(acpi_set_current_resources);
+ACPI_EXPORT_SYMBOL(acpi_set_current_resources)
 
 /******************************************************************************
  *
  * FUNCTION:    acpi_resource_to_address64
  *
- * PARAMETERS:  Resource                - Pointer to a resource
- *              Out                     - Pointer to the users's return
- *                                        buffer (a struct
- *                                        struct acpi_resource_address64)
+ * PARAMETERS:  Resource        - Pointer to a resource
+ *              Out             - Pointer to the users's return buffer
+ *                                (a struct acpi_resource_address64)
  *
  * RETURN:      Status
  *
  * DESCRIPTION: If the resource is an address16, address32, or address64,
- *              copy it to the address64 return buffer.  This saves the
+ *              copy it to the address64 return buffer. This saves the
  *              caller from having to duplicate code for different-sized
  *              addresses.
  *
  ******************************************************************************/
-
 acpi_status
 acpi_resource_to_address64(struct acpi_resource *resource,
 			   struct acpi_resource_address64 *out)
@@ -415,18 +364,18 @@ acpi_resource_to_address64(struct acpi_resource *resource,
 	return (AE_OK);
 }
 
-EXPORT_SYMBOL(acpi_resource_to_address64);
+ACPI_EXPORT_SYMBOL(acpi_resource_to_address64)
 
 /*******************************************************************************
  *
  * FUNCTION:    acpi_get_vendor_resource
  *
- * PARAMETERS:  device_handle       - Handle for the parent device object
- *              Name                - Method name for the parent resource
- *                                    (METHOD_NAME__CRS or METHOD_NAME__PRS)
- *              Uuid                - Pointer to the UUID to be matched.
- *                                    includes both subtype and 16-byte UUID
- *              ret_buffer          - Where the vendor resource is returned
+ * PARAMETERS:  device_handle   - Handle for the parent device object
+ *              Name            - Method name for the parent resource
+ *                                (METHOD_NAME__CRS or METHOD_NAME__PRS)
+ *              Uuid            - Pointer to the UUID to be matched.
+ *                                includes both subtype and 16-byte UUID
+ *              ret_buffer      - Where the vendor resource is returned
  *
  * RETURN:      Status
  *
@@ -435,7 +384,6 @@ EXPORT_SYMBOL(acpi_resource_to_address64);
  *              UUID subtype. Returns a struct acpi_resource of type Vendor.
  *
  ******************************************************************************/
-
 acpi_status
 acpi_get_vendor_resource(acpi_handle device_handle,
 			 char *name,
@@ -467,18 +415,19 @@ acpi_get_vendor_resource(acpi_handle device_handle,
 	return (info.status);
 }
 
+ACPI_EXPORT_SYMBOL(acpi_get_vendor_resource)
+
 /*******************************************************************************
  *
  * FUNCTION:    acpi_rs_match_vendor_resource
  *
- * PARAMETERS:  ACPI_WALK_RESOURCE_CALLBACK
+ * PARAMETERS:  acpi_walk_resource_callback
  *
  * RETURN:      Status
  *
  * DESCRIPTION: Match a vendor resource via the ACPI 3.0 UUID
  *
  ******************************************************************************/
-
 static acpi_status
 acpi_rs_match_vendor_resource(struct acpi_resource *resource, void *context)
 {
@@ -526,3 +475,101 @@ acpi_rs_match_vendor_resource(struct acpi_resource *resource, void *context)
 	info->status = AE_OK;
 	return (AE_CTRL_TERMINATE);
 }
+
+ACPI_EXPORT_SYMBOL(acpi_rs_match_vendor_resource)
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_walk_resources
+ *
+ * PARAMETERS:  device_handle   - Handle to the device object for the
+ *                                device we are querying
+ *              Name            - Method name of the resources we want
+ *                                (METHOD_NAME__CRS or METHOD_NAME__PRS)
+ *              user_function   - Called for each resource
+ *              Context         - Passed to user_function
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Retrieves the current or possible resource list for the
+ *              specified device. The user_function is called once for
+ *              each resource in the list.
+ *
+ ******************************************************************************/
+
+acpi_status
+acpi_walk_resources(acpi_handle device_handle,
+		    char *name,
+		    acpi_walk_resource_callback user_function, void *context)
+{
+	acpi_status status;
+	struct acpi_buffer buffer;
+	struct acpi_resource *resource;
+	struct acpi_resource *resource_end;
+
+	ACPI_FUNCTION_TRACE(acpi_walk_resources);
+
+	/* Parameter validation */
+
+	if (!device_handle || !user_function || !name ||
+	    (!ACPI_COMPARE_NAME(name, METHOD_NAME__CRS) &&
+	     !ACPI_COMPARE_NAME(name, METHOD_NAME__PRS))) {
+		return_ACPI_STATUS(AE_BAD_PARAMETER);
+	}
+
+	/* Get the _CRS or _PRS resource list */
+
+	buffer.length = ACPI_ALLOCATE_LOCAL_BUFFER;
+	status = acpi_rs_get_method_data(device_handle, name, &buffer);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
+	}
+
+	/* Buffer now contains the resource list */
+
+	resource = ACPI_CAST_PTR(struct acpi_resource, buffer.pointer);
+	resource_end =
+	    ACPI_ADD_PTR(struct acpi_resource, buffer.pointer, buffer.length);
+
+	/* Walk the resource list until the end_tag is found (or buffer end) */
+
+	while (resource < resource_end) {
+
+		/* Sanity check the resource */
+
+		if (resource->type > ACPI_RESOURCE_TYPE_MAX) {
+			status = AE_AML_INVALID_RESOURCE_TYPE;
+			break;
+		}
+
+		/* Invoke the user function, abort on any error returned */
+
+		status = user_function(resource, context);
+		if (ACPI_FAILURE(status)) {
+			if (status == AE_CTRL_TERMINATE) {
+
+				/* This is an OK termination by the user function */
+
+				status = AE_OK;
+			}
+			break;
+		}
+
+		/* end_tag indicates end-of-list */
+
+		if (resource->type == ACPI_RESOURCE_TYPE_END_TAG) {
+			break;
+		}
+
+		/* Get the next resource descriptor */
+
+		resource =
+		    ACPI_ADD_PTR(struct acpi_resource, resource,
+				 resource->length);
+	}
+
+	ACPI_FREE(buffer.pointer);
+	return_ACPI_STATUS(status);
+}
+
+ACPI_EXPORT_SYMBOL(acpi_walk_resources)

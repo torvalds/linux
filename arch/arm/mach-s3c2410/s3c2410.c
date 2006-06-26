@@ -27,6 +27,7 @@
 #include <linux/list.h>
 #include <linux/timer.h>
 #include <linux/init.h>
+#include <linux/sysdev.h>
 #include <linux/platform_device.h>
 
 #include <asm/mach/arch.h>
@@ -108,11 +109,33 @@ void __init s3c2410_init_clocks(int xtal)
 	 */
 
 	s3c24xx_setup_clocks(xtal, fclk, hclk, pclk);
+	s3c2410_baseclk_add();
 }
+
+struct sysdev_class s3c2410_sysclass = {
+	set_kset_name("s3c2410-core"),
+};
+
+static struct sys_device s3c2410_sysdev = {
+	.cls		= &s3c2410_sysclass,
+};
+
+/* need to register class before we actually register the device, and
+ * we also need to ensure that it has been initialised before any of the
+ * drivers even try to use it (even if not on an s3c2440 based system)
+ * as a driver which may support both 2410 and 2440 may try and use it.
+*/
+
+static int __init s3c2410_core_init(void)
+{
+	return sysdev_class_register(&s3c2410_sysclass);
+}
+
+core_initcall(s3c2410_core_init);
 
 int __init s3c2410_init(void)
 {
 	printk("S3C2410: Initialising architecture\n");
 
-	return 0;
+	return sysdev_register(&s3c2410_sysdev);
 }

@@ -136,7 +136,7 @@ config RADIO_GEMTEK_PCI
 	  Choose Y here if you have this PCI FM radio card.
 
 	  In order to control your radio card, you will need to use programs
-	  that are compatible with the Video for Linux API.  Information on 
+	  that are compatible with the Video for Linux API.  Information on
 	  this API and pointers to "v4l" programs may be found at
 	  <file:Documentation/video4linux/API.html>.
 

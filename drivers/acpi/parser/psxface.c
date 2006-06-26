@@ -50,14 +50,14 @@
 ACPI_MODULE_NAME("psxface")
 
 /* Local Prototypes */
-static void acpi_ps_start_trace(struct acpi_parameter_info *info);
+static void acpi_ps_start_trace(struct acpi_evaluate_info *info);
 
-static void acpi_ps_stop_trace(struct acpi_parameter_info *info);
+static void acpi_ps_stop_trace(struct acpi_evaluate_info *info);
 
-static acpi_status acpi_ps_execute_pass(struct acpi_parameter_info *info);
+static acpi_status acpi_ps_execute_pass(struct acpi_evaluate_info *info);
 
 static void
-acpi_ps_update_parameter_list(struct acpi_parameter_info *info, u16 action);
+acpi_ps_update_parameter_list(struct acpi_evaluate_info *info, u16 action);
 
 /*******************************************************************************
  *
@@ -113,7 +113,7 @@ acpi_debug_trace(char *name, u32 debug_level, u32 debug_layer, u32 flags)
  *
  ******************************************************************************/
 
-static void acpi_ps_start_trace(struct acpi_parameter_info *info)
+static void acpi_ps_start_trace(struct acpi_evaluate_info *info)
 {
 	acpi_status status;
 
@@ -125,7 +125,7 @@ static void acpi_ps_start_trace(struct acpi_parameter_info *info)
 	}
 
 	if ((!acpi_gbl_trace_method_name) ||
-	    (acpi_gbl_trace_method_name != info->node->name.integer)) {
+	    (acpi_gbl_trace_method_name != info->resolved_node->name.integer)) {
 		goto exit;
 	}
 
@@ -158,7 +158,7 @@ static void acpi_ps_start_trace(struct acpi_parameter_info *info)
  *
  ******************************************************************************/
 
-static void acpi_ps_stop_trace(struct acpi_parameter_info *info)
+static void acpi_ps_stop_trace(struct acpi_evaluate_info *info)
 {
 	acpi_status status;
 
@@ -170,7 +170,7 @@ static void acpi_ps_stop_trace(struct acpi_parameter_info *info)
 	}
 
 	if ((!acpi_gbl_trace_method_name) ||
-	    (acpi_gbl_trace_method_name != info->node->name.integer)) {
+	    (acpi_gbl_trace_method_name != info->resolved_node->name.integer)) {
 		goto exit;
 	}
 
@@ -212,22 +212,23 @@ static void acpi_ps_stop_trace(struct acpi_parameter_info *info)
  *
  ******************************************************************************/
 
-acpi_status acpi_ps_execute_method(struct acpi_parameter_info *info)
+acpi_status acpi_ps_execute_method(struct acpi_evaluate_info *info)
 {
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("ps_execute_method");
+	ACPI_FUNCTION_TRACE(ps_execute_method);
 
 	/* Validate the Info and method Node */
 
-	if (!info || !info->node) {
+	if (!info || !info->resolved_node) {
 		return_ACPI_STATUS(AE_NULL_ENTRY);
 	}
 
 	/* Init for new method, wait on concurrency semaphore */
 
 	status =
-	    acpi_ds_begin_method_execution(info->node, info->obj_desc, NULL);
+	    acpi_ds_begin_method_execution(info->resolved_node, info->obj_desc,
+					   NULL);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
@@ -248,7 +249,7 @@ acpi_status acpi_ps_execute_method(struct acpi_parameter_info *info)
 	 */
 	ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
 			  "**** Begin Method Parse **** Entry=%p obj=%p\n",
-			  info->node, info->obj_desc));
+			  info->resolved_node, info->obj_desc));
 
 	info->pass_number = 1;
 	status = acpi_ps_execute_pass(info);
@@ -261,7 +262,7 @@ acpi_status acpi_ps_execute_method(struct acpi_parameter_info *info)
 	 */
 	ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
 			  "**** Begin Method Execution **** Entry=%p obj=%p\n",
-			  info->node, info->obj_desc));
+			  info->resolved_node, info->obj_desc));
 
 	info->pass_number = 3;
 	status = acpi_ps_execute_pass(info);
@@ -286,8 +287,7 @@ acpi_status acpi_ps_execute_method(struct acpi_parameter_info *info)
 	 * a control exception code
 	 */
 	if (info->return_object) {
-		ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
-				  "Method returned obj_desc=%p\n",
+		ACPI_DEBUG_PRINT((ACPI_DB_PARSE, "Method returned ObjDesc=%p\n",
 				  info->return_object));
 		ACPI_DUMP_STACK_ENTRY(info->return_object);
 
@@ -301,7 +301,7 @@ acpi_status acpi_ps_execute_method(struct acpi_parameter_info *info)
  *
  * FUNCTION:    acpi_ps_update_parameter_list
  *
- * PARAMETERS:  Info            - See struct acpi_parameter_info
+ * PARAMETERS:  Info            - See struct acpi_evaluate_info
  *                                (Used: parameter_type and Parameters)
  *              Action          - Add or Remove reference
  *
@@ -312,14 +312,16 @@ acpi_status acpi_ps_execute_method(struct acpi_parameter_info *info)
  ******************************************************************************/
 
 static void
-acpi_ps_update_parameter_list(struct acpi_parameter_info *info, u16 action)
+acpi_ps_update_parameter_list(struct acpi_evaluate_info *info, u16 action)
 {
 	acpi_native_uint i;
 
 	if ((info->parameter_type == ACPI_PARAM_ARGS) && (info->parameters)) {
+
 		/* Update reference count for each parameter */
 
 		for (i = 0; info->parameters[i]; i++) {
+
 			/* Ignore errors, just do them all */
 
 			(void)acpi_ut_update_object_reference(info->
@@ -333,7 +335,7 @@ acpi_ps_update_parameter_list(struct acpi_parameter_info *info, u16 action)
  *
  * FUNCTION:    acpi_ps_execute_pass
  *
- * PARAMETERS:  Info            - See struct acpi_parameter_info
+ * PARAMETERS:  Info            - See struct acpi_evaluate_info
  *                                (Used: pass_number, Node, and obj_desc)
  *
  * RETURN:      Status
@@ -342,13 +344,13 @@ acpi_ps_update_parameter_list(struct acpi_parameter_info *info, u16 action)
  *
  ******************************************************************************/
 
-static acpi_status acpi_ps_execute_pass(struct acpi_parameter_info *info)
+static acpi_status acpi_ps_execute_pass(struct acpi_evaluate_info *info)
 {
 	acpi_status status;
 	union acpi_parse_object *op;
 	struct acpi_walk_state *walk_state;
 
-	ACPI_FUNCTION_TRACE("ps_execute_pass");
+	ACPI_FUNCTION_TRACE(ps_execute_pass);
 
 	/* Create and init a Root Node */
 
@@ -367,7 +369,7 @@ static acpi_status acpi_ps_execute_pass(struct acpi_parameter_info *info)
 		goto cleanup;
 	}
 
-	status = acpi_ds_init_aml_walk(walk_state, op, info->node,
+	status = acpi_ds_init_aml_walk(walk_state, op, info->resolved_node,
 				       info->obj_desc->method.aml_start,
 				       info->obj_desc->method.aml_length,
 				       info->pass_number == 1 ? NULL : info,

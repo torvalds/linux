@@ -866,7 +866,6 @@ int flush_old_exec(struct linux_binprm * bprm)
 	bprm->mm = NULL;		/* We're using it now */
 
 	/* This is the point of no return */
-	steal_locks(files);
 	put_files_struct(files);
 
 	current->sas_ss_sp = current->sas_ss_size = 0;

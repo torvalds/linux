@@ -37,6 +37,7 @@
 #include <linux/delay.h>
 #include <linux/workqueue.h>
 #include <linux/nmi.h>
+#include <linux/kthread.h>
 #include <acpi/acpi.h>
 #include <asm/io.h>
 #include <acpi/acpi_bus.h>
@@ -600,23 +601,41 @@ static void acpi_os_execute_deferred(void *context)
 	return_VOID;
 }
 
-acpi_status
-acpi_os_queue_for_execution(u32 priority,
+static int acpi_os_execute_thread(void *context)
+{
+	struct acpi_os_dpc *dpc = (struct acpi_os_dpc *)context;
+	if (dpc) {
+		dpc->function(dpc->context);
+		kfree(dpc);
+	}
+	do_exit(0);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_os_execute
+ *
+ * PARAMETERS:  Type               - Type of the callback
+ *              Function           - Function to be executed
+ *              Context            - Function parameters
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Depending on type, either queues function for deferred execution or
+ *              immediately executes function on a separate thread.
+ *
+ ******************************************************************************/
+
+acpi_status acpi_os_execute(acpi_execute_type type,
 			    acpi_osd_exec_callback function, void *context)
 {
 	acpi_status status = AE_OK;
 	struct acpi_os_dpc *dpc;
 	struct work_struct *task;
-
-	ACPI_FUNCTION_TRACE("os_queue_for_execution");
-
-	ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
-			  "Scheduling function [%p(%p)] for deferred execution.\n",
-			  function, context));
+	struct task_struct *p;
 
 	if (!function)
-		return_ACPI_STATUS(AE_BAD_PARAMETER);
-
+		return AE_BAD_PARAMETER;
 	/*
 	 * Allocate/initialize DPC structure.  Note that this memory will be
 	 * freed by the callee.  The kernel handles the tq_struct list  in a
@@ -627,30 +646,37 @@ acpi_os_queue_for_execution(u32 priority,
 	 * We can save time and code by allocating the DPC and tq_structs
 	 * from the same memory.
 	 */
-
-	dpc =
-	    kmalloc(sizeof(struct acpi_os_dpc) + sizeof(struct work_struct),
-		    GFP_ATOMIC);
+	if (type == OSL_NOTIFY_HANDLER) {
+		dpc = kmalloc(sizeof(struct acpi_os_dpc), GFP_KERNEL);
+	} else {
+		dpc = kmalloc(sizeof(struct acpi_os_dpc) +
+				sizeof(struct work_struct), GFP_ATOMIC);
+	}
 	if (!dpc)
-		return_ACPI_STATUS(AE_NO_MEMORY);
-
+		return AE_NO_MEMORY;
 	dpc->function = function;
 	dpc->context = context;
 
-	task = (void *)(dpc + 1);
-	INIT_WORK(task, acpi_os_execute_deferred, (void *)dpc);
-
-	if (!queue_work(kacpid_wq, task)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Call to queue_work() failed.\n"));
-		kfree(dpc);
-		status = AE_ERROR;
+	if (type == OSL_NOTIFY_HANDLER) {
+		p = kthread_create(acpi_os_execute_thread, dpc, "kacpid_notify");
+		if (!IS_ERR(p)) {
+			wake_up_process(p);
+		} else {
+			status = AE_NO_MEMORY;
+			kfree(dpc);
+		}
+	} else {
+		task = (void *)(dpc + 1);
+		INIT_WORK(task, acpi_os_execute_deferred, (void *)dpc);
+		if (!queue_work(kacpid_wq, task)) {
+			status = AE_ERROR;
+			kfree(dpc);
+		}
 	}
-
-	return_ACPI_STATUS(status);
+	return status;
 }
 
-EXPORT_SYMBOL(acpi_os_queue_for_execution);
+EXPORT_SYMBOL(acpi_os_execute);
 
 void acpi_os_wait_events_complete(void *context)
 {
@@ -768,9 +794,6 @@ acpi_status acpi_os_wait_semaphore(acpi_handle handle, u32 units, u16 timeout)
 
 	ACPI_DEBUG_PRINT((ACPI_DB_MUTEX, "Waiting for semaphore[%p|%d|%d]\n",
 			  handle, units, timeout));
-
-	if (in_atomic())
-		timeout = 0;
 
 	switch (timeout) {
 		/*
@@ -895,14 +918,6 @@ u8 acpi_os_writable(void *ptr, acpi_size len)
 	return 1;
 }
 #endif
-
-u32 acpi_os_get_thread_id(void)
-{
-	if (!in_atomic())
-		return current->pid;
-
-	return 0;
-}
 
 acpi_status acpi_os_signal(u32 function, void *info)
 {
@@ -1050,12 +1065,12 @@ void acpi_os_release_lock(acpi_handle handle, acpi_cpu_flags flags)
  *
  * FUNCTION:    acpi_os_create_cache
  *
- * PARAMETERS:  CacheName       - Ascii name for the cache
- *              ObjectSize      - Size of each cached object
- *              MaxDepth        - Maximum depth of the cache (in objects)
- *              ReturnCache     - Where the new cache object is returned
+ * PARAMETERS:  name      - Ascii name for the cache
+ *              size      - Size of each cached object
+ *              depth     - Maximum depth of the cache (in objects) <ignored>
+ *              cache     - Where the new cache object is returned
  *
- * RETURN:      Status
+ * RETURN:      status
  *
  * DESCRIPTION: Create a cache object
  *
@@ -1065,7 +1080,10 @@ acpi_status
 acpi_os_create_cache(char *name, u16 size, u16 depth, acpi_cache_t ** cache)
 {
 	*cache = kmem_cache_create(name, size, 0, 0, NULL, NULL);
-	return AE_OK;
+	if (cache == NULL)
+		return AE_ERROR;
+	else
+		return AE_OK;
 }
 
 /*******************************************************************************
@@ -1134,16 +1152,63 @@ acpi_status acpi_os_release_object(acpi_cache_t * cache, void *object)
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Get an object from the specified cache.  If cache is empty,
- *              the object is allocated.
+ * DESCRIPTION: Return a zero-filled object.
  *
  ******************************************************************************/
 
 void *acpi_os_acquire_object(acpi_cache_t * cache)
 {
-	void *object = kmem_cache_alloc(cache, GFP_KERNEL);
+	void *object = kmem_cache_zalloc(cache, GFP_KERNEL);
 	WARN_ON(!object);
 	return object;
 }
+
+/******************************************************************************
+ *
+ * FUNCTION:    acpi_os_validate_interface
+ *
+ * PARAMETERS:  interface           - Requested interface to be validated
+ *
+ * RETURN:      AE_OK if interface is supported, AE_SUPPORT otherwise
+ *
+ * DESCRIPTION: Match an interface string to the interfaces supported by the
+ *              host. Strings originate from an AML call to the _OSI method.
+ *
+ *****************************************************************************/
+
+acpi_status
+acpi_os_validate_interface (char *interface)
+{
+
+    return AE_SUPPORT;
+}
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    acpi_os_validate_address
+ *
+ * PARAMETERS:  space_id             - ACPI space ID
+ *              address             - Physical address
+ *              length              - Address length
+ *
+ * RETURN:      AE_OK if address/length is valid for the space_id. Otherwise,
+ *              should return AE_AML_ILLEGAL_ADDRESS.
+ *
+ * DESCRIPTION: Validate a system address via the host OS. Used to validate
+ *              the addresses accessed by AML operation regions.
+ *
+ *****************************************************************************/
+
+acpi_status
+acpi_os_validate_address (
+    u8                   space_id,
+    acpi_physical_address   address,
+    acpi_size               length)
+{
+
+    return AE_OK;
+}
+
 
 #endif

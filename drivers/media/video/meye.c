@@ -32,6 +32,7 @@
 #include <linux/sched.h>
 #include <linux/init.h>
 #include <linux/videodev.h>
+#include <media/v4l2-common.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <linux/delay.h>
@@ -1682,13 +1683,13 @@ static unsigned int meye_poll(struct file *file, poll_table *wait)
 
 static void meye_vm_open(struct vm_area_struct *vma)
 {
-	int idx = (int)vma->vm_private_data;
+	long idx = (long)vma->vm_private_data;
 	meye.vma_use_count[idx]++;
 }
 
 static void meye_vm_close(struct vm_area_struct *vma)
 {
-	int idx = (int)vma->vm_private_data;
+	long idx = (long)vma->vm_private_data;
 	meye.vma_use_count[idx]--;
 }
 

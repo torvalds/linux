@@ -925,11 +925,8 @@ static acpi_status hpet_resources(struct acpi_resource *res, void *data)
 	status = acpi_resource_to_address64(res, &addr);
 
 	if (ACPI_SUCCESS(status)) {
-		unsigned long size;
-
-		size = addr.maximum - addr.minimum + 1;
 		hdp->hd_phys_address = addr.minimum;
-		hdp->hd_address = ioremap(addr.minimum, size);
+		hdp->hd_address = ioremap(addr.minimum, addr.address_length);
 
 		if (hpet_is_known(hdp)) {
 			printk(KERN_DEBUG "%s: 0x%lx is busy\n",

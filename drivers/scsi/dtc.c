@@ -145,35 +145,35 @@ static struct override {
 0, IRQ_AUTO}};
 #endif
 
-#define NO_OVERRIDES (sizeof(overrides) / sizeof(struct override))
+#define NO_OVERRIDES ARRAY_SIZE(overrides)
 
 static struct base {
 	unsigned long address;
 	int noauto;
-} bases[] __initdata = { 
-	{ 0xcc000, 0 }, 
-	{ 0xc8000, 0 }, 
-	{ 0xdc000, 0 }, 
+} bases[] __initdata = {
+	{ 0xcc000, 0 },
+	{ 0xc8000, 0 },
+	{ 0xdc000, 0 },
 	{ 0xd8000, 0 }
 };
 
-#define NO_BASES (sizeof (bases) / sizeof (struct base))
+#define NO_BASES ARRAY_SIZE(bases)
 
 static const struct signature {
 	const char *string;
 	int offset;
-} signatures[] = { 
+} signatures[] = {
 	{"DATA TECHNOLOGY CORPORATION BIOS", 0x25},
 };
 
-#define NO_SIGNATURES (sizeof (signatures) /  sizeof (struct signature))
+#define NO_SIGNATURES ARRAY_SIZE(signatures)
 
 #ifndef MODULE
 /*
  * Function : dtc_setup(char *str, int *ints)
  *
  * Purpose : LILO command line initialization of the overrides array,
- * 
+ *
  * Inputs : str - unused, ints - array of integer parameters with ints[0]
  *	equal to the number of ints.
  *

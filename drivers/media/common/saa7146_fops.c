@@ -501,6 +501,7 @@ int saa7146_vv_init(struct saa7146_dev* dev, struct saa7146_ext_vv *ext_vv)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(saa7146_vv_init);
 
 int saa7146_vv_release(struct saa7146_dev* dev)
 {
@@ -515,6 +516,7 @@ int saa7146_vv_release(struct saa7146_dev* dev)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(saa7146_vv_release);
 
 int saa7146_register_device(struct video_device **vid, struct saa7146_dev* dev,
 			    char *name, int type)
@@ -553,6 +555,7 @@ int saa7146_register_device(struct video_device **vid, struct saa7146_dev* dev,
 	*vid = vfd;
 	return 0;
 }
+EXPORT_SYMBOL_GPL(saa7146_register_device);
 
 int saa7146_unregister_device(struct video_device **vid, struct saa7146_dev* dev)
 {
@@ -571,6 +574,7 @@ int saa7146_unregister_device(struct video_device **vid, struct saa7146_dev* dev
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(saa7146_unregister_device);
 
 static int __init saa7146_vv_init_module(void)
 {

@@ -250,8 +250,6 @@ FAN_TO_REG(long rpm, int div)
 			: (val)) / 1000, 0, 0xff))
 #define TEMP_ADD_TO_REG_LOW(val)	((val%1000) ? 0x80 : 0x00)
 
-#define PWM_FROM_REG(val)		(val)
-#define PWM_TO_REG(val)			(SENSORS_LIMIT((val),0,255))
 #define DIV_FROM_REG(val)		(1 << (val))
 
 static inline u8
@@ -291,7 +289,6 @@ struct w83792d_data {
 	u8 pwm[7];		/* We only consider the first 3 set of pwm,
 				   although 792 chip has 7 set of pwm. */
 	u8 pwmenable[3];
-	u8 pwm_mode[7];		/* indicates PWM or DC mode: 1->PWM; 0->DC */
 	u32 alarms;		/* realtime status register encoding,combined */
 	u8 chassis;		/* Chassis status */
 	u8 chassis_clear;	/* CLR_CHS, clear chassis intrusion detection */
@@ -375,8 +372,10 @@ static ssize_t store_in_##reg (struct device *dev, \
 	u32 val; \
 	 \
 	val = simple_strtoul(buf, NULL, 10); \
+	mutex_lock(&data->update_lock); \
 	data->in_##reg[nr] = SENSORS_LIMIT(IN_TO_REG(nr, val)/4, 0, 255); \
 	w83792d_write_value(client, W83792D_REG_IN_##REG[nr], data->in_##reg[nr]); \
+	mutex_unlock(&data->update_lock); \
 	 \
 	return count; \
 }
@@ -443,9 +442,11 @@ store_fan_min(struct device *dev, struct device_attribute *attr,
 	u32 val;
 
 	val = simple_strtoul(buf, NULL, 10);
+	mutex_lock(&data->update_lock);
 	data->fan_min[nr] = FAN_TO_REG(val, DIV_FROM_REG(data->fan_div[nr]));
 	w83792d_write_value(client, W83792D_REG_FAN_MIN[nr],
 				data->fan_min[nr]);
+	mutex_unlock(&data->update_lock);
 
 	return count;
 }
@@ -478,6 +479,7 @@ store_fan_div(struct device *dev, struct device_attribute *attr,
 	u8 tmp_fan_div;
 
 	/* Save fan_min */
+	mutex_lock(&data->update_lock);
 	min = FAN_FROM_REG(data->fan_min[nr],
 			   DIV_FROM_REG(data->fan_div[nr]));
 
@@ -493,6 +495,7 @@ store_fan_div(struct device *dev, struct device_attribute *attr,
 	/* Restore fan_min */
 	data->fan_min[nr] = FAN_TO_REG(min, DIV_FROM_REG(data->fan_div[nr]));
 	w83792d_write_value(client, W83792D_REG_FAN_MIN[nr], data->fan_min[nr]);
+	mutex_unlock(&data->update_lock);
 
 	return count;
 }
@@ -547,10 +550,11 @@ static ssize_t store_temp1(struct device *dev, struct device_attribute *attr,
 	s32 val;
 
 	val = simple_strtol(buf, NULL, 10);
-
+	mutex_lock(&data->update_lock);
 	data->temp1[nr] = TEMP1_TO_REG(val);
 	w83792d_write_value(client, W83792D_REG_TEMP1[nr],
 		data->temp1[nr]);
+	mutex_unlock(&data->update_lock);
 
 	return count;
 }
@@ -580,13 +584,14 @@ static ssize_t store_temp23(struct device *dev, struct device_attribute *attr,
 	s32 val;
 
 	val = simple_strtol(buf, NULL, 10);
-
+	mutex_lock(&data->update_lock);
 	data->temp_add[nr][index] = TEMP_ADD_TO_REG_HIGH(val);
 	data->temp_add[nr][index+1] = TEMP_ADD_TO_REG_LOW(val);
 	w83792d_write_value(client, W83792D_REG_TEMP_ADD[nr][index],
 		data->temp_add[nr][index]);
 	w83792d_write_value(client, W83792D_REG_TEMP_ADD[nr][index+1],
 		data->temp_add[nr][index+1]);
+	mutex_unlock(&data->update_lock);
 
 	return count;
 }
@@ -627,7 +632,7 @@ show_pwm(struct device *dev, struct device_attribute *attr,
 	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
 	int nr = sensor_attr->index;
 	struct w83792d_data *data = w83792d_update_device(dev);
-	return sprintf(buf, "%ld\n", (long) PWM_FROM_REG(data->pwm[nr-1]));
+	return sprintf(buf, "%d\n", (data->pwm[nr] & 0x0f) << 4);
 }
 
 static ssize_t
@@ -659,14 +664,16 @@ store_pwm(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t count)
 {
 	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
-	int nr = sensor_attr->index - 1;
+	int nr = sensor_attr->index;
 	struct i2c_client *client = to_i2c_client(dev);
 	struct w83792d_data *data = i2c_get_clientdata(client);
-	u32 val;
+	u8 val = SENSORS_LIMIT(simple_strtoul(buf, NULL, 10), 0, 255) >> 4;
 
-	val = simple_strtoul(buf, NULL, 10);
-	data->pwm[nr] = PWM_TO_REG(val);
+	mutex_lock(&data->update_lock);
+	val |= w83792d_read_value(client, W83792D_REG_PWM[nr]) & 0xf0;
+	data->pwm[nr] = val;
 	w83792d_write_value(client, W83792D_REG_PWM[nr], data->pwm[nr]);
+	mutex_unlock(&data->update_lock);
 
 	return count;
 }
@@ -683,6 +690,10 @@ store_pwmenable(struct device *dev, struct device_attribute *attr,
 	u8 fan_cfg_tmp, cfg1_tmp, cfg2_tmp, cfg3_tmp, cfg4_tmp;
 
 	val = simple_strtoul(buf, NULL, 10);
+	if (val < 1 || val > 3)
+		return -EINVAL;
+
+	mutex_lock(&data->update_lock);
 	switch (val) {
 	case 1:
 		data->pwmenable[nr] = 0; /* manual mode */
@@ -693,8 +704,6 @@ store_pwmenable(struct device *dev, struct device_attribute *attr,
 	case 3:
 		data->pwmenable[nr] = 1; /* thermal cruise/Smart Fan I */
 		break;
-	default:
-		return -EINVAL;
 	}
 	cfg1_tmp = data->pwmenable[0];
 	cfg2_tmp = (data->pwmenable[1]) << 2;
@@ -702,14 +711,15 @@ store_pwmenable(struct device *dev, struct device_attribute *attr,
 	cfg4_tmp = w83792d_read_value(client,W83792D_REG_FAN_CFG) & 0xc0;
 	fan_cfg_tmp = ((cfg4_tmp | cfg3_tmp) | cfg2_tmp) | cfg1_tmp;
 	w83792d_write_value(client, W83792D_REG_FAN_CFG, fan_cfg_tmp);
+	mutex_unlock(&data->update_lock);
 
 	return count;
 }
 
 static struct sensor_device_attribute sda_pwm[] = {
-	SENSOR_ATTR(pwm1, S_IWUSR | S_IRUGO, show_pwm, store_pwm, 1),
-	SENSOR_ATTR(pwm2, S_IWUSR | S_IRUGO, show_pwm, store_pwm, 2),
-	SENSOR_ATTR(pwm3, S_IWUSR | S_IRUGO, show_pwm, store_pwm, 3),
+	SENSOR_ATTR(pwm1, S_IWUSR | S_IRUGO, show_pwm, store_pwm, 0),
+	SENSOR_ATTR(pwm2, S_IWUSR | S_IRUGO, show_pwm, store_pwm, 1),
+	SENSOR_ATTR(pwm3, S_IWUSR | S_IRUGO, show_pwm, store_pwm, 2),
 };
 static struct sensor_device_attribute sda_pwm_enable[] = {
 	SENSOR_ATTR(pwm1_enable, S_IWUSR | S_IRUGO,
@@ -728,7 +738,7 @@ show_pwm_mode(struct device *dev, struct device_attribute *attr,
 	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
 	int nr = sensor_attr->index;
 	struct w83792d_data *data = w83792d_update_device(dev);
-	return sprintf(buf, "%d\n", data->pwm_mode[nr-1]);
+	return sprintf(buf, "%d\n", data->pwm[nr] >> 7);
 }
 
 static ssize_t
@@ -736,29 +746,35 @@ store_pwm_mode(struct device *dev, struct device_attribute *attr,
 			const char *buf, size_t count)
 {
 	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
-	int nr = sensor_attr->index - 1;
+	int nr = sensor_attr->index;
 	struct i2c_client *client = to_i2c_client(dev);
 	struct w83792d_data *data = i2c_get_clientdata(client);
 	u32 val;
-	u8 pwm_mode_mask = 0;
 
 	val = simple_strtoul(buf, NULL, 10);
-	data->pwm_mode[nr] = SENSORS_LIMIT(val, 0, 1);
-	pwm_mode_mask = w83792d_read_value(client,
-		W83792D_REG_PWM[nr]) & 0x7f;
-	w83792d_write_value(client, W83792D_REG_PWM[nr],
-		((data->pwm_mode[nr]) << 7) | pwm_mode_mask);
+	if (val != 0 && val != 1)
+		return -EINVAL;
+
+	mutex_lock(&data->update_lock);
+	data->pwm[nr] = w83792d_read_value(client, W83792D_REG_PWM[nr]);
+	if (val) {			/* PWM mode */
+		data->pwm[nr] |= 0x80;
+	} else {			/* DC mode */
+		data->pwm[nr] &= 0x7f;
+	}
+	w83792d_write_value(client, W83792D_REG_PWM[nr], data->pwm[nr]);
+	mutex_unlock(&data->update_lock);
 
 	return count;
 }
 
 static struct sensor_device_attribute sda_pwm_mode[] = {
 	SENSOR_ATTR(pwm1_mode, S_IWUSR | S_IRUGO,
-		    show_pwm_mode, store_pwm_mode, 1),
+		    show_pwm_mode, store_pwm_mode, 0),
 	SENSOR_ATTR(pwm2_mode, S_IWUSR | S_IRUGO,
-		    show_pwm_mode, store_pwm_mode, 2),
+		    show_pwm_mode, store_pwm_mode, 1),
 	SENSOR_ATTR(pwm3_mode, S_IWUSR | S_IRUGO,
-		    show_pwm_mode, store_pwm_mode, 3),
+		    show_pwm_mode, store_pwm_mode, 2),
 };
 
 
@@ -789,12 +805,13 @@ store_chassis_clear(struct device *dev, struct device_attribute *attr,
 	u8 temp1 = 0, temp2 = 0;
 
 	val = simple_strtoul(buf, NULL, 10);
-
+	mutex_lock(&data->update_lock);
 	data->chassis_clear = SENSORS_LIMIT(val, 0 ,1);
 	temp1 = ((data->chassis_clear) << 7) & 0x80;
 	temp2 = w83792d_read_value(client,
 		W83792D_REG_CHASSIS_CLR) & 0x7f;
 	w83792d_write_value(client, W83792D_REG_CHASSIS_CLR, temp1 | temp2);
+	mutex_unlock(&data->update_lock);
 
 	return count;
 }
@@ -827,10 +844,12 @@ store_thermal_cruise(struct device *dev, struct device_attribute *attr,
 	val = simple_strtoul(buf, NULL, 10);
 	target_tmp = val;
 	target_tmp = target_tmp & 0x7f;
+	mutex_lock(&data->update_lock);
 	target_mask = w83792d_read_value(client, W83792D_REG_THERMAL[nr]) & 0x80;
 	data->thermal_cruise[nr] = SENSORS_LIMIT(target_tmp, 0, 255);
 	w83792d_write_value(client, W83792D_REG_THERMAL[nr],
 		(data->thermal_cruise[nr]) | target_mask);
+	mutex_unlock(&data->update_lock);
 
 	return count;
 }
@@ -867,6 +886,7 @@ store_tolerance(struct device *dev, struct device_attribute *attr,
 	u8 tol_tmp, tol_mask;
 
 	val = simple_strtoul(buf, NULL, 10);
+	mutex_lock(&data->update_lock);
 	tol_mask = w83792d_read_value(client,
 		W83792D_REG_TOLERANCE[nr]) & ((nr == 1) ? 0x0f : 0xf0);
 	tol_tmp = SENSORS_LIMIT(val, 0, 15);
@@ -877,6 +897,7 @@ store_tolerance(struct device *dev, struct device_attribute *attr,
 	}
 	w83792d_write_value(client, W83792D_REG_TOLERANCE[nr],
 		tol_mask | tol_tmp);
+	mutex_unlock(&data->update_lock);
 
 	return count;
 }
@@ -915,11 +936,13 @@ store_sf2_point(struct device *dev, struct device_attribute *attr,
 	u8 mask_tmp = 0;
 
 	val = simple_strtoul(buf, NULL, 10);
+	mutex_lock(&data->update_lock);
 	data->sf2_points[index][nr] = SENSORS_LIMIT(val, 0, 127);
 	mask_tmp = w83792d_read_value(client,
 					W83792D_REG_POINTS[index][nr]) & 0x80;
 	w83792d_write_value(client, W83792D_REG_POINTS[index][nr],
 		mask_tmp|data->sf2_points[index][nr]);
+	mutex_unlock(&data->update_lock);
 
 	return count;
 }
@@ -979,6 +1002,7 @@ store_sf2_level(struct device *dev, struct device_attribute *attr,
 	u8 mask_tmp=0, level_tmp=0;
 
 	val = simple_strtoul(buf, NULL, 10);
+	mutex_lock(&data->update_lock);
 	data->sf2_levels[index][nr] = SENSORS_LIMIT((val * 15) / 100, 0, 15);
 	mask_tmp = w83792d_read_value(client, W83792D_REG_LEVELS[index][nr])
 		& ((nr==3) ? 0xf0 : 0x0f);
@@ -988,6 +1012,7 @@ store_sf2_level(struct device *dev, struct device_attribute *attr,
 		level_tmp = data->sf2_levels[index][nr] << 4;
 	}
 	w83792d_write_value(client, W83792D_REG_LEVELS[index][nr], level_tmp | mask_tmp);
+	mutex_unlock(&data->update_lock);
 
 	return count;
 }
@@ -1373,7 +1398,7 @@ static struct w83792d_data *w83792d_update_device(struct device *dev)
 	struct i2c_client *client = to_i2c_client(dev);
 	struct w83792d_data *data = i2c_get_clientdata(client);
 	int i, j;
-	u8 reg_array_tmp[4], pwm_array_tmp[7], reg_tmp;
+	u8 reg_array_tmp[4], reg_tmp;
 
 	mutex_lock(&data->update_lock);
 
@@ -1402,10 +1427,8 @@ static struct w83792d_data *w83792d_update_device(struct device *dev)
 			data->fan_min[i] = w83792d_read_value(client,
 						W83792D_REG_FAN_MIN[i]);
 			/* Update the PWM/DC Value and PWM/DC flag */
-			pwm_array_tmp[i] = w83792d_read_value(client,
+			data->pwm[i] = w83792d_read_value(client,
 						W83792D_REG_PWM[i]);
-			data->pwm[i] = pwm_array_tmp[i] & 0x0f;
-			data->pwm_mode[i] = pwm_array_tmp[i] >> 7;
 		}
 
 		reg_tmp = w83792d_read_value(client, W83792D_REG_FAN_CFG);
@@ -1513,7 +1536,6 @@ static void w83792d_print_debug(struct w83792d_data *data, struct device *dev)
 		dev_dbg(dev, "fan[%d] is: 0x%x\n", i, data->fan[i]);
 		dev_dbg(dev, "fan[%d] min is: 0x%x\n", i, data->fan_min[i]);
 		dev_dbg(dev, "pwm[%d]     is: 0x%x\n", i, data->pwm[i]);
-		dev_dbg(dev, "pwm_mode[%d] is: 0x%x\n", i, data->pwm_mode[i]);
 	}
 	dev_dbg(dev, "3 set of Temperatures: =====>\n");
 	for (i=0; i<3; i++) {

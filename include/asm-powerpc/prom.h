@@ -229,7 +229,16 @@ extern int of_address_to_resource(struct device_node *dev, int index,
 extern int of_pci_address_to_resource(struct device_node *dev, int bar,
 				      struct resource *r);
 
+/* Parse the ibm,dma-window property of an OF node into the busno, phys and
+ * size parameters.
+ */
+void of_parse_dma_window(struct device_node *dn, unsigned char *dma_window_prop,
+		unsigned long *busno, unsigned long *phys, unsigned long *size);
+
 extern void kdump_move_device_tree(void);
+
+/* CPU OF node matching */
+struct device_node *of_get_cpu_node(int cpu, unsigned int *thread);
 
 #endif /* __KERNEL__ */
 #endif /* _POWERPC_PROM_H */

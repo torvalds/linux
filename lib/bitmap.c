@@ -317,16 +317,16 @@ EXPORT_SYMBOL(bitmap_scnprintf);
 
 /**
  * bitmap_parse - convert an ASCII hex string into a bitmap.
- * @buf: pointer to buffer in user space containing string.
- * @buflen: buffer size in bytes.  If string is smaller than this
+ * @ubuf: pointer to buffer in user space containing string.
+ * @ubuflen: buffer size in bytes.  If string is smaller than this
  *    then it must be terminated with a \0.
  * @maskp: pointer to bitmap array that will contain result.
  * @nmaskbits: size of bitmap, in bits.
  *
  * Commas group hex digits into chunks.  Each chunk defines exactly 32
  * bits of the resultant bitmask.  No chunk may specify a value larger
- * than 32 bits (-EOVERFLOW), and if a chunk specifies a smaller value
- * then leading 0-bits are prepended.  -EINVAL is returned for illegal
+ * than 32 bits (%-EOVERFLOW), and if a chunk specifies a smaller value
+ * then leading 0-bits are prepended.  %-EINVAL is returned for illegal
  * characters and for grouping errors such as "1,,5", ",44", "," and "".
  * Leading and trailing whitespace accepted, but not embedded whitespace.
  */
@@ -452,8 +452,8 @@ EXPORT_SYMBOL(bitmap_scnlistprintf);
 
 /**
  * bitmap_parselist - convert list format ASCII string to bitmap
- * @buf: read nul-terminated user string from this buffer
- * @mask: write resulting mask here
+ * @bp: read nul-terminated user string from this buffer
+ * @maskp: write resulting mask here
  * @nmaskbits: number of bits in mask to be written
  *
  * Input format is a comma-separated list of decimal numbers and
@@ -461,10 +461,11 @@ EXPORT_SYMBOL(bitmap_scnlistprintf);
  * decimal numbers, the smallest and largest bit numbers set in
  * the range.
  *
- * Returns 0 on success, -errno on invalid input strings:
- *    -EINVAL:   second number in range smaller than first
- *    -EINVAL:   invalid character in string
- *    -ERANGE:   bit number specified too large for mask
+ * Returns 0 on success, -errno on invalid input strings.
+ * Error values:
+ *    %-EINVAL: second number in range smaller than first
+ *    %-EINVAL: invalid character in string
+ *    %-ERANGE: bit number specified too large for mask
  */
 int bitmap_parselist(const char *bp, unsigned long *maskp, int nmaskbits)
 {
@@ -625,10 +626,10 @@ EXPORT_SYMBOL(bitmap_remap);
 
 /**
  * bitmap_bitremap - Apply map defined by a pair of bitmaps to a single bit
- *	@oldbit - bit position to be mapped
- *      @old: defines domain of map
- *      @new: defines range of map
- *      @bits: number of bits in each of these bitmaps
+ *	@oldbit: bit position to be mapped
+ *	@old: defines domain of map
+ *	@new: defines range of map
+ *	@bits: number of bits in each of these bitmaps
  *
  * Let @old and @new define a mapping of bit positions, such that
  * whatever position is held by the n-th set bit in @old is mapped
@@ -790,7 +791,7 @@ EXPORT_SYMBOL(bitmap_release_region);
  *
  * Allocate (set bits in) a specified region of a bitmap.
  *
- * Return 0 on success, or -EBUSY if specified region wasn't
+ * Return 0 on success, or %-EBUSY if specified region wasn't
  * free (not all bits were zero).
  */
 int bitmap_allocate_region(unsigned long *bitmap, int pos, int order)

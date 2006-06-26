@@ -46,7 +46,7 @@
 #include "sata_promise.h"
 
 #define DRV_NAME	"sata_sx4"
-#define DRV_VERSION	"0.8"
+#define DRV_VERSION	"0.9"
 
 
 enum {
@@ -191,6 +191,7 @@ static struct scsi_host_template pdc_sata_sht = {
 	.proc_name		= DRV_NAME,
 	.dma_boundary		= ATA_DMA_BOUNDARY,
 	.slave_configure	= ata_scsi_slave_config,
+	.slave_destroy		= ata_scsi_slave_destroy,
 	.bios_param		= ata_std_bios_param,
 };
 
@@ -204,6 +205,7 @@ static const struct ata_port_operations pdc_20621_ops = {
 	.phy_reset		= pdc_20621_phy_reset,
 	.qc_prep		= pdc20621_qc_prep,
 	.qc_issue		= pdc20621_qc_issue_prot,
+	.data_xfer		= ata_mmio_data_xfer,
 	.eng_timeout		= pdc_eng_timeout,
 	.irq_handler		= pdc20621_interrupt,
 	.irq_clear		= pdc20621_irq_clear,
@@ -218,7 +220,7 @@ static const struct ata_port_info pdc_port_info[] = {
 		.sht		= &pdc_sata_sht,
 		.host_flags	= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
 				  ATA_FLAG_SRST | ATA_FLAG_MMIO |
-				  ATA_FLAG_NO_ATAPI,
+				  ATA_FLAG_NO_ATAPI | ATA_FLAG_PIO_POLLING,
 		.pio_mask	= 0x1f, /* pio0-4 */
 		.mwdma_mask	= 0x07, /* mwdma0-2 */
 		.udma_mask	= 0x7f, /* udma0-6 ; FIXME */
@@ -833,11 +835,11 @@ static irqreturn_t pdc20621_interrupt (int irq, void *dev_instance, struct pt_re
 		tmp = mask & (1 << i);
 		VPRINTK("seq %u, port_no %u, ap %p, tmp %x\n", i, port_no, ap, tmp);
 		if (tmp && ap &&
-		    !(ap->flags & (ATA_FLAG_PORT_DISABLED | ATA_FLAG_NOINTR))) {
+		    !(ap->flags & ATA_FLAG_DISABLED)) {
 			struct ata_queued_cmd *qc;
 
 			qc = ata_qc_from_tag(ap, ap->active_tag);
-			if (qc && (!(qc->tf.ctl & ATA_NIEN)))
+			if (qc && (!(qc->tf.flags & ATA_TFLAG_POLLING)))
 				handled += pdc20621_host_intr(ap, qc, (i > 4),
 							      mmio_base);
 		}
@@ -868,15 +870,16 @@ static void pdc_eng_timeout(struct ata_port *ap)
 	switch (qc->tf.protocol) {
 	case ATA_PROT_DMA:
 	case ATA_PROT_NODATA:
-		printk(KERN_ERR "ata%u: command timeout\n", ap->id);
+		ata_port_printk(ap, KERN_ERR, "command timeout\n");
 		qc->err_mask |= __ac_err_mask(ata_wait_idle(ap));
 		break;
 
 	default:
 		drv_stat = ata_busy_wait(ap, ATA_BUSY | ATA_DRQ, 1000);
 
-		printk(KERN_ERR "ata%u: unknown timeout, cmd 0x%x stat 0x%x\n",
-		       ap->id, qc->tf.command, drv_stat);
+		ata_port_printk(ap, KERN_ERR,
+				"unknown timeout, cmd 0x%x stat 0x%x\n",
+				qc->tf.command, drv_stat);
 
 		qc->err_mask |= ac_err_mask(drv_stat);
 		break;
@@ -1375,10 +1378,6 @@ static int pdc_sata_init_one (struct pci_dev *pdev, const struct pci_device_id *
 	if (!printed_version++)
 		dev_printk(KERN_DEBUG, &pdev->dev, "version " DRV_VERSION "\n");
 
-	/*
-	 * If this driver happens to only be useful on Apple's K2, then
-	 * we should check that here as it has a normal Serverworks ID
-	 */
 	rc = pci_enable_device(pdev);
 	if (rc)
 		return rc;

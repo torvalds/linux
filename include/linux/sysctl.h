@@ -55,7 +55,7 @@ enum
 	CTL_KERN=1,		/* General kernel info and control */
 	CTL_VM=2,		/* VM management */
 	CTL_NET=3,		/* Networking */
-	CTL_PROC=4,		/* Process info */
+	/* was CTL_PROC */
 	CTL_FS=5,		/* Filesystems */
 	CTL_DEBUG=6,		/* Debugging */
 	CTL_DEV=7,		/* Devices */
@@ -186,6 +186,7 @@ enum
 	VM_PERCPU_PAGELIST_FRACTION=30,/* int: fraction of pages in each percpu_pagelist */
 	VM_ZONE_RECLAIM_MODE=31, /* reclaim local zone memory before going off node */
 	VM_ZONE_RECLAIM_INTERVAL=32, /* time period to wait after reclaim failure */
+	VM_PANIC_ON_OOM=33,	/* panic at out-of-memory */
 };
 
 
@@ -765,8 +766,6 @@ enum {
 	NET_BRIDGE_NF_CALL_IP6TABLES = 3,
 	NET_BRIDGE_NF_FILTER_VLAN_TAGGED = 4,
 };
-
-/* CTL_PROC names: */
 
 /* CTL_FS names: */
 enum

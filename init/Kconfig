@@ -151,7 +151,8 @@ config BSD_PROCESS_ACCT_V3
 	  at <http://www.physik3.uni-rostock.de/tim/kernel/utils/acct/>.
 
 config SYSCTL
-	bool "Sysctl support"
+	bool "Sysctl support" if EMBEDDED
+	default y
 	---help---
 	  The sysctl interface provides a means of dynamically changing
 	  certain kernel parameters and variables on the fly without requiring

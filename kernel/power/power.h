@@ -55,7 +55,7 @@ struct snapshot_handle {
 	unsigned int	page;
 	unsigned int	page_offset;
 	unsigned int	prev;
-	struct pbe	*pbe;
+	struct pbe	*pbe, *last_pbe;
 	void		*buffer;
 	unsigned int	buf_offset;
 };

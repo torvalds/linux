@@ -33,7 +33,6 @@
 #include <linux/delay.h>
 #include <linux/mutex.h>
 #include <asm/io.h>
-#include <asm/msr.h>
 
 #include <linux/scx200.h>
 
@@ -85,6 +84,10 @@ struct scx200_acb_iface {
 	u8 *ptr;
 	char needs_reset;
 	unsigned len;
+
+	/* PCI device info */
+	struct pci_dev *pdev;
+	int bar;
 };
 
 /* Register Definitions */
@@ -381,7 +384,7 @@ static struct i2c_algorithm scx200_acb_algorithm = {
 static struct scx200_acb_iface *scx200_acb_list;
 static DECLARE_MUTEX(scx200_acb_list_mutex);
 
-static int scx200_acb_probe(struct scx200_acb_iface *iface)
+static __init int scx200_acb_probe(struct scx200_acb_iface *iface)
 {
 	u8 val;
 
@@ -417,17 +420,16 @@ static int scx200_acb_probe(struct scx200_acb_iface *iface)
 	return 0;
 }
 
-static int  __init scx200_acb_create(const char *text, int base, int index)
+static __init struct scx200_acb_iface *scx200_create_iface(const char *text,
+		int index)
 {
 	struct scx200_acb_iface *iface;
 	struct i2c_adapter *adapter;
-	int rc;
 
 	iface = kzalloc(sizeof(*iface), GFP_KERNEL);
 	if (!iface) {
 		printk(KERN_ERR NAME ": can't allocate memory\n");
-		rc = -ENOMEM;
-		goto errout;
+		return NULL;
 	}
 
 	adapter = &iface->adapter;
@@ -440,26 +442,27 @@ static int  __init scx200_acb_create(const char *text, int base, int index)
 
 	mutex_init(&iface->mutex);
 
-	if (!request_region(base, 8, adapter->name)) {
-		printk(KERN_ERR NAME ": can't allocate io 0x%x-0x%x\n",
-			base, base + 8-1);
-		rc = -EBUSY;
-		goto errout_free;
-	}
-	iface->base = base;
+	return iface;
+}
+
+static int __init scx200_acb_create(struct scx200_acb_iface *iface)
+{
+	struct i2c_adapter *adapter;
+	int rc;
+
+	adapter = &iface->adapter;
 
 	rc = scx200_acb_probe(iface);
 	if (rc) {
 		printk(KERN_WARNING NAME ": probe failed\n");
-		goto errout_release;
+		return rc;
 	}
 
 	scx200_acb_reset(iface);
 
 	if (i2c_add_adapter(adapter) < 0) {
 		printk(KERN_ERR NAME ": failed to register\n");
-		rc = -ENODEV;
-		goto errout_release;
+		return -ENODEV;
 	}
 
 	down(&scx200_acb_list_mutex);
@@ -468,64 +471,148 @@ static int  __init scx200_acb_create(const char *text, int base, int index)
 	up(&scx200_acb_list_mutex);
 
 	return 0;
+}
 
- errout_release:
-	release_region(iface->base, 8);
+static __init int scx200_create_pci(const char *text, struct pci_dev *pdev,
+		int bar)
+{
+	struct scx200_acb_iface *iface;
+	int rc;
+
+	iface = scx200_create_iface(text, 0);
+
+	if (iface == NULL)
+		return -ENOMEM;
+
+	iface->pdev = pdev;
+	iface->bar = bar;
+
+	pci_enable_device_bars(iface->pdev, 1 << iface->bar);
+
+	rc = pci_request_region(iface->pdev, iface->bar, iface->adapter.name);
+
+	if (rc != 0) {
+		printk(KERN_ERR NAME ": can't allocate PCI BAR %d\n",
+				iface->bar);
+		goto errout_free;
+	}
+
+	iface->base = pci_resource_start(iface->pdev, iface->bar);
+	rc = scx200_acb_create(iface);
+
+	if (rc == 0)
+		return 0;
+
+	pci_release_region(iface->pdev, iface->bar);
+	pci_dev_put(iface->pdev);
  errout_free:
 	kfree(iface);
- errout:
 	return rc;
 }
 
-static struct pci_device_id scx200[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_NS, PCI_DEVICE_ID_NS_SCx200_BRIDGE) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NS, PCI_DEVICE_ID_NS_SC1100_BRIDGE) },
-	{ },
-};
-
-static struct pci_device_id divil_pci[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_NS,  PCI_DEVICE_ID_NS_CS5535_ISA) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_CS5536_ISA) },
-	{ } /* NULL entry */
-};
-
-#define MSR_LBAR_SMB		0x5140000B
-
-static __init int scx200_add_cs553x(void)
+static int __init scx200_create_isa(const char *text, unsigned long base,
+		int index)
 {
-	u32	low, hi;
-	u32	smb_base;
+	struct scx200_acb_iface *iface;
+	int rc;
 
-	/* Grab & reserve the SMB I/O range */
-	rdmsr(MSR_LBAR_SMB, low, hi);
+	iface = scx200_create_iface(text, index);
 
-	/* Check the IO mask and whether SMB is enabled */
-	if (hi != 0x0000F001) {
-		printk(KERN_WARNING NAME ": SMBus not enabled\n");
-		return -ENODEV;
+	if (iface == NULL)
+		return -ENOMEM;
+
+	if (request_region(base, 8, iface->adapter.name) == 0) {
+		printk(KERN_ERR NAME ": can't allocate io 0x%lx-0x%lx\n",
+		       base, base + 8 - 1);
+		rc = -EBUSY;
+		goto errout_free;
 	}
 
-	/* SMBus IO size is 8 bytes */
-	smb_base = low & 0x0000FFF8;
+	iface->base = base;
+	rc = scx200_acb_create(iface);
 
-	return scx200_acb_create("CS5535", smb_base, 0);
+	if (rc == 0)
+		return 0;
+
+	release_region(base, 8);
+ errout_free:
+	kfree(iface);
+	return rc;
+}
+
+/* Driver data is an index into the scx200_data array that indicates
+ * the name and the BAR where the I/O address resource is located.  ISA
+ * devices are flagged with a bar value of -1 */
+
+static struct pci_device_id scx200_pci[] = {
+	{ PCI_DEVICE(PCI_VENDOR_ID_NS, PCI_DEVICE_ID_NS_SCx200_BRIDGE),
+	  .driver_data = 0 },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NS, PCI_DEVICE_ID_NS_SC1100_BRIDGE),
+	  .driver_data = 0 },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NS, PCI_DEVICE_ID_NS_CS5535_ISA),
+	  .driver_data = 1 },
+	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_CS5536_ISA),
+	  .driver_data = 2 }
+};
+
+static struct {
+	const char *name;
+	int bar;
+} scx200_data[] = {
+	{ "SCx200", -1 },
+	{ "CS5535",  0 },
+	{ "CS5536",  0 }
+};
+
+static __init int scx200_scan_pci(void)
+{
+	int data, dev;
+	int rc = -ENODEV;
+	struct pci_dev *pdev;
+
+	for(dev = 0; dev < ARRAY_SIZE(scx200_pci); dev++) {
+		pdev = pci_get_device(scx200_pci[dev].vendor,
+				scx200_pci[dev].device, NULL);
+
+		if (pdev == NULL)
+			continue;
+
+		data = scx200_pci[dev].driver_data;
+
+		/* if .bar is greater or equal to zero, this is a
+		 * PCI device - otherwise, we assume
+		   that the ports are ISA based
+		*/
+
+		if (scx200_data[data].bar >= 0)
+			rc = scx200_create_pci(scx200_data[data].name, pdev,
+					scx200_data[data].bar);
+		else {
+			int i;
+
+			for (i = 0; i < MAX_DEVICES; ++i) {
+				if (base[i] == 0)
+					continue;
+
+				rc = scx200_create_isa(scx200_data[data].name,
+						base[i],
+						i);
+			}
+		}
+
+		break;
+	}
+
+	return rc;
 }
 
 static int __init scx200_acb_init(void)
 {
-	int i;
-	int	rc = -ENODEV;
+	int rc;
 
 	pr_debug(NAME ": NatSemi SCx200 ACCESS.bus Driver\n");
 
-	/* Verify that this really is a SCx200 processor */
-	if (pci_dev_present(scx200)) {
-		for (i = 0; i < MAX_DEVICES; ++i) {
-			if (base[i] > 0)
-				rc = scx200_acb_create("SCx200", base[i], i);
-		}
-	} else if (pci_dev_present(divil_pci))
-		rc = scx200_add_cs553x();
+	rc = scx200_scan_pci();
 
 	/* If at least one bus was created, init must succeed */
 	if (scx200_acb_list)
@@ -543,7 +630,14 @@ static void __exit scx200_acb_cleanup(void)
 		up(&scx200_acb_list_mutex);
 
 		i2c_del_adapter(&iface->adapter);
-		release_region(iface->base, 8);
+
+		if (iface->pdev) {
+			pci_release_region(iface->pdev, iface->bar);
+			pci_dev_put(iface->pdev);
+		}
+		else
+			release_region(iface->base, 8);
+
 		kfree(iface);
 		down(&scx200_acb_list_mutex);
 	}

@@ -62,6 +62,8 @@
      <sect1><title>Internal Functions</title>
 !Ikernel/exit.c
 !Ikernel/signal.c
+!Iinclude/linux/kthread.h
+!Ekernel/kthread.c
      </sect1>
 
      <sect1><title>Kernel objects manipulation</title>
@@ -114,9 +116,33 @@ X!Ilib/string.c
      </sect1>
   </chapter>
 
+  <chapter id="kernel-lib">
+     <title>Basic Kernel Library Functions</title>
+
+     <para>
+       The Linux kernel provides more basic utility functions.
+     </para>
+
+     <sect1><title>Bitmap Operations</title>
+!Elib/bitmap.c
+!Ilib/bitmap.c
+     </sect1>
+
+     <sect1><title>Command-line Parsing</title>
+!Elib/cmdline.c
+     </sect1>
+
+     <sect1><title>CRC Functions</title>
+!Elib/crc16.c
+!Elib/crc32.c
+!Elib/crc-ccitt.c
+     </sect1>
+  </chapter>
+
   <chapter id="mm">
      <title>Memory Management in Linux</title>
      <sect1><title>The Slab Cache</title>
+!Iinclude/linux/slab.h
 !Emm/slab.c
      </sect1>
      <sect1><title>User Space Memory Access</title>
@@ -280,12 +306,13 @@ X!Ekernel/module.c
      <sect1><title>MTRR Handling</title>
 !Earch/i386/kernel/cpu/mtrr/main.c
      </sect1>
+
      <sect1><title>PCI Support Library</title>
 !Edrivers/pci/pci.c
 !Edrivers/pci/pci-driver.c
 !Edrivers/pci/remove.c
 !Edrivers/pci/pci-acpi.c
-<!-- kerneldoc does not understand to __devinit
+<!-- kerneldoc does not understand __devinit
 X!Edrivers/pci/search.c
  -->
 !Edrivers/pci/msi.c
@@ -314,6 +341,13 @@ X!Earch/i386/kernel/mca.c
      </sect1>
   </chapter>
 
+  <chapter id="firmware">
+     <title>Firmware Interfaces</title>
+     <sect1><title>DMI Interfaces</title>
+!Edrivers/firmware/dmi_scan.c
+     </sect1>
+  </chapter>
+
   <chapter id="devfs">
      <title>The Device File System</title>
 !Efs/devfs/base.c
@@ -329,6 +363,18 @@ X!Earch/i386/kernel/mca.c
   <chapter id="security">
      <title>Security Framework</title>
 !Esecurity/security.c
+  </chapter>
+
+  <chapter id="audit">
+     <title>Audit Interfaces</title>
+!Ekernel/audit.c
+!Ikernel/auditsc.c
+!Ikernel/auditfilter.c
+  </chapter>
+
+  <chapter id="accounting">
+     <title>Accounting Framework</title>
+!Ikernel/acct.c
   </chapter>
 
   <chapter id="pmfuncs">
@@ -390,7 +436,6 @@ X!Edrivers/pnp/system.c
      </sect1>
   </chapter>
 
-
   <chapter id="blkdev">
      <title>Block Devices</title>
 !Eblock/ll_rw_blk.c
@@ -399,6 +444,14 @@ X!Edrivers/pnp/system.c
   <chapter id="miscdev">
      <title>Miscellaneous Devices</title>
 !Edrivers/char/misc.c
+  </chapter>
+
+  <chapter id="parportdev">
+     <title>Parallel Port Devices</title>
+!Iinclude/linux/parport.h
+!Edrivers/parport/ieee1284.c
+!Edrivers/parport/share.c
+!Idrivers/parport/daisy.c
   </chapter>
 
   <chapter id="viddev">

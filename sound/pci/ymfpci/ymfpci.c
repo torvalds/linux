@@ -308,7 +308,8 @@ static int __devinit snd_card_ymfpci_probe(struct pci_dev *pci,
 	}
 	if (chip->mpu_res) {
 		if ((err = snd_mpu401_uart_new(card, 0, MPU401_HW_YMFPCI,
-					       mpu_port[dev], 1,
+					       mpu_port[dev],
+					       MPU401_INFO_INTEGRATED,
 					       pci->irq, 0, &chip->rawmidi)) < 0) {
 			printk(KERN_WARNING "ymfpci: cannot initialize MPU401 at 0x%lx, skipping...\n", mpu_port[dev]);
 			legacy_ctrl &= ~YMFPCI_LEGACY_MIEN; /* disable MPU401 irq */

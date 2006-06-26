@@ -44,9 +44,5 @@ extern void enable_irq(unsigned int);
 
 int set_irq_type(unsigned int irq, unsigned int type);
 
-int setup_irq(unsigned int, struct irqaction *);
-struct pt_regs;
-int handle_IRQ_event(unsigned int, struct pt_regs *, struct irqaction *);
-
 #endif
 

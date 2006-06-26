@@ -102,6 +102,8 @@
 #include <linux/config.h>
 #include <linux/version.h>
 
+#define __OLD_VIDIOC_
+
 #include "matroxfb_base.h"
 #include "matroxfb_misc.h"
 #include "matroxfb_accel.h"
@@ -158,9 +160,9 @@ static void update_crtc2(WPMINFO unsigned int pos) {
 
 	/* Make sure that displays are compatible */
 	if (info && (info->fbcon.var.bits_per_pixel == ACCESS_FBINFO(fbcon).var.bits_per_pixel)
-	         && (info->fbcon.var.xres_virtual == ACCESS_FBINFO(fbcon).var.xres_virtual)
-	         && (info->fbcon.var.green.length == ACCESS_FBINFO(fbcon).var.green.length)
-	         ) {
+		 && (info->fbcon.var.xres_virtual == ACCESS_FBINFO(fbcon).var.xres_virtual)
+		 && (info->fbcon.var.green.length == ACCESS_FBINFO(fbcon).var.green.length)
+		 ) {
 		switch (ACCESS_FBINFO(fbcon).var.bits_per_pixel) {
 			case 16:
 			case 32:
@@ -224,7 +226,7 @@ static irqreturn_t matrox_irq(int irq, void *dev_id, struct pt_regs *fp)
 
 int matroxfb_enable_irq(WPMINFO int reenable) {
 	u_int32_t bm;
-	
+
 	if (ACCESS_FBINFO(devflags.accelerator) == FB_ACCEL_MATROX_MGAG400)
 		bm = 0x220;
 	else
@@ -241,7 +243,7 @@ int matroxfb_enable_irq(WPMINFO int reenable) {
 		mga_outl(M_IEN, mga_inl(M_IEN) | bm);
 	} else if (reenable) {
 		u_int32_t ien;
-		
+
 		ien = mga_inl(M_IEN);
 		if ((ien & bm) != bm) {
 			printk(KERN_DEBUG "matroxfb: someone disabled IRQ [%08X]\n", ien);
@@ -347,7 +349,7 @@ static void matrox_pan_var(WPMINFO struct fb_var_screeninfo *var) {
 		mga_setr(M_EXTVGA_INDEX, 0x00, p2);
 	}
 	matroxfb_DAC_unlock_irqrestore(flags);
-	
+
 	update_crtc2(PMINFO pos);
 
 	CRITEND
@@ -390,7 +392,7 @@ static void matroxfb_remove(WPMINFO int dummy) {
 static int matroxfb_open(struct fb_info *info, int user)
 {
 	MINFO_FROM_INFO(info);
-	
+
 	DBG_LOOP(__FUNCTION__)
 
 	if (ACCESS_FBINFO(dead)) {
@@ -406,7 +408,7 @@ static int matroxfb_open(struct fb_info *info, int user)
 static int matroxfb_release(struct fb_info *info, int user)
 {
 	MINFO_FROM_INFO(info);
-	
+
 	DBG_LOOP(__FUNCTION__)
 
 	if (user) {
@@ -854,7 +856,7 @@ static int matroxfb_get_vblank(WPMINFO struct fb_vblank *vblank)
 		vblank->flags |= FB_VBLANK_VBLANKING;
 	if (test_bit(0, &ACCESS_FBINFO(irq_flags))) {
 		vblank->flags |= FB_VBLANK_HAVE_COUNT;
-		/* Only one writer, aligned int value... 
+		/* Only one writer, aligned int value...
 		   it should work without lock and without atomic_t */
 		vblank->count = ACCESS_FBINFO(crtc1).vsync.cnt;
 	}
@@ -870,7 +872,7 @@ static int matroxfb_ioctl(struct fb_info *info,
 {
 	void __user *argp = (void __user *)arg;
 	MINFO_FROM_INFO(info);
-	
+
 	DBG(__FUNCTION__)
 
 	if (ACCESS_FBINFO(dead)) {
@@ -1081,7 +1083,7 @@ static int matroxfb_ioctl(struct fb_info *info,
 		case VIDIOC_QUERYCAP:
 			{
 				struct v4l2_capability r;
-				
+
 				memset(&r, 0, sizeof(r));
 				strcpy(r.driver, "matroxfb");
 				strcpy(r.card, "Matrox");
@@ -1091,7 +1093,7 @@ static int matroxfb_ioctl(struct fb_info *info,
 				if (copy_to_user(argp, &r, sizeof(r)))
 					return -EFAULT;
 				return 0;
-				
+
 			}
 		case VIDIOC_QUERYCTRL:
 			{
@@ -1690,8 +1692,8 @@ static int initMatrox2(WPMINFO struct board* b){
 		pci_read_config_dword(ACCESS_FBINFO(pcidev), PCI_COMMAND, &cmd);
 		mga_option &= 0x7FFFFFFF; /* clear BIG_ENDIAN */
 		mga_option |= MX_OPTION_BSWAP;
-                /* disable palette snooping */
-                cmd &= ~PCI_COMMAND_VGA_PALETTE;
+		/* disable palette snooping */
+		cmd &= ~PCI_COMMAND_VGA_PALETTE;
 		if (pci_dev_present(intel_82437)) {
 			if (!(mga_option & 0x20000000) && !ACCESS_FBINFO(devflags.nopciretry)) {
 				printk(KERN_WARNING "matroxfb: Disabling PCI retries due to i82437 present\n");
@@ -1809,12 +1811,12 @@ static int initMatrox2(WPMINFO struct board* b){
 
 		if (fv) {
 			tmp = fv * (vesafb_defined.upper_margin + vesafb_defined.yres
-			          + vesafb_defined.lower_margin + vesafb_defined.vsync_len);
+				  + vesafb_defined.lower_margin + vesafb_defined.vsync_len);
 			if ((tmp < fh) || (fh == 0)) fh = tmp;
 		}
 		if (fh) {
 			tmp = fh * (vesafb_defined.left_margin + vesafb_defined.xres
-			          + vesafb_defined.right_margin + vesafb_defined.hsync_len);
+				  + vesafb_defined.right_margin + vesafb_defined.hsync_len);
 			if ((tmp < maxclk) || (maxclk == 0)) maxclk = tmp;
 		}
 		tmp = (maxclk + 499) / 500;
@@ -1890,14 +1892,14 @@ static int initMatrox2(WPMINFO struct board* b){
 
 	/* there is no console on this fb... but we have to initialize hardware
 	 * until someone tells me what is proper thing to do */
- 	if (!ACCESS_FBINFO(initialized)) {
- 		printk(KERN_INFO "fb%d: initializing hardware\n",
- 		       ACCESS_FBINFO(fbcon.node));
- 		/* We have to use FB_ACTIVATE_FORCE, as we had to put vesafb_defined to the fbcon.var
- 		 * already before, so register_framebuffer works correctly. */
- 		vesafb_defined.activate |= FB_ACTIVATE_FORCE;
- 		fb_set_var(&ACCESS_FBINFO(fbcon), &vesafb_defined);
- 	}
+	if (!ACCESS_FBINFO(initialized)) {
+		printk(KERN_INFO "fb%d: initializing hardware\n",
+		       ACCESS_FBINFO(fbcon.node));
+		/* We have to use FB_ACTIVATE_FORCE, as we had to put vesafb_defined to the fbcon.var
+		 * already before, so register_framebuffer works correctly. */
+		vesafb_defined.activate |= FB_ACTIVATE_FORCE;
+		fb_set_var(&ACCESS_FBINFO(fbcon), &vesafb_defined);
+	}
 
 	return 0;
 failVideoIO:;
@@ -2356,7 +2358,7 @@ static int __init matroxfb_setup(char *options) {
 		else if (!strncmp(this_opt, "dfp:", 4)) {
 			dfp_type = simple_strtoul(this_opt+4, NULL, 0);
 			dfp = 1;
-		}	
+		}
 #ifdef CONFIG_PPC_PMAC
 		else if (!strncmp(this_opt, "vmode:", 6)) {
 			unsigned int vmode = simple_strtoul(this_opt+6, NULL, 0);

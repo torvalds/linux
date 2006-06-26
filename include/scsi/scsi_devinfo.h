@@ -29,4 +29,5 @@
 #define BLIST_SELECT_NO_ATN	0x200000 /* select without ATN */
 #define BLIST_RETRY_HWERROR	0x400000 /* retry HARDWARE_ERROR */
 #define BLIST_MAX_512		0x800000 /* maximum 512 sector cdb length */
+#define BLIST_ATTACH_PQ3	0x1000000 /* Scan: Attach to PQ3 devices */
 #endif

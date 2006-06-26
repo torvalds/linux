@@ -1281,9 +1281,15 @@ static int aureon_set_headphone_amp(struct snd_ice1712 *ice, int enable)
 
 	tmp2 = tmp = snd_ice1712_gpio_read(ice);
 	if (enable)
-		tmp |= AUREON_HP_SEL;
+		if (ice->eeprom.subvendor != VT1724_SUBDEVICE_PRODIGY71LT)
+			tmp |= AUREON_HP_SEL;
+		else
+			tmp |= PRODIGY_HP_SEL;
 	else
-		tmp &= ~ AUREON_HP_SEL;
+		if (ice->eeprom.subvendor != VT1724_SUBDEVICE_PRODIGY71LT)
+			tmp &= ~ AUREON_HP_SEL;
+		else
+			tmp &= ~ PRODIGY_HP_SEL;
 	if (tmp != tmp2) {
 		snd_ice1712_gpio_write(ice, tmp);
 		return 1;
@@ -2079,16 +2085,16 @@ static unsigned char prodigy71_eeprom[] __devinitdata = {
 };
 
 static unsigned char prodigy71lt_eeprom[] __devinitdata = {
-	0x0b,	/* SYSCINF: clock 512, spdif-in/ADC, 4DACs */
+	0x4b,	/* SYSCINF: clock 512, spdif-in/ADC, 4DACs */
 	0x80,	/* ACLINK: I2S */
 	0xfc,	/* I2S: vol, 96k, 24bit, 192k */
-	0xc3,	/* SPDUF: out-en, out-int */
-	0x00,	/* GPIO_DIR */
-	0x07,	/* GPIO_DIR1 */
-	0x00,	/* GPIO_DIR2 */
-	0xff,	/* GPIO_MASK */
-	0xf8,	/* GPIO_MASK1 */
-	0xff,	/* GPIO_MASK2 */
+	0xc3,	/* SPDIF: out-en, out-int, spdif-in */
+	0xff,	/* GPIO_DIR */
+	0xff,	/* GPIO_DIR1 */
+	0x5f,	/* GPIO_DIR2 */
+	0x00,	/* GPIO_MASK */
+	0x00,	/* GPIO_MASK1 */
+	0x00,	/* GPIO_MASK2 */
 	0x00,	/* GPIO_STATE */
 	0x00,	/* GPIO_STATE1 */
 	0x00,	/* GPIO_STATE2 */

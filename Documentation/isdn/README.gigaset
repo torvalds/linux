@@ -124,7 +124,8 @@ GigaSet 307x Device Driver
 
      You can use some configuration tool of your distribution to configure this
      "modem" or configure pppd/wvdial manually. There are some example ppp
-     configuration files and chat scripts in the gigaset-VERSION/ppp directory.
+     configuration files and chat scripts in the gigaset-VERSION/ppp directory
+     in the driver packages from http://sourceforge.net/projects/gigaset307x/.
      Please note that the USB drivers are not able to change the state of the
      control lines (the M105 driver can be configured to use some undocumented
      control requests, if you really need the control lines, though). This means
@@ -164,8 +165,8 @@ GigaSet 307x Device Driver
 
      If you want both of these at once, you are out of luck.
 
-     You can also use /sys/module/<name>/parameters/cidmode for changing
-     the CID mode setting (<name> is usb_gigaset or bas_gigaset).
+     You can also use /sys/class/tty/ttyGxy/cidmode for changing the CID mode
+     setting (ttyGxy is ttyGU0 or ttyGB0).
 
 
 3.   Troubleshooting

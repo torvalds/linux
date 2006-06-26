@@ -1105,7 +1105,7 @@ static int stir421x_patch_device(struct irda_usb_cb *self)
                 return ret;
 
         /* We get a patch from userspace */
-        IRDA_MESSAGE("%s(): Received firmware %s (%u bytes)\n",
+        IRDA_MESSAGE("%s(): Received firmware %s (%zu bytes)\n",
                      __FUNCTION__, stir421x_fw_name, fw->size);
 
         ret = -EINVAL;

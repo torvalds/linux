@@ -239,7 +239,7 @@ static int read_inode(struct inode *ino)
 	return(err);
 }
 
-int hostfs_statfs(struct super_block *sb, struct kstatfs *sf)
+int hostfs_statfs(struct dentry *dentry, struct kstatfs *sf)
 {
 	/* do_statfs uses struct statfs64 internally, but the linux kernel
 	 * struct statfs still has 32-bit versions for most of these fields,
@@ -252,7 +252,7 @@ int hostfs_statfs(struct super_block *sb, struct kstatfs *sf)
 	long long f_files;
 	long long f_ffree;
 
-	err = do_statfs(HOSTFS_I(sb->s_root->d_inode)->host_filename,
+	err = do_statfs(HOSTFS_I(dentry->d_sb->s_root->d_inode)->host_filename,
 			&sf->f_bsize, &f_blocks, &f_bfree, &f_bavail, &f_files,
 			&f_ffree, &sf->f_fsid, sizeof(sf->f_fsid),
 			&sf->f_namelen, sf->f_spare);
@@ -993,11 +993,11 @@ static int hostfs_fill_sb_common(struct super_block *sb, void *d, int silent)
 	return(err);
 }
 
-static struct super_block *hostfs_read_sb(struct file_system_type *type,
-					     int flags, const char *dev_name,
-					     void *data)
+static int hostfs_read_sb(struct file_system_type *type,
+			  int flags, const char *dev_name,
+			  void *data, struct vfsmount *mnt)
 {
-	return(get_sb_nodev(type, flags, data, hostfs_fill_sb_common));
+	return get_sb_nodev(type, flags, data, hostfs_fill_sb_common, mnt);
 }
 
 static struct file_system_type hostfs_type = {

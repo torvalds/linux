@@ -147,7 +147,7 @@
  * that should be printed on any released driver.
  */
 #if CSDEBUG
-#define CS_DBGOUT(mask,level,x) if((cs_debuglevel >= (level)) && ((mask) & cs_debugmask)) {x;} 
+#define CS_DBGOUT(mask,level,x) if ((cs_debuglevel >= (level)) && ((mask) & cs_debugmask)) {x;}
 #else
 #define CS_DBGOUT(mask,level,x) 
 #endif
@@ -175,19 +175,19 @@
 #define CS_IOCTL_CMD_RESUME	0x2	// resume
 
 #if CSDEBUG
-static unsigned long cs_debuglevel=1;			/* levels range from 1-9 */
+static unsigned long cs_debuglevel = 1;			/* levels range from 1-9 */
 module_param(cs_debuglevel, ulong, 0644);
-static unsigned long cs_debugmask=CS_INIT | CS_ERROR;	/* use CS_DBGOUT with various mask values */
+static unsigned long cs_debugmask = CS_INIT | CS_ERROR;	/* use CS_DBGOUT with various mask values */
 module_param(cs_debugmask, ulong, 0644);
 #endif
 static unsigned long hercules_egpio_disable;  /* if non-zero set all EGPIO to 0 */
 module_param(hercules_egpio_disable, ulong, 0);
-static unsigned long initdelay=700;  /* PM delay in millisecs */
+static unsigned long initdelay = 700;  /* PM delay in millisecs */
 module_param(initdelay, ulong, 0);
-static unsigned long powerdown=-1;  /* turn on/off powerdown processing in driver */
+static unsigned long powerdown = -1;  /* turn on/off powerdown processing in driver */
 module_param(powerdown, ulong, 0);
 #define DMABUF_DEFAULTORDER 3
-static unsigned long defaultorder=DMABUF_DEFAULTORDER;
+static unsigned long defaultorder = DMABUF_DEFAULTORDER;
 module_param(defaultorder, ulong, 0);
 
 static int external_amp;
@@ -200,8 +200,8 @@ module_param(thinkpad, bool, 0);
 * powerdown. also set thinkpad to 1 to disable powerdown, 
 * but also to enable the clkrun functionality.
 */
-static unsigned cs_powerdown=1;
-static unsigned cs_laptop_wait=1;
+static unsigned cs_powerdown = 1;
+static unsigned cs_laptop_wait = 1;
 
 /* An instance of the 4610 channel */
 struct cs_channel 
@@ -319,7 +319,7 @@ struct cs_card {
 	atomic_t mixer_use_cnt;
 
 	/* PCI device stuff */
-	struct pci_dev * pci_dev;
+	struct pci_dev *pci_dev;
 	struct list_head list;
 
 	unsigned int pctl, cctl;	/* Hardware DMA flag sets */
@@ -384,7 +384,7 @@ struct cs_card {
 static int cs_open_mixdev(struct inode *inode, struct file *file);
 static int cs_release_mixdev(struct inode *inode, struct file *file);
 static int cs_ioctl_mixdev(struct inode *inode, struct file *file, unsigned int cmd,
-				unsigned long arg);
+			unsigned long arg);
 static int cs_hardware_init(struct cs_card *card);
 static int cs46xx_powerup(struct cs_card *card, unsigned int type);
 static int cs461x_powerdown(struct cs_card *card, unsigned int type, int suspendflag);
@@ -423,8 +423,7 @@ static void printioctl(unsigned int x)
                 [SOUND_MIXER_VOLUME]  = 9    /* Master Volume */
         };
         
-    switch(x) 
-    {
+    switch (x) {
 	case SOUND_MIXER_CS_GETDBGMASK:
 		CS_DBGOUT(CS_IOCTL, 4, printk("SOUND_MIXER_CS_GETDBGMASK: ") );
 		break;
@@ -521,7 +520,6 @@ static void printioctl(unsigned int x)
         case SOUND_PCM_READ_FILTER:
 		CS_DBGOUT(CS_IOCTL, 4, printk("SOUND_PCM_READ_FILTER: ") );
 		break;
-
         case SOUND_MIXER_PRIVATE1:
 		CS_DBGOUT(CS_IOCTL, 4, printk("SOUND_MIXER_PRIVATE1: ") );
 		break;
@@ -543,10 +541,8 @@ static void printioctl(unsigned int x)
         case SOUND_OLD_MIXER_INFO:
 		CS_DBGOUT(CS_IOCTL, 4, printk("SOUND_OLD_MIXER_INFO: ") );
 		break;
-
 	default:
-		switch (_IOC_NR(x)) 
-		{
+		switch (_IOC_NR(x)) {
 			case SOUND_MIXER_VOLUME:
 				CS_DBGOUT(CS_IOCTL, 4, printk("SOUND_MIXER_VOLUME: ") );
 				break;
@@ -579,14 +575,11 @@ static void printioctl(unsigned int x)
 				break;
 			default:
 				i = _IOC_NR(x);
-				if (i >= SOUND_MIXER_NRDEVICES || !(vidx = mixtable1[i]))
-				{
+				if (i >= SOUND_MIXER_NRDEVICES || !(vidx = mixtable1[i])) {
 					CS_DBGOUT(CS_IOCTL, 4, printk("UNKNOWN IOCTL: 0x%.8x NR=%d ",x,i) );
-				}
-				else
-				{
+				} else {
 					CS_DBGOUT(CS_IOCTL, 4, printk("SOUND_MIXER_IOCTL AC9x: 0x%.8x NR=%d ",
-							x,i) );
+							x,i));
 				}
 				break;
 		}
@@ -601,22 +594,22 @@ static void printioctl(unsigned int x)
 
 static void cs461x_poke(struct cs_card *codec, unsigned long reg, unsigned int val)
 {
-	writel(val, codec->ba1.idx[(reg >> 16) & 3]+(reg&0xffff));
+	writel(val, codec->ba1.idx[(reg >> 16) & 3] + (reg & 0xffff));
 }
 
 static unsigned int cs461x_peek(struct cs_card *codec, unsigned long reg)
 {
-	return readl(codec->ba1.idx[(reg >> 16) & 3]+(reg&0xffff));
+	return readl(codec->ba1.idx[(reg >> 16) & 3] + (reg & 0xffff));
 }
 
 static void cs461x_pokeBA0(struct cs_card *codec, unsigned long reg, unsigned int val)
 {
-	writel(val, codec->ba0+reg);
+	writel(val, codec->ba0 + reg);
 }
 
 static unsigned int cs461x_peekBA0(struct cs_card *codec, unsigned long reg)
 {
-	return readl(codec->ba0+reg);
+	return readl(codec->ba0 + reg);
 }
 
 
@@ -625,26 +618,26 @@ static void cs_ac97_set(struct ac97_codec *dev, u8 reg, u16 data);
 
 static struct cs_channel *cs_alloc_pcm_channel(struct cs_card *card)
 {
-	if(card->channel[1].used==1)
+	if (card->channel[1].used == 1)
 		return NULL;
-	card->channel[1].used=1;
-	card->channel[1].num=1;
+	card->channel[1].used = 1;
+	card->channel[1].num = 1;
 	return &card->channel[1];
 }
 
 static struct cs_channel *cs_alloc_rec_pcm_channel(struct cs_card *card)
 {
-	if(card->channel[0].used==1)
+	if (card->channel[0].used == 1)
 		return NULL;
-	card->channel[0].used=1;
-	card->channel[0].num=0;
+	card->channel[0].used = 1;
+	card->channel[0].num = 0;
 	return &card->channel[0];
 }
 
 static void cs_free_pcm_channel(struct cs_card *card, int channel)
 {
 	card->channel[channel].state = NULL;
-	card->channel[channel].used=0;
+	card->channel[channel].used = 0;
 }
 
 /*
@@ -655,15 +648,15 @@ static void cs_free_pcm_channel(struct cs_card *card, int channel)
  */
 static void cs_set_divisor(struct dmabuf *dmabuf)
 {
-	if(dmabuf->type == CS_TYPE_DAC)
+	if (dmabuf->type == CS_TYPE_DAC)
 		dmabuf->divisor = 1;
-	else if( !(dmabuf->fmt & CS_FMT_STEREO) && 
+	else if (!(dmabuf->fmt & CS_FMT_STEREO) &&
 	    (dmabuf->fmt & CS_FMT_16BIT))
 		dmabuf->divisor = 2;
-	else if( (dmabuf->fmt & CS_FMT_STEREO) && 
+	else if ((dmabuf->fmt & CS_FMT_STEREO) &&
 	    !(dmabuf->fmt & CS_FMT_16BIT))
 		dmabuf->divisor = 2;
-	else if( !(dmabuf->fmt & CS_FMT_STEREO) && 
+	else if (!(dmabuf->fmt & CS_FMT_STEREO) &&
 	    !(dmabuf->fmt & CS_FMT_16BIT))
 		dmabuf->divisor = 4;
 	else
@@ -680,13 +673,12 @@ static void cs_set_divisor(struct dmabuf *dmabuf)
 */
 static void cs_mute(struct cs_card *card, int state) 
 {
-	struct ac97_codec *dev=card->ac97_codec[0];
+	struct ac97_codec *dev = card->ac97_codec[0];
 
 	CS_DBGOUT(CS_FUNCTION, 2, printk(KERN_INFO "cs46xx: cs_mute()+ %s\n",
-		(state == CS_TRUE) ? "Muting" : "UnMuting") );
+		(state == CS_TRUE) ? "Muting" : "UnMuting"));
 
-	if(state == CS_TRUE)
-	{
+	if (state == CS_TRUE) {
 	/*
 	* fix pops when powering up on thinkpads
 	*/
@@ -703,9 +695,7 @@ static void cs_mute(struct cs_card *card, int state)
 		cs_ac97_set(dev, (u8)BA0_AC97_HEADPHONE_VOLUME, 0x8000);
 		cs_ac97_set(dev, (u8)BA0_AC97_MASTER_VOLUME_MONO, 0x8000);
 		cs_ac97_set(dev, (u8)BA0_AC97_PCM_OUT_VOLUME, 0x8000);
-	}
-	else
-	{
+	} else {
 		cs_ac97_set(dev, (u8)BA0_AC97_MASTER_VOLUME, card->pm.u32AC97_master_volume);
 		cs_ac97_set(dev, (u8)BA0_AC97_HEADPHONE_VOLUME, card->pm.u32AC97_headphone_volume);
 		cs_ac97_set(dev, (u8)BA0_AC97_MASTER_VOLUME_MONO, card->pm.u32AC97_master_volume_mono);
@@ -757,7 +747,6 @@ static unsigned int cs_set_dac_rate(struct cs_state * state, unsigned int rate)
 	/*
 	 *  Fill in the SampleRateConverter control block.
 	 */
-	 
 	spin_lock_irqsave(&state->card->lock, flags);
 	cs461x_poke(state->card, BA1_PSRC,
 	  ((correctionPerSec << 16) & 0xFFFF0000) | (correctionPerGOF & 0xFFFF));
@@ -770,7 +759,7 @@ static unsigned int cs_set_dac_rate(struct cs_state * state, unsigned int rate)
 }
 
 /* set recording sample rate */
-static unsigned int cs_set_adc_rate(struct cs_state * state, unsigned int rate)
+static unsigned int cs_set_adc_rate(struct cs_state *state, unsigned int rate)
 {
 	struct dmabuf *dmabuf = &state->dmabuf;
 	struct cs_card *card = state->card;
@@ -815,7 +804,6 @@ static unsigned int cs_set_adc_rate(struct cs_state * state, unsigned int rate)
 	 * 	    dividend:remainder(ulOther / GOF_PER_SEC)
 	 *     initialDelay = dividend(((24 * Fs,in) + Fs,out - 1) / Fs,out)
 	 */
-
 	tmp1 = rate << 16;
 	coeffIncr = tmp1 / 48000;
 	tmp1 -= coeffIncr * 48000;
@@ -891,7 +879,7 @@ static void cs_play_setup(struct cs_state *state)
 
 	CS_DBGOUT(CS_FUNCTION, 2, printk("cs46xx: cs_play_setup()+\n") );
         cs461x_poke(card, BA1_PVOL, 0x80008000);
-        if(!dmabuf->SGok)
+        if (!dmabuf->SGok)
                cs461x_poke(card, BA1_PBA, virt_to_bus(dmabuf->pbuf));
     
         Count = 4;                                                          
@@ -899,16 +887,14 @@ static void cs_play_setup(struct cs_state *state)
         if ((dmabuf->fmt & CS_FMT_STEREO)) {                                
                 playFormat &= ~DMA_RQ_C2_AC_MONO_TO_STEREO;                 
                 Count *= 2;                                                 
-        }                                                                   
-        else                                                                
+        } else
                 playFormat |= DMA_RQ_C2_AC_MONO_TO_STEREO;                  
                                                                             
         if ((dmabuf->fmt & CS_FMT_16BIT)) {                                 
                 playFormat &= ~(DMA_RQ_C2_AC_8_TO_16_BIT                    
                            | DMA_RQ_C2_AC_SIGNED_CONVERT);                  
                 Count *= 2;                                                 
-        }                                                                   
-        else                                                                
+        } else
                 playFormat |= (DMA_RQ_C2_AC_8_TO_16_BIT                     
                            | DMA_RQ_C2_AC_SIGNED_CONVERT);                  
                                                                             
@@ -919,7 +905,6 @@ static void cs_play_setup(struct cs_state *state)
         cs461x_poke(card, BA1_PDTC, tmp | --Count);                         
 
 	CS_DBGOUT(CS_FUNCTION, 2, printk("cs46xx: cs_play_setup()-\n") );
-
 }
 
 static struct InitStruct
@@ -944,8 +929,7 @@ static void SetCaptureSPValues(struct cs_card *card)
 {
 	unsigned i, offset;
 	CS_DBGOUT(CS_FUNCTION, 8, printk("cs46xx: SetCaptureSPValues()+\n") );
-	for(i=0; i<sizeof(InitArray)/sizeof(struct InitStruct); i++)
-	{
+	for (i = 0; i < sizeof(InitArray) / sizeof(struct InitStruct); i++) {
 		offset = InitArray[i].off*4; /* 8bit to 32bit offset value */
 		cs461x_poke(card, offset, InitArray[i].val );
 	}
@@ -957,8 +941,8 @@ static void cs_rec_setup(struct cs_state *state)
 {
 	struct cs_card *card = state->card;
 	struct dmabuf *dmabuf = &state->dmabuf;
-	CS_DBGOUT(CS_FUNCTION, 2, printk("cs46xx: cs_rec_setup()+\n") );
 
+	CS_DBGOUT(CS_FUNCTION, 2, printk("cs46xx: cs_rec_setup()+\n"));
 	SetCaptureSPValues(card);
 
 	/*
@@ -994,14 +978,11 @@ static inline unsigned cs_get_dma_addr(struct cs_state *state)
 	/*
 	 * granularity is byte boundary, good part.
 	 */
-	if(dmabuf->enable & DAC_RUNNING)
-	{
+	if (dmabuf->enable & DAC_RUNNING)
 		offset = cs461x_peek(state->card, BA1_PBA);                                  
-	}
 	else /* ADC_RUNNING must be set */
-	{
 		offset = cs461x_peek(state->card, BA1_CBA);                                  
-	}
+
 	CS_DBGOUT(CS_PARMS | CS_FUNCTION, 9, 
 		printk("cs46xx: cs_get_dma_addr() %d\n",offset) );
 	offset = (u32)bus_to_virt((unsigned long)offset) - (u32)dmabuf->rawbuf;
@@ -1015,8 +996,7 @@ static void resync_dma_ptrs(struct cs_state *state)
 	struct dmabuf *dmabuf;
 	
 	CS_DBGOUT(CS_FUNCTION, 2, printk("cs46xx: resync_dma_ptrs()+ \n") );
-	if(state)
-	{
+	if (state) {
 		dmabuf = &state->dmabuf;
 		dmabuf->hwptr=dmabuf->swptr = 0;
 		dmabuf->pringbuf = 0;
@@ -1149,13 +1129,13 @@ static int alloc_dmabuf(struct cs_state *state)
 /*
 * check for order within limits, but do not overwrite value.
 */
-	if((defaultorder > 1) && (defaultorder < 12))
+	if ((defaultorder > 1) && (defaultorder < 12))
 		df = defaultorder;
 	else
 		df = 2;	
 
 	for (order = df; order >= DMABUF_MINORDER; order--)
-		if ( (rawbuf = (void *) pci_alloc_consistent(
+		if ((rawbuf = (void *)pci_alloc_consistent(
 			card->pci_dev, PAGE_SIZE << order, &dmabuf->dmaaddr)))
 			    break;
 	if (!rawbuf) {
@@ -1181,8 +1161,7 @@ static int alloc_dmabuf(struct cs_state *state)
 /*
 *  only allocate the conversion buffer for the ADC
 */
-	if(dmabuf->type == CS_TYPE_DAC)
-	{
+	if (dmabuf->type == CS_TYPE_DAC) {
 		dmabuf->tmpbuff = NULL;
 		dmabuf->buforder_tmpbuff = 0;
 		return 0;
@@ -1258,8 +1237,7 @@ static int __prog_dmabuf(struct cs_state *state)
 /*
  * check for CAPTURE and use only non-sg for initial release
  */
-	if(dmabuf->type == CS_TYPE_ADC)
-	{
+	if (dmabuf->type == CS_TYPE_ADC) {
 		CS_DBGOUT(CS_FUNCTION, 4, printk("cs46xx: prog_dmabuf() ADC\n"));
 		/* 
 		 * add in non-sg support for capture.
@@ -1313,9 +1291,7 @@ static int __prog_dmabuf(struct cs_state *state)
 
 		CS_DBGOUT(CS_FUNCTION, 4, printk("cs46xx: prog_dmabuf()- 0 \n"));
 		return 0;
-	}
-	else if (dmabuf->type == CS_TYPE_DAC)
-	{
+	} else if (dmabuf->type == CS_TYPE_DAC) {
 	/*
 	 * Must be DAC
 	 */
@@ -1337,8 +1313,7 @@ static int __prog_dmabuf(struct cs_state *state)
 		allocated_pages = 1 << dmabuf->buforder;                            
 		allocated_bytes = allocated_pages*PAGE_SIZE;                        
 										    
-		if(allocated_pages < 2)                                             
-		{
+		if (allocated_pages < 2) {
 			CS_DBGOUT(CS_FUNCTION, 4, printk(
 			    "cs46xx: prog_dmabuf() Error: allocated_pages too small (%d)\n",
 				(unsigned)allocated_pages));
@@ -1353,14 +1328,14 @@ static int __prog_dmabuf(struct cs_state *state)
 										    
 		     /* Set up S/G variables. */
 		*ptmp = virt_to_bus(dmabuf->rawbuf);                                
-		*(ptmp+1) = 0x00000008;                                             
-		for(tmp1= 1; tmp1 < nSGpages; tmp1++) {                             
-			*(ptmp+2*tmp1) = virt_to_bus( (dmabuf->rawbuf)+4096*tmp1);  
-			if( tmp1 == nSGpages-1)                                     
+		*(ptmp + 1) = 0x00000008;
+		for (tmp1 = 1; tmp1 < nSGpages; tmp1++) {
+			*(ptmp + 2 * tmp1) = virt_to_bus((dmabuf->rawbuf) + 4096 * tmp1);
+			if (tmp1 == nSGpages - 1)
 				tmp2 = 0xbfff0000;
 			else                                                        
-				tmp2 = 0x80000000+8*(tmp1+1);                       
-			*(ptmp+2*tmp1+1) = tmp2;                                    
+				tmp2 = 0x80000000 + 8 * (tmp1 + 1);
+			*(ptmp + 2 * tmp1 + 1) = tmp2;
 		}                                                                   
 		SGarray[0] = 0x82c0200d;                                            
 		SGarray[1] = 0xffff0000;                                            
@@ -1368,18 +1343,17 @@ static int __prog_dmabuf(struct cs_state *state)
 		SGarray[3] = 0x00010600;                                            
 		SGarray[4] = *(ptmp+2);                                             
 		SGarray[5] = 0x80000010;                                            
-		SGarray[6] = *ptmp;                                                 
-		SGarray[7] = *(ptmp+2);                                             
-		SGarray[8] = (virt_to_bus(dmabuf->pbuf) & 0xffff000) | 0x10;        
+		SGarray[6] = *ptmp;
+		SGarray[7] = *(ptmp+2);
+		SGarray[8] = (virt_to_bus(dmabuf->pbuf) & 0xffff000) | 0x10;
 
-		if (dmabuf->SGok) {                                                 
-			dmabuf->numfrag = nSGpages;                                 
-			dmabuf->fragsize = 4096;                                    
-			dmabuf->fragsamples = 4096 >> sample_shift[dmabuf->fmt];    
-			dmabuf->fragshift = 12;                                     
-			dmabuf->dmasize = dmabuf->numfrag*4096;                     
-		}                                                                   
-		else {                                                              
+		if (dmabuf->SGok) {
+			dmabuf->numfrag = nSGpages;
+			dmabuf->fragsize = 4096;
+			dmabuf->fragsamples = 4096 >> sample_shift[dmabuf->fmt];
+			dmabuf->fragshift = 12;
+			dmabuf->dmasize = dmabuf->numfrag * 4096;
+		} else {
 			SGarray[0] = 0xf2c0000f;                                    
 			SGarray[1] = 0x00000200;                                    
 			SGarray[2] = 0;                                             
@@ -1391,8 +1365,8 @@ static int __prog_dmabuf(struct cs_state *state)
 			dmabuf->dmasize = 4096;                                     
 			dmabuf->fragshift = 11;                                     
 		}
-		for(tmp1 = 0; tmp1 < sizeof(SGarray)/4; tmp1++)                     
-			cs461x_poke( state->card, BA1_PDTC+tmp1*4, SGarray[tmp1]);  
+		for (tmp1 = 0; tmp1 < sizeof(SGarray) / 4; tmp1++)
+			cs461x_poke(state->card, BA1_PDTC+tmp1 * 4, SGarray[tmp1]);
 
 		memset(dmabuf->rawbuf, (dmabuf->fmt & CS_FMT_16BIT) ? 0 : 0x80,
 		       dmabuf->dmasize);
@@ -1416,9 +1390,7 @@ static int __prog_dmabuf(struct cs_state *state)
 
 		CS_DBGOUT(CS_FUNCTION, 4, printk("cs46xx: prog_dmabuf()- \n"));
 		return 0;
-	}
-	else
-	{
+	} else {
 		CS_DBGOUT(CS_FUNCTION, 4, printk("cs46xx: prog_dmabuf()- Invalid Type %d\n",
 			dmabuf->type));
 	}
@@ -1489,8 +1461,7 @@ static int drain_dac(struct cs_state *state, int nonblock)
 	}
 	remove_wait_queue(&dmabuf->wait, &wait);
 	current->state = TASK_RUNNING;
-	if (signal_pending(current))
-	{
+	if (signal_pending(current)) {
 		CS_DBGOUT(CS_FUNCTION, 4, printk("cs46xx: drain_dac()- -ERESTARTSYS\n"));
 		/*
 		* set to silence and let that clear the fifos.
@@ -1514,8 +1485,7 @@ static void cs_update_ptr(struct cs_card *card, int wake)
 
 	/* error handling and process wake up for ADC */
 	state = card->states[0];
-	if(state)
-	{
+	if (state) {
 		dmabuf = &state->dmabuf;
 		if (dmabuf->enable & ADC_RUNNING) {
 			/* update hardware pointer */
@@ -1531,12 +1501,10 @@ static void cs_update_ptr(struct cs_card *card, int wake)
 			if (dmabuf->count > dmabuf->dmasize)
 				dmabuf->count = dmabuf->dmasize;
 
-			if(dmabuf->mapped)
-			{
+			if (dmabuf->mapped) {
 				if (wake && dmabuf->count >= (signed)dmabuf->fragsize)
 					wake_up(&dmabuf->wait);
-			} else 
-			{
+			} else {
 				if (wake && dmabuf->count > 0)
 					wake_up(&dmabuf->wait);
 			}
@@ -1547,8 +1515,7 @@ static void cs_update_ptr(struct cs_card *card, int wake)
  * Now the DAC
  */
 	state = card->states[1];
-	if(state)
-	{
+	if (state) {
 		dmabuf = &state->dmabuf;
 		/* error handling and process wake up for DAC */
 		if (dmabuf->enable & DAC_RUNNING) {
@@ -1570,7 +1537,7 @@ static void cs_update_ptr(struct cs_card *card, int wake)
 				 * in that, since dmasize is the buffer asked for
 				 * via mmap.
 				 */
-				if( dmabuf->count > dmabuf->dmasize)
+				if (dmabuf->count > dmabuf->dmasize)
 					dmabuf->count &= dmabuf->dmasize-1;
 			} else {
 				dmabuf->count -= diff;
@@ -1578,13 +1545,10 @@ static void cs_update_ptr(struct cs_card *card, int wake)
 				 * backfill with silence and clear out the last 
 				 * "diff" number of bytes.
 				 */
-				if(hwptr >= diff)
-				{
+				if (hwptr >= diff) {
 					memset(dmabuf->rawbuf + hwptr - diff, 
 						(dmabuf->fmt & CS_FMT_16BIT) ? 0 : 0x80, diff);
-				}
-				else
-				{
+				} else {
 					memset(dmabuf->rawbuf, 
 						(dmabuf->fmt & CS_FMT_16BIT) ? 0 : 0x80,
 						(unsigned)hwptr);
@@ -1602,12 +1566,12 @@ static void cs_update_ptr(struct cs_card *card, int wake)
 					* buffer underrun or buffer overrun, reset the
 					* count of bytes written back to 0.
 					*/
-					if(dmabuf->count < 0)
-						dmabuf->underrun=1;
+					if (dmabuf->count < 0)
+						dmabuf->underrun = 1;
 					dmabuf->count = 0;
 					dmabuf->error++;
 				}
-				if (wake && dmabuf->count < (signed)dmabuf->dmasize/2)
+				if (wake && dmabuf->count < (signed)dmabuf->dmasize / 2)
 					wake_up(&dmabuf->wait);
 			}
 		}
@@ -1661,8 +1625,7 @@ static irqreturn_t cs_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 	status = cs461x_peekBA0(card, BA0_HISR);
 	
-	if ((status & 0x7fffffff) == 0)
-	{
+	if ((status & 0x7fffffff) == 0) {
 		cs461x_pokeBA0(card, BA0_HICR, HICR_CHGM|HICR_IEV);
 		spin_unlock(&card->lock);
 		return IRQ_HANDLED;	/* Might be IRQ_NONE.. */
@@ -1671,15 +1634,14 @@ static irqreturn_t cs_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	/*
 	 * check for playback or capture interrupt only
 	 */
-	if( ((status & HISR_VC0) && playstate && playstate->dmabuf.ready) || 
-	    (((status & HISR_VC1) && recstate && recstate->dmabuf.ready)) )
-	{
+	if (((status & HISR_VC0) && playstate && playstate->dmabuf.ready) ||
+	    (((status & HISR_VC1) && recstate && recstate->dmabuf.ready))) {
 		CS_DBGOUT(CS_INTERRUPT, 8, printk(
 			"cs46xx: cs_interrupt() interrupt bit(s) set (0x%x)\n",status));
 		cs_update_ptr(card, CS_TRUE);
 	}
 
-        if( status & HISR_MIDI )
+        if (status & HISR_MIDI)
                 cs_handle_midi(card);
 	
  	/* clear 'em */
@@ -1694,7 +1656,7 @@ static irqreturn_t cs_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 static ssize_t cs_midi_read(struct file *file, char __user *buffer, size_t count, loff_t *ppos)
 {
-        struct cs_card *card = (struct cs_card *)file->private_data;
+        struct cs_card *card = file->private_data;
         ssize_t ret;
         unsigned long flags;
         unsigned ptr;
@@ -1737,7 +1699,7 @@ static ssize_t cs_midi_read(struct file *file, char __user *buffer, size_t count
 
 static ssize_t cs_midi_write(struct file *file, const char __user *buffer, size_t count, loff_t *ppos)
 {
-        struct cs_card *card = (struct cs_card *)file->private_data;
+        struct cs_card *card = file->private_data;
         ssize_t ret;
         unsigned long flags;
         unsigned ptr;
@@ -1785,7 +1747,7 @@ static ssize_t cs_midi_write(struct file *file, const char __user *buffer, size_
 
 static unsigned int cs_midi_poll(struct file *file, struct poll_table_struct *wait)
 {
-        struct cs_card *card = (struct cs_card *)file->private_data;
+        struct cs_card *card = file->private_data;
         unsigned long flags;
         unsigned int mask = 0;
 
@@ -1810,12 +1772,11 @@ static unsigned int cs_midi_poll(struct file *file, struct poll_table_struct *wa
 static int cs_midi_open(struct inode *inode, struct file *file)
 {
         unsigned int minor = iminor(inode);
-        struct cs_card *card=NULL;
+        struct cs_card *card = NULL;
         unsigned long flags;
 	struct list_head *entry;
 
-	list_for_each(entry, &cs46xx_devs)
-	{
+	list_for_each(entry, &cs46xx_devs) {
 		card = list_entry(entry, struct cs_card, list);
 		if (card->dev_midi == minor)
 			break;
@@ -1823,8 +1784,7 @@ static int cs_midi_open(struct inode *inode, struct file *file)
 
 	if (entry == &cs46xx_devs)
 		return -ENODEV;
-	if (!card)
-	{
+	if (!card) {
 		CS_DBGOUT(CS_FUNCTION | CS_OPEN, 2, printk(KERN_INFO
 			"cs46xx: cs46xx_midi_open(): Error - unable to find card struct\n"));
 		return -ENODEV;
@@ -1852,12 +1812,10 @@ static int cs_midi_open(struct inode *inode, struct file *file)
                 cs461x_pokeBA0(card, BA0_MIDCR, 0x0000000f);            /* Enable xmit, rcv. */
                 cs461x_pokeBA0(card, BA0_HICR, HICR_IEV | HICR_CHGM);   /* Enable interrupts */
         }
-        if (file->f_mode & FMODE_READ) {
+        if (file->f_mode & FMODE_READ)
                 card->midi.ird = card->midi.iwr = card->midi.icnt = 0;
-        }
-        if (file->f_mode & FMODE_WRITE) {
+        if (file->f_mode & FMODE_WRITE)
                 card->midi.ord = card->midi.owr = card->midi.ocnt = 0;
-        }
         spin_unlock_irqrestore(&card->midi.lock, flags);
         card->midi.open_mode |= (file->f_mode & (FMODE_READ | FMODE_WRITE));
         mutex_unlock(&card->midi.open_mutex);
@@ -1867,7 +1825,7 @@ static int cs_midi_open(struct inode *inode, struct file *file)
 
 static int cs_midi_release(struct inode *inode, struct file *file)
 {
-        struct cs_card *card = (struct cs_card *)file->private_data;
+        struct cs_card *card = file->private_data;
         DECLARE_WAITQUEUE(wait, current);
         unsigned long flags;
         unsigned count, tmo;
@@ -1933,11 +1891,10 @@ static /*const*/ struct file_operations cs_midi_fops = {
 static void CopySamples(char *dst, char *src, int count, unsigned fmt, 
 		struct dmabuf *dmabuf)
 {
-
     s32 s32AudioSample;
-    s16 *psSrc=(s16 *)src;
-    s16 *psDst=(s16 *)dst;
-    u8 *pucDst=(u8 *)dst;
+    s16 *psSrc = (s16 *)src;
+    s16 *psDst = (s16 *)dst;
+    u8 *pucDst = (u8 *)dst;
 
     CS_DBGOUT(CS_FUNCTION, 2, printk(KERN_INFO "cs46xx: CopySamples()+ ") );
     CS_DBGOUT(CS_WAVE_READ, 8, printk(KERN_INFO
@@ -1947,34 +1904,29 @@ static void CopySamples(char *dst, char *src, int count, unsigned fmt,
     /*
      * See if the data should be output as 8-bit unsigned stereo.
      */
-    if((fmt & CS_FMT_STEREO) && !(fmt & CS_FMT_16BIT))
-    {
+    if ((fmt & CS_FMT_STEREO) && !(fmt & CS_FMT_16BIT)) {
         /*
          * Convert each 16-bit signed stereo sample to 8-bit unsigned 
 	 * stereo using rounding.
          */
         psSrc = (s16 *)src;
-	count = count/2;
-        while(count--)
-        {
+	count = count / 2;
+        while (count--)
             *(pucDst++) = (u8)(((s16)(*psSrc++) + (s16)0x8000) >> 8);
-        }
     }
     /*
      * See if the data should be output at 8-bit unsigned mono.
      */
-    else if(!(fmt & CS_FMT_STEREO) && !(fmt & CS_FMT_16BIT))
-    {
+    else if (!(fmt & CS_FMT_STEREO) && !(fmt & CS_FMT_16BIT)) {
         /*
          * Convert each 16-bit signed stereo sample to 8-bit unsigned 
 	 * mono using averaging and rounding.
          */
         psSrc = (s16 *)src;
-	count = count/2;
-        while(count--)
-        {
-	    s32AudioSample = ((*psSrc)+(*(psSrc + 1)))/2 + (s32)0x80;
-	    if(s32AudioSample > 0x7fff)
+	count = count / 2;
+        while (count--) {
+	    s32AudioSample = ((*psSrc) + (*(psSrc + 1))) / 2 + (s32)0x80;
+	    if (s32AudioSample > 0x7fff)
 	    	s32AudioSample = 0x7fff;
             *(pucDst++) = (u8)(((s16)s32AudioSample + (s16)0x8000) >> 8);
 	    psSrc += 2;
@@ -1983,17 +1935,15 @@ static void CopySamples(char *dst, char *src, int count, unsigned fmt,
     /*
      * See if the data should be output at 16-bit signed mono.
      */
-    else if(!(fmt & CS_FMT_STEREO) && (fmt & CS_FMT_16BIT))
-    {
+    else if (!(fmt & CS_FMT_STEREO) && (fmt & CS_FMT_16BIT)) {
         /*
          * Convert each 16-bit signed stereo sample to 16-bit signed 
 	 * mono using averaging.
          */
         psSrc = (s16 *)src;
-	count = count/2;
-        while(count--)
-        {
-            *(psDst++) = (s16)((*psSrc)+(*(psSrc + 1)))/2;
+	count = count / 2;
+        while (count--) {
+            *(psDst++) = (s16)((*psSrc) + (*(psSrc + 1))) / 2;
 	    psSrc += 2;
         }
     }
@@ -2020,20 +1970,15 @@ static unsigned cs_copy_to_user(
 		"cs_copy_to_user()+ fmt=0x%x cnt=%d dest=%p\n",
 		dmabuf->fmt,(unsigned)cnt,dest) );
 
-	if(cnt > dmabuf->dmasize)
-	{
+	if (cnt > dmabuf->dmasize)
 		cnt = dmabuf->dmasize;
-	}
-	if(!cnt)
-	{
+	if (!cnt) {
 		*copied = 0;
 		return 0;
 	}
-	if(dmabuf->divisor != 1)
-	{
-		if(!dmabuf->tmpbuff)
-		{
-			*copied = cnt/dmabuf->divisor;
+	if (dmabuf->divisor != 1) {
+		if (!dmabuf->tmpbuff) {
+			*copied = cnt / dmabuf->divisor;
 			return 0;
 		}
 
@@ -2042,17 +1987,16 @@ static unsigned cs_copy_to_user(
 		src = dmabuf->tmpbuff;
 		cnt = cnt/dmabuf->divisor;
 	}
-        if (copy_to_user(dest, src, cnt))
-	{
+        if (copy_to_user(dest, src, cnt)) {
 		CS_DBGOUT(CS_FUNCTION, 2, printk(KERN_ERR 
 			"cs46xx: cs_copy_to_user()- fault dest=%p src=%p cnt=%d\n",
-				dest,src,cnt) );
+				dest,src,cnt));
 		*copied = 0;
 		return -EFAULT;
 	}
 	*copied = cnt;
 	CS_DBGOUT(CS_FUNCTION, 2, printk(KERN_INFO 
-		"cs46xx: cs_copy_to_user()- copied bytes is %d \n",cnt) );
+		"cs46xx: cs_copy_to_user()- copied bytes is %d \n",cnt));
 	return 0;
 }
 
@@ -2060,7 +2004,7 @@ static unsigned cs_copy_to_user(
    the user's buffer.  it is filled by the dma machine and drained by this loop. */
 static ssize_t cs_read(struct file *file, char __user *buffer, size_t count, loff_t *ppos)
 {
-	struct cs_card *card = (struct cs_card *) file->private_data;
+	struct cs_card *card = file->private_data;
 	struct cs_state *state;
 	DECLARE_WAITQUEUE(wait, current);
 	struct dmabuf *dmabuf;
@@ -2068,12 +2012,12 @@ static ssize_t cs_read(struct file *file, char __user *buffer, size_t count, lof
 	unsigned long flags;
 	unsigned swptr;
 	int cnt;
-	unsigned copied=0;
+	unsigned copied = 0;
 
 	CS_DBGOUT(CS_WAVE_READ | CS_FUNCTION, 4, 
 		printk("cs46xx: cs_read()+ %zd\n",count) );
-	state = (struct cs_state *)card->states[0];
-	if(!state)
+	state = card->states[0];
+	if (!state)
 		return -ENODEV;
 	dmabuf = &state->dmabuf;
 
@@ -2088,11 +2032,11 @@ static ssize_t cs_read(struct file *file, char __user *buffer, size_t count, lof
 
 	add_wait_queue(&state->dmabuf.wait, &wait);
 	while (count > 0) {
-		while(!(card->pm.flags & CS46XX_PM_IDLE))
-		{
+		while (!(card->pm.flags & CS46XX_PM_IDLE)) {
 			schedule();
 			if (signal_pending(current)) {
-				if(!ret) ret = -ERESTARTSYS;
+				if (!ret)
+					ret = -ERESTARTSYS;
 				goto out;
 			}
 		}
@@ -2112,19 +2056,20 @@ static ssize_t cs_read(struct file *file, char __user *buffer, size_t count, lof
 			   recorded */
 			start_adc(state);
 			if (file->f_flags & O_NONBLOCK) {
-				if (!ret) ret = -EAGAIN;
+				if (!ret)
+					ret = -EAGAIN;
 				goto out;
  			}
 			mutex_unlock(&state->sem);
 			schedule();
 			if (signal_pending(current)) {
-				if(!ret) ret = -ERESTARTSYS;
+				if (!ret)
+					ret = -ERESTARTSYS;
 				goto out;
 			}
 			mutex_lock(&state->sem);
-			if (dmabuf->mapped) 
-			{
-				if(!ret)
+			if (dmabuf->mapped) {
+				if (!ret)
 					ret = -ENXIO;
 				goto out;
 			}
@@ -2135,12 +2080,12 @@ static ssize_t cs_read(struct file *file, char __user *buffer, size_t count, lof
 			"_read() copy_to cnt=%d count=%zd ", cnt,count) );
 		CS_DBGOUT(CS_WAVE_READ, 8, printk(KERN_INFO 
 			" .dmasize=%d .count=%d buffer=%p ret=%zd\n",
-			dmabuf->dmasize,dmabuf->count,buffer,ret) );
+			dmabuf->dmasize,dmabuf->count,buffer,ret));
 
                 if (cs_copy_to_user(state, buffer, 
-			(char *)dmabuf->rawbuf + swptr, cnt, &copied))
-		{
-			if (!ret) ret = -EFAULT;
+			(char *)dmabuf->rawbuf + swptr, cnt, &copied)) {
+			if (!ret)
+				ret = -EFAULT;
 			goto out;
 		}
                 swptr = (swptr + cnt) % dmabuf->dmasize;
@@ -2167,7 +2112,7 @@ out2:
    the soundcard.  it is drained by the dma machine and filled by this loop. */
 static ssize_t cs_write(struct file *file, const char __user *buffer, size_t count, loff_t *ppos)
 {
-	struct cs_card *card = (struct cs_card *) file->private_data;
+	struct cs_card *card = file->private_data;
 	struct cs_state *state;
 	DECLARE_WAITQUEUE(wait, current);
 	struct dmabuf *dmabuf;
@@ -2178,16 +2123,15 @@ static ssize_t cs_write(struct file *file, const char __user *buffer, size_t cou
 
 	CS_DBGOUT(CS_WAVE_WRITE | CS_FUNCTION, 4,
 		printk("cs46xx: cs_write called, count = %zd\n", count) );
-	state = (struct cs_state *)card->states[1];
-	if(!state)
+	state = card->states[1];
+	if (!state)
 		return -ENODEV;
 	if (!access_ok(VERIFY_READ, buffer, count))
 		return -EFAULT;
 	dmabuf = &state->dmabuf;
 
 	mutex_lock(&state->sem);
-	if (dmabuf->mapped)
-	{
+	if (dmabuf->mapped) {
 		ret = -ENXIO;
 		goto out;
 	}
@@ -2201,11 +2145,11 @@ static ssize_t cs_write(struct file *file, const char __user *buffer, size_t cou
 * check for PM events and underrun/overrun in the loop.
 */
 	while (count > 0) {
-		while(!(card->pm.flags & CS46XX_PM_IDLE))
-		{
+		while (!(card->pm.flags & CS46XX_PM_IDLE)) {
 			schedule();
 			if (signal_pending(current)) {
-				if(!ret) ret = -ERESTARTSYS;
+				if (!ret)
+					ret = -ERESTARTSYS;
 				goto out;
 			}
 		}
@@ -2216,8 +2160,7 @@ static ssize_t cs_write(struct file *file, const char __user *buffer, size_t cou
 			dmabuf->count = 0;
 			dmabuf->swptr = dmabuf->hwptr;
 		}
-		if (dmabuf->underrun)
-		{
+		if (dmabuf->underrun) {
 			dmabuf->underrun = 0;
 			dmabuf->hwptr = cs_get_dma_addr(state);
 			dmabuf->swptr = dmabuf->hwptr;
@@ -2238,34 +2181,35 @@ static ssize_t cs_write(struct file *file, const char __user *buffer, size_t cou
 			   played */
 			start_dac(state);
 			if (file->f_flags & O_NONBLOCK) {
-				if (!ret) ret = -EAGAIN;
+				if (!ret)
+					ret = -EAGAIN;
 				goto out;
  			}
 			mutex_unlock(&state->sem);
 			schedule();
  			if (signal_pending(current)) {
-				if(!ret) ret = -ERESTARTSYS;
+				if (!ret)
+					ret = -ERESTARTSYS;
 				goto out;
  			}
 			mutex_lock(&state->sem);
-			if (dmabuf->mapped)
-			{
-				if(!ret)
+			if (dmabuf->mapped) {
+				if (!ret)
 					ret = -ENXIO;
 				goto out;
 			}
  			continue;
  		}
 		if (copy_from_user(dmabuf->rawbuf + swptr, buffer, cnt)) {
-			if (!ret) ret = -EFAULT;
+			if (!ret)
+				ret = -EFAULT;
 			goto out;
 		}
 		spin_lock_irqsave(&state->card->lock, flags);
 		swptr = (swptr + cnt) % dmabuf->dmasize;
 		dmabuf->swptr = swptr;
 		dmabuf->count += cnt;
-		if(dmabuf->count > dmabuf->dmasize)
-		{
+		if (dmabuf->count > dmabuf->dmasize) {
 			CS_DBGOUT(CS_WAVE_WRITE | CS_ERROR, 2, printk(
 			    "cs46xx: cs_write() d->count > dmasize - resetting\n"));
 			dmabuf->count = dmabuf->dmasize;
@@ -2284,38 +2228,32 @@ out:
 	set_current_state(TASK_RUNNING);
 
 	CS_DBGOUT(CS_WAVE_WRITE | CS_FUNCTION, 2, 
-		printk("cs46xx: cs_write()- ret=%zd\n", ret) );
+		printk("cs46xx: cs_write()- ret=%zd\n", ret));
 	return ret;
 }
 
 static unsigned int cs_poll(struct file *file, struct poll_table_struct *wait)
 {
-	struct cs_card *card = (struct cs_card *)file->private_data;
+	struct cs_card *card = file->private_data;
 	struct dmabuf *dmabuf;
 	struct cs_state *state;
-
 	unsigned long flags;
 	unsigned int mask = 0;
 
 	CS_DBGOUT(CS_FUNCTION, 2, printk("cs46xx: cs_poll()+ \n"));
-	if (!(file->f_mode & (FMODE_WRITE | FMODE_READ)))
-	{
+	if (!(file->f_mode & (FMODE_WRITE | FMODE_READ))) {
 		return -EINVAL;
 	}
-	if (file->f_mode & FMODE_WRITE)
-	{
+	if (file->f_mode & FMODE_WRITE) {
 		state = card->states[1];
-		if(state)
-		{
+		if (state) {
 			dmabuf = &state->dmabuf;
 			poll_wait(file, &dmabuf->wait, wait);
 		}
 	}
-	if (file->f_mode & FMODE_READ)
-	{
+	if (file->f_mode & FMODE_READ) {
 		state = card->states[0];
-		if(state)
-		{
+		if (state) {
 			dmabuf = &state->dmabuf;
 			poll_wait(file, &dmabuf->wait, wait);
 		}
@@ -2325,8 +2263,7 @@ static unsigned int cs_poll(struct file *file, struct poll_table_struct *wait)
 	cs_update_ptr(card, CS_FALSE);
 	if (file->f_mode & FMODE_READ) {
 		state = card->states[0];
-		if(state)
-		{
+		if (state) {
 			dmabuf = &state->dmabuf;
 			if (dmabuf->count >= (signed)dmabuf->fragsize)
 				mask |= POLLIN | POLLRDNORM;
@@ -2334,8 +2271,7 @@ static unsigned int cs_poll(struct file *file, struct poll_table_struct *wait)
 	}
 	if (file->f_mode & FMODE_WRITE) {
 		state = card->states[1];
-		if(state)
-		{
+		if (state) {
 			dmabuf = &state->dmabuf;
 			if (dmabuf->mapped) {
 				if (dmabuf->count >= (signed)dmabuf->fragsize)
@@ -2364,7 +2300,7 @@ static unsigned int cs_poll(struct file *file, struct poll_table_struct *wait)
  
 static int cs_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	struct cs_card *card = (struct cs_card *)file->private_data;
+	struct cs_card *card = file->private_data;
 	struct cs_state *state;
 	struct dmabuf *dmabuf;
 	int ret = 0;
@@ -2376,8 +2312,7 @@ static int cs_mmap(struct file *file, struct vm_area_struct *vma)
 
 	if (vma->vm_flags & VM_WRITE) {
 		state = card->states[1];
-		if(state)
-		{
+		if (state) {
 			CS_DBGOUT(CS_OPEN, 2, printk(
 			  "cs46xx: cs_mmap() VM_WRITE - state TRUE prog_dmabuf DAC\n") );
 			if ((ret = prog_dmabuf(state)) != 0)
@@ -2385,8 +2320,7 @@ static int cs_mmap(struct file *file, struct vm_area_struct *vma)
 		}
 	} else if (vma->vm_flags & VM_READ) {
 		state = card->states[0];
-		if(state)
-		{
+		if (state) {
 			CS_DBGOUT(CS_OPEN, 2, printk(
 			  "cs46xx: cs_mmap() VM_READ - state TRUE prog_dmabuf ADC\n") );
 			if ((ret = prog_dmabuf(state)) != 0)
@@ -2414,8 +2348,7 @@ static int cs_mmap(struct file *file, struct vm_area_struct *vma)
 
 	mutex_lock(&state->sem);
 	dmabuf = &state->dmabuf;
-	if (cs4x_pgoff(vma) != 0)
-	{
+	if (cs4x_pgoff(vma) != 0) {
 		ret = -EINVAL;
 		goto out;
 	}
@@ -2423,15 +2356,13 @@ static int cs_mmap(struct file *file, struct vm_area_struct *vma)
 
 	CS_DBGOUT(CS_PARMS, 2, printk("cs46xx: cs_mmap(): size=%d\n",(unsigned)size) );
 
-	if (size > (PAGE_SIZE << dmabuf->buforder))
-	{
+	if (size > (PAGE_SIZE << dmabuf->buforder)) {
 		ret = -EINVAL;
 		goto out;
 	}
 	if (remap_pfn_range(vma, vma->vm_start,
 			     virt_to_phys(dmabuf->rawbuf) >> PAGE_SHIFT,
-			     size, vma->vm_page_prot))
-	{
+			     size, vma->vm_page_prot)) {
 		ret = -EAGAIN;
 		goto out;
 	}
@@ -2445,25 +2376,24 @@ out:
 
 static int cs_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
 {
-	struct cs_card *card = (struct cs_card *)file->private_data;
+	struct cs_card *card = file->private_data;
 	struct cs_state *state;
-	struct dmabuf *dmabuf=NULL;
+	struct dmabuf *dmabuf = NULL;
 	unsigned long flags;
 	audio_buf_info abinfo;
 	count_info cinfo;
-	int val, valsave, mapped, ret;
+	int val, valsave, ret;
+	int mapped = 0;
 	void __user *argp = (void __user *)arg;
 	int __user *p = argp;
 
-	state = (struct cs_state *)card->states[0];
-	if(state)
-	{
+	state = card->states[0];
+	if (state) {
 		dmabuf = &state->dmabuf;
 		mapped = (file->f_mode & FMODE_READ) && dmabuf->mapped;
 	}
-	state = (struct cs_state *)card->states[1];
-	if(state)
-	{
+	state = card->states[1];
+	if (state) {
 		dmabuf = &state->dmabuf;
 		mapped |= (file->f_mode & FMODE_WRITE) && dmabuf->mapped;
 	}
@@ -2472,17 +2402,14 @@ static int cs_ioctl(struct inode *inode, struct file *file, unsigned int cmd, un
 	printioctl(cmd);
 #endif
 
-	switch (cmd) 
-	{
+	switch (cmd) {
 	case OSS_GETVERSION:
 		return put_user(SOUND_VERSION, p);
-
 	case SNDCTL_DSP_RESET:
 		/* FIXME: spin_lock ? */
 		if (file->f_mode & FMODE_WRITE) {
-			state = (struct cs_state *)card->states[1];
-			if(state)
-			{
+			state = card->states[1];
+			if (state) {
 				dmabuf = &state->dmabuf;
 				stop_dac(state);
 				synchronize_irq(card->irq);
@@ -2495,9 +2422,8 @@ static int cs_ioctl(struct inode *inode, struct file *file, unsigned int cmd, un
 			}
 		}
 		if (file->f_mode & FMODE_READ) {
-			state = (struct cs_state *)card->states[0];
-			if(state)
-			{
+			state = card->states[0];
+			if (state) {
 				dmabuf = &state->dmabuf;
 				stop_adc(state);
 				synchronize_irq(card->irq);
@@ -2511,20 +2437,17 @@ static int cs_ioctl(struct inode *inode, struct file *file, unsigned int cmd, un
 		}
 		CS_DBGOUT(CS_IOCTL, 2, printk("cs46xx: DSP_RESET()-\n") );
 		return 0;
-
 	case SNDCTL_DSP_SYNC:
 		if (file->f_mode & FMODE_WRITE)
 			return drain_dac(state, file->f_flags & O_NONBLOCK);
 		return 0;
-
 	case SNDCTL_DSP_SPEED: /* set sample rate */
 		if (get_user(val, p))
 			return -EFAULT;
 		if (val >= 0) {
 			if (file->f_mode & FMODE_READ) {
-				state = (struct cs_state *)card->states[0];
-				if(state)
-				{
+				state = card->states[0];
+				if (state) {
 					dmabuf = &state->dmabuf;
 					stop_adc(state);
 					dmabuf->ready = 0;
@@ -2534,9 +2457,8 @@ static int cs_ioctl(struct inode *inode, struct file *file, unsigned int cmd, un
 				}
 			}
 			if (file->f_mode & FMODE_WRITE) {
-				state = (struct cs_state *)card->states[1];
-				if(state)
-				{
+				state = card->states[1];
+				if (state) {
 					dmabuf = &state->dmabuf;
 					stop_dac(state);
 					dmabuf->ready = 0;
@@ -2553,19 +2475,17 @@ static int cs_ioctl(struct inode *inode, struct file *file, unsigned int cmd, un
 			return put_user(dmabuf->rate, p);
 		}
 		return put_user(0, p);
-
 	case SNDCTL_DSP_STEREO: /* set stereo or mono channel */
 		if (get_user(val, p))
 			return -EFAULT;
 		if (file->f_mode & FMODE_WRITE) {
-			state = (struct cs_state *)card->states[1];
-			if(state)
-			{
+			state = card->states[1];
+			if (state) {
 				dmabuf = &state->dmabuf;
 				stop_dac(state);
 				dmabuf->ready = 0;
 				dmabuf->SGok = 0;
-				if(val)
+				if (val)
 					dmabuf->fmt |= CS_FMT_STEREO;
 				else
 					dmabuf->fmt &= ~CS_FMT_STEREO;
@@ -2577,14 +2497,13 @@ static int cs_ioctl(struct inode *inode, struct file *file, unsigned int cmd, un
 			}
 		}
 		if (file->f_mode & FMODE_READ) {
-			state = (struct cs_state *)card->states[0];
-			if(state)
-			{
+			state = card->states[0];
+			if (state) {
 				dmabuf = &state->dmabuf;
 				stop_adc(state);
 				dmabuf->ready = 0;
 				dmabuf->SGok = 0;
-				if(val)
+				if (val)
 					dmabuf->fmt |= CS_FMT_STEREO;
 				else
 					dmabuf->fmt &= ~CS_FMT_STEREO;
@@ -2596,12 +2515,10 @@ static int cs_ioctl(struct inode *inode, struct file *file, unsigned int cmd, un
 			}
 		}
 		return 0;
-
 	case SNDCTL_DSP_GETBLKSIZE:
 		if (file->f_mode & FMODE_WRITE) {
-			state = (struct cs_state *)card->states[1];
-			if(state)
-			{
+			state = card->states[1];
+			if (state) {
 				dmabuf = &state->dmabuf;
 				if ((val = prog_dmabuf(state)))
 					return val;
@@ -2609,9 +2526,8 @@ static int cs_ioctl(struct inode *inode, struct file *file, unsigned int cmd, un
 			}
 		}
 		if (file->f_mode & FMODE_READ) {
-			state = (struct cs_state *)card->states[0];
-			if(state)
-			{
+			state = card->states[0];
+			if (state) {
 				dmabuf = &state->dmabuf;
 				if ((val = prog_dmabuf(state)))
 					return val;
@@ -2620,10 +2536,8 @@ static int cs_ioctl(struct inode *inode, struct file *file, unsigned int cmd, un
 			}
 		}
 		return put_user(0, p);
-
 	case SNDCTL_DSP_GETFMTS: /* Returns a mask of supported sample format*/
 		return put_user(AFMT_S16_LE | AFMT_U8, p);
-
 	case SNDCTL_DSP_SETFMT: /* Select sample format */
 		if (get_user(val, p))
 			return -EFAULT;
@@ -2635,88 +2549,75 @@ static int cs_ioctl(struct inode *inode, struct file *file, unsigned int cmd, un
 			val == AFMT_U8 ? "8Bit Unsigned" : "") );
 		valsave = val;
 		if (val != AFMT_QUERY) {
-			if(val==AFMT_S16_LE || val==AFMT_U8)
-			{
+			if (val==AFMT_S16_LE || val==AFMT_U8) {
 				if (file->f_mode & FMODE_WRITE) {
-					state = (struct cs_state *)card->states[1];
-					if(state)
-					{
+					state = card->states[1];
+					if (state) {
 						dmabuf = &state->dmabuf;
 						stop_dac(state);
 						dmabuf->ready = 0;
 						dmabuf->SGok = 0;
-						if(val==AFMT_S16_LE)
+						if (val == AFMT_S16_LE)
 							dmabuf->fmt |= CS_FMT_16BIT;
 						else
 							dmabuf->fmt &= ~CS_FMT_16BIT;
 						cs_set_divisor(dmabuf);
-						if((ret = prog_dmabuf(state)))
+						if ((ret = prog_dmabuf(state)))
 							return ret;
 					}
 				}
 				if (file->f_mode & FMODE_READ) {
 					val = valsave;
-					state = (struct cs_state *)card->states[0];
-					if(state)
-					{
+					state = card->states[0];
+					if (state) {
 						dmabuf = &state->dmabuf;
 						stop_adc(state);
 						dmabuf->ready = 0;
 						dmabuf->SGok = 0;
-						if(val==AFMT_S16_LE)
+						if (val == AFMT_S16_LE)
 							dmabuf->fmt |= CS_FMT_16BIT;
 						else
 							dmabuf->fmt &= ~CS_FMT_16BIT;
 						cs_set_divisor(dmabuf);
-						if((ret = prog_dmabuf(state)))
+						if ((ret = prog_dmabuf(state)))
 							return ret;
 					}
 				}
-			}
-			else
-			{
+			} else {
 				CS_DBGOUT(CS_IOCTL | CS_ERROR, 2, printk(
 				    "cs46xx: DSP_SETFMT() Unsupported format (0x%x)\n",
 					valsave) );
 			}
-		}
-		else
-		{
-			if(file->f_mode & FMODE_WRITE)
-			{
-				state = (struct cs_state *)card->states[1];
-				if(state)
+		} else {
+			if (file->f_mode & FMODE_WRITE) {
+				state = card->states[1];
+				if (state)
 					dmabuf = &state->dmabuf;
-			}
-			else if(file->f_mode & FMODE_READ)
-			{
-				state = (struct cs_state *)card->states[0];
-				if(state)
+			} else if (file->f_mode & FMODE_READ) {
+				state = card->states[0];
+				if (state)
 					dmabuf = &state->dmabuf;
 			}
 		}
-		if(dmabuf)
-		{
-			if(dmabuf->fmt & CS_FMT_16BIT)
+		if (dmabuf) {
+			if (dmabuf->fmt & CS_FMT_16BIT)
 				return put_user(AFMT_S16_LE, p);
 			else
 				return put_user(AFMT_U8, p);
 		}
 		return put_user(0, p);
-
 	case SNDCTL_DSP_CHANNELS:
 		if (get_user(val, p))
 			return -EFAULT;
 		if (val != 0) {
 			if (file->f_mode & FMODE_WRITE) {
-				state = (struct cs_state *)card->states[1];
-				if(state)
-				{
+				state = card->states[1];
+				if (state) {
 					dmabuf = &state->dmabuf;
 					stop_dac(state);
 					dmabuf->ready = 0;
 					dmabuf->SGok = 0;
-					if(val>1)
+					if (val > 1)
 						dmabuf->fmt |= CS_FMT_STEREO;
 					else
 						dmabuf->fmt &= ~CS_FMT_STEREO;
@@ -2726,14 +2627,13 @@ static int cs_ioctl(struct inode *inode, struct file *file, unsigned int cmd, un
 				}
 			}
 			if (file->f_mode & FMODE_READ) {
-				state = (struct cs_state *)card->states[0];
-				if(state)
-				{
+				state = card->states[0];
+				if (state) {
 					dmabuf = &state->dmabuf;
 					stop_adc(state);
 					dmabuf->ready = 0;
 					dmabuf->SGok = 0;
-					if(val>1)
+					if (val > 1)
 						dmabuf->fmt |= CS_FMT_STEREO;
 					else
 						dmabuf->fmt &= ~CS_FMT_STEREO;
@@ -2745,19 +2645,16 @@ static int cs_ioctl(struct inode *inode, struct file *file, unsigned int cmd, un
 		}
 		return put_user((dmabuf->fmt & CS_FMT_STEREO) ? 2 : 1,
 				p);
-
 	case SNDCTL_DSP_POST:
 		/*
 		 * There will be a longer than normal pause in the data.
 		 * so... do nothing, because there is nothing that we can do.
 		 */
 		return 0;
-
 	case SNDCTL_DSP_SUBDIVIDE:
 		if (file->f_mode & FMODE_WRITE) {
-			state = (struct cs_state *)card->states[1];
-			if(state)
-			{
+			state = card->states[1];
+			if (state) {
 				dmabuf = &state->dmabuf;
 				if (dmabuf->subdivision)
 					return -EINVAL;
@@ -2769,9 +2666,8 @@ static int cs_ioctl(struct inode *inode, struct file *file, unsigned int cmd, un
 			}
 		}
 		if (file->f_mode & FMODE_READ) {
-			state = (struct cs_state *)card->states[0];
-			if(state)
-			{
+			state = card->states[0];
+			if (state) {
 				dmabuf = &state->dmabuf;
 				if (dmabuf->subdivision)
 					return -EINVAL;
@@ -2783,37 +2679,31 @@ static int cs_ioctl(struct inode *inode, struct file *file, unsigned int cmd, un
 			}
 		}
 		return 0;
-
 	case SNDCTL_DSP_SETFRAGMENT:
 		if (get_user(val, p))
 			return -EFAULT;
-
 		if (file->f_mode & FMODE_WRITE) {
-			state = (struct cs_state *)card->states[1];
-			if(state)
-			{
+			state = card->states[1];
+			if (state) {
 				dmabuf = &state->dmabuf;
 				dmabuf->ossfragshift = val & 0xffff;
 				dmabuf->ossmaxfrags = (val >> 16) & 0xffff;
 			}
 		}
 		if (file->f_mode & FMODE_READ) {
-			state = (struct cs_state *)card->states[0];
-			if(state)
-			{
+			state = card->states[0];
+			if (state) {
 				dmabuf = &state->dmabuf;
 				dmabuf->ossfragshift = val & 0xffff;
 				dmabuf->ossmaxfrags = (val >> 16) & 0xffff;
 			}
 		}
 		return 0;
-
 	case SNDCTL_DSP_GETOSPACE:
 		if (!(file->f_mode & FMODE_WRITE))
 			return -EINVAL;
-		state = (struct cs_state *)card->states[1];
-		if(state)
-		{
+		state = card->states[1];
+		if (state) {
 			dmabuf = &state->dmabuf;
 			spin_lock_irqsave(&state->card->lock, flags);
 			cs_update_ptr(card, CS_TRUE);
@@ -2832,13 +2722,11 @@ static int cs_ioctl(struct inode *inode, struct file *file, unsigned int cmd, un
 			return copy_to_user(argp, &abinfo, sizeof(abinfo)) ? -EFAULT : 0;
 		}
 		return -ENODEV;
-
 	case SNDCTL_DSP_GETISPACE:
 		if (!(file->f_mode & FMODE_READ))
 			return -EINVAL;
-		state = (struct cs_state *)card->states[0];
-		if(state)
-		{
+		state = card->states[0];
+		if (state) {
 			dmabuf = &state->dmabuf;
 			spin_lock_irqsave(&state->card->lock, flags);
 			cs_update_ptr(card, CS_TRUE);
@@ -2850,48 +2738,39 @@ static int cs_ioctl(struct inode *inode, struct file *file, unsigned int cmd, un
 			return copy_to_user(argp, &abinfo, sizeof(abinfo)) ? -EFAULT : 0;
 		}
 		return -ENODEV;
-
 	case SNDCTL_DSP_NONBLOCK:
 		file->f_flags |= O_NONBLOCK;
 		return 0;
-
 	case SNDCTL_DSP_GETCAPS:
 		return put_user(DSP_CAP_REALTIME|DSP_CAP_TRIGGER|DSP_CAP_MMAP,
 			    p);
-
 	case SNDCTL_DSP_GETTRIGGER:
 		val = 0;
 		CS_DBGOUT(CS_IOCTL, 2, printk("cs46xx: DSP_GETTRIGGER()+\n") );
-		if (file->f_mode & FMODE_WRITE)
-		{
-			state = (struct cs_state *)card->states[1];
-			if(state)
-			{
+		if (file->f_mode & FMODE_WRITE) {
+			state = card->states[1];
+			if (state) {
 				dmabuf = &state->dmabuf;
-				if(dmabuf->enable & DAC_RUNNING)
+				if (dmabuf->enable & DAC_RUNNING)
 					val |= PCM_ENABLE_INPUT;
 			}
 		}
-		if (file->f_mode & FMODE_READ)
-		{
-			if(state)
-			{
-				state = (struct cs_state *)card->states[0];
+		if (file->f_mode & FMODE_READ) {
+			if (state) {
+				state = card->states[0];
 				dmabuf = &state->dmabuf;
-				if(dmabuf->enable & ADC_RUNNING)
+				if (dmabuf->enable & ADC_RUNNING)
 					val |= PCM_ENABLE_OUTPUT;
 			}
 		}
 		CS_DBGOUT(CS_IOCTL, 2, printk("cs46xx: DSP_GETTRIGGER()- val=0x%x\n",val) );
 		return put_user(val, p);
-
 	case SNDCTL_DSP_SETTRIGGER:
 		if (get_user(val, p))
 			return -EFAULT;
 		if (file->f_mode & FMODE_READ) {
-			state = (struct cs_state *)card->states[0];
-			if(state)
-			{
+			state = card->states[0];
+			if (state) {
 				dmabuf = &state->dmabuf;
 				if (val & PCM_ENABLE_INPUT) {
 					if (!dmabuf->ready && (ret = prog_dmabuf(state)))
@@ -2902,9 +2781,8 @@ static int cs_ioctl(struct inode *inode, struct file *file, unsigned int cmd, un
 			}
 		}
 		if (file->f_mode & FMODE_WRITE) {
-			state = (struct cs_state *)card->states[1];
-			if(state)
-			{
+			state = card->states[1];
+			if (state) {
 				dmabuf = &state->dmabuf;
 				if (val & PCM_ENABLE_OUTPUT) {
 					if (!dmabuf->ready && (ret = prog_dmabuf(state)))
@@ -2915,13 +2793,11 @@ static int cs_ioctl(struct inode *inode, struct file *file, unsigned int cmd, un
 			}
 		}
 		return 0;
-
 	case SNDCTL_DSP_GETIPTR:
 		if (!(file->f_mode & FMODE_READ))
 			return -EINVAL;
-		state = (struct cs_state *)card->states[0];
-		if(state)
-		{
+		state = card->states[0];
+		if (state) {
 			dmabuf = &state->dmabuf;
 			spin_lock_irqsave(&state->card->lock, flags);
 			cs_update_ptr(card, CS_TRUE);
@@ -2934,28 +2810,23 @@ static int cs_ioctl(struct inode *inode, struct file *file, unsigned int cmd, un
 			return 0;
 		}
 		return -ENODEV;
-
 	case SNDCTL_DSP_GETOPTR:
 		if (!(file->f_mode & FMODE_WRITE))
 			return -EINVAL;
-		state = (struct cs_state *)card->states[1];
-		if(state)
-		{
+		state = card->states[1];
+		if (state) {
 			dmabuf = &state->dmabuf;
 			spin_lock_irqsave(&state->card->lock, flags);
 			cs_update_ptr(card, CS_TRUE);
 			cinfo.bytes = dmabuf->total_bytes;
-			if (dmabuf->mapped)
-			{
+			if (dmabuf->mapped) {
 				cinfo.blocks = (cinfo.bytes >> dmabuf->fragshift) 
 							- dmabuf->blocks;
 				CS_DBGOUT(CS_PARMS, 8, 
 					printk("total_bytes=%d blocks=%d dmabuf->blocks=%d\n", 
 					cinfo.bytes,cinfo.blocks,dmabuf->blocks) );
 				dmabuf->blocks = cinfo.bytes >> dmabuf->fragshift;
-			}
-			else
-			{
+			} else {
 				cinfo.blocks = dmabuf->count >> dmabuf->fragshift;
 			}
 			cinfo.ptr = dmabuf->hwptr;
@@ -2969,66 +2840,54 @@ static int cs_ioctl(struct inode *inode, struct file *file, unsigned int cmd, un
 			return 0;
 		}
 		return -ENODEV;
-
 	case SNDCTL_DSP_SETDUPLEX:
 		return 0;
-
 	case SNDCTL_DSP_GETODELAY:
 		if (!(file->f_mode & FMODE_WRITE))
 			return -EINVAL;
-		state = (struct cs_state *)card->states[1];
-		if(state)
-		{
+		state = card->states[1];
+		if (state) {
 			dmabuf = &state->dmabuf;
 			spin_lock_irqsave(&state->card->lock, flags);
 			cs_update_ptr(card, CS_TRUE);
 			val = dmabuf->count;
 			spin_unlock_irqrestore(&state->card->lock, flags);
-		}
-		else
+		} else
 			val = 0;
 		return put_user(val, p);
-
 	case SOUND_PCM_READ_RATE:
-		if(file->f_mode & FMODE_READ)
-			state = (struct cs_state *)card->states[0];
+		if (file->f_mode & FMODE_READ)
+			state = card->states[0];
 		else 
-			state = (struct cs_state *)card->states[1];
-		if(state)
-		{
+			state = card->states[1];
+		if (state) {
 			dmabuf = &state->dmabuf;
 			return put_user(dmabuf->rate, p);
 		}
 		return put_user(0, p);
-		
-
 	case SOUND_PCM_READ_CHANNELS:
-		if(file->f_mode & FMODE_READ)
-			state = (struct cs_state *)card->states[0];
+		if (file->f_mode & FMODE_READ)
+			state = card->states[0];
 		else 
-			state = (struct cs_state *)card->states[1];
-		if(state)
-		{
+			state = card->states[1];
+		if (state) {
 			dmabuf = &state->dmabuf;
 			return put_user((dmabuf->fmt & CS_FMT_STEREO) ? 2 : 1,
 				p);
 		}
 		return put_user(0, p);
-
 	case SOUND_PCM_READ_BITS:
-		if(file->f_mode & FMODE_READ)
-			state = (struct cs_state *)card->states[0];
+		if (file->f_mode & FMODE_READ)
+			state = card->states[0];
 		else 
-			state = (struct cs_state *)card->states[1];
-		if(state)
-		{
+			state = card->states[1];
+		if (state) {
 			dmabuf = &state->dmabuf;
 			return put_user((dmabuf->fmt & CS_FMT_16BIT) ? 
 			  	AFMT_S16_LE : AFMT_U8, p);
 
 		}
 		return put_user(0, p);
-
 	case SNDCTL_DSP_MAPINBUF:
 	case SNDCTL_DSP_MAPOUTBUF:
 	case SNDCTL_DSP_SETSYNCRO:
@@ -3057,18 +2916,15 @@ static void amp_voyetra(struct cs_card *card, int change)
 	/* Manage the EAPD bit on the Crystal 4297 
 	   and the Analog AD1885 */
 	   
-	int old=card->amplifier;
+	int old = card->amplifier;
 	
 	card->amplifier+=change;
-	if(card->amplifier && !old)
-	{
+	if (card->amplifier && !old) {
 		/* Turn the EAPD amp on */
 		cs_ac97_set(card->ac97_codec[0],  AC97_POWER_CONTROL, 
 			cs_ac97_get(card->ac97_codec[0], AC97_POWER_CONTROL) |
 				0x8000);
-	}
-	else if(old && !card->amplifier)
-	{
+	} else if(old && !card->amplifier) {
 		/* Turn the EAPD amp off */
 		cs_ac97_set(card->ac97_codec[0],  AC97_POWER_CONTROL, 
 			cs_ac97_get(card->ac97_codec[0], AC97_POWER_CONTROL) &
@@ -3083,25 +2939,21 @@ static void amp_voyetra(struct cs_card *card, int change)
  
 static void amp_hercules(struct cs_card *card, int change)
 {
-	int old=card->amplifier;
-	if(!card)
-	{
+	int old = card->amplifier;
+	if (!card) {
 		CS_DBGOUT(CS_ERROR, 2, printk(KERN_INFO 
 			"cs46xx: amp_hercules() called before initialized.\n"));
 		return;
 	}
 	card->amplifier+=change;
-	if( (card->amplifier && !old) && !(hercules_egpio_disable))
-	{
+	if ((card->amplifier && !old) && !(hercules_egpio_disable)) {
 		CS_DBGOUT(CS_PARMS, 4, printk(KERN_INFO 
 			"cs46xx: amp_hercules() external amp enabled\n"));
 		cs461x_pokeBA0(card, BA0_EGPIODR, 
 			EGPIODR_GPOE2);     /* enable EGPIO2 output */
 		cs461x_pokeBA0(card, BA0_EGPIOPTR, 
 			EGPIOPTR_GPPT2);   /* open-drain on output */
-	}
-	else if(old && !card->amplifier)
-	{
+	} else if (old && !card->amplifier) {
 		CS_DBGOUT(CS_PARMS, 4, printk(KERN_INFO 
 			"cs46xx: amp_hercules() external amp disabled\n"));
 		cs461x_pokeBA0(card, BA0_EGPIODR, 0); /* disable */
@@ -3124,31 +2976,28 @@ static void clkrun_hack(struct cs_card *card, int change)
 	u16 control;
 	u8 pp;
 	unsigned long port;
-	int old=card->active;
+	int old = card->active;
 	
 	card->active+=change;
 	
 	acpi_dev = pci_find_device(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82371AB_3, NULL);
-	if(acpi_dev == NULL)
+	if (acpi_dev == NULL)
 		return;		/* Not a thinkpad thats for sure */
 
 	/* Find the control port */		
 	pci_read_config_byte(acpi_dev, 0x41, &pp);
-	port=pp<<8;
+	port = pp << 8;
 
 	/* Read ACPI port */	
-	control=inw(port+0x10);
+	control = inw(port + 0x10);
 
 	/* Flip CLKRUN off while running */
-	if(!card->active && old)
-	{
+	if (!card->active && old) {
 		CS_DBGOUT(CS_PARMS , 9, printk( KERN_INFO
 			"cs46xx: clkrun() enable clkrun - change=%d active=%d\n",
 				change,card->active));
 		outw(control|0x2000, port+0x10);
-	}
-	else 
-	{
+	} else {
 	/*
 	* sometimes on a resume the bit is set, so always reset the bit.
 	*/
@@ -3162,20 +3011,19 @@ static void clkrun_hack(struct cs_card *card, int change)
 	
 static int cs_open(struct inode *inode, struct file *file)
 {
-	struct cs_card *card = (struct cs_card *)file->private_data;
+	struct cs_card *card = file->private_data;
 	struct cs_state *state = NULL;
 	struct dmabuf *dmabuf = NULL;
 	struct list_head *entry;
         unsigned int minor = iminor(inode);
-	int ret=0;
+	int ret = 0;
 	unsigned int tmp;
 
 	CS_DBGOUT(CS_OPEN | CS_FUNCTION, 2, printk("cs46xx: cs_open()+ file=%p %s %s\n",
 		file, file->f_mode & FMODE_WRITE ? "FMODE_WRITE" : "",
 		file->f_mode & FMODE_READ ? "FMODE_READ" : "") );
 
-	list_for_each(entry, &cs46xx_devs)
-	{
+	list_for_each(entry, &cs46xx_devs) {
 		card = list_entry(entry, struct cs_card, list);
 
 		if (!((card->dev_audio ^ minor) & ~0xf))
@@ -3192,11 +3040,10 @@ static int cs_open(struct inode *inode, struct file *file)
 	/*
 	 * hardcode state[0] for capture, [1] for playback
 	 */
-	if(file->f_mode & FMODE_READ)
-	{
+	if (file->f_mode & FMODE_READ) {
 		CS_DBGOUT(CS_WAVE_READ, 2, printk("cs46xx: cs_open() FMODE_READ\n") );
 		if (card->states[0] == NULL) {
-			state = card->states[0] = (struct cs_state *)
+			state = card->states[0] =
 				kmalloc(sizeof(struct cs_state), GFP_KERNEL);
 			if (state == NULL)
 				return -ENOMEM;
@@ -3204,36 +3051,32 @@ static int cs_open(struct inode *inode, struct file *file)
 			mutex_init(&state->sem);
 			dmabuf = &state->dmabuf;
 			dmabuf->pbuf = (void *)get_zeroed_page(GFP_KERNEL | GFP_DMA);
-			if(dmabuf->pbuf==NULL)
-			{
+			if (dmabuf->pbuf == NULL) {
 				kfree(state);
-				card->states[0]=NULL;
+				card->states[0] = NULL;
 				return -ENOMEM;
 			}
-		}
-		else
-		{
+		} else {
 			state = card->states[0];
-			if(state->open_mode & FMODE_READ)
+			if (state->open_mode & FMODE_READ)
 				return -EBUSY;
 		}
 		dmabuf->channel = card->alloc_rec_pcm_channel(card);
 			
 		if (dmabuf->channel == NULL) {
-			kfree (card->states[0]);
+			kfree(card->states[0]);
 			card->states[0] = NULL;
 			return -ENODEV;
 		}
 
 		/* Now turn on external AMP if needed */
 		state->card = card;
-		state->card->active_ctrl(state->card,1);
-		state->card->amplifier_ctrl(state->card,1);
+		state->card->active_ctrl(state->card, 1);
+		state->card->amplifier_ctrl(state->card, 1);
 		
-		if( (tmp = cs46xx_powerup(card, CS_POWER_ADC)) )
-		{
+		if ((tmp = cs46xx_powerup(card, CS_POWER_ADC))) {
 			CS_DBGOUT(CS_ERROR | CS_INIT, 1, printk(KERN_INFO 
-				"cs46xx: cs46xx_powerup of ADC failed (0x%x)\n",tmp) );
+				"cs46xx: cs46xx_powerup of ADC failed (0x%x)\n", tmp));
 			return -EIO;
 		}
 
@@ -3263,11 +3106,10 @@ static int cs_open(struct inode *inode, struct file *file)
 		state->open_mode |= FMODE_READ;
 		mutex_unlock(&state->open_mutex);
 	}
-	if(file->f_mode & FMODE_WRITE)
-	{
+	if (file->f_mode & FMODE_WRITE) {
 		CS_DBGOUT(CS_OPEN, 2, printk("cs46xx: cs_open() FMODE_WRITE\n") );
 		if (card->states[1] == NULL) {
-			state = card->states[1] = (struct cs_state *)
+			state = card->states[1] =
 				kmalloc(sizeof(struct cs_state), GFP_KERNEL);
 			if (state == NULL)
 				return -ENOMEM;
@@ -3275,36 +3117,32 @@ static int cs_open(struct inode *inode, struct file *file)
 			mutex_init(&state->sem);
 			dmabuf = &state->dmabuf;
 			dmabuf->pbuf = (void *)get_zeroed_page(GFP_KERNEL | GFP_DMA);
-			if(dmabuf->pbuf==NULL)
-			{
+			if (dmabuf->pbuf == NULL) {
 				kfree(state);
-				card->states[1]=NULL;
+				card->states[1] = NULL;
 				return -ENOMEM;
 			}
-		}
-		else
-		{
+		} else {
 			state = card->states[1];
-			if(state->open_mode & FMODE_WRITE)
+			if (state->open_mode & FMODE_WRITE)
 				return -EBUSY;
 		}
 		dmabuf->channel = card->alloc_pcm_channel(card);
 			
 		if (dmabuf->channel == NULL) {
-			kfree (card->states[1]);
+			kfree(card->states[1]);
 			card->states[1] = NULL;
 			return -ENODEV;
 		}
 
 		/* Now turn on external AMP if needed */
 		state->card = card;
-		state->card->active_ctrl(state->card,1);
-		state->card->amplifier_ctrl(state->card,1);
+		state->card->active_ctrl(state->card, 1);
+		state->card->amplifier_ctrl(state->card, 1);
 
-		if( (tmp = cs46xx_powerup(card, CS_POWER_DAC)) )
-		{
+		if ((tmp = cs46xx_powerup(card, CS_POWER_DAC))) {
 			CS_DBGOUT(CS_ERROR | CS_INIT, 1, printk(KERN_INFO 
-				"cs46xx: cs46xx_powerup of DAC failed (0x%x)\n",tmp) );
+				"cs46xx: cs46xx_powerup of DAC failed (0x%x)\n", tmp));
 			return -EIO;
 		}
 		
@@ -3333,33 +3171,29 @@ static int cs_open(struct inode *inode, struct file *file)
 
 		state->open_mode |= FMODE_WRITE;
 		mutex_unlock(&state->open_mutex);
-		if((ret = prog_dmabuf(state)))
+		if ((ret = prog_dmabuf(state)))
 			return ret;
 	}
-	CS_DBGOUT(CS_OPEN | CS_FUNCTION, 2, printk("cs46xx: cs_open()- 0\n") );
+	CS_DBGOUT(CS_OPEN | CS_FUNCTION, 2, printk("cs46xx: cs_open()- 0\n"));
 	return nonseekable_open(inode, file);
 }
 
 static int cs_release(struct inode *inode, struct file *file)
 {
-	struct cs_card *card = (struct cs_card *)file->private_data;
+	struct cs_card *card = file->private_data;
 	struct dmabuf *dmabuf;
 	struct cs_state *state;
 	unsigned int tmp;
 	CS_DBGOUT(CS_RELEASE | CS_FUNCTION, 2, printk("cs46xx: cs_release()+ file=%p %s %s\n",
 		file, file->f_mode & FMODE_WRITE ? "FMODE_WRITE" : "",
-		file->f_mode & FMODE_READ ? "FMODE_READ" : "") );
+		file->f_mode & FMODE_READ ? "FMODE_READ" : ""));
 
 	if (!(file->f_mode & (FMODE_WRITE | FMODE_READ)))
-	{
 		return -EINVAL;
-	}
 	state = card->states[1];
-	if(state)
-	{
-		if ( (state->open_mode & FMODE_WRITE) & (file->f_mode & FMODE_WRITE) )
-		{
-			CS_DBGOUT(CS_RELEASE, 2, printk("cs46xx: cs_release() FMODE_WRITE\n") );
+	if (state) {
+		if ((state->open_mode & FMODE_WRITE) & (file->f_mode & FMODE_WRITE)) {
+			CS_DBGOUT(CS_RELEASE, 2, printk("cs46xx: cs_release() FMODE_WRITE\n"));
 			dmabuf = &state->dmabuf;
 			cs_clear_tail(state);
 			drain_dac(state, file->f_flags & O_NONBLOCK);
@@ -3375,8 +3209,7 @@ static int cs_release(struct inode *inode, struct file *file)
 			state->card->states[state->virt] = NULL;
 			state->open_mode &= (~file->f_mode) & (FMODE_READ|FMODE_WRITE);
 
-			if( (tmp = cs461x_powerdown(card, CS_POWER_DAC, CS_FALSE )) )
-			{
+			if ((tmp = cs461x_powerdown(card, CS_POWER_DAC, CS_FALSE))) {
 				CS_DBGOUT(CS_ERROR, 1, printk(KERN_INFO 
 					"cs46xx: cs_release_mixdev() powerdown DAC failure (0x%x)\n",tmp) );
 			}
@@ -3384,17 +3217,14 @@ static int cs_release(struct inode *inode, struct file *file)
 			/* Now turn off external AMP if needed */
 			state->card->amplifier_ctrl(state->card, -1);
 			state->card->active_ctrl(state->card, -1);
-
 			kfree(state);
 		}
 	}
 
 	state = card->states[0];
-	if(state)
-	{
-		if ( (state->open_mode & FMODE_READ) & (file->f_mode & FMODE_READ) )
-		{
-			CS_DBGOUT(CS_RELEASE, 2, printk("cs46xx: cs_release() FMODE_READ\n") );
+	if (state) {
+		if ((state->open_mode & FMODE_READ) & (file->f_mode & FMODE_READ)) {
+			CS_DBGOUT(CS_RELEASE, 2, printk("cs46xx: cs_release() FMODE_READ\n"));
 			dmabuf = &state->dmabuf;
 			mutex_lock(&state->open_mutex);
 			stop_adc(state);
@@ -3407,8 +3237,7 @@ static int cs_release(struct inode *inode, struct file *file)
 			state->card->states[state->virt] = NULL;
 			state->open_mode &= (~file->f_mode) & (FMODE_READ|FMODE_WRITE);
 
-			if( (tmp = cs461x_powerdown(card, CS_POWER_ADC, CS_FALSE )) )
-			{
+			if ((tmp = cs461x_powerdown(card, CS_POWER_ADC, CS_FALSE))) {
 				CS_DBGOUT(CS_ERROR, 1, printk(KERN_INFO 
 					"cs46xx: cs_release_mixdev() powerdown ADC failure (0x%x)\n",tmp) );
 			}
@@ -3416,12 +3245,11 @@ static int cs_release(struct inode *inode, struct file *file)
 			/* Now turn off external AMP if needed */
 			state->card->amplifier_ctrl(state->card, -1);
 			state->card->active_ctrl(state->card, -1);
-
 			kfree(state);
 		}
 	}
 
-	CS_DBGOUT(CS_FUNCTION | CS_RELEASE, 2, printk("cs46xx: cs_release()- 0\n") );
+	CS_DBGOUT(CS_FUNCTION | CS_RELEASE, 2, printk("cs46xx: cs_release()- 0\n"));
 	return 0;
 }
 
@@ -3474,21 +3302,18 @@ static void cs46xx_ac97_suspend(struct cs_card *card)
 
 	CS_DBGOUT(CS_PM, 9, printk("cs46xx: cs46xx_ac97_suspend()+\n"));
 
-	if(card->states[1])
-	{
+	if (card->states[1]) {
 		stop_dac(card->states[1]);
 		resync_dma_ptrs(card->states[1]);
 	}
-	if(card->states[0])
-	{
+	if (card->states[0]) {
 		stop_adc(card->states[0]);
 		resync_dma_ptrs(card->states[0]);
 	}
 
-	for(Count = 0x2, i=0; (Count <= CS46XX_AC97_HIGHESTREGTORESTORE)
-			&& (i < CS46XX_AC97_NUMBER_RESTORE_REGS); 
-		Count += 2, i++)
-	{
+	for (Count = 0x2, i = 0; (Count <= CS46XX_AC97_HIGHESTREGTORESTORE)
+			&& (i < CS46XX_AC97_NUMBER_RESTORE_REGS);
+			Count += 2, i++) {
 		card->pm.ac97[i] = cs_ac97_get(dev, BA0_AC97_RESET + Count);
 	}
 /*
@@ -3522,11 +3347,10 @@ static void cs46xx_ac97_suspend(struct cs_card *card)
 * well, for now, only power down the DAC/ADC and MIXER VREFON components. 
 * trouble with removing VREF.
 */
-	if( (tmp = cs461x_powerdown(card, CS_POWER_DAC | CS_POWER_ADC |
-			CS_POWER_MIXVON, CS_TRUE )) )
-	{
+	if ((tmp = cs461x_powerdown(card, CS_POWER_DAC | CS_POWER_ADC |
+			CS_POWER_MIXVON, CS_TRUE))) {
 		CS_DBGOUT(CS_ERROR | CS_INIT, 1, printk(KERN_INFO 
-			"cs46xx: cs46xx_ac97_suspend() failure (0x%x)\n",tmp) );
+			"cs46xx: cs46xx_ac97_suspend() failure (0x%x)\n",tmp));
 	}
 
 	CS_DBGOUT(CS_PM, 9, printk("cs46xx: cs46xx_ac97_suspend()-\n"));
@@ -3566,16 +3390,13 @@ static void cs46xx_ac97_resume(struct cs_card *card)
 * Restore just the first set of registers, from register number
 * 0x02 to the register number that ulHighestRegToRestore specifies.
 */
-	for(	Count = 0x2, i=0; 
-		(Count <= CS46XX_AC97_HIGHESTREGTORESTORE)
-			&& (i < CS46XX_AC97_NUMBER_RESTORE_REGS); 
-		Count += 2, i++)
-	{
+	for (Count = 0x2, i=0; (Count <= CS46XX_AC97_HIGHESTREGTORESTORE) &&
+			(i < CS46XX_AC97_NUMBER_RESTORE_REGS); Count += 2, i++) {
 		cs_ac97_set(dev, (u8)(BA0_AC97_RESET + Count), (u16)card->pm.ac97[i]);
 	}
 
 	/* Check if we have to init the amplifier */
-	if(card->amp_init)
+	if (card->amp_init)
 		card->amp_init(card);
         
 	CS_DBGOUT(CS_PM, 9, printk("cs46xx: cs46xx_ac97_resume()-\n"));
@@ -3585,30 +3406,27 @@ static void cs46xx_ac97_resume(struct cs_card *card)
 static int cs46xx_restart_part(struct cs_card *card)
 {
 	struct dmabuf *dmabuf;
+
 	CS_DBGOUT(CS_PM | CS_FUNCTION, 4, 
 		printk( "cs46xx: cs46xx_restart_part()+\n"));
-	if(card->states[1])
-	{
+	if (card->states[1]) {
 		dmabuf = &card->states[1]->dmabuf;
 		dmabuf->ready = 0;
 		resync_dma_ptrs(card->states[1]);
 		cs_set_divisor(dmabuf);
-		if(__prog_dmabuf(card->states[1]))
-		{
+		if (__prog_dmabuf(card->states[1])) {
 			CS_DBGOUT(CS_PM | CS_ERROR, 1, 
 				printk("cs46xx: cs46xx_restart_part()- (-1) prog_dmabuf() dac error\n"));
 			return -1;
 		}
 		cs_set_dac_rate(card->states[1], dmabuf->rate);
 	}
-	if(card->states[0])
-	{
+	if (card->states[0]) {
 		dmabuf = &card->states[0]->dmabuf;
 		dmabuf->ready = 0;
 		resync_dma_ptrs(card->states[0]);
 		cs_set_divisor(dmabuf);
-		if(__prog_dmabuf(card->states[0]))
-		{
+		if (__prog_dmabuf(card->states[0])) {
 			CS_DBGOUT(CS_PM | CS_ERROR, 1, 
 				printk("cs46xx: cs46xx_restart_part()- (-1) prog_dmabuf() adc error\n"));
 			return -1;
@@ -3616,17 +3434,17 @@ static int cs46xx_restart_part(struct cs_card *card)
 		cs_set_adc_rate(card->states[0], dmabuf->rate);
 	}
 	card->pm.flags |= CS46XX_PM_RESUMED;
-	if(card->states[0])
+	if (card->states[0])
 		start_adc(card->states[0]);
-	if(card->states[1])
+	if (card->states[1])
 		start_dac(card->states[1]);
 
 	card->pm.flags |= CS46XX_PM_IDLE;
 	card->pm.flags &= ~(CS46XX_PM_SUSPENDING | CS46XX_PM_SUSPENDED 
 			| CS46XX_PM_RESUMING | CS46XX_PM_RESUMED);
-	if(card->states[0])
+	if (card->states[0])
 		wake_up(&card->states[0]->dmabuf.wait);
-	if(card->states[1])
+	if (card->states[1])
 		wake_up(&card->states[1]->dmabuf.wait);
 
 	CS_DBGOUT(CS_PM | CS_FUNCTION, 4, 
@@ -3634,20 +3452,19 @@ static int cs46xx_restart_part(struct cs_card *card)
 	return 0;
 }
 
-
 static void cs461x_reset(struct cs_card *card);
 static void cs461x_proc_stop(struct cs_card *card);
 static int cs46xx_suspend(struct cs_card *card, pm_message_t state)
 {
 	unsigned int tmp;
+
 	CS_DBGOUT(CS_PM | CS_FUNCTION, 4, 
 		printk("cs46xx: cs46xx_suspend()+ flags=0x%x s=%p\n",
 			(unsigned)card->pm.flags,card));
 /*
 * check the current state, only suspend if IDLE
 */
-	if(!(card->pm.flags & CS46XX_PM_IDLE))
-	{
+	if (!(card->pm.flags & CS46XX_PM_IDLE)) {
 		CS_DBGOUT(CS_PM | CS_ERROR, 2, 
 			printk("cs46xx: cs46xx_suspend() unable to suspend, not IDLE\n"));
 		return 1;
@@ -3679,13 +3496,11 @@ static int cs46xx_suspend(struct cs_card *card, pm_message_t state)
 	tmp = cs461x_peek(card, BA1_CCTL);
 	cs461x_poke(card, BA1_CCTL, tmp & 0xffff0000);
 
-	if(card->states[1])
-	{
+	if (card->states[1]) {
 		card->pm.dmabuf_swptr_play = card->states[1]->dmabuf.swptr;
 		card->pm.dmabuf_count_play = card->states[1]->dmabuf.count;
 	}
-	if(card->states[0])
-	{
+	if (card->states[0]) {
 		card->pm.dmabuf_swptr_capture = card->states[0]->dmabuf.swptr;
 		card->pm.dmabuf_count_capture = card->states[0]->dmabuf.count;
 	}
@@ -3736,8 +3551,7 @@ static int cs46xx_resume(struct cs_card *card)
 	CS_DBGOUT(CS_PM | CS_FUNCTION, 4, 
 		printk( "cs46xx: cs46xx_resume()+ flags=0x%x\n",
 			(unsigned)card->pm.flags));
-	if(!(card->pm.flags & CS46XX_PM_SUSPENDED))
-	{
+	if (!(card->pm.flags & CS46XX_PM_SUSPENDED)) {
 		CS_DBGOUT(CS_PM | CS_ERROR, 2, 
 			printk("cs46xx: cs46xx_resume() unable to resume, not SUSPENDED\n"));
 		return 1;
@@ -3747,10 +3561,8 @@ static int cs46xx_resume(struct cs_card *card)
 	printpm(card);
 	card->active_ctrl(card, 1);
 
-	for(i=0;i<5;i++)
-	{
-		if (cs_hardware_init(card) != 0)
-		{
+	for (i = 0; i < 5; i++) {
+		if (cs_hardware_init(card) != 0) {
 			CS_DBGOUT(CS_PM | CS_ERROR, 4, printk(
 				"cs46xx: cs46xx_resume()- ERROR in cs_hardware_init()\n"));
 			mdelay(10 * cs_laptop_wait);
@@ -3759,15 +3571,13 @@ static int cs46xx_resume(struct cs_card *card)
 		}
 		break;
 	}
-	if(i>=4)
-	{
+	if (i >= 4) {
 		CS_DBGOUT(CS_PM | CS_ERROR, 1, printk(
 			"cs46xx: cs46xx_resume()- cs_hardware_init() failed, retried %d times.\n",i));
 		return 0;
 	}
 
-	if(cs46xx_restart_part(card))
-	{
+	if (cs46xx_restart_part(card)) {
 		CS_DBGOUT(CS_PM | CS_ERROR, 4, printk(
 			"cs46xx: cs46xx_resume(): cs46xx_restart_part() returned error\n"));
 	}
@@ -3835,7 +3645,7 @@ static u16 _cs_ac97_get(struct ac97_codec *dev, u8 reg)
 	/*
 	 *  Wait for the read to occur.
 	 */
-	if(!(card->pm.flags & CS46XX_PM_IDLE))
+	if (!(card->pm.flags & CS46XX_PM_IDLE))
 		loopcnt = 2000;
 	else
 		loopcnt = 500 * cs_laptop_wait;
@@ -3866,7 +3676,7 @@ static u16 _cs_ac97_get(struct ac97_codec *dev, u8 reg)
 	 *  Wait for the valid status bit to go active.
 	 */
 
-	if(!(card->pm.flags & CS46XX_PM_IDLE))
+	if (!(card->pm.flags & CS46XX_PM_IDLE))
 		loopcnt = 2000;
 	else
 		loopcnt = 1000;
@@ -3885,7 +3695,7 @@ static u16 _cs_ac97_get(struct ac97_codec *dev, u8 reg)
 	/*
 	 *  Make sure we got valid status.
 	 */
-	if (!( (tmp=cs461x_peekBA0(card, BA0_ACSTS)) & ACSTS_VSTS)) {
+	if (!((tmp = cs461x_peekBA0(card, BA0_ACSTS)) & ACSTS_VSTS)) {
 		CS_DBGOUT(CS_ERROR, 2, printk(KERN_WARNING 
 			"cs46xx: AC'97 read problem (ACSTS_VSTS), reg = 0x%x val=0x%x 0xffff \n", 
 				reg, tmp));
@@ -3923,12 +3733,9 @@ static void cs_ac97_set(struct ac97_codec *dev, u8 reg, u16 val)
 	
 	spin_lock(&card->ac97_lock);
 	
-	if(reg == AC97_CD_VOL)
-	{
+	if (reg == AC97_CD_VOL)
 		val2 = _cs_ac97_get(dev, AC97_CD_VOL);
-	}
-	
-	
+
 	/*
 	 *  1. Write ACCAD = Command Address Register = 46Ch for AC97 register address
 	 *  2. Write ACCDA = Command Data Register = 470h    for data to write to AC97
@@ -3970,8 +3777,7 @@ static void cs_ac97_set(struct ac97_codec *dev, u8 reg, u16 val)
 	/*
 	 *  Make sure the write completed.
 	 */
-	if (cs461x_peekBA0(card, BA0_ACCTL) & ACCTL_DCV)
-	{
+	if (cs461x_peekBA0(card, BA0_ACCTL) & ACCTL_DCV) {
 		CS_DBGOUT(CS_ERROR, 1, printk(KERN_WARNING 
 			"cs46xx: AC'97 write problem, reg = 0x%x, val = 0x%x\n", reg, val));
 	}
@@ -3998,25 +3804,23 @@ static void cs_ac97_set(struct ac97_codec *dev, u8 reg, u16 val)
 	 
 	/* CD mute change ? */
 	
-	if(reg==AC97_CD_VOL)
-	{
+	if (reg == AC97_CD_VOL) {
 		/* Mute bit change ? */
-		if((val2^val)&0x8000 || ((val2 == 0x1f1f || val == 0x1f1f) && val2 != val))
-		{
+		if ((val2^val) & 0x8000 ||
+		    ((val2 == 0x1f1f || val == 0x1f1f) && val2 != val)) {
 			/* This is a hack but its cleaner than the alternatives.
 			   Right now card->ac97_codec[0] might be NULL as we are
 			   still doing codec setup. This does an early assignment
 			   to avoid the problem if it occurs */
 			   
-			if(card->ac97_codec[0]==NULL)
-				card->ac97_codec[0]=dev;
+			if (card->ac97_codec[0] == NULL)
+				card->ac97_codec[0] = dev;
 				
 			/* Mute on */
-			if(val&0x8000 || val == 0x1f1f)
+			if (val & 0x8000 || val == 0x1f1f)
 				card->amplifier_ctrl(card, -1);
-			else /* Mute off power on */
-			{
-				if(card->amp_init)
+			else { /* Mute off power on */
+				if (card->amp_init)
 					card->amp_init(card);
 				card->amplifier_ctrl(card, 1);
 			}
@@ -4024,46 +3828,41 @@ static void cs_ac97_set(struct ac97_codec *dev, u8 reg, u16 val)
 	}
 }
 
-
 /* OSS /dev/mixer file operation methods */
 
 static int cs_open_mixdev(struct inode *inode, struct file *file)
 {
-	int i=0;
+	int i = 0;
 	unsigned int minor = iminor(inode);
-	struct cs_card *card=NULL;
+	struct cs_card *card = NULL;
 	struct list_head *entry;
 	unsigned int tmp;
 
 	CS_DBGOUT(CS_FUNCTION | CS_OPEN, 4,
 		  printk(KERN_INFO "cs46xx: cs_open_mixdev()+\n"));
 
-	list_for_each(entry, &cs46xx_devs)
-	{
+	list_for_each(entry, &cs46xx_devs) {
 		card = list_entry(entry, struct cs_card, list);
 		for (i = 0; i < NR_AC97; i++)
 			if (card->ac97_codec[i] != NULL &&
 			    card->ac97_codec[i]->dev_mixer == minor)
 				goto match;
 	}
-	if (!card)
-	{
+	if (!card) {
 		CS_DBGOUT(CS_FUNCTION | CS_OPEN | CS_ERROR, 2,
 			printk(KERN_INFO "cs46xx: cs46xx_open_mixdev()- -ENODEV\n"));
 		return -ENODEV;
 	}
  match:
-	if(!card->ac97_codec[i])
+	if (!card->ac97_codec[i])
 		return -ENODEV;
 	file->private_data = card->ac97_codec[i];
 
 	card->active_ctrl(card,1);
-	if(!CS_IN_USE(&card->mixer_use_cnt))
-	{
-		if( (tmp = cs46xx_powerup(card, CS_POWER_MIXVON )) )
-		{
+	if (!CS_IN_USE(&card->mixer_use_cnt)) {
+		if ((tmp = cs46xx_powerup(card, CS_POWER_MIXVON))) {
 			CS_DBGOUT(CS_ERROR | CS_INIT, 1, printk(KERN_INFO 
-				"cs46xx: cs_open_mixdev() powerup failure (0x%x)\n",tmp) );
+				"cs46xx: cs_open_mixdev() powerup failure (0x%x)\n", tmp));
 			return -EIO;
 		}
 	}
@@ -4077,7 +3876,7 @@ static int cs_open_mixdev(struct inode *inode, struct file *file)
 static int cs_release_mixdev(struct inode *inode, struct file *file)
 {
 	unsigned int minor = iminor(inode);
-	struct cs_card *card=NULL;
+	struct cs_card *card = NULL;
 	struct list_head *entry;
 	int i;
 	unsigned int tmp;
@@ -4092,15 +3891,13 @@ static int cs_release_mixdev(struct inode *inode, struct file *file)
 			    card->ac97_codec[i]->dev_mixer == minor)
 				goto match;
 	}
-	if (!card)
-	{
+	if (!card) {
 		CS_DBGOUT(CS_FUNCTION | CS_OPEN | CS_ERROR, 2,
 			printk(KERN_INFO "cs46xx: cs46xx_open_mixdev()- -ENODEV\n"));
 		return -ENODEV;
 	}
 match:
-	if(!CS_DEC_AND_TEST(&card->mixer_use_cnt))
-	{
+	if (!CS_DEC_AND_TEST(&card->mixer_use_cnt)) {
 		CS_DBGOUT(CS_FUNCTION | CS_RELEASE, 4,
 			  printk(KERN_INFO "cs46xx: cs_release_mixdev()- no powerdown, usecnt>0\n"));
 		card->active_ctrl(card, -1);
@@ -4110,10 +3907,9 @@ match:
 /*
 * ok, no outstanding mixer opens, so powerdown.
 */
-	if( (tmp = cs461x_powerdown(card, CS_POWER_MIXVON, CS_FALSE )) )
-	{
+	if ((tmp = cs461x_powerdown(card, CS_POWER_MIXVON, CS_FALSE))) {
 		CS_DBGOUT(CS_ERROR | CS_INIT, 1, printk(KERN_INFO 
-			"cs46xx: cs_release_mixdev() powerdown MIXVON failure (0x%x)\n",tmp) );
+			"cs46xx: cs_release_mixdev() powerdown MIXVON failure (0x%x)\n", tmp));
 		card->active_ctrl(card, -1);
 		card->amplifier_ctrl(card, -1);
 		return -EIO;
@@ -4126,76 +3922,60 @@ match:
 }
 
 static int cs_ioctl_mixdev(struct inode *inode, struct file *file, unsigned int cmd,
-				unsigned long arg)
+			unsigned long arg)
 {
-	struct ac97_codec *codec = (struct ac97_codec *)file->private_data;
-	struct cs_card *card=NULL;
+	struct ac97_codec *codec = file->private_data;
+	struct cs_card *card = NULL;
 	struct list_head *entry;
 	unsigned long __user *p = (long __user *)arg;
-
 #if CSDEBUG_INTERFACE
         int val;
 
-	if( 	(cmd == SOUND_MIXER_CS_GETDBGMASK) || 
+	if (	(cmd == SOUND_MIXER_CS_GETDBGMASK) ||
 		(cmd == SOUND_MIXER_CS_SETDBGMASK) ||
 		(cmd == SOUND_MIXER_CS_GETDBGLEVEL) ||
 		(cmd == SOUND_MIXER_CS_SETDBGLEVEL) ||
-		(cmd == SOUND_MIXER_CS_APM))
-	{
-	    switch(cmd)
-	    {
-
+		(cmd == SOUND_MIXER_CS_APM)) {
+		switch (cmd) {
 		case SOUND_MIXER_CS_GETDBGMASK:
 			return put_user(cs_debugmask, p);
-		
 		case SOUND_MIXER_CS_GETDBGLEVEL:
 			return put_user(cs_debuglevel, p);
-
 		case SOUND_MIXER_CS_SETDBGMASK:
 			if (get_user(val, p))
 				return -EFAULT;
 			cs_debugmask = val;
 			return 0;
-
 		case SOUND_MIXER_CS_SETDBGLEVEL:
 			if (get_user(val, p))
 				return -EFAULT;
 			cs_debuglevel = val;
 			return 0;
-
 		case SOUND_MIXER_CS_APM:
 			if (get_user(val, p))
 				return -EFAULT;
-			if(val == CS_IOCTL_CMD_SUSPEND) 
-			{
-				list_for_each(entry, &cs46xx_devs)
-				{
+			if (val == CS_IOCTL_CMD_SUSPEND) {
+				list_for_each(entry, &cs46xx_devs) {
 					card = list_entry(entry, struct cs_card, list);
 					cs46xx_suspend(card, PMSG_ON);
 				}
 
-			}
-			else if(val == CS_IOCTL_CMD_RESUME)
-			{
-				list_for_each(entry, &cs46xx_devs)
-				{
+			} else if (val == CS_IOCTL_CMD_RESUME) {
+				list_for_each(entry, &cs46xx_devs) {
 					card = list_entry(entry, struct cs_card, list);
 					cs46xx_resume(card);
 				}
-			}
-			else
-			{
+			} else {
 				CS_DBGOUT(CS_ERROR, 1, printk(KERN_INFO
 				    "cs46xx: mixer_ioctl(): invalid APM cmd (%d)\n",
 					val));
 			}
 			return 0;
-
 		default:
 			CS_DBGOUT(CS_ERROR, 1, printk(KERN_INFO 
-				"cs46xx: mixer_ioctl(): ERROR unknown debug cmd\n") );
+				"cs46xx: mixer_ioctl(): ERROR unknown debug cmd\n"));
 			return 0;
-	    }
+		}
 	}
 #endif
 	return codec->mixer_ioctl(codec, cmd, arg);
@@ -4232,8 +4012,7 @@ static int __init cs_ac97_init(struct cs_card *card)
 		codec->codec_read = cs_ac97_get;
 		codec->codec_write = cs_ac97_set;
 	
-		if (ac97_probe_codec(codec) == 0)
-		{
+		if (ac97_probe_codec(codec) == 0) {
 			CS_DBGOUT(CS_FUNCTION | CS_INIT, 2, printk(KERN_INFO 
 				"cs46xx: cs_ac97_init()- codec number %d not found\n",
 					num_ac97) );
@@ -4241,12 +4020,11 @@ static int __init cs_ac97_init(struct cs_card *card)
 			break;
 		}
 		CS_DBGOUT(CS_FUNCTION | CS_INIT, 2, printk(KERN_INFO 
-			"cs46xx: cs_ac97_init() found codec %d\n",num_ac97) );
+			"cs46xx: cs_ac97_init() found codec %d\n",num_ac97));
 
 		eid = cs_ac97_get(codec, AC97_EXTENDED_ID);
 		
-		if(eid==0xFFFF)
-		{
+		if (eid == 0xFFFF) {
 			printk(KERN_WARNING "cs46xx: codec %d not present\n",num_ac97);
 			ac97_release_codec(codec);
 			break;
@@ -4285,26 +4063,22 @@ static void cs461x_download_image(struct cs_card *card)
 {
     unsigned i, j, temp1, temp2, offset, count;
     unsigned char __iomem *pBA1 = ioremap(card->ba1_addr, 0x40000);
-    for( i=0; i < CLEAR__COUNT; i++)
-    {
+    for (i = 0; i < CLEAR__COUNT; i++) {
         offset = ClrStat[i].BA1__DestByteOffset;
         count  = ClrStat[i].BA1__SourceSize;
-        for(  temp1 = offset; temp1<(offset+count); temp1+=4 )
+        for (temp1 = offset; temp1 < (offset + count); temp1 += 4)
               writel(0, pBA1+temp1);
     }
 
-    for(i=0; i<FILL__COUNT; i++)
-    {
+    for (i = 0; i < FILL__COUNT; i++) {
         temp2 = FillStat[i].Offset;
-        for(j=0; j<(FillStat[i].Size)/4; j++)
-        {
+        for (j = 0; j < (FillStat[i].Size) / 4; j++) {
             temp1 = (FillStat[i]).pFill[j];
-            writel(temp1, pBA1+temp2+j*4);
+            writel(temp1, pBA1+temp2 + j * 4);
         }
     }
     iounmap(pBA1);
 }
-
 
 /*
  *  Chip reset
@@ -4365,15 +4139,13 @@ static void cs461x_clear_serial_FIFOs(struct cs_card *card, int type)
 	* playing or capturing then we don't want to put in 128 bytes of
 	* "noise".
 	 */
-	if(type & CS_TYPE_DAC)
-	{
+	if (type & CS_TYPE_DAC) {
 		startfifo = 128;
 		endfifo = 256;
 	}
-	if(type & CS_TYPE_ADC)
-	{
+	if (type & CS_TYPE_ADC) {
 		startfifo = 0;
-		if(!endfifo)
+		if (!endfifo)
 			endfifo = 128;
 	}
 	/*
@@ -4417,8 +4189,7 @@ static int cs461x_powerdown(struct cs_card *card, unsigned int type, int suspend
 
 	CS_DBGOUT(CS_FUNCTION, 4, printk(KERN_INFO 
 		"cs46xx: cs461x_powerdown()+ type=0x%x\n",type));
-	if(!cs_powerdown && !suspendflag)
-	{
+	if (!cs_powerdown && !suspendflag) {
 		CS_DBGOUT(CS_FUNCTION, 8, printk(KERN_INFO 
 			"cs46xx: cs461x_powerdown() DISABLED exiting\n"));
 		return 0;
@@ -4432,12 +4203,11 @@ static int cs461x_powerdown(struct cs_card *card, unsigned int type, int suspend
 * currently powered down.  If powering down DAC and ADC, then
 * it is possible to power down the VREF (ON).
 */
-	if (    ((type & CS_POWER_MIXVON) && 
-		 (!(type & CS_POWER_ADC) || (!(type & CS_POWER_DAC))) )
+	if (((type & CS_POWER_MIXVON) &&
+		 (!(type & CS_POWER_ADC) || (!(type & CS_POWER_DAC))))
 	      && 
 		((tmp & CS_AC97_POWER_CONTROL_ADC_ON) ||
-		 (tmp & CS_AC97_POWER_CONTROL_DAC_ON) ) )
-	{
+		 (tmp & CS_AC97_POWER_CONTROL_DAC_ON))) {
 		CS_DBGOUT(CS_FUNCTION, 8, printk(KERN_INFO 
 			"cs46xx: cs461x_powerdown()- 0  unable to powerdown. tmp=0x%x\n",tmp));
 		return 0;
@@ -4452,8 +4222,7 @@ static int cs461x_powerdown(struct cs_card *card, unsigned int type, int suspend
 	/*
 	 *  Power down indicated areas.
 	 */
-	if(type & CS_POWER_MIXVOFF)
-	{
+	if (type & CS_POWER_MIXVOFF) {
 
 		CS_DBGOUT(CS_FUNCTION, 4, 
 			printk(KERN_INFO "cs46xx: cs461x_powerdown()+ MIXVOFF\n"));
@@ -4461,12 +4230,10 @@ static int cs461x_powerdown(struct cs_card *card, unsigned int type, int suspend
 		 *  Power down the MIXER (VREF ON) on the AC97 card.  
 		 */
 		tmp = cs_ac97_get(card->ac97_codec[0], AC97_POWER_CONTROL);
-		if (tmp & CS_AC97_POWER_CONTROL_MIXVOFF_ON)
-		{
-			if(!muted)
-			{
+		if (tmp & CS_AC97_POWER_CONTROL_MIXVOFF_ON) {
+			if (!muted) {
 				cs_mute(card, CS_TRUE);
-				muted=1;
+				muted = 1;
 			}
 			tmp |= CS_AC97_POWER_CONTROL_MIXVOFF;
 			cs_ac97_set(card->ac97_codec[0], AC97_POWER_CONTROL, tmp );
@@ -4492,16 +4259,14 @@ static int cs461x_powerdown(struct cs_card *card, unsigned int type, int suspend
 			 *  Check the status..
 			 */
 			if (cs_ac97_get(card->ac97_codec[0], AC97_POWER_CONTROL) & 
-				CS_AC97_POWER_CONTROL_MIXVOFF_ON)
-			{
+				CS_AC97_POWER_CONTROL_MIXVOFF_ON) {
 				CS_DBGOUT(CS_ERROR, 1, printk(KERN_WARNING 
 					"cs46xx: powerdown MIXVOFF failed\n"));
 				return 1;
 			}
 		}
 	}
-	if(type & CS_POWER_MIXVON)
-	{
+	if (type & CS_POWER_MIXVON) {
 
 		CS_DBGOUT(CS_FUNCTION, 4, 
 			printk(KERN_INFO "cs46xx: cs461x_powerdown()+ MIXVON\n"));
@@ -4509,15 +4274,13 @@ static int cs461x_powerdown(struct cs_card *card, unsigned int type, int suspend
 		 *  Power down the MIXER (VREF ON) on the AC97 card.  
 		 */
 		tmp = cs_ac97_get(card->ac97_codec[0], AC97_POWER_CONTROL);
-		if (tmp & CS_AC97_POWER_CONTROL_MIXVON_ON)
-		{
-			if(!muted)
-			{
+		if (tmp & CS_AC97_POWER_CONTROL_MIXVON_ON) {
+			if (!muted) {
 				cs_mute(card, CS_TRUE);
-				muted=1;
+				muted = 1;
 			}
 			tmp |= CS_AC97_POWER_CONTROL_MIXVON;
-			cs_ac97_set(card->ac97_codec[0], AC97_POWER_CONTROL, tmp );
+			cs_ac97_set(card->ac97_codec[0], AC97_POWER_CONTROL, tmp);
 			/*
 			 *  Now, we wait until we sample a ready state.
 			 */
@@ -4540,30 +4303,26 @@ static int cs461x_powerdown(struct cs_card *card, unsigned int type, int suspend
 			 *  Check the status..
 			 */
 			if (cs_ac97_get(card->ac97_codec[0], AC97_POWER_CONTROL) & 
-				CS_AC97_POWER_CONTROL_MIXVON_ON)
-			{
+				CS_AC97_POWER_CONTROL_MIXVON_ON) {
 				CS_DBGOUT(CS_ERROR, 1, printk(KERN_WARNING 
 					"cs46xx: powerdown MIXVON failed\n"));
 				return 1;
 			}
 		}
 	}
-	if(type & CS_POWER_ADC)
-	{
+	if (type & CS_POWER_ADC) {
 		/*
 		 *  Power down the ADC on the AC97 card.  
 		 */
 		CS_DBGOUT(CS_FUNCTION, 4, printk(KERN_INFO "cs46xx: cs461x_powerdown()+ ADC\n"));
 		tmp = cs_ac97_get(card->ac97_codec[0], AC97_POWER_CONTROL);
-		if (tmp & CS_AC97_POWER_CONTROL_ADC_ON)
-		{
-			if(!muted)
-			{
+		if (tmp & CS_AC97_POWER_CONTROL_ADC_ON) {
+			if (!muted) {
 				cs_mute(card, CS_TRUE);
-				muted=1;
+				muted = 1;
 			}
 			tmp |= CS_AC97_POWER_CONTROL_ADC;
-			cs_ac97_set(card->ac97_codec[0], AC97_POWER_CONTROL, tmp );
+			cs_ac97_set(card->ac97_codec[0], AC97_POWER_CONTROL, tmp);
 
 			/*
 			 *  Now, we wait until we sample a ready state.
@@ -4587,16 +4346,14 @@ static int cs461x_powerdown(struct cs_card *card, unsigned int type, int suspend
 			 *  Check the status..
 			 */
 			if (cs_ac97_get(card->ac97_codec[0], AC97_POWER_CONTROL) & 
-				CS_AC97_POWER_CONTROL_ADC_ON)
-			{
+				CS_AC97_POWER_CONTROL_ADC_ON) {
 				CS_DBGOUT(CS_ERROR, 1, printk(KERN_WARNING 
 					"cs46xx: powerdown ADC failed\n"));
 				return 1;
 			}
 		}
 	}
-	if(type & CS_POWER_DAC)
-	{
+	if (type & CS_POWER_DAC) {
 		/*
 		 *  Power down the DAC on the AC97 card.  
 		 */
@@ -4604,15 +4361,13 @@ static int cs461x_powerdown(struct cs_card *card, unsigned int type, int suspend
 		CS_DBGOUT(CS_FUNCTION, 4, 
 			printk(KERN_INFO "cs46xx: cs461x_powerdown()+ DAC\n"));
 		tmp = cs_ac97_get(card->ac97_codec[0], AC97_POWER_CONTROL);
-		if (tmp & CS_AC97_POWER_CONTROL_DAC_ON)
-		{
-			if(!muted)
-			{
+		if (tmp & CS_AC97_POWER_CONTROL_DAC_ON) {
+			if (!muted) {
 				cs_mute(card, CS_TRUE);
-				muted=1;
+				muted = 1;
 			}
 			tmp |= CS_AC97_POWER_CONTROL_DAC;
-			cs_ac97_set(card->ac97_codec[0], AC97_POWER_CONTROL, tmp );
+			cs_ac97_set(card->ac97_codec[0], AC97_POWER_CONTROL, tmp);
 			/*
 			 *  Now, we wait until we sample a ready state.
 			 */
@@ -4635,8 +4390,7 @@ static int cs461x_powerdown(struct cs_card *card, unsigned int type, int suspend
 			 *  Check the status..
 			 */
 			if (cs_ac97_get(card->ac97_codec[0], AC97_POWER_CONTROL) & 
-				CS_AC97_POWER_CONTROL_DAC_ON)
-			{
+				CS_AC97_POWER_CONTROL_DAC_ON) {
 				CS_DBGOUT(CS_ERROR, 1, printk(KERN_WARNING 
 					"cs46xx: powerdown DAC failed\n"));
 				return 1;
@@ -4644,7 +4398,7 @@ static int cs461x_powerdown(struct cs_card *card, unsigned int type, int suspend
 		}
 	}
 	tmp = cs_ac97_get(card->ac97_codec[0], AC97_POWER_CONTROL);
-	if(muted)
+	if (muted)
 		cs_mute(card, CS_FALSE);
 	CS_DBGOUT(CS_FUNCTION, 4, printk(KERN_INFO 
 		"cs46xx: cs461x_powerdown()- 0 tmp=0x%x\n",tmp));
@@ -4654,23 +4408,22 @@ static int cs461x_powerdown(struct cs_card *card, unsigned int type, int suspend
 static int cs46xx_powerup(struct cs_card *card, unsigned int type)
 {
 	int count;
-	unsigned int tmp=0,muted=0;
+	unsigned int tmp = 0, muted = 0;
 
 	CS_DBGOUT(CS_FUNCTION, 8, printk(KERN_INFO 
 		"cs46xx: cs46xx_powerup()+ type=0x%x\n",type));
 	/*
 	* check for VREF and powerup if need to.
 	*/
-	if(type & CS_POWER_MIXVON)
+	if (type & CS_POWER_MIXVON)
 		type |= CS_POWER_MIXVOFF;
-	if(type & (CS_POWER_DAC | CS_POWER_ADC))
+	if (type & (CS_POWER_DAC | CS_POWER_ADC))
 		type |= CS_POWER_MIXVON | CS_POWER_MIXVOFF;
 
 	/*
 	 *  Power up indicated areas.
 	 */
-	if(type & CS_POWER_MIXVOFF)
-	{
+	if (type & CS_POWER_MIXVOFF) {
 
 		CS_DBGOUT(CS_FUNCTION, 4, 
 			printk(KERN_INFO "cs46xx: cs46xx_powerup()+ MIXVOFF\n"));
@@ -4678,12 +4431,10 @@ static int cs46xx_powerup(struct cs_card *card, unsigned int type)
 		 *  Power up the MIXER (VREF ON) on the AC97 card.  
 		 */
 		tmp = cs_ac97_get(card->ac97_codec[0], AC97_POWER_CONTROL);
-		if (!(tmp & CS_AC97_POWER_CONTROL_MIXVOFF_ON))
-		{
-			if(!muted)
-			{
+		if (!(tmp & CS_AC97_POWER_CONTROL_MIXVOFF_ON)) {
+			if (!muted) {
 				cs_mute(card, CS_TRUE);
-				muted=1;
+				muted = 1;
 			}
 			tmp &= ~CS_AC97_POWER_CONTROL_MIXVOFF;
 			cs_ac97_set(card->ac97_codec[0], AC97_POWER_CONTROL, tmp );
@@ -4709,16 +4460,14 @@ static int cs46xx_powerup(struct cs_card *card, unsigned int type)
 			 *  Check the status..
 			 */
 			if (!(cs_ac97_get(card->ac97_codec[0], AC97_POWER_CONTROL) & 
-				CS_AC97_POWER_CONTROL_MIXVOFF_ON))
-			{
+				CS_AC97_POWER_CONTROL_MIXVOFF_ON)) {
 				CS_DBGOUT(CS_ERROR, 1, printk(KERN_WARNING 
 					"cs46xx: powerup MIXVOFF failed\n"));
 				return 1;
 			}
 		}
 	}
-	if(type & CS_POWER_MIXVON)
-	{
+	if(type & CS_POWER_MIXVON) {
 
 		CS_DBGOUT(CS_FUNCTION, 4, 
 			printk(KERN_INFO "cs46xx: cs46xx_powerup()+ MIXVON\n"));
@@ -4726,12 +4475,10 @@ static int cs46xx_powerup(struct cs_card *card, unsigned int type)
 		 *  Power up the MIXER (VREF ON) on the AC97 card.  
 		 */
 		tmp = cs_ac97_get(card->ac97_codec[0], AC97_POWER_CONTROL);
-		if (!(tmp & CS_AC97_POWER_CONTROL_MIXVON_ON))
-		{
-			if(!muted)
-			{
+		if (!(tmp & CS_AC97_POWER_CONTROL_MIXVON_ON)) {
+			if (!muted) {
 				cs_mute(card, CS_TRUE);
-				muted=1;
+				muted = 1;
 			}
 			tmp &= ~CS_AC97_POWER_CONTROL_MIXVON;
 			cs_ac97_set(card->ac97_codec[0], AC97_POWER_CONTROL, tmp );
@@ -4757,27 +4504,23 @@ static int cs46xx_powerup(struct cs_card *card, unsigned int type)
 			 *  Check the status..
 			 */
 			if (!(cs_ac97_get(card->ac97_codec[0], AC97_POWER_CONTROL) & 
-				CS_AC97_POWER_CONTROL_MIXVON_ON))
-			{
+				CS_AC97_POWER_CONTROL_MIXVON_ON)) {
 				CS_DBGOUT(CS_ERROR, 1, printk(KERN_WARNING 
 					"cs46xx: powerup MIXVON failed\n"));
 				return 1;
 			}
 		}
 	}
-	if(type & CS_POWER_ADC)
-	{
+	if (type & CS_POWER_ADC) {
 		/*
 		 *  Power up the ADC on the AC97 card.  
 		 */
 		CS_DBGOUT(CS_FUNCTION, 4, printk(KERN_INFO "cs46xx: cs46xx_powerup()+ ADC\n"));
 		tmp = cs_ac97_get(card->ac97_codec[0], AC97_POWER_CONTROL);
-		if (!(tmp & CS_AC97_POWER_CONTROL_ADC_ON))
-		{
-			if(!muted)
-			{
+		if (!(tmp & CS_AC97_POWER_CONTROL_ADC_ON)) {
+			if (!muted) {
 				cs_mute(card, CS_TRUE);
-				muted=1;
+				muted = 1;
 			}
 			tmp &= ~CS_AC97_POWER_CONTROL_ADC;
 			cs_ac97_set(card->ac97_codec[0], AC97_POWER_CONTROL, tmp );
@@ -4804,16 +4547,14 @@ static int cs46xx_powerup(struct cs_card *card, unsigned int type)
 			 *  Check the status..
 			 */
 			if (!(cs_ac97_get(card->ac97_codec[0], AC97_POWER_CONTROL) & 
-				CS_AC97_POWER_CONTROL_ADC_ON))
-			{
+				CS_AC97_POWER_CONTROL_ADC_ON)) {
 				CS_DBGOUT(CS_ERROR, 1, printk(KERN_WARNING 
 					"cs46xx: powerup ADC failed\n"));
 				return 1;
 			}
 		}
 	}
-	if(type & CS_POWER_DAC)
-	{
+	if (type & CS_POWER_DAC) {
 		/*
 		 *  Power up the DAC on the AC97 card.  
 		 */
@@ -4821,12 +4562,10 @@ static int cs46xx_powerup(struct cs_card *card, unsigned int type)
 		CS_DBGOUT(CS_FUNCTION, 4, 
 			printk(KERN_INFO "cs46xx: cs46xx_powerup()+ DAC\n"));
 		tmp = cs_ac97_get(card->ac97_codec[0], AC97_POWER_CONTROL);
-		if (!(tmp & CS_AC97_POWER_CONTROL_DAC_ON))
-		{
-			if(!muted)
-			{
+		if (!(tmp & CS_AC97_POWER_CONTROL_DAC_ON)) {
+			if (!muted) {
 				cs_mute(card, CS_TRUE);
-				muted=1;
+				muted = 1;
 			}
 			tmp &= ~CS_AC97_POWER_CONTROL_DAC;
 			cs_ac97_set(card->ac97_codec[0], AC97_POWER_CONTROL, tmp );
@@ -4852,8 +4591,7 @@ static int cs46xx_powerup(struct cs_card *card, unsigned int type)
 			 *  Check the status..
 			 */
 			if (!(cs_ac97_get(card->ac97_codec[0], AC97_POWER_CONTROL) & 
-				CS_AC97_POWER_CONTROL_DAC_ON))
-			{
+				CS_AC97_POWER_CONTROL_DAC_ON)) {
 				CS_DBGOUT(CS_ERROR, 1, printk(KERN_WARNING 
 					"cs46xx: powerup DAC failed\n"));
 				return 1;
@@ -4861,13 +4599,12 @@ static int cs46xx_powerup(struct cs_card *card, unsigned int type)
 		}
 	}
 	tmp = cs_ac97_get(card->ac97_codec[0], AC97_POWER_CONTROL);
-	if(muted)
+	if (muted)
 		cs_mute(card, CS_FALSE);
 	CS_DBGOUT(CS_FUNCTION, 4, printk(KERN_INFO 
 		"cs46xx: cs46xx_powerup()- 0 tmp=0x%x\n",tmp));
 	return 0;
 }
-
 
 static void cs461x_proc_start(struct cs_card *card)
 {
@@ -4965,7 +4702,7 @@ static int cs_hardware_init(struct cs_card *card)
 	* is not enough for some platforms! tested on an IBM Thinkpads and 
 	* reference cards.
 	*/
-	if(!(card->pm.flags & CS46XX_PM_IDLE))
+	if (!(card->pm.flags & CS46XX_PM_IDLE))
 		mdelay(initdelay);
 	/*
 	 *  Write the selected clock control setup to the hardware.  Do not turn on
@@ -5017,8 +4754,7 @@ static int cs_hardware_init(struct cs_card *card)
 * If we are resuming under 2.2.x then we can not schedule a timeout.
 * so, just spin the CPU.
 */
-	if(card->pm.flags & CS46XX_PM_IDLE)
-	{
+	if (card->pm.flags & CS46XX_PM_IDLE) {
 	/*
 	 * Wait for the card ready signal from the AC97 card.
 	 */
@@ -5033,9 +4769,7 @@ static int cs_hardware_init(struct cs_card *card)
 			current->state = TASK_UNINTERRUPTIBLE;
 			schedule_timeout(1);
 		} while (time_before(jiffies, end_time));
-	}
-	else
-	{
+	} else {
 		for (count = 0; count < 100; count++) {
 		// First, we want to wait for a short time.
 			udelay(25 * cs_laptop_wait);
@@ -5064,8 +4798,7 @@ static int cs_hardware_init(struct cs_card *card)
 	 */
 	cs461x_pokeBA0(card, BA0_ACCTL, ACCTL_VFRM | ACCTL_ESYN | ACCTL_RSTN);
 
-	if(card->pm.flags & CS46XX_PM_IDLE)
-	{
+	if (card->pm.flags & CS46XX_PM_IDLE) {
 	/*
 	 *  Wait until we've sampled input slots 3 and 4 as valid, meaning that
 	 *  the card is pumping ADC data across the AC-link.
@@ -5081,9 +4814,7 @@ static int cs_hardware_init(struct cs_card *card)
 			current->state = TASK_UNINTERRUPTIBLE;
 			schedule_timeout(1);
 		} while (time_before(jiffies, end_time));
-	}
-	else
-	{
+	} else {
 		for (count = 0; count < 100; count++) {
 		// First, we want to wait for a short time.
 			udelay(25 * cs_laptop_wait);
@@ -5140,17 +4871,13 @@ static int cs_hardware_init(struct cs_card *card)
 	cs461x_poke(card, BA1_CCTL, tmp & 0xffff0000);
 
 	/* initialize AC97 codec and register /dev/mixer */
-	if(card->pm.flags & CS46XX_PM_IDLE)
-	{
-		if (cs_ac97_init(card) <= 0)
-		{
+	if (card->pm.flags & CS46XX_PM_IDLE) {
+		if (cs_ac97_init(card) <= 0) {
 			CS_DBGOUT(CS_ERROR | CS_INIT, 1, printk(KERN_INFO 
-				"cs46xx: cs_ac97_init() failure\n") );
+				"cs46xx: cs_ac97_init() failure\n"));
 			return -EIO;
 		}
-	}
-	else
-	{
+	} else {
 		cs46xx_ac97_resume(card);
 	}
 	
@@ -5174,23 +4901,17 @@ static int cs_hardware_init(struct cs_card *card)
 	 *  If IDLE then Power down the part.  We will power components up 
 	 *  when we need them.  
 	 */
-	if(card->pm.flags & CS46XX_PM_IDLE)
-	{
-		if(!cs_powerdown)
-		{
-			if( (tmp = cs46xx_powerup(card, CS_POWER_DAC | CS_POWER_ADC |
-					CS_POWER_MIXVON )) )
-			{
+	if (card->pm.flags & CS46XX_PM_IDLE) {
+		if (!cs_powerdown) {
+			if ((tmp = cs46xx_powerup(card, CS_POWER_DAC | CS_POWER_ADC |
+					CS_POWER_MIXVON))) {
 				CS_DBGOUT(CS_ERROR | CS_INIT, 1, printk(KERN_INFO 
 					"cs46xx: cs461x_powerup() failure (0x%x)\n",tmp) );
 				return -EIO;
 			}
-		}
-		else
-		{
-			if( (tmp = cs461x_powerdown(card, CS_POWER_DAC | CS_POWER_ADC |
-					CS_POWER_MIXVON, CS_FALSE )) )
-			{
+		} else {
+			if ((tmp = cs461x_powerdown(card, CS_POWER_DAC | CS_POWER_ADC |
+					CS_POWER_MIXVON, CS_FALSE))) {
 				CS_DBGOUT(CS_ERROR | CS_INIT, 1, printk(KERN_INFO 
 					"cs46xx: cs461x_powerdown() failure (0x%x)\n",tmp) );
 				return -EIO;
@@ -5310,14 +5031,13 @@ MODULE_AUTHOR("Alan Cox <alan@redhat.com>, Jaroslav Kysela, <pcaudio@crystal.cir
 MODULE_DESCRIPTION("Crystal SoundFusion Audio Support");
 MODULE_LICENSE("GPL");
 
-
 static const char cs46xx_banner[] = KERN_INFO "Crystal 4280/46xx + AC97 Audio, version " CS46XX_MAJOR_VERSION "." CS46XX_MINOR_VERSION "." CS46XX_ARCH ", " __TIME__ " " __DATE__ "\n";
 static const char fndmsg[] = KERN_INFO "cs46xx: Found %d audio device(s).\n";
 
 static int __devinit cs46xx_probe(struct pci_dev *pci_dev,
 				  const struct pci_device_id *pciid)
 {
-	int i,j;
+	int i, j;
 	u16 ss_card, ss_vendor;
 	struct cs_card *card;
 	dma_addr_t dma_mask;
@@ -5378,42 +5098,35 @@ static int __devinit cs46xx_probe(struct pci_dev *pci_dev,
 
 	while (cp->name)
 	{
-		if(cp->vendor == ss_vendor && cp->id == ss_card)
-		{
+		if (cp->vendor == ss_vendor && cp->id == ss_card) {
 			card->amplifier_ctrl = cp->amp;
-			if(cp->active)
+			if (cp->active)
 				card->active_ctrl = cp->active;
-			if(cp->amp_init)
+			if (cp->amp_init)
 				card->amp_init = cp->amp_init;
 			break;
 		}
 		cp++;
 	}
-	if (cp->name==NULL)
-	{
+	if (cp->name == NULL) {
 		printk(KERN_INFO "cs46xx: Unknown card (%04X:%04X) at 0x%08lx/0x%08lx, IRQ %d\n",
 			ss_vendor, ss_card, card->ba0_addr, card->ba1_addr,  card->irq);
-	}
-	else
-	{
+	} else {
 		printk(KERN_INFO "cs46xx: %s (%04X:%04X) at 0x%08lx/0x%08lx, IRQ %d\n",
 			cp->name, ss_vendor, ss_card, card->ba0_addr, card->ba1_addr, card->irq);
 	}
 	
-	if (card->amplifier_ctrl==NULL)
-	{
+	if (card->amplifier_ctrl == NULL) {
 		card->amplifier_ctrl = amp_none;
 		card->active_ctrl = clkrun_hack;
 	}		
 
-	if (external_amp == 1)
-	{
+	if (external_amp == 1) {
 		printk(KERN_INFO "cs46xx: Crystal EAPD support forced on.\n");
 		card->amplifier_ctrl = amp_voyetra;
 	}
 
-	if (thinkpad == 1)
-	{
+	if (thinkpad == 1) {
 		printk(KERN_INFO "cs46xx: Activating CLKRUN hack for Thinkpad.\n");
 		card->active_ctrl = clkrun_hack;
 	}
@@ -5425,13 +5138,11 @@ static int __devinit cs46xx_probe(struct pci_dev *pci_dev,
 * and mdelay kernel code is replaced by a pm timer, or the delays
 * work well for battery and/or AC power both.
 */
-	if(card->active_ctrl == clkrun_hack)
-	{
+	if (card->active_ctrl == clkrun_hack) {
 		initdelay = 2100;
 		cs_laptop_wait = 5;
 	}
-	if((card->active_ctrl == clkrun_hack) && !(powerdown == 1))
-	{
+	if ((card->active_ctrl == clkrun_hack) && !(powerdown == 1)) {
 /*
 * for some currently unknown reason, powering down the DAC and ADC component
 * blocks on thinkpads causes some funky behavior... distoorrrtion and ac97 
@@ -5440,7 +5151,7 @@ static int __devinit cs46xx_probe(struct pci_dev *pci_dev,
 */
 		cs_powerdown = 0;
 	}
-	if(powerdown == 0)
+	if (powerdown == 0)
 		cs_powerdown = 0;
 	card->active_ctrl(card, 1);
 
@@ -5461,7 +5172,7 @@ static int __devinit cs46xx_probe(struct pci_dev *pci_dev,
 			card->ba1.name.pmem,
 			card->ba1.name.reg) );
 
-	if(card->ba0 == 0 || card->ba1.name.data0 == 0 ||
+	if (card->ba0 == 0 || card->ba1.name.data0 == 0 ||
 		card->ba1.name.data1 == 0 || card->ba1.name.pmem == 0 ||
 		card->ba1.name.reg == 0)
 		goto fail2;
@@ -5477,14 +5188,12 @@ static int __devinit cs46xx_probe(struct pci_dev *pci_dev,
 	}
 
         /* register /dev/midi */
-        if((card->dev_midi = register_sound_midi(&cs_midi_fops, -1)) < 0)
+        if ((card->dev_midi = register_sound_midi(&cs_midi_fops, -1)) < 0)
                 printk(KERN_ERR "cs46xx: unable to register midi\n");
                 
 	card->pm.flags |= CS46XX_PM_IDLE;
-	for(i=0;i<5;i++)
-	{
-		if (cs_hardware_init(card) != 0)
-		{
+	for (i = 0; i < 5; i++) {
+		if (cs_hardware_init(card) != 0) {
 			CS_DBGOUT(CS_ERROR, 4, printk(
 				"cs46xx: ERROR in cs_hardware_init()... retrying\n"));
 			for (j = 0; j < NR_AC97; j++)
@@ -5497,12 +5206,11 @@ static int __devinit cs46xx_probe(struct pci_dev *pci_dev,
 		}
 		break;
 	}
-	if(i>=4)
-	{
+	if(i >= 4) {
 		CS_DBGOUT(CS_PM | CS_ERROR, 1, printk(
 			"cs46xx: cs46xx_probe()- cs_hardware_init() failed, retried %d times.\n",i));
                 unregister_sound_dsp(card->dev_audio);
-                if(card->dev_midi)
+                if (card->dev_midi)
                         unregister_sound_midi(card->dev_midi);
                 goto fail;
 	}
@@ -5518,7 +5226,7 @@ static int __devinit cs46xx_probe(struct pci_dev *pci_dev,
 	* Check if we have to init the amplifier, but probably already done
 	* since the CD logic in the ac97 init code will turn on the ext amp.
 	*/
-	if(cp->amp_init)
+	if (cp->amp_init)
 		cp->amp_init(card);
         card->active_ctrl(card, -1);
 
@@ -5536,15 +5244,15 @@ static int __devinit cs46xx_probe(struct pci_dev *pci_dev,
 fail:
 	free_irq(card->irq, card);
 fail2:
-	if(card->ba0)
+	if (card->ba0)
 		iounmap(card->ba0);
-	if(card->ba1.name.data0)
+	if (card->ba1.name.data0)
 		iounmap(card->ba1.name.data0);
-	if(card->ba1.name.data1)
+	if (card->ba1.name.data1)
 		iounmap(card->ba1.name.data1);
-	if(card->ba1.name.pmem)
+	if (card->ba1.name.pmem)
 		iounmap(card->ba1.name.pmem);
-	if(card->ba1.name.reg)
+	if (card->ba1.name.reg)
 		iounmap(card->ba1.name.reg);
 	kfree(card);
 	CS_DBGOUT(CS_INIT | CS_ERROR, 1, printk(KERN_INFO
@@ -5598,9 +5306,8 @@ static void __devexit cs46xx_remove(struct pci_dev *pci_dev)
 	 *  Power down the DAC and ADC.  We will power them up (if) when we need
 	 *  them.
 	 */
-	if( (tmp = cs461x_powerdown(card, CS_POWER_DAC | CS_POWER_ADC |
-			CS_POWER_MIXVON, CS_TRUE )) )
-	{
+	if ((tmp = cs461x_powerdown(card, CS_POWER_DAC | CS_POWER_ADC |
+			CS_POWER_MIXVON, CS_TRUE))) {
 		CS_DBGOUT(CS_ERROR | CS_INIT, 1, printk(KERN_INFO 
 			"cs46xx: cs461x_powerdown() failure (0x%x)\n",tmp) );
 	}
@@ -5634,7 +5341,7 @@ static void __devexit cs46xx_remove(struct pci_dev *pci_dev)
 			ac97_release_codec(card->ac97_codec[i]);
 		}
 	unregister_sound_dsp(card->dev_audio);
-        if(card->dev_midi)
+        if (card->dev_midi)
                 unregister_sound_midi(card->dev_midi);
 	list_del(&card->list);
 	kfree(card);
@@ -5693,8 +5400,7 @@ static int __init cs46xx_init_module(void)
 		"cs46xx: cs46xx_init_module()+ \n"));
 	rtn = pci_register_driver(&cs46xx_pci_driver);
 
-	if(rtn == -ENODEV)
-	{
+	if (rtn == -ENODEV) {
 		CS_DBGOUT(CS_ERROR | CS_INIT, 1, printk( 
 			"cs46xx: Unable to detect valid cs46xx device\n"));
 	}

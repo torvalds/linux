@@ -42,6 +42,7 @@
 #include <asm/iseries/it_lp_queue.h>
 
 #include "irq.h"
+#include "pci.h"
 #include "call_pci.h"
 
 #if defined(CONFIG_SMP)
@@ -312,12 +313,12 @@ static hw_irq_controller iSeries_IRQ_handler = {
  * Note that sub_bus is always 0 (at the moment at least).
  */
 int __init iSeries_allocate_IRQ(HvBusNumber bus,
-		HvSubBusNumber sub_bus, HvAgentId dev_id)
+		HvSubBusNumber sub_bus, u32 bsubbus)
 {
 	int virtirq;
 	unsigned int realirq;
-	u8 idsel = (dev_id >> 4);
-	u8 function = dev_id & 7;
+	u8 idsel = ISERIES_GET_DEVICE_FROM_SUBBUS(bsubbus);
+	u8 function = ISERIES_GET_FUNCTION_FROM_SUBBUS(bsubbus);
 
 	realirq = (((((sub_bus << 8) + (bus - 1)) << 3) + (idsel - 1)) << 3)
 		+ function;

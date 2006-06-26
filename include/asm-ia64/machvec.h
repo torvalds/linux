@@ -75,6 +75,7 @@ typedef unsigned char ia64_mv_readb_relaxed_t (const volatile void __iomem *);
 typedef unsigned short ia64_mv_readw_relaxed_t (const volatile void __iomem *);
 typedef unsigned int ia64_mv_readl_relaxed_t (const volatile void __iomem *);
 typedef unsigned long ia64_mv_readq_relaxed_t (const volatile void __iomem *);
+typedef int ia64_mv_msi_init_t (void);
 
 static inline void
 machvec_noop (void)
@@ -153,6 +154,7 @@ extern void machvec_tlb_migrate_finish (struct mm_struct *);
 #  define platform_readl_relaxed        ia64_mv.readl_relaxed
 #  define platform_readq_relaxed        ia64_mv.readq_relaxed
 #  define platform_migrate		ia64_mv.migrate
+#  define platform_msi_init		ia64_mv.msi_init
 # endif
 
 /* __attribute__((__aligned__(16))) is required to make size of the
@@ -202,6 +204,7 @@ struct ia64_machine_vector {
 	ia64_mv_readl_relaxed_t *readl_relaxed;
 	ia64_mv_readq_relaxed_t *readq_relaxed;
 	ia64_mv_migrate_t *migrate;
+	ia64_mv_msi_init_t *msi_init;
 } __attribute__((__aligned__(16))); /* align attrib? see above comment */
 
 #define MACHVEC_INIT(name)			\
@@ -247,6 +250,7 @@ struct ia64_machine_vector {
 	platform_readl_relaxed,			\
 	platform_readq_relaxed,			\
 	platform_migrate,			\
+	platform_msi_init,			\
 }
 
 extern struct ia64_machine_vector ia64_mv;
@@ -399,6 +403,9 @@ extern int ia64_pci_legacy_write(struct pci_bus *bus, u16 port, u32 val, u8 size
 #endif
 #ifndef platform_migrate
 # define platform_migrate machvec_noop_task
+#endif
+#ifndef platform_msi_init
+# define platform_msi_init	((ia64_mv_msi_init_t*)NULL)
 #endif
 
 #endif /* _ASM_IA64_MACHVEC_H */

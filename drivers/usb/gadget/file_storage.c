@@ -1906,7 +1906,6 @@ static int fsync_sub(struct lun *curlun)
 
 	inode = filp->f_dentry->d_inode;
 	mutex_lock(&inode->i_mutex);
-	current->flags |= PF_SYNCWRITE;
 	rc = filemap_fdatawrite(inode->i_mapping);
 	err = filp->f_op->fsync(filp, filp->f_dentry, 1);
 	if (!rc)
@@ -1914,7 +1913,6 @@ static int fsync_sub(struct lun *curlun)
 	err = filemap_fdatawait(inode->i_mapping);
 	if (!rc)
 		rc = err;
-	current->flags &= ~PF_SYNCWRITE;
 	mutex_unlock(&inode->i_mutex);
 	VLDBG(curlun, "fdatasync -> %d\n", rc);
 	return rc;

@@ -28,7 +28,14 @@ static inline int current_is_kswapd(void)
  * the type/offset into the pte as 5/27 as well.
  */
 #define MAX_SWAPFILES_SHIFT	5
+#ifndef CONFIG_MIGRATION
 #define MAX_SWAPFILES		(1 << MAX_SWAPFILES_SHIFT)
+#else
+/* Use last two entries for page migration swap entries */
+#define MAX_SWAPFILES		((1 << MAX_SWAPFILES_SHIFT)-2)
+#define SWP_MIGRATION_READ	MAX_SWAPFILES
+#define SWP_MIGRATION_WRITE	(MAX_SWAPFILES + 1)
+#endif
 
 /*
  * Magic header for a swap area. The first part of the union is
@@ -48,12 +55,14 @@ union swap_header {
 		char magic[10];			/* SWAP-SPACE or SWAPSPACE2 */
 	} magic;
 	struct {
-		char	     bootbits[1024];	/* Space for disklabel etc. */
-		unsigned int version;
-		unsigned int last_page;
-		unsigned int nr_badpages;
-		unsigned int padding[125];
-		unsigned int badpages[1];
+		char		bootbits[1024];	/* Space for disklabel etc. */
+		__u32		version;
+		__u32		last_page;
+		__u32		nr_badpages;
+		unsigned char	sws_uuid[16];
+		unsigned char	sws_volume[16];
+		__u32		padding[117];
+		__u32		badpages[1];
 	} info;
 };
 
@@ -176,20 +185,7 @@ extern unsigned long try_to_free_pages(struct zone **, gfp_t);
 extern unsigned long shrink_all_memory(unsigned long nr_pages);
 extern int vm_swappiness;
 extern int remove_mapping(struct address_space *mapping, struct page *page);
-
-/* possible outcome of pageout() */
-typedef enum {
-	/* failed to write page out, page is locked */
-	PAGE_KEEP,
-	/* move page to the active list, page is locked */
-	PAGE_ACTIVATE,
-	/* page has been sent to the disk successfully, page is unlocked */
-	PAGE_SUCCESS,
-	/* page is clean and locked */
-	PAGE_CLEAN,
-} pageout_t;
-
-extern pageout_t pageout(struct page *page, struct address_space *mapping);
+extern long vm_total_pages;
 
 #ifdef CONFIG_NUMA
 extern int zone_reclaim_mode;
@@ -250,7 +246,6 @@ extern int remove_exclusive_swap_page(struct page *);
 struct backing_dev_info;
 
 extern spinlock_t swap_lock;
-extern int remove_vma_swap(struct vm_area_struct *vma, struct page *page);
 
 /* linux/mm/thrash.c */
 extern struct mm_struct * swap_token_mm;
@@ -288,18 +283,60 @@ static inline void disable_swap_token(void)
 #define free_pages_and_swap_cache(pages, nr) \
 	release_pages((pages), (nr), 0);
 
-#define show_swap_cache_info()			/*NOTHING*/
-#define free_swap_and_cache(swp)		/*NOTHING*/
-#define swap_duplicate(swp)			/*NOTHING*/
-#define swap_free(swp)				/*NOTHING*/
-#define read_swap_cache_async(swp,vma,addr)	NULL
-#define lookup_swap_cache(swp)			NULL
-#define valid_swaphandles(swp, off)		0
+static inline void show_swap_cache_info(void)
+{
+}
+
+static inline void free_swap_and_cache(swp_entry_t swp)
+{
+}
+
+static inline int swap_duplicate(swp_entry_t swp)
+{
+	return 0;
+}
+
+static inline void swap_free(swp_entry_t swp)
+{
+}
+
+static inline struct page *read_swap_cache_async(swp_entry_t swp,
+			struct vm_area_struct *vma, unsigned long addr)
+{
+	return NULL;
+}
+
+static inline struct page *lookup_swap_cache(swp_entry_t swp)
+{
+	return NULL;
+}
+
+static inline int valid_swaphandles(swp_entry_t entry, unsigned long *offset)
+{
+	return 0;
+}
+
 #define can_share_swap_page(p)			(page_mapcount(p) == 1)
-#define move_to_swap_cache(p, swp)		1
-#define move_from_swap_cache(p, i, m)		1
-#define __delete_from_swap_cache(p)		/*NOTHING*/
-#define delete_from_swap_cache(p)		/*NOTHING*/
+
+static inline int move_to_swap_cache(struct page *page, swp_entry_t entry)
+{
+	return 1;
+}
+
+static inline int move_from_swap_cache(struct page *page, unsigned long index,
+					struct address_space *mapping)
+{
+	return 1;
+}
+
+static inline void __delete_from_swap_cache(struct page *page)
+{
+}
+
+static inline void delete_from_swap_cache(struct page *page)
+{
+}
+
 #define swap_token_default_timeout		0
 
 static inline int remove_exclusive_swap_page(struct page *p)

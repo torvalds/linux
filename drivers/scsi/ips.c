@@ -556,7 +556,7 @@ ips_setup(char *ips_str)
 		 * We now have key/value pairs.
 		 * Update the variables
 		 */
-		for (i = 0; i < (sizeof (options) / sizeof (options[0])); i++) {
+		for (i = 0; i < ARRAY_SIZE(options); i++) {
 			if (strnicmp
 			    (key, options[i].option_name,
 			     strlen(options[i].option_name)) == 0) {
@@ -4364,7 +4364,7 @@ ips_rdcap(ips_ha_t * ha, ips_scb_t * scb)
 
 	METHOD_TRACE("ips_rdcap", 1);
 
-	if (scb->scsi_cmd->bufflen < 8)
+	if (scb->scsi_cmd->request_bufflen < 8)
 		return (0);
 
 	cap.lba =

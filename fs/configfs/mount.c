@@ -103,10 +103,10 @@ static int configfs_fill_super(struct super_block *sb, void *data, int silent)
 	return 0;
 }
 
-static struct super_block *configfs_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data)
+static int configfs_get_sb(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
 {
-	return get_sb_single(fs_type, flags, data, configfs_fill_super);
+	return get_sb_single(fs_type, flags, data, configfs_fill_super, mnt);
 }
 
 static struct file_system_type configfs_fs_type = {
@@ -118,7 +118,7 @@ static struct file_system_type configfs_fs_type = {
 
 int configfs_pin_fs(void)
 {
-	return simple_pin_fs("configfs", &configfs_mount,
+	return simple_pin_fs(&configfs_fs_type, &configfs_mount,
 			     &configfs_mnt_count);
 }
 

@@ -34,6 +34,7 @@
 #include <asm/arch/regs-gpioj.h>
 #include <asm/arch/regs-dsc.h>
 
+#include "s3c2410.h"
 #include "s3c2440.h"
 #include "s3c244x.h"
 #include "clock.h"
@@ -118,6 +119,7 @@ void __init s3c244x_init_clocks(int xtal)
 	 */
 
 	s3c24xx_setup_clocks(xtal, fclk, hclk, pclk);
+	s3c2410_baseclk_add();
 }
 
 #ifdef CONFIG_PM

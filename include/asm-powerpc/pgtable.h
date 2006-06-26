@@ -46,8 +46,8 @@ struct mm_struct;
 /*
  * Define the address range of the vmalloc VM area.
  */
-#define VMALLOC_START (0xD000000000000000ul)
-#define VMALLOC_SIZE  (0x80000000000UL)
+#define VMALLOC_START ASM_CONST(0xD000000000000000)
+#define VMALLOC_SIZE  ASM_CONST(0x80000000000)
 #define VMALLOC_END   (VMALLOC_START + VMALLOC_SIZE)
 
 /*
@@ -412,12 +412,6 @@ static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
 		flush_tlb_pending();
 	}
 	pte = __pte(pte_val(pte) & ~_PAGE_HPTEFLAGS);
-
-#ifdef CONFIG_PPC_64K_PAGES
-	if (mmu_virtual_psize != MMU_PAGE_64K)
-		pte = __pte(pte_val(pte) | _PAGE_COMBO);
-#endif /* CONFIG_PPC_64K_PAGES */
-
 	*ptep = pte;
 }
 

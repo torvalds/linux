@@ -1184,7 +1184,7 @@ static void __devinit snd_cs4281_proc_init(struct cs4281 * chip)
 	struct snd_info_entry *entry;
 
 	if (! snd_card_proc_new(chip->card, "cs4281", &entry))
-		snd_info_set_text_ops(entry, chip, 1024, snd_cs4281_proc_read);
+		snd_info_set_text_ops(entry, chip, snd_cs4281_proc_read);
 	if (! snd_card_proc_new(chip->card, "cs4281_BA0", &entry)) {
 		entry->content = SNDRV_INFO_CONTENT_DATA;
 		entry->private_data = chip;
@@ -1379,6 +1379,13 @@ static int __devinit snd_cs4281_create(struct snd_card *card,
 	chip->ba0_addr = pci_resource_start(pci, 0);
 	chip->ba1_addr = pci_resource_start(pci, 1);
 
+	chip->ba0 = ioremap_nocache(chip->ba0_addr, pci_resource_len(pci, 0));
+	chip->ba1 = ioremap_nocache(chip->ba1_addr, pci_resource_len(pci, 1));
+	if (!chip->ba0 || !chip->ba1) {
+		snd_cs4281_free(chip);
+		return -ENOMEM;
+	}
+	
 	if (request_irq(pci->irq, snd_cs4281_interrupt, SA_INTERRUPT|SA_SHIRQ,
 			"CS4281", chip)) {
 		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
@@ -1387,13 +1394,6 @@ static int __devinit snd_cs4281_create(struct snd_card *card,
 	}
 	chip->irq = pci->irq;
 
-	chip->ba0 = ioremap_nocache(chip->ba0_addr, pci_resource_len(pci, 0));
-	chip->ba1 = ioremap_nocache(chip->ba1_addr, pci_resource_len(pci, 1));
-	if (!chip->ba0 || !chip->ba1) {
-		snd_cs4281_free(chip);
-		return -ENOMEM;
-	}
-	
 	tmp = snd_cs4281_chip_init(chip);
 	if (tmp) {
 		snd_cs4281_free(chip);

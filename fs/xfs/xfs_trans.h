@@ -805,12 +805,9 @@ typedef struct xfs_trans {
 	((mp)->m_sb.sb_inodesize + \
 	 (mp)->m_sb.sb_sectsize * 2 + \
 	 (mp)->m_dirblksize + \
-	 (XFS_DIR_IS_V1(mp) ? 0 : \
-	    XFS_FSB_TO_B(mp, (XFS_DAENTER_BMAP1B(mp, XFS_DATA_FORK) + 1))) + \
+	 XFS_FSB_TO_B(mp, (XFS_DAENTER_BMAP1B(mp, XFS_DATA_FORK) + 1)) + \
 	 XFS_ALLOCFREE_LOG_RES(mp, 1) + \
-	 (128 * (4 + \
-		 (XFS_DIR_IS_V1(mp) ? 0 : \
-			 XFS_DAENTER_BMAP1B(mp, XFS_DATA_FORK) + 1) + \
+	 (128 * (4 + (XFS_DAENTER_BMAP1B(mp, XFS_DATA_FORK) + 1) + \
 		 XFS_ALLOCFREE_LOG_COUNT(mp, 1))))
 
 #define	XFS_ADDAFORK_LOG_RES(mp)	((mp)->m_reservations.tr_addafork)

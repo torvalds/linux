@@ -1,18 +1,8 @@
 /* 
- * 
- * linux/drivers/s390/scsi/zfcp_erp.c 
- * 
- * FCP adapter driver for IBM eServer zSeries 
- * 
- * (C) Copyright IBM Corp. 2002, 2004
+ * This file is part of the zfcp device driver for
+ * FCP adapters for IBM System z9 and zSeries.
  *
- * Author(s): Martin Peschke <mpeschke@de.ibm.com> 
- *            Raimund Schroeder <raimund.schroeder@de.ibm.com> 
- *            Aron Zeh
- *            Wolfgang Taphorn
- *            Stefan Bader <stefan.bader@de.ibm.com> 
- *            Heiko Carstens <heiko.carstens@de.ibm.com> 
- *            Andreas Herrmann <aherrman@de.ibm.com>
+ * (C) Copyright IBM Corp. 2002, 2006
  * 
  * This program is free software; you can redistribute it and/or modify 
  * it under the terms of the GNU General Public License as published by 
@@ -231,13 +221,6 @@ zfcp_erp_adapter_reopen(struct zfcp_adapter *adapter, int clear_mask)
 	return retval;
 }
 
-/*
- * function:	
- *
- * purpose:	
- *
- * returns:
- */
 int
 zfcp_erp_adapter_shutdown(struct zfcp_adapter *adapter, int clear_mask)
 {
@@ -251,13 +234,6 @@ zfcp_erp_adapter_shutdown(struct zfcp_adapter *adapter, int clear_mask)
 	return retval;
 }
 
-/*
- * function:	
- *
- * purpose:	
- *
- * returns:
- */
 int
 zfcp_erp_port_shutdown(struct zfcp_port *port, int clear_mask)
 {
@@ -271,13 +247,6 @@ zfcp_erp_port_shutdown(struct zfcp_port *port, int clear_mask)
 	return retval;
 }
 
-/*
- * function:	
- *
- * purpose:	
- *
- * returns:
- */
 int
 zfcp_erp_unit_shutdown(struct zfcp_unit *unit, int clear_mask)
 {
@@ -306,20 +275,17 @@ zfcp_erp_adisc(struct zfcp_port *port)
 	int retval = 0;
 	struct timer_list *timer;
 
-	send_els = kmalloc(sizeof(struct zfcp_send_els), GFP_ATOMIC);
+	send_els = kzalloc(sizeof(struct zfcp_send_els), GFP_ATOMIC);
 	if (send_els == NULL)
 		goto nomem;
-	memset(send_els, 0, sizeof(*send_els));
 
-	send_els->req = kmalloc(sizeof(struct scatterlist), GFP_ATOMIC);
+	send_els->req = kzalloc(sizeof(struct scatterlist), GFP_ATOMIC);
 	if (send_els->req == NULL)
 		goto nomem;
-	memset(send_els->req, 0, sizeof(*send_els->req));
 
-	send_els->resp = kmalloc(sizeof(struct scatterlist), GFP_ATOMIC);
+	send_els->resp = kzalloc(sizeof(struct scatterlist), GFP_ATOMIC);
 	if (send_els->resp == NULL)
 		goto nomem;
-	memset(send_els->resp, 0, sizeof(*send_els->resp));
 
 	address = (void *) get_zeroed_page(GFP_ATOMIC);
 	if (address == NULL)
@@ -812,13 +778,6 @@ zfcp_erp_unit_unblock(struct zfcp_unit *unit)
 	atomic_set_mask(ZFCP_STATUS_COMMON_UNBLOCKED, &unit->status);
 }
 
-/*
- * function:	
- *
- * purpose:	
- *
- * returns:
- */
 static void
 zfcp_erp_action_ready(struct zfcp_erp_action *erp_action)
 {
@@ -1356,13 +1315,6 @@ zfcp_erp_strategy_check_action(struct zfcp_erp_action *erp_action, int retval)
 	return retval;
 }
 
-/*
- * function:	
- *
- * purpose:	
- *
- * returns:
- */
 static int
 zfcp_erp_strategy_do_action(struct zfcp_erp_action *erp_action)
 {
@@ -1538,13 +1490,6 @@ zfcp_erp_strategy_check_target(struct zfcp_erp_action *erp_action, int result)
 	return result;
 }
 
-/*
- * function:	
- *
- * purpose:	
- *
- * returns:
- */
 static int
 zfcp_erp_strategy_statechange(int action,
 			      u32 status,
@@ -1586,13 +1531,6 @@ zfcp_erp_strategy_statechange(int action,
 	return retval;
 }
 
-/*
- * function:	
- *
- * purpose:	
- *
- * returns:
- */
 static inline int
 zfcp_erp_strategy_statechange_detected(atomic_t * target_status, u32 erp_status)
 {
@@ -1605,13 +1543,6 @@ zfcp_erp_strategy_statechange_detected(atomic_t * target_status, u32 erp_status)
 	     !(ZFCP_STATUS_ERP_CLOSE_ONLY & erp_status));
 }
 
-/*
- * function:	
- *
- * purpose:	
- *
- * returns:
- */
 static int
 zfcp_erp_strategy_check_unit(struct zfcp_unit *unit, int result)
 {
@@ -1642,13 +1573,6 @@ zfcp_erp_strategy_check_unit(struct zfcp_unit *unit, int result)
 	return result;
 }
 
-/*
- * function:	
- *
- * purpose:	
- *
- * returns:
- */
 static int
 zfcp_erp_strategy_check_port(struct zfcp_port *port, int result)
 {
@@ -1678,13 +1602,6 @@ zfcp_erp_strategy_check_port(struct zfcp_port *port, int result)
 	return result;
 }
 
-/*
- * function:	
- *
- * purpose:	
- *
- * returns:
- */
 static int
 zfcp_erp_strategy_check_adapter(struct zfcp_adapter *adapter, int result)
 {
@@ -1764,13 +1681,6 @@ zfcp_erp_strategy_followup_actions(int action,
 	return 0;
 }
 
-/*
- * function:	
- *
- * purpose:	
- *
- * returns:
- */
 static int
 zfcp_erp_strategy_check_queues(struct zfcp_adapter *adapter)
 {
@@ -1809,12 +1719,6 @@ zfcp_erp_wait(struct zfcp_adapter *adapter)
 	return retval;
 }
 
-/*
- * function:	zfcp_erp_modify_adapter_status
- *
- * purpose:	
- *
- */
 void
 zfcp_erp_modify_adapter_status(struct zfcp_adapter *adapter,
 			       u32 mask, int set_or_clear)
@@ -1919,13 +1823,6 @@ zfcp_erp_port_reopen_all(struct zfcp_adapter *adapter, int clear_mask)
 	return retval;
 }
 
-/*
- * function:	
- *
- * purpose:	
- *
- * returns:	FIXME
- */
 static int
 zfcp_erp_port_reopen_all_internal(struct zfcp_adapter *adapter, int clear_mask)
 {
@@ -2370,13 +2267,6 @@ zfcp_erp_adapter_strategy_open_fsf_xport(struct zfcp_erp_action *erp_action)
 	return ret;
 }
 
-/*
- * function:	
- *
- * purpose:	
- *
- * returns:
- */
 static int
 zfcp_erp_adapter_strategy_open_fsf_statusread(struct zfcp_erp_action
 					      *erp_action)
@@ -2545,13 +2435,6 @@ zfcp_erp_port_strategy(struct zfcp_erp_action *erp_action)
 	return retval;
 }
 
-/*
- * function:	
- *
- * purpose:	
- *
- * returns:
- */
 static int
 zfcp_erp_port_strategy_open(struct zfcp_erp_action *erp_action)
 {
@@ -2566,15 +2449,6 @@ zfcp_erp_port_strategy_open(struct zfcp_erp_action *erp_action)
 	return retval;
 }
 
-/*
- * function:	
- *
- * purpose:	
- *
- * returns:
- *
- * FIXME(design):	currently only prepared for fabric (nameserver!)
- */
 static int
 zfcp_erp_port_strategy_open_common(struct zfcp_erp_action *erp_action)
 {
@@ -2690,13 +2564,6 @@ zfcp_erp_port_strategy_open_common(struct zfcp_erp_action *erp_action)
 	return retval;
 }
 
-/*
- * function:	
- *
- * purpose:	
- *
- * returns:
- */
 static int
 zfcp_erp_port_strategy_open_nameserver(struct zfcp_erp_action *erp_action)
 {
@@ -2813,13 +2680,6 @@ zfcp_erp_port_forced_strategy_close(struct zfcp_erp_action *erp_action)
 	return retval;
 }
 
-/*
- * function:	
- *
- * purpose:	
- *
- * returns:
- */
 static int
 zfcp_erp_port_strategy_clearstati(struct zfcp_port *port)
 {
@@ -3022,13 +2882,6 @@ zfcp_erp_unit_strategy(struct zfcp_erp_action *erp_action)
 	return retval;
 }
 
-/*
- * function:
- *
- * purpose:
- *
- * returns:
- */
 static int
 zfcp_erp_unit_strategy_clearstati(struct zfcp_unit *unit)
 {
@@ -3129,13 +2982,6 @@ zfcp_erp_unit_strategy_open(struct zfcp_erp_action *erp_action)
 	return retval;
 }
 
-/*
- * function:	
- *
- * purpose:	
- *
- * returns:
- */
 static inline void
 zfcp_erp_timeout_init(struct zfcp_erp_action *erp_action)
 {
@@ -3331,13 +3177,6 @@ zfcp_erp_action_enqueue(int action,
 	return retval;
 }
 
-/*
- * function:	
- *
- * purpose:	
- *
- * returns:
- */
 static int
 zfcp_erp_action_dequeue(struct zfcp_erp_action *erp_action)
 {
@@ -3402,9 +3241,13 @@ zfcp_erp_action_cleanup(int action, struct zfcp_adapter *adapter,
 		break;
 	case ZFCP_ERP_ACTION_REOPEN_PORT_FORCED:
 	case ZFCP_ERP_ACTION_REOPEN_PORT:
+		if (atomic_test_mask(ZFCP_STATUS_PORT_NO_WWPN,
+				     &port->status)) {
+			zfcp_port_put(port);
+			break;
+		}
+
 		if ((result == ZFCP_ERP_SUCCEEDED)
-		    && !atomic_test_mask(ZFCP_STATUS_PORT_NO_WWPN,
-					 &port->status)
 		    && !port->rport) {
 			struct fc_rport_identifiers ids;
 			ids.node_name = port->wwnn;
@@ -3418,12 +3261,30 @@ zfcp_erp_action_cleanup(int action, struct zfcp_adapter *adapter,
 						"(adapter %s, wwpn=0x%016Lx)\n",
 						zfcp_get_busid_by_port(port),
 						port->wwpn);
-			else
+			else {
 				scsi_flush_work(adapter->scsi_host);
+				port->rport->maxframe_size = port->maxframe_size;
+				port->rport->supported_classes =
+					port->supported_classes;
+			}
+		}
+		if ((result != ZFCP_ERP_SUCCEEDED) && port->rport) {
+			fc_remote_port_delete(port->rport);
+			port->rport = NULL;
 		}
 		zfcp_port_put(port);
 		break;
 	case ZFCP_ERP_ACTION_REOPEN_ADAPTER:
+		if (result != ZFCP_ERP_SUCCEEDED) {
+			struct zfcp_port *port;
+			list_for_each_entry(port, &adapter->port_list_head, list)
+				if (port->rport &&
+				    !atomic_test_mask(ZFCP_STATUS_PORT_WKA,
+						      &port->status)) {
+					fc_remote_port_delete(port->rport);
+					port->rport = NULL;
+				}
+		}
 		zfcp_adapter_put(adapter);
 		break;
 	default:
@@ -3432,13 +3293,6 @@ zfcp_erp_action_cleanup(int action, struct zfcp_adapter *adapter,
 }
 
 
-/*
- * function:	
- *
- * purpose:	
- *
- * returns:	FIXME
- */
 static int
 zfcp_erp_action_dismiss_adapter(struct zfcp_adapter *adapter)
 {
@@ -3455,13 +3309,6 @@ zfcp_erp_action_dismiss_adapter(struct zfcp_adapter *adapter)
 	return retval;
 }
 
-/*
- * function:	
- *
- * purpose:	
- *
- * returns:	FIXME
- */
 static int
 zfcp_erp_action_dismiss_port(struct zfcp_port *port)
 {
@@ -3480,13 +3327,6 @@ zfcp_erp_action_dismiss_port(struct zfcp_port *port)
 	return retval;
 }
 
-/*
- * function:	
- *
- * purpose:	
- *
- * returns:	FIXME
- */
 static int
 zfcp_erp_action_dismiss_unit(struct zfcp_unit *unit)
 {
@@ -3501,13 +3341,6 @@ zfcp_erp_action_dismiss_unit(struct zfcp_unit *unit)
 	return retval;
 }
 
-/*
- * function:	
- *
- * purpose:	moves erp_action to 'erp running list'
- *
- * returns:
- */
 static inline void
 zfcp_erp_action_to_running(struct zfcp_erp_action *erp_action)
 {
@@ -3518,13 +3351,6 @@ zfcp_erp_action_to_running(struct zfcp_erp_action *erp_action)
 	list_move(&erp_action->list, &erp_action->adapter->erp_running_head);
 }
 
-/*
- * function:	
- *
- * purpose:	moves erp_action to 'erp ready list'
- *
- * returns:
- */
 static inline void
 zfcp_erp_action_to_ready(struct zfcp_erp_action *erp_action)
 {
@@ -3535,11 +3361,6 @@ zfcp_erp_action_to_ready(struct zfcp_erp_action *erp_action)
 	list_move(&erp_action->list, &erp_action->adapter->erp_ready_head);
 }
 
-/*
- * function:	zfcp_erp_port_boxed
- *
- * purpose:
- */
 void
 zfcp_erp_port_boxed(struct zfcp_port *port)
 {
@@ -3556,11 +3377,6 @@ zfcp_erp_port_boxed(struct zfcp_port *port)
 	zfcp_erp_port_reopen(port, ZFCP_STATUS_COMMON_ERP_FAILED);
 }
 
-/*
- * function:	zfcp_erp_unit_boxed
- *
- * purpose:
- */
 void
 zfcp_erp_unit_boxed(struct zfcp_unit *unit)
 {
@@ -3574,11 +3390,6 @@ zfcp_erp_unit_boxed(struct zfcp_unit *unit)
 	zfcp_erp_unit_reopen(unit, ZFCP_STATUS_COMMON_ERP_FAILED);
 }
 
-/*
- * function:	zfcp_erp_port_access_denied
- *
- * purpose:
- */
 void
 zfcp_erp_port_access_denied(struct zfcp_port *port)
 {
@@ -3595,11 +3406,6 @@ zfcp_erp_port_access_denied(struct zfcp_port *port)
 	read_unlock_irqrestore(&zfcp_data.config_lock, flags);
 }
 
-/*
- * function:	zfcp_erp_unit_access_denied
- *
- * purpose:
- */
 void
 zfcp_erp_unit_access_denied(struct zfcp_unit *unit)
 {
@@ -3613,11 +3419,6 @@ zfcp_erp_unit_access_denied(struct zfcp_unit *unit)
 			ZFCP_SET);
 }
 
-/*
- * function:	zfcp_erp_adapter_access_changed
- *
- * purpose:
- */
 void
 zfcp_erp_adapter_access_changed(struct zfcp_adapter *adapter)
 {
@@ -3628,7 +3429,7 @@ zfcp_erp_adapter_access_changed(struct zfcp_adapter *adapter)
 		return;
 
 	debug_text_event(adapter->erp_dbf, 3, "a_access_recover");
-	debug_event(adapter->erp_dbf, 3, &adapter->name, 8);
+	debug_event(adapter->erp_dbf, 3, zfcp_get_busid_by_adapter(adapter), 8);
 
 	read_lock_irqsave(&zfcp_data.config_lock, flags);
 	if (adapter->nameserver_port)
@@ -3639,11 +3440,6 @@ zfcp_erp_adapter_access_changed(struct zfcp_adapter *adapter)
 	read_unlock_irqrestore(&zfcp_data.config_lock, flags);
 }
 
-/*
- * function:	zfcp_erp_port_access_changed
- *
- * purpose:
- */
 void
 zfcp_erp_port_access_changed(struct zfcp_port *port)
 {
@@ -3672,11 +3468,6 @@ zfcp_erp_port_access_changed(struct zfcp_port *port)
 				zfcp_get_busid_by_adapter(adapter), port->wwpn);
 }
 
-/*
- * function:	zfcp_erp_unit_access_changed
- *
- * purpose:
- */
 void
 zfcp_erp_unit_access_changed(struct zfcp_unit *unit)
 {

@@ -18,6 +18,7 @@
  * Copyright (c) 2005 Linas Vepstas <linas@linas.org>
  */
 
+#include <linux/delay.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
 #include <linux/pci.h>
@@ -56,38 +57,43 @@ static int eeh_event_handler(void * dummy)
 {
 	unsigned long flags;
 	struct eeh_event	*event;
+	struct pci_dn *pdn;
 
 	daemonize ("eehd");
+	set_current_state(TASK_INTERRUPTIBLE);
 
-	while (1) {
-		set_current_state(TASK_INTERRUPTIBLE);
+	spin_lock_irqsave(&eeh_eventlist_lock, flags);
+	event = NULL;
 
-		spin_lock_irqsave(&eeh_eventlist_lock, flags);
-		event = NULL;
+	/* Unqueue the event, get ready to process. */
+	if (!list_empty(&eeh_eventlist)) {
+		event = list_entry(eeh_eventlist.next, struct eeh_event, list);
+		list_del(&event->list);
+	}
+	spin_unlock_irqrestore(&eeh_eventlist_lock, flags);
 
-		/* Unqueue the event, get ready to process. */
-		if (!list_empty(&eeh_eventlist)) {
-			event = list_entry(eeh_eventlist.next, struct eeh_event, list);
-			list_del(&event->list);
-		}
-		spin_unlock_irqrestore(&eeh_eventlist_lock, flags);
+	if (event == NULL)
+		return 0;
 
-		if (event == NULL)
-			break;
+	/* Serialize processing of EEH events */
+	mutex_lock(&eeh_event_mutex);
+	eeh_mark_slot(event->dn, EEH_MODE_RECOVERING);
 
-		/* Serialize processing of EEH events */
-		mutex_lock(&eeh_event_mutex);
-		eeh_mark_slot(event->dn, EEH_MODE_RECOVERING);
+	printk(KERN_INFO "EEH: Detected PCI bus error on device %s\n",
+	       pci_name(event->dev));
 
-		printk(KERN_INFO "EEH: Detected PCI bus error on device %s\n",
-		       pci_name(event->dev));
+	pdn = handle_eeh_events(event);
 
-		handle_eeh_events(event);
+	eeh_clear_slot(event->dn, EEH_MODE_RECOVERING);
+	pci_dev_put(event->dev);
+	kfree(event);
+	mutex_unlock(&eeh_event_mutex);
 
-		eeh_clear_slot(event->dn, EEH_MODE_RECOVERING);
-		pci_dev_put(event->dev);
-		kfree(event);
-		mutex_unlock(&eeh_event_mutex);
+	/* If there are no new errors after an hour, clear the counter. */
+	if (pdn && pdn->eeh_freeze_count>0) {
+		msleep_interruptible (3600*1000);
+		if (pdn->eeh_freeze_count>0)
+			pdn->eeh_freeze_count--;
 	}
 
 	return 0;

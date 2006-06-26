@@ -2966,6 +2966,22 @@ done:
 	return retval;
 }
 
+/* make sure the board is quiescent; otherwise it will continue
+ * generating IRQs across the upcoming reboot.
+ */
+
+static void net2280_shutdown (struct pci_dev *pdev)
+{
+	struct net2280		*dev = pci_get_drvdata (pdev);
+
+	/* disable IRQs */
+	writel (0, &dev->regs->pciirqenb0);
+	writel (0, &dev->regs->pciirqenb1);
+
+	/* disable the pullup so the host will think we're gone */
+	writel (0, &dev->usb->usbctl);
+}
+
 
 /*-------------------------------------------------------------------------*/
 
@@ -2995,6 +3011,7 @@ static struct pci_driver net2280_pci_driver = {
 
 	.probe =	net2280_probe,
 	.remove =	net2280_remove,
+	.shutdown =	net2280_shutdown,
 
 	/* FIXME add power management support */
 };

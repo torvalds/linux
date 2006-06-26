@@ -253,6 +253,7 @@ my $lineprefix="";
 # 3 - scanning prototype.
 # 4 - documentation block
 my $state;
+my $in_doc_sect;
 
 #declaration types: can be
 # 'function', 'struct', 'union', 'enum', 'typedef'
@@ -1064,7 +1065,7 @@ sub output_struct_man(%) {
     }
     print "};\n.br\n";
 
-    print ".SH Arguments\n";
+    print ".SH Members\n";
     foreach $parameter (@{$args{'parameterlist'}}) {
 	($parameter =~ /^#/) && next;
 
@@ -1673,6 +1674,9 @@ sub process_state3_type($$) {
 # replace <, >, and &
 sub xml_escape($) {
 	my $text = shift;
+	if (($output_mode eq "text") || ($output_mode eq "man")) {
+		return $text;
+	}
 	$text =~ s/\&/\\\\\\amp;/g;
 	$text =~ s/\</\\\\\\lt;/g;
 	$text =~ s/\>/\\\\\\gt;/g;
@@ -1706,6 +1710,7 @@ sub process_file($) {
 	if ($state == 0) {
 	    if (/$doc_start/o) {
 		$state = 1;		# next line is always the function name
+		$in_doc_sect = 0;
 	    }
 	} elsif ($state == 1) {	# this line is the function name (always)
 	    if (/$doc_block/o) {
@@ -1756,12 +1761,20 @@ sub process_file($) {
 		$newcontents = $2;
 
 		if ($contents ne "") {
+		    if (!$in_doc_sect && $verbose) {
+			print STDERR "Warning(${file}:$.): contents before sections\n";
+			++$warnings;
+		    }
 		    dump_section($section, xml_escape($contents));
 		    $section = $section_default;
 		}
 
+		$in_doc_sect = 1;
 		$contents = $newcontents;
 		if ($contents ne "") {
+		    if (substr($contents, 0, 1) eq " ") {
+			$contents = substr($contents, 1);
+		    }
 		    $contents .= "\n";
 		}
 		$section = $newsection;
@@ -1776,7 +1789,7 @@ sub process_file($) {
 		$prototype = "";
 		$state = 3;
 		$brcount = 0;
-#	    print STDERR "end of doc comment, looking for prototype\n";
+#		print STDERR "end of doc comment, looking for prototype\n";
 	    } elsif (/$doc_content/) {
 		# miguel-style comment kludge, look for blank lines after
 		# @parameter line to signify start of description
@@ -1793,7 +1806,7 @@ sub process_file($) {
 		print STDERR "Warning(${file}:$.): bad line: $_";
 		++$warnings;
 	    }
-	} elsif ($state == 3) {	# scanning for function { (end of prototype)
+	} elsif ($state == 3) {	# scanning for function '{' (end of prototype)
 	    if ($decl_type eq 'function') {
 	        process_state3_function($_, $file);
 	    } else {

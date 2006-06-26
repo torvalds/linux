@@ -42,7 +42,6 @@
 #include <asm/pgtable.h>
 #endif
 
-unsigned long rom_length;
 unsigned long memory_start;
 unsigned long memory_end;
 
@@ -56,29 +55,29 @@ static void dummy_waitbut(void)
 {
 }
 
-void (*mach_sched_init) (irqreturn_t (*handler)(int, void *, struct pt_regs *)) = NULL;
-void (*mach_tick)( void ) = NULL;
+void (*mach_sched_init) (irqreturn_t (*handler)(int, void *, struct pt_regs *));
+void (*mach_tick)( void );
 /* machine dependent keyboard functions */
-int (*mach_keyb_init) (void) = NULL;
-int (*mach_kbdrate) (struct kbd_repeat *) = NULL;
-void (*mach_kbd_leds) (unsigned int) = NULL;
+int (*mach_keyb_init) (void);
+int (*mach_kbdrate) (struct kbd_repeat *);
+void (*mach_kbd_leds) (unsigned int);
 /* machine dependent irq functions */
-void (*mach_init_IRQ) (void) = NULL;
-irqreturn_t (*(*mach_default_handler)[]) (int, void *, struct pt_regs *) = NULL;
-int (*mach_get_irq_list) (struct seq_file *, void *) = NULL;
-void (*mach_process_int) (int irq, struct pt_regs *fp) = NULL;
+void (*mach_init_IRQ) (void);
+irqreturn_t (*(*mach_default_handler)[]) (int, void *, struct pt_regs *);
+int (*mach_get_irq_list) (struct seq_file *, void *);
+void (*mach_process_int) (int irq, struct pt_regs *fp);
 void (*mach_trap_init) (void);
 /* machine dependent timer functions */
-unsigned long (*mach_gettimeoffset) (void) = NULL;
-void (*mach_gettod) (int*, int*, int*, int*, int*, int*) = NULL;
-int (*mach_hwclk) (int, struct hwclk_time*) = NULL;
-int (*mach_set_clock_mmss) (unsigned long) = NULL;
-void (*mach_mksound)( unsigned int count, unsigned int ticks ) = NULL;
-void (*mach_reset)( void ) = NULL;
+unsigned long (*mach_gettimeoffset) (void);
+void (*mach_gettod) (int*, int*, int*, int*, int*, int*);
+int (*mach_hwclk) (int, struct hwclk_time*);
+int (*mach_set_clock_mmss) (unsigned long);
+void (*mach_mksound)( unsigned int count, unsigned int ticks );
+void (*mach_reset)( void );
 void (*waitbut)(void) = dummy_waitbut;
-void (*mach_debug_init)(void) = NULL;
-void (*mach_halt)( void ) = NULL;
-void (*mach_power_off)( void ) = NULL;
+void (*mach_debug_init)(void);
+void (*mach_halt)( void );
+void (*mach_power_off)( void );
 
 
 #ifdef CONFIG_M68000
@@ -128,6 +127,9 @@ void (*mach_power_off)( void ) = NULL;
 #endif
 #if defined(CONFIG_M5307)
 	#define	CPU "COLDFIRE(m5307)"
+#endif
+#if defined(CONFIG_M532x)
+	#define	CPU "COLDFIRE(m532x)"
 #endif
 #if defined(CONFIG_M5407)
 	#define	CPU "COLDFIRE(m5407)"
@@ -265,34 +267,6 @@ void setup_arch(char **cmdline_p)
 	 * Get kmalloc into gear.
 	 */
 	paging_init();
-}
-
-int get_cpuinfo(char * buffer)
-{
-    char *cpu, *mmu, *fpu;
-    u_long clockfreq;
-
-    cpu = CPU;
-    mmu = "none";
-    fpu = "none";
-
-#ifdef CONFIG_COLDFIRE
-    clockfreq = (loops_per_jiffy*HZ)*3;
-#else
-    clockfreq = (loops_per_jiffy*HZ)*16;
-#endif
-
-    return(sprintf(buffer, "CPU:\t\t%s\n"
-		   "MMU:\t\t%s\n"
-		   "FPU:\t\t%s\n"
-		   "Clocking:\t%lu.%1luMHz\n"
-		   "BogoMips:\t%lu.%02lu\n"
-		   "Calibration:\t%lu loops\n",
-		   cpu, mmu, fpu,
-		   clockfreq/1000000,(clockfreq/100000)%10,
-		   (loops_per_jiffy*HZ)/500000,((loops_per_jiffy*HZ)/5000)%100,
-		   (loops_per_jiffy*HZ)));
-
 }
 
 /*

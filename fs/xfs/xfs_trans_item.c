@@ -493,7 +493,7 @@ xfs_trans_add_busy(xfs_trans_t *tp, xfs_agnumber_t ag, xfs_extlen_t idx)
 				break;
 			} else {
 				/* out-of-order vacancy */
-				printk("OOO vacancy lbcp 0x%p\n", lbcp);
+				cmn_err(CE_DEBUG, "OOO vacancy lbcp 0x%p\n", lbcp);
 				ASSERT(0);
 			}
 		}

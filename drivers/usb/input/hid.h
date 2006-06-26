@@ -41,6 +41,14 @@
 #define USB_INTERFACE_CLASS_HID		3
 
 /*
+ * USB HID interface subclass and protocol codes
+ */
+
+#define USB_INTERFACE_SUBCLASS_BOOT	1
+#define USB_INTERFACE_PROTOCOL_KEYBOARD	1
+#define USB_INTERFACE_PROTOCOL_MOUSE	2
+
+/*
  * HID class requests
  */
 
@@ -247,10 +255,11 @@ struct hid_item {
 #define HID_QUIRK_2WHEEL_MOUSE_HACK_7		0x00000080
 #define HID_QUIRK_2WHEEL_MOUSE_HACK_5		0x00000100
 #define HID_QUIRK_2WHEEL_MOUSE_HACK_ON		0x00000200
-#define HID_QUIRK_2WHEEL_POWERMOUSE		0x00000400
+#define HID_QUIRK_MIGHTYMOUSE			0x00000400
 #define HID_QUIRK_CYMOTION			0x00000800
 #define HID_QUIRK_POWERBOOK_HAS_FN		0x00001000
 #define HID_QUIRK_POWERBOOK_FN_ON		0x00002000
+#define HID_QUIRK_INVERT_HWHEEL			0x00004000
 
 /*
  * This is the global environment of the parser. This information is

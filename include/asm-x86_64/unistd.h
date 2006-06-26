@@ -617,10 +617,12 @@ __SYSCALL(__NR_tee, sys_tee)
 __SYSCALL(__NR_sync_file_range, sys_sync_file_range)
 #define __NR_vmsplice		278
 __SYSCALL(__NR_vmsplice, sys_vmsplice)
+#define __NR_move_pages		279
+__SYSCALL(__NR_move_pages, sys_move_pages)
 
 #ifdef __KERNEL__
 
-#define __NR_syscall_max __NR_vmsplice
+#define __NR_syscall_max __NR_move_pages
 
 #ifndef __NO_STUBS
 
