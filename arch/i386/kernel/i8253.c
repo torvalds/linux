@@ -41,9 +41,25 @@ static cycle_t pit_read(void)
 {
 	unsigned long flags;
 	int count;
-	u64 jifs;
+	u32 jifs;
+	static int old_count;
+	static u32 old_jifs;
 
 	spin_lock_irqsave(&i8253_lock, flags);
+        /*
+	 * Although our caller may have the read side of xtime_lock,
+	 * this is now a seqlock, and we are cheating in this routine
+	 * by having side effects on state that we cannot undo if
+	 * there is a collision on the seqlock and our caller has to
+	 * retry.  (Namely, old_jifs and old_count.)  So we must treat
+	 * jiffies as volatile despite the lock.  We read jiffies
+	 * before latching the timer count to guarantee that although
+	 * the jiffies value might be older than the count (that is,
+	 * the counter may underflow between the last point where
+	 * jiffies was incremented and the point where we latch the
+	 * count), it cannot be newer.
+	 */
+	jifs = jiffies;
 	outb_p(0x00, PIT_MODE);	/* latch the count ASAP */
 	count = inb_p(PIT_CH0);	/* read the latched count */
 	count |= inb_p(PIT_CH0) << 8;
@@ -55,12 +71,29 @@ static cycle_t pit_read(void)
 		outb(LATCH >> 8, PIT_CH0);
 		count = LATCH - 1;
 	}
+
+	/*
+	 * It's possible for count to appear to go the wrong way for a
+	 * couple of reasons:
+	 *
+	 *  1. The timer counter underflows, but we haven't handled the
+	 *     resulting interrupt and incremented jiffies yet.
+	 *  2. Hardware problem with the timer, not giving us continuous time,
+	 *     the counter does small "jumps" upwards on some Pentium systems,
+	 *     (see c't 95/10 page 335 for Neptun bug.)
+	 *
+	 * Previous attempts to handle these cases intelligently were
+	 * buggy, so we just do the simple thing now.
+	 */
+	if (count > old_count && jifs == old_jifs) {
+		count = old_count;
+	}
+	old_count = count;
+	old_jifs = jifs;
+
 	spin_unlock_irqrestore(&i8253_lock, flags);
 
-	jifs = jiffies_64;
-
-	jifs -= INITIAL_JIFFIES;
-	count = (LATCH-1) - count;
+	count = (LATCH - 1) - count;
 
 	return (cycle_t)(jifs * LATCH) + count;
 }
@@ -69,7 +102,7 @@ static struct clocksource clocksource_pit = {
 	.name	= "pit",
 	.rating = 110,
 	.read	= pit_read,
-	.mask	= CLOCKSOURCE_MASK(64),
+	.mask	= CLOCKSOURCE_MASK(32),
 	.mult	= 0,
 	.shift	= 20,
 };
