@@ -539,67 +539,6 @@ out:
 	goto exit;
 }
 
-extern struct seq_operations proc_pid_maps_op;
-static int maps_open(struct inode *inode, struct file *file)
-{
-	struct task_struct *task = proc_task(inode);
-	int ret = seq_open(file, &proc_pid_maps_op);
-	if (!ret) {
-		struct seq_file *m = file->private_data;
-		m->private = task;
-	}
-	return ret;
-}
-
-static struct file_operations proc_maps_operations = {
-	.open		= maps_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
-};
-
-#ifdef CONFIG_NUMA
-extern struct seq_operations proc_pid_numa_maps_op;
-static int numa_maps_open(struct inode *inode, struct file *file)
-{
-	struct task_struct *task = proc_task(inode);
-	int ret = seq_open(file, &proc_pid_numa_maps_op);
-	if (!ret) {
-		struct seq_file *m = file->private_data;
-		m->private = task;
-	}
-	return ret;
-}
-
-static struct file_operations proc_numa_maps_operations = {
-	.open		= numa_maps_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
-};
-#endif
-
-#ifdef CONFIG_MMU
-extern struct seq_operations proc_pid_smaps_op;
-static int smaps_open(struct inode *inode, struct file *file)
-{
-	struct task_struct *task = proc_task(inode);
-	int ret = seq_open(file, &proc_pid_smaps_op);
-	if (!ret) {
-		struct seq_file *m = file->private_data;
-		m->private = task;
-	}
-	return ret;
-}
-
-static struct file_operations proc_smaps_operations = {
-	.open		= smaps_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
-};
-#endif
-
 extern struct seq_operations mounts_op;
 struct proc_mounts {
 	struct seq_file m;
