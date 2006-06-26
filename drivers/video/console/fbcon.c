@@ -3112,6 +3112,49 @@ static void __exit fbcon_deinit_class_device(void)
 
 static void __exit fbcon_exit(void)
 {
+	struct fb_info *info;
+	int i, j, mapped;
+
+	for (i = 0; i < FB_MAX; i++) {
+		info = registered_fb[i];
+
+		if (info && info->fbcon_par)
+			fbcon_del_cursor_timer(info);
+	}
+
+#ifdef CONFIG_ATARI
+	free_irq(IRQ_AUTO_4, fbcon_vbl_handler);
+#endif
+#ifdef CONFIG_MAC
+	if (MACH_IS_MAC && vbl_detected)
+		free_irq(IRQ_MAC_VBL, fbcon_vbl_handler);
+#endif
+
+	kfree((void *)softback_buf);
+
+	for (i = 0; i < FB_MAX; i++) {
+		mapped = 0;
+		info = registered_fb[i];
+
+		if (info == NULL)
+			continue;
+
+		for (j = 0; j < MAX_NR_CONSOLES; j++) {
+			if (con2fb_map[j] == i) {
+				con2fb_map[j] = -1;
+				mapped = 1;
+			}
+		}
+
+		if (mapped) {
+			if (info->fbops->fb_release)
+				info->fbops->fb_release(info, 0);
+			module_put(info->fbops->owner);
+			kfree(info->fbcon_par);
+			info->fbcon_par = NULL;
+		}
+	}
+
 	fbcon_deinit_class_device();
 	class_device_destroy(fb_class, MKDEV(FB_MAJOR, FB_MAX));
 }
