@@ -370,8 +370,9 @@ EXPORT_SYMBOL(mac_map_monitor_sense);
  *
  */
 
-int __init mac_find_mode(struct fb_var_screeninfo *var, struct fb_info *info,
-			 const char *mode_option, unsigned int default_bpp)
+int __devinit mac_find_mode(struct fb_var_screeninfo *var,
+			    struct fb_info *info, const char *mode_option,
+			    unsigned int default_bpp)
 {
     const struct fb_videomode *db = NULL;
     unsigned int dbsize = 0;
