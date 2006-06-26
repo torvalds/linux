@@ -315,11 +315,11 @@ enum {
 	OMAP_LCD_DMA_B2_BOTTOM
 };
 
-/* REVISIT: Check if BURST_4 is really 1 (or 2) */
 enum omap_dma_burst_mode {
 	OMAP_DMA_DATA_BURST_DIS = 0,
 	OMAP_DMA_DATA_BURST_4,
-	OMAP_DMA_DATA_BURST_8
+	OMAP_DMA_DATA_BURST_8,
+	OMAP_DMA_DATA_BURST_16,
 };
 
 enum omap_dma_color_mode {

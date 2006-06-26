@@ -292,22 +292,39 @@ void omap_set_dma_src_data_pack(int lch, int enable)
 
 void omap_set_dma_src_burst_mode(int lch, enum omap_dma_burst_mode burst_mode)
 {
+	unsigned int burst = 0;
 	OMAP_DMA_CSDP_REG(lch) &= ~(0x03 << 7);
 
 	switch (burst_mode) {
 	case OMAP_DMA_DATA_BURST_DIS:
 		break;
 	case OMAP_DMA_DATA_BURST_4:
-		OMAP_DMA_CSDP_REG(lch) |= (0x02 << 7);
+		if (cpu_is_omap24xx())
+			burst = 0x1;
+		else
+			burst = 0x2;
 		break;
 	case OMAP_DMA_DATA_BURST_8:
-		/* not supported by current hardware
+		if (cpu_is_omap24xx()) {
+			burst = 0x2;
+			break;
+		}
+		/* not supported by current hardware on OMAP1
 		 * w |= (0x03 << 7);
+		 * fall through
+		 */
+	case OMAP_DMA_DATA_BURST_16:
+		if (cpu_is_omap24xx()) {
+			burst = 0x3;
+			break;
+		}
+		/* OMAP1 don't support burst 16
 		 * fall through
 		 */
 	default:
 		BUG();
 	}
+	OMAP_DMA_CSDP_REG(lch) |= (burst << 7);
 }
 
 /* Note that dest_port is only for OMAP1 */
@@ -354,22 +371,38 @@ void omap_set_dma_dest_data_pack(int lch, int enable)
 
 void omap_set_dma_dest_burst_mode(int lch, enum omap_dma_burst_mode burst_mode)
 {
+	unsigned int burst = 0;
 	OMAP_DMA_CSDP_REG(lch) &= ~(0x03 << 14);
 
 	switch (burst_mode) {
 	case OMAP_DMA_DATA_BURST_DIS:
 		break;
 	case OMAP_DMA_DATA_BURST_4:
-		OMAP_DMA_CSDP_REG(lch) |= (0x02 << 14);
+		if (cpu_is_omap24xx())
+			burst = 0x1;
+		else
+			burst = 0x2;
 		break;
 	case OMAP_DMA_DATA_BURST_8:
-		OMAP_DMA_CSDP_REG(lch) |= (0x03 << 14);
+		if (cpu_is_omap24xx())
+			burst = 0x2;
+		else
+			burst = 0x3;
 		break;
+	case OMAP_DMA_DATA_BURST_16:
+		if (cpu_is_omap24xx()) {
+			burst = 0x3;
+			break;
+		}
+		/* OMAP1 don't support burst 16
+		 * fall through
+		 */
 	default:
 		printk(KERN_ERR "Invalid DMA burst mode\n");
 		BUG();
 		return;
 	}
+	OMAP_DMA_CSDP_REG(lch) |= (burst << 14);
 }
 
 static inline void omap_enable_channel_irq(int lch)
