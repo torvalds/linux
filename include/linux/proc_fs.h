@@ -249,7 +249,7 @@ extern void kclist_add(struct kcore_list *, void *, size_t);
 
 struct proc_inode {
 	struct task_struct *task;
-	int type;
+	int fd;
 	union {
 		int (*proc_get_link)(struct inode *, struct dentry **, struct vfsmount **);
 		int (*proc_read)(struct task_struct *task, char *page);

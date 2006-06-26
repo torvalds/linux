@@ -46,7 +46,7 @@ static inline struct task_struct *proc_task(struct inode *inode)
 	return PROC_I(inode)->task;
 }
 
-static inline int proc_type(struct inode *inode)
+static inline int proc_fd(struct inode *inode)
 {
-	return PROC_I(inode)->type;
+	return PROC_I(inode)->fd;
 }

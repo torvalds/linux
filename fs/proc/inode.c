@@ -95,7 +95,7 @@ static struct inode *proc_alloc_inode(struct super_block *sb)
 	if (!ei)
 		return NULL;
 	ei->task = NULL;
-	ei->type = 0;
+	ei->fd = 0;
 	ei->op.proc_get_link = NULL;
 	ei->pde = NULL;
 	inode = &ei->vfs_inode;

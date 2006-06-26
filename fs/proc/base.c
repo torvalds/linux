@@ -297,7 +297,7 @@ static int proc_fd_link(struct inode *inode, struct dentry **dentry, struct vfsm
 	struct task_struct *task = proc_task(inode);
 	struct files_struct *files;
 	struct file *file;
-	int fd = proc_type(inode) - PROC_TID_FD_DIR;
+	int fd = proc_fd(inode);
 
 	files = get_files_struct(task);
 	if (files) {
@@ -1368,7 +1368,6 @@ static struct inode *proc_pid_make_inode(struct super_block * sb, struct task_st
 	 */
 	get_task_struct(task);
 	ei->task = task;
-	ei->type = ino;
 	inode->i_uid = 0;
 	inode->i_gid = 0;
 	if (task_dumpable(task)) {
@@ -1418,7 +1417,7 @@ static int tid_fd_revalidate(struct dentry *dentry, struct nameidata *nd)
 {
 	struct inode *inode = dentry->d_inode;
 	struct task_struct *task = proc_task(inode);
-	int fd = proc_type(inode) - PROC_TID_FD_DIR;
+	int fd = proc_fd(inode);
 	struct files_struct *files;
 
 	files = get_files_struct(task);
@@ -1525,6 +1524,7 @@ static struct dentry *proc_lookupfd(struct inode * dir, struct dentry * dentry, 
 	if (!inode)
 		goto out;
 	ei = PROC_I(inode);
+	ei->fd = fd;
 	files = get_files_struct(task);
 	if (!files)
 		goto out_unlock;
