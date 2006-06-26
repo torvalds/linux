@@ -30,8 +30,8 @@ typedef NORET_TYPE void (*relocate_new_kernel_t)(
  */
 void default_machine_kexec(struct kimage *image)
 {
-	const extern unsigned char relocate_new_kernel[];
-	const extern unsigned int relocate_new_kernel_size;
+	extern const unsigned char relocate_new_kernel[];
+	extern const unsigned int relocate_new_kernel_size;
 	unsigned long page_list;
 	unsigned long reboot_code_buffer, reboot_code_buffer_phys;
 	relocate_new_kernel_t rnk;
