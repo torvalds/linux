@@ -2691,22 +2691,6 @@ int __init vty_init(void)
 
 static struct class *vtconsole_class;
 
-static int con_is_graphics(const struct consw *csw, int first, int last)
-{
-	int i, retval = 0;
-
-	for (i = first; i <= last; i++) {
-		struct vc_data *vc = vc_cons[i].d;
-
-		if (vc && vc->vc_mode == KD_GRAPHICS) {
-			retval = 1;
-			break;
-		}
-	}
-
-	return retval;
-}
-
 static int bind_con_driver(const struct consw *csw, int first, int last,
 			   int deflt)
 {
@@ -2807,6 +2791,23 @@ err:
 	module_put(owner);
 	return retval;
 };
+
+#ifdef CONFIG_VT_HW_CONSOLE_BINDING
+static int con_is_graphics(const struct consw *csw, int first, int last)
+{
+	int i, retval = 0;
+
+	for (i = first; i <= last; i++) {
+		struct vc_data *vc = vc_cons[i].d;
+
+		if (vc && vc->vc_mode == KD_GRAPHICS) {
+			retval = 1;
+			break;
+		}
+	}
+
+	return retval;
+}
 
 static int unbind_con_driver(const struct consw *csw, int first, int last,
 			     int deflt)
@@ -2984,6 +2985,16 @@ static int vt_unbind(struct con_driver *con)
 err:
 	return 0;
 }
+#else
+static inline int vt_bind(struct con_driver *con)
+{
+	return 0;
+}
+static inline int vt_unbind(struct con_driver *con)
+{
+	return 0;
+}
+#endif /* CONFIG_VT_HW_CONSOLE_BINDING */
 
 static ssize_t store_bind(struct class_device *class_device,
 			  const char *buf, size_t count)
