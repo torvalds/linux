@@ -80,6 +80,7 @@
 #include <net/bluetooth/rfcomm.h>
 
 #include <linux/capi.h>
+#include <linux/gigaset_dev.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_ioctl.h>
