@@ -1720,6 +1720,11 @@ void tipc_recv_msg(struct sk_buff *head, struct tipc_bearer *tb_ptr)
 			link_recv_non_seq(buf);
 			continue;
 		}
+		
+		if (unlikely(!msg_short(msg) &&
+			     (msg_destnode(msg) != tipc_own_addr)))
+			goto cont;
+		
 		n_ptr = tipc_node_find(msg_prevnode(msg));
 		if (unlikely(!n_ptr))
 			goto cont;
