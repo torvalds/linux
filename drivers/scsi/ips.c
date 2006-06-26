@@ -6438,7 +6438,7 @@ ips_erase_bios(ips_ha_t * ha)
 		/* VPP failure */
 		return (1);
 
-	/* check for succesful flash */
+	/* check for successful flash */
 	if (status & 0x30)
 		/* sequence error */
 		return (1);
@@ -6550,7 +6550,7 @@ ips_erase_bios_memio(ips_ha_t * ha)
 		/* VPP failure */
 		return (1);
 
-	/* check for succesful flash */
+	/* check for successful flash */
 	if (status & 0x30)
 		/* sequence error */
 		return (1);

@@ -358,7 +358,7 @@ static ssize_t show_fan_div(struct device *dev, char *buf, int nr)
 
 /* Note: we save and restore the fan minimum here, because its value is
    determined in part by the fan divisor.  This follows the principle of
-   least suprise; the user doesn't expect the fan minimum to change just
+   least surprise; the user doesn't expect the fan minimum to change just
    because the divisor changed. */
 static ssize_t set_fan_div(struct device *dev, const char *buf,
 	size_t count, int nr)

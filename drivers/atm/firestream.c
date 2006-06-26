@@ -951,7 +951,7 @@ static int fs_open(struct atm_vcc *atm_vcc)
 		   it most likely that the chip will notice it. It also prevents us
 		   from having to wait for completion. On the other hand, we may
 		   need to wait for completion anyway, to see if it completed
-		   succesfully. */
+		   successfully. */
 
 		switch (atm_vcc->qos.aal) {
 		case ATM_AAL2:

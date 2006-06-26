@@ -356,7 +356,7 @@ static void internal_add_vtimer(struct vtimer_list *timer)
 
 	set_vtimer(event->expires);
 	spin_unlock_irqrestore(&vt_list->lock, flags);
-	/* release CPU aquired in prepare_vtimer or mod_virt_timer() */
+	/* release CPU acquired in prepare_vtimer or mod_virt_timer() */
 	put_cpu();
 }
 

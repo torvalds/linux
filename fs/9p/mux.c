@@ -712,7 +712,7 @@ static void v9fs_read_work(void *a)
  * v9fs_send_request - send 9P request
  * The function can sleep until the request is scheduled for sending.
  * The function can be interrupted. Return from the function is not
- * a guarantee that the request is sent succesfully. Can return errors
+ * a guarantee that the request is sent successfully. Can return errors
  * that can be retrieved by PTR_ERR macros.
  *
  * @m: mux data

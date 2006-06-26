@@ -201,7 +201,7 @@ gss_import_sec_context_spkm3(const void *p, size_t len,
 
 	ctx_id->internal_ctx_id = ctx;
 
-	dprintk("Succesfully imported new spkm context.\n");
+	dprintk("Successfully imported new spkm context.\n");
 	return 0;
 
 out_err_free_key2:

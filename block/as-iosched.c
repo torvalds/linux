@@ -892,7 +892,7 @@ static int as_can_break_anticipation(struct as_data *ad, struct as_rq *arq)
 }
 
 /*
- * as_can_anticipate indicates weather we should either run arq
+ * as_can_anticipate indicates whether we should either run arq
  * or keep anticipating a better request.
  */
 static int as_can_anticipate(struct as_data *ad, struct as_rq *arq)

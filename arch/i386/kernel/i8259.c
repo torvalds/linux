@@ -175,7 +175,7 @@ static void mask_and_ack_8259A(unsigned int irq)
 	 * Lightweight spurious IRQ detection. We do not want
 	 * to overdo spurious IRQ handling - it's usually a sign
 	 * of hardware problems, so we only do the checks we can
-	 * do without slowing down good hardware unnecesserily.
+	 * do without slowing down good hardware unnecessarily.
 	 *
 	 * Note that IRQ7 and IRQ15 (the two spurious IRQs
 	 * usually resulting from the 8259A-1|2 PICs) occur

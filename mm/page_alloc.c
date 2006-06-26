@@ -266,7 +266,7 @@ static inline void rmv_page_order(struct page *page)
  * satisfies the following equation:
  *     P = B & ~(1 << O)
  *
- * Assumption: *_mem_map is contigious at least up to MAX_ORDER
+ * Assumption: *_mem_map is contiguous at least up to MAX_ORDER
  */
 static inline struct page *
 __page_find_buddy(struct page *page, unsigned long page_idx, unsigned int order)
