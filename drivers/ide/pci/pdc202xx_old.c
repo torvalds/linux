@@ -491,12 +491,8 @@ static int pdc202xx_ide_dma_timeout(ide_drive_t *drive)
 
 static void pdc202xx_reset_host (ide_hwif_t *hwif)
 {
-#ifdef CONFIG_BLK_DEV_IDEDMA
 //	unsigned long high_16	= hwif->dma_base - (8*(hwif->channel));
 	unsigned long high_16	= hwif->dma_master;
-#else /* !CONFIG_BLK_DEV_IDEDMA */
-	unsigned long high_16	= pci_resource_start(hwif->pci_dev, 4);
-#endif /* CONFIG_BLK_DEV_IDEDMA */
 	u8 udma_speed_flag	= hwif->INB(high_16|0x001f);
 
 	hwif->OUTB((udma_speed_flag | 0x10), (high_16|0x001f));
