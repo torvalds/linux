@@ -1118,6 +1118,11 @@ L:	lm-sensors@lm-sensors.org
 W:	http://www.lm-sensors.nu/
 S:	Maintained
 
+HARDWARE RANDOM NUMBER GENERATOR CORE
+P:	Michael Buesch
+M:	mb@bu3sch.de
+S:	Maintained
+
 HARD DRIVE ACTIVE PROTECTION SYSTEM (HDAPS) DRIVER
 P:	Robert Love
 M:	rlove@rlove.org
@@ -1434,6 +1439,11 @@ S:	Maintained
 INTEL IA32 MICROCODE UPDATE SUPPORT
 P:	Tigran Aivazian
 M:	tigran@veritas.com
+S:	Maintained
+
+INTEL IXP4XX RANDOM NUMBER GENERATOR SUPPORT
+P:	Deepak Saxena
+M:	dsaxena@plexity.net
 S:	Maintained
 
 INTEL PRO/100 ETHERNET SUPPORT
@@ -2723,6 +2733,11 @@ S:	Maintained
 SYSV FILESYSTEM
 P:	Christoph Hellwig
 M:	hch@infradead.org
+S:	Maintained
+
+TI OMAP RANDOM NUMBER GENERATOR SUPPORT
+P:	Deepak Saxena
+M:	dsaxena@plexity.net
 S:	Maintained
 
 TI PARALLEL LINK CABLE DRIVER

@@ -1,0 +1,11 @@
+#
+# Hardware Random Number Generator (RNG) configuration
+#
+
+config HW_RANDOM
+	bool "Hardware Random Number Generator Core support"
+	default y
+	---help---
+	  Hardware Random Number Generator Core infrastructure.
+
+	  If unsure, say Y.
