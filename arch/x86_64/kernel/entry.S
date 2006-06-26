@@ -154,6 +154,7 @@ rff_trace:
 	GET_THREAD_INFO(%rcx)	
 	jmp rff_action
 	CFI_ENDPROC
+END(ret_from_fork)
 
 /*
  * System call entry. Upto 6 arguments in registers are supported.
@@ -285,6 +286,7 @@ tracesys:
 	/* Use IRET because user could have changed frame */
 	jmp int_ret_from_sys_call
 	CFI_ENDPROC
+END(system_call)
 		
 /* 
  * Syscall return path ending with IRET.
@@ -364,6 +366,7 @@ int_restore_rest:
 	cli
 	jmp int_with_check
 	CFI_ENDPROC
+END(int_ret_from_sys_call)
 		
 /* 
  * Certain special system calls that need to save a complete full stack frame.
@@ -375,6 +378,7 @@ int_restore_rest:
 	leaq	\func(%rip),%rax
 	leaq    -ARGOFFSET+8(%rsp),\arg /* 8 for return address */
 	jmp	ptregscall_common
+END(\label)
 	.endm
 
 	CFI_STARTPROC
@@ -404,6 +408,7 @@ ENTRY(ptregscall_common)
 	CFI_REL_OFFSET rip, 0
 	ret
 	CFI_ENDPROC
+END(ptregscall_common)
 	
 ENTRY(stub_execve)
 	CFI_STARTPROC
@@ -418,6 +423,7 @@ ENTRY(stub_execve)
 	RESTORE_REST
 	jmp int_ret_from_sys_call
 	CFI_ENDPROC
+END(stub_execve)
 	
 /*
  * sigreturn is special because it needs to restore all registers on return.
@@ -435,6 +441,7 @@ ENTRY(stub_rt_sigreturn)
 	RESTORE_REST
 	jmp int_ret_from_sys_call
 	CFI_ENDPROC
+END(stub_rt_sigreturn)
 
 /*
  * initial frame state for interrupts and exceptions
@@ -589,7 +596,9 @@ retint_kernel:
 	call preempt_schedule_irq
 	jmp exit_intr
 #endif	
+
 	CFI_ENDPROC
+END(common_interrupt)
 	
 /*
  * APIC interrupts.
@@ -605,17 +614,21 @@ retint_kernel:
 
 ENTRY(thermal_interrupt)
 	apicinterrupt THERMAL_APIC_VECTOR,smp_thermal_interrupt
+END(thermal_interrupt)
 
 ENTRY(threshold_interrupt)
 	apicinterrupt THRESHOLD_APIC_VECTOR,mce_threshold_interrupt
+END(threshold_interrupt)
 
 #ifdef CONFIG_SMP	
 ENTRY(reschedule_interrupt)
 	apicinterrupt RESCHEDULE_VECTOR,smp_reschedule_interrupt
+END(reschedule_interrupt)
 
 	.macro INVALIDATE_ENTRY num
 ENTRY(invalidate_interrupt\num)
 	apicinterrupt INVALIDATE_TLB_VECTOR_START+\num,smp_invalidate_interrupt	
+END(invalidate_interrupt\num)
 	.endm
 
 	INVALIDATE_ENTRY 0
@@ -629,17 +642,21 @@ ENTRY(invalidate_interrupt\num)
 
 ENTRY(call_function_interrupt)
 	apicinterrupt CALL_FUNCTION_VECTOR,smp_call_function_interrupt
+END(call_function_interrupt)
 #endif
 
 #ifdef CONFIG_X86_LOCAL_APIC	
 ENTRY(apic_timer_interrupt)
 	apicinterrupt LOCAL_TIMER_VECTOR,smp_apic_timer_interrupt
+END(apic_timer_interrupt)
 
 ENTRY(error_interrupt)
 	apicinterrupt ERROR_APIC_VECTOR,smp_error_interrupt
+END(error_interrupt)
 
 ENTRY(spurious_interrupt)
 	apicinterrupt SPURIOUS_APIC_VECTOR,smp_spurious_interrupt
+END(spurious_interrupt)
 #endif
 				
 /*
@@ -777,6 +794,7 @@ error_kernelspace:
 	cmpq $gs_change,RIP(%rsp)
         je   error_swapgs
 	jmp  error_sti
+END(error_entry)
 	
        /* Reload gs selector with exception handling */
        /* edi:  new selector */ 
@@ -794,6 +812,7 @@ gs_change:
 	CFI_ADJUST_CFA_OFFSET -8
         ret
 	CFI_ENDPROC
+ENDPROC(load_gs_index)
        
         .section __ex_table,"a"
         .align 8
@@ -847,7 +866,7 @@ ENTRY(kernel_thread)
 	UNFAKE_STACK_FRAME
 	ret
 	CFI_ENDPROC
-
+ENDPROC(kernel_thread)
 	
 child_rip:
 	/*
@@ -860,6 +879,7 @@ child_rip:
 	# exit
 	xorl %edi, %edi
 	call do_exit
+ENDPROC(child_rip)
 
 /*
  * execve(). This function needs to use IRET, not SYSRET, to set up all state properly.
@@ -889,19 +909,24 @@ ENTRY(execve)
 	UNFAKE_STACK_FRAME
 	ret
 	CFI_ENDPROC
+ENDPROC(execve)
 
 KPROBE_ENTRY(page_fault)
 	errorentry do_page_fault
+END(page_fault)
 	.previous .text
 
 ENTRY(coprocessor_error)
 	zeroentry do_coprocessor_error
+END(coprocessor_error)
 
 ENTRY(simd_coprocessor_error)
 	zeroentry do_simd_coprocessor_error	
+END(simd_coprocessor_error)
 
 ENTRY(device_not_available)
 	zeroentry math_state_restore
+END(device_not_available)
 
 	/* runs on exception stack */
 KPROBE_ENTRY(debug)
@@ -911,6 +936,7 @@ KPROBE_ENTRY(debug)
 	paranoidentry do_debug, DEBUG_STACK
 	jmp paranoid_exit
 	CFI_ENDPROC
+END(debug)
 	.previous .text
 
 	/* runs on exception stack */	
@@ -961,6 +987,7 @@ paranoid_schedule:
 	cli
 	jmp paranoid_userspace
 	CFI_ENDPROC
+END(nmi)
 	.previous .text
 
 KPROBE_ENTRY(int3)
@@ -970,22 +997,28 @@ KPROBE_ENTRY(int3)
  	paranoidentry do_int3, DEBUG_STACK
  	jmp paranoid_exit
  	CFI_ENDPROC
+END(int3)
 	.previous .text
 
 ENTRY(overflow)
 	zeroentry do_overflow
+END(overflow)
 
 ENTRY(bounds)
 	zeroentry do_bounds
+END(bounds)
 
 ENTRY(invalid_op)
 	zeroentry do_invalid_op	
+END(invalid_op)
 
 ENTRY(coprocessor_segment_overrun)
 	zeroentry do_coprocessor_segment_overrun
+END(coprocessor_segment_overrun)
 
 ENTRY(reserved)
 	zeroentry do_reserved
+END(reserved)
 
 	/* runs on exception stack */
 ENTRY(double_fault)
@@ -993,12 +1026,15 @@ ENTRY(double_fault)
 	paranoidentry do_double_fault
 	jmp paranoid_exit
 	CFI_ENDPROC
+END(double_fault)
 
 ENTRY(invalid_TSS)
 	errorentry do_invalid_TSS
+END(invalid_TSS)
 
 ENTRY(segment_not_present)
 	errorentry do_segment_not_present
+END(segment_not_present)
 
 	/* runs on exception stack */
 ENTRY(stack_segment)
@@ -1006,19 +1042,24 @@ ENTRY(stack_segment)
 	paranoidentry do_stack_segment
 	jmp paranoid_exit
 	CFI_ENDPROC
+END(stack_segment)
 
 KPROBE_ENTRY(general_protection)
 	errorentry do_general_protection
+END(general_protection)
 	.previous .text
 
 ENTRY(alignment_check)
 	errorentry do_alignment_check
+END(alignment_check)
 
 ENTRY(divide_error)
 	zeroentry do_divide_error
+END(divide_error)
 
 ENTRY(spurious_interrupt_bug)
 	zeroentry do_spurious_interrupt_bug
+END(spurious_interrupt_bug)
 
 #ifdef CONFIG_X86_MCE
 	/* runs on exception stack */
@@ -1029,6 +1070,7 @@ ENTRY(machine_check)
 	paranoidentry do_machine_check
 	jmp paranoid_exit
 	CFI_ENDPROC
+END(machine_check)
 #endif
 
 ENTRY(call_softirq)
@@ -1046,3 +1088,4 @@ ENTRY(call_softirq)
 	decl %gs:pda_irqcount
 	ret
 	CFI_ENDPROC
+ENDPROC(call_softirq)

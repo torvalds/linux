@@ -155,6 +155,7 @@ sysenter_tracesys:
 	.previous
 	jmp	sysenter_do_call
 	CFI_ENDPROC
+ENDPROC(ia32_sysenter_target)
 
 /*
  * 32bit SYSCALL instruction entry.
@@ -249,6 +250,7 @@ cstar_tracesys:
 	.quad 1b,ia32_badarg
 	.previous
 	jmp cstar_do_call
+END(ia32_cstar_target)
 				
 ia32_badarg:
 	movq $-EFAULT,%rax
@@ -314,6 +316,7 @@ ia32_tracesys:
 	LOAD_ARGS ARGOFFSET  /* reload args from stack in case ptrace changed it */
 	RESTORE_REST
 	jmp ia32_do_syscall
+END(ia32_syscall)
 
 ia32_badsys:
 	movq $0,ORIG_RAX-ARGOFFSET(%rsp)
@@ -370,6 +373,7 @@ ENTRY(ia32_ptregs_common)
 	RESTORE_REST
 	jmp  ia32_sysret	/* misbalances the return cache */
 	CFI_ENDPROC
+END(ia32_ptregs_common)
 
 	.section .rodata,"a"
 	.align 8
