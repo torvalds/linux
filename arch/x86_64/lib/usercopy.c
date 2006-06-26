@@ -55,7 +55,7 @@ strncpy_from_user(char *dst, const char __user *src, long count)
 {
 	long res = -EFAULT;
 	if (access_ok(VERIFY_READ, src, 1))
-		__do_strncpy_from_user(dst, src, count, res);
+		return __strncpy_from_user(dst, src, count);
 	return res;
 }
 EXPORT_SYMBOL(strncpy_from_user);
