@@ -1625,6 +1625,12 @@ static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, i
 	/* before building a request, check if we can skip these blocks..
 	 * This call the bitmap_start_sync doesn't actually record anything
 	 */
+	if (mddev->bitmap == NULL &&
+	    mddev->recovery_cp == MaxSector &&
+	    conf->fullsync == 0) {
+		*skipped = 1;
+		return max_sector - sector_nr;
+	}
 	if (!bitmap_start_sync(mddev->bitmap, sector_nr, &sync_blocks, 1) &&
 	    !conf->fullsync && !test_bit(MD_RECOVERY_REQUESTED, &mddev->recovery)) {
 		/* We can skip this block, and probably several more */

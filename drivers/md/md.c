@@ -737,6 +737,7 @@ static int super_90_validate(mddev_t *mddev, mdk_rdev_t *rdev)
 {
 	mdp_disk_t *desc;
 	mdp_super_t *sb = (mdp_super_t *)page_address(rdev->sb_page);
+	__u64 ev1 = md_event(sb);
 
 	rdev->raid_disk = -1;
 	rdev->flags = 0;
@@ -753,7 +754,7 @@ static int super_90_validate(mddev_t *mddev, mdk_rdev_t *rdev)
 		mddev->layout = sb->layout;
 		mddev->raid_disks = sb->raid_disks;
 		mddev->size = sb->size;
-		mddev->events = md_event(sb);
+		mddev->events = ev1;
 		mddev->bitmap_offset = 0;
 		mddev->default_bitmap_offset = MD_SB_BYTES >> 9;
 
@@ -802,7 +803,6 @@ static int super_90_validate(mddev_t *mddev, mdk_rdev_t *rdev)
 
 	} else if (mddev->pers == NULL) {
 		/* Insist on good event counter while assembling */
-		__u64 ev1 = md_event(sb);
 		++ev1;
 		if (ev1 < mddev->events) 
 			return -EINVAL;
@@ -810,11 +810,13 @@ static int super_90_validate(mddev_t *mddev, mdk_rdev_t *rdev)
 		/* if adding to array with a bitmap, then we can accept an
 		 * older device ... but not too old.
 		 */
-		__u64 ev1 = md_event(sb);
 		if (ev1 < mddev->bitmap->events_cleared)
 			return 0;
-	} else /* just a hot-add of a new device, leave raid_disk at -1 */
-		return 0;
+	} else {
+		if (ev1 < mddev->events)
+			/* just a hot-add of a new device, leave raid_disk at -1 */
+			return 0;
+	}
 
 	if (mddev->level != LEVEL_MULTIPATH) {
 		desc = sb->disks + rdev->desc_nr;
@@ -1105,6 +1107,7 @@ static int super_1_load(mdk_rdev_t *rdev, mdk_rdev_t *refdev, int minor_version)
 static int super_1_validate(mddev_t *mddev, mdk_rdev_t *rdev)
 {
 	struct mdp_superblock_1 *sb = (struct mdp_superblock_1*)page_address(rdev->sb_page);
+	__u64 ev1 = le64_to_cpu(sb->events);
 
 	rdev->raid_disk = -1;
 	rdev->flags = 0;
@@ -1120,7 +1123,7 @@ static int super_1_validate(mddev_t *mddev, mdk_rdev_t *rdev)
 		mddev->layout = le32_to_cpu(sb->layout);
 		mddev->raid_disks = le32_to_cpu(sb->raid_disks);
 		mddev->size = le64_to_cpu(sb->size)/2;
-		mddev->events = le64_to_cpu(sb->events);
+		mddev->events = ev1;
 		mddev->bitmap_offset = 0;
 		mddev->default_bitmap_offset = 1024 >> 9;
 		
@@ -1154,7 +1157,6 @@ static int super_1_validate(mddev_t *mddev, mdk_rdev_t *rdev)
 
 	} else if (mddev->pers == NULL) {
 		/* Insist of good event counter while assembling */
-		__u64 ev1 = le64_to_cpu(sb->events);
 		++ev1;
 		if (ev1 < mddev->events)
 			return -EINVAL;
@@ -1162,12 +1164,13 @@ static int super_1_validate(mddev_t *mddev, mdk_rdev_t *rdev)
 		/* If adding to array with a bitmap, then we can accept an
 		 * older device, but not too old.
 		 */
-		__u64 ev1 = le64_to_cpu(sb->events);
 		if (ev1 < mddev->bitmap->events_cleared)
 			return 0;
-	} else /* just a hot-add of a new device, leave raid_disk at -1 */
-		return 0;
-
+	} else {
+		if (ev1 < mddev->events)
+			/* just a hot-add of a new device, leave raid_disk at -1 */
+			return 0;
+	}
 	if (mddev->level != LEVEL_MULTIPATH) {
 		int role;
 		rdev->desc_nr = le32_to_cpu(sb->dev_number);
