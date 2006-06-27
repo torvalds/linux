@@ -177,8 +177,8 @@ static void e1000_vlan_rx_add_vid(struct net_device *netdev, uint16_t vid);
 static void e1000_vlan_rx_kill_vid(struct net_device *netdev, uint16_t vid);
 static void e1000_restore_vlan(struct e1000_adapter *adapter);
 
-#ifdef CONFIG_PM
 static int e1000_suspend(struct pci_dev *pdev, pm_message_t state);
+#ifdef CONFIG_PM
 static int e1000_resume(struct pci_dev *pdev);
 #endif
 static void e1000_shutdown(struct pci_dev *pdev);
@@ -205,8 +205,8 @@ static struct pci_driver e1000_driver = {
 	.probe    = e1000_probe,
 	.remove   = __devexit_p(e1000_remove),
 	/* Power Managment Hooks */
-#ifdef CONFIG_PM
 	.suspend  = e1000_suspend,
+#ifdef CONFIG_PM
 	.resume   = e1000_resume,
 #endif
 	.shutdown = e1000_shutdown,
@@ -4498,7 +4498,9 @@ e1000_suspend(struct pci_dev *pdev, pm_message_t state)
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	uint32_t ctrl, ctrl_ext, rctl, manc, status;
 	uint32_t wufc = adapter->wol;
+#ifdef CONFIG_PM
 	int retval = 0;
+#endif
 
 	netif_device_detach(netdev);
 
