@@ -91,6 +91,9 @@ static inline pg_data_t *arch_alloc_nodedata(int nid)
 static inline void arch_free_nodedata(pg_data_t *pgdat)
 {
 }
+static inline void arch_refresh_nodedata(int nid, pg_data_t *pgdat)
+{
+}
 
 #else /* CONFIG_HAVE_ARCH_NODEDATA_EXTENSION */
 
@@ -114,6 +117,12 @@ static inline void arch_free_nodedata(pg_data_t *pgdat)
  */
 #define generic_free_nodedata(pgdat)	kfree(pgdat)
 
+extern pg_data_t *node_data[];
+static inline void arch_refresh_nodedata(int nid, pg_data_t *pgdat)
+{
+	node_data[nid] = pgdat;
+}
+
 #else /* !CONFIG_NUMA */
 
 /* never called */
@@ -123,6 +132,9 @@ static inline pg_data_t *generic_alloc_nodedata(int nid)
 	return NULL;
 }
 static inline void generic_free_nodedata(pg_data_t *pgdat)
+{
+}
+static inline void arch_refresh_nodedata(int nid, pg_data_t *pgdat)
 {
 }
 #endif /* CONFIG_NUMA */
