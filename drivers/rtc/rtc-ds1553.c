@@ -226,7 +226,7 @@ static int ds1553_rtc_ioctl(struct device *dev, unsigned int cmd,
 	struct rtc_plat_data *pdata = platform_get_drvdata(pdev);
 
 	if (pdata->irq < 0)
-		return -ENOIOCTLCMD;
+		return -ENOIOCTLCMD; /* fall back into rtc-dev's emulation */
 	switch (cmd) {
 	case RTC_AIE_OFF:
 		pdata->irqen &= ~RTC_AF;
