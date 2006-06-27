@@ -87,10 +87,3 @@ static inline void scx200_gpio_change(int index) {
 #undef __SCx200_GPIO_SHADOW
 #undef __SCx200_GPIO_INDEX
 #undef __SCx200_GPIO_OUT
-
-/*
-    Local variables:
-        compile-command: "make -C ../.. bzImage modules"
-        c-basic-offset: 8
-    End:
-*/

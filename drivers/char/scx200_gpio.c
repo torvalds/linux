@@ -1,4 +1,4 @@
-/* linux/drivers/char/scx200_gpio.c 
+/* linux/drivers/char/scx200_gpio.c
 
    National Semiconductor SCx200 GPIO driver.  Allows a user space
    process to play with the GPIO pins.
@@ -26,7 +26,7 @@ static int major = 0;		/* default to dynamic major */
 module_param(major, int, 0);
 MODULE_PARM_DESC(major, "Major device number");
 
-static ssize_t scx200_gpio_write(struct file *file, const char __user *data, 
+static ssize_t scx200_gpio_write(struct file *file, const char __user *data,
 				 size_t len, loff_t *ppos)
 {
 	unsigned m = iminor(file->f_dentry->d_inode);
@@ -34,15 +34,14 @@ static ssize_t scx200_gpio_write(struct file *file, const char __user *data,
 
 	for (i = 0; i < len; ++i) {
 		char c;
-		if (get_user(c, data+i))
+		if (get_user(c, data + i))
 			return -EFAULT;
-		switch (c)
-		{
-		case '0': 
-			scx200_gpio_set(m, 0); 
+		switch (c) {
+		case '0':
+			scx200_gpio_set(m, 0);
 			break;
-		case '1': 
-			scx200_gpio_set(m, 1); 
+		case '1':
+			scx200_gpio_set(m, 1);
 			break;
 		case 'O':
 			printk(KERN_INFO NAME ": GPIO%d output enabled\n", m);
@@ -83,7 +82,7 @@ static ssize_t scx200_gpio_read(struct file *file, char __user *buf,
 	value = scx200_gpio_get(m);
 	if (put_user(value ? '1' : '0', buf))
 		return -EFAULT;
-	
+
 	return 1;
 }
 
@@ -140,10 +139,3 @@ static void __exit scx200_gpio_cleanup(void)
 
 module_init(scx200_gpio_init);
 module_exit(scx200_gpio_cleanup);
-
-/*
-    Local variables:
-        compile-command: "make -k -C ../.. SUBDIRS=drivers/char modules"
-        c-basic-offset: 8
-    End:
-*/
