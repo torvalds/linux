@@ -2037,6 +2037,9 @@ scsi_device_set_state(struct scsi_device *sdev, enum scsi_device_state state)
 
 	case SDEV_DEL:
 		switch (oldstate) {
+		case SDEV_CREATED:
+		case SDEV_RUNNING:
+		case SDEV_OFFLINE:
 		case SDEV_CANCEL:
 			break;
 		default:
