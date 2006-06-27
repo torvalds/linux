@@ -47,7 +47,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"sata_vsc"
-#define DRV_VERSION	"1.2"
+#define DRV_VERSION	"2.0"
 
 enum {
 	/* Interrupt register offsets (from chip base address) */
