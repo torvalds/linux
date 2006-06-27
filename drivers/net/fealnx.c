@@ -578,9 +578,9 @@ static int __devinit fealnx_init_one(struct pci_dev *pdev,
 
 			if (mii_status != 0xffff && mii_status != 0x0000) {
 				np->phys[phy_idx++] = phy;
-				printk(KERN_INFO
-				       "%s: MII PHY found at address %d, status "
-				       "0x%4.4x.\n", dev->name, phy, mii_status);
+				dev_printk(KERN_INFO, &pdev->dev,
+				       "MII PHY found at address %d, status "
+				       "0x%4.4x.\n", phy, mii_status);
 				/* get phy type */
 				{
 					unsigned int data;
@@ -603,10 +603,10 @@ static int __devinit fealnx_init_one(struct pci_dev *pdev,
 		}
 
 		np->mii_cnt = phy_idx;
-		if (phy_idx == 0) {
-			printk(KERN_WARNING "%s: MII PHY not found -- this device may "
-			       "not operate correctly.\n", dev->name);
-		}
+		if (phy_idx == 0)
+			dev_printk(KERN_WARNING, &pdev->dev,
+				"MII PHY not found -- this device may "
+			       "not operate correctly.\n");
 	} else {
 		np->phys[0] = 32;
 /* 89/6/23 add, (begin) */
@@ -632,7 +632,8 @@ static int __devinit fealnx_init_one(struct pci_dev *pdev,
 		np->mii.full_duplex = full_duplex[card_idx];
 
 	if (np->mii.full_duplex) {
-		printk(KERN_INFO "%s: Media type forced to Full Duplex.\n", dev->name);
+		dev_printk(KERN_INFO, &pdev->dev,
+			"Media type forced to Full Duplex.\n");
 /* 89/6/13 add, (begin) */
 //      if (np->PHYType==MarvellPHY)
 		if ((np->PHYType == MarvellPHY) || (np->PHYType == LevelOnePHY)) {

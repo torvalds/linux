@@ -601,7 +601,8 @@ static int __devinit hamachi_init_one (struct pci_dev *pdev,
 	pci_set_master(pdev);
 
 	i = pci_request_regions(pdev, DRV_NAME);
-	if (i) return i;
+	if (i)
+		return i;
 
 	irq = pdev->irq;
 	ioaddr = ioremap(base, 0x400);

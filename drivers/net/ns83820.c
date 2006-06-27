@@ -1832,7 +1832,8 @@ static int __devinit ns83820_init_one(struct pci_dev *pci_dev, const struct pci_
 	} else if (!pci_set_dma_mask(pci_dev, DMA_32BIT_MASK)) {
 		using_dac = 0;
 	} else {
-		printk(KERN_WARNING "ns83820.c: pci_set_dma_mask failed!\n");
+		dev_printk(KERN_WARNING, &pci_dev->dev,
+			"pci_set_dma_mask failed!\n");
 		return -ENODEV;
 	}
 
@@ -1855,7 +1856,8 @@ static int __devinit ns83820_init_one(struct pci_dev *pci_dev, const struct pci_
 
 	err = pci_enable_device(pci_dev);
 	if (err) {
-		printk(KERN_INFO "ns83820: pci_enable_dev failed: %d\n", err);
+		dev_printk(KERN_INFO, &pci_dev->dev,
+			"pci_enable_dev failed: %d\n", err);
 		goto out_free;
 	}
 
@@ -1884,8 +1886,9 @@ static int __devinit ns83820_init_one(struct pci_dev *pci_dev, const struct pci_
 	err = request_irq(pci_dev->irq, ns83820_irq, IRQF_SHARED,
 			  DRV_NAME, ndev);
 	if (err) {
-		printk(KERN_INFO "ns83820: unable to register irq %d\n",
-			pci_dev->irq);
+		dev_printk(KERN_INFO, &pci_dev->dev,
+			"unable to register irq %d, err %d\n",
+			pci_dev->irq, err);
 		goto out_disable;
 	}
 
@@ -1899,7 +1902,8 @@ static int __devinit ns83820_init_one(struct pci_dev *pci_dev, const struct pci_
 	rtnl_lock();
 	err = dev_alloc_name(ndev, ndev->name);
 	if (err < 0) {
-		printk(KERN_INFO "ns83820: unable to get netdev name: %d\n", err);
+		dev_printk(KERN_INFO, &pci_dev->dev,
+			"unable to get netdev name: %d\n", err);
 		goto out_free_irq;
 	}
 

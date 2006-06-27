@@ -422,8 +422,7 @@ static int __devinit epic_init_one (struct pci_dev *pdev,
 		((u16 *)dev->dev_addr)[i] = le16_to_cpu(inw(ioaddr + LAN0 + i*4));
 
 	if (debug > 2) {
-		printk(KERN_DEBUG DRV_NAME "(%s): EEPROM contents\n",
-		       pci_name(pdev));
+		dev_printk(KERN_DEBUG, &pdev->dev, "EEPROM contents:\n");
 		for (i = 0; i < 64; i++)
 			printk(" %4.4x%s", read_eeprom(ioaddr, i),
 				   i % 16 == 15 ? "\n" : "");
@@ -445,21 +444,23 @@ static int __devinit epic_init_one (struct pci_dev *pdev,
 			int mii_status = mdio_read(dev, phy, MII_BMSR);
 			if (mii_status != 0xffff  &&  mii_status != 0x0000) {
 				ep->phys[phy_idx++] = phy;
-				printk(KERN_INFO DRV_NAME "(%s): MII transceiver #%d control "
-					   "%4.4x status %4.4x.\n",
-					   pci_name(pdev), phy, mdio_read(dev, phy, 0), mii_status);
+				dev_printk(KERN_INFO, &pdev->dev,
+					"MII transceiver #%d control "
+					"%4.4x status %4.4x.\n",
+					phy, mdio_read(dev, phy, 0), mii_status);
 			}
 		}
 		ep->mii_phy_cnt = phy_idx;
 		if (phy_idx != 0) {
 			phy = ep->phys[0];
 			ep->mii.advertising = mdio_read(dev, phy, MII_ADVERTISE);
-			printk(KERN_INFO DRV_NAME "(%s): Autonegotiation advertising %4.4x link "
+			dev_printk(KERN_INFO, &pdev->dev,
+				"Autonegotiation advertising %4.4x link "
 				   "partner %4.4x.\n",
-				   pci_name(pdev), ep->mii.advertising, mdio_read(dev, phy, 5));
+				   ep->mii.advertising, mdio_read(dev, phy, 5));
 		} else if ( ! (ep->chip_flags & NO_MII)) {
-			printk(KERN_WARNING DRV_NAME "(%s): ***WARNING***: No MII transceiver found!\n",
-			       pci_name(pdev));
+			dev_printk(KERN_WARNING, &pdev->dev,
+				"***WARNING***: No MII transceiver found!\n");
 			/* Use the known PHY address of the EPII. */
 			ep->phys[0] = 3;
 		}
@@ -474,8 +475,8 @@ static int __devinit epic_init_one (struct pci_dev *pdev,
 	/* The lower four bits are the media type. */
 	if (duplex) {
 		ep->mii.force_media = ep->mii.full_duplex = 1;
-		printk(KERN_INFO DRV_NAME "(%s):  Forced full duplex operation requested.\n",
-		       pci_name(pdev));
+		dev_printk(KERN_INFO, &pdev->dev,
+			"Forced full duplex operation requested.\n");
 	}
 	dev->if_port = ep->default_port = option;
 
