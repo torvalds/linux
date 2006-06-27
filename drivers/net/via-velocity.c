@@ -695,14 +695,14 @@ static int __devinit velocity_found1(struct pci_dev *pdev, const struct pci_devi
 	 * can support more than MAX_UNITS.
 	 */
 	if (velocity_nics >= MAX_UNITS) {
-		dev_printk(KERN_NOTICE, &pdev->dev, "already found %d NICs.\n", 
+		dev_notice(&pdev->dev, "already found %d NICs.\n", 
 			   velocity_nics);
 		return -ENODEV;
 	}
 
 	dev = alloc_etherdev(sizeof(struct velocity_info));
 	if (!dev) {
-		dev_printk(KERN_ERR, &pdev->dev, "allocate net device failed.\n");
+		dev_err(&pdev->dev, "allocate net device failed.\n");
 		goto out;
 	}
 	
@@ -739,7 +739,7 @@ static int __devinit velocity_found1(struct pci_dev *pdev, const struct pci_devi
 
 	ret = pci_request_regions(pdev, VELOCITY_NAME);
 	if (ret < 0) {
-		dev_printk(KERN_ERR, &pdev->dev, "No PCI resources.\n");
+		dev_err(&pdev->dev, "No PCI resources.\n");
 		goto err_disable;
 	}
 
@@ -895,19 +895,19 @@ static int __devinit velocity_get_pci_info(struct velocity_info *vptr, struct pc
 	vptr->memaddr = pci_resource_start(pdev, 1);
 	
 	if (!(pci_resource_flags(pdev, 0) & IORESOURCE_IO)) {
-		dev_printk(KERN_ERR, &pdev->dev,
+		dev_err(&pdev->dev,
 			   "region #0 is not an I/O resource, aborting.\n");
 		return -EINVAL;
 	}
 
 	if ((pci_resource_flags(pdev, 1) & IORESOURCE_IO)) {
-		dev_printk(KERN_ERR, &pdev->dev,
+		dev_err(&pdev->dev,
 			   "region #1 is an I/O resource, aborting.\n");
 		return -EINVAL;
 	}
 
 	if (pci_resource_len(pdev, 1) < VELOCITY_IO_SIZE) {
-		dev_printk(KERN_ERR, &pdev->dev, "region #1 is too small.\n");
+		dev_err(&pdev->dev, "region #1 is too small.\n");
 		return -EINVAL;
 	}
 	vptr->pdev = pdev;

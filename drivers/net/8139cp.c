@@ -1836,11 +1836,10 @@ static int cp_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	if (pdev->vendor == PCI_VENDOR_ID_REALTEK &&
 	    pdev->device == PCI_DEVICE_ID_REALTEK_8139 && pci_rev < 0x20) {
-		dev_printk(KERN_ERR, &pdev->dev,
+		dev_err(&pdev->dev,
 			   "This (id %04x:%04x rev %02x) is not an 8139C+ compatible chip\n",
 		           pdev->vendor, pdev->device, pci_rev);
-		dev_printk(KERN_ERR, &pdev->dev,
-			   "Try the \"8139too\" driver instead.\n");
+		dev_err(&pdev->dev, "Try the \"8139too\" driver instead.\n");
 		return -ENODEV;
 	}
 
@@ -1878,13 +1877,12 @@ static int cp_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	pciaddr = pci_resource_start(pdev, 1);
 	if (!pciaddr) {
 		rc = -EIO;
-		dev_printk(KERN_ERR, &pdev->dev, "no MMIO resource\n");
+		dev_err(&pdev->dev, "no MMIO resource\n");
 		goto err_out_res;
 	}
 	if (pci_resource_len(pdev, 1) < CP_REGS_SIZE) {
 		rc = -EIO;
-		dev_printk(KERN_ERR, &pdev->dev,
-			   "MMIO resource (%llx) too small\n",
+		dev_err(&pdev->dev, "MMIO resource (%llx) too small\n",
 		       (unsigned long long)pci_resource_len(pdev, 1));
 		goto err_out_res;
 	}
@@ -1899,13 +1897,13 @@ static int cp_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 
 		rc = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
 		if (rc) {
-			dev_printk(KERN_ERR, &pdev->dev,
+			dev_err(&pdev->dev,
 				   "No usable DMA configuration, aborting.\n");
 			goto err_out_res;
 		}
 		rc = pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK);
 		if (rc) {
-			dev_printk(KERN_ERR, &pdev->dev,
+			dev_err(&pdev->dev,
 				   "No usable consistent DMA configuration, "
 			           "aborting.\n");
 			goto err_out_res;
@@ -1918,8 +1916,7 @@ static int cp_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	regs = ioremap(pciaddr, CP_REGS_SIZE);
 	if (!regs) {
 		rc = -EIO;
-		dev_printk(KERN_ERR, &pdev->dev,
-			   "Cannot map PCI MMIO (%llx@%llx)\n",
+		dev_err(&pdev->dev, "Cannot map PCI MMIO (%lx@%lx)\n",
 		       (unsigned long long)pci_resource_len(pdev, 1),
 		       (unsigned long long)pciaddr);
 		goto err_out_res;

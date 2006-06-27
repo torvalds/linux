@@ -335,7 +335,7 @@ static int __devinit epic_init_one (struct pci_dev *pdev,
 	irq = pdev->irq;
 
 	if (pci_resource_len(pdev, 0) < EPIC_TOTAL_SIZE) {
-		dev_printk(KERN_ERR, &pdev->dev, "no PCI region space\n");
+		dev_err(&pdev->dev, "no PCI region space\n");
 		ret = -ENODEV;
 		goto err_out_disable;
 	}
@@ -350,7 +350,7 @@ static int __devinit epic_init_one (struct pci_dev *pdev,
 
 	dev = alloc_etherdev(sizeof (*ep));
 	if (!dev) {
-		dev_printk(KERN_ERR, &pdev->dev, "no memory for eth device\n");
+		dev_err(&pdev->dev, "no memory for eth device\n");
 		goto err_out_free_res;
 	}
 	SET_MODULE_OWNER(dev);
@@ -362,7 +362,7 @@ static int __devinit epic_init_one (struct pci_dev *pdev,
 	ioaddr = pci_resource_start (pdev, 1);
 	ioaddr = (long) ioremap (ioaddr, pci_resource_len (pdev, 1));
 	if (!ioaddr) {
-		dev_printk(KERN_ERR, &pdev->dev, "ioremap failed\n");
+		dev_err(&pdev->dev, "ioremap failed\n");
 		goto err_out_free_netdev;
 	}
 #endif
@@ -444,7 +444,7 @@ static int __devinit epic_init_one (struct pci_dev *pdev,
 			int mii_status = mdio_read(dev, phy, MII_BMSR);
 			if (mii_status != 0xffff  &&  mii_status != 0x0000) {
 				ep->phys[phy_idx++] = phy;
-				dev_printk(KERN_INFO, &pdev->dev,
+				dev_info(&pdev->dev,
 					"MII transceiver #%d control "
 					"%4.4x status %4.4x.\n",
 					phy, mdio_read(dev, phy, 0), mii_status);
@@ -454,12 +454,12 @@ static int __devinit epic_init_one (struct pci_dev *pdev,
 		if (phy_idx != 0) {
 			phy = ep->phys[0];
 			ep->mii.advertising = mdio_read(dev, phy, MII_ADVERTISE);
-			dev_printk(KERN_INFO, &pdev->dev,
+			dev_info(&pdev->dev,
 				"Autonegotiation advertising %4.4x link "
 				   "partner %4.4x.\n",
 				   ep->mii.advertising, mdio_read(dev, phy, 5));
 		} else if ( ! (ep->chip_flags & NO_MII)) {
-			dev_printk(KERN_WARNING, &pdev->dev,
+			dev_warn(&pdev->dev,
 				"***WARNING***: No MII transceiver found!\n");
 			/* Use the known PHY address of the EPII. */
 			ep->phys[0] = 3;
@@ -475,8 +475,7 @@ static int __devinit epic_init_one (struct pci_dev *pdev,
 	/* The lower four bits are the media type. */
 	if (duplex) {
 		ep->mii.force_media = ep->mii.full_duplex = 1;
-		dev_printk(KERN_INFO, &pdev->dev,
-			"Forced full duplex operation requested.\n");
+		dev_info(&pdev->dev, "Forced full duplex requested.\n");
 	}
 	dev->if_port = ep->default_port = option;
 

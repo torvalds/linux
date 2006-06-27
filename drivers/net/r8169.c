@@ -1406,8 +1406,7 @@ rtl8169_init_board(struct pci_dev *pdev, struct net_device **dev_out,
 	dev = alloc_etherdev(sizeof (*tp));
 	if (dev == NULL) {
 		if (netif_msg_drv(&debug))
-			dev_printk(KERN_ERR, &pdev->dev,
-				"unable to alloc new ethernet\n");
+			dev_err(&pdev->dev, "unable to alloc new ethernet\n");
 		goto err_out;
 	}
 
@@ -1420,7 +1419,7 @@ rtl8169_init_board(struct pci_dev *pdev, struct net_device **dev_out,
 	rc = pci_enable_device(pdev);
 	if (rc < 0) {
 		if (netif_msg_probe(tp))
-			dev_printk(KERN_ERR, &pdev->dev, "enable failure\n");
+			dev_err(&pdev->dev, "enable failure\n");
 		goto err_out_free_dev;
 	}
 
@@ -1437,14 +1436,14 @@ rtl8169_init_board(struct pci_dev *pdev, struct net_device **dev_out,
 		acpi_idle_state = pwr_command & PCI_PM_CTRL_STATE_MASK;
 	} else {
 		if (netif_msg_probe(tp))
-			dev_printk(KERN_ERR, &pdev->dev,
+			dev_err(&pdev->dev,
 			       "PowerManagement capability not found.\n");
 	}
 
 	/* make sure PCI base addr 1 is MMIO */
 	if (!(pci_resource_flags(pdev, 1) & IORESOURCE_MEM)) {
 		if (netif_msg_probe(tp))
-			dev_printk(KERN_ERR, &pdev->dev,
+			dev_err(&pdev->dev,
 			       "region #1 not an MMIO resource, aborting\n");
 		rc = -ENODEV;
 		goto err_out_mwi;
@@ -1452,7 +1451,7 @@ rtl8169_init_board(struct pci_dev *pdev, struct net_device **dev_out,
 	/* check for weird/broken PCI region reporting */
 	if (pci_resource_len(pdev, 1) < R8169_REGS_SIZE) {
 		if (netif_msg_probe(tp))
-			dev_printk(KERN_ERR, &pdev->dev,
+			dev_err(&pdev->dev,
 			       "Invalid PCI region size(s), aborting\n");
 		rc = -ENODEV;
 		goto err_out_mwi;
@@ -1461,8 +1460,7 @@ rtl8169_init_board(struct pci_dev *pdev, struct net_device **dev_out,
 	rc = pci_request_regions(pdev, MODULENAME);
 	if (rc < 0) {
 		if (netif_msg_probe(tp))
-			dev_printk(KERN_ERR, &pdev->dev,
-				"could not request regions.\n");
+			dev_err(&pdev->dev, "could not request regions.\n");
 		goto err_out_mwi;
 	}
 
@@ -1476,7 +1474,7 @@ rtl8169_init_board(struct pci_dev *pdev, struct net_device **dev_out,
 		rc = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
 		if (rc < 0) {
 			if (netif_msg_probe(tp))
-				dev_printk(KERN_ERR, &pdev->dev,
+				dev_err(&pdev->dev,
 				       "DMA configuration failed.\n");
 			goto err_out_free_res;
 		}
@@ -1488,8 +1486,7 @@ rtl8169_init_board(struct pci_dev *pdev, struct net_device **dev_out,
 	ioaddr = ioremap(pci_resource_start(pdev, 1), R8169_REGS_SIZE);
 	if (ioaddr == NULL) {
 		if (netif_msg_probe(tp))
-			dev_printk(KERN_ERR, &pdev->dev,
-				"cannot remap MMIO, aborting\n");
+			dev_err(&pdev->dev, "cannot remap MMIO, aborting\n");
 		rc = -EIO;
 		goto err_out_free_res;
 	}

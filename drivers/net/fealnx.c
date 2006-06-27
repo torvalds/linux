@@ -505,7 +505,7 @@ static int __devinit fealnx_init_one(struct pci_dev *pdev,
 	
 	len = pci_resource_len(pdev, bar);
 	if (len < MIN_REGION_SIZE) {
-		dev_printk(KERN_ERR, &pdev->dev,
+		dev_err(&pdev->dev,
 			   "region size %ld too small, aborting\n", len);
 		return -ENODEV;
 	}
@@ -578,7 +578,7 @@ static int __devinit fealnx_init_one(struct pci_dev *pdev,
 
 			if (mii_status != 0xffff && mii_status != 0x0000) {
 				np->phys[phy_idx++] = phy;
-				dev_printk(KERN_INFO, &pdev->dev,
+				dev_info(&pdev->dev,
 				       "MII PHY found at address %d, status "
 				       "0x%4.4x.\n", phy, mii_status);
 				/* get phy type */
@@ -604,7 +604,7 @@ static int __devinit fealnx_init_one(struct pci_dev *pdev,
 
 		np->mii_cnt = phy_idx;
 		if (phy_idx == 0)
-			dev_printk(KERN_WARNING, &pdev->dev,
+			dev_warn(&pdev->dev,
 				"MII PHY not found -- this device may "
 			       "not operate correctly.\n");
 	} else {
@@ -632,8 +632,7 @@ static int __devinit fealnx_init_one(struct pci_dev *pdev,
 		np->mii.full_duplex = full_duplex[card_idx];
 
 	if (np->mii.full_duplex) {
-		dev_printk(KERN_INFO, &pdev->dev,
-			"Media type forced to Full Duplex.\n");
+		dev_info(&pdev->dev, "Media type forced to Full Duplex.\n");
 /* 89/6/13 add, (begin) */
 //      if (np->PHYType==MarvellPHY)
 		if ((np->PHYType == MarvellPHY) || (np->PHYType == LevelOnePHY)) {

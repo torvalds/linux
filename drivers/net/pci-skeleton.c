@@ -601,8 +601,7 @@ static int __devinit netdrv_init_board (struct pci_dev *pdev,
 	/* dev zeroed in alloc_etherdev */
 	dev = alloc_etherdev (sizeof (*tp));
 	if (dev == NULL) {
-		dev_printk (KERN_ERR, &pdev->dev,
-			    "unable to alloc new ethernet\n");
+		dev_err(&pdev->dev, "unable to alloc new ethernet\n");
 		DPRINTK ("EXIT, returning -ENOMEM\n");
 		return -ENOMEM;
 	}
@@ -632,16 +631,14 @@ static int __devinit netdrv_init_board (struct pci_dev *pdev,
 
 	/* make sure PCI base addr 0 is PIO */
 	if (!(pio_flags & IORESOURCE_IO)) {
-		dev_printk (KERN_ERR, &pdev->dev,
-			"region #0 not a PIO resource, aborting\n");
+		dev_err(&pdev->dev, "region #0 not a PIO resource, aborting\n");
 		rc = -ENODEV;
 		goto err_out;
 	}
 
 	/* make sure PCI base addr 1 is MMIO */
 	if (!(mmio_flags & IORESOURCE_MEM)) {
-		dev_printk (KERN_ERR, &pdev->dev,
-			"region #1 not an MMIO resource, aborting\n");
+		dev_err(&pdev->dev, "region #1 not an MMIO resource, aborting\n");
 		rc = -ENODEV;
 		goto err_out;
 	}
@@ -649,8 +646,7 @@ static int __devinit netdrv_init_board (struct pci_dev *pdev,
 	/* check for weird/broken PCI region reporting */
 	if ((pio_len < NETDRV_MIN_IO_SIZE) ||
 	    (mmio_len < NETDRV_MIN_IO_SIZE)) {
-		dev_printk (KERN_ERR, &pdev->dev,
-			"Invalid PCI region size(s), aborting\n");
+		dev_err(&pdev->dev, "Invalid PCI region size(s), aborting\n");
 		rc = -ENODEV;
 		goto err_out;
 	}
@@ -667,8 +663,7 @@ static int __devinit netdrv_init_board (struct pci_dev *pdev,
 	/* ioremap MMIO region */
 	ioaddr = ioremap (mmio_start, mmio_len);
 	if (ioaddr == NULL) {
-		dev_printk (KERN_ERR, &pdev->dev,
-			"cannot remap MMIO, aborting\n");
+		dev_err(&pdev->dev, "cannot remap MMIO, aborting\n");
 		rc = -EIO;
 		goto err_out_free_res;
 	}
