@@ -23,6 +23,7 @@
 #include <linux/bootmem.h>
 #include <linux/proc_fs.h>
 #include <linux/pci.h>
+#include <linux/poison.h>
 #include <linux/dma-mapping.h>
 #include <linux/module.h>
 #include <linux/memory_hotplug.h>
@@ -660,7 +661,8 @@ void free_init_pages(char *what, unsigned long begin, unsigned long end)
 	for (addr = begin; addr < end; addr += PAGE_SIZE) {
 		ClearPageReserved(virt_to_page(addr));
 		init_page_count(virt_to_page(addr));
-		memset((void *)(addr & ~(PAGE_SIZE-1)), 0xcc, PAGE_SIZE); 
+		memset((void *)(addr & ~(PAGE_SIZE-1)),
+			POISON_FREE_INITMEM, PAGE_SIZE);
 		free_page(addr);
 		totalram_pages++;
 	}
@@ -668,7 +670,8 @@ void free_init_pages(char *what, unsigned long begin, unsigned long end)
 
 void free_initmem(void)
 {
-	memset(__initdata_begin, 0xba, __initdata_end - __initdata_begin);
+	memset(__initdata_begin, POISON_FREE_INITDATA,
+		__initdata_end - __initdata_begin);
 	free_init_pages("unused kernel memory",
 			(unsigned long)(&__init_begin),
 			(unsigned long)(&__init_end));

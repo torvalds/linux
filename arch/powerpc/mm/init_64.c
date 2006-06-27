@@ -41,6 +41,7 @@
 #include <linux/idr.h>
 #include <linux/nodemask.h>
 #include <linux/module.h>
+#include <linux/poison.h>
 
 #include <asm/pgalloc.h>
 #include <asm/page.h>
@@ -90,7 +91,7 @@ void free_initmem(void)
 
 	addr = (unsigned long)__init_begin;
 	for (; addr < (unsigned long)__init_end; addr += PAGE_SIZE) {
-		memset((void *)addr, 0xcc, PAGE_SIZE);
+		memset((void *)addr, POISON_FREE_INITMEM, PAGE_SIZE);
 		ClearPageReserved(virt_to_page(addr));
 		init_page_count(virt_to_page(addr));
 		free_page(addr);

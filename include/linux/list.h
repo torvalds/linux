@@ -4,16 +4,9 @@
 #ifdef __KERNEL__
 
 #include <linux/stddef.h>
+#include <linux/poison.h>
 #include <linux/prefetch.h>
 #include <asm/system.h>
-
-/*
- * These are non-NULL pointers that will result in page faults
- * under normal circumstances, used to verify that nobody uses
- * non-initialized list entries.
- */
-#define LIST_POISON1  ((void *) 0x00100100)
-#define LIST_POISON2  ((void *) 0x00200200)
 
 /*
  * Simple doubly linked list implementation.

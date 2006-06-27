@@ -18,6 +18,7 @@
 #include <linux/initrd.h>
 #include <linux/swap.h>
 #include <linux/pagemap.h>
+#include <linux/poison.h>
 #include <linux/fs.h>
 #include <linux/seq_file.h>
 #include <linux/kprobes.h>
@@ -1520,7 +1521,7 @@ void free_initmem(void)
 		page = (addr +
 			((unsigned long) __va(kern_base)) -
 			((unsigned long) KERNBASE));
-		memset((void *)addr, 0xcc, PAGE_SIZE);
+		memset((void *)addr, POISON_FREE_INITMEM, PAGE_SIZE);
 		p = virt_to_page(page);
 
 		ClearPageReserved(p);

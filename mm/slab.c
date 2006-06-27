@@ -89,6 +89,7 @@
 #include	<linux/config.h>
 #include	<linux/slab.h>
 #include	<linux/mm.h>
+#include	<linux/poison.h>
 #include	<linux/swap.h>
 #include	<linux/cache.h>
 #include	<linux/interrupt.h>
@@ -492,17 +493,6 @@ struct kmem_cache {
 #endif
 
 #if DEBUG
-/*
- * Magic nums for obj red zoning.
- * Placed in the first word before and the first word after an obj.
- */
-#define	RED_INACTIVE	0x5A2CF071UL	/* when obj is inactive */
-#define	RED_ACTIVE	0x170FC2A5UL	/* when obj is active */
-
-/* ...and for poisoning */
-#define	POISON_INUSE	0x5a	/* for use-uninitialised poisoning */
-#define POISON_FREE	0x6b	/* for use-after-free poisoning */
-#define	POISON_END	0xa5	/* end-byte of poisoning */
 
 /*
  * memory layout of objects:
