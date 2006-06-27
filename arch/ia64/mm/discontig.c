@@ -308,6 +308,17 @@ static void __init reserve_pernode_space(void)
 	}
 }
 
+static void __meminit scatter_node_data(void)
+{
+	pg_data_t **dst;
+	int node;
+
+	for_each_online_node(node) {
+		dst = LOCAL_DATA_ADDR(pgdat_list[node])->pg_data_ptrs;
+		memcpy(dst, pgdat_list, sizeof(pgdat_list));
+	}
+}
+
 /**
  * initialize_pernode_data - fixup per-cpu & per-node pointers
  *
@@ -320,11 +331,8 @@ static void __init initialize_pernode_data(void)
 {
 	int cpu, node;
 
-	/* Copy the pg_data_t list to each node and init the node field */
-	for_each_online_node(node) {
-		memcpy(mem_data[node].node_data->pg_data_ptrs, pgdat_list,
-		       sizeof(pgdat_list));
-	}
+	scatter_node_data();
+
 #ifdef CONFIG_SMP
 	/* Set the node_data pointer for each per-cpu struct */
 	for (cpu = 0; cpu < NR_CPUS; cpu++) {
@@ -782,4 +790,10 @@ void __init paging_init(void)
 	}
 
 	zero_page_memmap_ptr = virt_to_page(ia64_imva(empty_zero_page));
+}
+
+void arch_refresh_nodedata(int update_node, pg_data_t *update_pgdat)
+{
+	pgdat_list[update_node] = update_pgdat;
+	scatter_node_data();
 }

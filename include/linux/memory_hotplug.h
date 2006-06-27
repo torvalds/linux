@@ -91,9 +91,7 @@ static inline pg_data_t *arch_alloc_nodedata(int nid)
 static inline void arch_free_nodedata(pg_data_t *pgdat)
 {
 }
-static inline void arch_refresh_nodedata(int nid, pg_data_t *pgdat)
-{
-}
+extern void arch_refresh_nodedata(int nid, pg_data_t *pgdat);
 
 #else /* CONFIG_HAVE_ARCH_NODEDATA_EXTENSION */
 
