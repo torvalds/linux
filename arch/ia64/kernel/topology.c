@@ -26,9 +26,6 @@
 #include <asm/numa.h>
 #include <asm/cpu.h>
 
-#ifdef CONFIG_NUMA
-static struct node *sysfs_nodes;
-#endif
 static struct ia64_cpu *sysfs_cpus;
 
 int arch_register_cpu(int num)
@@ -36,7 +33,7 @@ int arch_register_cpu(int num)
 	struct node *parent = NULL;
 	
 #ifdef CONFIG_NUMA
-	parent = &sysfs_nodes[cpu_to_node(num)];
+	parent = &node_devices[cpu_to_node(num)];
 #endif /* CONFIG_NUMA */
 
 #if defined (CONFIG_ACPI) && defined (CONFIG_HOTPLUG_CPU)
@@ -59,7 +56,7 @@ void arch_unregister_cpu(int num)
 
 #ifdef CONFIG_NUMA
 	int node = cpu_to_node(num);
-	parent = &sysfs_nodes[node];
+	parent = &node_devices[node];
 #endif /* CONFIG_NUMA */
 
 	return unregister_cpu(&sysfs_cpus[num].cpu, parent);
@@ -74,17 +71,11 @@ static int __init topology_init(void)
 	int i, err = 0;
 
 #ifdef CONFIG_NUMA
-	sysfs_nodes = kzalloc(sizeof(struct node) * MAX_NUMNODES, GFP_KERNEL);
-	if (!sysfs_nodes) {
-		err = -ENOMEM;
-		goto out;
-	}
-
 	/*
 	 * MCD - Do we want to register all ONLINE nodes, or all POSSIBLE nodes?
 	 */
 	for_each_online_node(i) {
-		if ((err = register_node(&sysfs_nodes[i], i, 0)))
+		if ((err = register_one_node(i)))
 			goto out;
 	}
 #endif

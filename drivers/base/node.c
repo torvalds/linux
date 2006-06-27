@@ -190,6 +190,31 @@ void unregister_node(struct node *node)
 	sysdev_unregister(&node->sysdev);
 }
 
+struct node node_devices[MAX_NUMNODES];
+
+int register_one_node(int nid)
+{
+	int error = 0;
+
+	if (node_online(nid)) {
+		int p_node = parent_node(nid);
+		struct node *parent = NULL;
+
+		if (p_node != nid)
+			parent = &node_devices[p_node];
+
+		error = register_node(&node_devices[nid], nid, parent);
+	}
+
+	return error;
+
+}
+
+void unregister_one_node(int nid)
+{
+	unregister_node(&node_devices[nid]);
+}
+
 static int __init register_node_type(void)
 {
 	return sysdev_class_register(&node_class);

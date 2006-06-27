@@ -256,8 +256,18 @@ int add_memory(int nid, u64 start, u64 size)
 	if (ret < 0)
 		goto error;
 
-	/* we online node here. we have no error path from here. */
+	/* we online node here. we can't roll back from here. */
 	node_set_online(nid);
+
+	if (new_pgdat) {
+		ret = register_one_node(nid);
+		/*
+		 * If sysfs file of new node can't create, cpu on the node
+		 * can't be hot-added. There is no rollback way now.
+		 * So, check by BUG_ON() to catch it reluctantly..
+		 */
+		BUG_ON(ret);
+	}
 
 	/* register this memory as resource */
 	register_memory_resource(start, size);

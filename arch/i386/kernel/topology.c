@@ -38,7 +38,7 @@ int arch_register_cpu(int num){
 #ifdef CONFIG_NUMA
 	int node = cpu_to_node(num);
 	if (node_online(node))
-		parent = &node_devices[node].node;
+		parent = &node_devices[parent_node(node)];
 #endif /* CONFIG_NUMA */
 
 	/*
@@ -61,7 +61,7 @@ void arch_unregister_cpu(int num) {
 #ifdef CONFIG_NUMA
 	int node = cpu_to_node(num);
 	if (node_online(node))
-		parent = &node_devices[node].node;
+		parent = &node_devices[parent_node(node)];
 #endif /* CONFIG_NUMA */
 
 	return unregister_cpu(&cpu_devices[num].cpu, parent);
@@ -74,16 +74,13 @@ EXPORT_SYMBOL(arch_unregister_cpu);
 
 #ifdef CONFIG_NUMA
 #include <linux/mmzone.h>
-#include <asm/node.h>
-
-struct i386_node node_devices[MAX_NUMNODES];
 
 static int __init topology_init(void)
 {
 	int i;
 
 	for_each_online_node(i)
-		arch_register_node(i);
+		register_one_node(i);
 
 	for_each_present_cpu(i)
 		arch_register_cpu(i);

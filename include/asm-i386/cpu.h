@@ -7,8 +7,6 @@
 #include <linux/nodemask.h>
 #include <linux/percpu.h>
 
-#include <asm/node.h>
-
 struct i386_cpu {
 	struct cpu cpu;
 };

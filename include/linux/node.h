@@ -26,8 +26,12 @@ struct node {
 	struct sys_device	sysdev;
 };
 
+extern struct node node_devices[];
+
 extern int register_node(struct node *, int, struct node *);
 extern void unregister_node(struct node *node);
+extern int register_one_node(int nid);
+extern void unregister_one_node(int nid);
 
 #define to_node(sys_device) container_of(sys_device, struct node, sysdev)
 
