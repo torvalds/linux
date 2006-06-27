@@ -37,6 +37,12 @@ MODULE_PARM_DESC(major, "Major device number");
 
 extern void scx200_gpio_dump(unsigned index);
 
+extern ssize_t nsc_gpio_write(struct file *file, const char __user *data,
+			      size_t len, loff_t *ppos);
+
+extern ssize_t nsc_gpio_read(struct file *file, char __user *buf,
+			     size_t len, loff_t *ppos);
+
 struct nsc_gpio_ops scx200_access = {
 	.owner		= THIS_MODULE,
 	.gpio_config	= scx200_gpio_configure,
@@ -48,84 +54,6 @@ struct nsc_gpio_ops scx200_access = {
 	.gpio_change	= scx200_gpio_change,
 	.gpio_current	= scx200_gpio_current
 };
-
-static ssize_t scx200_gpio_write(struct file *file, const char __user *data,
-				 size_t len, loff_t *ppos)
-{
-	unsigned m = iminor(file->f_dentry->d_inode);
-	struct nsc_gpio_ops *amp = file->private_data;
-	size_t i;
-	int err = 0;
-
-	for (i = 0; i < len; ++i) {
-		char c;
-		if (get_user(c, data + i))
-			return -EFAULT;
-		switch (c) {
-		case '0':
-			amp->gpio_set(m, 0);
-			break;
-		case '1':
-			amp->gpio_set(m, 1);
-			break;
-		case 'O':
-			printk(KERN_INFO NAME ": GPIO%d output enabled\n", m);
-			amp->gpio_config(m, ~1, 1);
-			break;
-		case 'o':
-			printk(KERN_INFO NAME ": GPIO%d output disabled\n", m);
-			amp->gpio_config(m, ~1, 0);
-			break;
-		case 'T':
-			printk(KERN_INFO NAME ": GPIO%d output is push pull\n", m);
-			amp->gpio_config(m, ~2, 2);
-			break;
-		case 't':
-			printk(KERN_INFO NAME ": GPIO%d output is open drain\n", m);
-			amp->gpio_config(m, ~2, 0);
-			break;
-		case 'P':
-			printk(KERN_INFO NAME ": GPIO%d pull up enabled\n", m);
-			amp->gpio_config(m, ~4, 4);
-			break;
-		case 'p':
-			printk(KERN_INFO NAME ": GPIO%d pull up disabled\n", m);
-			amp->gpio_config(m, ~4, 0);
-			break;
-
-		case 'v':
-			/* View Current pin settings */
-			amp->gpio_dump(m);
-			break;
-		case '\n':
-			/* end of settings string, do nothing */
-			break;
-		default:
-			printk(KERN_ERR NAME
-			       ": GPIO-%2d bad setting: chr<0x%2x>\n", m,
-			       (int)c);
-			err++;
-		}
-	}
-	if (err)
-		return -EINVAL;	/* full string handled, report error */
-
-	return len;
-}
-
-static ssize_t scx200_gpio_read(struct file *file, char __user *buf,
-				size_t len, loff_t *ppos)
-{
-	unsigned m = iminor(file->f_dentry->d_inode);
-	int value;
-	struct nsc_gpio_ops *amp = file->private_data;
-
-	value = amp->gpio_get(m);
-	if (put_user(value ? '1' : '0', buf))
-		return -EFAULT;
-
-	return 1;
-}
 
 static int scx200_gpio_open(struct inode *inode, struct file *file)
 {
@@ -145,8 +73,8 @@ static int scx200_gpio_release(struct inode *inode, struct file *file)
 
 static struct file_operations scx200_gpio_fops = {
 	.owner   = THIS_MODULE,
-	.write   = scx200_gpio_write,
-	.read    = scx200_gpio_read,
+	.write   = nsc_gpio_write,
+	.read    = nsc_gpio_read,
 	.open    = scx200_gpio_open,
 	.release = scx200_gpio_release,
 };

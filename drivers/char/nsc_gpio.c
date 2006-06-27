@@ -19,9 +19,89 @@
 
 #define NAME "nsc_gpio"
 
-MODULE_AUTHOR("Jim Cromie <jim.cromie@gmail.com>");
-MODULE_DESCRIPTION("NatSemi GPIO Common Methods");
-MODULE_LICENSE("GPL");
+ssize_t nsc_gpio_write(struct file *file, const char __user *data,
+		       size_t len, loff_t *ppos)
+{
+	unsigned m = iminor(file->f_dentry->d_inode);
+	struct nsc_gpio_ops *amp = file->private_data;
+	size_t i;
+	int err = 0;
+
+	for (i = 0; i < len; ++i) {
+		char c;
+		if (get_user(c, data + i))
+			return -EFAULT;
+		switch (c) {
+		case '0':
+			amp->gpio_set(m, 0);
+			break;
+		case '1':
+			amp->gpio_set(m, 1);
+			break;
+		case 'O':
+			printk(KERN_INFO NAME ": GPIO%d output enabled\n", m);
+			amp->gpio_config(m, ~1, 1);
+			break;
+		case 'o':
+			printk(KERN_INFO NAME ": GPIO%d output disabled\n", m);
+			amp->gpio_config(m, ~1, 0);
+			break;
+		case 'T':
+			printk(KERN_INFO NAME ": GPIO%d output is push pull\n",
+			       m);
+			amp->gpio_config(m, ~2, 2);
+			break;
+		case 't':
+			printk(KERN_INFO NAME ": GPIO%d output is open drain\n",
+			       m);
+			amp->gpio_config(m, ~2, 0);
+			break;
+		case 'P':
+			printk(KERN_INFO NAME ": GPIO%d pull up enabled\n", m);
+			amp->gpio_config(m, ~4, 4);
+			break;
+		case 'p':
+			printk(KERN_INFO NAME ": GPIO%d pull up disabled\n", m);
+			amp->gpio_config(m, ~4, 0);
+			break;
+
+		case 'v':
+			/* View Current pin settings */
+			amp->gpio_dump(m);
+			break;
+		case '\n':
+			/* end of settings string, do nothing */
+			break;
+		default:
+			printk(KERN_ERR NAME
+			       ": GPIO-%2d bad setting: chr<0x%2x>\n", m,
+			       (int)c);
+			err++;
+		}
+	}
+	if (err)
+		return -EINVAL;	/* full string handled, report error */
+
+	return len;
+}
+
+ssize_t nsc_gpio_read(struct file *file, char __user * buf,
+		      size_t len, loff_t * ppos)
+{
+	unsigned m = iminor(file->f_dentry->d_inode);
+	int value;
+	struct nsc_gpio_ops *amp = file->private_data;
+
+	value = amp->gpio_get(m);
+	if (put_user(value ? '1' : '0', buf))
+		return -EFAULT;
+
+	return 1;
+}
+
+/* common routines for both scx200_gpio and pc87360_gpio */
+EXPORT_SYMBOL(nsc_gpio_write);
+EXPORT_SYMBOL(nsc_gpio_read);
 
 static int __init nsc_gpio_init(void)
 {
@@ -34,12 +114,9 @@ static void __exit nsc_gpio_cleanup(void)
 	printk(KERN_DEBUG NAME " cleanup\n");
 }
 
-/* prepare for
-   common routines for both scx200_gpio and pc87360_gpio
-EXPORT_SYMBOL(scx200_gpio_write);
-EXPORT_SYMBOL(scx200_gpio_read);
-EXPORT_SYMBOL(scx200_gpio_release);
-*/
-
 module_init(nsc_gpio_init);
 module_exit(nsc_gpio_cleanup);
+
+MODULE_AUTHOR("Jim Cromie <jim.cromie@gmail.com>");
+MODULE_DESCRIPTION("NatSemi GPIO Common Methods");
+MODULE_LICENSE("GPL");
