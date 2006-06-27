@@ -47,9 +47,17 @@ static struct pci_driver scx200_pci_driver = {
 
 static DEFINE_SPINLOCK(scx200_gpio_config_lock);
 
-static int __devinit scx200_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
+static void __devinit scx200_init_shadow(void)
 {
 	int bank;
+
+	/* read the current values driven on the GPIO signals */
+	for (bank = 0; bank < 2; ++bank)
+		scx200_gpio_shadow[bank] = inl(scx200_gpio_base + 0x10 * bank);
+}
+
+static int __devinit scx200_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
+{
 	unsigned base;
 
 	if (pdev->device == PCI_DEVICE_ID_NS_SCx200_BRIDGE ||
@@ -63,10 +71,7 @@ static int __devinit scx200_probe(struct pci_dev *pdev, const struct pci_device_
 		}
 
 		scx200_gpio_base = base;
-
-		/* read the current values driven on the GPIO signals */
-		for (bank = 0; bank < 2; ++bank)
-			scx200_gpio_shadow[bank] = inl(scx200_gpio_base + 0x10 * bank);
+		scx200_init_shadow();
 
 	} else {
 		/* find the base of the Configuration Block */
