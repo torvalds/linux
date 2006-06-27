@@ -198,7 +198,7 @@ static int acpi_pci_root_add(struct acpi_device *device)
 		root->id.segment = 0;
 		break;
 	default:
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Error evaluating _SEG\n"));
+		ACPI_EXCEPTION((AE_INFO, status, "Evaluating _SEG"));
 		result = -ENODEV;
 		goto end;
 	}
@@ -219,7 +219,7 @@ static int acpi_pci_root_add(struct acpi_device *device)
 		root->id.bus = 0;
 		break;
 	default:
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Error evaluating _BBN\n"));
+		ACPI_EXCEPTION((AE_INFO, status, "Evaluating _BBN"));
 		result = -ENODEV;
 		goto end;
 	}
@@ -231,8 +231,9 @@ static int acpi_pci_root_add(struct acpi_device *device)
 			int bus = 0;
 			acpi_status status;
 
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "Wrong _BBN value, please reboot and using option 'pci=noacpi'\n"));
+			ACPI_ERROR((AE_INFO,
+				    "Wrong _BBN value, reboot"
+				    " and use option 'pci=noacpi'"));
 
 			status = try_get_root_bridge_busnr(root->handle, &bus);
 			if (ACPI_FAILURE(status))
@@ -273,9 +274,9 @@ static int acpi_pci_root_add(struct acpi_device *device)
 	 */
 	root->bus = pci_acpi_scan_root(device, root->id.segment, root->id.bus);
 	if (!root->bus) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Bus %04x:%02x not present in PCI namespace\n",
-				  root->id.segment, root->id.bus));
+		ACPI_ERROR((AE_INFO,
+			    "Bus %04x:%02x not present in PCI namespace",
+			    root->id.segment, root->id.bus));
 		result = -ENODEV;
 		goto end;
 	}

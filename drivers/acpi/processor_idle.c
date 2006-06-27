@@ -674,8 +674,7 @@ static int acpi_processor_get_power_info_cst(struct acpi_processor *pr)
 
 	/* There must be at least 2 elements */
 	if (!cst || (cst->type != ACPI_TYPE_PACKAGE) || cst->package.count < 2) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "not enough elements in _CST\n"));
+		ACPI_ERROR((AE_INFO, "not enough elements in _CST"));
 		status = -EFAULT;
 		goto end;
 	}
@@ -684,8 +683,7 @@ static int acpi_processor_get_power_info_cst(struct acpi_processor *pr)
 
 	/* Validate number of power states. */
 	if (count < 1 || count != cst->package.count - 1) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "count given by _CST is not valid\n"));
+		ACPI_ERROR((AE_INFO, "count given by _CST is not valid"));
 		status = -EFAULT;
 		goto end;
 	}
@@ -1112,8 +1110,8 @@ int acpi_processor_power_init(struct acpi_processor *pr,
 		status =
 		    acpi_os_write_port(acpi_fadt.smi_cmd, acpi_fadt.cst_cnt, 8);
 		if (ACPI_FAILURE(status)) {
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "Notifying BIOS of _CST ability failed\n"));
+			ACPI_EXCEPTION((AE_INFO, status,
+					"Notifying BIOS of _CST ability failed"));
 		}
 	}
 
@@ -1142,9 +1140,7 @@ int acpi_processor_power_init(struct acpi_processor *pr,
 	entry = create_proc_entry(ACPI_PROCESSOR_FILE_POWER,
 				  S_IRUGO, acpi_device_dir(device));
 	if (!entry)
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Unable to create '%s' fs entry\n",
-				  ACPI_PROCESSOR_FILE_POWER));
+		return -EIO;
 	else {
 		entry->proc_fops = &acpi_processor_power_fops;
 		entry->data = acpi_driver_data(device);

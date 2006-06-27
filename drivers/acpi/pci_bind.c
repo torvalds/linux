@@ -75,17 +75,17 @@ acpi_status acpi_get_pci_id(acpi_handle handle, struct acpi_pci_id *id)
 
 	result = acpi_bus_get_device(handle, &device);
 	if (result) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Invalid ACPI Bus context for device %s\n",
-				  acpi_device_bid(device)));
+		ACPI_ERROR((AE_INFO,
+			    "Invalid ACPI Bus context for device %s",
+			    acpi_device_bid(device)));
 		return_ACPI_STATUS(AE_NOT_EXIST);
 	}
 
 	status = acpi_get_data(handle, acpi_pci_data_handler, (void **)&data);
 	if (ACPI_FAILURE(status) || !data) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Invalid ACPI-PCI context for device %s\n",
-				  acpi_device_bid(device)));
+		ACPI_EXCEPTION((AE_INFO, status,
+				"Invalid ACPI-PCI context for device %s",
+				acpi_device_bid(device)));
 		return_ACPI_STATUS(status);
 	}
 
@@ -151,9 +151,9 @@ int acpi_pci_bind(struct acpi_device *device)
 	status = acpi_get_data(device->parent->handle, acpi_pci_data_handler,
 			       (void **)&pdata);
 	if (ACPI_FAILURE(status) || !pdata || !pdata->bus) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Invalid ACPI-PCI context for parent device %s\n",
-				  acpi_device_bid(device->parent)));
+		ACPI_EXCEPTION((AE_INFO, status,
+				"Invalid ACPI-PCI context for parent device %s",
+				acpi_device_bid(device->parent)));
 		result = -ENODEV;
 		goto end;
 	}
@@ -206,10 +206,10 @@ int acpi_pci_bind(struct acpi_device *device)
 		goto end;
 	}
 	if (!data->dev->bus) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Device %02x:%02x:%02x.%02x has invalid 'bus' field\n",
-				  data->id.segment, data->id.bus,
-				  data->id.device, data->id.function));
+		ACPI_ERROR((AE_INFO,
+			    "Device %02x:%02x:%02x.%02x has invalid 'bus' field",
+			    data->id.segment, data->id.bus,
+			    data->id.device, data->id.function));
 		result = -ENODEV;
 		goto end;
 	}
@@ -237,9 +237,9 @@ int acpi_pci_bind(struct acpi_device *device)
 	 */
 	status = acpi_attach_data(device->handle, acpi_pci_data_handler, data);
 	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Unable to attach ACPI-PCI context to device %s\n",
-				  acpi_device_bid(device)));
+		ACPI_EXCEPTION((AE_INFO, status,
+				"Unable to attach ACPI-PCI context to device %s",
+				acpi_device_bid(device)));
 		result = -ENODEV;
 		goto end;
 	}
@@ -301,18 +301,18 @@ int acpi_pci_unbind(struct acpi_device *device)
 	    acpi_get_data(device->handle, acpi_pci_data_handler,
 			  (void **)&data);
 	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Unable to get data from device %s\n",
-				  acpi_device_bid(device)));
+		ACPI_EXCEPTION((AE_INFO, status,
+				"Unable to get data from device %s",
+				acpi_device_bid(device)));
 		result = -ENODEV;
 		goto end;
 	}
 
 	status = acpi_detach_data(device->handle, acpi_pci_data_handler);
 	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Unable to detach data from device %s\n",
-				  acpi_device_bid(device)));
+		ACPI_EXCEPTION((AE_INFO, status,
+				"Unable to detach data from device %s",
+				acpi_device_bid(device)));
 		result = -ENODEV;
 		goto end;
 	}
@@ -369,9 +369,9 @@ acpi_pci_bind_root(struct acpi_device *device,
 
 	status = acpi_attach_data(device->handle, acpi_pci_data_handler, data);
 	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Unable to attach ACPI-PCI context to device %s\n",
-				  pathname));
+		ACPI_EXCEPTION((AE_INFO, status,
+				"Unable to attach ACPI-PCI context to device %s",
+				pathname));
 		result = -ENODEV;
 		goto end;
 	}

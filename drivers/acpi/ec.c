@@ -279,7 +279,7 @@ int acpi_ec_enter_burst_mode(union acpi_ec *ec)
 	atomic_set(&ec->intr.leaving_burst, 0);
 	return_VALUE(0);
       end:
-	printk(KERN_WARNING PREFIX "Error in acpi_ec_wait\n");
+	ACPI_EXCEPTION ((AE_INFO, status, "EC wait, burst mode");
 	return_VALUE(-1);
 }
 
@@ -300,7 +300,7 @@ int acpi_ec_leave_burst_mode(union acpi_ec *ec)
 	atomic_set(&ec->intr.leaving_burst, 1);
 	return_VALUE(0);
 end:
-	printk(KERN_WARNING PREFIX "leave burst_mode:error\n");
+	ACPI_EXCEPTION((AE_INFO, status, "EC leave burst mode");
 	return_VALUE(-1);
 }
 #endif /* ACPI_FUTURE_USAGE */
@@ -963,9 +963,7 @@ static int acpi_ec_add_fs(struct acpi_device *device)
 	entry = create_proc_entry(ACPI_EC_FILE_INFO, S_IRUGO,
 				  acpi_device_dir(device));
 	if (!entry)
-		ACPI_DEBUG_PRINT((ACPI_DB_WARN,
-				  "Unable to create '%s' fs entry\n",
-				  ACPI_EC_FILE_INFO));
+		return_VALUE(-ENODEV);
 	else {
 		entry->proc_fops = &acpi_ec_info_ops;
 		entry->data = acpi_driver_data(device);
@@ -1038,8 +1036,7 @@ static int acpi_ec_poll_add(struct acpi_device *device)
 	    acpi_evaluate_integer(ec->common.handle, "_GPE", NULL,
 				  &ec->common.gpe_bit);
 	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Error obtaining GPE bit assignment\n"));
+		ACPI_EXCEPTION((AE_INFO, status, "Obtaining GPE bit"));
 		result = -ENODEV;
 		goto end;
 	}
@@ -1110,8 +1107,7 @@ static int acpi_ec_intr_add(struct acpi_device *device)
 	    acpi_evaluate_integer(ec->common.handle, "_GPE", NULL,
 				  &ec->common.gpe_bit);
 	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Error obtaining GPE bit assignment\n"));
+		ACPI_ERROR((AE_INFO, "Obtaining GPE bit assignment"));
 		result = -ENODEV;
 		goto end;
 	}
@@ -1205,8 +1201,7 @@ static int acpi_ec_start(struct acpi_device *device)
 				     acpi_ec_io_ports, ec);
 	if (ACPI_FAILURE(status)
 	    || ec->common.command_addr.register_bit_width == 0) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Error getting I/O port addresses"));
+		ACPI_ERROR((AE_INFO, "Error getting I/O port addresses"));
 		return_VALUE(-ENODEV);
 	}
 

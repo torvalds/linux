@@ -62,26 +62,25 @@ acpi_extract_package(union acpi_object *package,
 
 	if (!package || (package->type != ACPI_TYPE_PACKAGE)
 	    || (package->package.count < 1)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_WARN,
-				  "Invalid 'package' argument\n"));
+		ACPI_WARNING((AE_INFO, "Invalid package argument"));
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
 	if (!format || !format->pointer || (format->length < 1)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_WARN, "Invalid 'format' argument\n"));
+		ACPI_WARNING((AE_INFO, "Invalid format argument"));
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
 	if (!buffer) {
-		ACPI_DEBUG_PRINT((ACPI_DB_WARN, "Invalid 'buffer' argument\n"));
+		ACPI_WARNING((AE_INFO, "Invalid buffer argument"));
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
 	format_count = (format->length / sizeof(char)) - 1;
 	if (format_count > package->package.count) {
-		ACPI_DEBUG_PRINT((ACPI_DB_WARN,
-				  "Format specifies more objects [%d] than exist in package [%d].",
-				  format_count, package->package.count));
+		ACPI_WARNING((AE_INFO, "Format specifies more objects [%d]"
+			      " than exist in package [%d].",
+			      format_count, package->package.count));
 		return_ACPI_STATUS(AE_BAD_DATA);
 	}
 
@@ -113,9 +112,10 @@ acpi_extract_package(union acpi_object *package,
 				tail_offset += sizeof(char *);
 				break;
 			default:
-				ACPI_DEBUG_PRINT((ACPI_DB_WARN,
-						  "Invalid package element [%d]: got number, expecing [%c].\n",
-						  i, format_string[i]));
+				ACPI_WARNING((AE_INFO, "Invalid package element"
+					      " [%d]: got number, expecing"
+					      " [%c]",
+					      i, format_string[i]));
 				return_ACPI_STATUS(AE_BAD_DATA);
 				break;
 			}
@@ -138,9 +138,10 @@ acpi_extract_package(union acpi_object *package,
 				tail_offset += sizeof(u8 *);
 				break;
 			default:
-				ACPI_DEBUG_PRINT((ACPI_DB_WARN,
-						  "Invalid package element [%d] got string/buffer, expecing [%c].\n",
-						  i, format_string[i]));
+				ACPI_WARNING((AE_INFO, "Invalid package element"
+					      " [%d] got string/buffer,"
+					      " expecing [%c]",
+					      i, format_string[i]));
 				return_ACPI_STATUS(AE_BAD_DATA);
 				break;
 			}
@@ -325,7 +326,7 @@ acpi_evaluate_string(acpi_handle handle,
 
 	*data = kmalloc(element->string.length + 1, GFP_KERNEL);
 	if (!data) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Memory allocation error\n"));
+		ACPI_ERROR((AE_INFO, "Memory allocation"));
 		return_VALUE(-ENOMEM);
 	}
 	memset(*data, 0, element->string.length + 1);
@@ -367,25 +368,22 @@ acpi_evaluate_reference(acpi_handle handle,
 	package = (union acpi_object *)buffer.pointer;
 
 	if ((buffer.length == 0) || !package) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "No return object (len %X ptr %p)\n",
-				  (unsigned)buffer.length, package));
+		ACPI_ERROR((AE_INFO, "No return object (len %X ptr %p)",
+			    (unsigned)buffer.length, package));
 		status = AE_BAD_DATA;
 		acpi_util_eval_error(handle, pathname, status);
 		goto end;
 	}
 	if (package->type != ACPI_TYPE_PACKAGE) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Expecting a [Package], found type %X\n",
-				  package->type));
+		ACPI_ERROR((AE_INFO, "Expecting a [Package], found type %X",
+			    package->type));
 		status = AE_BAD_DATA;
 		acpi_util_eval_error(handle, pathname, status);
 		goto end;
 	}
 	if (!package->package.count) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "[Package] has zero elements (%p)\n",
-				  package));
+		ACPI_ERROR((AE_INFO, "[Package] has zero elements (%p)",
+			    package));
 		status = AE_BAD_DATA;
 		acpi_util_eval_error(handle, pathname, status);
 		goto end;
@@ -404,9 +402,9 @@ acpi_evaluate_reference(acpi_handle handle,
 
 		if (element->type != ACPI_TYPE_ANY) {
 			status = AE_BAD_DATA;
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "Expecting a [Reference] package element, found type %X\n",
-					  element->type));
+			ACPI_ERROR((AE_INFO,
+				    "Expecting a [Reference] package element, found type %X",
+				    element->type));
 			acpi_util_eval_error(handle, pathname, status);
 			break;
 		}

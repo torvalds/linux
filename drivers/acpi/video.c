@@ -324,7 +324,7 @@ acpi_video_device_lcd_query_levels(struct acpi_video_device *device,
 		return_VALUE(status);
 	obj = (union acpi_object *)buffer.pointer;
 	if (!obj || (obj->type != ACPI_TYPE_PACKAGE)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Invalid _BCL data\n"));
+		ACPI_ERROR((AE_INFO, "Invalid _BCL data"));
 		status = -EFAULT;
 		goto err;
 	}
@@ -399,7 +399,7 @@ acpi_video_device_EDID(struct acpi_video_device *device,
 	if (obj && obj->type == ACPI_TYPE_BUFFER)
 		*edid = obj;
 	else {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Invalid _DDC data\n"));
+		ACPI_ERROR((AE_INFO, "Invalid _DDC data"));
 		status = -EFAULT;
 		kfree(obj);
 	}
@@ -560,8 +560,7 @@ static void acpi_video_device_find_cap(struct acpi_video_device *device)
 				o = (union acpi_object *)&obj->package.
 				    elements[i];
 				if (o->type != ACPI_TYPE_INTEGER) {
-					ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-							  "Invalid data\n"));
+					ACPI_ERROR((AE_INFO, "Invalid data"));
 					continue;
 				}
 				br->levels[count] = (u32) o->integer.value;
@@ -904,8 +903,7 @@ static int acpi_video_device_add_fs(struct acpi_device *device)
 	/* 'info' [R] */
 	entry = create_proc_entry("info", S_IRUGO, acpi_device_dir(device));
 	if (!entry)
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Unable to create 'info' fs entry\n"));
+		return_VALUE(-ENODEV);
 	else {
 		entry->proc_fops = &acpi_video_device_info_fops;
 		entry->data = acpi_driver_data(device);
@@ -917,8 +915,7 @@ static int acpi_video_device_add_fs(struct acpi_device *device)
 	    create_proc_entry("state", S_IFREG | S_IRUGO | S_IWUSR,
 			      acpi_device_dir(device));
 	if (!entry)
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Unable to create 'state' fs entry\n"));
+		return_VALUE(-ENODEV);
 	else {
 		acpi_video_device_state_fops.write = acpi_video_device_write_state;
 		entry->proc_fops = &acpi_video_device_state_fops;
@@ -931,8 +928,7 @@ static int acpi_video_device_add_fs(struct acpi_device *device)
 	    create_proc_entry("brightness", S_IFREG | S_IRUGO | S_IWUSR,
 			      acpi_device_dir(device));
 	if (!entry)
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Unable to create 'brightness' fs entry\n"));
+		return_VALUE(-ENODEV);
 	else {
 		acpi_video_device_brightness_fops.write = acpi_video_device_write_brightness;
 		entry->proc_fops = &acpi_video_device_brightness_fops;
@@ -943,8 +939,7 @@ static int acpi_video_device_add_fs(struct acpi_device *device)
 	/* 'EDID' [R] */
 	entry = create_proc_entry("EDID", S_IRUGO, acpi_device_dir(device));
 	if (!entry)
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Unable to create 'brightness' fs entry\n"));
+		return_VALUE(-ENODEV);
 	else {
 		entry->proc_fops = &acpi_video_device_EDID_fops;
 		entry->data = acpi_driver_data(device);
@@ -1200,8 +1195,7 @@ static int acpi_video_bus_add_fs(struct acpi_device *device)
 	/* 'info' [R] */
 	entry = create_proc_entry("info", S_IRUGO, acpi_device_dir(device));
 	if (!entry)
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Unable to create 'info' fs entry\n"));
+		return_VALUE(-ENODEV);
 	else {
 		entry->proc_fops = &acpi_video_bus_info_fops;
 		entry->data = acpi_driver_data(device);
@@ -1211,8 +1205,7 @@ static int acpi_video_bus_add_fs(struct acpi_device *device)
 	/* 'ROM' [R] */
 	entry = create_proc_entry("ROM", S_IRUGO, acpi_device_dir(device));
 	if (!entry)
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Unable to create 'ROM' fs entry\n"));
+		return_VALUE(-ENODEV);
 	else {
 		entry->proc_fops = &acpi_video_bus_ROM_fops;
 		entry->data = acpi_driver_data(device);
@@ -1223,8 +1216,7 @@ static int acpi_video_bus_add_fs(struct acpi_device *device)
 	entry =
 	    create_proc_entry("POST_info", S_IRUGO, acpi_device_dir(device));
 	if (!entry)
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Unable to create 'POST_info' fs entry\n"));
+		return_VALUE(-ENODEV);
 	else {
 		entry->proc_fops = &acpi_video_bus_POST_info_fops;
 		entry->data = acpi_driver_data(device);
@@ -1236,8 +1228,7 @@ static int acpi_video_bus_add_fs(struct acpi_device *device)
 	    create_proc_entry("POST", S_IFREG | S_IRUGO | S_IRUSR,
 			      acpi_device_dir(device));
 	if (!entry)
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Unable to create 'POST' fs entry\n"));
+		return_VALUE(-ENODEV);
 	else {
 		acpi_video_bus_POST_fops.write = acpi_video_bus_write_POST;
 		entry->proc_fops = &acpi_video_bus_POST_fops;
@@ -1250,8 +1241,7 @@ static int acpi_video_bus_add_fs(struct acpi_device *device)
 	    create_proc_entry("DOS", S_IFREG | S_IRUGO | S_IRUSR,
 			      acpi_device_dir(device));
 	if (!entry)
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Unable to create 'DOS' fs entry\n"));
+		return_VALUE(-ENODEV);
 	else {
 		acpi_video_bus_DOS_fops.write = acpi_video_bus_write_DOS;
 		entry->proc_fops = &acpi_video_bus_DOS_fops;
@@ -1446,13 +1436,13 @@ static int acpi_video_device_enumerate(struct acpi_video_bus *video)
 
 	status = acpi_evaluate_object(video->handle, "_DOD", NULL, &buffer);
 	if (!ACPI_SUCCESS(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Error evaluating _DOD\n"));
+		ACPI_EXCEPTION((AE_INFO, status, "Evaluating _DOD"));
 		return_VALUE(status);
 	}
 
 	dod = (union acpi_object *)buffer.pointer;
 	if (!dod || (dod->type != ACPI_TYPE_PACKAGE)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Invalid _DOD data\n"));
+		ACPI_EXCEPTION((AE_INFO, status, "Invalid _DOD data"));
 		status = -EFAULT;
 		goto out;
 	}
@@ -1476,8 +1466,7 @@ static int acpi_video_device_enumerate(struct acpi_video_bus *video)
 		obj = (union acpi_object *)&dod->package.elements[i];
 
 		if (obj->type != ACPI_TYPE_INTEGER) {
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "Invalid _DOD data\n"));
+			ACPI_ERROR((AE_INFO, "Invalid _DOD data"));
 			active_device_list[i].value.int_val =
 			    ACPI_VIDEO_HEAD_INVALID;
 		}
@@ -1591,8 +1580,7 @@ acpi_video_bus_get_devices(struct acpi_video_bus *video,
 
 		status = acpi_video_bus_get_one_device(dev, video);
 		if (ACPI_FAILURE(status)) {
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "Cant attach device\n"));
+			ACPI_EXCEPTION((AE_INFO, status, "Cant attach device"));
 			continue;
 		}
 
@@ -1620,9 +1608,6 @@ static int acpi_video_bus_put_one_device(struct acpi_video_device *device)
 	status = acpi_remove_notify_handler(device->handle,
 					    ACPI_DEVICE_NOTIFY,
 					    acpi_video_device_notify);
-	if (ACPI_FAILURE(status))
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Error removing notify handler\n"));
 
 	return_VALUE(0);
 }
@@ -1826,9 +1811,6 @@ static int acpi_video_bus_remove(struct acpi_device *device, int type)
 	status = acpi_remove_notify_handler(video->handle,
 					    ACPI_DEVICE_NOTIFY,
 					    acpi_video_bus_notify);
-	if (ACPI_FAILURE(status))
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Error removing notify handler\n"));
 
 	acpi_video_bus_put_devices(video);
 	acpi_video_bus_remove_fs(device);

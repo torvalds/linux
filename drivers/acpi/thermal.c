@@ -325,7 +325,7 @@ static int acpi_thermal_get_trip_points(struct acpi_thermal *tz)
 				       &tz->trips.critical.temperature);
 	if (ACPI_FAILURE(status)) {
 		tz->trips.critical.flags.valid = 0;
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "No critical threshold\n"));
+		ACPI_EXCEPTION((AE_INFO, status, "No critical threshold"));
 		return_VALUE(-ENODEV);
 	} else {
 		tz->trips.critical.flags.valid = 1;
@@ -384,8 +384,7 @@ static int acpi_thermal_get_trip_points(struct acpi_thermal *tz)
 			tz->trips.passive.flags.valid = 0;
 
 		if (!tz->trips.passive.flags.valid)
-			ACPI_DEBUG_PRINT((ACPI_DB_WARN,
-					  "Invalid passive threshold\n"));
+			ACPI_WARNING((AE_INFO, "Invalid passive threshold"));
 		else
 			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 					  "Found passive threshold [%lu]\n",
@@ -414,9 +413,8 @@ static int acpi_thermal_get_trip_points(struct acpi_thermal *tz)
 					  "Found active threshold [%d]:[%lu]\n",
 					  i, tz->trips.active[i].temperature));
 		} else
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "Invalid active threshold [%d]\n",
-					  i));
+			ACPI_EXCEPTION((AE_INFO, status,
+					"Invalid active threshold [%d]", i));
 	}
 
 	return_VALUE(0);
@@ -471,7 +469,7 @@ static int acpi_thermal_critical(struct acpi_thermal *tz)
 		return_VALUE(-EINVAL);
 
 	if (tz->temperature >= tz->trips.critical.temperature) {
-		ACPI_DEBUG_PRINT((ACPI_DB_WARN, "Critical trip point\n"));
+		ACPI_WARNING((AE_INFO, "Critical trip point"));
 		tz->trips.critical.flags.enabled = 1;
 	} else if (tz->trips.critical.flags.enabled)
 		tz->trips.critical.flags.enabled = 0;
@@ -502,7 +500,7 @@ static int acpi_thermal_hot(struct acpi_thermal *tz)
 		return_VALUE(-EINVAL);
 
 	if (tz->temperature >= tz->trips.hot.temperature) {
-		ACPI_DEBUG_PRINT((ACPI_DB_WARN, "Hot trip point\n"));
+		ACPI_WARNING((AE_INFO, "Hot trip point"));
 		tz->trips.hot.flags.enabled = 1;
 	} else if (tz->trips.hot.flags.enabled)
 		tz->trips.hot.flags.enabled = 0;
@@ -642,10 +640,10 @@ static void acpi_thermal_active(struct acpi_thermal *tz)
 						       handles[j],
 						       ACPI_STATE_D0);
 				if (result) {
-					ACPI_DEBUG_PRINT((ACPI_DB_WARN,
-							  "Unable to turn cooling device [%p] 'on'\n",
-							  active->devices.
-							  handles[j]));
+					ACPI_WARNING((AE_INFO,
+						      "Unable to turn cooling device [%p] 'on'",
+						      active->devices.
+						      handles[j]));
 					continue;
 				}
 				active->flags.enabled = 1;
@@ -667,9 +665,9 @@ static void acpi_thermal_active(struct acpi_thermal *tz)
 			result = acpi_bus_set_power(active->devices.handles[j],
 						    ACPI_STATE_D3);
 			if (result) {
-				ACPI_DEBUG_PRINT((ACPI_DB_WARN,
-						  "Unable to turn cooling device [%p] 'off'\n",
-						  active->devices.handles[j]));
+				ACPI_WARNING((AE_INFO,
+					      "Unable to turn cooling device [%p] 'off'",
+					      active->devices.handles[j]));
 				continue;
 			}
 			active->flags.enabled = 0;
@@ -700,7 +698,7 @@ static void acpi_thermal_check(void *data)
 	ACPI_FUNCTION_TRACE("acpi_thermal_check");
 
 	if (!tz) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Invalid (NULL) context.\n"));
+		ACPI_ERROR((AE_INFO, "Invalid (NULL) context"));
 		return_VOID;
 	}
 
@@ -949,13 +947,11 @@ acpi_thermal_write_trip_points(struct file *file,
 	}
 
 	if (!tz || (count > ACPI_THERMAL_MAX_LIMIT_STR_LEN - 1)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Invalid argument\n"));
 		count = -EINVAL;
 		goto end;
 	}
 
 	if (copy_from_user(limit_string, buffer, count)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Invalid data\n"));
 		count = -EFAULT;
 		goto end;
 	}
@@ -968,7 +964,6 @@ acpi_thermal_write_trip_points(struct file *file,
 		     &active[5], &active[6], &active[7], &active[8],
 		     &active[9]);
 	if (!(num >= 5 && num < (ACPI_THERMAL_MAX_ACTIVE + 3))) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Invalid data format\n"));
 		count = -EINVAL;
 		goto end;
 	}
@@ -1128,9 +1123,7 @@ static int acpi_thermal_add_fs(struct acpi_device *device)
 	entry = create_proc_entry(ACPI_THERMAL_FILE_STATE,
 				  S_IRUGO, acpi_device_dir(device));
 	if (!entry)
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Unable to create '%s' fs entry\n",
-				  ACPI_THERMAL_FILE_STATE));
+		return_VALUE(-ENODEV);
 	else {
 		entry->proc_fops = &acpi_thermal_state_fops;
 		entry->data = acpi_driver_data(device);
@@ -1141,9 +1134,7 @@ static int acpi_thermal_add_fs(struct acpi_device *device)
 	entry = create_proc_entry(ACPI_THERMAL_FILE_TEMPERATURE,
 				  S_IRUGO, acpi_device_dir(device));
 	if (!entry)
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Unable to create '%s' fs entry\n",
-				  ACPI_THERMAL_FILE_TEMPERATURE));
+		return_VALUE(-ENODEV);
 	else {
 		entry->proc_fops = &acpi_thermal_temp_fops;
 		entry->data = acpi_driver_data(device);
@@ -1155,9 +1146,7 @@ static int acpi_thermal_add_fs(struct acpi_device *device)
 				  S_IFREG | S_IRUGO | S_IWUSR,
 				  acpi_device_dir(device));
 	if (!entry)
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Unable to create '%s' fs entry\n",
-				  ACPI_THERMAL_FILE_TRIP_POINTS));
+		return_VALUE(-ENODEV);
 	else {
 		entry->proc_fops = &acpi_thermal_trip_fops;
 		entry->data = acpi_driver_data(device);
@@ -1169,9 +1158,7 @@ static int acpi_thermal_add_fs(struct acpi_device *device)
 				  S_IFREG | S_IRUGO | S_IWUSR,
 				  acpi_device_dir(device));
 	if (!entry)
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Unable to create '%s' fs entry\n",
-				  ACPI_THERMAL_FILE_COOLING_MODE));
+		return_VALUE(-ENODEV);
 	else {
 		entry->proc_fops = &acpi_thermal_cooling_fops;
 		entry->data = acpi_driver_data(device);
@@ -1183,9 +1170,7 @@ static int acpi_thermal_add_fs(struct acpi_device *device)
 				  S_IFREG | S_IRUGO | S_IWUSR,
 				  acpi_device_dir(device));
 	if (!entry)
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Unable to create '%s' fs entry\n",
-				  ACPI_THERMAL_FILE_POLLING_FREQ));
+		return_VALUE(-ENODEV);
 	else {
 		entry->proc_fops = &acpi_thermal_polling_fops;
 		entry->data = acpi_driver_data(device);
@@ -1355,8 +1340,6 @@ static int acpi_thermal_add(struct acpi_device *device)
 					     ACPI_DEVICE_NOTIFY,
 					     acpi_thermal_notify, tz);
 	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Error installing notify handler\n"));
 		result = -ENODEV;
 		goto end;
 	}
@@ -1398,9 +1381,6 @@ static int acpi_thermal_remove(struct acpi_device *device, int type)
 	status = acpi_remove_notify_handler(tz->handle,
 					    ACPI_DEVICE_NOTIFY,
 					    acpi_thermal_notify);
-	if (ACPI_FAILURE(status))
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Error removing notify handler\n"));
 
 	/* Terminate policy */
 	if (tz->trips.passive.flags.valid && tz->trips.passive.flags.enabled) {

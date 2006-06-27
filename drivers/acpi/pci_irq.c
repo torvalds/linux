@@ -197,8 +197,8 @@ int acpi_pci_irq_add_prt(acpi_handle handle, int segment, int bus)
 	kfree(pathname);
 	status = acpi_get_irq_routing_table(handle, &buffer);
 	if (status != AE_BUFFER_OVERFLOW) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Error evaluating _PRT [%s]\n",
-				  acpi_format_exception(status)));
+		ACPI_EXCEPTION((AE_INFO, status, "Evaluating _PRT [%s]",
+				acpi_format_exception(status)));
 		return_VALUE(-ENODEV);
 	}
 
@@ -211,8 +211,8 @@ int acpi_pci_irq_add_prt(acpi_handle handle, int segment, int bus)
 
 	status = acpi_get_irq_routing_table(handle, &buffer);
 	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Error evaluating _PRT [%s]\n",
-				  acpi_format_exception(status)));
+		ACPI_EXCEPTION((AE_INFO, status, "Evaluating _PRT [%s]",
+				acpi_format_exception(status)));
 		kfree(buffer.pointer);
 		return_VALUE(-ENODEV);
 	}
@@ -269,8 +269,8 @@ acpi_pci_allocate_irq(struct acpi_prt_entry *entry,
 						 entry->link.index, triggering,
 						 polarity, link);
 		if (irq < 0) {
-			ACPI_DEBUG_PRINT((ACPI_DB_WARN,
-					  "Invalid IRQ link routing entry\n"));
+			ACPI_WARNING((AE_INFO,
+				      "Invalid IRQ link routing entry"));
 			return_VALUE(-1);
 		}
 	} else {
@@ -379,9 +379,8 @@ acpi_pci_irq_derive(struct pci_dev *dev,
 	}
 
 	if (irq < 0) {
-		ACPI_DEBUG_PRINT((ACPI_DB_WARN,
-				  "Unable to derive IRQ for device %s\n",
-				  pci_name(dev)));
+		ACPI_WARNING((AE_INFO, "Unable to derive IRQ for device %s",
+			      pci_name(dev)));
 		return_VALUE(-1);
 	}
 
@@ -421,8 +420,7 @@ int acpi_pci_irq_enable(struct pci_dev *dev)
 	pin--;
 
 	if (!dev->bus) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Invalid (NULL) 'bus' field\n"));
+		ACPI_ERROR((AE_INFO, "Invalid (NULL) 'bus' field"));
 		return_VALUE(-ENODEV);
 	}
 

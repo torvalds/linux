@@ -105,8 +105,7 @@ acpi_power_get_context(acpi_handle handle,
 
 	result = acpi_bus_get_device(handle, &device);
 	if (result) {
-		ACPI_DEBUG_PRINT((ACPI_DB_WARN, "Error getting context [%p]\n",
-				  handle));
+		ACPI_WARNING((AE_INFO, "Getting context [%p]", handle));
 		return_VALUE(result);
 	}
 
@@ -292,8 +291,7 @@ int acpi_enable_wakeup_device_power(struct acpi_device *dev)
 	for (i = 0; i < dev->wakeup.resources.count; i++) {
 		ret = acpi_power_on(dev->wakeup.resources.handles[i]);
 		if (ret) {
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "Error transition power state\n"));
+			ACPI_ERROR((AE_INFO, "Transition power state"));
 			dev->wakeup.flags.valid = 0;
 			return_VALUE(-1);
 		}
@@ -302,7 +300,7 @@ int acpi_enable_wakeup_device_power(struct acpi_device *dev)
 	/* Execute PSW */
 	status = acpi_evaluate_object(dev->handle, "_PSW", &arg_list, NULL);
 	if (ACPI_FAILURE(status) && (status != AE_NOT_FOUND)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Error evaluate _PSW\n"));
+		ACPI_ERROR((AE_INFO, "Evaluate _PSW"));
 		dev->wakeup.flags.valid = 0;
 		ret = -1;
 	}
@@ -332,7 +330,7 @@ int acpi_disable_wakeup_device_power(struct acpi_device *dev)
 	/* Execute PSW */
 	status = acpi_evaluate_object(dev->handle, "_PSW", &arg_list, NULL);
 	if (ACPI_FAILURE(status) && (status != AE_NOT_FOUND)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Error evaluate _PSW\n"));
+		ACPI_ERROR((AE_INFO, "Evaluate _PSW"));
 		dev->wakeup.flags.valid = 0;
 		return_VALUE(-1);
 	}
@@ -341,8 +339,7 @@ int acpi_disable_wakeup_device_power(struct acpi_device *dev)
 	for (i = 0; i < dev->wakeup.resources.count; i++) {
 		ret = acpi_power_off_device(dev->wakeup.resources.handles[i]);
 		if (ret) {
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "Error transition power state\n"));
+			ACPI_ERROR((AE_INFO, "Transition power state"));
 			dev->wakeup.flags.valid = 0;
 			return_VALUE(-1);
 		}
@@ -444,9 +441,8 @@ int acpi_power_transition(struct acpi_device *device, int state)
 	device->power.state = state;
       end:
 	if (result)
-		ACPI_DEBUG_PRINT((ACPI_DB_WARN,
-				  "Error transitioning device [%s] to D%d\n",
-				  device->pnp.bus_id, state));
+		ACPI_WARNING((AE_INFO, "Transitioning device [%s] to D%d",
+			      device->pnp.bus_id, state));
 
 	return_VALUE(result);
 }
@@ -516,9 +512,7 @@ static int acpi_power_add_fs(struct acpi_device *device)
 	entry = create_proc_entry(ACPI_POWER_FILE_STATUS,
 				  S_IRUGO, acpi_device_dir(device));
 	if (!entry)
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Unable to create '%s' fs entry\n",
-				  ACPI_POWER_FILE_STATUS));
+		return_VALUE(-EIO);
 	else {
 		entry->proc_fops = &acpi_power_fops;
 		entry->data = acpi_driver_data(device);

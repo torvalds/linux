@@ -69,8 +69,7 @@ int acpi_bus_get_device(acpi_handle handle, struct acpi_device **device)
 
 	status = acpi_get_data(handle, acpi_bus_data_handler, (void **)device);
 	if (ACPI_FAILURE(status) || !*device) {
-		ACPI_DEBUG_PRINT((ACPI_DB_WARN, "No context for object [%p]\n",
-				  handle));
+		ACPI_EXCEPTION((AE_INFO, status, "No context for object [%p]", handle));
 		return_VALUE(-ENODEV);
 	}
 
@@ -197,8 +196,7 @@ int acpi_bus_set_power(acpi_handle handle, int state)
 	/* Make sure this is a valid target state */
 
 	if (!device->flags.power_manageable) {
-		ACPI_DEBUG_PRINT((ACPI_DB_WARN,
-				  "Device is not power manageable\n"));
+		ACPI_INFO((AE_INFO, "Device is not power manageable"));
 		return_VALUE(-ENODEV);
 	}
 	/*
@@ -215,13 +213,13 @@ int acpi_bus_set_power(acpi_handle handle, int state)
 		}
 	}
 	if (!device->power.states[state].flags.valid) {
-		ACPI_DEBUG_PRINT((ACPI_DB_WARN, "Device does not support D%d\n",
-				  state));
+		ACPI_WARNING((AE_INFO, "Device does not support D%d", state));
 		return_VALUE(-ENODEV);
 	}
 	if (device->parent && (state < device->parent->power.state)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_WARN,
-				  "Cannot set device to a higher-powered state than parent\n"));
+		ACPI_WARNING((AE_INFO,
+			      "Cannot set device to a higher-powered"
+			      " state than parent"));
 		return_VALUE(-ENODEV);
 	}
 
@@ -264,9 +262,9 @@ int acpi_bus_set_power(acpi_handle handle, int state)
 
       end:
 	if (result)
-		ACPI_DEBUG_PRINT((ACPI_DB_WARN,
-				  "Error transitioning device [%s] to D%d\n",
-				  device->pnp.bus_id, state));
+		ACPI_WARNING((AE_INFO,
+			      "Transitioning device [%s] to D%d",
+			      device->pnp.bus_id, state));
 	else
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 				  "Device [%s] transitioned to D%d\n",
@@ -581,7 +579,7 @@ static int __init acpi_bus_init_irq(void)
 
 	status = acpi_evaluate_object(NULL, "\\_PIC", &arg_list, NULL);
 	if (ACPI_FAILURE(status) && (status != AE_NOT_FOUND)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Error evaluating _PIC\n"));
+		ACPI_EXCEPTION((AE_INFO, status, "Evaluating _PIC"));
 		return_VALUE(-ENODEV);
 	}
 

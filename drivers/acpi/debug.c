@@ -216,12 +216,9 @@ static int __init acpi_debug_init(void)
 	return_VALUE(error);
 
       Error:
-	ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-			  "Unable to create '%s' proc fs entry\n", name));
-
 	remove_proc_entry(ACPI_SYSTEM_FILE_DEBUG_LEVEL, acpi_root_dir);
 	remove_proc_entry(ACPI_SYSTEM_FILE_DEBUG_LAYER, acpi_root_dir);
-	error = -EFAULT;
+	error = -ENODEV;
 	goto Done;
 }
 

@@ -356,9 +356,6 @@ static int create_polling_proc(union acpi_hotkey *device)
 	proc = create_proc_entry(proc_name, mode, hotkey_proc_dir);
 
 	if (!proc) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Hotkey: Unable to create %s entry\n",
-				  device->poll_hotkey.poll_method));
 		return_VALUE(-ENODEV);
 	} else {
 		proc->proc_fops = &hotkey_polling_fops;
@@ -771,7 +768,7 @@ static ssize_t hotkey_write_config(struct file *file,
 
 	if (copy_from_user(config_record, buffer, count)) {
 		kfree(config_record);
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Invalid data \n"));
+		ACPI_ERROR((AE_INFO, "Invalid data"));
 		return_VALUE(-EINVAL);
 	}
 	config_record[count] = 0;
@@ -792,8 +789,7 @@ static ssize_t hotkey_write_config(struct file *file,
 		kfree(bus_method);
 		kfree(action_handle);
 		kfree(method);
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Invalid data format ret=%d\n", ret));
+		ACPI_ERROR((AE_INFO, "Invalid data format ret=%d", ret));
 		return_VALUE(-EINVAL);
 	}
 
@@ -806,7 +802,7 @@ static ssize_t hotkey_write_config(struct file *file,
 		tmp = get_hotkey_by_event(&global_hotkey_list,
 					  internal_event_num);
 		if (!tmp)
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Invalid key"));
+			ACPI_ERROR((AE_INFO, "Invalid key"));
 		else
 			memcpy(key, tmp, sizeof(union acpi_hotkey));
 		goto cont_cmd;
@@ -828,7 +824,7 @@ static ssize_t hotkey_write_config(struct file *file,
 		else
 			free_poll_hotkey_buffer(key);
 		kfree(key);
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Invalid hotkey \n"));
+		ACPI_ERROR((AE_INFO, "Invalid hotkey"));
 		return_VALUE(-EINVAL);
 	}
 
@@ -862,7 +858,7 @@ static ssize_t hotkey_write_config(struct file *file,
 	else
 		free_poll_hotkey_buffer(key);
 	kfree(key);
-	ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "invalid key\n"));
+	ACPI_ERROR((AE_INFO, "invalid key"));
 	return_VALUE(-EINVAL);
 }
 
@@ -907,7 +903,7 @@ static int read_acpi_int(acpi_handle handle, const char *method,
 		val->integer.value = out_obj.integer.value;
 		val->type = out_obj.type;
 	} else
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "null val pointer"));
+		ACPI_ERROR((AE_INFO, "null val pointer"));
 	return_VALUE((status == AE_OK)
 		     && (out_obj.type == ACPI_TYPE_INTEGER));
 }
@@ -954,14 +950,14 @@ static ssize_t hotkey_execute_aml_method(struct file *file,
 
 	if (copy_from_user(arg, buffer, count)) {
 		kfree(arg);
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Invalid argument 2"));
+		ACPI_ERROR((AE_INFO, "Invalid argument 2"));
 		return_VALUE(-EINVAL);
 	}
 
 	if (sscanf(arg, "%d:%d:%d:%d", &event, &method_type, &type, &value) !=
 	    4) {
 		kfree(arg);
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Invalid argument 3"));
+		ACPI_ERROR((AE_INFO, "Invalid argument 3"));
 		return_VALUE(-EINVAL);
 	}
 	kfree(arg);
@@ -987,7 +983,7 @@ static ssize_t hotkey_execute_aml_method(struct file *file,
 
 		}
 	} else {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Not supported"));
+		ACPI_WARNING((AE_INFO, "Not supported"));
 		return_VALUE(-EINVAL);
 	}
 	return_VALUE(count);
@@ -1013,9 +1009,6 @@ static int __init hotkey_init(void)
 
 	hotkey_proc_dir = proc_mkdir(HOTKEY_PROC, acpi_root_dir);
 	if (!hotkey_proc_dir) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Hotkey: Unable to create %s entry\n",
-				  HOTKEY_PROC));
 		return (-ENODEV);
 	}
 	hotkey_proc_dir->owner = THIS_MODULE;
@@ -1023,9 +1016,6 @@ static int __init hotkey_init(void)
 	hotkey_config =
 	    create_proc_entry(HOTKEY_EV_CONFIG, mode, hotkey_proc_dir);
 	if (!hotkey_config) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Hotkey: Unable to create %s entry\n",
-				  HOTKEY_EV_CONFIG));
 		goto do_fail1;
 	} else {
 		hotkey_config->proc_fops = &hotkey_config_fops;
@@ -1038,10 +1028,6 @@ static int __init hotkey_init(void)
 	hotkey_poll_config =
 	    create_proc_entry(HOTKEY_PL_CONFIG, mode, hotkey_proc_dir);
 	if (!hotkey_poll_config) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Hotkey: Unable to create %s entry\n",
-				  HOTKEY_EV_CONFIG));
-
 		goto do_fail2;
 	} else {
 		hotkey_poll_config->proc_fops = &hotkey_poll_config_fops;
@@ -1053,9 +1039,6 @@ static int __init hotkey_init(void)
 
 	hotkey_action = create_proc_entry(HOTKEY_ACTION, mode, hotkey_proc_dir);
 	if (!hotkey_action) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Hotkey: Unable to create %s entry\n",
-				  HOTKEY_ACTION));
 		goto do_fail3;
 	} else {
 		hotkey_action->proc_fops = &hotkey_action_fops;
@@ -1066,9 +1049,6 @@ static int __init hotkey_init(void)
 
 	hotkey_info = create_proc_entry(HOTKEY_INFO, mode, hotkey_proc_dir);
 	if (!hotkey_info) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Hotkey: Unable to create %s entry\n",
-				  HOTKEY_INFO));
 		goto do_fail4;
 	} else {
 		hotkey_info->proc_fops = &hotkey_info_fops;

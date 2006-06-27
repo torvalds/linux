@@ -137,6 +137,7 @@ void acpi_os_vprintf(const char *fmt, va_list args)
 #endif
 }
 
+
 extern int acpi_in_resume;
 void *acpi_os_allocate(acpi_size size)
 {
@@ -590,7 +591,7 @@ static void acpi_os_execute_deferred(void *context)
 
 	dpc = (struct acpi_os_dpc *)context;
 	if (!dpc) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Invalid (NULL) context.\n"));
+		ACPI_ERROR((AE_INFO, "Invalid (NULL) context"));
 		return_VOID;
 	}
 
@@ -839,13 +840,13 @@ acpi_status acpi_os_wait_semaphore(acpi_handle handle, u32 units, u16 timeout)
 	}
 
 	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Failed to acquire semaphore[%p|%d|%d], %s\n",
+		ACPI_EXCEPTION((AE_INFO, status,
+				  "Failed to acquire semaphore[%p|%d|%d], %s",
 				  handle, units, timeout,
 				  acpi_format_exception(status)));
 	} else {
 		ACPI_DEBUG_PRINT((ACPI_DB_MUTEX,
-				  "Acquired semaphore[%p|%d|%d]\n", handle,
+				  "Acquired semaphore[%p|%d|%d]", handle,
 				  units, timeout));
 	}
 

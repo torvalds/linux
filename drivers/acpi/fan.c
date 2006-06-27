@@ -153,9 +153,7 @@ static int acpi_fan_add_fs(struct acpi_device *device)
 				  S_IFREG | S_IRUGO | S_IWUSR,
 				  acpi_device_dir(device));
 	if (!entry)
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Unable to create '%s' fs entry\n",
-				  ACPI_FAN_FILE_STATE));
+		return_VALUE(-ENODEV);
 	else {
 		entry->proc_fops = &acpi_fan_state_ops;
 		entry->data = acpi_driver_data(device);
@@ -205,8 +203,7 @@ static int acpi_fan_add(struct acpi_device *device)
 
 	result = acpi_bus_get_power(fan->handle, &state);
 	if (result) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Error reading power state\n"));
+		ACPI_ERROR((AE_INFO, "Reading power state"));
 		goto end;
 	}
 

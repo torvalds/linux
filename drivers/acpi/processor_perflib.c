@@ -123,7 +123,7 @@ static int acpi_processor_get_platform_limit(struct acpi_processor *pr)
 		acpi_processor_ppc_status |= PPC_IN_USE;
 
 	if (ACPI_FAILURE(status) && status != AE_NOT_FOUND) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Error evaluating _PPC\n"));
+		ACPI_EXCEPTION((AE_INFO, status, "Evaluating _PPC"));
 		return_VALUE(-ENODEV);
 	}
 
@@ -172,14 +172,14 @@ static int acpi_processor_get_performance_control(struct acpi_processor *pr)
 
 	status = acpi_evaluate_object(pr->handle, "_PCT", NULL, &buffer);
 	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Error evaluating _PCT\n"));
+		ACPI_EXCEPTION((AE_INFO, status, "Evaluating _PCT"));
 		return_VALUE(-ENODEV);
 	}
 
 	pct = (union acpi_object *)buffer.pointer;
 	if (!pct || (pct->type != ACPI_TYPE_PACKAGE)
 	    || (pct->package.count != 2)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Invalid _PCT data\n"));
+		ACPI_ERROR((AE_INFO, "Invalid _PCT data"));
 		result = -EFAULT;
 		goto end;
 	}
@@ -193,8 +193,7 @@ static int acpi_processor_get_performance_control(struct acpi_processor *pr)
 	if ((obj.type != ACPI_TYPE_BUFFER)
 	    || (obj.buffer.length < sizeof(struct acpi_pct_register))
 	    || (obj.buffer.pointer == NULL)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Invalid _PCT data (control_register)\n"));
+		ACPI_ERROR((AE_INFO, "Invalid _PCT data (control_register)"));
 		result = -EFAULT;
 		goto end;
 	}
@@ -210,8 +209,7 @@ static int acpi_processor_get_performance_control(struct acpi_processor *pr)
 	if ((obj.type != ACPI_TYPE_BUFFER)
 	    || (obj.buffer.length < sizeof(struct acpi_pct_register))
 	    || (obj.buffer.pointer == NULL)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Invalid _PCT data (status_register)\n"));
+		ACPI_ERROR((AE_INFO, "Invalid _PCT data (status_register)"));
 		result = -EFAULT;
 		goto end;
 	}
@@ -239,13 +237,13 @@ static int acpi_processor_get_performance_states(struct acpi_processor *pr)
 
 	status = acpi_evaluate_object(pr->handle, "_PSS", NULL, &buffer);
 	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Error evaluating _PSS\n"));
+		ACPI_EXCEPTION((AE_INFO, status, "Evaluating _PSS"));
 		return_VALUE(-ENODEV);
 	}
 
 	pss = (union acpi_object *)buffer.pointer;
 	if (!pss || (pss->type != ACPI_TYPE_PACKAGE)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Invalid _PSS data\n"));
+		ACPI_ERROR((AE_INFO, "Invalid _PSS data"));
 		result = -EFAULT;
 		goto end;
 	}
@@ -274,8 +272,7 @@ static int acpi_processor_get_performance_states(struct acpi_processor *pr)
 		status = acpi_extract_package(&(pss->package.elements[i]),
 					      &format, &state);
 		if (ACPI_FAILURE(status)) {
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "Invalid _PSS data\n"));
+			ACPI_EXCEPTION((AE_INFO, status, "Invalid _PSS data"));
 			result = -EFAULT;
 			kfree(pr->performance->states);
 			goto end;
@@ -291,8 +288,8 @@ static int acpi_processor_get_performance_states(struct acpi_processor *pr)
 				  (u32) px->control, (u32) px->status));
 
 		if (!px->core_frequency) {
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "Invalid _PSS data: freq is zero\n"));
+			ACPI_ERROR((AE_INFO,
+				    "Invalid _PSS data: freq is zero"));
 			result = -EFAULT;
 			kfree(pr->performance->states);
 			goto end;
@@ -387,10 +384,10 @@ int acpi_processor_notify_smm(struct module *calling_module)
 	status = acpi_os_write_port(acpi_fadt.smi_cmd,
 				    (u32) acpi_fadt.pstate_cnt, 8);
 	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Failed to write pstate_cnt [0x%x] to "
-				  "smi_cmd [0x%x]\n", acpi_fadt.pstate_cnt,
-				  acpi_fadt.smi_cmd));
+		ACPI_EXCEPTION((AE_INFO, status,
+				"Failed to write pstate_cnt [0x%x] to "
+				"smi_cmd [0x%x]", acpi_fadt.pstate_cnt,
+				acpi_fadt.smi_cmd));
 		module_put(calling_module);
 		return_VALUE(status);
 	}
@@ -514,11 +511,7 @@ static void acpi_cpufreq_add_file(struct acpi_processor *pr)
 	entry = create_proc_entry(ACPI_PROCESSOR_FILE_PERFORMANCE,
 				  S_IFREG | S_IRUGO | S_IWUSR,
 				  acpi_device_dir(device));
-	if (!entry)
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Unable to create '%s' fs entry\n",
-				  ACPI_PROCESSOR_FILE_PERFORMANCE));
-	else {
+	if (entry){
 		acpi_processor_perf_fops.write = acpi_processor_write_performance;
 		entry->proc_fops = &acpi_processor_perf_fops;
 		entry->data = acpi_driver_data(device);

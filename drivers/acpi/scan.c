@@ -311,15 +311,14 @@ static int acpi_bus_get_wakeup_device_flags(struct acpi_device *device)
 	/* _PRW */
 	status = acpi_evaluate_object(device->handle, "_PRW", NULL, &buffer);
 	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Error evaluating _PRW\n"));
+		ACPI_EXCEPTION((AE_INFO, status, "Evaluating _PRW"));
 		goto end;
 	}
 
 	package = (union acpi_object *)buffer.pointer;
 	status = acpi_bus_extract_wakeup_device_power_package(device, package);
 	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Error extracting _PRW package\n"));
+		ACPI_EXCEPTION((AE_INFO, status, "Extracting _PRW package"));
 		goto end;
 	}
 
@@ -970,7 +969,7 @@ acpi_add_single_object(struct acpi_device **child,
 
 	device = kmalloc(sizeof(struct acpi_device), GFP_KERNEL);
 	if (!device) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Memory allocation error\n"));
+		ACPI_ERROR((AE_INFO, "Memory allocation error"));
 		return_VALUE(-ENOMEM);
 	}
 	memset(device, 0, sizeof(struct acpi_device));

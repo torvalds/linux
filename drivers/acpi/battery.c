@@ -141,7 +141,7 @@ acpi_battery_get_info(struct acpi_battery *battery,
 
 	status = acpi_evaluate_object(battery->handle, "_BIF", NULL, &buffer);
 	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Error evaluating _BIF\n"));
+		ACPI_EXCEPTION((AE_INFO, status, "Evaluating _BIF"));
 		return_VALUE(-ENODEV);
 	}
 
@@ -151,7 +151,7 @@ acpi_battery_get_info(struct acpi_battery *battery,
 
 	status = acpi_extract_package(package, &format, &data);
 	if (status != AE_BUFFER_OVERFLOW) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Error extracting _BIF\n"));
+		ACPI_EXCEPTION((AE_INFO, status, "Extracting _BIF"));
 		result = -ENODEV;
 		goto end;
 	}
@@ -165,7 +165,7 @@ acpi_battery_get_info(struct acpi_battery *battery,
 
 	status = acpi_extract_package(package, &format, &data);
 	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Error extracting _BIF\n"));
+		ACPI_EXCEPTION((AE_INFO, status, "Extracting _BIF"));
 		kfree(data.pointer);
 		result = -ENODEV;
 		goto end;
@@ -202,7 +202,7 @@ acpi_battery_get_status(struct acpi_battery *battery,
 
 	status = acpi_evaluate_object(battery->handle, "_BST", NULL, &buffer);
 	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Error evaluating _BST\n"));
+		ACPI_EXCEPTION((AE_INFO, status, "Evaluating _BST"));
 		return_VALUE(-ENODEV);
 	}
 
@@ -212,7 +212,7 @@ acpi_battery_get_status(struct acpi_battery *battery,
 
 	status = acpi_extract_package(package, &format, &data);
 	if (status != AE_BUFFER_OVERFLOW) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Error extracting _BST\n"));
+		ACPI_EXCEPTION((AE_INFO, status, "Extracting _BST"));
 		result = -ENODEV;
 		goto end;
 	}
@@ -226,7 +226,7 @@ acpi_battery_get_status(struct acpi_battery *battery,
 
 	status = acpi_extract_package(package, &format, &data);
 	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Error extracting _BST\n"));
+		ACPI_EXCEPTION((AE_INFO, status, "Extracting _BST"));
 		kfree(data.pointer);
 		result = -ENODEV;
 		goto end;
@@ -458,8 +458,6 @@ static int acpi_battery_read_state(struct seq_file *seq, void *offset)
 	if ((bst->state & 0x01) && (bst->state & 0x02)) {
 		seq_printf(seq,
 			   "charging state:          charging/discharging\n");
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Battery Charging and Discharging?\n"));
 	} else if (bst->state & 0x01)
 		seq_printf(seq, "charging state:          discharging\n");
 	else if (bst->state & 0x02)
@@ -609,9 +607,7 @@ static int acpi_battery_add_fs(struct acpi_device *device)
 	entry = create_proc_entry(ACPI_BATTERY_FILE_INFO,
 				  S_IRUGO, acpi_device_dir(device));
 	if (!entry)
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Unable to create '%s' fs entry\n",
-				  ACPI_BATTERY_FILE_INFO));
+		return_VALUE(-ENODEV);
 	else {
 		entry->proc_fops = &acpi_battery_info_ops;
 		entry->data = acpi_driver_data(device);
@@ -622,9 +618,7 @@ static int acpi_battery_add_fs(struct acpi_device *device)
 	entry = create_proc_entry(ACPI_BATTERY_FILE_STATUS,
 				  S_IRUGO, acpi_device_dir(device));
 	if (!entry)
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Unable to create '%s' fs entry\n",
-				  ACPI_BATTERY_FILE_STATUS));
+		return_VALUE(-ENODEV);
 	else {
 		entry->proc_fops = &acpi_battery_state_ops;
 		entry->data = acpi_driver_data(device);
@@ -636,9 +630,7 @@ static int acpi_battery_add_fs(struct acpi_device *device)
 				  S_IFREG | S_IRUGO | S_IWUSR,
 				  acpi_device_dir(device));
 	if (!entry)
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Unable to create '%s' fs entry\n",
-				  ACPI_BATTERY_FILE_ALARM));
+		return_VALUE(-ENODEV);
 	else {
 		entry->proc_fops = &acpi_battery_alarm_ops;
 		entry->data = acpi_driver_data(device);
@@ -732,8 +724,6 @@ static int acpi_battery_add(struct acpi_device *device)
 					     ACPI_DEVICE_NOTIFY,
 					     acpi_battery_notify, battery);
 	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Error installing notify handler\n"));
 		result = -ENODEV;
 		goto end;
 	}
@@ -766,9 +756,6 @@ static int acpi_battery_remove(struct acpi_device *device, int type)
 	status = acpi_remove_notify_handler(battery->handle,
 					    ACPI_DEVICE_NOTIFY,
 					    acpi_battery_notify);
-	if (ACPI_FAILURE(status))
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Error removing notify handler\n"));
 
 	acpi_battery_remove_fs(device);
 

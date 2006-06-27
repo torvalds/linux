@@ -91,8 +91,7 @@ static int acpi_ac_get_state(struct acpi_ac *ac)
 
 	status = acpi_evaluate_integer(ac->handle, "_PSR", NULL, &ac->state);
 	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Error reading AC Adapter state\n"));
+		ACPI_EXCEPTION((AE_INFO, status, "Error reading AC Adapter state"));
 		ac->state = ACPI_AC_STATUS_UNKNOWN;
 		return_VALUE(-ENODEV);
 	}
@@ -159,9 +158,7 @@ static int acpi_ac_add_fs(struct acpi_device *device)
 	entry = create_proc_entry(ACPI_AC_FILE_STATE,
 				  S_IRUGO, acpi_device_dir(device));
 	if (!entry)
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Unable to create '%s' fs entry\n",
-				  ACPI_AC_FILE_STATE));
+		return_VALUE(-ENODEV);
 	else {
 		entry->proc_fops = &acpi_ac_fops;
 		entry->data = acpi_driver_data(device);
@@ -249,8 +246,6 @@ static int acpi_ac_add(struct acpi_device *device)
 					     ACPI_DEVICE_NOTIFY, acpi_ac_notify,
 					     ac);
 	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Error installing notify handler\n"));
 		result = -ENODEV;
 		goto end;
 	}
@@ -282,9 +277,6 @@ static int acpi_ac_remove(struct acpi_device *device, int type)
 
 	status = acpi_remove_notify_handler(ac->handle,
 					    ACPI_DEVICE_NOTIFY, acpi_ac_notify);
-	if (ACPI_FAILURE(status))
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Error removing notify handler\n"));
 
 	acpi_ac_remove_fs(device);
 

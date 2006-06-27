@@ -207,9 +207,7 @@ static int acpi_button_add_fs(struct acpi_device *device)
 	entry = create_proc_entry(ACPI_BUTTON_FILE_INFO,
 				  S_IRUGO, acpi_device_dir(device));
 	if (!entry)
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Unable to create '%s' fs entry\n",
-				  ACPI_BUTTON_FILE_INFO));
+		return_VALUE(-ENODEV);
 	else {
 		entry->proc_fops = &acpi_button_info_fops;
 		entry->data = acpi_driver_data(device);
@@ -221,9 +219,7 @@ static int acpi_button_add_fs(struct acpi_device *device)
 		entry = create_proc_entry(ACPI_BUTTON_FILE_STATE,
 					  S_IRUGO, acpi_device_dir(device));
 		if (!entry)
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "Unable to create '%s' fs entry\n",
-					  ACPI_BUTTON_FILE_INFO));
+			return -ENODEV;
 		else {
 			entry->proc_fops = &acpi_button_state_fops;
 			entry->data = acpi_driver_data(device);
@@ -349,8 +345,8 @@ static int acpi_button_add(struct acpi_device *device)
 		sprintf(acpi_device_class(device), "%s/%s",
 			ACPI_BUTTON_CLASS, ACPI_BUTTON_SUBCLASS_LID);
 	} else {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Unsupported hid [%s]\n",
-				  acpi_device_hid(device)));
+		ACPI_ERROR((AE_INFO, "Unsupported hid [%s]",
+			    acpi_device_hid(device)));
 		result = -ENODEV;
 		goto end;
 	}
@@ -381,8 +377,6 @@ static int acpi_button_add(struct acpi_device *device)
 	}
 
 	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Error installing notify handler\n"));
 		result = -ENODEV;
 		goto end;
 	}
@@ -439,10 +433,6 @@ static int acpi_button_remove(struct acpi_device *device, int type)
 						    acpi_button_notify);
 		break;
 	}
-
-	if (ACPI_FAILURE(status))
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Error removing notify handler\n"));
 
 	acpi_button_remove_fs(device);
 

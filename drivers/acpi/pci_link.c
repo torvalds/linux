@@ -116,17 +116,15 @@ acpi_pci_link_check_possible(struct acpi_resource *resource, void *context)
 		{
 			struct acpi_resource_irq *p = &resource->data.irq;
 			if (!p || !p->interrupt_count) {
-				ACPI_DEBUG_PRINT((ACPI_DB_WARN,
-						  "Blank IRQ resource\n"));
+				ACPI_WARNING((AE_INFO, "Blank IRQ resource"));
 				return_ACPI_STATUS(AE_OK);
 			}
 			for (i = 0;
 			     (i < p->interrupt_count
 			      && i < ACPI_PCI_LINK_MAX_POSSIBLE); i++) {
 				if (!p->interrupts[i]) {
-					ACPI_DEBUG_PRINT((ACPI_DB_WARN,
-							  "Invalid IRQ %d\n",
-							  p->interrupts[i]));
+					ACPI_WARNING((AE_INFO, "Invalid IRQ %d",
+						      p->interrupts[i]));
 					continue;
 				}
 				link->irq.possible[i] = p->interrupts[i];
@@ -142,17 +140,16 @@ acpi_pci_link_check_possible(struct acpi_resource *resource, void *context)
 			struct acpi_resource_extended_irq *p =
 			    &resource->data.extended_irq;
 			if (!p || !p->interrupt_count) {
-				ACPI_DEBUG_PRINT((ACPI_DB_WARN,
-						  "Blank EXT IRQ resource\n"));
+				ACPI_WARNING((AE_INFO,
+					      "Blank EXT IRQ resource"));
 				return_ACPI_STATUS(AE_OK);
 			}
 			for (i = 0;
 			     (i < p->interrupt_count
 			      && i < ACPI_PCI_LINK_MAX_POSSIBLE); i++) {
 				if (!p->interrupts[i]) {
-					ACPI_DEBUG_PRINT((ACPI_DB_WARN,
-							  "Invalid IRQ %d\n",
-							  p->interrupts[i]));
+					ACPI_WARNING((AE_INFO, "Invalid IRQ %d",
+						      p->interrupts[i]));
 					continue;
 				}
 				link->irq.possible[i] = p->interrupts[i];
@@ -164,8 +161,7 @@ acpi_pci_link_check_possible(struct acpi_resource *resource, void *context)
 			break;
 		}
 	default:
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Resource is not an IRQ entry\n"));
+		ACPI_ERROR((AE_INFO, "Resource is not an IRQ entry\n"));
 		return_ACPI_STATUS(AE_OK);
 	}
 
@@ -184,7 +180,7 @@ static int acpi_pci_link_get_possible(struct acpi_pci_link *link)
 	status = acpi_walk_resources(link->handle, METHOD_NAME__PRS,
 				     acpi_pci_link_check_possible, link);
 	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Error evaluating _PRS\n"));
+		ACPI_EXCEPTION((AE_INFO, status, "Evaluating _PRS"));
 		return_VALUE(-ENODEV);
 	}
 
@@ -227,8 +223,8 @@ acpi_pci_link_check_current(struct acpi_resource *resource, void *context)
 				 * extended IRQ descriptors must
 				 * return at least 1 IRQ
 				 */
-				ACPI_DEBUG_PRINT((ACPI_DB_WARN,
-						  "Blank EXT IRQ resource\n"));
+				ACPI_WARNING((AE_INFO,
+					      "Blank EXT IRQ resource"));
 				return_ACPI_STATUS(AE_OK);
 			}
 			*irq = p->interrupts[0];
@@ -236,7 +232,7 @@ acpi_pci_link_check_current(struct acpi_resource *resource, void *context)
 		}
 		break;
 	default:
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Resource %d isn't an IRQ\n", resource->type));
+		ACPI_ERROR((AE_INFO, "Resource %d isn't an IRQ", resource->type));
 	case ACPI_RESOURCE_TYPE_END_TAG:
 		return_ACPI_STATUS(AE_OK);
 	}
@@ -268,8 +264,7 @@ static int acpi_pci_link_get_current(struct acpi_pci_link *link)
 		/* Query _STA, set link->device->status */
 		result = acpi_bus_get_status(link->device);
 		if (result) {
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "Unable to read status\n"));
+			ACPI_ERROR((AE_INFO, "Unable to read status"));
 			goto end;
 		}
 
@@ -286,13 +281,13 @@ static int acpi_pci_link_get_current(struct acpi_pci_link *link)
 	status = acpi_walk_resources(link->handle, METHOD_NAME__CRS,
 				     acpi_pci_link_check_current, &irq);
 	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Error evaluating _CRS\n"));
+		ACPI_EXCEPTION((AE_INFO, status, "Evaluating _CRS"));
 		result = -ENODEV;
 		goto end;
 	}
 
 	if (acpi_strict && !irq) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "_CRS returned 0\n"));
+		ACPI_ERROR((AE_INFO, "_CRS returned 0"));
 		result = -ENODEV;
 	}
 
@@ -362,7 +357,7 @@ static int acpi_pci_link_set(struct acpi_pci_link *link, int irq)
 		/* ignore resource_source, it's optional */
 		break;
 	default:
-		printk("ACPI BUG: resource_type %d\n", link->irq.resource_type);
+		ACPI_ERROR((AE_INFO, "Invalid Resource_type %d\n", link->irq.resource_type));
 		result = -EINVAL;
 		goto end;
 
@@ -374,7 +369,7 @@ static int acpi_pci_link_set(struct acpi_pci_link *link, int irq)
 
 	/* check for total failure */
 	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Error evaluating _SRS\n"));
+		ACPI_EXCEPTION((AE_INFO, status, "Evaluating _SRS"));
 		result = -ENODEV;
 		goto end;
 	}
@@ -382,14 +377,14 @@ static int acpi_pci_link_set(struct acpi_pci_link *link, int irq)
 	/* Query _STA, set device->status */
 	result = acpi_bus_get_status(link->device);
 	if (result) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Unable to read status\n"));
+		ACPI_ERROR((AE_INFO, "Unable to read status"));
 		goto end;
 	}
 	if (!link->device->status.enabled) {
-		printk(KERN_WARNING PREFIX
-		       "%s [%s] disabled and referenced, BIOS bug.\n",
-		       acpi_device_name(link->device),
-		       acpi_device_bid(link->device));
+		ACPI_WARNING((AE_INFO,
+			      "%s [%s] disabled and referenced, BIOS bug",
+			      acpi_device_name(link->device),
+			      acpi_device_bid(link->device)));
 	}
 
 	/* Query _CRS, set link->irq.active */
@@ -407,10 +402,10 @@ static int acpi_pci_link_set(struct acpi_pci_link *link, int irq)
 		 * policy: when _CRS doesn't return what we just _SRS
 		 * assume _SRS worked and override _CRS value.
 		 */
-		printk(KERN_WARNING PREFIX
-		       "%s [%s] BIOS reported IRQ %d, using IRQ %d\n",
-		       acpi_device_name(link->device),
-		       acpi_device_bid(link->device), link->irq.active, irq);
+		ACPI_WARNING((AE_INFO,
+			      "%s [%s] BIOS reported IRQ %d, using IRQ %d",
+			      acpi_device_name(link->device),
+			      acpi_device_bid(link->device), link->irq.active, irq));
 		link->irq.active = irq;
 	}
 
@@ -501,8 +496,7 @@ int __init acpi_irq_penalty_init(void)
 
 		link = list_entry(node, struct acpi_pci_link, node);
 		if (!link) {
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "Invalid link context\n"));
+			ACPI_ERROR((AE_INFO, "Invalid link context"));
 			continue;
 		}
 
@@ -561,8 +555,8 @@ static int acpi_pci_link_allocate(struct acpi_pci_link *link)
 	 */
 	if (i == link->irq.possible_count) {
 		if (acpi_strict)
-			printk(KERN_WARNING PREFIX "_CRS %d not found"
-			       " in _PRS\n", link->irq.active);
+			ACPI_WARNING((AE_INFO, "_CRS %d not found"
+				      " in _PRS", link->irq.active));
 		link->irq.active = 0;
 	}
 
@@ -589,11 +583,10 @@ static int acpi_pci_link_allocate(struct acpi_pci_link *link)
 
 	/* Attempt to enable the link device at this IRQ. */
 	if (acpi_pci_link_set(link, irq)) {
-		printk(PREFIX
-		       "Unable to set IRQ for %s [%s] (likely buggy ACPI BIOS).\n"
-		       "Try pci=noacpi or acpi=off\n",
-		       acpi_device_name(link->device),
-		       acpi_device_bid(link->device));
+		ACPI_ERROR((AE_INFO, "Unable to set IRQ for %s [%s]. "
+			    "Try pci=noacpi or acpi=off",
+			    acpi_device_name(link->device),
+			    acpi_device_bid(link->device)));
 		return_VALUE(-ENODEV);
 	} else {
 		acpi_irq_penalty[link->irq.active] += PIRQ_PENALTY_PCI_USING;
@@ -626,19 +619,19 @@ acpi_pci_link_allocate_irq(acpi_handle handle,
 
 	result = acpi_bus_get_device(handle, &device);
 	if (result) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Invalid link device\n"));
+		ACPI_ERROR((AE_INFO, "Invalid link device"));
 		return_VALUE(-1);
 	}
 
 	link = (struct acpi_pci_link *)acpi_driver_data(device);
 	if (!link) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Invalid link context\n"));
+		ACPI_ERROR((AE_INFO, "Invalid link context"));
 		return_VALUE(-1);
 	}
 
 	/* TBD: Support multiple index (IRQ) entries per Link Device */
 	if (index) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Invalid index %d\n", index));
+		ACPI_ERROR((AE_INFO, "Invalid index %d", index));
 		return_VALUE(-1);
 	}
 
@@ -650,7 +643,7 @@ acpi_pci_link_allocate_irq(acpi_handle handle,
 
 	if (!link->irq.active) {
 		mutex_unlock(&acpi_link_lock);
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Link active IRQ is 0!\n"));
+		ACPI_ERROR((AE_INFO, "Link active IRQ is 0!"));
 		return_VALUE(-1);
 	}
 	link->refcnt++;
@@ -682,20 +675,20 @@ int acpi_pci_link_free_irq(acpi_handle handle)
 
 	result = acpi_bus_get_device(handle, &device);
 	if (result) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Invalid link device\n"));
+		ACPI_ERROR((AE_INFO, "Invalid link device"));
 		return_VALUE(-1);
 	}
 
 	link = (struct acpi_pci_link *)acpi_driver_data(device);
 	if (!link) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Invalid link context\n"));
+		ACPI_ERROR((AE_INFO, "Invalid link context"));
 		return_VALUE(-1);
 	}
 
 	mutex_lock(&acpi_link_lock);
 	if (!link->irq.initialized) {
 		mutex_unlock(&acpi_link_lock);
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Link isn't initialized\n"));
+		ACPI_ERROR((AE_INFO, "Link isn't initialized"));
 		return_VALUE(-1);
 	}
 #ifdef	FUTURE_USE
@@ -820,8 +813,7 @@ static int irqrouter_resume(struct sys_device *dev)
 	list_for_each(node, &acpi_link.entries) {
 		link = list_entry(node, struct acpi_pci_link, node);
 		if (!link) {
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "Invalid link context\n"));
+			ACPI_ERROR((AE_INFO, "Invalid link context"));
 			continue;
 		}
 		acpi_pci_link_resume(link);

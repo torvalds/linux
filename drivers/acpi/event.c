@@ -122,10 +122,7 @@ static int __init acpi_event_init(void)
 	if (entry)
 		entry->proc_fops = &acpi_system_event_ops;
 	else {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Unable to create '%s' proc fs entry\n",
-				  "event"));
-		error = -EFAULT;
+		error = -ENODEV;
 	}
 	return_VALUE(error);
 }

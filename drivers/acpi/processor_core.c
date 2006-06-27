@@ -328,9 +328,7 @@ static int acpi_processor_add_fs(struct acpi_device *device)
 	entry = create_proc_entry(ACPI_PROCESSOR_FILE_INFO,
 				  S_IRUGO, acpi_device_dir(device));
 	if (!entry)
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Unable to create '%s' fs entry\n",
-				  ACPI_PROCESSOR_FILE_INFO));
+		return_VALUE(-EIO);
 	else {
 		entry->proc_fops = &acpi_processor_info_fops;
 		entry->data = acpi_driver_data(device);
@@ -342,9 +340,7 @@ static int acpi_processor_add_fs(struct acpi_device *device)
 				  S_IFREG | S_IRUGO | S_IWUSR,
 				  acpi_device_dir(device));
 	if (!entry)
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Unable to create '%s' fs entry\n",
-				  ACPI_PROCESSOR_FILE_THROTTLING));
+		return_VALUE(-EIO);
 	else {
 		entry->proc_fops = &acpi_processor_throttling_fops;
 		entry->data = acpi_driver_data(device);
@@ -356,9 +352,7 @@ static int acpi_processor_add_fs(struct acpi_device *device)
 				  S_IFREG | S_IRUGO | S_IWUSR,
 				  acpi_device_dir(device));
 	if (!entry)
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Unable to create '%s' fs entry\n",
-				  ACPI_PROCESSOR_FILE_LIMIT));
+		return_VALUE( -EIO);
 	else {
 		entry->proc_fops = &acpi_processor_limit_fops;
 		entry->data = acpi_driver_data(device);
@@ -459,8 +453,7 @@ static int acpi_processor_get_info(struct acpi_processor *pr)
 	 */
 	status = acpi_evaluate_object(pr->handle, NULL, NULL, &buffer);
 	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Error evaluating processor object\n"));
+		ACPI_ERROR((AE_INFO, "Evaluating processor object"));
 		return_VALUE(-ENODEV);
 	}
 
@@ -490,9 +483,9 @@ static int acpi_processor_get_info(struct acpi_processor *pr)
 	if (cpu_index == -1) {
 		if (ACPI_FAILURE
 		    (acpi_processor_hotadd_init(pr->handle, &pr->id))) {
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "Error getting cpuindex for acpiid 0x%x\n",
-					  pr->acpi_id));
+			ACPI_ERROR((AE_INFO,
+				    "Getting cpuindex for acpiid 0x%x",
+				    pr->acpi_id));
 			return_VALUE(-ENODEV);
 		}
 	}
@@ -503,8 +496,8 @@ static int acpi_processor_get_info(struct acpi_processor *pr)
 	if (!object.processor.pblk_address)
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "No PBLK (NULL address)\n"));
 	else if (object.processor.pblk_length != 6)
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Invalid PBLK length [%d]\n",
-				  object.processor.pblk_length));
+		ACPI_ERROR((AE_INFO, "Invalid PBLK length [%d]",
+			    object.processor.pblk_length));
 	else {
 		pr->throttling.address = object.processor.pblk_address;
 		pr->throttling.duty_offset = acpi_fadt.duty_offset;
@@ -572,10 +565,6 @@ static int acpi_processor_start(struct acpi_device *device)
 
 	status = acpi_install_notify_handler(pr->handle, ACPI_DEVICE_NOTIFY,
 					     acpi_processor_notify, pr);
-	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Error installing device notify handler\n"));
-	}
 
 	/* _PDC call should be done before doing anything else (if reqd.). */
 	arch_acpi_processor_init_pdc(pr);
@@ -675,10 +664,6 @@ static int acpi_processor_remove(struct acpi_device *device, int type)
 
 	status = acpi_remove_notify_handler(pr->handle, ACPI_DEVICE_NOTIFY,
 					    acpi_processor_notify);
-	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Error removing notify handler\n"));
-	}
 
 	acpi_processor_remove_fs(device);
 
@@ -705,8 +690,7 @@ static int is_processor_present(acpi_handle handle)
 
 	status = acpi_evaluate_integer(handle, "_STA", NULL, &sta);
 	if (ACPI_FAILURE(status) || !(sta & ACPI_STA_PRESENT)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Processor Device is not present\n"));
+		ACPI_EXCEPTION((AE_INFO, status, "Processor Device is not present"));
 		return_VALUE(0);
 	}
 	return_VALUE(1);
@@ -767,15 +751,14 @@ acpi_processor_hotplug_notify(acpi_handle handle, u32 event, void *data)
 		if (acpi_bus_get_device(handle, &device)) {
 			result = acpi_processor_device_add(handle, &device);
 			if (result)
-				ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-						  "Unable to add the device\n"));
+				ACPI_ERROR((AE_INFO,
+					    "Unable to add the device"));
 			break;
 		}
 
 		pr = acpi_driver_data(device);
 		if (!pr) {
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "Driver data is NULL\n"));
+			ACPI_ERROR((AE_INFO, "Driver data is NULL"));
 			break;
 		}
 
@@ -788,9 +771,8 @@ acpi_processor_hotplug_notify(acpi_handle handle, u32 event, void *data)
 		if ((!result) && ((pr->id >= 0) && (pr->id < NR_CPUS))) {
 			kobject_uevent(&device->kobj, KOBJ_ONLINE);
 		} else {
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "Device [%s] failed to start\n",
-					  acpi_device_bid(device)));
+			ACPI_ERROR((AE_INFO, "Device [%s] failed to start",
+				    acpi_device_bid(device)));
 		}
 		break;
 	case ACPI_NOTIFY_EJECT_REQUEST:
@@ -798,14 +780,14 @@ acpi_processor_hotplug_notify(acpi_handle handle, u32 event, void *data)
 				  "received ACPI_NOTIFY_EJECT_REQUEST\n"));
 
 		if (acpi_bus_get_device(handle, &device)) {
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "Device don't exist, dropping EJECT\n"));
+			ACPI_ERROR((AE_INFO,
+				    "Device don't exist, dropping EJECT"));
 			break;
 		}
 		pr = acpi_driver_data(device);
 		if (!pr) {
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "Driver data is NULL, dropping EJECT\n"));
+			ACPI_ERROR((AE_INFO,
+				    "Driver data is NULL, dropping EJECT"));
 			return_VOID;
 		}
 
