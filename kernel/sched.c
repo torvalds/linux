@@ -184,13 +184,11 @@ static unsigned int task_timeslice(task_t *p)
  * These are the runqueue data structures:
  */
 
-#define BITMAP_SIZE ((((MAX_PRIO+1+7)/8)+sizeof(long)-1)/sizeof(long))
-
 typedef struct runqueue runqueue_t;
 
 struct prio_array {
 	unsigned int nr_active;
-	unsigned long bitmap[BITMAP_SIZE];
+	DECLARE_BITMAP(bitmap, MAX_PRIO+1); /* include 1 bit for delimiter */
 	struct list_head queue[MAX_PRIO];
 };
 
