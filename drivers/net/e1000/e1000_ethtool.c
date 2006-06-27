@@ -109,7 +109,8 @@ e1000_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 		                   SUPPORTED_1000baseT_Full|
 		                   SUPPORTED_Autoneg |
 		                   SUPPORTED_TP);
-
+		if (hw->phy_type == e1000_phy_ife)
+			ecmd->supported &= ~SUPPORTED_1000baseT_Full;
 		ecmd->advertising = ADVERTISED_TP;
 
 		if (hw->autoneg == 1) {
@@ -573,6 +574,7 @@ e1000_get_drvinfo(struct net_device *netdev,
 	case e1000_82572:
 	case e1000_82573:
 	case e1000_80003es2lan:
+	case e1000_ich8lan:
 		sprintf(firmware_version, "%d.%d-%d",
 			(eeprom_data & 0xF000) >> 12,
 			(eeprom_data & 0x0FF0) >> 4,
@@ -757,6 +759,7 @@ e1000_reg_test(struct e1000_adapter *adapter, uint64_t *data)
 		toggle = 0x7FFFF3FF;
 		break;
 	case e1000_82573:
+	case e1000_ich8lan:
 		toggle = 0x7FFFF033;
 		break;
 	default:
@@ -776,11 +779,12 @@ e1000_reg_test(struct e1000_adapter *adapter, uint64_t *data)
 	}
 	/* restore previous status */
 	E1000_WRITE_REG(&adapter->hw, STATUS, before);
-
-	REG_PATTERN_TEST(FCAL, 0xFFFFFFFF, 0xFFFFFFFF);
-	REG_PATTERN_TEST(FCAH, 0x0000FFFF, 0xFFFFFFFF);
-	REG_PATTERN_TEST(FCT, 0x0000FFFF, 0xFFFFFFFF);
-	REG_PATTERN_TEST(VET, 0x0000FFFF, 0xFFFFFFFF);
+	if (adapter->hw.mac_type != e1000_ich8lan) {
+		REG_PATTERN_TEST(FCAL, 0xFFFFFFFF, 0xFFFFFFFF);
+		REG_PATTERN_TEST(FCAH, 0x0000FFFF, 0xFFFFFFFF);
+		REG_PATTERN_TEST(FCT, 0x0000FFFF, 0xFFFFFFFF);
+		REG_PATTERN_TEST(VET, 0x0000FFFF, 0xFFFFFFFF);
+	}
 	REG_PATTERN_TEST(RDTR, 0x0000FFFF, 0xFFFFFFFF);
 	REG_PATTERN_TEST(RDBAH, 0xFFFFFFFF, 0xFFFFFFFF);
 	REG_PATTERN_TEST(RDLEN, 0x000FFF80, 0x000FFFFF);
@@ -793,20 +797,22 @@ e1000_reg_test(struct e1000_adapter *adapter, uint64_t *data)
 	REG_PATTERN_TEST(TDLEN, 0x000FFF80, 0x000FFFFF);
 
 	REG_SET_AND_CHECK(RCTL, 0xFFFFFFFF, 0x00000000);
-	REG_SET_AND_CHECK(RCTL, 0x06DFB3FE, 0x003FFFFB);
+	before = (adapter->hw.mac_type == e1000_ich8lan ?
+			0x06C3B33E : 0x06DFB3FE);
+	REG_SET_AND_CHECK(RCTL, before, 0x003FFFFB);
 	REG_SET_AND_CHECK(TCTL, 0xFFFFFFFF, 0x00000000);
 
 	if (adapter->hw.mac_type >= e1000_82543) {
 
-		REG_SET_AND_CHECK(RCTL, 0x06DFB3FE, 0xFFFFFFFF);
+		REG_SET_AND_CHECK(RCTL, before, 0xFFFFFFFF);
 		REG_PATTERN_TEST(RDBAL, 0xFFFFFFF0, 0xFFFFFFFF);
-		REG_PATTERN_TEST(TXCW, 0xC000FFFF, 0x0000FFFF);
+		if (adapter->hw.mac_type != e1000_ich8lan)
+			REG_PATTERN_TEST(TXCW, 0xC000FFFF, 0x0000FFFF);
 		REG_PATTERN_TEST(TDBAL, 0xFFFFFFF0, 0xFFFFFFFF);
 		REG_PATTERN_TEST(TIDV, 0x0000FFFF, 0x0000FFFF);
-
-		for (i = 0; i < E1000_RAR_ENTRIES; i++) {
-			REG_PATTERN_TEST(RA + ((i << 1) << 2), 0xFFFFFFFF,
-					 0xFFFFFFFF);
+		value = (adapter->hw.mac_type == e1000_ich8lan ?
+				E1000_RAR_ENTRIES_ICH8LAN : E1000_RAR_ENTRIES);
+		for (i = 0; i < value; i++) {
 			REG_PATTERN_TEST(RA + (((i << 1) + 1) << 2), 0x8003FFFF,
 					 0xFFFFFFFF);
 		}
@@ -820,7 +826,9 @@ e1000_reg_test(struct e1000_adapter *adapter, uint64_t *data)
 
 	}
 
-	for (i = 0; i < E1000_MC_TBL_SIZE; i++)
+	value = (adapter->hw.mac_type == e1000_ich8lan ?
+			E1000_MC_TBL_SIZE_ICH8LAN : E1000_MC_TBL_SIZE);
+	for (i = 0; i < value; i++)
 		REG_PATTERN_TEST(MTA + (i << 2), 0xFFFFFFFF, 0xFFFFFFFF);
 
 	*data = 0;
@@ -892,6 +900,8 @@ e1000_intr_test(struct e1000_adapter *adapter, uint64_t *data)
 	/* Test each interrupt */
 	for (; i < 10; i++) {
 
+		if (adapter->hw.mac_type == e1000_ich8lan && i == 8)
+			continue;
 		/* Interrupt to test */
 		mask = 1 << i;
 
@@ -1251,16 +1261,31 @@ e1000_integrated_phy_loopback(struct e1000_adapter *adapter)
 		                    GG82563_PHY_KMRN_MODE_CTRL,
 		                    0x1CC);
 	}
-	/* force 1000, set loopback */
-	e1000_write_phy_reg(&adapter->hw, PHY_CTRL, 0x4140);
 
-	/* Now set up the MAC to the same speed/duplex as the PHY. */
 	ctrl_reg = E1000_READ_REG(&adapter->hw, CTRL);
-	ctrl_reg &= ~E1000_CTRL_SPD_SEL; /* Clear the speed sel bits */
-	ctrl_reg |= (E1000_CTRL_FRCSPD | /* Set the Force Speed Bit */
-		     E1000_CTRL_FRCDPX | /* Set the Force Duplex Bit */
-		     E1000_CTRL_SPD_1000 |/* Force Speed to 1000 */
-		     E1000_CTRL_FD);	 /* Force Duplex to FULL */
+
+	if (adapter->hw.phy_type == e1000_phy_ife) {
+		/* force 100, set loopback */
+		e1000_write_phy_reg(&adapter->hw, PHY_CTRL, 0x6100);
+
+		/* Now set up the MAC to the same speed/duplex as the PHY. */
+		ctrl_reg &= ~E1000_CTRL_SPD_SEL; /* Clear the speed sel bits */
+		ctrl_reg |= (E1000_CTRL_FRCSPD | /* Set the Force Speed Bit */
+			     E1000_CTRL_FRCDPX | /* Set the Force Duplex Bit */
+			     E1000_CTRL_SPD_100 |/* Force Speed to 100 */
+			     E1000_CTRL_FD);	 /* Force Duplex to FULL */
+	} else {
+		/* force 1000, set loopback */
+		e1000_write_phy_reg(&adapter->hw, PHY_CTRL, 0x4140);
+
+		/* Now set up the MAC to the same speed/duplex as the PHY. */
+		ctrl_reg = E1000_READ_REG(&adapter->hw, CTRL);
+		ctrl_reg &= ~E1000_CTRL_SPD_SEL; /* Clear the speed sel bits */
+		ctrl_reg |= (E1000_CTRL_FRCSPD | /* Set the Force Speed Bit */
+			     E1000_CTRL_FRCDPX | /* Set the Force Duplex Bit */
+			     E1000_CTRL_SPD_1000 |/* Force Speed to 1000 */
+			     E1000_CTRL_FD);	 /* Force Duplex to FULL */
+	}
 
 	if (adapter->hw.media_type == e1000_media_type_copper &&
 	   adapter->hw.phy_type == e1000_phy_m88) {
@@ -1320,6 +1345,7 @@ e1000_set_phy_loopback(struct e1000_adapter *adapter)
 	case e1000_82572:
 	case e1000_82573:
 	case e1000_80003es2lan:
+	case e1000_ich8lan:
 		return e1000_integrated_phy_loopback(adapter);
 		break;
 
@@ -1786,6 +1812,16 @@ e1000_phys_id(struct net_device *netdev, uint32_t data)
 		mod_timer(&adapter->blink_timer, jiffies);
 		msleep_interruptible(data * 1000);
 		del_timer_sync(&adapter->blink_timer);
+	} else if (adapter->hw.phy_type == e1000_phy_ife) {
+		if (!adapter->blink_timer.function) {
+			init_timer(&adapter->blink_timer);
+			adapter->blink_timer.function = e1000_led_blink_callback;
+			adapter->blink_timer.data = (unsigned long) adapter;
+		}
+		mod_timer(&adapter->blink_timer, jiffies);
+		msleep_interruptible(data * 1000);
+		del_timer_sync(&adapter->blink_timer);
+		e1000_write_phy_reg(&(adapter->hw), IFE_PHY_SPECIAL_CONTROL_LED, 0);
 	} else {
 		e1000_blink_led_start(&adapter->hw);
 		msleep_interruptible(data * 1000);
