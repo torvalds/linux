@@ -1628,9 +1628,6 @@ e1000_setup_rctl(struct e1000_adapter *adapter)
 		E1000_RCTL_LBM_NO | E1000_RCTL_RDMTS_HALF |
 		(adapter->hw.mc_filter_type << E1000_RCTL_MO_SHIFT);
 
-	if (adapter->hw.mac_type > e1000_82543)
-		rctl |= E1000_RCTL_SECRC;
-
 	if (adapter->hw.tbi_compatibility_on == 1)
 		rctl |= E1000_RCTL_SBP;
 	else
@@ -1696,7 +1693,7 @@ e1000_setup_rctl(struct e1000_adapter *adapter)
 		rfctl |= E1000_RFCTL_IPV6_DIS;
 		E1000_WRITE_REG(&adapter->hw, RFCTL, rfctl);
 
-		rctl |= E1000_RCTL_DTYP_PS | E1000_RCTL_SECRC;
+		rctl |= E1000_RCTL_DTYP_PS;
 
 		psrctl |= adapter->rx_ps_bsize0 >>
 			E1000_PSRCTL_BSIZE0_SHIFT;
