@@ -909,7 +909,7 @@ int __init nfs_init_directcache(void)
  * nfs_destroy_directcache - destroy the slab cache for nfs_direct_req structures
  *
  */
-void __exit nfs_destroy_directcache(void)
+void nfs_destroy_directcache(void)
 {
 	if (kmem_cache_destroy(nfs_direct_cachep))
 		printk(KERN_INFO "nfs_direct_cache: not all structures were freed\n");
