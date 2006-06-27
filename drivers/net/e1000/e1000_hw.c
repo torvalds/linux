@@ -2737,8 +2737,12 @@ e1000_check_for_link(struct e1000_hw *hw)
          */
         if(hw->tbi_compatibility_en) {
             uint16_t speed, duplex;
-            e1000_get_speed_and_duplex(hw, &speed, &duplex);
-            if(speed != SPEED_1000) {
+            ret_val = e1000_get_speed_and_duplex(hw, &speed, &duplex);
+            if (ret_val) {
+                DEBUGOUT("Error getting link speed and duplex\n");
+                return ret_val;
+            }
+            if (speed != SPEED_1000) {
                 /* If link speed is not set to gigabit speed, we do not need
                  * to enable TBI compatibility.
                  */
