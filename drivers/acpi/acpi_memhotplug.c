@@ -215,7 +215,7 @@ static int acpi_memory_enable_device(struct acpi_memory_device *mem_device)
 {
 	int result, num_enabled = 0;
 	struct acpi_memory_info *info;
-	int node = 0;
+	int node;
 
 	ACPI_FUNCTION_TRACE("acpi_memory_enable_device");
 
@@ -228,6 +228,7 @@ static int acpi_memory_enable_device(struct acpi_memory_device *mem_device)
 		return result;
 	}
 
+	node = acpi_get_node(mem_device->handle);
 	/*
 	 * Tell the VM there is more memory here...
 	 * Note: Assume that this function returns zero on success
