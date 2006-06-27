@@ -203,11 +203,9 @@ e1000_set_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 
 	/* reset the link */
 
-	if (netif_running(adapter->netdev)) {
-		e1000_down(adapter);
-		e1000_reset(adapter);
-		e1000_up(adapter);
-	} else
+	if (netif_running(adapter->netdev))
+		e1000_reinit_locked(adapter);
+	else
 		e1000_reset(adapter);
 
 	return 0;
@@ -254,10 +252,9 @@ e1000_set_pauseparam(struct net_device *netdev,
 	hw->original_fc = hw->fc;
 
 	if (adapter->fc_autoneg == AUTONEG_ENABLE) {
-		if (netif_running(adapter->netdev)) {
-			e1000_down(adapter);
-			e1000_up(adapter);
-		} else
+		if (netif_running(adapter->netdev))
+			e1000_reinit_locked(adapter);
+		else
 			e1000_reset(adapter);
 	} else
 		return ((hw->media_type == e1000_media_type_fiber) ?
@@ -279,10 +276,9 @@ e1000_set_rx_csum(struct net_device *netdev, uint32_t data)
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	adapter->rx_csum = data;
 
-	if (netif_running(netdev)) {
-		e1000_down(adapter);
-		e1000_up(adapter);
-	} else
+	if (netif_running(netdev))
+		e1000_reinit_locked(adapter);
+	else
 		e1000_reset(adapter);
 	return 0;
 }
@@ -631,6 +627,9 @@ e1000_set_ringparam(struct net_device *netdev,
 	tx_ring_size = sizeof(struct e1000_tx_ring) * adapter->num_tx_queues;
 	rx_ring_size = sizeof(struct e1000_rx_ring) * adapter->num_rx_queues;
 
+	while (test_and_set_bit(__E1000_RESETTING, &adapter->flags))
+		msleep(1);
+
 	if (netif_running(adapter->netdev))
 		e1000_down(adapter);
 
@@ -691,8 +690,10 @@ e1000_set_ringparam(struct net_device *netdev,
 		adapter->rx_ring = rx_new;
 		adapter->tx_ring = tx_new;
 		if ((err = e1000_up(adapter)))
-			return err;
+			goto err_setup;
 	}
+
+	clear_bit(__E1000_RESETTING, &adapter->flags);
 
 	return 0;
 err_setup_tx:
@@ -701,6 +702,8 @@ err_setup_rx:
 	adapter->rx_ring = rx_old;
 	adapter->tx_ring = tx_old;
 	e1000_up(adapter);
+err_setup:
+	clear_bit(__E1000_RESETTING, &adapter->flags);
 	return err;
 }
 
@@ -1568,6 +1571,7 @@ e1000_diag_test(struct net_device *netdev,
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	boolean_t if_running = netif_running(netdev);
 
+	set_bit(__E1000_DRIVER_TESTING, &adapter->flags);
 	if (eth_test->flags == ETH_TEST_FL_OFFLINE) {
 		/* Offline tests */
 
@@ -1582,7 +1586,8 @@ e1000_diag_test(struct net_device *netdev,
 			eth_test->flags |= ETH_TEST_FL_FAILED;
 
 		if (if_running)
-			e1000_down(adapter);
+			/* indicate we're in test mode */
+			dev_close(netdev);
 		else
 			e1000_reset(adapter);
 
@@ -1607,8 +1612,9 @@ e1000_diag_test(struct net_device *netdev,
 		adapter->hw.autoneg = autoneg;
 
 		e1000_reset(adapter);
+		clear_bit(__E1000_DRIVER_TESTING, &adapter->flags);
 		if (if_running)
-			e1000_up(adapter);
+			dev_open(netdev);
 	} else {
 		/* Online tests */
 		if (e1000_link_test(adapter, &data[4]))
@@ -1619,6 +1625,8 @@ e1000_diag_test(struct net_device *netdev,
 		data[1] = 0;
 		data[2] = 0;
 		data[3] = 0;
+
+		clear_bit(__E1000_DRIVER_TESTING, &adapter->flags);
 	}
 	msleep_interruptible(4 * 1000);
 }
@@ -1807,10 +1815,8 @@ static int
 e1000_nway_reset(struct net_device *netdev)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
-	if (netif_running(netdev)) {
-		e1000_down(adapter);
-		e1000_up(adapter);
-	}
+	if (netif_running(netdev))
+		e1000_reinit_locked(adapter);
 	return 0;
 }
 

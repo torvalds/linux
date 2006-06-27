@@ -133,7 +133,6 @@ static void e1000_clean_rx_ring(struct e1000_adapter *adapter,
 static void e1000_set_multi(struct net_device *netdev);
 static void e1000_update_phy_info(unsigned long data);
 static void e1000_watchdog(unsigned long data);
-static void e1000_watchdog_task(struct e1000_adapter *adapter);
 static void e1000_82547_tx_fifo_stall(unsigned long data);
 static int e1000_xmit_frame(struct sk_buff *skb, struct net_device *netdev);
 static struct net_device_stats * e1000_get_stats(struct net_device *netdev);
@@ -261,6 +260,44 @@ e1000_exit_module(void)
 
 module_exit(e1000_exit_module);
 
+static int e1000_request_irq(struct e1000_adapter *adapter)
+{
+	struct net_device *netdev = adapter->netdev;
+	int flags, err = 0;
+
+	flags = SA_SHIRQ | SA_SAMPLE_RANDOM;
+#ifdef CONFIG_PCI_MSI
+	if (adapter->hw.mac_type > e1000_82547_rev_2) {
+		adapter->have_msi = TRUE;
+		if ((err = pci_enable_msi(adapter->pdev))) {
+			DPRINTK(PROBE, ERR,
+			 "Unable to allocate MSI interrupt Error: %d\n", err);
+			adapter->have_msi = FALSE;
+		}
+	}
+	if (adapter->have_msi)
+		flags &= ~SA_SHIRQ;
+#endif
+	if ((err = request_irq(adapter->pdev->irq, &e1000_intr, flags,
+	                       netdev->name, netdev)))
+		DPRINTK(PROBE, ERR,
+		        "Unable to allocate interrupt Error: %d\n", err);
+
+	return err;
+}
+
+static void e1000_free_irq(struct e1000_adapter *adapter)
+{
+	struct net_device *netdev = adapter->netdev;
+
+	free_irq(adapter->pdev->irq, netdev);
+
+#ifdef CONFIG_PCI_MSI
+	if (adapter->have_msi)
+		pci_disable_msi(adapter->pdev);
+#endif
+}
+
 /**
  * e1000_irq_disable - Mask off interrupt generation on the NIC
  * @adapter: board private structure
@@ -387,7 +424,7 @@ int
 e1000_up(struct e1000_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
-	int i, err;
+	int i;
 
 	/* hardware has been reset, we need to reload some things */
 
@@ -415,24 +452,6 @@ e1000_up(struct e1000_adapter *adapter)
 		                      E1000_DESC_UNUSED(ring));
 	}
 
-#ifdef CONFIG_PCI_MSI
-	if (adapter->hw.mac_type > e1000_82547_rev_2) {
-		adapter->have_msi = TRUE;
-		if ((err = pci_enable_msi(adapter->pdev))) {
-			DPRINTK(PROBE, ERR,
-			 "Unable to allocate MSI interrupt Error: %d\n", err);
-			adapter->have_msi = FALSE;
-		}
-	}
-#endif
-	if ((err = request_irq(adapter->pdev->irq, &e1000_intr,
-		              SA_SHIRQ | SA_SAMPLE_RANDOM,
-		              netdev->name, netdev))) {
-		DPRINTK(PROBE, ERR,
-		    "Unable to allocate interrupt Error: %d\n", err);
-		return err;
-	}
-
 	adapter->tx_queue_len = netdev->tx_queue_len;
 
 	mod_timer(&adapter->watchdog_timer, jiffies);
@@ -450,16 +469,10 @@ e1000_down(struct e1000_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
 	boolean_t mng_mode_enabled = (adapter->hw.mac_type >= e1000_82571) &&
-				     e1000_check_mng_mode(&adapter->hw);
+	                              e1000_check_mng_mode(&adapter->hw);
 
 	e1000_irq_disable(adapter);
 
-	free_irq(adapter->pdev->irq, netdev);
-#ifdef CONFIG_PCI_MSI
-	if (adapter->hw.mac_type > e1000_82547_rev_2 &&
-	   adapter->have_msi == TRUE)
-		pci_disable_msi(adapter->pdev);
-#endif
 	del_timer_sync(&adapter->tx_fifo_stall_timer);
 	del_timer_sync(&adapter->watchdog_timer);
 	del_timer_sync(&adapter->phy_info_timer);
@@ -493,6 +506,17 @@ e1000_down(struct e1000_adapter *adapter)
 		e1000_write_phy_reg(&adapter->hw, PHY_CTRL, mii_reg);
 		mdelay(1);
 	}
+}
+
+void
+e1000_reinit_locked(struct e1000_adapter *adapter)
+{
+	WARN_ON(in_interrupt());
+	while (test_and_set_bit(__E1000_RESETTING, &adapter->flags))
+		msleep(1);
+	e1000_down(adapter);
+	e1000_up(adapter);
+	clear_bit(__E1000_RESETTING, &adapter->flags);
 }
 
 void
@@ -757,9 +781,6 @@ e1000_probe(struct pci_dev *pdev,
 	init_timer(&adapter->watchdog_timer);
 	adapter->watchdog_timer.function = &e1000_watchdog;
 	adapter->watchdog_timer.data = (unsigned long) adapter;
-
-	INIT_WORK(&adapter->watchdog_task,
-		(void (*)(void *))e1000_watchdog_task, adapter);
 
 	init_timer(&adapter->phy_info_timer);
 	adapter->phy_info_timer.function = &e1000_update_phy_info;
@@ -1078,6 +1099,10 @@ e1000_open(struct net_device *netdev)
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	int err;
 
+	/* disallow open during test */
+	if (test_bit(__E1000_DRIVER_TESTING, &adapter->flags))
+		return -EBUSY;
+
 	/* allocate transmit descriptors */
 
 	if ((err = e1000_setup_all_tx_resources(adapter)))
@@ -1087,6 +1112,10 @@ e1000_open(struct net_device *netdev)
 
 	if ((err = e1000_setup_all_rx_resources(adapter)))
 		goto err_setup_rx;
+
+	err = e1000_request_irq(adapter);
+	if (err)
+		goto err_up;
 
 	if ((err = e1000_up(adapter)))
 		goto err_up;
@@ -1131,7 +1160,9 @@ e1000_close(struct net_device *netdev)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 
+	WARN_ON(test_bit(__E1000_RESETTING, &adapter->flags));
 	e1000_down(adapter);
+	e1000_free_irq(adapter);
 
 	e1000_free_all_tx_resources(adapter);
 	e1000_free_all_rx_resources(adapter);
@@ -2201,14 +2232,6 @@ static void
 e1000_watchdog(unsigned long data)
 {
 	struct e1000_adapter *adapter = (struct e1000_adapter *) data;
-
-	/* Do the rest outside of interrupt context */
-	schedule_work(&adapter->watchdog_task);
-}
-
-static void
-e1000_watchdog_task(struct e1000_adapter *adapter)
-{
 	struct net_device *netdev = adapter->netdev;
 	struct e1000_tx_ring *txdr = adapter->tx_ring;
 	uint32_t link, tctl;
@@ -2919,8 +2942,7 @@ e1000_reset_task(struct net_device *netdev)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 
-	e1000_down(adapter);
-	e1000_up(adapter);
+	e1000_reinit_locked(adapter);
 }
 
 /**
@@ -3026,10 +3048,8 @@ e1000_change_mtu(struct net_device *netdev, int new_mtu)
 
 	netdev->mtu = new_mtu;
 
-	if (netif_running(netdev)) {
-		e1000_down(adapter);
-		e1000_up(adapter);
-	}
+	if (netif_running(netdev))
+		e1000_reinit_locked(adapter);
 
 	adapter->hw.max_frame_size = max_frame;
 
@@ -4180,10 +4200,9 @@ e1000_mii_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 						return retval;
 					}
 				}
-				if (netif_running(adapter->netdev)) {
-					e1000_down(adapter);
-					e1000_up(adapter);
-				} else
+				if (netif_running(adapter->netdev))
+					e1000_reinit_locked(adapter);
+				else
 					e1000_reset(adapter);
 				break;
 			case M88E1000_PHY_SPEC_CTRL:
@@ -4200,10 +4219,9 @@ e1000_mii_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 			case PHY_CTRL:
 				if (mii_reg & MII_CR_POWER_DOWN)
 					break;
-				if (netif_running(adapter->netdev)) {
-					e1000_down(adapter);
-					e1000_up(adapter);
-				} else
+				if (netif_running(adapter->netdev))
+					e1000_reinit_locked(adapter);
+				else
 					e1000_reset(adapter);
 				break;
 			}
@@ -4462,8 +4480,10 @@ e1000_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	netif_device_detach(netdev);
 
-	if (netif_running(netdev))
+	if (netif_running(netdev)) {
+		WARN_ON(test_bit(__E1000_RESETTING, &adapter->flags));
 		e1000_down(adapter);
+	}
 
 #ifdef CONFIG_PM
 	/* Implement our own version of pci_save_state(pdev) because pci-
