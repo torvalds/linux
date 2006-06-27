@@ -100,8 +100,8 @@ fastcall unsigned int do_IRQ(struct pt_regs *regs)
 		 * softirq checks work in the hardirq context.
 		 */
 		irqctx->tinfo.preempt_count =
-			irqctx->tinfo.preempt_count & ~SOFTIRQ_MASK |
-			curctx->tinfo.preempt_count & SOFTIRQ_MASK;
+			(irqctx->tinfo.preempt_count & ~SOFTIRQ_MASK) |
+			(curctx->tinfo.preempt_count & SOFTIRQ_MASK);
 
 		asm volatile(
 			"       xchgl   %%ebx,%%esp      \n"
