@@ -138,7 +138,7 @@ static void ascii_ssetup_strings(char ** pbcc_area, struct cifsSesInfo *ses,
                 strncpy(bcc_ptr, ses->userName, 300);
         }
 	/* BB improve check for overflow */
-        bcc_ptr += strnlen(ses->userName, 200);
+        bcc_ptr += strnlen(ses->userName, 300);
 	*bcc_ptr = 0;
         bcc_ptr++; /* account for null termination */
 
@@ -313,11 +313,12 @@ CIFS_SessSetup(unsigned int xid, struct cifsSesInfo *ses, int first_time,
 	int wct;
 	struct smb_hdr *smb_buf;
 	char *bcc_ptr;
+	char *str_area;
 	SESSION_SETUP_ANDX *pSMB;
 	__u32 capabilities;
 	int count;
 	int resp_buf_type = 0;
-	struct kvec iov[2];  /* BB split variable length info into 2nd iovec */
+	struct kvec iov[2];
 	enum securityEnum type;
 	__u16 action;
 	int bytes_remaining;
@@ -351,7 +352,18 @@ CIFS_SessSetup(unsigned int xid, struct cifsSesInfo *ses, int first_time,
 	pSMB = (SESSION_SETUP_ANDX *)smb_buf;
 
 	capabilities = cifs_ssetup_hdr(ses, pSMB);
-	bcc_ptr = pByteArea(smb_buf);
+
+	/* we will send the SMB in two pieces,
+	a fixed length beginning part, and a
+	second part which will include the strings
+	and rest of bcc area, in order to avoid having
+	to do a large buffer 17K allocation */
+        iov[0].iov_base = (char *)pSMB;
+        iov[0].iov_len = smb_buf->smb_buf_length + 4;
+
+	/* 2000 big enough to fit max user, domain, NOS name etc. */
+	str_area = kmalloc(2000, GFP_KERNEL);
+	bcc_ptr = str_area;
 
 	if(type == LANMAN) {
 #ifdef CONFIG_CIFS_WEAK_PW_HASH
@@ -365,10 +377,10 @@ CIFS_SessSetup(unsigned int xid, struct cifsSesInfo *ses, int first_time,
 
 		calc_lanman_hash(ses, lnm_session_key);
 
-#ifdef CONFIG_CIFS_DEBUG2
+/* #ifdef CONFIG_CIFS_DEBUG2
 		cifs_dump_mem("cryptkey: ",ses->server->cryptKey,
 			CIFS_SESS_KEY_SIZE);
-#endif
+#endif */
 		memcpy(bcc_ptr, (char *)lnm_session_key, CIFS_SESS_KEY_SIZE);
 		bcc_ptr += CIFS_SESS_KEY_SIZE;
 
@@ -377,7 +389,7 @@ CIFS_SessSetup(unsigned int xid, struct cifsSesInfo *ses, int first_time,
 		changed to do higher than lanman dialect and
 		we reconnected would we ever calc signing_key? */
 
-		cERROR(1,("Negotiating LANMAN setting up strings"));
+		cFYI(1,("Negotiating LANMAN setting up strings"));
 		/* Unicode not allowed for LANMAN dialects */
 		ascii_ssetup_strings(&bcc_ptr, ses, nls_cp);
 #endif    
@@ -396,7 +408,7 @@ CIFS_SessSetup(unsigned int xid, struct cifsSesInfo *ses, int first_time,
 
 		if(first_time) /* should this be moved into common code 
 				  with similar ntlmv2 path? */
-			cifs_calculate_mac_key( ses->server->mac_signing_key,
+			cifs_calculate_mac_key(ses->server->mac_signing_key,
 				ntlm_session_key, ses->password);
 		/* copy session key */
 
@@ -454,23 +466,14 @@ CIFS_SessSetup(unsigned int xid, struct cifsSesInfo *ses, int first_time,
 		/* BB set password lengths */
 	}
 
-	count = (long) bcc_ptr - (long) pByteArea(smb_buf);
+	count = (long) bcc_ptr - (long) str_area;
 	smb_buf->smb_buf_length += count;
-
-	/* if we switch to small buffers, count will need to be fewer
-	   than 383 (strings less than 335 bytes) */
 
 	BCC_LE(smb_buf) = cpu_to_le16(count);
 
-
-	/* BB FIXME check for other non ntlm code paths */
-
-	/* BB check is this too big for a small smb? */
-
-	iov[0].iov_base = (char *)pSMB;
-	iov[0].iov_len = smb_buf->smb_buf_length + 4;
-
-	rc = SendReceive2(xid, ses, iov, 1 /* num_iovecs */, &resp_buf_type, 0);
+	iov[1].iov_base = str_area;
+	iov[1].iov_len = count; 
+	rc = SendReceive2(xid, ses, iov, 2 /* num_iovecs */, &resp_buf_type, 0);
 	/* SMB request buf freed in SendReceive2 */
 
 	cFYI(1,("ssetup rc from sendrecv2 is %d",rc));
@@ -515,6 +518,7 @@ CIFS_SessSetup(unsigned int xid, struct cifsSesInfo *ses, int first_time,
 		rc = decode_ascii_ssetup(&bcc_ptr, bytes_remaining, ses,nls_cp);
 	
 ssetup_exit:
+	kfree(str_area);
 	if(resp_buf_type == CIFS_SMALL_BUFFER) {
 		cFYI(1,("ssetup freeing small buf %p", iov[0].iov_base));
 		cifs_small_buf_release(iov[0].iov_base);

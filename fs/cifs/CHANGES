@@ -7,7 +7,8 @@ so we can do search (ls etc.) to OS/2.  Do not send NTCreateX
 or recent levels of FindFirst unless server says it supports NT SMBs
 (instead use legacy equivalents from LANMAN dialect). Fix to allow
 NTLMv2 authentication support (now can use stronger password hashing
-on mount if corresponding /proc/fs/cifs/SecurityFlags is set (0x4004)
+on mount if corresponding /proc/fs/cifs/SecurityFlags is set (0x4004).
+Allow override of global cifs security flags on mount via "sec=" option(s).
 
 Version 1.43
 ------------

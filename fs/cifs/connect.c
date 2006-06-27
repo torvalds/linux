@@ -915,32 +915,32 @@ cifs_parse_mount_options(char *options, const char *devname,struct smb_vol *vol)
 				cERROR(1,("no security value specified"));
                                 continue;
                         } else if (strnicmp(value, "krb5i", 5) == 0) {
-				vol->secFlg = CIFSSEC_MAY_KRB5 | 
+				vol->secFlg |= CIFSSEC_MAY_KRB5 | 
 					CIFSSEC_MUST_SIGN;
 			} else if (strnicmp(value, "krb5p", 5) == 0) {
-				/* vol->secFlg = CIFSSEC_MUST_SEAL | 
+				/* vol->secFlg |= CIFSSEC_MUST_SEAL | 
 					CIFSSEC_MAY_KRB5; */ 
 				cERROR(1,("Krb5 cifs privacy not supported"));
 				return 1;
 			} else if (strnicmp(value, "krb5", 4) == 0) {
-				vol->secFlg = CIFSSEC_MAY_KRB5;
+				vol->secFlg |= CIFSSEC_MAY_KRB5;
 			} else if (strnicmp(value, "ntlmv2i", 7) == 0) {
-				vol->secFlg = CIFSSEC_MAY_NTLMV2 |
+				vol->secFlg |= CIFSSEC_MAY_NTLMV2 |
 					CIFSSEC_MUST_SIGN;
 			} else if (strnicmp(value, "ntlmv2", 6) == 0) {
-				vol->secFlg = CIFSSEC_MAY_NTLMV2;
+				vol->secFlg |= CIFSSEC_MAY_NTLMV2;
 			} else if (strnicmp(value, "ntlmi", 5) == 0) {
-				vol->secFlg = CIFSSEC_MAY_NTLM |
+				vol->secFlg |= CIFSSEC_MAY_NTLM |
 					CIFSSEC_MUST_SIGN;
 			} else if (strnicmp(value, "ntlm", 4) == 0) {
 				/* ntlm is default so can be turned off too */
-				vol->secFlg = CIFSSEC_MAY_NTLM;
+				vol->secFlg |= CIFSSEC_MAY_NTLM;
 			} else if (strnicmp(value, "nontlm", 6) == 0) {
 				/* BB is there a better way to do this? */
-				vol->secFlg = CIFSSEC_MAY_NTLMV2;
+				vol->secFlg |= CIFSSEC_MAY_NTLMV2;
 #ifdef CONFIG_CIFS_WEAK_PW_HASH
 			} else if (strnicmp(value, "lanman", 6) == 0) {
-                                vol->secFlg = CIFSSEC_MAY_LANMAN;
+                                vol->secFlg |= CIFSSEC_MAY_LANMAN;
 #endif
 			} else if (strnicmp(value, "none", 4) == 0) {
 				vol->nullauth = 1;
@@ -1173,6 +1173,10 @@ cifs_parse_mount_options(char *options, const char *devname,struct smb_vol *vol)
 			vol->no_psx_acl = 0;
 		} else if (strnicmp(data, "noacl",5) == 0) {
 			vol->no_psx_acl = 1;
+		} else if (strnicmp(data, "sign",4) == 0) {
+			vol->secFlg |= CIFSSEC_MUST_SIGN;
+/*		} else if (strnicmp(data, "seal",4) == 0) {
+			vol->secFlg |= CIFSSEC_MUST_SEAL; */
 		} else if (strnicmp(data, "direct",6) == 0) {
 			vol->direct_io = 1;
 		} else if (strnicmp(data, "forcedirectio",13) == 0) {
@@ -1776,6 +1780,7 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 						volume_info.domainname);
 			}
 			pSesInfo->linux_uid = volume_info.linux_uid;
+			pSesInfo->overrideSecFlg = volume_info.secFlg;
 			down(&pSesInfo->sesSem);
 			/* BB FIXME need to pass vol->secFlgs BB */
 			rc = cifs_setup_session(xid,pSesInfo, cifs_sb->local_nls);

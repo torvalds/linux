@@ -186,6 +186,7 @@ struct cifsSesInfo {
 	struct TCP_Server_Info *server;	/* pointer to server info */
 	atomic_t inUse; /* # of mounts (tree connections) on this ses */
 	enum statusEnum status;
+	unsigned overrideSecFlg;  /* if non-zero override global sec flags */
 	__u16 ipc_tid;		/* special tid for connection to IPC share */
 	__u16 flags;
 	char *serverOS;		/* name of operating system underlying server */

@@ -443,7 +443,10 @@ A partial list of the supported mount options follows:
 		SFU does).  In the future the bottom 9 bits of the mode
 		mode also will be emulated using queries of the security
 		descriptor (ACL).
-sec		Security mode.  Allowed values are:
+ sign           Must use packet signing (helps avoid unwanted data modification
+		by intermediate systems in the route).  Note that signing
+		does not work with lanman or plaintext authentication.
+ sec            Security mode.  Allowed values are:
 			none	attempt to connection as a null user (no name)
 			krb5    Use Kerberos version 5 authentication
 			krb5i   Use Kerberos authentication and packet signing

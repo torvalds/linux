@@ -396,6 +396,7 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 	int i;
 	struct TCP_Server_Info * server;
 	u16 count;
+	unsigned int secFlags;
 
 	if(ses->server)
 		server = ses->server;
@@ -407,9 +408,16 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 		      (void **) &pSMB, (void **) &pSMBr);
 	if (rc)
 		return rc;
+
+	/* if any of auth flags (ie not sign or seal) are overriden use them */
+	if(ses->overrideSecFlg & (~(CIFSSEC_MUST_SIGN | CIFSSEC_MUST_SEAL)))
+		secFlags = ses->overrideSecFlg;
+	else /* if override flags set only sign/seal OR them with global auth */
+		secFlags = extended_security | ses->overrideSecFlg;
+
 	pSMB->hdr.Mid = GetNextMid(server);
 	pSMB->hdr.Flags2 |= SMBFLG2_UNICODE;
-	if((extended_security & CIFSSEC_MUST_KRB5) == CIFSSEC_MUST_KRB5)
+	if((secFlags & CIFSSEC_MUST_KRB5) == CIFSSEC_MUST_KRB5)
 		pSMB->hdr.Flags2 |= SMBFLG2_EXT_SEC;
 	
 	count = 0;
@@ -439,8 +447,8 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 			&& (pSMBr->DialectIndex == LANMAN_PROT)) {
 		struct lanman_neg_rsp * rsp = (struct lanman_neg_rsp *)pSMBr;
 
-		if((extended_security & CIFSSEC_MAY_LANMAN) || 
-			(extended_security & CIFSSEC_MAY_PLNTXT))
+		if((secFlags & CIFSSEC_MAY_LANMAN) || 
+			(secFlags & CIFSSEC_MAY_PLNTXT))
 			server->secType = LANMAN;
 		else {
 			cERROR(1, ("mount failed weak security disabled"
@@ -498,12 +506,12 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 
 	if((server->secMode & SECMODE_PW_ENCRYPT) == 0)
 #ifdef CONFIG_CIFS_WEAK_PW_HASH
-		if ((extended_security & CIFSSEC_MAY_PLNTXT) == 0)
+		if ((secFlags & CIFSSEC_MAY_PLNTXT) == 0)
 #endif /* CIFS_WEAK_PW_HASH */
 			cERROR(1,("Server requests plain text password"
 				  " but client support disabled"));
 
-	if(extended_security & CIFSSEC_MUST_NTLMV2)
+	if(secFlags & CIFSSEC_MUST_NTLMV2)
 		server->secType = NTLMv2;
 	else
 		server->secType = NTLM;
