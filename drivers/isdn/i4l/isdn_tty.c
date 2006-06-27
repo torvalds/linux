@@ -82,7 +82,7 @@ isdn_tty_try_read(modem_info * info, struct sk_buff *skb)
 						int l = skb->len;
 						unsigned char *dp = skb->data;
 						while (--l) {
-							if (*skb->data == DLE)
+							if (*dp == DLE)
 								tty_insert_flip_char(tty, DLE, 0);
 							tty_insert_flip_char(tty, *dp++, 0);
 						}
