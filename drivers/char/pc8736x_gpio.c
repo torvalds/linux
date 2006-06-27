@@ -33,6 +33,7 @@ MODULE_PARM_DESC(major, "Major device number");
 
 static DEFINE_SPINLOCK(pc8736x_gpio_config_lock);
 static unsigned pc8736x_gpio_base;
+static u8 pc8736x_gpio_shadow[4];
 
 #define SIO_BASE1       0x2E	/* 1st command-reg to check */
 #define SIO_BASE2       0x4E	/* alt command-reg to check */
@@ -184,6 +185,7 @@ static void pc8736x_gpio_set(unsigned minor, int val)
 	val = inb_p(pc8736x_gpio_base + port_offset[port] + PORT_IN);
 
 	dev_dbg(&pdev->dev, "wrote %x, read: %x\n", curval, val);
+	pc8736x_gpio_shadow[port] = val;
 }
 
 static void pc8736x_gpio_set_high(unsigned index)
@@ -196,15 +198,18 @@ static void pc8736x_gpio_set_low(unsigned index)
 	pc8736x_gpio_set(index, 0);
 }
 
-static int pc8736x_gpio_current(unsigned index)
+static int pc8736x_gpio_current(unsigned minor)
 {
-	dev_warn(&pdev->dev, "pc8736x_gpio_current unimplemented\n");
-	return 0;
+	int port, bit;
+	minor &= 0x1f;
+	port = minor >> 3;
+	bit = minor & 7;
+	return ((pc8736x_gpio_shadow[port] >> bit) & 0x01);
 }
 
 static void pc8736x_gpio_change(unsigned index)
 {
-	pc8736x_gpio_set(index, !pc8736x_gpio_get(index));
+	pc8736x_gpio_set(index, !pc8736x_gpio_current(index));
 }
 
 static struct nsc_gpio_ops pc8736x_access = {
@@ -237,6 +242,18 @@ static struct file_operations pc8736x_gpio_fops = {
 	.write	= nsc_gpio_write,
 	.read	= nsc_gpio_read,
 };
+
+static void __init pc8736x_init_shadow(void)
+{
+	int port;
+
+	/* read the current values driven on the GPIO signals */
+	for (port = 0; port < 4; ++port)
+		pc8736x_gpio_shadow[port]
+		    = inb_p(pc8736x_gpio_base + port_offset[port]
+			    + PORT_OUT);
+
+}
 
 static int __init pc8736x_gpio_init(void)
 {
@@ -316,6 +333,8 @@ static void __exit pc8736x_gpio_cleanup(void)
 
 	unregister_chrdev(major, DEVNAME);
 }
+
+EXPORT_SYMBOL(pc8736x_access);
 
 module_init(pc8736x_gpio_init);
 module_exit(pc8736x_gpio_cleanup);
