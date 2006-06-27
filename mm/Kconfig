@@ -116,6 +116,7 @@ config SPARSEMEM_EXTREME
 config MEMORY_HOTPLUG
 	bool "Allow for memory hot-add"
 	depends on SPARSEMEM && HOTPLUG && !SOFTWARE_SUSPEND
+	depends on (IA64 || X86 || PPC64)
 
 comment "Memory hotplug is currently incompatible with Software Suspend"
 	depends on SPARSEMEM && HOTPLUG && SOFTWARE_SUSPEND
