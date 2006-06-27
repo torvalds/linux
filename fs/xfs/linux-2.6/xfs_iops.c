@@ -422,10 +422,12 @@ xfs_vn_link(
 	tdvp = vn_from_inode(dir);
 	vp = vn_from_inode(ip);
 
+	VN_HOLD(vp);
 	error = bhv_vop_link(tdvp, vp, dentry, NULL);
-	if (likely(!error)) {
+	if (unlikely(error)) {
+		VN_RELE(vp);
+	} else {
 		VMODIFY(tdvp);
-		VN_HOLD(vp);
 		xfs_validate_fields(ip, &vattr);
 		d_instantiate(dentry, ip);
 	}
