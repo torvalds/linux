@@ -344,6 +344,7 @@ struct device {
 	struct list_head	node;
 	struct class		*class;		/* optional*/
 	dev_t			devt;		/* dev_t, creates the sysfs "dev" */
+	struct attribute_group	**groups;	/* optional groups */
 
 	void	(*release)(struct device * dev);
 };

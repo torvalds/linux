@@ -197,6 +197,35 @@ static ssize_t store_uevent(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
+static int device_add_groups(struct device *dev)
+{
+	int i;
+	int error = 0;
+
+	if (dev->groups) {
+		for (i = 0; dev->groups[i]; i++) {
+			error = sysfs_create_group(&dev->kobj, dev->groups[i]);
+			if (error) {
+				while (--i >= 0)
+					sysfs_remove_group(&dev->kobj, dev->groups[i]);
+				goto out;
+			}
+		}
+	}
+out:
+	return error;
+}
+
+static void device_remove_groups(struct device *dev)
+{
+	int i;
+	if (dev->groups) {
+		for (i = 0; dev->groups[i]; i++) {
+			sysfs_remove_group(&dev->kobj, dev->groups[i]);
+		}
+	}
+}
+
 static ssize_t show_dev(struct device *dev, struct device_attribute *attr,
 			char *buf)
 {
@@ -350,6 +379,8 @@ int device_add(struct device *dev)
 		sysfs_create_link(&dev->parent->kobj, &dev->kobj, class_name);
 	}
 
+	if ((error = device_add_groups(dev)))
+		goto GroupError;
 	if ((error = device_pm_add(dev)))
 		goto PMError;
 	if ((error = bus_add_device(dev)))
@@ -376,6 +407,8 @@ int device_add(struct device *dev)
  BusError:
 	device_pm_remove(dev);
  PMError:
+	device_remove_groups(dev);
+ GroupError:
 	if (dev->devt_attr) {
 		device_remove_file(dev, dev->devt_attr);
 		kfree(dev->devt_attr);
@@ -470,6 +503,7 @@ void device_del(struct device * dev)
 		up(&dev->class->sem);
 	}
 	device_remove_file(dev, &dev->uevent_attr);
+	device_remove_groups(dev);
 
 	/* Notify the platform of the removal, in case they
 	 * need to do anything...
