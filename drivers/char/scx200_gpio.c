@@ -53,6 +53,7 @@ static ssize_t scx200_gpio_write(struct file *file, const char __user *data,
 				 size_t len, loff_t *ppos)
 {
 	unsigned m = iminor(file->f_dentry->d_inode);
+	struct nsc_gpio_ops *amp = file->private_data;
 	size_t i;
 	int err = 0;
 
@@ -62,39 +63,39 @@ static ssize_t scx200_gpio_write(struct file *file, const char __user *data,
 			return -EFAULT;
 		switch (c) {
 		case '0':
-			scx200_gpio_set(m, 0);
+			amp->gpio_set(m, 0);
 			break;
 		case '1':
-			scx200_gpio_set(m, 1);
+			amp->gpio_set(m, 1);
 			break;
 		case 'O':
 			printk(KERN_INFO NAME ": GPIO%d output enabled\n", m);
-			scx200_gpio_configure(m, ~1, 1);
+			amp->gpio_config(m, ~1, 1);
 			break;
 		case 'o':
 			printk(KERN_INFO NAME ": GPIO%d output disabled\n", m);
-			scx200_gpio_configure(m, ~1, 0);
+			amp->gpio_config(m, ~1, 0);
 			break;
 		case 'T':
 			printk(KERN_INFO NAME ": GPIO%d output is push pull\n", m);
-			scx200_gpio_configure(m, ~2, 2);
+			amp->gpio_config(m, ~2, 2);
 			break;
 		case 't':
 			printk(KERN_INFO NAME ": GPIO%d output is open drain\n", m);
-			scx200_gpio_configure(m, ~2, 0);
+			amp->gpio_config(m, ~2, 0);
 			break;
 		case 'P':
 			printk(KERN_INFO NAME ": GPIO%d pull up enabled\n", m);
-			scx200_gpio_configure(m, ~4, 4);
+			amp->gpio_config(m, ~4, 4);
 			break;
 		case 'p':
 			printk(KERN_INFO NAME ": GPIO%d pull up disabled\n", m);
-			scx200_gpio_configure(m, ~4, 0);
+			amp->gpio_config(m, ~4, 0);
 			break;
 
 		case 'v':
 			/* View Current pin settings */
-			scx200_gpio_dump(m);
+			amp->gpio_dump(m);
 			break;
 		case '\n':
 			/* end of settings string, do nothing */
@@ -117,8 +118,9 @@ static ssize_t scx200_gpio_read(struct file *file, char __user *buf,
 {
 	unsigned m = iminor(file->f_dentry->d_inode);
 	int value;
+	struct nsc_gpio_ops *amp = file->private_data;
 
-	value = scx200_gpio_get(m);
+	value = amp->gpio_get(m);
 	if (put_user(value ? '1' : '0', buf))
 		return -EFAULT;
 
@@ -128,6 +130,8 @@ static ssize_t scx200_gpio_read(struct file *file, char __user *buf,
 static int scx200_gpio_open(struct inode *inode, struct file *file)
 {
 	unsigned m = iminor(inode);
+	file->private_data = &scx200_access;
+
 	if (m > 63)
 		return -EINVAL;
 	return nonseekable_open(inode, file);
