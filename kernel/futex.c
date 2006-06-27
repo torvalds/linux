@@ -827,17 +827,20 @@ static int futex_requeue(u32 __user *uaddr1, u32 __user *uaddr2,
 		if (++ret <= nr_wake) {
 			wake_futex(this);
 		} else {
-			list_move_tail(&this->list, &hb2->chain);
-			this->lock_ptr = &hb2->lock;
+			/*
+			 * If key1 and key2 hash to the same bucket, no need to
+			 * requeue.
+			 */
+			if (likely(head1 != &hb2->chain)) {
+				list_move_tail(&this->list, &hb2->chain);
+				this->lock_ptr = &hb2->lock;
+			}
 			this->key = key2;
 			get_key_refs(&key2);
 			drop_count++;
 
 			if (ret - nr_wake >= nr_requeue)
 				break;
-			/* Make sure to stop if key1 == key2: */
-			if (head1 == &hb2->chain && head1 != &next->list)
-				head1 = &this->list;
 		}
 	}
 
