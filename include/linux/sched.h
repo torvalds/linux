@@ -495,8 +495,11 @@ struct signal_struct {
 
 #define MAX_PRIO		(MAX_RT_PRIO + 40)
 
-#define rt_task(p)		(unlikely((p)->prio < MAX_RT_PRIO))
+#define rt_prio(prio)		unlikely((prio) < MAX_RT_PRIO)
+#define rt_task(p)		rt_prio((p)->prio)
 #define batch_task(p)		(unlikely((p)->policy == SCHED_BATCH))
+#define has_rt_policy(p) \
+	unlikely((p)->policy != SCHED_NORMAL && (p)->policy != SCHED_BATCH)
 
 /*
  * Some day this will be a full-fledged user tracking system..
@@ -725,7 +728,7 @@ struct task_struct {
 #endif
 #endif
 	int load_weight;	/* for niceness load balancing purposes */
-	int prio, static_prio;
+	int prio, static_prio, normal_prio;
 	struct list_head run_list;
 	prio_array_t *array;
 
@@ -851,6 +854,9 @@ struct task_struct {
    	u32 self_exec_id;
 /* Protection of (de-)allocation: mm, files, fs, tty, keyrings */
 	spinlock_t alloc_lock;
+
+	/* Protection of the PI data structures: */
+	spinlock_t pi_lock;
 
 #ifdef CONFIG_DEBUG_MUTEXES
 	/* mutex deadlock detection */
@@ -1018,6 +1024,17 @@ static inline void idle_task_exit(void) {}
 #endif
 
 extern void sched_idle_next(void);
+
+#ifdef CONFIG_RT_MUTEXES
+extern int rt_mutex_getprio(task_t *p);
+extern void rt_mutex_setprio(task_t *p, int prio);
+#else
+static inline int rt_mutex_getprio(task_t *p)
+{
+	return p->normal_prio;
+}
+#endif
+
 extern void set_user_nice(task_t *p, long nice);
 extern int task_prio(const task_t *p);
 extern int task_nice(const task_t *p);

@@ -355,6 +355,25 @@ static inline void finish_lock_switch(runqueue_t *rq, task_t *prev)
 #endif /* __ARCH_WANT_UNLOCKED_CTXSW */
 
 /*
+ * __task_rq_lock - lock the runqueue a given task resides on.
+ * Must be called interrupts disabled.
+ */
+static inline runqueue_t *__task_rq_lock(task_t *p)
+	__acquires(rq->lock)
+{
+	struct runqueue *rq;
+
+repeat_lock_task:
+	rq = task_rq(p);
+	spin_lock(&rq->lock);
+	if (unlikely(rq != task_rq(p))) {
+		spin_unlock(&rq->lock);
+		goto repeat_lock_task;
+	}
+	return rq;
+}
+
+/*
  * task_rq_lock - lock the runqueue a given task resides on and disable
  * interrupts.  Note the ordering: we can safely lookup the task_rq without
  * explicitly disabling preemption.
@@ -373,6 +392,12 @@ repeat_lock_task:
 		goto repeat_lock_task;
 	}
 	return rq;
+}
+
+static inline void __task_rq_unlock(runqueue_t *rq)
+	__releases(rq->lock)
+{
+	spin_unlock(&rq->lock);
 }
 
 static inline void task_rq_unlock(runqueue_t *rq, unsigned long *flags)
@@ -638,7 +663,7 @@ static inline void enqueue_task_head(struct task_struct *p, prio_array_t *array)
 }
 
 /*
- * effective_prio - return the priority that is based on the static
+ * __normal_prio - return the priority that is based on the static
  * priority but is modified by bonuses/penalties.
  *
  * We scale the actual sleep average [0 .... MAX_SLEEP_AVG]
@@ -651,12 +676,10 @@ static inline void enqueue_task_head(struct task_struct *p, prio_array_t *array)
  *
  * Both properties are important to certain workloads.
  */
-static int effective_prio(task_t *p)
+
+static inline int __normal_prio(task_t *p)
 {
 	int bonus, prio;
-
-	if (rt_task(p))
-		return p->prio;
 
 	bonus = CURRENT_BONUS(p) - MAX_BONUS / 2;
 
@@ -692,7 +715,7 @@ static int effective_prio(task_t *p)
 
 static void set_load_weight(task_t *p)
 {
-	if (rt_task(p)) {
+	if (has_rt_policy(p)) {
 #ifdef CONFIG_SMP
 		if (p == task_rq(p)->migration_thread)
 			/*
@@ -731,6 +754,44 @@ static inline void dec_nr_running(task_t *p, runqueue_t *rq)
 }
 
 /*
+ * Calculate the expected normal priority: i.e. priority
+ * without taking RT-inheritance into account. Might be
+ * boosted by interactivity modifiers. Changes upon fork,
+ * setprio syscalls, and whenever the interactivity
+ * estimator recalculates.
+ */
+static inline int normal_prio(task_t *p)
+{
+	int prio;
+
+	if (has_rt_policy(p))
+		prio = MAX_RT_PRIO-1 - p->rt_priority;
+	else
+		prio = __normal_prio(p);
+	return prio;
+}
+
+/*
+ * Calculate the current priority, i.e. the priority
+ * taken into account by the scheduler. This value might
+ * be boosted by RT tasks, or might be boosted by
+ * interactivity modifiers. Will be RT if the task got
+ * RT-boosted. If not then it returns p->normal_prio.
+ */
+static int effective_prio(task_t *p)
+{
+	p->normal_prio = normal_prio(p);
+	/*
+	 * If we are RT tasks or we were boosted to RT priority,
+	 * keep the priority unchanged. Otherwise, update priority
+	 * to the normal priority:
+	 */
+	if (!rt_prio(p->prio))
+		return p->normal_prio;
+	return p->prio;
+}
+
+/*
  * __activate_task - move a task to the runqueue.
  */
 static void __activate_task(task_t *p, runqueue_t *rq)
@@ -752,6 +813,10 @@ static inline void __activate_idle_task(task_t *p, runqueue_t *rq)
 	inc_nr_running(p, rq);
 }
 
+/*
+ * Recalculate p->normal_prio and p->prio after having slept,
+ * updating the sleep-average too:
+ */
 static int recalc_task_prio(task_t *p, unsigned long long now)
 {
 	/* Caller must always ensure 'now >= p->timestamp' */
@@ -1448,6 +1513,12 @@ void fastcall sched_fork(task_t *p, int clone_flags)
 	 * event cannot wake it up and insert it on the runqueue either.
 	 */
 	p->state = TASK_RUNNING;
+
+	/*
+	 * Make sure we do not leak PI boosting priority to the child:
+	 */
+	p->prio = current->normal_prio;
+
 	INIT_LIST_HEAD(&p->run_list);
 	p->array = NULL;
 #ifdef CONFIG_SCHEDSTATS
@@ -1527,6 +1598,7 @@ void fastcall wake_up_new_task(task_t *p, unsigned long clone_flags)
 				__activate_task(p, rq);
 			else {
 				p->prio = current->prio;
+				p->normal_prio = current->normal_prio;
 				list_add_tail(&p->run_list, &current->run_list);
 				p->array = current->array;
 				p->array->nr_active++;
@@ -3668,12 +3740,65 @@ long fastcall __sched sleep_on_timeout(wait_queue_head_t *q, long timeout)
 
 EXPORT_SYMBOL(sleep_on_timeout);
 
+#ifdef CONFIG_RT_MUTEXES
+
+/*
+ * rt_mutex_setprio - set the current priority of a task
+ * @p: task
+ * @prio: prio value (kernel-internal form)
+ *
+ * This function changes the 'effective' priority of a task. It does
+ * not touch ->normal_prio like __setscheduler().
+ *
+ * Used by the rt_mutex code to implement priority inheritance logic.
+ */
+void rt_mutex_setprio(task_t *p, int prio)
+{
+	unsigned long flags;
+	prio_array_t *array;
+	runqueue_t *rq;
+	int oldprio;
+
+	BUG_ON(prio < 0 || prio > MAX_PRIO);
+
+	rq = task_rq_lock(p, &flags);
+
+	oldprio = p->prio;
+	array = p->array;
+	if (array)
+		dequeue_task(p, array);
+	p->prio = prio;
+
+	if (array) {
+		/*
+		 * If changing to an RT priority then queue it
+		 * in the active array!
+		 */
+		if (rt_task(p))
+			array = rq->active;
+		enqueue_task(p, array);
+		/*
+		 * Reschedule if we are currently running on this runqueue and
+		 * our priority decreased, or if we are not currently running on
+		 * this runqueue and our priority is higher than the current's
+		 */
+		if (task_running(rq, p)) {
+			if (p->prio > oldprio)
+				resched_task(rq->curr);
+		} else if (TASK_PREEMPTS_CURR(p, rq))
+			resched_task(rq->curr);
+	}
+	task_rq_unlock(rq, &flags);
+}
+
+#endif
+
 void set_user_nice(task_t *p, long nice)
 {
 	unsigned long flags;
 	prio_array_t *array;
 	runqueue_t *rq;
-	int old_prio, new_prio, delta;
+	int old_prio, delta;
 
 	if (TASK_NICE(p) == nice || nice < -20 || nice > 19)
 		return;
@@ -3688,7 +3813,7 @@ void set_user_nice(task_t *p, long nice)
 	 * it wont have any effect on scheduling until the task is
 	 * not SCHED_NORMAL/SCHED_BATCH:
 	 */
-	if (rt_task(p)) {
+	if (has_rt_policy(p)) {
 		p->static_prio = NICE_TO_PRIO(nice);
 		goto out_unlock;
 	}
@@ -3698,12 +3823,11 @@ void set_user_nice(task_t *p, long nice)
 		dec_raw_weighted_load(rq, p);
 	}
 
-	old_prio = p->prio;
-	new_prio = NICE_TO_PRIO(nice);
-	delta = new_prio - old_prio;
 	p->static_prio = NICE_TO_PRIO(nice);
 	set_load_weight(p);
-	p->prio += delta;
+	old_prio = p->prio;
+	p->prio = effective_prio(p);
+	delta = p->prio - old_prio;
 
 	if (array) {
 		enqueue_task(p, array);
@@ -3718,7 +3842,6 @@ void set_user_nice(task_t *p, long nice)
 out_unlock:
 	task_rq_unlock(rq, &flags);
 }
-
 EXPORT_SYMBOL(set_user_nice);
 
 /*
@@ -3833,16 +3956,14 @@ static void __setscheduler(struct task_struct *p, int policy, int prio)
 	BUG_ON(p->array);
 	p->policy = policy;
 	p->rt_priority = prio;
-	if (policy != SCHED_NORMAL && policy != SCHED_BATCH) {
-		p->prio = MAX_RT_PRIO-1 - p->rt_priority;
-	} else {
-		p->prio = p->static_prio;
-		/*
-		 * SCHED_BATCH tasks are treated as perpetual CPU hogs:
-		 */
-		if (policy == SCHED_BATCH)
-			p->sleep_avg = 0;
-	}
+	p->normal_prio = normal_prio(p);
+	/* we are holding p->pi_lock already */
+	p->prio = rt_mutex_getprio(p);
+	/*
+	 * SCHED_BATCH tasks are treated as perpetual CPU hogs:
+	 */
+	if (policy == SCHED_BATCH)
+		p->sleep_avg = 0;
 	set_load_weight(p);
 }
 
@@ -3912,14 +4033,20 @@ recheck:
 	if (retval)
 		return retval;
 	/*
+	 * make sure no PI-waiters arrive (or leave) while we are
+	 * changing the priority of the task:
+	 */
+	spin_lock_irqsave(&p->pi_lock, flags);
+	/*
 	 * To be able to change p->policy safely, the apropriate
 	 * runqueue lock must be held.
 	 */
-	rq = task_rq_lock(p, &flags);
+	rq = __task_rq_lock(p);
 	/* recheck policy now with rq lock held */
 	if (unlikely(oldpolicy != -1 && oldpolicy != p->policy)) {
 		policy = oldpolicy = -1;
-		task_rq_unlock(rq, &flags);
+		__task_rq_unlock(rq);
+		spin_unlock_irqrestore(&p->pi_lock, flags);
 		goto recheck;
 	}
 	array = p->array;
@@ -3940,7 +4067,9 @@ recheck:
 		} else if (TASK_PREEMPTS_CURR(p, rq))
 			resched_task(rq->curr);
 	}
-	task_rq_unlock(rq, &flags);
+	__task_rq_unlock(rq);
+	spin_unlock_irqrestore(&p->pi_lock, flags);
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(sched_setscheduler);
@@ -4575,7 +4704,7 @@ void __devinit init_idle(task_t *idle, int cpu)
 	idle->timestamp = sched_clock();
 	idle->sleep_avg = 0;
 	idle->array = NULL;
-	idle->prio = MAX_PRIO;
+	idle->prio = idle->normal_prio = MAX_PRIO;
 	idle->state = TASK_RUNNING;
 	idle->cpus_allowed = cpumask_of_cpu(cpu);
 	set_task_cpu(idle, cpu);
@@ -6582,7 +6711,8 @@ void normalize_rt_tasks(void)
 		if (!rt_task(p))
 			continue;
 
-		rq = task_rq_lock(p, &flags);
+		spin_lock_irqsave(&p->pi_lock, flags);
+		rq = __task_rq_lock(p);
 
 		array = p->array;
 		if (array)
@@ -6593,7 +6723,8 @@ void normalize_rt_tasks(void)
 			resched_task(rq->curr);
 		}
 
-		task_rq_unlock(rq, &flags);
+		__task_rq_unlock(rq);
+		spin_unlock_irqrestore(&p->pi_lock, flags);
 	}
 	read_unlock_irq(&tasklist_lock);
 }
