@@ -1246,7 +1246,7 @@ e1000_integrated_phy_loopback(struct e1000_adapter *adapter)
 	} else if (adapter->hw.phy_type == e1000_phy_gg82563) {
 		e1000_write_phy_reg(&adapter->hw,
 		                    GG82563_PHY_KMRN_MODE_CTRL,
-		                    0x1CE);
+		                    0x1CC);
 	}
 	/* force 1000, set loopback */
 	e1000_write_phy_reg(&adapter->hw, PHY_CTRL, 0x4140);
