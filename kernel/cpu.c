@@ -18,7 +18,7 @@
 /* This protects CPUs going up and down... */
 static DEFINE_MUTEX(cpucontrol);
 
-static BLOCKING_NOTIFIER_HEAD(cpu_chain);
+static __cpuinitdata BLOCKING_NOTIFIER_HEAD(cpu_chain);
 
 #ifdef CONFIG_HOTPLUG_CPU
 static struct task_struct *lock_cpu_hotplug_owner;
@@ -69,10 +69,13 @@ EXPORT_SYMBOL_GPL(lock_cpu_hotplug_interruptible);
 #endif	/* CONFIG_HOTPLUG_CPU */
 
 /* Need to know about CPUs going up/down? */
-int register_cpu_notifier(struct notifier_block *nb)
+int __cpuinit register_cpu_notifier(struct notifier_block *nb)
 {
 	return blocking_notifier_chain_register(&cpu_chain, nb);
 }
+
+#ifdef CONFIG_HOTPLUG_CPU
+
 EXPORT_SYMBOL(register_cpu_notifier);
 
 void unregister_cpu_notifier(struct notifier_block *nb)
@@ -81,7 +84,6 @@ void unregister_cpu_notifier(struct notifier_block *nb)
 }
 EXPORT_SYMBOL(unregister_cpu_notifier);
 
-#ifdef CONFIG_HOTPLUG_CPU
 static inline void check_for_tasks(int cpu)
 {
 	struct task_struct *p;
