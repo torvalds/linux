@@ -4734,8 +4734,9 @@ static void migrate_dead_tasks(unsigned int dead_cpu)
  * migration_call - callback that gets triggered when a CPU is added.
  * Here we can start up the necessary migration thread for the new CPU.
  */
-static int migration_call(struct notifier_block *nfb, unsigned long action,
-			  void *hcpu)
+static int __cpuinit migration_call(struct notifier_block *nfb,
+			unsigned long action,
+			void *hcpu)
 {
 	int cpu = (long)hcpu;
 	struct task_struct *p;
@@ -4805,7 +4806,7 @@ static int migration_call(struct notifier_block *nfb, unsigned long action,
 /* Register at highest priority so that task migration (migrate_all_tasks)
  * happens before everything else.
  */
-static struct notifier_block __devinitdata migration_notifier = {
+static struct notifier_block __cpuinitdata migration_notifier = {
 	.notifier_call = migration_call,
 	.priority = 10
 };
