@@ -6022,7 +6022,7 @@ static int build_sched_domains(const cpumask_t *cpu_map)
 		domainspan = sched_domain_node_span(i);
 		cpus_and(domainspan, domainspan, *cpu_map);
 
-		sg = kmalloc(sizeof(struct sched_group), GFP_KERNEL);
+		sg = kmalloc_node(sizeof(struct sched_group), GFP_KERNEL, i);
 		if (!sg) {
 			printk(KERN_WARNING "Can not alloc domain group for "
 				"node %d\n", i);
@@ -6055,7 +6055,8 @@ static int build_sched_domains(const cpumask_t *cpu_map)
 			if (cpus_empty(tmp))
 				continue;
 
-			sg = kmalloc(sizeof(struct sched_group), GFP_KERNEL);
+			sg = kmalloc_node(sizeof(struct sched_group),
+					  GFP_KERNEL, i);
 			if (!sg) {
 				printk(KERN_WARNING
 				"Can not alloc domain group for node %d\n", j);
