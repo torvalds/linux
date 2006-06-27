@@ -445,7 +445,7 @@ void audit_send_reply(int pid, int seq, int type, int done, int multi,
  * Check for appropriate CAP_AUDIT_ capabilities on incoming audit
  * control messages.
  */
-static int audit_netlink_ok(kernel_cap_t eff_cap, u16 msg_type)
+static int audit_netlink_ok(struct sk_buff *skb, u16 msg_type)
 {
 	int err = 0;
 
@@ -459,13 +459,13 @@ static int audit_netlink_ok(kernel_cap_t eff_cap, u16 msg_type)
 	case AUDIT_DEL:
 	case AUDIT_DEL_RULE:
 	case AUDIT_SIGNAL_INFO:
-		if (!cap_raised(eff_cap, CAP_AUDIT_CONTROL))
+		if (security_netlink_recv(skb, CAP_AUDIT_CONTROL))
 			err = -EPERM;
 		break;
 	case AUDIT_USER:
 	case AUDIT_FIRST_USER_MSG...AUDIT_LAST_USER_MSG:
 	case AUDIT_FIRST_USER_MSG2...AUDIT_LAST_USER_MSG2:
-		if (!cap_raised(eff_cap, CAP_AUDIT_WRITE))
+		if (security_netlink_recv(skb, CAP_AUDIT_WRITE))
 			err = -EPERM;
 		break;
 	default:  /* bad msg */
@@ -488,7 +488,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	char			*ctx;
 	u32			len;
 
-	err = audit_netlink_ok(NETLINK_CB(skb).eff_cap, msg_type);
+	err = audit_netlink_ok(skb, msg_type);
 	if (err)
 		return err;
 

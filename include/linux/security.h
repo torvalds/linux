@@ -67,7 +67,7 @@ struct xfrm_state;
 struct xfrm_user_sec_ctx;
 
 extern int cap_netlink_send(struct sock *sk, struct sk_buff *skb);
-extern int cap_netlink_recv(struct sk_buff *skb);
+extern int cap_netlink_recv(struct sk_buff *skb, int cap);
 
 /*
  * Values used in the task_security_ops calls
@@ -656,6 +656,7 @@ struct swap_info_struct;
  *	Check permission before processing the received netlink message in
  *	@skb.
  *	@skb contains the sk_buff structure for the netlink message.
+ *	@cap indicates the capability required
  *	Return 0 if permission is granted.
  *
  * Security hooks for Unix domain networking.
@@ -1266,7 +1267,7 @@ struct security_operations {
 			  struct sembuf * sops, unsigned nsops, int alter);
 
 	int (*netlink_send) (struct sock * sk, struct sk_buff * skb);
-	int (*netlink_recv) (struct sk_buff * skb);
+	int (*netlink_recv) (struct sk_buff * skb, int cap);
 
 	/* allow module stacking */
 	int (*register_security) (const char *name,
@@ -2032,9 +2033,9 @@ static inline int security_netlink_send(struct sock *sk, struct sk_buff * skb)
 	return security_ops->netlink_send(sk, skb);
 }
 
-static inline int security_netlink_recv(struct sk_buff * skb)
+static inline int security_netlink_recv(struct sk_buff * skb, int cap)
 {
-	return security_ops->netlink_recv(skb);
+	return security_ops->netlink_recv(skb, cap);
 }
 
 /* prototypes */
@@ -2670,9 +2671,9 @@ static inline int security_netlink_send (struct sock *sk, struct sk_buff *skb)
 	return cap_netlink_send (sk, skb);
 }
 
-static inline int security_netlink_recv (struct sk_buff *skb)
+static inline int security_netlink_recv (struct sk_buff *skb, int cap)
 {
-	return cap_netlink_recv (skb);
+	return cap_netlink_recv (skb, cap);
 }
 
 static inline struct dentry *securityfs_create_dir(const char *name,
