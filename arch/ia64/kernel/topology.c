@@ -422,7 +422,7 @@ static int __cpuinit cache_cpu_callback(struct notifier_block *nfb,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block cache_cpu_notifier =
+static struct notifier_block __cpuinitdata cache_cpu_notifier =
 {
 	.notifier_call = cache_cpu_callback
 };

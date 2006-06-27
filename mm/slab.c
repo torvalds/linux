@@ -1255,7 +1255,9 @@ bad:
 	return NOTIFY_BAD;
 }
 
-static struct notifier_block cpucache_notifier = { &cpuup_callback, NULL, 0 };
+static struct notifier_block __cpuinitdata cpucache_notifier = {
+	&cpuup_callback, NULL, 0
+};
 
 /*
  * swap the static kmem_list3 with kmalloced memory

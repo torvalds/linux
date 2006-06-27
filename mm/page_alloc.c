@@ -2031,7 +2031,7 @@ static int __cpuinit pageset_cpuup_callback(struct notifier_block *nfb,
 	return ret;
 }
 
-static struct notifier_block pageset_notifier =
+static struct notifier_block __cpuinitdata pageset_notifier =
 	{ &pageset_cpuup_callback, NULL, 0 };
 
 void __init setup_per_cpu_pageset(void)
