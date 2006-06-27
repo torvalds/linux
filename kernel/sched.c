@@ -4412,13 +4412,16 @@ EXPORT_SYMBOL_GPL(set_cpus_allowed);
  *
  * So we race with normal scheduler movements, but that's OK, as long
  * as the task is no longer on this CPU.
+ *
+ * Returns non-zero if task was successfully migrated.
  */
-static void __migrate_task(struct task_struct *p, int src_cpu, int dest_cpu)
+static int __migrate_task(struct task_struct *p, int src_cpu, int dest_cpu)
 {
 	runqueue_t *rq_dest, *rq_src;
+	int ret = 0;
 
 	if (unlikely(cpu_is_offline(dest_cpu)))
-		return;
+		return ret;
 
 	rq_src = cpu_rq(src_cpu);
 	rq_dest = cpu_rq(dest_cpu);
@@ -4446,9 +4449,10 @@ static void __migrate_task(struct task_struct *p, int src_cpu, int dest_cpu)
 		if (TASK_PREEMPTS_CURR(p, rq_dest))
 			resched_task(rq_dest->curr);
 	}
-
+	ret = 1;
 out:
 	double_rq_unlock(rq_src, rq_dest);
+	return ret;
 }
 
 /*
@@ -4518,9 +4522,12 @@ wait_to_die:
 /* Figure out where task on dead CPU should go, use force if neccessary. */
 static void move_task_off_dead_cpu(int dead_cpu, struct task_struct *tsk)
 {
+	runqueue_t *rq;
+	unsigned long flags;
 	int dest_cpu;
 	cpumask_t mask;
 
+restart:
 	/* On same node? */
 	mask = node_to_cpumask(cpu_to_node(dead_cpu));
 	cpus_and(mask, mask, tsk->cpus_allowed);
@@ -4532,8 +4539,10 @@ static void move_task_off_dead_cpu(int dead_cpu, struct task_struct *tsk)
 
 	/* No more Mr. Nice Guy. */
 	if (dest_cpu == NR_CPUS) {
+		rq = task_rq_lock(tsk, &flags);
 		cpus_setall(tsk->cpus_allowed);
 		dest_cpu = any_online_cpu(tsk->cpus_allowed);
+		task_rq_unlock(rq, &flags);
 
 		/*
 		 * Don't tell them about moving exiting tasks or
@@ -4545,7 +4554,8 @@ static void move_task_off_dead_cpu(int dead_cpu, struct task_struct *tsk)
 			       "longer affine to cpu%d\n",
 			       tsk->pid, tsk->comm, dead_cpu);
 	}
-	__migrate_task(tsk, dead_cpu, dest_cpu);
+	if (!__migrate_task(tsk, dead_cpu, dest_cpu))
+		goto restart;
 }
 
 /*
