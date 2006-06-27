@@ -341,7 +341,7 @@ static char __devinit *get_chip_name(enum chip_type chip_id)
 static void __devexit velocity_remove1(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
-	struct velocity_info *vptr = dev->priv;
+	struct velocity_info *vptr = netdev_priv(dev);
 
 #ifdef CONFIG_PM
 	unsigned long flags;
@@ -708,7 +708,7 @@ static int __devinit velocity_found1(struct pci_dev *pdev, const struct pci_devi
 	
 	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
-	vptr = dev->priv;
+	vptr = netdev_priv(dev);
 
 
 	if (first) {
@@ -1728,7 +1728,7 @@ static void velocity_free_tx_buf(struct velocity_info *vptr, struct velocity_td_
  
 static int velocity_open(struct net_device *dev)
 {
-	struct velocity_info *vptr = dev->priv;
+	struct velocity_info *vptr = netdev_priv(dev);
 	int ret;
 
 	vptr->rx_buf_sz = (dev->mtu <= 1504 ? PKT_BUF_SZ : dev->mtu + 32);
@@ -1785,7 +1785,7 @@ err_free_desc_rings:
  
 static int velocity_change_mtu(struct net_device *dev, int new_mtu)
 {
-	struct velocity_info *vptr = dev->priv;
+	struct velocity_info *vptr = netdev_priv(dev);
 	unsigned long flags;
 	int oldmtu = dev->mtu;
 	int ret = 0;
@@ -1861,7 +1861,7 @@ static void velocity_shutdown(struct velocity_info *vptr)
 
 static int velocity_close(struct net_device *dev)
 {
-	struct velocity_info *vptr = dev->priv;
+	struct velocity_info *vptr = netdev_priv(dev);
 
 	netif_stop_queue(dev);
 	velocity_shutdown(vptr);
@@ -1894,7 +1894,7 @@ static int velocity_close(struct net_device *dev)
  
 static int velocity_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	struct velocity_info *vptr = dev->priv;
+	struct velocity_info *vptr = netdev_priv(dev);
 	int qnum = 0;
 	struct tx_desc *td_ptr;
 	struct velocity_td_info *tdinfo;
@@ -2049,7 +2049,7 @@ static int velocity_xmit(struct sk_buff *skb, struct net_device *dev)
 static int velocity_intr(int irq, void *dev_instance, struct pt_regs *regs)
 {
 	struct net_device *dev = dev_instance;
-	struct velocity_info *vptr = dev->priv;
+	struct velocity_info *vptr = netdev_priv(dev);
 	u32 isr_status;
 	int max_count = 0;
 
@@ -2104,7 +2104,7 @@ static int velocity_intr(int irq, void *dev_instance, struct pt_regs *regs)
  
 static void velocity_set_multi(struct net_device *dev)
 {
-	struct velocity_info *vptr = dev->priv;
+	struct velocity_info *vptr = netdev_priv(dev);
 	struct mac_regs __iomem * regs = vptr->mac_regs;
 	u8 rx_mode;
 	int i;
@@ -2153,7 +2153,7 @@ static void velocity_set_multi(struct net_device *dev)
  
 static struct net_device_stats *velocity_get_stats(struct net_device *dev)
 {
-	struct velocity_info *vptr = dev->priv;
+	struct velocity_info *vptr = netdev_priv(dev);
 	
 	/* If the hardware is down, don't touch MII */
 	if(!netif_running(dev))
@@ -2196,7 +2196,7 @@ static struct net_device_stats *velocity_get_stats(struct net_device *dev)
  
 static int velocity_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
-	struct velocity_info *vptr = dev->priv;
+	struct velocity_info *vptr = netdev_priv(dev);
 	int ret;
 
 	/* If we are asked for information and the device is power
@@ -2825,7 +2825,7 @@ static void enable_flow_control_ability(struct velocity_info *vptr)
  
 static int velocity_ethtool_up(struct net_device *dev)
 {
-	struct velocity_info *vptr = dev->priv;
+	struct velocity_info *vptr = netdev_priv(dev);
 	if (!netif_running(dev))
 		pci_set_power_state(vptr->pdev, PCI_D0);
 	return 0;
@@ -2841,14 +2841,14 @@ static int velocity_ethtool_up(struct net_device *dev)
  
 static void velocity_ethtool_down(struct net_device *dev)
 {
-	struct velocity_info *vptr = dev->priv;
+	struct velocity_info *vptr = netdev_priv(dev);
 	if (!netif_running(dev))
 		pci_set_power_state(vptr->pdev, PCI_D3hot);
 }
 
 static int velocity_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
-	struct velocity_info *vptr = dev->priv;
+	struct velocity_info *vptr = netdev_priv(dev);
 	struct mac_regs __iomem * regs = vptr->mac_regs;
 	u32 status;
 	status = check_connection_type(vptr->mac_regs);
@@ -2873,7 +2873,7 @@ static int velocity_get_settings(struct net_device *dev, struct ethtool_cmd *cmd
 
 static int velocity_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
-	struct velocity_info *vptr = dev->priv;
+	struct velocity_info *vptr = netdev_priv(dev);
 	u32 curr_status;
 	u32 new_status = 0;
 	int ret = 0;
@@ -2896,14 +2896,14 @@ static int velocity_set_settings(struct net_device *dev, struct ethtool_cmd *cmd
 
 static u32 velocity_get_link(struct net_device *dev)
 {
-	struct velocity_info *vptr = dev->priv;
+	struct velocity_info *vptr = netdev_priv(dev);
 	struct mac_regs __iomem * regs = vptr->mac_regs;
 	return BYTE_REG_BITS_IS_ON(PHYSR0_LINKGD, &regs->PHYSR0)  ? 0 : 1;
 }
 
 static void velocity_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
-	struct velocity_info *vptr = dev->priv;
+	struct velocity_info *vptr = netdev_priv(dev);
 	strcpy(info->driver, VELOCITY_NAME);
 	strcpy(info->version, VELOCITY_VERSION);
 	strcpy(info->bus_info, pci_name(vptr->pdev));
@@ -2911,7 +2911,7 @@ static void velocity_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo 
 
 static void velocity_ethtool_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 {
-	struct velocity_info *vptr = dev->priv;
+	struct velocity_info *vptr = netdev_priv(dev);
 	wol->supported = WAKE_PHY | WAKE_MAGIC | WAKE_UCAST | WAKE_ARP;
 	wol->wolopts |= WAKE_MAGIC;
 	/*
@@ -2927,7 +2927,7 @@ static void velocity_ethtool_get_wol(struct net_device *dev, struct ethtool_woli
 
 static int velocity_ethtool_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 {
-	struct velocity_info *vptr = dev->priv;
+	struct velocity_info *vptr = netdev_priv(dev);
 
 	if (!(wol->wolopts & (WAKE_PHY | WAKE_MAGIC | WAKE_UCAST | WAKE_ARP)))
 		return -EFAULT;
@@ -2992,7 +2992,7 @@ static struct ethtool_ops velocity_ethtool_ops = {
  
 static int velocity_mii_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
-	struct velocity_info *vptr = dev->priv;
+	struct velocity_info *vptr = netdev_priv(dev);
 	struct mac_regs __iomem * regs = vptr->mac_regs;
 	unsigned long flags;
 	struct mii_ioctl_data *miidata = if_mii(ifr);
