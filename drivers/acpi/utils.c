@@ -58,22 +58,21 @@ acpi_extract_package(union acpi_object *package,
 	u8 *head = NULL;
 	u8 *tail = NULL;
 
-	ACPI_FUNCTION_TRACE("acpi_extract_package");
 
 	if (!package || (package->type != ACPI_TYPE_PACKAGE)
 	    || (package->package.count < 1)) {
 		printk(KERN_WARNING PREFIX "Invalid package argument\n");
-		return_ACPI_STATUS(AE_BAD_PARAMETER);
+		return AE_BAD_PARAMETER;
 	}
 
 	if (!format || !format->pointer || (format->length < 1)) {
 		printk(KERN_WARNING PREFIX "Invalid format argument\n");
-		return_ACPI_STATUS(AE_BAD_PARAMETER);
+		return AE_BAD_PARAMETER;
 	}
 
 	if (!buffer) {
 		printk(KERN_WARNING PREFIX "Invalid buffer argument\n");
-		return_ACPI_STATUS(AE_BAD_PARAMETER);
+		return AE_BAD_PARAMETER;
 	}
 
 	format_count = (format->length / sizeof(char)) - 1;
@@ -81,7 +80,7 @@ acpi_extract_package(union acpi_object *package,
 		printk(KERN_WARNING PREFIX "Format specifies more objects [%d]"
 			      " than exist in package [%d].\n",
 			      format_count, package->package.count);
-		return_ACPI_STATUS(AE_BAD_DATA);
+		return AE_BAD_DATA;
 	}
 
 	format_string = (char *)format->pointer;
@@ -94,7 +93,7 @@ acpi_extract_package(union acpi_object *package,
 		union acpi_object *element = &(package->package.elements[i]);
 
 		if (!element) {
-			return_ACPI_STATUS(AE_BAD_DATA);
+			return AE_BAD_DATA;
 		}
 
 		switch (element->type) {
@@ -116,7 +115,7 @@ acpi_extract_package(union acpi_object *package,
 					      " [%d]: got number, expecing"
 					      " [%c]\n",
 					      i, format_string[i]);
-				return_ACPI_STATUS(AE_BAD_DATA);
+				return AE_BAD_DATA;
 				break;
 			}
 			break;
@@ -142,7 +141,7 @@ acpi_extract_package(union acpi_object *package,
 					      " [%d] got string/buffer,"
 					      " expecing [%c]\n",
 					      i, format_string[i]);
-				return_ACPI_STATUS(AE_BAD_DATA);
+				return AE_BAD_DATA;
 				break;
 			}
 			break;
@@ -153,7 +152,7 @@ acpi_extract_package(union acpi_object *package,
 					  "Found unsupported element at index=%d\n",
 					  i));
 			/* TBD: handle nested packages... */
-			return_ACPI_STATUS(AE_SUPPORT);
+			return AE_SUPPORT;
 			break;
 		}
 	}
@@ -163,9 +162,9 @@ acpi_extract_package(union acpi_object *package,
 	 */
 	if (buffer->length < size_required) {
 		buffer->length = size_required;
-		return_ACPI_STATUS(AE_BUFFER_OVERFLOW);
+		return AE_BUFFER_OVERFLOW;
 	} else if (buffer->length != size_required || !buffer->pointer) {
-		return_ACPI_STATUS(AE_BAD_PARAMETER);
+		return AE_BAD_PARAMETER;
 	}
 
 	head = buffer->pointer;
@@ -180,7 +179,7 @@ acpi_extract_package(union acpi_object *package,
 		union acpi_object *element = &(package->package.elements[i]);
 
 		if (!element) {
-			return_ACPI_STATUS(AE_BAD_DATA);
+			return AE_BAD_DATA;
 		}
 
 		switch (element->type) {
@@ -245,7 +244,7 @@ acpi_extract_package(union acpi_object *package,
 		}
 	}
 
-	return_ACPI_STATUS(AE_OK);
+	return AE_OK;
 }
 
 EXPORT_SYMBOL(acpi_extract_package);
@@ -259,14 +258,13 @@ acpi_evaluate_integer(acpi_handle handle,
 	union acpi_object *element;
 	struct acpi_buffer buffer = { 0, NULL };
 
-	ACPI_FUNCTION_TRACE("acpi_evaluate_integer");
 
 	if (!data)
-		return_ACPI_STATUS(AE_BAD_PARAMETER);
+		return AE_BAD_PARAMETER;
 
 	element = kmalloc(sizeof(union acpi_object), GFP_KERNEL);
 	if (!element)
-		return_ACPI_STATUS(AE_NO_MEMORY);
+		return AE_NO_MEMORY;
 
 	memset(element, 0, sizeof(union acpi_object));
 	buffer.length = sizeof(union acpi_object);
@@ -275,13 +273,13 @@ acpi_evaluate_integer(acpi_handle handle,
 	if (ACPI_FAILURE(status)) {
 		acpi_util_eval_error(handle, pathname, status);
 		kfree(element);
-		return_ACPI_STATUS(status);
+		return status;
 	}
 
 	if (element->type != ACPI_TYPE_INTEGER) {
 		acpi_util_eval_error(handle, pathname, AE_BAD_DATA);
 		kfree(element);
-		return_ACPI_STATUS(AE_BAD_DATA);
+		return AE_BAD_DATA;
 	}
 
 	*data = element->integer.value;
@@ -289,7 +287,7 @@ acpi_evaluate_integer(acpi_handle handle,
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Return value [%lu]\n", *data));
 
-	return_ACPI_STATUS(AE_OK);
+	return AE_OK;
 }
 
 EXPORT_SYMBOL(acpi_evaluate_integer);
@@ -304,15 +302,14 @@ acpi_evaluate_string(acpi_handle handle,
 	acpi_object *element = NULL;
 	acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 
-	ACPI_FUNCTION_TRACE("acpi_evaluate_string");
 
 	if (!data)
-		return_ACPI_STATUS(AE_BAD_PARAMETER);
+		return AE_BAD_PARAMETER;
 
 	status = acpi_evaluate_object(handle, pathname, arguments, &buffer);
 	if (ACPI_FAILURE(status)) {
 		acpi_util_eval_error(handle, pathname, status);
-		return_ACPI_STATUS(status);
+		return status;
 	}
 
 	element = (acpi_object *) buffer.pointer;
@@ -321,13 +318,13 @@ acpi_evaluate_string(acpi_handle handle,
 	    || (element->type != ACPI_TYPE_BUFFER)
 	    || !element->string.length) {
 		acpi_util_eval_error(handle, pathname, AE_BAD_DATA);
-		return_ACPI_STATUS(AE_BAD_DATA);
+		return AE_BAD_DATA;
 	}
 
 	*data = kmalloc(element->string.length + 1, GFP_KERNEL);
 	if (!data) {
 		printk(KERN_ERR PREFIX "Memory allocation\n");
-		return_VALUE(-ENOMEM);
+		return -ENOMEM;
 	}
 	memset(*data, 0, element->string.length + 1);
 
@@ -337,7 +334,7 @@ acpi_evaluate_string(acpi_handle handle,
 
 	acpi_os_free(buffer.pointer);
 
-	return_ACPI_STATUS(AE_OK);
+	return AE_OK;
 }
 #endif
 
@@ -353,10 +350,9 @@ acpi_evaluate_reference(acpi_handle handle,
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 	u32 i = 0;
 
-	ACPI_FUNCTION_TRACE("acpi_evaluate_reference");
 
 	if (!list) {
-		return_ACPI_STATUS(AE_BAD_PARAMETER);
+		return AE_BAD_PARAMETER;
 	}
 
 	/* Evaluate object. */
@@ -390,7 +386,7 @@ acpi_evaluate_reference(acpi_handle handle,
 	}
 
 	if (package->package.count > ACPI_MAX_HANDLES) {
-		return_ACPI_STATUS(AE_NO_MEMORY);
+		return AE_NO_MEMORY;
 	}
 	list->count = package->package.count;
 
@@ -424,7 +420,7 @@ acpi_evaluate_reference(acpi_handle handle,
 
 	acpi_os_free(buffer.pointer);
 
-	return_ACPI_STATUS(status);
+	return status;
 }
 
 EXPORT_SYMBOL(acpi_evaluate_reference);

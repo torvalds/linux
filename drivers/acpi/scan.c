@@ -162,11 +162,10 @@ static void acpi_device_unregister(struct acpi_device *device, int type)
 
 void acpi_bus_data_handler(acpi_handle handle, u32 function, void *context)
 {
-	ACPI_FUNCTION_TRACE("acpi_bus_data_handler");
 
 	/* TBD */
 
-	return_VOID;
+	return;
 }
 
 static int acpi_bus_get_power_flags(struct acpi_device *device)
@@ -175,7 +174,6 @@ static int acpi_bus_get_power_flags(struct acpi_device *device)
 	acpi_handle handle = NULL;
 	u32 i = 0;
 
-	ACPI_FUNCTION_TRACE("acpi_bus_get_power_flags");
 
 	/*
 	 * Power Management Flags
@@ -228,7 +226,7 @@ static int acpi_bus_get_power_flags(struct acpi_device *device)
 
 	device->power.state = ACPI_STATE_UNKNOWN;
 
-	return_VALUE(0);
+	return 0;
 }
 
 int acpi_match_ids(struct acpi_device *device, char *ids)
@@ -306,7 +304,6 @@ static int acpi_bus_get_wakeup_device_flags(struct acpi_device *device)
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 	union acpi_object *package = NULL;
 
-	ACPI_FUNCTION_TRACE("acpi_bus_get_wakeup_flags");
 
 	/* _PRW */
 	status = acpi_evaluate_object(device->handle, "_PRW", NULL, &buffer);
@@ -332,7 +329,7 @@ static int acpi_bus_get_wakeup_device_flags(struct acpi_device *device)
       end:
 	if (ACPI_FAILURE(status))
 		device->flags.wake_capable = 0;
-	return_VALUE(0);
+	return 0;
 }
 
 /* --------------------------------------------------------------------------
@@ -488,19 +485,18 @@ acpi_bus_driver_init(struct acpi_device *device, struct acpi_driver *driver)
 {
 	int result = 0;
 
-	ACPI_FUNCTION_TRACE("acpi_bus_driver_init");
 
 	if (!device || !driver)
-		return_VALUE(-EINVAL);
+		return -EINVAL;
 
 	if (!driver->ops.add)
-		return_VALUE(-ENOSYS);
+		return -ENOSYS;
 
 	result = driver->ops.add(device);
 	if (result) {
 		device->driver = NULL;
 		acpi_driver_data(device) = NULL;
-		return_VALUE(result);
+		return result;
 	}
 
 	device->driver = driver;
@@ -512,7 +508,7 @@ acpi_bus_driver_init(struct acpi_device *device, struct acpi_driver *driver)
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 			  "Driver successfully bound to device\n"));
-	return_VALUE(0);
+	return 0;
 }
 
 static int acpi_start_single_object(struct acpi_device *device)
@@ -520,10 +516,9 @@ static int acpi_start_single_object(struct acpi_device *device)
 	int result = 0;
 	struct acpi_driver *driver;
 
-	ACPI_FUNCTION_TRACE("acpi_start_single_object");
 
 	if (!(driver = device->driver))
-		return_VALUE(0);
+		return 0;
 
 	if (driver->ops.start) {
 		result = driver->ops.start(device);
@@ -531,14 +526,13 @@ static int acpi_start_single_object(struct acpi_device *device)
 			driver->ops.remove(device, ACPI_BUS_REMOVAL_NORMAL);
 	}
 
-	return_VALUE(result);
+	return result;
 }
 
 static void acpi_driver_attach(struct acpi_driver *drv)
 {
 	struct list_head *node, *next;
 
-	ACPI_FUNCTION_TRACE("acpi_driver_attach");
 
 	spin_lock(&acpi_device_lock);
 	list_for_each_safe(node, next, &acpi_device_list) {
@@ -567,7 +561,6 @@ static void acpi_driver_detach(struct acpi_driver *drv)
 {
 	struct list_head *node, *next;
 
-	ACPI_FUNCTION_TRACE("acpi_driver_detach");
 
 	spin_lock(&acpi_device_lock);
 	list_for_each_safe(node, next, &acpi_device_list) {
@@ -597,17 +590,16 @@ static void acpi_driver_detach(struct acpi_driver *drv)
  */
 int acpi_bus_register_driver(struct acpi_driver *driver)
 {
-	ACPI_FUNCTION_TRACE("acpi_bus_register_driver");
 
 	if (acpi_disabled)
-		return_VALUE(-ENODEV);
+		return -ENODEV;
 
 	spin_lock(&acpi_device_lock);
 	list_add_tail(&driver->node, &acpi_bus_drivers);
 	spin_unlock(&acpi_device_lock);
 	acpi_driver_attach(driver);
 
-	return_VALUE(0);
+	return 0;
 }
 
 EXPORT_SYMBOL(acpi_bus_register_driver);
@@ -645,7 +637,6 @@ static int acpi_bus_find_driver(struct acpi_device *device)
 	int result = 0;
 	struct list_head *node, *next;
 
-	ACPI_FUNCTION_TRACE("acpi_bus_find_driver");
 
 	spin_lock(&acpi_device_lock);
 	list_for_each_safe(node, next, &acpi_bus_drivers) {
@@ -665,7 +656,7 @@ static int acpi_bus_find_driver(struct acpi_device *device)
 	spin_unlock(&acpi_device_lock);
 
       Done:
-	return_VALUE(result);
+	return result;
 }
 
 /* --------------------------------------------------------------------------
@@ -677,7 +668,6 @@ static int acpi_bus_get_flags(struct acpi_device *device)
 	acpi_status status = AE_OK;
 	acpi_handle temp = NULL;
 
-	ACPI_FUNCTION_TRACE("acpi_bus_get_flags");
 
 	/* Presence of _STA indicates 'dynamic_status' */
 	status = acpi_get_handle(device->handle, "_STA", &temp);
@@ -723,7 +713,7 @@ static int acpi_bus_get_flags(struct acpi_device *device)
 
 	/* TBD: Peformance management */
 
-	return_VALUE(0);
+	return 0;
 }
 
 static void acpi_device_get_busid(struct acpi_device *device,
@@ -917,10 +907,9 @@ static int acpi_bus_remove(struct acpi_device *dev, int rmdevice)
 	int result = 0;
 	struct acpi_driver *driver;
 
-	ACPI_FUNCTION_TRACE("acpi_bus_remove");
 
 	if (!dev)
-		return_VALUE(-EINVAL);
+		return -EINVAL;
 
 	driver = dev->driver;
 
@@ -929,12 +918,12 @@ static int acpi_bus_remove(struct acpi_device *dev, int rmdevice)
 		if (driver->ops.stop) {
 			result = driver->ops.stop(dev, ACPI_BUS_REMOVAL_EJECT);
 			if (result)
-				return_VALUE(result);
+				return result;
 		}
 
 		result = dev->driver->ops.remove(dev, ACPI_BUS_REMOVAL_EJECT);
 		if (result) {
-			return_VALUE(result);
+			return result;
 		}
 
 		atomic_dec(&dev->driver->references);
@@ -943,7 +932,7 @@ static int acpi_bus_remove(struct acpi_device *dev, int rmdevice)
 	}
 
 	if (!rmdevice)
-		return_VALUE(0);
+		return 0;
 
 	if (dev->flags.bus_address) {
 		if ((dev->parent) && (dev->parent->ops.unbind))
@@ -952,7 +941,7 @@ static int acpi_bus_remove(struct acpi_device *dev, int rmdevice)
 
 	acpi_device_unregister(dev, ACPI_BUS_REMOVAL_EJECT);
 
-	return_VALUE(0);
+	return 0;
 }
 
 static int
@@ -962,15 +951,14 @@ acpi_add_single_object(struct acpi_device **child,
 	int result = 0;
 	struct acpi_device *device = NULL;
 
-	ACPI_FUNCTION_TRACE("acpi_add_single_object");
 
 	if (!child)
-		return_VALUE(-EINVAL);
+		return -EINVAL;
 
 	device = kmalloc(sizeof(struct acpi_device), GFP_KERNEL);
 	if (!device) {
 		printk(KERN_ERR PREFIX "Memory allocation error\n");
-		return_VALUE(-ENOMEM);
+		return -ENOMEM;
 	}
 	memset(device, 0, sizeof(struct acpi_device));
 
@@ -1095,7 +1083,7 @@ acpi_add_single_object(struct acpi_device **child,
 		kfree(device);
 	}
 
-	return_VALUE(result);
+	return result;
 }
 
 static int acpi_bus_scan(struct acpi_device *start, struct acpi_bus_ops *ops)
@@ -1108,10 +1096,9 @@ static int acpi_bus_scan(struct acpi_device *start, struct acpi_bus_ops *ops)
 	acpi_object_type type = 0;
 	u32 level = 1;
 
-	ACPI_FUNCTION_TRACE("acpi_bus_scan");
 
 	if (!start)
-		return_VALUE(-EINVAL);
+		return -EINVAL;
 
 	parent = start;
 	phandle = start->handle;
@@ -1208,7 +1195,7 @@ static int acpi_bus_scan(struct acpi_device *start, struct acpi_bus_ops *ops)
 		}
 	}
 
-	return_VALUE(0);
+	return 0;
 }
 
 int
@@ -1218,7 +1205,6 @@ acpi_bus_add(struct acpi_device **child,
 	int result;
 	struct acpi_bus_ops ops;
 
-	ACPI_FUNCTION_TRACE("acpi_bus_add");
 
 	result = acpi_add_single_object(child, parent, handle, type);
 	if (!result) {
@@ -1226,7 +1212,7 @@ acpi_bus_add(struct acpi_device **child,
 		ops.acpi_op_add = 1;
 		result = acpi_bus_scan(*child, &ops);
 	}
-	return_VALUE(result);
+	return result;
 }
 
 EXPORT_SYMBOL(acpi_bus_add);
@@ -1236,10 +1222,9 @@ int acpi_bus_start(struct acpi_device *device)
 	int result;
 	struct acpi_bus_ops ops;
 
-	ACPI_FUNCTION_TRACE("acpi_bus_start");
 
 	if (!device)
-		return_VALUE(-EINVAL);
+		return -EINVAL;
 
 	result = acpi_start_single_object(device);
 	if (!result) {
@@ -1247,7 +1232,7 @@ int acpi_bus_start(struct acpi_device *device)
 		ops.acpi_op_start = 1;
 		result = acpi_bus_scan(device, &ops);
 	}
-	return_VALUE(result);
+	return result;
 }
 
 EXPORT_SYMBOL(acpi_bus_start);
@@ -1313,10 +1298,9 @@ static int acpi_bus_scan_fixed(struct acpi_device *root)
 	int result = 0;
 	struct acpi_device *device = NULL;
 
-	ACPI_FUNCTION_TRACE("acpi_bus_scan_fixed");
 
 	if (!root)
-		return_VALUE(-ENODEV);
+		return -ENODEV;
 
 	/*
 	 * Enumerate all fixed-feature devices.
@@ -1337,7 +1321,7 @@ static int acpi_bus_scan_fixed(struct acpi_device *root)
 			result = acpi_start_single_object(device);
 	}
 
-	return_VALUE(result);
+	return result;
 }
 
 
@@ -1439,10 +1423,9 @@ static int __init acpi_scan_init(void)
 	int result;
 	struct acpi_bus_ops ops;
 
-	ACPI_FUNCTION_TRACE("acpi_scan_init");
 
 	if (acpi_disabled)
-		return_VALUE(0);
+		return 0;
 
 	kset_register(&acpi_namespace_kset);
 
@@ -1487,7 +1470,7 @@ static int __init acpi_scan_init(void)
 		acpi_device_unregister(acpi_root, ACPI_BUS_REMOVAL_NORMAL);
 
       Done:
-	return_VALUE(result);
+	return result;
 }
 
 subsys_initcall(acpi_scan_init);

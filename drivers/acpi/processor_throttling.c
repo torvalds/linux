@@ -55,13 +55,12 @@ static int acpi_processor_get_throttling(struct acpi_processor *pr)
 	u32 duty_mask = 0;
 	u32 duty_value = 0;
 
-	ACPI_FUNCTION_TRACE("acpi_processor_get_throttling");
 
 	if (!pr)
-		return_VALUE(-EINVAL);
+		return -EINVAL;
 
 	if (!pr->flags.throttling)
-		return_VALUE(-ENODEV);
+		return -ENODEV;
 
 	pr->throttling.state = 0;
 
@@ -93,7 +92,7 @@ static int acpi_processor_get_throttling(struct acpi_processor *pr)
 			  "Throttling state is T%d (%d%% throttling applied)\n",
 			  state, pr->throttling.states[state].performance));
 
-	return_VALUE(0);
+	return 0;
 }
 
 int acpi_processor_set_throttling(struct acpi_processor *pr, int state)
@@ -102,19 +101,18 @@ int acpi_processor_set_throttling(struct acpi_processor *pr, int state)
 	u32 duty_mask = 0;
 	u32 duty_value = 0;
 
-	ACPI_FUNCTION_TRACE("acpi_processor_set_throttling");
 
 	if (!pr)
-		return_VALUE(-EINVAL);
+		return -EINVAL;
 
 	if ((state < 0) || (state > (pr->throttling.state_count - 1)))
-		return_VALUE(-EINVAL);
+		return -EINVAL;
 
 	if (!pr->flags.throttling)
-		return_VALUE(-ENODEV);
+		return -ENODEV;
 
 	if (state == pr->throttling.state)
-		return_VALUE(0);
+		return 0;
 
 	/*
 	 * Calculate the duty_value and duty_mask.
@@ -165,7 +163,7 @@ int acpi_processor_set_throttling(struct acpi_processor *pr, int state)
 			  (pr->throttling.states[state].performance ? pr->
 			   throttling.states[state].performance / 10 : 0)));
 
-	return_VALUE(0);
+	return 0;
 }
 
 int acpi_processor_get_throttling_info(struct acpi_processor *pr)
@@ -174,7 +172,6 @@ int acpi_processor_get_throttling_info(struct acpi_processor *pr)
 	int step = 0;
 	int i = 0;
 
-	ACPI_FUNCTION_TRACE("acpi_processor_get_throttling_info");
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 			  "pblk_address[0x%08x] duty_offset[%d] duty_width[%d]\n",
@@ -183,21 +180,21 @@ int acpi_processor_get_throttling_info(struct acpi_processor *pr)
 			  pr->throttling.duty_width));
 
 	if (!pr)
-		return_VALUE(-EINVAL);
+		return -EINVAL;
 
 	/* TBD: Support ACPI 2.0 objects */
 
 	if (!pr->throttling.address) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "No throttling register\n"));
-		return_VALUE(0);
+		return 0;
 	} else if (!pr->throttling.duty_width) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "No throttling states\n"));
-		return_VALUE(0);
+		return 0;
 	}
 	/* TBD: Support duty_cycle values that span bit 4. */
 	else if ((pr->throttling.duty_offset + pr->throttling.duty_width) > 4) {
 		printk(KERN_WARNING PREFIX "duty_cycle spans bit 4\n");
-		return_VALUE(0);
+		return 0;
 	}
 
 	/*
@@ -208,7 +205,7 @@ int acpi_processor_get_throttling_info(struct acpi_processor *pr)
 	if (errata.piix4.throttle) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 				  "Throttling not supported on PIIX4 A- or B-step\n"));
-		return_VALUE(0);
+		return 0;
 	}
 
 	pr->throttling.state_count = 1 << acpi_fadt.duty_width;
@@ -254,7 +251,7 @@ int acpi_processor_get_throttling_info(struct acpi_processor *pr)
 	if (result)
 		pr->flags.throttling = 0;
 
-	return_VALUE(result);
+	return result;
 }
 
 /* proc interface */
@@ -266,7 +263,6 @@ static int acpi_processor_throttling_seq_show(struct seq_file *seq,
 	int i = 0;
 	int result = 0;
 
-	ACPI_FUNCTION_TRACE("acpi_processor_throttling_seq_show");
 
 	if (!pr)
 		goto end;
@@ -296,7 +292,7 @@ static int acpi_processor_throttling_seq_show(struct seq_file *seq,
 			    throttling.states[i].performance / 10 : 0));
 
       end:
-	return_VALUE(0);
+	return 0;
 }
 
 static int acpi_processor_throttling_open_fs(struct inode *inode,
@@ -315,13 +311,12 @@ static ssize_t acpi_processor_write_throttling(struct file * file,
 	struct acpi_processor *pr = (struct acpi_processor *)m->private;
 	char state_string[12] = { '\0' };
 
-	ACPI_FUNCTION_TRACE("acpi_processor_write_throttling");
 
 	if (!pr || (count > sizeof(state_string) - 1))
-		return_VALUE(-EINVAL);
+		return -EINVAL;
 
 	if (copy_from_user(state_string, buffer, count))
-		return_VALUE(-EFAULT);
+		return -EFAULT;
 
 	state_string[count] = '\0';
 
@@ -329,9 +324,9 @@ static ssize_t acpi_processor_write_throttling(struct file * file,
 					       simple_strtoul(state_string,
 							      NULL, 0));
 	if (result)
-		return_VALUE(result);
+		return result;
 
-	return_VALUE(count);
+	return count;
 }
 
 struct file_operations acpi_processor_throttling_fops = {

@@ -47,10 +47,9 @@ extern struct fadt_descriptor acpi_fadt;
 
 static int acpi_system_read_info(struct seq_file *seq, void *offset)
 {
-	ACPI_FUNCTION_TRACE("acpi_system_read_info");
 
 	seq_printf(seq, "version:                 %x\n", ACPI_CA_VERSION);
-	return_VALUE(0);
+	return 0;
 }
 
 static int acpi_system_info_open_fs(struct inode *inode, struct file *file)
@@ -80,17 +79,16 @@ acpi_system_read_dsdt(struct file *file,
 	struct acpi_buffer dsdt = { ACPI_ALLOCATE_BUFFER, NULL };
 	ssize_t res;
 
-	ACPI_FUNCTION_TRACE("acpi_system_read_dsdt");
 
 	status = acpi_get_table(ACPI_TABLE_ID_DSDT, 1, &dsdt);
 	if (ACPI_FAILURE(status))
-		return_VALUE(-ENODEV);
+		return -ENODEV;
 
 	res = simple_read_from_buffer(buffer, count, ppos,
 				      dsdt.pointer, dsdt.length);
 	acpi_os_free(dsdt.pointer);
 
-	return_VALUE(res);
+	return res;
 }
 
 static ssize_t acpi_system_read_fadt(struct file *, char __user *, size_t,
@@ -108,17 +106,16 @@ acpi_system_read_fadt(struct file *file,
 	struct acpi_buffer fadt = { ACPI_ALLOCATE_BUFFER, NULL };
 	ssize_t res;
 
-	ACPI_FUNCTION_TRACE("acpi_system_read_fadt");
 
 	status = acpi_get_table(ACPI_TABLE_ID_FADT, 1, &fadt);
 	if (ACPI_FAILURE(status))
-		return_VALUE(-ENODEV);
+		return -ENODEV;
 
 	res = simple_read_from_buffer(buffer, count, ppos,
 				      fadt.pointer, fadt.length);
 	acpi_os_free(fadt.pointer);
 
-	return_VALUE(res);
+	return res;
 }
 
 static int __init acpi_system_init(void)
@@ -127,10 +124,9 @@ static int __init acpi_system_init(void)
 	int error = 0;
 	char *name;
 
-	ACPI_FUNCTION_TRACE("acpi_system_init");
 
 	if (acpi_disabled)
-		return_VALUE(0);
+		return 0;
 
 	/* 'info' [R] */
 	name = ACPI_SYSTEM_FILE_INFO;
@@ -158,7 +154,7 @@ static int __init acpi_system_init(void)
 		goto Error;
 
       Done:
-	return_VALUE(error);
+	return error;
 
       Error:
 	remove_proc_entry(ACPI_SYSTEM_FILE_FADT, acpi_root_dir);

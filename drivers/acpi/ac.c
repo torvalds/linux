@@ -84,19 +84,18 @@ static int acpi_ac_get_state(struct acpi_ac *ac)
 {
 	acpi_status status = AE_OK;
 
-	ACPI_FUNCTION_TRACE("acpi_ac_get_state");
 
 	if (!ac)
-		return_VALUE(-EINVAL);
+		return -EINVAL;
 
 	status = acpi_evaluate_integer(ac->handle, "_PSR", NULL, &ac->state);
 	if (ACPI_FAILURE(status)) {
 		ACPI_EXCEPTION((AE_INFO, status, "Error reading AC Adapter state"));
 		ac->state = ACPI_AC_STATUS_UNKNOWN;
-		return_VALUE(-ENODEV);
+		return -ENODEV;
 	}
 
-	return_VALUE(0);
+	return 0;
 }
 
 /* --------------------------------------------------------------------------
@@ -109,14 +108,13 @@ static int acpi_ac_seq_show(struct seq_file *seq, void *offset)
 {
 	struct acpi_ac *ac = (struct acpi_ac *)seq->private;
 
-	ACPI_FUNCTION_TRACE("acpi_ac_seq_show");
 
 	if (!ac)
-		return_VALUE(0);
+		return 0;
 
 	if (acpi_ac_get_state(ac)) {
 		seq_puts(seq, "ERROR: Unable to read AC Adapter state\n");
-		return_VALUE(0);
+		return 0;
 	}
 
 	seq_puts(seq, "state:                   ");
@@ -132,7 +130,7 @@ static int acpi_ac_seq_show(struct seq_file *seq, void *offset)
 		break;
 	}
 
-	return_VALUE(0);
+	return 0;
 }
 
 static int acpi_ac_open_fs(struct inode *inode, struct file *file)
@@ -144,13 +142,12 @@ static int acpi_ac_add_fs(struct acpi_device *device)
 {
 	struct proc_dir_entry *entry = NULL;
 
-	ACPI_FUNCTION_TRACE("acpi_ac_add_fs");
 
 	if (!acpi_device_dir(device)) {
 		acpi_device_dir(device) = proc_mkdir(acpi_device_bid(device),
 						     acpi_ac_dir);
 		if (!acpi_device_dir(device))
-			return_VALUE(-ENODEV);
+			return -ENODEV;
 		acpi_device_dir(device)->owner = THIS_MODULE;
 	}
 
@@ -158,19 +155,18 @@ static int acpi_ac_add_fs(struct acpi_device *device)
 	entry = create_proc_entry(ACPI_AC_FILE_STATE,
 				  S_IRUGO, acpi_device_dir(device));
 	if (!entry)
-		return_VALUE(-ENODEV);
+		return -ENODEV;
 	else {
 		entry->proc_fops = &acpi_ac_fops;
 		entry->data = acpi_driver_data(device);
 		entry->owner = THIS_MODULE;
 	}
 
-	return_VALUE(0);
+	return 0;
 }
 
 static int acpi_ac_remove_fs(struct acpi_device *device)
 {
-	ACPI_FUNCTION_TRACE("acpi_ac_remove_fs");
 
 	if (acpi_device_dir(device)) {
 		remove_proc_entry(ACPI_AC_FILE_STATE, acpi_device_dir(device));
@@ -179,7 +175,7 @@ static int acpi_ac_remove_fs(struct acpi_device *device)
 		acpi_device_dir(device) = NULL;
 	}
 
-	return_VALUE(0);
+	return 0;
 }
 
 /* --------------------------------------------------------------------------
@@ -191,13 +187,12 @@ static void acpi_ac_notify(acpi_handle handle, u32 event, void *data)
 	struct acpi_ac *ac = (struct acpi_ac *)data;
 	struct acpi_device *device = NULL;
 
-	ACPI_FUNCTION_TRACE("acpi_ac_notify");
 
 	if (!ac)
-		return_VOID;
+		return;
 
 	if (acpi_bus_get_device(ac->handle, &device))
-		return_VOID;
+		return;
 
 	switch (event) {
 	case ACPI_AC_NOTIFY_STATUS:
@@ -210,7 +205,7 @@ static void acpi_ac_notify(acpi_handle handle, u32 event, void *data)
 		break;
 	}
 
-	return_VOID;
+	return;
 }
 
 static int acpi_ac_add(struct acpi_device *device)
@@ -219,14 +214,13 @@ static int acpi_ac_add(struct acpi_device *device)
 	acpi_status status = AE_OK;
 	struct acpi_ac *ac = NULL;
 
-	ACPI_FUNCTION_TRACE("acpi_ac_add");
 
 	if (!device)
-		return_VALUE(-EINVAL);
+		return -EINVAL;
 
 	ac = kmalloc(sizeof(struct acpi_ac), GFP_KERNEL);
 	if (!ac)
-		return_VALUE(-ENOMEM);
+		return -ENOMEM;
 	memset(ac, 0, sizeof(struct acpi_ac));
 
 	ac->handle = device->handle;
@@ -260,7 +254,7 @@ static int acpi_ac_add(struct acpi_device *device)
 		kfree(ac);
 	}
 
-	return_VALUE(result);
+	return result;
 }
 
 static int acpi_ac_remove(struct acpi_device *device, int type)
@@ -268,10 +262,9 @@ static int acpi_ac_remove(struct acpi_device *device, int type)
 	acpi_status status = AE_OK;
 	struct acpi_ac *ac = NULL;
 
-	ACPI_FUNCTION_TRACE("acpi_ac_remove");
 
 	if (!device || !acpi_driver_data(device))
-		return_VALUE(-EINVAL);
+		return -EINVAL;
 
 	ac = (struct acpi_ac *)acpi_driver_data(device);
 
@@ -282,38 +275,36 @@ static int acpi_ac_remove(struct acpi_device *device, int type)
 
 	kfree(ac);
 
-	return_VALUE(0);
+	return 0;
 }
 
 static int __init acpi_ac_init(void)
 {
 	int result = 0;
 
-	ACPI_FUNCTION_TRACE("acpi_ac_init");
 
 	acpi_ac_dir = proc_mkdir(ACPI_AC_CLASS, acpi_root_dir);
 	if (!acpi_ac_dir)
-		return_VALUE(-ENODEV);
+		return -ENODEV;
 	acpi_ac_dir->owner = THIS_MODULE;
 
 	result = acpi_bus_register_driver(&acpi_ac_driver);
 	if (result < 0) {
 		remove_proc_entry(ACPI_AC_CLASS, acpi_root_dir);
-		return_VALUE(-ENODEV);
+		return -ENODEV;
 	}
 
-	return_VALUE(0);
+	return 0;
 }
 
 static void __exit acpi_ac_exit(void)
 {
-	ACPI_FUNCTION_TRACE("acpi_ac_exit");
 
 	acpi_bus_unregister_driver(&acpi_ac_driver);
 
 	remove_proc_entry(ACPI_AC_CLASS, acpi_root_dir);
 
-	return_VOID;
+	return;
 }
 
 module_init(acpi_ac_init);

@@ -587,19 +587,18 @@ static void acpi_os_execute_deferred(void *context)
 {
 	struct acpi_os_dpc *dpc = NULL;
 
-	ACPI_FUNCTION_TRACE("os_execute_deferred");
 
 	dpc = (struct acpi_os_dpc *)context;
 	if (!dpc) {
 		printk(KERN_ERR PREFIX "Invalid (NULL) context\n");
-		return_VOID;
+		return;
 	}
 
 	dpc->function(dpc->context);
 
 	kfree(dpc);
 
-	return_VOID;
+	return;
 }
 
 static int acpi_os_execute_thread(void *context)
@@ -693,7 +692,6 @@ acpi_status acpi_os_create_lock(acpi_handle * out_handle)
 {
 	spinlock_t *lock_ptr;
 
-	ACPI_FUNCTION_TRACE("os_create_lock");
 
 	lock_ptr = acpi_os_allocate(sizeof(spinlock_t));
 
@@ -703,7 +701,7 @@ acpi_status acpi_os_create_lock(acpi_handle * out_handle)
 
 	*out_handle = lock_ptr;
 
-	return_ACPI_STATUS(AE_OK);
+	return AE_OK;
 }
 
 /*
@@ -711,13 +709,12 @@ acpi_status acpi_os_create_lock(acpi_handle * out_handle)
  */
 void acpi_os_delete_lock(acpi_handle handle)
 {
-	ACPI_FUNCTION_TRACE("os_create_lock");
 
 	ACPI_DEBUG_PRINT((ACPI_DB_MUTEX, "Deleting spinlock[%p].\n", handle));
 
 	acpi_os_free(handle);
 
-	return_VOID;
+	return;
 }
 
 acpi_status
@@ -725,11 +722,10 @@ acpi_os_create_semaphore(u32 max_units, u32 initial_units, acpi_handle * handle)
 {
 	struct semaphore *sem = NULL;
 
-	ACPI_FUNCTION_TRACE("os_create_semaphore");
 
 	sem = acpi_os_allocate(sizeof(struct semaphore));
 	if (!sem)
-		return_ACPI_STATUS(AE_NO_MEMORY);
+		return AE_NO_MEMORY;
 	memset(sem, 0, sizeof(struct semaphore));
 
 	sema_init(sem, initial_units);
@@ -739,7 +735,7 @@ acpi_os_create_semaphore(u32 max_units, u32 initial_units, acpi_handle * handle)
 	ACPI_DEBUG_PRINT((ACPI_DB_MUTEX, "Creating semaphore[%p|%d].\n",
 			  *handle, initial_units));
 
-	return_ACPI_STATUS(AE_OK);
+	return AE_OK;
 }
 
 EXPORT_SYMBOL(acpi_os_create_semaphore);
@@ -755,17 +751,16 @@ acpi_status acpi_os_delete_semaphore(acpi_handle handle)
 {
 	struct semaphore *sem = (struct semaphore *)handle;
 
-	ACPI_FUNCTION_TRACE("os_delete_semaphore");
 
 	if (!sem)
-		return_ACPI_STATUS(AE_BAD_PARAMETER);
+		return AE_BAD_PARAMETER;
 
 	ACPI_DEBUG_PRINT((ACPI_DB_MUTEX, "Deleting semaphore[%p].\n", handle));
 
 	acpi_os_free(sem);
 	sem = NULL;
 
-	return_ACPI_STATUS(AE_OK);
+	return AE_OK;
 }
 
 EXPORT_SYMBOL(acpi_os_delete_semaphore);
@@ -785,13 +780,12 @@ acpi_status acpi_os_wait_semaphore(acpi_handle handle, u32 units, u16 timeout)
 	struct semaphore *sem = (struct semaphore *)handle;
 	int ret = 0;
 
-	ACPI_FUNCTION_TRACE("os_wait_semaphore");
 
 	if (!sem || (units < 1))
-		return_ACPI_STATUS(AE_BAD_PARAMETER);
+		return AE_BAD_PARAMETER;
 
 	if (units > 1)
-		return_ACPI_STATUS(AE_SUPPORT);
+		return AE_SUPPORT;
 
 	ACPI_DEBUG_PRINT((ACPI_DB_MUTEX, "Waiting for semaphore[%p|%d|%d]\n",
 			  handle, units, timeout));
@@ -850,7 +844,7 @@ acpi_status acpi_os_wait_semaphore(acpi_handle handle, u32 units, u16 timeout)
 				  units, timeout));
 	}
 
-	return_ACPI_STATUS(status);
+	return status;
 }
 
 EXPORT_SYMBOL(acpi_os_wait_semaphore);
@@ -862,20 +856,19 @@ acpi_status acpi_os_signal_semaphore(acpi_handle handle, u32 units)
 {
 	struct semaphore *sem = (struct semaphore *)handle;
 
-	ACPI_FUNCTION_TRACE("os_signal_semaphore");
 
 	if (!sem || (units < 1))
-		return_ACPI_STATUS(AE_BAD_PARAMETER);
+		return AE_BAD_PARAMETER;
 
 	if (units > 1)
-		return_ACPI_STATUS(AE_SUPPORT);
+		return AE_SUPPORT;
 
 	ACPI_DEBUG_PRINT((ACPI_DB_MUTEX, "Signaling semaphore[%p|%d]\n", handle,
 			  units));
 
 	up(sem);
 
-	return_ACPI_STATUS(AE_OK);
+	return AE_OK;
 }
 
 EXPORT_SYMBOL(acpi_os_signal_semaphore);

@@ -160,14 +160,13 @@ static int acpi_pci_root_add(struct acpi_device *device)
 	unsigned long value = 0;
 	acpi_handle handle = NULL;
 
-	ACPI_FUNCTION_TRACE("acpi_pci_root_add");
 
 	if (!device)
-		return_VALUE(-EINVAL);
+		return -EINVAL;
 
 	root = kmalloc(sizeof(struct acpi_pci_root), GFP_KERNEL);
 	if (!root)
-		return_VALUE(-ENOMEM);
+		return -ENOMEM;
 	memset(root, 0, sizeof(struct acpi_pci_root));
 	INIT_LIST_HEAD(&root->node);
 
@@ -307,46 +306,43 @@ static int acpi_pci_root_add(struct acpi_device *device)
 		kfree(root);
 	}
 
-	return_VALUE(result);
+	return result;
 }
 
 static int acpi_pci_root_start(struct acpi_device *device)
 {
 	struct acpi_pci_root *root;
 
-	ACPI_FUNCTION_TRACE("acpi_pci_root_start");
 
 	list_for_each_entry(root, &acpi_pci_roots, node) {
 		if (root->handle == device->handle) {
 			pci_bus_add_devices(root->bus);
-			return_VALUE(0);
+			return 0;
 		}
 	}
-	return_VALUE(-ENODEV);
+	return -ENODEV;
 }
 
 static int acpi_pci_root_remove(struct acpi_device *device, int type)
 {
 	struct acpi_pci_root *root = NULL;
 
-	ACPI_FUNCTION_TRACE("acpi_pci_root_remove");
 
 	if (!device || !acpi_driver_data(device))
-		return_VALUE(-EINVAL);
+		return -EINVAL;
 
 	root = (struct acpi_pci_root *)acpi_driver_data(device);
 
 	kfree(root);
 
-	return_VALUE(0);
+	return 0;
 }
 
 static int __init acpi_pci_root_init(void)
 {
-	ACPI_FUNCTION_TRACE("acpi_pci_root_init");
 
 	if (acpi_pci_disabled)
-		return_VALUE(0);
+		return 0;
 
 	/* DEBUG:
 	   acpi_dbg_layer = ACPI_PCI_COMPONENT;
@@ -354,9 +350,9 @@ static int __init acpi_pci_root_init(void)
 	 */
 
 	if (acpi_bus_register_driver(&acpi_pci_root_driver) < 0)
-		return_VALUE(-ENODEV);
+		return -ENODEV;
 
-	return_VALUE(0);
+	return 0;
 }
 
 subsys_initcall(acpi_pci_root_init);

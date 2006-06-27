@@ -112,15 +112,14 @@ static int acpi_button_info_seq_show(struct seq_file *seq, void *offset)
 {
 	struct acpi_button *button = (struct acpi_button *)seq->private;
 
-	ACPI_FUNCTION_TRACE("acpi_button_info_seq_show");
 
 	if (!button || !button->device)
-		return_VALUE(0);
+		return 0;
 
 	seq_printf(seq, "type:                    %s\n",
 		   acpi_device_name(button->device));
 
-	return_VALUE(0);
+	return 0;
 }
 
 static int acpi_button_info_open_fs(struct inode *inode, struct file *file)
@@ -134,10 +133,9 @@ static int acpi_button_state_seq_show(struct seq_file *seq, void *offset)
 	acpi_status status;
 	unsigned long state;
 
-	ACPI_FUNCTION_TRACE("acpi_button_state_seq_show");
 
 	if (!button || !button->device)
-		return_VALUE(0);
+		return 0;
 
 	status = acpi_evaluate_integer(button->handle, "_LID", NULL, &state);
 	if (ACPI_FAILURE(status)) {
@@ -147,7 +145,7 @@ static int acpi_button_state_seq_show(struct seq_file *seq, void *offset)
 			   (state ? "open" : "closed"));
 	}
 
-	return_VALUE(0);
+	return 0;
 }
 
 static int acpi_button_state_open_fs(struct inode *inode, struct file *file)
@@ -164,10 +162,9 @@ static int acpi_button_add_fs(struct acpi_device *device)
 	struct proc_dir_entry *entry = NULL;
 	struct acpi_button *button = NULL;
 
-	ACPI_FUNCTION_TRACE("acpi_button_add_fs");
 
 	if (!device || !acpi_driver_data(device))
-		return_VALUE(-EINVAL);
+		return -EINVAL;
 
 	button = acpi_driver_data(device);
 
@@ -195,19 +192,19 @@ static int acpi_button_add_fs(struct acpi_device *device)
 	}
 
 	if (!entry)
-		return_VALUE(-ENODEV);
+		return -ENODEV;
 	entry->owner = THIS_MODULE;
 
 	acpi_device_dir(device) = proc_mkdir(acpi_device_bid(device), entry);
 	if (!acpi_device_dir(device))
-		return_VALUE(-ENODEV);
+		return -ENODEV;
 	acpi_device_dir(device)->owner = THIS_MODULE;
 
 	/* 'info' [R] */
 	entry = create_proc_entry(ACPI_BUTTON_FILE_INFO,
 				  S_IRUGO, acpi_device_dir(device));
 	if (!entry)
-		return_VALUE(-ENODEV);
+		return -ENODEV;
 	else {
 		entry->proc_fops = &acpi_button_info_fops;
 		entry->data = acpi_driver_data(device);
@@ -227,14 +224,13 @@ static int acpi_button_add_fs(struct acpi_device *device)
 		}
 	}
 
-	return_VALUE(0);
+	return 0;
 }
 
 static int acpi_button_remove_fs(struct acpi_device *device)
 {
 	struct acpi_button *button = NULL;
 
-	ACPI_FUNCTION_TRACE("acpi_button_remove_fs");
 
 	button = acpi_driver_data(device);
 	if (acpi_device_dir(device)) {
@@ -249,7 +245,7 @@ static int acpi_button_remove_fs(struct acpi_device *device)
 		acpi_device_dir(device) = NULL;
 	}
 
-	return_VALUE(0);
+	return 0;
 }
 
 /* --------------------------------------------------------------------------
@@ -260,10 +256,9 @@ static void acpi_button_notify(acpi_handle handle, u32 event, void *data)
 {
 	struct acpi_button *button = (struct acpi_button *)data;
 
-	ACPI_FUNCTION_TRACE("acpi_button_notify");
 
 	if (!button || !button->device)
-		return_VOID;
+		return;
 
 	switch (event) {
 	case ACPI_BUTTON_NOTIFY_STATUS:
@@ -276,21 +271,20 @@ static void acpi_button_notify(acpi_handle handle, u32 event, void *data)
 		break;
 	}
 
-	return_VOID;
+	return;
 }
 
 static acpi_status acpi_button_notify_fixed(void *data)
 {
 	struct acpi_button *button = (struct acpi_button *)data;
 
-	ACPI_FUNCTION_TRACE("acpi_button_notify_fixed");
 
 	if (!button)
-		return_ACPI_STATUS(AE_BAD_PARAMETER);
+		return AE_BAD_PARAMETER;
 
 	acpi_button_notify(button->handle, ACPI_BUTTON_NOTIFY_STATUS, button);
 
-	return_ACPI_STATUS(AE_OK);
+	return AE_OK;
 }
 
 static int acpi_button_add(struct acpi_device *device)
@@ -299,14 +293,13 @@ static int acpi_button_add(struct acpi_device *device)
 	acpi_status status = AE_OK;
 	struct acpi_button *button = NULL;
 
-	ACPI_FUNCTION_TRACE("acpi_button_add");
 
 	if (!device)
-		return_VALUE(-EINVAL);
+		return -EINVAL;
 
 	button = kmalloc(sizeof(struct acpi_button), GFP_KERNEL);
 	if (!button)
-		return_VALUE(-ENOMEM);
+		return -ENOMEM;
 	memset(button, 0, sizeof(struct acpi_button));
 
 	button->device = device;
@@ -400,7 +393,7 @@ static int acpi_button_add(struct acpi_device *device)
 		kfree(button);
 	}
 
-	return_VALUE(result);
+	return result;
 }
 
 static int acpi_button_remove(struct acpi_device *device, int type)
@@ -408,10 +401,9 @@ static int acpi_button_remove(struct acpi_device *device, int type)
 	acpi_status status = 0;
 	struct acpi_button *button = NULL;
 
-	ACPI_FUNCTION_TRACE("acpi_button_remove");
 
 	if (!device || !acpi_driver_data(device))
-		return_VALUE(-EINVAL);
+		return -EINVAL;
 
 	button = acpi_driver_data(device);
 
@@ -438,31 +430,29 @@ static int acpi_button_remove(struct acpi_device *device, int type)
 
 	kfree(button);
 
-	return_VALUE(0);
+	return 0;
 }
 
 static int __init acpi_button_init(void)
 {
 	int result = 0;
 
-	ACPI_FUNCTION_TRACE("acpi_button_init");
 
 	acpi_button_dir = proc_mkdir(ACPI_BUTTON_CLASS, acpi_root_dir);
 	if (!acpi_button_dir)
-		return_VALUE(-ENODEV);
+		return -ENODEV;
 	acpi_button_dir->owner = THIS_MODULE;
 	result = acpi_bus_register_driver(&acpi_button_driver);
 	if (result < 0) {
 		remove_proc_entry(ACPI_BUTTON_CLASS, acpi_root_dir);
-		return_VALUE(-ENODEV);
+		return -ENODEV;
 	}
 
-	return_VALUE(0);
+	return 0;
 }
 
 static void __exit acpi_button_exit(void)
 {
-	ACPI_FUNCTION_TRACE("acpi_button_exit");
 
 	acpi_bus_unregister_driver(&acpi_button_driver);
 
@@ -474,7 +464,7 @@ static void __exit acpi_button_exit(void)
 		remove_proc_entry(ACPI_BUTTON_SUBCLASS_LID, acpi_button_dir);
 	remove_proc_entry(ACPI_BUTTON_CLASS, acpi_root_dir);
 
-	return_VOID;
+	return;
 }
 
 module_init(acpi_button_init);
