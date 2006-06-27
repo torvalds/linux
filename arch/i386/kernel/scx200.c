@@ -105,7 +105,6 @@ u32 scx200_gpio_configure(unsigned index, u32 mask, u32 bits)
 	return config;
 }
 
-#if 0
 void scx200_gpio_dump(unsigned index)
 {
         u32 config = scx200_gpio_configure(index, ~0, 0);
@@ -120,7 +119,6 @@ void scx200_gpio_dump(unsigned index)
                (config & 32) ? "HI"     : "LO",		/* trigger on rising/falling edge */
                (config & 64) ? "DEBOUNCE" : "");	/* debounce */
 }
-#endif  /*  0  */
 
 static int __init scx200_init(void)
 {
@@ -141,4 +139,5 @@ module_exit(scx200_cleanup);
 EXPORT_SYMBOL(scx200_gpio_base);
 EXPORT_SYMBOL(scx200_gpio_shadow);
 EXPORT_SYMBOL(scx200_gpio_configure);
+EXPORT_SYMBOL(scx200_gpio_dump);
 EXPORT_SYMBOL(scx200_cb_base);

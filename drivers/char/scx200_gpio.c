@@ -41,6 +41,7 @@ static ssize_t scx200_gpio_write(struct file *file, const char __user *data,
 {
 	unsigned m = iminor(file->f_dentry->d_inode);
 	size_t i;
+	int err = 0;
 
 	for (i = 0; i < len; ++i) {
 		char c;
@@ -77,8 +78,23 @@ static ssize_t scx200_gpio_write(struct file *file, const char __user *data,
 			printk(KERN_INFO NAME ": GPIO%d pull up disabled\n", m);
 			scx200_gpio_configure(m, ~4, 0);
 			break;
+
+		case 'v':
+			/* View Current pin settings */
+			scx200_gpio_dump(m);
+			break;
+		case '\n':
+			/* end of settings string, do nothing */
+			break;
+		default:
+			printk(KERN_ERR NAME
+			       ": GPIO-%2d bad setting: chr<0x%2x>\n", m,
+			       (int)c);
+			err++;
 		}
 	}
+	if (err)
+		return -EINVAL;	/* full string handled, report error */
 
 	return len;
 }
