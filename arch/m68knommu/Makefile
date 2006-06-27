@@ -21,6 +21,7 @@ platform-$(CONFIG_M527x)	:= 527x
 platform-$(CONFIG_M5272)	:= 5272
 platform-$(CONFIG_M528x)	:= 528x
 platform-$(CONFIG_M5307)	:= 5307
+platform-$(CONFIG_M532x)	:= 532x
 platform-$(CONFIG_M5407)	:= 5407
 PLATFORM := $(platform-y)
 
@@ -66,6 +67,7 @@ cpuclass-$(CONFIG_M527x)	:= 5307
 cpuclass-$(CONFIG_M5272)	:= 5307
 cpuclass-$(CONFIG_M528x)	:= 5307
 cpuclass-$(CONFIG_M5307)	:= 5307
+cpuclass-$(CONFIG_M532x)	:= 5307
 cpuclass-$(CONFIG_M5407)	:= 5307
 cpuclass-$(CONFIG_M68328)	:= 68328
 cpuclass-$(CONFIG_M68EZ328)	:= 68328
