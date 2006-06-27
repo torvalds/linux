@@ -5880,7 +5880,7 @@ static int build_sched_domains(const cpumask_t *cpu_map)
 	 * Allocate the per-node list of sched groups
 	 */
 	sched_group_nodes = kzalloc(sizeof(struct sched_group*)*MAX_NUMNODES,
-					   GFP_ATOMIC);
+					   GFP_KERNEL);
 	if (!sched_group_nodes) {
 		printk(KERN_WARNING "Can not alloc sched group node list\n");
 		return -ENOMEM;
