@@ -77,7 +77,6 @@ ssize_t nsc_gpio_write(struct file *file, const char __user *data,
 			printk(KERN_INFO NAME ": GPIO%d pull up disabled\n", m);
 			amp->gpio_config(m, ~4, 0);
 			break;
-
 		case 'v':
 			/* View Current pin settings */
 			amp->gpio_dump(m);
