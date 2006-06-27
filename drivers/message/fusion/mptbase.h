@@ -76,8 +76,8 @@
 #define COPYRIGHT	"Copyright (c) 1999-2005 " MODULEAUTHOR
 #endif
 
-#define MPT_LINUX_VERSION_COMMON	"3.03.10"
-#define MPT_LINUX_PACKAGE_NAME		"@(#)mptlinux-3.03.10"
+#define MPT_LINUX_VERSION_COMMON	"3.04.00"
+#define MPT_LINUX_PACKAGE_NAME		"@(#)mptlinux-3.04.00"
 #define WHAT_MAGIC_STRING		"@" "(" "#" ")"
 
 #define show_mptmod_ver(s,ver)  \
@@ -342,6 +342,7 @@ typedef struct _VirtTarget {
 	u8			 negoFlags;	/* bit field, see above */
 	u8			 raidVolume;	/* set, if RAID Volume */
 	u8			 type;		/* byte 0 of Inquiry data */
+	u8			 deleted;	/* target in process of being removed */
 	u32			 num_luns;
 	u32			 luns[8];		/* Max LUNs is 256 */
 } VirtTarget;
@@ -633,7 +634,7 @@ typedef struct _MPT_ADAPTER
 	int			 sas_index; /* index refrencing */
 	MPT_SAS_MGMT		 sas_mgmt;
 	int			 num_ports;
-	struct work_struct	 mptscsih_persistTask;
+	struct work_struct	 sas_persist_task;
 
 	struct work_struct	 fc_setup_reset_work;
 	struct list_head	 fc_rports;
@@ -642,6 +643,7 @@ typedef struct _MPT_ADAPTER
 	struct work_struct	 fc_rescan_work;
 	char			 fc_rescan_work_q_name[KOBJ_NAME_LEN];
 	struct workqueue_struct *fc_rescan_work_q;
+	u8		port_serial_number;
 } MPT_ADAPTER;
 
 /*
@@ -891,6 +893,13 @@ typedef struct _mpt_sge {
 #else
 #define DBG_DUMP_REPLY_FRAME(mfp)
 #define DBG_DUMP_REQUEST_FRAME_HDR(mfp)
+#endif
+
+// debug sas wide ports
+#ifdef MPT_DEBUG_SAS_WIDE
+#define dsaswideprintk(x) printk x
+#else
+#define dsaswideprintk(x)
 #endif
 
 
