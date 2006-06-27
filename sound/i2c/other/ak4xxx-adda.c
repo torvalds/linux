@@ -292,6 +292,64 @@ static int snd_akm4xxx_volume_put(struct snd_kcontrol *kcontrol,
 	return change;
 }
 
+static int snd_akm4xxx_stereo_volume_info(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_info *uinfo)
+{
+	unsigned int mask = AK_GET_MASK(kcontrol->private_value);
+
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+	uinfo->count = 2;
+	uinfo->value.integer.min = 0;
+	uinfo->value.integer.max = mask;
+	return 0;
+}
+
+static int snd_akm4xxx_stereo_volume_get(struct snd_kcontrol *kcontrol,
+				  struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_akm4xxx *ak = snd_kcontrol_chip(kcontrol);
+	int chip = AK_GET_CHIP(kcontrol->private_value);
+	int addr = AK_GET_ADDR(kcontrol->private_value);
+	int invert = AK_GET_INVERT(kcontrol->private_value);
+	unsigned int mask = AK_GET_MASK(kcontrol->private_value);
+	unsigned char val = snd_akm4xxx_get(ak, chip, addr);
+	
+	ucontrol->value.integer.value[0] = invert ? mask - val : val;
+
+	val = snd_akm4xxx_get(ak, chip, addr+1);
+	ucontrol->value.integer.value[1] = invert ? mask - val : val;
+
+	return 0;
+}
+
+static int snd_akm4xxx_stereo_volume_put(struct snd_kcontrol *kcontrol,
+				  struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_akm4xxx *ak = snd_kcontrol_chip(kcontrol);
+	int chip = AK_GET_CHIP(kcontrol->private_value);
+	int addr = AK_GET_ADDR(kcontrol->private_value);
+	int invert = AK_GET_INVERT(kcontrol->private_value);
+	unsigned int mask = AK_GET_MASK(kcontrol->private_value);
+	unsigned char nval = ucontrol->value.integer.value[0] % (mask+1);
+	int change0, change1;
+
+	if (invert)
+		nval = mask - nval;
+	change0 = snd_akm4xxx_get(ak, chip, addr) != nval;
+	if (change0)
+		snd_akm4xxx_write(ak, chip, addr, nval);
+
+	nval = ucontrol->value.integer.value[1] % (mask+1);
+	if (invert)
+		nval = mask - nval;
+	change1 = snd_akm4xxx_get(ak, chip, addr+1) != nval;
+	if (change1)
+		snd_akm4xxx_write(ak, chip, addr+1, nval);
+
+
+	return change0 || change1;
+}
+
 static int snd_akm4xxx_ipga_gain_info(struct snd_kcontrol *kcontrol,
 				      struct snd_ctl_elem_info *uinfo)
 {
@@ -377,20 +435,35 @@ int snd_akm4xxx_build_controls(struct snd_akm4xxx *ak)
 	unsigned int idx, num_emphs;
 	struct snd_kcontrol *ctl;
 	int err;
+	int mixer_ch = 0;
+	int num_stereo;
 
 	ctl = kmalloc(sizeof(*ctl), GFP_KERNEL);
 	if (! ctl)
 		return -ENOMEM;
 
-	for (idx = 0; idx < ak->num_dacs; ++idx) {
+	for (idx = 0; idx < ak->num_dacs; ) {
 		memset(ctl, 0, sizeof(*ctl));
-		strcpy(ctl->id.name, "DAC Volume");
-		ctl->id.index = idx + ak->idx_offset * 2;
+		if (ak->channel_names == NULL) {
+			strcpy(ctl->id.name, "DAC Volume");
+			num_stereo = 1;
+			ctl->id.index = mixer_ch + ak->idx_offset * 2;
+		} else {
+			strcpy(ctl->id.name, ak->channel_names[mixer_ch]);
+			num_stereo = ak->num_stereo[mixer_ch];
+			ctl->id.index = 0; //mixer_ch + ak->idx_offset * 2;
+		}
 		ctl->id.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
 		ctl->count = 1;
-		ctl->info = snd_akm4xxx_volume_info;
-		ctl->get = snd_akm4xxx_volume_get;
-		ctl->put = snd_akm4xxx_volume_put;
+		if (num_stereo == 2) {
+			ctl->info = snd_akm4xxx_stereo_volume_info;
+			ctl->get = snd_akm4xxx_stereo_volume_get;
+			ctl->put = snd_akm4xxx_stereo_volume_put;
+		} else {
+			ctl->info = snd_akm4xxx_volume_info;
+			ctl->get = snd_akm4xxx_volume_get;
+			ctl->put = snd_akm4xxx_volume_put;
+		}
 		switch (ak->type) {
 		case SND_AK4524:
 			ctl->private_value = AK_COMPOSE(idx/2, (idx%2) + 6, 0, 127); /* register 6 & 7 */
@@ -419,9 +492,13 @@ int snd_akm4xxx_build_controls(struct snd_akm4xxx *ak)
 			err = -EINVAL;
 			goto __error;
 		}
+
 		ctl->private_data = ak;
 		if ((err = snd_ctl_add(ak->card, snd_ctl_new(ctl, SNDRV_CTL_ELEM_ACCESS_READ|SNDRV_CTL_ELEM_ACCESS_WRITE))) < 0)
 			goto __error;
+
+		idx += num_stereo;
+		mixer_ch++;
 	}
 	for (idx = 0; idx < ak->num_adcs && ak->type == SND_AK4524; ++idx) {
 		memset(ctl, 0, sizeof(*ctl));

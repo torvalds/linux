@@ -87,12 +87,25 @@ static void revo_set_rate_val(struct snd_akm4xxx *ak, unsigned int rate)
  * initialize the chips on M-Audio Revolution cards
  */
 
+static unsigned int revo71_num_stereo_front[] = {2};
+static char *revo71_channel_names_front[] = {"PCM Playback Volume"};
+
+static unsigned int revo71_num_stereo_surround[] = {1, 1, 2, 2};
+static char *revo71_channel_names_surround[] = {"PCM Center Playback Volume", "PCM LFE Playback Volume",
+						"PCM Side Playback Volume", "PCM Rear Playback Volume"};
+
+static unsigned int revo51_num_stereo[] = {2, 1, 1, 2};
+static char *revo51_channel_names[] = {"PCM Playback Volume", "PCM Center Playback Volume",
+					"PCM LFE Playback Volume", "PCM Rear Playback Volume"};
+
 static struct snd_akm4xxx akm_revo_front __devinitdata = {
 	.type = SND_AK4381,
 	.num_dacs = 2,
 	.ops = {
 		.set_rate_val = revo_set_rate_val
-	}
+	},
+	.num_stereo = revo71_num_stereo_front,
+	.channel_names = revo71_channel_names_front
 };
 
 static struct snd_ak4xxx_private akm_revo_front_priv __devinitdata = {
@@ -113,7 +126,9 @@ static struct snd_akm4xxx akm_revo_surround __devinitdata = {
 	.num_dacs = 6,
 	.ops = {
 		.set_rate_val = revo_set_rate_val
-	}
+	},
+	.num_stereo = revo71_num_stereo_surround,
+	.channel_names = revo71_channel_names_surround
 };
 
 static struct snd_ak4xxx_private akm_revo_surround_priv __devinitdata = {
@@ -133,7 +148,9 @@ static struct snd_akm4xxx akm_revo51 __devinitdata = {
 	.num_dacs = 6,
 	.ops = {
 		.set_rate_val = revo_set_rate_val
-	}
+	},
+	.num_stereo = revo51_num_stereo,
+	.channel_names = revo51_channel_names
 };
 
 static struct snd_ak4xxx_private akm_revo51_priv __devinitdata = {
