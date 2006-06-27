@@ -84,13 +84,8 @@ static inline int memory_add_physaddr_to_nid(u64 start)
  * Now, arch_free_nodedata() is just defined for error path of node_hot_add.
  *
  */
-static inline pg_data_t *arch_alloc_nodedata(int nid)
-{
-	return NULL;
-}
-static inline void arch_free_nodedata(pg_data_t *pgdat)
-{
-}
+extern pg_data_t *arch_alloc_nodedata(int nid);
+extern void arch_free_nodedata(pg_data_t *pgdat);
 extern void arch_refresh_nodedata(int nid, pg_data_t *pgdat);
 
 #else /* CONFIG_HAVE_ARCH_NODEDATA_EXTENSION */
