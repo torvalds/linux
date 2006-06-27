@@ -1848,13 +1848,13 @@ EXPORT_SYMBOL_GPL(skb_pull_rcsum);
 /**
  *	skb_segment - Perform protocol segmentation on skb.
  *	@skb: buffer to segment
- *	@sg: whether scatter-gather can be used for generated segments
+ *	@features: features for the output path (see dev->features)
  *
  *	This function performs segmentation on the given skb.  It returns
  *	the segment at the given position.  It returns NULL if there are
  *	no more segments to generate, or when an error is encountered.
  */
-struct sk_buff *skb_segment(struct sk_buff *skb, int sg)
+struct sk_buff *skb_segment(struct sk_buff *skb, int features)
 {
 	struct sk_buff *segs = NULL;
 	struct sk_buff *tail = NULL;
@@ -1863,6 +1863,7 @@ struct sk_buff *skb_segment(struct sk_buff *skb, int sg)
 	unsigned int offset = doffset;
 	unsigned int headroom;
 	unsigned int len;
+	int sg = features & NETIF_F_SG;
 	int nfrags = skb_shinfo(skb)->nr_frags;
 	int err = -ENOMEM;
 	int i = 0;
