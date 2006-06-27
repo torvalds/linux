@@ -19,62 +19,15 @@
 
 	Information and updates available at
 	http://www.scyld.com/network/epic100.html
+	[this link no longer provides anything useful -jgarzik]
 
 	---------------------------------------------------------------------
-
-	Linux kernel-specific changes:
-
-	LK1.1.2 (jgarzik):
-	* Merge becker version 1.09 (4/08/2000)
-
-	LK1.1.3:
-	* Major bugfix to 1.09 driver (Francis Romieu)
-
-	LK1.1.4 (jgarzik):
-	* Merge becker test version 1.09 (5/29/2000)
-
-	LK1.1.5:
-	* Fix locking (jgarzik)
-	* Limit 83c175 probe to ethernet-class PCI devices (rgooch)
-
-	LK1.1.6:
-	* Merge becker version 1.11
-	* Move pci_enable_device before any PCI BAR len checks
-
-	LK1.1.7:
-	* { fill me in }
-
-	LK1.1.8:
-	* ethtool driver info support (jgarzik)
-
-	LK1.1.9:
-	* ethtool media get/set support (jgarzik)
-
-	LK1.1.10:
-	* revert MII transceiver init change (jgarzik)
-
-	LK1.1.11:
-	* implement ETHTOOL_[GS]SET, _NWAY_RST, _[GS]MSGLVL, _GLINK (jgarzik)
-	* replace some MII-related magic numbers with constants
-
-	LK1.1.12:
-	* fix power-up sequence
-
-	LK1.1.13:
-	* revert version 1.1.12, power-up sequence "fix"
-
-	LK1.1.14 (Kryzsztof Halasa):
-	* fix spurious bad initializations
-	* pound phy a la SMSC's app note on the subject
-
-	AC1.1.14ac
-	* fix power up/down for ethtool that broke in 1.11
 
 */
 
 #define DRV_NAME        "epic100"
-#define DRV_VERSION     "1.11+LK1.1.14+AC1.1.14"
-#define DRV_RELDATE     "June 2, 2004"
+#define DRV_VERSION     "2.0"
+#define DRV_RELDATE     "June 27, 2006"
 
 /* The user-configurable values.
    These may be modified when a driver module is loaded.*/
@@ -204,19 +157,15 @@ typedef enum {
 
 struct epic_chip_info {
 	const char *name;
-        int io_size;                            /* Needed for I/O region check or ioremap(). */
         int drv_flags;                          /* Driver use, intended as capability flags. */
 };
 
 
 /* indexed by chip_t */
 static const struct epic_chip_info pci_id_tbl[] = {
-	{ "SMSC EPIC/100 83c170",
-	  EPIC_TOTAL_SIZE, TYPE2_INTR | NO_MII | MII_PWRDWN },
-	{ "SMSC EPIC/100 83c170",
-	  EPIC_TOTAL_SIZE, TYPE2_INTR },
-	{ "SMSC EPIC/C 83c175",
-	  EPIC_TOTAL_SIZE, TYPE2_INTR | MII_PWRDWN },
+	{ "SMSC EPIC/100 83c170",	TYPE2_INTR | NO_MII | MII_PWRDWN },
+	{ "SMSC EPIC/100 83c170",	TYPE2_INTR },
+	{ "SMSC EPIC/C 83c175",		TYPE2_INTR | MII_PWRDWN },
 };
 
 
@@ -385,8 +334,8 @@ static int __devinit epic_init_one (struct pci_dev *pdev,
 		goto out;
 	irq = pdev->irq;
 
-	if (pci_resource_len(pdev, 0) < pci_id_tbl[chip_idx].io_size) {
-		printk (KERN_ERR "card %d: no PCI region space\n", card_idx);
+	if (pci_resource_len(pdev, 0) < EPIC_TOTAL_SIZE) {
+		dev_printk(KERN_ERR, &pdev->dev, "no PCI region space\n");
 		ret = -ENODEV;
 		goto err_out_disable;
 	}
@@ -401,7 +350,7 @@ static int __devinit epic_init_one (struct pci_dev *pdev,
 
 	dev = alloc_etherdev(sizeof (*ep));
 	if (!dev) {
-		printk (KERN_ERR "card %d: no memory for eth device\n", card_idx);
+		dev_printk(KERN_ERR, &pdev->dev, "no memory for eth device\n");
 		goto err_out_free_res;
 	}
 	SET_MODULE_OWNER(dev);
@@ -413,7 +362,7 @@ static int __devinit epic_init_one (struct pci_dev *pdev,
 	ioaddr = pci_resource_start (pdev, 1);
 	ioaddr = (long) ioremap (ioaddr, pci_resource_len (pdev, 1));
 	if (!ioaddr) {
-		printk (KERN_ERR DRV_NAME " %d: ioremap failed\n", card_idx);
+		dev_printk(KERN_ERR, &pdev->dev, "ioremap failed\n");
 		goto err_out_free_netdev;
 	}
 #endif
