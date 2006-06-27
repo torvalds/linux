@@ -20,6 +20,7 @@
 #include <linux/cdev.h>
 
 #include <linux/scx200_gpio.h>
+#include <linux/nsc_gpio.h>
 
 #define NAME "scx200_gpio"
 #define DEVNAME NAME
@@ -35,6 +36,18 @@ module_param(major, int, 0);
 MODULE_PARM_DESC(major, "Major device number");
 
 extern void scx200_gpio_dump(unsigned index);
+
+struct nsc_gpio_ops scx200_access = {
+	.owner		= THIS_MODULE,
+	.gpio_config	= scx200_gpio_configure,
+	.gpio_dump	= scx200_gpio_dump,
+	.gpio_get	= scx200_gpio_get,
+	.gpio_set	= scx200_gpio_set,
+	.gpio_set_high	= scx200_gpio_set_high,
+	.gpio_set_low	= scx200_gpio_set_low,
+	.gpio_change	= scx200_gpio_change,
+	.gpio_current	= scx200_gpio_current
+};
 
 static ssize_t scx200_gpio_write(struct file *file, const char __user *data,
 				 size_t len, loff_t *ppos)
