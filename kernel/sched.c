@@ -1941,6 +1941,7 @@ int can_migrate_task(task_t *p, runqueue_t *rq, int this_cpu,
 	return 1;
 }
 
+#define rq_best_prio(rq) min((rq)->curr->prio, (rq)->best_expired_prio)
 /*
  * move_tasks tries to move up to max_nr_move tasks and max_load_move weighted
  * load from busiest to this_rq, as part of a balancing operation within
@@ -1955,7 +1956,9 @@ static int move_tasks(runqueue_t *this_rq, int this_cpu, runqueue_t *busiest,
 {
 	prio_array_t *array, *dst_array;
 	struct list_head *head, *curr;
-	int idx, pulled = 0, pinned = 0, this_min_prio;
+	int idx, pulled = 0, pinned = 0, this_best_prio, busiest_best_prio;
+	int busiest_best_prio_seen;
+	int skip_for_load; /* skip the task based on weighted load issues */
 	long rem_load_move;
 	task_t *tmp;
 
@@ -1964,7 +1967,16 @@ static int move_tasks(runqueue_t *this_rq, int this_cpu, runqueue_t *busiest,
 
 	rem_load_move = max_load_move;
 	pinned = 1;
-	this_min_prio = this_rq->curr->prio;
+	this_best_prio = rq_best_prio(this_rq);
+	busiest_best_prio = rq_best_prio(busiest);
+	/*
+	 * Enable handling of the case where there is more than one task
+	 * with the best priority.   If the current running task is one
+	 * of those with prio==busiest_best_prio we know it won't be moved
+	 * and therefore it's safe to override the skip (based on load) of
+	 * any task we find with that prio.
+	 */
+	busiest_best_prio_seen = busiest_best_prio == busiest->curr->prio;
 
 	/*
 	 * We first consider expired tasks. Those will likely not be
@@ -2009,8 +2021,12 @@ skip_queue:
 	 * skip a task if it will be the highest priority task (i.e. smallest
 	 * prio value) on its new queue regardless of its load weight
 	 */
-	if ((idx >= this_min_prio && tmp->load_weight > rem_load_move) ||
+	skip_for_load = tmp->load_weight > rem_load_move;
+	if (skip_for_load && idx < this_best_prio)
+		skip_for_load = !busiest_best_prio_seen && idx == busiest_best_prio;
+	if (skip_for_load ||
 	    !can_migrate_task(tmp, busiest, this_cpu, sd, idle, &pinned)) {
+		busiest_best_prio_seen |= idx == busiest_best_prio;
 		if (curr != head)
 			goto skip_queue;
 		idx++;
@@ -2031,8 +2047,8 @@ skip_queue:
 	 * and the prescribed amount of weighted load.
 	 */
 	if (pulled < max_nr_move && rem_load_move > 0) {
-		if (idx < this_min_prio)
-			this_min_prio = idx;
+		if (idx < this_best_prio)
+			this_best_prio = idx;
 		if (curr != head)
 			goto skip_queue;
 		idx++;
