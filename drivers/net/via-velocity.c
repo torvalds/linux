@@ -229,7 +229,8 @@ static int rx_copybreak = 200;
 module_param(rx_copybreak, int, 0644);
 MODULE_PARM_DESC(rx_copybreak, "Copy breakpoint for copy-only-tiny-frames");
 
-static void velocity_init_info(struct pci_dev *pdev, struct velocity_info *vptr, struct velocity_info_tbl *info);
+static void velocity_init_info(struct pci_dev *pdev, struct velocity_info *vptr,
+			       const struct velocity_info_tbl *info);
 static int velocity_get_pci_info(struct velocity_info *, struct pci_dev *pdev);
 static void velocity_print_info(struct velocity_info *vptr);
 static int velocity_open(struct net_device *dev);
@@ -294,9 +295,9 @@ static void velocity_unregister_notifier(void)
  *	Internal board variants. At the moment we have only one
  */
 
-static struct velocity_info_tbl chip_info_table[] = {
-	{CHIP_TYPE_VT6110, "VIA Networking Velocity Family Gigabit Ethernet Adapter", 256, 1, 0x00FFFFFFUL},
-	{0, NULL}
+static const struct velocity_info_tbl chip_info_table[] __devinitdata = {
+	{CHIP_TYPE_VT6110, "VIA Networking Velocity Family Gigabit Ethernet Adapter", 1, 0x00FFFFFFUL},
+	{ }
 };
 
 /*
@@ -685,7 +686,7 @@ static int __devinit velocity_found1(struct pci_dev *pdev, const struct pci_devi
 	static int first = 1;
 	struct net_device *dev;
 	int i;
-	struct velocity_info_tbl *info = &chip_info_table[ent->driver_data];
+	const struct velocity_info_tbl *info = &chip_info_table[ent->driver_data];
 	struct velocity_info *vptr;
 	struct mac_regs __iomem * regs;
 	int ret = -ENOMEM;
@@ -742,7 +743,7 @@ static int __devinit velocity_found1(struct pci_dev *pdev, const struct pci_devi
 		goto err_disable;
 	}
 
-	regs = ioremap(vptr->memaddr, vptr->io_size);
+	regs = ioremap(vptr->memaddr, VELOCITY_IO_SIZE);
 	if (regs == NULL) {
 		ret = -EIO;
 		goto err_release_res;
@@ -860,13 +861,14 @@ static void __devinit velocity_print_info(struct velocity_info *vptr)
  *	discovered.
  */
 
-static void __devinit velocity_init_info(struct pci_dev *pdev, struct velocity_info *vptr, struct velocity_info_tbl *info)
+static void __devinit velocity_init_info(struct pci_dev *pdev,
+					 struct velocity_info *vptr,
+					 const struct velocity_info_tbl *info)
 {
 	memset(vptr, 0, sizeof(struct velocity_info));
 
 	vptr->pdev = pdev;
 	vptr->chip_id = info->chip_id;
-	vptr->io_size = info->io_size;
 	vptr->num_txq = info->txqueue;
 	vptr->multicast_limit = MCAM_SIZE;
 	spin_lock_init(&vptr->lock);
@@ -904,7 +906,7 @@ static int __devinit velocity_get_pci_info(struct velocity_info *vptr, struct pc
 		return -EINVAL;
 	}
 
-	if (pci_resource_len(pdev, 1) < 256) {
+	if (pci_resource_len(pdev, 1) < VELOCITY_IO_SIZE) {
 		dev_printk(KERN_ERR, &pdev->dev, "region #1 is too small.\n");
 		return -EINVAL;
 	}
