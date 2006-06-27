@@ -492,9 +492,15 @@ call_fpe:
 	b	do_fpe				@ CP#1 (FPE)
 	b	do_fpe				@ CP#2 (FPE)
 	mov	pc, lr				@ CP#3
+#ifdef CONFIG_CRUNCH
+	b	crunch_task_enable		@ CP#4 (MaverickCrunch)
+	b	crunch_task_enable		@ CP#5 (MaverickCrunch)
+	b	crunch_task_enable		@ CP#6 (MaverickCrunch)
+#else
 	mov	pc, lr				@ CP#4
 	mov	pc, lr				@ CP#5
 	mov	pc, lr				@ CP#6
+#endif
 	mov	pc, lr				@ CP#7
 	mov	pc, lr				@ CP#8
 	mov	pc, lr				@ CP#9
