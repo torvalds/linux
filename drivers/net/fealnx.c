@@ -146,14 +146,13 @@ enum phy_type_flags {
 
 struct chip_info {
 	char *chip_name;
-	int io_size;
 	int flags;
 };
 
 static const struct chip_info skel_netdrv_tbl[] = {
-	{"100/10M Ethernet PCI Adapter", 136, HAS_MII_XCVR},
-	{"100/10M Ethernet PCI Adapter", 136, HAS_CHIP_XCVR},
-	{"1000/100/10M Ethernet PCI Adapter", 136, HAS_MII_XCVR},
+ 	{ "100/10M Ethernet PCI Adapter",	HAS_MII_XCVR },
+	{ "100/10M Ethernet PCI Adapter",	HAS_CHIP_XCVR },
+	{ "1000/100/10M Ethernet PCI Adapter",	HAS_MII_XCVR },
 };
 
 /* Offsets to the Command and Status Registers. */

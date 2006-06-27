@@ -215,8 +215,11 @@ enum capability_flags {
 	HasMACAddrBug=32, /* Only on early revs.  */
 	DontUseEeprom=64, /* Don't read the MAC from the EEPROm. */
 };
+
 /* The PCI I/O space extent. */
-#define YELLOWFIN_SIZE 0x100
+enum {
+	YELLOWFIN_SIZE	= 0x100,
+};
 
 struct pci_id_info {
         const char *name;
@@ -224,16 +227,14 @@ struct pci_id_info {
                 int     pci, pci_mask, subsystem, subsystem_mask;
                 int revision, revision_mask;                            /* Only 8 bits. */
         } id;
-        int io_size;                            /* Needed for I/O region check or ioremap(). */
         int drv_flags;                          /* Driver use, intended as capability flags. */
 };
 
 static const struct pci_id_info pci_id_tbl[] = {
 	{"Yellowfin G-NIC Gigabit Ethernet", { 0x07021000, 0xffffffff},
-	 YELLOWFIN_SIZE,
 	 FullTxStatus | IsGigabit | HasMulticastBug | HasMACAddrBug | DontUseEeprom},
 	{"Symbios SYM83C885", { 0x07011000, 0xffffffff},
-	 YELLOWFIN_SIZE, HasMII | DontUseEeprom },
+	  HasMII | DontUseEeprom },
 	{ }
 };
 
