@@ -208,6 +208,23 @@ static ssize_t sd_store_cache_type(struct class_device *cdev, const char *buf,
 	return count;
 }
 
+static ssize_t sd_store_allow_restart(struct class_device *cdev, const char *buf,
+				      size_t count)
+{
+	struct scsi_disk *sdkp = to_scsi_disk(cdev);
+	struct scsi_device *sdp = sdkp->device;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EACCES;
+
+	if (sdp->type != TYPE_DISK)
+		return -EINVAL;
+
+	sdp->allow_restart = simple_strtoul(buf, NULL, 10);
+
+	return count;
+}
+
 static ssize_t sd_show_cache_type(struct class_device *cdev, char *buf)
 {
 	struct scsi_disk *sdkp = to_scsi_disk(cdev);
@@ -223,10 +240,19 @@ static ssize_t sd_show_fua(struct class_device *cdev, char *buf)
 	return snprintf(buf, 20, "%u\n", sdkp->DPOFUA);
 }
 
+static ssize_t sd_show_allow_restart(struct class_device *cdev, char *buf)
+{
+	struct scsi_disk *sdkp = to_scsi_disk(cdev);
+
+	return snprintf(buf, 40, "%d\n", sdkp->device->allow_restart);
+}
+
 static struct class_device_attribute sd_disk_attrs[] = {
 	__ATTR(cache_type, S_IRUGO|S_IWUSR, sd_show_cache_type,
 	       sd_store_cache_type),
 	__ATTR(FUA, S_IRUGO, sd_show_fua, NULL),
+	__ATTR(allow_restart, S_IRUGO|S_IWUSR, sd_show_allow_restart,
+	       sd_store_allow_restart),
 	__ATTR_NULL,
 };
 
