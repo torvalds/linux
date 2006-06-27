@@ -62,25 +62,25 @@ acpi_extract_package(union acpi_object *package,
 
 	if (!package || (package->type != ACPI_TYPE_PACKAGE)
 	    || (package->package.count < 1)) {
-		ACPI_WARNING((AE_INFO, "Invalid package argument"));
+		printk(KERN_WARNING PREFIX "Invalid package argument\n");
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
 	if (!format || !format->pointer || (format->length < 1)) {
-		ACPI_WARNING((AE_INFO, "Invalid format argument"));
+		printk(KERN_WARNING PREFIX "Invalid format argument\n");
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
 	if (!buffer) {
-		ACPI_WARNING((AE_INFO, "Invalid buffer argument"));
+		printk(KERN_WARNING PREFIX "Invalid buffer argument\n");
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
 	format_count = (format->length / sizeof(char)) - 1;
 	if (format_count > package->package.count) {
-		ACPI_WARNING((AE_INFO, "Format specifies more objects [%d]"
-			      " than exist in package [%d].",
-			      format_count, package->package.count));
+		printk(KERN_WARNING PREFIX "Format specifies more objects [%d]"
+			      " than exist in package [%d].\n",
+			      format_count, package->package.count);
 		return_ACPI_STATUS(AE_BAD_DATA);
 	}
 
@@ -112,10 +112,10 @@ acpi_extract_package(union acpi_object *package,
 				tail_offset += sizeof(char *);
 				break;
 			default:
-				ACPI_WARNING((AE_INFO, "Invalid package element"
+				printk(KERN_WARNING PREFIX "Invalid package element"
 					      " [%d]: got number, expecing"
-					      " [%c]",
-					      i, format_string[i]));
+					      " [%c]\n",
+					      i, format_string[i]);
 				return_ACPI_STATUS(AE_BAD_DATA);
 				break;
 			}
@@ -138,10 +138,10 @@ acpi_extract_package(union acpi_object *package,
 				tail_offset += sizeof(u8 *);
 				break;
 			default:
-				ACPI_WARNING((AE_INFO, "Invalid package element"
+				printk(KERN_WARNING PREFIX "Invalid package element"
 					      " [%d] got string/buffer,"
-					      " expecing [%c]",
-					      i, format_string[i]));
+					      " expecing [%c]\n",
+					      i, format_string[i]);
 				return_ACPI_STATUS(AE_BAD_DATA);
 				break;
 			}

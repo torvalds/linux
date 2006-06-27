@@ -269,8 +269,8 @@ acpi_pci_allocate_irq(struct acpi_prt_entry *entry,
 						 entry->link.index, triggering,
 						 polarity, link);
 		if (irq < 0) {
-			ACPI_WARNING((AE_INFO,
-				      "Invalid IRQ link routing entry"));
+			printk(KERN_WARNING PREFIX
+				      "Invalid IRQ link routing entry\n");
 			return_VALUE(-1);
 		}
 	} else {
@@ -379,8 +379,8 @@ acpi_pci_irq_derive(struct pci_dev *dev,
 	}
 
 	if (irq < 0) {
-		ACPI_WARNING((AE_INFO, "Unable to derive IRQ for device %s",
-			      pci_name(dev)));
+		printk(KERN_WARNING PREFIX "Unable to derive IRQ for device %s\n",
+			      pci_name(dev));
 		return_VALUE(-1);
 	}
 

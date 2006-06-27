@@ -214,13 +214,13 @@ int acpi_bus_set_power(acpi_handle handle, int state)
 		}
 	}
 	if (!device->power.states[state].flags.valid) {
-		ACPI_WARNING((AE_INFO, "Device does not support D%d", state));
+		printk(KERN_WARNING PREFIX "Device does not support D%d\n", state);
 		return_VALUE(-ENODEV);
 	}
 	if (device->parent && (state < device->parent->power.state)) {
-		ACPI_WARNING((AE_INFO,
+		printk(KERN_WARNING PREFIX
 			      "Cannot set device to a higher-powered"
-			      " state than parent"));
+			      " state than parent\n");
 		return_VALUE(-ENODEV);
 	}
 
@@ -263,9 +263,9 @@ int acpi_bus_set_power(acpi_handle handle, int state)
 
       end:
 	if (result)
-		ACPI_WARNING((AE_INFO,
-			      "Transitioning device [%s] to D%d",
-			      device->pnp.bus_id, state));
+		printk(KERN_WARNING PREFIX
+			      "Transitioning device [%s] to D%d\n",
+			      device->pnp.bus_id, state);
 	else
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 				  "Device [%s] transitioned to D%d\n",

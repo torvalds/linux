@@ -196,7 +196,7 @@ int acpi_processor_get_throttling_info(struct acpi_processor *pr)
 	}
 	/* TBD: Support duty_cycle values that span bit 4. */
 	else if ((pr->throttling.duty_offset + pr->throttling.duty_width) > 4) {
-		ACPI_WARNING((AE_INFO, "duty_cycle spans bit 4"));
+		printk(KERN_WARNING PREFIX "duty_cycle spans bit 4\n");
 		return_VALUE(0);
 	}
 

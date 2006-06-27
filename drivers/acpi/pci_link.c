@@ -116,15 +116,15 @@ acpi_pci_link_check_possible(struct acpi_resource *resource, void *context)
 		{
 			struct acpi_resource_irq *p = &resource->data.irq;
 			if (!p || !p->interrupt_count) {
-				ACPI_WARNING((AE_INFO, "Blank IRQ resource"));
+				printk(KERN_WARNING PREFIX "Blank IRQ resource\n");
 				return_ACPI_STATUS(AE_OK);
 			}
 			for (i = 0;
 			     (i < p->interrupt_count
 			      && i < ACPI_PCI_LINK_MAX_POSSIBLE); i++) {
 				if (!p->interrupts[i]) {
-					ACPI_WARNING((AE_INFO, "Invalid IRQ %d",
-						      p->interrupts[i]));
+					printk(KERN_WARNING PREFIX "Invalid IRQ %d\n",
+						      p->interrupts[i]);
 					continue;
 				}
 				link->irq.possible[i] = p->interrupts[i];
@@ -140,16 +140,16 @@ acpi_pci_link_check_possible(struct acpi_resource *resource, void *context)
 			struct acpi_resource_extended_irq *p =
 			    &resource->data.extended_irq;
 			if (!p || !p->interrupt_count) {
-				ACPI_WARNING((AE_INFO,
-					      "Blank EXT IRQ resource"));
+				printk(KERN_WARNING PREFIX
+					      "Blank EXT IRQ resource\n");
 				return_ACPI_STATUS(AE_OK);
 			}
 			for (i = 0;
 			     (i < p->interrupt_count
 			      && i < ACPI_PCI_LINK_MAX_POSSIBLE); i++) {
 				if (!p->interrupts[i]) {
-					ACPI_WARNING((AE_INFO, "Invalid IRQ %d",
-						      p->interrupts[i]));
+					printk(KERN_WARNING PREFIX "Invalid IRQ %d\n",
+						      p->interrupts[i]);
 					continue;
 				}
 				link->irq.possible[i] = p->interrupts[i];
@@ -223,8 +223,8 @@ acpi_pci_link_check_current(struct acpi_resource *resource, void *context)
 				 * extended IRQ descriptors must
 				 * return at least 1 IRQ
 				 */
-				ACPI_WARNING((AE_INFO,
-					      "Blank EXT IRQ resource"));
+				printk(KERN_WARNING PREFIX
+					      "Blank EXT IRQ resource\n");
 				return_ACPI_STATUS(AE_OK);
 			}
 			*irq = p->interrupts[0];
@@ -381,10 +381,10 @@ static int acpi_pci_link_set(struct acpi_pci_link *link, int irq)
 		goto end;
 	}
 	if (!link->device->status.enabled) {
-		ACPI_WARNING((AE_INFO,
-			      "%s [%s] disabled and referenced, BIOS bug",
+		printk(KERN_WARNING PREFIX
+			      "%s [%s] disabled and referenced, BIOS bug\n",
 			      acpi_device_name(link->device),
-			      acpi_device_bid(link->device)));
+			      acpi_device_bid(link->device));
 	}
 
 	/* Query _CRS, set link->irq.active */
@@ -402,10 +402,10 @@ static int acpi_pci_link_set(struct acpi_pci_link *link, int irq)
 		 * policy: when _CRS doesn't return what we just _SRS
 		 * assume _SRS worked and override _CRS value.
 		 */
-		ACPI_WARNING((AE_INFO,
-			      "%s [%s] BIOS reported IRQ %d, using IRQ %d",
+		printk(KERN_WARNING PREFIX
+			      "%s [%s] BIOS reported IRQ %d, using IRQ %d\n",
 			      acpi_device_name(link->device),
-			      acpi_device_bid(link->device), link->irq.active, irq));
+			      acpi_device_bid(link->device), link->irq.active, irq);
 		link->irq.active = irq;
 	}
 
@@ -555,8 +555,8 @@ static int acpi_pci_link_allocate(struct acpi_pci_link *link)
 	 */
 	if (i == link->irq.possible_count) {
 		if (acpi_strict)
-			ACPI_WARNING((AE_INFO, "_CRS %d not found"
-				      " in _PRS", link->irq.active));
+			printk(KERN_WARNING PREFIX "_CRS %d not found"
+				      " in _PRS\n", link->irq.active);
 		link->irq.active = 0;
 	}
 

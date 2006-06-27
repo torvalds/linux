@@ -105,7 +105,7 @@ acpi_power_get_context(acpi_handle handle,
 
 	result = acpi_bus_get_device(handle, &device);
 	if (result) {
-		ACPI_WARNING((AE_INFO, "Getting context [%p]", handle));
+		printk(KERN_WARNING PREFIX "Getting context [%p]\n", handle);
 		return_VALUE(result);
 	}
 
@@ -441,8 +441,8 @@ int acpi_power_transition(struct acpi_device *device, int state)
 	device->power.state = state;
       end:
 	if (result)
-		ACPI_WARNING((AE_INFO, "Transitioning device [%s] to D%d",
-			      device->pnp.bus_id, state));
+		printk(KERN_WARNING PREFIX "Transitioning device [%s] to D%d\n",
+			      device->pnp.bus_id, state);
 
 	return_VALUE(result);
 }

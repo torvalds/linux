@@ -983,7 +983,7 @@ static ssize_t hotkey_execute_aml_method(struct file *file,
 
 		}
 	} else {
-		ACPI_WARNING((AE_INFO, "Not supported"));
+		printk(KERN_WARNING "Not supported\n");
 		return_VALUE(-EINVAL);
 	}
 	return_VALUE(count);

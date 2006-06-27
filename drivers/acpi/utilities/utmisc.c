@@ -978,7 +978,7 @@ acpi_ut_warning(char *module_name, u32 line_number, char *format, ...)
 	acpi_os_vprintf(format, args);
 	acpi_os_printf(" [%X]\n", ACPI_CA_VERSION);
 }
-EXPORT_SYMBOL(acpi_ut_warning);
+
 void ACPI_INTERNAL_VAR_XFACE
 acpi_ut_info(char *module_name, u32 line_number, char *format, ...)
 {

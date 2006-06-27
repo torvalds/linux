@@ -384,7 +384,7 @@ static int acpi_thermal_get_trip_points(struct acpi_thermal *tz)
 			tz->trips.passive.flags.valid = 0;
 
 		if (!tz->trips.passive.flags.valid)
-			ACPI_WARNING((AE_INFO, "Invalid passive threshold"));
+			printk(KERN_WARNING PREFIX "Invalid passive threshold\n");
 		else
 			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 					  "Found passive threshold [%lu]\n",
@@ -469,7 +469,7 @@ static int acpi_thermal_critical(struct acpi_thermal *tz)
 		return_VALUE(-EINVAL);
 
 	if (tz->temperature >= tz->trips.critical.temperature) {
-		ACPI_WARNING((AE_INFO, "Critical trip point"));
+		printk(KERN_WARNING PREFIX "Critical trip point\n");
 		tz->trips.critical.flags.enabled = 1;
 	} else if (tz->trips.critical.flags.enabled)
 		tz->trips.critical.flags.enabled = 0;
@@ -500,7 +500,7 @@ static int acpi_thermal_hot(struct acpi_thermal *tz)
 		return_VALUE(-EINVAL);
 
 	if (tz->temperature >= tz->trips.hot.temperature) {
-		ACPI_WARNING((AE_INFO, "Hot trip point"));
+		printk(KERN_WARNING PREFIX "Hot trip point\n");
 		tz->trips.hot.flags.enabled = 1;
 	} else if (tz->trips.hot.flags.enabled)
 		tz->trips.hot.flags.enabled = 0;
@@ -640,10 +640,10 @@ static void acpi_thermal_active(struct acpi_thermal *tz)
 						       handles[j],
 						       ACPI_STATE_D0);
 				if (result) {
-					ACPI_WARNING((AE_INFO,
-						      "Unable to turn cooling device [%p] 'on'",
+					printk(KERN_WARNING PREFIX
+						      "Unable to turn cooling device [%p] 'on'\n",
 						      active->devices.
-						      handles[j]));
+						      handles[j]);
 					continue;
 				}
 				active->flags.enabled = 1;
@@ -665,9 +665,9 @@ static void acpi_thermal_active(struct acpi_thermal *tz)
 			result = acpi_bus_set_power(active->devices.handles[j],
 						    ACPI_STATE_D3);
 			if (result) {
-				ACPI_WARNING((AE_INFO,
-					      "Unable to turn cooling device [%p] 'off'",
-					      active->devices.handles[j]));
+				printk(KERN_WARNING PREFIX
+					      "Unable to turn cooling device [%p] 'off'\n",
+					      active->devices.handles[j]);
 				continue;
 			}
 			active->flags.enabled = 0;
