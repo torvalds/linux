@@ -176,7 +176,7 @@ static int pvr2_encoder_cmd(void *ctxt,
 			" - too many input arguments"
 			" (was given %u limit %u)",
 			arg_cnt_send,
-			(sizeof(wrData)/sizeof(wrData[0])) - 4);
+			(unsigned int)(sizeof(wrData)/sizeof(wrData[0])) - 4);
 		return -EINVAL;
 	}
 
@@ -187,7 +187,7 @@ static int pvr2_encoder_cmd(void *ctxt,
 			" - too many return arguments"
 			" (was given %u limit %u)",
 			arg_cnt_recv,
-			(sizeof(rdData)/sizeof(rdData[0])) - 4);
+			(unsigned int)(sizeof(rdData)/sizeof(rdData[0])) - 4);
 		return -EINVAL;
 	}
 
@@ -275,7 +275,7 @@ static int pvr2_encoder_vcmd(struct pvr2_hdw *hdw, int cmd,
 			"Failed to write cx23416 command"
 			" - too many arguments"
 			" (was given %u limit %u)",
-			args,sizeof(data)/sizeof(data[0]));
+			args,(unsigned int)(sizeof(data)/sizeof(data[0])));
 		return -EINVAL;
 	}
 
