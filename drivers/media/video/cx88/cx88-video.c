@@ -1926,8 +1926,6 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 	/* load and configure helper modules */
 	if (TUNER_ABSENT != core->tuner_type)
 		request_module("tuner");
-	if (core->tda9887_conf)
-		request_module("tda9887");
 
 	/* register v4l devices */
 	dev->video_dev = cx88_vdev_init(core,dev->pci,
