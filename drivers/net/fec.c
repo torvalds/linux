@@ -1387,13 +1387,13 @@ static void __inline__ fec_request_intrs(struct net_device *dev)
 	{
 		volatile unsigned char  *icrp;
 		volatile unsigned long  *imrp;
-		int i;
+		int i, ilip;
 
 		b = (fep->index) ? MCFICM_INTC1 : MCFICM_INTC0;
 		icrp = (volatile unsigned char *) (MCF_IPSBAR + b +
 			MCFINTC_ICR0);
-		for (i = 23; (i < 36); i++)
-			icrp[i] = 0x23;
+		for (i = 23, ilip = 0x28; (i < 36); i++)
+			icrp[i] = ilip--;
 
 		imrp = (volatile unsigned long *) (MCF_IPSBAR + b +
 			MCFINTC_IMRH);
