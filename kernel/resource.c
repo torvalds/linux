@@ -232,6 +232,44 @@ int release_resource(struct resource *old)
 
 EXPORT_SYMBOL(release_resource);
 
+#ifdef CONFIG_MEMORY_HOTPLUG
+/*
+ * Finds the lowest memory reosurce exists within [res->start.res->end)
+ * the caller must specify res->start, res->end, res->flags.
+ * If found, returns 0, res is overwritten, if not found, returns -1.
+ */
+int find_next_system_ram(struct resource *res)
+{
+	resource_size_t start, end;
+	struct resource *p;
+
+	BUG_ON(!res);
+
+	start = res->start;
+	end = res->end;
+
+	read_lock(&resource_lock);
+	for (p = iomem_resource.child; p ; p = p->sibling) {
+		/* system ram is just marked as IORESOURCE_MEM */
+		if (p->flags != res->flags)
+			continue;
+		if (p->start > end) {
+			p = NULL;
+			break;
+		}
+		if (p->start >= start)
+			break;
+	}
+	read_unlock(&resource_lock);
+	if (!p)
+		return -1;
+	/* copy data */
+	res->start = p->start;
+	res->end = p->end;
+	return 0;
+}
+#endif
+
 /*
  * Find empty slot in the resource tree given range and alignment.
  */

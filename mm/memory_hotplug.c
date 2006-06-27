@@ -127,6 +127,9 @@ int online_pages(unsigned long pfn, unsigned long nr_pages)
 	unsigned long i;
 	unsigned long flags;
 	unsigned long onlined_pages = 0;
+	struct resource res;
+	u64 section_end;
+	unsigned long start_pfn;
 	struct zone *zone;
 	int need_zonelists_rebuild = 0;
 
@@ -149,10 +152,27 @@ int online_pages(unsigned long pfn, unsigned long nr_pages)
 	if (!populated_zone(zone))
 		need_zonelists_rebuild = 1;
 
-	for (i = 0; i < nr_pages; i++) {
-		struct page *page = pfn_to_page(pfn + i);
-		online_page(page);
-		onlined_pages++;
+	res.start = (u64)pfn << PAGE_SHIFT;
+	res.end = res.start + ((u64)nr_pages << PAGE_SHIFT) - 1;
+	res.flags = IORESOURCE_MEM; /* we just need system ram */
+	section_end = res.end;
+
+	while (find_next_system_ram(&res) >= 0) {
+		start_pfn = (unsigned long)(res.start >> PAGE_SHIFT);
+		nr_pages = (unsigned long)
+                           ((res.end + 1 - res.start) >> PAGE_SHIFT);
+
+		if (PageReserved(pfn_to_page(start_pfn))) {
+			/* this region's page is not onlined now */
+			for (i = 0; i < nr_pages; i++) {
+				struct page *page = pfn_to_page(start_pfn + i);
+				online_page(page);
+				onlined_pages++;
+			}
+		}
+
+		res.start = res.end + 1;
+		res.end = section_end;
 	}
 	zone->present_pages += onlined_pages;
 	zone->zone_pgdat->node_present_pages += onlined_pages;
