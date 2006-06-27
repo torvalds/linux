@@ -419,9 +419,6 @@ xfs_vn_link(
 	int		error;
 
 	ip = old_dentry->d_inode;	/* inode being linked to */
-	if (S_ISDIR(ip->i_mode))
-		return -EPERM;
-
 	tdvp = vn_from_inode(dir);
 	vp = vn_from_inode(ip);
 
