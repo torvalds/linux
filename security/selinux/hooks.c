@@ -1532,8 +1532,9 @@ static int selinux_bprm_set_security(struct linux_binprm *bprm)
 	/* Default to the current task SID. */
 	bsec->sid = tsec->sid;
 
-	/* Reset create and sockcreate SID on execve. */
+	/* Reset fs, key, and sock SIDs on execve. */
 	tsec->create_sid = 0;
+	tsec->keycreate_sid = 0;
 	tsec->sockcreate_sid = 0;
 
 	if (tsec->exec_sid) {
@@ -2586,9 +2587,10 @@ static int selinux_task_alloc_security(struct task_struct *tsk)
 	tsec2->osid = tsec1->osid;
 	tsec2->sid = tsec1->sid;
 
-	/* Retain the exec, create, and sock SIDs across fork */
+	/* Retain the exec, fs, key, and sock SIDs across fork */
 	tsec2->exec_sid = tsec1->exec_sid;
 	tsec2->create_sid = tsec1->create_sid;
+	tsec2->keycreate_sid = tsec1->keycreate_sid;
 	tsec2->sockcreate_sid = tsec1->sockcreate_sid;
 
 	/* Retain ptracer SID across fork, if any.
