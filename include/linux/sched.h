@@ -639,7 +639,7 @@ struct sched_domain {
 #endif
 };
 
-extern void partition_sched_domains(cpumask_t *partition1,
+extern int partition_sched_domains(cpumask_t *partition1,
 				    cpumask_t *partition2);
 
 /*

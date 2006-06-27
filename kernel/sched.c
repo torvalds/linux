@@ -5820,11 +5820,56 @@ next_sg:
 }
 #endif
 
+/* Free memory allocated for various sched_group structures */
+static void free_sched_groups(const cpumask_t *cpu_map)
+{
+#ifdef CONFIG_NUMA
+	int i;
+	int cpu;
+
+	for_each_cpu_mask(cpu, *cpu_map) {
+		struct sched_group *sched_group_allnodes
+			= sched_group_allnodes_bycpu[cpu];
+		struct sched_group **sched_group_nodes
+			= sched_group_nodes_bycpu[cpu];
+
+		if (sched_group_allnodes) {
+			kfree(sched_group_allnodes);
+			sched_group_allnodes_bycpu[cpu] = NULL;
+		}
+
+		if (!sched_group_nodes)
+			continue;
+
+		for (i = 0; i < MAX_NUMNODES; i++) {
+			cpumask_t nodemask = node_to_cpumask(i);
+			struct sched_group *oldsg, *sg = sched_group_nodes[i];
+
+			cpus_and(nodemask, nodemask, *cpu_map);
+			if (cpus_empty(nodemask))
+				continue;
+
+			if (sg == NULL)
+				continue;
+			sg = sg->next;
+next_sg:
+			oldsg = sg;
+			sg = sg->next;
+			kfree(oldsg);
+			if (oldsg != sched_group_nodes[i])
+				goto next_sg;
+		}
+		kfree(sched_group_nodes);
+		sched_group_nodes_bycpu[cpu] = NULL;
+	}
+#endif
+}
+
 /*
  * Build sched domains for a given set of cpus and attach the sched domains
  * to the individual cpus
  */
-void build_sched_domains(const cpumask_t *cpu_map)
+static int build_sched_domains(const cpumask_t *cpu_map)
 {
 	int i;
 #ifdef CONFIG_NUMA
@@ -5834,11 +5879,11 @@ void build_sched_domains(const cpumask_t *cpu_map)
 	/*
 	 * Allocate the per-node list of sched groups
 	 */
-	sched_group_nodes = kmalloc(sizeof(struct sched_group*)*MAX_NUMNODES,
+	sched_group_nodes = kzalloc(sizeof(struct sched_group*)*MAX_NUMNODES,
 					   GFP_ATOMIC);
 	if (!sched_group_nodes) {
 		printk(KERN_WARNING "Can not alloc sched group node list\n");
-		return;
+		return -ENOMEM;
 	}
 	sched_group_nodes_bycpu[first_cpu(*cpu_map)] = sched_group_nodes;
 #endif
@@ -5864,7 +5909,7 @@ void build_sched_domains(const cpumask_t *cpu_map)
 				if (!sched_group_allnodes) {
 					printk(KERN_WARNING
 					"Can not alloc allnodes sched group\n");
-					break;
+					goto error;
 				}
 				sched_group_allnodes_bycpu[i]
 						= sched_group_allnodes;
@@ -5978,23 +6023,20 @@ void build_sched_domains(const cpumask_t *cpu_map)
 		cpus_and(domainspan, domainspan, *cpu_map);
 
 		sg = kmalloc(sizeof(struct sched_group), GFP_KERNEL);
+		if (!sg) {
+			printk(KERN_WARNING "Can not alloc domain group for "
+				"node %d\n", i);
+			goto error;
+		}
 		sched_group_nodes[i] = sg;
 		for_each_cpu_mask(j, nodemask) {
 			struct sched_domain *sd;
 			sd = &per_cpu(node_domains, j);
 			sd->groups = sg;
-			if (sd->groups == NULL) {
-				/* Turn off balancing if we have no groups */
-				sd->flags = 0;
-			}
-		}
-		if (!sg) {
-			printk(KERN_WARNING
-			"Can not alloc domain group for node %d\n", i);
-			continue;
 		}
 		sg->cpu_power = 0;
 		sg->cpumask = nodemask;
+		sg->next = sg;
 		cpus_or(covered, covered, nodemask);
 		prev = sg;
 
@@ -6017,15 +6059,15 @@ void build_sched_domains(const cpumask_t *cpu_map)
 			if (!sg) {
 				printk(KERN_WARNING
 				"Can not alloc domain group for node %d\n", j);
-				break;
+				goto error;
 			}
 			sg->cpu_power = 0;
 			sg->cpumask = tmp;
+			sg->next = prev->next;
 			cpus_or(covered, covered, tmp);
 			prev->next = sg;
 			prev = sg;
 		}
-		prev->next = sched_group_nodes[i];
 	}
 #endif
 
@@ -6088,13 +6130,22 @@ void build_sched_domains(const cpumask_t *cpu_map)
 	 * Tune cache-hot values:
 	 */
 	calibrate_migration_costs(cpu_map);
+
+	return 0;
+
+#ifdef CONFIG_NUMA
+error:
+	free_sched_groups(cpu_map);
+	return -ENOMEM;
+#endif
 }
 /*
  * Set up scheduler domains and groups.  Callers must hold the hotplug lock.
  */
-static void arch_init_sched_domains(const cpumask_t *cpu_map)
+static int arch_init_sched_domains(const cpumask_t *cpu_map)
 {
 	cpumask_t cpu_default_map;
+	int err;
 
 	/*
 	 * Setup mask for cpus without special case scheduling requirements.
@@ -6103,51 +6154,14 @@ static void arch_init_sched_domains(const cpumask_t *cpu_map)
 	 */
 	cpus_andnot(cpu_default_map, *cpu_map, cpu_isolated_map);
 
-	build_sched_domains(&cpu_default_map);
+	err = build_sched_domains(&cpu_default_map);
+
+	return err;
 }
 
 static void arch_destroy_sched_domains(const cpumask_t *cpu_map)
 {
-#ifdef CONFIG_NUMA
-	int i;
-	int cpu;
-
-	for_each_cpu_mask(cpu, *cpu_map) {
-		struct sched_group *sched_group_allnodes
-			= sched_group_allnodes_bycpu[cpu];
-		struct sched_group **sched_group_nodes
-			= sched_group_nodes_bycpu[cpu];
-
-		if (sched_group_allnodes) {
-			kfree(sched_group_allnodes);
-			sched_group_allnodes_bycpu[cpu] = NULL;
-		}
-
-		if (!sched_group_nodes)
-			continue;
-
-		for (i = 0; i < MAX_NUMNODES; i++) {
-			cpumask_t nodemask = node_to_cpumask(i);
-			struct sched_group *oldsg, *sg = sched_group_nodes[i];
-
-			cpus_and(nodemask, nodemask, *cpu_map);
-			if (cpus_empty(nodemask))
-				continue;
-
-			if (sg == NULL)
-				continue;
-			sg = sg->next;
-next_sg:
-			oldsg = sg;
-			sg = sg->next;
-			kfree(oldsg);
-			if (oldsg != sched_group_nodes[i])
-				goto next_sg;
-		}
-		kfree(sched_group_nodes);
-		sched_group_nodes_bycpu[cpu] = NULL;
-	}
-#endif
+	free_sched_groups(cpu_map);
 }
 
 /*
@@ -6172,9 +6186,10 @@ static void detach_destroy_domains(const cpumask_t *cpu_map)
  * correct sched domains
  * Call with hotplug lock held
  */
-void partition_sched_domains(cpumask_t *partition1, cpumask_t *partition2)
+int partition_sched_domains(cpumask_t *partition1, cpumask_t *partition2)
 {
 	cpumask_t change_map;
+	int err = 0;
 
 	cpus_and(*partition1, *partition1, cpu_online_map);
 	cpus_and(*partition2, *partition2, cpu_online_map);
@@ -6183,9 +6198,11 @@ void partition_sched_domains(cpumask_t *partition1, cpumask_t *partition2)
 	/* Detach sched domains from all of the affected cpus */
 	detach_destroy_domains(&change_map);
 	if (!cpus_empty(*partition1))
-		build_sched_domains(partition1);
-	if (!cpus_empty(*partition2))
-		build_sched_domains(partition2);
+		err = build_sched_domains(partition1);
+	if (!err && !cpus_empty(*partition2))
+		err = build_sched_domains(partition2);
+
+	return err;
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
