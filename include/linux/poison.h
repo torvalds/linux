@@ -42,4 +42,10 @@
 #define	POOL_POISON_FREED	0xa7	/* !inuse */
 #define	POOL_POISON_ALLOCATED	0xa9	/* !initted */
 
+/********** drivers/atm/ **********/
+#define ATM_POISON_FREE		0x12
+
+/********** sound/oss/ **********/
+#define OSS_POISON_FREE		0xAB
+
 #endif
