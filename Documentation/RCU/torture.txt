@@ -35,6 +35,15 @@ stat_interval	The number of seconds between output of torture
 		be printed -only- when the module is unloaded, and this
 		is the default.
 
+shuffle_interval
+		The number of seconds to keep the test threads affinitied
+		to a particular subset of the CPUs.  Used in conjunction
+		with test_no_idle_hz.
+
+test_no_idle_hz	Whether or not to test the ability of RCU to operate in
+		a kernel that disables the scheduling-clock interrupt to
+		idle CPUs.  Boolean parameter, "1" to test, "0" otherwise.
+
 verbose		Enable debug printk()s.  Default is disabled.
 
 
@@ -119,4 +128,5 @@ The following script may be used to torture RCU:
 
 The output can be manually inspected for the error flag of "!!!".
 One could of course create a more elaborate script that automatically
-checked for such errors.
+checked for such errors.  The "rmmod" command forces a "SUCCESS" or
+"FAILURE" indication to be printk()ed.
