@@ -1417,7 +1417,7 @@ int ata_dev_configure(struct ata_device *dev, int print_info)
 			ata_dev_config_ncq(dev, ncq_desc, sizeof(ncq_desc));
 
 			/* print device info to dmesg */
-			if (ata_msg_info(ap))
+			if (ata_msg_drv(ap) && print_info)
 				ata_dev_printk(dev, KERN_INFO, "ATA-%d, "
 					"max %s, %Lu sectors: %s %s\n",
 					ata_id_major_version(id),
@@ -1440,7 +1440,7 @@ int ata_dev_configure(struct ata_device *dev, int print_info)
 			}
 
 			/* print device info to dmesg */
-			if (ata_msg_info(ap))
+			if (ata_msg_drv(ap) && print_info)
 				ata_dev_printk(dev, KERN_INFO, "ATA-%d, "
 					"max %s, %Lu sectors: CHS %u/%u/%u\n",
 					ata_id_major_version(id),
@@ -1452,7 +1452,7 @@ int ata_dev_configure(struct ata_device *dev, int print_info)
 
 		if (dev->id[59] & 0x100) {
 			dev->multi_count = dev->id[59] & 0xff;
-			if (ata_msg_info(ap))
+			if (ata_msg_drv(ap) && print_info)
 				ata_dev_printk(dev, KERN_INFO,
 					"ata%u: dev %u multi count %u\n",
 					ap->id, dev->devno, dev->multi_count);
@@ -1481,7 +1481,7 @@ int ata_dev_configure(struct ata_device *dev, int print_info)
 		}
 
 		/* print device info to dmesg */
-		if (ata_msg_info(ap))
+		if (ata_msg_drv(ap) && print_info)
 			ata_dev_printk(dev, KERN_INFO, "ATAPI, max %s%s\n",
 				       ata_mode_string(xfer_mask),
 				       cdb_intr_string);
@@ -1491,7 +1491,7 @@ int ata_dev_configure(struct ata_device *dev, int print_info)
 
 	/* limit bridge transfers to udma5, 200 sectors */
 	if (ata_dev_knobble(dev)) {
-		if (ata_msg_info(ap))
+		if (ata_msg_drv(ap) && print_info)
 			ata_dev_printk(dev, KERN_INFO,
 				       "applying bridge limits\n");
 		dev->udma_mask &= ATA_UDMA5;
