@@ -15,6 +15,7 @@ void flush_dcache_page(struct page *page)
 {
 	__cpuc_flush_dcache_page(page_address(page));
 }
+EXPORT_SYMBOL(flush_dcache_page);
 
 void __iomem *__ioremap_pfn(unsigned long pfn, unsigned long offset,
 			    size_t size, unsigned long flags)
