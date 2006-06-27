@@ -50,7 +50,7 @@
 # eventlt	number
 
 #
-# 5 threads 4 lock PI
+# 5 threads 4 lock PI - modify priority of blocked threads
 #
 C: resetevent:		0: 	0
 W: opcodeeq:		0: 	0
@@ -103,6 +103,46 @@ T: prioeq:		0: 	84
 T: prioeq:		1:	84
 T: prioeq:		2:	84
 T: prioeq:		3:	84
+
+# Reduce prio of T4
+C: schedfifo:		4: 	80
+T: prioeq:		0: 	83
+T: prioeq:		1:	83
+T: prioeq:		2:	83
+T: prioeq:		3:	83
+T: prioeq:		4:	80
+
+# Increase prio of T4
+C: schedfifo:		4: 	84
+T: prioeq:		0: 	84
+T: prioeq:		1:	84
+T: prioeq:		2:	84
+T: prioeq:		3:	84
+T: prioeq:		4:	84
+
+# Reduce prio of T3
+C: schedfifo:		3: 	80
+T: prioeq:		0: 	84
+T: prioeq:		1:	84
+T: prioeq:		2:	84
+T: prioeq:		3:	84
+T: prioeq:		4:	84
+
+# Increase prio of T3
+C: schedfifo:		3: 	85
+T: prioeq:		0: 	85
+T: prioeq:		1:	85
+T: prioeq:		2:	85
+T: prioeq:		3:	85
+T: prioeq:		4:	84
+
+# Reduce prio of T3
+C: schedfifo:		3: 	83
+T: prioeq:		0: 	84
+T: prioeq:		1:	84
+T: prioeq:		2:	84
+T: prioeq:		3:	84
+T: prioeq:		4:	84
 
 # Signal T4
 C: signal:		4: 	0

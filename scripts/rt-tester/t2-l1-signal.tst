@@ -57,9 +57,7 @@ W: opcodeeq:		0: 	0
 
 # Set schedulers
 C: schedother:		0: 	0
-W: opcodeeq:		0: 	0
 C: schedother:		1: 	0
-W: opcodeeq:		1: 	0
 
 # T0 lock L0
 C: locknowait:		0: 	0

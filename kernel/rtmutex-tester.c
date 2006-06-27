@@ -46,7 +46,7 @@ enum test_opcodes {
 	RTTEST_LOCKINTNOWAIT,	/* 6 Lock interruptible no wait in wakeup, data = lockindex */
 	RTTEST_LOCKCONT,	/* 7 Continue locking after the wakeup delay */
 	RTTEST_UNLOCK,		/* 8 Unlock, data = lockindex */
-	RTTEST_LOCKBKL, 	/* 9 Lock BKL */
+	RTTEST_LOCKBKL,		/* 9 Lock BKL */
 	RTTEST_UNLOCKBKL,	/* 10 Unlock BKL */
 	RTTEST_SIGNAL,		/* 11 Signal other test thread, data = thread id */
 	RTTEST_RESETEVENT = 98,	/* 98 Reset event counter */
@@ -55,24 +55,12 @@ enum test_opcodes {
 
 static int handle_op(struct test_thread_data *td, int lockwakeup)
 {
-	struct sched_param schedpar;
 	int i, id, ret = -EINVAL;
 
 	switch(td->opcode) {
 
 	case RTTEST_NOP:
 		return 0;
-
-	case RTTEST_SCHEDOT:
-		schedpar.sched_priority = 0;
-		ret = sched_setscheduler(current, SCHED_NORMAL, &schedpar);
-		if (!ret)
-			set_user_nice(current, 0);
-		return ret;
-
-	case RTTEST_SCHEDRT:
-		schedpar.sched_priority = td->opdata;
-		return sched_setscheduler(current, SCHED_FIFO, &schedpar);
 
 	case RTTEST_LOCKCONT:
 		td->mutexes[td->opdata] = 1;
@@ -310,9 +298,10 @@ static int test_func(void *data)
 static ssize_t sysfs_test_command(struct sys_device *dev, const char *buf,
 				  size_t count)
 {
+	struct sched_param schedpar;
 	struct test_thread_data *td;
 	char cmdbuf[32];
-	int op, dat, tid;
+	int op, dat, tid, ret;
 
 	td = container_of(dev, struct test_thread_data, sysdev);
 	tid = td->sysdev.id;
@@ -334,6 +323,21 @@ static ssize_t sysfs_test_command(struct sys_device *dev, const char *buf,
 		return -EINVAL;
 
 	switch (op) {
+	case RTTEST_SCHEDOT:
+		schedpar.sched_priority = 0;
+		ret = sched_setscheduler(threads[tid], SCHED_NORMAL, &schedpar);
+		if (ret)
+			return ret;
+		set_user_nice(current, 0);
+		break;
+
+	case RTTEST_SCHEDRT:
+		schedpar.sched_priority = dat;
+		ret = sched_setscheduler(threads[tid], SCHED_FIFO, &schedpar);
+		if (ret)
+			return ret;
+		break;
+
 	case RTTEST_SIGNAL:
 		send_sig(SIGHUP, threads[tid], 0);
 		break;
