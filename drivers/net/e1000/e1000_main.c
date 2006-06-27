@@ -3604,7 +3604,8 @@ e1000_clean_rx_irq(struct e1000_adapter *adapter,
 			/* All receives must fit into a single buffer */
 			E1000_DBG("%s: Receive packet consumed multiple"
 				  " buffers\n", netdev->name);
-			dev_kfree_skb_irq(skb);
+			/* recycle */
+			buffer_info-> skb = skb;
 			goto next_desc;
 		}
 
