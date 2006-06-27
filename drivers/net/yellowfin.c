@@ -19,37 +19,13 @@
 
 	Support and updates available at
 	http://www.scyld.com/network/yellowfin.html
+	[link no longer provides useful info -jgarzik]
 
-
-	Linux kernel changelog:
-	-----------------------
-
-	LK1.1.1 (jgarzik): Port to 2.4 kernel
-
-	LK1.1.2 (jgarzik):
-	* Merge in becker version 1.05
-
-	LK1.1.3 (jgarzik):
-	* Various cleanups
-	* Update yellowfin_timer to correctly calculate duplex.
-	(suggested by Manfred Spraul)
-
-	LK1.1.4 (val@nmt.edu):
-	* Fix three endian-ness bugs
-	* Support dual function SYM53C885E ethernet chip
-	
-	LK1.1.5 (val@nmt.edu):
-	* Fix forced full-duplex bug I introduced
-
-	LK1.1.6 (val@nmt.edu):
-	* Only print warning on truly "oversized" packets
-	* Fix theoretical bug on gigabit cards - return to 1.1.3 behavior
-	
 */
 
 #define DRV_NAME	"yellowfin"
-#define DRV_VERSION	"1.05+LK1.1.6"
-#define DRV_RELDATE	"Feb 11, 2002"
+#define DRV_VERSION	"2.0"
+#define DRV_RELDATE	"Jun 27, 2006"
 
 #define PFX DRV_NAME ": "
 
