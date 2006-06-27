@@ -308,7 +308,8 @@ typedef struct _SYSIF_REGS
 	u32	HostIndex;	/* 50     Host Index register        */
 	u32	Reserved4[15];	/* 54-8F                             */
 	u32	Fubar;		/* 90     For Fubar usage            */
-	u32	Reserved5[27];	/* 94-FF                             */
+	u32     Reserved5[1050];/* 94-10F8                           */
+	u32     Reset_1078;     /* 10FC   Reset 1078                 */
 } SYSIF_REGS;
 
 /*
