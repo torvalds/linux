@@ -570,6 +570,11 @@ enum idle_type
 #define SD_WAKE_AFFINE		32	/* Wake task to waking CPU */
 #define SD_WAKE_BALANCE		64	/* Perform balancing at task wakeup */
 #define SD_SHARE_CPUPOWER	128	/* Domain members share cpu power */
+#define SD_POWERSAVINGS_BALANCE	256	/* Balance for power savings */
+
+#define BALANCE_FOR_POWER	((sched_mc_power_savings || sched_smt_power_savings) \
+				 ? SD_POWERSAVINGS_BALANCE : 0)
+
 
 struct sched_group {
 	struct sched_group *next;	/* Must be a circular list */
@@ -1411,6 +1416,11 @@ static inline void arch_pick_mmap_layout(struct mm_struct *mm)
 
 extern long sched_setaffinity(pid_t pid, cpumask_t new_mask);
 extern long sched_getaffinity(pid_t pid, cpumask_t *mask);
+
+#include <linux/sysdev.h>
+extern int sched_mc_power_savings, sched_smt_power_savings;
+extern struct sysdev_attribute attr_sched_mc_power_savings, attr_sched_smt_power_savings;
+extern int sched_create_sysfs_power_savings_entries(struct sysdev_class *cls);
 
 extern void normalize_rt_tasks(void);
 

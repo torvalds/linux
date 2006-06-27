@@ -143,5 +143,13 @@ EXPORT_SYMBOL_GPL(get_cpu_sysdev);
 
 int __init cpu_dev_init(void)
 {
-	return sysdev_class_register(&cpu_sysdev_class);
+	int err;
+
+	err = sysdev_class_register(&cpu_sysdev_class);
+#if defined(CONFIG_SCHED_MC) || defined(CONFIG_SCHED_SMT)
+	if (!err)
+		err = sched_create_sysfs_power_savings_entries(&cpu_sysdev_class);
+#endif
+
+	return err;
 }

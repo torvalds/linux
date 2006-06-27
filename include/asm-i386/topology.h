@@ -112,4 +112,9 @@ extern unsigned long node_remap_size[];
 
 extern cpumask_t cpu_coregroup_map(int cpu);
 
+#ifdef CONFIG_SMP
+#define mc_capable()	(boot_cpu_data.x86_max_cores > 1)
+#define smt_capable()	(smp_num_siblings > 1)
+#endif
+
 #endif /* _ASM_I386_TOPOLOGY_H */

@@ -1162,6 +1162,11 @@ static int sched_balance_self(int cpu, int flag)
 	struct sched_domain *tmp, *sd = NULL;
 
 	for_each_domain(cpu, tmp) {
+ 		/*
+ 	 	 * If power savings logic is enabled for a domain, stop there.
+ 	 	 */
+		if (tmp->flags & SD_POWERSAVINGS_BALANCE)
+			break;
 		if (tmp->flags & flag)
 			sd = tmp;
 	}
@@ -2082,6 +2087,12 @@ find_busiest_group(struct sched_domain *sd, int this_cpu,
 	unsigned long busiest_load_per_task, busiest_nr_running;
 	unsigned long this_load_per_task, this_nr_running;
 	int load_idx;
+#if defined(CONFIG_SCHED_MC) || defined(CONFIG_SCHED_SMT)
+	int power_savings_balance = 1;
+	unsigned long leader_nr_running = 0, min_load_per_task = 0;
+	unsigned long min_nr_running = ULONG_MAX;
+	struct sched_group *group_min = NULL, *group_leader = NULL;
+#endif
 
 	max_load = this_load = total_load = total_pwr = 0;
 	busiest_load_per_task = busiest_nr_running = 0;
@@ -2094,7 +2105,7 @@ find_busiest_group(struct sched_domain *sd, int this_cpu,
 		load_idx = sd->idle_idx;
 
 	do {
-		unsigned long load;
+		unsigned long load, group_capacity;
 		int local_group;
 		int i;
 		unsigned long sum_nr_running, sum_weighted_load;
@@ -2127,18 +2138,76 @@ find_busiest_group(struct sched_domain *sd, int this_cpu,
 		/* Adjust by relative CPU power of the group */
 		avg_load = (avg_load * SCHED_LOAD_SCALE) / group->cpu_power;
 
+		group_capacity = group->cpu_power / SCHED_LOAD_SCALE;
+
 		if (local_group) {
 			this_load = avg_load;
 			this = group;
 			this_nr_running = sum_nr_running;
 			this_load_per_task = sum_weighted_load;
 		} else if (avg_load > max_load &&
-			   sum_nr_running > group->cpu_power / SCHED_LOAD_SCALE) {
+			   sum_nr_running > group_capacity) {
 			max_load = avg_load;
 			busiest = group;
 			busiest_nr_running = sum_nr_running;
 			busiest_load_per_task = sum_weighted_load;
 		}
+
+#if defined(CONFIG_SCHED_MC) || defined(CONFIG_SCHED_SMT)
+		/*
+		 * Busy processors will not participate in power savings
+		 * balance.
+		 */
+ 		if (idle == NOT_IDLE || !(sd->flags & SD_POWERSAVINGS_BALANCE))
+ 			goto group_next;
+
+		/*
+		 * If the local group is idle or completely loaded
+		 * no need to do power savings balance at this domain
+		 */
+		if (local_group && (this_nr_running >= group_capacity ||
+				    !this_nr_running))
+			power_savings_balance = 0;
+
+ 		/*
+		 * If a group is already running at full capacity or idle,
+		 * don't include that group in power savings calculations
+ 		 */
+ 		if (!power_savings_balance || sum_nr_running >= group_capacity
+		    || !sum_nr_running)
+ 			goto group_next;
+
+ 		/*
+		 * Calculate the group which has the least non-idle load.
+ 		 * This is the group from where we need to pick up the load
+ 		 * for saving power
+ 		 */
+ 		if ((sum_nr_running < min_nr_running) ||
+ 		    (sum_nr_running == min_nr_running &&
+		     first_cpu(group->cpumask) <
+		     first_cpu(group_min->cpumask))) {
+ 			group_min = group;
+ 			min_nr_running = sum_nr_running;
+			min_load_per_task = sum_weighted_load /
+						sum_nr_running;
+ 		}
+
+ 		/*
+		 * Calculate the group which is almost near its
+ 		 * capacity but still has some space to pick up some load
+ 		 * from other group and save more power
+ 		 */
+ 		if (sum_nr_running <= group_capacity - 1)
+ 			if (sum_nr_running > leader_nr_running ||
+ 			    (sum_nr_running == leader_nr_running &&
+ 			     first_cpu(group->cpumask) >
+ 			      first_cpu(group_leader->cpumask))) {
+ 				group_leader = group;
+ 				leader_nr_running = sum_nr_running;
+ 			}
+
+group_next:
+#endif
 		group = group->next;
 	} while (group != sd->groups);
 
@@ -2247,7 +2316,16 @@ small_imbalance:
 	return busiest;
 
 out_balanced:
+#if defined(CONFIG_SCHED_MC) || defined(CONFIG_SCHED_SMT)
+	if (idle == NOT_IDLE || !(sd->flags & SD_POWERSAVINGS_BALANCE))
+		goto ret;
 
+	if (this == group_leader && group_leader != group_min) {
+		*imbalance = min_load_per_task;
+		return group_min;
+	}
+ret:
+#endif
 	*imbalance = 0;
 	return NULL;
 }
@@ -2300,7 +2378,8 @@ static int load_balance(int this_cpu, runqueue_t *this_rq,
 	int active_balance = 0;
 	int sd_idle = 0;
 
-	if (idle != NOT_IDLE && sd->flags & SD_SHARE_CPUPOWER)
+	if (idle != NOT_IDLE && sd->flags & SD_SHARE_CPUPOWER &&
+	    !sched_smt_power_savings)
 		sd_idle = 1;
 
 	schedstat_inc(sd, lb_cnt[idle]);
@@ -2389,7 +2468,8 @@ static int load_balance(int this_cpu, runqueue_t *this_rq,
 			sd->balance_interval *= 2;
 	}
 
-	if (!nr_moved && !sd_idle && sd->flags & SD_SHARE_CPUPOWER)
+	if (!nr_moved && !sd_idle && sd->flags & SD_SHARE_CPUPOWER &&
+	    !sched_smt_power_savings)
 		return -1;
 	return nr_moved;
 
@@ -2404,7 +2484,7 @@ out_one_pinned:
 			(sd->balance_interval < sd->max_interval))
 		sd->balance_interval *= 2;
 
-	if (!sd_idle && sd->flags & SD_SHARE_CPUPOWER)
+	if (!sd_idle && sd->flags & SD_SHARE_CPUPOWER && !sched_smt_power_savings)
 		return -1;
 	return 0;
 }
@@ -2425,7 +2505,7 @@ static int load_balance_newidle(int this_cpu, runqueue_t *this_rq,
 	int nr_moved = 0;
 	int sd_idle = 0;
 
-	if (sd->flags & SD_SHARE_CPUPOWER)
+	if (sd->flags & SD_SHARE_CPUPOWER && !sched_smt_power_savings)
 		sd_idle = 1;
 
 	schedstat_inc(sd, lb_cnt[NEWLY_IDLE]);
@@ -2466,7 +2546,7 @@ static int load_balance_newidle(int this_cpu, runqueue_t *this_rq,
 
 out_balanced:
 	schedstat_inc(sd, lb_balanced[NEWLY_IDLE]);
-	if (!sd_idle && sd->flags & SD_SHARE_CPUPOWER)
+	if (!sd_idle && sd->flags & SD_SHARE_CPUPOWER && !sched_smt_power_savings)
 		return -1;
 	sd->nr_balance_failed = 0;
 	return 0;
@@ -5732,6 +5812,7 @@ static cpumask_t sched_domain_node_span(int node)
 }
 #endif
 
+int sched_smt_power_savings = 0, sched_mc_power_savings = 0;
 /*
  * At the moment, CONFIG_SCHED_SMT is never defined, but leave it in so we
  * can switch it on easily if needed.
@@ -6113,37 +6194,72 @@ static int build_sched_domains(const cpumask_t *cpu_map)
 #endif
 
 	/* Calculate CPU power for physical packages and nodes */
+#ifdef CONFIG_SCHED_SMT
+	for_each_cpu_mask(i, *cpu_map) {
+		struct sched_domain *sd;
+		sd = &per_cpu(cpu_domains, i);
+		sd->groups->cpu_power = SCHED_LOAD_SCALE;
+	}
+#endif
+#ifdef CONFIG_SCHED_MC
 	for_each_cpu_mask(i, *cpu_map) {
 		int power;
 		struct sched_domain *sd;
-#ifdef CONFIG_SCHED_SMT
-		sd = &per_cpu(cpu_domains, i);
-		power = SCHED_LOAD_SCALE;
-		sd->groups->cpu_power = power;
-#endif
-#ifdef CONFIG_SCHED_MC
 		sd = &per_cpu(core_domains, i);
-		power = SCHED_LOAD_SCALE + (cpus_weight(sd->groups->cpumask)-1)
+		if (sched_smt_power_savings)
+			power = SCHED_LOAD_SCALE * cpus_weight(sd->groups->cpumask);
+		else
+			power = SCHED_LOAD_SCALE + (cpus_weight(sd->groups->cpumask)-1)
 					    * SCHED_LOAD_SCALE / 10;
 		sd->groups->cpu_power = power;
+	}
+#endif
 
+	for_each_cpu_mask(i, *cpu_map) {
+		struct sched_domain *sd;
+#ifdef CONFIG_SCHED_MC
 		sd = &per_cpu(phys_domains, i);
+		if (i != first_cpu(sd->groups->cpumask))
+			continue;
 
- 		/*
- 		 * This has to be < 2 * SCHED_LOAD_SCALE
- 		 * Lets keep it SCHED_LOAD_SCALE, so that
- 		 * while calculating NUMA group's cpu_power
- 		 * we can simply do
- 		 *  numa_group->cpu_power += phys_group->cpu_power;
- 		 *
- 		 * See "only add power once for each physical pkg"
- 		 * comment below
- 		 */
- 		sd->groups->cpu_power = SCHED_LOAD_SCALE;
+		sd->groups->cpu_power = 0;
+		if (sched_mc_power_savings || sched_smt_power_savings) {
+			int j;
+
+ 			for_each_cpu_mask(j, sd->groups->cpumask) {
+				struct sched_domain *sd1;
+ 				sd1 = &per_cpu(core_domains, j);
+ 				/*
+ 			 	 * for each core we will add once
+ 				 * to the group in physical domain
+ 			 	 */
+  	 			if (j != first_cpu(sd1->groups->cpumask))
+ 					continue;
+
+ 				if (sched_smt_power_savings)
+   					sd->groups->cpu_power += sd1->groups->cpu_power;
+ 				else
+   					sd->groups->cpu_power += SCHED_LOAD_SCALE;
+   			}
+ 		} else
+ 			/*
+ 			 * This has to be < 2 * SCHED_LOAD_SCALE
+ 			 * Lets keep it SCHED_LOAD_SCALE, so that
+ 			 * while calculating NUMA group's cpu_power
+ 			 * we can simply do
+ 			 *  numa_group->cpu_power += phys_group->cpu_power;
+ 			 *
+ 			 * See "only add power once for each physical pkg"
+ 			 * comment below
+ 			 */
+ 			sd->groups->cpu_power = SCHED_LOAD_SCALE;
 #else
+		int power;
 		sd = &per_cpu(phys_domains, i);
-		power = SCHED_LOAD_SCALE + SCHED_LOAD_SCALE *
-				(cpus_weight(sd->groups->cpumask)-1) / 10;
+		if (sched_smt_power_savings)
+			power = SCHED_LOAD_SCALE * cpus_weight(sd->groups->cpumask);
+		else
+			power = SCHED_LOAD_SCALE;
 		sd->groups->cpu_power = power;
 #endif
 	}
@@ -6243,6 +6359,80 @@ int partition_sched_domains(cpumask_t *partition1, cpumask_t *partition2)
 
 	return err;
 }
+
+#if defined(CONFIG_SCHED_MC) || defined(CONFIG_SCHED_SMT)
+int arch_reinit_sched_domains(void)
+{
+	int err;
+
+	lock_cpu_hotplug();
+	detach_destroy_domains(&cpu_online_map);
+	err = arch_init_sched_domains(&cpu_online_map);
+	unlock_cpu_hotplug();
+
+	return err;
+}
+
+static ssize_t sched_power_savings_store(const char *buf, size_t count, int smt)
+{
+	int ret;
+
+	if (buf[0] != '0' && buf[0] != '1')
+		return -EINVAL;
+
+	if (smt)
+		sched_smt_power_savings = (buf[0] == '1');
+	else
+		sched_mc_power_savings = (buf[0] == '1');
+
+	ret = arch_reinit_sched_domains();
+
+	return ret ? ret : count;
+}
+
+int sched_create_sysfs_power_savings_entries(struct sysdev_class *cls)
+{
+	int err = 0;
+#ifdef CONFIG_SCHED_SMT
+	if (smt_capable())
+		err = sysfs_create_file(&cls->kset.kobj,
+					&attr_sched_smt_power_savings.attr);
+#endif
+#ifdef CONFIG_SCHED_MC
+	if (!err && mc_capable())
+		err = sysfs_create_file(&cls->kset.kobj,
+					&attr_sched_mc_power_savings.attr);
+#endif
+	return err;
+}
+#endif
+
+#ifdef CONFIG_SCHED_MC
+static ssize_t sched_mc_power_savings_show(struct sys_device *dev, char *page)
+{
+	return sprintf(page, "%u\n", sched_mc_power_savings);
+}
+static ssize_t sched_mc_power_savings_store(struct sys_device *dev, const char *buf, size_t count)
+{
+	return sched_power_savings_store(buf, count, 0);
+}
+SYSDEV_ATTR(sched_mc_power_savings, 0644, sched_mc_power_savings_show,
+	    sched_mc_power_savings_store);
+#endif
+
+#ifdef CONFIG_SCHED_SMT
+static ssize_t sched_smt_power_savings_show(struct sys_device *dev, char *page)
+{
+	return sprintf(page, "%u\n", sched_smt_power_savings);
+}
+static ssize_t sched_smt_power_savings_store(struct sys_device *dev, const char *buf, size_t count)
+{
+	return sched_power_savings_store(buf, count, 1);
+}
+SYSDEV_ATTR(sched_smt_power_savings, 0644, sched_smt_power_savings_show,
+	    sched_smt_power_savings_store);
+#endif
+
 
 #ifdef CONFIG_HOTPLUG_CPU
 /*
