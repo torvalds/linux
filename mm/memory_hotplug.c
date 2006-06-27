@@ -21,6 +21,7 @@
 #include <linux/memory_hotplug.h>
 #include <linux/highmem.h>
 #include <linux/vmalloc.h>
+#include <linux/ioport.h>
 
 #include <asm/tlbflush.h>
 
@@ -192,6 +193,27 @@ static void rollback_node_hotadd(int nid, pg_data_t *pgdat)
 	return;
 }
 
+/* add this memory to iomem resource */
+static void register_memory_resource(u64 start, u64 size)
+{
+	struct resource *res;
+
+	res = kzalloc(sizeof(struct resource), GFP_KERNEL);
+	BUG_ON(!res);
+
+	res->name = "System RAM";
+	res->start = start;
+	res->end = start + size - 1;
+	res->flags = IORESOURCE_MEM;
+	if (request_resource(&iomem_resource, res) < 0) {
+		printk("System RAM resource %llx - %llx cannot be added\n",
+		(unsigned long long)res->start, (unsigned long long)res->end);
+		kfree(res);
+	}
+}
+
+
+
 int add_memory(int nid, u64 start, u64 size)
 {
 	pg_data_t *pgdat = NULL;
@@ -216,6 +238,9 @@ int add_memory(int nid, u64 start, u64 size)
 
 	/* we online node here. we have no error path from here. */
 	node_set_online(nid);
+
+	/* register this memory as resource */
+	register_memory_resource(start, size);
 
 	return ret;
 error:
