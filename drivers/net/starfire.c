@@ -730,7 +730,6 @@ static int __devinit starfire_init_one(struct pci_dev *pdev,
 		goto err_out_free_netdev;
 	}
 
-	/* ioremap is borken in Linux-2.2.x/sparc64 */
 	base = ioremap(ioaddr, io_size);
 	if (!base) {
 		printk(KERN_ERR DRV_NAME " %d: cannot remap %#x @ %#lx, aborting\n",

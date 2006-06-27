@@ -252,12 +252,11 @@ enum rhine_quirks {
 /* Beware of PCI posted writes */
 #define IOSYNC	do { ioread8(ioaddr + StationAddr); } while (0)
 
-static struct pci_device_id rhine_pci_tbl[] =
-{
-	{0x1106, 0x3043, PCI_ANY_ID, PCI_ANY_ID, 0, 0, }, /* VT86C100A */
-	{0x1106, 0x3065, PCI_ANY_ID, PCI_ANY_ID, 0, 0, }, /* VT6102 */
-	{0x1106, 0x3106, PCI_ANY_ID, PCI_ANY_ID, 0, 0, }, /* 6105{,L,LOM} */
-	{0x1106, 0x3053, PCI_ANY_ID, PCI_ANY_ID, 0, 0, }, /* VT6105M */
+static const struct pci_device_id rhine_pci_tbl[] = {
+	{ 0x1106, 0x3043, PCI_ANY_ID, PCI_ANY_ID, },	/* VT86C100A */
+	{ 0x1106, 0x3065, PCI_ANY_ID, PCI_ANY_ID, },	/* VT6102 */
+	{ 0x1106, 0x3106, PCI_ANY_ID, PCI_ANY_ID, },	/* 6105{,L,LOM} */
+	{ 0x1106, 0x3053, PCI_ANY_ID, PCI_ANY_ID, },	/* VT6105M */
 	{ }	/* terminate list */
 };
 MODULE_DEVICE_TABLE(pci, rhine_pci_tbl);

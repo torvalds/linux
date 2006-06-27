@@ -204,15 +204,15 @@ IVc. Errata
 #define USE_IO_OPS 1
 #endif
 
-static struct pci_device_id sundance_pci_tbl[] = {
-	{0x1186, 0x1002, 0x1186, 0x1002, 0, 0, 0},
-	{0x1186, 0x1002, 0x1186, 0x1003, 0, 0, 1},
-	{0x1186, 0x1002, 0x1186, 0x1012, 0, 0, 2},
-	{0x1186, 0x1002, 0x1186, 0x1040, 0, 0, 3},
-	{0x1186, 0x1002, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 4},
-	{0x13F0, 0x0201, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 5},
-	{0x13F0, 0x0200, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 6},
-	{0,}
+static const struct pci_device_id sundance_pci_tbl[] = {
+	{ 0x1186, 0x1002, 0x1186, 0x1002, 0, 0, 0 },
+	{ 0x1186, 0x1002, 0x1186, 0x1003, 0, 0, 1 },
+	{ 0x1186, 0x1002, 0x1186, 0x1012, 0, 0, 2 },
+	{ 0x1186, 0x1002, 0x1186, 0x1040, 0, 0, 3 },
+	{ 0x1186, 0x1002, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 4 },
+	{ 0x13F0, 0x0201, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 5 },
+	{ 0x13F0, 0x0200, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 6 },
+	{ }
 };
 MODULE_DEVICE_TABLE(pci, sundance_pci_tbl);
 
@@ -223,7 +223,7 @@ enum {
 struct pci_id_info {
         const char *name;
 };
-static const struct pci_id_info pci_id_tbl[] = {
+static const struct pci_id_info pci_id_tbl[] __devinitdata = {
 	{"D-Link DFE-550TX FAST Ethernet Adapter"},
 	{"D-Link DFE-550FX 100Mbps Fiber-optics Adapter"},
 	{"D-Link DFE-580TX 4 port Server Adapter"},
@@ -231,7 +231,7 @@ static const struct pci_id_info pci_id_tbl[] = {
 	{"D-Link DL10050-based FAST Ethernet Adapter"},
 	{"Sundance Technology Alta"},
 	{"IC Plus Corporation IP100A FAST Ethernet Adapter"},
-	{NULL,},			/* 0 terminated list. */
+	{ }	/* terminate list. */
 };
 
 /* This driver was written to use PCI memory space, however x86-oriented

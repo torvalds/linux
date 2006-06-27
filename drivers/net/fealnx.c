@@ -124,7 +124,9 @@ MODULE_PARM_DESC(multicast_filter_limit, "fealnx maximum number of filtered mult
 MODULE_PARM_DESC(options, "fealnx: Bits 0-3: media type, bit 17: full duplex");
 MODULE_PARM_DESC(full_duplex, "fealnx full duplex setting(s) (1)");
 
-#define MIN_REGION_SIZE 136
+enum {
+	MIN_REGION_SIZE		= 136,
+};
 
 /* A chip capabilities table, matching the entries in pci_tbl[] above. */
 enum chip_capability_flags {
@@ -149,7 +151,7 @@ struct chip_info {
 	int flags;
 };
 
-static const struct chip_info skel_netdrv_tbl[] = {
+static const struct chip_info skel_netdrv_tbl[] __devinitdata = {
  	{ "100/10M Ethernet PCI Adapter",	HAS_MII_XCVR },
 	{ "100/10M Ethernet PCI Adapter",	HAS_CHIP_XCVR },
 	{ "1000/100/10M Ethernet PCI Adapter",	HAS_MII_XCVR },
@@ -503,13 +505,14 @@ static int __devinit fealnx_init_one(struct pci_dev *pdev,
 	
 	len = pci_resource_len(pdev, bar);
 	if (len < MIN_REGION_SIZE) {
-		printk(KERN_ERR "%s: region size %ld too small, aborting\n",
-		       boardname, len);
+		dev_printk(KERN_ERR, &pdev->dev,
+			   "region size %ld too small, aborting\n", len);
 		return -ENODEV;
 	}
 
 	i = pci_request_regions(pdev, boardname);
-	if (i) return i;
+	if (i)
+		return i;
 	
 	irq = pdev->irq;
 
