@@ -202,6 +202,15 @@ E1000_PARAM(InterruptThrottleRate, "Interrupt Throttling Rate");
 
 E1000_PARAM(SmartPowerDownEnable, "Enable PHY smart power down");
 
+/* Enable Kumeran Lock Loss workaround
+ *
+ * Valid Range: 0, 1
+ *
+ * Default Value: 1 (enabled)
+ */
+
+E1000_PARAM(KumeranLockLoss, "Enable Kumeran lock loss workaround");
+
 #define AUTONEG_ADV_DEFAULT  0x2F
 #define AUTONEG_ADV_MASK     0x2F
 #define FLOW_CONTROL_DEFAULT FLOW_CONTROL_FULL
@@ -483,6 +492,18 @@ e1000_check_options(struct e1000_adapter *adapter)
 		int spd = SmartPowerDownEnable[bd];
 		e1000_validate_option(&spd, &opt, adapter);
 		adapter->smart_power_down = spd;
+	}
+	{ /* Kumeran Lock Loss Workaround */
+		struct e1000_option opt = {
+			.type = enable_option,
+			.name = "Kumeran Lock Loss Workaround",
+			.err  = "defaulting to Enabled",
+			.def  = OPTION_ENABLED
+		};
+
+			int kmrn_lock_loss = KumeranLockLoss[bd];
+			e1000_validate_option(&kmrn_lock_loss, &opt, adapter);
+			adapter->hw.kmrn_lock_loss_workaround_disabled = !kmrn_lock_loss;
 	}
 
 	switch (adapter->hw.media_type) {
