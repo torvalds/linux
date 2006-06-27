@@ -32,8 +32,8 @@ struct snd_akm4xxx;
 struct snd_ak4xxx_ops {
 	void (*lock)(struct snd_akm4xxx *ak, int chip);
 	void (*unlock)(struct snd_akm4xxx *ak, int chip);
-	void (*write)(struct snd_akm4xxx *ak, int chip, unsigned char reg, unsigned char val);
-	// unsigned char (*read)(struct snd_akm4xxx *ak, int chip, unsigned char reg);
+	void (*write)(struct snd_akm4xxx *ak, int chip, unsigned char reg,
+		      unsigned char val);
 	void (*set_rate_val)(struct snd_akm4xxx *ak, unsigned int rate);
 };
 
@@ -41,31 +41,40 @@ struct snd_ak4xxx_ops {
 
 struct snd_akm4xxx {
 	struct snd_card *card;
-	unsigned int num_adcs;				/* AK4524 or AK4528 ADCs */
-	unsigned int num_dacs;				/* AK4524 or AK4528 DACs */
-	unsigned char images[AK4XXX_IMAGE_SIZE];	/* saved register image */
-	unsigned char ipga_gain[AK4XXX_MAX_CHIPS][2];	/* saved register image for IPGA (AK4528) */
+	unsigned int num_adcs;			/* AK4524 or AK4528 ADCs */
+	unsigned int num_dacs;			/* AK4524 or AK4528 DACs */
+	unsigned char images[AK4XXX_IMAGE_SIZE]; /* saved register image */
+	unsigned char ipga_gain[AK4XXX_MAX_CHIPS][2]; /* saved register image
+						       * for IPGA (AK4528)
+						       */
 	unsigned long private_value[AK4XXX_MAX_CHIPS];	/* helper for driver */
 	void *private_data[AK4XXX_MAX_CHIPS];		/* helper for driver */
 	/* template should fill the following fields */
-	unsigned int idx_offset;			/* control index offset */
+	unsigned int idx_offset;		/* control index offset */
 	enum {
 		SND_AK4524, SND_AK4528, SND_AK4529,
 		SND_AK4355, SND_AK4358, SND_AK4381
 	} type;
-	unsigned int *num_stereo;			/* array of combined counts for the mixer */
-	char **channel_names;				/* array of mixer channel names */
+	unsigned int *num_stereo;	/* array of combined counts
+					 * for the mixer
+					 */
+	char **channel_names;		/* array of mixer channel names */
 	struct snd_ak4xxx_ops ops;
 };
 
-void snd_akm4xxx_write(struct snd_akm4xxx *ak, int chip, unsigned char reg, unsigned char val);
+void snd_akm4xxx_write(struct snd_akm4xxx *ak, int chip, unsigned char reg,
+		       unsigned char val);
 void snd_akm4xxx_reset(struct snd_akm4xxx *ak, int state);
 void snd_akm4xxx_init(struct snd_akm4xxx *ak);
 int snd_akm4xxx_build_controls(struct snd_akm4xxx *ak);
 
-#define snd_akm4xxx_get(ak,chip,reg) (ak)->images[(chip) * 16 + (reg)]
-#define snd_akm4xxx_set(ak,chip,reg,val) ((ak)->images[(chip) * 16 + (reg)] = (val))
-#define snd_akm4xxx_get_ipga(ak,chip,reg) (ak)->ipga_gain[chip][(reg)-4]
-#define snd_akm4xxx_set_ipga(ak,chip,reg,val) ((ak)->ipga_gain[chip][(reg)-4] = (val))
+#define snd_akm4xxx_get(ak,chip,reg) \
+	(ak)->images[(chip) * 16 + (reg)]
+#define snd_akm4xxx_set(ak,chip,reg,val) \
+	((ak)->images[(chip) * 16 + (reg)] = (val))
+#define snd_akm4xxx_get_ipga(ak,chip,reg) \
+	(ak)->ipga_gain[chip][(reg)-4]
+#define snd_akm4xxx_set_ipga(ak,chip,reg,val) \
+	((ak)->ipga_gain[chip][(reg)-4] = (val))
 
 #endif /* __SOUND_AK4XXX_ADDA_H */
