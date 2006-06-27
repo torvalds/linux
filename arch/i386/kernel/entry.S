@@ -83,6 +83,12 @@ VM_MASK		= 0x00020000
 #define resume_kernel		restore_nocheck
 #endif
 
+#ifdef CONFIG_VM86
+#define resume_userspace_sig	check_userspace
+#else
+#define resume_userspace_sig	resume_userspace
+#endif
+
 #define SAVE_ALL \
 	cld; \
 	pushl %es; \
@@ -211,6 +217,7 @@ ret_from_exception:
 	preempt_stop
 ret_from_intr:
 	GET_THREAD_INFO(%ebp)
+check_userspace:
 	movl EFLAGS(%esp), %eax		# mix EFLAGS and CS
 	movb CS(%esp), %al
 	testl $(VM_MASK | 3), %eax
@@ -415,7 +422,7 @@ work_notifysig:				# deal with pending signals and
 					# vm86-space
 	xorl %edx, %edx
 	call do_notify_resume
-	jmp resume_userspace
+	jmp resume_userspace_sig
 
 	ALIGN
 work_notifysig_v86:
@@ -428,7 +435,7 @@ work_notifysig_v86:
 	movl %eax, %esp
 	xorl %edx, %edx
 	call do_notify_resume
-	jmp resume_userspace
+	jmp resume_userspace_sig
 #endif
 
 	# perform syscall exit tracing
