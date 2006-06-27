@@ -305,10 +305,8 @@ mptfc_GetFcDevPage0(MPT_ADAPTER *ioc, int ioc_port,
 	}
 
  out:
-	if (pp0_array)
-		kfree(pp0_array);
-	if (p0_array)
-		kfree(p0_array);
+	kfree(pp0_array);
+	kfree(p0_array);
 	return rc;
 }
 
