@@ -59,6 +59,7 @@ static LIST_HEAD(bridge_list);
 static void handle_hotplug_event_bridge (acpi_handle, u32, void *);
 static void acpiphp_sanitize_bus(struct pci_bus *bus);
 static void acpiphp_set_hpp_values(acpi_handle handle, struct pci_bus *bus);
+static void handle_hotplug_event_func(acpi_handle handle, u32 type, void *context);
 
 
 /*
@@ -1497,7 +1498,7 @@ static void handle_hotplug_event_bridge(acpi_handle handle, u32 type, void *cont
  * handles ACPI event notification on slots
  *
  */
-void handle_hotplug_event_func(acpi_handle handle, u32 type, void *context)
+static void handle_hotplug_event_func(acpi_handle handle, u32 type, void *context)
 {
 	struct acpiphp_func *func;
 	char objname[64];
