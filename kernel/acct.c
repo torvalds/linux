@@ -576,7 +576,7 @@ void acct_collect(long exitcode, int group_dead)
  *
  * handles process accounting for an exiting task
  */
-void acct_process()
+void acct_process(void)
 {
 	struct file *file = NULL;
 
