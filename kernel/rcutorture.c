@@ -66,7 +66,7 @@ MODULE_PARM_DESC(test_no_idle_hz, "Test support for tickless idle CPUs");
 module_param(shuffle_interval, int, 0);
 MODULE_PARM_DESC(shuffle_interval, "Number of seconds between shuffles");
 module_param(torture_type, charp, 0);
-MODULE_PARM_DESC(torture_type, "Type of RCU to torture (rcu)");
+MODULE_PARM_DESC(torture_type, "Type of RCU to torture (rcu, rcu_bh)");
 
 #define TORTURE_FLAG "-torture:"
 #define PRINTK_STRING(s) \
@@ -246,8 +246,44 @@ static struct rcu_torture_ops rcu_ops = {
 	.name = "rcu"
 };
 
+/*
+ * Definitions for rcu_bh torture testing.
+ */
+
+static int rcu_bh_torture_read_lock(void)
+{
+	rcu_read_lock_bh();
+	return 0;
+}
+
+static void rcu_bh_torture_read_unlock(int idx)
+{
+	rcu_read_unlock_bh();
+}
+
+static int rcu_bh_torture_completed(void)
+{
+	return rcu_batches_completed_bh();
+}
+
+static void rcu_bh_torture_deferred_free(struct rcu_torture *p)
+{
+	call_rcu_bh(&p->rtort_rcu, rcu_torture_cb);
+}
+
+static struct rcu_torture_ops rcu_bh_ops = {
+	.init = NULL,
+	.cleanup = NULL,
+	.readlock = rcu_bh_torture_read_lock,
+	.readunlock = rcu_bh_torture_read_unlock,
+	.completed = rcu_bh_torture_completed,
+	.deferredfree = rcu_bh_torture_deferred_free,
+	.stats = NULL,
+	.name = "rcu_bh"
+};
+
 static struct rcu_torture_ops *torture_ops[] =
-	{ &rcu_ops, NULL };
+	{ &rcu_ops, &rcu_bh_ops, NULL };
 
 /*
  * RCU torture writer kthread.  Repeatedly substitutes a new structure
