@@ -45,6 +45,13 @@
 /********** drivers/atm/ **********/
 #define ATM_POISON_FREE		0x12
 
+/********** kernel/mutexes **********/
+#define MUTEX_DEBUG_INIT	0x11
+#define MUTEX_DEBUG_FREE	0x22
+
+/********** security/ **********/
+#define KEY_DESTROY		0xbd
+
 /********** sound/oss/ **********/
 #define OSS_POISON_FREE		0xAB
 

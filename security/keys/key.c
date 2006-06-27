@@ -11,6 +11,7 @@
 
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/poison.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/security.h>
@@ -988,7 +989,7 @@ void unregister_key_type(struct key_type *ktype)
 		if (key->type == ktype) {
 			if (ktype->destroy)
 				ktype->destroy(key);
-			memset(&key->payload, 0xbd, sizeof(key->payload));
+			memset(&key->payload, KEY_DESTROY, sizeof(key->payload));
 		}
 	}
 
