@@ -673,9 +673,7 @@ salinfo_init(void)
 	salinfo_timer.function = &salinfo_timeout;
 	add_timer(&salinfo_timer);
 
-#ifdef	CONFIG_HOTPLUG_CPU
-	register_cpu_notifier(&salinfo_cpu_notifier);
-#endif
+	register_hotcpu_notifier(&salinfo_cpu_notifier);
 
 	return 0;
 }
