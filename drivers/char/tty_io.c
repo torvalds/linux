@@ -2621,10 +2621,9 @@ int tty_ioctl(struct inode * inode, struct file * file,
 			tty->driver->break_ctl(tty, 0);
 			return 0;
 		case TCSBRK:   /* SVID version: non-zero arg --> no break */
-			/*
-			 * XXX is the above comment correct, or the
-			 * code below correct?  Is this ioctl used at
-			 * all by anyone?
+			/* non-zero arg means wait for all output data
+			 * to be sent (performed above) but don't send break.
+			 * This is used by the tcdrain() termios function.
 			 */
 			if (!arg)
 				return send_break(tty, 250);
