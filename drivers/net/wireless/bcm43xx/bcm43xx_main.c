@@ -2328,7 +2328,7 @@ void bcm43xx_mac_suspend(struct bcm43xx_private *bcm)
 			tmp = bcm43xx_read32(bcm, BCM43xx_MMIO_GEN_IRQ_REASON);
 			if (tmp & BCM43xx_IRQ_READY)
 				goto out;
-			udelay(10);
+			udelay(1);
 		}
 		printkl(KERN_ERR PFX "MAC suspend failed\n");
 	}
