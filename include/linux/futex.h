@@ -90,9 +90,8 @@ struct robust_list_head {
  */
 #define ROBUST_LIST_LIMIT	2048
 
-long do_futex(unsigned long uaddr, int op, int val,
-		unsigned long timeout, unsigned long uaddr2, int val2,
-		int val3);
+long do_futex(u32 __user *uaddr, int op, u32 val, unsigned long timeout,
+	      u32 __user *uaddr2, u32 val2, u32 val3);
 
 extern int handle_futex_death(u32 __user *uaddr, struct task_struct *curr);
 
