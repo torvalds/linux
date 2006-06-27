@@ -969,7 +969,7 @@ acpi_add_single_object(struct acpi_device **child,
 
 	device = kmalloc(sizeof(struct acpi_device), GFP_KERNEL);
 	if (!device) {
-		ACPI_ERROR((AE_INFO, "Memory allocation error"));
+		printk(KERN_ERR PREFIX "Memory allocation error\n");
 		return_VALUE(-ENOMEM);
 	}
 	memset(device, 0, sizeof(struct acpi_device));

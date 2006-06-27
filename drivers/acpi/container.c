@@ -94,7 +94,7 @@ static int acpi_container_add(struct acpi_device *device)
 	ACPI_FUNCTION_TRACE("acpi_container_add");
 
 	if (!device) {
-		ACPI_ERROR((AE_INFO, "device is NULL"));
+		printk(KERN_ERR PREFIX "device is NULL\n");
 		return_VALUE(-EINVAL);
 	}
 

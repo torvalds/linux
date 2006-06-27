@@ -82,7 +82,7 @@ static int acpi_processor_apply_limit(struct acpi_processor *pr)
 
       end:
 	if (result)
-		ACPI_ERROR((AE_INFO, "Unable to set limit"));
+		printk(KERN_ERR PREFIX "Unable to set limit\n");
 
 	return_VALUE(result);
 }
@@ -289,7 +289,7 @@ int acpi_processor_set_thermal_limit(acpi_handle handle, int type)
 
 		result = acpi_processor_apply_limit(pr);
 		if (result)
-			ACPI_ERROR((AE_INFO, "Unable to set thermal limit"));
+			printk(KERN_ERR PREFIX "Unable to set thermal limit\n");
 
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Thermal limit now (P%d:T%d)\n",
 				  pr->limit.thermal.px, pr->limit.thermal.tx));
@@ -371,13 +371,13 @@ static ssize_t acpi_processor_write_limit(struct file * file,
 	limit_string[count] = '\0';
 
 	if (sscanf(limit_string, "%d:%d", &px, &tx) != 2) {
-		ACPI_ERROR((AE_INFO, "Invalid data format"));
+		printk(KERN_ERR PREFIX "Invalid data format\n");
 		return_VALUE(-EINVAL);
 	}
 
 	if (pr->flags.throttling) {
 		if ((tx < 0) || (tx > (pr->throttling.state_count - 1))) {
-			ACPI_ERROR((AE_INFO, "Invalid tx"));
+			printk(KERN_ERR PREFIX "Invalid tx\n");
 			return_VALUE(-EINVAL);
 		}
 		pr->limit.user.tx = tx;

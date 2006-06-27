@@ -324,7 +324,7 @@ acpi_video_device_lcd_query_levels(struct acpi_video_device *device,
 		return_VALUE(status);
 	obj = (union acpi_object *)buffer.pointer;
 	if (!obj || (obj->type != ACPI_TYPE_PACKAGE)) {
-		ACPI_ERROR((AE_INFO, "Invalid _BCL data"));
+		printk(KERN_ERR PREFIX "Invalid _BCL data\n");
 		status = -EFAULT;
 		goto err;
 	}
@@ -399,7 +399,7 @@ acpi_video_device_EDID(struct acpi_video_device *device,
 	if (obj && obj->type == ACPI_TYPE_BUFFER)
 		*edid = obj;
 	else {
-		ACPI_ERROR((AE_INFO, "Invalid _DDC data"));
+		printk(KERN_ERR PREFIX "Invalid _DDC data\n");
 		status = -EFAULT;
 		kfree(obj);
 	}
@@ -560,7 +560,7 @@ static void acpi_video_device_find_cap(struct acpi_video_device *device)
 				o = (union acpi_object *)&obj->package.
 				    elements[i];
 				if (o->type != ACPI_TYPE_INTEGER) {
-					ACPI_ERROR((AE_INFO, "Invalid data"));
+					printk(KERN_ERR PREFIX "Invalid data\n");
 					continue;
 				}
 				br->levels[count] = (u32) o->integer.value;
@@ -1466,7 +1466,7 @@ static int acpi_video_device_enumerate(struct acpi_video_bus *video)
 		obj = (union acpi_object *)&dod->package.elements[i];
 
 		if (obj->type != ACPI_TYPE_INTEGER) {
-			ACPI_ERROR((AE_INFO, "Invalid _DOD data"));
+			printk(KERN_ERR PREFIX "Invalid _DOD data\n");
 			active_device_list[i].value.int_val =
 			    ACPI_VIDEO_HEAD_INVALID;
 		}

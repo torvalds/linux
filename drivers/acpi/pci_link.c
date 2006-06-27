@@ -161,7 +161,7 @@ acpi_pci_link_check_possible(struct acpi_resource *resource, void *context)
 			break;
 		}
 	default:
-		ACPI_ERROR((AE_INFO, "Resource is not an IRQ entry\n"));
+		printk(KERN_ERR PREFIX "Resource is not an IRQ entry\n");
 		return_ACPI_STATUS(AE_OK);
 	}
 
@@ -232,7 +232,7 @@ acpi_pci_link_check_current(struct acpi_resource *resource, void *context)
 		}
 		break;
 	default:
-		ACPI_ERROR((AE_INFO, "Resource %d isn't an IRQ", resource->type));
+		printk(KERN_ERR PREFIX "Resource %d isn't an IRQ\n", resource->type);
 	case ACPI_RESOURCE_TYPE_END_TAG:
 		return_ACPI_STATUS(AE_OK);
 	}
@@ -264,7 +264,7 @@ static int acpi_pci_link_get_current(struct acpi_pci_link *link)
 		/* Query _STA, set link->device->status */
 		result = acpi_bus_get_status(link->device);
 		if (result) {
-			ACPI_ERROR((AE_INFO, "Unable to read status"));
+			printk(KERN_ERR PREFIX "Unable to read status\n");
 			goto end;
 		}
 
@@ -287,7 +287,7 @@ static int acpi_pci_link_get_current(struct acpi_pci_link *link)
 	}
 
 	if (acpi_strict && !irq) {
-		ACPI_ERROR((AE_INFO, "_CRS returned 0"));
+		printk(KERN_ERR PREFIX "_CRS returned 0\n");
 		result = -ENODEV;
 	}
 
@@ -357,7 +357,7 @@ static int acpi_pci_link_set(struct acpi_pci_link *link, int irq)
 		/* ignore resource_source, it's optional */
 		break;
 	default:
-		ACPI_ERROR((AE_INFO, "Invalid Resource_type %d\n", link->irq.resource_type));
+		printk(KERN_ERR PREFIX "Invalid Resource_type %d\n", link->irq.resource_type);
 		result = -EINVAL;
 		goto end;
 
@@ -377,7 +377,7 @@ static int acpi_pci_link_set(struct acpi_pci_link *link, int irq)
 	/* Query _STA, set device->status */
 	result = acpi_bus_get_status(link->device);
 	if (result) {
-		ACPI_ERROR((AE_INFO, "Unable to read status"));
+		printk(KERN_ERR PREFIX "Unable to read status\n");
 		goto end;
 	}
 	if (!link->device->status.enabled) {
@@ -496,7 +496,7 @@ int __init acpi_irq_penalty_init(void)
 
 		link = list_entry(node, struct acpi_pci_link, node);
 		if (!link) {
-			ACPI_ERROR((AE_INFO, "Invalid link context"));
+			printk(KERN_ERR PREFIX "Invalid link context\n");
 			continue;
 		}
 
@@ -583,10 +583,10 @@ static int acpi_pci_link_allocate(struct acpi_pci_link *link)
 
 	/* Attempt to enable the link device at this IRQ. */
 	if (acpi_pci_link_set(link, irq)) {
-		ACPI_ERROR((AE_INFO, "Unable to set IRQ for %s [%s]. "
-			    "Try pci=noacpi or acpi=off",
+		printk(KERN_ERR PREFIX "Unable to set IRQ for %s [%s]. "
+			    "Try pci=noacpi or acpi=off\n",
 			    acpi_device_name(link->device),
-			    acpi_device_bid(link->device)));
+			    acpi_device_bid(link->device));
 		return_VALUE(-ENODEV);
 	} else {
 		acpi_irq_penalty[link->irq.active] += PIRQ_PENALTY_PCI_USING;
@@ -619,19 +619,19 @@ acpi_pci_link_allocate_irq(acpi_handle handle,
 
 	result = acpi_bus_get_device(handle, &device);
 	if (result) {
-		ACPI_ERROR((AE_INFO, "Invalid link device"));
+		printk(KERN_ERR PREFIX "Invalid link device\n");
 		return_VALUE(-1);
 	}
 
 	link = (struct acpi_pci_link *)acpi_driver_data(device);
 	if (!link) {
-		ACPI_ERROR((AE_INFO, "Invalid link context"));
+		printk(KERN_ERR PREFIX "Invalid link context\n");
 		return_VALUE(-1);
 	}
 
 	/* TBD: Support multiple index (IRQ) entries per Link Device */
 	if (index) {
-		ACPI_ERROR((AE_INFO, "Invalid index %d", index));
+		printk(KERN_ERR PREFIX "Invalid index %d\n", index);
 		return_VALUE(-1);
 	}
 
@@ -643,7 +643,7 @@ acpi_pci_link_allocate_irq(acpi_handle handle,
 
 	if (!link->irq.active) {
 		mutex_unlock(&acpi_link_lock);
-		ACPI_ERROR((AE_INFO, "Link active IRQ is 0!"));
+		printk(KERN_ERR PREFIX "Link active IRQ is 0!\n");
 		return_VALUE(-1);
 	}
 	link->refcnt++;
@@ -675,20 +675,20 @@ int acpi_pci_link_free_irq(acpi_handle handle)
 
 	result = acpi_bus_get_device(handle, &device);
 	if (result) {
-		ACPI_ERROR((AE_INFO, "Invalid link device"));
+		printk(KERN_ERR PREFIX "Invalid link device\n");
 		return_VALUE(-1);
 	}
 
 	link = (struct acpi_pci_link *)acpi_driver_data(device);
 	if (!link) {
-		ACPI_ERROR((AE_INFO, "Invalid link context"));
+		printk(KERN_ERR PREFIX "Invalid link context\n");
 		return_VALUE(-1);
 	}
 
 	mutex_lock(&acpi_link_lock);
 	if (!link->irq.initialized) {
 		mutex_unlock(&acpi_link_lock);
-		ACPI_ERROR((AE_INFO, "Link isn't initialized"));
+		printk(KERN_ERR PREFIX "Link isn't initialized\n");
 		return_VALUE(-1);
 	}
 #ifdef	FUTURE_USE
@@ -813,7 +813,7 @@ static int irqrouter_resume(struct sys_device *dev)
 	list_for_each(node, &acpi_link.entries) {
 		link = list_entry(node, struct acpi_pci_link, node);
 		if (!link) {
-			ACPI_ERROR((AE_INFO, "Invalid link context"));
+			printk(KERN_ERR PREFIX "Invalid link context\n");
 			continue;
 		}
 		acpi_pci_link_resume(link);

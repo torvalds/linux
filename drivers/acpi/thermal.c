@@ -698,7 +698,7 @@ static void acpi_thermal_check(void *data)
 	ACPI_FUNCTION_TRACE("acpi_thermal_check");
 
 	if (!tz) {
-		ACPI_ERROR((AE_INFO, "Invalid (NULL) context"));
+		printk(KERN_ERR PREFIX "Invalid (NULL) context\n");
 		return_VOID;
 	}
 

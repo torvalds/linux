@@ -326,7 +326,7 @@ acpi_evaluate_string(acpi_handle handle,
 
 	*data = kmalloc(element->string.length + 1, GFP_KERNEL);
 	if (!data) {
-		ACPI_ERROR((AE_INFO, "Memory allocation"));
+		printk(KERN_ERR PREFIX "Memory allocation\n");
 		return_VALUE(-ENOMEM);
 	}
 	memset(*data, 0, element->string.length + 1);
@@ -368,22 +368,22 @@ acpi_evaluate_reference(acpi_handle handle,
 	package = (union acpi_object *)buffer.pointer;
 
 	if ((buffer.length == 0) || !package) {
-		ACPI_ERROR((AE_INFO, "No return object (len %X ptr %p)",
-			    (unsigned)buffer.length, package));
+		printk(KERN_ERR PREFIX "No return object (len %X ptr %p)\n",
+			    (unsigned)buffer.length, package);
 		status = AE_BAD_DATA;
 		acpi_util_eval_error(handle, pathname, status);
 		goto end;
 	}
 	if (package->type != ACPI_TYPE_PACKAGE) {
-		ACPI_ERROR((AE_INFO, "Expecting a [Package], found type %X",
-			    package->type));
+		printk(KERN_ERR PREFIX "Expecting a [Package], found type %X\n",
+			    package->type);
 		status = AE_BAD_DATA;
 		acpi_util_eval_error(handle, pathname, status);
 		goto end;
 	}
 	if (!package->package.count) {
-		ACPI_ERROR((AE_INFO, "[Package] has zero elements (%p)",
-			    package));
+		printk(KERN_ERR PREFIX "[Package] has zero elements (%p)\n",
+			    package);
 		status = AE_BAD_DATA;
 		acpi_util_eval_error(handle, pathname, status);
 		goto end;
@@ -402,9 +402,9 @@ acpi_evaluate_reference(acpi_handle handle,
 
 		if (element->type != ACPI_TYPE_ANY) {
 			status = AE_BAD_DATA;
-			ACPI_ERROR((AE_INFO,
-				    "Expecting a [Reference] package element, found type %X",
-				    element->type));
+			printk(KERN_ERR PREFIX
+				    "Expecting a [Reference] package element, found type %X\n",
+				    element->type);
 			acpi_util_eval_error(handle, pathname, status);
 			break;
 		}

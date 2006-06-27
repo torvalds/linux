@@ -345,8 +345,8 @@ static int acpi_button_add(struct acpi_device *device)
 		sprintf(acpi_device_class(device), "%s/%s",
 			ACPI_BUTTON_CLASS, ACPI_BUTTON_SUBCLASS_LID);
 	} else {
-		ACPI_ERROR((AE_INFO, "Unsupported hid [%s]",
-			    acpi_device_hid(device)));
+		printk(KERN_ERR PREFIX "Unsupported hid [%s]\n",
+			    acpi_device_hid(device));
 		result = -ENODEV;
 		goto end;
 	}

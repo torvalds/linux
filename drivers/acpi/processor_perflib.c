@@ -179,7 +179,7 @@ static int acpi_processor_get_performance_control(struct acpi_processor *pr)
 	pct = (union acpi_object *)buffer.pointer;
 	if (!pct || (pct->type != ACPI_TYPE_PACKAGE)
 	    || (pct->package.count != 2)) {
-		ACPI_ERROR((AE_INFO, "Invalid _PCT data"));
+		printk(KERN_ERR PREFIX "Invalid _PCT data\n");
 		result = -EFAULT;
 		goto end;
 	}
@@ -193,7 +193,7 @@ static int acpi_processor_get_performance_control(struct acpi_processor *pr)
 	if ((obj.type != ACPI_TYPE_BUFFER)
 	    || (obj.buffer.length < sizeof(struct acpi_pct_register))
 	    || (obj.buffer.pointer == NULL)) {
-		ACPI_ERROR((AE_INFO, "Invalid _PCT data (control_register)"));
+		printk(KERN_ERR PREFIX "Invalid _PCT data (control_register)\n");
 		result = -EFAULT;
 		goto end;
 	}
@@ -209,7 +209,7 @@ static int acpi_processor_get_performance_control(struct acpi_processor *pr)
 	if ((obj.type != ACPI_TYPE_BUFFER)
 	    || (obj.buffer.length < sizeof(struct acpi_pct_register))
 	    || (obj.buffer.pointer == NULL)) {
-		ACPI_ERROR((AE_INFO, "Invalid _PCT data (status_register)"));
+		printk(KERN_ERR PREFIX "Invalid _PCT data (status_register)\n");
 		result = -EFAULT;
 		goto end;
 	}
@@ -243,7 +243,7 @@ static int acpi_processor_get_performance_states(struct acpi_processor *pr)
 
 	pss = (union acpi_object *)buffer.pointer;
 	if (!pss || (pss->type != ACPI_TYPE_PACKAGE)) {
-		ACPI_ERROR((AE_INFO, "Invalid _PSS data"));
+		printk(KERN_ERR PREFIX "Invalid _PSS data\n");
 		result = -EFAULT;
 		goto end;
 	}
@@ -288,8 +288,8 @@ static int acpi_processor_get_performance_states(struct acpi_processor *pr)
 				  (u32) px->control, (u32) px->status));
 
 		if (!px->core_frequency) {
-			ACPI_ERROR((AE_INFO,
-				    "Invalid _PSS data: freq is zero"));
+			printk(KERN_ERR PREFIX
+				    "Invalid _PSS data: freq is zero\n");
 			result = -EFAULT;
 			kfree(pr->performance->states);
 			goto end;

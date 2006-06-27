@@ -453,7 +453,7 @@ static int acpi_processor_get_info(struct acpi_processor *pr)
 	 */
 	status = acpi_evaluate_object(pr->handle, NULL, NULL, &buffer);
 	if (ACPI_FAILURE(status)) {
-		ACPI_ERROR((AE_INFO, "Evaluating processor object"));
+		printk(KERN_ERR PREFIX "Evaluating processor object\n");
 		return_VALUE(-ENODEV);
 	}
 
@@ -483,9 +483,9 @@ static int acpi_processor_get_info(struct acpi_processor *pr)
 	if (cpu_index == -1) {
 		if (ACPI_FAILURE
 		    (acpi_processor_hotadd_init(pr->handle, &pr->id))) {
-			ACPI_ERROR((AE_INFO,
-				    "Getting cpuindex for acpiid 0x%x",
-				    pr->acpi_id));
+			printk(KERN_ERR PREFIX
+				    "Getting cpuindex for acpiid 0x%x\n",
+				    pr->acpi_id);
 			return_VALUE(-ENODEV);
 		}
 	}
@@ -496,8 +496,8 @@ static int acpi_processor_get_info(struct acpi_processor *pr)
 	if (!object.processor.pblk_address)
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "No PBLK (NULL address)\n"));
 	else if (object.processor.pblk_length != 6)
-		ACPI_ERROR((AE_INFO, "Invalid PBLK length [%d]",
-			    object.processor.pblk_length));
+		printk(KERN_ERR PREFIX "Invalid PBLK length [%d]\n",
+			    object.processor.pblk_length);
 	else {
 		pr->throttling.address = object.processor.pblk_address;
 		pr->throttling.duty_offset = acpi_fadt.duty_offset;
@@ -751,14 +751,14 @@ acpi_processor_hotplug_notify(acpi_handle handle, u32 event, void *data)
 		if (acpi_bus_get_device(handle, &device)) {
 			result = acpi_processor_device_add(handle, &device);
 			if (result)
-				ACPI_ERROR((AE_INFO,
-					    "Unable to add the device"));
+				printk(KERN_ERR PREFIX
+					    "Unable to add the device\n");
 			break;
 		}
 
 		pr = acpi_driver_data(device);
 		if (!pr) {
-			ACPI_ERROR((AE_INFO, "Driver data is NULL"));
+			printk(KERN_ERR PREFIX "Driver data is NULL\n");
 			break;
 		}
 
@@ -771,8 +771,8 @@ acpi_processor_hotplug_notify(acpi_handle handle, u32 event, void *data)
 		if ((!result) && ((pr->id >= 0) && (pr->id < NR_CPUS))) {
 			kobject_uevent(&device->kobj, KOBJ_ONLINE);
 		} else {
-			ACPI_ERROR((AE_INFO, "Device [%s] failed to start",
-				    acpi_device_bid(device)));
+			printk(KERN_ERR PREFIX "Device [%s] failed to start\n",
+				    acpi_device_bid(device));
 		}
 		break;
 	case ACPI_NOTIFY_EJECT_REQUEST:
@@ -780,14 +780,14 @@ acpi_processor_hotplug_notify(acpi_handle handle, u32 event, void *data)
 				  "received ACPI_NOTIFY_EJECT_REQUEST\n"));
 
 		if (acpi_bus_get_device(handle, &device)) {
-			ACPI_ERROR((AE_INFO,
-				    "Device don't exist, dropping EJECT"));
+			printk(KERN_ERR PREFIX
+				    "Device don't exist, dropping EJECT\n");
 			break;
 		}
 		pr = acpi_driver_data(device);
 		if (!pr) {
-			ACPI_ERROR((AE_INFO,
-				    "Driver data is NULL, dropping EJECT"));
+			printk(KERN_ERR PREFIX
+				    "Driver data is NULL, dropping EJECT\n");
 			return_VOID;
 		}
 

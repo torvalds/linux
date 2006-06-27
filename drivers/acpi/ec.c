@@ -1107,7 +1107,7 @@ static int acpi_ec_intr_add(struct acpi_device *device)
 	    acpi_evaluate_integer(ec->common.handle, "_GPE", NULL,
 				  &ec->common.gpe_bit);
 	if (ACPI_FAILURE(status)) {
-		ACPI_ERROR((AE_INFO, "Obtaining GPE bit assignment"));
+		printk(KERN_ERR PREFIX "Obtaining GPE bit assignment\n");
 		result = -ENODEV;
 		goto end;
 	}
@@ -1201,7 +1201,7 @@ static int acpi_ec_start(struct acpi_device *device)
 				     acpi_ec_io_ports, ec);
 	if (ACPI_FAILURE(status)
 	    || ec->common.command_addr.register_bit_width == 0) {
-		ACPI_ERROR((AE_INFO, "Error getting I/O port addresses"));
+		printk(KERN_ERR PREFIX "Error getting I/O port addresses\n");
 		return_VALUE(-ENODEV);
 	}
 

@@ -187,7 +187,7 @@ static int acpi_memory_enable_device(struct acpi_memory_device *mem_device)
 	/* Get the range from the _CRS */
 	result = acpi_memory_get_device_resources(mem_device);
 	if (result) {
-		ACPI_ERROR((AE_INFO, "get_device_resources failed"));
+		printk(KERN_ERR PREFIX "get_device_resources failed\n");
 		mem_device->state = MEMORY_INVALID_STATE;
 		return result;
 	}
@@ -198,7 +198,7 @@ static int acpi_memory_enable_device(struct acpi_memory_device *mem_device)
 	 */
 	result = add_memory(mem_device->start_addr, mem_device->length);
 	if (result) {
-		ACPI_ERROR((AE_INFO, "add_memory failed"));
+		printk(KERN_ERR PREFIX "add_memory failed\n");
 		mem_device->state = MEMORY_INVALID_STATE;
 		return result;
 	}
@@ -286,14 +286,14 @@ static void acpi_memory_device_notify(acpi_handle handle, u32 event, void *data)
 			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 					  "\nReceived DEVICE CHECK notification for device\n"));
 		if (acpi_memory_get_device(handle, &mem_device)) {
-			ACPI_ERROR((AE_INFO, "Cannot find driver data"));
+			printk(KERN_ERR PREFIX "Cannot find driver data\n");
 			return_VOID;
 		}
 
 		if (!acpi_memory_check_device(mem_device)) {
 			if (acpi_memory_enable_device(mem_device))
-				ACPI_ERROR((AE_INFO,
-					    "Cannot enable memory device"));
+				printk(KERN_ERR PREFIX
+					    "Cannot enable memory device\n");
 		}
 		break;
 	case ACPI_NOTIFY_EJECT_REQUEST:
@@ -301,12 +301,12 @@ static void acpi_memory_device_notify(acpi_handle handle, u32 event, void *data)
 				  "\nReceived EJECT REQUEST notification for device\n"));
 
 		if (acpi_bus_get_device(handle, &device)) {
-			ACPI_ERROR((AE_INFO, "Device doesn't exist"));
+			printk(KERN_ERR PREFIX "Device doesn't exist\n");
 			break;
 		}
 		mem_device = acpi_driver_data(device);
 		if (!mem_device) {
-			ACPI_ERROR((AE_INFO, "Driver Data is NULL"));
+			printk(KERN_ERR PREFIX "Driver Data is NULL\n");
 			break;
 		}
 
@@ -317,8 +317,8 @@ static void acpi_memory_device_notify(acpi_handle handle, u32 event, void *data)
 		 *      with generic sysfs driver
 		 */
 		if (acpi_memory_disable_device(mem_device))
-			ACPI_ERROR((AE_INFO,
-				    "Disable memory device\n"));
+			printk(KERN_ERR PREFIX
+				    "Disable memory device\n");
 		/*
 		 * TBD: Invoke acpi_bus_remove to cleanup data structures
 		 */

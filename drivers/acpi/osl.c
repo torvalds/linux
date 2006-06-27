@@ -591,7 +591,7 @@ static void acpi_os_execute_deferred(void *context)
 
 	dpc = (struct acpi_os_dpc *)context;
 	if (!dpc) {
-		ACPI_ERROR((AE_INFO, "Invalid (NULL) context"));
+		printk(KERN_ERR PREFIX "Invalid (NULL) context\n");
 		return_VOID;
 	}
 

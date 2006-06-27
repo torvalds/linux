@@ -231,9 +231,9 @@ static int acpi_pci_root_add(struct acpi_device *device)
 			int bus = 0;
 			acpi_status status;
 
-			ACPI_ERROR((AE_INFO,
+			printk(KERN_ERR PREFIX
 				    "Wrong _BBN value, reboot"
-				    " and use option 'pci=noacpi'"));
+				    " and use option 'pci=noacpi'\n");
 
 			status = try_get_root_bridge_busnr(root->handle, &bus);
 			if (ACPI_FAILURE(status))
@@ -274,9 +274,9 @@ static int acpi_pci_root_add(struct acpi_device *device)
 	 */
 	root->bus = pci_acpi_scan_root(device, root->id.segment, root->id.bus);
 	if (!root->bus) {
-		ACPI_ERROR((AE_INFO,
-			    "Bus %04x:%02x not present in PCI namespace",
-			    root->id.segment, root->id.bus));
+		printk(KERN_ERR PREFIX
+			    "Bus %04x:%02x not present in PCI namespace\n",
+			    root->id.segment, root->id.bus);
 		result = -ENODEV;
 		goto end;
 	}

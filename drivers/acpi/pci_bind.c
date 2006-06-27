@@ -75,9 +75,9 @@ acpi_status acpi_get_pci_id(acpi_handle handle, struct acpi_pci_id *id)
 
 	result = acpi_bus_get_device(handle, &device);
 	if (result) {
-		ACPI_ERROR((AE_INFO,
-			    "Invalid ACPI Bus context for device %s",
-			    acpi_device_bid(device)));
+		printk(KERN_ERR PREFIX
+			    "Invalid ACPI Bus context for device %s\n",
+			    acpi_device_bid(device));
 		return_ACPI_STATUS(AE_NOT_EXIST);
 	}
 
@@ -206,10 +206,10 @@ int acpi_pci_bind(struct acpi_device *device)
 		goto end;
 	}
 	if (!data->dev->bus) {
-		ACPI_ERROR((AE_INFO,
-			    "Device %02x:%02x:%02x.%02x has invalid 'bus' field",
+		printk(KERN_ERR PREFIX
+			    "Device %02x:%02x:%02x.%02x has invalid 'bus' field\n",
 			    data->id.segment, data->id.bus,
-			    data->id.device, data->id.function));
+			    data->id.device, data->id.function);
 		result = -ENODEV;
 		goto end;
 	}

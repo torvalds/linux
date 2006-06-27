@@ -768,7 +768,7 @@ static ssize_t hotkey_write_config(struct file *file,
 
 	if (copy_from_user(config_record, buffer, count)) {
 		kfree(config_record);
-		ACPI_ERROR((AE_INFO, "Invalid data"));
+		printk(KERN_ERR PREFIX "Invalid data\n");
 		return_VALUE(-EINVAL);
 	}
 	config_record[count] = 0;
@@ -789,7 +789,7 @@ static ssize_t hotkey_write_config(struct file *file,
 		kfree(bus_method);
 		kfree(action_handle);
 		kfree(method);
-		ACPI_ERROR((AE_INFO, "Invalid data format ret=%d", ret));
+		printk(KERN_ERR PREFIX "Invalid data format ret=%d\n", ret);
 		return_VALUE(-EINVAL);
 	}
 
@@ -802,7 +802,7 @@ static ssize_t hotkey_write_config(struct file *file,
 		tmp = get_hotkey_by_event(&global_hotkey_list,
 					  internal_event_num);
 		if (!tmp)
-			ACPI_ERROR((AE_INFO, "Invalid key"));
+			printk(KERN_ERR PREFIX "Invalid key\n");
 		else
 			memcpy(key, tmp, sizeof(union acpi_hotkey));
 		goto cont_cmd;
@@ -824,7 +824,7 @@ static ssize_t hotkey_write_config(struct file *file,
 		else
 			free_poll_hotkey_buffer(key);
 		kfree(key);
-		ACPI_ERROR((AE_INFO, "Invalid hotkey"));
+		printk(KERN_ERR PREFIX "Invalid hotkey\n");
 		return_VALUE(-EINVAL);
 	}
 
@@ -858,7 +858,7 @@ static ssize_t hotkey_write_config(struct file *file,
 	else
 		free_poll_hotkey_buffer(key);
 	kfree(key);
-	ACPI_ERROR((AE_INFO, "invalid key"));
+	printk(KERN_ERR PREFIX "invalid key\n");
 	return_VALUE(-EINVAL);
 }
 
@@ -903,7 +903,7 @@ static int read_acpi_int(acpi_handle handle, const char *method,
 		val->integer.value = out_obj.integer.value;
 		val->type = out_obj.type;
 	} else
-		ACPI_ERROR((AE_INFO, "null val pointer"));
+		printk(KERN_ERR PREFIX "null val pointer\n");
 	return_VALUE((status == AE_OK)
 		     && (out_obj.type == ACPI_TYPE_INTEGER));
 }
@@ -950,14 +950,14 @@ static ssize_t hotkey_execute_aml_method(struct file *file,
 
 	if (copy_from_user(arg, buffer, count)) {
 		kfree(arg);
-		ACPI_ERROR((AE_INFO, "Invalid argument 2"));
+		printk(KERN_ERR PREFIX "Invalid argument 2\n");
 		return_VALUE(-EINVAL);
 	}
 
 	if (sscanf(arg, "%d:%d:%d:%d", &event, &method_type, &type, &value) !=
 	    4) {
 		kfree(arg);
-		ACPI_ERROR((AE_INFO, "Invalid argument 3"));
+		printk(KERN_ERR PREFIX "Invalid argument 3\n");
 		return_VALUE(-EINVAL);
 	}
 	kfree(arg);

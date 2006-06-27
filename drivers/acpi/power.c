@@ -291,7 +291,7 @@ int acpi_enable_wakeup_device_power(struct acpi_device *dev)
 	for (i = 0; i < dev->wakeup.resources.count; i++) {
 		ret = acpi_power_on(dev->wakeup.resources.handles[i]);
 		if (ret) {
-			ACPI_ERROR((AE_INFO, "Transition power state"));
+			printk(KERN_ERR PREFIX "Transition power state\n");
 			dev->wakeup.flags.valid = 0;
 			return_VALUE(-1);
 		}
@@ -300,7 +300,7 @@ int acpi_enable_wakeup_device_power(struct acpi_device *dev)
 	/* Execute PSW */
 	status = acpi_evaluate_object(dev->handle, "_PSW", &arg_list, NULL);
 	if (ACPI_FAILURE(status) && (status != AE_NOT_FOUND)) {
-		ACPI_ERROR((AE_INFO, "Evaluate _PSW"));
+		printk(KERN_ERR PREFIX "Evaluate _PSW\n");
 		dev->wakeup.flags.valid = 0;
 		ret = -1;
 	}
@@ -330,7 +330,7 @@ int acpi_disable_wakeup_device_power(struct acpi_device *dev)
 	/* Execute PSW */
 	status = acpi_evaluate_object(dev->handle, "_PSW", &arg_list, NULL);
 	if (ACPI_FAILURE(status) && (status != AE_NOT_FOUND)) {
-		ACPI_ERROR((AE_INFO, "Evaluate _PSW"));
+		printk(KERN_ERR PREFIX "Evaluate _PSW\n");
 		dev->wakeup.flags.valid = 0;
 		return_VALUE(-1);
 	}
@@ -339,7 +339,7 @@ int acpi_disable_wakeup_device_power(struct acpi_device *dev)
 	for (i = 0; i < dev->wakeup.resources.count; i++) {
 		ret = acpi_power_off_device(dev->wakeup.resources.handles[i]);
 		if (ret) {
-			ACPI_ERROR((AE_INFO, "Transition power state"));
+			printk(KERN_ERR PREFIX "Transition power state\n");
 			dev->wakeup.flags.valid = 0;
 			return_VALUE(-1);
 		}

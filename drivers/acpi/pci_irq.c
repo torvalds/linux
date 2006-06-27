@@ -420,7 +420,7 @@ int acpi_pci_irq_enable(struct pci_dev *dev)
 	pin--;
 
 	if (!dev->bus) {
-		ACPI_ERROR((AE_INFO, "Invalid (NULL) 'bus' field"));
+		printk(KERN_ERR PREFIX "Invalid (NULL) 'bus' field\n");
 		return_VALUE(-ENODEV);
 	}
 

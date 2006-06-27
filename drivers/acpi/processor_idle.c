@@ -674,7 +674,7 @@ static int acpi_processor_get_power_info_cst(struct acpi_processor *pr)
 
 	/* There must be at least 2 elements */
 	if (!cst || (cst->type != ACPI_TYPE_PACKAGE) || cst->package.count < 2) {
-		ACPI_ERROR((AE_INFO, "not enough elements in _CST"));
+		printk(KERN_ERR PREFIX "not enough elements in _CST\n");
 		status = -EFAULT;
 		goto end;
 	}
@@ -683,7 +683,7 @@ static int acpi_processor_get_power_info_cst(struct acpi_processor *pr)
 
 	/* Validate number of power states. */
 	if (count < 1 || count != cst->package.count - 1) {
-		ACPI_ERROR((AE_INFO, "count given by _CST is not valid"));
+		printk(KERN_ERR PREFIX "count given by _CST is not valid\n");
 		status = -EFAULT;
 		goto end;
 	}

@@ -203,7 +203,7 @@ static int acpi_fan_add(struct acpi_device *device)
 
 	result = acpi_bus_get_power(fan->handle, &state);
 	if (result) {
-		ACPI_ERROR((AE_INFO, "Reading power state"));
+		printk(KERN_ERR PREFIX "Reading power state\n");
 		goto end;
 	}
 
