@@ -1030,13 +1030,19 @@ static inline void vm_stat_account(struct mm_struct *mm,
 }
 #endif /* CONFIG_PROC_FS */
 
+static inline void
+debug_check_no_locks_freed(const void *from, unsigned long len)
+{
+	mutex_debug_check_no_locks_freed(from, len);
+}
+
 #ifndef CONFIG_DEBUG_PAGEALLOC
 static inline void
 kernel_map_pages(struct page *page, int numpages, int enable)
 {
 	if (!PageHighMem(page) && !enable)
-		mutex_debug_check_no_locks_freed(page_address(page),
-						 numpages * PAGE_SIZE);
+		debug_check_no_locks_freed(page_address(page),
+					   numpages * PAGE_SIZE);
 }
 #endif
 
