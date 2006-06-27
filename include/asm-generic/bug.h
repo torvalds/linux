@@ -51,4 +51,10 @@
 	__ret;						\
 })
 
+#ifdef CONFIG_SMP
+# define WARN_ON_SMP(x)			WARN_ON(x)
+#else
+# define WARN_ON_SMP(x)			do { } while (0)
+#endif
+
 #endif
