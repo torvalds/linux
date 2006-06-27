@@ -2841,7 +2841,7 @@ e1000_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 			case e1000_82573:
 				pull_size = min((unsigned int)4, skb->data_len);
 				if (!__pskb_pull_tail(skb, pull_size)) {
-					printk(KERN_ERR
+					DPRINTK(DRV, ERR,
 						"__pskb_pull_tail failed.\n");
 					dev_kfree_skb_any(skb);
 					return NETDEV_TX_OK;
