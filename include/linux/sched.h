@@ -84,6 +84,7 @@ struct sched_param {
 #include <asm/processor.h>
 
 struct exec_domain;
+struct futex_pi_state;
 
 /*
  * List of flags we want to share for kernel threads,
@@ -915,6 +916,8 @@ struct task_struct {
 #ifdef CONFIG_COMPAT
 	struct compat_robust_list_head __user *compat_robust_list;
 #endif
+	struct list_head pi_state_list;
+	struct futex_pi_state *pi_state_cache;
 
 	atomic_t fs_excl;	/* holding fs exclusive resources */
 	struct rcu_head rcu;

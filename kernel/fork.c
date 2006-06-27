@@ -1092,6 +1092,9 @@ static task_t *copy_process(unsigned long clone_flags,
 #ifdef CONFIG_COMPAT
 	p->compat_robust_list = NULL;
 #endif
+	INIT_LIST_HEAD(&p->pi_state_list);
+	p->pi_state_cache = NULL;
+
 	/*
 	 * sigaltstack should be cleared when sharing the same VM
 	 */

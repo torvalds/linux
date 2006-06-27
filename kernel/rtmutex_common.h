@@ -112,4 +112,12 @@ static inline unsigned long rt_mutex_owner_pending(struct rt_mutex *lock)
 	return (unsigned long)lock->owner & RT_MUTEX_OWNER_PENDING;
 }
 
+/*
+ * PI-futex support (proxy locking functions, etc.):
+ */
+extern struct task_struct *rt_mutex_next_owner(struct rt_mutex *lock);
+extern void rt_mutex_init_proxy_locked(struct rt_mutex *lock,
+				       struct task_struct *proxy_owner);
+extern void rt_mutex_proxy_unlock(struct rt_mutex *lock,
+				  struct task_struct *proxy_owner);
 #endif
