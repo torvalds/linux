@@ -22,7 +22,7 @@
  * Copyright (c) 2001-2005 Greg Ungerer (gerg@snapgear.com)
  *
  * Bug fixes and cleanup by Philippe De Muyter (phdm@macqel.be)
- * Copyright (c) 2004-2005 Macq Electronique SA.
+ * Copyright (c) 2004-2006 Macq Electronique SA.
  */
 
 #include <linux/config.h>
@@ -2420,9 +2420,16 @@ fec_stop(struct net_device *dev)
 	fep = netdev_priv(dev);
 	fecp = fep->hwp;
 
-	fecp->fec_x_cntrl = 0x01;	/* Graceful transmit stop */
-
-	while(!(fecp->fec_ievent & FEC_ENET_GRA));
+	/*
+	** We cannot expect a graceful transmit stop without link !!!
+	*/
+	if (fep->link)
+		{
+		fecp->fec_x_cntrl = 0x01;	/* Graceful transmit stop */
+		udelay(10);
+		if (!(fecp->fec_ievent & FEC_ENET_GRA))
+			printk("fec_stop : Graceful transmit stop did not complete !\n");
+		}
 
 	/* Whack a reset.  We should wait for this.
 	*/
