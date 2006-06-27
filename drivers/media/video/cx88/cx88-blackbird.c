@@ -686,6 +686,39 @@ static struct videobuf_queue_ops blackbird_qops = {
 
 /* ------------------------------------------------------------------ */
 
+static const u32 *ctrl_classes[] = {
+	cx88_user_ctrls,
+	cx2341x_mpeg_ctrls,
+	NULL
+};
+
+static int blackbird_queryctrl(struct cx8802_dev *dev, struct v4l2_queryctrl *qctrl)
+{
+	qctrl->id = v4l2_ctrl_next(ctrl_classes, qctrl->id);
+	if (qctrl->id == 0)
+		return -EINVAL;
+
+	/* Standard V4L2 controls */
+	if (cx8800_ctrl_query(qctrl) == 0)
+		return 0;
+
+	/* MPEG V4L2 controls */
+	if (cx2341x_ctrl_query(&dev->params, qctrl))
+		qctrl->flags |= V4L2_CTRL_FLAG_DISABLED;
+	return 0;
+}
+
+static int blackbird_querymenu(struct cx8802_dev *dev, struct v4l2_querymenu *qmenu)
+{
+	struct v4l2_queryctrl qctrl;
+
+	qctrl.id = qmenu->id;
+	blackbird_queryctrl(dev, &qctrl);
+	return v4l2_ctrl_query_menu(qmenu, &qctrl, cx2341x_ctrl_get_menu(qmenu->id));
+}
+
+/* ------------------------------------------------------------------ */
+
 static int mpeg_do_ioctl(struct inode *inode, struct file *file,
 			 unsigned int cmd, void *arg)
 {
@@ -865,6 +898,16 @@ static int mpeg_do_ioctl(struct inode *inode, struct file *file,
 		printk("%s/2: =============  END LOG STATUS  =============\n",
 		       core->name);
 		return 0;
+	}
+	case VIDIOC_QUERYMENU:
+		return blackbird_querymenu(dev, arg);
+	case VIDIOC_QUERYCTRL:
+	{
+		struct v4l2_queryctrl *c = arg;
+
+		if (blackbird_queryctrl(dev, c) == 0)
+			return 0;
+		return cx88_do_ioctl(inode, file, 0, dev->core, cmd, arg, mpeg_do_ioctl);
 	}
 
 	default:

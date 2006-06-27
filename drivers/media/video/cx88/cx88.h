@@ -590,6 +590,8 @@ int cx8802_resume_common(struct pci_dev *pci_dev);
 extern int cx88_do_ioctl(struct inode *inode, struct file *file, int radio,
 				struct cx88_core *core, unsigned int cmd,
 				void *arg, v4l2_kioctl driver_ioctl);
+extern const u32 cx88_user_ctrls[];
+extern int cx8800_ctrl_query(struct v4l2_queryctrl *qctrl);
 
 /*
  * Local variables:
