@@ -57,8 +57,7 @@ static int ipmi_init_msghandler(void);
 static int initialized = 0;
 
 #ifdef CONFIG_PROC_FS
-struct proc_dir_entry *proc_ipmi_root = NULL;
-EXPORT_SYMBOL(proc_ipmi_root);
+static struct proc_dir_entry *proc_ipmi_root = NULL;
 #endif /* CONFIG_PROC_FS */
 
 #define MAX_EVENTS_IN_QUEUE	25
