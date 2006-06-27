@@ -168,15 +168,21 @@
  */
 
 #define SCALE_PRIO(x, prio) \
-	max(x * (MAX_PRIO - prio) / (MAX_USER_PRIO/2), MIN_TIMESLICE)
+	max(x * (MAX_PRIO - prio) / (MAX_USER_PRIO / 2), MIN_TIMESLICE)
 
-static unsigned int task_timeslice(task_t *p)
+static unsigned int static_prio_timeslice(int static_prio)
 {
-	if (p->static_prio < NICE_TO_PRIO(0))
-		return SCALE_PRIO(DEF_TIMESLICE*4, p->static_prio);
+	if (static_prio < NICE_TO_PRIO(0))
+		return SCALE_PRIO(DEF_TIMESLICE * 4, static_prio);
 	else
-		return SCALE_PRIO(DEF_TIMESLICE, p->static_prio);
+		return SCALE_PRIO(DEF_TIMESLICE, static_prio);
 }
+
+static inline unsigned int task_timeslice(task_t *p)
+{
+	return static_prio_timeslice(p->static_prio);
+}
+
 #define task_hot(p, now, sd) ((long long) ((now) - (p)->last_ran)	\
 				< (long long) (sd)->cache_hot_time)
 
@@ -207,6 +213,7 @@ struct runqueue {
 	 * remote CPUs use both these fields when doing load calculation.
 	 */
 	unsigned long nr_running;
+	unsigned long raw_weighted_load;
 #ifdef CONFIG_SMP
 	unsigned long cpu_load[3];
 #endif
@@ -662,6 +669,68 @@ static int effective_prio(task_t *p)
 }
 
 /*
+ * To aid in avoiding the subversion of "niceness" due to uneven distribution
+ * of tasks with abnormal "nice" values across CPUs the contribution that
+ * each task makes to its run queue's load is weighted according to its
+ * scheduling class and "nice" value.  For SCHED_NORMAL tasks this is just a
+ * scaled version of the new time slice allocation that they receive on time
+ * slice expiry etc.
+ */
+
+/*
+ * Assume: static_prio_timeslice(NICE_TO_PRIO(0)) == DEF_TIMESLICE
+ * If static_prio_timeslice() is ever changed to break this assumption then
+ * this code will need modification
+ */
+#define TIME_SLICE_NICE_ZERO DEF_TIMESLICE
+#define LOAD_WEIGHT(lp) \
+	(((lp) * SCHED_LOAD_SCALE) / TIME_SLICE_NICE_ZERO)
+#define PRIO_TO_LOAD_WEIGHT(prio) \
+	LOAD_WEIGHT(static_prio_timeslice(prio))
+#define RTPRIO_TO_LOAD_WEIGHT(rp) \
+	(PRIO_TO_LOAD_WEIGHT(MAX_RT_PRIO) + LOAD_WEIGHT(rp))
+
+static void set_load_weight(task_t *p)
+{
+	if (rt_task(p)) {
+#ifdef CONFIG_SMP
+		if (p == task_rq(p)->migration_thread)
+			/*
+			 * The migration thread does the actual balancing.
+			 * Giving its load any weight will skew balancing
+			 * adversely.
+			 */
+			p->load_weight = 0;
+		else
+#endif
+			p->load_weight = RTPRIO_TO_LOAD_WEIGHT(p->rt_priority);
+	} else
+		p->load_weight = PRIO_TO_LOAD_WEIGHT(p->static_prio);
+}
+
+static inline void inc_raw_weighted_load(runqueue_t *rq, const task_t *p)
+{
+	rq->raw_weighted_load += p->load_weight;
+}
+
+static inline void dec_raw_weighted_load(runqueue_t *rq, const task_t *p)
+{
+	rq->raw_weighted_load -= p->load_weight;
+}
+
+static inline void inc_nr_running(task_t *p, runqueue_t *rq)
+{
+	rq->nr_running++;
+	inc_raw_weighted_load(rq, p);
+}
+
+static inline void dec_nr_running(task_t *p, runqueue_t *rq)
+{
+	rq->nr_running--;
+	dec_raw_weighted_load(rq, p);
+}
+
+/*
  * __activate_task - move a task to the runqueue.
  */
 static void __activate_task(task_t *p, runqueue_t *rq)
@@ -671,7 +740,7 @@ static void __activate_task(task_t *p, runqueue_t *rq)
 	if (batch_task(p))
 		target = rq->expired;
 	enqueue_task(p, target);
-	rq->nr_running++;
+	inc_nr_running(p, rq);
 }
 
 /*
@@ -680,7 +749,7 @@ static void __activate_task(task_t *p, runqueue_t *rq)
 static inline void __activate_idle_task(task_t *p, runqueue_t *rq)
 {
 	enqueue_task_head(p, rq->active);
-	rq->nr_running++;
+	inc_nr_running(p, rq);
 }
 
 static int recalc_task_prio(task_t *p, unsigned long long now)
@@ -804,7 +873,7 @@ static void activate_task(task_t *p, runqueue_t *rq, int local)
  */
 static void deactivate_task(struct task_struct *p, runqueue_t *rq)
 {
-	rq->nr_running--;
+	dec_nr_running(p, rq);
 	dequeue_task(p, p->array);
 	p->array = NULL;
 }
@@ -857,6 +926,12 @@ static inline void resched_task(task_t *p)
 inline int task_curr(const task_t *p)
 {
 	return cpu_curr(task_cpu(p)) == p;
+}
+
+/* Used instead of source_load when we know the type == 0 */
+unsigned long weighted_cpuload(const int cpu)
+{
+	return cpu_rq(cpu)->raw_weighted_load;
 }
 
 #ifdef CONFIG_SMP
@@ -948,7 +1023,8 @@ void kick_process(task_t *p)
 }
 
 /*
- * Return a low guess at the load of a migration-source cpu.
+ * Return a low guess at the load of a migration-source cpu weighted
+ * according to the scheduling class and "nice" value.
  *
  * We want to under-estimate the load of migration sources, to
  * balance conservatively.
@@ -956,24 +1032,36 @@ void kick_process(task_t *p)
 static inline unsigned long source_load(int cpu, int type)
 {
 	runqueue_t *rq = cpu_rq(cpu);
-	unsigned long load_now = rq->nr_running * SCHED_LOAD_SCALE;
-	if (type == 0)
-		return load_now;
 
-	return min(rq->cpu_load[type-1], load_now);
+	if (type == 0)
+		return rq->raw_weighted_load;
+
+	return min(rq->cpu_load[type-1], rq->raw_weighted_load);
 }
 
 /*
- * Return a high guess at the load of a migration-target cpu
+ * Return a high guess at the load of a migration-target cpu weighted
+ * according to the scheduling class and "nice" value.
  */
 static inline unsigned long target_load(int cpu, int type)
 {
 	runqueue_t *rq = cpu_rq(cpu);
-	unsigned long load_now = rq->nr_running * SCHED_LOAD_SCALE;
-	if (type == 0)
-		return load_now;
 
-	return max(rq->cpu_load[type-1], load_now);
+	if (type == 0)
+		return rq->raw_weighted_load;
+
+	return max(rq->cpu_load[type-1], rq->raw_weighted_load);
+}
+
+/*
+ * Return the average load per task on the cpu's run queue
+ */
+static inline unsigned long cpu_avg_load_per_task(int cpu)
+{
+	runqueue_t *rq = cpu_rq(cpu);
+	unsigned long n = rq->nr_running;
+
+	return n ?  rq->raw_weighted_load / n : SCHED_LOAD_SCALE;
 }
 
 /*
@@ -1046,7 +1134,7 @@ find_idlest_cpu(struct sched_group *group, struct task_struct *p, int this_cpu)
 	cpus_and(tmp, group->cpumask, p->cpus_allowed);
 
 	for_each_cpu_mask(i, tmp) {
-		load = source_load(i, 0);
+		load = weighted_cpuload(i);
 
 		if (load < min_load || (load == min_load && i == this_cpu)) {
 			min_load = load;
@@ -1226,17 +1314,19 @@ static int try_to_wake_up(task_t *p, unsigned int state, int sync)
 
 		if (this_sd->flags & SD_WAKE_AFFINE) {
 			unsigned long tl = this_load;
+			unsigned long tl_per_task = cpu_avg_load_per_task(this_cpu);
+
 			/*
 			 * If sync wakeup then subtract the (maximum possible)
 			 * effect of the currently running task from the load
 			 * of the current CPU:
 			 */
 			if (sync)
-				tl -= SCHED_LOAD_SCALE;
+				tl -= current->load_weight;
 
 			if ((tl <= load &&
-				tl + target_load(cpu, idx) <= SCHED_LOAD_SCALE) ||
-				100*(tl + SCHED_LOAD_SCALE) <= imbalance*load) {
+				tl + target_load(cpu, idx) <= tl_per_task) ||
+				100*(tl + p->load_weight) <= imbalance*load) {
 				/*
 				 * This domain has SD_WAKE_AFFINE and
 				 * p is cache cold in this domain, and
@@ -1435,7 +1525,7 @@ void fastcall wake_up_new_task(task_t *p, unsigned long clone_flags)
 				list_add_tail(&p->run_list, &current->run_list);
 				p->array = current->array;
 				p->array->nr_active++;
-				rq->nr_running++;
+				inc_nr_running(p, rq);
 			}
 			set_need_resched();
 		} else
@@ -1802,9 +1892,9 @@ void pull_task(runqueue_t *src_rq, prio_array_t *src_array, task_t *p,
 	       runqueue_t *this_rq, prio_array_t *this_array, int this_cpu)
 {
 	dequeue_task(p, src_array);
-	src_rq->nr_running--;
+	dec_nr_running(p, src_rq);
 	set_task_cpu(p, this_cpu);
-	this_rq->nr_running++;
+	inc_nr_running(p, this_rq);
 	enqueue_task(p, this_array);
 	p->timestamp = (p->timestamp - src_rq->timestamp_last_tick)
 				+ this_rq->timestamp_last_tick;
@@ -1852,24 +1942,27 @@ int can_migrate_task(task_t *p, runqueue_t *rq, int this_cpu,
 }
 
 /*
- * move_tasks tries to move up to max_nr_move tasks from busiest to this_rq,
- * as part of a balancing operation within "domain". Returns the number of
- * tasks moved.
+ * move_tasks tries to move up to max_nr_move tasks and max_load_move weighted
+ * load from busiest to this_rq, as part of a balancing operation within
+ * "domain". Returns the number of tasks moved.
  *
  * Called with both runqueues locked.
  */
 static int move_tasks(runqueue_t *this_rq, int this_cpu, runqueue_t *busiest,
-		      unsigned long max_nr_move, struct sched_domain *sd,
-		      enum idle_type idle, int *all_pinned)
+		      unsigned long max_nr_move, unsigned long max_load_move,
+		      struct sched_domain *sd, enum idle_type idle,
+		      int *all_pinned)
 {
 	prio_array_t *array, *dst_array;
 	struct list_head *head, *curr;
 	int idx, pulled = 0, pinned = 0;
+	long rem_load_move;
 	task_t *tmp;
 
-	if (max_nr_move == 0)
+	if (max_nr_move == 0 || max_load_move == 0)
 		goto out;
 
+	rem_load_move = max_load_move;
 	pinned = 1;
 
 	/*
@@ -1910,7 +2003,8 @@ skip_queue:
 
 	curr = curr->prev;
 
-	if (!can_migrate_task(tmp, busiest, this_cpu, sd, idle, &pinned)) {
+	if (tmp->load_weight > rem_load_move ||
+	    !can_migrate_task(tmp, busiest, this_cpu, sd, idle, &pinned)) {
 		if (curr != head)
 			goto skip_queue;
 		idx++;
@@ -1924,9 +2018,13 @@ skip_queue:
 
 	pull_task(busiest, array, tmp, this_rq, dst_array, this_cpu);
 	pulled++;
+	rem_load_move -= tmp->load_weight;
 
-	/* We only want to steal up to the prescribed number of tasks. */
-	if (pulled < max_nr_move) {
+	/*
+	 * We only want to steal up to the prescribed number of tasks
+	 * and the prescribed amount of weighted load.
+	 */
+	if (pulled < max_nr_move && rem_load_move > 0) {
 		if (curr != head)
 			goto skip_queue;
 		idx++;
@@ -1947,7 +2045,7 @@ out:
 
 /*
  * find_busiest_group finds and returns the busiest CPU group within the
- * domain. It calculates and returns the number of tasks which should be
+ * domain. It calculates and returns the amount of weighted load which should be
  * moved to restore balance via the imbalance parameter.
  */
 static struct sched_group *
@@ -1957,9 +2055,13 @@ find_busiest_group(struct sched_domain *sd, int this_cpu,
 	struct sched_group *busiest = NULL, *this = NULL, *group = sd->groups;
 	unsigned long max_load, avg_load, total_load, this_load, total_pwr;
 	unsigned long max_pull;
+	unsigned long busiest_load_per_task, busiest_nr_running;
+	unsigned long this_load_per_task, this_nr_running;
 	int load_idx;
 
 	max_load = this_load = total_load = total_pwr = 0;
+	busiest_load_per_task = busiest_nr_running = 0;
+	this_load_per_task = this_nr_running = 0;
 	if (idle == NOT_IDLE)
 		load_idx = sd->busy_idx;
 	else if (idle == NEWLY_IDLE)
@@ -1971,13 +2073,16 @@ find_busiest_group(struct sched_domain *sd, int this_cpu,
 		unsigned long load;
 		int local_group;
 		int i;
+		unsigned long sum_nr_running, sum_weighted_load;
 
 		local_group = cpu_isset(this_cpu, group->cpumask);
 
 		/* Tally up the load of all CPUs in the group */
-		avg_load = 0;
+		sum_weighted_load = sum_nr_running = avg_load = 0;
 
 		for_each_cpu_mask(i, group->cpumask) {
+			runqueue_t *rq = cpu_rq(i);
+
 			if (*sd_idle && !idle_cpu(i))
 				*sd_idle = 0;
 
@@ -1988,6 +2093,8 @@ find_busiest_group(struct sched_domain *sd, int this_cpu,
 				load = source_load(i, load_idx);
 
 			avg_load += load;
+			sum_nr_running += rq->nr_running;
+			sum_weighted_load += rq->raw_weighted_load;
 		}
 
 		total_load += avg_load;
@@ -1999,14 +2106,19 @@ find_busiest_group(struct sched_domain *sd, int this_cpu,
 		if (local_group) {
 			this_load = avg_load;
 			this = group;
-		} else if (avg_load > max_load) {
+			this_nr_running = sum_nr_running;
+			this_load_per_task = sum_weighted_load;
+		} else if (avg_load > max_load &&
+			   sum_nr_running > group->cpu_power / SCHED_LOAD_SCALE) {
 			max_load = avg_load;
 			busiest = group;
+			busiest_nr_running = sum_nr_running;
+			busiest_load_per_task = sum_weighted_load;
 		}
 		group = group->next;
 	} while (group != sd->groups);
 
-	if (!busiest || this_load >= max_load || max_load <= SCHED_LOAD_SCALE)
+	if (!busiest || this_load >= max_load || busiest_nr_running == 0)
 		goto out_balanced;
 
 	avg_load = (SCHED_LOAD_SCALE * total_load) / total_pwr;
@@ -2015,6 +2127,7 @@ find_busiest_group(struct sched_domain *sd, int this_cpu,
 			100*max_load <= sd->imbalance_pct*this_load)
 		goto out_balanced;
 
+	busiest_load_per_task /= busiest_nr_running;
 	/*
 	 * We're trying to get all the cpus to the average_load, so we don't
 	 * want to push ourselves above the average load, nor do we wish to
@@ -2026,21 +2139,50 @@ find_busiest_group(struct sched_domain *sd, int this_cpu,
 	 * by pulling tasks to us.  Be careful of negative numbers as they'll
 	 * appear as very large values with unsigned longs.
 	 */
+	if (max_load <= busiest_load_per_task)
+		goto out_balanced;
+
+	/*
+	 * In the presence of smp nice balancing, certain scenarios can have
+	 * max load less than avg load(as we skip the groups at or below
+	 * its cpu_power, while calculating max_load..)
+	 */
+	if (max_load < avg_load) {
+		*imbalance = 0;
+		goto small_imbalance;
+	}
 
 	/* Don't want to pull so many tasks that a group would go idle */
-	max_pull = min(max_load - avg_load, max_load - SCHED_LOAD_SCALE);
+	max_pull = min(max_load - avg_load, max_load - busiest_load_per_task);
 
 	/* How much load to actually move to equalise the imbalance */
 	*imbalance = min(max_pull * busiest->cpu_power,
 				(avg_load - this_load) * this->cpu_power)
 			/ SCHED_LOAD_SCALE;
 
-	if (*imbalance < SCHED_LOAD_SCALE) {
-		unsigned long pwr_now = 0, pwr_move = 0;
+	/*
+	 * if *imbalance is less than the average load per runnable task
+	 * there is no gaurantee that any tasks will be moved so we'll have
+	 * a think about bumping its value to force at least one task to be
+	 * moved
+	 */
+	if (*imbalance < busiest_load_per_task) {
+		unsigned long pwr_now, pwr_move;
 		unsigned long tmp;
+		unsigned int imbn;
 
-		if (max_load - this_load >= SCHED_LOAD_SCALE*2) {
-			*imbalance = 1;
+small_imbalance:
+		pwr_move = pwr_now = 0;
+		imbn = 2;
+		if (this_nr_running) {
+			this_load_per_task /= this_nr_running;
+			if (busiest_load_per_task > this_load_per_task)
+				imbn = 1;
+		} else
+			this_load_per_task = SCHED_LOAD_SCALE;
+
+		if (max_load - this_load >= busiest_load_per_task * imbn) {
+			*imbalance = busiest_load_per_task;
 			return busiest;
 		}
 
@@ -2050,35 +2192,34 @@ find_busiest_group(struct sched_domain *sd, int this_cpu,
 		 * moving them.
 		 */
 
-		pwr_now += busiest->cpu_power*min(SCHED_LOAD_SCALE, max_load);
-		pwr_now += this->cpu_power*min(SCHED_LOAD_SCALE, this_load);
+		pwr_now += busiest->cpu_power *
+			min(busiest_load_per_task, max_load);
+		pwr_now += this->cpu_power *
+			min(this_load_per_task, this_load);
 		pwr_now /= SCHED_LOAD_SCALE;
 
 		/* Amount of load we'd subtract */
-		tmp = SCHED_LOAD_SCALE*SCHED_LOAD_SCALE/busiest->cpu_power;
+		tmp = busiest_load_per_task*SCHED_LOAD_SCALE/busiest->cpu_power;
 		if (max_load > tmp)
-			pwr_move += busiest->cpu_power*min(SCHED_LOAD_SCALE,
-							max_load - tmp);
+			pwr_move += busiest->cpu_power *
+				min(busiest_load_per_task, max_load - tmp);
 
 		/* Amount of load we'd add */
 		if (max_load*busiest->cpu_power <
-				SCHED_LOAD_SCALE*SCHED_LOAD_SCALE)
+				busiest_load_per_task*SCHED_LOAD_SCALE)
 			tmp = max_load*busiest->cpu_power/this->cpu_power;
 		else
-			tmp = SCHED_LOAD_SCALE*SCHED_LOAD_SCALE/this->cpu_power;
-		pwr_move += this->cpu_power*min(SCHED_LOAD_SCALE, this_load + tmp);
+			tmp = busiest_load_per_task*SCHED_LOAD_SCALE/this->cpu_power;
+		pwr_move += this->cpu_power*min(this_load_per_task, this_load + tmp);
 		pwr_move /= SCHED_LOAD_SCALE;
 
 		/* Move if we gain throughput */
 		if (pwr_move <= pwr_now)
 			goto out_balanced;
 
-		*imbalance = 1;
-		return busiest;
+		*imbalance = busiest_load_per_task;
 	}
 
-	/* Get rid of the scaling factor, rounding down as we divide */
-	*imbalance = *imbalance / SCHED_LOAD_SCALE;
 	return busiest;
 
 out_balanced:
@@ -2091,18 +2232,21 @@ out_balanced:
  * find_busiest_queue - find the busiest runqueue among the cpus in group.
  */
 static runqueue_t *find_busiest_queue(struct sched_group *group,
-	enum idle_type idle)
+	enum idle_type idle, unsigned long imbalance)
 {
-	unsigned long load, max_load = 0;
-	runqueue_t *busiest = NULL;
+	unsigned long max_load = 0;
+	runqueue_t *busiest = NULL, *rqi;
 	int i;
 
 	for_each_cpu_mask(i, group->cpumask) {
-		load = source_load(i, 0);
+		rqi = cpu_rq(i);
 
-		if (load > max_load) {
-			max_load = load;
-			busiest = cpu_rq(i);
+		if (rqi->nr_running == 1 && rqi->raw_weighted_load > imbalance)
+			continue;
+
+		if (rqi->raw_weighted_load > max_load) {
+			max_load = rqi->raw_weighted_load;
+			busiest = rqi;
 		}
 	}
 
@@ -2115,6 +2259,7 @@ static runqueue_t *find_busiest_queue(struct sched_group *group,
  */
 #define MAX_PINNED_INTERVAL	512
 
+#define minus_1_or_zero(n) ((n) > 0 ? (n) - 1 : 0)
 /*
  * Check this_cpu to ensure it is balanced within domain. Attempt to move
  * tasks if there is an imbalance.
@@ -2142,7 +2287,7 @@ static int load_balance(int this_cpu, runqueue_t *this_rq,
 		goto out_balanced;
 	}
 
-	busiest = find_busiest_queue(group, idle);
+	busiest = find_busiest_queue(group, idle, imbalance);
 	if (!busiest) {
 		schedstat_inc(sd, lb_nobusyq[idle]);
 		goto out_balanced;
@@ -2162,6 +2307,7 @@ static int load_balance(int this_cpu, runqueue_t *this_rq,
 		 */
 		double_rq_lock(this_rq, busiest);
 		nr_moved = move_tasks(this_rq, this_cpu, busiest,
+					minus_1_or_zero(busiest->nr_running),
 					imbalance, sd, idle, &all_pinned);
 		double_rq_unlock(this_rq, busiest);
 
@@ -2265,7 +2411,7 @@ static int load_balance_newidle(int this_cpu, runqueue_t *this_rq,
 		goto out_balanced;
 	}
 
-	busiest = find_busiest_queue(group, NEWLY_IDLE);
+	busiest = find_busiest_queue(group, NEWLY_IDLE, imbalance);
 	if (!busiest) {
 		schedstat_inc(sd, lb_nobusyq[NEWLY_IDLE]);
 		goto out_balanced;
@@ -2280,6 +2426,7 @@ static int load_balance_newidle(int this_cpu, runqueue_t *this_rq,
 		/* Attempt to move tasks */
 		double_lock_balance(this_rq, busiest);
 		nr_moved = move_tasks(this_rq, this_cpu, busiest,
+					minus_1_or_zero(busiest->nr_running),
 					imbalance, sd, NEWLY_IDLE, NULL);
 		spin_unlock(&busiest->lock);
 	}
@@ -2361,7 +2508,8 @@ static void active_load_balance(runqueue_t *busiest_rq, int busiest_cpu)
 
 	schedstat_inc(sd, alb_cnt);
 
-	if (move_tasks(target_rq, target_cpu, busiest_rq, 1, sd, SCHED_IDLE, NULL))
+	if (move_tasks(target_rq, target_cpu, busiest_rq, 1,
+			RTPRIO_TO_LOAD_WEIGHT(100), sd, SCHED_IDLE, NULL))
 		schedstat_inc(sd, alb_pushed);
 	else
 		schedstat_inc(sd, alb_failed);
@@ -2389,7 +2537,7 @@ static void rebalance_tick(int this_cpu, runqueue_t *this_rq,
 	struct sched_domain *sd;
 	int i;
 
-	this_load = this_rq->nr_running * SCHED_LOAD_SCALE;
+	this_load = this_rq->raw_weighted_load;
 	/* Update our load */
 	for (i = 0; i < 3; i++) {
 		unsigned long new_load = this_load;
@@ -3441,17 +3589,21 @@ void set_user_nice(task_t *p, long nice)
 		goto out_unlock;
 	}
 	array = p->array;
-	if (array)
+	if (array) {
 		dequeue_task(p, array);
+		dec_raw_weighted_load(rq, p);
+	}
 
 	old_prio = p->prio;
 	new_prio = NICE_TO_PRIO(nice);
 	delta = new_prio - old_prio;
 	p->static_prio = NICE_TO_PRIO(nice);
+	set_load_weight(p);
 	p->prio += delta;
 
 	if (array) {
 		enqueue_task(p, array);
+		inc_raw_weighted_load(rq, p);
 		/*
 		 * If the task increased its priority or is running and
 		 * lowered its priority, then reschedule its CPU:
@@ -3587,6 +3739,7 @@ static void __setscheduler(struct task_struct *p, int policy, int prio)
 		if (policy == SCHED_BATCH)
 			p->sleep_avg = 0;
 	}
+	set_load_weight(p);
 }
 
 /**
@@ -6106,6 +6259,7 @@ void __init sched_init(void)
 		}
 	}
 
+	set_load_weight(&init_task);
 	/*
 	 * The boot idle thread does lazy MMU switching as well:
 	 */

@@ -123,6 +123,7 @@ extern unsigned long nr_running(void);
 extern unsigned long nr_uninterruptible(void);
 extern unsigned long nr_active(void);
 extern unsigned long nr_iowait(void);
+extern unsigned long weighted_cpuload(const int cpu);
 
 
 /*
@@ -558,9 +559,9 @@ enum idle_type
 /*
  * sched-domains (multiprocessor balancing) declarations:
  */
-#ifdef CONFIG_SMP
 #define SCHED_LOAD_SCALE	128UL	/* increase resolution of load */
 
+#ifdef CONFIG_SMP
 #define SD_LOAD_BALANCE		1	/* Do load balancing on this domain. */
 #define SD_BALANCE_NEWIDLE	2	/* Balance when about to become idle */
 #define SD_BALANCE_EXEC		4	/* Balance on exec */
@@ -713,9 +714,12 @@ struct task_struct {
 
 	int lock_depth;		/* BKL lock depth */
 
-#if defined(CONFIG_SMP) && defined(__ARCH_WANT_UNLOCKED_CTXSW)
+#ifdef CONFIG_SMP
+#ifdef __ARCH_WANT_UNLOCKED_CTXSW
 	int oncpu;
 #endif
+#endif
+	int load_weight;	/* for niceness load balancing purposes */
 	int prio, static_prio;
 	struct list_head run_list;
 	prio_array_t *array;
