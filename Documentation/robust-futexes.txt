@@ -95,7 +95,7 @@ comparison. If the thread has registered a list, then normally the list
 is empty. If the thread/process crashed or terminated in some incorrect
 way then the list might be non-empty: in this case the kernel carefully
 walks the list [not trusting it], and marks all locks that are owned by
-this thread with the FUTEX_OWNER_DEAD bit, and wakes up one waiter (if
+this thread with the FUTEX_OWNER_DIED bit, and wakes up one waiter (if
 any).
 
 The list is guaranteed to be private and per-thread at do_exit() time,
