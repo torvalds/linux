@@ -1610,12 +1610,12 @@ static int nand_do_write_ops(struct mtd_info *mtd, loff_t to,
 	if (!writelen)
 		return 0;
 
+	chipnr = (int)(to >> chip->chip_shift);
+	chip->select_chip(mtd, chipnr);
+
 	/* Check, if it is write protected */
 	if (nand_check_wp(mtd))
 		return -EIO;
-
-	chipnr = (int)(to >> chip->chip_shift);
-	chip->select_chip(mtd, chipnr);
 
 	realpage = (int)(to >> chip->page_shift);
 	page = realpage & chip->pagemask;
