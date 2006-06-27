@@ -4091,8 +4091,10 @@ do_sched_setscheduler(pid_t pid, int policy, struct sched_param __user *param)
 		read_unlock_irq(&tasklist_lock);
 		return -ESRCH;
 	}
-	retval = sched_setscheduler(p, policy, &lparam);
+	get_task_struct(p);
 	read_unlock_irq(&tasklist_lock);
+	retval = sched_setscheduler(p, policy, &lparam);
+	put_task_struct(p);
 	return retval;
 }
 
