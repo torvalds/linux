@@ -903,3 +903,58 @@ void __rt_mutex_init(struct rt_mutex *lock, const char *name)
 	debug_rt_mutex_init(lock, name);
 }
 EXPORT_SYMBOL_GPL(__rt_mutex_init);
+
+/**
+ * rt_mutex_init_proxy_locked - initialize and lock a rt_mutex on behalf of a
+ *				proxy owner
+ *
+ * @lock: 	the rt_mutex to be locked
+ * @proxy_owner:the task to set as owner
+ *
+ * No locking. Caller has to do serializing itself
+ * Special API call for PI-futex support
+ */
+void rt_mutex_init_proxy_locked(struct rt_mutex *lock,
+				struct task_struct *proxy_owner)
+{
+	__rt_mutex_init(lock, NULL);
+	debug_rt_mutex_proxy_lock(lock, proxy_owner __RET_IP__);
+	rt_mutex_set_owner(lock, proxy_owner, 0);
+	rt_mutex_deadlock_account_lock(lock, proxy_owner);
+}
+
+/**
+ * rt_mutex_proxy_unlock - release a lock on behalf of owner
+ *
+ * @lock: 	the rt_mutex to be locked
+ *
+ * No locking. Caller has to do serializing itself
+ * Special API call for PI-futex support
+ */
+void rt_mutex_proxy_unlock(struct rt_mutex *lock,
+			   struct task_struct *proxy_owner)
+{
+	debug_rt_mutex_proxy_unlock(lock);
+	rt_mutex_set_owner(lock, NULL, 0);
+	rt_mutex_deadlock_account_unlock(proxy_owner);
+}
+
+/**
+ * rt_mutex_next_owner - return the next owner of the lock
+ *
+ * @lock: the rt lock query
+ *
+ * Returns the next owner of the lock or NULL
+ *
+ * Caller has to serialize against other accessors to the lock
+ * itself.
+ *
+ * Special API call for PI-futex support
+ */
+struct task_struct *rt_mutex_next_owner(struct rt_mutex *lock)
+{
+	if (!rt_mutex_has_waiters(lock))
+		return NULL;
+
+	return rt_mutex_top_waiter(lock)->task;
+}
