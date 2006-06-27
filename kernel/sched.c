@@ -3862,6 +3862,8 @@ int sched_setscheduler(struct task_struct *p, int policy,
 	unsigned long flags;
 	runqueue_t *rq;
 
+	/* may grab non-irq protected spin_locks */
+	BUG_ON(in_interrupt());
 recheck:
 	/* double check policy once rq lock held */
 	if (policy < 0)
