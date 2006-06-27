@@ -26,7 +26,7 @@ void nsc_gpio_dump(struct nsc_gpio_ops *amp, unsigned index)
 	u32 config = amp->gpio_config(index, ~0, 0);
 
 	/* user requested via 'v' command, so its INFO */
-	dev_info(amp->dev, "io%02u: 0x%04x %s %s %s %s %s %s %s\n",
+	dev_info(amp->dev, "io%02u: 0x%04x %s %s %s %s %s %s %s\tio:%d/%d\n",
 		 index, config,
 		 (config & 1) ? "OE" : "TS",      /* output-enabled/tristate */
 		 (config & 2) ? "PP" : "OD",      /* push pull / open drain */
@@ -34,7 +34,9 @@ void nsc_gpio_dump(struct nsc_gpio_ops *amp, unsigned index)
 		 (config & 8) ? "LOCKED" : "",    /* locked / unlocked */
 		 (config & 16) ? "LEVEL" : "EDGE",/* level/edge input */
 		 (config & 32) ? "HI" : "LO",     /* trigger on rise/fall edge */
-		 (config & 64) ? "DEBOUNCE" : "");        /* debounce */
+		 (config & 64) ? "DEBOUNCE" : "", /* debounce */
+
+		 amp->gpio_get(index), amp->gpio_current(index));
 }
 
 ssize_t nsc_gpio_write(struct file *file, const char __user *data,
