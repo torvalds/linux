@@ -658,8 +658,7 @@ static void audit_log_task_context(struct audit_buffer *ab)
 	return;
 
 error_path:
-	if (ctx)
-		kfree(ctx);
+	kfree(ctx);
 	audit_panic("error in audit_log_task_context");
 	return;
 }
