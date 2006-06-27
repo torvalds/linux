@@ -160,7 +160,8 @@ int max_lock_depth = 1024;
 static int rt_mutex_adjust_prio_chain(task_t *task,
 				      int deadlock_detect,
 				      struct rt_mutex *orig_lock,
-				      struct rt_mutex_waiter *orig_waiter
+				      struct rt_mutex_waiter *orig_waiter,
+				      struct task_struct *top_task
 				      __IP_DECL__)
 {
 	struct rt_mutex *lock;
@@ -189,7 +190,7 @@ static int rt_mutex_adjust_prio_chain(task_t *task,
 			prev_max = max_lock_depth;
 			printk(KERN_WARNING "Maximum lock depth %d reached "
 			       "task: %s (%d)\n", max_lock_depth,
-			       current->comm, current->pid);
+			       top_task->comm, top_task->pid);
 		}
 		put_task_struct(task);
 
@@ -229,7 +230,7 @@ static int rt_mutex_adjust_prio_chain(task_t *task,
 	}
 
 	/* Deadlock detection */
-	if (lock == orig_lock || rt_mutex_owner(lock) == current) {
+	if (lock == orig_lock || rt_mutex_owner(lock) == top_task) {
 		debug_rt_mutex_deadlock(deadlock_detect, orig_waiter, lock);
 		spin_unlock(&lock->wait_lock);
 		ret = deadlock_detect ? -EDEADLK : 0;
@@ -433,6 +434,7 @@ static int task_blocks_on_rt_mutex(struct rt_mutex *lock,
 		__rt_mutex_adjust_prio(owner);
 		if (owner->pi_blocked_on) {
 			boost = 1;
+			/* gets dropped in rt_mutex_adjust_prio_chain()! */
 			get_task_struct(owner);
 		}
 		spin_unlock_irqrestore(&owner->pi_lock, flags);
@@ -441,6 +443,7 @@ static int task_blocks_on_rt_mutex(struct rt_mutex *lock,
 		spin_lock_irqsave(&owner->pi_lock, flags);
 		if (owner->pi_blocked_on) {
 			boost = 1;
+			/* gets dropped in rt_mutex_adjust_prio_chain()! */
 			get_task_struct(owner);
 		}
 		spin_unlock_irqrestore(&owner->pi_lock, flags);
@@ -450,8 +453,8 @@ static int task_blocks_on_rt_mutex(struct rt_mutex *lock,
 
 	spin_unlock(&lock->wait_lock);
 
-	res = rt_mutex_adjust_prio_chain(owner, detect_deadlock, lock,
-					 waiter __IP__);
+	res = rt_mutex_adjust_prio_chain(owner, detect_deadlock, lock, waiter,
+					 current __IP__);
 
 	spin_lock(&lock->wait_lock);
 
@@ -552,6 +555,7 @@ static void remove_waiter(struct rt_mutex *lock,
 
 		if (owner->pi_blocked_on) {
 			boost = 1;
+			/* gets dropped in rt_mutex_adjust_prio_chain()! */
 			get_task_struct(owner);
 		}
 		spin_unlock_irqrestore(&owner->pi_lock, flags);
@@ -564,9 +568,34 @@ static void remove_waiter(struct rt_mutex *lock,
 
 	spin_unlock(&lock->wait_lock);
 
-	rt_mutex_adjust_prio_chain(owner, 0, lock, NULL __IP__);
+	rt_mutex_adjust_prio_chain(owner, 0, lock, NULL, current __IP__);
 
 	spin_lock(&lock->wait_lock);
+}
+
+/*
+ * Recheck the pi chain, in case we got a priority setting
+ *
+ * Called from sched_setscheduler
+ */
+void rt_mutex_adjust_pi(struct task_struct *task)
+{
+	struct rt_mutex_waiter *waiter;
+	unsigned long flags;
+
+	spin_lock_irqsave(&task->pi_lock, flags);
+
+	waiter = task->pi_blocked_on;
+	if (!waiter || waiter->list_entry.prio == task->prio) {
+		spin_unlock_irqrestore(&task->pi_lock, flags);
+		return;
+	}
+
+	/* gets dropped in rt_mutex_adjust_prio_chain()! */
+	get_task_struct(task);
+	spin_unlock_irqrestore(&task->pi_lock, flags);
+
+	rt_mutex_adjust_prio_chain(task, 0, NULL, NULL, task __RET_IP__);
 }
 
 /*
@@ -636,6 +665,7 @@ rt_mutex_slowlock(struct rt_mutex *lock, int state,
 			if (unlikely(ret))
 				break;
 		}
+
 		spin_unlock(&lock->wait_lock);
 
 		debug_rt_mutex_print_deadlock(&waiter);

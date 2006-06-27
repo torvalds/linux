@@ -1044,11 +1044,13 @@ extern void sched_idle_next(void);
 #ifdef CONFIG_RT_MUTEXES
 extern int rt_mutex_getprio(task_t *p);
 extern void rt_mutex_setprio(task_t *p, int prio);
+extern void rt_mutex_adjust_pi(task_t *p);
 #else
 static inline int rt_mutex_getprio(task_t *p)
 {
 	return p->normal_prio;
 }
+# define rt_mutex_adjust_pi(p)		do { } while (0)
 #endif
 
 extern void set_user_nice(task_t *p, long nice);

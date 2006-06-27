@@ -4070,6 +4070,8 @@ recheck:
 	__task_rq_unlock(rq);
 	spin_unlock_irqrestore(&p->pi_lock, flags);
 
+	rt_mutex_adjust_pi(p);
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(sched_setscheduler);
