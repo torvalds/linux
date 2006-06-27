@@ -1955,7 +1955,7 @@ static int move_tasks(runqueue_t *this_rq, int this_cpu, runqueue_t *busiest,
 {
 	prio_array_t *array, *dst_array;
 	struct list_head *head, *curr;
-	int idx, pulled = 0, pinned = 0;
+	int idx, pulled = 0, pinned = 0, this_min_prio;
 	long rem_load_move;
 	task_t *tmp;
 
@@ -1964,6 +1964,7 @@ static int move_tasks(runqueue_t *this_rq, int this_cpu, runqueue_t *busiest,
 
 	rem_load_move = max_load_move;
 	pinned = 1;
+	this_min_prio = this_rq->curr->prio;
 
 	/*
 	 * We first consider expired tasks. Those will likely not be
@@ -2003,7 +2004,12 @@ skip_queue:
 
 	curr = curr->prev;
 
-	if (tmp->load_weight > rem_load_move ||
+	/*
+	 * To help distribute high priority tasks accross CPUs we don't
+	 * skip a task if it will be the highest priority task (i.e. smallest
+	 * prio value) on its new queue regardless of its load weight
+	 */
+	if ((idx >= this_min_prio && tmp->load_weight > rem_load_move) ||
 	    !can_migrate_task(tmp, busiest, this_cpu, sd, idle, &pinned)) {
 		if (curr != head)
 			goto skip_queue;
@@ -2025,6 +2031,8 @@ skip_queue:
 	 * and the prescribed amount of weighted load.
 	 */
 	if (pulled < max_nr_move && rem_load_move > 0) {
+		if (idx < this_min_prio)
+			this_min_prio = idx;
 		if (curr != head)
 			goto skip_queue;
 		idx++;
