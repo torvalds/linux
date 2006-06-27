@@ -1277,7 +1277,18 @@ static int snd_via82xx_pcm_close(struct snd_pcm_substream *substream)
 	if (! ratep->used)
 		ratep->rate = 0;
 	spin_unlock_irq(&ratep->lock);
-
+	if (! ratep->rate) {
+		if (! viadev->direction) {
+			snd_ac97_update_power(chip->ac97,
+					      AC97_PCM_FRONT_DAC_RATE, 0);
+			snd_ac97_update_power(chip->ac97,
+					      AC97_PCM_SURR_DAC_RATE, 0);
+			snd_ac97_update_power(chip->ac97,
+					      AC97_PCM_LFE_DAC_RATE, 0);
+		} else
+			snd_ac97_update_power(chip->ac97,
+					      AC97_PCM_LR_ADC_RATE, 0);
+	}
 	viadev->substream = NULL;
 	return 0;
 }
