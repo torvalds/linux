@@ -5537,6 +5537,44 @@ e1000_setup_led(struct e1000_hw *hw)
 }
 
 /******************************************************************************
+ * Used on 82571 and later Si that has LED blink bits.
+ * Callers must use their own timer and should have already called
+ * e1000_id_led_init()
+ * Call e1000_cleanup led() to stop blinking
+ *
+ * hw - Struct containing variables accessed by shared code
+ *****************************************************************************/
+int32_t
+e1000_blink_led_start(struct e1000_hw *hw)
+{
+    int16_t  i;
+    uint32_t ledctl_blink = 0;
+
+    DEBUGFUNC("e1000_id_led_blink_on");
+
+    if (hw->mac_type < e1000_82571) {
+        /* Nothing to do */
+        return E1000_SUCCESS;
+    }
+    if (hw->media_type == e1000_media_type_fiber) {
+        /* always blink LED0 for PCI-E fiber */
+        ledctl_blink = E1000_LEDCTL_LED0_BLINK |
+                     (E1000_LEDCTL_MODE_LED_ON << E1000_LEDCTL_LED0_MODE_SHIFT);
+    } else {
+        /* set the blink bit for each LED that's "on" (0x0E) in ledctl_mode2 */
+        ledctl_blink = hw->ledctl_mode2;
+        for (i=0; i < 4; i++)
+            if (((hw->ledctl_mode2 >> (i * 8)) & 0xFF) ==
+                E1000_LEDCTL_MODE_LED_ON)
+                ledctl_blink |= (E1000_LEDCTL_LED0_BLINK << (i * 8));
+    }
+
+    E1000_WRITE_REG(hw, LEDCTL, ledctl_blink);
+
+    return E1000_SUCCESS;
+}
+
+/******************************************************************************
  * Restores the saved state of the SW controlable LED.
  *
  * hw - Struct containing variables accessed by shared code

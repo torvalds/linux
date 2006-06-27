@@ -401,6 +401,7 @@ int32_t e1000_setup_led(struct e1000_hw *hw);
 int32_t e1000_cleanup_led(struct e1000_hw *hw);
 int32_t e1000_led_on(struct e1000_hw *hw);
 int32_t e1000_led_off(struct e1000_hw *hw);
+int32_t e1000_blink_led_start(struct e1000_hw *hw);
 
 /* Adaptive IFS Functions */
 
