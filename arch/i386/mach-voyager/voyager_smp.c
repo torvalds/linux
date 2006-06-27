@@ -661,6 +661,7 @@ do_boot_cpu(__u8 cpu)
 		print_cpu_info(&cpu_data[cpu]);
 		wmb();
 		cpu_set(cpu, cpu_callout_map);
+		cpu_set(cpu, cpu_present_map);
 	}
 	else {
 		printk("CPU%d FAILED TO BOOT: ", cpu);
@@ -1912,6 +1913,7 @@ void __devinit smp_prepare_boot_cpu(void)
 	cpu_set(smp_processor_id(), cpu_online_map);
 	cpu_set(smp_processor_id(), cpu_callout_map);
 	cpu_set(smp_processor_id(), cpu_possible_map);
+	cpu_set(smp_processor_id(), cpu_present_map);
 }
 
 int __devinit
