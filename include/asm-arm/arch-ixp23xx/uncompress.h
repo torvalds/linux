@@ -11,7 +11,7 @@
 #ifndef __ASM_ARCH_UNCOMPRESS_H
 #define __ASM_ARCH_UNCOMPRESS_H
 
-#include <asm/hardware.h>
+#include <asm/arch/ixp23xx.h>
 #include <linux/serial_reg.h>
 
 #define UART_BASE	((volatile u32 *)IXP23XX_UART1_PHYS)
