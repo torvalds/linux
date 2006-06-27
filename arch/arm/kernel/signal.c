@@ -132,6 +132,37 @@ sys_sigaction(int sig, const struct old_sigaction __user *act,
 	return ret;
 }
 
+#ifdef CONFIG_CRUNCH
+static int preserve_crunch_context(struct crunch_sigframe *frame)
+{
+	char kbuf[sizeof(*frame) + 8];
+	struct crunch_sigframe *kframe;
+
+	/* the crunch context must be 64 bit aligned */
+	kframe = (struct crunch_sigframe *)((unsigned long)(kbuf + 8) & ~7);
+	kframe->magic = CRUNCH_MAGIC;
+	kframe->size = CRUNCH_STORAGE_SIZE;
+	crunch_task_copy(current_thread_info(), &kframe->storage);
+	return __copy_to_user(frame, kframe, sizeof(*frame));
+}
+
+static int restore_crunch_context(struct crunch_sigframe *frame)
+{
+	char kbuf[sizeof(*frame) + 8];
+	struct crunch_sigframe *kframe;
+
+	/* the crunch context must be 64 bit aligned */
+	kframe = (struct crunch_sigframe *)((unsigned long)(kbuf + 8) & ~7);
+	if (__copy_from_user(kframe, frame, sizeof(*frame)))
+		return -1;
+	if (kframe->magic != CRUNCH_MAGIC ||
+	    kframe->size != CRUNCH_STORAGE_SIZE)
+		return -1;
+	crunch_task_restore(current_thread_info(), &kframe->storage);
+	return 0;
+}
+#endif
+
 #ifdef CONFIG_IWMMXT
 
 static int preserve_iwmmxt_context(struct iwmmxt_sigframe *frame)
@@ -214,6 +245,10 @@ static int restore_sigframe(struct pt_regs *regs, struct sigframe __user *sf)
 	err |= !valid_user_regs(regs);
 
 	aux = (struct aux_sigframe __user *) sf->uc.uc_regspace;
+#ifdef CONFIG_CRUNCH
+	if (err == 0)
+		err |= restore_crunch_context(&aux->crunch);
+#endif
 #ifdef CONFIG_IWMMXT
 	if (err == 0 && test_thread_flag(TIF_USING_IWMMXT))
 		err |= restore_iwmmxt_context(&aux->iwmmxt);
@@ -333,6 +368,10 @@ setup_sigframe(struct sigframe __user *sf, struct pt_regs *regs, sigset_t *set)
 	err |= __copy_to_user(&sf->uc.uc_sigmask, set, sizeof(*set));
 
 	aux = (struct aux_sigframe __user *) sf->uc.uc_regspace;
+#ifdef CONFIG_CRUNCH
+	if (err == 0)
+		err |= preserve_crunch_context(&aux->crunch);
+#endif
 #ifdef CONFIG_IWMMXT
 	if (err == 0 && test_thread_flag(TIF_USING_IWMMXT))
 		err |= preserve_iwmmxt_context(&aux->iwmmxt);
