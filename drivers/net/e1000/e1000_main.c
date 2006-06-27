@@ -1370,11 +1370,11 @@ e1000_configure_tx(struct e1000_adapter *adapter)
 		tdba = adapter->tx_ring[0].dma;
 		tdlen = adapter->tx_ring[0].count *
 			sizeof(struct e1000_tx_desc);
-		E1000_WRITE_REG(hw, TDBAL, (tdba & 0x00000000ffffffffULL));
-		E1000_WRITE_REG(hw, TDBAH, (tdba >> 32));
 		E1000_WRITE_REG(hw, TDLEN, tdlen);
-		E1000_WRITE_REG(hw, TDH, 0);
+		E1000_WRITE_REG(hw, TDBAH, (tdba >> 32));
+		E1000_WRITE_REG(hw, TDBAL, (tdba & 0x00000000ffffffffULL));
 		E1000_WRITE_REG(hw, TDT, 0);
+		E1000_WRITE_REG(hw, TDH, 0);
 		adapter->tx_ring[0].tdh = E1000_TDH;
 		adapter->tx_ring[0].tdt = E1000_TDT;
 		break;
@@ -1780,11 +1780,11 @@ e1000_configure_rx(struct e1000_adapter *adapter)
 	case 1:
 	default:
 		rdba = adapter->rx_ring[0].dma;
-		E1000_WRITE_REG(hw, RDBAL, (rdba & 0x00000000ffffffffULL));
-		E1000_WRITE_REG(hw, RDBAH, (rdba >> 32));
 		E1000_WRITE_REG(hw, RDLEN, rdlen);
-		E1000_WRITE_REG(hw, RDH, 0);
+		E1000_WRITE_REG(hw, RDBAH, (rdba >> 32));
+		E1000_WRITE_REG(hw, RDBAL, (rdba & 0x00000000ffffffffULL));
 		E1000_WRITE_REG(hw, RDT, 0);
+		E1000_WRITE_REG(hw, RDH, 0);
 		adapter->rx_ring[0].rdh = E1000_RDH;
 		adapter->rx_ring[0].rdt = E1000_RDT;
 		break;
@@ -2189,14 +2189,18 @@ e1000_set_multi(struct net_device *netdev)
 			mc_ptr = mc_ptr->next;
 		} else {
 			E1000_WRITE_REG_ARRAY(hw, RA, i << 1, 0);
+			E1000_WRITE_FLUSH(hw);
 			E1000_WRITE_REG_ARRAY(hw, RA, (i << 1) + 1, 0);
+			E1000_WRITE_FLUSH(hw);
 		}
 	}
 
 	/* clear the old settings from the multicast hash table */
 
-	for (i = 0; i < E1000_NUM_MTA_REGISTERS; i++)
+	for (i = 0; i < E1000_NUM_MTA_REGISTERS; i++) {
 		E1000_WRITE_REG_ARRAY(hw, MTA, i, 0);
+		E1000_WRITE_FLUSH(hw);
+	}
 
 	/* load any remaining addresses into the hash table */
 

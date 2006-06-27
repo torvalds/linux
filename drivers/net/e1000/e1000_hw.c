@@ -705,8 +705,12 @@ e1000_init_hw(struct e1000_hw *hw)
     /* Zero out the Multicast HASH table */
     DEBUGOUT("Zeroing the MTA\n");
     mta_size = E1000_MC_TBL_SIZE;
-    for(i = 0; i < mta_size; i++)
+    for(i = 0; i < mta_size; i++) {
         E1000_WRITE_REG_ARRAY(hw, MTA, i, 0);
+        /* use write flush to prevent Memory Write Block (MWB) from
+         * occuring when accessing our register space */
+        E1000_WRITE_FLUSH(hw);
+    }
 
     /* Set the PCI priority bit correctly in the CTRL register.  This
      * determines if the adapter gives priority to receives, or if it
@@ -5106,7 +5110,9 @@ e1000_init_rx_addrs(struct e1000_hw *hw)
     DEBUGOUT("Clearing RAR[1-15]\n");
     for(i = 1; i < rar_num; i++) {
         E1000_WRITE_REG_ARRAY(hw, RA, (i << 1), 0);
+        E1000_WRITE_FLUSH(hw);
         E1000_WRITE_REG_ARRAY(hw, RA, ((i << 1) + 1), 0);
+        E1000_WRITE_FLUSH(hw);
     }
 }
 
@@ -5153,7 +5159,9 @@ e1000_mc_addr_list_update(struct e1000_hw *hw,
 
     for(i = rar_used_count; i < num_rar_entry; i++) {
         E1000_WRITE_REG_ARRAY(hw, RA, (i << 1), 0);
+        E1000_WRITE_FLUSH(hw);
         E1000_WRITE_REG_ARRAY(hw, RA, ((i << 1) + 1), 0);
+        E1000_WRITE_FLUSH(hw);
     }
 
     /* Clear the MTA */
@@ -5161,6 +5169,7 @@ e1000_mc_addr_list_update(struct e1000_hw *hw,
     num_mta_entry = E1000_NUM_MTA_REGISTERS;
     for(i = 0; i < num_mta_entry; i++) {
         E1000_WRITE_REG_ARRAY(hw, MTA, i, 0);
+        E1000_WRITE_FLUSH(hw);
     }
 
     /* Add the new addresses */
@@ -5275,9 +5284,12 @@ e1000_mta_set(struct e1000_hw *hw,
     if((hw->mac_type == e1000_82544) && ((hash_reg & 0x1) == 1)) {
         temp = E1000_READ_REG_ARRAY(hw, MTA, (hash_reg - 1));
         E1000_WRITE_REG_ARRAY(hw, MTA, hash_reg, mta);
+        E1000_WRITE_FLUSH(hw);
         E1000_WRITE_REG_ARRAY(hw, MTA, (hash_reg - 1), temp);
+        E1000_WRITE_FLUSH(hw);
     } else {
         E1000_WRITE_REG_ARRAY(hw, MTA, hash_reg, mta);
+        E1000_WRITE_FLUSH(hw);
     }
 }
 
@@ -5334,7 +5346,9 @@ e1000_rar_set(struct e1000_hw *hw,
     }
 
     E1000_WRITE_REG_ARRAY(hw, RA, (index << 1), rar_low);
+    E1000_WRITE_FLUSH(hw);
     E1000_WRITE_REG_ARRAY(hw, RA, ((index << 1) + 1), rar_high);
+    E1000_WRITE_FLUSH(hw);
 }
 
 /******************************************************************************
@@ -5354,9 +5368,12 @@ e1000_write_vfta(struct e1000_hw *hw,
     if((hw->mac_type == e1000_82544) && ((offset & 0x1) == 1)) {
         temp = E1000_READ_REG_ARRAY(hw, VFTA, (offset - 1));
         E1000_WRITE_REG_ARRAY(hw, VFTA, offset, value);
+        E1000_WRITE_FLUSH(hw);
         E1000_WRITE_REG_ARRAY(hw, VFTA, (offset - 1), temp);
+        E1000_WRITE_FLUSH(hw);
     } else {
         E1000_WRITE_REG_ARRAY(hw, VFTA, offset, value);
+        E1000_WRITE_FLUSH(hw);
     }
 }
 
@@ -5392,6 +5409,7 @@ e1000_clear_vfta(struct e1000_hw *hw)
          * manageability unit */
         vfta_value = (offset == vfta_offset) ? vfta_bit_in_reg : 0;
         E1000_WRITE_REG_ARRAY(hw, VFTA, offset, vfta_value);
+        E1000_WRITE_FLUSH(hw);
     }
 }
 
@@ -6928,8 +6946,10 @@ e1000_mng_write_cmd_header(struct e1000_hw * hw,
 
     length >>= 2;
     /* The device driver writes the relevant command block into the ram area. */
-    for (i = 0; i < length; i++)
+    for (i = 0; i < length; i++) {
         E1000_WRITE_REG_ARRAY_DWORD(hw, HOST_IF, i, *((uint32_t *) hdr + i));
+        E1000_WRITE_FLUSH(hw);
+    }
 
     return E1000_SUCCESS;
 }
