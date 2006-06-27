@@ -339,9 +339,14 @@ config BASE_FULL
 	  kernel data structures. This saves memory on small machines,
 	  but may reduce performance.
 
+config RT_MUTEXES
+	boolean
+	select PLIST
+
 config FUTEX
 	bool "Enable futex support" if EMBEDDED
 	default y
+	select RT_MUTEXES
 	help
 	  Disabling this option will cause the kernel to be built without
 	  support for "fast userspace mutexes".  The resulting kernel may not

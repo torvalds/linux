@@ -73,6 +73,7 @@ struct sched_param {
 #include <linux/seccomp.h>
 #include <linux/rcupdate.h>
 #include <linux/futex.h>
+#include <linux/rtmutex.h>
 
 #include <linux/time.h>
 #include <linux/param.h>
@@ -857,6 +858,17 @@ struct task_struct {
 
 	/* Protection of the PI data structures: */
 	spinlock_t pi_lock;
+
+#ifdef CONFIG_RT_MUTEXES
+	/* PI waiters blocked on a rt_mutex held by this task */
+	struct plist_head pi_waiters;
+	/* Deadlock detection and priority inheritance handling */
+	struct rt_mutex_waiter *pi_blocked_on;
+# ifdef CONFIG_DEBUG_RT_MUTEXES
+	spinlock_t held_list_lock;
+	struct list_head held_list_head;
+# endif
+#endif
 
 #ifdef CONFIG_DEBUG_MUTEXES
 	/* mutex deadlock detection */
