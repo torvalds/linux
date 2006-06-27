@@ -5747,7 +5747,7 @@ static int cpu_to_cpu_group(int cpu)
 
 #ifdef CONFIG_SCHED_MC
 static DEFINE_PER_CPU(struct sched_domain, core_domains);
-static struct sched_group sched_group_core[NR_CPUS];
+static struct sched_group *sched_group_core_bycpu[NR_CPUS];
 #endif
 
 #if defined(CONFIG_SCHED_MC) && defined(CONFIG_SCHED_SMT)
@@ -5763,7 +5763,7 @@ static int cpu_to_core_group(int cpu)
 #endif
 
 static DEFINE_PER_CPU(struct sched_domain, phys_domains);
-static struct sched_group sched_group_phys[NR_CPUS];
+static struct sched_group *sched_group_phys_bycpu[NR_CPUS];
 static int cpu_to_phys_group(int cpu)
 {
 #if defined(CONFIG_SCHED_MC)
@@ -5823,9 +5823,9 @@ next_sg:
 /* Free memory allocated for various sched_group structures */
 static void free_sched_groups(const cpumask_t *cpu_map)
 {
+	int cpu;
 #ifdef CONFIG_NUMA
 	int i;
-	int cpu;
 
 	for_each_cpu_mask(cpu, *cpu_map) {
 		struct sched_group *sched_group_allnodes
@@ -5863,6 +5863,18 @@ next_sg:
 		sched_group_nodes_bycpu[cpu] = NULL;
 	}
 #endif
+	for_each_cpu_mask(cpu, *cpu_map) {
+		if (sched_group_phys_bycpu[cpu]) {
+			kfree(sched_group_phys_bycpu[cpu]);
+			sched_group_phys_bycpu[cpu] = NULL;
+		}
+#ifdef CONFIG_SCHED_MC
+		if (sched_group_core_bycpu[cpu]) {
+			kfree(sched_group_core_bycpu[cpu]);
+			sched_group_core_bycpu[cpu] = NULL;
+		}
+#endif
+	}
 }
 
 /*
@@ -5872,6 +5884,10 @@ next_sg:
 static int build_sched_domains(const cpumask_t *cpu_map)
 {
 	int i;
+	struct sched_group *sched_group_phys = NULL;
+#ifdef CONFIG_SCHED_MC
+	struct sched_group *sched_group_core = NULL;
+#endif
 #ifdef CONFIG_NUMA
 	struct sched_group **sched_group_nodes = NULL;
 	struct sched_group *sched_group_allnodes = NULL;
@@ -5930,6 +5946,18 @@ static int build_sched_domains(const cpumask_t *cpu_map)
 		cpus_and(sd->span, sd->span, *cpu_map);
 #endif
 
+		if (!sched_group_phys) {
+			sched_group_phys
+				= kmalloc(sizeof(struct sched_group) * NR_CPUS,
+					  GFP_KERNEL);
+			if (!sched_group_phys) {
+				printk (KERN_WARNING "Can not alloc phys sched"
+						     "group\n");
+				goto error;
+			}
+			sched_group_phys_bycpu[i] = sched_group_phys;
+		}
+
 		p = sd;
 		sd = &per_cpu(phys_domains, i);
 		group = cpu_to_phys_group(i);
@@ -5939,6 +5967,18 @@ static int build_sched_domains(const cpumask_t *cpu_map)
 		sd->groups = &sched_group_phys[group];
 
 #ifdef CONFIG_SCHED_MC
+		if (!sched_group_core) {
+			sched_group_core
+				= kmalloc(sizeof(struct sched_group) * NR_CPUS,
+					  GFP_KERNEL);
+			if (!sched_group_core) {
+				printk (KERN_WARNING "Can not alloc core sched"
+						     "group\n");
+				goto error;
+			}
+			sched_group_core_bycpu[i] = sched_group_core;
+		}
+
 		p = sd;
 		sd = &per_cpu(core_domains, i);
 		group = cpu_to_core_group(i);
@@ -6134,11 +6174,9 @@ static int build_sched_domains(const cpumask_t *cpu_map)
 
 	return 0;
 
-#ifdef CONFIG_NUMA
 error:
 	free_sched_groups(cpu_map);
 	return -ENOMEM;
-#endif
 }
 /*
  * Set up scheduler domains and groups.  Callers must hold the hotplug lock.
