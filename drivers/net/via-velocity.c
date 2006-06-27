@@ -304,10 +304,9 @@ static struct velocity_info_tbl chip_info_table[] = {
  *	device driver. Used for hotplug autoloading.
  */
 
-static struct pci_device_id velocity_id_table[] __devinitdata = {
-	{PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_612X,
-	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, (unsigned long) chip_info_table},
-	{0, }
+static const struct pci_device_id velocity_id_table[] __devinitdata = {
+	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_612X) },
+	{ }
 };
 
 MODULE_DEVICE_TABLE(pci, velocity_id_table);
@@ -686,21 +685,23 @@ static int __devinit velocity_found1(struct pci_dev *pdev, const struct pci_devi
 	static int first = 1;
 	struct net_device *dev;
 	int i;
-	struct velocity_info_tbl *info = (struct velocity_info_tbl *) ent->driver_data;
+	struct velocity_info_tbl *info = &chip_info_table[ent->driver_data];
 	struct velocity_info *vptr;
 	struct mac_regs __iomem * regs;
 	int ret = -ENOMEM;
 
+	/* FIXME: this driver, like almost all other ethernet drivers,
+	 * can support more than MAX_UNITS.
+	 */
 	if (velocity_nics >= MAX_UNITS) {
-		printk(KERN_NOTICE VELOCITY_NAME ": already found %d NICs.\n", 
-				velocity_nics);
+		dev_printk(KERN_NOTICE, &pdev->dev, "already found %d NICs.\n", 
+			   velocity_nics);
 		return -ENODEV;
 	}
 
 	dev = alloc_etherdev(sizeof(struct velocity_info));
-
-	if (dev == NULL) {
-		printk(KERN_ERR VELOCITY_NAME ": allocate net device failed.\n");
+	if (!dev) {
+		dev_printk(KERN_ERR, &pdev->dev, "allocate net device failed.\n");
 		goto out;
 	}
 	
@@ -731,13 +732,13 @@ static int __devinit velocity_found1(struct pci_dev *pdev, const struct pci_devi
 
 	ret = velocity_get_pci_info(vptr, pdev);
 	if (ret < 0) {
-		printk(KERN_ERR VELOCITY_NAME ": Failed to find PCI device.\n");
+		/* error message already printed */
 		goto err_disable;
 	}
 
 	ret = pci_request_regions(pdev, VELOCITY_NAME);
 	if (ret < 0) {
-		printk(KERN_ERR VELOCITY_NAME ": Failed to find PCI device.\n");
+		dev_printk(KERN_ERR, &pdev->dev, "No PCI resources.\n");
 		goto err_disable;
 	}
 
@@ -883,8 +884,7 @@ static void __devinit velocity_init_info(struct pci_dev *pdev, struct velocity_i
 
 static int __devinit velocity_get_pci_info(struct velocity_info *vptr, struct pci_dev *pdev)
 {
-
-	if(pci_read_config_byte(pdev, PCI_REVISION_ID, &vptr->rev_id) < 0)
+	if (pci_read_config_byte(pdev, PCI_REVISION_ID, &vptr->rev_id) < 0)
 		return -EIO;
 		
 	pci_set_master(pdev);
@@ -892,24 +892,20 @@ static int __devinit velocity_get_pci_info(struct velocity_info *vptr, struct pc
 	vptr->ioaddr = pci_resource_start(pdev, 0);
 	vptr->memaddr = pci_resource_start(pdev, 1);
 	
-	if(!(pci_resource_flags(pdev, 0) & IORESOURCE_IO))
-	{
-		printk(KERN_ERR "%s: region #0 is not an I/O resource, aborting.\n",
-				pci_name(pdev));
+	if (!(pci_resource_flags(pdev, 0) & IORESOURCE_IO)) {
+		dev_printk(KERN_ERR, &pdev->dev,
+			   "region #0 is not an I/O resource, aborting.\n");
 		return -EINVAL;
 	}
 
-	if((pci_resource_flags(pdev, 1) & IORESOURCE_IO))
-	{
-		printk(KERN_ERR "%s: region #1 is an I/O resource, aborting.\n",
-				pci_name(pdev));
+	if ((pci_resource_flags(pdev, 1) & IORESOURCE_IO)) {
+		dev_printk(KERN_ERR, &pdev->dev,
+			   "region #1 is an I/O resource, aborting.\n");
 		return -EINVAL;
 	}
 
-	if(pci_resource_len(pdev, 1) < 256)
-	{
-		printk(KERN_ERR "%s: region #1 is too small.\n", 
-				pci_name(pdev));
+	if (pci_resource_len(pdev, 1) < 256) {
+		dev_printk(KERN_ERR, &pdev->dev, "region #1 is too small.\n");
 		return -EINVAL;
 	}
 	vptr->pdev = pdev;
