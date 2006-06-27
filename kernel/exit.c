@@ -929,6 +929,7 @@ fastcall NORET_TYPE void do_exit(long code)
 	 * If DEBUG_MUTEXES is on, make sure we are holding no locks:
 	 */
 	mutex_debug_check_no_locks_held(tsk);
+	rt_mutex_debug_check_no_locks_held(tsk);
 
 	if (tsk->io_context)
 		exit_io_context();

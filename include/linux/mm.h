@@ -1034,6 +1034,7 @@ static inline void
 debug_check_no_locks_freed(const void *from, unsigned long len)
 {
 	mutex_debug_check_no_locks_freed(from, len);
+	rt_mutex_debug_check_no_locks_freed(from, len);
 }
 
 #ifndef CONFIG_DEBUG_PAGEALLOC

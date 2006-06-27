@@ -107,6 +107,19 @@ config DEBUG_MUTEXES
 	 This allows mutex semantics violations and mutex related deadlocks
 	 (lockups) to be detected and reported automatically.
 
+config DEBUG_RT_MUTEXES
+	bool "RT Mutex debugging, deadlock detection"
+	default y
+	depends on DEBUG_KERNEL && RT_MUTEXES
+	help
+	 This allows rt mutex semantics violations and rt mutex related
+	 deadlocks (lockups) to be detected and reported automatically.
+
+config DEBUG_PI_LIST
+	bool
+	default y
+	depends on DEBUG_RT_MUTEXES
+
 config DEBUG_SPINLOCK
 	bool "Spinlock debugging"
 	depends on DEBUG_KERNEL

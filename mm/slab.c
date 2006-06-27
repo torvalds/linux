@@ -107,6 +107,7 @@
 #include	<linux/nodemask.h>
 #include	<linux/mempolicy.h>
 #include	<linux/mutex.h>
+#include	<linux/rtmutex.h>
 
 #include	<asm/uaccess.h>
 #include	<asm/cacheflush.h>
