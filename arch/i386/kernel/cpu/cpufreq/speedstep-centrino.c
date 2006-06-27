@@ -399,8 +399,14 @@ static int centrino_cpu_init_acpi(struct cpufreq_policy *policy)
 		dprintk(PFX "obtaining ACPI data failed\n");
 		return -EIO;
 	}
-	policy->cpus = p->shared_cpu_map;
 	policy->shared_type = p->shared_type;
+	/*
+	 * Will let policy->cpus know about dependency only when software 
+	 * coordination is required.
+	 */
+	if (policy->shared_type == CPUFREQ_SHARED_TYPE_ALL ||
+	    policy->shared_type == CPUFREQ_SHARED_TYPE_ANY)
+		policy->cpus = p->shared_cpu_map;
 
 	/* verify the acpi_data */
 	if (p->state_count <= 1) {

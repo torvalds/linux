@@ -691,12 +691,12 @@ int acpi_processor_preregister_performance(
 		/* Validate the Domain info */
 		count_target = pdomain->num_processors;
 		count = 1;
-		if (pdomain->coord_type == DOMAIN_COORD_TYPE_SW_ALL ||
-		    pdomain->coord_type == DOMAIN_COORD_TYPE_HW_ALL) {
+		if (pdomain->coord_type == DOMAIN_COORD_TYPE_SW_ALL)
 			pr->performance->shared_type = CPUFREQ_SHARED_TYPE_ALL;
-		} else if (pdomain->coord_type == DOMAIN_COORD_TYPE_SW_ANY) {
+		else if (pdomain->coord_type == DOMAIN_COORD_TYPE_HW_ALL)
+			pr->performance->shared_type = CPUFREQ_SHARED_TYPE_HW;
+		else if (pdomain->coord_type == DOMAIN_COORD_TYPE_SW_ANY)
 			pr->performance->shared_type = CPUFREQ_SHARED_TYPE_ANY;
-		}
 
 		for_each_possible_cpu(j) {
 			if (i == j)
