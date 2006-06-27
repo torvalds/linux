@@ -104,7 +104,7 @@ static int watchdog(void * __bind_cpu)
 /*
  * Create/destroy watchdog threads as CPUs come and go:
  */
-static int
+static int __devinit
 cpu_callback(struct notifier_block *nfb, unsigned long action, void *hcpu)
 {
 	int hotcpu = (unsigned long)hcpu;

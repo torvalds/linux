@@ -572,7 +572,7 @@ static struct file_operations salinfo_data_fops = {
 };
 
 #ifdef	CONFIG_HOTPLUG_CPU
-static int
+static int __devinit
 salinfo_cpu_callback(struct notifier_block *nb, unsigned long action, void *hcpu)
 {
 	unsigned int i, cpu = (unsigned long)hcpu;

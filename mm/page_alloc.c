@@ -2009,7 +2009,7 @@ static inline void free_zone_pagesets(int cpu)
 	}
 }
 
-static int pageset_cpuup_callback(struct notifier_block *nfb,
+static int __cpuinit pageset_cpuup_callback(struct notifier_block *nfb,
 		unsigned long action,
 		void *hcpu)
 {
