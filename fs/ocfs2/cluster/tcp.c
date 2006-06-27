@@ -108,7 +108,7 @@
 	    ##args);							\
 } while (0)
 
-static rwlock_t o2net_handler_lock = RW_LOCK_UNLOCKED;
+static DEFINE_RWLOCK(o2net_handler_lock);
 static struct rb_root o2net_handler_tree = RB_ROOT;
 
 static struct o2net_node o2net_nodes[O2NM_MAX_NODES];

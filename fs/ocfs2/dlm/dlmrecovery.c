@@ -98,8 +98,8 @@ static void dlm_mig_lockres_worker(struct dlm_work_item *item, void *data);
 
 static u64 dlm_get_next_mig_cookie(void);
 
-static spinlock_t dlm_reco_state_lock = SPIN_LOCK_UNLOCKED;
-static spinlock_t dlm_mig_cookie_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(dlm_reco_state_lock);
+static DEFINE_SPINLOCK(dlm_mig_cookie_lock);
 static u64 dlm_mig_cookie = 1;
 
 static u64 dlm_get_next_mig_cookie(void)

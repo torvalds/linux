@@ -26,7 +26,7 @@ static DECLARE_RWSEM(ioc3_devices_rwsem);
 
 static struct ioc3_submodule *ioc3_submodules[IOC3_MAX_SUBMODULES];
 static struct ioc3_submodule *ioc3_ethernet;
-static rwlock_t ioc3_submodules_lock = RW_LOCK_UNLOCKED;
+static DEFINE_RWLOCK(ioc3_submodules_lock);
 
 /* NIC probing code */
 

@@ -89,7 +89,7 @@ struct eerbuffer {
 };
 
 static LIST_HEAD(bufferlist);
-static spinlock_t bufferlock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(bufferlock);
 static DECLARE_WAIT_QUEUE_HEAD(dasd_eer_read_wait_queue);
 
 /*

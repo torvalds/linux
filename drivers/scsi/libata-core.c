@@ -5733,7 +5733,7 @@ module_init(ata_init);
 module_exit(ata_exit);
 
 static unsigned long ratelimit_time;
-static spinlock_t ata_ratelimit_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(ata_ratelimit_lock);
 
 int ata_ratelimit(void)
 {

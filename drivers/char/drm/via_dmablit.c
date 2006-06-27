@@ -557,7 +557,7 @@ via_init_dmablit(drm_device_t *dev)
 		blitq->num_outstanding = 0;
 		blitq->is_active = 0;
 		blitq->aborting = 0;
-		blitq->blit_lock = SPIN_LOCK_UNLOCKED;
+		spin_lock_init(&blitq->blit_lock);
 		for (j=0; j<VIA_NUM_BLIT_SLOTS; ++j) {
 			DRM_INIT_WAITQUEUE(blitq->blit_queue + j);
 		}

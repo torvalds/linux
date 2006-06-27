@@ -101,7 +101,7 @@ struct name_table {
 
 static struct name_table table = { NULL } ;
 static atomic_t rsv_publ_ok = ATOMIC_INIT(0);
-rwlock_t tipc_nametbl_lock = RW_LOCK_UNLOCKED;
+DEFINE_RWLOCK(tipc_nametbl_lock);
 
 
 static int hash(int x)
@@ -172,7 +172,7 @@ static struct name_seq *tipc_nameseq_create(u32 type, struct hlist_head *seq_hea
 	}
 
 	memset(nseq, 0, sizeof(*nseq));
-	nseq->lock = SPIN_LOCK_UNLOCKED;
+	spin_lock_init(&nseq->lock);
 	nseq->type = type;
 	nseq->sseqs = sseq;
 	dbg("tipc_nameseq_create(): nseq = %p, type %u, ssseqs %p, ff: %u\n",

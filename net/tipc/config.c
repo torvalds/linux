@@ -63,7 +63,7 @@ struct manager {
 
 static struct manager mng = { 0};
 
-static spinlock_t config_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(config_lock);
 
 static const void *req_tlv_area;	/* request message TLV area */
 static int req_tlv_space;		/* request message TLV area size */

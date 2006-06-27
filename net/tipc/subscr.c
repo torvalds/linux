@@ -457,7 +457,7 @@ int tipc_subscr_start(void)
 	int res = -1;
 
 	memset(&topsrv, 0, sizeof (topsrv));
-	topsrv.lock = SPIN_LOCK_UNLOCKED;
+	spin_lock_init(&topsrv.lock);
 	INIT_LIST_HEAD(&topsrv.subscriber_list);
 
 	spin_lock_bh(&topsrv.lock);

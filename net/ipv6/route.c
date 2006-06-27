@@ -349,7 +349,7 @@ static struct rt6_info *rt6_select(struct rt6_info **head, int oif,
 	    (strict & RT6_SELECT_F_REACHABLE) &&
 	    last && last != rt0) {
 		/* no entries matched; do round-robin */
-		static spinlock_t lock = SPIN_LOCK_UNLOCKED;
+		static DEFINE_SPINLOCK(lock);
 		spin_lock(&lock);
 		*head = rt0->u.next;
 		rt0->u.next = last->u.next;

@@ -63,7 +63,7 @@
 
 struct ref_table tipc_ref_table = { NULL };
 
-static rwlock_t ref_table_lock = RW_LOCK_UNLOCKED;
+static DEFINE_RWLOCK(ref_table_lock);
 
 /**
  * tipc_ref_table_init - create reference table for objects
@@ -87,7 +87,7 @@ int tipc_ref_table_init(u32 requested_size, u32 start)
 	index_mask = sz - 1;
 	for (i = sz - 1; i >= 0; i--) {
 		table[i].object = NULL;
-		table[i].lock = SPIN_LOCK_UNLOCKED;
+		spin_lock_init(&table[i].lock);
 		table[i].data.next_plus_upper = (start & ~index_mask) + i - 1;
 	}
 	tipc_ref_table.entries = table;

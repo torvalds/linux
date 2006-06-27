@@ -2203,7 +2203,7 @@ void spu_init_csa(struct spu_state *csa)
 
 	memset(lscsa, 0, sizeof(struct spu_lscsa));
 	csa->lscsa = lscsa;
-	csa->register_lock = SPIN_LOCK_UNLOCKED;
+	spin_lock_init(&csa->register_lock);
 
 	/* Set LS pages reserved to allow for user-space mapping. */
 	for (p = lscsa->ls; p < lscsa->ls + LS_SIZE; p += PAGE_SIZE)

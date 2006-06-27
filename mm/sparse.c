@@ -45,7 +45,7 @@ static struct mem_section *sparse_index_alloc(int nid)
 
 static int sparse_index_init(unsigned long section_nr, int nid)
 {
-	static spinlock_t index_init_lock = SPIN_LOCK_UNLOCKED;
+	static DEFINE_SPINLOCK(index_init_lock);
 	unsigned long root = SECTION_NR_TO_ROOT(section_nr);
 	struct mem_section *section;
 	int ret = 0;

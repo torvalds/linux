@@ -49,7 +49,7 @@
 
 #include "buffer_head_io.h"
 
-spinlock_t trans_inc_lock = SPIN_LOCK_UNLOCKED;
+DEFINE_SPINLOCK(trans_inc_lock);
 
 static int ocfs2_force_read_journal(struct inode *inode);
 static int ocfs2_recover_node(struct ocfs2_super *osb,

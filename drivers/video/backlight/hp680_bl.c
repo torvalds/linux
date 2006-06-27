@@ -27,7 +27,7 @@
 
 static int hp680bl_suspended;
 static int current_intensity = 0;
-static spinlock_t bl_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(bl_lock);
 static struct backlight_device *hp680_backlight_device;
 
 static void hp680bl_send_intensity(struct backlight_device *bd)
