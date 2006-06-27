@@ -16,6 +16,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
+#include <linux/mutex.h>
 #include <linux/nsc_gpio.h>
 #include <linux/platform_device.h>
 #include <asm/uaccess.h>
@@ -31,7 +32,7 @@ static int major;		/* default to dynamic major */
 module_param(major, int, 0);
 MODULE_PARM_DESC(major, "Major device number");
 
-static DEFINE_SPINLOCK(pc8736x_gpio_config_lock);
+static DEFINE_MUTEX(pc8736x_gpio_config_lock);
 static unsigned pc8736x_gpio_base;
 static u8 pc8736x_gpio_shadow[4];
 
@@ -119,9 +120,8 @@ static inline u32 pc8736x_gpio_configure_fn(unsigned index, u32 mask, u32 bits,
 					    u32 func_slct)
 {
 	u32 config, new_config;
-	unsigned long flags;
 
-	spin_lock_irqsave(&pc8736x_gpio_config_lock, flags);
+	mutex_lock(&pc8736x_gpio_config_lock);
 
 	device_select(SIO_GPIO_UNIT);
 	select_pin(index);
@@ -133,7 +133,7 @@ static inline u32 pc8736x_gpio_configure_fn(unsigned index, u32 mask, u32 bits,
 	new_config = (config & mask) | bits;
 	superio_outb(func_slct, new_config);
 
-	spin_unlock_irqrestore(&pc8736x_gpio_config_lock, flags);
+	mutex_unlock(&pc8736x_gpio_config_lock);
 
 	return config;
 }

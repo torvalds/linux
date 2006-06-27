@@ -9,6 +9,7 @@
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/mutex.h>
 #include <linux/pci.h>
 
 #include <linux/scx200.h>
@@ -45,7 +46,7 @@ static struct pci_driver scx200_pci_driver = {
 	.probe = scx200_probe,
 };
 
-static DEFINE_SPINLOCK(scx200_gpio_config_lock);
+static DEFINE_MUTEX(scx200_gpio_config_lock);
 
 static void __devinit scx200_init_shadow(void)
 {
@@ -95,9 +96,8 @@ static int __devinit scx200_probe(struct pci_dev *pdev, const struct pci_device_
 u32 scx200_gpio_configure(unsigned index, u32 mask, u32 bits)
 {
 	u32 config, new_config;
-	unsigned long flags;
 
-	spin_lock_irqsave(&scx200_gpio_config_lock, flags);
+	mutex_lock(&scx200_gpio_config_lock);
 
 	outl(index, scx200_gpio_base + 0x20);
 	config = inl(scx200_gpio_base + 0x24);
@@ -105,7 +105,7 @@ u32 scx200_gpio_configure(unsigned index, u32 mask, u32 bits)
 	new_config = (config & mask) | bits;
 	outl(new_config, scx200_gpio_base + 0x24);
 
-	spin_unlock_irqrestore(&scx200_gpio_config_lock, flags);
+	mutex_unlock(&scx200_gpio_config_lock);
 
 	return config;
 }
