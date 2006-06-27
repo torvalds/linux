@@ -31,10 +31,10 @@ struct cpu {
 	struct sys_device sysdev;
 };
 
-extern int register_cpu(struct cpu *, int, struct node *);
+extern int register_cpu(struct cpu *cpu, int num);
 extern struct sys_device *get_cpu_sysdev(unsigned cpu);
 #ifdef CONFIG_HOTPLUG_CPU
-extern void unregister_cpu(struct cpu *, struct node *);
+extern void unregister_cpu(struct cpu *cpu);
 #endif
 struct notifier_block;
 

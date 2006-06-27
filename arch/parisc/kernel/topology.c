@@ -26,11 +26,10 @@ static struct cpu cpu_devices[NR_CPUS] __read_mostly;
 
 static int __init topology_init(void)
 {
-	struct node *parent = NULL;
 	int num;
 
 	for_each_present_cpu(num) {
-		register_cpu(&cpu_devices[num], num, parent);
+		register_cpu(&cpu_devices[num], num);
 	}
 	return 0;
 }

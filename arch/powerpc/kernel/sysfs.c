@@ -348,23 +348,13 @@ static SYSDEV_ATTR(physical_id, 0444, show_physical_id, NULL);
 static int __init topology_init(void)
 {
 	int cpu;
-	struct node *parent = NULL;
 
 	register_nodes();
-
 	register_cpu_notifier(&sysfs_cpu_nb);
 
 	for_each_possible_cpu(cpu) {
 		struct cpu *c = &per_cpu(cpu_devices, cpu);
 
-#ifdef CONFIG_NUMA
-		/* The node to which a cpu belongs can't be known
-		 * until the cpu is made present.
-		 */
-		parent = NULL;
-		if (cpu_present(cpu))
-			parent = &node_devices[cpu_to_node(cpu)];
-#endif
 		/*
 		 * For now, we just see if the system supports making
 		 * the RTAS calls for CPU hotplug.  But, there may be a
@@ -376,7 +366,7 @@ static int __init topology_init(void)
 			c->no_control = 1;
 
 		if (cpu_online(cpu) || (c->no_control == 0)) {
-			register_cpu(c, cpu, parent);
+			register_cpu(c, cpu);
 
 			sysdev_create_file(&c->sysdev, &attr_physical_id);
 		}

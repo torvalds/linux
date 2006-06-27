@@ -275,7 +275,7 @@ static int __init topology_init(void)
 	int i;
 
 	for_each_present_cpu(i)
-		register_cpu(&cpu_devices[i], i, NULL);
+		register_cpu(&cpu_devices[i], i);
 
 	return 0;
 }

@@ -30,12 +30,6 @@ static struct ia64_cpu *sysfs_cpus;
 
 int arch_register_cpu(int num)
 {
-	struct node *parent = NULL;
-	
-#ifdef CONFIG_NUMA
-	parent = &node_devices[cpu_to_node(num)];
-#endif /* CONFIG_NUMA */
-
 #if defined (CONFIG_ACPI) && defined (CONFIG_HOTPLUG_CPU)
 	/*
 	 * If CPEI cannot be re-targetted, and this is
@@ -45,21 +39,14 @@ int arch_register_cpu(int num)
 		sysfs_cpus[num].cpu.no_control = 1;
 #endif
 
-	return register_cpu(&sysfs_cpus[num].cpu, num, parent);
+	return register_cpu(&sysfs_cpus[num].cpu, num);
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
 
 void arch_unregister_cpu(int num)
 {
-	struct node *parent = NULL;
-
-#ifdef CONFIG_NUMA
-	int node = cpu_to_node(num);
-	parent = &node_devices[node];
-#endif /* CONFIG_NUMA */
-
-	return unregister_cpu(&sysfs_cpus[num].cpu, parent);
+	return unregister_cpu(&sysfs_cpus[num].cpu);
 }
 EXPORT_SYMBOL(arch_register_cpu);
 EXPORT_SYMBOL(arch_unregister_cpu);

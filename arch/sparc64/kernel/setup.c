@@ -537,7 +537,7 @@ static int __init topology_init(void)
 	for_each_possible_cpu(i) {
 		struct cpu *p = kzalloc(sizeof(*p), GFP_KERNEL);
 		if (p) {
-			register_cpu(p, i, NULL);
+			register_cpu(p, i);
 			err = 0;
 		}
 	}
