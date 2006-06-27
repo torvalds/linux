@@ -87,7 +87,7 @@ static int __devinit scx200_probe(struct pci_dev *pdev, const struct pci_device_
 	return 0;
 }
 
-u32 scx200_gpio_configure(int index, u32 mask, u32 bits)
+u32 scx200_gpio_configure(unsigned index, u32 mask, u32 bits)
 {
 	u32 config, new_config;
 	unsigned long flags;
