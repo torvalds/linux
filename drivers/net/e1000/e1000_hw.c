@@ -1565,28 +1565,40 @@ e1000_copper_link_mgp_setup(struct e1000_hw *hw)
     phy_data &= ~M88E1000_PSCR_POLARITY_REVERSAL;
     if(hw->disable_polarity_correction == 1)
         phy_data |= M88E1000_PSCR_POLARITY_REVERSAL;
-        ret_val = e1000_write_phy_reg(hw, M88E1000_PHY_SPEC_CTRL, phy_data);
-        if(ret_val)
-            return ret_val;
-
-    /* Force TX_CLK in the Extended PHY Specific Control Register
-     * to 25MHz clock.
-     */
-    ret_val = e1000_read_phy_reg(hw, M88E1000_EXT_PHY_SPEC_CTRL, &phy_data);
-    if(ret_val)
+    ret_val = e1000_write_phy_reg(hw, M88E1000_PHY_SPEC_CTRL, phy_data);
+    if (ret_val)
         return ret_val;
 
-    phy_data |= M88E1000_EPSCR_TX_CLK_25;
-
     if (hw->phy_revision < M88E1011_I_REV_4) {
-        /* Configure Master and Slave downshift values */
-        phy_data &= ~(M88E1000_EPSCR_MASTER_DOWNSHIFT_MASK |
-                              M88E1000_EPSCR_SLAVE_DOWNSHIFT_MASK);
-        phy_data |= (M88E1000_EPSCR_MASTER_DOWNSHIFT_1X |
-                             M88E1000_EPSCR_SLAVE_DOWNSHIFT_1X);
-        ret_val = e1000_write_phy_reg(hw, M88E1000_EXT_PHY_SPEC_CTRL, phy_data);
-        if(ret_val)
+        /* Force TX_CLK in the Extended PHY Specific Control Register
+         * to 25MHz clock.
+         */
+        ret_val = e1000_read_phy_reg(hw, M88E1000_EXT_PHY_SPEC_CTRL, &phy_data);
+        if (ret_val)
             return ret_val;
+
+        phy_data |= M88E1000_EPSCR_TX_CLK_25;
+
+        if ((hw->phy_revision == E1000_REVISION_2) &&
+            (hw->phy_id == M88E1111_I_PHY_ID)) {
+            /* Vidalia Phy, set the downshift counter to 5x */
+            phy_data &= ~(M88EC018_EPSCR_DOWNSHIFT_COUNTER_MASK);
+            phy_data |= M88EC018_EPSCR_DOWNSHIFT_COUNTER_5X;
+            ret_val = e1000_write_phy_reg(hw,
+                                        M88E1000_EXT_PHY_SPEC_CTRL, phy_data);
+            if (ret_val)
+                return ret_val;
+        } else {
+            /* Configure Master and Slave downshift values */
+            phy_data &= ~(M88E1000_EPSCR_MASTER_DOWNSHIFT_MASK |
+                              M88E1000_EPSCR_SLAVE_DOWNSHIFT_MASK);
+            phy_data |= (M88E1000_EPSCR_MASTER_DOWNSHIFT_1X |
+                             M88E1000_EPSCR_SLAVE_DOWNSHIFT_1X);
+            ret_val = e1000_write_phy_reg(hw,
+                                        M88E1000_EXT_PHY_SPEC_CTRL, phy_data);
+            if (ret_val)
+               return ret_val;
+        }
     }
 
     /* SW Reset the PHY so all changes take effect */
