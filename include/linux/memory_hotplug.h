@@ -63,6 +63,16 @@ extern int online_pages(unsigned long, unsigned long);
 /* reasonably generic interface to expand the physical pages in a zone  */
 extern int __add_pages(struct zone *zone, unsigned long start_pfn,
 	unsigned long nr_pages);
+
+#ifdef CONFIG_NUMA
+extern int memory_add_physaddr_to_nid(u64 start);
+#else
+static inline int memory_add_physaddr_to_nid(u64 start)
+{
+	return 0;
+}
+#endif
+
 #else /* ! CONFIG_MEMORY_HOTPLUG */
 /*
  * Stub functions for when hotplug is off
@@ -99,7 +109,8 @@ static inline int __remove_pages(struct zone *zone, unsigned long start_pfn,
 	return -ENOSYS;
 }
 
-extern int add_memory(u64 start, u64 size);
+extern int add_memory(int nid, u64 start, u64 size);
+extern int arch_add_memory(int nid, u64 start, u64 size);
 extern int remove_memory(u64 start, u64 size);
 
 #endif /* __LINUX_MEMORY_HOTPLUG_H */

@@ -163,3 +163,14 @@ int online_pages(unsigned long pfn, unsigned long nr_pages)
 	vm_total_pages = nr_free_pagecache_pages();
 	return 0;
 }
+
+int add_memory(int nid, u64 start, u64 size)
+{
+	int ret;
+
+	/* call arch's memory hotadd */
+	ret = arch_add_memory(nid, start, size);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(add_memory);

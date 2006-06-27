@@ -215,6 +215,7 @@ static int acpi_memory_enable_device(struct acpi_memory_device *mem_device)
 {
 	int result, num_enabled = 0;
 	struct acpi_memory_info *info;
+	int node = 0;
 
 	ACPI_FUNCTION_TRACE("acpi_memory_enable_device");
 
@@ -245,7 +246,7 @@ static int acpi_memory_enable_device(struct acpi_memory_device *mem_device)
 			continue;
 		}
 
-		result = add_memory(info->start_addr, info->length);
+		result = add_memory(node, info->start_addr, info->length);
 		if (result)
 			continue;
 		info->enabled = 1;
