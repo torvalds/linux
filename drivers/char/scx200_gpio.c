@@ -14,6 +14,9 @@
 #include <asm/uaccess.h>
 #include <asm/io.h>
 
+#include <linux/types.h>
+#include <linux/cdev.h>
+
 #include <linux/scx200_gpio.h>
 
 #define NAME "scx200_gpio"
@@ -25,6 +28,8 @@ MODULE_LICENSE("GPL");
 static int major = 0;		/* default to dynamic major */
 module_param(major, int, 0);
 MODULE_PARM_DESC(major, "Major device number");
+
+extern void scx200_gpio_dump(unsigned index);
 
 static ssize_t scx200_gpio_write(struct file *file, const char __user *data,
 				 size_t len, loff_t *ppos)
@@ -108,33 +113,57 @@ static struct file_operations scx200_gpio_fops = {
 	.release = scx200_gpio_release,
 };
 
+struct cdev *scx200_devices;
+int num_devs = 32;
+
 static int __init scx200_gpio_init(void)
 {
-	int r;
+	int rc, i;
+	dev_t dev = MKDEV(major, 0);
 
 	printk(KERN_DEBUG NAME ": NatSemi SCx200 GPIO Driver\n");
 
 	if (!scx200_gpio_present()) {
-		printk(KERN_ERR NAME ": no SCx200 gpio pins available\n");
+		printk(KERN_ERR NAME ": no SCx200 gpio present\n");
 		return -ENODEV;
 	}
-
-	r = register_chrdev(major, NAME, &scx200_gpio_fops);
-	if (r < 0) {
-		printk(KERN_ERR NAME ": unable to register character device\n");
-		return r;
+	if (major)
+		rc = register_chrdev_region(dev, num_devs, "scx200_gpio");
+	else {
+		rc = alloc_chrdev_region(&dev, 0, num_devs, "scx200_gpio");
+		major = MAJOR(dev);
 	}
-	if (!major) {
-		major = r;
-		printk(KERN_DEBUG NAME ": got dynamic major %d\n", major);
+	if (rc < 0) {
+		printk(KERN_ERR NAME ": SCx200 chrdev_region: %d\n", rc);
+		return rc;
+	}
+	scx200_devices = kzalloc(num_devs * sizeof(struct cdev), GFP_KERNEL);
+	if (!scx200_devices) {
+		rc = -ENOMEM;
+		goto fail_malloc;
+	}
+	for (i = 0; i < num_devs; i++) {
+		struct cdev *cdev = &scx200_devices[i];
+		cdev_init(cdev, &scx200_gpio_fops);
+		cdev->owner = THIS_MODULE;
+		cdev->ops = &scx200_gpio_fops;
+		rc = cdev_add(cdev, MKDEV(major, i), 1);
+		/* Fail gracefully if need be */
+		if (rc)
+			printk(KERN_ERR NAME "Error %d on minor %d", rc, i);
 	}
 
-	return 0;
+	return 0;		/* succeed */
+
+fail_malloc:
+	unregister_chrdev_region(dev, num_devs);
+	return rc;
 }
 
 static void __exit scx200_gpio_cleanup(void)
 {
-	unregister_chrdev(major, NAME);
+	kfree(scx200_devices);
+	unregister_chrdev_region(MKDEV(major, 0), num_devs);
 }
 
 module_init(scx200_gpio_init);
