@@ -226,7 +226,6 @@ static int full_duplex[MAX_UNITS];
 				 NATSEMI_PG1_NREGS)
 #define NATSEMI_REGS_VER	1 /* v1 added RFDR registers */
 #define NATSEMI_REGS_SIZE	(NATSEMI_NREGS * sizeof(u32))
-#define NATSEMI_DEF_EEPROM_SIZE	24 /* 12 16-bit values */
 
 /* Buffer sizes:
  * The nic writes 32-bit values, even if the upper bytes of
@@ -344,18 +343,6 @@ None characterised.
 
 
 
-enum pcistuff {
-	PCI_USES_IO = 0x01,
-	PCI_USES_MEM = 0x02,
-	PCI_USES_MASTER = 0x04,
-	PCI_ADDR0 = 0x08,
-	PCI_ADDR1 = 0x10,
-};
-
-/* MMIO operations required */
-#define PCI_IOTYPE (PCI_USES_MASTER | PCI_USES_MEM | PCI_ADDR1)
-
-
 /*
  * Support for fibre connections on Am79C874:
  * This phy needs a special setup when connected to a fibre cable.
@@ -363,22 +350,25 @@ enum pcistuff {
  */
 #define PHYID_AM79C874	0x0022561b
 
-#define MII_MCTRL	0x15	/* mode control register */
-#define MII_FX_SEL	0x0001	/* 100BASE-FX (fiber) */
-#define MII_EN_SCRM	0x0004	/* enable scrambler (tp) */
+enum {
+	MII_MCTRL	= 0x15,		/* mode control register */
+	MII_FX_SEL	= 0x0001,	/* 100BASE-FX (fiber) */
+	MII_EN_SCRM	= 0x0004,	/* enable scrambler (tp) */
+};
 
  
 /* array of board data directly indexed by pci_tbl[x].driver_data */
 static const struct {
 	const char *name;
 	unsigned long flags;
+	unsigned int eeprom_size;
 } natsemi_pci_info[] __devinitdata = {
-	{ "NatSemi DP8381[56]", PCI_IOTYPE },
+	{ "NatSemi DP8381[56]", 0, 24 },
 };
 
-static struct pci_device_id natsemi_pci_tbl[] = {
-	{ PCI_VENDOR_ID_NS, PCI_DEVICE_ID_NS_83815, PCI_ANY_ID, PCI_ANY_ID, },
-	{ 0, },
+static const struct pci_device_id natsemi_pci_tbl[] __devinitdata = {
+	{ PCI_VENDOR_ID_NS, 0x0020, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ }	/* terminate list */
 };
 MODULE_DEVICE_TABLE(pci, natsemi_pci_tbl);
 
@@ -888,8 +878,7 @@ static int __devinit natsemi_probe1 (struct pci_dev *pdev,
 	iosize = pci_resource_len(pdev, pcibar);
 	irq = pdev->irq;
 
-	if (natsemi_pci_info[chip_idx].flags & PCI_USES_MASTER)
-		pci_set_master(pdev);
+	pci_set_master(pdev);
 
 	dev = alloc_etherdev(sizeof (struct netdev_private));
 	if (!dev)
@@ -928,7 +917,7 @@ static int __devinit natsemi_probe1 (struct pci_dev *pdev,
 	np->msg_enable = (debug >= 0) ? (1<<debug)-1 : NATSEMI_DEF_MSG;
 	np->hands_off = 0;
 	np->intr_status = 0;
-	np->eeprom_size = NATSEMI_DEF_EEPROM_SIZE;
+	np->eeprom_size = natsemi_pci_info[chip_idx].eeprom_size;
 
 	/* Initial port:
 	 * - If the nic was configured to use an external phy and if find_mii
