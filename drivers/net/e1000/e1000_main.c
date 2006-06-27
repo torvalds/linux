@@ -607,6 +607,21 @@ e1000_reset(struct e1000_adapter *adapter)
 
 	e1000_reset_adaptive(&adapter->hw);
 	e1000_phy_get_info(&adapter->hw, &adapter->phy_info);
+
+	if (!adapter->smart_power_down &&
+	    (adapter->hw.mac_type == e1000_82571 ||
+	     adapter->hw.mac_type == e1000_82572)) {
+		uint16_t phy_data = 0;
+		/* speed up time to link by disabling smart power down, ignore
+		 * the return value of this function because there is nothing
+		 * different we would do if it failed */
+		e1000_read_phy_reg(&adapter->hw, IGP02E1000_PHY_POWER_MGMT,
+		                   &phy_data);
+		phy_data &= ~IGP02E1000_PM_SPD;
+		e1000_write_phy_reg(&adapter->hw, IGP02E1000_PHY_POWER_MGMT,
+		                    phy_data);
+	}
+
 	if (adapter->en_mng_pt) {
 		manc = E1000_READ_REG(&adapter->hw, MANC);
 		manc |= (E1000_MANC_ARP_EN | E1000_MANC_EN_MNG2HOST);

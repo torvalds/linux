@@ -183,6 +183,15 @@ E1000_PARAM(RxAbsIntDelay, "Receive Absolute Interrupt Delay");
 
 E1000_PARAM(InterruptThrottleRate, "Interrupt Throttling Rate");
 
+/* Enable Smart Power Down of the PHY
+ *
+ * Valid Range: 0, 1
+ *
+ * Default Value: 0 (disabled)
+ */
+
+E1000_PARAM(SmartPowerDownEnable, "Enable PHY smart power down");
+
 #define AUTONEG_ADV_DEFAULT  0x2F
 #define AUTONEG_ADV_MASK     0x2F
 #define FLOW_CONTROL_DEFAULT FLOW_CONTROL_FULL
@@ -492,6 +501,22 @@ e1000_check_options(struct e1000_adapter *adapter)
 			}
 		} else {
 			adapter->itr = opt.def;
+		}
+	}
+	{ /* Smart Power Down */
+		struct e1000_option opt = {
+			.type = enable_option,
+			.name = "PHY Smart Power Down",
+			.err  = "defaulting to Disabled",
+			.def  = OPTION_DISABLED
+		};
+
+		if (num_SmartPowerDownEnable > bd) {
+			int spd = SmartPowerDownEnable[bd];
+			e1000_validate_option(&spd, &opt, adapter);
+			adapter->smart_power_down = spd;
+		} else {
+			adapter->smart_power_down = opt.def;
 		}
 	}
 

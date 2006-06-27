@@ -338,6 +338,7 @@ struct e1000_adapter {
 #ifdef NETIF_F_TSO
 	boolean_t tso_force;
 #endif
+	boolean_t smart_power_down;	/* phy smart power down */
 	unsigned long flags;
 };
 
