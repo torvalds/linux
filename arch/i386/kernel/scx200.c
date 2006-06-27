@@ -110,21 +110,6 @@ u32 scx200_gpio_configure(unsigned index, u32 mask, u32 bits)
 	return config;
 }
 
-void scx200_gpio_dump(unsigned index)
-{
-        u32 config = scx200_gpio_configure(index, ~0, 0);
-
-        printk(KERN_INFO NAME ": GPIO-%02u: 0x%08lx %s %s %s %s %s %s %s\n",
-               index, (unsigned long) config,
-               (config & 1) ? "OE"      : "TS",		/* output enabled / tristate */
-               (config & 2) ? "PP"      : "OD",		/* push pull / open drain */
-               (config & 4) ? "PUE"     : "PUD",	/* pull up enabled/disabled */
-               (config & 8) ? "LOCKED"  : "",		/* locked / unlocked */
-               (config & 16) ? "LEVEL"  : "EDGE",	/* level/edge input */
-               (config & 32) ? "HI"     : "LO",		/* trigger on rising/falling edge */
-               (config & 64) ? "DEBOUNCE" : "");	/* debounce */
-}
-
 static int __init scx200_init(void)
 {
 	printk(KERN_INFO NAME ": NatSemi SCx200 Driver\n");
@@ -144,5 +129,4 @@ module_exit(scx200_cleanup);
 EXPORT_SYMBOL(scx200_gpio_base);
 EXPORT_SYMBOL(scx200_gpio_shadow);
 EXPORT_SYMBOL(scx200_gpio_configure);
-EXPORT_SYMBOL(scx200_gpio_dump);
 EXPORT_SYMBOL(scx200_cb_base);

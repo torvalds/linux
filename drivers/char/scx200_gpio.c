@@ -35,7 +35,7 @@ static int major = 0;		/* default to dynamic major */
 module_param(major, int, 0);
 MODULE_PARM_DESC(major, "Major device number");
 
-extern void scx200_gpio_dump(unsigned index);
+extern void nsc_gpio_dump(unsigned index);
 
 extern ssize_t nsc_gpio_write(struct file *file, const char __user *data,
 			      size_t len, loff_t *ppos);
@@ -46,7 +46,7 @@ extern ssize_t nsc_gpio_read(struct file *file, char __user *buf,
 struct nsc_gpio_ops scx200_access = {
 	.owner		= THIS_MODULE,
 	.gpio_config	= scx200_gpio_configure,
-	.gpio_dump	= scx200_gpio_dump,
+	.gpio_dump	= nsc_gpio_dump,
 	.gpio_get	= scx200_gpio_get,
 	.gpio_set	= scx200_gpio_set,
 	.gpio_set_high	= scx200_gpio_set_high,

@@ -19,6 +19,19 @@
 
 #define NAME "nsc_gpio"
 
+void nsc_gpio_dump(unsigned index, u32 config)
+{
+	printk(KERN_INFO NAME ": GPIO-%02u: 0x%08lx %s %s %s %s %s %s %s\n",
+	       index, (unsigned long)config,
+	       (config & 1) ? "OE" : "TS",      /* output-enabled/tristate */
+	       (config & 2) ? "PP" : "OD",      /* push pull / open drain */
+	       (config & 4) ? "PUE" : "PUD",    /* pull up enabled/disabled */
+	       (config & 8) ? "LOCKED" : "",    /* locked / unlocked */
+	       (config & 16) ? "LEVEL" : "EDGE",/* level/edge input */
+	       (config & 32) ? "HI" : "LO",     /* trigger on rise/fall edge */
+	       (config & 64) ? "DEBOUNCE" : "");        /* debounce */
+}
+
 ssize_t nsc_gpio_write(struct file *file, const char __user *data,
 		       size_t len, loff_t *ppos)
 {
@@ -99,9 +112,10 @@ ssize_t nsc_gpio_read(struct file *file, char __user * buf,
 	return 1;
 }
 
-/* common routines for both scx200_gpio and pc87360_gpio */
+/* common file-ops routines for both scx200_gpio and pc87360_gpio */
 EXPORT_SYMBOL(nsc_gpio_write);
 EXPORT_SYMBOL(nsc_gpio_read);
+EXPORT_SYMBOL(nsc_gpio_dump);
 
 static int __init nsc_gpio_init(void)
 {
