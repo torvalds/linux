@@ -420,8 +420,8 @@ config SND_INTEL8X0
 	  will be called snd-intel8x0.
 
 config SND_INTEL8X0M
-	tristate "Intel/SiS/nVidia/AMD MC97 Modem (EXPERIMENTAL)"
-	depends on SND && EXPERIMENTAL
+	tristate "Intel/SiS/nVidia/AMD MC97 Modem"
+	depends on SND
 	select SND_AC97_CODEC
 	help
 	  Say Y here to include support for the integrated MC97 modem on
