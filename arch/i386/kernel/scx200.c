@@ -108,34 +108,17 @@ u32 scx200_gpio_configure(unsigned index, u32 mask, u32 bits)
 #if 0
 void scx200_gpio_dump(unsigned index)
 {
-	u32 config = scx200_gpio_configure(index, ~0, 0);
-	printk(KERN_DEBUG "GPIO%02u: 0x%08lx", index, (unsigned long)config);
-	
-	if (config & 1) 
-		printk(" OE"); /* output enabled */
-	else
-		printk(" TS"); /* tristate */
-	if (config & 2) 
-		printk(" PP"); /* push pull */
-	else
-		printk(" OD"); /* open drain */
-	if (config & 4) 
-		printk(" PUE"); /* pull up enabled */
-	else
-		printk(" PUD"); /* pull up disabled */
-	if (config & 8) 
-		printk(" LOCKED"); /* locked */
-	if (config & 16) 
-		printk(" LEVEL"); /* level input */
-	else
-		printk(" EDGE"); /* edge input */
-	if (config & 32) 
-		printk(" HI"); /* trigger on rising edge */
-	else
-		printk(" LO"); /* trigger on falling edge */
-	if (config & 64) 
-		printk(" DEBOUNCE"); /* debounce */
-	printk("\n");
+        u32 config = scx200_gpio_configure(index, ~0, 0);
+
+        printk(KERN_INFO NAME ": GPIO-%02u: 0x%08lx %s %s %s %s %s %s %s\n",
+               index, (unsigned long) config,
+               (config & 1) ? "OE"      : "TS",		/* output enabled / tristate */
+               (config & 2) ? "PP"      : "OD",		/* push pull / open drain */
+               (config & 4) ? "PUE"     : "PUD",	/* pull up enabled/disabled */
+               (config & 8) ? "LOCKED"  : "",		/* locked / unlocked */
+               (config & 16) ? "LEVEL"  : "EDGE",	/* level/edge input */
+               (config & 32) ? "HI"     : "LO",		/* trigger on rising/falling edge */
+               (config & 64) ? "DEBOUNCE" : "");	/* debounce */
 }
 #endif  /*  0  */
 
