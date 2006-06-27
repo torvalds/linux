@@ -1239,7 +1239,6 @@ EXPORT_SYMBOL(i2o_cntxt_list_remove);
 EXPORT_SYMBOL(i2o_cntxt_list_get_ptr);
 #endif
 EXPORT_SYMBOL(i2o_msg_get_wait);
-EXPORT_SYMBOL(i2o_msg_nop);
 EXPORT_SYMBOL(i2o_find_iop);
 EXPORT_SYMBOL(i2o_iop_find_device);
 EXPORT_SYMBOL(i2o_event_register);
