@@ -1806,9 +1806,6 @@ e1000_configure_rx(struct e1000_adapter *adapter)
 		E1000_WRITE_REG(hw, RXCSUM, rxcsum);
 	}
 
-	if (hw->mac_type == e1000_82573)
-		E1000_WRITE_REG(hw, ERT, 0x0100);
-
 	/* Enable Receives */
 	E1000_WRITE_REG(hw, RCTL, rctl);
 }
