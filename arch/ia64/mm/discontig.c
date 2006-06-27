@@ -33,7 +33,6 @@
  */
 struct early_node_data {
 	struct ia64_node_data *node_data;
-	pg_data_t *pgdat;
 	unsigned long pernode_addr;
 	unsigned long pernode_size;
 	struct bootmem_data bootmem_data;
@@ -45,6 +44,8 @@ struct early_node_data {
 
 static struct early_node_data mem_data[MAX_NUMNODES] __initdata;
 static nodemask_t memory_less_mask __initdata;
+
+static pg_data_t *pgdat_list[MAX_NUMNODES];
 
 /*
  * To prevent cache aliasing effects, align per-node structures so that they
@@ -175,13 +176,13 @@ static void __init fill_pernode(int node, unsigned long pernode,
 	pernode += PERCPU_PAGE_SIZE * cpus;
 	pernode += node * L1_CACHE_BYTES;
 
-	mem_data[node].pgdat = __va(pernode);
+	pgdat_list[node] = __va(pernode);
 	pernode += L1_CACHE_ALIGN(sizeof(pg_data_t));
 
 	mem_data[node].node_data = __va(pernode);
 	pernode += L1_CACHE_ALIGN(sizeof(struct ia64_node_data));
 
-	mem_data[node].pgdat->bdata = bdp;
+	pgdat_list[node]->bdata = bdp;
 	pernode += L1_CACHE_ALIGN(sizeof(pg_data_t));
 
 	cpu_data = per_cpu_node_setup(cpu_data, node);
@@ -268,7 +269,7 @@ static int __init find_pernode_space(unsigned long start, unsigned long len,
 static int __init free_node_bootmem(unsigned long start, unsigned long len,
 				    int node)
 {
-	free_bootmem_node(mem_data[node].pgdat, start, len);
+	free_bootmem_node(pgdat_list[node], start, len);
 
 	return 0;
 }
@@ -287,7 +288,7 @@ static void __init reserve_pernode_space(void)
 	int node;
 
 	for_each_online_node(node) {
-		pg_data_t *pdp = mem_data[node].pgdat;
+		pg_data_t *pdp = pgdat_list[node];
 
 		if (node_isset(node, memory_less_mask))
 			continue;
@@ -317,11 +318,7 @@ static void __init reserve_pernode_space(void)
  */
 static void __init initialize_pernode_data(void)
 {
-	pg_data_t *pgdat_list[MAX_NUMNODES];
 	int cpu, node;
-
-	for_each_online_node(node)
-		pgdat_list[node] = mem_data[node].pgdat;
 
 	/* Copy the pg_data_t list to each node and init the node field */
 	for_each_online_node(node) {
@@ -372,7 +369,7 @@ static void __init *memory_less_node_alloc(int nid, unsigned long pernodesize)
 	if (bestnode == -1)
 		bestnode = anynode;
 
-	ptr = __alloc_bootmem_node(mem_data[bestnode].pgdat, pernodesize,
+	ptr = __alloc_bootmem_node(pgdat_list[bestnode], pernodesize,
 		PERCPU_PAGE_SIZE, __pa(MAX_DMA_ADDRESS));
 
 	return ptr;
@@ -476,7 +473,7 @@ void __init find_memory(void)
 		pernodesize = mem_data[node].pernode_size;
 		map = pernode + pernodesize;
 
-		init_bootmem_node(mem_data[node].pgdat,
+		init_bootmem_node(pgdat_list[node],
 				  map>>PAGE_SHIFT,
 				  bdp->node_boot_start>>PAGE_SHIFT,
 				  bdp->node_low_pfn);
