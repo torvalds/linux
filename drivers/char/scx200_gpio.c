@@ -35,14 +35,6 @@ static int major = 0;		/* default to dynamic major */
 module_param(major, int, 0);
 MODULE_PARM_DESC(major, "Major device number");
 
-extern void nsc_gpio_dump(unsigned index);
-
-extern ssize_t nsc_gpio_write(struct file *file, const char __user *data,
-			      size_t len, loff_t *ppos);
-
-extern ssize_t nsc_gpio_read(struct file *file, char __user *buf,
-			     size_t len, loff_t *ppos);
-
 struct nsc_gpio_ops scx200_access = {
 	.owner		= THIS_MODULE,
 	.gpio_config	= scx200_gpio_configure,
@@ -100,6 +92,9 @@ static int __init scx200_gpio_init(void)
 	rc = platform_device_add(pdev);
 	if (rc)
 		goto undo_malloc;
+
+	/* nsc_gpio uses dev_dbg(), so needs this */
+	scx200_access.dev = &pdev->dev;
 
 	if (major)
 		rc = register_chrdev_region(dev, num_pins, "scx200_gpio");

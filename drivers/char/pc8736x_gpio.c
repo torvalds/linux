@@ -207,8 +207,6 @@ static void pc8736x_gpio_change(unsigned index)
 	pc8736x_gpio_set(index, !pc8736x_gpio_get(index));
 }
 
-extern void nsc_gpio_dump(unsigned iminor);
-
 static struct nsc_gpio_ops pc8736x_access = {
 	.owner		= THIS_MODULE,
 	.gpio_config	= pc8736x_gpio_configure,
@@ -260,6 +258,7 @@ static int __init pc8736x_gpio_init(void)
 		dev_err(&pdev->dev, "no device found\n");
 		goto undo_platform_dev_add;
 	}
+	pc8736x_access.dev = &pdev->dev;
 
 	/* Verify that chip and it's GPIO unit are both enabled.
 	   My BIOS does this, so I take minimum action here

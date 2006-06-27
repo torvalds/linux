@@ -14,22 +14,27 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/nsc_gpio.h>
+#include <linux/platform_device.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
 
 #define NAME "nsc_gpio"
 
-void nsc_gpio_dump(unsigned index, u32 config)
+void nsc_gpio_dump(struct nsc_gpio_ops *amp, unsigned index)
 {
-	printk(KERN_INFO NAME ": GPIO-%02u: 0x%08lx %s %s %s %s %s %s %s\n",
-	       index, (unsigned long)config,
-	       (config & 1) ? "OE" : "TS",      /* output-enabled/tristate */
-	       (config & 2) ? "PP" : "OD",      /* push pull / open drain */
-	       (config & 4) ? "PUE" : "PUD",    /* pull up enabled/disabled */
-	       (config & 8) ? "LOCKED" : "",    /* locked / unlocked */
-	       (config & 16) ? "LEVEL" : "EDGE",/* level/edge input */
-	       (config & 32) ? "HI" : "LO",     /* trigger on rise/fall edge */
-	       (config & 64) ? "DEBOUNCE" : "");        /* debounce */
+	/* retrieve current config w/o changing it */
+	u32 config = amp->gpio_config(index, ~0, 0);
+
+	/* user requested via 'v' command, so its INFO */
+	dev_info(amp->dev, "io%02u: 0x%04x %s %s %s %s %s %s %s\n",
+		 index, config,
+		 (config & 1) ? "OE" : "TS",      /* output-enabled/tristate */
+		 (config & 2) ? "PP" : "OD",      /* push pull / open drain */
+		 (config & 4) ? "PUE" : "PUD",    /* pull up enabled/disabled */
+		 (config & 8) ? "LOCKED" : "",    /* locked / unlocked */
+		 (config & 16) ? "LEVEL" : "EDGE",/* level/edge input */
+		 (config & 32) ? "HI" : "LO",     /* trigger on rise/fall edge */
+		 (config & 64) ? "DEBOUNCE" : "");        /* debounce */
 }
 
 ssize_t nsc_gpio_write(struct file *file, const char __user *data,
@@ -37,6 +42,7 @@ ssize_t nsc_gpio_write(struct file *file, const char __user *data,
 {
 	unsigned m = iminor(file->f_dentry->d_inode);
 	struct nsc_gpio_ops *amp = file->private_data;
+	struct device *dev = amp->dev;
 	size_t i;
 	int err = 0;
 
@@ -52,42 +58,41 @@ ssize_t nsc_gpio_write(struct file *file, const char __user *data,
 			amp->gpio_set(m, 1);
 			break;
 		case 'O':
-			printk(KERN_INFO NAME ": GPIO%d output enabled\n", m);
+			dev_dbg(dev, "GPIO%d output enabled\n", m);
 			amp->gpio_config(m, ~1, 1);
 			break;
 		case 'o':
-			printk(KERN_INFO NAME ": GPIO%d output disabled\n", m);
+			dev_dbg(dev, "GPIO%d output disabled\n", m);
 			amp->gpio_config(m, ~1, 0);
 			break;
 		case 'T':
-			printk(KERN_INFO NAME ": GPIO%d output is push pull\n",
+			dev_dbg(dev, "GPIO%d output is push pull\n",
 			       m);
 			amp->gpio_config(m, ~2, 2);
 			break;
 		case 't':
-			printk(KERN_INFO NAME ": GPIO%d output is open drain\n",
+			dev_dbg(dev, "GPIO%d output is open drain\n",
 			       m);
 			amp->gpio_config(m, ~2, 0);
 			break;
 		case 'P':
-			printk(KERN_INFO NAME ": GPIO%d pull up enabled\n", m);
+			dev_dbg(dev, "GPIO%d pull up enabled\n", m);
 			amp->gpio_config(m, ~4, 4);
 			break;
 		case 'p':
-			printk(KERN_INFO NAME ": GPIO%d pull up disabled\n", m);
+			dev_dbg(dev, "GPIO%d pull up disabled\n", m);
 			amp->gpio_config(m, ~4, 0);
 			break;
 		case 'v':
 			/* View Current pin settings */
-			amp->gpio_dump(m);
+			amp->gpio_dump(amp, m);
 			break;
 		case '\n':
 			/* end of settings string, do nothing */
 			break;
 		default:
-			printk(KERN_ERR NAME
-			       ": GPIO-%2d bad setting: chr<0x%2x>\n", m,
-			       (int)c);
+			dev_err(dev, "io%2d bad setting: chr<0x%2x>\n",
+				m, (int)c);
 			err++;
 		}
 	}
