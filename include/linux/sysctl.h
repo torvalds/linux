@@ -189,6 +189,7 @@ enum
 	VM_ZONE_RECLAIM_MODE=31, /* reclaim local zone memory before going off node */
 	VM_ZONE_RECLAIM_INTERVAL=32, /* time period to wait after reclaim failure */
 	VM_PANIC_ON_OOM=33,	/* panic at out-of-memory */
+	VM_VDSO_ENABLED=34,	/* map VDSO into new processes? */
 };
 
 

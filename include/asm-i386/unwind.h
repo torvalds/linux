@@ -78,8 +78,8 @@ static inline int arch_unw_user_mode(const struct unwind_frame_info *info)
 	return user_mode_vm(&info->regs);
 #else
 	return info->regs.eip < PAGE_OFFSET
-	       || (info->regs.eip >= __fix_to_virt(FIX_VSYSCALL)
-	            && info->regs.eip < __fix_to_virt(FIX_VSYSCALL) + PAGE_SIZE)
+	       || (info->regs.eip >= __fix_to_virt(FIX_VDSO)
+	            && info->regs.eip < __fix_to_virt(FIX_VDSO) + PAGE_SIZE)
 	       || info->regs.esp < PAGE_OFFSET;
 #endif
 }

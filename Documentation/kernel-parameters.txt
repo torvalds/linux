@@ -1669,6 +1669,10 @@ running once the system is up.
 	usbhid.mousepoll=
 			[USBHID] The interval which mice are to be polled at.
 
+	vdso=		[IA-32]
+			vdso=1: enable VDSO (default)
+			vdso=0: disable VDSO mapping
+
 	video=		[FB] Frame buffer configuration
 			See Documentation/fb/modedb.txt.
 

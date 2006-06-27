@@ -780,6 +780,17 @@ config HOTPLUG_CPU
 	  enable suspend on SMP systems. CPUs can be controlled through
 	  /sys/devices/system/cpu.
 
+config COMPAT_VDSO
+	bool "Compat VDSO support"
+	default y
+	help
+	  Map the VDSO to the predictable old-style address too.
+	---help---
+	  Say N here if you are running a sufficiently recent glibc
+	  version (2.3.3 or later), to remove the high-mapped
+	  VDSO mapping and to exclusively use the randomized VDSO.
+
+	  If unsure, say Y.
 
 endmenu
 

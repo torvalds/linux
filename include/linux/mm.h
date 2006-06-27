@@ -1065,5 +1065,7 @@ void drop_slab(void);
 extern int randomize_va_space;
 #endif
 
+const char *arch_vma_name(struct vm_area_struct *vma);
+
 #endif /* __KERNEL__ */
 #endif /* _LINUX_MM_H */
