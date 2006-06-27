@@ -25,6 +25,11 @@
 
 #define PTRACE_SET_SYSCALL	23
 
+/* PTRACE_SYSCALL is 24 */
+
+#define PTRACE_GETCRUNCHREGS	25
+#define PTRACE_SETCRUNCHREGS	26
+
 /*
  * PSR bits
  */
