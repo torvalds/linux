@@ -159,13 +159,13 @@ union l2_cache {
 	unsigned val;
 };
 
-static unsigned short assocs[] = {
+static const unsigned short assocs[] = {
 	[1] = 1, [2] = 2, [4] = 4, [6] = 8,
 	[8] = 16,
 	[0xf] = 0xffff // ??
 	};
-static unsigned char levels[] = { 1, 1, 2 };
-static unsigned char types[] = { 1, 2, 3 };
+static const unsigned char levels[] = { 1, 1, 2 };
+static const unsigned char types[] = { 1, 2, 3 };
 
 static void __cpuinit amd_cpuid4(int leaf, union _cpuid4_leaf_eax *eax,
 		       union _cpuid4_leaf_ebx *ebx,
