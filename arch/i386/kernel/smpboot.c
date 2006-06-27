@@ -1056,11 +1056,24 @@ static int __cpuinit __smp_prepare_cpu(int cpu)
 	struct warm_boot_cpu_info info;
 	struct work_struct task;
 	int	apicid, ret;
+	struct Xgt_desc_struct *cpu_gdt_descr = &per_cpu(cpu_gdt_descr, cpu);
 
 	apicid = x86_cpu_to_apicid[cpu];
 	if (apicid == BAD_APICID) {
 		ret = -ENODEV;
 		goto exit;
+	}
+
+	/*
+	 * the CPU isn't initialized at boot time, allocate gdt table here.
+	 * cpu_init will initialize it
+	 */
+	if (!cpu_gdt_descr->address) {
+		cpu_gdt_descr->address = get_zeroed_page(GFP_KERNEL);
+		if (!cpu_gdt_descr->address)
+			printk(KERN_CRIT "CPU%d failed to allocate GDT\n", cpu);
+			ret = -ENOMEM;
+			goto exit;
 	}
 
 	info.complete = &done;

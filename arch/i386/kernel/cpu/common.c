@@ -613,6 +613,12 @@ void __cpuinit cpu_init(void)
 		set_in_cr4(X86_CR4_TSD);
 	}
 
+	/* The CPU hotplug case */
+	if (cpu_gdt_descr->address) {
+		gdt = (struct desc_struct *)cpu_gdt_descr->address;
+		memset(gdt, 0, PAGE_SIZE);
+		goto old_gdt;
+	}
 	/*
 	 * This is a horrible hack to allocate the GDT.  The problem
 	 * is that cpu_init() is called really early for the boot CPU
@@ -631,7 +637,7 @@ void __cpuinit cpu_init(void)
 				local_irq_enable();
 		}
 	}
-
+old_gdt:
 	/*
 	 * Initialize the per-CPU GDT with the boot GDT,
 	 * and set up the GDT descriptor:
