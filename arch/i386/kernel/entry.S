@@ -515,7 +515,7 @@ ENTRY(irq_entries_start)
  .if vector
 	CFI_ADJUST_CFA_OFFSET -4
  .endif
-1:	pushl $vector-256
+1:	pushl $~(vector)
 	CFI_ADJUST_CFA_OFFSET 4
 	jmp common_interrupt
 .data
@@ -535,7 +535,7 @@ common_interrupt:
 #define BUILD_INTERRUPT(name, nr)	\
 ENTRY(name)				\
 	RING0_INT_FRAME;		\
-	pushl $nr-256;			\
+	pushl $~(nr);			\
 	CFI_ADJUST_CFA_OFFSET 4;	\
 	SAVE_ALL;			\
 	movl %esp,%eax;			\

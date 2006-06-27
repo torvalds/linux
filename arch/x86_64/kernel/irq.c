@@ -115,8 +115,8 @@ skip:
  */
 asmlinkage unsigned int do_IRQ(struct pt_regs *regs)
 {	
-	/* high bits used in ret_from_ code  */
-	unsigned irq = regs->orig_rax & 0xff;
+	/* high bit used in ret_from_ code  */
+	unsigned irq = ~regs->orig_rax;
 
 	exit_idle();
 	irq_enter();
