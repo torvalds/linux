@@ -233,7 +233,7 @@ config NR_CPUS
 
 config SCHED_SMT
 	bool "SMT (Hyperthreading) scheduler support"
-	depends on SMP
+	depends on X86_HT
 	help
 	  SMT scheduler support improves the CPU scheduler's decision making
 	  when dealing with Intel Pentium 4 chips with HyperThreading at a
@@ -242,7 +242,7 @@ config SCHED_SMT
 
 config SCHED_MC
 	bool "Multi-core scheduler support"
-	depends on SMP
+	depends on X86_HT
 	default y
 	help
 	  Multi-core scheduler support improves the CPU scheduler's decision

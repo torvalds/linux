@@ -261,7 +261,7 @@ unsigned int __cpuinit init_intel_cacheinfo(struct cpuinfo_x86 *c)
 	unsigned int new_l1d = 0, new_l1i = 0; /* Cache sizes from cpuid(4) */
 	unsigned int new_l2 = 0, new_l3 = 0, i; /* Cache sizes from cpuid(4) */
 	unsigned int l2_id = 0, l3_id = 0, num_threads_sharing, index_msb;
-#ifdef CONFIG_SMP
+#ifdef CONFIG_X86_HT
 	unsigned int cpu = (c == &boot_cpu_data) ? 0 : (c - cpu_data);
 #endif
 
@@ -383,14 +383,14 @@ unsigned int __cpuinit init_intel_cacheinfo(struct cpuinfo_x86 *c)
 
 	if (new_l2) {
 		l2 = new_l2;
-#ifdef CONFIG_SMP
+#ifdef CONFIG_X86_HT
 		cpu_llc_id[cpu] = l2_id;
 #endif
 	}
 
 	if (new_l3) {
 		l3 = new_l3;
-#ifdef CONFIG_SMP
+#ifdef CONFIG_X86_HT
 		cpu_llc_id[cpu] = l3_id;
 #endif
 	}

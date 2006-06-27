@@ -294,7 +294,7 @@ void __cpuinit generic_identify(struct cpuinfo_x86 * c)
 			if (c->x86 >= 0x6)
 				c->x86_model += ((tfms >> 16) & 0xF) << 4;
 			c->x86_mask = tfms & 15;
-#ifdef CONFIG_SMP
+#ifdef CONFIG_X86_HT
 			c->apicid = phys_pkg_id((ebx >> 24) & 0xFF, 0);
 #else
 			c->apicid = (ebx >> 24) & 0xFF;
