@@ -359,7 +359,7 @@ static inline void finish_lock_switch(runqueue_t *rq, task_t *prev)
  * interrupts.  Note the ordering: we can safely lookup the task_rq without
  * explicitly disabling preemption.
  */
-static inline runqueue_t *task_rq_lock(task_t *p, unsigned long *flags)
+static runqueue_t *task_rq_lock(task_t *p, unsigned long *flags)
 	__acquires(rq->lock)
 {
 	struct runqueue *rq;
