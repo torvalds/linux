@@ -310,6 +310,7 @@ fec_enet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct fec_enet_private *fep;
 	volatile fec_t	*fecp;
 	volatile cbd_t	*bdp;
+	unsigned short	status;
 
 	fep = netdev_priv(dev);
 	fecp = (volatile fec_t*)dev->base_addr;
@@ -322,8 +323,9 @@ fec_enet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* Fill in a Tx ring entry */
 	bdp = fep->cur_tx;
 
+	status = bdp->cbd_sc;
 #ifndef final_version
-	if (bdp->cbd_sc & BD_ENET_TX_READY) {
+	if (status & BD_ENET_TX_READY) {
 		/* Ooops.  All transmit buffers are full.  Bail out.
 		 * This should not happen, since dev->tbusy should be set.
 		 */
@@ -334,7 +336,7 @@ fec_enet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* Clear all of the status flags.
 	 */
-	bdp->cbd_sc &= ~BD_ENET_TX_STATS;
+	status &= ~BD_ENET_TX_STATS;
 
 	/* Set buffer length and buffer pointer.
 	*/
@@ -368,21 +370,22 @@ fec_enet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	spin_lock_irq(&fep->lock);
 
-	/* Send it on its way.  Tell FEC its ready, interrupt when done,
-	 * its the last BD of the frame, and to put the CRC on the end.
+	/* Send it on its way.  Tell FEC it's ready, interrupt when done,
+	 * it's the last BD of the frame, and to put the CRC on the end.
 	 */
 
-	bdp->cbd_sc |= (BD_ENET_TX_READY | BD_ENET_TX_INTR
+	status |= (BD_ENET_TX_READY | BD_ENET_TX_INTR
 			| BD_ENET_TX_LAST | BD_ENET_TX_TC);
+	bdp->cbd_sc = status;
 
 	dev->trans_start = jiffies;
 
 	/* Trigger transmission start */
-	fecp->fec_x_des_active = 0x01000000;
+	fecp->fec_x_des_active = 0;
 
 	/* If this was the last BD in the ring, start at the beginning again.
 	*/
-	if (bdp->cbd_sc & BD_ENET_TX_WRAP) {
+	if (status & BD_ENET_TX_WRAP) {
 		bdp = fep->tx_bd_base;
 	} else {
 		bdp++;
@@ -493,43 +496,44 @@ fec_enet_tx(struct net_device *dev)
 {
 	struct	fec_enet_private *fep;
 	volatile cbd_t	*bdp;
+	unsigned short status;
 	struct	sk_buff	*skb;
 
 	fep = netdev_priv(dev);
 	spin_lock(&fep->lock);
 	bdp = fep->dirty_tx;
 
-	while ((bdp->cbd_sc&BD_ENET_TX_READY) == 0) {
+	while (((status = bdp->cbd_sc) & BD_ENET_TX_READY) == 0) {
 		if (bdp == fep->cur_tx && fep->tx_full == 0) break;
 
 		skb = fep->tx_skbuff[fep->skb_dirty];
 		/* Check for errors. */
-		if (bdp->cbd_sc & (BD_ENET_TX_HB | BD_ENET_TX_LC |
+		if (status & (BD_ENET_TX_HB | BD_ENET_TX_LC |
 				   BD_ENET_TX_RL | BD_ENET_TX_UN |
 				   BD_ENET_TX_CSL)) {
 			fep->stats.tx_errors++;
-			if (bdp->cbd_sc & BD_ENET_TX_HB)  /* No heartbeat */
+			if (status & BD_ENET_TX_HB)  /* No heartbeat */
 				fep->stats.tx_heartbeat_errors++;
-			if (bdp->cbd_sc & BD_ENET_TX_LC)  /* Late collision */
+			if (status & BD_ENET_TX_LC)  /* Late collision */
 				fep->stats.tx_window_errors++;
-			if (bdp->cbd_sc & BD_ENET_TX_RL)  /* Retrans limit */
+			if (status & BD_ENET_TX_RL)  /* Retrans limit */
 				fep->stats.tx_aborted_errors++;
-			if (bdp->cbd_sc & BD_ENET_TX_UN)  /* Underrun */
+			if (status & BD_ENET_TX_UN)  /* Underrun */
 				fep->stats.tx_fifo_errors++;
-			if (bdp->cbd_sc & BD_ENET_TX_CSL) /* Carrier lost */
+			if (status & BD_ENET_TX_CSL) /* Carrier lost */
 				fep->stats.tx_carrier_errors++;
 		} else {
 			fep->stats.tx_packets++;
 		}
 
 #ifndef final_version
-		if (bdp->cbd_sc & BD_ENET_TX_READY)
+		if (status & BD_ENET_TX_READY)
 			printk("HEY! Enet xmit interrupt and TX_READY.\n");
 #endif
 		/* Deferred means some collisions occurred during transmit,
 		 * but we eventually sent the packet OK.
 		 */
-		if (bdp->cbd_sc & BD_ENET_TX_DEF)
+		if (status & BD_ENET_TX_DEF)
 			fep->stats.collisions++;
 	    
 		/* Free the sk buffer associated with this last transmit.
@@ -540,7 +544,7 @@ fec_enet_tx(struct net_device *dev)
 	    
 		/* Update pointer to next buffer descriptor to be transmitted.
 		 */
-		if (bdp->cbd_sc & BD_ENET_TX_WRAP)
+		if (status & BD_ENET_TX_WRAP)
 			bdp = fep->tx_bd_base;
 		else
 			bdp++;
@@ -570,9 +574,14 @@ fec_enet_rx(struct net_device *dev)
 	struct	fec_enet_private *fep;
 	volatile fec_t	*fecp;
 	volatile cbd_t *bdp;
+	unsigned short status;
 	struct	sk_buff	*skb;
 	ushort	pkt_len;
 	__u8 *data;
+	
+#ifdef CONFIG_M532x
+	flush_cache_all();
+#endif	
 
 	fep = netdev_priv(dev);
 	fecp = (volatile fec_t*)dev->base_addr;
@@ -582,13 +591,13 @@ fec_enet_rx(struct net_device *dev)
 	 */
 	bdp = fep->cur_rx;
 
-while (!(bdp->cbd_sc & BD_ENET_RX_EMPTY)) {
+while (!((status = bdp->cbd_sc) & BD_ENET_RX_EMPTY)) {
 
 #ifndef final_version
 	/* Since we have allocated space to hold a complete frame,
 	 * the last indicator should be set.
 	 */
-	if ((bdp->cbd_sc & BD_ENET_RX_LAST) == 0)
+	if ((status & BD_ENET_RX_LAST) == 0)
 		printk("FEC ENET: rcv is not +last\n");
 #endif
 
@@ -596,26 +605,26 @@ while (!(bdp->cbd_sc & BD_ENET_RX_EMPTY)) {
 		goto rx_processing_done;
 
 	/* Check for errors. */
-	if (bdp->cbd_sc & (BD_ENET_RX_LG | BD_ENET_RX_SH | BD_ENET_RX_NO |
+	if (status & (BD_ENET_RX_LG | BD_ENET_RX_SH | BD_ENET_RX_NO |
 			   BD_ENET_RX_CR | BD_ENET_RX_OV)) {
 		fep->stats.rx_errors++;       
-		if (bdp->cbd_sc & (BD_ENET_RX_LG | BD_ENET_RX_SH)) {
+		if (status & (BD_ENET_RX_LG | BD_ENET_RX_SH)) {
 		/* Frame too long or too short. */
 			fep->stats.rx_length_errors++;
 		}
-		if (bdp->cbd_sc & BD_ENET_RX_NO)	/* Frame alignment */
+		if (status & BD_ENET_RX_NO)	/* Frame alignment */
 			fep->stats.rx_frame_errors++;
-		if (bdp->cbd_sc & BD_ENET_RX_CR)	/* CRC Error */
+		if (status & BD_ENET_RX_CR)	/* CRC Error */
 			fep->stats.rx_crc_errors++;
-		if (bdp->cbd_sc & BD_ENET_RX_OV)	/* FIFO overrun */
-			fep->stats.rx_crc_errors++;
+		if (status & BD_ENET_RX_OV)	/* FIFO overrun */
+			fep->stats.rx_fifo_errors++;
 	}
 
 	/* Report late collisions as a frame error.
 	 * On this error, the BD is closed, but we don't know what we
 	 * have in the buffer.  So, just drop this frame on the floor.
 	 */
-	if (bdp->cbd_sc & BD_ENET_RX_CL) {
+	if (status & BD_ENET_RX_CL) {
 		fep->stats.rx_errors++;
 		fep->stats.rx_frame_errors++;
 		goto rx_processing_done;
@@ -641,9 +650,7 @@ while (!(bdp->cbd_sc & BD_ENET_RX_EMPTY)) {
 	} else {
 		skb->dev = dev;
 		skb_put(skb,pkt_len-4);	/* Make room */
-		eth_copy_and_sum(skb,
-				 (unsigned char *)__va(bdp->cbd_bufaddr),
-				 pkt_len-4, 0);
+		eth_copy_and_sum(skb, data, pkt_len-4, 0);
 		skb->protocol=eth_type_trans(skb,dev);
 		netif_rx(skb);
 	}
@@ -651,15 +658,16 @@ while (!(bdp->cbd_sc & BD_ENET_RX_EMPTY)) {
 
 	/* Clear the status flags for this buffer.
 	*/
-	bdp->cbd_sc &= ~BD_ENET_RX_STATS;
+	status &= ~BD_ENET_RX_STATS;
 
 	/* Mark the buffer empty.
 	*/
-	bdp->cbd_sc |= BD_ENET_RX_EMPTY;
+	status |= BD_ENET_RX_EMPTY;
+	bdp->cbd_sc = status;
 
 	/* Update BD pointer to next entry.
 	*/
-	if (bdp->cbd_sc & BD_ENET_RX_WRAP)
+	if (status & BD_ENET_RX_WRAP)
 		bdp = fep->rx_bd_base;
 	else
 		bdp++;
@@ -669,9 +677,9 @@ while (!(bdp->cbd_sc & BD_ENET_RX_EMPTY)) {
 	 * incoming frames.  On a heavily loaded network, we should be
 	 * able to keep up at the expense of system resources.
 	 */
-	fecp->fec_r_des_active = 0x01000000;
+	fecp->fec_r_des_active = 0;
 #endif
-   } /* while (!(bdp->cbd_sc & BD_ENET_RX_EMPTY)) */
+   } /* while (!((status = bdp->cbd_sc) & BD_ENET_RX_EMPTY)) */
 	fep->cur_rx = (cbd_t *)bdp;
 
 #if 0
@@ -682,11 +690,12 @@ while (!(bdp->cbd_sc & BD_ENET_RX_EMPTY)) {
 	 * our way back to the interrupt return only to come right back
 	 * here.
 	 */
-	fecp->fec_r_des_active = 0x01000000;
+	fecp->fec_r_des_active = 0;
 #endif
 }
 
 
+/* called from interrupt context */
 static void
 fec_enet_mii(struct net_device *dev)
 {
@@ -698,10 +707,12 @@ fec_enet_mii(struct net_device *dev)
 	fep = netdev_priv(dev);
 	ep = fep->hwp;
 	mii_reg = ep->fec_mii_data;
+
+	spin_lock(&fep->lock);
 	
 	if ((mip = mii_head) == NULL) {
 		printk("MII and no head!\n");
-		return;
+		goto unlock;
 	}
 
 	if (mip->mii_func != NULL)
@@ -713,6 +724,9 @@ fec_enet_mii(struct net_device *dev)
 
 	if ((mip = mii_head) != NULL)
 		ep->fec_mii_data = mip->mii_regval;
+
+unlock:
+	spin_unlock(&fep->lock);
 }
 
 static int
@@ -730,8 +744,7 @@ mii_queue(struct net_device *dev, int regval, void (*func)(uint, struct net_devi
 
 	retval = 0;
 
-	save_flags(flags);
-	cli();
+	spin_lock_irqsave(&fep->lock,flags);
 
 	if ((mip = mii_free) != NULL) {
 		mii_free = mip->mii_next;
@@ -751,7 +764,7 @@ mii_queue(struct net_device *dev, int regval, void (*func)(uint, struct net_devi
 		retval = 1;
 	}
 
-	restore_flags(flags);
+	spin_unlock_irqrestore(&fep->lock,flags);
 
 	return(retval);
 }
