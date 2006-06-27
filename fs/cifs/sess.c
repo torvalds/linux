@@ -83,11 +83,11 @@ static void unicode_ssetup_strings(char ** pbcc_area, struct cifsSesInfo *ses,
 	/* BB FIXME add check that strings total less
 	than 335 or will need to send them as arrays */
 
-	/* align unicode strings, must be word aligned */
-	if ((long) bcc_ptr % 2)	{
+	/* unicode strings, must be word aligned before the call */
+/*	if ((long) bcc_ptr % 2)	{
 		*bcc_ptr = 0;
 		bcc_ptr++;
-	}
+	} */
 	/* copy user */
 	if(ses->userName == NULL) {
 		/* BB what about null user mounts - check that we do this BB */
@@ -416,9 +416,14 @@ CIFS_SessSetup(unsigned int xid, struct cifsSesInfo *ses, int first_time,
 		bcc_ptr += CIFS_SESS_KEY_SIZE;
 		memcpy(bcc_ptr, (char *)ntlm_session_key,CIFS_SESS_KEY_SIZE);
 		bcc_ptr += CIFS_SESS_KEY_SIZE;
-		if(ses->capabilities & CAP_UNICODE)
+		if(ses->capabilities & CAP_UNICODE) {
+			/* unicode strings must be word aligned */
+			if (iov[0].iov_len % 2) {
+				*bcc_ptr = 0;
+				bcc_ptr++;		
+			}	
 			unicode_ssetup_strings(&bcc_ptr, ses, nls_cp);
-		else
+		} else
 			ascii_ssetup_strings(&bcc_ptr, ses, nls_cp);
 	} else if (type == NTLMv2) {
 		char * v2_sess_key = 
@@ -455,9 +460,12 @@ CIFS_SessSetup(unsigned int xid, struct cifsSesInfo *ses, int first_time,
 		memcpy(bcc_ptr, (char *)v2_sess_key, sizeof(struct ntlmv2_resp));
 		bcc_ptr += sizeof(struct ntlmv2_resp);
 		kfree(v2_sess_key);
-		if(ses->capabilities & CAP_UNICODE)
+		if(ses->capabilities & CAP_UNICODE) {
+			if(iov[0].iov_len % 2) {
+				*bcc_ptr = 0;
+			}	bcc_ptr++;
 			unicode_ssetup_strings(&bcc_ptr, ses, nls_cp);
-		else
+		} else
 			ascii_ssetup_strings(&bcc_ptr, ses, nls_cp);
 	} else /* NTLMSSP or SPNEGO */ {
 		pSMB->req.hdr.Flags2 |= SMBFLG2_EXT_SEC;
