@@ -12374,7 +12374,7 @@ AscInitFromEEP(ASC_DVC_VAR *asc_dvc)
                 ASC_PRINT1(
 "AscInitFromEEP: Failed to re-write EEPROM with %d errors.\n", i);
         } else {
-                ASC_PRINT("AscInitFromEEP: Succesfully re-wrote EEPROM.");
+                ASC_PRINT("AscInitFromEEP: Successfully re-wrote EEPROM.\n");
         }
     }
     return (warn_code);

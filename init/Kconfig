@@ -1,3 +1,11 @@
+config DEFCONFIG_LIST
+	string
+	option defconfig_list
+	default "/lib/modules/$UNAME_RELEASE/.config"
+	default "/etc/kernel-config"
+	default "/boot/config-$UNAME_RELEASE"
+	default "arch/$ARCH/defconfig"
+
 menu "Code maturity level options"
 
 config EXPERIMENTAL
@@ -236,16 +244,6 @@ config UID16
 	help
 	  This enables the legacy 16-bit UID syscall wrappers.
 
-config VM86
-	depends X86
-	default y
-	bool "Enable VM86 support" if EMBEDDED
-	help
-          This option is required by programs like DOSEMU to run 16-bit legacy
-	  code on X86 processors. It also may be needed by software like
-          XFree86 to initialize some video cards via BIOS. Disabling this
-          option saves about 6k.
-
 config CC_OPTIMIZE_FOR_SIZE
 	bool "Optimize for size (Look out for broken compilers!)"
 	default y
@@ -341,9 +339,14 @@ config BASE_FULL
 	  kernel data structures. This saves memory on small machines,
 	  but may reduce performance.
 
+config RT_MUTEXES
+	boolean
+	select PLIST
+
 config FUTEX
 	bool "Enable futex support" if EMBEDDED
 	default y
+	select RT_MUTEXES
 	help
 	  Disabling this option will cause the kernel to be built without
 	  support for "fast userspace mutexes".  The resulting kernel may not

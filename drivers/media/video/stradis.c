@@ -2190,7 +2190,7 @@ static struct pci_driver stradis_driver = {
 	.remove = __devexit_p(stradis_remove)
 };
 
-int __init stradis_init(void)
+static int __init stradis_init(void)
 {
 	int retval;
 
@@ -2203,7 +2203,7 @@ int __init stradis_init(void)
 	return retval;
 }
 
-void __exit stradis_exit(void)
+static void __exit stradis_exit(void)
 {
 	pci_unregister_driver(&stradis_driver);
 	printk(KERN_INFO "stradis: module cleanup complete\n");

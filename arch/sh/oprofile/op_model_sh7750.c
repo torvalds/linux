@@ -198,7 +198,7 @@ static int sh7750_perf_counter_create_files(struct super_block *sb, struct dentr
 
 	for (i = 0; i < NR_CNTRS; i++) {
 		struct dentry *dir;
-		char buf[3];
+		char buf[4];
 
 		snprintf(buf, sizeof(buf), "%d", i);
 		dir = oprofilefs_mkdir(sb, root, buf);

@@ -1721,15 +1721,14 @@ xfs_mount_log_sbunit(
  * is present to prevent thrashing).
  */
 
+#ifdef CONFIG_HOTPLUG_CPU
 /*
  * hot-plug CPU notifier support.
  *
- * We cannot use the hotcpu_register() function because it does
- * not allow notifier instances. We need a notifier per filesystem
- * as we need to be able to identify the filesystem to balance
- * the counters out. This is achieved by having a notifier block
- * embedded in the xfs_mount_t and doing pointer magic to get the
- * mount pointer from the notifier block address.
+ * We need a notifier per filesystem as we need to be able to identify
+ * the filesystem to balance the counters out. This is achieved by
+ * having a notifier block embedded in the xfs_mount_t and doing pointer
+ * magic to get the mount pointer from the notifier block address.
  */
 STATIC int
 xfs_icsb_cpu_notify(
@@ -1779,6 +1778,7 @@ xfs_icsb_cpu_notify(
 
 	return NOTIFY_OK;
 }
+#endif /* CONFIG_HOTPLUG_CPU */
 
 int
 xfs_icsb_init_counters(
@@ -1791,9 +1791,11 @@ xfs_icsb_init_counters(
 	if (mp->m_sb_cnts == NULL)
 		return -ENOMEM;
 
+#ifdef CONFIG_HOTPLUG_CPU
 	mp->m_icsb_notifier.notifier_call = xfs_icsb_cpu_notify;
 	mp->m_icsb_notifier.priority = 0;
-	register_cpu_notifier(&mp->m_icsb_notifier);
+	register_hotcpu_notifier(&mp->m_icsb_notifier);
+#endif /* CONFIG_HOTPLUG_CPU */
 
 	for_each_online_cpu(i) {
 		cntp = (xfs_icsb_cnts_t *)per_cpu_ptr(mp->m_sb_cnts, i);
@@ -1812,7 +1814,7 @@ xfs_icsb_destroy_counters(
 	xfs_mount_t	*mp)
 {
 	if (mp->m_sb_cnts) {
-		unregister_cpu_notifier(&mp->m_icsb_notifier);
+		unregister_hotcpu_notifier(&mp->m_icsb_notifier);
 		free_percpu(mp->m_sb_cnts);
 	}
 }
@@ -2026,7 +2028,7 @@ xfs_icsb_balance_counter(
 	xfs_sb_field_t  field,
 	int		flags)
 {
-	uint64_t	count, resid = 0;
+	uint64_t	count, resid;
 	int		weight = num_online_cpus();
 	int		s;
 
@@ -2058,6 +2060,7 @@ xfs_icsb_balance_counter(
 		break;
 	default:
 		BUG();
+		count = resid = 0;	/* quiet, gcc */
 		break;
 	}
 

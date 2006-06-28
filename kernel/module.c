@@ -40,9 +40,11 @@
 #include <linux/string.h>
 #include <linux/sched.h>
 #include <linux/mutex.h>
+#include <linux/unwind.h>
 #include <asm/uaccess.h>
 #include <asm/semaphore.h>
 #include <asm/cacheflush.h>
+#include <linux/license.h>
 
 #if 0
 #define DEBUGP printk
@@ -1051,6 +1053,8 @@ static void free_module(struct module *mod)
 	remove_sect_attrs(mod);
 	mod_kobject_remove(mod);
 
+	unwind_remove_table(mod->unwind_info, 0);
+
 	/* Arch-specific cleanup. */
 	module_arch_cleanup(mod);
 
@@ -1248,16 +1252,6 @@ static void layout_sections(struct module *mod,
 	}
 }
 
-static inline int license_is_gpl_compatible(const char *license)
-{
-	return (strcmp(license, "GPL") == 0
-		|| strcmp(license, "GPL v2") == 0
-		|| strcmp(license, "GPL and additional rights") == 0
-		|| strcmp(license, "Dual BSD/GPL") == 0
-		|| strcmp(license, "Dual MIT/GPL") == 0
-		|| strcmp(license, "Dual MPL/GPL") == 0);
-}
-
 static void set_license(struct module *mod, const char *license)
 {
 	if (!license)
@@ -1412,7 +1406,7 @@ static struct module *load_module(void __user *umod,
 	unsigned int i, symindex = 0, strindex = 0, setupindex, exindex,
 		exportindex, modindex, obsparmindex, infoindex, gplindex,
 		crcindex, gplcrcindex, versindex, pcpuindex, gplfutureindex,
-		gplfuturecrcindex;
+		gplfuturecrcindex, unwindex = 0;
 	struct module *mod;
 	long err = 0;
 	void *percpu = NULL, *ptr = NULL; /* Stops spurious gcc warning */
@@ -1502,6 +1496,9 @@ static struct module *load_module(void __user *umod,
 	versindex = find_sec(hdr, sechdrs, secstrings, "__versions");
 	infoindex = find_sec(hdr, sechdrs, secstrings, ".modinfo");
 	pcpuindex = find_pcpusec(hdr, sechdrs, secstrings);
+#ifdef ARCH_UNWIND_SECTION_NAME
+	unwindex = find_sec(hdr, sechdrs, secstrings, ARCH_UNWIND_SECTION_NAME);
+#endif
 
 	/* Don't keep modinfo section */
 	sechdrs[infoindex].sh_flags &= ~(unsigned long)SHF_ALLOC;
@@ -1510,6 +1507,8 @@ static struct module *load_module(void __user *umod,
 	sechdrs[symindex].sh_flags |= SHF_ALLOC;
 	sechdrs[strindex].sh_flags |= SHF_ALLOC;
 #endif
+	if (unwindex)
+		sechdrs[unwindex].sh_flags |= SHF_ALLOC;
 
 	/* Check module struct version now, before we try to use module. */
 	if (!check_modstruct_version(sechdrs, versindex, mod)) {
@@ -1738,6 +1737,11 @@ static struct module *load_module(void __user *umod,
 		goto arch_cleanup;
 	add_sect_attrs(mod, hdr->e_shnum, secstrings, sechdrs);
 
+	/* Size of section 0 is 0, so this works well if no unwind info. */
+	mod->unwind_info = unwind_add_table(mod,
+	                                    (void *)sechdrs[unwindex].sh_addr,
+	                                    sechdrs[unwindex].sh_size);
+
 	/* Get rid of temporary copy */
 	vfree(hdr);
 
@@ -1836,6 +1840,7 @@ sys_init_module(void __user *umod,
 	mod->state = MODULE_STATE_LIVE;
 	/* Drop initial reference. */
 	module_put(mod);
+	unwind_remove_table(mod->unwind_info, 1);
 	module_free(mod, mod->module_init);
 	mod->module_init = NULL;
 	mod->init_size = 0;

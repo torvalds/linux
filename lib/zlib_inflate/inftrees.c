@@ -8,15 +8,6 @@
 
 #define MAXBITS 15
 
-const char inflate_copyright[] =
-   " inflate 1.2.3 Copyright 1995-2005 Mark Adler ";
-/*
-  If you use the zlib library in a product, an acknowledgment is welcome
-  in the documentation of your product. If for some reason you cannot
-  include such an acknowledgment, I would appreciate that you keep this
-  copyright string in the executable of your product.
- */
-
 /*
    Build a set of tables to decode the provided canonical Huffman code.
    The code lengths are lens[0..codes-1].  The result starts at *table,
@@ -29,13 +20,8 @@ const char inflate_copyright[] =
    table index bits.  It will differ if the request is greater than the
    longest code or if it is less than the shortest code.
  */
-int zlib_inflate_table(type, lens, codes, table, bits, work)
-codetype type;
-unsigned short *lens;
-unsigned codes;
-code **table;
-unsigned *bits;
-unsigned short *work;
+int zlib_inflate_table(codetype type, unsigned short *lens, unsigned codes,
+			code **table, unsigned *bits, unsigned short *work)
 {
     unsigned len;               /* a code's length in bits */
     unsigned sym;               /* index of code symbols */

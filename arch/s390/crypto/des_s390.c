@@ -44,10 +44,10 @@ struct crypt_s390_des3_192_ctx {
 	u8 key[DES3_192_KEY_SIZE];
 };
 
-static int des_setkey(void *ctx, const u8 *key, unsigned int keylen,
-		      u32 *flags)
+static int des_setkey(struct crypto_tfm *tfm, const u8 *key,
+		      unsigned int keylen, u32 *flags)
 {
-	struct crypt_s390_des_ctx *dctx = ctx;
+	struct crypt_s390_des_ctx *dctx = crypto_tfm_ctx(tfm);
 	int ret;
 
 	/* test if key is valid (not a weak key) */
@@ -57,16 +57,16 @@ static int des_setkey(void *ctx, const u8 *key, unsigned int keylen,
 	return ret;
 }
 
-static void des_encrypt(void *ctx, u8 *out, const u8 *in)
+static void des_encrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 {
-	struct crypt_s390_des_ctx *dctx = ctx;
+	struct crypt_s390_des_ctx *dctx = crypto_tfm_ctx(tfm);
 
 	crypt_s390_km(KM_DEA_ENCRYPT, dctx->key, out, in, DES_BLOCK_SIZE);
 }
 
-static void des_decrypt(void *ctx, u8 *out, const u8 *in)
+static void des_decrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 {
-	struct crypt_s390_des_ctx *dctx = ctx;
+	struct crypt_s390_des_ctx *dctx = crypto_tfm_ctx(tfm);
 
 	crypt_s390_km(KM_DEA_DECRYPT, dctx->key, out, in, DES_BLOCK_SIZE);
 }
@@ -166,11 +166,11 @@ static struct crypto_alg des_alg = {
  *   Implementers MUST reject keys that exhibit this property.
  *
  */
-static int des3_128_setkey(void *ctx, const u8 *key, unsigned int keylen,
-			   u32 *flags)
+static int des3_128_setkey(struct crypto_tfm *tfm, const u8 *key,
+			   unsigned int keylen, u32 *flags)
 {
 	int i, ret;
-	struct crypt_s390_des3_128_ctx *dctx = ctx;
+	struct crypt_s390_des3_128_ctx *dctx = crypto_tfm_ctx(tfm);
 	const u8* temp_key = key;
 
 	if (!(memcmp(key, &key[DES_KEY_SIZE], DES_KEY_SIZE))) {
@@ -186,17 +186,17 @@ static int des3_128_setkey(void *ctx, const u8 *key, unsigned int keylen,
 	return 0;
 }
 
-static void des3_128_encrypt(void *ctx, u8 *dst, const u8 *src)
+static void des3_128_encrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
 {
-	struct crypt_s390_des3_128_ctx *dctx = ctx;
+	struct crypt_s390_des3_128_ctx *dctx = crypto_tfm_ctx(tfm);
 
 	crypt_s390_km(KM_TDEA_128_ENCRYPT, dctx->key, dst, (void*)src,
 		      DES3_128_BLOCK_SIZE);
 }
 
-static void des3_128_decrypt(void *ctx, u8 *dst, const u8 *src)
+static void des3_128_decrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
 {
-	struct crypt_s390_des3_128_ctx *dctx = ctx;
+	struct crypt_s390_des3_128_ctx *dctx = crypto_tfm_ctx(tfm);
 
 	crypt_s390_km(KM_TDEA_128_DECRYPT, dctx->key, dst, (void*)src,
 		      DES3_128_BLOCK_SIZE);
@@ -302,11 +302,11 @@ static struct crypto_alg des3_128_alg = {
  *   property.
  *
  */
-static int des3_192_setkey(void *ctx, const u8 *key, unsigned int keylen,
-			   u32 *flags)
+static int des3_192_setkey(struct crypto_tfm *tfm, const u8 *key,
+			   unsigned int keylen, u32 *flags)
 {
 	int i, ret;
-	struct crypt_s390_des3_192_ctx *dctx = ctx;
+	struct crypt_s390_des3_192_ctx *dctx = crypto_tfm_ctx(tfm);
 	const u8* temp_key = key;
 
 	if (!(memcmp(key, &key[DES_KEY_SIZE], DES_KEY_SIZE) &&
@@ -325,17 +325,17 @@ static int des3_192_setkey(void *ctx, const u8 *key, unsigned int keylen,
 	return 0;
 }
 
-static void des3_192_encrypt(void *ctx, u8 *dst, const u8 *src)
+static void des3_192_encrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
 {
-	struct crypt_s390_des3_192_ctx *dctx = ctx;
+	struct crypt_s390_des3_192_ctx *dctx = crypto_tfm_ctx(tfm);
 
 	crypt_s390_km(KM_TDEA_192_ENCRYPT, dctx->key, dst, (void*)src,
 		      DES3_192_BLOCK_SIZE);
 }
 
-static void des3_192_decrypt(void *ctx, u8 *dst, const u8 *src)
+static void des3_192_decrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
 {
-	struct crypt_s390_des3_192_ctx *dctx = ctx;
+	struct crypt_s390_des3_192_ctx *dctx = crypto_tfm_ctx(tfm);
 
 	crypt_s390_km(KM_TDEA_192_DECRYPT, dctx->key, dst, (void*)src,
 		      DES3_192_BLOCK_SIZE);

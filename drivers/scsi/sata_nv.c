@@ -44,7 +44,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME			"sata_nv"
-#define DRV_VERSION			"0.9"
+#define DRV_VERSION			"2.0"
 
 enum {
 	NV_PORTS			= 2,

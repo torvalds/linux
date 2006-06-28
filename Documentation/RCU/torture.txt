@@ -7,7 +7,7 @@ The CONFIG_RCU_TORTURE_TEST config option is available for all RCU
 implementations.  It creates an rcutorture kernel module that can
 be loaded to run a torture test.  The test periodically outputs
 status messages via printk(), which can be examined via the dmesg
-command (perhaps grepping for "rcutorture").  The test is started
+command (perhaps grepping for "torture").  The test is started
 when the module is loaded, and stops when the module is unloaded.
 
 However, actually setting this config option to "y" results in the system
@@ -35,6 +35,19 @@ stat_interval	The number of seconds between output of torture
 		be printed -only- when the module is unloaded, and this
 		is the default.
 
+shuffle_interval
+		The number of seconds to keep the test threads affinitied
+		to a particular subset of the CPUs.  Used in conjunction
+		with test_no_idle_hz.
+
+test_no_idle_hz	Whether or not to test the ability of RCU to operate in
+		a kernel that disables the scheduling-clock interrupt to
+		idle CPUs.  Boolean parameter, "1" to test, "0" otherwise.
+
+torture_type	The type of RCU to test: "rcu" for the rcu_read_lock()
+		API, "rcu_bh" for the rcu_read_lock_bh() API, and "srcu"
+		for the "srcu_read_lock()" API.
+
 verbose		Enable debug printk()s.  Default is disabled.
 
 
@@ -42,14 +55,14 @@ OUTPUT
 
 The statistics output is as follows:
 
-	rcutorture: --- Start of test: nreaders=16 stat_interval=0 verbose=0
-	rcutorture: rtc: 0000000000000000 ver: 1916 tfle: 0 rta: 1916 rtaf: 0 rtf: 1915
-	rcutorture: Reader Pipe:  1466408 9747 0 0 0 0 0 0 0 0 0
-	rcutorture: Reader Batch:  1464477 11678 0 0 0 0 0 0 0 0
-	rcutorture: Free-Block Circulation:  1915 1915 1915 1915 1915 1915 1915 1915 1915 1915 0
-	rcutorture: --- End of test
+	rcu-torture: --- Start of test: nreaders=16 stat_interval=0 verbose=0
+	rcu-torture: rtc: 0000000000000000 ver: 1916 tfle: 0 rta: 1916 rtaf: 0 rtf: 1915
+	rcu-torture: Reader Pipe:  1466408 9747 0 0 0 0 0 0 0 0 0
+	rcu-torture: Reader Batch:  1464477 11678 0 0 0 0 0 0 0 0
+	rcu-torture: Free-Block Circulation:  1915 1915 1915 1915 1915 1915 1915 1915 1915 1915 0
+	rcu-torture: --- End of test
 
-The command "dmesg | grep rcutorture:" will extract this information on
+The command "dmesg | grep torture:" will extract this information on
 most systems.  On more esoteric configurations, it may be necessary to
 use other commands to access the output of the printk()s used by
 the RCU torture test.  The printk()s use KERN_ALERT, so they should
@@ -115,8 +128,9 @@ The following script may be used to torture RCU:
 	modprobe rcutorture
 	sleep 100
 	rmmod rcutorture
-	dmesg | grep rcutorture:
+	dmesg | grep torture:
 
 The output can be manually inspected for the error flag of "!!!".
 One could of course create a more elaborate script that automatically
-checked for such errors.
+checked for such errors.  The "rmmod" command forces a "SUCCESS" or
+"FAILURE" indication to be printk()ed.

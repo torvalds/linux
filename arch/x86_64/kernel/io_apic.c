@@ -41,6 +41,7 @@
 #include <asm/mach_apic.h>
 #include <asm/acpi.h>
 #include <asm/dma.h>
+#include <asm/nmi.h>
 
 #define __apicdebuginit  __init
 
@@ -56,6 +57,7 @@ int timer_over_8254 __initdata = 0;
 static struct { int pin, apic; } ioapic_i8259 = { -1, -1 };
 
 static DEFINE_SPINLOCK(ioapic_lock);
+static DEFINE_SPINLOCK(vector_lock);
 
 /*
  * # of IRQ routing registers
@@ -317,7 +319,7 @@ void __init check_ioapic(void)
 				vendor &= 0xffff;
 				switch (vendor) { 
 				case PCI_VENDOR_ID_VIA:
-#ifdef CONFIG_GART_IOMMU
+#ifdef CONFIG_IOMMU
 					if ((end_pfn > MAX_DMA32_PFN ||
 					     force_iommu) &&
 					    !iommu_aperture_allowed) {
@@ -834,10 +836,17 @@ u8 irq_vector[NR_IRQ_VECTORS] __read_mostly = { FIRST_DEVICE_VECTOR , 0 };
 int assign_irq_vector(int irq)
 {
 	static int current_vector = FIRST_DEVICE_VECTOR, offset = 0;
+	unsigned long flags;
+	int vector;
 
 	BUG_ON(irq != AUTO_ASSIGN && (unsigned)irq >= NR_IRQ_VECTORS);
-	if (irq != AUTO_ASSIGN && IO_APIC_VECTOR(irq) > 0)
+
+	spin_lock_irqsave(&vector_lock, flags);
+
+	if (irq != AUTO_ASSIGN && IO_APIC_VECTOR(irq) > 0) {
+		spin_unlock_irqrestore(&vector_lock, flags);
 		return IO_APIC_VECTOR(irq);
+	}
 next:
 	current_vector += 8;
 	if (current_vector == IA32_SYSCALL_VECTOR)
@@ -849,11 +858,14 @@ next:
 		current_vector = FIRST_DEVICE_VECTOR + offset;
 	}
 
-	vector_irq[current_vector] = irq;
+	vector = current_vector;
+	vector_irq[vector] = irq;
 	if (irq != AUTO_ASSIGN)
-		IO_APIC_VECTOR(irq) = current_vector;
+		IO_APIC_VECTOR(irq) = vector;
 
-	return current_vector;
+	spin_unlock_irqrestore(&vector_lock, flags);
+
+	return vector;
 }
 
 extern void (*interrupt[NR_IRQS])(void);
@@ -866,21 +878,14 @@ static struct hw_interrupt_type ioapic_edge_type;
 
 static inline void ioapic_register_intr(int irq, int vector, unsigned long trigger)
 {
-	if (use_pci_vector() && !platform_legacy_irq(irq)) {
-		if ((trigger == IOAPIC_AUTO && IO_APIC_irq_trigger(irq)) ||
-				trigger == IOAPIC_LEVEL)
-			irq_desc[vector].handler = &ioapic_level_type;
-		else
-			irq_desc[vector].handler = &ioapic_edge_type;
-		set_intr_gate(vector, interrupt[vector]);
-	} else	{
-		if ((trigger == IOAPIC_AUTO && IO_APIC_irq_trigger(irq)) ||
-				trigger == IOAPIC_LEVEL)
-			irq_desc[irq].handler = &ioapic_level_type;
-		else
-			irq_desc[irq].handler = &ioapic_edge_type;
-		set_intr_gate(vector, interrupt[irq]);
-	}
+	unsigned idx = use_pci_vector() && !platform_legacy_irq(irq) ? vector : irq;
+
+	if ((trigger == IOAPIC_AUTO && IO_APIC_irq_trigger(irq)) ||
+			trigger == IOAPIC_LEVEL)
+		irq_desc[idx].handler = &ioapic_level_type;
+	else
+		irq_desc[idx].handler = &ioapic_edge_type;
+	set_intr_gate(vector, interrupt[idx]);
 }
 
 static void __init setup_IO_APIC_irqs(void)

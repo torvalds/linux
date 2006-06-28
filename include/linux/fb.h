@@ -504,23 +504,19 @@ struct fb_cursor_user {
 #define FB_EVENT_MODE_DELETE            0x04
 /*      A driver registered itself */
 #define FB_EVENT_FB_REGISTERED          0x05
+/*      A driver unregistered itself */
+#define FB_EVENT_FB_UNREGISTERED        0x06
 /*      CONSOLE-SPECIFIC: get console to framebuffer mapping */
-#define FB_EVENT_GET_CONSOLE_MAP        0x06
+#define FB_EVENT_GET_CONSOLE_MAP        0x07
 /*      CONSOLE-SPECIFIC: set console to framebuffer mapping */
-#define FB_EVENT_SET_CONSOLE_MAP        0x07
+#define FB_EVENT_SET_CONSOLE_MAP        0x08
 /*      A display blank is requested       */
-#define FB_EVENT_BLANK                  0x08
+#define FB_EVENT_BLANK                  0x09
 /*      Private modelist is to be replaced */
-#define FB_EVENT_NEW_MODELIST           0x09
+#define FB_EVENT_NEW_MODELIST           0x0A
 /*	The resolution of the passed in fb_info about to change and
         all vc's should be changed         */
-#define FB_EVENT_MODE_CHANGE_ALL	0x0A
-/*      CONSOLE-SPECIFIC: set console rotation */
-#define FB_EVENT_SET_CON_ROTATE         0x0B
-/*      CONSOLE-SPECIFIC: get console rotation */
-#define FB_EVENT_GET_CON_ROTATE         0x0C
-/*      CONSOLE-SPECIFIC: rotate all consoles */
-#define FB_EVENT_SET_CON_ROTATE_ALL     0x0D
+#define FB_EVENT_MODE_CHANGE_ALL	0x0B
 
 struct fb_event {
 	struct fb_info *info;
@@ -892,7 +888,6 @@ extern int fb_get_color_depth(struct fb_var_screeninfo *var,
 			      struct fb_fix_screeninfo *fix);
 extern int fb_get_options(char *name, char **option);
 extern int fb_new_modelist(struct fb_info *info);
-extern int fb_con_duit(struct fb_info *info, int event, void *data);
 
 extern struct fb_info *registered_fb[FB_MAX];
 extern int num_registered_fb;

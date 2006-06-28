@@ -522,8 +522,7 @@ void shrink_dcache_sb(struct super_block * sb)
 		dentry = list_entry(tmp, struct dentry, d_lru);
 		if (dentry->d_sb != sb)
 			continue;
-		list_del(tmp);
-		list_add(tmp, &dentry_unused);
+		list_move(tmp, &dentry_unused);
 	}
 
 	/*
@@ -638,7 +637,7 @@ resume:
 		 * of the unused list for prune_dcache
 		 */
 		if (!atomic_read(&dentry->d_count)) {
-			list_add(&dentry->d_lru, dentry_unused.prev);
+			list_add_tail(&dentry->d_lru, &dentry_unused);
 			dentry_stat.nr_unused++;
 			found++;
 		}

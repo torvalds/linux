@@ -2818,7 +2818,7 @@ static int st_int_ioctl(struct scsi_tape *STp, unsigned int cmd_in, unsigned lon
 		    (cmdstatp->sense_hdr.sense_key == NO_SENSE ||
 		     cmdstatp->sense_hdr.sense_key == RECOVERED_ERROR) &&
 		    undone == 0) {
-			ioctl_result = 0;	/* EOF written succesfully at EOM */
+			ioctl_result = 0;	/* EOF written successfully at EOM */
 			if (fileno >= 0)
 				fileno++;
 			STps->drv_file = fileno;

@@ -74,7 +74,6 @@
 #include <linux/completion.h>
 #include <linux/highmem.h>
 #include <linux/gfp.h>
-#include <linux/kthread.h>
 
 #include <asm/uaccess.h>
 
@@ -579,6 +578,8 @@ static int loop_thread(void *data)
 	struct loop_device *lo = data;
 	struct bio *bio;
 
+	daemonize("loop%d", lo->lo_number);
+
 	/*
 	 * loop can be used in an encrypted device,
 	 * hence, it mustn't be stopped at all
@@ -590,6 +591,11 @@ static int loop_thread(void *data)
 
 	lo->lo_state = Lo_bound;
 	lo->lo_pending = 1;
+
+	/*
+	 * complete it, we are running
+	 */
+	complete(&lo->lo_done);
 
 	for (;;) {
 		int pending;
@@ -623,6 +629,7 @@ static int loop_thread(void *data)
 			break;
 	}
 
+	complete(&lo->lo_done);
 	return 0;
 }
 
@@ -739,7 +746,6 @@ static int loop_set_fd(struct loop_device *lo, struct file *lo_file,
 	unsigned lo_blocksize;
 	int		lo_flags = 0;
 	int		error;
-	struct task_struct *tsk;
 	loff_t		size;
 
 	/* This is safe, since we have a reference from open(). */
@@ -833,11 +839,10 @@ static int loop_set_fd(struct loop_device *lo, struct file *lo_file,
 
 	set_blocksize(bdev, lo_blocksize);
 
-	tsk = kthread_run(loop_thread, lo, "loop%d", lo->lo_number);
-	if (IS_ERR(tsk)) {
-		error = PTR_ERR(tsk);
+	error = kernel_thread(loop_thread, lo, CLONE_KERNEL);
+	if (error < 0)
 		goto out_putf;
-	}
+	wait_for_completion(&lo->lo_done);
 	return 0;
 
  out_putf:
@@ -893,9 +898,6 @@ static int loop_clr_fd(struct loop_device *lo, struct block_device *bdev)
 	if (lo->lo_state != Lo_bound)
 		return -ENXIO;
 
-	if (!lo->lo_thread)
-		return -EINVAL;
-
 	if (lo->lo_refcnt > 1)	/* we needed one fd for the ioctl */
 		return -EBUSY;
 
@@ -909,7 +911,7 @@ static int loop_clr_fd(struct loop_device *lo, struct block_device *bdev)
 		complete(&lo->lo_bh_done);
 	spin_unlock_irq(&lo->lo_lock);
 
-	kthread_stop(lo->lo_thread);
+	wait_for_completion(&lo->lo_done);
 
 	lo->lo_backing_file = NULL;
 
@@ -922,7 +924,6 @@ static int loop_clr_fd(struct loop_device *lo, struct block_device *bdev)
 	lo->lo_sizelimit = 0;
 	lo->lo_encrypt_key_size = 0;
 	lo->lo_flags = 0;
-	lo->lo_thread = NULL;
 	memset(lo->lo_encrypt_key, 0, LO_KEY_SIZE);
 	memset(lo->lo_crypt_name, 0, LO_NAME_SIZE);
 	memset(lo->lo_file_name, 0, LO_NAME_SIZE);
@@ -1287,6 +1288,7 @@ static int __init loop_init(void)
 		if (!lo->lo_queue)
 			goto out_mem4;
 		mutex_init(&lo->lo_ctl_mutex);
+		init_completion(&lo->lo_done);
 		init_completion(&lo->lo_bh_done);
 		lo->lo_number = i;
 		spin_lock_init(&lo->lo_lock);

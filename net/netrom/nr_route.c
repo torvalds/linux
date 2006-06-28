@@ -725,15 +725,17 @@ void nr_link_failed(ax25_cb *ax25, int reason)
 	struct nr_node  *nr_node = NULL;
 
 	spin_lock_bh(&nr_neigh_list_lock);
-	nr_neigh_for_each(s, node, &nr_neigh_list)
+	nr_neigh_for_each(s, node, &nr_neigh_list) {
 		if (s->ax25 == ax25) {
 			nr_neigh_hold(s);
 			nr_neigh = s;
 			break;
 		}
+	}
 	spin_unlock_bh(&nr_neigh_list_lock);
 
-	if (nr_neigh == NULL) return;
+	if (nr_neigh == NULL)
+		return;
 
 	nr_neigh->ax25 = NULL;
 	ax25_cb_put(ax25);
@@ -743,11 +745,13 @@ void nr_link_failed(ax25_cb *ax25, int reason)
 		return;
 	}
 	spin_lock_bh(&nr_node_list_lock);
-	nr_node_for_each(nr_node, node, &nr_node_list)
+	nr_node_for_each(nr_node, node, &nr_node_list) {
 		nr_node_lock(nr_node);
-		if (nr_node->which < nr_node->count && nr_node->routes[nr_node->which].neighbour == nr_neigh)
+		if (nr_node->which < nr_node->count &&
+		    nr_node->routes[nr_node->which].neighbour == nr_neigh)
 			nr_node->which++;
 		nr_node_unlock(nr_node);
+	}
 	spin_unlock_bh(&nr_node_list_lock);
 	nr_neigh_put(nr_neigh);
 }

@@ -570,6 +570,122 @@ out:
 	crypto_free_tfm(tfm);
 }
 
+static void test_digest_jiffies(struct crypto_tfm *tfm, char *p, int blen,
+				int plen, char *out, int sec)
+{
+	struct scatterlist sg[1];
+	unsigned long start, end;
+	int bcount, pcount;
+
+	for (start = jiffies, end = start + sec * HZ, bcount = 0;
+	     time_before(jiffies, end); bcount++) {
+		crypto_digest_init(tfm);
+		for (pcount = 0; pcount < blen; pcount += plen) {
+			sg_set_buf(sg, p + pcount, plen);
+			crypto_digest_update(tfm, sg, 1);
+		}
+		/* we assume there is enough space in 'out' for the result */
+		crypto_digest_final(tfm, out);
+	}
+
+	printk("%6u opers/sec, %9lu bytes/sec\n",
+	       bcount / sec, ((long)bcount * blen) / sec);
+
+	return;
+}
+
+static void test_digest_cycles(struct crypto_tfm *tfm, char *p, int blen,
+			       int plen, char *out)
+{
+	struct scatterlist sg[1];
+	unsigned long cycles = 0;
+	int i, pcount;
+
+	local_bh_disable();
+	local_irq_disable();
+
+	/* Warm-up run. */
+	for (i = 0; i < 4; i++) {
+		crypto_digest_init(tfm);
+		for (pcount = 0; pcount < blen; pcount += plen) {
+			sg_set_buf(sg, p + pcount, plen);
+			crypto_digest_update(tfm, sg, 1);
+		}
+		crypto_digest_final(tfm, out);
+	}
+
+	/* The real thing. */
+	for (i = 0; i < 8; i++) {
+		cycles_t start, end;
+
+		crypto_digest_init(tfm);
+
+		start = get_cycles();
+
+		for (pcount = 0; pcount < blen; pcount += plen) {
+			sg_set_buf(sg, p + pcount, plen);
+			crypto_digest_update(tfm, sg, 1);
+		}
+		crypto_digest_final(tfm, out);
+
+		end = get_cycles();
+
+		cycles += end - start;
+	}
+
+	local_irq_enable();
+	local_bh_enable();
+
+	printk("%6lu cycles/operation, %4lu cycles/byte\n",
+	       cycles / 8, cycles / (8 * blen));
+
+	return;
+}
+
+static void test_digest_speed(char *algo, unsigned int sec,
+			      struct digest_speed *speed)
+{
+	struct crypto_tfm *tfm;
+	char output[1024];
+	int i;
+
+	printk("\ntesting speed of %s\n", algo);
+
+	tfm = crypto_alloc_tfm(algo, 0);
+
+	if (tfm == NULL) {
+		printk("failed to load transform for %s\n", algo);
+		return;
+	}
+
+	if (crypto_tfm_alg_digestsize(tfm) > sizeof(output)) {
+		printk("digestsize(%u) > outputbuffer(%zu)\n",
+		       crypto_tfm_alg_digestsize(tfm), sizeof(output));
+		goto out;
+	}
+
+	for (i = 0; speed[i].blen != 0; i++) {
+		if (speed[i].blen > TVMEMSIZE) {
+			printk("template (%u) too big for tvmem (%u)\n",
+			       speed[i].blen, TVMEMSIZE);
+			goto out;
+		}
+
+		printk("test%3u (%5u byte blocks,%5u bytes per update,%4u updates): ",
+		       i, speed[i].blen, speed[i].plen, speed[i].blen / speed[i].plen);
+
+		memset(tvmem, 0xff, speed[i].blen);
+
+		if (sec)
+			test_digest_jiffies(tfm, tvmem, speed[i].blen, speed[i].plen, output, sec);
+		else
+			test_digest_cycles(tfm, tvmem, speed[i].blen, speed[i].plen, output);
+	}
+
+out:
+	crypto_free_tfm(tfm);
+}
+
 static void test_deflate(void)
 {
 	unsigned int i;
@@ -1086,6 +1202,60 @@ static void do_test(void)
 				  des_speed_template);
 		break;
 
+	case 300:
+		/* fall through */
+
+	case 301:
+		test_digest_speed("md4", sec, generic_digest_speed_template);
+		if (mode > 300 && mode < 400) break;
+
+	case 302:
+		test_digest_speed("md5", sec, generic_digest_speed_template);
+		if (mode > 300 && mode < 400) break;
+
+	case 303:
+		test_digest_speed("sha1", sec, generic_digest_speed_template);
+		if (mode > 300 && mode < 400) break;
+
+	case 304:
+		test_digest_speed("sha256", sec, generic_digest_speed_template);
+		if (mode > 300 && mode < 400) break;
+
+	case 305:
+		test_digest_speed("sha384", sec, generic_digest_speed_template);
+		if (mode > 300 && mode < 400) break;
+
+	case 306:
+		test_digest_speed("sha512", sec, generic_digest_speed_template);
+		if (mode > 300 && mode < 400) break;
+
+	case 307:
+		test_digest_speed("wp256", sec, generic_digest_speed_template);
+		if (mode > 300 && mode < 400) break;
+
+	case 308:
+		test_digest_speed("wp384", sec, generic_digest_speed_template);
+		if (mode > 300 && mode < 400) break;
+
+	case 309:
+		test_digest_speed("wp512", sec, generic_digest_speed_template);
+		if (mode > 300 && mode < 400) break;
+
+	case 310:
+		test_digest_speed("tgr128", sec, generic_digest_speed_template);
+		if (mode > 300 && mode < 400) break;
+
+	case 311:
+		test_digest_speed("tgr160", sec, generic_digest_speed_template);
+		if (mode > 300 && mode < 400) break;
+
+	case 312:
+		test_digest_speed("tgr192", sec, generic_digest_speed_template);
+		if (mode > 300 && mode < 400) break;
+
+	case 399:
+		break;
+
 	case 1000:
 		test_available();
 		break;
@@ -1113,7 +1283,14 @@ static int __init init(void)
 
 	kfree(xbuf);
 	kfree(tvmem);
-	return 0;
+
+	/* We intentionaly return -EAGAIN to prevent keeping
+	 * the module. It does all its work from init()
+	 * and doesn't offer any runtime functionality 
+	 * => we don't need it in the memory, do we?
+	 *                                        -- mludvig
+	 */
+	return -EAGAIN;
 }
 
 /*

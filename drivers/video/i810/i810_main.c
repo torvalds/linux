@@ -2110,9 +2110,6 @@ static void i810fb_release_resource(struct fb_info *info,
 	if (par->res_flags & MMIO_REQ)
 		release_mem_region(par->mmio_start_phys, MMIO_SIZE);
 
-	if (par->res_flags & PCI_DEVICE_ENABLED)
-		pci_disable_device(par->dev);
-
 	framebuffer_release(info);
 
 }

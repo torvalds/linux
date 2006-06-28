@@ -334,7 +334,7 @@ out:
 	return nid;
 }
 
-static int cpu_numa_callback(struct notifier_block *nfb,
+static int __cpuinit cpu_numa_callback(struct notifier_block *nfb,
 			     unsigned long action,
 			     void *hcpu)
 {
@@ -609,14 +609,15 @@ static void __init *careful_allocation(int nid, unsigned long size,
 	return (void *)ret;
 }
 
+static struct notifier_block __cpuinitdata ppc64_numa_nb = {
+	.notifier_call = cpu_numa_callback,
+	.priority = 1 /* Must run before sched domains notifier. */
+};
+
 void __init do_init_bootmem(void)
 {
 	int nid;
 	unsigned int i;
-	static struct notifier_block ppc64_numa_nb = {
-		.notifier_call = cpu_numa_callback,
-		.priority = 1 /* Must run before sched domains notifier. */
-	};
 
 	min_low_pfn = 0;
 	max_low_pfn = lmb_end_of_DRAM() >> PAGE_SHIFT;

@@ -508,19 +508,6 @@ sys32_waitpid(compat_pid_t pid, unsigned int *stat_addr, int options)
 	return compat_sys_wait4(pid, stat_addr, options, NULL);
 }
 
-int sys32_ni_syscall(int call)
-{ 
-	struct task_struct *me = current;
-	static char lastcomm[sizeof(me->comm)];
-
-	if (strncmp(lastcomm, me->comm, sizeof(lastcomm))) {
-		printk(KERN_INFO "IA32 syscall %d from %s not implemented\n",
-		       call, me->comm);
-		strncpy(lastcomm, me->comm, sizeof(lastcomm));
-	} 
-	return -ENOSYS;	       
-} 
-
 /* 32-bit timeval and related flotsam.  */
 
 asmlinkage long
@@ -916,7 +903,7 @@ long sys32_vm86_warning(void)
 	struct task_struct *me = current;
 	static char lastcomm[sizeof(me->comm)];
 	if (strncmp(lastcomm, me->comm, sizeof(lastcomm))) {
-		printk(KERN_INFO "%s: vm86 mode not supported on 64 bit kernel\n",
+		compat_printk(KERN_INFO "%s: vm86 mode not supported on 64 bit kernel\n",
 		       me->comm);
 		strncpy(lastcomm, me->comm, sizeof(lastcomm));
 	} 
@@ -929,13 +916,3 @@ long sys32_lookup_dcookie(u32 addr_low, u32 addr_high,
 	return sys_lookup_dcookie(((u64)addr_high << 32) | addr_low, buf, len);
 }
 
-static int __init ia32_init (void)
-{
-	printk("IA32 emulation $Id: sys_ia32.c,v 1.32 2002/03/24 13:02:28 ak Exp $\n");  
-	return 0;
-}
-
-__initcall(ia32_init);
-
-extern unsigned long ia32_sys_call_table[];
-EXPORT_SYMBOL(ia32_sys_call_table);

@@ -833,7 +833,7 @@ static void migrate_hrtimers(int cpu)
 }
 #endif /* CONFIG_HOTPLUG_CPU */
 
-static int hrtimer_cpu_notify(struct notifier_block *self,
+static int __devinit hrtimer_cpu_notify(struct notifier_block *self,
 					unsigned long action, void *hcpu)
 {
 	long cpu = (long)hcpu;
@@ -857,7 +857,7 @@ static int hrtimer_cpu_notify(struct notifier_block *self,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block hrtimers_nb = {
+static struct notifier_block __devinitdata hrtimers_nb = {
 	.notifier_call = hrtimer_cpu_notify,
 };
 

@@ -275,7 +275,7 @@ sisfb_search_mode(char *name, BOOLEAN quiet)
 static void __devinit
 sisfb_get_vga_mode_from_kernel(void)
 {
-#if (defined(__i386__) || defined(__x86_64__)) && defined(CONFIG_VIDEO_SELECT)
+#ifdef CONFIG_X86
 	char mymode[32];
 	int  mydepth = screen_info.lfb_depth;
 

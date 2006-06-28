@@ -53,8 +53,7 @@ static void jffs2_erase_block(struct jffs2_sb_info *c,
 	if (!instr) {
 		printk(KERN_WARNING "kmalloc for struct erase_info in jffs2_erase_block failed. Refiling block for later\n");
 		spin_lock(&c->erase_completion_lock);
-		list_del(&jeb->list);
-		list_add(&jeb->list, &c->erase_pending_list);
+		list_move(&jeb->list, &c->erase_pending_list);
 		c->erasing_size -= c->sector_size;
 		c->dirty_size += c->sector_size;
 		jeb->dirty_size = c->sector_size;
@@ -86,8 +85,7 @@ static void jffs2_erase_block(struct jffs2_sb_info *c,
 		/* Erase failed immediately. Refile it on the list */
 		D1(printk(KERN_DEBUG "Erase at 0x%08x failed: %d. Refiling on erase_pending_list\n", jeb->offset, ret));
 		spin_lock(&c->erase_completion_lock);
-		list_del(&jeb->list);
-		list_add(&jeb->list, &c->erase_pending_list);
+		list_move(&jeb->list, &c->erase_pending_list);
 		c->erasing_size -= c->sector_size;
 		c->dirty_size += c->sector_size;
 		jeb->dirty_size = c->sector_size;
@@ -161,8 +159,7 @@ static void jffs2_erase_succeeded(struct jffs2_sb_info *c, struct jffs2_eraseblo
 {
 	D1(printk(KERN_DEBUG "Erase completed successfully at 0x%08x\n", jeb->offset));
 	spin_lock(&c->erase_completion_lock);
-	list_del(&jeb->list);
-	list_add_tail(&jeb->list, &c->erase_complete_list);
+	list_move_tail(&jeb->list, &c->erase_complete_list);
 	spin_unlock(&c->erase_completion_lock);
 	/* Ensure that kupdated calls us again to mark them clean */
 	jffs2_erase_pending_trigger(c);
@@ -178,8 +175,7 @@ static void jffs2_erase_failed(struct jffs2_sb_info *c, struct jffs2_eraseblock 
 		if (!jffs2_write_nand_badblock(c, jeb, bad_offset)) {
 			/* We'd like to give this block another try. */
 			spin_lock(&c->erase_completion_lock);
-			list_del(&jeb->list);
-			list_add(&jeb->list, &c->erase_pending_list);
+			list_move(&jeb->list, &c->erase_pending_list);
 			c->erasing_size -= c->sector_size;
 			c->dirty_size += c->sector_size;
 			jeb->dirty_size = c->sector_size;
@@ -191,8 +187,7 @@ static void jffs2_erase_failed(struct jffs2_sb_info *c, struct jffs2_eraseblock 
 	spin_lock(&c->erase_completion_lock);
 	c->erasing_size -= c->sector_size;
 	c->bad_size += c->sector_size;
-	list_del(&jeb->list);
-	list_add(&jeb->list, &c->bad_list);
+	list_move(&jeb->list, &c->bad_list);
 	c->nr_erasing_blocks--;
 	spin_unlock(&c->erase_completion_lock);
 	wake_up(&c->erase_wait);
@@ -230,7 +225,6 @@ static inline void jffs2_remove_node_refs_from_ino_list(struct jffs2_sb_info *c,
 			   at the end of the linked list. Stash it and continue
 			   from the beginning of the list */
 			ic = (struct jffs2_inode_cache *)(*prev);
-			BUG_ON(ic->class != RAWNODE_CLASS_INODE_CACHE);
 			prev = &ic->nodes;
 			continue;
 		}
@@ -254,7 +248,8 @@ static inline void jffs2_remove_node_refs_from_ino_list(struct jffs2_sb_info *c,
 
 	/* PARANOIA */
 	if (!ic) {
-		printk(KERN_WARNING "inode_cache not found in remove_node_refs()!!\n");
+		JFFS2_WARNING("inode_cache/xattr_datum/xattr_ref"
+			      " not found in remove_node_refs()!!\n");
 		return;
 	}
 
@@ -279,8 +274,19 @@ static inline void jffs2_remove_node_refs_from_ino_list(struct jffs2_sb_info *c,
 		printk("\n");
 	});
 
-	if (ic->nodes == (void *)ic && ic->nlink == 0)
-		jffs2_del_ino_cache(c, ic);
+	switch (ic->class) {
+#ifdef CONFIG_JFFS2_FS_XATTR
+		case RAWNODE_CLASS_XATTR_DATUM:
+			jffs2_release_xattr_datum(c, (struct jffs2_xattr_datum *)ic);
+			break;
+		case RAWNODE_CLASS_XATTR_REF:
+			jffs2_release_xattr_ref(c, (struct jffs2_xattr_ref *)ic);
+			break;
+#endif
+		default:
+			if (ic->nodes == (void *)ic && ic->nlink == 0)
+				jffs2_del_ino_cache(c, ic);
+	}
 }
 
 void jffs2_free_jeb_node_refs(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb)

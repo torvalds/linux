@@ -119,8 +119,11 @@ struct jffs2_sb_info {
 #ifdef CONFIG_JFFS2_FS_XATTR
 #define XATTRINDEX_HASHSIZE	(57)
 	uint32_t highest_xid;
+	uint32_t highest_xseqno;
 	struct list_head xattrindex[XATTRINDEX_HASHSIZE];
 	struct list_head xattr_unchecked;
+	struct list_head xattr_dead_list;
+	struct jffs2_xattr_ref *xref_dead_list;
 	struct jffs2_xattr_ref *xref_temp;
 	struct rw_semaphore xattr_sem;
 	uint32_t xdatum_mem_usage;

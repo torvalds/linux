@@ -105,6 +105,9 @@ extern int allocate_resource(struct resource *root, struct resource *new,
 int adjust_resource(struct resource *res, unsigned long start,
 		    unsigned long size);
 
+/* get registered SYSTEM_RAM resources in specified area */
+extern int find_next_system_ram(struct resource *res);
+
 /* Convenience shorthand with allocation */
 #define request_region(start,n,name)	__request_region(&ioport_resource, (start), (n), (name))
 #define request_mem_region(start,n,name) __request_region(&iomem_resource, (start), (n), (name))

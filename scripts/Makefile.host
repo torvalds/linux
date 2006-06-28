@@ -33,8 +33,8 @@
 __hostprogs := $(sort $(hostprogs-y)$(hostprogs-m))
 
 # hostprogs-y := tools/build may have been specified. Retreive directory
-obj-dirs += $(foreach f,$(__hostprogs), $(if $(dir $(f)),$(dir $(f))))
-obj-dirs := $(strip $(sort $(filter-out ./,$(obj-dirs))))
+host-objdirs := $(foreach f,$(__hostprogs), $(if $(dir $(f)),$(dir $(f))))
+host-objdirs := $(strip $(sort $(filter-out ./,$(host-objdirs))))
 
 
 # C code
@@ -73,7 +73,9 @@ host-cxxmulti	:= $(addprefix $(obj)/,$(host-cxxmulti))
 host-cxxobjs	:= $(addprefix $(obj)/,$(host-cxxobjs))
 host-cshlib	:= $(addprefix $(obj)/,$(host-cshlib))
 host-cshobjs	:= $(addprefix $(obj)/,$(host-cshobjs))
-obj-dirs        := $(addprefix $(obj)/,$(obj-dirs))
+host-objdirs    := $(addprefix $(obj)/,$(host-objdirs))
+
+obj-dirs += $(host-objdirs)
 
 #####
 # Handle options to gcc. Support building with separate output directory

@@ -809,7 +809,7 @@ static int ipmi_thread(void *data)
 			/* do nothing */
 		}
 		else if (smi_result == SI_SM_CALL_WITH_DELAY)
-			udelay(1);
+			schedule();
 		else
 			schedule_timeout_interruptible(1);
 	}

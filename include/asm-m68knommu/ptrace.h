@@ -46,10 +46,8 @@ struct pt_regs {
 #else
   unsigned short sr;
   unsigned long  pc;
-#ifndef NO_FORMAT_VEC
   unsigned format :  4; /* frame format specifier */
   unsigned vector : 12; /* vector offset */
-#endif
 #endif
 };
 

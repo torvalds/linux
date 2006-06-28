@@ -1883,7 +1883,7 @@ static void smc_reset(struct net_device *dev)
     /* Set the Window 1 control, configuration and station addr registers.
        No point in writing the I/O base register ;-> */
     SMC_SELECT_BANK(1);
-    /* Automatically release succesfully transmitted packets,
+    /* Automatically release successfully transmitted packets,
        Accept link errors, counter and Tx error interrupts. */
     outw(CTL_AUTO_RELEASE | CTL_TE_ENABLE | CTL_CR_ENABLE,
 	 ioaddr + CONTROL);

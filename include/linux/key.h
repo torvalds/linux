@@ -248,7 +248,14 @@ extern struct key *key_alloc(struct key_type *type,
 			     const char *desc,
 			     uid_t uid, gid_t gid,
 			     struct task_struct *ctx,
-			     key_perm_t perm, int not_in_quota);
+			     key_perm_t perm,
+			     unsigned long flags);
+
+
+#define KEY_ALLOC_IN_QUOTA	0x0000	/* add to quota, reject if would overrun */
+#define KEY_ALLOC_QUOTA_OVERRUN	0x0001	/* add to quota, permit even if overrun */
+#define KEY_ALLOC_NOT_IN_QUOTA	0x0002	/* not in quota */
+
 extern int key_payload_reserve(struct key *key, size_t datalen);
 extern int key_instantiate_and_link(struct key *key,
 				    const void *data,
@@ -285,7 +292,7 @@ extern key_ref_t key_create_or_update(key_ref_t keyring,
 				      const char *description,
 				      const void *payload,
 				      size_t plen,
-				      int not_in_quota);
+				      unsigned long flags);
 
 extern int key_update(key_ref_t key,
 		      const void *payload,
@@ -299,7 +306,7 @@ extern int key_unlink(struct key *keyring,
 
 extern struct key *keyring_alloc(const char *description, uid_t uid, gid_t gid,
 				 struct task_struct *ctx,
-				 int not_in_quota,
+				 unsigned long flags,
 				 struct key *dest);
 
 extern int keyring_clear(struct key *keyring);

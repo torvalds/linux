@@ -824,10 +824,9 @@ static int __init ioat_init_module(void)
 {
 	/* it's currently unsafe to unload this module */
 	/* if forced, worst case is that rmmod hangs */
-	if (THIS_MODULE != NULL)
-		THIS_MODULE->unsafe = 1;
+	__unsafe(THIS_MODULE);
 
-	return pci_module_init(&ioat_pci_drv);
+	pci_module_init(&ioat_pci_drv);
 }
 
 module_init(ioat_init_module);

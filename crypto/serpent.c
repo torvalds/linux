@@ -215,9 +215,11 @@ struct serpent_ctx {
 };
 
 
-static int serpent_setkey(void *ctx, const u8 *key, unsigned int keylen, u32 *flags)
+static int serpent_setkey(struct crypto_tfm *tfm, const u8 *key,
+			  unsigned int keylen, u32 *flags)
 {
-	u32 *k = ((struct serpent_ctx *)ctx)->expkey;
+	struct serpent_ctx *ctx = crypto_tfm_ctx(tfm);
+	u32 *k = ctx->expkey;
 	u8  *k8 = (u8 *)k;
 	u32 r0,r1,r2,r3,r4;
 	int i;
@@ -365,10 +367,11 @@ static int serpent_setkey(void *ctx, const u8 *key, unsigned int keylen, u32 *fl
 	return 0;
 }
 
-static void serpent_encrypt(void *ctx, u8 *dst, const u8 *src)
+static void serpent_encrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
 {
+	struct serpent_ctx *ctx = crypto_tfm_ctx(tfm);
 	const u32
-		*k = ((struct serpent_ctx *)ctx)->expkey,
+		*k = ctx->expkey,
 		*s = (const u32 *)src;
 	u32	*d = (u32 *)dst,
 		r0, r1, r2, r3, r4;
@@ -423,8 +426,9 @@ static void serpent_encrypt(void *ctx, u8 *dst, const u8 *src)
 	d[3] = cpu_to_le32(r3);
 }
 
-static void serpent_decrypt(void *ctx, u8 *dst, const u8 *src)
+static void serpent_decrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
 {
+	struct serpent_ctx *ctx = crypto_tfm_ctx(tfm);
 	const u32
 		*k = ((struct serpent_ctx *)ctx)->expkey,
 		*s = (const u32 *)src;
@@ -492,7 +496,8 @@ static struct crypto_alg serpent_alg = {
 	.cia_decrypt  		=	serpent_decrypt } }
 };
 
-static int tnepres_setkey(void *ctx, const u8 *key, unsigned int keylen, u32 *flags)
+static int tnepres_setkey(struct crypto_tfm *tfm, const u8 *key,
+			  unsigned int keylen, u32 *flags)
 {
 	u8 rev_key[SERPENT_MAX_KEY_SIZE];
 	int i;
@@ -506,10 +511,10 @@ static int tnepres_setkey(void *ctx, const u8 *key, unsigned int keylen, u32 *fl
 	for (i = 0; i < keylen; ++i)
 		rev_key[keylen - i - 1] = key[i];
  
-	return serpent_setkey(ctx, rev_key, keylen, flags);
+	return serpent_setkey(tfm, rev_key, keylen, flags);
 }
 
-static void tnepres_encrypt(void *ctx, u8 *dst, const u8 *src)
+static void tnepres_encrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
 {
 	const u32 * const s = (const u32 * const)src;
 	u32 * const d = (u32 * const)dst;
@@ -521,7 +526,7 @@ static void tnepres_encrypt(void *ctx, u8 *dst, const u8 *src)
 	rs[2] = swab32(s[1]);
 	rs[3] = swab32(s[0]);
 
-	serpent_encrypt(ctx, (u8 *)rd, (u8 *)rs);
+	serpent_encrypt(tfm, (u8 *)rd, (u8 *)rs);
 
 	d[0] = swab32(rd[3]);
 	d[1] = swab32(rd[2]);
@@ -529,7 +534,7 @@ static void tnepres_encrypt(void *ctx, u8 *dst, const u8 *src)
 	d[3] = swab32(rd[0]);
 }
 
-static void tnepres_decrypt(void *ctx, u8 *dst, const u8 *src)
+static void tnepres_decrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
 {
 	const u32 * const s = (const u32 * const)src;
 	u32 * const d = (u32 * const)dst;
@@ -541,7 +546,7 @@ static void tnepres_decrypt(void *ctx, u8 *dst, const u8 *src)
 	rs[2] = swab32(s[1]);
 	rs[3] = swab32(s[0]);
 
-	serpent_decrypt(ctx, (u8 *)rd, (u8 *)rs);
+	serpent_decrypt(tfm, (u8 *)rd, (u8 *)rs);
 
 	d[0] = swab32(rd[3]);
 	d[1] = swab32(rd[2]);

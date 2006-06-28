@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2001, 2002 Sistina Software (UK) Limited.
- * Copyright (C) 2004 - 2005 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2004 - 2006 Red Hat, Inc. All rights reserved.
  *
  * This file is released under the GPL.
  */
@@ -19,6 +19,7 @@
 
 #include <asm/uaccess.h>
 
+#define DM_MSG_PREFIX "ioctl"
 #define DM_DRIVER_EMAIL "dm-devel@redhat.com"
 
 /*-----------------------------------------------------------------
@@ -48,7 +49,7 @@ struct vers_iter {
 static struct list_head _name_buckets[NUM_BUCKETS];
 static struct list_head _uuid_buckets[NUM_BUCKETS];
 
-static void dm_hash_remove_all(void);
+static void dm_hash_remove_all(int keep_open_devices);
 
 /*
  * Guards access to both hash tables.
@@ -73,7 +74,7 @@ static int dm_hash_init(void)
 
 static void dm_hash_exit(void)
 {
-	dm_hash_remove_all();
+	dm_hash_remove_all(0);
 	devfs_remove(DM_DIR);
 }
 
@@ -102,8 +103,10 @@ static struct hash_cell *__get_name_cell(const char *str)
 	unsigned int h = hash_str(str);
 
 	list_for_each_entry (hc, _name_buckets + h, name_list)
-		if (!strcmp(hc->name, str))
+		if (!strcmp(hc->name, str)) {
+			dm_get(hc->md);
 			return hc;
+		}
 
 	return NULL;
 }
@@ -114,8 +117,10 @@ static struct hash_cell *__get_uuid_cell(const char *str)
 	unsigned int h = hash_str(str);
 
 	list_for_each_entry (hc, _uuid_buckets + h, uuid_list)
-		if (!strcmp(hc->uuid, str))
+		if (!strcmp(hc->uuid, str)) {
+			dm_get(hc->md);
 			return hc;
+		}
 
 	return NULL;
 }
@@ -191,7 +196,7 @@ static int unregister_with_devfs(struct hash_cell *hc)
  */
 static int dm_hash_insert(const char *name, const char *uuid, struct mapped_device *md)
 {
-	struct hash_cell *cell;
+	struct hash_cell *cell, *hc;
 
 	/*
 	 * Allocate the new cells.
@@ -204,14 +209,19 @@ static int dm_hash_insert(const char *name, const char *uuid, struct mapped_devi
 	 * Insert the cell into both hash tables.
 	 */
 	down_write(&_hash_lock);
-	if (__get_name_cell(name))
+	hc = __get_name_cell(name);
+	if (hc) {
+		dm_put(hc->md);
 		goto bad;
+	}
 
 	list_add(&cell->name_list, _name_buckets + hash_str(name));
 
 	if (uuid) {
-		if (__get_uuid_cell(uuid)) {
+		hc = __get_uuid_cell(uuid);
+		if (hc) {
 			list_del(&cell->name_list);
+			dm_put(hc->md);
 			goto bad;
 		}
 		list_add(&cell->uuid_list, _uuid_buckets + hash_str(uuid));
@@ -251,19 +261,41 @@ static void __hash_remove(struct hash_cell *hc)
 	free_cell(hc);
 }
 
-static void dm_hash_remove_all(void)
+static void dm_hash_remove_all(int keep_open_devices)
 {
-	int i;
+	int i, dev_skipped, dev_removed;
 	struct hash_cell *hc;
 	struct list_head *tmp, *n;
 
 	down_write(&_hash_lock);
+
+retry:
+	dev_skipped = dev_removed = 0;
 	for (i = 0; i < NUM_BUCKETS; i++) {
 		list_for_each_safe (tmp, n, _name_buckets + i) {
 			hc = list_entry(tmp, struct hash_cell, name_list);
+
+			if (keep_open_devices &&
+			    dm_lock_for_deletion(hc->md)) {
+				dev_skipped++;
+				continue;
+			}
 			__hash_remove(hc);
+			dev_removed = 1;
 		}
 	}
+
+	/*
+	 * Some mapped devices may be using other mapped devices, so if any
+	 * still exist, repeat until we make no further progress.
+	 */
+	if (dev_skipped) {
+		if (dev_removed)
+			goto retry;
+
+		DMWARN("remove_all left %d open device(s)", dev_skipped);
+	}
+
 	up_write(&_hash_lock);
 }
 
@@ -289,6 +321,7 @@ static int dm_hash_rename(const char *old, const char *new)
 	if (hc) {
 		DMWARN("asked to rename to an already existing name %s -> %s",
 		       old, new);
+		dm_put(hc->md);
 		up_write(&_hash_lock);
 		kfree(new_name);
 		return -EBUSY;
@@ -328,6 +361,7 @@ static int dm_hash_rename(const char *old, const char *new)
 		dm_table_put(table);
 	}
 
+	dm_put(hc->md);
 	up_write(&_hash_lock);
 	kfree(old_name);
 	return 0;
@@ -344,7 +378,7 @@ typedef int (*ioctl_fn)(struct dm_ioctl *param, size_t param_size);
 
 static int remove_all(struct dm_ioctl *param, size_t param_size)
 {
-	dm_hash_remove_all();
+	dm_hash_remove_all(1);
 	param->data_size = 0;
 	return 0;
 }
@@ -524,7 +558,6 @@ static int __dev_status(struct mapped_device *md, struct dm_ioctl *param)
 {
 	struct gendisk *disk = dm_disk(md);
 	struct dm_table *table;
-	struct block_device *bdev;
 
 	param->flags &= ~(DM_SUSPEND_FLAG | DM_READONLY_FLAG |
 			  DM_ACTIVE_PRESENT_FLAG);
@@ -534,20 +567,12 @@ static int __dev_status(struct mapped_device *md, struct dm_ioctl *param)
 
 	param->dev = huge_encode_dev(MKDEV(disk->major, disk->first_minor));
 
-	if (!(param->flags & DM_SKIP_BDGET_FLAG)) {
-		bdev = bdget_disk(disk, 0);
-		if (!bdev)
-			return -ENXIO;
-
-		/*
-		 * Yes, this will be out of date by the time it gets back
-		 * to userland, but it is still very useful for
-		 * debugging.
-		 */
-		param->open_count = bdev->bd_openers;
-		bdput(bdev);
-	} else
-		param->open_count = -1;
+	/*
+	 * Yes, this will be out of date by the time it gets back
+	 * to userland, but it is still very useful for
+	 * debugging.
+	 */
+	param->open_count = dm_open_count(md);
 
 	if (disk->policy)
 		param->flags |= DM_READONLY_FLAG;
@@ -567,7 +592,7 @@ static int __dev_status(struct mapped_device *md, struct dm_ioctl *param)
 
 static int dev_create(struct dm_ioctl *param, size_t param_size)
 {
-	int r;
+	int r, m = DM_ANY_MINOR;
 	struct mapped_device *md;
 
 	r = check_name(param->name);
@@ -575,10 +600,9 @@ static int dev_create(struct dm_ioctl *param, size_t param_size)
 		return r;
 
 	if (param->flags & DM_PERSISTENT_DEV_FLAG)
-		r = dm_create_with_minor(MINOR(huge_decode_dev(param->dev)), &md);
-	else
-		r = dm_create(&md);
+		m = MINOR(huge_decode_dev(param->dev));
 
+	r = dm_create(m, &md);
 	if (r)
 		return r;
 
@@ -611,10 +635,8 @@ static struct hash_cell *__find_device_hash_cell(struct dm_ioctl *param)
 		return __get_name_cell(param->name);
 
 	md = dm_get_md(huge_decode_dev(param->dev));
-	if (md) {
+	if (md)
 		mdptr = dm_get_mdptr(md);
-		dm_put(md);
-	}
 
 	return mdptr;
 }
@@ -628,7 +650,6 @@ static struct mapped_device *find_device(struct dm_ioctl *param)
 	hc = __find_device_hash_cell(param);
 	if (hc) {
 		md = hc->md;
-		dm_get(md);
 
 		/*
 		 * Sneakily write in both the name and the uuid
@@ -653,6 +674,8 @@ static struct mapped_device *find_device(struct dm_ioctl *param)
 static int dev_remove(struct dm_ioctl *param, size_t param_size)
 {
 	struct hash_cell *hc;
+	struct mapped_device *md;
+	int r;
 
 	down_write(&_hash_lock);
 	hc = __find_device_hash_cell(param);
@@ -663,8 +686,22 @@ static int dev_remove(struct dm_ioctl *param, size_t param_size)
 		return -ENXIO;
 	}
 
+	md = hc->md;
+
+	/*
+	 * Ensure the device is not open and nothing further can open it.
+	 */
+	r = dm_lock_for_deletion(md);
+	if (r) {
+		DMWARN("unable to remove open device %s", hc->name);
+		up_write(&_hash_lock);
+		dm_put(md);
+		return r;
+	}
+
 	__hash_remove(hc);
 	up_write(&_hash_lock);
+	dm_put(md);
 	param->data_size = 0;
 	return 0;
 }
@@ -790,7 +827,6 @@ static int do_resume(struct dm_ioctl *param)
 	}
 
 	md = hc->md;
-	dm_get(md);
 
 	new_map = hc->new_map;
 	hc->new_map = NULL;
@@ -1078,6 +1114,7 @@ static int table_clear(struct dm_ioctl *param, size_t param_size)
 {
 	int r;
 	struct hash_cell *hc;
+	struct mapped_device *md;
 
 	down_write(&_hash_lock);
 
@@ -1096,7 +1133,9 @@ static int table_clear(struct dm_ioctl *param, size_t param_size)
 	param->flags &= ~DM_INACTIVE_PRESENT_FLAG;
 
 	r = __dev_status(hc->md, param);
+	md = hc->md;
 	up_write(&_hash_lock);
+	dm_put(md);
 	return r;
 }
 

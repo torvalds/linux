@@ -61,15 +61,15 @@ static void ndfc_select_chip(struct mtd_info *mtd, int chip)
 
 static void ndfc_hwcontrol(struct mtd_info *mtd, int cmd, unsigned int ctrl)
 {
-	struct nand_chip *chip = mtd->priv;
+	struct ndfc_controller *ndfc = &ndfc_ctrl;
 
 	if (cmd == NAND_CMD_NONE)
 		return;
 
 	if (ctrl & NAND_CLE)
-		writel(cmd & 0xFF, chip->IO_ADDR_W + NDFC_CMD);
+		writel(cmd & 0xFF, ndfc->ndfcbase + NDFC_CMD);
 	else
-		writel(cmd & 0xFF, chip->IO_ADDR_W + NDFC_ALE);
+		writel(cmd & 0xFF, ndfc->ndfcbase + NDFC_ALE);
 }
 
 static int ndfc_ready(struct mtd_info *mtd)

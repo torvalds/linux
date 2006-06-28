@@ -123,7 +123,7 @@ static void release_stateid(struct nfs4_stateid *stp, int flags);
  */
 
 /* recall_lock protects the del_recall_lru */
-static spinlock_t recall_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(recall_lock);
 static struct list_head del_recall_lru;
 
 static void
@@ -529,8 +529,7 @@ move_to_confirmed(struct nfs4_client *clp)
 
 	dprintk("NFSD: move_to_confirm nfs4_client %p\n", clp);
 	list_del_init(&clp->cl_strhash);
-	list_del_init(&clp->cl_idhash);
-	list_add(&clp->cl_idhash, &conf_id_hashtbl[idhashval]);
+	list_move(&clp->cl_idhash, &conf_id_hashtbl[idhashval]);
 	strhashval = clientstr_hashval(clp->cl_recdir);
 	list_add(&clp->cl_strhash, &conf_str_hashtbl[strhashval]);
 	renew_client(clp);

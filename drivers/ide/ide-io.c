@@ -959,7 +959,7 @@ static void ide_check_pm_state(ide_drive_t *drive, struct request *rq)
 			printk(KERN_WARNING "%s: bus not ready on wakeup\n", drive->name);
 		SELECT_DRIVE(drive);
 		HWIF(drive)->OUTB(8, HWIF(drive)->io_ports[IDE_CONTROL_OFFSET]);
-		rc = ide_wait_not_busy(HWIF(drive), 10000);
+		rc = ide_wait_not_busy(HWIF(drive), 100000);
 		if (rc)
 			printk(KERN_WARNING "%s: drive not ready on wakeup\n", drive->name);
 	}
@@ -1665,7 +1665,7 @@ irqreturn_t ide_intr (int irq, void *dev_id, struct pt_regs *regs)
  *	Initialize a request before we fill it in and send it down to
  *	ide_do_drive_cmd. Commands must be set up by this function. Right
  *	now it doesn't do a lot, but if that changes abusers will have a
- *	nasty suprise.
+ *	nasty surprise.
  */
 
 void ide_init_drive_cmd (struct request *rq)

@@ -25,8 +25,13 @@ enum cx2341x_port {
 	CX2341X_PORT_SERIAL    = 2
 };
 
+enum cx2341x_cap {
+	CX2341X_CAP_HAS_SLICED_VBI = 1 << 0,
+};
+
 struct cx2341x_mpeg_params {
 	/* misc */
+	u32 capabilities;
 	enum cx2341x_port port;
 	u16 width;
 	u16 height;
@@ -34,6 +39,7 @@ struct cx2341x_mpeg_params {
 
 	/* stream */
 	enum v4l2_mpeg_stream_type stream_type;
+	enum v4l2_mpeg_stream_vbi_fmt stream_vbi_fmt;
 
 	/* audio */
 	enum v4l2_mpeg_audio_sampling_freq audio_sampling_freq;
@@ -83,9 +89,9 @@ int cx2341x_ctrl_query(struct cx2341x_mpeg_params *params,
 		struct v4l2_queryctrl *qctrl);
 const char **cx2341x_ctrl_get_menu(u32 id);
 int cx2341x_ext_ctrls(struct cx2341x_mpeg_params *params,
-		struct v4l2_ext_controls *ctrls, int cmd);
+		struct v4l2_ext_controls *ctrls, unsigned int cmd);
 void cx2341x_fill_defaults(struct cx2341x_mpeg_params *p);
-void cx2341x_log_status(struct cx2341x_mpeg_params *p, int cardid);
+void cx2341x_log_status(struct cx2341x_mpeg_params *p, const char *prefix);
 
 /* Firmware names */
 #define CX2341X_FIRM_ENC_FILENAME "v4l-cx2341x-enc.fw"

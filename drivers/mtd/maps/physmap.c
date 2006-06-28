@@ -182,7 +182,7 @@ static struct physmap_flash_data physmap_flash_data = {
 
 static struct resource physmap_flash_resource = {
 	.start		= CONFIG_MTD_PHYSMAP_START,
-	.end		= CONFIG_MTD_PHYSMAP_START + CONFIG_MTD_PHYSMAP_LEN,
+	.end		= CONFIG_MTD_PHYSMAP_START + CONFIG_MTD_PHYSMAP_LEN - 1,
 	.flags		= IORESOURCE_MEM,
 };
 

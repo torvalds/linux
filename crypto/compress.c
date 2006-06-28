@@ -22,8 +22,7 @@ static int crypto_compress(struct crypto_tfm *tfm,
                             const u8 *src, unsigned int slen,
                             u8 *dst, unsigned int *dlen)
 {
-	return tfm->__crt_alg->cra_compress.coa_compress(crypto_tfm_ctx(tfm),
-	                                                 src, slen, dst,
+	return tfm->__crt_alg->cra_compress.coa_compress(tfm, src, slen, dst,
 	                                                 dlen);
 }
 
@@ -31,8 +30,7 @@ static int crypto_decompress(struct crypto_tfm *tfm,
                              const u8 *src, unsigned int slen,
                              u8 *dst, unsigned int *dlen)
 {
-	return tfm->__crt_alg->cra_compress.coa_decompress(crypto_tfm_ctx(tfm),
-	                                                   src, slen, dst,
+	return tfm->__crt_alg->cra_compress.coa_decompress(tfm, src, slen, dst,
 	                                                   dlen);
 }
 
@@ -43,21 +41,14 @@ int crypto_init_compress_flags(struct crypto_tfm *tfm, u32 flags)
 
 int crypto_init_compress_ops(struct crypto_tfm *tfm)
 {
-	int ret = 0;
 	struct compress_tfm *ops = &tfm->crt_compress;
-	
-	ret = tfm->__crt_alg->cra_compress.coa_init(crypto_tfm_ctx(tfm));
-	if (ret)
-		goto out;
 
 	ops->cot_compress = crypto_compress;
 	ops->cot_decompress = crypto_decompress;
 	
-out:
-	return ret;
+	return 0;
 }
 
 void crypto_exit_compress_ops(struct crypto_tfm *tfm)
 {
-	tfm->__crt_alg->cra_compress.coa_exit(crypto_tfm_ctx(tfm));
 }

@@ -93,5 +93,10 @@ static inline void sysfs_remove_device_from_node(struct sys_device *dev,
 
 #endif /* CONFIG_NUMA */
 
+#ifdef CONFIG_SMP
+#include <asm/cputable.h>
+#define smt_capable() 		(cpu_has_feature(CPU_FTR_SMT))
+#endif
+
 #endif /* __KERNEL__ */
 #endif	/* _ASM_POWERPC_TOPOLOGY_H */

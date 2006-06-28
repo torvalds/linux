@@ -839,6 +839,6 @@ config SOUND_SH_DAC_AUDIO
 	depends on SOUND_PRIME && CPU_SH3
 
 config SOUND_SH_DAC_AUDIO_CHANNEL
-	int "    DAC channel"
+	int "DAC channel"
 	default "1"
 	depends on SOUND_SH_DAC_AUDIO

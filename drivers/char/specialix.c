@@ -2477,7 +2477,7 @@ static int __init specialix_init(void)
 #endif
 
 	for (i = 0; i < SX_NBOARD; i++)
-		sx_board[i].lock = SPIN_LOCK_UNLOCKED;
+		spin_lock_init(&sx_board[i].lock);
 
 	if (sx_init_drivers()) {
 		func_exit();

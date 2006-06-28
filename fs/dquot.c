@@ -250,7 +250,7 @@ static inline struct dquot *find_dquot(unsigned int hashent, struct super_block 
 /* Add a dquot to the tail of the free list */
 static inline void put_dquot_last(struct dquot *dquot)
 {
-	list_add(&dquot->dq_free, free_dquots.prev);
+	list_add_tail(&dquot->dq_free, &free_dquots);
 	dqstats.free_dquots++;
 }
 
@@ -266,7 +266,7 @@ static inline void put_inuse(struct dquot *dquot)
 {
 	/* We add to the back of inuse list so we don't have to restart
 	 * when traversing this list and we block */
-	list_add(&dquot->dq_inuse, inuse_list.prev);
+	list_add_tail(&dquot->dq_inuse, &inuse_list);
 	dqstats.allocated_dquots++;
 }
 

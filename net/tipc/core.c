@@ -2,7 +2,7 @@
  * net/tipc/core.c: TIPC module code
  *
  * Copyright (c) 2003-2006, Ericsson AB
- * Copyright (c) 2005, Wind River Systems
+ * Copyright (c) 2005-2006, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -57,7 +57,7 @@ void tipc_socket_stop(void);
 int  tipc_netlink_start(void);
 void tipc_netlink_stop(void);
 
-#define MOD_NAME "tipc_start: "
+#define TIPC_MOD_VER "1.6.1"
 
 #ifndef CONFIG_TIPC_ZONES
 #define CONFIG_TIPC_ZONES 3
@@ -198,7 +198,7 @@ static int __init tipc_init(void)
 	tipc_max_publications = 10000;
 	tipc_max_subscriptions = 2000;
 	tipc_max_ports = delimit(CONFIG_TIPC_PORTS, 127, 65536);
-	tipc_max_zones = delimit(CONFIG_TIPC_ZONES, 1, 511);
+	tipc_max_zones = delimit(CONFIG_TIPC_ZONES, 1, 255);
 	tipc_max_clusters = delimit(CONFIG_TIPC_CLUSTERS, 1, 1);
 	tipc_max_nodes = delimit(CONFIG_TIPC_NODES, 8, 2047);
 	tipc_max_slaves = delimit(CONFIG_TIPC_SLAVE_NODES, 0, 2047);
@@ -224,6 +224,7 @@ module_exit(tipc_exit);
 
 MODULE_DESCRIPTION("TIPC: Transparent Inter Process Communication");
 MODULE_LICENSE("Dual BSD/GPL");
+MODULE_VERSION(TIPC_MOD_VER);
 
 /* Native TIPC API for kernel-space applications (see tipc.h) */
 

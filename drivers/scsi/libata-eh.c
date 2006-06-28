@@ -93,6 +93,38 @@ static int ata_ering_map(struct ata_ering *ering,
 	return rc;
 }
 
+static unsigned int ata_eh_dev_action(struct ata_device *dev)
+{
+	struct ata_eh_context *ehc = &dev->ap->eh_context;
+
+	return ehc->i.action | ehc->i.dev_action[dev->devno];
+}
+
+static void ata_eh_clear_action(struct ata_device *dev,
+				struct ata_eh_info *ehi, unsigned int action)
+{
+	int i;
+
+	if (!dev) {
+		ehi->action &= ~action;
+		for (i = 0; i < ATA_MAX_DEVICES; i++)
+			ehi->dev_action[i] &= ~action;
+	} else {
+		/* doesn't make sense for port-wide EH actions */
+		WARN_ON(!(action & ATA_EH_PERDEV_MASK));
+
+		/* break ehi->action into ehi->dev_action */
+		if (ehi->action & action) {
+			for (i = 0; i < ATA_MAX_DEVICES; i++)
+				ehi->dev_action[i] |= ehi->action & action;
+			ehi->action &= ~action;
+		}
+
+		/* turn off the specified per-dev action */
+		ehi->dev_action[dev->devno] &= ~action;
+	}
+}
+
 /**
  *	ata_scsi_timed_out - SCSI layer time out callback
  *	@cmd: timed out SCSI command
@@ -702,32 +734,11 @@ static void ata_eh_detach_dev(struct ata_device *dev)
 		ap->flags |= ATA_FLAG_SCSI_HOTPLUG;
 	}
 
+	/* clear per-dev EH actions */
+	ata_eh_clear_action(dev, &ap->eh_info, ATA_EH_PERDEV_MASK);
+	ata_eh_clear_action(dev, &ap->eh_context.i, ATA_EH_PERDEV_MASK);
+
 	spin_unlock_irqrestore(ap->lock, flags);
-}
-
-static void ata_eh_clear_action(struct ata_device *dev,
-				struct ata_eh_info *ehi, unsigned int action)
-{
-	int i;
-
-	if (!dev) {
-		ehi->action &= ~action;
-		for (i = 0; i < ATA_MAX_DEVICES; i++)
-			ehi->dev_action[i] &= ~action;
-	} else {
-		/* doesn't make sense for port-wide EH actions */
-		WARN_ON(!(action & ATA_EH_PERDEV_MASK));
-
-		/* break ehi->action into ehi->dev_action */
-		if (ehi->action & action) {
-			for (i = 0; i < ATA_MAX_DEVICES; i++)
-				ehi->dev_action[i] |= ehi->action & action;
-			ehi->action &= ~action;
-		}
-
-		/* turn off the specified per-dev action */
-		ehi->dev_action[dev->devno] &= ~action;
-	}
 }
 
 /**
@@ -1592,7 +1603,7 @@ static int ata_eh_revalidate_and_attach(struct ata_port *ap,
 		unsigned int action;
 
 		dev = &ap->device[i];
-		action = ehc->i.action | ehc->i.dev_action[dev->devno];
+		action = ata_eh_dev_action(dev);
 
 		if (action & ATA_EH_REVALIDATE && ata_dev_enabled(dev)) {
 			if (ata_port_offline(ap)) {

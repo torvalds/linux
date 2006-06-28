@@ -481,7 +481,7 @@ register_cpus(void)
 		struct cpu *p = kzalloc(sizeof(*p), GFP_KERNEL);
 		if (!p)
 			return -ENOMEM;
-		register_cpu(p, i, NULL);
+		register_cpu(p, i);
 	}
 	return 0;
 }

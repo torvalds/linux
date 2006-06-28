@@ -3,7 +3,6 @@
  * Copyright (C) 1995  Linus Torvalds
  * Copyright 2001, 2002, 2003 SuSE Labs / Andi Kleen.
  * See setup.c for older changelog.
- * $Id: setup64.c,v 1.12 2002/03/21 10:09:17 ak Exp $
  */ 
 #include <linux/config.h>
 #include <linux/init.h>
@@ -31,6 +30,7 @@ char x86_boot_params[BOOT_PARAM_SIZE] __initdata = {0,};
 cpumask_t cpu_initialized __cpuinitdata = CPU_MASK_NONE;
 
 struct x8664_pda *_cpu_pda[NR_CPUS] __read_mostly;
+EXPORT_SYMBOL(_cpu_pda);
 struct x8664_pda boot_cpu_pda[NR_CPUS] __cacheline_aligned;
 
 struct desc_ptr idt_descr = { 256 * 16 - 1, (unsigned long) idt_table };
@@ -38,6 +38,7 @@ struct desc_ptr idt_descr = { 256 * 16 - 1, (unsigned long) idt_table };
 char boot_cpu_stack[IRQSTACKSIZE] __attribute__((section(".bss.page_aligned")));
 
 unsigned long __supported_pte_mask __read_mostly = ~0UL;
+EXPORT_SYMBOL(__supported_pte_mask);
 static int do_not_nx __cpuinitdata = 0;
 
 /* noexec=on|off

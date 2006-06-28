@@ -643,11 +643,11 @@ struct twofish_ctx {
 };
 
 /* Perform the key setup. */
-static int twofish_setkey(void *cx, const u8 *key,
-                          unsigned int key_len, u32 *flags)
+static int twofish_setkey(struct crypto_tfm *tfm, const u8 *key,
+			  unsigned int key_len, u32 *flags)
 {
 	
-	struct twofish_ctx *ctx = cx;
+	struct twofish_ctx *ctx = crypto_tfm_ctx(tfm);
 
 	int i, j, k;
 
@@ -802,9 +802,9 @@ static int twofish_setkey(void *cx, const u8 *key,
 }
 
 /* Encrypt one block.  in and out may be the same. */
-static void twofish_encrypt(void *cx, u8 *out, const u8 *in)
+static void twofish_encrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 {
-	struct twofish_ctx *ctx = cx;
+	struct twofish_ctx *ctx = crypto_tfm_ctx(tfm);
 	const __le32 *src = (const __le32 *)in;
 	__le32 *dst = (__le32 *)out;
 
@@ -839,9 +839,9 @@ static void twofish_encrypt(void *cx, u8 *out, const u8 *in)
 }
 
 /* Decrypt one block.  in and out may be the same. */
-static void twofish_decrypt(void *cx, u8 *out, const u8 *in)
+static void twofish_decrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 {
-	struct twofish_ctx *ctx = cx;
+	struct twofish_ctx *ctx = crypto_tfm_ctx(tfm);
 	const __le32 *src = (const __le32 *)in;
 	__le32 *dst = (__le32 *)out;
   

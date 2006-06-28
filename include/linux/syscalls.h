@@ -174,9 +174,9 @@ asmlinkage long sys_waitid(int which, pid_t pid,
 			   int options, struct rusage __user *ru);
 asmlinkage long sys_waitpid(pid_t pid, int __user *stat_addr, int options);
 asmlinkage long sys_set_tid_address(int __user *tidptr);
-asmlinkage long sys_futex(u32 __user *uaddr, int op, int val,
+asmlinkage long sys_futex(u32 __user *uaddr, int op, u32 val,
 			struct timespec __user *utime, u32 __user *uaddr2,
-			int val3);
+			u32 val3);
 
 asmlinkage long sys_init_module(void __user *umod, unsigned long len,
 				const char __user *uargs);

@@ -761,7 +761,8 @@ static struct gc __init *gc_probe(int parport, int *pads, int n_pads)
 		if (!pads[i])
 			continue;
 
-		sprintf(gc->phys[i], "%s/input%d", gc->pd->port->name, i);
+		snprintf(gc->phys[i], sizeof(gc->phys[i]),
+			 "%s/input%d", gc->pd->port->name, i);
 		err = gc_setup_pad(gc, i, pads[i]);
 		if (err)
 			goto err_unreg_devs;

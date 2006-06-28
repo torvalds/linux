@@ -29,7 +29,7 @@
 		orr	r3, r3, r3, lsl #16
 		str	r3, [r0]
 		subs	r2, r2, #1
-		RETINSTR(moveq, pc, lr)
+		moveq	pc, lr
 
 ENTRY(__raw_writesw)
 		teq	r2, #0		@ do we have to check for the zero len?
@@ -80,7 +80,7 @@ ENTRY(__raw_writesw)
 		bpl	.Loutsw_8_lp
 
 		tst	r2, #7
-		LOADREGS(eqfd, sp!, {r4, r5, r6, pc})
+		ldmeqfd	sp!, {r4, r5, r6, pc}
 
 .Lno_outsw_8:	tst	r2, #4
 		beq	.Lno_outsw_4
@@ -124,4 +124,4 @@ ENTRY(__raw_writesw)
 		orrne	ip, ip, ip, lsr #16
 		strne	ip, [r0]
 
-		LOADREGS(fd, sp!, {r4, r5, r6, pc})
+		ldmfd	sp!, {r4, r5, r6, pc}

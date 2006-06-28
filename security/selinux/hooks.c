@@ -1099,6 +1099,17 @@ static int may_create(struct inode *dir,
 			    FILESYSTEM__ASSOCIATE, &ad);
 }
 
+/* Check whether a task can create a key. */
+static int may_create_key(u32 ksid,
+			  struct task_struct *ctx)
+{
+	struct task_security_struct *tsec;
+
+	tsec = ctx->security;
+
+	return avc_has_perm(tsec->sid, ksid, SECCLASS_KEY, KEY__CREATE, NULL);
+}
+
 #define MAY_LINK   0
 #define MAY_UNLINK 1
 #define MAY_RMDIR  2
@@ -1521,8 +1532,10 @@ static int selinux_bprm_set_security(struct linux_binprm *bprm)
 	/* Default to the current task SID. */
 	bsec->sid = tsec->sid;
 
-	/* Reset create SID on execve. */
+	/* Reset fs, key, and sock SIDs on execve. */
 	tsec->create_sid = 0;
+	tsec->keycreate_sid = 0;
+	tsec->sockcreate_sid = 0;
 
 	if (tsec->exec_sid) {
 		newsid = tsec->exec_sid;
@@ -2574,9 +2587,11 @@ static int selinux_task_alloc_security(struct task_struct *tsk)
 	tsec2->osid = tsec1->osid;
 	tsec2->sid = tsec1->sid;
 
-	/* Retain the exec and create SIDs across fork */
+	/* Retain the exec, fs, key, and sock SIDs across fork */
 	tsec2->exec_sid = tsec1->exec_sid;
 	tsec2->create_sid = tsec1->create_sid;
+	tsec2->keycreate_sid = tsec1->keycreate_sid;
+	tsec2->sockcreate_sid = tsec1->sockcreate_sid;
 
 	/* Retain ptracer SID across fork, if any.
 	   This will be reset by the ptrace hook upon any
@@ -2926,12 +2941,14 @@ static int selinux_socket_create(int family, int type,
 {
 	int err = 0;
 	struct task_security_struct *tsec;
+	u32 newsid;
 
 	if (kern)
 		goto out;
 
 	tsec = current->security;
-	err = avc_has_perm(tsec->sid, tsec->sid,
+	newsid = tsec->sockcreate_sid ? : tsec->sid;
+	err = avc_has_perm(tsec->sid, newsid,
 			   socket_type_to_security_class(family, type,
 			   protocol), SOCKET__CREATE, NULL);
 
@@ -2944,12 +2961,14 @@ static void selinux_socket_post_create(struct socket *sock, int family,
 {
 	struct inode_security_struct *isec;
 	struct task_security_struct *tsec;
+	u32 newsid;
 
 	isec = SOCK_INODE(sock)->i_security;
 
 	tsec = current->security;
+	newsid = tsec->sockcreate_sid ? : tsec->sid;
 	isec->sclass = socket_type_to_security_class(family, type, protocol);
-	isec->sid = kern ? SECINITSID_KERNEL : tsec->sid;
+	isec->sid = kern ? SECINITSID_KERNEL : newsid;
 	isec->initialized = 1;
 
 	return;
@@ -4150,6 +4169,10 @@ static int selinux_getprocattr(struct task_struct *p,
 		sid = tsec->exec_sid;
 	else if (!strcmp(name, "fscreate"))
 		sid = tsec->create_sid;
+	else if (!strcmp(name, "keycreate"))
+		sid = tsec->keycreate_sid;
+	else if (!strcmp(name, "sockcreate"))
+		sid = tsec->sockcreate_sid;
 	else
 		return -EINVAL;
 
@@ -4182,6 +4205,10 @@ static int selinux_setprocattr(struct task_struct *p,
 		error = task_has_perm(current, p, PROCESS__SETEXEC);
 	else if (!strcmp(name, "fscreate"))
 		error = task_has_perm(current, p, PROCESS__SETFSCREATE);
+	else if (!strcmp(name, "keycreate"))
+		error = task_has_perm(current, p, PROCESS__SETKEYCREATE);
+	else if (!strcmp(name, "sockcreate"))
+		error = task_has_perm(current, p, PROCESS__SETSOCKCREATE);
 	else if (!strcmp(name, "current"))
 		error = task_has_perm(current, p, PROCESS__SETCURRENT);
 	else
@@ -4211,6 +4238,13 @@ static int selinux_setprocattr(struct task_struct *p,
 		tsec->exec_sid = sid;
 	else if (!strcmp(name, "fscreate"))
 		tsec->create_sid = sid;
+	else if (!strcmp(name, "keycreate")) {
+		error = may_create_key(sid, p);
+		if (error)
+			return error;
+		tsec->keycreate_sid = sid;
+	} else if (!strcmp(name, "sockcreate"))
+		tsec->sockcreate_sid = sid;
 	else if (!strcmp(name, "current")) {
 		struct av_decision avd;
 
@@ -4264,7 +4298,8 @@ static int selinux_setprocattr(struct task_struct *p,
 
 #ifdef CONFIG_KEYS
 
-static int selinux_key_alloc(struct key *k, struct task_struct *tsk)
+static int selinux_key_alloc(struct key *k, struct task_struct *tsk,
+			     unsigned long flags)
 {
 	struct task_security_struct *tsec = tsk->security;
 	struct key_security_struct *ksec;
@@ -4274,7 +4309,10 @@ static int selinux_key_alloc(struct key *k, struct task_struct *tsk)
 		return -ENOMEM;
 
 	ksec->obj = k;
-	ksec->sid = tsec->sid;
+	if (tsec->keycreate_sid)
+		ksec->sid = tsec->keycreate_sid;
+	else
+		ksec->sid = tsec->sid;
 	k->security = ksec;
 
 	return 0;
@@ -4513,8 +4551,10 @@ static __init int selinux_init(void)
 
 #ifdef CONFIG_KEYS
 	/* Add security information to initial keyrings */
-	security_key_alloc(&root_user_keyring, current);
-	security_key_alloc(&root_session_keyring, current);
+	selinux_key_alloc(&root_user_keyring, current,
+			  KEY_ALLOC_NOT_IN_QUOTA);
+	selinux_key_alloc(&root_session_keyring, current,
+			  KEY_ALLOC_NOT_IN_QUOTA);
 #endif
 
 	return 0;

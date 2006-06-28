@@ -21,7 +21,6 @@
  *	      or zero on exception, or n + 1 if too long
  */
 ENTRY(__arch_strnlen_user)
-	save_lr
 	mov	r2, r0
 1:
 USER(	ldrbt	r3, [r0], #1)
@@ -31,10 +30,10 @@ USER(	ldrbt	r3, [r0], #1)
 	bne	1b
 	add	r0, r0, #1
 2:	sub	r0, r0, r2
-	restore_pc
+	mov	pc, lr
 
 	.section .fixup,"ax"
 	.align	0
 9001:	mov	r0, #0
-	restore_pc
+	mov	pc, lr
 	.previous

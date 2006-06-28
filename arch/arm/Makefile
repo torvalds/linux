@@ -177,7 +177,7 @@ boot := arch/arm/boot
 #	them changed.  We use .arch to indicate when they were updated
 #	last, otherwise make uses the target directory mtime.
 
-include/asm-arm/.arch: $(wildcard include/config/arch/*.h) include/config/MARKER
+include/asm-arm/.arch: $(wildcard include/config/arch/*.h) include/config/auto.conf
 	@echo '  SYMLINK include/asm-arm/arch -> include/asm-arm/$(INCDIR)'
 ifneq ($(KBUILD_SRC),)
 	$(Q)mkdir -p include/asm-arm

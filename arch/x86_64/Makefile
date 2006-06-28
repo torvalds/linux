@@ -27,6 +27,7 @@ LDFLAGS_vmlinux :=
 CHECKFLAGS      += -D__x86_64__ -m64
 
 cflags-y	:=
+cflags-kernel-y	:=
 cflags-$(CONFIG_MK8) += $(call cc-option,-march=k8)
 cflags-$(CONFIG_MPSC) += $(call cc-option,-march=nocona)
 cflags-$(CONFIG_GENERIC_CPU) += $(call cc-option,-mtune=generic)
@@ -35,7 +36,7 @@ cflags-y += -m64
 cflags-y += -mno-red-zone
 cflags-y += -mcmodel=kernel
 cflags-y += -pipe
-cflags-$(CONFIG_REORDER) += -ffunction-sections
+cflags-kernel-$(CONFIG_REORDER) += -ffunction-sections
 # this makes reading assembly source easier, but produces worse code
 # actually it makes the kernel smaller too.
 cflags-y += -fno-reorder-blocks
@@ -55,6 +56,7 @@ cflags-y += $(call cc-option,-funit-at-a-time)
 cflags-y += $(call cc-option,-mno-sse -mno-mmx -mno-sse2 -mno-3dnow,)
 
 CFLAGS += $(cflags-y)
+CFLAGS_KERNEL += $(cflags-kernel-y)
 AFLAGS += -m64
 
 head-y := arch/x86_64/kernel/head.o arch/x86_64/kernel/head64.o arch/x86_64/kernel/init_task.o

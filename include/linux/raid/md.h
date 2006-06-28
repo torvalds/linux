@@ -85,8 +85,6 @@ extern void md_done_sync(mddev_t *mddev, int blocks, int ok);
 extern void md_error (mddev_t *mddev, mdk_rdev_t *rdev);
 extern void md_unplug_mddev(mddev_t *mddev);
 
-extern void md_print_devices (void);
-
 extern void md_super_write(mddev_t *mddev, mdk_rdev_t *rdev,
 			   sector_t sector, int size, struct page *page);
 extern void md_super_wait(mddev_t *mddev);
@@ -96,8 +94,6 @@ extern void md_do_sync(mddev_t *mddev);
 extern void md_new_event(mddev_t *mddev);
 
 extern void md_update_sb(mddev_t * mddev);
-
-#define MD_BUG(x...) { printk("md: bug in file %s, line %d\n", __FILE__, __LINE__); md_print_devices(); }
 
 #endif 
 

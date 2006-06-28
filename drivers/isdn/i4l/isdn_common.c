@@ -933,7 +933,7 @@ isdn_readbchan_tty(int di, int channel, struct tty_struct *tty, int cisco_hack)
 			count_put = count_pull;
 			if(count_put > 1)
 				tty_insert_flip_string(tty, skb->data, count_put - 1);
-			last = skb->data[count_put] - 1;
+			last = skb->data[count_put - 1];
 			len -= count_put;
 #ifdef CONFIG_ISDN_AUDIO
 		}

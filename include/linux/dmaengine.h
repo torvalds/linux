@@ -20,7 +20,7 @@
  */
 #ifndef DMAENGINE_H
 #define DMAENGINE_H
-#include <linux/config.h>
+
 #ifdef CONFIG_DMA_ENGINE
 
 #include <linux/device.h>

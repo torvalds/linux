@@ -230,7 +230,7 @@ extern void netdev_unregister_sysfs(struct net_device *);
  *	For efficiency
  */
 
-int netdev_nit;
+static int netdev_nit;
 
 /*
  *	Add a protocol ID to the list. Now that the input handler is
@@ -1325,9 +1325,12 @@ int dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		nskb->next = NULL;
 		rc = dev->hard_start_xmit(nskb, dev);
 		if (unlikely(rc)) {
+			nskb->next = skb->next;
 			skb->next = nskb;
 			return rc;
 		}
+		if (unlikely(netif_queue_stopped(dev) && skb->next))
+			return NETDEV_TX_BUSY;
 	} while (skb->next);
 	
 	skb->destructor = DEV_GSO_CB(skb)->destructor;

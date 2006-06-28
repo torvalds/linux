@@ -343,7 +343,7 @@ static ssize_t store_received_ref_clk3b(struct device *d,
 
 	val = (unsigned char)tmp;
 	spin_lock_irqsave(&event_lock, flags);
-	SET_PORT_BITS(TLCLK_REG1, 0xef, val << 1);
+	SET_PORT_BITS(TLCLK_REG1, 0xdf, val << 1);
 	spin_unlock_irqrestore(&event_lock, flags);
 
 	return strnlen(buf, count);

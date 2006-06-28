@@ -34,7 +34,7 @@
 #define POWERDOWN_TIMEOUT	120
 
 /*
- * Blink frequency during reboot grace period and when paniced.
+ * Blink frequency during reboot grace period and when panicked.
  */
 #define POWERDOWN_FREQ		(HZ / 4)
 #define PANIC_FREQ		(HZ / 8)

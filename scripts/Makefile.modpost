@@ -35,7 +35,7 @@
 PHONY := _modpost
 _modpost: __modpost
 
-include .config
+include include/config/auto.conf
 include scripts/Kbuild.include
 include scripts/Makefile.lib
 

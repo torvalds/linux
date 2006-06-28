@@ -546,7 +546,7 @@ static void RIOReceive(struct rio_info *p, struct Port *PortP)
 	 ** run out of space it will be set to the offset of the
 	 ** next byte to copy from the packet data area. The packet
 	 ** length field is decremented by the number of bytes that
-	 ** we succesfully removed from the packet. When this reaches
+	 ** we successfully removed from the packet. When this reaches
 	 ** zero, we reset the offset pointer to be zero, and free
 	 ** the packet from the front of the queue.
 	 */

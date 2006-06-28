@@ -577,9 +577,9 @@ static const u32 sb8[256] = {
     (((s1[I >> 24] + s2[(I>>16)&0xff]) ^ s3[(I>>8)&0xff]) - s4[I&0xff]) )
 
 
-static void cast5_encrypt(void *ctx, u8 * outbuf, const u8 * inbuf)
+static void cast5_encrypt(struct crypto_tfm *tfm, u8 *outbuf, const u8 *inbuf)
 {
-	struct cast5_ctx *c = (struct cast5_ctx *) ctx;
+	struct cast5_ctx *c = crypto_tfm_ctx(tfm);
 	const __be32 *src = (const __be32 *)inbuf;
 	__be32 *dst = (__be32 *)outbuf;
 	u32 l, r, t;
@@ -642,9 +642,9 @@ static void cast5_encrypt(void *ctx, u8 * outbuf, const u8 * inbuf)
 	dst[1] = cpu_to_be32(l);
 }
 
-static void cast5_decrypt(void *ctx, u8 * outbuf, const u8 * inbuf)
+static void cast5_decrypt(struct crypto_tfm *tfm, u8 *outbuf, const u8 *inbuf)
 {
-	struct cast5_ctx *c = (struct cast5_ctx *) ctx;
+	struct cast5_ctx *c = crypto_tfm_ctx(tfm);
 	const __be32 *src = (const __be32 *)inbuf;
 	__be32 *dst = (__be32 *)outbuf;
 	u32 l, r, t;
@@ -769,15 +769,15 @@ static void key_schedule(u32 * x, u32 * z, u32 * k)
 }
 
 
-static int
-cast5_setkey(void *ctx, const u8 * key, unsigned key_len, u32 * flags)
+static int cast5_setkey(struct crypto_tfm *tfm, const u8 *key,
+			unsigned key_len, u32 *flags)
 {
+	struct cast5_ctx *c = crypto_tfm_ctx(tfm);
 	int i;
 	u32 x[4];
 	u32 z[4];
 	u32 k[16];
 	__be32 p_key[4];
-	struct cast5_ctx *c = (struct cast5_ctx *) ctx;
 	
 	if (key_len < 5 || key_len > 16) {
 		*flags |= CRYPTO_TFM_RES_BAD_KEY_LEN;

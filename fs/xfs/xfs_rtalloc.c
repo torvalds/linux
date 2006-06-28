@@ -1929,7 +1929,7 @@ xfs_growfs_rt(
 	/*
 	 * Initial error checking.
 	 */
-	if (mp->m_rtdev_targp || mp->m_rbmip == NULL ||
+	if (mp->m_rtdev_targp == NULL || mp->m_rbmip == NULL ||
 	    (nrblocks = in->newblocks) <= sbp->sb_rblocks ||
 	    (sbp->sb_rblocks && (in->extsize != sbp->sb_rextsize)))
 		return XFS_ERROR(EINVAL);

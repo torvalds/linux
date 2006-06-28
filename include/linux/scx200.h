@@ -49,10 +49,3 @@ extern unsigned scx200_cb_base;
 #define SCx200_REV 0x3d		/* Revision Register */
 #define SCx200_CBA 0x3e		/* Configuration Base Address Register */
 #define SCx200_CBA_SCRATCH 0x64	/* Configuration Base Address Scratchpad */
-
-/*
-    Local variables:
-        compile-command: "make -C ../.. bzImage modules"
-        c-basic-offset: 8
-    End:
-*/

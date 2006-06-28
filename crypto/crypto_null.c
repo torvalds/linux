@@ -27,8 +27,8 @@
 #define NULL_BLOCK_SIZE		1
 #define NULL_DIGEST_SIZE	0
 
-static int null_compress(void *ctx, const u8 *src, unsigned int slen,
-                         u8 *dst, unsigned int *dlen)
+static int null_compress(struct crypto_tfm *tfm, const u8 *src,
+			 unsigned int slen, u8 *dst, unsigned int *dlen)
 {
 	if (slen > *dlen)
 		return -EINVAL;
@@ -37,20 +37,21 @@ static int null_compress(void *ctx, const u8 *src, unsigned int slen,
 	return 0;
 }
 
-static void null_init(void *ctx)
+static void null_init(struct crypto_tfm *tfm)
 { }
 
-static void null_update(void *ctx, const u8 *data, unsigned int len)
+static void null_update(struct crypto_tfm *tfm, const u8 *data,
+			unsigned int len)
 { }
 
-static void null_final(void *ctx, u8 *out)
+static void null_final(struct crypto_tfm *tfm, u8 *out)
 { }
 
-static int null_setkey(void *ctx, const u8 *key,
-                       unsigned int keylen, u32 *flags)
+static int null_setkey(struct crypto_tfm *tfm, const u8 *key,
+		       unsigned int keylen, u32 *flags)
 { return 0; }
 
-static void null_crypt(void *ctx, u8 *dst, const u8 *src)
+static void null_crypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
 {
 	memcpy(dst, src, NULL_BLOCK_SIZE);
 }

@@ -104,6 +104,7 @@ static kmem_cache_t *mm_cachep;
 void free_task(struct task_struct *tsk)
 {
 	free_thread_info(tsk->thread_info);
+	rt_mutex_debug_task_free(tsk);
 	free_task_struct(tsk);
 }
 EXPORT_SYMBOL(free_task);
@@ -913,6 +914,19 @@ asmlinkage long sys_set_tid_address(int __user *tidptr)
 	return current->pid;
 }
 
+static inline void rt_mutex_init_task(struct task_struct *p)
+{
+#ifdef CONFIG_RT_MUTEXES
+	spin_lock_init(&p->pi_lock);
+	plist_head_init(&p->pi_waiters, &p->pi_lock);
+	p->pi_blocked_on = NULL;
+# ifdef CONFIG_DEBUG_RT_MUTEXES
+	spin_lock_init(&p->held_list_lock);
+	INIT_LIST_HEAD(&p->held_list_head);
+# endif
+#endif
+}
+
 /*
  * This creates a new process as a copy of the old one,
  * but does not actually start it yet.
@@ -993,13 +1007,10 @@ static task_t *copy_process(unsigned long clone_flags,
 		if (put_user(p->pid, parent_tidptr))
 			goto bad_fork_cleanup;
 
-	p->proc_dentry = NULL;
-
 	INIT_LIST_HEAD(&p->children);
 	INIT_LIST_HEAD(&p->sibling);
 	p->vfork_done = NULL;
 	spin_lock_init(&p->alloc_lock);
-	spin_lock_init(&p->proc_lock);
 
 	clear_tsk_thread_flag(p, TIF_SIGPENDING);
 	init_sigpending(&p->pending);
@@ -1036,6 +1047,8 @@ static task_t *copy_process(unsigned long clone_flags,
  	}
 	mpol_fix_fork_child_flag(p);
 #endif
+
+	rt_mutex_init_task(p);
 
 #ifdef CONFIG_DEBUG_MUTEXES
 	p->blocked_on = NULL; /* not blocked yet */
@@ -1079,6 +1092,9 @@ static task_t *copy_process(unsigned long clone_flags,
 #ifdef CONFIG_COMPAT
 	p->compat_robust_list = NULL;
 #endif
+	INIT_LIST_HEAD(&p->pi_state_list);
+	p->pi_state_cache = NULL;
+
 	/*
 	 * sigaltstack should be cleared when sharing the same VM
 	 */
@@ -1159,18 +1175,6 @@ static task_t *copy_process(unsigned long clone_flags,
 	}
 
 	if (clone_flags & CLONE_THREAD) {
-		/*
-		 * Important: if an exit-all has been started then
-		 * do not create this new thread - the whole thread
-		 * group is supposed to exit anyway.
-		 */
-		if (current->signal->flags & SIGNAL_GROUP_EXIT) {
-			spin_unlock(&current->sighand->siglock);
-			write_unlock_irq(&tasklist_lock);
-			retval = -EAGAIN;
-			goto bad_fork_cleanup_namespace;
-		}
-
 		p->group_leader = current->group_leader;
 		list_add_tail_rcu(&p->thread_group, &p->group_leader->thread_group);
 

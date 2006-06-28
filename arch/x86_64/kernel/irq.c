@@ -26,6 +26,30 @@ atomic_t irq_mis_count;
 #endif
 #endif
 
+#ifdef CONFIG_DEBUG_STACKOVERFLOW
+/*
+ * Probabilistic stack overflow check:
+ *
+ * Only check the stack in process context, because everything else
+ * runs on the big interrupt stacks. Checking reliably is too expensive,
+ * so we just check from interrupts.
+ */
+static inline void stack_overflow_check(struct pt_regs *regs)
+{
+	u64 curbase = (u64) current->thread_info;
+	static unsigned long warned = -60*HZ;
+
+	if (regs->rsp >= curbase && regs->rsp <= curbase + THREAD_SIZE &&
+	    regs->rsp <  curbase + sizeof(struct thread_info) + 128 &&
+	    time_after(jiffies, warned + 60*HZ)) {
+		printk("do_IRQ: %s near stack overflow (cur:%Lx,rsp:%lx)\n",
+		       current->comm, curbase, regs->rsp);
+		show_stack(NULL,NULL);
+		warned = jiffies;
+	}
+}
+#endif
+
 /*
  * Generic, controller-independent functions:
  */
@@ -39,7 +63,7 @@ int show_interrupts(struct seq_file *p, void *v)
 	if (i == 0) {
 		seq_printf(p, "           ");
 		for_each_online_cpu(j)
-			seq_printf(p, "CPU%d       ",j);
+			seq_printf(p, "CPU%-8d",j);
 		seq_putc(p, '\n');
 	}
 
@@ -91,12 +115,14 @@ skip:
  */
 asmlinkage unsigned int do_IRQ(struct pt_regs *regs)
 {	
-	/* high bits used in ret_from_ code  */
-	unsigned irq = regs->orig_rax & 0xff;
+	/* high bit used in ret_from_ code  */
+	unsigned irq = ~regs->orig_rax;
 
 	exit_idle();
 	irq_enter();
-
+#ifdef CONFIG_DEBUG_STACKOVERFLOW
+	stack_overflow_check(regs);
+#endif
 	__do_IRQ(irq, regs);
 	irq_exit();
 

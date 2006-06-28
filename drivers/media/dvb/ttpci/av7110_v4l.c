@@ -42,7 +42,18 @@
 int msp_writereg(struct av7110 *av7110, u8 dev, u16 reg, u16 val)
 {
 	u8 msg[5] = { dev, reg >> 8, reg & 0xff, val >> 8 , val & 0xff };
-	struct i2c_msg msgs = { .flags = 0, .addr = 0x40, .len = 5, .buf = msg };
+	struct i2c_msg msgs = { .flags = 0, .len = 5, .buf = msg };
+
+	switch (av7110->adac_type) {
+	case DVB_ADAC_MSP34x0:
+		msgs.addr = 0x40;
+		break;
+	case DVB_ADAC_MSP34x5:
+		msgs.addr = 0x42;
+		break;
+	default:
+		return 0;
+	}
 
 	if (i2c_transfer(&av7110->i2c_adap, &msgs, 1) != 1) {
 		dprintk(1, "dvb-ttpci: failed @ card %d, %u = %u\n",
@@ -57,9 +68,22 @@ static int msp_readreg(struct av7110 *av7110, u8 dev, u16 reg, u16 *val)
 	u8 msg1[3] = { dev, reg >> 8, reg & 0xff };
 	u8 msg2[2];
 	struct i2c_msg msgs[2] = {
-		{ .flags = 0,	     .addr = 0x40, .len = 3, .buf = msg1 },
-		{ .flags = I2C_M_RD, .addr = 0x40, .len = 2, .buf = msg2 }
+		{ .flags = 0	   , .len = 3, .buf = msg1 },
+		{ .flags = I2C_M_RD, .len = 2, .buf = msg2 }
 	};
+
+	switch (av7110->adac_type) {
+	case DVB_ADAC_MSP34x0:
+		msgs[0].addr = 0x40;
+		msgs[1].addr = 0x40;
+		break;
+	case DVB_ADAC_MSP34x5:
+		msgs[0].addr = 0x42;
+		msgs[1].addr = 0x42;
+		break;
+	default:
+		return 0;
+	}
 
 	if (i2c_transfer(&av7110->i2c_adap, &msgs[0], 2) != 2) {
 		dprintk(1, "dvb-ttpci: failed @ card %d, %u\n",
@@ -678,17 +702,23 @@ int av7110_init_analog_module(struct av7110 *av7110)
 {
 	u16 version1, version2;
 
-	if (i2c_writereg(av7110, 0x80, 0x0, 0x80) != 1
-	    || i2c_writereg(av7110, 0x80, 0x0, 0) != 1)
+	if (i2c_writereg(av7110, 0x80, 0x0, 0x80) == 1 &&
+	    i2c_writereg(av7110, 0x80, 0x0, 0) == 1) {
+		printk("dvb-ttpci: DVB-C analog module @ card %d detected, initializing MSP3400\n",
+			av7110->dvb_adapter.num);
+		av7110->adac_type = DVB_ADAC_MSP34x0;
+	} else if (i2c_writereg(av7110, 0x84, 0x0, 0x80) == 1 &&
+		   i2c_writereg(av7110, 0x84, 0x0, 0) == 1) {
+		printk("dvb-ttpci: DVB-C analog module @ card %d detected, initializing MSP3415\n",
+			av7110->dvb_adapter.num);
+		av7110->adac_type = DVB_ADAC_MSP34x5;
+	} else
 		return -ENODEV;
 
-	printk("dvb-ttpci: DVB-C analog module @ card %d detected, initializing MSP3400\n",
-		av7110->dvb_adapter.num);
-	av7110->adac_type = DVB_ADAC_MSP34x0;
 	msleep(100); // the probing above resets the msp...
 	msp_readreg(av7110, MSP_RD_DSP, 0x001e, &version1);
 	msp_readreg(av7110, MSP_RD_DSP, 0x001f, &version2);
-	dprintk(1, "dvb-ttpci: @ card %d MSP3400 version 0x%04x 0x%04x\n",
+	dprintk(1, "dvb-ttpci: @ card %d MSP34xx version 0x%04x 0x%04x\n",
 		av7110->dvb_adapter.num, version1, version2);
 	msp_writereg(av7110, MSP_WR_DSP, 0x0013, 0x0c00);
 	msp_writereg(av7110, MSP_WR_DSP, 0x0000, 0x7f00); // loudspeaker + headphone
@@ -697,7 +727,7 @@ int av7110_init_analog_module(struct av7110 *av7110)
 	msp_writereg(av7110, MSP_WR_DSP, 0x0004, 0x7f00); // loudspeaker volume
 	msp_writereg(av7110, MSP_WR_DSP, 0x000a, 0x0220); // SCART 1 source
 	msp_writereg(av7110, MSP_WR_DSP, 0x0007, 0x7f00); // SCART 1 volume
-	msp_writereg(av7110, MSP_WR_DSP, 0x000d, 0x4800); // prescale SCART
+	msp_writereg(av7110, MSP_WR_DSP, 0x000d, 0x1900); // prescale SCART
 
 	if (i2c_writereg(av7110, 0x48, 0x01, 0x00)!=1) {
 		INFO(("saa7113 not accessible.\n"));

@@ -389,7 +389,7 @@ static struct of_device_id bpp_match[] = {
 	{},
 };
 
-MODULE_DEVICE_TABLE(of, qec_sbus_match);
+MODULE_DEVICE_TABLE(of, bpp_match);
 
 static struct of_platform_driver bpp_sbus_driver = {
 	.name		= "bpp",

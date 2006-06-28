@@ -97,7 +97,7 @@ static void ts7250_hwcontrol(struct mtd_info *mtd, int cmd, unsigned int ctrl)
 		unsigned long addr = TS72XX_NAND_CONTROL_VIRT_BASE;
 		unsigned char bits;
 
-		bits = (ctrl & NAND_CNE) << 2;
+		bits = (ctrl & NAND_NCE) << 2;
 		bits |= ctrl & NAND_CLE;
 		bits |= (ctrl & NAND_ALE) >> 2;
 

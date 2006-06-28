@@ -400,8 +400,7 @@ static int smb_request_send_req(struct smb_request *req)
 	if (!(req->rq_flags & SMB_REQ_TRANSMITTED))
 		goto out;
 
-	list_del_init(&req->rq_queue);
-	list_add_tail(&req->rq_queue, &server->recvq);
+	list_move_tail(&req->rq_queue, &server->recvq);
 	result = 1;
 out:
 	return result;
@@ -435,8 +434,7 @@ int smb_request_send_server(struct smb_sb_info *server)
 	result = smb_request_send_req(req);
 	if (result < 0) {
 		server->conn_error = result;
-		list_del_init(&req->rq_queue);
-		list_add(&req->rq_queue, &server->xmitq);
+		list_move(&req->rq_queue, &server->xmitq);
 		result = -EIO;
 		goto out;
 	}

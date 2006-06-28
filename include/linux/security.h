@@ -862,6 +862,7 @@ struct swap_info_struct;
  *	Permit allocation of a key and assign security data. Note that key does
  *	not have a serial number assigned at this point.
  *	@key points to the key.
+ *	@flags is the allocation flags
  *	Return 0 if permission is granted, -ve error otherwise.
  * @key_free:
  *	Notification of destruction; free security data.
@@ -1324,7 +1325,7 @@ struct security_operations {
 
 	/* key management security hooks */
 #ifdef CONFIG_KEYS
-	int (*key_alloc)(struct key *key, struct task_struct *tsk);
+	int (*key_alloc)(struct key *key, struct task_struct *tsk, unsigned long flags);
 	void (*key_free)(struct key *key);
 	int (*key_permission)(key_ref_t key_ref,
 			      struct task_struct *context,
@@ -3040,9 +3041,10 @@ static inline int security_xfrm_policy_lookup(struct xfrm_policy *xp, u32 sk_sid
 #ifdef CONFIG_KEYS
 #ifdef CONFIG_SECURITY
 static inline int security_key_alloc(struct key *key,
-				     struct task_struct *tsk)
+				     struct task_struct *tsk,
+				     unsigned long flags)
 {
-	return security_ops->key_alloc(key, tsk);
+	return security_ops->key_alloc(key, tsk, flags);
 }
 
 static inline void security_key_free(struct key *key)
@@ -3060,7 +3062,8 @@ static inline int security_key_permission(key_ref_t key_ref,
 #else
 
 static inline int security_key_alloc(struct key *key,
-				     struct task_struct *tsk)
+				     struct task_struct *tsk,
+				     unsigned long flags)
 {
 	return 0;
 }

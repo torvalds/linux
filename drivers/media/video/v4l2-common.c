@@ -1101,6 +1101,11 @@ const char **v4l2_ctrl_get_menu(u32 id)
 		"MPEG-2 SVCD-compatible Stream",
 		NULL
 	};
+	static const char *mpeg_stream_vbi_fmt[] = {
+		"No VBI",
+		"Private packet, IVTV format",
+		NULL
+	};
 
 	switch (id) {
 		case V4L2_CID_MPEG_AUDIO_SAMPLING_FREQ:
@@ -1129,6 +1134,8 @@ const char **v4l2_ctrl_get_menu(u32 id)
 			return mpeg_video_bitrate_mode;
 		case V4L2_CID_MPEG_STREAM_TYPE:
 			return mpeg_stream_type;
+		case V4L2_CID_MPEG_STREAM_VBI_FMT:
+			return mpeg_stream_vbi_fmt;
 		default:
 			return NULL;
 	}
@@ -1182,6 +1189,7 @@ int v4l2_ctrl_query_fill(struct v4l2_queryctrl *qctrl, s32 min, s32 max, s32 ste
 	case V4L2_CID_MPEG_STREAM_PID_PCR: 	name = "Stream PCR Program ID"; break;
 	case V4L2_CID_MPEG_STREAM_PES_ID_AUDIO: name = "Stream PES Audio ID"; break;
 	case V4L2_CID_MPEG_STREAM_PES_ID_VIDEO: name = "Stream PES Video ID"; break;
+	case V4L2_CID_MPEG_STREAM_VBI_FMT:	name = "Stream VBI Format"; break;
 
 	default:
 		return -EINVAL;
@@ -1208,6 +1216,7 @@ int v4l2_ctrl_query_fill(struct v4l2_queryctrl *qctrl, s32 min, s32 max, s32 ste
 	case V4L2_CID_MPEG_VIDEO_ASPECT:
 	case V4L2_CID_MPEG_VIDEO_BITRATE_MODE:
 	case V4L2_CID_MPEG_STREAM_TYPE:
+	case V4L2_CID_MPEG_STREAM_VBI_FMT:
 		qctrl->type = V4L2_CTRL_TYPE_MENU;
 		step = 1;
 		break;
@@ -1367,6 +1376,11 @@ int v4l2_ctrl_query_fill_std(struct v4l2_queryctrl *qctrl)
 		return v4l2_ctrl_query_fill(qctrl, 0, 255, 1, 0);
 	case V4L2_CID_MPEG_STREAM_PES_ID_VIDEO:
 		return v4l2_ctrl_query_fill(qctrl, 0, 255, 1, 0);
+	case V4L2_CID_MPEG_STREAM_VBI_FMT:
+		return v4l2_ctrl_query_fill(qctrl,
+				V4L2_MPEG_STREAM_VBI_FMT_NONE,
+				V4L2_MPEG_STREAM_VBI_FMT_IVTV, 1,
+				V4L2_MPEG_STREAM_VBI_FMT_NONE);
 	default:
 		return -EINVAL;
 	}

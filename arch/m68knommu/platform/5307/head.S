@@ -3,7 +3,7 @@
 /*
  *	head.S -- common startup code for ColdFire CPUs.
  *
- *	(C) Copyright 1999-2004, Greg Ungerer (gerg@snapgear.com).
+ *	(C) Copyright 1999-2006, Greg Ungerer <gerg@snapgear.com>.
  */
 
 /*****************************************************************************/
@@ -19,47 +19,15 @@
 /*****************************************************************************/
 
 /*
- *	Define fixed memory sizes. Configuration of a fixed memory size
- *	overrides everything else. If the user defined a size we just
- *	blindly use it (they know what they are doing right :-)
- */
-#if defined(CONFIG_RAM32MB)
-#define MEM_SIZE	0x02000000	/* memory size 32Mb */
-#elif defined(CONFIG_RAM16MB)
-#define MEM_SIZE	0x01000000	/* memory size 16Mb */
-#elif defined(CONFIG_RAM8MB)
-#define MEM_SIZE	0x00800000	/* memory size 8Mb */
-#elif defined(CONFIG_RAM4MB)
-#define MEM_SIZE	0x00400000	/* memory size 4Mb */
-#elif defined(CONFIG_RAM1MB)
-#define MEM_SIZE	0x00100000	/* memory size 1Mb */
-#endif
-
-/*
- *	Memory size exceptions for special cases. Some boards may be set
- *	for auto memory sizing, but we can't do it that way for some reason.
- *	For example the 5206eLITE board has static RAM, and auto-detecting
- *	the SDRAM will do you no good at all. Same goes for the MOD5272.
- */
-#ifdef CONFIG_RAMAUTO
-#if defined(CONFIG_M5206eLITE)
-#define	MEM_SIZE	0x00100000	/* 1MiB default memory */
-#endif
-#if defined(CONFIG_MOD5272)
-#define MEM_SIZE	0x00800000	/* 8MiB default memory */
-#endif
-#endif /* CONFIG_RAMAUTO */
-
-
-/*
- *	If we don't have a fixed memory size now, then lets build in code
+ *	If we don't have a fixed memory size, then lets build in code
  *	to auto detect the DRAM size. Obviously this is the prefered
- *	method, and should work for most boards (it won't work for those
- *	that do not have their RAM starting at address 0).
+ *	method, and should work for most boards. It won't work for those
+ *	that do not have their RAM starting at address 0, and it only
+ *	works on SDRAM (not boards fitted with SRAM).
  */
-#if defined(MEM_SIZE)
+#if CONFIG_RAMSIZE != 0
 .macro GET_MEM_SIZE
-	movel	#MEM_SIZE,%d0		/* hard coded memory size */
+	movel	#CONFIG_RAMSIZE,%d0	/* hard coded memory size */
 .endm
 
 #elif defined(CONFIG_M5206) || defined(CONFIG_M5206e) || \
@@ -98,37 +66,7 @@
 .endm
 
 #else
-#error "ERROR: I don't know how to determine your boards memory size?"
-#endif
-
-
-/*
- *	Most ColdFire boards have their DRAM starting at address 0.
- *	Notable exception is the 5206eLITE board, another is the MOD5272.
- */
-#if defined(CONFIG_M5206eLITE)
-#define	MEM_BASE	0x30000000
-#endif
-#if defined(CONFIG_MOD5272)
-#define MEM_BASE	0x02000000
-#define VBR_BASE	0x20000000	/* vectors in SRAM */
-#endif
-#if defined(CONFIG_M5208EVB)
-#define MEM_BASE	0x40000000
-#endif
-
-#ifndef MEM_BASE
-#define	MEM_BASE	0x00000000	/* memory base at address 0 */
-#endif
-
-/*
- *	The default location for the vectors is at the base of RAM.
- *	Some boards might like to use internal SRAM or something like
- *	that. If no board specific header defines an alternative then
- *	use the base of RAM.
- */
-#ifndef	VBR_BASE
-#define	VBR_BASE	MEM_BASE	/* vector address */
+#error "ERROR: I don't know how to probe your boards memory size?"
 #endif
 
 /*****************************************************************************/
@@ -191,11 +129,11 @@ _start:
 	 *	Create basic memory configuration. Set VBR accordingly,
 	 *	and size memory.
 	 */
-	movel	#VBR_BASE,%a7
+	movel	#CONFIG_VECTORBASE,%a7
 	movec   %a7,%VBR			/* set vectors addr */
 	movel	%a7,_ramvec
 
-	movel	#MEM_BASE,%a7			/* mark the base of RAM */
+	movel	#CONFIG_RAMBASE,%a7		/* mark the base of RAM */
 	movel	%a7,_rambase
 
 	GET_MEM_SIZE				/* macro code determines size */

@@ -754,11 +754,11 @@ static const u64 c[KHAZAD_ROUNDS + 1] = {
 	0xccc41d14c363da5dULL, 0x5fdc7dcd7f5a6c5cULL, 0xf726ffede89d6f8eULL
 };
 
-static int khazad_setkey(void *ctx_arg, const u8 *in_key,
-                       unsigned int key_len, u32 *flags)
+static int khazad_setkey(struct crypto_tfm *tfm, const u8 *in_key,
+			 unsigned int key_len, u32 *flags)
 {
-	struct khazad_ctx *ctx = ctx_arg;
-	const __be64 *key = (const __be64 *)in_key;
+	struct khazad_ctx *ctx = crypto_tfm_ctx(tfm);
+	const __be32 *key = (const __be32 *)in_key;
 	int r;
 	const u64 *S = T7;
 	u64 K2, K1;
@@ -769,8 +769,9 @@ static int khazad_setkey(void *ctx_arg, const u8 *in_key,
 		return -EINVAL;
 	}
 
-	K2 = be64_to_cpu(key[0]);
-	K1 = be64_to_cpu(key[1]);
+	/* key is supposed to be 32-bit aligned */
+	K2 = ((u64)be32_to_cpu(key[0]) << 32) | be32_to_cpu(key[1]);
+	K1 = ((u64)be32_to_cpu(key[2]) << 32) | be32_to_cpu(key[3]);
 
 	/* setup the encrypt key */
 	for (r = 0; r <= KHAZAD_ROUNDS; r++) {
@@ -840,15 +841,15 @@ static void khazad_crypt(const u64 roundKey[KHAZAD_ROUNDS + 1],
 	*dst = cpu_to_be64(state);
 }
 
-static void khazad_encrypt(void *ctx_arg, u8 *dst, const u8 *src)
+static void khazad_encrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
 {
-	struct khazad_ctx *ctx = ctx_arg;
+	struct khazad_ctx *ctx = crypto_tfm_ctx(tfm);
 	khazad_crypt(ctx->E, dst, src);
 }
 
-static void khazad_decrypt(void *ctx_arg, u8 *dst, const u8 *src)
+static void khazad_decrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
 {
-	struct khazad_ctx *ctx = ctx_arg;
+	struct khazad_ctx *ctx = crypto_tfm_ctx(tfm);
 	khazad_crypt(ctx->D, dst, src);
 }
 

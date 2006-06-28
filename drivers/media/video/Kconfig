@@ -381,6 +381,18 @@ config VIDEO_WM8739
 	  To compile this driver as a module, choose M here: the
 	  module will be called wm8739.
 
+config VIDEO_CX2341X
+	tristate "Conexant CX2341x MPEG encoders"
+	depends on VIDEO_V4L2 && EXPERIMENTAL
+	---help---
+	  Support for the Conexant CX23416 MPEG encoders
+	  and CX23415 MPEG encoder/decoders.
+
+	  This module currently supports the encoding functions only.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cx2341x.
+
 source "drivers/media/video/cx25840/Kconfig"
 
 config VIDEO_SAA711X
@@ -432,6 +444,8 @@ endmenu # encoder / decoder chips
 
 menu "V4L USB devices"
 	depends on USB && VIDEO_DEV
+
+source "drivers/media/video/pvrusb2/Kconfig"
 
 source "drivers/media/video/em28xx/Kconfig"
 

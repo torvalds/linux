@@ -88,6 +88,10 @@ int libata_fua = 0;
 module_param_named(fua, libata_fua, int, 0444);
 MODULE_PARM_DESC(fua, "FUA support (0=off, 1=on)");
 
+static int ata_probe_timeout = ATA_TMOUT_INTERNAL / HZ;
+module_param(ata_probe_timeout, int, 0444);
+MODULE_PARM_DESC(ata_probe_timeout, "Set ATA probing timeout (seconds)");
+
 MODULE_AUTHOR("Jeff Garzik");
 MODULE_DESCRIPTION("Library module for ATA devices");
 MODULE_LICENSE("GPL");
@@ -777,11 +781,9 @@ void ata_std_dev_select (struct ata_port *ap, unsigned int device)
 void ata_dev_select(struct ata_port *ap, unsigned int device,
 			   unsigned int wait, unsigned int can_sleep)
 {
-	if (ata_msg_probe(ap)) {
+	if (ata_msg_probe(ap))
 		ata_port_printk(ap, KERN_INFO, "ata_dev_select: ENTER, ata%u: "
-				"device %u, wait %u\n",
-				ap->id, device, wait);
-	}
+				"device %u, wait %u\n", ap->id, device, wait);
 
 	if (wait)
 		ata_wait_idle(ap);
@@ -950,7 +952,8 @@ void ata_port_flush_task(struct ata_port *ap)
 	 */
 	if (!cancel_delayed_work(&ap->port_task)) {
 		if (ata_msg_ctl(ap))
-			ata_port_printk(ap, KERN_DEBUG, "%s: flush #2\n", __FUNCTION__);
+			ata_port_printk(ap, KERN_DEBUG, "%s: flush #2\n",
+					__FUNCTION__);
 		flush_workqueue(ata_wq);
 	}
 
@@ -1059,7 +1062,7 @@ unsigned ata_exec_internal(struct ata_device *dev,
 
 	spin_unlock_irqrestore(ap->lock, flags);
 
-	rc = wait_for_completion_timeout(&wait, ATA_TMOUT_INTERNAL);
+	rc = wait_for_completion_timeout(&wait, ata_probe_timeout);
 
 	ata_port_flush_task(ap);
 
@@ -1081,7 +1084,7 @@ unsigned ata_exec_internal(struct ata_device *dev,
 
 			if (ata_msg_warn(ap))
 				ata_dev_printk(dev, KERN_WARNING,
-				       "qc timeout (cmd 0x%x)\n", command);
+					"qc timeout (cmd 0x%x)\n", command);
 		}
 
 		spin_unlock_irqrestore(ap->lock, flags);
@@ -1093,9 +1096,9 @@ unsigned ata_exec_internal(struct ata_device *dev,
 
 	if (qc->flags & ATA_QCFLAG_FAILED && !qc->err_mask) {
 		if (ata_msg_warn(ap))
-			ata_dev_printk(dev, KERN_WARNING, 
+			ata_dev_printk(dev, KERN_WARNING,
 				"zero err_mask for failed "
-			       "internal command, assuming AC_ERR_OTHER\n");
+				"internal command, assuming AC_ERR_OTHER\n");
 		qc->err_mask |= AC_ERR_OTHER;
 	}
 
@@ -1129,6 +1132,33 @@ unsigned ata_exec_internal(struct ata_device *dev,
 	spin_unlock_irqrestore(ap->lock, flags);
 
 	return err_mask;
+}
+
+/**
+ *	ata_do_simple_cmd - execute simple internal command
+ *	@dev: Device to which the command is sent
+ *	@cmd: Opcode to execute
+ *
+ *	Execute a 'simple' command, that only consists of the opcode
+ *	'cmd' itself, without filling any other registers
+ *
+ *	LOCKING:
+ *	Kernel thread context (may sleep).
+ *
+ *	RETURNS:
+ *	Zero on success, AC_ERR_* mask on failure
+ */
+unsigned int ata_do_simple_cmd(struct ata_device *dev, u8 cmd)
+{
+	struct ata_taskfile tf;
+
+	ata_tf_init(dev, &tf);
+
+	tf.command = cmd;
+	tf.flags |= ATA_TFLAG_DEVICE;
+	tf.protocol = ATA_PROT_NODATA;
+
+	return ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0);
 }
 
 /**
@@ -1193,8 +1223,8 @@ int ata_dev_read_id(struct ata_device *dev, unsigned int *p_class,
 	int rc;
 
 	if (ata_msg_ctl(ap))
-		ata_dev_printk(dev, KERN_DEBUG, "%s: ENTER, host %u, dev %u\n", 
-				__FUNCTION__, ap->id, dev->devno);
+		ata_dev_printk(dev, KERN_DEBUG, "%s: ENTER, host %u, dev %u\n",
+			       __FUNCTION__, ap->id, dev->devno);
 
 	ata_dev_select(ap, dev->devno, 1, 1); /* select device 0/1 */
 
@@ -1263,9 +1293,9 @@ int ata_dev_read_id(struct ata_device *dev, unsigned int *p_class,
 	return 0;
 
  err_out:
-	if (ata_msg_warn(ap)) 
+	if (ata_msg_warn(ap))
 		ata_dev_printk(dev, KERN_WARNING, "failed to IDENTIFY "
-		       "(%s, err_mask=0x%x)\n", reason, err_mask);
+			       "(%s, err_mask=0x%x)\n", reason, err_mask);
 	return rc;
 }
 
@@ -1318,19 +1348,21 @@ int ata_dev_configure(struct ata_device *dev, int print_info)
 	int i, rc;
 
 	if (!ata_dev_enabled(dev) && ata_msg_info(ap)) {
-		ata_dev_printk(dev, KERN_INFO, "%s: ENTER/EXIT (host %u, dev %u) -- nodev\n",
-			__FUNCTION__, ap->id, dev->devno);
+		ata_dev_printk(dev, KERN_INFO,
+			       "%s: ENTER/EXIT (host %u, dev %u) -- nodev\n",
+			       __FUNCTION__, ap->id, dev->devno);
 		return 0;
 	}
 
 	if (ata_msg_probe(ap))
-		ata_dev_printk(dev, KERN_DEBUG, "%s: ENTER, host %u, dev %u\n", 
-			__FUNCTION__, ap->id, dev->devno);
+		ata_dev_printk(dev, KERN_DEBUG, "%s: ENTER, host %u, dev %u\n",
+			       __FUNCTION__, ap->id, dev->devno);
 
 	/* print device capabilities */
 	if (ata_msg_probe(ap))
-		ata_dev_printk(dev, KERN_DEBUG, "%s: cfg 49:%04x 82:%04x 83:%04x "
-			       "84:%04x 85:%04x 86:%04x 87:%04x 88:%04x\n",
+		ata_dev_printk(dev, KERN_DEBUG,
+			       "%s: cfg 49:%04x 82:%04x 83:%04x 84:%04x "
+			       "85:%04x 86:%04x 87:%04x 88:%04x\n",
 			       __FUNCTION__,
 			       id[49], id[82], id[83], id[84],
 			       id[85], id[86], id[87], id[88]);
@@ -1402,14 +1434,16 @@ int ata_dev_configure(struct ata_device *dev, int print_info)
 					ata_id_major_version(id),
 					ata_mode_string(xfer_mask),
 					(unsigned long long)dev->n_sectors,
-					dev->cylinders, dev->heads, dev->sectors);
+					dev->cylinders, dev->heads,
+					dev->sectors);
 		}
 
 		if (dev->id[59] & 0x100) {
 			dev->multi_count = dev->id[59] & 0xff;
 			if (ata_msg_info(ap))
-				ata_dev_printk(dev, KERN_INFO, "ata%u: dev %u multi count %u\n",
-				ap->id, dev->devno, dev->multi_count);
+				ata_dev_printk(dev, KERN_INFO,
+					"ata%u: dev %u multi count %u\n",
+					ap->id, dev->devno, dev->multi_count);
 		}
 
 		dev->cdb_len = 16;
@@ -1422,8 +1456,8 @@ int ata_dev_configure(struct ata_device *dev, int print_info)
 		rc = atapi_cdb_len(id);
 		if ((rc < 12) || (rc > ATAPI_CDB_LEN)) {
 			if (ata_msg_warn(ap))
-				ata_dev_printk(dev, KERN_WARNING, 
-					"unsupported CDB len\n");
+				ata_dev_printk(dev, KERN_WARNING,
+					       "unsupported CDB len\n");
 			rc = -EINVAL;
 			goto err_out_nosup;
 		}
@@ -1466,8 +1500,8 @@ int ata_dev_configure(struct ata_device *dev, int print_info)
 
 err_out_nosup:
 	if (ata_msg_probe(ap))
-		ata_dev_printk(dev, KERN_DEBUG, 
-				"%s: EXIT, err\n", __FUNCTION__);
+		ata_dev_printk(dev, KERN_DEBUG,
+			       "%s: EXIT, err\n", __FUNCTION__);
 	return rc;
 }
 
@@ -3527,7 +3561,7 @@ void swap_buf_le16(u16 *buf, unsigned int buf_words)
  *	Inherited from caller.
  */
 
-void ata_mmio_data_xfer(struct ata_device *adev, unsigned char *buf, 
+void ata_mmio_data_xfer(struct ata_device *adev, unsigned char *buf,
 			unsigned int buflen, int write_data)
 {
 	struct ata_port *ap = adev->ap;
@@ -3573,7 +3607,7 @@ void ata_mmio_data_xfer(struct ata_device *adev, unsigned char *buf,
  *	Inherited from caller.
  */
 
-void ata_pio_data_xfer(struct ata_device *adev, unsigned char *buf, 
+void ata_pio_data_xfer(struct ata_device *adev, unsigned char *buf,
 		       unsigned int buflen, int write_data)
 {
 	struct ata_port *ap = adev->ap;
@@ -3607,7 +3641,7 @@ void ata_pio_data_xfer(struct ata_device *adev, unsigned char *buf,
  *	@buflen: buffer length
  *	@write_data: read/write
  *
- *	Transfer data from/to the device data register by PIO. Do the 
+ *	Transfer data from/to the device data register by PIO. Do the
  *	transfer with interrupts disabled.
  *
  *	LOCKING:
@@ -4946,31 +4980,9 @@ int ata_port_offline(struct ata_port *ap)
 	return 0;
 }
 
-/*
- * Execute a 'simple' command, that only consists of the opcode 'cmd' itself,
- * without filling any other registers
- */
-static int ata_do_simple_cmd(struct ata_device *dev, u8 cmd)
+int ata_flush_cache(struct ata_device *dev)
 {
-	struct ata_taskfile tf;
-	int err;
-
-	ata_tf_init(dev, &tf);
-
-	tf.command = cmd;
-	tf.flags |= ATA_TFLAG_DEVICE;
-	tf.protocol = ATA_PROT_NODATA;
-
-	err = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0);
-	if (err)
-		ata_dev_printk(dev, KERN_ERR, "%s: ata command failed: %d\n",
-			       __FUNCTION__, err);
-
-	return err;
-}
-
-static int ata_flush_cache(struct ata_device *dev)
-{
+	unsigned int err_mask;
 	u8 cmd;
 
 	if (!ata_try_flush_cache(dev))
@@ -4981,17 +4993,41 @@ static int ata_flush_cache(struct ata_device *dev)
 	else
 		cmd = ATA_CMD_FLUSH;
 
-	return ata_do_simple_cmd(dev, cmd);
+	err_mask = ata_do_simple_cmd(dev, cmd);
+	if (err_mask) {
+		ata_dev_printk(dev, KERN_ERR, "failed to flush cache\n");
+		return -EIO;
+	}
+
+	return 0;
 }
 
 static int ata_standby_drive(struct ata_device *dev)
 {
-	return ata_do_simple_cmd(dev, ATA_CMD_STANDBYNOW1);
+	unsigned int err_mask;
+
+	err_mask = ata_do_simple_cmd(dev, ATA_CMD_STANDBYNOW1);
+	if (err_mask) {
+		ata_dev_printk(dev, KERN_ERR, "failed to standby drive "
+			       "(err_mask=0x%x)\n", err_mask);
+		return -EIO;
+	}
+
+	return 0;
 }
 
 static int ata_start_drive(struct ata_device *dev)
 {
-	return ata_do_simple_cmd(dev, ATA_CMD_IDLEIMMEDIATE);
+	unsigned int err_mask;
+
+	err_mask = ata_do_simple_cmd(dev, ATA_CMD_IDLEIMMEDIATE);
+	if (err_mask) {
+		ata_dev_printk(dev, KERN_ERR, "failed to start drive "
+			       "(err_mask=0x%x)\n", err_mask);
+		return -EIO;
+	}
+
+	return 0;
 }
 
 /**
@@ -5212,7 +5248,7 @@ static void ata_host_init(struct ata_port *ap, struct Scsi_Host *host,
 	ap->msg_enable = 0x00FF;
 #elif defined(ATA_DEBUG)
 	ap->msg_enable = ATA_MSG_DRV | ATA_MSG_INFO | ATA_MSG_CTL | ATA_MSG_WARN | ATA_MSG_ERR;
-#else 
+#else
 	ap->msg_enable = ATA_MSG_DRV | ATA_MSG_ERR | ATA_MSG_WARN;
 #endif
 
@@ -5709,6 +5745,7 @@ int ata_pci_device_resume(struct pci_dev *pdev)
 
 static int __init ata_init(void)
 {
+	ata_probe_timeout *= HZ;
 	ata_wq = create_workqueue("ata");
 	if (!ata_wq)
 		return -ENOMEM;
@@ -5733,7 +5770,7 @@ module_init(ata_init);
 module_exit(ata_exit);
 
 static unsigned long ratelimit_time;
-static spinlock_t ata_ratelimit_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(ata_ratelimit_lock);
 
 int ata_ratelimit(void)
 {

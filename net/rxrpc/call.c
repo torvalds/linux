@@ -1098,8 +1098,7 @@ static void rxrpc_call_receive_data_packet(struct rxrpc_call *call,
 
 		call->app_ready_seq = pmsg->seq;
 		call->app_ready_qty += pmsg->dsize;
-		list_del_init(&pmsg->link);
-		list_add_tail(&pmsg->link, &call->app_readyq);
+		list_move_tail(&pmsg->link, &call->app_readyq);
 	}
 
 	/* see if we've got the last packet yet */

@@ -370,7 +370,6 @@ chipset_is_set:
 	if (!(speed)) {
 		/* restore original pci-config space */
 		pci_write_config_dword(dev, drive_pci, drive_conf);
-		hwif->tuneproc(drive, 5);
 		return 0;
 	}
 
@@ -415,8 +414,6 @@ static void pdc202xx_old_ide_dma_start(ide_drive_t *drive)
 	if (drive->addressing == 1) {
 		struct request *rq	= HWGROUP(drive)->rq;
 		ide_hwif_t *hwif	= HWIF(drive);
-//		struct pci_dev *dev	= hwif->pci_dev;
-//		unsgned long high_16	= pci_resource_start(dev, 4);
 		unsigned long high_16   = hwif->dma_master;
 		unsigned long atapi_reg	= high_16 + (hwif->channel ? 0x24 : 0x20);
 		u32 word_count	= 0;
@@ -436,7 +433,6 @@ static int pdc202xx_old_ide_dma_end(ide_drive_t *drive)
 {
 	if (drive->addressing == 1) {
 		ide_hwif_t *hwif	= HWIF(drive);
-//		unsigned long high_16	= pci_resource_start(hwif->pci_dev, 4);
 		unsigned long high_16	= hwif->dma_master;
 		unsigned long atapi_reg	= high_16 + (hwif->channel ? 0x24 : 0x20);
 		u8 clock		= 0;
@@ -453,8 +449,6 @@ static int pdc202xx_old_ide_dma_end(ide_drive_t *drive)
 static int pdc202xx_old_ide_dma_test_irq(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
-//	struct pci_dev *dev	= hwif->pci_dev;
-//	unsigned long high_16	= pci_resource_start(dev, 4);
 	unsigned long high_16	= hwif->dma_master;
 	u8 dma_stat		= hwif->INB(hwif->dma_status);
 	u8 sc1d			= hwif->INB((high_16 + 0x001d));
@@ -492,12 +486,7 @@ static int pdc202xx_ide_dma_timeout(ide_drive_t *drive)
 
 static void pdc202xx_reset_host (ide_hwif_t *hwif)
 {
-#ifdef CONFIG_BLK_DEV_IDEDMA
-//	unsigned long high_16	= hwif->dma_base - (8*(hwif->channel));
 	unsigned long high_16	= hwif->dma_master;
-#else /* !CONFIG_BLK_DEV_IDEDMA */
-	unsigned long high_16	= pci_resource_start(hwif->pci_dev, 4);
-#endif /* CONFIG_BLK_DEV_IDEDMA */
 	u8 udma_speed_flag	= hwif->INB(high_16|0x001f);
 
 	hwif->OUTB((udma_speed_flag | 0x10), (high_16|0x001f));
@@ -550,31 +539,6 @@ static void pdc202xx_reset (ide_drive_t *drive)
 #endif
 }
 
-/*
- * Since SUN Cobalt is attempting to do this operation, I should disclose
- * this has been a long time ago Thu Jul 27 16:40:57 2000 was the patch date
- * HOTSWAP ATA Infrastructure.
- */
-static int pdc202xx_tristate (ide_drive_t * drive, int state)
-{
-	ide_hwif_t *hwif	= HWIF(drive);
-//	unsigned long high_16	= hwif->dma_base - (8*(hwif->channel));
-	unsigned long high_16	= hwif->dma_master;
-	u8 sc1f			= hwif->INB(high_16|0x001f);
-
-	if (!hwif)
-		return -EINVAL;
-
-//	hwif->bus_state = state;
-
-	if (state) {
-		hwif->OUTB(sc1f | 0x08, (high_16|0x001f));
-	} else {
-		hwif->OUTB(sc1f & ~0x08, (high_16|0x001f));
-	}
-	return 0;
-}
-
 static unsigned int __devinit init_chipset_pdc202xx(struct pci_dev *dev, const char *name)
 {
 	if (dev->resource[PCI_ROM_RESOURCE].start) {
@@ -624,10 +588,8 @@ static void __devinit init_hwif_pdc202xx(ide_hwif_t *hwif)
 	hwif->tuneproc  = &config_chipset_for_pio;
 	hwif->quirkproc = &pdc202xx_quirkproc;
 
-	if (hwif->pci_dev->device != PCI_DEVICE_ID_PROMISE_20246) {
-		hwif->busproc   = &pdc202xx_tristate;
+	if (hwif->pci_dev->device != PCI_DEVICE_ID_PROMISE_20246)
 		hwif->resetproc = &pdc202xx_reset;
-	}
 
 	hwif->speedproc = &pdc202xx_tune_chipset;
 

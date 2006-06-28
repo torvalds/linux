@@ -3,12 +3,13 @@
  */
 #define _STRING_C
 #include <linux/string.h>
+#include <linux/module.h>
 
 #undef memmove
 void *memmove(void * dest,const void *src,size_t count)
 {
 	if (dest < src) { 
-		__inline_memcpy(dest,src,count);
+		return memcpy(dest,src,count);
 	} else {
 		char *p = (char *) dest + count;
 		char *s = (char *) src + count;
@@ -17,3 +18,4 @@ void *memmove(void * dest,const void *src,size_t count)
 	}
 	return dest;
 } 
+EXPORT_SYMBOL(memmove);

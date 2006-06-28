@@ -37,7 +37,7 @@
  * Version 1.15		convert all calls to ide_raw_taskfile
  *				since args will return register content.
  * Version 1.16		added suspend-resume-checkpower
- * Version 1.17		do flush on standy, do flush on ATA < ATA6
+ * Version 1.17		do flush on standby, do flush on ATA < ATA6
  *			fix wcache setup.
  */
 

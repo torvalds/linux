@@ -526,10 +526,8 @@ void umount_tree(struct vfsmount *mnt, int propagate, struct list_head *kill)
 {
 	struct vfsmount *p;
 
-	for (p = mnt; p; p = next_mnt(p, mnt)) {
-		list_del(&p->mnt_hash);
-		list_add(&p->mnt_hash, kill);
-	}
+	for (p = mnt; p; p = next_mnt(p, mnt))
+		list_move(&p->mnt_hash, kill);
 
 	if (propagate)
 		propagate_umount(kill);

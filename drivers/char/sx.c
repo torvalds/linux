@@ -2320,7 +2320,7 @@ static int sx_init_portstructs (int nboards, int nports)
 #ifdef NEW_WRITE_LOCKING
 			port->gs.port_write_mutex = MUTEX;
 #endif
-			port->gs.driver_lock = SPIN_LOCK_UNLOCKED;
+			spin_lock_init(&port->gs.driver_lock);
 			/*
 			 * Initializing wait queue
 			 */

@@ -16,7 +16,7 @@
  *
  *   You should have received a copy of the GNU Lesser General Public License
  *   along with this library; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA 
+ *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #ifndef _CIFSPDU_H
@@ -24,8 +24,14 @@
 
 #include <net/sock.h>
 
+#ifdef CONFIG_CIFS_WEAK_PW_HASH
+#define LANMAN_PROT 0
+#define CIFS_PROT   1
+#else
 #define CIFS_PROT   0
-#define BAD_PROT    CIFS_PROT+1
+#endif
+#define POSIX_PROT  CIFS_PROT+1
+#define BAD_PROT 0xFFFF
 
 /* SMB command codes */
 /* Some commands have minimal (wct=0,bcc=0), or uninteresting, responses
@@ -110,7 +116,7 @@
 /*
  * Size of the session key (crypto key encrypted with the password
  */
-#define CIFS_SESSION_KEY_SIZE (24)
+#define CIFS_SESS_KEY_SIZE (24)
 
 /*
  * Maximum user name length
@@ -400,6 +406,29 @@ typedef struct negotiate_req {
 	unsigned char DialectsArray[1];
 } __attribute__((packed)) NEGOTIATE_REQ;
 
+/* Dialect index is 13 for LANMAN */
+
+typedef struct lanman_neg_rsp {
+	struct smb_hdr hdr;	/* wct = 13 */
+	__le16 DialectIndex;
+	__le16 SecurityMode;
+	__le16 MaxBufSize;
+	__le16 MaxMpxCount;
+	__le16 MaxNumberVcs;
+	__le16 RawMode;
+	__le32 SessionKey;
+	__le32 ServerTime;
+	__le16 ServerTimeZone;
+	__le16 EncryptionKeyLength;
+	__le16 Reserved;
+	__u16  ByteCount;
+	unsigned char EncryptionKey[1];
+} __attribute__((packed)) LANMAN_NEG_RSP;
+
+#define READ_RAW_ENABLE 1
+#define WRITE_RAW_ENABLE 2
+#define RAW_ENABLE (READ_RAW_ENABLE | WRITE_RAW_ENABLE)
+
 typedef struct negotiate_rsp {
 	struct smb_hdr hdr;	/* wct = 17 */
 	__le16 DialectIndex;
@@ -509,7 +538,7 @@ typedef union smb_com_session_setup_andx {
 /*      unsigned char  * NativeOS;      */
 /*	unsigned char  * NativeLanMan;  */
 /*      unsigned char  * PrimaryDomain; */
-	} __attribute__((packed)) resp;			/* NTLM response format (with or without extended security */
+	} __attribute__((packed)) resp;	/* NTLM response with or without extended sec*/
 
 	struct {		/* request format */
 		struct smb_hdr hdr;	/* wct = 10 */
@@ -520,8 +549,8 @@ typedef union smb_com_session_setup_andx {
 		__le16 MaxMpxCount;
 		__le16 VcNumber;
 		__u32 SessionKey;
-		__le16 PassswordLength;
-		__u32 Reserved;
+		__le16 PasswordLength;
+		__u32 Reserved; /* encrypt key len and offset */
 		__le16 ByteCount;
 		unsigned char AccountPassword[1];	/* followed by */
 		/* STRING AccountName */
@@ -542,6 +571,26 @@ typedef union smb_com_session_setup_andx {
 /*      unsigned char * PrimaryDomain; */
 	} __attribute__((packed)) old_resp; /* pre-NTLM (LANMAN2.1) response */
 } __attribute__((packed)) SESSION_SETUP_ANDX;
+
+/* format of NLTMv2 Response ie "case sensitive password" hash when NTLMv2 */
+
+struct ntlmssp2_name {
+	__le16 type;
+	__le16 length;
+/*	char   name[length]; */
+} __attribute__((packed));
+
+struct ntlmv2_resp {
+	char ntlmv2_hash[CIFS_ENCPWD_SIZE];
+	__le32 blob_signature;
+	__u32  reserved;
+	__le64  time;
+	__u64  client_chal; /* random */
+	__u32  reserved2;
+	struct ntlmssp2_name names[1];
+	/* array of name entries could follow ending in minimum 4 byte struct */
+} __attribute__((packed));
+
 
 #define CIFS_NETWORK_OPSYS "CIFS VFS Client for Linux"
 
@@ -573,7 +622,9 @@ typedef struct smb_com_tconx_req {
 } __attribute__((packed)) TCONX_REQ;
 
 typedef struct smb_com_tconx_rsp {
-	struct smb_hdr hdr;	/* wct = 3 *//* note that Win2000 has sent wct=7 in some cases on responses. Four unspecified words followed OptionalSupport */
+	struct smb_hdr hdr;	/* wct = 3 note that Win2000 has sent wct = 7
+				 in some cases on responses. Four unspecified
+				 words followed OptionalSupport */
 	__u8 AndXCommand;
 	__u8 AndXReserved;
 	__le16 AndXOffset;
@@ -1323,6 +1374,9 @@ struct smb_t2_rsp {
 #define SMB_FILE_MAXIMUM_INFO           0x40d
 
 /* Find File infolevels */
+#define SMB_FIND_FILE_INFO_STANDARD       0x001
+#define SMB_FIND_FILE_QUERY_EA_SIZE       0x002
+#define SMB_FIND_FILE_QUERY_EAS_FROM_LIST 0x003
 #define SMB_FIND_FILE_DIRECTORY_INFO      0x101
 #define SMB_FIND_FILE_FULL_DIRECTORY_INFO 0x102
 #define SMB_FIND_FILE_NAMES_INFO          0x103
@@ -1844,13 +1898,13 @@ typedef struct {
 typedef struct {
 	__le32 DeviceType;
 	__le32 DeviceCharacteristics;
-} __attribute__((packed)) FILE_SYSTEM_DEVICE_INFO;	/* device info, level 0x104 */
+} __attribute__((packed)) FILE_SYSTEM_DEVICE_INFO; /* device info level 0x104 */
 
 typedef struct {
 	__le32 Attributes;
 	__le32 MaxPathNameComponentLength;
 	__le32 FileSystemNameLen;
-	char FileSystemName[52]; /* do not really need to save this - so potentially get only subset of name */
+	char FileSystemName[52]; /* do not have to save this - get subset? */
 } __attribute__((packed)) FILE_SYSTEM_ATTRIBUTE_INFO;
 
 /******************************************************************************/
@@ -1947,7 +2001,8 @@ typedef struct {
 
 struct file_allocation_info {
 	__le64 AllocationSize; /* Note old Samba srvr rounds this up too much */
-} __attribute__((packed));	/* size used on disk, level 0x103 for set, 0x105 for query */
+} __attribute__((packed));	/* size used on disk, for level 0x103 for set,
+				   0x105 for query */
 
 struct file_end_of_file_info {
 	__le64 FileSize;		/* offset to end of file */
@@ -2054,7 +2109,7 @@ typedef struct {
 	__le32 ExtFileAttributes;
 	__le32 FileNameLength;
 	char FileName[1];
-} __attribute__((packed)) FILE_DIRECTORY_INFO;   /* level 0x101 FF response data area */
+} __attribute__((packed)) FILE_DIRECTORY_INFO;   /* level 0x101 FF resp data */
 
 typedef struct {
 	__le32 NextEntryOffset;
@@ -2069,7 +2124,7 @@ typedef struct {
 	__le32 FileNameLength;
 	__le32 EaSize; /* length of the xattrs */
 	char FileName[1];
-} __attribute__((packed)) FILE_FULL_DIRECTORY_INFO;   /* level 0x102 FF response data area */
+} __attribute__((packed)) FILE_FULL_DIRECTORY_INFO; /* level 0x102 rsp data */
 
 typedef struct {
 	__le32 NextEntryOffset;
@@ -2086,7 +2141,7 @@ typedef struct {
 	__le32 Reserved;
 	__u64 UniqueId; /* inode num - le since Samba puts ino in low 32 bit*/
 	char FileName[1];
-} __attribute__((packed)) SEARCH_ID_FULL_DIR_INFO;   /* level 0x105 FF response data area */
+} __attribute__((packed)) SEARCH_ID_FULL_DIR_INFO; /* level 0x105 FF rsp data */
 
 typedef struct {
 	__le32 NextEntryOffset;
@@ -2104,7 +2159,22 @@ typedef struct {
 	__u8   Reserved;
 	__u8   ShortName[12];
 	char FileName[1];
-} __attribute__((packed)) FILE_BOTH_DIRECTORY_INFO;   /* level 0x104 FF response data area */
+} __attribute__((packed)) FILE_BOTH_DIRECTORY_INFO; /* level 0x104 FFrsp data */
+
+typedef struct {
+	__u32  ResumeKey;
+	__le16 CreationDate; /* SMB Date */
+	__le16 CreationTime; /* SMB Time */
+	__le16 LastAccessDate;
+	__le16 LastAccessTime;
+	__le16 LastWriteDate;
+	__le16 LastWriteTime;
+	__le32 DataSize; /* File Size (EOF) */
+	__le32 AllocationSize;
+	__le16 Attributes; /* verify not u32 */
+	__u8   FileNameLength;
+	char FileName[1];
+} __attribute__((packed)) FIND_FILE_STANDARD_INFO; /* level 0x1 FF resp data */
 
 
 struct win_dev {

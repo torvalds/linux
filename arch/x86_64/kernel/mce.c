@@ -562,7 +562,7 @@ static struct sysdev_class mce_sysclass = {
 	set_kset_name("machinecheck"),
 };
 
-static DEFINE_PER_CPU(struct sys_device, device_mce);
+DEFINE_PER_CPU(struct sys_device, device_mce);
 
 /* Why are there no generic functions for this? */
 #define ACCESSOR(name, var, start) \
@@ -629,7 +629,7 @@ static __cpuinit void mce_remove_device(unsigned int cpu)
 #endif
 
 /* Get notified when a cpu comes on/off. Be hotplug friendly. */
-static int
+static __cpuinit int
 mce_cpu_callback(struct notifier_block *nfb, unsigned long action, void *hcpu)
 {
 	unsigned int cpu = (unsigned long)hcpu;
@@ -647,7 +647,7 @@ mce_cpu_callback(struct notifier_block *nfb, unsigned long action, void *hcpu)
 	return NOTIFY_OK;
 }
 
-static struct notifier_block mce_cpu_notifier = {
+static struct notifier_block __cpuinitdata mce_cpu_notifier = {
 	.notifier_call = mce_cpu_callback,
 };
 

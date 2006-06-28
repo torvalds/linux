@@ -472,38 +472,46 @@ config 4KSTACKS
 	  running more threads on a system and also reduces the pressure
 	  on the VM subsystem for higher order allocations.
 
-choice
-	prompt "RAM size"
-	default AUTO
+comment "RAM configuration"
 
-config RAMAUTO
-	bool "AUTO"
-	---help---
-	  Configure the RAM size on your platform. Many platforms can auto
-	  detect this, on those choose the AUTO option. Otherwise set the
-	  RAM size you intend using.
-
-config RAM4MB
-	bool "4MiB"
+config RAMBASE
+	hex "Address of the base of RAM"
+	default "0"
 	help
-	  Set RAM size to be 4MiB.
+	  Define the address that RAM starts at. On many platforms this is
+	  0, the base of the address space. And this is the default. Some
+	  platforms choose to setup their RAM at other addresses within the
+	  processor address space.
 
-config RAM8MB
-	bool "8MiB"
+config RAMSIZE
+	hex "Size of RAM (in bytes)"
+	default "0x400000"
 	help
-	  Set RAM size to be 8MiB.
+	  Define the size of the system RAM. If you select 0 then the
+	  kernel will try to probe the RAM size at runtime. This is not
+	  supported on all CPU types.
 
-config RAM16MB
-	bool "16MiB"
+config VECTORBASE
+	hex "Address of the base of system vectors"
+	default "0"
 	help
-	  Set RAM size to be 16MiB.
+	  Define the address of the the system vectors. Commonly this is
+	  put at the start of RAM, but it doesn't have to be. On ColdFire
+	  platforms this address is programmed into the VBR register, thus
+	  actually setting the address to use.
 
-config RAM32MB
-	bool "32MiB"
+config KERNELBASE
+	hex "Address of the base of kernel code"
+	default "0x400"
 	help
-	  Set RAM size to be 32MiB.
-
-endchoice
+	  Typically on m68k systems the kernel will not start at the base
+	  of RAM, but usually some small offset from it. Define the start
+	  address of the kernel here. The most common setup will have the
+	  processor vectors at the base of RAM and then the start of the
+	  kernel. On some platforms some RAM is reserved for boot loaders
+	  and the kernel starts after that. The 0x400 default was based on
+	  a system with the RAM based at address 0, and leaving enough room
+	  for the theoretical maximum number of 256 vectors.
 
 choice
 	prompt "RAM bus width"
@@ -511,7 +519,7 @@ choice
 
 config RAMAUTOBIT
 	bool "AUTO"
-	---help---
+	help
 	  Select the physical RAM data bus size. Not needed on most platforms,
 	  so you can generally choose AUTO.
 
@@ -545,7 +553,9 @@ config RAMKERNEL
 config ROMKERNEL
 	bool "ROM"
 	help
-	  The kernel will be resident in FLASH/ROM when running.
+	  The kernel will be resident in FLASH/ROM when running. This is
+	  often referred to as Execute-in-Place (XIP), since the kernel
+	  code executes from the position it is stored in the FLASH/ROM.
 
 endchoice
 

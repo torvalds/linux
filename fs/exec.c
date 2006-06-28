@@ -666,8 +666,6 @@ static int de_thread(struct task_struct *tsk)
 	 * and to assume its PID:
 	 */
 	if (!thread_group_leader(current)) {
-		struct dentry *proc_dentry1, *proc_dentry2;
-
 		/*
 		 * Wait for the thread group leader to be a zombie.
 		 * It should already be zombie at this point, most
@@ -689,10 +687,6 @@ static int de_thread(struct task_struct *tsk)
 		 */
 		current->start_time = leader->start_time;
 
-		spin_lock(&leader->proc_lock);
-		spin_lock(&current->proc_lock);
-		proc_dentry1 = proc_pid_unhash(current);
-		proc_dentry2 = proc_pid_unhash(leader);
 		write_lock_irq(&tasklist_lock);
 
 		BUG_ON(leader->tgid != current->tgid);
@@ -713,7 +707,7 @@ static int de_thread(struct task_struct *tsk)
 		attach_pid(current, PIDTYPE_PID,  current->pid);
 		attach_pid(current, PIDTYPE_PGID, current->signal->pgrp);
 		attach_pid(current, PIDTYPE_SID,  current->signal->session);
-		list_add_tail_rcu(&current->tasks, &init_task.tasks);
+		list_replace_rcu(&leader->tasks, &current->tasks);
 
 		current->group_leader = current;
 		leader->group_leader = current;
@@ -721,7 +715,6 @@ static int de_thread(struct task_struct *tsk)
 		/* Reduce leader to a thread */
 		detach_pid(leader, PIDTYPE_PGID);
 		detach_pid(leader, PIDTYPE_SID);
-		list_del_init(&leader->tasks);
 
 		current->exit_signal = SIGCHLD;
 
@@ -729,10 +722,6 @@ static int de_thread(struct task_struct *tsk)
 		leader->exit_state = EXIT_DEAD;
 
 		write_unlock_irq(&tasklist_lock);
-		spin_unlock(&leader->proc_lock);
-		spin_unlock(&current->proc_lock);
-		proc_pid_flush(proc_dentry1);
-		proc_pid_flush(proc_dentry2);
         }
 
 	/*
@@ -1379,67 +1368,102 @@ static void format_corename(char *corename, const char *pattern, long signr)
 	*out_ptr = 0;
 }
 
-static void zap_threads (struct mm_struct *mm)
+static void zap_process(struct task_struct *start)
+{
+	struct task_struct *t;
+
+	start->signal->flags = SIGNAL_GROUP_EXIT;
+	start->signal->group_stop_count = 0;
+
+	t = start;
+	do {
+		if (t != current && t->mm) {
+			t->mm->core_waiters++;
+			sigaddset(&t->pending.signal, SIGKILL);
+			signal_wake_up(t, 1);
+		}
+	} while ((t = next_thread(t)) != start);
+}
+
+static inline int zap_threads(struct task_struct *tsk, struct mm_struct *mm,
+				int exit_code)
 {
 	struct task_struct *g, *p;
+	unsigned long flags;
+	int err = -EAGAIN;
+
+	spin_lock_irq(&tsk->sighand->siglock);
+	if (!(tsk->signal->flags & SIGNAL_GROUP_EXIT)) {
+		tsk->signal->group_exit_code = exit_code;
+		zap_process(tsk);
+		err = 0;
+	}
+	spin_unlock_irq(&tsk->sighand->siglock);
+	if (err)
+		return err;
+
+	if (atomic_read(&mm->mm_users) == mm->core_waiters + 1)
+		goto done;
+
+	rcu_read_lock();
+	for_each_process(g) {
+		if (g == tsk->group_leader)
+			continue;
+
+		p = g;
+		do {
+			if (p->mm) {
+				if (p->mm == mm) {
+					/*
+					 * p->sighand can't disappear, but
+					 * may be changed by de_thread()
+					 */
+					lock_task_sighand(p, &flags);
+					zap_process(p);
+					unlock_task_sighand(p, &flags);
+				}
+				break;
+			}
+		} while ((p = next_thread(p)) != g);
+	}
+	rcu_read_unlock();
+done:
+	return mm->core_waiters;
+}
+
+static int coredump_wait(int exit_code)
+{
 	struct task_struct *tsk = current;
-	struct completion *vfork_done = tsk->vfork_done;
-	int traced = 0;
+	struct mm_struct *mm = tsk->mm;
+	struct completion startup_done;
+	struct completion *vfork_done;
+	int core_waiters;
+
+	init_completion(&mm->core_done);
+	init_completion(&startup_done);
+	mm->core_startup_done = &startup_done;
+
+	core_waiters = zap_threads(tsk, mm, exit_code);
+	up_write(&mm->mmap_sem);
+
+	if (unlikely(core_waiters < 0))
+		goto fail;
 
 	/*
 	 * Make sure nobody is waiting for us to release the VM,
 	 * otherwise we can deadlock when we wait on each other
 	 */
+	vfork_done = tsk->vfork_done;
 	if (vfork_done) {
 		tsk->vfork_done = NULL;
 		complete(vfork_done);
 	}
 
-	read_lock(&tasklist_lock);
-	do_each_thread(g,p)
-		if (mm == p->mm && p != tsk) {
-			force_sig_specific(SIGKILL, p);
-			mm->core_waiters++;
-			if (unlikely(p->ptrace) &&
-			    unlikely(p->parent->mm == mm))
-				traced = 1;
-		}
-	while_each_thread(g,p);
-
-	read_unlock(&tasklist_lock);
-
-	if (unlikely(traced)) {
-		/*
-		 * We are zapping a thread and the thread it ptraces.
-		 * If the tracee went into a ptrace stop for exit tracing,
-		 * we could deadlock since the tracer is waiting for this
-		 * coredump to finish.  Detach them so they can both die.
-		 */
-		write_lock_irq(&tasklist_lock);
-		do_each_thread(g,p) {
-			if (mm == p->mm && p != tsk &&
-			    p->ptrace && p->parent->mm == mm) {
-				__ptrace_detach(p, 0);
-			}
-		} while_each_thread(g,p);
-		write_unlock_irq(&tasklist_lock);
-	}
-}
-
-static void coredump_wait(struct mm_struct *mm)
-{
-	DECLARE_COMPLETION(startup_done);
-	int core_waiters;
-
-	mm->core_startup_done = &startup_done;
-
-	zap_threads(mm);
-	core_waiters = mm->core_waiters;
-	up_write(&mm->mmap_sem);
-
 	if (core_waiters)
 		wait_for_completion(&startup_done);
+fail:
 	BUG_ON(mm->core_waiters);
+	return core_waiters;
 }
 
 int do_coredump(long signr, int exit_code, struct pt_regs * regs)
@@ -1473,22 +1497,9 @@ int do_coredump(long signr, int exit_code, struct pt_regs * regs)
 	}
 	mm->dumpable = 0;
 
-	retval = -EAGAIN;
-	spin_lock_irq(&current->sighand->siglock);
-	if (!(current->signal->flags & SIGNAL_GROUP_EXIT)) {
-		current->signal->flags = SIGNAL_GROUP_EXIT;
-		current->signal->group_exit_code = exit_code;
-		current->signal->group_stop_count = 0;
-		retval = 0;
-	}
-	spin_unlock_irq(&current->sighand->siglock);
-	if (retval) {
-		up_write(&mm->mmap_sem);
+	retval = coredump_wait(exit_code);
+	if (retval < 0)
 		goto fail;
-	}
-
-	init_completion(&mm->core_done);
-	coredump_wait(mm);
 
 	/*
 	 * Clear any false indication of pending signals that might

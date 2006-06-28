@@ -15,10 +15,8 @@
 #include <linux/agp_backend.h>
 #include <linux/mmzone.h>
 #include <asm/page.h>		/* PAGE_SIZE */
+#include <asm/k8.h>
 #include "agp.h"
-
-/* Will need to be increased if AMD64 ever goes >8-way. */
-#define MAX_HAMMER_GARTS   8
 
 /* PTE bits. */
 #define GPTE_VALID	1
@@ -53,28 +51,12 @@
 #define ULI_X86_64_HTT_FEA_REG		0x50
 #define ULI_X86_64_ENU_SCR_REG		0x54
 
-static int nr_garts;
-static struct pci_dev * hammers[MAX_HAMMER_GARTS];
-
 static struct resource *aperture_resource;
 static int __initdata agp_try_unsupported = 1;
 
-#define for_each_nb() for(gart_iterator=0;gart_iterator<nr_garts;gart_iterator++)
-
-static void flush_amd64_tlb(struct pci_dev *dev)
-{
-	u32 tmp;
-
-	pci_read_config_dword (dev, AMD64_GARTCACHECTL, &tmp);
-	tmp |= INVGART;
-	pci_write_config_dword (dev, AMD64_GARTCACHECTL, tmp);
-}
-
 static void amd64_tlbflush(struct agp_memory *temp)
 {
-	int gart_iterator;
-	for_each_nb()
-		flush_amd64_tlb(hammers[gart_iterator]);
+	k8_flush_garts();
 }
 
 static int amd64_insert_memory(struct agp_memory *mem, off_t pg_start, int type)
@@ -153,7 +135,7 @@ static int amd64_fetch_size(void)
 	u32 temp;
 	struct aper_size_info_32 *values;
 
-	dev = hammers[0];
+	dev = k8_northbridges[0];
 	if (dev==NULL)
 		return 0;
 
@@ -201,9 +183,6 @@ static u64 amd64_configure (struct pci_dev *hammer, u64 gatt_table)
 	tmp &= ~(DISGARTCPU | DISGARTIO);
 	pci_write_config_dword(hammer, AMD64_GARTAPERTURECTL, tmp);
 
-	/* keep CPU's coherent. */
-	flush_amd64_tlb (hammer);
-
 	return aper_base;
 }
 
@@ -222,13 +201,14 @@ static struct aper_size_info_32 amd_8151_sizes[7] =
 static int amd_8151_configure(void)
 {
 	unsigned long gatt_bus = virt_to_gart(agp_bridge->gatt_table_real);
-	int gart_iterator;
+	int i;
 
 	/* Configure AGP regs in each x86-64 host bridge. */
-	for_each_nb() {
+        for (i = 0; i < num_k8_northbridges; i++) {
 		agp_bridge->gart_bus_addr =
-				amd64_configure(hammers[gart_iterator],gatt_bus);
+				amd64_configure(k8_northbridges[i], gatt_bus);
 	}
+	k8_flush_garts();
 	return 0;
 }
 
@@ -236,12 +216,13 @@ static int amd_8151_configure(void)
 static void amd64_cleanup(void)
 {
 	u32 tmp;
-	int gart_iterator;
-	for_each_nb() {
+	int i;
+        for (i = 0; i < num_k8_northbridges; i++) {
+		struct pci_dev *dev = k8_northbridges[i];
 		/* disable gart translation */
-		pci_read_config_dword (hammers[gart_iterator], AMD64_GARTAPERTURECTL, &tmp);
+		pci_read_config_dword (dev, AMD64_GARTAPERTURECTL, &tmp);
 		tmp &= ~AMD64_GARTEN;
-		pci_write_config_dword (hammers[gart_iterator], AMD64_GARTAPERTURECTL, tmp);
+		pci_write_config_dword (dev, AMD64_GARTAPERTURECTL, tmp);
 	}
 }
 
@@ -311,7 +292,7 @@ static int __devinit aperture_valid(u64 aper, u32 size)
 /*
  * W*s centric BIOS sometimes only set up the aperture in the AGP
  * bridge, not the northbridge. On AMD64 this is handled early
- * in aperture.c, but when GART_IOMMU is not enabled or we run
+ * in aperture.c, but when IOMMU is not enabled or we run
  * on a 32bit kernel this needs to be redone.
  * Unfortunately it is impossible to fix the aperture here because it's too late
  * to allocate that much memory. But at least error out cleanly instead of
@@ -361,17 +342,15 @@ static __devinit int fix_northbridge(struct pci_dev *nb, struct pci_dev *agp,
 
 static __devinit int cache_nbs (struct pci_dev *pdev, u32 cap_ptr)
 {
-	struct pci_dev *loop_dev = NULL;
-	int i = 0;
+	int i;
 
-	/* cache pci_devs of northbridges. */
-	while ((loop_dev = pci_get_device(PCI_VENDOR_ID_AMD, 0x1103, loop_dev))
-			!= NULL) {
-		if (i == MAX_HAMMER_GARTS) {
-			printk(KERN_ERR PFX "Too many northbridges for AGP\n");
-			return -1;
-		}
-		if (fix_northbridge(loop_dev, pdev, cap_ptr) < 0) {
+	if (cache_k8_northbridges() < 0)
+		return -ENODEV;
+
+	i = 0;
+	for (i = 0; i < num_k8_northbridges; i++) {
+		struct pci_dev *dev = k8_northbridges[i];
+		if (fix_northbridge(dev, pdev, cap_ptr) < 0) {
 			printk(KERN_ERR PFX "No usable aperture found.\n");
 #ifdef __x86_64__
 			/* should port this to i386 */
@@ -379,10 +358,8 @@ static __devinit int cache_nbs (struct pci_dev *pdev, u32 cap_ptr)
 #endif
 			return -1;
 		}
-		hammers[i++] = loop_dev;
 	}
-		nr_garts = i;
-	return i == 0 ? -1 : 0;
+	return 0;
 }
 
 /* Handle AMD 8151 quirks */
@@ -450,7 +427,7 @@ static int __devinit uli_agp_init(struct pci_dev *pdev)
 	}
 
 	/* shadow x86-64 registers into ULi registers */
-	pci_read_config_dword (hammers[0], AMD64_GARTAPERTUREBASE, &httfea);
+	pci_read_config_dword (k8_northbridges[0], AMD64_GARTAPERTUREBASE, &httfea);
 
 	/* if x86-64 aperture base is beyond 4G, exit here */
 	if ((httfea & 0x7fff) >> (32 - 25))
@@ -513,7 +490,7 @@ static int __devinit nforce3_agp_init(struct pci_dev *pdev)
 	pci_write_config_dword(dev1, NVIDIA_X86_64_1_APSIZE, tmp);
 
 	/* shadow x86-64 registers into NVIDIA registers */
-	pci_read_config_dword (hammers[0], AMD64_GARTAPERTUREBASE, &apbase);
+	pci_read_config_dword (k8_northbridges[0], AMD64_GARTAPERTUREBASE, &apbase);
 
 	/* if x86-64 aperture base is beyond 4G, exit here */
 	if ( (apbase & 0x7fff) >> (32 - 25) ) {
@@ -754,10 +731,6 @@ static struct pci_driver agp_amd64_pci_driver = {
 int __init agp_amd64_init(void)
 {
 	int err = 0;
-	static struct pci_device_id amd64nb[] = {
-		{ PCI_DEVICE(PCI_VENDOR_ID_AMD, 0x1103) },
-		{ },
-	};
 
 	if (agp_off)
 		return -EINVAL;
@@ -774,7 +747,7 @@ int __init agp_amd64_init(void)
 		}
 
 		/* First check that we have at least one AMD64 NB */
-		if (!pci_dev_present(amd64nb))
+		if (!pci_dev_present(k8_nb_ids))
 			return -ENODEV;
 
 		/* Look for any AGP bridge */
@@ -802,7 +775,7 @@ static void __exit agp_amd64_cleanup(void)
 
 /* On AMD64 the PCI driver needs to initialize this driver early
    for the IOMMU, so it has to be called via a backdoor. */
-#ifndef CONFIG_GART_IOMMU
+#ifndef CONFIG_IOMMU
 module_init(agp_amd64_init);
 module_exit(agp_amd64_cleanup);
 #endif

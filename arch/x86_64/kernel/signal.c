@@ -7,8 +7,6 @@
  *  1997-11-28  Modified for POSIX.1b signals by Richard Henderson
  *  2000-06-20  Pentium III FXSR, SSE support by Gareth Hughes
  *  2000-2002   x86-64 support by Andi Kleen
- * 
- *  $Id: signal.c,v 1.18 2001/10/17 22:30:37 ak Exp $
  */
 
 #include <linux/sched.h>
@@ -239,7 +237,6 @@ get_stack(struct k_sigaction *ka, struct pt_regs *regs, unsigned long size)
 	rsp = regs->rsp - 128;
 
 	/* This is the X/Open sanctioned signal stack switching.  */
-	/* RED-PEN: redzone on that stack? */
 	if (ka->sa.sa_flags & SA_ONSTACK) {
 		if (sas_ss_flags(rsp) == 0)
 			rsp = current->sas_ss_sp + current->sas_ss_size;

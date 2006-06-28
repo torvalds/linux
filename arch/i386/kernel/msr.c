@@ -266,7 +266,7 @@ static int msr_class_cpu_callback(struct notifier_block *nfb, unsigned long acti
 	return NOTIFY_OK;
 }
 
-static struct notifier_block msr_class_cpu_notifier =
+static struct notifier_block __cpuinitdata msr_class_cpu_notifier =
 {
 	.notifier_call = msr_class_cpu_callback,
 };

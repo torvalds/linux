@@ -1009,8 +1009,7 @@ static int configfs_readdir(struct file * filp, void * dirent, filldir_t filldir
 			/* fallthrough */
 		default:
 			if (filp->f_pos == 2) {
-				list_del(q);
-				list_add(q, &parent_sd->s_children);
+				list_move(q, &parent_sd->s_children);
 			}
 			for (p=q->next; p!= &parent_sd->s_children; p=p->next) {
 				struct configfs_dirent *next;
@@ -1033,8 +1032,7 @@ static int configfs_readdir(struct file * filp, void * dirent, filldir_t filldir
 						 dt_type(next)) < 0)
 					return 0;
 
-				list_del(q);
-				list_add(q, p);
+				list_move(q, p);
 				p = q;
 				filp->f_pos++;
 			}

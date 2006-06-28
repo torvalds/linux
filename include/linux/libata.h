@@ -30,6 +30,7 @@
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
+#include <asm/scatterlist.h>
 #include <asm/io.h>
 #include <linux/ata.h>
 #include <linux/workqueue.h>
@@ -887,6 +888,9 @@ static inline unsigned int ata_tag_internal(unsigned int tag)
 	return tag == ATA_MAX_QUEUE - 1;
 }
 
+/*
+ * device helpers
+ */
 static inline unsigned int ata_class_enabled(unsigned int class)
 {
 	return class == ATA_DEV_ATA || class == ATA_DEV_ATAPI;
@@ -916,6 +920,17 @@ static inline unsigned int ata_dev_absent(const struct ata_device *dev)
 {
 	return ata_class_absent(dev->class);
 }
+
+/*
+ * port helpers
+ */
+static inline int ata_port_max_devices(const struct ata_port *ap)
+{
+	if (ap->flags & ATA_FLAG_SLAVE_POSS)
+		return 2;
+	return 1;
+}
+
 
 static inline u8 ata_chk_status(struct ata_port *ap)
 {

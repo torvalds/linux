@@ -234,7 +234,6 @@ int cx88_i2c_init(struct cx88_core *core, struct pci_dev *pci)
 /* ----------------------------------------------------------------------- */
 
 EXPORT_SYMBOL(cx88_call_i2c_clients);
-EXPORT_SYMBOL(cx88_i2c_init);
 
 /*
  * Local variables:

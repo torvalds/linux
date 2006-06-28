@@ -222,9 +222,7 @@ int ata_cmd_ioctl(struct scsi_device *scsidev, void __user *arg)
 	 && copy_to_user(arg + sizeof(args), argbuf, argsize))
 		rc = -EFAULT;
 error:
-	if (argbuf)
-		kfree(argbuf);
-
+	kfree(argbuf);
 	return rc;
 }
 

@@ -60,8 +60,10 @@ struct cluster *tipc_cltr_create(u32 addr)
 	int alloc;
 
 	c_ptr = (struct cluster *)kmalloc(sizeof(*c_ptr), GFP_ATOMIC);
-	if (c_ptr == NULL)
+	if (c_ptr == NULL) {
+		warn("Cluster creation failure, no memory\n");
 		return NULL;
+	}
 	memset(c_ptr, 0, sizeof(*c_ptr));
 
 	c_ptr->addr = tipc_addr(tipc_zone(addr), tipc_cluster(addr), 0);
@@ -70,30 +72,32 @@ struct cluster *tipc_cltr_create(u32 addr)
 	else
 		max_nodes = tipc_max_nodes + 1;
 	alloc = sizeof(void *) * (max_nodes + 1);
+
 	c_ptr->nodes = (struct node **)kmalloc(alloc, GFP_ATOMIC);
 	if (c_ptr->nodes == NULL) {
+		warn("Cluster creation failure, no memory for node area\n");
 		kfree(c_ptr);
 		return NULL;
 	}
-	memset(c_ptr->nodes, 0, alloc);  
+	memset(c_ptr->nodes, 0, alloc);
+
 	if (in_own_cluster(addr))
 		tipc_local_nodes = c_ptr->nodes;
 	c_ptr->highest_slave = LOWEST_SLAVE - 1;
 	c_ptr->highest_node = 0;
 	
 	z_ptr = tipc_zone_find(tipc_zone(addr));
-	if (z_ptr == NULL) {
+	if (!z_ptr) {
 		z_ptr = tipc_zone_create(addr);
 	}
-	if (z_ptr != NULL) {
-		tipc_zone_attach_cluster(z_ptr, c_ptr);
-		c_ptr->owner = z_ptr;
-	}
-	else {
+	if (!z_ptr) {
+		kfree(c_ptr->nodes);
 		kfree(c_ptr);
-		c_ptr = NULL;
+		return NULL;
 	}
 
+	tipc_zone_attach_cluster(z_ptr, c_ptr);
+	c_ptr->owner = z_ptr;
 	return c_ptr;
 }
 

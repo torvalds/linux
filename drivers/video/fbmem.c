@@ -34,7 +34,6 @@
 #endif
 #include <linux/devfs_fs_kernel.h>
 #include <linux/err.h>
-#include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/efi.h>
 
@@ -162,7 +161,6 @@ char* fb_get_buffer_offset(struct fb_info *info, struct fb_pixmap *buf, u32 size
 }
 
 #ifdef CONFIG_LOGO
-#include <linux/linux_logo.h>
 
 static inline unsigned safe_shift(unsigned d, int n)
 {
@@ -336,11 +334,11 @@ static void fb_rotate_logo_ud(const u8 *in, u8 *out, u32 width, u32 height)
 
 static void fb_rotate_logo_cw(const u8 *in, u8 *out, u32 width, u32 height)
 {
-	int i, j, w = width - 1;
+	int i, j, h = height - 1;
 
 	for (i = 0; i < height; i++)
 		for (j = 0; j < width; j++)
-			out[height * j + w - i] = *in++;
+				out[height * j + h - i] = *in++;
 }
 
 static void fb_rotate_logo_ccw(const u8 *in, u8 *out, u32 width, u32 height)
@@ -358,24 +356,24 @@ static void fb_rotate_logo(struct fb_info *info, u8 *dst,
 	u32 tmp;
 
 	if (rotate == FB_ROTATE_UD) {
-		image->dx = info->var.xres - image->width;
-		image->dy = info->var.yres - image->height;
 		fb_rotate_logo_ud(image->data, dst, image->width,
 				  image->height);
+		image->dx = info->var.xres - image->width;
+		image->dy = info->var.yres - image->height;
 	} else if (rotate == FB_ROTATE_CW) {
-		tmp = image->width;
-		image->width = image->height;
-		image->height = tmp;
-		image->dx = info->var.xres - image->height;
 		fb_rotate_logo_cw(image->data, dst, image->width,
 				  image->height);
-	} else if (rotate == FB_ROTATE_CCW) {
 		tmp = image->width;
 		image->width = image->height;
 		image->height = tmp;
-		image->dy = info->var.yres - image->width;
+		image->dx = info->var.xres - image->width;
+	} else if (rotate == FB_ROTATE_CCW) {
 		fb_rotate_logo_ccw(image->data, dst, image->width,
 				   image->height);
+		tmp = image->width;
+		image->width = image->height;
+		image->height = tmp;
+		image->dy = info->var.yres - image->height;
 	}
 
 	image->data = dst;
@@ -435,7 +433,7 @@ int fb_prepare_logo(struct fb_info *info, int rotate)
 			depth = info->var.green.length;
 	}
 
-	if (info->fix.visual == FB_VISUAL_STATIC_PSEUDOCOLOR) {
+	if (info->fix.visual == FB_VISUAL_STATIC_PSEUDOCOLOR && depth > 4) {
 		/* assume console colormap */
 		depth = 4;
 	}
@@ -1278,8 +1276,8 @@ static struct file_operations fb_fops = {
 #endif
 };
 
-static struct class *fb_class;
-
+struct class *fb_class;
+EXPORT_SYMBOL(fb_class);
 /**
  *	register_framebuffer - registers a frame buffer device
  *	@fb_info: frame buffer info structure
@@ -1355,6 +1353,7 @@ register_framebuffer(struct fb_info *fb_info)
 int
 unregister_framebuffer(struct fb_info *fb_info)
 {
+	struct fb_event event;
 	int i;
 
 	i = fb_info->node;
@@ -1362,13 +1361,17 @@ unregister_framebuffer(struct fb_info *fb_info)
 		return -EINVAL;
 	devfs_remove("fb/%d", i);
 
-	if (fb_info->pixmap.addr && (fb_info->pixmap.flags & FB_PIXMAP_DEFAULT))
+	if (fb_info->pixmap.addr &&
+	    (fb_info->pixmap.flags & FB_PIXMAP_DEFAULT))
 		kfree(fb_info->pixmap.addr);
 	fb_destroy_modelist(&fb_info->modelist);
 	registered_fb[i]=NULL;
 	num_registered_fb--;
 	fb_cleanup_class_device(fb_info);
 	class_device_destroy(fb_class, MKDEV(FB_MAJOR, i));
+	event.info = fb_info;
+	blocking_notifier_call_chain(&fb_notifier_list,
+				     FB_EVENT_FB_UNREGISTERED, &event);
 	return 0;
 }
 
@@ -1491,28 +1494,6 @@ int fb_new_modelist(struct fb_info *info)
 	return err;
 }
 
-/**
- * fb_con_duit - user<->fbcon passthrough
- * @info: struct fb_info
- * @event: notification event to be passed to fbcon
- * @data: private data
- *
- * DESCRIPTION
- * This function is an fbcon-user event passing channel
- * which bypasses fbdev.  This is hopefully temporary
- * until a user interface for fbcon is created
- */
-int fb_con_duit(struct fb_info *info, int event, void *data)
-{
-	struct fb_event evnt;
-
-	evnt.info = info;
-	evnt.data = data;
-
-	return blocking_notifier_call_chain(&fb_notifier_list, event, &evnt);
-}
-EXPORT_SYMBOL(fb_con_duit);
-
 static char *video_options[FB_MAX];
 static int ofonly;
 
@@ -1622,6 +1603,5 @@ EXPORT_SYMBOL(fb_set_suspend);
 EXPORT_SYMBOL(fb_register_client);
 EXPORT_SYMBOL(fb_unregister_client);
 EXPORT_SYMBOL(fb_get_options);
-EXPORT_SYMBOL(fb_new_modelist);
 
 MODULE_LICENSE("GPL");

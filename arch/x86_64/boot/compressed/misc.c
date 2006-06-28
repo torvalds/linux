@@ -77,11 +77,11 @@ static void gzip_release(void **);
  */
 static unsigned char *real_mode; /* Pointer to real-mode data */
 
-#define EXT_MEM_K   (*(unsigned short *)(real_mode + 0x2))
+#define RM_EXT_MEM_K   (*(unsigned short *)(real_mode + 0x2))
 #ifndef STANDARD_MEMORY_BIOS_CALL
-#define ALT_MEM_K   (*(unsigned long *)(real_mode + 0x1e0))
+#define RM_ALT_MEM_K   (*(unsigned long *)(real_mode + 0x1e0))
 #endif
-#define SCREEN_INFO (*(struct screen_info *)(real_mode+0))
+#define RM_SCREEN_INFO (*(struct screen_info *)(real_mode+0))
 
 extern unsigned char input_data[];
 extern int input_len;
@@ -92,9 +92,9 @@ static unsigned long output_ptr = 0;
 
 static void *malloc(int size);
 static void free(void *where);
- 
-void* memset(void* s, int c, unsigned n);
-void* memcpy(void* dest, const void* src, unsigned n);
+
+static void *memset(void *s, int c, unsigned n);
+static void *memcpy(void *dest, const void *src, unsigned n);
 
 static void putstr(const char *);
 
@@ -162,8 +162,8 @@ static void putstr(const char *s)
 	int x,y,pos;
 	char c;
 
-	x = SCREEN_INFO.orig_x;
-	y = SCREEN_INFO.orig_y;
+	x = RM_SCREEN_INFO.orig_x;
+	y = RM_SCREEN_INFO.orig_y;
 
 	while ( ( c = *s++ ) != '\0' ) {
 		if ( c == '\n' ) {
@@ -184,8 +184,8 @@ static void putstr(const char *s)
 		}
 	}
 
-	SCREEN_INFO.orig_x = x;
-	SCREEN_INFO.orig_y = y;
+	RM_SCREEN_INFO.orig_x = x;
+	RM_SCREEN_INFO.orig_y = y;
 
 	pos = (x + cols * y) * 2;	/* Update cursor position */
 	outb_p(14, vidport);
@@ -194,7 +194,7 @@ static void putstr(const char *s)
 	outb_p(0xff & (pos >> 1), vidport+1);
 }
 
-void* memset(void* s, int c, unsigned n)
+static void* memset(void* s, int c, unsigned n)
 {
 	int i;
 	char *ss = (char*)s;
@@ -203,7 +203,7 @@ void* memset(void* s, int c, unsigned n)
 	return s;
 }
 
-void* memcpy(void* dest, const void* src, unsigned n)
+static void* memcpy(void* dest, const void* src, unsigned n)
 {
 	int i;
 	char *d = (char *)dest, *s = (char *)src;
@@ -278,15 +278,15 @@ static void error(char *x)
 	putstr(x);
 	putstr("\n\n -- System halted");
 
-	while(1);
+	while(1);	/* Halt */
 }
 
-void setup_normal_output_buffer(void)
+static void setup_normal_output_buffer(void)
 {
 #ifdef STANDARD_MEMORY_BIOS_CALL
-	if (EXT_MEM_K < 1024) error("Less than 2MB of memory");
+	if (RM_EXT_MEM_K < 1024) error("Less than 2MB of memory");
 #else
-	if ((ALT_MEM_K > EXT_MEM_K ? ALT_MEM_K : EXT_MEM_K) < 1024) error("Less than 2MB of memory");
+	if ((RM_ALT_MEM_K > RM_EXT_MEM_K ? RM_ALT_MEM_K : RM_EXT_MEM_K) < 1024) error("Less than 2MB of memory");
 #endif
 	output_data = (unsigned char *)__PHYSICAL_START; /* Normally Points to 1M */
 	free_mem_end_ptr = (long)real_mode;
@@ -297,13 +297,13 @@ struct moveparams {
 	uch *high_buffer_start; int hcount;
 };
 
-void setup_output_buffer_if_we_run_high(struct moveparams *mv)
+static void setup_output_buffer_if_we_run_high(struct moveparams *mv)
 {
 	high_buffer_start = (uch *)(((ulg)&end) + HEAP_SIZE);
 #ifdef STANDARD_MEMORY_BIOS_CALL
-	if (EXT_MEM_K < (3*1024)) error("Less than 4MB of memory");
+	if (RM_EXT_MEM_K < (3*1024)) error("Less than 4MB of memory");
 #else
-	if ((ALT_MEM_K > EXT_MEM_K ? ALT_MEM_K : EXT_MEM_K) < (3*1024)) error("Less than 4MB of memory");
+	if ((RM_ALT_MEM_K > RM_EXT_MEM_K ? RM_ALT_MEM_K : RM_EXT_MEM_K) < (3*1024)) error("Less than 4MB of memory");
 #endif	
 	mv->low_buffer_start = output_data = (unsigned char *)LOW_BUFFER_START;
 	low_buffer_end = ((unsigned int)real_mode > LOW_BUFFER_MAX
@@ -319,7 +319,7 @@ void setup_output_buffer_if_we_run_high(struct moveparams *mv)
 	mv->high_buffer_start = high_buffer_start;
 }
 
-void close_output_buffer_if_we_run_high(struct moveparams *mv)
+static void close_output_buffer_if_we_run_high(struct moveparams *mv)
 {
 	if (bytes_out > low_buffer_size) {
 		mv->lcount = low_buffer_size;
@@ -335,7 +335,7 @@ int decompress_kernel(struct moveparams *mv, void *rmode)
 {
 	real_mode = rmode;
 
-	if (SCREEN_INFO.orig_video_mode == 7) {
+	if (RM_SCREEN_INFO.orig_video_mode == 7) {
 		vidmem = (char *) 0xb0000;
 		vidport = 0x3b4;
 	} else {
@@ -343,8 +343,8 @@ int decompress_kernel(struct moveparams *mv, void *rmode)
 		vidport = 0x3d4;
 	}
 
-	lines = SCREEN_INFO.orig_video_lines;
-	cols = SCREEN_INFO.orig_video_cols;
+	lines = RM_SCREEN_INFO.orig_video_lines;
+	cols = RM_SCREEN_INFO.orig_video_cols;
 
 	if (free_mem_ptr < 0x100000) setup_normal_output_buffer();
 	else setup_output_buffer_if_we_run_high(mv);

@@ -363,7 +363,7 @@ static int h3600ts_connect(struct serio *serio, struct serio_driver *drv)
 
 	ts->serio = serio;
 	ts->dev = input_dev;
-	sprintf(ts->phys, "%s/input0", serio->phys);
+	snprintf(ts->phys, sizeof(ts->phys), "%s/input0", serio->phys);
 
 	input_dev->name = "H3600 TouchScreen";
 	input_dev->phys = ts->phys;

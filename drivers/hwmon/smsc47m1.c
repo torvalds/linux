@@ -207,7 +207,7 @@ static ssize_t set_fan_min(struct device *dev, const char *buf,
 
 /* Note: we save and restore the fan minimum here, because its value is
    determined in part by the fan clock divider.  This follows the principle
-   of least suprise; the user doesn't expect the fan minimum to change just
+   of least surprise; the user doesn't expect the fan minimum to change just
    because the divider changed. */
 static ssize_t set_fan_div(struct device *dev, const char *buf,
 		size_t count, int nr)

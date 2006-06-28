@@ -93,7 +93,7 @@ static void __iomem *rtc2_base;
 
 static unsigned long epoch = 1970;	/* Jan 1 1970 00:00:00 */
 
-static spinlock_t rtc_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(rtc_lock);
 static char rtc_name[] = "RTC";
 static unsigned long periodic_frequency;
 static unsigned long periodic_count;

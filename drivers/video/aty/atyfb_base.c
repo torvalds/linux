@@ -316,12 +316,12 @@ static int vram;
 static int pll;
 static int mclk;
 static int xclk;
-static int comp_sync __initdata = -1;
+static int comp_sync __devinitdata = -1;
 static char *mode;
 
 #ifdef CONFIG_PPC
-static int default_vmode __initdata = VMODE_CHOOSE;
-static int default_cmode __initdata = CMODE_CHOOSE;
+static int default_vmode __devinitdata = VMODE_CHOOSE;
+static int default_cmode __devinitdata = CMODE_CHOOSE;
 
 module_param_named(vmode, default_vmode, int, 0);
 MODULE_PARM_DESC(vmode, "int: video mode for mac");
@@ -330,10 +330,10 @@ MODULE_PARM_DESC(cmode, "int: color mode for mac");
 #endif
 
 #ifdef CONFIG_ATARI
-static unsigned int mach64_count __initdata = 0;
-static unsigned long phys_vmembase[FB_MAX] __initdata = { 0, };
-static unsigned long phys_size[FB_MAX] __initdata = { 0, };
-static unsigned long phys_guiregbase[FB_MAX] __initdata = { 0, };
+static unsigned int mach64_count __devinitdata = 0;
+static unsigned long phys_vmembase[FB_MAX] __devinitdata = { 0, };
+static unsigned long phys_size[FB_MAX] __devinitdata = { 0, };
+static unsigned long phys_guiregbase[FB_MAX] __devinitdata = { 0, };
 #endif
 
 /* top -> down is an evolution of mach64 chipset, any corrections? */
@@ -583,7 +583,7 @@ static u32 atyfb_get_pixclock(struct fb_var_screeninfo *var, struct atyfb_par *p
  *  Apple monitor sense
  */
 
-static int __init read_aty_sense(const struct atyfb_par *par)
+static int __devinit read_aty_sense(const struct atyfb_par *par)
 {
 	int sense, i;
 
@@ -1280,6 +1280,14 @@ static int atyfb_set_par(struct fb_info *info)
 	}
 
 	par->accel_flags = var->accel_flags; /* hack */
+
+	if (var->accel_flags) {
+		info->fbops->fb_sync = atyfb_sync;
+		info->flags &= ~FBINFO_HWACCEL_DISABLED;
+	} else {
+		info->fbops->fb_sync = NULL;
+		info->flags |= FBINFO_HWACCEL_DISABLED;
+	}
 
 	if (par->blitter_may_be_busy)
 		wait_for_idle(par);
@@ -2253,7 +2261,7 @@ static void aty_bl_exit(struct atyfb_par *par)
 
 #endif /* CONFIG_FB_ATY_BACKLIGHT */
 
-static void __init aty_calc_mem_refresh(struct atyfb_par *par, int xclk)
+static void __devinit aty_calc_mem_refresh(struct atyfb_par *par, int xclk)
 {
 	const int ragepro_tbl[] = {
 		44, 50, 55, 66, 75, 80, 100
@@ -2313,7 +2321,7 @@ static int __devinit atyfb_get_timings_from_lcd(struct atyfb_par *par,
 }
 #endif /* defined(__i386__) && defined(CONFIG_FB_ATY_GENERIC_LCD) */
 
-static int __init aty_init(struct fb_info *info, const char *name)
+static int __devinit aty_init(struct fb_info *info, const char *name)
 {
 	struct atyfb_par *par = (struct atyfb_par *) info->par;
 	const char *ramname = NULL, *xtal;
@@ -2394,12 +2402,15 @@ static int __init aty_init(struct fb_info *info, const char *name)
 			break;
 		}
 		switch (clk_type) {
+#ifdef CONFIG_ATARI
 		case CLK_ATI18818_1:
 			par->pll_ops = &aty_pll_ati18818_1;
 			break;
+#else
 		case CLK_IBMRGB514:
 			par->pll_ops = &aty_pll_ibm514;
 			break;
+#endif
 #if 0 /* dead code */
 		case CLK_STG1703:
 			par->pll_ops = &aty_pll_stg1703;
@@ -2604,7 +2615,11 @@ static int __init aty_init(struct fb_info *info, const char *name)
 
 	info->fbops = &atyfb_ops;
 	info->pseudo_palette = pseudo_palette;
-	info->flags = FBINFO_FLAG_DEFAULT;
+	info->flags = FBINFO_DEFAULT           |
+	              FBINFO_HWACCEL_IMAGEBLIT |
+	              FBINFO_HWACCEL_FILLRECT  |
+	              FBINFO_HWACCEL_COPYAREA  |
+	              FBINFO_HWACCEL_YPAN;
 
 #ifdef CONFIG_PMAC_BACKLIGHT
 	if (M64_HAS(G3_PB_1_1) && machine_is_compatible("PowerBook1,1")) {
@@ -2733,7 +2748,7 @@ aty_init_exit:
 }
 
 #ifdef CONFIG_ATARI
-static int __init store_video_par(char *video_str, unsigned char m64_num)
+static int __devinit store_video_par(char *video_str, unsigned char m64_num)
 {
 	char *p;
 	unsigned long vmembase, size, guiregbase;
@@ -3764,7 +3779,7 @@ static struct pci_driver atyfb_driver = {
 #endif /* CONFIG_PCI */
 
 #ifndef MODULE
-static int __init atyfb_setup(char *options)
+static int __devinit atyfb_setup(char *options)
 {
 	char *this_opt;
 
@@ -3836,7 +3851,7 @@ static int __init atyfb_setup(char *options)
 }
 #endif  /*  MODULE  */
 
-static int __init atyfb_init(void)
+static int __devinit atyfb_init(void)
 {
 #ifndef MODULE
     char *option = NULL;

@@ -52,6 +52,7 @@
 #include <asm/tlbflush.h>
 #include <asm/desc.h>
 #include <asm/arch_hooks.h>
+#include <asm/nmi.h>
 
 #include <mach_apic.h>
 #include <mach_wakecpu.h>
@@ -65,12 +66,6 @@ int smp_num_siblings = 1;
 #ifdef CONFIG_X86_HT
 EXPORT_SYMBOL(smp_num_siblings);
 #endif
-
-/* Package ID of each logical CPU */
-int phys_proc_id[NR_CPUS] __read_mostly = {[0 ... NR_CPUS-1] = BAD_APICID};
-
-/* Core ID of each logical CPU */
-int cpu_core_id[NR_CPUS] __read_mostly = {[0 ... NR_CPUS-1] = BAD_APICID};
 
 /* Last level cache ID of each logical CPU */
 int cpu_llc_id[NR_CPUS] __cpuinitdata = {[0 ... NR_CPUS-1] = BAD_APICID};
@@ -453,10 +448,12 @@ cpumask_t cpu_coregroup_map(int cpu)
 	struct cpuinfo_x86 *c = cpu_data + cpu;
 	/*
 	 * For perf, we return last level cache shared map.
-	 * TBD: when power saving sched policy is added, we will return
-	 *      cpu_core_map when power saving policy is enabled
+	 * And for power savings, we return cpu_core_map
 	 */
-	return c->llc_shared_map;
+	if (sched_mc_power_savings || sched_smt_power_savings)
+		return cpu_core_map[cpu];
+	else
+		return c->llc_shared_map;
 }
 
 /* representing cpus for which sibling maps can be computed */
@@ -472,8 +469,8 @@ set_cpu_sibling_map(int cpu)
 
 	if (smp_num_siblings > 1) {
 		for_each_cpu_mask(i, cpu_sibling_setup_map) {
-			if (phys_proc_id[cpu] == phys_proc_id[i] &&
-			    cpu_core_id[cpu] == cpu_core_id[i]) {
+			if (c[cpu].phys_proc_id == c[i].phys_proc_id &&
+			    c[cpu].cpu_core_id == c[i].cpu_core_id) {
 				cpu_set(i, cpu_sibling_map[cpu]);
 				cpu_set(cpu, cpu_sibling_map[i]);
 				cpu_set(i, cpu_core_map[cpu]);
@@ -500,7 +497,7 @@ set_cpu_sibling_map(int cpu)
 			cpu_set(i, c[cpu].llc_shared_map);
 			cpu_set(cpu, c[i].llc_shared_map);
 		}
-		if (phys_proc_id[cpu] == phys_proc_id[i]) {
+		if (c[cpu].phys_proc_id == c[i].phys_proc_id) {
 			cpu_set(i, cpu_core_map[cpu]);
 			cpu_set(cpu, cpu_core_map[i]);
 			/*
@@ -1055,11 +1052,24 @@ static int __cpuinit __smp_prepare_cpu(int cpu)
 	struct warm_boot_cpu_info info;
 	struct work_struct task;
 	int	apicid, ret;
+	struct Xgt_desc_struct *cpu_gdt_descr = &per_cpu(cpu_gdt_descr, cpu);
 
 	apicid = x86_cpu_to_apicid[cpu];
 	if (apicid == BAD_APICID) {
 		ret = -ENODEV;
 		goto exit;
+	}
+
+	/*
+	 * the CPU isn't initialized at boot time, allocate gdt table here.
+	 * cpu_init will initialize it
+	 */
+	if (!cpu_gdt_descr->address) {
+		cpu_gdt_descr->address = get_zeroed_page(GFP_KERNEL);
+		if (!cpu_gdt_descr->address)
+			printk(KERN_CRIT "CPU%d failed to allocate GDT\n", cpu);
+			ret = -ENOMEM;
+			goto exit;
 	}
 
 	info.complete = &done;
@@ -1339,8 +1349,8 @@ remove_siblinginfo(int cpu)
 		cpu_clear(cpu, cpu_sibling_map[sibling]);
 	cpus_clear(cpu_sibling_map[cpu]);
 	cpus_clear(cpu_core_map[cpu]);
-	phys_proc_id[cpu] = BAD_APICID;
-	cpu_core_id[cpu] = BAD_APICID;
+	c[cpu].phys_proc_id = 0;
+	c[cpu].cpu_core_id = 0;
 	cpu_clear(cpu, cpu_sibling_setup_map);
 }
 

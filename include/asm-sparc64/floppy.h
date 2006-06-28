@@ -208,7 +208,55 @@ static void sun_fd_enable_dma(void)
 	pdma_areasize = pdma_size;
 }
 
-extern irqreturn_t sparc_floppy_irq(int, void *, struct pt_regs *);
+irqreturn_t sparc_floppy_irq(int irq, void *dev_cookie, struct pt_regs *regs)
+{
+	if (likely(doing_pdma)) {
+		void __iomem *stat = (void __iomem *) fdc_status;
+		unsigned char *vaddr = pdma_vaddr;
+		unsigned long size = pdma_size;
+		u8 val;
+
+		while (size) {
+			val = readb(stat);
+			if (unlikely(!(val & 0x80))) {
+				pdma_vaddr = vaddr;
+				pdma_size = size;
+				return IRQ_HANDLED;
+			}
+			if (unlikely(!(val & 0x20))) {
+				pdma_vaddr = vaddr;
+				pdma_size = size;
+				doing_pdma = 0;
+				goto main_interrupt;
+			}
+			if (val & 0x40) {
+				/* read */
+				*vaddr++ = readb(stat + 1);
+			} else {
+				unsigned char data = *vaddr++;
+
+				/* write */
+				writeb(data, stat + 1);
+			}
+			size--;
+		}
+
+		pdma_vaddr = vaddr;
+		pdma_size = size;
+
+		/* Send Terminal Count pulse to floppy controller. */
+		val = readb(auxio_register);
+		val |= AUXIO_AUX1_FTCNT;
+		writeb(val, auxio_register);
+		val &= ~AUXIO_AUX1_FTCNT;
+		writeb(val, auxio_register);
+
+		doing_pdma = 0;
+	}
+
+main_interrupt:
+	return floppy_interrupt(irq, dev_cookie, regs);
+}
 
 static int sun_fd_request_irq(void)
 {

@@ -73,6 +73,7 @@ struct sched_param {
 #include <linux/seccomp.h>
 #include <linux/rcupdate.h>
 #include <linux/futex.h>
+#include <linux/rtmutex.h>
 
 #include <linux/time.h>
 #include <linux/param.h>
@@ -83,6 +84,7 @@ struct sched_param {
 #include <asm/processor.h>
 
 struct exec_domain;
+struct futex_pi_state;
 
 /*
  * List of flags we want to share for kernel threads,
@@ -123,6 +125,7 @@ extern unsigned long nr_running(void);
 extern unsigned long nr_uninterruptible(void);
 extern unsigned long nr_active(void);
 extern unsigned long nr_iowait(void);
+extern unsigned long weighted_cpuload(const int cpu);
 
 
 /*
@@ -494,8 +497,11 @@ struct signal_struct {
 
 #define MAX_PRIO		(MAX_RT_PRIO + 40)
 
-#define rt_task(p)		(unlikely((p)->prio < MAX_RT_PRIO))
+#define rt_prio(prio)		unlikely((prio) < MAX_RT_PRIO)
+#define rt_task(p)		rt_prio((p)->prio)
 #define batch_task(p)		(unlikely((p)->policy == SCHED_BATCH))
+#define has_rt_policy(p) \
+	unlikely((p)->policy != SCHED_NORMAL && (p)->policy != SCHED_BATCH)
 
 /*
  * Some day this will be a full-fledged user tracking system..
@@ -558,9 +564,9 @@ enum idle_type
 /*
  * sched-domains (multiprocessor balancing) declarations:
  */
-#ifdef CONFIG_SMP
 #define SCHED_LOAD_SCALE	128UL	/* increase resolution of load */
 
+#ifdef CONFIG_SMP
 #define SD_LOAD_BALANCE		1	/* Do load balancing on this domain. */
 #define SD_BALANCE_NEWIDLE	2	/* Balance when about to become idle */
 #define SD_BALANCE_EXEC		4	/* Balance on exec */
@@ -569,6 +575,11 @@ enum idle_type
 #define SD_WAKE_AFFINE		32	/* Wake task to waking CPU */
 #define SD_WAKE_BALANCE		64	/* Perform balancing at task wakeup */
 #define SD_SHARE_CPUPOWER	128	/* Domain members share cpu power */
+#define SD_POWERSAVINGS_BALANCE	256	/* Balance for power savings */
+
+#define BALANCE_FOR_POWER	((sched_mc_power_savings || sched_smt_power_savings) \
+				 ? SD_POWERSAVINGS_BALANCE : 0)
+
 
 struct sched_group {
 	struct sched_group *next;	/* Must be a circular list */
@@ -638,7 +649,7 @@ struct sched_domain {
 #endif
 };
 
-extern void partition_sched_domains(cpumask_t *partition1,
+extern int partition_sched_domains(cpumask_t *partition1,
 				    cpumask_t *partition2);
 
 /*
@@ -713,10 +724,13 @@ struct task_struct {
 
 	int lock_depth;		/* BKL lock depth */
 
-#if defined(CONFIG_SMP) && defined(__ARCH_WANT_UNLOCKED_CTXSW)
+#ifdef CONFIG_SMP
+#ifdef __ARCH_WANT_UNLOCKED_CTXSW
 	int oncpu;
 #endif
-	int prio, static_prio;
+#endif
+	int load_weight;	/* for niceness load balancing purposes */
+	int prio, static_prio, normal_prio;
 	struct list_head run_list;
 	prio_array_t *array;
 
@@ -842,8 +856,20 @@ struct task_struct {
    	u32 self_exec_id;
 /* Protection of (de-)allocation: mm, files, fs, tty, keyrings */
 	spinlock_t alloc_lock;
-/* Protection of proc_dentry: nesting proc_lock, dcache_lock, write_lock_irq(&tasklist_lock); */
-	spinlock_t proc_lock;
+
+	/* Protection of the PI data structures: */
+	spinlock_t pi_lock;
+
+#ifdef CONFIG_RT_MUTEXES
+	/* PI waiters blocked on a rt_mutex held by this task */
+	struct plist_head pi_waiters;
+	/* Deadlock detection and priority inheritance handling */
+	struct rt_mutex_waiter *pi_blocked_on;
+# ifdef CONFIG_DEBUG_RT_MUTEXES
+	spinlock_t held_list_lock;
+	struct list_head held_list_head;
+# endif
+#endif
 
 #ifdef CONFIG_DEBUG_MUTEXES
 	/* mutex deadlock detection */
@@ -856,7 +882,6 @@ struct task_struct {
 /* VM state */
 	struct reclaim_state *reclaim_state;
 
-	struct dentry *proc_dentry;
 	struct backing_dev_info *backing_dev_info;
 
 	struct io_context *io_context;
@@ -891,6 +916,8 @@ struct task_struct {
 #ifdef CONFIG_COMPAT
 	struct compat_robust_list_head __user *compat_robust_list;
 #endif
+	struct list_head pi_state_list;
+	struct futex_pi_state *pi_state_cache;
 
 	atomic_t fs_excl;	/* holding fs exclusive resources */
 	struct rcu_head rcu;
@@ -958,6 +985,7 @@ static inline void put_task_struct(struct task_struct *t)
 #define PF_SPREAD_PAGE	0x01000000	/* Spread page cache over cpuset */
 #define PF_SPREAD_SLAB	0x02000000	/* Spread some slab caches over cpuset */
 #define PF_MEMPOLICY	0x10000000	/* Non-default NUMA mempolicy */
+#define PF_MUTEX_TESTER	0x20000000	/* Thread belongs to the rt mutex tester */
 
 /*
  * Only the _current_ task can read/write to tsk->flags, but other
@@ -1012,6 +1040,19 @@ static inline void idle_task_exit(void) {}
 #endif
 
 extern void sched_idle_next(void);
+
+#ifdef CONFIG_RT_MUTEXES
+extern int rt_mutex_getprio(task_t *p);
+extern void rt_mutex_setprio(task_t *p, int prio);
+extern void rt_mutex_adjust_pi(task_t *p);
+#else
+static inline int rt_mutex_getprio(task_t *p)
+{
+	return p->normal_prio;
+}
+# define rt_mutex_adjust_pi(p)		do { } while (0)
+#endif
+
 extern void set_user_nice(task_t *p, long nice);
 extern int task_prio(const task_t *p);
 extern int task_nice(const task_t *p);
@@ -1410,6 +1451,11 @@ static inline void arch_pick_mmap_layout(struct mm_struct *mm)
 
 extern long sched_setaffinity(pid_t pid, cpumask_t new_mask);
 extern long sched_getaffinity(pid_t pid, cpumask_t *mask);
+
+#include <linux/sysdev.h>
+extern int sched_mc_power_savings, sched_smt_power_savings;
+extern struct sysdev_attribute attr_sched_mc_power_savings, attr_sched_smt_power_savings;
+extern int sched_create_sysfs_power_savings_entries(struct sysdev_class *cls);
 
 extern void normalize_rt_tasks(void);
 

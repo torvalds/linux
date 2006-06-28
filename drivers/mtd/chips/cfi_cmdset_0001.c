@@ -357,6 +357,7 @@ struct mtd_info *cfi_cmdset_0001(struct map_info *map, int primary)
 	mtd->resume  = cfi_intelext_resume;
 	mtd->flags   = MTD_CAP_NORFLASH;
 	mtd->name    = map->name;
+	mtd->writesize = 1;
 
 	mtd->reboot_notifier.notifier_call = cfi_intelext_reboot;
 

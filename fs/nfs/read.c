@@ -711,7 +711,7 @@ int __init nfs_init_readpagecache(void)
 	return 0;
 }
 
-void __exit nfs_destroy_readpagecache(void)
+void nfs_destroy_readpagecache(void)
 {
 	mempool_destroy(nfs_rdata_mempool);
 	if (kmem_cache_destroy(nfs_rdata_cachep))

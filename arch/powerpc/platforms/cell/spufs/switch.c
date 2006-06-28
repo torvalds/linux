@@ -2100,7 +2100,7 @@ EXPORT_SYMBOL_GPL(spu_save);
  * @spu: pointer to SPU iomem structure.
  *
  * Perform harvest + restore, as we may not be coming
- * from a previous succesful save operation, and the
+ * from a previous successful save operation, and the
  * hardware state is unknown.
  */
 int spu_restore(struct spu_state *new, struct spu *spu)
@@ -2203,7 +2203,7 @@ void spu_init_csa(struct spu_state *csa)
 
 	memset(lscsa, 0, sizeof(struct spu_lscsa));
 	csa->lscsa = lscsa;
-	csa->register_lock = SPIN_LOCK_UNLOCKED;
+	spin_lock_init(&csa->register_lock);
 
 	/* Set LS pages reserved to allow for user-space mapping. */
 	for (p = lscsa->ls; p < lscsa->ls + LS_SIZE; p += PAGE_SIZE)

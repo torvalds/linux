@@ -5,12 +5,7 @@
  * Copyright 1992, Linus Torvalds.
  */
 
-
-#ifdef CONFIG_SMP
-#define LOCK_PREFIX "lock ; "
-#else
-#define LOCK_PREFIX ""
-#endif
+#include <asm/alternative.h>
 
 #define ADDR (*(volatile long *) addr)
 

@@ -1,7 +1,7 @@
 /*
  *	vmlinux.lds.S -- master linker script for m68knommu arch
  *
- *	(C) Copyright 2002-2004, Greg Ungerer <gerg@snapgear.com>
+ *	(C) Copyright 2002-2006, Greg Ungerer <gerg@snapgear.com>
  *
  *	This ends up looking compilcated, because of the number of
  *	address variations for ram and rom/flash layouts. The real
@@ -22,13 +22,7 @@
 #define	ROM_START	0x10c10400
 #define	ROM_LENGTH	0xfec00
 #define	ROM_END		0x10d00000
-#define	RAMVEC_START	0x00000000
-#define	RAMVEC_LENGTH	0x400
-#define	RAM_START	0x10000400
-#define	RAM_LENGTH	0xffc00
-#define	RAM_END		0x10100000
-#define _ramend	_ram_end_notused
-#define	DATA_ADDR	RAM_START
+#define	DATA_ADDR	CONFIG_KERNELBASE
 #endif
 
 /*
@@ -41,11 +35,6 @@
 #define	ROM_START	0x10c10400
 #define	ROM_LENGTH	0x1efc00
 #define	ROM_END		0x10e00000
-#define	RAMVEC_START	0x00000000
-#define	RAMVEC_LENGTH	0x400
-#define	RAM_START	0x00020400
-#define	RAM_LENGTH	0x7dfc00
-#define	RAM_END		0x00800000
 #endif
 #ifdef CONFIG_ROMKERNEL
 #define	ROMVEC_START	0x10c10000
@@ -53,11 +42,6 @@
 #define	ROM_START	0x10c10400
 #define	ROM_LENGTH	0x1efc00
 #define	ROM_END		0x10e00000
-#define	RAMVEC_START	0x00000000
-#define	RAMVEC_LENGTH	0x400
-#define	RAM_START	0x00020000
-#define	RAM_LENGTH	0x600000
-#define	RAM_END		0x00800000
 #endif
 #ifdef CONFIG_HIMEMKERNEL
 #define	ROMVEC_START	0x00600000
@@ -65,17 +49,7 @@
 #define	ROM_START	0x00600400
 #define	ROM_LENGTH	0x1efc00
 #define	ROM_END		0x007f0000
-#define	RAMVEC_START	0x00000000
-#define	RAMVEC_LENGTH	0x400
-#define	RAM_START	0x00020000
-#define	RAM_LENGTH	0x5e0000
-#define	RAM_END		0x00600000
 #endif
-#endif
-
-#ifdef CONFIG_DRAGEN2
-#define	RAM_START	0x10000
-#define	RAM_LENGTH	0x7f0000
 #endif
 
 #ifdef CONFIG_UCQUICC
@@ -84,122 +58,19 @@
 #define	ROM_START	0x00000404
 #define	ROM_LENGTH	0x1ff6fc
 #define	ROM_END		0x00200000
-#define	RAMVEC_START	0x00200000
-#define	RAMVEC_LENGTH	0x404
-#define	RAM_START	0x00200404
-#define	RAM_LENGTH	0x1ff6fc
-#define	RAM_END		0x00400000
-#endif
-
-/*
- *	The standard Arnewsh 5206 board only has 1MiB of ram. Not normally
- *	enough to be useful. Assume the user has fitted something larger,
- *	at least 4MiB in size. No point in not letting the kernel completely
- *	link, it will be obvious if it is too big when they go to load it.
- */
-#if defined(CONFIG_ARN5206)
-#define	RAM_START	0x10000
-#define	RAM_LENGTH	0x3f0000
-#endif
-
-/*
- *	The Motorola 5206eLITE board only has 1MiB of static RAM.
- */
-#if defined(CONFIG_ELITE)
-#define	RAM_START	0x30020000
-#define	RAM_LENGTH	0xe0000
-#endif
-
-/*
- *	All the Motorola eval boards have the same basic arrangement.
- *	The end of RAM will vary depending on how much ram is fitted,
- *	but this isn't important here, we assume at least 4MiB.
- */
-#if defined(CONFIG_M5206eC3) || defined(CONFIG_M5249C3) || \
-    defined(CONFIG_M5272C3) || defined(CONFIG_M5307C3) || \
-    defined(CONFIG_ARN5307) || defined(CONFIG_M5407C3) || \
-    defined(CONFIG_M5271EVB) || defined(CONFIG_M5275EVB) || \
-    defined(CONFIG_M5235EVB)
-#define	RAM_START	0x20000
-#define	RAM_LENGTH	0x3e0000
-#endif
-
-/*
- *	The Freescale 5208EVB board has 32MB of RAM.
- */
-#if defined(CONFIG_M5208EVB)
-#define	RAM_START	0x40020000
-#define	RAM_LENGTH	0x01fe0000
-#endif
-
-/*
- *	The senTec COBRA5272 board has nearly the same memory layout as 
- *	the M5272C3. We assume 16MiB ram.
- */
-#if defined(CONFIG_COBRA5272)
-#define RAM_START   0x20000
-#define RAM_LENGTH  0xfe0000
-#endif
-
-#if defined(CONFIG_M5282EVB)
-#define	RAM_START	0x10000
-#define	RAM_LENGTH	0x3f0000
-#endif
-
-/*
- *	The senTec COBRA5282 board has the same memory layout as the M5282EVB.
- */
-#if defined(CONFIG_COBRA5282)
-#define  RAM_START   0x10000
-#define  RAM_LENGTH  0x3f0000
-#endif
-
-
-/*
- *	The EMAC SoM-5282EM module.
- */
-#if defined(CONFIG_SOM5282EM)
-#define  RAM_START   0x10000
-#define  RAM_LENGTH  0xff0000
-#endif
-
-
-/*
- *	These flash boot boards use all of ram for operation. Again the
- *	actual memory size is not important here, assume at least 4MiB.
- *	They currently have no support for running in flash.
- */
-#if defined(CONFIG_NETtel) || defined(CONFIG_eLIA) || \
-    defined(CONFIG_DISKtel) || defined(CONFIG_SECUREEDGEMP3) || \
-    defined(CONFIG_HW_FEITH)
-#define	RAM_START	0x400
-#define	RAM_LENGTH	0x3ffc00
-#endif
-
-/*
- *	Sneha Boards mimimun memory
- *	The end of RAM will vary depending on how much ram is fitted,
- *	but this isn't important here, we assume at least 4MiB.
- */
-#if defined(CONFIG_CPU16B)   
-#define	RAM_START	0x20000
-#define	RAM_LENGTH	0x3e0000
-#endif
-
-#if defined(CONFIG_MOD5272)
-#define RAM_START	0x02000000
-#define RAM_LENGTH	0x00800000
-#define RAMVEC_START	0x20000000
-#define RAMVEC_LENGTH	0x00000400
 #endif
 
 #if defined(CONFIG_RAMKERNEL)
+#define	RAM_START	CONFIG_KERNELBASE
+#define	RAM_LENGTH	(CONFIG_RAMBASE + CONFIG_RAMSIZE - CONFIG_KERNELBASE)
 #define	TEXT		ram
 #define	DATA		ram
 #define	INIT		ram
 #define	BSS		ram
 #endif
 #if defined(CONFIG_ROMKERNEL) || defined(CONFIG_HIMEMKERNEL)
+#define	RAM_START	CONFIG_RAMBASE
+#define	RAM_LENGTH	CONFIG_RAMSIZE
 #define	TEXT		rom
 #define	DATA		ram
 #define	INIT		ram
@@ -215,13 +86,7 @@ OUTPUT_ARCH(m68k)
 ENTRY(_start)
 
 MEMORY {
-#ifdef RAMVEC_START
-	ramvec	: ORIGIN = RAMVEC_START, LENGTH = RAMVEC_LENGTH
-#endif
 	ram	: ORIGIN = RAM_START, LENGTH = RAM_LENGTH
-#ifdef RAM_END
-	eram	: ORIGIN = RAM_END, LENGTH = 0
-#endif
 #ifdef ROM_START
 	romvec	: ORIGIN = ROMVEC_START, LENGTH = ROMVEC_LENGTH
 	rom	: ORIGIN = ROM_START, LENGTH = ROM_LENGTH
@@ -308,12 +173,6 @@ SECTIONS {
 		__rom_end = . ;
 	} > erom
 #endif
-#ifdef RAMVEC_START
-	. = RAMVEC_START ;
-	.ramvec : {
-		__ramvec = .;
-	} > ramvec
-#endif
 
 	.data DATA_ADDR : {
 		. = ALIGN(4);
@@ -373,12 +232,5 @@ SECTIONS {
 		_ebss = . ;
 	} > BSS
 
-#ifdef RAM_END
-	. = RAM_END ;
-	.eram : {
-		__ramend = . ;
-		_ramend = . ;
-	} > eram
-#endif
 }
 

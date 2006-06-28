@@ -259,7 +259,7 @@ static ssize_t coda_psdev_read(struct file * file, char __user * buf,
 	/* If request was not a signal, enqueue and don't free */
 	if (!(req->uc_flags & REQ_ASYNC)) {
 		req->uc_flags |= REQ_READ;
-		list_add(&(req->uc_chain), vcp->vc_processing.prev);
+		list_add_tail(&(req->uc_chain), &vcp->vc_processing);
 		goto out;
 	}
 

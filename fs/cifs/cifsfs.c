@@ -56,8 +56,8 @@ unsigned int experimEnabled = 0;
 unsigned int linuxExtEnabled = 1;
 unsigned int lookupCacheEnabled = 1;
 unsigned int multiuser_mount = 0;
-unsigned int extended_security = 0;
-unsigned int ntlmv2_support = 0;
+unsigned int extended_security = CIFSSEC_DEF;
+/* unsigned int ntlmv2_support = 0; */
 unsigned int sign_CIFS_PDUs = 1;
 extern struct task_struct * oplockThread; /* remove sparse warning */
 struct task_struct * oplockThread = NULL;
@@ -908,7 +908,7 @@ static int cifs_dnotify_thread(void * dummyarg)
 	struct cifsSesInfo *ses;
 
 	do {
-		if(try_to_freeze())
+		if (try_to_freeze())
 			continue;
 		set_current_state(TASK_INTERRUPTIBLE);
 		schedule_timeout(15*HZ);

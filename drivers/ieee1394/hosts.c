@@ -103,7 +103,7 @@ static int alloc_hostnum_cb(struct hpsb_host *host, void *__data)
  * driver specific parts, enable the controller and make it available
  * to the general subsystem using hpsb_add_host().
  *
- * Return Value: a pointer to the &hpsb_host if succesful, %NULL if
+ * Return Value: a pointer to the &hpsb_host if successful, %NULL if
  * no memory was available.
  */
 static DEFINE_MUTEX(host_num_alloc);

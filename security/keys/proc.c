@@ -137,6 +137,13 @@ static int proc_keys_show(struct seq_file *m, void *v)
 	struct timespec now;
 	unsigned long timo;
 	char xbuf[12];
+	int rc;
+
+	/* check whether the current task is allowed to view the key (assuming
+	 * non-possession) */
+	rc = key_task_permission(make_key_ref(key, 0), current, KEY_VIEW);
+	if (rc < 0)
+		return 0;
 
 	now = current_kernel_time();
 

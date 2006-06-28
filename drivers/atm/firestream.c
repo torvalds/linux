@@ -33,6 +33,7 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/pci.h>
+#include <linux/poison.h>
 #include <linux/errno.h>
 #include <linux/atm.h>
 #include <linux/atmdev.h>
@@ -754,7 +755,7 @@ static void process_txdone_queue (struct fs_dev *dev, struct queue *q)
 			fs_kfree_skb (skb);
 
 			fs_dprintk (FS_DEBUG_ALLOC, "Free trans-d: %p\n", td); 
-			memset (td, 0x12, sizeof (struct FS_BPENTRY));
+			memset (td, ATM_POISON_FREE, sizeof(struct FS_BPENTRY));
 			kfree (td);
 			break;
 		default:
@@ -951,7 +952,7 @@ static int fs_open(struct atm_vcc *atm_vcc)
 		   it most likely that the chip will notice it. It also prevents us
 		   from having to wait for completion. On the other hand, we may
 		   need to wait for completion anyway, to see if it completed
-		   succesfully. */
+		   successfully. */
 
 		switch (atm_vcc->qos.aal) {
 		case ATM_AAL2:

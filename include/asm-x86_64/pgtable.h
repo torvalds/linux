@@ -337,13 +337,7 @@ static inline int pmd_large(pmd_t pte) {
 /* to find an entry in a page-table-directory. */
 #define pud_index(address) (((address) >> PUD_SHIFT) & (PTRS_PER_PUD-1))
 #define pud_offset(pgd, address) ((pud_t *) pgd_page(*(pgd)) + pud_index(address))
-#define pud_offset_k(pgd, addr) pud_offset(pgd, addr)
 #define pud_present(pud) (pud_val(pud) & _PAGE_PRESENT)
-
-static inline pud_t *__pud_offset_k(pud_t *pud, unsigned long address)
-{ 
-	return pud + pud_index(address);
-} 
 
 /* PMD  - Level 2 access */
 #define pmd_page_kernel(pmd) ((unsigned long) __va(pmd_val(pmd) & PTE_MASK))

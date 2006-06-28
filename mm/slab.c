@@ -89,6 +89,7 @@
 #include	<linux/config.h>
 #include	<linux/slab.h>
 #include	<linux/mm.h>
+#include	<linux/poison.h>
 #include	<linux/swap.h>
 #include	<linux/cache.h>
 #include	<linux/interrupt.h>
@@ -106,6 +107,7 @@
 #include	<linux/nodemask.h>
 #include	<linux/mempolicy.h>
 #include	<linux/mutex.h>
+#include	<linux/rtmutex.h>
 
 #include	<asm/uaccess.h>
 #include	<asm/cacheflush.h>
@@ -492,17 +494,6 @@ struct kmem_cache {
 #endif
 
 #if DEBUG
-/*
- * Magic nums for obj red zoning.
- * Placed in the first word before and the first word after an obj.
- */
-#define	RED_INACTIVE	0x5A2CF071UL	/* when obj is inactive */
-#define	RED_ACTIVE	0x170FC2A5UL	/* when obj is active */
-
-/* ...and for poisoning */
-#define	POISON_INUSE	0x5a	/* for use-uninitialised poisoning */
-#define POISON_FREE	0x6b	/* for use-after-free poisoning */
-#define	POISON_END	0xa5	/* end-byte of poisoning */
 
 /*
  * memory layout of objects:
@@ -1083,7 +1074,7 @@ static inline int cache_free_alien(struct kmem_cache *cachep, void *objp)
 
 #endif
 
-static int cpuup_callback(struct notifier_block *nfb,
+static int __devinit cpuup_callback(struct notifier_block *nfb,
 				    unsigned long action, void *hcpu)
 {
 	long cpu = (long)hcpu;
@@ -1265,7 +1256,9 @@ bad:
 	return NOTIFY_BAD;
 }
 
-static struct notifier_block cpucache_notifier = { &cpuup_callback, NULL, 0 };
+static struct notifier_block __cpuinitdata cpucache_notifier = {
+	&cpuup_callback, NULL, 0
+};
 
 /*
  * swap the static kmem_list3 with kmalloced memory
@@ -3405,7 +3398,7 @@ void kfree(const void *objp)
 	local_irq_save(flags);
 	kfree_debugcheck(objp);
 	c = virt_to_cache(objp);
-	mutex_debug_check_no_locks_freed(objp, obj_size(c));
+	debug_check_no_locks_freed(objp, obj_size(c));
 	__cache_free(c, (void *)objp);
 	local_irq_restore(flags);
 }

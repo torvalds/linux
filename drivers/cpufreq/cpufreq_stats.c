@@ -350,7 +350,7 @@ __init cpufreq_stats_init(void)
 		return ret;
 	}
 
-	register_cpu_notifier(&cpufreq_stat_cpu_notifier);
+	register_hotcpu_notifier(&cpufreq_stat_cpu_notifier);
 	lock_cpu_hotplug();
 	for_each_online_cpu(cpu) {
 		cpufreq_stat_cpu_callback(&cpufreq_stat_cpu_notifier, CPU_ONLINE,
@@ -368,7 +368,7 @@ __exit cpufreq_stats_exit(void)
 			CPUFREQ_POLICY_NOTIFIER);
 	cpufreq_unregister_notifier(&notifier_trans_block,
 			CPUFREQ_TRANSITION_NOTIFIER);
-	unregister_cpu_notifier(&cpufreq_stat_cpu_notifier);
+	unregister_hotcpu_notifier(&cpufreq_stat_cpu_notifier);
 	lock_cpu_hotplug();
 	for_each_online_cpu(cpu) {
 		cpufreq_stat_cpu_callback(&cpufreq_stat_cpu_notifier, CPU_DEAD,

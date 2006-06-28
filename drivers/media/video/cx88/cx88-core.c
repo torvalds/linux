@@ -1181,8 +1181,6 @@ EXPORT_SYMBOL(cx88_set_scale);
 EXPORT_SYMBOL(cx88_vdev_init);
 EXPORT_SYMBOL(cx88_core_get);
 EXPORT_SYMBOL(cx88_core_put);
-EXPORT_SYMBOL(cx88_start_audio_dma);
-EXPORT_SYMBOL(cx88_stop_audio_dma);
 
 /*
  * Local variables:

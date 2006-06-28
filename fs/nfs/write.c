@@ -1551,7 +1551,7 @@ int __init nfs_init_writepagecache(void)
 	return 0;
 }
 
-void __exit nfs_destroy_writepagecache(void)
+void nfs_destroy_writepagecache(void)
 {
 	mempool_destroy(nfs_commit_mempool);
 	mempool_destroy(nfs_wdata_mempool);

@@ -24,6 +24,11 @@ S: C. Negri 6, bl. D3
 S: Iasi 6600
 S: Romania
 
+N: Mark Adler
+E: madler@alumni.caltech.edu
+W: http://alumnus.caltech.edu/~madler/
+D: zlib decompression
+
 N: Monalisa Agrawal
 E: magrawal@nortelnetworks.com
 D: Basic Interphase 5575 driver with UBR and ABR support.

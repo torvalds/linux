@@ -62,6 +62,23 @@ config HW_CONSOLE
 	depends on VT && !S390 && !UML
 	default y
 
+config VT_HW_CONSOLE_BINDING
+       bool "Support for binding and unbinding console drivers"
+       depends on HW_CONSOLE
+       default n
+       ---help---
+         The virtual terminal is the device that interacts with the physical
+         terminal through console drivers. On these systems, at least one
+         console driver is loaded. In other configurations, additional console
+         drivers may be enabled, such as the framebuffer console. If more than
+         1 console driver is enabled, setting this to 'y' will allow you to
+         select the console driver that will serve as the backend for the
+         virtual terminals.
+
+	 See <file:Documentation/console/console.txt> for more
+	 information. For framebuffer console users, please refer to
+	 <file:Documentation/fb/fbcon.txt>.
+
 config SERIAL_NONSTANDARD
 	bool "Non-standard serial port support"
 	---help---
@@ -670,20 +687,7 @@ config NWFLASH
 
 	  If you're not sure, say N.
 
-config HW_RANDOM
-	tristate "Intel/AMD/VIA HW Random Number Generator support"
-	depends on (X86 || IA64) && PCI
-	---help---
-	  This driver provides kernel-side support for the Random Number
-	  Generator hardware found on Intel i8xx-based motherboards,
-	  AMD 76x-based motherboards, and Via Nehemiah CPUs.
-
-	  Provides a character driver, used to read() entropy data.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called hw_random.
-
-	  If unsure, say N.
+source "drivers/char/hw_random/Kconfig"
 
 config NVRAM
 	tristate "/dev/nvram support"
@@ -935,11 +939,34 @@ config MWAVE
 config SCx200_GPIO
 	tristate "NatSemi SCx200 GPIO Support"
 	depends on SCx200
+	select NSC_GPIO
 	help
 	  Give userspace access to the GPIO pins on the National
 	  Semiconductor SCx200 processors.
 
 	  If compiled as a module, it will be called scx200_gpio.
+
+config PC8736x_GPIO
+	tristate "NatSemi PC8736x GPIO Support"
+	depends on X86
+	default SCx200_GPIO	# mostly N
+	select NSC_GPIO		# needed for support routines
+	help
+	  Give userspace access to the GPIO pins on the National
+	  Semiconductor PC-8736x (x=[03456]) SuperIO chip.  The chip
+	  has multiple functional units, inc several managed by
+	  hwmon/pc87360 driver.  Tested with PC-87366
+
+	  If compiled as a module, it will be called pc8736x_gpio.
+
+config NSC_GPIO
+	tristate "NatSemi Base GPIO Support"
+	# selected by SCx200_GPIO and PC8736x_GPIO
+	# what about 2 selectors differing: m != y
+	help
+	  Common support used (and needed) by scx200_gpio and
+	  pc8736x_gpio drivers.  If those drivers are built as
+	  modules, this one will be too, named nsc_gpio
 
 config CS5535_GPIO
 	tristate "AMD CS5535/CS5536 GPIO (Geode Companion Device)"

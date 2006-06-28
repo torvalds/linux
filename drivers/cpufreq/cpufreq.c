@@ -1497,6 +1497,7 @@ int cpufreq_update_policy(unsigned int cpu)
 }
 EXPORT_SYMBOL(cpufreq_update_policy);
 
+#ifdef CONFIG_HOTPLUG_CPU
 static int cpufreq_cpu_callback(struct notifier_block *nfb,
 					unsigned long action, void *hcpu)
 {
@@ -1532,10 +1533,11 @@ static int cpufreq_cpu_callback(struct notifier_block *nfb,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block cpufreq_cpu_notifier =
+static struct notifier_block __cpuinitdata cpufreq_cpu_notifier =
 {
     .notifier_call = cpufreq_cpu_callback,
 };
+#endif /* CONFIG_HOTPLUG_CPU */
 
 /*********************************************************************
  *               REGISTER / UNREGISTER CPUFREQ DRIVER                *
@@ -1596,7 +1598,7 @@ int cpufreq_register_driver(struct cpufreq_driver *driver_data)
 	}
 
 	if (!ret) {
-		register_cpu_notifier(&cpufreq_cpu_notifier);
+		register_hotcpu_notifier(&cpufreq_cpu_notifier);
 		dprintk("driver %s up and running\n", driver_data->name);
 		cpufreq_debug_enable_ratelimit();
 	}
@@ -1628,7 +1630,7 @@ int cpufreq_unregister_driver(struct cpufreq_driver *driver)
 	dprintk("unregistering driver %s\n", driver->name);
 
 	sysdev_driver_unregister(&cpu_sysdev_class, &cpufreq_sysdev_driver);
-	unregister_cpu_notifier(&cpufreq_cpu_notifier);
+	unregister_hotcpu_notifier(&cpufreq_cpu_notifier);
 
 	spin_lock_irqsave(&cpufreq_driver_lock, flags);
 	cpufreq_driver = NULL;

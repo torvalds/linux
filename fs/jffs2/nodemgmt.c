@@ -211,8 +211,7 @@ static int jffs2_find_nextblock(struct jffs2_sb_info *c)
 			struct jffs2_eraseblock *ejeb;
 
 			ejeb = list_entry(c->erasable_list.next, struct jffs2_eraseblock, list);
-			list_del(&ejeb->list);
-			list_add_tail(&ejeb->list, &c->erase_pending_list);
+			list_move_tail(&ejeb->list, &c->erase_pending_list);
 			c->nr_erasing_blocks++;
 			jffs2_erase_pending_trigger(c);
 			D1(printk(KERN_DEBUG "jffs2_find_nextblock: Triggering erase of erasable block at 0x%08x\n",
@@ -684,19 +683,26 @@ void jffs2_mark_node_obsolete(struct jffs2_sb_info *c, struct jffs2_raw_node_ref
 		spin_lock(&c->erase_completion_lock);
 
 		ic = jffs2_raw_ref_to_ic(ref);
-		/* It seems we should never call jffs2_mark_node_obsolete() for
-		   XATTR nodes.... yet. Make sure we notice if/when we change
-		   that :) */
-		BUG_ON(ic->class != RAWNODE_CLASS_INODE_CACHE);
 		for (p = &ic->nodes; (*p) != ref; p = &((*p)->next_in_ino))
 			;
 
 		*p = ref->next_in_ino;
 		ref->next_in_ino = NULL;
 
-		if (ic->nodes == (void *)ic && ic->nlink == 0)
-			jffs2_del_ino_cache(c, ic);
-
+		switch (ic->class) {
+#ifdef CONFIG_JFFS2_FS_XATTR
+			case RAWNODE_CLASS_XATTR_DATUM:
+				jffs2_release_xattr_datum(c, (struct jffs2_xattr_datum *)ic);
+				break;
+			case RAWNODE_CLASS_XATTR_REF:
+				jffs2_release_xattr_ref(c, (struct jffs2_xattr_ref *)ic);
+				break;
+#endif
+			default:
+				if (ic->nodes == (void *)ic && ic->nlink == 0)
+					jffs2_del_ino_cache(c, ic);
+				break;
+		}
 		spin_unlock(&c->erase_completion_lock);
 	}
 

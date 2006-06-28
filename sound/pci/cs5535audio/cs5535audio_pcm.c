@@ -143,7 +143,7 @@ static int cs5535audio_build_dma_packets(struct cs5535audio *cs5535au,
 	if (dma->periods == periods && dma->period_bytes == period_bytes)
 		return 0;
 
-	/* the u32 cast is okay because in snd*create we succesfully told
+	/* the u32 cast is okay because in snd*create we successfully told
    	   pci alloc that we're only 32 bit capable so the uppper will be 0 */
 	addr = (u32) substream->runtime->dma_addr;
 	desc_addr = (u32) dma->desc_buf.addr;

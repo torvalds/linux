@@ -23,4 +23,6 @@ extern void __delay(unsigned long loops);
 	((n) > 20000 ? __bad_ndelay() : __const_udelay((n) * 5ul)) : \
 	__ndelay(n))
 
+void use_tsc_delay(void);
+
 #endif /* defined(_I386_DELAY_H) */

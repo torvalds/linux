@@ -11,6 +11,7 @@
 #include <linux/vmalloc.h>
 #include <linux/init.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 #include <asm/io.h>
 #include <asm/pgalloc.h>
 #include <asm/fixmap.h>
@@ -219,6 +220,7 @@ void __iomem * __ioremap(unsigned long phys_addr, unsigned long size, unsigned l
 	}
 	return (__force void __iomem *) (offset + (char *)addr);
 }
+EXPORT_SYMBOL(__ioremap);
 
 /**
  * ioremap_nocache     -   map bus memory into CPU space
@@ -246,6 +248,7 @@ void __iomem *ioremap_nocache (unsigned long phys_addr, unsigned long size)
 {
 	return __ioremap(phys_addr, size, _PAGE_PCD);
 }
+EXPORT_SYMBOL(ioremap_nocache);
 
 /**
  * iounmap - Free a IO remapping
@@ -291,3 +294,5 @@ void iounmap(volatile void __iomem *addr)
 	BUG_ON(p != o || o == NULL);
 	kfree(p); 
 }
+EXPORT_SYMBOL(iounmap);
+

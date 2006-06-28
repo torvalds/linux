@@ -981,7 +981,7 @@ exit:
 EXPORT_SYMBOL_GPL(gigaset_stop);
 
 static LIST_HEAD(drivers);
-static spinlock_t driver_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(driver_lock);
 
 struct cardstate *gigaset_get_cs_by_id(int id)
 {

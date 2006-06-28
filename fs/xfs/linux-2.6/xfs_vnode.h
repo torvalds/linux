@@ -93,7 +93,7 @@ typedef enum {
  */
 static inline struct bhv_vnode *vn_from_inode(struct inode *inode)
 {
-	return (bhv_vnode_t *)list_entry(inode, bhv_vnode_t, v_inode);
+	return container_of(inode, bhv_vnode_t, v_inode);
 }
 static inline struct inode *vn_to_inode(struct bhv_vnode *vnode)
 {

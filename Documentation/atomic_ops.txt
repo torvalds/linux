@@ -157,13 +157,13 @@ For example, smp_mb__before_atomic_dec() can be used like so:
 	smp_mb__before_atomic_dec();
 	atomic_dec(&obj->ref_count);
 
-It makes sure that all memory operations preceeding the atomic_dec()
+It makes sure that all memory operations preceding the atomic_dec()
 call are strongly ordered with respect to the atomic counter
-operation.  In the above example, it guarentees that the assignment of
+operation.  In the above example, it guarantees that the assignment of
 "1" to obj->dead will be globally visible to other cpus before the
 atomic counter decrement.
 
-Without the explicitl smp_mb__before_atomic_dec() call, the
+Without the explicit smp_mb__before_atomic_dec() call, the
 implementation could legally allow the atomic counter update visible
 to other cpus before the "obj->dead = 1;" assignment.
 
@@ -173,11 +173,11 @@ ordering with respect to memory operations after an atomic_dec() call
 (smp_mb__{before,after}_atomic_inc()).
 
 A missing memory barrier in the cases where they are required by the
-atomic_t implementation above can have disasterous results.  Here is
-an example, which follows a pattern occuring frequently in the Linux
+atomic_t implementation above can have disastrous results.  Here is
+an example, which follows a pattern occurring frequently in the Linux
 kernel.  It is the use of atomic counters to implement reference
 counting, and it works such that once the counter falls to zero it can
-be guarenteed that no other entity can be accessing the object:
+be guaranteed that no other entity can be accessing the object:
 
 static void obj_list_add(struct obj *obj)
 {
@@ -291,9 +291,9 @@ to the size of an "unsigned long" C data type, and are least of that
 size.  The endianness of the bits within each "unsigned long" are the
 native endianness of the cpu.
 
-	void set_bit(unsigned long nr, volatils unsigned long *addr);
-	void clear_bit(unsigned long nr, volatils unsigned long *addr);
-	void change_bit(unsigned long nr, volatils unsigned long *addr);
+	void set_bit(unsigned long nr, volatile unsigned long *addr);
+	void clear_bit(unsigned long nr, volatile unsigned long *addr);
+	void change_bit(unsigned long nr, volatile unsigned long *addr);
 
 These routines set, clear, and change, respectively, the bit number
 indicated by "nr" on the bit mask pointed to by "ADDR".
@@ -301,9 +301,9 @@ indicated by "nr" on the bit mask pointed to by "ADDR".
 They must execute atomically, yet there are no implicit memory barrier
 semantics required of these interfaces.
 
-	int test_and_set_bit(unsigned long nr, volatils unsigned long *addr);
-	int test_and_clear_bit(unsigned long nr, volatils unsigned long *addr);
-	int test_and_change_bit(unsigned long nr, volatils unsigned long *addr);
+	int test_and_set_bit(unsigned long nr, volatile unsigned long *addr);
+	int test_and_clear_bit(unsigned long nr, volatile unsigned long *addr);
+	int test_and_change_bit(unsigned long nr, volatile unsigned long *addr);
 
 Like the above, except that these routines return a boolean which
 indicates whether the changed bit was set _BEFORE_ the atomic bit
@@ -335,7 +335,7 @@ subsequent memory operation is made visible.  For example:
 		/* ... */;
 	obj->killed = 1;
 
-The implementation of test_and_set_bit() must guarentee that
+The implementation of test_and_set_bit() must guarantee that
 "obj->dead = 1;" is visible to cpus before the atomic memory operation
 done by test_and_set_bit() becomes visible.  Likewise, the atomic
 memory operation done by test_and_set_bit() must become visible before
@@ -474,7 +474,7 @@ Now, as far as memory barriers go, as long as spin_lock()
 strictly orders all subsequent memory operations (including
 the cas()) with respect to itself, things will be fine.
 
-Said another way, _atomic_dec_and_lock() must guarentee that
+Said another way, _atomic_dec_and_lock() must guarantee that
 a counter dropping to zero is never made visible before the
 spinlock being acquired.
 

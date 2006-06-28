@@ -1262,7 +1262,8 @@ static void do_action(int action, struct cardstate *cs,
 		break;
 	case ACT_HUPMODEM:
 		/* send "+++" (hangup in unimodem mode) */
-		cs->ops->write_cmd(cs, "+++", 3, NULL);
+		if (cs->connected)
+			cs->ops->write_cmd(cs, "+++", 3, NULL);
 		break;
 	case ACT_RING:
 		/* get fresh AT state structure for new CID */
@@ -1294,7 +1295,6 @@ static void do_action(int action, struct cardstate *cs,
 		break;
 	case ACT_ICALL:
 		handle_icall(cs, bcs, p_at_state);
-		at_state = *p_at_state;
 		break;
 	case ACT_FAILSDOWN:
 		dev_warn(cs->dev, "Could not shut down the device.\n");
@@ -1334,10 +1334,8 @@ static void do_action(int action, struct cardstate *cs,
 			 */
 			at_state->pending_commands |= PC_DLE0;
 			atomic_set(&cs->commands_pending, 1);
-		} else {
+		} else
 			disconnect(p_at_state);
-			at_state = *p_at_state;
-		}
 		break;
 	case ACT_FAKEDLE0:
 		at_state->int_var[VAR_ZDLE] = 0;
@@ -1354,10 +1352,8 @@ static void do_action(int action, struct cardstate *cs,
 		at_state->cid = -1;
 		if (bcs && cs->onechannel)
 			at_state->pending_commands |= PC_DLE0;
-		else {
+		else
 			disconnect(p_at_state);
-			at_state = *p_at_state;
-		}
 		schedule_init(cs, MS_RECOVER);
 		break;
 	case ACT_FAILDLE0:
@@ -1410,7 +1406,6 @@ static void do_action(int action, struct cardstate *cs,
 
 	case ACT_ABORTACCEPT:	/* hangup/error/timeout during ICALL processing */
 		disconnect(p_at_state);
-		at_state = *p_at_state;
 		break;
 
 	case ACT_ABORTDIAL:	/* error/timeout during dial preparation */

@@ -755,7 +755,7 @@ static int __init wd_init(void)
 
 	for_each_ebus(ebus) {
 		for_each_ebusdev(edev, ebus) {
-			if (!strcmp(edev->prom_name, WD_OBPNAME))
+			if (!strcmp(edev->ofdev.node->name, WD_OBPNAME))
 				goto ebus_done;
 		}
 	}

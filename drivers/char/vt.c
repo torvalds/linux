@@ -98,7 +98,22 @@
 #include <asm/system.h>
 #include <asm/uaccess.h>
 
+#define MAX_NR_CON_DRIVER 16
 
+#define CON_DRIVER_FLAG_MODULE 1
+#define CON_DRIVER_FLAG_INIT 2
+
+struct con_driver {
+	const struct consw *con;
+	const char *desc;
+	struct class_device *class_dev;
+	int node;
+	int first;
+	int last;
+	int flag;
+};
+
+static struct con_driver registered_con_driver[MAX_NR_CON_DRIVER];
 const struct consw *conswitchp;
 
 /* A bitmap for codes <32. A bit of 1 indicates that the code
@@ -2557,7 +2572,7 @@ static int __init con_init(void)
 {
 	const char *display_desc = NULL;
 	struct vc_data *vc;
-	unsigned int currcons = 0;
+	unsigned int currcons = 0, i;
 
 	acquire_console_sem();
 
@@ -2568,6 +2583,22 @@ static int __init con_init(void)
 		release_console_sem();
 		return 0;
 	}
+
+	for (i = 0; i < MAX_NR_CON_DRIVER; i++) {
+		struct con_driver *con_driver = &registered_con_driver[i];
+
+		if (con_driver->con == NULL) {
+			con_driver->con = conswitchp;
+			con_driver->desc = display_desc;
+			con_driver->flag = CON_DRIVER_FLAG_INIT;
+			con_driver->first = 0;
+			con_driver->last = MAX_NR_CONSOLES - 1;
+			break;
+		}
+	}
+
+	for (i = 0; i < MAX_NR_CONSOLES; i++)
+		con_driver_map[i] = conswitchp;
 
 	init_timer(&console_timer);
 	console_timer.function = blank_screen_t;
@@ -2656,37 +2687,52 @@ int __init vty_init(void)
 }
 
 #ifndef VT_SINGLE_DRIVER
+#include <linux/device.h>
 
-/*
- *	If we support more console drivers, this function is used
- *	when a driver wants to take over some existing consoles
- *	and become default driver for newly opened ones.
- */
+static struct class *vtconsole_class;
 
-int take_over_console(const struct consw *csw, int first, int last, int deflt)
+static int bind_con_driver(const struct consw *csw, int first, int last,
+			   int deflt)
 {
-	int i, j = -1;
-	const char *desc;
-	struct module *owner;
+	struct module *owner = csw->owner;
+	const char *desc = NULL;
+	struct con_driver *con_driver;
+	int i, j = -1, k = -1, retval = -ENODEV;
 
-	owner = csw->owner;
 	if (!try_module_get(owner))
 		return -ENODEV;
 
 	acquire_console_sem();
 
-	desc = csw->con_startup();
-	if (!desc) {
-		release_console_sem();
-		module_put(owner);
-		return -ENODEV;
+	/* check if driver is registered */
+	for (i = 0; i < MAX_NR_CON_DRIVER; i++) {
+		con_driver = &registered_con_driver[i];
+
+		if (con_driver->con == csw) {
+			desc = con_driver->desc;
+			retval = 0;
+			break;
+		}
 	}
+
+	if (retval)
+		goto err;
+
+	if (!(con_driver->flag & CON_DRIVER_FLAG_INIT)) {
+		csw->con_startup();
+		con_driver->flag |= CON_DRIVER_FLAG_INIT;
+	}
+
 	if (deflt) {
 		if (conswitchp)
 			module_put(conswitchp->owner);
+
 		__module_get(owner);
 		conswitchp = csw;
 	}
+
+	first = max(first, con_driver->first);
+	last = min(last, con_driver->last);
 
 	for (i = first; i <= last; i++) {
 		int old_was_color;
@@ -2701,15 +2747,17 @@ int take_over_console(const struct consw *csw, int first, int last, int deflt)
 			continue;
 
 		j = i;
-		if (CON_IS_VISIBLE(vc))
+
+		if (CON_IS_VISIBLE(vc)) {
+			k = i;
 			save_screen(vc);
+		}
+
 		old_was_color = vc->vc_can_do_color;
 		vc->vc_sw->con_deinit(vc);
 		vc->vc_origin = (unsigned long)vc->vc_screenbuf;
-		vc->vc_visible_origin = vc->vc_origin;
-		vc->vc_scr_end = vc->vc_origin + vc->vc_screenbuf_size;
-		vc->vc_pos = vc->vc_origin + vc->vc_size_row * vc->vc_y + 2 * vc->vc_x;
 		visual_init(vc, i, 0);
+		set_origin(vc);
 		update_attr(vc);
 
 		/* If the console changed between mono <-> color, then
@@ -2718,36 +2766,506 @@ int take_over_console(const struct consw *csw, int first, int last, int deflt)
 		 */
 		if (old_was_color != vc->vc_can_do_color)
 			clear_buffer_attributes(vc);
-
-		if (CON_IS_VISIBLE(vc))
-			update_screen(vc);
 	}
+
 	printk("Console: switching ");
 	if (!deflt)
 		printk("consoles %d-%d ", first+1, last+1);
-	if (j >= 0)
+	if (j >= 0) {
+		struct vc_data *vc = vc_cons[j].d;
+
 		printk("to %s %s %dx%d\n",
-		       vc_cons[j].d->vc_can_do_color ? "colour" : "mono",
-		       desc, vc_cons[j].d->vc_cols, vc_cons[j].d->vc_rows);
-	else
+		       vc->vc_can_do_color ? "colour" : "mono",
+		       desc, vc->vc_cols, vc->vc_rows);
+
+		if (k >= 0) {
+			vc = vc_cons[k].d;
+			update_screen(vc);
+		}
+	} else
 		printk("to %s\n", desc);
 
+	retval = 0;
+err:
 	release_console_sem();
-
 	module_put(owner);
-	return 0;
+	return retval;
+};
+
+#ifdef CONFIG_VT_HW_CONSOLE_BINDING
+static int con_is_graphics(const struct consw *csw, int first, int last)
+{
+	int i, retval = 0;
+
+	for (i = first; i <= last; i++) {
+		struct vc_data *vc = vc_cons[i].d;
+
+		if (vc && vc->vc_mode == KD_GRAPHICS) {
+			retval = 1;
+			break;
+		}
+	}
+
+	return retval;
 }
 
-void give_up_console(const struct consw *csw)
+static int unbind_con_driver(const struct consw *csw, int first, int last,
+			     int deflt)
 {
-	int i;
+	struct module *owner = csw->owner;
+	const struct consw *defcsw = NULL;
+	struct con_driver *con_driver = NULL, *con_back = NULL;
+	int i, retval = -ENODEV;
 
-	for(i = 0; i < MAX_NR_CONSOLES; i++)
+	if (!try_module_get(owner))
+		return -ENODEV;
+
+	acquire_console_sem();
+
+	/* check if driver is registered and if it is unbindable */
+	for (i = 0; i < MAX_NR_CON_DRIVER; i++) {
+		con_driver = &registered_con_driver[i];
+
+		if (con_driver->con == csw &&
+		    con_driver->flag & CON_DRIVER_FLAG_MODULE) {
+			retval = 0;
+			break;
+		}
+	}
+
+	if (retval) {
+		release_console_sem();
+		goto err;
+	}
+
+	retval = -ENODEV;
+
+	/* check if backup driver exists */
+	for (i = 0; i < MAX_NR_CON_DRIVER; i++) {
+		con_back = &registered_con_driver[i];
+
+		if (con_back->con &&
+		    !(con_back->flag & CON_DRIVER_FLAG_MODULE)) {
+			defcsw = con_back->con;
+			retval = 0;
+			break;
+		}
+	}
+
+	if (retval) {
+		release_console_sem();
+		goto err;
+	}
+
+	if (!con_is_bound(csw)) {
+		release_console_sem();
+		goto err;
+	}
+
+	first = max(first, con_driver->first);
+	last = min(last, con_driver->last);
+
+	for (i = first; i <= last; i++) {
 		if (con_driver_map[i] == csw) {
 			module_put(csw->owner);
 			con_driver_map[i] = NULL;
 		}
+	}
+
+	if (!con_is_bound(defcsw)) {
+		const struct consw *defconsw = conswitchp;
+
+		defcsw->con_startup();
+		con_back->flag |= CON_DRIVER_FLAG_INIT;
+		/*
+		 * vgacon may change the default driver to point
+		 * to dummycon, we restore it here...
+		 */
+		conswitchp = defconsw;
+	}
+
+	if (!con_is_bound(csw))
+		con_driver->flag &= ~CON_DRIVER_FLAG_INIT;
+
+	release_console_sem();
+	/* ignore return value, binding should not fail */
+	bind_con_driver(defcsw, first, last, deflt);
+err:
+	module_put(owner);
+	return retval;
+
 }
+
+static int vt_bind(struct con_driver *con)
+{
+	const struct consw *defcsw = NULL, *csw = NULL;
+	int i, more = 1, first = -1, last = -1, deflt = 0;
+
+ 	if (!con->con || !(con->flag & CON_DRIVER_FLAG_MODULE) ||
+	    con_is_graphics(con->con, con->first, con->last))
+		goto err;
+
+	csw = con->con;
+
+	for (i = 0; i < MAX_NR_CON_DRIVER; i++) {
+		struct con_driver *con = &registered_con_driver[i];
+
+		if (con->con && !(con->flag & CON_DRIVER_FLAG_MODULE)) {
+			defcsw = con->con;
+			break;
+		}
+	}
+
+	if (!defcsw)
+		goto err;
+
+	while (more) {
+		more = 0;
+
+		for (i = con->first; i <= con->last; i++) {
+			if (con_driver_map[i] == defcsw) {
+				if (first == -1)
+					first = i;
+				last = i;
+				more = 1;
+			} else if (first != -1)
+				break;
+		}
+
+		if (first == 0 && last == MAX_NR_CONSOLES -1)
+			deflt = 1;
+
+		if (first != -1)
+			bind_con_driver(csw, first, last, deflt);
+
+		first = -1;
+		last = -1;
+		deflt = 0;
+	}
+
+err:
+	return 0;
+}
+
+static int vt_unbind(struct con_driver *con)
+{
+	const struct consw *csw = NULL;
+	int i, more = 1, first = -1, last = -1, deflt = 0;
+
+ 	if (!con->con || !(con->flag & CON_DRIVER_FLAG_MODULE) ||
+	    con_is_graphics(con->con, con->first, con->last))
+		goto err;
+
+	csw = con->con;
+
+	while (more) {
+		more = 0;
+
+		for (i = con->first; i <= con->last; i++) {
+			if (con_driver_map[i] == csw) {
+				if (first == -1)
+					first = i;
+				last = i;
+				more = 1;
+			} else if (first != -1)
+				break;
+		}
+
+		if (first == 0 && last == MAX_NR_CONSOLES -1)
+			deflt = 1;
+
+		if (first != -1)
+			unbind_con_driver(csw, first, last, deflt);
+
+		first = -1;
+		last = -1;
+		deflt = 0;
+	}
+
+err:
+	return 0;
+}
+#else
+static inline int vt_bind(struct con_driver *con)
+{
+	return 0;
+}
+static inline int vt_unbind(struct con_driver *con)
+{
+	return 0;
+}
+#endif /* CONFIG_VT_HW_CONSOLE_BINDING */
+
+static ssize_t store_bind(struct class_device *class_device,
+			  const char *buf, size_t count)
+{
+	struct con_driver *con = class_get_devdata(class_device);
+	int bind = simple_strtoul(buf, NULL, 0);
+
+	if (bind)
+		vt_bind(con);
+	else
+		vt_unbind(con);
+
+	return count;
+}
+
+static ssize_t show_bind(struct class_device *class_device, char *buf)
+{
+	struct con_driver *con = class_get_devdata(class_device);
+	int bind = con_is_bound(con->con);
+
+	return snprintf(buf, PAGE_SIZE, "%i\n", bind);
+}
+
+static ssize_t show_name(struct class_device *class_device, char *buf)
+{
+	struct con_driver *con = class_get_devdata(class_device);
+
+	return snprintf(buf, PAGE_SIZE, "%s %s\n",
+			(con->flag & CON_DRIVER_FLAG_MODULE) ? "(M)" : "(S)",
+			 con->desc);
+
+}
+
+static struct class_device_attribute class_device_attrs[] = {
+	__ATTR(bind, S_IRUGO|S_IWUSR, show_bind, store_bind),
+	__ATTR(name, S_IRUGO, show_name, NULL),
+};
+
+static int vtconsole_init_class_device(struct con_driver *con)
+{
+	int i;
+
+	class_set_devdata(con->class_dev, con);
+	for (i = 0; i < ARRAY_SIZE(class_device_attrs); i++)
+		class_device_create_file(con->class_dev,
+					 &class_device_attrs[i]);
+
+	return 0;
+}
+
+static void vtconsole_deinit_class_device(struct con_driver *con)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(class_device_attrs); i++)
+		class_device_remove_file(con->class_dev,
+					 &class_device_attrs[i]);
+}
+
+/**
+ * con_is_bound - checks if driver is bound to the console
+ * @csw: console driver
+ *
+ * RETURNS: zero if unbound, nonzero if bound
+ *
+ * Drivers can call this and if zero, they should release
+ * all resources allocated on con_startup()
+ */
+int con_is_bound(const struct consw *csw)
+{
+	int i, bound = 0;
+
+	for (i = 0; i < MAX_NR_CONSOLES; i++) {
+		if (con_driver_map[i] == csw) {
+			bound = 1;
+			break;
+		}
+	}
+
+	return bound;
+}
+EXPORT_SYMBOL(con_is_bound);
+
+/**
+ * register_con_driver - register console driver to console layer
+ * @csw: console driver
+ * @first: the first console to take over, minimum value is 0
+ * @last: the last console to take over, maximum value is MAX_NR_CONSOLES -1
+ *
+ * DESCRIPTION: This function registers a console driver which can later
+ * bind to a range of consoles specified by @first and @last. It will
+ * also initialize the console driver by calling con_startup().
+ */
+int register_con_driver(const struct consw *csw, int first, int last)
+{
+	struct module *owner = csw->owner;
+	struct con_driver *con_driver;
+	const char *desc;
+	int i, retval = 0;
+
+	if (!try_module_get(owner))
+		return -ENODEV;
+
+	acquire_console_sem();
+
+	for (i = 0; i < MAX_NR_CON_DRIVER; i++) {
+		con_driver = &registered_con_driver[i];
+
+		/* already registered */
+		if (con_driver->con == csw)
+			retval = -EINVAL;
+	}
+
+	if (retval)
+		goto err;
+
+	desc = csw->con_startup();
+
+	if (!desc)
+		goto err;
+
+	retval = -EINVAL;
+
+	for (i = 0; i < MAX_NR_CON_DRIVER; i++) {
+		con_driver = &registered_con_driver[i];
+
+		if (con_driver->con == NULL) {
+			con_driver->con = csw;
+			con_driver->desc = desc;
+			con_driver->node = i;
+			con_driver->flag = CON_DRIVER_FLAG_MODULE |
+			                   CON_DRIVER_FLAG_INIT;
+			con_driver->first = first;
+			con_driver->last = last;
+			retval = 0;
+			break;
+		}
+	}
+
+	if (retval)
+		goto err;
+
+	con_driver->class_dev = class_device_create(vtconsole_class, NULL,
+						    MKDEV(0, con_driver->node),
+						    NULL, "vtcon%i",
+						    con_driver->node);
+
+	if (IS_ERR(con_driver->class_dev)) {
+		printk(KERN_WARNING "Unable to create class_device for %s; "
+		       "errno = %ld\n", con_driver->desc,
+		       PTR_ERR(con_driver->class_dev));
+		con_driver->class_dev = NULL;
+	} else {
+		vtconsole_init_class_device(con_driver);
+	}
+err:
+	release_console_sem();
+	module_put(owner);
+	return retval;
+}
+EXPORT_SYMBOL(register_con_driver);
+
+/**
+ * unregister_con_driver - unregister console driver from console layer
+ * @csw: console driver
+ *
+ * DESCRIPTION: All drivers that registers to the console layer must
+ * call this function upon exit, or if the console driver is in a state
+ * where it won't be able to handle console services, such as the
+ * framebuffer console without loaded framebuffer drivers.
+ *
+ * The driver must unbind first prior to unregistration.
+ */
+int unregister_con_driver(const struct consw *csw)
+{
+	int i, retval = -ENODEV;
+
+	acquire_console_sem();
+
+	/* cannot unregister a bound driver */
+	if (con_is_bound(csw))
+		goto err;
+
+	for (i = 0; i < MAX_NR_CON_DRIVER; i++) {
+		struct con_driver *con_driver = &registered_con_driver[i];
+
+		if (con_driver->con == csw &&
+		    con_driver->flag & CON_DRIVER_FLAG_MODULE) {
+			vtconsole_deinit_class_device(con_driver);
+			class_device_destroy(vtconsole_class,
+					     MKDEV(0, con_driver->node));
+			con_driver->con = NULL;
+			con_driver->desc = NULL;
+			con_driver->class_dev = NULL;
+			con_driver->node = 0;
+			con_driver->flag = 0;
+			con_driver->first = 0;
+			con_driver->last = 0;
+			retval = 0;
+			break;
+		}
+	}
+err:
+	release_console_sem();
+	return retval;
+}
+EXPORT_SYMBOL(unregister_con_driver);
+
+/*
+ *	If we support more console drivers, this function is used
+ *	when a driver wants to take over some existing consoles
+ *	and become default driver for newly opened ones.
+ *
+ *      take_over_console is basically a register followed by unbind
+ */
+int take_over_console(const struct consw *csw, int first, int last, int deflt)
+{
+	int err;
+
+	err = register_con_driver(csw, first, last);
+
+	if (!err)
+		bind_con_driver(csw, first, last, deflt);
+
+	return err;
+}
+
+/*
+ * give_up_console is a wrapper to unregister_con_driver. It will only
+ * work if driver is fully unbound.
+ */
+void give_up_console(const struct consw *csw)
+{
+	unregister_con_driver(csw);
+}
+
+static int __init vtconsole_class_init(void)
+{
+	int i;
+
+	vtconsole_class = class_create(THIS_MODULE, "vtconsole");
+	if (IS_ERR(vtconsole_class)) {
+		printk(KERN_WARNING "Unable to create vt console class; "
+		       "errno = %ld\n", PTR_ERR(vtconsole_class));
+		vtconsole_class = NULL;
+	}
+
+	/* Add system drivers to sysfs */
+	for (i = 0; i < MAX_NR_CON_DRIVER; i++) {
+		struct con_driver *con = &registered_con_driver[i];
+
+		if (con->con && !con->class_dev) {
+			con->class_dev =
+				class_device_create(vtconsole_class, NULL,
+						    MKDEV(0, con->node), NULL,
+						    "vtcon%i", con->node);
+
+			if (IS_ERR(con->class_dev)) {
+				printk(KERN_WARNING "Unable to create "
+				       "class_device for %s; errno = %ld\n",
+				       con->desc, PTR_ERR(con->class_dev));
+				con->class_dev = NULL;
+			} else {
+				vtconsole_init_class_device(con);
+			}
+		}
+	}
+
+	return 0;
+}
+postcore_initcall(vtconsole_class_init);
 
 #endif
 

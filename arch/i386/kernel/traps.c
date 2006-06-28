@@ -28,6 +28,7 @@
 #include <linux/utsname.h>
 #include <linux/kprobes.h>
 #include <linux/kexec.h>
+#include <linux/unwind.h>
 
 #ifdef CONFIG_EISA
 #include <linux/ioport.h>
@@ -47,7 +48,7 @@
 #include <asm/desc.h>
 #include <asm/i387.h>
 #include <asm/nmi.h>
-
+#include <asm/unwind.h>
 #include <asm/smp.h>
 #include <asm/arch_hooks.h>
 #include <asm/kdebug.h>
@@ -92,6 +93,7 @@ asmlinkage void spurious_interrupt_bug(void);
 asmlinkage void machine_check(void);
 
 static int kstack_depth_to_print = 24;
+static int call_trace = 1;
 ATOMIC_NOTIFIER_HEAD(i386die_chain);
 
 int register_die_notifier(struct notifier_block *nb)
@@ -170,13 +172,49 @@ static inline unsigned long print_context_stack(struct thread_info *tinfo,
 	return ebp;
 }
 
-static void show_trace_log_lvl(struct task_struct *task,
+static asmlinkage int show_trace_unwind(struct unwind_frame_info *info, void *log_lvl)
+{
+	int n = 0;
+	int printed = 0; /* nr of entries already printed on current line */
+
+	while (unwind(info) == 0 && UNW_PC(info)) {
+		++n;
+		printed = print_addr_and_symbol(UNW_PC(info), log_lvl, printed);
+		if (arch_unw_user_mode(info))
+			break;
+	}
+	if (printed)
+		printk("\n");
+	return n;
+}
+
+static void show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
 			       unsigned long *stack, char *log_lvl)
 {
 	unsigned long ebp;
 
 	if (!task)
 		task = current;
+
+	if (call_trace >= 0) {
+		int unw_ret = 0;
+		struct unwind_frame_info info;
+
+		if (regs) {
+			if (unwind_init_frame_info(&info, task, regs) == 0)
+				unw_ret = show_trace_unwind(&info, log_lvl);
+		} else if (task == current)
+			unw_ret = unwind_init_running(&info, show_trace_unwind, log_lvl);
+		else {
+			if (unwind_init_blocked(&info, task) == 0)
+				unw_ret = show_trace_unwind(&info, log_lvl);
+		}
+		if (unw_ret > 0) {
+			if (call_trace > 0)
+				return;
+			printk("%sLegacy call trace:\n", log_lvl);
+		}
+	}
 
 	if (task == current) {
 		/* Grab ebp right from our regs */
@@ -198,13 +236,13 @@ static void show_trace_log_lvl(struct task_struct *task,
 	}
 }
 
-void show_trace(struct task_struct *task, unsigned long * stack)
+void show_trace(struct task_struct *task, struct pt_regs *regs, unsigned long * stack)
 {
-	show_trace_log_lvl(task, stack, "");
+	show_trace_log_lvl(task, regs, stack, "");
 }
 
-static void show_stack_log_lvl(struct task_struct *task, unsigned long *esp,
-			       char *log_lvl)
+static void show_stack_log_lvl(struct task_struct *task, struct pt_regs *regs,
+			       unsigned long *esp, char *log_lvl)
 {
 	unsigned long *stack;
 	int i;
@@ -225,13 +263,13 @@ static void show_stack_log_lvl(struct task_struct *task, unsigned long *esp,
 		printk("%08lx ", *stack++);
 	}
 	printk("\n%sCall Trace:\n", log_lvl);
-	show_trace_log_lvl(task, esp, log_lvl);
+	show_trace_log_lvl(task, regs, esp, log_lvl);
 }
 
 void show_stack(struct task_struct *task, unsigned long *esp)
 {
 	printk("       ");
-	show_stack_log_lvl(task, esp, "");
+	show_stack_log_lvl(task, NULL, esp, "");
 }
 
 /*
@@ -241,7 +279,7 @@ void dump_stack(void)
 {
 	unsigned long stack;
 
-	show_trace(current, &stack);
+	show_trace(current, NULL, &stack);
 }
 
 EXPORT_SYMBOL(dump_stack);
@@ -285,7 +323,7 @@ void show_registers(struct pt_regs *regs)
 		u8 __user *eip;
 
 		printk("\n" KERN_EMERG "Stack: ");
-		show_stack_log_lvl(NULL, (unsigned long *)esp, KERN_EMERG);
+		show_stack_log_lvl(NULL, regs, (unsigned long *)esp, KERN_EMERG);
 
 		printk(KERN_EMERG "Code: ");
 
@@ -1215,3 +1253,15 @@ static int __init kstack_setup(char *s)
 	return 1;
 }
 __setup("kstack=", kstack_setup);
+
+static int __init call_trace_setup(char *s)
+{
+	if (strcmp(s, "old") == 0)
+		call_trace = -1;
+	else if (strcmp(s, "both") == 0)
+		call_trace = 0;
+	else if (strcmp(s, "new") == 0)
+		call_trace = 1;
+	return 1;
+}
+__setup("call_trace=", call_trace_setup);

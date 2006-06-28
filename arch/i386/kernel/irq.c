@@ -53,8 +53,8 @@ static union irq_ctx *softirq_ctx[NR_CPUS] __read_mostly;
  */
 fastcall unsigned int do_IRQ(struct pt_regs *regs)
 {	
-	/* high bits used in ret_from_ code */
-	int irq = regs->orig_eax & 0xff;
+	/* high bit used in ret_from_ code */
+	int irq = ~regs->orig_eax;
 #ifdef CONFIG_4KSTACKS
 	union irq_ctx *curctx, *irqctx;
 	u32 *isp;
@@ -100,8 +100,8 @@ fastcall unsigned int do_IRQ(struct pt_regs *regs)
 		 * softirq checks work in the hardirq context.
 		 */
 		irqctx->tinfo.preempt_count =
-			irqctx->tinfo.preempt_count & ~SOFTIRQ_MASK |
-			curctx->tinfo.preempt_count & SOFTIRQ_MASK;
+			(irqctx->tinfo.preempt_count & ~SOFTIRQ_MASK) |
+			(curctx->tinfo.preempt_count & SOFTIRQ_MASK);
 
 		asm volatile(
 			"       xchgl   %%ebx,%%esp      \n"
@@ -227,7 +227,7 @@ int show_interrupts(struct seq_file *p, void *v)
 	if (i == 0) {
 		seq_printf(p, "           ");
 		for_each_online_cpu(j)
-			seq_printf(p, "CPU%d       ",j);
+			seq_printf(p, "CPU%-8d",j);
 		seq_putc(p, '\n');
 	}
 

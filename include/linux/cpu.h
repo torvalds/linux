@@ -31,17 +31,23 @@ struct cpu {
 	struct sys_device sysdev;
 };
 
-extern int register_cpu(struct cpu *, int, struct node *);
+extern int register_cpu(struct cpu *cpu, int num);
 extern struct sys_device *get_cpu_sysdev(unsigned cpu);
 #ifdef CONFIG_HOTPLUG_CPU
-extern void unregister_cpu(struct cpu *, struct node *);
+extern void unregister_cpu(struct cpu *cpu);
 #endif
 struct notifier_block;
 
 #ifdef CONFIG_SMP
 /* Need to know about CPUs going up/down? */
 extern int register_cpu_notifier(struct notifier_block *nb);
+#ifdef CONFIG_HOTPLUG_CPU
 extern void unregister_cpu_notifier(struct notifier_block *nb);
+#else
+static inline void unregister_cpu_notifier(struct notifier_block *nb)
+{
+}
+#endif
 extern int current_in_cpu_hotplug(void);
 
 int cpu_up(unsigned int cpu);
@@ -73,6 +79,8 @@ extern int lock_cpu_hotplug_interruptible(void);
 		{ .notifier_call = fn, .priority = pri };	\
 	register_cpu_notifier(&fn##_nb);			\
 }
+#define register_hotcpu_notifier(nb)	register_cpu_notifier(nb)
+#define unregister_hotcpu_notifier(nb)	unregister_cpu_notifier(nb)
 int cpu_down(unsigned int cpu);
 #define cpu_is_offline(cpu) unlikely(!cpu_online(cpu))
 #else
@@ -80,6 +88,8 @@ int cpu_down(unsigned int cpu);
 #define unlock_cpu_hotplug()	do { } while (0)
 #define lock_cpu_hotplug_interruptible() 0
 #define hotcpu_notifier(fn, pri)
+#define register_hotcpu_notifier(nb)
+#define unregister_hotcpu_notifier(nb)
 
 /* CPUs don't go offline once they're online w/o CONFIG_HOTPLUG_CPU */
 static inline int cpu_is_offline(int cpu) { return 0; }

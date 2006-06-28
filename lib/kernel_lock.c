@@ -14,7 +14,7 @@
  * The 'big kernel semaphore'
  *
  * This mutex is taken and released recursively by lock_kernel()
- * and unlock_kernel().  It is transparently dropped and reaquired
+ * and unlock_kernel().  It is transparently dropped and reacquired
  * over schedule().  It is used to protect legacy code that hasn't
  * been migrated to a proper locking design yet.
  *
@@ -92,7 +92,7 @@ void __lockfunc unlock_kernel(void)
  * The 'big kernel lock'
  *
  * This spinlock is taken and released recursively by lock_kernel()
- * and unlock_kernel().  It is transparently dropped and reaquired
+ * and unlock_kernel().  It is transparently dropped and reacquired
  * over schedule().  It is used to protect legacy code that hasn't
  * been migrated to a proper locking design yet.
  *

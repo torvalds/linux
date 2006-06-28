@@ -846,23 +846,32 @@ static int mpeg_do_ioctl(struct inode *inode, struct file *file,
 				  BLACKBIRD_MPEG_CAPTURE,
 				  BLACKBIRD_RAW_BITS_NONE);
 
-		cx88_do_ioctl( inode, file, 0, dev->core, cmd, arg, cx88_ioctl_hook );
+		cx88_do_ioctl(inode, file, 0, dev->core, cmd, arg, mpeg_do_ioctl);
 
 		blackbird_initialize_codec(dev);
 		cx88_set_scale(dev->core, dev->width, dev->height,
 			       fh->mpegq.field);
 		return 0;
 	}
+	case VIDIOC_LOG_STATUS:
+	{
+		char name[32 + 2];
+
+		snprintf(name, sizeof(name), "%s/2", core->name);
+		printk("%s/2: ============  START LOG STATUS  ============\n",
+		       core->name);
+		cx88_call_i2c_clients(core, VIDIOC_LOG_STATUS, 0);
+		cx2341x_log_status(&dev->params, name);
+		printk("%s/2: =============  END LOG STATUS  =============\n",
+		       core->name);
+		return 0;
+	}
 
 	default:
-		return cx88_do_ioctl( inode, file, 0, dev->core, cmd, arg, cx88_ioctl_hook );
+		return cx88_do_ioctl(inode, file, 0, dev->core, cmd, arg, mpeg_do_ioctl);
 	}
 	return 0;
 }
-
-int (*cx88_ioctl_hook)(struct inode *inode, struct file *file,
-			unsigned int cmd, void *arg);
-unsigned int (*cx88_ioctl_translator)(unsigned int cmd);
 
 static unsigned int mpeg_translate_ioctl(unsigned int cmd)
 {
@@ -872,8 +881,8 @@ static unsigned int mpeg_translate_ioctl(unsigned int cmd)
 static int mpeg_ioctl(struct inode *inode, struct file *file,
 			unsigned int cmd, unsigned long arg)
 {
-	cmd = cx88_ioctl_translator( cmd );
-	return video_usercopy(inode, file, cmd, arg, cx88_ioctl_hook);
+	cmd = mpeg_translate_ioctl( cmd );
+	return video_usercopy(inode, file, cmd, arg, mpeg_do_ioctl);
 }
 
 static int mpeg_open(struct inode *inode, struct file *file)
@@ -1119,8 +1128,6 @@ static int blackbird_init(void)
 	printk(KERN_INFO "cx2388x: snapshot date %04d-%02d-%02d\n",
 	       SNAPSHOT/10000, (SNAPSHOT/100)%100, SNAPSHOT%100);
 #endif
-	cx88_ioctl_hook = mpeg_do_ioctl;
-	cx88_ioctl_translator = mpeg_translate_ioctl;
 	return pci_register_driver(&blackbird_pci_driver);
 }
 
@@ -1131,9 +1138,6 @@ static void blackbird_fini(void)
 
 module_init(blackbird_init);
 module_exit(blackbird_fini);
-
-EXPORT_SYMBOL(cx88_ioctl_hook);
-EXPORT_SYMBOL(cx88_ioctl_translator);
 
 /* ----------------------------------------------------------- */
 /*

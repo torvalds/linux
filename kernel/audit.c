@@ -818,7 +818,7 @@ err:
  */
 unsigned int audit_serial(void)
 {
-	static spinlock_t serial_lock = SPIN_LOCK_UNLOCKED;
+	static DEFINE_SPINLOCK(serial_lock);
 	static unsigned int serial = 0;
 
 	unsigned long flags;

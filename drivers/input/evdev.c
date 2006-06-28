@@ -78,14 +78,19 @@ static int evdev_fasync(int fd, struct file *file, int on)
 {
 	int retval;
 	struct evdev_list *list = file->private_data;
+
 	retval = fasync_helper(fd, file, on, &list->fasync);
+
 	return retval < 0 ? retval : 0;
 }
 
-static int evdev_flush(struct file * file, fl_owner_t id)
+static int evdev_flush(struct file *file, fl_owner_t id)
 {
 	struct evdev_list *list = file->private_data;
-	if (!list->evdev->exist) return -ENODEV;
+
+	if (!list->evdev->exist)
+		return -ENODEV;
+
 	return input_flush_device(&list->evdev->handle, file);
 }
 
@@ -300,6 +305,7 @@ static ssize_t evdev_read(struct file * file, char __user * buffer, size_t count
 static unsigned int evdev_poll(struct file *file, poll_table *wait)
 {
 	struct evdev_list *list = file->private_data;
+
 	poll_wait(file, &list->evdev->wait, wait);
 	return ((list->head == list->tail) ? 0 : (POLLIN | POLLRDNORM)) |
 		(list->evdev->exist ? 0 : (POLLHUP | POLLERR));

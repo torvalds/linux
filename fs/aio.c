@@ -641,7 +641,7 @@ static inline int __queue_kicked_iocb(struct kiocb *iocb)
  *	invoked both for initial i/o submission and
  *	subsequent retries via the aio_kick_handler.
  *	Expects to be invoked with iocb->ki_ctx->lock
- *	already held. The lock is released and reaquired
+ *	already held. The lock is released and reacquired
  *	as needed during processing.
  *
  * Calls the iocb retry method (already setup for the

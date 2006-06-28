@@ -446,7 +446,7 @@ static int __init topology_init(void)
 	int ret;
 
 	for_each_present_cpu(cpu) {
-		ret = register_cpu(&per_cpu(cpu_devices, cpu), cpu, NULL);
+		ret = register_cpu(&per_cpu(cpu_devices, cpu), cpu);
 		if (ret)
 			printk(KERN_WARNING "topology_init: register_cpu %d "
 			       "failed (%d)\n", cpu, ret);

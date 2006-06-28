@@ -77,7 +77,7 @@ Lrow4bpplp:
 	subne	r1, r1, #1
 	ldrneb	r7, [r6, r1]
 	bne	Lrow4bpplp
-	LOADREGS(fd, sp!, {r4 - r7, pc})
+	ldmfd	sp!, {r4 - r7, pc}
 
 @
 @ Smashable regs: {r0 - r3}, [r4], {r5 - r7}, (r8 - fp), [ip], (sp), {lr}, (pc)
@@ -105,7 +105,7 @@ Lrow8bpplp:
 	subne	r1, r1, #1
 	ldrneb	r7, [r6, r1]
 	bne	Lrow8bpplp
-	LOADREGS(fd, sp!, {r4 - r7, pc})
+	ldmfd	sp!, {r4 - r7, pc}
 
 @
 @ Smashable regs: {r0 - r3}, [r4], {r5, r6}, [r7], (r8 - fp), [ip], (sp), [lr], (pc)
@@ -127,7 +127,7 @@ Lrow1bpp:
 	strb	r7, [r0], r5
 	mov	r7, r7, lsr #8
 	strb	r7, [r0], r5
-	LOADREGS(fd, sp!, {r4 - r7, pc})
+	ldmfd	sp!, {r4 - r7, pc}
 
 	.bss
 ENTRY(con_charconvtable)

@@ -31,9 +31,9 @@ struct s390_sha256_ctx {
 	u8 buf[2 * SHA256_BLOCK_SIZE];
 };
 
-static void sha256_init(void *ctx)
+static void sha256_init(struct crypto_tfm *tfm)
 {
-	struct s390_sha256_ctx *sctx = ctx;
+	struct s390_sha256_ctx *sctx = crypto_tfm_ctx(tfm);
 
 	sctx->state[0] = 0x6a09e667;
 	sctx->state[1] = 0xbb67ae85;
@@ -44,12 +44,12 @@ static void sha256_init(void *ctx)
 	sctx->state[6] = 0x1f83d9ab;
 	sctx->state[7] = 0x5be0cd19;
 	sctx->count = 0;
-	memset(sctx->buf, 0, sizeof(sctx->buf));
 }
 
-static void sha256_update(void *ctx, const u8 *data, unsigned int len)
+static void sha256_update(struct crypto_tfm *tfm, const u8 *data,
+			  unsigned int len)
 {
-	struct s390_sha256_ctx *sctx = ctx;
+	struct s390_sha256_ctx *sctx = crypto_tfm_ctx(tfm);
 	unsigned int index;
 	int ret;
 
@@ -108,9 +108,9 @@ static void pad_message(struct s390_sha256_ctx* sctx)
 }
 
 /* Add padding and return the message digest */
-static void sha256_final(void* ctx, u8 *out)
+static void sha256_final(struct crypto_tfm *tfm, u8 *out)
 {
-	struct s390_sha256_ctx *sctx = ctx;
+	struct s390_sha256_ctx *sctx = crypto_tfm_ctx(tfm);
 
 	/* must perform manual padding */
 	pad_message(sctx);

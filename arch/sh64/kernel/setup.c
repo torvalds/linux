@@ -309,7 +309,7 @@ static struct cpu cpu[1];
 
 static int __init topology_init(void)
 {
-	return register_cpu(cpu, 0, NULL);
+	return register_cpu(cpu, 0);
 }
 
 subsys_initcall(topology_init);

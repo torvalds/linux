@@ -59,12 +59,26 @@ static inline void local_sub(long i, local_t *v)
  * This could be done better if we moved the per cpu data directly
  * after GS.
  */
-#define cpu_local_read(v)	local_read(&__get_cpu_var(v))
-#define cpu_local_set(v, i)	local_set(&__get_cpu_var(v), (i))
-#define cpu_local_inc(v)	local_inc(&__get_cpu_var(v))
-#define cpu_local_dec(v)	local_dec(&__get_cpu_var(v))
-#define cpu_local_add(i, v)	local_add((i), &__get_cpu_var(v))
-#define cpu_local_sub(i, v)	local_sub((i), &__get_cpu_var(v))
+
+/* Need to disable preemption for the cpu local counters otherwise we could
+   still access a variable of a previous CPU in a non atomic way. */
+#define cpu_local_wrap_v(v)	 	\
+	({ local_t res__;		\
+	   preempt_disable(); 		\
+	   res__ = (v);			\
+	   preempt_enable();		\
+	   res__; })
+#define cpu_local_wrap(v)		\
+	({ preempt_disable();		\
+	   v;				\
+	   preempt_enable(); })		\
+
+#define cpu_local_read(v)    cpu_local_wrap_v(local_read(&__get_cpu_var(v)))
+#define cpu_local_set(v, i)  cpu_local_wrap(local_set(&__get_cpu_var(v), (i)))
+#define cpu_local_inc(v)     cpu_local_wrap(local_inc(&__get_cpu_var(v)))
+#define cpu_local_dec(v)     cpu_local_wrap(local_dec(&__get_cpu_var(v)))
+#define cpu_local_add(i, v)  cpu_local_wrap(local_add((i), &__get_cpu_var(v)))
+#define cpu_local_sub(i, v)  cpu_local_wrap(local_sub((i), &__get_cpu_var(v)))
 
 #define __cpu_local_inc(v)	cpu_local_inc(v)
 #define __cpu_local_dec(v)	cpu_local_dec(v)

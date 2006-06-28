@@ -354,7 +354,7 @@ static void __init init_nsc(struct cpuinfo_x86 *c)
 	 * This function only handles the GX processor, and kicks every
 	 * thing else to the Cyrix init function above - that should
 	 * cover any processors that might have been branded differently
-	 * after NSC aquired Cyrix.
+	 * after NSC acquired Cyrix.
 	 *
 	 * If this breaks your GX1 horribly, please e-mail
 	 * info-linux@ldcmail.amd.com to tell us.

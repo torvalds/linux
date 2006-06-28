@@ -148,7 +148,7 @@ static int stinger_connect(struct serio *serio, struct serio_driver *drv)
 		goto fail;
 
 	stinger->dev = input_dev;
-	sprintf(stinger->phys, "%s/serio0", serio->phys);
+	snprintf(stinger->phys, sizeof(stinger->phys), "%s/serio0", serio->phys);
 
 	input_dev->name = "Gravis Stinger";
 	input_dev->phys = stinger->phys;

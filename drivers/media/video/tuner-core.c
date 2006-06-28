@@ -40,7 +40,6 @@ static unsigned int no_autodetect = 0;
 static unsigned int show_i2c = 0;
 
 /* insmod options used at runtime => read/write */
-static unsigned int tuner_debug_old = 0;
 int tuner_debug = 0;
 
 static unsigned int tv_range[2] = { 44, 958 };
@@ -54,8 +53,6 @@ static char ntsc[] = "-";
 module_param(addr, int, 0444);
 module_param(no_autodetect, int, 0444);
 module_param(show_i2c, int, 0444);
-/* Note: tuner_debug is deprecated and will be removed in 2.6.17 */
-module_param_named(tuner_debug,tuner_debug_old, int, 0444);
 module_param_named(debug,tuner_debug, int, 0644);
 module_param_string(pal, pal, sizeof(pal), 0644);
 module_param_string(secam, secam, sizeof(secam), 0644);
@@ -442,11 +439,6 @@ static int tuner_attach(struct i2c_adapter *adap, int addr, int kind)
 	t->audmode = V4L2_TUNER_MODE_STEREO;
 	t->mode_mask = T_UNINITIALIZED;
 	t->tuner_status = tuner_status;
-	if (tuner_debug_old) {
-		tuner_debug = tuner_debug_old;
-		printk(KERN_ERR "tuner: tuner_debug is deprecated and will be removed in 2.6.17.\n");
-		printk(KERN_ERR "tuner: use the debug option instead.\n");
-	}
 
 	if (show_i2c) {
 		unsigned char buffer[16];
@@ -730,14 +722,10 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		{
 			struct v4l2_frequency *f = arg;
 
+			if (set_mode (client, t, f->type, "VIDIOC_S_FREQUENCY")
+					== EINVAL)
+				return 0;
 			switch_v4l2();
-			if ((V4L2_TUNER_RADIO == f->type && V4L2_TUNER_RADIO != t->mode)
-				|| (V4L2_TUNER_DIGITAL_TV == f->type
-					&& V4L2_TUNER_DIGITAL_TV != t->mode)) {
-				if (set_mode (client, t, f->type, "VIDIOC_S_FREQUENCY")
-					    == EINVAL)
-					return 0;
-			}
 			set_freq(client,f->frequency);
 
 			break;

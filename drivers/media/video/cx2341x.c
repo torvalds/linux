@@ -43,6 +43,7 @@ MODULE_PARM_DESC(debug, "Debug level (0-1)");
 const u32 cx2341x_mpeg_ctrls[] = {
 	V4L2_CID_MPEG_CLASS,
 	V4L2_CID_MPEG_STREAM_TYPE,
+	V4L2_CID_MPEG_STREAM_VBI_FMT,
 	V4L2_CID_MPEG_AUDIO_SAMPLING_FREQ,
 	V4L2_CID_MPEG_AUDIO_ENCODING,
 	V4L2_CID_MPEG_AUDIO_L2_BITRATE,
@@ -134,6 +135,9 @@ static int cx2341x_get_ctrl(struct cx2341x_mpeg_params *params,
 		break;
 	case V4L2_CID_MPEG_STREAM_TYPE:
 		ctrl->value = params->stream_type;
+		break;
+	case V4L2_CID_MPEG_STREAM_VBI_FMT:
+		ctrl->value = params->stream_vbi_fmt;
 		break;
 	case V4L2_CID_MPEG_CX2341X_VIDEO_SPATIAL_FILTER_MODE:
 		ctrl->value = params->video_spatial_filter_mode;
@@ -256,6 +260,9 @@ static int cx2341x_set_ctrl(struct cx2341x_mpeg_params *params,
 			/* MPEG-1 implies CBR */
 			params->video_bitrate_mode = V4L2_MPEG_VIDEO_BITRATE_MODE_CBR;
 		}
+		break;
+	case V4L2_CID_MPEG_STREAM_VBI_FMT:
+		params->stream_vbi_fmt = ctrl->value;
 		break;
 	case V4L2_CID_MPEG_CX2341X_VIDEO_SPATIAL_FILTER_MODE:
 		params->video_spatial_filter_mode = ctrl->value;
@@ -417,6 +424,14 @@ int cx2341x_ctrl_query(struct cx2341x_mpeg_params *params, struct v4l2_queryctrl
 		if (err == 0 && params->video_bitrate_mode == V4L2_MPEG_VIDEO_BITRATE_MODE_CBR)
 			qctrl->flags |= V4L2_CTRL_FLAG_INACTIVE;
 		return err;
+
+	case V4L2_CID_MPEG_STREAM_VBI_FMT:
+		if (params->capabilities & CX2341X_CAP_HAS_SLICED_VBI)
+			return v4l2_ctrl_query_fill_std(qctrl);
+		return cx2341x_ctrl_query_fill(qctrl,
+				V4L2_MPEG_STREAM_VBI_FMT_NONE,
+				V4L2_MPEG_STREAM_VBI_FMT_NONE, 1,
+				V4L2_MPEG_STREAM_VBI_FMT_NONE);
 
 	/* CX23415/6 specific */
 	case V4L2_CID_MPEG_CX2341X_VIDEO_SPATIAL_FILTER_MODE:
@@ -586,7 +601,7 @@ static void cx2341x_calc_audio_properties(struct cx2341x_mpeg_params *params)
 }
 
 int cx2341x_ext_ctrls(struct cx2341x_mpeg_params *params,
-		  struct v4l2_ext_controls *ctrls, int cmd)
+		  struct v4l2_ext_controls *ctrls, unsigned int cmd)
 {
 	int err = 0;
 	int i;
@@ -639,6 +654,7 @@ void cx2341x_fill_defaults(struct cx2341x_mpeg_params *p)
 {
 	static struct cx2341x_mpeg_params default_params = {
 	/* misc */
+	.capabilities = 0,
 	.port = CX2341X_PORT_MEMORY,
 	.width = 720,
 	.height = 480,
@@ -646,6 +662,7 @@ void cx2341x_fill_defaults(struct cx2341x_mpeg_params *p)
 
 	/* stream */
 	.stream_type = V4L2_MPEG_STREAM_TYPE_MPEG2_PS,
+	.stream_vbi_fmt = V4L2_MPEG_STREAM_VBI_FMT_NONE,
 
 	/* audio */
 	.audio_sampling_freq = V4L2_MPEG_AUDIO_SAMPLING_FREQ_48000,
@@ -830,22 +847,22 @@ invalid:
 	return "<invalid>";
 }
 
-void cx2341x_log_status(struct cx2341x_mpeg_params *p, int card_id)
+void cx2341x_log_status(struct cx2341x_mpeg_params *p, const char *prefix)
 {
 	int is_mpeg1 = p->video_encoding == V4L2_MPEG_VIDEO_ENCODING_MPEG_1;
 
 	/* Stream */
-	printk(KERN_INFO "cx2341x-%d: Stream: %s\n",
-		card_id,
+	printk(KERN_INFO "%s: Stream: %s\n",
+		prefix,
 		cx2341x_menu_item(p, V4L2_CID_MPEG_STREAM_TYPE));
 
 	/* Video */
-	printk(KERN_INFO "cx2341x-%d: Video:  %dx%d, %d fps\n",
-		card_id,
+	printk(KERN_INFO "%s: Video:  %dx%d, %d fps\n",
+		prefix,
 		p->width / (is_mpeg1 ? 2 : 1), p->height / (is_mpeg1 ? 2 : 1),
 		p->is_50hz ? 25 : 30);
-	printk(KERN_INFO "cx2341x-%d: Video:  %s, %s, %s, %d",
-		card_id,
+	printk(KERN_INFO "%s: Video:  %s, %s, %s, %d",
+		prefix,
 		cx2341x_menu_item(p, V4L2_CID_MPEG_VIDEO_ENCODING),
 		cx2341x_menu_item(p, V4L2_CID_MPEG_VIDEO_ASPECT),
 		cx2341x_menu_item(p, V4L2_CID_MPEG_VIDEO_BITRATE_MODE),
@@ -854,19 +871,19 @@ void cx2341x_log_status(struct cx2341x_mpeg_params *p, int card_id)
 		printk(", Peak %d", p->video_bitrate_peak);
 	}
 	printk("\n");
-	printk(KERN_INFO "cx2341x-%d: Video:  GOP Size %d, %d B-Frames, %sGOP Closure, %s3:2 Pulldown\n",
-		card_id,
+	printk(KERN_INFO "%s: Video:  GOP Size %d, %d B-Frames, %sGOP Closure, %s3:2 Pulldown\n",
+		prefix,
 		p->video_gop_size, p->video_b_frames,
 		p->video_gop_closure ? "" : "No ",
 		p->video_pulldown ? "" : "No ");
 	if (p->video_temporal_decimation) {
-		printk(KERN_INFO "cx2341x-%d: Video: Temporal Decimation %d\n",
-			card_id, p->video_temporal_decimation);
+		printk(KERN_INFO "%s: Video: Temporal Decimation %d\n",
+			prefix, p->video_temporal_decimation);
 	}
 
 	/* Audio */
-	printk(KERN_INFO "cx2341x-%d: Audio:  %s, %s, %s, %s",
-		card_id,
+	printk(KERN_INFO "%s: Audio:  %s, %s, %s, %s",
+		prefix,
 		cx2341x_menu_item(p, V4L2_CID_MPEG_AUDIO_SAMPLING_FREQ),
 		cx2341x_menu_item(p, V4L2_CID_MPEG_AUDIO_ENCODING),
 		cx2341x_menu_item(p, V4L2_CID_MPEG_AUDIO_L2_BITRATE),
@@ -880,18 +897,18 @@ void cx2341x_log_status(struct cx2341x_mpeg_params *p, int card_id)
 		cx2341x_menu_item(p, V4L2_CID_MPEG_AUDIO_CRC));
 
 	/* Encoding filters */
-	printk(KERN_INFO "cx2341x-%d: Spatial Filter:  %s, Luma %s, Chroma %s, %d\n",
-		card_id,
+	printk(KERN_INFO "%s: Spatial Filter:  %s, Luma %s, Chroma %s, %d\n",
+		prefix,
 		cx2341x_menu_item(p, V4L2_CID_MPEG_CX2341X_VIDEO_SPATIAL_FILTER_MODE),
 		cx2341x_menu_item(p, V4L2_CID_MPEG_CX2341X_VIDEO_LUMA_SPATIAL_FILTER_TYPE),
 		cx2341x_menu_item(p, V4L2_CID_MPEG_CX2341X_VIDEO_CHROMA_SPATIAL_FILTER_TYPE),
 		p->video_spatial_filter);
-	printk(KERN_INFO "cx2341x-%d: Temporal Filter: %s, %d\n",
-		card_id,
+	printk(KERN_INFO "%s: Temporal Filter: %s, %d\n",
+		prefix,
 		cx2341x_menu_item(p, V4L2_CID_MPEG_CX2341X_VIDEO_TEMPORAL_FILTER_MODE),
 		p->video_temporal_filter);
-	printk(KERN_INFO "cx2341x-%d: Median Filter:   %s, Luma [%d, %d], Chroma [%d, %d]\n",
-		card_id,
+	printk(KERN_INFO "%s: Median Filter:   %s, Luma [%d, %d], Chroma [%d, %d]\n",
+		prefix,
 		cx2341x_menu_item(p, V4L2_CID_MPEG_CX2341X_VIDEO_MEDIAN_FILTER_TYPE),
 		p->video_luma_median_filter_bottom,
 		p->video_luma_median_filter_top,

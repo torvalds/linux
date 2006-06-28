@@ -53,7 +53,7 @@ ENTRY(memset)
 	stmgeia	r0!, {r1, r3, ip, lr}
 	stmgeia	r0!, {r1, r3, ip, lr}
 	bgt	2b
-	LOADREGS(eqfd, sp!, {pc})	@ Now <64 bytes to go.
+	ldmeqfd	sp!, {pc}		@ Now <64 bytes to go.
 /*
  * No need to correct the count; we're only testing bits from now on
  */
@@ -77,4 +77,4 @@ ENTRY(memset)
 	strneb	r1, [r0], #1
 	tst	r2, #1
 	strneb	r1, [r0], #1
-	RETINSTR(mov,pc,lr)
+	mov	pc, lr

@@ -151,6 +151,7 @@ static int register_device(char *name, unsigned long start, unsigned long len)
 	new->mtd.owner = THIS_MODULE;
 	new->mtd.type = MTD_RAM;
 	new->mtd.erasesize = PAGE_SIZE;
+	new->mtd.writesize = 1;
 
 	ret = -EAGAIN;
 	if (add_mtd_device(&new->mtd)) {

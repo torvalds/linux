@@ -1116,7 +1116,7 @@ config JFFS2_SUMMARY
 
 config JFFS2_FS_XATTR
 	bool "JFFS2 XATTR support (EXPERIMENTAL)"
-	depends on JFFS2_FS && EXPERIMENTAL && !JFFS2_FS_WRITEBUFFER
+	depends on JFFS2_FS && EXPERIMENTAL
 	default n
 	help
 	  Extended attributes are name:value pairs associated with inodes by
@@ -1490,7 +1490,12 @@ config NFSD
 	select LOCKD
 	select SUNRPC
 	select EXPORTFS
-	select NFS_ACL_SUPPORT if NFSD_V3_ACL || NFSD_V2_ACL
+	select NFSD_V2_ACL if NFSD_V3_ACL
+	select NFS_ACL_SUPPORT if NFSD_V2_ACL
+	select NFSD_TCP if NFSD_V4
+	select CRYPTO_MD5 if NFSD_V4
+	select CRYPTO if NFSD_V4
+	select FS_POSIX_ACL if NFSD_V4
 	help
 	  If you want your Linux box to act as an NFS *server*, so that other
 	  computers on your local network which support NFS can access certain
@@ -1528,7 +1533,6 @@ config NFSD_V3
 config NFSD_V3_ACL
 	bool "Provide server support for the NFSv3 ACL protocol extension"
 	depends on NFSD_V3
-	select NFSD_V2_ACL
 	help
 	  Implement the NFSv3 ACL protocol extension for manipulating POSIX
 	  Access Control Lists on exported file systems. NFS clients should
@@ -1538,10 +1542,6 @@ config NFSD_V3_ACL
 config NFSD_V4
 	bool "Provide NFSv4 server support (EXPERIMENTAL)"
 	depends on NFSD_V3 && EXPERIMENTAL
-	select NFSD_TCP
-	select CRYPTO_MD5
-	select CRYPTO
-	select FS_POSIX_ACL
 	help
 	  If you would like to include the NFSv4 server as well as the NFSv2
 	  and NFSv3 servers, say Y here.  This feature is experimental, and
@@ -1722,7 +1722,7 @@ config CIFS_STATS
 	  mounted by the cifs client to be displayed in /proc/fs/cifs/Stats
 
 config CIFS_STATS2
-	bool "CIFS extended statistics"
+	bool "Extended statistics"
 	depends on CIFS_STATS
 	help
 	  Enabling this option will allow more detailed statistics on SMB
@@ -1734,6 +1734,32 @@ config CIFS_STATS2
 
 	  Unless you are a developer or are doing network performance analysis
 	  or tuning, say N.
+
+config CIFS_WEAK_PW_HASH
+	bool "Support legacy servers which use weaker LANMAN security"
+	depends on CIFS
+	help
+	  Modern CIFS servers including Samba and most Windows versions
+	  (since 1997) support stronger NTLM (and even NTLMv2 and Kerberos)
+	  security mechanisms. These hash the password more securely
+	  than the mechanisms used in the older LANMAN version of the
+          SMB protocol needed to establish sessions with old SMB servers.
+
+	  Enabling this option allows the cifs module to mount to older
+	  LANMAN based servers such as OS/2 and Windows 95, but such
+	  mounts may be less secure than mounts using NTLM or more recent
+	  security mechanisms if you are on a public network.  Unless you
+	  have a need to access old SMB servers (and are on a private 
+	  network) you probably want to say N.  Even if this support
+	  is enabled in the kernel build, they will not be used
+	  automatically. At runtime LANMAN mounts are disabled but
+	  can be set to required (or optional) either in
+	  /proc/fs/cifs (see fs/cifs/README for more detail) or via an
+	  option on the mount command. This support is disabled by 
+	  default in order to reduce the possibility of a downgrade
+	  attack.
+ 
+	  If unsure, say N.
 
 config CIFS_XATTR
         bool "CIFS extended attributes"
@@ -1763,6 +1789,16 @@ config CIFS_POSIX
 	  (such as Samba 3.10 and later) which can negotiate
 	  CIFS POSIX ACL support.  If unsure, say N.
 
+config CIFS_DEBUG2
+	bool "Enable additional CIFS debugging routines"
+	help
+	   Enabling this option adds a few more debugging routines
+	   to the cifs code which slightly increases the size of
+	   the cifs module and can cause additional logging of debug
+	   messages in some error paths, slowing performance. This
+	   option can be turned off unless you are debugging
+	   cifs problems.  If unsure, say N.
+	   
 config CIFS_EXPERIMENTAL
 	  bool "CIFS Experimental Features (EXPERIMENTAL)"
 	  depends on CIFS && EXPERIMENTAL
@@ -1778,7 +1814,7 @@ config CIFS_EXPERIMENTAL
 	    If unsure, say N.
 
 config CIFS_UPCALL
-	  bool "CIFS Kerberos/SPNEGO advanced session setup (EXPERIMENTAL)"
+	  bool "Kerberos/SPNEGO advanced session setup (EXPERIMENTAL)"
 	  depends on CIFS_EXPERIMENTAL
 	  select CONNECTOR
 	  help

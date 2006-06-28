@@ -249,6 +249,22 @@ extern void __iomem *ioremap(unsigned long offset, unsigned long size);
 #define ioremap_nocache(X,Y)	ioremap((X),(Y))
 extern void iounmap(volatile void __iomem *addr);
 
+#define ioread8(X)			readb(X)
+#define ioread16(X)			readw(X)
+#define ioread32(X)			readl(X)
+#define iowrite8(val,X)			writeb(val,X)
+#define iowrite16(val,X)		writew(val,X)
+#define iowrite32(val,X)		writel(val,X)
+
+/* Create a virtual mapping cookie for an IO port range */
+extern void __iomem *ioport_map(unsigned long port, unsigned int nr);
+extern void ioport_unmap(void __iomem *);
+
+/* Create a virtual mapping cookie for a PCI BAR (memory or IO) */
+struct pci_dev;
+extern void __iomem *pci_iomap(struct pci_dev *dev, int bar, unsigned long max);
+extern void pci_iounmap(struct pci_dev *dev, void __iomem *);
+
 /*
  * Bus number may be in res->flags... somewhere.
  */

@@ -2347,8 +2347,7 @@ qla2x00_configure_fabric(scsi_qla_host_t *ha)
 			}
 
 			/* Remove device from the new list and add it to DB */
-			list_del(&fcport->list);
-			list_add_tail(&fcport->list, &ha->fcports);
+			list_move_tail(&fcport->list, &ha->fcports);
 
 			/* Login and update database */
 			qla2x00_fabric_dev_login(ha, fcport, &next_loopid);

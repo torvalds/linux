@@ -485,7 +485,7 @@ static u8 ide_dump_ata_status(ide_drive_t *drive, const char *msg, u8 stat)
 	unsigned long flags;
 	u8 err = 0;
 
-	local_irq_set(flags);
+	local_irq_save(flags);
 	printk("%s: %s: status=0x%02x { ", drive->name, msg, stat);
 	if (stat & BUSY_STAT)
 		printk("Busy ");
@@ -567,7 +567,7 @@ static u8 ide_dump_atapi_status(ide_drive_t *drive, const char *msg, u8 stat)
 
 	status.all = stat;
 	error.all = 0;
-	local_irq_set(flags);
+	local_irq_save(flags);
 	printk("%s: %s: status=0x%02x { ", drive->name, msg, stat);
 	if (status.b.bsy)
 		printk("Busy ");
