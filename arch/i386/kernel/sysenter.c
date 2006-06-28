@@ -148,8 +148,10 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int exstack)
 	vma->vm_mm = mm;
 
 	ret = insert_vm_struct(mm, vma);
-	if (ret)
-		goto free_vma;
+	if (unlikely(ret)) {
+		kmem_cache_free(vm_area_cachep, vma);
+		goto up_fail;
+	}
 
 	current->mm->context.vdso = (void *)addr;
 	current_thread_info()->sysenter_return =
@@ -157,10 +159,6 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int exstack)
 	mm->total_vm++;
 up_fail:
 	up_write(&mm->mmap_sem);
-	return ret;
-
-free_vma:
-	kmem_cache_free(vm_area_cachep, vma);
 	return ret;
 }
 
