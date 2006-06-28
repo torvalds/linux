@@ -966,7 +966,7 @@ extern void ufs_set_link(struct inode *dir, struct ufs_dir_entry *de,
 extern struct inode_operations ufs_file_inode_operations;
 extern const struct file_operations ufs_file_operations;
 
-extern struct address_space_operations ufs_aops;
+extern const struct address_space_operations ufs_aops;
 
 /* ialloc.c */
 extern void ufs_free_inode (struct inode *inode);

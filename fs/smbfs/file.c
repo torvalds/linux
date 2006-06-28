@@ -306,7 +306,7 @@ static int smb_commit_write(struct file *file, struct page *page,
 	return status;
 }
 
-struct address_space_operations smb_file_aops = {
+const struct address_space_operations smb_file_aops = {
 	.readpage = smb_readpage,
 	.writepage = smb_writepage,
 	.prepare_write = smb_prepare_write,

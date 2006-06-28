@@ -2598,7 +2598,7 @@ int nobh_truncate_page(struct address_space *mapping, loff_t from)
 	unsigned offset = from & (PAGE_CACHE_SIZE-1);
 	unsigned to;
 	struct page *page;
-	struct address_space_operations *a_ops = mapping->a_ops;
+	const struct address_space_operations *a_ops = mapping->a_ops;
 	char *kaddr;
 	int ret = 0;
 

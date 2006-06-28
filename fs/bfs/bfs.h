@@ -50,7 +50,7 @@ static inline struct bfs_inode_info *BFS_I(struct inode *inode)
 /* file.c */
 extern struct inode_operations bfs_file_inops;
 extern const struct file_operations bfs_file_operations;
-extern struct address_space_operations bfs_aops;
+extern const struct address_space_operations bfs_aops;
 
 /* dir.c */
 extern struct inode_operations bfs_dir_inops;

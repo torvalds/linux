@@ -50,6 +50,6 @@ fail:
 	return error;
 }
 
-struct address_space_operations coda_symlink_aops = {
+const struct address_space_operations coda_symlink_aops = {
 	.readpage	= coda_symlink_filler,
 };

@@ -315,7 +315,7 @@ static int nfs_release_page(struct page *page, gfp_t gfp)
 	return !nfs_wb_page(page->mapping->host, page);
 }
 
-struct address_space_operations nfs_file_aops = {
+const struct address_space_operations nfs_file_aops = {
 	.readpage = nfs_readpage,
 	.readpages = nfs_readpages,
 	.set_page_dirty = __set_page_dirty_nobuffers,

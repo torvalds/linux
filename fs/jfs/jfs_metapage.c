@@ -577,7 +577,7 @@ static void metapage_invalidatepage(struct page *page, unsigned long offset)
 	metapage_releasepage(page, 0);
 }
 
-struct address_space_operations jfs_metapage_aops = {
+const struct address_space_operations jfs_metapage_aops = {
 	.readpage	= metapage_readpage,
 	.writepage	= metapage_writepage,
 	.sync_page	= block_sync_page,

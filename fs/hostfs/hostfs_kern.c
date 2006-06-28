@@ -54,7 +54,7 @@ static int append = 0;
 
 static struct inode_operations hostfs_iops;
 static struct inode_operations hostfs_dir_iops;
-static struct address_space_operations hostfs_link_aops;
+static const struct address_space_operations hostfs_link_aops;
 
 #ifndef MODULE
 static int __init hostfs_args(char *options, int *add)
@@ -518,7 +518,7 @@ int hostfs_commit_write(struct file *file, struct page *page, unsigned from,
 	return(err);
 }
 
-static struct address_space_operations hostfs_aops = {
+static const struct address_space_operations hostfs_aops = {
 	.writepage 	= hostfs_writepage,
 	.readpage	= hostfs_readpage,
 	.set_page_dirty = __set_page_dirty_nobuffers,
@@ -935,7 +935,7 @@ int hostfs_link_readpage(struct file *file, struct page *page)
 	return(err);
 }
 
-static struct address_space_operations hostfs_link_aops = {
+static const struct address_space_operations hostfs_link_aops = {
 	.readpage	= hostfs_link_readpage,
 };
 

@@ -59,7 +59,7 @@ static const struct file_operations jffs_file_operations;
 static struct inode_operations jffs_file_inode_operations;
 static const struct file_operations jffs_dir_operations;
 static struct inode_operations jffs_dir_inode_operations;
-static struct address_space_operations jffs_address_operations;
+static const struct address_space_operations jffs_address_operations;
 
 kmem_cache_t     *node_cache = NULL;
 kmem_cache_t     *fm_cache = NULL;
@@ -1614,7 +1614,7 @@ jffs_ioctl(struct inode *inode, struct file *filp, unsigned int cmd,
 } /* jffs_ioctl()  */
 
 
-static struct address_space_operations jffs_address_operations = {
+static const struct address_space_operations jffs_address_operations = {
 	.readpage	= jffs_readpage,
 	.prepare_write	= jffs_prepare_write,
 	.commit_write	= jffs_commit_write,

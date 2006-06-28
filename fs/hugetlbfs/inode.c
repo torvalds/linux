@@ -34,7 +34,7 @@
 #define HUGETLBFS_MAGIC	0x958458f6
 
 static struct super_operations hugetlbfs_ops;
-static struct address_space_operations hugetlbfs_aops;
+static const struct address_space_operations hugetlbfs_aops;
 const struct file_operations hugetlbfs_file_operations;
 static struct inode_operations hugetlbfs_dir_inode_operations;
 static struct inode_operations hugetlbfs_inode_operations;
@@ -547,7 +547,7 @@ static void hugetlbfs_destroy_inode(struct inode *inode)
 	kmem_cache_free(hugetlbfs_inode_cachep, HUGETLBFS_I(inode));
 }
 
-static struct address_space_operations hugetlbfs_aops = {
+static const struct address_space_operations hugetlbfs_aops = {
 	.readpage	= hugetlbfs_readpage,
 	.prepare_write	= hugetlbfs_prepare_write,
 	.commit_write	= hugetlbfs_commit_write,

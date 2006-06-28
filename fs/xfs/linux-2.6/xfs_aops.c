@@ -1454,7 +1454,7 @@ xfs_vm_invalidatepage(
 	block_invalidatepage(page, offset);
 }
 
-struct address_space_operations xfs_address_space_operations = {
+const struct address_space_operations xfs_address_space_operations = {
 	.readpage		= xfs_vm_readpage,
 	.readpages		= xfs_vm_readpages,
 	.writepage		= xfs_vm_writepage,

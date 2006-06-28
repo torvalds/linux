@@ -210,7 +210,7 @@ static int do_lo_send_aops(struct loop_device *lo, struct bio_vec *bvec,
 {
 	struct file *file = lo->lo_backing_file; /* kudos to NFsckingS */
 	struct address_space *mapping = file->f_mapping;
-	struct address_space_operations *aops = mapping->a_ops;
+	const struct address_space_operations *aops = mapping->a_ops;
 	pgoff_t index;
 	unsigned offset, bv_offs;
 	int len, ret;
@@ -784,7 +784,7 @@ static int loop_set_fd(struct loop_device *lo, struct file *lo_file,
 
 	error = -EINVAL;
 	if (S_ISREG(inode->i_mode) || S_ISBLK(inode->i_mode)) {
-		struct address_space_operations *aops = mapping->a_ops;
+		const struct address_space_operations *aops = mapping->a_ops;
 		/*
 		 * If we can't read - sorry. If we only can't write - well,
 		 * it's going to be read-only.

@@ -1698,7 +1698,7 @@ static int ext3_journalled_set_page_dirty(struct page *page)
 	return __set_page_dirty_nobuffers(page);
 }
 
-static struct address_space_operations ext3_ordered_aops = {
+static const struct address_space_operations ext3_ordered_aops = {
 	.readpage	= ext3_readpage,
 	.readpages	= ext3_readpages,
 	.writepage	= ext3_ordered_writepage,
@@ -1712,7 +1712,7 @@ static struct address_space_operations ext3_ordered_aops = {
 	.migratepage	= buffer_migrate_page,
 };
 
-static struct address_space_operations ext3_writeback_aops = {
+static const struct address_space_operations ext3_writeback_aops = {
 	.readpage	= ext3_readpage,
 	.readpages	= ext3_readpages,
 	.writepage	= ext3_writeback_writepage,
@@ -1726,7 +1726,7 @@ static struct address_space_operations ext3_writeback_aops = {
 	.migratepage	= buffer_migrate_page,
 };
 
-static struct address_space_operations ext3_journalled_aops = {
+static const struct address_space_operations ext3_journalled_aops = {
 	.readpage	= ext3_readpage,
 	.readpages	= ext3_readpages,
 	.writepage	= ext3_journalled_writepage,

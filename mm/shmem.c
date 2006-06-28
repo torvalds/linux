@@ -174,7 +174,7 @@ static inline void shmem_unacct_blocks(unsigned long flags, long pages)
 }
 
 static struct super_operations shmem_ops;
-static struct address_space_operations shmem_aops;
+static const struct address_space_operations shmem_aops;
 static struct file_operations shmem_file_operations;
 static struct inode_operations shmem_inode_operations;
 static struct inode_operations shmem_dir_inode_operations;
@@ -2162,7 +2162,7 @@ static void destroy_inodecache(void)
 		printk(KERN_INFO "shmem_inode_cache: not all structures were freed\n");
 }
 
-static struct address_space_operations shmem_aops = {
+static const struct address_space_operations shmem_aops = {
 	.writepage	= shmem_writepage,
 	.set_page_dirty	= __set_page_dirty_nobuffers,
 #ifdef CONFIG_TMPFS

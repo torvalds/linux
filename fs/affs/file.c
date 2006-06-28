@@ -406,7 +406,7 @@ static sector_t _affs_bmap(struct address_space *mapping, sector_t block)
 {
 	return generic_block_bmap(mapping,block,affs_get_block);
 }
-struct address_space_operations affs_aops = {
+const struct address_space_operations affs_aops = {
 	.readpage = affs_readpage,
 	.writepage = affs_writepage,
 	.sync_page = block_sync_page,
@@ -759,7 +759,7 @@ out:
 	goto done;
 }
 
-struct address_space_operations affs_aops_ofs = {
+const struct address_space_operations affs_aops_ofs = {
 	.readpage = affs_readpage_ofs,
 	//.writepage = affs_writepage_ofs,
 	//.sync_page = affs_sync_page_ofs,

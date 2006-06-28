@@ -335,7 +335,7 @@ extern struct inode_operations nfs_file_inode_operations;
 extern struct inode_operations nfs3_file_inode_operations;
 #endif /* CONFIG_NFS_V3 */
 extern const struct file_operations nfs_file_operations;
-extern struct address_space_operations nfs_file_aops;
+extern const struct address_space_operations nfs_file_aops;
 
 static inline struct rpc_cred *nfs_file_cred(struct file *file)
 {
