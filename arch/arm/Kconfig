@@ -188,23 +188,27 @@ config ARCH_IMX
 
 config ARCH_IOP3XX
 	bool "IOP3xx-based"
+	depends on MMU
 	select PCI
 	help
 	  Support for Intel's IOP3XX (XScale) family of processors.
 
 config ARCH_IXP4XX
 	bool "IXP4xx-based"
+	depends on MMU
 	help
 	  Support for Intel's IXP4XX (XScale) family of processors.
 
 config ARCH_IXP2000
 	bool "IXP2400/2800-based"
+	depends on MMU
 	select PCI
 	help
 	  Support for Intel's IXP2400/2800 (XScale) family of processors.
 
 config ARCH_IXP23XX
  	bool "IXP23XX-based"
+	depends on MMU
  	select PCI
 	help
 	  Support for Intel's IXP23xx (XScale) family of processors.
@@ -229,6 +233,7 @@ config ARCH_PNX4008
 
 config ARCH_PXA
 	bool "PXA2xx-based"
+	depends on MMU
 	select ARCH_MTD_XIP
 	help
 	  Support for Intel's PXA2XX processor line.
