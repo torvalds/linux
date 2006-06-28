@@ -278,11 +278,6 @@ having to sign an Intel NDA when I'm helping Intel sell their own product!
 
 static int speedo_found1(struct pci_dev *pdev, void __iomem *ioaddr, int fnd_cnt, int acpi_idle_state);
 
-enum pci_flags_bit {
-	PCI_USES_IO=1, PCI_USES_MEM=2, PCI_USES_MASTER=4,
-	PCI_ADDR0=0x10<<0, PCI_ADDR1=0x10<<1, PCI_ADDR2=0x10<<2, PCI_ADDR3=0x10<<3,
-};
-
 /* Offsets to the various registers.
    All accesses need not be longword aligned. */
 enum speedo_offsets {
