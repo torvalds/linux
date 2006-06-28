@@ -2028,7 +2028,7 @@ xfs_icsb_balance_counter(
 	xfs_sb_field_t  field,
 	int		flags)
 {
-	uint64_t	count, resid = 0;
+	uint64_t	count, resid;
 	int		weight = num_online_cpus();
 	int		s;
 
@@ -2060,6 +2060,7 @@ xfs_icsb_balance_counter(
 		break;
 	default:
 		BUG();
+		count = resid = 0;	/* quiet, gcc */
 		break;
 	}
 

@@ -338,8 +338,6 @@ typedef void (*xfs_trans_callback_t)(struct xfs_trans *, void *);
 typedef struct xfs_trans {
 	unsigned int		t_magic;	/* magic number */
 	xfs_log_callback_t	t_logcb;	/* log callback struct */
-	struct xfs_trans	*t_forw;	/* async list pointers */
-	struct xfs_trans	*t_back;	/* async list pointers */
 	unsigned int		t_type;		/* transaction type */
 	unsigned int		t_log_res;	/* amt of log space resvd */
 	unsigned int		t_log_count;	/* count for perm log res */
@@ -364,9 +362,11 @@ typedef struct xfs_trans {
 	long			t_res_fdblocks_delta; /* on-disk only chg */
 	long			t_frextents_delta;/* superblock freextents chg*/
 	long			t_res_frextents_delta; /* on-disk only chg */
+#ifdef DEBUG
 	long			t_ag_freeblks_delta; /* debugging counter */
 	long			t_ag_flist_delta; /* debugging counter */
 	long			t_ag_btree_delta; /* debugging counter */
+#endif
 	long			t_dblocks_delta;/* superblock dblocks change */
 	long			t_agcount_delta;/* superblock agcount change */
 	long			t_imaxpct_delta;/* superblock imaxpct change */

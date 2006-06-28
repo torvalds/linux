@@ -1740,10 +1740,10 @@ xlog_write(xfs_mount_t *	mp,
 	   xlog_in_core_t	**commit_iclog,
 	   uint			flags)
 {
-    xlog_t	     *log    = mp->m_log;
+    xlog_t	     *log = mp->m_log;
     xlog_ticket_t    *ticket = (xlog_ticket_t *)tic;
+    xlog_in_core_t   *iclog = NULL;  /* ptr to current in-core log */
     xlog_op_header_t *logop_head;    /* ptr to log operation header */
-    xlog_in_core_t   *iclog;	     /* ptr to current in-core log */
     __psint_t	     ptr;	     /* copy address into data region */
     int		     len;	     /* # xlog_write() bytes 2 still copy */
     int		     index;	     /* region index currently copying */
