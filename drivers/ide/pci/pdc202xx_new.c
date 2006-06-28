@@ -338,6 +338,8 @@ static void __devinit init_hwif_pdc202new(ide_hwif_t *hwif)
 	hwif->ultra_mask = 0x7f;
 	hwif->mwdma_mask = 0x07;
 
+	hwif->err_stops_fifo = 1;
+
 	hwif->ide_dma_check = &pdcnew_config_drive_xfer_rate;
 	hwif->ide_dma_lostirq = &pdcnew_ide_dma_lostirq;
 	hwif->ide_dma_timeout = &pdcnew_ide_dma_timeout;
