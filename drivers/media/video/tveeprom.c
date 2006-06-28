@@ -73,14 +73,14 @@ static struct HAUPPAUGE_TUNER_FMT
 }
 hauppauge_tuner_fmt[] =
 {
-	{ V4L2_STD_UNKNOWN," UNKNOWN" },
-	{ V4L2_STD_UNKNOWN," FM" },
-	{ V4L2_STD_PAL_BG, " PAL(B/G)" },
-	{ V4L2_STD_NTSC_M, " NTSC(M)" },
-	{ V4L2_STD_PAL_I,  " PAL(I)" },
-	{ V4L2_STD_SECAM_L," SECAM(L/L')" },
-	{ V4L2_STD_PAL_DK, " PAL(D/D1/K)" },
-	{ V4L2_STD_ATSC,   " ATSC/DVB Digital" },
+	{ V4L2_STD_UNKNOWN,                   " UNKNOWN" },
+	{ V4L2_STD_UNKNOWN,                   " FM" },
+	{ V4L2_STD_B|V4L2_STD_GH,             " PAL(B/G)" },
+	{ V4L2_STD_MN,                        " NTSC(M)" },
+	{ V4L2_STD_PAL_I,                     " PAL(I)" },
+	{ V4L2_STD_SECAM_L|V4L2_STD_SECAM_LC, " SECAM(L/L')" },
+	{ V4L2_STD_DK,                        " PAL(D/D1/K)" },
+	{ V4L2_STD_ATSC,                      " ATSC/DVB Digital" },
 };
 
 /* This is the full list of possible tuners. Many thanks to Hauppauge for
