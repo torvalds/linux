@@ -998,7 +998,7 @@ palinfo_init(void)
 	}
 
 	/* Register for future delivery via notify registration */
-	register_cpu_notifier(&palinfo_cpu_notifier);
+	register_hotcpu_notifier(&palinfo_cpu_notifier);
 
 	return 0;
 }
