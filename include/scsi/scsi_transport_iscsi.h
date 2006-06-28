@@ -214,6 +214,8 @@ extern struct iscsi_cls_session *iscsi_alloc_session(struct Scsi_Host *shost,
 					struct iscsi_transport *transport);
 extern int iscsi_add_session(struct iscsi_cls_session *session,
 			     unsigned int target_id);
+extern int iscsi_if_create_session_done(struct iscsi_cls_conn *conn);
+extern int iscsi_if_destroy_session_done(struct iscsi_cls_conn *conn);
 extern struct iscsi_cls_session *iscsi_create_session(struct Scsi_Host *shost,
 						struct iscsi_transport *t,
 						unsigned int target_id);
@@ -225,5 +227,6 @@ extern struct iscsi_cls_conn *iscsi_create_conn(struct iscsi_cls_session *sess,
 extern int iscsi_destroy_conn(struct iscsi_cls_conn *conn);
 extern void iscsi_unblock_session(struct iscsi_cls_session *session);
 extern void iscsi_block_session(struct iscsi_cls_session *session);
+
 
 #endif

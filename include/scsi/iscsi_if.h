@@ -53,6 +53,7 @@ enum iscsi_uevent_e {
 	ISCSI_KEVENT_RECV_PDU		= KEVENT_BASE + 1,
 	ISCSI_KEVENT_CONN_ERROR		= KEVENT_BASE + 2,
 	ISCSI_KEVENT_IF_ERROR		= KEVENT_BASE + 3,
+	ISCSI_KEVENT_DESTROY_SESSION	= KEVENT_BASE + 4,
 };
 
 enum iscsi_tgt_dscvr {
@@ -157,27 +158,13 @@ struct iscsi_uevent {
 			uint32_t	cid;
 			uint32_t	error; /* enum iscsi_err */
 		} connerror;
+		struct msg_session_destroyed {
+			uint32_t	host_no;
+			uint32_t	sid;
+		} d_session;
 		struct msg_transport_connect_ret {
 			uint64_t	handle;
 		} ep_connect_ret;
-		struct msg_tgt_dscvr_ret {
-			/*
-			 * session/connection pair used to reference
-			 * the connection to server
-			 */
-			uint32_t	sid;
-			uint32_t	cid;
-			union {
-				struct isns {
-					/* port # for conn to iSNS server */
-					uint16_t isns_port;
-					/* listening port to receive SCNs */
-					uint16_t scn_port;
-					/* listening port to receive ESIs */
-					uint16_t esi_port;
-				} isns_attrib;
-			} u;
-		} tgt_dscvr_ret;
 	} r;
 } __attribute__ ((aligned (sizeof(uint64_t))));
 
