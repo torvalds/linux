@@ -248,10 +248,9 @@ static int iscsi_user_scan(struct Scsi_Host *shost, uint channel,
 
 	mutex_lock(&ihost->mutex);
 	list_for_each_entry(session, &ihost->sessions, host_list) {
-		if ((channel == SCAN_WILD_CARD ||
-		     channel == session->channel) &&
+		if ((channel == SCAN_WILD_CARD || channel == 0) &&
 		    (id == SCAN_WILD_CARD || id == session->target_id))
-			scsi_scan_target(&session->dev, session->channel,
+			scsi_scan_target(&session->dev, 0,
 					 session->target_id, lun, 1);
 	}
 	mutex_unlock(&ihost->mutex);
@@ -297,7 +296,7 @@ EXPORT_SYMBOL_GPL(iscsi_block_session);
  **/
 struct iscsi_cls_session *
 iscsi_create_session(struct Scsi_Host *shost,
-		     struct iscsi_transport *transport, int channel)
+		     struct iscsi_transport *transport)
 {
 	struct iscsi_host *ihost;
 	struct iscsi_cls_session *session;
@@ -322,7 +321,6 @@ iscsi_create_session(struct Scsi_Host *shost,
 	ihost = shost->shost_data;
 
 	session->sid = iscsi_session_nr++;
-	session->channel = channel;
 	session->target_id = ihost->next_target_id++;
 
 	snprintf(session->dev.bus_id, BUS_ID_SIZE, "session%u",

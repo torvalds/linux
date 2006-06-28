@@ -187,7 +187,6 @@ struct iscsi_cls_session {
 	struct work_struct recovery_work;
 
 	int target_id;
-	int channel;
 
 	int sid;				/* session id */
 	void *dd_data;				/* LLD private data */
@@ -210,7 +209,7 @@ struct iscsi_host {
  * session and connection functions that can be used by HW iSCSI LLDs
  */
 extern struct iscsi_cls_session *iscsi_create_session(struct Scsi_Host *shost,
-				struct iscsi_transport *t, int channel);
+						struct iscsi_transport *t);
 extern int iscsi_destroy_session(struct iscsi_cls_session *session);
 extern struct iscsi_cls_conn *iscsi_create_conn(struct iscsi_cls_session *sess,
 					    uint32_t cid);
