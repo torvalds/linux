@@ -110,4 +110,21 @@ int acpi_processor_set_thermal_limit(acpi_handle handle, int type);
 
 extern int acpi_specific_hotkey_enabled;
 
+/*--------------------------------------------------------------------------
+                                  Dock Station
+  -------------------------------------------------------------------------- */
+#if defined(CONFIG_ACPI_DOCK) || defined(CONFIG_ACPI_DOCK_MODULE)
+extern int is_dock_device(acpi_handle handle);
+extern int register_dock_notifier(struct notifier_block *nb);
+extern void unregister_dock_notifier(struct notifier_block *nb);
+extern int register_hotplug_dock_device(acpi_handle handle,
+	acpi_notify_handler handler, void *context);
+extern void unregister_hotplug_dock_device(acpi_handle handle);
+#else
+#define is_dock_device(h)			(0)
+#define register_dock_notifier(nb) 		(-ENODEV)
+#define unregister_dock_notifier(nb)           	do { } while(0)
+#define register_hotplug_dock_device(h1, h2, c)	(-ENODEV)
+#define unregister_hotplug_dock_device(h)       do { } while(0)
+#endif
 #endif /*__ACPI_DRIVERS_H__*/
