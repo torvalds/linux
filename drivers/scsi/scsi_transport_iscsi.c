@@ -304,6 +304,8 @@ iscsi_alloc_session(struct Scsi_Host *shost,
 	INIT_LIST_HEAD(&session->host_list);
 	INIT_LIST_HEAD(&session->sess_list);
 
+	/* this is released in the dev's release function */
+	scsi_host_get(shost);
 	session->dev.parent = &shost->shost_gendev;
 	session->dev.release = iscsi_session_release;
 	device_initialize(&session->dev);
@@ -313,18 +315,15 @@ iscsi_alloc_session(struct Scsi_Host *shost,
 }
 EXPORT_SYMBOL_GPL(iscsi_alloc_session);
 
-int iscsi_add_session(struct iscsi_cls_session *session)
+int iscsi_add_session(struct iscsi_cls_session *session, unsigned int target_id)
 {
 	struct Scsi_Host *shost = iscsi_session_to_shost(session);
 	struct iscsi_host *ihost;
 	int err;
 
-	/* this is released in the dev's release function */
-	scsi_host_get(shost);
 	ihost = shost->shost_data;
-
 	session->sid = iscsi_session_nr++;
-	session->target_id = ihost->next_target_id++;
+	session->target_id = target_id;
 
 	snprintf(session->dev.bus_id, BUS_ID_SIZE, "session%u",
 		 session->sid);
@@ -356,7 +355,8 @@ EXPORT_SYMBOL_GPL(iscsi_add_session);
  **/
 struct iscsi_cls_session *
 iscsi_create_session(struct Scsi_Host *shost,
-		     struct iscsi_transport *transport)
+		     struct iscsi_transport *transport,
+		     unsigned int target_id)
 {
 	struct iscsi_cls_session *session;
 
@@ -364,7 +364,7 @@ iscsi_create_session(struct Scsi_Host *shost,
 	if (!session)
 		return NULL;
 
-	if (iscsi_add_session(session)) {
+	if (iscsi_add_session(session, target_id)) {
 		iscsi_free_session(session);
 		return NULL;
 	}

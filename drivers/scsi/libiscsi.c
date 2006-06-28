@@ -1290,7 +1290,7 @@ iscsi_session_setup(struct iscsi_transport *iscsit,
 	if (!try_module_get(iscsit->owner))
 		goto cls_session_fail;
 
-	cls_session = iscsi_create_session(shost, iscsit);
+	cls_session = iscsi_create_session(shost, iscsit, 0);
 	if (!cls_session)
 		goto module_put;
 	*(unsigned long*)shost->hostdata = (unsigned long)cls_session;
