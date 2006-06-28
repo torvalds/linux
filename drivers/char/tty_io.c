@@ -784,11 +784,8 @@ restart:
 	}
 
 	clear_bit(TTY_LDISC, &tty->flags);
-	clear_bit(TTY_DONT_FLIP, &tty->flags);
-	if (o_tty) {
+	if (o_tty)
 		clear_bit(TTY_LDISC, &o_tty->flags);
-		clear_bit(TTY_DONT_FLIP, &o_tty->flags);
-	}
 	spin_unlock_irqrestore(&tty_ldisc_lock, flags);
 
 	/*
@@ -1955,7 +1952,6 @@ static void release_dev(struct file * filp)
 	 * race with the set_ldisc code path.
 	 */
 	clear_bit(TTY_LDISC, &tty->flags);
-	clear_bit(TTY_DONT_FLIP, &tty->flags);
 	cancel_delayed_work(&tty->buf.work);
 
 	/*
@@ -2784,13 +2780,6 @@ static void flush_to_ldisc(void *private_)
 	if (disc == NULL)	/*  !TTY_LDISC */
 		return;
 
-	if (test_bit(TTY_DONT_FLIP, &tty->flags)) {
-		/*
-		 * Do it after the next timer tick:
-		 */
-		schedule_delayed_work(&tty->buf.work, 1);
-		goto out;
-	}
 	spin_lock_irqsave(&tty->buf.lock, flags);
 	while((tbuf = tty->buf.head) != NULL) {
 		while ((count = tbuf->commit - tbuf->read) != 0) {
@@ -2809,7 +2798,7 @@ static void flush_to_ldisc(void *private_)
 		tty_buffer_free(tty, tbuf);
 	}
 	spin_unlock_irqrestore(&tty->buf.lock, flags);
-out:
+
 	tty_ldisc_deref(disc);
 }
 

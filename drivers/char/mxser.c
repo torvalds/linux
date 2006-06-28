@@ -996,7 +996,6 @@ static int mxser_open(struct tty_struct *tty, struct file *filp)
 
 	info->session = current->signal->session;
 	info->pgrp = process_group(current);
-	clear_bit(TTY_DONT_FLIP, &tty->flags);
 
 	/*
 	status = mxser_get_msr(info->base, 0, info->port);
