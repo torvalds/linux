@@ -287,20 +287,11 @@ void iscsi_block_session(struct iscsi_cls_session *session)
 }
 EXPORT_SYMBOL_GPL(iscsi_block_session);
 
-/**
- * iscsi_create_session - create iscsi class session
- * @shost: scsi host
- * @transport: iscsi transport
- *
- * This can be called from a LLD or iscsi_transport.
- **/
 struct iscsi_cls_session *
-iscsi_create_session(struct Scsi_Host *shost,
-		     struct iscsi_transport *transport)
+iscsi_alloc_session(struct Scsi_Host *shost,
+		    struct iscsi_transport *transport)
 {
-	struct iscsi_host *ihost;
 	struct iscsi_cls_session *session;
-	int err;
 
 	session = kzalloc(sizeof(*session) + transport->sessiondata_size,
 			  GFP_KERNEL);
@@ -313,8 +304,20 @@ iscsi_create_session(struct Scsi_Host *shost,
 	INIT_LIST_HEAD(&session->host_list);
 	INIT_LIST_HEAD(&session->sess_list);
 
+	session->dev.parent = &shost->shost_gendev;
+	session->dev.release = iscsi_session_release;
+	device_initialize(&session->dev);
 	if (transport->sessiondata_size)
 		session->dd_data = &session[1];
+	return session;
+}
+EXPORT_SYMBOL_GPL(iscsi_alloc_session);
+
+int iscsi_add_session(struct iscsi_cls_session *session)
+{
+	struct Scsi_Host *shost = iscsi_session_to_shost(session);
+	struct iscsi_host *ihost;
+	int err;
 
 	/* this is released in the dev's release function */
 	scsi_host_get(shost);
@@ -325,37 +328,51 @@ iscsi_create_session(struct Scsi_Host *shost,
 
 	snprintf(session->dev.bus_id, BUS_ID_SIZE, "session%u",
 		 session->sid);
-	session->dev.parent = &shost->shost_gendev;
-	session->dev.release = iscsi_session_release;
-	err = device_register(&session->dev);
+	err = device_add(&session->dev);
 	if (err) {
 		dev_printk(KERN_ERR, &session->dev, "iscsi: could not "
 			   "register session's dev\n");
-		goto free_session;
+		goto release_host;
 	}
 	transport_register_device(&session->dev);
 
 	mutex_lock(&ihost->mutex);
 	list_add(&session->host_list, &ihost->sessions);
 	mutex_unlock(&ihost->mutex);
+	return 0;
 
-	return session;
-
-free_session:
-	kfree(session);
-	return NULL;
+release_host:
+	scsi_host_put(shost);
+	return err;
 }
-
-EXPORT_SYMBOL_GPL(iscsi_create_session);
+EXPORT_SYMBOL_GPL(iscsi_add_session);
 
 /**
- * iscsi_destroy_session - destroy iscsi session
- * @session: iscsi_session
+ * iscsi_create_session - create iscsi class session
+ * @shost: scsi host
+ * @transport: iscsi transport
  *
- * Can be called by a LLD or iscsi_transport. There must not be
- * any running connections.
+ * This can be called from a LLD or iscsi_transport.
  **/
-int iscsi_destroy_session(struct iscsi_cls_session *session)
+struct iscsi_cls_session *
+iscsi_create_session(struct Scsi_Host *shost,
+		     struct iscsi_transport *transport)
+{
+	struct iscsi_cls_session *session;
+
+	session = iscsi_alloc_session(shost, transport);
+	if (!session)
+		return NULL;
+
+	if (iscsi_add_session(session)) {
+		iscsi_free_session(session);
+		return NULL;
+	}
+	return session;
+}
+EXPORT_SYMBOL_GPL(iscsi_create_session);
+
+void iscsi_remove_session(struct iscsi_cls_session *session)
 {
 	struct Scsi_Host *shost = iscsi_session_to_shost(session);
 	struct iscsi_host *ihost = shost->shost_data;
@@ -367,11 +384,33 @@ int iscsi_destroy_session(struct iscsi_cls_session *session)
 	list_del(&session->host_list);
 	mutex_unlock(&ihost->mutex);
 
+	scsi_remove_target(&session->dev);
+
 	transport_unregister_device(&session->dev);
-	device_unregister(&session->dev);
-	return 0;
+	device_del(&session->dev);
+}
+EXPORT_SYMBOL_GPL(iscsi_remove_session);
+
+void iscsi_free_session(struct iscsi_cls_session *session)
+{
+	put_device(&session->dev);
 }
 
+EXPORT_SYMBOL_GPL(iscsi_free_session);
+
+/**
+ * iscsi_destroy_session - destroy iscsi session
+ * @session: iscsi_session
+ *
+ * Can be called by a LLD or iscsi_transport. There must not be
+ * any running connections.
+ **/
+int iscsi_destroy_session(struct iscsi_cls_session *session)
+{
+	iscsi_remove_session(session);
+	iscsi_free_session(session);
+	return 0;
+}
 EXPORT_SYMBOL_GPL(iscsi_destroy_session);
 
 static void iscsi_conn_release(struct device *dev)

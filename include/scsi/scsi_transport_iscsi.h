@@ -199,6 +199,9 @@ struct iscsi_cls_session {
 #define iscsi_session_to_shost(_session) \
 	dev_to_shost(_session->dev.parent)
 
+#define starget_to_session(_stgt) \
+	iscsi_dev_to_session(_stgt->dev.parent)
+
 struct iscsi_host {
 	int next_target_id;
 	struct list_head sessions;
@@ -208,8 +211,13 @@ struct iscsi_host {
 /*
  * session and connection functions that can be used by HW iSCSI LLDs
  */
+extern struct iscsi_cls_session *iscsi_alloc_session(struct Scsi_Host *shost,
+					struct iscsi_transport *transport);
+extern int iscsi_add_session(struct iscsi_cls_session *session);
 extern struct iscsi_cls_session *iscsi_create_session(struct Scsi_Host *shost,
 						struct iscsi_transport *t);
+extern void iscsi_remove_session(struct iscsi_cls_session *session);
+extern void iscsi_free_session(struct iscsi_cls_session *session);
 extern int iscsi_destroy_session(struct iscsi_cls_session *session);
 extern struct iscsi_cls_conn *iscsi_create_conn(struct iscsi_cls_session *sess,
 					    uint32_t cid);
