@@ -22,6 +22,7 @@
 #include "cifs_unicode.h"
 #include "cifs_uniupr.h"
 #include "cifspdu.h"
+#include "cifsglob.h"
 #include "cifs_debug.h"
 
 /*
