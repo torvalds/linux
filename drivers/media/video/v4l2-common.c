@@ -1103,7 +1103,7 @@ const char **v4l2_ctrl_get_menu(u32 id)
 	};
 	static const char *mpeg_stream_vbi_fmt[] = {
 		"No VBI",
-		"VBI in private packets, IVTV format",
+		"Private packet, IVTV format",
 		NULL
 	};
 

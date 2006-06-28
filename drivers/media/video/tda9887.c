@@ -22,11 +22,11 @@
 */
 
 #define tda9887_info(fmt, arg...) do {\
-	printk(KERN_INFO "%s %d-%04x (tda9887): " fmt, t->i2c.name, \
+	printk(KERN_INFO "%s %d-%04x: " fmt, t->i2c.name, \
 			i2c_adapter_id(t->i2c.adapter), t->i2c.addr , ##arg); } while (0)
 #define tda9887_dbg(fmt, arg...) do {\
 	if (tuner_debug) \
-		printk(KERN_INFO "%s %d-%04x (tda9887): " fmt, t->i2c.name, \
+		printk(KERN_INFO "%s %d-%04x: " fmt, t->i2c.name, \
 			i2c_adapter_id(t->i2c.adapter), t->i2c.addr , ##arg); } while (0)
 
 
@@ -84,8 +84,7 @@ struct tvnorm {
 #define cAudioGain6             0x80    // bit c7
 
 #define cTopMask                0x1f    // bit c0:4
-#define cTopPalSecamDefault	0x14 	// bit c0:4
-#define cTopNtscRadioDefault 	0x10 	// bit c0:4
+#define cTopDefault		0x10 	// bit c0:4
 
 //// third reg (e)
 #define cAudioIF_4_5             0x00    // bit e0:1
@@ -123,7 +122,7 @@ static struct tvnorm tvnorms[] = {
 			   cQSS           ),
 		.c     = ( cDeemphasisON  |
 			   cDeemphasis50  |
-			   cTopPalSecamDefault),
+			   cTopDefault),
 		.e     = ( cGating_36     |
 			   cAudioIF_5_5   |
 			   cVideoIF_38_90 ),
@@ -134,7 +133,7 @@ static struct tvnorm tvnorms[] = {
 			   cQSS           ),
 		.c     = ( cDeemphasisON  |
 			   cDeemphasis50  |
-			   cTopPalSecamDefault),
+			   cTopDefault),
 		.e     = ( cGating_36     |
 			   cAudioIF_6_0   |
 			   cVideoIF_38_90 ),
@@ -145,7 +144,7 @@ static struct tvnorm tvnorms[] = {
 			   cQSS           ),
 		.c     = ( cDeemphasisON  |
 			   cDeemphasis50  |
-			   cTopPalSecamDefault),
+			   cTopDefault),
 		.e     = ( cGating_36     |
 			   cAudioIF_6_5   |
 			   cVideoIF_38_90 ),
@@ -156,7 +155,7 @@ static struct tvnorm tvnorms[] = {
 			   cQSS           ),
 		.c     = ( cDeemphasisON  |
 			   cDeemphasis75  |
-			   cTopNtscRadioDefault),
+			   cTopDefault),
 		.e     = ( cGating_36     |
 			   cAudioIF_4_5   |
 			   cVideoIF_45_75 ),
@@ -165,7 +164,7 @@ static struct tvnorm tvnorms[] = {
 		.name  = "SECAM-BGH",
 		.b     = ( cPositiveAmTV  |
 			   cQSS           ),
-		.c     = ( cTopPalSecamDefault),
+		.c     = ( cTopDefault),
 		.e     = ( cGating_36	  |
 			   cAudioIF_5_5   |
 			   cVideoIF_38_90 ),
@@ -174,7 +173,7 @@ static struct tvnorm tvnorms[] = {
 		.name  = "SECAM-L",
 		.b     = ( cPositiveAmTV  |
 			   cQSS           ),
-		.c     = ( cTopPalSecamDefault),
+		.c     = ( cTopDefault),
 		.e     = ( cGating_36	  |
 			   cAudioIF_6_5   |
 			   cVideoIF_38_90 ),
@@ -184,7 +183,7 @@ static struct tvnorm tvnorms[] = {
 		.b     = ( cOutputPort2Inactive |
 			   cPositiveAmTV  |
 			   cQSS           ),
-		.c     = ( cTopPalSecamDefault),
+		.c     = ( cTopDefault),
 		.e     = ( cGating_36	  |
 			   cAudioIF_6_5   |
 			   cVideoIF_33_90 ),
@@ -195,7 +194,7 @@ static struct tvnorm tvnorms[] = {
 			   cQSS           ),
 		.c     = ( cDeemphasisON  |
 			   cDeemphasis50  |
-			   cTopPalSecamDefault),
+			   cTopDefault),
 		.e     = ( cGating_36     |
 			   cAudioIF_6_5   |
 			   cVideoIF_38_90 ),
@@ -206,7 +205,7 @@ static struct tvnorm tvnorms[] = {
 			   cQSS           ),
 		.c     = ( cDeemphasisON  |
 			   cDeemphasis75  |
-			   cTopNtscRadioDefault),
+			   cTopDefault),
 		.e     = ( cGating_36     |
 			   cAudioIF_4_5   |
 			   cVideoIF_45_75 ),
@@ -217,7 +216,7 @@ static struct tvnorm tvnorms[] = {
 			   cQSS           ),
 		.c     = ( cDeemphasisON  |
 			   cDeemphasis50  |
-			   cTopNtscRadioDefault),
+			   cTopDefault),
 		.e     = ( cGating_36     |
 			   cAudioIF_4_5   |
 			   cVideoIF_58_75 ),
@@ -230,7 +229,7 @@ static struct tvnorm radio_stereo = {
 		  cQSS           ),
 	.c    = ( cDeemphasisOFF |
 		  cAudioGain6    |
-		  cTopNtscRadioDefault),
+		  cTopDefault),
 	.e    = ( cTunerGainLow  |
 		  cAudioIF_5_5   |
 		  cRadioIF_38_90 ),
@@ -242,7 +241,7 @@ static struct tvnorm radio_mono = {
 		  cQSS           ),
 	.c    = ( cDeemphasisON  |
 		  cDeemphasis75  |
-		  cTopNtscRadioDefault),
+		  cTopDefault),
 	.e    = ( cTunerGainLow  |
 		  cAudioIF_5_5   |
 		  cRadioIF_38_90 ),
