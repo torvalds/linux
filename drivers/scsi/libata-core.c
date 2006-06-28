@@ -907,7 +907,7 @@ void ata_port_queue_task(struct ata_port *ap, void (*fn)(void *), void *data,
 {
 	int rc;
 
-	if (ap->flags & ATA_FLAG_FLUSH_PORT_TASK)
+	if (ap->pflags & ATA_PFLAG_FLUSH_PORT_TASK)
 		return;
 
 	PREPARE_WORK(&ap->port_task, fn, data);
@@ -938,7 +938,7 @@ void ata_port_flush_task(struct ata_port *ap)
 	DPRINTK("ENTER\n");
 
 	spin_lock_irqsave(ap->lock, flags);
-	ap->flags |= ATA_FLAG_FLUSH_PORT_TASK;
+	ap->pflags |= ATA_PFLAG_FLUSH_PORT_TASK;
 	spin_unlock_irqrestore(ap->lock, flags);
 
 	DPRINTK("flush #1\n");
@@ -957,7 +957,7 @@ void ata_port_flush_task(struct ata_port *ap)
 	}
 
 	spin_lock_irqsave(ap->lock, flags);
-	ap->flags &= ~ATA_FLAG_FLUSH_PORT_TASK;
+	ap->pflags &= ~ATA_PFLAG_FLUSH_PORT_TASK;
 	spin_unlock_irqrestore(ap->lock, flags);
 
 	if (ata_msg_ctl(ap))
@@ -1009,7 +1009,7 @@ unsigned ata_exec_internal(struct ata_device *dev,
 	spin_lock_irqsave(ap->lock, flags);
 
 	/* no internal command while frozen */
-	if (ap->flags & ATA_FLAG_FROZEN) {
+	if (ap->pflags & ATA_PFLAG_FROZEN) {
 		spin_unlock_irqrestore(ap->lock, flags);
 		return AC_ERR_SYSTEM;
 	}
@@ -2641,7 +2641,7 @@ int ata_std_prereset(struct ata_port *ap)
 
 	/* if SATA, resume phy */
 	if (ap->cbl == ATA_CBL_SATA) {
-		if (ap->flags & ATA_FLAG_LOADING)
+		if (ap->pflags & ATA_PFLAG_LOADING)
 			timing = sata_deb_timing_boot;
 		else
 			timing = sata_deb_timing_eh;
@@ -4294,7 +4294,7 @@ static struct ata_queued_cmd *ata_qc_new(struct ata_port *ap)
 	unsigned int i;
 
 	/* no command while frozen */
-	if (unlikely(ap->flags & ATA_FLAG_FROZEN))
+	if (unlikely(ap->pflags & ATA_PFLAG_FROZEN))
 		return NULL;
 
 	/* the last tag is reserved for internal command. */
@@ -4416,7 +4416,7 @@ void ata_qc_complete(struct ata_queued_cmd *qc)
 	 * taken care of.
 	 */
 	if (ap->ops->error_handler) {
-		WARN_ON(ap->flags & ATA_FLAG_FROZEN);
+		WARN_ON(ap->pflags & ATA_PFLAG_FROZEN);
 
 		if (unlikely(qc->err_mask))
 			qc->flags |= ATA_QCFLAG_FAILED;
@@ -5051,13 +5051,13 @@ int ata_device_resume(struct ata_device *dev)
 {
 	struct ata_port *ap = dev->ap;
 
-	if (ap->flags & ATA_FLAG_SUSPENDED) {
+	if (ap->pflags & ATA_PFLAG_SUSPENDED) {
 		struct ata_device *failed_dev;
 
 		ata_busy_sleep(ap, ATA_TMOUT_BOOT_QUICK, ATA_TMOUT_BOOT);
 		ata_busy_wait(ap, ATA_BUSY | ATA_DRQ, 200000);
 
-		ap->flags &= ~ATA_FLAG_SUSPENDED;
+		ap->pflags &= ~ATA_PFLAG_SUSPENDED;
 		while (ata_set_mode(ap, &failed_dev))
 			ata_dev_disable(failed_dev);
 	}
@@ -5088,7 +5088,7 @@ int ata_device_suspend(struct ata_device *dev, pm_message_t state)
 
 	if (state.event != PM_EVENT_FREEZE)
 		ata_standby_drive(dev);
-	ap->flags |= ATA_FLAG_SUSPENDED;
+	ap->pflags |= ATA_PFLAG_SUSPENDED;
 	return 0;
 }
 
@@ -5459,7 +5459,7 @@ int ata_device_add(const struct ata_probe_ent *ent)
 			ap->eh_info.probe_mask = (1 << ATA_MAX_DEVICES) - 1;
 			ap->eh_info.action |= ATA_EH_SOFTRESET;
 
-			ap->flags |= ATA_FLAG_LOADING;
+			ap->pflags |= ATA_PFLAG_LOADING;
 			ata_port_schedule_eh(ap);
 
 			spin_unlock_irqrestore(ap->lock, flags);
@@ -5527,7 +5527,7 @@ void ata_port_detach(struct ata_port *ap)
 
 	/* tell EH we're leaving & flush EH */
 	spin_lock_irqsave(ap->lock, flags);
-	ap->flags |= ATA_FLAG_UNLOADING;
+	ap->pflags |= ATA_PFLAG_UNLOADING;
 	spin_unlock_irqrestore(ap->lock, flags);
 
 	ata_port_wait_eh(ap);

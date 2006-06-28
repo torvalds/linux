@@ -370,7 +370,7 @@ static void sil_host_intr(struct ata_port *ap, u32 bmdma2)
 		 * during hardreset makes controllers with broken SIEN
 		 * repeat probing needlessly.
 		 */
-		if (!(ap->flags & ATA_FLAG_FROZEN)) {
+		if (!(ap->pflags & ATA_PFLAG_FROZEN)) {
 			ata_ehi_hotplugged(&ap->eh_info);
 			ap->eh_info.serror |= serror;
 		}

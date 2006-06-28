@@ -1052,7 +1052,7 @@ static void ahci_thaw(struct ata_port *ap)
 
 static void ahci_error_handler(struct ata_port *ap)
 {
-	if (!(ap->flags & ATA_FLAG_FROZEN)) {
+	if (!(ap->pflags & ATA_PFLAG_FROZEN)) {
 		/* restart engine */
 		ahci_stop_engine(ap);
 		ahci_start_engine(ap);

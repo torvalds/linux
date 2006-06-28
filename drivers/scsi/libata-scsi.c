@@ -2930,7 +2930,7 @@ void ata_scsi_hotplug(void *data)
 	struct ata_port *ap = data;
 	int i;
 
-	if (ap->flags & ATA_FLAG_UNLOADING) {
+	if (ap->pflags & ATA_PFLAG_UNLOADING) {
 		DPRINTK("ENTER/EXIT - unloading\n");
 		return;
 	}

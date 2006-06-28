@@ -270,13 +270,13 @@ void ata_scsi_error(struct Scsi_Host *host)
 		ap->eh_context.i = ap->eh_info;
 		memset(&ap->eh_info, 0, sizeof(ap->eh_info));
 
-		ap->flags |= ATA_FLAG_EH_IN_PROGRESS;
-		ap->flags &= ~ATA_FLAG_EH_PENDING;
+		ap->pflags |= ATA_PFLAG_EH_IN_PROGRESS;
+		ap->pflags &= ~ATA_PFLAG_EH_PENDING;
 
 		spin_unlock_irqrestore(ap_lock, flags);
 
 		/* invoke EH.  if unloading, just finish failed qcs */
-		if (!(ap->flags & ATA_FLAG_UNLOADING))
+		if (!(ap->pflags & ATA_PFLAG_UNLOADING))
 			ap->ops->error_handler(ap);
 		else
 			ata_eh_finish(ap);
@@ -287,7 +287,7 @@ void ata_scsi_error(struct Scsi_Host *host)
 		 */
 		spin_lock_irqsave(ap_lock, flags);
 
-		if (ap->flags & ATA_FLAG_EH_PENDING) {
+		if (ap->pflags & ATA_PFLAG_EH_PENDING) {
 			if (--repeat_cnt) {
 				ata_port_printk(ap, KERN_INFO,
 					"EH pending after completion, "
@@ -323,19 +323,19 @@ void ata_scsi_error(struct Scsi_Host *host)
 	/* clean up */
 	spin_lock_irqsave(ap_lock, flags);
 
-	if (ap->flags & ATA_FLAG_LOADING) {
-		ap->flags &= ~ATA_FLAG_LOADING;
+	if (ap->pflags & ATA_PFLAG_LOADING) {
+		ap->pflags &= ~ATA_PFLAG_LOADING;
 	} else {
-		if (ap->flags & ATA_FLAG_SCSI_HOTPLUG)
+		if (ap->pflags & ATA_PFLAG_SCSI_HOTPLUG)
 			queue_work(ata_aux_wq, &ap->hotplug_task);
-		if (ap->flags & ATA_FLAG_RECOVERED)
+		if (ap->pflags & ATA_PFLAG_RECOVERED)
 			ata_port_printk(ap, KERN_INFO, "EH complete\n");
 	}
 
-	ap->flags &= ~(ATA_FLAG_SCSI_HOTPLUG | ATA_FLAG_RECOVERED);
+	ap->pflags &= ~(ATA_PFLAG_SCSI_HOTPLUG | ATA_PFLAG_RECOVERED);
 
 	/* tell wait_eh that we're done */
-	ap->flags &= ~ATA_FLAG_EH_IN_PROGRESS;
+	ap->pflags &= ~ATA_PFLAG_EH_IN_PROGRESS;
 	wake_up_all(&ap->eh_wait_q);
 
 	spin_unlock_irqrestore(ap_lock, flags);
@@ -360,7 +360,7 @@ void ata_port_wait_eh(struct ata_port *ap)
  retry:
 	spin_lock_irqsave(ap->lock, flags);
 
-	while (ap->flags & (ATA_FLAG_EH_PENDING | ATA_FLAG_EH_IN_PROGRESS)) {
+	while (ap->pflags & (ATA_PFLAG_EH_PENDING | ATA_PFLAG_EH_IN_PROGRESS)) {
 		prepare_to_wait(&ap->eh_wait_q, &wait, TASK_UNINTERRUPTIBLE);
 		spin_unlock_irqrestore(ap->lock, flags);
 		schedule();
@@ -489,7 +489,7 @@ void ata_qc_schedule_eh(struct ata_queued_cmd *qc)
 	WARN_ON(!ap->ops->error_handler);
 
 	qc->flags |= ATA_QCFLAG_FAILED;
-	qc->ap->flags |= ATA_FLAG_EH_PENDING;
+	qc->ap->pflags |= ATA_PFLAG_EH_PENDING;
 
 	/* The following will fail if timeout has already expired.
 	 * ata_scsi_error() takes care of such scmds on EH entry.
@@ -513,7 +513,7 @@ void ata_port_schedule_eh(struct ata_port *ap)
 {
 	WARN_ON(!ap->ops->error_handler);
 
-	ap->flags |= ATA_FLAG_EH_PENDING;
+	ap->pflags |= ATA_PFLAG_EH_PENDING;
 	scsi_schedule_eh(ap->host);
 
 	DPRINTK("port EH scheduled\n");
@@ -578,7 +578,7 @@ static void __ata_port_freeze(struct ata_port *ap)
 	if (ap->ops->freeze)
 		ap->ops->freeze(ap);
 
-	ap->flags |= ATA_FLAG_FROZEN;
+	ap->pflags |= ATA_PFLAG_FROZEN;
 
 	DPRINTK("ata%u port frozen\n", ap->id);
 }
@@ -646,7 +646,7 @@ void ata_eh_thaw_port(struct ata_port *ap)
 
 	spin_lock_irqsave(ap->lock, flags);
 
-	ap->flags &= ~ATA_FLAG_FROZEN;
+	ap->pflags &= ~ATA_PFLAG_FROZEN;
 
 	if (ap->ops->thaw)
 		ap->ops->thaw(ap);
@@ -731,7 +731,7 @@ static void ata_eh_detach_dev(struct ata_device *dev)
 
 	if (ata_scsi_offline_dev(dev)) {
 		dev->flags |= ATA_DFLAG_DETACHED;
-		ap->flags |= ATA_FLAG_SCSI_HOTPLUG;
+		ap->pflags |= ATA_PFLAG_SCSI_HOTPLUG;
 	}
 
 	/* clear per-dev EH actions */
@@ -761,7 +761,7 @@ static void ata_eh_about_to_do(struct ata_port *ap, struct ata_device *dev,
 
 	spin_lock_irqsave(ap->lock, flags);
 	ata_eh_clear_action(dev, &ap->eh_info, action);
-	ap->flags |= ATA_FLAG_RECOVERED;
+	ap->pflags |= ATA_PFLAG_RECOVERED;
 	spin_unlock_irqrestore(ap->lock, flags);
 }
 
@@ -1027,7 +1027,7 @@ static void ata_eh_analyze_ncq_error(struct ata_port *ap)
 	int tag, rc;
 
 	/* if frozen, we can't do much */
-	if (ap->flags & ATA_FLAG_FROZEN)
+	if (ap->pflags & ATA_PFLAG_FROZEN)
 		return;
 
 	/* is it NCQ device error? */
@@ -1327,7 +1327,7 @@ static void ata_eh_autopsy(struct ata_port *ap)
 	}
 
 	/* enforce default EH actions */
-	if (ap->flags & ATA_FLAG_FROZEN ||
+	if (ap->pflags & ATA_PFLAG_FROZEN ||
 	    all_err_mask & (AC_ERR_HSM | AC_ERR_TIMEOUT))
 		action |= ATA_EH_SOFTRESET;
 	else if (all_err_mask)
@@ -1385,7 +1385,7 @@ static void ata_eh_report(struct ata_port *ap)
 		return;
 
 	frozen = "";
-	if (ap->flags & ATA_FLAG_FROZEN)
+	if (ap->pflags & ATA_PFLAG_FROZEN)
 		frozen = " frozen";
 
 	if (ehc->i.dev) {
@@ -1465,7 +1465,7 @@ static int ata_eh_reset(struct ata_port *ap, int classify,
 	struct ata_eh_context *ehc = &ap->eh_context;
 	unsigned int *classes = ehc->classes;
 	int tries = ATA_EH_RESET_TRIES;
-	int verbose = !(ap->flags & ATA_FLAG_LOADING);
+	int verbose = !(ap->pflags & ATA_PFLAG_LOADING);
 	unsigned int action;
 	ata_reset_fn_t reset;
 	int i, did_followup_srst, rc;
@@ -1636,7 +1636,7 @@ static int ata_eh_revalidate_and_attach(struct ata_port *ap,
 			}
 
 			spin_lock_irqsave(ap->lock, flags);
-			ap->flags |= ATA_FLAG_SCSI_HOTPLUG;
+			ap->pflags |= ATA_PFLAG_SCSI_HOTPLUG;
 			spin_unlock_irqrestore(ap->lock, flags);
 		}
 	}
@@ -1673,7 +1673,7 @@ static int ata_eh_skip_recovery(struct ata_port *ap)
 	struct ata_eh_context *ehc = &ap->eh_context;
 	int i;
 
-	if (ap->flags & ATA_FLAG_FROZEN || ata_port_nr_enabled(ap))
+	if (ap->pflags & ATA_PFLAG_FROZEN || ata_port_nr_enabled(ap))
 		return 0;
 
 	/* skip if class codes for all vacant slots are ATA_DEV_NONE */
@@ -1744,7 +1744,7 @@ static int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 	rc = 0;
 
 	/* if UNLOADING, finish immediately */
-	if (ap->flags & ATA_FLAG_UNLOADING)
+	if (ap->pflags & ATA_PFLAG_UNLOADING)
 		goto out;
 
 	/* skip EH if possible. */
@@ -1908,7 +1908,7 @@ void ata_do_eh(struct ata_port *ap, ata_prereset_fn_t prereset,
 	       ata_reset_fn_t softreset, ata_reset_fn_t hardreset,
 	       ata_postreset_fn_t postreset)
 {
-	if (!(ap->flags & ATA_FLAG_LOADING)) {
+	if (!(ap->pflags & ATA_PFLAG_LOADING)) {
 		ata_eh_autopsy(ap);
 		ata_eh_report(ap);
 	}

@@ -160,22 +160,27 @@ enum {
 	ATA_FLAG_HRST_TO_RESUME	= (1 << 11), /* hardreset to resume phy */
 	ATA_FLAG_SKIP_D2H_BSY	= (1 << 12), /* can't wait for the first D2H
 					      * Register FIS clearing BSY */
-
 	ATA_FLAG_DEBUGMSG	= (1 << 13),
-	ATA_FLAG_FLUSH_PORT_TASK = (1 << 14), /* flush port task */
 
-	ATA_FLAG_EH_PENDING	= (1 << 15), /* EH pending */
-	ATA_FLAG_EH_IN_PROGRESS	= (1 << 16), /* EH in progress */
-	ATA_FLAG_FROZEN		= (1 << 17), /* port is frozen */
-	ATA_FLAG_RECOVERED	= (1 << 18), /* recovery action performed */
-	ATA_FLAG_LOADING	= (1 << 19), /* boot/loading probe */
-	ATA_FLAG_UNLOADING	= (1 << 20), /* module is unloading */
-	ATA_FLAG_SCSI_HOTPLUG	= (1 << 21), /* SCSI hotplug scheduled */
+	/* The following flag belongs to ap->pflags but is kept in
+	 * ap->flags because it's referenced in many LLDs and will be
+	 * removed in not-too-distant future.
+	 */
+	ATA_FLAG_DISABLED	= (1 << 23), /* port is disabled, ignore it */
 
-	ATA_FLAG_DISABLED	= (1 << 22), /* port is disabled, ignore it */
-	ATA_FLAG_SUSPENDED	= (1 << 23), /* port is suspended (power) */
+	/* bits 24:31 of ap->flags are reserved for LLD specific flags */
 
-	/* bits 24:31 of ap->flags are reserved for LLDD specific flags */
+	/* struct ata_port pflags */
+	ATA_PFLAG_EH_PENDING	= (1 << 0), /* EH pending */
+	ATA_PFLAG_EH_IN_PROGRESS = (1 << 1), /* EH in progress */
+	ATA_PFLAG_FROZEN	= (1 << 2), /* port is frozen */
+	ATA_PFLAG_RECOVERED	= (1 << 3), /* recovery action performed */
+	ATA_PFLAG_LOADING	= (1 << 4), /* boot/loading probe */
+	ATA_PFLAG_UNLOADING	= (1 << 5), /* module is unloading */
+	ATA_PFLAG_SCSI_HOTPLUG	= (1 << 6), /* SCSI hotplug scheduled */
+
+	ATA_PFLAG_FLUSH_PORT_TASK = (1 << 16), /* flush port task */
+	ATA_PFLAG_SUSPENDED	= (1 << 17), /* port is suspended (power) */
 
 	/* struct ata_queued_cmd flags */
 	ATA_QCFLAG_ACTIVE	= (1 << 0), /* cmd not yet ack'd to scsi lyer */
@@ -486,6 +491,7 @@ struct ata_port {
 	const struct ata_port_operations *ops;
 	spinlock_t		*lock;
 	unsigned long		flags;	/* ATA_FLAG_xxx */
+	unsigned int		pflags; /* ATA_PFLAG_xxx */
 	unsigned int		id;	/* unique id req'd by scsi midlyr */
 	unsigned int		port_no; /* unique port #; from zero */
 	unsigned int		hard_port_no;	/* hardware port #; from zero */
