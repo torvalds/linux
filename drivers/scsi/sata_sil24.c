@@ -31,7 +31,7 @@
 #include <asm/io.h>
 
 #define DRV_NAME	"sata_sil24"
-#define DRV_VERSION	"0.24"
+#define DRV_VERSION	"0.3"
 
 /*
  * Port request block (PRB) 32 bytes
