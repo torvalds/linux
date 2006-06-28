@@ -3,62 +3,12 @@
  *
  *	(C) Copyright 2002-2006, Greg Ungerer <gerg@snapgear.com>
  *
- *	This ends up looking compilcated, because of the number of
- *	address variations for ram and rom/flash layouts. The real
- *	work of the linker script is all at the end, and reasonably
- *	strait forward.
+ *	This linker script is equiped to build either ROM loaded or RAM
+ *	run kernels.
  */
 
 #include <linux/config.h>
 #include <asm-generic/vmlinux.lds.h>
-
-/*
- *	Original Palm pilot (same for Xcopilot).
- *	There is really only a rom target for this.
- */
-#ifdef CONFIG_PILOT3
-#define	ROMVEC_START	0x10c00000
-#define	ROMVEC_LENGTH	0x10400
-#define	ROM_START	0x10c10400
-#define	ROM_LENGTH	0xfec00
-#define	ROM_END		0x10d00000
-#define	DATA_ADDR	CONFIG_KERNELBASE
-#endif
-
-/*
- *	Same setup on both the uCsimm and uCdimm.
- */
-#if defined(CONFIG_UCSIMM) || defined(CONFIG_UCDIMM)
-#ifdef CONFIG_RAMKERNEL
-#define	ROMVEC_START	0x10c10000
-#define	ROMVEC_LENGTH	0x400
-#define	ROM_START	0x10c10400
-#define	ROM_LENGTH	0x1efc00
-#define	ROM_END		0x10e00000
-#endif
-#ifdef CONFIG_ROMKERNEL
-#define	ROMVEC_START	0x10c10000
-#define	ROMVEC_LENGTH	0x400
-#define	ROM_START	0x10c10400
-#define	ROM_LENGTH	0x1efc00
-#define	ROM_END		0x10e00000
-#endif
-#ifdef CONFIG_HIMEMKERNEL
-#define	ROMVEC_START	0x00600000
-#define	ROMVEC_LENGTH	0x400
-#define	ROM_START	0x00600400
-#define	ROM_LENGTH	0x1efc00
-#define	ROM_END		0x007f0000
-#endif
-#endif
-
-#ifdef CONFIG_UCQUICC
-#define	ROMVEC_START	0x00000000
-#define	ROMVEC_LENGTH	0x404
-#define	ROM_START	0x00000404
-#define	ROM_LENGTH	0x1ff6fc
-#define	ROM_END		0x00200000
-#endif
 
 #if defined(CONFIG_RAMKERNEL)
 #define	RAM_START	CONFIG_KERNELBASE
@@ -71,6 +21,10 @@
 #if defined(CONFIG_ROMKERNEL) || defined(CONFIG_HIMEMKERNEL)
 #define	RAM_START	CONFIG_RAMBASE
 #define	RAM_LENGTH	CONFIG_RAMSIZE
+#define	ROMVEC_START	CONFIG_ROMVEC
+#define	ROMVEC_LENGTH	CONFIG_ROMVECSIZE
+#define	ROM_START	CONFIG_ROMSTART
+#define	ROM_LENGTH	CONFIG_ROMSIZE
 #define	TEXT		rom
 #define	DATA		ram
 #define	INIT		ram
@@ -90,7 +44,6 @@ MEMORY {
 #ifdef ROM_START
 	romvec	: ORIGIN = ROMVEC_START, LENGTH = ROMVEC_LENGTH
 	rom	: ORIGIN = ROM_START, LENGTH = ROM_LENGTH
-	erom	: ORIGIN = ROM_END, LENGTH = 0
 #endif
 }
 
@@ -166,13 +119,6 @@ SECTIONS {
 		. = ALIGN(4) ;
 		_etext = . ;
 	} > TEXT
-
-#ifdef ROM_END
-	. = ROM_END ;
-	.erom : {
-		__rom_end = . ;
-	} > erom
-#endif
 
 	.data DATA_ADDR : {
 		. = ALIGN(4);
