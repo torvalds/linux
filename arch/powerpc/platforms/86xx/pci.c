@@ -121,14 +121,11 @@ static void __init setup_pcie_atmu(struct pci_controller *hose, struct resource 
 static void __init
 mpc86xx_setup_pcie(struct pci_controller *hose, u32 pcie_offset, u32 pcie_size)
 {
-	volatile struct ccsr_pex *pcie;
 	u16 cmd;
 	unsigned int temps;
 
 	DBG("PCIE host controller register offset 0x%08x, size 0x%08x.\n",
 			pcie_offset, pcie_size);
-
-	pcie = ioremap(pcie_offset, pcie_size);
 
 	early_read_config_word(hose, 0, 0, PCI_COMMAND, &cmd);
 	cmd |= PCI_COMMAND_SERR | PCI_COMMAND_MASTER | PCI_COMMAND_MEMORY
@@ -141,6 +138,14 @@ mpc86xx_setup_pcie(struct pci_controller *hose, u32 pcie_offset, u32 pcie_size)
 	early_read_config_dword(hose, 0, 0, PCI_PRIMARY_BUS, &temps);
 	temps = (temps & 0xff000000) | (0xff) | (0x0 << 8) | (0xfe << 16);
 	early_write_config_dword(hose, 0, 0, PCI_PRIMARY_BUS, temps);
+}
+
+int mpc86xx_exclude_device(u_char bus, u_char devfn)
+{
+	if (bus == 0 && PCI_SLOT(devfn) == 0)
+		return PCIBIOS_DEVICE_NOT_FOUND;
+
+	return PCIBIOS_SUCCESSFUL;
 }
 
 int __init add_bridge(struct device_node *dev)
@@ -197,128 +202,3 @@ int __init add_bridge(struct device_node *dev)
 
 	return 0;
 }
-
-static void __devinit quirk_ali1575(struct pci_dev *dev)
-{
-	unsigned short temp;
-
-	/*
-	 * ALI1575 interrupts route table setup:
-	 *
-	 * IRQ pin   IRQ#
-	 * PIRQA ---- 3
-	 * PIRQB ---- 4
-	 * PIRQC ---- 5
-	 * PIRQD ---- 6
-	 * PIRQE ---- 9
-	 * PIRQF ---- 10
-	 * PIRQG ---- 11
-	 * PIRQH ---- 12
-	 *
-	 * interrupts for PCI slot0 -- PIRQA / PIRQB / PIRQC / PIRQD
-	 *                PCI slot1 -- PIRQB / PIRQC / PIRQD / PIRQA
-	 */
-	pci_write_config_dword(dev, 0x48, 0xb9317542);
-
-	/* USB 1.1 OHCI controller 1, interrupt: PIRQE */
-	pci_write_config_byte(dev, 0x86, 0x0c);
-
-	/* USB 1.1 OHCI controller 2, interrupt: PIRQF */
-	pci_write_config_byte(dev, 0x87, 0x0d);
-
-	/* USB 1.1 OHCI controller 3, interrupt: PIRQH */
-	pci_write_config_byte(dev, 0x88, 0x0f);
-
-	/* USB 2.0 controller, interrupt: PIRQ7 */
-	pci_write_config_byte(dev, 0x74, 0x06);
-
-	/* Audio controller, interrupt: PIRQE */
-	pci_write_config_byte(dev, 0x8a, 0x0c);
-
-	/* Modem controller, interrupt: PIRQF */
-	pci_write_config_byte(dev, 0x8b, 0x0d);
-
-	/* HD audio controller, interrupt: PIRQG */
-	pci_write_config_byte(dev, 0x8c, 0x0e);
-
-	/* Serial ATA interrupt: PIRQD */
-	pci_write_config_byte(dev, 0x8d, 0x0b);
-
-	/* SMB interrupt: PIRQH */
-	pci_write_config_byte(dev, 0x8e, 0x0f);
-
-	/* PMU ACPI SCI interrupt: PIRQH */
-	pci_write_config_byte(dev, 0x8f, 0x0f);
-
-	/* Primary PATA IDE IRQ: 14
-	 * Secondary PATA IDE IRQ: 15
-	 */
-	pci_write_config_byte(dev, 0x44, 0x3d);
-	pci_write_config_byte(dev, 0x75, 0x0f);
-
-	/* Set IRQ14 and IRQ15 to legacy IRQs */
-	pci_read_config_word(dev, 0x46, &temp);
-	temp |= 0xc000;
-	pci_write_config_word(dev, 0x46, temp);
-
-	/* Set i8259 interrupt trigger
-	 * IRQ 3:  Level
-	 * IRQ 4:  Level
-	 * IRQ 5:  Level
-	 * IRQ 6:  Level
-	 * IRQ 7:  Level
-	 * IRQ 9:  Level
-	 * IRQ 10: Level
-	 * IRQ 11: Level
-	 * IRQ 12: Level
-	 * IRQ 14: Edge
-	 * IRQ 15: Edge
-	 */
-	outb(0xfa, 0x4d0);
-	outb(0x1e, 0x4d1);
-}
-
-static void __devinit quirk_uli5288(struct pci_dev *dev)
-{
-	unsigned char c;
-
-	pci_read_config_byte(dev,0x83,&c);
-	c |= 0x80;
-	pci_write_config_byte(dev, 0x83, c);
-
-	pci_write_config_byte(dev, 0x09, 0x01);
-	pci_write_config_byte(dev, 0x0a, 0x06);
-
-	pci_read_config_byte(dev,0x83,&c);
-	c &= 0x7f;
-	pci_write_config_byte(dev, 0x83, c);
-
-	pci_read_config_byte(dev,0x84,&c);
-	c |= 0x01;
-	pci_write_config_byte(dev, 0x84, c);
-}
-
-static void __devinit quirk_uli5229(struct pci_dev *dev)
-{
-	unsigned short temp;
-	pci_write_config_word(dev, 0x04, 0x0405);
-	pci_read_config_word(dev, 0x4a, &temp);
-	temp |= 0x1000;
-	pci_write_config_word(dev, 0x4a, temp);
-}
-
-static void __devinit early_uli5249(struct pci_dev *dev)
-{
-	unsigned char temp;
-	pci_write_config_word(dev, 0x04, 0x0007);
-	pci_read_config_byte(dev, 0x7c, &temp);
-	pci_write_config_byte(dev, 0x7c, 0x80);
-	pci_write_config_byte(dev, 0x09, 0x01);
-	pci_write_config_byte(dev, 0x7c, temp);
-	dev->class |= 0x1;
-}
-
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_AL, 0x1575, quirk_ali1575);
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_AL, 0x5288, quirk_uli5288);
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_AL, 0x5229, quirk_uli5229);
-DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_AL, 0x5249, early_uli5249);

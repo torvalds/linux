@@ -19,10 +19,6 @@
 
 #ifdef CONFIG_PPC_86xx
 
-#ifdef CONFIG_MPC8641_HPCN
-#include <platforms/86xx/mpc8641_hpcn.h>
-#endif
-
 #define _IO_BASE        isa_io_base
 #define _ISA_MEM_BASE   isa_mem_base
 #ifdef CONFIG_PCI
