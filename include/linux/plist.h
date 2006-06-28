@@ -73,6 +73,7 @@
 #ifndef _LINUX_PLIST_H_
 #define _LINUX_PLIST_H_
 
+#include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/spinlock_types.h>
 
