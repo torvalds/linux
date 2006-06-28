@@ -607,11 +607,13 @@ void set_nmi_callback(nmi_callback_t callback)
 	vmalloc_sync_all();
 	rcu_assign_pointer(nmi_callback, callback);
 }
+EXPORT_SYMBOL_GPL(set_nmi_callback);
 
 void unset_nmi_callback(void)
 {
 	nmi_callback = dummy_nmi_callback;
 }
+EXPORT_SYMBOL_GPL(unset_nmi_callback);
 
 #ifdef CONFIG_SYSCTL
 
