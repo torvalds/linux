@@ -1961,9 +1961,9 @@ xfs_iunlink_remove(
 	xfs_agino_t	agino;
 	xfs_agino_t	next_agino;
 	xfs_buf_t	*last_ibp;
-	xfs_dinode_t	*last_dip;
+	xfs_dinode_t	*last_dip = NULL;
 	short		bucket_index;
-	int		offset, last_offset;
+	int		offset, last_offset = 0;
 	int		error;
 	int		agi_ok;
 
