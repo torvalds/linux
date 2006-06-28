@@ -267,7 +267,6 @@ static struct tty_buffer *tty_buffer_alloc(size_t size)
 	p->used = 0;
 	p->size = size;
 	p->next = NULL;
-	p->active = 0;
 	p->commit = 0;
 	p->read = 0;
 	p->char_buf_ptr = (char *)(p->data);
@@ -327,10 +326,9 @@ int tty_buffer_request_room(struct tty_struct *tty, size_t size)
 	/* OPTIMISATION: We could keep a per tty "zero" sized buffer to
 	   remove this conditional if its worth it. This would be invisible
 	   to the callers */
-	if ((b = tty->buf.tail) != NULL) {
+	if ((b = tty->buf.tail) != NULL)
 		left = b->size - b->used;
-		b->active = 1;
-	} else
+	else
 		left = 0;
 
 	if (left < size) {
@@ -338,12 +336,10 @@ int tty_buffer_request_room(struct tty_struct *tty, size_t size)
 		if ((n = tty_buffer_find(tty, size)) != NULL) {
 			if (b != NULL) {
 				b->next = n;
-				b->active = 0;
 				b->commit = b->used;
 			} else
 				tty->buf.head = n;
 			tty->buf.tail = n;
-			n->active = 1;
 		} else
 			size = left;
 	}
@@ -404,10 +400,8 @@ void tty_schedule_flip(struct tty_struct *tty)
 {
 	unsigned long flags;
 	spin_lock_irqsave(&tty->buf.lock, flags);
-	if (tty->buf.tail != NULL) {
-		tty->buf.tail->active = 0;
+	if (tty->buf.tail != NULL)
 		tty->buf.tail->commit = tty->buf.tail->used;
-	}
 	spin_unlock_irqrestore(&tty->buf.lock, flags);
 	schedule_delayed_work(&tty->buf.work, 1);
 }
@@ -2902,10 +2896,8 @@ void tty_flip_buffer_push(struct tty_struct *tty)
 {
 	unsigned long flags;
 	spin_lock_irqsave(&tty->buf.lock, flags);
-	if (tty->buf.tail != NULL) {
-		tty->buf.tail->active = 0;
+	if (tty->buf.tail != NULL)
 		tty->buf.tail->commit = tty->buf.tail->used;
-	}
 	spin_unlock_irqrestore(&tty->buf.lock, flags);
 
 	if (tty->low_latency)

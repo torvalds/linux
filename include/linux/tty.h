@@ -57,7 +57,6 @@ struct tty_buffer {
 	unsigned char *flag_buf_ptr;
 	int used;
 	int size;
-	int active;
 	int commit;
 	int read;
 	/* Data points here */
