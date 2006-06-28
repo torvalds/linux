@@ -458,7 +458,7 @@ void __init sn_setup(char **cmdline_p)
 	 * support here so we don't have to listen to failed keyboard probe
 	 * messages.
 	 */
-	if (version <= 0x0209 && acpi_kbd_controller_present) {
+	if (is_shub1() && version <= 0x0209 && acpi_kbd_controller_present) {
 		printk(KERN_INFO "Disabling legacy keyboard support as prom "
 		       "is too old and doesn't provide FADT\n");
 		acpi_kbd_controller_present = 0;
