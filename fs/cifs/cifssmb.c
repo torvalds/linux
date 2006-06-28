@@ -415,6 +415,8 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 	else /* if override flags set only sign/seal OR them with global auth */
 		secFlags = extended_security | ses->overrideSecFlg;
 
+	cFYI(1,("secFlags 0x%x",secFlags));
+
 	pSMB->hdr.Mid = GetNextMid(server);
 	pSMB->hdr.Flags2 |= SMBFLG2_UNICODE;
 	if((secFlags & CIFSSEC_MUST_KRB5) == CIFSSEC_MUST_KRB5)
@@ -511,11 +513,13 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 			cERROR(1,("Server requests plain text password"
 				  " but client support disabled"));
 
-	if(secFlags & CIFSSEC_MUST_NTLMV2)
+	if((secFlags & CIFSSEC_MUST_NTLMV2) == CIFSSEC_MUST_NTLMV2)
 		server->secType = NTLMv2;
-	else
+	else if(secFlags & CIFSSEC_MAY_NTLM)
 		server->secType = NTLM;
-	/* else krb5 ... */
+	else if(secFlags & CIFSSEC_MAY_NTLMV2)
+		server->secType = NTLMv2;
+	/* else krb5 ... any others ... */
 
 	/* one byte, so no need to convert this or EncryptionKeyLen from
 	   little endian */

@@ -323,11 +323,12 @@ CIFS_SessSetup(unsigned int xid, struct cifsSesInfo *ses, int first_time,
 	__u16 action;
 	int bytes_remaining;
 
-	cFYI(1,("new sess setup"));
 	if(ses == NULL)
 		return -EINVAL;
 
 	type = ses->server->secType;
+
+	cFYI(1,("sess setup type %d",type));
 	if(type == LANMAN) {
 #ifndef CONFIG_CIFS_WEAK_PW_HASH
 		/* LANMAN and plaintext are less secure and off by default.
