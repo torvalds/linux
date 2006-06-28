@@ -16,7 +16,6 @@
 #include <asm/ptrace.h>
 #include <asm/page.h>
 #include <asm/lppaca.h>
-#include <asm/iseries/it_lp_queue.h>
 #include <asm/iseries/it_lp_reg_save.h>
 #include <asm/paca.h>
 
