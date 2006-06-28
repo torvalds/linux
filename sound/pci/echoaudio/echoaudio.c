@@ -1878,10 +1878,9 @@ static int snd_echo_free(struct echoaudio *chip)
 	if (chip->dsp_registers)
 		iounmap(chip->dsp_registers);
 
-	if (chip->iores) {
-		release_resource(chip->iores);
-		kfree_nocheck(chip->iores);
-	}
+	if (chip->iores)
+		release_and_free_resource(chip->iores);
+
 	DE_INIT(("MMIO freed.\n"));
 
 	pci_disable_device(chip->pci);
