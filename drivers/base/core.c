@@ -3,6 +3,8 @@
  *
  * Copyright (c) 2002-3 Patrick Mochel
  * Copyright (c) 2002-3 Open Source Development Labs
+ * Copyright (c) 2006 Greg Kroah-Hartman <gregkh@suse.de>
+ * Copyright (c) 2006 Novell, Inc.
  *
  * This file is released under the GPLv2
  *
@@ -373,10 +375,11 @@ int device_add(struct device *dev)
 				  "subsystem");
 		sysfs_create_link(&dev->class->subsys.kset.kobj, &dev->kobj,
 				  dev->bus_id);
-
-		sysfs_create_link(&dev->kobj, &dev->parent->kobj, "device");
-		class_name = make_class_name(dev->class->name, &dev->kobj);
-		sysfs_create_link(&dev->parent->kobj, &dev->kobj, class_name);
+		if (parent) {
+			sysfs_create_link(&dev->kobj, &dev->parent->kobj, "device");
+			class_name = make_class_name(dev->class->name, &dev->kobj);
+			sysfs_create_link(&dev->parent->kobj, &dev->kobj, class_name);
+		}
 	}
 
 	if ((error = device_add_groups(dev)))
@@ -495,8 +498,10 @@ void device_del(struct device * dev)
 		sysfs_remove_link(&dev->kobj, "subsystem");
 		sysfs_remove_link(&dev->class->subsys.kset.kobj, dev->bus_id);
 		class_name = make_class_name(dev->class->name, &dev->kobj);
-		sysfs_remove_link(&dev->kobj, "device");
-		sysfs_remove_link(&dev->parent->kobj, class_name);
+		if (parent) {
+			sysfs_remove_link(&dev->kobj, "device");
+			sysfs_remove_link(&dev->parent->kobj, class_name);
+		}
 		kfree(class_name);
 		down(&dev->class->sem);
 		list_del_init(&dev->node);
@@ -625,10 +630,6 @@ struct device *device_create(struct class *class, struct device *parent,
 
 	if (class == NULL || IS_ERR(class))
 		goto error;
-	if (parent == NULL) {
-		printk(KERN_WARNING "%s does not work yet for NULL parents\n", __FUNCTION__);
-		goto error;
-	}
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev) {
