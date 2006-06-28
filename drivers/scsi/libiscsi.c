@@ -1287,13 +1287,18 @@ iscsi_session_setup(struct iscsi_transport *iscsit,
 	if (scsi_add_host(shost, NULL))
 		goto add_host_fail;
 
+	if (!try_module_get(iscsit->owner))
+		goto cls_session_fail;
+
 	cls_session = iscsi_create_session(shost, iscsit, 0);
 	if (!cls_session)
-		goto cls_session_fail;
+		goto module_put;
 	*(unsigned long*)shost->hostdata = (unsigned long)cls_session;
 
 	return cls_session;
 
+module_put:
+	module_put(iscsit->owner);
 cls_session_fail:
 	scsi_remove_host(shost);
 add_host_fail:
@@ -1325,6 +1330,7 @@ void iscsi_session_teardown(struct iscsi_cls_session *cls_session)
 
 	iscsi_destroy_session(cls_session);
 	scsi_host_put(shost);
+	module_put(cls_session->transport->owner);
 }
 EXPORT_SYMBOL_GPL(iscsi_session_teardown);
 

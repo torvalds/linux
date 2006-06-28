@@ -228,13 +228,11 @@ static struct iscsi_cls_conn *iscsi_conn_lookup(uint32_t sid, uint32_t cid)
 static void iscsi_session_release(struct device *dev)
 {
 	struct iscsi_cls_session *session = iscsi_dev_to_session(dev);
-	struct iscsi_transport *transport = session->transport;
 	struct Scsi_Host *shost;
 
 	shost = iscsi_session_to_shost(session);
 	scsi_host_put(shost);
 	kfree(session);
-	module_put(transport->owner);
 }
 
 static int iscsi_is_session_dev(const struct device *dev)
@@ -305,13 +303,11 @@ iscsi_create_session(struct Scsi_Host *shost,
 	struct iscsi_cls_session *session;
 	int err;
 
-	if (!try_module_get(transport->owner))
-		return NULL;
-
 	session = kzalloc(sizeof(*session) + transport->sessiondata_size,
 			  GFP_KERNEL);
 	if (!session)
-		goto module_put;
+		return NULL;
+
 	session->transport = transport;
 	session->recovery_tmo = 120;
 	INIT_WORK(&session->recovery_work, session_recovery_timedout, session);
@@ -349,8 +345,6 @@ iscsi_create_session(struct Scsi_Host *shost,
 
 free_session:
 	kfree(session);
-module_put:
-	module_put(transport->owner);
 	return NULL;
 }
 
