@@ -177,6 +177,9 @@ void __init setup_paca(int cpu)
 
 void __init early_setup(unsigned long dt_ptr)
 {
+	/* Assume we're on cpu 0 for now. Don't write to the paca yet! */
+	setup_paca(0);
+
 	/* Enable early debugging if any specified (see udbg.h) */
 	udbg_early_init();
 

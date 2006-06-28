@@ -1583,9 +1583,6 @@ _GLOBAL(__start_initialization_multiplatform)
 	/* Setup some critical 970 SPRs before switching MMU off */
 	bl	.__970_cpu_preinit
 
-	/* cpu # */
-	li	r24,0
-
 	/* Switch off MMU if not already */
 	LOAD_REG_IMMEDIATE(r4, .__after_prom_start - KERNELBASE)
 	add	r4,r4,r30
@@ -1945,14 +1942,6 @@ _STATIC(start_here_common)
 	 */
 	li	r3,0
 	bl	.do_cpu_ftr_fixups
-
-	LOAD_REG_IMMEDIATE(r26, boot_cpuid)
-	lwz	r26,0(r26)
-
-	LOAD_REG_IMMEDIATE(r24, paca)	/* Get base vaddr of paca array  */
-	mulli	r13,r26,PACA_SIZE	/* Calculate vaddr of right paca */
-	add	r13,r13,r24		/* for this processor.		 */
-	mtspr	SPRN_SPRG3,r13
 
 	/* ptr to current */
 	LOAD_REG_IMMEDIATE(r4, init_task)
