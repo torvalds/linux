@@ -130,7 +130,7 @@ struct acpiphp_func {
 
 	struct list_head sibling;
 	struct pci_dev *pci_dev;
-
+	struct notifier_block nb;
 	acpi_handle	handle;
 
 	u8		function;	/* pci function# */
@@ -148,24 +148,6 @@ struct acpiphp_attention_info
 	int (*set_attn)(struct hotplug_slot *slot, u8 status);
 	int (*get_attn)(struct hotplug_slot *slot, u8 *status);
 	struct module *owner;
-};
-
-
-struct dependent_device {
-	struct list_head device_list;
-	struct list_head pci_list;
-	acpi_handle handle;
-	struct acpiphp_func *func;
-};
-
-
-struct acpiphp_dock_station {
-	acpi_handle handle;
-	u32 last_dock_time;
-	u32 flags;
-	struct acpiphp_func *dock_bridge;
-	struct list_head dependent_devices;
-	struct list_head pci_dependent_devices;
 };
 
 
@@ -207,11 +189,6 @@ struct acpiphp_dock_station {
 #define FUNC_HAS_PS2		(0x00000040)
 #define FUNC_HAS_PS3		(0x00000080)
 #define FUNC_HAS_DCK            (0x00000100)
-#define FUNC_IS_DD              (0x00000200)
-
-/* dock station flags */
-#define DOCK_DOCKING            (0x00000001)
-#define DOCK_HAS_BRIDGE         (0x00000002)
 
 /* function prototypes */
 
@@ -235,16 +212,6 @@ extern u8 acpiphp_get_attention_status (struct acpiphp_slot *slot);
 extern u8 acpiphp_get_latch_status (struct acpiphp_slot *slot);
 extern u8 acpiphp_get_adapter_status (struct acpiphp_slot *slot);
 extern u32 acpiphp_get_address (struct acpiphp_slot *slot);
-
-/* acpiphp_dock.c */
-extern int find_dock_station(void);
-extern void remove_dock_station(void);
-extern void add_dependent_device(struct dependent_device *new_dd);
-extern void add_pci_dependent_device(struct dependent_device *new_dd);
-extern struct dependent_device *get_dependent_device(acpi_handle handle);
-extern int is_dependent_device(acpi_handle handle);
-extern int detect_dependent_devices(acpi_handle *bridge_handle);
-extern struct dependent_device *alloc_dependent_device(acpi_handle handle);
 
 /* variables */
 extern int acpiphp_debug;

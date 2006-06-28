@@ -416,27 +416,12 @@ void acpiphp_unregister_hotplug_slot(struct acpiphp_slot *acpiphp_slot)
 
 static int __init acpiphp_init(void)
 {
-	int retval;
-	int docking_station;
-
 	info(DRIVER_DESC " version: " DRIVER_VERSION "\n");
 
 	acpiphp_debug = debug;
 
-	docking_station = find_dock_station();
-
 	/* read all the ACPI info from the system */
-	retval = init_acpi();
-
-	/* if we have found a docking station, we should
-	 * go ahead and load even if init_acpi has found
-	 * no slots.  This handles the case when the _DCK
-	 * method not defined under the actual dock bridge
-	 */
-	if (docking_station)
-		return 0;
-	else
-		return retval;
+	return init_acpi();
 }
 
 
@@ -444,8 +429,6 @@ static void __exit acpiphp_exit(void)
 {
 	/* deallocate internal data structures etc. */
 	acpiphp_glue_exit();
-
-	remove_dock_station();
 }
 
 module_init(acpiphp_init);

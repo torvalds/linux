@@ -116,6 +116,59 @@ is_ejectable_slot(acpi_handle handle, u32 lvl, void *context, void **rv)
 	}
 }
 
+/* callback routine to check for the existance of a pci dock device */
+static acpi_status
+is_pci_dock_device(acpi_handle handle, u32 lvl, void *context, void **rv)
+{
+	int *count = (int *)context;
+
+	if (is_dock_device(handle)) {
+		(*count)++;
+		return AE_CTRL_TERMINATE;
+	} else {
+		return AE_OK;
+	}
+}
+
+
+
+
+/*
+ * the _DCK method can do funny things... and sometimes not
+ * hah-hah funny.
+ *
+ * TBD - figure out a way to only call fixups for
+ * systems that require them.
+ */
+static int post_dock_fixups(struct notifier_block *nb, unsigned long val,
+	void *v)
+{
+	struct acpiphp_func *func = container_of(nb, struct acpiphp_func, nb);
+	struct pci_bus *bus = func->slot->bridge->pci_bus;
+	u32 buses;
+
+	if (!bus->self)
+		return  NOTIFY_OK;
+
+	/* fixup bad _DCK function that rewrites
+	 * secondary bridge on slot
+	 */
+	pci_read_config_dword(bus->self,
+			PCI_PRIMARY_BUS,
+			&buses);
+
+	if (((buses >> 8) & 0xff) != bus->secondary) {
+		buses = (buses & 0xff000000)
+	     		| ((unsigned int)(bus->primary)     <<  0)
+	     		| ((unsigned int)(bus->secondary)   <<  8)
+	     		| ((unsigned int)(bus->subordinate) << 16);
+		pci_write_config_dword(bus->self, PCI_PRIMARY_BUS, buses);
+	}
+	return NOTIFY_OK;
+}
+
+
+
 
 /* callback routine to register each ACPI PCI slot object */
 static acpi_status
@@ -124,7 +177,6 @@ register_slot(acpi_handle handle, u32 lvl, void *context, void **rv)
 	struct acpiphp_bridge *bridge = (struct acpiphp_bridge *)context;
 	struct acpiphp_slot *slot;
 	struct acpiphp_func *newfunc;
-	struct dependent_device *dd;
 	acpi_handle tmp;
 	acpi_status status = AE_OK;
 	unsigned long adr, sun;
@@ -137,7 +189,7 @@ register_slot(acpi_handle handle, u32 lvl, void *context, void **rv)
 
 	status = acpi_get_handle(handle, "_EJ0", &tmp);
 
-	if (ACPI_FAILURE(status) && !(is_dependent_device(handle)))
+	if (ACPI_FAILURE(status) && !(is_dock_device(handle)))
 		return AE_OK;
 
 	device = (adr >> 16) & 0xffff;
@@ -162,18 +214,8 @@ register_slot(acpi_handle handle, u32 lvl, void *context, void **rv)
 	if (ACPI_SUCCESS(acpi_get_handle(handle, "_PS3", &tmp)))
 		newfunc->flags |= FUNC_HAS_PS3;
 
-	if (ACPI_SUCCESS(acpi_get_handle(handle, "_DCK", &tmp))) {
+	if (ACPI_SUCCESS(acpi_get_handle(handle, "_DCK", &tmp)))
 		newfunc->flags |= FUNC_HAS_DCK;
-		/* add to devices dependent on dock station,
-		 * because this may actually be the dock bridge
-		 */
-		dd = alloc_dependent_device(handle);
-                if (!dd)
-                        err("Can't allocate memory for "
-				"new dependent device!\n");
-		else
-			add_dependent_device(dd);
-	}
 
 	status = acpi_evaluate_integer(handle, "_SUN", NULL, &sun);
 	if (ACPI_FAILURE(status))
@@ -225,20 +267,23 @@ register_slot(acpi_handle handle, u32 lvl, void *context, void **rv)
 		slot->flags |= (SLOT_ENABLED | SLOT_POWEREDON);
 	}
 
-	/* if this is a device dependent on a dock station,
-	 * associate the acpiphp_func to the dependent_device
- 	 * struct.
-	 */
-	if ((dd = get_dependent_device(handle))) {
-		newfunc->flags |= FUNC_IS_DD;
-		/*
-		 * we don't want any devices which is dependent
-		 * on the dock to have it's _EJ0 method executed.
-		 * because we need to run _DCK first.
+	if (is_dock_device(handle)) {
+		/* we don't want to call this device's _EJ0
+		 * because we want the dock notify handler
+		 * to call it after it calls _DCK
 		 */
 		newfunc->flags &= ~FUNC_HAS_EJ0;
-		dd->func = newfunc;
-		add_pci_dependent_device(dd);
+		if (register_hotplug_dock_device(handle,
+			handle_hotplug_event_func, newfunc))
+			dbg("failed to register dock device\n");
+
+		/* we need to be notified when dock events happen
+		 * outside of the hotplug operation, since we may
+		 * need to do fixups before we can hotplug.
+		 */
+		newfunc->nb.notifier_call = post_dock_fixups;
+		if (register_dock_notifier(&newfunc->nb))
+			dbg("failed to register a dock notifier");
 	}
 
 	/* install notify handler */
@@ -276,6 +321,15 @@ static int detect_ejectable_slots(acpi_handle *bridge_handle)
 	/* only check slots defined directly below bridge object */
 	status = acpi_walk_namespace(ACPI_TYPE_DEVICE, bridge_handle, (u32)1,
 				     is_ejectable_slot, (void *)&count, NULL);
+
+	/*
+	 * we also need to add this bridge if there is a dock bridge or
+	 * other pci device on a dock station (removable)
+	 */
+	if (!count)
+		status = acpi_walk_namespace(ACPI_TYPE_DEVICE, bridge_handle,
+				(u32)1, is_pci_dock_device, (void *)&count,
+				NULL);
 
 	return count;
 }
@@ -487,8 +541,7 @@ find_p2p_bridge(acpi_handle handle, u32 lvl, void *context, void **rv)
 		goto out;
 
 	/* check if this bridge has ejectable slots */
-	if ((detect_ejectable_slots(handle) > 0) ||
-		(detect_dependent_devices(handle) > 0)) {
+	if ((detect_ejectable_slots(handle) > 0)) {
 		dbg("found PCI-to-PCI bridge at PCI %s\n", pci_name(dev));
 		add_p2p_bridge(handle, dev);
 	}
@@ -605,6 +658,10 @@ static void cleanup_bridge(struct acpiphp_bridge *bridge)
 		list_for_each_safe (list, tmp, &slot->funcs) {
 			struct acpiphp_func *func;
 			func = list_entry(list, struct acpiphp_func, sibling);
+			if (is_dock_device(func->handle)) {
+				unregister_hotplug_dock_device(func->handle);
+				unregister_dock_notifier(&func->nb);
+			}
 			if (!(func->flags & FUNC_HAS_DCK)) {
 				status = acpi_remove_notify_handler(func->handle,
 						ACPI_SYSTEM_NOTIFY,
