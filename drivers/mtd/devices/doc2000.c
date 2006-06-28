@@ -55,10 +55,6 @@ static int doc_read(struct mtd_info *mtd, loff_t from, size_t len,
 		    size_t *retlen, u_char *buf);
 static int doc_write(struct mtd_info *mtd, loff_t to, size_t len,
 		     size_t *retlen, const u_char *buf);
-static int doc_read_ecc(struct mtd_info *mtd, loff_t from, size_t len,
-			size_t *retlen, u_char *buf, u_char *eccbuf, struct nand_oobinfo *oobsel);
-static int doc_write_ecc(struct mtd_info *mtd, loff_t to, size_t len,
-			 size_t *retlen, const u_char *buf, u_char *eccbuf, struct nand_oobinfo *oobsel);
 static int doc_read_oob(struct mtd_info *mtd, loff_t ofs,
 			struct mtd_oob_ops *ops);
 static int doc_write_oob(struct mtd_info *mtd, loff_t ofs,
@@ -615,17 +611,10 @@ EXPORT_SYMBOL_GPL(DoC2k_init);
 static int doc_read(struct mtd_info *mtd, loff_t from, size_t len,
 		    size_t * retlen, u_char * buf)
 {
-	/* Just a special case of doc_read_ecc */
-	return doc_read_ecc(mtd, from, len, retlen, buf, NULL, NULL);
-}
-
-static int doc_read_ecc(struct mtd_info *mtd, loff_t from, size_t len,
-			size_t * retlen, u_char * buf, u_char * eccbuf, struct nand_oobinfo *oobsel)
-{
 	struct DiskOnChip *this = mtd->priv;
 	void __iomem *docptr = this->virtadr;
 	struct Nand *mychip;
-	unsigned char syndrome[6];
+	unsigned char syndrome[6], eccbuf[6];
 	volatile char dummy;
 	int i, len256 = 0, ret=0;
 	size_t left = len;
@@ -673,15 +662,9 @@ static int doc_read_ecc(struct mtd_info *mtd, loff_t from, size_t len,
 		DoC_Address(this, ADDR_COLUMN_PAGE, from, CDSN_CTRL_WP,
 			    CDSN_CTRL_ECC_IO);
 
-		if (eccbuf) {
-			/* Prime the ECC engine */
-			WriteDOC(DOC_ECC_RESET, docptr, ECCConf);
-			WriteDOC(DOC_ECC_EN, docptr, ECCConf);
-		} else {
-			/* disable the ECC engine */
-			WriteDOC(DOC_ECC_RESET, docptr, ECCConf);
-			WriteDOC(DOC_ECC_DIS, docptr, ECCConf);
-		}
+		/* Prime the ECC engine */
+		WriteDOC(DOC_ECC_RESET, docptr, ECCConf);
+		WriteDOC(DOC_ECC_EN, docptr, ECCConf);
 
 		/* treat crossing 256-byte sector for 2M x 8bits devices */
 		if (this->page256 && from + len > (from | 0xff) + 1) {
@@ -698,58 +681,59 @@ static int doc_read_ecc(struct mtd_info *mtd, loff_t from, size_t len,
 		/* Let the caller know we completed it */
 		*retlen += len;
 
-		if (eccbuf) {
-			/* Read the ECC data through the DiskOnChip ECC logic */
-			/* Note: this will work even with 2M x 8bit devices as   */
-			/*       they have 8 bytes of OOB per 256 page. mf.      */
-			DoC_ReadBuf(this, eccbuf, 6);
+		/* Read the ECC data through the DiskOnChip ECC logic */
+		/* Note: this will work even with 2M x 8bit devices as   */
+		/*       they have 8 bytes of OOB per 256 page. mf.      */
+		DoC_ReadBuf(this, eccbuf, 6);
 
-			/* Flush the pipeline */
-			if (DoC_is_Millennium(this)) {
-				dummy = ReadDOC(docptr, ECCConf);
-				dummy = ReadDOC(docptr, ECCConf);
-				i = ReadDOC(docptr, ECCConf);
-			} else {
-				dummy = ReadDOC(docptr, 2k_ECCStatus);
-				dummy = ReadDOC(docptr, 2k_ECCStatus);
-				i = ReadDOC(docptr, 2k_ECCStatus);
-			}
+		/* Flush the pipeline */
+		if (DoC_is_Millennium(this)) {
+			dummy = ReadDOC(docptr, ECCConf);
+			dummy = ReadDOC(docptr, ECCConf);
+			i = ReadDOC(docptr, ECCConf);
+		} else {
+			dummy = ReadDOC(docptr, 2k_ECCStatus);
+			dummy = ReadDOC(docptr, 2k_ECCStatus);
+			i = ReadDOC(docptr, 2k_ECCStatus);
+		}
 
-			/* Check the ECC Status */
-			if (i & 0x80) {
-				int nb_errors;
-				/* There was an ECC error */
+		/* Check the ECC Status */
+		if (i & 0x80) {
+			int nb_errors;
+			/* There was an ECC error */
 #ifdef ECC_DEBUG
-				printk(KERN_ERR "DiskOnChip ECC Error: Read at %lx\n", (long)from);
+			printk(KERN_ERR "DiskOnChip ECC Error: Read at %lx\n", (long)from);
 #endif
-				/* Read the ECC syndrom through the DiskOnChip ECC logic.
-				   These syndrome will be all ZERO when there is no error */
-				for (i = 0; i < 6; i++) {
-					syndrome[i] =
-					    ReadDOC(docptr, ECCSyndrome0 + i);
-				}
-	                        nb_errors = doc_decode_ecc(buf, syndrome);
+			/* Read the ECC syndrom through the DiskOnChip ECC
+			   logic.  These syndrome will be all ZERO when there
+			   is no error */
+			for (i = 0; i < 6; i++) {
+				syndrome[i] =
+					ReadDOC(docptr, ECCSyndrome0 + i);
+			}
+			nb_errors = doc_decode_ecc(buf, syndrome);
 
 #ifdef ECC_DEBUG
-				printk(KERN_ERR "Errors corrected: %x\n", nb_errors);
+			printk(KERN_ERR "Errors corrected: %x\n", nb_errors);
 #endif
-	                        if (nb_errors < 0) {
-					/* We return error, but have actually done the read. Not that
-					   this can be told to user-space, via sys_read(), but at least
-					   MTD-aware stuff can know about it by checking *retlen */
-					ret = -EIO;
-	                        }
+			if (nb_errors < 0) {
+				/* We return error, but have actually done the
+				   read. Not that this can be told to
+				   user-space, via sys_read(), but at least
+				   MTD-aware stuff can know about it by
+				   checking *retlen */
+				ret = -EIO;
 			}
+		}
 
 #ifdef PSYCHO_DEBUG
-			printk(KERN_DEBUG "ECC DATA at %lxB: %2.2X %2.2X %2.2X %2.2X %2.2X %2.2X\n",
-				     (long)from, eccbuf[0], eccbuf[1], eccbuf[2],
-				     eccbuf[3], eccbuf[4], eccbuf[5]);
+		printk(KERN_DEBUG "ECC DATA at %lxB: %2.2X %2.2X %2.2X %2.2X %2.2X %2.2X\n",
+		       (long)from, eccbuf[0], eccbuf[1], eccbuf[2],
+		       eccbuf[3], eccbuf[4], eccbuf[5]);
 #endif
 
-			/* disable the ECC engine */
-			WriteDOC(DOC_ECC_DIS, docptr , ECCConf);
-		}
+		/* disable the ECC engine */
+		WriteDOC(DOC_ECC_DIS, docptr , ECCConf);
 
 		/* according to 11.4.1, we need to wait for the busy line
 	         * drop if we read to the end of the page.  */
@@ -771,17 +755,10 @@ static int doc_read_ecc(struct mtd_info *mtd, loff_t from, size_t len,
 static int doc_write(struct mtd_info *mtd, loff_t to, size_t len,
 		     size_t * retlen, const u_char * buf)
 {
-	char eccbuf[6];
-	return doc_write_ecc(mtd, to, len, retlen, buf, eccbuf, NULL);
-}
-
-static int doc_write_ecc(struct mtd_info *mtd, loff_t to, size_t len,
-			 size_t * retlen, const u_char * buf,
-			 u_char * eccbuf, struct nand_oobinfo *oobsel)
-{
 	struct DiskOnChip *this = mtd->priv;
 	int di; /* Yes, DI is a hangover from when I was disassembling the binary driver */
 	void __iomem *docptr = this->virtadr;
+	unsigned char eccbuf[6];
 	volatile char dummy;
 	int len256 = 0;
 	struct Nand *mychip;
@@ -835,15 +812,9 @@ static int doc_write_ecc(struct mtd_info *mtd, loff_t to, size_t len,
 		DoC_Command(this, NAND_CMD_SEQIN, 0);
 		DoC_Address(this, ADDR_COLUMN_PAGE, to, 0, CDSN_CTRL_ECC_IO);
 
-		if (eccbuf) {
-			/* Prime the ECC engine */
-			WriteDOC(DOC_ECC_RESET, docptr, ECCConf);
-			WriteDOC(DOC_ECC_EN | DOC_ECC_RW, docptr, ECCConf);
-		} else {
-			/* disable the ECC engine */
-			WriteDOC(DOC_ECC_RESET, docptr, ECCConf);
-			WriteDOC(DOC_ECC_DIS, docptr, ECCConf);
-		}
+		/* Prime the ECC engine */
+		WriteDOC(DOC_ECC_RESET, docptr, ECCConf);
+		WriteDOC(DOC_ECC_EN | DOC_ECC_RW, docptr, ECCConf);
 
 		/* treat crossing 256-byte sector for 2M x 8bits devices */
 		if (this->page256 && to + len > (to | 0xff) + 1) {
@@ -873,39 +844,35 @@ static int doc_write_ecc(struct mtd_info *mtd, loff_t to, size_t len,
 
 		DoC_WriteBuf(this, &buf[len256], len - len256);
 
-		if (eccbuf) {
-			WriteDOC(CDSN_CTRL_ECC_IO | CDSN_CTRL_CE, docptr,
-				 CDSNControl);
+		WriteDOC(CDSN_CTRL_ECC_IO | CDSN_CTRL_CE, docptr, CDSNControl);
 
-			if (DoC_is_Millennium(this)) {
-				WriteDOC(0, docptr, NOP);
-				WriteDOC(0, docptr, NOP);
-				WriteDOC(0, docptr, NOP);
-			} else {
-				WriteDOC_(0, docptr, this->ioreg);
-				WriteDOC_(0, docptr, this->ioreg);
-				WriteDOC_(0, docptr, this->ioreg);
-			}
-
-			WriteDOC(CDSN_CTRL_ECC_IO | CDSN_CTRL_FLASH_IO | CDSN_CTRL_CE, docptr,
-				 CDSNControl);
-
-			/* Read the ECC data through the DiskOnChip ECC logic */
-			for (di = 0; di < 6; di++) {
-				eccbuf[di] = ReadDOC(docptr, ECCSyndrome0 + di);
-			}
-
-			/* Reset the ECC engine */
-			WriteDOC(DOC_ECC_DIS, docptr, ECCConf);
-
-#ifdef PSYCHO_DEBUG
-			printk
-			    ("OOB data at %lx is %2.2X %2.2X %2.2X %2.2X %2.2X %2.2X\n",
-			     (long) to, eccbuf[0], eccbuf[1], eccbuf[2], eccbuf[3],
-			     eccbuf[4], eccbuf[5]);
-#endif
+		if (DoC_is_Millennium(this)) {
+			WriteDOC(0, docptr, NOP);
+			WriteDOC(0, docptr, NOP);
+			WriteDOC(0, docptr, NOP);
+		} else {
+			WriteDOC_(0, docptr, this->ioreg);
+			WriteDOC_(0, docptr, this->ioreg);
+			WriteDOC_(0, docptr, this->ioreg);
 		}
 
+		WriteDOC(CDSN_CTRL_ECC_IO | CDSN_CTRL_FLASH_IO | CDSN_CTRL_CE, docptr,
+			 CDSNControl);
+
+		/* Read the ECC data through the DiskOnChip ECC logic */
+		for (di = 0; di < 6; di++) {
+			eccbuf[di] = ReadDOC(docptr, ECCSyndrome0 + di);
+		}
+
+		/* Reset the ECC engine */
+		WriteDOC(DOC_ECC_DIS, docptr, ECCConf);
+
+#ifdef PSYCHO_DEBUG
+		printk
+			("OOB data at %lx is %2.2X %2.2X %2.2X %2.2X %2.2X %2.2X\n",
+			 (long) to, eccbuf[0], eccbuf[1], eccbuf[2], eccbuf[3],
+			 eccbuf[4], eccbuf[5]);
+#endif
 		DoC_Command(this, NAND_CMD_PAGEPROG, 0);
 
 		DoC_Command(this, NAND_CMD_STATUS, CDSN_CTRL_WP);
