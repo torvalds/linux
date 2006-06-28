@@ -793,6 +793,7 @@ typedef struct hwif_s {
 	unsigned	auto_poll  : 1; /* supports nop auto-poll */
 	unsigned	sg_mapped  : 1;	/* sg_table and sg_nents are ready */
 	unsigned	no_io_32bit : 1; /* 1 = can not do 32-bit IO ops */
+	unsigned	err_stops_fifo : 1; /* 1=data FIFO is cleared by an error */
 
 	struct device	gendev;
 	struct completion gendev_rel_comp; /* To deal with device release() */
