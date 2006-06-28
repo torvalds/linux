@@ -584,7 +584,7 @@ static struct db9 __init *db9_probe(int parport, int mode)
 		goto err_out;
 	}
 
-	if (db9_mode[mode].bidirectional && !(pp->modes & PARPORT_MODE_TRISTATE)) {
+	if (db9_mode->bidirectional && !(pp->modes & PARPORT_MODE_TRISTATE)) {
 		printk(KERN_ERR "db9.c: specified parport is not bidirectional\n");
 		err = -EINVAL;
 		goto err_put_pp;
