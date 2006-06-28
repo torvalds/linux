@@ -908,7 +908,7 @@ static void __xipram xip_enable(struct map_info *map, struct flchip *chip,
 
 static int __xipram xip_wait_for_operation(
 		struct map_info *map, struct flchip *chip,
-		unsigned long adr, int *chip_op_time )
+		unsigned long adr, unsigned int chip_op_time )
 {
 	struct cfi_private *cfi = map->fldrv_priv;
 	struct cfi_pri_intelext *cfip = cfi->cmdset_priv;
@@ -917,7 +917,7 @@ static int __xipram xip_wait_for_operation(
 	flstate_t oldstate, newstate;
 
        	start = xip_currtime();
-	usec = *chip_op_time * 8;
+	usec = chip_op_time * 8;
 	if (usec == 0)
 		usec = 500000;
 	done = 0;
@@ -1027,8 +1027,8 @@ static int __xipram xip_wait_for_operation(
 #define XIP_INVAL_CACHED_RANGE(map, from, size)  \
 	INVALIDATE_CACHED_RANGE(map, from, size)
 
-#define INVAL_CACHE_AND_WAIT(map, chip, cmd_adr, inval_adr, inval_len, p_usec) \
-	xip_wait_for_operation(map, chip, cmd_adr, p_usec)
+#define INVAL_CACHE_AND_WAIT(map, chip, cmd_adr, inval_adr, inval_len, usec) \
+	xip_wait_for_operation(map, chip, cmd_adr, usec)
 
 #else
 
@@ -1040,64 +1040,64 @@ static int __xipram xip_wait_for_operation(
 static int inval_cache_and_wait_for_operation(
 		struct map_info *map, struct flchip *chip,
 		unsigned long cmd_adr, unsigned long inval_adr, int inval_len,
-		int *chip_op_time )
+		unsigned int chip_op_time)
 {
 	struct cfi_private *cfi = map->fldrv_priv;
 	map_word status, status_OK = CMD(0x80);
-	int z, chip_state = chip->state;
-	unsigned long timeo;
+	int chip_state = chip->state;
+	unsigned int timeo, sleep_time;
 
 	spin_unlock(chip->mutex);
 	if (inval_len)
 		INVALIDATE_CACHED_RANGE(map, inval_adr, inval_len);
-	if (*chip_op_time)
-		cfi_udelay(*chip_op_time);
 	spin_lock(chip->mutex);
 
-	timeo = *chip_op_time * 8 * HZ / 1000000;
-	if (timeo < HZ/2)
-		timeo = HZ/2;
-	timeo += jiffies;
+	/* set our timeout to 8 times the expected delay */
+	timeo = chip_op_time * 8;
+	if (!timeo)
+		timeo = 500000;
+	sleep_time = chip_op_time / 2;
 
-	z = 0;
 	for (;;) {
-		if (chip->state != chip_state) {
-			/* Someone's suspended the operation: sleep */
-			DECLARE_WAITQUEUE(wait, current);
-
-			set_current_state(TASK_UNINTERRUPTIBLE);
-			add_wait_queue(&chip->wq, &wait);
-			spin_unlock(chip->mutex);
-			schedule();
-			remove_wait_queue(&chip->wq, &wait);
-			timeo = jiffies + (HZ / 2); /* FIXME */
-			spin_lock(chip->mutex);
-			continue;
-		}
-
 		status = map_read(map, cmd_adr);
 		if (map_word_andequal(map, status, status_OK, status_OK))
 			break;
 
-		/* OK Still waiting */
-		if (time_after(jiffies, timeo)) {
+		if (!timeo) {
 			map_write(map, CMD(0x70), cmd_adr);
 			chip->state = FL_STATUS;
 			return -ETIME;
 		}
 
-		/* Latency issues. Drop the lock, wait a while and retry */
-		z++;
+		/* OK Still waiting. Drop the lock, wait a while and retry. */
 		spin_unlock(chip->mutex);
-		cfi_udelay(1);
+		if (sleep_time >= 1000000/HZ) {
+			/*
+			 * Half of the normal delay still remaining
+			 * can be performed with a sleeping delay instead
+			 * of busy waiting.
+			 */
+			msleep(sleep_time/1000);
+			timeo -= sleep_time;
+			sleep_time = 1000000/HZ;
+		} else {
+			udelay(1);
+			cond_resched();
+			timeo--;
+		}
 		spin_lock(chip->mutex);
-	}
 
-	if (!z) {
-		if (!--(*chip_op_time))
-			*chip_op_time = 1;
-	} else if (z > 1)
-		++(*chip_op_time);
+		if (chip->state != chip_state) {
+			/* Someone's suspended the operation: sleep */
+			DECLARE_WAITQUEUE(wait, current);
+			set_current_state(TASK_UNINTERRUPTIBLE);
+			add_wait_queue(&chip->wq, &wait);
+			spin_unlock(chip->mutex);
+			schedule();
+			remove_wait_queue(&chip->wq, &wait);
+			spin_lock(chip->mutex);
+		}
+	}
 
 	/* Done and happy. */
  	chip->state = FL_STATUS;
@@ -1107,8 +1107,7 @@ static int inval_cache_and_wait_for_operation(
 #endif
 
 #define WAIT_TIMEOUT(map, chip, adr, udelay) \
-	({ int __udelay = (udelay); \
-	   INVAL_CACHE_AND_WAIT(map, chip, adr, 0, 0, &__udelay); })
+	INVAL_CACHE_AND_WAIT(map, chip, adr, 0, 0, udelay);
 
 
 static int do_point_onechip (struct map_info *map, struct flchip *chip, loff_t adr, size_t len)
@@ -1332,7 +1331,7 @@ static int __xipram do_write_oneword(struct map_info *map, struct flchip *chip,
 
 	ret = INVAL_CACHE_AND_WAIT(map, chip, adr,
 				   adr, map_bankwidth(map),
-				   &chip->word_write_time);
+				   chip->word_write_time);
 	if (ret) {
 		xip_enable(map, chip, adr);
 		printk(KERN_ERR "%s: word write error (status timeout)\n", map->name);
@@ -1569,7 +1568,7 @@ static int __xipram do_write_buffer(struct map_info *map, struct flchip *chip,
 
 	ret = INVAL_CACHE_AND_WAIT(map, chip, cmd_adr,
 				   adr, len,
-				   &chip->buffer_write_time);
+				   chip->buffer_write_time);
 	if (ret) {
 		map_write(map, CMD(0x70), cmd_adr);
 		chip->state = FL_STATUS;
@@ -1704,7 +1703,7 @@ static int __xipram do_erase_oneblock(struct map_info *map, struct flchip *chip,
 
 	ret = INVAL_CACHE_AND_WAIT(map, chip, adr,
 				   adr, len,
-				   &chip->erase_time);
+				   chip->erase_time);
 	if (ret) {
 		map_write(map, CMD(0x70), adr);
 		chip->state = FL_STATUS;
