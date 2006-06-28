@@ -219,8 +219,13 @@ register_slot(acpi_handle handle, u32 lvl, void *context, void **rv)
 		newfunc->flags |= FUNC_HAS_DCK;
 
 	status = acpi_evaluate_integer(handle, "_SUN", NULL, &sun);
-	if (ACPI_FAILURE(status))
-		sun = -1;
+	if (ACPI_FAILURE(status)) {
+		/*
+		 * use the count of the number of slots we've found
+		 * for the number of the slot
+		 */
+		sun = bridge->nr_slots+1;
+	}
 
 	/* search for objects that share the same slot */
 	for (slot = bridge->slots; slot; slot = slot->next)
