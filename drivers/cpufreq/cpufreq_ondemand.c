@@ -12,22 +12,11 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/smp.h>
 #include <linux/init.h>
-#include <linux/interrupt.h>
-#include <linux/ctype.h>
 #include <linux/cpufreq.h>
-#include <linux/sysctl.h>
-#include <linux/types.h>
-#include <linux/fs.h>
-#include <linux/sysfs.h>
 #include <linux/cpu.h>
-#include <linux/sched.h>
-#include <linux/kmod.h>
-#include <linux/workqueue.h>
 #include <linux/jiffies.h>
 #include <linux/kernel_stat.h>
-#include <linux/percpu.h>
 #include <linux/mutex.h>
 
 /*
@@ -79,8 +68,7 @@ static unsigned int dbs_enable;	/* number of CPUs using this policy */
  * cpu_hotplug lock should be taken before that. Note that cpu_hotplug lock
  * is recursive for the same process. -Venki
  */
-static DEFINE_MUTEX (dbs_mutex);
-static DECLARE_WORK	(dbs_work, do_dbs_timer, NULL);
+static DEFINE_MUTEX(dbs_mutex);
 
 static struct workqueue_struct	*kondemand_wq;
 
@@ -142,7 +130,7 @@ static ssize_t store_sampling_rate(struct cpufreq_policy *unused,
 {
 	unsigned int input;
 	int ret;
-	ret = sscanf (buf, "%u", &input);
+	ret = sscanf(buf, "%u", &input);
 
 	mutex_lock(&dbs_mutex);
 	if (ret != 1 || input > MAX_SAMPLING_RATE || input < MIN_SAMPLING_RATE) {
@@ -161,7 +149,7 @@ static ssize_t store_up_threshold(struct cpufreq_policy *unused,
 {
 	unsigned int input;
 	int ret;
-	ret = sscanf (buf, "%u", &input);
+	ret = sscanf(buf, "%u", &input);
 
 	mutex_lock(&dbs_mutex);
 	if (ret != 1 || input > MAX_FREQUENCY_UP_THRESHOLD ||
@@ -184,7 +172,7 @@ static ssize_t store_ignore_nice_load(struct cpufreq_policy *policy,
 
 	unsigned int j;
 
-	ret = sscanf (buf, "%u", &input);
+	ret = sscanf(buf, "%u", &input);
 	if ( ret != 1 )
 		return -EINVAL;
 
@@ -349,8 +337,7 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 
 	switch (event) {
 	case CPUFREQ_GOV_START:
-		if ((!cpu_online(cpu)) ||
-		    (!policy->cur))
+		if ((!cpu_online(cpu)) || (!policy->cur))
 			return -EINVAL;
 
 		if (policy->cpuinfo.transition_latency >
@@ -424,13 +411,13 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 		lock_cpu_hotplug();
 		mutex_lock(&dbs_mutex);
 		if (policy->max < this_dbs_info->cur_policy->cur)
-			__cpufreq_driver_target(
-					this_dbs_info->cur_policy,
-					policy->max, CPUFREQ_RELATION_H);
+			__cpufreq_driver_target(this_dbs_info->cur_policy,
+			                        policy->max,
+			                        CPUFREQ_RELATION_H);
 		else if (policy->min > this_dbs_info->cur_policy->cur)
-			__cpufreq_driver_target(
-					this_dbs_info->cur_policy,
-					policy->min, CPUFREQ_RELATION_L);
+			__cpufreq_driver_target(this_dbs_info->cur_policy,
+			                        policy->min,
+			                        CPUFREQ_RELATION_L);
 		mutex_unlock(&dbs_mutex);
 		unlock_cpu_hotplug();
 		break;
@@ -439,9 +426,9 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 }
 
 static struct cpufreq_governor cpufreq_gov_dbs = {
-	.name		= "ondemand",
-	.governor	= cpufreq_governor_dbs,
-	.owner		= THIS_MODULE,
+	.name = "ondemand",
+	.governor = cpufreq_governor_dbs,
+	.owner = THIS_MODULE,
 };
 
 static int __init cpufreq_gov_dbs_init(void)
@@ -455,10 +442,11 @@ static void __exit cpufreq_gov_dbs_exit(void)
 }
 
 
-MODULE_AUTHOR ("Venkatesh Pallipadi <venkatesh.pallipadi@intel.com>");
-MODULE_DESCRIPTION ("'cpufreq_ondemand' - A dynamic cpufreq governor for "
-		"Low Latency Frequency Transition capable processors");
-MODULE_LICENSE ("GPL");
+MODULE_AUTHOR("Venkatesh Pallipadi <venkatesh.pallipadi@intel.com>");
+MODULE_AUTHOR("Alexey Starikovskiy <alexey.y.starikovskiy@intel.com>");
+MODULE_DESCRIPTION("'cpufreq_ondemand' - A dynamic cpufreq governor for "
+                   "Low Latency Frequency Transition capable processors");
+MODULE_LICENSE("GPL");
 
 module_init(cpufreq_gov_dbs_init);
 module_exit(cpufreq_gov_dbs_exit);
