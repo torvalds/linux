@@ -447,7 +447,6 @@ static void __devinit init_hwif_sl82c105(ide_hwif_t *hwif)
 		printk("    %s: Winbond 553 bridge revision %d, BM-DMA disabled\n",
 		       hwif->name, rev);
 	} else {
-#ifdef CONFIG_BLK_DEV_IDEDMA
 		dma_state |= 0x60;
 
 		hwif->atapi_dma = 1;
@@ -468,7 +467,6 @@ static void __devinit init_hwif_sl82c105(ide_hwif_t *hwif)
 
 		if (hwif->mate)
 			hwif->serialized = hwif->mate->serialized = 1;
-#endif /* CONFIG_BLK_DEV_IDEDMA */
 	}
 	hwif->OUTB(dma_state, hwif->dma_base + 2);
 }
@@ -489,7 +487,7 @@ static int __devinit sl82c105_init_one(struct pci_dev *dev, const struct pci_dev
 }
 
 static struct pci_device_id sl82c105_pci_tbl[] = {
-	{ PCI_VENDOR_ID_WINBOND, PCI_DEVICE_ID_WINBOND_82C105, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{ PCI_DEVICE(PCI_VENDOR_ID_WINBOND, PCI_DEVICE_ID_WINBOND_82C105), 0},
 	{ 0, },
 };
 MODULE_DEVICE_TABLE(pci, sl82c105_pci_tbl);

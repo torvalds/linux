@@ -22,7 +22,7 @@ struct chipset_bus_clock_list_entry {
 	u8 ultra_settings;
 };
 
-static struct chipset_bus_clock_list_entry aec6xxx_33_base [] = {
+static const struct chipset_bus_clock_list_entry aec6xxx_33_base [] = {
 	{	XFER_UDMA_6,	0x31,	0x07	},
 	{	XFER_UDMA_5,	0x31,	0x06	},
 	{	XFER_UDMA_4,	0x31,	0x05	},
@@ -42,7 +42,7 @@ static struct chipset_bus_clock_list_entry aec6xxx_33_base [] = {
 	{	0,		0x00,	0x00	}
 };
 
-static struct chipset_bus_clock_list_entry aec6xxx_34_base [] = {
+static const struct chipset_bus_clock_list_entry aec6xxx_34_base [] = {
 	{	XFER_UDMA_6,	0x41,	0x06	},
 	{	XFER_UDMA_5,	0x41,	0x05	},
 	{	XFER_UDMA_4,	0x41,	0x04	},
@@ -425,12 +425,12 @@ static int __devinit aec62xx_init_one(struct pci_dev *dev, const struct pci_devi
 	return d->init_setup(dev, d);
 }
 
-static struct pci_device_id aec62xx_pci_tbl[] = {
-	{ PCI_VENDOR_ID_ARTOP, PCI_DEVICE_ID_ARTOP_ATP850UF, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-	{ PCI_VENDOR_ID_ARTOP, PCI_DEVICE_ID_ARTOP_ATP860,   PCI_ANY_ID, PCI_ANY_ID, 0, 0, 1 },
-	{ PCI_VENDOR_ID_ARTOP, PCI_DEVICE_ID_ARTOP_ATP860R,  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 2 },
-	{ PCI_VENDOR_ID_ARTOP, PCI_DEVICE_ID_ARTOP_ATP865,   PCI_ANY_ID, PCI_ANY_ID, 0, 0, 3 },
-	{ PCI_VENDOR_ID_ARTOP, PCI_DEVICE_ID_ARTOP_ATP865R,  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 4 },
+static const struct pci_device_id aec62xx_pci_tbl[] = {
+	{ PCI_DEVICE(PCI_VENDOR_ID_ARTOP, PCI_DEVICE_ID_ARTOP_ATP850UF), 0 },
+	{ PCI_DEVICE(PCI_VENDOR_ID_ARTOP, PCI_DEVICE_ID_ARTOP_ATP860), 1 },
+	{ PCI_DEVICE(PCI_VENDOR_ID_ARTOP, PCI_DEVICE_ID_ARTOP_ATP860R), 2 },
+	{ PCI_DEVICE(PCI_VENDOR_ID_ARTOP, PCI_DEVICE_ID_ARTOP_ATP865), 3 },
+	{ PCI_DEVICE(PCI_VENDOR_ID_ARTOP, PCI_DEVICE_ID_ARTOP_ATP865R), 4 },
 	{ 0, },
 };
 MODULE_DEVICE_TABLE(pci, aec62xx_pci_tbl);

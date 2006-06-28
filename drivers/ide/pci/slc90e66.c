@@ -72,7 +72,8 @@ static void slc90e66_tune_drive (ide_drive_t *drive, u8 pio)
 	u16 master_data;
 	u8 slave_data;
 				 /* ISP  RTC */
-	u8 timings[][2]	= { { 0, 0 },
+	static const u8 timings[][2]= {
+				    { 0, 0 },
 				    { 0, 0 },
 				    { 1, 0 },
 				    { 2, 1 },
@@ -119,7 +120,6 @@ static int slc90e66_tune_chipset (ide_drive_t *drive, u8 xferspeed)
 	pci_read_config_word(dev, 0x4a, &reg4a);
 
 	switch(speed) {
-#ifdef CONFIG_BLK_DEV_IDEDMA
 		case XFER_UDMA_4:	u_speed = 4 << (drive->dn * 4); break;
 		case XFER_UDMA_3:	u_speed = 3 << (drive->dn * 4); break;
 		case XFER_UDMA_2:	u_speed = 2 << (drive->dn * 4); break;
@@ -128,7 +128,6 @@ static int slc90e66_tune_chipset (ide_drive_t *drive, u8 xferspeed)
 		case XFER_MW_DMA_2:
 		case XFER_MW_DMA_1:
 		case XFER_SW_DMA_2:	break;
-#endif /* CONFIG_BLK_DEV_IDEDMA */
 		case XFER_PIO_4:
 		case XFER_PIO_3:
 		case XFER_PIO_2:
@@ -156,7 +155,6 @@ static int slc90e66_tune_chipset (ide_drive_t *drive, u8 xferspeed)
 	return (ide_config_drive_speed(drive, speed));
 }
 
-#ifdef CONFIG_BLK_DEV_IDEDMA
 static int slc90e66_config_drive_for_dma (ide_drive_t *drive)
 {
 	u8 speed = ide_dma_speed(drive, slc90e66_ratemask(drive));
@@ -194,7 +192,6 @@ fast_ata_pio:
 	/* IORDY not supported */
 	return 0;
 }
-#endif /* CONFIG_BLK_DEV_IDEDMA */
 
 static void __devinit init_hwif_slc90e66 (ide_hwif_t *hwif)
 {
@@ -222,7 +219,6 @@ static void __devinit init_hwif_slc90e66 (ide_hwif_t *hwif)
 	hwif->mwdma_mask = 0x07;
 	hwif->swdma_mask = 0x07;
 
-#ifdef CONFIG_BLK_DEV_IDEDMA 
 	if (!(hwif->udma_four))
 		/* bit[0(1)]: 0:80, 1:40 */
 		hwif->udma_four = (reg47 & mask) ? 0 : 1;
@@ -232,7 +228,6 @@ static void __devinit init_hwif_slc90e66 (ide_hwif_t *hwif)
 		hwif->autodma = 1;
 	hwif->drives[0].autodma = hwif->autodma;
 	hwif->drives[1].autodma = hwif->autodma;
-#endif /* !CONFIG_BLK_DEV_IDEDMA */
 }
 
 static ide_pci_device_t slc90e66_chipset __devinitdata = {
@@ -250,7 +245,7 @@ static int __devinit slc90e66_init_one(struct pci_dev *dev, const struct pci_dev
 }
 
 static struct pci_device_id slc90e66_pci_tbl[] = {
-	{ PCI_VENDOR_ID_EFAR, PCI_DEVICE_ID_EFAR_SLC90E66_1, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{ PCI_DEVICE(PCI_VENDOR_ID_EFAR, PCI_DEVICE_ID_EFAR_SLC90E66_1), 0},
 	{ 0, },
 };
 MODULE_DEVICE_TABLE(pci, slc90e66_pci_tbl);
