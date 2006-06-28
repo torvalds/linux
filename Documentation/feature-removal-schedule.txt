@@ -177,6 +177,16 @@ Who:	Jean Delvare <khali@linux-fr.org>
 
 ---------------------------
 
+What:	Unused EXPORT_SYMBOL/EXPORT_SYMBOL_GPL exports
+	(temporary transition config option provided until then)
+	The transition config option will also be removed at the same time.
+When:	before 2.6.19
+Why:	Unused symbols are both increasing the size of the kernel binary
+	and are often a sign of "wrong API"
+Who:	Arjan van de Ven <arjan@linux.intel.com>
+
+---------------------------
+
 What:	remove EXPORT_SYMBOL(tasklist_lock)
 When:	August 2006
 Files:	kernel/fork.c
