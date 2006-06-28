@@ -11,9 +11,15 @@
 #define _ASMARM_PGTABLE_H
 
 #include <asm-generic/4level-fixup.h>
+#include <asm/proc-fns.h>
+
+#ifndef CONFIG_MMU
+
+#include "pgtable-nommu.h"
+
+#else
 
 #include <asm/memory.h>
-#include <asm/proc-fns.h>
 #include <asm/arch/vmalloc.h>
 
 /*
@@ -377,5 +383,7 @@ extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
 #define pgtable_cache_init() do { } while (0)
 
 #endif /* !__ASSEMBLY__ */
+
+#endif /* CONFIG_MMU */
 
 #endif /* _ASMARM_PGTABLE_H */

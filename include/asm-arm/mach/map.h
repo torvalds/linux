@@ -16,8 +16,6 @@ struct map_desc {
 	unsigned int type;
 };
 
-struct meminfo;
-
 #define MT_DEVICE		0
 #define MT_CACHECLEAN		1
 #define MT_MINICLEAN		2
@@ -28,7 +26,8 @@ struct meminfo;
 #define MT_IXP2000_DEVICE	7
 #define MT_NONSHARED_DEVICE	8
 
-extern void create_memmap_holes(struct meminfo *);
-extern void memtable_init(struct meminfo *);
+#ifdef CONFIG_MMU
 extern void iotable_init(struct map_desc *, int);
-extern void setup_io_desc(void);
+#else
+#define iotable_init(map,num)	do { } while (0)
+#endif

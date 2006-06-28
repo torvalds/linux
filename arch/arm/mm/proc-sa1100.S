@@ -2,6 +2,7 @@
  *  linux/arch/arm/mm/proc-sa1100.S
  *
  *  Copyright (C) 1997-2002 Russell King
+ *  hacked for non-paged-MM by Hyok S. Choi, 2003.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -77,7 +78,9 @@ ENTRY(cpu_sa1100_reset)
 	mov	ip, #0
 	mcr	p15, 0, ip, c7, c7, 0		@ invalidate I,D caches
 	mcr	p15, 0, ip, c7, c10, 4		@ drain WB
+#ifdef CONFIG_MMU
 	mcr	p15, 0, ip, c8, c7, 0		@ invalidate I & D TLBs
+#endif
 	mrc	p15, 0, ip, c1, c0, 0		@ ctrl register
 	bic	ip, ip, #0x000f			@ ............wcam
 	bic	ip, ip, #0x1100			@ ...i...s........
@@ -142,12 +145,16 @@ ENTRY(cpu_sa1100_dcache_clean_area)
  */
 	.align	5
 ENTRY(cpu_sa1100_switch_mm)
+#ifdef CONFIG_MMU
 	str	lr, [sp, #-4]!
 	bl	v4wb_flush_kern_cache_all	@ clears IP
 	mcr	p15, 0, ip, c9, c0, 0		@ invalidate RB
 	mcr	p15, 0, r0, c2, c0, 0		@ load page table pointer
 	mcr	p15, 0, ip, c8, c7, 0		@ invalidate I & D TLBs
 	ldr	pc, [sp], #4
+#else
+	mov	pc, lr
+#endif
 
 /*
  * cpu_sa1100_set_pte(ptep, pte)
@@ -156,6 +163,7 @@ ENTRY(cpu_sa1100_switch_mm)
  */
 	.align	5
 ENTRY(cpu_sa1100_set_pte)
+#ifdef CONFIG_MMU
 	str	r1, [r0], #-2048		@ linux version
 
 	eor	r1, r1, #L_PTE_PRESENT | L_PTE_YOUNG | L_PTE_WRITE | L_PTE_DIRTY
@@ -177,6 +185,7 @@ ENTRY(cpu_sa1100_set_pte)
 	mov	r0, r0
 	mcr	p15, 0, r0, c7, c10, 1		@ clean D entry
 	mcr	p15, 0, r0, c7, c10, 4		@ drain WB
+#endif
 	mov	pc, lr
 
 	__INIT
@@ -186,7 +195,9 @@ __sa1100_setup:
 	mov	r0, #0
 	mcr	p15, 0, r0, c7, c7		@ invalidate I,D caches on v4
 	mcr	p15, 0, r0, c7, c10, 4		@ drain write buffer on v4
+#ifdef CONFIG_MMU
 	mcr	p15, 0, r0, c8, c7		@ invalidate I,D TLBs on v4
+#endif
 	mrc	p15, 0, r0, c1, c0		@ get control register v4
 	ldr	r5, sa1100_cr1_clear
 	bic	r0, r0, r5

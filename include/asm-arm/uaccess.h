@@ -41,15 +41,24 @@ struct exception_table_entry
 extern int fixup_exception(struct pt_regs *regs);
 
 /*
+ * These two are intentionally not defined anywhere - if the kernel
+ * code generates any references to them, that's a bug.
+ */
+extern int __get_user_bad(void);
+extern int __put_user_bad(void);
+
+/*
  * Note that this is actually 0x1,0000,0000
  */
 #define KERNEL_DS	0x00000000
-#define USER_DS		TASK_SIZE
-
 #define get_ds()	(KERNEL_DS)
+
+#ifdef CONFIG_MMU
+
+#define USER_DS		TASK_SIZE
 #define get_fs()	(current_thread_info()->addr_limit)
 
-static inline void set_fs (mm_segment_t fs)
+static inline void set_fs(mm_segment_t fs)
 {
 	current_thread_info()->addr_limit = fs;
 	modify_domain(DOMAIN_KERNEL, fs ? DOMAIN_CLIENT : DOMAIN_MANAGER);
@@ -75,8 +84,6 @@ static inline void set_fs (mm_segment_t fs)
 		: "cc"); \
 	flag; })
 
-#define access_ok(type,addr,size)	(__range_ok(addr,size) == 0)
-
 /*
  * Single-value transfer routines.  They automatically use the right
  * size if we just have the right pointer type.  Note that the functions
@@ -87,20 +94,10 @@ static inline void set_fs (mm_segment_t fs)
  * fixup code, but there are a few places where it intrudes on the
  * main code path.  When we only write to user space, there is no
  * problem.
- *
- * The "__xxx" versions of the user access functions do not verify the
- * address space - it must have been done previously with a separate
- * "access_ok()" call.
- *
- * The "xxx_error" versions set the third argument to EFAULT if an
- * error occurs, and leave it unchanged on success.  Note that these
- * versions are void (ie, don't return a value as such).
  */
-
 extern int __get_user_1(void *);
 extern int __get_user_2(void *);
 extern int __get_user_4(void *);
-extern int __get_user_bad(void);
 
 #define __get_user_x(__r2,__p,__e,__s,__i...)				\
 	   __asm__ __volatile__ (					\
@@ -131,6 +128,74 @@ extern int __get_user_bad(void);
 		__e;							\
 	})
 
+extern int __put_user_1(void *, unsigned int);
+extern int __put_user_2(void *, unsigned int);
+extern int __put_user_4(void *, unsigned int);
+extern int __put_user_8(void *, unsigned long long);
+
+#define __put_user_x(__r2,__p,__e,__s)					\
+	   __asm__ __volatile__ (					\
+		__asmeq("%0", "r0") __asmeq("%2", "r2")			\
+		"bl	__put_user_" #__s				\
+		: "=&r" (__e)						\
+		: "0" (__p), "r" (__r2)					\
+		: "ip", "lr", "cc")
+
+#define put_user(x,p)							\
+	({								\
+		const register typeof(*(p)) __r2 asm("r2") = (x);	\
+		const register typeof(*(p)) __user *__p asm("r0") = (p);\
+		register int __e asm("r0");				\
+		switch (sizeof(*(__p))) {				\
+		case 1:							\
+			__put_user_x(__r2, __p, __e, 1);		\
+			break;						\
+		case 2:							\
+			__put_user_x(__r2, __p, __e, 2);		\
+			break;						\
+		case 4:							\
+			__put_user_x(__r2, __p, __e, 4);		\
+			break;						\
+		case 8:							\
+			__put_user_x(__r2, __p, __e, 8);		\
+			break;						\
+		default: __e = __put_user_bad(); break;			\
+		}							\
+		__e;							\
+	})
+
+#else /* CONFIG_MMU */
+
+/*
+ * uClinux has only one addr space, so has simplified address limits.
+ */
+#define USER_DS			KERNEL_DS
+
+#define segment_eq(a,b)		(1)
+#define __addr_ok(addr)		(1)
+#define __range_ok(addr,size)	(0)
+#define get_fs()		(KERNEL_DS)
+
+static inline void set_fs(mm_segment_t fs)
+{
+}
+
+#define get_user(x,p)	__get_user(x,p)
+#define put_user(x,p)	__put_user(x,p)
+
+#endif /* CONFIG_MMU */
+
+#define access_ok(type,addr,size)	(__range_ok(addr,size) == 0)
+
+/*
+ * The "__xxx" versions of the user access functions do not verify the
+ * address space - it must have been done previously with a separate
+ * "access_ok()" call.
+ *
+ * The "xxx_error" versions set the third argument to EFAULT if an
+ * error occurs, and leave it unchanged on success.  Note that these
+ * versions are void (ie, don't return a value as such).
+ */
 #define __get_user(x,ptr)						\
 ({									\
 	long __gu_err = 0;						\
@@ -211,43 +276,6 @@ do {									\
 	: "+r" (err), "=&r" (x)					\
 	: "r" (addr), "i" (-EFAULT)				\
 	: "cc")
-
-extern int __put_user_1(void *, unsigned int);
-extern int __put_user_2(void *, unsigned int);
-extern int __put_user_4(void *, unsigned int);
-extern int __put_user_8(void *, unsigned long long);
-extern int __put_user_bad(void);
-
-#define __put_user_x(__r2,__p,__e,__s)					\
-	   __asm__ __volatile__ (					\
-		__asmeq("%0", "r0") __asmeq("%2", "r2")			\
-		"bl	__put_user_" #__s				\
-		: "=&r" (__e)						\
-		: "0" (__p), "r" (__r2)					\
-		: "ip", "lr", "cc")
-
-#define put_user(x,p)							\
-	({								\
-		const register typeof(*(p)) __r2 asm("r2") = (x);	\
-		const register typeof(*(p)) __user *__p asm("r0") = (p);\
-		register int __e asm("r0");				\
-		switch (sizeof(*(__p))) {				\
-		case 1:							\
-			__put_user_x(__r2, __p, __e, 1);		\
-			break;						\
-		case 2:							\
-			__put_user_x(__r2, __p, __e, 2);		\
-			break;						\
-		case 4:							\
-			__put_user_x(__r2, __p, __e, 4);		\
-			break;						\
-		case 8:							\
-			__put_user_x(__r2, __p, __e, 8);		\
-			break;						\
-		default: __e = __put_user_bad(); break;			\
-		}							\
-		__e;							\
-	})
 
 #define __put_user(x,ptr)						\
 ({									\
@@ -354,9 +382,16 @@ do {									\
 	: "cc")
 
 
+#ifdef CONFIG_MMU
 extern unsigned long __copy_from_user(void *to, const void __user *from, unsigned long n);
 extern unsigned long __copy_to_user(void __user *to, const void *from, unsigned long n);
 extern unsigned long __clear_user(void __user *addr, unsigned long n);
+#else
+#define __copy_from_user(to,from,n)	(memcpy(to, (void __force *)from, n), 0)
+#define __copy_to_user(to,from,n)	(memcpy((void __force *)to, from, n), 0)
+#define __clear_user(addr,n)		(memset((void __force *)addr, 0, n), 0)
+#endif
+
 extern unsigned long __strncpy_from_user(char *to, const char __user *from, unsigned long count);
 extern unsigned long __strnlen_user(const char __user *s, long n);
 

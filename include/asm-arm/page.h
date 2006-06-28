@@ -23,6 +23,12 @@
 
 #ifndef __ASSEMBLY__
 
+#ifndef CONFIG_MMU
+
+#include "page-nommu.h"
+
+#else
+
 #include <asm/glue.h>
 
 /*
@@ -170,6 +176,8 @@ typedef unsigned long pgprot_t;
 
 /* the upper-most page table pointer */
 extern pmd_t *top_pmd;
+
+#endif /* CONFIG_MMU */
 
 #include <asm/memory.h>
 
