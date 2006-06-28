@@ -2771,8 +2771,7 @@ static void flush_to_ldisc(void *private_)
 	struct tty_struct *tty = (struct tty_struct *) private_;
 	unsigned long 	flags;
 	struct tty_ldisc *disc;
-	struct tty_buffer *tbuf;
-	int count;
+	struct tty_buffer *tbuf, *head;
 	char *char_buf;
 	unsigned char *flag_buf;
 
@@ -2781,21 +2780,33 @@ static void flush_to_ldisc(void *private_)
 		return;
 
 	spin_lock_irqsave(&tty->buf.lock, flags);
-	while((tbuf = tty->buf.head) != NULL) {
-		while ((count = tbuf->commit - tbuf->read) != 0) {
-			char_buf = tbuf->char_buf_ptr + tbuf->read;
-			flag_buf = tbuf->flag_buf_ptr + tbuf->read;
-			tbuf->read += count;
+	head = tty->buf.head;
+	if (head != NULL) {
+		tty->buf.head = NULL;
+		for (;;) {
+			int count = head->commit - head->read;
+			if (!count) {
+				if (head->next == NULL)
+					break;
+				tbuf = head;
+				head = head->next;
+				tty_buffer_free(tty, tbuf);
+				continue;
+			}
+			if (!tty->receive_room) {
+				schedule_delayed_work(&tty->buf.work, 1);
+				break;
+			}
+			if (count > tty->receive_room)
+				count = tty->receive_room;
+			char_buf = head->char_buf_ptr + head->read;
+			flag_buf = head->flag_buf_ptr + head->read;
+			head->read += count;
 			spin_unlock_irqrestore(&tty->buf.lock, flags);
 			disc->receive_buf(tty, char_buf, flag_buf, count);
 			spin_lock_irqsave(&tty->buf.lock, flags);
 		}
-		if (tbuf->active)
-			break;
-		tty->buf.head = tbuf->next;
-		if (tty->buf.head == NULL)
-			tty->buf.tail = NULL;
-		tty_buffer_free(tty, tbuf);
+		tty->buf.head = head;
 	}
 	spin_unlock_irqrestore(&tty->buf.lock, flags);
 
