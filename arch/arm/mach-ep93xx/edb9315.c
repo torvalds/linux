@@ -1,6 +1,6 @@
 /*
- * arch/arm/mach-ep93xx/gesbc9312.c
- * Glomation GESBC-9312-sx support.
+ * arch/arm/mach-ep93xx/edb9315.c
+ * Cirrus Logic EDB9315 support.
  *
  * Copyright (C) 2006 Lennert Buytenhek <buytenh@wantstofly.org>
  *
@@ -24,33 +24,33 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
-static struct physmap_flash_data gesbc9312_flash_data = {
+static struct physmap_flash_data edb9315_flash_data = {
 	.width		= 4,
 };
 
-static struct resource gesbc9312_flash_resource = {
+static struct resource edb9315_flash_resource = {
 	.start		= 0x60000000,
-	.end		= 0x607fffff,
+	.end		= 0x61ffffff,
 	.flags		= IORESOURCE_MEM,
 };
 
-static struct platform_device gesbc9312_flash = {
+static struct platform_device edb9315_flash = {
 	.name		= "physmap-flash",
 	.id		= 0,
 	.dev		= {
-		.platform_data	= &gesbc9312_flash_data,
+		.platform_data	= &edb9315_flash_data,
 	},
 	.num_resources	= 1,
-	.resource	= &gesbc9312_flash_resource,
+	.resource	= &edb9315_flash_resource,
 };
 
-static void __init gesbc9312_init_machine(void)
+static void __init edb9315_init_machine(void)
 {
 	ep93xx_init_devices();
-	platform_device_register(&gesbc9312_flash);
+	platform_device_register(&edb9315_flash);
 }
 
-MACHINE_START(GESBC9312, "Glomation GESBC-9312-sx")
+MACHINE_START(EDB9315, "Cirrus Logic EDB9315 Evaluation Board")
 	/* Maintainer: Lennert Buytenhek <buytenh@wantstofly.org> */
 	.phys_io	= EP93XX_APB_PHYS_BASE,
 	.io_pg_offst	= ((EP93XX_APB_VIRT_BASE) >> 18) & 0xfffc,
@@ -58,5 +58,5 @@ MACHINE_START(GESBC9312, "Glomation GESBC-9312-sx")
 	.map_io		= ep93xx_map_io,
 	.init_irq	= ep93xx_init_irq,
 	.timer		= &ep93xx_timer,
-	.init_machine	= gesbc9312_init_machine,
+	.init_machine	= edb9315_init_machine,
 MACHINE_END

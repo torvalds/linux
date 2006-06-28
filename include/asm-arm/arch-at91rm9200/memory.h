@@ -33,9 +33,7 @@
  * bus_to_virt: Used to convert an address for DMA operations
  *              to an address that the kernel can use.
  */
-#define __virt_to_bus__is_a_macro
 #define __virt_to_bus(x) __virt_to_phys(x)
-#define __bus_to_virt__is_a_macro
 #define __bus_to_virt(x) __phys_to_virt(x)
 
 #endif
