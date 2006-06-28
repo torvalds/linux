@@ -34,6 +34,7 @@ struct iscsi_cls_conn;
 struct iscsi_conn;
 struct iscsi_cmd_task;
 struct iscsi_mgmt_task;
+struct sockaddr;
 
 /**
  * struct iscsi_transport - iSCSI Transport template
@@ -46,7 +47,12 @@ struct iscsi_mgmt_task;
  * @bind_conn:		associate this connection with existing iSCSI session
  *			and specified transport descriptor
  * @destroy_conn:	destroy inactive iSCSI connection
- * @set_param:		set iSCSI Data-Path operational parameter
+ * @set_param:		set iSCSI parameter. Return 0 on success, -ENODATA
+ *			when param is not supported, and a -Exx value on other
+ *			error.
+ * @get_param		get iSCSI parameter. Must return number of bytes
+ *			copied to buffer on success, -ENODATA when param
+ *			is not supported, and a -Exx value on other error
  * @start_conn:		set connection to be operational
  * @stop_conn:		suspend/recover/terminate connection
  * @send_pdu:		send iSCSI PDU, Login, Logout, NOP-Out, Reject, Text.
@@ -97,15 +103,11 @@ struct iscsi_transport {
 	void (*stop_conn) (struct iscsi_cls_conn *conn, int flag);
 	void (*destroy_conn) (struct iscsi_cls_conn *conn);
 	int (*set_param) (struct iscsi_cls_conn *conn, enum iscsi_param param,
-			  uint32_t value);
+			  char *buf, int buflen);
 	int (*get_conn_param) (struct iscsi_cls_conn *conn,
-			       enum iscsi_param param, uint32_t *value);
+			       enum iscsi_param param, char *buf);
 	int (*get_session_param) (struct iscsi_cls_session *session,
-				  enum iscsi_param param, uint32_t *value);
-	int (*get_conn_str_param) (struct iscsi_cls_conn *conn,
-				   enum iscsi_param param, char *buf);
-	int (*get_session_str_param) (struct iscsi_cls_session *session,
-				      enum iscsi_param param, char *buf);
+				  enum iscsi_param param, char *buf);
 	int (*send_pdu) (struct iscsi_cls_conn *conn, struct iscsi_hdr *hdr,
 			 char *data, uint32_t data_size);
 	void (*get_stats) (struct iscsi_cls_conn *conn,
@@ -157,13 +159,6 @@ struct iscsi_cls_conn {
 	struct iscsi_transport *transport;
 	uint32_t cid;			/* connection id */
 
-	/* portal/group values we got during discovery */
-	char *persistent_address;
-	int persistent_port;
-	/* portal/group values we are currently using */
-	char *address;
-	int port;
-
 	int active;			/* must be accessed with the connlock */
 	struct device dev;		/* sysfs transport/container device */
 	struct mempool_zone *z_error;
@@ -186,10 +181,6 @@ struct iscsi_cls_session {
 	struct list_head sess_list;		/* item in session_list */
 	struct list_head host_list;
 	struct iscsi_transport *transport;
-
-	/* iSCSI values used as unique id by userspace. */
-	char *targetname;
-	int tpgt;
 
 	/* recovery fields */
 	int recovery_tmo;

@@ -233,7 +233,6 @@ static void iscsi_session_release(struct device *dev)
 
 	shost = iscsi_session_to_shost(session);
 	scsi_host_put(shost);
-	kfree(session->targetname);
 	kfree(session);
 	module_put(transport->owner);
 }
@@ -388,7 +387,6 @@ static void iscsi_conn_release(struct device *dev)
 	struct iscsi_cls_conn *conn = iscsi_dev_to_conn(dev);
 	struct device *parent = conn->dev.parent;
 
-	kfree(conn->persistent_address);
 	kfree(conn);
 	put_device(parent);
 }
@@ -877,23 +875,13 @@ iscsi_if_destroy_conn(struct iscsi_transport *transport, struct iscsi_uevent *ev
 	return 0;
 }
 
-static void
-iscsi_copy_param(struct iscsi_uevent *ev, uint32_t *value, char *data)
-{
-	if (ev->u.set_param.len != sizeof(uint32_t))
-		BUG();
-	memcpy(value, data, min_t(uint32_t, sizeof(uint32_t),
-		ev->u.set_param.len));
-}
-
 static int
 iscsi_set_param(struct iscsi_transport *transport, struct iscsi_uevent *ev)
 {
 	char *data = (char*)ev + sizeof(*ev);
 	struct iscsi_cls_conn *conn;
 	struct iscsi_cls_session *session;
-	int err = 0;
-	uint32_t value = 0;
+	int err = 0, value = 0;
 
 	session = iscsi_session_lookup(ev->u.set_param.sid);
 	conn = iscsi_conn_lookup(ev->u.set_param.sid, ev->u.set_param.cid);
@@ -902,42 +890,13 @@ iscsi_set_param(struct iscsi_transport *transport, struct iscsi_uevent *ev)
 
 	switch (ev->u.set_param.param) {
 	case ISCSI_PARAM_SESS_RECOVERY_TMO:
-		iscsi_copy_param(ev, &value, data);
+		sscanf(data, "%d", &value);
 		if (value != 0)
 			session->recovery_tmo = value;
 		break;
-	case ISCSI_PARAM_TARGET_NAME:
-		/* this should not change between logins */
-		if (session->targetname)
-			return 0;
-
-		session->targetname = kstrdup(data, GFP_KERNEL);
-		if (!session->targetname)
-			return -ENOMEM;
-		break;
-	case ISCSI_PARAM_TPGT:
-		iscsi_copy_param(ev, &value, data);
-		session->tpgt = value;
-		break;
-	case ISCSI_PARAM_PERSISTENT_PORT:
-		iscsi_copy_param(ev, &value, data);
-		conn->persistent_port = value;
-		break;
-	case ISCSI_PARAM_PERSISTENT_ADDRESS:
-		/*
-		 * this is the address returned in discovery so it should
-		 * not change between logins.
-		 */
-		if (conn->persistent_address)
-			return 0;
-
-		conn->persistent_address = kstrdup(data, GFP_KERNEL);
-		if (!conn->persistent_address)
-			return -ENOMEM;
-		break;
 	default:
-		iscsi_copy_param(ev, &value, data);
-		err = transport->set_param(conn, ev->u.set_param.param, value);
+		err = transport->set_param(conn, ev->u.set_param.param,
+					   data, ev->u.set_param.len);
 	}
 
 	return err;
@@ -1165,49 +1124,31 @@ struct class_device_attribute class_device_attr_##_prefix##_##_name =	\
 /*
  * iSCSI connection attrs
  */
-#define iscsi_conn_int_attr_show(param, format)				\
+#define iscsi_conn_attr_show(param)					\
 static ssize_t								\
-show_conn_int_param_##param(struct class_device *cdev, char *buf)	\
-{									\
-	uint32_t value = 0;						\
-	struct iscsi_cls_conn *conn = iscsi_cdev_to_conn(cdev);		\
-	struct iscsi_transport *t = conn->transport;			\
-									\
-	t->get_conn_param(conn, param, &value);				\
-	return snprintf(buf, 20, format"\n", value);			\
-}
-
-#define iscsi_conn_int_attr(field, param, format)			\
-	iscsi_conn_int_attr_show(param, format)				\
-static ISCSI_CLASS_ATTR(conn, field, S_IRUGO, show_conn_int_param_##param, \
-			NULL);
-
-iscsi_conn_int_attr(max_recv_dlength, ISCSI_PARAM_MAX_RECV_DLENGTH, "%u");
-iscsi_conn_int_attr(max_xmit_dlength, ISCSI_PARAM_MAX_XMIT_DLENGTH, "%u");
-iscsi_conn_int_attr(header_digest, ISCSI_PARAM_HDRDGST_EN, "%d");
-iscsi_conn_int_attr(data_digest, ISCSI_PARAM_DATADGST_EN, "%d");
-iscsi_conn_int_attr(ifmarker, ISCSI_PARAM_IFMARKER_EN, "%d");
-iscsi_conn_int_attr(ofmarker, ISCSI_PARAM_OFMARKER_EN, "%d");
-iscsi_conn_int_attr(persistent_port, ISCSI_PARAM_PERSISTENT_PORT, "%d");
-iscsi_conn_int_attr(port, ISCSI_PARAM_CONN_PORT, "%d");
-iscsi_conn_int_attr(exp_statsn, ISCSI_PARAM_EXP_STATSN, "%u");
-
-#define iscsi_conn_str_attr_show(param)					\
-static ssize_t								\
-show_conn_str_param_##param(struct class_device *cdev, char *buf)	\
+show_conn_param_##param(struct class_device *cdev, char *buf)		\
 {									\
 	struct iscsi_cls_conn *conn = iscsi_cdev_to_conn(cdev);		\
 	struct iscsi_transport *t = conn->transport;			\
-	return t->get_conn_str_param(conn, param, buf);			\
+	return t->get_conn_param(conn, param, buf);			\
 }
 
-#define iscsi_conn_str_attr(field, param)				\
-	iscsi_conn_str_attr_show(param)					\
-static ISCSI_CLASS_ATTR(conn, field, S_IRUGO, show_conn_str_param_##param, \
+#define iscsi_conn_attr(field, param)					\
+	iscsi_conn_attr_show(param)					\
+static ISCSI_CLASS_ATTR(conn, field, S_IRUGO, show_conn_param_##param,	\
 			NULL);
 
-iscsi_conn_str_attr(persistent_address, ISCSI_PARAM_PERSISTENT_ADDRESS);
-iscsi_conn_str_attr(address, ISCSI_PARAM_CONN_ADDRESS);
+iscsi_conn_attr(max_recv_dlength, ISCSI_PARAM_MAX_RECV_DLENGTH);
+iscsi_conn_attr(max_xmit_dlength, ISCSI_PARAM_MAX_XMIT_DLENGTH);
+iscsi_conn_attr(header_digest, ISCSI_PARAM_HDRDGST_EN);
+iscsi_conn_attr(data_digest, ISCSI_PARAM_DATADGST_EN);
+iscsi_conn_attr(ifmarker, ISCSI_PARAM_IFMARKER_EN);
+iscsi_conn_attr(ofmarker, ISCSI_PARAM_OFMARKER_EN);
+iscsi_conn_attr(persistent_port, ISCSI_PARAM_PERSISTENT_PORT);
+iscsi_conn_attr(port, ISCSI_PARAM_CONN_PORT);
+iscsi_conn_attr(exp_statsn, ISCSI_PARAM_EXP_STATSN);
+iscsi_conn_attr(persistent_address, ISCSI_PARAM_PERSISTENT_ADDRESS);
+iscsi_conn_attr(address, ISCSI_PARAM_CONN_ADDRESS);
 
 #define iscsi_cdev_to_session(_cdev) \
 	iscsi_dev_to_session(_cdev->dev)
@@ -1215,61 +1156,36 @@ iscsi_conn_str_attr(address, ISCSI_PARAM_CONN_ADDRESS);
 /*
  * iSCSI session attrs
  */
-#define iscsi_session_int_attr_show(param, format)			\
+#define iscsi_session_attr_show(param)					\
 static ssize_t								\
-show_session_int_param_##param(struct class_device *cdev, char *buf)	\
-{									\
-	uint32_t value = 0;						\
-	struct iscsi_cls_session *session = iscsi_cdev_to_session(cdev);	\
-	struct iscsi_transport *t = session->transport;			\
-									\
-	t->get_session_param(session, param, &value);			\
-	return snprintf(buf, 20, format"\n", value);			\
-}
-
-#define iscsi_session_int_attr(field, param, format)			\
-	iscsi_session_int_attr_show(param, format)			\
-static ISCSI_CLASS_ATTR(sess, field, S_IRUGO, show_session_int_param_##param, \
-			NULL);
-
-iscsi_session_int_attr(initial_r2t, ISCSI_PARAM_INITIAL_R2T_EN, "%d");
-iscsi_session_int_attr(max_outstanding_r2t, ISCSI_PARAM_MAX_R2T, "%hu");
-iscsi_session_int_attr(immediate_data, ISCSI_PARAM_IMM_DATA_EN, "%d");
-iscsi_session_int_attr(first_burst_len, ISCSI_PARAM_FIRST_BURST, "%u");
-iscsi_session_int_attr(max_burst_len, ISCSI_PARAM_MAX_BURST, "%u");
-iscsi_session_int_attr(data_pdu_in_order, ISCSI_PARAM_PDU_INORDER_EN, "%d");
-iscsi_session_int_attr(data_seq_in_order, ISCSI_PARAM_DATASEQ_INORDER_EN, "%d");
-iscsi_session_int_attr(erl, ISCSI_PARAM_ERL, "%d");
-iscsi_session_int_attr(tpgt, ISCSI_PARAM_TPGT, "%d");
-
-#define iscsi_session_str_attr_show(param)				\
-static ssize_t								\
-show_session_str_param_##param(struct class_device *cdev, char *buf)	\
+show_session_param_##param(struct class_device *cdev, char *buf)	\
 {									\
 	struct iscsi_cls_session *session = iscsi_cdev_to_session(cdev); \
 	struct iscsi_transport *t = session->transport;			\
-	return t->get_session_str_param(session, param, buf);		\
+	return t->get_session_param(session, param, buf);		\
 }
 
-#define iscsi_session_str_attr(field, param)				\
-	iscsi_session_str_attr_show(param)				\
-static ISCSI_CLASS_ATTR(sess, field, S_IRUGO, show_session_str_param_##param, \
+#define iscsi_session_attr(field, param)				\
+	iscsi_session_attr_show(param)					\
+static ISCSI_CLASS_ATTR(sess, field, S_IRUGO, show_session_param_##param, \
 			NULL);
 
-iscsi_session_str_attr(targetname, ISCSI_PARAM_TARGET_NAME);
+iscsi_session_attr(targetname, ISCSI_PARAM_TARGET_NAME);
+iscsi_session_attr(initial_r2t, ISCSI_PARAM_INITIAL_R2T_EN);
+iscsi_session_attr(max_outstanding_r2t, ISCSI_PARAM_MAX_R2T);
+iscsi_session_attr(immediate_data, ISCSI_PARAM_IMM_DATA_EN);
+iscsi_session_attr(first_burst_len, ISCSI_PARAM_FIRST_BURST);
+iscsi_session_attr(max_burst_len, ISCSI_PARAM_MAX_BURST);
+iscsi_session_attr(data_pdu_in_order, ISCSI_PARAM_PDU_INORDER_EN);
+iscsi_session_attr(data_seq_in_order, ISCSI_PARAM_DATASEQ_INORDER_EN);
+iscsi_session_attr(erl, ISCSI_PARAM_ERL);
+iscsi_session_attr(tpgt, ISCSI_PARAM_TPGT);
 
-/*
- * Private session and conn attrs. userspace uses several iscsi values
- * to identify each session between reboots. Some of these values may not
- * be present in the iscsi_transport/LLD driver becuase userspace handles
- * login (and failback for login redirect) so for these type of drivers
- * the class manages the attrs and values for the iscsi_transport/LLD
- */
 #define iscsi_priv_session_attr_show(field, format)			\
 static ssize_t								\
-show_priv_session_##field(struct class_device *cdev, char *buf)	\
+show_priv_session_##field(struct class_device *cdev, char *buf)		\
 {									\
-	struct iscsi_cls_session *session = iscsi_cdev_to_session(cdev); \
+	struct iscsi_cls_session *session = iscsi_cdev_to_session(cdev);\
 	return sprintf(buf, format"\n", session->field);		\
 }
 
@@ -1277,24 +1193,7 @@ show_priv_session_##field(struct class_device *cdev, char *buf)	\
 	iscsi_priv_session_attr_show(field, format)			\
 static ISCSI_CLASS_ATTR(priv_sess, field, S_IRUGO, show_priv_session_##field, \
 			NULL)
-iscsi_priv_session_attr(targetname, "%s");
-iscsi_priv_session_attr(tpgt, "%d");
 iscsi_priv_session_attr(recovery_tmo, "%d");
-
-#define iscsi_priv_conn_attr_show(field, format)			\
-static ssize_t								\
-show_priv_conn_##field(struct class_device *cdev, char *buf)		\
-{									\
-	struct iscsi_cls_conn *conn = iscsi_cdev_to_conn(cdev);		\
-	return sprintf(buf, format"\n", conn->field);			\
-}
-
-#define iscsi_priv_conn_attr(field, format)				\
-	iscsi_priv_conn_attr_show(field, format)			\
-static ISCSI_CLASS_ATTR(priv_conn, field, S_IRUGO, show_priv_conn_##field, \
-			NULL)
-iscsi_priv_conn_attr(persistent_address, "%s");
-iscsi_priv_conn_attr(persistent_port, "%d");
 
 #define SETUP_PRIV_SESSION_RD_ATTR(field)				\
 do {									\
@@ -1302,18 +1201,13 @@ do {									\
 	count++;							\
 } while (0)
 
+
 #define SETUP_SESSION_RD_ATTR(field, param_flag)			\
 do {									\
 	if (tt->param_mask & param_flag) {				\
 		priv->session_attrs[count] = &class_device_attr_sess_##field; \
 		count++;						\
 	}								\
-} while (0)
-
-#define SETUP_PRIV_CONN_RD_ATTR(field)					\
-do {									\
-	priv->conn_attrs[count] = &class_device_attr_priv_conn_##field; \
-	count++;							\
 } while (0)
 
 #define SETUP_CONN_RD_ATTR(field, param_flag)				\
@@ -1442,16 +1336,8 @@ iscsi_register_transport(struct iscsi_transport *tt)
 	SETUP_CONN_RD_ATTR(address, ISCSI_CONN_ADDRESS);
 	SETUP_CONN_RD_ATTR(port, ISCSI_CONN_PORT);
 	SETUP_CONN_RD_ATTR(exp_statsn, ISCSI_EXP_STATSN);
-
-	if (tt->param_mask & ISCSI_PERSISTENT_ADDRESS)
-		SETUP_CONN_RD_ATTR(persistent_address, ISCSI_PERSISTENT_ADDRESS);
-	else
-		SETUP_PRIV_CONN_RD_ATTR(persistent_address);
-
-	if (tt->param_mask & ISCSI_PERSISTENT_PORT)
-		SETUP_CONN_RD_ATTR(persistent_port, ISCSI_PERSISTENT_PORT);
-	else
-		SETUP_PRIV_CONN_RD_ATTR(persistent_port);
+	SETUP_CONN_RD_ATTR(persistent_address, ISCSI_PERSISTENT_ADDRESS);
+	SETUP_CONN_RD_ATTR(persistent_port, ISCSI_PERSISTENT_PORT);
 
 	BUG_ON(count > ISCSI_CONN_ATTRS);
 	priv->conn_attrs[count] = NULL;
@@ -1471,17 +1357,9 @@ iscsi_register_transport(struct iscsi_transport *tt)
 	SETUP_SESSION_RD_ATTR(data_pdu_in_order, ISCSI_PDU_INORDER_EN);
 	SETUP_SESSION_RD_ATTR(data_seq_in_order, ISCSI_DATASEQ_INORDER_EN);
 	SETUP_SESSION_RD_ATTR(erl, ISCSI_ERL);
+	SETUP_SESSION_RD_ATTR(targetname, ISCSI_TARGET_NAME);
+	SETUP_SESSION_RD_ATTR(tpgt, ISCSI_TPGT);
 	SETUP_PRIV_SESSION_RD_ATTR(recovery_tmo);
-
-	if (tt->param_mask & ISCSI_TARGET_NAME)
-		SETUP_SESSION_RD_ATTR(targetname, ISCSI_TARGET_NAME);
-	else
-		SETUP_PRIV_SESSION_RD_ATTR(targetname);
-
-	if (tt->param_mask & ISCSI_TPGT)
-		SETUP_SESSION_RD_ATTR(tpgt, ISCSI_TPGT);
-	else
-		SETUP_PRIV_SESSION_RD_ATTR(tpgt);
 
 	BUG_ON(count > ISCSI_SESSION_ATTRS);
 	priv->session_attrs[count] = NULL;

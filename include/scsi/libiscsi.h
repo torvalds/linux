@@ -157,6 +157,11 @@ struct iscsi_conn {
 	int			max_xmit_dlength; /* target_max_recv_dsl */
 	int			hdrdgst_en;
 	int			datadgst_en;
+	int			ifmarker_en;
+	int			ofmarker_en;
+	/* values userspace uses to id a conn */
+	int			persistent_port;
+	char			*persistent_address;
 
 	/* MIB-statistics */
 	uint64_t		txdata_octets;
@@ -196,8 +201,8 @@ struct iscsi_session {
 	int			pdu_inorder_en;
 	int			dataseq_inorder_en;
 	int			erl;
-	int			ifmarker_en;
-	int			ofmarker_en;
+	int			tpgt;
+	char			*targetname;
 
 	/* control data */
 	struct iscsi_transport	*tt;
@@ -240,6 +245,10 @@ iscsi_session_setup(struct iscsi_transport *, struct scsi_transport_template *,
 extern void iscsi_session_teardown(struct iscsi_cls_session *);
 extern struct iscsi_session *class_to_transport_session(struct iscsi_cls_session *);
 extern void iscsi_session_recovery_timedout(struct iscsi_cls_session *);
+extern int iscsi_set_param(struct iscsi_cls_conn *cls_conn,
+			   enum iscsi_param param, char *buf, int buflen);
+extern int iscsi_session_get_param(struct iscsi_cls_session *cls_session,
+				   enum iscsi_param param, char *buf);
 
 #define session_to_cls(_sess) \
 	hostdata_session(_sess->host->hostdata)
@@ -255,6 +264,8 @@ extern void iscsi_conn_stop(struct iscsi_cls_conn *, int);
 extern int iscsi_conn_bind(struct iscsi_cls_session *, struct iscsi_cls_conn *,
 			   int);
 extern void iscsi_conn_failure(struct iscsi_conn *conn, enum iscsi_err err);
+extern int iscsi_conn_get_param(struct iscsi_cls_conn *cls_conn,
+				enum iscsi_param param, char *buf);
 
 /*
  * pdu and task processing

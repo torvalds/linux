@@ -1697,6 +1697,185 @@ int iscsi_conn_bind(struct iscsi_cls_session *cls_session,
 }
 EXPORT_SYMBOL_GPL(iscsi_conn_bind);
 
+
+int iscsi_set_param(struct iscsi_cls_conn *cls_conn,
+		    enum iscsi_param param, char *buf, int buflen)
+{
+	struct iscsi_conn *conn = cls_conn->dd_data;
+	struct iscsi_session *session = conn->session;
+	uint32_t value;
+
+	switch(param) {
+	case ISCSI_PARAM_MAX_RECV_DLENGTH:
+		sscanf(buf, "%d", &conn->max_recv_dlength);
+		break;
+	case ISCSI_PARAM_MAX_XMIT_DLENGTH:
+		sscanf(buf, "%d", &conn->max_xmit_dlength);
+		break;
+	case ISCSI_PARAM_HDRDGST_EN:
+		sscanf(buf, "%d", &conn->hdrdgst_en);
+		break;
+	case ISCSI_PARAM_DATADGST_EN:
+		sscanf(buf, "%d", &conn->datadgst_en);
+		break;
+	case ISCSI_PARAM_INITIAL_R2T_EN:
+		sscanf(buf, "%d", &session->initial_r2t_en);
+		break;
+	case ISCSI_PARAM_MAX_R2T:
+		sscanf(buf, "%d", &session->max_r2t);
+		break;
+	case ISCSI_PARAM_IMM_DATA_EN:
+		sscanf(buf, "%d", &session->imm_data_en);
+		break;
+	case ISCSI_PARAM_FIRST_BURST:
+		sscanf(buf, "%d", &session->first_burst);
+		break;
+	case ISCSI_PARAM_MAX_BURST:
+		sscanf(buf, "%d", &session->max_burst);
+		break;
+	case ISCSI_PARAM_PDU_INORDER_EN:
+		sscanf(buf, "%d", &session->pdu_inorder_en);
+		break;
+	case ISCSI_PARAM_DATASEQ_INORDER_EN:
+		sscanf(buf, "%d", &session->dataseq_inorder_en);
+		break;
+	case ISCSI_PARAM_ERL:
+		sscanf(buf, "%d", &session->erl);
+		break;
+	case ISCSI_PARAM_IFMARKER_EN:
+		sscanf(buf, "%d", &value);
+		BUG_ON(value);
+		break;
+	case ISCSI_PARAM_OFMARKER_EN:
+		sscanf(buf, "%d", &value);
+		BUG_ON(value);
+		break;
+	case ISCSI_PARAM_EXP_STATSN:
+		sscanf(buf, "%u", &conn->exp_statsn);
+		break;
+	case ISCSI_PARAM_TARGET_NAME:
+		/* this should not change between logins */
+		if (session->targetname)
+			break;
+
+		session->targetname = kstrdup(buf, GFP_KERNEL);
+		if (!session->targetname)
+			return -ENOMEM;
+		break;
+	case ISCSI_PARAM_TPGT:
+		sscanf(buf, "%d", &session->tpgt);
+		break;
+	case ISCSI_PARAM_PERSISTENT_PORT:
+		sscanf(buf, "%d", &conn->persistent_port);
+		break;
+	case ISCSI_PARAM_PERSISTENT_ADDRESS:
+		/*
+		 * this is the address returned in discovery so it should
+		 * not change between logins.
+		 */
+		if (conn->persistent_address)
+			break;
+
+		conn->persistent_address = kstrdup(buf, GFP_KERNEL);
+		if (!conn->persistent_address)
+			return -ENOMEM;
+		break;
+	default:
+		return -ENOSYS;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(iscsi_set_param);
+
+int iscsi_session_get_param(struct iscsi_cls_session *cls_session,
+			    enum iscsi_param param, char *buf)
+{
+	struct Scsi_Host *shost = iscsi_session_to_shost(cls_session);
+	struct iscsi_session *session = iscsi_hostdata(shost->hostdata);
+	int len;
+
+	switch(param) {
+	case ISCSI_PARAM_INITIAL_R2T_EN:
+		len = sprintf(buf, "%d\n", session->initial_r2t_en);
+		break;
+	case ISCSI_PARAM_MAX_R2T:
+		len = sprintf(buf, "%hu\n", session->max_r2t);
+		break;
+	case ISCSI_PARAM_IMM_DATA_EN:
+		len = sprintf(buf, "%d\n", session->imm_data_en);
+		break;
+	case ISCSI_PARAM_FIRST_BURST:
+		len = sprintf(buf, "%u\n", session->first_burst);
+		break;
+	case ISCSI_PARAM_MAX_BURST:
+		len = sprintf(buf, "%u\n", session->max_burst);
+		break;
+	case ISCSI_PARAM_PDU_INORDER_EN:
+		len = sprintf(buf, "%d\n", session->pdu_inorder_en);
+		break;
+	case ISCSI_PARAM_DATASEQ_INORDER_EN:
+		len = sprintf(buf, "%d\n", session->dataseq_inorder_en);
+		break;
+	case ISCSI_PARAM_ERL:
+		len = sprintf(buf, "%d\n", session->erl);
+		break;
+	case ISCSI_PARAM_TARGET_NAME:
+		len = sprintf(buf, "%s\n", session->targetname);
+		break;
+	case ISCSI_PARAM_TPGT:
+		len = sprintf(buf, "%d\n", session->tpgt);
+		break;
+	default:
+		return -ENOSYS;
+	}
+
+	return len;
+}
+EXPORT_SYMBOL_GPL(iscsi_session_get_param);
+
+int iscsi_conn_get_param(struct iscsi_cls_conn *cls_conn,
+			 enum iscsi_param param, char *buf)
+{
+	struct iscsi_conn *conn = cls_conn->dd_data;
+	int len;
+
+	switch(param) {
+	case ISCSI_PARAM_MAX_RECV_DLENGTH:
+		len = sprintf(buf, "%u\n", conn->max_recv_dlength);
+		break;
+	case ISCSI_PARAM_MAX_XMIT_DLENGTH:
+		len = sprintf(buf, "%u\n", conn->max_xmit_dlength);
+		break;
+	case ISCSI_PARAM_HDRDGST_EN:
+		len = sprintf(buf, "%d\n", conn->hdrdgst_en);
+		break;
+	case ISCSI_PARAM_DATADGST_EN:
+		len = sprintf(buf, "%d\n", conn->datadgst_en);
+		break;
+	case ISCSI_PARAM_IFMARKER_EN:
+		len = sprintf(buf, "%d\n", conn->ifmarker_en);
+		break;
+	case ISCSI_PARAM_OFMARKER_EN:
+		len = sprintf(buf, "%d\n", conn->ofmarker_en);
+		break;
+	case ISCSI_PARAM_EXP_STATSN:
+		len = sprintf(buf, "%u\n", conn->exp_statsn);
+		break;
+	case ISCSI_PARAM_PERSISTENT_PORT:
+		len = sprintf(buf, "%d\n", conn->persistent_port);
+		break;
+	case ISCSI_PARAM_PERSISTENT_ADDRESS:
+		len = sprintf(buf, "%s\n", conn->persistent_address);
+		break;
+	default:
+		return -ENOSYS;
+	}
+
+	return len;
+}
+EXPORT_SYMBOL_GPL(iscsi_conn_get_param);
+
 MODULE_AUTHOR("Mike Christie");
 MODULE_DESCRIPTION("iSCSI library functions");
 MODULE_LICENSE("GPL");
