@@ -300,7 +300,7 @@ clunk_fid:
 	fid = V9FS_NOFID;
 
 put_fid:
-	if (fid >= 0)
+	if (fid != V9FS_NOFID)
 		v9fs_put_idpool(fid, &v9ses->fidpool);
 
 	kfree(fcall);
