@@ -3738,11 +3738,8 @@ static int ipmi_init_msghandler(void)
 	proc_ipmi_root->owner = THIS_MODULE;
 #endif /* CONFIG_PROC_FS */
 
-	init_timer(&ipmi_timer);
-	ipmi_timer.data = 0;
-	ipmi_timer.function = ipmi_timeout;
-	ipmi_timer.expires = jiffies + IPMI_TIMEOUT_JIFFIES;
-	add_timer(&ipmi_timer);
+	setup_timer(&ipmi_timer, ipmi_timeout, 0);
+	mod_timer(&ipmi_timer, jiffies + IPMI_TIMEOUT_JIFFIES);
 
 	atomic_notifier_chain_register(&panic_notifier_list, &panic_block);
 
