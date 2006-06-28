@@ -225,6 +225,7 @@ static int __init ms02nv_init_one(ulong addr)
 	mtd->owner = THIS_MODULE;
 	mtd->read = ms02nv_read;
 	mtd->write = ms02nv_write;
+	mtd->writesize = 1;
 
 	ret = -EIO;
 	if (add_mtd_device(mtd)) {

@@ -1176,7 +1176,7 @@ static int nand_write_oob_std(struct mtd_info *mtd, struct nand_chip *chip,
 
 	status = chip->waitfunc(mtd, chip);
 
-	return status;
+	return status & NAND_STATUS_FAIL ? -EIO : 0;
 }
 
 /**
@@ -1271,10 +1271,6 @@ static int nand_do_read_oob(struct mtd_info *mtd, loff_t from,
 		sndcmd = chip->ecc.read_oob(mtd, chip, page, sndcmd);
 		buf = nand_transfer_oob(chip, buf, ops);
 
-		readlen -= ops->ooblen;
-		if (!readlen)
-			break;
-
 		if (!(chip->options & NAND_NO_READRDY)) {
 			/*
 			 * Apply delay or wait for ready/busy pin. Do this
@@ -1287,6 +1283,10 @@ static int nand_do_read_oob(struct mtd_info *mtd, loff_t from,
 			else
 				nand_wait_ready(mtd);
 		}
+
+		readlen -= ops->ooblen;
+		if (!readlen)
+			break;
 
 		/* Increment page address */
 		realpage++;
@@ -1610,12 +1610,12 @@ static int nand_do_write_ops(struct mtd_info *mtd, loff_t to,
 	if (!writelen)
 		return 0;
 
+	chipnr = (int)(to >> chip->chip_shift);
+	chip->select_chip(mtd, chipnr);
+
 	/* Check, if it is write protected */
 	if (nand_check_wp(mtd))
 		return -EIO;
-
-	chipnr = (int)(to >> chip->chip_shift);
-	chip->select_chip(mtd, chipnr);
 
 	realpage = (int)(to >> chip->page_shift);
 	page = realpage & chip->pagemask;

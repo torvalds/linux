@@ -225,7 +225,6 @@ static inline void jffs2_remove_node_refs_from_ino_list(struct jffs2_sb_info *c,
 			   at the end of the linked list. Stash it and continue
 			   from the beginning of the list */
 			ic = (struct jffs2_inode_cache *)(*prev);
-			BUG_ON(ic->class != RAWNODE_CLASS_INODE_CACHE);
 			prev = &ic->nodes;
 			continue;
 		}
@@ -249,7 +248,8 @@ static inline void jffs2_remove_node_refs_from_ino_list(struct jffs2_sb_info *c,
 
 	/* PARANOIA */
 	if (!ic) {
-		printk(KERN_WARNING "inode_cache not found in remove_node_refs()!!\n");
+		JFFS2_WARNING("inode_cache/xattr_datum/xattr_ref"
+			      " not found in remove_node_refs()!!\n");
 		return;
 	}
 
@@ -274,8 +274,19 @@ static inline void jffs2_remove_node_refs_from_ino_list(struct jffs2_sb_info *c,
 		printk("\n");
 	});
 
-	if (ic->nodes == (void *)ic && ic->nlink == 0)
-		jffs2_del_ino_cache(c, ic);
+	switch (ic->class) {
+#ifdef CONFIG_JFFS2_FS_XATTR
+		case RAWNODE_CLASS_XATTR_DATUM:
+			jffs2_release_xattr_datum(c, (struct jffs2_xattr_datum *)ic);
+			break;
+		case RAWNODE_CLASS_XATTR_REF:
+			jffs2_release_xattr_ref(c, (struct jffs2_xattr_ref *)ic);
+			break;
+#endif
+		default:
+			if (ic->nodes == (void *)ic && ic->nlink == 0)
+				jffs2_del_ino_cache(c, ic);
+	}
 }
 
 void jffs2_free_jeb_node_refs(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb)

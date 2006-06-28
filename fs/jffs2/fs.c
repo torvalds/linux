@@ -227,8 +227,6 @@ void jffs2_clear_inode (struct inode *inode)
 	struct jffs2_inode_info *f = JFFS2_INODE_INFO(inode);
 
 	D1(printk(KERN_DEBUG "jffs2_clear_inode(): ino #%lu mode %o\n", inode->i_ino, inode->i_mode));
-
-	jffs2_xattr_delete_inode(c, f->inocache);
 	jffs2_do_clear_inode(c, f);
 }
 

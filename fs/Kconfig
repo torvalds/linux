@@ -1116,7 +1116,7 @@ config JFFS2_SUMMARY
 
 config JFFS2_FS_XATTR
 	bool "JFFS2 XATTR support (EXPERIMENTAL)"
-	depends on JFFS2_FS && EXPERIMENTAL && !JFFS2_FS_WRITEBUFFER
+	depends on JFFS2_FS && EXPERIMENTAL
 	default n
 	help
 	  Extended attributes are name:value pairs associated with inodes by

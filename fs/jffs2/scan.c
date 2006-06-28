@@ -317,20 +317,23 @@ static int jffs2_scan_xattr_node(struct jffs2_sb_info *c, struct jffs2_erasebloc
 				 struct jffs2_summary *s)
 {
 	struct jffs2_xattr_datum *xd;
-	uint32_t totlen, crc;
+	uint32_t xid, version, totlen, crc;
 	int err;
 
 	crc = crc32(0, rx, sizeof(struct jffs2_raw_xattr) - 4);
 	if (crc != je32_to_cpu(rx->node_crc)) {
-		if (je32_to_cpu(rx->node_crc) != 0xffffffff)
-			JFFS2_WARNING("node CRC failed at %#08x, read=%#08x, calc=%#08x\n",
-				      ofs, je32_to_cpu(rx->node_crc), crc);
+		JFFS2_WARNING("node CRC failed at %#08x, read=%#08x, calc=%#08x\n",
+			      ofs, je32_to_cpu(rx->node_crc), crc);
 		if ((err = jffs2_scan_dirty_space(c, jeb, je32_to_cpu(rx->totlen))))
 			return err;
 		return 0;
 	}
 
-	totlen = PAD(sizeof(*rx) + rx->name_len + 1 + je16_to_cpu(rx->value_len));
+	xid = je32_to_cpu(rx->xid);
+	version = je32_to_cpu(rx->version);
+
+	totlen = PAD(sizeof(struct jffs2_raw_xattr)
+			+ rx->name_len + 1 + je16_to_cpu(rx->value_len));
 	if (totlen != je32_to_cpu(rx->totlen)) {
 		JFFS2_WARNING("node length mismatch at %#08x, read=%u, calc=%u\n",
 			      ofs, je32_to_cpu(rx->totlen), totlen);
@@ -339,22 +342,24 @@ static int jffs2_scan_xattr_node(struct jffs2_sb_info *c, struct jffs2_erasebloc
 		return 0;
 	}
 
-	xd = jffs2_setup_xattr_datum(c, je32_to_cpu(rx->xid), je32_to_cpu(rx->version));
-	if (IS_ERR(xd)) {
-		if (PTR_ERR(xd) == -EEXIST) {
-			if ((err = jffs2_scan_dirty_space(c, jeb, PAD(je32_to_cpu(rx->totlen)))))
-				return err;
-			return 0;
-		}
+	xd = jffs2_setup_xattr_datum(c, xid, version);
+	if (IS_ERR(xd))
 		return PTR_ERR(xd);
-	}
-	xd->xprefix = rx->xprefix;
-	xd->name_len = rx->name_len;
-	xd->value_len = je16_to_cpu(rx->value_len);
-	xd->data_crc = je32_to_cpu(rx->data_crc);
 
-	xd->node = jffs2_link_node_ref(c, jeb, ofs | REF_PRISTINE, totlen, NULL);
-	/* FIXME */ xd->node->next_in_ino = (void *)xd;
+	if (xd->version > version) {
+		struct jffs2_raw_node_ref *raw
+			= jffs2_link_node_ref(c, jeb, ofs | REF_PRISTINE, totlen, NULL);
+		raw->next_in_ino = xd->node->next_in_ino;
+		xd->node->next_in_ino = raw;
+	} else {
+		xd->version = version;
+		xd->xprefix = rx->xprefix;
+		xd->name_len = rx->name_len;
+		xd->value_len = je16_to_cpu(rx->value_len);
+		xd->data_crc = je32_to_cpu(rx->data_crc);
+
+		jffs2_link_node_ref(c, jeb, ofs | REF_PRISTINE, totlen, (void *)xd);
+	}
 
 	if (jffs2_sum_active())
 		jffs2_sum_add_xattr_mem(s, rx, ofs - jeb->offset);
@@ -373,9 +378,8 @@ static int jffs2_scan_xref_node(struct jffs2_sb_info *c, struct jffs2_eraseblock
 
 	crc = crc32(0, rr, sizeof(*rr) - 4);
 	if (crc != je32_to_cpu(rr->node_crc)) {
-		if (je32_to_cpu(rr->node_crc) != 0xffffffff)
-			JFFS2_WARNING("node CRC failed at %#08x, read=%#08x, calc=%#08x\n",
-				      ofs, je32_to_cpu(rr->node_crc), crc);
+		JFFS2_WARNING("node CRC failed at %#08x, read=%#08x, calc=%#08x\n",
+			      ofs, je32_to_cpu(rr->node_crc), crc);
 		if ((err = jffs2_scan_dirty_space(c, jeb, PAD(je32_to_cpu(rr->totlen)))))
 			return err;
 		return 0;
@@ -395,6 +399,7 @@ static int jffs2_scan_xref_node(struct jffs2_sb_info *c, struct jffs2_eraseblock
 		return -ENOMEM;
 
 	/* BEFORE jffs2_build_xattr_subsystem() called, 
+	 * and AFTER xattr_ref is marked as a dead xref,
 	 * ref->xid is used to store 32bit xid, xd is not used
 	 * ref->ino is used to store 32bit inode-number, ic is not used
 	 * Thoes variables are declared as union, thus using those
@@ -404,11 +409,13 @@ static int jffs2_scan_xref_node(struct jffs2_sb_info *c, struct jffs2_eraseblock
 	 */
 	ref->ino = je32_to_cpu(rr->ino);
 	ref->xid = je32_to_cpu(rr->xid);
+	ref->xseqno = je32_to_cpu(rr->xseqno);
+	if (ref->xseqno > c->highest_xseqno)
+		c->highest_xseqno = (ref->xseqno & ~XREF_DELETE_MARKER);
 	ref->next = c->xref_temp;
 	c->xref_temp = ref;
 
-	ref->node = jffs2_link_node_ref(c, jeb, ofs | REF_PRISTINE, PAD(je32_to_cpu(rr->totlen)), NULL);
-	/* FIXME */ ref->node->next_in_ino = (void *)ref;
+	jffs2_link_node_ref(c, jeb, ofs | REF_PRISTINE, PAD(je32_to_cpu(rr->totlen)), (void *)ref);
 
 	if (jffs2_sum_active())
 		jffs2_sum_add_xref_mem(s, rr, ofs - jeb->offset);
