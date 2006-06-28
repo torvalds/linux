@@ -127,6 +127,8 @@ struct iscsi_transport {
 			   uint64_t *ep_handle);
 	int (*ep_poll) (uint64_t ep_handle, int timeout_ms);
 	void (*ep_disconnect) (uint64_t ep_handle);
+	int (*tgt_dscvr) (enum iscsi_tgt_dscvr type, uint32_t host_no,
+			  uint32_t enable, struct sockaddr *dst_addr);
 };
 
 /*

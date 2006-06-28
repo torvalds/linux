@@ -978,6 +978,21 @@ iscsi_if_transport_ep(struct iscsi_transport *transport,
 }
 
 static int
+iscsi_tgt_dscvr(struct iscsi_transport *transport,
+		struct iscsi_uevent *ev)
+{
+	struct sockaddr *dst_addr;
+
+	if (!transport->tgt_dscvr)
+		return -EINVAL;
+
+	dst_addr = (struct sockaddr *)((char*)ev + sizeof(*ev));
+	return transport->tgt_dscvr(ev->u.tgt_dscvr.type,
+				    ev->u.tgt_dscvr.host_no,
+				    ev->u.tgt_dscvr.enable, dst_addr);
+}
+
+static int
 iscsi_if_recv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
 	int err = 0;
@@ -1064,6 +1079,9 @@ iscsi_if_recv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	case ISCSI_UEVENT_TRANSPORT_EP_POLL:
 	case ISCSI_UEVENT_TRANSPORT_EP_DISCONNECT:
 		err = iscsi_if_transport_ep(transport, ev, nlh->nlmsg_type);
+		break;
+	case ISCSI_UEVENT_TGT_DSCVR:
+		err = iscsi_tgt_dscvr(transport, ev);
 		break;
 	default:
 		err = -EINVAL;

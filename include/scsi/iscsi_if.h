@@ -47,10 +47,18 @@ enum iscsi_uevent_e {
 	ISCSI_UEVENT_TRANSPORT_EP_POLL		= UEVENT_BASE + 13,
 	ISCSI_UEVENT_TRANSPORT_EP_DISCONNECT	= UEVENT_BASE + 14,
 
+	ISCSI_UEVENT_TGT_DSCVR		= UEVENT_BASE + 15,
+
 	/* up events */
 	ISCSI_KEVENT_RECV_PDU		= KEVENT_BASE + 1,
 	ISCSI_KEVENT_CONN_ERROR		= KEVENT_BASE + 2,
 	ISCSI_KEVENT_IF_ERROR		= KEVENT_BASE + 3,
+};
+
+enum iscsi_tgt_dscvr {
+	ISCSI_TGT_DSCVR_SEND_TARGETS	= 1,
+	ISCSI_TGT_DSCVR_ISNS		= 2,
+	ISCSI_TGT_DSCVR_SLP		= 3,
 };
 
 struct iscsi_uevent {
@@ -116,6 +124,17 @@ struct iscsi_uevent {
 		struct msg_transport_disconnect {
 			uint64_t	ep_handle;
 		} ep_disconnect;
+		struct msg_tgt_dscvr {
+			enum iscsi_tgt_dscvr	type;
+			uint32_t	host_no;
+			/*
+ 			 * enable = 1 to establish a new connection
+			 * with the server. enable = 0 to disconnect
+			 * from the server. Used primarily to switch
+			 * from one iSNS server to another.
+			 */
+			uint32_t	enable;
+		} tgt_dscvr;
 	} u;
 	union {
 		/* messages k -> u */
@@ -141,6 +160,24 @@ struct iscsi_uevent {
 		struct msg_transport_connect_ret {
 			uint64_t	handle;
 		} ep_connect_ret;
+		struct msg_tgt_dscvr_ret {
+			/*
+			 * session/connection pair used to reference
+			 * the connection to server
+			 */
+			uint32_t	sid;
+			uint32_t	cid;
+			union {
+				struct isns {
+					/* port # for conn to iSNS server */
+					uint16_t isns_port;
+					/* listening port to receive SCNs */
+					uint16_t scn_port;
+					/* listening port to receive ESIs */
+					uint16_t esi_port;
+				} isns_attrib;
+			} u;
+		} tgt_dscvr_ret;
 	} r;
 } __attribute__ ((aligned (sizeof(uint64_t))));
 
