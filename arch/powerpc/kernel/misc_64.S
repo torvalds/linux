@@ -101,48 +101,6 @@ _GLOBAL(call___do_IRQ)
 	blr
 #endif /* CONFIG_IRQSTACKS */
 
-	/*
- * To be called by C code which needs to do some operations with MMU
- * disabled. Note that interrupts have to be disabled by the caller
- * prior to calling us. The code called _MUST_ be in the RMO of course
- * and part of the linear mapping as we don't attempt to translate the
- * stack pointer at all. The function is called with the stack switched
- * to this CPU emergency stack
- *
- * prototype is void *call_with_mmu_off(void *func, void *data);
- *
- * the called function is expected to be of the form
- *
- * void *called(void *data); 
- */
-_GLOBAL(call_with_mmu_off)
-	mflr	r0			/* get link, save it on stackframe */
-	std	r0,16(r1)
-	mr	r1,r5			/* save old stack ptr */
-	ld	r1,PACAEMERGSP(r13)	/* get emerg. stack */
-	subi	r1,r1,STACK_FRAME_OVERHEAD
-	std	r0,16(r1)		/* save link on emerg. stack */
-	std	r5,0(r1)		/* save old stack ptr in backchain */
-	ld	r3,0(r3)		/* get to real function ptr (assume same TOC) */
-	bl	2f			/* we need LR to return, continue at label 2 */
-
-	ld	r0,16(r1)		/* we return here from the call, get LR and */
-	ld	r1,0(r1)		/* .. old stack ptr */
-	mtspr	SPRN_SRR0,r0		/* and get back to virtual mode with these */
-	mfmsr	r4
-	ori	r4,r4,MSR_IR|MSR_DR
-	mtspr	SPRN_SRR1,r4
-	rfid
-
-2:	mtspr	SPRN_SRR0,r3		/* coming from above, enter real mode */
-	mr	r3,r4			/* get parameter */
-	mfmsr	r0
-	ori	r0,r0,MSR_IR|MSR_DR
-	xori	r0,r0,MSR_IR|MSR_DR
-	mtspr	SPRN_SRR1,r0
-	rfid
-
-
 	.section	".toc","aw"
 PPC64_CACHES:
 	.tc		ppc64_caches[TC],ppc64_caches
