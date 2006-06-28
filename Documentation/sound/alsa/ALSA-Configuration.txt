@@ -472,6 +472,22 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     The power-management is supported.
 
+  Module snd-darla20
+  ------------------
+
+    Module for Echoaudio Darla20
+
+    This module supports multiple cards.
+    The driver requires the firmware loader support on kernel.
+
+  Module snd-darla24
+  ------------------
+
+    Module for Echoaudio Darla24
+
+    This module supports multiple cards.
+    The driver requires the firmware loader support on kernel.
+
   Module snd-dt019x
   -----------------
 
@@ -498,6 +514,14 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     requires a sound card (like RealPlayer).
 
     The power-management is supported.
+
+  Module snd-echo3g
+  -----------------
+
+    Module for Echoaudio 3G cards (Gina3G/Layla3G)
+
+    This module supports multiple cards.
+    The driver requires the firmware loader support on kernel.
 
   Module snd-emu10k1
   ------------------
@@ -656,6 +680,22 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     This module supports multiple cards and autoprobe.
     
     The power-management is supported.
+
+  Module snd-gina20
+  -----------------
+
+    Module for Echoaudio Gina20
+
+    This module supports multiple cards.
+    The driver requires the firmware loader support on kernel.
+
+  Module snd-gina24
+  -----------------
+
+    Module for Echoaudio Gina24
+
+    This module supports multiple cards.
+    The driver requires the firmware loader support on kernel.
 
   Module snd-gusclassic
   ---------------------
@@ -937,6 +977,30 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  driver isn't configured properly or you want to try another
 	  type for testing.
 
+  Module snd-indigo
+  -----------------
+
+    Module for Echoaudio Indigo
+
+    This module supports multiple cards.
+    The driver requires the firmware loader support on kernel.
+
+  Module snd-indigodj
+  -------------------
+
+    Module for Echoaudio Indigo DJ
+
+    This module supports multiple cards.
+    The driver requires the firmware loader support on kernel.
+
+  Module snd-indigoio
+  -------------------
+
+    Module for Echoaudio Indigo IO
+
+    This module supports multiple cards.
+    The driver requires the firmware loader support on kernel.
+
   Module snd-intel8x0
   -------------------
 
@@ -1036,6 +1100,22 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     This module supports multiple cards.
 
+  Module snd-layla20
+  ------------------
+
+    Module for Echoaudio Layla20
+
+    This module supports multiple cards.
+    The driver requires the firmware loader support on kernel.
+
+  Module snd-layla24
+  ------------------
+
+    Module for Echoaudio Layla24
+
+    This module supports multiple cards.
+    The driver requires the firmware loader support on kernel.
+
   Module snd-maestro3
   -------------------
 
@@ -1055,6 +1135,14 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     option.
 
     The power-management is supported.
+
+  Module snd-mia
+  ---------------
+
+    Module for Echoaudio Mia
+
+    This module supports multiple cards.
+    The driver requires the firmware loader support on kernel.
 
   Module snd-miro
   ---------------
@@ -1087,6 +1175,14 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     Install the necessary firmware files in alsa-firmware package.
     When no hotplug fw loader is available, you need to load the
     firmware via mixartloader utility in alsa-tools package.
+
+  Module snd-mona
+  ---------------
+
+    Module for Echoaudio Mona
+
+    This module supports multiple cards.
+    The driver requires the firmware loader support on kernel.
 
   Module snd-mpu401
   -----------------
