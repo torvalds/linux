@@ -459,7 +459,7 @@ static irqreturn_t atkbd_interrupt(struct serio *serio, unsigned char data,
 			}
 
 			input_regs(dev, regs);
-			input_report_key(dev, keycode, value);
+			input_event(dev, EV_KEY, keycode, value);
 			input_sync(dev);
 
 			if (value && add_release_event) {
