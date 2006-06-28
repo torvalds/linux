@@ -151,12 +151,16 @@ struct class {
 
 	struct class_attribute		* class_attrs;
 	struct class_device_attribute	* class_dev_attrs;
+	struct device_attribute		* dev_attrs;
 
 	int	(*uevent)(struct class_device *dev, char **envp,
 			   int num_envp, char *buffer, int buffer_size);
+	int	(*dev_uevent)(struct device *dev, char **envp, int num_envp,
+				char *buffer, int buffer_size);
 
 	void	(*release)(struct class_device *dev);
 	void	(*class_release)(struct class *class);
+	void	(*dev_release)(struct device *dev);
 
 	int	(*suspend)(struct device *, pm_message_t state);
 	int	(*resume)(struct device *);

@@ -94,6 +94,8 @@ static void device_release(struct kobject * kobj)
 
 	if (dev->release)
 		dev->release(dev);
+	else if (dev->class && dev->class->dev_release)
+		dev->class->dev_release(dev);
 	else {
 		printk(KERN_ERR "Device '%s' does not have a release() function, "
 			"it is broken and must be fixed.\n",
@@ -183,6 +185,15 @@ static int dev_uevent(struct kset *kset, struct kobject *kobj, char **envp,
 		}
 	}
 
+	if (dev->class && dev->class->dev_uevent) {
+		/* have the class specific function add its stuff */
+		retval = dev->class->dev_uevent(dev, envp, num_envp, buffer, buffer_size);
+			if (retval) {
+				pr_debug("%s - dev_uevent() returned %d\n",
+					 __FUNCTION__, retval);
+		}
+	}
+
 	return retval;
 }
 
@@ -227,6 +238,43 @@ static void device_remove_groups(struct device *dev)
 		}
 	}
 }
+
+static int device_add_attrs(struct device *dev)
+{
+	struct class *class = dev->class;
+	int error = 0;
+	int i;
+
+	if (!class)
+		return 0;
+
+	if (class->dev_attrs) {
+		for (i = 0; attr_name(class->dev_attrs[i]); i++) {
+			error = device_create_file(dev, &class->dev_attrs[i]);
+			if (error)
+				break;
+		}
+	}
+	if (error)
+		while (--i >= 0)
+			device_remove_file(dev, &class->dev_attrs[i]);
+	return error;
+}
+
+static void device_remove_attrs(struct device *dev)
+{
+	struct class *class = dev->class;
+	int i;
+
+	if (!class)
+		return;
+
+	if (class->dev_attrs) {
+		for (i = 0; attr_name(class->dev_attrs[i]); i++)
+			device_remove_file(dev, &class->dev_attrs[i]);
+	}
+}
+
 
 static ssize_t show_dev(struct device *dev, struct device_attribute *attr,
 			char *buf)
@@ -382,6 +430,8 @@ int device_add(struct device *dev)
 		}
 	}
 
+	if ((error = device_add_attrs(dev)))
+		goto AttrsError;
 	if ((error = device_add_groups(dev)))
 		goto GroupError;
 	if ((error = device_pm_add(dev)))
@@ -412,6 +462,8 @@ int device_add(struct device *dev)
  PMError:
 	device_remove_groups(dev);
  GroupError:
+ 	device_remove_attrs(dev);
+ AttrsError:
 	if (dev->devt_attr) {
 		device_remove_file(dev, dev->devt_attr);
 		kfree(dev->devt_attr);
@@ -509,6 +561,7 @@ void device_del(struct device * dev)
 	}
 	device_remove_file(dev, &dev->uevent_attr);
 	device_remove_groups(dev);
+	device_remove_attrs(dev);
 
 	/* Notify the platform of the removal, in case they
 	 * need to do anything...
