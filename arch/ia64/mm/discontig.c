@@ -751,7 +751,8 @@ void __init paging_init(void)
 	efi_memmap_walk(filter_rsvd_memory, count_node_pages);
 
 #ifdef CONFIG_VIRTUAL_MEM_MAP
-	vmalloc_end -= PAGE_ALIGN(max_low_pfn * sizeof(struct page));
+	vmalloc_end -= PAGE_ALIGN(ALIGN(max_low_pfn, MAX_ORDER_NR_PAGES) *
+		sizeof(struct page));
 	vmem_map = (struct page *) vmalloc_end;
 	efi_memmap_walk(create_mem_map_page_table, NULL);
 	printk("Virtual mem_map starts at 0x%p\n", vmem_map);
