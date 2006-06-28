@@ -1882,7 +1882,12 @@ hub_port_resume(struct usb_hub *hub, int port1, struct usb_device *udev)
 			dev_dbg(hub->intfdev,
 				"port %d status %04x.%04x after resume, %d\n",
 				port1, portchange, devstatus, status);
+			if (status >= 0)
+				status = -ENODEV;
 		} else {
+			if (portchange & USB_PORT_STAT_C_SUSPEND)
+				clear_port_feature(hub->hdev, port1,
+						USB_PORT_FEAT_C_SUSPEND);
 			/* TRSMRCY = 10 msec */
 			msleep(10);
 			if (udev)
