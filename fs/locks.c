@@ -725,6 +725,10 @@ next_task:
 /* Try to create a FLOCK lock on filp. We always insert new FLOCK locks
  * at the head of the list, but that's secret knowledge known only to
  * flock_lock_file and posix_lock_file.
+ *
+ * Note that if called with an FL_EXISTS argument, the caller may determine
+ * whether or not a lock was successfully freed by testing the return
+ * value for -ENOENT.
  */
 static int flock_lock_file(struct file *filp, struct file_lock *request)
 {
@@ -750,8 +754,11 @@ static int flock_lock_file(struct file *filp, struct file_lock *request)
 		break;
 	}
 
-	if (request->fl_type == F_UNLCK)
+	if (request->fl_type == F_UNLCK) {
+		if ((request->fl_flags & FL_EXISTS) && !found)
+			error = -ENOENT;
 		goto out;
+	}
 
 	error = -ENOMEM;
 	new_fl = locks_alloc_lock();
@@ -948,8 +955,11 @@ static int __posix_lock_file_conf(struct inode *inode, struct file_lock *request
 
 	error = 0;
 	if (!added) {
-		if (request->fl_type == F_UNLCK)
+		if (request->fl_type == F_UNLCK) {
+			if (request->fl_flags & FL_EXISTS)
+				error = -ENOENT;
 			goto out;
+		}
 
 		if (!new_fl) {
 			error = -ENOLCK;
@@ -996,6 +1006,10 @@ static int __posix_lock_file_conf(struct inode *inode, struct file_lock *request
  * Add a POSIX style lock to a file.
  * We merge adjacent & overlapping locks whenever possible.
  * POSIX locks are sorted by owner task, then by starting address
+ *
+ * Note that if called with an FL_EXISTS argument, the caller may determine
+ * whether or not a lock was successfully freed by testing the return
+ * value for -ENOENT.
  */
 int posix_lock_file(struct file *filp, struct file_lock *fl)
 {
