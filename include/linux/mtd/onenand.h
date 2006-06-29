@@ -23,7 +23,7 @@ extern int onenand_scan(struct mtd_info *mtd, int max_chips);
 /* Free resources held by the OneNAND device */
 extern void onenand_release(struct mtd_info *mtd);
 
-/**
+/*
  * onenand_state_t - chip states
  * Enumeration for OneNAND flash chip state
  */
@@ -42,9 +42,9 @@ typedef enum {
 
 /**
  * struct onenand_bufferram - OneNAND BufferRAM Data
- * @param block		block address in BufferRAM
- * @param page		page address in BufferRAM
- * @param valid		valid flag
+ * @block:		block address in BufferRAM
+ * @page:		page address in BufferRAM
+ * @valid:		valid flag
  */
 struct onenand_bufferram {
 	int block;
@@ -54,32 +54,43 @@ struct onenand_bufferram {
 
 /**
  * struct onenand_chip - OneNAND Private Flash Chip Data
- * @param base		[BOARDSPECIFIC] address to access OneNAND
- * @param chipsize	[INTERN] the size of one chip for multichip arrays
- * @param device_id	[INTERN] device ID
- * @param verstion_id	[INTERN] version ID
- * @param options	[BOARDSPECIFIC] various chip options. They can partly be set to inform onenand_scan about
- * @param erase_shift	[INTERN] number of address bits in a block
- * @param page_shift	[INTERN] number of address bits in a page
- * @param ppb_shift	[INTERN] number of address bits in a pages per block
- * @param page_mask	[INTERN] a page per block mask
- * @param bufferam_index	[INTERN] BufferRAM index
- * @param bufferam	[INTERN] BufferRAM info
- * @param readw		[REPLACEABLE] hardware specific function for read short
- * @param writew	[REPLACEABLE] hardware specific function for write short
- * @param command	[REPLACEABLE] hardware specific function for writing commands to the chip
- * @param wait		[REPLACEABLE] hardware specific function for wait on ready
- * @param read_bufferram	[REPLACEABLE] hardware specific function for BufferRAM Area
- * @param write_bufferram	[REPLACEABLE] hardware specific function for BufferRAM Area
- * @param read_word	[REPLACEABLE] hardware specific function for read register of OneNAND
- * @param write_word	[REPLACEABLE] hardware specific function for write register of OneNAND
- * @param scan_bbt	[REPLACEALBE] hardware specific function for scaning Bad block Table
- * @param chip_lock	[INTERN] spinlock used to protect access to this structure and the chip
- * @param wq		[INTERN] wait queue to sleep on if a OneNAND operation is in progress
- * @param state		[INTERN] the current state of the OneNAND device
- * @param ecclayout	[REPLACEABLE] the default ecc placement scheme
- * @param bbm		[REPLACEABLE] pointer to Bad Block Management
- * @param priv		[OPTIONAL] pointer to private chip date
+ * @base:		[BOARDSPECIFIC] address to access OneNAND
+ * @chipsize:		[INTERN] the size of one chip for multichip arrays
+ * @device_id:		[INTERN] device ID
+ * @density_mask:	chip density, used for DDP devices
+ * @verstion_id:	[INTERN] version ID
+ * @options:		[BOARDSPECIFIC] various chip options. They can
+ *			partly be set to inform onenand_scan about
+ * @erase_shift:	[INTERN] number of address bits in a block
+ * @page_shift:		[INTERN] number of address bits in a page
+ * @ppb_shift:		[INTERN] number of address bits in a pages per block
+ * @page_mask:		[INTERN] a page per block mask
+ * @bufferram_index:	[INTERN] BufferRAM index
+ * @bufferram:		[INTERN] BufferRAM info
+ * @readw:		[REPLACEABLE] hardware specific function for read short
+ * @writew:		[REPLACEABLE] hardware specific function for write short
+ * @command:		[REPLACEABLE] hardware specific function for writing
+ *			commands to the chip
+ * @wait:		[REPLACEABLE] hardware specific function for wait on ready
+ * @read_bufferram:	[REPLACEABLE] hardware specific function for BufferRAM Area
+ * @write_bufferram:	[REPLACEABLE] hardware specific function for BufferRAM Area
+ * @read_word:		[REPLACEABLE] hardware specific function for read
+ *			register of OneNAND
+ * @write_word:		[REPLACEABLE] hardware specific function for write
+ *			register of OneNAND
+ * @mmcontrol:		sync burst read function
+ * @block_markbad:	function to mark a block as bad
+ * @scan_bbt:		[REPLACEALBE] hardware specific function for scanning
+ *			Bad block Table
+ * @chip_lock:		[INTERN] spinlock used to protect access to this
+ *			structure and the chip
+ * @wq:			[INTERN] wait queue to sleep on if a OneNAND
+ *			operation is in progress
+ * @state:		[INTERN] the current state of the OneNAND device
+ * @page_buf:		data buffer
+ * @ecclayout:		[REPLACEABLE] the default ecc placement scheme
+ * @bbm:		[REPLACEABLE] pointer to Bad Block Management
+ * @priv:		[OPTIONAL] pointer to private chip date
  */
 struct onenand_chip {
 	void __iomem		*base;
@@ -147,9 +158,9 @@ struct onenand_chip {
 #define ONENAND_MFR_SAMSUNG	0xec
 
 /**
- * struct nand_manufacturers - NAND Flash Manufacturer ID Structure
- * @param name:		Manufacturer name
- * @param id:		manufacturer ID code of device.
+ * struct onenand_manufacturers - NAND Flash Manufacturer ID Structure
+ * @name:	Manufacturer name
+ * @id:		manufacturer ID code of device.
 */
 struct onenand_manufacturers {
         int id;

@@ -109,7 +109,7 @@
 		for most of the implementations. These functions can be replaced by the
 		board driver if neccecary. Those functions are called via pointers in the
 		NAND chip description structure. The board driver can set the functions which
-		should be replaced by board dependend functions before calling nand_scan().
+		should be replaced by board dependent functions before calling nand_scan().
 		If the function pointer is NULL on entry to nand_scan() then the pointer
 		is set to the default function which is suitable for the detected chip type.
 		</para></listitem>
@@ -133,7 +133,7 @@
 	  	[REPLACEABLE]</para><para>
 		Replaceable members hold hardware related functions which can be 
 		provided by the board driver. The board driver can set the functions which
-		should be replaced by board dependend functions before calling nand_scan().
+		should be replaced by board dependent functions before calling nand_scan().
 		If the function pointer is NULL on entry to nand_scan() then the pointer
 		is set to the default function which is suitable for the detected chip type.
 		</para></listitem>
@@ -156,9 +156,8 @@
      	<title>Basic board driver</title>
 	<para>
 		For most boards it will be sufficient to provide just the
-		basic functions and fill out some really board dependend
+		basic functions and fill out some really board dependent
 		members in the nand chip description structure.
-		See drivers/mtd/nand/skeleton for reference.
 	</para>
 	<sect1>
 		<title>Basic defines</title>

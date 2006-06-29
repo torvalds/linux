@@ -19,21 +19,21 @@
 
 /**
  * struct nand_bbt_descr - bad block table descriptor
- * @param options	options for this descriptor
- * @param pages		the page(s) where we find the bbt, used with
+ * @options:		options for this descriptor
+ * @pages:		the page(s) where we find the bbt, used with
  * 			option BBT_ABSPAGE when bbt is searched,
  * 			then we store the found bbts pages here.
  *			Its an array and supports up to 8 chips now
- * @param offs		offset of the pattern in the oob area of the page
- * @param veroffs	offset of the bbt version counter in the oob are of the page
- * @param version	version read from the bbt page during scan
- * @param len		length of the pattern, if 0 no pattern check is performed
- * @param maxblocks	maximum number of blocks to search for a bbt. This number of
- *			blocks is reserved at the end of the device
+ * @offs:		offset of the pattern in the oob area of the page
+ * @veroffs:		offset of the bbt version counter in the oob area of the page
+ * @version:		version read from the bbt page during scan
+ * @len:		length of the pattern, if 0 no pattern check is performed
+ * @maxblocks:		maximum number of blocks to search for a bbt. This
+ *			number of blocks is reserved at the end of the device
  *			where the tables are written.
- * @param reserved_block_code	if non-0, this pattern denotes a reserved
+ * @reserved_block_code: if non-0, this pattern denotes a reserved
  *			(rather than bad) block in the stored bbt
- * @param pattern	pattern to identify bad block table or factory marked
+ * @pattern:		pattern to identify bad block table or factory marked
  *			good / bad blocks, can be NULL, if len = 0
  *
  * Descriptor for the bad block table marker and the descriptor for the
@@ -93,12 +93,15 @@ struct nand_bbt_descr {
 #define ONENAND_BADBLOCK_POS	0
 
 /**
- * struct bbt_info - [GENERIC] Bad Block Table data structure
- * @param bbt_erase_shift	[INTERN] number of address bits in a bbt entry
- * @param badblockpos		[INTERN] position of the bad block marker in the oob area
- * @param bbt			[INTERN] bad block table pointer
- * @param badblock_pattern	[REPLACEABLE] bad block scan pattern used for initial bad block scan
- * @param priv			[OPTIONAL] pointer to private bbm date
+ * struct bbm_info - [GENERIC] Bad Block Table data structure
+ * @bbt_erase_shift:	[INTERN] number of address bits in a bbt entry
+ * @badblockpos:	[INTERN] position of the bad block marker in the oob area
+ * @options:		options for this descriptor
+ * @bbt:		[INTERN] bad block table pointer
+ * @isbad_bbt:		function to determine if a block is bad
+ * @badblock_pattern:	[REPLACEABLE] bad block scan pattern used for
+ *			initial bad block scan
+ * @priv:		[OPTIONAL] pointer to private bbm date
  */
 struct bbm_info {
 	int bbt_erase_shift;

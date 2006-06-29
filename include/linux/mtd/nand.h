@@ -407,7 +407,6 @@ struct nand_chip {
 
 /**
  * struct nand_flash_dev - NAND Flash Device ID Structure
- *
  * @name:	Identify the device type
  * @id:		device ID code
  * @pagesize:	Pagesize in bytes. Either 256 or 512 or 0
@@ -526,7 +525,6 @@ extern int nand_do_read(struct mtd_info *mtd, loff_t from, size_t len,
 
 /**
  * struct platform_nand_chip - chip level device structure
- *
  * @nr_chips:		max. number of chips to scan for
  * @chip_offset:	chip number offset
  * @nr_partitions:	number of partitions pointed to by partitions (or zero)
@@ -549,7 +547,6 @@ struct platform_nand_chip {
 
 /**
  * struct platform_nand_ctrl - controller level device structure
- *
  * @hwcontrol:		platform specific hardware control structure
  * @dev_ready:		platform specific function to read ready/busy pin
  * @select_chip:	platform specific chip select function
