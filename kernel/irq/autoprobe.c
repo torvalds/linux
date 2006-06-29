@@ -27,8 +27,8 @@ static DEFINE_MUTEX(probing_active);
  */
 unsigned long probe_irq_on(void)
 {
+	struct irq_desc *desc;
 	unsigned long mask;
-	irq_desc_t *desc;
 	unsigned int i;
 
 	mutex_lock(&probing_active);
@@ -116,7 +116,7 @@ unsigned int probe_irq_mask(unsigned long val)
 
 	mask = 0;
 	for (i = 0; i < NR_IRQS; i++) {
-		irq_desc_t *desc = irq_desc + i;
+		struct irq_desc *desc = irq_desc + i;
 		unsigned int status;
 
 		spin_lock_irq(&desc->lock);
@@ -159,7 +159,7 @@ int probe_irq_off(unsigned long val)
 	int i, irq_found = 0, nr_irqs = 0;
 
 	for (i = 0; i < NR_IRQS; i++) {
-		irq_desc_t *desc = irq_desc + i;
+		struct irq_desc *desc = irq_desc + i;
 		unsigned int status;
 
 		spin_lock_irq(&desc->lock);

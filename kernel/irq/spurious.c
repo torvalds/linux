@@ -99,7 +99,8 @@ static int misrouted_irq(int irq, struct pt_regs *regs)
  */
 
 static void
-__report_bad_irq(unsigned int irq, irq_desc_t *desc, irqreturn_t action_ret)
+__report_bad_irq(unsigned int irq, struct irq_desc *desc,
+		 irqreturn_t action_ret)
 {
 	struct irqaction *action;
 
@@ -124,7 +125,7 @@ __report_bad_irq(unsigned int irq, irq_desc_t *desc, irqreturn_t action_ret)
 }
 
 static void
-report_bad_irq(unsigned int irq, irq_desc_t *desc, irqreturn_t action_ret)
+report_bad_irq(unsigned int irq, struct irq_desc *desc, irqreturn_t action_ret)
 {
 	static int count = 100;
 
@@ -134,8 +135,8 @@ report_bad_irq(unsigned int irq, irq_desc_t *desc, irqreturn_t action_ret)
 	}
 }
 
-void note_interrupt(unsigned int irq, irq_desc_t *desc, irqreturn_t action_ret,
-		    struct pt_regs *regs)
+void note_interrupt(unsigned int irq, struct irq_desc *desc,
+		    irqreturn_t action_ret, struct pt_regs *regs)
 {
 	if (unlikely(action_ret != IRQ_HANDLED)) {
 		desc->irqs_unhandled++;

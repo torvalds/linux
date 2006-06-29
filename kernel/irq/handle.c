@@ -28,7 +28,7 @@
  *
  * Controller mappings for all interrupt sources:
  */
-irq_desc_t irq_desc[NR_IRQS] __cacheline_aligned = {
+struct irq_desc irq_desc[NR_IRQS] __cacheline_aligned = {
 	[0 ... NR_IRQS-1] = {
 		.status = IRQ_DISABLED,
 		.chip = &no_irq_type,
@@ -110,7 +110,7 @@ irqreturn_t handle_IRQ_event(unsigned int irq, struct pt_regs *regs,
  */
 fastcall unsigned int __do_IRQ(unsigned int irq, struct pt_regs *regs)
 {
-	irq_desc_t *desc = irq_desc + irq;
+	struct irq_desc *desc = irq_desc + irq;
 	struct irqaction *action;
 	unsigned int status;
 

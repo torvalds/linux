@@ -68,7 +68,7 @@ typedef struct hw_interrupt_type  hw_irq_controller;
  *
  * Pad this out to 32 bytes for cache and indexing reasons.
  */
-typedef struct irq_desc {
+struct irq_desc {
 	hw_irq_controller *chip;
 	void *chip_data;
 	struct irqaction *action;	/* IRQ action list */
@@ -83,11 +83,19 @@ typedef struct irq_desc {
 #if defined(CONFIG_GENERIC_PENDING_IRQ) || defined(CONFIG_IRQBALANCE)
 	unsigned int move_irq;		/* Flag need to re-target intr dest*/
 #endif
-} ____cacheline_aligned irq_desc_t;
+} ____cacheline_aligned;
 
-extern irq_desc_t irq_desc [NR_IRQS];
+extern struct irq_desc irq_desc[NR_IRQS];
 
-#include <asm/hw_irq.h> /* the arch dependent stuff */
+/*
+ * Migration helpers for obsolete names, they will go away:
+ */
+typedef struct irq_desc		irq_desc_t;
+
+/*
+ * Pick up the arch-dependent methods:
+ */
+#include <asm/hw_irq.h>
 
 extern int setup_irq(unsigned int irq, struct irqaction *new);
 
@@ -188,7 +196,7 @@ extern irqreturn_t handle_IRQ_event(unsigned int irq, struct pt_regs *regs,
  */
 extern fastcall unsigned int __do_IRQ(unsigned int irq, struct pt_regs *regs);
 
-extern void note_interrupt(unsigned int irq, irq_desc_t *desc,
+extern void note_interrupt(unsigned int irq, struct irq_desc *desc,
 			   int action_ret, struct pt_regs *regs);
 extern int can_request_irq(unsigned int irq, unsigned long irqflags);
 

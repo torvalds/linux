@@ -3,7 +3,7 @@
 
 void set_pending_irq(unsigned int irq, cpumask_t mask)
 {
-	irq_desc_t *desc = irq_desc + irq;
+	struct irq_desc *desc = irq_desc + irq;
 	unsigned long flags;
 
 	spin_lock_irqsave(&desc->lock, flags);
@@ -14,8 +14,8 @@ void set_pending_irq(unsigned int irq, cpumask_t mask)
 
 void move_native_irq(int irq)
 {
+	struct irq_desc *desc = irq_desc + irq;
 	cpumask_t tmp;
-	irq_desc_t *desc = irq_desc + irq;
 
 	if (likely(!desc->move_irq))
 		return;

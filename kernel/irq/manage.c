@@ -57,7 +57,7 @@ EXPORT_SYMBOL(synchronize_irq);
  */
 void disable_irq_nosync(unsigned int irq)
 {
-	irq_desc_t *desc = irq_desc + irq;
+	struct irq_desc *desc = irq_desc + irq;
 	unsigned long flags;
 
 	if (irq >= NR_IRQS)
@@ -86,7 +86,7 @@ EXPORT_SYMBOL(disable_irq_nosync);
  */
 void disable_irq(unsigned int irq)
 {
-	irq_desc_t *desc = irq_desc + irq;
+	struct irq_desc *desc = irq_desc + irq;
 
 	if (irq >= NR_IRQS)
 		return;
@@ -109,7 +109,7 @@ EXPORT_SYMBOL(disable_irq);
  */
 void enable_irq(unsigned int irq)
 {
-	irq_desc_t *desc = irq_desc + irq;
+	struct irq_desc *desc = irq_desc + irq;
 	unsigned long flags;
 
 	if (irq >= NR_IRQS)
