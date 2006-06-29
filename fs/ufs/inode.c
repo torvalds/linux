@@ -98,7 +98,9 @@ static u64 ufs_frag_map(struct inode *inode, sector_t frag)
 	u64 temp = 0L;
 
 	UFSD(": frag = %llu  depth = %d\n", (unsigned long long)frag, depth);
-	UFSD(": uspi->s_fpbshift = %d ,uspi->s_apbmask = %x, mask=%llx\n",uspi->s_fpbshift,uspi->s_apbmask,mask);
+	UFSD(": uspi->s_fpbshift = %d ,uspi->s_apbmask = %x, mask=%llx\n",
+		uspi->s_fpbshift, uspi->s_apbmask,
+		(unsigned long long)mask);
 
 	if (depth == 0)
 		return 0;
@@ -429,7 +431,7 @@ int ufs_getfrag_block(struct inode *inode, sector_t fragment, struct buffer_head
 	
 	if (!create) {
 		phys64 = ufs_frag_map(inode, fragment);
-		UFSD("phys64 = %llu \n",phys64);
+		UFSD("phys64 = %llu\n", (unsigned long long)phys64);
 		if (phys64)
 			map_bh(bh_result, sb, phys64);
 		return 0;
