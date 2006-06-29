@@ -5128,6 +5128,16 @@ bnx2_set_rx_csum(struct net_device *dev, u32 data)
 	return 0;
 }
 
+static int
+bnx2_set_tso(struct net_device *dev, u32 data)
+{
+	if (data)
+		dev->features |= NETIF_F_TSO | NETIF_F_TSO_ECN;
+	else
+		dev->features &= ~(NETIF_F_TSO | NETIF_F_TSO_ECN);
+	return 0;
+}
+
 #define BNX2_NUM_STATS 46
 
 static struct {
@@ -5445,7 +5455,7 @@ static struct ethtool_ops bnx2_ethtool_ops = {
 	.set_sg			= ethtool_op_set_sg,
 #ifdef BCM_TSO
 	.get_tso		= ethtool_op_get_tso,
-	.set_tso		= ethtool_op_set_tso,
+	.set_tso		= bnx2_set_tso,
 #endif
 	.self_test_count	= bnx2_self_test_count,
 	.self_test		= bnx2_self_test,
@@ -5926,7 +5936,7 @@ bnx2_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
 #endif
 #ifdef BCM_TSO
-	dev->features |= NETIF_F_TSO;
+	dev->features |= NETIF_F_TSO | NETIF_F_TSO_ECN;
 #endif
 
 	netif_carrier_off(bp->dev);
