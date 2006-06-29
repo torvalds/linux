@@ -336,8 +336,11 @@ ccw_device_oper_notify(void *data)
 	if (!ret)
 		/* Driver doesn't want device back. */
 		ccw_device_do_unreg_rereg((void *)cdev);
-	else
+	else {
+		/* Reenable channel measurements, if needed. */
+		cmf_reenable(cdev);
 		wake_up(&cdev->private->wait_q);
+	}
 }
 
 /*
@@ -1095,6 +1098,13 @@ ccw_device_change_cmfstate(struct ccw_device *cdev, enum dev_event dev_event)
 	dev_fsm_event(cdev, dev_event);
 }
 
+static void ccw_device_update_cmfblock(struct ccw_device *cdev,
+				       enum dev_event dev_event)
+{
+	cmf_retry_copy_block(cdev);
+	cdev->private->state = DEV_STATE_ONLINE;
+	dev_fsm_event(cdev, dev_event);
+}
 
 static void
 ccw_device_quiesce_done(struct ccw_device *cdev, enum dev_event dev_event)
@@ -1248,6 +1258,12 @@ fsm_func_t *dev_jumptable[NR_DEV_STATES][NR_DEV_EVENTS] = {
 		[DEV_EVENT_INTERRUPT]	= ccw_device_change_cmfstate,
 		[DEV_EVENT_TIMEOUT]	= ccw_device_change_cmfstate,
 		[DEV_EVENT_VERIFY]	= ccw_device_change_cmfstate,
+	},
+	[DEV_STATE_CMFUPDATE] = {
+		[DEV_EVENT_NOTOPER]	= ccw_device_update_cmfblock,
+		[DEV_EVENT_INTERRUPT]	= ccw_device_update_cmfblock,
+		[DEV_EVENT_TIMEOUT]	= ccw_device_update_cmfblock,
+		[DEV_EVENT_VERIFY]	= ccw_device_update_cmfblock,
 	},
 };
 

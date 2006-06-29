@@ -27,6 +27,7 @@ enum dev_state {
 	DEV_STATE_DISCONNECTED,
 	DEV_STATE_DISCONNECTED_SENSE_ID,
 	DEV_STATE_CMFCHANGE,
+	DEV_STATE_CMFUPDATE,
 	/* last element! */
 	NR_DEV_STATES
 };
@@ -118,5 +119,8 @@ int ccw_device_stlck(struct ccw_device *);
 void ccw_device_set_timeout(struct ccw_device *, int);
 extern struct subchannel_id ccw_device_get_subchannel_id(struct ccw_device *);
 
+/* Channel measurement facility related */
 void retry_set_schib(struct ccw_device *cdev);
+void cmf_retry_copy_block(struct ccw_device *);
+int cmf_reenable(struct ccw_device *);
 #endif
