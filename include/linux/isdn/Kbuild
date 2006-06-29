@@ -1,1 +1,1 @@
-header-y += capicmd.h tpam.h
+header-y += capicmd.h
