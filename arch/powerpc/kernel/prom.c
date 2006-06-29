@@ -953,6 +953,7 @@ static struct ibm_pa_feature {
 	/* put this back once we know how to test if firmware does 64k IO */
 	{CPU_FTR_CI_LARGE_PAGE, 0,	1, 2, 0},
 #endif
+	{CPU_FTR_REAL_LE, PPC_FEATURE_TRUE_LE, 5, 0, 0},
 };
 
 static void __init check_cpu_pa_features(unsigned long node)
