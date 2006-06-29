@@ -49,6 +49,7 @@
 #include <asm/irq.h>
 #include <asm/spu.h>
 #include <asm/spu_priv1.h>
+#include <asm/udbg.h>
 
 #include "interrupt.h"
 #include "iommu.h"
