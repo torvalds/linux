@@ -1,7 +1,7 @@
-/* 
+/*
  * File...........: linux/drivers/s390/block/dasd_eckd.h
  * Author(s)......: Holger Smolinski <Holger.Smolinski@de.ibm.com>
- *                  Horst Hummel <Horst.Hummel@de.ibm.com> 
+ *		    Horst Hummel <Horst.Hummel@de.ibm.com>
  * Bugreports.to..: <Linux390@de.ibm.com>
  * (C) IBM Corporation, IBM Deutschland Entwicklung GmbH, 1999,2000
  *
@@ -155,7 +155,7 @@ struct dasd_eckd_characteristics {
 		unsigned char reserved2:4;
 		unsigned char reserved3:8;
 		unsigned char defect_wr:1;
-		unsigned char XRC_supported:1; 
+		unsigned char XRC_supported:1;
 		unsigned char reserved4:1;
 		unsigned char striping:1;
 		unsigned char reserved5:4;
@@ -343,7 +343,7 @@ struct dasd_eckd_path {
 };
 
 /*
- * Perform Subsystem Function - Prepare for Read Subsystem Data	 
+ * Perform Subsystem Function - Prepare for Read Subsystem Data
  */
 struct dasd_psf_prssd_data {
 	unsigned char order;

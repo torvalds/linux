@@ -1,7 +1,7 @@
-/* 
+/*
  * File...........: linux/drivers/s390/block/dasd_eckd.c
  * Author(s)......: Holger Smolinski <Holger.Smolinski@de.ibm.com>
- *		    Horst Hummel <Horst.Hummel@de.ibm.com> 
+ *		    Horst Hummel <Horst.Hummel@de.ibm.com>
  *		    Carsten Otte <Cotte@de.ibm.com>
  *		    Martin Schwidefsky <schwidefsky@de.ibm.com>
  * Bugreports.to..: <Linux390@de.ibm.com>
@@ -210,14 +210,14 @@ check_XRC (struct ccw1         *de_ccw,
 
         /* switch on System Time Stamp - needed for XRC Support */
         if (private->rdc_data.facilities.XRC_supported) {
-                
+
                 data->ga_extended |= 0x08; /* switch on 'Time Stamp Valid'   */
                 data->ga_extended |= 0x02; /* switch on 'Extended Parameter' */
-                
+
                 data->ep_sys_time = get_clock ();
-                
+
                 de_ccw->count = sizeof (struct DE_eckd_data);
-                de_ccw->flags |= CCW_FLAG_SLI;  
+		de_ccw->flags |= CCW_FLAG_SLI;
         }
 
         return;
@@ -296,8 +296,8 @@ define_extent(struct ccw1 * ccw, struct DE_eckd_data * data, int trk,
 	/* check for sequential prestage - enhance cylinder range */
 	if (data->attributes.operation == DASD_SEQ_PRESTAGE ||
 	    data->attributes.operation == DASD_SEQ_ACCESS) {
-		
-		if (end.cyl + private->attrib.nr_cyl < geo.cyl) 
+
+		if (end.cyl + private->attrib.nr_cyl < geo.cyl)
 			end.cyl += private->attrib.nr_cyl;
 		else
 			end.cyl = (geo.cyl - 1);
@@ -317,7 +317,7 @@ locate_record(struct ccw1 *ccw, struct LO_eckd_data *data, int trk,
 	struct dasd_eckd_private *private;
 	int sector;
 	int dn, d;
-				
+
 	private = (struct dasd_eckd_private *) device->private;
 
 	DBF_DEV_EVENT(DBF_INFO, device,
@@ -554,7 +554,7 @@ dasd_eckd_check_characteristics(struct dasd_device *device)
 
 	private = (struct dasd_eckd_private *) device->private;
 	if (private == NULL) {
-		private = kmalloc(sizeof(struct dasd_eckd_private),
+		private = kzalloc(sizeof(struct dasd_eckd_private),
 				  GFP_KERNEL | GFP_DMA);
 		if (private == NULL) {
 			DEV_MESSAGE(KERN_WARNING, device, "%s",
@@ -562,7 +562,6 @@ dasd_eckd_check_characteristics(struct dasd_device *device)
 				    "data");
 			return -ENOMEM;
 		}
-		memset(private, 0, sizeof(struct dasd_eckd_private));
 		device->private = (void *) private;
 	}
 	/* Invalidate status of initial analysis. */
@@ -773,7 +772,7 @@ dasd_eckd_end_analysis(struct dasd_device *device)
 		    ((private->rdc_data.no_cyl *
 		      private->rdc_data.trk_per_cyl *
 		      blk_per_trk * (device->bp_block >> 9)) >> 1),
-		    ((blk_per_trk * device->bp_block) >> 10), 
+		    ((blk_per_trk * device->bp_block) >> 10),
 		    private->uses_cdl ?
 		    "compatible disk layout" : "linux disk layout");
 
@@ -970,7 +969,7 @@ dasd_eckd_format_device(struct dasd_device * device,
 				if (i < 3) {
 					ect->kl = 4;
 					ect->dl = sizes_trk0[i] - 4;
-				} 
+				}
 			}
 			if ((fdata->intensity & 0x08) &&
 			    fdata->start_unit == 1) {
@@ -1270,7 +1269,7 @@ dasd_eckd_fill_info(struct dasd_device * device,
 
 /*
  * Release device ioctl.
- * Buils a channel programm to releases a prior reserved 
+ * Buils a channel programm to releases a prior reserved
  * (see dasd_eckd_reserve) device.
  */
 static int
@@ -1310,8 +1309,8 @@ dasd_eckd_release(struct dasd_device *device)
 /*
  * Reserve device ioctl.
  * Options are set to 'synchronous wait for interrupt' and
- * 'timeout the request'. This leads to a terminate IO if 
- * the interrupt is outstanding for a certain time. 
+ * 'timeout the request'. This leads to a terminate IO if
+ * the interrupt is outstanding for a certain time.
  */
 static int
 dasd_eckd_reserve(struct dasd_device *device)
@@ -1349,7 +1348,7 @@ dasd_eckd_reserve(struct dasd_device *device)
 
 /*
  * Steal lock ioctl - unconditional reserve device.
- * Buils a channel programm to break a device's reservation. 
+ * Buils a channel programm to break a device's reservation.
  * (unconditional reserve)
  */
 static int
@@ -1706,22 +1705,3 @@ dasd_eckd_cleanup(void)
 
 module_init(dasd_eckd_init);
 module_exit(dasd_eckd_cleanup);
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-indent-level: 4 
- * c-brace-imaginary-offset: 0
- * c-brace-offset: -4
- * c-argdecl-indent: 4
- * c-label-offset: -4
- * c-continued-statement-offset: 4
- * c-continued-brace-offset: 0
- * indent-tabs-mode: 1
- * tab-width: 8
- * End:
- */

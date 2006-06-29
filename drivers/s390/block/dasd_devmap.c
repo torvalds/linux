@@ -123,7 +123,7 @@ static inline int
 dasd_busid(char **str, int *id0, int *id1, int *devno)
 {
 	int val, old_style;
- 
+
 	/* check for leading '0x' */
 	old_style = 0;
 	if ((*str)[0] == '0' && (*str)[1] == 'x') {
@@ -179,7 +179,7 @@ dasd_feature_list(char *str, char **endp)
 	features = 0;
 
 	while (1) {
-		for (len = 0; 
+		for (len = 0;
 		     str[len] && str[len] != ':' && str[len] != ')'; len++);
 		if (len == 2 && !strncmp(str, "ro", 2))
 			features |= DASD_FEATURE_READONLY;
@@ -359,7 +359,7 @@ dasd_parse(void)
  * Add a devmap for the device specified by busid. It is possible that
  * the devmap already exists (dasd= parameter). The order of the devices
  * added through this function will define the kdevs for the individual
- * devices. 
+ * devices.
  */
 static struct dasd_devmap *
 dasd_add_busid(char *bus_id, int features)
@@ -368,7 +368,7 @@ dasd_add_busid(char *bus_id, int features)
 	int hash;
 
 	new = (struct dasd_devmap *)
-		kmalloc(sizeof(struct dasd_devmap), GFP_KERNEL);
+		kzalloc(sizeof(struct dasd_devmap), GFP_KERNEL);
 	if (!new)
 		return ERR_PTR(-ENOMEM);
 	spin_lock(&dasd_devmap_lock);
@@ -630,7 +630,8 @@ dasd_ro_show(struct device *dev, struct device_attribute *attr, char *buf)
 }
 
 static ssize_t
-dasd_ro_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+dasd_ro_store(struct device *dev, struct device_attribute *attr,
+	      const char *buf, size_t count)
 {
 	struct dasd_devmap *devmap;
 	int ro_flag;
@@ -658,7 +659,7 @@ static DEVICE_ATTR(readonly, 0644, dasd_ro_show, dasd_ro_store);
  * use_diag controls whether the driver should use diag rather than ssch
  * to talk to the device
  */
-static ssize_t 
+static ssize_t
 dasd_use_diag_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct dasd_devmap *devmap;
@@ -673,7 +674,8 @@ dasd_use_diag_show(struct device *dev, struct device_attribute *attr, char *buf)
 }
 
 static ssize_t
-dasd_use_diag_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+dasd_use_diag_store(struct device *dev, struct device_attribute *attr,
+		    const char *buf, size_t count)
 {
 	struct dasd_devmap *devmap;
 	ssize_t rc;
@@ -697,11 +699,11 @@ dasd_use_diag_store(struct device *dev, struct device_attribute *attr, const cha
 	return rc;
 }
 
-static
-DEVICE_ATTR(use_diag, 0644, dasd_use_diag_show, dasd_use_diag_store);
+static DEVICE_ATTR(use_diag, 0644, dasd_use_diag_show, dasd_use_diag_store);
 
 static ssize_t
-dasd_discipline_show(struct device *dev, struct device_attribute *attr, char *buf)
+dasd_discipline_show(struct device *dev, struct device_attribute *attr,
+		     char *buf)
 {
 	struct dasd_devmap *devmap;
 	char *dname;
