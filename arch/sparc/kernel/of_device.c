@@ -129,6 +129,26 @@ static int of_device_resume(struct device * dev)
 	return error;
 }
 
+static int node_match(struct device *dev, void *data)
+{
+	struct of_device *op = to_of_device(dev);
+	struct device_node *dp = data;
+
+	return (op->node == dp);
+}
+
+struct of_device *of_find_device_by_node(struct device_node *dp)
+{
+	struct device *dev = bus_find_device(&of_bus_type, NULL,
+					     dp, node_match);
+
+	if (dev)
+		return to_of_device(dev);
+
+	return NULL;
+}
+EXPORT_SYMBOL(of_find_device_by_node);
+
 #ifdef CONFIG_PCI
 struct bus_type ebus_bus_type = {
        .name	= "ebus",
@@ -503,8 +523,8 @@ static struct of_device * __init scan_one_device(struct device_node *dp,
 						 struct device *parent)
 {
 	struct of_device *op = kzalloc(sizeof(*op), GFP_KERNEL);
-	unsigned int *irq;
-	int len;
+	struct linux_prom_irqs *intr;
+	int len, i;
 
 	if (!op)
 		return NULL;
@@ -517,11 +537,46 @@ static struct of_device * __init scan_one_device(struct device_node *dp,
 	if (op->portid == -1)
 		op->portid = of_getintprop_default(dp, "portid", -1);
 
-	irq = of_get_property(dp, "interrupts", &len);
-	if (irq)
-		op->irq = *irq;
-	else
-		op->irq = 0xffffffff;
+	intr = of_get_property(dp, "intr", &len);
+	if (intr) {
+		op->num_irqs = len / sizeof(struct linux_prom_irqs);
+		for (i = 0; i < op->num_irqs; i++)
+			op->irqs[i] = intr[i].pri;
+	} else {
+		unsigned int *irq = of_get_property(dp, "interrupts", &len);
+
+		if (irq) {
+			op->num_irqs = len / sizeof(unsigned int);
+			for (i = 0; i < op->num_irqs; i++)
+				op->irqs[i] = irq[i];
+		} else {
+			op->num_irqs = 0;
+		}
+	}
+	if (sparc_cpu_model == sun4d) {
+		static int pil_to_sbus[] = {
+			0, 0, 1, 2, 0, 3, 0, 4, 0, 5, 0, 6, 0, 7, 0, 0,
+		};
+		struct device_node *busp = dp->parent;
+		struct linux_prom_registers *regs;
+		int board = of_getintprop_default(busp, "board#", 0);
+		int slot;
+
+		regs = of_get_property(dp, "reg", NULL);
+		slot = regs->which_io;
+
+		for (i = 0; i < op->num_irqs; i++) {
+			int this_irq = op->irqs[i];
+			int sbusl = pil_to_sbus[this_irq];
+
+			if (sbusl)
+				this_irq = (((board + 1) << 5) +
+					    (sbusl << 2) +
+					    slot);
+
+			op->irqs[i] = this_irq;
+		}
+	}
 
 	build_device_resources(op, parent);
 
