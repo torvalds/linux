@@ -1,5 +1,5 @@
 /*
- * linux/arch/arm/mach-at91rm9200/time.c
+ * linux/arch/arm/mach-at91rm9200/at91rm9200_time.c
  *
  *  Copyright (C) 2003 SAN People
  *  Copyright (C) 2003 ATMEL

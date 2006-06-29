@@ -1,5 +1,5 @@
 /*
- * arch/arm/mach-at91rm9200/common.c
+ * arch/arm/mach-at91rm9200/at91rm9200.c
  *
  *  Copyright (C) 2005 SAN People
  *
