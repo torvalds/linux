@@ -4,11 +4,13 @@
 
 #include <linux/device.h>
 #include <linux/mod_devicetable.h>
+#include <asm/openprom.h>
 #include <asm/prom.h>
 
 extern struct bus_type isa_bus_type;
 extern struct bus_type ebus_bus_type;
 extern struct bus_type sbus_bus_type;
+extern struct bus_type of_bus_type;
 
 /*
  * The of_device is a kind of "base class" that is a superset of
@@ -17,8 +19,16 @@ extern struct bus_type sbus_bus_type;
  */
 struct of_device
 {
-	struct device_node	*node;		/* OF device node */
-	struct device		dev;		/* Generic device interface */
+	struct device_node		*node;
+	struct device			dev;
+	struct resource			resource[PROMREG_MAX];
+	unsigned int			irq;
+
+	void				*sysdata;
+
+	int				slot;
+	int				portid;
+	int				clock_freq;
 };
 #define	to_of_device(d) container_of(d, struct of_device, dev)
 

@@ -69,6 +69,8 @@ struct device_node {
 #define OF_IS_DYNAMIC(x) test_bit(OF_DYNAMIC, &x->_flags)
 #define OF_MARK_DYNAMIC(x) set_bit(OF_DYNAMIC, &x->_flags)
 
+#define OF_BAD_ADDR	((u64)-1)
+
 static inline void set_node_proc_entry(struct device_node *dn, struct proc_dir_entry *de)
 {
 	dn->pde = de;

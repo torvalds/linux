@@ -153,10 +153,424 @@ struct bus_type sbus_bus_type = {
 EXPORT_SYMBOL(sbus_bus_type);
 #endif
 
+struct bus_type of_bus_type = {
+       .name	= "of",
+       .match	= of_platform_bus_match,
+       .probe	= of_device_probe,
+       .remove	= of_device_remove,
+       .suspend	= of_device_suspend,
+       .resume	= of_device_resume,
+};
+EXPORT_SYMBOL(of_bus_type);
+
+static inline u64 of_read_addr(u32 *cell, int size)
+{
+	u64 r = 0;
+	while (size--)
+		r = (r << 32) | *(cell++);
+	return r;
+}
+
+static void __init get_cells(struct device_node *dp,
+			     int *addrc, int *sizec)
+{
+	if (addrc)
+		*addrc = of_n_addr_cells(dp);
+	if (sizec)
+		*sizec = of_n_size_cells(dp);
+}
+
+/* Max address size we deal with */
+#define OF_MAX_ADDR_CELLS	4
+
+struct of_bus {
+	const char	*name;
+	const char	*addr_prop_name;
+	int		(*match)(struct device_node *parent);
+	void		(*count_cells)(struct device_node *child,
+				       int *addrc, int *sizec);
+	u64		(*map)(u32 *addr, u32 *range, int na, int ns, int pna);
+	int		(*translate)(u32 *addr, u64 offset, int na);
+	unsigned int	(*get_flags)(u32 *addr);
+};
+
+/*
+ * Default translator (generic bus)
+ */
+
+static void of_bus_default_count_cells(struct device_node *dev,
+				       int *addrc, int *sizec)
+{
+	get_cells(dev, addrc, sizec);
+}
+
+static u64 of_bus_default_map(u32 *addr, u32 *range, int na, int ns, int pna)
+{
+	u64 cp, s, da;
+
+	cp = of_read_addr(range, na);
+	s  = of_read_addr(range + na + pna, ns);
+	da = of_read_addr(addr, na);
+
+	if (da < cp || da >= (cp + s))
+		return OF_BAD_ADDR;
+	return da - cp;
+}
+
+static int of_bus_default_translate(u32 *addr, u64 offset, int na)
+{
+	u64 a = of_read_addr(addr, na);
+	memset(addr, 0, na * 4);
+	a += offset;
+	if (na > 1)
+		addr[na - 2] = a >> 32;
+	addr[na - 1] = a & 0xffffffffu;
+
+	return 0;
+}
+
+static unsigned int of_bus_default_get_flags(u32 *addr)
+{
+	return IORESOURCE_MEM;
+}
+
+
+/*
+ * PCI bus specific translator
+ */
+
+static int of_bus_pci_match(struct device_node *np)
+{
+	return !strcmp(np->type, "pci") || !strcmp(np->type, "pciex");
+}
+
+static void of_bus_pci_count_cells(struct device_node *np,
+				   int *addrc, int *sizec)
+{
+	if (addrc)
+		*addrc = 3;
+	if (sizec)
+		*sizec = 2;
+}
+
+static u64 of_bus_pci_map(u32 *addr, u32 *range, int na, int ns, int pna)
+{
+	u64 cp, s, da;
+
+	/* Check address type match */
+	if ((addr[0] ^ range[0]) & 0x03000000)
+		return OF_BAD_ADDR;
+
+	/* Read address values, skipping high cell */
+	cp = of_read_addr(range + 1, na - 1);
+	s  = of_read_addr(range + na + pna, ns);
+	da = of_read_addr(addr + 1, na - 1);
+
+	if (da < cp || da >= (cp + s))
+		return OF_BAD_ADDR;
+	return da - cp;
+}
+
+static int of_bus_pci_translate(u32 *addr, u64 offset, int na)
+{
+	return of_bus_default_translate(addr + 1, offset, na - 1);
+}
+
+static unsigned int of_bus_pci_get_flags(u32 *addr)
+{
+	unsigned int flags = 0;
+	u32 w = addr[0];
+
+	switch((w >> 24) & 0x03) {
+	case 0x01:
+		flags |= IORESOURCE_IO;
+	case 0x02: /* 32 bits */
+	case 0x03: /* 64 bits */
+		flags |= IORESOURCE_MEM;
+	}
+	if (w & 0x40000000)
+		flags |= IORESOURCE_PREFETCH;
+	return flags;
+}
+
+/*
+ * SBUS bus specific translator
+ */
+
+static int of_bus_sbus_match(struct device_node *np)
+{
+	return !strcmp(np->name, "sbus") ||
+		!strcmp(np->name, "sbi");
+}
+
+static void of_bus_sbus_count_cells(struct device_node *child,
+				   int *addrc, int *sizec)
+{
+	if (addrc)
+		*addrc = 2;
+	if (sizec)
+		*sizec = 1;
+}
+
+static u64 of_bus_sbus_map(u32 *addr, u32 *range, int na, int ns, int pna)
+{
+	return of_bus_default_map(addr, range, na, ns, pna);
+}
+
+static int of_bus_sbus_translate(u32 *addr, u64 offset, int na)
+{
+	return of_bus_default_translate(addr, offset, na);
+}
+
+static unsigned int of_bus_sbus_get_flags(u32 *addr)
+{
+	return IORESOURCE_MEM;
+}
+
+
+/*
+ * Array of bus specific translators
+ */
+
+static struct of_bus of_busses[] = {
+	/* PCI */
+	{
+		.name = "pci",
+		.addr_prop_name = "assigned-addresses",
+		.match = of_bus_pci_match,
+		.count_cells = of_bus_pci_count_cells,
+		.map = of_bus_pci_map,
+		.translate = of_bus_pci_translate,
+		.get_flags = of_bus_pci_get_flags,
+	},
+	/* SBUS */
+	{
+		.name = "sbus",
+		.addr_prop_name = "reg",
+		.match = of_bus_sbus_match,
+		.count_cells = of_bus_sbus_count_cells,
+		.map = of_bus_sbus_map,
+		.translate = of_bus_sbus_translate,
+		.get_flags = of_bus_sbus_get_flags,
+	},
+	/* Default */
+	{
+		.name = "default",
+		.addr_prop_name = "reg",
+		.match = NULL,
+		.count_cells = of_bus_default_count_cells,
+		.map = of_bus_default_map,
+		.translate = of_bus_default_translate,
+		.get_flags = of_bus_default_get_flags,
+	},
+};
+
+static struct of_bus *of_match_bus(struct device_node *np)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(of_busses); i ++)
+		if (!of_busses[i].match || of_busses[i].match(np))
+			return &of_busses[i];
+	BUG();
+	return NULL;
+}
+
+static int __init build_one_resource(struct device_node *parent,
+				     struct of_bus *bus,
+				     struct of_bus *pbus,
+				     u32 *addr,
+				     int na, int ns, int pna)
+{
+	u32 *ranges;
+	unsigned int rlen;
+	int rone;
+	u64 offset = OF_BAD_ADDR;
+
+	ranges = of_get_property(parent, "ranges", &rlen);
+	if (ranges == NULL || rlen == 0) {
+		offset = of_read_addr(addr, na);
+		memset(addr, 0, pna * 4);
+		goto finish;
+	}
+
+	/* Now walk through the ranges */
+	rlen /= 4;
+	rone = na + pna + ns;
+	for (; rlen >= rone; rlen -= rone, ranges += rone) {
+		offset = bus->map(addr, ranges, na, ns, pna);
+		if (offset != OF_BAD_ADDR)
+			break;
+	}
+	if (offset == OF_BAD_ADDR)
+		return 1;
+
+	memcpy(addr, ranges + na, 4 * pna);
+
+finish:
+	/* Translate it into parent bus space */
+	return pbus->translate(addr, offset, pna);
+}
+
+static void __init build_device_resources(struct of_device *op,
+					  struct device *parent)
+{
+	struct of_device *p_op;
+	struct of_bus *bus;
+	int na, ns;
+	int index, num_reg;
+	void *preg;
+
+	if (!parent)
+		return;
+
+	p_op = to_of_device(parent);
+	bus = of_match_bus(p_op->node);
+	bus->count_cells(op->node, &na, &ns);
+
+	preg = of_get_property(op->node, bus->addr_prop_name, &num_reg);
+	if (!preg || num_reg == 0)
+		return;
+
+	/* Convert to num-cells.  */
+	num_reg /= 4;
+
+	/* Conver to num-entries.  */
+	num_reg /= na + ns;
+
+	for (index = 0; index < num_reg; index++) {
+		struct resource *r = &op->resource[index];
+		u32 addr[OF_MAX_ADDR_CELLS];
+		u32 *reg = (preg + (index * ((na + ns) * 4)));
+		struct device_node *dp = op->node;
+		struct device_node *pp = p_op->node;
+		struct of_bus *pbus;
+		u64 size, result = OF_BAD_ADDR;
+		unsigned long flags;
+		int dna, dns;
+		int pna, pns;
+
+		size = of_read_addr(reg + na, ns);
+		flags = bus->get_flags(reg);
+
+		memcpy(addr, reg, na * 4);
+
+		/* If the immediate parent has no ranges property to apply,
+		 * just use a 1<->1 mapping.
+		 */
+		if (of_find_property(pp, "ranges", NULL) == NULL) {
+			result = of_read_addr(addr, na);
+			goto build_res;
+		}
+
+		dna = na;
+		dns = ns;
+
+		while (1) {
+			dp = pp;
+			pp = dp->parent;
+			if (!pp) {
+				result = of_read_addr(addr, dna);
+				break;
+			}
+
+			pbus = of_match_bus(pp);
+			pbus->count_cells(dp, &pna, &pns);
+
+			if (build_one_resource(dp, bus, pbus, addr, dna, dns, pna))
+				break;
+
+			dna = pna;
+			dns = pns;
+			bus = pbus;
+		}
+
+	build_res:
+		memset(r, 0, sizeof(*r));
+		if (result != OF_BAD_ADDR) {
+			r->start = result;
+			r->end = result + size - 1;
+			r->flags = flags;
+		} else {
+			r->start = ~0UL;
+			r->end = ~0UL;
+		}
+		r->name = op->node->name;
+	}
+}
+
+static struct of_device * __init scan_one_device(struct device_node *dp,
+						 struct device *parent)
+{
+	struct of_device *op = kzalloc(sizeof(*op), GFP_KERNEL);
+	unsigned int *irq;
+	int len;
+
+	if (!op)
+		return NULL;
+
+	op->node = dp;
+
+	op->clock_freq = of_getintprop_default(dp, "clock-frequency",
+					       (25*1000*1000));
+	op->portid = of_getintprop_default(dp, "upa-portid", -1);
+	if (op->portid == -1)
+		op->portid = of_getintprop_default(dp, "portid", -1);
+
+	irq = of_get_property(dp, "interrupts", &len);
+	if (irq)
+		op->irq = *irq;
+	else
+		op->irq = 0xffffffff;
+
+	build_device_resources(op, parent);
+
+	op->dev.parent = parent;
+	op->dev.bus = &of_bus_type;
+	if (!parent)
+		strcpy(op->dev.bus_id, "root");
+	else
+		strcpy(op->dev.bus_id, dp->path_component_name);
+
+	if (of_device_register(op)) {
+		printk("%s: Could not register of device.\n",
+		       dp->full_name);
+		kfree(op);
+		op = NULL;
+	}
+
+	return op;
+}
+
+static void __init scan_tree(struct device_node *dp, struct device *parent)
+{
+	while (dp) {
+		struct of_device *op = scan_one_device(dp, parent);
+
+		if (op)
+			scan_tree(dp->child, &op->dev);
+
+		dp = dp->sibling;
+	}
+}
+
+static void __init scan_of_devices(void)
+{
+	struct device_node *root = of_find_node_by_path("/");
+	struct of_device *parent;
+
+	parent = scan_one_device(root, NULL);
+	if (!parent)
+		return;
+
+	scan_tree(root->child, &parent->dev);
+}
+
 static int __init of_bus_driver_init(void)
 {
-	int err = 0;
+	int err;
 
+	err = bus_register(&of_bus_type);
 #ifdef CONFIG_PCI
 	if (!err)
 		err = bus_register(&ebus_bus_type);
@@ -165,7 +579,11 @@ static int __init of_bus_driver_init(void)
 	if (!err)
 		err = bus_register(&sbus_bus_type);
 #endif
-	return 0;
+
+	if (!err)
+		scan_of_devices();
+
+	return err;
 }
 
 postcore_initcall(of_bus_driver_init);
