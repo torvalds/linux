@@ -79,7 +79,7 @@ static int misrouted_irq(int irq, struct pt_regs *regs)
 		 * If we did actual work for the real IRQ line we must let the
 		 * IRQ controller clean up too
 		 */
-		if (work)
+		if (work && desc->chip && desc->chip->end)
 			desc->chip->end(i);
 		spin_unlock(&desc->lock);
 	}

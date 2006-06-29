@@ -383,6 +383,17 @@ set_irq_chained_handler(unsigned int irq,
 	__set_irq_handler(irq, handle, 1);
 }
 
+/* Set/get chip/data for an IRQ: */
+
+extern int set_irq_chip(unsigned int irq, struct irq_chip *chip);
+extern int set_irq_data(unsigned int irq, void *data);
+extern int set_irq_chip_data(unsigned int irq, void *data);
+extern int set_irq_type(unsigned int irq, unsigned int type);
+
+#define get_irq_chip(irq)	(irq_desc[irq].chip)
+#define get_irq_chip_data(irq)	(irq_desc[irq].chip_data)
+#define get_irq_data(irq)	(irq_desc[irq].handler_data)
+
 #endif /* CONFIG_GENERIC_HARDIRQS */
 
 #endif /* !CONFIG_S390 */
