@@ -29,8 +29,6 @@
 #include <linux/kernel.h>
 #include <net/sock.h>
 
-#include <linux/devfs_fs_kernel.h>
-
 #include <asm/uaccess.h>
 #include <asm/system.h>
 #include <asm/types.h>
@@ -642,7 +640,6 @@ static int __init nbd_init(void)
 	printk(KERN_INFO "nbd: registered device at major %d\n", NBD_MAJOR);
 	dprintk(DBG_INIT, "nbd: debugflags=0x%x\n", debugflags);
 
-	devfs_mk_dir("nbd");
 	for (i = 0; i < nbds_max; i++) {
 		struct gendisk *disk = nbd_dev[i].disk;
 		nbd_dev[i].file = NULL;
@@ -660,7 +657,6 @@ static int __init nbd_init(void)
 		disk->private_data = &nbd_dev[i];
 		disk->flags |= GENHD_FL_SUPPRESS_PARTITION_INFO;
 		sprintf(disk->disk_name, "nbd%d", i);
-		sprintf(disk->devfs_name, "nbd/%d", i);
 		set_capacity(disk, 0x7ffffc00ULL << 1); /* 2 TB */
 		add_disk(disk);
 	}
@@ -686,7 +682,6 @@ static void __exit nbd_cleanup(void)
 			put_disk(disk);
 		}
 	}
-	devfs_remove("nbd");
 	unregister_blkdev(NBD_MAJOR, "nbd");
 	printk(KERN_INFO "nbd: unregistered device at major %d\n", NBD_MAJOR);
 }

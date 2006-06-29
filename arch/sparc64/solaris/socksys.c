@@ -26,7 +26,6 @@
 #include <linux/slab.h>
 #include <linux/syscalls.h>
 #include <linux/in.h>
-#include <linux/devfs_fs_kernel.h>
 
 #include <net/sock.h>
 
@@ -190,8 +189,6 @@ init_socksys(void)
 		return ret;
 	}
 
-	devfs_mk_cdev(MKDEV(30, 0), S_IFCHR|S_IRUSR|S_IWUSR, "socksys");
-
 	file = fcheck(ret);
 	/* N.B. Is this valid? Suppose the f_ops are in a module ... */
 	socksys_file_ops = *file->f_op;
@@ -207,5 +204,4 @@ cleanup_socksys(void)
 {
 	if (unregister_chrdev(30, "socksys"))
 		printk ("Couldn't unregister socksys character device\n");
-	devfs_remove ("socksys");
 }

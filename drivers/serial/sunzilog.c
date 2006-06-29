@@ -1017,7 +1017,6 @@ static int zilog_irq = -1;
 static struct uart_driver sunzilog_reg = {
 	.owner		=	THIS_MODULE,
 	.driver_name	=	"ttyS",
-	.devfs_name	=	"tts/",
 	.dev_name	=	"ttyS",
 	.major		=	TTY_MAJOR,
 };

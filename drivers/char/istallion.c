@@ -39,7 +39,6 @@
 #include <linux/ioport.h>
 #include <linux/delay.h>
 #include <linux/init.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/device.h>
 #include <linux/wait.h>
 #include <linux/eisa.h>
@@ -826,11 +825,8 @@ static void __exit istallion_module_exit(void)
 		return;
 	}
 	put_tty_driver(stli_serial);
-	for (i = 0; i < 4; i++) {
-		devfs_remove("staliomem/%d", i);
+	for (i = 0; i < 4; i++)
 		class_device_destroy(istallion_class, MKDEV(STL_SIOMEMMAJOR, i));
-	}
-	devfs_remove("staliomem");
 	class_destroy(istallion_class);
 	if ((i = unregister_chrdev(STL_SIOMEMMAJOR, "staliomem")))
 		printk("STALLION: failed to un-register serial memory device, "
@@ -4728,16 +4724,11 @@ int __init stli_init(void)
 		printk(KERN_ERR "STALLION: failed to register serial memory "
 				"device\n");
 
-	devfs_mk_dir("staliomem");
 	istallion_class = class_create(THIS_MODULE, "staliomem");
-	for (i = 0; i < 4; i++) {
-		devfs_mk_cdev(MKDEV(STL_SIOMEMMAJOR, i),
-			       S_IFCHR | S_IRUSR | S_IWUSR,
-			       "staliomem/%d", i);
+	for (i = 0; i < 4; i++)
 		class_device_create(istallion_class, NULL,
 				MKDEV(STL_SIOMEMMAJOR, i),
 				NULL, "staliomem%d", i);
-	}
 
 /*
  *	Set up the tty driver structure and register us as a driver.

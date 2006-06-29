@@ -468,7 +468,6 @@ static struct uart_ops v850e_uart_ops = {
 static struct uart_driver v850e_uart_driver = {
 	.owner			= THIS_MODULE,
 	.driver_name		= "v850e_uart",
-	.devfs_name		= "tts/",
 	.dev_name		= "ttyS",
 	.major			= TTY_MAJOR,
 	.minor			= V850E_UART_MINOR_BASE,

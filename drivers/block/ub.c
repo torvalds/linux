@@ -24,12 +24,10 @@
 #include <linux/usb.h>
 #include <linux/usb_usual.h>
 #include <linux/blkdev.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/timer.h>
 #include <scsi/scsi.h>
 
 #define DRV_NAME "ub"
-#define DEVFS_NAME DRV_NAME
 
 #define UB_MAJOR 180
 
@@ -2291,7 +2289,6 @@ static int ub_probe_lun(struct ub_dev *sc, int lnum)
 		goto err_diskalloc;
 
 	sprintf(disk->disk_name, DRV_NAME "%c", lun->id + 'a');
-	sprintf(disk->devfs_name, DEVFS_NAME "/%c", lun->id + 'a');
 	disk->major = UB_MAJOR;
 	disk->first_minor = lun->id * UB_PARTS_PER_LUN;
 	disk->fops = &ub_bd_fops;
@@ -2445,7 +2442,6 @@ static int __init ub_init(void)
 
 	if ((rc = register_blkdev(UB_MAJOR, DRV_NAME)) != 0)
 		goto err_regblkdev;
-	devfs_mk_dir(DEVFS_NAME);
 
 	if ((rc = usb_register(&ub_driver)) != 0)
 		goto err_register;
@@ -2454,7 +2450,6 @@ static int __init ub_init(void)
 	return 0;
 
 err_register:
-	devfs_remove(DEVFS_NAME);
 	unregister_blkdev(UB_MAJOR, DRV_NAME);
 err_regblkdev:
 	return rc;
@@ -2464,7 +2459,6 @@ static void __exit ub_exit(void)
 {
 	usb_deregister(&ub_driver);
 
-	devfs_remove(DEVFS_NAME);
 	unregister_blkdev(UB_MAJOR, DRV_NAME);
 	usb_usual_clear_present(USB_US_TYPE_UB);
 }

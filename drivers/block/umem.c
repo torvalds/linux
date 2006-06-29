@@ -1192,7 +1192,6 @@ static int __init mm_init(void)
 	for (i = 0; i < num_cards; i++) {
 		struct gendisk *disk = mm_gendisk[i];
 		sprintf(disk->disk_name, "umem%c", 'a'+i);
-		sprintf(disk->devfs_name, "umem/card%d", i);
 		spin_lock_init(&cards[i].lock);
 		disk->major = major_nr;
 		disk->first_minor  = i << MM_SHIFT;

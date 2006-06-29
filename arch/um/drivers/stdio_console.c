@@ -60,7 +60,6 @@ static int con_remove(int n);
 static struct line_driver driver = {
 	.name 			= "UML console",
 	.device_name 		= "tty",
-	.devfs_name 		= "vc/",
 	.major 			= TTY_MAJOR,
 	.minor_start 		= 0,
 	.type 		 	= TTY_DRIVER_TYPE_CONSOLE,

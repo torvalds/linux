@@ -380,7 +380,6 @@ struct fb_cursor {
 #include <linux/tty.h>
 #include <linux/device.h>
 #include <linux/workqueue.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/notifier.h>
 #include <linux/list.h>
 #include <asm/io.h>

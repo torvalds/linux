@@ -40,7 +40,6 @@
 #include <linux/poll.h>
 #include <linux/spinlock.h>
 #include <linux/slab.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/ipmi.h>
 #include <linux/mutex.h>
 #include <linux/init.h>
@@ -804,9 +803,6 @@ static void ipmi_new_smi(int if_num, struct device *device)
 	dev_t dev = MKDEV(ipmi_major, if_num);
 	struct ipmi_reg_list *entry;
 
-	devfs_mk_cdev(dev, S_IFCHR | S_IRUSR | S_IWUSR,
-		      "ipmidev/%d", if_num);
-
 	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry) {
 		printk(KERN_ERR "ipmi_devintf: Unable to create the"
@@ -836,7 +832,6 @@ static void ipmi_smi_gone(int if_num)
 	}
 	class_device_destroy(ipmi_class, dev);
 	mutex_unlock(&reg_list_mutex);
-	devfs_remove("ipmidev/%d", if_num);
 }
 
 static struct ipmi_smi_watcher smi_watcher =
@@ -872,8 +867,6 @@ static __init int init_ipmi_devintf(void)
 		ipmi_major = rv;
 	}
 
-	devfs_mk_dir(DEVICE_NAME);
-
 	rv = ipmi_smi_watcher_register(&smi_watcher);
 	if (rv) {
 		unregister_chrdev(ipmi_major, DEVICE_NAME);
@@ -898,7 +891,6 @@ static __exit void cleanup_ipmi(void)
 	mutex_unlock(&reg_list_mutex);
 	class_destroy(ipmi_class);
 	ipmi_smi_watcher_unregister(&smi_watcher);
-	devfs_remove(DEVICE_NAME);
 	unregister_chrdev(ipmi_major, DEVICE_NAME);
 }
 module_exit(cleanup_ipmi);

@@ -8,7 +8,6 @@
 #include "linux/list.h"
 #include "linux/kd.h"
 #include "linux/interrupt.h"
-#include "linux/devfs_fs_kernel.h"
 #include "asm/uaccess.h"
 #include "chan_kern.h"
 #include "irq_user.h"
@@ -655,7 +654,6 @@ struct tty_driver *line_register_devfs(struct lines *set,
 
 	driver->driver_name = line_driver->name;
 	driver->name = line_driver->device_name;
-	driver->devfs_name = line_driver->devfs_name;
 	driver->major = line_driver->major;
 	driver->minor_start = line_driver->minor_start;
 	driver->type = line_driver->type;

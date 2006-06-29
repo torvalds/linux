@@ -1834,7 +1834,6 @@ dasd_exit(void)
 	}
 	dasd_gendisk_exit();
 	dasd_devmap_exit();
-	devfs_remove("dasd");
 	if (dasd_debug_area != NULL) {
 		debug_unregister(dasd_debug_area);
 		dasd_debug_area = NULL;
@@ -2107,9 +2106,6 @@ dasd_init(void)
 
 	dasd_diag_discipline_pointer = NULL;
 
-	rc = devfs_mk_dir("dasd");
-	if (rc)
-		goto failed;
 	rc = dasd_devmap_init();
 	if (rc)
 		goto failed;

@@ -156,7 +156,6 @@ enum {D_PRT, D_PRO, D_UNI, D_MOD, D_SLV, D_DLY};
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/fs.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/mtio.h>
@@ -674,25 +673,15 @@ static int __init pg_init(void)
 		err = PTR_ERR(pg_class);
 		goto out_chrdev;
 	}
-	devfs_mk_dir("pg");
 	for (unit = 0; unit < PG_UNITS; unit++) {
 		struct pg *dev = &devices[unit];
-		if (dev->present) {
+		if (dev->present)
 			class_device_create(pg_class, NULL, MKDEV(major, unit),
 					NULL, "pg%u", unit);
-			err = devfs_mk_cdev(MKDEV(major, unit),
-				      S_IFCHR | S_IRUSR | S_IWUSR, "pg/%u",
-				      unit);
-			if (err) 
-				goto out_class;
-		}
 	}
 	err = 0;
 	goto out;
 
-out_class:
-	class_device_destroy(pg_class, MKDEV(major, unit));
-	class_destroy(pg_class);
 out_chrdev:
 	unregister_chrdev(major, "pg");
 out:
@@ -705,13 +694,10 @@ static void __exit pg_exit(void)
 
 	for (unit = 0; unit < PG_UNITS; unit++) {
 		struct pg *dev = &devices[unit];
-		if (dev->present) {
+		if (dev->present)
 			class_device_destroy(pg_class, MKDEV(major, unit));
-			devfs_remove("pg/%u", unit);
-		}
 	}
 	class_destroy(pg_class);
-	devfs_remove("pg");
 	unregister_chrdev(major, name);
 
 	for (unit = 0; unit < PG_UNITS; unit++) {

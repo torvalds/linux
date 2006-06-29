@@ -39,7 +39,6 @@
 #include <linux/raid/md.h>
 #include <linux/raid/bitmap.h>
 #include <linux/sysctl.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/buffer_head.h> /* for invalidate_bdev */
 #include <linux/suspend.h>
 #include <linux/poll.h>
@@ -2911,13 +2910,10 @@ static struct kobject *md_probe(dev_t dev, int *part, void *data)
 	}
 	disk->major = MAJOR(dev);
 	disk->first_minor = unit << shift;
-	if (partitioned) {
+	if (partitioned)
 		sprintf(disk->disk_name, "md_d%d", unit);
-		sprintf(disk->devfs_name, "md/d%d", unit);
-	} else {
+	else
 		sprintf(disk->disk_name, "md%d", unit);
-		sprintf(disk->devfs_name, "md/%d", unit);
-	}
 	disk->fops = &md_fops;
 	disk->private_data = mddev;
 	disk->queue = mddev->queue;
@@ -5538,8 +5534,6 @@ static void md_geninit(void)
 
 static int __init md_init(void)
 {
-	int minor;
-
 	printk(KERN_INFO "md: md driver %d.%d.%d MAX_MD_DEVS=%d,"
 			" MD_SB_DISKS=%d\n",
 			MD_MAJOR_VERSION, MD_MINOR_VERSION,
@@ -5553,22 +5547,10 @@ static int __init md_init(void)
 		unregister_blkdev(MAJOR_NR, "md");
 		return -1;
 	}
-	devfs_mk_dir("md");
 	blk_register_region(MKDEV(MAJOR_NR, 0), MAX_MD_DEVS, THIS_MODULE,
 				md_probe, NULL, NULL);
 	blk_register_region(MKDEV(mdp_major, 0), MAX_MD_DEVS<<MdpMinorShift, THIS_MODULE,
 			    md_probe, NULL, NULL);
-
-	for (minor=0; minor < MAX_MD_DEVS; ++minor)
-		devfs_mk_bdev(MKDEV(MAJOR_NR, minor),
-				S_IFBLK|S_IRUSR|S_IWUSR,
-				"md/%d", minor);
-
-	for (minor=0; minor < MAX_MD_DEVS; ++minor)
-		devfs_mk_bdev(MKDEV(mdp_major, minor<<MdpMinorShift),
-			      S_IFBLK|S_IRUSR|S_IWUSR,
-			      "md/mdp%d", minor);
-
 
 	register_reboot_notifier(&md_notifier);
 	raid_table_header = register_sysctl_table(raid_root_table, 1);
@@ -5625,15 +5607,9 @@ static __exit void md_exit(void)
 {
 	mddev_t *mddev;
 	struct list_head *tmp;
-	int i;
+
 	blk_unregister_region(MKDEV(MAJOR_NR,0), MAX_MD_DEVS);
 	blk_unregister_region(MKDEV(mdp_major,0), MAX_MD_DEVS << MdpMinorShift);
-	for (i=0; i < MAX_MD_DEVS; i++)
-		devfs_remove("md/%d", i);
-	for (i=0; i < MAX_MD_DEVS; i++)
-		devfs_remove("md/d%d", i);
-
-	devfs_remove("md");
 
 	unregister_blkdev(MAJOR_NR,"md");
 	unregister_blkdev(mdp_major, "mdp");

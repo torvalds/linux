@@ -187,7 +187,6 @@ History:
 #include <linux/interrupt.h>
 #include <linux/timer.h>
 #include <linux/cdrom.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/ioport.h>
 #include <linux/mm.h>
 #include <linux/slab.h>

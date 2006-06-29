@@ -863,7 +863,6 @@ static struct uart_driver at91_uart = {
 	.owner			= THIS_MODULE,
 	.driver_name		= "at91_serial",
 	.dev_name		= AT91_DEVICENAME,
-	.devfs_name		= AT91_DEVICENAME,
 	.major			= SERIAL_AT91_MAJOR,
 	.minor			= MINOR_START,
 	.nr			= AT91_NR_UART,

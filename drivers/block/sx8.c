@@ -18,7 +18,6 @@
 #include <linux/spinlock.h>
 #include <linux/blkdev.h>
 #include <linux/sched.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/interrupt.h>
 #include <linux/compiler.h>
 #include <linux/workqueue.h>
@@ -1510,7 +1509,6 @@ static int carm_init_disks(struct carm_host *host)
 		port->disk = disk;
 		sprintf(disk->disk_name, DRV_NAME "/%u",
 			(unsigned int) (host->id * CARM_MAX_PORTS) + i);
-		sprintf(disk->devfs_name, DRV_NAME "/%u_%u", host->id, i);
 		disk->major = host->major;
 		disk->first_minor = i * CARM_MINORS_PER_MAJOR;
 		disk->fops = &carm_bd_ops;
@@ -1672,8 +1670,6 @@ static int carm_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (host->flags & FL_DYN_MAJOR)
 		host->major = rc;
 
-	devfs_mk_dir(DRV_NAME);
-
 	rc = carm_init_disks(host);
 	if (rc)
 		goto err_out_blkdev_disks;
@@ -1739,7 +1735,6 @@ static void carm_remove_one (struct pci_dev *pdev)
 
 	free_irq(pdev->irq, host);
 	carm_free_disks(host);
-	devfs_remove(DRV_NAME);
 	unregister_blkdev(host->major, host->name);
 	if (host->major == 160)
 		clear_bit(0, &carm_major_alloc);

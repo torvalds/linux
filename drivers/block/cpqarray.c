@@ -33,7 +33,6 @@
 #include <linux/blkpg.h>
 #include <linux/timer.h>
 #include <linux/proc_fs.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/init.h>
 #include <linux/hdreg.h>
 #include <linux/spinlock.h>
@@ -348,7 +347,6 @@ static void __devexit cpqarray_remove_one(int i)
 	for(j = 0; j < NWD; j++) {
 		if (ida_gendisk[i][j]->flags & GENHD_FL_UP)
 			del_gendisk(ida_gendisk[i][j]);
-		devfs_remove("ida/c%dd%d",i,j);
 		put_disk(ida_gendisk[i][j]);
 	}
 	blk_cleanup_queue(hba[i]->queue);
@@ -1807,8 +1805,6 @@ static void getgeometry(int ctlr)
 
 				}
 
-				sprintf(disk->devfs_name, "ida/c%dd%d", ctlr, log_unit);
-
 				info_p->phys_drives =
 				    sense_config_buf->ctlr_phys_drv;
 				info_p->drv_assign_map
@@ -1844,7 +1840,6 @@ static void __exit cpqarray_exit(void)
 		}
 	}
 
-	devfs_remove("ida");
 	remove_proc_entry("cpqarray", proc_root_driver);
 }
 

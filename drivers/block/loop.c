@@ -63,7 +63,6 @@
 #include <linux/blkdev.h>
 #include <linux/blkpg.h>
 #include <linux/init.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/smp_lock.h>
 #include <linux/swap.h>
 #include <linux/slab.h>
@@ -1277,8 +1276,6 @@ static int __init loop_init(void)
 			goto out_mem3;
 	}
 
-	devfs_mk_dir("loop");
-
 	for (i = 0; i < max_loop; i++) {
 		struct loop_device *lo = &loop_dev[i];
 		struct gendisk *disk = disks[i];
@@ -1296,7 +1293,6 @@ static int __init loop_init(void)
 		disk->first_minor = i;
 		disk->fops = &lo_fops;
 		sprintf(disk->disk_name, "loop%d", i);
-		sprintf(disk->devfs_name, "loop/%d", i);
 		disk->private_data = lo;
 		disk->queue = lo->lo_queue;
 	}
@@ -1310,7 +1306,6 @@ static int __init loop_init(void)
 out_mem4:
 	while (i--)
 		blk_cleanup_queue(loop_dev[i].lo_queue);
-	devfs_remove("loop");
 	i = max_loop;
 out_mem3:
 	while (i--)
@@ -1333,7 +1328,6 @@ static void loop_exit(void)
 		blk_cleanup_queue(loop_dev[i].lo_queue);
 		put_disk(disks[i]);
 	}
-	devfs_remove("loop");
 	if (unregister_blkdev(LOOP_MAJOR, "loop"))
 		printk(KERN_WARNING "loop: cannot unregister blkdev\n");
 

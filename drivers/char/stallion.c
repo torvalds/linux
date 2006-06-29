@@ -40,7 +40,6 @@
 #include <linux/ioport.h>
 #include <linux/init.h>
 #include <linux/smp_lock.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/device.h>
 #include <linux/delay.h>
 
@@ -757,11 +756,8 @@ static void __exit stallion_module_exit(void)
 			"errno=%d\n", -i);
 		return;
 	}
-	for (i = 0; i < 4; i++) {
-		devfs_remove("staliomem/%d", i);
+	for (i = 0; i < 4; i++)
 		class_device_destroy(stallion_class, MKDEV(STL_SIOMEMMAJOR, i));
-	}
-	devfs_remove("staliomem");
 	if ((i = unregister_chrdev(STL_SIOMEMMAJOR, "staliomem")))
 		printk("STALLION: failed to un-register serial memory device, "
 			"errno=%d\n", -i);
@@ -3044,22 +3040,16 @@ static int __init stl_init(void)
  */
 	if (register_chrdev(STL_SIOMEMMAJOR, "staliomem", &stl_fsiomem))
 		printk("STALLION: failed to register serial board device\n");
-	devfs_mk_dir("staliomem");
 
 	stallion_class = class_create(THIS_MODULE, "staliomem");
-	for (i = 0; i < 4; i++) {
-		devfs_mk_cdev(MKDEV(STL_SIOMEMMAJOR, i),
-				S_IFCHR|S_IRUSR|S_IWUSR,
-				"staliomem/%d", i);
+	for (i = 0; i < 4; i++)
 		class_device_create(stallion_class, NULL,
 				    MKDEV(STL_SIOMEMMAJOR, i), NULL,
 				    "staliomem%d", i);
-	}
 
 	stl_serial->owner = THIS_MODULE;
 	stl_serial->driver_name = stl_drvname;
 	stl_serial->name = "ttyE";
-	stl_serial->devfs_name = "tts/E";
 	stl_serial->major = STL_SERIALMAJOR;
 	stl_serial->minor_start = 0;
 	stl_serial->type = TTY_DRIVER_TYPE_SERIAL;

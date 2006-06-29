@@ -1890,14 +1890,13 @@ isdn_tty_modem_init(void)
 	if (!m->tty_modem)
 		return -ENOMEM;
 	m->tty_modem->name = "ttyI";
-	m->tty_modem->devfs_name = "isdn/ttyI";
 	m->tty_modem->major = ISDN_TTY_MAJOR;
 	m->tty_modem->minor_start = 0;
 	m->tty_modem->type = TTY_DRIVER_TYPE_SERIAL;
 	m->tty_modem->subtype = SERIAL_TYPE_NORMAL;
 	m->tty_modem->init_termios = tty_std_termios;
 	m->tty_modem->init_termios.c_cflag = B9600 | CS8 | CREAD | HUPCL | CLOCAL;
-	m->tty_modem->flags = TTY_DRIVER_REAL_RAW | TTY_DRIVER_NO_DEVFS;
+	m->tty_modem->flags = TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;
 	m->tty_modem->driver_name = "isdn_tty";
 	tty_set_operations(m->tty_modem, &modem_ops);
 	retval = tty_register_driver(m->tty_modem);

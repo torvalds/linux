@@ -262,8 +262,8 @@ int __init rd_load_disk(int n)
 {
 	if (rd_prompt)
 		change_floppy("root floppy disk to be loaded into RAM disk");
-	create_dev("/dev/root", ROOT_DEV, root_device_name);
-	create_dev("/dev/ram", MKDEV(RAMDISK_MAJOR, n), NULL);
+	create_dev("/dev/root", ROOT_DEV);
+	create_dev("/dev/ram", MKDEV(RAMDISK_MAJOR, n));
 	return rd_load_image("/dev/root");
 }
 

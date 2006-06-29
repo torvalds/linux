@@ -911,7 +911,6 @@ static struct uart_driver siu_uart_driver = {
 	.owner		= THIS_MODULE,
 	.driver_name	= "SIU",
 	.dev_name	= "ttyVR",
-	.devfs_name	= "ttvr/",
 	.major		= SIU_MAJOR,
 	.minor		= SIU_MINOR_BASE,
 	.cons		= SERIAL_VR41XX_CONSOLE,

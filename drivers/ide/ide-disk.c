@@ -1018,7 +1018,6 @@ static void ide_disk_release(struct kref *kref)
 	struct gendisk *g = idkp->disk;
 
 	drive->driver_data = NULL;
-	drive->devfs_name[0] = '\0';
 	g->private_data = NULL;
 	put_disk(g);
 	kfree(idkp);
@@ -1222,7 +1221,6 @@ static int ide_disk_probe(ide_drive_t *drive)
 		drive->attach = 1;
 
 	g->minors = 1 << PARTN_BITS;
-	strcpy(g->devfs_name, drive->devfs_name);
 	g->driverfs_dev = &drive->gendev;
 	g->flags = drive->removable ? GENHD_FL_REMOVABLE : 0;
 	set_capacity(g, idedisk_capacity(drive));
