@@ -38,11 +38,8 @@
 #include <asm/timer.h>
 #include <asm/irq.h>
 #include <asm/io.h>
-#include <asm/sbus.h>
-#include <asm/fhc.h>
-#include <asm/pbm.h>
-#include <asm/ebus.h>
-#include <asm/isa.h>
+#include <asm/prom.h>
+#include <asm/of_device.h>
 #include <asm/starfire.h>
 #include <asm/smp.h>
 #include <asm/sections.h>
