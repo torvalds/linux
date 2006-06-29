@@ -199,7 +199,7 @@ int setup_irq(unsigned int irq, struct irqaction *new)
 	if (irq >= NR_IRQS)
 		return -EINVAL;
 
-	if (desc->chip == &no_irq_type)
+	if (desc->chip == &no_irq_chip)
 		return -ENOSYS;
 	/*
 	 * Some drivers like serial.c use request_irq() heavily,

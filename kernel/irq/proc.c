@@ -117,7 +117,7 @@ void register_irq_proc(unsigned int irq)
 	char name [MAX_NAMELEN];
 
 	if (!root_irq_dir ||
-		(irq_desc[irq].chip == &no_irq_type) ||
+		(irq_desc[irq].chip == &no_irq_chip) ||
 			irq_desc[irq].dir)
 		return;
 

@@ -45,7 +45,7 @@ handle_bad_irq(unsigned int irq, struct irq_desc *desc, struct pt_regs *regs)
 struct irq_desc irq_desc[NR_IRQS] __cacheline_aligned = {
 	[0 ... NR_IRQS-1] = {
 		.status = IRQ_DISABLED,
-		.chip = &no_irq_type,
+		.chip = &no_irq_chip,
 		.handle_irq = handle_bad_irq,
 		.depth = 1,
 		.lock = SPIN_LOCK_UNLOCKED,
@@ -79,8 +79,8 @@ static unsigned int noop_ret(unsigned int irq)
 /*
  * Generic no controller implementation
  */
-struct hw_interrupt_type no_irq_type = {
-	.typename	= "none",
+struct irq_chip no_irq_chip = {
+	.name		= "none",
 	.startup	= noop_ret,
 	.shutdown	= noop,
 	.enable		= noop,
