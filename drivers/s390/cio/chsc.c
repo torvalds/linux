@@ -918,12 +918,13 @@ chp_measurement_read(struct kobject *kobj, char *buf, loff_t off, size_t count)
 	chp = to_channelpath(container_of(kobj, struct device, kobj));
 	css = to_css(chp->dev.parent);
 
-	size = sizeof(struct cmg_chars);
+	size = sizeof(struct cmg_entry);
 
 	/* Only allow single reads. */
 	if (off || count < size)
 		return 0;
 	chp_measurement_copy_block((struct cmg_entry *)buf, css, chp->id);
+	count = size;
 	return count;
 }
 
