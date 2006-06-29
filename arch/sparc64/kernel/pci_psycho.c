@@ -1171,9 +1171,7 @@ static void psycho_iommu_init(struct pci_controller_info *p)
 
 	/* If necessary, hook us up for starfire IRQ translations. */
 	if (this_is_starfire)
-		p->starfire_cookie = starfire_hookup(p->pbm_A.portid);
-	else
-		p->starfire_cookie = NULL;
+		starfire_hookup(p->pbm_A.portid);
 }
 
 #define PSYCHO_IRQ_RETRY	0x1a00UL

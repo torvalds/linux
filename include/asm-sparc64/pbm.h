@@ -217,8 +217,6 @@ struct pci_controller_info {
 	struct pci_ops			*pci_ops;
 	unsigned int			pci_first_busno;
 	unsigned int			pci_last_busno;
-
-	void				*starfire_cookie;
 };
 
 /* PCI devices which are not bridges have this placed in their pci_dev
