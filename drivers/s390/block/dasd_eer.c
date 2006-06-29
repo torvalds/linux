@@ -276,7 +276,7 @@ struct dasd_eer_header {
 	__u64 tv_sec;
 	__u64 tv_usec;
 	char busid[DASD_EER_BUSID_SIZE];
-};
+} __attribute__ ((packed));
 
 /*
  * The following function can be used for those triggers that have
