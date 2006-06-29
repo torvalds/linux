@@ -701,9 +701,8 @@ static int pvr2_v4l2_do_ioctl(struct inode *inode, struct file *file,
 
 static void pvr2_v4l2_dev_destroy(struct pvr2_v4l2_dev *dip)
 {
-	pvr2_trace(PVR2_TRACE_INIT,
-		   "unregistering device video%d [%s]",
-		   dip->vdev->minor,pvr2_config_get_name(dip->config));
+	printk(KERN_INFO "pvrusb2: unregistering device video%d [%s]\n",
+	       dip->vdev->minor,pvr2_config_get_name(dip->config));
 	if (dip->ctxt_idx >= 0) {
 		mutex_lock(&device_lock);
 		devices[dip->ctxt_idx] = NULL;
@@ -1078,9 +1077,8 @@ static void pvr2_v4l2_dev_init(struct pvr2_v4l2_dev *dip,
 	    (video_register_device(dip->vdev, v4l_type, -1) < 0)) {
 		err("Failed to register pvrusb2 v4l video device");
 	} else {
-		pvr2_trace(PVR2_TRACE_INIT,
-			   "registered device video%d [%s]",
-			   dip->vdev->minor,pvr2_config_get_name(dip->config));
+		printk(KERN_INFO "pvrusb2: registered device video%d [%s]\n",
+		       dip->vdev->minor,pvr2_config_get_name(dip->config));
 	}
 
 	if ((dip->vdev->minor < sizeof(devices)/sizeof(devices[0])) &&
