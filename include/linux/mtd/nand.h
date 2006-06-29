@@ -202,7 +202,7 @@ typedef enum {
 struct nand_chip;
 
 /**
- * struct nand_hw_control - Control structure for hardware controller (e.g ECC generator) shared among independend devices
+ * struct nand_hw_control - Control structure for hardware controller (e.g ECC generator) shared among independent devices
  * @lock:               protection lock
  * @active:		the mtd device which holds the controller currently
  * @wq:			wait queue to sleep on if a NAND operation is in progress
@@ -223,12 +223,15 @@ struct nand_hw_control {
  * @total:	total number of ecc bytes per page
  * @prepad:	padding information for syndrome based ecc generators
  * @postpad:	padding information for syndrome based ecc generators
+ * @layout:	ECC layout control struct pointer
  * @hwctl:	function to control hardware ecc generator. Must only
  *		be provided if an hardware ECC is available
  * @calculate:	function for ecc calculation or readback from ecc hardware
  * @correct:	function for ecc correction, matching to ecc generator (sw/hw)
  * @read_page:	function to read a page according to the ecc generator requirements
  * @write_page:	function to write a page according to the ecc generator requirements
+ * @read_oob:	function to read chip OOB data
+ * @write_oob:	function to write chip OOB data
  */
 struct nand_ecc_ctrl {
 	nand_ecc_modes_t	mode;
@@ -300,11 +303,15 @@ struct nand_buffers {
  * @cmdfunc:		[REPLACEABLE] hardwarespecific function for writing commands to the chip
  * @waitfunc:		[REPLACEABLE] hardwarespecific function for wait on ready
  * @ecc:		[BOARDSPECIFIC] ecc control ctructure
+ * @buffers:		buffer structure for read/write
+ * @hwcontrol:		platform-specific hardware control structure
+ * @ops:		oob operation operands
  * @erase_cmd:		[INTERN] erase command write function, selectable due to AND support
  * @scan_bbt:		[REPLACEABLE] function to scan bad block table
  * @chip_delay:		[BOARDSPECIFIC] chip dependent delay for transfering data from array to read regs (tR)
  * @wq:			[INTERN] wait queue to sleep on if a NAND operation is in progress
  * @state:		[INTERN] the current state of the NAND device
+ * @oob_poi:		poison value buffer
  * @page_shift:		[INTERN] number of address bits in a page (column address bits)
  * @phys_erase_shift:	[INTERN] number of address bits in a physical eraseblock
  * @bbt_erase_shift:	[INTERN] number of address bits in a bbt entry
@@ -521,7 +528,7 @@ extern int nand_do_read(struct mtd_info *mtd, loff_t from, size_t len,
  * struct platform_nand_chip - chip level device structure
  *
  * @nr_chips:		max. number of chips to scan for
- * @chip_offs:		chip number offset
+ * @chip_offset:	chip number offset
  * @nr_partitions:	number of partitions pointed to by partitions (or zero)
  * @partitions:		mtd partition list
  * @chip_delay:		R/B delay value in us
@@ -546,7 +553,7 @@ struct platform_nand_chip {
  * @hwcontrol:		platform specific hardware control structure
  * @dev_ready:		platform specific function to read ready/busy pin
  * @select_chip:	platform specific chip select function
- * @priv_data:		private data to transport driver specific settings
+ * @priv:		private data to transport driver specific settings
  *
  * All fields are optional and depend on the hardware driver requirements
  */
