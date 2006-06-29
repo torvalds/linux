@@ -40,32 +40,37 @@ struct irq_desc irq_desc[NR_IRQS] __cacheline_aligned = {
 };
 
 /*
- * Generic 'no controller' code
+ * What should we do if we get a hw irq event on an illegal vector?
+ * Each architecture has to answer this themself.
  */
-static void end_none(unsigned int irq) { }
-static void enable_none(unsigned int irq) { }
-static void disable_none(unsigned int irq) { }
-static void shutdown_none(unsigned int irq) { }
-static unsigned int startup_none(unsigned int irq) { return 0; }
-
-static void ack_none(unsigned int irq)
+static void ack_bad(unsigned int irq)
 {
-	/*
-	 * 'what should we do if we get a hw irq event on an illegal vector'.
-	 * each architecture has to answer this themself.
-	 */
 	ack_bad_irq(irq);
 }
 
+/*
+ * NOP functions
+ */
+static void noop(unsigned int irq)
+{
+}
+
+static unsigned int noop_ret(unsigned int irq)
+{
+	return 0;
+}
+
+/*
+ * Generic no controller implementation
+ */
 struct hw_interrupt_type no_irq_type = {
-	.typename = 	"none",
-	.startup = 	startup_none,
-	.shutdown = 	shutdown_none,
-	.enable = 	enable_none,
-	.disable = 	disable_none,
-	.ack = 		ack_none,
-	.end = 		end_none,
-	.set_affinity = NULL
+	.typename	= "none",
+	.startup	= noop_ret,
+	.shutdown	= noop,
+	.enable		= noop,
+	.disable	= noop,
+	.ack		= ack_bad,
+	.end		= noop,
 };
 
 /*
