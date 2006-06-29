@@ -3,9 +3,9 @@
  *
  * Definitions and interface for Linux - z/VM Monitor Stream.
  *
- * Copyright (C) 2003 IBM Corporation, IBM Deutschland Entwicklung GmbH.
+ * Copyright (C) 2003,2006 IBM Corporation, IBM Deutschland Entwicklung GmbH.
  *
- * Author: Gerald Schaefer <geraldsc@de.ibm.com>
+ * Author: Gerald Schaefer <gerald.schaefer@de.ibm.com>
  */
 
 //#define APPLDATA_DEBUG			/* Debug messages on/off */
@@ -28,6 +28,22 @@
 #define CTL_APPLDATA_OS		2124
 #define CTL_APPLDATA_NET_SUM	2125
 #define CTL_APPLDATA_PROC	2126
+
+#ifndef CONFIG_64BIT
+
+#define APPLDATA_START_INTERVAL_REC 0x00	/* Function codes for */
+#define APPLDATA_STOP_REC	    0x01	/* DIAG 0xDC	  */
+#define APPLDATA_GEN_EVENT_RECORD   0x02
+#define APPLDATA_START_CONFIG_REC   0x03
+
+#else
+
+#define APPLDATA_START_INTERVAL_REC 0x80
+#define APPLDATA_STOP_REC	    0x81
+#define APPLDATA_GEN_EVENT_RECORD   0x82
+#define APPLDATA_START_CONFIG_REC   0x83
+
+#endif /* CONFIG_64BIT */
 
 #define P_INFO(x...)	printk(KERN_INFO MY_PRINT_NAME " info: " x)
 #define P_ERROR(x...)	printk(KERN_ERR MY_PRINT_NAME " error: " x)
@@ -53,7 +69,11 @@ struct appldata_ops {
 	void *data;				/* record data */
 	unsigned int size;			/* size of record */
 	struct module *owner;			/* THIS_MODULE */
+	char mod_lvl[2];			/* modification level, EBCDIC */
 };
 
 extern int appldata_register_ops(struct appldata_ops *ops);
 extern void appldata_unregister_ops(struct appldata_ops *ops);
+extern int appldata_diag(char record_nr, u16 function, unsigned long buffer,
+			 u16 length, char *mod_lvl);
+

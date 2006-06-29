@@ -37,6 +37,7 @@
 #include <linux/seq_file.h>
 #include <linux/kernel_stat.h>
 #include <linux/device.h>
+#include <linux/notifier.h>
 
 #include <asm/uaccess.h>
 #include <asm/system.h>
@@ -115,6 +116,7 @@ void __devinit cpu_init (void)
  */
 char vmhalt_cmd[128] = "";
 char vmpoff_cmd[128] = "";
+char vmpanic_cmd[128] = "";
 
 static inline void strncpy_skip_quote(char *dst, char *src, int n)
 {
@@ -145,6 +147,38 @@ static int __init vmpoff_setup(char *str)
 }
 
 __setup("vmpoff=", vmpoff_setup);
+
+static int vmpanic_notify(struct notifier_block *self, unsigned long event,
+			  void *data)
+{
+	if (MACHINE_IS_VM && strlen(vmpanic_cmd) > 0)
+		cpcmd(vmpanic_cmd, NULL, 0, NULL);
+
+	return NOTIFY_OK;
+}
+
+#define PANIC_PRI_VMPANIC	0
+
+static struct notifier_block vmpanic_nb = {
+	.notifier_call = vmpanic_notify,
+	.priority = PANIC_PRI_VMPANIC
+};
+
+static int __init vmpanic_setup(char *str)
+{
+	static int register_done __initdata = 0;
+
+	strncpy_skip_quote(vmpanic_cmd, str, 127);
+	vmpanic_cmd[127] = 0;
+	if (!register_done) {
+		register_done = 1;
+		atomic_notifier_chain_register(&panic_notifier_list,
+					       &vmpanic_nb);
+	}
+	return 1;
+}
+
+__setup("vmpanic=", vmpanic_setup);
 
 /*
  * condev= and conmode= setup parameter.
@@ -289,19 +323,34 @@ void (*_machine_power_off)(void) = do_machine_power_off_nonsmp;
 
 void machine_restart(char *command)
 {
-	console_unblank();
+	if (!in_interrupt() || oops_in_progress)
+		/*
+		 * Only unblank the console if we are called in enabled
+		 * context or a bust_spinlocks cleared the way for us.
+		 */
+		console_unblank();
 	_machine_restart(command);
 }
 
 void machine_halt(void)
 {
-	console_unblank();
+	if (!in_interrupt() || oops_in_progress)
+		/*
+		 * Only unblank the console if we are called in enabled
+		 * context or a bust_spinlocks cleared the way for us.
+		 */
+		console_unblank();
 	_machine_halt();
 }
 
 void machine_power_off(void)
 {
-	console_unblank();
+	if (!in_interrupt() || oops_in_progress)
+		/*
+		 * Only unblank the console if we are called in enabled
+		 * context or a bust_spinlocks cleared the way for us.
+		 */
+		console_unblank();
 	_machine_power_off();
 }
 

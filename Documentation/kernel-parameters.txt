@@ -1689,9 +1689,14 @@ running once the system is up.
 			decrease the size and leave more room for directly
 			mapped kernel RAM.
 
-	vmhalt=		[KNL,S390]
+	vmhalt=		[KNL,S390] Perform z/VM CP command after system halt.
+			Format: <command>
 
-	vmpoff=		[KNL,S390]
+	vmpanic=	[KNL,S390] Perform z/VM CP command after kernel panic.
+			Format: <command>
+
+	vmpoff=		[KNL,S390] Perform z/VM CP command after power off.
+			Format: <command>
 
 	waveartist=	[HW,OSS]
 			Format: <io>,<irq>,<dma>,<dma2>

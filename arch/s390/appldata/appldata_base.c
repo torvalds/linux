@@ -5,9 +5,9 @@
  * Exports appldata_register_ops() and appldata_unregister_ops() for the
  * data gathering modules.
  *
- * Copyright (C) 2003 IBM Corporation, IBM Deutschland Entwicklung GmbH.
+ * Copyright (C) 2003,2006 IBM Corporation, IBM Deutschland Entwicklung GmbH.
  *
- * Author: Gerald Schaefer <geraldsc@de.ibm.com>
+ * Author: Gerald Schaefer <gerald.schaefer@de.ibm.com>
  */
 
 #include <linux/config.h>
@@ -40,22 +40,6 @@
 
 #define TOD_MICRO	0x01000			/* nr. of TOD clock units
 						   for 1 microsecond */
-#ifndef CONFIG_64BIT
-
-#define APPLDATA_START_INTERVAL_REC 0x00   	/* Function codes for */
-#define APPLDATA_STOP_REC	    0x01	/* DIAG 0xDC	  */
-#define APPLDATA_GEN_EVENT_RECORD   0x02
-#define APPLDATA_START_CONFIG_REC   0x03
-
-#else
-
-#define APPLDATA_START_INTERVAL_REC 0x80
-#define APPLDATA_STOP_REC   	    0x81
-#define APPLDATA_GEN_EVENT_RECORD   0x82
-#define APPLDATA_START_CONFIG_REC   0x83
-
-#endif /* CONFIG_64BIT */
-
 
 /*
  * Parameter list for DIAGNOSE X'DC'
@@ -195,8 +179,8 @@ static void appldata_work_fn(void *data)
  *
  * prepare parameter list, issue DIAG 0xDC
  */
-static int appldata_diag(char record_nr, u16 function, unsigned long buffer,
-			u16 length)
+int appldata_diag(char record_nr, u16 function, unsigned long buffer,
+			u16 length, char *mod_lvl)
 {
 	unsigned long ry;
 	struct appldata_product_id {
@@ -214,7 +198,7 @@ static int appldata_diag(char record_nr, u16 function, unsigned long buffer,
 		.record_nr  = record_nr,
 		.version_nr = {0xF2, 0xF6},		/* "26" */
 		.release_nr = {0xF0, 0xF1},		/* "01" */
-		.mod_lvl    = {0xF0, 0xF0},		/* "00" */
+		.mod_lvl    = {mod_lvl[0], mod_lvl[1]},
 	};
 	struct appldata_parameter_list appldata_parameter_list = {
 				.diag = 0xDC,
@@ -467,24 +451,25 @@ appldata_generic_handler(ctl_table *ctl, int write, struct file *filp,
 			module_put(ops->owner);
 			return -ENODEV;
 		}
-		ops->active = 1;
 		ops->callback(ops->data);	// init record
 		rc = appldata_diag(ops->record_nr,
 					APPLDATA_START_INTERVAL_REC,
-					(unsigned long) ops->data, ops->size);
+					(unsigned long) ops->data, ops->size,
+					ops->mod_lvl);
 		if (rc != 0) {
 			P_ERROR("START DIAG 0xDC for %s failed, "
 				"return code: %d\n", ops->name, rc);
 			module_put(ops->owner);
-			ops->active = 0;
 		} else {
 			P_INFO("Monitoring %s data enabled, "
 				"DIAG 0xDC started.\n", ops->name);
+			ops->active = 1;
 		}
 	} else if ((buf[0] == '0') && (ops->active == 1)) {
 		ops->active = 0;
 		rc = appldata_diag(ops->record_nr, APPLDATA_STOP_REC,
-				(unsigned long) ops->data, ops->size);
+				(unsigned long) ops->data, ops->size,
+				ops->mod_lvl);
 		if (rc != 0) {
 			P_ERROR("STOP DIAG 0xDC for %s failed, "
 				"return code: %d\n", ops->name, rc);
@@ -633,7 +618,7 @@ appldata_offline_cpu(int cpu)
 	spin_unlock(&appldata_timer_lock);
 }
 
-static int
+static int __cpuinit
 appldata_cpu_notify(struct notifier_block *self,
 		    unsigned long action, void *hcpu)
 {
@@ -710,7 +695,8 @@ static void __exit appldata_exit(void)
 	list_for_each(lh, &appldata_ops_list) {
 		ops = list_entry(lh, struct appldata_ops, list);
 		rc = appldata_diag(ops->record_nr, APPLDATA_STOP_REC,
-				(unsigned long) ops->data, ops->size);
+				(unsigned long) ops->data, ops->size,
+				ops->mod_lvl);
 		if (rc != 0) {
 			P_ERROR("STOP DIAG 0xDC for %s failed, "
 				"return code: %d\n", ops->name, rc);
@@ -739,6 +725,7 @@ MODULE_DESCRIPTION("Linux-VM Monitor Stream, base infrastructure");
 
 EXPORT_SYMBOL_GPL(appldata_register_ops);
 EXPORT_SYMBOL_GPL(appldata_unregister_ops);
+EXPORT_SYMBOL_GPL(appldata_diag);
 
 #ifdef MODULE
 /*
@@ -779,7 +766,6 @@ unsigned long nr_iowait(void)
 #endif /* MODULE */
 EXPORT_SYMBOL_GPL(si_swapinfo);
 EXPORT_SYMBOL_GPL(nr_threads);
-EXPORT_SYMBOL_GPL(avenrun);
 EXPORT_SYMBOL_GPL(get_full_page_state);
 EXPORT_SYMBOL_GPL(nr_running);
 EXPORT_SYMBOL_GPL(nr_iowait);

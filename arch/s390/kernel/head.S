@@ -1,7 +1,7 @@
 /*
  *  arch/s390/kernel/head.S
  *
- * (C) Copyright IBM Corp. 1999, 2005
+ * Copyright (C) IBM Corp. 1999,2006
  *
  *    Author(s): Hartmut Penner <hp@de.ibm.com>
  *		 Martin Schwidefsky <schwidefsky@de.ibm.com>
@@ -482,24 +482,23 @@ start:
 
 .macro GET_IPL_DEVICE
 .Lget_ipl_device:
-	basr  %r12,0
-.LGID:	l     %r1,0xb8			# get sid
+	l     %r1,0xb8			# get sid
 	sll   %r1,15			# test if subchannel is enabled
 	srl   %r1,31
 	ltr   %r1,%r1
-	bz    0(%r14)			# subchannel disabled
+	bz    2f-.LPG1(%r13)		# subchannel disabled
 	l     %r1,0xb8
-	la    %r5,.Lipl_schib-.LGID(%r12)
+	la    %r5,.Lipl_schib-.LPG1(%r13)
 	stsch 0(%r5)		        # get schib of subchannel
-	bnz   0(%r14)			# schib not available
+	bnz   2f-.LPG1(%r13)		# schib not available
 	tm    5(%r5),0x01		# devno valid?
-	bno   0(%r14)
-	la    %r6,ipl_parameter_flags-.LGID(%r12)
+	bno   2f-.LPG1(%r13)
+	la    %r6,ipl_parameter_flags-.LPG1(%r13)
 	oi    3(%r6),0x01		# set flag
-	la    %r2,ipl_devno-.LGID(%r12)
+	la    %r2,ipl_devno-.LPG1(%r13)
 	mvc   0(2,%r2),6(%r5)		# store devno
 	tm    4(%r5),0x80		# qdio capable device?
-	bno   0(%r14)
+	bno   2f-.LPG1(%r13)
 	oi    3(%r6),0x02		# set flag
 
 	# copy ipl parameters
@@ -523,7 +522,7 @@ start:
 	ar    %r2,%r1
 	sr    %r0,%r4
 	jne   1b
-	b     0(%r14)
+	b     2f-.LPG1(%r13)
 
 	.align 4
 .Lipl_schib:
@@ -537,6 +536,7 @@ ipl_parameter_flags:
 	.globl ipl_devno
 ipl_devno:
 	.word 0
+2:
 .endm
 
 #ifdef CONFIG_64BIT

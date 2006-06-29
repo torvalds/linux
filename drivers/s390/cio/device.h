@@ -1,6 +1,10 @@
 #ifndef S390_DEVICE_H
 #define S390_DEVICE_H
 
+#include <asm/ccwdev.h>
+#include <asm/atomic.h>
+#include <linux/wait.h>
+
 /*
  * states of the device statemachine
  */
@@ -23,6 +27,7 @@ enum dev_state {
 	DEV_STATE_DISCONNECTED,
 	DEV_STATE_DISCONNECTED_SENSE_ID,
 	DEV_STATE_CMFCHANGE,
+	DEV_STATE_CMFUPDATE,
 	/* last element! */
 	NR_DEV_STATES
 };
@@ -67,6 +72,8 @@ dev_fsm_final_state(struct ccw_device *cdev)
 
 extern struct workqueue_struct *ccw_device_work;
 extern struct workqueue_struct *ccw_device_notify_work;
+extern wait_queue_head_t ccw_device_init_wq;
+extern atomic_t ccw_device_init_count;
 
 void io_subchannel_recog_done(struct ccw_device *cdev);
 
@@ -112,5 +119,8 @@ int ccw_device_stlck(struct ccw_device *);
 void ccw_device_set_timeout(struct ccw_device *, int);
 extern struct subchannel_id ccw_device_get_subchannel_id(struct ccw_device *);
 
+/* Channel measurement facility related */
 void retry_set_schib(struct ccw_device *cdev);
+void cmf_retry_copy_block(struct ccw_device *);
+int cmf_reenable(struct ccw_device *);
 #endif

@@ -14,6 +14,7 @@
 #include <linux/errno.h>
 #include <linux/workqueue.h>
 #include <linux/time.h>
+#include <linux/kthread.h>
 
 #include <asm/lowcore.h>
 
@@ -56,8 +57,6 @@ s390_collect_crw_info(void *param)
 	unsigned int chain;
 
 	sem = (struct semaphore *)param;
-	/* Set a nice name. */
-	daemonize("kmcheck");
 repeat:
 	down_interruptible(sem);
 	slow = 0;
@@ -516,7 +515,7 @@ arch_initcall(machine_check_init);
 static int __init
 machine_check_crw_init (void)
 {
-	kernel_thread(s390_collect_crw_info, &m_sem, CLONE_FS|CLONE_FILES);
+	kthread_run(s390_collect_crw_info, &m_sem, "kmcheck");
 	ctl_set_bit(14, 28);	/* enable channel report MCH */
 	return 0;
 }
