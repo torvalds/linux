@@ -191,7 +191,8 @@ static int __init tipc_init(void)
 	int res;
 
 	tipc_log_reinit(CONFIG_TIPC_LOG);
-	info("Activated (compiled " __DATE__ " " __TIME__ ")\n");
+	info("Activated (version " TIPC_MOD_VER 
+	     " compiled " __DATE__ " " __TIME__ ")\n");
 
 	tipc_own_addr = 0;
 	tipc_remote_management = 1;
