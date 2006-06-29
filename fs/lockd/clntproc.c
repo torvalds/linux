@@ -454,7 +454,7 @@ static void nlmclnt_locks_init_private(struct file_lock *fl, struct nlm_host *ho
 	fl->fl_ops = &nlmclnt_lock_ops;
 }
 
-static void do_vfs_lock(struct file_lock *fl)
+static int do_vfs_lock(struct file_lock *fl)
 {
 	int res = 0;
 	switch (fl->fl_flags & (FL_POSIX|FL_FLOCK)) {
@@ -467,9 +467,7 @@ static void do_vfs_lock(struct file_lock *fl)
 		default:
 			BUG();
 	}
-	if (res < 0)
-		printk(KERN_WARNING "%s: VFS is out of sync with lock manager!\n",
-				__FUNCTION__);
+	return res;
 }
 
 /*
@@ -541,7 +539,8 @@ again:
 		}
 		fl->fl_flags |= FL_SLEEP;
 		/* Ensure the resulting lock will get added to granted list */
-		do_vfs_lock(fl);
+		if (do_vfs_lock(fl) < 0)
+			printk(KERN_WARNING "%s: VFS is out of sync with lock manager!\n", __FUNCTION__);
 		up_read(&host->h_rwsem);
 	}
 	status = nlm_stat_to_errno(resp->status);
@@ -606,15 +605,19 @@ nlmclnt_unlock(struct nlm_rqst *req, struct file_lock *fl)
 {
 	struct nlm_host	*host = req->a_host;
 	struct nlm_res	*resp = &req->a_res;
-	int		status;
+	int status = 0;
 
 	/*
 	 * Note: the server is supposed to either grant us the unlock
 	 * request, or to deny it with NLM_LCK_DENIED_GRACE_PERIOD. In either
 	 * case, we want to unlock.
 	 */
+	fl->fl_flags |= FL_EXISTS;
 	down_read(&host->h_rwsem);
-	do_vfs_lock(fl);
+	if (do_vfs_lock(fl) == -ENOENT) {
+		up_read(&host->h_rwsem);
+		goto out;
+	}
 	up_read(&host->h_rwsem);
 
 	if (req->a_flags & RPC_TASK_ASYNC)
@@ -624,7 +627,6 @@ nlmclnt_unlock(struct nlm_rqst *req, struct file_lock *fl)
 	if (status < 0)
 		goto out;
 
-	status = 0;
 	if (resp->status == NLM_LCK_GRANTED)
 		goto out;
 
