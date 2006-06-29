@@ -1432,7 +1432,7 @@ static int pcnet32_alloc_ring(struct net_device *dev, char *name)
 					   lp->tx_ring_size,
 					   &lp->tx_ring_dma_addr);
 	if (lp->tx_ring == NULL) {
-		if (pcnet32_debug & NETIF_MSG_DRV)
+		if (netif_msg_drv(lp))
 			printk("\n" KERN_ERR PFX
 			       "%s: Consistent memory allocation failed.\n",
 			       name);
@@ -1444,52 +1444,48 @@ static int pcnet32_alloc_ring(struct net_device *dev, char *name)
 					   lp->rx_ring_size,
 					   &lp->rx_ring_dma_addr);
 	if (lp->rx_ring == NULL) {
-		if (pcnet32_debug & NETIF_MSG_DRV)
+		if (netif_msg_drv(lp))
 			printk("\n" KERN_ERR PFX
 			       "%s: Consistent memory allocation failed.\n",
 			       name);
 		return -ENOMEM;
 	}
 
-	lp->tx_dma_addr = kmalloc(sizeof(dma_addr_t) * lp->tx_ring_size,
+	lp->tx_dma_addr = kcalloc(lp->tx_ring_size, sizeof(dma_addr_t),
 				  GFP_ATOMIC);
 	if (!lp->tx_dma_addr) {
-		if (pcnet32_debug & NETIF_MSG_DRV)
+		if (netif_msg_drv(lp))
 			printk("\n" KERN_ERR PFX
 			       "%s: Memory allocation failed.\n", name);
 		return -ENOMEM;
 	}
-	memset(lp->tx_dma_addr, 0, sizeof(dma_addr_t) * lp->tx_ring_size);
 
-	lp->rx_dma_addr = kmalloc(sizeof(dma_addr_t) * lp->rx_ring_size,
+	lp->rx_dma_addr = kcalloc(lp->rx_ring_size, sizeof(dma_addr_t),
 				  GFP_ATOMIC);
 	if (!lp->rx_dma_addr) {
-		if (pcnet32_debug & NETIF_MSG_DRV)
+		if (netif_msg_drv(lp))
 			printk("\n" KERN_ERR PFX
 			       "%s: Memory allocation failed.\n", name);
 		return -ENOMEM;
 	}
-	memset(lp->rx_dma_addr, 0, sizeof(dma_addr_t) * lp->rx_ring_size);
 
-	lp->tx_skbuff = kmalloc(sizeof(struct sk_buff *) * lp->tx_ring_size,
+	lp->tx_skbuff = kcalloc(lp->tx_ring_size, sizeof(struct sk_buff *),
 				GFP_ATOMIC);
 	if (!lp->tx_skbuff) {
-		if (pcnet32_debug & NETIF_MSG_DRV)
+		if (netif_msg_drv(lp))
 			printk("\n" KERN_ERR PFX
 			       "%s: Memory allocation failed.\n", name);
 		return -ENOMEM;
 	}
-	memset(lp->tx_skbuff, 0, sizeof(struct sk_buff *) * lp->tx_ring_size);
 
-	lp->rx_skbuff = kmalloc(sizeof(struct sk_buff *) * lp->rx_ring_size,
+	lp->rx_skbuff = kcalloc(lp->rx_ring_size, sizeof(struct sk_buff *),
 				GFP_ATOMIC);
 	if (!lp->rx_skbuff) {
-		if (pcnet32_debug & NETIF_MSG_DRV)
+		if (netif_msg_drv(lp))
 			printk("\n" KERN_ERR PFX
 			       "%s: Memory allocation failed.\n", name);
 		return -ENOMEM;
 	}
-	memset(lp->rx_skbuff, 0, sizeof(struct sk_buff *) * lp->rx_ring_size);
 
 	return 0;
 }
