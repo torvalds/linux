@@ -521,6 +521,8 @@ static int dasd_eer_open(struct inode *inp, struct file *filp)
 	unsigned long flags;
 
 	eerb = kzalloc(sizeof(struct eerbuffer), GFP_KERNEL);
+	if (!eerb)
+		return -ENOMEM;
 	eerb->buffer_page_count = eer_pages;
 	if (eerb->buffer_page_count < 1 ||
 	    eerb->buffer_page_count > INT_MAX / PAGE_SIZE) {
