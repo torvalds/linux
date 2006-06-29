@@ -176,17 +176,6 @@ typedef struct irq_desc		irq_desc_t;
  */
 #include <asm/hw_irq.h>
 
-/*
- * Architectures call this to let the generic IRQ layer
- * handle an interrupt:
- */
-static inline void generic_handle_irq(unsigned int irq, struct pt_regs *regs)
-{
-	struct irq_desc *desc = irq_desc + irq;
-
-	desc->handle_irq(irq, desc, regs);
-}
-
 extern int setup_irq(unsigned int irq, struct irqaction *new);
 
 #ifdef CONFIG_GENERIC_HARDIRQS
@@ -323,6 +312,22 @@ handle_irq_name(void fastcall (*handle)(unsigned int, struct irq_desc *,
  * (is an explicit fastcall, because i386 4KSTACKS calls it from assembly)
  */
 extern fastcall unsigned int __do_IRQ(unsigned int irq, struct pt_regs *regs);
+
+/*
+ * Architectures call this to let the generic IRQ layer
+ * handle an interrupt. If the descriptor is attached to an
+ * irqchip-style controller then we call the ->handle_irq() handler,
+ * and it calls __do_IRQ() if it's attached to an irqtype-style controller.
+ */
+static inline void generic_handle_irq(unsigned int irq, struct pt_regs *regs)
+{
+	struct irq_desc *desc = irq_desc + irq;
+
+	if (likely(desc->handle_irq))
+		desc->handle_irq(irq, desc, regs);
+	else
+		__do_IRQ(irq, regs);
+}
 
 /* Handling of unhandled and spurious interrupts: */
 extern void note_interrupt(unsigned int irq, struct irq_desc *desc,
