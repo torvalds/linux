@@ -143,7 +143,7 @@ hydra_init(void)
 	if (np == NULL || of_address_to_resource(np, 0, &r))
 		return 0;
 	Hydra = ioremap(r.start, r.end-r.start);
-	printk("Hydra Mac I/O at %lx\n", r.start);
+	printk("Hydra Mac I/O at %llx\n", (unsigned long long)r.start);
 	printk("Hydra Feature_Control was %x",
 	       in_le32(&Hydra->Feature_Control));
 	out_le32(&Hydra->Feature_Control, (HYDRA_FC_SCC_CELL_EN |
@@ -267,7 +267,7 @@ chrp_find_bridges(void)
 			       bus_range[0], bus_range[1]);
 		printk(" controlled by %s", dev->type);
 		if (!is_longtrail)
-			printk(" at %lx", r.start);
+			printk(" at %llx", (unsigned long long)r.start);
 		printk("\n");
 
 		hose = pcibios_alloc_controller();

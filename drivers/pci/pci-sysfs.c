@@ -87,7 +87,7 @@ resource_show(struct device * dev, struct device_attribute *attr, char * buf)
 	char * str = buf;
 	int i;
 	int max = 7;
-	u64 start, end;
+	resource_size_t start, end;
 
 	if (pci_dev->subordinate)
 		max = DEVICE_COUNT_RESOURCE;
@@ -365,7 +365,7 @@ pci_mmap_resource(struct kobject *kobj, struct bin_attribute *attr,
 						       struct device, kobj));
 	struct resource *res = (struct resource *)attr->private;
 	enum pci_mmap_state mmap_type;
-	u64 start, end;
+	resource_size_t start, end;
 	int i;
 
 	for (i = 0; i < PCI_ROM_RESOURCE; i++)

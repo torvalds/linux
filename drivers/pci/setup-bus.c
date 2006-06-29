@@ -357,8 +357,10 @@ pbus_size_mem(struct pci_bus *bus, unsigned long mask, unsigned long type)
 			order = __ffs(align) - 20;
 			if (order > 11) {
 				printk(KERN_WARNING "PCI: region %s/%d "
-				       "too large: %lx-%lx\n",
-				       pci_name(dev), i, r->start, r->end);
+				       "too large: %llx-%llx\n",
+					pci_name(dev), i,
+					(unsigned long long)r->start,
+					(unsigned long long)r->end);
 				r->flags = 0;
 				continue;
 			}

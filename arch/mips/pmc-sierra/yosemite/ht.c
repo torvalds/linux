@@ -383,12 +383,12 @@ void pcibios_update_resource(struct pci_dev *dev, struct resource *root,
 
 
 void pcibios_align_resource(void *data, struct resource *res,
-                            unsigned long size, unsigned long align)
+                            resource_size_t size, resource_size_t align)
 {
         struct pci_dev *dev = data;
 
         if (res->flags & IORESOURCE_IO) {
-                unsigned long start = res->start;
+                resource_size_t start = res->start;
 
                 /* We need to avoid collisions with `mirrored' VGA ports
                    and other strange ISA hardware, so we always want the

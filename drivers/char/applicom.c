@@ -209,13 +209,16 @@ static int __init applicom_init(void)
 		RamIO = ioremap(dev->resource[0].start, LEN_RAM_IO);
 
 		if (!RamIO) {
-			printk(KERN_INFO "ac.o: Failed to ioremap PCI memory space at 0x%lx\n", dev->resource[0].start);
+			printk(KERN_INFO "ac.o: Failed to ioremap PCI memory "
+				"space at 0x%llx\n",
+				(unsigned long long)dev->resource[0].start);
 			pci_disable_device(dev);
 			return -EIO;
 		}
 
-		printk(KERN_INFO "Applicom %s found at mem 0x%lx, irq %d\n",
-		       applicom_pci_devnames[dev->device-1], dev->resource[0].start, 
+		printk(KERN_INFO "Applicom %s found at mem 0x%llx, irq %d\n",
+		       applicom_pci_devnames[dev->device-1],
+			   (unsigned long long)dev->resource[0].start,
 		       dev->irq);
 
 		boardno = ac_register_board(dev->resource[0].start, RamIO,0);

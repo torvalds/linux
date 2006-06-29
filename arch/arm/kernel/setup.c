@@ -119,9 +119,24 @@ DEFINE_PER_CPU(struct cpuinfo_arm, cpu_data);
  * Standard memory resources
  */
 static struct resource mem_res[] = {
-	{ "Video RAM",   0,     0,     IORESOURCE_MEM			},
-	{ "Kernel text", 0,     0,     IORESOURCE_MEM			},
-	{ "Kernel data", 0,     0,     IORESOURCE_MEM			}
+	{
+		.name = "Video RAM",
+		.start = 0,
+		.end = 0,
+		.flags = IORESOURCE_MEM
+	},
+	{
+		.name = "Kernel text",
+		.start = 0,
+		.end = 0,
+		.flags = IORESOURCE_MEM
+	},
+	{
+		.name = "Kernel data",
+		.start = 0,
+		.end = 0,
+		.flags = IORESOURCE_MEM
+	}
 };
 
 #define video_ram   mem_res[0]
@@ -129,9 +144,24 @@ static struct resource mem_res[] = {
 #define kernel_data mem_res[2]
 
 static struct resource io_res[] = {
-	{ "reserved",    0x3bc, 0x3be, IORESOURCE_IO | IORESOURCE_BUSY },
-	{ "reserved",    0x378, 0x37f, IORESOURCE_IO | IORESOURCE_BUSY },
-	{ "reserved",    0x278, 0x27f, IORESOURCE_IO | IORESOURCE_BUSY }
+	{
+		.name = "reserved",
+		.start = 0x3bc,
+		.end = 0x3be,
+		.flags = IORESOURCE_IO | IORESOURCE_BUSY
+	},
+	{
+		.name = "reserved",
+		.start = 0x378,
+		.end = 0x37f,
+		.flags = IORESOURCE_IO | IORESOURCE_BUSY
+	},
+	{
+		.name = "reserved",
+		.start = 0x278,
+		.end = 0x27f,
+		.flags = IORESOURCE_IO | IORESOURCE_BUSY
+	}
 };
 
 #define lp0 io_res[0]
