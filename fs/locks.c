@@ -739,6 +739,8 @@ static int flock_lock_file(struct file *filp, struct file_lock *request)
 	int found = 0;
 
 	lock_kernel();
+	if (request->fl_flags & FL_ACCESS)
+		goto find_conflict;
 	for_each_lock(inode, before) {
 		struct file_lock *fl = *before;
 		if (IS_POSIX(fl))
@@ -771,6 +773,7 @@ static int flock_lock_file(struct file *filp, struct file_lock *request)
 	if (found)
 		cond_resched();
 
+find_conflict:
 	for_each_lock(inode, before) {
 		struct file_lock *fl = *before;
 		if (IS_POSIX(fl))
@@ -784,6 +787,8 @@ static int flock_lock_file(struct file *filp, struct file_lock *request)
 			locks_insert_block(fl, request);
 		goto out;
 	}
+	if (request->fl_flags & FL_ACCESS)
+		goto out;
 	locks_copy_lock(new_fl, request);
 	locks_insert_lock(&inode->i_flock, new_fl);
 	new_fl = NULL;
