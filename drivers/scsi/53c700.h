@@ -12,7 +12,7 @@
 #include <asm/io.h>
 
 #include <scsi/scsi_device.h>
-
+#include <scsi/scsi_cmnd.h>
 
 /* Turn on for general debugging---too verbose for normal use */
 #undef	NCR_700_DEBUG
@@ -76,11 +76,16 @@ struct NCR_700_SG_List {
 	#define	SCRIPT_RETURN			0x90080000
 };
 
-/* We use device->hostdata to store negotiated parameters.  This is
- * supposed to be a pointer to a device private area, but we cannot
- * really use it as such since it will never be freed, so just use the
- * 32 bits to cram the information.  The SYNC negotiation sequence looks
- * like:
+struct NCR_700_Device_Parameters {
+	/* space for creating a request sense command. Really, except
+	 * for the annoying SCSI-2 requirement for LUN information in
+	 * cmnd[1], this could be in static storage */
+	unsigned char cmnd[MAX_COMMAND_SIZE];
+	__u8	depth;
+};
+
+
+/* The SYNC negotiation sequence looks like:
  * 
  * If DEV_NEGOTIATED_SYNC not set, tack and SDTR message on to the
  * initial identify for the device and set DEV_BEGIN_SYNC_NEGOTATION
@@ -98,19 +103,26 @@ struct NCR_700_SG_List {
 #define NCR_700_DEV_BEGIN_SYNC_NEGOTIATION	(1<<17)
 #define NCR_700_DEV_PRINT_SYNC_NEGOTIATION (1<<19)
 
+static inline char *NCR_700_get_sense_cmnd(struct scsi_device *SDp)
+{
+	struct NCR_700_Device_Parameters *hostdata = SDp->hostdata;
+
+	return hostdata->cmnd;
+}
+
 static inline void
 NCR_700_set_depth(struct scsi_device *SDp, __u8 depth)
 {
-	long l = (long)SDp->hostdata;
+	struct NCR_700_Device_Parameters *hostdata = SDp->hostdata;
 
-	l &= 0xffff00ff;
-	l |= 0xff00 & (depth << 8);
-	SDp->hostdata = (void *)l;
+	hostdata->depth = depth;
 }
 static inline __u8
 NCR_700_get_depth(struct scsi_device *SDp)
 {
-	return ((((unsigned long)SDp->hostdata) & 0xff00)>>8);
+	struct NCR_700_Device_Parameters *hostdata = SDp->hostdata;
+
+	return hostdata->depth;
 }
 static inline int
 NCR_700_is_flag_set(struct scsi_device *SDp, __u32 flag)

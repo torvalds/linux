@@ -174,6 +174,7 @@ STATIC int NCR_700_bus_reset(struct scsi_cmnd * SCpnt);
 STATIC int NCR_700_host_reset(struct scsi_cmnd * SCpnt);
 STATIC void NCR_700_chip_setup(struct Scsi_Host *host);
 STATIC void NCR_700_chip_reset(struct Scsi_Host *host);
+STATIC int NCR_700_slave_alloc(struct scsi_device *SDpnt);
 STATIC int NCR_700_slave_configure(struct scsi_device *SDpnt);
 STATIC void NCR_700_slave_destroy(struct scsi_device *SDpnt);
 static int NCR_700_change_queue_depth(struct scsi_device *SDpnt, int depth);
@@ -182,10 +183,6 @@ static int NCR_700_change_queue_type(struct scsi_device *SDpnt, int depth);
 STATIC struct device_attribute *NCR_700_dev_attrs[];
 
 STATIC struct scsi_transport_template *NCR_700_transport_template = NULL;
-
-struct NCR_700_sense {
-	unsigned char cmnd[MAX_COMMAND_SIZE];
-};
 
 static char *NCR_700_phase[] = {
 	"",
@@ -334,6 +331,7 @@ NCR_700_detect(struct scsi_host_template *tpnt,
 	tpnt->use_clustering = ENABLE_CLUSTERING;
 	tpnt->slave_configure = NCR_700_slave_configure;
 	tpnt->slave_destroy = NCR_700_slave_destroy;
+	tpnt->slave_alloc = NCR_700_slave_alloc;
 	tpnt->change_queue_depth = NCR_700_change_queue_depth;
 	tpnt->change_queue_type = NCR_700_change_queue_type;
 
@@ -612,9 +610,10 @@ NCR_700_scsi_done(struct NCR_700_Host_Parameters *hostdata,
 		struct NCR_700_command_slot *slot = 
 			(struct NCR_700_command_slot *)SCp->host_scribble;
 		
-		NCR_700_unmap(hostdata, SCp, slot);
+		dma_unmap_single(hostdata->dev, slot->pCmd,
+				 sizeof(SCp->cmnd), DMA_TO_DEVICE);
 		if (slot->flags == NCR_700_FLAG_AUTOSENSE) {
-			struct NCR_700_sense *sense = SCp->device->hostdata;
+			char *cmnd = NCR_700_get_sense_cmnd(SCp->device);
 #ifdef NCR_700_DEBUG
 			printk(" ORIGINAL CMD %p RETURNED %d, new return is %d sense is\n",
 			       SCp, SCp->cmnd[7], result);
@@ -625,10 +624,9 @@ NCR_700_scsi_done(struct NCR_700_Host_Parameters *hostdata,
 			/* restore the old result if the request sense was
 			 * successful */
 			if(result == 0)
-				result = sense->cmnd[7];
+				result = cmnd[7];
 		} else
-			dma_unmap_single(hostdata->dev, slot->pCmd,
-					 sizeof(SCp->cmnd), DMA_TO_DEVICE);
+			NCR_700_unmap(hostdata, SCp, slot);
 
 		free_slot(slot, hostdata);
 #ifdef NCR_700_DEBUG
@@ -970,14 +968,15 @@ process_script_interrupt(__u32 dsps, __u32 dsp, struct scsi_cmnd *SCp,
 		   status_byte(hostdata->status[0]) == COMMAND_TERMINATED) {
 			struct NCR_700_command_slot *slot =
 				(struct NCR_700_command_slot *)SCp->host_scribble;
-			if(SCp->cmnd[0] == REQUEST_SENSE) {
+			if(slot->flags == NCR_700_FLAG_AUTOSENSE) {
 				/* OOPS: bad device, returning another
 				 * contingent allegiance condition */
 				scmd_printk(KERN_ERR, SCp,
 					"broken device is looping in contingent allegiance: ignoring\n");
 				NCR_700_scsi_done(hostdata, SCp, hostdata->status[0]);
 			} else {
-				struct NCR_700_sense *sense = SCp->device->hostdata;
+				char *cmnd =
+					NCR_700_get_sense_cmnd(SCp->device);
 #ifdef NCR_DEBUG
 				scsi_print_command(SCp);
 				printk("  cmd %p has status %d, requesting sense\n",
@@ -995,21 +994,21 @@ process_script_interrupt(__u32 dsps, __u32 dsp, struct scsi_cmnd *SCp,
 						 sizeof(SCp->cmnd),
 						 DMA_TO_DEVICE);
 
-				sense->cmnd[0] = REQUEST_SENSE;
-				sense->cmnd[1] = (SCp->device->lun & 0x7) << 5;
-				sense->cmnd[2] = 0;
-				sense->cmnd[3] = 0;
-				sense->cmnd[4] = sizeof(SCp->sense_buffer);
-				sense->cmnd[5] = 0;
+				cmnd[0] = REQUEST_SENSE;
+				cmnd[1] = (SCp->device->lun & 0x7) << 5;
+				cmnd[2] = 0;
+				cmnd[3] = 0;
+				cmnd[4] = sizeof(SCp->sense_buffer);
+				cmnd[5] = 0;
 				/* Here's a quiet hack: the
 				 * REQUEST_SENSE command is six bytes,
 				 * so store a flag indicating that
 				 * this was an internal sense request
 				 * and the original status at the end
 				 * of the command */
-				sense->cmnd[6] = NCR_700_INTERNAL_SENSE_MAGIC;
-				sense->cmnd[7] = hostdata->status[0];
-				slot->pCmd = dma_map_single(hostdata->dev, sense->cmnd, sizeof(sense->cmnd), DMA_TO_DEVICE);
+				cmnd[6] = NCR_700_INTERNAL_SENSE_MAGIC;
+				cmnd[7] = hostdata->status[0];
+				slot->pCmd = dma_map_single(hostdata->dev, cmnd, MAX_COMMAND_SIZE, DMA_TO_DEVICE);
 				slot->dma_handle = dma_map_single(hostdata->dev, SCp->sense_buffer, sizeof(SCp->sense_buffer), DMA_FROM_DEVICE);
 				slot->SG[0].ins = bS_to_host(SCRIPT_MOVE_DATA_IN | sizeof(SCp->sense_buffer));
 				slot->SG[0].pAddr = bS_to_host(slot->dma_handle);
@@ -1531,7 +1530,7 @@ NCR_700_intr(int irq, void *dev_id, struct pt_regs *regs)
 
 			/* clear all the negotiated parameters */
 			__shost_for_each_device(SDp, host)
-				SDp->hostdata = NULL;
+				NCR_700_clear_flag(SDp, ~0);
 			
 			/* clear all the slots and their pending commands */
 			for(i = 0; i < NCR_700_COMMAND_SLOTS_PER_HOST; i++) {
@@ -2036,18 +2035,23 @@ NCR_700_set_offset(struct scsi_target *STp, int offset)
 	spi_flags(STp) |= NCR_700_DEV_PRINT_SYNC_NEGOTIATION;
 }
 
+STATIC int
+NCR_700_slave_alloc(struct scsi_device *SDp)
+{
+	SDp->hostdata = kzalloc(sizeof(struct NCR_700_Device_Parameters),
+				GFP_KERNEL);
 
+	if (!SDp->hostdata)
+		return -ENOMEM;
+
+	return 0;
+}
 
 STATIC int
 NCR_700_slave_configure(struct scsi_device *SDp)
 {
 	struct NCR_700_Host_Parameters *hostdata = 
 		(struct NCR_700_Host_Parameters *)SDp->host->hostdata[0];
-
-	SDp->hostdata = kmalloc(sizeof(struct NCR_700_sense), GFP_KERNEL);
-
-	if (!SDp->hostdata)
-		return -ENOMEM;
 
 	/* to do here: allocate memory; build a queue_full list */
 	if(SDp->tagged_supported) {
