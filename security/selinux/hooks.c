@@ -69,6 +69,7 @@
 #include <linux/sysctl.h>
 #include <linux/audit.h>
 #include <linux/string.h>
+#include <linux/selinux.h>
 
 #include "avc.h"
 #include "objsec.h"
@@ -3420,7 +3421,13 @@ out:
 static int selinux_socket_getpeersec_dgram(struct sk_buff *skb, char **secdata, u32 *seclen)
 {
 	int err = 0;
-	u32 peer_sid = selinux_socket_getpeer_dgram(skb);
+	u32 peer_sid;
+
+	if (skb->sk->sk_family == PF_UNIX)
+		selinux_get_inode_sid(SOCK_INODE(skb->sk->sk_socket),
+				      &peer_sid);
+	else
+		peer_sid = selinux_socket_getpeer_dgram(skb);
 
 	if (peer_sid == SECSID_NULL)
 		return -EINVAL;
@@ -3431,8 +3438,6 @@ static int selinux_socket_getpeersec_dgram(struct sk_buff *skb, char **secdata, 
 
 	return 0;
 }
-
-
 
 static int selinux_sk_alloc_security(struct sock *sk, int family, gfp_t priority)
 {
