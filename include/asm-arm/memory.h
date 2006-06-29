@@ -68,6 +68,11 @@
  */
 #define XIP_VIRT_ADDR(physaddr)  (MODULE_START + ((physaddr) & 0x000fffff))
 
+/*
+ * Allow 2MB-aligned ioremap pages
+ */
+#define IOREMAP_MAX_ORDER	21
+
 #else /* CONFIG_MMU */
 
 /*

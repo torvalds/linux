@@ -27,7 +27,16 @@
 
 #include <asm/cacheflush.h>
 #include <asm/io.h>
+#include <asm/mmu_context.h>
+#include <asm/pgalloc.h>
 #include <asm/tlbflush.h>
+#include <asm/sizes.h>
+
+/*
+ * Used by ioremap() and iounmap() code to mark section-mapped I/O regions
+ * in vm_struct->flags field.
+ */
+#define VM_ARM_SECTION_MAPPING	0x80000000
 
 static inline void
 remap_area_pte(pte_t * pte, unsigned long address, unsigned long size,
@@ -113,9 +122,119 @@ remap_area_pages(unsigned long start, unsigned long pfn,
 		dir++;
 	} while (address && (address < end));
 
-	flush_cache_vmap(start, end);
 	return err;
 }
+
+
+void __check_kvm_seq(struct mm_struct *mm)
+{
+	unsigned int seq;
+
+	do {
+		seq = init_mm.context.kvm_seq;
+		memcpy(pgd_offset(mm, VMALLOC_START),
+		       pgd_offset_k(VMALLOC_START),
+		       sizeof(pgd_t) * (pgd_index(VMALLOC_END) -
+					pgd_index(VMALLOC_START)));
+		mm->context.kvm_seq = seq;
+	} while (seq != init_mm.context.kvm_seq);
+}
+
+#ifndef CONFIG_SMP
+/*
+ * Section support is unsafe on SMP - If you iounmap and ioremap a region,
+ * the other CPUs will not see this change until their next context switch.
+ * Meanwhile, (eg) if an interrupt comes in on one of those other CPUs
+ * which requires the new ioremap'd region to be referenced, the CPU will
+ * reference the _old_ region.
+ *
+ * Note that get_vm_area() allocates a guard 4K page, so we need to mask
+ * the size back to 1MB aligned or we will overflow in the loop below.
+ */
+static void unmap_area_sections(unsigned long virt, unsigned long size)
+{
+	unsigned long addr = virt, end = virt + (size & ~SZ_1M);
+	pgd_t *pgd;
+
+	flush_cache_vunmap(addr, end);
+	pgd = pgd_offset_k(addr);
+	do {
+		pmd_t pmd, *pmdp = pmd_offset(pgd, addr);
+
+		pmd = *pmdp;
+		if (!pmd_none(pmd)) {
+			/*
+			 * Clear the PMD from the page table, and
+			 * increment the kvm sequence so others
+			 * notice this change.
+			 *
+			 * Note: this is still racy on SMP machines.
+			 */
+			pmd_clear(pmdp);
+			init_mm.context.kvm_seq++;
+
+			/*
+			 * Free the page table, if there was one.
+			 */
+			if ((pmd_val(pmd) & PMD_TYPE_MASK) == PMD_TYPE_TABLE)
+				pte_free_kernel(pmd_page_kernel(pmd));
+		}
+
+		addr += PGDIR_SIZE;
+		pgd++;
+	} while (addr < end);
+
+	/*
+	 * Ensure that the active_mm is up to date - we want to
+	 * catch any use-after-iounmap cases.
+	 */
+	if (current->active_mm->context.kvm_seq != init_mm.context.kvm_seq)
+		__check_kvm_seq(current->active_mm);
+
+	flush_tlb_kernel_range(virt, end);
+}
+
+static int
+remap_area_sections(unsigned long virt, unsigned long pfn,
+		    unsigned long size, unsigned long flags)
+{
+	unsigned long prot, addr = virt, end = virt + size;
+	pgd_t *pgd;
+
+	/*
+	 * Remove and free any PTE-based mapping, and
+	 * sync the current kernel mapping.
+	 */
+	unmap_area_sections(virt, size);
+
+	prot = PMD_TYPE_SECT | PMD_SECT_AP_WRITE | PMD_DOMAIN(DOMAIN_IO) |
+	       (flags & (L_PTE_CACHEABLE | L_PTE_BUFFERABLE));
+
+	/*
+	 * ARMv6 and above need XN set to prevent speculative prefetches
+	 * hitting IO.
+	 */
+	if (cpu_architecture() >= CPU_ARCH_ARMv6)
+		prot |= PMD_SECT_XN;
+
+	pgd = pgd_offset_k(addr);
+	do {
+		pmd_t *pmd = pmd_offset(pgd, addr);
+
+		pmd[0] = __pmd(__pfn_to_phys(pfn) | prot);
+		pfn += SZ_1M >> PAGE_SHIFT;
+		pmd[1] = __pmd(__pfn_to_phys(pfn) | prot);
+		pfn += SZ_1M >> PAGE_SHIFT;
+		flush_pmd_entry(pmd);
+
+		addr += PGDIR_SIZE;
+		pgd++;
+	} while (addr < end);
+
+	return 0;
+}
+#endif
+
 
 /*
  * Remap an arbitrary physical address space into the kernel virtual
@@ -133,6 +252,7 @@ void __iomem *
 __ioremap_pfn(unsigned long pfn, unsigned long offset, size_t size,
 	      unsigned long flags)
 {
+	int err;
 	unsigned long addr;
  	struct vm_struct * area;
 
@@ -140,11 +260,22 @@ __ioremap_pfn(unsigned long pfn, unsigned long offset, size_t size,
  	if (!area)
  		return NULL;
  	addr = (unsigned long)area->addr;
- 	if (remap_area_pages(addr, pfn, size, flags)) {
+
+#ifndef CONFIG_SMP
+	if (!((__pfn_to_phys(pfn) | size | addr) & ~PMD_MASK)) {
+		area->flags |= VM_ARM_SECTION_MAPPING;
+		err = remap_area_sections(addr, pfn, size, flags);
+	} else
+#endif
+		err = remap_area_pages(addr, pfn, size, flags);
+
+	if (err) {
  		vunmap((void *)addr);
  		return NULL;
  	}
- 	return (void __iomem *) (offset + (char *)addr);
+
+	flush_cache_vmap(addr, addr + size);
+	return (void __iomem *) (offset + addr);
 }
 EXPORT_SYMBOL(__ioremap_pfn);
 
@@ -173,6 +304,34 @@ EXPORT_SYMBOL(__ioremap);
 
 void __iounmap(void __iomem *addr)
 {
-	vunmap((void *)(PAGE_MASK & (unsigned long)addr));
+	struct vm_struct **p, *tmp;
+	unsigned int section_mapping = 0;
+
+	addr = (void __iomem *)(PAGE_MASK & (unsigned long)addr);
+
+	/*
+	 * If this is a section based mapping we need to handle it
+	 * specially as the VM subysystem does not know how to handle
+	 * such a beast. We need the lock here b/c we need to clear
+	 * all the mappings before the area can be reclaimed
+	 * by someone else.
+	 */
+	write_lock(&vmlist_lock);
+	for (p = &vmlist ; (tmp = *p) ; p = &tmp->next) {
+		if((tmp->flags & VM_IOREMAP) && (tmp->addr == addr)) {
+			if (tmp->flags & VM_ARM_SECTION_MAPPING) {
+				*p = tmp->next;
+				unmap_area_sections((unsigned long)tmp->addr,
+						    tmp->size);
+				kfree(tmp);
+				section_mapping = 1;
+			}
+			break;
+		}
+	}
+	write_unlock(&vmlist_lock);
+
+	if (!section_mapping)
+		vunmap(addr);
 }
 EXPORT_SYMBOL(__iounmap);
