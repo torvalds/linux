@@ -216,13 +216,17 @@ int setup_irq(unsigned int irq, struct irqaction *new)
 		desc->status |= IRQ_PER_CPU;
 #endif
 	if (!shared) {
-		desc->depth = 0;
-		desc->status &= ~(IRQ_DISABLED | IRQ_AUTODETECT |
-				  IRQ_WAITING | IRQ_INPROGRESS);
-		if (desc->chip->startup)
-			desc->chip->startup(irq);
-		else
-			desc->chip->enable(irq);
+		desc->status &= ~(IRQ_AUTODETECT | IRQ_WAITING |
+				  IRQ_INPROGRESS);
+
+		if (!(desc->status & IRQ_NOAUTOEN)) {
+			desc->depth = 0;
+			desc->status &= ~IRQ_DISABLED;
+			if (desc->chip->startup)
+				desc->chip->startup(irq);
+			else
+				desc->chip->enable(irq);
+		}
 	}
 	spin_unlock_irqrestore(&desc->lock, flags);
 
