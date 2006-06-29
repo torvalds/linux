@@ -1018,7 +1018,7 @@ he_init_irq(struct he_dev *he_dev)
 	return 0;
 }
 
-static int __init
+static int __devinit
 he_start(struct atm_dev *dev)
 {
 	struct he_dev *he_dev;
