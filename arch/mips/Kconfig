@@ -1618,6 +1618,11 @@ config GENERIC_IRQ_PROBE
 	bool
 	default y
 
+config IRQ_PER_CPU
+	depends on SMP
+	bool
+	default y
+
 #
 # - Highmem only makes sense for the 32-bit kernel.
 # - The current highmem code will only work properly on physically indexed

@@ -198,7 +198,7 @@ int setup_irq(unsigned int irq, struct irqaction *new)
 		if (!(old->flags & new->flags & SA_SHIRQ))
 			goto mismatch;
 
-#if defined(ARCH_HAS_IRQ_PER_CPU) && defined(SA_PERCPU_IRQ)
+#if defined(CONFIG_IRQ_PER_CPU) && defined(SA_PERCPU_IRQ)
 		/* All handlers must agree on per-cpuness */
 		if ((old->flags & IRQ_PER_CPU) != (new->flags & IRQ_PER_CPU))
 			goto mismatch;
@@ -213,7 +213,7 @@ int setup_irq(unsigned int irq, struct irqaction *new)
 	}
 
 	*p = new;
-#if defined(ARCH_HAS_IRQ_PER_CPU) && defined(SA_PERCPU_IRQ)
+#if defined(CONFIG_IRQ_PER_CPU) && defined(SA_PERCPU_IRQ)
 	if (new->flags & SA_PERCPU_IRQ)
 		desc->status |= IRQ_PER_CPU;
 #endif

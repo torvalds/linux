@@ -30,6 +30,10 @@ config GENERIC_HARDIRQS
 	bool
 	default y
 
+config IRQ_PER_CPU
+	bool
+	default y
+
 config RWSEM_GENERIC_SPINLOCK
 	bool
 

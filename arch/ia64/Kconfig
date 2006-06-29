@@ -492,6 +492,10 @@ config GENERIC_PENDING_IRQ
 	depends on GENERIC_HARDIRQS && SMP
 	default y
 
+config IRQ_PER_CPU
+	bool
+	default y
+
 source "arch/ia64/hp/sim/Kconfig"
 
 menu "Instrumentation Support"
