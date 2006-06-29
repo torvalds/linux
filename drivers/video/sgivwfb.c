@@ -23,6 +23,8 @@
 #include <asm/io.h>
 #include <asm/mtrr.h>
 
+#include <setup_arch.h>
+
 #define INCLUDE_TIMING_TABLE_DATA
 #define DBE_REG_BASE par->regs
 #include <video/sgivw.h>
@@ -41,10 +43,6 @@ struct sgivw_par {
  *
  *  The default can be overridden if the driver is compiled as a module
  */
-
-/* set by arch/i386/kernel/setup.c */
-extern unsigned long sgivwfb_mem_phys;
-extern unsigned long sgivwfb_mem_size;
 
 static int ypan = 0;
 static int ywrap = 0;

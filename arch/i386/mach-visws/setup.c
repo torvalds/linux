@@ -140,8 +140,8 @@ void __init time_init_hook(void)
 
 #define MB (1024 * 1024)
 
-static unsigned long sgivwfb_mem_phys;
-static unsigned long sgivwfb_mem_size;
+unsigned long sgivwfb_mem_phys;
+unsigned long sgivwfb_mem_size;
 
 long long mem_size __initdata = 0;
 
