@@ -11,6 +11,8 @@
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 
+#include "internals.h"
+
 /*
  * Autodetection depends on the fact that any interrupt that
  * comes in on to an unassigned handler will get stuck with
@@ -41,6 +43,12 @@ unsigned long probe_irq_on(void)
 
 		spin_lock_irq(&desc->lock);
 		if (!desc->action && !(desc->status & IRQ_NOPROBE)) {
+			/*
+			 * An old-style architecture might still have
+			 * the handle_bad_irq handler there:
+			 */
+			compat_irq_chip_set_default_handler(desc);
+
 			/*
 			 * Some chips need to know about probing in
 			 * progress:

@@ -46,6 +46,7 @@ struct irq_desc irq_desc[NR_IRQS] __cacheline_aligned = {
 	[0 ... NR_IRQS-1] = {
 		.status = IRQ_DISABLED,
 		.chip = &no_irq_type,
+		.handle_irq = handle_bad_irq,
 		.depth = 1,
 		.lock = SPIN_LOCK_UNLOCKED,
 #ifdef CONFIG_SMP
