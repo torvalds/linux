@@ -45,17 +45,17 @@
  * to describe about the low-level hardware. 
  */
 struct hw_interrupt_type {
-	const char *typename;
-	unsigned int (*startup)(unsigned int irq);
-	void (*shutdown)(unsigned int irq);
-	void (*enable)(unsigned int irq);
-	void (*disable)(unsigned int irq);
-	void (*ack)(unsigned int irq);
-	void (*end)(unsigned int irq);
-	void (*set_affinity)(unsigned int irq, cpumask_t dest);
+	const char	*typename;
+	unsigned int	(*startup)(unsigned int irq);
+	void		(*shutdown)(unsigned int irq);
+	void		(*enable)(unsigned int irq);
+	void		(*disable)(unsigned int irq);
+	void		(*ack)(unsigned int irq);
+	void		(*end)(unsigned int irq);
+	void		(*set_affinity)(unsigned int irq, cpumask_t dest);
 	/* Currently used only by UML, might disappear one day.*/
 #ifdef CONFIG_IRQ_RELEASE_METHOD
-	void (*release)(unsigned int irq, void *dev_id);
+	void		(*release)(unsigned int irq, void *dev_id);
 #endif
 };
 
@@ -69,19 +69,19 @@ typedef struct hw_interrupt_type  hw_irq_controller;
  * Pad this out to 32 bytes for cache and indexing reasons.
  */
 struct irq_desc {
-	hw_irq_controller *chip;
-	void *chip_data;
-	struct irqaction *action;	/* IRQ action list */
-	unsigned int status;		/* IRQ status */
-	unsigned int depth;		/* nested irq disables */
-	unsigned int irq_count;		/* For detecting broken interrupts */
-	unsigned int irqs_unhandled;
-	spinlock_t lock;
+	hw_irq_controller	*chip;
+	void			*chip_data;
+	struct irqaction	*action;	/* IRQ action list */
+	unsigned int		status;		/* IRQ status */
+	unsigned int		depth;		/* nested irq disables */
+	unsigned int		irq_count;	/* For detecting broken IRQs */
+	unsigned int		irqs_unhandled;
+	spinlock_t		lock;
 #ifdef CONFIG_SMP
-	cpumask_t affinity;
+	cpumask_t		affinity;
 #endif
 #if defined(CONFIG_GENERIC_PENDING_IRQ) || defined(CONFIG_IRQBALANCE)
-	unsigned int move_irq;		/* Flag need to re-target intr dest*/
+	unsigned int		move_irq;	/* need to re-target IRQ dest */
 #endif
 } ____cacheline_aligned;
 
@@ -186,6 +186,15 @@ static inline void set_balance_irq_affinity(unsigned int irq, cpumask_t mask)
 }
 #endif
 
+#ifdef CONFIG_AUTO_IRQ_AFFINITY
+extern int select_smp_affinity(unsigned int irq);
+#else
+static inline int select_smp_affinity(unsigned int irq)
+{
+	return 1;
+}
+#endif
+
 extern int no_irq_affinity;
 extern int noirqdebug_setup(char *str);
 
@@ -201,15 +210,6 @@ extern void note_interrupt(unsigned int irq, struct irq_desc *desc,
 extern int can_request_irq(unsigned int irq, unsigned long irqflags);
 
 extern void init_irq_proc(void);
-
-#ifdef CONFIG_AUTO_IRQ_AFFINITY
-extern int select_smp_affinity(unsigned int irq);
-#else
-static inline int select_smp_affinity(unsigned int irq)
-{
-	return 1;
-}
-#endif
 
 #endif /* CONFIG_GENERIC_HARDIRQS */
 
