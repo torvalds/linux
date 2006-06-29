@@ -276,15 +276,6 @@ r64_ret:
 
 #endif
 
-	.export pc_in_user_space
-	.text
-	/* Doesn't belong here but I couldn't find a nicer spot. */
-	/* Should never get called, only used by profile stuff in time.c */
-pc_in_user_space:
-	bv,n	0(%rp)
-	nop
-
-
 	.export __canonicalize_funcptr_for_compare
 	.text
 	/* http://lists.parisc-linux.org/hypermail/parisc-linux/10916.html

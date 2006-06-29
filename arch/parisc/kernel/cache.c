@@ -97,15 +97,17 @@ update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t pte)
 void
 show_cache_info(struct seq_file *m)
 {
+	char buf[32];
+
 	seq_printf(m, "I-cache\t\t: %ld KB\n", 
 		cache_info.ic_size/1024 );
-	seq_printf(m, "D-cache\t\t: %ld KB (%s%s, %d-way associative)\n", 
+	if (cache_info.dc_loop == 1)
+		snprintf(buf, 32, "%lu-way associative", cache_info.dc_loop);
+	seq_printf(m, "D-cache\t\t: %ld KB (%s%s, %s)\n",
 		cache_info.dc_size/1024,
 		(cache_info.dc_conf.cc_wt ? "WT":"WB"),
 		(cache_info.dc_conf.cc_sh ? ", shared I/D":""),
-		(cache_info.dc_conf.cc_assoc)
-	);
-
+		((cache_info.dc_loop == 1) ? "direct mapped" : buf));
 	seq_printf(m, "ITLB entries\t: %ld\n" "DTLB entries\t: %ld%s\n",
 		cache_info.it_size,
 		cache_info.dt_size,
@@ -158,11 +160,11 @@ parisc_cache_init(void)
 		cache_info.dc_conf.cc_block,
 		cache_info.dc_conf.cc_line,
 		cache_info.dc_conf.cc_shift);
-	printk("	wt %d sh %d cst %d assoc %d\n",
+	printk("	wt %d sh %d cst %d hv %d\n",
 		cache_info.dc_conf.cc_wt,
 		cache_info.dc_conf.cc_sh,
 		cache_info.dc_conf.cc_cst,
-		cache_info.dc_conf.cc_assoc);
+		cache_info.dc_conf.cc_hv);
 
 	printk("IC  base 0x%lx stride 0x%lx count 0x%lx loop 0x%lx\n",
 		cache_info.ic_base,
@@ -176,11 +178,11 @@ parisc_cache_init(void)
 		cache_info.ic_conf.cc_block,
 		cache_info.ic_conf.cc_line,
 		cache_info.ic_conf.cc_shift);
-	printk("	wt %d sh %d cst %d assoc %d\n",
+	printk("	wt %d sh %d cst %d hv %d\n",
 		cache_info.ic_conf.cc_wt,
 		cache_info.ic_conf.cc_sh,
 		cache_info.ic_conf.cc_cst,
-		cache_info.ic_conf.cc_assoc);
+		cache_info.ic_conf.cc_hv);
 
 	printk("D-TLB conf: sh %d page %d cst %d aid %d pad1 %d \n",
 		cache_info.dt_conf.tc_sh,
@@ -234,7 +236,8 @@ parisc_cache_init(void)
 
 void disable_sr_hashing(void)
 {
-	int srhash_type;
+	int srhash_type, retval;
+	unsigned long space_bits;
 
 	switch (boot_cpu_data.cpu_type) {
 	case pcx: /* We shouldn't get this far.  setup.c should prevent it. */
@@ -260,6 +263,13 @@ void disable_sr_hashing(void)
 	}
 
 	disable_sr_hashing_asm(srhash_type);
+
+	retval = pdc_spaceid_bits(&space_bits);
+	/* If this procedure isn't implemented, don't panic. */
+	if (retval < 0 && retval != PDC_BAD_OPTION)
+		panic("pdc_spaceid_bits call failed.\n");
+	if (space_bits != 0)
+		panic("SpaceID hashing is still on!\n");
 }
 
 void flush_dcache_page(struct page *page)

@@ -140,17 +140,36 @@ config CHASSIS_LCD_LED
 	  If unsure, say Y.
 
 config PDC_CHASSIS
-	bool "PDC chassis State Panel support"
+	bool "PDC chassis state codes support"
 	default y
 	help
-	  Say Y here if you want to enable support for the LED State front
-	  panel as found on E class, and support for the GSP Virtual Front
-	  Panel (LED State and message logging)  as found on high end
-	  servers such as A, L and N-class.
-	  
-	  This has nothing to do with Chassis LCD and LED support.
+	  Say Y here if you want to enable support for Chassis codes.
+	  That includes support for LED State front panel as found on E
+	  class, and support for the GSP Virtual Front Panel (LED State and
+	  message logging)  as found on high end servers such as A, L and
+	  N-class.
+	  This driver will also display progress messages on LCD display,
+	  such as "INI", "RUN" and "FLT", and might thus clobber messages
+	  shown by the LED/LCD driver.
+	  This driver updates the state panel (LED and/or LCD) upon system
+	  state change (eg: boot, shutdown or panic).
 	  
 	  If unsure, say Y.
+
+
+config PDC_CHASSIS_WARN
+	bool "PDC chassis warnings support"
+	depends on PROC_FS
+	default y
+	help
+	  Say Y here if you want to enable support for Chassis warnings.
+	  This will add a proc entry '/proc/chassis' giving some information
+	  about the overall health state of the system.
+	  This includes NVRAM battery level, overtemp or failures such as
+	  fans or power units.
+
+	  If unsure, say Y.
+
 
 config PDC_STABLE
 	tristate "PDC Stable Storage support"
