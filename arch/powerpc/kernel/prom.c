@@ -1975,8 +1975,7 @@ struct property *of_find_property(struct device_node *np, const char *name,
  * Find a property with a given name for a given node
  * and return the value.
  */
-unsigned char *get_property(struct device_node *np, const char *name,
-			    int *lenp)
+void *get_property(struct device_node *np, const char *name, int *lenp)
 {
 	struct property *pp = of_find_property(np,name,lenp);
 	return pp ? pp->value : NULL;

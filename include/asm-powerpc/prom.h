@@ -167,8 +167,8 @@ extern void unflatten_device_tree(void);
 extern void early_init_devtree(void *);
 extern int device_is_compatible(struct device_node *device, const char *);
 extern int machine_is_compatible(const char *compat);
-extern unsigned char *get_property(struct device_node *node, const char *name,
-				   int *lenp);
+extern void *get_property(struct device_node *node, const char *name,
+		int *lenp);
 extern void print_properties(struct device_node *node);
 extern int prom_n_addr_cells(struct device_node* np);
 extern int prom_n_size_cells(struct device_node* np);
