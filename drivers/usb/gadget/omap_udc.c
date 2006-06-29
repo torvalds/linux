@@ -40,7 +40,7 @@
 #include <linux/platform_device.h>
 #include <linux/usb_ch9.h>
 #include <linux/usb_gadget.h>
-#include <linux/usb_otg.h>
+#include <linux/usb/otg.h>
 #include <linux/dma-mapping.h>
 
 #include <asm/byteorder.h>

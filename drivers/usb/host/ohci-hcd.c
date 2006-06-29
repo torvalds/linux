@@ -88,7 +88,7 @@
 #include <linux/timer.h>
 #include <linux/list.h>
 #include <linux/usb.h>
-#include <linux/usb_otg.h>
+#include <linux/usb/otg.h>
 #include <linux/dma-mapping.h> 
 #include <linux/dmapool.h>
 #include <linux/reboot.h>
