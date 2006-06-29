@@ -460,25 +460,7 @@ cpu_elf_name:
 
 	.type	cpu_arm1022_name, #object
 cpu_arm1022_name:
-	.ascii	"arm1022"
-#ifndef CONFIG_CPU_ICACHE_DISABLE
-	.ascii	"i"
-#endif
-#ifndef CONFIG_CPU_DCACHE_DISABLE
-	.ascii	"d"
-#ifdef CONFIG_CPU_DCACHE_WRITETHROUGH
-	.ascii	"(wt)"
-#else
-	.ascii	"(wb)"
-#endif
-#endif
-#ifndef CONFIG_CPU_BPREDICT_DISABLE
-	.ascii	"B"
-#endif
-#ifdef CONFIG_CPU_CACHE_ROUND_ROBIN
-	.ascii	"RR"
-#endif
-	.ascii	"\0"
+	.asciz	"ARM1022"
 	.size	cpu_arm1022_name, . - cpu_arm1022_name
 
 	.align

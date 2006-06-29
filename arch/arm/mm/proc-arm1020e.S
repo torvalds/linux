@@ -477,25 +477,7 @@ cpu_elf_name:
 
 	.type	cpu_arm1020e_name, #object
 cpu_arm1020e_name:
-	.ascii	"ARM1020E"
-#ifndef CONFIG_CPU_ICACHE_DISABLE
-	.ascii	"i"
-#endif
-#ifndef CONFIG_CPU_DCACHE_DISABLE
-	.ascii	"d"
-#ifdef CONFIG_CPU_DCACHE_WRITETHROUGH
-	.ascii	"(wt)"
-#else
-	.ascii	"(wb)"
-#endif
-#endif
-#ifndef CONFIG_CPU_BPREDICT_DISABLE
-	.ascii	"B"
-#endif
-#ifdef CONFIG_CPU_CACHE_ROUND_ROBIN
-	.ascii	"RR"
-#endif
-	.ascii	"\0"
+	.asciz	"ARM1020E"
 	.size	cpu_arm1020e_name, . - cpu_arm1020e_name
 
 	.align

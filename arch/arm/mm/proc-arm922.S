@@ -448,19 +448,7 @@ cpu_elf_name:
 
 	.type	cpu_arm922_name, #object
 cpu_arm922_name:
-	.ascii	"ARM922T"
-#ifndef CONFIG_CPU_ICACHE_DISABLE
-	.ascii	"i"
-#endif
-#ifndef CONFIG_CPU_DCACHE_DISABLE
-	.ascii	"d"
-#ifdef CONFIG_CPU_DCACHE_WRITETHROUGH
-	.ascii	"(wt)"
-#else
-	.ascii	"(wb)"
-#endif
-#endif
-	.ascii	"\0"
+	.asciz	"ARM922T"
 	.size	cpu_arm922_name, . - cpu_arm922_name
 
 	.align

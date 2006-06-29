@@ -511,22 +511,7 @@ cpu_elf_name:
 
 	.type	cpu_arm925_name, #object
 cpu_arm925_name:
-	.ascii	"ARM925T"
-#ifndef CONFIG_CPU_ICACHE_DISABLE
-	.ascii	"i"
-#endif
-#ifndef CONFIG_CPU_DCACHE_DISABLE
-	.ascii	"d"
-#ifdef CONFIG_CPU_DCACHE_WRITETHROUGH
-	.ascii	"(wt)"
-#else
-	.ascii	"(wb)"
-#endif
-#ifdef CONFIG_CPU_CACHE_ROUND_ROBIN
-	.ascii	"RR"
-#endif
-#endif
-	.ascii	"\0"
+	.asciz	"ARM925T"
 	.size	cpu_arm925_name, . - cpu_arm925_name
 
 	.align

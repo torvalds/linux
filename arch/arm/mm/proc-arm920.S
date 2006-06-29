@@ -444,19 +444,7 @@ cpu_elf_name:
 
 	.type	cpu_arm920_name, #object
 cpu_arm920_name:
-	.ascii	"ARM920T"
-#ifndef CONFIG_CPU_ICACHE_DISABLE
-	.ascii	"i"
-#endif
-#ifndef CONFIG_CPU_DCACHE_DISABLE
-	.ascii	"d"
-#ifdef CONFIG_CPU_DCACHE_WRITETHROUGH
-	.ascii	"(wt)"
-#else
-	.ascii	"(wb)"
-#endif
-#endif
-	.ascii	"\0"
+	.asciz	"ARM920T"
 	.size	cpu_arm920_name, . - cpu_arm920_name
 
 	.align

@@ -460,22 +460,7 @@ cpu_elf_name:
 
 	.type	cpu_arm926_name, #object
 cpu_arm926_name:
-	.ascii	"ARM926EJ-S"
-#ifndef CONFIG_CPU_ICACHE_DISABLE
-	.ascii	"i"
-#endif
-#ifndef CONFIG_CPU_DCACHE_DISABLE
-	.ascii	"d"
-#ifdef CONFIG_CPU_DCACHE_WRITETHROUGH
-	.ascii	"(wt)"
-#else
-	.ascii	"(wb)"
-#endif
-#ifdef CONFIG_CPU_CACHE_ROUND_ROBIN
-	.ascii	"RR"
-#endif
-#endif
-	.ascii	"\0"
+	.asciz	"ARM926EJ-S"
 	.size	cpu_arm926_name, . - cpu_arm926_name
 
 	.align
