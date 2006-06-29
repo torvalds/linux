@@ -976,10 +976,10 @@ static inline struct console *SUNSAB_CONSOLE(void)
 #define sunsab_console_init()	do { } while (0)
 #endif
 
-static int __init sunsab_init_one(struct uart_sunsab_port *up,
-				  struct of_device *op,
-				  unsigned long offset,
-				  int line)
+static int __devinit sunsab_init_one(struct uart_sunsab_port *up,
+				     struct of_device *op,
+				     unsigned long offset,
+				     int line)
 {
 	up->port.line = line;
 	up->port.dev = &op->dev;
