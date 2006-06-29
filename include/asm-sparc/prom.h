@@ -101,6 +101,8 @@ extern int of_set_property(struct device_node *node, const char *name, void *val
 extern int of_getintprop_default(struct device_node *np,
 				 const char *name,
 				 int def);
+extern int of_n_addr_cells(struct device_node *np);
+extern int of_n_size_cells(struct device_node *np);
 
 extern void prom_build_devicetree(void);
 

@@ -190,6 +190,36 @@ int of_getintprop_default(struct device_node *np, const char *name, int def)
 }
 EXPORT_SYMBOL(of_getintprop_default);
 
+int of_n_addr_cells(struct device_node *np)
+{
+	int* ip;
+	do {
+		if (np->parent)
+			np = np->parent;
+		ip = of_get_property(np, "#address-cells", NULL);
+		if (ip != NULL)
+			return *ip;
+	} while (np->parent);
+	/* No #address-cells property for the root node, default to 2 */
+	return 2;
+}
+EXPORT_SYMBOL(of_n_addr_cells);
+
+int of_n_size_cells(struct device_node *np)
+{
+	int* ip;
+	do {
+		if (np->parent)
+			np = np->parent;
+		ip = of_get_property(np, "#size-cells", NULL);
+		if (ip != NULL)
+			return *ip;
+	} while (np->parent);
+	/* No #size-cells property for the root node, default to 1 */
+	return 1;
+}
+EXPORT_SYMBOL(of_n_size_cells);
+
 int of_set_property(struct device_node *dp, const char *name, void *val, int len)
 {
 	struct property **prevp;
