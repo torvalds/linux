@@ -26,6 +26,7 @@
  */
 
 #include <linux/config.h>
+#include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -40,6 +41,7 @@
 #include <asm/vaddrs.h>
 #include <asm/oplib.h>
 #include <asm/prom.h>
+#include <asm/of_device.h>
 #include <asm/sbus.h>
 #include <asm/page.h>
 #include <asm/pgalloc.h>
@@ -142,6 +144,21 @@ void __iomem *sbus_ioremap(struct resource *phyres, unsigned long offset,
 	return _sparc_alloc_io(phyres->flags & 0xF,
 	    phyres->start + offset, size, name);
 }
+
+void __iomem *of_ioremap(struct resource *res, unsigned long offset,
+			 unsigned long size, char *name)
+{
+	return _sparc_alloc_io(res->flags & 0xF,
+			       res->start + offset,
+			       size, name);
+}
+EXPORT_SYMBOL(of_ioremap);
+
+void of_iounmap(void __iomem *base, unsigned long size)
+{
+	iounmap(base);
+}
+EXPORT_SYMBOL(of_iounmap);
 
 /*
  */

@@ -129,6 +129,23 @@ static int of_device_resume(struct device * dev)
 	return error;
 }
 
+void __iomem *of_ioremap(struct resource *res, unsigned long offset, unsigned long size, char *name)
+{
+	unsigned long ret = res->start + offset;
+
+	if (!request_region(ret, size, name))
+		ret = 0;
+
+	return (void __iomem *) ret;
+}
+EXPORT_SYMBOL(of_ioremap);
+
+void of_iounmap(void __iomem *base, unsigned long size)
+{
+	release_region((unsigned long) base, size);
+}
+EXPORT_SYMBOL(of_iounmap);
+
 #ifdef CONFIG_PCI
 struct bus_type isa_bus_type = {
        .name	= "isa",

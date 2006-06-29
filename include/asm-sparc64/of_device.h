@@ -32,6 +32,9 @@ struct of_device
 };
 #define	to_of_device(d) container_of(d, struct of_device, dev)
 
+extern void __iomem *of_ioremap(struct resource *res, unsigned long offset, unsigned long size, char *name);
+extern void of_iounmap(void __iomem *base, unsigned long size);
+
 extern const struct of_device_id *of_match_device(
 	const struct of_device_id *matches, const struct of_device *dev);
 
