@@ -940,6 +940,10 @@ MODULE_LICENSE ("GPL");
 #include "ohci-at91.c"
 #endif
 
+#ifdef CONFIG_ARCH_PNX4008
+#include "ohci-pnx4008.c"
+#endif
+
 #if !(defined(CONFIG_PCI) \
       || defined(CONFIG_SA1111) \
       || defined(CONFIG_ARCH_S3C2410) \
@@ -951,6 +955,7 @@ MODULE_LICENSE ("GPL");
       || defined (CONFIG_USB_OHCI_HCD_PPC_SOC) \
       || defined (CONFIG_ARCH_AT91RM9200) \
       || defined (CONFIG_ARCH_AT91SAM9261) \
+      || defined (CONFIG_ARCH_PNX4008) \
 	)
 #error "missing bus glue for ohci-hcd"
 #endif
