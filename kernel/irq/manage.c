@@ -133,6 +133,27 @@ void enable_irq(unsigned int irq)
 }
 EXPORT_SYMBOL(enable_irq);
 
+/**
+ *	set_irq_wake - control irq power management wakeup
+ *	@irq:	interrupt to control
+ *	@on:	enable/disable power management wakeup
+ *
+ *	Enable/disable power management wakeup mode
+ */
+int set_irq_wake(unsigned int irq, unsigned int on)
+{
+	struct irq_desc *desc = irq_desc + irq;
+	unsigned long flags;
+	int ret = -ENXIO;
+
+	spin_lock_irqsave(&desc->lock, flags);
+	if (desc->chip->set_wake)
+		ret = desc->chip->set_wake(irq, on);
+	spin_unlock_irqrestore(&desc->lock, flags);
+	return ret;
+}
+EXPORT_SYMBOL(set_irq_wake);
+
 /*
  * Internal function that tells the architecture code whether a
  * particular irq has been exclusively allocated or is available

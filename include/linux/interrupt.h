@@ -36,6 +36,20 @@ extern void free_irq(unsigned int, void *);
 extern void disable_irq_nosync(unsigned int irq);
 extern void disable_irq(unsigned int irq);
 extern void enable_irq(unsigned int irq);
+
+/* IRQ wakeup (PM) control: */
+extern int set_irq_wake(unsigned int irq, unsigned int on);
+
+static inline int enable_irq_wake(unsigned int irq)
+{
+	return set_irq_wake(irq, 1);
+}
+
+static inline int disable_irq_wake(unsigned int irq)
+{
+	return set_irq_wake(irq, 0);
+}
+
 #endif
 
 #ifndef __ARCH_SET_SOFTIRQ_PENDING
