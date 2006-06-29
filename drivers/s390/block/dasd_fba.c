@@ -56,19 +56,13 @@ static struct ccw_driver dasd_fba_driver; /* see below */
 static int
 dasd_fba_probe(struct ccw_device *cdev)
 {
-	int ret;
-
-	ret = dasd_generic_probe (cdev, &dasd_fba_discipline);
-	if (ret)
-		return ret;
-	ccw_device_set_options(cdev, CCWDEV_DO_PATHGROUP);
-	return 0;
+	return dasd_generic_probe(cdev, &dasd_fba_discipline);
 }
 
 static int
 dasd_fba_set_online(struct ccw_device *cdev)
 {
-	return dasd_generic_set_online (cdev, &dasd_fba_discipline);
+	return dasd_generic_set_online(cdev, &dasd_fba_discipline);
 }
 
 static struct ccw_driver dasd_fba_driver = {
@@ -569,16 +563,8 @@ static struct dasd_discipline dasd_fba_discipline = {
 static int __init
 dasd_fba_init(void)
 {
-	int ret;
-
 	ASCEBC(dasd_fba_discipline.ebcname, 4);
-
-	ret = ccw_driver_register(&dasd_fba_driver);
-	if (ret)
-		return ret;
-
-	dasd_generic_auto_online(&dasd_fba_driver);
-	return 0;
+	return ccw_driver_register(&dasd_fba_driver);
 }
 
 static void __exit

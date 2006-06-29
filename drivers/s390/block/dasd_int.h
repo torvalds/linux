@@ -513,12 +513,12 @@ void dasd_generic_remove (struct ccw_device *cdev);
 int dasd_generic_set_online(struct ccw_device *, struct dasd_discipline *);
 int dasd_generic_set_offline (struct ccw_device *cdev);
 int dasd_generic_notify(struct ccw_device *, int);
-void dasd_generic_auto_online (struct ccw_driver *);
 
 /* externals in dasd_devmap.c */
 extern int dasd_max_devindex;
 extern int dasd_probeonly;
 extern int dasd_autodetect;
+extern int dasd_nopav;
 
 int dasd_devmap_init(void);
 void dasd_devmap_exit(void);

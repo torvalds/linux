@@ -24,6 +24,7 @@
 #include <asm/io.h>
 #include <asm/todclk.h>
 #include <asm/uaccess.h>
+#include <asm/cio.h>
 #include <asm/ccwdev.h>
 
 #include "dasd_int.h"
@@ -89,17 +90,22 @@ dasd_eckd_probe (struct ccw_device *cdev)
 {
 	int ret;
 
-	ret = dasd_generic_probe (cdev, &dasd_eckd_discipline);
-	if (ret)
+	/* set ECKD specific ccw-device options */
+	ret = ccw_device_set_options(cdev, CCWDEV_ALLOW_FORCE);
+	if (ret) {
+		printk(KERN_WARNING
+		       "dasd_eckd_probe: could not set ccw-device options "
+		       "for %s\n", cdev->dev.bus_id);
 		return ret;
-	ccw_device_set_options(cdev, CCWDEV_DO_PATHGROUP | CCWDEV_ALLOW_FORCE);
-	return 0;
+	}
+	ret = dasd_generic_probe(cdev, &dasd_eckd_discipline);
+	return ret;
 }
 
 static int
 dasd_eckd_set_online(struct ccw_device *cdev)
 {
-	return dasd_generic_set_online (cdev, &dasd_eckd_discipline);
+	return dasd_generic_set_online(cdev, &dasd_eckd_discipline);
 }
 
 static struct ccw_driver dasd_eckd_driver = {
@@ -541,6 +547,86 @@ dasd_eckd_read_conf(struct dasd_device *device)
 }
 
 /*
+ * Build CP for Perform Subsystem Function - SSC.
+ */
+struct dasd_ccw_req *
+dasd_eckd_build_psf_ssc(struct dasd_device *device)
+{
+       struct dasd_ccw_req *cqr;
+       struct dasd_psf_ssc_data *psf_ssc_data;
+       struct ccw1 *ccw;
+
+       cqr = dasd_smalloc_request("ECKD", 1 /* PSF */ ,
+				  sizeof(struct dasd_psf_ssc_data),
+				  device);
+
+       if (IS_ERR(cqr)) {
+	       DEV_MESSAGE(KERN_WARNING, device, "%s",
+			   "Could not allocate PSF-SSC request");
+	       return cqr;
+       }
+       psf_ssc_data = (struct dasd_psf_ssc_data *)cqr->data;
+       psf_ssc_data->order = PSF_ORDER_SSC;
+       psf_ssc_data->suborder = 0x08;
+
+       ccw = cqr->cpaddr;
+       ccw->cmd_code = DASD_ECKD_CCW_PSF;
+       ccw->cda = (__u32)(addr_t)psf_ssc_data;
+       ccw->count = 66;
+
+       cqr->device = device;
+       cqr->expires = 10*HZ;
+       cqr->buildclk = get_clock();
+       cqr->status = DASD_CQR_FILLED;
+       return cqr;
+}
+
+/*
+ * Perform Subsystem Function.
+ * It is necessary to trigger CIO for channel revalidation since this
+ * call might change behaviour of DASD devices.
+ */
+static int
+dasd_eckd_psf_ssc(struct dasd_device *device)
+{
+       struct dasd_ccw_req *cqr;
+       int rc;
+
+       cqr = dasd_eckd_build_psf_ssc(device);
+       if (IS_ERR(cqr))
+	       return PTR_ERR(cqr);
+
+       rc = dasd_sleep_on(cqr);
+       if (!rc)
+	       /* trigger CIO to reprobe devices */
+	       css_schedule_reprobe();
+       dasd_sfree_request(cqr, cqr->device);
+       return rc;
+}
+
+/*
+ * Valide storage server of current device.
+ */
+static int
+dasd_eckd_validate_server(struct dasd_device *device)
+{
+	int rc;
+
+	/* Currently PAV is the only reason to 'validate' server on LPAR */
+	if (dasd_nopav || MACHINE_IS_VM)
+		return 0;
+
+	rc = dasd_eckd_psf_ssc(device);
+	if (rc)
+		/* may be requested feature is not available on server,
+		 * therefore just report error and go ahead */
+		DEV_MESSAGE(KERN_INFO, device,
+			    "Perform Subsystem Function returned rc=%d", rc);
+	/* RE-Read Configuration Data */
+	return dasd_eckd_read_conf(device);
+}
+
+/*
  * Check device characteristics.
  * If the device is accessible using ECKD discipline, the device is enabled.
  */
@@ -570,16 +656,29 @@ dasd_eckd_check_characteristics(struct dasd_device *device)
 	private->attrib.operation = DASD_NORMAL_CACHE;
 	private->attrib.nr_cyl = 0;
 
+	/* Read Configuration Data */
+	rc = dasd_eckd_read_conf(device);
+	if (rc)
+		return rc;
+
+	/* Generate device unique id and register in devmap */
+	rc = dasd_eckd_generate_uid(device, &uid);
+	if (rc)
+		return rc;
+	rc = dasd_set_uid(device->cdev, &uid);
+	if (rc == 1)	/* new server found */
+		rc = dasd_eckd_validate_server(device);
+	if (rc)
+		return rc;
+
 	/* Read Device Characteristics */
 	rdc_data = (void *) &(private->rdc_data);
 	memset(rdc_data, 0, sizeof(rdc_data));
 	rc = read_dev_chars(device->cdev, &rdc_data, 64);
-	if (rc) {
+	if (rc)
 		DEV_MESSAGE(KERN_WARNING, device,
-			    "Read device characteristics returned error %d",
-			    rc);
-		return rc;
-	}
+			    "Read device characteristics returned "
+			    "rc=%d", rc);
 
 	DEV_MESSAGE(KERN_INFO, device,
 		    "%04X/%02X(CU:%04X/%02X) Cyl:%d Head:%d Sec:%d",
@@ -590,19 +689,6 @@ dasd_eckd_check_characteristics(struct dasd_device *device)
 		    private->rdc_data.no_cyl,
 		    private->rdc_data.trk_per_cyl,
 		    private->rdc_data.sec_per_trk);
-
-	/* Read Configuration Data */
-	rc = dasd_eckd_read_conf (device);
-	if (rc)
-		return rc;
-
-	/* Generate device unique id and register in devmap */
-	rc = dasd_eckd_generate_uid(device, &uid);
-	if (rc)
-		return rc;
-
-	rc = dasd_set_uid(device->cdev, &uid);
-
 	return rc;
 }
 
@@ -1687,14 +1773,8 @@ static struct dasd_discipline dasd_eckd_discipline = {
 static int __init
 dasd_eckd_init(void)
 {
-	int ret;
-
 	ASCEBC(dasd_eckd_discipline.ebcname, 4);
-
-	ret = ccw_driver_register(&dasd_eckd_driver);
-	if (!ret)
-		dasd_generic_auto_online(&dasd_eckd_driver);
-	return ret;
+	return ccw_driver_register(&dasd_eckd_driver);
 }
 
 static void __exit

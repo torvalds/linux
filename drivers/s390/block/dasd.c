@@ -1855,15 +1855,34 @@ dasd_generic_probe (struct ccw_device *cdev,
 {
 	int ret;
 
+	ret = ccw_device_set_options(cdev, CCWDEV_DO_PATHGROUP);
+	if (ret) {
+		printk(KERN_WARNING
+		       "dasd_generic_probe: could not set ccw-device options "
+		       "for %s\n", cdev->dev.bus_id);
+		return ret;
+	}
 	ret = dasd_add_sysfs_files(cdev);
 	if (ret) {
 		printk(KERN_WARNING
 		       "dasd_generic_probe: could not add sysfs entries "
 		       "for %s\n", cdev->dev.bus_id);
-	} else {
-		cdev->handler = &dasd_int_handler;
+		return ret;
 	}
+	cdev->handler = &dasd_int_handler;
 
+	/*
+	 * Automatically online either all dasd devices (dasd_autodetect)
+	 * or all devices specified with dasd= parameters during
+	 * initial probe.
+	 */
+	if ((dasd_get_feature(cdev, DASD_FEATURE_INITIAL_ONLINE) > 0 ) ||
+	    (dasd_autodetect && dasd_busid_known(cdev->dev.bus_id) != 0))
+		ret = ccw_device_set_online(cdev);
+	if (ret)
+		printk(KERN_WARNING
+		       "dasd_generic_probe: could not initially online "
+		       "ccw-device %s\n", cdev->dev.bus_id);
 	return ret;
 }
 
@@ -1911,6 +1930,8 @@ dasd_generic_set_online (struct ccw_device *cdev,
 	struct dasd_device *device;
 	int rc;
 
+	/* first online clears initial online feature flag */
+	dasd_set_feature(cdev, DASD_FEATURE_INITIAL_ONLINE, 0);
 	device = dasd_create_device(cdev);
 	if (IS_ERR(device))
 		return PTR_ERR(device);
@@ -2065,31 +2086,6 @@ dasd_generic_notify(struct ccw_device *cdev, int event)
 	return ret;
 }
 
-/*
- * Automatically online either all dasd devices (dasd_autodetect) or
- * all devices specified with dasd= parameters.
- */
-static int
-__dasd_auto_online(struct device *dev, void *data)
-{
-	struct ccw_device *cdev;
-
-	cdev = to_ccwdev(dev);
-	if (dasd_autodetect || dasd_busid_known(cdev->dev.bus_id) == 0)
-		ccw_device_set_online(cdev);
-	return 0;
-}
-
-void
-dasd_generic_auto_online (struct ccw_driver *dasd_discipline_driver)
-{
-	struct device_driver *drv;
-
-	drv = get_driver(&dasd_discipline_driver->driver);
-	driver_for_each_device(drv, NULL, NULL, __dasd_auto_online);
-	put_driver(drv);
-}
-
 
 static int __init
 dasd_init(void)
@@ -2170,5 +2166,4 @@ EXPORT_SYMBOL_GPL(dasd_generic_remove);
 EXPORT_SYMBOL_GPL(dasd_generic_notify);
 EXPORT_SYMBOL_GPL(dasd_generic_set_online);
 EXPORT_SYMBOL_GPL(dasd_generic_set_offline);
-EXPORT_SYMBOL_GPL(dasd_generic_auto_online);
 

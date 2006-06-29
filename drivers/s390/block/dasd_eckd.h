@@ -41,9 +41,10 @@
 #define DASD_ECKD_CCW_RESERVE		 0xB4
 
 /*
- *Perform Subsystem Function / Sub-Orders
+ * Perform Subsystem Function / Sub-Orders
  */
-#define PSF_ORDER_PRSSD			 0x18
+#define PSF_ORDER_PRSSD 0x18
+#define PSF_ORDER_SSC	0x1D
 
 /*****************************************************************************
  * SECTION: Type Definitions
@@ -352,5 +353,16 @@ struct dasd_psf_prssd_data {
 	unsigned char suborder;
 	unsigned char varies[9];
 } __attribute__ ((packed));
+
+/*
+ * Perform Subsystem Function - Set Subsystem Characteristics
+ */
+struct dasd_psf_ssc_data {
+	unsigned char order;
+	unsigned char flags;
+	unsigned char cu_type[4];
+	unsigned char suborder;
+	unsigned char reserved[59];
+} __attribute__((packed));
 
 #endif				/* DASD_ECKD_H */
