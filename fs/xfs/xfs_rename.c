@@ -22,13 +22,11 @@
 #include "xfs_inum.h"
 #include "xfs_trans.h"
 #include "xfs_sb.h"
-#include "xfs_dir.h"
 #include "xfs_dir2.h"
 #include "xfs_dmapi.h"
 #include "xfs_mount.h"
 #include "xfs_da_btree.h"
 #include "xfs_bmap_btree.h"
-#include "xfs_dir_sf.h"
 #include "xfs_dir2_sf.h"
 #include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
@@ -40,7 +38,6 @@
 #include "xfs_refcache.h"
 #include "xfs_utils.h"
 #include "xfs_trans_space.h"
-#include "xfs_dir_leaf.h"
 
 
 /*
@@ -87,8 +84,8 @@ STATIC int
 xfs_lock_for_rename(
 	xfs_inode_t	*dp1,	/* old (source) directory inode */
 	xfs_inode_t	*dp2,	/* new (target) directory inode */
-	vname_t		*vname1,/* old entry name */
-	vname_t		*vname2,/* new entry name */
+	bhv_vname_t	*vname1,/* old entry name */
+	bhv_vname_t	*vname2,/* new entry name */
 	xfs_inode_t	**ipp1,	/* inode of old entry */
 	xfs_inode_t	**ipp2,	/* inode of new entry, if it
 				   already exists, NULL otherwise. */
@@ -225,9 +222,9 @@ xfs_lock_for_rename(
 int
 xfs_rename(
 	bhv_desc_t	*src_dir_bdp,
-	vname_t		*src_vname,
-	vnode_t		*target_dir_vp,
-	vname_t		*target_vname,
+	bhv_vname_t	*src_vname,
+	bhv_vnode_t	*target_dir_vp,
+	bhv_vname_t	*target_vname,
 	cred_t		*credp)
 {
 	xfs_trans_t	*tp;
@@ -242,7 +239,7 @@ xfs_rename(
 	int		committed;
 	xfs_inode_t	*inodes[4];
 	int		target_ip_dropped = 0;	/* dropped target_ip link? */
-	vnode_t		*src_dir_vp;
+	bhv_vnode_t	*src_dir_vp;
 	int		spaceres;
 	int		target_link_zero = 0;
 	int		num_inodes;
@@ -398,34 +395,29 @@ xfs_rename(
 		 * fit before actually inserting it.
 		 */
 		if (spaceres == 0 &&
-		    (error = XFS_DIR_CANENTER(mp, tp, target_dp, target_name,
-				target_namelen))) {
+		    (error = xfs_dir_canenter(tp, target_dp, target_name,
+						target_namelen)))
 			goto error_return;
-		}
 		/*
 		 * If target does not exist and the rename crosses
 		 * directories, adjust the target directory link count
 		 * to account for the ".." reference from the new entry.
 		 */
-		error = XFS_DIR_CREATENAME(mp, tp, target_dp, target_name,
+		error = xfs_dir_createname(tp, target_dp, target_name,
 					   target_namelen, src_ip->i_ino,
 					   &first_block, &free_list, spaceres);
-		if (error == ENOSPC) {
+		if (error == ENOSPC)
 			goto error_return;
-		}
-		if (error) {
+		if (error)
 			goto abort_return;
-		}
 		xfs_ichgtime(target_dp, XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
 
 		if (new_parent && src_is_directory) {
 			error = xfs_bumplink(tp, target_dp);
-			if (error) {
+			if (error)
 				goto abort_return;
-			}
 		}
 	} else { /* target_ip != NULL */
-
 		/*
 		 * If target exists and it's a directory, check that both
 		 * target and source are directories and that target can be
@@ -435,7 +427,7 @@ xfs_rename(
 			/*
 			 * Make sure target dir is empty.
 			 */
-			if (!(XFS_DIR_ISEMPTY(target_ip->i_mount, target_ip)) ||
+			if (!(xfs_dir_isempty(target_ip)) ||
 			    (target_ip->i_d.di_nlink > 2)) {
 				error = XFS_ERROR(EEXIST);
 				goto error_return;
@@ -451,12 +443,11 @@ xfs_rename(
 		 * In case there is already an entry with the same
 		 * name at the destination directory, remove it first.
 		 */
-		error = XFS_DIR_REPLACE(mp, tp, target_dp, target_name,
-			target_namelen, src_ip->i_ino, &first_block,
-			&free_list, spaceres);
-		if (error) {
+		error = xfs_dir_replace(tp, target_dp, target_name,
+					target_namelen, src_ip->i_ino,
+					&first_block, &free_list, spaceres);
+		if (error)
 			goto abort_return;
-		}
 		xfs_ichgtime(target_dp, XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
 
 		/*
@@ -464,9 +455,8 @@ xfs_rename(
 		 * dir no longer points to it.
 		 */
 		error = xfs_droplink(tp, target_ip);
-		if (error) {
+		if (error)
 			goto abort_return;
-		}
 		target_ip_dropped = 1;
 
 		if (src_is_directory) {
@@ -474,9 +464,8 @@ xfs_rename(
 			 * Drop the link from the old "." entry.
 			 */
 			error = xfs_droplink(tp, target_ip);
-			if (error) {
+			if (error)
 				goto abort_return;
-			}
 		}
 
 		/* Do this test while we still hold the locks */
@@ -488,18 +477,15 @@ xfs_rename(
 	 * Remove the source.
 	 */
 	if (new_parent && src_is_directory) {
-
 		/*
 		 * Rewrite the ".." entry to point to the new
 		 * directory.
 		 */
-		error = XFS_DIR_REPLACE(mp, tp, src_ip, "..", 2,
-					target_dp->i_ino, &first_block,
-					&free_list, spaceres);
+		error = xfs_dir_replace(tp, src_ip, "..", 2, target_dp->i_ino,
+					&first_block, &free_list, spaceres);
 		ASSERT(error != EEXIST);
-		if (error) {
+		if (error)
 			goto abort_return;
-		}
 		xfs_ichgtime(src_ip, XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
 
 	} else {
@@ -527,16 +513,14 @@ xfs_rename(
 		 * entry that's moved no longer points to it.
 		 */
 		error = xfs_droplink(tp, src_dp);
-		if (error) {
+		if (error)
 			goto abort_return;
-		}
 	}
 
-	error = XFS_DIR_REMOVENAME(mp, tp, src_dp, src_name, src_namelen,
+	error = xfs_dir_removename(tp, src_dp, src_name, src_namelen,
 			src_ip->i_ino, &first_block, &free_list, spaceres);
-	if (error) {
+	if (error)
 		goto abort_return;
-	}
 	xfs_ichgtime(src_dp, XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
 
 	/*
@@ -609,7 +593,7 @@ xfs_rename(
 	 * Let interposed file systems know about removed links.
 	 */
 	if (target_ip_dropped) {
-		VOP_LINK_REMOVED(XFS_ITOV(target_ip), target_dir_vp,
+		bhv_vop_link_removed(XFS_ITOV(target_ip), target_dir_vp,
 					target_link_zero);
 		IRELE(target_ip);
 	}

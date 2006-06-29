@@ -80,13 +80,6 @@ receive_buf()	-	Hand buffers of bytes from the driver to the ldisc
 			for processing. Semantics currently rather
 			mysterious 8(
 
-receive_room()	-	Can be called by the driver layer at any time when
-			the ldisc is opened. The ldisc must be able to
-			handle the reported amount of data at that instant.
-			Synchronization between active receive_buf and
-			receive_room calls is down to the driver not the
-			ldisc. Must not sleep.
-
 write_wakeup()	-	May be called at any point between open and close.
 			The TTY_DO_WRITE_WAKEUP flag indicates if a call
 			is needed but always races versus calls. Thus the

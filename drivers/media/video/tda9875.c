@@ -26,6 +26,7 @@
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/videodev.h>
+#include <media/v4l2-common.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
 #include <linux/init.h>
@@ -163,7 +164,7 @@ static void do_tda9875_init(struct i2c_client *client)
 	struct tda9875 *t = i2c_get_clientdata(client);
 	dprintk("In tda9875_init\n");
 	tda9875_write(client, TDA9875_CFG, 0xd0 ); /*reg de config 0 (reset)*/
-    	tda9875_write(client, TDA9875_MSR, 0x03 );    /* Monitor 0b00000XXX*/
+	tda9875_write(client, TDA9875_MSR, 0x03 );    /* Monitor 0b00000XXX*/
 	tda9875_write(client, TDA9875_C1MSB, 0x00 );  /*Car1(FM) MSB XMHz*/
 	tda9875_write(client, TDA9875_C1MIB, 0x00 );  /*Car1(FM) MIB XMHz*/
 	tda9875_write(client, TDA9875_C1LSB, 0x00 );  /*Car1(FM) LSB XMHz*/

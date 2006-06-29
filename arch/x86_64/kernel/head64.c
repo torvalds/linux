@@ -2,8 +2,6 @@
  *  linux/arch/x86_64/kernel/head64.c -- prepare to run common code
  *
  *  Copyright (C) 2000 Andrea Arcangeli <andrea@suse.de> SuSE
- *
- *  $Id: head64.c,v 1.22 2001/07/06 14:28:20 ak Exp $
  */
 
 #include <linux/init.h>

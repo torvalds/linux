@@ -413,8 +413,7 @@ int afs_server_find_by_peer(const struct rxrpc_peer *peer,
 
 	/* we found it in the graveyard - resurrect it */
  found_dead_server:
-	list_del(&server->link);
-	list_add_tail(&server->link, &cell->sv_list);
+	list_move_tail(&server->link, &cell->sv_list);
 	afs_get_server(server);
 	afs_kafstimod_del_timer(&server->timeout);
 	spin_unlock(&cell->sv_gylock);

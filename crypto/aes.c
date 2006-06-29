@@ -248,10 +248,10 @@ gen_tabs (void)
     t ^= E_KEY[8 * i + 7]; E_KEY[8 * i + 15] = t;   \
 }
 
-static int
-aes_set_key(void *ctx_arg, const u8 *in_key, unsigned int key_len, u32 *flags)
+static int aes_set_key(struct crypto_tfm *tfm, const u8 *in_key,
+		       unsigned int key_len, u32 *flags)
 {
-	struct aes_ctx *ctx = ctx_arg;
+	struct aes_ctx *ctx = crypto_tfm_ctx(tfm);
 	const __le32 *key = (const __le32 *)in_key;
 	u32 i, t, u, v, w;
 
@@ -318,9 +318,9 @@ aes_set_key(void *ctx_arg, const u8 *in_key, unsigned int key_len, u32 *flags)
     f_rl(bo, bi, 2, k);     \
     f_rl(bo, bi, 3, k)
 
-static void aes_encrypt(void *ctx_arg, u8 *out, const u8 *in)
+static void aes_encrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 {
-	const struct aes_ctx *ctx = ctx_arg;
+	const struct aes_ctx *ctx = crypto_tfm_ctx(tfm);
 	const __le32 *src = (const __le32 *)in;
 	__le32 *dst = (__le32 *)out;
 	u32 b0[4], b1[4];
@@ -373,9 +373,9 @@ static void aes_encrypt(void *ctx_arg, u8 *out, const u8 *in)
     i_rl(bo, bi, 2, k);     \
     i_rl(bo, bi, 3, k)
 
-static void aes_decrypt(void *ctx_arg, u8 *out, const u8 *in)
+static void aes_decrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 {
-	const struct aes_ctx *ctx = ctx_arg;
+	const struct aes_ctx *ctx = crypto_tfm_ctx(tfm);
 	const __le32 *src = (const __le32 *)in;
 	__le32 *dst = (__le32 *)out;
 	u32 b0[4], b1[4];

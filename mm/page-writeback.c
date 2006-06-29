@@ -204,6 +204,7 @@ static void balance_dirty_pages(struct address_space *mapping)
 			.sync_mode	= WB_SYNC_NONE,
 			.older_than_this = NULL,
 			.nr_to_write	= write_chunk,
+			.range_cyclic	= 1,
 		};
 
 		get_dirty_limits(&wbs, &background_thresh,
@@ -331,6 +332,7 @@ static void background_writeout(unsigned long _min_pages)
 		.older_than_this = NULL,
 		.nr_to_write	= 0,
 		.nonblocking	= 1,
+		.range_cyclic	= 1,
 	};
 
 	for ( ; ; ) {
@@ -407,6 +409,7 @@ static void wb_kupdate(unsigned long arg)
 		.nr_to_write	= 0,
 		.nonblocking	= 1,
 		.for_kupdate	= 1,
+		.range_cyclic	= 1,
 	};
 
 	sync_supers();
@@ -513,14 +516,14 @@ static void set_ratelimit(void)
 		ratelimit_pages = (4096 * 1024) / PAGE_CACHE_SIZE;
 }
 
-static int
+static int __cpuinit
 ratelimit_handler(struct notifier_block *self, unsigned long u, void *v)
 {
 	set_ratelimit();
 	return 0;
 }
 
-static struct notifier_block ratelimit_nb = {
+static struct notifier_block __cpuinitdata ratelimit_nb = {
 	.notifier_call	= ratelimit_handler,
 	.next		= NULL,
 };

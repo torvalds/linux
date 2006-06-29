@@ -8,7 +8,6 @@
 #define _ASM_MMZONE_H_
 #ifdef __KERNEL__
 
-#include <linux/config.h>
 
 /*
  * generic non-linear memory support:

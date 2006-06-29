@@ -27,6 +27,13 @@
 #include <asm/arch/pxa-regs.h>
 #include "sharpsl.h"
 
+#define SHARPSL_CHARGE_ON_VOLT         0x99  /* 2.9V */
+#define SHARPSL_CHARGE_ON_TEMP         0xe0  /* 2.9V */
+#define SHARPSL_CHARGE_ON_ACIN_HIGH    0x9b  /* 6V */
+#define SHARPSL_CHARGE_ON_ACIN_LOW     0x34  /* 2V */
+#define SHARPSL_FATAL_ACIN_VOLT        182   /* 3.45V */
+#define SHARPSL_FATAL_NOACIN_VOLT      170   /* 3.40V */
+
 static void corgi_charger_init(void)
 {
 	pxa_gpio_mode(CORGI_GPIO_ADC_TEMP_ON | GPIO_OUT);
@@ -195,9 +202,16 @@ static struct sharpsl_charger_machinfo corgi_pm_machinfo = {
 	.read_devdata    = corgipm_read_devdata,
 	.charger_wakeup  = corgi_charger_wakeup,
 	.should_wakeup   = corgi_should_wakeup,
-	.bat_levels      = 40,
-	.bat_levels_noac = spitz_battery_levels_noac,
-	.bat_levels_acin = spitz_battery_levels_acin,
+	.backlight_limit = corgibl_limit_intensity,
+	.charge_on_volt	  = SHARPSL_CHARGE_ON_VOLT,
+	.charge_on_temp	  = SHARPSL_CHARGE_ON_TEMP,
+	.charge_acin_high = SHARPSL_CHARGE_ON_ACIN_HIGH,
+	.charge_acin_low  = SHARPSL_CHARGE_ON_ACIN_LOW,
+	.fatal_acin_volt  = SHARPSL_FATAL_ACIN_VOLT,
+	.fatal_noacin_volt= SHARPSL_FATAL_NOACIN_VOLT,
+	.bat_levels       = 40,
+	.bat_levels_noac  = spitz_battery_levels_noac,
+	.bat_levels_acin  = spitz_battery_levels_acin,
 	.status_high_acin = 188,
 	.status_low_acin  = 178,
 	.status_high_noac = 185,
@@ -213,6 +227,9 @@ static int __devinit corgipm_init(void)
 	corgipm_device = platform_device_alloc("sharpsl-pm", -1);
 	if (!corgipm_device)
 		return -ENOMEM;
+
+	if (!machine_is_corgi())
+	    corgi_pm_machinfo.batfull_irq = 1;
 
 	corgipm_device->dev.platform_data = &corgi_pm_machinfo;
 	ret = platform_device_add(corgipm_device);

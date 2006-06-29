@@ -37,7 +37,6 @@ extern void ia32_sysenter_target(void);
 
 extern void config_acpi_tables(void);
 extern void ia32_syscall(void);
-extern void iommu_hole_init(void);
 
 extern int pmtimer_mark_offset(void);
 extern void pmtimer_resume(void);
@@ -75,7 +74,7 @@ extern void main_timer_handler(struct pt_regs *regs);
 
 extern unsigned long end_pfn_map; 
 
-extern void show_trace(unsigned long * rsp);
+extern void show_trace(struct task_struct *, struct pt_regs *, unsigned long * rsp);
 extern void show_registers(struct pt_regs *regs);
 
 extern void exception_table_check(void);
@@ -101,13 +100,9 @@ extern int unsynchronized_tsc(void);
 
 extern void select_idle_routine(const struct cpuinfo_x86 *c);
 
-extern void gart_parse_options(char *);
-extern void __init no_iommu_init(void);
-
 extern unsigned long table_start, table_end;
 
 extern int exception_trace;
-extern int force_iommu, no_iommu;
 extern int using_apic_timer;
 extern int disable_apic;
 extern unsigned cpu_khz;
@@ -116,7 +111,13 @@ extern int skip_ioapic_setup;
 extern int acpi_ht;
 extern int acpi_disabled;
 
-#ifdef CONFIG_GART_IOMMU
+extern void no_iommu_init(void);
+extern int force_iommu, no_iommu;
+extern int iommu_detected;
+#ifdef CONFIG_IOMMU
+extern void gart_iommu_init(void);
+extern void gart_parse_options(char *);
+extern void iommu_hole_init(void);
 extern int fallback_aper_order;
 extern int fallback_aper_force;
 extern int iommu_aperture;

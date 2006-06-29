@@ -3,7 +3,6 @@
 
 #ifdef __KERNEL__
 
-#include <linux/config.h>
 
 #define CPU_ARCH_UNKNOWN	0
 #define CPU_ARCH_ARMv3		1
@@ -107,6 +106,9 @@ extern void __show_regs(struct pt_regs *);
 
 extern int cpu_architecture(void);
 extern void cpu_init(void);
+
+void arm_machine_restart(char mode);
+extern void (*arm_pm_restart)(char str);
 
 /*
  * Intel's XScale3 core supports some v6 features (supersections, L2)

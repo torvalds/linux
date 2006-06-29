@@ -30,6 +30,40 @@
 
 extern void die(const char *,struct pt_regs *,long);
 
+#ifdef CONFIG_KPROBES
+ATOMIC_NOTIFIER_HEAD(notify_page_fault_chain);
+int register_page_fault_notifier(struct notifier_block *nb)
+{
+	vmalloc_sync_all();
+	return atomic_notifier_chain_register(&notify_page_fault_chain, nb);
+}
+
+int unregister_page_fault_notifier(struct notifier_block *nb)
+{
+	return atomic_notifier_chain_unregister(&notify_page_fault_chain, nb);
+}
+
+static inline int notify_page_fault(enum die_val val, const char *str,
+			struct pt_regs *regs, long err, int trap, int sig)
+{
+	struct die_args args = {
+		.regs = regs,
+		.str = str,
+		.err = err,
+		.trapnr = trap,
+		.signr = sig
+	};
+	return atomic_notifier_call_chain(&notify_page_fault_chain, val, &args);
+}
+#else
+static inline int notify_page_fault(enum die_val val, const char *str,
+			struct pt_regs *regs, long err, int trap, int sig)
+{
+	return NOTIFY_DONE;
+}
+#endif
+
+
 /*
  * Unlock any spinlocks which will prevent us from getting the
  * message out 
@@ -77,12 +111,15 @@ static inline unsigned long get_segment_eip(struct pt_regs *regs,
 	unsigned seg = regs->xcs & 0xffff;
 	u32 seg_ar, seg_limit, base, *desc;
 
+	/* Unlikely, but must come before segment checks. */
+	if (unlikely(regs->eflags & VM_MASK)) {
+		base = seg << 4;
+		*eip_limit = base + 0xffff;
+		return base + (eip & 0xffff);
+	}
+
 	/* The standard kernel/user address space limit. */
 	*eip_limit = (seg & 3) ? USER_DS.seg : KERNEL_DS.seg;
-
-	/* Unlikely, but must come before segment checks. */
-	if (unlikely((regs->eflags & VM_MASK) != 0))
-		return eip + (seg << 4);
 	
 	/* By far the most common cases. */
 	if (likely(seg == __USER_CS || seg == __KERNEL_CS))
@@ -321,7 +358,7 @@ fastcall void __kprobes do_page_fault(struct pt_regs *regs,
 	if (unlikely(address >= TASK_SIZE)) {
 		if (!(error_code & 0x0000000d) && vmalloc_fault(address) >= 0)
 			return;
-		if (notify_die(DIE_PAGE_FAULT, "page fault", regs, error_code, 14,
+		if (notify_page_fault(DIE_PAGE_FAULT, "page fault", regs, error_code, 14,
 						SIGSEGV) == NOTIFY_STOP)
 			return;
 		/*
@@ -331,7 +368,7 @@ fastcall void __kprobes do_page_fault(struct pt_regs *regs,
 		goto bad_area_nosemaphore;
 	}
 
-	if (notify_die(DIE_PAGE_FAULT, "page fault", regs, error_code, 14,
+	if (notify_page_fault(DIE_PAGE_FAULT, "page fault", regs, error_code, 14,
 					SIGSEGV) == NOTIFY_STOP)
 		return;
 
@@ -380,12 +417,12 @@ fastcall void __kprobes do_page_fault(struct pt_regs *regs,
 		goto bad_area;
 	if (error_code & 4) {
 		/*
-		 * accessing the stack below %esp is always a bug.
-		 * The "+ 32" is there due to some instructions (like
-		 * pusha) doing post-decrement on the stack and that
-		 * doesn't show up until later..
+		 * Accessing the stack below %esp is always a bug.
+		 * The large cushion allows instructions like enter
+		 * and pusha to work.  ("enter $65535,$31" pushes
+		 * 32 pointers and then decrements %esp by 65535.)
 		 */
-		if (address + 32 < regs->esp)
+		if (address + 65536 + 32 * sizeof(unsigned long) < regs->esp)
 			goto bad_area;
 	}
 	if (expand_stack(vma, address))

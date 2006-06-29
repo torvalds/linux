@@ -27,8 +27,8 @@ extern struct inode_operations coda_dir_inode_operations;
 extern struct inode_operations coda_file_inode_operations;
 extern struct inode_operations coda_ioctl_inode_operations;
 
-extern struct address_space_operations coda_file_aops;
-extern struct address_space_operations coda_symlink_aops;
+extern const struct address_space_operations coda_file_aops;
+extern const struct address_space_operations coda_symlink_aops;
 
 extern const struct file_operations coda_dir_operations;
 extern const struct file_operations coda_file_operations;
@@ -36,7 +36,7 @@ extern const struct file_operations coda_ioctl_operations;
 
 /* operations shared over more than one file */
 int coda_open(struct inode *i, struct file *f);
-int coda_flush(struct file *f);
+int coda_flush(struct file *f, fl_owner_t id);
 int coda_release(struct inode *i, struct file *f);
 int coda_permission(struct inode *inode, int mask, struct nameidata *nd);
 int coda_revalidate_inode(struct dentry *);

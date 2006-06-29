@@ -1683,7 +1683,7 @@ static int sx_write(struct tty_struct * tty,
 
 	bp = port_Board(port);
 
-	if (!tty || !port->xmit_buf || !tmp_buf) {
+	if (!port->xmit_buf || !tmp_buf) {
 		func_exit();
 		return 0;
 	}
@@ -1733,7 +1733,7 @@ static void sx_put_char(struct tty_struct * tty, unsigned char ch)
 		return;
 	}
 	dprintk (SX_DEBUG_TX, "check tty: %p %p\n", tty, port->xmit_buf);
-	if (!tty || !port->xmit_buf) {
+	if (!port->xmit_buf) {
 		func_exit();
 		return;
 	}
@@ -2477,7 +2477,7 @@ static int __init specialix_init(void)
 #endif
 
 	for (i = 0; i < SX_NBOARD; i++)
-		sx_board[i].lock = SPIN_LOCK_UNLOCKED;
+		spin_lock_init(&sx_board[i].lock);
 
 	if (sx_init_drivers()) {
 		func_exit();

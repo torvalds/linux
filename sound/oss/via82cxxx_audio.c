@@ -24,6 +24,7 @@
 #include <linux/fs.h>
 #include <linux/mm.h>
 #include <linux/pci.h>
+#include <linux/poison.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/proc_fs.h>
@@ -308,7 +309,7 @@ struct via_info {
 	unsigned sixchannel: 1;	/* 8233/35 with 6 channel support */
 	unsigned volume: 1;
 
-	int locked_rate : 1;
+	unsigned locked_rate : 1;
 	
 	int mixer_vol;		/* 8233/35 volume  - not yet implemented */
 
@@ -3522,7 +3523,7 @@ err_out_have_mixer:
 
 err_out_kfree:
 #ifndef VIA_NDEBUG
-	memset (card, 0xAB, sizeof (*card)); /* poison memory */
+	memset (card, OSS_POISON_FREE, sizeof (*card)); /* poison memory */
 #endif
 	kfree (card);
 
@@ -3559,7 +3560,7 @@ static void __devexit via_remove_one (struct pci_dev *pdev)
 	via_ac97_cleanup (card);
 
 #ifndef VIA_NDEBUG
-	memset (card, 0xAB, sizeof (*card)); /* poison memory */
+	memset (card, OSS_POISON_FREE, sizeof (*card)); /* poison memory */
 #endif
 	kfree (card);
 

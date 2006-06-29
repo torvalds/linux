@@ -614,6 +614,29 @@ static int ethtool_set_ufo(struct net_device *dev, char __user *useraddr)
 	return dev->ethtool_ops->set_ufo(dev, edata.data);
 }
 
+static int ethtool_get_gso(struct net_device *dev, char __user *useraddr)
+{
+	struct ethtool_value edata = { ETHTOOL_GGSO };
+
+	edata.data = dev->features & NETIF_F_GSO;
+	if (copy_to_user(useraddr, &edata, sizeof(edata)))
+		 return -EFAULT;
+	return 0;
+}
+
+static int ethtool_set_gso(struct net_device *dev, char __user *useraddr)
+{
+	struct ethtool_value edata;
+
+	if (copy_from_user(&edata, useraddr, sizeof(edata)))
+		return -EFAULT;
+	if (edata.data)
+		dev->features |= NETIF_F_GSO;
+	else
+		dev->features &= ~NETIF_F_GSO;
+	return 0;
+}
+
 static int ethtool_self_test(struct net_device *dev, char __user *useraddr)
 {
 	struct ethtool_test test;
@@ -904,6 +927,12 @@ int dev_ethtool(struct ifreq *ifr)
 		break;
 	case ETHTOOL_SUFO:
 		rc = ethtool_set_ufo(dev, useraddr);
+		break;
+	case ETHTOOL_GGSO:
+		rc = ethtool_get_gso(dev, useraddr);
+		break;
+	case ETHTOOL_SGSO:
+		rc = ethtool_set_gso(dev, useraddr);
 		break;
 	default:
 		rc =  -EOPNOTSUPP;

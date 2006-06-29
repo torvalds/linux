@@ -8,7 +8,6 @@
 #ifndef __UM_PGALLOC_H
 #define __UM_PGALLOC_H
 
-#include "linux/config.h"
 #include "linux/mm.h"
 #include "asm/fixmap.h"
 

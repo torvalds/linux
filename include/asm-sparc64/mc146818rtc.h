@@ -4,7 +4,6 @@
 #ifndef __ASM_SPARC64_MC146818RTC_H
 #define __ASM_SPARC64_MC146818RTC_H
 
-#include <linux/config.h>
 #include <asm/io.h>
 
 #ifndef RTC_PORT

@@ -6,7 +6,6 @@
  * Copyright (C) 2002 Paul Mundt
  */
 
-#include <linux/config.h>
 
 /*
  *	switch_to() should switch tasks to task nr n, first

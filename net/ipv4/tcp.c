@@ -258,6 +258,7 @@
 #include <linux/random.h>
 #include <linux/bootmem.h>
 #include <linux/cache.h>
+#include <linux/err.h>
 
 #include <net/icmp.h>
 #include <net/tcp.h>
@@ -571,7 +572,7 @@ new_segment:
 		skb->ip_summed = CHECKSUM_HW;
 		tp->write_seq += copy;
 		TCP_SKB_CB(skb)->end_seq += copy;
-		skb_shinfo(skb)->tso_segs = 0;
+		skb_shinfo(skb)->gso_segs = 0;
 
 		if (!copied)
 			TCP_SKB_CB(skb)->flags &= ~TCPCB_FLAG_PSH;
@@ -818,7 +819,7 @@ new_segment:
 
 			tp->write_seq += copy;
 			TCP_SKB_CB(skb)->end_seq += copy;
-			skb_shinfo(skb)->tso_segs = 0;
+			skb_shinfo(skb)->gso_segs = 0;
 
 			from += copy;
 			copied += copy;
@@ -2143,6 +2144,67 @@ int compat_tcp_getsockopt(struct sock *sk, int level, int optname,
 
 EXPORT_SYMBOL(compat_tcp_getsockopt);
 #endif
+
+struct sk_buff *tcp_tso_segment(struct sk_buff *skb, int sg)
+{
+	struct sk_buff *segs = ERR_PTR(-EINVAL);
+	struct tcphdr *th;
+	unsigned thlen;
+	unsigned int seq;
+	unsigned int delta;
+	unsigned int oldlen;
+	unsigned int len;
+
+	if (!pskb_may_pull(skb, sizeof(*th)))
+		goto out;
+
+	th = skb->h.th;
+	thlen = th->doff * 4;
+	if (thlen < sizeof(*th))
+		goto out;
+
+	if (!pskb_may_pull(skb, thlen))
+		goto out;
+
+	oldlen = (u16)~skb->len;
+	__skb_pull(skb, thlen);
+
+	segs = skb_segment(skb, sg);
+	if (IS_ERR(segs))
+		goto out;
+
+	len = skb_shinfo(skb)->gso_size;
+	delta = htonl(oldlen + (thlen + len));
+
+	skb = segs;
+	th = skb->h.th;
+	seq = ntohl(th->seq);
+
+	do {
+		th->fin = th->psh = 0;
+
+		th->check = ~csum_fold(th->check + delta);
+		if (skb->ip_summed != CHECKSUM_HW)
+			th->check = csum_fold(csum_partial(skb->h.raw, thlen,
+							   skb->csum));
+
+		seq += len;
+		skb = skb->next;
+		th = skb->h.th;
+
+		th->seq = htonl(seq);
+		th->cwr = 0;
+	} while (skb->next);
+
+	delta = htonl(oldlen + (skb->tail - skb->h.raw) + skb->data_len);
+	th->check = ~csum_fold(th->check + delta);
+	if (skb->ip_summed != CHECKSUM_HW)
+		th->check = csum_fold(csum_partial(skb->h.raw, thlen,
+						   skb->csum));
+
+out:
+	return segs;
+}
 
 extern void __skb_cb_too_small_for_tcp(int, int);
 extern struct tcp_congestion_ops tcp_reno;

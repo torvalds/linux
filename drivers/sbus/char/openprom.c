@@ -29,8 +29,6 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. 
  */
 
-#define PROMLIB_INTERNAL
-
 #include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -39,10 +37,10 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/miscdevice.h>
-#include <linux/smp_lock.h>
 #include <linux/init.h>
 #include <linux/fs.h>
 #include <asm/oplib.h>
+#include <asm/prom.h>
 #include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/openpromio.h>
@@ -51,15 +49,20 @@
 #include <asm/pbm.h>
 #endif
 
+MODULE_AUTHOR("Thomas K. Dyas (tdyas@noc.rutgers.edu) and Eddie C. Dost  (ecd@skynet.be)");
+MODULE_DESCRIPTION("OPENPROM Configuration Driver");
+MODULE_LICENSE("GPL");
+MODULE_VERSION("1.0");
+
 /* Private data kept by the driver for each descriptor. */
 typedef struct openprom_private_data
 {
-	int current_node;	/* Current node for SunOS ioctls. */
-	int lastnode;		/* Last valid node used by BSD ioctls. */
+	struct device_node *current_node; /* Current node for SunOS ioctls. */
+	struct device_node *lastnode; /* Last valid node used by BSD ioctls. */
 } DATA;
 
 /* ID of the PROM node containing all of the EEPROM options. */
-static int options_node = 0;
+static struct device_node *options_node;
 
 /*
  * Copy an openpromio structure into kernel space from user space.
@@ -87,9 +90,8 @@ static int copyin(struct openpromio __user *info, struct openpromio **opp_p)
 	if (bufsize > OPROMMAXPARAM)
 		bufsize = OPROMMAXPARAM;
 
-	if (!(*opp_p = kmalloc(sizeof(int) + bufsize + 1, GFP_KERNEL)))
+	if (!(*opp_p = kzalloc(sizeof(int) + bufsize + 1, GFP_KERNEL)))
 		return -ENOMEM;
-	memset(*opp_p, 0, sizeof(int) + bufsize + 1);
 
 	if (copy_from_user(&(*opp_p)->oprom_array,
 			   &info->oprom_array, bufsize)) {
@@ -107,10 +109,9 @@ static int getstrings(struct openpromio __user *info, struct openpromio **opp_p)
 	if (!info || !opp_p)
 		return -EFAULT;
 
-	if (!(*opp_p = kmalloc(sizeof(int) + OPROMMAXPARAM + 1, GFP_KERNEL)))
+	if (!(*opp_p = kzalloc(sizeof(int) + OPROMMAXPARAM + 1, GFP_KERNEL)))
 		return -ENOMEM;
 
-	memset(*opp_p, 0, sizeof(int) + OPROMMAXPARAM + 1);
 	(*opp_p)->oprom_size = 0;
 
 	n = bufsize = 0;
@@ -140,16 +141,164 @@ static int copyout(void __user *info, struct openpromio *opp, int len)
 	return 0;
 }
 
+static int opromgetprop(void __user *argp, struct device_node *dp, struct openpromio *op, int bufsize)
+{
+	void *pval;
+	int len;
+
+	pval = of_get_property(dp, op->oprom_array, &len);
+	if (!pval || len <= 0 || len > bufsize)
+		return copyout(argp, op, sizeof(int));
+
+	memcpy(op->oprom_array, pval, len);
+	op->oprom_array[len] = '\0';
+	op->oprom_size = len;
+
+	return copyout(argp, op, sizeof(int) + bufsize);
+}
+
+static int opromnxtprop(void __user *argp, struct device_node *dp, struct openpromio *op, int bufsize)
+{
+	struct property *prop;
+	int len;
+
+	if (op->oprom_array[0] == '\0') {
+		prop = dp->properties;
+		if (!prop)
+			return copyout(argp, op, sizeof(int));
+		len = strlen(prop->name);
+	} else {
+		prop = of_find_property(dp, op->oprom_array, NULL);
+
+		if (!prop ||
+		    !prop->next ||
+		    (len = strlen(prop->next->name)) + 1 > bufsize)
+			return copyout(argp, op, sizeof(int));
+
+		prop = prop->next;
+	}
+
+	memcpy(op->oprom_array, prop->name, len);
+	op->oprom_array[len] = '\0';
+	op->oprom_size = ++len;
+
+	return copyout(argp, op, sizeof(int) + bufsize);
+}
+
+static int opromsetopt(struct device_node *dp, struct openpromio *op, int bufsize)
+{
+	char *buf = op->oprom_array + strlen(op->oprom_array) + 1;
+	int len = op->oprom_array + bufsize - buf;
+
+	return of_set_property(options_node, op->oprom_array, buf, len);
+}
+
+static int opromnext(void __user *argp, unsigned int cmd, struct device_node *dp, struct openpromio *op, int bufsize, DATA *data)
+{
+	phandle ph;
+
+	BUILD_BUG_ON(sizeof(phandle) != sizeof(int));
+
+	if (bufsize < sizeof(phandle))
+		return -EINVAL;
+
+	ph = *((int *) op->oprom_array);
+	if (ph) {
+		dp = of_find_node_by_phandle(ph);
+		if (!dp)
+			return -EINVAL;
+
+		switch (cmd) {
+		case OPROMNEXT:
+			dp = dp->sibling;
+			break;
+
+		case OPROMCHILD:
+			dp = dp->child;
+			break;
+
+		case OPROMSETCUR:
+		default:
+			break;
+		};
+	} else {
+		/* Sibling of node zero is the root node.  */
+		if (cmd != OPROMNEXT)
+			return -EINVAL;
+
+		dp = of_find_node_by_path("/");
+	}
+
+	ph = 0;
+	if (dp)
+		ph = dp->node;
+
+	data->current_node = dp;
+	*((int *) op->oprom_array) = ph;
+	op->oprom_size = sizeof(phandle);
+
+	return copyout(argp, op, bufsize + sizeof(int));
+}
+
+static int oprompci2node(void __user *argp, struct device_node *dp, struct openpromio *op, int bufsize, DATA *data)
+{
+	int err = -EINVAL;
+
+	if (bufsize >= 2*sizeof(int)) {
+#ifdef CONFIG_PCI
+		struct pci_dev *pdev;
+		struct pcidev_cookie *pcp;
+		pdev = pci_find_slot (((int *) op->oprom_array)[0],
+				      ((int *) op->oprom_array)[1]);
+
+		pcp = pdev->sysdata;
+		if (pcp != NULL) {
+			dp = pcp->prom_node;
+			data->current_node = dp;
+			*((int *)op->oprom_array) = dp->node;
+			op->oprom_size = sizeof(int);
+			err = copyout(argp, op, bufsize + sizeof(int));
+		}
+#endif
+	}
+
+	return err;
+}
+
+static int oprompath2node(void __user *argp, struct device_node *dp, struct openpromio *op, int bufsize, DATA *data)
+{
+	dp = of_find_node_by_path(op->oprom_array);
+	data->current_node = dp;
+	*((int *)op->oprom_array) = dp->node;
+	op->oprom_size = sizeof(int);
+
+	return copyout(argp, op, bufsize + sizeof(int));
+}
+
+static int opromgetbootargs(void __user *argp, struct openpromio *op, int bufsize)
+{
+	char *buf = saved_command_line;
+	int len = strlen(buf);
+
+	if (len > bufsize)
+		return -EINVAL;
+
+	strcpy(op->oprom_array, buf);
+	op->oprom_size = len;
+
+	return copyout(argp, op, bufsize + sizeof(int));
+}
+
 /*
  *	SunOS and Solaris /dev/openprom ioctl calls.
  */
 static int openprom_sunos_ioctl(struct inode * inode, struct file * file,
-				unsigned int cmd, unsigned long arg, int node)
+				unsigned int cmd, unsigned long arg,
+				struct device_node *dp)
 {
-	DATA *data = (DATA *) file->private_data;
-	char buffer[OPROMMAXPARAM+1], *buf;
+	DATA *data = file->private_data;
 	struct openpromio *opp;
-	int bufsize, len, error = 0;
+	int bufsize, error = 0;
 	static int cnt;
 	void __user *argp = (void __user *)arg;
 
@@ -164,119 +313,35 @@ static int openprom_sunos_ioctl(struct inode * inode, struct file * file,
 	switch (cmd) {
 	case OPROMGETOPT:
 	case OPROMGETPROP:
-		len = prom_getproplen(node, opp->oprom_array);
-
-		if (len <= 0 || len > bufsize) {
-			error = copyout(argp, opp, sizeof(int));
-			break;
-		}
-
-		len = prom_getproperty(node, opp->oprom_array, buffer, bufsize);
-
-		memcpy(opp->oprom_array, buffer, len);
-		opp->oprom_array[len] = '\0';
-		opp->oprom_size = len;
-
-		error = copyout(argp, opp, sizeof(int) + bufsize);
+		error = opromgetprop(argp, dp, opp, bufsize);
 		break;
 
 	case OPROMNXTOPT:
 	case OPROMNXTPROP:
-		buf = prom_nextprop(node, opp->oprom_array, buffer);
-
-		len = strlen(buf);
-		if (len == 0 || len + 1 > bufsize) {
-			error = copyout(argp, opp, sizeof(int));
-			break;
-		}
-
-		memcpy(opp->oprom_array, buf, len);
-		opp->oprom_array[len] = '\0';
-		opp->oprom_size = ++len;
-
-		error = copyout(argp, opp, sizeof(int) + bufsize);
+		error = opromnxtprop(argp, dp, opp, bufsize);
 		break;
 
 	case OPROMSETOPT:
 	case OPROMSETOPT2:
-		buf = opp->oprom_array + strlen(opp->oprom_array) + 1;
-		len = opp->oprom_array + bufsize - buf;
-
-		error = prom_setprop(options_node, opp->oprom_array,
-				     buf, len);
-
-		if (error < 0)
-			error = -EINVAL;
+		error = opromsetopt(dp, opp, bufsize);
 		break;
 
 	case OPROMNEXT:
 	case OPROMCHILD:
 	case OPROMSETCUR:
-		if (bufsize < sizeof(int)) {
-			error = -EINVAL;
-			break;
-		}
-
-		node = *((int *) opp->oprom_array);
-
-		switch (cmd) {
-		case OPROMNEXT: node = __prom_getsibling(node); break;
-		case OPROMCHILD: node = __prom_getchild(node); break;
-		case OPROMSETCUR: break;
-		}
-
-		data->current_node = node;
-		*((int *)opp->oprom_array) = node;
-		opp->oprom_size = sizeof(int);
-
-		error = copyout(argp, opp, bufsize + sizeof(int));
+		error = opromnext(argp, cmd, dp, opp, bufsize, data);
 		break;
 
 	case OPROMPCI2NODE:
-		error = -EINVAL;
-
-		if (bufsize >= 2*sizeof(int)) {
-#ifdef CONFIG_PCI
-			struct pci_dev *pdev;
-			struct pcidev_cookie *pcp;
-			pdev = pci_find_slot (((int *) opp->oprom_array)[0],
-					      ((int *) opp->oprom_array)[1]);
-
-			pcp = pdev->sysdata;
-			if (pcp != NULL && pcp->prom_node != -1 && pcp->prom_node) {
-				node = pcp->prom_node;
-				data->current_node = node;
-				*((int *)opp->oprom_array) = node;
-				opp->oprom_size = sizeof(int);
-				error = copyout(argp, opp, bufsize + sizeof(int));
-			}
-#endif
-		}
+		error = oprompci2node(argp, dp, opp, bufsize, data);
 		break;
 
 	case OPROMPATH2NODE:
-		node = prom_finddevice(opp->oprom_array);
-		data->current_node = node;
-		*((int *)opp->oprom_array) = node;
-		opp->oprom_size = sizeof(int);
-
-		error = copyout(argp, opp, bufsize + sizeof(int));
+		error = oprompath2node(argp, dp, opp, bufsize, data);
 		break;
 
 	case OPROMGETBOOTARGS:
-		buf = saved_command_line;
-
-		len = strlen(buf);
-
-		if (len > bufsize) {
-			error = -EINVAL;
-			break;
-		}
-
-		strcpy(opp->oprom_array, buf);
-		opp->oprom_size = len;
-
-		error = copyout(argp, opp, bufsize + sizeof(int));
+		error = opromgetbootargs(argp, opp, bufsize);
 		break;
 
 	case OPROMU2P:
@@ -297,25 +362,14 @@ static int openprom_sunos_ioctl(struct inode * inode, struct file * file,
 	return error;
 }
 
-
-/* Return nonzero if a specific node is in the PROM device tree. */
-static int intree(int root, int node)
+static struct device_node *get_node(phandle n, DATA *data)
 {
-	for (; root != 0; root = prom_getsibling(root))
-		if (root == node || intree(prom_getchild(root),node))
-			return 1;
-	return 0;
-}
+	struct device_node *dp = of_find_node_by_phandle(n);
 
-/* Return nonzero if a specific node is "valid". */
-static int goodnode(int n, DATA *data)
-{
-	if (n == data->lastnode || n == prom_root_node || n == options_node)
-		return 1;
-	if (n == 0 || n == -1 || !intree(prom_root_node,n))
-		return 0;
-	data->lastnode = n;
-	return 1;
+	if (dp)
+		data->lastnode = dp;
+
+	return dp;
 }
 
 /* Copy in a whole string from userspace into kernelspace. */
@@ -330,7 +384,7 @@ static int copyin_string(char __user *user, size_t len, char **ptr)
 	if (!tmp)
 		return -ENOMEM;
 
-	if(copy_from_user(tmp, user, len)) {
+	if (copy_from_user(tmp, user, len)) {
 		kfree(tmp);
 		return -EFAULT;
 	}
@@ -345,162 +399,187 @@ static int copyin_string(char __user *user, size_t len, char **ptr)
 /*
  *	NetBSD /dev/openprom ioctl calls.
  */
+static int opiocget(void __user *argp, DATA *data)
+{
+	struct opiocdesc op;
+	struct device_node *dp;
+	char *str;
+	void *pval;
+	int err, len;
+
+	if (copy_from_user(&op, argp, sizeof(op)))
+		return -EFAULT;
+
+	dp = get_node(op.op_nodeid, data);
+
+	err = copyin_string(op.op_name, op.op_namelen, &str);
+	if (err)
+		return err;
+
+	pval = of_get_property(dp, str, &len);
+	err = 0;
+	if (!pval || len > op.op_buflen) {
+		err = -EINVAL;
+	} else {
+		op.op_buflen = len;
+		if (copy_to_user(argp, &op, sizeof(op)) ||
+		    copy_to_user(op.op_buf, pval, len))
+			err = -EFAULT;
+	}
+	kfree(str);
+
+	return err;
+}
+
+static int opiocnextprop(void __user *argp, DATA *data)
+{
+	struct opiocdesc op;
+	struct device_node *dp;
+	struct property *prop;
+	char *str;
+	int err, len;
+
+	if (copy_from_user(&op, argp, sizeof(op)))
+		return -EFAULT;
+
+	dp = get_node(op.op_nodeid, data);
+	if (!dp)
+		return -EINVAL;
+
+	err = copyin_string(op.op_name, op.op_namelen, &str);
+	if (err)
+		return err;
+
+	if (str[0] == '\0') {
+		prop = dp->properties;
+	} else {
+		prop = of_find_property(dp, str, NULL);
+		if (prop)
+			prop = prop->next;
+	}
+	kfree(str);
+
+	if (!prop)
+		len = 0;
+	else
+		len = prop->length;
+
+	if (len > op.op_buflen)
+		len = op.op_buflen;
+
+	if (copy_to_user(argp, &op, sizeof(op)))
+		return -EFAULT;
+
+	if (len &&
+	    copy_to_user(op.op_buf, prop->value, len))
+		return -EFAULT;
+
+	return 0;
+}
+
+static int opiocset(void __user *argp, DATA *data)
+{
+	struct opiocdesc op;
+	struct device_node *dp;
+	char *str, *tmp;
+	int err;
+
+	if (copy_from_user(&op, argp, sizeof(op)))
+		return -EFAULT;
+
+	dp = get_node(op.op_nodeid, data);
+	if (!dp)
+		return -EINVAL;
+
+	err = copyin_string(op.op_name, op.op_namelen, &str);
+	if (err)
+		return err;
+
+	err = copyin_string(op.op_buf, op.op_buflen, &tmp);
+	if (err) {
+		kfree(str);
+		return err;
+	}
+
+	err = of_set_property(dp, str, tmp, op.op_buflen);
+
+	kfree(str);
+	kfree(tmp);
+
+	return err;
+}
+
+static int opiocgetnext(unsigned int cmd, void __user *argp)
+{
+	struct device_node *dp;
+	phandle nd;
+
+	BUILD_BUG_ON(sizeof(phandle) != sizeof(int));
+
+	if (copy_from_user(&nd, argp, sizeof(phandle)))
+		return -EFAULT;
+
+	if (nd == 0) {
+		if (cmd != OPIOCGETNEXT)
+			return -EINVAL;
+		dp = of_find_node_by_path("/");
+	} else {
+		dp = of_find_node_by_phandle(nd);
+		nd = 0;
+		if (dp) {
+			if (cmd == OPIOCGETNEXT)
+				dp = dp->sibling;
+			else
+				dp = dp->child;
+		}
+	}
+	if (dp)
+		nd = dp->node;
+	if (copy_to_user(argp, &nd, sizeof(phandle)))
+		return -EFAULT;
+
+	return 0;
+}
+
 static int openprom_bsd_ioctl(struct inode * inode, struct file * file,
 			      unsigned int cmd, unsigned long arg)
 {
 	DATA *data = (DATA *) file->private_data;
 	void __user *argp = (void __user *)arg;
-	struct opiocdesc op;
-	int error, node, len;
-	char *str, *tmp;
-	char buffer[64];
-	static int cnt;
+	int err;
 
 	switch (cmd) {
 	case OPIOCGET:
-		if (copy_from_user(&op, argp, sizeof(op)))
-			return -EFAULT;
-
-		if (!goodnode(op.op_nodeid,data))
-			return -EINVAL;
-
-		error = copyin_string(op.op_name, op.op_namelen, &str);
-		if (error)
-			return error;
-
-		len = prom_getproplen(op.op_nodeid,str);
-
-		if (len > op.op_buflen) {
-			kfree(str);
-			return -ENOMEM;
-		}
-
-		op.op_buflen = len;
-
-		if (len <= 0) {
-			kfree(str);
-			/* Verified by the above copy_from_user */
-			if (__copy_to_user(argp, &op,
-				       sizeof(op)))
-				return -EFAULT;
-			return 0;
-		}
-
-		tmp = kmalloc(len + 1, GFP_KERNEL);
-		if (!tmp) {
-			kfree(str);
-			return -ENOMEM;
-		}
-
-		cnt = prom_getproperty(op.op_nodeid, str, tmp, len);
-		if (cnt <= 0) {
-			error = -EINVAL;
-		} else {
-			tmp[len] = '\0';
-
-			if (__copy_to_user(argp, &op, sizeof(op)) != 0 ||
-			    copy_to_user(op.op_buf, tmp, len) != 0)
-				error = -EFAULT;
-		}
-
-		kfree(tmp);
-		kfree(str);
-
-		return error;
+		err = opiocget(argp, data);
+		break;
 
 	case OPIOCNEXTPROP:
-		if (copy_from_user(&op, argp, sizeof(op)))
-			return -EFAULT;
-
-		if (!goodnode(op.op_nodeid,data))
-			return -EINVAL;
-
-		error = copyin_string(op.op_name, op.op_namelen, &str);
-		if (error)
-			return error;
-
-		tmp = prom_nextprop(op.op_nodeid,str,buffer);
-
-		if (tmp) {
-			len = strlen(tmp);
-			if (len > op.op_buflen)
-				len = op.op_buflen;
-			else
-				op.op_buflen = len;
-		} else {
-			len = op.op_buflen = 0;
-		}
-
-		if (!access_ok(VERIFY_WRITE, argp, sizeof(op))) {
-			kfree(str);
-			return -EFAULT;
-		}
-
-		if (!access_ok(VERIFY_WRITE, op.op_buf, len)) {
-			kfree(str);
-			return -EFAULT;
-		}
-
-		error = __copy_to_user(argp, &op, sizeof(op));
-		if (!error) error = __copy_to_user(op.op_buf, tmp, len);
-
-		kfree(str);
-
-		return error;
+		err = opiocnextprop(argp, data);
+		break;
 
 	case OPIOCSET:
-		if (copy_from_user(&op, argp, sizeof(op)))
-			return -EFAULT;
-
-		if (!goodnode(op.op_nodeid,data))
-			return -EINVAL;
-
-		error = copyin_string(op.op_name, op.op_namelen, &str);
-		if (error)
-			return error;
-
-		error = copyin_string(op.op_buf, op.op_buflen, &tmp);
-		if (error) {
-			kfree(str);
-			return error;
-		}
-
-		len = prom_setprop(op.op_nodeid,str,tmp,op.op_buflen+1);
-
-		if (len != op.op_buflen)
-			return -EINVAL;
-
-		kfree(str);
-		kfree(tmp);
-
-		return 0;
+		err = opiocset(argp, data);
+		break;
 
 	case OPIOCGETOPTNODE:
-		if (copy_to_user(argp, &options_node, sizeof(int)))
+		BUILD_BUG_ON(sizeof(phandle) != sizeof(int));
+
+		if (copy_to_user(argp, &options_node->node, sizeof(phandle)))
 			return -EFAULT;
+
 		return 0;
 
 	case OPIOCGETNEXT:
 	case OPIOCGETCHILD:
-		if (copy_from_user(&node, argp, sizeof(int)))
-			return -EFAULT;
-
-		if (cmd == OPIOCGETNEXT)
-			node = __prom_getsibling(node);
-		else
-			node = __prom_getchild(node);
-
-		if (__copy_to_user(argp, &node, sizeof(int)))
-			return -EFAULT;
-
-		return 0;
+		err = opiocgetnext(cmd, argp);
+		break;
 
 	default:
-		if (cnt++ < 10)
-			printk(KERN_INFO "openprom_bsd_ioctl: cmd 0x%X\n", cmd);
 		return -EINVAL;
 
-	}
+	};
+
+	return err;
 }
 
 
@@ -511,7 +590,6 @@ static int openprom_ioctl(struct inode * inode, struct file * file,
 			  unsigned int cmd, unsigned long arg)
 {
 	DATA *data = (DATA *) file->private_data;
-	static int cnt;
 
 	switch (cmd) {
 	case OPROMGETOPT:
@@ -563,10 +641,8 @@ static int openprom_ioctl(struct inode * inode, struct file * file,
 		return openprom_bsd_ioctl(inode,file,cmd,arg);
 
 	default:
-		if (cnt++ < 10)
-			printk("openprom_ioctl: cmd 0x%X, arg 0x%lX\n", cmd, arg);
 		return -EINVAL;
-	}
+	};
 }
 
 static long openprom_compat_ioctl(struct file *file, unsigned int cmd,
@@ -594,9 +670,7 @@ static long openprom_compat_ioctl(struct file *file, unsigned int cmd,
 	case OPROMSETCUR:
 	case OPROMPCI2NODE:
 	case OPROMPATH2NODE:
-		lock_kernel();
 		rval = openprom_ioctl(file->f_dentry->d_inode, file, cmd, arg);
-		lock_kernel();
 		break;
 	}
 
@@ -607,13 +681,13 @@ static int openprom_open(struct inode * inode, struct file * file)
 {
 	DATA *data;
 
-	data = (DATA *) kmalloc(sizeof(DATA), GFP_KERNEL);
+	data = kmalloc(sizeof(DATA), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
-	data->current_node = prom_root_node;
-	data->lastnode = prom_root_node;
-	file->private_data = (void *)data;
+	data->current_node = of_find_node_by_path("/");
+	data->lastnode = data->current_node;
+	file->private_data = (void *) data;
 
 	return 0;
 }
@@ -634,24 +708,30 @@ static struct file_operations openprom_fops = {
 };
 
 static struct miscdevice openprom_dev = {
-	SUN_OPENPROM_MINOR, "openprom", &openprom_fops
+	.minor		= SUN_OPENPROM_MINOR,
+	.name		= "openprom",
+	.fops		= &openprom_fops,
 };
 
 static int __init openprom_init(void)
 {
-	int error;
+	struct device_node *dp;
+	int err;
 
-	error = misc_register(&openprom_dev);
-	if (error) {
-		printk(KERN_ERR "openprom: unable to get misc minor\n");
-		return error;
+	err = misc_register(&openprom_dev);
+	if (err)
+		return err;
+
+	dp = of_find_node_by_path("/");
+	dp = dp->child;
+	while (dp) {
+		if (!strcmp(dp->name, "options"))
+			break;
+		dp = dp->sibling;
 	}
+	options_node = dp;
 
-	options_node = prom_getchild(prom_root_node);
-	options_node = prom_searchsiblings(options_node,"options");
-
-	if (options_node == 0 || options_node == -1) {
-		printk(KERN_ERR "openprom: unable to find options node\n");
+	if (!options_node) {
 		misc_deregister(&openprom_dev);
 		return -EIO;
 	}
@@ -666,4 +746,3 @@ static void __exit openprom_cleanup(void)
 
 module_init(openprom_init);
 module_exit(openprom_cleanup);
-MODULE_LICENSE("GPL");

@@ -494,8 +494,7 @@ static int restart_video_queue(struct cx8800_dev    *dev,
 			return 0;
 		buf = list_entry(q->queued.next, struct cx88_buffer, vb.queue);
 		if (NULL == prev) {
-			list_del(&buf->vb.queue);
-			list_add_tail(&buf->vb.queue,&q->active);
+			list_move_tail(&buf->vb.queue, &q->active);
 			start_video_dma(dev, q, buf);
 			buf->vb.state = STATE_ACTIVE;
 			buf->count    = q->count++;
@@ -506,8 +505,7 @@ static int restart_video_queue(struct cx8800_dev    *dev,
 		} else if (prev->vb.width  == buf->vb.width  &&
 			   prev->vb.height == buf->vb.height &&
 			   prev->fmt       == buf->fmt) {
-			list_del(&buf->vb.queue);
-			list_add_tail(&buf->vb.queue,&q->active);
+			list_move_tail(&buf->vb.queue, &q->active);
 			buf->vb.state = STATE_ACTIVE;
 			buf->count    = q->count++;
 			prev->risc.jmp[1] = cpu_to_le32(buf->risc.dma);
@@ -1849,9 +1847,9 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 	pci_read_config_byte(pci_dev, PCI_CLASS_REVISION, &dev->pci_rev);
 	pci_read_config_byte(pci_dev, PCI_LATENCY_TIMER,  &dev->pci_lat);
 	printk(KERN_INFO "%s/0: found at %s, rev: %d, irq: %d, "
-	       "latency: %d, mmio: 0x%lx\n", core->name,
+	       "latency: %d, mmio: 0x%llx\n", core->name,
 	       pci_name(pci_dev), dev->pci_rev, pci_dev->irq,
-	       dev->pci_lat,pci_resource_start(pci_dev,0));
+	       dev->pci_lat,(unsigned long long)pci_resource_start(pci_dev,0));
 
 	pci_set_master(pci_dev);
 	if (!pci_dma_supported(pci_dev,0xffffffff)) {

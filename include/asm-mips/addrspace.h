@@ -10,7 +10,6 @@
 #ifndef _ASM_ADDRSPACE_H
 #define _ASM_ADDRSPACE_H
 
-#include <linux/config.h>
 #include <spaces.h>
 
 /*

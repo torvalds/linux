@@ -707,7 +707,7 @@ intelfb_pci_register(struct pci_dev *pdev, const struct pci_device_id *ent)
 			+ (dinfo->ring.offset << 12);
 		dinfo->ring.virtual  = dinfo->aperture.virtual
 			+ (dinfo->ring.offset << 12);
-		dinfo->ring_head = dinfo->ring.virtual;
+		dinfo->ring_head = 0;
 	}
 	if (dinfo->hwcursor) {
 		agp_memtype = dinfo->mobile ? AGP_PHYSICAL_MEMORY
@@ -766,18 +766,18 @@ intelfb_pci_register(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (mtrr)
 		set_mtrr(dinfo);
 
-	DBG_MSG("fb: 0x%x(+ 0x%x)/0x%x (0x%x)\n",
+	DBG_MSG("fb: 0x%x(+ 0x%x)/0x%x (0x%p)\n",
 		dinfo->fb.physical, dinfo->fb.offset, dinfo->fb.size,
-		(u32 __iomem ) dinfo->fb.virtual);
-	DBG_MSG("MMIO: 0x%x/0x%x (0x%x)\n",
+		dinfo->fb.virtual);
+	DBG_MSG("MMIO: 0x%x/0x%x (0x%p)\n",
 		dinfo->mmio_base_phys, INTEL_REG_SIZE,
-		(u32 __iomem) dinfo->mmio_base);
-	DBG_MSG("ring buffer: 0x%x/0x%x (0x%x)\n",
+		dinfo->mmio_base);
+	DBG_MSG("ring buffer: 0x%x/0x%x (0x%p)\n",
 		dinfo->ring.physical, dinfo->ring.size,
-		(u32 __iomem ) dinfo->ring.virtual);
-	DBG_MSG("HW cursor: 0x%x/0x%x (0x%x) (offset 0x%x) (phys 0x%x)\n",
+		dinfo->ring.virtual);
+	DBG_MSG("HW cursor: 0x%x/0x%x (0x%p) (offset 0x%x) (phys 0x%x)\n",
 		dinfo->cursor.physical, dinfo->cursor.size,
-		(u32 __iomem ) dinfo->cursor.virtual, dinfo->cursor.offset,
+		dinfo->cursor.virtual, dinfo->cursor.offset,
 		dinfo->cursor.physical);
 
 	DBG_MSG("options: vram = %d, accel = %d, hwcursor = %d, fixed = %d, "

@@ -44,11 +44,16 @@ again:
 		return err;
 
 	if (index > MAX_CONTEXT) {
+		spin_lock(&mmu_context_lock);
 		idr_remove(&mmu_context_idr, index);
+		spin_unlock(&mmu_context_lock);
 		return -ENOMEM;
 	}
 
 	mm->context.id = index;
+	mm->context.user_psize = mmu_virtual_psize;
+	mm->context.sllp = SLB_VSID_USER |
+		mmu_psize_defs[mmu_virtual_psize].sllp;
 
 	return 0;
 }

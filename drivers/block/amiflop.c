@@ -64,6 +64,7 @@
 #include <linux/buffer_head.h>
 #include <linux/blkdev.h>
 #include <linux/elevator.h>
+#include <linux/interrupt.h>
 
 #include <asm/setup.h>
 #include <asm/uaccess.h>

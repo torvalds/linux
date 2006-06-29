@@ -428,22 +428,34 @@ int schedule_delayed_work_on(int cpu,
 	return ret;
 }
 
-int schedule_on_each_cpu(void (*func) (void *info), void *info)
+/**
+ * schedule_on_each_cpu - call a function on each online CPU from keventd
+ * @func: the function to call
+ * @info: a pointer to pass to func()
+ *
+ * Returns zero on success.
+ * Returns -ve errno on failure.
+ *
+ * Appears to be racy against CPU hotplug.
+ *
+ * schedule_on_each_cpu() is very slow.
+ */
+int schedule_on_each_cpu(void (*func)(void *info), void *info)
 {
 	int cpu;
-	struct work_struct *work;
+	struct work_struct *works;
 
-	work = kmalloc(NR_CPUS * sizeof(struct work_struct), GFP_KERNEL);
-
-	if (!work)
+	works = alloc_percpu(struct work_struct);
+	if (!works)
 		return -ENOMEM;
+
 	for_each_online_cpu(cpu) {
-		INIT_WORK(work + cpu, func, info);
+		INIT_WORK(per_cpu_ptr(works, cpu), func, info);
 		__queue_work(per_cpu_ptr(keventd_wq->cpu_wq, cpu),
-				work + cpu);
+				per_cpu_ptr(works, cpu));
 	}
 	flush_workqueue(keventd_wq);
-	kfree(work);
+	free_percpu(works);
 	return 0;
 }
 
@@ -531,11 +543,11 @@ int current_is_keventd(void)
 static void take_over_work(struct workqueue_struct *wq, unsigned int cpu)
 {
 	struct cpu_workqueue_struct *cwq = per_cpu_ptr(wq->cpu_wq, cpu);
-	LIST_HEAD(list);
+	struct list_head list;
 	struct work_struct *work;
 
 	spin_lock_irq(&cwq->lock);
-	list_splice_init(&cwq->worklist, &list);
+	list_replace_init(&cwq->worklist, &list);
 
 	while (!list_empty(&list)) {
 		printk("Taking work for %s\n", wq->name);
@@ -547,7 +559,7 @@ static void take_over_work(struct workqueue_struct *wq, unsigned int cpu)
 }
 
 /* We're holding the cpucontrol mutex here */
-static int workqueue_cpu_callback(struct notifier_block *nfb,
+static int __devinit workqueue_cpu_callback(struct notifier_block *nfb,
 				  unsigned long action,
 				  void *hcpu)
 {
@@ -578,6 +590,8 @@ static int workqueue_cpu_callback(struct notifier_block *nfb,
 
 	case CPU_UP_CANCELED:
 		list_for_each_entry(wq, &workqueues, list) {
+			if (!per_cpu_ptr(wq->cpu_wq, hotcpu)->thread)
+				continue;
 			/* Unbind so it can run. */
 			kthread_bind(per_cpu_ptr(wq->cpu_wq, hotcpu)->thread,
 				     any_online_cpu(cpu_online_map));

@@ -1,7 +1,6 @@
 #ifndef __ASM_CRIS_ARCH_SYSTEM_H
 #define __ASM_CRIS_ARCH_SYSTEM_H
 
-#include <linux/config.h>
 
 /* read the CPU version register */
 

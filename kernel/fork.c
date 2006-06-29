@@ -104,6 +104,7 @@ static kmem_cache_t *mm_cachep;
 void free_task(struct task_struct *tsk)
 {
 	free_thread_info(tsk->thread_info);
+	rt_mutex_debug_task_free(tsk);
 	free_task_struct(tsk);
 }
 EXPORT_SYMBOL(free_task);
@@ -368,6 +369,8 @@ void fastcall __mmdrop(struct mm_struct *mm)
  */
 void mmput(struct mm_struct *mm)
 {
+	might_sleep();
+
 	if (atomic_dec_and_test(&mm->mm_users)) {
 		exit_aio(mm);
 		exit_mmap(mm);
@@ -623,6 +626,7 @@ out:
 /*
  * Allocate a new files structure and copy contents from the
  * passed in files structure.
+ * errorp will be valid only when the returned files_struct is NULL.
  */
 static struct files_struct *dup_fd(struct files_struct *oldf, int *errorp)
 {
@@ -631,6 +635,7 @@ static struct files_struct *dup_fd(struct files_struct *oldf, int *errorp)
 	int open_files, size, i, expand;
 	struct fdtable *old_fdt, *new_fdt;
 
+	*errorp = -ENOMEM;
 	newf = alloc_files();
 	if (!newf)
 		goto out;
@@ -744,7 +749,6 @@ static int copy_files(unsigned long clone_flags, struct task_struct * tsk)
 	 * break this.
 	 */
 	tsk->files = NULL;
-	error = -ENOMEM;
 	newf = dup_fd(oldf, &error);
 	if (!newf)
 		goto out;
@@ -871,6 +875,7 @@ static inline int copy_signal(unsigned long clone_flags, struct task_struct * ts
 		tsk->it_prof_expires =
 			secs_to_cputime(sig->rlim[RLIMIT_CPU].rlim_cur);
 	}
+	acct_init_pacct(&sig->pacct);
 
 	return 0;
 }
@@ -907,6 +912,19 @@ asmlinkage long sys_set_tid_address(int __user *tidptr)
 	current->clear_child_tid = tidptr;
 
 	return current->pid;
+}
+
+static inline void rt_mutex_init_task(struct task_struct *p)
+{
+#ifdef CONFIG_RT_MUTEXES
+	spin_lock_init(&p->pi_lock);
+	plist_head_init(&p->pi_waiters, &p->pi_lock);
+	p->pi_blocked_on = NULL;
+# ifdef CONFIG_DEBUG_RT_MUTEXES
+	spin_lock_init(&p->held_list_lock);
+	INIT_LIST_HEAD(&p->held_list_head);
+# endif
+#endif
 }
 
 /*
@@ -989,13 +1007,10 @@ static task_t *copy_process(unsigned long clone_flags,
 		if (put_user(p->pid, parent_tidptr))
 			goto bad_fork_cleanup;
 
-	p->proc_dentry = NULL;
-
 	INIT_LIST_HEAD(&p->children);
 	INIT_LIST_HEAD(&p->sibling);
 	p->vfork_done = NULL;
 	spin_lock_init(&p->alloc_lock);
-	spin_lock_init(&p->proc_lock);
 
 	clear_tsk_thread_flag(p, TIF_SIGPENDING);
 	init_sigpending(&p->pending);
@@ -1032,6 +1047,8 @@ static task_t *copy_process(unsigned long clone_flags,
  	}
 	mpol_fix_fork_child_flag(p);
 #endif
+
+	rt_mutex_init_task(p);
 
 #ifdef CONFIG_DEBUG_MUTEXES
 	p->blocked_on = NULL; /* not blocked yet */
@@ -1075,6 +1092,9 @@ static task_t *copy_process(unsigned long clone_flags,
 #ifdef CONFIG_COMPAT
 	p->compat_robust_list = NULL;
 #endif
+	INIT_LIST_HEAD(&p->pi_state_list);
+	p->pi_state_cache = NULL;
+
 	/*
 	 * sigaltstack should be cleared when sharing the same VM
 	 */
@@ -1155,18 +1175,6 @@ static task_t *copy_process(unsigned long clone_flags,
 	}
 
 	if (clone_flags & CLONE_THREAD) {
-		/*
-		 * Important: if an exit-all has been started then
-		 * do not create this new thread - the whole thread
-		 * group is supposed to exit anyway.
-		 */
-		if (current->signal->flags & SIGNAL_GROUP_EXIT) {
-			spin_unlock(&current->sighand->siglock);
-			write_unlock_irq(&tasklist_lock);
-			retval = -EAGAIN;
-			goto bad_fork_cleanup_namespace;
-		}
-
 		p->group_leader = current->group_leader;
 		list_add_tail_rcu(&p->thread_group, &p->group_leader->thread_group);
 

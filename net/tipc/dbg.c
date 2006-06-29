@@ -41,7 +41,7 @@
 #define MAX_STRING 512
 
 static char print_string[MAX_STRING];
-static spinlock_t print_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(print_lock);
 
 static struct print_buf cons_buf = { NULL, 0, NULL, NULL };
 struct print_buf *TIPC_CONS = &cons_buf;

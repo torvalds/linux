@@ -1388,7 +1388,7 @@ static int twa_map_scsi_sg_data(TW_Device_Extension *tw_dev, int request_id)
 	if (cmd->use_sg == 0)
 		goto out;
 
-	use_sg = pci_map_sg(pdev, cmd->buffer, cmd->use_sg, DMA_BIDIRECTIONAL);
+	use_sg = pci_map_sg(pdev, cmd->request_buffer, cmd->use_sg, DMA_BIDIRECTIONAL);
 
 	if (use_sg == 0) {
 		TW_PRINTK(tw_dev->host, TW_DRIVER, 0x1c, "Failed to map scatter gather list");

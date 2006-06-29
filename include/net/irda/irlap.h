@@ -27,7 +27,6 @@
 #ifndef IRLAP_H
 #define IRLAP_H
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>

@@ -304,8 +304,8 @@ static int wd_open(struct inode *inode, struct file *f)
 						SA_SHIRQ,
 						WD_OBPNAME,
 						(void *)wd_dev.regs)) {
-			printk("%s: Cannot register IRQ %s\n", 
-				WD_OBPNAME, __irq_itoa(wd_dev.irq));
+			printk("%s: Cannot register IRQ %d\n", 
+				WD_OBPNAME, wd_dev.irq);
 			return(-EBUSY);
 		}
 		wd_dev.initialized = 1;
@@ -755,7 +755,7 @@ static int __init wd_init(void)
 
 	for_each_ebus(ebus) {
 		for_each_ebusdev(edev, ebus) {
-			if (!strcmp(edev->prom_name, WD_OBPNAME))
+			if (!strcmp(edev->ofdev.node->name, WD_OBPNAME))
 				goto ebus_done;
 		}
 	}

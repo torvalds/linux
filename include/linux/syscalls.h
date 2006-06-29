@@ -54,7 +54,6 @@ struct compat_stat;
 struct compat_timeval;
 struct robust_list_head;
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/aio_abi.h>
 #include <linux/capability.h>
@@ -175,9 +174,9 @@ asmlinkage long sys_waitid(int which, pid_t pid,
 			   int options, struct rusage __user *ru);
 asmlinkage long sys_waitpid(pid_t pid, int __user *stat_addr, int options);
 asmlinkage long sys_set_tid_address(int __user *tidptr);
-asmlinkage long sys_futex(u32 __user *uaddr, int op, int val,
+asmlinkage long sys_futex(u32 __user *uaddr, int op, u32 val,
 			struct timespec __user *utime, u32 __user *uaddr2,
-			int val3);
+			u32 val3);
 
 asmlinkage long sys_init_module(void __user *umod, unsigned long len,
 				const char __user *uargs);
@@ -517,6 +516,16 @@ asmlinkage long sys_set_mempolicy(int mode, unsigned long __user *nmask,
 asmlinkage long sys_migrate_pages(pid_t pid, unsigned long maxnode,
 				const unsigned long __user *from,
 				const unsigned long __user *to);
+asmlinkage long sys_move_pages(pid_t pid, unsigned long nr_pages,
+				const void __user * __user *pages,
+				const int __user *nodes,
+				int __user *status,
+				int flags);
+asmlinkage long compat_sys_move_pages(pid_t pid, unsigned long nr_page,
+				__u32 __user *pages,
+				const int __user *nodes,
+				int __user *status,
+				int flags);
 asmlinkage long sys_mbind(unsigned long start, unsigned long len,
 				unsigned long mode,
 				unsigned long __user *nmask,

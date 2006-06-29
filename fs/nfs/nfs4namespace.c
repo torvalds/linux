@@ -1,0 +1,201 @@
+/*
+ * linux/fs/nfs/nfs4namespace.c
+ *
+ * Copyright (C) 2005 Trond Myklebust <Trond.Myklebust@netapp.com>
+ *
+ * NFSv4 namespace
+ */
+
+#include <linux/config.h>
+
+#include <linux/dcache.h>
+#include <linux/mount.h>
+#include <linux/namei.h>
+#include <linux/nfs_fs.h>
+#include <linux/string.h>
+#include <linux/sunrpc/clnt.h>
+#include <linux/vfs.h>
+#include <linux/inet.h>
+#include "internal.h"
+
+#define NFSDBG_FACILITY		NFSDBG_VFS
+
+/*
+ * Check if fs_root is valid
+ */
+static inline char *nfs4_pathname_string(struct nfs4_pathname *pathname,
+					 char *buffer, ssize_t buflen)
+{
+	char *end = buffer + buflen;
+	int n;
+
+	*--end = '\0';
+	buflen--;
+
+	n = pathname->ncomponents;
+	while (--n >= 0) {
+		struct nfs4_string *component = &pathname->components[n];
+		buflen -= component->len + 1;
+		if (buflen < 0)
+			goto Elong;
+		end -= component->len;
+		memcpy(end, component->data, component->len);
+		*--end = '/';
+	}
+	return end;
+Elong:
+	return ERR_PTR(-ENAMETOOLONG);
+}
+
+
+/**
+ * nfs_follow_referral - set up mountpoint when hitting a referral on moved error
+ * @mnt_parent - mountpoint of parent directory
+ * @dentry - parent directory
+ * @fspath - fs path returned in fs_locations
+ * @mntpath - mount path to new server
+ * @hostname - hostname of new server
+ * @addr - host addr of new server
+ *
+ */
+static struct vfsmount *nfs_follow_referral(const struct vfsmount *mnt_parent,
+					    const struct dentry *dentry,
+					    struct nfs4_fs_locations *locations)
+{
+	struct vfsmount *mnt = ERR_PTR(-ENOENT);
+	struct nfs_clone_mount mountdata = {
+		.sb = mnt_parent->mnt_sb,
+		.dentry = dentry,
+		.authflavor = NFS_SB(mnt_parent->mnt_sb)->client->cl_auth->au_flavor,
+	};
+	char *page, *page2;
+	char *path, *fs_path;
+	char *devname;
+	int loc, s;
+
+	if (locations == NULL || locations->nlocations <= 0)
+		goto out;
+
+	dprintk("%s: referral at %s/%s\n", __FUNCTION__,
+		dentry->d_parent->d_name.name, dentry->d_name.name);
+
+	/* Ensure fs path is a prefix of current dentry path */
+	page = (char *) __get_free_page(GFP_USER);
+	if (page == NULL)
+		goto out;
+	page2 = (char *) __get_free_page(GFP_USER);
+	if (page2 == NULL)
+		goto out;
+
+	path = nfs4_path(dentry, page, PAGE_SIZE);
+	if (IS_ERR(path))
+		goto out_free;
+
+	fs_path = nfs4_pathname_string(&locations->fs_path, page2, PAGE_SIZE);
+	if (IS_ERR(fs_path))
+		goto out_free;
+
+	if (strncmp(path, fs_path, strlen(fs_path)) != 0) {
+		dprintk("%s: path %s does not begin with fsroot %s\n", __FUNCTION__, path, fs_path);
+		goto out_free;
+	}
+
+	devname = nfs_devname(mnt_parent, dentry, page, PAGE_SIZE);
+	if (IS_ERR(devname)) {
+		mnt = (struct vfsmount *)devname;
+		goto out_free;
+	}
+
+	loc = 0;
+	while (loc < locations->nlocations && IS_ERR(mnt)) {
+		struct nfs4_fs_location *location = &locations->locations[loc];
+		char *mnt_path;
+
+		if (location == NULL || location->nservers <= 0 ||
+		    location->rootpath.ncomponents == 0) {
+			loc++;
+			continue;
+		}
+
+		mnt_path = nfs4_pathname_string(&location->rootpath, page2, PAGE_SIZE);
+		if (IS_ERR(mnt_path)) {
+			loc++;
+			continue;
+		}
+		mountdata.mnt_path = mnt_path;
+
+		s = 0;
+		while (s < location->nservers) {
+			struct sockaddr_in addr = {};
+
+			if (location->servers[s].len <= 0 ||
+			    valid_ipaddr4(location->servers[s].data) < 0) {
+				s++;
+				continue;
+			}
+
+			mountdata.hostname = location->servers[s].data;
+			addr.sin_addr.s_addr = in_aton(mountdata.hostname);
+			addr.sin_family = AF_INET;
+			addr.sin_port = htons(NFS_PORT);
+			mountdata.addr = &addr;
+
+			mnt = vfs_kern_mount(&nfs_referral_nfs4_fs_type, 0, devname, &mountdata);
+			if (!IS_ERR(mnt)) {
+				break;
+			}
+			s++;
+		}
+		loc++;
+	}
+
+out_free:
+	free_page((unsigned long)page);
+	free_page((unsigned long)page2);
+out:
+	dprintk("%s: done\n", __FUNCTION__);
+	return mnt;
+}
+
+/*
+ * nfs_do_refmount - handle crossing a referral on server
+ * @dentry - dentry of referral
+ * @nd - nameidata info
+ *
+ */
+struct vfsmount *nfs_do_refmount(const struct vfsmount *mnt_parent, struct dentry *dentry)
+{
+	struct vfsmount *mnt = ERR_PTR(-ENOENT);
+	struct dentry *parent;
+	struct nfs4_fs_locations *fs_locations = NULL;
+	struct page *page;
+	int err;
+
+	/* BUG_ON(IS_ROOT(dentry)); */
+	dprintk("%s: enter\n", __FUNCTION__);
+
+	page = alloc_page(GFP_KERNEL);
+	if (page == NULL)
+		goto out;
+
+	fs_locations = kmalloc(sizeof(struct nfs4_fs_locations), GFP_KERNEL);
+	if (fs_locations == NULL)
+		goto out_free;
+
+	/* Get locations */
+	parent = dget_parent(dentry);
+	dprintk("%s: getting locations for %s/%s\n", __FUNCTION__, parent->d_name.name, dentry->d_name.name);
+	err = nfs4_proc_fs_locations(parent->d_inode, dentry, fs_locations, page);
+	dput(parent);
+	if (err != 0 || fs_locations->nlocations <= 0 ||
+	    fs_locations->fs_path.ncomponents <= 0)
+		goto out_free;
+
+	mnt = nfs_follow_referral(mnt_parent, dentry, fs_locations);
+out_free:
+	__free_page(page);
+	kfree(fs_locations);
+out:
+	dprintk("%s: done\n", __FUNCTION__);
+	return mnt;
+}

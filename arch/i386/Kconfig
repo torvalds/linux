@@ -14,6 +14,10 @@ config X86_32
 	  486, 586, Pentiums, and various instruction-set-compatible chips by
 	  AMD, Cyrix, and others.
 
+config GENERIC_TIME
+	bool
+	default y
+
 config SEMAPHORE_SLEEPERS
 	bool
 	default y
@@ -173,6 +177,12 @@ config ACPI_SRAT
 	bool
 	default y
 	depends on NUMA && (X86_SUMMIT || X86_GENERICARCH)
+	select ACPI_NUMA
+
+config HAVE_ARCH_PARSE_SRAT
+       bool
+       default y
+       depends on ACPI_SRAT
 
 config X86_SUMMIT_NUMA
 	bool
@@ -223,8 +233,7 @@ config NR_CPUS
 
 config SCHED_SMT
 	bool "SMT (Hyperthreading) scheduler support"
-	depends on SMP
-	default off
+	depends on X86_HT
 	help
 	  SMT scheduler support improves the CPU scheduler's decision making
 	  when dealing with Intel Pentium 4 chips with HyperThreading at a
@@ -233,7 +242,7 @@ config SCHED_SMT
 
 config SCHED_MC
 	bool "Multi-core scheduler support"
-	depends on SMP
+	depends on X86_HT
 	default y
 	help
 	  Multi-core scheduler support improves the CPU scheduler's decision
@@ -318,6 +327,15 @@ config X86_MCE_P4THERMAL
 	help
 	  Enabling this feature will cause a message to be printed when the P4
 	  enters thermal throttling.
+
+config VM86
+	default y
+	bool "Enable VM86 support" if EMBEDDED
+	help
+          This option is required by programs like DOSEMU to run 16-bit legacy
+	  code on X86 processors. It also may be needed by software like
+          XFree86 to initialize some video cards via BIOS. Disabling this
+          option saves about 6k.
 
 config TOSHIBA
 	tristate "Toshiba Laptop support"
@@ -511,6 +529,7 @@ config X86_PAE
 	bool
 	depends on HIGHMEM64G
 	default y
+	select RESOURCES_64BIT
 
 # Common NUMA Features
 config NUMA
@@ -716,10 +735,10 @@ config KEXEC
 	help
 	  kexec is a system call that implements the ability to shutdown your
 	  current kernel, and to start another kernel.  It is like a reboot
-	  but it is indepedent of the system firmware.   And like a reboot
+	  but it is independent of the system firmware.   And like a reboot
 	  you can start any kernel with it, not just Linux.
 
-	  The name comes from the similiarity to the exec system call.
+	  The name comes from the similarity to the exec system call.
 
 	  It is an ongoing process to be certain the hardware in a machine
 	  is properly shutdown, so do not be surprised if this code does not
@@ -762,9 +781,23 @@ config HOTPLUG_CPU
 	  enable suspend on SMP systems. CPUs can be controlled through
 	  /sys/devices/system/cpu.
 
+config COMPAT_VDSO
+	bool "Compat VDSO support"
+	default y
+	help
+	  Map the VDSO to the predictable old-style address too.
+	---help---
+	  Say N here if you are running a sufficiently recent glibc
+	  version (2.3.3 or later), to remove the high-mapped
+	  VDSO mapping and to exclusively use the randomized VDSO.
+
+	  If unsure, say Y.
 
 endmenu
 
+config ARCH_ENABLE_MEMORY_HOTPLUG
+	def_bool y
+	depends on HIGHMEM
 
 menu "Power management options (ACPI, APM)"
 	depends on !X86_VOYAGER
@@ -1041,13 +1074,27 @@ config SCx200
 	tristate "NatSemi SCx200 support"
 	depends on !X86_VOYAGER
 	help
-	  This provides basic support for the National Semiconductor SCx200
-	  processor.  Right now this is just a driver for the GPIO pins.
+	  This provides basic support for National Semiconductor's
+	  (now AMD's) Geode processors.  The driver probes for the
+	  PCI-IDs of several on-chip devices, so its a good dependency
+	  for other scx200_* drivers.
 
-	  If you don't know what to do here, say N.
+	  If compiled as a module, the driver is named scx200.
 
-	  This support is also available as a module.  If compiled as a
-	  module, it will be called scx200.
+config SCx200HR_TIMER
+	tristate "NatSemi SCx200 27MHz High-Resolution Timer Support"
+	depends on SCx200 && GENERIC_TIME
+	default y
+	help
+	  This driver provides a clocksource built upon the on-chip
+	  27MHz high-resolution timer.  Its also a workaround for
+	  NSC Geode SC-1100's buggy TSC, which loses time when the
+	  processor goes idle (as is done by the scheduler).  The
+	  other workaround is idle=poll boot option.
+
+config K8_NB
+	def_bool y
+	depends on AGP_AMD64
 
 source "drivers/pcmcia/Kconfig"
 

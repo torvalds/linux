@@ -7,7 +7,6 @@
  *	David Mosberger-Tang <davidm@hpl.hp.com>
  */
 
-#include <linux/config.h>
 
 #include <asm/intrinsics.h>
 #include <asm/types.h>

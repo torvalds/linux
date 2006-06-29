@@ -10,13 +10,15 @@
 #include <linux/init.h>
 #include <linux/bio.h>
 
+#define DM_MSG_PREFIX "zero"
+
 /*
  * Construct a dummy mapping that only returns zeros
  */
 static int zero_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 {
 	if (argc != 0) {
-		ti->error = "dm-zero: No arguments required";
+		ti->error = "No arguments required";
 		return -EINVAL;
 	}
 
@@ -60,7 +62,7 @@ static int __init dm_zero_init(void)
 	int r = dm_register_target(&zero_target);
 
 	if (r < 0)
-		DMERR("zero: register failed %d", r);
+		DMERR("register failed %d", r);
 
 	return r;
 }
@@ -70,7 +72,7 @@ static void __exit dm_zero_exit(void)
 	int r = dm_unregister_target(&zero_target);
 
 	if (r < 0)
-		DMERR("zero: unregister failed %d", r);
+		DMERR("unregister failed %d", r);
 }
 
 module_init(dm_zero_init)

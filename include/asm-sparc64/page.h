@@ -3,7 +3,6 @@
 #ifndef _SPARC64_PAGE_H
 #define _SPARC64_PAGE_H
 
-#include <linux/config.h>
 #include <asm/const.h>
 
 #if defined(CONFIG_SPARC64_PAGE_SIZE_8KB)

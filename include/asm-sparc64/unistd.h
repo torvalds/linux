@@ -321,6 +321,7 @@
 #define __NR_set_robust_list	300
 #define __NR_get_robust_list	301
 
+#ifdef __KERNEL__
 /* WARNING: You MAY NOT add syscall numbers larger than 301, since
  *          all of the syscall tables in the Sparc kernel are
  *          sized to have 301 entries (starting at zero).  Therefore
@@ -487,7 +488,6 @@ asmlinkage long sys_rt_sigaction(int sig,
 
 #endif /* __KERNEL_SYSCALLS__ */
 
-#ifdef __KERNEL__
 /* sysconf options, for SunOS compatibility */
 #define   _SC_ARG_MAX             1
 #define   _SC_CHILD_MAX           2
@@ -521,7 +521,6 @@ asmlinkage long sys_rt_sigaction(int sig,
 #define __ARCH_WANT_SYS_SIGPROCMASK
 #define __ARCH_WANT_SYS_RT_SIGSUSPEND
 #define __ARCH_WANT_COMPAT_SYS_RT_SIGSUSPEND
-#endif
 
 /*
  * "Conditional" syscalls
@@ -531,4 +530,5 @@ asmlinkage long sys_rt_sigaction(int sig,
  */
 #define cond_syscall(x) asm(".weak\t" #x "\n\t.set\t" #x ",sys_ni_syscall")
 
+#endif /* __KERNEL__ */
 #endif /* _SPARC64_UNISTD_H */

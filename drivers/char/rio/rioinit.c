@@ -79,7 +79,7 @@ static char *_rioinit_c_sccs_ = "@(#)rioinit.c	1.3";
 
 int RIOPCIinit(struct rio_info *p, int Mode);
 
-static int RIOScrub(int, u8 *, int);
+static int RIOScrub(int, u8 __iomem *, int);
 
 
 /**
@@ -92,10 +92,10 @@ static int RIOScrub(int, u8 *, int);
 ** bits > 0 indicates 16 bit operation.
 */
 
-int RIOAssignAT(struct rio_info *p, int	Base, caddr_t	virtAddr, int mode)
+int RIOAssignAT(struct rio_info *p, int	Base, void __iomem *virtAddr, int mode)
 {
 	int		bits;
-	struct DpRam *cardp = (struct DpRam *)virtAddr;
+	struct DpRam __iomem *cardp = (struct DpRam __iomem *)virtAddr;
 
 	if ((Base < ONE_MEG) || (mode & BYTE_ACCESS_MODE))
 		bits = BYTE_OPERATION;
@@ -107,7 +107,7 @@ int RIOAssignAT(struct rio_info *p, int	Base, caddr_t	virtAddr, int mode)
 	** transient stuff.
 	*/
 	p->RIOHosts[p->RIONumHosts].Caddr	= virtAddr;
-	p->RIOHosts[p->RIONumHosts].CardP	= (struct DpRam *)virtAddr;
+	p->RIOHosts[p->RIONumHosts].CardP	= virtAddr;
 
 	/*
 	** Revision 01 AT host cards don't support WORD operations,
@@ -151,10 +151,10 @@ static	u8	val[] = {
 ** RAM test a board. 
 ** Nothing too complicated, just enough to check it out.
 */
-int RIOBoardTest(unsigned long paddr, caddr_t	caddr, unsigned char type, int slot)
+int RIOBoardTest(unsigned long paddr, void __iomem *caddr, unsigned char type, int slot)
 {
-	struct DpRam *DpRam = (struct DpRam *)caddr;
-	char *ram[4];
+	struct DpRam __iomem *DpRam = caddr;
+	void __iomem *ram[4];
 	int  size[4];
 	int  op, bank;
 	int  nbanks;
@@ -179,12 +179,12 @@ int RIOBoardTest(unsigned long paddr, caddr_t	caddr, unsigned char type, int slo
 	size[2] = DP_SRAM3_SIZE;
 	size[3] = DP_SCRATCH_SIZE;
 
-	ram[0] = (char *)&DpRam->DpSram1[0];
-	ram[1] = (char *)&DpRam->DpSram2[0];
-	ram[2] = (char *)&DpRam->DpSram3[0];
+	ram[0] = DpRam->DpSram1;
+	ram[1] = DpRam->DpSram2;
+	ram[2] = DpRam->DpSram3;
 	nbanks = (type == RIO_PCI) ? 3 : 4;
 	if (nbanks == 4)
-		ram[3] = (char *)&DpRam->DpScratch[0];
+		ram[3] = DpRam->DpScratch;
 
 
 	if (nbanks == 3) {
@@ -202,7 +202,7 @@ int RIOBoardTest(unsigned long paddr, caddr_t	caddr, unsigned char type, int slo
 	*/
 	for (op=0; op<TEST_END; op++) {
 		for (bank=0; bank<nbanks; bank++) {
-			if (RIOScrub(op, (u8 *)ram[bank], size[bank]) == RIO_FAIL) {
+			if (RIOScrub(op, ram[bank], size[bank]) == RIO_FAIL) {
 				rio_dprintk (RIO_DEBUG_INIT, "RIO-init: RIOScrub band %d, op %d failed\n", 
 							bank, op);
 				return RIO_FAIL;
@@ -227,7 +227,7 @@ int RIOBoardTest(unsigned long paddr, caddr_t	caddr, unsigned char type, int slo
 ** to check that the data from the previous phase was retained.
 */
 
-static int RIOScrub(int op, u8 *ram, int size)
+static int RIOScrub(int op, u8 __iomem *ram, int size)
 {
 	int off;
 	unsigned char	oldbyte;
@@ -393,7 +393,7 @@ struct rioVersion *RIOVersid(void)
     return &stVersion;
 }
 
-void RIOHostReset(unsigned int Type, struct DpRam *DpRamP, unsigned int Slot)
+void RIOHostReset(unsigned int Type, struct DpRam __iomem *DpRamP, unsigned int Slot)
 {
 	/*
 	** Reset the Tpu

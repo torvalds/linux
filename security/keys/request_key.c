@@ -1,6 +1,6 @@
 /* request_key.c: request a key from userspace
  *
- * Copyright (C) 2004-5 Red Hat, Inc. All Rights Reserved.
+ * Copyright (C) 2004-6 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
  *
  * This program is free software; you can redistribute it and/or
@@ -33,7 +33,8 @@ DECLARE_WAIT_QUEUE_HEAD(request_key_conswq);
  */
 static int call_sbin_request_key(struct key *key,
 				 struct key *authkey,
-				 const char *op)
+				 const char *op,
+				 void *aux)
 {
 	struct task_struct *tsk = current;
 	key_serial_t prkey, sskey;
@@ -48,7 +49,8 @@ static int call_sbin_request_key(struct key *key,
 	/* allocate a new session keyring */
 	sprintf(desc, "_req.%u", key->serial);
 
-	keyring = keyring_alloc(desc, current->fsuid, current->fsgid, 1, NULL);
+	keyring = keyring_alloc(desc, current->fsuid, current->fsgid, current,
+				KEY_ALLOC_QUOTA_OVERRUN, NULL);
 	if (IS_ERR(keyring)) {
 		ret = PTR_ERR(keyring);
 		goto error_alloc;
@@ -125,7 +127,9 @@ error_alloc:
  */
 static struct key *__request_key_construction(struct key_type *type,
 					      const char *description,
-					      const char *callout_info)
+					      const char *callout_info,
+					      void *aux,
+					      unsigned long flags)
 {
 	request_key_actor_t actor;
 	struct key_construction cons;
@@ -133,11 +137,12 @@ static struct key *__request_key_construction(struct key_type *type,
 	struct key *key, *authkey;
 	int ret, negated;
 
-	kenter("%s,%s,%s", type->name, description, callout_info);
+	kenter("%s,%s,%s,%lx", type->name, description, callout_info, flags);
 
 	/* create a key and add it to the queue */
 	key = key_alloc(type, description,
-			current->fsuid, current->fsgid, KEY_POS_ALL, 0);
+			current->fsuid, current->fsgid, current, KEY_POS_ALL,
+			flags);
 	if (IS_ERR(key))
 		goto alloc_failed;
 
@@ -161,7 +166,7 @@ static struct key *__request_key_construction(struct key_type *type,
 	actor = call_sbin_request_key;
 	if (type->request_key)
 		actor = type->request_key;
-	ret = actor(key, authkey, "create");
+	ret = actor(key, authkey, "create", aux);
 	if (ret < 0)
 		goto request_failed;
 
@@ -255,16 +260,18 @@ alloc_failed:
  */
 static struct key *request_key_construction(struct key_type *type,
 					    const char *description,
+					    const char *callout_info,
+					    void *aux,
 					    struct key_user *user,
-					    const char *callout_info)
+					    unsigned long flags)
 {
 	struct key_construction *pcons;
 	struct key *key, *ckey;
 
 	DECLARE_WAITQUEUE(myself, current);
 
-	kenter("%s,%s,{%d},%s",
-	       type->name, description, user->uid, callout_info);
+	kenter("%s,%s,{%d},%s,%lx",
+	       type->name, description, user->uid, callout_info, flags);
 
 	/* see if there's such a key under construction already */
 	down_write(&key_construction_sem);
@@ -280,7 +287,8 @@ static struct key *request_key_construction(struct key_type *type,
 	}
 
 	/* see about getting userspace to construct the key */
-	key = __request_key_construction(type, description, callout_info);
+	key = __request_key_construction(type, description, callout_info, aux,
+					 flags);
  error:
 	kleave(" = %p", key);
 	return key;
@@ -387,14 +395,17 @@ static void request_key_link(struct key *key, struct key *dest_keyring)
 struct key *request_key_and_link(struct key_type *type,
 				 const char *description,
 				 const char *callout_info,
-				 struct key *dest_keyring)
+				 void *aux,
+				 struct key *dest_keyring,
+				 unsigned long flags)
 {
 	struct key_user *user;
 	struct key *key;
 	key_ref_t key_ref;
 
-	kenter("%s,%s,%s,%p",
-	       type->name, description, callout_info, dest_keyring);
+	kenter("%s,%s,%s,%p,%p,%lx",
+	       type->name, description, callout_info, aux,
+	       dest_keyring, flags);
 
 	/* search all the process keyrings for a key */
 	key_ref = search_process_keyrings(type, description, type->match,
@@ -427,7 +438,8 @@ struct key *request_key_and_link(struct key_type *type,
 			/* ask userspace (returns NULL if it waited on a key
 			 * being constructed) */
 			key = request_key_construction(type, description,
-						       user, callout_info);
+						       callout_info, aux,
+						       user, flags);
 			if (key)
 				break;
 
@@ -483,8 +495,28 @@ struct key *request_key(struct key_type *type,
 			const char *description,
 			const char *callout_info)
 {
-	return request_key_and_link(type, description, callout_info, NULL);
+	return request_key_and_link(type, description, callout_info, NULL,
+				    NULL, KEY_ALLOC_IN_QUOTA);
 
 } /* end request_key() */
 
 EXPORT_SYMBOL(request_key);
+
+/*****************************************************************************/
+/*
+ * request a key with auxiliary data for the upcaller
+ * - search the process's keyrings
+ * - check the list of keys being created or updated
+ * - call out to userspace for a key if supplementary info was provided
+ */
+struct key *request_key_with_auxdata(struct key_type *type,
+				     const char *description,
+				     const char *callout_info,
+				     void *aux)
+{
+	return request_key_and_link(type, description, callout_info, aux,
+				    NULL, KEY_ALLOC_IN_QUOTA);
+
+} /* end request_key_with_auxdata() */
+
+EXPORT_SYMBOL(request_key_with_auxdata);

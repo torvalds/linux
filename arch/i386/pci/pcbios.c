@@ -371,8 +371,7 @@ void __devinit pcibios_sort(void)
 			list_for_each(ln, &pci_devices) {
 				d = pci_dev_g(ln);
 				if (d->bus->number == bus && d->devfn == devfn) {
-					list_del(&d->global_list);
-					list_add_tail(&d->global_list, &sorted_devices);
+					list_move_tail(&d->global_list, &sorted_devices);
 					if (d == dev)
 						found = 1;
 					break;
@@ -390,8 +389,7 @@ void __devinit pcibios_sort(void)
 		if (!found) {
 			printk(KERN_WARNING "PCI: Device %s not found by BIOS\n",
 				pci_name(dev));
-			list_del(&dev->global_list);
-			list_add_tail(&dev->global_list, &sorted_devices);
+			list_move_tail(&dev->global_list, &sorted_devices);
 		}
 	}
 	list_splice(&sorted_devices, &pci_devices);

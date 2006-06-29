@@ -1544,7 +1544,7 @@ err_out:
 /**
  * ntfs_aops - general address space operations for inodes and attributes
  */
-struct address_space_operations ntfs_aops = {
+const struct address_space_operations ntfs_aops = {
 	.readpage	= ntfs_readpage,	/* Fill page with data. */
 	.sync_page	= block_sync_page,	/* Currently, just unplugs the
 						   disk request queue. */
@@ -1560,7 +1560,7 @@ struct address_space_operations ntfs_aops = {
  * ntfs_mst_aops - general address space operations for mst protecteed inodes
  *		   and attributes
  */
-struct address_space_operations ntfs_mst_aops = {
+const struct address_space_operations ntfs_mst_aops = {
 	.readpage	= ntfs_readpage,	/* Fill page with data. */
 	.sync_page	= block_sync_page,	/* Currently, just unplugs the
 						   disk request queue. */

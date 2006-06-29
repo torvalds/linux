@@ -51,6 +51,10 @@ config GENERIC_HARDIRQS
 config GENERIC_IRQ_PROBE
 	def_bool y
 
+config IRQ_PER_CPU
+	bool
+	default y
+
 # unless you want to implement ACPI on PA-RISC ... ;-)
 config PM
 	bool

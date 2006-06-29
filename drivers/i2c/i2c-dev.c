@@ -426,10 +426,7 @@ static int i2cdev_attach_adapter(struct i2c_adapter *adap)
 
 	/* register this i2c device with the driver core */
 	i2c_dev->adap = adap;
-	if (adap->dev.parent == &platform_bus)
-		dev = &adap->dev;
-	else
-		dev = adap->dev.parent;
+	dev = &adap->dev;
 	i2c_dev->class_dev = class_device_create(i2c_dev_class, NULL,
 						 MKDEV(I2C_MAJOR, i2c_dev->minor),
 						 dev, "i2c-%d", i2c_dev->minor);

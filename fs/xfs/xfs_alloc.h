@@ -41,6 +41,7 @@ typedef enum xfs_alloctype
  * Flags for xfs_alloc_fix_freelist.
  */
 #define	XFS_ALLOC_FLAG_TRYLOCK	0x00000001  /* use trylock for buffer locking */
+#define	XFS_ALLOC_FLAG_FREEING	0x00000002  /* indicate caller is freeing extents*/
 
 /*
  * Argument structure for xfs_alloc routines.
@@ -70,6 +71,7 @@ typedef struct xfs_alloc_arg {
 	char		wasfromfl;	/* set if allocation is from freelist */
 	char		isfl;		/* set if is freelist blocks - !acctg */
 	char		userdata;	/* set if this is user data */
+	xfs_fsblock_t	firstblock;	/* io first block allocated */
 } xfs_alloc_arg_t;
 
 /*

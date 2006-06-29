@@ -42,6 +42,7 @@
 #include <asm/uaccess.h>
 #include <linux/vmalloc.h>
 #include <linux/videodev.h>
+#include <media/v4l2-common.h>
 
 #include "saa7146.h"
 #include "saa7146reg.h"
@@ -2189,7 +2190,7 @@ static struct pci_driver stradis_driver = {
 	.remove = __devexit_p(stradis_remove)
 };
 
-int __init stradis_init(void)
+static int __init stradis_init(void)
 {
 	int retval;
 
@@ -2202,7 +2203,7 @@ int __init stradis_init(void)
 	return retval;
 }
 
-void __exit stradis_exit(void)
+static void __exit stradis_exit(void)
 {
 	pci_unregister_driver(&stradis_driver);
 	printk(KERN_INFO "stradis: module cleanup complete\n");

@@ -50,7 +50,7 @@ ACPI_MODULE_NAME("utinit")
 
 /* Local prototypes */
 static void
-acpi_ut_fadt_register_error(char *register_name, u32 value, acpi_size offset);
+acpi_ut_fadt_register_error(char *register_name, u32 value, u8 offset);
 
 static void acpi_ut_terminate(void);
 
@@ -69,12 +69,12 @@ static void acpi_ut_terminate(void);
  ******************************************************************************/
 
 static void
-acpi_ut_fadt_register_error(char *register_name, u32 value, acpi_size offset)
+acpi_ut_fadt_register_error(char *register_name, u32 value, u8 offset)
 {
 
 	ACPI_WARNING((AE_INFO,
 		      "Invalid FADT value %s=%X at offset %X FADT=%p",
-		      register_name, value, (u32) offset, acpi_gbl_FADT));
+		      register_name, value, offset, acpi_gbl_FADT));
 }
 
 /******************************************************************************
@@ -176,7 +176,7 @@ static void acpi_ut_terminate(void)
 	struct acpi_gpe_xrupt_info *gpe_xrupt_info;
 	struct acpi_gpe_xrupt_info *next_gpe_xrupt_info;
 
-	ACPI_FUNCTION_TRACE("ut_terminate");
+	ACPI_FUNCTION_TRACE(ut_terminate);
 
 	/* Free global tables, etc. */
 	/* Free global GPE blocks and related info structures */
@@ -186,14 +186,14 @@ static void acpi_ut_terminate(void)
 		gpe_block = gpe_xrupt_info->gpe_block_list_head;
 		while (gpe_block) {
 			next_gpe_block = gpe_block->next;
-			ACPI_MEM_FREE(gpe_block->event_info);
-			ACPI_MEM_FREE(gpe_block->register_info);
-			ACPI_MEM_FREE(gpe_block);
+			ACPI_FREE(gpe_block->event_info);
+			ACPI_FREE(gpe_block->register_info);
+			ACPI_FREE(gpe_block);
 
 			gpe_block = next_gpe_block;
 		}
 		next_gpe_xrupt_info = gpe_xrupt_info->next;
-		ACPI_MEM_FREE(gpe_xrupt_info);
+		ACPI_FREE(gpe_xrupt_info);
 		gpe_xrupt_info = next_gpe_xrupt_info;
 	}
 
@@ -216,7 +216,7 @@ static void acpi_ut_terminate(void)
 void acpi_ut_subsystem_shutdown(void)
 {
 
-	ACPI_FUNCTION_TRACE("ut_subsystem_shutdown");
+	ACPI_FUNCTION_TRACE(ut_subsystem_shutdown);
 
 	/* Just exit if subsystem is already shutdown */
 
@@ -228,6 +228,7 @@ void acpi_ut_subsystem_shutdown(void)
 	/* Subsystem appears active, go ahead and shut it down */
 
 	acpi_gbl_shutdown = TRUE;
+	acpi_gbl_startup_flags = 0;
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Shutting down ACPI Subsystem\n"));
 
 	/* Close the acpi_event Handling */
@@ -245,12 +246,5 @@ void acpi_ut_subsystem_shutdown(void)
 	/* Purge the local caches */
 
 	(void)acpi_ut_delete_caches();
-
-	/* Debug only - display leftover memory allocation, if any */
-
-#ifdef ACPI_DBG_TRACK_ALLOCATIONS
-	acpi_ut_dump_allocations(ACPI_UINT32_MAX, NULL);
-#endif
-
 	return_VOID;
 }

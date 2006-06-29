@@ -34,6 +34,144 @@
 #include "../pci.h"
 #include "pciehp.h"
 
+static void program_hpp_type0(struct pci_dev *dev, struct hpp_type0 *hpp)
+{
+	u16 pci_cmd, pci_bctl;
+
+	if (hpp->revision > 1) {
+		printk(KERN_WARNING "%s: Rev.%d type0 record not supported\n",
+		       __FUNCTION__, hpp->revision);
+		return;
+	}
+
+	pci_write_config_byte(dev, PCI_CACHE_LINE_SIZE, hpp->cache_line_size);
+	pci_write_config_byte(dev, PCI_LATENCY_TIMER, hpp->latency_timer);
+	pci_read_config_word(dev, PCI_COMMAND, &pci_cmd);
+	if (hpp->enable_serr)
+		pci_cmd |= PCI_COMMAND_SERR;
+	else
+		pci_cmd &= ~PCI_COMMAND_SERR;
+	if (hpp->enable_perr)
+		pci_cmd |= PCI_COMMAND_PARITY;
+	else
+		pci_cmd &= ~PCI_COMMAND_PARITY;
+	pci_write_config_word(dev, PCI_COMMAND, pci_cmd);
+
+	/* Program bridge control value */
+	if ((dev->class >> 8) == PCI_CLASS_BRIDGE_PCI) {
+		pci_write_config_byte(dev, PCI_SEC_LATENCY_TIMER,
+				      hpp->latency_timer);
+		pci_read_config_word(dev, PCI_BRIDGE_CONTROL, &pci_bctl);
+		if (hpp->enable_serr)
+			pci_bctl |= PCI_BRIDGE_CTL_SERR;
+		else
+			pci_bctl &= ~PCI_BRIDGE_CTL_SERR;
+		if (hpp->enable_perr)
+			pci_bctl |= PCI_BRIDGE_CTL_PARITY;
+		else
+			pci_bctl &= ~PCI_BRIDGE_CTL_PARITY;
+		pci_write_config_word(dev, PCI_BRIDGE_CONTROL, pci_bctl);
+	}
+}
+
+static void program_hpp_type2(struct pci_dev *dev, struct hpp_type2 *hpp)
+{
+	int pos;
+	u16 reg16;
+	u32 reg32;
+
+	if (hpp->revision > 1) {
+		printk(KERN_WARNING "%s: Rev.%d type2 record not supported\n",
+		       __FUNCTION__, hpp->revision);
+		return;
+	}
+
+	/* Find PCI Express capability */
+	pos = pci_find_capability(dev, PCI_CAP_ID_EXP);
+	if (!pos)
+		return;
+
+	/* Initialize Device Control Register */
+	pci_read_config_word(dev, pos + PCI_EXP_DEVCTL, &reg16);
+	reg16 = (reg16 & hpp->pci_exp_devctl_and) | hpp->pci_exp_devctl_or;
+	pci_write_config_word(dev, pos + PCI_EXP_DEVCTL, reg16);
+
+	/* Initialize Link Control Register */
+	if (dev->subordinate) {
+		pci_read_config_word(dev, pos + PCI_EXP_LNKCTL, &reg16);
+		reg16 = (reg16 & hpp->pci_exp_lnkctl_and)
+			| hpp->pci_exp_lnkctl_or;
+		pci_write_config_word(dev, pos + PCI_EXP_LNKCTL, reg16);
+	}
+
+	/* Find Advanced Error Reporting Enhanced Capability */
+	pos = 256;
+	do {
+		pci_read_config_dword(dev, pos, &reg32);
+		if (PCI_EXT_CAP_ID(reg32) == PCI_EXT_CAP_ID_ERR)
+			break;
+	} while ((pos = PCI_EXT_CAP_NEXT(reg32)));
+	if (!pos)
+		return;
+
+	/* Initialize Uncorrectable Error Mask Register */
+	pci_read_config_dword(dev, pos + PCI_ERR_UNCOR_MASK, &reg32);
+	reg32 = (reg32 & hpp->unc_err_mask_and) | hpp->unc_err_mask_or;
+	pci_write_config_dword(dev, pos + PCI_ERR_UNCOR_MASK, reg32);
+
+	/* Initialize Uncorrectable Error Severity Register */
+	pci_read_config_dword(dev, pos + PCI_ERR_UNCOR_SEVER, &reg32);
+	reg32 = (reg32 & hpp->unc_err_sever_and) | hpp->unc_err_sever_or;
+	pci_write_config_dword(dev, pos + PCI_ERR_UNCOR_SEVER, reg32);
+
+	/* Initialize Correctable Error Mask Register */
+	pci_read_config_dword(dev, pos + PCI_ERR_COR_MASK, &reg32);
+	reg32 = (reg32 & hpp->cor_err_mask_and) | hpp->cor_err_mask_or;
+	pci_write_config_dword(dev, pos + PCI_ERR_COR_MASK, reg32);
+
+	/* Initialize Advanced Error Capabilities and Control Register */
+	pci_read_config_dword(dev, pos + PCI_ERR_CAP, &reg32);
+	reg32 = (reg32 & hpp->adv_err_cap_and) | hpp->adv_err_cap_or;
+	pci_write_config_dword(dev, pos + PCI_ERR_CAP, reg32);
+
+	/*
+	 * FIXME: The following two registers are not supported yet.
+	 *
+	 *   o Secondary Uncorrectable Error Severity Register
+	 *   o Secondary Uncorrectable Error Mask Register
+	 */
+}
+
+static void program_fw_provided_values(struct pci_dev *dev)
+{
+	struct pci_dev *cdev;
+	struct hotplug_params hpp;
+
+	/* Program hpp values for this device */
+	if (!(dev->hdr_type == PCI_HEADER_TYPE_NORMAL ||
+			(dev->hdr_type == PCI_HEADER_TYPE_BRIDGE &&
+			(dev->class >> 8) == PCI_CLASS_BRIDGE_PCI)))
+		return;
+
+	if (pciehp_get_hp_params_from_firmware(dev, &hpp)) {
+		printk(KERN_WARNING "%s: Could not get hotplug parameters\n",
+		       __FUNCTION__);
+		return;
+	}
+
+	if (hpp.t2)
+		program_hpp_type2(dev, hpp.t2);
+	if (hpp.t0)
+		program_hpp_type0(dev, hpp.t0);
+
+	/* Program child devices */
+	if (dev->subordinate) {
+		list_for_each_entry(cdev, &dev->subordinate->devices,
+				    bus_list)
+			program_fw_provided_values(cdev);
+	}
+}
+
 static int pciehp_add_bridge(struct pci_dev *dev)
 {
 	struct pci_bus *parent = dev->bus;
@@ -66,10 +204,11 @@ int pciehp_configure_device(struct slot *p_slot)
 	struct pci_bus *parent = p_slot->ctrl->pci_dev->subordinate;
 	int num, fn;
 
-	dev = pci_find_slot(p_slot->bus, PCI_DEVFN(p_slot->device, 0));
+	dev = pci_get_slot(parent, PCI_DEVFN(p_slot->device, 0));
 	if (dev) {
 		err("Device %s already exists at %x:%x, cannot hot-add\n",
 				pci_name(dev), p_slot->bus, p_slot->device);
+		pci_dev_put(dev);
 		return -EINVAL;
 	}
 
@@ -86,14 +225,15 @@ int pciehp_configure_device(struct slot *p_slot)
 		if ((dev->class >> 16) == PCI_BASE_CLASS_DISPLAY) {
 			err("Cannot hot-add display device %s\n",
 					pci_name(dev));
+			pci_dev_put(dev);
 			continue;
 		}
 		if ((dev->hdr_type == PCI_HEADER_TYPE_BRIDGE) ||
 				(dev->hdr_type == PCI_HEADER_TYPE_CARDBUS)) {
 			pciehp_add_bridge(dev);
 		}
-		/* TBD: program firmware provided _HPP values */
-		/* program_fw_provided_values(dev); */
+		program_fw_provided_values(dev);
+		pci_dev_put(dev);
 	}
 
 	pci_bus_assign_resources(parent);
@@ -106,18 +246,20 @@ int pciehp_unconfigure_device(struct slot *p_slot)
 	int rc = 0;
 	int j;
 	u8 bctl = 0;
+	struct pci_bus *parent = p_slot->ctrl->pci_dev->subordinate;
 
 	dbg("%s: bus/dev = %x/%x\n", __FUNCTION__, p_slot->bus,
 				p_slot->device);
 
 	for (j=0; j<8 ; j++) {
-		struct pci_dev* temp = pci_find_slot(p_slot->bus,
+		struct pci_dev* temp = pci_get_slot(parent,
 				(p_slot->device << 3) | j);
 		if (!temp)
 			continue;
 		if ((temp->class >> 16) == PCI_BASE_CLASS_DISPLAY) {
 			err("Cannot remove display device %s\n",
 					pci_name(temp));
+			pci_dev_put(temp);
 			continue;
 		}
 		if (temp->hdr_type == PCI_HEADER_TYPE_BRIDGE) {
@@ -125,10 +267,12 @@ int pciehp_unconfigure_device(struct slot *p_slot)
 			if (bctl & PCI_BRIDGE_CTL_VGA) {
 				err("Cannot remove display device %s\n",
 						pci_name(temp));
+				pci_dev_put(temp);
 				continue;
 			}
 		}
 		pci_remove_bus_device(temp);
+		pci_dev_put(temp);
 	}
 	/* 
 	 * Some PCI Express root ports require fixup after hot-plug operation.

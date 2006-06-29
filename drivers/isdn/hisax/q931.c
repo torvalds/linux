@@ -1402,12 +1402,12 @@ dlogframe(struct IsdnCardState *cs, struct sk_buff *skb, int dir)
 			}
 			/* No, locate it in the table */
 			if (cset == 0) {
-				for (i = 0; i < IESIZE; i++)
+				for (i = 0; i < IESIZE_NI1; i++)
 					if (*buf == ielist_ni1[i].nr)
 						break;
 
 				/* When not found, give appropriate msg */
-				if (i != IESIZE) {
+				if (i != IESIZE_NI1) {
 					dp += sprintf(dp, "  %s\n", ielist_ni1[i].descr);
 					dp += ielist_ni1[i].f(dp, buf);
 				} else

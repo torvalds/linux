@@ -1,7 +1,6 @@
 #ifndef _X8664_TLBFLUSH_H
 #define _X8664_TLBFLUSH_H
 
-#include <linux/config.h>
 #include <linux/mm.h>
 #include <asm/processor.h>
 

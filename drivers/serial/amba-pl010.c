@@ -52,7 +52,7 @@
 
 #include <asm/io.h>
 
-#define UART_NR		2
+#define UART_NR		8
 
 #define SERIAL_AMBA_MAJOR	204
 #define SERIAL_AMBA_MINOR	16

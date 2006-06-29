@@ -124,7 +124,7 @@ common_init_irq(void (*srm_dev_int)(unsigned long v, struct pt_regs *r))
 
 		for (i = 16; i < 35; ++i) {
 			irq_desc[i].status = IRQ_DISABLED | IRQ_LEVEL;
-			irq_desc[i].handler = &cabriolet_irq_type;
+			irq_desc[i].chip = &cabriolet_irq_type;
 		}
 	}
 

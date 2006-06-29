@@ -149,8 +149,8 @@ typedef NORET_TYPE void (*relocate_new_kernel_t)(unsigned long indirection_page,
 					unsigned long start_address,
 					unsigned long pgtable) ATTRIB_NORET;
 
-const extern unsigned char relocate_new_kernel[];
-const extern unsigned long relocate_new_kernel_size;
+extern const unsigned char relocate_new_kernel[];
+extern const unsigned long relocate_new_kernel_size;
 
 int machine_kexec_prepare(struct kimage *image)
 {

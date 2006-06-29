@@ -36,15 +36,8 @@
 #include <asm/machdep.h>
 #include <asm/bvme6000hw.h>
 
-extern irqreturn_t bvme6000_process_int (int level, struct pt_regs *regs);
-extern void bvme6000_init_IRQ (void);
-extern void bvme6000_free_irq (unsigned int, void *);
-extern int  show_bvme6000_interrupts(struct seq_file *, void *);
-extern void bvme6000_enable_irq (unsigned int);
-extern void bvme6000_disable_irq (unsigned int);
 static void bvme6000_get_model(char *model);
 static int  bvme6000_get_hardware_list(char *buffer);
-extern int  bvme6000_request_irq(unsigned int irq, irqreturn_t (*handler)(int, void *, struct pt_regs *), unsigned long flags, const char *devname, void *dev_id);
 extern void bvme6000_sched_init(irqreturn_t (*handler)(int, void *, struct pt_regs *));
 extern unsigned long bvme6000_gettimeoffset (void);
 extern int bvme6000_hwclk (int, struct rtc_time *);
@@ -100,6 +93,14 @@ static int bvme6000_get_hardware_list(char *buffer)
     return 0;
 }
 
+/*
+ * This function is called during kernel startup to initialize
+ * the bvme6000 IRQ handling routines.
+ */
+static void bvme6000_init_IRQ(void)
+{
+	m68k_setup_user_interrupt(VEC_USER, 192, NULL);
+}
 
 void __init config_bvme6000(void)
 {
@@ -127,12 +128,6 @@ void __init config_bvme6000(void)
     mach_hwclk           = bvme6000_hwclk;
     mach_set_clock_mmss	 = bvme6000_set_clock_mmss;
     mach_reset		 = bvme6000_reset;
-    mach_free_irq	 = bvme6000_free_irq;
-    mach_process_int	 = bvme6000_process_int;
-    mach_get_irq_list	 = show_bvme6000_interrupts;
-    mach_request_irq	 = bvme6000_request_irq;
-    enable_irq		 = bvme6000_enable_irq;
-    disable_irq          = bvme6000_disable_irq;
     mach_get_model       = bvme6000_get_model;
     mach_get_hardware_list = bvme6000_get_hardware_list;
 

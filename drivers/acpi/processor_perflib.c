@@ -34,6 +34,7 @@
 #ifdef CONFIG_X86_ACPI_CPUFREQ_PROC_INTF
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
+#include <linux/mutex.h>
 
 #include <asm/uaccess.h>
 #endif
@@ -48,7 +49,7 @@
 #define _COMPONENT		ACPI_PROCESSOR_COMPONENT
 ACPI_MODULE_NAME("acpi_processor")
 
-static DECLARE_MUTEX(performance_sem);
+static DEFINE_MUTEX(performance_mutex);
 
 /*
  * _PPC support is implemented as a CPUfreq policy notifier:
@@ -72,7 +73,7 @@ static int acpi_processor_ppc_notifier(struct notifier_block *nb,
 	struct acpi_processor *pr;
 	unsigned int ppc = 0;
 
-	down(&performance_sem);
+	mutex_lock(&performance_mutex);
 
 	if (event != CPUFREQ_INCOMPATIBLE)
 		goto out;
@@ -93,7 +94,7 @@ static int acpi_processor_ppc_notifier(struct notifier_block *nb,
 				     core_frequency * 1000);
 
       out:
-	up(&performance_sem);
+	mutex_unlock(&performance_mutex);
 
 	return 0;
 }
@@ -553,6 +554,230 @@ static void acpi_cpufreq_remove_file(struct acpi_processor *pr)
 }
 #endif				/* CONFIG_X86_ACPI_CPUFREQ_PROC_INTF */
 
+static int acpi_processor_get_psd(struct acpi_processor	*pr)
+{
+	int result = 0;
+	acpi_status status = AE_OK;
+	struct acpi_buffer buffer = {ACPI_ALLOCATE_BUFFER, NULL};
+	struct acpi_buffer format = {sizeof("NNNNN"), "NNNNN"};
+	struct acpi_buffer state = {0, NULL};
+	union acpi_object  *psd = NULL;
+	struct acpi_psd_package *pdomain;
+
+	status = acpi_evaluate_object(pr->handle, "_PSD", NULL, &buffer);
+	if (ACPI_FAILURE(status)) {
+		return -ENODEV;
+	}
+
+	psd = (union acpi_object *) buffer.pointer;
+	if (!psd || (psd->type != ACPI_TYPE_PACKAGE)) {
+		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Invalid _PSD data\n"));
+		result = -EFAULT;
+		goto end;
+	}
+
+	if (psd->package.count != 1) {
+		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Invalid _PSD data\n"));
+		result = -EFAULT;
+		goto end;
+	}
+
+	pdomain = &(pr->performance->domain_info);
+
+	state.length = sizeof(struct acpi_psd_package);
+	state.pointer = pdomain;
+
+	status = acpi_extract_package(&(psd->package.elements[0]),
+		&format, &state);
+	if (ACPI_FAILURE(status)) {
+		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Invalid _PSD data\n"));
+		result = -EFAULT;
+		goto end;
+	}
+
+	if (pdomain->num_entries != ACPI_PSD_REV0_ENTRIES) {
+		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Unknown _PSD:num_entries\n"));
+		result = -EFAULT;
+		goto end;
+	}
+
+	if (pdomain->revision != ACPI_PSD_REV0_REVISION) {
+		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Unknown _PSD:revision\n"));
+		result = -EFAULT;
+		goto end;
+	}
+
+end:
+	acpi_os_free(buffer.pointer);
+	return result;
+}
+
+int acpi_processor_preregister_performance(
+		struct acpi_processor_performance **performance)
+{
+	int count, count_target;
+	int retval = 0;
+	unsigned int i, j;
+	cpumask_t covered_cpus;
+	struct acpi_processor *pr;
+	struct acpi_psd_package *pdomain;
+	struct acpi_processor *match_pr;
+	struct acpi_psd_package *match_pdomain;
+
+	mutex_lock(&performance_mutex);
+
+	retval = 0;
+
+	/* Call _PSD for all CPUs */
+	for_each_possible_cpu(i) {
+		pr = processors[i];
+		if (!pr) {
+			/* Look only at processors in ACPI namespace */
+			continue;
+		}
+
+		if (pr->performance) {
+			retval = -EBUSY;
+			continue;
+		}
+
+		if (!performance || !performance[i]) {
+			retval = -EINVAL;
+			continue;
+		}
+
+		pr->performance = performance[i];
+		cpu_set(i, pr->performance->shared_cpu_map);
+		if (acpi_processor_get_psd(pr)) {
+			retval = -EINVAL;
+			continue;
+		}
+	}
+	if (retval)
+		goto err_ret;
+
+	/*
+	 * Now that we have _PSD data from all CPUs, lets setup P-state 
+	 * domain info.
+	 */
+	for_each_possible_cpu(i) {
+		pr = processors[i];
+		if (!pr)
+			continue;
+
+		/* Basic validity check for domain info */
+		pdomain = &(pr->performance->domain_info);
+		if ((pdomain->revision != ACPI_PSD_REV0_REVISION) ||
+		    (pdomain->num_entries != ACPI_PSD_REV0_ENTRIES)) {
+			retval = -EINVAL;
+			goto err_ret;
+		}
+		if (pdomain->coord_type != DOMAIN_COORD_TYPE_SW_ALL &&
+		    pdomain->coord_type != DOMAIN_COORD_TYPE_SW_ANY &&
+		    pdomain->coord_type != DOMAIN_COORD_TYPE_HW_ALL) {
+			retval = -EINVAL;
+			goto err_ret;
+		}
+	}
+
+	cpus_clear(covered_cpus);
+	for_each_possible_cpu(i) {
+		pr = processors[i];
+		if (!pr)
+			continue;
+
+		if (cpu_isset(i, covered_cpus))
+			continue;
+
+		pdomain = &(pr->performance->domain_info);
+		cpu_set(i, pr->performance->shared_cpu_map);
+		cpu_set(i, covered_cpus);
+		if (pdomain->num_processors <= 1)
+			continue;
+
+		/* Validate the Domain info */
+		count_target = pdomain->num_processors;
+		count = 1;
+		if (pdomain->coord_type == DOMAIN_COORD_TYPE_SW_ALL ||
+		    pdomain->coord_type == DOMAIN_COORD_TYPE_HW_ALL) {
+			pr->performance->shared_type = CPUFREQ_SHARED_TYPE_ALL;
+		} else if (pdomain->coord_type == DOMAIN_COORD_TYPE_SW_ANY) {
+			pr->performance->shared_type = CPUFREQ_SHARED_TYPE_ANY;
+		}
+
+		for_each_possible_cpu(j) {
+			if (i == j)
+				continue;
+
+			match_pr = processors[j];
+			if (!match_pr)
+				continue;
+
+			match_pdomain = &(match_pr->performance->domain_info);
+			if (match_pdomain->domain != pdomain->domain)
+				continue;
+
+			/* Here i and j are in the same domain */
+
+			if (match_pdomain->num_processors != count_target) {
+				retval = -EINVAL;
+				goto err_ret;
+			}
+
+			if (pdomain->coord_type != match_pdomain->coord_type) {
+				retval = -EINVAL;
+				goto err_ret;
+			}
+
+			cpu_set(j, covered_cpus);
+			cpu_set(j, pr->performance->shared_cpu_map);
+			count++;
+		}
+
+		for_each_possible_cpu(j) {
+			if (i == j)
+				continue;
+
+			match_pr = processors[j];
+			if (!match_pr)
+				continue;
+
+			match_pdomain = &(match_pr->performance->domain_info);
+			if (match_pdomain->domain != pdomain->domain)
+				continue;
+
+			match_pr->performance->shared_type = 
+					pr->performance->shared_type;
+			match_pr->performance->shared_cpu_map =
+				pr->performance->shared_cpu_map;
+		}
+	}
+
+err_ret:
+	if (retval) {
+		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Error while parsing _PSD domain information. Assuming no coordination\n"));
+	}
+
+	for_each_possible_cpu(i) {
+		pr = processors[i];
+		if (!pr || !pr->performance)
+			continue;
+
+		/* Assume no coordination on any error parsing domain info */
+		if (retval) {
+			cpus_clear(pr->performance->shared_cpu_map);
+			cpu_set(i, pr->performance->shared_cpu_map);
+			pr->performance->shared_type = CPUFREQ_SHARED_TYPE_ALL;
+		}
+		pr->performance = NULL; /* Will be set for real in register */
+	}
+
+	mutex_unlock(&performance_mutex);
+	return retval;
+}
+EXPORT_SYMBOL(acpi_processor_preregister_performance);
+
+
 int
 acpi_processor_register_performance(struct acpi_processor_performance
 				    *performance, unsigned int cpu)
@@ -564,16 +789,16 @@ acpi_processor_register_performance(struct acpi_processor_performance
 	if (!(acpi_processor_ppc_status & PPC_REGISTERED))
 		return_VALUE(-EINVAL);
 
-	down(&performance_sem);
+	mutex_lock(&performance_mutex);
 
 	pr = processors[cpu];
 	if (!pr) {
-		up(&performance_sem);
+		mutex_unlock(&performance_mutex);
 		return_VALUE(-ENODEV);
 	}
 
 	if (pr->performance) {
-		up(&performance_sem);
+		mutex_unlock(&performance_mutex);
 		return_VALUE(-EBUSY);
 	}
 
@@ -583,13 +808,13 @@ acpi_processor_register_performance(struct acpi_processor_performance
 
 	if (acpi_processor_get_performance_info(pr)) {
 		pr->performance = NULL;
-		up(&performance_sem);
+		mutex_unlock(&performance_mutex);
 		return_VALUE(-EIO);
 	}
 
 	acpi_cpufreq_add_file(pr);
 
-	up(&performance_sem);
+	mutex_unlock(&performance_mutex);
 	return_VALUE(0);
 }
 
@@ -603,11 +828,11 @@ acpi_processor_unregister_performance(struct acpi_processor_performance
 
 	ACPI_FUNCTION_TRACE("acpi_processor_unregister_performance");
 
-	down(&performance_sem);
+	mutex_lock(&performance_mutex);
 
 	pr = processors[cpu];
 	if (!pr) {
-		up(&performance_sem);
+		mutex_unlock(&performance_mutex);
 		return_VOID;
 	}
 
@@ -617,7 +842,7 @@ acpi_processor_unregister_performance(struct acpi_processor_performance
 
 	acpi_cpufreq_remove_file(pr);
 
-	up(&performance_sem);
+	mutex_unlock(&performance_mutex);
 
 	return_VOID;
 }

@@ -9,7 +9,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <asm/arch/constants.h>
 
 #ifndef __ASM_ARCH_REGISTERS_H
@@ -18,7 +17,7 @@
 
 	/* Physical register base addresses */
 
-#define AC97_PHYS	(0x80000000)	/* AC97 Controller */
+#define AC97C_PHYS	(0x80000000)	/* AC97 Controller */
 #define MMC_PHYS	(0x80000100)	/* Multimedia Card Controller */
 #define USB_PHYS	(0x80000200)	/* USB Client */
 #define SCI_PHYS	(0x80000300)	/* Secure Card Interface */
@@ -35,6 +34,8 @@
 #define RTC_PHYS	(0x80000d00)	/* Real-time Clock */
 #define GPIO_PHYS	(0x80000e00)	/* General Purpose IO */
 #define BMI_PHYS	(0x80000f00)	/* Battery Monitor Interface */
+#define HRTFTC_PHYS	(0x80001000)	/* High-res TFT Controller (LH7A400) */
+#define ALI_PHYS	(0x80001000)	/* Advanced LCD Interface (LH7A404) */
 #define WDT_PHYS	(0x80001400)	/* Watchdog Timer */
 #define SMC_PHYS	(0x80002000)	/* Static Memory Controller */
 #define SDRC_PHYS	(0x80002400)	/* SDRAM Controller */
@@ -43,6 +44,7 @@
 
 	/* Physical registers of the LH7A404 */
 
+#define ADC_PHYS	(0x80001300)	/* A/D & Touchscreen Controller */
 #define VIC1_PHYS	(0x80008000)	/* Vectored Interrupt Controller 1 */
 #define USBH_PHYS	(0x80009000)	/* USB OHCI host controller */
 #define VIC2_PHYS	(0x8000a000)	/* Vectored Interrupt Controller 2 */
@@ -53,10 +55,32 @@
 
 	/* Clock/State Controller register */
 
+#define CSC_PWRSR	__REG(CSC_PHYS + 0x00) /* Reset register & ID */
 #define CSC_PWRCNT	__REG(CSC_PHYS + 0x04) /* Power control */
+#define CSC_CLKSET	__REG(CSC_PHYS + 0x20) /* Clock speed control */
+#define CSC_USBDRESET	__REG(CSC_PHYS + 0x4c) /* USB Device resets */
 
 #define CSC_PWRCNT_USBH_EN	(1<<28)	/* USB Host power enable */
+#define CSC_PWRCNT_DMAC_M2M1_EN	(1<<27)
+#define CSC_PWRCNT_DMAC_M2M0_EN	(1<<26)
+#define CSC_PWRCNT_DMAC_M2P8_EN	(1<<25)
+#define CSC_PWRCNT_DMAC_M2P9_EN	(1<<24)
+#define CSC_PWRCNT_DMAC_M2P6_EN	(1<<23)
+#define CSC_PWRCNT_DMAC_M2P7_EN	(1<<22)
+#define CSC_PWRCNT_DMAC_M2P4_EN	(1<<21)
+#define CSC_PWRCNT_DMAC_M2P5_EN	(1<<20)
+#define CSC_PWRCNT_DMAC_M2P2_EN	(1<<19)
+#define CSC_PWRCNT_DMAC_M2P3_EN	(1<<18)
+#define CSC_PWRCNT_DMAC_M2P0_EN	(1<<17)
+#define CSC_PWRCNT_DMAC_M2P1_EN	(1<<16)
 
+#define CSC_PWRSR_CHIPMAN_SHIFT	(24)
+#define CSC_PWRSR_CHIPMAN_MASK	(0xff)
+#define CSC_PWRSR_CHIPID_SHIFT	(16)
+#define CSC_PWRSR_CHIPID_MASK	(0xff)
+
+#define CSC_USBDRESET_APBRESETREG	(1<<1)
+#define CSC_USBDRESET_IORESETREG	(1<<0)
 
 	/* Interrupt Controller registers */
 
@@ -109,6 +133,13 @@
 #define GPIO_GPIOFEOI	__REG(GPIO_PHYS + 0x54)	/* GPIO End-of-Interrupt */
 #define GPIO_GPIOINTEN	__REG(GPIO_PHYS + 0x58)	/* GPIO Interrupt Enable */
 #define GPIO_INTSTATUS	__REG(GPIO_PHYS + 0x5c)	/* GPIO Interrupt Status */
+#define GPIO_PINMUX	__REG(GPIO_PHYS + 0x2c)
+#define GPIO_PADD	__REG(GPIO_PHYS + 0x10)
+#define GPIO_PAD	__REG(GPIO_PHYS + 0x00)
+#define GPIO_PCD	__REG(GPIO_PHYS + 0x08)
+#define GPIO_PCDD	__REG(GPIO_PHYS + 0x18)
+#define GPIO_PEDD	__REG(GPIO_PHYS + 0x24)
+#define GPIO_PED	__REG(GPIO_PHYS + 0x20)
 
 
 	/* Static Memory Controller registers */
@@ -138,20 +169,21 @@
 #endif
 
 #if defined (CONFIG_MACH_LPD7A400) || defined (CONFIG_MACH_LPD7A404)
-# define CPLD_CONTROL		__REG8(CPLD02_PHYS)
-# define CPLD_SPI_DATA		__REG8(CPLD06_PHYS)
-# define CPLD_SPI_CONTROL	__REG8(CPLD08_PHYS)
-# define CPLD_SPI_EEPROM	__REG8(CPLD0A_PHYS)
-# define CPLD_INTERRUPTS	__REG8(CPLD0C_PHYS) /* IRQ mask/status */
-# define CPLD_BOOT_MODE		__REG8(CPLD0E_PHYS)
-# define CPLD_FLASH		__REG8(CPLD10_PHYS)
-# define CPLD_POWER_MGMT	__REG8(CPLD12_PHYS)
-# define CPLD_REVISION		__REG8(CPLD14_PHYS)
-# define CPLD_GPIO_EXT		__REG8(CPLD16_PHYS)
-# define CPLD_GPIO_DATA		__REG8(CPLD18_PHYS)
-# define CPLD_GPIO_DIR		__REG8(CPLD1A_PHYS)
-#endif
 
+# define CPLD_CONTROL		__REG16(CPLD02_PHYS)
+# define CPLD_SPI_DATA		__REG16(CPLD06_PHYS)
+# define CPLD_SPI_CONTROL	__REG16(CPLD08_PHYS)
+# define CPLD_SPI_EEPROM	__REG16(CPLD0A_PHYS)
+# define CPLD_INTERRUPTS	__REG16(CPLD0C_PHYS) /* IRQ mask/status */
+# define CPLD_BOOT_MODE		__REG16(CPLD0E_PHYS)
+# define CPLD_FLASH		__REG16(CPLD10_PHYS)
+# define CPLD_POWER_MGMT	__REG16(CPLD12_PHYS)
+# define CPLD_REVISION		__REG16(CPLD14_PHYS)
+# define CPLD_GPIO_EXT		__REG16(CPLD16_PHYS)
+# define CPLD_GPIO_DATA		__REG16(CPLD18_PHYS)
+# define CPLD_GPIO_DIR		__REG16(CPLD1A_PHYS)
+
+#endif
 
 	/* Timer registers */
 
@@ -190,4 +222,3 @@
 
 
 #endif  /* _ASM_ARCH_REGISTERS_H */
-

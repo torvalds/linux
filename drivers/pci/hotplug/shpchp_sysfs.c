@@ -51,8 +51,10 @@ static ssize_t show_ctrl (struct device *dev, struct device_attribute *attr, cha
 		res = bus->resource[index];
 		if (res && (res->flags & IORESOURCE_MEM) &&
 				!(res->flags & IORESOURCE_PREFETCH)) {
-			out += sprintf(out, "start = %8.8lx, length = %8.8lx\n",
-					res->start, (res->end - res->start));
+			out += sprintf(out, "start = %8.8llx, "
+					"length = %8.8llx\n",
+					(unsigned long long)res->start,
+					(unsigned long long)(res->end - res->start));
 		}
 	}
 	out += sprintf(out, "Free resources: prefetchable memory\n");
@@ -60,16 +62,20 @@ static ssize_t show_ctrl (struct device *dev, struct device_attribute *attr, cha
 		res = bus->resource[index];
 		if (res && (res->flags & IORESOURCE_MEM) &&
 			       (res->flags & IORESOURCE_PREFETCH)) {
-			out += sprintf(out, "start = %8.8lx, length = %8.8lx\n",
-					res->start, (res->end - res->start));
+			out += sprintf(out, "start = %8.8llx, "
+					"length = %8.8llx\n",
+					(unsigned long long)res->start,
+					(unsigned long long)(res->end - res->start));
 		}
 	}
 	out += sprintf(out, "Free resources: IO\n");
 	for (index = 0; index < PCI_BUS_NUM_RESOURCES; index++) {
 		res = bus->resource[index];
 		if (res && (res->flags & IORESOURCE_IO)) {
-			out += sprintf(out, "start = %8.8lx, length = %8.8lx\n",
-					res->start, (res->end - res->start));
+			out += sprintf(out, "start = %8.8llx, "
+					"length = %8.8llx\n",
+					(unsigned long long)res->start,
+					(unsigned long long)(res->end - res->start));
 		}
 	}
 	out += sprintf(out, "Free resources: bus numbers\n");

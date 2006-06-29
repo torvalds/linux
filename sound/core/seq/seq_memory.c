@@ -118,6 +118,8 @@ int snd_seq_dump_var_event(const struct snd_seq_event *event,
 	return 0;
 }
 
+EXPORT_SYMBOL(snd_seq_dump_var_event);
+
 
 /*
  * exported:
@@ -167,6 +169,7 @@ int snd_seq_expand_var_event(const struct snd_seq_event *event, int count, char 
 	return err < 0 ? err : newlen;
 }
 
+EXPORT_SYMBOL(snd_seq_expand_var_event);
 
 /*
  * release this cell, free extended data if available

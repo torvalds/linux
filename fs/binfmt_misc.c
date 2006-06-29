@@ -55,6 +55,7 @@ typedef struct {
 } Node;
 
 static DEFINE_RWLOCK(entries_lock);
+static struct file_system_type bm_fs_type;
 static struct vfsmount *bm_mnt;
 static int entry_count;
 
@@ -203,7 +204,6 @@ static int load_misc_binary(struct linux_binprm *bprm, struct pt_regs *regs)
 		goto _error;
 
 	if (files) {
-		steal_locks(files);
 		put_files_struct(files);
 		files = NULL;
 	}
@@ -638,7 +638,7 @@ static ssize_t bm_register_write(struct file *file, const char __user *buffer,
 	if (!inode)
 		goto out2;
 
-	err = simple_pin_fs("binfmt_misc", &bm_mnt, &entry_count);
+	err = simple_pin_fs(&bm_fs_type, &bm_mnt, &entry_count);
 	if (err) {
 		iput(inode);
 		inode = NULL;
@@ -740,10 +740,10 @@ static int bm_fill_super(struct super_block * sb, void * data, int silent)
 	return err;
 }
 
-static struct super_block *bm_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data)
+static int bm_get_sb(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
 {
-	return get_sb_single(fs_type, flags, data, bm_fill_super);
+	return get_sb_single(fs_type, flags, data, bm_fill_super, mnt);
 }
 
 static struct linux_binfmt misc_format = {

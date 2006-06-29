@@ -2,30 +2,30 @@
  * Routines for handling backlight control on PowerBooks
  *
  * For now, implementation resides in
- * arch/powerpc/platforms/powermac/pmac_support.c
+ * arch/powerpc/platforms/powermac/backlight.c
  *
  */
 #ifndef __ASM_POWERPC_BACKLIGHT_H
 #define __ASM_POWERPC_BACKLIGHT_H
 #ifdef __KERNEL__
 
-/* Abstract values */
-#define BACKLIGHT_OFF	0
-#define BACKLIGHT_MIN	1
-#define BACKLIGHT_MAX	0xf
+#include <linux/fb.h>
+#include <linux/mutex.h>
 
-struct backlight_controller {
-	int (*set_enable)(int enable, int level, void *data);
-	int (*set_level)(int level, void *data);
-};
+/* For locking instructions, see the implementation file */
+extern struct backlight_device *pmac_backlight;
+extern struct mutex pmac_backlight_mutex;
 
-extern void register_backlight_controller(struct backlight_controller *ctrler, void *data, char *type);
-extern void unregister_backlight_controller(struct backlight_controller *ctrler, void *data);
+extern void pmac_backlight_calc_curve(struct fb_info*);
+extern int pmac_backlight_curve_lookup(struct fb_info *info, int value);
 
-extern int set_backlight_enable(int enable);
-extern int get_backlight_enable(void);
-extern int set_backlight_level(int level);
-extern int get_backlight_level(void);
+extern int pmac_has_backlight_type(const char *type);
+
+extern void pmac_backlight_key_up(void);
+extern void pmac_backlight_key_down(void);
+
+extern int pmac_backlight_set_legacy_brightness(int brightness);
+extern int pmac_backlight_get_legacy_brightness(void);
 
 #endif /* __KERNEL__ */
 #endif

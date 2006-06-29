@@ -1,4 +1,4 @@
-Contributors to bttv: 
+Contributors to bttv:
 
 Michael Chu <mmchu@pobox.com>
   AverMedia fix and more flexible card recognition
@@ -8,8 +8,8 @@ Alan Cox <alan@redhat.com>
 
 Chris Kleitsch
   Hardware I2C
-  
-Gerd Knorr <kraxel@cs.tu-berlin.de> 
+
+Gerd Knorr <kraxel@cs.tu-berlin.de>
   Radio card (ITT sound processor)
 
 bigfoot <bigfoot@net-way.net>
@@ -18,7 +18,7 @@ Ragnar Hojland Espinosa <ragnar@macula.net>
 
 
 + many more (please mail me if you are missing in this list and would
-             like to be mentioned)
+	     like to be mentioned)
 
 
 

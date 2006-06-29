@@ -871,9 +871,9 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 	pci_read_config_byte(pci_dev, PCI_CLASS_REVISION, &dev->pci_rev);
 	pci_read_config_byte(pci_dev, PCI_LATENCY_TIMER,  &dev->pci_lat);
 	printk(KERN_INFO "%s: found at %s, rev: %d, irq: %d, "
-	       "latency: %d, mmio: 0x%lx\n", dev->name,
+	       "latency: %d, mmio: 0x%llx\n", dev->name,
 	       pci_name(pci_dev), dev->pci_rev, pci_dev->irq,
-	       dev->pci_lat,pci_resource_start(pci_dev,0));
+	       dev->pci_lat,(unsigned long long)pci_resource_start(pci_dev,0));
 	pci_set_master(pci_dev);
 	if (!pci_dma_supported(pci_dev, DMA_32BIT_MASK)) {
 		printk("%s: Oops: no 32bit PCI DMA ???\n",dev->name);
@@ -905,8 +905,8 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 				pci_resource_len(pci_dev,0),
 				dev->name)) {
 		err = -EBUSY;
-		printk(KERN_ERR "%s: can't get MMIO memory @ 0x%lx\n",
-		       dev->name,pci_resource_start(pci_dev,0));
+		printk(KERN_ERR "%s: can't get MMIO memory @ 0x%llx\n",
+		       dev->name,(unsigned long long)pci_resource_start(pci_dev,0));
 		goto fail1;
 	}
 	dev->lmmio = ioremap(pci_resource_start(pci_dev,0), 0x1000);

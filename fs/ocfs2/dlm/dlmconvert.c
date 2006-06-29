@@ -214,6 +214,9 @@ grant:
 	if (lock->ml.node == dlm->node_num)
 		mlog(0, "doing in-place convert for nonlocal lock\n");
 	lock->ml.type = type;
+	if (lock->lksb->flags & DLM_LKSB_PUT_LVB)
+		memcpy(res->lvb, lock->lksb->lvb, DLM_LVB_LEN);
+
 	status = DLM_NORMAL;
 	*call_ast = 1;
 	goto unlock_exit;
@@ -231,8 +234,7 @@ switch_queues:
 
 	lock->ml.convert_type = type;
 	/* do not alter lock refcount.  switching lists. */
-	list_del_init(&lock->list);
-	list_add_tail(&lock->list, &res->converting);
+	list_move_tail(&lock->list, &res->converting);
 
 unlock_exit:
 	spin_unlock(&lock->spinlock);
@@ -248,8 +250,7 @@ void dlm_revert_pending_convert(struct dlm_lock_resource *res,
 				struct dlm_lock *lock)
 {
 	/* do not alter lock refcount.  switching lists. */
-	list_del_init(&lock->list);
-	list_add_tail(&lock->list, &res->granted);
+	list_move_tail(&lock->list, &res->granted);
 	lock->ml.convert_type = LKM_IVMODE;
 	lock->lksb->flags &= ~(DLM_LKSB_GET_LVB|DLM_LKSB_PUT_LVB);
 }
@@ -294,8 +295,7 @@ enum dlm_status dlmconvert_remote(struct dlm_ctxt *dlm,
 	res->state |= DLM_LOCK_RES_IN_PROGRESS;
 	/* move lock to local convert queue */
 	/* do not alter lock refcount.  switching lists. */
-	list_del_init(&lock->list);
-	list_add_tail(&lock->list, &res->converting);
+	list_move_tail(&lock->list, &res->converting);
 	lock->convert_pending = 1;
 	lock->ml.convert_type = type;
 
@@ -464,12 +464,33 @@ int dlm_convert_lock_handler(struct o2net_msg *msg, u32 len, void *data)
 	}
 
 	spin_lock(&res->spinlock);
+	status = __dlm_lockres_state_to_status(res);
+	if (status != DLM_NORMAL) {
+		spin_unlock(&res->spinlock);
+		dlm_error(status);
+		goto leave;
+	}
 	list_for_each(iter, &res->granted) {
 		lock = list_entry(iter, struct dlm_lock, list);
 		if (lock->ml.cookie == cnv->cookie &&
 		    lock->ml.node == cnv->node_idx) {
 			dlm_lock_get(lock);
 			break;
+		}
+		lock = NULL;
+	}
+	if (!lock) {
+		__dlm_print_one_lock_resource(res);
+		list_for_each(iter, &res->granted) {
+			lock = list_entry(iter, struct dlm_lock, list);
+			if (lock->ml.node == cnv->node_idx) {
+				mlog(ML_ERROR, "There is something here "
+				     "for node %u, lock->ml.cookie=%llu, "
+				     "cnv->cookie=%llu\n", cnv->node_idx,
+				     (unsigned long long)lock->ml.cookie,
+				     (unsigned long long)cnv->cookie);
+				break;
+			}
 		}
 		lock = NULL;
 	}

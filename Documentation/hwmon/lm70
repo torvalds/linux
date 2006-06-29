@@ -1,0 +1,31 @@
+Kernel driver lm70
+==================
+
+Supported chip:
+  * National Semiconductor LM70
+    Datasheet: http://www.national.com/pf/LM/LM70.html
+
+Author:
+        Kaiwan N Billimoria <kaiwan@designergraphix.com>
+
+Description
+-----------
+
+This driver implements support for the National Semiconductor LM70
+temperature sensor.
+
+The LM70 temperature sensor chip supports a single temperature sensor.
+It communicates with a host processor (or microcontroller) via an
+SPI/Microwire Bus interface.
+
+Communication with the LM70 is simple: when the temperature is to be sensed,
+the driver accesses the LM70 using SPI communication: 16 SCLK cycles
+comprise the MOSI/MISO loop. At the end of the transfer, the 11-bit 2's
+complement digital temperature (sent via the SIO line), is available in the
+driver for interpretation. This driver makes use of the kernel's in-core
+SPI support.
+
+Thanks to
+---------
+Jean Delvare <khali@linux-fr.org> for mentoring the hwmon-side driver
+development.

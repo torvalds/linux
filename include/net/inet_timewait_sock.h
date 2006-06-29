@@ -15,7 +15,6 @@
 #ifndef _INET_TIMEWAIT_SOCK_
 #define _INET_TIMEWAIT_SOCK_
 
-#include <linux/config.h>
 
 #include <linux/list.h>
 #include <linux/module.h>

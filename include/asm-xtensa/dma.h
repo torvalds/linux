@@ -11,7 +11,6 @@
 #ifndef _XTENSA_DMA_H
 #define _XTENSA_DMA_H
 
-#include <linux/config.h>
 #include <asm/io.h>		/* need byte IO */
 #include <xtensa/config/core.h>
 

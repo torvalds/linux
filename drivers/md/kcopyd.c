@@ -314,7 +314,7 @@ static void complete_io(unsigned long error, void *context)
 
 	if (error) {
 		if (job->rw == WRITE)
-			job->write_err &= error;
+			job->write_err |= error;
 		else
 			job->read_err = 1;
 
@@ -460,7 +460,7 @@ static void segment_complete(int read_err,
 		job->read_err = 1;
 
 	if (write_err)
-		job->write_err &= write_err;
+		job->write_err |= write_err;
 
 	/*
 	 * Only dispatch more work if there hasn't been an error.

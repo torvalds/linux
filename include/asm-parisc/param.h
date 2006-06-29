@@ -2,7 +2,6 @@
 #define _ASMPARISC_PARAM_H
 
 #ifdef __KERNEL__
-#include <linux/config.h>
 # ifdef CONFIG_PA20
 #  define HZ		1000		/* Faster machines */
 # else

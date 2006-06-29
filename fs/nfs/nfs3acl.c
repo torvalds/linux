@@ -172,8 +172,10 @@ static void nfs3_cache_acls(struct inode *inode, struct posix_acl *acl,
 		inode->i_ino, acl, dfacl);
 	spin_lock(&inode->i_lock);
 	__nfs3_forget_cached_acls(NFS_I(inode));
-	nfsi->acl_access = posix_acl_dup(acl);
-	nfsi->acl_default = posix_acl_dup(dfacl);
+	if (!IS_ERR(acl))
+		nfsi->acl_access = posix_acl_dup(acl);
+	if (!IS_ERR(dfacl))
+		nfsi->acl_default = posix_acl_dup(dfacl);
 	spin_unlock(&inode->i_lock);
 }
 
@@ -254,7 +256,9 @@ struct posix_acl *nfs3_proc_getacl(struct inode *inode, int type)
 			res.acl_access = NULL;
 		}
 	}
-	nfs3_cache_acls(inode, res.acl_access, res.acl_default);
+	nfs3_cache_acls(inode,
+		(res.mask & NFS_ACL)   ? res.acl_access  : ERR_PTR(-EINVAL),
+		(res.mask & NFS_DFACL) ? res.acl_default : ERR_PTR(-EINVAL));
 
 	switch(type) {
 		case ACL_TYPE_ACCESS:
@@ -329,6 +333,7 @@ static int nfs3_proc_setacls(struct inode *inode, struct posix_acl *acl,
 	switch (status) {
 		case 0:
 			status = nfs_refresh_inode(inode, &fattr);
+			nfs3_cache_acls(inode, acl, dfacl);
 			break;
 		case -EPFNOSUPPORT:
 		case -EPROTONOSUPPORT:

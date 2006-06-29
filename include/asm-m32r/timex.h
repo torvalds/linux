@@ -9,7 +9,6 @@
  * m32r architecture timex specifications
  */
 
-#include <linux/config.h>
 
 #define CLOCK_TICK_RATE	(CONFIG_BUS_CLOCK / CONFIG_TIMER_DIVIDE)
 #define CLOCK_TICK_FACTOR	20	/* Factor of both 1000000 and CLOCK_TICK_RATE */

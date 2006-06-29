@@ -1,7 +1,6 @@
 #ifndef __PARISC_SYSTEM_H
 #define __PARISC_SYSTEM_H
 
-#include <linux/config.h>
 #include <asm/psw.h>
 
 /* The program status word as bitfields.  */
@@ -156,13 +155,14 @@ static inline void set_eiem(unsigned long val)
    type and dynamically select the 16-byte aligned int from the array
    for the semaphore.  */
 
-#define __PA_LDCW_ALIGNMENT 16
-#define __ldcw_align(a) ({ \
-  unsigned long __ret = (unsigned long) &(a)->lock[0];        		\
-  __ret = (__ret + __PA_LDCW_ALIGNMENT - 1) & ~(__PA_LDCW_ALIGNMENT - 1); \
-  (volatile unsigned int *) __ret;                                      \
+#define __PA_LDCW_ALIGNMENT	16
+#define __ldcw_align(a) ({					\
+	unsigned long __ret = (unsigned long) &(a)->lock[0];	\
+	__ret = (__ret + __PA_LDCW_ALIGNMENT - 1)		\
+		& ~(__PA_LDCW_ALIGNMENT - 1);			\
+	(volatile unsigned int *) __ret;			\
 })
-#define LDCW	"ldcw"
+#define __LDCW	"ldcw"
 
 #else /*CONFIG_PA20*/
 /* From: "Jim Hull" <jim.hull of hp.com>
@@ -172,17 +172,18 @@ static inline void set_eiem(unsigned long val)
    they only require "natural" alignment (4-byte for ldcw, 8-byte for
    ldcd). */
 
-#define __PA_LDCW_ALIGNMENT 4
+#define __PA_LDCW_ALIGNMENT	4
 #define __ldcw_align(a) ((volatile unsigned int *)a)
-#define LDCW	"ldcw,co"
+#define __LDCW	"ldcw,co"
 
 #endif /*!CONFIG_PA20*/
 
 /* LDCW, the only atomic read-write operation PA-RISC has. *sigh*.  */
-#define __ldcw(a) ({ \
-	unsigned __ret; \
-	__asm__ __volatile__(LDCW " 0(%1),%0" : "=r" (__ret) : "r" (a)); \
-	__ret; \
+#define __ldcw(a) ({						\
+	unsigned __ret;						\
+	__asm__ __volatile__(__LDCW " 0(%1),%0"			\
+		: "=r" (__ret) : "r" (a));			\
+	__ret;							\
 })
 
 #ifdef CONFIG_SMP

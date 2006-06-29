@@ -13,7 +13,6 @@
 #ifndef _ASM_FIXMAP_H
 #define _ASM_FIXMAP_H
 
-#include <linux/config.h>
 
 /* used by vmalloc.c, vsyscall.lds.S.
  *
@@ -52,7 +51,7 @@
  */
 enum fixed_addresses {
 	FIX_HOLE,
-	FIX_VSYSCALL,
+	FIX_VDSO,
 #ifdef CONFIG_X86_LOCAL_APIC
 	FIX_APIC_BASE,	/* local (CPU) APIC) -- required for SMP or not */
 #endif
@@ -115,14 +114,6 @@ extern void __set_fixmap (enum fixed_addresses idx,
 
 #define __fix_to_virt(x)	(FIXADDR_TOP - ((x) << PAGE_SHIFT))
 #define __virt_to_fix(x)	((FIXADDR_TOP - ((x)&PAGE_MASK)) >> PAGE_SHIFT)
-
-/*
- * This is the range that is readable by user mode, and things
- * acting like user mode such as get_user_pages.
- */
-#define FIXADDR_USER_START	(__fix_to_virt(FIX_VSYSCALL))
-#define FIXADDR_USER_END	(FIXADDR_USER_START + PAGE_SIZE)
-
 
 extern void __this_fixmap_does_not_exist(void);
 

@@ -329,7 +329,6 @@ static int mmtimer_mmap(struct file *file, struct vm_area_struct *vma)
 	if (PAGE_SIZE > (1 << 16))
 		return -ENOSYS;
 
-	vma->vm_flags |= (VM_IO | VM_SHM | VM_LOCKED );
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 
 	mmtimer_addr = __pa(RTC_COUNTER_ADDR);

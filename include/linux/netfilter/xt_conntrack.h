@@ -42,7 +42,7 @@ struct ip_conntrack_old_tuple
 		} u;
 
 		/* The protocol. */
-		u16 protonum;
+		__u16 protonum;
 	} dst;
 };
 

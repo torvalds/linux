@@ -12,7 +12,6 @@
 
 #ifndef __ASSEMBLY__
 
-#include <linux/config.h>
 #include <asm/irq.h>
 
 struct tb_irq_space {

@@ -63,9 +63,11 @@ extern const struct consw vga_con;	/* VGA text console */
 extern const struct consw newport_con;	/* SGI Newport console  */
 extern const struct consw prom_con;	/* SPARC PROM console */
 
+int con_is_bound(const struct consw *csw);
+int register_con_driver(const struct consw *csw, int first, int last);
+int unregister_con_driver(const struct consw *csw);
 int take_over_console(const struct consw *sw, int first, int last, int deflt);
 void give_up_console(const struct consw *sw);
-
 /* scroll */
 #define SM_UP       (1)
 #define SM_DOWN     (2)
@@ -87,6 +89,7 @@ void give_up_console(const struct consw *sw);
 #define CON_CONSDEV	(2) /* Last on the command line */
 #define CON_ENABLED	(4)
 #define CON_BOOT	(8)
+#define CON_ANYTIME	(16) /* Safe to call when cpu is offline */
 
 struct console
 {

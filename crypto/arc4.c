@@ -24,9 +24,10 @@ struct arc4_ctx {
 	u8 x, y;
 };
 
-static int arc4_set_key(void *ctx_arg, const u8 *in_key, unsigned int key_len, u32 *flags)
+static int arc4_set_key(struct crypto_tfm *tfm, const u8 *in_key,
+			unsigned int key_len, u32 *flags)
 {
-	struct arc4_ctx *ctx = ctx_arg;
+	struct arc4_ctx *ctx = crypto_tfm_ctx(tfm);
 	int i, j = 0, k = 0;
 
 	ctx->x = 1;
@@ -48,9 +49,9 @@ static int arc4_set_key(void *ctx_arg, const u8 *in_key, unsigned int key_len, u
 	return 0;
 }
 
-static void arc4_crypt(void *ctx_arg, u8 *out, const u8 *in)
+static void arc4_crypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 {
-	struct arc4_ctx *ctx = ctx_arg;
+	struct arc4_ctx *ctx = crypto_tfm_ctx(tfm);
 
 	u8 *const S = ctx->S;
 	u8 x = ctx->x;

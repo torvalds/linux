@@ -46,6 +46,7 @@
 #include <linux/i2c.h>
 #include <linux/videotext.h>
 #include <linux/videodev.h>
+#include <media/v4l2-common.h>
 #include <linux/mutex.h>
 
 #include "saa5246a.h"

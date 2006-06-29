@@ -436,7 +436,7 @@ void __init arch_init_irq(void)
 		irq_desc[i].status	= IRQ_DISABLED;
 		irq_desc[i].action	= 0;
 		irq_desc[i].depth	= 1;
-		irq_desc[i].handler	= handler;
+		irq_desc[i].chip	= handler;
 	}
 
 	/* vector handler. this register the IRQ as non-sharable */

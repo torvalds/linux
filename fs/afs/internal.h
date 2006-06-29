@@ -69,7 +69,7 @@ extern const struct file_operations afs_dir_file_operations;
 /*
  * file.c
  */
-extern struct address_space_operations afs_fs_aops;
+extern const struct address_space_operations afs_fs_aops;
 extern struct inode_operations afs_file_inode_operations;
 
 #ifdef AFS_CACHING_SUPPORT

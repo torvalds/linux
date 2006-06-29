@@ -1,7 +1,6 @@
 #ifndef _ALPHA_BITOPS_H
 #define _ALPHA_BITOPS_H
 
-#include <linux/config.h>
 #include <asm/compiler.h>
 
 /*

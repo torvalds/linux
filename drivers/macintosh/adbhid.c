@@ -179,7 +179,7 @@ u8 adb_to_linux_keycodes[128] = {
 	/* 0x65 */ KEY_F9,		/*  67 */
 	/* 0x66 */ KEY_HANJA,		/* 123 */
 	/* 0x67 */ KEY_F11,		/*  87 */
-	/* 0x68 */ KEY_HANGUEL,		/* 122 */
+	/* 0x68 */ KEY_HANGEUL,		/* 122 */
 	/* 0x69 */ KEY_SYSRQ,		/*  99 */
 	/* 0x6a */ 0,
 	/* 0x6b */ KEY_SCROLLLOCK,	/*  70 */
@@ -503,9 +503,7 @@ adbhid_buttons_input(unsigned char *data, int nb, struct pt_regs *regs, int auto
 	case 0x1f: /* Powerbook button device */
 	  {
 		int down = (data[1] == (data[1] & 0xf));
-#ifdef CONFIG_PMAC_BACKLIGHT
-		int backlight = get_backlight_level();
-#endif
+
 		/*
 		 * XXX: Where is the contrast control for the passive?
 		 *  -- Cort
@@ -530,29 +528,17 @@ adbhid_buttons_input(unsigned char *data, int nb, struct pt_regs *regs, int auto
 
 		case 0xa:	/* brightness decrease */
 #ifdef CONFIG_PMAC_BACKLIGHT
-			if (!disable_kernel_backlight) {
-				if (down && backlight >= 0) {
-					if (backlight > BACKLIGHT_OFF)
-						set_backlight_level(backlight-1);
-					else
-						set_backlight_level(BACKLIGHT_OFF);
-				}
-			}
-#endif /* CONFIG_PMAC_BACKLIGHT */
+			if (!disable_kernel_backlight && down)
+				pmac_backlight_key_down();
+#endif
 			input_report_key(adbhid[id]->input, KEY_BRIGHTNESSDOWN, down);
 			break;
 
 		case 0x9:	/* brightness increase */
 #ifdef CONFIG_PMAC_BACKLIGHT
-			if (!disable_kernel_backlight) {
-				if (down && backlight >= 0) {
-					if (backlight < BACKLIGHT_MAX)
-						set_backlight_level(backlight+1);
-					else 
-						set_backlight_level(BACKLIGHT_MAX);
-				}
-			}
-#endif /* CONFIG_PMAC_BACKLIGHT */
+			if (!disable_kernel_backlight && down)
+				pmac_backlight_key_up();
+#endif
 			input_report_key(adbhid[id]->input, KEY_BRIGHTNESSUP, down);
 			break;
 

@@ -501,7 +501,7 @@ config SCSI_ATA_PIIX
 	tristate "Intel PIIX/ICH SATA support"
 	depends on SCSI_SATA && PCI
 	help
-	  This option enables support for ICH5 Serial ATA.
+	  This option enables support for ICH5/6/7/8 Serial ATA.
 	  If PATA support was enabled previously, this enables
 	  support for select Intel PIIX/ICH PATA host controllers.
 
@@ -531,6 +531,16 @@ config SCSI_PDC_ADMA
 	  This option enables support for Pacific Digital ADMA controllers
 
 	  If unsure, say N.
+
+config SCSI_HPTIOP
+	tristate "HighPoint RocketRAID 3xxx Controller support"
+	depends on SCSI && PCI
+	help
+	  This option enables support for HighPoint RocketRAID 3xxx
+	  controllers.
+
+	  To compile this driver as a module, choose M here; the module
+	  will be called hptiop. If unsure, say N.
 
 config SCSI_SATA_QSTOR
 	tristate "Pacific Digital SATA QStor support"
@@ -1159,7 +1169,7 @@ config SCSI_NCR_Q720
 	  you do not have this SCSI card, so say N.
 
 config SCSI_NCR53C8XX_DEFAULT_TAGS
-	int "  default tagged command queue depth"
+	int "default tagged command queue depth"
 	depends on SCSI_ZALON || SCSI_NCR_Q720
 	default "8"
 	---help---
@@ -1185,7 +1195,7 @@ config SCSI_NCR53C8XX_DEFAULT_TAGS
 	  There is no safe option other than using good SCSI devices.
 
 config SCSI_NCR53C8XX_MAX_TAGS
-	int "  maximum number of queued commands"
+	int "maximum number of queued commands"
 	depends on SCSI_ZALON || SCSI_NCR_Q720
 	default "32"
 	---help---
@@ -1202,7 +1212,7 @@ config SCSI_NCR53C8XX_MAX_TAGS
 	  There is no safe option and the default answer is recommended.
 
 config SCSI_NCR53C8XX_SYNC
-	int "  synchronous transfers frequency in MHz"
+	int "synchronous transfers frequency in MHz"
 	depends on SCSI_ZALON || SCSI_NCR_Q720
 	default "20"
 	---help---
@@ -1236,7 +1246,7 @@ config SCSI_NCR53C8XX_SYNC
 	  terminations and SCSI conformant devices.
 
 config SCSI_NCR53C8XX_PROFILE
-	bool "  enable profiling"
+	bool "enable profiling"
 	depends on SCSI_ZALON || SCSI_NCR_Q720
 	help
 	  This option allows you to enable profiling information gathering.
@@ -1247,7 +1257,7 @@ config SCSI_NCR53C8XX_PROFILE
 	  The normal answer therefore is N.
 
 config SCSI_NCR53C8XX_NO_DISCONNECT
-	bool "  not allow targets to disconnect"
+	bool "not allow targets to disconnect"
 	depends on (SCSI_ZALON || SCSI_NCR_Q720) && SCSI_NCR53C8XX_DEFAULT_TAGS=0
 	help
 	  This option is only provided for safety if you suspect some SCSI

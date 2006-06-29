@@ -333,31 +333,31 @@ static void setup_local_irq(unsigned int irq_nr, int type, int int_req)
 				au_writel(1<<(irq_nr-32), IC1_CFG2CLR);
 				au_writel(1<<(irq_nr-32), IC1_CFG1CLR);
 				au_writel(1<<(irq_nr-32), IC1_CFG0SET);
-				irq_desc[irq_nr].handler = &rise_edge_irq_type;
+				irq_desc[irq_nr].chip = &rise_edge_irq_type;
 				break;
 			case INTC_INT_FALL_EDGE: /* 0:1:0 */
 				au_writel(1<<(irq_nr-32), IC1_CFG2CLR);
 				au_writel(1<<(irq_nr-32), IC1_CFG1SET);
 				au_writel(1<<(irq_nr-32), IC1_CFG0CLR);
-				irq_desc[irq_nr].handler = &fall_edge_irq_type;
+				irq_desc[irq_nr].chip = &fall_edge_irq_type;
 				break;
 			case INTC_INT_RISE_AND_FALL_EDGE: /* 0:1:1 */
 				au_writel(1<<(irq_nr-32), IC1_CFG2CLR);
 				au_writel(1<<(irq_nr-32), IC1_CFG1SET);
 				au_writel(1<<(irq_nr-32), IC1_CFG0SET);
-				irq_desc[irq_nr].handler = &either_edge_irq_type;
+				irq_desc[irq_nr].chip = &either_edge_irq_type;
 				break;
 			case INTC_INT_HIGH_LEVEL: /* 1:0:1 */
 				au_writel(1<<(irq_nr-32), IC1_CFG2SET);
 				au_writel(1<<(irq_nr-32), IC1_CFG1CLR);
 				au_writel(1<<(irq_nr-32), IC1_CFG0SET);
-				irq_desc[irq_nr].handler = &level_irq_type;
+				irq_desc[irq_nr].chip = &level_irq_type;
 				break;
 			case INTC_INT_LOW_LEVEL: /* 1:1:0 */
 				au_writel(1<<(irq_nr-32), IC1_CFG2SET);
 				au_writel(1<<(irq_nr-32), IC1_CFG1SET);
 				au_writel(1<<(irq_nr-32), IC1_CFG0CLR);
-				irq_desc[irq_nr].handler = &level_irq_type;
+				irq_desc[irq_nr].chip = &level_irq_type;
 				break;
 			case INTC_INT_DISABLED: /* 0:0:0 */
 				au_writel(1<<(irq_nr-32), IC1_CFG0CLR);
@@ -385,31 +385,31 @@ static void setup_local_irq(unsigned int irq_nr, int type, int int_req)
 				au_writel(1<<irq_nr, IC0_CFG2CLR);
 				au_writel(1<<irq_nr, IC0_CFG1CLR);
 				au_writel(1<<irq_nr, IC0_CFG0SET);
-				irq_desc[irq_nr].handler = &rise_edge_irq_type;
+				irq_desc[irq_nr].chip = &rise_edge_irq_type;
 				break;
 			case INTC_INT_FALL_EDGE: /* 0:1:0 */
 				au_writel(1<<irq_nr, IC0_CFG2CLR);
 				au_writel(1<<irq_nr, IC0_CFG1SET);
 				au_writel(1<<irq_nr, IC0_CFG0CLR);
-				irq_desc[irq_nr].handler = &fall_edge_irq_type;
+				irq_desc[irq_nr].chip = &fall_edge_irq_type;
 				break;
 			case INTC_INT_RISE_AND_FALL_EDGE: /* 0:1:1 */
 				au_writel(1<<irq_nr, IC0_CFG2CLR);
 				au_writel(1<<irq_nr, IC0_CFG1SET);
 				au_writel(1<<irq_nr, IC0_CFG0SET);
-				irq_desc[irq_nr].handler = &either_edge_irq_type;
+				irq_desc[irq_nr].chip = &either_edge_irq_type;
 				break;
 			case INTC_INT_HIGH_LEVEL: /* 1:0:1 */
 				au_writel(1<<irq_nr, IC0_CFG2SET);
 				au_writel(1<<irq_nr, IC0_CFG1CLR);
 				au_writel(1<<irq_nr, IC0_CFG0SET);
-				irq_desc[irq_nr].handler = &level_irq_type;
+				irq_desc[irq_nr].chip = &level_irq_type;
 				break;
 			case INTC_INT_LOW_LEVEL: /* 1:1:0 */
 				au_writel(1<<irq_nr, IC0_CFG2SET);
 				au_writel(1<<irq_nr, IC0_CFG1SET);
 				au_writel(1<<irq_nr, IC0_CFG0CLR);
-				irq_desc[irq_nr].handler = &level_irq_type;
+				irq_desc[irq_nr].chip = &level_irq_type;
 				break;
 			case INTC_INT_DISABLED: /* 0:0:0 */
 				au_writel(1<<irq_nr, IC0_CFG0CLR);

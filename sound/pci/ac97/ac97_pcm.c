@@ -317,6 +317,8 @@ int snd_ac97_set_rate(struct snd_ac97 *ac97, int reg, unsigned int rate)
 	return 0;
 }
 
+EXPORT_SYMBOL(snd_ac97_set_rate);
+
 static unsigned short get_pslots(struct snd_ac97 *ac97, unsigned char *rate_table, unsigned short *spdif_slots)
 {
 	if (!ac97_is_audio(ac97))
@@ -550,6 +552,8 @@ int snd_ac97_pcm_assign(struct snd_ac97_bus *bus,
 	return 0;
 }
 
+EXPORT_SYMBOL(snd_ac97_pcm_assign);
+
 /**
  * snd_ac97_pcm_open - opens the given AC97 pcm
  * @pcm: the ac97 pcm instance
@@ -633,6 +637,8 @@ int snd_ac97_pcm_open(struct ac97_pcm *pcm, unsigned int rate,
 	return err;
 }
 
+EXPORT_SYMBOL(snd_ac97_pcm_open);
+
 /**
  * snd_ac97_pcm_close - closes the given AC97 pcm
  * @pcm: the ac97 pcm instance
@@ -657,6 +663,8 @@ int snd_ac97_pcm_close(struct ac97_pcm *pcm)
 	spin_unlock_irq(&pcm->bus->bus_lock);
 	return 0;
 }
+
+EXPORT_SYMBOL(snd_ac97_pcm_close);
 
 static int double_rate_hw_constraint_rate(struct snd_pcm_hw_params *params,
 					  struct snd_pcm_hw_rule *rule)
@@ -709,3 +717,5 @@ int snd_ac97_pcm_double_rate_rules(struct snd_pcm_runtime *runtime)
 				  SNDRV_PCM_HW_PARAM_RATE, -1);
 	return err;
 }
+
+EXPORT_SYMBOL(snd_ac97_pcm_double_rate_rules);

@@ -874,7 +874,7 @@ static struct tuner_params tuner_philips_fmd1216me_mk3_params[] = {
 };
 
 
-/* ------------ TUNER_LG_TDVS_H062F - INFINEON ATSC ------------ */
+/* ------ TUNER_LG_TDVS_H06XF - LG INNOTEK / INFINEON ATSC ----- */
 
 static struct tuner_range tuner_tua6034_ntsc_ranges[] = {
 	{ 16 * 165.00 /*MHz*/, 0x8e, 0x01 },
@@ -883,7 +883,7 @@ static struct tuner_range tuner_tua6034_ntsc_ranges[] = {
 };
 
 
-static struct tuner_params tuner_tua6034_params[] = {
+static struct tuner_params tuner_lg_tdvs_h06xf_params[] = {
 	{
 		.type   = TUNER_PARAM_TYPE_NTSC,
 		.ranges = tuner_tua6034_ntsc_ranges,
@@ -1021,6 +1021,22 @@ static struct tuner_params tuner_thomson_fe6600_params[] = {
 		.type   = TUNER_PARAM_TYPE_PAL,
 		.ranges = tuner_thomson_fe6600_ranges,
 		.count  = ARRAY_SIZE(tuner_thomson_fe6600_ranges),
+	},
+};
+
+/* ------------ TUNER_SAMSUNG_TCPG_6121P30A - Samsung PAL ------------ */
+
+static struct tuner_range tuner_samsung_tcpg_6121p30a_pal_ranges[] = {
+	{ 16 * 146.25 /*MHz*/, 0xce, 0x01, },
+	{ 16 * 428.50 /*MHz*/, 0xce, 0x02, },
+	{ 16 * 999.99        , 0xce, 0x08, },
+};
+
+static struct tuner_params tuner_samsung_tcpg_6121p30a_params[] = {
+	{
+		.type   = TUNER_PARAM_TYPE_PAL,
+		.ranges = tuner_samsung_tcpg_6121p30a_pal_ranges,
+		.count  = ARRAY_SIZE(tuner_samsung_tcpg_6121p30a_pal_ranges),
 	},
 };
 
@@ -1354,10 +1370,10 @@ struct tunertype tuners[] = {
 		.params = tuner_philips_fmd1216me_mk3_params,
 		.count  = ARRAY_SIZE(tuner_philips_fmd1216me_mk3_params),
 	},
-	[TUNER_LG_TDVS_H062F] = { /* LGINNOTEK ATSC */
-		.name   = "LG TDVS-H062F/TUA6034",
-		.params = tuner_tua6034_params,
-		.count  = ARRAY_SIZE(tuner_tua6034_params),
+	[TUNER_LG_TDVS_H06XF] = { /* LGINNOTEK ATSC */
+		.name   = "LG TDVS-H06xF", /* H061F, H062F & H064F */
+		.params = tuner_lg_tdvs_h06xf_params,
+		.count  = ARRAY_SIZE(tuner_lg_tdvs_h06xf_params),
 	},
 	[TUNER_YMEC_TVF66T5_B_DFF] = { /* Philips PAL */
 		.name   = "Ymec TVF66T5-B/DFF",
@@ -1399,6 +1415,16 @@ struct tunertype tuners[] = {
 		.name   = "Thomson FE6600",
 		.params = tuner_thomson_fe6600_params,
 		.count  = ARRAY_SIZE(tuner_thomson_fe6600_params),
+	},
+	[TUNER_SAMSUNG_TCPG_6121P30A] = { /* Samsung PAL */
+		.name   = "Samsung TCPG 6121P30A",
+		.params = tuner_samsung_tcpg_6121p30a_params,
+		.count  = ARRAY_SIZE(tuner_samsung_tcpg_6121p30a_params),
+	},
+	[TUNER_TDA9887] = { /* Philips TDA 9887 IF PLL Demodulator.
+				This chip is part of some modern tuners */
+		.name   = "Philips TDA988[5,6,7] IF PLL Demodulator",
+		/* see tda9887.c for details */
 	},
 };
 

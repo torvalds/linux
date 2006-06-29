@@ -12,7 +12,6 @@
 #ifndef _ASM_SYSTEM_H
 #define _ASM_SYSTEM_H
 
-#include <linux/config.h> /* get configuration macros */
 #include <linux/linkage.h>
 #include <asm/atomic.h>
 

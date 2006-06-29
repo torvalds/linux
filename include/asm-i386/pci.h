@@ -1,7 +1,6 @@
 #ifndef __i386_PCI_H
 #define __i386_PCI_H
 
-#include <linux/config.h>
 
 #ifdef __KERNEL__
 #include <linux/mm.h>		/* for struct page */

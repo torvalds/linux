@@ -472,7 +472,7 @@ void __init ipic_init(phys_addr_t phys_addr,
 	ipic_write(primary_ipic->regs, IPIC_SEMSR, temp);
 
 	for (i = 0 ; i < NR_IPIC_INTS ; i++) {
-		irq_desc[i+irq_offset].handler = &ipic;
+		irq_desc[i+irq_offset].chip = &ipic;
 		irq_desc[i+irq_offset].status = IRQ_LEVEL;
 	}
 

@@ -432,15 +432,22 @@ static void hub_power_on(struct usb_hub *hub)
 {
 	int port1;
 	unsigned pgood_delay = hub->descriptor->bPwrOn2PwrGood * 2;
-	u16 wHubCharacteristics = le16_to_cpu(hub->descriptor->wHubCharacteristics);
+	u16 wHubCharacteristics =
+			le16_to_cpu(hub->descriptor->wHubCharacteristics);
 
-	/* if hub supports power switching, enable power on each port */
-	if ((wHubCharacteristics & HUB_CHAR_LPSM) < 2) {
+	/* Enable power on each port.  Some hubs have reserved values
+	 * of LPSM (> 2) in their descriptors, even though they are
+	 * USB 2.0 hubs.  Some hubs do not implement port-power switching
+	 * but only emulate it.  In all cases, the ports won't work
+	 * unless we send these messages to the hub.
+	 */
+	if ((wHubCharacteristics & HUB_CHAR_LPSM) < 2)
 		dev_dbg(hub->intfdev, "enabling power on all ports\n");
-		for (port1 = 1; port1 <= hub->descriptor->bNbrPorts; port1++)
-			set_port_feature(hub->hdev, port1,
-					USB_PORT_FEAT_POWER);
-	}
+	else
+		dev_dbg(hub->intfdev, "trying to enable port power on "
+				"non-switchable hub\n");
+	for (port1 = 1; port1 <= hub->descriptor->bNbrPorts; port1++)
+		set_port_feature(hub->hdev, port1, USB_PORT_FEAT_POWER);
 
 	/* Wait at least 100 msec for power to become stable */
 	msleep(max(pgood_delay, (unsigned) 100));
@@ -518,15 +525,16 @@ static int hub_port_disable(struct usb_hub *hub, int port1, int set_state)
 
 
 /* caller has locked the hub device */
-static void hub_pre_reset(struct usb_hub *hub, int disable_ports)
+static void hub_pre_reset(struct usb_interface *intf)
 {
+	struct usb_hub *hub = usb_get_intfdata(intf);
 	struct usb_device *hdev = hub->hdev;
 	int port1;
 
 	for (port1 = 1; port1 <= hdev->maxchild; ++port1) {
 		if (hdev->children[port1 - 1]) {
 			usb_disconnect(&hdev->children[port1 - 1]);
-			if (disable_ports)
+			if (hub->error == 0)
 				hub_port_disable(hub, port1, 0);
 		}
 	}
@@ -534,8 +542,10 @@ static void hub_pre_reset(struct usb_hub *hub, int disable_ports)
 }
 
 /* caller has locked the hub device */
-static void hub_post_reset(struct usb_hub *hub)
+static void hub_post_reset(struct usb_interface *intf)
 {
+	struct usb_hub *hub = usb_get_intfdata(intf);
+
 	hub_activate(hub);
 	hub_power_on(hub);
 }
@@ -795,14 +805,15 @@ static void hub_disconnect(struct usb_interface *intf)
 	struct usb_hub *hub = usb_get_intfdata (intf);
 	struct usb_device *hdev;
 
+	/* Disconnect all children and quiesce the hub */
+	hub->error = 0;
+	hub_pre_reset(intf);
+
 	usb_set_intfdata (intf, NULL);
 	hdev = hub->hdev;
 
 	if (hdev->speed == USB_SPEED_HIGH)
 		highspeed_hubs--;
-
-	/* Disconnect all children and quiesce the hub */
-	hub_pre_reset(hub, 1);
 
 	usb_free_urb(hub->urb);
 	hub->urb = NULL;
@@ -1169,6 +1180,7 @@ static int choose_configuration(struct usb_device *udev)
 {
 	int i;
 	int num_configs;
+	int insufficient_power = 0;
 	struct usb_host_config *c, *best;
 
 	best = NULL;
@@ -1221,8 +1233,10 @@ static int choose_configuration(struct usb_device *udev)
 		 */
 
 		/* Rule out configs that draw too much bus current */
-		if (c->desc.bMaxPower * 2 > udev->bus_mA)
+		if (c->desc.bMaxPower * 2 > udev->bus_mA) {
+			insufficient_power++;
 			continue;
+		}
 
 		/* If the first config's first interface is COMM/2/0xff
 		 * (MSFT RNDIS), rule it out unless Linux has host-side
@@ -1231,7 +1245,7 @@ static int choose_configuration(struct usb_device *udev)
 				&& desc->bInterfaceClass == USB_CLASS_COMM
 				&& desc->bInterfaceSubClass == 2
 				&& desc->bInterfaceProtocol == 0xff) {
-#ifndef CONFIG_USB_NET_RNDIS
+#ifndef CONFIG_USB_NET_RNDIS_HOST
 			continue;
 #else
 			best = c;
@@ -1255,6 +1269,11 @@ static int choose_configuration(struct usb_device *udev)
 		else if (!best)
 			best = c;
 	}
+
+	if (insufficient_power > 0)
+		dev_info(&udev->dev, "rejected %d configuration%s "
+			"due to insufficient available bus power\n",
+			insufficient_power, plural(insufficient_power));
 
 	if (best) {
 		i = best->desc.bConfigurationValue;
@@ -2732,7 +2751,8 @@ static void hub_events(void)
 
 		/* If the hub has died, clean up after it */
 		if (hdev->state == USB_STATE_NOTATTACHED) {
-			hub_pre_reset(hub, 0);
+			hub->error = -ENODEV;
+			hub_pre_reset(intf);
 			goto loop;
 		}
 
@@ -2744,7 +2764,7 @@ static void hub_events(void)
 			dev_dbg (hub_dev, "resetting for error %d\n",
 				hub->error);
 
-			ret = usb_reset_device(hdev);
+			ret = usb_reset_composite_device(hdev, intf);
 			if (ret) {
 				dev_dbg (hub_dev,
 					"error resetting hub: %d\n", ret);
@@ -2913,6 +2933,8 @@ static struct usb_driver hub_driver = {
 	.disconnect =	hub_disconnect,
 	.suspend =	hub_suspend,
 	.resume =	hub_resume,
+	.pre_reset =	hub_pre_reset,
+	.post_reset =	hub_post_reset,
 	.ioctl =	hub_ioctl,
 	.id_table =	hub_id_table,
 };
@@ -2992,9 +3014,9 @@ static int config_descriptors_changed(struct usb_device *udev)
  * usb_reset_device - perform a USB port reset to reinitialize a device
  * @udev: device to reset (not in SUSPENDED or NOTATTACHED state)
  *
- * WARNING - don't reset any device unless drivers for all of its
- * interfaces are expecting that reset!  Maybe some driver->reset()
- * method should eventually help ensure sufficient cooperation.
+ * WARNING - don't use this routine to reset a composite device
+ * (one with multiple interfaces owned by separate drivers)!
+ * Use usb_reset_composite_device() instead.
  *
  * Do a port reset, reassign the device's address, and establish its
  * former operating configuration.  If the reset fails, or the device's
@@ -3018,7 +3040,6 @@ int usb_reset_device(struct usb_device *udev)
 	struct usb_device		*parent_hdev = udev->parent;
 	struct usb_hub			*parent_hub;
 	struct usb_device_descriptor	descriptor = udev->descriptor;
-	struct usb_hub			*hub = NULL;
 	int 				i, ret = 0;
 	int				port1 = udev->portnum;
 
@@ -3035,14 +3056,6 @@ int usb_reset_device(struct usb_device *udev)
 		return -EISDIR;
 	}
 	parent_hub = hdev_to_hub(parent_hdev);
-
-	/* If we're resetting an active hub, take some special actions */
-	if (udev->actconfig && udev->actconfig->desc.bNumInterfaces > 0 &&
-			udev->actconfig->interface[0]->dev.driver ==
-				&hub_driver.driver &&
-			(hub = hdev_to_hub(udev)) != NULL) {
-		hub_pre_reset(hub, 0);
-	}
 
 	set_bit(port1, parent_hub->busy_bits);
 	for (i = 0; i < SET_CONFIG_TRIES; ++i) {
@@ -3102,11 +3115,87 @@ int usb_reset_device(struct usb_device *udev)
 	}
 
 done:
-	if (hub)
-		hub_post_reset(hub);
 	return 0;
  
 re_enumerate:
 	hub_port_logical_disconnect(parent_hub, port1);
 	return -ENODEV;
+}
+
+/**
+ * usb_reset_composite_device - warn interface drivers and perform a USB port reset
+ * @udev: device to reset (not in SUSPENDED or NOTATTACHED state)
+ * @iface: interface bound to the driver making the request (optional)
+ *
+ * Warns all drivers bound to registered interfaces (using their pre_reset
+ * method), performs the port reset, and then lets the drivers know that
+ * the reset is over (using their post_reset method).
+ *
+ * Return value is the same as for usb_reset_device().
+ *
+ * The caller must own the device lock.  For example, it's safe to use
+ * this from a driver probe() routine after downloading new firmware.
+ * For calls that might not occur during probe(), drivers should lock
+ * the device using usb_lock_device_for_reset().
+ *
+ * The interface locks are acquired during the pre_reset stage and released
+ * during the post_reset stage.  However if iface is not NULL and is
+ * currently being probed, we assume that the caller already owns its
+ * lock.
+ */
+int usb_reset_composite_device(struct usb_device *udev,
+		struct usb_interface *iface)
+{
+	int ret;
+	struct usb_host_config *config = udev->actconfig;
+
+	if (udev->state == USB_STATE_NOTATTACHED ||
+			udev->state == USB_STATE_SUSPENDED) {
+		dev_dbg(&udev->dev, "device reset not allowed in state %d\n",
+				udev->state);
+		return -EINVAL;
+	}
+
+	if (iface && iface->condition != USB_INTERFACE_BINDING)
+		iface = NULL;
+
+	if (config) {
+		int i;
+		struct usb_interface *cintf;
+		struct usb_driver *drv;
+
+		for (i = 0; i < config->desc.bNumInterfaces; ++i) {
+			cintf = config->interface[i];
+			if (cintf != iface)
+				down(&cintf->dev.sem);
+			if (device_is_registered(&cintf->dev) &&
+					cintf->dev.driver) {
+				drv = to_usb_driver(cintf->dev.driver);
+				if (drv->pre_reset)
+					(drv->pre_reset)(cintf);
+			}
+		}
+	}
+
+	ret = usb_reset_device(udev);
+
+	if (config) {
+		int i;
+		struct usb_interface *cintf;
+		struct usb_driver *drv;
+
+		for (i = config->desc.bNumInterfaces - 1; i >= 0; --i) {
+			cintf = config->interface[i];
+			if (device_is_registered(&cintf->dev) &&
+					cintf->dev.driver) {
+				drv = to_usb_driver(cintf->dev.driver);
+				if (drv->post_reset)
+					(drv->post_reset)(cintf);
+			}
+			if (cintf != iface)
+				up(&cintf->dev.sem);
+		}
+	}
+
+	return ret;
 }

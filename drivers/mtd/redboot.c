@@ -1,5 +1,5 @@
 /*
- * $Id: redboot.c,v 1.19 2005/12/01 10:03:51 dwmw2 Exp $
+ * $Id: redboot.c,v 1.21 2006/03/30 18:34:37 bjd Exp $
  *
  * Parse RedBoot-style Flash Image System (FIS) tables and
  * produce a Linux partition array to match.
@@ -15,14 +15,14 @@
 
 struct fis_image_desc {
     unsigned char name[16];      // Null terminated name
-    unsigned long flash_base;    // Address within FLASH of image
-    unsigned long mem_base;      // Address in memory where it executes
-    unsigned long size;          // Length of image
-    unsigned long entry_point;   // Execution entry point
-    unsigned long data_length;   // Length of actual data
-    unsigned char _pad[256-(16+7*sizeof(unsigned long))];
-    unsigned long desc_cksum;    // Checksum over image descriptor
-    unsigned long file_cksum;    // Checksum over image data
+    uint32_t	  flash_base;    // Address within FLASH of image
+    uint32_t	  mem_base;      // Address in memory where it executes
+    uint32_t	  size;          // Length of image
+    uint32_t	  entry_point;   // Execution entry point
+    uint32_t	  data_length;   // Length of actual data
+    unsigned char _pad[256-(16+7*sizeof(uint32_t))];
+    uint32_t	  desc_cksum;    // Checksum over image descriptor
+    uint32_t	  file_cksum;    // Checksum over image data
 };
 
 struct fis_list {

@@ -70,7 +70,7 @@
 # define RPCDBG_FACILITY        RPCDBG_AUTH
 #endif
 
-spinlock_t krb5_seq_lock = SPIN_LOCK_UNLOCKED;
+DEFINE_SPINLOCK(krb5_seq_lock);
 
 u32
 gss_get_mic_kerberos(struct gss_ctx *gss_ctx, struct xdr_buf *text,

@@ -20,8 +20,7 @@
  * returns the number of characters copied (strlen of copied string),
  *  -EFAULT on exception, or "len" if we fill the whole buffer
  */
-ENTRY(__arch_strncpy_from_user)
-	save_lr
+ENTRY(__strncpy_from_user)
 	mov	ip, r1
 1:	subs	r2, r2, #1
 USER(	ldrplbt	r3, [r1], #1)
@@ -31,13 +30,13 @@ USER(	ldrplbt	r3, [r1], #1)
 	bne	1b
 	sub	r1, r1, #1	@ take NUL character out of count
 2:	sub	r0, r1, ip
-	restore_pc
+	mov	pc, lr
 
 	.section .fixup,"ax"
 	.align	0
 9001:	mov	r3, #0
 	strb	r3, [r0, #0]	@ null terminate
 	mov	r0, #-EFAULT
-	restore_pc
+	mov	pc, lr
 	.previous
 

@@ -1145,7 +1145,7 @@ static int isicom_write(struct tty_struct *tty,	const unsigned char *buf,
 	if (isicom_paranoia_check(port, tty->name, "isicom_write"))
 		return 0;
 
-	if (!tty || !port->xmit_buf)
+	if (!port->xmit_buf)
 		return 0;
 
 	spin_lock_irqsave(&card->card_lock, flags);
@@ -1180,7 +1180,7 @@ static void isicom_put_char(struct tty_struct *tty, unsigned char ch)
 	if (isicom_paranoia_check(port, tty->name, "isicom_put_char"))
 		return;
 
-	if (!tty || !port->xmit_buf)
+	if (!port->xmit_buf)
 		return;
 
 	spin_lock_irqsave(&card->card_lock, flags);

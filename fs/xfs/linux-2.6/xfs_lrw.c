@@ -23,7 +23,6 @@
 #include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
-#include "xfs_dir.h"
 #include "xfs_dir2.h"
 #include "xfs_alloc.h"
 #include "xfs_dmapi.h"
@@ -32,7 +31,6 @@
 #include "xfs_bmap_btree.h"
 #include "xfs_alloc_btree.h"
 #include "xfs_ialloc_btree.h"
-#include "xfs_dir_sf.h"
 #include "xfs_dir2_sf.h"
 #include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
@@ -206,7 +204,7 @@ xfs_read(
 	xfs_fsize_t		n;
 	xfs_inode_t		*ip;
 	xfs_mount_t		*mp;
-	vnode_t			*vp;
+	bhv_vnode_t		*vp;
 	unsigned long		seg;
 
 	ip = XFS_BHVTOI(bdp);
@@ -258,7 +256,7 @@ xfs_read(
 
 	if (DM_EVENT_ENABLED(vp->v_vfsp, ip, DM_EVENT_READ) &&
 	    !(ioflags & IO_INVIS)) {
-		vrwlock_t locktype = VRWLOCK_READ;
+		bhv_vrwlock_t locktype = VRWLOCK_READ;
 		int dmflags = FILP_DELAY_FLAG(file) | DM_SEM_FLAG_RD(ioflags);
 
 		ret = -XFS_SEND_DATA(mp, DM_EVENT_READ,
@@ -271,7 +269,7 @@ xfs_read(
 	}
 
 	if (unlikely((ioflags & IO_ISDIRECT) && VN_CACHED(vp)))
-		VOP_FLUSHINVAL_PAGES(vp, ctooff(offtoct(*offset)),
+		bhv_vop_flushinval_pages(vp, ctooff(offtoct(*offset)),
 						-1, FI_REMAPF_LOCKED);
 
 	xfs_rw_enter_trace(XFS_READ_ENTER, &ip->i_iocore,
@@ -313,7 +311,7 @@ xfs_sendfile(
 
 	if (DM_EVENT_ENABLED(BHV_TO_VNODE(bdp)->v_vfsp, ip, DM_EVENT_READ) &&
 	    (!(ioflags & IO_INVIS))) {
-		vrwlock_t locktype = VRWLOCK_READ;
+		bhv_vrwlock_t locktype = VRWLOCK_READ;
 		int error;
 
 		error = XFS_SEND_DATA(mp, DM_EVENT_READ, BHV_TO_VNODE(bdp),
@@ -357,7 +355,7 @@ xfs_splice_read(
 
 	if (DM_EVENT_ENABLED(BHV_TO_VNODE(bdp)->v_vfsp, ip, DM_EVENT_READ) &&
 	    (!(ioflags & IO_INVIS))) {
-		vrwlock_t locktype = VRWLOCK_READ;
+		bhv_vrwlock_t locktype = VRWLOCK_READ;
 		int error;
 
 		error = XFS_SEND_DATA(mp, DM_EVENT_READ, BHV_TO_VNODE(bdp),
@@ -401,7 +399,7 @@ xfs_splice_write(
 
 	if (DM_EVENT_ENABLED(BHV_TO_VNODE(bdp)->v_vfsp, ip, DM_EVENT_WRITE) &&
 	    (!(ioflags & IO_INVIS))) {
-		vrwlock_t locktype = VRWLOCK_WRITE;
+		bhv_vrwlock_t locktype = VRWLOCK_WRITE;
 		int error;
 
 		error = XFS_SEND_DATA(mp, DM_EVENT_WRITE, BHV_TO_VNODE(bdp),
@@ -458,7 +456,7 @@ xfs_zero_last_block(
 	last_fsb = XFS_B_TO_FSBT(mp, isize);
 	nimaps = 1;
 	error = XFS_BMAPI(mp, NULL, io, last_fsb, 1, 0, NULL, 0, &imap,
-			  &nimaps, NULL);
+			  &nimaps, NULL, NULL);
 	if (error) {
 		return error;
 	}
@@ -499,7 +497,7 @@ xfs_zero_last_block(
 
 int					/* error (positive) */
 xfs_zero_eof(
-	vnode_t		*vp,
+	bhv_vnode_t	*vp,
 	xfs_iocore_t	*io,
 	xfs_off_t	offset,		/* starting I/O offset */
 	xfs_fsize_t	isize,		/* current inode size */
@@ -510,7 +508,6 @@ xfs_zero_eof(
 	xfs_fileoff_t	end_zero_fsb;
 	xfs_fileoff_t	zero_count_fsb;
 	xfs_fileoff_t	last_fsb;
-	xfs_extlen_t	buf_len_fsb;
 	xfs_mount_t	*mp = io->io_mount;
 	int		nimaps;
 	int		error = 0;
@@ -556,7 +553,7 @@ xfs_zero_eof(
 		nimaps = 1;
 		zero_count_fsb = end_zero_fsb - start_zero_fsb + 1;
 		error = XFS_BMAPI(mp, NULL, io, start_zero_fsb, zero_count_fsb,
-				  0, NULL, 0, &imap, &nimaps, NULL);
+				  0, NULL, 0, &imap, &nimaps, NULL, NULL);
 		if (error) {
 			ASSERT(ismrlocked(io->io_lock, MR_UPDATE));
 			ASSERT(ismrlocked(io->io_iolock, MR_UPDATE));
@@ -579,16 +576,7 @@ xfs_zero_eof(
 		}
 
 		/*
-		 * There are blocks in the range requested.
-		 * Zero them a single write at a time.  We actually
-		 * don't zero the entire range returned if it is
-		 * too big and simply loop around to get the rest.
-		 * That is not the most efficient thing to do, but it
-		 * is simple and this path should not be exercised often.
-		 */
-		buf_len_fsb = XFS_FILBLKS_MIN(imap.br_blockcount,
-					      mp->m_writeio_blocks << 8);
-		/*
+		 * There are blocks we need to zero.
 		 * Drop the inode lock while we're doing the I/O.
 		 * We'll still have the iolock to protect us.
 		 */
@@ -596,14 +584,13 @@ xfs_zero_eof(
 
 		error = xfs_iozero(ip,
 				   XFS_FSB_TO_B(mp, start_zero_fsb),
-				   XFS_FSB_TO_B(mp, buf_len_fsb),
+				   XFS_FSB_TO_B(mp, imap.br_blockcount),
 				   end_size);
-
 		if (error) {
 			goto out_lock;
 		}
 
-		start_zero_fsb = imap.br_startoff + buf_len_fsb;
+		start_zero_fsb = imap.br_startoff + imap.br_blockcount;
 		ASSERT(start_zero_fsb <= (end_zero_fsb + 1));
 
 		XFS_ILOCK(mp, io, XFS_ILOCK_EXCL|XFS_EXTSIZE_RD);
@@ -637,11 +624,11 @@ xfs_write(
 	ssize_t			ret = 0, error = 0;
 	xfs_fsize_t		isize, new_size;
 	xfs_iocore_t		*io;
-	vnode_t			*vp;
+	bhv_vnode_t		*vp;
 	unsigned long		seg;
 	int			iolock;
 	int			eventsent = 0;
-	vrwlock_t		locktype;
+	bhv_vrwlock_t		locktype;
 	size_t			ocount = 0, count;
 	loff_t			pos;
 	int			need_i_mutex = 1, need_flush = 0;
@@ -679,10 +666,10 @@ xfs_write(
 	io = &xip->i_iocore;
 	mp = io->io_mount;
 
+	vfs_wait_for_freeze(vp->v_vfsp, SB_FREEZE_WRITE);
+
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return -EIO;
-
-	fs_check_frozen(vp->v_vfsp, SB_FREEZE_WRITE);
 
 	if (ioflags & IO_ISDIRECT) {
 		xfs_buftarg_t	*target =
@@ -814,7 +801,7 @@ retry:
 		if (need_flush) {
 			xfs_inval_cached_trace(io, pos, -1,
 					ctooff(offtoct(pos)), -1);
-			VOP_FLUSHINVAL_PAGES(vp, ctooff(offtoct(pos)),
+			bhv_vop_flushinval_pages(vp, ctooff(offtoct(pos)),
 					-1, FI_REMAPF_LOCKED);
 		}
 
@@ -903,79 +890,9 @@ retry:
 
 	/* Handle various SYNC-type writes */
 	if ((file->f_flags & O_SYNC) || IS_SYNC(inode)) {
-		/*
-		 * If we're treating this as O_DSYNC and we have not updated the
-		 * size, force the log.
-		 */
-		if (!(mp->m_flags & XFS_MOUNT_OSYNCISOSYNC) &&
-		    !(xip->i_update_size)) {
-			xfs_inode_log_item_t	*iip = xip->i_itemp;
-
-			/*
-			 * If an allocation transaction occurred
-			 * without extending the size, then we have to force
-			 * the log up the proper point to ensure that the
-			 * allocation is permanent.  We can't count on
-			 * the fact that buffered writes lock out direct I/O
-			 * writes - the direct I/O write could have extended
-			 * the size nontransactionally, then finished before
-			 * we started.  xfs_write_file will think that the file
-			 * didn't grow but the update isn't safe unless the
-			 * size change is logged.
-			 *
-			 * Force the log if we've committed a transaction
-			 * against the inode or if someone else has and
-			 * the commit record hasn't gone to disk (e.g.
-			 * the inode is pinned).  This guarantees that
-			 * all changes affecting the inode are permanent
-			 * when we return.
-			 */
-			if (iip && iip->ili_last_lsn) {
-				xfs_log_force(mp, iip->ili_last_lsn,
-						XFS_LOG_FORCE | XFS_LOG_SYNC);
-			} else if (xfs_ipincount(xip) > 0) {
-				xfs_log_force(mp, (xfs_lsn_t)0,
-						XFS_LOG_FORCE | XFS_LOG_SYNC);
-			}
-
-		} else {
-			xfs_trans_t	*tp;
-
-			/*
-			 * O_SYNC or O_DSYNC _with_ a size update are handled
-			 * the same way.
-			 *
-			 * If the write was synchronous then we need to make
-			 * sure that the inode modification time is permanent.
-			 * We'll have updated the timestamp above, so here
-			 * we use a synchronous transaction to log the inode.
-			 * It's not fast, but it's necessary.
-			 *
-			 * If this a dsync write and the size got changed
-			 * non-transactionally, then we need to ensure that
-			 * the size change gets logged in a synchronous
-			 * transaction.
-			 */
-
-			tp = xfs_trans_alloc(mp, XFS_TRANS_WRITE_SYNC);
-			if ((error = xfs_trans_reserve(tp, 0,
-						      XFS_SWRITE_LOG_RES(mp),
-						      0, 0, 0))) {
-				/* Transaction reserve failed */
-				xfs_trans_cancel(tp, 0);
-			} else {
-				/* Transaction reserve successful */
-				xfs_ilock(xip, XFS_ILOCK_EXCL);
-				xfs_trans_ijoin(tp, xip, XFS_ILOCK_EXCL);
-				xfs_trans_ihold(tp, xip);
-				xfs_trans_log_inode(tp, xip, XFS_ILOG_CORE);
-				xfs_trans_set_sync(tp);
-				error = xfs_trans_commit(tp, 0, NULL);
-				xfs_iunlock(xip, XFS_ILOCK_EXCL);
-			}
-			if (error)
-				goto out_unlock_internal;
-		}
+		error = xfs_write_sync_logforce(mp, xip);
+		if (error)
+			goto out_unlock_internal;
 
 		xfs_rwunlock(bdp, locktype);
 		if (need_i_mutex)

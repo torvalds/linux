@@ -61,6 +61,7 @@ parameter is applicable:
 	MTD	MTD support is enabled.
 	NET	Appropriate network support is enabled.
 	NUMA	NUMA support is enabled.
+	GENERIC_TIME The generic timeofday code is enabled.
 	NFS	Appropriate NFS support is enabled.
 	OSS	OSS sound support is enabled.
 	PARIDE	The ParIDE subsystem is enabled.
@@ -147,6 +148,9 @@ running once the system is up.
 	acpi_irq_isa=	[HW,ACPI] If irq_balance, mark listed IRQs used by ISA
 			Format: <irq>,<irq>...
 
+	acpi_os_name=	[HW,ACPI] Tell ACPI BIOS the name of the OS
+			Format: To spoof as Windows 98: ="Microsoft Windows"
+
 	acpi_osi=	[HW,ACPI] empty param disables _OSI
 
 	acpi_serialize	[HW,ACPI] force serialization of AML methods
@@ -175,6 +179,11 @@ running once the system is up.
 			Allow consolidated generic hotkey driver to
 			override platform specific driver.
 			See also Documentation/acpi-hotkey.txt.
+
+	acpi_pm_good	[IA-32,X86-64]
+			Override the pmtimer bug detection: force the kernel
+			to assume that this machine's pmtimer latches its value
+			and always returns good values.
 
 	enable_timer_pin_1 [i386,x86-64]
 			Enable PIN 1 of APIC timer
@@ -338,10 +347,11 @@ running once the system is up.
 			Value can be changed at runtime via
 				/selinux/checkreqprot.
 
- 	clock=		[BUGS=IA-32,HW] gettimeofday timesource override.
-			Forces specified timesource (if avaliable) to be used
-			when calculating gettimeofday(). If specicified
-			timesource is not avalible, it defaults to PIT.
+	clock=		[BUGS=IA-32, HW] gettimeofday clocksource override.
+			[Deprecated]
+			Forces specified clocksource (if avaliable) to be used
+			when calculating gettimeofday(). If specified
+			clocksource is not avalible, it defaults to PIT.
 			Format: { pit | tsc | cyclone | pmtmr }
 
 	disable_8254_timer
@@ -1614,6 +1624,10 @@ running once the system is up.
 
 	time		Show timing data prefixed to each printk message line
 
+	clocksource=	[GENERIC_TIME] Override the default clocksource
+			Override the default clocksource and use the clocksource
+			with the name specified.
+
 	tipar.timeout=	[HW,PPT]
 			Set communications timeout in tenths of a second
 			(default 15).
@@ -1655,6 +1669,10 @@ running once the system is up.
 	usbhid.mousepoll=
 			[USBHID] The interval which mice are to be polled at.
 
+	vdso=		[IA-32]
+			vdso=1: enable VDSO (default)
+			vdso=0: disable VDSO mapping
+
 	video=		[FB] Frame buffer configuration
 			See Documentation/fb/modedb.txt.
 
@@ -1671,9 +1689,14 @@ running once the system is up.
 			decrease the size and leave more room for directly
 			mapped kernel RAM.
 
-	vmhalt=		[KNL,S390]
+	vmhalt=		[KNL,S390] Perform z/VM CP command after system halt.
+			Format: <command>
 
-	vmpoff=		[KNL,S390]
+	vmpanic=	[KNL,S390] Perform z/VM CP command after kernel panic.
+			Format: <command>
+
+	vmpoff=		[KNL,S390] Perform z/VM CP command after power off.
+			Format: <command>
 
 	waveartist=	[HW,OSS]
 			Format: <io>,<irq>,<dma>,<dma2>

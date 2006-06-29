@@ -4,14 +4,14 @@
 
 # Each configuration option enables a list of files.
 
-obj-$(CONFIG_VT)		  += console/
-obj-$(CONFIG_LOGO)		  += logo/
-obj-$(CONFIG_SYSFS)		  += backlight/
-
 obj-$(CONFIG_FB)                  += fb.o
 fb-y                              := fbmem.o fbmon.o fbcmap.o fbsysfs.o \
                                      modedb.o fbcvt.o
 fb-objs                           := $(fb-y)
+
+obj-$(CONFIG_VT)		  += console/
+obj-$(CONFIG_LOGO)		  += logo/
+obj-$(CONFIG_SYSFS)		  += backlight/
 
 obj-$(CONFIG_FB_CFB_FILLRECT)  += cfbfillrect.o
 obj-$(CONFIG_FB_CFB_COPYAREA)  += cfbcopyarea.o
@@ -97,6 +97,7 @@ obj-$(CONFIG_FB_S3C2410)	  += s3c2410fb.o
 
 # Platform or fallback drivers go here
 obj-$(CONFIG_FB_VESA)             += vesafb.o
+obj-$(CONFIG_FB_IMAC)             += imacfb.o
 obj-$(CONFIG_FB_VGA16)            += vga16fb.o vgastate.o
 obj-$(CONFIG_FB_OF)               += offb.o
 

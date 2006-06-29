@@ -114,6 +114,7 @@ static int 		vga_512_chars;
 static int 		vga_video_font_height;
 static int 		vga_scan_lines;
 static unsigned int 	vga_rolled_over = 0;
+static int              vga_init_done;
 
 static int __init no_scroll(char *str)
 {
@@ -190,7 +191,7 @@ static void vgacon_scrollback_init(int pitch)
 	}
 }
 
-static void __init vgacon_scrollback_startup(void)
+static void vgacon_scrollback_startup(void)
 {
 	vgacon_scrollback = alloc_bootmem(CONFIG_VGACON_SOFT_SCROLLBACK_SIZE
 					  * 1024);
@@ -355,7 +356,7 @@ static int vgacon_scrolldelta(struct vc_data *c, int lines)
 }
 #endif /* CONFIG_VGACON_SOFT_SCROLLBACK */
 
-static const char __init *vgacon_startup(void)
+static const char *vgacon_startup(void)
 {
 	const char *display_desc = NULL;
 	u16 saved1, saved2;
@@ -389,19 +390,19 @@ static const char __init *vgacon_startup(void)
 		vga_video_port_val = VGA_CRT_DM;
 		if ((ORIG_VIDEO_EGA_BX & 0xff) != 0x10) {
 			static struct resource ega_console_resource =
-			    { "ega", 0x3B0, 0x3BF };
+			    { .name = "ega", .start = 0x3B0, .end = 0x3BF };
 			vga_video_type = VIDEO_TYPE_EGAM;
-			vga_vram_end = 0xb8000;
+			vga_vram_size = 0x8000;
 			display_desc = "EGA+";
 			request_resource(&ioport_resource,
 					 &ega_console_resource);
 		} else {
 			static struct resource mda1_console_resource =
-			    { "mda", 0x3B0, 0x3BB };
+			    { .name = "mda", .start = 0x3B0, .end = 0x3BB };
 			static struct resource mda2_console_resource =
-			    { "mda", 0x3BF, 0x3BF };
+			    { .name = "mda", .start = 0x3BF, .end = 0x3BF };
 			vga_video_type = VIDEO_TYPE_MDA;
-			vga_vram_end = 0xb2000;
+			vga_vram_size = 0x2000;
 			display_desc = "*MDA";
 			request_resource(&ioport_resource,
 					 &mda1_console_resource);
@@ -418,18 +419,18 @@ static const char __init *vgacon_startup(void)
 		if ((ORIG_VIDEO_EGA_BX & 0xff) != 0x10) {
 			int i;
 
-			vga_vram_end = 0xc0000;
+			vga_vram_size = 0x8000;
 
 			if (!ORIG_VIDEO_ISVGA) {
 				static struct resource ega_console_resource
-				    = { "ega", 0x3C0, 0x3DF };
+				    = { .name = "ega", .start = 0x3C0, .end = 0x3DF };
 				vga_video_type = VIDEO_TYPE_EGAC;
 				display_desc = "EGA";
 				request_resource(&ioport_resource,
 						 &ega_console_resource);
 			} else {
 				static struct resource vga_console_resource
-				    = { "vga+", 0x3C0, 0x3DF };
+				    = { .name = "vga+", .start = 0x3C0, .end = 0x3DF };
 				vga_video_type = VIDEO_TYPE_VGAC;
 				display_desc = "VGA+";
 				request_resource(&ioport_resource,
@@ -443,7 +444,7 @@ static const char __init *vgacon_startup(void)
 				 * and COE=1 isn't necessarily a good idea)
 				 */
 				vga_vram_base = 0xa0000;
-				vga_vram_end = 0xb0000;
+				vga_vram_size = 0x10000;
 				outb_p(6, VGA_GFX_I);
 				outb_p(6, VGA_GFX_D);
 #endif
@@ -473,9 +474,9 @@ static const char __init *vgacon_startup(void)
 			}
 		} else {
 			static struct resource cga_console_resource =
-			    { "cga", 0x3D4, 0x3D5 };
+			    { .name = "cga", .start = 0x3D4, .end = 0x3D5 };
 			vga_video_type = VIDEO_TYPE_CGA;
-			vga_vram_end = 0xba000;
+			vga_vram_size = 0x2000;
 			display_desc = "*CGA";
 			request_resource(&ioport_resource,
 					 &cga_console_resource);
@@ -483,9 +484,8 @@ static const char __init *vgacon_startup(void)
 		}
 	}
 
-	vga_vram_base = VGA_MAP_MEM(vga_vram_base);
-	vga_vram_end = VGA_MAP_MEM(vga_vram_end);
-	vga_vram_size = vga_vram_end - vga_vram_base;
+	vga_vram_base = VGA_MAP_MEM(vga_vram_base, vga_vram_size);
+	vga_vram_end = vga_vram_base + vga_vram_size;
 
 	/*
 	 *      Find out if there is a graphics card present.
@@ -524,7 +524,12 @@ static const char __init *vgacon_startup(void)
 
 	vgacon_xres = ORIG_VIDEO_COLS * VGA_FONTWIDTH;
 	vgacon_yres = vga_scan_lines;
-	vgacon_scrollback_startup();
+
+	if (!vga_init_done) {
+		vgacon_scrollback_startup();
+		vga_init_done = 1;
+	}
+
 	return display_desc;
 }
 
@@ -532,10 +537,20 @@ static void vgacon_init(struct vc_data *c, int init)
 {
 	unsigned long p;
 
-	/* We cannot be loaded as a module, therefore init is always 1 */
+	/*
+	 * We cannot be loaded as a module, therefore init is always 1,
+	 * but vgacon_init can be called more than once, and init will
+	 * not be 1.
+	 */
 	c->vc_can_do_color = vga_can_do_color;
-	c->vc_cols = vga_video_num_columns;
-	c->vc_rows = vga_video_num_lines;
+
+	/* set dimensions manually if init != 0 since vc_resize() will fail */
+	if (init) {
+		c->vc_cols = vga_video_num_columns;
+		c->vc_rows = vga_video_num_lines;
+	} else
+		vc_resize(c, vga_video_num_columns, vga_video_num_lines);
+
 	c->vc_scan_lines = vga_scan_lines;
 	c->vc_font.height = vga_video_font_height;
 	c->vc_complement_mask = 0x7700;
@@ -1020,14 +1035,14 @@ static int vgacon_do_font_op(struct vgastate *state,char *arg,int set,int ch512)
 	char *charmap;
 	
 	if (vga_video_type != VIDEO_TYPE_EGAM) {
-		charmap = (char *) VGA_MAP_MEM(colourmap);
+		charmap = (char *) VGA_MAP_MEM(colourmap, 0);
 		beg = 0x0e;
 #ifdef VGA_CAN_DO_64KB
 		if (vga_video_type == VIDEO_TYPE_VGAC)
 			beg = 0x06;
 #endif
 	} else {
-		charmap = (char *) VGA_MAP_MEM(blackwmap);
+		charmap = (char *) VGA_MAP_MEM(blackwmap, 0);
 		beg = 0x0a;
 	}
 

@@ -29,9 +29,9 @@
 #include <linux/tty.h>
 #include <linux/fb.h>
 #include <linux/module.h>
+#include <linux/pci.h>
 #include <video/edid.h>
 #ifdef CONFIG_PPC_OF
-#include <linux/pci.h>
 #include <asm/prom.h>
 #include <asm/pci-bridge.h>
 #endif
@@ -605,6 +605,7 @@ static int fb_get_monitor_limits(unsigned char *edid, struct fb_monspecs *specs)
 	block = edid + DETAILED_TIMING_DESCRIPTIONS_START;
 
 	DPRINTK("      Monitor Operating Limits: ");
+
 	for (i = 0; i < 4; i++, block += DETAILED_TIMING_DESCRIPTION_SIZE) {
 		if (edid_is_limits_block(block)) {
 			specs->hfmin = H_MIN_RATE * 1000;
@@ -618,11 +619,12 @@ static int fb_get_monitor_limits(unsigned char *edid, struct fb_monspecs *specs)
 			break;
 		}
 	}
-	
+
 	/* estimate monitor limits based on modes supported */
 	if (retval) {
-		struct fb_videomode *modes;
+		struct fb_videomode *modes, *mode;
 		int num_modes, i, hz, hscan, pixclock;
+		int vtotal, htotal;
 
 		modes = fb_create_modedb(edid, &num_modes);
 		if (!modes) {
@@ -632,20 +634,38 @@ static int fb_get_monitor_limits(unsigned char *edid, struct fb_monspecs *specs)
 
 		retval = 0;
 		for (i = 0; i < num_modes; i++) {
-			hz = modes[i].refresh;
+			mode = &modes[i];
 			pixclock = PICOS2KHZ(modes[i].pixclock) * 1000;
-			hscan = (modes[i].yres * 105 * hz + 5000)/100;
+			htotal = mode->xres + mode->right_margin + mode->hsync_len
+				+ mode->left_margin;
+			vtotal = mode->yres + mode->lower_margin + mode->vsync_len
+				+ mode->upper_margin;
+
+			if (mode->vmode & FB_VMODE_INTERLACED)
+				vtotal /= 2;
+
+			if (mode->vmode & FB_VMODE_DOUBLE)
+				vtotal *= 2;
+
+			hscan = (pixclock + htotal / 2) / htotal;
+			hscan = (hscan + 500) / 1000 * 1000;
+			hz = (hscan + vtotal / 2) / vtotal;
 			
 			if (specs->dclkmax == 0 || specs->dclkmax < pixclock)
 				specs->dclkmax = pixclock;
+
 			if (specs->dclkmin == 0 || specs->dclkmin > pixclock)
 				specs->dclkmin = pixclock;
+
 			if (specs->hfmax == 0 || specs->hfmax < hscan)
 				specs->hfmax = hscan;
+
 			if (specs->hfmin == 0 || specs->hfmin > hscan)
 				specs->hfmin = hscan;
+
 			if (specs->vfmax == 0 || specs->vfmax < hz)
 				specs->vfmax = hz;
+
 			if (specs->vfmin == 0 || specs->vfmin > hz)
 				specs->vfmin = hz;
 		}
@@ -1281,8 +1301,7 @@ int fb_validate_mode(const struct fb_var_screeninfo *var, struct fb_info *info)
 		-EINVAL : 0;
 }
 
-#if defined(CONFIG_FB_FIRMWARE_EDID) && defined(__i386__)
-#include <linux/pci.h>
+#if defined(CONFIG_FIRMWARE_EDID) && defined(CONFIG_X86)
 
 /*
  * We need to ensure that the EDID block is only returned for

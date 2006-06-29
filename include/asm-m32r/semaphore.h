@@ -12,7 +12,6 @@
  * Copyright (C) 2004, 2006  Hirokazu Takata <takata at linux-m32r.org>
  */
 
-#include <linux/config.h>
 #include <linux/wait.h>
 #include <linux/rwsem.h>
 #include <asm/assembler.h>

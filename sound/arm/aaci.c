@@ -779,8 +779,9 @@ static struct aaci * __devinit aaci_init_card(struct amba_device *dev)
 	strlcpy(card->driver, DRIVER_NAME, sizeof(card->driver));
 	strlcpy(card->shortname, "ARM AC'97 Interface", sizeof(card->shortname));
 	snprintf(card->longname, sizeof(card->longname),
-		 "%s at 0x%08lx, irq %d",
-		 card->shortname, dev->res.start, dev->irq[0]);
+		 "%s at 0x%016llx, irq %d",
+		 card->shortname, (unsigned long long)dev->res.start,
+		 dev->irq[0]);
 
 	aaci = card->private_data;
 	mutex_init(&aaci->ac97_sem);

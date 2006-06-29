@@ -300,7 +300,7 @@ init_tsunami_irqs(struct hw_interrupt_type * ops, int imin, int imax)
 	long i;
 	for (i = imin; i <= imax; ++i) {
 		irq_desc[i].status = IRQ_DISABLED | IRQ_LEVEL;
-		irq_desc[i].handler = ops;
+		irq_desc[i].chip = ops;
 	}
 }
 

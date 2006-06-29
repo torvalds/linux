@@ -20,20 +20,18 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-/*
- * Getting into a kernel thread, there is no valid user segment, mark
- * paca->pgdir NULL so that SLB miss on user addresses will fault
- */
 static inline void enter_lazy_tlb(struct mm_struct *mm,
 				  struct task_struct *tsk)
 {
-#ifdef CONFIG_PPC_64K_PAGES
-	get_paca()->pgdir = NULL;
-#endif /* CONFIG_PPC_64K_PAGES */
 }
 
+/*
+ * The proto-VSID space has 2^35 - 1 segments available for user mappings.
+ * Each segment contains 2^28 bytes.  Each context maps 2^44 bytes,
+ * so we can support 2^19-1 contexts (19 == 35 + 28 - 44).
+ */
 #define NO_CONTEXT	0
-#define MAX_CONTEXT	(0x100000-1)
+#define MAX_CONTEXT	((1UL << 19) - 1)
 
 extern int init_new_context(struct task_struct *tsk, struct mm_struct *mm);
 extern void destroy_context(struct mm_struct *mm);
@@ -52,13 +50,8 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 		cpu_set(smp_processor_id(), next->cpu_vm_mask);
 
 	/* No need to flush userspace segments if the mm doesnt change */
-#ifdef CONFIG_PPC_64K_PAGES
-	if (prev == next && get_paca()->pgdir == next->pgd)
-		return;
-#else
 	if (prev == next)
 		return;
-#endif /* CONFIG_PPC_64K_PAGES */
 
 #ifdef CONFIG_ALTIVEC
 	if (cpu_has_feature(CPU_FTR_ALTIVEC))

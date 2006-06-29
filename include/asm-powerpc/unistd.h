@@ -324,12 +324,12 @@
 #define __NR_get_robust_list	299
 #define __NR_set_robust_list	300
 
+#ifdef __KERNEL__
+
 #define __NR_syscalls		301
 
-#ifdef __KERNEL__
 #define __NR__exit __NR_exit
 #define NR_syscalls	__NR_syscalls
-#endif
 
 #ifndef __ASSEMBLY__
 
@@ -441,9 +441,7 @@ type name(type1 arg1, type2 arg2, type3 arg3, type4 arg4, type5 arg5, type6 arg6
 	__syscall_nr(6, type, name, arg1, arg2, arg3, arg4, arg5, arg6); \
 }
 
-#ifdef __KERNEL__
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/compiler.h>
 #include <linux/linkage.h>
@@ -499,8 +497,8 @@ extern int execve(const char *file, char **argv, char **envp);
 #define cond_syscall(x) asm(".weak\t." #x "\n\t.set\t." #x ",.sys_ni_syscall")
 #endif
 
-#endif		/* __KERNEL__ */
 
 #endif		/* __ASSEMBLY__ */
+#endif		/* __KERNEL__ */
 
 #endif /* _ASM_PPC_UNISTD_H_ */

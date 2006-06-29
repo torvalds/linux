@@ -200,8 +200,6 @@ void atyfb_copyarea(struct fb_info *info, const struct fb_copyarea *area)
 	if (!area->width || !area->height)
 		return;
 	if (!par->accel_flags) {
-		if (par->blitter_may_be_busy)
-			wait_for_idle(par);
 		cfb_copyarea(info, area);
 		return;
 	}
@@ -248,8 +246,6 @@ void atyfb_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 	if (!rect->width || !rect->height)
 		return;
 	if (!par->accel_flags) {
-		if (par->blitter_may_be_busy)
-			wait_for_idle(par);
 		cfb_fillrect(info, rect);
 		return;
 	}
@@ -288,14 +284,10 @@ void atyfb_imageblit(struct fb_info *info, const struct fb_image *image)
 		return;
 	if (!par->accel_flags ||
 	    (image->depth != 1 && info->var.bits_per_pixel != image->depth)) {
-		if (par->blitter_may_be_busy)
-			wait_for_idle(par);
-
 		cfb_imageblit(info, image);
 		return;
 	}
 
-	wait_for_idle(par);
 	pix_width = pix_width_save = aty_ld_le32(DP_PIX_WIDTH, par);
 	host_cntl = aty_ld_le32(HOST_CNTL, par) | HOST_BYTE_ALIGN;
 
@@ -424,8 +416,6 @@ void atyfb_imageblit(struct fb_info *info, const struct fb_image *image)
 			aty_st_le32(HOST_DATA0, le32_to_cpup(pbitmap), par);
 		}
 	}
-
-	wait_for_idle(par);
 
 	/* restore pix_width */
 	wait_for_fifo(1, par);

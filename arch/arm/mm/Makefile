@@ -2,9 +2,15 @@
 # Makefile for the linux arm-specific parts of the memory manager.
 #
 
-obj-y				:= consistent.o extable.o fault-armv.o \
-				   fault.o flush.o init.o ioremap.o mmap.o \
+obj-y				:= consistent.o extable.o fault.o init.o \
+				   iomap.o
+
+obj-$(CONFIG_MMU)		+= fault-armv.o flush.o ioremap.o mmap.o \
 				   mm-armv.o
+
+ifneq ($(CONFIG_MMU),y)
+obj-y				+= nommu.o
+endif
 
 obj-$(CONFIG_MODULES)		+= proc-syms.o
 

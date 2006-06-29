@@ -1,8 +1,7 @@
 #ifndef __ARCH_X86_64_ATOMIC__
 #define __ARCH_X86_64_ATOMIC__
 
-#include <linux/config.h>
-#include <asm/types.h>
+#include <asm/alternative.h>
 
 /* atomic_t should be 32 bit signed type */
 
@@ -53,7 +52,7 @@ typedef struct { volatile int counter; } atomic_t;
 static __inline__ void atomic_add(int i, atomic_t *v)
 {
 	__asm__ __volatile__(
-		LOCK "addl %1,%0"
+		LOCK_PREFIX "addl %1,%0"
 		:"=m" (v->counter)
 		:"ir" (i), "m" (v->counter));
 }
@@ -68,7 +67,7 @@ static __inline__ void atomic_add(int i, atomic_t *v)
 static __inline__ void atomic_sub(int i, atomic_t *v)
 {
 	__asm__ __volatile__(
-		LOCK "subl %1,%0"
+		LOCK_PREFIX "subl %1,%0"
 		:"=m" (v->counter)
 		:"ir" (i), "m" (v->counter));
 }
@@ -87,7 +86,7 @@ static __inline__ int atomic_sub_and_test(int i, atomic_t *v)
 	unsigned char c;
 
 	__asm__ __volatile__(
-		LOCK "subl %2,%0; sete %1"
+		LOCK_PREFIX "subl %2,%0; sete %1"
 		:"=m" (v->counter), "=qm" (c)
 		:"ir" (i), "m" (v->counter) : "memory");
 	return c;
@@ -102,7 +101,7 @@ static __inline__ int atomic_sub_and_test(int i, atomic_t *v)
 static __inline__ void atomic_inc(atomic_t *v)
 {
 	__asm__ __volatile__(
-		LOCK "incl %0"
+		LOCK_PREFIX "incl %0"
 		:"=m" (v->counter)
 		:"m" (v->counter));
 }
@@ -116,7 +115,7 @@ static __inline__ void atomic_inc(atomic_t *v)
 static __inline__ void atomic_dec(atomic_t *v)
 {
 	__asm__ __volatile__(
-		LOCK "decl %0"
+		LOCK_PREFIX "decl %0"
 		:"=m" (v->counter)
 		:"m" (v->counter));
 }
@@ -134,7 +133,7 @@ static __inline__ int atomic_dec_and_test(atomic_t *v)
 	unsigned char c;
 
 	__asm__ __volatile__(
-		LOCK "decl %0; sete %1"
+		LOCK_PREFIX "decl %0; sete %1"
 		:"=m" (v->counter), "=qm" (c)
 		:"m" (v->counter) : "memory");
 	return c != 0;
@@ -153,7 +152,7 @@ static __inline__ int atomic_inc_and_test(atomic_t *v)
 	unsigned char c;
 
 	__asm__ __volatile__(
-		LOCK "incl %0; sete %1"
+		LOCK_PREFIX "incl %0; sete %1"
 		:"=m" (v->counter), "=qm" (c)
 		:"m" (v->counter) : "memory");
 	return c != 0;
@@ -173,7 +172,7 @@ static __inline__ int atomic_add_negative(int i, atomic_t *v)
 	unsigned char c;
 
 	__asm__ __volatile__(
-		LOCK "addl %2,%0; sets %1"
+		LOCK_PREFIX "addl %2,%0; sets %1"
 		:"=m" (v->counter), "=qm" (c)
 		:"ir" (i), "m" (v->counter) : "memory");
 	return c;
@@ -190,7 +189,7 @@ static __inline__ int atomic_add_return(int i, atomic_t *v)
 {
 	int __i = i;
 	__asm__ __volatile__(
-		LOCK "xaddl %0, %1;"
+		LOCK_PREFIX "xaddl %0, %1;"
 		:"=r"(i)
 		:"m"(v->counter), "0"(i));
 	return i + __i;
@@ -238,7 +237,7 @@ typedef struct { volatile long counter; } atomic64_t;
 static __inline__ void atomic64_add(long i, atomic64_t *v)
 {
 	__asm__ __volatile__(
-		LOCK "addq %1,%0"
+		LOCK_PREFIX "addq %1,%0"
 		:"=m" (v->counter)
 		:"ir" (i), "m" (v->counter));
 }
@@ -253,7 +252,7 @@ static __inline__ void atomic64_add(long i, atomic64_t *v)
 static __inline__ void atomic64_sub(long i, atomic64_t *v)
 {
 	__asm__ __volatile__(
-		LOCK "subq %1,%0"
+		LOCK_PREFIX "subq %1,%0"
 		:"=m" (v->counter)
 		:"ir" (i), "m" (v->counter));
 }
@@ -272,7 +271,7 @@ static __inline__ int atomic64_sub_and_test(long i, atomic64_t *v)
 	unsigned char c;
 
 	__asm__ __volatile__(
-		LOCK "subq %2,%0; sete %1"
+		LOCK_PREFIX "subq %2,%0; sete %1"
 		:"=m" (v->counter), "=qm" (c)
 		:"ir" (i), "m" (v->counter) : "memory");
 	return c;
@@ -287,7 +286,7 @@ static __inline__ int atomic64_sub_and_test(long i, atomic64_t *v)
 static __inline__ void atomic64_inc(atomic64_t *v)
 {
 	__asm__ __volatile__(
-		LOCK "incq %0"
+		LOCK_PREFIX "incq %0"
 		:"=m" (v->counter)
 		:"m" (v->counter));
 }
@@ -301,7 +300,7 @@ static __inline__ void atomic64_inc(atomic64_t *v)
 static __inline__ void atomic64_dec(atomic64_t *v)
 {
 	__asm__ __volatile__(
-		LOCK "decq %0"
+		LOCK_PREFIX "decq %0"
 		:"=m" (v->counter)
 		:"m" (v->counter));
 }
@@ -319,7 +318,7 @@ static __inline__ int atomic64_dec_and_test(atomic64_t *v)
 	unsigned char c;
 
 	__asm__ __volatile__(
-		LOCK "decq %0; sete %1"
+		LOCK_PREFIX "decq %0; sete %1"
 		:"=m" (v->counter), "=qm" (c)
 		:"m" (v->counter) : "memory");
 	return c != 0;
@@ -338,7 +337,7 @@ static __inline__ int atomic64_inc_and_test(atomic64_t *v)
 	unsigned char c;
 
 	__asm__ __volatile__(
-		LOCK "incq %0; sete %1"
+		LOCK_PREFIX "incq %0; sete %1"
 		:"=m" (v->counter), "=qm" (c)
 		:"m" (v->counter) : "memory");
 	return c != 0;
@@ -358,7 +357,7 @@ static __inline__ int atomic64_add_negative(long i, atomic64_t *v)
 	unsigned char c;
 
 	__asm__ __volatile__(
-		LOCK "addq %2,%0; sets %1"
+		LOCK_PREFIX "addq %2,%0; sets %1"
 		:"=m" (v->counter), "=qm" (c)
 		:"ir" (i), "m" (v->counter) : "memory");
 	return c;
@@ -375,7 +374,7 @@ static __inline__ long atomic64_add_return(long i, atomic64_t *v)
 {
 	long __i = i;
 	__asm__ __volatile__(
-		LOCK "xaddq %0, %1;"
+		LOCK_PREFIX "xaddq %0, %1;"
 		:"=r"(i)
 		:"m"(v->counter), "0"(i));
 	return i + __i;
@@ -419,11 +418,11 @@ static __inline__ long atomic64_sub_return(long i, atomic64_t *v)
 
 /* These are x86-specific, used by some header files */
 #define atomic_clear_mask(mask, addr) \
-__asm__ __volatile__(LOCK "andl %0,%1" \
+__asm__ __volatile__(LOCK_PREFIX "andl %0,%1" \
 : : "r" (~(mask)),"m" (*addr) : "memory")
 
 #define atomic_set_mask(mask, addr) \
-__asm__ __volatile__(LOCK "orl %0,%1" \
+__asm__ __volatile__(LOCK_PREFIX "orl %0,%1" \
 : : "r" ((unsigned)mask),"m" (*(addr)) : "memory")
 
 /* Atomic operations are already serializing on x86 */

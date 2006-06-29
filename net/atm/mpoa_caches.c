@@ -223,7 +223,6 @@ static void in_cache_remove_entry(in_cache_entry *entry,
    but an easy one... */
 static void clear_count_and_expired(struct mpoa_client *client)
 {
-	unsigned char *ip;
 	in_cache_entry *entry, *next_entry;
 	struct timeval now;
 
@@ -236,8 +235,7 @@ static void clear_count_and_expired(struct mpoa_client *client)
 		next_entry = entry->next;
 		if((now.tv_sec - entry->tv.tv_sec)
 		   > entry->ctrl_info.holding_time){
-			ip = (unsigned char*)&entry->ctrl_info.in_dst_ip;
-			dprintk("mpoa: mpoa_caches.c: holding time expired, ip = %u.%u.%u.%u\n", NIPQUAD(ip));
+			dprintk("mpoa: mpoa_caches.c: holding time expired, ip = %u.%u.%u.%u\n", NIPQUAD(entry->ctrl_info.in_dst_ip));
 			client->in_ops->remove_entry(entry, client);
 		}
 		entry = next_entry;
@@ -455,7 +453,6 @@ static void eg_cache_remove_entry(eg_cache_entry *entry,
 
 static eg_cache_entry *eg_cache_add_entry(struct k_message *msg, struct mpoa_client *client)
 {
-	unsigned char *ip;
 	eg_cache_entry *entry = kmalloc(sizeof(eg_cache_entry), GFP_KERNEL);
 
 	if (entry == NULL) {
@@ -463,8 +460,7 @@ static eg_cache_entry *eg_cache_add_entry(struct k_message *msg, struct mpoa_cli
 		return NULL;
 	}
 
-	ip = (unsigned char *)&msg->content.eg_info.eg_dst_ip;
-	dprintk("mpoa: mpoa_caches.c: adding an egress entry, ip = %u.%u.%u.%u, this should be our IP\n", NIPQUAD(ip));
+	dprintk("mpoa: mpoa_caches.c: adding an egress entry, ip = %u.%u.%u.%u, this should be our IP\n", NIPQUAD(msg->content.eg_info.eg_dst_ip));
 	memset(entry, 0, sizeof(eg_cache_entry));
 
 	atomic_set(&entry->use, 1);
@@ -481,8 +477,8 @@ static eg_cache_entry *eg_cache_add_entry(struct k_message *msg, struct mpoa_cli
 	do_gettimeofday(&(entry->tv));
 	entry->entry_state = EGRESS_RESOLVED;
 	dprintk("mpoa: mpoa_caches.c: new_eg_cache_entry cache_id %lu\n", ntohl(entry->ctrl_info.cache_id));
-	ip = (unsigned char *)&entry->ctrl_info.mps_ip;
-	dprintk("mpoa: mpoa_caches.c: mps_ip = %u.%u.%u.%u\n", NIPQUAD(ip));
+	dprintk("mpoa: mpoa_caches.c: mps_ip = %u.%u.%u.%u\n",
+		NIPQUAD(entry->ctrl_info.mps_ip));
 	atomic_inc(&entry->use);
 
 	write_unlock_irq(&client->egress_lock);

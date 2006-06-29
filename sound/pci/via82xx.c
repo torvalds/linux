@@ -1775,6 +1775,12 @@ static struct ac97_quirk ac97_quirks[] = {
 		.name = "Targa Traveller 811",
 		.type = AC97_TUNE_HP_ONLY,
 	},
+	{
+		.subvendor = 0x161f,
+		.subdevice = 0x2032,
+		.name = "m680x",
+		.type = AC97_TUNE_HP_ONLY, /* http://launchpad.net/bugs/38546 */
+	},
 	{ } /* terminator */
 };
 
@@ -1973,7 +1979,7 @@ static int __devinit snd_via686_init_misc(struct via82xx *chip)
 	pci_write_config_byte(chip->pci, VIA_PNP_CONTROL, legacy_cfg);
 	if (chip->mpu_res) {
 		if (snd_mpu401_uart_new(chip->card, 0, MPU401_HW_VIA686A,
-					mpu_port, 1,
+					mpu_port, MPU401_INFO_INTEGRATED,
 					chip->irq, 0, &chip->rmidi) < 0) {
 			printk(KERN_WARNING "unable to initialize MPU-401"
 			       " at 0x%lx, skipping\n", mpu_port);
@@ -2015,7 +2021,7 @@ static void __devinit snd_via82xx_proc_init(struct via82xx *chip)
 	struct snd_info_entry *entry;
 
 	if (! snd_card_proc_new(chip->card, "via82xx", &entry))
-		snd_info_set_text_ops(entry, chip, 1024, snd_via82xx_proc_read);
+		snd_info_set_text_ops(entry, chip, snd_via82xx_proc_read);
 }
 
 /*
@@ -2365,7 +2371,7 @@ static int __devinit check_dxs_list(struct pci_dev *pci, int revision)
 		{ .subvendor = 0x1462, .subdevice = 0x0470, .action = VIA_DXS_SRC }, /* MSI KT880 Delta-FSR */
 		{ .subvendor = 0x1462, .subdevice = 0x3800, .action = VIA_DXS_ENABLE }, /* MSI KT266 */
 		{ .subvendor = 0x1462, .subdevice = 0x5901, .action = VIA_DXS_NO_VRA }, /* MSI KT6 Delta-SR */
-		{ .subvendor = 0x1462, .subdevice = 0x7023, .action = VIA_DXS_NO_VRA }, /* MSI K8T Neo2-FI */
+		{ .subvendor = 0x1462, .subdevice = 0x7023, .action = VIA_DXS_SRC }, /* MSI K8T Neo2-FI */
 		{ .subvendor = 0x1462, .subdevice = 0x7120, .action = VIA_DXS_ENABLE }, /* MSI KT4V */
 		{ .subvendor = 0x1462, .subdevice = 0x7142, .action = VIA_DXS_ENABLE }, /* MSI K8MM-V */
 		{ .subvendor = 0x1462, .subdevice = 0xb012, .action = VIA_DXS_SRC }, /* P4M800/VIA8237R */

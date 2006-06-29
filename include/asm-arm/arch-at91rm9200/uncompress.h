@@ -21,7 +21,7 @@
 #ifndef __ASM_ARCH_UNCOMPRESS_H
 #define __ASM_ARCH_UNCOMPRESS_H
 
-#include <asm/arch/hardware.h>
+#include <asm/hardware.h>
 
 /*
  * The following code assumes the serial port has already been

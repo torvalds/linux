@@ -2,7 +2,7 @@
  * net/tipc/core.h: Include file for TIPC global declarations
  * 
  * Copyright (c) 2005-2006, Ericsson AB
- * Copyright (c) 2005, Wind River Systems
+ * Copyright (c) 2005-2006, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -111,10 +111,6 @@ void tipc_dump(struct print_buf*,const char *fmt, ...);
 
 #else
 
-#ifndef DBG_OUTPUT
-#define DBG_OUTPUT NULL
-#endif
-
 /*
  * TIPC debug support not included:
  * - system messages are printed to system console
@@ -128,6 +124,19 @@ void tipc_dump(struct print_buf*,const char *fmt, ...);
 #define dbg(fmt, arg...) do {} while (0)
 #define msg_dbg(msg,txt) do {} while (0)
 #define dump(fmt,arg...) do {} while (0)
+
+
+/*	
+ * TIPC_OUTPUT is defined to be the system console, while DBG_OUTPUT is
+ * the null print buffer.  Thes ensures that any system or debug messages 
+ * that are generated without using the above macros are handled correctly.
+ */
+
+#undef  TIPC_OUTPUT
+#define TIPC_OUTPUT TIPC_CONS
+
+#undef  DBG_OUTPUT
+#define DBG_OUTPUT NULL
 
 #endif			  
 
@@ -309,7 +318,7 @@ static inline struct sk_buff *buf_acquire(u32 size)
  * buf_discard - frees a TIPC message buffer
  * @skb: message buffer
  *
- * Frees a new buffer.  If passed NULL, just returns.
+ * Frees a message buffer.  If passed NULL, just returns.
  */
 
 static inline void buf_discard(struct sk_buff *skb)

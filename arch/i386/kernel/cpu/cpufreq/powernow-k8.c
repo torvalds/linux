@@ -120,7 +120,7 @@ static int pending_bit_stuck(void)
 {
 	u32 lo, hi;
 
-	if (cpu_family)
+	if (cpu_family == CPU_HW_PSTATE)
 		return 0;
 
 	rdmsr(MSR_FIDVID_STATUS, lo, hi);
@@ -136,7 +136,7 @@ static int query_current_values_with_pending_wait(struct powernow_k8_data *data)
 	u32 lo, hi;
 	u32 i = 0;
 
-	if (cpu_family) {
+	if (cpu_family == CPU_HW_PSTATE) {
 		rdmsr(MSR_PSTATE_STATUS, lo, hi);
 		i = lo & HW_PSTATE_MASK;
 		rdmsr(MSR_PSTATE_DEF_BASE + i, lo, hi);
@@ -598,7 +598,7 @@ static void print_basics(struct powernow_k8_data *data)
 	int j;
 	for (j = 0; j < data->numps; j++) {
 		if (data->powernow_table[j].frequency != CPUFREQ_ENTRY_INVALID) {
-			if (cpu_family) {
+			if (cpu_family == CPU_HW_PSTATE) {
 			printk(KERN_INFO PFX "   %d : fid 0x%x gid 0x%x (%d MHz)\n", j, (data->powernow_table[j].index & 0xff00) >> 8,
 				(data->powernow_table[j].index & 0xff0000) >> 16,
 				data->powernow_table[j].frequency/1000);
@@ -758,7 +758,7 @@ static int find_psb_table(struct powernow_k8_data *data)
 #ifdef CONFIG_X86_POWERNOW_K8_ACPI
 static void powernow_k8_acpi_pst_values(struct powernow_k8_data *data, unsigned int index)
 {
-	if (!data->acpi_data.state_count || cpu_family)
+	if (!data->acpi_data.state_count || (cpu_family == CPU_HW_PSTATE))
 		return;
 
 	data->irt = (data->acpi_data.states[index].control >> IRT_SHIFT) & IRT_MASK;
@@ -801,7 +801,7 @@ static int powernow_k8_cpu_init_acpi(struct powernow_k8_data *data)
 		goto err_out;
 	}
 
-	if (cpu_family)
+	if (cpu_family == CPU_HW_PSTATE)
 		ret_val = fill_powernow_table_pstate(data, powernow_table);
 	else
 		ret_val = fill_powernow_table_fidvid(data, powernow_table);
@@ -885,8 +885,8 @@ static int fill_powernow_table_fidvid(struct powernow_k8_data *data, struct cpuf
 		u32 vid;
 
 		if (data->exttype) {
-			fid = data->acpi_data.states[i].status & FID_MASK;
-			vid = (data->acpi_data.states[i].status >> VID_SHIFT) & VID_MASK;
+			fid = data->acpi_data.states[i].status & EXT_FID_MASK;
+			vid = (data->acpi_data.states[i].status >> VID_SHIFT) & EXT_VID_MASK;
 		} else {
 			fid = data->acpi_data.states[i].control & FID_MASK;
 			vid = (data->acpi_data.states[i].control >> VID_SHIFT) & VID_MASK;
@@ -1082,7 +1082,7 @@ static int powernowk8_target(struct cpufreq_policy *pol, unsigned targfreq, unsi
 	if (query_current_values_with_pending_wait(data))
 		goto err_out;
 
-	if (cpu_family)
+	if (cpu_family == CPU_HW_PSTATE)
 		dprintk("targ: curr fid 0x%x, did 0x%x\n",
 			data->currfid, data->currvid);
 	else {
@@ -1103,7 +1103,7 @@ static int powernowk8_target(struct cpufreq_policy *pol, unsigned targfreq, unsi
 
 	powernow_k8_acpi_pst_values(data, newstate);
 
-	if (cpu_family)
+	if (cpu_family == CPU_HW_PSTATE)
 		ret = transition_frequency_pstate(data, newstate);
 	else
 		ret = transition_frequency_fidvid(data, newstate);
@@ -1115,7 +1115,7 @@ static int powernowk8_target(struct cpufreq_policy *pol, unsigned targfreq, unsi
 	}
 	mutex_unlock(&fidvid_mutex);
 
-	if (cpu_family)
+	if (cpu_family == CPU_HW_PSTATE)
 		pol->cur = find_khz_freq_from_fiddid(data->currfid, data->currdid);
 	else
 		pol->cur = find_khz_freq_from_fid(data->currfid);
@@ -1163,7 +1163,7 @@ static int __cpuinit powernowk8_cpu_init(struct cpufreq_policy *pol)
 		 * Use the PSB BIOS structure. This is only availabe on
 		 * an UP version, and is deprecated by AMD.
 		 */
-		if ((num_online_cpus() != 1) || (num_possible_cpus() != 1)) {
+		if (num_online_cpus() != 1) {
 			printk(KERN_ERR PFX "MP systems not supported by PSB BIOS structure\n");
 			kfree(data);
 			return -ENODEV;
@@ -1197,14 +1197,14 @@ static int __cpuinit powernowk8_cpu_init(struct cpufreq_policy *pol)
 	if (query_current_values_with_pending_wait(data))
 		goto err_out;
 
-	if (!cpu_family)
+	if (cpu_family == CPU_OPTERON)
 		fidvid_msr_init();
 
 	/* run on any CPU again */
 	set_cpus_allowed(current, oldmask);
 
 	pol->governor = CPUFREQ_DEFAULT_GOVERNOR;
-	if (cpu_family)
+	if (cpu_family == CPU_HW_PSTATE)
 		pol->cpus = cpumask_of_cpu(pol->cpu);
 	else
 		pol->cpus = cpu_core_map[pol->cpu];
@@ -1215,7 +1215,7 @@ static int __cpuinit powernowk8_cpu_init(struct cpufreq_policy *pol)
 	pol->cpuinfo.transition_latency = (((data->rvo + 8) * data->vstable * VST_UNITS_20US)
 	    + (3 * (1 << data->irt) * 10)) * 1000;
 
-	if (cpu_family)
+	if (cpu_family == CPU_HW_PSTATE)
 		pol->cur = find_khz_freq_from_fiddid(data->currfid, data->currdid);
 	else
 		pol->cur = find_khz_freq_from_fid(data->currfid);
@@ -1232,7 +1232,7 @@ static int __cpuinit powernowk8_cpu_init(struct cpufreq_policy *pol)
 
 	cpufreq_frequency_table_get_attr(data->powernow_table, pol->cpu);
 
-	if (cpu_family)
+	if (cpu_family == CPU_HW_PSTATE)
 		dprintk("cpu_init done, current fid 0x%x, did 0x%x\n",
 			data->currfid, data->currdid);
 	else

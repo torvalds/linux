@@ -1,4 +1,4 @@
-/* $Id: dma.h,v 1.1.1.1 2001/04/19 20:00:38 ak Exp $
+/*
  * linux/include/asm/dma.h: Defines for using and allocating dma channels.
  * Written by Hennus Bergman, 1992.
  * High DMA channel support & info by Hannu Savolainen
@@ -8,7 +8,6 @@
 #ifndef _ASM_DMA_H
 #define _ASM_DMA_H
 
-#include <linux/config.h>
 #include <linux/spinlock.h>	/* And spinlocks */
 #include <asm/io.h>		/* need byte IO */
 #include <linux/delay.h>

@@ -28,11 +28,6 @@ u_long apollo_model;
 
 extern void dn_sched_init(irqreturn_t (*handler)(int,void *,struct pt_regs *));
 extern void dn_init_IRQ(void);
-extern int dn_request_irq(unsigned int irq, irqreturn_t (*handler)(int, void *, struct pt_regs *), unsigned long flags, const char *devname, void *dev_id);
-extern void dn_free_irq(unsigned int irq, void *dev_id);
-extern void dn_enable_irq(unsigned int);
-extern void dn_disable_irq(unsigned int);
-extern int show_dn_interrupts(struct seq_file *, void *);
 extern unsigned long dn_gettimeoffset(void);
 extern int dn_dummy_hwclk(int, struct rtc_time *);
 extern int dn_dummy_set_clock_mmss(unsigned long);
@@ -40,13 +35,11 @@ extern void dn_dummy_reset(void);
 extern void dn_dummy_waitbut(void);
 extern struct fb_info *dn_fb_init(long *);
 extern void dn_dummy_debug_init(void);
-extern void dn_dummy_video_setup(char *,int *);
 extern irqreturn_t dn_process_int(int irq, struct pt_regs *fp);
 #ifdef CONFIG_HEARTBEAT
 static void dn_heartbeat(int on);
 #endif
 static irqreturn_t dn_timer_int(int irq,void *, struct pt_regs *);
-static irqreturn_t (*sched_timer_handler)(int, void *, struct pt_regs *)=NULL;
 static void dn_get_model(char *model);
 static const char *apollo_models[] = {
 	[APOLLO_DN3000-APOLLO_DN3000] = "DN3000 (Otter)",
@@ -164,17 +157,10 @@ void config_apollo(void) {
 
 	mach_sched_init=dn_sched_init; /* */
 	mach_init_IRQ=dn_init_IRQ;
-	mach_default_handler=NULL;
-	mach_request_irq     = dn_request_irq;
-	mach_free_irq        = dn_free_irq;
-	enable_irq      = dn_enable_irq;
-	disable_irq     = dn_disable_irq;
-	mach_get_irq_list    = show_dn_interrupts;
 	mach_gettimeoffset   = dn_gettimeoffset;
 	mach_max_dma_address = 0xffffffff;
 	mach_hwclk           = dn_dummy_hwclk; /* */
 	mach_set_clock_mmss  = dn_dummy_set_clock_mmss; /* */
-	mach_process_int     = dn_process_int;
 	mach_reset	     = dn_dummy_reset;  /* */
 #ifdef CONFIG_HEARTBEAT
 	mach_heartbeat = dn_heartbeat;
@@ -189,11 +175,13 @@ void config_apollo(void) {
 
 }
 
-irqreturn_t dn_timer_int(int irq, void *dev_id, struct pt_regs *fp) {
+irqreturn_t dn_timer_int(int irq, void *dev_id, struct pt_regs *fp)
+{
+	irqreturn_t (*timer_handler)(int, void *, struct pt_regs *) = dev_id;
 
 	volatile unsigned char x;
 
-	sched_timer_handler(irq,dev_id,fp);
+	timer_handler(irq, dev_id, fp);
 
 	x=*(volatile unsigned char *)(timer+3);
 	x=*(volatile unsigned char *)(timer+5);
@@ -217,9 +205,7 @@ void dn_sched_init(irqreturn_t (*timer_routine)(int, void *, struct pt_regs *)) 
 	printk("*(0x10803) %02x\n",*(volatile unsigned char *)(timer+0x3));
 #endif
 
-	sched_timer_handler=timer_routine;
-	request_irq(0,dn_timer_int,0,NULL,NULL);
-
+	request_irq(IRQ_APOLLO, dn_timer_int, 0, "time", timer_routine);
 }
 
 unsigned long dn_gettimeoffset(void) {

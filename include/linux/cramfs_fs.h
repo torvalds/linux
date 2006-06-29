@@ -1,13 +1,7 @@
 #ifndef __CRAMFS_H
 #define __CRAMFS_H
 
-#ifndef __KERNEL__
-
-typedef unsigned char u8;
-typedef unsigned short u16;
-typedef unsigned int u32;
-
-#endif
+#include <linux/types.h>
 
 #define CRAMFS_MAGIC		0x28cd3d45	/* some random number */
 #define CRAMFS_SIGNATURE	"Compressed ROMFS"
@@ -33,9 +27,9 @@ typedef unsigned int u32;
  * Reasonably terse representation of the inode data.
  */
 struct cramfs_inode {
-	u32 mode:CRAMFS_MODE_WIDTH, uid:CRAMFS_UID_WIDTH;
+	__u32 mode:CRAMFS_MODE_WIDTH, uid:CRAMFS_UID_WIDTH;
 	/* SIZE for device files is i_rdev */
-	u32 size:CRAMFS_SIZE_WIDTH, gid:CRAMFS_GID_WIDTH;
+	__u32 size:CRAMFS_SIZE_WIDTH, gid:CRAMFS_GID_WIDTH;
 	/* NAMELEN is the length of the file name, divided by 4 and
            rounded up.  (cramfs doesn't support hard links.) */
 	/* OFFSET: For symlinks and non-empty regular files, this
@@ -44,27 +38,27 @@ struct cramfs_inode {
 	   see README).  For non-empty directories it is the offset
 	   (divided by 4) of the inode of the first file in that
 	   directory.  For anything else, offset is zero. */
-	u32 namelen:CRAMFS_NAMELEN_WIDTH, offset:CRAMFS_OFFSET_WIDTH;
+	__u32 namelen:CRAMFS_NAMELEN_WIDTH, offset:CRAMFS_OFFSET_WIDTH;
 };
 
 struct cramfs_info {
-	u32 crc;
-	u32 edition;
-	u32 blocks;
-	u32 files;
+	__u32 crc;
+	__u32 edition;
+	__u32 blocks;
+	__u32 files;
 };
 
 /*
  * Superblock information at the beginning of the FS.
  */
 struct cramfs_super {
-	u32 magic;			/* 0x28cd3d45 - random number */
-	u32 size;			/* length in bytes */
-	u32 flags;			/* feature flags */
-	u32 future;			/* reserved for future use */
-	u8 signature[16];		/* "Compressed ROMFS" */
+	__u32 magic;			/* 0x28cd3d45 - random number */
+	__u32 size;			/* length in bytes */
+	__u32 flags;			/* feature flags */
+	__u32 future;			/* reserved for future use */
+	__u8 signature[16];		/* "Compressed ROMFS" */
 	struct cramfs_info fsid;	/* unique filesystem info */
-	u8 name[16];			/* user-defined name */
+	__u8 name[16];			/* user-defined name */
 	struct cramfs_inode root;	/* root inode data */
 };
 

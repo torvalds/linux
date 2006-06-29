@@ -3,7 +3,6 @@
 
 #ifdef __KERNEL__
 
-#include <linux/config.h>
 
 #ifdef CONFIG_X86
 struct edid_info {

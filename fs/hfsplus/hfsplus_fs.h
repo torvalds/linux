@@ -323,8 +323,8 @@ int hfsplus_file_extend(struct inode *);
 void hfsplus_file_truncate(struct inode *);
 
 /* inode.c */
-extern struct address_space_operations hfsplus_aops;
-extern struct address_space_operations hfsplus_btree_aops;
+extern const struct address_space_operations hfsplus_aops;
+extern const struct address_space_operations hfsplus_btree_aops;
 
 void hfsplus_inode_read_fork(struct inode *, struct hfsplus_fork_raw *);
 void hfsplus_inode_write_fork(struct inode *, struct hfsplus_fork_raw *);

@@ -180,8 +180,9 @@ static DEVICE_ATTR(name, S_IRUGO, show_##name, NULL)
 amba_attr(id, "%08x\n", dev->periphid);
 amba_attr(irq0, "%u\n", dev->irq[0]);
 amba_attr(irq1, "%u\n", dev->irq[1]);
-amba_attr(resource, "\t%08lx\t%08lx\t%08lx\n",
-	  dev->res.start, dev->res.end, dev->res.flags);
+amba_attr(resource, "\t%016llx\t%016llx\t%016lx\n",
+	 (unsigned long long)dev->res.start, (unsigned long long)dev->res.end,
+	 dev->res.flags);
 
 /**
  *	amba_device_register - register an AMBA device

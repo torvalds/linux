@@ -231,7 +231,7 @@ static int software_resume(void)
 late_initcall(software_resume);
 
 
-static char * pm_disk_modes[] = {
+static const char * const pm_disk_modes[] = {
 	[PM_DISK_FIRMWARE]	= "firmware",
 	[PM_DISK_PLATFORM]	= "platform",
 	[PM_DISK_SHUTDOWN]	= "shutdown",

@@ -80,8 +80,10 @@ static void hfs_put_super(struct super_block *sb)
  *
  * changed f_files/f_ffree to reflect the fs_ablock/free_ablocks.
  */
-static int hfs_statfs(struct super_block *sb, struct kstatfs *buf)
+static int hfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
+	struct super_block *sb = dentry->d_sb;
+
 	buf->f_type = HFS_SUPER_MAGIC;
 	buf->f_bsize = sb->s_blocksize;
 	buf->f_blocks = (u32)HFS_SB(sb)->fs_ablocks * HFS_SB(sb)->fs_div;
@@ -413,10 +415,11 @@ bail:
 	return res;
 }
 
-static struct super_block *hfs_get_sb(struct file_system_type *fs_type,
-				      int flags, const char *dev_name, void *data)
+static int hfs_get_sb(struct file_system_type *fs_type,
+		      int flags, const char *dev_name, void *data,
+		      struct vfsmount *mnt)
 {
-	return get_sb_bdev(fs_type, flags, dev_name, data, hfs_fill_super);
+	return get_sb_bdev(fs_type, flags, dev_name, data, hfs_fill_super, mnt);
 }
 
 static struct file_system_type hfs_fs_type = {

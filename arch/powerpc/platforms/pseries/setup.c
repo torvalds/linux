@@ -235,14 +235,14 @@ static void __init pSeries_setup_arch(void)
 	if (firmware_has_feature(FW_FEATURE_SPLPAR)) {
 		vpa_init(boot_cpuid);
 		if (get_lppaca()->shared_proc) {
-			printk(KERN_INFO "Using shared processor idle loop\n");
+			printk(KERN_DEBUG "Using shared processor idle loop\n");
 			ppc_md.power_save = pseries_shared_idle_sleep;
 		} else {
-			printk(KERN_INFO "Using dedicated idle loop\n");
+			printk(KERN_DEBUG "Using dedicated idle loop\n");
 			ppc_md.power_save = pseries_dedicated_idle_sleep;
 		}
 	} else {
-		printk(KERN_INFO "Using default idle loop\n");
+		printk(KERN_DEBUG "Using default idle loop\n");
 	}
 
 	if (firmware_has_feature(FW_FEATURE_LPAR))
@@ -322,11 +322,6 @@ static void __init pSeries_init_early(void)
 	DBG(" -> pSeries_init_early()\n");
 
 	fw_feature_init();
-	
-	if (firmware_has_feature(FW_FEATURE_LPAR))
-		hpte_init_lpar();
-	else
-		hpte_init_native();
 
 	if (firmware_has_feature(FW_FEATURE_LPAR))
 		find_udbg_vterm();
@@ -383,6 +378,11 @@ static int __init pSeries_probe_hypertas(unsigned long node,
 
 	if (of_get_flat_dt_prop(node, "ibm,hypertas-functions", NULL) != NULL)
  		powerpc_firmware_features |= FW_FEATURE_LPAR;
+
+	if (firmware_has_feature(FW_FEATURE_LPAR))
+		hpte_init_lpar();
+	else
+		hpte_init_native();
 
  	return 1;
 }

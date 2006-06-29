@@ -140,12 +140,12 @@ cpc700_init_IRQ(void)
 						        /* IRQ 0 is highest */
 
 	for (i = 0; i < 17; i++) {
-		irq_desc[i].handler = &cpc700_pic;
+		irq_desc[i].chip = &cpc700_pic;
 		cpc700_pic_init_irq(i);
 	}
 
 	for (i = 20; i < 32; i++) {
-		irq_desc[i].handler = &cpc700_pic;
+		irq_desc[i].chip = &cpc700_pic;
 		cpc700_pic_init_irq(i);
 	}
 

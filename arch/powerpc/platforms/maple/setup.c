@@ -189,7 +189,7 @@ void __init maple_setup_arch(void)
 	conswitchp = &dummy_con;
 #endif
 
-	printk(KERN_INFO "Using native/NAP idle loop\n");
+	printk(KERN_DEBUG "Using native/NAP idle loop\n");
 }
 
 /* 
@@ -198,11 +198,6 @@ void __init maple_setup_arch(void)
 static void __init maple_init_early(void)
 {
 	DBG(" -> maple_init_early\n");
-
-	/* Initialize hash table, from now on, we can take hash faults
-	 * and call ioremap
-	 */
-	hpte_init_native();
 
 	/* Setup interrupt mapping options */
 	ppc64_interrupt_controller = IC_OPEN_PIC;
@@ -271,6 +266,8 @@ static int __init maple_probe(void)
 	 * part of the cacheable linar mapping
 	 */
 	alloc_dart_table();
+
+	hpte_init_native();
 
 	return 1;
 }

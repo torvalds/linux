@@ -14,19 +14,20 @@
 unsigned long __init rtas_get_boot_time(void)
 {
 	int ret[8];
-	int error, wait_time;
+	int error;
+	unsigned int wait_time;
 	u64 max_wait_tb;
 
 	max_wait_tb = get_tb() + tb_ticks_per_usec * 1000 * MAX_RTC_WAIT;
 	do {
 		error = rtas_call(rtas_token("get-time-of-day"), 0, 8, ret);
-		if (error == RTAS_CLOCK_BUSY || rtas_is_extended_busy(error)) {
-			wait_time = rtas_extended_busy_delay_time(error);
+
+		wait_time = rtas_busy_delay_time(error);
+		if (wait_time) {
 			/* This is boot time so we spin. */
 			udelay(wait_time*1000);
-			error = RTAS_CLOCK_BUSY;
 		}
-	} while (error == RTAS_CLOCK_BUSY && (get_tb() < max_wait_tb));
+	} while (wait_time && (get_tb() < max_wait_tb));
 
 	if (error != 0 && printk_ratelimit()) {
 		printk(KERN_WARNING "error: reading the clock failed (%d)\n",
@@ -44,24 +45,25 @@ unsigned long __init rtas_get_boot_time(void)
 void rtas_get_rtc_time(struct rtc_time *rtc_tm)
 {
         int ret[8];
-	int error, wait_time;
+	int error;
+	unsigned int wait_time;
 	u64 max_wait_tb;
 
 	max_wait_tb = get_tb() + tb_ticks_per_usec * 1000 * MAX_RTC_WAIT;
 	do {
 		error = rtas_call(rtas_token("get-time-of-day"), 0, 8, ret);
-		if (error == RTAS_CLOCK_BUSY || rtas_is_extended_busy(error)) {
+
+		wait_time = rtas_busy_delay_time(error);
+		if (wait_time) {
 			if (in_interrupt() && printk_ratelimit()) {
 				memset(rtc_tm, 0, sizeof(struct rtc_time));
 				printk(KERN_WARNING "error: reading clock"
 				       " would delay interrupt\n");
 				return;	/* delay not allowed */
 			}
-			wait_time = rtas_extended_busy_delay_time(error);
 			msleep(wait_time);
-			error = RTAS_CLOCK_BUSY;
 		}
-	} while (error == RTAS_CLOCK_BUSY && (get_tb() < max_wait_tb));
+	} while (wait_time && (get_tb() < max_wait_tb));
 
         if (error != 0 && printk_ratelimit()) {
                 printk(KERN_WARNING "error: reading the clock failed (%d)\n",
@@ -88,14 +90,14 @@ int rtas_set_rtc_time(struct rtc_time *tm)
 				  tm->tm_year + 1900, tm->tm_mon + 1,
 				  tm->tm_mday, tm->tm_hour, tm->tm_min,
 				  tm->tm_sec, 0);
-		if (error == RTAS_CLOCK_BUSY || rtas_is_extended_busy(error)) {
+
+		wait_time = rtas_busy_delay_time(error);
+		if (wait_time) {
 			if (in_interrupt())
 				return 1;	/* probably decrementer */
-			wait_time = rtas_extended_busy_delay_time(error);
 			msleep(wait_time);
-			error = RTAS_CLOCK_BUSY;
 		}
-	} while (error == RTAS_CLOCK_BUSY && (get_tb() < max_wait_tb));
+	} while (wait_time && (get_tb() < max_wait_tb));
 
         if (error != 0 && printk_ratelimit())
                 printk(KERN_WARNING "error: setting the clock failed (%d)\n",

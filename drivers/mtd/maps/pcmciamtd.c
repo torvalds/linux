@@ -713,6 +713,7 @@ static void pcmciamtd_detach(struct pcmcia_device *link)
 
 	if(dev->mtd_info) {
 		del_mtd_device(dev->mtd_info);
+		map_destroy(dev->mtd_info);
 		info("mtd%d: Removed", dev->mtd_info->index);
 	}
 

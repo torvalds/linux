@@ -71,6 +71,7 @@ static struct menu *current_menu, *current_entry;
 %token <id>T_DEFAULT
 %token <id>T_SELECT
 %token <id>T_RANGE
+%token <id>T_OPTION
 %token <id>T_ON
 %token <string> T_WORD
 %token <string> T_WORD_QUOTE
@@ -91,6 +92,7 @@ static struct menu *current_menu, *current_entry;
 %type <id> end
 %type <id> option_name
 %type <menu> if_entry menu_entry choice_entry
+%type <string> symbol_option_arg
 
 %destructor {
 	fprintf(stderr, "%s:%d: missing end statement for this entry\n",
@@ -173,6 +175,7 @@ menuconfig_stmt: menuconfig_entry_start config_option_list
 config_option_list:
 	  /* empty */
 	| config_option_list config_option
+	| config_option_list symbol_option
 	| config_option_list depends
 	| config_option_list help
 	| config_option_list option_error
@@ -214,6 +217,26 @@ config_option: T_RANGE symbol symbol if_expr T_EOL
 	menu_add_expr(P_RANGE, expr_alloc_comp(E_RANGE,$2, $3), $4);
 	printd(DEBUG_PARSE, "%s:%d:range\n", zconf_curname(), zconf_lineno());
 };
+
+symbol_option: T_OPTION symbol_option_list T_EOL
+;
+
+symbol_option_list:
+	  /* empty */
+	| symbol_option_list T_WORD symbol_option_arg
+{
+	struct kconf_id *id = kconf_id_lookup($2, strlen($2));
+	if (id && id->flags & TF_OPTION)
+		menu_add_option(id->token, $3);
+	else
+		zconfprint("warning: ignoring unknown option %s", $2);
+	free($2);
+};
+
+symbol_option_arg:
+	  /* empty */		{ $$ = NULL; }
+	| T_EQUAL prompt	{ $$ = $2; }
+;
 
 /* choice entry */
 
@@ -458,7 +481,9 @@ void conf_parse(const char *name)
 
 	sym_init();
 	menu_init();
-	modules_sym = sym_lookup("MODULES", 0);
+	modules_sym = sym_lookup(NULL, 0);
+	modules_sym->type = S_BOOLEAN;
+	modules_sym->flags |= SYMBOL_AUTO;
 	rootmenu.prompt = menu_add_prompt(P_MENU, "Linux Kernel Configuration", NULL);
 
 #if YYDEBUG
@@ -468,6 +493,12 @@ void conf_parse(const char *name)
 	zconfparse();
 	if (zconfnerrs)
 		exit(1);
+	if (!modules_sym->prop) {
+		struct property *prop;
+
+		prop = prop_alloc(P_DEFAULT, modules_sym);
+		prop->expr = expr_alloc_symbol(sym_lookup("MODULES", 0));
+	}
 	menu_finalize(&rootmenu);
 	for_all_symbols(i, sym) {
 		sym_check_deps(sym);

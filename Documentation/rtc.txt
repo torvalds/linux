@@ -44,8 +44,10 @@ normal timer interrupt, which is 100Hz.
 Programming and/or enabling interrupt frequencies greater than 64Hz is
 only allowed by root. This is perhaps a bit conservative, but we don't want
 an evil user generating lots of IRQs on a slow 386sx-16, where it might have
-a negative impact on performance.  Note that the interrupt handler is only
-a few lines of code to minimize any possibility of this effect.
+a negative impact on performance. This 64Hz limit can be changed by writing
+a different value to /proc/sys/dev/rtc/max-user-freq. Note that the
+interrupt handler is only a few lines of code to minimize any possibility
+of this effect.
 
 Also, if the kernel time is synchronized with an external source, the 
 kernel will write the time back to the CMOS clock every 11 minutes. In 
@@ -81,6 +83,7 @@ that will be using this driver.
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <linux/rtc.h>
 #include <sys/ioctl.h>
 #include <sys/time.h>

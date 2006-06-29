@@ -45,7 +45,6 @@
 asmlinkage void system_call(void);
 asmlinkage void buserr(void);
 asmlinkage void trap(void);
-asmlinkage void inthandler(void);
 asmlinkage void nmihandler(void);
 #ifdef CONFIG_M68KFPU_EMU
 asmlinkage void fpu_emu(void);
@@ -53,51 +52,7 @@ asmlinkage void fpu_emu(void);
 
 e_vector vectors[256] = {
 	[VEC_BUSERR]	= buserr,
-	[VEC_ADDRERR]	= trap,
-	[VEC_ILLEGAL]	= trap,
-	[VEC_ZERODIV]	= trap,
-	[VEC_CHK]	= trap,
-	[VEC_TRAP]	= trap,
-	[VEC_PRIV]	= trap,
-	[VEC_TRACE]	= trap,
-	[VEC_LINE10]	= trap,
-	[VEC_LINE11]	= trap,
-	[VEC_RESV12]	= trap,
-	[VEC_COPROC]	= trap,
-	[VEC_FORMAT]	= trap,
-	[VEC_UNINT]	= trap,
-	[VEC_RESV16]	= trap,
-	[VEC_RESV17]	= trap,
-	[VEC_RESV18]	= trap,
-	[VEC_RESV19]	= trap,
-	[VEC_RESV20]	= trap,
-	[VEC_RESV21]	= trap,
-	[VEC_RESV22]	= trap,
-	[VEC_RESV23]	= trap,
-	[VEC_SPUR]	= inthandler,
-	[VEC_INT1]	= inthandler,
-	[VEC_INT2]	= inthandler,
-	[VEC_INT3]	= inthandler,
-	[VEC_INT4]	= inthandler,
-	[VEC_INT5]	= inthandler,
-	[VEC_INT6]	= inthandler,
-	[VEC_INT7]	= inthandler,
 	[VEC_SYS]	= system_call,
-	[VEC_TRAP1]	= trap,
-	[VEC_TRAP2]	= trap,
-	[VEC_TRAP3]	= trap,
-	[VEC_TRAP4]	= trap,
-	[VEC_TRAP5]	= trap,
-	[VEC_TRAP6]	= trap,
-	[VEC_TRAP7]	= trap,
-	[VEC_TRAP8]	= trap,
-	[VEC_TRAP9]	= trap,
-	[VEC_TRAP10]	= trap,
-	[VEC_TRAP11]	= trap,
-	[VEC_TRAP12]	= trap,
-	[VEC_TRAP13]	= trap,
-	[VEC_TRAP14]	= trap,
-	[VEC_TRAP15]	= trap,
 };
 
 /* nmi handler for the Amiga */
@@ -114,7 +69,7 @@ void __init base_trap_init(void)
 	if(MACH_IS_SUN3X) {
 		extern e_vector *sun3x_prom_vbr;
 
-		__asm__ volatile ("movec %%vbr, %0" : "=r" ((void*)sun3x_prom_vbr));
+		__asm__ volatile ("movec %%vbr, %0" : "=r" (sun3x_prom_vbr));
 	}
 
 	/* setup the exception vector table */
@@ -132,12 +87,15 @@ void __init trap_init (void)
 {
 	int i;
 
-	for (i = 48; i < 64; i++)
+	for (i = VEC_SPUR; i <= VEC_INT7; i++)
+		vectors[i] = bad_inthandler;
+
+	for (i = 0; i < VEC_USER; i++)
 		if (!vectors[i])
 			vectors[i] = trap;
 
-	for (i = 64; i < 256; i++)
-		vectors[i] = inthandler;
+	for (i = VEC_USER; i < 256; i++)
+		vectors[i] = bad_inthandler;
 
 #ifdef CONFIG_M68KFPU_EMU
 	if (FPU_IS_EMU)
@@ -927,71 +885,94 @@ void show_trace(unsigned long *stack)
 void show_registers(struct pt_regs *regs)
 {
 	struct frame *fp = (struct frame *)regs;
+	mm_segment_t old_fs = get_fs();
+	u16 c, *cp;
 	unsigned long addr;
 	int i;
 
+	print_modules();
+	printk("PC: [<%08lx>]",regs->pc);
+	print_symbol(" %s", regs->pc);
+	printk("\nSR: %04x  SP: %p  a2: %08lx\n",
+	       regs->sr, regs, regs->a2);
+	printk("d0: %08lx    d1: %08lx    d2: %08lx    d3: %08lx\n",
+	       regs->d0, regs->d1, regs->d2, regs->d3);
+	printk("d4: %08lx    d5: %08lx    a0: %08lx    a1: %08lx\n",
+	       regs->d4, regs->d5, regs->a0, regs->a1);
+
+	printk("Process %s (pid: %d, task=%p)\n",
+		current->comm, current->pid, current);
 	addr = (unsigned long)&fp->un;
-	printk("Frame format=%X ", fp->ptregs.format);
-	switch (fp->ptregs.format) {
+	printk("Frame format=%X ", regs->format);
+	switch (regs->format) {
 	case 0x2:
-	    printk("instr addr=%08lx\n", fp->un.fmt2.iaddr);
-	    addr += sizeof(fp->un.fmt2);
-	    break;
+		printk("instr addr=%08lx\n", fp->un.fmt2.iaddr);
+		addr += sizeof(fp->un.fmt2);
+		break;
 	case 0x3:
-	    printk("eff addr=%08lx\n", fp->un.fmt3.effaddr);
-	    addr += sizeof(fp->un.fmt3);
-	    break;
+		printk("eff addr=%08lx\n", fp->un.fmt3.effaddr);
+		addr += sizeof(fp->un.fmt3);
+		break;
 	case 0x4:
-	    printk((CPU_IS_060 ? "fault addr=%08lx fslw=%08lx\n"
-		    : "eff addr=%08lx pc=%08lx\n"),
-		   fp->un.fmt4.effaddr, fp->un.fmt4.pc);
-	    addr += sizeof(fp->un.fmt4);
-	    break;
+		printk((CPU_IS_060 ? "fault addr=%08lx fslw=%08lx\n"
+			: "eff addr=%08lx pc=%08lx\n"),
+			fp->un.fmt4.effaddr, fp->un.fmt4.pc);
+		addr += sizeof(fp->un.fmt4);
+		break;
 	case 0x7:
-	    printk("eff addr=%08lx ssw=%04x faddr=%08lx\n",
-		   fp->un.fmt7.effaddr, fp->un.fmt7.ssw, fp->un.fmt7.faddr);
-	    printk("wb 1 stat/addr/data: %04x %08lx %08lx\n",
-		   fp->un.fmt7.wb1s, fp->un.fmt7.wb1a, fp->un.fmt7.wb1dpd0);
-	    printk("wb 2 stat/addr/data: %04x %08lx %08lx\n",
-		   fp->un.fmt7.wb2s, fp->un.fmt7.wb2a, fp->un.fmt7.wb2d);
-	    printk("wb 3 stat/addr/data: %04x %08lx %08lx\n",
-		   fp->un.fmt7.wb3s, fp->un.fmt7.wb3a, fp->un.fmt7.wb3d);
-	    printk("push data: %08lx %08lx %08lx %08lx\n",
-		   fp->un.fmt7.wb1dpd0, fp->un.fmt7.pd1, fp->un.fmt7.pd2,
-		   fp->un.fmt7.pd3);
-	    addr += sizeof(fp->un.fmt7);
-	    break;
+		printk("eff addr=%08lx ssw=%04x faddr=%08lx\n",
+			fp->un.fmt7.effaddr, fp->un.fmt7.ssw, fp->un.fmt7.faddr);
+		printk("wb 1 stat/addr/data: %04x %08lx %08lx\n",
+			fp->un.fmt7.wb1s, fp->un.fmt7.wb1a, fp->un.fmt7.wb1dpd0);
+		printk("wb 2 stat/addr/data: %04x %08lx %08lx\n",
+			fp->un.fmt7.wb2s, fp->un.fmt7.wb2a, fp->un.fmt7.wb2d);
+		printk("wb 3 stat/addr/data: %04x %08lx %08lx\n",
+			fp->un.fmt7.wb3s, fp->un.fmt7.wb3a, fp->un.fmt7.wb3d);
+		printk("push data: %08lx %08lx %08lx %08lx\n",
+			fp->un.fmt7.wb1dpd0, fp->un.fmt7.pd1, fp->un.fmt7.pd2,
+			fp->un.fmt7.pd3);
+		addr += sizeof(fp->un.fmt7);
+		break;
 	case 0x9:
-	    printk("instr addr=%08lx\n", fp->un.fmt9.iaddr);
-	    addr += sizeof(fp->un.fmt9);
-	    break;
+		printk("instr addr=%08lx\n", fp->un.fmt9.iaddr);
+		addr += sizeof(fp->un.fmt9);
+		break;
 	case 0xa:
-	    printk("ssw=%04x isc=%04x isb=%04x daddr=%08lx dobuf=%08lx\n",
-		   fp->un.fmta.ssw, fp->un.fmta.isc, fp->un.fmta.isb,
-		   fp->un.fmta.daddr, fp->un.fmta.dobuf);
-	    addr += sizeof(fp->un.fmta);
-	    break;
+		printk("ssw=%04x isc=%04x isb=%04x daddr=%08lx dobuf=%08lx\n",
+			fp->un.fmta.ssw, fp->un.fmta.isc, fp->un.fmta.isb,
+			fp->un.fmta.daddr, fp->un.fmta.dobuf);
+		addr += sizeof(fp->un.fmta);
+		break;
 	case 0xb:
-	    printk("ssw=%04x isc=%04x isb=%04x daddr=%08lx dobuf=%08lx\n",
-		   fp->un.fmtb.ssw, fp->un.fmtb.isc, fp->un.fmtb.isb,
-		   fp->un.fmtb.daddr, fp->un.fmtb.dobuf);
-	    printk("baddr=%08lx dibuf=%08lx ver=%x\n",
-		   fp->un.fmtb.baddr, fp->un.fmtb.dibuf, fp->un.fmtb.ver);
-	    addr += sizeof(fp->un.fmtb);
-	    break;
+		printk("ssw=%04x isc=%04x isb=%04x daddr=%08lx dobuf=%08lx\n",
+			fp->un.fmtb.ssw, fp->un.fmtb.isc, fp->un.fmtb.isb,
+			fp->un.fmtb.daddr, fp->un.fmtb.dobuf);
+		printk("baddr=%08lx dibuf=%08lx ver=%x\n",
+			fp->un.fmtb.baddr, fp->un.fmtb.dibuf, fp->un.fmtb.ver);
+		addr += sizeof(fp->un.fmtb);
+		break;
 	default:
-	    printk("\n");
+		printk("\n");
 	}
 	show_stack(NULL, (unsigned long *)addr);
 
-	printk("Code: ");
-	for (i = 0; i < 10; i++)
-		printk("%04x ", 0xffff & ((short *) fp->ptregs.pc)[i]);
+	printk("Code:");
+	set_fs(KERNEL_DS);
+	cp = (u16 *)regs->pc;
+	for (i = -8; i < 16; i++) {
+		if (get_user(c, cp + i) && i >= 0) {
+			printk(" Bad PC value.");
+			break;
+		}
+		printk(i ? " %04x" : " <%04x>", c);
+	}
+	set_fs(old_fs);
 	printk ("\n");
 }
 
 void show_stack(struct task_struct *task, unsigned long *stack)
 {
+	unsigned long *p;
 	unsigned long *endstack;
 	int i;
 
@@ -1004,12 +985,13 @@ void show_stack(struct task_struct *task, unsigned long *stack)
 	endstack = (unsigned long *)(((unsigned long)stack + THREAD_SIZE - 1) & -THREAD_SIZE);
 
 	printk("Stack from %08lx:", (unsigned long)stack);
+	p = stack;
 	for (i = 0; i < kstack_depth_to_print; i++) {
-		if (stack + 1 > endstack)
+		if (p + 1 > endstack)
 			break;
 		if (i % 8 == 0)
 			printk("\n       ");
-		printk(" %08lx", *stack++);
+		printk(" %08lx", *p++);
 	}
 	printk("\n");
 	show_trace(stack);
@@ -1188,19 +1170,7 @@ void die_if_kernel (char *str, struct pt_regs *fp, int nr)
 
 	console_verbose();
 	printk("%s: %08x\n",str,nr);
-	print_modules();
-	printk("PC: [<%08lx>]",fp->pc);
-	print_symbol(" %s\n", fp->pc);
-	printk("\nSR: %04x  SP: %p  a2: %08lx\n",
-	       fp->sr, fp, fp->a2);
-	printk("d0: %08lx    d1: %08lx    d2: %08lx    d3: %08lx\n",
-	       fp->d0, fp->d1, fp->d2, fp->d3);
-	printk("d4: %08lx    d5: %08lx    a0: %08lx    a1: %08lx\n",
-	       fp->d4, fp->d5, fp->a0, fp->a1);
-
-	printk("Process %s (pid: %d, stackpage=%08lx)\n",
-		current->comm, current->pid, PAGE_SIZE+(unsigned long)current);
-	show_stack(NULL, (unsigned long *)fp);
+	show_registers(fp);
 	do_exit(SIGSEGV);
 }
 

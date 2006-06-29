@@ -39,7 +39,7 @@ ACPI_MODULE_NAME("acpi_system")
 #define ACPI_SYSTEM_FILE_EVENT		"event"
 #define ACPI_SYSTEM_FILE_DSDT		"dsdt"
 #define ACPI_SYSTEM_FILE_FADT		"fadt"
-extern FADT_DESCRIPTOR acpi_fadt;
+extern struct fadt_descriptor acpi_fadt;
 
 /* --------------------------------------------------------------------------
                               FS Interface (/proc)
@@ -82,7 +82,7 @@ acpi_system_read_dsdt(struct file *file,
 
 	ACPI_FUNCTION_TRACE("acpi_system_read_dsdt");
 
-	status = acpi_get_table(ACPI_TABLE_DSDT, 1, &dsdt);
+	status = acpi_get_table(ACPI_TABLE_ID_DSDT, 1, &dsdt);
 	if (ACPI_FAILURE(status))
 		return_VALUE(-ENODEV);
 
@@ -110,7 +110,7 @@ acpi_system_read_fadt(struct file *file,
 
 	ACPI_FUNCTION_TRACE("acpi_system_read_fadt");
 
-	status = acpi_get_table(ACPI_TABLE_FADT, 1, &fadt);
+	status = acpi_get_table(ACPI_TABLE_ID_FADT, 1, &fadt);
 	if (ACPI_FAILURE(status))
 		return_VALUE(-ENODEV);
 

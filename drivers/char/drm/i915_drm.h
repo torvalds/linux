@@ -124,6 +124,8 @@ typedef struct _drm_i915_sarea {
 #define DRM_I915_INIT_HEAP	0x0a
 #define DRM_I915_CMDBUFFER	0x0b
 #define DRM_I915_DESTROY_HEAP	0x0c
+#define DRM_I915_SET_VBLANK_PIPE	0x0d
+#define DRM_I915_GET_VBLANK_PIPE	0x0e
 
 #define DRM_IOCTL_I915_INIT		DRM_IOW( DRM_COMMAND_BASE + DRM_I915_INIT, drm_i915_init_t)
 #define DRM_IOCTL_I915_FLUSH		DRM_IO ( DRM_COMMAND_BASE + DRM_I915_FLUSH)
@@ -138,6 +140,8 @@ typedef struct _drm_i915_sarea {
 #define DRM_IOCTL_I915_INIT_HEAP        DRM_IOW( DRM_COMMAND_BASE + DRM_I915_INIT_HEAP, drm_i915_mem_init_heap_t)
 #define DRM_IOCTL_I915_CMDBUFFER	DRM_IOW( DRM_COMMAND_BASE + DRM_I915_CMDBUFFER, drm_i915_cmdbuffer_t)
 #define DRM_IOCTL_I915_DESTROY_HEAP	DRM_IOW( DRM_COMMAND_BASE + DRM_I915_DESTROY_HEAP, drm_i915_mem_destroy_heap_t)
+#define DRM_IOCTL_I915_SET_VBLANK_PIPE	DRM_IOW( DRM_COMMAND_BASE + DRM_I915_SET_VBLANK_PIPE, drm_i915_vblank_pipe_t)
+#define DRM_IOCTL_I915_GET_VBLANK_PIPE	DRM_IOR( DRM_COMMAND_BASE + DRM_I915_GET_VBLANK_PIPE, drm_i915_vblank_pipe_t)
 
 /* Allow drivers to submit batchbuffers directly to hardware, relying
  * on the security mechanisms provided by hardware.
@@ -223,5 +227,14 @@ typedef struct drm_i915_mem_init_heap {
 typedef struct drm_i915_mem_destroy_heap {
 	int region;
 } drm_i915_mem_destroy_heap_t;
+
+/* Allow X server to configure which pipes to monitor for vblank signals
+ */
+#define	DRM_I915_VBLANK_PIPE_A	1
+#define	DRM_I915_VBLANK_PIPE_B	2
+
+typedef struct drm_i915_vblank_pipe {
+	int pipe;
+} drm_i915_vblank_pipe_t;
 
 #endif				/* _I915_DRM_H_ */

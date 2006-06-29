@@ -600,8 +600,7 @@ static ide_startstop_t idescsi_transfer_pc(ide_drive_t *drive)
 				"issuing a packet command\n");
 		return ide_do_reset (drive);
 	}
-	if (HWGROUP(drive)->handler != NULL)
-		BUG();
+	BUG_ON(HWGROUP(drive)->handler != NULL);
 	/* Set the interrupt routine */
 	ide_set_handler(drive, &idescsi_pc_intr, get_timeout(pc), idescsi_expiry);
 	/* Send the actual packet */
@@ -691,8 +690,7 @@ static ide_startstop_t idescsi_issue_pc (ide_drive_t *drive, idescsi_pc_t *pc)
 		set_bit(PC_DMA_OK, &pc->flags);
 
 	if (test_bit(IDESCSI_DRQ_INTERRUPT, &scsi->flags)) {
-		if (HWGROUP(drive)->handler != NULL)
-			BUG();
+		BUG_ON(HWGROUP(drive)->handler != NULL);
 		ide_set_handler(drive, &idescsi_transfer_pc,
 				get_timeout(pc), idescsi_expiry);
 		/* Issue the packet command */

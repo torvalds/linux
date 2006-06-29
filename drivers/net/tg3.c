@@ -3780,7 +3780,7 @@ static int tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 #if TG3_TSO_SUPPORT != 0
 	mss = 0;
 	if (skb->len > (tp->dev->mtu + ETH_HLEN) &&
-	    (mss = skb_shinfo(skb)->tso_size) != 0) {
+	    (mss = skb_shinfo(skb)->gso_size) != 0) {
 		int tcp_opt_len, ip_tcp_len;
 
 		if (skb_header_cloned(skb) &&
@@ -3905,7 +3905,7 @@ static int tg3_start_xmit_dma_bug(struct sk_buff *skb, struct net_device *dev)
 #if TG3_TSO_SUPPORT != 0
 	mss = 0;
 	if (skb->len > (tp->dev->mtu + ETH_HLEN) &&
-	    (mss = skb_shinfo(skb)->tso_size) != 0) {
+	    (mss = skb_shinfo(skb)->gso_size) != 0) {
 		int tcp_opt_len, ip_tcp_len;
 
 		if (skb_header_cloned(skb) &&
@@ -10549,11 +10549,13 @@ static int __devinit tg3_get_macaddr_sparc(struct tg3 *tp)
 	struct pcidev_cookie *pcp = pdev->sysdata;
 
 	if (pcp != NULL) {
-		int node = pcp->prom_node;
+		unsigned char *addr;
+		int len;
 
-		if (prom_getproplen(node, "local-mac-address") == 6) {
-			prom_getproperty(node, "local-mac-address",
-					 dev->dev_addr, 6);
+		addr = of_get_property(pcp->prom_node, "local-mac-address",
+					&len);
+		if (addr && len == 6) {
+			memcpy(dev->dev_addr, addr, 6);
 			memcpy(dev->perm_addr, dev->dev_addr, 6);
 			return 0;
 		}

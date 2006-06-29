@@ -63,7 +63,7 @@ struct manager {
 
 static struct manager mng = { 0};
 
-static spinlock_t config_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(config_lock);
 
 static const void *req_tlv_area;	/* request message TLV area */
 static int req_tlv_space;		/* request message TLV area size */
@@ -291,13 +291,22 @@ static struct sk_buff *cfg_set_own_addr(void)
 	if (!tipc_addr_node_valid(addr))
 		return tipc_cfg_reply_error_string(TIPC_CFG_INVALID_VALUE
 						   " (node address)");
-	if (tipc_own_addr)
+	if (tipc_mode == TIPC_NET_MODE)
 		return tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
 						   " (cannot change node address once assigned)");
+	tipc_own_addr = addr;
+
+	/* 
+	 * Must release all spinlocks before calling start_net() because
+	 * Linux version of TIPC calls eth_media_start() which calls
+	 * register_netdevice_notifier() which may block!
+	 *
+	 * Temporarily releasing the lock should be harmless for non-Linux TIPC,
+	 * but Linux version of eth_media_start() should really be reworked
+	 * so that it can be called with spinlocks held.
+	 */
 
 	spin_unlock_bh(&config_lock);
-	tipc_core_stop_net();
-	tipc_own_addr = addr;
 	tipc_core_start_net();
 	spin_lock_bh(&config_lock);
 	return tipc_cfg_reply_none();
@@ -350,50 +359,21 @@ static struct sk_buff *cfg_set_max_subscriptions(void)
 
 static struct sk_buff *cfg_set_max_ports(void)
 {
-	int orig_mode;
 	u32 value;
 
 	if (!TLV_CHECK(req_tlv_area, req_tlv_space, TIPC_TLV_UNSIGNED))
 		return tipc_cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
 	value = *(u32 *)TLV_DATA(req_tlv_area);
 	value = ntohl(value);
+	if (value == tipc_max_ports)
+		return tipc_cfg_reply_none();
 	if (value != delimit(value, 127, 65535))
 		return tipc_cfg_reply_error_string(TIPC_CFG_INVALID_VALUE
 						   " (max ports must be 127-65535)");
-
-	if (value == tipc_max_ports)
-		return tipc_cfg_reply_none();
-
-	if (atomic_read(&tipc_user_count) > 2)
+	if (tipc_mode != TIPC_NOT_RUNNING)
 		return tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
-						   " (cannot change max ports while TIPC users exist)");
-
-	spin_unlock_bh(&config_lock);
-	orig_mode = tipc_get_mode();
-	if (orig_mode == TIPC_NET_MODE)
-		tipc_core_stop_net();
-	tipc_core_stop();
+			" (cannot change max ports while TIPC is active)");
 	tipc_max_ports = value;
-	tipc_core_start();
-	if (orig_mode == TIPC_NET_MODE)
-		tipc_core_start_net();
-	spin_lock_bh(&config_lock);
-	return tipc_cfg_reply_none();
-}
-
-static struct sk_buff *set_net_max(int value, int *parameter)
-{
-	int orig_mode;
-
-	if (value != *parameter) {
-		orig_mode = tipc_get_mode();
-		if (orig_mode == TIPC_NET_MODE)
-			tipc_core_stop_net();
-		*parameter = value;
-		if (orig_mode == TIPC_NET_MODE)
-			tipc_core_start_net();
-	}
-
 	return tipc_cfg_reply_none();
 }
 
@@ -405,10 +385,16 @@ static struct sk_buff *cfg_set_max_zones(void)
 		return tipc_cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
 	value = *(u32 *)TLV_DATA(req_tlv_area);
 	value = ntohl(value);
+	if (value == tipc_max_zones)
+		return tipc_cfg_reply_none();
 	if (value != delimit(value, 1, 255))
 		return tipc_cfg_reply_error_string(TIPC_CFG_INVALID_VALUE
 						   " (max zones must be 1-255)");
-	return set_net_max(value, &tipc_max_zones);
+	if (tipc_mode == TIPC_NET_MODE)
+		return tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
+			" (cannot change max zones once TIPC has joined a network)");
+	tipc_max_zones = value;
+	return tipc_cfg_reply_none();
 }
 
 static struct sk_buff *cfg_set_max_clusters(void)
@@ -419,8 +405,8 @@ static struct sk_buff *cfg_set_max_clusters(void)
 		return tipc_cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
 	value = *(u32 *)TLV_DATA(req_tlv_area);
 	value = ntohl(value);
-	if (value != 1)
-		return tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
+	if (value != delimit(value, 1, 1))
+		return tipc_cfg_reply_error_string(TIPC_CFG_INVALID_VALUE
 						   " (max clusters fixed at 1)");
 	return tipc_cfg_reply_none();
 }
@@ -433,10 +419,16 @@ static struct sk_buff *cfg_set_max_nodes(void)
 		return tipc_cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
 	value = *(u32 *)TLV_DATA(req_tlv_area);
 	value = ntohl(value);
+	if (value == tipc_max_nodes)
+		return tipc_cfg_reply_none();
 	if (value != delimit(value, 8, 2047))
 		return tipc_cfg_reply_error_string(TIPC_CFG_INVALID_VALUE
 						   " (max nodes must be 8-2047)");
-	return set_net_max(value, &tipc_max_nodes);
+	if (tipc_mode == TIPC_NET_MODE)
+		return tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
+			" (cannot change max nodes once TIPC has joined a network)");
+	tipc_max_nodes = value;
+	return tipc_cfg_reply_none();
 }
 
 static struct sk_buff *cfg_set_max_slaves(void)
@@ -461,15 +453,16 @@ static struct sk_buff *cfg_set_netid(void)
 		return tipc_cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
 	value = *(u32 *)TLV_DATA(req_tlv_area);
 	value = ntohl(value);
+	if (value == tipc_net_id)
+		return tipc_cfg_reply_none();
 	if (value != delimit(value, 1, 9999))
 		return tipc_cfg_reply_error_string(TIPC_CFG_INVALID_VALUE
 						   " (network id must be 1-9999)");
-
-	if (tipc_own_addr)
+	if (tipc_mode == TIPC_NET_MODE)
 		return tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
-						   " (cannot change network id once part of network)");
-	
-	return set_net_max(value, &tipc_net_id);
+			" (cannot change network id once TIPC has joined a network)");
+	tipc_net_id = value;
+	return tipc_cfg_reply_none();
 }
 
 struct sk_buff *tipc_cfg_do_cmd(u32 orig_node, u16 cmd, const void *request_area,
@@ -649,7 +642,7 @@ static void cfg_named_msg_event(void *userdata,
 	if ((size < sizeof(*req_hdr)) ||
 	    (size != TCM_ALIGN(ntohl(req_hdr->tcm_len))) ||
 	    (ntohs(req_hdr->tcm_flags) != TCM_F_REQUEST)) {
-		warn("discarded invalid configuration message\n");
+		warn("Invalid configuration message discarded\n");
 		return;
 	}
 

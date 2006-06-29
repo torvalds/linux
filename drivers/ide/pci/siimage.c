@@ -38,9 +38,6 @@
 
 #include <asm/io.h>
 
-#undef SIIMAGE_VIRTUAL_DMAPIO
-#undef SIIMAGE_LARGE_DMA
-
 /**
  *	pdev_is_sata		-	check if device is SATA
  *	@pdev:	PCI device to check
@@ -461,36 +458,6 @@ static int siimage_io_ide_dma_test_irq (ide_drive_t *drive)
 	return 0;
 }
 
-#if 0
-/**
- *	siimage_mmio_ide_dma_count	-	DMA bytes done
- *	@drive
- *
- *	If we are doing VDMA the CMD680 requires a little bit
- *	of more careful handling and we have to read the counts
- *	off ourselves. For non VDMA life is normal.
- */
- 
-static int siimage_mmio_ide_dma_count (ide_drive_t *drive)
-{
-#ifdef SIIMAGE_VIRTUAL_DMAPIO
-	struct request *rq	= HWGROUP(drive)->rq;
-	ide_hwif_t *hwif	= HWIF(drive);
-	u32 count		= (rq->nr_sectors * SECTOR_SIZE);
-	u32 rcount		= 0;
-	unsigned long addr	= siimage_selreg(hwif, 0x1C);
-
-	hwif->OUTL(count, addr);
-	rcount = hwif->INL(addr);
-
-	printk("\n%s: count = %d, rcount = %d, nr_sectors = %lu\n",
-		drive->name, count, rcount, rq->nr_sectors);
-
-#endif /* SIIMAGE_VIRTUAL_DMAPIO */
-	return __ide_dma_count(drive);
-}
-#endif
-
 /**
  *	siimage_mmio_ide_dma_test_irq	-	check we caused an IRQ
  *	@drive: drive we are testing
@@ -512,12 +479,10 @@ static int siimage_mmio_ide_dma_test_irq (ide_drive_t *drive)
 			u32 sata_error = hwif->INL(SATA_ERROR_REG);
 			hwif->OUTL(sata_error, SATA_ERROR_REG);
 			watchdog = (sata_error & 0x00680000) ? 1 : 0;
-#if 1
 			printk(KERN_WARNING "%s: sata_error = 0x%08x, "
 				"watchdog = %d, %s\n",
 				drive->name, sata_error, watchdog,
 				__FUNCTION__);
-#endif
 
 		} else {
 			watchdog = (ext_stat & 0x8000) ? 1 : 0;
@@ -863,7 +828,7 @@ static unsigned int __devinit init_chipset_siimage(struct pci_dev *dev, const ch
  *	time.
  *
  *	The hardware supports buffered taskfiles and also some rather nice
- *	extended PRD tables. Unfortunately right now we don't.
+ *	extended PRD tables. For better SI3112 support use the libata driver
  */
 
 static void __devinit init_mmio_iops_siimage(ide_hwif_t *hwif)
@@ -900,9 +865,6 @@ static void __devinit init_mmio_iops_siimage(ide_hwif_t *hwif)
 	 *	so we can't currently use it sanely since we want to
 	 *	use LBA48 mode.
 	 */	
-//	base += 0x10;
-//	hwif->no_lba48 = 1;
-
 	hw.io_ports[IDE_DATA_OFFSET]	= base;
 	hw.io_ports[IDE_ERROR_OFFSET]	= base + 1;
 	hw.io_ports[IDE_NSECTOR_OFFSET]	= base + 2;
@@ -936,15 +898,8 @@ static void __devinit init_mmio_iops_siimage(ide_hwif_t *hwif)
 
        	base = (unsigned long) addr;
 
-#ifdef SIIMAGE_LARGE_DMA
-/* Watch the brackets - even Ken and Dennis get some language design wrong */
-	hwif->dma_base			= base + (ch ? 0x18 : 0x10);
-	hwif->dma_base2			= base + (ch ? 0x08 : 0x00);
-	hwif->dma_prdtable		= hwif->dma_base2 + 4;
-#else /* ! SIIMAGE_LARGE_DMA */
 	hwif->dma_base			= base + (ch ? 0x08 : 0x00);
 	hwif->dma_base2			= base + (ch ? 0x18 : 0x10);
-#endif /* SIIMAGE_LARGE_DMA */
 	hwif->mmio			= 2;
 }
 
@@ -1052,9 +1007,16 @@ static void __devinit init_hwif_siimage(ide_hwif_t *hwif)
 	hwif->reset_poll = &siimage_reset_poll;
 	hwif->pre_reset = &siimage_pre_reset;
 
-	if(is_sata(hwif))
+	if(is_sata(hwif)) {
+		static int first = 1;
+
 		hwif->busproc   = &siimage_busproc;
 
+		if (first) {
+			printk(KERN_INFO "siimage: For full SATA support you should use the libata sata_sil module.\n");
+			first = 0;
+		}
+	}
 	if (!hwif->dma_base) {
 		hwif->drives[0].autotune = 1;
 		hwif->drives[1].autotune = 1;
@@ -1121,10 +1083,10 @@ static int __devinit siimage_init_one(struct pci_dev *dev, const struct pci_devi
 }
 
 static struct pci_device_id siimage_pci_tbl[] = {
-	{ PCI_VENDOR_ID_CMD, PCI_DEVICE_ID_SII_680,  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{ PCI_DEVICE(PCI_VENDOR_ID_CMD, PCI_DEVICE_ID_SII_680), 0},
 #ifdef CONFIG_BLK_DEV_IDE_SATA
-	{ PCI_VENDOR_ID_CMD, PCI_DEVICE_ID_SII_3112, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 1},
-	{ PCI_VENDOR_ID_CMD, PCI_DEVICE_ID_SII_1210SA, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 2},
+	{ PCI_DEVICE(PCI_VENDOR_ID_CMD, PCI_DEVICE_ID_SII_3112), 1},
+	{ PCI_DEVICE(PCI_VENDOR_ID_CMD, PCI_DEVICE_ID_SII_1210SA), 2},
 #endif
 	{ 0, },
 };

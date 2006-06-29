@@ -6,7 +6,6 @@
 
 #ifdef __KERNEL__
 #ifndef __ASSEMBLY__
-#include <linux/config.h>
 #include <linux/personality.h>
 #include <linux/types.h>
 #include <linux/compat.h>

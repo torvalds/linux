@@ -60,8 +60,6 @@ struct ctlr_info
 	__u32	board_id;
 	void __iomem *vaddr;
 	unsigned long paddr;
-	unsigned long io_mem_addr;
-	unsigned long io_mem_length;
 	CfgTable_struct __iomem *cfgtable;
 	int	interrupts_enabled;
 	int	major;

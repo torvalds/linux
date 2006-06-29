@@ -27,6 +27,7 @@
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/spi/spi.h>
 
 #include <asm/hardware.h>
 #include <asm/setup.h>
@@ -37,9 +38,9 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <asm/arch/hardware.h>
-#include <asm/mach/serial_at91rm9200.h>
+#include <asm/hardware.h>
 #include <asm/arch/board.h>
+#include <asm/arch/gpio.h>
 
 #include "generic.h"
 
@@ -57,14 +58,14 @@ static void __init ek_init_irq(void)
  *    0 .. 3 = USART0 .. USART3
  *    4      = DBGU
  */
-#define EK_UART_MAP		{ 4, 1, -1, -1, -1 }	/* ttyS0, ..., ttyS4 */
-#define EK_SERIAL_CONSOLE	0			/* ttyS0 */
+static struct at91_uart_config __initdata ek_uart_config = {
+	.console_tty	= 0,				/* ttyS0 */
+	.nr_tty		= 2,
+	.tty_map	= { 4, 1, -1, -1, -1 }		/* ttyS0, ..., ttyS4 */
+};
 
 static void __init ek_map_io(void)
 {
-	int serial[AT91_NR_UART] = EK_UART_MAP;
-	int i;
-
 	at91rm9200_map_io();
 
 	/* Initialize clocks: 18.432 MHz crystal */
@@ -73,16 +74,8 @@ static void __init ek_map_io(void)
 	/* Setup the LEDs */
 	at91_init_leds(AT91_PIN_PB1, AT91_PIN_PB2);
 
-#ifdef CONFIG_SERIAL_AT91
-	at91_console_port = EK_SERIAL_CONSOLE;
-	memcpy(at91_serial_map, serial, sizeof(serial));
-
-	/* Register UARTs */
-	for (i = 0; i < AT91_NR_UART; i++) {
-		if (serial[i] >= 0)
-			at91_register_uart(i, serial[i]);
-	}
-#endif
+	/* Setup the serial ports and console */
+	at91_init_serial(&ek_uart_config);
 }
 
 static struct at91_eth_data __initdata ek_eth_data = {
@@ -106,14 +99,36 @@ static struct at91_mmc_data __initdata ek_mmc_data = {
 	.wp_pin		= AT91_PIN_PA17,
 };
 
+static struct spi_board_info ek_spi_devices[] = {
+	{	/* DataFlash chip */
+		.modalias	= "mtd_dataflash",
+		.chip_select	= 0,
+		.max_speed_hz	= 15 * 1000 * 1000,
+	},
+#ifdef CONFIG_MTD_AT91_DATAFLASH_CARD
+	{	/* DataFlash card */
+		.modalias	= "mtd_dataflash",
+		.chip_select	= 3,
+		.max_speed_hz	= 15 * 1000 * 1000,
+	},
+#endif
+};
+
 static void __init ek_board_init(void)
 {
+	/* Serial */
+	at91_add_device_serial();
 	/* Ethernet */
 	at91_add_device_eth(&ek_eth_data);
 	/* USB Host */
 	at91_add_device_usbh(&ek_usbh_data);
 	/* USB Device */
 	at91_add_device_udc(&ek_udc_data);
+	at91_set_multi_drive(ek_udc_data.pullup_pin, 1);	/* pullup_pin is connected to reset */
+	/* I2C */
+	at91_add_device_i2c();
+	/* SPI */
+	at91_add_device_spi(ek_spi_devices, ARRAY_SIZE(ek_spi_devices));
 #ifdef CONFIG_MTD_AT91_DATAFLASH_CARD
 	/* DataFlash card */
 	at91_set_gpio_output(AT91_PIN_PB22, 0);

@@ -150,3 +150,24 @@ the buffer.
 
 Ordering constraints:
 	Lock wbuf_sem last, after the alloc_sem or and f->sem.
+
+
+	c->xattr_sem
+	------------
+
+This read/write semaphore protects against concurrent access to the
+xattr related objects which include stuff in superblock and ic->xref.
+In read-only path, write-semaphore is too much exclusion. It's enough
+by read-semaphore. But you must hold write-semaphore when updating,
+creating or deleting any xattr related object.
+
+Once xattr_sem released, there would be no assurance for the existence
+of those objects. Thus, a series of processes is often required to retry,
+when updating such a object is necessary under holding read semaphore.
+For example, do_jffs2_getxattr() holds read-semaphore to scan xref and
+xdatum at first. But it retries this process with holding write-semaphore
+after release read-semaphore, if it's necessary to load name/value pair
+from medium.
+
+Ordering constraints:
+	Lock xattr_sem last, after the alloc_sem.

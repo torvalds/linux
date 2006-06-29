@@ -7,7 +7,6 @@
 #ifndef _ASM_SERIAL_H
 #define _ASM_SERIAL_H
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 
 #ifdef CONFIG_SH_EC3104

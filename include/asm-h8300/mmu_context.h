@@ -1,7 +1,6 @@
 #ifndef __H8300_MMU_CONTEXT_H
 #define __H8300_MMU_CONTEXT_H
 
-#include <linux/config.h>
 #include <asm/setup.h>
 #include <asm/page.h>
 #include <asm/pgalloc.h>

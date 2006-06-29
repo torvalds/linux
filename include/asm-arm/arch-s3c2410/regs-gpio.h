@@ -45,7 +45,7 @@
 #define S3C24XX_MISCCR        S3C2400_MISCCR
 #else
 #define S3C24XX_GPIO_BASE(x)  S3C2410_GPIO_BASE(x)
-#define S3C24XX_MISCCR        S3C2410_MISCCR
+#define S3C24XX_MISCCR	      S3C24XX_GPIOREG2(0x80)
 #endif /* CONFIG_CPU_S3C2400 */
 
 
@@ -73,9 +73,15 @@
 #define S3C2410_GPIO_SFN2    (0xFFFFFFF2)	/* not available on A */
 #define S3C2410_GPIO_SFN3    (0xFFFFFFF3)	/* not available on A */
 
-/* configure GPIO ports A..G */
+/* register address for the GPIO registers.
+ * S3C24XX_GPIOREG2 is for the second set of registers in the
+ * GPIO which move between s3c2410 and s3c2412 type systems */
 
 #define S3C2410_GPIOREG(x) ((x) + S3C24XX_VA_GPIO)
+#define S3C24XX_GPIOREG2(x) ((x) + S3C24XX_VA_GPIO2)
+
+
+/* configure GPIO ports A..G */
 
 /* port A - S3C2410: 22bits, zero in bit X makes pin X output
  *          S3C2400: 18bits, zero in bit X makes pin X output
@@ -450,12 +456,14 @@
 #define S3C2410_GPD0_OUTP	(0x01 << 0)
 #define S3C2410_GPD0_VD8	(0x02 << 0)
 #define S3C2400_GPD0_VFRAME	(0x02 << 0)
+#define S3C2442_GPD0_nSPICS1	(0x03 << 0)
 
 #define S3C2410_GPD1            S3C2410_GPIONO(S3C2410_GPIO_BANKD, 1)
 #define S3C2410_GPD1_INP	(0x00 << 2)
 #define S3C2410_GPD1_OUTP	(0x01 << 2)
 #define S3C2410_GPD1_VD9	(0x02 << 2)
 #define S3C2400_GPD1_VM		(0x02 << 2)
+#define S3C2442_GPD1_SPICLK1	(0x03 << 2)
 
 #define S3C2410_GPD2            S3C2410_GPIONO(S3C2410_GPIO_BANKD, 2)
 #define S3C2410_GPD2_INP	(0x00 << 4)
@@ -858,6 +866,7 @@
 #define S3C2410_GPG12_OUTP    (0x01 << 24)
 #define S3C2410_GPG12_EINT20  (0x02 << 24)
 #define S3C2410_GPG12_XMON    (0x03 << 24)
+#define S3C2442_GPG12_nSPICS0 (0x03 << 24)
 
 #define S3C2410_GPG13         S3C2410_GPIONO(S3C2410_GPIO_BANKG, 13)
 #define S3C2410_GPG13_INP     (0x00 << 26)
@@ -943,16 +952,24 @@
 #define S3C2410_GPH9_INP      (0x00 << 18)
 #define S3C2410_GPH9_OUTP     (0x01 << 18)
 #define S3C2410_GPH9_CLKOUT0  (0x02 << 18)
+#define S3C2442_GPH9_nSPICS0  (0x03 << 18)
 
 #define S3C2410_GPH10         S3C2410_GPIONO(S3C2410_GPIO_BANKH, 10)
 #define S3C2410_GPH10_INP     (0x00 << 20)
 #define S3C2410_GPH10_OUTP    (0x01 << 20)
 #define S3C2410_GPH10_CLKOUT1 (0x02 << 20)
 
+/* The S3C2412 and S3C2413 move the GPJ register set to after
+ * GPH, which means all registers after 0x80 are now offset by 0x10
+ * for the 2412/2413 from the 2410/2440/2442
+*/
+
 /* miscellaneous control */
 #define S3C2400_MISCCR	   S3C2410_GPIOREG(0x54)
 #define S3C2410_MISCCR	   S3C2410_GPIOREG(0x80)
 #define S3C2410_DCLKCON	   S3C2410_GPIOREG(0x84)
+
+#define S3C24XX_DCLKCON	   S3C24XX_GPIOREG2(0x84)
 
 /* see clock.h for dclk definitions */
 
@@ -981,6 +998,8 @@
 #define S3C2410_MISCCR_CLK0_DCLK0   (5<<4)
 #define S3C2410_MISCCR_CLK0_MASK    (7<<4)
 
+#define S3C2412_MISCCR_CLK0_RTC	    (2<<4)
+
 #define S3C2410_MISCCR_CLK1_MPLL    (0<<8)
 #define S3C2410_MISCCR_CLK1_UPLL    (1<<8)
 #define S3C2410_MISCCR_CLK1_FCLK    (2<<8)
@@ -989,6 +1008,8 @@
 #define S3C2410_MISCCR_CLK1_DCLK1   (5<<8)
 #define S3C2410_MISCCR_CLK1_MASK    (7<<8)
 
+#define S3C2412_MISCCR_CLK1_CLKsrc  (0<<8)
+
 #define S3C2410_MISCCR_USBSUSPND0   (1<<12)
 #define S3C2410_MISCCR_USBSUSPND1   (1<<13)
 
@@ -996,7 +1017,7 @@
 
 #define S3C2410_MISCCR_nEN_SCLK0    (1<<17)
 #define S3C2410_MISCCR_nEN_SCLK1    (1<<18)
-#define S3C2410_MISCCR_nEN_SCLKE    (1<<19)
+#define S3C2410_MISCCR_nEN_SCLKE    (1<<19)	/* not 2412 */
 #define S3C2410_MISCCR_SDSLEEP	    (7<<17)
 
 /* external interrupt control... */
@@ -1013,6 +1034,10 @@
 #define S3C2410_EXTINT1	   S3C2410_GPIOREG(0x8C)
 #define S3C2410_EXTINT2	   S3C2410_GPIOREG(0x90)
 
+#define S3C24XX_EXTINT0	   S3C24XX_GPIOREG2(0x88)
+#define S3C24XX_EXTINT1	   S3C24XX_GPIOREG2(0x8C)
+#define S3C24XX_EXTINT2	   S3C24XX_GPIOREG2(0x90)
+
 /* values for S3C2410_EXTINT0/1/2 */
 #define S3C2410_EXTINT_LOWLEV	 (0x00)
 #define S3C2410_EXTINT_HILEV	 (0x01)
@@ -1026,6 +1051,11 @@
 #define S3C2410_EINFLT2	   S3C2410_GPIOREG(0x9C)
 #define S3C2410_EINFLT3	   S3C2410_GPIOREG(0xA0)
 
+#define S3C24XX_EINFLT0	   S3C24XX_GPIOREG2(0x94)
+#define S3C24XX_EINFLT1	   S3C24XX_GPIOREG2(0x98)
+#define S3C24XX_EINFLT2	   S3C24XX_GPIOREG2(0x9C)
+#define S3C24XX_EINFLT3	   S3C24XX_GPIOREG2(0xA0)
+
 /* values for interrupt filtering */
 #define S3C2410_EINTFLT_PCLK		(0x00)
 #define S3C2410_EINTFLT_EXTCLK		(1<<7)
@@ -1035,6 +1065,7 @@
 
 /* GSTATUS have miscellaneous information in them
  *
+ * These move between s3c2410 and s3c2412 style systems.
  */
 
 #define S3C2410_GSTATUS0   S3C2410_GPIOREG(0x0AC)
@@ -1043,6 +1074,18 @@
 #define S3C2410_GSTATUS3   S3C2410_GPIOREG(0x0B8)
 #define S3C2410_GSTATUS4   S3C2410_GPIOREG(0x0BC)
 
+#define S3C2412_GSTATUS0   S3C2410_GPIOREG(0x0BC)
+#define S3C2412_GSTATUS1   S3C2410_GPIOREG(0x0C0)
+#define S3C2412_GSTATUS2   S3C2410_GPIOREG(0x0C4)
+#define S3C2412_GSTATUS3   S3C2410_GPIOREG(0x0C8)
+#define S3C2412_GSTATUS4   S3C2410_GPIOREG(0x0CC)
+
+#define S3C24XX_GSTATUS0   S3C24XX_GPIOREG2(0x0AC)
+#define S3C24XX_GSTATUS1   S3C24XX_GPIOREG2(0x0B0)
+#define S3C24XX_GSTATUS2   S3C24XX_GPIOREG2(0x0B4)
+#define S3C24XX_GSTATUS3   S3C24XX_GPIOREG2(0x0B8)
+#define S3C24XX_GSTATUS4   S3C24XX_GPIOREG2(0x0BC)
+
 #define S3C2410_GSTATUS0_nWAIT	   (1<<3)
 #define S3C2410_GSTATUS0_NCON	   (1<<2)
 #define S3C2410_GSTATUS0_RnB	   (1<<1)
@@ -1050,7 +1093,9 @@
 
 #define S3C2410_GSTATUS1_IDMASK	   (0xffff0000)
 #define S3C2410_GSTATUS1_2410	   (0x32410000)
+#define S3C2410_GSTATUS1_2412	   (0x32412001)
 #define S3C2410_GSTATUS1_2440	   (0x32440000)
+#define S3C2410_GSTATUS1_2442	   (0x32440aaa)
 
 #define S3C2410_GSTATUS2_WTRESET   (1<<2)
 #define S3C2410_GSTATUS2_OFFRESET  (1<<1)
@@ -1071,6 +1116,23 @@
 #define S3C2400_OPENCR_OPC_MISOEN   (1<<4)
 #define S3C2400_OPENCR_OPC_MOSIDIS  (0<<5)
 #define S3C2400_OPENCR_OPC_MOSIEN   (1<<5)
+
+/* 2412/2413 sleep configuration registers */
+
+#define S3C2412_GPBSLPCON	S3C2410_GPIOREG(0x1C)
+#define S3C2412_GPCSLPCON	S3C2410_GPIOREG(0x2C)
+#define S3C2412_GPDSLPCON	S3C2410_GPIOREG(0x3C)
+#define S3C2412_GPESLPCON	S3C2410_GPIOREG(0x4C)
+#define S3C2412_GPFSLPCON	S3C2410_GPIOREG(0x5C)
+#define S3C2412_GPGSLPCON	S3C2410_GPIOREG(0x6C)
+#define S3C2412_GPHSLPCON	S3C2410_GPIOREG(0x7C)
+
+/* definitions for each pin bit */
+#define S3C2412_SLPCON_LOW(x)	( 0x00 << ((x) * 2))
+#define S3C2412_SLPCON_HI(x)	( 0x01 << ((x) * 2))
+#define S3C2412_SLPCON_IN(x)	( 0x02 << ((x) * 2))
+#define S3C2412_SLPCON_PDWN(x)	( 0x03 << ((x) * 2))
+#define S3C2412_SLPCON_MASK(x)	( 0x03 << ((x) * 2))
 
 #endif	/* __ASM_ARCH_REGS_GPIO_H */
 

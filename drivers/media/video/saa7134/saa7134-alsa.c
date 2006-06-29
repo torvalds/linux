@@ -818,7 +818,7 @@ static int snd_saa7134_capsrc_put(struct snd_kcontrol * kcontrol,
 				break;
 		}
 
-	    	/* output xbar always main channel */
+		/* output xbar always main channel */
 		saa_dsp_writel(dev, SAA7133_DIGITAL_OUTPUT_SEL1, 0xbbbb10);
 
 		if (left || right) { // We've got data, turn the input on

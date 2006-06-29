@@ -1,7 +1,6 @@
 #ifndef _PARISC_PDC_H
 #define _PARISC_PDC_H
 
-#include <linux/config.h>
 
 /*
  *	PDC return values ...
@@ -279,12 +278,11 @@ typedef struct {
 /* constants for OS (NVM...) */
 #define OS_ID_NONE		0	/* Undefined OS ID	*/
 #define OS_ID_HPUX		1	/* HP-UX OS		*/
-#define OS_ID_LINUX		OS_ID_HPUX /* just use the same value as hpux */
 #define OS_ID_MPEXL		2	/* MPE XL OS		*/
 #define OS_ID_OSF		3	/* OSF OS		*/
 #define OS_ID_HPRT		4	/* HP-RT OS		*/
 #define OS_ID_NOVEL		5	/* NOVELL OS		*/
-#define OS_ID_NT		6	/* NT OS		*/
+#define OS_ID_LINUX		6	/* Linux		*/
 
 
 /* constants for PDC_CHASSIS */
@@ -353,8 +351,8 @@ struct pdc_cache_cf {		/* for PDC_CACHE  (I/D-caches) */
 		cc_wt	: 1,	/* 0 = WT-Dcache, 1 = WB-Dcache */
 		cc_sh	: 2,	/* 0 = separate I/D-cache, else shared I/D-cache */
 		cc_cst  : 3,	/* 0 = incoherent D-cache, 1=coherent D-cache */
-		cc_pad1 : 5,	/* reserved */
-		cc_assoc: 8;	/* associativity of I/D-cache */
+		cc_pad1 : 10,	/* reserved */
+		cc_hv   : 3;	/* hversion dependent */
 };
 
 struct pdc_tlb_cf {		/* for PDC_CACHE (I/D-TLB's) */
@@ -720,6 +718,7 @@ void setup_pdc(void);		/* in inventory.c */
 int pdc_add_valid(unsigned long address);
 int pdc_chassis_info(struct pdc_chassis_info *chassis_info, void *led_info, unsigned long len);
 int pdc_chassis_disp(unsigned long disp);
+int pdc_chassis_warn(unsigned long *warn);
 int pdc_coproc_cfg(struct pdc_coproc_cfg *pdc_coproc_info);
 int pdc_iodc_read(unsigned long *actcnt, unsigned long hpa, unsigned int index,
 		  void *iodc_data, unsigned int iodc_data_size);
@@ -733,6 +732,7 @@ int pdc_model_cpuid(unsigned long *cpu_id);
 int pdc_model_versions(unsigned long *versions, int id);
 int pdc_model_capabilities(unsigned long *capabilities);
 int pdc_cache_info(struct pdc_cache_info *cache);
+int pdc_spaceid_bits(unsigned long *space_bits);
 #ifndef CONFIG_PA20
 int pdc_btlb_info(struct pdc_btlb_info *btlb);
 int pdc_mem_map_hpa(struct pdc_memory_map *r_addr, struct pdc_module_path *mod_path);
@@ -776,6 +776,18 @@ int pdc_sti_call(unsigned long func, unsigned long flags,
 
 extern void pdc_init(void);
 
+static inline char * os_id_to_string(u16 os_id) {
+	switch(os_id) {
+	case OS_ID_NONE:	return "No OS";
+	case OS_ID_HPUX:	return "HP-UX";
+	case OS_ID_MPEXL:	return "MPE-iX";
+	case OS_ID_OSF:		return "OSF";
+	case OS_ID_HPRT:	return "HP-RT";
+	case OS_ID_NOVEL:	return "Novell Netware";
+	case OS_ID_LINUX:	return "Linux";
+	default:	return "Unknown";
+	}
+}
 #endif /* __ASSEMBLY__ */
 
 #endif /* _PARISC_PDC_H */

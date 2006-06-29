@@ -55,9 +55,10 @@ pbus_assign_resources_sorted(struct pci_bus *bus)
 	list_for_each_entry(dev, &bus->devices, bus_list) {
 		u16 class = dev->class >> 8;
 
-		/* Don't touch classless devices and host bridges.  */
+		/* Don't touch classless devices or host bridges or ioapics.  */
 		if (class == PCI_CLASS_NOT_DEFINED ||
-		    class == PCI_CLASS_BRIDGE_HOST)
+		    class == PCI_CLASS_BRIDGE_HOST ||
+		    class == PCI_CLASS_SYSTEM_PIC)
 			continue;
 
 		pdev_sort_resources(dev, &head);
@@ -356,8 +357,10 @@ pbus_size_mem(struct pci_bus *bus, unsigned long mask, unsigned long type)
 			order = __ffs(align) - 20;
 			if (order > 11) {
 				printk(KERN_WARNING "PCI: region %s/%d "
-				       "too large: %lx-%lx\n",
-				       pci_name(dev), i, r->start, r->end);
+				       "too large: %llx-%llx\n",
+					pci_name(dev), i,
+					(unsigned long long)r->start,
+					(unsigned long long)r->end);
 				r->flags = 0;
 				continue;
 			}

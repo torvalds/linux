@@ -23,12 +23,12 @@
 #include <linux/syscalls.h>
 #include <linux/ptrace.h>
 #include <linux/signal.h>
-#include <linux/audit.h>
 #include <linux/capability.h>
 #include <asm/param.h>
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
 #include <asm/siginfo.h>
+#include "audit.h"	/* audit_signal_info() */
 
 /*
  * SLAB caches for signal bits.
@@ -1531,6 +1531,35 @@ static void do_notify_parent_cldstop(struct task_struct *tsk, int why)
 	spin_unlock_irqrestore(&sighand->siglock, flags);
 }
 
+static inline int may_ptrace_stop(void)
+{
+	if (!likely(current->ptrace & PT_PTRACED))
+		return 0;
+
+	if (unlikely(current->parent == current->real_parent &&
+		    (current->ptrace & PT_ATTACHED)))
+		return 0;
+
+	if (unlikely(current->signal == current->parent->signal) &&
+	    unlikely(current->signal->flags & SIGNAL_GROUP_EXIT))
+		return 0;
+
+	/*
+	 * Are we in the middle of do_coredump?
+	 * If so and our tracer is also part of the coredump stopping
+	 * is a deadlock situation, and pointless because our tracer
+	 * is dead so don't allow us to stop.
+	 * If SIGKILL was already sent before the caller unlocked
+	 * ->siglock we must see ->core_waiters != 0. Otherwise it
+	 * is safe to enter schedule().
+	 */
+	if (unlikely(current->mm->core_waiters) &&
+	    unlikely(current->mm == current->parent->mm))
+		return 0;
+
+	return 1;
+}
+
 /*
  * This must be called with current->sighand->siglock held.
  *
@@ -1559,11 +1588,7 @@ static void ptrace_stop(int exit_code, int nostop_code, siginfo_t *info)
 	spin_unlock_irq(&current->sighand->siglock);
 	try_to_freeze();
 	read_lock(&tasklist_lock);
-	if (likely(current->ptrace & PT_PTRACED) &&
-	    likely(current->parent != current->real_parent ||
-		   !(current->ptrace & PT_ATTACHED)) &&
-	    (likely(current->parent->signal != current->signal) ||
-	     !unlikely(current->signal->flags & SIGNAL_GROUP_EXIT))) {
+	if (may_ptrace_stop()) {
 		do_notify_parent_cldstop(current, CLD_TRAPPED);
 		read_unlock(&tasklist_lock);
 		schedule();

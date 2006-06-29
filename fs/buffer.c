@@ -331,7 +331,6 @@ long do_fsync(struct file *file, int datasync)
 		goto out;
 	}
 
-	current->flags |= PF_SYNCWRITE;
 	ret = filemap_fdatawrite(mapping);
 
 	/*
@@ -346,7 +345,6 @@ long do_fsync(struct file *file, int datasync)
 	err = filemap_fdatawait(mapping);
 	if (!ret)
 		ret = err;
-	current->flags &= ~PF_SYNCWRITE;
 out:
 	return ret;
 }
@@ -566,7 +564,7 @@ still_busy:
  * Completion handler for block_write_full_page() - pages which are unlocked
  * during I/O, and which have PageWriteback cleared upon I/O completion.
  */
-void end_buffer_async_write(struct buffer_head *bh, int uptodate)
+static void end_buffer_async_write(struct buffer_head *bh, int uptodate)
 {
 	char b[BDEVNAME_SIZE];
 	unsigned long flags;
@@ -2600,7 +2598,7 @@ int nobh_truncate_page(struct address_space *mapping, loff_t from)
 	unsigned offset = from & (PAGE_CACHE_SIZE-1);
 	unsigned to;
 	struct page *page;
-	struct address_space_operations *a_ops = mapping->a_ops;
+	const struct address_space_operations *a_ops = mapping->a_ops;
 	char *kaddr;
 	int ret = 0;
 
@@ -3168,7 +3166,6 @@ EXPORT_SYMBOL(block_sync_page);
 EXPORT_SYMBOL(block_truncate_page);
 EXPORT_SYMBOL(block_write_full_page);
 EXPORT_SYMBOL(cont_prepare_write);
-EXPORT_SYMBOL(end_buffer_async_write);
 EXPORT_SYMBOL(end_buffer_read_sync);
 EXPORT_SYMBOL(end_buffer_write_sync);
 EXPORT_SYMBOL(file_fsync);

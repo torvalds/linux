@@ -36,6 +36,7 @@
 #include <linux/compat.h>
 #include <linux/pipe_fs_i.h>
 #include <linux/audit.h> /* for audit_free() */
+#include <linux/resource.h>
 
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
@@ -44,8 +45,6 @@
 
 extern void sem_exit (void);
 extern struct task_struct *child_reaper;
-
-int getrusage(struct task_struct *, int, struct rusage __user *);
 
 static void exit_mm(struct task_struct * tsk);
 
@@ -138,12 +137,8 @@ void release_task(struct task_struct * p)
 {
 	int zap_leader;
 	task_t *leader;
-	struct dentry *proc_dentry;
-
 repeat:
 	atomic_dec(&p->user->processes);
-	spin_lock(&p->proc_lock);
-	proc_dentry = proc_pid_unhash(p);
 	write_lock_irq(&tasklist_lock);
 	ptrace_unlink(p);
 	BUG_ON(!list_empty(&p->ptrace_list) || !list_empty(&p->ptrace_children));
@@ -172,8 +167,7 @@ repeat:
 
 	sched_exit(p);
 	write_unlock_irq(&tasklist_lock);
-	spin_unlock(&p->proc_lock);
-	proc_pid_flush(proc_dentry);
+	proc_flush_task(p);
 	release_thread(p);
 	call_rcu(&p->rcu, delayed_put_task_struct);
 
@@ -579,7 +573,7 @@ static void exit_mm(struct task_struct * tsk)
 		down_read(&mm->mmap_sem);
 	}
 	atomic_inc(&mm->mm_count);
-	if (mm != tsk->active_mm) BUG();
+	BUG_ON(mm != tsk->active_mm);
 	/* more a memory barrier than a real lock */
 	task_lock(tsk);
 	tsk->mm = NULL;
@@ -895,11 +889,11 @@ fastcall NORET_TYPE void do_exit(long code)
 	if (group_dead) {
  		hrtimer_cancel(&tsk->signal->real_timer);
 		exit_itimers(tsk->signal);
-		acct_process(code);
 	}
+	acct_collect(code, group_dead);
 	if (unlikely(tsk->robust_list))
 		exit_robust_list(tsk);
-#ifdef CONFIG_COMPAT
+#if defined(CONFIG_FUTEX) && defined(CONFIG_COMPAT)
 	if (unlikely(tsk->compat_robust_list))
 		compat_exit_robust_list(tsk);
 #endif
@@ -907,6 +901,8 @@ fastcall NORET_TYPE void do_exit(long code)
 		audit_free(tsk);
 	exit_mm(tsk);
 
+	if (group_dead)
+		acct_process();
 	exit_sem(tsk);
 	__exit_files(tsk);
 	__exit_fs(tsk);
@@ -930,9 +926,18 @@ fastcall NORET_TYPE void do_exit(long code)
 	tsk->mempolicy = NULL;
 #endif
 	/*
+	 * This must happen late, after the PID is not
+	 * hashed anymore:
+	 */
+	if (unlikely(!list_empty(&tsk->pi_state_list)))
+		exit_pi_state_list(tsk);
+	if (unlikely(current->pi_state_cache))
+		kfree(current->pi_state_cache);
+	/*
 	 * If DEBUG_MUTEXES is on, make sure we are holding no locks:
 	 */
 	mutex_debug_check_no_locks_held(tsk);
+	rt_mutex_debug_check_no_locks_held(tsk);
 
 	if (tsk->io_context)
 		exit_io_context();
@@ -1530,8 +1535,7 @@ check_continued:
 		if (options & __WNOTHREAD)
 			break;
 		tsk = next_thread(tsk);
-		if (tsk->signal != current->signal)
-			BUG();
+		BUG_ON(tsk->signal != current->signal);
 	} while (tsk != current);
 
 	read_unlock(&tasklist_lock);

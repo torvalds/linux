@@ -10,7 +10,6 @@
 #ifndef _OMAP_BOARD_H
 #define _OMAP_BOARD_H
 
-#include <linux/config.h>
 #include <linux/types.h>
 
 /* Different peripheral ids */

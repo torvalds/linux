@@ -2,6 +2,7 @@
  *  linux/arch/arm/mm/proc-v6.S
  *
  *  Copyright (C) 2001 Deep Blue Solutions Ltd.
+ *  Modified by Catalin Marinas for noMMU support
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -28,38 +29,6 @@
 #define TTB_RGN_WBWA	(1 << 3)
 #define TTB_RGN_WT	(2 << 3)
 #define TTB_RGN_WB	(3 << 3)
-
-	.macro	cpsie, flags
-	.ifc \flags, f
-	.long	0xf1080040
-	.exitm
-	.endif
-	.ifc \flags, i
-	.long	0xf1080080
-	.exitm
-	.endif
-	.ifc \flags, if
-	.long	0xf10800c0
-	.exitm
-	.endif
-	.err
-	.endm
-
-	.macro	cpsid, flags
-	.ifc \flags, f
-	.long	0xf10c0040
-	.exitm
-	.endif
-	.ifc \flags, i
-	.long	0xf10c0080
-	.exitm
-	.endif
-	.ifc \flags, if
-	.long	0xf10c00c0
-	.exitm
-	.endif
-	.err
-	.endm
 
 ENTRY(cpu_v6_proc_init)
 	mov	pc, lr
@@ -120,6 +89,7 @@ ENTRY(cpu_v6_dcache_clean_area)
  *	- we are not using split page tables
  */
 ENTRY(cpu_v6_switch_mm)
+#ifdef CONFIG_MMU
 	mov	r2, #0
 	ldr	r1, [r1, #MM_CONTEXT_ID]	@ get mm->context.id
 #ifdef CONFIG_SMP
@@ -129,6 +99,7 @@ ENTRY(cpu_v6_switch_mm)
 	mcr	p15, 0, r2, c7, c10, 4		@ drain write buffer
 	mcr	p15, 0, r0, c2, c0, 0		@ set TTB 0
 	mcr	p15, 0, r1, c13, c0, 1		@ set context ID
+#endif
 	mov	pc, lr
 
 /*
@@ -151,6 +122,7 @@ ENTRY(cpu_v6_switch_mm)
  *	  1111   0   1   1	r/w	r/w
  */
 ENTRY(cpu_v6_set_pte)
+#ifdef CONFIG_MMU
 	str	r1, [r0], #-2048		@ linux version
 
 	bic	r2, r1, #0x000003f0
@@ -177,6 +149,7 @@ ENTRY(cpu_v6_set_pte)
 
 	str	r2, [r0]
 	mcr	p15, 0, r0, c7, c10, 1 @ flush_pte
+#endif
 	mov	pc, lr
 
 
@@ -226,12 +199,14 @@ __v6_setup:
 	mcr	p15, 0, r0, c7, c5, 0		@ invalidate I cache
 	mcr	p15, 0, r0, c7, c15, 0		@ clean+invalidate cache
 	mcr	p15, 0, r0, c7, c10, 4		@ drain write buffer
+#ifdef CONFIG_MMU
 	mcr	p15, 0, r0, c8, c7, 0		@ invalidate I + D TLBs
 	mcr	p15, 0, r0, c2, c0, 2		@ TTB control register
 #ifdef CONFIG_SMP
 	orr	r4, r4, #TTB_RGN_WBWA|TTB_S	@ mark PTWs shared, outer cacheable
 #endif
 	mcr	p15, 0, r4, c2, c0, 1		@ load TTB1
+#endif /* CONFIG_MMU */
 #ifdef CONFIG_VFP
 	mrc	p15, 0, r0, c1, c0, 2
 	orr	r0, r0, #(0xf << 20)

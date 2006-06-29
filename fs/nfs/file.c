@@ -43,7 +43,7 @@ static int  nfs_file_mmap(struct file *, struct vm_area_struct *);
 static ssize_t nfs_file_sendfile(struct file *, loff_t *, size_t, read_actor_t, void *);
 static ssize_t nfs_file_read(struct kiocb *, char __user *, size_t, loff_t);
 static ssize_t nfs_file_write(struct kiocb *, const char __user *, size_t, loff_t);
-static int  nfs_file_flush(struct file *);
+static int  nfs_file_flush(struct file *, fl_owner_t id);
 static int  nfs_fsync(struct file *, struct dentry *dentry, int datasync);
 static int nfs_check_flags(int flags);
 static int nfs_lock(struct file *filp, int cmd, struct file_lock *fl);
@@ -127,23 +127,6 @@ nfs_file_release(struct inode *inode, struct file *filp)
 }
 
 /**
- * nfs_revalidate_file - Revalidate the page cache & related metadata
- * @inode - pointer to inode struct
- * @file - pointer to file
- */
-static int nfs_revalidate_file(struct inode *inode, struct file *filp)
-{
-	struct nfs_inode *nfsi = NFS_I(inode);
-	int retval = 0;
-
-	if ((nfsi->cache_validity & (NFS_INO_REVAL_PAGECACHE|NFS_INO_INVALID_ATTR))
-			|| nfs_attribute_timeout(inode))
-		retval = __nfs_revalidate_inode(NFS_SERVER(inode), inode);
-	nfs_revalidate_mapping(inode, filp->f_mapping);
-	return 0;
-}
-
-/**
  * nfs_revalidate_size - Revalidate the file size
  * @inode - pointer to inode struct
  * @file - pointer to struct file
@@ -188,7 +171,7 @@ static loff_t nfs_file_llseek(struct file *filp, loff_t offset, int origin)
  *
  */
 static int
-nfs_file_flush(struct file *file)
+nfs_file_flush(struct file *file, fl_owner_t id)
 {
 	struct nfs_open_context *ctx = (struct nfs_open_context *)file->private_data;
 	struct inode	*inode = file->f_dentry->d_inode;
@@ -228,7 +211,7 @@ nfs_file_read(struct kiocb *iocb, char __user * buf, size_t count, loff_t pos)
 		dentry->d_parent->d_name.name, dentry->d_name.name,
 		(unsigned long) count, (unsigned long) pos);
 
-	result = nfs_revalidate_file(inode, iocb->ki_filp);
+	result = nfs_revalidate_mapping(inode, iocb->ki_filp->f_mapping);
 	nfs_add_stats(inode, NFSIOS_NORMALREADBYTES, count);
 	if (!result)
 		result = generic_file_aio_read(iocb, buf, count, pos);
@@ -247,7 +230,7 @@ nfs_file_sendfile(struct file *filp, loff_t *ppos, size_t count,
 		dentry->d_parent->d_name.name, dentry->d_name.name,
 		(unsigned long) count, (unsigned long long) *ppos);
 
-	res = nfs_revalidate_file(inode, filp);
+	res = nfs_revalidate_mapping(inode, filp->f_mapping);
 	if (!res)
 		res = generic_file_sendfile(filp, ppos, count, actor, target);
 	return res;
@@ -263,7 +246,7 @@ nfs_file_mmap(struct file * file, struct vm_area_struct * vma)
 	dfprintk(VFS, "nfs: mmap(%s/%s)\n",
 		dentry->d_parent->d_name.name, dentry->d_name.name);
 
-	status = nfs_revalidate_file(inode, file);
+	status = nfs_revalidate_mapping(inode, file->f_mapping);
 	if (!status)
 		status = generic_file_mmap(file, vma);
 	return status;
@@ -320,7 +303,11 @@ static int nfs_commit_write(struct file *file, struct page *page, unsigned offse
 
 static void nfs_invalidate_page(struct page *page, unsigned long offset)
 {
-	/* FIXME: we really should cancel any unstarted writes on this page */
+	struct inode *inode = page->mapping->host;
+
+	/* Cancel any unstarted writes on this page */
+	if (offset == 0)
+		nfs_sync_inode_wait(inode, page->index, 1, FLUSH_INVALIDATE);
 }
 
 static int nfs_release_page(struct page *page, gfp_t gfp)
@@ -328,7 +315,7 @@ static int nfs_release_page(struct page *page, gfp_t gfp)
 	return !nfs_wb_page(page->mapping->host, page);
 }
 
-struct address_space_operations nfs_file_aops = {
+const struct address_space_operations nfs_file_aops = {
 	.readpage = nfs_readpage,
 	.readpages = nfs_readpages,
 	.set_page_dirty = __set_page_dirty_nobuffers,
@@ -373,7 +360,6 @@ nfs_file_write(struct kiocb *iocb, const char __user *buf, size_t count, loff_t 
 		if (result)
 			goto out;
 	}
-	nfs_revalidate_mapping(inode, iocb->ki_filp->f_mapping);
 
 	result = count;
 	if (!count)

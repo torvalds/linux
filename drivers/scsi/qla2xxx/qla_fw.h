@@ -7,7 +7,6 @@
 #ifndef __QLA_FW_H
 #define __QLA_FW_H
 
-#define RISC_SADDRESS		0x100000
 #define MBS_CHECKSUM_ERROR	0x4010
 
 /*
@@ -463,7 +462,7 @@ struct sts_entry_24xx {
 	uint16_t comp_status;		/* Completion status. */
 	uint16_t ox_id;			/* OX_ID used by the firmware. */
 
-	uint32_t residual_len;		/* Residual transfer length. */
+	uint32_t residual_len;		/* FW calc residual transfer length. */
 
 	uint16_t reserved_1;
 	uint16_t state_flags;		/* State flags. */

@@ -21,7 +21,6 @@
 .global _start
 
 .global _rambase
-.global __ramvec
 .global _ramvec
 .global _ramstart
 .global _ramend
@@ -121,7 +120,7 @@ L0:
 	DBG_PUTC('B')
 
 	/* Copy command line from beginning of RAM (+16) to end of bss */
-	movel	#__ramvec, %d7
+	movel	#CONFIG_VECTORBASE, %d7
 	addl	#16, %d7
 	moveal	%d7, %a0
 	moveal	#_ebss, %a1

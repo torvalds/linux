@@ -42,11 +42,9 @@
 #include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/input.h>
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/usb.h>
-#include <linux/usb_input.h>
+#include <linux/usb/input.h>
 
 /* only an 8 byte buffer necessary for a single packet */
 #define ITM_BUFSIZE			8

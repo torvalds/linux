@@ -4,37 +4,32 @@
  * Uses for this includes on-device special memory, uncached memory
  * etc.
  *
- * This code is based on the buddy allocator found in the sym53c8xx_2
- * driver, adapted for general purpose use.
- *
  * This source code is licensed under the GNU General Public License,
  * Version 2.  See the file COPYING for more details.
  */
 
-#include <linux/spinlock.h>
-
-#define ALLOC_MIN_SHIFT		5 /* 32 bytes minimum */
-/*
- *  Link between free memory chunks of a given size.
- */
-struct gen_pool_link {
-	struct gen_pool_link *next;
-};
 
 /*
- *  Memory pool descriptor.
+ *  General purpose special memory pool descriptor.
  */
 struct gen_pool {
-	spinlock_t lock;
-	unsigned long (*get_new_chunk)(struct gen_pool *);
-	struct gen_pool *next;
-	struct gen_pool_link *h;
-	unsigned long private;
-	int max_chunk_shift;
+	rwlock_t lock;
+	struct list_head chunks;	/* list of chunks in this pool */
+	int min_alloc_order;		/* minimum allocation order */
 };
 
-unsigned long gen_pool_alloc(struct gen_pool *poolp, int size);
-void gen_pool_free(struct gen_pool *mp, unsigned long ptr, int size);
-struct gen_pool *gen_pool_create(int nr_chunks, int max_chunk_shift,
-				 unsigned long (*fp)(struct gen_pool *),
-				 unsigned long data);
+/*
+ *  General purpose special memory pool chunk descriptor.
+ */
+struct gen_pool_chunk {
+	spinlock_t lock;
+	struct list_head next_chunk;	/* next chunk in pool */
+	unsigned long start_addr;	/* starting address of memory chunk */
+	unsigned long end_addr;		/* ending address of memory chunk */
+	unsigned long bits[0];		/* bitmap for allocating memory chunk */
+};
+
+extern struct gen_pool *gen_pool_create(int, int);
+extern int gen_pool_add(struct gen_pool *, unsigned long, size_t, int);
+extern unsigned long gen_pool_alloc(struct gen_pool *, size_t);
+extern void gen_pool_free(struct gen_pool *, unsigned long, size_t);

@@ -53,12 +53,12 @@ fpenable:
 	stfd	fr31,8(r1)
 	LDCONST(fr1, fpzero)
 	mffs	fr31
-	mtfsf	0xff,fr1
+	MTFSF_L(fr1)
 	blr
 
 fpdisable:
 	mtlr	r12
-	mtfsf	0xff,fr31
+	MTFSF_L(fr31)
 	lfd	fr31,8(r1)
 	lfd	fr1,16(r1)
 	lfd	fr0,24(r1)

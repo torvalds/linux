@@ -4019,8 +4019,9 @@ static int __devinit bttv_probe(struct pci_dev *dev,
 	if (!request_mem_region(pci_resource_start(dev,0),
 				pci_resource_len(dev,0),
 				btv->c.name)) {
-		printk(KERN_WARNING "bttv%d: can't request iomem (0x%lx).\n",
-		       btv->c.nr, pci_resource_start(dev,0));
+		printk(KERN_WARNING "bttv%d: can't request iomem (0x%llx).\n",
+		       btv->c.nr,
+		       (unsigned long long)pci_resource_start(dev,0));
 		return -EBUSY;
 	}
 	pci_set_master(dev);
@@ -4031,8 +4032,9 @@ static int __devinit bttv_probe(struct pci_dev *dev,
 	pci_read_config_byte(dev, PCI_LATENCY_TIMER, &lat);
 	printk(KERN_INFO "bttv%d: Bt%d (rev %d) at %s, ",
 	       bttv_num,btv->id, btv->revision, pci_name(dev));
-	printk("irq: %d, latency: %d, mmio: 0x%lx\n",
-	       btv->c.pci->irq, lat, pci_resource_start(dev,0));
+	printk("irq: %d, latency: %d, mmio: 0x%llx\n",
+	       btv->c.pci->irq, lat,
+	       (unsigned long long)pci_resource_start(dev,0));
 	schedule();
 
 	btv->bt848_mmio=ioremap(pci_resource_start(dev,0), 0x1000);

@@ -118,13 +118,14 @@ acpi_status acpi_os_purge_cache(struct acpi_memory_list * cache)
 	/* Walk the list of objects in this cache */
 
 	while (cache->list_head) {
+
 		/* Delete and unlink one cached state object */
 
 		next = *(ACPI_CAST_INDIRECT_PTR(char,
 						&(((char *)cache->
 						   list_head)[cache->
 							      link_offset])));
-		ACPI_MEM_FREE(cache->list_head);
+		ACPI_FREE(cache->list_head);
 
 		cache->list_head = next;
 		cache->current_depth--;
@@ -193,7 +194,7 @@ acpi_os_release_object(struct acpi_memory_list * cache, void *object)
 	/* If cache is full, just free this object */
 
 	if (cache->current_depth >= cache->max_depth) {
-		ACPI_MEM_FREE(object);
+		ACPI_FREE(object);
 		ACPI_MEM_TRACKING(cache->total_freed++);
 	}
 
@@ -243,7 +244,7 @@ void *acpi_os_acquire_object(struct acpi_memory_list *cache)
 	acpi_status status;
 	void *object;
 
-	ACPI_FUNCTION_NAME("os_acquire_object");
+	ACPI_FUNCTION_NAME(os_acquire_object);
 
 	if (!cache) {
 		return (NULL);
@@ -259,6 +260,7 @@ void *acpi_os_acquire_object(struct acpi_memory_list *cache)
 	/* Check the cache first */
 
 	if (cache->list_head) {
+
 		/* There is an object available, use it */
 
 		object = cache->list_head;
@@ -270,9 +272,9 @@ void *acpi_os_acquire_object(struct acpi_memory_list *cache)
 		cache->current_depth--;
 
 		ACPI_MEM_TRACKING(cache->hits++);
-		ACPI_MEM_TRACKING(ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
-						    "Object %p from %s cache\n",
-						    object, cache->list_name)));
+		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+				  "Object %p from %s cache\n", object,
+				  cache->list_name));
 
 		status = acpi_ut_release_mutex(ACPI_MTX_CACHES);
 		if (ACPI_FAILURE(status)) {
@@ -287,14 +289,14 @@ void *acpi_os_acquire_object(struct acpi_memory_list *cache)
 
 		ACPI_MEM_TRACKING(cache->total_allocated++);
 
-		/* Avoid deadlock with ACPI_MEM_CALLOCATE */
+		/* Avoid deadlock with ACPI_ALLOCATE_ZEROED */
 
 		status = acpi_ut_release_mutex(ACPI_MTX_CACHES);
 		if (ACPI_FAILURE(status)) {
 			return (NULL);
 		}
 
-		object = ACPI_MEM_CALLOCATE(cache->object_size);
+		object = ACPI_ALLOCATE_ZEROED(cache->object_size);
 		if (!object) {
 			return (NULL);
 		}

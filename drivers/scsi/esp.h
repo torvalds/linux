@@ -403,8 +403,4 @@ struct esp {
 #define ESP_MHZ_TO_CYCLE(mhertz)  ((1000000000) / ((mhertz) / 1000))
 #define ESP_TICK(ccf, cycle)  ((7682 * (ccf) * (cycle) / 1000))
 
-/* For our interrupt engine. */
-#define for_each_esp(esp) \
-        for((esp) = espchain; (esp); (esp) = (esp)->next)
-
 #endif /* !(_SPARC_ESP_H) */

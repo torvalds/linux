@@ -246,10 +246,10 @@ void __init init_sb1250_irqs(void)
 		irq_desc[i].action = 0;
 		irq_desc[i].depth = 1;
 		if (i < SB1250_NR_IRQS) {
-			irq_desc[i].handler = &sb1250_irq_type;
+			irq_desc[i].chip = &sb1250_irq_type;
 			sb1250_irq_owner[i] = 0;
 		} else {
-			irq_desc[i].handler = &no_irq_type;
+			irq_desc[i].chip = &no_irq_type;
 		}
 	}
 }

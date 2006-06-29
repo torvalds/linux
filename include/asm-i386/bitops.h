@@ -5,7 +5,6 @@
  * Copyright 1992, Linus Torvalds.
  */
 
-#include <linux/config.h>
 #include <linux/compiler.h>
 #include <asm/alternative.h>
 

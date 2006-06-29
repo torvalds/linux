@@ -17,6 +17,8 @@
 #include <linux/mutex.h>
 #include <asm/atomic.h>
 
+#define DM_MSG_PREFIX "table"
+
 #define MAX_DEPTH 16
 #define NODE_SIZE L1_CACHE_BYTES
 #define KEYS_PER_NODE (NODE_SIZE / sizeof(sector_t))
@@ -236,6 +238,44 @@ int dm_table_create(struct dm_table **result, int mode,
 	*result = t;
 	return 0;
 }
+
+int dm_create_error_table(struct dm_table **result, struct mapped_device *md)
+{
+	struct dm_table *t;
+	sector_t dev_size = 1;
+	int r;
+
+	/*
+	 * Find current size of device.
+	 * Default to 1 sector if inactive.
+	 */
+	t = dm_get_table(md);
+	if (t) {
+		dev_size = dm_table_get_size(t);
+		dm_table_put(t);
+	}
+
+	r = dm_table_create(&t, FMODE_READ, 1, md);
+	if (r)
+		return r;
+
+	r = dm_table_add_target(t, "error", 0, dev_size, NULL);
+	if (r)
+		goto out;
+
+	r = dm_table_complete(t);
+	if (r)
+		goto out;
+
+	*result = t;
+
+out:
+	if (r)
+		dm_table_put(t);
+
+	return r;
+}
+EXPORT_SYMBOL_GPL(dm_create_error_table);
 
 static void free_devices(struct list_head *devices)
 {
@@ -590,6 +630,12 @@ int dm_split_args(int *argc, char ***argvp, char *input)
 	unsigned array_size = 0;
 
 	*argc = 0;
+
+	if (!input) {
+		*argvp = NULL;
+		return 0;
+	}
+
 	argv = realloc_argv(&array_size, argv);
 	if (!argv)
 		return -ENOMEM;
@@ -671,15 +717,14 @@ int dm_table_add_target(struct dm_table *t, const char *type,
 	memset(tgt, 0, sizeof(*tgt));
 
 	if (!len) {
-		tgt->error = "zero-length target";
-		DMERR("%s", tgt->error);
+		DMERR("%s: zero-length target", dm_device_name(t->md));
 		return -EINVAL;
 	}
 
 	tgt->type = dm_get_target_type(type);
 	if (!tgt->type) {
-		tgt->error = "unknown target type";
-		DMERR("%s", tgt->error);
+		DMERR("%s: %s: unknown target type", dm_device_name(t->md),
+		      type);
 		return -EINVAL;
 	}
 
@@ -716,7 +761,7 @@ int dm_table_add_target(struct dm_table *t, const char *type,
 	return 0;
 
  bad:
-	DMERR("%s", tgt->error);
+	DMERR("%s: %s: %s", dm_device_name(t->md), type, tgt->error);
 	dm_put_target_type(tgt->type);
 	return r;
 }
@@ -802,7 +847,7 @@ sector_t dm_table_get_size(struct dm_table *t)
 
 struct dm_target *dm_table_get_target(struct dm_table *t, unsigned int index)
 {
-	if (index > t->num_targets)
+	if (index >= t->num_targets)
 		return NULL;
 
 	return t->targets + index;

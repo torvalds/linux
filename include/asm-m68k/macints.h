@@ -59,17 +59,6 @@
 #define IRQ_SRC(irq)	(irq >> 3)
 #define	IRQ_IDX(irq)	(irq & 7)
 
-#define	IRQ_SPURIOUS      (0)
-
-/* auto-vector interrupts */
-#define IRQ_AUTO_1        (1)
-#define IRQ_AUTO_2        (2)
-#define IRQ_AUTO_3        (3)
-#define IRQ_AUTO_4        (4)
-#define IRQ_AUTO_5        (5)
-#define IRQ_AUTO_6        (6)
-#define IRQ_AUTO_7        (7)
-
 /* VIA1 interrupts */
 #define IRQ_VIA1_0	  (8)		/* one second int. */
 #define IRQ_VIA1_1        (9)		/* VBlank int. */
@@ -162,8 +151,5 @@
 
 #define INT_CLK   24576	    /* CLK while int_clk =2.456MHz and divide = 100 */
 #define INT_TICKS 246	    /* to make sched_time = 99.902... HZ */
-
-extern irq_node_t *mac_irq_list[NUM_MAC_SOURCES];
-extern void mac_do_irq_list(int irq, struct pt_regs *);
 
 #endif /* asm/macints.h */

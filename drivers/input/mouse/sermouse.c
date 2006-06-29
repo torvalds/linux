@@ -254,7 +254,7 @@ static int sermouse_connect(struct serio *serio, struct serio_driver *drv)
 		goto fail;
 
 	sermouse->dev = input_dev;
-	sprintf(sermouse->phys, "%s/input0", serio->phys);
+	snprintf(sermouse->phys, sizeof(sermouse->phys), "%s/input0", serio->phys);
 	sermouse->type = serio->id.proto;
 
 	input_dev->name = sermouse_protocols[sermouse->type];

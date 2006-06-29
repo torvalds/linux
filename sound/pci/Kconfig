@@ -216,17 +216,159 @@ config SND_CS46XX_NEW_DSP
 	  This works better than the old code, so say Y.
 
 config SND_CS5535AUDIO
-	tristate "CS5535 Audio"
+	tristate "CS5535/CS5536 Audio"
 	depends on SND && X86 && !X86_64
 	select SND_PCM
 	select SND_AC97_CODEC
 	help
 	  Say Y here to include support for audio on CS5535 chips. It is
 	  referred to as NS CS5535 IO or AMD CS5535 IO companion in
-	  various literature.
+	  various literature. This driver also supports the CS5536 audio
+	  device. However, for both chips, on certain boards, you may
+	  need to use ac97_quirk=hp_only if your board has physically 
+	  mapped headphone out to master output. If that works for you,
+	  send lspci -vvv output to the mailing list so that your board
+	  can be identified in the quirks list.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-cs5535audio.
+
+config SND_DARLA20
+	tristate "(Echoaudio) Darla20"
+	depends on SND
+	depends on FW_LOADER
+	select SND_PCM
+	help
+	  Say 'Y' or 'M' to include support for Echoaudio Darla.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-darla20
+
+config SND_GINA20
+	tristate "(Echoaudio) Gina20"
+	depends on SND
+	depends on FW_LOADER
+	select SND_PCM
+	help
+	  Say 'Y' or 'M' to include support for Echoaudio Gina.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-gina20
+
+config SND_LAYLA20
+	tristate "(Echoaudio) Layla20"
+	depends on SND
+	depends on FW_LOADER
+	select SND_RAWMIDI
+	select SND_PCM
+	help
+	  Say 'Y' or 'M' to include support for Echoaudio Layla.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-layla20
+
+config SND_DARLA24
+	tristate "(Echoaudio) Darla24"
+	depends on SND
+	depends on FW_LOADER
+	select SND_PCM
+	help
+	  Say 'Y' or 'M' to include support for Echoaudio Darla24.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-darla24
+
+config SND_GINA24
+	tristate "(Echoaudio) Gina24"
+	depends on SND
+	depends on FW_LOADER
+	select SND_PCM
+	help
+	  Say 'Y' or 'M' to include support for Echoaudio Gina24.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-gina24
+
+config SND_LAYLA24
+	tristate "(Echoaudio) Layla24"
+	depends on SND
+	depends on FW_LOADER
+	select SND_RAWMIDI
+	select SND_PCM
+	help
+	  Say 'Y' or 'M' to include support for Echoaudio Layla24.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-layla24
+
+config SND_MONA
+	tristate "(Echoaudio) Mona"
+	depends on SND
+	depends on FW_LOADER
+	select SND_RAWMIDI
+	select SND_PCM
+	help
+	  Say 'Y' or 'M' to include support for Echoaudio Mona.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-mona
+
+config SND_MIA
+	tristate "(Echoaudio) Mia"
+	depends on SND
+	depends on FW_LOADER
+	select SND_RAWMIDI
+	select SND_PCM
+	help
+	  Say 'Y' or 'M' to include support for Echoaudio Mia and Mia-midi.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-mia
+
+config SND_ECHO3G
+	tristate "(Echoaudio) 3G cards"
+	depends on SND
+	depends on FW_LOADER
+	select SND_RAWMIDI
+	select SND_PCM
+	help
+	  Say 'Y' or 'M' to include support for Echoaudio Gina3G and Layla3G.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-echo3g
+
+config SND_INDIGO
+	tristate "(Echoaudio) Indigo"
+	depends on SND
+	depends on FW_LOADER
+	select SND_PCM
+	help
+	  Say 'Y' or 'M' to include support for Echoaudio Indigo.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-indigo
+
+config SND_INDIGOIO
+	tristate "(Echoaudio) Indigo IO"
+	depends on SND
+	depends on FW_LOADER
+	select SND_PCM
+	help
+	  Say 'Y' or 'M' to include support for Echoaudio Indigo IO.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-indigoio
+
+config SND_INDIGODJ
+	tristate "(Echoaudio) Indigo DJ"
+	depends on SND
+	depends on FW_LOADER
+	select SND_PCM
+	help
+	  Say 'Y' or 'M' to include support for Echoaudio Indigo DJ.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-indigodj
 
 config SND_EMU10K1
 	tristate "Emu10k1 (SB Live!, Audigy, E-mu APS)"
@@ -415,8 +557,8 @@ config SND_INTEL8X0
 	  will be called snd-intel8x0.
 
 config SND_INTEL8X0M
-	tristate "Intel/SiS/nVidia/AMD MC97 Modem (EXPERIMENTAL)"
-	depends on SND && EXPERIMENTAL
+	tristate "Intel/SiS/nVidia/AMD MC97 Modem"
+	depends on SND
 	select SND_AC97_CODEC
 	help
 	  Say Y here to include support for the integrated MC97 modem on

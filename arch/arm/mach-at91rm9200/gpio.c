@@ -16,7 +16,7 @@
 
 #include <asm/io.h>
 #include <asm/mach/irq.h>
-#include <asm/arch/hardware.h>
+#include <asm/hardware.h>
 #include <asm/arch/gpio.h>
 
 static const u32 pio_controller_offset[4] = {
@@ -213,6 +213,84 @@ EXPORT_SYMBOL(at91_get_gpio_value);
 
 /*--------------------------------------------------------------------------*/
 
+#ifdef CONFIG_PM
+
+static u32 wakeups[BGA_GPIO_BANKS];
+static u32 backups[BGA_GPIO_BANKS];
+
+static int gpio_irq_set_wake(unsigned pin, unsigned state)
+{
+	unsigned	mask = pin_to_mask(pin);
+
+	pin -= PIN_BASE;
+	pin /= 32;
+
+	if (unlikely(pin >= BGA_GPIO_BANKS))
+		return -EINVAL;
+
+	if (state)
+		wakeups[pin] |= mask;
+	else
+		wakeups[pin] &= ~mask;
+
+	return 0;
+}
+
+void at91_gpio_suspend(void)
+{
+	int i;
+
+	for (i = 0; i < BGA_GPIO_BANKS; i++) {
+		u32 pio = pio_controller_offset[i];
+
+		/*
+		 * Note: drivers should have disabled GPIO interrupts that
+		 * aren't supposed to be wakeup sources.
+		 * But that is not much good on ARM.....  disable_irq() does
+		 * not update the hardware immediately, so the hardware mask
+		 * (IMR) has the wrong value (not current, too much is
+		 * permitted).
+		 *
+		 * Our workaround is to disable all non-wakeup IRQs ...
+		 * which is exactly what correct drivers asked for in the
+		 * first place!
+		 */
+		backups[i] = at91_sys_read(pio + PIO_IMR);
+		at91_sys_write(pio_controller_offset[i] + PIO_IDR, backups[i]);
+		at91_sys_write(pio_controller_offset[i] + PIO_IER, wakeups[i]);
+
+		if (!wakeups[i]) {
+			disable_irq_wake(AT91_ID_PIOA + i);
+			at91_sys_write(AT91_PMC_PCDR, 1 << (AT91_ID_PIOA + i));
+		} else {
+			enable_irq_wake(AT91_ID_PIOA + i);
+#ifdef CONFIG_PM_DEBUG
+			printk(KERN_DEBUG "GPIO-%c may wake for %08x\n", "ABCD"[i], wakeups[i]);
+#endif
+		}
+	}
+}
+
+void at91_gpio_resume(void)
+{
+	int i;
+
+	for (i = 0; i < BGA_GPIO_BANKS; i++) {
+		at91_sys_write(pio_controller_offset[i] + PIO_IDR, wakeups[i]);
+		at91_sys_write(pio_controller_offset[i] + PIO_IER, backups[i]);
+	}
+
+	at91_sys_write(AT91_PMC_PCER,
+			  (1 << AT91_ID_PIOA)
+			| (1 << AT91_ID_PIOB)
+			| (1 << AT91_ID_PIOC)
+			| (1 << AT91_ID_PIOD));
+}
+
+#else
+#define gpio_irq_set_wake	NULL
+#endif
+
 
 /* Several AIC controller irqs are dispatched through this GPIO handler.
  * To use any AT91_PIN_* as an externally triggered IRQ, first call
@@ -252,6 +330,7 @@ static struct irqchip gpio_irqchip = {
 	.mask		= gpio_irq_mask,
 	.unmask		= gpio_irq_unmask,
 	.set_type	= gpio_irq_type,
+	.set_wake	= gpio_irq_set_wake,
 };
 
 static void gpio_irq_handler(unsigned irq, struct irqdesc *desc, struct pt_regs *regs)
@@ -266,6 +345,7 @@ static void gpio_irq_handler(unsigned irq, struct irqdesc *desc, struct pt_regs 
 	/* temporarily mask (level sensitive) parent IRQ */
 	desc->chip->ack(irq);
 	for (;;) {
+		/* reading ISR acks the pending (edge triggered) GPIO interrupt */
 		isr = __raw_readl(pio + PIO_ISR) & __raw_readl(pio + PIO_IMR);
 		if (!isr)
 			break;
@@ -315,15 +395,16 @@ void __init at91_gpio_irq_setup(unsigned banks)
 		set_irq_chipdata(id, controller);
 
 		for (i = 0; i < 32; i++, pin++) {
+			/*
+			 * Can use the "simple" and not "edge" handler since it's
+			 * shorter, and the AIC handles interupts sanely.
+			 */
 			set_irq_chip(pin, &gpio_irqchip);
 			set_irq_handler(pin, do_simple_IRQ);
 			set_irq_flags(pin, IRQF_VALID);
 		}
 
 		set_irq_chained_handler(id, gpio_irq_handler);
-
-		/* enable the PIO peripheral clock */
-		at91_sys_write(AT91_PMC_PCER, 1 << id);
 	}
 	pr_info("AT91: %d gpio irqs in %d banks\n", pin - PIN_BASE, banks);
 }

@@ -78,6 +78,7 @@ static u8 acpi_rs_count_set_bits(u16 bit_field)
 	ACPI_FUNCTION_ENTRY();
 
 	for (bits_set = 0; bit_field; bits_set++) {
+
 		/* Zero the least significant bit that is set */
 
 		bit_field &= (bit_field - 1);
@@ -154,15 +155,18 @@ acpi_rs_stream_option_length(u32 resource_length,
 	 * length, minus one byte for the resource_source_index itself.
 	 */
 	if (resource_length > minimum_aml_resource_length) {
+
 		/* Compute the length of the optional string */
 
 		string_length =
 		    resource_length - minimum_aml_resource_length - 1;
 	}
 
-	/* Round up length to 32 bits for internal structure alignment */
-
-	return (ACPI_ROUND_UP_to_32_bITS(string_length));
+	/*
+	 * Round the length up to a multiple of the native word in order to
+	 * guarantee that the entire resource descriptor is native word aligned
+	 */
+	return ((u32) ACPI_ROUND_UP_TO_NATIVE_WORD(string_length));
 }
 
 /*******************************************************************************
@@ -186,11 +190,12 @@ acpi_rs_get_aml_length(struct acpi_resource * resource, acpi_size * size_needed)
 	acpi_size aml_size_needed = 0;
 	acpi_rs_length total_size;
 
-	ACPI_FUNCTION_TRACE("rs_get_aml_length");
+	ACPI_FUNCTION_TRACE(rs_get_aml_length);
 
 	/* Traverse entire list of internal resource descriptors */
 
 	while (resource) {
+
 		/* Validate the descriptor type */
 
 		if (resource->type > ACPI_RESOURCE_TYPE_MAX) {
@@ -214,6 +219,7 @@ acpi_rs_get_aml_length(struct acpi_resource * resource, acpi_size * size_needed)
 			 * is a Large Resource data type.
 			 */
 			if (resource->data.vendor.byte_length > 7) {
+
 				/* Base size of a Large resource descriptor */
 
 				total_size =
@@ -332,20 +338,22 @@ acpi_rs_get_list_length(u8 * aml_buffer,
 	acpi_status status;
 	u8 *end_aml;
 	u8 *buffer;
-	u32 buffer_size = 0;
+	u32 buffer_size;
 	u16 temp16;
 	u16 resource_length;
 	u32 extra_struct_bytes;
 	u8 resource_index;
 	u8 minimum_aml_resource_length;
 
-	ACPI_FUNCTION_TRACE("rs_get_list_length");
+	ACPI_FUNCTION_TRACE(rs_get_list_length);
 
+	*size_needed = 0;
 	end_aml = aml_buffer + aml_buffer_length;
 
 	/* Walk the list of AML resource descriptors */
 
 	while (aml_buffer < end_aml) {
+
 		/* Validate the Resource Type and Resource Length */
 
 		status = acpi_ut_validate_resource(aml_buffer, &resource_index);
@@ -386,35 +394,28 @@ acpi_rs_get_list_length(u8 * aml_buffer,
 			break;
 
 		case ACPI_RESOURCE_NAME_VENDOR_SMALL:
+		case ACPI_RESOURCE_NAME_VENDOR_LARGE:
 			/*
 			 * Vendor Resource:
-			 * Ensure a 32-bit boundary for the structure
+			 * Get the number of vendor data bytes
 			 */
-			extra_struct_bytes =
-			    ACPI_ROUND_UP_to_32_bITS(resource_length);
+			extra_struct_bytes = resource_length;
 			break;
 
 		case ACPI_RESOURCE_NAME_END_TAG:
 			/*
-			 * End Tag: This is the normal exit, add size of end_tag
+			 * End Tag:
+			 * This is the normal exit, add size of end_tag
 			 */
-			*size_needed = buffer_size + ACPI_RS_SIZE_MIN;
+			*size_needed += ACPI_RS_SIZE_MIN;
 			return_ACPI_STATUS(AE_OK);
-
-		case ACPI_RESOURCE_NAME_VENDOR_LARGE:
-			/*
-			 * Vendor Resource:
-			 * Add vendor data and ensure a 32-bit boundary for the structure
-			 */
-			extra_struct_bytes =
-			    ACPI_ROUND_UP_to_32_bITS(resource_length);
-			break;
 
 		case ACPI_RESOURCE_NAME_ADDRESS32:
 		case ACPI_RESOURCE_NAME_ADDRESS16:
+		case ACPI_RESOURCE_NAME_ADDRESS64:
 			/*
-			 * 32-Bit or 16-bit Address Resource:
-			 * Add the size of any optional data (resource_source)
+			 * Address Resource:
+			 * Add the size of the optional resource_source
 			 */
 			extra_struct_bytes =
 			    acpi_rs_stream_option_length(resource_length,
@@ -423,50 +424,46 @@ acpi_rs_get_list_length(u8 * aml_buffer,
 
 		case ACPI_RESOURCE_NAME_EXTENDED_IRQ:
 			/*
-			 * Extended IRQ:
-			 * Point past the interrupt_vector_flags to get the
-			 * interrupt_table_length.
+			 * Extended IRQ Resource:
+			 * Using the interrupt_table_length, add 4 bytes for each additional
+			 * interrupt. Note: at least one interrupt is required and is
+			 * included in the minimum descriptor size (reason for the -1)
 			 */
-			buffer++;
+			extra_struct_bytes = (buffer[1] - 1) * sizeof(u32);
 
-			extra_struct_bytes =
-			    /*
-			     * Add 4 bytes for each additional interrupt. Note: at
-			     * least one interrupt is required and is included in
-			     * the minimum descriptor size
-			     */
-			    ((*buffer - 1) * sizeof(u32)) +
-			    /* Add the size of any optional data (resource_source) */
+			/* Add the size of the optional resource_source */
+
+			extra_struct_bytes +=
 			    acpi_rs_stream_option_length(resource_length -
 							 extra_struct_bytes,
 							 minimum_aml_resource_length);
-			break;
-
-		case ACPI_RESOURCE_NAME_ADDRESS64:
-			/*
-			 * 64-Bit Address Resource:
-			 * Add the size of any optional data (resource_source)
-			 * Ensure a 64-bit boundary for the structure
-			 */
-			extra_struct_bytes =
-			    ACPI_ROUND_UP_to_64_bITS
-			    (acpi_rs_stream_option_length
-			     (resource_length, minimum_aml_resource_length));
 			break;
 
 		default:
 			break;
 		}
 
-		/* Update the required buffer size for the internal descriptor structs */
+		/*
+		 * Update the required buffer size for the internal descriptor structs
+		 *
+		 * Important: Round the size up for the appropriate alignment. This
+		 * is a requirement on IA64.
+		 */
+		buffer_size = acpi_gbl_resource_struct_sizes[resource_index] +
+		    extra_struct_bytes;
+		buffer_size = (u32) ACPI_ROUND_UP_TO_NATIVE_WORD(buffer_size);
 
-		temp16 = (u16) (acpi_gbl_resource_struct_sizes[resource_index] +
-				extra_struct_bytes);
-		buffer_size += (u32) ACPI_ROUND_UP_TO_NATIVE_WORD(temp16);
+		*size_needed += buffer_size;
+
+		ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES,
+				  "Type %.2X, AmlLength %.2X InternalLength %.2X\n",
+				  acpi_ut_get_resource_type(aml_buffer),
+				  acpi_ut_get_descriptor_length(aml_buffer),
+				  buffer_size));
 
 		/*
-		 * Point to the next resource within the stream
-		 * using the size of the header plus the length contained in the header
+		 * Point to the next resource within the AML stream using the length
+		 * contained in the resource descriptor header
 		 */
 		aml_buffer += acpi_ut_get_descriptor_length(aml_buffer);
 	}
@@ -506,7 +503,7 @@ acpi_rs_get_pci_routing_table_length(union acpi_operand_object *package_object,
 	u8 name_found;
 	u32 table_index;
 
-	ACPI_FUNCTION_TRACE("rs_get_pci_routing_table_length");
+	ACPI_FUNCTION_TRACE(rs_get_pci_routing_table_length);
 
 	number_of_elements = package_object->package.count;
 
@@ -523,6 +520,7 @@ acpi_rs_get_pci_routing_table_length(union acpi_operand_object *package_object,
 	top_object_list = package_object->package.elements;
 
 	for (index = 0; index < number_of_elements; index++) {
+
 		/* Dereference the sub-package */
 
 		package_element = *top_object_list;
@@ -581,7 +579,7 @@ acpi_rs_get_pci_routing_table_length(union acpi_operand_object *package_object,
 
 		/* Round up the size since each element must be aligned */
 
-		temp_size_needed = ACPI_ROUND_UP_to_64_bITS(temp_size_needed);
+		temp_size_needed = ACPI_ROUND_UP_TO_64BIT(temp_size_needed);
 
 		/* Point to the next union acpi_operand_object */
 
@@ -589,7 +587,7 @@ acpi_rs_get_pci_routing_table_length(union acpi_operand_object *package_object,
 	}
 
 	/*
-	 * Adding an extra element to the end of the list, essentially a
+	 * Add an extra element to the end of the list, essentially a
 	 * NULL terminator
 	 */
 	*buffer_size_needed =

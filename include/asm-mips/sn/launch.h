@@ -9,7 +9,6 @@
 #ifndef _ASM_SN_LAUNCH_H
 #define _ASM_SN_LAUNCH_H
 
-#include <linux/config.h>
 #include <asm/sn/types.h>
 #include <asm/sn/addrs.h>
 

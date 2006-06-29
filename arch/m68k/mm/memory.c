@@ -94,8 +94,7 @@ pmd_t *get_pointer_table (void)
 	PD_MARKBITS(dp) = mask & ~tmp;
 	if (!PD_MARKBITS(dp)) {
 		/* move to end of list */
-		list_del(dp);
-		list_add_tail(dp, &ptable_list);
+		list_move_tail(dp, &ptable_list);
 	}
 	return (pmd_t *) (page_address(PD_PAGE(dp)) + off);
 }
@@ -123,8 +122,7 @@ int free_pointer_table (pmd_t *ptable)
 		 * move this descriptor to the front of the list, since
 		 * it has one or more free tables.
 		 */
-		list_del(dp);
-		list_add(dp, &ptable_list);
+		list_move(dp, &ptable_list);
 	}
 	return 0;
 }

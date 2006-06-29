@@ -4,6 +4,21 @@
 
 menu "Graphics support"
 
+config FIRMWARE_EDID
+       bool "Enable firmware EDID"
+       default y
+       ---help---
+         This enables access to the EDID transferred from the firmware.
+	 On the i386, this is from the Video BIOS. Enable this if DDC/I2C
+	 transfers do not work for your driver and if you are using
+	 nvidiafb, i810fb or savagefb.
+
+	 In general, choosing Y for this option is safe.  If you
+	 experience extremely long delays while booting before you get
+	 something on your display, try setting this to N.  Matrox cards in
+	 combination with certain motherboards and monitors are known to
+	 suffer from this problem.
+
 config FB
 	tristate "Support for frame buffer devices"
 	---help---
@@ -70,21 +85,10 @@ config FB_MACMODES
        depends on FB
        default n
 
-config FB_FIRMWARE_EDID
-       bool "Enable firmware EDID"
+config FB_BACKLIGHT
+       bool
        depends on FB
-       default y
-       ---help---
-         This enables access to the EDID transferred from the firmware.
-	 On the i386, this is from the Video BIOS. Enable this if DDC/I2C
-	 transfers do not work for your driver and if you are using
-	 nvidiafb, i810fb or savagefb.
-
-	 In general, choosing Y for this option is safe.  If you
-	 experience extremely long delays while booting before you get
-	 something on your display, try setting this to N.  Matrox cards in
-	 combination with certain motherboards and monitors are known to
-	 suffer from this problem.
+       default n
 
 config FB_MODE_HELPERS
         bool "Enable Video Mode Handling Helpers"
@@ -166,6 +170,69 @@ config FB_ARMCLCD
 	  inserted into and removed from the running kernel), say M
 	  here and read <file:Documentation/modules.txt>.  The module
 	  will be called amba-clcd.
+
+choice
+
+	depends on FB_ARMCLCD && (ARCH_LH7A40X || ARCH_LH7952X)
+	prompt "LCD Panel"
+	default FB_ARMCLCD_SHARP_LQ035Q7DB02
+
+config FB_ARMCLCD_SHARP_LQ035Q7DB02_HRTFT
+	bool "LogicPD LCD 3.5\" QVGA w/HRTFT IC"
+	help
+	  This is an implementation of the Sharp LQ035Q7DB02, a 3.5"
+	  color QVGA, HRTFT panel.  The LogicPD device includes an
+	  an integrated HRTFT controller IC.
+	  The native resolution is 240x320.
+
+config FB_ARMCLCD_SHARP_LQ057Q3DC02
+	bool "LogicPD LCD 5.7\" QVGA"
+	help
+	  This is an implementation of the Sharp LQ057Q3DC02, a 5.7"
+	  color QVGA, TFT panel.  The LogicPD device includes an
+	  The native resolution is 320x240.
+
+config FB_ARMCLCD_SHARP_LQ64D343
+	bool "LogicPD LCD 6.4\" VGA"
+	help
+	  This is an implementation of the Sharp LQ64D343, a 6.4"
+	  color VGA, TFT panel.  The LogicPD device includes an
+	  The native resolution is 640x480.
+
+config FB_ARMCLCD_SHARP_LQ10D368
+	bool "LogicPD LCD 10.4\" VGA"
+	help
+	  This is an implementation of the Sharp LQ10D368, a 10.4"
+	  color VGA, TFT panel.  The LogicPD device includes an
+	  The native resolution is 640x480.
+
+
+config FB_ARMCLCD_SHARP_LQ121S1DG41
+	bool "LogicPD LCD 12.1\" SVGA"
+	help
+	  This is an implementation of the Sharp LQ121S1DG41, a 12.1"
+	  color SVGA, TFT panel.  The LogicPD device includes an
+	  The native resolution is 800x600.
+
+	  This panel requires a clock rate may be an integer fraction
+	  of the base LCDCLK frequency.  The driver will select the
+	  highest frequency available that is lower than the maximum
+	  allowed.  The panel may flicker if the clock rate is
+	  slower than the recommended minimum.
+
+config FB_ARMCLCD_AUO_A070VW01_WIDE
+	bool "AU Optronics A070VW01 LCD 7.0\" WIDE"
+	help
+	  This is an implementation of the AU Optronics, a 7.0"
+	  WIDE Color.  The native resolution is 234x480.
+
+config FB_ARMCLCD_HITACHI
+	bool "Hitachi Wide Screen 800x480"
+	help
+	  This is an implementation of the Hitachi 800x480.
+
+endchoice
+
 
 config FB_ACORN
 	bool "Acorn VIDC support"
@@ -483,10 +550,14 @@ config FB_VESA
 	  You will get a boot time penguin logo at no additional cost. Please
 	  read <file:Documentation/fb/vesafb.txt>. If unsure, say Y.
 
-config VIDEO_SELECT
-	bool
-	depends on FB_VESA
-	default y
+config FB_IMAC
+	bool "Intel-based Macintosh Framebuffer Support"
+	depends on (FB = y) && X86
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	help
+	  This is the frame buffer device driver for the Intel-based Macintosh
 
 config FB_HGA
 	tristate "Hercules mono graphics support"
@@ -509,12 +580,6 @@ config FB_HGA_ACCEL
 	---help---
 	This will compile the Hercules mono graphics with
 	acceleration functions.
-
-
-config VIDEO_SELECT
-	bool
-	depends on (FB = y) && X86
-	default y
 
 config FB_SGIVW
 	tristate "SGI Visual Workstation framebuffer support"
@@ -654,6 +719,16 @@ config FB_NVIDIA_I2C
 	  independently validate video mode parameters, you should say Y
 	  here.
 
+config FB_NVIDIA_BACKLIGHT
+	bool "Support for backlight control"
+	depends on FB_NVIDIA && PPC_PMAC
+	select FB_BACKLIGHT
+	select BACKLIGHT_LCD_SUPPORT
+	select BACKLIGHT_CLASS_DEVICE
+	default y
+	help
+	  Say Y here if you want to control the backlight of your display.
+
 config FB_RIVA
 	tristate "nVidia Riva support"
 	depends on FB && PCI
@@ -691,6 +766,16 @@ config FB_RIVA_DEBUG
 	  Say Y here if you want the Riva driver to output all sorts
 	  of debugging informations to provide to the maintainer when
 	  something goes wrong.
+
+config FB_RIVA_BACKLIGHT
+	bool "Support for backlight control"
+	depends on FB_RIVA && PPC_PMAC
+	select FB_BACKLIGHT
+	select BACKLIGHT_LCD_SUPPORT
+	select BACKLIGHT_CLASS_DEVICE
+	default y
+	help
+	  Say Y here if you want to control the backlight of your display.
 
 config FB_I810
 	tristate "Intel 810/815 support (EXPERIMENTAL)"
@@ -930,12 +1015,23 @@ config FB_RADEON
 
 	  There is a product page at
 	  http://apps.ati.com/ATIcompare/
+
 config FB_RADEON_I2C
 	bool "DDC/I2C for ATI Radeon support"
 	depends on FB_RADEON
 	default y
 	help
 	  Say Y here if you want DDC/I2C support for your Radeon board. 
+
+config FB_RADEON_BACKLIGHT
+	bool "Support for backlight control"
+	depends on FB_RADEON && PPC_PMAC
+	select FB_BACKLIGHT
+	select BACKLIGHT_LCD_SUPPORT
+	select BACKLIGHT_CLASS_DEVICE
+	default y
+	help
+	  Say Y here if you want to control the backlight of your display.
 
 config FB_RADEON_DEBUG
 	bool "Lots of debug output from Radeon driver"
@@ -960,6 +1056,16 @@ config FB_ATY128
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called aty128fb.
+
+config FB_ATY128_BACKLIGHT
+	bool "Support for backlight control"
+	depends on FB_ATY128 && PPC_PMAC
+	select FB_BACKLIGHT
+	select BACKLIGHT_LCD_SUPPORT
+	select BACKLIGHT_CLASS_DEVICE
+	default y
+	help
+	  Say Y here if you want to control the backlight of your display.
 
 config FB_ATY
 	tristate "ATI Mach64 display support" if PCI || ATARI
@@ -1002,6 +1108,16 @@ config FB_ATY_GX
 	  framebuffer device.  The ATI product support page for these boards
 	  is at
 	  <http://support.ati.com/products/pc/mach64/graphics_xpression.html>.
+
+config FB_ATY_BACKLIGHT
+	bool "Support for backlight control"
+	depends on FB_ATY && PPC_PMAC
+	select FB_BACKLIGHT
+	select BACKLIGHT_LCD_SUPPORT
+	select BACKLIGHT_CLASS_DEVICE
+	default y
+	help
+	  Say Y here if you want to control the backlight of your display.
 
 config FB_S3TRIO
 	bool "S3 Trio display support"

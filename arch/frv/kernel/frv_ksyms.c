@@ -26,16 +26,6 @@ extern long __memset_user(void *dst, const void *src, size_t count);
 EXPORT_SYMBOL(__ioremap);
 EXPORT_SYMBOL(iounmap);
 
-EXPORT_SYMBOL(strnlen);
-EXPORT_SYMBOL(strrchr);
-EXPORT_SYMBOL(strstr);
-EXPORT_SYMBOL(strchr);
-EXPORT_SYMBOL(strcat);
-EXPORT_SYMBOL(strlen);
-EXPORT_SYMBOL(strcmp);
-EXPORT_SYMBOL(strncmp);
-EXPORT_SYMBOL(strncpy);
-
 EXPORT_SYMBOL(ip_fast_csum);
 
 #if 0
@@ -44,8 +34,6 @@ EXPORT_SYMBOL(local_bh_count);
 #endif
 EXPORT_SYMBOL(kernel_thread);
 
-EXPORT_SYMBOL(enable_irq);
-EXPORT_SYMBOL(disable_irq);
 EXPORT_SYMBOL(__res_bus_clock_speed_HZ);
 EXPORT_SYMBOL(__page_offset);
 EXPORT_SYMBOL(__memcpy_user);
@@ -62,18 +50,12 @@ EXPORT_SYMBOL(memory_end);
 
 EXPORT_SYMBOL(__debug_bug_trap);
 
-/* Networking helper routines. */
-EXPORT_SYMBOL(csum_partial_copy);
-
 /* The following are special because they're not called
    explicitly (the C compiler generates them).  Fortunately,
    their interface isn't gonna change any time soon now, so
    it's OK to leave it out of version control.  */
 EXPORT_SYMBOL(memcpy);
 EXPORT_SYMBOL(memset);
-EXPORT_SYMBOL(memcmp);
-EXPORT_SYMBOL(memscan);
-EXPORT_SYMBOL(memmove);
 
 EXPORT_SYMBOL(__outsl_ns);
 EXPORT_SYMBOL(__insl_ns);

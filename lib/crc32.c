@@ -42,20 +42,21 @@ MODULE_AUTHOR("Matt Domsch <Matt_Domsch@dell.com>");
 MODULE_DESCRIPTION("Ethernet CRC32 calculations");
 MODULE_LICENSE("GPL");
 
+/**
+ * crc32_le() - Calculate bitwise little-endian Ethernet AUTODIN II CRC32
+ * @crc: seed value for computation.  ~0 for Ethernet, sometimes 0 for
+ *	other uses, or the previous crc32 value if computing incrementally.
+ * @p: pointer to buffer over which CRC is run
+ * @len: length of buffer @p
+ */
+u32 __attribute_pure__ crc32_le(u32 crc, unsigned char const *p, size_t len);
+
 #if CRC_LE_BITS == 1
 /*
  * In fact, the table-based code will work in this case, but it can be
  * simplified by inlining the table in ?: form.
  */
 
-/**
- * crc32_le() - Calculate bitwise little-endian Ethernet AUTODIN II CRC32
- * @crc - seed value for computation.  ~0 for Ethernet, sometimes 0 for
- *        other uses, or the previous crc32 value if computing incrementally.
- * @p   - pointer to buffer over which CRC is run
- * @len - length of buffer @p
- * 
- */
 u32 __attribute_pure__ crc32_le(u32 crc, unsigned char const *p, size_t len)
 {
 	int i;
@@ -68,14 +69,6 @@ u32 __attribute_pure__ crc32_le(u32 crc, unsigned char const *p, size_t len)
 }
 #else				/* Table-based approach */
 
-/**
- * crc32_le() - Calculate bitwise little-endian Ethernet AUTODIN II CRC32
- * @crc - seed value for computation.  ~0 for Ethernet, sometimes 0 for
- *        other uses, or the previous crc32 value if computing incrementally.
- * @p   - pointer to buffer over which CRC is run
- * @len - length of buffer @p
- * 
- */
 u32 __attribute_pure__ crc32_le(u32 crc, unsigned char const *p, size_t len)
 {
 # if CRC_LE_BITS == 8
@@ -145,20 +138,21 @@ u32 __attribute_pure__ crc32_le(u32 crc, unsigned char const *p, size_t len)
 }
 #endif
 
+/**
+ * crc32_be() - Calculate bitwise big-endian Ethernet AUTODIN II CRC32
+ * @crc: seed value for computation.  ~0 for Ethernet, sometimes 0 for
+ *	other uses, or the previous crc32 value if computing incrementally.
+ * @p: pointer to buffer over which CRC is run
+ * @len: length of buffer @p
+ */
+u32 __attribute_pure__ crc32_be(u32 crc, unsigned char const *p, size_t len);
+
 #if CRC_BE_BITS == 1
 /*
  * In fact, the table-based code will work in this case, but it can be
  * simplified by inlining the table in ?: form.
  */
 
-/**
- * crc32_be() - Calculate bitwise big-endian Ethernet AUTODIN II CRC32
- * @crc - seed value for computation.  ~0 for Ethernet, sometimes 0 for
- *        other uses, or the previous crc32 value if computing incrementally.
- * @p   - pointer to buffer over which CRC is run
- * @len - length of buffer @p
- * 
- */
 u32 __attribute_pure__ crc32_be(u32 crc, unsigned char const *p, size_t len)
 {
 	int i;
@@ -173,14 +167,6 @@ u32 __attribute_pure__ crc32_be(u32 crc, unsigned char const *p, size_t len)
 }
 
 #else				/* Table-based approach */
-/**
- * crc32_be() - Calculate bitwise big-endian Ethernet AUTODIN II CRC32
- * @crc - seed value for computation.  ~0 for Ethernet, sometimes 0 for
- *        other uses, or the previous crc32 value if computing incrementally.
- * @p   - pointer to buffer over which CRC is run
- * @len - length of buffer @p
- * 
- */
 u32 __attribute_pure__ crc32_be(u32 crc, unsigned char const *p, size_t len)
 {
 # if CRC_BE_BITS == 8
@@ -249,6 +235,10 @@ u32 __attribute_pure__ crc32_be(u32 crc, unsigned char const *p, size_t len)
 }
 #endif
 
+/**
+ * bitreverse - reverse the order of bits in a u32 value
+ * @x: value to be bit-reversed
+ */
 u32 bitreverse(u32 x)
 {
 	x = (x >> 16) | (x << 16);

@@ -23,9 +23,7 @@
  * There is something to do here later !, Mar 2000, Jungjun Kim
  */
 
-#define __virt_to_bus__is_a_macro
 #define __virt_to_bus(x)	__virt_to_phys(x)
-#define __bus_to_virt__is_a_macro
 #define __bus_to_virt(x)	__phys_to_virt(x)
 
 #endif

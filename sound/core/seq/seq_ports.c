@@ -221,7 +221,6 @@ static void clear_subscriber_list(struct snd_seq_client *client,
 {
 	struct list_head *p, *n;
 
-	down_write(&grp->list_mutex);
 	list_for_each_safe(p, n, &grp->list_head) {
 		struct snd_seq_subscribers *subs;
 		struct snd_seq_client *c;
@@ -259,7 +258,6 @@ static void clear_subscriber_list(struct snd_seq_client *client,
 			snd_seq_client_unlock(c);
 		}
 	}
-	up_write(&grp->list_mutex);
 }
 
 /* delete port data */
@@ -324,10 +322,8 @@ int snd_seq_delete_all_ports(struct snd_seq_client *client)
 	mutex_lock(&client->ports_mutex);
 	write_lock_irqsave(&client->ports_lock, flags);
 	if (! list_empty(&client->ports_list_head)) {
-		__list_add(&deleted_list,
-			   client->ports_list_head.prev,
-			   client->ports_list_head.next);
-		INIT_LIST_HEAD(&client->ports_list_head);
+		list_add(&deleted_list, &client->ports_list_head);
+		list_del_init(&client->ports_list_head);
 	} else {
 		INIT_LIST_HEAD(&deleted_list);
 	}
@@ -677,6 +673,7 @@ int snd_seq_event_port_attach(int client,
 	return ret;
 }
 
+EXPORT_SYMBOL(snd_seq_event_port_attach);
 
 /*
  * Detach the driver from a port.
@@ -696,3 +693,5 @@ int snd_seq_event_port_detach(int client, int port)
 
 	return err;
 }
+
+EXPORT_SYMBOL(snd_seq_event_port_detach);

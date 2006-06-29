@@ -200,12 +200,71 @@ All md devices contain:
      This can be written only while the array is being assembled, not
      after it is started.
 
+  layout
+     The "layout" for the array for the particular level.  This is
+     simply a number that is interpretted differently by different
+     levels.  It can be written while assembling an array.
+
+  resync_start
+     The point at which resync should start.  If no resync is needed,
+     this will be a very large number.  At array creation it will
+     default to 0, though starting the array as 'clean' will
+     set it much larger.
+
    new_dev
      This file can be written but not read.  The value written should
      be a block device number as major:minor.  e.g. 8:0
      This will cause that device to be attached to the array, if it is
      available.  It will then appear at md/dev-XXX (depending on the
      name of the device) and further configuration is then possible.
+
+   safe_mode_delay
+     When an md array has seen no write requests for a certain period
+     of time, it will be marked as 'clean'.  When another write
+     request arrive, the array is marked as 'dirty' before the write
+     commenses.  This is known as 'safe_mode'.
+     The 'certain period' is controlled by this file which stores the
+     period as a number of seconds.  The default is 200msec (0.200).
+     Writing a value of 0 disables safemode.
+
+   array_state
+     This file contains a single word which describes the current
+     state of the array.  In many cases, the state can be set by
+     writing the word for the desired state, however some states
+     cannot be explicitly set, and some transitions are not allowed.
+
+     clear
+         No devices, no size, no level
+         Writing is equivalent to STOP_ARRAY ioctl
+     inactive
+         May have some settings, but array is not active
+            all IO results in error
+         When written, doesn't tear down array, but just stops it
+     suspended (not supported yet)
+         All IO requests will block. The array can be reconfigured.
+         Writing this, if accepted, will block until array is quiessent
+     readonly
+         no resync can happen.  no superblocks get written.
+         write requests fail
+     read-auto
+         like readonly, but behaves like 'clean' on a write request.
+
+     clean - no pending writes, but otherwise active.
+         When written to inactive array, starts without resync
+         If a write request arrives then
+           if metadata is known, mark 'dirty' and switch to 'active'.
+           if not known, block and switch to write-pending
+         If written to an active array that has pending writes, then fails.
+     active
+         fully active: IO and resync can be happening.
+         When written to inactive array, starts with resync
+
+     write-pending
+         clean, but writes are blocked waiting for 'active' to be written.
+
+     active-idle
+         like active, but no writes have been seen for a while (safe_mode_delay).
+
 
    sync_speed_min
    sync_speed_max
@@ -250,10 +309,18 @@ Each directory contains:
 	      faulty   - device has been kicked from active use due to
                          a detected fault
 	      in_sync  - device is a fully in-sync member of the array
+	      writemostly - device will only be subject to read
+		         requests if there are no other options.
+			 This applies only to raid1 arrays.
 	      spare    - device is working, but not a full member.
 			 This includes spares that are in the process
 			 of being recoverred to
 	This list make grow in future.
+	This can be written to.
+	Writing "faulty"  simulates a failure on the device.
+	Writing "remove" removes the device from the array.
+	Writing "writemostly" sets the writemostly flag.
+	Writing "-writemostly" clears the writemostly flag.
 
       errors
 	An approximate count of read errors that have been detected on

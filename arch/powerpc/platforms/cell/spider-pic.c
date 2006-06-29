@@ -162,7 +162,7 @@ void spider_init_IRQ_hardcoded(void)
 		spider_pics[node] = ioremap(spiderpic, 0x800);
 		for (n = 0; n < IIC_NUM_EXT; n++) {
 			int irq = n + IIC_EXT_OFFSET + node * IIC_NODE_STRIDE;
-			get_irq_desc(irq)->handler = &spider_pic;
+			get_irq_desc(irq)->chip = &spider_pic;
 		}
 
  		/* do not mask any interrupts because of level */
@@ -217,7 +217,7 @@ void spider_init_IRQ(void)
 
 		for (n = 0; n < IIC_NUM_EXT; n++) {
 			int irq = n + IIC_EXT_OFFSET + node * IIC_NODE_STRIDE;
-			get_irq_desc(irq)->handler = &spider_pic;
+			get_irq_desc(irq)->chip = &spider_pic;
 		}
 
 		/* do not mask any interrupts because of level */

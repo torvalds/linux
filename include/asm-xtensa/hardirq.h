@@ -11,7 +11,6 @@
 #ifndef _XTENSA_HARDIRQ_H
 #define _XTENSA_HARDIRQ_H
 
-#include <linux/config.h>
 #include <linux/cache.h>
 #include <asm/irq.h>
 

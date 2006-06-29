@@ -1432,7 +1432,7 @@ static int ttusb_dec_init_dvb(struct ttusb_dec *dec)
 	dprintk("%s\n", __FUNCTION__);
 
 	if ((result = dvb_register_adapter(&dec->adapter,
-					   dec->model_name, THIS_MODULE)) < 0) {
+					   dec->model_name, THIS_MODULE, &dec->udev->dev)) < 0) {
 		printk("%s: dvb_register_adapter failed: error %d\n",
 		       __FUNCTION__, result);
 
@@ -1657,8 +1657,8 @@ static int ttusb_dec_probe(struct usb_interface *intf,
 	} else {
 		if (dvb_register_frontend(&dec->adapter, dec->fe)) {
 			printk("budget-ci: Frontend registration failed!\n");
-			if (dec->fe->ops->release)
-				dec->fe->ops->release(dec->fe);
+			if (dec->fe->ops.release)
+				dec->fe->ops.release(dec->fe);
 			dec->fe = NULL;
 		}
 	}

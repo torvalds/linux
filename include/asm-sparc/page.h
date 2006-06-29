@@ -8,7 +8,6 @@
 #ifndef _SPARC_PAGE_H
 #define _SPARC_PAGE_H
 
-#include <linux/config.h>
 #ifdef CONFIG_SUN4
 #define PAGE_SHIFT   13
 #else

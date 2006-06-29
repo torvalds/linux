@@ -54,14 +54,8 @@
 #define NAME53C		"sym53c"
 #define NAME53C8XX	"sym53c8xx"
 
-/* SPARC just has to be different ... */
-#ifdef __sparc__
-#define IRQ_FMT "%s"
-#define IRQ_PRM(x) __irq_itoa(x)
-#else
 #define IRQ_FMT "%d"
 #define IRQ_PRM(x) (x)
-#endif
 
 struct sym_driver_setup sym_driver_setup = SYM_LINUX_DRIVER_SETUP;
 unsigned int sym_debug_flags = 0;
@@ -156,7 +150,7 @@ static void __unmap_scsi_data(struct pci_dev *pdev, struct scsi_cmnd *cmd)
 
 	switch(SYM_UCMD_PTR(cmd)->data_mapped) {
 	case 2:
-		pci_unmap_sg(pdev, cmd->buffer, cmd->use_sg, dma_dir);
+		pci_unmap_sg(pdev, cmd->request_buffer, cmd->use_sg, dma_dir);
 		break;
 	case 1:
 		pci_unmap_single(pdev, SYM_UCMD_PTR(cmd)->data_mapping,
@@ -186,7 +180,7 @@ static int __map_scsi_sg_data(struct pci_dev *pdev, struct scsi_cmnd *cmd)
 	int use_sg;
 	int dma_dir = cmd->sc_data_direction;
 
-	use_sg = pci_map_sg(pdev, cmd->buffer, cmd->use_sg, dma_dir);
+	use_sg = pci_map_sg(pdev, cmd->request_buffer, cmd->use_sg, dma_dir);
 	if (use_sg > 0) {
 		SYM_UCMD_PTR(cmd)->data_mapped  = 2;
 		SYM_UCMD_PTR(cmd)->data_mapping = use_sg;
@@ -376,7 +370,7 @@ static int sym_scatter(struct sym_hcb *np, struct sym_ccb *cp, struct scsi_cmnd 
 	if (!use_sg)
 		segment = sym_scatter_no_sglist(np, cp, cmd);
 	else if ((use_sg = map_scsi_sg_data(np, cmd)) > 0) {
-		struct scatterlist *scatter = (struct scatterlist *)cmd->buffer;
+		struct scatterlist *scatter = (struct scatterlist *)cmd->request_buffer;
 		struct sym_tcb *tp = &np->target[cp->target];
 		struct sym_tblmove *data;
 

@@ -1,7 +1,7 @@
 /*
  * SyncLink Multiprotocol Serial Adapter Driver
  *
- * $Id: synclink.h,v 3.11 2006/02/06 21:20:29 paulkf Exp $
+ * $Id: synclink.h,v 3.13 2006/05/23 18:25:06 paulkf Exp $
  *
  * Copyright (C) 1998-2000 by Microgate Corporation
  *
@@ -97,6 +97,8 @@
 #define HDLC_TXIDLE_ALT_MARK_SPACE	4
 #define HDLC_TXIDLE_SPACE		5
 #define HDLC_TXIDLE_MARK		6
+#define HDLC_TXIDLE_CUSTOM_8            0x10000000
+#define HDLC_TXIDLE_CUSTOM_16           0x20000000
 
 #define HDLC_ENCODING_NRZ			0
 #define HDLC_ENCODING_NRZB			1
@@ -170,6 +172,7 @@ typedef struct _MGSL_PARAMS
 #define SYNCLINK_GT_DEVICE_ID 0x0070
 #define SYNCLINK_GT4_DEVICE_ID 0x0080
 #define SYNCLINK_AC_DEVICE_ID  0x0090
+#define SYNCLINK_GT2_DEVICE_ID 0x00A0
 #define MGSL_MAX_SERIAL_NUMBER 30
 
 /*

@@ -7,7 +7,6 @@
 #ifndef _ASM_SPARC64_DMA_H
 #define _ASM_SPARC64_DMA_H
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/spinlock.h>

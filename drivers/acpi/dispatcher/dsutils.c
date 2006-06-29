@@ -68,7 +68,7 @@ ACPI_MODULE_NAME("dsutils")
  ******************************************************************************/
 void acpi_ds_clear_implicit_return(struct acpi_walk_state *walk_state)
 {
-	ACPI_FUNCTION_NAME("ds_clear_implicit_return");
+	ACPI_FUNCTION_NAME(ds_clear_implicit_return);
 
 	/*
 	 * Slack must be enabled for this feature
@@ -115,7 +115,7 @@ u8
 acpi_ds_do_implicit_return(union acpi_operand_object *return_desc,
 			   struct acpi_walk_state *walk_state, u8 add_reference)
 {
-	ACPI_FUNCTION_NAME("ds_do_implicit_return");
+	ACPI_FUNCTION_NAME(ds_do_implicit_return);
 
 	/*
 	 * Slack must be enabled for this feature, and we must
@@ -171,7 +171,7 @@ acpi_ds_is_result_used(union acpi_parse_object * op,
 {
 	const struct acpi_opcode_info *parent_info;
 
-	ACPI_FUNCTION_TRACE_PTR("ds_is_result_used", op);
+	ACPI_FUNCTION_TRACE_PTR(ds_is_result_used, op);
 
 	/* Must have both an Op and a Result Object */
 
@@ -202,6 +202,7 @@ acpi_ds_is_result_used(union acpi_parse_object * op,
 	 */
 	if ((!op->common.parent) ||
 	    (op->common.parent->common.aml_opcode == AML_SCOPE_OP)) {
+
 		/* No parent, the return value cannot possibly be used */
 
 		ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
@@ -340,7 +341,7 @@ acpi_ds_delete_result_if_not_used(union acpi_parse_object *op,
 	union acpi_operand_object *obj_desc;
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE_PTR("ds_delete_result_if_not_used", result_obj);
+	ACPI_FUNCTION_TRACE_PTR(ds_delete_result_if_not_used, result_obj);
 
 	if (!op) {
 		ACPI_ERROR((AE_INFO, "Null Op"));
@@ -352,6 +353,7 @@ acpi_ds_delete_result_if_not_used(union acpi_parse_object *op,
 	}
 
 	if (!acpi_ds_is_result_used(op, walk_state)) {
+
 		/* Must pop the result stack (obj_desc should be equal to result_obj) */
 
 		status = acpi_ds_result_pop(&obj_desc, walk_state);
@@ -382,7 +384,7 @@ acpi_status acpi_ds_resolve_operands(struct acpi_walk_state *walk_state)
 	u32 i;
 	acpi_status status = AE_OK;
 
-	ACPI_FUNCTION_TRACE_PTR("ds_resolve_operands", walk_state);
+	ACPI_FUNCTION_TRACE_PTR(ds_resolve_operands, walk_state);
 
 	/*
 	 * Attempt to resolve each of the valid operands
@@ -417,7 +419,7 @@ void acpi_ds_clear_operands(struct acpi_walk_state *walk_state)
 {
 	u32 i;
 
-	ACPI_FUNCTION_TRACE_PTR("ds_clear_operands", walk_state);
+	ACPI_FUNCTION_TRACE_PTR(ds_clear_operands, walk_state);
 
 	/* Remove a reference on each operand on the stack */
 
@@ -465,7 +467,7 @@ acpi_ds_create_operand(struct acpi_walk_state *walk_state,
 	acpi_interpreter_mode interpreter_mode;
 	const struct acpi_opcode_info *op_info;
 
-	ACPI_FUNCTION_TRACE_PTR("ds_create_operand", arg);
+	ACPI_FUNCTION_TRACE_PTR(ds_create_operand, arg);
 
 	/* A valid name must be looked up in the namespace */
 
@@ -498,7 +500,9 @@ acpi_ds_create_operand(struct acpi_walk_state *walk_state,
 		 */
 		if ((walk_state->deferred_node) &&
 		    (walk_state->deferred_node->type == ACPI_TYPE_BUFFER_FIELD)
-		    && (arg_index != 0)) {
+		    && (arg_index ==
+			(u32) ((walk_state->opcode ==
+				AML_CREATE_FIELD_OP) ? 3 : 2))) {
 			obj_desc =
 			    ACPI_CAST_PTR(union acpi_operand_object,
 					  walk_state->deferred_node);
@@ -521,6 +525,7 @@ acpi_ds_create_operand(struct acpi_walk_state *walk_state,
 			    && (parent_op->common.aml_opcode != AML_REGION_OP)
 			    && (parent_op->common.aml_opcode !=
 				AML_INT_NAMEPATH_OP)) {
+
 				/* Enter name into namespace if not found */
 
 				interpreter_mode = ACPI_IMODE_LOAD_PASS2;
@@ -572,7 +577,7 @@ acpi_ds_create_operand(struct acpi_walk_state *walk_state,
 
 		/* Free the namestring created above */
 
-		ACPI_MEM_FREE(name_string);
+		ACPI_FREE(name_string);
 
 		/* Check status from the lookup */
 
@@ -696,7 +701,7 @@ acpi_ds_create_operands(struct acpi_walk_state *walk_state,
 	union acpi_parse_object *arg;
 	u32 arg_count = 0;
 
-	ACPI_FUNCTION_TRACE_PTR("ds_create_operands", first_arg);
+	ACPI_FUNCTION_TRACE_PTR(ds_create_operands, first_arg);
 
 	/* For all arguments in the list... */
 

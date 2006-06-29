@@ -470,7 +470,7 @@ int alps_init(struct psmouse *psmouse)
 		dev1->keybit[LONG(BTN_BACK)] |= BIT(BTN_BACK);
 	}
 
-	sprintf(priv->phys, "%s/input1", psmouse->ps2dev.serio->phys);
+	snprintf(priv->phys, sizeof(priv->phys), "%s/input1", psmouse->ps2dev.serio->phys);
 	dev2->phys = priv->phys;
 	dev2->name = (priv->i->flags & ALPS_DUALPOINT) ? "DualPoint Stick" : "PS/2 Mouse";
 	dev2->id.bustype = BUS_I8042;

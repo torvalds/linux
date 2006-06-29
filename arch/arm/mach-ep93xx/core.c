@@ -103,7 +103,8 @@ static int ep93xx_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	write_seqlock(&xtime_lock);
 
 	__raw_writel(1, EP93XX_TIMER1_CLEAR);
-	while (__raw_readl(EP93XX_TIMER4_VALUE_LOW) - last_jiffy_time
+	while ((signed long)
+		(__raw_readl(EP93XX_TIMER4_VALUE_LOW) - last_jiffy_time)
 						>= TIMER4_TICKS_PER_JIFFY) {
 		last_jiffy_time += TIMER4_TICKS_PER_JIFFY;
 		timer_tick(regs);
@@ -124,7 +125,7 @@ static void __init ep93xx_timer_init(void)
 {
 	/* Enable periodic HZ timer.  */
 	__raw_writel(0x48, EP93XX_TIMER1_CONTROL);
-	__raw_writel((508000 / HZ) - 1, EP93XX_TIMER1_LOAD);
+	__raw_writel((508469 / HZ) - 1, EP93XX_TIMER1_LOAD);
 	__raw_writel(0xc8, EP93XX_TIMER1_CONTROL);
 
 	/* Enable lost jiffy timer.  */
@@ -432,9 +433,36 @@ static struct platform_device ep93xx_rtc_device = {
 };
 
 
+static struct resource ep93xx_ohci_resources[] = {
+	[0] = {
+		.start	= EP93XX_USB_PHYS_BASE,
+		.end	= EP93XX_USB_PHYS_BASE + 0x0fff,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= IRQ_EP93XX_USB,
+		.end	= IRQ_EP93XX_USB,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device ep93xx_ohci_device = {
+	.name		= "ep93xx-ohci",
+	.id		= -1,
+	.dev		= {
+		.dma_mask		= (void *)0xffffffff,
+		.coherent_dma_mask	= 0xffffffff,
+	},
+	.num_resources	= ARRAY_SIZE(ep93xx_ohci_resources),
+	.resource	= ep93xx_ohci_resources,
+};
+
+
 void __init ep93xx_init_devices(void)
 {
 	unsigned int v;
+
+	ep93xx_clock_init();
 
 	/*
 	 * Disallow access to MaverickCrunch initially.
@@ -449,4 +477,5 @@ void __init ep93xx_init_devices(void)
 	amba_device_register(&uart3_device, &iomem_resource);
 
 	platform_device_register(&ep93xx_rtc_device);
+	platform_device_register(&ep93xx_ohci_device);
 }

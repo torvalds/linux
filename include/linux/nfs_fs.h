@@ -16,8 +16,6 @@
 #include <linux/rwsem.h>
 #include <linux/wait.h>
 
-#include <linux/nfs_fs_sb.h>
-
 #include <linux/sunrpc/debug.h>
 #include <linux/sunrpc/auth.h>
 #include <linux/sunrpc/clnt.h>
@@ -27,6 +25,9 @@
 #include <linux/nfs3.h>
 #include <linux/nfs4.h>
 #include <linux/nfs_xdr.h>
+
+#include <linux/nfs_fs_sb.h>
+
 #include <linux/rwsem.h>
 #include <linux/mempool.h>
 
@@ -61,6 +62,7 @@
 #define FLUSH_LOWPRI		8	/* low priority background flush */
 #define FLUSH_HIGHPRI		16	/* high priority memory reclaim flush */
 #define FLUSH_NOCOMMIT		32	/* Don't send the NFSv3/v4 COMMIT */
+#define FLUSH_INVALIDATE	64	/* Invalidate the page cache */
 
 #ifdef __KERNEL__
 
@@ -234,8 +236,12 @@ static inline int nfs_caches_unstable(struct inode *inode)
 
 static inline void nfs_mark_for_revalidate(struct inode *inode)
 {
+	struct nfs_inode *nfsi = NFS_I(inode);
+
 	spin_lock(&inode->i_lock);
-	NFS_I(inode)->cache_validity |= NFS_INO_INVALID_ATTR | NFS_INO_INVALID_ACCESS;
+	nfsi->cache_validity |= NFS_INO_INVALID_ATTR|NFS_INO_INVALID_ACCESS;
+	if (S_ISDIR(inode->i_mode))
+		nfsi->cache_validity |= NFS_INO_REVAL_PAGECACHE|NFS_INO_INVALID_DATA;
 	spin_unlock(&inode->i_lock);
 }
 
@@ -297,7 +303,7 @@ extern int nfs_release(struct inode *, struct file *);
 extern int nfs_attribute_timeout(struct inode *inode);
 extern int nfs_revalidate_inode(struct nfs_server *server, struct inode *inode);
 extern int __nfs_revalidate_inode(struct nfs_server *, struct inode *);
-extern void nfs_revalidate_mapping(struct inode *inode, struct address_space *mapping);
+extern int nfs_revalidate_mapping(struct inode *inode, struct address_space *mapping);
 extern int nfs_setattr(struct dentry *, struct iattr *);
 extern void nfs_setattr_update_inode(struct inode *inode, struct iattr *attr);
 extern void nfs_begin_attr_update(struct inode *);
@@ -307,6 +313,10 @@ extern void nfs_end_data_update(struct inode *);
 extern struct nfs_open_context *get_nfs_open_context(struct nfs_open_context *ctx);
 extern void put_nfs_open_context(struct nfs_open_context *ctx);
 extern struct nfs_open_context *nfs_find_open_context(struct inode *inode, struct rpc_cred *cred, int mode);
+extern struct vfsmount *nfs_do_submount(const struct vfsmount *mnt_parent,
+					const struct dentry *dentry,
+					struct nfs_fh *fh,
+					struct nfs_fattr *fattr);
 
 /* linux/net/ipv4/ipconfig.c: trims ip addr off front of name, too. */
 extern u32 root_nfs_parse_addr(char *name); /*__init*/
@@ -325,7 +335,7 @@ extern struct inode_operations nfs_file_inode_operations;
 extern struct inode_operations nfs3_file_inode_operations;
 #endif /* CONFIG_NFS_V3 */
 extern const struct file_operations nfs_file_operations;
-extern struct address_space_operations nfs_file_aops;
+extern const struct address_space_operations nfs_file_aops;
 
 static inline struct rpc_cred *nfs_file_cred(struct file *file)
 {
@@ -391,6 +401,15 @@ extern void nfs_unregister_sysctl(void);
 #define nfs_register_sysctl() 0
 #define nfs_unregister_sysctl() do { } while(0)
 #endif
+
+/*
+ * linux/fs/nfs/namespace.c
+ */
+extern struct list_head nfs_automount_list;
+extern struct inode_operations nfs_mountpoint_inode_operations;
+extern struct inode_operations nfs_referral_inode_operations;
+extern int nfs_mountpoint_expiry_timeout;
+extern void nfs_release_automount_timer(void);
 
 /*
  * linux/fs/nfs/unlink.c

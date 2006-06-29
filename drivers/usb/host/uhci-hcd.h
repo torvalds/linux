@@ -84,6 +84,13 @@
 #define CAN_SCHEDULE_FRAMES	1000	/* how far in the future frames
 					 * can be scheduled */
 
+/* When no queues need Full-Speed Bandwidth Reclamation,
+ * delay this long before turning FSBR off */
+#define FSBR_OFF_DELAY		msecs_to_jiffies(10)
+
+/* If a queue hasn't advanced after this much time, assume it is stuck */
+#define QH_WAIT_TIMEOUT		msecs_to_jiffies(200)
+
 
 /*
  *	Queue Headers
@@ -121,21 +128,31 @@ struct uhci_qh {
 	__le32 element;			/* Queue element (TD) pointer */
 
 	/* Software fields */
-	dma_addr_t dma_handle;
-
 	struct list_head node;		/* Node in the list of QHs */
 	struct usb_host_endpoint *hep;	/* Endpoint information */
 	struct usb_device *udev;
 	struct list_head queue;		/* Queue of urbps for this QH */
 	struct uhci_qh *skel;		/* Skeleton for this QH */
 	struct uhci_td *dummy_td;	/* Dummy TD to end the queue */
+	struct uhci_td *post_td;	/* Last TD completed */
 
+	struct usb_iso_packet_descriptor *iso_packet_desc;
+					/* Next urb->iso_frame_desc entry */
+	unsigned long advance_jiffies;	/* Time of last queue advance */
 	unsigned int unlink_frame;	/* When the QH was unlinked */
+	unsigned int period;		/* For Interrupt and Isochronous QHs */
+	unsigned int iso_frame;		/* Frame # for iso_packet_desc */
+	int iso_status;			/* Status for Isochronous URBs */
+
 	int state;			/* QH_STATE_xxx; see above */
+	int type;			/* Queue type (control, bulk, etc) */
+
+	dma_addr_t dma_handle;
 
 	unsigned int initial_toggle:1;	/* Endpoint's current toggle value */
 	unsigned int needs_fixup:1;	/* Must fix the TD toggle values */
-	unsigned int is_stopped:1;	/* Queue was stopped by an error */
+	unsigned int is_stopped:1;	/* Queue was stopped by error/unlink */
+	unsigned int wait_expired:1;	/* QH_WAIT_TIMEOUT has expired */
 } __attribute__((aligned(16)));
 
 /*
@@ -226,7 +243,6 @@ struct uhci_td {
 	dma_addr_t dma_handle;
 
 	struct list_head list;
-	struct list_head remove_list;
 
 	int frame;			/* for iso: what frame? */
 	struct list_head fl_list;
@@ -305,38 +321,8 @@ static inline u32 td_status(struct uhci_td *td) {
 #define skel_bulk_qh		skelqh[12]
 #define skel_term_qh		skelqh[13]
 
-/*
- * Search tree for determining where <interval> fits in the skelqh[]
- * skeleton.
- *
- * An interrupt request should be placed into the slowest skelqh[]
- * which meets the interval/period/frequency requirement.
- * An interrupt request is allowed to be faster than <interval> but not slower.
- *
- * For a given <interval>, this function returns the appropriate/matching
- * skelqh[] index value.
- */
-static inline int __interval_to_skel(int interval)
-{
-	if (interval < 16) {
-		if (interval < 4) {
-			if (interval < 2)
-				return 9;	/* int1 for 0-1 ms */
-			return 8;		/* int2 for 2-3 ms */
-		}
-		if (interval < 8)
-			return 7;		/* int4 for 4-7 ms */
-		return 6;			/* int8 for 8-15 ms */
-	}
-	if (interval < 64) {
-		if (interval < 32)
-			return 5;		/* int16 for 16-31 ms */
-		return 4;			/* int32 for 32-63 ms */
-	}
-	if (interval < 128)
-		return 3;			/* int64 for 64-127 ms */
-	return 2;				/* int128 for 128-255 ms (Max.) */
-}
+/* Find the skelqh entry corresponding to an interval exponent */
+#define UHCI_SKEL_INDEX(exponent)	(9 - exponent)
 
 
 /*
@@ -396,31 +382,31 @@ struct uhci_hcd {
 	__le32 *frame;
 	void **frame_cpu;		/* CPU's frame list */
 
-	int fsbr;			/* Full-speed bandwidth reclamation */
-	unsigned long fsbrtimeout;	/* FSBR delay */
-
 	enum uhci_rh_state rh_state;
 	unsigned long auto_stop_time;		/* When to AUTO_STOP */
 
 	unsigned int frame_number;		/* As of last check */
 	unsigned int is_stopped;
 #define UHCI_IS_STOPPED		9999		/* Larger than a frame # */
+	unsigned int last_iso_frame;		/* Frame of last scan */
+	unsigned int cur_iso_frame;		/* Frame for current scan */
 
 	unsigned int scan_in_progress:1;	/* Schedule scan is running */
 	unsigned int need_rescan:1;		/* Redo the schedule scan */
-	unsigned int hc_inaccessible:1;		/* HC is suspended or dead */
+	unsigned int dead:1;			/* Controller has died */
 	unsigned int working_RD:1;		/* Suspended root hub doesn't
 						   need to be polled */
 	unsigned int is_initialized:1;		/* Data structure is usable */
+	unsigned int fsbr_is_on:1;		/* FSBR is turned on */
+	unsigned int fsbr_is_wanted:1;		/* Does any URB want FSBR? */
+	unsigned int fsbr_expiring:1;		/* FSBR is timing out */
+
+	struct timer_list fsbr_timer;		/* For turning off FBSR */
 
 	/* Support for port suspend/resume/reset */
 	unsigned long port_c_suspend;		/* Bit-arrays of ports */
 	unsigned long resuming_ports;
 	unsigned long ports_timeout;		/* Time to stop signalling */
-
-	/* List of TDs that are done, but waiting to be freed (race) */
-	struct list_head td_remove_list;
-	unsigned int td_remove_age;		/* Age in frames */
 
 	struct list_head idle_qh_list;		/* Where the idle QHs live */
 
@@ -442,6 +428,9 @@ static inline struct usb_hcd *uhci_to_hcd(struct uhci_hcd *uhci)
 
 #define uhci_dev(u)	(uhci_to_hcd(u)->self.controller)
 
+/* Utility macro for comparing frame numbers */
+#define uhci_frame_before_eq(f1, f2)	(0 <= (int) ((f2) - (f1)))
+
 
 /*
  *	Private per-URB data
@@ -454,9 +443,7 @@ struct urb_priv {
 	struct uhci_qh *qh;		/* QH for this URB */
 	struct list_head td_list;
 
-	unsigned fsbr : 1;		/* URB turned on FSBR */
-	unsigned short_transfer : 1;	/* URB got a short transfer, no
-					 * need to rescan */
+	unsigned fsbr:1;		/* URB wants FSBR */
 };
 
 

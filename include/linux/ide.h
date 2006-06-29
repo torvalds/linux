@@ -6,7 +6,6 @@
  *  Copyright (C) 1994-2002  Linus Torvalds & authors
  */
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/hdreg.h>
@@ -631,6 +630,7 @@ typedef struct ide_drive_s {
 	unsigned int	usage;		/* current "open()" count for drive */
 	unsigned int	failures;	/* current failure count */
 	unsigned int	max_failures;	/* maximum allowed failure count */
+	u64		probed_capacity;/* initial reported media capacity (ide-cd only currently) */
 
 	u64		capacity64;	/* total number of sectors */
 
@@ -793,6 +793,7 @@ typedef struct hwif_s {
 	unsigned	auto_poll  : 1; /* supports nop auto-poll */
 	unsigned	sg_mapped  : 1;	/* sg_table and sg_nents are ready */
 	unsigned	no_io_32bit : 1; /* 1 = can not do 32-bit IO ops */
+	unsigned	err_stops_fifo : 1; /* 1=data FIFO is cleared by an error */
 
 	struct device	gendev;
 	struct completion gendev_rel_comp; /* To deal with device release() */
@@ -1006,6 +1007,8 @@ extern	ide_hwif_t	ide_hwifs[];		/* master data repository */
 extern int noautodma;
 
 extern int ide_end_request (ide_drive_t *drive, int uptodate, int nrsecs);
+int ide_end_dequeued_request(ide_drive_t *drive, struct request *rq,
+			     int uptodate, int nr_sectors);
 
 /*
  * This is used on exit from the driver to designate the next irq handler

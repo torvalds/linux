@@ -3,7 +3,6 @@
 
 #ifdef __KERNEL__
 
-#include <linux/config.h>
 
 #include <asm/m32r.h>
 
@@ -15,7 +14,6 @@
 
 #ifndef __ASSEMBLY__
 
-#include <linux/config.h>
 #include <asm/atomic.h>
 #include <asm/pgalloc.h>
 #include <asm/mmu.h>

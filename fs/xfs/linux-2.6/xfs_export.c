@@ -21,7 +21,6 @@
 #include "xfs_log.h"
 #include "xfs_trans.h"
 #include "xfs_sb.h"
-#include "xfs_dir.h"
 #include "xfs_mount.h"
 #include "xfs_export.h"
 
@@ -97,7 +96,7 @@ xfs_fs_encode_fh(
 	int			len;
 	int			is64 = 0;
 #if XFS_BIG_INUMS
-	vfs_t			*vfs = vfs_from_sb(inode->i_sb);
+	bhv_vfs_t		*vfs = vfs_from_sb(inode->i_sb);
 
 	if (!(vfs->vfs_flag & VFS_32BITINODES)) {
 		/* filesystem may contain 64bit inode numbers */
@@ -136,13 +135,13 @@ xfs_fs_get_dentry(
 	struct super_block	*sb,
 	void			*data)
 {
-	vnode_t			*vp;
+	bhv_vnode_t		*vp;
 	struct inode		*inode;
 	struct dentry		*result;
-	vfs_t			*vfsp = vfs_from_sb(sb);
+	bhv_vfs_t		*vfsp = vfs_from_sb(sb);
 	int			error;
 
-	VFS_VGET(vfsp, &vp, (fid_t *)data, error);
+	error = bhv_vfs_vget(vfsp, &vp, (fid_t *)data);
 	if (error || vp == NULL)
 		return ERR_PTR(-ESTALE) ;
 
@@ -160,12 +159,12 @@ xfs_fs_get_parent(
 	struct dentry		*child)
 {
 	int			error;
-	vnode_t			*vp, *cvp;
+	bhv_vnode_t		*vp, *cvp;
 	struct dentry		*parent;
 
 	cvp = NULL;
 	vp = vn_from_inode(child->d_inode);
-	VOP_LOOKUP(vp, &dotdot, &cvp, 0, NULL, NULL, error);
+	error = bhv_vop_lookup(vp, &dotdot, &cvp, 0, NULL, NULL);
 	if (unlikely(error))
 		return ERR_PTR(-error);
 

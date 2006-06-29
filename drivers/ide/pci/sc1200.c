@@ -395,7 +395,6 @@ static int sc1200_resume (struct pci_dev *dev)
 {
 	ide_hwif_t	*hwif = NULL;
 
-printk("SC1200: resume\n");
 	pci_set_power_state(dev, PCI_D0);	// bring chip back from sleep state
 	dev->current_state = PM_EVENT_ON;
 	pci_enable_device(dev);
@@ -405,7 +404,6 @@ printk("SC1200: resume\n");
 	while ((hwif = lookup_pci_dev(hwif, dev)) != NULL) {
 		unsigned int		basereg, r, d, format;
 		sc1200_saved_state_t	*ss = (sc1200_saved_state_t *)hwif->config_data;
-printk("%s: SC1200: resume\n", hwif->name);
 
 		//
 		// Restore timing registers:  this may be unnecessary if BIOS also does it
@@ -493,7 +491,7 @@ static int __devinit sc1200_init_one(struct pci_dev *dev, const struct pci_devic
 }
 
 static struct pci_device_id sc1200_pci_tbl[] = {
-	{ PCI_VENDOR_ID_NS, PCI_DEVICE_ID_NS_SCx200_IDE, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{ PCI_DEVICE(PCI_VENDOR_ID_NS, PCI_DEVICE_ID_NS_SCx200_IDE), 0},
 	{ 0, },
 };
 MODULE_DEVICE_TABLE(pci, sc1200_pci_tbl);

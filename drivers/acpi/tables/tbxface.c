@@ -42,8 +42,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#include <linux/module.h>
-
 #include <acpi/acpi.h>
 #include <acpi/acnamesp.h>
 #include <acpi/actables.h>
@@ -68,7 +66,7 @@ acpi_status acpi_load_tables(void)
 	struct acpi_pointer rsdp_address;
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("acpi_load_tables");
+	ACPI_FUNCTION_TRACE(acpi_load_tables);
 
 	/* Get the RSDP */
 
@@ -123,6 +121,8 @@ acpi_status acpi_load_tables(void)
 	return_ACPI_STATUS(status);
 }
 
+ACPI_EXPORT_SYMBOL(acpi_load_tables)
+
 #ifdef ACPI_FUTURE_USAGE
 /*******************************************************************************
  *
@@ -139,14 +139,13 @@ acpi_status acpi_load_tables(void)
  *              is determined that the table is invalid, the call will fail.
  *
  ******************************************************************************/
-
 acpi_status acpi_load_table(struct acpi_table_header *table_ptr)
 {
 	acpi_status status;
 	struct acpi_table_desc table_info;
 	struct acpi_pointer address;
 
-	ACPI_FUNCTION_TRACE("acpi_load_table");
+	ACPI_FUNCTION_TRACE(acpi_load_table);
 
 	if (!table_ptr) {
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
@@ -174,6 +173,7 @@ acpi_status acpi_load_table(struct acpi_table_header *table_ptr)
 	status = acpi_tb_install_table(&table_info);
 	if (ACPI_FAILURE(status)) {
 		if (status == AE_ALREADY_EXISTS) {
+
 			/* Table already exists, no error */
 
 			status = AE_OK;
@@ -188,12 +188,12 @@ acpi_status acpi_load_table(struct acpi_table_header *table_ptr)
 	/* Convert the table to common format if necessary */
 
 	switch (table_info.type) {
-	case ACPI_TABLE_FADT:
+	case ACPI_TABLE_ID_FADT:
 
 		status = acpi_tb_convert_table_fadt();
 		break;
 
-	case ACPI_TABLE_FACS:
+	case ACPI_TABLE_ID_FACS:
 
 		status = acpi_tb_build_common_facs(&table_info);
 		break;
@@ -208,6 +208,7 @@ acpi_status acpi_load_table(struct acpi_table_header *table_ptr)
 	}
 
 	if (ACPI_FAILURE(status)) {
+
 		/* Uninstall table and free the buffer */
 
 		(void)acpi_tb_uninstall_table(table_info.installed_desc);
@@ -215,6 +216,8 @@ acpi_status acpi_load_table(struct acpi_table_header *table_ptr)
 
 	return_ACPI_STATUS(status);
 }
+
+ACPI_EXPORT_SYMBOL(acpi_load_table)
 
 /*******************************************************************************
  *
@@ -227,16 +230,15 @@ acpi_status acpi_load_table(struct acpi_table_header *table_ptr)
  * DESCRIPTION: This routine is used to force the unload of a table
  *
  ******************************************************************************/
-
 acpi_status acpi_unload_table(acpi_table_type table_type)
 {
 	struct acpi_table_desc *table_desc;
 
-	ACPI_FUNCTION_TRACE("acpi_unload_table");
+	ACPI_FUNCTION_TRACE(acpi_unload_table);
 
 	/* Parameter validation */
 
-	if (table_type > ACPI_TABLE_MAX) {
+	if (table_type > ACPI_TABLE_ID_MAX) {
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
@@ -261,6 +263,8 @@ acpi_status acpi_unload_table(acpi_table_type table_type)
 	return_ACPI_STATUS(AE_OK);
 }
 
+ACPI_EXPORT_SYMBOL(acpi_unload_table)
+
 /*******************************************************************************
  *
  * FUNCTION:    acpi_get_table_header
@@ -281,7 +285,6 @@ acpi_status acpi_unload_table(acpi_table_type table_type)
  *              have a standard header and is fixed length.
  *
  ******************************************************************************/
-
 acpi_status
 acpi_get_table_header(acpi_table_type table_type,
 		      u32 instance, struct acpi_table_header *out_table_header)
@@ -289,16 +292,16 @@ acpi_get_table_header(acpi_table_type table_type,
 	struct acpi_table_header *tbl_ptr;
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("acpi_get_table_header");
+	ACPI_FUNCTION_TRACE(acpi_get_table_header);
 
 	if ((instance == 0) ||
-	    (table_type == ACPI_TABLE_RSDP) || (!out_table_header)) {
+	    (table_type == ACPI_TABLE_ID_RSDP) || (!out_table_header)) {
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
 	/* Check the table type and instance */
 
-	if ((table_type > ACPI_TABLE_MAX) ||
+	if ((table_type > ACPI_TABLE_ID_MAX) ||
 	    (ACPI_IS_SINGLE_TABLE(acpi_gbl_table_data[table_type].flags) &&
 	     instance > 1)) {
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
@@ -325,6 +328,7 @@ acpi_get_table_header(acpi_table_type table_type,
 	return_ACPI_STATUS(status);
 }
 
+ACPI_EXPORT_SYMBOL(acpi_get_table_header)
 #endif				/*  ACPI_FUTURE_USAGE  */
 
 /*******************************************************************************
@@ -349,7 +353,6 @@ acpi_get_table_header(acpi_table_type table_type,
  *              a complete table including the header.
  *
  ******************************************************************************/
-
 acpi_status
 acpi_get_table(acpi_table_type table_type,
 	       u32 instance, struct acpi_buffer *ret_buffer)
@@ -358,7 +361,7 @@ acpi_get_table(acpi_table_type table_type,
 	acpi_status status;
 	acpi_size table_length;
 
-	ACPI_FUNCTION_TRACE("acpi_get_table");
+	ACPI_FUNCTION_TRACE(acpi_get_table);
 
 	/* Parameter validation */
 
@@ -373,7 +376,7 @@ acpi_get_table(acpi_table_type table_type,
 
 	/* Check the table type and instance */
 
-	if ((table_type > ACPI_TABLE_MAX) ||
+	if ((table_type > ACPI_TABLE_ID_MAX) ||
 	    (ACPI_IS_SINGLE_TABLE(acpi_gbl_table_data[table_type].flags) &&
 	     instance > 1)) {
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
@@ -396,7 +399,8 @@ acpi_get_table(acpi_table_type table_type,
 
 	/* Get the table length */
 
-	if (table_type == ACPI_TABLE_RSDP) {
+	if (table_type == ACPI_TABLE_ID_RSDP) {
+
 		/* RSD PTR is the only "table" without a header */
 
 		table_length = sizeof(struct rsdp_descriptor);
@@ -417,4 +421,4 @@ acpi_get_table(acpi_table_type table_type,
 	return_ACPI_STATUS(AE_OK);
 }
 
-EXPORT_SYMBOL(acpi_get_table);
+ACPI_EXPORT_SYMBOL(acpi_get_table)

@@ -388,7 +388,7 @@ static int whiteheat_attach (struct usb_serial *serial)
 	if (ret) {
 		err("%s: Couldn't send command [%d]", serial->type->description, ret);
 		goto no_firmware;
-	} else if (alen != sizeof(command)) {
+	} else if (alen != 2) {
 		err("%s: Send command incomplete [%d]", serial->type->description, alen);
 		goto no_firmware;
 	}
@@ -400,7 +400,7 @@ static int whiteheat_attach (struct usb_serial *serial)
 	if (ret) {
 		err("%s: Couldn't get results [%d]", serial->type->description, ret);
 		goto no_firmware;
-	} else if (alen != sizeof(result)) {
+	} else if (alen != sizeof(*hw_info) + 1) {
 		err("%s: Get results incomplete [%d]", serial->type->description, alen);
 		goto no_firmware;
 	} else if (result[0] != command[0]) {
@@ -686,19 +686,16 @@ static void whiteheat_close(struct usb_serial_port *port, struct file * filp)
 		wrap = list_entry(tmp, struct whiteheat_urb_wrap, list);
 		urb = wrap->urb;
 		usb_kill_urb(urb);
-		list_del(tmp);
-		list_add(tmp, &info->rx_urbs_free);
+		list_move(tmp, &info->rx_urbs_free);
 	}
-	list_for_each_safe(tmp, tmp2, &info->rx_urb_q) {
-		list_del(tmp);
-		list_add(tmp, &info->rx_urbs_free);
-	}
+	list_for_each_safe(tmp, tmp2, &info->rx_urb_q)
+		list_move(tmp, &info->rx_urbs_free);
+
 	list_for_each_safe(tmp, tmp2, &info->tx_urbs_submitted) {
 		wrap = list_entry(tmp, struct whiteheat_urb_wrap, list);
 		urb = wrap->urb;
 		usb_kill_urb(urb);
-		list_del(tmp);
-		list_add(tmp, &info->tx_urbs_free);
+		list_move(tmp, &info->tx_urbs_free);
 	}
 	spin_unlock_irqrestore(&info->lock, flags);
 
@@ -1080,8 +1077,7 @@ static void whiteheat_write_callback(struct urb *urb, struct pt_regs *regs)
 		err("%s - Not my urb!", __FUNCTION__);
 		return;
 	}
-	list_del(&wrap->list);
-	list_add(&wrap->list, &info->tx_urbs_free);
+	list_move(&wrap->list, &info->tx_urbs_free);
 	spin_unlock(&info->lock);
 
 	if (urb->status) {
@@ -1089,9 +1085,7 @@ static void whiteheat_write_callback(struct urb *urb, struct pt_regs *regs)
 		return;
 	}
 
-	usb_serial_port_softint((void *)port);
-
-	schedule_work(&port->work);
+	usb_serial_port_softint(port);
 }
 
 
@@ -1373,8 +1367,7 @@ static int start_port_read(struct usb_serial_port *port)
 				wrap = list_entry(tmp, struct whiteheat_urb_wrap, list);
 				urb = wrap->urb;
 				usb_kill_urb(urb);
-				list_del(tmp);
-				list_add(tmp, &info->rx_urbs_free);
+				list_move(tmp, &info->rx_urbs_free);
 			}
 			break;
 		}

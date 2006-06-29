@@ -27,7 +27,6 @@
 #ifndef __ASM_PB1550_H
 #define __ASM_PB1550_H
 
-#include <linux/config.h>
 #include <linux/types.h>
 
 #define DBDMA_AC97_TX_CHAN DSCR_CMD0_PSC1_TX

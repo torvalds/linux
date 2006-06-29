@@ -4,6 +4,7 @@
 #
 
 obj-$(CONFIG_USB_AUERSWALD)	+= auerswald.o
+obj-$(CONFIG_USB_CY7C63)	+= cy7c63.o
 obj-$(CONFIG_USB_CYTHERM)	+= cytherm.o
 obj-$(CONFIG_USB_EMI26)		+= emi26.o
 obj-$(CONFIG_USB_EMI62)		+= emi62.o
@@ -17,6 +18,7 @@ obj-$(CONFIG_USB_PHIDGETSERVO)	+= phidgetservo.o
 obj-$(CONFIG_USB_RIO500)	+= rio500.o
 obj-$(CONFIG_USB_TEST)		+= usbtest.o
 obj-$(CONFIG_USB_USS720)	+= uss720.o
+obj-$(CONFIG_USB_APPLEDISPLAY)	+= appledisplay.o
 
 obj-$(CONFIG_USB_SISUSBVGA)	+= sisusbvga/
 

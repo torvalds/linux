@@ -1368,17 +1368,17 @@ static int __devinit snd_rme32_create(struct rme32 * rme32)
 		return err;
 	rme32->port = pci_resource_start(rme32->pci, 0);
 
-	if (request_irq(pci->irq, snd_rme32_interrupt, SA_INTERRUPT | SA_SHIRQ, "RME32", (void *) rme32)) {
-		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
-		return -EBUSY;
-	}
-	rme32->irq = pci->irq;
-
 	if ((rme32->iobase = ioremap_nocache(rme32->port, RME32_IO_SIZE)) == 0) {
 		snd_printk(KERN_ERR "unable to remap memory region 0x%lx-0x%lx\n",
 			   rme32->port, rme32->port + RME32_IO_SIZE - 1);
 		return -ENOMEM;
 	}
+
+	if (request_irq(pci->irq, snd_rme32_interrupt, SA_INTERRUPT | SA_SHIRQ, "RME32", (void *) rme32)) {
+		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
+		return -EBUSY;
+	}
+	rme32->irq = pci->irq;
 
 	/* read the card's revision number */
 	pci_read_config_byte(pci, 8, &rme32->rev);
@@ -1578,7 +1578,7 @@ static void __devinit snd_rme32_proc_init(struct rme32 * rme32)
 	struct snd_info_entry *entry;
 
 	if (! snd_card_proc_new(rme32->card, "rme32", &entry))
-		snd_info_set_text_ops(entry, rme32, 1024, snd_rme32_proc_read);
+		snd_info_set_text_ops(entry, rme32, snd_rme32_proc_read);
 }
 
 /*

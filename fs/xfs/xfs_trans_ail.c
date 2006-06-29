@@ -22,7 +22,6 @@
 #include "xfs_inum.h"
 #include "xfs_trans.h"
 #include "xfs_sb.h"
-#include "xfs_dir.h"
 #include "xfs_dmapi.h"
 #include "xfs_mount.h"
 #include "xfs_trans_priv.h"
@@ -363,9 +362,10 @@ xfs_trans_delete_ail(
 			AIL_UNLOCK(mp, s);
 		else {
 			xfs_cmn_err(XFS_PTAG_AILDELETE, CE_ALERT, mp,
-				"xfs_trans_delete_ail: attempting to delete a log item that is not in the AIL");
+		"%s: attempting to delete a log item that is not in the AIL",
+					__FUNCTION__);
 			AIL_UNLOCK(mp, s);
-			xfs_force_shutdown(mp, XFS_CORRUPT_INCORE);
+			xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
 		}
 	}
 }

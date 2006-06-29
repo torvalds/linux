@@ -234,14 +234,6 @@ See Packet Engines confidential appendix (prototype chips only).
 
 
 
-enum pci_id_flags_bits {
-	/* Set PCI command register bits before calling probe1(). */
-	PCI_USES_IO=1, PCI_USES_MEM=2, PCI_USES_MASTER=4,
-	/* Read and map the single following PCI BAR. */
-	PCI_ADDR0=0<<4, PCI_ADDR1=1<<4, PCI_ADDR2=2<<4, PCI_ADDR3=3<<4,
-	PCI_ADDR_64BITS=0x100, PCI_NO_ACPI_WAKE=0x200, PCI_NO_MIN_LATENCY=0x400,
-	PCI_UNUSED_IRQ=0x800,
-};
 enum capability_flags {
 	HasMII=1, FullTxStatus=2, IsGigabit=4, HasMulticastBug=8, FullRxStatus=16,
 	HasMACAddrBug=32, /* Only on early revs.  */
@@ -249,11 +241,6 @@ enum capability_flags {
 };
 /* The PCI I/O space extent. */
 #define YELLOWFIN_SIZE 0x100
-#ifdef USE_IO_OPS
-#define PCI_IOTYPE (PCI_USES_MASTER | PCI_USES_IO  | PCI_ADDR0)
-#else
-#define PCI_IOTYPE (PCI_USES_MASTER | PCI_USES_MEM | PCI_ADDR1)
-#endif
 
 struct pci_id_info {
         const char *name;
@@ -261,24 +248,23 @@ struct pci_id_info {
                 int     pci, pci_mask, subsystem, subsystem_mask;
                 int revision, revision_mask;                            /* Only 8 bits. */
         } id;
-        enum pci_id_flags_bits pci_flags;
         int io_size;                            /* Needed for I/O region check or ioremap(). */
         int drv_flags;                          /* Driver use, intended as capability flags. */
 };
 
 static const struct pci_id_info pci_id_tbl[] = {
 	{"Yellowfin G-NIC Gigabit Ethernet", { 0x07021000, 0xffffffff},
-	 PCI_IOTYPE, YELLOWFIN_SIZE,
+	 YELLOWFIN_SIZE,
 	 FullTxStatus | IsGigabit | HasMulticastBug | HasMACAddrBug | DontUseEeprom},
 	{"Symbios SYM83C885", { 0x07011000, 0xffffffff},
-	 PCI_IOTYPE, YELLOWFIN_SIZE, HasMII | DontUseEeprom },
-	{NULL,},
+	 YELLOWFIN_SIZE, HasMII | DontUseEeprom },
+	{ }
 };
 
-static struct pci_device_id yellowfin_pci_tbl[] = {
+static const struct pci_device_id yellowfin_pci_tbl[] = {
 	{ 0x1000, 0x0702, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ 0x1000, 0x0701, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 1 },
-	{ 0, }
+	{ }
 };
 MODULE_DEVICE_TABLE (pci, yellowfin_pci_tbl);
 
@@ -862,13 +848,11 @@ static int yellowfin_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		/* Fix GX chipset errata. */
 		if (cacheline_end > 24  || cacheline_end == 0) {
 			len = skb->len + 32 - cacheline_end + 1;
-			if (len != skb->len)
-				skb = skb_padto(skb, len);
-		}
-		if (skb == NULL) {
-			yp->tx_skbuff[entry] = NULL;
-			netif_wake_queue(dev);
-			return 0;
+			if (skb_padto(skb, len)) {
+				yp->tx_skbuff[entry] = NULL;
+				netif_wake_queue(dev);
+				return 0;
+			}
 		}
 	}
 	yp->tx_skbuff[entry] = skb;

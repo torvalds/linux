@@ -379,14 +379,14 @@ static inline u32 mpic_physmask(u32 cpumask)
 /* Get the mpic structure from the IPI number */
 static inline struct mpic * mpic_from_ipi(unsigned int ipi)
 {
-	return container_of(irq_desc[ipi].handler, struct mpic, hc_ipi);
+	return container_of(irq_desc[ipi].chip, struct mpic, hc_ipi);
 }
 #endif
 
 /* Get the mpic structure from the irq number */
 static inline struct mpic * mpic_from_irq(unsigned int irq)
 {
-	return container_of(irq_desc[irq].handler, struct mpic, hc_irq);
+	return container_of(irq_desc[irq].chip, struct mpic, hc_irq);
 }
 
 /* Send an EOI */
@@ -752,7 +752,7 @@ void __init mpic_init(struct mpic *mpic)
 		if (!(mpic->flags & MPIC_PRIMARY))
 			continue;
 		irq_desc[mpic->ipi_offset+i].status |= IRQ_PER_CPU;
-		irq_desc[mpic->ipi_offset+i].handler = &mpic->hc_ipi;
+		irq_desc[mpic->ipi_offset+i].chip = &mpic->hc_ipi;
 #endif /* CONFIG_SMP */
 	}
 
@@ -813,7 +813,7 @@ void __init mpic_init(struct mpic *mpic)
 		/* init linux descriptors */
 		if (i < mpic->irq_count) {
 			irq_desc[mpic->irq_offset+i].status = level ? IRQ_LEVEL : 0;
-			irq_desc[mpic->irq_offset+i].handler = &mpic->hc_irq;
+			irq_desc[mpic->irq_offset+i].chip = &mpic->hc_irq;
 		}
 	}
 	
@@ -829,7 +829,27 @@ void __init mpic_init(struct mpic *mpic)
 	mpic_cpu_write(MPIC_CPU_CURRENT_TASK_PRI, 0);
 }
 
+void __init mpic_set_clk_ratio(struct mpic *mpic, u32 clock_ratio)
+{
+	u32 v;
 
+	v = mpic_read(mpic->gregs, MPIC_GREG_GLOBAL_CONF_1);
+	v &= ~MPIC_GREG_GLOBAL_CONF_1_CLK_RATIO_MASK;
+	v |= MPIC_GREG_GLOBAL_CONF_1_CLK_RATIO(clock_ratio);
+	mpic_write(mpic->gregs, MPIC_GREG_GLOBAL_CONF_1, v);
+}
+
+void __init mpic_set_serial_int(struct mpic *mpic, int enable)
+{
+	u32 v;
+
+	v = mpic_read(mpic->gregs, MPIC_GREG_GLOBAL_CONF_1);
+	if (enable)
+		v |= MPIC_GREG_GLOBAL_CONF_1_SIE;
+	else
+		v &= ~MPIC_GREG_GLOBAL_CONF_1_SIE;
+	mpic_write(mpic->gregs, MPIC_GREG_GLOBAL_CONF_1, v);
+}
 
 void mpic_irq_set_priority(unsigned int irq, unsigned int pri)
 {
@@ -886,7 +906,7 @@ void mpic_setup_this_cpu(void)
  	/* let the mpic know we want intrs. default affinity is 0xffffffff
 	 * until changed via /proc. That's how it's done on x86. If we want
 	 * it differently, then we should make sure we also change the default
-	 * values of irq_affinity in irq.c.
+	 * values of irq_desc[].affinity in irq.c.
  	 */
 	if (distribute_irqs) {
 	 	for (i = 0; i < mpic->num_sources ; i++)

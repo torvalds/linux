@@ -483,7 +483,7 @@ static inline int vrc4173_icu_init(int cascade_irq)
 	vr41xx_set_irq_level(GIU_IRQ_TO_PIN(cascade_irq), LEVEL_LOW);
 
 	for (i = VRC4173_IRQ_BASE; i <= VRC4173_IRQ_LAST; i++)
-                irq_desc[i].handler = &vrc4173_irq_type;
+                irq_desc[i].chip = &vrc4173_irq_type;
 
 	return 0;
 }

@@ -8,7 +8,6 @@
 #ifndef _ASM_FCNTL_H
 #define _ASM_FCNTL_H
 
-#include <linux/config.h>
 
 #define O_APPEND	0x0008
 #define O_SYNC		0x0010

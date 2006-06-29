@@ -39,13 +39,6 @@ struct cx22702_config
 #define CX22702_PARALLEL_OUTPUT 0
 #define CX22702_SERIAL_OUTPUT   1
 	u8 output_mode;
-
-	/* PLL maintenance */
-	u8 pll_address;
-	struct dvb_pll_desc *pll_desc;
-
-	int (*pll_init)(struct dvb_frontend* fe);
-	int (*pll_set)(struct dvb_frontend* fe, struct dvb_frontend_parameters* params);
 };
 
 extern struct dvb_frontend* cx22702_attach(const struct cx22702_config* config,

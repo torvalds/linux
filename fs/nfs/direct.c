@@ -892,7 +892,7 @@ out:
  * nfs_init_directcache - create a slab cache for nfs_direct_req structures
  *
  */
-int nfs_init_directcache(void)
+int __init nfs_init_directcache(void)
 {
 	nfs_direct_cachep = kmem_cache_create("nfs_direct_cache",
 						sizeof(struct nfs_direct_req),
@@ -906,7 +906,7 @@ int nfs_init_directcache(void)
 }
 
 /**
- * nfs_init_directcache - destroy the slab cache for nfs_direct_req structures
+ * nfs_destroy_directcache - destroy the slab cache for nfs_direct_req structures
  *
  */
 void nfs_destroy_directcache(void)

@@ -906,11 +906,6 @@ static void __exit xxxfb_exit(void)
 }
 #endif
 
-MODULE_LICENSE("GPL");
-module_init(xxxfb_init);
-module_exit(xxxfb_exit);
-
-
     /*
      *  Setup
      */

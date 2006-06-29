@@ -21,14 +21,6 @@
 #include "swab.h"
 #include "util.h"
 
-#undef UFS_BALLOC_DEBUG
-
-#ifdef UFS_BALLOC_DEBUG
-#define UFSD(x) printk("(%s, %d), %s:", __FILE__, __LINE__, __FUNCTION__); printk x;
-#else
-#define UFSD(x)
-#endif
-
 static unsigned ufs_add_fragments (struct inode *, unsigned, unsigned, unsigned, int *);
 static unsigned ufs_alloc_fragments (struct inode *, unsigned, unsigned, unsigned, int *);
 static unsigned ufs_alloccg_block (struct inode *, struct ufs_cg_private_info *, unsigned, int *);
@@ -39,7 +31,8 @@ static void ufs_clusteracct(struct super_block *, struct ufs_cg_private_info *, 
 /*
  * Free 'count' fragments from fragment number 'fragment'
  */
-void ufs_free_fragments (struct inode * inode, unsigned fragment, unsigned count) {
+void ufs_free_fragments(struct inode *inode, unsigned fragment, unsigned count)
+{
 	struct super_block * sb;
 	struct ufs_sb_private_info * uspi;
 	struct ufs_super_block_first * usb1;
@@ -51,7 +44,7 @@ void ufs_free_fragments (struct inode * inode, unsigned fragment, unsigned count
 	uspi = UFS_SB(sb)->s_uspi;
 	usb1 = ubh_get_usb_first(uspi);
 	
-	UFSD(("ENTER, fragment %u, count %u\n", fragment, count))
+	UFSD("ENTER, fragment %u, count %u\n", fragment, count);
 	
 	if (ufs_fragnum(fragment) + count > uspi->s_fpg)
 		ufs_error (sb, "ufs_free_fragments", "internal error");
@@ -68,7 +61,7 @@ void ufs_free_fragments (struct inode * inode, unsigned fragment, unsigned count
 	ucpi = ufs_load_cylinder (sb, cgno);
 	if (!ucpi) 
 		goto failed;
-	ucg = ubh_get_ucg (UCPI_UBH);
+	ucg = ubh_get_ucg (UCPI_UBH(ucpi));
 	if (!ufs_cg_chkmagic(sb, ucg)) {
 		ufs_panic (sb, "ufs_free_fragments", "internal error, bad magic number on cg %u", cgno);
 		goto failed;
@@ -76,11 +69,11 @@ void ufs_free_fragments (struct inode * inode, unsigned fragment, unsigned count
 
 	end_bit = bit + count;
 	bbase = ufs_blknum (bit);
-	blkmap = ubh_blkmap (UCPI_UBH, ucpi->c_freeoff, bbase);
+	blkmap = ubh_blkmap (UCPI_UBH(ucpi), ucpi->c_freeoff, bbase);
 	ufs_fragacct (sb, blkmap, ucg->cg_frsum, -1);
 	for (i = bit; i < end_bit; i++) {
-		if (ubh_isclr (UCPI_UBH, ucpi->c_freeoff, i))
-			ubh_setbit (UCPI_UBH, ucpi->c_freeoff, i);
+		if (ubh_isclr (UCPI_UBH(ucpi), ucpi->c_freeoff, i))
+			ubh_setbit (UCPI_UBH(ucpi), ucpi->c_freeoff, i);
 		else 
 			ufs_error (sb, "ufs_free_fragments",
 				   "bit already cleared for fragment %u", i);
@@ -90,51 +83,52 @@ void ufs_free_fragments (struct inode * inode, unsigned fragment, unsigned count
 
 	
 	fs32_add(sb, &ucg->cg_cs.cs_nffree, count);
-	fs32_add(sb, &usb1->fs_cstotal.cs_nffree, count);
+	uspi->cs_total.cs_nffree += count;
 	fs32_add(sb, &UFS_SB(sb)->fs_cs(cgno).cs_nffree, count);
-	blkmap = ubh_blkmap (UCPI_UBH, ucpi->c_freeoff, bbase);
+	blkmap = ubh_blkmap (UCPI_UBH(ucpi), ucpi->c_freeoff, bbase);
 	ufs_fragacct(sb, blkmap, ucg->cg_frsum, 1);
 
 	/*
 	 * Trying to reassemble free fragments into block
 	 */
 	blkno = ufs_fragstoblks (bbase);
-	if (ubh_isblockset(UCPI_UBH, ucpi->c_freeoff, blkno)) {
+	if (ubh_isblockset(UCPI_UBH(ucpi), ucpi->c_freeoff, blkno)) {
 		fs32_sub(sb, &ucg->cg_cs.cs_nffree, uspi->s_fpb);
-		fs32_sub(sb, &usb1->fs_cstotal.cs_nffree, uspi->s_fpb);
+		uspi->cs_total.cs_nffree -= uspi->s_fpb;
 		fs32_sub(sb, &UFS_SB(sb)->fs_cs(cgno).cs_nffree, uspi->s_fpb);
 		if ((UFS_SB(sb)->s_flags & UFS_CG_MASK) == UFS_CG_44BSD)
 			ufs_clusteracct (sb, ucpi, blkno, 1);
 		fs32_add(sb, &ucg->cg_cs.cs_nbfree, 1);
-		fs32_add(sb, &usb1->fs_cstotal.cs_nbfree, 1);
+		uspi->cs_total.cs_nbfree++;
 		fs32_add(sb, &UFS_SB(sb)->fs_cs(cgno).cs_nbfree, 1);
 		cylno = ufs_cbtocylno (bbase);
 		fs16_add(sb, &ubh_cg_blks(ucpi, cylno, ufs_cbtorpos(bbase)), 1);
 		fs32_add(sb, &ubh_cg_blktot(ucpi, cylno), 1);
 	}
 	
-	ubh_mark_buffer_dirty (USPI_UBH);
-	ubh_mark_buffer_dirty (UCPI_UBH);
+	ubh_mark_buffer_dirty (USPI_UBH(uspi));
+	ubh_mark_buffer_dirty (UCPI_UBH(ucpi));
 	if (sb->s_flags & MS_SYNCHRONOUS) {
-		ubh_ll_rw_block (SWRITE, 1, (struct ufs_buffer_head **)&ucpi);
-		ubh_wait_on_buffer (UCPI_UBH);
+		ubh_ll_rw_block(SWRITE, UCPI_UBH(ucpi));
+		ubh_wait_on_buffer (UCPI_UBH(ucpi));
 	}
 	sb->s_dirt = 1;
 	
 	unlock_super (sb);
-	UFSD(("EXIT\n"))
+	UFSD("EXIT\n");
 	return;
 
 failed:
 	unlock_super (sb);
-	UFSD(("EXIT (FAILED)\n"))
+	UFSD("EXIT (FAILED)\n");
 	return;
 }
 
 /*
  * Free 'count' fragments from fragment number 'fragment' (free whole blocks)
  */
-void ufs_free_blocks (struct inode * inode, unsigned fragment, unsigned count) {
+void ufs_free_blocks(struct inode *inode, unsigned fragment, unsigned count)
+{
 	struct super_block * sb;
 	struct ufs_sb_private_info * uspi;
 	struct ufs_super_block_first * usb1;
@@ -146,7 +140,7 @@ void ufs_free_blocks (struct inode * inode, unsigned fragment, unsigned count) {
 	uspi = UFS_SB(sb)->s_uspi;
 	usb1 = ubh_get_usb_first(uspi);
 
-	UFSD(("ENTER, fragment %u, count %u\n", fragment, count))
+	UFSD("ENTER, fragment %u, count %u\n", fragment, count);
 	
 	if ((fragment & uspi->s_fpbmask) || (count & uspi->s_fpbmask)) {
 		ufs_error (sb, "ufs_free_blocks", "internal error, "
@@ -162,7 +156,7 @@ do_more:
 	bit = ufs_dtogd (fragment);
 	if (cgno >= uspi->s_ncg) {
 		ufs_panic (sb, "ufs_free_blocks", "freeing blocks are outside device");
-		goto failed;
+		goto failed_unlock;
 	}
 	end_bit = bit + count;
 	if (end_bit > uspi->s_fpg) {
@@ -173,36 +167,36 @@ do_more:
 
 	ucpi = ufs_load_cylinder (sb, cgno);
 	if (!ucpi) 
-		goto failed;
-	ucg = ubh_get_ucg (UCPI_UBH);
+		goto failed_unlock;
+	ucg = ubh_get_ucg (UCPI_UBH(ucpi));
 	if (!ufs_cg_chkmagic(sb, ucg)) {
 		ufs_panic (sb, "ufs_free_blocks", "internal error, bad magic number on cg %u", cgno);
-		goto failed;
+		goto failed_unlock;
 	}
 
 	for (i = bit; i < end_bit; i += uspi->s_fpb) {
 		blkno = ufs_fragstoblks(i);
-		if (ubh_isblockset(UCPI_UBH, ucpi->c_freeoff, blkno)) {
+		if (ubh_isblockset(UCPI_UBH(ucpi), ucpi->c_freeoff, blkno)) {
 			ufs_error(sb, "ufs_free_blocks", "freeing free fragment");
 		}
-		ubh_setblock(UCPI_UBH, ucpi->c_freeoff, blkno);
+		ubh_setblock(UCPI_UBH(ucpi), ucpi->c_freeoff, blkno);
 		if ((UFS_SB(sb)->s_flags & UFS_CG_MASK) == UFS_CG_44BSD)
 			ufs_clusteracct (sb, ucpi, blkno, 1);
 		DQUOT_FREE_BLOCK(inode, uspi->s_fpb);
 
 		fs32_add(sb, &ucg->cg_cs.cs_nbfree, 1);
-		fs32_add(sb, &usb1->fs_cstotal.cs_nbfree, 1);
+		uspi->cs_total.cs_nbfree++;
 		fs32_add(sb, &UFS_SB(sb)->fs_cs(cgno).cs_nbfree, 1);
 		cylno = ufs_cbtocylno(i);
 		fs16_add(sb, &ubh_cg_blks(ucpi, cylno, ufs_cbtorpos(i)), 1);
 		fs32_add(sb, &ubh_cg_blktot(ucpi, cylno), 1);
 	}
 
-	ubh_mark_buffer_dirty (USPI_UBH);
-	ubh_mark_buffer_dirty (UCPI_UBH);
+	ubh_mark_buffer_dirty (USPI_UBH(uspi));
+	ubh_mark_buffer_dirty (UCPI_UBH(ucpi));
 	if (sb->s_flags & MS_SYNCHRONOUS) {
-		ubh_ll_rw_block (SWRITE, 1, (struct ufs_buffer_head **)&ucpi);
-		ubh_wait_on_buffer (UCPI_UBH);
+		ubh_ll_rw_block(SWRITE, UCPI_UBH(ucpi));
+		ubh_wait_on_buffer (UCPI_UBH(ucpi));
 	}
 
 	if (overflow) {
@@ -213,38 +207,127 @@ do_more:
 
 	sb->s_dirt = 1;
 	unlock_super (sb);
-	UFSD(("EXIT\n"))
+	UFSD("EXIT\n");
 	return;
 
-failed:
+failed_unlock:
 	unlock_super (sb);
-	UFSD(("EXIT (FAILED)\n"))
+failed:
+	UFSD("EXIT (FAILED)\n");
 	return;
 }
 
+static struct page *ufs_get_locked_page(struct address_space *mapping,
+				  unsigned long index)
+{
+	struct page *page;
 
+try_again:
+	page = find_lock_page(mapping, index);
+	if (!page) {
+		page = read_cache_page(mapping, index,
+				       (filler_t*)mapping->a_ops->readpage,
+				       NULL);
+		if (IS_ERR(page)) {
+			printk(KERN_ERR "ufs_change_blocknr: "
+			       "read_cache_page error: ino %lu, index: %lu\n",
+			       mapping->host->i_ino, index);
+			goto out;
+		}
 
-#define NULLIFY_FRAGMENTS \
-	for (i = oldcount; i < newcount; i++) { \
-		bh = sb_getblk(sb, result + i); \
-		memset (bh->b_data, 0, sb->s_blocksize); \
-		set_buffer_uptodate(bh); \
-		mark_buffer_dirty (bh); \
-		if (IS_SYNC(inode)) \
-			sync_dirty_buffer(bh); \
-		brelse (bh); \
+		lock_page(page);
+
+		if (!PageUptodate(page) || PageError(page)) {
+			unlock_page(page);
+			page_cache_release(page);
+
+			printk(KERN_ERR "ufs_change_blocknr: "
+			       "can not read page: ino %lu, index: %lu\n",
+			       mapping->host->i_ino, index);
+
+			page = ERR_PTR(-EIO);
+			goto out;
+		}
 	}
 
-unsigned ufs_new_fragments (struct inode * inode, __fs32 * p, unsigned fragment,
-	unsigned goal, unsigned count, int * err )
+	if (unlikely(!page->mapping || !page_has_buffers(page))) {
+		unlock_page(page);
+		page_cache_release(page);
+		goto try_again;/*we really need these buffers*/
+	}
+out:
+	return page;
+}
+
+/*
+ * Modify inode page cache in such way:
+ * have - blocks with b_blocknr equal to oldb...oldb+count-1
+ * get - blocks with b_blocknr equal to newb...newb+count-1
+ * also we suppose that oldb...oldb+count-1 blocks
+ * situated at the end of file.
+ *
+ * We can come here from ufs_writepage or ufs_prepare_write,
+ * locked_page is argument of these functions, so we already lock it.
+ */
+static void ufs_change_blocknr(struct inode *inode, unsigned int baseblk,
+			       unsigned int count, unsigned int oldb,
+			       unsigned int newb, struct page *locked_page)
+{
+	unsigned int blk_per_page = 1 << (PAGE_CACHE_SHIFT - inode->i_blkbits);
+	struct address_space *mapping = inode->i_mapping;
+	pgoff_t index, cur_index = locked_page->index;
+	unsigned int i, j;
+	struct page *page;
+	struct buffer_head *head, *bh;
+
+	UFSD("ENTER, ino %lu, count %u, oldb %u, newb %u\n",
+	      inode->i_ino, count, oldb, newb);
+
+	BUG_ON(!PageLocked(locked_page));
+
+	for (i = 0; i < count; i += blk_per_page) {
+		index = (baseblk+i) >> (PAGE_CACHE_SHIFT - inode->i_blkbits);
+
+		if (likely(cur_index != index)) {
+			page = ufs_get_locked_page(mapping, index);
+			if (IS_ERR(page))
+				continue;
+		} else
+			page = locked_page;
+
+		j = i;
+		head = page_buffers(page);
+		bh = head;
+		do {
+			if (likely(bh->b_blocknr == j + oldb && j < count)) {
+				unmap_underlying_metadata(bh->b_bdev,
+							  bh->b_blocknr);
+				bh->b_blocknr = newb + j++;
+				mark_buffer_dirty(bh);
+			}
+
+			bh = bh->b_this_page;
+		} while (bh != head);
+
+		set_page_dirty(page);
+
+		if (likely(cur_index != index)) {
+			unlock_page(page);
+			page_cache_release(page);
+		}
+ 	}
+	UFSD("EXIT\n");
+}
+
+unsigned ufs_new_fragments(struct inode * inode, __fs32 * p, unsigned fragment,
+			   unsigned goal, unsigned count, int * err, struct page *locked_page)
 {
 	struct super_block * sb;
 	struct ufs_sb_private_info * uspi;
 	struct ufs_super_block_first * usb1;
-	struct buffer_head * bh;
-	unsigned cgno, oldcount, newcount, tmp, request, i, result;
+	unsigned cgno, oldcount, newcount, tmp, request, result;
 	
-	UFSD(("ENTER, ino %lu, fragment %u, goal %u, count %u\n", inode->i_ino, fragment, goal, count))
+	UFSD("ENTER, ino %lu, fragment %u, goal %u, count %u\n", inode->i_ino, fragment, goal, count);
 	
 	sb = inode->i_sb;
 	uspi = UFS_SB(sb)->s_uspi;
@@ -273,14 +356,14 @@ unsigned ufs_new_fragments (struct inode * inode, __fs32 * p, unsigned fragment,
 			return (unsigned)-1;
 		}
 		if (fragment < UFS_I(inode)->i_lastfrag) {
-			UFSD(("EXIT (ALREADY ALLOCATED)\n"))
+			UFSD("EXIT (ALREADY ALLOCATED)\n");
 			unlock_super (sb);
 			return 0;
 		}
 	}
 	else {
 		if (tmp) {
-			UFSD(("EXIT (ALREADY ALLOCATED)\n"))
+			UFSD("EXIT (ALREADY ALLOCATED)\n");
 			unlock_super(sb);
 			return 0;
 		}
@@ -289,9 +372,9 @@ unsigned ufs_new_fragments (struct inode * inode, __fs32 * p, unsigned fragment,
 	/*
 	 * There is not enough space for user on the device
 	 */
-	if (!capable(CAP_SYS_RESOURCE) && ufs_freespace(usb1, UFS_MINFREE) <= 0) {
+	if (!capable(CAP_SYS_RESOURCE) && ufs_freespace(uspi, UFS_MINFREE) <= 0) {
 		unlock_super (sb);
-		UFSD(("EXIT (FAILED)\n"))
+		UFSD("EXIT (FAILED)\n");
 		return 0;
 	}
 
@@ -310,12 +393,10 @@ unsigned ufs_new_fragments (struct inode * inode, __fs32 * p, unsigned fragment,
 		if (result) {
 			*p = cpu_to_fs32(sb, result);
 			*err = 0;
-			inode->i_blocks += count << uspi->s_nspfshift;
 			UFS_I(inode)->i_lastfrag = max_t(u32, UFS_I(inode)->i_lastfrag, fragment + count);
-			NULLIFY_FRAGMENTS
 		}
 		unlock_super(sb);
-		UFSD(("EXIT, result %u\n", result))
+		UFSD("EXIT, result %u\n", result);
 		return result;
 	}
 
@@ -325,11 +406,9 @@ unsigned ufs_new_fragments (struct inode * inode, __fs32 * p, unsigned fragment,
 	result = ufs_add_fragments (inode, tmp, oldcount, newcount, err);
 	if (result) {
 		*err = 0;
-		inode->i_blocks += count << uspi->s_nspfshift;
 		UFS_I(inode)->i_lastfrag = max_t(u32, UFS_I(inode)->i_lastfrag, fragment + count);
-		NULLIFY_FRAGMENTS
 		unlock_super(sb);
-		UFSD(("EXIT, result %u\n", result))
+		UFSD("EXIT, result %u\n", result);
 		return result;
 	}
 
@@ -339,8 +418,8 @@ unsigned ufs_new_fragments (struct inode * inode, __fs32 * p, unsigned fragment,
 	switch (fs32_to_cpu(sb, usb1->fs_optim)) {
 	    case UFS_OPTSPACE:
 		request = newcount;
-		if (uspi->s_minfree < 5 || fs32_to_cpu(sb, usb1->fs_cstotal.cs_nffree) 
-		    > uspi->s_dsize * uspi->s_minfree / (2 * 100) )
+		if (uspi->s_minfree < 5 || uspi->cs_total.cs_nffree
+		    > uspi->s_dsize * uspi->s_minfree / (2 * 100))
 			break;
 		usb1->fs_optim = cpu_to_fs32(sb, UFS_OPTTIME);
 		break;
@@ -349,7 +428,7 @@ unsigned ufs_new_fragments (struct inode * inode, __fs32 * p, unsigned fragment,
 	
 	    case UFS_OPTTIME:
 		request = uspi->s_fpb;
-		if (fs32_to_cpu(sb, usb1->fs_cstotal.cs_nffree) < uspi->s_dsize *
+		if (uspi->cs_total.cs_nffree < uspi->s_dsize *
 		    (uspi->s_minfree - 2) / 100)
 			break;
 		usb1->fs_optim = cpu_to_fs32(sb, UFS_OPTTIME);
@@ -357,39 +436,22 @@ unsigned ufs_new_fragments (struct inode * inode, __fs32 * p, unsigned fragment,
 	}
 	result = ufs_alloc_fragments (inode, cgno, goal, request, err);
 	if (result) {
-		for (i = 0; i < oldcount; i++) {
-			bh = sb_bread(sb, tmp + i);
-			if(bh)
-			{
-				clear_buffer_dirty(bh);
-				bh->b_blocknr = result + i;
-				mark_buffer_dirty (bh);
-				if (IS_SYNC(inode))
-					sync_dirty_buffer(bh);
-				brelse (bh);
-			}
-			else
-			{
-				printk(KERN_ERR "ufs_new_fragments: bread fail\n");
-				unlock_super(sb);
-				return 0;
-			}
-		}
+		ufs_change_blocknr(inode, fragment - oldcount, oldcount, tmp,
+				   result, locked_page);
+
 		*p = cpu_to_fs32(sb, result);
 		*err = 0;
-		inode->i_blocks += count << uspi->s_nspfshift;
 		UFS_I(inode)->i_lastfrag = max_t(u32, UFS_I(inode)->i_lastfrag, fragment + count);
-		NULLIFY_FRAGMENTS
 		unlock_super(sb);
 		if (newcount < request)
 			ufs_free_fragments (inode, result + newcount, request - newcount);
 		ufs_free_fragments (inode, tmp, oldcount);
-		UFSD(("EXIT, result %u\n", result))
+		UFSD("EXIT, result %u\n", result);
 		return result;
 	}
 
 	unlock_super(sb);
-	UFSD(("EXIT (FAILED)\n"))
+	UFSD("EXIT (FAILED)\n");
 	return 0;
 }		
 
@@ -404,7 +466,7 @@ ufs_add_fragments (struct inode * inode, unsigned fragment,
 	struct ufs_cylinder_group * ucg;
 	unsigned cgno, fragno, fragoff, count, fragsize, i;
 	
-	UFSD(("ENTER, fragment %u, oldcount %u, newcount %u\n", fragment, oldcount, newcount))
+	UFSD("ENTER, fragment %u, oldcount %u, newcount %u\n", fragment, oldcount, newcount);
 	
 	sb = inode->i_sb;
 	uspi = UFS_SB(sb)->s_uspi;
@@ -419,7 +481,7 @@ ufs_add_fragments (struct inode * inode, unsigned fragment,
 	ucpi = ufs_load_cylinder (sb, cgno);
 	if (!ucpi)
 		return 0;
-	ucg = ubh_get_ucg (UCPI_UBH);
+	ucg = ubh_get_ucg (UCPI_UBH(ucpi));
 	if (!ufs_cg_chkmagic(sb, ucg)) {
 		ufs_panic (sb, "ufs_add_fragments",
 			"internal error, bad magic number on cg %u", cgno);
@@ -429,14 +491,14 @@ ufs_add_fragments (struct inode * inode, unsigned fragment,
 	fragno = ufs_dtogd (fragment);
 	fragoff = ufs_fragnum (fragno);
 	for (i = oldcount; i < newcount; i++)
-		if (ubh_isclr (UCPI_UBH, ucpi->c_freeoff, fragno + i))
+		if (ubh_isclr (UCPI_UBH(ucpi), ucpi->c_freeoff, fragno + i))
 			return 0;
 	/*
 	 * Block can be extended
 	 */
 	ucg->cg_time = cpu_to_fs32(sb, get_seconds());
 	for (i = newcount; i < (uspi->s_fpb - fragoff); i++)
-		if (ubh_isclr (UCPI_UBH, ucpi->c_freeoff, fragno + i))
+		if (ubh_isclr (UCPI_UBH(ucpi), ucpi->c_freeoff, fragno + i))
 			break;
 	fragsize = i - oldcount;
 	if (!fs32_to_cpu(sb, ucg->cg_frsum[fragsize]))
@@ -446,7 +508,7 @@ ufs_add_fragments (struct inode * inode, unsigned fragment,
 	if (fragsize != count)
 		fs32_add(sb, &ucg->cg_frsum[fragsize - count], 1);
 	for (i = oldcount; i < newcount; i++)
-		ubh_clrbit (UCPI_UBH, ucpi->c_freeoff, fragno + i);
+		ubh_clrbit (UCPI_UBH(ucpi), ucpi->c_freeoff, fragno + i);
 	if(DQUOT_ALLOC_BLOCK(inode, count)) {
 		*err = -EDQUOT;
 		return 0;
@@ -454,17 +516,17 @@ ufs_add_fragments (struct inode * inode, unsigned fragment,
 
 	fs32_sub(sb, &ucg->cg_cs.cs_nffree, count);
 	fs32_sub(sb, &UFS_SB(sb)->fs_cs(cgno).cs_nffree, count);
-	fs32_sub(sb, &usb1->fs_cstotal.cs_nffree, count);
+	uspi->cs_total.cs_nffree -= count;
 	
-	ubh_mark_buffer_dirty (USPI_UBH);
-	ubh_mark_buffer_dirty (UCPI_UBH);
+	ubh_mark_buffer_dirty (USPI_UBH(uspi));
+	ubh_mark_buffer_dirty (UCPI_UBH(ucpi));
 	if (sb->s_flags & MS_SYNCHRONOUS) {
-		ubh_ll_rw_block (SWRITE, 1, (struct ufs_buffer_head **)&ucpi);
-		ubh_wait_on_buffer (UCPI_UBH);
+		ubh_ll_rw_block(SWRITE, UCPI_UBH(ucpi));
+		ubh_wait_on_buffer (UCPI_UBH(ucpi));
 	}
 	sb->s_dirt = 1;
 
-	UFSD(("EXIT, fragment %u\n", fragment))
+	UFSD("EXIT, fragment %u\n", fragment);
 	
 	return fragment;
 }
@@ -487,7 +549,7 @@ static unsigned ufs_alloc_fragments (struct inode * inode, unsigned cgno,
 	struct ufs_cylinder_group * ucg;
 	unsigned oldcg, i, j, k, result, allocsize;
 	
-	UFSD(("ENTER, ino %lu, cgno %u, goal %u, count %u\n", inode->i_ino, cgno, goal, count))
+	UFSD("ENTER, ino %lu, cgno %u, goal %u, count %u\n", inode->i_ino, cgno, goal, count);
 
 	sb = inode->i_sb;
 	uspi = UFS_SB(sb)->s_uspi;
@@ -521,14 +583,14 @@ static unsigned ufs_alloc_fragments (struct inode * inode, unsigned cgno,
 		UFS_TEST_FREE_SPACE_CG
 	}
 	
-	UFSD(("EXIT (FAILED)\n"))
+	UFSD("EXIT (FAILED)\n");
 	return 0;
 
 cg_found:
 	ucpi = ufs_load_cylinder (sb, cgno);
 	if (!ucpi)
 		return 0;
-	ucg = ubh_get_ucg (UCPI_UBH);
+	ucg = ubh_get_ucg (UCPI_UBH(ucpi));
 	if (!ufs_cg_chkmagic(sb, ucg)) 
 		ufs_panic (sb, "ufs_alloc_fragments",
 			"internal error, bad magic number on cg %u", cgno);
@@ -551,12 +613,12 @@ cg_found:
 			return 0;
 		goal = ufs_dtogd (result);
 		for (i = count; i < uspi->s_fpb; i++)
-			ubh_setbit (UCPI_UBH, ucpi->c_freeoff, goal + i);
+			ubh_setbit (UCPI_UBH(ucpi), ucpi->c_freeoff, goal + i);
 		i = uspi->s_fpb - count;
 		DQUOT_FREE_BLOCK(inode, i);
 
 		fs32_add(sb, &ucg->cg_cs.cs_nffree, i);
-		fs32_add(sb, &usb1->fs_cstotal.cs_nffree, i);
+		uspi->cs_total.cs_nffree += i;
 		fs32_add(sb, &UFS_SB(sb)->fs_cs(cgno).cs_nffree, i);
 		fs32_add(sb, &ucg->cg_frsum[i], 1);
 		goto succed;
@@ -570,10 +632,10 @@ cg_found:
 		return 0;
 	}
 	for (i = 0; i < count; i++)
-		ubh_clrbit (UCPI_UBH, ucpi->c_freeoff, result + i);
+		ubh_clrbit (UCPI_UBH(ucpi), ucpi->c_freeoff, result + i);
 	
 	fs32_sub(sb, &ucg->cg_cs.cs_nffree, count);
-	fs32_sub(sb, &usb1->fs_cstotal.cs_nffree, count);
+	uspi->cs_total.cs_nffree -= count;
 	fs32_sub(sb, &UFS_SB(sb)->fs_cs(cgno).cs_nffree, count);
 	fs32_sub(sb, &ucg->cg_frsum[allocsize], 1);
 
@@ -581,16 +643,16 @@ cg_found:
 		fs32_add(sb, &ucg->cg_frsum[allocsize - count], 1);
 
 succed:
-	ubh_mark_buffer_dirty (USPI_UBH);
-	ubh_mark_buffer_dirty (UCPI_UBH);
+	ubh_mark_buffer_dirty (USPI_UBH(uspi));
+	ubh_mark_buffer_dirty (UCPI_UBH(ucpi));
 	if (sb->s_flags & MS_SYNCHRONOUS) {
-		ubh_ll_rw_block (SWRITE, 1, (struct ufs_buffer_head **)&ucpi);
-		ubh_wait_on_buffer (UCPI_UBH);
+		ubh_ll_rw_block(SWRITE, UCPI_UBH(ucpi));
+		ubh_wait_on_buffer (UCPI_UBH(ucpi));
 	}
 	sb->s_dirt = 1;
 
 	result += cgno * uspi->s_fpg;
-	UFSD(("EXIT3, result %u\n", result))
+	UFSD("EXIT3, result %u\n", result);
 	return result;
 }
 
@@ -603,12 +665,12 @@ static unsigned ufs_alloccg_block (struct inode * inode,
 	struct ufs_cylinder_group * ucg;
 	unsigned result, cylno, blkno;
 
-	UFSD(("ENTER, goal %u\n", goal))
+	UFSD("ENTER, goal %u\n", goal);
 
 	sb = inode->i_sb;
 	uspi = UFS_SB(sb)->s_uspi;
 	usb1 = ubh_get_usb_first(uspi);
-	ucg = ubh_get_ucg(UCPI_UBH);
+	ucg = ubh_get_ucg(UCPI_UBH(ucpi));
 
 	if (goal == 0) {
 		goal = ucpi->c_rotor;
@@ -620,7 +682,7 @@ static unsigned ufs_alloccg_block (struct inode * inode,
 	/*
 	 * If the requested block is available, use it.
 	 */
-	if (ubh_isblockset(UCPI_UBH, ucpi->c_freeoff, ufs_fragstoblks(goal))) {
+	if (ubh_isblockset(UCPI_UBH(ucpi), ucpi->c_freeoff, ufs_fragstoblks(goal))) {
 		result = goal;
 		goto gotit;
 	}
@@ -632,7 +694,7 @@ norot:
 	ucpi->c_rotor = result;
 gotit:
 	blkno = ufs_fragstoblks(result);
-	ubh_clrblock (UCPI_UBH, ucpi->c_freeoff, blkno);
+	ubh_clrblock (UCPI_UBH(ucpi), ucpi->c_freeoff, blkno);
 	if ((UFS_SB(sb)->s_flags & UFS_CG_MASK) == UFS_CG_44BSD)
 		ufs_clusteracct (sb, ucpi, blkno, -1);
 	if(DQUOT_ALLOC_BLOCK(inode, uspi->s_fpb)) {
@@ -641,31 +703,76 @@ gotit:
 	}
 
 	fs32_sub(sb, &ucg->cg_cs.cs_nbfree, 1);
-	fs32_sub(sb, &usb1->fs_cstotal.cs_nbfree, 1);
+	uspi->cs_total.cs_nbfree--;
 	fs32_sub(sb, &UFS_SB(sb)->fs_cs(ucpi->c_cgx).cs_nbfree, 1);
 	cylno = ufs_cbtocylno(result);
 	fs16_sub(sb, &ubh_cg_blks(ucpi, cylno, ufs_cbtorpos(result)), 1);
 	fs32_sub(sb, &ubh_cg_blktot(ucpi, cylno), 1);
 	
-	UFSD(("EXIT, result %u\n", result))
+	UFSD("EXIT, result %u\n", result);
 
 	return result;
 }
 
-static unsigned ufs_bitmap_search (struct super_block * sb,
-	struct ufs_cg_private_info * ucpi, unsigned goal, unsigned count)
+static unsigned ubh_scanc(struct ufs_sb_private_info *uspi,
+			  struct ufs_buffer_head *ubh,
+			  unsigned begin, unsigned size,
+			  unsigned char *table, unsigned char mask)
 {
-	struct ufs_sb_private_info * uspi;
-	struct ufs_super_block_first * usb1;
-	struct ufs_cylinder_group * ucg;
-	unsigned start, length, location, result;
-	unsigned possition, fragsize, blockmap, mask;
+	unsigned rest, offset;
+	unsigned char *cp;
 	
-	UFSD(("ENTER, cg %u, goal %u, count %u\n", ucpi->c_cgx, goal, count))
 
-	uspi = UFS_SB(sb)->s_uspi;
+	offset = begin & ~uspi->s_fmask;
+	begin >>= uspi->s_fshift;
+	for (;;) {
+		if ((offset + size) < uspi->s_fsize)
+			rest = size;
+		else
+			rest = uspi->s_fsize - offset;
+		size -= rest;
+		cp = ubh->bh[begin]->b_data + offset;
+		while ((table[*cp++] & mask) == 0 && --rest)
+			;
+		if (rest || !size)
+			break;
+		begin++;
+		offset = 0;
+	}
+	return (size + rest);
+}
+
+/*
+ * Find a block of the specified size in the specified cylinder group.
+ * @sp: pointer to super block
+ * @ucpi: pointer to cylinder group info
+ * @goal: near which block we want find new one
+ * @count: specified size
+ */
+static unsigned ufs_bitmap_search(struct super_block *sb,
+				  struct ufs_cg_private_info *ucpi,
+				  unsigned goal, unsigned count)
+{
+	/*
+	 * Bit patterns for identifying fragments in the block map
+	 * used as ((map & mask_arr) == want_arr)
+	 */
+	static const int mask_arr[9] = {
+		0x3, 0x7, 0xf, 0x1f, 0x3f, 0x7f, 0xff, 0x1ff, 0x3ff
+	};
+	static const int want_arr[9] = {
+		0x0, 0x2, 0x6, 0xe, 0x1e, 0x3e, 0x7e, 0xfe, 0x1fe
+	};
+	struct ufs_sb_private_info *uspi = UFS_SB(sb)->s_uspi;
+	struct ufs_super_block_first *usb1;
+	struct ufs_cylinder_group *ucg;
+	unsigned start, length, loc, result;
+	unsigned pos, want, blockmap, mask, end;
+
+	UFSD("ENTER, cg %u, goal %u, count %u\n", ucpi->c_cgx, goal, count);
+
 	usb1 = ubh_get_usb_first (uspi);
-	ucg = ubh_get_ucg(UCPI_UBH);
+	ucg = ubh_get_ucg(UCPI_UBH(ucpi));
 
 	if (goal)
 		start = ufs_dtogd(goal) >> 3;
@@ -673,53 +780,50 @@ static unsigned ufs_bitmap_search (struct super_block * sb,
 		start = ucpi->c_frotor >> 3;
 		
 	length = ((uspi->s_fpg + 7) >> 3) - start;
-	location = ubh_scanc(UCPI_UBH, ucpi->c_freeoff + start, length,
+	loc = ubh_scanc(uspi, UCPI_UBH(ucpi), ucpi->c_freeoff + start, length,
 		(uspi->s_fpb == 8) ? ufs_fragtable_8fpb : ufs_fragtable_other,
 		1 << (count - 1 + (uspi->s_fpb & 7))); 
-	if (location == 0) {
+	if (loc == 0) {
 		length = start + 1;
-		location = ubh_scanc(UCPI_UBH, ucpi->c_freeoff, length, 
-			(uspi->s_fpb == 8) ? ufs_fragtable_8fpb : ufs_fragtable_other,
-			1 << (count - 1 + (uspi->s_fpb & 7)));
-		if (location == 0) {
-			ufs_error (sb, "ufs_bitmap_search",
-			"bitmap corrupted on cg %u, start %u, length %u, count %u, freeoff %u\n",
-			ucpi->c_cgx, start, length, count, ucpi->c_freeoff);
+		loc = ubh_scanc(uspi, UCPI_UBH(ucpi), ucpi->c_freeoff, length,
+				(uspi->s_fpb == 8) ? ufs_fragtable_8fpb :
+				ufs_fragtable_other,
+				1 << (count - 1 + (uspi->s_fpb & 7)));
+		if (loc == 0) {
+			ufs_error(sb, "ufs_bitmap_search",
+				  "bitmap corrupted on cg %u, start %u,"
+				  " length %u, count %u, freeoff %u\n",
+				  ucpi->c_cgx, start, length, count,
+				  ucpi->c_freeoff);
 			return (unsigned)-1;
 		}
 		start = 0;
 	}
-	result = (start + length - location) << 3;
+	result = (start + length - loc) << 3;
 	ucpi->c_frotor = result;
 
 	/*
 	 * found the byte in the map
 	 */
-	blockmap = ubh_blkmap(UCPI_UBH, ucpi->c_freeoff, result);
-	fragsize = 0;
-	for (possition = 0, mask = 1; possition < 8; possition++, mask <<= 1) {
-		if (blockmap & mask) {
-			if (!(possition & uspi->s_fpbmask))
-				fragsize = 1;
-			else 
-				fragsize++;
-		}
-		else {
-			if (fragsize == count) {
-				result += possition - count;
-				UFSD(("EXIT, result %u\n", result))
-				return result;
-			}
-			fragsize = 0;
-		}
-	}
-	if (fragsize == count) {
-		result += possition - count;
-		UFSD(("EXIT, result %u\n", result))
-		return result;
-	}
-	ufs_error (sb, "ufs_bitmap_search", "block not in map on cg %u\n", ucpi->c_cgx);
-	UFSD(("EXIT (FAILED)\n"))
+
+	for (end = result + 8; result < end; result += uspi->s_fpb) {
+		blockmap = ubh_blkmap(UCPI_UBH(ucpi), ucpi->c_freeoff, result);
+		blockmap <<= 1;
+		mask = mask_arr[count];
+		want = want_arr[count];
+		for (pos = 0; pos <= uspi->s_fpb - count; pos++) {
+			if ((blockmap & mask) == want) {
+				UFSD("EXIT, result %u\n", result);
+				return result + pos;
+ 			}
+			mask <<= 1;
+			want <<= 1;
+ 		}
+ 	}
+
+	ufs_error(sb, "ufs_bitmap_search", "block not in map on cg %u\n",
+		  ucpi->c_cgx);
+	UFSD("EXIT (FAILED)\n");
 	return (unsigned)-1;
 }
 
@@ -734,9 +838,9 @@ static void ufs_clusteracct(struct super_block * sb,
 		return;
 
 	if (cnt > 0)
-		ubh_setbit(UCPI_UBH, ucpi->c_clusteroff, blkno);
+		ubh_setbit(UCPI_UBH(ucpi), ucpi->c_clusteroff, blkno);
 	else
-		ubh_clrbit(UCPI_UBH, ucpi->c_clusteroff, blkno);
+		ubh_clrbit(UCPI_UBH(ucpi), ucpi->c_clusteroff, blkno);
 
 	/*
 	 * Find the size of the cluster going forward.
@@ -745,7 +849,7 @@ static void ufs_clusteracct(struct super_block * sb,
 	end = start + uspi->s_contigsumsize;
 	if ( end >= ucpi->c_nclusterblks)
 		end = ucpi->c_nclusterblks;
-	i = ubh_find_next_zero_bit (UCPI_UBH, ucpi->c_clusteroff, end, start);
+	i = ubh_find_next_zero_bit (UCPI_UBH(ucpi), ucpi->c_clusteroff, end, start);
 	if (i > end)
 		i = end;
 	forw = i - start;
@@ -757,7 +861,7 @@ static void ufs_clusteracct(struct super_block * sb,
 	end = start - uspi->s_contigsumsize;
 	if (end < 0 ) 
 		end = -1;
-	i = ubh_find_last_zero_bit (UCPI_UBH, ucpi->c_clusteroff, start, end);
+	i = ubh_find_last_zero_bit (UCPI_UBH(ucpi), ucpi->c_clusteroff, start, end);
 	if ( i < end) 
 		i = end;
 	back = start - i;
@@ -769,11 +873,11 @@ static void ufs_clusteracct(struct super_block * sb,
 	i = back + forw + 1;
 	if (i > uspi->s_contigsumsize)
 		i = uspi->s_contigsumsize;
-	fs32_add(sb, (__fs32*)ubh_get_addr(UCPI_UBH, ucpi->c_clustersumoff + (i << 2)), cnt);
+	fs32_add(sb, (__fs32*)ubh_get_addr(UCPI_UBH(ucpi), ucpi->c_clustersumoff + (i << 2)), cnt);
 	if (back > 0)
-		fs32_sub(sb, (__fs32*)ubh_get_addr(UCPI_UBH, ucpi->c_clustersumoff + (back << 2)), cnt);
+		fs32_sub(sb, (__fs32*)ubh_get_addr(UCPI_UBH(ucpi), ucpi->c_clustersumoff + (back << 2)), cnt);
 	if (forw > 0)
-		fs32_sub(sb, (__fs32*)ubh_get_addr(UCPI_UBH, ucpi->c_clustersumoff + (forw << 2)), cnt);
+		fs32_sub(sb, (__fs32*)ubh_get_addr(UCPI_UBH(ucpi), ucpi->c_clustersumoff + (forw << 2)), cnt);
 }
 
 

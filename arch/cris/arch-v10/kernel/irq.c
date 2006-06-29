@@ -172,7 +172,7 @@ init_IRQ(void)
 
 	/* Initialize IRQ handler descriptiors. */
 	for(i = 2; i < NR_IRQS; i++) {
-		irq_desc[i].handler = &crisv10_irq_type;
+		irq_desc[i].chip = &crisv10_irq_type;
 		set_int_vector(i, interrupt[i]);
 	}
 

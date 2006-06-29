@@ -17,8 +17,8 @@
 */
 
 
-#define DAC960_DriverVersion			"2.5.47"
-#define DAC960_DriverDate			"14 November 2002"
+#define DAC960_DriverVersion			"2.5.48"
+#define DAC960_DriverDate			"14 May 2006"
 
 
 #include <linux/module.h>
@@ -4780,15 +4780,16 @@ static void DAC960_V2_ProcessCompletedCommand(DAC960_Command_T *Command)
 	      (NewPhysicalDeviceInfo->LogicalUnit !=
 	       PhysicalDeviceInfo->LogicalUnit))
 	    {
-	      PhysicalDeviceInfo = (DAC960_V2_PhysicalDeviceInfo_T *)
+	      PhysicalDeviceInfo =
 		kmalloc(sizeof(DAC960_V2_PhysicalDeviceInfo_T), GFP_ATOMIC);
 	      InquiryUnitSerialNumber =
-		(DAC960_SCSI_Inquiry_UnitSerialNumber_T *)
 		  kmalloc(sizeof(DAC960_SCSI_Inquiry_UnitSerialNumber_T),
 			  GFP_ATOMIC);
-	      if (InquiryUnitSerialNumber == NULL &&
-		  PhysicalDeviceInfo != NULL)
+	      if (InquiryUnitSerialNumber == NULL ||
+		  PhysicalDeviceInfo == NULL)
 		{
+		  kfree(InquiryUnitSerialNumber);
+		  InquiryUnitSerialNumber = NULL;
 		  kfree(PhysicalDeviceInfo);
 		  PhysicalDeviceInfo = NULL;
 		}

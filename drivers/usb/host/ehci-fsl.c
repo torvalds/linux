@@ -324,43 +324,12 @@ static int ehci_fsl_drv_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_driver ehci_fsl_dr_driver = {
+MODULE_ALIAS("fsl-ehci");
+
+static struct platform_driver ehci_fsl_driver = {
 	.probe = ehci_fsl_drv_probe,
 	.remove = ehci_fsl_drv_remove,
 	.driver = {
-		   .name = "fsl-usb2-dr",
+		   .name = "fsl-ehci",
 		   },
 };
-
-static struct platform_driver ehci_fsl_mph_driver = {
-	.probe = ehci_fsl_drv_probe,
-	.remove = ehci_fsl_drv_remove,
-	.driver = {
-		   .name = "fsl-usb2-mph",
-		   },
-};
-
-static int __init ehci_fsl_init(void)
-{
-	int retval;
-
-	pr_debug("%s: block sizes: qh %Zd qtd %Zd itd %Zd sitd %Zd\n",
-		 hcd_name,
-		 sizeof(struct ehci_qh), sizeof(struct ehci_qtd),
-		 sizeof(struct ehci_itd), sizeof(struct ehci_sitd));
-
-	retval = platform_driver_register(&ehci_fsl_dr_driver);
-	if (retval)
-		return retval;
-
-	return platform_driver_register(&ehci_fsl_mph_driver);
-}
-
-static void __exit ehci_fsl_cleanup(void)
-{
-	platform_driver_unregister(&ehci_fsl_mph_driver);
-	platform_driver_unregister(&ehci_fsl_dr_driver);
-}
-
-module_init(ehci_fsl_init);
-module_exit(ehci_fsl_cleanup);

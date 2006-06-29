@@ -248,7 +248,6 @@ struct ip_vs_daemon_user {
 
 #ifdef __KERNEL__
 
-#include <linux/config.h>
 #include <linux/list.h>                 /* for struct list_head */
 #include <linux/spinlock.h>             /* for struct rwlock_t */
 #include <asm/atomic.h>                 /* for struct atomic_t */

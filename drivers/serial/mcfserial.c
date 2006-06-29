@@ -60,11 +60,11 @@ struct timer_list mcfrs_timer_struct;
 #if defined(CONFIG_HW_FEITH)
 #define	CONSOLE_BAUD_RATE	38400
 #define	DEFAULT_CBAUD		B38400
-#elif defined(CONFIG_MOD5272) || defined(CONFIG_M5208EVB)
+#elif defined(CONFIG_MOD5272) || defined(CONFIG_M5208EVB) || defined(CONFIG_M5329EVB)
 #define CONSOLE_BAUD_RATE 	115200
 #define DEFAULT_CBAUD		B115200
 #elif defined(CONFIG_ARNEWSH) || defined(CONFIG_FREESCALE) || \
-      defined(CONFIG_senTec) || defined(CONFIG_SNEHA)
+      defined(CONFIG_senTec) || defined(CONFIG_SNEHA) || defined(CONFIG_AVNET)
 #define	CONSOLE_BAUD_RATE	19200
 #define	DEFAULT_CBAUD		B19200
 #endif
@@ -93,7 +93,7 @@ static struct tty_driver *mcfrs_serial_driver;
 #undef SERIAL_DEBUG_FLOW
 
 #if defined(CONFIG_M523x) || defined(CONFIG_M527x) || defined(CONFIG_M528x) || \
-    defined(CONFIG_M520x)
+    defined(CONFIG_M520x) || defined(CONFIG_M532x)
 #define	IRQBASE	(MCFINT_VECBASE+MCFINT_UART0)
 #else
 #define	IRQBASE	73
@@ -1545,6 +1545,28 @@ static void mcfrs_irqinit(struct mcf_serial *info)
 			*feci2c_par |=  MCF_GPIO_PAR_FECI2C_PAR_SCL_UTXD2
 				    | MCF_GPIO_PAR_FECI2C_PAR_SDA_URXD2;
 		}
+#elif defined(CONFIG_M532x)
+	volatile unsigned char *uartp;
+	uartp = info->addr;
+	switch (info->line) {
+	case 0:
+		MCF_INTC0_ICR26 = 0x3;
+		MCF_INTC0_CIMR = 26;
+		/* GPIO initialization */
+		MCF_GPIO_PAR_UART |= 0x000F;
+		break;
+	case 1:
+		MCF_INTC0_ICR27 = 0x3;
+		MCF_INTC0_CIMR = 27;
+		/* GPIO initialization */
+		MCF_GPIO_PAR_UART |= 0x0FF0;
+		break;
+	case 2:
+		MCF_INTC0_ICR28 = 0x3;
+		MCF_INTC0_CIMR = 28;
+		/* GPIOs also must be initalized, depends on board */
+		break;
+	}
 #else
 	volatile unsigned char	*icrp, *uartp;
 

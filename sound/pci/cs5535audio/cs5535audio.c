@@ -1,5 +1,5 @@
 /*
- * Driver for audio on multifunction CS5535 companion device
+ * Driver for audio on multifunction CS5535/6 companion device
  * Copyright (C) Jaya Kumar
  *
  * Based on Jaroslav Kysela and Takashi Iwai's examples.
@@ -40,16 +40,36 @@
 
 #define DRIVER_NAME "cs5535audio"
 
+static char *ac97_quirk;
+module_param(ac97_quirk, charp, 0444);
+MODULE_PARM_DESC(ac97_quirk, "AC'97 board specific workarounds.");
+
+static struct ac97_quirk ac97_quirks[] __devinitdata = {
+#if 0 /* Not yet confirmed if all 5536 boards are HP only */
+	{
+		.subvendor = PCI_VENDOR_ID_AMD, 
+		.subdevice = PCI_DEVICE_ID_AMD_CS5536_AUDIO, 
+		.name = "AMD RDK",     
+		.type = AC97_TUNE_HP_ONLY
+	},
+#endif
+	{}
+};
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;
 static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;
 
+module_param_array(index, int, NULL, 0444);
+MODULE_PARM_DESC(index, "Index value for " DRIVER_NAME);
+module_param_array(id, charp, NULL, 0444);
+MODULE_PARM_DESC(id, "ID string for " DRIVER_NAME);
+module_param_array(enable, bool, NULL, 0444);
+MODULE_PARM_DESC(enable, "Enable " DRIVER_NAME);
+
 static struct pci_device_id snd_cs5535audio_ids[] __devinitdata = {
-	{ PCI_VENDOR_ID_NS, PCI_DEVICE_ID_NS_CS5535_AUDIO,
-	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0, },
-	{ PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_CS5536_AUDIO,
-	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0, },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NS, PCI_DEVICE_ID_NS_CS5535_AUDIO) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_CS5536_AUDIO) },
 	{}
 };
 
@@ -90,7 +110,8 @@ static unsigned short snd_cs5535audio_codec_read(struct cs5535audio *cs5535au,
 		udelay(1);
 	} while (--timeout);
 	if (!timeout)
-		snd_printk(KERN_ERR "Failure reading cs5535 codec\n");
+		snd_printk(KERN_ERR "Failure reading codec reg 0x%x,"
+					"Last value=0x%x\n", reg, val);
 
 	return (unsigned short) val;
 }
@@ -147,6 +168,8 @@ static int snd_cs5535audio_mixer(struct cs5535audio *cs5535au)
 		snd_printk(KERN_ERR "mixer failed\n");
 		return err;
 	}
+
+	snd_ac97_tune_hardware(cs5535au->ac97, ac97_quirks, ac97_quirk);
 
 	return 0;
 }
@@ -347,6 +370,8 @@ static int __devinit snd_cs5535audio_probe(struct pci_dev *pci,
 	if ((err = snd_cs5535audio_create(card, pci, &cs5535au)) < 0)
 		goto probefail_out;
 
+	card->private_data = cs5535au;
+
 	if ((err = snd_cs5535audio_mixer(cs5535au)) < 0)
 		goto probefail_out;
 
@@ -383,6 +408,10 @@ static struct pci_driver driver = {
 	.id_table = snd_cs5535audio_ids,
 	.probe = snd_cs5535audio_probe,
 	.remove = __devexit_p(snd_cs5535audio_remove),
+#ifdef CONFIG_PM
+	.suspend = snd_cs5535audio_suspend,
+	.resume = snd_cs5535audio_resume,
+#endif
 };
 
 static int __init alsa_card_cs5535audio_init(void)

@@ -24,7 +24,7 @@
 #define RW_LOCK_BIAS_STR	"0x01000000"
 
 #define __build_read_lock_ptr(rw, helper)   \
-	asm volatile(LOCK "subl $1,(%0)\n\t" \
+	asm volatile(LOCK_PREFIX "subl $1,(%0)\n\t" \
 		     "js 2f\n" \
 		     "1:\n" \
 		    LOCK_SECTION_START("") \
@@ -34,7 +34,7 @@
 		     ::"a" (rw) : "memory")
 
 #define __build_read_lock_const(rw, helper)   \
-	asm volatile(LOCK "subl $1,%0\n\t" \
+	asm volatile(LOCK_PREFIX "subl $1,%0\n\t" \
 		     "js 2f\n" \
 		     "1:\n" \
 		    LOCK_SECTION_START("") \
@@ -54,7 +54,7 @@
 					} while (0)
 
 #define __build_write_lock_ptr(rw, helper) \
-	asm volatile(LOCK "subl $" RW_LOCK_BIAS_STR ",(%0)\n\t" \
+	asm volatile(LOCK_PREFIX "subl $" RW_LOCK_BIAS_STR ",(%0)\n\t" \
 		     "jnz 2f\n" \
 		     "1:\n" \
 		     LOCK_SECTION_START("") \
@@ -64,7 +64,7 @@
 		     ::"a" (rw) : "memory")
 
 #define __build_write_lock_const(rw, helper) \
-	asm volatile(LOCK "subl $" RW_LOCK_BIAS_STR ",%0\n\t" \
+	asm volatile(LOCK_PREFIX "subl $" RW_LOCK_BIAS_STR ",%0\n\t" \
 		     "jnz 2f\n" \
 		     "1:\n" \
 		    LOCK_SECTION_START("") \

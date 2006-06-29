@@ -39,7 +39,6 @@
 #ifndef IRDA_DEVICE_H
 #define IRDA_DEVICE_H
 
-#include <linux/config.h>
 #include <linux/tty.h>
 #include <linux/netdevice.h>
 #include <linux/spinlock.h>

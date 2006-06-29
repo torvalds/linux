@@ -59,7 +59,7 @@ static long midi_port[SNDRV_CARDS] = SNDRV_DEFAULT_PORT;/* 0x330,0x300 */
 static int irq[SNDRV_CARDS] = SNDRV_DEFAULT_IRQ;	/* 0,1,3,5,9,11,12,15 */
 static int dma1[SNDRV_CARDS] = SNDRV_DEFAULT_DMA;	/* 1,3,5,6,7 */
 static int dma2[SNDRV_CARDS] = SNDRV_DEFAULT_DMA;	/* 1,3,5,6,7 */
-static int opl3sa3_ymode[SNDRV_CARDS] = { [0 ... (SNDRV_CARDS-1)] = 0 };   /* 0,1,2,3 */ /*SL Added*/
+static int opl3sa3_ymode[SNDRV_CARDS];   /* 0,1,2,3 */ /*SL Added*/
 
 module_param_array(index, int, NULL, 0444);
 MODULE_PARM_DESC(index, "Index value for OPL3-SA soundcard.");
@@ -221,7 +221,7 @@ static void snd_opl3sa2_write(struct snd_opl3sa2 *chip, unsigned char reg, unsig
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
 }
 
-static int __init snd_opl3sa2_detect(struct snd_opl3sa2 *chip)
+static int __devinit snd_opl3sa2_detect(struct snd_opl3sa2 *chip)
 {
 	struct snd_card *card;
 	unsigned long port;
@@ -489,7 +489,7 @@ static void snd_opl3sa2_master_free(struct snd_kcontrol *kcontrol)
 	chip->master_volume = NULL;
 }
 
-static int __init snd_opl3sa2_mixer(struct snd_opl3sa2 *chip)
+static int __devinit snd_opl3sa2_mixer(struct snd_opl3sa2 *chip)
 {
 	struct snd_card *card = chip->card;
 	struct snd_ctl_elem_id id1, id2;
@@ -583,8 +583,8 @@ static int snd_opl3sa2_resume(struct snd_card *card)
 #endif /* CONFIG_PM */
 
 #ifdef CONFIG_PNP
-static int __init snd_opl3sa2_pnp(int dev, struct snd_opl3sa2 *chip,
-				  struct pnp_dev *pdev)
+static int __devinit snd_opl3sa2_pnp(int dev, struct snd_opl3sa2 *chip,
+				     struct pnp_dev *pdev)
 {
 	struct pnp_resource_table * cfg;
 	int err;
@@ -862,7 +862,7 @@ static struct pnp_card_driver opl3sa2_pnpc_driver = {
 };
 #endif /* CONFIG_PNP */
 
-static int __init snd_opl3sa2_nonpnp_probe(struct platform_device *pdev)
+static int __devinit snd_opl3sa2_nonpnp_probe(struct platform_device *pdev)
 {
 	struct snd_card *card;
 	int err;

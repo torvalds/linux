@@ -37,6 +37,7 @@
 #include <linux/seq_file.h>
 #include <linux/kernel_stat.h>
 #include <linux/device.h>
+#include <linux/notifier.h>
 
 #include <asm/uaccess.h>
 #include <asm/system.h>
@@ -47,6 +48,7 @@
 #include <asm/irq.h>
 #include <asm/page.h>
 #include <asm/ptrace.h>
+#include <asm/sections.h>
 
 /*
  * Machine setup..
@@ -66,11 +68,6 @@ unsigned long __initdata zholes_size[MAX_NR_ZONES];
 static unsigned long __initdata memory_end;
 
 /*
- * Setup options
- */
-extern int _text,_etext, _edata, _end;
-
-/*
  * This is set up by the setup-routine at boot-time
  * for S390 need to find out, what we have to setup
  * using address 0x10400 ...
@@ -80,15 +77,11 @@ extern int _text,_etext, _edata, _end;
 
 static struct resource code_resource = {
 	.name  = "Kernel code",
-	.start = (unsigned long) &_text,
-	.end = (unsigned long) &_etext - 1,
 	.flags = IORESOURCE_BUSY | IORESOURCE_MEM,
 };
 
 static struct resource data_resource = {
 	.name = "Kernel data",
-	.start = (unsigned long) &_etext,
-	.end = (unsigned long) &_edata - 1,
 	.flags = IORESOURCE_BUSY | IORESOURCE_MEM,
 };
 
@@ -123,6 +116,7 @@ void __devinit cpu_init (void)
  */
 char vmhalt_cmd[128] = "";
 char vmpoff_cmd[128] = "";
+char vmpanic_cmd[128] = "";
 
 static inline void strncpy_skip_quote(char *dst, char *src, int n)
 {
@@ -153,6 +147,38 @@ static int __init vmpoff_setup(char *str)
 }
 
 __setup("vmpoff=", vmpoff_setup);
+
+static int vmpanic_notify(struct notifier_block *self, unsigned long event,
+			  void *data)
+{
+	if (MACHINE_IS_VM && strlen(vmpanic_cmd) > 0)
+		cpcmd(vmpanic_cmd, NULL, 0, NULL);
+
+	return NOTIFY_OK;
+}
+
+#define PANIC_PRI_VMPANIC	0
+
+static struct notifier_block vmpanic_nb = {
+	.notifier_call = vmpanic_notify,
+	.priority = PANIC_PRI_VMPANIC
+};
+
+static int __init vmpanic_setup(char *str)
+{
+	static int register_done __initdata = 0;
+
+	strncpy_skip_quote(vmpanic_cmd, str, 127);
+	vmpanic_cmd[127] = 0;
+	if (!register_done) {
+		register_done = 1;
+		atomic_notifier_chain_register(&panic_notifier_list,
+					       &vmpanic_nb);
+	}
+	return 1;
+}
+
+__setup("vmpanic=", vmpanic_setup);
 
 /*
  * condev= and conmode= setup parameter.
@@ -297,19 +323,34 @@ void (*_machine_power_off)(void) = do_machine_power_off_nonsmp;
 
 void machine_restart(char *command)
 {
-	console_unblank();
+	if (!in_interrupt() || oops_in_progress)
+		/*
+		 * Only unblank the console if we are called in enabled
+		 * context or a bust_spinlocks cleared the way for us.
+		 */
+		console_unblank();
 	_machine_restart(command);
 }
 
 void machine_halt(void)
 {
-	console_unblank();
+	if (!in_interrupt() || oops_in_progress)
+		/*
+		 * Only unblank the console if we are called in enabled
+		 * context or a bust_spinlocks cleared the way for us.
+		 */
+		console_unblank();
 	_machine_halt();
 }
 
 void machine_power_off(void)
 {
-	console_unblank();
+	if (!in_interrupt() || oops_in_progress)
+		/*
+		 * Only unblank the console if we are called in enabled
+		 * context or a bust_spinlocks cleared the way for us.
+		 */
+		console_unblank();
 	_machine_power_off();
 }
 
@@ -421,6 +462,11 @@ setup_resources(void)
 {
 	struct resource *res;
 	int i;
+
+	code_resource.start = (unsigned long) &_text;
+	code_resource.end = (unsigned long) &_etext - 1;
+	data_resource.start = (unsigned long) &_etext;
+	data_resource.end = (unsigned long) &_edata - 1;
 
 	for (i = 0; i < MEMORY_CHUNKS && memory_chunk[i].size > 0; i++) {
 		res = alloc_bootmem_low(sizeof(struct resource));

@@ -28,7 +28,7 @@ struct hw_pci {
 struct pci_sys_data {
 	struct list_head node;
 	int		busnr;		/* primary bus number			*/
-	unsigned long	mem_offset;	/* bus->cpu memory mapping offset	*/
+	u64		mem_offset;	/* bus->cpu memory mapping offset	*/
 	unsigned long	io_offset;	/* bus->cpu IO mapping offset		*/
 	struct pci_bus	*bus;		/* PCI bus				*/
 	struct resource *resource[3];	/* Primary PCI bus resources		*/

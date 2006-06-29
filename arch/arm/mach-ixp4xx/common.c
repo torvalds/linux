@@ -276,7 +276,7 @@ static irqreturn_t ixp4xx_timer_interrupt(int irq, void *dev_id, struct pt_regs 
 	/*
 	 * Catch up with the real idea of time
 	 */
-	while ((*IXP4XX_OSTS - last_jiffy_time) > LATCH) {
+	while ((signed long)(*IXP4XX_OSTS - last_jiffy_time) >= LATCH) {
 		timer_tick(regs);
 		last_jiffy_time += LATCH;
 	}

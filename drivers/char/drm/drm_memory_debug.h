@@ -43,7 +43,7 @@ typedef struct drm_mem_stats {
 	unsigned long bytes_freed;
 } drm_mem_stats_t;
 
-static spinlock_t drm_mem_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(drm_mem_lock);
 static unsigned long drm_ram_available = 0;	/* In pages */
 static unsigned long drm_ram_used = 0;
 static drm_mem_stats_t drm_mem_stats[] =

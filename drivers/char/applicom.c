@@ -166,11 +166,7 @@ static int ac_register_board(unsigned long physloc, void __iomem *loc,
 	return boardno + 1;
 }
 
-#ifdef MODULE
-
-#define applicom_init init_module
-
-void cleanup_module(void)
+static void __exit applicom_exit(void)
 {
 	unsigned int i;
 
@@ -188,9 +184,7 @@ void cleanup_module(void)
 	}
 }
 
-#endif				/* MODULE */
-
-int __init applicom_init(void)
+static int __init applicom_init(void)
 {
 	int i, numisa = 0;
 	struct pci_dev *dev = NULL;
@@ -215,13 +209,16 @@ int __init applicom_init(void)
 		RamIO = ioremap(dev->resource[0].start, LEN_RAM_IO);
 
 		if (!RamIO) {
-			printk(KERN_INFO "ac.o: Failed to ioremap PCI memory space at 0x%lx\n", dev->resource[0].start);
+			printk(KERN_INFO "ac.o: Failed to ioremap PCI memory "
+				"space at 0x%llx\n",
+				(unsigned long long)dev->resource[0].start);
 			pci_disable_device(dev);
 			return -EIO;
 		}
 
-		printk(KERN_INFO "Applicom %s found at mem 0x%lx, irq %d\n",
-		       applicom_pci_devnames[dev->device-1], dev->resource[0].start, 
+		printk(KERN_INFO "Applicom %s found at mem 0x%llx, irq %d\n",
+		       applicom_pci_devnames[dev->device-1],
+			   (unsigned long long)dev->resource[0].start,
 		       dev->irq);
 
 		boardno = ac_register_board(dev->resource[0].start, RamIO,0);
@@ -355,10 +352,9 @@ out:
 	return ret;
 }
 
+module_init(applicom_init);
+module_exit(applicom_exit);
 
-#ifndef MODULE
-__initcall(applicom_init);
-#endif
 
 static ssize_t ac_write(struct file *file, const char __user *buf, size_t count, loff_t * ppos)
 {
@@ -850,29 +846,4 @@ static int ac_ioctl(struct inode *inode, struct file *file, unsigned int cmd, un
 	kfree(adgl);
 	return 0;
 }
-
-#ifndef MODULE
-static int __init applicom_setup(char *str)
-{
-	int ints[4];
-
-	(void) get_options(str, 4, ints);
-
-	if (ints[0] > 2) {
-		printk(KERN_WARNING "Too many arguments to 'applicom=', expected mem,irq only.\n");
-	}
-
-	if (ints[0] < 2) {
-		printk(KERN_INFO"applicom numargs: %d\n", ints[0]);
-		return 0;
-	}
-
-	mem = ints[1];
-	irq = ints[2];
-	return 1;
-}
-
-__setup("applicom=", applicom_setup);
-
-#endif				/* MODULE */
 

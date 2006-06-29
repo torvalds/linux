@@ -14,7 +14,6 @@
 #ifndef _ASM_BITOPS_H
 #define _ASM_BITOPS_H
 
-#include <linux/config.h>
 #include <linux/compiler.h>
 #include <asm/byteorder.h>
 #include <asm/system.h>

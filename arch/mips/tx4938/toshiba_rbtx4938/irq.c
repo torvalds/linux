@@ -146,7 +146,7 @@ toshiba_rbtx4938_irq_ioc_init(void)
 		irq_desc[i].status = IRQ_DISABLED;
 		irq_desc[i].action = 0;
 		irq_desc[i].depth = 3;
-		irq_desc[i].handler = &toshiba_rbtx4938_irq_ioc_type;
+		irq_desc[i].chip = &toshiba_rbtx4938_irq_ioc_type;
 	}
 
 	setup_irq(RBTX4938_IRQ_IOCINT,

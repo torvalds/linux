@@ -64,8 +64,7 @@ static char *ocfs2_page_getlink(struct dentry * dentry,
 {
 	struct page * page;
 	struct address_space *mapping = dentry->d_inode->i_mapping;
-	page = read_cache_page(mapping, 0,
-			       (filler_t *)mapping->a_ops->readpage, NULL);
+	page = read_mapping_page(mapping, 0, NULL);
 	if (IS_ERR(page))
 		goto sync_fail;
 	wait_on_page_locked(page);

@@ -107,7 +107,7 @@ static int __cpuinit topology_remove_dev(struct sys_device * sys_dev)
 	return 0;
 }
 
-static int topology_cpu_callback(struct notifier_block *nfb,
+static int __cpuinit topology_cpu_callback(struct notifier_block *nfb,
 		unsigned long action, void *hcpu)
 {
 	unsigned int cpu = (unsigned long)hcpu;
@@ -125,7 +125,7 @@ static int topology_cpu_callback(struct notifier_block *nfb,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block topology_cpu_notifier =
+static struct notifier_block __cpuinitdata topology_cpu_notifier =
 {
 	.notifier_call = topology_cpu_callback,
 };

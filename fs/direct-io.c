@@ -162,7 +162,7 @@ static int dio_refill_pages(struct dio *dio)
 		NULL);				/* vmas */
 	up_read(&current->mm->mmap_sem);
 
-	if (ret < 0 && dio->blocks_available && (dio->rw == WRITE)) {
+	if (ret < 0 && dio->blocks_available && (dio->rw & WRITE)) {
 		struct page *page = ZERO_PAGE(dio->curr_user_address);
 		/*
 		 * A memory fault, but the filesystem has some outstanding
@@ -535,7 +535,7 @@ static int get_more_blocks(struct dio *dio)
 		map_bh->b_state = 0;
 		map_bh->b_size = fs_count << dio->inode->i_blkbits;
 
-		create = dio->rw == WRITE;
+		create = dio->rw & WRITE;
 		if (dio->lock_type == DIO_LOCKING) {
 			if (dio->block_in_file < (i_size_read(dio->inode) >>
 							dio->blkbits))
@@ -867,7 +867,7 @@ do_holes:
 				loff_t i_size_aligned;
 
 				/* AKPM: eargh, -ENOTBLK is a hack */
-				if (dio->rw == WRITE) {
+				if (dio->rw & WRITE) {
 					page_cache_release(page);
 					return -ENOTBLK;
 				}
@@ -1045,7 +1045,7 @@ direct_io_worker(int rw, struct kiocb *iocb, struct inode *inode,
 		}
 	} /* end iovec loop */
 
-	if (ret == -ENOTBLK && rw == WRITE) {
+	if (ret == -ENOTBLK && (rw & WRITE)) {
 		/*
 		 * The remaining part of the request will be
 		 * be handled by buffered I/O when we return
@@ -1089,7 +1089,7 @@ direct_io_worker(int rw, struct kiocb *iocb, struct inode *inode,
 	if (dio->is_async) {
 		int should_wait = 0;
 
-		if (dio->result < dio->size && rw == WRITE) {
+		if (dio->result < dio->size && (rw & WRITE)) {
 			dio->waiter = current;
 			should_wait = 1;
 		}
@@ -1142,7 +1142,7 @@ direct_io_worker(int rw, struct kiocb *iocb, struct inode *inode,
 			ret = transferred;
 
 		/* We could have also come here on an AIO file extend */
-		if (!is_sync_kiocb(iocb) && rw == WRITE &&
+		if (!is_sync_kiocb(iocb) && (rw & WRITE) &&
 		    ret >= 0 && dio->result == dio->size)
 			/*
 			 * For AIO writes where we have completed the
@@ -1194,7 +1194,7 @@ __blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
 	int acquire_i_mutex = 0;
 
 	if (rw & WRITE)
-		current->flags |= PF_SYNCWRITE;
+		rw = WRITE_SYNC;
 
 	if (bdev)
 		bdev_blkbits = blksize_bits(bdev_hardsect_size(bdev));
@@ -1270,7 +1270,7 @@ __blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
 	 * even for AIO, we need to wait for i/o to complete before
 	 * returning in this case.
 	 */
-	dio->is_async = !is_sync_kiocb(iocb) && !((rw == WRITE) &&
+	dio->is_async = !is_sync_kiocb(iocb) && !((rw & WRITE) &&
 		(end > i_size_read(inode)));
 
 	retval = direct_io_worker(rw, iocb, inode, iov, offset,
@@ -1284,8 +1284,6 @@ out:
 		mutex_unlock(&inode->i_mutex);
 	else if (acquire_i_mutex)
 		mutex_lock(&inode->i_mutex);
-	if (rw & WRITE)
-		current->flags &= ~PF_SYNCWRITE;
 	return retval;
 }
 EXPORT_SYMBOL(__blockdev_direct_IO);

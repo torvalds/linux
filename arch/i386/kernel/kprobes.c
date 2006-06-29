@@ -57,33 +57,84 @@ static __always_inline void set_jmp_op(void *from, void *to)
 /*
  * returns non-zero if opcodes can be boosted.
  */
-static __always_inline int can_boost(kprobe_opcode_t opcode)
+static __always_inline int can_boost(kprobe_opcode_t *opcodes)
 {
-	switch (opcode & 0xf0 ) {
+#define W(row,b0,b1,b2,b3,b4,b5,b6,b7,b8,b9,ba,bb,bc,bd,be,bf)		      \
+	(((b0##UL << 0x0)|(b1##UL << 0x1)|(b2##UL << 0x2)|(b3##UL << 0x3) |   \
+	  (b4##UL << 0x4)|(b5##UL << 0x5)|(b6##UL << 0x6)|(b7##UL << 0x7) |   \
+	  (b8##UL << 0x8)|(b9##UL << 0x9)|(ba##UL << 0xa)|(bb##UL << 0xb) |   \
+	  (bc##UL << 0xc)|(bd##UL << 0xd)|(be##UL << 0xe)|(bf##UL << 0xf))    \
+	 << (row % 32))
+	/*
+	 * Undefined/reserved opcodes, conditional jump, Opcode Extension
+	 * Groups, and some special opcodes can not be boost.
+	 */
+	static const unsigned long twobyte_is_boostable[256 / 32] = {
+		/*      0 1 2 3 4 5 6 7 8 9 a b c d e f         */
+		/*      -------------------------------         */
+		W(0x00, 0,0,1,1,0,0,1,0,1,1,0,0,0,0,0,0)| /* 00 */
+		W(0x10, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0), /* 10 */
+		W(0x20, 1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0)| /* 20 */
+		W(0x30, 0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0), /* 30 */
+		W(0x40, 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1)| /* 40 */
+		W(0x50, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0), /* 50 */
+		W(0x60, 1,1,1,1,1,1,1,1,1,1,1,1,0,0,1,1)| /* 60 */
+		W(0x70, 0,0,0,0,1,1,1,1,0,0,0,0,0,0,1,1), /* 70 */
+		W(0x80, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0)| /* 80 */
+		W(0x90, 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1), /* 90 */
+		W(0xa0, 1,1,0,1,1,1,0,0,1,1,0,1,1,1,0,1)| /* a0 */
+		W(0xb0, 1,1,1,1,1,1,1,1,0,0,0,1,1,1,1,1), /* b0 */
+		W(0xc0, 1,1,0,0,0,0,0,0,1,1,1,1,1,1,1,1)| /* c0 */
+		W(0xd0, 0,1,1,1,0,1,0,0,1,1,0,1,1,1,0,1), /* d0 */
+		W(0xe0, 0,1,1,0,0,1,0,0,1,1,0,1,1,1,0,1)| /* e0 */
+		W(0xf0, 0,1,1,1,0,1,0,0,1,1,1,0,1,1,1,0)  /* f0 */
+		/*      -------------------------------         */
+		/*      0 1 2 3 4 5 6 7 8 9 a b c d e f         */
+	};
+#undef W
+	kprobe_opcode_t opcode;
+	kprobe_opcode_t *orig_opcodes = opcodes;
+retry:
+	if (opcodes - orig_opcodes > MAX_INSN_SIZE - 1)
+		return 0;
+	opcode = *(opcodes++);
+
+	/* 2nd-byte opcode */
+	if (opcode == 0x0f) {
+		if (opcodes - orig_opcodes > MAX_INSN_SIZE - 1)
+			return 0;
+		return test_bit(*opcodes, twobyte_is_boostable);
+	}
+
+	switch (opcode & 0xf0) {
+	case 0x60:
+		if (0x63 < opcode && opcode < 0x67)
+			goto retry; /* prefixes */
+		/* can't boost Address-size override and bound */
+		return (opcode != 0x62 && opcode != 0x67);
 	case 0x70:
 		return 0; /* can't boost conditional jump */
-	case 0x90:
-		/* can't boost call and pushf */
-		return opcode != 0x9a && opcode != 0x9c;
 	case 0xc0:
-		/* can't boost undefined opcodes and soft-interruptions */
-		return (0xc1 < opcode && opcode < 0xc6) ||
-			(0xc7 < opcode && opcode < 0xcc) || opcode == 0xcf;
+		/* can't boost software-interruptions */
+		return (0xc1 < opcode && opcode < 0xcc) || opcode == 0xcf;
 	case 0xd0:
 		/* can boost AA* and XLAT */
 		return (opcode == 0xd4 || opcode == 0xd5 || opcode == 0xd7);
 	case 0xe0:
-		/* can boost in/out and (may be) jmps */
-		return (0xe3 < opcode && opcode != 0xe8);
+		/* can boost in/out and absolute jmps */
+		return ((opcode & 0x04) || opcode == 0xea);
 	case 0xf0:
+		if ((opcode & 0x0c) == 0 && opcode != 0xf1)
+			goto retry; /* lock/rep(ne) prefix */
 		/* clear and set flags can be boost */
 		return (opcode == 0xf5 || (0xf7 < opcode && opcode < 0xfe));
 	default:
-		/* currently, can't boost 2 bytes opcodes */
-		return opcode != 0x0f;
+		if (opcode == 0x26 || opcode == 0x36 || opcode == 0x3e)
+			goto retry; /* prefixes */
+		/* can't boost CS override and call */
+		return (opcode != 0x2e && opcode != 0x9a);
 	}
 }
-
 
 /*
  * returns non-zero if opcode modifies the interrupt flag.
@@ -109,7 +160,7 @@ int __kprobes arch_prepare_kprobe(struct kprobe *p)
 
 	memcpy(p->ainsn.insn, p->addr, MAX_INSN_SIZE * sizeof(kprobe_opcode_t));
 	p->opcode = *p->addr;
-	if (can_boost(p->opcode)) {
+	if (can_boost(p->addr)) {
 		p->ainsn.boostable = 0;
 	} else {
 		p->ainsn.boostable = -1;
@@ -208,7 +259,9 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 	struct kprobe_ctlblk *kcb;
 #ifdef CONFIG_PREEMPT
 	unsigned pre_preempt_count = preempt_count();
-#endif /* CONFIG_PREEMPT */
+#else
+	unsigned pre_preempt_count = 1;
+#endif
 
 	addr = (kprobe_opcode_t *)(regs->eip - sizeof(kprobe_opcode_t));
 
@@ -285,22 +338,14 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 		/* handler has already set things up, so skip ss setup */
 		return 1;
 
-	if (p->ainsn.boostable == 1 &&
-#ifdef CONFIG_PREEMPT
-	    !(pre_preempt_count) && /*
-				       * This enables booster when the direct
-				       * execution path aren't preempted.
-				       */
-#endif /* CONFIG_PREEMPT */
-	    !p->post_handler && !p->break_handler ) {
+ss_probe:
+	if (pre_preempt_count && p->ainsn.boostable == 1 && !p->post_handler){
 		/* Boost up -- we can execute copied instructions directly */
 		reset_current_kprobe();
 		regs->eip = (unsigned long)p->ainsn.insn;
 		preempt_enable_no_resched();
 		return 1;
 	}
-
-ss_probe:
 	prepare_singlestep(p, regs);
 	kcb->kprobe_status = KPROBE_HIT_SS;
 	return 1;
@@ -607,7 +652,7 @@ int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
 	struct die_args *args = (struct die_args *)data;
 	int ret = NOTIFY_DONE;
 
-	if (args->regs && user_mode(args->regs))
+	if (args->regs && user_mode_vm(args->regs))
 		return ret;
 
 	switch (val) {

@@ -9,6 +9,7 @@
  */
 
 #include <linux/device.h>
+#include <linux/resume-trace.h>
 #include "../base.h"
 #include "power.h"
 
@@ -23,6 +24,8 @@ int resume_device(struct device * dev)
 {
 	int error = 0;
 
+	TRACE_DEVICE(dev);
+	TRACE_RESUME(0);
 	down(&dev->sem);
 	if (dev->power.pm_parent
 			&& dev->power.pm_parent->power.power_state.event) {
@@ -36,6 +39,7 @@ int resume_device(struct device * dev)
 		error = dev->bus->resume(dev);
 	}
 	up(&dev->sem);
+	TRACE_RESUME(error);
 	return error;
 }
 
@@ -49,8 +53,7 @@ void dpm_resume(void)
 		struct device * dev = to_device(entry);
 
 		get_device(dev);
-		list_del_init(entry);
-		list_add_tail(entry, &dpm_active);
+		list_move_tail(entry, &dpm_active);
 
 		up(&dpm_list_sem);
 		if (!dev->power.prev_state.event)
@@ -97,8 +100,7 @@ void dpm_power_up(void)
 		struct device * dev = to_device(entry);
 
 		get_device(dev);
-		list_del_init(entry);
-		list_add_tail(entry, &dpm_active);
+		list_move_tail(entry, &dpm_active);
 		resume_device(dev);
 		put_device(dev);
 	}

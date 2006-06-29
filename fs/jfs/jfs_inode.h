@@ -33,7 +33,7 @@ extern void jfs_free_zero_link(struct inode *);
 extern struct dentry *jfs_get_parent(struct dentry *dentry);
 extern void jfs_set_inode_flags(struct inode *);
 
-extern struct address_space_operations jfs_aops;
+extern const struct address_space_operations jfs_aops;
 extern struct inode_operations jfs_dir_inode_operations;
 extern const struct file_operations jfs_dir_operations;
 extern struct inode_operations jfs_file_inode_operations;

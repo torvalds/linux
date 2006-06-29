@@ -17,6 +17,5 @@
 
 #define __io(p)			((void __iomem *)(p))
 #define __mem_pci(a)		(a)
-#define __mem_isa(a)		(a)
 
 #endif

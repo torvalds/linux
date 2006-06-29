@@ -1173,7 +1173,7 @@ ixgb_tso(struct ixgb_adapter *adapter, struct sk_buff *skb)
 	uint16_t ipcse, tucse, mss;
 	int err;
 
-	if(likely(skb_shinfo(skb)->tso_size)) {
+	if(likely(skb_shinfo(skb)->gso_size)) {
 		if (skb_header_cloned(skb)) {
 			err = pskb_expand_head(skb, 0, 0, GFP_ATOMIC);
 			if (err)
@@ -1181,7 +1181,7 @@ ixgb_tso(struct ixgb_adapter *adapter, struct sk_buff *skb)
 		}
 
 		hdr_len = ((skb->h.raw - skb->data) + (skb->h.th->doff << 2));
-		mss = skb_shinfo(skb)->tso_size;
+		mss = skb_shinfo(skb)->gso_size;
 		skb->nh.iph->tot_len = 0;
 		skb->nh.iph->check = 0;
 		skb->h.th->check = ~csum_tcpudp_magic(skb->nh.iph->saddr,

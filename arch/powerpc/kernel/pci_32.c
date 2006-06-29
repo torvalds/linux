@@ -99,7 +99,7 @@ pcibios_fixup_resources(struct pci_dev *dev)
 		if (!res->flags)
 			continue;
 		if (res->end == 0xffffffff) {
-			DBG("PCI:%s Resource %d [%08lx-%08lx] is unassigned\n",
+			DBG("PCI:%s Resource %d [%016llx-%016llx] is unassigned\n",
 			    pci_name(dev), i, res->start, res->end);
 			res->end -= res->start;
 			res->start = 0;
@@ -117,7 +117,7 @@ pcibios_fixup_resources(struct pci_dev *dev)
 			res->start += offset;
 			res->end += offset;
 #ifdef DEBUG
-			printk("Fixup res %d (%lx) of dev %s: %lx -> %lx\n",
+			printk("Fixup res %d (%lx) of dev %s: %llx -> %llx\n",
 			       i, res->flags, pci_name(dev),
 			       res->start - offset, res->start);
 #endif
@@ -173,18 +173,18 @@ EXPORT_SYMBOL(pcibios_bus_to_resource);
  * but we want to try to avoid allocating at 0x2900-0x2bff
  * which might have be mirrored at 0x0100-0x03ff..
  */
-void pcibios_align_resource(void *data, struct resource *res, unsigned long size,
-		       unsigned long align)
+void pcibios_align_resource(void *data, struct resource *res,
+				resource_size_t size, resource_size_t align)
 {
 	struct pci_dev *dev = data;
 
 	if (res->flags & IORESOURCE_IO) {
-		unsigned long start = res->start;
+		resource_size_t start = res->start;
 
 		if (size > 0x100) {
 			printk(KERN_ERR "PCI: I/O Region %s/%d too large"
-			       " (%ld bytes)\n", pci_name(dev),
-			       dev->resource - res, size);
+			       " (%lld bytes)\n", pci_name(dev),
+			       dev->resource - res, (unsigned long long)size);
 		}
 
 		if (start & 0x300) {
@@ -255,8 +255,8 @@ pcibios_allocate_bus_resources(struct list_head *bus_list)
 				}
 			}
 
-			DBG("PCI: bridge rsrc %lx..%lx (%lx), parent %p\n",
-			    res->start, res->end, res->flags, pr);
+			DBG("PCI: bridge rsrc %llx..%llx (%lx), parent %p\n",
+				res->start, res->end, res->flags, pr);
 			if (pr) {
 				if (request_resource(pr, res) == 0)
 					continue;
@@ -306,7 +306,7 @@ reparent_resources(struct resource *parent, struct resource *res)
 	*pp = NULL;
 	for (p = res->child; p != NULL; p = p->sibling) {
 		p->parent = res;
-		DBG(KERN_INFO "PCI: reparented %s [%lx..%lx] under %s\n",
+		DBG(KERN_INFO "PCI: reparented %s [%llx..%llx] under %s\n",
 		    p->name, p->start, p->end, res->name);
 	}
 	return 0;
@@ -362,13 +362,14 @@ pci_relocate_bridge_resource(struct pci_bus *bus, int i)
 		try = conflict->start - 1;
 	}
 	if (request_resource(pr, res)) {
-		DBG(KERN_ERR "PCI: huh? couldn't move to %lx..%lx\n",
+		DBG(KERN_ERR "PCI: huh? couldn't move to %llx..%llx\n",
 		    res->start, res->end);
 		return -1;		/* "can't happen" */
 	}
 	update_bridge_base(bus, i);
-	printk(KERN_INFO "PCI: bridge %d resource %d moved to %lx..%lx\n",
-	       bus->number, i, res->start, res->end);
+	printk(KERN_INFO "PCI: bridge %d resource %d moved to %llx..%llx\n",
+	       bus->number, i, (unsigned long long)res->start,
+	       (unsigned long long)res->end);
 	return 0;
 }
 
@@ -479,14 +480,14 @@ static inline void alloc_resource(struct pci_dev *dev, int idx)
 {
 	struct resource *pr, *r = &dev->resource[idx];
 
-	DBG("PCI:%s: Resource %d: %08lx-%08lx (f=%lx)\n",
+	DBG("PCI:%s: Resource %d: %016llx-%016llx (f=%lx)\n",
 	    pci_name(dev), idx, r->start, r->end, r->flags);
 	pr = pci_find_parent_resource(dev, r);
 	if (!pr || request_resource(pr, r) < 0) {
 		printk(KERN_ERR "PCI: Cannot allocate resource region %d"
 		       " of device %s\n", idx, pci_name(dev));
 		if (pr)
-			DBG("PCI:  parent is %p: %08lx-%08lx (f=%lx)\n",
+			DBG("PCI:  parent is %p: %016llx-%016llx (f=%lx)\n",
 			    pr, pr->start, pr->end, pr->flags);
 		/* We'll assign a new address later */
 		r->flags |= IORESOURCE_UNSET;
@@ -956,7 +957,7 @@ pci_process_bridge_OF_ranges(struct pci_controller *hose,
 			res = &hose->io_resource;
 			res->flags = IORESOURCE_IO;
 			res->start = ranges[2];
-			DBG("PCI: IO 0x%lx -> 0x%lx\n",
+			DBG("PCI: IO 0x%llx -> 0x%llx\n",
 				    res->start, res->start + size - 1);
 			break;
 		case 2:		/* memory space */
@@ -978,7 +979,7 @@ pci_process_bridge_OF_ranges(struct pci_controller *hose,
 				if(ranges[0] & 0x40000000)
 					res->flags |= IORESOURCE_PREFETCH;
 				res->start = ranges[na+2];
-				DBG("PCI: MEM[%d] 0x%lx -> 0x%lx\n", memno,
+				DBG("PCI: MEM[%d] 0x%llx -> 0x%llx\n", memno,
 					    res->start, res->start + size - 1);
 			}
 			break;
@@ -1074,7 +1075,7 @@ do_update_p2p_io_resource(struct pci_bus *bus, int enable_vga)
 	DBG("Remapping Bus %d, bridge: %s\n", bus->number, pci_name(bridge));
 	res.start -= ((unsigned long) hose->io_base_virt - isa_io_base);
 	res.end -= ((unsigned long) hose->io_base_virt - isa_io_base);
-	DBG("  IO window: %08lx-%08lx\n", res.start, res.end);
+	DBG("  IO window: %016llx-%016llx\n", res.start, res.end);
 
 	/* Set up the top and bottom of the PCI I/O segment for this bus. */
 	pci_read_config_dword(bridge, PCI_IO_BASE, &l);
@@ -1113,9 +1114,10 @@ check_for_io_childs(struct pci_bus *bus, struct resource* res, int *found_vga)
 	int	i;
 	int	rc = 0;
 
-#define push_end(res, size) do { unsigned long __sz = (size) ; \
-	res->end = ((res->end + __sz) / (__sz + 1)) * (__sz + 1) + __sz; \
-    } while (0)
+#define push_end(res, mask) do {		\
+	BUG_ON((mask+1) & mask);		\
+	res->end = (res->end + mask) | mask;	\
+} while (0)
 
 	list_for_each_entry(dev, &bus->devices, bus_list) {
 		u16 class = dev->class >> 8;
@@ -1222,8 +1224,8 @@ do_fixup_p2p_level(struct pci_bus *bus)
 					continue;
 				if ((r->flags & IORESOURCE_IO) == 0)
 					continue;
-				DBG("Trying to allocate from %08lx, size %08lx from parent"
-				    " res %d: %08lx -> %08lx\n",
+				DBG("Trying to allocate from %016llx, size %016llx from parent"
+				    " res %d: %016llx -> %016llx\n",
 					res->start, res->end, i, r->start, r->end);
 			
 				if (allocate_resource(r, res, res->end + 1, res->start, max,
@@ -1573,8 +1575,8 @@ static pgprot_t __pci_mmap_set_pgprot(struct pci_dev *dev, struct resource *rp,
 	else
 		prot |= _PAGE_GUARDED;
 
-	printk("PCI map for %s:%lx, prot: %lx\n", pci_name(dev), rp->start,
-	       prot);
+	printk("PCI map for %s:%llx, prot: %lx\n", pci_name(dev),
+		(unsigned long long)rp->start, prot);
 
 	return __pgprot(prot);
 }
@@ -1653,7 +1655,6 @@ int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
 		return -EINVAL;
 
 	vma->vm_pgoff = offset >> PAGE_SHIFT;
-	vma->vm_flags |= VM_SHM | VM_LOCKED | VM_IO;
 	vma->vm_page_prot = __pci_mmap_set_pgprot(dev, rp,
 						  vma->vm_page_prot,
 						  mmap_state, write_combine);
@@ -1755,7 +1756,7 @@ long sys_pciconfig_iobase(long which, unsigned long bus, unsigned long devfn)
 
 void pci_resource_to_user(const struct pci_dev *dev, int bar,
 			  const struct resource *rsrc,
-			  u64 *start, u64 *end)
+			  resource_size_t *start, resource_size_t *end)
 {
 	struct pci_controller *hose = pci_bus_to_hose(dev->bus->number);
 	unsigned long offset = 0;

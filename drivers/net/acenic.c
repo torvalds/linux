@@ -579,11 +579,7 @@ static int __devinit acenic_probe_one(struct pci_dev *pdev,
 	}
 
 	printk("Gigabit Ethernet at 0x%08lx, ", dev->base_addr);
-#ifdef __sparc__
-	printk("irq %s\n", __irq_itoa(pdev->irq));
-#else
-	printk("irq %i\n", pdev->irq);
-#endif
+	printk("irq %d\n", pdev->irq);
 
 #ifdef CONFIG_ACENIC_OMIT_TIGON_I
 	if ((readl(&ap->regs->HostCtrl) >> 28) == 4) {

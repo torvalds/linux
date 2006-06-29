@@ -939,9 +939,10 @@ static int __init add_bridge(struct device_node *dev)
 		disp_name = "Chaos";
 		primary = 0;
 	}
-	printk(KERN_INFO "Found %s PCI host bridge at 0x%08lx. "
+	printk(KERN_INFO "Found %s PCI host bridge at 0x%016llx. "
 	       "Firmware bus number: %d->%d\n",
-		disp_name, rsrc.start, hose->first_busno, hose->last_busno);
+		disp_name, (unsigned long long)rsrc.start, hose->first_busno,
+		hose->last_busno);
 #endif /* CONFIG_PPC32 */
 
 	DBG(" ->Hose at 0x%p, cfg_addr=0x%p,cfg_data=0x%p\n",
@@ -1067,9 +1068,6 @@ void __init pmac_pci_init(void)
 
 	/* Tell pci.c to not use the common resource allocation mechanism */
 	pci_probe_only = 1;
-
-	/* Allow all IO */
-	io_page_mask = -1;
 
 #else /* CONFIG_PPC64 */
 	init_p2pbridge();

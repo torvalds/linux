@@ -47,6 +47,8 @@
 #include <linux/rmap.h>
 #include <linux/mempolicy.h>
 #include <linux/key.h>
+#include <linux/unwind.h>
+#include <linux/buffer_head.h>
 
 #include <asm/io.h>
 #include <asm/bugs.h>
@@ -79,7 +81,6 @@ extern void mca_init(void);
 extern void sbus_init(void);
 extern void sysctl_init(void);
 extern void signals_init(void);
-extern void buffer_init(void);
 extern void pidhash_init(void);
 extern void pidmap_init(void);
 extern void prio_tree_init(void);
@@ -482,6 +483,7 @@ asmlinkage void __init start_kernel(void)
 		   __stop___param - __start___param,
 		   &unknown_bootoption);
 	sort_main_extable();
+	unwind_init();
 	trap_init();
 	rcu_init();
 	init_IRQ();
@@ -490,6 +492,7 @@ asmlinkage void __init start_kernel(void)
 	hrtimers_init();
 	softirq_init();
 	time_init();
+	timekeeping_init();
 
 	/*
 	 * HACK ALERT! This is early. We're enabling the console before

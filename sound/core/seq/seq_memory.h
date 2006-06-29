@@ -31,7 +31,7 @@ struct snd_seq_event_cell {
 	struct snd_seq_event_cell *next;	/* next cell */
 };
 
-/* design note: the pool is a contigious block of memory, if we dynamicly
+/* design note: the pool is a contiguous block of memory, if we dynamicly
    want to add additional cells to the pool be better store this in another
    pool as we need to know the base address of the pool when releasing
    memory. */

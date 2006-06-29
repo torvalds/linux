@@ -172,7 +172,11 @@ struct exception_data {
 /*
  * The "__put_user/kernel_asm()" macros tell gcc they read from memory
  * instead of writing. This is because they do not write to any memory
- * gcc knows about, so there are no aliasing issues.
+ * gcc knows about, so there are no aliasing issues. These macros must
+ * also be aware that "fixup_put_user_skip_[12]" are executed in the
+ * context of the fault, and any registers used there must be listed
+ * as clobbers. In this case only "r1" is used by the current routines.
+ * r8/r9 are already listed as err/val.
  */
 
 #ifdef __LP64__
@@ -183,7 +187,8 @@ struct exception_data {
 		"\t.dword\t1b,fixup_put_user_skip_1\n"	    \
 		"\t.previous"                               \
 		: "=r"(__pu_err)                            \
-		: "r"(ptr), "r"(x), "0"(__pu_err))
+		: "r"(ptr), "r"(x), "0"(__pu_err)	    \
+	    	: "r1")
 
 #define __put_user_asm(stx,x,ptr)                           \
 	__asm__ __volatile__ (                              \

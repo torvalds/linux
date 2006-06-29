@@ -3,6 +3,10 @@
 
 #ifdef __KERNEL__
 
+#include <asm/types.h>
+
+#include <linux/types.h>
+
 struct alt_instr {
 	u8 *instr; 		/* original instruction */
 	u8 *replacement;

@@ -127,10 +127,12 @@ MODULE_PARM_DESC(max_sectors, "Change max sectors per I/O supported (default = "
  * talking to a single sbp2 device at the same time (filesystem coherency,
  * etc.). If you're running an sbp2 device that supports multiple logins,
  * and you're either running read-only filesystems or some sort of special
- * filesystem supporting multiple hosts (one such filesystem is OpenGFS,
- * see opengfs.sourceforge.net for more info), then set exclusive_login
- * to zero. Note: The Oxsemi OXFW911 sbp2 chipset supports up to four
- * concurrent logins.
+ * filesystem supporting multiple hosts, e.g. OpenGFS, Oracle Cluster
+ * File System, or Lustre, then set exclusive_login to zero.
+ *
+ * So far only bridges from Oxford Semiconductor are known to support
+ * concurrent logins. Depending on firmware, four or two concurrent logins
+ * are possible on OXFW911 and newer Oxsemi bridges.
  */
 static int exclusive_login = 1;
 module_param(exclusive_login, int, 0644);
@@ -306,8 +308,9 @@ static const struct {
 	u32 model_id;
 	unsigned workarounds;
 } sbp2_workarounds_table[] = {
-	/* TSB42AA9 */ {
+	/* DViCO Momobay CX-1 with TSB42AA9 bridge */ {
 		.firmware_revision	= 0x002800,
+		.model_id		= 0x001010,
 		.workarounds		= SBP2_WORKAROUND_INQUIRY_36 |
 					  SBP2_WORKAROUND_MODE_SENSE_8,
 	},
@@ -791,12 +794,12 @@ static struct scsi_id_instance_data *sbp2_alloc_device(struct unit_directory *ud
 	scsi_id->ud = ud;
 	scsi_id->speed_code = IEEE1394_SPEED_100;
 	scsi_id->max_payload_size = sbp2_speedto_max_payload[IEEE1394_SPEED_100];
+	scsi_id->status_fifo_addr = CSR1212_INVALID_ADDR_SPACE;
 	atomic_set(&scsi_id->sbp2_login_complete, 0);
 	INIT_LIST_HEAD(&scsi_id->sbp2_command_orb_inuse);
 	INIT_LIST_HEAD(&scsi_id->sbp2_command_orb_completed);
 	INIT_LIST_HEAD(&scsi_id->scsi_list);
 	spin_lock_init(&scsi_id->sbp2_command_orb_lock);
-	scsi_id->sbp2_lun = 0;
 
 	ud->device.driver_data = scsi_id;
 
@@ -844,8 +847,8 @@ static struct scsi_id_instance_data *sbp2_alloc_device(struct unit_directory *ud
 	scsi_id->status_fifo_addr = hpsb_allocate_and_register_addrspace(
 			&sbp2_highlevel, ud->ne->host, &sbp2_ops,
 			sizeof(struct sbp2_status_block), sizeof(quadlet_t),
-			0x010000000000ULL, CSR1212_ALL_SPACE_END);
-	if (scsi_id->status_fifo_addr == ~0ULL) {
+			ud->ne->host->low_addr_space, CSR1212_ALL_SPACE_END);
+	if (scsi_id->status_fifo_addr == CSR1212_INVALID_ADDR_SPACE) {
 		SBP2_ERR("failed to allocate status FIFO address range");
 		goto failed_alloc;
 	}
@@ -1087,9 +1090,9 @@ static void sbp2_remove_device(struct scsi_id_instance_data *scsi_id)
 		SBP2_DMA_FREE("single query logins data");
 	}
 
-	if (scsi_id->status_fifo_addr)
+	if (scsi_id->status_fifo_addr != CSR1212_INVALID_ADDR_SPACE)
 		hpsb_unregister_addrspace(&sbp2_highlevel, hi->host,
-			scsi_id->status_fifo_addr);
+					  scsi_id->status_fifo_addr);
 
 	scsi_id->ud->device.driver_data = NULL;
 
@@ -1213,13 +1216,11 @@ static int sbp2_query_logins(struct scsi_id_instance_data *scsi_id)
 	SBP2_DEBUG("length_max_logins = %x",
 		   (unsigned int)scsi_id->query_logins_response->length_max_logins);
 
-	SBP2_DEBUG("Query logins to SBP-2 device successful");
-
 	max_logins = RESPONSE_GET_MAX_LOGINS(scsi_id->query_logins_response->length_max_logins);
-	SBP2_DEBUG("Maximum concurrent logins supported: %d", max_logins);
+	SBP2_INFO("Maximum concurrent logins supported: %d", max_logins);
 
 	active_logins = RESPONSE_GET_ACTIVE_LOGINS(scsi_id->query_logins_response->length_max_logins);
-	SBP2_DEBUG("Number of active logins: %d", active_logins);
+	SBP2_INFO("Number of active logins: %d", active_logins);
 
 	if (active_logins >= max_logins) {
 		return -EIO;
@@ -1648,6 +1649,8 @@ static void sbp2_parse_unit_directory(struct scsi_id_instance_data *scsi_id,
 	}
 }
 
+#define SBP2_PAYLOAD_TO_BYTES(p) (1 << ((p) + 2))
+
 /*
  * This function is called in order to determine the max speed and packet
  * size we can use in our ORBs. Note, that we (the driver and host) only
@@ -1660,13 +1663,12 @@ static void sbp2_parse_unit_directory(struct scsi_id_instance_data *scsi_id,
 static int sbp2_max_speed_and_size(struct scsi_id_instance_data *scsi_id)
 {
 	struct sbp2scsi_host_info *hi = scsi_id->hi;
+	u8 payload;
 
 	SBP2_DEBUG_ENTER();
 
-	/* Initial setting comes from the hosts speed map */
 	scsi_id->speed_code =
-	    hi->host->speed_map[NODEID_TO_NODE(hi->host->node_id) * 64 +
-				NODEID_TO_NODE(scsi_id->ne->nodeid)];
+	    hi->host->speed[NODEID_TO_NODE(scsi_id->ne->nodeid)];
 
 	/* Bump down our speed if the user requested it */
 	if (scsi_id->speed_code > max_speed) {
@@ -1677,15 +1679,22 @@ static int sbp2_max_speed_and_size(struct scsi_id_instance_data *scsi_id)
 
 	/* Payload size is the lesser of what our speed supports and what
 	 * our host supports.  */
-	scsi_id->max_payload_size =
-	    min(sbp2_speedto_max_payload[scsi_id->speed_code],
-		(u8) (hi->host->csr.max_rec - 1));
+	payload = min(sbp2_speedto_max_payload[scsi_id->speed_code],
+		      (u8) (hi->host->csr.max_rec - 1));
+
+	/* If physical DMA is off, work around limitation in ohci1394:
+	 * packet size must not exceed PAGE_SIZE */
+	if (scsi_id->ne->host->low_addr_space < (1ULL << 32))
+		while (SBP2_PAYLOAD_TO_BYTES(payload) + 24 > PAGE_SIZE &&
+		       payload)
+			payload--;
 
 	HPSB_DEBUG("Node " NODE_BUS_FMT ": Max speed [%s] - Max payload [%u]",
 		   NODE_BUS_ARGS(hi->host, scsi_id->ne->nodeid),
 		   hpsb_speedto_str[scsi_id->speed_code],
-		   1 << ((u32) scsi_id->max_payload_size + 2));
+		   SBP2_PAYLOAD_TO_BYTES(payload));
 
+	scsi_id->max_payload_size = payload;
 	return 0;
 }
 
@@ -2113,33 +2122,6 @@ static unsigned int sbp2_status_to_sense_data(unchar *sbp2_status, unchar *sense
 }
 
 /*
- * This function is called after a command is completed, in order to do any necessary SBP-2
- * response data translations for the SCSI stack
- */
-static void sbp2_check_sbp2_response(struct scsi_id_instance_data *scsi_id,
-				     struct scsi_cmnd *SCpnt)
-{
-	u8 *scsi_buf = SCpnt->request_buffer;
-
-	SBP2_DEBUG_ENTER();
-
-	if (SCpnt->cmnd[0] == INQUIRY && (SCpnt->cmnd[1] & 3) == 0) {
-		/*
-		 * Make sure data length is ok. Minimum length is 36 bytes
-		 */
-		if (scsi_buf[4] == 0) {
-			scsi_buf[4] = 36 - 5;
-		}
-
-		/*
-		 * Fix ansi revision and response data format
-		 */
-		scsi_buf[2] |= 2;
-		scsi_buf[3] = (scsi_buf[3] & 0xf0) | 2;
-	}
-}
-
-/*
  * This function deals with status writes from the SBP-2 device
  */
 static int sbp2_handle_status_write(struct hpsb_host *host, int nodeid, int destid,
@@ -2475,13 +2457,6 @@ static void sbp2scsi_complete_command(struct scsi_id_instance_data *scsi_id,
 	default:
 		SBP2_ERR("Unsupported SCSI status = %x", scsi_status);
 		SCpnt->result = DID_ERROR << 16;
-	}
-
-	/*
-	 * Take care of any sbp2 response data mucking here (RBC stuff, etc.)
-	 */
-	if (SCpnt->result == DID_OK << 16) {
-		sbp2_check_sbp2_response(scsi_id, SCpnt);
 	}
 
 	/*

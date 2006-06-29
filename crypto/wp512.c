@@ -981,9 +981,9 @@ static void wp512_process_buffer(struct wp512_ctx *wctx) {
 
 }
 
-static void wp512_init (void *ctx) {
+static void wp512_init(struct crypto_tfm *tfm) {
+	struct wp512_ctx *wctx = crypto_tfm_ctx(tfm);
 	int i;
-	struct wp512_ctx *wctx = ctx;
 
 	memset(wctx->bitLength, 0, 32);
 	wctx->bufferBits = wctx->bufferPos = 0;
@@ -993,10 +993,10 @@ static void wp512_init (void *ctx) {
 	}
 }
 
-static void wp512_update(void *ctx, const u8 *source, unsigned int len)
+static void wp512_update(struct crypto_tfm *tfm, const u8 *source,
+			 unsigned int len)
 {
-
-	struct wp512_ctx *wctx = ctx;
+	struct wp512_ctx *wctx = crypto_tfm_ctx(tfm);
 	int sourcePos    = 0;
 	unsigned int bits_len = len * 8; // convert to number of bits
 	int sourceGap    = (8 - ((int)bits_len & 7)) & 7;
@@ -1054,9 +1054,9 @@ static void wp512_update(void *ctx, const u8 *source, unsigned int len)
 
 }
 
-static void wp512_final(void *ctx, u8 *out)
+static void wp512_final(struct crypto_tfm *tfm, u8 *out)
 {
-	struct wp512_ctx *wctx = ctx;
+	struct wp512_ctx *wctx = crypto_tfm_ctx(tfm);
 	int i;
    	u8 *buffer      = wctx->buffer;
    	u8 *bitLength   = wctx->bitLength;
@@ -1087,22 +1087,20 @@ static void wp512_final(void *ctx, u8 *out)
    	wctx->bufferPos    = bufferPos;
 }
 
-static void wp384_final(void *ctx, u8 *out)
+static void wp384_final(struct crypto_tfm *tfm, u8 *out)
 {
-	struct wp512_ctx *wctx = ctx;
 	u8 D[64];
 
-	wp512_final (wctx, D);
+	wp512_final(tfm, D);
 	memcpy (out, D, WP384_DIGEST_SIZE);
 	memset (D, 0, WP512_DIGEST_SIZE);
 }
 
-static void wp256_final(void *ctx, u8 *out)
+static void wp256_final(struct crypto_tfm *tfm, u8 *out)
 {
-	struct wp512_ctx *wctx = ctx;
 	u8 D[64];
 
-	wp512_final (wctx, D);
+	wp512_final(tfm, D);
 	memcpy (out, D, WP256_DIGEST_SIZE);
 	memset (D, 0, WP512_DIGEST_SIZE);
 }

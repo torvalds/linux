@@ -1140,10 +1140,9 @@ list_modified:
 		}
 	}
 	/* re-insert all entries from the failed_list into ipm_list */
-	list_for_each_entry_safe(ipm, tmp, &failed_list, list) {
-		list_del_init(&ipm->list);
-		list_add_tail(&ipm->list, &card->ipm_list);
-	}
+	list_for_each_entry_safe(ipm, tmp, &failed_list, list)
+		list_move_tail(&ipm->list, &card->ipm_list);
+
 	spin_unlock_irqrestore(&card->ipm_lock, flags);
 }
 

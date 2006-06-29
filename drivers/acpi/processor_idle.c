@@ -54,10 +54,10 @@ ACPI_MODULE_NAME("acpi_processor")
 #define US_TO_PM_TIMER_TICKS(t)		((t * (PM_TIMER_FREQUENCY/1000)) / 1000)
 #define C2_OVERHEAD			4	/* 1us (3.579 ticks per us) */
 #define C3_OVERHEAD			4	/* 1us (3.579 ticks per us) */
-static void (*pm_idle_save) (void);
+static void (*pm_idle_save) (void) __read_mostly;
 module_param(max_cstate, uint, 0644);
 
-static unsigned int nocst = 0;
+static unsigned int nocst __read_mostly;
 module_param(nocst, uint, 0000);
 
 /*
@@ -67,7 +67,7 @@ module_param(nocst, uint, 0000);
  * 100 HZ: 0x0000000F: 4 jiffies = 40ms
  * reduce history for more aggressive entry into C3
  */
-static unsigned int bm_history =
+static unsigned int bm_history __read_mostly =
     (HZ >= 800 ? 0xFFFFFFFF : ((1U << (HZ / 25)) - 1));
 module_param(bm_history, uint, 0644);
 /* --------------------------------------------------------------------------
@@ -206,11 +206,11 @@ acpi_processor_power_activate(struct acpi_processor *pr,
 
 static void acpi_safe_halt(void)
 {
-	clear_thread_flag(TIF_POLLING_NRFLAG);
+	current_thread_info()->status &= ~TS_POLLING;
 	smp_mb__after_clear_bit();
 	if (!need_resched())
 		safe_halt();
-	set_thread_flag(TIF_POLLING_NRFLAG);
+	current_thread_info()->status |= TS_POLLING;
 }
 
 static atomic_t c3_cpu_count;
@@ -330,10 +330,10 @@ static void acpi_processor_idle(void)
 	 * Invoke the current Cx state to put the processor to sleep.
 	 */
 	if (cx->type == ACPI_STATE_C2 || cx->type == ACPI_STATE_C3) {
-		clear_thread_flag(TIF_POLLING_NRFLAG);
+		current_thread_info()->status &= ~TS_POLLING;
 		smp_mb__after_clear_bit();
 		if (need_resched()) {
-			set_thread_flag(TIF_POLLING_NRFLAG);
+			current_thread_info()->status |= TS_POLLING;
 			local_irq_enable();
 			return;
 		}
@@ -369,9 +369,14 @@ static void acpi_processor_idle(void)
 		t2 = inl(acpi_fadt.xpm_tmr_blk.address);
 		/* Get end time (ticks) */
 		t2 = inl(acpi_fadt.xpm_tmr_blk.address);
+
+#ifdef CONFIG_GENERIC_TIME
+		/* TSC halts in C2, so notify users */
+		mark_tsc_unstable();
+#endif
 		/* Re-enable interrupts */
 		local_irq_enable();
-		set_thread_flag(TIF_POLLING_NRFLAG);
+		current_thread_info()->status |= TS_POLLING;
 		/* Compute time (ticks) that we were actually asleep */
 		sleep_ticks =
 		    ticks_elapsed(t1, t2) - cx->latency_ticks - C2_OVERHEAD;
@@ -409,9 +414,13 @@ static void acpi_processor_idle(void)
 					  ACPI_MTX_DO_NOT_LOCK);
 		}
 
+#ifdef CONFIG_GENERIC_TIME
+		/* TSC halts in C3, so notify users */
+		mark_tsc_unstable();
+#endif
 		/* Re-enable interrupts */
 		local_irq_enable();
-		set_thread_flag(TIF_POLLING_NRFLAG);
+		current_thread_info()->status |= TS_POLLING;
 		/* Compute time (ticks) that we were actually asleep */
 		sleep_ticks =
 		    ticks_elapsed(t1, t2) - cx->latency_ticks - C3_OVERHEAD;
@@ -1081,7 +1090,7 @@ int acpi_processor_power_init(struct acpi_processor *pr,
 			      struct acpi_device *device)
 {
 	acpi_status status = 0;
-	static int first_run = 0;
+	static int first_run;
 	struct proc_dir_entry *entry = NULL;
 	unsigned int i;
 

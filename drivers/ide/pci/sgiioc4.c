@@ -723,6 +723,12 @@ static ide_pci_device_t sgiioc4_chipsets[] __devinitdata = {
 int
 ioc4_ide_attach_one(struct ioc4_driver_data *idd)
 {
+	/* PCI-RT does not bring out IDE connection.
+	 * Do not attach to this particular IOC4.
+	 */
+	if (idd->idd_variant == IOC4_VARIANT_PCI_RT)
+		return 0;
+
 	return pci_init_sgiioc4(idd->idd_pdev,
 				&sgiioc4_chipsets[idd->idd_pci_id->driver_data]);
 }

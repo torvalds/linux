@@ -405,7 +405,7 @@ static const struct pnp_device_id cs4232_pnp_table[] = {
 
 MODULE_DEVICE_TABLE(pnp, cs4232_pnp_table);
 
-static int cs4232_pnp_probe(struct pnp_dev *dev, const struct pnp_device_id *dev_id)
+static int __init cs4232_pnp_probe(struct pnp_dev *dev, const struct pnp_device_id *dev_id)
 {
 	struct address_info *isapnpcfg;
 

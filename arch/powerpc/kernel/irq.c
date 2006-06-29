@@ -47,6 +47,7 @@
 #include <linux/cpumask.h>
 #include <linux/profile.h>
 #include <linux/bitops.h>
+#include <linux/pci.h>
 
 #include <asm/uaccess.h>
 #include <asm/system.h>
@@ -119,8 +120,8 @@ int show_interrupts(struct seq_file *p, void *v)
 #else
 		seq_printf(p, "%10u ", kstat_irqs(i));
 #endif /* CONFIG_SMP */
-		if (desc->handler)
-			seq_printf(p, " %s ", desc->handler->typename);
+		if (desc->chip)
+			seq_printf(p, " %s ", desc->chip->typename);
 		else
 			seq_puts(p, "  None      ");
 		seq_printf(p, "%s", (desc->status & IRQ_LEVEL) ? "Level " : "Edge  ");
@@ -163,13 +164,13 @@ void fixup_irqs(cpumask_t map)
 		if (irq_desc[irq].status & IRQ_PER_CPU)
 			continue;
 
-		cpus_and(mask, irq_affinity[irq], map);
+		cpus_and(mask, irq_desc[irq].affinity, map);
 		if (any_online_cpu(mask) == NR_CPUS) {
 			printk("Breaking affinity for irq %i\n", irq);
 			mask = map;
 		}
-		if (irq_desc[irq].handler->set_affinity)
-			irq_desc[irq].handler->set_affinity(irq, mask);
+		if (irq_desc[irq].chip->set_affinity)
+			irq_desc[irq].chip->set_affinity(irq, mask);
 		else if (irq_desc[irq].action && !(warned++))
 			printk("Cannot set affinity for irq %i\n", irq);
 	}
@@ -379,8 +380,8 @@ unsigned int real_irq_to_virt_slowpath(unsigned int real_irq)
 #endif /* CONFIG_PPC64 */
 
 #ifdef CONFIG_IRQSTACKS
-struct thread_info *softirq_ctx[NR_CPUS];
-struct thread_info *hardirq_ctx[NR_CPUS];
+struct thread_info *softirq_ctx[NR_CPUS] __read_mostly;
+struct thread_info *hardirq_ctx[NR_CPUS] __read_mostly;
 
 void irq_ctx_init(void)
 {
@@ -435,6 +436,30 @@ void do_softirq(void)
 	local_irq_restore(flags);
 }
 EXPORT_SYMBOL(do_softirq);
+
+#ifdef CONFIG_PCI_MSI
+int pci_enable_msi(struct pci_dev * pdev)
+{
+	if (ppc_md.enable_msi)
+		return ppc_md.enable_msi(pdev);
+	else
+		return -1;
+}
+
+void pci_disable_msi(struct pci_dev * pdev)
+{
+	if (ppc_md.disable_msi)
+		ppc_md.disable_msi(pdev);
+}
+
+void pci_scan_msi_device(struct pci_dev *dev) {}
+int pci_enable_msix(struct pci_dev* dev, struct msix_entry *entries, int nvec) {return -1;}
+void pci_disable_msix(struct pci_dev *dev) {}
+void msi_remove_pci_irq_vectors(struct pci_dev *dev) {}
+void disable_msi_mode(struct pci_dev *dev, int pos, int type) {}
+void pci_no_msi(void) {}
+
+#endif
 
 #ifdef CONFIG_PPC64
 static int __init setup_noirqdistrib(char *str)

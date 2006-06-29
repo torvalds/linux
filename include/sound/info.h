@@ -27,9 +27,9 @@
 /* buffer for information */
 struct snd_info_buffer {
 	char *buffer;		/* pointer to begin of buffer */
-	char *curr;		/* current position in buffer */
-	unsigned long size;	/* current size */
-	unsigned long len;	/* total length of buffer */
+	unsigned int curr;	/* current position in buffer */
+	unsigned int size;	/* current size */
+	unsigned int len;	/* total length of buffer */
 	int stop;		/* stop flag */
 	int error;		/* error code */
 };
@@ -40,8 +40,6 @@ struct snd_info_buffer {
 struct snd_info_entry;
 
 struct snd_info_entry_text {
-	unsigned long read_size;
-	unsigned long write_size;
 	void (*read) (struct snd_info_entry *entry, struct snd_info_buffer *buffer);
 	void (*write) (struct snd_info_entry *entry, struct snd_info_buffer *buffer);
 };
@@ -132,11 +130,9 @@ int snd_card_proc_new(struct snd_card *card, const char *name, struct snd_info_e
 
 static inline void snd_info_set_text_ops(struct snd_info_entry *entry, 
 					 void *private_data,
-					 long read_size,
 					 void (*read)(struct snd_info_entry *, struct snd_info_buffer *))
 {
 	entry->private_data = private_data;
-	entry->c.text.read_size = read_size;
 	entry->c.text.read = read;
 }
 
@@ -167,7 +163,6 @@ static inline int snd_card_proc_new(struct snd_card *card, const char *name,
 				    struct snd_info_entry **entryp) { return -EINVAL; }
 static inline void snd_info_set_text_ops(struct snd_info_entry *entry __attribute__((unused)),
 					 void *private_data,
-					 long read_size,
 					 void (*read)(struct snd_info_entry *, struct snd_info_buffer *)) {}
 
 static inline int snd_info_check_reserved_words(const char *str) { return 1; }

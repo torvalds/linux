@@ -230,6 +230,7 @@ static inline void fast_imageblit(const struct fb_image *image, struct fb_info *
 		tab = cfb_tab16;
 		break;
 	case 32:
+	default:
 		tab = cfb_tab32;
 		break;
 	}

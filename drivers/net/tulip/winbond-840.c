@@ -212,26 +212,15 @@ Test with 'ping -s 10000' on a fast computer.
 /*
   PCI probe table.
 */
-enum pci_id_flags_bits {
-        /* Set PCI command register bits before calling probe1(). */
-        PCI_USES_IO=1, PCI_USES_MEM=2, PCI_USES_MASTER=4,
-        /* Read and map the single following PCI BAR. */
-        PCI_ADDR0=0<<4, PCI_ADDR1=1<<4, PCI_ADDR2=2<<4, PCI_ADDR3=3<<4,
-        PCI_ADDR_64BITS=0x100, PCI_NO_ACPI_WAKE=0x200, PCI_NO_MIN_LATENCY=0x400,
-};
 enum chip_capability_flags {
-	CanHaveMII=1, HasBrokenTx=2, AlwaysFDX=4, FDXOnNoMII=8,};
-#ifdef USE_IO_OPS
-#define W840_FLAGS (PCI_USES_IO | PCI_ADDR0 | PCI_USES_MASTER)
-#else
-#define W840_FLAGS (PCI_USES_MEM | PCI_ADDR1 | PCI_USES_MASTER)
-#endif
+	CanHaveMII=1, HasBrokenTx=2, AlwaysFDX=4, FDXOnNoMII=8,
+};
 
-static struct pci_device_id w840_pci_tbl[] = {
+static const struct pci_device_id w840_pci_tbl[] = {
 	{ 0x1050, 0x0840, PCI_ANY_ID, 0x8153,     0, 0, 0 },
 	{ 0x1050, 0x0840, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 1 },
 	{ 0x11f6, 0x2011, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 2 },
-	{ 0, }
+	{ }
 };
 MODULE_DEVICE_TABLE(pci, w840_pci_tbl);
 
@@ -241,18 +230,17 @@ struct pci_id_info {
                 int     pci, pci_mask, subsystem, subsystem_mask;
                 int revision, revision_mask;                            /* Only 8 bits. */
         } id;
-        enum pci_id_flags_bits pci_flags;
         int io_size;                            /* Needed for I/O region check or ioremap(). */
         int drv_flags;                          /* Driver use, intended as capability flags. */
 };
 static struct pci_id_info pci_id_tbl[] = {
 	{"Winbond W89c840",			/* Sometime a Level-One switch card. */
 	 { 0x08401050, 0xffffffff, 0x81530000, 0xffff0000 },
-	 W840_FLAGS, 128, CanHaveMII | HasBrokenTx | FDXOnNoMII},
+	   128, CanHaveMII | HasBrokenTx | FDXOnNoMII},
 	{"Winbond W89c840", { 0x08401050, 0xffffffff, },
-	 W840_FLAGS, 128, CanHaveMII | HasBrokenTx},
+	   128, CanHaveMII | HasBrokenTx},
 	{"Compex RL100-ATX", { 0x201111F6, 0xffffffff,},
-	 W840_FLAGS, 128, CanHaveMII | HasBrokenTx},
+	   128, CanHaveMII | HasBrokenTx},
 	{NULL,},					/* 0 terminated list. */
 };
 

@@ -265,6 +265,7 @@
 
 /* specific - Analog Devices */
 #define AC97_AD_TEST		0x5a	/* test register */
+#define AC97_AD_TEST2		0x5c	/* undocumented test register 2 */
 #define AC97_AD_CODEC_CFG	0x70	/* codec configuration */
 #define AC97_AD_JACK_SPDIF	0x72	/* Jack Sense & S/PDIF */
 #define AC97_AD_SERIAL_CFG	0x74	/* Serial Configuration */
@@ -378,6 +379,7 @@
 #define AC97_HAS_NO_MIC	(1<<15) /* no MIC volume */
 #define AC97_HAS_NO_TONE	(1<<16) /* no Tone volume */
 #define AC97_HAS_NO_STD_PCM	(1<<17)	/* no standard AC97 PCM volume and mute */
+#define AC97_HAS_NO_AUX		(1<<18) /* no standard AC97 AUX volume and mute */
 
 /* rates indexes */
 #define AC97_RATES_FRONT_DAC	0

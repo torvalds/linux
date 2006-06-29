@@ -592,7 +592,7 @@ static int put_address(char *st, u_char *p, int len)
 } /* put_address */
 
 /*************************************/
-/* report a succesfull interrogation */
+/* report a successful interrogation */
 /*************************************/
 static int interrogate_success(isdn_ctrl *ic, struct call_struc *cs)
 { char *src = ic->parm.dss1_io.data;

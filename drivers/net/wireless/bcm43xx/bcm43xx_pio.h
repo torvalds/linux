@@ -54,6 +54,7 @@ struct bcm43xx_pioqueue {
 	u16 mmio_base;
 
 	u8 tx_suspended:1,
+	   tx_frozen:1,
 	   need_workarounds:1; /* Workarounds needed for core.rev < 3 */
 
 	/* Adjusted size of the device internal TX buffer. */
@@ -108,8 +109,12 @@ void bcm43xx_pio_handle_xmitstatus(struct bcm43xx_private *bcm,
 				   struct bcm43xx_xmitstatus *status);
 void bcm43xx_pio_rx(struct bcm43xx_pioqueue *queue);
 
+/* Suspend a TX queue on hardware level. */
 void bcm43xx_pio_tx_suspend(struct bcm43xx_pioqueue *queue);
 void bcm43xx_pio_tx_resume(struct bcm43xx_pioqueue *queue);
+/* Suspend (freeze) the TX tasklet (software level). */
+void bcm43xx_pio_freeze_txqueues(struct bcm43xx_private *bcm);
+void bcm43xx_pio_thaw_txqueues(struct bcm43xx_private *bcm);
 
 #else /* CONFIG_BCM43XX_PIO */
 
@@ -143,6 +148,14 @@ void bcm43xx_pio_tx_suspend(struct bcm43xx_pioqueue *queue)
 }
 static inline
 void bcm43xx_pio_tx_resume(struct bcm43xx_pioqueue *queue)
+{
+}
+static inline
+void bcm43xx_pio_freeze_txqueues(struct bcm43xx_private *bcm)
+{
+}
+static inline
+void bcm43xx_pio_thaw_txqueues(struct bcm43xx_private *bcm)
 {
 }
 

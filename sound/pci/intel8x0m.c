@@ -59,7 +59,7 @@ MODULE_SUPPORTED_DEVICE("{{Intel,82801AA-ICH},"
 
 static int index = -2; /* Exclude the first card */
 static char *id = SNDRV_DEFAULT_STR1;	/* ID for this card */
-static int ac97_clock = 0;
+static int ac97_clock;
 
 module_param(index, int, 0444);
 MODULE_PARM_DESC(index, "Index value for Intel i8x0 modemcard.");
@@ -1092,7 +1092,7 @@ static void __devinit snd_intel8x0m_proc_init(struct intel8x0m * chip)
 	struct snd_info_entry *entry;
 
 	if (! snd_card_proc_new(chip->card, "intel8x0m", &entry))
-		snd_info_set_text_ops(entry, chip, 1024, snd_intel8x0m_proc_read);
+		snd_info_set_text_ops(entry, chip, snd_intel8x0m_proc_read);
 }
 #else /* !CONFIG_PROC_FS */
 #define snd_intel8x0m_proc_init(chip)

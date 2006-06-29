@@ -23,7 +23,8 @@ extern int udbg_write(const char *s, int n);
 extern int udbg_read(char *buf, int buflen);
 
 extern void register_early_udbg_console(void);
-extern void udbg_printf(const char *fmt, ...);
+extern void udbg_printf(const char *fmt, ...)
+	__attribute__ ((format (printf, 1, 2)));
 extern void udbg_progress(char *s, unsigned short hex);
 
 extern void udbg_init_uart(void __iomem *comport, unsigned int speed,
@@ -41,7 +42,8 @@ extern void __init udbg_init_debug_lpar(void);
 extern void __init udbg_init_pmac_realmode(void);
 extern void __init udbg_init_maple_realmode(void);
 extern void __init udbg_init_iseries(void);
-extern void __init udbg_init_rtas(void);
+extern void __init udbg_init_rtas_panel(void);
+extern void __init udbg_init_rtas_console(void);
 
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_UDBG_H */

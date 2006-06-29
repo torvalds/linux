@@ -56,13 +56,11 @@
 
 #include <linux/config.h>
 #include <linux/kernel.h>
-#include <linux/input.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/smp_lock.h>
-#include <linux/usb.h>
-#include <linux/usb_input.h>
+#include <linux/usb/input.h>
 
 #define DRIVER_VERSION "v0.0.5"
 #define DRIVER_AUTHOR "Marko Friedemann <mfr@bmx-chemnitz.de>"

@@ -128,6 +128,9 @@ struct battery_thresh  spitz_battery_levels_noac[] = {
  */
 int sharpsl_pm_pxa_read_max1111(int channel)
 {
+	if (machine_is_tosa()) // Ugly, better move this function into another module
+	    return 0;
+
 	return corgi_ssp_max1111_get((channel << MAXCTRL_SEL_SH) | MAXCTRL_PD0 | MAXCTRL_PD1
 			| MAXCTRL_SGL | MAXCTRL_UNI | MAXCTRL_STR);
 }
@@ -156,7 +159,7 @@ void sharpsl_pm_pxa_init(void)
 		else set_irq_type(IRQ_GPIO(sharpsl_pm.machinfo->gpio_fatal),IRQT_FALLING);
 	}
 
-	if (!machine_is_corgi())
+	if (sharpsl_pm.machinfo->batfull_irq)
 	{
 		/* Register interrupt handler. */
 		if (request_irq(IRQ_GPIO(sharpsl_pm.machinfo->gpio_batfull), sharpsl_chrg_full_isr, SA_INTERRUPT, "CO", sharpsl_chrg_full_isr)) {
@@ -174,6 +177,6 @@ void sharpsl_pm_pxa_remove(void)
 	if (sharpsl_pm.machinfo->gpio_fatal)
 		free_irq(IRQ_GPIO(sharpsl_pm.machinfo->gpio_fatal), sharpsl_fatal_isr);
 
-	if (!machine_is_corgi())
+	if (sharpsl_pm.machinfo->batfull_irq)
 		free_irq(IRQ_GPIO(sharpsl_pm.machinfo->gpio_batfull), sharpsl_chrg_full_isr);
 }

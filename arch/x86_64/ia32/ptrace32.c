@@ -7,8 +7,6 @@
  * 
  * This allows to access 64bit processes too; but there is no way to see the extended 
  * register contents.
- *
- * $Id: ptrace32.c,v 1.16 2003/03/14 16:06:35 ak Exp $
  */ 
 
 #include <linux/kernel.h>
@@ -27,6 +25,7 @@
 #include <asm/debugreg.h>
 #include <asm/i387.h>
 #include <asm/fpu32.h>
+#include <asm/ia32.h>
 
 /*
  * Determines which flags the user has access to [1 = access, 0 = no access].
@@ -199,6 +198,24 @@ static int getreg32(struct task_struct *child, unsigned regno, u32 *val)
 
 #undef R32
 
+static long ptrace32_siginfo(unsigned request, u32 pid, u32 addr, u32 data)
+{
+	int ret;
+	compat_siginfo_t *si32 = (compat_siginfo_t *)compat_ptr(data);
+	siginfo_t *si = compat_alloc_user_space(sizeof(siginfo_t));
+	if (request == PTRACE_SETSIGINFO) {
+		ret = copy_siginfo_from_user32(si, si32);
+		if (ret)
+			return ret;
+	}
+	ret = sys_ptrace(request, pid, addr, (unsigned long)si);
+	if (ret)
+		return ret;
+	if (request == PTRACE_GETSIGINFO)
+		ret = copy_siginfo_to_user32(si32, si);
+	return ret;
+}
+
 asmlinkage long sys32_ptrace(long request, u32 pid, u32 addr, u32 data)
 {
 	struct task_struct *child;
@@ -208,8 +225,18 @@ asmlinkage long sys32_ptrace(long request, u32 pid, u32 addr, u32 data)
 	__u32 val;
 
 	switch (request) { 
-	default:
+	case PTRACE_TRACEME:
+	case PTRACE_ATTACH:
+	case PTRACE_KILL:
+	case PTRACE_CONT:
+	case PTRACE_SINGLESTEP:
+	case PTRACE_DETACH:
+	case PTRACE_SYSCALL:
+	case PTRACE_SETOPTIONS:
 		return sys_ptrace(request, pid, addr, data); 
+
+	default:
+		return -EINVAL;
 
 	case PTRACE_PEEKTEXT:
 	case PTRACE_PEEKDATA:
@@ -225,10 +252,11 @@ asmlinkage long sys32_ptrace(long request, u32 pid, u32 addr, u32 data)
 	case PTRACE_GETFPXREGS:
 	case PTRACE_GETEVENTMSG:
 		break;
-	} 
 
-	if (request == PTRACE_TRACEME)
-		return ptrace_traceme();
+	case PTRACE_SETSIGINFO:
+	case PTRACE_GETSIGINFO:
+		return ptrace32_siginfo(request, pid, addr, data);
+	}
 
 	child = ptrace_get_task_struct(pid);
 	if (IS_ERR(child))
@@ -349,8 +377,7 @@ asmlinkage long sys32_ptrace(long request, u32 pid, u32 addr, u32 data)
 		break;
 
 	default:
-		ret = -EINVAL;
-		break;
+		BUG();
 	}
 
  out:

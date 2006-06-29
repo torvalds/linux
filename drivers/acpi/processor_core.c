@@ -110,7 +110,7 @@ static struct file_operations acpi_processor_info_fops = {
 };
 
 struct acpi_processor *processors[NR_CPUS];
-struct acpi_processor_errata errata;
+struct acpi_processor_errata errata __read_mostly;
 
 /* --------------------------------------------------------------------------
                                 Errata Handling
@@ -388,7 +388,7 @@ static int acpi_processor_remove_fs(struct acpi_device *device)
 
 /* Use the acpiid in MADT to map cpus in case of SMP */
 #ifndef CONFIG_SMP
-#define convert_acpiid_to_cpu(acpi_id) (0xff)
+#define convert_acpiid_to_cpu(acpi_id) (-1)
 #else
 
 #ifdef CONFIG_IA64
@@ -401,7 +401,7 @@ static int acpi_processor_remove_fs(struct acpi_device *device)
 #define ARCH_BAD_APICID		(0xff)
 #endif
 
-static u8 convert_acpiid_to_cpu(u8 acpi_id)
+static int convert_acpiid_to_cpu(u8 acpi_id)
 {
 	u16 apic_id;
 	int i;
@@ -427,7 +427,7 @@ static int acpi_processor_get_info(struct acpi_processor *pr)
 	acpi_status status = 0;
 	union acpi_object object = { 0 };
 	struct acpi_buffer buffer = { sizeof(union acpi_object), &object };
-	u8 cpu_index;
+	int cpu_index;
 	static int cpu0_initialized;
 
 	ACPI_FUNCTION_TRACE("acpi_processor_get_info");
@@ -473,7 +473,7 @@ static int acpi_processor_get_info(struct acpi_processor *pr)
 	cpu_index = convert_acpiid_to_cpu(pr->acpi_id);
 
 	/* Handle UP system running SMP kernel, with no LAPIC in MADT */
-	if (!cpu0_initialized && (cpu_index == 0xff) &&
+	if (!cpu0_initialized && (cpu_index == -1) &&
 	    (num_online_cpus() == 1)) {
 		cpu_index = 0;
 	}
@@ -487,7 +487,7 @@ static int acpi_processor_get_info(struct acpi_processor *pr)
 	 *  less than the max # of CPUs. They should be ignored _iff
 	 *  they are physically not present.
 	 */
-	if (cpu_index >= NR_CPUS) {
+	if (cpu_index == -1) {
 		if (ACPI_FAILURE
 		    (acpi_processor_hotadd_init(pr->handle, &pr->id))) {
 			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
@@ -558,8 +558,8 @@ static int acpi_processor_start(struct acpi_device *device)
 	 */
 	if (processor_device_array[pr->id] != NULL &&
 	    processor_device_array[pr->id] != (void *)device) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "BIOS reporting wrong ACPI id"
-			"for the processor\n"));
+		printk(KERN_WARNING "BIOS reported wrong ACPI id"
+			"for the processor\n");
 		return_VALUE(-ENODEV);
 	}
 	processor_device_array[pr->id] = (void *)device;

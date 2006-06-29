@@ -109,7 +109,7 @@ promcon_end(struct vc_data *conp, char *b)
 	return b - p;
 }
 
-const char __init *promcon_startup(void)
+const char *promcon_startup(void)
 {
 	const char *display_desc = "PROM";
 	int node;
@@ -133,7 +133,7 @@ const char __init *promcon_startup(void)
 	return display_desc;
 }
 
-static void __init 
+static void
 promcon_init_unimap(struct vc_data *conp)
 {
 	mm_segment_t old_fs = get_fs();

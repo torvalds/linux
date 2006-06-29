@@ -32,10 +32,6 @@ struct mt312_config
 {
 	/* the demodulator's i2c address */
 	u8 demod_address;
-
-	/* PLL maintenance */
-	int (*pll_init)(struct dvb_frontend* fe);
-	int (*pll_set)(struct dvb_frontend* fe, struct dvb_frontend_parameters* params);
 };
 
 struct dvb_frontend* vp310_mt312_attach(const struct mt312_config* config,

@@ -8,7 +8,6 @@
 #ifndef _ASM_IA64_SN_SIMULATOR_H
 #define _ASM_IA64_SN_SIMULATOR_H
 
-#include <linux/config.h>
 
 #define SNMAGIC 0xaeeeeeee8badbeefL
 #define IS_MEDUSA()			({long sn; asm("mov %0=cpuid[%1]" : "=r"(sn) : "r"(2)); sn == SNMAGIC;})

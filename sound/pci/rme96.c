@@ -1151,6 +1151,25 @@ static struct snd_pcm_hw_constraint_list hw_constraints_period_bytes = {
 	.mask = 0
 };
 
+static void
+rme96_set_buffer_size_constraint(struct rme96 *rme96,
+				 struct snd_pcm_runtime *runtime)
+{
+	unsigned int size;
+
+	snd_pcm_hw_constraint_minmax(runtime, SNDRV_PCM_HW_PARAM_BUFFER_BYTES,
+				     RME96_BUFFER_SIZE, RME96_BUFFER_SIZE);
+	if ((size = rme96->playback_periodsize) != 0 ||
+	    (size = rme96->capture_periodsize) != 0)
+		snd_pcm_hw_constraint_minmax(runtime,
+					     SNDRV_PCM_HW_PARAM_PERIOD_BYTES,
+					     size, size);
+	else
+		snd_pcm_hw_constraint_list(runtime, 0,
+					   SNDRV_PCM_HW_PARAM_PERIOD_BYTES,
+					   &hw_constraints_period_bytes);
+}
+
 static int
 snd_rme96_playback_spdif_open(struct snd_pcm_substream *substream)
 {
@@ -1180,8 +1199,7 @@ snd_rme96_playback_spdif_open(struct snd_pcm_substream *substream)
                 runtime->hw.rate_min = rate;
                 runtime->hw.rate_max = rate;
 	}        
-	snd_pcm_hw_constraint_minmax(runtime, SNDRV_PCM_HW_PARAM_BUFFER_BYTES, RME96_BUFFER_SIZE, RME96_BUFFER_SIZE);
-	snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_PERIOD_BYTES, &hw_constraints_period_bytes);
+	rme96_set_buffer_size_constraint(rme96, runtime);
 
 	rme96->wcreg_spdif_stream = rme96->wcreg_spdif;
 	rme96->spdif_ctl->vd[0].access &= ~SNDRV_CTL_ELEM_ACCESS_INACTIVE;
@@ -1219,9 +1237,7 @@ snd_rme96_capture_spdif_open(struct snd_pcm_substream *substream)
 	rme96->capture_substream = substream;
 	spin_unlock_irq(&rme96->lock);
 	
-	snd_pcm_hw_constraint_minmax(runtime, SNDRV_PCM_HW_PARAM_BUFFER_BYTES, RME96_BUFFER_SIZE, RME96_BUFFER_SIZE);
-	snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_PERIOD_BYTES, &hw_constraints_period_bytes);
-
+	rme96_set_buffer_size_constraint(rme96, runtime);
 	return 0;
 }
 
@@ -1254,8 +1270,7 @@ snd_rme96_playback_adat_open(struct snd_pcm_substream *substream)
                 runtime->hw.rate_min = rate;
                 runtime->hw.rate_max = rate;
 	}        
-	snd_pcm_hw_constraint_minmax(runtime, SNDRV_PCM_HW_PARAM_BUFFER_BYTES, RME96_BUFFER_SIZE, RME96_BUFFER_SIZE);
-	snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_PERIOD_BYTES, &hw_constraints_period_bytes);
+	rme96_set_buffer_size_constraint(rme96, runtime);
 	return 0;
 }
 
@@ -1291,8 +1306,7 @@ snd_rme96_capture_adat_open(struct snd_pcm_substream *substream)
 	rme96->capture_substream = substream;
 	spin_unlock_irq(&rme96->lock);
 
-	snd_pcm_hw_constraint_minmax(runtime, SNDRV_PCM_HW_PARAM_BUFFER_BYTES, RME96_BUFFER_SIZE, RME96_BUFFER_SIZE);
-	snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_PERIOD_BYTES, &hw_constraints_period_bytes);
+	rme96_set_buffer_size_constraint(rme96, runtime);
 	return 0;
 }
 
@@ -1569,16 +1583,16 @@ snd_rme96_create(struct rme96 *rme96)
 		return err;
 	rme96->port = pci_resource_start(rme96->pci, 0);
 
+	if ((rme96->iobase = ioremap_nocache(rme96->port, RME96_IO_SIZE)) == 0) {
+		snd_printk(KERN_ERR "unable to remap memory region 0x%lx-0x%lx\n", rme96->port, rme96->port + RME96_IO_SIZE - 1);
+		return -ENOMEM;
+	}
+
 	if (request_irq(pci->irq, snd_rme96_interrupt, SA_INTERRUPT|SA_SHIRQ, "RME96", (void *)rme96)) {
 		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		return -EBUSY;
 	}
 	rme96->irq = pci->irq;
-
-	if ((rme96->iobase = ioremap_nocache(rme96->port, RME96_IO_SIZE)) == 0) {
-		snd_printk(KERN_ERR "unable to remap memory region 0x%lx-0x%lx\n", rme96->port, rme96->port + RME96_IO_SIZE - 1);
-		return -ENOMEM;
-	}
 
 	/* read the card's revision number */
 	pci_read_config_byte(pci, 8, &rme96->rev);	
@@ -1805,7 +1819,7 @@ snd_rme96_proc_init(struct rme96 *rme96)
 	struct snd_info_entry *entry;
 
 	if (! snd_card_proc_new(rme96->card, "rme96", &entry))
-		snd_info_set_text_ops(entry, rme96, 1024, snd_rme96_proc_read);
+		snd_info_set_text_ops(entry, rme96, snd_rme96_proc_read);
 }
 
 /*

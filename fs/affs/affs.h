@@ -195,9 +195,9 @@ extern struct inode_operations   affs_symlink_inode_operations;
 extern const struct file_operations	 affs_file_operations;
 extern const struct file_operations	 affs_file_operations_ofs;
 extern const struct file_operations	 affs_dir_operations;
-extern struct address_space_operations	 affs_symlink_aops;
-extern struct address_space_operations	 affs_aops;
-extern struct address_space_operations	 affs_aops_ofs;
+extern const struct address_space_operations	 affs_symlink_aops;
+extern const struct address_space_operations	 affs_aops;
+extern const struct address_space_operations	 affs_aops_ofs;
 
 extern struct dentry_operations	 affs_dentry_operations;
 extern struct dentry_operations	 affs_dentry_operations_intl;

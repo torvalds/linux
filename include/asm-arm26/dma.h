@@ -3,7 +3,6 @@
 
 typedef unsigned int dmach_t;
 
-#include <linux/config.h>
 #include <linux/spinlock.h>
 #include <asm/system.h>
 #include <asm/memory.h>

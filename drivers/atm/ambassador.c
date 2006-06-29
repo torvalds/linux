@@ -2257,7 +2257,8 @@ static int __devinit amb_probe(struct pci_dev *pci_dev, const struct pci_device_
 	}
 
 	PRINTD (DBG_INFO, "found Madge ATM adapter (amb) at"
-		" IO %lx, IRQ %u, MEM %p", pci_resource_start(pci_dev, 1),
+		" IO %llx, IRQ %u, MEM %p",
+		(unsigned long long)pci_resource_start(pci_dev, 1),
 		irq, bus_to_virt(pci_resource_start(pci_dev, 0)));
 
 	// check IO region

@@ -2578,8 +2578,7 @@ ppp_find_channel(int unit)
 
 	list_for_each_entry(pch, &new_channels, list) {
 		if (pch->file.index == unit) {
-			list_del(&pch->list);
-			list_add(&pch->list, &all_channels);
+			list_move(&pch->list, &all_channels);
 			return pch;
 		}
 	}

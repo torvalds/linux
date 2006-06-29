@@ -43,6 +43,7 @@ typedef u8 kprobe_opcode_t;
 
 #define JPROBE_ENTRY(pentry)	(kprobe_opcode_t *)pentry
 #define ARCH_SUPPORTS_KRETPROBES
+#define  ARCH_INACTIVE_KPROBE_COUNT 1
 
 void kretprobe_trampoline(void);
 extern void arch_remove_kprobe(struct kprobe *p);

@@ -4,7 +4,7 @@
  *  PCI function #1 of the cx2388x.
  *
  *    (c) 2005,2006 Ricardo Cerqueira <v4l@cerqueira.org>
- *    (c) 2005 Mauro Carvalho Chehab <mchehab@brturbo.com.br>
+ *    (c) 2005 Mauro Carvalho Chehab <mchehab@infradead.org>
  *    Based on a dummy cx88 module by Gerd Knorr <kraxel@bytesex.org>
  *    Based on dummy.c by Jaroslav Kysela <perex@suse.cz>
  *
@@ -111,7 +111,7 @@ MODULE_PARM_DESC(index, "Index value for cx88x capture interface(s).");
 
 MODULE_DESCRIPTION("ALSA driver module for cx2388x based TV cards");
 MODULE_AUTHOR("Ricardo Cerqueira");
-MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@brturbo.com.br>");
+MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@infradead.org>");
 MODULE_LICENSE("GPL");
 MODULE_SUPPORTED_DEVICE("{{Conexant,23881},"
 			"{{Conexant,23882},"
@@ -696,7 +696,6 @@ static int __devinit snd_cx88_create(struct snd_card *card,
 	chip->irq = -1;
 	spin_lock_init(&chip->reg_lock);
 
-	cx88_reset(core);
 	chip->core = core;
 
 	/* get irq */
@@ -713,9 +712,9 @@ static int __devinit snd_cx88_create(struct snd_card *card,
 	pci_read_config_byte(pci, PCI_LATENCY_TIMER,  &chip->pci_lat);
 
 	dprintk(1,"ALSA %s/%i: found at %s, rev: %d, irq: %d, "
-	       "latency: %d, mmio: 0x%lx\n", core->name, devno,
+	       "latency: %d, mmio: 0x%llx\n", core->name, devno,
 	       pci_name(pci), chip->pci_rev, pci->irq,
-	       chip->pci_lat,pci_resource_start(pci,0));
+	       chip->pci_lat,(unsigned long long)pci_resource_start(pci,0));
 
 	chip->irq = pci->irq;
 	synchronize_irq(chip->irq);
@@ -767,8 +766,8 @@ static int __devinit cx88_audio_initdev(struct pci_dev *pci,
 
 	strcpy (card->driver, "CX88x");
 	sprintf(card->shortname, "Conexant CX%x", pci->device);
-	sprintf(card->longname, "%s at %#lx",
-		card->shortname, pci_resource_start(pci, 0));
+	sprintf(card->longname, "%s at %#llx",
+		card->shortname,(unsigned long long)pci_resource_start(pci, 0));
 	strcpy (card->mixername, "CX88");
 
 	dprintk (0, "%s/%i: ALSA support for cx2388x boards\n",

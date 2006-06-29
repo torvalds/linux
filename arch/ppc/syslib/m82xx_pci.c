@@ -159,7 +159,7 @@ pq2pci_init_irq(void)
 	immap->im_memctl.memc_or8 = 0xffff8010;
 #endif
 	for (irq = NR_CPM_INTS; irq < NR_CPM_INTS + 4; irq++)
-		irq_desc[irq].handler = &pq2pci_ic;
+		irq_desc[irq].chip = &pq2pci_ic;
 
 	/* make PCI IRQ level sensitive */
 	immap->im_intctl.ic_siexr &=

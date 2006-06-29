@@ -196,17 +196,17 @@ static int adfs_remount(struct super_block *sb, int *flags, char *data)
 	return parse_options(sb, data);
 }
 
-static int adfs_statfs(struct super_block *sb, struct kstatfs *buf)
+static int adfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
-	struct adfs_sb_info *asb = ADFS_SB(sb);
+	struct adfs_sb_info *asb = ADFS_SB(dentry->d_sb);
 
 	buf->f_type    = ADFS_SUPER_MAGIC;
 	buf->f_namelen = asb->s_namelen;
-	buf->f_bsize   = sb->s_blocksize;
+	buf->f_bsize   = dentry->d_sb->s_blocksize;
 	buf->f_blocks  = asb->s_size;
 	buf->f_files   = asb->s_ids_per_zone * asb->s_map_size;
 	buf->f_bavail  =
-	buf->f_bfree   = adfs_map_free(sb);
+	buf->f_bfree   = adfs_map_free(dentry->d_sb);
 	buf->f_ffree   = (long)(buf->f_bfree * buf->f_files) / (long)buf->f_blocks;
 
 	return 0;
@@ -470,10 +470,11 @@ error:
 	return -EINVAL;
 }
 
-static struct super_block *adfs_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data)
+static int adfs_get_sb(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
 {
-	return get_sb_bdev(fs_type, flags, dev_name, data, adfs_fill_super);
+	return get_sb_bdev(fs_type, flags, dev_name, data, adfs_fill_super,
+			   mnt);
 }
 
 static struct file_system_type adfs_fs_type = {

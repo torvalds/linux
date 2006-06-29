@@ -43,4 +43,4 @@ ENTRY(copy_page)
 		bgt	1b				@	1
 	PLD(	ldmeqia r1!, {r3, r4, ip, lr}	)
 	PLD(	beq	2b			)
-		LOADREGS(fd, sp!, {r4, pc})		@	3
+		ldmfd	sp!, {r4, pc}			@	3

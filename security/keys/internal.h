@@ -99,7 +99,9 @@ extern int install_process_keyring(struct task_struct *tsk);
 extern struct key *request_key_and_link(struct key_type *type,
 					const char *description,
 					const char *callout_info,
-					struct key *dest_keyring);
+					void *aux,
+					struct key *dest_keyring,
+					unsigned long flags);
 
 /*
  * request_key authorisation

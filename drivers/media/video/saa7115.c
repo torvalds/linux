@@ -72,6 +72,10 @@ struct saa7115_state {
 	int sat;
 	enum v4l2_chip_ident ident;
 	u32 audclk_freq;
+	u32 crystal_freq;
+	u8 ucgc;
+	u8 cgcdiv;
+	u8 apll;
 };
 
 /* ----------------------------------------------------------------------- */
@@ -375,10 +379,6 @@ static const unsigned char saa7113_init_auto_input[] = {
 };
 
 static const unsigned char saa7115_init_misc[] = {
-	0x38, 0x03,		/* audio stuff */
-	0x39, 0x10,
-	0x3a, 0x08,
-
 	0x81, 0x01,		/* reg 0x15,0x16 define blanking window */
 	0x82, 0x00,
 	0x83, 0x01,		/* I port settings */
@@ -584,6 +584,7 @@ static int saa7115_set_audio_clock_freq(struct i2c_client *client, u32 freq)
 	u32 acni;
 	u32 hz;
 	u64 f;
+	u8 acc = 0; 	/* reg 0x3a, audio clock control */
 
 	v4l_dbg(1, debug, client, "set audio clock freq: %d\n", freq);
 
@@ -591,18 +592,34 @@ static int saa7115_set_audio_clock_freq(struct i2c_client *client, u32 freq)
 	if (freq < 32000 || freq > 48000)
 		return -EINVAL;
 
+	/* The saa7113 has no audio clock */
+	if (state->ident == V4L2_IDENT_SAA7113)
+		return 0;
+
 	/* hz is the refresh rate times 100 */
 	hz = (state->std & V4L2_STD_525_60) ? 5994 : 5000;
 	/* acpf = (256 * freq) / field_frequency == (256 * 100 * freq) / hz */
 	acpf = (25600 * freq) / hz;
 	/* acni = (256 * freq * 2^23) / crystal_frequency =
 		  (freq * 2^(8+23)) / crystal_frequency =
-		  (freq << 31) / 32.11 MHz */
+		  (freq << 31) / crystal_frequency */
 	f = freq;
 	f = f << 31;
-	do_div(f, 32110000);
+	do_div(f, state->crystal_freq);
 	acni = f;
+	if (state->ucgc) {
+		acpf = acpf * state->cgcdiv / 16;
+		acni = acni * state->cgcdiv / 16;
+		acc = 0x80;
+		if (state->cgcdiv == 3)
+			acc |= 0x40;
+	}
+	if (state->apll)
+		acc |= 0x08;
 
+	saa7115_write(client, 0x38, 0x03);
+	saa7115_write(client, 0x39, 0x10);
+	saa7115_write(client, 0x3a, acc);
 	saa7115_write(client, 0x30, acpf & 0xff);
 	saa7115_write(client, 0x31, (acpf >> 8) & 0xff);
 	saa7115_write(client, 0x32, (acpf >> 16) & 0x03);
@@ -1073,48 +1090,6 @@ static void saa7115_decode_vbi_line(struct i2c_client *client,
 
 /* ============ SAA7115 AUDIO settings (end) ============= */
 
-static struct v4l2_queryctrl saa7115_qctrl[] = {
-	{
-		.id            = V4L2_CID_BRIGHTNESS,
-		.type          = V4L2_CTRL_TYPE_INTEGER,
-		.name          = "Brightness",
-		.minimum       = 0,
-		.maximum       = 255,
-		.step          = 1,
-		.default_value = 128,
-		.flags         = 0,
-	}, {
-		.id            = V4L2_CID_CONTRAST,
-		.type          = V4L2_CTRL_TYPE_INTEGER,
-		.name          = "Contrast",
-		.minimum       = 0,
-		.maximum       = 127,
-		.step          = 1,
-		.default_value = 64,
-		.flags         = 0,
-	}, {
-		.id            = V4L2_CID_SATURATION,
-		.type          = V4L2_CTRL_TYPE_INTEGER,
-		.name          = "Saturation",
-		.minimum       = 0,
-		.maximum       = 127,
-		.step          = 1,
-		.default_value = 64,
-		.flags         = 0,
-	}, {
-		.id            = V4L2_CID_HUE,
-		.type          = V4L2_CTRL_TYPE_INTEGER,
-		.name          = "Hue",
-		.minimum       = -128,
-		.maximum       = 127,
-		.step          = 1,
-		.default_value = 0,
-		.flags 	       = 0,
-	},
-};
-
-/* ----------------------------------------------------------------------- */
-
 static int saa7115_command(struct i2c_client *client, unsigned int cmd, void *arg)
 {
 	struct saa7115_state *state = i2c_get_clientdata(client);
@@ -1158,14 +1133,16 @@ static int saa7115_command(struct i2c_client *client, unsigned int cmd, void *ar
 	case VIDIOC_QUERYCTRL:
 	{
 		struct v4l2_queryctrl *qc = arg;
-		int i;
 
-		for (i = 0; i < ARRAY_SIZE(saa7115_qctrl); i++)
-			if (qc->id && qc->id == saa7115_qctrl[i].id) {
-				memcpy(qc, &saa7115_qctrl[i], sizeof(*qc));
-				return 0;
-			}
-		return -EINVAL;
+		switch (qc->id) {
+			case V4L2_CID_BRIGHTNESS:
+			case V4L2_CID_CONTRAST:
+			case V4L2_CID_SATURATION:
+			case V4L2_CID_HUE:
+				return v4l2_ctrl_query_fill_std(qc);
+			default:
+				return -EINVAL;
+		}
 	}
 
 	case VIDIOC_G_STD:
@@ -1221,34 +1198,6 @@ static int saa7115_command(struct i2c_client *client, unsigned int cmd, void *ar
 		break;
 	}
 
-	case VIDIOC_G_INPUT:
-		*(int *)arg = state->input;
-		break;
-
-	case VIDIOC_S_INPUT:
-		v4l_dbg(1, debug, client, "decoder set input %d\n", *iarg);
-		/* inputs from 0-9 are available */
-		if (*iarg < 0 || *iarg > 9) {
-			return -EINVAL;
-		}
-
-		if (state->input == *iarg)
-			break;
-		v4l_dbg(1, debug, client, "now setting %s input\n",
-			*iarg >= 6 ? "S-Video" : "Composite");
-		state->input = *iarg;
-
-		/* select mode */
-		saa7115_write(client, 0x02,
-			      (saa7115_read(client, 0x02) & 0xf0) |
-			       state->input);
-
-		/* bypass chrominance trap for modes 6..9 */
-		saa7115_write(client, 0x09,
-			      (saa7115_read(client, 0x09) & 0x7f) |
-			       (state->input < 6 ? 0x0 : 0x80));
-		break;
-
 	case VIDIOC_STREAMON:
 	case VIDIOC_STREAMOFF:
 		v4l_dbg(1, debug, client, "%s output\n",
@@ -1259,6 +1208,21 @@ static int saa7115_command(struct i2c_client *client, unsigned int cmd, void *ar
 			saa7115_write(client, 0x87, state->enable);
 		}
 		break;
+
+	case VIDIOC_INT_S_CRYSTAL_FREQ:
+	{
+		struct v4l2_crystal_freq *freq = arg;
+
+		if (freq->freq != SAA7115_FREQ_32_11_MHZ &&
+		    freq->freq != SAA7115_FREQ_24_576_MHZ)
+			return -EINVAL;
+		state->crystal_freq = freq->freq;
+		state->cgcdiv = (freq->flags & SAA7115_FREQ_FL_CGCDIV) ? 3 : 4;
+		state->ucgc = (freq->flags & SAA7115_FREQ_FL_UCGC) ? 1 : 0;
+		state->apll = (freq->flags & SAA7115_FREQ_FL_APLL) ? 1 : 0;
+		saa7115_set_audio_clock_freq(client, state->audclk_freq);
+		break;
+	}
 
 	case VIDIOC_INT_DECODE_VBI_LINE:
 		saa7115_decode_vbi_line(client, arg);
@@ -1401,10 +1365,13 @@ static int saa7115_attach(struct i2c_adapter *adapter, int address, int kind)
 	v4l_dbg(1, debug, client, "writing init values\n");
 
 	/* init to 60hz/48khz */
-	if (state->ident == V4L2_IDENT_SAA7113)
+	if (state->ident == V4L2_IDENT_SAA7113) {
+		state->crystal_freq = SAA7115_FREQ_24_576_MHZ;
 		saa7115_writeregs(client, saa7113_init_auto_input);
-	else
+	} else {
+		state->crystal_freq = SAA7115_FREQ_32_11_MHZ;
 		saa7115_writeregs(client, saa7115_init_auto_input);
+	}
 	saa7115_writeregs(client, saa7115_init_misc);
 	saa7115_writeregs(client, saa7115_cfg_60hz_fullres_x);
 	saa7115_writeregs(client, saa7115_cfg_60hz_fullres_y);

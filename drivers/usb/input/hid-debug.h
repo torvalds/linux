@@ -563,7 +563,7 @@ static char *keys[KEY_MAX + 1] = {
 	[KEY_VOLUMEUP] = "VolumeUp",		[KEY_POWER] = "Power",
 	[KEY_KPEQUAL] = "KPEqual",		[KEY_KPPLUSMINUS] = "KPPlusMinus",
 	[KEY_PAUSE] = "Pause",			[KEY_KPCOMMA] = "KPComma",
-	[KEY_HANGUEL] = "Hanguel",		[KEY_HANJA] = "Hanja",
+	[KEY_HANGUEL] = "Hangeul",		[KEY_HANJA] = "Hanja",
 	[KEY_YEN] = "Yen",			[KEY_LEFTMETA] = "LeftMeta",
 	[KEY_RIGHTMETA] = "RightMeta",		[KEY_COMPOSE] = "Compose",
 	[KEY_STOP] = "Stop",			[KEY_AGAIN] = "Again",

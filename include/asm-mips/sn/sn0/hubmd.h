@@ -11,7 +11,6 @@
 #ifndef	_ASM_SN_SN0_HUBMD_H
 #define	_ASM_SN_SN0_HUBMD_H
 
-#include <linux/config.h>
 
 /*
  * Hub Memory/Directory interface registers

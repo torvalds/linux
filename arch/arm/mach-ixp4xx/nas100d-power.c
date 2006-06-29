@@ -20,10 +20,9 @@
 #include <linux/module.h>
 #include <linux/reboot.h>
 #include <linux/interrupt.h>
+#include <linux/reboot.h>
 
 #include <asm/mach-types.h>
-
-extern void ctrl_alt_del(void);
 
 static irqreturn_t nas100d_reset_handler(int irq, void *dev_id, struct pt_regs *regs)
 {

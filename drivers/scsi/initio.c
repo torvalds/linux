@@ -154,7 +154,6 @@
 static unsigned int i91u_debug = DEBUG_DEFAULT;
 #endif
 
-#define TULSZ(sz)     (sizeof(sz) / sizeof(sz[0]))
 #define TUL_RDWORD(x,y)         (short)(inl((int)((ULONG)((ULONG)x+(UCHAR)y)) ))
 
 typedef struct PCI_ID_Struc {
@@ -2771,7 +2770,7 @@ static int tul_NewReturnNumberOfAdapters(void)
 
 	init_i91uAdapter_table();
 
-	for (i = 0; i < TULSZ(i91u_pci_devices); i++)
+	for (i = 0; i < ARRAY_SIZE(i91u_pci_devices); i++)
 	{
 		while ((pDev = pci_find_device(i91u_pci_devices[i].vendor_id, i91u_pci_devices[i].device_id, pDev)) != NULL) {
 			if (pci_enable_device(pDev))

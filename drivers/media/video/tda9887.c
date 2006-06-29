@@ -18,49 +18,21 @@
    TDA9886 (PAL, SECAM, NTSC)
    TDA9887 (PAL, SECAM, NTSC, FM Radio)
 
-   found on:
-   - Pinnacle PCTV (Jul.2002 Version with MT2032, bttv)
-      TDA9887 (world), TDA9885 (USA)
-      Note: OP2 of tda988x must be set to 1, else MT2032 is disabled!
-   - KNC One TV-Station RDS (saa7134)
-   - Hauppauge PVR-150/500 (possibly more)
+   Used as part of several tuners
 */
 
+#define tda9887_info(fmt, arg...) do {\
+	printk(KERN_INFO "%s %d-%04x: " fmt, t->i2c.name, \
+			i2c_adapter_id(t->i2c.adapter), t->i2c.addr , ##arg); } while (0)
+#define tda9887_dbg(fmt, arg...) do {\
+	if (tuner_debug) \
+		printk(KERN_INFO "%s %d-%04x: " fmt, t->i2c.name, \
+			i2c_adapter_id(t->i2c.adapter), t->i2c.addr , ##arg); } while (0)
 
-/* Addresses to scan */
-static unsigned short normal_i2c[] = {
-	0x84 >>1,
-	0x86 >>1,
-	0x96 >>1,
-	I2C_CLIENT_END,
-};
-I2C_CLIENT_INSMOD;
-
-/* insmod options */
-static unsigned int debug = 0;
-module_param(debug, int, 0644);
-MODULE_LICENSE("GPL");
 
 /* ---------------------------------------------------------------------- */
 
 #define UNSET       (-1U)
-#define tda9887_info(fmt, arg...) do {\
-	printk(KERN_INFO "%s %d-%04x: " fmt, t->client.name, \
-			i2c_adapter_id(t->client.adapter), t->client.addr , ##arg); } while (0)
-#define tda9887_dbg(fmt, arg...) do {\
-	if (debug) \
-		printk(KERN_INFO "%s %d-%04x: " fmt, t->client.name, \
-			i2c_adapter_id(t->client.adapter), t->client.addr , ##arg); } while (0)
-
-struct tda9887 {
-	struct i2c_client  client;
-	v4l2_std_id        std;
-	enum tuner_mode    mode;
-	unsigned int       config;
-	unsigned int       using_v4l2;
-	unsigned int 	   radio_mode;
-	unsigned char 	   data[4];
-};
 
 struct tvnorm {
 	v4l2_std_id       std;
@@ -69,9 +41,6 @@ struct tvnorm {
 	unsigned char     c;
 	unsigned char     e;
 };
-
-static struct i2c_driver driver;
-static struct i2c_client client_template;
 
 /* ---------------------------------------------------------------------- */
 
@@ -115,8 +84,7 @@ static struct i2c_client client_template;
 #define cAudioGain6             0x80    // bit c7
 
 #define cTopMask                0x1f    // bit c0:4
-#define cTopPalSecamDefault	0x14 	// bit c0:4
-#define cTopNtscRadioDefault 	0x10 	// bit c0:4
+#define cTopDefault		0x10 	// bit c0:4
 
 //// third reg (e)
 #define cAudioIF_4_5             0x00    // bit e0:1
@@ -154,7 +122,7 @@ static struct tvnorm tvnorms[] = {
 			   cQSS           ),
 		.c     = ( cDeemphasisON  |
 			   cDeemphasis50  |
-			   cTopPalSecamDefault),
+			   cTopDefault),
 		.e     = ( cGating_36     |
 			   cAudioIF_5_5   |
 			   cVideoIF_38_90 ),
@@ -165,7 +133,7 @@ static struct tvnorm tvnorms[] = {
 			   cQSS           ),
 		.c     = ( cDeemphasisON  |
 			   cDeemphasis50  |
-			   cTopPalSecamDefault),
+			   cTopDefault),
 		.e     = ( cGating_36     |
 			   cAudioIF_6_0   |
 			   cVideoIF_38_90 ),
@@ -176,7 +144,7 @@ static struct tvnorm tvnorms[] = {
 			   cQSS           ),
 		.c     = ( cDeemphasisON  |
 			   cDeemphasis50  |
-			   cTopPalSecamDefault),
+			   cTopDefault),
 		.e     = ( cGating_36     |
 			   cAudioIF_6_5   |
 			   cVideoIF_38_90 ),
@@ -187,7 +155,7 @@ static struct tvnorm tvnorms[] = {
 			   cQSS           ),
 		.c     = ( cDeemphasisON  |
 			   cDeemphasis75  |
-			   cTopNtscRadioDefault),
+			   cTopDefault),
 		.e     = ( cGating_36     |
 			   cAudioIF_4_5   |
 			   cVideoIF_45_75 ),
@@ -196,7 +164,7 @@ static struct tvnorm tvnorms[] = {
 		.name  = "SECAM-BGH",
 		.b     = ( cPositiveAmTV  |
 			   cQSS           ),
-		.c     = ( cTopPalSecamDefault),
+		.c     = ( cTopDefault),
 		.e     = ( cGating_36	  |
 			   cAudioIF_5_5   |
 			   cVideoIF_38_90 ),
@@ -205,7 +173,7 @@ static struct tvnorm tvnorms[] = {
 		.name  = "SECAM-L",
 		.b     = ( cPositiveAmTV  |
 			   cQSS           ),
-		.c     = ( cTopPalSecamDefault),
+		.c     = ( cTopDefault),
 		.e     = ( cGating_36	  |
 			   cAudioIF_6_5   |
 			   cVideoIF_38_90 ),
@@ -215,7 +183,7 @@ static struct tvnorm tvnorms[] = {
 		.b     = ( cOutputPort2Inactive |
 			   cPositiveAmTV  |
 			   cQSS           ),
-		.c     = ( cTopPalSecamDefault),
+		.c     = ( cTopDefault),
 		.e     = ( cGating_36	  |
 			   cAudioIF_6_5   |
 			   cVideoIF_33_90 ),
@@ -226,7 +194,7 @@ static struct tvnorm tvnorms[] = {
 			   cQSS           ),
 		.c     = ( cDeemphasisON  |
 			   cDeemphasis50  |
-			   cTopPalSecamDefault),
+			   cTopDefault),
 		.e     = ( cGating_36     |
 			   cAudioIF_6_5   |
 			   cVideoIF_38_90 ),
@@ -237,7 +205,7 @@ static struct tvnorm tvnorms[] = {
 			   cQSS           ),
 		.c     = ( cDeemphasisON  |
 			   cDeemphasis75  |
-			   cTopNtscRadioDefault),
+			   cTopDefault),
 		.e     = ( cGating_36     |
 			   cAudioIF_4_5   |
 			   cVideoIF_45_75 ),
@@ -248,7 +216,7 @@ static struct tvnorm tvnorms[] = {
 			   cQSS           ),
 		.c     = ( cDeemphasisON  |
 			   cDeemphasis50  |
-			   cTopNtscRadioDefault),
+			   cTopDefault),
 		.e     = ( cGating_36     |
 			   cAudioIF_4_5   |
 			   cVideoIF_58_75 ),
@@ -261,7 +229,7 @@ static struct tvnorm radio_stereo = {
 		  cQSS           ),
 	.c    = ( cDeemphasisOFF |
 		  cAudioGain6    |
-		  cTopNtscRadioDefault),
+		  cTopDefault),
 	.e    = ( cTunerGainLow  |
 		  cAudioIF_5_5   |
 		  cRadioIF_38_90 ),
@@ -273,7 +241,7 @@ static struct tvnorm radio_mono = {
 		  cQSS           ),
 	.c    = ( cDeemphasisON  |
 		  cDeemphasis75  |
-		  cTopNtscRadioDefault),
+		  cTopDefault),
 	.e    = ( cTunerGainLow  |
 		  cAudioIF_5_5   |
 		  cRadioIF_38_90 ),
@@ -281,7 +249,7 @@ static struct tvnorm radio_mono = {
 
 /* ---------------------------------------------------------------------- */
 
-static void dump_read_message(struct tda9887 *t, unsigned char *buf)
+static void dump_read_message(struct tuner *t, unsigned char *buf)
 {
 	static char *afc[16] = {
 		"- 12.5 kHz",
@@ -309,7 +277,7 @@ static void dump_read_message(struct tda9887 *t, unsigned char *buf)
 	tda9887_info("  vfi level      : %s\n", (buf[0] & 0x80) ? "high" : "low");
 }
 
-static void dump_write_message(struct tda9887 *t, unsigned char *buf)
+static void dump_write_message(struct tuner *t, unsigned char *buf)
 {
 	static char *sound[4] = {
 		"AM/TV",
@@ -405,13 +373,13 @@ static void dump_write_message(struct tda9887 *t, unsigned char *buf)
 
 /* ---------------------------------------------------------------------- */
 
-static int tda9887_set_tvnorm(struct tda9887 *t, char *buf)
+static int tda9887_set_tvnorm(struct tuner *t, char *buf)
 {
 	struct tvnorm *norm = NULL;
 	int i;
 
-	if (t->mode == T_RADIO) {
-		if (t->radio_mode == V4L2_TUNER_MODE_MONO)
+	if (t->mode == V4L2_TUNER_RADIO) {
+		if (t->audmode == V4L2_TUNER_MODE_MONO)
 			norm = &radio_mono;
 		else
 			norm = &radio_stereo;
@@ -445,7 +413,7 @@ module_param(port2, int, 0644);
 module_param(qss, int, 0644);
 module_param(adjust, int, 0644);
 
-static int tda9887_set_insmod(struct tda9887 *t, char *buf)
+static int tda9887_set_insmod(struct tuner *t, char *buf)
 {
 	if (UNSET != port1) {
 		if (port1)
@@ -474,27 +442,27 @@ static int tda9887_set_insmod(struct tda9887 *t, char *buf)
 	return 0;
 }
 
-static int tda9887_set_config(struct tda9887 *t, char *buf)
+static int tda9887_set_config(struct tuner *t, char *buf)
 {
-	if (t->config & TDA9887_PORT1_ACTIVE)
+	if (t->tda9887_config & TDA9887_PORT1_ACTIVE)
 		buf[1] &= ~cOutputPort1Inactive;
-	if (t->config & TDA9887_PORT1_INACTIVE)
+	if (t->tda9887_config & TDA9887_PORT1_INACTIVE)
 		buf[1] |= cOutputPort1Inactive;
-	if (t->config & TDA9887_PORT2_ACTIVE)
+	if (t->tda9887_config & TDA9887_PORT2_ACTIVE)
 		buf[1] &= ~cOutputPort2Inactive;
-	if (t->config & TDA9887_PORT2_INACTIVE)
+	if (t->tda9887_config & TDA9887_PORT2_INACTIVE)
 		buf[1] |= cOutputPort2Inactive;
 
-	if (t->config & TDA9887_QSS)
+	if (t->tda9887_config & TDA9887_QSS)
 		buf[1] |= cQSS;
-	if (t->config & TDA9887_INTERCARRIER)
+	if (t->tda9887_config & TDA9887_INTERCARRIER)
 		buf[1] &= ~cQSS;
 
-	if (t->config & TDA9887_AUTOMUTE)
+	if (t->tda9887_config & TDA9887_AUTOMUTE)
 		buf[1] |= cAutoMuteFmActive;
-	if (t->config & TDA9887_DEEMPHASIS_MASK) {
+	if (t->tda9887_config & TDA9887_DEEMPHASIS_MASK) {
 		buf[2] &= ~0x60;
-		switch (t->config & TDA9887_DEEMPHASIS_MASK) {
+		switch (t->tda9887_config & TDA9887_DEEMPHASIS_MASK) {
 		case TDA9887_DEEMPHASIS_NONE:
 			buf[2] |= cDeemphasisOFF;
 			break;
@@ -506,153 +474,36 @@ static int tda9887_set_config(struct tda9887 *t, char *buf)
 			break;
 		}
 	}
-	if (t->config & TDA9887_TOP_SET) {
+	if (t->tda9887_config & TDA9887_TOP_SET) {
 		buf[2] &= ~cTopMask;
-		buf[2] |= (t->config >> 8) & cTopMask;
+		buf[2] |= (t->tda9887_config >> 8) & cTopMask;
 	}
-	if ((t->config & TDA9887_INTERCARRIER_NTSC) && (t->std & V4L2_STD_NTSC))
+	if ((t->tda9887_config & TDA9887_INTERCARRIER_NTSC) && (t->std & V4L2_STD_NTSC))
 		buf[1] &= ~cQSS;
 	return 0;
 }
 
 /* ---------------------------------------------------------------------- */
 
-static char pal[] = "--";
-static char secam[] = "--";
-static char ntsc[] = "-";
-
-module_param_string(pal, pal, sizeof(pal), 0644);
-module_param_string(secam, secam, sizeof(secam), 0644);
-module_param_string(ntsc, ntsc, sizeof(ntsc), 0644);
-
-static int tda9887_fixup_std(struct tda9887 *t)
-{
-	/* get more precise norm info from insmod option */
-	if ((t->std & V4L2_STD_PAL) == V4L2_STD_PAL) {
-		switch (pal[0]) {
-		case 'b':
-		case 'B':
-		case 'g':
-		case 'G':
-		case 'h':
-		case 'H':
-		case 'n':
-		case 'N':
-			if (pal[1] == 'c' || pal[1] == 'C') {
-				tda9887_dbg("insmod fixup: PAL => PAL-Nc\n");
-				t->std = V4L2_STD_PAL_Nc;
-			} else {
-				tda9887_dbg("insmod fixup: PAL => PAL-BGHN\n");
-				t->std = V4L2_STD_PAL_BG | V4L2_STD_PAL_H | V4L2_STD_PAL_N;
-			}
-			break;
-		case 'i':
-		case 'I':
-			tda9887_dbg("insmod fixup: PAL => PAL-I\n");
-			t->std = V4L2_STD_PAL_I;
-			break;
-		case 'd':
-		case 'D':
-		case 'k':
-		case 'K':
-			tda9887_dbg("insmod fixup: PAL => PAL-DK\n");
-			t->std = V4L2_STD_PAL_DK;
-			break;
-		case 'm':
-		case 'M':
-			tda9887_dbg("insmod fixup: PAL => PAL-M\n");
-			t->std = V4L2_STD_PAL_M;
-			break;
-		case '-':
-			/* default parameter, do nothing */
-			break;
-		default:
-			tda9887_info("pal= argument not recognised\n");
-			break;
-		}
-	}
-	if ((t->std & V4L2_STD_SECAM) == V4L2_STD_SECAM) {
-		switch (secam[0]) {
-		case 'b':
-		case 'B':
-		case 'g':
-		case 'G':
-		case 'h':
-		case 'H':
-			tda9887_dbg("insmod fixup: SECAM => SECAM-BGH\n");
-			t->std = V4L2_STD_SECAM_B | V4L2_STD_SECAM_G | V4L2_STD_SECAM_H;
-			break;
-		case 'd':
-		case 'D':
-		case 'k':
-		case 'K':
-			tda9887_dbg("insmod fixup: SECAM => SECAM-DK\n");
-			t->std = V4L2_STD_SECAM_DK;
-			break;
-		case 'l':
-		case 'L':
-			if (secam[1] == 'c' || secam[1] == 'C') {
-				tda9887_dbg("insmod fixup: SECAM => SECAM-L'\n");
-				t->std = V4L2_STD_SECAM_LC;
-			} else {
-				tda9887_dbg("insmod fixup: SECAM => SECAM-L\n");
-				t->std = V4L2_STD_SECAM_L;
-			}
-			break;
-		case '-':
-			/* default parameter, do nothing */
-			break;
-		default:
-			tda9887_info("secam= argument not recognised\n");
-			break;
-		}
-	}
-	if ((t->std & V4L2_STD_NTSC) == V4L2_STD_NTSC) {
-		switch (ntsc[0]) {
-		case 'm':
-		case 'M':
-			tda9887_dbg("insmod fixup: NTSC => NTSC-M\n");
-			t->std = V4L2_STD_NTSC_M;
-			break;
-		case 'j':
-		case 'J':
-			tda9887_dbg("insmod fixup: NTSC => NTSC_M_JP\n");
-			t->std = V4L2_STD_NTSC_M_JP;
-			break;
-		case 'k':
-		case 'K':
-			tda9887_dbg("insmod fixup: NTSC => NTSC_M_KR\n");
-			t->std = V4L2_STD_NTSC_M_KR;
-			break;
-		case '-':
-			/* default parameter, do nothing */
-			break;
-		default:
-			tda9887_info("ntsc= argument not recognised\n");
-			break;
-		}
-	}
-	return 0;
-}
-
-static int tda9887_status(struct tda9887 *t)
+static int tda9887_status(struct tuner *t)
 {
 	unsigned char buf[1];
 	int rc;
 
 	memset(buf,0,sizeof(buf));
-	if (1 != (rc = i2c_master_recv(&t->client,buf,1)))
+	if (1 != (rc = i2c_master_recv(&t->i2c,buf,1)))
 		tda9887_info("i2c i/o error: rc == %d (should be 1)\n",rc);
 	dump_read_message(t, buf);
 	return 0;
 }
 
-static int tda9887_configure(struct tda9887 *t)
+static void tda9887_configure(struct i2c_client *client)
 {
+	struct tuner *t = i2c_get_clientdata(client);
 	int rc;
 
-	memset(t->data,0,sizeof(t->data));
-	tda9887_set_tvnorm(t,t->data);
+	memset(t->tda9887_data,0,sizeof(t->tda9887_data));
+	tda9887_set_tvnorm(t,t->tda9887_data);
 
 	/* A note on the port settings:
 	   These settings tend to depend on the specifics of the board.
@@ -667,248 +518,83 @@ static int tda9887_configure(struct tda9887 *t)
 	   the ports should be set to active (0), but, again, that may
 	   differ depending on the precise hardware configuration.
 	 */
-	t->data[1] |= cOutputPort1Inactive;
-	t->data[1] |= cOutputPort2Inactive;
+	t->tda9887_data[1] |= cOutputPort1Inactive;
+	t->tda9887_data[1] |= cOutputPort2Inactive;
 
-	tda9887_set_config(t,t->data);
-	tda9887_set_insmod(t,t->data);
+	tda9887_set_config(t,t->tda9887_data);
+	tda9887_set_insmod(t,t->tda9887_data);
 
 	if (t->mode == T_STANDBY) {
-		t->data[1] |= cForcedMuteAudioON;
+		t->tda9887_data[1] |= cForcedMuteAudioON;
 	}
 
 	tda9887_dbg("writing: b=0x%02x c=0x%02x e=0x%02x\n",
-		t->data[1],t->data[2],t->data[3]);
-	if (debug > 1)
-		dump_write_message(t, t->data);
+		t->tda9887_data[1],t->tda9887_data[2],t->tda9887_data[3]);
+	if (tuner_debug > 1)
+		dump_write_message(t, t->tda9887_data);
 
-	if (4 != (rc = i2c_master_send(&t->client,t->data,4)))
+	if (4 != (rc = i2c_master_send(&t->i2c,t->tda9887_data,4)))
 		tda9887_info("i2c i/o error: rc == %d (should be 4)\n",rc);
 
-	if (debug > 2) {
+	if (tuner_debug > 2) {
 		msleep_interruptible(1000);
 		tda9887_status(t);
 	}
-	return 0;
 }
 
 /* ---------------------------------------------------------------------- */
 
-static int tda9887_attach(struct i2c_adapter *adap, int addr, int kind)
+static void tda9887_tuner_status(struct i2c_client *client)
 {
-	struct tda9887 *t;
+	struct tuner *t = i2c_get_clientdata(client);
+	tda9887_info("Data bytes: b=0x%02x c=0x%02x e=0x%02x\n", t->tda9887_data[1], t->tda9887_data[2], t->tda9887_data[3]);
+}
 
-	client_template.adapter = adap;
-	client_template.addr    = addr;
+static int tda9887_get_afc(struct i2c_client *client)
+{
+	struct tuner *t = i2c_get_clientdata(client);
+	static int AFC_BITS_2_kHz[] = {
+		-12500,  -37500,  -62500,  -97500,
+		-112500, -137500, -162500, -187500,
+		187500,  162500,  137500,  112500,
+		97500 ,  62500,   37500 ,  12500
+	};
+	int afc=0;
+	__u8 reg = 0;
 
-	if (NULL == (t = kzalloc(sizeof(*t), GFP_KERNEL)))
-		return -ENOMEM;
+	if (1 == i2c_master_recv(&t->i2c,&reg,1))
+		afc = AFC_BITS_2_kHz[(reg>>1)&0x0f];
 
-	t->client      = client_template;
-	t->std         = 0;
-	t->radio_mode = V4L2_TUNER_MODE_STEREO;
+	return afc;
+}
 
-	tda9887_info("chip found @ 0x%x (%s)\n", addr<<1, adap->name);
+static void tda9887_standby(struct i2c_client *client)
+{
+	tda9887_configure(client);
+}
 
-	i2c_set_clientdata(&t->client, t);
-	i2c_attach_client(&t->client);
+static void tda9887_set_freq(struct i2c_client *client, unsigned int freq)
+{
+	tda9887_configure(client);
+}
+
+int tda9887_tuner_init(struct i2c_client *c)
+{
+	struct tuner *t = i2c_get_clientdata(c);
+
+	strlcpy(c->name, "tda9887", sizeof(c->name));
+
+	tda9887_info("tda988[5/6/7] found @ 0x%x (%s)\n", t->i2c.addr,
+						t->i2c.driver->driver.name);
+
+	t->set_tv_freq = tda9887_set_freq;
+	t->set_radio_freq = tda9887_set_freq;
+	t->standby = tda9887_standby;
+	t->tuner_status=tda9887_tuner_status;
+	t->get_afc=tda9887_get_afc;
 
 	return 0;
 }
-
-static int tda9887_probe(struct i2c_adapter *adap)
-{
-	if (adap->class & I2C_CLASS_TV_ANALOG)
-		return i2c_probe(adap, &addr_data, tda9887_attach);
-	return 0;
-}
-
-static int tda9887_detach(struct i2c_client *client)
-{
-	struct tda9887 *t = i2c_get_clientdata(client);
-
-	i2c_detach_client(client);
-	kfree(t);
-	return 0;
-}
-
-#define SWITCH_V4L2	if (!t->using_v4l2 && debug) \
-			  tda9887_info("switching to v4l2\n"); \
-			  t->using_v4l2 = 1;
-#define CHECK_V4L2	if (t->using_v4l2) { if (debug) \
-			  tda9887_info("ignore v4l1 call\n"); \
-			  return 0; }
-
-static int
-tda9887_command(struct i2c_client *client, unsigned int cmd, void *arg)
-{
-	struct tda9887 *t = i2c_get_clientdata(client);
-
-	switch (cmd) {
-
-	/* --- configuration --- */
-	case AUDC_SET_RADIO:
-	{
-		t->mode = T_RADIO;
-		tda9887_configure(t);
-		break;
-	}
-	case TUNER_SET_STANDBY:
-	{
-		t->mode = T_STANDBY;
-		tda9887_configure(t);
-		break;
-	}
-	case TDA9887_SET_CONFIG:
-	{
-		int *i = arg;
-
-		t->config = *i;
-		tda9887_configure(t);
-		break;
-	}
-	/* --- v4l ioctls --- */
-	/* take care: bttv does userspace copying, we'll get a
-	   kernel pointer here... */
-	case VIDIOCSCHAN:
-	{
-		static const v4l2_std_id map[] = {
-			[ VIDEO_MODE_PAL   ] = V4L2_STD_PAL,
-			[ VIDEO_MODE_NTSC  ] = V4L2_STD_NTSC_M,
-			[ VIDEO_MODE_SECAM ] = V4L2_STD_SECAM,
-			[ 4 /* bttv */     ] = V4L2_STD_PAL_M,
-			[ 5 /* bttv */     ] = V4L2_STD_PAL_N,
-			[ 6 /* bttv */     ] = V4L2_STD_NTSC_M_JP,
-		};
-		struct video_channel *vc = arg;
-
-		CHECK_V4L2;
-		t->mode = T_ANALOG_TV;
-		if (vc->norm < ARRAY_SIZE(map))
-			t->std = map[vc->norm];
-		tda9887_fixup_std(t);
-		tda9887_configure(t);
-		break;
-	}
-	case VIDIOC_S_STD:
-	{
-		v4l2_std_id *id = arg;
-
-		SWITCH_V4L2;
-		t->mode = T_ANALOG_TV;
-		t->std   = *id;
-		tda9887_fixup_std(t);
-		tda9887_configure(t);
-		break;
-	}
-	case VIDIOC_S_FREQUENCY:
-	{
-		struct v4l2_frequency *f = arg;
-
-		SWITCH_V4L2;
-		if (V4L2_TUNER_ANALOG_TV == f->type) {
-			if (t->mode == T_ANALOG_TV)
-				return 0;
-			t->mode = T_ANALOG_TV;
-		}
-		if (V4L2_TUNER_RADIO == f->type) {
-			if (t->mode == T_RADIO)
-				return 0;
-			t->mode = T_RADIO;
-		}
-		tda9887_configure(t);
-		break;
-	}
-	case VIDIOC_G_TUNER:
-	{
-		static int AFC_BITS_2_kHz[] = {
-			-12500,  -37500,  -62500,  -97500,
-			-112500, -137500, -162500, -187500,
-			187500,  162500,  137500,  112500,
-			97500 ,  62500,   37500 ,  12500
-		};
-		struct v4l2_tuner* tuner = arg;
-
-		if (t->mode == T_RADIO) {
-			__u8 reg = 0;
-			tuner->afc=0;
-			if (1 == i2c_master_recv(&t->client,&reg,1))
-				tuner->afc = AFC_BITS_2_kHz[(reg>>1)&0x0f];
-		}
-		break;
-	}
-	case VIDIOC_S_TUNER:
-	{
-		struct v4l2_tuner* tuner = arg;
-
-		if (t->mode == T_RADIO) {
-			t->radio_mode = tuner->audmode;
-			tda9887_configure (t);
-		}
-		break;
-	}
-	case VIDIOC_LOG_STATUS:
-	{
-		tda9887_info("Data bytes: b=0x%02x c=0x%02x e=0x%02x\n", t->data[1], t->data[2], t->data[3]);
-		break;
-	}
-	default:
-		/* nothing */
-		break;
-	}
-	return 0;
-}
-
-static int tda9887_suspend(struct device * dev, pm_message_t state)
-{
-	struct i2c_client *c = container_of(dev, struct i2c_client, dev);
-	struct tda9887 *t = i2c_get_clientdata(c);
-
-	tda9887_dbg("suspend\n");
-	return 0;
-}
-
-static int tda9887_resume(struct device * dev)
-{
-	struct i2c_client *c = container_of(dev, struct i2c_client, dev);
-	struct tda9887 *t = i2c_get_clientdata(c);
-
-	tda9887_dbg("resume\n");
-	tda9887_configure(t);
-	return 0;
-}
-
-/* ----------------------------------------------------------------------- */
-
-static struct i2c_driver driver = {
-	.id             = I2C_DRIVERID_TDA9887,
-	.attach_adapter = tda9887_probe,
-	.detach_client  = tda9887_detach,
-	.command        = tda9887_command,
-	.driver = {
-		.name    = "tda9887",
-		.suspend = tda9887_suspend,
-		.resume  = tda9887_resume,
-	},
-};
-static struct i2c_client client_template =
-{
-	.name      = "tda9887",
-	.driver    = &driver,
-};
-
-static int __init tda9887_init_module(void)
-{
-	return i2c_add_driver(&driver);
-}
-
-static void __exit tda9887_cleanup_module(void)
-{
-	i2c_del_driver(&driver);
-}
-
-module_init(tda9887_init_module);
-module_exit(tda9887_cleanup_module);
 
 /*
  * Overrides for Emacs so that we follow Linus's tabbing style.

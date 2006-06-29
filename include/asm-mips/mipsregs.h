@@ -13,7 +13,6 @@
 #ifndef _ASM_MIPSREGS_H
 #define _ASM_MIPSREGS_H
 
-#include <linux/config.h>
 #include <linux/linkage.h>
 #include <asm/hazards.h>
 

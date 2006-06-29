@@ -7,9 +7,25 @@
 #if QT_VERSION >= 300
 #include <qsettings.h>
 #else
-class QSettings { };
+class QSettings {
+public:
+	void beginGroup(const QString& group) { }
+	void endGroup(void) { }
+	bool readBoolEntry(const QString& key, bool def = FALSE, bool* ok = 0) const
+	{ if (ok) *ok = FALSE; return def; }
+	int readNumEntry(const QString& key, int def = 0, bool* ok = 0) const
+	{ if (ok) *ok = FALSE; return def; }
+	QString readEntry(const QString& key, const QString& def = QString::null, bool* ok = 0) const
+	{ if (ok) *ok = FALSE; return def; }
+	QStringList readListEntry(const QString& key, bool* ok = 0) const
+	{ if (ok) *ok = FALSE; return QStringList(); }
+	template <class t>
+	bool writeEntry(const QString& key, t value)
+	{ return TRUE; }
+};
 #endif
 
+class ConfigView;
 class ConfigList;
 class ConfigItem;
 class ConfigLineEdit;
@@ -18,64 +34,38 @@ class ConfigMainWindow;
 
 class ConfigSettings : public QSettings {
 public:
-	ConfigSettings();
-
-#if QT_VERSION >= 300
-	void readListSettings();
 	QValueList<int> readSizes(const QString& key, bool *ok);
 	bool writeSizes(const QString& key, const QValueList<int>& value);
-#endif
-
-	bool showAll;
-	bool showName;
-	bool showRange;
-	bool showData;
-};
-
-class ConfigView : public QVBox {
-	Q_OBJECT
-	typedef class QVBox Parent;
-public:
-	ConfigView(QWidget* parent, ConfigMainWindow* cview, ConfigSettings* configSettings);
-	~ConfigView(void);
-	static void updateList(ConfigItem* item);
-	static void updateListAll(void);
-
-public:
-	ConfigList* list;
-	ConfigLineEdit* lineEdit;
-
-	static ConfigView* viewList;
-	ConfigView* nextView;
 };
 
 enum colIdx {
 	promptColIdx, nameColIdx, noColIdx, modColIdx, yesColIdx, dataColIdx, colNr
 };
 enum listMode {
-	singleMode, menuMode, symbolMode, fullMode
+	singleMode, menuMode, symbolMode, fullMode, listMode
 };
 
 class ConfigList : public QListView {
 	Q_OBJECT
 	typedef class QListView Parent;
 public:
-	ConfigList(ConfigView* p, ConfigMainWindow* cview, ConfigSettings *configSettings);
+	ConfigList(ConfigView* p, const char *name = 0);
 	void reinit(void);
 	ConfigView* parent(void) const
 	{
 		return (ConfigView*)Parent::parent();
 	}
+	ConfigItem* findConfigItem(struct menu *);
 
 protected:
-	ConfigMainWindow* cview;
-
 	void keyPressEvent(QKeyEvent *e);
 	void contentsMousePressEvent(QMouseEvent *e);
 	void contentsMouseReleaseEvent(QMouseEvent *e);
 	void contentsMouseMoveEvent(QMouseEvent *e);
 	void contentsMouseDoubleClickEvent(QMouseEvent *e);
 	void focusInEvent(QFocusEvent *e);
+	void contextMenuEvent(QContextMenuEvent *e);
+
 public slots:
 	void setRootMenu(struct menu *menu);
 
@@ -83,10 +73,12 @@ public slots:
 	void setValue(ConfigItem* item, tristate val);
 	void changeValue(ConfigItem* item);
 	void updateSelection(void);
+	void saveSettings(void);
 signals:
+	void menuChanged(struct menu *menu);
 	void menuSelected(struct menu *menu);
 	void parentSelected(void);
-	void gotFocus(void);
+	void gotFocus(struct menu *);
 
 public:
 	void updateListAll(void)
@@ -137,6 +129,7 @@ public:
 	struct menu *rootEntry;
 	QColorGroup disabledColorGroup;
 	QColorGroup inactivedColorGroup;
+	QPopupMenu* headerPopup;
 
 private:
 	int colMap[colNr];
@@ -208,9 +201,7 @@ class ConfigLineEdit : public QLineEdit {
 	Q_OBJECT
 	typedef class QLineEdit Parent;
 public:
-	ConfigLineEdit(ConfigView* parent)
-	: Parent(parent)
-	{ }
+	ConfigLineEdit(ConfigView* parent);
 	ConfigView* parent(void) const
 	{
 		return (ConfigView*)Parent::parent();
@@ -222,26 +213,104 @@ public:
 	ConfigItem *item;
 };
 
+class ConfigView : public QVBox {
+	Q_OBJECT
+	typedef class QVBox Parent;
+public:
+	ConfigView(QWidget* parent, const char *name = 0);
+	~ConfigView(void);
+	static void updateList(ConfigItem* item);
+	static void updateListAll(void);
+
+	bool showAll(void) const { return list->showAll; }
+	bool showName(void) const { return list->showName; }
+	bool showRange(void) const { return list->showRange; }
+	bool showData(void) const { return list->showData; }
+public slots:
+	void setShowAll(bool);
+	void setShowName(bool);
+	void setShowRange(bool);
+	void setShowData(bool);
+signals:
+	void showAllChanged(bool);
+	void showNameChanged(bool);
+	void showRangeChanged(bool);
+	void showDataChanged(bool);
+public:
+	ConfigList* list;
+	ConfigLineEdit* lineEdit;
+
+	static ConfigView* viewList;
+	ConfigView* nextView;
+};
+
+class ConfigInfoView : public QTextBrowser {
+	Q_OBJECT
+	typedef class QTextBrowser Parent;
+public:
+	ConfigInfoView(QWidget* parent, const char *name = 0);
+	bool showDebug(void) const { return _showDebug; }
+
+public slots:
+	void setInfo(struct menu *menu);
+	void saveSettings(void);
+	void setSource(const QString& name);
+	void setShowDebug(bool);
+
+signals:
+	void showDebugChanged(bool);
+	void menuSelected(struct menu *);
+
+protected:
+	void symbolInfo(void);
+	void menuInfo(void);
+	QString debug_info(struct symbol *sym);
+	static QString print_filter(const QString &str);
+	static void expr_print_help(void *data, struct symbol *sym, const char *str);
+	QPopupMenu* createPopupMenu(const QPoint& pos);
+	void contentsContextMenuEvent(QContextMenuEvent *e);
+
+	struct symbol *sym;
+	struct menu *menu;
+	bool _showDebug;
+};
+
+class ConfigSearchWindow : public QDialog {
+	Q_OBJECT
+	typedef class QDialog Parent;
+public:
+	ConfigSearchWindow(QWidget* parent, const char *name = 0);
+
+public slots:
+	void saveSettings(void);
+	void search(void);
+
+protected:
+	QLineEdit* editField;
+	QPushButton* searchButton;
+	QSplitter* split;
+	ConfigView* list;
+	ConfigInfoView* info;
+
+	struct symbol **result;
+};
+
 class ConfigMainWindow : public QMainWindow {
 	Q_OBJECT
 public:
 	ConfigMainWindow(void);
 public slots:
-	void setHelp(QListViewItem* item);
 	void changeMenu(struct menu *);
+	void setMenuLink(struct menu *);
 	void listFocusChanged(void);
 	void goBack(void);
 	void loadConfig(void);
 	void saveConfig(void);
 	void saveConfigAs(void);
+	void searchConfig(void);
 	void showSingleView(void);
 	void showSplitView(void);
 	void showFullView(void);
-	void setShowAll(bool);
-	void setShowDebug(bool);
-	void setShowRange(bool);
-	void setShowName(bool);
-	void setShowData(bool);
 	void showIntro(void);
 	void showAbout(void);
 	void saveSettings(void);
@@ -249,15 +318,14 @@ public slots:
 protected:
 	void closeEvent(QCloseEvent *e);
 
+	ConfigSearchWindow *searchWindow;
 	ConfigView *menuView;
 	ConfigList *menuList;
 	ConfigView *configView;
 	ConfigList *configList;
-	QTextView *helpText;
+	ConfigInfoView *helpText;
 	QToolBar *toolBar;
 	QAction *backAction;
 	QSplitter* split1;
 	QSplitter* split2;
-
-	bool showDebug;
 };

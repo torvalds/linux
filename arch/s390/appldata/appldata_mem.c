@@ -4,9 +4,9 @@
  * Data gathering module for Linux-VM Monitor Stream, Stage 1.
  * Collects data related to memory management.
  *
- * Copyright (C) 2003 IBM Corporation, IBM Deutschland Entwicklung GmbH.
+ * Copyright (C) 2003,2006 IBM Corporation, IBM Deutschland Entwicklung GmbH.
  *
- * Author: Gerald Schaefer <geraldsc@de.ibm.com>
+ * Author: Gerald Schaefer <gerald.schaefer@de.ibm.com>
  */
 
 #include <linux/config.h>
@@ -152,6 +152,7 @@ static struct appldata_ops ops = {
 	.callback  = &appldata_get_mem_data,
 	.data      = &appldata_mem_data,
 	.owner     = THIS_MODULE,
+	.mod_lvl   = {0xF0, 0xF0},		/* EBCDIC "00" */
 };
 
 

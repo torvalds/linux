@@ -49,7 +49,6 @@ config GCOV
 
 config SYSCALL_DEBUG
 	bool "Enable system call debugging"
-	default N
 	depends on DEBUG_INFO
 	help
 	This adds some system debugging to UML, including keeping a ring buffer

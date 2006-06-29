@@ -287,7 +287,7 @@ void pci_addr_cache_remove_device(struct pci_dev *dev)
  * find the pci device that corresponds to a given address.
  * This routine scans all pci busses to build the cache.
  * Must be run late in boot process, after the pci controllers
- * have been scaned for devices (after all device resources are known).
+ * have been scanned for devices (after all device resources are known).
  */
 void __init pci_addr_cache_build(void)
 {
@@ -304,6 +304,8 @@ void __init pci_addr_cache_build(void)
 		pci_addr_cache_insert_device(dev);
 
 		dn = pci_device_to_OF_node(dev);
+		if (!dn)
+			continue;
 		pci_dev_get (dev);  /* matching put is in eeh_remove_device() */
 		PCI_DN(dn)->pcidev = dev;
 	}

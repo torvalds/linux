@@ -12,6 +12,10 @@
  * Since the datasheet omits to give the chip stepping code, I give it
  * here: 0x03 (at register 0xff).
  *
+ * Also supports the LM82 temp sensor, which is basically a stripped down
+ * model of the LM83.  Datasheet is here:
+ * http://www.national.com/pf/LM/LM82.html
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
@@ -52,7 +56,7 @@ static unsigned short normal_i2c[] = { 0x18, 0x19, 0x1a,
  * Insmod parameters
  */
 
-I2C_CLIENT_INSMOD_1(lm83);
+I2C_CLIENT_INSMOD_2(lm83, lm82);
 
 /*
  * The LM83 registers
@@ -283,6 +287,9 @@ static int lm83_detect(struct i2c_adapter *adapter, int address, int kind)
 		if (man_id == 0x01) { /* National Semiconductor */
 			if (chip_id == 0x03) {
 				kind = lm83;
+			} else
+			if (chip_id == 0x01) {
+				kind = lm82;
 			}
 		}
 
@@ -296,6 +303,9 @@ static int lm83_detect(struct i2c_adapter *adapter, int address, int kind)
 
 	if (kind == lm83) {
 		name = "lm83";
+	} else
+	if (kind == lm82) {
+		name = "lm82";
 	}
 
 	/* We can fill in the remaining client fields */
@@ -319,31 +329,45 @@ static int lm83_detect(struct i2c_adapter *adapter, int address, int kind)
 		goto exit_detach;
 	}
 
+	/*
+	 * The LM82 can only monitor one external diode which is
+	 * at the same register as the LM83 temp3 entry - so we
+	 * declare 1 and 3 common, and then 2 and 4 only for the LM83.
+	 */
+
 	device_create_file(&new_client->dev,
 			   &sensor_dev_attr_temp1_input.dev_attr);
 	device_create_file(&new_client->dev,
-			   &sensor_dev_attr_temp2_input.dev_attr);
-	device_create_file(&new_client->dev,
 			   &sensor_dev_attr_temp3_input.dev_attr);
-	device_create_file(&new_client->dev,
-			   &sensor_dev_attr_temp4_input.dev_attr);
+
 	device_create_file(&new_client->dev,
 			   &sensor_dev_attr_temp1_max.dev_attr);
 	device_create_file(&new_client->dev,
-			   &sensor_dev_attr_temp2_max.dev_attr);
-	device_create_file(&new_client->dev,
 			   &sensor_dev_attr_temp3_max.dev_attr);
-	device_create_file(&new_client->dev,
-			   &sensor_dev_attr_temp4_max.dev_attr);
+
 	device_create_file(&new_client->dev,
 			   &sensor_dev_attr_temp1_crit.dev_attr);
 	device_create_file(&new_client->dev,
-			   &sensor_dev_attr_temp2_crit.dev_attr);
-	device_create_file(&new_client->dev,
 			   &sensor_dev_attr_temp3_crit.dev_attr);
-	device_create_file(&new_client->dev,
-			   &sensor_dev_attr_temp4_crit.dev_attr);
+
 	device_create_file(&new_client->dev, &dev_attr_alarms);
+
+	if (kind == lm83) {
+		device_create_file(&new_client->dev,
+				   &sensor_dev_attr_temp2_input.dev_attr);
+		device_create_file(&new_client->dev,
+				   &sensor_dev_attr_temp4_input.dev_attr);
+
+		device_create_file(&new_client->dev,
+				   &sensor_dev_attr_temp2_max.dev_attr);
+		device_create_file(&new_client->dev,
+				   &sensor_dev_attr_temp4_max.dev_attr);
+
+		device_create_file(&new_client->dev,
+				   &sensor_dev_attr_temp2_crit.dev_attr);
+		device_create_file(&new_client->dev,
+				   &sensor_dev_attr_temp4_crit.dev_attr);
+	}
 
 	return 0;
 

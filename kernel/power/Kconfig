@@ -36,6 +36,24 @@ config PM_DEBUG
 	code. This is helpful when debugging and reporting various PM bugs, 
 	like suspend support.
 
+config PM_TRACE
+	bool "Suspend/resume event tracing"
+	depends on PM && PM_DEBUG && X86_32 && EXPERIMENTAL
+	default n
+	---help---
+	This enables some cheesy code to save the last PM event point in the
+	RTC across reboots, so that you can debug a machine that just hangs
+	during suspend (or more commonly, during resume).
+
+	To use this debugging feature you should attempt to suspend the machine,
+	then reboot it, then run
+
+		dmesg -s 1000000 | grep 'hash matches'
+
+	CAUTION: this option will cause your machine's real-time clock to be
+	set to an invalid time after a resume.
+
+
 config SOFTWARE_SUSPEND
 	bool "Software Suspend"
 	depends on PM && SWAP && (X86 && (!SMP || SUSPEND_SMP)) || ((FRV || PPC32) && !SMP)

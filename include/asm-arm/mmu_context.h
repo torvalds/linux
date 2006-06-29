@@ -82,6 +82,7 @@ static inline void
 switch_mm(struct mm_struct *prev, struct mm_struct *next,
 	  struct task_struct *tsk)
 {
+#ifdef CONFIG_MMU
 	unsigned int cpu = smp_processor_id();
 
 	if (prev != next) {
@@ -91,6 +92,7 @@ switch_mm(struct mm_struct *prev, struct mm_struct *next,
 		if (cache_is_vivt())
 			cpu_clear(cpu, prev->cpu_vm_mask);
 	}
+#endif
 }
 
 #define deactivate_mm(tsk,mm)	do { } while (0)

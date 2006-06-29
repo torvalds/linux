@@ -51,6 +51,7 @@
  * @nsub: list of "node down" subscriptions monitoring node
  * @active_links: pointers to active links to node
  * @links: pointers to all links to node
+ * @working_links: number of working links to node (both active and standby)
  * @link_cnt: number of links to node
  * @permit_changeover: non-zero if node has redundant links to this system
  * @routers: bitmap (used for multicluster communication)
@@ -76,6 +77,7 @@ struct node {
 	struct link *active_links[2];
 	struct link *links[MAX_BEARERS];
 	int link_cnt;
+	int working_links;
 	int permit_changeover;
 	u32 routers[512/32];
 	int last_router;

@@ -116,6 +116,8 @@ endif
  machine-$(CONFIG_ARCH_REALVIEW)   := realview
  machine-$(CONFIG_ARCH_AT91RM9200) := at91rm9200
  machine-$(CONFIG_ARCH_EP93XX)     := ep93xx
+ machine-$(CONFIG_ARCH_PNX4008)    := pnx4008
+ machine-$(CONFIG_ARCH_NETX)       := netx
 
 ifeq ($(CONFIG_ARCH_EBSA110),y)
 # This is what happens if you forget the IOCS16 line.
@@ -175,7 +177,7 @@ boot := arch/arm/boot
 #	them changed.  We use .arch to indicate when they were updated
 #	last, otherwise make uses the target directory mtime.
 
-include/asm-arm/.arch: $(wildcard include/config/arch/*.h) include/config/MARKER
+include/asm-arm/.arch: $(wildcard include/config/arch/*.h) include/config/auto.conf
 	@echo '  SYMLINK include/asm-arm/arch -> include/asm-arm/$(INCDIR)'
 ifneq ($(KBUILD_SRC),)
 	$(Q)mkdir -p include/asm-arm

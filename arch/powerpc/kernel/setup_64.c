@@ -100,12 +100,6 @@ unsigned long SYSRQ_KEY;
 #endif /* CONFIG_MAGIC_SYSRQ */
 
 
-static int ppc64_panic_event(struct notifier_block *, unsigned long, void *);
-static struct notifier_block ppc64_panic_block = {
-	.notifier_call = ppc64_panic_event,
-	.priority = INT_MIN /* may not return; must be done last */
-};
-
 #ifdef CONFIG_SMP
 
 static int smt_enabled_cmdline;
@@ -155,6 +149,13 @@ early_param("smt-enabled", early_smt_enabled);
 #define check_smt_enabled()
 #endif /* CONFIG_SMP */
 
+/* Put the paca pointer into r13 and SPRG3 */
+void __init setup_paca(int cpu)
+{
+	local_paca = &paca[cpu];
+	mtspr(SPRN_SPRG3, local_paca);
+}
+
 /*
  * Early initialization entry point. This is called by head.S
  * with MMU translation disabled. We rely on the "feature" of
@@ -176,6 +177,9 @@ early_param("smt-enabled", early_smt_enabled);
 
 void __init early_setup(unsigned long dt_ptr)
 {
+	/* Assume we're on cpu 0 for now. Don't write to the paca yet! */
+	setup_paca(0);
+
 	/* Enable early debugging if any specified (see udbg.h) */
 	udbg_early_init();
 
@@ -189,7 +193,7 @@ void __init early_setup(unsigned long dt_ptr)
 	early_init_devtree(__va(dt_ptr));
 
 	/* Now we know the logical id of our boot cpu, setup the paca. */
-	setup_boot_paca();
+	setup_paca(boot_cpuid);
 
 	/* Fix up paca fields required for the boot cpu */
 	get_paca()->cpu_start = 1;
@@ -199,9 +203,7 @@ void __init early_setup(unsigned long dt_ptr)
 	/* Probe the machine type */
 	probe_machine();
 
-#ifdef CONFIG_CRASH_DUMP
-	kdump_setup();
-#endif
+	setup_kdump_trampoline();
 
 	DBG("Found, Initializing memory management...\n");
 
@@ -353,27 +355,16 @@ void __init setup_system(void)
 {
 	DBG(" -> setup_system()\n");
 
-#ifdef CONFIG_KEXEC
-	kdump_move_device_tree();
-#endif
 	/*
 	 * Unflatten the device-tree passed by prom_init or kexec
 	 */
 	unflatten_device_tree();
 
-#ifdef CONFIG_KEXEC
-	kexec_setup();	/* requires unflattened device tree. */
-#endif
-
 	/*
 	 * Fill the ppc64_caches & systemcfg structures with informations
 	 * retrieved from the device-tree. Need to be called before
 	 * finish_device_tree() since the later requires some of the
-	 * informations filled up here to properly parse the interrupt
-	 * tree.
-	 * It also sets up the cache line sizes which allows to call
-	 * routines like flush_icache_range (used by the hash init
-	 * later on).
+	 * informations filled up here to properly parse the interrupt tree.
 	 */
 	initialize_cache_info();
 
@@ -420,10 +411,8 @@ void __init setup_system(void)
 	 */
 	register_early_udbg_console();
 
-	/* Save unparsed command line copy for /proc/cmdline */
-	strlcpy(saved_command_line, cmd_line, COMMAND_LINE_SIZE);
-
-	parse_early_param();
+	if (do_early_xmon)
+		debugger(NULL);
 
 	check_smt_enabled();
 	smp_setup_cpu_maps();
@@ -454,13 +443,6 @@ void __init setup_system(void)
 	printk("-----------------------------------------------------\n");
 
 	DBG(" <- setup_system()\n");
-}
-
-static int ppc64_panic_event(struct notifier_block *this,
-                             unsigned long event, void *ptr)
-{
-	ppc_md.panic((char *)ptr);  /* May not return */
-	return NOTIFY_DONE;
 }
 
 #ifdef CONFIG_IRQSTACKS
@@ -517,8 +499,6 @@ static void __init emergency_stack_init(void)
  */
 void __init setup_arch(char **cmdline_p)
 {
-	extern void do_init_bootmem(void);
-
 	ppc64_boot_msg(0x12, "Setup Arch");
 
 	*cmdline_p = cmd_line;
@@ -535,8 +515,7 @@ void __init setup_arch(char **cmdline_p)
 	panic_timeout = 180;
 
 	if (ppc_md.panic)
-		atomic_notifier_chain_register(&panic_notifier_list,
-				&ppc64_panic_block);
+		setup_panic();
 
 	init_mm.start_code = PAGE_OFFSET;
 	init_mm.end_code = (unsigned long) _etext;

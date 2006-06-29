@@ -1958,7 +1958,7 @@ sba_map_ioc_to_node(struct ioc *ioc, acpi_handle handle)
 	if (pxm < 0)
 		return;
 
-	node = pxm_to_nid_map[pxm];
+	node = pxm_to_node(pxm);
 
 	if (node >= MAX_NUMNODES || !node_online(node))
 		return;
@@ -1999,7 +1999,7 @@ acpi_sba_ioc_add(struct acpi_device *device)
 		if (!iovp_shift)
 			iovp_shift = min(PAGE_SHIFT, 16);
 	}
-	ACPI_MEM_FREE(dev_info);
+	kfree(dev_info);
 
 	/*
 	 * default anything not caught above or specified on cmdline to 4k

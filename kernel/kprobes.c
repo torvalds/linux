@@ -47,10 +47,16 @@
 
 static struct hlist_head kprobe_table[KPROBE_TABLE_SIZE];
 static struct hlist_head kretprobe_inst_table[KPROBE_TABLE_SIZE];
+static atomic_t kprobe_count;
 
 DEFINE_MUTEX(kprobe_mutex);		/* Protects kprobe_table */
 DEFINE_SPINLOCK(kretprobe_lock);	/* Protects kretprobe_inst_table */
 static DEFINE_PER_CPU(struct kprobe *, kprobe_instance) = NULL;
+
+static struct notifier_block kprobe_page_fault_nb = {
+	.notifier_call = kprobe_exceptions_notify,
+	.priority = 0x7fffffff /* we need to notified first */
+};
 
 #ifdef __ARCH_WANT_KPROBES_INSN_SLOT
 /*
@@ -368,16 +374,15 @@ static inline void copy_kprobe(struct kprobe *old_p, struct kprobe *p)
 */
 static int __kprobes add_new_kprobe(struct kprobe *old_p, struct kprobe *p)
 {
-        struct kprobe *kp;
-
 	if (p->break_handler) {
-		list_for_each_entry_rcu(kp, &old_p->list, list) {
-			if (kp->break_handler)
-				return -EEXIST;
-		}
+		if (old_p->break_handler)
+			return -EEXIST;
 		list_add_tail_rcu(&p->list, &old_p->list);
+		old_p->break_handler = aggr_break_handler;
 	} else
 		list_add_rcu(&p->list, &old_p->list);
+	if (p->post_handler && !old_p->post_handler)
+		old_p->post_handler = aggr_post_handler;
 	return 0;
 }
 
@@ -390,9 +395,11 @@ static inline void add_aggr_kprobe(struct kprobe *ap, struct kprobe *p)
 	copy_kprobe(p, ap);
 	ap->addr = p->addr;
 	ap->pre_handler = aggr_pre_handler;
-	ap->post_handler = aggr_post_handler;
 	ap->fault_handler = aggr_fault_handler;
-	ap->break_handler = aggr_break_handler;
+	if (p->post_handler)
+		ap->post_handler = aggr_post_handler;
+	if (p->break_handler)
+		ap->break_handler = aggr_break_handler;
 
 	INIT_LIST_HEAD(&ap->list);
 	list_add_rcu(&p->list, &ap->list);
@@ -464,6 +471,8 @@ static int __kprobes __register_kprobe(struct kprobe *p,
 	old_p = get_kprobe(p->addr);
 	if (old_p) {
 		ret = register_aggr_kprobe(old_p, p);
+		if (!ret)
+			atomic_inc(&kprobe_count);
 		goto out;
 	}
 
@@ -473,6 +482,10 @@ static int __kprobes __register_kprobe(struct kprobe *p,
 	INIT_HLIST_NODE(&p->hlist);
 	hlist_add_head_rcu(&p->hlist,
 		       &kprobe_table[hash_ptr(p->addr, KPROBE_HASH_BITS)]);
+
+	if (atomic_add_return(1, &kprobe_count) == \
+				(ARCH_INACTIVE_KPROBE_COUNT + 1))
+		register_page_fault_notifier(&kprobe_page_fault_nb);
 
   	arch_arm_kprobe(p);
 
@@ -536,13 +549,39 @@ valid_p:
 			kfree(old_p);
 		}
 		arch_remove_kprobe(p);
+	} else {
+		mutex_lock(&kprobe_mutex);
+		if (p->break_handler)
+			old_p->break_handler = NULL;
+		if (p->post_handler){
+			list_for_each_entry_rcu(list_p, &old_p->list, list){
+				if (list_p->post_handler){
+					cleanup_p = 2;
+					break;
+				}
+			}
+			if (cleanup_p == 0)
+				old_p->post_handler = NULL;
+		}
+		mutex_unlock(&kprobe_mutex);
 	}
+
+	/* Call unregister_page_fault_notifier()
+	 * if no probes are active
+	 */
+	mutex_lock(&kprobe_mutex);
+	if (atomic_add_return(-1, &kprobe_count) == \
+				ARCH_INACTIVE_KPROBE_COUNT)
+		unregister_page_fault_notifier(&kprobe_page_fault_nb);
+	mutex_unlock(&kprobe_mutex);
+	return;
 }
 
 static struct notifier_block kprobe_exceptions_nb = {
 	.notifier_call = kprobe_exceptions_notify,
-	.priority = 0x7fffffff /* we need to notified first */
+	.priority = 0x7fffffff /* we need to be notified first */
 };
+
 
 int __kprobes register_jprobe(struct jprobe *jp)
 {
@@ -652,6 +691,7 @@ static int __init init_kprobes(void)
 		INIT_HLIST_HEAD(&kprobe_table[i]);
 		INIT_HLIST_HEAD(&kretprobe_inst_table[i]);
 	}
+	atomic_set(&kprobe_count, 0);
 
 	err = arch_init_kprobes();
 	if (!err)

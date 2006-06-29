@@ -5,6 +5,9 @@
 
 /*** main I/O area port indices ***/
 /* (only 0x70 of 0x80 bytes saved/restored by Windows driver) */
+#define AZF_IO_SIZE_CODEC	0x80
+#define AZF_IO_SIZE_CODEC_PM	0x70
+
 /* the driver initialisation suggests a layout of 4 main areas:
  * from 0x00 (playback), from 0x20 (recording) and from 0x40 (maybe MPU401??).
  * And another area from 0x60 to 0x6f (DirectX timer, IRQ management,
@@ -87,7 +90,7 @@
 #define IDX_IO_REC_DMA_CURROFS  0x34 /* PU:0x00000000 */
 #define IDX_IO_REC_SOUNDFORMAT  0x36 /* PU:0x0000 */
 
-/** hmm, what is this I/O area for? MPU401?? (after playback, recording, ???, timer) **/
+/** hmm, what is this I/O area for? MPU401?? or external DAC via I2S?? (after playback, recording, ???, timer) **/
 #define IDX_IO_SOMETHING_FLAGS	0x40 /* gets set to 0x34 just like port 0x0 and 0x20 on card init, PU:0x0000 */
 /* general */
 #define IDX_IO_42H		0x42 /* PU:0x0001 */
@@ -107,7 +110,8 @@
   #define IRQ_UNKNOWN2			0x0080 /* probably unused */
 #define IDX_IO_66H		0x66    /* writing 0xffff returns 0x0000 */
 #define IDX_IO_SOME_VALUE	0x68	/* this is set to e.g. 0x3ff or 0x300, and writable; maybe some buffer limit, but I couldn't find out more, PU:0x00ff */
-#define IDX_IO_6AH		0x6A	/* this WORD can be set to have bits 0x0028 activated; actually inhibits PCM playback!!! maybe power management?? */
+#define IDX_IO_6AH		0x6A	/* this WORD can be set to have bits 0x0028 activated (FIXME: correct??); actually inhibits PCM playback!!! maybe power management?? */
+  #define IO_6A_PAUSE_PLAYBACK		0x0200 /* bit 9; sure, this pauses playback, but what the heck is this really about?? */
 #define IDX_IO_6CH		0x6C
 #define IDX_IO_6EH		0x6E	/* writing 0xffff returns 0x83fe */
 /* further I/O indices not saved/restored, so probably not used */
@@ -115,15 +119,25 @@
 
 /*** I/O 2 area port indices ***/
 /* (only 0x06 of 0x08 bytes saved/restored by Windows driver) */ 
+#define AZF_IO_SIZE_IO2		0x08
+#define AZF_IO_SIZE_IO2_PM	0x06
+
 #define IDX_IO2_LEGACY_ADDR	0x04
   #define LEGACY_SOMETHING		0x01 /* OPL3?? */
   #define LEGACY_JOY			0x08
 
+#define AZF_IO_SIZE_MPU		0x04
+#define AZF_IO_SIZE_MPU_PM	0x04
+
+#define AZF_IO_SIZE_SYNTH	0x08
+#define AZF_IO_SIZE_SYNTH_PM	0x06
 
 /*** mixer I/O area port indices ***/
 /* (only 0x22 of 0x40 bytes saved/restored by Windows driver)
- * generally spoken: AC97 register index = AZF3328 mixer reg index + 2
- * (in other words: AZF3328 NOT fully AC97 compliant) */
+ * UNFORTUNATELY azf3328 is NOT truly AC97 compliant: see main file intro */
+#define AZF_IO_SIZE_MIXER	0x40
+#define AZF_IO_SIZE_MIXER_PM	0x22
+
   #define MIXER_VOLUME_RIGHT_MASK	0x001f
   #define MIXER_VOLUME_LEFT_MASK	0x1f00
   #define MIXER_MUTE_MASK		0x8000
@@ -156,14 +170,14 @@
 #define IDX_MIXER_ADVCTL1       0x1e
   /* unlisted bits are unmodifiable */
   #define MIXER_ADVCTL1_3DWIDTH_MASK	0x000e
-  #define MIXER_ADVCTL1_HIFI3D_MASK	0x0300
-#define IDX_MIXER_ADVCTL2       0x20 /* resembles AC97_GENERAL_PURPOSE reg! */
+  #define MIXER_ADVCTL1_HIFI3D_MASK	0x0300 /* yup, this is missing the high bit that official AC97 contains, plus it doesn't have linear bit value range behaviour but instead acts weirdly (possibly we're dealing with two *different* 3D settings here??) */
+#define IDX_MIXER_ADVCTL2       0x20 /* subset of AC97_GENERAL_PURPOSE reg! */
   /* unlisted bits are unmodifiable */
-  #define MIXER_ADVCTL2_BIT7		0x0080 /* WaveOut 3D Bypass? mutes WaveOut at LineOut */
-  #define MIXER_ADVCTL2_BIT8		0x0100 /* is this Modem Out Select? */
-  #define MIXER_ADVCTL2_BIT9		0x0200 /* Mono Select Source? */
-  #define MIXER_ADVCTL2_BIT13		0x2000 /* 3D enable? */
-  #define MIXER_ADVCTL2_BIT15		0x8000 /* unknown */
+  #define MIXER_ADVCTL2_LPBK		0x0080 /* Loopback mode -- Win driver: "WaveOut3DBypass"? mutes WaveOut at LineOut */
+  #define MIXER_ADVCTL2_MS		0x0100 /* Mic Select 0=Mic1, 1=Mic2 -- Win driver: "ModemOutSelect"?? */
+  #define MIXER_ADVCTL2_MIX		0x0200 /* Mono output select 0=Mix, 1=Mic; Win driver: "MonoSelectSource"?? */
+  #define MIXER_ADVCTL2_3D		0x2000 /* 3D Enhancement 1=on */
+  #define MIXER_ADVCTL2_POP		0x8000 /* Pcm Out Path, 0=pre 3D, 1=post 3D */
   
 #define IDX_MIXER_SOMETHING30H	0x30 /* used, but unknown??? */
 

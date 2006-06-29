@@ -114,7 +114,7 @@ struct cx88_board cx88_boards[] = {
 		.radio = {
 			 .type  = CX88_RADIO,
 			 .gpio0 = 0xff10,
-		 },
+		},
 	},
 	[CX88_BOARD_ATI_WONDER_PRO] = {
 		.name           = "ATI TV Wonder Pro",
@@ -267,7 +267,7 @@ struct cx88_board cx88_boards[] = {
 			.gpio1  = 0x00007004,
 			.gpio2  = 0x0035d700,
 			.gpio3  = 0x02000000,
-		 },
+		},
 	},
 	[CX88_BOARD_LEADTEK_PVR2000] = {
 		// gpio values for PAL version from regspy by DScaler
@@ -413,7 +413,7 @@ struct cx88_board cx88_boards[] = {
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 1,
 			.gpio0  = 0x000027df,
-		 },{
+		},{
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 2,
 			.gpio0  = 0x000027df,
@@ -536,7 +536,7 @@ struct cx88_board cx88_boards[] = {
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 1,
 			.gpio0  = 0x000027df,
-		 },{
+		},{
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 2,
 			.gpio0  = 0x000027df,
@@ -759,7 +759,7 @@ struct cx88_board cx88_boards[] = {
 	},
 	[CX88_BOARD_DVICO_FUSIONHDTV_5_GOLD] = {
 		.name           = "DViCO FusionHDTV 5 Gold",
-		.tuner_type     = TUNER_LG_TDVS_H062F,
+		.tuner_type     = TUNER_LG_TDVS_H06XF, /* TDVS-H062F */
 		.radio_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
@@ -1050,11 +1050,7 @@ struct cx88_board cx88_boards[] = {
 		.dvb            = 1,
 	},
 	[CX88_BOARD_KWORLD_HARDWARE_MPEG_TV_XPERT] = {
-		/* FIXME: Standard video using the cx88 broadcast decoder is
-		 * working, but blackbird isn't working yet, audio is only
-		 * working correctly for television mode. S-Video and Composite
-		 * are working for video-only, so I have them disabled for now.
-		 */
+		/* FIXME: Audio not working for s-video / composite inputs. */
 		.name           = "KWorld HardwareMpegTV XPert",
 		.tuner_type     = TUNER_PHILIPS_TDA8290,
 		.radio_type     = UNSET,
@@ -1065,12 +1061,21 @@ struct cx88_board cx88_boards[] = {
 			.vmux   = 0,
 			.gpio0  = 0x3de2,
 			.gpio2  = 0x00ff,
+		},{
+			.type   = CX88_VMUX_COMPOSITE1,
+			.vmux   = 1,
+			.gpio0  = 0x3de6,
+		},{
+			.type   = CX88_VMUX_SVIDEO,
+			.vmux   = 2,
+			.gpio0  = 0x3de6,
 		}},
 		.radio = {
 			.type   = CX88_RADIO,
 			.gpio0  = 0x3de6,
 			.gpio2  = 0x00ff,
 		},
+		.blackbird      = 1,
 	},
 	[CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_HYBRID] = {
 		.name           = "DViCO FusionHDTV DVB-T Hybrid",
@@ -1093,7 +1098,102 @@ struct cx88_board cx88_boards[] = {
 		}},
 		.dvb            = 1,
 	},
-
+	[CX88_BOARD_PCHDTV_HD5500] = {
+		.name           = "pcHDTV HD5500 HDTV",
+		.tuner_type     = TUNER_LG_TDVS_H06XF, /* TDVS-H064F */
+		.radio_type     = UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+		.tda9887_conf   = TDA9887_PRESENT,
+		.input          = {{
+			.type   = CX88_VMUX_TELEVISION,
+			.vmux   = 0,
+			.gpio0  = 0x87fd,
+		},{
+			.type   = CX88_VMUX_COMPOSITE1,
+			.vmux   = 1,
+			.gpio0  = 0x87f9,
+		},{
+			.type   = CX88_VMUX_SVIDEO,
+			.vmux   = 2,
+			.gpio0  = 0x87f9,
+		}},
+		.dvb            = 1,
+	},
+	[CX88_BOARD_KWORLD_MCE200_DELUXE] = {
+		/* FIXME: tested TV input only, disabled composite,
+		   svideo and radio until they can be tested also. */
+		.name           = "Kworld MCE 200 Deluxe",
+		.tuner_type     = TUNER_TENA_9533_DI,
+		.radio_type     = UNSET,
+		.tda9887_conf   = TDA9887_PRESENT,
+		.tuner_addr     = ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+		.input          = {{
+			.type   = CX88_VMUX_TELEVISION,
+			.vmux   = 0,
+			.gpio0  = 0x0000BDE6
+		}},
+		.blackbird = 1,
+	},
+	[CX88_BOARD_PIXELVIEW_PLAYTV_P7000] = {
+		/* FIXME: SVideo, Composite and FM inputs are untested */
+		.name           = "PixelView PlayTV P7000",
+		.tuner_type     = TUNER_PHILIPS_FM1216ME_MK3,
+		.radio_type     = UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+		.tda9887_conf   = TDA9887_PRESENT | TDA9887_PORT1_ACTIVE |
+				  TDA9887_PORT2_ACTIVE,
+		.input          = {{
+			.type   = CX88_VMUX_TELEVISION,
+			.vmux   = 0,
+			.gpio0  = 0x5da6,
+		}},
+		.blackbird = 1,
+	},
+	[CX88_BOARD_NPGTECH_REALTV_TOP10FM] = {
+		.name           = "NPG Tech Real TV FM Top 10",
+		.tuner_type     = TUNER_TNF_5335MF, /* Actually a TNF9535 */
+		.radio_type     = UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+		.input          = {{
+			.type   = CX88_VMUX_TELEVISION,
+			.vmux   = 0,
+			.gpio0	= 0x0788,
+		},{
+			.type   = CX88_VMUX_COMPOSITE1,
+			.vmux   = 1,
+			.gpio0	= 0x078b,
+		},{
+			.type   = CX88_VMUX_SVIDEO,
+			.vmux   = 2,
+			.gpio0	= 0x078b,
+		}},
+		.radio = {
+			 .type  = CX88_RADIO,
+			 .gpio0 = 0x074a,
+		},
+	},
+	[CX88_BOARD_WINFAST_DTV2000H] = {
+		/* video inputs and radio still in testing */
+		.name           = "WinFast DTV2000 H",
+		.tuner_type     = TUNER_PHILIPS_FMD1216ME_MK3,
+		.radio_type     = UNSET,
+		.tuner_addr     = ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+		.tda9887_conf   = TDA9887_PRESENT,
+		.input          = {{
+			.type   = CX88_VMUX_TELEVISION,
+			.vmux   = 0,
+			.gpio0  = 0x00017304,
+			.gpio1  = 0x00008203,
+			.gpio2  = 0x00017304,
+			.gpio3  = 0x02000000,
+		}},
+		.dvb            = 1,
+	},
 };
 const unsigned int cx88_bcount = ARRAY_SIZE(cx88_boards);
 
@@ -1311,6 +1411,34 @@ struct cx88_subid cx88_subids[] = {
 		.subvendor = 0x18ac,
 		.subdevice = 0xdb44,
 		.card      = CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_HYBRID,
+	},{
+		.subvendor = 0x7063,
+		.subdevice = 0x5500,
+		.card      = CX88_BOARD_PCHDTV_HD5500,
+	},{
+		.subvendor = 0x17de,
+		.subdevice = 0x0841,
+		.card      = CX88_BOARD_KWORLD_MCE200_DELUXE,
+	},{
+		.subvendor = 0x1822,
+		.subdevice = 0x0019,
+		.card      = CX88_BOARD_DNTV_LIVE_DVB_T_PRO,
+	},{
+		.subvendor = 0x1554,
+		.subdevice = 0x4813,
+		.card      = CX88_BOARD_PIXELVIEW_PLAYTV_P7000,
+	},{
+		.subvendor = 0x14f1,
+		.subdevice = 0x0842,
+		.card      = CX88_BOARD_NPGTECH_REALTV_TOP10FM,
+	},{
+		.subvendor = 0x107d,
+		.subdevice = 0x665e,
+		.card      = CX88_BOARD_WINFAST_DTV2000H,
+	},{
+		.subvendor = 0x18ac,
+		.subdevice = 0xd800, /* FusionHDTV 3 Gold (original revision) */
+		.card      = CX88_BOARD_DVICO_FUSIONHDTV_3_GOLD_Q,
 	},
 };
 const unsigned int cx88_idcount = ARRAY_SIZE(cx88_subids);
@@ -1572,11 +1700,6 @@ void cx88_card_setup(struct cx88_core *core)
 /* ------------------------------------------------------------------ */
 
 EXPORT_SYMBOL(cx88_boards);
-EXPORT_SYMBOL(cx88_bcount);
-EXPORT_SYMBOL(cx88_subids);
-EXPORT_SYMBOL(cx88_idcount);
-EXPORT_SYMBOL(cx88_card_list);
-EXPORT_SYMBOL(cx88_card_setup);
 
 /*
  * Local variables:

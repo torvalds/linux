@@ -14,6 +14,7 @@
 #include <linux/slab.h>
 #include <linux/compiler.h>
 #include <linux/fs.h>
+#include <linux/uaccess.h>
 #include <linux/aio.h>
 #include <linux/capability.h>
 #include <linux/kernel_stat.h>
@@ -38,7 +39,6 @@
  */
 #include <linux/buffer_head.h> /* for generic_osync_inode */
 
-#include <asm/uaccess.h>
 #include <asm/mman.h>
 
 static ssize_t
@@ -171,15 +171,17 @@ static int sync_page(void *word)
 }
 
 /**
- * filemap_fdatawrite_range - start writeback against all of a mapping's
- * dirty pages that lie within the byte offsets <start, end>
+ * __filemap_fdatawrite_range - start writeback on mapping dirty pages in range
  * @mapping:	address space structure to write
  * @start:	offset in bytes where the range starts
  * @end:	offset in bytes where the range ends (inclusive)
  * @sync_mode:	enable synchronous operation
  *
+ * Start writeback against all of a mapping's dirty pages that lie
+ * within the byte offsets <start, end> inclusive.
+ *
  * If sync_mode is WB_SYNC_ALL then this is a "data integrity" operation, as
- * opposed to a regular memory * cleansing writeback.  The difference between
+ * opposed to a regular memory cleansing writeback.  The difference between
  * these two operations is that if a dirty page/buffer is encountered, it must
  * be waited upon, and not just skipped over.
  */
@@ -190,8 +192,8 @@ int __filemap_fdatawrite_range(struct address_space *mapping, loff_t start,
 	struct writeback_control wbc = {
 		.sync_mode = sync_mode,
 		.nr_to_write = mapping->nrpages * 2,
-		.start = start,
-		.end = end,
+		.range_start = start,
+		.range_end = end,
 	};
 
 	if (!mapping_cap_writeback_dirty(mapping))
@@ -204,7 +206,7 @@ int __filemap_fdatawrite_range(struct address_space *mapping, loff_t start,
 static inline int __filemap_fdatawrite(struct address_space *mapping,
 	int sync_mode)
 {
-	return __filemap_fdatawrite_range(mapping, 0, 0, sync_mode);
+	return __filemap_fdatawrite_range(mapping, 0, LLONG_MAX, sync_mode);
 }
 
 int filemap_fdatawrite(struct address_space *mapping)
@@ -219,7 +221,10 @@ static int filemap_fdatawrite_range(struct address_space *mapping, loff_t start,
 	return __filemap_fdatawrite_range(mapping, start, end, WB_SYNC_ALL);
 }
 
-/*
+/**
+ * filemap_flush - mostly a non-blocking flush
+ * @mapping:	target address_space
+ *
  * This is a mostly non-blocking flush.  Not suitable for data-integrity
  * purposes - I/O may not be started against all dirty pages.
  */
@@ -229,7 +234,12 @@ int filemap_flush(struct address_space *mapping)
 }
 EXPORT_SYMBOL(filemap_flush);
 
-/*
+/**
+ * wait_on_page_writeback_range - wait for writeback to complete
+ * @mapping:	target address_space
+ * @start:	beginning page index
+ * @end:	ending page index
+ *
  * Wait for writeback to complete against pages indexed by start->end
  * inclusive
  */
@@ -276,7 +286,13 @@ int wait_on_page_writeback_range(struct address_space *mapping,
 	return ret;
 }
 
-/*
+/**
+ * sync_page_range - write and wait on all pages in the passed range
+ * @inode:	target inode
+ * @mapping:	target address_space
+ * @pos:	beginning offset in pages to write
+ * @count:	number of bytes to write
+ *
  * Write and wait upon all the pages in the passed range.  This is a "data
  * integrity" operation.  It waits upon in-flight writeout before starting and
  * waiting upon new writeout.  If there was an IO error, return it.
@@ -305,7 +321,13 @@ int sync_page_range(struct inode *inode, struct address_space *mapping,
 }
 EXPORT_SYMBOL(sync_page_range);
 
-/*
+/**
+ * sync_page_range_nolock
+ * @inode:	target inode
+ * @mapping:	target address_space
+ * @pos:	beginning offset in pages to write
+ * @count:	number of bytes to write
+ *
  * Note: Holding i_mutex across sync_page_range_nolock is not a good idea
  * as it forces O_SYNC writers to different parts of the same file
  * to be serialised right until io completion.
@@ -329,10 +351,11 @@ int sync_page_range_nolock(struct inode *inode, struct address_space *mapping,
 EXPORT_SYMBOL(sync_page_range_nolock);
 
 /**
- * filemap_fdatawait - walk the list of under-writeback pages of the given
- *     address space and wait for all of them.
- *
+ * filemap_fdatawait - wait for all under-writeback pages to complete
  * @mapping: address space structure to wait for
+ *
+ * Walk the list of under-writeback pages of the given address space
+ * and wait for all of them.
  */
 int filemap_fdatawait(struct address_space *mapping)
 {
@@ -368,7 +391,12 @@ int filemap_write_and_wait(struct address_space *mapping)
 }
 EXPORT_SYMBOL(filemap_write_and_wait);
 
-/*
+/**
+ * filemap_write_and_wait_range - write out & wait on a file range
+ * @mapping:	the address_space for the pages
+ * @lstart:	offset in bytes where the range starts
+ * @lend:	offset in bytes where the range ends (inclusive)
+ *
  * Write out and wait upon file offsets lstart->lend, inclusive.
  *
  * Note that `lend' is inclusive (describes the last byte to be written) so
@@ -394,8 +422,14 @@ int filemap_write_and_wait_range(struct address_space *mapping,
 	return err;
 }
 
-/*
- * This function is used to add newly allocated pagecache pages:
+/**
+ * add_to_page_cache - add newly allocated pagecache pages
+ * @page:	page to add
+ * @mapping:	the page's address_space
+ * @offset:	page index
+ * @gfp_mask:	page allocation mode
+ *
+ * This function is used to add newly allocated pagecache pages;
  * the page is new, so we can just run SetPageLocked() against it.
  * The other page state flags were set by rmqueue().
  *
@@ -422,7 +456,6 @@ int add_to_page_cache(struct page *page, struct address_space *mapping,
 	}
 	return error;
 }
-
 EXPORT_SYMBOL(add_to_page_cache);
 
 int add_to_page_cache_lru(struct page *page, struct address_space *mapping,
@@ -489,8 +522,7 @@ void fastcall wait_on_page_bit(struct page *page, int bit_nr)
 EXPORT_SYMBOL(wait_on_page_bit);
 
 /**
- * unlock_page() - unlock a locked page
- *
+ * unlock_page - unlock a locked page
  * @page: the page
  *
  * Unlocks the page and wakes up sleepers in ___wait_on_page_locked().
@@ -513,8 +545,9 @@ void fastcall unlock_page(struct page *page)
 }
 EXPORT_SYMBOL(unlock_page);
 
-/*
- * End writeback against a page.
+/**
+ * end_page_writeback - end writeback against a page
+ * @page: the page
  */
 void end_page_writeback(struct page *page)
 {
@@ -527,10 +560,11 @@ void end_page_writeback(struct page *page)
 }
 EXPORT_SYMBOL(end_page_writeback);
 
-/*
- * Get a lock on the page, assuming we need to sleep to get it.
+/**
+ * __lock_page - get a lock on the page, assuming we need to sleep to get it
+ * @page: the page to lock
  *
- * Ugly: running sync_page() in state TASK_UNINTERRUPTIBLE is scary.  If some
+ * Ugly. Running sync_page() in state TASK_UNINTERRUPTIBLE is scary.  If some
  * random driver's requestfn sets TASK_RUNNING, we could busywait.  However
  * chances are that on the second loop, the block layer's plug list is empty,
  * so sync_page() will then return in state TASK_UNINTERRUPTIBLE.
@@ -544,8 +578,12 @@ void fastcall __lock_page(struct page *page)
 }
 EXPORT_SYMBOL(__lock_page);
 
-/*
- * a rather lightweight function, finding and getting a reference to a
+/**
+ * find_get_page - find and get a page reference
+ * @mapping: the address_space to search
+ * @offset: the page index
+ *
+ * A rather lightweight function, finding and getting a reference to a
  * hashed page atomically.
  */
 struct page * find_get_page(struct address_space *mapping, unsigned long offset)
@@ -559,11 +597,14 @@ struct page * find_get_page(struct address_space *mapping, unsigned long offset)
 	read_unlock_irq(&mapping->tree_lock);
 	return page;
 }
-
 EXPORT_SYMBOL(find_get_page);
 
-/*
- * Same as above, but trylock it instead of incrementing the count.
+/**
+ * find_trylock_page - find and lock a page
+ * @mapping: the address_space to search
+ * @offset: the page index
+ *
+ * Same as find_get_page(), but trylock it instead of incrementing the count.
  */
 struct page *find_trylock_page(struct address_space *mapping, unsigned long offset)
 {
@@ -576,12 +617,10 @@ struct page *find_trylock_page(struct address_space *mapping, unsigned long offs
 	read_unlock_irq(&mapping->tree_lock);
 	return page;
 }
-
 EXPORT_SYMBOL(find_trylock_page);
 
 /**
  * find_lock_page - locate, pin and lock a pagecache page
- *
  * @mapping: the address_space to search
  * @offset: the page index
  *
@@ -617,12 +656,10 @@ repeat:
 	read_unlock_irq(&mapping->tree_lock);
 	return page;
 }
-
 EXPORT_SYMBOL(find_lock_page);
 
 /**
  * find_or_create_page - locate or add a pagecache page
- *
  * @mapping: the page's address_space
  * @index: the page's index into the mapping
  * @gfp_mask: page allocation mode
@@ -663,7 +700,6 @@ repeat:
 		page_cache_release(cached_page);
 	return page;
 }
-
 EXPORT_SYMBOL(find_or_create_page);
 
 /**
@@ -729,9 +765,16 @@ unsigned find_get_pages_contig(struct address_space *mapping, pgoff_t index,
 	return i;
 }
 
-/*
+/**
+ * find_get_pages_tag - find and return pages that match @tag
+ * @mapping:	the address_space to search
+ * @index:	the starting page index
+ * @tag:	the tag index
+ * @nr_pages:	the maximum number of pages
+ * @pages:	where the resulting pages are placed
+ *
  * Like find_get_pages, except we only return pages which are tagged with
- * `tag'.   We update *index to index the next page for the traversal.
+ * @tag.   We update @index to index the next page for the traversal.
  */
 unsigned find_get_pages_tag(struct address_space *mapping, pgoff_t *index,
 			int tag, unsigned int nr_pages, struct page **pages)
@@ -750,7 +793,11 @@ unsigned find_get_pages_tag(struct address_space *mapping, pgoff_t *index,
 	return ret;
 }
 
-/*
+/**
+ * grab_cache_page_nowait - returns locked page at given index in given cache
+ * @mapping: target address_space
+ * @index: the page index
+ *
  * Same as grab_cache_page, but do not wait if the page is unavailable.
  * This is intended for speculative data generators, where the data can
  * be regenerated if the page couldn't be grabbed.  This routine should
@@ -779,19 +826,51 @@ grab_cache_page_nowait(struct address_space *mapping, unsigned long index)
 	}
 	return page;
 }
-
 EXPORT_SYMBOL(grab_cache_page_nowait);
 
 /*
+ * CD/DVDs are error prone. When a medium error occurs, the driver may fail
+ * a _large_ part of the i/o request. Imagine the worst scenario:
+ *
+ *      ---R__________________________________________B__________
+ *         ^ reading here                             ^ bad block(assume 4k)
+ *
+ * read(R) => miss => readahead(R...B) => media error => frustrating retries
+ * => failing the whole request => read(R) => read(R+1) =>
+ * readahead(R+1...B+1) => bang => read(R+2) => read(R+3) =>
+ * readahead(R+3...B+2) => bang => read(R+3) => read(R+4) =>
+ * readahead(R+4...B+3) => bang => read(R+4) => read(R+5) => ......
+ *
+ * It is going insane. Fix it by quickly scaling down the readahead size.
+ */
+static void shrink_readahead_size_eio(struct file *filp,
+					struct file_ra_state *ra)
+{
+	if (!ra->ra_pages)
+		return;
+
+	ra->ra_pages /= 4;
+	printk(KERN_WARNING "Reducing readahead size to %luK\n",
+			ra->ra_pages << (PAGE_CACHE_SHIFT - 10));
+}
+
+/**
+ * do_generic_mapping_read - generic file read routine
+ * @mapping:	address_space to be read
+ * @_ra:	file's readahead state
+ * @filp:	the file to read
+ * @ppos:	current file position
+ * @desc:	read_descriptor
+ * @actor:	read method
+ *
  * This is a generic file read routine, and uses the
- * mapping->a_ops->readpage() function for the actual low-level
- * stuff.
+ * mapping->a_ops->readpage() function for the actual low-level stuff.
  *
  * This is really ugly. But the goto's actually try to clarify some
  * of the logic when it comes to error handling etc.
  *
- * Note the struct file* is only passed for the use of readpage.  It may be
- * NULL.
+ * Note the struct file* is only passed for the use of readpage.
+ * It may be NULL.
  */
 void do_generic_mapping_read(struct address_space *mapping,
 			     struct file_ra_state *_ra,
@@ -932,6 +1011,7 @@ readpage:
 				}
 				unlock_page(page);
 				error = -EIO;
+				shrink_readahead_size_eio(filp, &ra);
 				goto readpage_error;
 			}
 			unlock_page(page);
@@ -1004,7 +1084,6 @@ out:
 	if (filp)
 		file_accessed(filp);
 }
-
 EXPORT_SYMBOL(do_generic_mapping_read);
 
 int file_read_actor(read_descriptor_t *desc, struct page *page,
@@ -1045,7 +1124,13 @@ success:
 	return size;
 }
 
-/*
+/**
+ * __generic_file_aio_read - generic filesystem read routine
+ * @iocb:	kernel I/O control block
+ * @iov:	io vector request
+ * @nr_segs:	number of segments in the iovec
+ * @ppos:	current file position
+ *
  * This is the "read()" routine for all filesystems
  * that can use the page cache directly.
  */
@@ -1124,7 +1209,6 @@ __generic_file_aio_read(struct kiocb *iocb, const struct iovec *iov,
 out:
 	return retval;
 }
-
 EXPORT_SYMBOL(__generic_file_aio_read);
 
 ssize_t
@@ -1135,7 +1219,6 @@ generic_file_aio_read(struct kiocb *iocb, char __user *buf, size_t count, loff_t
 	BUG_ON(iocb->ki_pos != pos);
 	return __generic_file_aio_read(iocb, &local_iov, 1, &iocb->ki_pos);
 }
-
 EXPORT_SYMBOL(generic_file_aio_read);
 
 ssize_t
@@ -1151,7 +1234,6 @@ generic_file_read(struct file *filp, char __user *buf, size_t count, loff_t *ppo
 		ret = wait_on_sync_kiocb(&kiocb);
 	return ret;
 }
-
 EXPORT_SYMBOL(generic_file_read);
 
 int file_send_actor(read_descriptor_t * desc, struct page *page, unsigned long offset, unsigned long size)
@@ -1192,7 +1274,6 @@ ssize_t generic_file_sendfile(struct file *in_file, loff_t *ppos,
 		return desc.written;
 	return desc.error;
 }
-
 EXPORT_SYMBOL(generic_file_sendfile);
 
 static ssize_t
@@ -1228,11 +1309,15 @@ asmlinkage ssize_t sys_readahead(int fd, loff_t offset, size_t count)
 }
 
 #ifdef CONFIG_MMU
-/*
+static int FASTCALL(page_cache_read(struct file * file, unsigned long offset));
+/**
+ * page_cache_read - adds requested page to the page cache if not already there
+ * @file:	file to read
+ * @offset:	page index
+ *
  * This adds the requested page to the page cache if it isn't already there,
  * and schedules an I/O to read in its contents from disk.
  */
-static int FASTCALL(page_cache_read(struct file * file, unsigned long offset));
 static int fastcall page_cache_read(struct file * file, unsigned long offset)
 {
 	struct address_space *mapping = file->f_mapping;
@@ -1259,7 +1344,12 @@ static int fastcall page_cache_read(struct file * file, unsigned long offset)
 
 #define MMAP_LOTSAMISS  (100)
 
-/*
+/**
+ * filemap_nopage - read in file data for page fault handling
+ * @area:	the applicable vm_area
+ * @address:	target address to read in
+ * @type:	returned with VM_FAULT_{MINOR,MAJOR} if not %NULL
+ *
  * filemap_nopage() is invoked via the vma operations vector for a
  * mapped memory region to read in file data during a page fault.
  *
@@ -1459,10 +1549,10 @@ page_not_uptodate:
 	 * Things didn't work out. Return zero to tell the
 	 * mm layer so, possibly freeing the page cache page first.
 	 */
+	shrink_readahead_size_eio(file, ra);
 	page_cache_release(page);
 	return NULL;
 }
-
 EXPORT_SYMBOL(filemap_nopage);
 
 static struct page * filemap_getpage(struct file *file, unsigned long pgoff,
@@ -1716,7 +1806,13 @@ repeat:
 	return page;
 }
 
-/*
+/**
+ * read_cache_page - read into page cache, fill it if needed
+ * @mapping:	the page's address_space
+ * @index:	the page index
+ * @filler:	function to perform the read
+ * @data:	destination for read data
+ *
  * Read into the page cache. If a page already exists,
  * and PageUptodate() is not set, try to fill the page.
  */
@@ -1754,7 +1850,6 @@ retry:
  out:
 	return page;
 }
-
 EXPORT_SYMBOL(read_cache_page);
 
 /*
@@ -1825,7 +1920,7 @@ int remove_suid(struct dentry *dentry)
 EXPORT_SYMBOL(remove_suid);
 
 size_t
-__filemap_copy_from_user_iovec(char *vaddr, 
+__filemap_copy_from_user_iovec_inatomic(char *vaddr,
 			const struct iovec *iov, size_t base, size_t bytes)
 {
 	size_t copied = 0, left = 0;
@@ -1835,18 +1930,14 @@ __filemap_copy_from_user_iovec(char *vaddr,
 		int copy = min(bytes, iov->iov_len - base);
 
 		base = 0;
-		left = __copy_from_user_inatomic(vaddr, buf, copy);
+		left = __copy_from_user_inatomic_nocache(vaddr, buf, copy);
 		copied += copy;
 		bytes -= copy;
 		vaddr += copy;
 		iov++;
 
-		if (unlikely(left)) {
-			/* zero the rest of the target like __copy_from_user */
-			if (bytes)
-				memset(vaddr, 0, bytes);
+		if (unlikely(left))
 			break;
-		}
 	}
 	return copied - left;
 }
@@ -1854,7 +1945,7 @@ __filemap_copy_from_user_iovec(char *vaddr,
 /*
  * Performs necessary checks before doing a write
  *
- * Can adjust writing position aor amount of bytes to write.
+ * Can adjust writing position or amount of bytes to write.
  * Returns appropriate error code that caller should return or
  * zero in case that write should be allowed.
  */
@@ -1978,7 +2069,7 @@ generic_file_buffered_write(struct kiocb *iocb, const struct iovec *iov,
 {
 	struct file *file = iocb->ki_filp;
 	struct address_space * mapping = file->f_mapping;
-	struct address_space_operations *a_ops = mapping->a_ops;
+	const struct address_space_operations *a_ops = mapping->a_ops;
 	struct inode 	*inode = mapping->host;
 	long		status = 0;
 	struct page	*page;
@@ -2004,14 +2095,21 @@ generic_file_buffered_write(struct kiocb *iocb, const struct iovec *iov,
 	do {
 		unsigned long index;
 		unsigned long offset;
-		unsigned long maxlen;
 		size_t copied;
 
 		offset = (pos & (PAGE_CACHE_SIZE -1)); /* Within page */
 		index = pos >> PAGE_CACHE_SHIFT;
 		bytes = PAGE_CACHE_SIZE - offset;
-		if (bytes > count)
-			bytes = count;
+
+		/* Limit the size of the copy to the caller's write size */
+		bytes = min(bytes, count);
+
+		/*
+		 * Limit the size of the copy to that of the current segment,
+		 * because fault_in_pages_readable() doesn't know how to walk
+		 * segments.
+		 */
+		bytes = min(bytes, cur_iov->iov_len - iov_base);
 
 		/*
 		 * Bring in the user page that we will copy from _first_.
@@ -2019,15 +2117,18 @@ generic_file_buffered_write(struct kiocb *iocb, const struct iovec *iov,
 		 * same page as we're writing to, without it being marked
 		 * up-to-date.
 		 */
-		maxlen = cur_iov->iov_len - iov_base;
-		if (maxlen > bytes)
-			maxlen = bytes;
-		fault_in_pages_readable(buf, maxlen);
+		fault_in_pages_readable(buf, bytes);
 
 		page = __grab_cache_page(mapping,index,&cached_page,&lru_pvec);
 		if (!page) {
 			status = -ENOMEM;
 			break;
+		}
+
+		if (unlikely(bytes == 0)) {
+			status = 0;
+			copied = 0;
+			goto zero_length_segment;
 		}
 
 		status = a_ops->prepare_write(file, page, offset, offset+bytes);
@@ -2059,7 +2160,8 @@ generic_file_buffered_write(struct kiocb *iocb, const struct iovec *iov,
 			page_cache_release(page);
 			continue;
 		}
-		if (likely(copied > 0)) {
+zero_length_segment:
+		if (likely(copied >= 0)) {
 			if (!status)
 				status = copied;
 
@@ -2124,7 +2226,7 @@ __generic_file_aio_write_nolock(struct kiocb *iocb, const struct iovec *iov,
 				unsigned long nr_segs, loff_t *ppos)
 {
 	struct file *file = iocb->ki_filp;
-	struct address_space * mapping = file->f_mapping;
+	const struct address_space * mapping = file->f_mapping;
 	size_t ocount;		/* original count */
 	size_t count;		/* after file limit checks */
 	struct inode 	*inode = mapping->host;

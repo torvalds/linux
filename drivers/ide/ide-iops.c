@@ -597,6 +597,10 @@ u8 eighty_ninty_three (ide_drive_t *drive)
 {
 	if(HWIF(drive)->udma_four == 0)
 		return 0;
+
+	/* Check for SATA but only if we are ATA5 or higher */
+	if (drive->id->hw_config == 0 && (drive->id->major_rev_num & 0x7FE0))
+		return 1;
 	if (!(drive->id->hw_config & 0x6000))
 		return 0;
 #ifndef CONFIG_IDEDMA_IVB
@@ -939,8 +943,7 @@ void ide_execute_command(ide_drive_t *drive, task_ioreg_t cmd, ide_handler_t *ha
 	
 	spin_lock_irqsave(&ide_lock, flags);
 	
-	if(hwgroup->handler)
-		BUG();
+	BUG_ON(hwgroup->handler);
 	hwgroup->handler	= handler;
 	hwgroup->expiry		= expiry;
 	hwgroup->timer.expires	= jiffies + timeout;
@@ -981,8 +984,7 @@ static ide_startstop_t atapi_reset_pollfunc (ide_drive_t *drive)
 		printk("%s: ATAPI reset complete\n", drive->name);
 	} else {
 		if (time_before(jiffies, hwgroup->poll_timeout)) {
-			if (HWGROUP(drive)->handler != NULL)
-				BUG();
+			BUG_ON(HWGROUP(drive)->handler != NULL);
 			ide_set_handler(drive, &atapi_reset_pollfunc, HZ/20, NULL);
 			/* continue polling */
 			return ide_started;
@@ -1021,8 +1023,7 @@ static ide_startstop_t reset_pollfunc (ide_drive_t *drive)
 
 	if (!OK_STAT(tmp = hwif->INB(IDE_STATUS_REG), 0, BUSY_STAT)) {
 		if (time_before(jiffies, hwgroup->poll_timeout)) {
-			if (HWGROUP(drive)->handler != NULL)
-				BUG();
+			BUG_ON(HWGROUP(drive)->handler != NULL);
 			ide_set_handler(drive, &reset_pollfunc, HZ/20, NULL);
 			/* continue polling */
 			return ide_started;
@@ -1138,8 +1139,7 @@ static ide_startstop_t do_reset1 (ide_drive_t *drive, int do_not_try_atapi)
 	hwgroup = HWGROUP(drive);
 
 	/* We must not reset with running handlers */
-	if(hwgroup->handler != NULL)
-		BUG();
+	BUG_ON(hwgroup->handler != NULL);
 
 	/* For an ATAPI device, first try an ATAPI SRST. */
 	if (drive->media != ide_disk && !do_not_try_atapi) {

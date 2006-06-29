@@ -85,34 +85,6 @@ END_FTR_SECTION(0, 1)
 	/* Catch branch to 0 in real mode */
 	trap
 
-#ifdef CONFIG_PPC_ISERIES
-	/*
-	 * At offset 0x20, there is a pointer to iSeries LPAR data.
-	 * This is required by the hypervisor
-	 */
-	. = 0x20
-	.llong hvReleaseData-KERNELBASE
-
-	/*
-	 * At offset 0x28 and 0x30 are offsets to the mschunks_map
-	 * array (used by the iSeries LPAR debugger to do translation
-	 * between physical addresses and absolute addresses) and
-	 * to the pidhash table (also used by the debugger)
-	 */
-	.llong mschunks_map-KERNELBASE
-	.llong 0	/* pidhash-KERNELBASE SFRXXX */
-
-	/* Offset 0x38 - Pointer to start of embedded System.map */
-	.globl	embedded_sysmap_start
-embedded_sysmap_start:
-	.llong	0
-	/* Offset 0x40 - Pointer to end of embedded System.map */
-	.globl	embedded_sysmap_end
-embedded_sysmap_end:
-	.llong	0
-
-#endif /* CONFIG_PPC_ISERIES */
-
 	/* Secondary processors spin on this value until it goes to 1. */
 	.globl  __secondary_hold_spinloop
 __secondary_hold_spinloop:
@@ -123,6 +95,15 @@ __secondary_hold_spinloop:
 	.globl	__secondary_hold_acknowledge
 __secondary_hold_acknowledge:
 	.llong	0x0
+
+#ifdef CONFIG_PPC_ISERIES
+	/*
+	 * At offset 0x20, there is a pointer to iSeries LPAR data.
+	 * This is required by the hypervisor
+	 */
+	. = 0x20
+	.llong hvReleaseData-KERNELBASE
+#endif /* CONFIG_PPC_ISERIES */
 
 	. = 0x60
 /*
@@ -315,6 +296,21 @@ label##_pSeries:					\
 	HMT_MEDIUM;					\
 	mtspr	SPRN_SPRG1,r13;		/* save r13 */	\
 	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, label##_common)
+
+#define HSTD_EXCEPTION_PSERIES(n, label)		\
+	. = n;						\
+	.globl label##_pSeries;				\
+label##_pSeries:					\
+	HMT_MEDIUM;					\
+	mtspr	SPRN_SPRG1,r20;		/* save r20 */	\
+	mfspr	r20,SPRN_HSRR0;		/* copy HSRR0 to SRR0 */ \
+	mtspr	SPRN_SRR0,r20;				\
+	mfspr	r20,SPRN_HSRR1;		/* copy HSRR0 to SRR0 */ \
+	mtspr	SPRN_SRR1,r20;				\
+	mfspr	r20,SPRN_SPRG1;		/* restore r20 */ \
+	mtspr	SPRN_SPRG1,r13;		/* save r13 */	\
+	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, label##_common)
+
 
 #define STD_EXCEPTION_ISERIES(n, label, area)		\
 	.globl label##_iSeries;				\
@@ -544,8 +540,17 @@ system_call_pSeries:
 
 	STD_EXCEPTION_PSERIES(0xf20, altivec_unavailable)
 
+#ifdef CONFIG_CBE_RAS
+	HSTD_EXCEPTION_PSERIES(0x1200, cbe_system_error)
+#endif /* CONFIG_CBE_RAS */
 	STD_EXCEPTION_PSERIES(0x1300, instruction_breakpoint)
+#ifdef CONFIG_CBE_RAS
+	HSTD_EXCEPTION_PSERIES(0x1600, cbe_maintenance)
+#endif /* CONFIG_CBE_RAS */
 	STD_EXCEPTION_PSERIES(0x1700, altivec_assist)
+#ifdef CONFIG_CBE_RAS
+	HSTD_EXCEPTION_PSERIES(0x1800, cbe_thermal)
+#endif /* CONFIG_CBE_RAS */
 
 	. = 0x3000
 
@@ -827,6 +832,11 @@ machine_check_common:
 #else
 	STD_EXCEPTION_COMMON(0x1700, altivec_assist, .unknown_exception)
 #endif
+#ifdef CONFIG_CBE_RAS
+	STD_EXCEPTION_COMMON(0x1200, cbe_system_error, .cbe_system_error_exception)
+	STD_EXCEPTION_COMMON(0x1600, cbe_maintenance, .cbe_maintenance_exception)
+	STD_EXCEPTION_COMMON(0x1800, cbe_thermal, .cbe_thermal_exception)
+#endif /* CONFIG_CBE_RAS */
 
 /*
  * Here we have detected that the kernel stack pointer is bad.
@@ -1573,9 +1583,6 @@ _GLOBAL(__start_initialization_multiplatform)
 	/* Setup some critical 970 SPRs before switching MMU off */
 	bl	.__970_cpu_preinit
 
-	/* cpu # */
-	li	r24,0
-
 	/* Switch off MMU if not already */
 	LOAD_REG_IMMEDIATE(r4, .__after_prom_start - KERNELBASE)
 	add	r4,r4,r30
@@ -1654,6 +1661,9 @@ _STATIC(__after_prom_start)
 					/*   i.e. where we are running	 */
 					/*	the source addr		 */
 
+	cmpdi	r4,0			/* In some cases the loader may  */
+	beq	.start_here_multiplatform /* have already put us at zero */
+					/* so we can skip the copy.      */
 	LOAD_REG_IMMEDIATE(r5,copy_to_here) /* # bytes of memory to copy */
 	sub	r5,r5,r27
 
@@ -1933,14 +1943,6 @@ _STATIC(start_here_common)
 	li	r3,0
 	bl	.do_cpu_ftr_fixups
 
-	LOAD_REG_IMMEDIATE(r26, boot_cpuid)
-	lwz	r26,0(r26)
-
-	LOAD_REG_IMMEDIATE(r24, paca)	/* Get base vaddr of paca array  */
-	mulli	r13,r26,PACA_SIZE	/* Calculate vaddr of right paca */
-	add	r13,r13,r24		/* for this processor.		 */
-	mtspr	SPRN_SPRG3,r13
-
 	/* ptr to current */
 	LOAD_REG_IMMEDIATE(r4, init_task)
 	std	r4,PACACURRENT(r13)
@@ -1965,17 +1967,6 @@ _STATIC(start_here_common)
 
 	/* Not reached */
 	BUG_OPCODE
-
-/* Put the paca pointer into r13 and SPRG3 */
-_GLOBAL(setup_boot_paca)
-	LOAD_REG_IMMEDIATE(r3, boot_cpuid)
-	lwz	r3,0(r3)
-	LOAD_REG_IMMEDIATE(r4, paca) 	/* Get base vaddr of paca array	 */
-	mulli	r3,r3,PACA_SIZE		/* Calculate vaddr of right paca */
-	add	r13,r3,r4		/* for this processor.		 */
-	mtspr	SPRN_SPRG3,r13
-
-	blr
 
 /*
  * We put a few things here that have to be page-aligned.

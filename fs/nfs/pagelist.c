@@ -325,6 +325,7 @@ out:
 
 /**
  * nfs_scan_list - Scan a list for matching requests
+ * @nfsi: NFS inode
  * @head: One of the NFS inode request lists
  * @dst: Destination list
  * @idx_start: lower bound of page->index to scan
@@ -336,14 +337,15 @@ out:
  * The requests are *not* checked to ensure that they form a contiguous set.
  * You must be holding the inode's req_lock when calling this function
  */
-int
-nfs_scan_list(struct list_head *head, struct list_head *dst,
-	      unsigned long idx_start, unsigned int npages)
+int nfs_scan_list(struct nfs_inode *nfsi, struct list_head *head,
+		struct list_head *dst, unsigned long idx_start,
+		unsigned int npages)
 {
-	struct list_head	*pos, *tmp;
-	struct nfs_page		*req;
-	unsigned long		idx_end;
-	int			res;
+	struct nfs_page *pgvec[NFS_SCAN_MAXENTRIES];
+	struct nfs_page *req;
+	unsigned long idx_end;
+	int found, i;
+	int res;
 
 	res = 0;
 	if (npages == 0)
@@ -351,25 +353,32 @@ nfs_scan_list(struct list_head *head, struct list_head *dst,
 	else
 		idx_end = idx_start + npages - 1;
 
-	list_for_each_safe(pos, tmp, head) {
-
-		req = nfs_list_entry(pos);
-
-		if (req->wb_index < idx_start)
-			continue;
-		if (req->wb_index > idx_end)
+	for (;;) {
+		found = radix_tree_gang_lookup(&nfsi->nfs_page_tree,
+				(void **)&pgvec[0], idx_start,
+				NFS_SCAN_MAXENTRIES);
+		if (found <= 0)
 			break;
+		for (i = 0; i < found; i++) {
+			req = pgvec[i];
+			if (req->wb_index > idx_end)
+				goto out;
+			idx_start = req->wb_index + 1;
+			if (req->wb_list_head != head)
+				continue;
+			if (nfs_set_page_writeback_locked(req)) {
+				nfs_list_remove_request(req);
+				nfs_list_add_request(req, dst);
+				res++;
+			}
+		}
 
-		if (!nfs_set_page_writeback_locked(req))
-			continue;
-		nfs_list_remove_request(req);
-		nfs_list_add_request(req, dst);
-		res++;
 	}
+out:
 	return res;
 }
 
-int nfs_init_nfspagecache(void)
+int __init nfs_init_nfspagecache(void)
 {
 	nfs_page_cachep = kmem_cache_create("nfs_page",
 					    sizeof(struct nfs_page),

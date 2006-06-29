@@ -7,6 +7,7 @@
 #include <linux/dmapool.h>
 #include <linux/slab.h>
 #include <linux/module.h>
+#include <linux/poison.h>
 
 /*
  * Pool allocator ... wraps the dma_alloc_coherent page allocator, so
@@ -35,8 +36,6 @@ struct dma_page {	/* cacheable header for 'allocation' bytes */
 };
 
 #define	POOL_TIMEOUT_JIFFIES	((100 /* msec */ * HZ) / 1000)
-#define	POOL_POISON_FREED	0xa7	/* !inuse */
-#define	POOL_POISON_ALLOCATED	0xa9	/* !initted */
 
 static DECLARE_MUTEX (pools_lock);
 

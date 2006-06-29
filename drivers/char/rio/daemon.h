@@ -51,7 +51,7 @@ struct Error {
 };
 
 struct DownLoad {
-	char *DataP;
+	char __user *DataP;
 	unsigned int Count;
 	unsigned int ProductCode;
 };
@@ -83,18 +83,18 @@ struct PortSetup {
 struct LpbReq {
 	unsigned int Host;
 	unsigned int Link;
-	struct LPB *LpbP;
+	struct LPB __user *LpbP;
 };
 
 struct RupReq {
 	unsigned int HostNum;
 	unsigned int RupNum;
-	struct RUP *RupP;
+	struct RUP __user *RupP;
 };
 
 struct PortReq {
 	unsigned int SysPort;
-	struct Port *PortP;
+	struct Port __user *PortP;
 };
 
 struct StreamInfo {
@@ -105,12 +105,12 @@ struct StreamInfo {
 
 struct HostReq {
 	unsigned int HostNum;
-	struct Host *HostP;
+	struct Host __user *HostP;
 };
 
 struct HostDpRam {
 	unsigned int HostNum;
-	struct DpRam *DpRamP;
+	struct DpRam __user *DpRamP;
 };
 
 struct DebugCtrl {

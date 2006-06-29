@@ -68,11 +68,8 @@ char m68k_debug_device[6] = "";
 void (*mach_sched_init) (irqreturn_t (*handler)(int, void *, struct pt_regs *)) __initdata = NULL;
 /* machine dependent irq functions */
 void (*mach_init_IRQ) (void) __initdata = NULL;
-irqreturn_t (*(*mach_default_handler)[]) (int, void *, struct pt_regs *);
 void (*mach_get_model) (char *model);
 int (*mach_get_hardware_list) (char *buffer);
-int (*mach_get_irq_list) (struct seq_file *, void *);
-irqreturn_t (*mach_process_int) (int, struct pt_regs *);
 /* machine dependent timer functions */
 unsigned long (*mach_gettimeoffset) (void);
 int (*mach_hwclk) (int, struct rtc_time*);

@@ -279,7 +279,7 @@ static struct fd_mcs_adapters_struct fd_mcs_adapters[] = {
 	 2},
 };
 
-#define FD_BRDS sizeof(fd_mcs_adapters)/sizeof(struct fd_mcs_adapters_struct)
+#define FD_BRDS ARRAY_SIZE(fd_mcs_adapters)
 
 static irqreturn_t fd_mcs_intr(int irq, void *dev_id, struct pt_regs *regs);
 

@@ -4,7 +4,6 @@
 #ifndef _ASM_X86_64_MMZONE_H
 #define _ASM_X86_64_MMZONE_H 1
 
-#include <linux/config.h>
 
 #ifdef CONFIG_NUMA
 
@@ -43,7 +42,6 @@ static inline __attribute__((pure)) int phys_to_nid(unsigned long addr)
 
 #ifdef CONFIG_DISCONTIGMEM
 #define pfn_to_nid(pfn) phys_to_nid((unsigned long)(pfn) << PAGE_SHIFT)
-#define kvaddr_to_nid(kaddr)	phys_to_nid(__pa(kaddr))
 
 extern int pfn_valid(unsigned long pfn);
 #endif

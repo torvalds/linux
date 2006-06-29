@@ -45,6 +45,15 @@ SECTIONS
 
   RODATA
 
+#ifdef CONFIG_STACK_UNWIND
+  . = ALIGN(8);
+  .eh_frame : AT(ADDR(.eh_frame) - LOAD_OFFSET) {
+	__start_unwind = .;
+  	*(.eh_frame)
+	__end_unwind = .;
+  }
+#endif
+
 				/* Data */
   .data : AT(ADDR(.data) - LOAD_OFFSET) {
 	*(.data)
@@ -130,6 +139,26 @@ SECTIONS
   .data.page_aligned : AT(ADDR(.data.page_aligned) - LOAD_OFFSET) {
 	*(.data.page_aligned)
   }
+
+  /* might get freed after init */
+  . = ALIGN(4096);
+  __smp_alt_begin = .;
+  __smp_alt_instructions = .;
+  .smp_altinstructions : AT(ADDR(.smp_altinstructions) - LOAD_OFFSET) {
+	*(.smp_altinstructions)
+  }
+  __smp_alt_instructions_end = .;
+  . = ALIGN(8);
+  __smp_locks = .;
+  .smp_locks : AT(ADDR(.smp_locks) - LOAD_OFFSET) {
+	*(.smp_locks)
+  }
+  __smp_locks_end = .;
+  .smp_altinstr_replacement : AT(ADDR(.smp_altinstr_replacement) - LOAD_OFFSET) {
+	*(.smp_altinstr_replacement)
+  }
+  . = ALIGN(4096);
+  __smp_alt_end = .;
 
   . = ALIGN(4096);		/* Init code and data */
   __init_begin = .;

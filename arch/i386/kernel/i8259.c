@@ -132,7 +132,7 @@ void make_8259A_irq(unsigned int irq)
 {
 	disable_irq_nosync(irq);
 	io_apic_irqs &= ~(1<<irq);
-	irq_desc[irq].handler = &i8259A_irq_type;
+	irq_desc[irq].chip = &i8259A_irq_type;
 	enable_irq(irq);
 }
 
@@ -175,7 +175,7 @@ static void mask_and_ack_8259A(unsigned int irq)
 	 * Lightweight spurious IRQ detection. We do not want
 	 * to overdo spurious IRQ handling - it's usually a sign
 	 * of hardware problems, so we only do the checks we can
-	 * do without slowing down good hardware unnecesserily.
+	 * do without slowing down good hardware unnecessarily.
 	 *
 	 * Note that IRQ7 and IRQ15 (the two spurious IRQs
 	 * usually resulting from the 8259A-1|2 PICs) occur
@@ -271,8 +271,8 @@ static int i8259A_shutdown(struct sys_device *dev)
 	 * the kernel initialization code can get it
 	 * out of.
 	 */
-	outb(0xff, 0x21);	/* mask all of 8259A-1 */
-	outb(0xff, 0xA1);	/* mask all of 8259A-1 */
+	outb(0xff, PIC_MASTER_IMR);	/* mask all of 8259A-1 */
+	outb(0xff, PIC_SLAVE_IMR);	/* mask all of 8259A-1 */
 	return 0;
 }
 
@@ -386,12 +386,12 @@ void __init init_ISA_irqs (void)
 			/*
 			 * 16 old-style INTA-cycle interrupts:
 			 */
-			irq_desc[i].handler = &i8259A_irq_type;
+			irq_desc[i].chip = &i8259A_irq_type;
 		} else {
 			/*
 			 * 'high' PCI IRQs filled in on demand
 			 */
-			irq_desc[i].handler = &no_irq_type;
+			irq_desc[i].chip = &no_irq_type;
 		}
 	}
 }

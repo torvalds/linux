@@ -55,31 +55,43 @@ static int page_cache_pipe_buf_steal(struct pipe_inode_info *pipe,
 				     struct pipe_buffer *buf)
 {
 	struct page *page = buf->page;
-	struct address_space *mapping = page_mapping(page);
+	struct address_space *mapping;
 
 	lock_page(page);
 
-	WARN_ON(!PageUptodate(page));
+	mapping = page_mapping(page);
+	if (mapping) {
+		WARN_ON(!PageUptodate(page));
 
-	/*
-	 * At least for ext2 with nobh option, we need to wait on writeback
-	 * completing on this page, since we'll remove it from the pagecache.
-	 * Otherwise truncate wont wait on the page, allowing the disk
-	 * blocks to be reused by someone else before we actually wrote our
-	 * data to them. fs corruption ensues.
-	 */
-	wait_on_page_writeback(page);
+		/*
+		 * At least for ext2 with nobh option, we need to wait on
+		 * writeback completing on this page, since we'll remove it
+		 * from the pagecache.  Otherwise truncate wont wait on the
+		 * page, allowing the disk blocks to be reused by someone else
+		 * before we actually wrote our data to them. fs corruption
+		 * ensues.
+		 */
+		wait_on_page_writeback(page);
 
-	if (PagePrivate(page))
-		try_to_release_page(page, mapping_gfp_mask(mapping));
+		if (PagePrivate(page))
+			try_to_release_page(page, mapping_gfp_mask(mapping));
 
-	if (!remove_mapping(mapping, page)) {
-		unlock_page(page);
-		return 1;
+		/*
+		 * If we succeeded in removing the mapping, set LRU flag
+		 * and return good.
+		 */
+		if (remove_mapping(mapping, page)) {
+			buf->flags |= PIPE_BUF_FLAG_LRU;
+			return 0;
+		}
 	}
 
-	buf->flags |= PIPE_BUF_FLAG_LRU;
-	return 0;
+	/*
+	 * Raced with truncate or failed to remove page from current
+	 * address space, unlock and return failure.
+	 */
+	unlock_page(page);
+	return 1;
 }
 
 static void page_cache_pipe_buf_release(struct pipe_inode_info *pipe,

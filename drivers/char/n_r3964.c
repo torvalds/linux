@@ -951,7 +951,8 @@ static void add_msg(struct r3964_client_info *pClient, int msg_id, int arg,
    {
 queue_the_message:
 
-      pMsg = kmalloc(sizeof(struct r3964_message), GFP_KERNEL);
+      pMsg = kmalloc(sizeof(struct r3964_message),
+		     error_code?GFP_ATOMIC:GFP_KERNEL);
       TRACE_M("add_msg - kmalloc %p",pMsg);
       if(pMsg==NULL) {
          return;

@@ -18,13 +18,14 @@
 .global _start
 
 .global _rambase
-.global __ramvec
 .global _ramvec
 .global _ramstart
 .global _ramend
 
 .global _quicc_base
 .global _periph_base
+
+#define	RAMEND                      (CONFIG_RAMBASE + CONFIG_RAMSIZE)
 
 #define REGB                        0x1000
 #define PEPAR                       (_dprbase + REGB + 0x0016)
@@ -103,7 +104,7 @@ _stext:
 	nop
 	ori.w	#MCU_DISABLE_INTRPTS, %sr	/* disable interrupts: */
 	/* We should not need to setup the boot stack the reset should do it. */
-	movea.l	#__ramend, %sp			/*set up stack at the end of DRAM:*/
+	movea.l	#RAMEND, %sp			/*set up stack at the end of DRAM:*/
 
 set_mbar_register:
 	moveq.l	#0x07, %d1			/* Setup MBAR */
@@ -163,7 +164,7 @@ configure_memory_controller:
 	move.l	%d0, GMR
 
 configure_chip_select_0:
-	move.l	#__ramend, %d0
+	move.l	#RAMEND, %d0
 	subi.l	#__ramstart, %d0
 	subq.l	#0x01, %d0
 	eori.l	#SIM_OR_MASK, %d0
@@ -234,16 +235,10 @@ store_ram_size:
 	/* Set ram size information */
 	move.l	#_sdata, _rambase
 	move.l	#_ebss, _ramstart
-	move.l	#__ramend, %d0
+	move.l	#RAMEND, %d0
 	sub.l	#0x1000, %d0			/* Reserve 4K for stack space.*/
-	move.l	%d0, _ramend			/* Different from __ramend.*/
+	move.l	%d0, _ramend			/* Different from RAMEND.*/
 
-store_flash_size:
-	/* Set rom size information */
-	move.l	#__rom_end, %d0
-	sub.l	#__rom_start, %d0
-	move.l	%d0, rom_length
-    
 	pea	0
 	pea	env
 	pea	%sp@(4)
@@ -286,7 +281,7 @@ _dprbase:
      */
  
 .section ".data.initvect","awx"
-    .long   __ramend	/* Reset: Initial Stack Pointer                 - 0.  */
+    .long   RAMEND	/* Reset: Initial Stack Pointer                 - 0.  */
     .long   _start      /* Reset: Initial Program Counter               - 1.  */
     .long   buserr      /* Bus Error                                    - 2.  */
     .long   trap        /* Address Error                                - 3.  */

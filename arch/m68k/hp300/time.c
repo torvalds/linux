@@ -18,7 +18,6 @@
 #include <asm/system.h>
 #include <asm/traps.h>
 #include <asm/blinken.h>
-#include "ints.h"
 
 /* Clock hardware definitions */
 
@@ -71,7 +70,7 @@ void __init hp300_sched_init(irqreturn_t (*vector)(int, void *, struct pt_regs *
 
   asm volatile(" movpw %0,%1@(5)" : : "d" (INTVAL), "a" (CLOCKBASE));
 
-  cpu_request_irq(6, hp300_tick, IRQ_FLG_STD, "timer tick", vector);
+  request_irq(IRQ_AUTO_6, hp300_tick, IRQ_FLG_STD, "timer tick", vector);
 
   out_8(CLOCKBASE + CLKCR2, 0x1);		/* select CR1 */
   out_8(CLOCKBASE + CLKCR1, 0x40);		/* enable irq */

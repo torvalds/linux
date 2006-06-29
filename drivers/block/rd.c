@@ -191,7 +191,7 @@ static int ramdisk_set_page_dirty(struct page *page)
 	return 0;
 }
 
-static struct address_space_operations ramdisk_aops = {
+static const struct address_space_operations ramdisk_aops = {
 	.readpage	= ramdisk_readpage,
 	.prepare_write	= ramdisk_prepare_write,
 	.commit_write	= ramdisk_commit_write,

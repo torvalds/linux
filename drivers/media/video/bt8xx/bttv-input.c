@@ -355,7 +355,7 @@ int bttv_input_init(struct bttv *btv)
 
 	if (ir->rc5_gpio) {
 		u32 gpio;
-	    	/* enable remote irq */
+		/* enable remote irq */
 		bttv_gpio_inout(&btv->c, (1 << 4), 1 << 4);
 		gpio = bttv_gpio_read(&btv->c);
 		bttv_gpio_write(&btv->c, gpio & ~(1 << 4));

@@ -34,14 +34,6 @@
 #include "swab.h"
 #include "util.h"
 
-#undef UFS_IALLOC_DEBUG
-
-#ifdef UFS_IALLOC_DEBUG
-#define UFSD(x) printk("(%s, %d), %s: ", __FILE__, __LINE__, __FUNCTION__); printk x;
-#else
-#define UFSD(x)
-#endif
-
 /*
  * NOTE! When we get the inode, we're the only people
  * that have access to it, and as such there are no
@@ -68,7 +60,7 @@ void ufs_free_inode (struct inode * inode)
 	int is_directory;
 	unsigned ino, cg, bit;
 	
-	UFSD(("ENTER, ino %lu\n", inode->i_ino))
+	UFSD("ENTER, ino %lu\n", inode->i_ino);
 
 	sb = inode->i_sb;
 	uspi = UFS_SB(sb)->s_uspi;
@@ -91,7 +83,7 @@ void ufs_free_inode (struct inode * inode)
 		unlock_super (sb);
 		return;
 	}
-	ucg = ubh_get_ucg(UCPI_UBH);
+	ucg = ubh_get_ucg(UCPI_UBH(ucpi));
 	if (!ufs_cg_chkmagic(sb, ucg))
 		ufs_panic (sb, "ufs_free_fragments", "internal error, bad cg magic number");
 
@@ -104,33 +96,33 @@ void ufs_free_inode (struct inode * inode)
 
 	clear_inode (inode);
 
-	if (ubh_isclr (UCPI_UBH, ucpi->c_iusedoff, bit))
+	if (ubh_isclr (UCPI_UBH(ucpi), ucpi->c_iusedoff, bit))
 		ufs_error(sb, "ufs_free_inode", "bit already cleared for inode %u", ino);
 	else {
-		ubh_clrbit (UCPI_UBH, ucpi->c_iusedoff, bit);
+		ubh_clrbit (UCPI_UBH(ucpi), ucpi->c_iusedoff, bit);
 		if (ino < ucpi->c_irotor)
 			ucpi->c_irotor = ino;
 		fs32_add(sb, &ucg->cg_cs.cs_nifree, 1);
-		fs32_add(sb, &usb1->fs_cstotal.cs_nifree, 1);
+		uspi->cs_total.cs_nifree++;
 		fs32_add(sb, &UFS_SB(sb)->fs_cs(cg).cs_nifree, 1);
 
 		if (is_directory) {
 			fs32_sub(sb, &ucg->cg_cs.cs_ndir, 1);
-			fs32_sub(sb, &usb1->fs_cstotal.cs_ndir, 1);
+			uspi->cs_total.cs_ndir--;
 			fs32_sub(sb, &UFS_SB(sb)->fs_cs(cg).cs_ndir, 1);
 		}
 	}
 
-	ubh_mark_buffer_dirty (USPI_UBH);
-	ubh_mark_buffer_dirty (UCPI_UBH);
+	ubh_mark_buffer_dirty (USPI_UBH(uspi));
+	ubh_mark_buffer_dirty (UCPI_UBH(ucpi));
 	if (sb->s_flags & MS_SYNCHRONOUS) {
-		ubh_ll_rw_block (SWRITE, 1, (struct ufs_buffer_head **) &ucpi);
-		ubh_wait_on_buffer (UCPI_UBH);
+		ubh_ll_rw_block(SWRITE, UCPI_UBH(ucpi));
+		ubh_wait_on_buffer (UCPI_UBH(ucpi));
 	}
 	
 	sb->s_dirt = 1;
 	unlock_super (sb);
-	UFSD(("EXIT\n"))
+	UFSD("EXIT\n");
 }
 
 /*
@@ -155,7 +147,7 @@ struct inode * ufs_new_inode(struct inode * dir, int mode)
 	unsigned cg, bit, i, j, start;
 	struct ufs_inode_info *ufsi;
 
-	UFSD(("ENTER\n"))
+	UFSD("ENTER\n");
 	
 	/* Cannot create files in a deleted directory */
 	if (!dir || !dir->i_nlink)
@@ -213,43 +205,43 @@ cg_found:
 	ucpi = ufs_load_cylinder (sb, cg);
 	if (!ucpi)
 		goto failed;
-	ucg = ubh_get_ucg(UCPI_UBH);
+	ucg = ubh_get_ucg(UCPI_UBH(ucpi));
 	if (!ufs_cg_chkmagic(sb, ucg)) 
 		ufs_panic (sb, "ufs_new_inode", "internal error, bad cg magic number");
 
 	start = ucpi->c_irotor;
-	bit = ubh_find_next_zero_bit (UCPI_UBH, ucpi->c_iusedoff, uspi->s_ipg, start);
+	bit = ubh_find_next_zero_bit (UCPI_UBH(ucpi), ucpi->c_iusedoff, uspi->s_ipg, start);
 	if (!(bit < uspi->s_ipg)) {
-		bit = ubh_find_first_zero_bit (UCPI_UBH, ucpi->c_iusedoff, start);
+		bit = ubh_find_first_zero_bit (UCPI_UBH(ucpi), ucpi->c_iusedoff, start);
 		if (!(bit < start)) {
 			ufs_error (sb, "ufs_new_inode",
 			    "cylinder group %u corrupted - error in inode bitmap\n", cg);
 			goto failed;
 		}
 	}
-	UFSD(("start = %u, bit = %u, ipg = %u\n", start, bit, uspi->s_ipg))
-	if (ubh_isclr (UCPI_UBH, ucpi->c_iusedoff, bit))
-		ubh_setbit (UCPI_UBH, ucpi->c_iusedoff, bit);
+	UFSD("start = %u, bit = %u, ipg = %u\n", start, bit, uspi->s_ipg);
+	if (ubh_isclr (UCPI_UBH(ucpi), ucpi->c_iusedoff, bit))
+		ubh_setbit (UCPI_UBH(ucpi), ucpi->c_iusedoff, bit);
 	else {
 		ufs_panic (sb, "ufs_new_inode", "internal error");
 		goto failed;
 	}
 	
 	fs32_sub(sb, &ucg->cg_cs.cs_nifree, 1);
-	fs32_sub(sb, &usb1->fs_cstotal.cs_nifree, 1);
+	uspi->cs_total.cs_nifree--;
 	fs32_sub(sb, &sbi->fs_cs(cg).cs_nifree, 1);
 	
 	if (S_ISDIR(mode)) {
 		fs32_add(sb, &ucg->cg_cs.cs_ndir, 1);
-		fs32_add(sb, &usb1->fs_cstotal.cs_ndir, 1);
+		uspi->cs_total.cs_ndir++;
 		fs32_add(sb, &sbi->fs_cs(cg).cs_ndir, 1);
 	}
 
-	ubh_mark_buffer_dirty (USPI_UBH);
-	ubh_mark_buffer_dirty (UCPI_UBH);
+	ubh_mark_buffer_dirty (USPI_UBH(uspi));
+	ubh_mark_buffer_dirty (UCPI_UBH(ucpi));
 	if (sb->s_flags & MS_SYNCHRONOUS) {
-		ubh_ll_rw_block (SWRITE, 1, (struct ufs_buffer_head **) &ucpi);
-		ubh_wait_on_buffer (UCPI_UBH);
+		ubh_ll_rw_block(SWRITE, UCPI_UBH(ucpi));
+		ubh_wait_on_buffer (UCPI_UBH(ucpi));
 	}
 	sb->s_dirt = 1;
 
@@ -272,6 +264,7 @@ cg_found:
 	ufsi->i_shadow = 0;
 	ufsi->i_osync = 0;
 	ufsi->i_oeftflag = 0;
+	ufsi->i_dir_start_lookup = 0;
 	memset(&ufsi->i_u1, 0, sizeof(ufsi->i_u1));
 
 	insert_inode_hash(inode);
@@ -287,14 +280,14 @@ cg_found:
 		return ERR_PTR(-EDQUOT);
 	}
 
-	UFSD(("allocating inode %lu\n", inode->i_ino))
-	UFSD(("EXIT\n"))
+	UFSD("allocating inode %lu\n", inode->i_ino);
+	UFSD("EXIT\n");
 	return inode;
 
 failed:
 	unlock_super (sb);
 	make_bad_inode(inode);
 	iput (inode);
-	UFSD(("EXIT (FAILED)\n"))
+	UFSD("EXIT (FAILED)\n");
 	return ERR_PTR(-ENOSPC);
 }

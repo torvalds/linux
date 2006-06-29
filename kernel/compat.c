@@ -21,6 +21,7 @@
 #include <linux/unistd.h>
 #include <linux/security.h>
 #include <linux/timex.h>
+#include <linux/migrate.h>
 
 #include <asm/uaccess.h>
 
@@ -729,17 +730,10 @@ void
 sigset_from_compat (sigset_t *set, compat_sigset_t *compat)
 {
 	switch (_NSIG_WORDS) {
-#if defined (__COMPAT_ENDIAN_SWAP__)
-	case 4: set->sig[3] = compat->sig[7] | (((long)compat->sig[6]) << 32 );
-	case 3: set->sig[2] = compat->sig[5] | (((long)compat->sig[4]) << 32 );
-	case 2: set->sig[1] = compat->sig[3] | (((long)compat->sig[2]) << 32 );
-	case 1: set->sig[0] = compat->sig[1] | (((long)compat->sig[0]) << 32 );
-#else
 	case 4: set->sig[3] = compat->sig[6] | (((long)compat->sig[7]) << 32 );
 	case 3: set->sig[2] = compat->sig[4] | (((long)compat->sig[5]) << 32 );
 	case 2: set->sig[1] = compat->sig[2] | (((long)compat->sig[3]) << 32 );
 	case 1: set->sig[0] = compat->sig[0] | (((long)compat->sig[1]) << 32 );
-#endif
 	}
 }
 
@@ -934,3 +928,25 @@ asmlinkage long compat_sys_adjtimex(struct compat_timex __user *utp)
 
 	return ret;
 }
+
+#ifdef CONFIG_NUMA
+asmlinkage long compat_sys_move_pages(pid_t pid, unsigned long nr_pages,
+		compat_uptr_t __user *pages32,
+		const int __user *nodes,
+		int __user *status,
+		int flags)
+{
+	const void __user * __user *pages;
+	int i;
+
+	pages = compat_alloc_user_space(nr_pages * sizeof(void *));
+	for (i = 0; i < nr_pages; i++) {
+		compat_uptr_t p;
+
+		if (get_user(p, pages32 + i) ||
+			put_user(compat_ptr(p), pages + i))
+			return -EFAULT;
+	}
+	return sys_move_pages(pid, nr_pages, pages, nodes, status, flags);
+}
+#endif

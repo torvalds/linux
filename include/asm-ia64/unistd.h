@@ -265,7 +265,7 @@
 #define __NR_keyctl			1273
 #define __NR_ioprio_set			1274
 #define __NR_ioprio_get			1275
-/* 1276 is available for reuse (was briefly sys_set_zone_reclaim) */
+#define __NR_move_pages			1276
 #define __NR_inotify_init		1277
 #define __NR_inotify_add_watch		1278
 #define __NR_inotify_rm_watch		1279
@@ -294,7 +294,6 @@
 
 #ifdef __KERNEL__
 
-#include <linux/config.h>
 
 #define NR_syscalls			279 /* length of syscall table */
 

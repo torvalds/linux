@@ -126,16 +126,6 @@ MODULE_PARM_DESC(full_duplex, "fealnx full duplex setting(s) (1)");
 
 #define MIN_REGION_SIZE 136
 
-enum pci_flags_bit {
-	PCI_USES_IO = 1,
-	PCI_USES_MEM = 2,
-	PCI_USES_MASTER = 4,
-	PCI_ADDR0 = 0x10 << 0,
-	PCI_ADDR1 = 0x10 << 1,
-	PCI_ADDR2 = 0x10 << 2,
-	PCI_ADDR3 = 0x10 << 3,
-};
-
 /* A chip capabilities table, matching the entries in pci_tbl[] above. */
 enum chip_capability_flags {
 	HAS_MII_XCVR,

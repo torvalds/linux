@@ -227,10 +227,10 @@ static void __init gen_tabs(void)
 	t ^= E_KEY[8 * i + 7]; E_KEY[8 * i + 15] = t;	\
 }
 
-static int aes_set_key(void *ctx_arg, const u8 *in_key, unsigned int key_len,
-		       u32 *flags)
+static int aes_set_key(struct crypto_tfm *tfm, const u8 *in_key,
+		       unsigned int key_len, u32 *flags)
 {
-	struct aes_ctx *ctx = ctx_arg;
+	struct aes_ctx *ctx = crypto_tfm_ctx(tfm);
 	const __le32 *key = (const __le32 *)in_key;
 	u32 i, j, t, u, v, w;
 
@@ -283,8 +283,18 @@ static int aes_set_key(void *ctx_arg, const u8 *in_key, unsigned int key_len,
 	return 0;
 }
 
-extern void aes_encrypt(void *ctx_arg, u8 *out, const u8 *in);
-extern void aes_decrypt(void *ctx_arg, u8 *out, const u8 *in);
+asmlinkage void aes_enc_blk(struct crypto_tfm *tfm, u8 *out, const u8 *in);
+asmlinkage void aes_dec_blk(struct crypto_tfm *tfm, u8 *out, const u8 *in);
+
+static void aes_encrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
+{
+	aes_enc_blk(tfm, dst, src);
+}
+
+static void aes_decrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
+{
+	aes_dec_blk(tfm, dst, src);
+}
 
 static struct crypto_alg aes_alg = {
 	.cra_name		=	"aes",

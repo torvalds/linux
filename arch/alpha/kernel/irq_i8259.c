@@ -109,7 +109,7 @@ init_i8259a_irqs(void)
 
 	for (i = 0; i < 16; i++) {
 		irq_desc[i].status = IRQ_DISABLED;
-		irq_desc[i].handler = &i8259a_irq_type;
+		irq_desc[i].chip = &i8259a_irq_type;
 	}
 
 	setup_irq(2, &cascade);

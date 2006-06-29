@@ -623,7 +623,7 @@ static int vfc_mmap(struct file *file, struct vm_area_struct *vma)
 		map_size = sizeof(struct vfc_regs);
 
 	vma->vm_flags |=
-		(VM_SHM | VM_LOCKED | VM_IO | VM_MAYREAD | VM_MAYWRITE | VM_MAYSHARE);
+		(VM_MAYREAD | VM_MAYWRITE | VM_MAYSHARE);
 	map_offset = (unsigned int) (long)dev->phys_regs;
 	ret = io_remap_pfn_range(vma, vma->vm_start,
 				  MK_IOSPACE_PFN(dev->which_io,

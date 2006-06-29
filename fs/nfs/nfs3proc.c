@@ -20,10 +20,9 @@
 #include <linux/nfs_mount.h>
 
 #include "iostat.h"
+#include "internal.h"
 
 #define NFSDBG_FACILITY		NFSDBG_PROC
-
-extern struct rpc_procinfo nfs3_procedures[];
 
 /* A wrapper to handle the EJUKEBOX error message */
 static int
@@ -808,8 +807,6 @@ nfs3_proc_pathconf(struct nfs_server *server, struct nfs_fh *fhandle,
 	dprintk("NFS reply pathconf: %d\n", status);
 	return status;
 }
-
-extern u32 *nfs3_decode_dirent(u32 *, struct nfs_entry *, int);
 
 static int nfs3_read_done(struct rpc_task *task, struct nfs_read_data *data)
 {

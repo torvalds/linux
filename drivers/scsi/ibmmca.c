@@ -760,7 +760,7 @@ static int device_inquiry(int host_index, int ldn)
 		while (!got_interrupt(host_index))
 			barrier();
 
-		/*if command succesful, break */
+		/*if command successful, break */
 		if ((stat_result(host_index) == IM_SCB_CMD_COMPLETED) || (stat_result(host_index) == IM_SCB_CMD_COMPLETED_WITH_RETRIES))
 			return 1;
 	}
@@ -885,7 +885,7 @@ static int immediate_assign(int host_index, unsigned int pun, unsigned int lun, 
 		while (!got_interrupt(host_index))
 			barrier();
 
-		/*if command succesful, break */
+		/*if command successful, break */
 		if (stat_result(host_index) == IM_IMMEDIATE_CMD_COMPLETED)
 			return 1;
 	}
@@ -921,7 +921,7 @@ static int immediate_feature(int host_index, unsigned int speed, unsigned int ti
 			return 2;
 		} else
 			global_command_error_excuse = 0;
-		/*if command succesful, break */
+		/*if command successful, break */
 		if (stat_result(host_index) == IM_IMMEDIATE_CMD_COMPLETED)
 			return 1;
 	}
@@ -959,7 +959,7 @@ static int immediate_reset(int host_index, unsigned int ldn)
 			/* did not work, finish */
 			return 1;
 		}
-		/*if command succesful, break */
+		/*if command successful, break */
 		if (stat_result(host_index) == IM_IMMEDIATE_CMD_COMPLETED)
 			return 1;
 	}
@@ -1441,7 +1441,7 @@ static int ibmmca_getinfo(char *buf, int slot, void *dev_id)
 	struct Scsi_Host *dev = dev_id;
 
 	spin_lock_irqsave(dev->host_lock, flags);
-	
+
 	shpnt = dev;		/* assign host-structure to local pointer */
 	len = 0;		/* set filled text-buffer index to 0 */
 	/* get the _special contents of the hostdata structure */
@@ -1456,7 +1456,7 @@ static int ibmmca_getinfo(char *buf, int slot, void *dev_id)
 		/* if the integrated subsystem has been found automatically: */
 		len += sprintf(buf + len,
 			       "Adapter category: integrated\n" "Chip revision level: %d\n" "Chip status: %s\n" "8 kByte NVRAM status: %s\n", ((pos[2] & 0xf0) >> 4), (pos[2] & 1) ? "enabled" : "disabled", (pos[2] & 2) ? "locked" : "accessible");
-	} else if ((speciale >= 0) && (speciale < (sizeof(subsys_list) / sizeof(struct subsys_list_struct)))) {
+	} else if ((speciale >= 0) && (speciale < ARRAY_SIZE(subsys_list))) {
 		/* if the subsystem is a slot adapter */
 		len += sprintf(buf + len, "Adapter category: slot-card\n" "ROM Segment Address: ");
 		if ((pos[2] & 0xf0) == 0xf0)
@@ -1477,16 +1477,16 @@ static int ibmmca_getinfo(char *buf, int slot, void *dev_id)
 	while (len % sizeof(int) != (sizeof(int) - 1))
 		len += sprintf(buf + len, " ");
 	len += sprintf(buf + len, "\n");
-	
+
 	spin_unlock_irqrestore(shpnt->host_lock, flags);
-	
+
 	return len;
 }
 
 int ibmmca_detect(struct scsi_host_template * scsi_template)
 {
 	struct Scsi_Host *shpnt;
-	int port, id, i, j, k, list_size, slot;
+	int port, id, i, j, k, slot;
 	int devices_on_irq_11 = 0;
 	int devices_on_irq_14 = 0;
 	int IRQ14_registered = 0;
@@ -1603,8 +1603,7 @@ int ibmmca_detect(struct scsi_host_template * scsi_template)
 	/* now look for other adapters in MCA slots, */
 	/* determine the number of known IBM-SCSI-subsystem types */
 	/* see the pos[2] dependence to get the adapter port-offset. */
-	list_size = sizeof(subsys_list) / sizeof(struct subsys_list_struct);
-	for (i = 0; i < list_size; i++) {
+	for (i = 0; i < ARRAY_SIZE(subsys_list); i++) {
 		/* scan each slot for a fitting adapter id */
 		slot = 0;	/* start at slot 0 */
 		while ((slot = mca_find_adapter(subsys_list[i].mca_id, slot))
@@ -1669,8 +1668,7 @@ int ibmmca_detect(struct scsi_host_template * scsi_template)
 	/* now check for SCSI-adapters, mapped to the integrated SCSI
 	 * area. E.g. a W/Cache in MCA-slot 9(!). Do the check correct here,
 	 * as this is a known effect on some models 95xx. */
-	list_size = sizeof(subsys_list) / sizeof(struct subsys_list_struct);
-	for (i = 0; i < list_size; i++) {
+	for (i = 0; i < ARRAY_SIZE(subsys_list); i++) {
 		/* scan each slot for a fitting adapter id */
 		slot = mca_find_adapter(subsys_list[i].mca_id, MCA_INTEGSCSI);
 		if (slot != MCA_NOTFOUND) {	/* scan through all slots */
@@ -2243,8 +2241,7 @@ static int __ibmmca_host_reset(Scsi_Cmnd * cmd)
 	int host_index;
 	unsigned long imm_command;
 
-	if (cmd == NULL)
-		BUG();
+	BUG_ON(cmd == NULL);
 
 	ticks = IM_RESET_DELAY * HZ;
 	shpnt = cmd->device->host;

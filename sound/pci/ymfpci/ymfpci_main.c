@@ -1919,7 +1919,7 @@ static int __devinit snd_ymfpci_proc_init(struct snd_card *card, struct snd_ymfp
 	struct snd_info_entry *entry;
 	
 	if (! snd_card_proc_new(card, "ymfpci", &entry))
-		snd_info_set_text_ops(entry, chip, 1024, snd_ymfpci_proc_read);
+		snd_info_set_text_ops(entry, chip, snd_ymfpci_proc_read);
 	return 0;
 }
 

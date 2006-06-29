@@ -2,7 +2,18 @@ if ARCH_EP93XX
 
 menu "Cirrus EP93xx Implementation Options"
 
+config CRUNCH
+	bool "Support for MaverickCrunch"
+	help
+	  Enable kernel support for MaverickCrunch.
+
 comment "EP93xx Platforms"
+
+config MACH_EDB9315
+	bool "Support Cirrus Logic EDB9315"
+	help
+	  Say 'Y' here if you want your kernel to support the Cirrus
+	  Logic EDB9315 Evaluation Board.
 
 config MACH_GESBC9312
 	bool "Support Glomation GESBC-9312-sx"

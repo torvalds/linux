@@ -2,7 +2,6 @@
 #define __H8300_HARDIRQ_H
 
 #include <linux/kernel.h>
-#include <linux/config.h>
 #include <linux/threads.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>

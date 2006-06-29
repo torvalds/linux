@@ -51,6 +51,10 @@
 #ifdef __KERNEL__
 /*
  * Ptrace flags
+ *
+ * The owner ship rules for task->ptrace which holds the ptrace
+ * flags is simple.  When a task is running it owns it's task->ptrace
+ * flags.  When the a task is stopped the ptracer owns task->ptrace.
  */
 
 #define PT_PTRACED	0x00000001
@@ -84,7 +88,6 @@ extern int ptrace_readdata(struct task_struct *tsk, unsigned long src, char __us
 extern int ptrace_writedata(struct task_struct *tsk, char __user *src, unsigned long dst, int len);
 extern int ptrace_attach(struct task_struct *tsk);
 extern int ptrace_detach(struct task_struct *, unsigned int);
-extern void __ptrace_detach(struct task_struct *, unsigned int);
 extern void ptrace_disable(struct task_struct *);
 extern int ptrace_check_attach(struct task_struct *task, int kill);
 extern int ptrace_request(struct task_struct *child, long request, long addr, long data);

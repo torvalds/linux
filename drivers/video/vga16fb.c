@@ -1334,9 +1334,8 @@ static int vga16fb_setup(char *options)
 }
 #endif
 
-static int __init vga16fb_probe(struct device *device)
+static int __init vga16fb_probe(struct platform_device *dev)
 {
-	struct platform_device *dev = to_platform_device(device);
 	struct fb_info *info;
 	struct vga16fb_par *par;
 	int i;
@@ -1351,7 +1350,7 @@ static int __init vga16fb_probe(struct device *device)
 	}
 
 	/* XXX share VGA_FB_PHYS and I/O region with vgacon and others */
-	info->screen_base = (void __iomem *)VGA_MAP_MEM(VGA_FB_PHYS);
+	info->screen_base = (void __iomem *)VGA_MAP_MEM(VGA_FB_PHYS, 0);
 
 	if (!info->screen_base) {
 		printk(KERN_ERR "vga16fb: unable to map device\n");
@@ -1403,7 +1402,7 @@ static int __init vga16fb_probe(struct device *device)
 
 	printk(KERN_INFO "fb%d: %s frame buffer device\n",
 	       info->node, info->fix.id);
-	dev_set_drvdata(device, info);
+	platform_set_drvdata(dev, info);
 
 	return 0;
 
@@ -1417,9 +1416,9 @@ static int __init vga16fb_probe(struct device *device)
 	return ret;
 }
 
-static int vga16fb_remove(struct device *device)
+static int vga16fb_remove(struct platform_device *dev)
 {
-	struct fb_info *info = dev_get_drvdata(device);
+	struct fb_info *info = platform_get_drvdata(dev);
 
 	if (info) {
 		unregister_framebuffer(info);
@@ -1432,16 +1431,15 @@ static int vga16fb_remove(struct device *device)
 	return 0;
 }
 
-static struct device_driver vga16fb_driver = {
-	.name = "vga16fb",
-	.bus  = &platform_bus_type,
+static struct platform_driver vga16fb_driver = {
 	.probe = vga16fb_probe,
 	.remove = vga16fb_remove,
+	.driver = {
+		.name = "vga16fb",
+	},
 };
 
-static struct platform_device vga16fb_device = {
-	.name = "vga16fb",
-};
+static struct platform_device *vga16fb_device;
 
 static int __init vga16fb_init(void)
 {
@@ -1454,12 +1452,20 @@ static int __init vga16fb_init(void)
 
 	vga16fb_setup(option);
 #endif
-	ret = driver_register(&vga16fb_driver);
+	ret = platform_driver_register(&vga16fb_driver);
 
 	if (!ret) {
-		ret = platform_device_register(&vga16fb_device);
-		if (ret)
-			driver_unregister(&vga16fb_driver);
+		vga16fb_device = platform_device_alloc("vga16fb", 0);
+
+		if (vga16fb_device)
+			ret = platform_device_add(vga16fb_device);
+		else
+			ret = -ENOMEM;
+
+		if (ret) {
+			platform_device_put(vga16fb_device);
+			platform_driver_unregister(&vga16fb_driver);
+		}
 	}
 
 	return ret;
@@ -1467,8 +1473,8 @@ static int __init vga16fb_init(void)
 
 static void __exit vga16fb_exit(void)
 {
-	platform_device_unregister(&vga16fb_device);
-	driver_unregister(&vga16fb_driver);
+	platform_device_unregister(vga16fb_device);
+	platform_driver_unregister(&vga16fb_driver);
 }
 
 MODULE_LICENSE("GPL");

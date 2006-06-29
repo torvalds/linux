@@ -3,7 +3,7 @@
 /*
  *	mcftimer.h -- ColdFire internal TIMER support defines.
  *
- *	(C) Copyright 1999-2002, Greg Ungerer (gerg@snapgear.com)
+ *	(C) Copyright 1999-2006, Greg Ungerer <gerg@snapgear.com>
  * 	(C) Copyright 2000, Lineo Inc. (www.lineo.com) 
  */
 
@@ -12,7 +12,6 @@
 #define	mcftimer_h
 /****************************************************************************/
 
-#include <linux/config.h>
 
 /*
  *	Get address specific defines for this ColdFire member.
@@ -28,6 +27,11 @@
 #elif defined(CONFIG_M5249) || defined(CONFIG_M5307) || defined(CONFIG_M5407)
 #define MCFTIMER_BASE1		0x140           /* Base address of TIMER1 */
 #define MCFTIMER_BASE2		0x180           /* Base address of TIMER2 */
+#elif defined(CONFIG_M532x)
+#define MCFTIMER_BASE1		0xfc070000	/* Base address of TIMER1 */
+#define MCFTIMER_BASE2		0xfc074000	/* Base address of TIMER2 */
+#define MCFTIMER_BASE3		0xfc078000	/* Base address of TIMER3 */
+#define MCFTIMER_BASE4		0xfc07c000	/* Base address of TIMER4 */
 #endif
 
 
@@ -35,23 +39,14 @@
  *	Define the TIMER register set addresses.
  */
 #define	MCFTIMER_TMR		0x00		/* Timer Mode reg (r/w) */
-#define	MCFTIMER_TRR		0x02		/* Timer Reference (r/w) */
-#define	MCFTIMER_TCR		0x04		/* Timer Capture reg (r/w) */
-#define	MCFTIMER_TCN		0x06		/* Timer Counter reg (r/w) */
+#define	MCFTIMER_TRR		0x04		/* Timer Reference (r/w) */
+#define	MCFTIMER_TCR		0x08		/* Timer Capture reg (r/w) */
+#define	MCFTIMER_TCN		0x0C		/* Timer Counter reg (r/w) */
+#if defined(CONFIG_M532x)
+#define	MCFTIMER_TER		0x03		/* Timer Event reg (r/w) */
+#else
 #define	MCFTIMER_TER		0x11		/* Timer Event reg (r/w) */
-
-struct mcftimer {
-	unsigned short	tmr;			/* Timer Mode reg (r/w) */
-	unsigned short	reserved1;
-	unsigned short	trr;			/* Timer Reference (r/w) */
-	unsigned short	reserved2;
-	unsigned short	tcr;			/* Timer Capture reg (r/w) */
-	unsigned short	reserved3;
-	unsigned short	tcn;			/* Timer Counter reg (r/w) */
-	unsigned short	reserved4;
-	unsigned char	reserved5;
-	unsigned char	ter;			/* Timer Event reg (r/w) */
-} __attribute__((packed));
+#endif
 
 /*
  *	Bit definitions for the Timer Mode Register (TMR).

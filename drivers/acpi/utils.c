@@ -273,11 +273,13 @@ acpi_evaluate_integer(acpi_handle handle,
 	status = acpi_evaluate_object(handle, pathname, arguments, &buffer);
 	if (ACPI_FAILURE(status)) {
 		acpi_util_eval_error(handle, pathname, status);
+		kfree(element);
 		return_ACPI_STATUS(status);
 	}
 
 	if (element->type != ACPI_TYPE_INTEGER) {
 		acpi_util_eval_error(handle, pathname, AE_BAD_DATA);
+		kfree(element);
 		return_ACPI_STATUS(AE_BAD_DATA);
 	}
 

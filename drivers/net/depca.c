@@ -938,11 +938,8 @@ static int depca_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (skb->len < 1)
 		goto out;
 
-	if (skb->len < ETH_ZLEN) {
-		skb = skb_padto(skb, ETH_ZLEN);
-		if (skb == NULL)
-			goto out;
-	}
+	if (skb_padto(skb, ETH_ZLEN))
+		goto out;
 	
 	netif_stop_queue(dev);
 

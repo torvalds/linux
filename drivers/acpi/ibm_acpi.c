@@ -567,6 +567,69 @@ static int bluetooth_write(char *buf)
 	return 0;
 }
 
+static int wan_supported;
+
+static int wan_init(void)
+{
+	wan_supported = hkey_handle &&
+	    acpi_evalf(hkey_handle, NULL, "GWAN", "qv");
+
+	return 0;
+}
+
+static int wan_status(void)
+{
+	int status;
+
+	if (!wan_supported ||
+	    !acpi_evalf(hkey_handle, &status, "GWAN", "d"))
+		status = 0;
+
+	return status;
+}
+
+static int wan_read(char *p)
+{
+	int len = 0;
+	int status = wan_status();
+
+	if (!wan_supported)
+		len += sprintf(p + len, "status:\t\tnot supported\n");
+	else if (!(status & 1))
+		len += sprintf(p + len, "status:\t\tnot installed\n");
+	else {
+		len += sprintf(p + len, "status:\t\t%s\n", enabled(status, 1));
+		len += sprintf(p + len, "commands:\tenable, disable\n");
+	}
+
+	return len;
+}
+
+static int wan_write(char *buf)
+{
+	int status = wan_status();
+	char *cmd;
+	int do_cmd = 0;
+
+	if (!wan_supported)
+		return -ENODEV;
+
+	while ((cmd = next_cmd(&buf))) {
+		if (strlencmp(cmd, "enable") == 0) {
+			status |= 2;
+		} else if (strlencmp(cmd, "disable") == 0) {
+			status &= ~2;
+		} else
+			return -EINVAL;
+		do_cmd = 1;
+	}
+
+	if (do_cmd && !acpi_evalf(hkey_handle, NULL, "SWAN", "vd", status))
+		return -EIO;
+
+	return 0;
+}
+
 static int video_supported;
 static int video_orig_autosw;
 
@@ -1561,6 +1624,13 @@ static struct ibm_struct ibms[] = {
 	 .init = bluetooth_init,
 	 .read = bluetooth_read,
 	 .write = bluetooth_write,
+	 },
+	{
+	 .name = "wan",
+	 .init = wan_init,
+	 .read = wan_read,
+	 .write = wan_write,
+	 .experimental = 1,
 	 },
 	{
 	 .name = "video",

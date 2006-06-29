@@ -326,8 +326,7 @@ int afs_vlocation_lookup(struct afs_cell *cell,
 	/* found in the graveyard - resurrect */
 	_debug("found in graveyard");
 	atomic_inc(&vlocation->usage);
-	list_del(&vlocation->link);
-	list_add_tail(&vlocation->link, &cell->vl_list);
+	list_move_tail(&vlocation->link, &cell->vl_list);
 	spin_unlock(&cell->vl_gylock);
 
 	afs_kafstimod_del_timer(&vlocation->timeout);
@@ -478,8 +477,7 @@ static void __afs_put_vlocation(struct afs_vlocation *vlocation)
 	}
 
 	/* move to graveyard queue */
-	list_del(&vlocation->link);
-	list_add_tail(&vlocation->link,&cell->vl_graveyard);
+	list_move_tail(&vlocation->link,&cell->vl_graveyard);
 
 	/* remove from pending timeout queue (refcounted if actually being
 	 * updated) */

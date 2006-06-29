@@ -238,7 +238,7 @@ static int get_irq_server(unsigned int irq)
 {
 	unsigned int server;
 	/* For the moment only implement delivery to all cpus or one cpu */
-	cpumask_t cpumask = irq_affinity[irq];
+	cpumask_t cpumask = irq_desc[irq].affinity;
 	cpumask_t tmp = CPU_MASK_NONE;
 
 	if (!distribute_irqs)
@@ -522,7 +522,7 @@ nextnode:
 
 	np = of_find_node_by_type(NULL, "interrupt-controller");
 	if (!np) {
-		printk(KERN_WARNING "xics: no ISA interrupt controller\n");
+		printk(KERN_DEBUG "xics: no ISA interrupt controller\n");
 		xics_irq_8259_cascade_real = -1;
 		xics_irq_8259_cascade = -1;
 	} else {
@@ -558,7 +558,7 @@ nextnode:
 	}
 
 	for (i = irq_offset_value(); i < NR_IRQS; ++i)
-		get_irq_desc(i)->handler = &xics_pic;
+		get_irq_desc(i)->chip = &xics_pic;
 
 	xics_setup_cpu();
 
@@ -641,23 +641,26 @@ void xics_teardown_cpu(int secondary)
 	ops->cppr_info(cpu, 0x00);
 	iosync();
 
+	/* Clear IPI */
+	ops->qirr_info(cpu, 0xff);
+
+	/*
+	 * we need to EOI the IPI if we got here from kexec down IPI
+	 *
+	 * probably need to check all the other interrupts too
+	 * should we be flagging idle loop instead?
+	 * or creating some task to be scheduled?
+	 */
+	ops->xirr_info_set(cpu, XICS_IPI);
+
 	/*
 	 * Some machines need to have at least one cpu in the GIQ,
 	 * so leave the master cpu in the group.
 	 */
-	if (secondary) {
-		/*
-		 * we need to EOI the IPI if we got here from kexec down IPI
-		 *
-		 * probably need to check all the other interrupts too
-		 * should we be flagging idle loop instead?
-		 * or creating some task to be scheduled?
-		 */
-		ops->xirr_info_set(cpu, XICS_IPI);
+	if (secondary)
 		rtas_set_indicator(GLOBAL_INTERRUPT_QUEUE,
 			(1UL << interrupt_server_size) - 1 -
 			default_distrib_server, 0);
-	}
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
@@ -698,9 +701,9 @@ void xics_migrate_irqs_away(void)
 			continue;
 
 		/* We only need to migrate enabled IRQS */
-		if (desc == NULL || desc->handler == NULL
+		if (desc == NULL || desc->chip == NULL
 		    || desc->action == NULL
-		    || desc->handler->set_affinity == NULL)
+		    || desc->chip->set_affinity == NULL)
 			continue;
 
 		spin_lock_irqsave(&desc->lock, flags);
@@ -725,8 +728,8 @@ void xics_migrate_irqs_away(void)
 		       virq, cpu);
 
 		/* Reset affinity to all cpus */
-		desc->handler->set_affinity(virq, CPU_MASK_ALL);
-		irq_affinity[virq] = CPU_MASK_ALL;
+		desc->chip->set_affinity(virq, CPU_MASK_ALL);
+		irq_desc[irq].affinity = CPU_MASK_ALL;
 unlock:
 		spin_unlock_irqrestore(&desc->lock, flags);
 	}

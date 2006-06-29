@@ -77,8 +77,8 @@ static ssize_t devinfo_read_file(struct file *file, char __user *userbuf,
 
 	down(&big_buffer_sem);
 
-	bcm43xx_lock_mmio(bcm, flags);
-	if (!bcm->initialized) {
+	bcm43xx_lock_irqsafe(bcm, flags);
+	if (bcm43xx_status(bcm) != BCM43xx_STAT_INITIALIZED) {
 		fappend("Board not initialized.\n");
 		goto out;
 	}
@@ -121,7 +121,7 @@ static ssize_t devinfo_read_file(struct file *file, char __user *userbuf,
 	fappend("\n");
 
 out:
-	bcm43xx_unlock_mmio(bcm, flags);
+	bcm43xx_unlock_irqsafe(bcm, flags);
 	res = simple_read_from_buffer(userbuf, count, ppos, buf, pos);
 	up(&big_buffer_sem);
 	return res;
@@ -159,8 +159,8 @@ static ssize_t spromdump_read_file(struct file *file, char __user *userbuf,
 	unsigned long flags;
 
 	down(&big_buffer_sem);
-	bcm43xx_lock_mmio(bcm, flags);
-	if (!bcm->initialized) {
+	bcm43xx_lock_irqsafe(bcm, flags);
+	if (bcm43xx_status(bcm) != BCM43xx_STAT_INITIALIZED) {
 		fappend("Board not initialized.\n");
 		goto out;
 	}
@@ -169,7 +169,7 @@ static ssize_t spromdump_read_file(struct file *file, char __user *userbuf,
 	fappend("boardflags: 0x%04x\n", bcm->sprom.boardflags);
 
 out:
-	bcm43xx_unlock_mmio(bcm, flags);
+	bcm43xx_unlock_irqsafe(bcm, flags);
 	res = simple_read_from_buffer(userbuf, count, ppos, buf, pos);
 	up(&big_buffer_sem);
 	return res;
@@ -188,8 +188,8 @@ static ssize_t tsf_read_file(struct file *file, char __user *userbuf,
 	u64 tsf;
 
 	down(&big_buffer_sem);
-	bcm43xx_lock_mmio(bcm, flags);
-	if (!bcm->initialized) {
+	bcm43xx_lock_irqsafe(bcm, flags);
+	if (bcm43xx_status(bcm) != BCM43xx_STAT_INITIALIZED) {
 		fappend("Board not initialized.\n");
 		goto out;
 	}
@@ -199,7 +199,7 @@ static ssize_t tsf_read_file(struct file *file, char __user *userbuf,
 		(unsigned int)(tsf & 0xFFFFFFFFULL));
 
 out:
-	bcm43xx_unlock_mmio(bcm, flags);
+	bcm43xx_unlock_irqsafe(bcm, flags);
 	res = simple_read_from_buffer(userbuf, count, ppos, buf, pos);
 	up(&big_buffer_sem);
 	return res;
@@ -221,8 +221,8 @@ static ssize_t tsf_write_file(struct file *file, const char __user *user_buf,
 	        res = -EFAULT;
 		goto out_up;
 	}
-	bcm43xx_lock_mmio(bcm, flags);
-	if (!bcm->initialized) {
+	bcm43xx_lock_irqsafe(bcm, flags);
+	if (bcm43xx_status(bcm) != BCM43xx_STAT_INITIALIZED) {
 		printk(KERN_INFO PFX "debugfs: Board not initialized.\n");
 		res = -EFAULT;
 		goto out_unlock;
@@ -233,10 +233,11 @@ static ssize_t tsf_write_file(struct file *file, const char __user *user_buf,
 		goto out_unlock;
 	}
 	bcm43xx_tsf_write(bcm, tsf);
+	mmiowb();
 	res = buf_size;
 	
 out_unlock:
-	bcm43xx_unlock_mmio(bcm, flags);
+	bcm43xx_unlock_irqsafe(bcm, flags);
 out_up:
 	up(&big_buffer_sem);
 	return res;
@@ -257,7 +258,7 @@ static ssize_t txstat_read_file(struct file *file, char __user *userbuf,
 	int i, cnt, j = 0;
 
 	down(&big_buffer_sem);
-	bcm43xx_lock(bcm, flags);
+	bcm43xx_lock_irqsafe(bcm, flags);
 
 	fappend("Last %d logged xmitstatus blobs (Latest first):\n\n",
 		BCM43xx_NR_LOGGED_XMITSTATUS);
@@ -293,14 +294,14 @@ static ssize_t txstat_read_file(struct file *file, char __user *userbuf,
 			i = BCM43xx_NR_LOGGED_XMITSTATUS - 1;
 	}
 
-	bcm43xx_unlock(bcm, flags);
+	bcm43xx_unlock_irqsafe(bcm, flags);
 	res = simple_read_from_buffer(userbuf, count, ppos, buf, pos);
-	bcm43xx_lock(bcm, flags);
+	bcm43xx_lock_irqsafe(bcm, flags);
 	if (*ppos == pos) {
 		/* Done. Drop the copied data. */
 		e->xmitstatus_printing = 0;
 	}
-	bcm43xx_unlock(bcm, flags);
+	bcm43xx_unlock_irqsafe(bcm, flags);
 	up(&big_buffer_sem);
 	return res;
 }

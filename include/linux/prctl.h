@@ -52,4 +52,11 @@
 #define PR_SET_NAME    15		/* Set process name */
 #define PR_GET_NAME    16		/* Get process name */
 
+/* Get/set process endian */
+#define PR_GET_ENDIAN	19
+#define PR_SET_ENDIAN	20
+# define PR_ENDIAN_BIG		0
+# define PR_ENDIAN_LITTLE	1	/* True little endian mode */
+# define PR_ENDIAN_PPC_LITTLE	2	/* "PowerPC" pseudo little endian */
+
 #endif /* _LINUX_PRCTL_H */

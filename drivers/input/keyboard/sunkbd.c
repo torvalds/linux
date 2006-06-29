@@ -263,7 +263,7 @@ static int sunkbd_connect(struct serio *serio, struct serio_driver *drv)
 		goto fail;
 	}
 
-	sprintf(sunkbd->name, "Sun Type %d keyboard", sunkbd->type);
+	snprintf(sunkbd->name, sizeof(sunkbd->name), "Sun Type %d keyboard", sunkbd->type);
 	memcpy(sunkbd->keycode, sunkbd_keycode, sizeof(sunkbd->keycode));
 
 	input_dev->name = sunkbd->name;

@@ -60,7 +60,7 @@
 #include <asm/io_apic.h>
 #include <asm/ist.h>
 #include <asm/io.h>
-#include "setup_arch_pre.h"
+#include <setup_arch.h>
 #include <bios_ebda.h>
 
 /* Forward Declaration. */
@@ -410,8 +410,8 @@ static void __init limit_regions(unsigned long long size)
 	}
 }
 
-static void __init add_memory_region(unsigned long long start,
-                                  unsigned long long size, int type)
+void __init add_memory_region(unsigned long long start,
+			      unsigned long long size, int type)
 {
 	int x;
 
@@ -474,7 +474,7 @@ static struct change_member *change_point[2*E820MAX] __initdata;
 static struct e820entry *overlap_list[E820MAX] __initdata;
 static struct e820entry new_bios[E820MAX] __initdata;
 
-static int __init sanitize_e820_map(struct e820entry * biosmap, char * pnr_map)
+int __init sanitize_e820_map(struct e820entry * biosmap, char * pnr_map)
 {
 	struct change_member *change_tmp;
 	unsigned long current_type, last_type;
@@ -643,7 +643,7 @@ static int __init sanitize_e820_map(struct e820entry * biosmap, char * pnr_map)
  * thinkpad 560x, for example, does not cooperate with the memory
  * detection code.)
  */
-static int __init copy_e820_map(struct e820entry * biosmap, int nr_map)
+int __init copy_e820_map(struct e820entry * biosmap, int nr_map)
 {
 	/* Only one memory region (or negative)? Ignore it */
 	if (nr_map < 2)
@@ -700,12 +700,6 @@ static inline void copy_edd(void)
 {
 }
 #endif
-
-/*
- * Do NOT EVER look at the BIOS memory size location.
- * It does not work on many machines.
- */
-#define LOWMEMSIZE()	(0x9f000)
 
 static void __init parse_cmdline_early (char ** cmdline_p)
 {
@@ -1320,8 +1314,10 @@ legacy_init_iomem_resources(struct resource *code_resource, struct resource *dat
 	probe_roms();
 	for (i = 0; i < e820.nr_map; i++) {
 		struct resource *res;
+#ifndef CONFIG_RESOURCES_64BIT
 		if (e820.map[i].addr + e820.map[i].size > 0x100000000ULL)
 			continue;
+#endif
 		res = kzalloc(sizeof(struct resource), GFP_ATOMIC);
 		switch (e820.map[i].type) {
 		case E820_RAM:	res->name = "System RAM"; break;
@@ -1422,8 +1418,6 @@ static void __init register_memory(void)
 	printk("Allocating PCI resources starting at %08lx (gap: %08lx:%08lx)\n",
 		pci_mem_start, gapstart, gapsize);
 }
-
-static char * __init machine_specific_memory_setup(void);
 
 #ifdef CONFIG_MCA
 static void set_mca_bus(int x)
@@ -1583,6 +1577,7 @@ void __init setup_arch(char **cmdline_p)
 	conswitchp = &dummy_con;
 #endif
 #endif
+	tsc_init();
 }
 
 static __init int add_pcspkr(void)
@@ -1602,7 +1597,6 @@ static __init int add_pcspkr(void)
 }
 device_initcall(add_pcspkr);
 
-#include "setup_arch_post.h"
 /*
  * Local Variables:
  * mode:c

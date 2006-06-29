@@ -36,6 +36,7 @@
 #include <asm/arch_hooks.h>
 #include <asm/hpet.h>
 #include <asm/i8253.h>
+#include <asm/nmi.h>
 
 #include <mach_apic.h>
 #include <mach_apicdef.h>
@@ -62,7 +63,7 @@ int apic_verbosity;
 
 static void apic_pm_activate(void);
 
-int modern_apic(void)
+static int modern_apic(void)
 {
 	unsigned int lvr, version;
 	/* AMD systems use old APIC versions, so check the CPU */
@@ -113,7 +114,7 @@ void __init apic_intr_init(void)
 }
 
 /* Using APIC to generate smp_local_timer_interrupt? */
-int using_apic_timer = 0;
+int using_apic_timer __read_mostly = 0;
 
 static int enabled_via_apicbase;
 
@@ -156,7 +157,7 @@ void clear_local_APIC(void)
 	maxlvt = get_maxlvt();
 
 	/*
-	 * Masking an LVT entry on a P6 can trigger a local APIC error
+	 * Masking an LVT entry can trigger a local APIC error
 	 * if the vector is zero. Mask LVTERR first to prevent this.
 	 */
 	if (maxlvt >= 3) {
@@ -1117,7 +1118,18 @@ void disable_APIC_timer(void)
 		unsigned long v;
 
 		v = apic_read(APIC_LVTT);
-		apic_write_around(APIC_LVTT, v | APIC_LVT_MASKED);
+		/*
+		 * When an illegal vector value (0-15) is written to an LVT
+		 * entry and delivery mode is Fixed, the APIC may signal an
+		 * illegal vector error, with out regard to whether the mask
+		 * bit is set or whether an interrupt is actually seen on input.
+		 *
+		 * Boot sequence might call this function when the LVTT has
+		 * '0' vector value. So make sure vector field is set to
+		 * valid value.
+		 */
+		v |= (APIC_LVT_MASKED | LOCAL_TIMER_VECTOR);
+		apic_write_around(APIC_LVTT, v);
 	}
 }
 

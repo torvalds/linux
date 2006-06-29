@@ -26,19 +26,10 @@
 #include <asm/numa.h>
 #include <asm/cpu.h>
 
-#ifdef CONFIG_NUMA
-static struct node *sysfs_nodes;
-#endif
 static struct ia64_cpu *sysfs_cpus;
 
 int arch_register_cpu(int num)
 {
-	struct node *parent = NULL;
-	
-#ifdef CONFIG_NUMA
-	parent = &sysfs_nodes[cpu_to_node(num)];
-#endif /* CONFIG_NUMA */
-
 #if defined (CONFIG_ACPI) && defined (CONFIG_HOTPLUG_CPU)
 	/*
 	 * If CPEI cannot be re-targetted, and this is
@@ -48,21 +39,14 @@ int arch_register_cpu(int num)
 		sysfs_cpus[num].cpu.no_control = 1;
 #endif
 
-	return register_cpu(&sysfs_cpus[num].cpu, num, parent);
+	return register_cpu(&sysfs_cpus[num].cpu, num);
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
 
 void arch_unregister_cpu(int num)
 {
-	struct node *parent = NULL;
-
-#ifdef CONFIG_NUMA
-	int node = cpu_to_node(num);
-	parent = &sysfs_nodes[node];
-#endif /* CONFIG_NUMA */
-
-	return unregister_cpu(&sysfs_cpus[num].cpu, parent);
+	return unregister_cpu(&sysfs_cpus[num].cpu);
 }
 EXPORT_SYMBOL(arch_register_cpu);
 EXPORT_SYMBOL(arch_unregister_cpu);
@@ -74,17 +58,11 @@ static int __init topology_init(void)
 	int i, err = 0;
 
 #ifdef CONFIG_NUMA
-	sysfs_nodes = kzalloc(sizeof(struct node) * MAX_NUMNODES, GFP_KERNEL);
-	if (!sysfs_nodes) {
-		err = -ENOMEM;
-		goto out;
-	}
-
 	/*
 	 * MCD - Do we want to register all ONLINE nodes, or all POSSIBLE nodes?
 	 */
 	for_each_online_node(i) {
-		if ((err = register_node(&sysfs_nodes[i], i, 0)))
+		if ((err = register_one_node(i)))
 			goto out;
 	}
 #endif
@@ -166,7 +144,7 @@ static void cache_shared_cpu_map_setup( unsigned int cpu,
 
 	num_shared = (int) csi.num_shared;
 	do {
-		for_each_cpu(j)
+		for_each_possible_cpu(j)
 			if (cpu_data(cpu)->socket_id == cpu_data(j)->socket_id
 				&& cpu_data(j)->core_id == csi.log1_cid
 				&& cpu_data(j)->thread_id == csi.log1_tid)
@@ -426,7 +404,7 @@ static int __cpuinit cache_remove_dev(struct sys_device * sys_dev)
  * When a cpu is hot-plugged, do a check and initiate
  * cache kobject if necessary
  */
-static int cache_cpu_callback(struct notifier_block *nfb,
+static int __cpuinit cache_cpu_callback(struct notifier_block *nfb,
 		unsigned long action, void *hcpu)
 {
 	unsigned int cpu = (unsigned long)hcpu;
@@ -444,7 +422,7 @@ static int cache_cpu_callback(struct notifier_block *nfb,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block cache_cpu_notifier =
+static struct notifier_block __cpuinitdata cache_cpu_notifier =
 {
 	.notifier_call = cache_cpu_callback
 };

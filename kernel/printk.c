@@ -24,6 +24,7 @@
 #include <linux/console.h>
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/interrupt.h>			/* For in_interrupt() */
 #include <linux/config.h>
 #include <linux/delay.h>
@@ -327,7 +328,9 @@ static void __call_console_drivers(unsigned long start, unsigned long end)
 	struct console *con;
 
 	for (con = console_drivers; con; con = con->next) {
-		if ((con->flags & CON_ENABLED) && con->write)
+		if ((con->flags & CON_ENABLED) && con->write &&
+				(cpu_online(smp_processor_id()) ||
+				(con->flags & CON_ANYTIME)))
 			con->write(con, &LOG_BUF(start), end - start);
 	}
 }
@@ -437,6 +440,7 @@ static int printk_time = 1;
 #else
 static int printk_time = 0;
 #endif
+module_param(printk_time, int, S_IRUGO | S_IWUSR);
 
 static int __init printk_time_setup(char *str)
 {
@@ -451,6 +455,18 @@ __setup("time", printk_time_setup);
 __attribute__((weak)) unsigned long long printk_clock(void)
 {
 	return sched_clock();
+}
+
+/* Check if we have any console registered that can be called early in boot. */
+static int have_callable_console(void)
+{
+	struct console *con;
+
+	for (con = console_drivers; con; con = con->next)
+		if (con->flags & CON_ANYTIME)
+			return 1;
+
+	return 0;
 }
 
 /**
@@ -566,27 +582,29 @@ asmlinkage int vprintk(const char *fmt, va_list args)
 			log_level_unknown = 1;
 	}
 
-	if (!cpu_online(smp_processor_id())) {
-		/*
-		 * Some console drivers may assume that per-cpu resources have
-		 * been allocated.  So don't allow them to be called by this
-		 * CPU until it is officially up.  We shouldn't be calling into
-		 * random console drivers on a CPU which doesn't exist yet..
-		 */
-		printk_cpu = UINT_MAX;
-		spin_unlock_irqrestore(&logbuf_lock, flags);
-		goto out;
-	}
 	if (!down_trylock(&console_sem)) {
-		console_locked = 1;
 		/*
-		 * We own the drivers.  We can drop the spinlock and let
-		 * release_console_sem() print the text
+		 * We own the drivers.  We can drop the spinlock and
+		 * let release_console_sem() print the text, maybe ...
 		 */
+		console_locked = 1;
 		printk_cpu = UINT_MAX;
 		spin_unlock_irqrestore(&logbuf_lock, flags);
-		console_may_schedule = 0;
-		release_console_sem();
+
+		/*
+		 * Console drivers may assume that per-cpu resources have
+		 * been allocated. So unless they're explicitly marked as
+		 * being able to cope (CON_ANYTIME) don't call them until
+		 * this CPU is officially up.
+		 */
+		if (cpu_online(smp_processor_id()) || have_callable_console()) {
+			console_may_schedule = 0;
+			release_console_sem();
+		} else {
+			/* Release by hand to avoid flushing the buffer. */
+			console_locked = 0;
+			up(&console_sem);
+		}
 	} else {
 		/*
 		 * Someone else owns the drivers.  We drop the spinlock, which
@@ -596,7 +614,7 @@ asmlinkage int vprintk(const char *fmt, va_list args)
 		printk_cpu = UINT_MAX;
 		spin_unlock_irqrestore(&logbuf_lock, flags);
 	}
-out:
+
 	preempt_enable();
 	return printed_len;
 }

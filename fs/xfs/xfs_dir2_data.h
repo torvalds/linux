@@ -85,11 +85,11 @@ typedef struct xfs_dir2_data_hdr {
  * Tag appears as the last 2 bytes.
  */
 typedef struct xfs_dir2_data_entry {
-	xfs_ino_t		inumber;	/* inode number */
-	__uint8_t		namelen;	/* name length */
-	__uint8_t		name[1];	/* name bytes, no null */
+	__be64			inumber;	/* inode number */
+	__u8			namelen;	/* name length */
+	__u8			name[1];	/* name bytes, no null */
 						/* variable offset */
-	xfs_dir2_data_off_t	tag;		/* starting offset of us */
+	__be16			tag;		/* starting offset of us */
 } xfs_dir2_data_entry_t;
 
 /*

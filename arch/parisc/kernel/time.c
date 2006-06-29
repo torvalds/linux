@@ -157,8 +157,22 @@ do_gettimeofday (struct timeval *tv)
 		usec += (xtime.tv_nsec / 1000);
 	} while (read_seqretry_irqrestore(&xtime_lock, seq, flags));
 
-	while (usec >= 1000000) {
-		usec -= 1000000;
+	if (unlikely(usec > LONG_MAX)) {
+		/* This can happen if the gettimeoffset adjustment is
+		 * negative and xtime.tv_nsec is smaller than the
+		 * adjustment */
+		printk(KERN_ERR "do_gettimeofday() spurious xtime.tv_nsec of %ld\n", usec);
+		usec += USEC_PER_SEC;
+		--sec;
+		/* This should never happen, it means the negative
+		 * time adjustment was more than a second, so there's
+		 * something seriously wrong */
+		BUG_ON(usec > LONG_MAX);
+	}
+
+
+	while (usec >= USEC_PER_SEC) {
+		usec -= USEC_PER_SEC;
 		++sec;
 	}
 

@@ -300,8 +300,6 @@ void mconsole_reboot(struct mc_request *req)
 	machine_restart(NULL);
 }
 
-extern void ctrl_alt_del(void);
-
 void mconsole_cad(struct mc_request *req)
 {
 	mconsole_reply(req, "", 0, 0);

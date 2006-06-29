@@ -2822,7 +2822,6 @@ static int net2280_probe (struct pci_dev *pdev, const struct pci_device_id *id)
 	unsigned long		resource, len;
 	void			__iomem *base = NULL;
 	int			retval, i;
-	char			buf [8], *bufp;
 
 	/* if you want to support more than one controller in a system,
 	 * usb_gadget_driver_{register,unregister}() must change.
@@ -2896,15 +2895,10 @@ static int net2280_probe (struct pci_dev *pdev, const struct pci_device_id *id)
 		retval = -ENODEV;
 		goto done;
 	}
-#ifndef __sparc__
-	scnprintf (buf, sizeof buf, "%d", pdev->irq);
-	bufp = buf;
-#else
-	bufp = __irq_itoa(pdev->irq);
-#endif
+
 	if (request_irq (pdev->irq, net2280_irq, SA_SHIRQ, driver_name, dev)
 			!= 0) {
-		ERROR (dev, "request interrupt %s failed\n", bufp);
+		ERROR (dev, "request interrupt %d failed\n", pdev->irq);
 		retval = -EBUSY;
 		goto done;
 	}
@@ -2953,8 +2947,8 @@ static int net2280_probe (struct pci_dev *pdev, const struct pci_device_id *id)
 
 	/* done */
 	INFO (dev, "%s\n", driver_desc);
-	INFO (dev, "irq %s, pci mem %p, chip rev %04x\n",
-			bufp, base, dev->chiprev);
+	INFO (dev, "irq %d, pci mem %p, chip rev %04x\n",
+			pdev->irq, base, dev->chiprev);
 	INFO (dev, "version: " DRIVER_VERSION "; dma %s\n",
 			use_dma
 				? (use_dma_chaining ? "chaining" : "enabled")
@@ -2970,6 +2964,22 @@ done:
 	if (dev)
 		net2280_remove (pdev);
 	return retval;
+}
+
+/* make sure the board is quiescent; otherwise it will continue
+ * generating IRQs across the upcoming reboot.
+ */
+
+static void net2280_shutdown (struct pci_dev *pdev)
+{
+	struct net2280		*dev = pci_get_drvdata (pdev);
+
+	/* disable IRQs */
+	writel (0, &dev->regs->pciirqenb0);
+	writel (0, &dev->regs->pciirqenb1);
+
+	/* disable the pullup so the host will think we're gone */
+	writel (0, &dev->usb->usbctl);
 }
 
 
@@ -3001,6 +3011,7 @@ static struct pci_driver net2280_pci_driver = {
 
 	.probe =	net2280_probe,
 	.remove =	net2280_remove,
+	.shutdown =	net2280_shutdown,
 
 	/* FIXME add power management support */
 };

@@ -139,7 +139,7 @@ int hpsb_bus_reset(struct hpsb_host *host);
 
 /*
  * Hand over received selfid packet to the core.  Complement check (second
- * quadlet is complement of first) is expected to be done and succesful.
+ * quadlet is complement of first) is expected to be done and successful.
  */
 void hpsb_selfid_received(struct hpsb_host *host, quadlet_t sid);
 

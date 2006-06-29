@@ -177,7 +177,7 @@ sa1110_sdram_controller_fix:
 	.data
 	.align 5
 ENTRY(sa1100_cpu_resume)
-	mov	r0, #PSR_F_BIT | PSR_I_BIT | MODE_SVC
+	mov	r0, #PSR_F_BIT | PSR_I_BIT | SVC_MODE
 	msr	cpsr_c, r0			@ set SVC, irqs off
 
 	ldr	r0, sleep_save_sp		@ stack phys addr

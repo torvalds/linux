@@ -402,8 +402,7 @@ void rxrpc_put_connection(struct rxrpc_connection *conn)
 
 	/* move to graveyard queue */
 	_debug("burying connection: {%08x}", ntohl(conn->conn_id));
-	list_del(&conn->link);
-	list_add_tail(&conn->link, &peer->conn_graveyard);
+	list_move_tail(&conn->link, &peer->conn_graveyard);
 
 	rxrpc_krxtimod_add_timer(&conn->timeout, rxrpc_conn_timeout * HZ);
 

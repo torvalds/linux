@@ -10,7 +10,6 @@
 #ifndef _ASM_HAZARDS_H
 #define _ASM_HAZARDS_H
 
-#include <linux/config.h>
 
 #ifdef __ASSEMBLY__
 

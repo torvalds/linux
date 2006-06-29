@@ -12,13 +12,13 @@
 
 		.text
 
-/* Prototype: int __arch_clear_user(void *addr, size_t sz)
+/* Prototype: int __clear_user(void *addr, size_t sz)
  * Purpose  : clear some user memory
  * Params   : addr - user memory address to clear
  *          : sz   - number of bytes to clear
  * Returns  : number of bytes NOT cleared
  */
-ENTRY(__arch_clear_user)
+ENTRY(__clear_user)
 		stmfd	sp!, {r1, lr}
 		mov	r2, #0
 		cmp	r1, #4
@@ -43,10 +43,10 @@ USER(		strnebt	r2, [r0], #1)
 		tst	r1, #1			@ x1 x0 x1 x0 x1 x0 x1
 USER(		strnebt	r2, [r0], #1)
 		mov	r0, #0
-		LOADREGS(fd,sp!, {r1, pc})
+		ldmfd	sp!, {r1, pc}
 
 		.section .fixup,"ax"
 		.align	0
-9001:		LOADREGS(fd,sp!, {r0, pc})
+9001:		ldmfd	sp!, {r0, pc}
 		.previous
 

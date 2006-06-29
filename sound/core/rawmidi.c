@@ -43,7 +43,7 @@ MODULE_DESCRIPTION("Midlevel RawMidi code for ALSA.");
 MODULE_LICENSE("GPL");
 
 #ifdef CONFIG_SND_OSSEMUL
-static int midi_map[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS-1)] = 0};
+static int midi_map[SNDRV_CARDS];
 static int amidi_map[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS-1)] = 1};
 module_param_array(midi_map, int, NULL, 0444);
 MODULE_PARM_DESC(midi_map, "Raw MIDI device number assigned to 1st OSS device.");
@@ -1561,7 +1561,6 @@ static int snd_rawmidi_dev_register(struct snd_device *device)
 	entry = snd_info_create_card_entry(rmidi->card, name, rmidi->card->proc_root);
 	if (entry) {
 		entry->private_data = rmidi;
-		entry->c.text.read_size = 1024;
 		entry->c.text.read = snd_rawmidi_proc_info_read;
 		if (snd_info_register(entry) < 0) {
 			snd_info_free_entry(entry);

@@ -6,7 +6,6 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/config.h>
 
 #ifdef CONFIG_ARCH_FOOTBRIDGE
 #define VMALLOC_END       (PAGE_OFFSET + 0x30000000)

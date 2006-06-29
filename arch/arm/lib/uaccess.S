@@ -19,7 +19,7 @@
 
 #define PAGE_SHIFT 12
 
-/* Prototype: int __arch_copy_to_user(void *to, const char *from, size_t n)
+/* Prototype: int __copy_to_user(void *to, const char *from, size_t n)
  * Purpose  : copy a block to user memory from kernel memory
  * Params   : to   - user memory
  *          : from - kernel memory
@@ -39,7 +39,7 @@ USER(		strgtbt	r3, [r0], #1)			@ May fault
 		sub	r2, r2, ip
 		b	.Lc2u_dest_aligned
 
-ENTRY(__arch_copy_to_user)
+ENTRY(__copy_to_user)
 		stmfd	sp!, {r2, r4 - r7, lr}
 		cmp	r2, #4
 		blt	.Lc2u_not_enough
@@ -105,7 +105,7 @@ USER(		strgtbt	r3, [r0], #1)			@ May fault
 		movs	ip, r2
 		bne	.Lc2u_nowords
 .Lc2u_finished:	mov	r0, #0
-		LOADREGS(fd,sp!,{r2, r4 - r7, pc})
+		ldmfd	sp!, {r2, r4 - r7, pc}
 
 .Lc2u_src_not_aligned:
 		bic	r1, r1, #3
@@ -280,10 +280,10 @@ USER(		strgtbt	r3, [r0], #1)			@ May fault
 
 		.section .fixup,"ax"
 		.align	0
-9001:		LOADREGS(fd,sp!, {r0, r4 - r7, pc})
+9001:		ldmfd	sp!, {r0, r4 - r7, pc}
 		.previous
 
-/* Prototype: unsigned long __arch_copy_from_user(void *to,const void *from,unsigned long n);
+/* Prototype: unsigned long __copy_from_user(void *to,const void *from,unsigned long n);
  * Purpose  : copy a block from user memory to kernel memory
  * Params   : to   - kernel memory
  *          : from - user memory
@@ -302,7 +302,7 @@ USER(		ldrgtbt	r3, [r1], #1)			@ May fault
 		sub	r2, r2, ip
 		b	.Lcfu_dest_aligned
 
-ENTRY(__arch_copy_from_user)
+ENTRY(__copy_from_user)
 		stmfd	sp!, {r0, r2, r4 - r7, lr}
 		cmp	r2, #4
 		blt	.Lcfu_not_enough
@@ -369,7 +369,7 @@ USER(		ldrgtbt	r3, [r1], #1)			@ May fault
 		bne	.Lcfu_nowords
 .Lcfu_finished:	mov	r0, #0
 		add	sp, sp, #8
-		LOADREGS(fd,sp!,{r4 - r7, pc})
+		ldmfd	sp!, {r4 - r7, pc}
 
 .Lcfu_src_not_aligned:
 		bic	r1, r1, #3
@@ -556,6 +556,6 @@ USER(		ldrgtbt	r3, [r1], #1)			@ May fault
 		movne	r1, r4
 		blne	__memzero
 		mov	r0, r4
-		LOADREGS(fd,sp!, {r4 - r7, pc})
+		ldmfd	sp!, {r4 - r7, pc}
 		.previous
 

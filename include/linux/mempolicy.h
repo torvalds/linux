@@ -28,7 +28,6 @@
 
 #ifdef __KERNEL__
 
-#include <linux/config.h>
 #include <linux/mmzone.h>
 #include <linux/slab.h>
 #include <linux/rbtree.h>

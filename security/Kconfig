@@ -22,16 +22,22 @@ config KEYS
 	  If you are unsure as to whether this is required, answer N.
 
 config KEYS_DEBUG_PROC_KEYS
-	bool "Enable the /proc/keys file by which all keys may be viewed"
+	bool "Enable the /proc/keys file by which keys may be viewed"
 	depends on KEYS
 	help
-	  This option turns on support for the /proc/keys file through which
-	  all the keys on the system can be listed.
+	  This option turns on support for the /proc/keys file - through which
+	  can be listed all the keys on the system that are viewable by the
+	  reading process.
 
-	  This option is a slight security risk in that it makes it possible
-	  for anyone to see all the keys on the system. Normally the manager
-	  pretends keys that are inaccessible to a process don't exist as far
-	  as that process is concerned.
+	  The only keys included in the list are those that grant View
+	  permission to the reading process whether or not it possesses them.
+	  Note that LSM security checks are still performed, and may further
+	  filter out keys that the current process is not authorised to view.
+
+	  Only key attributes are listed here; key payloads are not included in
+	  the resulting table.
+
+	  If you are unsure as to whether this is required, answer N.
 
 config SECURITY
 	bool "Enable different security models"

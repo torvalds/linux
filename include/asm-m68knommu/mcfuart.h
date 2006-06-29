@@ -12,7 +12,6 @@
 #define	mcfuart_h
 /****************************************************************************/
 
-#include <linux/config.h>
 
 /*
  *	Define the base address of the UARTS within the MBAR address
@@ -45,6 +44,10 @@
 #define MCFUART_BASE1		0x60000		/* Base address of UART1 */
 #define MCFUART_BASE2		0x64000		/* Base address of UART2 */
 #define MCFUART_BASE3		0x68000		/* Base address of UART2 */
+#elif defined(CONFIG_M532x)
+#define MCFUART_BASE1		0xfc060000	/* Base address of UART1 */
+#define MCFUART_BASE2		0xfc064000	/* Base address of UART2 */
+#define MCFUART_BASE3		0xfc068000	/* Base address of UART3 */
 #endif
 
 

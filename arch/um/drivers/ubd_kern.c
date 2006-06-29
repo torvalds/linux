@@ -1222,7 +1222,7 @@ int open_ubd_file(char *file, struct openflags *openflags, int shared,
 		}
 	}
 
-	/* Succesful return case! */
+	/* Successful return case! */
 	if(backing_file_out == NULL)
 		return(fd);
 

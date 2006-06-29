@@ -50,7 +50,7 @@
  * component basis and a per-exception-type basis.
  */
 
-/* Component IDs are used in the global "debug_layer" */
+/* Component IDs are used in the global "DebugLayer" */
 
 #define ACPI_UTILITIES              0x00000001
 #define ACPI_HARDWARE               0x00000002
@@ -121,7 +121,7 @@
 #define ACPI_LV_INTERRUPTS          0x08000000
 #define ACPI_LV_VERBOSITY3          0x0F000000 | ACPI_LV_VERBOSITY2
 
-/* Exceptionally verbose output -- also used in the global "debug_level" */
+/* Exceptionally verbose output -- also used in the global "DebugLevel"  */
 
 #define ACPI_LV_AML_DISASSEMBLE     0x10000000
 #define ACPI_LV_VERBOSE_INFO        0x20000000
@@ -135,7 +135,7 @@
  */
 #define ACPI_DEBUG_LEVEL(dl)        (u32) dl,ACPI_DEBUG_PARAMETERS
 
-/* Exception level -- used in the global "debug_level" */
+/* Exception level -- used in the global "DebugLevel" */
 
 #define ACPI_DB_INIT                ACPI_DEBUG_LEVEL (ACPI_LV_INIT)
 #define ACPI_DB_DEBUG_OBJECT        ACPI_DEBUG_LEVEL (ACPI_LV_DEBUG_OBJECT)
@@ -144,13 +144,13 @@
 
 /*
  * These two levels are essentially obsolete, all instances in the
- * ACPICA core code have been replaced by REPORT_ERROR and REPORT_WARNING
+ * ACPICA core code have been replaced by ACPI_ERROR and ACPI_WARNING
  * (Kept here because some drivers may still use them)
  */
 #define ACPI_DB_ERROR               ACPI_DEBUG_LEVEL (ACPI_LV_ERROR)
 #define ACPI_DB_WARN                ACPI_DEBUG_LEVEL (ACPI_LV_WARN)
 
-/* Trace level -- also used in the global "debug_level" */
+/* Trace level -- also used in the global "DebugLevel" */
 
 #define ACPI_DB_INIT_NAMES          ACPI_DEBUG_LEVEL (ACPI_LV_INIT_NAMES)
 #define ACPI_DB_THREADS             ACPI_DEBUG_LEVEL (ACPI_LV_THREADS)

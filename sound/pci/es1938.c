@@ -1756,7 +1756,8 @@ static int __devinit snd_es1938_probe(struct pci_dev *pci,
 		}
 	}
 	if (snd_mpu401_uart_new(card, 0, MPU401_HW_MPU401,
-				chip->mpu_port, 1, chip->irq, 0, &chip->rmidi) < 0) {
+				chip->mpu_port, MPU401_INFO_INTEGRATED,
+				chip->irq, 0, &chip->rmidi) < 0) {
 		printk(KERN_ERR "es1938: unable to initialize MPU-401\n");
 	} else {
 		// this line is vital for MIDI interrupt handling on ess-solo1

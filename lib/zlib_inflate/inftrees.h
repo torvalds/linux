@@ -1,6 +1,6 @@
 /* inftrees.h -- header to use inftrees.c
- * Copyright (C) 1995-1998 Mark Adler
- * For conditions of distribution and use, see copyright notice in zlib.h 
+ * Copyright (C) 1995-2005 Mark Adler
+ * For conditions of distribution and use, see copyright notice in zlib.h
  */
 
 /* WARNING: this file should *not* be used by applications. It is
@@ -8,57 +8,48 @@
    subject to change. Applications should only use zlib.h.
  */
 
-/* Huffman code lookup table entry--this entry is four bytes for machines
-   that have 16-bit pointers (e.g. PC's in the small or medium model). */
+/* Structure for decoding tables.  Each entry provides either the
+   information needed to do the operation requested by the code that
+   indexed that table entry, or it provides a pointer to another
+   table that indexes more bits of the code.  op indicates whether
+   the entry is a pointer to another table, a literal, a length or
+   distance, an end-of-block, or an invalid code.  For a table
+   pointer, the low four bits of op is the number of index bits of
+   that table.  For a length or distance, the low four bits of op
+   is the number of extra bits to get after the code.  bits is
+   the number of bits in this code or part of the code to drop off
+   of the bit buffer.  val is the actual byte to output in the case
+   of a literal, the base length or distance, or the offset from
+   the current table to the next table.  Each entry is four bytes. */
+typedef struct {
+    unsigned char op;           /* operation, extra bits, table bits */
+    unsigned char bits;         /* bits in this part of the code */
+    unsigned short val;         /* offset in table or code value */
+} code;
 
-#ifndef _INFTREES_H
-#define _INFTREES_H
-
-typedef struct inflate_huft_s inflate_huft;
-
-struct inflate_huft_s {
-  union {
-    struct {
-      Byte Exop;        /* number of extra bits or operation */
-      Byte Bits;        /* number of bits in this code or subcode */
-    } what;
-    uInt pad;           /* pad structure to a power of 2 (4 bytes for */
-  } word;               /*  16-bit, 8 bytes for 32-bit int's) */
-  uInt base;            /* literal, length base, distance base,
-                           or table offset */
-};
+/* op values as set by inflate_table():
+    00000000 - literal
+    0000tttt - table link, tttt != 0 is the number of table index bits
+    0001eeee - length or distance, eeee is the number of extra bits
+    01100000 - end of block
+    01000000 - invalid code
+ */
 
 /* Maximum size of dynamic tree.  The maximum found in a long but non-
-   exhaustive search was 1004 huft structures (850 for length/literals
-   and 154 for distances, the latter actually the result of an
-   exhaustive search).  The actual maximum is not known, but the
-   value below is more than safe. */
-#define MANY 1440
+   exhaustive search was 1444 code structures (852 for length/literals
+   and 592 for distances, the latter actually the result of an
+   exhaustive search).  The true maximum is not known, but the value
+   below is more than safe. */
+#define ENOUGH 2048
+#define MAXD 592
 
-extern int zlib_inflate_trees_bits (
-    uInt *,                     /* 19 code lengths */
-    uInt *,                     /* bits tree desired/actual depth */
-    inflate_huft **,            /* bits tree result */
-    inflate_huft *,             /* space for trees */
-    z_streamp);                 /* for messages */
+/* Type of code to build for inftable() */
+typedef enum {
+    CODES,
+    LENS,
+    DISTS
+} codetype;
 
-extern int zlib_inflate_trees_dynamic (
-    uInt,                       /* number of literal/length codes */
-    uInt,                       /* number of distance codes */
-    uInt *,                     /* that many (total) code lengths */
-    uInt *,                     /* literal desired/actual bit depth */
-    uInt *,                     /* distance desired/actual bit depth */
-    inflate_huft **,            /* literal/length tree result */
-    inflate_huft **,            /* distance tree result */
-    inflate_huft *,             /* space for trees */
-    z_streamp);                 /* for messages */
-
-extern int zlib_inflate_trees_fixed (
-    uInt *,                     /* literal desired/actual bit depth */
-    uInt *,                     /* distance desired/actual bit depth */
-    inflate_huft **,            /* literal/length tree result */
-    inflate_huft **,            /* distance tree result */
-    inflate_huft *,             /* space for trees */
-    z_streamp);                 /* for memory allocation */
-
-#endif /* _INFTREES_H */
+extern int zlib_inflate_table (codetype type, unsigned short *lens,
+                             unsigned codes, code **table,
+                             unsigned *bits, unsigned short *work);

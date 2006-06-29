@@ -13,7 +13,6 @@
 
 #include <asm-generic/4level-fixup.h>
 
-#include <linux/config.h>
 #include <asm/memory.h>
 
 /*

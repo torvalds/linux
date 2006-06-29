@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2003,2005 Silicon Graphics, Inc.
+ * Copyright (c) 2000-2006 Silicon Graphics, Inc.
  * All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -75,6 +75,7 @@ xfs_fsb_to_db_io(struct xfs_iocore *io, xfs_fsblock_t fsb)
  * Prototypes for functions in xfs_rw.c.
  */
 extern int xfs_write_clear_setuid(struct xfs_inode *ip);
+extern int xfs_write_sync_logforce(struct xfs_mount *mp, struct xfs_inode *ip);
 extern int xfs_bwrite(struct xfs_mount *mp, struct xfs_buf *bp);
 extern int xfs_bioerror(struct xfs_buf *bp);
 extern int xfs_bioerror_relse(struct xfs_buf *bp);
@@ -87,9 +88,10 @@ extern void xfs_ioerror_alert(char *func, struct xfs_mount *mp,
 /*
  * Prototypes for functions in xfs_vnodeops.c.
  */
-extern int xfs_rwlock(bhv_desc_t *bdp, vrwlock_t write_lock);
-extern void xfs_rwunlock(bhv_desc_t *bdp, vrwlock_t write_lock);
-extern int xfs_setattr(bhv_desc_t *bdp, vattr_t *vap, int flags, cred_t *credp);
+extern int xfs_rwlock(bhv_desc_t *bdp, bhv_vrwlock_t write_lock);
+extern void xfs_rwunlock(bhv_desc_t *bdp, bhv_vrwlock_t write_lock);
+extern int xfs_setattr(bhv_desc_t *, bhv_vattr_t *vap, int flags,
+		       cred_t *credp);
 extern int xfs_change_file_space(bhv_desc_t *bdp, int cmd, xfs_flock64_t *bf,
 				 xfs_off_t offset, cred_t *credp, int flags);
 extern int xfs_set_dmattrs(bhv_desc_t *bdp, u_int evmask, u_int16_t state,

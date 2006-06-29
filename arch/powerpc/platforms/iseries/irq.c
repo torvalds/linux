@@ -42,6 +42,7 @@
 #include <asm/iseries/it_lp_queue.h>
 
 #include "irq.h"
+#include "pci.h"
 #include "call_pci.h"
 
 #if defined(CONFIG_SMP)
@@ -241,9 +242,9 @@ void __init iSeries_activate_IRQs()
 	for_each_irq (irq) {
 		irq_desc_t *desc = get_irq_desc(irq);
 
-		if (desc && desc->handler && desc->handler->startup) {
+		if (desc && desc->chip && desc->chip->startup) {
 			spin_lock_irqsave(&desc->lock, flags);
-			desc->handler->startup(irq);
+			desc->chip->startup(irq);
 			spin_unlock_irqrestore(&desc->lock, flags);
 		}
 	}
@@ -312,18 +313,18 @@ static hw_irq_controller iSeries_IRQ_handler = {
  * Note that sub_bus is always 0 (at the moment at least).
  */
 int __init iSeries_allocate_IRQ(HvBusNumber bus,
-		HvSubBusNumber sub_bus, HvAgentId dev_id)
+		HvSubBusNumber sub_bus, u32 bsubbus)
 {
 	int virtirq;
 	unsigned int realirq;
-	u8 idsel = (dev_id >> 4);
-	u8 function = dev_id & 7;
+	u8 idsel = ISERIES_GET_DEVICE_FROM_SUBBUS(bsubbus);
+	u8 function = ISERIES_GET_FUNCTION_FROM_SUBBUS(bsubbus);
 
 	realirq = (((((sub_bus << 8) + (bus - 1)) << 3) + (idsel - 1)) << 3)
 		+ function;
 	virtirq = virt_irq_create_mapping(realirq);
 
-	irq_desc[virtirq].handler = &iSeries_IRQ_handler;
+	irq_desc[virtirq].chip = &iSeries_IRQ_handler;
 	return virtirq;
 }
 

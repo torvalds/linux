@@ -268,7 +268,7 @@ acpi_status acpi_remove_gpe_block(acpi_handle gpe_device);
  * Resource interfaces
  */
 typedef
-acpi_status(*ACPI_WALK_RESOURCE_CALLBACK) (struct acpi_resource * resource,
+acpi_status(*acpi_walk_resource_callback) (struct acpi_resource * resource,
 					   void *context);
 
 acpi_status
@@ -290,7 +290,7 @@ acpi_get_possible_resources(acpi_handle device_handle,
 acpi_status
 acpi_walk_resources(acpi_handle device_handle,
 		    char *name,
-		    ACPI_WALK_RESOURCE_CALLBACK user_function, void *context);
+		    acpi_walk_resource_callback user_function, void *context);
 
 acpi_status
 acpi_set_current_resources(acpi_handle device_handle,

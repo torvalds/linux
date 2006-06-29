@@ -551,11 +551,11 @@ static u32 fixup_pmc551 (struct pci_dev *dev)
         /*
          * Some screen fun
          */
-        printk(KERN_DEBUG "pmc551: %d%c (0x%x) of %sprefetchable memory at 0x%lx\n",
+        printk(KERN_DEBUG "pmc551: %d%c (0x%x) of %sprefetchable memory at 0x%llx\n",
 	       (size<1024)?size:(size<1048576)?size>>10:size>>20,
                (size<1024)?'B':(size<1048576)?'K':'M',
 	       size, ((dcmd&(0x1<<3)) == 0)?"non-":"",
-               (dev->resource[0].start)&PCI_BASE_ADDRESS_MEM_MASK );
+               (unsigned long long)((dev->resource[0].start)&PCI_BASE_ADDRESS_MEM_MASK));
 
         /*
          * Check to see the state of the memory
@@ -685,8 +685,8 @@ static int __init init_pmc551(void)
                         break;
                 }
 
-                printk(KERN_NOTICE "pmc551: Found PCI V370PDC at 0x%lX\n",
-				    PCI_Device->resource[0].start);
+                printk(KERN_NOTICE "pmc551: Found PCI V370PDC at 0x%llx\n",
+				    (unsigned long long)PCI_Device->resource[0].start);
 
                 /*
                  * The PMC551 device acts VERY weird if you don't init it
@@ -778,7 +778,8 @@ static int __init init_pmc551(void)
                 mtd->type 	= MTD_RAM;
                 mtd->name 	= "PMC551 RAM board";
                 mtd->erasesize 	= 0x10000;
-		mtd->owner = THIS_MODULE;
+                mtd->writesize  = 1;
+                mtd->owner = THIS_MODULE;
 
                 if (add_mtd_device(mtd)) {
                         printk(KERN_NOTICE "pmc551: Failed to register new device\n");

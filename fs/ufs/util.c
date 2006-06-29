@@ -14,15 +14,6 @@
 #include "swab.h"
 #include "util.h"
 
-#undef UFS_UTILS_DEBUG
-
-#ifdef UFS_UTILS_DEBUG
-#define UFSD(x) printk("(%s, %d), %s: ", __FILE__, __LINE__, __FUNCTION__); printk x;
-#else
-#define UFSD(x)
-#endif
-
-
 struct ufs_buffer_head * _ubh_bread_ (struct ufs_sb_private_info * uspi,
 	struct super_block *sb, u64 fragment, u64 size)
 {
@@ -63,17 +54,17 @@ struct ufs_buffer_head * ubh_bread_uspi (struct ufs_sb_private_info * uspi,
 	count = size >> uspi->s_fshift;
 	if (count <= 0 || count > UFS_MAXFRAG)
 		return NULL;
-	USPI_UBH->fragment = fragment;
-	USPI_UBH->count = count;
+	USPI_UBH(uspi)->fragment = fragment;
+	USPI_UBH(uspi)->count = count;
 	for (i = 0; i < count; i++)
-		if (!(USPI_UBH->bh[i] = sb_bread(sb, fragment + i)))
+		if (!(USPI_UBH(uspi)->bh[i] = sb_bread(sb, fragment + i)))
 			goto failed;
 	for (; i < UFS_MAXFRAG; i++)
-		USPI_UBH->bh[i] = NULL;
-	return USPI_UBH;
+		USPI_UBH(uspi)->bh[i] = NULL;
+	return USPI_UBH(uspi);
 failed:
 	for (j = 0; j < i; j++)
-		brelse (USPI_UBH->bh[j]);
+		brelse (USPI_UBH(uspi)->bh[j]);
 	return NULL;
 }
 
@@ -90,11 +81,11 @@ void ubh_brelse (struct ufs_buffer_head * ubh)
 void ubh_brelse_uspi (struct ufs_sb_private_info * uspi)
 {
 	unsigned i;
-	if (!USPI_UBH)
+	if (!USPI_UBH(uspi))
 		return;
-	for ( i = 0; i < USPI_UBH->count; i++ ) {
-		brelse (USPI_UBH->bh[i]);
-		USPI_UBH->bh[i] = NULL;
+	for ( i = 0; i < USPI_UBH(uspi)->count; i++ ) {
+		brelse (USPI_UBH(uspi)->bh[i]);
+		USPI_UBH(uspi)->bh[i] = NULL;
 	}
 }
 
@@ -121,13 +112,12 @@ void ubh_mark_buffer_uptodate (struct ufs_buffer_head * ubh, int flag)
 	}
 }
 
-void ubh_ll_rw_block (int rw, unsigned nr, struct ufs_buffer_head * ubh[])
+void ubh_ll_rw_block(int rw, struct ufs_buffer_head *ubh)
 {
-	unsigned i;
 	if (!ubh)
 		return;
-	for ( i = 0; i < nr; i++ )
-		ll_rw_block (rw, ubh[i]->count, ubh[i]->bh);
+
+	ll_rw_block(rw, ubh->count, ubh->bh);
 }
 
 void ubh_wait_on_buffer (struct ufs_buffer_head * ubh)
@@ -137,18 +127,6 @@ void ubh_wait_on_buffer (struct ufs_buffer_head * ubh)
 		return;
 	for ( i = 0; i < ubh->count; i++ )
 		wait_on_buffer (ubh->bh[i]);
-}
-
-unsigned ubh_max_bcount (struct ufs_buffer_head * ubh)
-{
-	unsigned i;
-	unsigned max = 0;
-	if (!ubh)
-		return 0;
-	for ( i = 0; i < ubh->count; i++ ) 
-		if ( atomic_read(&ubh->bh[i]->b_count) > max )
-			max = atomic_read(&ubh->bh[i]->b_count);
-	return max;
 }
 
 void ubh_bforget (struct ufs_buffer_head * ubh)

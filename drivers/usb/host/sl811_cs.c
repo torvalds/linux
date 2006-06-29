@@ -27,7 +27,7 @@
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ds.h>
 
-#include <linux/usb_sl811.h>
+#include <linux/usb/sl811.h>
 
 MODULE_AUTHOR("Botond Botyanszki");
 MODULE_DESCRIPTION("REX-CFU1U PCMCIA driver for 2.6");

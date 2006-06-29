@@ -98,7 +98,7 @@ gt64260_init_irq(void)
 
 	/* use the gt64260 for all (possible) interrupt sources */
 	for (i = gt64260_irq_base; i < (gt64260_irq_base + 96); i++)
-		irq_desc[i].handler = &gt64260_pic;
+		irq_desc[i].chip = &gt64260_pic;
 
 	if (ppc_md.progress)
 		ppc_md.progress("gt64260_init_irq: exit", 0x0);

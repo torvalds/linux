@@ -110,13 +110,16 @@ config SERIAL_TEXT_DEBUG
 	depends on 4xx || LOPEC || MV64X60 || PPLUS || PRPMC800 || \
 		PPC_GEN550 || PPC_MPC52xx
 
+config PPC_EARLY_DEBUG
+	bool "Early debugging (dangerous)"
+
 choice
-	prompt "Early debugging (dangerous)"
-	bool
-	optional
+	prompt "Early debugging console"
+	depends on PPC_EARLY_DEBUG
 	help
-	  Enable early debugging. Careful, if you enable debugging for the
-	  wrong type of machine your kernel _will not boot_.
+	  Use the selected console for early debugging. Careful, if you
+	  enable debugging for the wrong type of machine your kernel
+	  _will not boot_.
 
 config PPC_EARLY_DEBUG_LPAR
 	bool "LPAR HV Console"
@@ -131,11 +134,18 @@ config PPC_EARLY_DEBUG_G5
 	help
 	  Select this to enable early debugging for Apple G5 machines.
 
-config PPC_EARLY_DEBUG_RTAS
+config PPC_EARLY_DEBUG_RTAS_PANEL
 	bool "RTAS Panel"
 	depends on PPC_RTAS
 	help
 	  Select this to enable early debugging via the RTAS panel.
+
+config PPC_EARLY_DEBUG_RTAS_CONSOLE
+	bool "RTAS Console"
+	depends on PPC_RTAS
+	select UDBG_RTAS_CONSOLE
+	help
+	  Select this to enable early debugging via the RTAS console.
 
 config PPC_EARLY_DEBUG_MAPLE
 	bool "Maple real mode"

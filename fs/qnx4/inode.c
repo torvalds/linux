@@ -128,7 +128,7 @@ static struct inode *qnx4_alloc_inode(struct super_block *sb);
 static void qnx4_destroy_inode(struct inode *inode);
 static void qnx4_read_inode(struct inode *);
 static int qnx4_remount(struct super_block *sb, int *flags, char *data);
-static int qnx4_statfs(struct super_block *, struct kstatfs *);
+static int qnx4_statfs(struct dentry *, struct kstatfs *);
 
 static struct super_operations qnx4_sops =
 {
@@ -282,8 +282,10 @@ unsigned long qnx4_block_map( struct inode *inode, long iblock )
 	return block;
 }
 
-static int qnx4_statfs(struct super_block *sb, struct kstatfs *buf)
+static int qnx4_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
+	struct super_block *sb = dentry->d_sb;
+
 	lock_kernel();
 
 	buf->f_type    = sb->s_magic;
@@ -448,7 +450,7 @@ static sector_t qnx4_bmap(struct address_space *mapping, sector_t block)
 {
 	return generic_block_bmap(mapping,block,qnx4_get_block);
 }
-static struct address_space_operations qnx4_aops = {
+static const struct address_space_operations qnx4_aops = {
 	.readpage	= qnx4_readpage,
 	.writepage	= qnx4_writepage,
 	.sync_page	= block_sync_page,
@@ -561,10 +563,11 @@ static void destroy_inodecache(void)
 		       "qnx4_inode_cache: not all structures were freed\n");
 }
 
-static struct super_block *qnx4_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data)
+static int qnx4_get_sb(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
 {
-	return get_sb_bdev(fs_type, flags, dev_name, data, qnx4_fill_super);
+	return get_sb_bdev(fs_type, flags, dev_name, data, qnx4_fill_super,
+			   mnt);
 }
 
 static struct file_system_type qnx4_fs_type = {

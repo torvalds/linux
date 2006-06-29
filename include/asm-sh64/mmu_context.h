@@ -26,7 +26,6 @@
  */
 extern unsigned long mmu_context_cache;
 
-#include <linux/config.h>
 #include <asm/page.h>
 
 

@@ -52,7 +52,7 @@
  */
 #define MAX_IRQ_CNT	100000
 
-static int noirqdebug;
+static int noirqdebug __read_mostly;
 static volatile unsigned long irq_err_count;
 static DEFINE_SPINLOCK(irq_controller_lock);
 static LIST_HEAD(irq_pending);
@@ -81,7 +81,7 @@ irqreturn_t no_action(int irq, void *dev_id, struct pt_regs *regs)
 
 void do_bad_IRQ(unsigned int irq, struct irqdesc *desc, struct pt_regs *regs)
 {
-	irq_err_count += 1;
+	irq_err_count++;
 	printk(KERN_ERR "IRQ: spurious interrupt %d\n", irq);
 }
 
@@ -342,10 +342,10 @@ __do_irq(unsigned int irq, struct irqaction *action, struct pt_regs *regs)
 
 #ifdef CONFIG_NO_IDLE_HZ
 	if (!(action->flags & SA_TIMER) && system_timer->dyn_tick != NULL) {
-		write_seqlock(&xtime_lock);
+		spin_lock(&system_timer->dyn_tick->lock);
 		if (system_timer->dyn_tick->state & DYN_TICK_ENABLED)
 			system_timer->dyn_tick->handler(irq, 0, regs);
-		write_sequnlock(&xtime_lock);
+		spin_unlock(&system_timer->dyn_tick->lock);
 	}
 #endif
 

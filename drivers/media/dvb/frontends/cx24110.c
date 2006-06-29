@@ -36,8 +36,6 @@ struct cx24110_state {
 
 	struct i2c_adapter* i2c;
 
-	struct dvb_frontend_ops ops;
-
 	const struct cx24110_config* config;
 
 	struct dvb_frontend frontend;
@@ -250,7 +248,7 @@ static int cx24110_set_symbolrate (struct cx24110_state* state, u32 srate)
 	static const u32 bands[]={5000000UL,15000000UL,90999000UL/2};
 	int i;
 
-dprintk("cx24110 debug: entering %s(%d)\n",__FUNCTION__,srate);
+	dprintk("cx24110 debug: entering %s(%d)\n",__FUNCTION__,srate);
 	if (srate>90999000UL/2)
 		srate=90999000UL/2;
 	if (srate<500000)
@@ -366,17 +364,6 @@ static int cx24110_initfe(struct dvb_frontend* fe)
 		cx24110_writereg(state, cx24110_regdata[i].reg, cx24110_regdata[i].data);
 	};
 
-	if (state->config->pll_init) state->config->pll_init(fe);
-
-	return 0;
-}
-
-static int cx24110_sleep(struct dvb_frontend *fe)
-{
-	struct cx24110_state *state = fe->demodulator_priv;
-
-	if (state->config->pll_sleep)
-		  return state->config->pll_sleep(fe);
 	return 0;
 }
 
@@ -548,7 +535,12 @@ static int cx24110_set_frontend(struct dvb_frontend* fe, struct dvb_frontend_par
 {
 	struct cx24110_state *state = fe->demodulator_priv;
 
-	state->config->pll_set(fe, p);
+
+	if (fe->ops.tuner_ops.set_params) {
+		fe->ops.tuner_ops.set_params(fe, p);
+		if (fe->ops.i2c_gate_ctrl) fe->ops.i2c_gate_ctrl(fe, 0);
+	}
+
 	cx24110_set_inversion (state, p->inversion);
 	cx24110_set_fec (state, p->u.qpsk.fec_inner);
 	cx24110_set_symbolrate (state, p->u.qpsk.symbol_rate);
@@ -612,7 +604,6 @@ struct dvb_frontend* cx24110_attach(const struct cx24110_config* config,
 	/* setup the state */
 	state->config = config;
 	state->i2c = i2c;
-	memcpy(&state->ops, &cx24110_ops, sizeof(struct dvb_frontend_ops));
 	state->lastber = 0;
 	state->lastbler = 0;
 	state->lastesn0 = 0;
@@ -622,7 +613,7 @@ struct dvb_frontend* cx24110_attach(const struct cx24110_config* config,
 	if ((ret != 0x5a) && (ret != 0x69)) goto error;
 
 	/* create dvb_frontend */
-	state->frontend.ops = &state->ops;
+	memcpy(&state->frontend.ops, &cx24110_ops, sizeof(struct dvb_frontend_ops));
 	state->frontend.demodulator_priv = state;
 	return &state->frontend;
 
@@ -651,7 +642,6 @@ static struct dvb_frontend_ops cx24110_ops = {
 	.release = cx24110_release,
 
 	.init = cx24110_initfe,
-	.sleep = cx24110_sleep,
 	.set_frontend = cx24110_set_frontend,
 	.get_frontend = cx24110_get_frontend,
 	.read_status = cx24110_read_status,

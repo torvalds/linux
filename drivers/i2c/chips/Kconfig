@@ -39,12 +39,16 @@ config SENSORS_EEPROM
 config SENSORS_PCF8574
 	tristate "Philips PCF8574 and PCF8574A"
 	depends on I2C && EXPERIMENTAL
+	default n
 	help
 	  If you say yes here you get support for Philips PCF8574 and 
 	  PCF8574A chips.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called pcf8574.
+
+	  These devices are hard to detect and rarely found on mainstream
+	  hardware.  If unsure, say N.
 
 config SENSORS_PCA9539
 	tristate "Philips PCA9539 16-bit I/O port"
@@ -59,11 +63,15 @@ config SENSORS_PCA9539
 config SENSORS_PCF8591
 	tristate "Philips PCF8591"
 	depends on I2C && EXPERIMENTAL
+	default n
 	help
 	  If you say yes here you get support for Philips PCF8591 chips.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called pcf8591.
+
+	  These devices are hard to detect and rarely found on mainstream
+	  hardware.  If unsure, say N.
 
 config ISP1301_OMAP
 	tristate "Philips ISP1301 with OMAP OTG"

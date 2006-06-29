@@ -5,7 +5,7 @@
 
 mainmenu "uClinux/68k (w/o MMU) Kernel Configuration"
 
-config M68KNOMMU
+config M68K
 	bool
 	default y
 
@@ -119,6 +119,11 @@ config M5307
 	help
 	  Motorola ColdFire 5307 processor support.
 
+config M532x
+	bool "MCF532x"
+	help
+	  Freescale (Motorola) ColdFire 532x processor support.
+
 config M5407
 	bool "MCF5407"
 	help
@@ -133,125 +138,43 @@ config M527x
 
 config COLDFIRE
 	bool
-	depends on (M5206 || M5206e || M520x || M523x || M5249 || M527x || M5272 || M528x || M5307 || M5407)
+	depends on (M5206 || M5206e || M520x || M523x || M5249 || M527x || M5272 || M528x || M5307 || M532x || M5407)
 	default y
 
-choice
-	prompt "CPU CLOCK Frequency"
-	default AUTO
-
-config CLOCK_AUTO
-	bool "AUTO"
-	---help---
-	  Define the CPU clock frequency in use. On many boards you don't
-	  really need to know, so you can select the AUTO option. On some
-	  boards you need to know the real clock frequency to determine other
-	  system timing (for example baud rate dividors, etc). Some processors
-	  have an internal PLL and you can select a frequency to run at.
-	  You need to know a little about the internals of your processor to
-	  set this. If in doubt choose the AUTO option.
-
-config CLOCK_11MHz
-	bool "11MHz"
+config CLOCK_SET
+	bool "Enable setting the CPU clock frequency"
+	default n
 	help
-	  Select a 11MHz CPU clock frequency.
+	  On some CPU's you do not need to know what the core CPU clock
+	  frequency is. On these you can disable clock setting. On some
+	  traditional 68K parts, and on all ColdFire parts you need to set
+	  the appropriate CPU clock frequency. On these devices many of the
+	  onboard peripherals derive their timing from the master CPU clock
+	  frequency.
 
-config CLOCK_16MHz
-	bool "16MHz"
+config CLOCK_FREQ
+	int "Set the core clock frequency"
+	default "66666666"
+	depends on CLOCK_SET
 	help
-	  Select a 16MHz CPU clock frequency.
+	  Define the CPU clock frequency in use. This is the core clock
+	  frequency, it may or may not be the same as the external clock
+	  crystal fitted to your board. Some processors have an internal
+	  PLL and can have their frequency programmed at run time, others
+	  use internal dividers. In gernal the kernel won't setup a PLL
+	  if it is fitted (there are some expections). This value will be
+	  specific to the exact CPU that you are using.
 
-config CLOCK_20MHz
-	bool "20MHz"
+config CLOCK_DIV
+	int "Set the core/bus clock divide ratio"
+	default "1"
+	depends on CLOCK_SET
 	help
-	  Select a 20MHz CPU clock frequency.
-
-config CLOCK_24MHz
-	bool "24MHz"
-	help
-	  Select a 24MHz CPU clock frequency.
-
-config CLOCK_25MHz
-	bool "25MHz"
-	help
-	  Select a 25MHz CPU clock frequency.
-
-config CLOCK_33MHz
-	bool "33MHz"
-	help
-	  Select a 33MHz CPU clock frequency.
-
-config CLOCK_40MHz
-	bool "40MHz"
-	help
-	  Select a 40MHz CPU clock frequency.
-
-config CLOCK_45MHz
-	bool "45MHz"
-	help
-	  Select a 45MHz CPU clock frequency.
-
-config CLOCK_48MHz
-	bool "48MHz"
-	help
-	  Select a 48MHz CPU clock frequency.
-
-config CLOCK_50MHz
-	bool "50MHz"
-	help
-	  Select a 50MHz CPU clock frequency.
-
-config CLOCK_54MHz
-	bool "54MHz"
-	help
-	  Select a 54MHz CPU clock frequency.
-
-config CLOCK_60MHz
-	bool "60MHz"
-	help
-	  Select a 60MHz CPU clock frequency.
-
-config CLOCK_62_5MHz
-	bool "62.5MHz"
-	help
-	  Select a 62.5MHz CPU clock frequency.
-
-config CLOCK_64MHz
-	bool "64MHz"
-	help
-	  Select a 64MHz CPU clock frequency.
-
-config CLOCK_66MHz
-	bool "66MHz"
-	help
-	  Select a 66MHz CPU clock frequency.
-
-config CLOCK_70MHz
-	bool "70MHz"
-	help
-	  Select a 70MHz CPU clock frequency.
-
-config CLOCK_100MHz
-	bool "100MHz"
-	help
-	  Select a 100MHz CPU clock frequency.
-
-config CLOCK_140MHz
-	bool "140MHz"
-	help
-	  Select a 140MHz CPU clock frequency.
-
-config CLOCK_150MHz
-	bool "150MHz"
-	help
-	  Select a 150MHz CPU clock frequency.
-
-config CLOCK_166MHz
-	bool "166MHz"
-	help
-	  Select a 166MHz CPU clock frequency.
-
-endchoice
+	  On many SoC style CPUs the master CPU clock is also used to drive 
+	  on-chip peripherals. The clock that is distributed to these
+	  peripherals is sometimes a fixed ratio of the master clock
+	  frequency. If so then set this to the divider ration of the
+	  master clock to the peripheral clock. If not sure then select 1.
 
 config OLDMASK
 	bool "Old mask 5307 (1H55J) silicon"
@@ -377,6 +300,12 @@ config COBRA5272
 	help
 	  Support for the senTec COBRA5272 board.
 
+config AVNET5282
+	bool "Avnet 5282 board support"
+	depends on M528x
+	help
+	  Support for the Avnet 5282 board.  
+	  
 config M5282EVB
 	bool "Motorola M5282EVB board support"
 	depends on M528x
@@ -418,6 +347,18 @@ config SECUREEDGEMP3
 	depends on M5307
 	help
 	  Support for the SnapGear SecureEdge/MP3 platform.
+
+config M5329EVB
+	bool "Freescale (Motorola) M5329EVB board support"
+	depends on M532x
+	help
+	  Support for the Freescale (Motorola) M5329EVB board.
+
+config COBRA5329
+	bool "senTec COBRA5329 board support"
+	depends on M532x
+	help
+	  Support for the senTec COBRA5329 board.
 
 config M5407C3
 	bool "Motorola M5407C3 board support"
@@ -487,7 +428,7 @@ config ARNEWSH
 config FREESCALE
 	bool
 	default y
-	depends on (M5206eC3 || M5208EVB || M5235EVB || M5249C3 || M5271EVB || M5272C3 || M5275EVB || M5282EVB || M5307C3 || M5407C3)
+	depends on (M5206eC3 || M5208EVB || M5235EVB || M5249C3 || M5271EVB || M5272C3 || M5275EVB || M5282EVB || M5307C3 || M5329EVB || M5407C3)
 
 config HW_FEITH
 	bool
@@ -508,6 +449,11 @@ config SNEHA
         bool
 	default y
 	depends on CPU16B
+	
+config AVNET
+	bool
+	default y
+	depends on (AVNET5282)
 
 config LARGE_ALLOCS
 	bool "Allow allocating large blocks (> 1MB) of memory"
@@ -526,38 +472,46 @@ config 4KSTACKS
 	  running more threads on a system and also reduces the pressure
 	  on the VM subsystem for higher order allocations.
 
-choice
-	prompt "RAM size"
-	default AUTO
+comment "RAM configuration"
 
-config RAMAUTO
-	bool "AUTO"
-	---help---
-	  Configure the RAM size on your platform. Many platforms can auto
-	  detect this, on those choose the AUTO option. Otherwise set the
-	  RAM size you intend using.
-
-config RAM4MB
-	bool "4MiB"
+config RAMBASE
+	hex "Address of the base of RAM"
+	default "0"
 	help
-	  Set RAM size to be 4MiB.
+	  Define the address that RAM starts at. On many platforms this is
+	  0, the base of the address space. And this is the default. Some
+	  platforms choose to setup their RAM at other addresses within the
+	  processor address space.
 
-config RAM8MB
-	bool "8MiB"
+config RAMSIZE
+	hex "Size of RAM (in bytes)"
+	default "0x400000"
 	help
-	  Set RAM size to be 8MiB.
+	  Define the size of the system RAM. If you select 0 then the
+	  kernel will try to probe the RAM size at runtime. This is not
+	  supported on all CPU types.
 
-config RAM16MB
-	bool "16MiB"
+config VECTORBASE
+	hex "Address of the base of system vectors"
+	default "0"
 	help
-	  Set RAM size to be 16MiB.
+	  Define the address of the the system vectors. Commonly this is
+	  put at the start of RAM, but it doesn't have to be. On ColdFire
+	  platforms this address is programmed into the VBR register, thus
+	  actually setting the address to use.
 
-config RAM32MB
-	bool "32MiB"
+config KERNELBASE
+	hex "Address of the base of kernel code"
+	default "0x400"
 	help
-	  Set RAM size to be 32MiB.
-
-endchoice
+	  Typically on m68k systems the kernel will not start at the base
+	  of RAM, but usually some small offset from it. Define the start
+	  address of the kernel here. The most common setup will have the
+	  processor vectors at the base of RAM and then the start of the
+	  kernel. On some platforms some RAM is reserved for boot loaders
+	  and the kernel starts after that. The 0x400 default was based on
+	  a system with the RAM based at address 0, and leaving enough room
+	  for the theoretical maximum number of 256 vectors.
 
 choice
 	prompt "RAM bus width"
@@ -565,7 +519,7 @@ choice
 
 config RAMAUTOBIT
 	bool "AUTO"
-	---help---
+	help
 	  Select the physical RAM data bus size. Not needed on most platforms,
 	  so you can generally choose AUTO.
 
@@ -586,6 +540,59 @@ config RAM32BIT
 
 endchoice
 
+comment "ROM configuration"
+
+config ROM
+	bool "Specify ROM linker regions"
+	default n
+	help
+	  Define a ROM region for the linker script. This creates a kernel
+	  that can be stored in flash, with possibly the text, and data
+	  regions being copied out to RAM at startup.
+
+config ROMBASE
+	hex "Address of the base of ROM device"
+	default "0"
+	depends on ROM
+	help
+	  Define the address that the ROM region starts at. Some platforms
+	  use this to set their chip select region accordingly for the boot
+	  device.
+
+config ROMVEC
+	hex "Address of the base of the ROM vectors"
+	default "0"
+	depends on ROM
+	help
+	  This is almost always the same as the base of the ROM. Since on all
+	  68000 type varients the vectors are at the base of the boot device
+	  on system startup.
+
+config ROMVECSIZE
+	hex "Size of ROM vector region (in bytes)"
+	default "0x400"
+	depends on ROM
+	help
+	  Define the size of the vector region in ROM. For most 68000
+	  varients this would be 0x400 bytes in size. Set to 0 if you do
+	  not want a vector region at the start of the ROM.
+
+config ROMSTART
+	hex "Address of the base of system image in ROM"
+	default "0x400"
+	depends on ROM
+	help
+	  Define the start address of the system image in ROM. Commonly this
+	  is strait after the ROM vectors.
+
+config ROMSIZE
+	hex "Size of the ROM device"
+	default "0x100000"
+	depends on ROM
+	help
+	  Size of the ROM device. On some platforms this is used to setup
+	  the chip select that controls the boot ROM device.
+
 choice
 	prompt "Kernel executes from"
 	---help---
@@ -599,7 +606,9 @@ config RAMKERNEL
 config ROMKERNEL
 	bool "ROM"
 	help
-	  The kernel will be resident in FLASH/ROM when running.
+	  The kernel will be resident in FLASH/ROM when running. This is
+	  often referred to as Execute-in-Place (XIP), since the kernel
+	  code executes from the position it is stored in the FLASH/ROM.
 
 endchoice
 

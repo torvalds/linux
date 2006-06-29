@@ -12,6 +12,8 @@
 #include "dm-log.h"
 #include "dm-io.h"
 
+#define DM_MSG_PREFIX "mirror log"
+
 static LIST_HEAD(_log_types);
 static DEFINE_SPINLOCK(_lock);
 
@@ -155,8 +157,6 @@ struct log_c {
 
 	struct io_region header_location;
 	struct log_header *disk_header;
-
-	struct io_region bits_location;
 };
 
 /*
@@ -241,43 +241,21 @@ static inline int write_header(struct log_c *log)
 }
 
 /*----------------------------------------------------------------
- * Bits IO
- *--------------------------------------------------------------*/
-static int read_bits(struct log_c *log)
-{
-	int r;
-	unsigned long ebits;
-
-	r = dm_io_sync_vm(1, &log->bits_location, READ,
-			  log->clean_bits, &ebits);
-	if (r)
-		return r;
-
-	return 0;
-}
-
-static int write_bits(struct log_c *log)
-{
-	unsigned long ebits;
-	return dm_io_sync_vm(1, &log->bits_location, WRITE,
-			     log->clean_bits, &ebits);
-}
-
-/*----------------------------------------------------------------
  * core log constructor/destructor
  *
  * argv contains region_size followed optionally by [no]sync
  *--------------------------------------------------------------*/
 #define BYTE_SHIFT 3
-static int core_ctr(struct dirty_log *log, struct dm_target *ti,
-		    unsigned int argc, char **argv)
+static int create_log_context(struct dirty_log *log, struct dm_target *ti,
+			      unsigned int argc, char **argv,
+			      struct dm_dev *dev)
 {
 	enum sync sync = DEFAULTSYNC;
 
 	struct log_c *lc;
 	uint32_t region_size;
 	unsigned int region_count;
-	size_t bitset_size;
+	size_t bitset_size, buf_size;
 
 	if (argc < 1 || argc > 2) {
 		DMWARN("wrong number of arguments to mirror log");
@@ -319,22 +297,53 @@ static int core_ctr(struct dirty_log *log, struct dm_target *ti,
 	 * Work out how many "unsigned long"s we need to hold the bitset.
 	 */
 	bitset_size = dm_round_up(region_count,
-				  sizeof(unsigned long) << BYTE_SHIFT);
+				  sizeof(*lc->clean_bits) << BYTE_SHIFT);
 	bitset_size >>= BYTE_SHIFT;
 
-	lc->bitset_uint32_count = bitset_size / 4;
-	lc->clean_bits = vmalloc(bitset_size);
-	if (!lc->clean_bits) {
-		DMWARN("couldn't allocate clean bitset");
-		kfree(lc);
-		return -ENOMEM;
+	lc->bitset_uint32_count = bitset_size / sizeof(*lc->clean_bits);
+
+	/*
+	 * Disk log?
+	 */
+	if (!dev) {
+		lc->clean_bits = vmalloc(bitset_size);
+		if (!lc->clean_bits) {
+			DMWARN("couldn't allocate clean bitset");
+			kfree(lc);
+			return -ENOMEM;
+		}
+		lc->disk_header = NULL;
+	} else {
+		lc->log_dev = dev;
+		lc->header_location.bdev = lc->log_dev->bdev;
+		lc->header_location.sector = 0;
+
+		/*
+		 * Buffer holds both header and bitset.
+		 */
+		buf_size = dm_round_up((LOG_OFFSET << SECTOR_SHIFT) +
+				       bitset_size, ti->limits.hardsect_size);
+		lc->header_location.count = buf_size >> SECTOR_SHIFT;
+
+		lc->disk_header = vmalloc(buf_size);
+		if (!lc->disk_header) {
+			DMWARN("couldn't allocate disk log buffer");
+			kfree(lc);
+			return -ENOMEM;
+		}
+
+		lc->clean_bits = (void *)lc->disk_header +
+				 (LOG_OFFSET << SECTOR_SHIFT);
 	}
+
 	memset(lc->clean_bits, -1, bitset_size);
 
 	lc->sync_bits = vmalloc(bitset_size);
 	if (!lc->sync_bits) {
 		DMWARN("couldn't allocate sync bitset");
-		vfree(lc->clean_bits);
+		if (!dev)
+			vfree(lc->clean_bits);
+		vfree(lc->disk_header);
 		kfree(lc);
 		return -ENOMEM;
 	}
@@ -345,23 +354,38 @@ static int core_ctr(struct dirty_log *log, struct dm_target *ti,
 	if (!lc->recovering_bits) {
 		DMWARN("couldn't allocate sync bitset");
 		vfree(lc->sync_bits);
-		vfree(lc->clean_bits);
+		if (!dev)
+			vfree(lc->clean_bits);
+		vfree(lc->disk_header);
 		kfree(lc);
 		return -ENOMEM;
 	}
 	memset(lc->recovering_bits, 0, bitset_size);
 	lc->sync_search = 0;
 	log->context = lc;
+
 	return 0;
+}
+
+static int core_ctr(struct dirty_log *log, struct dm_target *ti,
+		    unsigned int argc, char **argv)
+{
+	return create_log_context(log, ti, argc, argv, NULL);
+}
+
+static void destroy_log_context(struct log_c *lc)
+{
+	vfree(lc->sync_bits);
+	vfree(lc->recovering_bits);
+	kfree(lc);
 }
 
 static void core_dtr(struct dirty_log *log)
 {
 	struct log_c *lc = (struct log_c *) log->context;
+
 	vfree(lc->clean_bits);
-	vfree(lc->sync_bits);
-	vfree(lc->recovering_bits);
-	kfree(lc);
+	destroy_log_context(lc);
 }
 
 /*----------------------------------------------------------------
@@ -373,8 +397,6 @@ static int disk_ctr(struct dirty_log *log, struct dm_target *ti,
 		    unsigned int argc, char **argv)
 {
 	int r;
-	size_t size;
-	struct log_c *lc;
 	struct dm_dev *dev;
 
 	if (argc < 2 || argc > 3) {
@@ -387,49 +409,22 @@ static int disk_ctr(struct dirty_log *log, struct dm_target *ti,
 	if (r)
 		return r;
 
-	r = core_ctr(log, ti, argc - 1, argv + 1);
+	r = create_log_context(log, ti, argc - 1, argv + 1, dev);
 	if (r) {
 		dm_put_device(ti, dev);
 		return r;
 	}
 
-	lc = (struct log_c *) log->context;
-	lc->log_dev = dev;
-
-	/* setup the disk header fields */
-	lc->header_location.bdev = lc->log_dev->bdev;
-	lc->header_location.sector = 0;
-	lc->header_location.count = 1;
-
-	/*
-	 * We can't read less than this amount, even though we'll
-	 * not be using most of this space.
-	 */
-	lc->disk_header = vmalloc(1 << SECTOR_SHIFT);
-	if (!lc->disk_header)
-		goto bad;
-
-	/* setup the disk bitset fields */
-	lc->bits_location.bdev = lc->log_dev->bdev;
-	lc->bits_location.sector = LOG_OFFSET;
-
-	size = dm_round_up(lc->bitset_uint32_count * sizeof(uint32_t),
-			   1 << SECTOR_SHIFT);
-	lc->bits_location.count = size >> SECTOR_SHIFT;
 	return 0;
-
- bad:
-	dm_put_device(ti, lc->log_dev);
-	core_dtr(log);
-	return -ENOMEM;
 }
 
 static void disk_dtr(struct dirty_log *log)
 {
 	struct log_c *lc = (struct log_c *) log->context;
+
 	dm_put_device(lc->ti, lc->log_dev);
 	vfree(lc->disk_header);
-	core_dtr(log);
+	destroy_log_context(lc);
 }
 
 static int count_bits32(uint32_t *addr, unsigned size)
@@ -454,12 +449,7 @@ static int disk_resume(struct dirty_log *log)
 	if (r)
 		return r;
 
-	/* read the bits */
-	r = read_bits(lc);
-	if (r)
-		return r;
-
-	/* set or clear any new bits */
+	/* set or clear any new bits -- device has grown */
 	if (lc->sync == NOSYNC)
 		for (i = lc->header.nr_regions; i < lc->region_count; i++)
 			/* FIXME: amazingly inefficient */
@@ -469,14 +459,13 @@ static int disk_resume(struct dirty_log *log)
 			/* FIXME: amazingly inefficient */
 			log_clear_bit(lc, lc->clean_bits, i);
 
+	/* clear any old bits -- device has shrunk */
+	for (i = lc->region_count; i % (sizeof(*lc->clean_bits) << BYTE_SHIFT); i++)
+		log_clear_bit(lc, lc->clean_bits, i);
+
 	/* copy clean across to sync */
 	memcpy(lc->sync_bits, lc->clean_bits, size);
 	lc->sync_count = count_bits32(lc->clean_bits, lc->bitset_uint32_count);
-
-	/* write the bits */
-	r = write_bits(lc);
-	if (r)
-		return r;
 
 	/* set the correct number of regions in the header */
 	lc->header.nr_regions = lc->region_count;
@@ -518,7 +507,7 @@ static int disk_flush(struct dirty_log *log)
 	if (!lc->touched)
 		return 0;
 
-	r = write_bits(lc);
+	r = write_header(lc);
 	if (!r)
 		lc->touched = 0;
 

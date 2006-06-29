@@ -114,15 +114,20 @@ void online_page(struct page *page)
 	num_physpages++;
 }
 
-int __devinit add_memory(u64 start, u64 size)
+#ifdef CONFIG_NUMA
+int memory_add_physaddr_to_nid(u64 start)
+{
+	return hot_add_scn_to_nid(start);
+}
+#endif
+
+int __devinit arch_add_memory(int nid, u64 start, u64 size)
 {
 	struct pglist_data *pgdata;
 	struct zone *zone;
-	int nid;
 	unsigned long start_pfn = start >> PAGE_SHIFT;
 	unsigned long nr_pages = size >> PAGE_SHIFT;
 
-	nid = hot_add_scn_to_nid(start);
 	pgdata = NODE_DATA(nid);
 
 	start = (unsigned long)__va(start);
@@ -299,9 +304,9 @@ void __init paging_init(void)
 	kmap_prot = PAGE_KERNEL;
 #endif /* CONFIG_HIGHMEM */
 
-	printk(KERN_INFO "Top of RAM: 0x%lx, Total RAM: 0x%lx\n",
+	printk(KERN_DEBUG "Top of RAM: 0x%lx, Total RAM: 0x%lx\n",
 	       top_of_ram, total_ram);
-	printk(KERN_INFO "Memory hole size: %ldMB\n",
+	printk(KERN_DEBUG "Memory hole size: %ldMB\n",
 	       (top_of_ram - total_ram) >> 20);
 	/*
 	 * All pages are DMA-able so we put them all in the DMA zone.
@@ -380,7 +385,7 @@ void __init mem_init(void)
 			totalhigh_pages++;
 		}
 		totalram_pages += totalhigh_pages;
-		printk(KERN_INFO "High memory: %luk\n",
+		printk(KERN_DEBUG "High memory: %luk\n",
 		       totalhigh_pages << (PAGE_SHIFT-10));
 	}
 #endif /* CONFIG_HIGHMEM */

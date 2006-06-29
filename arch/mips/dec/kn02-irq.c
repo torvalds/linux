@@ -123,7 +123,7 @@ void __init init_kn02_irqs(int base)
 		irq_desc[i].status = IRQ_DISABLED;
 		irq_desc[i].action = 0;
 		irq_desc[i].depth = 1;
-		irq_desc[i].handler = &kn02_irq_type;
+		irq_desc[i].chip = &kn02_irq_type;
 	}
 
 	kn02_irq_base = base;

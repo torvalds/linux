@@ -18,7 +18,6 @@ struct dnotify_struct {
 
 #ifdef __KERNEL__
 
-#include <linux/config.h>
 
 #ifdef CONFIG_DNOTIFY
 

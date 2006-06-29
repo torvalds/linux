@@ -191,23 +191,10 @@ IVc. Errata
 */
 
 
-enum pci_id_flags_bits {
-        /* Set PCI command register bits before calling probe1(). */
-        PCI_USES_IO=1, PCI_USES_MEM=2, PCI_USES_MASTER=4,
-        /* Read and map the single following PCI BAR. */
-        PCI_ADDR0=0<<4, PCI_ADDR1=1<<4, PCI_ADDR2=2<<4, PCI_ADDR3=3<<4,
-        PCI_ADDR_64BITS=0x100, PCI_NO_ACPI_WAKE=0x200, PCI_NO_MIN_LATENCY=0x400,
-};
-
 enum chip_capability_flags { MII_PWRDWN=1, TYPE2_INTR=2, NO_MII=4 };
 
 #define EPIC_TOTAL_SIZE 0x100
 #define USE_IO_OPS 1
-#ifdef USE_IO_OPS
-#define EPIC_IOTYPE PCI_USES_MASTER|PCI_USES_IO|PCI_ADDR0
-#else
-#define EPIC_IOTYPE PCI_USES_MASTER|PCI_USES_MEM|PCI_ADDR1
-#endif
 
 typedef enum {
 	SMSC_83C170_0,
@@ -218,7 +205,6 @@ typedef enum {
 
 struct epic_chip_info {
 	const char *name;
-	enum pci_id_flags_bits pci_flags;
         int io_size;                            /* Needed for I/O region check or ioremap(). */
         int drv_flags;                          /* Driver use, intended as capability flags. */
 };
@@ -227,11 +213,11 @@ struct epic_chip_info {
 /* indexed by chip_t */
 static const struct epic_chip_info pci_id_tbl[] = {
 	{ "SMSC EPIC/100 83c170",
-	 EPIC_IOTYPE, EPIC_TOTAL_SIZE, TYPE2_INTR | NO_MII | MII_PWRDWN },
+	  EPIC_TOTAL_SIZE, TYPE2_INTR | NO_MII | MII_PWRDWN },
 	{ "SMSC EPIC/100 83c170",
-	 EPIC_IOTYPE, EPIC_TOTAL_SIZE, TYPE2_INTR },
+	  EPIC_TOTAL_SIZE, TYPE2_INTR },
 	{ "SMSC EPIC/C 83c175",
-	 EPIC_IOTYPE, EPIC_TOTAL_SIZE, TYPE2_INTR | MII_PWRDWN },
+	  EPIC_TOTAL_SIZE, TYPE2_INTR | MII_PWRDWN },
 };
 
 
@@ -1027,11 +1013,8 @@ static int epic_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	u32 ctrl_word;
 	unsigned long flags;
 
-	if (skb->len < ETH_ZLEN) {
-		skb = skb_padto(skb, ETH_ZLEN);
-		if (skb == NULL)
-			return 0;
-	}
+	if (skb_padto(skb, ETH_ZLEN))
+		return 0;
 
 	/* Caution: the write order is important here, set the field with the
 	   "ownership" bit last. */

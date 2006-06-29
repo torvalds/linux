@@ -301,7 +301,7 @@ static struct tty_operations moxa_ops = {
 	.tiocmset = moxa_tiocmset,
 };
 
-static spinlock_t moxa_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(moxa_lock);
 
 #ifdef CONFIG_PCI
 static int moxa_get_PCI_conf(struct pci_dev *p, int board_type, moxa_board_conf * board)

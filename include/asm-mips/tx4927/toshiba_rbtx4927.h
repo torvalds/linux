@@ -27,7 +27,6 @@
 #ifndef __ASM_TX4927_TOSHIBA_RBTX4927_H
 #define __ASM_TX4927_TOSHIBA_RBTX4927_H
 
-#include <linux/config.h>
 #include <asm/tx4927/tx4927.h>
 #include <asm/tx4927/tx4927_mips.h>
 #ifdef CONFIG_PCI

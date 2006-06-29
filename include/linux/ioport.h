@@ -9,13 +9,15 @@
 #define _LINUX_IOPORT_H
 
 #include <linux/compiler.h>
+#include <linux/types.h>
 /*
  * Resources are tree-like, allowing
  * nesting etc..
  */
 struct resource {
+	resource_size_t start;
+	resource_size_t end;
 	const char *name;
-	unsigned long start, end;
 	unsigned long flags;
 	struct resource *parent, *sibling, *child;
 };
@@ -96,31 +98,37 @@ extern struct resource * ____request_resource(struct resource *root, struct reso
 extern int release_resource(struct resource *new);
 extern __deprecated_for_modules int insert_resource(struct resource *parent, struct resource *new);
 extern int allocate_resource(struct resource *root, struct resource *new,
-			     unsigned long size,
-			     unsigned long min, unsigned long max,
-			     unsigned long align,
+			     resource_size_t size, resource_size_t min,
+			     resource_size_t max, resource_size_t align,
 			     void (*alignf)(void *, struct resource *,
-					    unsigned long, unsigned long),
+					    resource_size_t, resource_size_t),
 			     void *alignf_data);
-int adjust_resource(struct resource *res, unsigned long start,
-		    unsigned long size);
+int adjust_resource(struct resource *res, resource_size_t start,
+		    resource_size_t size);
+
+/* get registered SYSTEM_RAM resources in specified area */
+extern int find_next_system_ram(struct resource *res);
 
 /* Convenience shorthand with allocation */
 #define request_region(start,n,name)	__request_region(&ioport_resource, (start), (n), (name))
 #define request_mem_region(start,n,name) __request_region(&iomem_resource, (start), (n), (name))
 #define rename_region(region, newname) do { (region)->name = (newname); } while (0)
 
-extern struct resource * __request_region(struct resource *, unsigned long start, unsigned long n, const char *name);
+extern struct resource * __request_region(struct resource *,
+					resource_size_t start,
+					resource_size_t n, const char *name);
 
 /* Compatibility cruft */
 #define release_region(start,n)	__release_region(&ioport_resource, (start), (n))
 #define check_mem_region(start,n)	__check_region(&iomem_resource, (start), (n))
 #define release_mem_region(start,n)	__release_region(&iomem_resource, (start), (n))
 
-extern int __check_region(struct resource *, unsigned long, unsigned long);
-extern void __release_region(struct resource *, unsigned long, unsigned long);
+extern int __check_region(struct resource *, resource_size_t, resource_size_t);
+extern void __release_region(struct resource *, resource_size_t,
+				resource_size_t);
 
-static inline int __deprecated check_region(unsigned long s, unsigned long n)
+static inline int __deprecated check_region(resource_size_t s,
+						resource_size_t n)
 {
 	return __check_region(&ioport_resource, s, n);
 }

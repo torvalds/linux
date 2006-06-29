@@ -756,8 +756,9 @@ static int tcic_set_mem_map(struct pcmcia_socket *sock, struct pccard_mem_map *m
     u_long base, len, mmap;
 
     debug(1, "SetMemMap(%d, %d, %#2.2x, %d ns, "
-	  "%#lx-%#lx, %#x)\n", psock, mem->map, mem->flags,
-	  mem->speed, mem->res->start, mem->res->end, mem->card_start);
+	  "%#llx-%#llx, %#x)\n", psock, mem->map, mem->flags,
+	  mem->speed, (unsigned long long)mem->res->start,
+	  (unsigned long long)mem->res->end, mem->card_start);
     if ((mem->map > 3) || (mem->card_start > 0x3ffffff) ||
 	(mem->res->start > 0xffffff) || (mem->res->end > 0xffffff) ||
 	(mem->res->start > mem->res->end) || (mem->speed > 1000))

@@ -7,7 +7,6 @@
  * PowerPC architecture timex specifications
  */
 
-#include <linux/config.h>
 #include <asm/cputable.h>
 
 #define CLOCK_TICK_RATE	1024000 /* Underlying HZ */

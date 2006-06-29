@@ -1,9 +1,46 @@
 #ifndef _LINUX_SCHED_H
 #define _LINUX_SCHED_H
 
+#include <linux/auxvec.h>	/* For AT_VECTOR_SIZE */
+
+/*
+ * cloning flags:
+ */
+#define CSIGNAL		0x000000ff	/* signal mask to be sent at exit */
+#define CLONE_VM	0x00000100	/* set if VM shared between processes */
+#define CLONE_FS	0x00000200	/* set if fs info shared between processes */
+#define CLONE_FILES	0x00000400	/* set if open files shared between processes */
+#define CLONE_SIGHAND	0x00000800	/* set if signal handlers and blocked signals shared */
+#define CLONE_PTRACE	0x00002000	/* set if we want to let tracing continue on the child too */
+#define CLONE_VFORK	0x00004000	/* set if the parent wants the child to wake it up on mm_release */
+#define CLONE_PARENT	0x00008000	/* set if we want to have the same parent as the cloner */
+#define CLONE_THREAD	0x00010000	/* Same thread group? */
+#define CLONE_NEWNS	0x00020000	/* New namespace group? */
+#define CLONE_SYSVSEM	0x00040000	/* share system V SEM_UNDO semantics */
+#define CLONE_SETTLS	0x00080000	/* create a new TLS for the child */
+#define CLONE_PARENT_SETTID	0x00100000	/* set the TID in the parent */
+#define CLONE_CHILD_CLEARTID	0x00200000	/* clear the TID in the child */
+#define CLONE_DETACHED		0x00400000	/* Unused, ignored */
+#define CLONE_UNTRACED		0x00800000	/* set if the tracing process can't force CLONE_PTRACE on this clone */
+#define CLONE_CHILD_SETTID	0x01000000	/* set the TID in the child */
+#define CLONE_STOPPED		0x02000000	/* Start in stopped state */
+
+/*
+ * Scheduling policies
+ */
+#define SCHED_NORMAL		0
+#define SCHED_FIFO		1
+#define SCHED_RR		2
+#define SCHED_BATCH		3
+
+#ifdef __KERNEL__
+
+struct sched_param {
+	int sched_priority;
+};
+
 #include <asm/param.h>	/* for HZ */
 
-#include <linux/config.h>
 #include <linux/capability.h>
 #include <linux/threads.h>
 #include <linux/kernel.h>
@@ -36,32 +73,18 @@
 #include <linux/seccomp.h>
 #include <linux/rcupdate.h>
 #include <linux/futex.h>
+#include <linux/rtmutex.h>
 
-#include <linux/auxvec.h>	/* For AT_VECTOR_SIZE */
+#include <linux/time.h>
+#include <linux/param.h>
+#include <linux/resource.h>
+#include <linux/timer.h>
+#include <linux/hrtimer.h>
+
+#include <asm/processor.h>
 
 struct exec_domain;
-
-/*
- * cloning flags:
- */
-#define CSIGNAL		0x000000ff	/* signal mask to be sent at exit */
-#define CLONE_VM	0x00000100	/* set if VM shared between processes */
-#define CLONE_FS	0x00000200	/* set if fs info shared between processes */
-#define CLONE_FILES	0x00000400	/* set if open files shared between processes */
-#define CLONE_SIGHAND	0x00000800	/* set if signal handlers and blocked signals shared */
-#define CLONE_PTRACE	0x00002000	/* set if we want to let tracing continue on the child too */
-#define CLONE_VFORK	0x00004000	/* set if the parent wants the child to wake it up on mm_release */
-#define CLONE_PARENT	0x00008000	/* set if we want to have the same parent as the cloner */
-#define CLONE_THREAD	0x00010000	/* Same thread group? */
-#define CLONE_NEWNS	0x00020000	/* New namespace group? */
-#define CLONE_SYSVSEM	0x00040000	/* share system V SEM_UNDO semantics */
-#define CLONE_SETTLS	0x00080000	/* create a new TLS for the child */
-#define CLONE_PARENT_SETTID	0x00100000	/* set the TID in the parent */
-#define CLONE_CHILD_CLEARTID	0x00200000	/* clear the TID in the child */
-#define CLONE_DETACHED		0x00400000	/* Unused, ignored */
-#define CLONE_UNTRACED		0x00800000	/* set if the tracing process can't force CLONE_PTRACE on this clone */
-#define CLONE_CHILD_SETTID	0x01000000	/* set the TID in the child */
-#define CLONE_STOPPED		0x02000000	/* Start in stopped state */
+struct futex_pi_state;
 
 /*
  * List of flags we want to share for kernel threads,
@@ -102,14 +125,8 @@ extern unsigned long nr_running(void);
 extern unsigned long nr_uninterruptible(void);
 extern unsigned long nr_active(void);
 extern unsigned long nr_iowait(void);
+extern unsigned long weighted_cpuload(const int cpu);
 
-#include <linux/time.h>
-#include <linux/param.h>
-#include <linux/resource.h>
-#include <linux/timer.h>
-#include <linux/hrtimer.h>
-
-#include <asm/processor.h>
 
 /*
  * Task state bitmask. NOTE! These bits are also
@@ -155,20 +172,6 @@ extern unsigned long nr_iowait(void);
 
 /* Task command name length */
 #define TASK_COMM_LEN 16
-
-/*
- * Scheduling policies
- */
-#define SCHED_NORMAL		0
-#define SCHED_FIFO		1
-#define SCHED_RR		2
-#define SCHED_BATCH		3
-
-struct sched_param {
-	int sched_priority;
-};
-
-#ifdef __KERNEL__
 
 #include <linux/spinlock.h>
 
@@ -358,6 +361,14 @@ struct sighand_struct {
 	spinlock_t		siglock;
 };
 
+struct pacct_struct {
+	int			ac_flag;
+	long			ac_exitcode;
+	unsigned long		ac_mem;
+	cputime_t		ac_utime, ac_stime;
+	unsigned long		ac_minflt, ac_majflt;
+};
+
 /*
  * NOTE! "signal_struct" does not have it's own
  * locking, because a shared signal_struct always
@@ -449,6 +460,9 @@ struct signal_struct {
 	struct key *session_keyring;	/* keyring inherited over fork */
 	struct key *process_keyring;	/* keyring private to this process */
 #endif
+#ifdef CONFIG_BSD_PROCESS_ACCT
+	struct pacct_struct pacct;	/* per-process accounting information */
+#endif
 };
 
 /* Context switch must be unlocked if interrupts are to be enabled */
@@ -483,8 +497,11 @@ struct signal_struct {
 
 #define MAX_PRIO		(MAX_RT_PRIO + 40)
 
-#define rt_task(p)		(unlikely((p)->prio < MAX_RT_PRIO))
+#define rt_prio(prio)		unlikely((prio) < MAX_RT_PRIO)
+#define rt_task(p)		rt_prio((p)->prio)
 #define batch_task(p)		(unlikely((p)->policy == SCHED_BATCH))
+#define has_rt_policy(p) \
+	unlikely((p)->policy != SCHED_NORMAL && (p)->policy != SCHED_BATCH)
 
 /*
  * Some day this will be a full-fledged user tracking system..
@@ -494,7 +511,7 @@ struct user_struct {
 	atomic_t processes;	/* How many processes does this user have? */
 	atomic_t files;		/* How many open files does this user have? */
 	atomic_t sigpending;	/* How many pending signals does this user have? */
-#ifdef CONFIG_INOTIFY
+#ifdef CONFIG_INOTIFY_USER
 	atomic_t inotify_watches; /* How many inotify watches does this user have? */
 	atomic_t inotify_devs;	/* How many inotify devs does this user have opened? */
 #endif
@@ -547,9 +564,9 @@ enum idle_type
 /*
  * sched-domains (multiprocessor balancing) declarations:
  */
-#ifdef CONFIG_SMP
 #define SCHED_LOAD_SCALE	128UL	/* increase resolution of load */
 
+#ifdef CONFIG_SMP
 #define SD_LOAD_BALANCE		1	/* Do load balancing on this domain. */
 #define SD_BALANCE_NEWIDLE	2	/* Balance when about to become idle */
 #define SD_BALANCE_EXEC		4	/* Balance on exec */
@@ -558,6 +575,11 @@ enum idle_type
 #define SD_WAKE_AFFINE		32	/* Wake task to waking CPU */
 #define SD_WAKE_BALANCE		64	/* Perform balancing at task wakeup */
 #define SD_SHARE_CPUPOWER	128	/* Domain members share cpu power */
+#define SD_POWERSAVINGS_BALANCE	256	/* Balance for power savings */
+
+#define BALANCE_FOR_POWER	((sched_mc_power_savings || sched_smt_power_savings) \
+				 ? SD_POWERSAVINGS_BALANCE : 0)
+
 
 struct sched_group {
 	struct sched_group *next;	/* Must be a circular list */
@@ -627,7 +649,7 @@ struct sched_domain {
 #endif
 };
 
-extern void partition_sched_domains(cpumask_t *partition1,
+extern int partition_sched_domains(cpumask_t *partition1,
 				    cpumask_t *partition2);
 
 /*
@@ -702,10 +724,13 @@ struct task_struct {
 
 	int lock_depth;		/* BKL lock depth */
 
-#if defined(CONFIG_SMP) && defined(__ARCH_WANT_UNLOCKED_CTXSW)
+#ifdef CONFIG_SMP
+#ifdef __ARCH_WANT_UNLOCKED_CTXSW
 	int oncpu;
 #endif
-	int prio, static_prio;
+#endif
+	int load_weight;	/* for niceness load balancing purposes */
+	int prio, static_prio, normal_prio;
 	struct list_head run_list;
 	prio_array_t *array;
 
@@ -831,8 +856,20 @@ struct task_struct {
    	u32 self_exec_id;
 /* Protection of (de-)allocation: mm, files, fs, tty, keyrings */
 	spinlock_t alloc_lock;
-/* Protection of proc_dentry: nesting proc_lock, dcache_lock, write_lock_irq(&tasklist_lock); */
-	spinlock_t proc_lock;
+
+	/* Protection of the PI data structures: */
+	spinlock_t pi_lock;
+
+#ifdef CONFIG_RT_MUTEXES
+	/* PI waiters blocked on a rt_mutex held by this task */
+	struct plist_head pi_waiters;
+	/* Deadlock detection and priority inheritance handling */
+	struct rt_mutex_waiter *pi_blocked_on;
+# ifdef CONFIG_DEBUG_RT_MUTEXES
+	spinlock_t held_list_lock;
+	struct list_head held_list_head;
+# endif
+#endif
 
 #ifdef CONFIG_DEBUG_MUTEXES
 	/* mutex deadlock detection */
@@ -845,7 +882,6 @@ struct task_struct {
 /* VM state */
 	struct reclaim_state *reclaim_state;
 
-	struct dentry *proc_dentry;
 	struct backing_dev_info *backing_dev_info;
 
 	struct io_context *io_context;
@@ -880,6 +916,8 @@ struct task_struct {
 #ifdef CONFIG_COMPAT
 	struct compat_robust_list_head __user *compat_robust_list;
 #endif
+	struct list_head pi_state_list;
+	struct futex_pi_state *pi_state_cache;
 
 	atomic_t fs_excl;	/* holding fs exclusive resources */
 	struct rcu_head rcu;
@@ -941,13 +979,13 @@ static inline void put_task_struct(struct task_struct *t)
 #define PF_KSWAPD	0x00040000	/* I am kswapd */
 #define PF_SWAPOFF	0x00080000	/* I am in swapoff */
 #define PF_LESS_THROTTLE 0x00100000	/* Throttle me less: I clean memory */
-#define PF_SYNCWRITE	0x00200000	/* I am doing a sync write */
-#define PF_BORROWED_MM	0x00400000	/* I am a kthread doing use_mm */
-#define PF_RANDOMIZE	0x00800000	/* randomize virtual address space */
-#define PF_SWAPWRITE	0x01000000	/* Allowed to write to swap */
-#define PF_SPREAD_PAGE	0x04000000	/* Spread page cache over cpuset */
-#define PF_SPREAD_SLAB	0x08000000	/* Spread some slab caches over cpuset */
+#define PF_BORROWED_MM	0x00200000	/* I am a kthread doing use_mm */
+#define PF_RANDOMIZE	0x00400000	/* randomize virtual address space */
+#define PF_SWAPWRITE	0x00800000	/* Allowed to write to swap */
+#define PF_SPREAD_PAGE	0x01000000	/* Spread page cache over cpuset */
+#define PF_SPREAD_SLAB	0x02000000	/* Spread some slab caches over cpuset */
 #define PF_MEMPOLICY	0x10000000	/* Non-default NUMA mempolicy */
+#define PF_MUTEX_TESTER	0x20000000	/* Thread belongs to the rt mutex tester */
 
 /*
  * Only the _current_ task can read/write to tsk->flags, but other
@@ -1002,6 +1040,19 @@ static inline void idle_task_exit(void) {}
 #endif
 
 extern void sched_idle_next(void);
+
+#ifdef CONFIG_RT_MUTEXES
+extern int rt_mutex_getprio(task_t *p);
+extern void rt_mutex_setprio(task_t *p, int prio);
+extern void rt_mutex_adjust_pi(task_t *p);
+#else
+static inline int rt_mutex_getprio(task_t *p)
+{
+	return p->normal_prio;
+}
+# define rt_mutex_adjust_pi(p)		do { } while (0)
+#endif
+
 extern void set_user_nice(task_t *p, long nice);
 extern int task_prio(const task_t *p);
 extern int task_nice(const task_t *p);
@@ -1225,7 +1276,7 @@ static inline int thread_group_empty(task_t *p)
 		(thread_group_leader(p) && !thread_group_empty(p))
 
 /*
- * Protects ->fs, ->files, ->mm, ->ptrace, ->group_info, ->comm, keyring
+ * Protects ->fs, ->files, ->mm, ->group_info, ->comm, keyring
  * subscriptions and synchronises with wait4().  Also used in procfs.  Also
  * pins the final release of task.io_context.  Also protects ->cpuset.
  *
@@ -1400,6 +1451,11 @@ static inline void arch_pick_mmap_layout(struct mm_struct *mm)
 
 extern long sched_setaffinity(pid_t pid, cpumask_t new_mask);
 extern long sched_getaffinity(pid_t pid, cpumask_t *mask);
+
+#include <linux/sysdev.h>
+extern int sched_mc_power_savings, sched_smt_power_savings;
+extern struct sysdev_attribute attr_sched_mc_power_savings, attr_sched_smt_power_savings;
+extern int sched_create_sysfs_power_savings_entries(struct sysdev_class *cls);
 
 extern void normalize_rt_tasks(void);
 

@@ -46,6 +46,6 @@ extern void scr_memcpyw(u16 *d, const u16 *s, unsigned int count);
 #define vga_readb(a)	readb((u8 __iomem *)(a))
 #define vga_writeb(v,a)	writeb(v, (u8 __iomem *)(a))
 
-#define VGA_MAP_MEM(x)	((unsigned long) ioremap(x, 0))
+#define VGA_MAP_MEM(x,s)	((unsigned long) ioremap(x, s))
 
 #endif

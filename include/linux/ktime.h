@@ -66,7 +66,6 @@ typedef union {
 
 /**
  * ktime_set - Set a ktime_t variable from a seconds/nanoseconds value
- *
  * @secs:	seconds to set
  * @nsecs:	nanoseconds to set
  *
@@ -138,7 +137,6 @@ static inline ktime_t ktime_set(const long secs, const unsigned long nsecs)
 
 /**
  * ktime_sub - subtract two ktime_t variables
- *
  * @lhs:	minuend
  * @rhs:	subtrahend
  *
@@ -157,7 +155,6 @@ static inline ktime_t ktime_sub(const ktime_t lhs, const ktime_t rhs)
 
 /**
  * ktime_add - add two ktime_t variables
- *
  * @add1:	addend1
  * @add2:	addend2
  *
@@ -184,7 +181,6 @@ static inline ktime_t ktime_add(const ktime_t add1, const ktime_t add2)
 
 /**
  * ktime_add_ns - Add a scalar nanoseconds value to a ktime_t variable
- *
  * @kt:		addend
  * @nsec:	the scalar nsec value to add
  *
@@ -194,7 +190,6 @@ extern ktime_t ktime_add_ns(const ktime_t kt, u64 nsec);
 
 /**
  * timespec_to_ktime - convert a timespec to ktime_t format
- *
  * @ts:		the timespec variable to convert
  *
  * Returns a ktime_t variable with the converted timespec value
@@ -207,7 +202,6 @@ static inline ktime_t timespec_to_ktime(const struct timespec ts)
 
 /**
  * timeval_to_ktime - convert a timeval to ktime_t format
- *
  * @tv:		the timeval variable to convert
  *
  * Returns a ktime_t variable with the converted timeval value
@@ -220,7 +214,6 @@ static inline ktime_t timeval_to_ktime(const struct timeval tv)
 
 /**
  * ktime_to_timespec - convert a ktime_t variable to timespec format
- *
  * @kt:		the ktime_t variable to convert
  *
  * Returns the timespec representation of the ktime value
@@ -233,7 +226,6 @@ static inline struct timespec ktime_to_timespec(const ktime_t kt)
 
 /**
  * ktime_to_timeval - convert a ktime_t variable to timeval format
- *
  * @kt:		the ktime_t variable to convert
  *
  * Returns the timeval representation of the ktime value

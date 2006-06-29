@@ -9,6 +9,7 @@
  * the Free Software Foundation.
  */
 
+#ifdef __KERNEL__
 #include <asm/io.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
@@ -154,6 +155,8 @@ static inline void gameport_register_driver(struct gameport_driver *drv)
 
 void gameport_unregister_driver(struct gameport_driver *drv);
 
+#endif /* __KERNEL__ */
+
 #define GAMEPORT_MODE_DISABLED		0
 #define GAMEPORT_MODE_RAW		1
 #define GAMEPORT_MODE_COOKED		2
@@ -168,6 +171,8 @@ void gameport_unregister_driver(struct gameport_driver *drv);
 #define GAMEPORT_ID_VENDOR_THRUSTMASTER	0x0008
 #define GAMEPORT_ID_VENDOR_GRAVIS	0x0009
 #define GAMEPORT_ID_VENDOR_GUILLEMOT	0x000a
+
+#ifdef __KERNEL__
 
 static inline void gameport_trigger(struct gameport *gameport)
 {
@@ -219,4 +224,5 @@ static inline void gameport_set_poll_interval(struct gameport *gameport, unsigne
 void gameport_start_polling(struct gameport *gameport);
 void gameport_stop_polling(struct gameport *gameport);
 
+#endif /* __KERNEL__ */
 #endif

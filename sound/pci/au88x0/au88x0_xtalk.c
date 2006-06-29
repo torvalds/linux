@@ -66,31 +66,20 @@ static xtalk_gains_t const asXtalkGainsAllChan = {
 	0
 	    //0x7FFF,0x7FFF,0x7FFF,0x7FFF,0x7fff,0x7FFF,0x7FFF,0x7FFF,0x7FFF,0x7fff
 };
-static xtalk_gains_t const asXtalkGainsZeros = {
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-};
+static xtalk_gains_t const asXtalkGainsZeros;
 
-static xtalk_dline_t const alXtalkDlineZeros = {
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0
-};
+static xtalk_dline_t const alXtalkDlineZeros;
 static xtalk_dline_t const alXtalkDlineTest = {
 	0xFC18, 0x03E8FFFF, 0x186A0, 0x7960FFFE, 1, 0xFFFFFFFF,
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0
 };
 
-static xtalk_instate_t const asXtalkInStateZeros = { 0, 0, 0, 0 };
+static xtalk_instate_t const asXtalkInStateZeros;
 static xtalk_instate_t const asXtalkInStateTest =
     { 0xFF80, 0x0080, 0xFFFF, 0x0001 };
-static xtalk_state_t const asXtalkOutStateZeros = {
-	{0, 0, 0, 0},
-	{0, 0, 0, 0},
-	{0, 0, 0, 0},
-	{0, 0, 0, 0},
-	{0, 0, 0, 0}
-};
+static xtalk_state_t const asXtalkOutStateZeros;
+
 static short const sDiamondKLeftEq = 0x401d;
 static short const sDiamondKRightEq = 0x401d;
 static short const sDiamondKLeftXt = 0xF90E;
@@ -162,13 +151,7 @@ static xtalk_coefs_t const asXtalkNarrowCoefsRightXt = {
 	{0, 0, 0, 0, 0}
 };
 
-static xtalk_coefs_t const asXtalkCoefsZeros = {
-	{0, 0, 0, 0, 0},
-	{0, 0, 0, 0, 0},
-	{0, 0, 0, 0, 0},
-	{0, 0, 0, 0, 0},
-	{0, 0, 0, 0, 0}
-};
+static xtalk_coefs_t const asXtalkCoefsZeros;
 static xtalk_coefs_t const asXtalkCoefsPipe = {
 	{0, 0, 0x0FA0, 0, 0},
 	{0, 0, 0x0FA0, 0, 0},

@@ -1,7 +1,7 @@
 
 /******************************************************************************
  *
- * Name: acobject.h - Definition of union acpi_operand_object    (Internal object only)
+ * Name: acobject.h - Definition of union acpi_operand_object  (Internal object only)
  *
  *****************************************************************************/
 
@@ -45,10 +45,12 @@
 #ifndef _ACOBJECT_H
 #define _ACOBJECT_H
 
+/* acpisrc:struct_defs -- for acpisrc conversion */
+
 /*
- * The union acpi_operand_object    is used to pass AML operands from the dispatcher
+ * The union acpi_operand_object is used to pass AML operands from the dispatcher
  * to the interpreter, and to keep track of the various handlers such as
- * address space handlers and notify handlers.  The object is a constant
+ * address space handlers and notify handlers. The object is a constant
  * size in order to allow it to be cached and reused.
  */
 
@@ -61,17 +63,25 @@
 /*
  * Common area for all objects.
  *
- * data_type is used to differentiate between internal descriptors, and MUST
- * be the first byte in this structure.
+ * descriptor_type is used to differentiate between internal descriptors, and
+ * must be in the same place across all descriptors
+ *
+ * Note: The descriptor_type and Type fields must appear in the identical
+ * position in both the struct acpi_namespace_node and union acpi_operand_object
+ * structures.
  */
-#define ACPI_OBJECT_COMMON_HEADER   /* SIZE/ALIGNMENT: 32 bits, one ptr plus trailing 8-bit flag */\
-	u8                                      descriptor;         /* To differentiate various internal objs */\
-	u8                                      type;               /* acpi_object_type */\
-	u16                                     reference_count;    /* For object deletion management */\
-	union acpi_operand_object               *next_object;       /* Objects linked to parent NS node */\
-	u8                                      flags;
+#define ACPI_OBJECT_COMMON_HEADER \
+	union acpi_operand_object       *next_object;       /* Objects linked to parent NS node */\
+	u8                              descriptor_type;    /* To differentiate various internal objs */\
+	u8                              type;               /* acpi_object_type */\
+	u16                             reference_count;    /* For object deletion management */\
+	u8                              flags;
+	/*
+	 * Note: There are 3 bytes available here before the
+	 * next natural alignment boundary (for both 32/64 cases)
+	 */
 
-/* Values for flag byte above */
+/* Values for Flag byte above */
 
 #define AOPOBJ_AML_CONSTANT         0x01
 #define AOPOBJ_STATIC_POINTER       0x02
@@ -79,36 +89,7 @@
 #define AOPOBJ_OBJECT_INITIALIZED   0x08
 #define AOPOBJ_SETUP_COMPLETE       0x10
 #define AOPOBJ_SINGLE_DATUM         0x20
-
-/*
- * Common bitfield for the field objects
- * "Field Datum"  -- a datum from the actual field object
- * "Buffer Datum" -- a datum from a user buffer, read from or to be written to the field
- */
-#define ACPI_COMMON_FIELD_INFO      /* SIZE/ALIGNMENT: 24 bits + three 32-bit values */\
-	u8                                      field_flags;        /* Access, update, and lock bits */\
-	u8                                      attribute;          /* From access_as keyword */\
-	u8                                      access_byte_width;  /* Read/Write size in bytes */\
-	u32                                     bit_length;         /* Length of field in bits */\
-	u32                                     base_byte_offset;   /* Byte offset within containing object */\
-	u8                                      start_field_bit_offset;/* Bit offset within first field datum (0-63) */\
-	u8                                      access_bit_width;   /* Read/Write size in bits (8-64) */\
-	u32                                     value;              /* Value to store into the Bank or Index register */\
-	struct acpi_namespace_node              *node;	/* Link back to parent node */
-
-/*
- * Fields common to both Strings and Buffers
- */
-#define ACPI_COMMON_BUFFER_INFO \
-	u32                                     length;
-
-/*
- * Common fields for objects that support ASL notifications
- */
-#define ACPI_COMMON_NOTIFY_INFO \
-	union acpi_operand_object               *system_notify;     /* Handler for system notifies */\
-	union acpi_operand_object               *device_notify;     /* Handler for driver notifies */\
-	union acpi_operand_object               *handler;	/* Handler for Address space */
+#define AOPOBJ_INVALID              0x40	/* Used if host OS won't allow an op_region address */
 
 /******************************************************************************
  *
@@ -125,25 +106,31 @@ struct acpi_object_integer {
 
 /*
  * Note: The String and Buffer object must be identical through the Pointer
- * element.  There is code that depends on this.
+ * and length elements.  There is code that depends on this.
+ *
+ * Fields common to both Strings and Buffers
  */
+#define ACPI_COMMON_BUFFER_INFO(_type) \
+	_type                           *pointer; \
+	u32                             length;
+
 struct acpi_object_string {	/* Null terminated, ASCII characters only */
-	ACPI_OBJECT_COMMON_HEADER ACPI_COMMON_BUFFER_INFO char *pointer;	/* String in AML stream or allocated string */
+	ACPI_OBJECT_COMMON_HEADER ACPI_COMMON_BUFFER_INFO(char)	/* String in AML stream or allocated string */
 };
 
 struct acpi_object_buffer {
-	ACPI_OBJECT_COMMON_HEADER ACPI_COMMON_BUFFER_INFO u8 * pointer;	/* Buffer in AML stream or allocated buffer */
-	struct acpi_namespace_node *node;	/* Link back to parent node */
-	u8 *aml_start;
+	ACPI_OBJECT_COMMON_HEADER ACPI_COMMON_BUFFER_INFO(u8)	/* Buffer in AML stream or allocated buffer */
 	u32 aml_length;
+	u8 *aml_start;
+	struct acpi_namespace_node *node;	/* Link back to parent node */
 };
 
 struct acpi_object_package {
-	ACPI_OBJECT_COMMON_HEADER u32 count;	/* # of elements in package */
-	u32 aml_length;
-	u8 *aml_start;
-	struct acpi_namespace_node *node;	/* Link back to parent node */
+	ACPI_OBJECT_COMMON_HEADER struct acpi_namespace_node *node;	/* Link back to parent node */
 	union acpi_operand_object **elements;	/* Array of pointers to acpi_objects */
+	u8 *aml_start;
+	u32 aml_length;
+	u32 count;		/* # of elements in package */
 };
 
 /******************************************************************************
@@ -154,23 +141,6 @@ struct acpi_object_package {
 
 struct acpi_object_event {
 	ACPI_OBJECT_COMMON_HEADER void *semaphore;
-};
-
-#define ACPI_INFINITE_CONCURRENCY   0xFF
-
-typedef
-acpi_status(*ACPI_INTERNAL_METHOD) (struct acpi_walk_state * walk_state);
-
-struct acpi_object_method {
-	ACPI_OBJECT_COMMON_HEADER u8 method_flags;
-	u8 param_count;
-	u32 aml_length;
-	void *semaphore;
-	u8 *aml_start;
-	ACPI_INTERNAL_METHOD implementation;
-	u8 concurrency;
-	u8 thread_count;
-	acpi_owner_id owner_id;
 };
 
 struct acpi_object_mutex {
@@ -186,11 +156,23 @@ struct acpi_object_mutex {
 
 struct acpi_object_region {
 	ACPI_OBJECT_COMMON_HEADER u8 space_id;
-	union acpi_operand_object *handler;	/* Handler for region access */
 	struct acpi_namespace_node *node;	/* Containing namespace node */
+	union acpi_operand_object *handler;	/* Handler for region access */
 	union acpi_operand_object *next;
-	u32 length;
 	acpi_physical_address address;
+	u32 length;
+};
+
+struct acpi_object_method {
+	ACPI_OBJECT_COMMON_HEADER u8 method_flags;
+	u8 param_count;
+	u8 concurrency;
+	void *semaphore;
+	u8 *aml_start;
+	ACPI_INTERNAL_METHOD implementation;
+	u32 aml_length;
+	u8 thread_count;
+	acpi_owner_id owner_id;
 };
 
 /******************************************************************************
@@ -198,6 +180,14 @@ struct acpi_object_region {
  * Objects that can be notified.  All share a common notify_info area.
  *
  *****************************************************************************/
+
+/*
+ * Common fields for objects that support ASL notifications
+ */
+#define ACPI_COMMON_NOTIFY_INFO \
+	union acpi_operand_object       *system_notify;     /* Handler for system notifies */\
+	union acpi_operand_object       *device_notify;     /* Handler for driver notifies */\
+	union acpi_operand_object       *handler;	/* Handler for Address space */
 
 struct acpi_object_notify_common {	/* COMMON NOTIFY for POWER, PROCESSOR, DEVICE, and THERMAL */
 ACPI_OBJECT_COMMON_HEADER ACPI_COMMON_NOTIFY_INFO};
@@ -213,9 +203,9 @@ struct acpi_object_power_resource {
 };
 
 struct acpi_object_processor {
-	ACPI_OBJECT_COMMON_HEADER ACPI_COMMON_NOTIFY_INFO u32 proc_id;
-	u32 length;
-	acpi_io_address address;
+	ACPI_OBJECT_COMMON_HEADER u8 proc_id;
+	u8 length;
+	 ACPI_COMMON_NOTIFY_INFO acpi_io_address address;
 };
 
 struct acpi_object_thermal_zone {
@@ -227,9 +217,24 @@ ACPI_OBJECT_COMMON_HEADER ACPI_COMMON_NOTIFY_INFO};
  *
  *****************************************************************************/
 
+/*
+ * Common bitfield for the field objects
+ * "Field Datum"  -- a datum from the actual field object
+ * "Buffer Datum" -- a datum from a user buffer, read from or to be written to the field
+ */
+#define ACPI_COMMON_FIELD_INFO \
+	u8                              field_flags;        /* Access, update, and lock bits */\
+	u8                              attribute;          /* From access_as keyword */\
+	u8                              access_byte_width;  /* Read/Write size in bytes */\
+	struct acpi_namespace_node      *node;              /* Link back to parent node */\
+	u32                             bit_length;         /* Length of field in bits */\
+	u32                             base_byte_offset;   /* Byte offset within containing object */\
+	u32                             value;              /* Value to store into the Bank or Index register */\
+	u8                              start_field_bit_offset;/* Bit offset within first field datum (0-63) */\
+	u8                              access_bit_width;	/* Read/Write size in bits (8-64) */
+
 struct acpi_object_field_common {	/* COMMON FIELD (for BUFFER, REGION, BANK, and INDEX fields) */
-	ACPI_OBJECT_COMMON_HEADER ACPI_COMMON_FIELD_INFO union acpi_operand_object *region_obj;	/* Containing Operation Region object */
-	/* (REGION/BANK fields only) */
+	ACPI_OBJECT_COMMON_HEADER ACPI_COMMON_FIELD_INFO union acpi_operand_object *region_obj;	/* Parent Operation Region object (REGION/BANK fields only) */
 };
 
 struct acpi_object_region_field {
@@ -244,7 +249,7 @@ struct acpi_object_bank_field {
 struct acpi_object_index_field {
 	ACPI_OBJECT_COMMON_HEADER ACPI_COMMON_FIELD_INFO
 	    /*
-	     * No "region_obj" pointer needed since the Index and Data registers
+	     * No "RegionObj" pointer needed since the Index and Data registers
 	     * are each field definitions unto themselves.
 	     */
 	union acpi_operand_object *index_obj;	/* Index register */
@@ -269,13 +274,9 @@ struct acpi_object_notify_handler {
 	void *context;
 };
 
-/* Flags for address handler */
-
-#define ACPI_ADDR_HANDLER_DEFAULT_INSTALLED  0x1
-
 struct acpi_object_addr_handler {
 	ACPI_OBJECT_COMMON_HEADER u8 space_id;
-	u16 hflags;
+	u8 handler_flags;
 	acpi_adr_space_handler handler;
 	struct acpi_namespace_node *node;	/* Parent device */
 	void *context;
@@ -283,6 +284,10 @@ struct acpi_object_addr_handler {
 	union acpi_operand_object *region_list;	/* regions using this handler */
 	union acpi_operand_object *next;
 };
+
+/* Flags for address handler (handler_flags) */
+
+#define ACPI_ADDR_HANDLER_DEFAULT_INSTALLED  0x01
 
 /******************************************************************************
  *
@@ -297,10 +302,10 @@ struct acpi_object_addr_handler {
 struct acpi_object_reference {
 	ACPI_OBJECT_COMMON_HEADER u8 target_type;	/* Used for index_op */
 	u16 opcode;
-	u32 offset;		/* Used for arg_op, local_op, and index_op */
-	void *object;		/* name_op=>HANDLE to obj, index_op=>union acpi_operand_object  */
+	void *object;		/* name_op=>HANDLE to obj, index_op=>union acpi_operand_object */
 	struct acpi_namespace_node *node;
 	union acpi_operand_object **where;
+	u32 offset;		/* Used for arg_op, local_op, and index_op */
 };
 
 /*
@@ -311,12 +316,10 @@ struct acpi_object_reference {
  * Currently: Region and field_unit types
  */
 struct acpi_object_extra {
-	ACPI_OBJECT_COMMON_HEADER u8 byte_fill1;
-	u16 word_fill1;
-	u32 aml_length;
-	u8 *aml_start;
-	struct acpi_namespace_node *method_REG;	/* _REG method for this region (if any) */
+	ACPI_OBJECT_COMMON_HEADER struct acpi_namespace_node *method_REG;	/* _REG method for this region (if any) */
 	void *region_context;	/* Region-specific data */
+	u8 *aml_start;
+	u32 aml_length;
 };
 
 /* Additional data that can be attached to namespace nodes */
@@ -391,8 +394,13 @@ union acpi_operand_object {
 #define ACPI_DESC_TYPE_NAMED            0x0F
 #define ACPI_DESC_TYPE_MAX              0x0F
 
+struct acpi_common_descriptor {
+	void *common_pointer;
+	u8 descriptor_type;	/* To differentiate various internal objs */
+};
+
 union acpi_descriptor {
-	u8 descriptor_id;	/* To differentiate various internal objs */
+	struct acpi_common_descriptor common;
 	union acpi_operand_object object;
 	struct acpi_namespace_node node;
 	union acpi_parse_object op;

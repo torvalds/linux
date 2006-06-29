@@ -20,6 +20,7 @@
 #include <linux/smp_lock.h>
 #include <linux/module.h>
 #include <linux/net.h>
+#include <linux/kthread.h>
 #include <net/ip.h>
 
 #include <linux/smb_fs.h>
@@ -40,7 +41,7 @@ enum smbiod_state {
 };
 
 static enum smbiod_state smbiod_state = SMBIOD_DEAD;
-static pid_t smbiod_pid;
+static struct task_struct *smbiod_thread;
 static DECLARE_WAIT_QUEUE_HEAD(smbiod_wait);
 static LIST_HEAD(smb_servers);
 static DEFINE_SPINLOCK(servers_lock);
@@ -67,20 +68,29 @@ void smbiod_wake_up(void)
  */
 static int smbiod_start(void)
 {
-	pid_t pid;
+	struct task_struct *tsk;
+	int err = 0;
+
 	if (smbiod_state != SMBIOD_DEAD)
 		return 0;
 	smbiod_state = SMBIOD_STARTING;
 	__module_get(THIS_MODULE);
 	spin_unlock(&servers_lock);
-	pid = kernel_thread(smbiod, NULL, 0);
-	if (pid < 0)
+	tsk = kthread_run(smbiod, NULL, "smbiod");
+	if (IS_ERR(tsk)) {
+		err = PTR_ERR(tsk);
 		module_put(THIS_MODULE);
+	}
 
 	spin_lock(&servers_lock);
-	smbiod_state = pid < 0 ? SMBIOD_DEAD : SMBIOD_RUNNING;
-	smbiod_pid = pid;
-	return pid;
+	if (err < 0) {
+		smbiod_state = SMBIOD_DEAD;
+		smbiod_thread = NULL;
+	} else {
+		smbiod_state = SMBIOD_RUNNING;
+		smbiod_thread = tsk;
+	}
+	return err;
 }
 
 /*
@@ -183,8 +193,7 @@ int smbiod_retry(struct smb_sb_info *server)
 		if (req->rq_flags & SMB_REQ_RETRY) {
 			/* must move the request to the xmitq */
 			VERBOSE("retrying request %p on recvq\n", req);
-			list_del(&req->rq_queue);
-			list_add(&req->rq_queue, &server->xmitq);
+			list_move(&req->rq_queue, &server->xmitq);
 			continue;
 		}
 #endif
@@ -290,8 +299,6 @@ out:
  */
 static int smbiod(void *unused)
 {
-	daemonize("smbiod");
-
 	allow_signal(SIGKILL);
 
 	VERBOSE("SMB Kernel thread starting (%d) ...\n", current->pid);

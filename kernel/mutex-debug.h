@@ -46,21 +46,6 @@ extern void mutex_remove_waiter(struct mutex *lock, struct mutex_waiter *waiter,
 extern void debug_mutex_unlock(struct mutex *lock);
 extern void debug_mutex_init(struct mutex *lock, const char *name);
 
-#define debug_spin_lock(lock)				\
-	do {						\
-		local_irq_disable();			\
-		if (debug_mutex_on)			\
-			spin_lock(lock);		\
-	} while (0)
-
-#define debug_spin_unlock(lock)				\
-	do {						\
-		if (debug_mutex_on)			\
-			spin_unlock(lock);		\
-		local_irq_enable();			\
-		preempt_check_resched();		\
-	} while (0)
-
 #define debug_spin_lock_save(lock, flags)		\
 	do {						\
 		local_irq_save(flags);			\
@@ -68,7 +53,7 @@ extern void debug_mutex_init(struct mutex *lock, const char *name);
 			spin_lock(lock);		\
 	} while (0)
 
-#define debug_spin_lock_restore(lock, flags)		\
+#define debug_spin_unlock_restore(lock, flags)		\
 	do {						\
 		if (debug_mutex_on)			\
 			spin_unlock(lock);		\
@@ -76,20 +61,20 @@ extern void debug_mutex_init(struct mutex *lock, const char *name);
 		preempt_check_resched();		\
 	} while (0)
 
-#define spin_lock_mutex(lock)				\
+#define spin_lock_mutex(lock, flags)			\
 	do {						\
 		struct mutex *l = container_of(lock, struct mutex, wait_lock); \
 							\
 		DEBUG_WARN_ON(in_interrupt());		\
-		debug_spin_lock(&debug_mutex_lock);	\
+		debug_spin_lock_save(&debug_mutex_lock, flags); \
 		spin_lock(lock);			\
 		DEBUG_WARN_ON(l->magic != l);		\
 	} while (0)
 
-#define spin_unlock_mutex(lock)				\
+#define spin_unlock_mutex(lock, flags)			\
 	do {						\
 		spin_unlock(lock);			\
-		debug_spin_unlock(&debug_mutex_lock);	\
+		debug_spin_unlock_restore(&debug_mutex_lock, flags);	\
 	} while (0)
 
 #define DEBUG_OFF()					\

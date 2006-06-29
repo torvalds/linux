@@ -2996,7 +2996,7 @@ int reiserfs_setattr(struct dentry *dentry, struct iattr *attr)
 	return error;
 }
 
-struct address_space_operations reiserfs_address_space_operations = {
+const struct address_space_operations reiserfs_address_space_operations = {
 	.writepage = reiserfs_writepage,
 	.readpage = reiserfs_readpage,
 	.readpages = reiserfs_readpages,

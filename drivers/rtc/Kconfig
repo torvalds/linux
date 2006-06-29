@@ -73,6 +73,13 @@ config RTC_INTF_DEV
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-dev.
 
+config RTC_INTF_DEV_UIE_EMUL
+	bool "RTC UIE emulation on dev interface"
+	depends on RTC_INTF_DEV
+	help
+	  Provides an emulation for RTC_UIE if the underlaying rtc chip
+	  driver did not provide RTC_UIE ioctls.
+
 comment "RTC drivers"
 	depends on RTC_CLASS
 
@@ -86,6 +93,34 @@ config RTC_DRV_X1205
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-x1205.
 
+config RTC_DRV_DS1307
+	tristate "Dallas/Maxim DS1307 and similar I2C RTC chips"
+	depends on RTC_CLASS && I2C
+	help
+	  If you say yes here you get support for various compatible RTC
+	  chips (often with battery backup) connected with I2C.  This driver
+	  should handle DS1307, DS1337, DS1338, DS1339, DS1340, ST M41T00,
+	  and probably other chips.  In some cases the RTC must already
+	  have been initialized (by manufacturing or a bootloader).
+
+	  The first seven registers on these chips hold an RTC, and other
+	  registers may add features such as NVRAM, a trickle charger for
+	  the RTC/NVRAM backup power, and alarms.  This driver may not
+	  expose all those available chip features.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-ds1307.
+
+config RTC_DRV_DS1553
+	tristate "Dallas DS1553"
+	depends on RTC_CLASS
+	help
+	  If you say yes here you get support for the
+	  Dallas DS1553 timekeeping chip.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-ds1553.
+
 config RTC_DRV_DS1672
 	tristate "Dallas/Maxim DS1672"
 	depends on RTC_CLASS && I2C
@@ -95,6 +130,16 @@ config RTC_DRV_DS1672
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-ds1672.
+
+config RTC_DRV_DS1742
+	tristate "Dallas DS1742"
+	depends on RTC_CLASS
+	help
+	  If you say yes here you get support for the
+	  Dallas DS1742 timekeeping chip.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-ds1742.
 
 config RTC_DRV_PCF8563
 	tristate "Philips PCF8563/Epson RTC8564"
@@ -106,6 +151,26 @@ config RTC_DRV_PCF8563
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-pcf8563.
+
+config RTC_DRV_PCF8583
+	tristate "Philips PCF8583"
+	depends on RTC_CLASS && I2C
+	help
+	  If you say yes here you get support for the
+	  Philips PCF8583 RTC chip.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-pcf8583.
+
+config RTC_DRV_RS5C348
+	tristate "Ricoh RS5C348A/B"
+	depends on RTC_CLASS && SPI
+	help
+	  If you say yes here you get support for the
+	  Ricoh RS5C348A and RS5C348B RTC chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-rs5c348.
 
 config RTC_DRV_RS5C372
 	tristate "Ricoh RS5C372A/B"
@@ -157,6 +222,22 @@ config RTC_DRV_VR41XX
 	  To compile this driver as a module, choose M here: the
 	  module will be called rtc-vr41xx.
 
+config RTC_DRV_PL031
+	tristate "ARM AMBA PL031 RTC"
+	depends on RTC_CLASS && ARM_AMBA
+	help
+	  If you say Y here you will get access to ARM AMBA
+	  PrimeCell PL031 UART found on certain ARM SOCs.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rtc-pl031.
+
+config RTC_DRV_AT91
+	tristate "AT91RM9200"
+	depends on RTC_CLASS && ARCH_AT91RM9200
+	help
+	  Driver for the Atmel AT91RM9200's internal RTC (Realtime Clock).
+
 config RTC_DRV_TEST
 	tristate "Test driver/device"
 	depends on RTC_CLASS
@@ -171,5 +252,25 @@ config RTC_DRV_TEST
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-test.
+
+config RTC_DRV_MAX6902
+	tristate "Maxim 6902"
+	depends on RTC_CLASS && SPI
+	help
+	  If you say yes here you will get support for the
+	  Maxim MAX6902 spi RTC chip.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-max6902.
+
+config RTC_DRV_V3020
+	tristate "EM Microelectronic V3020"
+	depends on RTC_CLASS
+	help
+	  If you say yes here you will get support for the
+	  EM Microelectronic v3020 RTC chip.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-v3020.
 
 endmenu

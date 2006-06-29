@@ -1,9 +1,9 @@
 
-                   W996[87]CF JPEG USB Dual Mode Camera Chip
-                     Driver for Linux 2.6 (basic version)
-                   =========================================
+		   W996[87]CF JPEG USB Dual Mode Camera Chip
+		     Driver for Linux 2.6 (basic version)
+		   =========================================
 
-                               - Documentation -
+			       - Documentation -
 
 
 Index
@@ -188,57 +188,57 @@ Name:            ovmod_load
 Type:            bool
 Syntax:          <0|1>
 Description:     Automatic 'ovcamchip' module loading: 0 disabled, 1 enabled.
-                 If enabled, 'insmod' searches for the required 'ovcamchip'
-                 module in the system, according to its configuration, and
-                 loads that module automatically. This action is performed as
-                 once soon as the 'w9968cf' module is loaded into memory.
+		 If enabled, 'insmod' searches for the required 'ovcamchip'
+		 module in the system, according to its configuration, and
+		 loads that module automatically. This action is performed as
+		 once soon as the 'w9968cf' module is loaded into memory.
 Default:         1
 Note:            The kernel must be compiled with the CONFIG_KMOD option
-                 enabled for the 'ovcamchip' module to be loaded and for
-                 this parameter to be present.
+		 enabled for the 'ovcamchip' module to be loaded and for
+		 this parameter to be present.
 -------------------------------------------------------------------------------
 Name:           simcams
 Type:           int
 Syntax:         <n>
 Description:    Number of cameras allowed to stream simultaneously.
-                n may vary from 0 to 32.
+		n may vary from 0 to 32.
 Default:        32
 -------------------------------------------------------------------------------
 Name:           video_nr
 Type:           int array (min = 0, max = 32)
 Syntax:         <-1|n[,...]>
 Description:    Specify V4L minor mode number.
-                -1 = use next available
-                 n = use minor number n
-                You can specify up to 32 cameras this way.
-                For example:
-                video_nr=-1,2,-1 would assign minor number 2 to the second
-                recognized camera and use auto for the first one and for every
-                other camera.
+		-1 = use next available
+		 n = use minor number n
+		You can specify up to 32 cameras this way.
+		For example:
+		video_nr=-1,2,-1 would assign minor number 2 to the second
+		recognized camera and use auto for the first one and for every
+		other camera.
 Default:        -1
 -------------------------------------------------------------------------------
 Name:           packet_size
 Type:           int array (min = 0, max = 32)
 Syntax:         <n[,...]>
 Description:    Specify the maximum data payload size in bytes for alternate
-                settings, for each device. n is scaled between 63 and 1023.
+		settings, for each device. n is scaled between 63 and 1023.
 Default:        1023
 -------------------------------------------------------------------------------
 Name:           max_buffers
 Type:           int array (min = 0, max = 32)
 Syntax:         <n[,...]>
 Description:    For advanced users.
-                Specify the maximum number of video frame buffers to allocate
-                for each device, from 2 to 32.
+		Specify the maximum number of video frame buffers to allocate
+		for each device, from 2 to 32.
 Default:        2
 -------------------------------------------------------------------------------
 Name:           double_buffer
 Type:           bool array (min = 0, max = 32)
 Syntax:         <0|1[,...]>
 Description:    Hardware double buffering: 0 disabled, 1 enabled.
-                It should be enabled if you want smooth video output: if you
-                obtain out of sync. video, disable it, or try to
-                decrease the 'clockdiv' module parameter value.
+		It should be enabled if you want smooth video output: if you
+		obtain out of sync. video, disable it, or try to
+		decrease the 'clockdiv' module parameter value.
 Default:        1 for every device.
 -------------------------------------------------------------------------------
 Name:           clamping
@@ -251,9 +251,9 @@ Name:           filter_type
 Type:           int array (min = 0, max = 32)
 Syntax:         <0|1|2[,...]>
 Description:    Video filter type.
-                0 none, 1 (1-2-1) 3-tap filter, 2 (2-3-6-3-2) 5-tap filter.
-                The filter is used to reduce noise and aliasing artifacts
-                produced by the CCD or CMOS image sensor.
+		0 none, 1 (1-2-1) 3-tap filter, 2 (2-3-6-3-2) 5-tap filter.
+		The filter is used to reduce noise and aliasing artifacts
+		produced by the CCD or CMOS image sensor.
 Default:        0 for every device.
 -------------------------------------------------------------------------------
 Name:           largeview
@@ -266,9 +266,9 @@ Name:           upscaling
 Type:           bool array (min = 0, max = 32)
 Syntax:         <0|1[,...]>
 Description:    Software scaling (for non-compressed video only):
-                0 disabled, 1 enabled.
-                Disable it if you have a slow CPU or you don't have enough
-                memory.
+		0 disabled, 1 enabled.
+		Disable it if you have a slow CPU or you don't have enough
+		memory.
 Default:        0 for every device.
 Note:           If 'w9968cf-vpp' is not present, this parameter is set to 0.
 -------------------------------------------------------------------------------
@@ -276,36 +276,36 @@ Name:           decompression
 Type:           int array (min = 0, max = 32)
 Syntax:         <0|1|2[,...]>
 Description:    Software video decompression:
-                0 = disables decompression
-                    (doesn't allow formats needing decompression).
-                1 = forces decompression
-                    (allows formats needing decompression only).
-                2 = allows any permitted formats.
-                Formats supporting (de)compressed video are YUV422P and
-                YUV420P/YUV420 in any resolutions where width and height are
-                multiples of 16.
+		0 = disables decompression
+		    (doesn't allow formats needing decompression).
+		1 = forces decompression
+		    (allows formats needing decompression only).
+		2 = allows any permitted formats.
+		Formats supporting (de)compressed video are YUV422P and
+		YUV420P/YUV420 in any resolutions where width and height are
+		multiples of 16.
 Default:        2 for every device.
 Note:           If 'w9968cf-vpp' is not present, forcing decompression is not
-                allowed; in this case this parameter is set to 2.
+		allowed; in this case this parameter is set to 2.
 -------------------------------------------------------------------------------
 Name:           force_palette
 Type:           int array (min = 0, max = 32)
 Syntax:         <0|9|10|13|15|8|7|1|6|3|4|5[,...]>
 Description:    Force picture palette.
-                In order:
-                 0 = Off - allows any of the following formats:
-                 9 = UYVY    16 bpp - Original video, compression disabled
-                10 = YUV420  12 bpp - Original video, compression enabled
-                13 = YUV422P 16 bpp - Original video, compression enabled
-                15 = YUV420P 12 bpp - Original video, compression enabled
-                 8 = YUVY    16 bpp - Software conversion from UYVY
-                 7 = YUV422  16 bpp - Software conversion from UYVY
-                 1 = GREY     8 bpp - Software conversion from UYVY
-                 6 = RGB555  16 bpp - Software conversion from UYVY
-                 3 = RGB565  16 bpp - Software conversion from UYVY
-                 4 = RGB24   24 bpp - Software conversion from UYVY
-                 5 = RGB32   32 bpp - Software conversion from UYVY
-                When not 0, this parameter will override 'decompression'.
+		In order:
+		 0 = Off - allows any of the following formats:
+		 9 = UYVY    16 bpp - Original video, compression disabled
+		10 = YUV420  12 bpp - Original video, compression enabled
+		13 = YUV422P 16 bpp - Original video, compression enabled
+		15 = YUV420P 12 bpp - Original video, compression enabled
+		 8 = YUVY    16 bpp - Software conversion from UYVY
+		 7 = YUV422  16 bpp - Software conversion from UYVY
+		 1 = GREY     8 bpp - Software conversion from UYVY
+		 6 = RGB555  16 bpp - Software conversion from UYVY
+		 3 = RGB565  16 bpp - Software conversion from UYVY
+		 4 = RGB24   24 bpp - Software conversion from UYVY
+		 5 = RGB32   32 bpp - Software conversion from UYVY
+		When not 0, this parameter will override 'decompression'.
 Default:        0 for every device. Initial palette is 9 (UYVY).
 Note:           If 'w9968cf-vpp' is not present, this parameter is set to 9.
 -------------------------------------------------------------------------------
@@ -313,77 +313,77 @@ Name:           force_rgb
 Type:           bool array (min = 0, max = 32)
 Syntax:         <0|1[,...]>
 Description:    Read RGB video data instead of BGR:
-                1 = use RGB component ordering.
-                0 = use BGR component ordering.
-                This parameter has effect when using RGBX palettes only.
+		1 = use RGB component ordering.
+		0 = use BGR component ordering.
+		This parameter has effect when using RGBX palettes only.
 Default:        0 for every device.
 -------------------------------------------------------------------------------
 Name:           autobright
 Type:           bool array (min = 0, max = 32)
 Syntax:         <0|1[,...]>
 Description:    Image sensor automatically changes brightness:
-                0 = no, 1 = yes
+		0 = no, 1 = yes
 Default:        0 for every device.
 -------------------------------------------------------------------------------
 Name:           autoexp
 Type:           bool array (min = 0, max = 32)
 Syntax:         <0|1[,...]>
 Description:    Image sensor automatically changes exposure:
-                0 = no, 1 = yes
+		0 = no, 1 = yes
 Default:        1 for every device.
 -------------------------------------------------------------------------------
 Name:           lightfreq
 Type:           int array (min = 0, max = 32)
 Syntax:         <50|60[,...]>
 Description:    Light frequency in Hz:
-                50 for European and Asian lighting, 60 for American lighting.
+		50 for European and Asian lighting, 60 for American lighting.
 Default:        50 for every device.
 -------------------------------------------------------------------------------
 Name:           bandingfilter
 Type:           bool array (min = 0, max = 32)
 Syntax:         <0|1[,...]>
 Description:    Banding filter to reduce effects of fluorescent
-                lighting:
-                0 disabled, 1 enabled.
-                This filter tries to reduce the pattern of horizontal
-                light/dark bands caused by some (usually fluorescent) lighting.
+		lighting:
+		0 disabled, 1 enabled.
+		This filter tries to reduce the pattern of horizontal
+		light/dark bands caused by some (usually fluorescent) lighting.
 Default:        0 for every device.
 -------------------------------------------------------------------------------
 Name:           clockdiv
 Type:           int array (min = 0, max = 32)
 Syntax:         <-1|n[,...]>
 Description:    Force pixel clock divisor to a specific value (for experts):
-                n may vary from 0 to 127.
-                -1 for automatic value.
-                See also the 'double_buffer' module parameter.
+		n may vary from 0 to 127.
+		-1 for automatic value.
+		See also the 'double_buffer' module parameter.
 Default:        -1 for every device.
 -------------------------------------------------------------------------------
 Name:           backlight
 Type:           bool array (min = 0, max = 32)
 Syntax:         <0|1[,...]>
 Description:    Objects are lit from behind:
-                0 = no, 1 = yes
+		0 = no, 1 = yes
 Default:        0 for every device.
 -------------------------------------------------------------------------------
 Name:           mirror
 Type:           bool array (min = 0, max = 32)
 Syntax:         <0|1[,...]>
 Description:    Reverse image horizontally:
-                0 = no, 1 = yes
+		0 = no, 1 = yes
 Default:        0 for every device.
 -------------------------------------------------------------------------------
 Name:           monochrome
 Type:           bool array (min = 0, max = 32)
 Syntax:         <0|1[,...]>
 Description:    The image sensor is monochrome:
-                0 = no, 1 = yes
+		0 = no, 1 = yes
 Default:        0 for every device.
 -------------------------------------------------------------------------------
 Name:           brightness
 Type:           long array (min = 0, max = 32)
 Syntax:         <n[,...]>
 Description:    Set picture brightness (0-65535).
-                This parameter has no effect if 'autobright' is enabled.
+		This parameter has no effect if 'autobright' is enabled.
 Default:        31000 for every device.
 -------------------------------------------------------------------------------
 Name:           hue
@@ -414,23 +414,23 @@ Name:           debug
 Type:           int
 Syntax:         <n>
 Description:    Debugging information level, from 0 to 6:
-                0 = none (use carefully)
-                1 = critical errors
-                2 = significant informations
-                3 = configuration or general messages
-                4 = warnings
-                5 = called functions
-                6 = function internals
-                Level 5 and 6 are useful for testing only, when only one
-                device is used.
+		0 = none (use carefully)
+		1 = critical errors
+		2 = significant informations
+		3 = configuration or general messages
+		4 = warnings
+		5 = called functions
+		6 = function internals
+		Level 5 and 6 are useful for testing only, when only one
+		device is used.
 Default:        2
 -------------------------------------------------------------------------------
 Name:           specific_debug
 Type:           bool
 Syntax:         <0|1>
 Description:    Enable or disable specific debugging messages:
-                0 = print messages concerning every level <= 'debug' level.
-                1 = print messages concerning the level indicated by 'debug'.
+		0 = print messages concerning every level <= 'debug' level.
+		1 = print messages concerning the level indicated by 'debug'.
 Default:        0
 -------------------------------------------------------------------------------
 

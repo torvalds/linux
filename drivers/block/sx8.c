@@ -1694,9 +1694,10 @@ static int carm_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	DPRINTK("waiting for probe_comp\n");
 	wait_for_completion(&host->probe_comp);
 
-	printk(KERN_INFO "%s: pci %s, ports %d, io %lx, irq %u, major %d\n",
+	printk(KERN_INFO "%s: pci %s, ports %d, io %llx, irq %u, major %d\n",
 	       host->name, pci_name(pdev), (int) CARM_MAX_PORTS,
-	       pci_resource_start(pdev, 0), pdev->irq, host->major);
+	       (unsigned long long)pci_resource_start(pdev, 0),
+		   pdev->irq, host->major);
 
 	carm_host_id++;
 	pci_set_drvdata(pdev, host);

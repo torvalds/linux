@@ -171,9 +171,9 @@ struct swap_info_struct;
  *	Deallocate and clear the sb->s_security field.
  *	@sb contains the super_block structure to be modified.
  * @sb_statfs:
- *	Check permission before obtaining filesystem statistics for the @sb
- *	filesystem.
- *	@sb contains the super_block structure for the filesystem.
+ *	Check permission before obtaining filesystem statistics for the @mnt
+ *	mountpoint.
+ *	@dentry is a handle on the superblock for the filesystem.
  *	Return 0 if permission is granted.  
  * @sb_mount:
  *	Check permission before an object specified by @dev_name is mounted on
@@ -577,6 +577,11 @@ struct swap_info_struct;
  *	@p contains the task_struct of process.
  *	@nice contains the new nice value.
  *	Return 0 if permission is granted.
+ * @task_setioprio
+ *	Check permission before setting the ioprio value of @p to @ioprio.
+ *	@p contains the task_struct of process.
+ *	@ioprio contains the new ioprio value
+ *	Return 0 if permission is granted.
  * @task_setrlimit:
  *	Check permission before setting the resource limits of the current
  *	process for @resource to @new_rlim.  The old resource limit values can
@@ -594,6 +599,10 @@ struct swap_info_struct;
  * @task_getscheduler:
  *	Check permission before obtaining scheduling information for process
  *	@p.
+ *	@p contains the task_struct for process.
+ *	Return 0 if permission is granted.
+ * @task_movememory
+ *	Check permission before moving memory owned by process @p.
  *	@p contains the task_struct for process.
  *	Return 0 if permission is granted.
  * @task_kill:
@@ -853,6 +862,7 @@ struct swap_info_struct;
  *	Permit allocation of a key and assign security data. Note that key does
  *	not have a serial number assigned at this point.
  *	@key points to the key.
+ *	@flags is the allocation flags
  *	Return 0 if permission is granted, -ve error otherwise.
  * @key_free:
  *	Notification of destruction; free security data.
@@ -1127,7 +1137,7 @@ struct security_operations {
 	int (*sb_copy_data)(struct file_system_type *type,
 			    void *orig, void *copy);
 	int (*sb_kern_mount) (struct super_block *sb, void *data);
-	int (*sb_statfs) (struct super_block * sb);
+	int (*sb_statfs) (struct dentry *dentry);
 	int (*sb_mount) (char *dev_name, struct nameidata * nd,
 			 char *type, unsigned long flags, void *data);
 	int (*sb_check_sb) (struct vfsmount * mnt, struct nameidata * nd);
@@ -1210,10 +1220,12 @@ struct security_operations {
 	int (*task_getsid) (struct task_struct * p);
 	int (*task_setgroups) (struct group_info *group_info);
 	int (*task_setnice) (struct task_struct * p, int nice);
+	int (*task_setioprio) (struct task_struct * p, int ioprio);
 	int (*task_setrlimit) (unsigned int resource, struct rlimit * new_rlim);
 	int (*task_setscheduler) (struct task_struct * p, int policy,
 				  struct sched_param * lp);
 	int (*task_getscheduler) (struct task_struct * p);
+	int (*task_movememory) (struct task_struct * p);
 	int (*task_kill) (struct task_struct * p,
 			  struct siginfo * info, int sig);
 	int (*task_wait) (struct task_struct * p);
@@ -1313,7 +1325,7 @@ struct security_operations {
 
 	/* key management security hooks */
 #ifdef CONFIG_KEYS
-	int (*key_alloc)(struct key *key);
+	int (*key_alloc)(struct key *key, struct task_struct *tsk, unsigned long flags);
 	void (*key_free)(struct key *key);
 	int (*key_permission)(key_ref_t key_ref,
 			      struct task_struct *context,
@@ -1450,9 +1462,9 @@ static inline int security_sb_kern_mount (struct super_block *sb, void *data)
 	return security_ops->sb_kern_mount (sb, data);
 }
 
-static inline int security_sb_statfs (struct super_block *sb)
+static inline int security_sb_statfs (struct dentry *dentry)
 {
-	return security_ops->sb_statfs (sb);
+	return security_ops->sb_statfs (dentry);
 }
 
 static inline int security_sb_mount (char *dev_name, struct nameidata *nd,
@@ -1836,6 +1848,11 @@ static inline int security_task_setnice (struct task_struct *p, int nice)
 	return security_ops->task_setnice (p, nice);
 }
 
+static inline int security_task_setioprio (struct task_struct *p, int ioprio)
+{
+	return security_ops->task_setioprio (p, ioprio);
+}
+
 static inline int security_task_setrlimit (unsigned int resource,
 					   struct rlimit *new_rlim)
 {
@@ -1852,6 +1869,11 @@ static inline int security_task_setscheduler (struct task_struct *p,
 static inline int security_task_getscheduler (struct task_struct *p)
 {
 	return security_ops->task_getscheduler (p);
+}
+
+static inline int security_task_movememory (struct task_struct *p)
+{
+	return security_ops->task_movememory (p);
 }
 
 static inline int security_task_kill (struct task_struct *p,
@@ -2162,7 +2184,7 @@ static inline int security_sb_kern_mount (struct super_block *sb, void *data)
 	return 0;
 }
 
-static inline int security_sb_statfs (struct super_block *sb)
+static inline int security_sb_statfs (struct dentry *dentry)
 {
 	return 0;
 }
@@ -2478,6 +2500,11 @@ static inline int security_task_setnice (struct task_struct *p, int nice)
 	return 0;
 }
 
+static inline int security_task_setioprio (struct task_struct *p, int ioprio)
+{
+	return 0;
+}
+
 static inline int security_task_setrlimit (unsigned int resource,
 					   struct rlimit *new_rlim)
 {
@@ -2492,6 +2519,11 @@ static inline int security_task_setscheduler (struct task_struct *p,
 }
 
 static inline int security_task_getscheduler (struct task_struct *p)
+{
+	return 0;
+}
+
+static inline int security_task_movememory (struct task_struct *p)
 {
 	return 0;
 }
@@ -3008,9 +3040,11 @@ static inline int security_xfrm_policy_lookup(struct xfrm_policy *xp, u32 sk_sid
 
 #ifdef CONFIG_KEYS
 #ifdef CONFIG_SECURITY
-static inline int security_key_alloc(struct key *key)
+static inline int security_key_alloc(struct key *key,
+				     struct task_struct *tsk,
+				     unsigned long flags)
 {
-	return security_ops->key_alloc(key);
+	return security_ops->key_alloc(key, tsk, flags);
 }
 
 static inline void security_key_free(struct key *key)
@@ -3027,7 +3061,9 @@ static inline int security_key_permission(key_ref_t key_ref,
 
 #else
 
-static inline int security_key_alloc(struct key *key)
+static inline int security_key_alloc(struct key *key,
+				     struct task_struct *tsk,
+				     unsigned long flags)
 {
 	return 0;
 }

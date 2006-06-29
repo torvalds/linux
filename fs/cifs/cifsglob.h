@@ -88,7 +88,8 @@ enum statusEnum {
 };
 
 enum securityEnum {
-	NTLM = 0,		/* Legacy NTLM012 auth with NTLM hash */
+	LANMAN = 0,             /* Legacy LANMAN auth */
+	NTLM,			/* Legacy NTLM012 auth with NTLM hash */
 	NTLMv2,			/* Legacy NTLM auth with NTLMv2 hash */
 	RawNTLMSSP,		/* NTLMSSP without SPNEGO */
 	NTLMSSP,		/* NTLMSSP via SPNEGO */
@@ -157,7 +158,7 @@ struct TCP_Server_Info {
 	/* 16th byte of RFC1001 workstation name is always null */
 	char workstation_RFC1001_name[SERVER_NAME_LEN_WITH_NULL];
 	__u32 sequence_number; /* needed for CIFS PDU signature */
-	char mac_signing_key[CIFS_SESSION_KEY_SIZE + 16]; 
+	char mac_signing_key[CIFS_SESS_KEY_SIZE + 16]; 
 };
 
 /*
@@ -179,10 +180,13 @@ struct cifsUidInfo {
 struct cifsSesInfo {
 	struct list_head cifsSessionList;
 	struct semaphore sesSem;
+#if 0
 	struct cifsUidInfo *uidInfo;	/* pointer to user info */
+#endif
 	struct TCP_Server_Info *server;	/* pointer to server info */
 	atomic_t inUse; /* # of mounts (tree connections) on this ses */
 	enum statusEnum status;
+	unsigned overrideSecFlg;  /* if non-zero override global sec flags */
 	__u16 ipc_tid;		/* special tid for connection to IPC share */
 	__u16 flags;
 	char *serverOS;		/* name of operating system underlying server */
@@ -194,7 +198,7 @@ struct cifsSesInfo {
 	char serverName[SERVER_NAME_LEN_WITH_NULL * 2];	/* BB make bigger for 
 				TCP names - will ipv6 and sctp addresses fit? */
 	char userName[MAX_USERNAME_SIZE + 1];
-	char domainName[MAX_USERNAME_SIZE + 1];
+	char * domainName;
 	char * password;
 };
 /* session flags */
@@ -209,12 +213,12 @@ struct cifsTconInfo {
 	struct list_head openFileList;
 	struct semaphore tconSem;
 	struct cifsSesInfo *ses;	/* pointer to session associated with */
-	char treeName[MAX_TREE_SIZE + 1]; /* UNC name of resource (in ASCII not UTF) */
+	char treeName[MAX_TREE_SIZE + 1]; /* UNC name of resource in ASCII */
 	char *nativeFileSystem;
 	__u16 tid;		/* The 2 byte tree id */
 	__u16 Flags;		/* optional support bits */
 	enum statusEnum tidStatus;
-	atomic_t useCount;	/* how many mounts (explicit or implicit) to this share */
+	atomic_t useCount;	/* how many explicit/implicit mounts to share */
 #ifdef CONFIG_CIFS_STATS
 	atomic_t num_smbs_sent;
 	atomic_t num_writes;
@@ -254,7 +258,7 @@ struct cifsTconInfo {
 	spinlock_t stat_lock;
 #endif /* CONFIG_CIFS_STATS */
 	FILE_SYSTEM_DEVICE_INFO fsDevInfo;
-	FILE_SYSTEM_ATTRIBUTE_INFO fsAttrInfo;	/* ok if file system name truncated */
+	FILE_SYSTEM_ATTRIBUTE_INFO fsAttrInfo; /* ok if fs name truncated */
 	FILE_SYSTEM_UNIX_INFO fsUnixInfo;
 	unsigned retry:1;
 	unsigned nocase:1;
@@ -305,7 +309,6 @@ struct cifsFileInfo {
 	atomic_t wrtPending;   /* handle in use - defer close */
 	struct semaphore fh_sem; /* prevents reopen race after dead ses*/
 	char * search_resume_name; /* BB removeme BB */
-	unsigned int resume_name_length; /* BB removeme - field renamed and moved BB */
 	struct cifs_search_info srch_inf;
 };
 
@@ -391,9 +394,9 @@ struct mid_q_entry {
 	struct smb_hdr *resp_buf;	/* response buffer */
 	int midState;	/* wish this were enum but can not pass to wait_event */
 	__u8 command;	/* smb command code */
-	unsigned multiPart:1;	/* multiple responses to one SMB request */
 	unsigned largeBuf:1;    /* if valid response, is pointer to large buf */
-	unsigned multiResp:1;   /* multiple trans2 responses for one request  */
+	unsigned multiRsp:1;   /* multiple trans2 responses for one request  */
+	unsigned multiEnd:1; /* both received */
 };
 
 struct oplock_q_entry {
@@ -430,15 +433,35 @@ struct dir_notify_req {
 #define   CIFS_LARGE_BUFFER     2
 #define   CIFS_IOVEC            4    /* array of response buffers */
 
-/* Type of session setup needed */
-#define   CIFS_PLAINTEXT	0
-#define   CIFS_LANMAN		1
-#define   CIFS_NTLM		2
-#define   CIFS_NTLMSSP_NEG	3
-#define   CIFS_NTLMSSP_AUTH	4
-#define   CIFS_SPNEGO_INIT	5
-#define   CIFS_SPNEGO_TARG	6
+/* Security Flags: indicate type of session setup needed */
+#define   CIFSSEC_MAY_SIGN	0x00001
+#define   CIFSSEC_MAY_NTLM	0x00002
+#define   CIFSSEC_MAY_NTLMV2	0x00004
+#define   CIFSSEC_MAY_KRB5	0x00008
+#ifdef CONFIG_CIFS_WEAK_PW_HASH
+#define   CIFSSEC_MAY_LANMAN	0x00010
+#define   CIFSSEC_MAY_PLNTXT	0x00020
+#endif /* weak passwords */
+#define   CIFSSEC_MAY_SEAL	0x00040 /* not supported yet */
 
+#define   CIFSSEC_MUST_SIGN	0x01001
+/* note that only one of the following can be set so the
+result of setting MUST flags more than once will be to
+require use of the stronger protocol */
+#define   CIFSSEC_MUST_NTLM	0x02002
+#define   CIFSSEC_MUST_NTLMV2	0x04004
+#define   CIFSSEC_MUST_KRB5	0x08008
+#ifdef CONFIG_CIFS_WEAK_PW_HASH
+#define   CIFSSEC_MUST_LANMAN	0x10010
+#define   CIFSSEC_MUST_PLNTXT	0x20020
+#define   CIFSSEC_MASK          0x37037 /* current flags supported if weak */
+#else	  
+#define	  CIFSSEC_MASK          0x07007 /* flags supported if no weak config */
+#endif /* WEAK_PW_HASH */
+#define   CIFSSEC_MUST_SEAL	0x40040 /* not supported yet */
+
+#define   CIFSSEC_DEF  CIFSSEC_MAY_SIGN | CIFSSEC_MAY_NTLM | CIFSSEC_MAY_NTLMV2
+#define   CIFSSEC_MAX  CIFSSEC_MUST_SIGN | CIFSSEC_MUST_NTLMV2
 /*
  *****************************************************************
  * All constants go here
@@ -500,16 +523,16 @@ GLOBAL_EXTERN rwlock_t GlobalSMBSeslock;  /* protects list inserts on 3 above */
 GLOBAL_EXTERN struct list_head GlobalOplock_Q;
 
 GLOBAL_EXTERN struct list_head GlobalDnotifyReqList; /* Outstanding dir notify requests */
-GLOBAL_EXTERN struct list_head GlobalDnotifyRsp_Q; /* Dir notify response queue */
+GLOBAL_EXTERN struct list_head GlobalDnotifyRsp_Q;/* DirNotify response queue */
 
 /*
  * Global transaction id (XID) information
  */
 GLOBAL_EXTERN unsigned int GlobalCurrentXid;	/* protected by GlobalMid_Sem */
-GLOBAL_EXTERN unsigned int GlobalTotalActiveXid;	/* prot by GlobalMid_Sem */
+GLOBAL_EXTERN unsigned int GlobalTotalActiveXid; /* prot by GlobalMid_Sem */
 GLOBAL_EXTERN unsigned int GlobalMaxActiveXid;	/* prot by GlobalMid_Sem */
-GLOBAL_EXTERN spinlock_t GlobalMid_Lock;  /* protects above and list operations */
-					/* on midQ entries */
+GLOBAL_EXTERN spinlock_t GlobalMid_Lock;  /* protects above & list operations */
+					  /* on midQ entries */
 GLOBAL_EXTERN char Local_System_Name[15];
 
 /*
@@ -531,7 +554,7 @@ GLOBAL_EXTERN atomic_t smBufAllocCount;
 GLOBAL_EXTERN atomic_t midCount;
 
 /* Misc globals */
-GLOBAL_EXTERN unsigned int multiuser_mount;	/* if enabled allows new sessions
+GLOBAL_EXTERN unsigned int multiuser_mount; /* if enabled allows new sessions
 				to be established on existing mount if we
 				have the uid/password or Kerberos credential 
 				or equivalent for current user */
@@ -540,8 +563,8 @@ GLOBAL_EXTERN unsigned int experimEnabled;
 GLOBAL_EXTERN unsigned int lookupCacheEnabled;
 GLOBAL_EXTERN unsigned int extended_security;	/* if on, session setup sent 
 				with more secure ntlmssp2 challenge/resp */
-GLOBAL_EXTERN unsigned int ntlmv2_support;  /* better optional password hash */
 GLOBAL_EXTERN unsigned int sign_CIFS_PDUs;  /* enable smb packet signing */
+GLOBAL_EXTERN unsigned int secFlags;
 GLOBAL_EXTERN unsigned int linuxExtEnabled;/*enable Linux/Unix CIFS extensions*/
 GLOBAL_EXTERN unsigned int CIFSMaxBufSize;  /* max size not including hdr */
 GLOBAL_EXTERN unsigned int cifs_min_rcv;    /* min size of big ntwrk buf pool */

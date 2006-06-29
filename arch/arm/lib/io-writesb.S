@@ -64,7 +64,7 @@ ENTRY(__raw_writesb)
 		bpl	.Loutsb_16_lp
 
 		tst	r2, #15
-		LOADREGS(eqfd, sp!, {r4, r5, pc})
+		ldmeqfd	sp!, {r4, r5, pc}
 
 .Loutsb_no_16:	tst	r2, #8
 		beq	.Loutsb_no_8
@@ -80,7 +80,7 @@ ENTRY(__raw_writesb)
 		outword	r3
 
 .Loutsb_no_4:	ands	r2, r2, #3
-		LOADREGS(eqfd, sp!, {r4, r5, pc})
+		ldmeqfd	sp!, {r4, r5, pc}
 
 		cmp	r2, #2
 		ldrb	r3, [r1], #1
@@ -90,4 +90,4 @@ ENTRY(__raw_writesb)
 		ldrgtb	r3, [r1]
 		strgtb	r3, [r0]
 
-		LOADREGS(fd, sp!, {r4, r5, pc})
+		ldmfd	sp!, {r4, r5, pc}

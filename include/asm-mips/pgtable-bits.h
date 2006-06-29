@@ -10,7 +10,6 @@
 #ifndef _ASM_PGTABLE_BITS_H
 #define _ASM_PGTABLE_BITS_H
 
-#include <linux/config.h>
 
 /*
  * Note that we shift the lower 32bits of each EntryLo[01] entry

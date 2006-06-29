@@ -12,7 +12,6 @@
 #define _XTENSA_IO_H
 
 #ifdef __KERNEL__
-#include <linux/config.h>
 #include <asm/byteorder.h>
 
 #include <linux/types.h>

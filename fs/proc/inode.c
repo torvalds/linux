@@ -58,14 +58,11 @@ static void de_put(struct proc_dir_entry *de)
 static void proc_delete_inode(struct inode *inode)
 {
 	struct proc_dir_entry *de;
-	struct task_struct *tsk;
 
 	truncate_inode_pages(&inode->i_data, 0);
 
-	/* Let go of any associated process */
-	tsk = PROC_I(inode)->task;
-	if (tsk)
-		put_task_struct(tsk);
+	/* Stop tracking associated processes */
+	put_pid(PROC_I(inode)->pid);
 
 	/* Let go of any associated proc directory entry */
 	de = PROC_I(inode)->pde;
@@ -94,8 +91,8 @@ static struct inode *proc_alloc_inode(struct super_block *sb)
 	ei = (struct proc_inode *)kmem_cache_alloc(proc_inode_cachep, SLAB_KERNEL);
 	if (!ei)
 		return NULL;
-	ei->task = NULL;
-	ei->type = 0;
+	ei->pid = NULL;
+	ei->fd = 0;
 	ei->op.proc_get_link = NULL;
 	ei->pde = NULL;
 	inode = &ei->vfs_inode;

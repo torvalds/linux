@@ -21,10 +21,6 @@ enum interruption_class {
 
 #define touch_nmi_watchdog() do { } while(0)
 
-struct irqaction;
-struct pt_regs;
-int handle_IRQ_event(unsigned int, struct pt_regs *, struct irqaction *);
-
 #endif /* __KERNEL__ */
 #endif
 

@@ -185,9 +185,7 @@ static struct page *afs_dir_get_page(struct inode *dir, unsigned long index)
 
 	_enter("{%lu},%lu", dir->i_ino, index);
 
-	page = read_cache_page(dir->i_mapping,index,
-			       (filler_t *) dir->i_mapping->a_ops->readpage,
-			       NULL);
+	page = read_mapping_page(dir->i_mapping, index, NULL);
 	if (!IS_ERR(page)) {
 		wait_on_page_locked(page);
 		kmap(page);

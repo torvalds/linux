@@ -15,8 +15,8 @@ config CPU_ARM610
 	select CPU_32v3
 	select CPU_CACHE_V3
 	select CPU_CACHE_VIVT
-	select CPU_COPY_V3
-	select CPU_TLB_V3
+	select CPU_COPY_V3 if MMU
+	select CPU_TLB_V3 if MMU
 	help
 	  The ARM610 is the successor to the ARM3 processor
 	  and was produced by VLSI Technology Inc.
@@ -31,8 +31,8 @@ config CPU_ARM710
 	select CPU_32v3
 	select CPU_CACHE_V3
 	select CPU_CACHE_VIVT
-	select CPU_COPY_V3
-	select CPU_TLB_V3
+	select CPU_COPY_V3 if MMU
+	select CPU_TLB_V3 if MMU
 	help
 	  A 32-bit RISC microprocessor based on the ARM7 processor core
 	  designed by Advanced RISC Machines Ltd. The ARM710 is the
@@ -50,8 +50,8 @@ config CPU_ARM720T
 	select CPU_ABRT_LV4T
 	select CPU_CACHE_V4
 	select CPU_CACHE_VIVT
-	select CPU_COPY_V4WT
-	select CPU_TLB_V4WT
+	select CPU_COPY_V4WT if MMU
+	select CPU_TLB_V4WT if MMU
 	help
 	  A 32-bit RISC processor with 8kByte Cache, Write Buffer and
 	  MMU built around an ARM7TDMI core.
@@ -61,15 +61,15 @@ config CPU_ARM720T
 
 # ARM920T
 config CPU_ARM920T
-	bool "Support ARM920T processor" if !ARCH_S3C2410
-	depends on ARCH_EP93XX || ARCH_INTEGRATOR || ARCH_S3C2410 || ARCH_IMX || ARCH_AAEC2000 || ARCH_AT91RM9200
-	default y if ARCH_S3C2410 || ARCH_AT91RM9200
+	bool "Support ARM920T processor"
+	depends on ARCH_EP93XX || ARCH_INTEGRATOR || CPU_S3C2410 || CPU_S3C2440 || CPU_S3C2442 || ARCH_IMX || ARCH_AAEC2000 || ARCH_AT91RM9200
+	default y if CPU_S3C2410 || CPU_S3C2440 || CPU_S3C2442 || ARCH_AT91RM9200
 	select CPU_32v4
 	select CPU_ABRT_EV4T
 	select CPU_CACHE_V4WT
 	select CPU_CACHE_VIVT
-	select CPU_COPY_V4WB
-	select CPU_TLB_V4WBI
+	select CPU_COPY_V4WB if MMU
+	select CPU_TLB_V4WBI if MMU
 	help
 	  The ARM920T is licensed to be produced by numerous vendors,
 	  and is used in the Maverick EP9312 and the Samsung S3C2410.
@@ -89,8 +89,8 @@ config CPU_ARM922T
 	select CPU_ABRT_EV4T
 	select CPU_CACHE_V4WT
 	select CPU_CACHE_VIVT
-	select CPU_COPY_V4WB
-	select CPU_TLB_V4WBI
+	select CPU_COPY_V4WB if MMU
+	select CPU_TLB_V4WBI if MMU
 	help
 	  The ARM922T is a version of the ARM920T, but with smaller
 	  instruction and data caches. It is used in Altera's
@@ -108,8 +108,8 @@ config CPU_ARM925T
 	select CPU_ABRT_EV4T
 	select CPU_CACHE_V4WT
 	select CPU_CACHE_VIVT
-	select CPU_COPY_V4WB
-	select CPU_TLB_V4WBI
+	select CPU_COPY_V4WB if MMU
+	select CPU_TLB_V4WBI if MMU
  	help
  	  The ARM925T is a mix between the ARM920T and ARM926T, but with
 	  different instruction and data caches. It is used in TI's OMAP
@@ -121,13 +121,13 @@ config CPU_ARM925T
 # ARM926T
 config CPU_ARM926T
 	bool "Support ARM926T processor"
-	depends on ARCH_INTEGRATOR || ARCH_VERSATILE_PB || MACH_VERSATILE_AB || ARCH_OMAP730 || ARCH_OMAP16XX || MACH_REALVIEW_EB
-	default y if ARCH_VERSATILE_PB || MACH_VERSATILE_AB || ARCH_OMAP730 || ARCH_OMAP16XX
+	depends on ARCH_INTEGRATOR || ARCH_VERSATILE_PB || MACH_VERSATILE_AB || ARCH_OMAP730 || ARCH_OMAP16XX || MACH_REALVIEW_EB || ARCH_PNX4008 || ARCH_NETX || CPU_S3C2412
+	default y if ARCH_VERSATILE_PB || MACH_VERSATILE_AB || ARCH_OMAP730 || ARCH_OMAP16XX || ARCH_PNX4008 || ARCH_NETX || CPU_S3C2412
 	select CPU_32v5
 	select CPU_ABRT_EV5TJ
 	select CPU_CACHE_VIVT
-	select CPU_COPY_V4WB
-	select CPU_TLB_V4WBI
+	select CPU_COPY_V4WB if MMU
+	select CPU_TLB_V4WBI if MMU
 	help
 	  This is a variant of the ARM920.  It has slightly different
 	  instruction sequences for cache and TLB operations.  Curiously,
@@ -144,8 +144,8 @@ config CPU_ARM1020
 	select CPU_ABRT_EV4T
 	select CPU_CACHE_V4WT
 	select CPU_CACHE_VIVT
-	select CPU_COPY_V4WB
-	select CPU_TLB_V4WBI
+	select CPU_COPY_V4WB if MMU
+	select CPU_TLB_V4WBI if MMU
 	help
 	  The ARM1020 is the 32K cached version of the ARM10 processor,
 	  with an addition of a floating-point unit.
@@ -161,8 +161,8 @@ config CPU_ARM1020E
 	select CPU_ABRT_EV4T
 	select CPU_CACHE_V4WT
 	select CPU_CACHE_VIVT
-	select CPU_COPY_V4WB
-	select CPU_TLB_V4WBI
+	select CPU_COPY_V4WB if MMU
+	select CPU_TLB_V4WBI if MMU
 	depends on n
 
 # ARM1022E
@@ -172,8 +172,8 @@ config CPU_ARM1022
 	select CPU_32v5
 	select CPU_ABRT_EV4T
 	select CPU_CACHE_VIVT
-	select CPU_COPY_V4WB # can probably do better
-	select CPU_TLB_V4WBI
+	select CPU_COPY_V4WB if MMU # can probably do better
+	select CPU_TLB_V4WBI if MMU
 	help
 	  The ARM1022E is an implementation of the ARMv5TE architecture
 	  based upon the ARM10 integer core with a 16KiB L1 Harvard cache,
@@ -189,8 +189,8 @@ config CPU_ARM1026
 	select CPU_32v5
 	select CPU_ABRT_EV5T # But need Jazelle, but EV5TJ ignores bit 10
 	select CPU_CACHE_VIVT
-	select CPU_COPY_V4WB # can probably do better
-	select CPU_TLB_V4WBI
+	select CPU_COPY_V4WB if MMU # can probably do better
+	select CPU_TLB_V4WBI if MMU
 	help
 	  The ARM1026EJ-S is an implementation of the ARMv5TEJ architecture
 	  based upon the ARM10 integer core.
@@ -207,8 +207,8 @@ config CPU_SA110
 	select CPU_ABRT_EV4
 	select CPU_CACHE_V4WB
 	select CPU_CACHE_VIVT
-	select CPU_COPY_V4WB
-	select CPU_TLB_V4WB
+	select CPU_COPY_V4WB if MMU
+	select CPU_TLB_V4WB if MMU
 	help
 	  The Intel StrongARM(R) SA-110 is a 32-bit microprocessor and
 	  is available at five speeds ranging from 100 MHz to 233 MHz.
@@ -227,7 +227,7 @@ config CPU_SA1100
 	select CPU_ABRT_EV4
 	select CPU_CACHE_V4WB
 	select CPU_CACHE_VIVT
-	select CPU_TLB_V4WB
+	select CPU_TLB_V4WB if MMU
 
 # XScale
 config CPU_XSCALE
@@ -237,7 +237,7 @@ config CPU_XSCALE
 	select CPU_32v5
 	select CPU_ABRT_EV5T
 	select CPU_CACHE_VIVT
-	select CPU_TLB_V4WBI
+	select CPU_TLB_V4WBI if MMU
 
 # XScale Core Version 3
 config CPU_XSC3
@@ -247,7 +247,7 @@ config CPU_XSC3
 	select CPU_32v5
 	select CPU_ABRT_EV5T
 	select CPU_CACHE_VIVT
-	select CPU_TLB_V4WBI
+	select CPU_TLB_V4WBI if MMU
 	select IO_36
 
 # ARMv6
@@ -258,8 +258,8 @@ config CPU_V6
 	select CPU_ABRT_EV6
 	select CPU_CACHE_V6
 	select CPU_CACHE_VIPT
-	select CPU_COPY_V6
-	select CPU_TLB_V6
+	select CPU_COPY_V6 if MMU
+	select CPU_TLB_V6 if MMU
 
 # ARMv6k
 config CPU_32v6K
@@ -277,17 +277,17 @@ config CPU_32v6K
 # This defines the compiler instruction set which depends on the machine type.
 config CPU_32v3
 	bool
-	select TLS_REG_EMUL if SMP
+	select TLS_REG_EMUL if SMP || !MMU
 	select NEEDS_SYSCALL_FOR_CMPXCHG if SMP
 
 config CPU_32v4
 	bool
-	select TLS_REG_EMUL if SMP
+	select TLS_REG_EMUL if SMP || !MMU
 	select NEEDS_SYSCALL_FOR_CMPXCHG if SMP
 
 config CPU_32v5
 	bool
-	select TLS_REG_EMUL if SMP
+	select TLS_REG_EMUL if SMP || !MMU
 	select NEEDS_SYSCALL_FOR_CMPXCHG if SMP
 
 config CPU_32v6
@@ -334,6 +334,7 @@ config CPU_CACHE_VIVT
 config CPU_CACHE_VIPT
 	bool
 
+if MMU
 # The copy-page model
 config CPU_COPY_V3
 	bool
@@ -371,6 +372,8 @@ config CPU_TLB_V4WBI
 
 config CPU_TLB_V6
 	bool
+
+endif
 
 #
 # CPU supports 36-bit I/O

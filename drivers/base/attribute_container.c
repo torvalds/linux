@@ -236,7 +236,6 @@ attribute_container_remove_device(struct device *dev,
 	}
 	up(&attribute_container_mutex);
 }
-EXPORT_SYMBOL_GPL(attribute_container_remove_device);
 
 /**
  * attribute_container_device_trigger - execute a trigger for each matching classdev
@@ -276,7 +275,6 @@ attribute_container_device_trigger(struct device *dev,
 	}
 	up(&attribute_container_mutex);
 }
-EXPORT_SYMBOL_GPL(attribute_container_device_trigger);
 
 /**
  * attribute_container_trigger - trigger a function for each matching container
@@ -304,7 +302,6 @@ attribute_container_trigger(struct device *dev,
 	}
 	up(&attribute_container_mutex);
 }
-EXPORT_SYMBOL_GPL(attribute_container_trigger);
 
 /**
  * attribute_container_add_attrs - add attributes
@@ -333,7 +330,6 @@ attribute_container_add_attrs(struct class_device *classdev)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(attribute_container_add_attrs);
 
 /**
  * attribute_container_add_class_device - same function as class_device_add
@@ -352,7 +348,6 @@ attribute_container_add_class_device(struct class_device *classdev)
 		return error;
 	return attribute_container_add_attrs(classdev);
 }
-EXPORT_SYMBOL_GPL(attribute_container_add_class_device);
 
 /**
  * attribute_container_add_class_device_adapter - simple adapter for triggers
@@ -367,7 +362,6 @@ attribute_container_add_class_device_adapter(struct attribute_container *cont,
 {
 	return attribute_container_add_class_device(classdev);
 }
-EXPORT_SYMBOL_GPL(attribute_container_add_class_device_adapter);
 
 /**
  * attribute_container_remove_attrs - remove any attribute files
@@ -389,7 +383,6 @@ attribute_container_remove_attrs(struct class_device *classdev)
 	for (i = 0; attrs[i]; i++)
 		class_device_remove_file(classdev, attrs[i]);
 }
-EXPORT_SYMBOL_GPL(attribute_container_remove_attrs);
 
 /**
  * attribute_container_class_device_del - equivalent of class_device_del
@@ -405,7 +398,6 @@ attribute_container_class_device_del(struct class_device *classdev)
 	attribute_container_remove_attrs(classdev);
 	class_device_del(classdev);
 }
-EXPORT_SYMBOL_GPL(attribute_container_class_device_del);
 
 /**
  * attribute_container_find_class_device - find the corresponding class_device

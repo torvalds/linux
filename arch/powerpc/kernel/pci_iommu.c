@@ -44,16 +44,16 @@
  */
 #define PCI_GET_DN(dev) ((struct device_node *)((dev)->sysdata))
 
-static inline struct iommu_table *devnode_table(struct device *dev)
+static inline struct iommu_table *device_to_table(struct device *hwdev)
 {
 	struct pci_dev *pdev;
 
-	if (!dev) {
+	if (!hwdev) {
 		pdev = ppc64_isabridge_dev;
 		if (!pdev)
 			return NULL;
 	} else
-		pdev = to_pci_dev(dev);
+		pdev = to_pci_dev(hwdev);
 
 	return PCI_DN(PCI_GET_DN(pdev))->iommu_table;
 }
@@ -85,14 +85,15 @@ static inline unsigned long device_to_mask(struct device *hwdev)
 static void *pci_iommu_alloc_coherent(struct device *hwdev, size_t size,
 			   dma_addr_t *dma_handle, gfp_t flag)
 {
-	return iommu_alloc_coherent(devnode_table(hwdev), size, dma_handle,
-			device_to_mask(hwdev), flag);
+	return iommu_alloc_coherent(device_to_table(hwdev), size, dma_handle,
+			device_to_mask(hwdev), flag,
+			pcibus_to_node(to_pci_dev(hwdev)->bus));
 }
 
 static void pci_iommu_free_coherent(struct device *hwdev, size_t size,
 			 void *vaddr, dma_addr_t dma_handle)
 {
-	iommu_free_coherent(devnode_table(hwdev), size, vaddr, dma_handle);
+	iommu_free_coherent(device_to_table(hwdev), size, vaddr, dma_handle);
 }
 
 /* Creates TCEs for a user provided buffer.  The user buffer must be 
@@ -104,7 +105,7 @@ static void pci_iommu_free_coherent(struct device *hwdev, size_t size,
 static dma_addr_t pci_iommu_map_single(struct device *hwdev, void *vaddr,
 		size_t size, enum dma_data_direction direction)
 {
-	return iommu_map_single(devnode_table(hwdev), vaddr, size,
+	return iommu_map_single(device_to_table(hwdev), vaddr, size,
 			        device_to_mask(hwdev), direction);
 }
 
@@ -112,27 +113,27 @@ static dma_addr_t pci_iommu_map_single(struct device *hwdev, void *vaddr,
 static void pci_iommu_unmap_single(struct device *hwdev, dma_addr_t dma_handle,
 		size_t size, enum dma_data_direction direction)
 {
-	iommu_unmap_single(devnode_table(hwdev), dma_handle, size, direction);
+	iommu_unmap_single(device_to_table(hwdev), dma_handle, size, direction);
 }
 
 
 static int pci_iommu_map_sg(struct device *pdev, struct scatterlist *sglist,
 		int nelems, enum dma_data_direction direction)
 {
-	return iommu_map_sg(pdev, devnode_table(pdev), sglist,
+	return iommu_map_sg(pdev, device_to_table(pdev), sglist,
 			nelems, device_to_mask(pdev), direction);
 }
 
 static void pci_iommu_unmap_sg(struct device *pdev, struct scatterlist *sglist,
 		int nelems, enum dma_data_direction direction)
 {
-	iommu_unmap_sg(devnode_table(pdev), sglist, nelems, direction);
+	iommu_unmap_sg(device_to_table(pdev), sglist, nelems, direction);
 }
 
 /* We support DMA to/from any memory page via the iommu */
 static int pci_iommu_dma_supported(struct device *dev, u64 mask)
 {
-	struct iommu_table *tbl = devnode_table(dev);
+	struct iommu_table *tbl = device_to_table(dev);
 
 	if (!tbl || tbl->it_offset > mask) {
 		printk(KERN_INFO "Warning: IOMMU table offset too big for device mask\n");
@@ -147,13 +148,17 @@ static int pci_iommu_dma_supported(struct device *dev, u64 mask)
 		return 1;
 }
 
+struct dma_mapping_ops pci_iommu_ops = {
+	.alloc_coherent = pci_iommu_alloc_coherent,
+	.free_coherent = pci_iommu_free_coherent,
+	.map_single = pci_iommu_map_single,
+	.unmap_single = pci_iommu_unmap_single,
+	.map_sg = pci_iommu_map_sg,
+	.unmap_sg = pci_iommu_unmap_sg,
+	.dma_supported = pci_iommu_dma_supported,
+};
+
 void pci_iommu_init(void)
 {
-	pci_dma_ops.alloc_coherent = pci_iommu_alloc_coherent;
-	pci_dma_ops.free_coherent = pci_iommu_free_coherent;
-	pci_dma_ops.map_single = pci_iommu_map_single;
-	pci_dma_ops.unmap_single = pci_iommu_unmap_single;
-	pci_dma_ops.map_sg = pci_iommu_map_sg;
-	pci_dma_ops.unmap_sg = pci_iommu_unmap_sg;
-	pci_dma_ops.dma_supported = pci_iommu_dma_supported;
+	pci_dma_ops = pci_iommu_ops;
 }

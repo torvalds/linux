@@ -12,7 +12,7 @@
 
 #ifndef AAC_DRIVER_BUILD
 # define AAC_DRIVER_BUILD 2409
-# define AAC_DRIVER_BRANCH "-mh1"
+# define AAC_DRIVER_BRANCH "-mh2"
 #endif
 #define MAXIMUM_NUM_CONTAINERS	32
 
@@ -563,7 +563,6 @@ struct aac_queue {
 	spinlock_t		lockdata;	/* Actual lock (used only on one side of the lock) */
 	struct list_head 	cmdq;	   	/* A queue of FIBs which need to be prcessed by the FS thread. This is */
                                 		/* only valid for command queues which receive entries from the adapter. */
-	struct list_head	pendingq;	/* A queue of outstanding fib's to the adapter. */
 	u32			numpending;	/* Number of entries on outstanding queue. */
 	struct aac_dev *	dev;		/* Back pointer to adapter structure */
 };
@@ -822,11 +821,6 @@ struct fib {
 	fib_callback 		callback;
 	void 			*callback_data;
 	u32			flags; // u32 dmb was ulong
-	/*
-	 *	The following is used to put this fib context onto the 
-	 *	Outstanding I/O queue.
-	 */
-	struct list_head	queue;
 	/*
 	 *	And for the internal issue/reply queues (we may be able
 	 *	to merge these two)
@@ -1815,3 +1809,5 @@ int aac_probe_container(struct aac_dev *dev, int cid);
 extern int numacb;
 extern int acbsize;
 extern char aac_driver_version[];
+extern int startup_timeout;
+extern int aif_timeout;

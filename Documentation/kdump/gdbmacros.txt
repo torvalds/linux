@@ -175,7 +175,7 @@ end
 document trapinfo
 	Run info threads and lookup pid of thread #1
 	'trapinfo <pid>' will tell you by which trap & possibly
-	addresthe kernel paniced.
+	address the kernel panicked.
 end
 
 

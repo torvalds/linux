@@ -26,7 +26,6 @@
 #include "config.h"
 #endif
 
-#include <linux/config.h>
 
 /* number of supported soundcards */
 #ifdef CONFIG_SND_DYNAMIC_MINORS

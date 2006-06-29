@@ -155,7 +155,7 @@ void __init mv64340_irq_init(unsigned int base)
 		irq_desc[i].status = IRQ_DISABLED;
 		irq_desc[i].action = 0;
 		irq_desc[i].depth = 2;
-		irq_desc[i].handler = &mv64340_irq_type;
+		irq_desc[i].chip = &mv64340_irq_type;
 	}
 
 	irq_base = base;

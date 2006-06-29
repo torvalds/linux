@@ -74,6 +74,8 @@
 #define PRM_RDY_STS			0x00800000
 #define ACC_CODEC_CNTL_WR_CMD		(~0x80000000)
 #define ACC_CODEC_CNTL_RD_CMD		0x80000000
+#define ACC_CODEC_CNTL_LNK_SHUTDOWN	0x00040000
+#define ACC_CODEC_CNTL_LNK_WRM_RST	0x00020000
 #define PRD_JMP				0x2000
 #define PRD_EOP				0x4000
 #define PRD_EOT				0x8000
@@ -88,6 +90,7 @@ struct cs5535audio_dma_ops {
 	void (*disable_dma)(struct cs5535audio *cs5535au);
 	void (*pause_dma)(struct cs5535audio *cs5535au);
 	void (*setup_prd)(struct cs5535audio *cs5535au, u32 prd_addr);
+	u32 (*read_prd)(struct cs5535audio *cs5535au);
 	u32 (*read_dma_pntr)(struct cs5535audio *cs5535au);
 };
 
@@ -103,11 +106,14 @@ struct cs5535audio_dma {
 	struct snd_pcm_substream *substream;
 	unsigned int buf_addr, buf_bytes;
 	unsigned int period_bytes, periods;
+	int suspended;
+	u32 saved_prd;
 };
 
 struct cs5535audio {
 	struct snd_card *card;
 	struct snd_ac97 *ac97;
+	struct snd_pcm *pcm;
 	int irq;
 	struct pci_dev *pci;
 	unsigned long port;
@@ -117,6 +123,8 @@ struct cs5535audio {
 	struct cs5535audio_dma dmas[NUM_CS5535AUDIO_DMAS];
 };
 
+int snd_cs5535audio_suspend(struct pci_dev *pci, pm_message_t state);
+int snd_cs5535audio_resume(struct pci_dev *pci);
 int __devinit snd_cs5535audio_pcm(struct cs5535audio *cs5535audio);
 
 #endif /* __SOUND_CS5535AUDIO_H */

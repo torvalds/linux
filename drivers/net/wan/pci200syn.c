@@ -7,7 +7,7 @@
  * under the terms of version 2 of the GNU General Public License
  * as published by the Free Software Foundation.
  *
- * For information see http://hq.pm.waw.pl/hdlc/
+ * For information see <http://www.kernel.org/pub/linux/utils/net/hdlc/>
  *
  * Sources of information:
  *    Hitachi HD64572 SCA-II User's Manual
@@ -354,6 +354,7 @@ static int __devinit pci200_pci_init_one(struct pci_dev *pdev,
 	    card->rambase == NULL) {
 		printk(KERN_ERR "pci200syn: ioremap() failed\n");
 		pci200_pci_remove_one(pdev);
+		return -EFAULT;
 	}
 
 	/* Reset PLX */

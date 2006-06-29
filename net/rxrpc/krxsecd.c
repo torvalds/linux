@@ -160,8 +160,7 @@ void rxrpc_krxsecd_clear_transport(struct rxrpc_transport *trans)
 	list_for_each_safe(_p, _n, &rxrpc_krxsecd_initmsgq) {
 		msg = list_entry(_p, struct rxrpc_message, link);
 		if (msg->trans == trans) {
-			list_del(&msg->link);
-			list_add_tail(&msg->link, &tmp);
+			list_move_tail(&msg->link, &tmp);
 			atomic_dec(&rxrpc_krxsecd_qcount);
 		}
 	}

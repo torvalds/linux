@@ -354,8 +354,6 @@ static int __init gxfb_probe(struct pci_dev *pdev, const struct pci_device_id *i
 		pci_release_region(pdev, 2);
 	}
 
-	pci_disable_device(pdev);
-
 	if (info)
 		framebuffer_release(info);
 	return ret;
@@ -377,7 +375,6 @@ static void gxfb_remove(struct pci_dev *pdev)
 	iounmap(par->dc_regs);
 	pci_release_region(pdev, 2);
 
-	pci_disable_device(pdev);
 	pci_set_drvdata(pdev, NULL);
 
 	framebuffer_release(info);

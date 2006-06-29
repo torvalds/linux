@@ -9,7 +9,6 @@
 
 #ifdef __KERNEL__
 
-#include <linux/config.h>
 #include <linux/compiler.h>
 #include <asm/page.h>
 
@@ -38,6 +37,7 @@ struct thread_info {
 					 	   0-0xBFFFFFFF for user-thead
 						   0-0xFFFFFFFF for kernel-thread
 						*/
+	void			*sysenter_return;
 	struct restart_block    restart_block;
 
 	unsigned long           previous_esp;   /* ESP of the previous stack in case
@@ -84,16 +84,14 @@ struct thread_info {
 #define init_stack		(init_thread_union.stack)
 
 
+/* how to get the current stack pointer from C */
+register unsigned long current_stack_pointer asm("esp") __attribute_used__;
+
 /* how to get the thread information struct from C */
 static inline struct thread_info *current_thread_info(void)
 {
-	struct thread_info *ti;
-	__asm__("andl %%esp,%0; ":"=r" (ti) : "0" (~(THREAD_SIZE - 1)));
-	return ti;
+	return (struct thread_info *)(current_stack_pointer & ~(THREAD_SIZE - 1));
 }
-
-/* how to get the current stack pointer from C */
-register unsigned long current_stack_pointer asm("esp") __attribute_used__;
 
 /* thread information allocation */
 #ifdef CONFIG_DEBUG_STACK_USAGE
@@ -141,8 +139,7 @@ register unsigned long current_stack_pointer asm("esp") __attribute_used__;
 #define TIF_SYSCALL_AUDIT	7	/* syscall auditing active */
 #define TIF_SECCOMP		8	/* secure computing */
 #define TIF_RESTORE_SIGMASK	9	/* restore signal mask in do_signal() */
-#define TIF_POLLING_NRFLAG	16	/* true if poll_idle() is polling TIF_NEED_RESCHED */
-#define TIF_MEMDIE		17
+#define TIF_MEMDIE		16
 
 #define _TIF_SYSCALL_TRACE	(1<<TIF_SYSCALL_TRACE)
 #define _TIF_NOTIFY_RESUME	(1<<TIF_NOTIFY_RESUME)
@@ -154,7 +151,6 @@ register unsigned long current_stack_pointer asm("esp") __attribute_used__;
 #define _TIF_SYSCALL_AUDIT	(1<<TIF_SYSCALL_AUDIT)
 #define _TIF_SECCOMP		(1<<TIF_SECCOMP)
 #define _TIF_RESTORE_SIGMASK	(1<<TIF_RESTORE_SIGMASK)
-#define _TIF_POLLING_NRFLAG	(1<<TIF_POLLING_NRFLAG)
 
 /* work to do on interrupt/exception return */
 #define _TIF_WORK_MASK \
@@ -171,6 +167,9 @@ register unsigned long current_stack_pointer asm("esp") __attribute_used__;
  * have to worry about atomic accesses.
  */
 #define TS_USEDFPU		0x0001	/* FPU was used by this task this quantum (SMP) */
+#define TS_POLLING		0x0002	/* True if in idle loop and not sleeping */
+
+#define tsk_is_polling(t) ((t)->thread_info->status & TS_POLLING)
 
 #endif /* __KERNEL__ */
 

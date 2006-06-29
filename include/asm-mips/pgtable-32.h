@@ -9,7 +9,6 @@
 #ifndef _ASM_PGTABLE_32_H
 #define _ASM_PGTABLE_32_H
 
-#include <linux/config.h>
 #include <asm/addrspace.h>
 #include <asm/page.h>
 

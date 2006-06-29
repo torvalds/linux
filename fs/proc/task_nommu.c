@@ -156,9 +156,28 @@ static void *m_next(struct seq_file *m, void *v, loff_t *pos)
 {
 	return NULL;
 }
-struct seq_operations proc_pid_maps_op = {
+static struct seq_operations proc_pid_maps_op = {
 	.start	= m_start,
 	.next	= m_next,
 	.stop	= m_stop,
 	.show	= show_map
 };
+
+static int maps_open(struct inode *inode, struct file *file)
+{
+	int ret;
+	ret = seq_open(file, &proc_pid_maps_op);
+	if (!ret) {
+		struct seq_file *m = file->private_data;
+		m->private = NULL;
+	}
+	return ret;
+}
+
+struct file_operations proc_maps_operations = {
+	.open		= maps_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= seq_release,
+};
+

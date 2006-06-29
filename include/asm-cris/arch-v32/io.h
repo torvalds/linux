@@ -4,7 +4,6 @@
 #include <asm/arch/hwregs/reg_map.h>
 #include <asm/arch/hwregs/reg_rdwr.h>
 #include <asm/arch/hwregs/gio_defs.h>
-#include <linux/config.h>
 
 enum crisv32_io_dir
 {

@@ -185,16 +185,17 @@ static int ramfs_fill_super(struct super_block * sb, void * data, int silent)
 	return 0;
 }
 
-struct super_block *ramfs_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data)
+int ramfs_get_sb(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
 {
-	return get_sb_nodev(fs_type, flags, data, ramfs_fill_super);
+	return get_sb_nodev(fs_type, flags, data, ramfs_fill_super, mnt);
 }
 
-static struct super_block *rootfs_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data)
+static int rootfs_get_sb(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
 {
-	return get_sb_nodev(fs_type, flags|MS_NOUSER, data, ramfs_fill_super);
+	return get_sb_nodev(fs_type, flags|MS_NOUSER, data, ramfs_fill_super,
+			    mnt);
 }
 
 static struct file_system_type ramfs_fs_type = {

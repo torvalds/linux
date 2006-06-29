@@ -57,6 +57,7 @@ MODULE_LICENSE("GPL");
 
 static int acpi_memory_device_add(struct acpi_device *device);
 static int acpi_memory_device_remove(struct acpi_device *device, int type);
+static int acpi_memory_device_start(struct acpi_device *device);
 
 static struct acpi_driver acpi_memory_device_driver = {
 	.name = ACPI_MEMORY_DEVICE_DRIVER_NAME,
@@ -65,49 +66,79 @@ static struct acpi_driver acpi_memory_device_driver = {
 	.ops = {
 		.add = acpi_memory_device_add,
 		.remove = acpi_memory_device_remove,
+		.start = acpi_memory_device_start,
 		},
+};
+
+struct acpi_memory_info {
+	struct list_head list;
+	u64 start_addr;		/* Memory Range start physical addr */
+	u64 length;		/* Memory Range length */
+	unsigned short caching;	/* memory cache attribute */
+	unsigned short write_protect;	/* memory read/write attribute */
+	unsigned int enabled:1;
 };
 
 struct acpi_memory_device {
 	acpi_handle handle;
 	unsigned int state;	/* State of the memory device */
-	unsigned short caching;	/* memory cache attribute */
-	unsigned short write_protect;	/* memory read/write attribute */
-	u64 start_addr;		/* Memory Range start physical addr */
-	u64 end_addr;		/* Memory Range end physical addr */
+	struct list_head res_list;
 };
+
+static acpi_status
+acpi_memory_get_resource(struct acpi_resource *resource, void *context)
+{
+	struct acpi_memory_device *mem_device = context;
+	struct acpi_resource_address64 address64;
+	struct acpi_memory_info *info, *new;
+	acpi_status status;
+
+	status = acpi_resource_to_address64(resource, &address64);
+	if (ACPI_FAILURE(status) ||
+	    (address64.resource_type != ACPI_MEMORY_RANGE))
+		return AE_OK;
+
+	list_for_each_entry(info, &mem_device->res_list, list) {
+		/* Can we combine the resource range information? */
+		if ((info->caching == address64.info.mem.caching) &&
+		    (info->write_protect == address64.info.mem.write_protect) &&
+		    (info->start_addr + info->length == address64.minimum)) {
+			info->length += address64.address_length;
+			return AE_OK;
+		}
+	}
+
+	new = kzalloc(sizeof(struct acpi_memory_info), GFP_KERNEL);
+	if (!new)
+		return AE_ERROR;
+
+	INIT_LIST_HEAD(&new->list);
+	new->caching = address64.info.mem.caching;
+	new->write_protect = address64.info.mem.write_protect;
+	new->start_addr = address64.minimum;
+	new->length = address64.address_length;
+	list_add_tail(&new->list, &mem_device->res_list);
+
+	return AE_OK;
+}
 
 static int
 acpi_memory_get_device_resources(struct acpi_memory_device *mem_device)
 {
 	acpi_status status;
-	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
-	struct acpi_resource *resource = NULL;
-	struct acpi_resource_address64 address64;
+	struct acpi_memory_info *info, *n;
 
 	ACPI_FUNCTION_TRACE("acpi_memory_get_device_resources");
 
-	/* Get the range from the _CRS */
-	status = acpi_get_current_resources(mem_device->handle, &buffer);
-	if (ACPI_FAILURE(status))
-		return_VALUE(-EINVAL);
-
-	resource = (struct acpi_resource *)buffer.pointer;
-	status = acpi_resource_to_address64(resource, &address64);
-	if (ACPI_SUCCESS(status)) {
-		if (address64.resource_type == ACPI_MEMORY_RANGE) {
-			/* Populate the structure */
-			mem_device->caching =
-			    address64.info.mem.caching;
-			mem_device->write_protect =
-			    address64.info.mem.write_protect;
-			mem_device->start_addr = address64.minimum;
-			mem_device->end_addr = address64.maximum;
-		}
+	status = acpi_walk_resources(mem_device->handle, METHOD_NAME__CRS,
+				     acpi_memory_get_resource, mem_device);
+	if (ACPI_FAILURE(status)) {
+		list_for_each_entry_safe(info, n, &mem_device->res_list, list)
+			kfree(info);
+		return -EINVAL;
 	}
 
-	acpi_os_free(buffer.pointer);
-	return_VALUE(0);
+	return 0;
 }
 
 static int
@@ -182,7 +213,9 @@ static int acpi_memory_check_device(struct acpi_memory_device *mem_device)
 
 static int acpi_memory_enable_device(struct acpi_memory_device *mem_device)
 {
-	int result;
+	int result, num_enabled = 0;
+	struct acpi_memory_info *info;
+	int node;
 
 	ACPI_FUNCTION_TRACE("acpi_memory_enable_device");
 
@@ -195,16 +228,35 @@ static int acpi_memory_enable_device(struct acpi_memory_device *mem_device)
 		return result;
 	}
 
+	node = acpi_get_node(mem_device->handle);
 	/*
 	 * Tell the VM there is more memory here...
 	 * Note: Assume that this function returns zero on success
+	 * We don't have memory-hot-add rollback function,now.
+	 * (i.e. memory-hot-remove function)
 	 */
-	result = add_memory(mem_device->start_addr,
-			    (mem_device->end_addr - mem_device->start_addr) + 1);
-	if (result) {
+	list_for_each_entry(info, &mem_device->res_list, list) {
+		u64 start_pfn, end_pfn;
+
+		start_pfn = info->start_addr >> PAGE_SHIFT;
+		end_pfn = (info->start_addr + info->length - 1) >> PAGE_SHIFT;
+
+		if (pfn_valid(start_pfn) || pfn_valid(end_pfn)) {
+			/* already enabled. try next area */
+			num_enabled++;
+			continue;
+		}
+
+		result = add_memory(node, info->start_addr, info->length);
+		if (result)
+			continue;
+		info->enabled = 1;
+		num_enabled++;
+	}
+	if (!num_enabled) {
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "\nadd_memory failed\n"));
 		mem_device->state = MEMORY_INVALID_STATE;
-		return result;
+		return -EINVAL;
 	}
 
 	return result;
@@ -248,8 +300,7 @@ static int acpi_memory_powerdown_device(struct acpi_memory_device *mem_device)
 static int acpi_memory_disable_device(struct acpi_memory_device *mem_device)
 {
 	int result;
-	u64 start = mem_device->start_addr;
-	u64 len = mem_device->end_addr - start + 1;
+	struct acpi_memory_info *info, *n;
 
 	ACPI_FUNCTION_TRACE("acpi_memory_disable_device");
 
@@ -257,10 +308,13 @@ static int acpi_memory_disable_device(struct acpi_memory_device *mem_device)
 	 * Ask the VM to offline this memory range.
 	 * Note: Assume that this function returns zero on success
 	 */
-	result = remove_memory(start, len);
-	if (result) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Hot-Remove failed.\n"));
-		return_VALUE(result);
+	list_for_each_entry_safe(info, n, &mem_device->res_list, list) {
+		if (info->enabled) {
+			result = remove_memory(info->start_addr, info->length);
+			if (result)
+				return result;
+		}
+		kfree(info);
 	}
 
 	/* Power-off and eject the device */
@@ -358,6 +412,7 @@ static int acpi_memory_device_add(struct acpi_device *device)
 		return_VALUE(-ENOMEM);
 	memset(mem_device, 0, sizeof(struct acpi_memory_device));
 
+	INIT_LIST_HEAD(&mem_device->res_list);
 	mem_device->handle = device->handle;
 	sprintf(acpi_device_name(device), "%s", ACPI_MEMORY_DEVICE_NAME);
 	sprintf(acpi_device_class(device), "%s", ACPI_MEMORY_DEVICE_CLASS);
@@ -391,6 +446,25 @@ static int acpi_memory_device_remove(struct acpi_device *device, int type)
 	kfree(mem_device);
 
 	return_VALUE(0);
+}
+
+static int acpi_memory_device_start (struct acpi_device *device)
+{
+	struct acpi_memory_device *mem_device;
+	int result = 0;
+
+	ACPI_FUNCTION_TRACE("acpi_memory_device_start");
+
+	mem_device = acpi_driver_data(device);
+
+	if (!acpi_memory_check_device(mem_device)) {
+		/* call add_memory func */
+		result = acpi_memory_enable_device(mem_device);
+		if (result)
+			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
+				"Error in acpi_memory_enable_device\n"));
+	}
+	return_VALUE(result);
 }
 
 /*

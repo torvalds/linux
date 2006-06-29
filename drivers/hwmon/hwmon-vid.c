@@ -58,11 +58,20 @@
     doesn't seem to be any named specification for these. The conversion
     tables are detailed directly in the various Pentium M datasheets:
     http://www.intel.com/design/intarch/pentiumm/docs_pentiumm.htm
+
+    The 14 specification corresponds to Intel Core series. There
+    doesn't seem to be any named specification for these. The conversion
+    tables are detailed directly in the various Pentium Core datasheets:
+    http://www.intel.com/design/mobile/datashts/309221.htm
+
+    The 110 (VRM 11) specification corresponds to Intel Conroe based series.
+    http://www.intel.com/design/processor/applnots/313214.htm
 */
 
 /* vrm is the VRM/VRD document version multiplied by 10.
-   val is the 4-, 5- or 6-bit VID code.
-   Returned value is in mV to avoid floating point in the kernel. */
+   val is the 4-bit or more VID code.
+   Returned value is in mV to avoid floating point in the kernel.
+   Some VID have some bits in uV scale, this is rounded to mV */
 int vid_from_reg(int val, u8 vrm)
 {
 	int vid;
@@ -70,26 +79,36 @@ int vid_from_reg(int val, u8 vrm)
 	switch(vrm) {
 
 	case 100:               /* VRD 10.0 */
+		/* compute in uV, round to mV */
+		val &= 0x3f;
 		if((val & 0x1f) == 0x1f)
 			return 0;
 		if((val & 0x1f) <= 0x09 || val == 0x0a)
-			vid = 10875 - (val & 0x1f) * 250;
+			vid = 1087500 - (val & 0x1f) * 25000;
 		else
-			vid = 18625 - (val & 0x1f) * 250;
+			vid = 1862500 - (val & 0x1f) * 25000;
 		if(val & 0x20)
-			vid -= 125;
-		vid /= 10;      /* only return 3 dec. places for now */
-		return vid;
+			vid -= 12500;
+		return((vid + 500) / 1000);
 
+	case 110:		/* Intel Conroe */
+				/* compute in uV, round to mV */
+		val &= 0xff;
+		if(((val & 0x7e) == 0xfe) || (!(val & 0x7e)))
+			return 0;
+		return((1600000 - (val - 2) * 6250 + 500) / 1000);
 	case 24:                /* Opteron processor */
+		val &= 0x1f;
 		return(val == 0x1f ? 0 : 1550 - val * 25);
 
 	case 91:		/* VRM 9.1 */
 	case 90:		/* VRM 9.0 */
+		val &= 0x1f;
 		return(val == 0x1f ? 0 :
 		                       1850 - val * 25);
 
 	case 85:		/* VRM 8.5 */
+		val &= 0x1f;
 		return((val & 0x10  ? 25 : 0) +
 		       ((val & 0x0f) > 0x04 ? 2050 : 1250) -
 		       ((val & 0x0f) * 50));
@@ -98,14 +117,21 @@ int vid_from_reg(int val, u8 vrm)
 		val &= 0x0f;
 				/* fall through */
 	case 82:		/* VRM 8.2 */
+		val &= 0x1f;
 		return(val == 0x1f ? 0 :
 		       val & 0x10  ? 5100 - (val) * 100 :
 		                     2050 - (val) * 50);
 	case 17:		/* Intel IMVP-II */
+		val &= 0x1f;
 		return(val & 0x10 ? 975 - (val & 0xF) * 25 :
 				    1750 - val * 50);
 	case 13:
-		return(1708 - (val & 0x3f) * 16);
+		val &= 0x3f;
+		return(1708 - val * 16);
+	case 14:		/* Intel Core */
+				/* compute in uV, round to mV */
+		val &= 0x7f;
+		return(val > 0x77 ? 0 : (1500000 - (val * 12500) + 500) / 1000);
 	default:		/* report 0 for unknown */
 		printk(KERN_INFO "hwmon-vid: requested unknown VRM version\n");
 		return 0;
@@ -138,6 +164,8 @@ static struct vrm_model vrm_models[] = {
 	{X86_VENDOR_INTEL, 0x6, 0x9, ANY, 13},		/* Pentium M (130 nm) */
 	{X86_VENDOR_INTEL, 0x6, 0xB, ANY, 85},		/* Tualatin */
 	{X86_VENDOR_INTEL, 0x6, 0xD, ANY, 13},		/* Pentium M (90 nm) */
+	{X86_VENDOR_INTEL, 0x6, 0xE, ANY, 14},		/* Intel Core (65 nm) */
+	{X86_VENDOR_INTEL, 0x6, 0xF, ANY, 110},		/* Intel Conroe */
 	{X86_VENDOR_INTEL, 0x6, ANY, ANY, 82},		/* any P6 */
 	{X86_VENDOR_INTEL, 0x7, ANY, ANY, 0},		/* Itanium */
 	{X86_VENDOR_INTEL, 0xF, 0x0, ANY, 90},		/* P4 */

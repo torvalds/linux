@@ -15,7 +15,6 @@
 #ifndef _OPSPUT_OPSPUT_PLD_H
 #define _OPSPUT_OPSPUT_PLD_H
 
-#include <linux/config.h>
 
 #define PLD_PLAT_BASE		0x1cc00000
 

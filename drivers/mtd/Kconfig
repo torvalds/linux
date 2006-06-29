@@ -78,7 +78,7 @@ config MTD_REDBOOT_DIRECTORY_BLOCK
 	  option.
 
 	  The option specifies which Flash sectors holds the RedBoot
-	  partition table.  A zero or positive value gives an absolete
+	  partition table.  A zero or positive value gives an absolute
 	  erase block number. A negative value specifies a number of
 	  sectors before the end of the device.
 
@@ -86,14 +86,14 @@ config MTD_REDBOOT_DIRECTORY_BLOCK
 	  block and "-2" means the penultimate block.
 
 config MTD_REDBOOT_PARTS_UNALLOCATED
-	bool "  Include unallocated flash regions"
+	bool "Include unallocated flash regions"
 	depends on MTD_REDBOOT_PARTS
 	help
 	  If you need to register each unallocated flash region as a MTD
 	  'partition', enable this option.
 
 config MTD_REDBOOT_PARTS_READONLY
-	bool "  Force read-only for RedBoot system images"
+	bool "Force read-only for RedBoot system images"
 	depends on MTD_REDBOOT_PARTS
 	help
 	  If you need to force read-only for 'RedBoot', 'RedBoot Config' and
@@ -103,7 +103,7 @@ config MTD_CMDLINE_PARTS
 	bool "Command line partition table parsing"
 	depends on MTD_PARTITIONS = "y"
 	---help---
-	  Allow generic configuration of the MTD paritition tables via the kernel
+	  Allow generic configuration of the MTD partition tables via the kernel
 	  command line. Multiple flash resources are supported for hardware where
 	  different kinds of flash memory are available.
 
