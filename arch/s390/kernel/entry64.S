@@ -993,7 +993,6 @@ cleanup_io_leave_insn:
                .quad  __critical_end
 
 #define SYSCALL(esa,esame,emu)	.long esame
-	.globl  sys_call_table
 sys_call_table:
 #include "syscalls.S"
 #undef SYSCALL
@@ -1001,7 +1000,6 @@ sys_call_table:
 #ifdef CONFIG_COMPAT
 
 #define SYSCALL(esa,esame,emu)	.long emu
-	.globl  sys_call_table_emu
 sys_call_table_emu:
 #include "syscalls.S"
 #undef SYSCALL

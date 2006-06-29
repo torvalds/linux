@@ -1019,7 +1019,6 @@ cleanup_io_leave_insn:
                .long  cleanup_critical
 
 #define SYSCALL(esa,esame,emu)	.long esa
-	.globl  sys_call_table
 sys_call_table:
 #include "syscalls.S"
 #undef SYSCALL
