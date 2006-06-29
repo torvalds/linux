@@ -25,11 +25,6 @@
 typedef u32 phandle;
 typedef u32 ihandle;
 
-struct interrupt_info {
-	int	line;
-	int	sense;		/* +ve/-ve logic, edge or level, etc. */
-};
-
 struct property {
 	char	*name;
 	int	length;
@@ -43,9 +38,6 @@ struct device_node {
 	char	*name;
 	char	*type;
 	phandle	node;
-	phandle linux_phandle;
-	int	n_intrs;
-	struct	interrupt_info *intrs;
 	char	*path_component_name;
 	char	*full_name;
 
