@@ -1335,9 +1335,10 @@ static int __devinit zs_get_instance(struct device_node *dp)
 	return ret;
 }
 
+static int zilog_irq = -1;
+
 static int __devinit zs_probe(struct of_device *dev, const struct of_device_id *match)
 {
-	static int zilog_irq = -1;
 	struct of_device *op = to_of_device(&dev->dev);
 	struct uart_sunzilog_port *up;
 	struct zilog_layout __iomem *rp;
@@ -1413,24 +1414,33 @@ static int __devinit zs_probe(struct of_device *dev, const struct of_device_id *
 		}
 	}
 
+	dev_set_drvdata(&dev->dev, &up[0]);
+
 	return 0;
 }
 
-static int __devexit zs_remove(struct of_device *dev)
+static void __devexit zs_remove_one(struct uart_sunzilog_port *up)
 {
-	struct uart_sunzilog_port *up = dev_get_drvdata(&dev->dev);
-	struct zilog_channel __iomem *channel;
-
 	if (ZS_IS_KEYB(up) || ZS_IS_MOUSE(up)) {
 #ifdef CONFIG_SERIO
 		serio_unregister_port(&up->serio);
 #endif
 	} else
 		uart_remove_one_port(&sunzilog_reg, &up->port);
+}
 
-	channel = ZILOG_CHANNEL_FROM_PORT(&up->port);
+static int __devexit zs_remove(struct of_device *dev)
+{
+	struct uart_sunzilog_port *up = dev_get_drvdata(&dev->dev);
+	struct zilog_layout __iomem *regs;
 
-	of_iounmap(channel, sizeof(struct zilog_channel));
+	zs_remove_one(&up[0]);
+	zs_remove_one(&up[1]);
+
+	regs = sunzilog_chip_regs[up[0].port.line / 2];
+	of_iounmap(regs, sizeof(struct zilog_layout));
+
+	dev_set_drvdata(&dev->dev, NULL);
 
 	return 0;
 }
@@ -1488,6 +1498,11 @@ static int __init sunzilog_init(void)
 static void __exit sunzilog_exit(void)
 {
 	of_unregister_driver(&zs_driver);
+
+	if (zilog_irq != -1) {
+		free_irq(zilog_irq, sunzilog_irq_chain);
+		zilog_irq = -1;
+	}
 
 	if (NUM_SUNZILOG) {
 		uart_unregister_driver(&sunzilog_reg);
