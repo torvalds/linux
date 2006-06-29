@@ -74,7 +74,8 @@ struct proc_dir_entry;
  * @mask:		mask an interrupt source
  * @mask_ack:		ack and mask an interrupt source
  * @unmask:		unmask an interrupt source
- * @end:		end of interrupt
+ * @eoi:		end of interrupt - chip level
+ * @end:		end of interrupt - flow level
  * @set_affinity:	set the CPU affinity on SMP machines
  * @retrigger:		resend an IRQ to the CPU
  * @set_type:		set the flow type (IRQ_TYPE_LEVEL/etc.) of an IRQ
@@ -94,6 +95,7 @@ struct irq_chip {
 	void		(*mask)(unsigned int irq);
 	void		(*mask_ack)(unsigned int irq);
 	void		(*unmask)(unsigned int irq);
+	void		(*eoi)(unsigned int irq);
 
 	void		(*end)(unsigned int irq);
 	void		(*set_affinity)(unsigned int irq, cpumask_t dest);
@@ -287,7 +289,7 @@ extern int handle_IRQ_event(unsigned int irq, struct pt_regs *regs,
 extern void fastcall
 handle_level_irq(unsigned int irq, struct irq_desc *desc, struct pt_regs *regs);
 extern void fastcall
-handle_fastack_irq(unsigned int irq, struct irq_desc *desc,
+handle_fasteoi_irq(unsigned int irq, struct irq_desc *desc,
 			 struct pt_regs *regs);
 extern void fastcall
 handle_edge_irq(unsigned int irq, struct irq_desc *desc, struct pt_regs *regs);

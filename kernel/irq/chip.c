@@ -280,18 +280,18 @@ out:
 }
 
 /**
- *	handle_fastack_irq - irq handler for transparent controllers
+ *	handle_fasteoi_irq - irq handler for transparent controllers
  *	@irq:	the interrupt number
  *	@desc:	the interrupt description structure for this irq
  *	@regs:	pointer to a register structure
  *
- *	Only a single callback will be issued to the chip: an ->ack()
+ *	Only a single callback will be issued to the chip: an ->eoi()
  *	call when the interrupt has been serviced. This enables support
  *	for modern forms of interrupt handlers, which handle the flow
  *	details in hardware, transparently.
  */
 void fastcall
-handle_fastack_irq(unsigned int irq, struct irq_desc *desc,
+handle_fasteoi_irq(unsigned int irq, struct irq_desc *desc,
 		   struct pt_regs *regs)
 {
 	unsigned int cpu = smp_processor_id();
@@ -327,10 +327,7 @@ handle_fastack_irq(unsigned int irq, struct irq_desc *desc,
 	spin_lock(&desc->lock);
 	desc->status &= ~IRQ_INPROGRESS;
 out:
-	if (!(desc->status & IRQ_DISABLED))
-		desc->chip->ack(irq);
-	else
-		desc->chip->mask(irq);
+	desc->chip->eoi(irq);
 
 	spin_unlock(&desc->lock);
 }
@@ -510,19 +507,19 @@ handle_irq_name(void fastcall (*handle)(unsigned int, struct irq_desc *,
 					struct pt_regs *))
 {
 	if (handle == handle_level_irq)
-		return "level ";
-	if (handle == handle_fastack_irq)
-		return "level ";
+		return "level  ";
+	if (handle == handle_fasteoi_irq)
+		return "fasteoi";
 	if (handle == handle_edge_irq)
-		return "edge  ";
+		return "edge   ";
 	if (handle == handle_simple_irq)
-		return "simple";
+		return "simple ";
 #ifdef CONFIG_SMP
 	if (handle == handle_percpu_irq)
-		return "percpu";
+		return "percpu ";
 #endif
 	if (handle == handle_bad_irq)
-		return "bad   ";
+		return "bad    ";
 
 	return NULL;
 }
