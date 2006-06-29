@@ -994,12 +994,12 @@ static inline int skb_gso_ok(struct sk_buff *skb, int features)
 {
 	int feature = skb_shinfo(skb)->gso_size ?
 		      skb_shinfo(skb)->gso_type << NETIF_F_GSO_SHIFT : 0;
-	return (features & feature) != feature;
+	return (features & feature) == feature;
 }
 
 static inline int netif_needs_gso(struct net_device *dev, struct sk_buff *skb)
 {
-	return skb_gso_ok(skb, dev->features);
+	return !skb_gso_ok(skb, dev->features);
 }
 
 #endif /* __KERNEL__ */
