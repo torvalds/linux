@@ -515,10 +515,10 @@ static void pcnet32_get_ringparam(struct net_device *dev,
 {
 	struct pcnet32_private *lp = dev->priv;
 
-	ering->tx_max_pending = TX_MAX_RING_SIZE - 1;
-	ering->tx_pending = lp->tx_ring_size - 1;
-	ering->rx_max_pending = RX_MAX_RING_SIZE - 1;
-	ering->rx_pending = lp->rx_ring_size - 1;
+	ering->tx_max_pending = TX_MAX_RING_SIZE;
+	ering->tx_pending = lp->tx_ring_size;
+	ering->rx_max_pending = RX_MAX_RING_SIZE;
+	ering->rx_pending = lp->rx_ring_size;
 }
 
 static int pcnet32_set_ringparam(struct net_device *dev,
