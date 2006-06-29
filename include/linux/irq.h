@@ -61,6 +61,8 @@ struct hw_interrupt_type {
 
 typedef struct hw_interrupt_type  hw_irq_controller;
 
+struct proc_dir_entry;
+
 /*
  * This is the "IRQ descriptor", which contains various information
  * about the irq, including what kind of hardware handling it has,
@@ -82,6 +84,9 @@ struct irq_desc {
 #endif
 #if defined(CONFIG_GENERIC_PENDING_IRQ) || defined(CONFIG_IRQBALANCE)
 	unsigned int		move_irq;	/* need to re-target IRQ dest */
+#endif
+#ifdef CONFIG_PROC_FS
+	struct proc_dir_entry *dir;
 #endif
 } ____cacheline_aligned;
 
