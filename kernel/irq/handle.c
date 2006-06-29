@@ -79,8 +79,8 @@ irqreturn_t no_action(int cpl, void *dev_id, struct pt_regs *regs)
 /*
  * Have got an event to handle:
  */
-fastcall irqreturn_t handle_IRQ_event(unsigned int irq, struct pt_regs *regs,
-				struct irqaction *action)
+irqreturn_t handle_IRQ_event(unsigned int irq, struct pt_regs *regs,
+			     struct irqaction *action)
 {
 	irqreturn_t ret, retval = IRQ_NONE;
 	unsigned int status = 0;

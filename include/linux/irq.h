@@ -170,11 +170,15 @@ static inline void set_balance_irq_affinity(unsigned int irq, cpumask_t mask)
 extern int no_irq_affinity;
 extern int noirqdebug_setup(char *str);
 
-extern fastcall irqreturn_t handle_IRQ_event(unsigned int irq, struct pt_regs *regs,
-					struct irqaction *action);
+extern irqreturn_t handle_IRQ_event(unsigned int irq, struct pt_regs *regs,
+				    struct irqaction *action);
+/*
+ * Explicit fastcall, because i386 4KSTACKS calls it from assembly:
+ */
 extern fastcall unsigned int __do_IRQ(unsigned int irq, struct pt_regs *regs);
+
 extern void note_interrupt(unsigned int irq, irq_desc_t *desc,
-					int action_ret, struct pt_regs *regs);
+			   int action_ret, struct pt_regs *regs);
 extern int can_request_irq(unsigned int irq, unsigned long irqflags);
 
 extern void init_irq_proc(void);
