@@ -164,7 +164,7 @@ static int sedlbauer_probe(struct pcmcia_device *link)
     link->priv = local;
 
     /* Interrupt setup */
-    link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
+    link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING|IRQ_FIRST_SHARED;
     link->irq.IRQInfo1 = IRQ_LEVEL_ID;
     link->irq.Handler = NULL;
 
