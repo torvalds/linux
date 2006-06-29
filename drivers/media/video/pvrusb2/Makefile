@@ -8,7 +8,7 @@ obj-pvrusb2-24xxx-$(CONFIG_VIDEO_PVRUSB2_24XXX) := \
 pvrusb2-objs	:= pvrusb2-i2c-core.o pvrusb2-i2c-cmd-v4l2.o \
 		   pvrusb2-audio.o pvrusb2-i2c-chips-v4l2.o \
 		   pvrusb2-encoder.o pvrusb2-video-v4l.o \
-		   pvrusb2-eeprom.o pvrusb2-tuner.o pvrusb2-demod.o \
+		   pvrusb2-eeprom.o pvrusb2-tuner.o \
 		   pvrusb2-main.o pvrusb2-hdw.o pvrusb2-v4l2.o \
 		   pvrusb2-ctrl.o pvrusb2-std.o \
 		   pvrusb2-context.o pvrusb2-io.o pvrusb2-ioread.o \

@@ -25,7 +25,6 @@
 #include "pvrusb2-i2c-cmd-v4l2.h"
 #include "pvrusb2-audio.h"
 #include "pvrusb2-tuner.h"
-#include "pvrusb2-demod.h"
 #include "pvrusb2-video-v4l.h"
 #ifdef CONFIG_VIDEO_PVRUSB2_24XXX
 #include "pvrusb2-cx2584x-v4l.h"
@@ -86,11 +85,6 @@ void pvr2_i2c_probe(struct pvr2_hdw *hdw,struct pvr2_i2c_client *cp)
 #endif
 	if (id == I2C_DRIVERID_SAA711X) {
 		if (pvr2_i2c_decoder_v4l_setup(hdw,cp)) {
-			return;
-		}
-	}
-	if (id == I2C_DRIVERID_TDA9887) {
-		if (pvr2_i2c_demod_setup(hdw,cp)) {
 			return;
 		}
 	}

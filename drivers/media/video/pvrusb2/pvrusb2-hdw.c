@@ -63,7 +63,6 @@ struct pvr2_string_table {
 static const char *pvr2_client_24xxx[] = {
 	"cx25840",
 	"tuner",
-	"tda9887",
 	"wm8775",
 };
 #endif
@@ -73,7 +72,6 @@ static const char *pvr2_client_29xxx[] = {
 	"msp3400",
 	"saa7115",
 	"tuner",
-	"tda9887",
 };
 
 static struct pvr2_string_table pvr2_client_lists[] = {
