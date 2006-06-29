@@ -2523,7 +2523,7 @@ static struct ethtool_ops hme_ethtool_ops = {
 static int hme_version_printed;
 
 #ifdef CONFIG_SBUS
-void __init quattro_get_ranges(struct quattro *qp)
+void __devinit quattro_get_ranges(struct quattro *qp)
 {
 	struct sbus_dev *sdev = qp->quattro_dev;
 	int err;
@@ -2539,7 +2539,7 @@ void __init quattro_get_ranges(struct quattro *qp)
 	qp->nranges = (err / sizeof(struct linux_prom_ranges));
 }
 
-static void __init quattro_apply_ranges(struct quattro *qp, struct happy_meal *hp)
+static void __devinit quattro_apply_ranges(struct quattro *qp, struct happy_meal *hp)
 {
 	struct sbus_dev *sdev = hp->happy_dev;
 	int rng;
@@ -2566,7 +2566,7 @@ static void __init quattro_apply_ranges(struct quattro *qp, struct happy_meal *h
  *
  * Return NULL on failure.
  */
-static struct quattro * __init quattro_sbus_find(struct sbus_dev *goal_sdev)
+static struct quattro * __devinit quattro_sbus_find(struct sbus_dev *goal_sdev)
 {
 	struct sbus_dev *sdev;
 	struct quattro *qp;
@@ -2618,7 +2618,7 @@ static void __init quattro_sbus_register_irqs(void)
 	}
 }
 
-static void __devexit quattro_sbus_free_irqs(void)
+static void quattro_sbus_free_irqs(void)
 {
 	struct quattro *qp;
 
@@ -2662,7 +2662,7 @@ static struct quattro * __init quattro_pci_find(struct pci_dev *pdev)
 #endif /* CONFIG_PCI */
 
 #ifdef CONFIG_SBUS
-static int __init happy_meal_sbus_probe_one(struct sbus_dev *sdev, int is_qfe)
+static int __devinit happy_meal_sbus_probe_one(struct sbus_dev *sdev, int is_qfe)
 {
 	struct device_node *dp = sdev->ofdev.node;
 	struct quattro *qp = NULL;
