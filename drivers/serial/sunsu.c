@@ -12,7 +12,7 @@
  *   Theodore Ts'o <tytso@mit.edu>, 2001-Oct-12
  *
  * Converted to new 2.5.x UART layer.
- *   David S. Miller (davem@redhat.com), 2002-Jul-29
+ *   David S. Miller (davem@davemloft.net), 2002-Jul-29
  */
 
 #include <linux/config.h>
@@ -1552,4 +1552,8 @@ static void __exit sunsu_exit(void)
 
 module_init(sunsu_init);
 module_exit(sunsu_exit);
+
+MODULE_AUTHOR("Eddie C. Dost, Peter Zaitcev, and David S. Miller");
+MODULE_DESCRIPTION("Sun SU serial port driver");
+MODULE_VERSION("2.0");
 MODULE_LICENSE("GPL");
