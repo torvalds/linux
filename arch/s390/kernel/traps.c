@@ -150,13 +150,11 @@ void show_stack(struct task_struct *task, unsigned long *sp)
 	unsigned long *stack;
 	int i;
 
-	// debugging aid: "show_stack(NULL);" prints the
-	// back trace for this cpu.
-
 	if (!sp)
-		sp = task ? (unsigned long *) task->thread.ksp : __r15;
+		stack = task ? (unsigned long *) task->thread.ksp : __r15;
+	else
+		stack = sp;
 
-	stack = sp;
 	for (i = 0; i < kstack_depth_to_print; i++) {
 		if (((addr_t) stack & (THREAD_SIZE-1)) == 0)
 			break;
