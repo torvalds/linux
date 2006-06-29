@@ -269,6 +269,10 @@ __v6_proc_info:
 		PMD_SECT_CACHEABLE | \
 		PMD_SECT_AP_WRITE | \
 		PMD_SECT_AP_READ
+	.long   PMD_TYPE_SECT | \
+		PMD_SECT_XN | \
+		PMD_SECT_AP_WRITE | \
+		PMD_SECT_AP_READ
 	b	__v6_setup
 	.long	cpu_arch_name
 	.long	cpu_elf_name

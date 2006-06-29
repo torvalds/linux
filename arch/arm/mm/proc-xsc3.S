@@ -487,7 +487,14 @@ cpu_xsc3_name:
 __xsc3_proc_info:
 	.long	0x69056000
 	.long	0xffffe000
-	.long	0x00000c0e
+	.long	PMD_TYPE_SECT | \
+		PMD_SECT_BUFFERABLE | \
+		PMD_SECT_CACHEABLE | \
+		PMD_SECT_AP_WRITE | \
+		PMD_SECT_AP_READ
+	.long   PMD_TYPE_SECT | \
+		PMD_SECT_AP_WRITE | \
+		PMD_SECT_AP_READ
 	b	__xsc3_setup
 	.long	cpu_arch_name
 	.long	cpu_elf_name

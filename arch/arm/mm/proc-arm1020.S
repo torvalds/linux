@@ -527,6 +527,9 @@ __arm1020_proc_info:
 	.long   PMD_TYPE_SECT | \
 		PMD_SECT_AP_WRITE | \
 		PMD_SECT_AP_READ
+	.long   PMD_TYPE_SECT | \
+		PMD_SECT_AP_WRITE | \
+		PMD_SECT_AP_READ
 	b	__arm1020_setup
 	.long	cpu_arch_name
 	.long	cpu_elf_name

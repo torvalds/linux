@@ -355,6 +355,10 @@ __arm6_proc_info:
 		.long	0x41560600
 		.long	0xfffffff0
 		.long	0x00000c1e
+		.long   PMD_TYPE_SECT | \
+			PMD_BIT4 | \
+			PMD_SECT_AP_WRITE | \
+			PMD_SECT_AP_READ
 		b	__arm6_setup
 		.long	cpu_arch_name
 		.long	cpu_elf_name
@@ -371,6 +375,10 @@ __arm610_proc_info:
 		.long	0x41560610
 		.long	0xfffffff0
 		.long	0x00000c1e
+		.long   PMD_TYPE_SECT | \
+			PMD_BIT4 | \
+			PMD_SECT_AP_WRITE | \
+			PMD_SECT_AP_READ
 		b	__arm6_setup
 		.long	cpu_arch_name
 		.long	cpu_elf_name
@@ -387,6 +395,10 @@ __arm7_proc_info:
 		.long	0x41007000
 		.long	0xffffff00
 		.long	0x00000c1e
+		.long   PMD_TYPE_SECT | \
+			PMD_BIT4 | \
+			PMD_SECT_AP_WRITE | \
+			PMD_SECT_AP_READ
 		b	__arm7_setup
 		.long	cpu_arch_name
 		.long	cpu_elf_name
@@ -405,6 +417,10 @@ __arm710_proc_info:
 		.long   PMD_TYPE_SECT | \
 			PMD_SECT_BUFFERABLE | \
 			PMD_SECT_CACHEABLE | \
+			PMD_BIT4 | \
+			PMD_SECT_AP_WRITE | \
+			PMD_SECT_AP_READ
+		.long   PMD_TYPE_SECT | \
 			PMD_BIT4 | \
 			PMD_SECT_AP_WRITE | \
 			PMD_SECT_AP_READ

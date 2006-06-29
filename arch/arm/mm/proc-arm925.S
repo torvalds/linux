@@ -526,6 +526,10 @@ __arm925_proc_info:
 		PMD_BIT4 | \
 		PMD_SECT_AP_WRITE | \
 		PMD_SECT_AP_READ
+	.long   PMD_TYPE_SECT | \
+		PMD_BIT4 | \
+		PMD_SECT_AP_WRITE | \
+		PMD_SECT_AP_READ
 	b	__arm925_setup
 	.long	cpu_arch_name
 	.long	cpu_elf_name
@@ -541,6 +545,10 @@ __arm925_proc_info:
 __arm915_proc_info:
 	.long	0x54029150
 	.long	0xfffffff0
+	.long   PMD_TYPE_SECT | \
+		PMD_BIT4 | \
+		PMD_SECT_AP_WRITE | \
+		PMD_SECT_AP_READ
 	.long   PMD_TYPE_SECT | \
 		PMD_BIT4 | \
 		PMD_SECT_AP_WRITE | \
