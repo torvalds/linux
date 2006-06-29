@@ -975,6 +975,7 @@ static int dvb_frontend_ioctl(struct inode *inode, struct file *file,
 
 	case FE_SET_FRONTEND_TUNE_MODE:
 		fepriv->tune_mode_flags = (unsigned long) parg;
+		err = 0;
 		break;
 	};
 
