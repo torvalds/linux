@@ -770,219 +770,37 @@ static int __init clock_model_matches(char *model)
 	return 1;
 }
 
-static void __init __clock_assign_common(void __iomem *addr, char *model)
+static int __devinit clock_probe(struct of_device *op, const struct of_device_id *match)
 {
-	if (model[5] == '0' && model[6] == '2') {
-		mstk48t02_regs = addr;
-	} else if(model[5] == '0' && model[6] == '8') {
-		mstk48t08_regs = addr;
-		mstk48t02_regs = mstk48t08_regs + MOSTEK_48T08_48T02;
-	} else {
-		mstk48t59_regs = addr;
-		mstk48t02_regs = mstk48t59_regs + MOSTEK_48T59_48T02;
-	}
-}
+	struct device_node *dp = op->node;
+	char *model = of_get_property(dp, "model", NULL);
+	unsigned long size, flags;
+	void __iomem *regs;
 
-static void __init clock_assign_clk_reg(struct linux_prom_registers *clk_reg,
-					char *model)
-{
-	unsigned long addr;
+	if (!model || !clock_model_matches(model))
+		return -ENODEV;
 
-	addr = ((unsigned long) clk_reg[0].phys_addr |
-		(((unsigned long) clk_reg[0].which_io) << 32UL));
+	size = (op->resource[0].end - op->resource[0].start) + 1;
+	regs = of_ioremap(&op->resource[0], 0, size, "clock");
+	if (!regs)
+		return -ENOMEM;
 
-	__clock_assign_common((void __iomem *) addr, model);
-}
-
-static int __init clock_probe_central(void)
-{
-	struct linux_prom_registers clk_reg[2], *pr;
-	struct device_node *dp;
-	char *model;
-
-	if (!central_bus)
-		return 0;
-
-	/* Get Central FHC's prom node.  */
-	dp = central_bus->child->prom_node;
-
-	/* Then get the first child device below it.  */
-	dp = dp->child;
-
-	while (dp) {
-		model = of_get_property(dp, "model", NULL);
-		if (!model || !clock_model_matches(model))
-			goto next_sibling;
-
-		pr = of_get_property(dp, "reg", NULL);
-		memcpy(clk_reg, pr, sizeof(clk_reg));
-
-		apply_fhc_ranges(central_bus->child, clk_reg, 1);
-		apply_central_ranges(central_bus, clk_reg, 1);
-
-		clock_assign_clk_reg(clk_reg, model);
-		return 1;
-
-	next_sibling:
-		dp = dp->sibling;
-	}
-
-	return 0;
-}
-
-#ifdef CONFIG_PCI
-static void __init clock_isa_ebus_assign_regs(struct resource *res, char *model)
-{
 	if (!strcmp(model, "ds1287") ||
 	    !strcmp(model, "m5819") ||
 	    !strcmp(model, "m5819p") ||
 	    !strcmp(model, "m5823")) {
-		ds1287_regs = res->start;
+		ds1287_regs = (unsigned long) regs;
+	} else if (model[5] == '0' && model[6] == '2') {
+		mstk48t02_regs = regs;
+	} else if(model[5] == '0' && model[6] == '8') {
+		mstk48t08_regs = regs;
+		mstk48t02_regs = mstk48t08_regs + MOSTEK_48T08_48T02;
 	} else {
-		mstk48t59_regs = (void __iomem *) res->start;
+		mstk48t59_regs = regs;
 		mstk48t02_regs = mstk48t59_regs + MOSTEK_48T59_48T02;
 	}
-}
 
-static int __init clock_probe_one_ebus_dev(struct linux_ebus_device *edev)
-{
-	struct device_node *dp = edev->prom_node;
-	char *model;
-
-	model = of_get_property(dp, "model", NULL);
-	if (!clock_model_matches(model))
-		return 0;
-
-	clock_isa_ebus_assign_regs(&edev->resource[0], model);
-
-	return 1;
-}
-
-static int __init clock_probe_ebus(void)
-{
-	struct linux_ebus *ebus;
-
-	for_each_ebus(ebus) {
-		struct linux_ebus_device *edev;
-
-		for_each_ebusdev(edev, ebus) {
-			if (clock_probe_one_ebus_dev(edev))
-				return 1;
-		}
-	}
-
-	return 0;
-}
-
-static int __init clock_probe_one_isa_dev(struct sparc_isa_device *idev)
-{
-	struct device_node *dp = idev->prom_node;
-	char *model;
-
-	model = of_get_property(dp, "model", NULL);
-	if (!clock_model_matches(model))
-		return 0;
-
-	clock_isa_ebus_assign_regs(&idev->resource, model);
-
-	return 1;
-}
-
-static int __init clock_probe_isa(void)
-{
-	struct sparc_isa_bridge *isa_br;
-
-	for_each_isa(isa_br) {
-		struct sparc_isa_device *isa_dev;
-
-		for_each_isadev(isa_dev, isa_br) {
-			if (clock_probe_one_isa_dev(isa_dev))
-				return 1;
-		}
-	}
-
-	return 0;
-}
-#endif /* CONFIG_PCI */
-
-#ifdef CONFIG_SBUS
-static int __init clock_probe_one_sbus_dev(struct sbus_bus *sbus, struct sbus_dev *sdev)
-{
-	struct resource *res;
-	char model[64];
-	void __iomem *addr;
-
-	prom_getstring(sdev->prom_node, "model", model, sizeof(model));
-	if (!clock_model_matches(model))
-		return 0;
-
-	res = &sdev->resource[0];
-	addr = sbus_ioremap(res, 0, 0x800UL, "eeprom");
-
-	__clock_assign_common(addr, model);
-
-	return 1;
-}
-
-static int __init clock_probe_sbus(void)
-{
-	struct sbus_bus *sbus;
-
-	for_each_sbus(sbus) {
-		struct sbus_dev *sdev;
-
-		for_each_sbusdev(sdev, sbus) {
-			if (clock_probe_one_sbus_dev(sbus, sdev))
-				return 1;
-		}
-	}
-
-	return 0;
-}
-#endif
-
-void __init clock_probe(void)
-{
-	static int invoked;
-	unsigned long flags;
-
-	if (invoked)
-		return;
-	invoked = 1;
-
-	if (this_is_starfire) {
-		xtime.tv_sec = starfire_get_time();
-		xtime.tv_nsec = (INITIAL_JIFFIES % HZ) * (NSEC_PER_SEC / HZ);
-		set_normalized_timespec(&wall_to_monotonic,
-		                        -xtime.tv_sec, -xtime.tv_nsec);
-		return;
-	}
-	if (tlb_type == hypervisor) {
-		xtime.tv_sec = hypervisor_get_time();
-		xtime.tv_nsec = (INITIAL_JIFFIES % HZ) * (NSEC_PER_SEC / HZ);
-		set_normalized_timespec(&wall_to_monotonic,
-		                        -xtime.tv_sec, -xtime.tv_nsec);
-		return;
-	}
-
-	/* Check FHC Central then EBUSs then ISA bridges then SBUSs.
-	 * That way we handle the presence of multiple properly.
-	 *
-	 * As a special case, machines with Central must provide the
-	 * timer chip there.
-	 */
-	if (!clock_probe_central() &&
-#ifdef CONFIG_PCI
-	    !clock_probe_ebus() &&
-	    !clock_probe_isa() &&
-#endif
-#ifdef CONFIG_SBUS
-	    !clock_probe_sbus()
-#endif
-		) {
-		printk(KERN_WARNING "No clock chip found.\n");
-		return;
-	}
+	printk(KERN_INFO "%s: Clock regs at %p\n", dp->full_name, regs);
 
 	local_irq_save(flags);
 
@@ -999,7 +817,51 @@ void __init clock_probe(void)
 	set_system_time();
 	
 	local_irq_restore(flags);
+
+	return 0;
 }
+
+static struct of_device_id clock_match[] = {
+	{
+		.name = "eeprom",
+	},
+	{
+		.name = "rtc",
+	},
+	{},
+};
+
+static struct of_platform_driver clock_driver = {
+	.name		= "clock",
+	.match_table	= clock_match,
+	.probe		= clock_probe,
+};
+
+static int __init clock_init(void)
+{
+	if (this_is_starfire) {
+		xtime.tv_sec = starfire_get_time();
+		xtime.tv_nsec = (INITIAL_JIFFIES % HZ) * (NSEC_PER_SEC / HZ);
+		set_normalized_timespec(&wall_to_monotonic,
+		                        -xtime.tv_sec, -xtime.tv_nsec);
+		return 0;
+	}
+	if (tlb_type == hypervisor) {
+		xtime.tv_sec = hypervisor_get_time();
+		xtime.tv_nsec = (INITIAL_JIFFIES % HZ) * (NSEC_PER_SEC / HZ);
+		set_normalized_timespec(&wall_to_monotonic,
+		                        -xtime.tv_sec, -xtime.tv_nsec);
+		return 0;
+	}
+
+	return of_register_driver(&clock_driver, &of_bus_type);
+}
+
+/* Must be after subsys_initcall() so that busses are probed.  Must
+ * be before device_initcall() because things like the RTC driver
+ * need to see the clock registers.
+ */
+fs_initcall(clock_init);
 
 /* This is gets the master TICK_INT timer going. */
 static unsigned long sparc64_init_timers(void)

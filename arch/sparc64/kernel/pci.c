@@ -307,7 +307,6 @@ static void __init pci_scan_each_controller_bus(void)
 		p->scan_bus(p);
 }
 
-extern void clock_probe(void);
 extern void power_init(void);
 
 static int __init pcibios_init(void)
@@ -320,7 +319,6 @@ static int __init pcibios_init(void)
 
 	isa_init();
 	ebus_init();
-	clock_probe();
 	power_init();
 
 	return 0;
