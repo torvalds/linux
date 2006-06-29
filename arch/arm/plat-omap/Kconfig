@@ -91,7 +91,7 @@ config OMAP_32K_TIMER_HZ
 
 config OMAP_DM_TIMER
 	bool "Use dual-mode timer"
-	depends on ARCH_OMAP16XX
+	depends on ARCH_OMAP16XX || ARCH_OMAP24XX
 	help
 	 Select this option if you want to use OMAP Dual-Mode timers.
 

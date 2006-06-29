@@ -185,8 +185,8 @@
 /* DMA channels for 24xx */
 #define OMAP24XX_DMA_NO_DEVICE		0
 #define OMAP24XX_DMA_XTI_DMA		1	/* S_DMA_0 */
-#define OMAP24XX_DMA_EXT_NDMA_REQ0	2	/* S_DMA_1 */
-#define OMAP24XX_DMA_EXT_NDMA_REQ1	3	/* S_DMA_2 */
+#define OMAP24XX_DMA_EXT_DMAREQ0	2	/* S_DMA_1 */
+#define OMAP24XX_DMA_EXT_DMAREQ1	3	/* S_DMA_2 */
 #define OMAP24XX_DMA_GPMC		4	/* S_DMA_3 */
 #define OMAP24XX_DMA_GFX		5	/* S_DMA_4 */
 #define OMAP24XX_DMA_DSS		6	/* S_DMA_5 */
@@ -197,7 +197,9 @@
 #define OMAP24XX_DMA_DES_TX		11	/* S_DMA_10 */
 #define OMAP24XX_DMA_DES_RX		12	/* S_DMA_11 */
 #define OMAP24XX_DMA_SHA1MD5_RX		13	/* S_DMA_12 */
-
+#define OMAP24XX_DMA_EXT_DMAREQ2	14	/* S_DMA_13 */
+#define OMAP24XX_DMA_EXT_DMAREQ3	15	/* S_DMA_14 */
+#define OMAP24XX_DMA_EXT_DMAREQ4	16	/* S_DMA_15 */
 #define OMAP24XX_DMA_EAC_AC_RD		17	/* S_DMA_16 */
 #define OMAP24XX_DMA_EAC_AC_WR		18	/* S_DMA_17 */
 #define OMAP24XX_DMA_EAC_MD_UL_RD	19	/* S_DMA_18 */
@@ -244,6 +246,7 @@
 #define OMAP24XX_DMA_MMC1_TX		61	/* SDMA_60 */
 #define OMAP24XX_DMA_MMC1_RX		62	/* SDMA_61 */
 #define OMAP24XX_DMA_MS			63	/* SDMA_62 */
+#define OMAP24XX_DMA_EXT_DMAREQ5	64	/* S_DMA_63 */
 
 /*----------------------------------------------------------------------------*/
 
@@ -274,7 +277,7 @@
 #define OMAP1610_DMA_LCD_LCH_CTRL	(OMAP1610_DMA_LCD_BASE + 0xea)
 #define OMAP1610_DMA_LCD_SRC_FI_B1_U	(OMAP1610_DMA_LCD_BASE + 0xf4)
 
-#define OMAP_DMA_TOUT_IRQ		(1 << 0)	/* Only on omap1 */
+#define OMAP1_DMA_TOUT_IRQ		(1 << 0)
 #define OMAP_DMA_DROP_IRQ		(1 << 1)
 #define OMAP_DMA_HALF_IRQ		(1 << 2)
 #define OMAP_DMA_FRAME_IRQ		(1 << 3)
@@ -315,11 +318,11 @@ enum {
 	OMAP_LCD_DMA_B2_BOTTOM
 };
 
-/* REVISIT: Check if BURST_4 is really 1 (or 2) */
 enum omap_dma_burst_mode {
 	OMAP_DMA_DATA_BURST_DIS = 0,
 	OMAP_DMA_DATA_BURST_4,
-	OMAP_DMA_DATA_BURST_8
+	OMAP_DMA_DATA_BURST_8,
+	OMAP_DMA_DATA_BURST_16,
 };
 
 enum omap_dma_color_mode {

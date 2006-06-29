@@ -663,7 +663,7 @@ static void mmc_omap_dma_cb(int lch, u16 ch_status, void *data)
 		return;
 	}
 	/* FIXME: We really should do something to _handle_ the errors */
-	if (ch_status & OMAP_DMA_TOUT_IRQ) {
+	if (ch_status & OMAP1_DMA_TOUT_IRQ) {
 		dev_err(mmc_dev(host->mmc),"DMA timeout\n");
 		return;
 	}

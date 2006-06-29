@@ -33,7 +33,6 @@
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
-#include <linux/input.h>
 
 #include <asm/hardware.h>
 #include <asm/mach-types.h>
@@ -45,24 +44,9 @@
 #include <asm/arch/usb.h>
 #include <asm/arch/mux.h>
 #include <asm/arch/tc.h>
-#include <asm/arch/keypad.h>
 #include <asm/arch/common.h>
 #include <asm/arch/mcbsp.h>
 #include <asm/arch/omap-alsa.h>
-
-static int osk_keymap[] = {
-	KEY(0, 0, KEY_F1),
-	KEY(0, 3, KEY_UP),
-	KEY(1, 1, KEY_LEFTCTRL),
-	KEY(1, 2, KEY_LEFT),
-	KEY(2, 0, KEY_SPACE),
-	KEY(2, 1, KEY_ESC),
-	KEY(2, 2, KEY_DOWN),
-	KEY(3, 2, KEY_ENTER),
-	KEY(3, 3, KEY_RIGHT),
-	0
-};
-
 
 static struct mtd_partition osk_partitions[] = {
 	/* bootloader (U-Boot, etc) in first sector */
@@ -181,39 +165,10 @@ static struct omap_alsa_codec_config alsa_config = {
 
 static struct platform_device osk5912_mcbsp1_device = {
 	.name	= "omap_alsa_mcbsp",
- 	.id	= 1,
+	.id	= 1,
 	.dev = {
 		.platform_data	= &alsa_config,
 	},
-};
-
-static struct resource osk5912_kp_resources[] = {
-	[0] = {
-		.start	= INT_KEYBOARD,
-		.end	= INT_KEYBOARD,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct omap_kp_platform_data osk_kp_data = {
-	.rows	= 8,
-	.cols	= 8,
-	.keymap = osk_keymap,
-};
-
-static struct platform_device osk5912_kp_device = {
-	.name		= "omap-keypad",
-	.id		= -1,
-	.dev		= {
-		.platform_data = &osk_kp_data,
-	},
-	.num_resources	= ARRAY_SIZE(osk5912_kp_resources),
-	.resource	= osk5912_kp_resources,
-};
-
-static struct platform_device osk5912_lcd_device = {
-	.name		= "lcd_osk",
-	.id		= -1,
 };
 
 static struct platform_device *osk5912_devices[] __initdata = {
@@ -221,8 +176,6 @@ static struct platform_device *osk5912_devices[] __initdata = {
 	&osk5912_smc91x_device,
 	&osk5912_cf_device,
 	&osk5912_mcbsp1_device,
-	&osk5912_kp_device,
-	&osk5912_lcd_device,
 };
 
 static void __init osk_init_smc91x(void)
@@ -276,17 +229,99 @@ static struct omap_uart_config osk_uart_config __initdata = {
 	.enabled_uarts = (1 << 0),
 };
 
+#ifdef	CONFIG_OMAP_OSK_MISTRAL
 static struct omap_lcd_config osk_lcd_config __initdata = {
 	.ctrl_name	= "internal",
 };
+#endif
 
 static struct omap_board_config_kernel osk_config[] = {
 	{ OMAP_TAG_USB,           &osk_usb_config },
 	{ OMAP_TAG_UART,		&osk_uart_config },
+#ifdef	CONFIG_OMAP_OSK_MISTRAL
 	{ OMAP_TAG_LCD,			&osk_lcd_config },
+#endif
 };
 
 #ifdef	CONFIG_OMAP_OSK_MISTRAL
+
+#include <linux/input.h>
+#include <linux/spi/spi.h>
+#include <linux/spi/ads7846.h>
+
+#include <asm/arch/keypad.h>
+
+static const int osk_keymap[] = {
+	/* KEY(col, row, code) */
+	KEY(0, 0, KEY_F1),		/* SW4 */
+	KEY(0, 3, KEY_UP),		/* (sw2/up) */
+	KEY(1, 1, KEY_LEFTCTRL),	/* SW5 */
+	KEY(1, 2, KEY_LEFT),		/* (sw2/left) */
+	KEY(2, 0, KEY_SPACE),		/* SW3 */
+	KEY(2, 1, KEY_ESC),		/* SW6 */
+	KEY(2, 2, KEY_DOWN),		/* (sw2/down) */
+	KEY(3, 2, KEY_ENTER),		/* (sw2/select) */
+	KEY(3, 3, KEY_RIGHT),		/* (sw2/right) */
+	0
+};
+
+static struct omap_kp_platform_data osk_kp_data = {
+	.rows	= 8,
+	.cols	= 8,
+	.keymap = (int *) osk_keymap,
+};
+
+static struct resource osk5912_kp_resources[] = {
+	[0] = {
+		.start	= INT_KEYBOARD,
+		.end	= INT_KEYBOARD,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device osk5912_kp_device = {
+	.name		= "omap-keypad",
+	.id		= -1,
+	.dev		= {
+		.platform_data = &osk_kp_data,
+	},
+	.num_resources	= ARRAY_SIZE(osk5912_kp_resources),
+	.resource	= osk5912_kp_resources,
+};
+
+static struct platform_device osk5912_lcd_device = {
+	.name		= "lcd_osk",
+	.id		= -1,
+};
+
+static struct platform_device *mistral_devices[] __initdata = {
+	&osk5912_kp_device,
+	&osk5912_lcd_device,
+};
+
+static int mistral_get_pendown_state(void)
+{
+	return !omap_get_gpio_datain(4);
+}
+
+static const struct ads7846_platform_data mistral_ts_info = {
+	.model			= 7846,
+	.vref_delay_usecs	= 100,	/* internal, no capacitor */
+	.x_plate_ohms		= 419,
+	.y_plate_ohms		= 486,
+	.get_pendown_state	= mistral_get_pendown_state,
+};
+
+static struct spi_board_info __initdata mistral_boardinfo[] = { {
+	/* MicroWire (bus 2) CS0 has an ads7846e */
+	.modalias		= "ads7846",
+	.platform_data		= &mistral_ts_info,
+	.irq			= OMAP_GPIO_IRQ(4),
+	.max_speed_hz		= 120000 /* max sample rate at 3V */
+					* 26 /* command + data + overhead */,
+	.bus_num		= 2,
+	.chip_select		= 0,
+} };
 
 #ifdef	CONFIG_PM
 static irqreturn_t
@@ -298,13 +333,17 @@ osk_mistral_wake_interrupt(int irq, void *ignored, struct pt_regs *regs)
 
 static void __init osk_mistral_init(void)
 {
-	/* FIXME here's where to feed in framebuffer, touchpad, and
-	 * keyboard setup ...  not in the drivers for those devices!
-	 *
-	 * NOTE:  we could actually tell if there's a Mistral board
+	/* NOTE:  we could actually tell if there's a Mistral board
 	 * attached, e.g. by trying to read something from the ads7846.
-	 * But this is too early for that...
+	 * But this arch_init() code is too early for that, since we
+	 * can't talk to the ads or even the i2c eeprom.
 	 */
+
+	// omap_cfg_reg(P19_1610_GPIO6);	// BUSY
+	omap_cfg_reg(P20_1610_GPIO4);	// PENIRQ
+	set_irq_type(OMAP_GPIO_IRQ(4), IRQT_FALLING);
+	spi_register_board_info(mistral_boardinfo,
+			ARRAY_SIZE(mistral_boardinfo));
 
 	/* the sideways button (SW1) is for use as a "wakeup" button */
 	omap_cfg_reg(N15_1610_MPUIO2);
@@ -329,6 +368,8 @@ static void __init osk_mistral_init(void)
 #endif
 	} else
 		printk(KERN_ERR "OSK+Mistral: wakeup button is awol\n");
+
+	platform_add_devices(mistral_devices, ARRAY_SIZE(mistral_devices));
 }
 #else
 static void __init osk_mistral_init(void) { }

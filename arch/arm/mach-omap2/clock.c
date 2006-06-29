@@ -660,26 +660,35 @@ static int omap2_clk_set_rate(struct clk *clk, unsigned long rate)
 
 		/* Isolate control register */
 		div_sel = (SRC_RATE_SEL_MASK & clk->flags);
-		div_off = clk->src_offset;
+		div_off = clk->rate_offset;
 
 		validrate = omap2_clksel_round_rate(clk, rate, &new_div);
-		if(validrate != rate)
+		if (validrate != rate)
 			return(ret);
 
 		field_val = omap2_get_clksel(&div_sel, &field_mask, clk);
 		if (div_sel == 0)
 			return ret;
 
-		if(clk->flags & CM_SYSCLKOUT_SEL1){
-			switch(new_div){
-			case 16: field_val = 4; break;
-			case 8:  field_val = 3; break;
-			case 4:  field_val = 2; break;
-			case 2:  field_val = 1; break;
-			case 1:  field_val = 0; break;
+		if (clk->flags & CM_SYSCLKOUT_SEL1) {
+			switch (new_div) {
+			case 16:
+				field_val = 4;
+				break;
+			case 8:
+				field_val = 3;
+				break;
+			case 4:
+				field_val = 2;
+				break;
+			case 2:
+				field_val = 1;
+				break;
+			case 1:
+				field_val = 0;
+				break;
 			}
-		}
-		else
+		} else
 			field_val = new_div;
 
 		reg = (void __iomem *)div_sel;
@@ -744,7 +753,7 @@ static u32 omap2_get_src_field(u32 *type_to_addr, u32 reg_offset,
 			val = 0x2;
 		break;
 	case CM_WKUP_SEL1:
-		src_reg_addr = (u32)&CM_CLKSEL2_CORE;
+		src_reg_addr = (u32)&CM_CLKSEL_WKUP;
 		mask = 0x3;
 		if (src_clk == &func_32k_ck)
 			val = 0x0;
@@ -784,9 +793,9 @@ static u32 omap2_get_src_field(u32 *type_to_addr, u32 reg_offset,
 			val = 0;
 		if (src_clk == &sys_ck)
 			val = 1;
-		if (src_clk == &func_54m_ck)
-			val = 2;
 		if (src_clk == &func_96m_ck)
+			val = 2;
+		if (src_clk == &func_54m_ck)
 			val = 3;
 		break;
 	}

@@ -158,14 +158,12 @@ static struct map_desc omap_sram_io_desc[] __initdata = {
 	{	/* .length gets filled in at runtime */
 		.virtual	= OMAP1_SRAM_VA,
 		.pfn		= __phys_to_pfn(OMAP1_SRAM_PA),
-		.type		= MT_DEVICE
+		.type		= MT_MEMORY
 	}
 };
 
 /*
- * In order to use last 2kB of SRAM on 1611b, we must round the size
- * up to multiple of PAGE_SIZE. We cannot use ioremap for SRAM, as
- * clock init needs SRAM early.
+ * Note that we cannot use ioremap for SRAM, as clock init needs SRAM early.
  */
 void __init omap_map_sram(void)
 {
@@ -185,8 +183,7 @@ void __init omap_map_sram(void)
 		omap_sram_io_desc[0].pfn = __phys_to_pfn(base);
 	}
 
-	omap_sram_io_desc[0].length = (omap_sram_size + PAGE_SIZE-1)/PAGE_SIZE;
-	omap_sram_io_desc[0].length *= PAGE_SIZE;
+	omap_sram_io_desc[0].length = 1024 * 1024;	/* Use section desc */
 	iotable_init(omap_sram_io_desc, ARRAY_SIZE(omap_sram_io_desc));
 
 	printk(KERN_INFO "SRAM: Mapped pa 0x%08lx to va 0x%08lx size: 0x%lx\n",

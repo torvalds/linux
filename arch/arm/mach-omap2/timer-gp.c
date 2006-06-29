@@ -6,6 +6,7 @@
  * Copyright (C) 2005 Nokia Corporation
  * Author: Paul Mundt <paul.mundt@nokia.com>
  *         Juha Yrjölä <juha.yrjola@nokia.com>
+ * OMAP Dual-mode timer framework support by Timo Teras
  *
  * Some parts based off of TI's 24xx code:
  *
@@ -22,54 +23,18 @@
 #include <linux/interrupt.h>
 #include <linux/err.h>
 #include <linux/clk.h>
+#include <linux/delay.h>
 
 #include <asm/mach/time.h>
-#include <asm/delay.h>
-#include <asm/io.h>
+#include <asm/arch/dmtimer.h>
 
-#define OMAP2_GP_TIMER1_BASE	0x48028000
-#define OMAP2_GP_TIMER2_BASE	0x4802a000
-#define OMAP2_GP_TIMER3_BASE	0x48078000
-#define OMAP2_GP_TIMER4_BASE	0x4807a000
+static struct omap_dm_timer *gptimer;
 
-#define GP_TIMER_TIDR		0x00
-#define GP_TIMER_TISR		0x18
-#define GP_TIMER_TIER		0x1c
-#define GP_TIMER_TCLR		0x24
-#define GP_TIMER_TCRR		0x28
-#define GP_TIMER_TLDR		0x2c
-#define GP_TIMER_TSICR		0x40
-
-#define OS_TIMER_NR		1  /* GP timer 2 */
-
-static unsigned long timer_base[] = {
-	IO_ADDRESS(OMAP2_GP_TIMER1_BASE),
-	IO_ADDRESS(OMAP2_GP_TIMER2_BASE),
-	IO_ADDRESS(OMAP2_GP_TIMER3_BASE),
-	IO_ADDRESS(OMAP2_GP_TIMER4_BASE),
-};
-
-static inline unsigned int timer_read_reg(int nr, unsigned int reg)
+static inline void omap2_gp_timer_start(unsigned long load_val)
 {
-	return __raw_readl(timer_base[nr] + reg);
-}
-
-static inline void timer_write_reg(int nr, unsigned int reg, unsigned int val)
-{
-	__raw_writel(val, timer_base[nr] + reg);
-}
-
-/* Note that we always enable the clock prescale divider bit */
-static inline void omap2_gp_timer_start(int nr, unsigned long load_val)
-{
-	unsigned int tmp;
-
-	tmp = 0xffffffff - load_val;
-
-	timer_write_reg(nr, GP_TIMER_TLDR, tmp);
-	timer_write_reg(nr, GP_TIMER_TCRR, tmp);
-	timer_write_reg(nr, GP_TIMER_TIER, 1 << 1);
-	timer_write_reg(nr, GP_TIMER_TCLR, (1 << 5) | (1 << 1) | 1);
+	omap_dm_timer_set_load(gptimer, 1, 0xffffffff - load_val);
+	omap_dm_timer_set_int_enable(gptimer, OMAP_TIMER_INT_OVERFLOW);
+	omap_dm_timer_start(gptimer);
 }
 
 static irqreturn_t omap2_gp_timer_interrupt(int irq, void *dev_id,
@@ -77,7 +42,7 @@ static irqreturn_t omap2_gp_timer_interrupt(int irq, void *dev_id,
 {
 	write_seqlock(&xtime_lock);
 
-	timer_write_reg(OS_TIMER_NR, GP_TIMER_TISR, 1 << 1);
+	omap_dm_timer_write_status(gptimer, OMAP_TIMER_INT_OVERFLOW);
 	timer_tick(regs);
 
 	write_sequnlock(&xtime_lock);
@@ -87,41 +52,26 @@ static irqreturn_t omap2_gp_timer_interrupt(int irq, void *dev_id,
 
 static struct irqaction omap2_gp_timer_irq = {
 	.name		= "gp timer",
-	.flags		= SA_INTERRUPT,
+	.flags		= SA_INTERRUPT | SA_TIMER,
 	.handler	= omap2_gp_timer_interrupt,
 };
 
 static void __init omap2_gp_timer_init(void)
 {
-	struct clk * sys_ck;
-	u32 tick_period = 120000;
-	u32 l;
+	u32 tick_period;
 
-	/* Reset clock and prescale value */
-	timer_write_reg(OS_TIMER_NR, GP_TIMER_TCLR, 0);
+	omap_dm_timer_init();
+	gptimer = omap_dm_timer_request_specific(1);
+	BUG_ON(gptimer == NULL);
 
-	sys_ck = clk_get(NULL, "sys_ck");
-	if (IS_ERR(sys_ck))
-		printk(KERN_ERR "Could not get sys_ck\n");
-	else {
-		clk_enable(sys_ck);
-		tick_period = clk_get_rate(sys_ck) / 100;
-		clk_put(sys_ck);
-	}
-
-	tick_period /= 2;	/* Minimum prescale divider is 2 */
+	omap_dm_timer_set_source(gptimer, OMAP_TIMER_SRC_SYS_CLK);
+	tick_period = clk_get_rate(omap_dm_timer_get_fclk(gptimer)) / 100;
 	tick_period -= 1;
 
-	l = timer_read_reg(OS_TIMER_NR, GP_TIMER_TIDR);
-	printk(KERN_INFO "OMAP2 GP timer (HW version %d.%d)\n",
-	       (l >> 4) & 0x0f, l & 0x0f);
-
-	setup_irq(38, &omap2_gp_timer_irq);
-
-	omap2_gp_timer_start(OS_TIMER_NR, tick_period);
+	setup_irq(omap_dm_timer_get_irq(gptimer), &omap2_gp_timer_irq);
+	omap2_gp_timer_start(tick_period);
 }
 
 struct sys_timer omap_timer = {
 	.init	= omap2_gp_timer_init,
 };
-

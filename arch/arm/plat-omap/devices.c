@@ -105,7 +105,7 @@ static void omap_init_kp(void)
 		omap_cfg_reg(E20_1610_KBR3);
 		omap_cfg_reg(E19_1610_KBR4);
 		omap_cfg_reg(N19_1610_KBR5);
-	} else if (machine_is_omap_perseus2()) {
+	} else if (machine_is_omap_perseus2() || machine_is_omap_fsample()) {
 		omap_cfg_reg(E2_730_KBR0);
 		omap_cfg_reg(J7_730_KBR1);
 		omap_cfg_reg(E1_730_KBR2);
