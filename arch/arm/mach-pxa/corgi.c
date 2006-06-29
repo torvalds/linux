@@ -284,21 +284,9 @@ static struct pxaficp_platform_data corgi_ficp_platform_data = {
 /*
  * USB Device Controller
  */
-static void corgi_udc_command(int cmd)
-{
-	switch(cmd)	{
-	case PXA2XX_UDC_CMD_CONNECT:
-		GPSR(CORGI_GPIO_USB_PULLUP) = GPIO_bit(CORGI_GPIO_USB_PULLUP);
-		break;
-	case PXA2XX_UDC_CMD_DISCONNECT:
-		GPCR(CORGI_GPIO_USB_PULLUP) = GPIO_bit(CORGI_GPIO_USB_PULLUP);
-		break;
-	}
-}
-
 static struct pxa2xx_udc_mach_info udc_info __initdata = {
 	/* no connect GPIO; corgi can't tell connection status */
-	.udc_command		= corgi_udc_command,
+	.gpio_pullup		= CORGI_GPIO_USB_PULLUP,
 };
 
 
@@ -350,7 +338,6 @@ static void __init corgi_init(void)
 	corgi_ssp_set_machinfo(&corgi_ssp_machinfo);
 
 	pxa_gpio_mode(CORGI_GPIO_IR_ON | GPIO_OUT);
-	pxa_gpio_mode(CORGI_GPIO_USB_PULLUP | GPIO_OUT);
 	pxa_gpio_mode(CORGI_GPIO_HSYNC | GPIO_IN);
 
  	pxa_set_udc_info(&udc_info);
