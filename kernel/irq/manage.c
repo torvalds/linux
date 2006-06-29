@@ -114,6 +114,7 @@ void enable_irq(unsigned int irq)
 	spin_lock_irqsave(&desc->lock, flags);
 	switch (desc->depth) {
 	case 0:
+		printk(KERN_WARNING "Unablanced enable_irq(%d)\n", irq);
 		WARN_ON(1);
 		break;
 	case 1: {
