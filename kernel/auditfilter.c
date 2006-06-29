@@ -475,6 +475,11 @@ static struct audit_entry *audit_data_to_entry(struct audit_rule_data *data,
 		case AUDIT_SUBJ_TYPE:
 		case AUDIT_SUBJ_SEN:
 		case AUDIT_SUBJ_CLR:
+		case AUDIT_OBJ_USER:
+		case AUDIT_OBJ_ROLE:
+		case AUDIT_OBJ_TYPE:
+		case AUDIT_OBJ_LEV_LOW:
+		case AUDIT_OBJ_LEV_HIGH:
 			str = audit_unpack_string(&bufp, &remain, f->val);
 			if (IS_ERR(str))
 				goto exit_free;
@@ -616,6 +621,11 @@ static struct audit_rule_data *audit_krule_to_data(struct audit_krule *krule)
 		case AUDIT_SUBJ_TYPE:
 		case AUDIT_SUBJ_SEN:
 		case AUDIT_SUBJ_CLR:
+		case AUDIT_OBJ_USER:
+		case AUDIT_OBJ_ROLE:
+		case AUDIT_OBJ_TYPE:
+		case AUDIT_OBJ_LEV_LOW:
+		case AUDIT_OBJ_LEV_HIGH:
 			data->buflen += data->values[i] =
 				audit_pack_string(&bufp, f->se_str);
 			break;
@@ -659,6 +669,11 @@ static int audit_compare_rule(struct audit_krule *a, struct audit_krule *b)
 		case AUDIT_SUBJ_TYPE:
 		case AUDIT_SUBJ_SEN:
 		case AUDIT_SUBJ_CLR:
+		case AUDIT_OBJ_USER:
+		case AUDIT_OBJ_ROLE:
+		case AUDIT_OBJ_TYPE:
+		case AUDIT_OBJ_LEV_LOW:
+		case AUDIT_OBJ_LEV_HIGH:
 			if (strcmp(a->fields[i].se_str, b->fields[i].se_str))
 				return 1;
 			break;
@@ -779,6 +794,11 @@ static struct audit_entry *audit_dupe_rule(struct audit_krule *old,
 		case AUDIT_SUBJ_TYPE:
 		case AUDIT_SUBJ_SEN:
 		case AUDIT_SUBJ_CLR:
+		case AUDIT_OBJ_USER:
+		case AUDIT_OBJ_ROLE:
+		case AUDIT_OBJ_TYPE:
+		case AUDIT_OBJ_LEV_LOW:
+		case AUDIT_OBJ_LEV_HIGH:
 			err = audit_dupe_selinux_field(&new->fields[i],
 						       &old->fields[i]);
 			break;
@@ -1542,6 +1562,11 @@ static inline int audit_rule_has_selinux(struct audit_krule *rule)
 		case AUDIT_SUBJ_TYPE:
 		case AUDIT_SUBJ_SEN:
 		case AUDIT_SUBJ_CLR:
+		case AUDIT_OBJ_USER:
+		case AUDIT_OBJ_ROLE:
+		case AUDIT_OBJ_TYPE:
+		case AUDIT_OBJ_LEV_LOW:
+		case AUDIT_OBJ_LEV_HIGH:
 			return 1;
 		}
 	}
