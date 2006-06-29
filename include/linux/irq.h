@@ -40,9 +40,27 @@
 # define CHECK_IRQ_PER_CPU(var) 0
 #endif
 
-/*
- * Interrupt controller descriptor. This is all we need
- * to describe about the low-level hardware. 
+/**
+ * struct hw_interrupt_type - hardware interrupt type descriptor
+ *
+ * @name:		name for /proc/interrupts
+ * @startup:		start up the interrupt (defaults to ->enable if NULL)
+ * @shutdown:		shut down the interrupt (defaults to ->disable if NULL)
+ * @enable:		enable the interrupt (defaults to chip->unmask if NULL)
+ * @disable:		disable the interrupt (defaults to chip->mask if NULL)
+ * @handle_irq:		irq flow handler called from the arch IRQ glue code
+ * @ack:		start of a new interrupt
+ * @mask:		mask an interrupt source
+ * @mask_ack:		ack and mask an interrupt source
+ * @unmask:		unmask an interrupt source
+ * @hold:		same interrupt while the handler is running
+ * @end:		end of interrupt
+ * @set_affinity:	set the CPU affinity on SMP machines
+ * @retrigger:		resend an IRQ to the CPU
+ * @set_type:		set the flow type (IRQ_TYPE_LEVEL/etc.) of an IRQ
+ * @set_wake:		enable/disable power-management wake-on of an IRQ
+ *
+ * @release:		release function solely used by UML
  */
 struct hw_interrupt_type {
 	const char	*typename;
@@ -65,10 +83,22 @@ typedef struct hw_interrupt_type  hw_irq_controller;
 
 struct proc_dir_entry;
 
-/*
- * This is the "IRQ descriptor", which contains various information
- * about the irq, including what kind of hardware handling it has,
- * whether it is disabled etc etc.
+/**
+ * struct irq_desc - interrupt descriptor
+ *
+ * @handler:		interrupt type dependent handler functions
+ * @handler_data:	data for the type handlers
+ * @action:		the irq action chain
+ * @status:		status information
+ * @depth:		disable-depth, for nested irq_disable() calls
+ * @irq_count:		stats field to detect stalled irqs
+ * @irqs_unhandled:	stats field for spurious unhandled interrupts
+ * @lock:		locking for SMP
+ * @affinity:		IRQ affinity on SMP
+ * @pending_mask:	pending rebalanced interrupts
+ * @move_irq:		need to re-target IRQ destination
+ * @dir:		/proc/irq/ procfs entry
+ * @affinity_entry:	/proc/irq/smp_affinity procfs entry on SMP
  *
  * Pad this out to 32 bytes for cache and indexing reasons.
  */
