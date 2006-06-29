@@ -370,8 +370,8 @@ void __init plat_mem_setup(void)
 	pm_power_off = momenco_jaguar_power_off;
 
 	/*
-	 * initrd_start = (ulong)jaguar_initrd_start;
-	 * initrd_end = (ulong)jaguar_initrd_start + (ulong)jaguar_initrd_size;
+	 * initrd_start = (unsigned long)jaguar_initrd_start;
+	 * initrd_end = (unsigned long)jaguar_initrd_start + (ulong)jaguar_initrd_size;
 	 * initrd_below_start_ok = 1;
 	 */
 

@@ -65,9 +65,9 @@ int __init prom_init(int argc, char **argv, char **envp, int *prom_vec)
 
 	/* We use a0 and a1 to pass initrd start and size.
 	*/
-	if (((uint) argc > 0) && ((uint)argv > 0)) {
-		my_initrd_start = (uint)argc;
-		my_initrd_size = (uint)argv;
+	if (((unsigned int) argc > 0) && ((uint)argv > 0)) {
+		my_initrd_start = (unsigned int)argc;
+		my_initrd_size = (unsigned int)argv;
 	}
 
 	/* First argv is ignored.

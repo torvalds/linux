@@ -602,7 +602,7 @@ typedef struct klcpu_s {                          /* CPU */
 
 typedef struct klhub_s {			/* HUB */
 	klinfo_t 	hub_info;
-	uint 		hub_flags;		/* PCFG_HUB_xxx flags */
+	unsigned int 		hub_flags;		/* PCFG_HUB_xxx flags */
 	klport_t	hub_port;		/* hub is connected to this */
 	nic_t		hub_box_nic;		/* nic of containing box */
 	klconf_off_t	hub_mfg_nic;		/* MFG NIC string */
@@ -611,7 +611,7 @@ typedef struct klhub_s {			/* HUB */
 
 typedef struct klhub_uart_s {			/* HUB */
 	klinfo_t 	hubuart_info;
-	uint 		hubuart_flags;		/* PCFG_HUB_xxx flags */
+	unsigned int 		hubuart_flags;		/* PCFG_HUB_xxx flags */
 	nic_t		hubuart_box_nic;	/* nic of containing box */
 } klhub_uart_t ;
 
@@ -710,7 +710,7 @@ typedef struct klvmed_s {                          /* VME DEVICE - VME BOARD */
 /* XXX - Don't we need the number of ports here?!? */
 typedef struct klrou_s {                          /* ROUTER */
 	klinfo_t 	rou_info ;
-	uint		rou_flags ;           /* PCFG_ROUTER_xxx flags */
+	unsigned int		rou_flags ;           /* PCFG_ROUTER_xxx flags */
 	nic_t		rou_box_nic ;         /* nic of the containing module */
     	klport_t 	rou_port[MAX_ROUTER_PORTS + 1] ; /* array index 1 to 6 */
 	klconf_off_t	rou_mfg_nic ;     /* MFG NIC string */
@@ -733,8 +733,8 @@ typedef struct klgfx_s {		/* GRAPHICS Device */
 	klinfo_t 	gfx_info;
 	klconf_off_t    old_gndevs;	/* for compatibility with older proms */
 	klconf_off_t    old_gdoff0;	/* for compatibility with older proms */
-	uint		cookie;		/* for compatibility with older proms */
-	uint		moduleslot;
+	unsigned int		cookie;		/* for compatibility with older proms */
+	unsigned int		moduleslot;
 	struct klgfx_s	*gfx_next_pipe;
 	graphics_t	gfx_specific;
 	klconf_off_t    pad0;		/* for compatibility with older proms */

@@ -585,13 +585,13 @@ void intc1_req1_irqdispatch(struct pt_regs *regs)
  * au_sleep function in power.c.....maybe I should just pm_register()
  * them instead?
  */
-static uint	sleep_intctl_config0[2];
-static uint	sleep_intctl_config1[2];
-static uint	sleep_intctl_config2[2];
-static uint	sleep_intctl_src[2];
-static uint	sleep_intctl_assign[2];
-static uint	sleep_intctl_wake[2];
-static uint	sleep_intctl_mask[2];
+static unsigned int	sleep_intctl_config0[2];
+static unsigned int	sleep_intctl_config1[2];
+static unsigned int	sleep_intctl_config2[2];
+static unsigned int	sleep_intctl_src[2];
+static unsigned int	sleep_intctl_assign[2];
+static unsigned int	sleep_intctl_wake[2];
+static unsigned int	sleep_intctl_mask[2];
 
 void
 save_au1xxx_intctl(void)

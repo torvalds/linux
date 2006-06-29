@@ -9,6 +9,6 @@
 # Makefile for the Wind River MIPS 4KC PPMC Eval Board
 #
 
-obj-y	+= int-handler.o irq.o reset.o setup.o time.o pci.o
+obj-y += irq.o reset.o setup.o time.o pci.o
 
 EXTRA_AFLAGS := $(CFLAGS)

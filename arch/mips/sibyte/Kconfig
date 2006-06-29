@@ -3,6 +3,7 @@ config SIBYTE_SB1250
 	select HW_HAS_PCI
 	select SIBYTE_HAS_LDT
 	select SIBYTE_SB1xxx_SOC
+	select SYS_SUPPORTS_SMP
 
 config SIBYTE_BCM1120
 	bool
@@ -30,11 +31,13 @@ config SIBYTE_BCM1x80
 	bool
 	select HW_HAS_PCI
 	select SIBYTE_SB1xxx_SOC
+	select SYS_SUPPORTS_SMP
 
 config SIBYTE_BCM1x55
 	bool
 	select HW_HAS_PCI
 	select SIBYTE_SB1xxx_SOC
+	select SYS_SUPPORTS_SMP
 
 config SIBYTE_SB1xxx_SOC
 	bool

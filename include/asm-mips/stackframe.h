@@ -304,7 +304,7 @@
 		mfc0	v0, CP0_TCSTATUS
 		ori	v0, TCSTATUS_IXMT
 		mtc0	v0, CP0_TCSTATUS
-		ehb
+		_ehb
 		DMT	5				# dmt a1
 		jal	mips_ihb
 #endif /* CONFIG_MIPS_MT_SMTC */
@@ -325,14 +325,14 @@
  * restore TCStatus.IXMT.
  */
 		LONG_L	v1, PT_TCSTATUS(sp)
-		ehb
+		_ehb
 		mfc0	v0, CP0_TCSTATUS
 		andi	v1, TCSTATUS_IXMT
 		/* We know that TCStatua.IXMT should be set from above */
 		xori	v0, v0, TCSTATUS_IXMT
 		or	v0, v0, v1
 		mtc0	v0, CP0_TCSTATUS
-		ehb
+		_ehb
 		andi	a1, a1, VPECONTROL_TE
 		beqz	a1, 1f
 		emt
@@ -411,7 +411,7 @@
 		/* Clear TKSU, leave IXMT */
 		xori	t0, 0x00001800
 		mtc0	t0, CP0_TCSTATUS
-		ehb
+		_ehb
 		/* We need to leave the global IE bit set, but clear EXL...*/
 		mfc0	t0, CP0_STATUS
 		ori	t0, ST0_EXL | ST0_ERL
@@ -438,7 +438,7 @@
 		 * and enable interrupts only for the
 		 * current TC, using the TCStatus register.
 		 */
-		ehb
+		_ehb
 		mfc0	t0,CP0_TCSTATUS
 		/* Fortunately CU 0 is in the same place in both registers */
 		/* Set TCU0, TKSU (for later inversion) and IXMT */
@@ -447,7 +447,7 @@
 		/* Clear TKSU *and* IXMT */
 		xori	t0, 0x00001c00
 		mtc0	t0, CP0_TCSTATUS
-		ehb
+		_ehb
 		/* We need to leave the global IE bit set, but clear EXL...*/
 		mfc0	t0, CP0_STATUS
 		ori	t0, ST0_EXL
@@ -479,7 +479,7 @@
 		andi	v1, v0, TCSTATUS_IXMT
 		ori	v0, TCSTATUS_IXMT
 		mtc0	v0, CP0_TCSTATUS
-		ehb
+		_ehb
 		DMT	2				# dmt	v0
 		/*
 		 * We don't know a priori if ra is "live"
@@ -495,7 +495,7 @@
 		xori	t0, 0x1e
 		mtc0	t0, CP0_STATUS
 #ifdef CONFIG_MIPS_MT_SMTC
-		ehb
+		_ehb
 		andi	v0, v0, VPECONTROL_TE
 		beqz	v0, 2f
 		nop	/* delay slot */

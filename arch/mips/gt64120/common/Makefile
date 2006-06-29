@@ -3,4 +3,3 @@
 #
 
 obj-y	 		+= time.o
-obj-$(CONFIG_PCI)	+= pci.o

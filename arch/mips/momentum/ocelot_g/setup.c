@@ -174,8 +174,8 @@ void __init plat_mem_setup(void)
 	pm_power_off = momenco_ocelot_power_off;
 
 	/*
-	 * initrd_start = (ulong)ocelot_initrd_start;
-	 * initrd_end = (ulong)ocelot_initrd_start + (ulong)ocelot_initrd_size;
+	 * initrd_start = (unsigned long)ocelot_initrd_start;
+	 * initrd_end = (unsigned long)ocelot_initrd_start + (ulong)ocelot_initrd_size;
 	 * initrd_below_start_ok = 1;
 	 */
 
