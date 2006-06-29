@@ -177,8 +177,4 @@ char * __init machine_specific_memory_setup(void)
 	add_memory_region(sgivwfb_mem_phys, sgivwfb_mem_size, E820_RESERVED);
 
 	return "PROM";
-
-	/* Remove gcc warnings */
-	(void) sanitize_e820_map(NULL, NULL);
-	(void) copy_e820_map(NULL, 0);
 }
