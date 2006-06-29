@@ -131,7 +131,7 @@ static void __devinit power_probe_common(struct of_device *dev, struct resource 
 		printk("powerd running.\n");
 
 		if (request_irq(irq,
-				power_handler, SA_SHIRQ, "power", NULL) < 0)
+				power_handler, 0, "power", NULL) < 0)
 			printk("power: Error, cannot register IRQ handler.\n");
 	} else {
 		printk("not using powerd.\n");
