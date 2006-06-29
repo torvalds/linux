@@ -40,11 +40,8 @@
 
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/oplib.h>
-#include <asm/ebus.h>
-#ifdef CONFIG_SPARC64
-#include <asm/isa.h>
-#endif
+#include <asm/prom.h>
+#include <asm/of_device.h>
 
 #if defined(CONFIG_SERIAL_SUNSU_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
 #define SUPPORT_SYSRQ
@@ -94,10 +91,10 @@ struct uart_sunsu_port {
 	/* Probing information.  */
 	enum su_type		su_type;
 	unsigned int		type_probed;	/* XXX Stupid */
-	int			port_node;
+	unsigned long		reg_size;
 
 #ifdef CONFIG_SERIO
-	struct serio		*serio;
+	struct serio		serio;
 	int			serio_open;
 #endif
 };
@@ -509,7 +506,7 @@ static void receive_kbd_ms_chars(struct uart_sunsu_port *up, struct pt_regs *reg
 		/* Stop-A is handled by drivers/char/keyboard.c now. */
 		if (up->su_type == SU_PORT_KBD) {
 #ifdef CONFIG_SERIO
-			serio_interrupt(up->serio, ch, 0, regs);
+			serio_interrupt(&up->serio, ch, 0, regs);
 #endif
 		} else if (up->su_type == SU_PORT_MS) {
 			int ret = suncore_mouse_baud_detection(ch, is_break);
@@ -523,7 +520,7 @@ static void receive_kbd_ms_chars(struct uart_sunsu_port *up, struct pt_regs *reg
 
 			case 0:
 #ifdef CONFIG_SERIO
-				serio_interrupt(up->serio, ch, 0, regs);
+				serio_interrupt(&up->serio, ch, 0, regs);
 #endif
 				break;
 			};
@@ -1031,98 +1028,13 @@ static void sunsu_autoconfig(struct uart_sunsu_port *up)
 {
 	unsigned char status1, status2, scratch, scratch2, scratch3;
 	unsigned char save_lcr, save_mcr;
-	struct linux_ebus_device *dev = NULL;
-	struct linux_ebus *ebus;
-#ifdef CONFIG_SPARC64
-	struct sparc_isa_bridge *isa_br;
-	struct sparc_isa_device *isa_dev;
-#endif
-#ifndef CONFIG_SPARC64
-	struct linux_prom_registers reg0;
-#endif
 	unsigned long flags;
 
-	if (!up->port_node || !up->su_type)
+	if (up->su_type == SU_PORT_NONE)
 		return;
 
 	up->type_probed = PORT_UNKNOWN;
 	up->port.iotype = UPIO_MEM;
-
-	/*
-	 * First we look for Ebus-bases su's
-	 */
-	for_each_ebus(ebus) {
-		for_each_ebusdev(dev, ebus) {
-			if (dev->prom_node->node == up->port_node) {
-				/*
-				 * The EBus is broken on sparc; it delivers
-				 * virtual addresses in resources. Oh well...
-				 * This is correct on sparc64, though.
-				 */
-				up->port.membase = (char *) dev->resource[0].start;
-				/*
-				 * This is correct on both architectures.
-				 */
-				up->port.mapbase = dev->resource[0].start;
-				up->port.irq = dev->irqs[0];
-				goto ebus_done;
-			}
-		}
-	}
-
-#ifdef CONFIG_SPARC64
-	for_each_isa(isa_br) {
-		for_each_isadev(isa_dev, isa_br) {
-			if (isa_dev->prom_node->node == up->port_node) {
-				/* Same on sparc64. Cool architecure... */
-				up->port.membase = (char *) isa_dev->resource.start;
-				up->port.mapbase = isa_dev->resource.start;
-				up->port.irq = isa_dev->irq;
-				goto ebus_done;
-			}
-		}
-	}
-#endif
-
-#ifdef CONFIG_SPARC64
-	/*
-	 * Not on Ebus, bailing.
-	 */
-	return;
-#else
-	/*
-	 * Not on Ebus, must be OBIO.
-	 */
-	if (prom_getproperty(up->port_node, "reg",
-			     (char *)&reg0, sizeof(reg0)) == -1) {
-		prom_printf("sunsu: no \"reg\" property\n");
-		return;
-	}
-	prom_apply_obio_ranges(&reg0, 1);
-	if (reg0.which_io != 0) {	/* Just in case... */
-		prom_printf("sunsu: bus number nonzero: 0x%x:%x\n",
-		    reg0.which_io, reg0.phys_addr);
-		return;
-	}
-	up->port.mapbase = reg0.phys_addr;
-	if ((up->port.membase = ioremap(reg0.phys_addr, reg0.reg_size)) == 0) {
-		prom_printf("sunsu: Cannot map registers.\n");
-		return;
-	}
-
-	/*
-	 * 0x20 is sun4m thing, Dave Redman heritage.
-	 * See arch/sparc/kernel/irq.c.
-	 */
-#define IRQ_4M(n)	((n)|0x20)
-
-	/*
-	 * There is no intr property on MrCoffee, so hardwire it.
-	 */
-	up->port.irq = IRQ_4M(13);
-#endif
-
-ebus_done:
 
 	spin_lock_irqsave(&up->port.lock, flags);
 
@@ -1269,17 +1181,12 @@ static struct uart_driver sunsu_reg = {
 	.major			= TTY_MAJOR,
 };
 
-static int __init sunsu_kbd_ms_init(struct uart_sunsu_port *up, int channel)
+static int __init sunsu_kbd_ms_init(struct uart_sunsu_port *up)
 {
 	int quot, baud;
 #ifdef CONFIG_SERIO
 	struct serio *serio;
 #endif
-
-	spin_lock_init(&up->port.lock);
-	up->port.line = channel;
-	up->port.type = PORT_UNKNOWN;
-	up->port.uartclk = (SU_BASE_BAUD * 16);
 
 	if (up->su_type == SU_PORT_KBD) {
 		up->cflag = B1200 | CS8 | CLOCAL | CREAD;
@@ -1292,41 +1199,31 @@ static int __init sunsu_kbd_ms_init(struct uart_sunsu_port *up, int channel)
 
 	sunsu_autoconfig(up);
 	if (up->port.type == PORT_UNKNOWN)
-		return -1;
-
-	printk(KERN_INFO "su%d at 0x%p (irq = %d) is a %s\n",
-	       channel,
-	       up->port.membase, up->port.irq,
-	       sunsu_type(&up->port));
+		return -ENODEV;
 
 #ifdef CONFIG_SERIO
-	up->serio = serio = kmalloc(sizeof(struct serio), GFP_KERNEL);
-	if (serio) {
-		memset(serio, 0, sizeof(*serio));
+	serio = &up->serio;
+	serio->port_data = up;
 
-		serio->port_data = up;
-
-		serio->id.type = SERIO_RS232;
-		if (up->su_type == SU_PORT_KBD) {
-			serio->id.proto = SERIO_SUNKBD;
-			strlcpy(serio->name, "sukbd", sizeof(serio->name));
-		} else {
-			serio->id.proto = SERIO_SUN;
-			serio->id.extra = 1;
-			strlcpy(serio->name, "sums", sizeof(serio->name));
-		}
-		strlcpy(serio->phys, (channel == 0 ? "su/serio0" : "su/serio1"),
-			sizeof(serio->phys));
-
-		serio->write = sunsu_serio_write;
-		serio->open = sunsu_serio_open;
-		serio->close = sunsu_serio_close;
-
-		serio_register_port(serio);
+	serio->id.type = SERIO_RS232;
+	if (up->su_type == SU_PORT_KBD) {
+		serio->id.proto = SERIO_SUNKBD;
+		strlcpy(serio->name, "sukbd", sizeof(serio->name));
 	} else {
-		printk(KERN_WARNING "su%d: not enough memory for serio port\n",
-			channel);
+		serio->id.proto = SERIO_SUN;
+		serio->id.extra = 1;
+		strlcpy(serio->name, "sums", sizeof(serio->name));
 	}
+	strlcpy(serio->phys,
+		(!(up->port.line & 1) ? "su/serio0" : "su/serio1"),
+		sizeof(serio->phys));
+
+	serio->write = sunsu_serio_write;
+	serio->open = sunsu_serio_open;
+	serio->close = sunsu_serio_close;
+	serio->dev.parent = up->port.dev;
+
+	serio_register_port(serio);
 #endif
 
 	sunsu_change_speed(&up->port, up->cflag, 0, quot);
@@ -1458,22 +1355,20 @@ static struct console sunsu_cons = {
  *	Register console.
  */
 
-static inline struct console *SUNSU_CONSOLE(void)
+static inline struct console *SUNSU_CONSOLE(int num_uart)
 {
 	int i;
 
 	if (con_is_present())
 		return NULL;
 
-	for (i = 0; i < UART_NR; i++) {
+	for (i = 0; i < num_uart; i++) {
 		int this_minor = sunsu_reg.minor + i;
 
 		if ((this_minor - 64) == (serial_console - 1))
 			break;
 	}
-	if (i == UART_NR)
-		return NULL;
-	if (sunsu_ports[i].port_node == 0)
+	if (i == num_uart)
 		return NULL;
 
 	sunsu_cons.index = i;
@@ -1481,252 +1376,180 @@ static inline struct console *SUNSU_CONSOLE(void)
 	return &sunsu_cons;
 }
 #else
-#define SUNSU_CONSOLE()			(NULL)
+#define SUNSU_CONSOLE(num_uart)		(NULL)
 #define sunsu_serial_console_init()	do { } while (0)
 #endif
 
-static int __init sunsu_serial_init(void)
+static enum su_type __devinit su_get_type(struct device_node *dp)
 {
-	int instance, ret, i;
+	struct device_node *ap = of_find_node_by_path("/aliases");
 
-	/* How many instances do we need?  */
-	instance = 0;
-	for (i = 0; i < UART_NR; i++) {
-		struct uart_sunsu_port *up = &sunsu_ports[i];
+	if (ap) {
+		char *keyb = of_get_property(ap, "keyboard", NULL);
+		char *ms = of_get_property(ap, "mouse", NULL);
 
-		if (up->su_type == SU_PORT_MS ||
-		    up->su_type == SU_PORT_KBD)
-			continue;
-
-		spin_lock_init(&up->port.lock);
-		up->port.flags |= UPF_BOOT_AUTOCONF;
-		up->port.type = PORT_UNKNOWN;
-		up->port.uartclk = (SU_BASE_BAUD * 16);
-
-		sunsu_autoconfig(up);
-		if (up->port.type == PORT_UNKNOWN)
-			continue;
-
-		up->port.line = instance++;
-		up->port.ops = &sunsu_pops;
-	}
-
-	sunsu_reg.minor = sunserial_current_minor;
-
-	sunsu_reg.nr = instance;
-
-	ret = uart_register_driver(&sunsu_reg);
-	if (ret < 0)
-		return ret;
-
-	sunsu_reg.tty_driver->name_base = sunsu_reg.minor - 64;
-
-	sunserial_current_minor += instance;
-
-	sunsu_reg.cons = SUNSU_CONSOLE();
-
-	for (i = 0; i < UART_NR; i++) {
-		struct uart_sunsu_port *up = &sunsu_ports[i];
-
-		/* Do not register Keyboard/Mouse lines with UART
-		 * layer.
-		 */
-		if (up->su_type == SU_PORT_MS ||
-		    up->su_type == SU_PORT_KBD)
-			continue;
-
-		if (up->port.type == PORT_UNKNOWN)
-			continue;
-
-		uart_add_one_port(&sunsu_reg, &up->port);
-	}
-
-	return 0;
-}
-
-static int su_node_ok(int node, char *name, int namelen)
-{
-	if (strncmp(name, "su", namelen) == 0 ||
-	    strncmp(name, "su_pnp", namelen) == 0)
-		return 1;
-
-	if (strncmp(name, "serial", namelen) == 0) {
-		char compat[32];
-		int clen;
-
-		/* Is it _really_ a 'su' device? */
-		clen = prom_getproperty(node, "compatible", compat, sizeof(compat));
-		if (clen > 0) {
-			if (strncmp(compat, "sab82532", 8) == 0) {
-				/* Nope, Siemens serial, not for us. */
-				return 0;
-			}
+		if (keyb) {
+			if (dp == of_find_node_by_path(keyb))
+				return SU_PORT_KBD;
 		}
-		return 1;
+		if (ms) {
+			if (dp == of_find_node_by_path(ms))
+				return SU_PORT_MS;
+		}
 	}
+
+	return SU_PORT_PORT;
+}
+
+static int __devinit su_probe(struct of_device *op, const struct of_device_id *match)
+{
+	static int inst;
+	struct device_node *dp = op->node;
+	struct uart_sunsu_port *up;
+	struct resource *rp;
+	int err;
+
+	if (inst >= UART_NR)
+		return -EINVAL;
+
+	up = &sunsu_ports[inst];
+	up->port.line = inst;
+
+	spin_lock_init(&up->port.lock);
+
+	up->su_type = su_get_type(dp);
+
+	rp = &op->resource[0];
+	up->port.mapbase = op->resource[0].start;
+
+	up->reg_size = (rp->end - rp->start) + 1;
+	up->port.membase = of_ioremap(rp, 0, up->reg_size, "su");
+	if (!up->port.membase)
+		return -ENOMEM;
+
+	up->port.irq = op->irqs[0];
+
+	up->port.dev = &op->dev;
+
+	up->port.type = PORT_UNKNOWN;
+	up->port.uartclk = (SU_BASE_BAUD * 16);
+
+	err = 0;
+	if (up->su_type == SU_PORT_KBD || up->su_type == SU_PORT_MS) {
+		err = sunsu_kbd_ms_init(up);
+		if (err)
+			goto out_unmap;
+	}
+
+	up->port.flags |= UPF_BOOT_AUTOCONF;
+
+	sunsu_autoconfig(up);
+
+	err = -ENODEV;
+	if (up->port.type == PORT_UNKNOWN)
+		goto out_unmap;
+
+	up->port.ops = &sunsu_pops;
+
+	err = uart_add_one_port(&sunsu_reg, &up->port);
+	if (err)
+		goto out_unmap;
+
+	dev_set_drvdata(&op->dev, up);
+
+	inst++;
+
+	return 0;
+
+out_unmap:
+	of_iounmap(up->port.membase, up->reg_size);
+	return err;
+}
+
+static int __devexit su_remove(struct of_device *dev)
+{
+	struct uart_sunsu_port *up = dev_get_drvdata(&dev->dev);;
+
+	if (up->su_type == SU_PORT_MS ||
+	    up->su_type == SU_PORT_KBD) {
+#ifdef CONFIG_SERIO
+		serio_unregister_port(&up->serio);
+#endif
+	} else if (up->port.type != PORT_UNKNOWN)
+		uart_remove_one_port(&sunsu_reg, &up->port);
 
 	return 0;
 }
 
-#define SU_PROPSIZE	128
+static struct of_device_id su_match[] = {
+	{
+		.name = "su",
+	},
+	{
+		.name = "su_pnp",
+	},
+	{
+		.name = "serial",
+		.compatible = "su",
+	},
+	{},
+};
+MODULE_DEVICE_TABLE(of, su_match);
 
-/*
- * Scan status structure.
- * "prop" is a local variable but it eats stack to keep it in each
- * stack frame of a recursive procedure.
- */
-struct su_probe_scan {
-	int msnode, kbnode;	/* PROM nodes for mouse and keyboard */
-	int msx, kbx;		/* minors for mouse and keyboard */
-	int devices;		/* scan index */
-	char prop[SU_PROPSIZE];
+static struct of_platform_driver su_driver = {
+	.name		= "su",
+	.match_table	= su_match,
+	.probe		= su_probe,
+	.remove		= __devexit_p(su_remove),
 };
 
-/*
- * We have several platforms which present 'su' in different parts
- * of the device tree. 'su' may be found under obio, ebus, isa and pci.
- * We walk over the tree and find them wherever PROM hides them.
- */
-static void __init su_probe_any(struct su_probe_scan *t, int sunode)
+static int num_uart;
+
+static int __init sunsu_init(void)
 {
-	struct uart_sunsu_port *up;
-	int len;
+	struct device_node *dp;
+	int err;
 
-	if (t->devices >= UART_NR)
-		return;
-
-	for (; sunode != 0; sunode = prom_getsibling(sunode)) {
-		len = prom_getproperty(sunode, "name", t->prop, SU_PROPSIZE);
-		if (len <= 1)
-			continue;		/* Broken PROM node */
-
-		if (su_node_ok(sunode, t->prop, len)) {
-			up = &sunsu_ports[t->devices];
-			if (t->kbnode != 0 && sunode == t->kbnode) {
-				t->kbx = t->devices;
-				up->su_type = SU_PORT_KBD;
-			} else if (t->msnode != 0 && sunode == t->msnode) {
-				t->msx = t->devices;
-				up->su_type = SU_PORT_MS;
-			} else {
-#ifdef CONFIG_SPARC64
-				/*
-				 * Do not attempt to use the truncated
-				 * keyboard/mouse ports as serial ports
-				 * on Ultras with PC keyboard attached.
-				 */
-				if (prom_getbool(sunode, "mouse"))
-					continue;
-				if (prom_getbool(sunode, "keyboard"))
-					continue;
-#endif
-				up->su_type = SU_PORT_PORT;
-			}
-			up->port_node = sunode;
-			++t->devices;
-		} else {
-			su_probe_any(t, prom_getchild(sunode));
-		}
+	num_uart = 0;
+	for_each_node_by_name(dp, "su") {
+		if (su_get_type(dp) == SU_PORT_PORT)
+			num_uart++;
 	}
-}
-
-static int __init sunsu_probe(void)
-{
-	int node;
-	int len;
-	struct su_probe_scan scan;
-
-	/*
-	 * First, we scan the tree.
-	 */
-	scan.devices = 0;
-	scan.msx = -1;
-	scan.kbx = -1;
-	scan.kbnode = 0;
-	scan.msnode = 0;
-
-	/*
-	 * Get the nodes for keyboard and mouse from 'aliases'...
-	 */
-        node = prom_getchild(prom_root_node);
-	node = prom_searchsiblings(node, "aliases");
-	if (node != 0) {
-		len = prom_getproperty(node, "keyboard", scan.prop, SU_PROPSIZE);
-		if (len > 0) {
-			scan.prop[len] = 0;
-			scan.kbnode = prom_finddevice(scan.prop);
-		}
-
-		len = prom_getproperty(node, "mouse", scan.prop, SU_PROPSIZE);
-		if (len > 0) {
-			scan.prop[len] = 0;
-			scan.msnode = prom_finddevice(scan.prop);
+	for_each_node_by_name(dp, "su_pnp") {
+		if (su_get_type(dp) == SU_PORT_PORT)
+			num_uart++;
+	}
+	for_each_node_by_name(dp, "serial") {
+		if (of_device_is_compatible(dp, "su")) {
+			if (su_get_type(dp) == SU_PORT_PORT)
+				num_uart++;
 		}
 	}
 
-	su_probe_any(&scan, prom_getchild(prom_root_node));
-
-	/*
-	 * Second, we process the special case of keyboard and mouse.
-	 *
-	 * Currently if we got keyboard and mouse hooked to "su" ports
-	 * we do not use any possible remaining "su" as a serial port.
-	 * Thus, we ignore values of .msx and .kbx, then compact ports.
-	 */
-	if (scan.msx != -1 && scan.kbx != -1) {
-		sunsu_ports[0].su_type = SU_PORT_MS;
-		sunsu_ports[0].port_node = scan.msnode;
-		sunsu_kbd_ms_init(&sunsu_ports[0], 0);
-
-		sunsu_ports[1].su_type = SU_PORT_KBD;
-		sunsu_ports[1].port_node = scan.kbnode;
-		sunsu_kbd_ms_init(&sunsu_ports[1], 1);
-
-		return 0;
+	if (num_uart) {
+		sunsu_reg.minor = sunserial_current_minor;
+		sunsu_reg.nr = num_uart;
+		err = uart_register_driver(&sunsu_reg);
+		if (err)
+			return err;
+		sunsu_reg.tty_driver->name_base = sunsu_reg.minor - 64;
+		sunserial_current_minor += num_uart;
+		sunsu_reg.cons = SUNSU_CONSOLE(num_uart);
 	}
 
-	if (scan.msx != -1 || scan.kbx != -1) {
-		printk("sunsu_probe: cannot match keyboard and mouse, confused\n");
-		return -ENODEV;
-	}
+	err = of_register_driver(&su_driver, &of_bus_type);
+	if (err && num_uart)
+		uart_unregister_driver(&sunsu_reg);
 
-	if (scan.devices == 0)
-		return -ENODEV;
-
-	/*
-	 * Console must be initiated after the generic initialization.
-	 */
-       	sunsu_serial_init();
-
-	return 0;
+	return err;
 }
 
 static void __exit sunsu_exit(void)
 {
-	int i, saw_uart;
-
-	saw_uart = 0;
-	for (i = 0; i < UART_NR; i++) {
-		struct uart_sunsu_port *up = &sunsu_ports[i];
-
-		if (up->su_type == SU_PORT_MS ||
-		    up->su_type == SU_PORT_KBD) {
-#ifdef CONFIG_SERIO
-			if (up->serio) {
-				serio_unregister_port(up->serio);
-				up->serio = NULL;
-			}
-#endif
-		} else if (up->port.type != PORT_UNKNOWN) {
-			uart_remove_one_port(&sunsu_reg, &up->port);
-			saw_uart++;
-		}
-	}
-
-	if (saw_uart)
+	if (num_uart)
 		uart_unregister_driver(&sunsu_reg);
 }
 
-module_init(sunsu_probe);
+module_init(sunsu_init);
 module_exit(sunsu_exit);
 MODULE_LICENSE("GPL");
