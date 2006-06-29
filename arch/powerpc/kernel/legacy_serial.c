@@ -302,6 +302,17 @@ void __init find_legacy_serial_ports(void)
 		of_node_put(isa);
 	}
 
+	/* First fill our array with tsi-bridge ports */
+	for (np = NULL; (np = of_find_compatible_node(np, "serial", "ns16550")) != NULL;) {
+		struct device_node *tsi = of_get_parent(np);
+		if (tsi && !strcmp(tsi->type, "tsi-bridge")) {
+			index = add_legacy_soc_port(np, np);
+			if (index >= 0 && np == stdout)
+				legacy_serial_console = index;
+		}
+		of_node_put(tsi);
+	}
+
 #ifdef CONFIG_PCI
 	/* Next, try to locate PCI ports */
 	for (np = NULL; (np = of_find_all_nodes(np));) {

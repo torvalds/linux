@@ -340,7 +340,7 @@ config PPC_ISERIES
 
 config EMBEDDED6xx
 	bool "Embedded 6xx/7xx/7xxx-based board"
-	depends on PPC32 && BROKEN
+	depends on PPC32 && (BROKEN||BROKEN_ON_SMP)
 
 config APUS
 	bool "Amiga-APUS"
@@ -417,12 +417,17 @@ config PPC_CELL_NATIVE
 	default n
 
 config PPC_IBM_CELL_BLADE
-	bool "  IBM Cell Blade"
+	bool "IBM Cell Blade"
 	depends on PPC_MULTIPLATFORM && PPC64
 	select PPC_CELL_NATIVE
 	select PPC_RTAS
 	select MMIO_NVRAM
 	select PPC_UDBG_16550
+	select UDBG_RTAS_CONSOLE
+
+config UDBG_RTAS_CONSOLE
+	bool
+	default n
 
 config XICS
 	depends on PPC_PSERIES
@@ -435,7 +440,8 @@ config U3_DART
 	default n
 
 config MPIC
-	depends on PPC_PSERIES || PPC_PMAC || PPC_MAPLE || PPC_CHRP
+	depends on PPC_PSERIES || PPC_PMAC || PPC_MAPLE || PPC_CHRP \
+			       || MPC7448HPC2
 	bool
 	default y
 
@@ -561,6 +567,13 @@ config TAU_AVERAGE
 	  /proc/cpuinfo.
 
 	  If in doubt, say N here.
+
+config PPC_TODC
+	depends on EMBEDDED6xx
+	bool "Generic Time-of-day Clock (TODC) support"
+	---help---
+	  This adds support for many TODC/RTC chips.
+
 endmenu
 
 source arch/powerpc/platforms/embedded6xx/Kconfig
@@ -801,7 +814,6 @@ config GENERIC_ISA_DMA
 
 config PPC_I8259
 	bool
-	default y if MPC8641_HPCN
 	default n
 
 config PPC_INDIRECT_PCI
@@ -824,7 +836,8 @@ config MCA
 	bool
 
 config PCI
-	bool "PCI support" if 40x || CPM2 || PPC_83xx || PPC_85xx || PPC_86xx || PPC_MPC52xx || (EMBEDDED && PPC_ISERIES)
+	bool "PCI support" if 40x || CPM2 || PPC_83xx || PPC_85xx || PPC_MPC52xx || (EMBEDDED && PPC_ISERIES) \
+				  || MPC7448HPC2
 	default y if !40x && !CPM2 && !8xx && !APUS && !PPC_83xx && !PPC_85xx && !PPC_86xx
 	default PCI_PERMEDIA if !4xx && !CPM2 && !8xx && APUS
 	default PCI_QSPAN if !4xx && !CPM2 && 8xx

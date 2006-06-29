@@ -14,7 +14,6 @@
 #ifndef __MPC8641_HPCN_H__
 #define __MPC8641_HPCN_H__
 
-#include <linux/config.h>
 #include <linux/init.h>
 
 /* PCI interrupt controller */

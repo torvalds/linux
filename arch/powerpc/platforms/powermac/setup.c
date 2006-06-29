@@ -600,13 +600,6 @@ pmac_halt(void)
  */
 static void __init pmac_init_early(void)
 {
-#ifdef CONFIG_PPC64
-	/* Initialize hash table, from now on, we can take hash faults
-	 * and call ioremap
-	 */
-	hpte_init_native();
-#endif
-
 	/* Enable early btext debug if requested */
 	if (strstr(cmd_line, "btextdbg")) {
 		udbg_adb_init_early();
@@ -683,6 +676,8 @@ static int __init pmac_probe(void)
 	 * part of the cacheable linar mapping
 	 */
 	alloc_dart_table();
+
+	hpte_init_native();
 #endif
 
 #ifdef CONFIG_PPC32

@@ -51,20 +51,21 @@ static unsigned lpEventHandlerPaths[HvLpEvent_Type_NumTypes];
 static struct HvLpEvent * get_next_hvlpevent(void)
 {
 	struct HvLpEvent * event;
-	event = (struct HvLpEvent *)hvlpevent_queue.xSlicCurEventPtr;
+	event = (struct HvLpEvent *)hvlpevent_queue.hq_current_event;
 
 	if (hvlpevent_is_valid(event)) {
 		/* rmb() needed only for weakly consistent machines (regatta) */
 		rmb();
 		/* Set pointer to next potential event */
-		hvlpevent_queue.xSlicCurEventPtr += ((event->xSizeMinus1 +
-				LpEventAlign) / LpEventAlign) * LpEventAlign;
+		hvlpevent_queue.hq_current_event += ((event->xSizeMinus1 +
+				IT_LP_EVENT_ALIGN) / IT_LP_EVENT_ALIGN) *
+					IT_LP_EVENT_ALIGN;
 
 		/* Wrap to beginning if no room at end */
-		if (hvlpevent_queue.xSlicCurEventPtr >
-				hvlpevent_queue.xSlicLastValidEventPtr) {
-			hvlpevent_queue.xSlicCurEventPtr =
-				hvlpevent_queue.xSlicEventStackPtr;
+		if (hvlpevent_queue.hq_current_event >
+				hvlpevent_queue.hq_last_event) {
+			hvlpevent_queue.hq_current_event =
+				hvlpevent_queue.hq_event_stack;
 		}
 	} else {
 		event = NULL;
@@ -82,10 +83,10 @@ int hvlpevent_is_pending(void)
 	if (smp_processor_id() >= spread_lpevents)
 		return 0;
 
-	next_event = (struct HvLpEvent *)hvlpevent_queue.xSlicCurEventPtr;
+	next_event = (struct HvLpEvent *)hvlpevent_queue.hq_current_event;
 
 	return hvlpevent_is_valid(next_event) ||
-		hvlpevent_queue.xPlicOverflowIntPending;
+		hvlpevent_queue.hq_overflow_pending;
 }
 
 static void hvlpevent_clear_valid(struct HvLpEvent * event)
@@ -95,18 +96,18 @@ static void hvlpevent_clear_valid(struct HvLpEvent * event)
 	 * ie. on 64-byte boundaries.
 	 */
 	struct HvLpEvent *tmp;
-	unsigned extra = ((event->xSizeMinus1 + LpEventAlign) /
-						 LpEventAlign) - 1;
+	unsigned extra = ((event->xSizeMinus1 + IT_LP_EVENT_ALIGN) /
+				IT_LP_EVENT_ALIGN) - 1;
 
 	switch (extra) {
 	case 3:
-		tmp = (struct HvLpEvent*)((char*)event + 3 * LpEventAlign);
+		tmp = (struct HvLpEvent*)((char*)event + 3 * IT_LP_EVENT_ALIGN);
 		hvlpevent_invalidate(tmp);
 	case 2:
-		tmp = (struct HvLpEvent*)((char*)event + 2 * LpEventAlign);
+		tmp = (struct HvLpEvent*)((char*)event + 2 * IT_LP_EVENT_ALIGN);
 		hvlpevent_invalidate(tmp);
 	case 1:
-		tmp = (struct HvLpEvent*)((char*)event + 1 * LpEventAlign);
+		tmp = (struct HvLpEvent*)((char*)event + 1 * IT_LP_EVENT_ALIGN);
 		hvlpevent_invalidate(tmp);
 	}
 
@@ -120,7 +121,7 @@ void process_hvlpevents(struct pt_regs *regs)
 	struct HvLpEvent * event;
 
 	/* If we have recursed, just return */
-	if (!spin_trylock(&hvlpevent_queue.lock))
+	if (!spin_trylock(&hvlpevent_queue.hq_lock))
 		return;
 
 	for (;;) {
@@ -148,17 +149,17 @@ void process_hvlpevents(struct pt_regs *regs)
 				printk(KERN_INFO "Unexpected Lp Event type=%d\n", event->xType );
 
 			hvlpevent_clear_valid(event);
-		} else if (hvlpevent_queue.xPlicOverflowIntPending)
+		} else if (hvlpevent_queue.hq_overflow_pending)
 			/*
 			 * No more valid events. If overflow events are
 			 * pending process them
 			 */
-			HvCallEvent_getOverflowLpEvents(hvlpevent_queue.xIndex);
+			HvCallEvent_getOverflowLpEvents(hvlpevent_queue.hq_index);
 		else
 			break;
 	}
 
-	spin_unlock(&hvlpevent_queue.lock);
+	spin_unlock(&hvlpevent_queue.hq_lock);
 }
 
 static int set_spread_lpevents(char *str)
@@ -184,20 +185,20 @@ void setup_hvlpevent_queue(void)
 {
 	void *eventStack;
 
-	spin_lock_init(&hvlpevent_queue.lock);
+	spin_lock_init(&hvlpevent_queue.hq_lock);
 
 	/* Allocate a page for the Event Stack. */
-	eventStack = alloc_bootmem_pages(LpEventStackSize);
-	memset(eventStack, 0, LpEventStackSize);
+	eventStack = alloc_bootmem_pages(IT_LP_EVENT_STACK_SIZE);
+	memset(eventStack, 0, IT_LP_EVENT_STACK_SIZE);
 
 	/* Invoke the hypervisor to initialize the event stack */
-	HvCallEvent_setLpEventStack(0, eventStack, LpEventStackSize);
+	HvCallEvent_setLpEventStack(0, eventStack, IT_LP_EVENT_STACK_SIZE);
 
-	hvlpevent_queue.xSlicEventStackPtr = (char *)eventStack;
-	hvlpevent_queue.xSlicCurEventPtr = (char *)eventStack;
-	hvlpevent_queue.xSlicLastValidEventPtr = (char *)eventStack +
-					(LpEventStackSize - LpEventMaxSize);
-	hvlpevent_queue.xIndex = 0;
+	hvlpevent_queue.hq_event_stack = eventStack;
+	hvlpevent_queue.hq_current_event = eventStack;
+	hvlpevent_queue.hq_last_event = (char *)eventStack +
+		(IT_LP_EVENT_STACK_SIZE - IT_LP_EVENT_MAX_SIZE);
+	hvlpevent_queue.hq_index = 0;
 }
 
 /* Register a handler for an LpEvent type */

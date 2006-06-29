@@ -238,7 +238,6 @@ extern int hash_huge_page(struct mm_struct *mm, unsigned long access,
 			  unsigned long ea, unsigned long vsid, int local,
 			  unsigned long trap);
 
-extern void htab_finish_init(void);
 extern int htab_bolt_mapping(unsigned long vstart, unsigned long vend,
 			     unsigned long pstart, unsigned long mode,
 			     int psize);

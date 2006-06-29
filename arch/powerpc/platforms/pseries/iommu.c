@@ -92,6 +92,15 @@ static void tce_free_pSeries(struct iommu_table *tbl, long index, long npages)
 		*(tcep++) = 0;
 }
 
+static unsigned long tce_get_pseries(struct iommu_table *tbl, long index)
+{
+	u64 *tcep;
+
+	index <<= TCE_PAGE_FACTOR;
+	tcep = ((u64 *)tbl->it_base) + index;
+
+	return *tcep;
+}
 
 static void tce_build_pSeriesLP(struct iommu_table *tbl, long tcenum,
 				long npages, unsigned long uaddr,
@@ -235,6 +244,25 @@ static void tce_freemulti_pSeriesLP(struct iommu_table *tbl, long tcenum, long n
 	}
 }
 
+static unsigned long tce_get_pSeriesLP(struct iommu_table *tbl, long tcenum)
+{
+	u64 rc;
+	unsigned long tce_ret;
+
+	tcenum <<= TCE_PAGE_FACTOR;
+	rc = plpar_tce_get((u64)tbl->it_index, (u64)tcenum << 12, &tce_ret);
+
+	if (rc && printk_ratelimit()) {
+		printk("tce_get_pSeriesLP: plpar_tce_get failed. rc=%ld\n",
+			rc);
+		printk("\tindex   = 0x%lx\n", (u64)tbl->it_index);
+		printk("\ttcenum  = 0x%lx\n", (u64)tcenum);
+		show_stack(current, (unsigned long *)__get_SP());
+	}
+
+	return tce_ret;
+}
+
 static void iommu_table_setparms(struct pci_controller *phb,
 				 struct device_node *dn,
 				 struct iommu_table *tbl)
@@ -254,7 +282,10 @@ static void iommu_table_setparms(struct pci_controller *phb,
 	}
 
 	tbl->it_base = (unsigned long)__va(*basep);
+
+#ifndef CONFIG_CRASH_DUMP
 	memset((void *)tbl->it_base, 0, *sizep);
+#endif
 
 	tbl->it_busno = phb->bus->number;
 
@@ -560,11 +591,13 @@ void iommu_init_early_pSeries(void)
 			ppc_md.tce_build = tce_build_pSeriesLP;
 			ppc_md.tce_free	 = tce_free_pSeriesLP;
 		}
+		ppc_md.tce_get   = tce_get_pSeriesLP;
 		ppc_md.iommu_bus_setup = iommu_bus_setup_pSeriesLP;
 		ppc_md.iommu_dev_setup = iommu_dev_setup_pSeriesLP;
 	} else {
 		ppc_md.tce_build = tce_build_pSeries;
 		ppc_md.tce_free  = tce_free_pSeries;
+		ppc_md.tce_get   = tce_get_pseries;
 		ppc_md.iommu_bus_setup = iommu_bus_setup_pSeries;
 		ppc_md.iommu_dev_setup = iommu_dev_setup_pSeries;
 	}

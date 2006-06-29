@@ -242,13 +242,11 @@ static void iSeries_hpte_invalidate(unsigned long slot, unsigned long va,
 	local_irq_restore(flags);
 }
 
-void hpte_init_iSeries(void)
+void __init hpte_init_iSeries(void)
 {
 	ppc_md.hpte_invalidate	= iSeries_hpte_invalidate;
 	ppc_md.hpte_updatepp	= iSeries_hpte_updatepp;
 	ppc_md.hpte_updateboltedpp = iSeries_hpte_updateboltedpp;
 	ppc_md.hpte_insert	= iSeries_hpte_insert;
 	ppc_md.hpte_remove	= iSeries_hpte_remove;
-
-	htab_finish_init();
 }

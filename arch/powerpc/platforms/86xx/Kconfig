@@ -7,6 +7,7 @@ choice
 
 config MPC8641_HPCN
 	bool "Freescale MPC8641 HPCN"
+	select PPC_I8259
 	help
 	  This option enables support for the MPC8641 HPCN board.
 
@@ -24,11 +25,6 @@ config MPIC
 	default y
 
 config PPC_INDIRECT_PCI_BE
-	bool
-	depends on PPC_86xx
-	default y
-
-config PPC_STD_MMU
 	bool
 	depends on PPC_86xx
 	default y

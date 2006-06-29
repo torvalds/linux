@@ -38,16 +38,19 @@
 struct rtas_t rtas = {
 	.lock = SPIN_LOCK_UNLOCKED
 };
+EXPORT_SYMBOL(rtas);
 
 struct rtas_suspend_me_data {
 	long waiting;
 	struct rtas_args *args;
 };
 
-EXPORT_SYMBOL(rtas);
-
 DEFINE_SPINLOCK(rtas_data_buf_lock);
+EXPORT_SYMBOL(rtas_data_buf_lock);
+
 char rtas_data_buf[RTAS_DATA_BUF_SIZE] __cacheline_aligned;
+EXPORT_SYMBOL(rtas_data_buf);
+
 unsigned long rtas_rmo_buf;
 
 /*
@@ -106,10 +109,70 @@ static void call_rtas_display_status_delay(char c)
 	}
 }
 
-void __init udbg_init_rtas(void)
+void __init udbg_init_rtas_panel(void)
 {
 	udbg_putc = call_rtas_display_status_delay;
 }
+
+#ifdef CONFIG_UDBG_RTAS_CONSOLE
+
+/* If you think you're dying before early_init_dt_scan_rtas() does its
+ * work, you can hard code the token values for your firmware here and
+ * hardcode rtas.base/entry etc.
+ */
+static unsigned int rtas_putchar_token = RTAS_UNKNOWN_SERVICE;
+static unsigned int rtas_getchar_token = RTAS_UNKNOWN_SERVICE;
+
+static void udbg_rtascon_putc(char c)
+{
+	int tries;
+
+	if (!rtas.base)
+		return;
+
+	/* Add CRs before LFs */
+	if (c == '\n')
+		udbg_rtascon_putc('\r');
+
+	/* if there is more than one character to be displayed, wait a bit */
+	for (tries = 0; tries < 16; tries++) {
+		if (rtas_call(rtas_putchar_token, 1, 1, NULL, c) == 0)
+			break;
+		udelay(1000);
+	}
+}
+
+static int udbg_rtascon_getc_poll(void)
+{
+	int c;
+
+	if (!rtas.base)
+		return -1;
+
+	if (rtas_call(rtas_getchar_token, 0, 2, &c))
+		return -1;
+
+	return c;
+}
+
+static int udbg_rtascon_getc(void)
+{
+	int c;
+
+	while ((c = udbg_rtascon_getc_poll()) == -1)
+		;
+
+	return c;
+}
+
+
+void __init udbg_init_rtas_console(void)
+{
+	udbg_putc = udbg_rtascon_putc;
+	udbg_getc = udbg_rtascon_getc;
+	udbg_getc_poll = udbg_rtascon_getc_poll;
+}
+#endif /* CONFIG_UDBG_RTAS_CONSOLE */
 
 void rtas_progress(char *s, unsigned short hex)
 {
@@ -236,6 +299,7 @@ int rtas_token(const char *service)
 	tokp = (int *) get_property(rtas.dev, service, NULL);
 	return tokp ? *tokp : RTAS_UNKNOWN_SERVICE;
 }
+EXPORT_SYMBOL(rtas_token);
 
 #ifdef CONFIG_RTAS_ERROR_LOGGING
 /*
@@ -328,7 +392,7 @@ int rtas_call(int token, int nargs, int nret, int *outputs, ...)
 	char *buff_copy = NULL;
 	int ret;
 
-	if (token == RTAS_UNKNOWN_SERVICE)
+	if (!rtas.entry || token == RTAS_UNKNOWN_SERVICE)
 		return -1;
 
 	/* Gotta do something different here, use global lock for now... */
@@ -369,6 +433,7 @@ int rtas_call(int token, int nargs, int nret, int *outputs, ...)
 	}
 	return ret;
 }
+EXPORT_SYMBOL(rtas_call);
 
 /* For RTAS_BUSY (-2), delay for 1 millisecond.  For an extended busy status
  * code of 990n, perform the hinted delay of 10^n (last digit) milliseconds.
@@ -388,6 +453,7 @@ unsigned int rtas_busy_delay_time(int status)
 
 	return ms;
 }
+EXPORT_SYMBOL(rtas_busy_delay_time);
 
 /* For an RTAS busy status code, perform the hinted delay. */
 unsigned int rtas_busy_delay(int status)
@@ -401,6 +467,7 @@ unsigned int rtas_busy_delay(int status)
 
 	return ms;
 }
+EXPORT_SYMBOL(rtas_busy_delay);
 
 int rtas_error_rc(int rtas_rc)
 {
@@ -446,6 +513,7 @@ int rtas_get_power_level(int powerdomain, int *level)
 		return rtas_error_rc(rc);
 	return rc;
 }
+EXPORT_SYMBOL(rtas_get_power_level);
 
 int rtas_set_power_level(int powerdomain, int level, int *setlevel)
 {
@@ -463,6 +531,7 @@ int rtas_set_power_level(int powerdomain, int level, int *setlevel)
 		return rtas_error_rc(rc);
 	return rc;
 }
+EXPORT_SYMBOL(rtas_set_power_level);
 
 int rtas_get_sensor(int sensor, int index, int *state)
 {
@@ -480,6 +549,7 @@ int rtas_get_sensor(int sensor, int index, int *state)
 		return rtas_error_rc(rc);
 	return rc;
 }
+EXPORT_SYMBOL(rtas_get_sensor);
 
 int rtas_set_indicator(int indicator, int index, int new_value)
 {
@@ -497,6 +567,7 @@ int rtas_set_indicator(int indicator, int index, int new_value)
 		return rtas_error_rc(rc);
 	return rc;
 }
+EXPORT_SYMBOL(rtas_set_indicator);
 
 void rtas_restart(char *cmd)
 {
@@ -791,14 +862,34 @@ void __init rtas_initialize(void)
 #endif
 }
 
+int __init early_init_dt_scan_rtas(unsigned long node,
+		const char *uname, int depth, void *data)
+{
+	u32 *basep, *entryp, *sizep;
 
-EXPORT_SYMBOL(rtas_token);
-EXPORT_SYMBOL(rtas_call);
-EXPORT_SYMBOL(rtas_data_buf);
-EXPORT_SYMBOL(rtas_data_buf_lock);
-EXPORT_SYMBOL(rtas_busy_delay_time);
-EXPORT_SYMBOL(rtas_busy_delay);
-EXPORT_SYMBOL(rtas_get_sensor);
-EXPORT_SYMBOL(rtas_get_power_level);
-EXPORT_SYMBOL(rtas_set_power_level);
-EXPORT_SYMBOL(rtas_set_indicator);
+	if (depth != 1 || strcmp(uname, "rtas") != 0)
+		return 0;
+
+	basep  = of_get_flat_dt_prop(node, "linux,rtas-base", NULL);
+	entryp = of_get_flat_dt_prop(node, "linux,rtas-entry", NULL);
+	sizep  = of_get_flat_dt_prop(node, "rtas-size", NULL);
+
+	if (basep && entryp && sizep) {
+		rtas.base = *basep;
+		rtas.entry = *entryp;
+		rtas.size = *sizep;
+	}
+
+#ifdef CONFIG_UDBG_RTAS_CONSOLE
+	basep = of_get_flat_dt_prop(node, "put-term-char", NULL);
+	if (basep)
+		rtas_putchar_token = *basep;
+
+	basep = of_get_flat_dt_prop(node, "get-term-char", NULL);
+	if (basep)
+		rtas_getchar_token = *basep;
+#endif
+
+	/* break now */
+	return 1;
+}
