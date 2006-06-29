@@ -120,7 +120,7 @@ static void migrate_irqs(void)
 	int 		irq, new_cpu;
 
 	for (irq=0; irq < NR_IRQS; irq++) {
-		desc = irq_descp(irq);
+		desc = irq_desc + irq;
 
 		/*
 		 * No handling for now.

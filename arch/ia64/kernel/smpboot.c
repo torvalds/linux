@@ -677,7 +677,7 @@ int migrate_platform_irqs(unsigned int cpu)
 			new_cpei_cpu = any_online_cpu(cpu_online_map);
 			mask = cpumask_of_cpu(new_cpei_cpu);
 			set_cpei_target_cpu(new_cpei_cpu);
-			desc = irq_descp(ia64_cpe_irq);
+			desc = irq_desc + ia64_cpe_irq;
 			/*
 			 * Switch for now, immediatly, we need to do fake intr
 			 * as other interrupts, but need to study CPEI behaviour with

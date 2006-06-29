@@ -190,7 +190,7 @@ void default_machine_crash_shutdown(struct pt_regs *regs)
 	local_irq_disable();
 
 	for_each_irq(irq) {
-		struct irq_desc *desc = irq_descp(irq);
+		struct irq_desc *desc = irq_desc + irq;
 
 		if (desc->status & IRQ_INPROGRESS)
 			desc->chip->end(irq);

@@ -15,7 +15,7 @@ void set_pending_irq(unsigned int irq, cpumask_t mask)
 void move_native_irq(int irq)
 {
 	cpumask_t tmp;
-	irq_desc_t *desc = irq_descp(irq);
+	irq_desc_t *desc = irq_desc + irq;
 
 	if (likely(!desc->move_irq))
 		return;

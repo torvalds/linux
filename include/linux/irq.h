@@ -87,13 +87,6 @@ typedef struct irq_desc {
 
 extern irq_desc_t irq_desc [NR_IRQS];
 
-/* Return a pointer to the irq descriptor for IRQ.  */
-static inline irq_desc_t *
-irq_descp (int irq)
-{
-	return irq_desc + irq;
-}
-
 #include <asm/hw_irq.h> /* the arch dependent stuff */
 
 extern int setup_irq(unsigned int irq, struct irqaction * new);
