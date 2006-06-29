@@ -472,7 +472,6 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 			    acpi_ds_result_push(walk_state->result_obj,
 						walk_state);
 		}
-
 		break;
 
 	default:
@@ -510,6 +509,7 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 				ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
 						  "Method Reference in a Package, Op=%p\n",
 						  op));
+
 				op->common.node =
 				    (struct acpi_namespace_node *)op->asl.value.
 				    arg->asl.node->object;
@@ -670,7 +670,6 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 
 				status = acpi_ds_result_stack_pop(walk_state);
 			}
-
 			break;
 
 		case AML_TYPE_UNDEFINED:
@@ -708,7 +707,6 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 	 * Check if we just completed the evaluation of a
 	 * conditional predicate
 	 */
-
 	if ((ACPI_SUCCESS(status)) &&
 	    (walk_state->control_state) &&
 	    (walk_state->control_state->common.state ==

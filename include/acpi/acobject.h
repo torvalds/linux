@@ -140,14 +140,14 @@ struct acpi_object_package {
  *****************************************************************************/
 
 struct acpi_object_event {
-	ACPI_OBJECT_COMMON_HEADER void *semaphore;
+	ACPI_OBJECT_COMMON_HEADER acpi_semaphore os_semaphore;	/* Actual OS synchronization object */
 };
 
 struct acpi_object_mutex {
 	ACPI_OBJECT_COMMON_HEADER u8 sync_level;	/* 0-15, specified in Mutex() call */
 	u16 acquisition_depth;	/* Allow multiple Acquires, same thread */
 	struct acpi_thread_state *owner_thread;	/* Current owner of the mutex */
-	void *semaphore;	/* Actual OS synchronization object */
+	acpi_mutex os_mutex;	/* Actual OS synchronization object */
 	union acpi_operand_object *prev;	/* Link for list of acquired mutexes */
 	union acpi_operand_object *next;	/* Link for list of acquired mutexes */
 	struct acpi_namespace_node *node;	/* Containing namespace node */
@@ -166,8 +166,8 @@ struct acpi_object_region {
 struct acpi_object_method {
 	ACPI_OBJECT_COMMON_HEADER u8 method_flags;
 	u8 param_count;
-	u8 concurrency;
-	void *semaphore;
+	u8 sync_level;
+	union acpi_operand_object *mutex;
 	u8 *aml_start;
 	ACPI_INTERNAL_METHOD implementation;
 	u32 aml_length;

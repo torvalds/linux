@@ -52,6 +52,10 @@
 #define _COMPONENT          ACPI_DISPATCHER
 ACPI_MODULE_NAME("dsmethod")
 
+/* Local prototypes */
+static acpi_status
+acpi_ds_create_method_mutex(union acpi_operand_object *method_desc);
+
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ds_method_error
@@ -67,6 +71,7 @@ ACPI_MODULE_NAME("dsmethod")
  *              Note: Allows the exception handler to change the status code
  *
  ******************************************************************************/
+
 acpi_status
 acpi_ds_method_error(acpi_status status, struct acpi_walk_state *walk_state)
 {
@@ -113,11 +118,51 @@ acpi_ds_method_error(acpi_status status, struct acpi_walk_state *walk_state)
 
 /*******************************************************************************
  *
+ * FUNCTION:    acpi_ds_create_method_mutex
+ *
+ * PARAMETERS:  obj_desc            - The method object
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Create a mutex object for a serialized control method
+ *
+ ******************************************************************************/
+
+static acpi_status
+acpi_ds_create_method_mutex(union acpi_operand_object *method_desc)
+{
+	union acpi_operand_object *mutex_desc;
+	acpi_status status;
+
+	ACPI_FUNCTION_NAME(ds_create_method_mutex);
+
+	/* Create the new mutex object */
+
+	mutex_desc = acpi_ut_create_internal_object(ACPI_TYPE_MUTEX);
+	if (!mutex_desc) {
+		return_ACPI_STATUS(AE_NO_MEMORY);
+	}
+
+	/* Create the actual OS Mutex */
+
+	status = acpi_os_create_mutex(&mutex_desc->mutex.os_mutex);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
+	}
+
+	mutex_desc->mutex.sync_level = method_desc->method.sync_level;
+	method_desc->method.mutex = mutex_desc;
+	return_ACPI_STATUS(AE_OK);
+}
+
+/*******************************************************************************
+ *
  * FUNCTION:    acpi_ds_begin_method_execution
  *
  * PARAMETERS:  method_node         - Node of the method
  *              obj_desc            - The method object
- *              calling_method_node - Caller of this method (if non-null)
+ *              walk_state          - current state, NULL if not yet executing
+ *                                    a method.
  *
  * RETURN:      Status
  *
@@ -128,9 +173,9 @@ acpi_ds_method_error(acpi_status status, struct acpi_walk_state *walk_state)
  ******************************************************************************/
 
 acpi_status
-acpi_ds_begin_method_execution(struct acpi_namespace_node * method_node,
-			       union acpi_operand_object * obj_desc,
-			       struct acpi_namespace_node * calling_method_node)
+acpi_ds_begin_method_execution(struct acpi_namespace_node *method_node,
+			       union acpi_operand_object *obj_desc,
+			       struct acpi_walk_state *walk_state)
 {
 	acpi_status status = AE_OK;
 
@@ -149,35 +194,80 @@ acpi_ds_begin_method_execution(struct acpi_namespace_node * method_node,
 	}
 
 	/*
-	 * If there is a concurrency limit on this method, we need to
-	 * obtain a unit from the method semaphore.
+	 * If this method is serialized, we need to acquire the method mutex.
 	 */
-	if (obj_desc->method.semaphore) {
+	if (obj_desc->method.method_flags & AML_METHOD_SERIALIZED) {
 		/*
-		 * Allow recursive method calls, up to the reentrancy/concurrency
-		 * limit imposed by the SERIALIZED rule and the sync_level method
-		 * parameter.
-		 *
-		 * The point of this code is to avoid permanently blocking a
-		 * thread that is making recursive method calls.
+		 * Create a mutex for the method if it is defined to be Serialized
+		 * and a mutex has not already been created. We defer the mutex creation
+		 * until a method is actually executed, to minimize the object count
 		 */
-		if (method_node == calling_method_node) {
-			if (obj_desc->method.thread_count >=
-			    obj_desc->method.concurrency) {
-				return_ACPI_STATUS(AE_AML_METHOD_LIMIT);
+		if (!obj_desc->method.mutex) {
+			status = acpi_ds_create_method_mutex(obj_desc);
+			if (ACPI_FAILURE(status)) {
+				return_ACPI_STATUS(status);
 			}
 		}
 
 		/*
-		 * Get a unit from the method semaphore. This releases the
-		 * interpreter if we block (then reacquires it)
+		 * The current_sync_level (per-thread) must be less than or equal to
+		 * the sync level of the method. This mechanism provides some
+		 * deadlock prevention
+		 *
+		 * Top-level method invocation has no walk state at this point
 		 */
-		status =
-		    acpi_ex_system_wait_semaphore(obj_desc->method.semaphore,
-						  ACPI_WAIT_FOREVER);
-		if (ACPI_FAILURE(status)) {
-			return_ACPI_STATUS(status);
+		if (walk_state &&
+		    (walk_state->thread->current_sync_level >
+		     obj_desc->method.mutex->mutex.sync_level)) {
+			ACPI_ERROR((AE_INFO,
+				    "Cannot acquire Mutex for method [%4.4s], current SyncLevel is too large (%d)",
+				    acpi_ut_get_node_name(method_node),
+				    walk_state->thread->current_sync_level));
+
+			return_ACPI_STATUS(AE_AML_MUTEX_ORDER);
 		}
+
+		/*
+		 * Obtain the method mutex if necessary. Do not acquire mutex for a
+		 * recursive call.
+		 */
+		if (!walk_state ||
+		    !obj_desc->method.mutex->mutex.owner_thread ||
+		    (walk_state->thread !=
+		     obj_desc->method.mutex->mutex.owner_thread)) {
+			/*
+			 * Acquire the method mutex. This releases the interpreter if we
+			 * block (and reacquires it before it returns)
+			 */
+			status =
+			    acpi_ex_system_wait_mutex(obj_desc->method.mutex->
+						      mutex.os_mutex,
+						      ACPI_WAIT_FOREVER);
+			if (ACPI_FAILURE(status)) {
+				return_ACPI_STATUS(status);
+			}
+
+			/* Update the mutex and walk info and save the original sync_level */
+
+			if (walk_state) {
+				obj_desc->method.mutex->mutex.
+				    original_sync_level =
+				    walk_state->thread->current_sync_level;
+
+				obj_desc->method.mutex->mutex.owner_thread =
+				    walk_state->thread;
+				walk_state->thread->current_sync_level =
+				    obj_desc->method.sync_level;
+			} else {
+				obj_desc->method.mutex->mutex.
+				    original_sync_level =
+				    obj_desc->method.mutex->mutex.sync_level;
+			}
+		}
+
+		/* Always increase acquisition depth */
+
+		obj_desc->method.mutex->mutex.acquisition_depth++;
 	}
 
 	/*
@@ -200,10 +290,10 @@ acpi_ds_begin_method_execution(struct acpi_namespace_node * method_node,
 	return_ACPI_STATUS(status);
 
       cleanup:
-	/* On error, must signal the method semaphore if present */
+	/* On error, must release the method mutex (if present) */
 
-	if (obj_desc->method.semaphore) {
-		(void)acpi_os_signal_semaphore(obj_desc->method.semaphore, 1);
+	if (obj_desc->method.mutex) {
+		acpi_os_release_mutex(obj_desc->method.mutex->mutex.os_mutex);
 	}
 	return_ACPI_STATUS(status);
 }
@@ -253,10 +343,10 @@ acpi_ds_call_control_method(struct acpi_thread_state *thread,
 		return_ACPI_STATUS(AE_NULL_OBJECT);
 	}
 
-	/* Init for new method, possibly wait on concurrency semaphore */
+	/* Init for new method, possibly wait on method mutex */
 
 	status = acpi_ds_begin_method_execution(method_node, obj_desc,
-						this_walk_state->method_node);
+						this_walk_state);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
@@ -478,6 +568,8 @@ acpi_ds_restart_control_method(struct acpi_walk_state *walk_state,
  *              created, delete all locals and arguments, and delete the parse
  *              tree if requested.
  *
+ * MUTEX:       Interpreter is locked
+ *
  ******************************************************************************/
 
 void
@@ -503,26 +595,21 @@ acpi_ds_terminate_control_method(union acpi_operand_object *method_desc,
 	}
 
 	/*
-	 * Lock the parser while we terminate this method.
-	 * If this is the last thread executing the method,
-	 * we have additional cleanup to perform
+	 * If method is serialized, release the mutex and restore the
+	 * current sync level for this thread
 	 */
-	status = acpi_ut_acquire_mutex(ACPI_MTX_CONTROL_METHOD);
-	if (ACPI_FAILURE(status)) {
-		return_VOID;
-	}
+	if (method_desc->method.mutex) {
 
-	/* Signal completion of the execution of this method if necessary */
+		/* Acquisition Depth handles recursive calls */
 
-	if (method_desc->method.semaphore) {
-		status =
-		    acpi_os_signal_semaphore(method_desc->method.semaphore, 1);
-		if (ACPI_FAILURE(status)) {
+		method_desc->method.mutex->mutex.acquisition_depth--;
+		if (!method_desc->method.mutex->mutex.acquisition_depth) {
+			walk_state->thread->current_sync_level =
+			    method_desc->method.mutex->mutex.
+			    original_sync_level;
 
-			/* Ignore error and continue */
-
-			ACPI_EXCEPTION((AE_INFO, status,
-					"Could not signal method semaphore"));
+			acpi_os_release_mutex(method_desc->method.mutex->mutex.
+					      os_mutex);
 		}
 	}
 
@@ -537,7 +624,7 @@ acpi_ds_terminate_control_method(union acpi_operand_object *method_desc,
 
 		status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
 		if (ACPI_FAILURE(status)) {
-			goto exit;
+			return_VOID;
 		}
 
 		/*
@@ -580,18 +667,16 @@ acpi_ds_terminate_control_method(union acpi_operand_object *method_desc,
 		/*
 		 * Support to dynamically change a method from not_serialized to
 		 * Serialized if it appears that the method is incorrectly written and
-		 * does not support multiple thread execution.  The best example of this
-		 * is if such a method creates namespace objects and blocks.  A second
+		 * does not support multiple thread execution. The best example of this
+		 * is if such a method creates namespace objects and blocks. A second
 		 * thread will fail with an AE_ALREADY_EXISTS exception
 		 *
 		 * This code is here because we must wait until the last thread exits
 		 * before creating the synchronization semaphore.
 		 */
-		if ((method_desc->method.concurrency == 1) &&
-		    (!method_desc->method.semaphore)) {
-			status = acpi_os_create_semaphore(1, 1,
-							  &method_desc->method.
-							  semaphore);
+		if ((method_desc->method.method_flags & AML_METHOD_SERIALIZED)
+		    && (!method_desc->method.mutex)) {
+			status = acpi_ds_create_method_mutex(method_desc);
 		}
 
 		/* No more threads, we can free the owner_id */
@@ -599,144 +684,5 @@ acpi_ds_terminate_control_method(union acpi_operand_object *method_desc,
 		acpi_ut_release_owner_id(&method_desc->method.owner_id);
 	}
 
-      exit:
-	(void)acpi_ut_release_mutex(ACPI_MTX_CONTROL_METHOD);
 	return_VOID;
 }
-
-#ifdef ACPI_INIT_PARSE_METHODS
-	/*
-	 * Note 11/2005: Removed this code to parse all methods during table
-	 * load because it causes problems if there are any errors during the
-	 * parse. Also, it seems like overkill and we probably don't want to
-	 * abort a table load because of an issue with a single method.
-	 */
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_ds_parse_method
- *
- * PARAMETERS:  Node        - Method node
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Parse the AML that is associated with the method.
- *
- * MUTEX:       Assumes parser is locked
- *
- ******************************************************************************/
-
-acpi_status acpi_ds_parse_method(struct acpi_namespace_node *node)
-{
-	acpi_status status;
-	union acpi_operand_object *obj_desc;
-	union acpi_parse_object *op;
-	struct acpi_walk_state *walk_state;
-
-	ACPI_FUNCTION_TRACE_PTR(ds_parse_method, node);
-
-	/* Parameter Validation */
-
-	if (!node) {
-		return_ACPI_STATUS(AE_NULL_ENTRY);
-	}
-
-	ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
-			  "**** Parsing [%4.4s] **** NamedObj=%p\n",
-			  acpi_ut_get_node_name(node), node));
-
-	/* Extract the method object from the method Node */
-
-	obj_desc = acpi_ns_get_attached_object(node);
-	if (!obj_desc) {
-		return_ACPI_STATUS(AE_NULL_OBJECT);
-	}
-
-	/* Create a mutex for the method if there is a concurrency limit */
-
-	if ((obj_desc->method.concurrency != ACPI_INFINITE_CONCURRENCY) &&
-	    (!obj_desc->method.semaphore)) {
-		status = acpi_os_create_semaphore(obj_desc->method.concurrency,
-						  obj_desc->method.concurrency,
-						  &obj_desc->method.semaphore);
-		if (ACPI_FAILURE(status)) {
-			return_ACPI_STATUS(status);
-		}
-	}
-
-	/*
-	 * Allocate a new parser op to be the root of the parsed
-	 * method tree
-	 */
-	op = acpi_ps_alloc_op(AML_METHOD_OP);
-	if (!op) {
-		return_ACPI_STATUS(AE_NO_MEMORY);
-	}
-
-	/* Init new op with the method name and pointer back to the Node */
-
-	acpi_ps_set_name(op, node->name.integer);
-	op->common.node = node;
-
-	/*
-	 * Get a new owner_id for objects created by this method. Namespace
-	 * objects (such as Operation Regions) can be created during the
-	 * first pass parse.
-	 */
-	status = acpi_ut_allocate_owner_id(&obj_desc->method.owner_id);
-	if (ACPI_FAILURE(status)) {
-		goto cleanup;
-	}
-
-	/* Create and initialize a new walk state */
-
-	walk_state =
-	    acpi_ds_create_walk_state(obj_desc->method.owner_id, NULL, NULL,
-				      NULL);
-	if (!walk_state) {
-		status = AE_NO_MEMORY;
-		goto cleanup2;
-	}
-
-	status = acpi_ds_init_aml_walk(walk_state, op, node,
-				       obj_desc->method.aml_start,
-				       obj_desc->method.aml_length, NULL, 1);
-	if (ACPI_FAILURE(status)) {
-		acpi_ds_delete_walk_state(walk_state);
-		goto cleanup2;
-	}
-
-	/*
-	 * Parse the method, first pass
-	 *
-	 * The first pass load is where newly declared named objects are added into
-	 * the namespace.  Actual evaluation of the named objects (what would be
-	 * called a "second pass") happens during the actual execution of the
-	 * method so that operands to the named objects can take on dynamic
-	 * run-time values.
-	 */
-	status = acpi_ps_parse_aml(walk_state);
-	if (ACPI_FAILURE(status)) {
-		goto cleanup2;
-	}
-
-	ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
-			  "**** [%4.4s] Parsed **** NamedObj=%p Op=%p\n",
-			  acpi_ut_get_node_name(node), node, op));
-
-	/*
-	 * Delete the parse tree. We simply re-parse the method for every
-	 * execution since there isn't much overhead (compared to keeping lots
-	 * of parse trees around)
-	 */
-	acpi_ns_delete_namespace_subtree(node);
-	acpi_ns_delete_namespace_by_owner(obj_desc->method.owner_id);
-
-      cleanup2:
-	acpi_ut_release_owner_id(&obj_desc->method.owner_id);
-
-      cleanup:
-	acpi_ps_delete_parse_tree(op);
-	return_ACPI_STATUS(status);
-}
-#endif

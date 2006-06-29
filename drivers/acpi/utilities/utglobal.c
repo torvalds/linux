@@ -794,6 +794,7 @@ void acpi_ut_init_globals(void)
 
 	/* Global Lock support */
 
+	acpi_gbl_global_lock_semaphore = NULL;
 	acpi_gbl_global_lock_acquired = FALSE;
 	acpi_gbl_global_lock_thread_count = 0;
 	acpi_gbl_global_lock_handle = 0;

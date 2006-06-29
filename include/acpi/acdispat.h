@@ -201,7 +201,7 @@ acpi_ds_terminate_control_method(union acpi_operand_object *method_desc,
 acpi_status
 acpi_ds_begin_method_execution(struct acpi_namespace_node *method_node,
 			       union acpi_operand_object *obj_desc,
-			       struct acpi_namespace_node *calling_method_node);
+			       struct acpi_walk_state *walk_state);
 
 acpi_status
 acpi_ds_method_error(acpi_status status, struct acpi_walk_state *walk_state);

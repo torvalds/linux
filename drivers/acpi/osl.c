@@ -688,18 +688,9 @@ EXPORT_SYMBOL(acpi_os_wait_events_complete);
 /*
  * Allocate the memory for a spinlock and initialize it.
  */
-acpi_status acpi_os_create_lock(acpi_handle * out_handle)
+acpi_status acpi_os_create_lock(acpi_spinlock * handle)
 {
-	spinlock_t *lock_ptr;
-
-
-	lock_ptr = acpi_os_allocate(sizeof(spinlock_t));
-
-	spin_lock_init(lock_ptr);
-
-	ACPI_DEBUG_PRINT((ACPI_DB_MUTEX, "Creating spinlock[%p].\n", lock_ptr));
-
-	*out_handle = lock_ptr;
+	spin_lock_init(*handle);
 
 	return AE_OK;
 }
@@ -707,13 +698,8 @@ acpi_status acpi_os_create_lock(acpi_handle * out_handle)
 /*
  * Deallocate the memory for a spinlock.
  */
-void acpi_os_delete_lock(acpi_handle handle)
+void acpi_os_delete_lock(acpi_spinlock handle)
 {
-
-	ACPI_DEBUG_PRINT((ACPI_DB_MUTEX, "Deleting spinlock[%p].\n", handle));
-
-	acpi_os_free(handle);
-
 	return;
 }
 
@@ -1037,10 +1023,10 @@ EXPORT_SYMBOL(max_cstate);
  * handle is a pointer to the spinlock_t.
  */
 
-acpi_cpu_flags acpi_os_acquire_lock(acpi_handle handle)
+acpi_cpu_flags acpi_os_acquire_lock(acpi_spinlock lockp)
 {
 	acpi_cpu_flags flags;
-	spin_lock_irqsave((spinlock_t *) handle, flags);
+	spin_lock_irqsave(lockp, flags);
 	return flags;
 }
 
@@ -1048,9 +1034,9 @@ acpi_cpu_flags acpi_os_acquire_lock(acpi_handle handle)
  * Release a spinlock. See above.
  */
 
-void acpi_os_release_lock(acpi_handle handle, acpi_cpu_flags flags)
+void acpi_os_release_lock(acpi_spinlock lockp, acpi_cpu_flags flags)
 {
-	spin_unlock_irqrestore((spinlock_t *) handle, flags);
+	spin_unlock_irqrestore(lockp, flags);
 }
 
 #ifndef ACPI_USE_LOCAL_CACHE
