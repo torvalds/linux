@@ -40,7 +40,6 @@ void synchronize_irq(unsigned int irq)
 	while (desc->status & IRQ_INPROGRESS)
 		cpu_relax();
 }
-
 EXPORT_SYMBOL(synchronize_irq);
 
 #endif
@@ -71,7 +70,6 @@ void disable_irq_nosync(unsigned int irq)
 	}
 	spin_unlock_irqrestore(&desc->lock, flags);
 }
-
 EXPORT_SYMBOL(disable_irq_nosync);
 
 /**
@@ -97,7 +95,6 @@ void disable_irq(unsigned int irq)
 	if (desc->action)
 		synchronize_irq(irq);
 }
-
 EXPORT_SYMBOL(disable_irq);
 
 /**
@@ -139,7 +136,6 @@ void enable_irq(unsigned int irq)
 	}
 	spin_unlock_irqrestore(&desc->lock, flags);
 }
-
 EXPORT_SYMBOL(enable_irq);
 
 /*
@@ -166,7 +162,7 @@ int can_request_irq(unsigned int irq, unsigned long irqflags)
  * Internal function to register an irqaction - typically used to
  * allocate special interrupts that are part of the architecture.
  */
-int setup_irq(unsigned int irq, struct irqaction * new)
+int setup_irq(unsigned int irq, struct irqaction *new)
 {
 	struct irq_desc *desc = irq_desc + irq;
 	struct irqaction *old, **p;
@@ -198,9 +194,10 @@ int setup_irq(unsigned int irq, struct irqaction * new)
 	/*
 	 * The following block of code has to be executed atomically
 	 */
-	spin_lock_irqsave(&desc->lock,flags);
+	spin_lock_irqsave(&desc->lock, flags);
 	p = &desc->action;
-	if ((old = *p) != NULL) {
+	old = *p;
+	if (old) {
 		/* Can't share interrupts unless both agree to */
 		if (!(old->flags & new->flags & SA_SHIRQ))
 			goto mismatch;
@@ -233,7 +230,7 @@ int setup_irq(unsigned int irq, struct irqaction * new)
 		else
 			desc->chip->enable(irq);
 	}
-	spin_unlock_irqrestore(&desc->lock,flags);
+	spin_unlock_irqrestore(&desc->lock, flags);
 
 	new->irq = irq;
 	register_irq_proc(irq);
@@ -276,10 +273,10 @@ void free_irq(unsigned int irq, void *dev_id)
 		return;
 
 	desc = irq_desc + irq;
-	spin_lock_irqsave(&desc->lock,flags);
+	spin_lock_irqsave(&desc->lock, flags);
 	p = &desc->action;
 	for (;;) {
-		struct irqaction * action = *p;
+		struct irqaction *action = *p;
 
 		if (action) {
 			struct irqaction **pp = p;
@@ -304,7 +301,7 @@ void free_irq(unsigned int irq, void *dev_id)
 				else
 					desc->chip->disable(irq);
 			}
-			spin_unlock_irqrestore(&desc->lock,flags);
+			spin_unlock_irqrestore(&desc->lock, flags);
 			unregister_handler_proc(irq, action);
 
 			/* Make sure it's not being used on another CPU */
@@ -312,12 +309,11 @@ void free_irq(unsigned int irq, void *dev_id)
 			kfree(action);
 			return;
 		}
-		printk(KERN_ERR "Trying to free free IRQ%d\n",irq);
-		spin_unlock_irqrestore(&desc->lock,flags);
+		printk(KERN_ERR "Trying to free free IRQ%d\n", irq);
+		spin_unlock_irqrestore(&desc->lock, flags);
 		return;
 	}
 }
-
 EXPORT_SYMBOL(free_irq);
 
 /**
@@ -351,9 +347,9 @@ EXPORT_SYMBOL(free_irq);
  */
 int request_irq(unsigned int irq,
 		irqreturn_t (*handler)(int, void *, struct pt_regs *),
-		unsigned long irqflags, const char * devname, void *dev_id)
+		unsigned long irqflags, const char *devname, void *dev_id)
 {
-	struct irqaction * action;
+	struct irqaction *action;
 	int retval;
 
 	/*
@@ -388,6 +384,5 @@ int request_irq(unsigned int irq,
 
 	return retval;
 }
-
 EXPORT_SYMBOL(request_irq);
 

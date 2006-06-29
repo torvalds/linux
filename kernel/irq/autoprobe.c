@@ -27,7 +27,7 @@ static DEFINE_MUTEX(probing_active);
  */
 unsigned long probe_irq_on(void)
 {
-	unsigned long val;
+	unsigned long mask;
 	irq_desc_t *desc;
 	unsigned int i;
 
@@ -40,8 +40,8 @@ unsigned long probe_irq_on(void)
 		desc = irq_desc + i;
 
 		spin_lock_irq(&desc->lock);
-		if (!irq_desc[i].action)
-			irq_desc[i].chip->startup(i);
+		if (!desc->action)
+			desc->chip->startup(i);
 		spin_unlock_irq(&desc->lock);
 	}
 
@@ -73,11 +73,11 @@ unsigned long probe_irq_on(void)
 	/*
 	 * Now filter out any obviously spurious interrupts
 	 */
-	val = 0;
+	mask = 0;
 	for (i = 0; i < NR_IRQS; i++) {
-		irq_desc_t *desc = irq_desc + i;
 		unsigned int status;
 
+		desc = irq_desc + i;
 		spin_lock_irq(&desc->lock);
 		status = desc->status;
 
@@ -88,14 +88,13 @@ unsigned long probe_irq_on(void)
 				desc->chip->shutdown(i);
 			} else
 				if (i < 32)
-					val |= 1 << i;
+					mask |= 1 << i;
 		}
 		spin_unlock_irq(&desc->lock);
 	}
 
-	return val;
+	return mask;
 }
-
 EXPORT_SYMBOL(probe_irq_on);
 
 /**
@@ -184,6 +183,5 @@ int probe_irq_off(unsigned long val)
 
 	return irq_found;
 }
-
 EXPORT_SYMBOL(probe_irq_off);
 

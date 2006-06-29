@@ -18,7 +18,7 @@
  * Linux has a controller-independent interrupt architecture.
  * Every controller has a 'controller-template', that is used
  * by the main code to do the right thing. Each driver-visible
- * interrupt source is transparently wired to the apropriate
+ * interrupt source is transparently wired to the appropriate
  * controller. Thus drivers need not be aware of the
  * interrupt-controller.
  *
@@ -111,7 +111,7 @@ irqreturn_t handle_IRQ_event(unsigned int irq, struct pt_regs *regs,
 fastcall unsigned int __do_IRQ(unsigned int irq, struct pt_regs *regs)
 {
 	irq_desc_t *desc = irq_desc + irq;
-	struct irqaction * action;
+	struct irqaction *action;
 	unsigned int status;
 
 	kstat_this_cpu.irqs[irq]++;

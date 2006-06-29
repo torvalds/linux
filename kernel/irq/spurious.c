@@ -16,22 +16,20 @@ static int irqfixup __read_mostly;
 /*
  * Recovery handler for misrouted interrupts.
  */
-
 static int misrouted_irq(int irq, struct pt_regs *regs)
 {
 	int i;
-	irq_desc_t *desc;
 	int ok = 0;
 	int work = 0;	/* Did we do work for a real IRQ */
 
-	for(i = 1; i < NR_IRQS; i++) {
+	for (i = 1; i < NR_IRQS; i++) {
+		struct irq_desc *desc = irq_desc + i;
 		struct irqaction *action;
 
 		if (i == irq)	/* Already tried */
 			continue;
-		desc = &irq_desc[i];
+
 		spin_lock(&desc->lock);
-		action = desc->action;
 		/* Already running on another processor */
 		if (desc->status & IRQ_INPROGRESS) {
 			/*
@@ -45,7 +43,9 @@ static int misrouted_irq(int irq, struct pt_regs *regs)
 		}
 		/* Honour the normal IRQ locking */
 		desc->status |= IRQ_INPROGRESS;
+		action = desc->action;
 		spin_unlock(&desc->lock);
+
 		while (action) {
 			/* Only shared IRQ handlers are safe to call */
 			if (action->flags & SA_SHIRQ) {
@@ -62,9 +62,8 @@ static int misrouted_irq(int irq, struct pt_regs *regs)
 
 		/*
 		 * While we were looking for a fixup someone queued a real
-		 * IRQ clashing with our walk
+		 * IRQ clashing with our walk:
 		 */
-
 		while ((desc->status & IRQ_PENDING) && action) {
 			/*
 			 * Perform real IRQ processing for the IRQ we deferred
@@ -80,7 +79,7 @@ static int misrouted_irq(int irq, struct pt_regs *regs)
 		 * If we did actual work for the real IRQ line we must let the
 		 * IRQ controller clean up too
 		 */
-		if(work)
+		if (work)
 			desc->chip->end(i);
 		spin_unlock(&desc->lock);
 	}
@@ -113,6 +112,7 @@ __report_bad_irq(unsigned int irq, irq_desc_t *desc, irqreturn_t action_ret)
 	}
 	dump_stack();
 	printk(KERN_ERR "handlers:\n");
+
 	action = desc->action;
 	while (action) {
 		printk(KERN_ERR "[<%p>]", action->handler);
@@ -123,7 +123,8 @@ __report_bad_irq(unsigned int irq, irq_desc_t *desc, irqreturn_t action_ret)
 	}
 }
 
-static void report_bad_irq(unsigned int irq, irq_desc_t *desc, irqreturn_t action_ret)
+static void
+report_bad_irq(unsigned int irq, irq_desc_t *desc, irqreturn_t action_ret)
 {
 	static int count = 100;
 
@@ -134,7 +135,7 @@ static void report_bad_irq(unsigned int irq, irq_desc_t *desc, irqreturn_t actio
 }
 
 void note_interrupt(unsigned int irq, irq_desc_t *desc, irqreturn_t action_ret,
-			struct pt_regs *regs)
+		    struct pt_regs *regs)
 {
 	if (unlikely(action_ret != IRQ_HANDLED)) {
 		desc->irqs_unhandled++;
@@ -177,6 +178,7 @@ int __init noirqdebug_setup(char *str)
 {
 	noirqdebug = 1;
 	printk(KERN_INFO "IRQ lockup detection disabled\n");
+
 	return 1;
 }
 
@@ -187,6 +189,7 @@ static int __init irqfixup_setup(char *str)
 	irqfixup = 1;
 	printk(KERN_WARNING "Misrouted IRQ fixup support enabled.\n");
 	printk(KERN_WARNING "This may impact system performance.\n");
+
 	return 1;
 }
 

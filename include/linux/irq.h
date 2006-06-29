@@ -1,5 +1,5 @@
-#ifndef __irq_h
-#define __irq_h
+#ifndef _LINUX_IRQ_H
+#define _LINUX_IRQ_H
 
 /*
  * Please do not include this file in generic code.  There is currently
@@ -11,7 +11,7 @@
 
 #include <linux/smp.h>
 
-#if !defined(CONFIG_S390)
+#ifndef CONFIG_S390
 
 #include <linux/linkage.h>
 #include <linux/cache.h>
@@ -33,7 +33,7 @@
 #define IRQ_WAITING	32	/* IRQ not yet seen - for autodetection */
 #define IRQ_LEVEL	64	/* IRQ level triggered */
 #define IRQ_MASKED	128	/* IRQ masked - shouldn't be seen again */
-#if defined(ARCH_HAS_IRQ_PER_CPU)
+#ifdef ARCH_HAS_IRQ_PER_CPU
 # define IRQ_PER_CPU	256	/* IRQ is per CPU */
 # define CHECK_IRQ_PER_CPU(var) ((var) & IRQ_PER_CPU)
 #else
@@ -45,7 +45,7 @@
  * to describe about the low-level hardware. 
  */
 struct hw_interrupt_type {
-	const char * typename;
+	const char *typename;
 	unsigned int (*startup)(unsigned int irq);
 	void (*shutdown)(unsigned int irq);
 	void (*enable)(unsigned int irq);
@@ -80,7 +80,7 @@ typedef struct irq_desc {
 #ifdef CONFIG_SMP
 	cpumask_t affinity;
 #endif
-#if defined (CONFIG_GENERIC_PENDING_IRQ) || defined (CONFIG_IRQBALANCE)
+#if defined(CONFIG_GENERIC_PENDING_IRQ) || defined(CONFIG_IRQBALANCE)
 	unsigned int move_irq;		/* Flag need to re-target intr dest*/
 #endif
 } ____cacheline_aligned irq_desc_t;
@@ -89,9 +89,10 @@ extern irq_desc_t irq_desc [NR_IRQS];
 
 #include <asm/hw_irq.h> /* the arch dependent stuff */
 
-extern int setup_irq(unsigned int irq, struct irqaction * new);
+extern int setup_irq(unsigned int irq, struct irqaction *new);
 
 #ifdef CONFIG_GENERIC_HARDIRQS
+
 #ifdef CONFIG_SMP
 static inline void set_native_irq_info(int irq, cpumask_t mask)
 {
@@ -105,7 +106,7 @@ static inline void set_native_irq_info(int irq, cpumask_t mask)
 
 #ifdef CONFIG_SMP
 
-#if defined (CONFIG_GENERIC_PENDING_IRQ) || defined (CONFIG_IRQBALANCE)
+#if defined(CONFIG_GENERIC_PENDING_IRQ) || defined(CONFIG_IRQBALANCE)
 extern cpumask_t pending_irq_cpumask[NR_IRQS];
 
 void set_pending_irq(unsigned int irq, cpumask_t mask);
@@ -127,7 +128,7 @@ static inline void set_irq_info(int irq, cpumask_t mask)
 {
 }
 
-#else // CONFIG_PCI_MSI
+#else /* CONFIG_PCI_MSI */
 
 static inline void move_irq(int irq)
 {
@@ -138,26 +139,36 @@ static inline void set_irq_info(int irq, cpumask_t mask)
 {
 	set_native_irq_info(irq, mask);
 }
-#endif // CONFIG_PCI_MSI
 
-#else	// CONFIG_GENERIC_PENDING_IRQ || CONFIG_IRQBALANCE
+#endif /* CONFIG_PCI_MSI */
 
-#define move_irq(x)
-#define move_native_irq(x)
-#define set_pending_irq(x,y)
+#else /* CONFIG_GENERIC_PENDING_IRQ || CONFIG_IRQBALANCE */
+
+static inline void move_irq(int irq)
+{
+}
+
+static inline void move_native_irq(int irq)
+{
+}
+
+static inline void set_pending_irq(unsigned int irq, cpumask_t mask)
+{
+}
+
 static inline void set_irq_info(int irq, cpumask_t mask)
 {
 	set_native_irq_info(irq, mask);
 }
 
-#endif // CONFIG_GENERIC_PENDING_IRQ
+#endif /* CONFIG_GENERIC_PENDING_IRQ */
 
-#else // CONFIG_SMP
+#else /* CONFIG_SMP */
 
 #define move_irq(x)
 #define move_native_irq(x)
 
-#endif // CONFIG_SMP
+#endif /* CONFIG_SMP */
 
 #ifdef CONFIG_IRQBALANCE
 extern void set_balance_irq_affinity(unsigned int irq, cpumask_t mask);
@@ -186,17 +197,16 @@ extern void init_irq_proc(void);
 #ifdef CONFIG_AUTO_IRQ_AFFINITY
 extern int select_smp_affinity(unsigned int irq);
 #else
-static inline int
-select_smp_affinity(unsigned int irq)
+static inline int select_smp_affinity(unsigned int irq)
 {
 	return 1;
 }
 #endif
 
-#endif
+#endif /* CONFIG_GENERIC_HARDIRQS */
 
 extern hw_irq_controller no_irq_type;  /* needed in every arch ? */
 
-#endif
+#endif /* !CONFIG_S390 */
 
-#endif /* __irq_h */
+#endif /* _LINUX_IRQ_H */
