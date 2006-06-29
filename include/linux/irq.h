@@ -55,6 +55,7 @@
 #define IRQ_TYPE_EDGE_BOTH (IRQ_TYPE_EDGE_FALLING | IRQ_TYPE_EDGE_RISING)
 #define IRQ_TYPE_LEVEL_HIGH	0x0004		/* Level high type */
 #define IRQ_TYPE_LEVEL_LOW	0x0008		/* Level low type */
+#define IRQ_TYPE_SENSE_MASK	0x000f		/* Mask of the above */
 #define IRQ_TYPE_SIMPLE		0x0010		/* Simple type */
 #define IRQ_TYPE_PERCPU		0x0020		/* Per CPU type */
 #define IRQ_TYPE_PROBE		0x0040		/* Probing in progress */
