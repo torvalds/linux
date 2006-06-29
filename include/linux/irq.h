@@ -40,6 +40,7 @@
 # define CHECK_IRQ_PER_CPU(var) 0
 #endif
 
+#define IRQ_NOPROBE	512	/* IRQ is not valid for probing */
 /**
  * struct hw_interrupt_type - hardware interrupt type descriptor
  *

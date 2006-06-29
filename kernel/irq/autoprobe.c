@@ -40,7 +40,7 @@ unsigned long probe_irq_on(void)
 		desc = irq_desc + i;
 
 		spin_lock_irq(&desc->lock);
-		if (!desc->action)
+		if (!desc->action && !(desc->status & IRQ_NOPROBE))
 			desc->chip->startup(i);
 		spin_unlock_irq(&desc->lock);
 	}
@@ -57,7 +57,7 @@ unsigned long probe_irq_on(void)
 		desc = irq_desc + i;
 
 		spin_lock_irq(&desc->lock);
-		if (!desc->action) {
+		if (!desc->action && !(desc->status & IRQ_NOPROBE)) {
 			desc->status |= IRQ_AUTODETECT | IRQ_WAITING;
 			if (desc->chip->startup(i))
 				desc->status |= IRQ_PENDING;

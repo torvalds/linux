@@ -118,6 +118,10 @@ void enable_irq(unsigned int irq)
 		WARN_ON(1);
 		break;
 	case 1: {
+		unsigned int status = desc->status & ~IRQ_DISABLED;
+
+		/* Prevent probing on this irq: */
+		desc->status = status | IRQ_NOPROBE;
 		check_irq_resend(desc, irq);
 		/* fall-through */
 	}
