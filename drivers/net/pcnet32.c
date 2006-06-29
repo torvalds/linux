@@ -277,7 +277,6 @@ struct pcnet32_private {
 	u32			phymask;
 };
 
-static void pcnet32_probe_vlbus(void);
 static int pcnet32_probe_pci(struct pci_dev *, const struct pci_device_id *);
 static int pcnet32_probe1(unsigned long, int, struct pci_dev *);
 static int pcnet32_open(struct net_device *);
@@ -952,7 +951,7 @@ static struct ethtool_ops pcnet32_ethtool_ops = {
 /* only probes for non-PCI devices, the rest are handled by
  * pci_register_driver via pcnet32_probe_pci */
 
-static void __devinit pcnet32_probe_vlbus(void)
+static void __devinit pcnet32_probe_vlbus(unsigned int *pcnet32_portlist)
 {
 	unsigned int *port, ioaddr;
 
@@ -2730,7 +2729,7 @@ static int __init pcnet32_init_module(void)
 
 	/* should we find any remaining VLbus devices ? */
 	if (pcnet32vlb)
-		pcnet32_probe_vlbus();
+		pcnet32_probe_vlbus(pcnet32_portlist);
 
 	if (cards_found && (pcnet32_debug & NETIF_MSG_PROBE))
 		printk(KERN_INFO PFX "%d cards_found.\n", cards_found);
