@@ -488,9 +488,9 @@ static void __init build_device_resources(struct of_device *op,
 	build_res:
 		memset(r, 0, sizeof(*r));
 		if (result != OF_BAD_ADDR) {
-			r->start = result;
+			r->start = result & 0xffffffff;
 			r->end = result + size - 1;
-			r->flags = flags;
+			r->flags = flags | ((result >> 32ULL) & 0xffUL);
 		} else {
 			r->start = ~0UL;
 			r->end = ~0UL;
