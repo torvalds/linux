@@ -151,12 +151,17 @@
 #define AUDIT_PERS	10
 #define AUDIT_ARCH	11
 #define AUDIT_MSGTYPE	12
-#define AUDIT_SE_USER	13	/* security label user */
-#define AUDIT_SE_ROLE	14	/* security label role */
-#define AUDIT_SE_TYPE	15	/* security label type */
-#define AUDIT_SE_SEN	16	/* security label sensitivity label */
-#define AUDIT_SE_CLR	17	/* security label clearance label */
+#define AUDIT_SUBJ_USER	13	/* security label user */
+#define AUDIT_SUBJ_ROLE	14	/* security label role */
+#define AUDIT_SUBJ_TYPE	15	/* security label type */
+#define AUDIT_SUBJ_SEN	16	/* security label sensitivity label */
+#define AUDIT_SUBJ_CLR	17	/* security label clearance label */
 #define AUDIT_PPID	18
+#define AUDIT_OBJ_USER	19
+#define AUDIT_OBJ_ROLE	20
+#define AUDIT_OBJ_TYPE	21
+#define AUDIT_OBJ_LEV_LOW	22
+#define AUDIT_OBJ_LEV_HIGH	23
 
 				/* These are ONLY useful when checking
 				 * at syscall exit time (AUDIT_AT_EXIT). */

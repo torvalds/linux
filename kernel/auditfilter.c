@@ -470,11 +470,11 @@ static struct audit_entry *audit_data_to_entry(struct audit_rule_data *data,
 		case AUDIT_ARG2:
 		case AUDIT_ARG3:
 			break;
-		case AUDIT_SE_USER:
-		case AUDIT_SE_ROLE:
-		case AUDIT_SE_TYPE:
-		case AUDIT_SE_SEN:
-		case AUDIT_SE_CLR:
+		case AUDIT_SUBJ_USER:
+		case AUDIT_SUBJ_ROLE:
+		case AUDIT_SUBJ_TYPE:
+		case AUDIT_SUBJ_SEN:
+		case AUDIT_SUBJ_CLR:
 			str = audit_unpack_string(&bufp, &remain, f->val);
 			if (IS_ERR(str))
 				goto exit_free;
@@ -611,11 +611,11 @@ static struct audit_rule_data *audit_krule_to_data(struct audit_krule *krule)
 		data->fields[i] = f->type;
 		data->fieldflags[i] = f->op;
 		switch(f->type) {
-		case AUDIT_SE_USER:
-		case AUDIT_SE_ROLE:
-		case AUDIT_SE_TYPE:
-		case AUDIT_SE_SEN:
-		case AUDIT_SE_CLR:
+		case AUDIT_SUBJ_USER:
+		case AUDIT_SUBJ_ROLE:
+		case AUDIT_SUBJ_TYPE:
+		case AUDIT_SUBJ_SEN:
+		case AUDIT_SUBJ_CLR:
 			data->buflen += data->values[i] =
 				audit_pack_string(&bufp, f->se_str);
 			break;
@@ -654,11 +654,11 @@ static int audit_compare_rule(struct audit_krule *a, struct audit_krule *b)
 			return 1;
 
 		switch(a->fields[i].type) {
-		case AUDIT_SE_USER:
-		case AUDIT_SE_ROLE:
-		case AUDIT_SE_TYPE:
-		case AUDIT_SE_SEN:
-		case AUDIT_SE_CLR:
+		case AUDIT_SUBJ_USER:
+		case AUDIT_SUBJ_ROLE:
+		case AUDIT_SUBJ_TYPE:
+		case AUDIT_SUBJ_SEN:
+		case AUDIT_SUBJ_CLR:
 			if (strcmp(a->fields[i].se_str, b->fields[i].se_str))
 				return 1;
 			break;
@@ -774,11 +774,11 @@ static struct audit_entry *audit_dupe_rule(struct audit_krule *old,
 	 * the originals will all be freed when the old rule is freed. */
 	for (i = 0; i < fcount; i++) {
 		switch (new->fields[i].type) {
-		case AUDIT_SE_USER:
-		case AUDIT_SE_ROLE:
-		case AUDIT_SE_TYPE:
-		case AUDIT_SE_SEN:
-		case AUDIT_SE_CLR:
+		case AUDIT_SUBJ_USER:
+		case AUDIT_SUBJ_ROLE:
+		case AUDIT_SUBJ_TYPE:
+		case AUDIT_SUBJ_SEN:
+		case AUDIT_SUBJ_CLR:
 			err = audit_dupe_selinux_field(&new->fields[i],
 						       &old->fields[i]);
 			break;
@@ -1537,11 +1537,11 @@ static inline int audit_rule_has_selinux(struct audit_krule *rule)
 	for (i = 0; i < rule->field_count; i++) {
 		struct audit_field *f = &rule->fields[i];
 		switch (f->type) {
-		case AUDIT_SE_USER:
-		case AUDIT_SE_ROLE:
-		case AUDIT_SE_TYPE:
-		case AUDIT_SE_SEN:
-		case AUDIT_SE_CLR:
+		case AUDIT_SUBJ_USER:
+		case AUDIT_SUBJ_ROLE:
+		case AUDIT_SUBJ_TYPE:
+		case AUDIT_SUBJ_SEN:
+		case AUDIT_SUBJ_CLR:
 			return 1;
 		}
 	}

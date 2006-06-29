@@ -321,11 +321,11 @@ static int audit_filter_rules(struct task_struct *tsk,
 			if (ctx)
 				result = audit_comparator(ctx->loginuid, f->op, f->val);
 			break;
-		case AUDIT_SE_USER:
-		case AUDIT_SE_ROLE:
-		case AUDIT_SE_TYPE:
-		case AUDIT_SE_SEN:
-		case AUDIT_SE_CLR:
+		case AUDIT_SUBJ_USER:
+		case AUDIT_SUBJ_ROLE:
+		case AUDIT_SUBJ_TYPE:
+		case AUDIT_SUBJ_SEN:
+		case AUDIT_SUBJ_CLR:
 			/* NOTE: this may return negative values indicating
 			   a temporary error.  We simply treat this as a
 			   match for now to avoid losing information that

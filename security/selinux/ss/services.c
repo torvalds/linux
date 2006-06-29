@@ -1845,15 +1845,15 @@ int selinux_audit_rule_init(u32 field, u32 op, char *rulestr,
 		return -ENOTSUPP;
 
 	switch (field) {
-	case AUDIT_SE_USER:
-	case AUDIT_SE_ROLE:
-	case AUDIT_SE_TYPE:
+	case AUDIT_SUBJ_USER:
+	case AUDIT_SUBJ_ROLE:
+	case AUDIT_SUBJ_TYPE:
 		/* only 'equals' and 'not equals' fit user, role, and type */
 		if (op != AUDIT_EQUAL && op != AUDIT_NOT_EQUAL)
 			return -EINVAL;
 		break;
-	case AUDIT_SE_SEN:
-	case AUDIT_SE_CLR:
+	case AUDIT_SUBJ_SEN:
+	case AUDIT_SUBJ_CLR:
 		/* we do not allow a range, indicated by the presense of '-' */
 		if (strchr(rulestr, '-'))
 			return -EINVAL;
@@ -1874,29 +1874,29 @@ int selinux_audit_rule_init(u32 field, u32 op, char *rulestr,
 	tmprule->au_seqno = latest_granting;
 
 	switch (field) {
-	case AUDIT_SE_USER:
+	case AUDIT_SUBJ_USER:
 		userdatum = hashtab_search(policydb.p_users.table, rulestr);
 		if (!userdatum)
 			rc = -EINVAL;
 		else
 			tmprule->au_ctxt.user = userdatum->value;
 		break;
-	case AUDIT_SE_ROLE:
+	case AUDIT_SUBJ_ROLE:
 		roledatum = hashtab_search(policydb.p_roles.table, rulestr);
 		if (!roledatum)
 			rc = -EINVAL;
 		else
 			tmprule->au_ctxt.role = roledatum->value;
 		break;
-	case AUDIT_SE_TYPE:
+	case AUDIT_SUBJ_TYPE:
 		typedatum = hashtab_search(policydb.p_types.table, rulestr);
 		if (!typedatum)
 			rc = -EINVAL;
 		else
 			tmprule->au_ctxt.type = typedatum->value;
 		break;
-	case AUDIT_SE_SEN:
-	case AUDIT_SE_CLR:
+	case AUDIT_SUBJ_SEN:
+	case AUDIT_SUBJ_CLR:
 		rc = mls_from_string(rulestr, &tmprule->au_ctxt, GFP_ATOMIC);
 		break;
 	}
@@ -1948,7 +1948,7 @@ int selinux_audit_rule_match(u32 ctxid, u32 field, u32 op,
 	/* a field/op pair that is not caught here will simply fall through
 	   without a match */
 	switch (field) {
-	case AUDIT_SE_USER:
+	case AUDIT_SUBJ_USER:
 		switch (op) {
 		case AUDIT_EQUAL:
 			match = (ctxt->user == rule->au_ctxt.user);
@@ -1958,7 +1958,7 @@ int selinux_audit_rule_match(u32 ctxid, u32 field, u32 op,
 			break;
 		}
 		break;
-	case AUDIT_SE_ROLE:
+	case AUDIT_SUBJ_ROLE:
 		switch (op) {
 		case AUDIT_EQUAL:
 			match = (ctxt->role == rule->au_ctxt.role);
@@ -1968,7 +1968,7 @@ int selinux_audit_rule_match(u32 ctxid, u32 field, u32 op,
 			break;
 		}
 		break;
-	case AUDIT_SE_TYPE:
+	case AUDIT_SUBJ_TYPE:
 		switch (op) {
 		case AUDIT_EQUAL:
 			match = (ctxt->type == rule->au_ctxt.type);
@@ -1978,9 +1978,9 @@ int selinux_audit_rule_match(u32 ctxid, u32 field, u32 op,
 			break;
 		}
 		break;
-	case AUDIT_SE_SEN:
-	case AUDIT_SE_CLR:
-		level = (field == AUDIT_SE_SEN ?
+	case AUDIT_SUBJ_SEN:
+	case AUDIT_SUBJ_CLR:
+		level = (field == AUDIT_SUBJ_SEN ?
 		         &ctxt->range.level[0] : &ctxt->range.level[1]);
 		switch (op) {
 		case AUDIT_EQUAL:
