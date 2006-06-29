@@ -8,7 +8,7 @@ void set_pending_irq(unsigned int irq, cpumask_t mask)
 
 	spin_lock_irqsave(&desc->lock, flags);
 	desc->move_irq = 1;
-	pending_irq_cpumask[irq] = mask;
+	irq_desc[irq].pending_mask = mask;
 	spin_unlock_irqrestore(&desc->lock, flags);
 }
 
@@ -30,7 +30,7 @@ void move_native_irq(int irq)
 
 	desc->move_irq = 0;
 
-	if (unlikely(cpus_empty(pending_irq_cpumask[irq])))
+	if (unlikely(cpus_empty(irq_desc[irq].pending_mask)))
 		return;
 
 	if (!desc->chip->set_affinity)
@@ -38,7 +38,7 @@ void move_native_irq(int irq)
 
 	assert_spin_locked(&desc->lock);
 
-	cpus_and(tmp, pending_irq_cpumask[irq], cpu_online_map);
+	cpus_and(tmp, irq_desc[irq].pending_mask, cpu_online_map);
 
 	/*
 	 * If there was a valid mask to work with, please
@@ -58,5 +58,5 @@ void move_native_irq(int irq)
 		if (likely(!(desc->status & IRQ_DISABLED)))
 			desc->chip->enable(irq);
 	}
-	cpus_clear(pending_irq_cpumask[irq]);
+	cpus_clear(irq_desc[irq].pending_mask);
 }

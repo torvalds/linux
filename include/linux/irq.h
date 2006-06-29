@@ -83,6 +83,7 @@ struct irq_desc {
 	cpumask_t		affinity;
 #endif
 #if defined(CONFIG_GENERIC_PENDING_IRQ) || defined(CONFIG_IRQBALANCE)
+	cpumask_t		pending_mask;
 	unsigned int		move_irq;	/* need to re-target IRQ dest */
 #endif
 #ifdef CONFIG_PROC_FS
@@ -120,7 +121,6 @@ static inline void set_native_irq_info(int irq, cpumask_t mask)
 #ifdef CONFIG_SMP
 
 #if defined(CONFIG_GENERIC_PENDING_IRQ) || defined(CONFIG_IRQBALANCE)
-extern cpumask_t pending_irq_cpumask[NR_IRQS];
 
 void set_pending_irq(unsigned int irq, cpumask_t mask);
 void move_native_irq(int irq);

@@ -16,10 +16,6 @@
 
 #ifdef CONFIG_SMP
 
-#if defined (CONFIG_GENERIC_PENDING_IRQ) || defined (CONFIG_IRQBALANCE)
-cpumask_t __cacheline_aligned pending_irq_cpumask[NR_IRQS];
-#endif
-
 /**
  *	synchronize_irq - wait for pending IRQ handlers (on other CPUs)
  *	@irq: interrupt number to wait for
