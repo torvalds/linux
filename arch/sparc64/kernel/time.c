@@ -780,6 +780,13 @@ static int __devinit clock_probe(struct of_device *op, const struct of_device_id
 	if (!model || !clock_model_matches(model))
 		return -ENODEV;
 
+	/* On an Enterprise system there can be multiple mostek clocks.
+	 * We should only match the one that is on the central FHC bus.
+	 */
+	if (!strcmp(dp->parent, "fhc") &&
+	    strcmp(dp->parent->parent, "central") != 0)
+		return -ENODEV;
+
 	size = (op->resource[0].end - op->resource[0].start) + 1;
 	regs = of_ioremap(&op->resource[0], 0, size, "clock");
 	if (!regs)
