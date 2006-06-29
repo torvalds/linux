@@ -2071,6 +2071,13 @@ static void set_ioapic_affinity_vector (unsigned int vector,
 #endif
 #endif
 
+static int ioapic_retrigger(unsigned int irq)
+{
+	send_IPI_self(IO_APIC_VECTOR(irq));
+
+	return 1;
+}
+
 /*
  * Level and edge triggered IO-APIC interrupts need different handling,
  * so we use two separate IRQ descriptors. Edge triggered IRQs can be
@@ -2090,6 +2097,7 @@ static struct hw_interrupt_type ioapic_edge_type __read_mostly = {
 #ifdef CONFIG_SMP
 	.set_affinity 	= set_ioapic_affinity,
 #endif
+	.retrigger	= ioapic_retrigger,
 };
 
 static struct hw_interrupt_type ioapic_level_type __read_mostly = {
@@ -2103,6 +2111,7 @@ static struct hw_interrupt_type ioapic_level_type __read_mostly = {
 #ifdef CONFIG_SMP
 	.set_affinity 	= set_ioapic_affinity,
 #endif
+	.retrigger	= ioapic_retrigger,
 };
 
 static inline void init_IO_APIC_traps(void)

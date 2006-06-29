@@ -123,7 +123,8 @@ void enable_irq(unsigned int irq)
 		desc->status = status;
 		if ((status & (IRQ_PENDING | IRQ_REPLAY)) == IRQ_PENDING) {
 			desc->status = status | IRQ_REPLAY;
-			hw_resend_irq(desc->chip,irq);
+			if (desc->chip && desc->chip->retrigger)
+				desc->chip->retrigger(irq);
 		}
 		desc->chip->enable(irq);
 		/* fall-through */
