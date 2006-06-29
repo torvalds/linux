@@ -11,10 +11,9 @@
 #include <linux/init.h>
 #include <linux/ioport.h>
 
-#include <asm/oplib.h>
+#include <asm/prom.h>
+#include <asm/of_device.h>
 #include <asm/io.h>
-#include <asm/sbus.h>
-#include <asm/ebus.h>
 #include <asm/auxio.h>
 
 void __iomem *auxio_register = NULL;
