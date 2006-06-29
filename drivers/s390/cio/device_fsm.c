@@ -861,6 +861,8 @@ ccw_device_clear_verify(struct ccw_device *cdev, enum dev_event dev_event)
 	irb = (struct irb *) __LC_IRB;
 	/* Accumulate status. We don't do basic sense. */
 	ccw_device_accumulate_irb(cdev, irb);
+	/* Remember to clear irb to avoid residuals. */
+	memset(&cdev->private->irb, 0, sizeof(struct irb));
 	/* Try to start delayed device verification. */
 	ccw_device_online_verify(cdev, 0);
 	/* Note: Don't call handler for cio initiated clear! */

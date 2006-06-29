@@ -244,8 +244,7 @@ s390_subchannel_remove_chpid(struct device *dev, void *data)
 
 	if ((sch->schib.scsw.actl & SCSW_ACTL_DEVACT) &&
 	    (sch->schib.scsw.actl & SCSW_ACTL_SCHACT) &&
-	    (sch->schib.pmcw.lpum == mask) &&
-	    (sch->vpm == 0)) {
+	    (sch->schib.pmcw.lpum == mask)) {
 		int cc;
 
 		cc = cio_clear(sch);
