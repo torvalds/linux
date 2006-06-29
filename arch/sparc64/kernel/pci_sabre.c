@@ -485,114 +485,6 @@ static struct pci_ops sabre_ops = {
 	.write =	sabre_write_pci_cfg,
 };
 
-static unsigned long sabre_pcislot_imap_offset(unsigned long ino)
-{
-	unsigned int bus =  (ino & 0x10) >> 4;
-	unsigned int slot = (ino & 0x0c) >> 2;
-
-	if (bus == 0)
-		return SABRE_IMAP_A_SLOT0 + (slot * 8);
-	else
-		return SABRE_IMAP_B_SLOT0 + (slot * 8);
-}
-
-static unsigned long __onboard_imap_off[] = {
-/*0x20*/	SABRE_IMAP_SCSI,
-/*0x21*/	SABRE_IMAP_ETH,
-/*0x22*/	SABRE_IMAP_BPP,
-/*0x23*/	SABRE_IMAP_AU_REC,
-/*0x24*/	SABRE_IMAP_AU_PLAY,
-/*0x25*/	SABRE_IMAP_PFAIL,
-/*0x26*/	SABRE_IMAP_KMS,
-/*0x27*/	SABRE_IMAP_FLPY,
-/*0x28*/	SABRE_IMAP_SHW,
-/*0x29*/	SABRE_IMAP_KBD,
-/*0x2a*/	SABRE_IMAP_MS,
-/*0x2b*/	SABRE_IMAP_SER,
-/*0x2c*/	0 /* reserved */,
-/*0x2d*/	0 /* reserved */,
-/*0x2e*/	SABRE_IMAP_UE,
-/*0x2f*/	SABRE_IMAP_CE,
-/*0x30*/	SABRE_IMAP_PCIERR,
-};
-#define SABRE_ONBOARD_IRQ_BASE		0x20
-#define SABRE_ONBOARD_IRQ_LAST		0x30
-#define sabre_onboard_imap_offset(__ino) \
-	__onboard_imap_off[(__ino) - SABRE_ONBOARD_IRQ_BASE]
-
-#define sabre_iclr_offset(ino)					      \
-	((ino & 0x20) ? (SABRE_ICLR_SCSI + (((ino) & 0x1f) << 3)) :  \
-			(SABRE_ICLR_A_SLOT0 + (((ino) & 0x1f)<<3)))
-
-/* When a device lives behind a bridge deeper in the PCI bus topology
- * than APB, a special sequence must run to make sure all pending DMA
- * transfers at the time of IRQ delivery are visible in the coherency
- * domain by the cpu.  This sequence is to perform a read on the far
- * side of the non-APB bridge, then perform a read of Sabre's DMA
- * write-sync register.
- */
-static void sabre_wsync_handler(unsigned int ino, void *_arg1, void *_arg2)
-{
-	struct pci_dev *pdev = _arg1;
-	unsigned long sync_reg = (unsigned long) _arg2;
-	u16 _unused;
-
-	pci_read_config_word(pdev, PCI_VENDOR_ID, &_unused);
-	sabre_read(sync_reg);
-}
-
-static unsigned int sabre_irq_build(struct pci_pbm_info *pbm,
-				    struct pci_dev *pdev,
-				    unsigned int ino)
-{
-	unsigned long imap, iclr;
-	unsigned long imap_off, iclr_off;
-	int inofixup = 0;
-	int virt_irq;
-
-	ino &= PCI_IRQ_INO;
-	if (ino < SABRE_ONBOARD_IRQ_BASE) {
-		/* PCI slot */
-		imap_off = sabre_pcislot_imap_offset(ino);
-	} else {
-		/* onboard device */
-		if (ino > SABRE_ONBOARD_IRQ_LAST) {
-			prom_printf("sabre_irq_build: Wacky INO [%x]\n", ino);
-			prom_halt();
-		}
-		imap_off = sabre_onboard_imap_offset(ino);
-	}
-
-	/* Now build the IRQ bucket. */
-	imap = pbm->controller_regs + imap_off;
-	imap += 4;
-
-	iclr_off = sabre_iclr_offset(ino);
-	iclr = pbm->controller_regs + iclr_off;
-	iclr += 4;
-
-	if ((ino & 0x20) == 0)
-		inofixup = ino & 0x03;
-
-	virt_irq = build_irq(inofixup, iclr, imap);
-
-	if (pdev) {
-		struct pcidev_cookie *pcp = pdev->sysdata;
-
-		if (pdev->bus->number != pcp->pbm->pci_first_busno) {
-			struct pci_controller_info *p = pcp->pbm->parent;
-
-			irq_install_pre_handler(virt_irq,
-						sabre_wsync_handler,
-						pdev,
-						(void *)
-						p->pbm_A.controller_regs +
-						SABRE_WRSYNC);
-		}
-	}
-	return virt_irq;
-}
-
 /* SABRE error handling support. */
 static void sabre_check_iommu_error(struct pci_controller_info *p,
 				    unsigned long afsr,
@@ -929,16 +821,29 @@ static irqreturn_t sabre_pcierr_intr(int irq, void *dev_id, struct pt_regs *regs
 	return IRQ_HANDLED;
 }
 
-/* XXX What about PowerFail/PowerManagement??? -DaveM */
-#define SABRE_UE_INO		0x2e
-#define SABRE_CE_INO		0x2f
-#define SABRE_PCIERR_INO	0x30
 static void sabre_register_error_handlers(struct pci_controller_info *p)
 {
 	struct pci_pbm_info *pbm = &p->pbm_A; /* arbitrary */
+	struct device_node *dp = pbm->prom_node;
+	struct of_device *op;
 	unsigned long base = pbm->controller_regs;
-	unsigned long irq, portid = pbm->portid;
 	u64 tmp;
+
+	if (pbm->chip_type == PBM_CHIP_TYPE_SABRE)
+		dp = dp->parent;
+
+	op = of_find_device_by_node(dp);
+	if (!op)
+		return;
+
+	/* Sabre/Hummingbird IRQ property layout is:
+	 * 0: PCI ERR
+	 * 1: UE ERR
+	 * 2: CE ERR
+	 * 3: POWER FAIL
+	 */
+	if (op->num_irqs < 4)
+		return;
 
 	/* We clear the error bits in the appropriate AFSR before
 	 * registering the handler so that we don't get spurious
@@ -948,32 +853,16 @@ static void sabre_register_error_handlers(struct pci_controller_info *p)
 		    (SABRE_UEAFSR_PDRD | SABRE_UEAFSR_PDWR |
 		     SABRE_UEAFSR_SDRD | SABRE_UEAFSR_SDWR |
 		     SABRE_UEAFSR_SDTE | SABRE_UEAFSR_PDTE));
-	irq = sabre_irq_build(pbm, NULL, (portid << 6) | SABRE_UE_INO);
-	if (request_irq(irq, sabre_ue_intr,
-			SA_SHIRQ, "SABRE UE", p) < 0) {
-		prom_printf("SABRE%d: Cannot register UE interrupt.\n",
-			    p->index);
-		prom_halt();
-	}
+
+	request_irq(op->irqs[1], sabre_ue_intr, SA_SHIRQ, "SABRE UE", p);
 
 	sabre_write(base + SABRE_CE_AFSR,
 		    (SABRE_CEAFSR_PDRD | SABRE_CEAFSR_PDWR |
 		     SABRE_CEAFSR_SDRD | SABRE_CEAFSR_SDWR));
-	irq = sabre_irq_build(pbm, NULL, (portid << 6) | SABRE_CE_INO);
-	if (request_irq(irq, sabre_ce_intr,
-			SA_SHIRQ, "SABRE CE", p) < 0) {
-		prom_printf("SABRE%d: Cannot register CE interrupt.\n",
-			    p->index);
-		prom_halt();
-	}
 
-	irq = sabre_irq_build(pbm, NULL, (portid << 6) | SABRE_PCIERR_INO);
-	if (request_irq(irq, sabre_pcierr_intr,
-			SA_SHIRQ, "SABRE PCIERR", p) < 0) {
-		prom_printf("SABRE%d: Cannot register PciERR interrupt.\n",
-			    p->index);
-		prom_halt();
-	}
+	request_irq(op->irqs[2], sabre_ce_intr, SA_SHIRQ, "SABRE CE", p);
+	request_irq(op->irqs[0], sabre_pcierr_intr, SA_SHIRQ,
+		    "SABRE PCIERR", p);
 
 	tmp = sabre_read(base + SABRE_PCICTRL);
 	tmp |= SABRE_PCICTRL_ERREN;
@@ -1492,7 +1381,6 @@ void sabre_init(struct device_node *dp, char *model_name)
 	p->index = pci_num_controllers++;
 	p->pbms_same_domain = 1;
 	p->scan_bus = sabre_scan_bus;
-	p->irq_build = sabre_irq_build;
 	p->base_address_update = sabre_base_address_update;
 	p->resource_adjust = sabre_resource_adjust;
 	p->pci_ops = &sabre_ops;

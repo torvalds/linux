@@ -18,6 +18,7 @@
 #include <asm/irq.h>
 #include <asm/starfire.h>
 #include <asm/prom.h>
+#include <asm/of_device.h>
 
 #include "pci_impl.h"
 #include "iommu_common.h"
@@ -207,110 +208,6 @@ static struct pci_ops psycho_ops = {
 	.read =		psycho_read_pci_cfg,
 	.write =	psycho_write_pci_cfg,
 };
-
-/* PSYCHO interrupt mapping support. */
-#define PSYCHO_IMAP_A_SLOT0	0x0c00UL
-#define PSYCHO_IMAP_B_SLOT0	0x0c20UL
-static unsigned long psycho_pcislot_imap_offset(unsigned long ino)
-{
-	unsigned int bus =  (ino & 0x10) >> 4;
-	unsigned int slot = (ino & 0x0c) >> 2;
-
-	if (bus == 0)
-		return PSYCHO_IMAP_A_SLOT0 + (slot * 8);
-	else
-		return PSYCHO_IMAP_B_SLOT0 + (slot * 8);
-}
-
-#define PSYCHO_IMAP_SCSI	0x1000UL
-#define PSYCHO_IMAP_ETH		0x1008UL
-#define PSYCHO_IMAP_BPP		0x1010UL
-#define PSYCHO_IMAP_AU_REC	0x1018UL
-#define PSYCHO_IMAP_AU_PLAY	0x1020UL
-#define PSYCHO_IMAP_PFAIL	0x1028UL
-#define PSYCHO_IMAP_KMS		0x1030UL
-#define PSYCHO_IMAP_FLPY	0x1038UL
-#define PSYCHO_IMAP_SHW		0x1040UL
-#define PSYCHO_IMAP_KBD		0x1048UL
-#define PSYCHO_IMAP_MS		0x1050UL
-#define PSYCHO_IMAP_SER		0x1058UL
-#define PSYCHO_IMAP_TIM0	0x1060UL
-#define PSYCHO_IMAP_TIM1	0x1068UL
-#define PSYCHO_IMAP_UE		0x1070UL
-#define PSYCHO_IMAP_CE		0x1078UL
-#define PSYCHO_IMAP_A_ERR	0x1080UL
-#define PSYCHO_IMAP_B_ERR	0x1088UL
-#define PSYCHO_IMAP_PMGMT	0x1090UL
-#define PSYCHO_IMAP_GFX		0x1098UL
-#define PSYCHO_IMAP_EUPA	0x10a0UL
-
-static unsigned long __onboard_imap_off[] = {
-/*0x20*/	PSYCHO_IMAP_SCSI,
-/*0x21*/	PSYCHO_IMAP_ETH,
-/*0x22*/	PSYCHO_IMAP_BPP,
-/*0x23*/	PSYCHO_IMAP_AU_REC,
-/*0x24*/	PSYCHO_IMAP_AU_PLAY,
-/*0x25*/	PSYCHO_IMAP_PFAIL,
-/*0x26*/	PSYCHO_IMAP_KMS,
-/*0x27*/	PSYCHO_IMAP_FLPY,
-/*0x28*/	PSYCHO_IMAP_SHW,
-/*0x29*/	PSYCHO_IMAP_KBD,
-/*0x2a*/	PSYCHO_IMAP_MS,
-/*0x2b*/	PSYCHO_IMAP_SER,
-/*0x2c*/	PSYCHO_IMAP_TIM0,
-/*0x2d*/	PSYCHO_IMAP_TIM1,
-/*0x2e*/	PSYCHO_IMAP_UE,
-/*0x2f*/	PSYCHO_IMAP_CE,
-/*0x30*/	PSYCHO_IMAP_A_ERR,
-/*0x31*/	PSYCHO_IMAP_B_ERR,
-/*0x32*/	PSYCHO_IMAP_PMGMT
-};
-#define PSYCHO_ONBOARD_IRQ_BASE		0x20
-#define PSYCHO_ONBOARD_IRQ_LAST		0x32
-#define psycho_onboard_imap_offset(__ino) \
-	__onboard_imap_off[(__ino) - PSYCHO_ONBOARD_IRQ_BASE]
-
-#define PSYCHO_ICLR_A_SLOT0	0x1400UL
-#define PSYCHO_ICLR_SCSI	0x1800UL
-
-#define psycho_iclr_offset(ino)					      \
-	((ino & 0x20) ? (PSYCHO_ICLR_SCSI + (((ino) & 0x1f) << 3)) :  \
-			(PSYCHO_ICLR_A_SLOT0 + (((ino) & 0x1f)<<3)))
-
-static unsigned int psycho_irq_build(struct pci_pbm_info *pbm,
-				     struct pci_dev *pdev,
-				     unsigned int ino)
-{
-	unsigned long imap, iclr;
-	unsigned long imap_off, iclr_off;
-	int inofixup = 0;
-
-	ino &= PCI_IRQ_INO;
-	if (ino < PSYCHO_ONBOARD_IRQ_BASE) {
-		/* PCI slot */
-		imap_off = psycho_pcislot_imap_offset(ino);
-	} else {
-		/* Onboard device */
-		if (ino > PSYCHO_ONBOARD_IRQ_LAST) {
-			prom_printf("psycho_irq_build: Wacky INO [%x]\n", ino);
-			prom_halt();
-		}
-		imap_off = psycho_onboard_imap_offset(ino);
-	}
-
-	/* Now build the IRQ bucket. */
-	imap = pbm->controller_regs + imap_off;
-	imap += 4;
-
-	iclr_off = psycho_iclr_offset(ino);
-	iclr = pbm->controller_regs + iclr_off;
-	iclr += 4;
-
-	if ((ino & 0x20) == 0)
-		inofixup = ino & 0x03;
-
-	return build_irq(inofixup, iclr, imap);
-}
 
 /* PSYCHO error handling support. */
 enum psycho_error_type {
@@ -944,51 +841,34 @@ static irqreturn_t psycho_pcierr_intr(int irq, void *dev_id, struct pt_regs *reg
 #define  PSYCHO_ECCCTRL_EE	 0x8000000000000000UL /* Enable ECC Checking */
 #define  PSYCHO_ECCCTRL_UE	 0x4000000000000000UL /* Enable UE Interrupts */
 #define  PSYCHO_ECCCTRL_CE	 0x2000000000000000UL /* Enable CE INterrupts */
-#define PSYCHO_UE_INO		0x2e
-#define PSYCHO_CE_INO		0x2f
-#define PSYCHO_PCIERR_A_INO	0x30
-#define PSYCHO_PCIERR_B_INO	0x31
 static void psycho_register_error_handlers(struct pci_controller_info *p)
 {
 	struct pci_pbm_info *pbm = &p->pbm_A; /* arbitrary */
+	struct of_device *op = of_find_device_by_node(pbm->prom_node);
 	unsigned long base = p->pbm_A.controller_regs;
-	unsigned int irq, portid = pbm->portid;
 	u64 tmp;
 
-	/* Build IRQs and register handlers. */
-	irq = psycho_irq_build(pbm, NULL, (portid << 6) | PSYCHO_UE_INO);
-	if (request_irq(irq, psycho_ue_intr,
-			SA_SHIRQ, "PSYCHO UE", p) < 0) {
-		prom_printf("PSYCHO%d: Cannot register UE interrupt.\n",
-			    p->index);
-		prom_halt();
-	}
+	if (!op)
+		return;
 
-	irq = psycho_irq_build(pbm, NULL, (portid << 6) | PSYCHO_CE_INO);
-	if (request_irq(irq, psycho_ce_intr,
-			SA_SHIRQ, "PSYCHO CE", p) < 0) {
-		prom_printf("PSYCHO%d: Cannot register CE interrupt.\n",
-			    p->index);
-		prom_halt();
-	}
+	/* Psycho interrupt property order is:
+	 * 0: PCIERR PBM B INO
+	 * 1: UE ERR
+	 * 2: CE ERR
+	 * 3: POWER FAIL
+	 * 4: SPARE HARDWARE
+	 * 5: PCIERR PBM A INO
+	 */
 
-	pbm = &p->pbm_A;
-	irq = psycho_irq_build(pbm, NULL, (portid << 6) | PSYCHO_PCIERR_A_INO);
-	if (request_irq(irq, psycho_pcierr_intr,
-			SA_SHIRQ, "PSYCHO PCIERR", &p->pbm_A) < 0) {
-		prom_printf("PSYCHO%d(PBMA): Cannot register PciERR interrupt.\n",
-			    p->index);
-		prom_halt();
-	}
+	if (op->num_irqs < 6)
+		return;
 
-	pbm = &p->pbm_B;
-	irq = psycho_irq_build(pbm, NULL, (portid << 6) | PSYCHO_PCIERR_B_INO);
-	if (request_irq(irq, psycho_pcierr_intr,
-			SA_SHIRQ, "PSYCHO PCIERR", &p->pbm_B) < 0) {
-		prom_printf("PSYCHO%d(PBMB): Cannot register PciERR interrupt.\n",
-			    p->index);
-		prom_halt();
-	}
+	request_irq(op->irqs[1], psycho_ue_intr, SA_SHIRQ, "PSYCHO UE", p);
+	request_irq(op->irqs[2], psycho_ce_intr, SA_SHIRQ, "PSYCHO CE", p);
+	request_irq(op->irqs[5], psycho_pcierr_intr, SA_SHIRQ,
+		    "PSYCHO PCIERR-A", &p->pbm_A);
+	request_irq(op->irqs[0], psycho_pcierr_intr, SA_SHIRQ,
+		    "PSYCHO PCIERR-B", &p->pbm_B);
 
 	/* Enable UE and CE interrupts for controller. */
 	psycho_write(base + PSYCHO_ECC_CTRL,
@@ -1406,7 +1286,6 @@ void psycho_init(struct device_node *dp, char *model_name)
 	p->index = pci_num_controllers++;
 	p->pbms_same_domain = 0;
 	p->scan_bus = psycho_scan_bus;
-	p->irq_build = psycho_irq_build;
 	p->base_address_update = psycho_base_address_update;
 	p->resource_adjust = psycho_resource_adjust;
 	p->pci_ops = &psycho_ops;

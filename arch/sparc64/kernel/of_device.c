@@ -146,6 +146,26 @@ void of_iounmap(void __iomem *base, unsigned long size)
 }
 EXPORT_SYMBOL(of_iounmap);
 
+static int node_match(struct device *dev, void *data)
+{
+	struct of_device *op = to_of_device(dev);
+	struct device_node *dp = data;
+
+	return (op->node == dp);
+}
+
+struct of_device *of_find_device_by_node(struct device_node *dp)
+{
+	struct device *dev = bus_find_device(&of_bus_type, NULL,
+					     dp, node_match);
+
+	if (dev)
+		return to_of_device(dev);
+
+	return NULL;
+}
+EXPORT_SYMBOL(of_find_device_by_node);
+
 #ifdef CONFIG_PCI
 struct bus_type isa_bus_type = {
        .name	= "isa",
@@ -260,7 +280,6 @@ static unsigned int of_bus_default_get_flags(u32 *addr)
 {
 	return IORESOURCE_MEM;
 }
-
 
 /*
  * PCI bus specific translator
@@ -594,12 +613,171 @@ static void __init build_device_resources(struct of_device *op,
 	}
 }
 
+static struct device_node * __init
+apply_interrupt_map(struct device_node *dp, struct device_node *pp,
+		    u32 *imap, int imlen, u32 *imask,
+		    unsigned int *irq_p)
+{
+	struct device_node *cp;
+	unsigned int irq = *irq_p;
+	struct of_bus *bus;
+	phandle handle;
+	u32 *reg;
+	int na, num_reg, i;
+
+	bus = of_match_bus(pp);
+	bus->count_cells(dp, &na, NULL);
+
+	reg = of_get_property(dp, "reg", &num_reg);
+	if (!reg || !num_reg)
+		return NULL;
+
+	imlen /= ((na + 3) * 4);
+	handle = 0;
+	for (i = 0; i < imlen; i++) {
+		int j;
+
+		for (j = 0; j < na; j++) {
+			if ((reg[j] & imask[j]) != imap[j])
+				goto next;
+		}
+		if (imap[na] == irq) {
+			handle = imap[na + 1];
+			irq = imap[na + 2];
+			break;
+		}
+
+	next:
+		imap += (na + 3);
+	}
+	if (i == imlen)
+		return NULL;
+
+	*irq_p = irq;
+	cp = of_find_node_by_phandle(handle);
+
+	return cp;
+}
+
+static unsigned int __init pci_irq_swizzle(struct device_node *dp,
+					   struct device_node *pp,
+					   unsigned int irq)
+{
+	struct linux_prom_pci_registers *regs;
+	unsigned int devfn, slot, ret;
+
+	if (irq < 1 || irq > 4)
+		return irq;
+
+	regs = of_get_property(dp, "reg", NULL);
+	if (!regs)
+		return irq;
+
+	devfn = (regs->phys_hi >> 8) & 0xff;
+	slot = (devfn >> 3) & 0x1f;
+
+	ret = ((irq - 1 + (slot & 3)) & 3) + 1;
+
+	return ret;
+}
+
+static unsigned int __init build_one_device_irq(struct of_device *op,
+						struct device *parent,
+						unsigned int irq)
+{
+	struct device_node *dp = op->node;
+	struct device_node *pp, *ip;
+	unsigned int orig_irq = irq;
+
+	if (irq == 0xffffffff)
+		return irq;
+
+	if (dp->irq_trans) {
+		irq = dp->irq_trans->irq_build(dp, irq,
+					       dp->irq_trans->data);
+#if 1
+		printk("%s: direct translate %x --> %x\n",
+		       dp->full_name, orig_irq, irq);
+#endif
+		return irq;
+	}
+
+	/* Something more complicated.  Walk up to the root, applying
+	 * interrupt-map or bus specific translations, until we hit
+	 * an IRQ translator.
+	 *
+	 * If we hit a bus type or situation we cannot handle, we
+	 * stop and assume that the original IRQ number was in a
+	 * format which has special meaning to it's immediate parent.
+	 */
+	pp = dp->parent;
+	ip = NULL;
+	while (pp) {
+		void *imap, *imsk;
+		int imlen;
+
+		imap = of_get_property(pp, "interrupt-map", &imlen);
+		imsk = of_get_property(pp, "interrupt-map-mask", NULL);
+		if (imap && imsk) {
+			struct device_node *iret;
+			int this_orig_irq = irq;
+
+			iret = apply_interrupt_map(dp, pp,
+						   imap, imlen, imsk,
+						   &irq);
+#if 1
+			printk("%s: Apply [%s:%x] imap --> [%s:%x]\n",
+			       op->node->full_name,
+			       pp->full_name, this_orig_irq,
+			       (iret ? iret->full_name : "NULL"), irq);
+#endif
+			if (!iret)
+				break;
+
+			if (iret->irq_trans) {
+				ip = iret;
+				break;
+			}
+		} else {
+			if (!strcmp(pp->type, "pci") ||
+			    !strcmp(pp->type, "pciex")) {
+				unsigned int this_orig_irq = irq;
+
+				irq = pci_irq_swizzle(dp, pp, irq);
+#if 1
+				printk("%s: PCI swizzle [%s] %x --> %x\n",
+				       op->node->full_name,
+				       pp->full_name, this_orig_irq, irq);
+#endif
+			}
+
+			if (pp->irq_trans) {
+				ip = pp;
+				break;
+			}
+		}
+		dp = pp;
+		pp = pp->parent;
+	}
+	if (!ip)
+		return orig_irq;
+
+	irq = ip->irq_trans->irq_build(op->node, irq,
+				       ip->irq_trans->data);
+#if 1
+	printk("%s: Apply IRQ trans [%s] %x --> %x\n",
+	       op->node->full_name, ip->full_name, orig_irq, irq);
+#endif
+
+	return irq;
+}
+
 static struct of_device * __init scan_one_device(struct device_node *dp,
 						 struct device *parent)
 {
 	struct of_device *op = kzalloc(sizeof(*op), GFP_KERNEL);
 	unsigned int *irq;
-	int len;
+	int len, i;
 
 	if (!op)
 		return NULL;
@@ -613,12 +791,16 @@ static struct of_device * __init scan_one_device(struct device_node *dp,
 		op->portid = of_getintprop_default(dp, "portid", -1);
 
 	irq = of_get_property(dp, "interrupts", &len);
-	if (irq)
-		op->irq = *irq;
-	else
-		op->irq = 0xffffffff;
+	if (irq) {
+		memcpy(op->irqs, irq, len);
+		op->num_irqs = len / 4;
+	} else {
+		op->num_irqs = 0;
+	}
 
 	build_device_resources(op, parent);
+	for (i = 0; i < op->num_irqs; i++)
+		op->irqs[i] = build_one_device_irq(op, parent, op->irqs[i]);
 
 	op->dev.parent = parent;
 	op->dev.bus = &of_bus_type;

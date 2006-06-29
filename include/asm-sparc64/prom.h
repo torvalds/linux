@@ -34,6 +34,7 @@ struct property {
 	unsigned int unique_id;
 };
 
+struct of_irq_controller;
 struct device_node {
 	char	*name;
 	char	*type;
@@ -53,6 +54,13 @@ struct device_node {
 	unsigned long _flags;
 	void	*data;
 	unsigned int unique_id;
+
+	struct of_irq_controller *irq_trans;
+};
+
+struct of_irq_controller {
+	unsigned int	(*irq_build)(struct device_node *, unsigned int, void *);
+	void		*data;
 };
 
 /* flag descriptions */

@@ -3,6 +3,8 @@
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include <asm/oplib.h>
+#include <asm/prom.h>
+#include <asm/of_device.h>
 #include <asm/isa.h>
 
 struct sparc_isa_bridge *isa_chain;
@@ -46,107 +48,16 @@ isa_dev_get_resource(struct sparc_isa_device *isa_dev)
 	return pregs;
 }
 
-/* I can't believe they didn't put a real INO in the isa device
- * interrupts property.  The whole point of the OBP properties
- * is to shield the kernel from IRQ routing details.
- *
- * The P1275 standard for ISA devices seems to also have been
- * totally ignored.
- *
- * On later systems, an interrupt-map and interrupt-map-mask scheme
- * akin to EBUS is used.
- */
-static struct {
-	int	obp_irq;
-	int	pci_ino;
-} grover_irq_table[] = {
-	{ 1, 0x00 },	/* dma, unknown ino at this point */
-	{ 2, 0x27 },	/* floppy */
-	{ 3, 0x22 },	/* parallel */
-	{ 4, 0x2b },	/* serial */
-	{ 5, 0x25 },	/* acpi power management */
-
-	{ 0, 0x00 }	/* end of table */
-};
-
-static int __init isa_dev_get_irq_using_imap(struct sparc_isa_device *isa_dev,
-					     struct sparc_isa_bridge *isa_br,
-					     int *interrupt,
-					     struct linux_prom_registers *reg)
-{
-	struct linux_prom_ebus_intmap *imap;
-	struct linux_prom_ebus_intmask *imask;
-	unsigned int hi, lo, irq;
-	int i, len, n_imap;
-
-	imap = of_get_property(isa_br->prom_node, "interrupt-map", &len);
-	if (!imap)
-		return 0;
-	n_imap = len / sizeof(imap[0]);
-
-	imask = of_get_property(isa_br->prom_node, "interrupt-map-mask", NULL);
-	if (!imask)
-		return 0;
-
-	hi = reg->which_io & imask->phys_hi;
-	lo = reg->phys_addr & imask->phys_lo;
-	irq = *interrupt & imask->interrupt;
-	for (i = 0; i < n_imap; i++) {
-		if ((imap[i].phys_hi == hi) &&
-		    (imap[i].phys_lo == lo) &&
-		    (imap[i].interrupt == irq)) {
-			*interrupt = imap[i].cinterrupt;
-			return 0;
-		}
-	}
-	return -1;
-}
-
 static void __init isa_dev_get_irq(struct sparc_isa_device *isa_dev,
 				   struct linux_prom_registers *pregs)
 {
-	int irq_prop;
+	struct of_device *op = of_find_device_by_node(isa_dev->prom_node);
 
-	irq_prop = of_getintprop_default(isa_dev->prom_node,
-					 "interrupts", -1);
-	if (irq_prop <= 0) {
-		goto no_irq;
+	if (!op || !op->num_irqs) {
+		isa_dev->irq = PCI_IRQ_NONE;
 	} else {
-		struct pci_controller_info *pcic;
-		struct pci_pbm_info *pbm;
-		int i;
-
-		if (of_find_property(isa_dev->bus->prom_node,
-				     "interrupt-map", NULL)) {
-			if (!isa_dev_get_irq_using_imap(isa_dev,
-							isa_dev->bus,
-							&irq_prop,
-							pregs))
-				goto route_irq;
-		}
-
-		for (i = 0; grover_irq_table[i].obp_irq != 0; i++) {
-			if (grover_irq_table[i].obp_irq == irq_prop) {
-				int ino = grover_irq_table[i].pci_ino;
-
-				if (ino == 0)
-					goto no_irq;
- 
-				irq_prop = ino;
-				goto route_irq;
-			}
-		}
-		goto no_irq;
-
-route_irq:
-		pbm = isa_dev->bus->parent;
-		pcic = pbm->parent;
-		isa_dev->irq = pcic->irq_build(pbm, NULL, irq_prop);
-		return;
+		isa_dev->irq = op->irqs[0];
 	}
-
-no_irq:
-	isa_dev->irq = PCI_IRQ_NONE;
 }
 
 static void __init isa_fill_children(struct sparc_isa_device *parent_isa_dev)

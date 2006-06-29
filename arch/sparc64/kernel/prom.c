@@ -15,6 +15,7 @@
  *      2 of the License, or (at your option) any later version.
  */
 
+#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/string.h>
@@ -23,7 +24,11 @@
 #include <linux/module.h>
 
 #include <asm/prom.h>
+#include <asm/of_device.h>
 #include <asm/oplib.h>
+#include <asm/irq.h>
+#include <asm/asi.h>
+#include <asm/upa.h>
 
 static struct device_node *allnodes;
 
@@ -281,6 +286,754 @@ static void * __init prom_early_alloc(unsigned long size)
 	prom_early_allocated += size;
 
 	return ret;
+}
+
+#ifdef CONFIG_PCI
+/* PSYCHO interrupt mapping support. */
+#define PSYCHO_IMAP_A_SLOT0	0x0c00UL
+#define PSYCHO_IMAP_B_SLOT0	0x0c20UL
+static unsigned long psycho_pcislot_imap_offset(unsigned long ino)
+{
+	unsigned int bus =  (ino & 0x10) >> 4;
+	unsigned int slot = (ino & 0x0c) >> 2;
+
+	if (bus == 0)
+		return PSYCHO_IMAP_A_SLOT0 + (slot * 8);
+	else
+		return PSYCHO_IMAP_B_SLOT0 + (slot * 8);
+}
+
+#define PSYCHO_IMAP_SCSI	0x1000UL
+#define PSYCHO_IMAP_ETH		0x1008UL
+#define PSYCHO_IMAP_BPP		0x1010UL
+#define PSYCHO_IMAP_AU_REC	0x1018UL
+#define PSYCHO_IMAP_AU_PLAY	0x1020UL
+#define PSYCHO_IMAP_PFAIL	0x1028UL
+#define PSYCHO_IMAP_KMS		0x1030UL
+#define PSYCHO_IMAP_FLPY	0x1038UL
+#define PSYCHO_IMAP_SHW		0x1040UL
+#define PSYCHO_IMAP_KBD		0x1048UL
+#define PSYCHO_IMAP_MS		0x1050UL
+#define PSYCHO_IMAP_SER		0x1058UL
+#define PSYCHO_IMAP_TIM0	0x1060UL
+#define PSYCHO_IMAP_TIM1	0x1068UL
+#define PSYCHO_IMAP_UE		0x1070UL
+#define PSYCHO_IMAP_CE		0x1078UL
+#define PSYCHO_IMAP_A_ERR	0x1080UL
+#define PSYCHO_IMAP_B_ERR	0x1088UL
+#define PSYCHO_IMAP_PMGMT	0x1090UL
+#define PSYCHO_IMAP_GFX		0x1098UL
+#define PSYCHO_IMAP_EUPA	0x10a0UL
+
+static unsigned long __psycho_onboard_imap_off[] = {
+/*0x20*/	PSYCHO_IMAP_SCSI,
+/*0x21*/	PSYCHO_IMAP_ETH,
+/*0x22*/	PSYCHO_IMAP_BPP,
+/*0x23*/	PSYCHO_IMAP_AU_REC,
+/*0x24*/	PSYCHO_IMAP_AU_PLAY,
+/*0x25*/	PSYCHO_IMAP_PFAIL,
+/*0x26*/	PSYCHO_IMAP_KMS,
+/*0x27*/	PSYCHO_IMAP_FLPY,
+/*0x28*/	PSYCHO_IMAP_SHW,
+/*0x29*/	PSYCHO_IMAP_KBD,
+/*0x2a*/	PSYCHO_IMAP_MS,
+/*0x2b*/	PSYCHO_IMAP_SER,
+/*0x2c*/	PSYCHO_IMAP_TIM0,
+/*0x2d*/	PSYCHO_IMAP_TIM1,
+/*0x2e*/	PSYCHO_IMAP_UE,
+/*0x2f*/	PSYCHO_IMAP_CE,
+/*0x30*/	PSYCHO_IMAP_A_ERR,
+/*0x31*/	PSYCHO_IMAP_B_ERR,
+/*0x32*/	PSYCHO_IMAP_PMGMT
+};
+#define PSYCHO_ONBOARD_IRQ_BASE		0x20
+#define PSYCHO_ONBOARD_IRQ_LAST		0x32
+#define psycho_onboard_imap_offset(__ino) \
+	__psycho_onboard_imap_off[(__ino) - PSYCHO_ONBOARD_IRQ_BASE]
+
+#define PSYCHO_ICLR_A_SLOT0	0x1400UL
+#define PSYCHO_ICLR_SCSI	0x1800UL
+
+#define psycho_iclr_offset(ino)					      \
+	((ino & 0x20) ? (PSYCHO_ICLR_SCSI + (((ino) & 0x1f) << 3)) :  \
+			(PSYCHO_ICLR_A_SLOT0 + (((ino) & 0x1f)<<3)))
+
+static unsigned int psycho_irq_build(struct device_node *dp,
+				     unsigned int ino,
+				     void *_data)
+{
+	unsigned long controller_regs = (unsigned long) _data;
+	unsigned long imap, iclr;
+	unsigned long imap_off, iclr_off;
+	int inofixup = 0;
+
+	ino &= 0x3f;
+	if (ino < PSYCHO_ONBOARD_IRQ_BASE) {
+		/* PCI slot */
+		imap_off = psycho_pcislot_imap_offset(ino);
+	} else {
+		/* Onboard device */
+		if (ino > PSYCHO_ONBOARD_IRQ_LAST) {
+			prom_printf("psycho_irq_build: Wacky INO [%x]\n", ino);
+			prom_halt();
+		}
+		imap_off = psycho_onboard_imap_offset(ino);
+	}
+
+	/* Now build the IRQ bucket. */
+	imap = controller_regs + imap_off;
+	imap += 4;
+
+	iclr_off = psycho_iclr_offset(ino);
+	iclr = controller_regs + iclr_off;
+	iclr += 4;
+
+	if ((ino & 0x20) == 0)
+		inofixup = ino & 0x03;
+
+	return build_irq(inofixup, iclr, imap);
+}
+
+static void psycho_irq_trans_init(struct device_node *dp)
+{
+	struct linux_prom64_registers *regs;
+
+	dp->irq_trans = prom_early_alloc(sizeof(struct of_irq_controller));
+	dp->irq_trans->irq_build = psycho_irq_build;
+
+	regs = of_get_property(dp, "reg", NULL);
+	dp->irq_trans->data = (void *) regs[2].phys_addr;
+}
+
+#define sabre_read(__reg) \
+({	u64 __ret; \
+	__asm__ __volatile__("ldxa [%1] %2, %0" \
+			     : "=r" (__ret) \
+			     : "r" (__reg), "i" (ASI_PHYS_BYPASS_EC_E) \
+			     : "memory"); \
+	__ret; \
+})
+
+struct sabre_irq_data {
+	unsigned long controller_regs;
+	unsigned int pci_first_busno;
+};
+#define SABRE_CONFIGSPACE	0x001000000UL
+#define SABRE_WRSYNC		0x1c20UL
+
+#define SABRE_CONFIG_BASE(CONFIG_SPACE)	\
+	(CONFIG_SPACE | (1UL << 24))
+#define SABRE_CONFIG_ENCODE(BUS, DEVFN, REG)	\
+	(((unsigned long)(BUS)   << 16) |	\
+	 ((unsigned long)(DEVFN) << 8)  |	\
+	 ((unsigned long)(REG)))
+
+/* When a device lives behind a bridge deeper in the PCI bus topology
+ * than APB, a special sequence must run to make sure all pending DMA
+ * transfers at the time of IRQ delivery are visible in the coherency
+ * domain by the cpu.  This sequence is to perform a read on the far
+ * side of the non-APB bridge, then perform a read of Sabre's DMA
+ * write-sync register.
+ */
+static void sabre_wsync_handler(unsigned int ino, void *_arg1, void *_arg2)
+{
+	unsigned int phys_hi = (unsigned int) (unsigned long) _arg1;
+	struct sabre_irq_data *irq_data = _arg2;
+	unsigned long controller_regs = irq_data->controller_regs;
+	unsigned long sync_reg = controller_regs + SABRE_WRSYNC;
+	unsigned long config_space = controller_regs + SABRE_CONFIGSPACE;
+	unsigned int bus, devfn;
+	u16 _unused;
+
+	config_space = SABRE_CONFIG_BASE(config_space);
+
+	bus = (phys_hi >> 16) & 0xff;
+	devfn = (phys_hi >> 8) & 0xff;
+
+	config_space |= SABRE_CONFIG_ENCODE(bus, devfn, 0x00);
+
+	__asm__ __volatile__("membar #Sync\n\t"
+			     "lduha [%1] %2, %0\n\t"
+			     "membar #Sync"
+			     : "=r" (_unused)
+			     : "r" ((u16 *) config_space),
+			       "i" (ASI_PHYS_BYPASS_EC_E_L)
+			     : "memory");
+
+	sabre_read(sync_reg);
+}
+
+#define SABRE_IMAP_A_SLOT0	0x0c00UL
+#define SABRE_IMAP_B_SLOT0	0x0c20UL
+#define SABRE_IMAP_SCSI		0x1000UL
+#define SABRE_IMAP_ETH		0x1008UL
+#define SABRE_IMAP_BPP		0x1010UL
+#define SABRE_IMAP_AU_REC	0x1018UL
+#define SABRE_IMAP_AU_PLAY	0x1020UL
+#define SABRE_IMAP_PFAIL	0x1028UL
+#define SABRE_IMAP_KMS		0x1030UL
+#define SABRE_IMAP_FLPY		0x1038UL
+#define SABRE_IMAP_SHW		0x1040UL
+#define SABRE_IMAP_KBD		0x1048UL
+#define SABRE_IMAP_MS		0x1050UL
+#define SABRE_IMAP_SER		0x1058UL
+#define SABRE_IMAP_UE		0x1070UL
+#define SABRE_IMAP_CE		0x1078UL
+#define SABRE_IMAP_PCIERR	0x1080UL
+#define SABRE_IMAP_GFX		0x1098UL
+#define SABRE_IMAP_EUPA		0x10a0UL
+#define SABRE_ICLR_A_SLOT0	0x1400UL
+#define SABRE_ICLR_B_SLOT0	0x1480UL
+#define SABRE_ICLR_SCSI		0x1800UL
+#define SABRE_ICLR_ETH		0x1808UL
+#define SABRE_ICLR_BPP		0x1810UL
+#define SABRE_ICLR_AU_REC	0x1818UL
+#define SABRE_ICLR_AU_PLAY	0x1820UL
+#define SABRE_ICLR_PFAIL	0x1828UL
+#define SABRE_ICLR_KMS		0x1830UL
+#define SABRE_ICLR_FLPY		0x1838UL
+#define SABRE_ICLR_SHW		0x1840UL
+#define SABRE_ICLR_KBD		0x1848UL
+#define SABRE_ICLR_MS		0x1850UL
+#define SABRE_ICLR_SER		0x1858UL
+#define SABRE_ICLR_UE		0x1870UL
+#define SABRE_ICLR_CE		0x1878UL
+#define SABRE_ICLR_PCIERR	0x1880UL
+
+static unsigned long sabre_pcislot_imap_offset(unsigned long ino)
+{
+	unsigned int bus =  (ino & 0x10) >> 4;
+	unsigned int slot = (ino & 0x0c) >> 2;
+
+	if (bus == 0)
+		return SABRE_IMAP_A_SLOT0 + (slot * 8);
+	else
+		return SABRE_IMAP_B_SLOT0 + (slot * 8);
+}
+
+static unsigned long __sabre_onboard_imap_off[] = {
+/*0x20*/	SABRE_IMAP_SCSI,
+/*0x21*/	SABRE_IMAP_ETH,
+/*0x22*/	SABRE_IMAP_BPP,
+/*0x23*/	SABRE_IMAP_AU_REC,
+/*0x24*/	SABRE_IMAP_AU_PLAY,
+/*0x25*/	SABRE_IMAP_PFAIL,
+/*0x26*/	SABRE_IMAP_KMS,
+/*0x27*/	SABRE_IMAP_FLPY,
+/*0x28*/	SABRE_IMAP_SHW,
+/*0x29*/	SABRE_IMAP_KBD,
+/*0x2a*/	SABRE_IMAP_MS,
+/*0x2b*/	SABRE_IMAP_SER,
+/*0x2c*/	0 /* reserved */,
+/*0x2d*/	0 /* reserved */,
+/*0x2e*/	SABRE_IMAP_UE,
+/*0x2f*/	SABRE_IMAP_CE,
+/*0x30*/	SABRE_IMAP_PCIERR,
+};
+#define SABRE_ONBOARD_IRQ_BASE		0x20
+#define SABRE_ONBOARD_IRQ_LAST		0x30
+#define sabre_onboard_imap_offset(__ino) \
+	__sabre_onboard_imap_off[(__ino) - SABRE_ONBOARD_IRQ_BASE]
+
+#define sabre_iclr_offset(ino)					      \
+	((ino & 0x20) ? (SABRE_ICLR_SCSI + (((ino) & 0x1f) << 3)) :  \
+			(SABRE_ICLR_A_SLOT0 + (((ino) & 0x1f)<<3)))
+
+static unsigned int sabre_irq_build(struct device_node *dp,
+				    unsigned int ino,
+				    void *_data)
+{
+	struct sabre_irq_data *irq_data = _data;
+	unsigned long controller_regs = irq_data->controller_regs;
+	struct linux_prom_pci_registers *regs;
+	unsigned long imap, iclr;
+	unsigned long imap_off, iclr_off;
+	int inofixup = 0;
+	int virt_irq;
+
+	ino &= 0x3f;
+	if (ino < SABRE_ONBOARD_IRQ_BASE) {
+		/* PCI slot */
+		imap_off = sabre_pcislot_imap_offset(ino);
+	} else {
+		/* onboard device */
+		if (ino > SABRE_ONBOARD_IRQ_LAST) {
+			prom_printf("sabre_irq_build: Wacky INO [%x]\n", ino);
+			prom_halt();
+		}
+		imap_off = sabre_onboard_imap_offset(ino);
+	}
+
+	/* Now build the IRQ bucket. */
+	imap = controller_regs + imap_off;
+	imap += 4;
+
+	iclr_off = sabre_iclr_offset(ino);
+	iclr = controller_regs + iclr_off;
+	iclr += 4;
+
+	if ((ino & 0x20) == 0)
+		inofixup = ino & 0x03;
+
+	virt_irq = build_irq(inofixup, iclr, imap);
+
+	regs = of_get_property(dp, "reg", NULL);
+	if (regs &&
+	    ((regs->phys_hi >> 16) & 0xff) != irq_data->pci_first_busno) {
+		irq_install_pre_handler(virt_irq,
+					sabre_wsync_handler,
+					(void *) (long) regs->phys_hi,
+					(void *)
+					controller_regs +
+					SABRE_WRSYNC);
+	}
+
+	return virt_irq;
+}
+
+static void sabre_irq_trans_init(struct device_node *dp)
+{
+	struct linux_prom64_registers *regs;
+	struct sabre_irq_data *irq_data;
+	u32 *busrange;
+
+	dp->irq_trans = prom_early_alloc(sizeof(struct of_irq_controller));
+	dp->irq_trans->irq_build = sabre_irq_build;
+
+	irq_data = prom_early_alloc(sizeof(struct sabre_irq_data));
+
+	regs = of_get_property(dp, "reg", NULL);
+	irq_data->controller_regs = regs[0].phys_addr;
+
+	busrange = of_get_property(dp, "bus-range", NULL);
+	irq_data->pci_first_busno = busrange[0];
+
+	dp->irq_trans->data = irq_data;
+}
+
+/* SCHIZO interrupt mapping support.  Unlike Psycho, for this controller the
+ * imap/iclr registers are per-PBM.
+ */
+#define SCHIZO_IMAP_BASE	0x1000UL
+#define SCHIZO_ICLR_BASE	0x1400UL
+
+static unsigned long schizo_imap_offset(unsigned long ino)
+{
+	return SCHIZO_IMAP_BASE + (ino * 8UL);
+}
+
+static unsigned long schizo_iclr_offset(unsigned long ino)
+{
+	return SCHIZO_ICLR_BASE + (ino * 8UL);
+}
+
+static unsigned long schizo_ino_to_iclr(unsigned long pbm_regs,
+					unsigned int ino)
+{
+	return pbm_regs + schizo_iclr_offset(ino) + 4;
+}
+
+static unsigned long schizo_ino_to_imap(unsigned long pbm_regs,
+					unsigned int ino)
+{
+	return pbm_regs + schizo_imap_offset(ino) + 4;
+}
+
+#define schizo_read(__reg) \
+({	u64 __ret; \
+	__asm__ __volatile__("ldxa [%1] %2, %0" \
+			     : "=r" (__ret) \
+			     : "r" (__reg), "i" (ASI_PHYS_BYPASS_EC_E) \
+			     : "memory"); \
+	__ret; \
+})
+#define schizo_write(__reg, __val) \
+	__asm__ __volatile__("stxa %0, [%1] %2" \
+			     : /* no outputs */ \
+			     : "r" (__val), "r" (__reg), \
+			       "i" (ASI_PHYS_BYPASS_EC_E) \
+			     : "memory")
+
+static void tomatillo_wsync_handler(unsigned int ino, void *_arg1, void *_arg2)
+{
+	unsigned long sync_reg = (unsigned long) _arg2;
+	u64 mask = 1UL << (ino & IMAP_INO);
+	u64 val;
+	int limit;
+
+	schizo_write(sync_reg, mask);
+
+	limit = 100000;
+	val = 0;
+	while (--limit) {
+		val = schizo_read(sync_reg);
+		if (!(val & mask))
+			break;
+	}
+	if (limit <= 0) {
+		printk("tomatillo_wsync_handler: DMA won't sync [%lx:%lx]\n",
+		       val, mask);
+	}
+
+	if (_arg1) {
+		static unsigned char cacheline[64]
+			__attribute__ ((aligned (64)));
+
+		__asm__ __volatile__("rd %%fprs, %0\n\t"
+				     "or %0, %4, %1\n\t"
+				     "wr %1, 0x0, %%fprs\n\t"
+				     "stda %%f0, [%5] %6\n\t"
+				     "wr %0, 0x0, %%fprs\n\t"
+				     "membar #Sync"
+				     : "=&r" (mask), "=&r" (val)
+				     : "0" (mask), "1" (val),
+				     "i" (FPRS_FEF), "r" (&cacheline[0]),
+				     "i" (ASI_BLK_COMMIT_P));
+	}
+}
+
+struct schizo_irq_data {
+	unsigned long pbm_regs;
+	unsigned long sync_reg;
+	u32 portid;
+	int chip_version;
+};
+
+static unsigned int schizo_irq_build(struct device_node *dp,
+				     unsigned int ino,
+				     void *_data)
+{
+	struct schizo_irq_data *irq_data = _data;
+	unsigned long pbm_regs = irq_data->pbm_regs;
+	unsigned long imap, iclr;
+	int ign_fixup;
+	int virt_irq;
+	int is_tomatillo;
+
+	ino &= 0x3f;
+
+	/* Now build the IRQ bucket. */
+	imap = schizo_ino_to_imap(pbm_regs, ino);
+	iclr = schizo_ino_to_iclr(pbm_regs, ino);
+
+	/* On Schizo, no inofixup occurs.  This is because each
+	 * INO has it's own IMAP register.  On Psycho and Sabre
+	 * there is only one IMAP register for each PCI slot even
+	 * though four different INOs can be generated by each
+	 * PCI slot.
+	 *
+	 * But, for JBUS variants (essentially, Tomatillo), we have
+	 * to fixup the lowest bit of the interrupt group number.
+	 */
+	ign_fixup = 0;
+
+	is_tomatillo = (irq_data->sync_reg != 0UL);
+
+	if (is_tomatillo) {
+		if (irq_data->portid & 1)
+			ign_fixup = (1 << 6);
+	}
+
+	virt_irq = build_irq(ign_fixup, iclr, imap);
+
+	if (is_tomatillo) {
+		irq_install_pre_handler(virt_irq,
+					tomatillo_wsync_handler,
+					((irq_data->chip_version <= 4) ?
+					 (void *) 1 : (void *) 0),
+					(void *) irq_data->sync_reg);
+	}
+
+	return virt_irq;
+}
+
+static void schizo_irq_trans_init(struct device_node *dp)
+{
+	struct linux_prom64_registers *regs;
+	struct schizo_irq_data *irq_data;
+
+	dp->irq_trans = prom_early_alloc(sizeof(struct of_irq_controller));
+	dp->irq_trans->irq_build = schizo_irq_build;
+
+	irq_data = prom_early_alloc(sizeof(struct schizo_irq_data));
+
+	regs = of_get_property(dp, "reg", NULL);
+	dp->irq_trans->data = irq_data;
+
+	irq_data->pbm_regs = regs[0].phys_addr;
+	irq_data->sync_reg = regs[3].phys_addr + 0x1a18UL;
+	irq_data->portid = of_getintprop_default(dp, "portid", 0);
+	irq_data->chip_version = of_getintprop_default(dp, "version#", 0);
+}
+
+static unsigned int pci_sun4v_irq_build(struct device_node *dp,
+					unsigned int devino,
+					void *_data)
+{
+	u32 devhandle = (u32) (unsigned long) _data;
+
+	return sun4v_build_irq(devhandle, devino);
+}
+
+static void pci_sun4v_irq_trans_init(struct device_node *dp)
+{
+	struct linux_prom64_registers *regs;
+
+	dp->irq_trans = prom_early_alloc(sizeof(struct of_irq_controller));
+	dp->irq_trans->irq_build = pci_sun4v_irq_build;
+
+	regs = of_get_property(dp, "reg", NULL);
+	dp->irq_trans->data = (void *) (unsigned long)
+		((regs->phys_addr >> 32UL) & 0x0fffffff);
+}
+#endif /* CONFIG_PCI */
+
+#ifdef CONFIG_SBUS
+/* INO number to IMAP register offset for SYSIO external IRQ's.
+ * This should conform to both Sunfire/Wildfire server and Fusion
+ * desktop designs.
+ */
+#define SYSIO_IMAP_SLOT0	0x2c04UL
+#define SYSIO_IMAP_SLOT1	0x2c0cUL
+#define SYSIO_IMAP_SLOT2	0x2c14UL
+#define SYSIO_IMAP_SLOT3	0x2c1cUL
+#define SYSIO_IMAP_SCSI		0x3004UL
+#define SYSIO_IMAP_ETH		0x300cUL
+#define SYSIO_IMAP_BPP		0x3014UL
+#define SYSIO_IMAP_AUDIO	0x301cUL
+#define SYSIO_IMAP_PFAIL	0x3024UL
+#define SYSIO_IMAP_KMS		0x302cUL
+#define SYSIO_IMAP_FLPY		0x3034UL
+#define SYSIO_IMAP_SHW		0x303cUL
+#define SYSIO_IMAP_KBD		0x3044UL
+#define SYSIO_IMAP_MS		0x304cUL
+#define SYSIO_IMAP_SER		0x3054UL
+#define SYSIO_IMAP_TIM0		0x3064UL
+#define SYSIO_IMAP_TIM1		0x306cUL
+#define SYSIO_IMAP_UE		0x3074UL
+#define SYSIO_IMAP_CE		0x307cUL
+#define SYSIO_IMAP_SBERR	0x3084UL
+#define SYSIO_IMAP_PMGMT	0x308cUL
+#define SYSIO_IMAP_GFX		0x3094UL
+#define SYSIO_IMAP_EUPA		0x309cUL
+
+#define bogon     ((unsigned long) -1)
+static unsigned long sysio_irq_offsets[] = {
+	/* SBUS Slot 0 --> 3, level 1 --> 7 */
+	SYSIO_IMAP_SLOT0, SYSIO_IMAP_SLOT0, SYSIO_IMAP_SLOT0, SYSIO_IMAP_SLOT0,
+	SYSIO_IMAP_SLOT0, SYSIO_IMAP_SLOT0, SYSIO_IMAP_SLOT0, SYSIO_IMAP_SLOT0,
+	SYSIO_IMAP_SLOT1, SYSIO_IMAP_SLOT1, SYSIO_IMAP_SLOT1, SYSIO_IMAP_SLOT1,
+	SYSIO_IMAP_SLOT1, SYSIO_IMAP_SLOT1, SYSIO_IMAP_SLOT1, SYSIO_IMAP_SLOT1,
+	SYSIO_IMAP_SLOT2, SYSIO_IMAP_SLOT2, SYSIO_IMAP_SLOT2, SYSIO_IMAP_SLOT2,
+	SYSIO_IMAP_SLOT2, SYSIO_IMAP_SLOT2, SYSIO_IMAP_SLOT2, SYSIO_IMAP_SLOT2,
+	SYSIO_IMAP_SLOT3, SYSIO_IMAP_SLOT3, SYSIO_IMAP_SLOT3, SYSIO_IMAP_SLOT3,
+	SYSIO_IMAP_SLOT3, SYSIO_IMAP_SLOT3, SYSIO_IMAP_SLOT3, SYSIO_IMAP_SLOT3,
+
+	/* Onboard devices (not relevant/used on SunFire). */
+	SYSIO_IMAP_SCSI,
+	SYSIO_IMAP_ETH,
+	SYSIO_IMAP_BPP,
+	bogon,
+	SYSIO_IMAP_AUDIO,
+	SYSIO_IMAP_PFAIL,
+	bogon,
+	bogon,
+	SYSIO_IMAP_KMS,
+	SYSIO_IMAP_FLPY,
+	SYSIO_IMAP_SHW,
+	SYSIO_IMAP_KBD,
+	SYSIO_IMAP_MS,
+	SYSIO_IMAP_SER,
+	bogon,
+	bogon,
+	SYSIO_IMAP_TIM0,
+	SYSIO_IMAP_TIM1,
+	bogon,
+	bogon,
+	SYSIO_IMAP_UE,
+	SYSIO_IMAP_CE,
+	SYSIO_IMAP_SBERR,
+	SYSIO_IMAP_PMGMT,
+};
+
+#undef bogon
+
+#define NUM_SYSIO_OFFSETS ARRAY_SIZE(sysio_irq_offsets)
+
+/* Convert Interrupt Mapping register pointer to associated
+ * Interrupt Clear register pointer, SYSIO specific version.
+ */
+#define SYSIO_ICLR_UNUSED0	0x3400UL
+#define SYSIO_ICLR_SLOT0	0x340cUL
+#define SYSIO_ICLR_SLOT1	0x344cUL
+#define SYSIO_ICLR_SLOT2	0x348cUL
+#define SYSIO_ICLR_SLOT3	0x34ccUL
+static unsigned long sysio_imap_to_iclr(unsigned long imap)
+{
+	unsigned long diff = SYSIO_ICLR_UNUSED0 - SYSIO_IMAP_SLOT0;
+	return imap + diff;
+}
+
+static unsigned int sbus_of_build_irq(struct device_node *dp,
+				      unsigned int ino,
+				      void *_data)
+{
+	unsigned long reg_base = (unsigned long) _data;
+	struct linux_prom_registers *regs;
+	unsigned long imap, iclr;
+	int sbus_slot = 0;
+	int sbus_level = 0;
+
+	ino &= 0x3f;
+
+	regs = of_get_property(dp, "reg", NULL);
+	if (regs)
+		sbus_slot = regs->which_io;
+
+	if (ino < 0x20)
+		ino += (sbus_slot * 8);
+
+	imap = sysio_irq_offsets[ino];
+	if (imap == ((unsigned long)-1)) {
+		prom_printf("get_irq_translations: Bad SYSIO INO[%x]\n",
+			    ino);
+		prom_halt();
+	}
+	imap += reg_base;
+
+	/* SYSIO inconsistency.  For external SLOTS, we have to select
+	 * the right ICLR register based upon the lower SBUS irq level
+	 * bits.
+	 */
+	if (ino >= 0x20) {
+		iclr = sysio_imap_to_iclr(imap);
+	} else {
+		sbus_level = ino & 0x7;
+
+		switch(sbus_slot) {
+		case 0:
+			iclr = reg_base + SYSIO_ICLR_SLOT0;
+			break;
+		case 1:
+			iclr = reg_base + SYSIO_ICLR_SLOT1;
+			break;
+		case 2:
+			iclr = reg_base + SYSIO_ICLR_SLOT2;
+			break;
+		default:
+		case 3:
+			iclr = reg_base + SYSIO_ICLR_SLOT3;
+			break;
+		};
+
+		iclr += ((unsigned long)sbus_level - 1UL) * 8UL;
+	}
+	return build_irq(sbus_level, iclr, imap);
+}
+
+static void sbus_irq_trans_init(struct device_node *dp)
+{
+	struct linux_prom64_registers *regs;
+
+	dp->irq_trans = prom_early_alloc(sizeof(struct of_irq_controller));
+	dp->irq_trans->irq_build = sbus_of_build_irq;
+
+	regs = of_get_property(dp, "reg", NULL);
+	dp->irq_trans->data = (void *) (unsigned long) regs->phys_addr;
+}
+#endif /* CONFIG_SBUS */
+
+
+static unsigned int central_build_irq(struct device_node *dp,
+				      unsigned int ino,
+				      void *_data)
+{
+	struct device_node *central_dp = _data;
+	struct of_device *central_op = of_find_device_by_node(central_dp);
+	struct resource *res;
+	unsigned long imap, iclr;
+	u32 tmp;
+
+	if (!strcmp(dp->name, "eeprom")) {
+		res = &central_op->resource[5];
+	} else if (!strcmp(dp->name, "zs")) {
+		res = &central_op->resource[4];
+	} else if (!strcmp(dp->name, "clock-board")) {
+		res = &central_op->resource[3];
+	} else {
+		return ino;
+	}
+
+	imap = res->start + 0x00UL;
+	iclr = res->start + 0x10UL;
+
+	/* Set the INO state to idle, and disable.  */
+	upa_writel(0, iclr);
+	upa_readl(iclr);
+
+	tmp = upa_readl(imap);
+	tmp &= ~0x80000000;
+	upa_writel(tmp, imap);
+
+	return build_irq(0, iclr, imap);
+}
+
+static void central_irq_trans_init(struct device_node *dp)
+{
+	dp->irq_trans = prom_early_alloc(sizeof(struct of_irq_controller));
+	dp->irq_trans->irq_build = central_build_irq;
+
+	dp->irq_trans->data = dp;
+}
+
+struct irq_trans {
+	const char *name;
+	void (*init)(struct device_node *);
+};
+
+#ifdef CONFIG_PCI
+static struct irq_trans pci_irq_trans_table[] = {
+	{ "SUNW,sabre", sabre_irq_trans_init },
+	{ "pci108e,a000", sabre_irq_trans_init },
+	{ "pci108e,a001", sabre_irq_trans_init },
+	{ "SUNW,psycho", psycho_irq_trans_init },
+	{ "pci108e,8000", psycho_irq_trans_init },
+	{ "SUNW,schizo", schizo_irq_trans_init },
+	{ "pci108e,8001", schizo_irq_trans_init },
+	{ "SUNW,schizo+", schizo_irq_trans_init },
+	{ "pci108e,8002", schizo_irq_trans_init },
+	{ "SUNW,tomatillo", schizo_irq_trans_init },
+	{ "pci108e,a801", schizo_irq_trans_init },
+	{ "SUNW,sun4v-pci", pci_sun4v_irq_trans_init },
+};
+#endif
+
+static void irq_trans_init(struct device_node *dp)
+{
+	const char *model;
+	int i;
+
+	model = of_get_property(dp, "model", NULL);
+	if (!model)
+		model = of_get_property(dp, "compatible", NULL);
+	if (!model)
+		return;
+
+#ifdef CONFIG_PCI
+	for (i = 0; i < ARRAY_SIZE(pci_irq_trans_table); i++) {
+		struct irq_trans *t = &pci_irq_trans_table[i];
+
+		if (!strcmp(model, t->name))
+			return t->init(dp);
+	}
+#endif
+#ifdef CONFIG_SBUS
+	if (!strcmp(dp->name, "sbus") ||
+	    !strcmp(dp->name, "sbi"))
+		return sbus_irq_trans_init(dp);
+#endif
+	if (!strcmp(dp->name, "central"))
+		return central_irq_trans_init(dp->child);
 }
 
 static int is_root_node(const struct device_node *dp)
@@ -706,9 +1459,9 @@ static struct device_node * __init create_node(phandle node)
 	dp->type = get_one_property(node, "device_type");
 	dp->node = node;
 
-	/* Build interrupts later... */
-
 	dp->properties = build_prop_list(node);
+
+	irq_trans_init(dp);
 
 	return dp;
 }
