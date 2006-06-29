@@ -225,8 +225,14 @@ int setup_irq(unsigned int irq, struct irqaction *new)
 	p = &desc->action;
 	old = *p;
 	if (old) {
-		/* Can't share interrupts unless both agree to */
-		if (!(old->flags & new->flags & SA_SHIRQ))
+		/*
+		 * Can't share interrupts unless both agree to and are
+		 * the same type (level, edge, polarity). So both flag
+		 * fields must have SA_SHIRQ set and the bits which
+		 * set the trigger type must match.
+		 */
+		if (!((old->flags & new->flags) & SA_SHIRQ) ||
+		    ((old->flags ^ new->flags) & SA_TRIGGER_MASK))
 			goto mismatch;
 
 #if defined(CONFIG_IRQ_PER_CPU) && defined(SA_PERCPU_IRQ)
@@ -250,7 +256,22 @@ int setup_irq(unsigned int irq, struct irqaction *new)
 #endif
 	if (!shared) {
 		irq_chip_set_defaults(desc->chip);
-		compat_irq_chip_set_default_handler(desc);
+
+		/* Setup the type (level, edge polarity) if configured: */
+		if (new->flags & SA_TRIGGER_MASK) {
+			if (desc->chip && desc->chip->set_type)
+				desc->chip->set_type(irq,
+						new->flags & SA_TRIGGER_MASK);
+			else
+				/*
+				 * SA_TRIGGER_* but the PIC does not support
+				 * multiple flow-types?
+				 */
+				printk(KERN_WARNING "setup_irq(%d) SA_TRIGGER"
+				       "set. No set_type function available\n",
+				       irq);
+		} else
+			compat_irq_chip_set_default_handler(desc);
 
 		desc->status &= ~(IRQ_AUTODETECT | IRQ_WAITING |
 				  IRQ_INPROGRESS);
@@ -262,7 +283,9 @@ int setup_irq(unsigned int irq, struct irqaction *new)
 				desc->chip->startup(irq);
 			else
 				desc->chip->enable(irq);
-		}
+		} else
+			/* Undo nested disables: */
+			desc->depth = 1;
 	}
 	spin_unlock_irqrestore(&desc->lock, flags);
 
