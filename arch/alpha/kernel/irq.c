@@ -56,7 +56,7 @@ select_smp_affinity(unsigned int irq)
 		cpu = (cpu < (NR_CPUS-1) ? cpu + 1 : 0);
 	last_cpu = cpu;
 
-	irq_affinity[irq] = cpumask_of_cpu(cpu);
+	irq_desc[irq].affinity = cpumask_of_cpu(cpu);
 	irq_desc[irq].chip->set_affinity(irq, cpumask_of_cpu(cpu));
 	return 0;
 }

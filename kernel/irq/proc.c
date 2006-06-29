@@ -36,7 +36,7 @@ void proc_set_irq_affinity(unsigned int irq, cpumask_t mask_val)
 void proc_set_irq_affinity(unsigned int irq, cpumask_t mask_val)
 {
 	set_balance_irq_affinity(irq, mask_val);
-	irq_affinity[irq] = mask_val;
+	irq_desc[irq].affinity = mask_val;
 	irq_desc[irq].chip->set_affinity(irq, mask_val);
 }
 #endif
@@ -44,7 +44,7 @@ void proc_set_irq_affinity(unsigned int irq, cpumask_t mask_val)
 static int irq_affinity_read_proc(char *page, char **start, off_t off,
 				  int count, int *eof, void *data)
 {
-	int len = cpumask_scnprintf(page, count, irq_affinity[(long)data]);
+	int len = cpumask_scnprintf(page, count, irq_desc[(long)data].affinity);
 
 	if (count - len < 2)
 		return -EINVAL;

@@ -238,7 +238,7 @@ static int get_irq_server(unsigned int irq)
 {
 	unsigned int server;
 	/* For the moment only implement delivery to all cpus or one cpu */
-	cpumask_t cpumask = irq_affinity[irq];
+	cpumask_t cpumask = irq_desc[irq].affinity;
 	cpumask_t tmp = CPU_MASK_NONE;
 
 	if (!distribute_irqs)
@@ -729,7 +729,7 @@ void xics_migrate_irqs_away(void)
 
 		/* Reset affinity to all cpus */
 		desc->chip->set_affinity(virq, CPU_MASK_ALL);
-		irq_affinity[virq] = CPU_MASK_ALL;
+		irq_desc[irq].affinity = CPU_MASK_ALL;
 unlock:
 		spin_unlock_irqrestore(&desc->lock, flags);
 	}

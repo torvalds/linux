@@ -100,7 +100,7 @@ void set_irq_affinity_info (unsigned int irq, int hwid, int redir)
 	cpu_set(cpu_logical_id(hwid), mask);
 
 	if (irq < NR_IRQS) {
-		irq_affinity[irq] = mask;
+		irq_desc[irq].affinity = mask;
 		irq_redir[irq] = (char) (redir & 0xff);
 	}
 }
@@ -131,7 +131,7 @@ static void migrate_irqs(void)
 		if (desc->status == IRQ_PER_CPU)
 			continue;
 
-		cpus_and(mask, irq_affinity[irq], cpu_online_map);
+		cpus_and(mask, irq_desc[irq].affinity, cpu_online_map);
 		if (any_online_cpu(mask) == NR_CPUS) {
 			/*
 			 * Save it for phase 2 processing

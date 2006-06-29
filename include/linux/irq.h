@@ -77,6 +77,9 @@ typedef struct irq_desc {
 	unsigned int irq_count;		/* For detecting broken interrupts */
 	unsigned int irqs_unhandled;
 	spinlock_t lock;
+#ifdef CONFIG_SMP
+	cpumask_t affinity;
+#endif
 #if defined (CONFIG_GENERIC_PENDING_IRQ) || defined (CONFIG_IRQBALANCE)
 	unsigned int move_irq;		/* Flag need to re-target intr dest*/
 #endif
@@ -96,12 +99,10 @@ irq_descp (int irq)
 extern int setup_irq(unsigned int irq, struct irqaction * new);
 
 #ifdef CONFIG_GENERIC_HARDIRQS
-extern cpumask_t irq_affinity[NR_IRQS];
-
 #ifdef CONFIG_SMP
 static inline void set_native_irq_info(int irq, cpumask_t mask)
 {
-	irq_affinity[irq] = mask;
+	irq_desc[irq].affinity = mask;
 }
 #else
 static inline void set_native_irq_info(int irq, cpumask_t mask)

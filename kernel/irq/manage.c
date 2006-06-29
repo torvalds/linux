@@ -16,8 +16,6 @@
 
 #ifdef CONFIG_SMP
 
-cpumask_t irq_affinity[NR_IRQS] = { [0 ... NR_IRQS-1] = CPU_MASK_ALL };
-
 #if defined (CONFIG_GENERIC_PENDING_IRQ) || defined (CONFIG_IRQBALANCE)
 cpumask_t __cacheline_aligned pending_irq_cpumask[NR_IRQS];
 #endif

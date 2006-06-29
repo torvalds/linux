@@ -906,7 +906,7 @@ void mpic_setup_this_cpu(void)
  	/* let the mpic know we want intrs. default affinity is 0xffffffff
 	 * until changed via /proc. That's how it's done on x86. If we want
 	 * it differently, then we should make sure we also change the default
-	 * values of irq_affinity in irq.c.
+	 * values of irq_desc[].affinity in irq.c.
  	 */
 	if (distribute_irqs) {
 	 	for (i = 0; i < mpic->num_sources ; i++)

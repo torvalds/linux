@@ -224,7 +224,7 @@ static inline struct ino_bucket *virt_irq_to_bucket(unsigned int virt_irq)
 #ifdef CONFIG_SMP
 static int irq_choose_cpu(unsigned int virt_irq)
 {
-	cpumask_t mask = irq_affinity[virt_irq];
+	cpumask_t mask = irq_desc[virt_irq].affinity;
 	int cpuid;
 
 	if (cpus_equal(mask, CPU_MASK_ALL)) {

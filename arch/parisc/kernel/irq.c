@@ -94,7 +94,7 @@ int cpu_check_affinity(unsigned int irq, cpumask_t *dest)
 	if (irq == TIMER_IRQ || irq == IPI_IRQ) {
 		/* Bad linux design decision.  The mask has already
 		 * been set; we must reset it */
-		irq_affinity[irq] = CPU_MASK_ALL;
+		irq_desc[irq].affinity = CPU_MASK_ALL;
 		return -EINVAL;
 	}
 
@@ -110,7 +110,7 @@ static void cpu_set_affinity_irq(unsigned int irq, cpumask_t dest)
 	if (cpu_check_affinity(irq, &dest))
 		return;
 
-	irq_affinity[irq] = dest;
+	irq_desc[irq].affinity = dest;
 }
 #endif
 
@@ -265,7 +265,7 @@ int txn_alloc_irq(unsigned int bits_wide)
 unsigned long txn_affinity_addr(unsigned int irq, int cpu)
 {
 #ifdef CONFIG_SMP
-	irq_affinity[irq] = cpumask_of_cpu(cpu);
+	irq_desc[irq].affinity = cpumask_of_cpu(cpu);
 #endif
 
 	return cpu_data[cpu].txn_addr;
@@ -326,7 +326,7 @@ void do_cpu_irq_mask(struct pt_regs *regs)
 		/* Work our way from MSb to LSb...same order we alloc EIRs */
 		for (irq = TIMER_IRQ; eirr_val && bit; bit>>=1, irq++) {
 #ifdef CONFIG_SMP
-			cpumask_t dest = irq_affinity[irq];
+			cpumask_t dest = irq_desc[irq].affinity;
 #endif
 			if (!(bit & eirr_val))
 				continue;
