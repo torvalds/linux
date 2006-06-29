@@ -24,6 +24,7 @@
 void fastcall
 handle_bad_irq(unsigned int irq, struct irq_desc *desc, struct pt_regs *regs)
 {
+	print_irq_desc(irq, desc);
 	kstat_this_cpu.irqs[irq]++;
 	ack_bad_irq(irq);
 }
@@ -61,6 +62,7 @@ struct irq_desc irq_desc[NR_IRQS] __cacheline_aligned = {
  */
 static void ack_bad(unsigned int irq)
 {
+	print_irq_desc(irq, irq_desc + irq);
 	ack_bad_irq(irq);
 }
 
