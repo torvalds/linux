@@ -87,7 +87,7 @@ startup:basr	%r13,0			 # get base
 	ic	%r3,.Lscpa1-PARMAREA(%r4)
 	chi	%r3,0x00
 	jne	.Lcompmem
-	l	%r3,.Lscpa2-PARMAREA(%r13)
+	l	%r3,.Lscpa2-PARMAREA(%r4)
 .Lcompmem:
 	mr	%r2,%r1			# mem in MB on 128-bit
 	l	%r1,.Lonemb-.LPG1(%r13)
