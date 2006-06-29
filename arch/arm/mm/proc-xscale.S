@@ -475,11 +475,12 @@ __xscale_setup:
 	orr     r0, r0, #1 << 6			@ cp6 for IOP3xx and Bulverde
 	orr	r0, r0, #1 << 13		@ Its undefined whether this
 	mcr	p15, 0, r0, c15, c1, 0		@ affects USR or SVC modes
+
+	adr	r5, xscale_crval
+	ldmia	r5, {r5, r6}
 	mrc	p15, 0, r0, c1, c0, 0		@ get control register
-	ldr	r5, xscale_cr1_clear
 	bic	r0, r0, r5
-	ldr	r5, xscale_cr1_set
-	orr	r0, r0, r5
+	orr	r0, r0, r6
 	mov	pc, lr
 	.size	__xscale_setup, . - __xscale_setup
 
@@ -489,12 +490,9 @@ __xscale_setup:
 	 * ..11 1.01 .... .101
 	 * 
 	 */
-	.type	xscale_cr1_clear, #object
-	.type	xscale_cr1_set, #object
-xscale_cr1_clear:
-	.word	0x3b07
-xscale_cr1_set:
-	.word	0x3905
+	.type	xscale_crval, #object
+xscale_crval:
+	crval	clear=0x00003b07, mmuset=0x00003905, ucset=0x00001900
 
 	__INITDATA
 

@@ -212,11 +212,11 @@ __v6_setup:
 	orr	r0, r0, #(0xf << 20)
 	mcr	p15, 0, r0, c1, c0, 2		@ Enable full access to VFP
 #endif
+	adr	r5, v6_crval
+	ldmia	r5, {r5, r6}
 	mrc	p15, 0, r0, c1, c0, 0		@ read control register
-	ldr	r5, v6_cr1_clear		@ get mask for bits to clear
 	bic	r0, r0, r5			@ clear bits them
-	ldr	r5, v6_cr1_set			@ get mask for bits to set
-	orr	r0, r0, r5			@ set them
+	orr	r0, r0, r6			@ set them
 	mov	pc, lr				@ return to head.S:__ret
 
 	/*
@@ -225,12 +225,9 @@ __v6_setup:
 	 * rrrr rrrx xxx0 0101 xxxx xxxx x111 xxxx < forced
 	 *         0 110       0011 1.00 .111 1101 < we want
 	 */
-	.type	v6_cr1_clear, #object
-	.type	v6_cr1_set, #object
-v6_cr1_clear:
-	.word	0x01e0fb7f
-v6_cr1_set:
-	.word	0x00c0387d
+	.type	v6_crval, #object
+v6_crval:
+	crval	clear=0x01e0fb7f, mmuset=0x00c0387d, ucset=0x00c0187c
 
 	.type	v6_processor_functions, #object
 ENTRY(v6_processor_functions)

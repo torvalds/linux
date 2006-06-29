@@ -395,11 +395,11 @@ __arm922_setup:
 #ifdef CONFIG_MMU
 	mcr	p15, 0, r0, c8, c7		@ invalidate I,D TLBs on v4
 #endif
+	adr	r5, arm922_crval
+	ldmia	r5, {r5, r6}
 	mrc	p15, 0, r0, c1, c0		@ get control register v4
-	ldr	r5, arm922_cr1_clear
 	bic	r0, r0, r5
-	ldr	r5, arm922_cr1_set
-	orr	r0, r0, r5
+	orr	r0, r0, r6
 	mov	pc, lr
 	.size	__arm922_setup, . - __arm922_setup
 
@@ -409,12 +409,9 @@ __arm922_setup:
 	 * ..11 0001 ..11 0101
 	 * 
 	 */
-	.type	arm922_cr1_clear, #object
-	.type	arm922_cr1_set, #object
-arm922_cr1_clear:
-	.word	0x3f3f
-arm922_cr1_set:
-	.word	0x3135
+	.type	arm922_crval, #object
+arm922_crval:
+	crval	clear=0x00003f3f, mmuset=0x00003135, ucset=0x00001130
 
 	__INITDATA
 
