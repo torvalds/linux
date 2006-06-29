@@ -2,7 +2,7 @@
  * net/tipc/link.c: TIPC link code
  * 
  * Copyright (c) 1996-2006, Ericsson AB
- * Copyright (c) 2004-2005, Wind River Systems
+ * Copyright (c) 2004-2006, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -988,17 +988,18 @@ static int link_bundle_buf(struct link *l_ptr,
 	struct tipc_msg *bundler_msg = buf_msg(bundler);
 	struct tipc_msg *msg = buf_msg(buf);
 	u32 size = msg_size(msg);
-	u32 to_pos = align(msg_size(bundler_msg));
-	u32 rest = link_max_pkt(l_ptr) - to_pos;
+	u32 bundle_size = msg_size(bundler_msg);
+	u32 to_pos = align(bundle_size);
+	u32 pad = to_pos - bundle_size;
 
 	if (msg_user(bundler_msg) != MSG_BUNDLER)
 		return 0;
 	if (msg_type(bundler_msg) != OPEN_MSG)
 		return 0;
-	if (rest < align(size))
+	if (skb_tailroom(bundler) < (pad + size))
 		return 0;
 
-	skb_put(bundler, (to_pos - msg_size(bundler_msg)) + size);
+	skb_put(bundler, pad + size);
 	memcpy(bundler->data + to_pos, buf->data, size);
 	msg_set_size(bundler_msg, to_pos + size);
 	msg_set_msgcnt(bundler_msg, msg_msgcnt(bundler_msg) + 1);
