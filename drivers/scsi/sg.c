@@ -1402,6 +1402,7 @@ sg_add(struct class_device *cl_dev, struct class_interface *cl_intf)
 	Sg_device *sdp = NULL;
 	struct cdev * cdev = NULL;
 	int error, k;
+	unsigned long iflags;
 
 	disk = alloc_disk(1);
 	if (!disk) {
@@ -1429,7 +1430,7 @@ sg_add(struct class_device *cl_dev, struct class_interface *cl_intf)
 
 	error = cdev_add(cdev, MKDEV(SCSI_GENERIC_MAJOR, k), 1);
 	if (error)
-		goto out;
+		goto cdev_add_err;
 
 	sdp->cdev = cdev;
 	if (sg_sysfs_valid) {
@@ -1455,6 +1456,13 @@ sg_add(struct class_device *cl_dev, struct class_interface *cl_intf)
 		    "Attached scsi generic sg%d type %d\n", k,scsidp->type);
 
 	return 0;
+
+cdev_add_err:
+	write_lock_irqsave(&sg_dev_arr_lock, iflags);
+	kfree(sg_dev_arr[k]);
+	sg_dev_arr[k] = NULL;
+	sg_nr_dev--;
+	write_unlock_irqrestore(&sg_dev_arr_lock, iflags);
 
 out:
 	put_disk(disk);
