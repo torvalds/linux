@@ -1676,7 +1676,7 @@ bnx2_tx_int(struct bnx2 *bp)
 
 		tx_free_bd += last + 1;
 
-		dev_kfree_skb_irq(skb);
+		dev_kfree_skb(skb);
 
 		hw_cons = bp->hw_tx_cons =
 			sblk->status_tx_quick_consumer_index0;
@@ -1824,7 +1824,7 @@ reuse_rx:
 		if ((len > (bp->dev->mtu + ETH_HLEN)) &&
 			(ntohs(skb->protocol) != 0x8100)) {
 
-			dev_kfree_skb_irq(skb);
+			dev_kfree_skb(skb);
 			goto next_rx;
 
 		}
@@ -3643,7 +3643,7 @@ bnx2_free_tx_skbs(struct bnx2 *bp)
 				skb_shinfo(skb)->frags[j].size,
 				PCI_DMA_TODEVICE);
 		}
-		dev_kfree_skb_any(skb);
+		dev_kfree_skb(skb);
 		i += j + 1;
 	}
 
@@ -3669,7 +3669,7 @@ bnx2_free_rx_skbs(struct bnx2 *bp)
 
 		rx_buf->skb = NULL;
 
-		dev_kfree_skb_any(skb);
+		dev_kfree_skb(skb);
 	}
 }
 
@@ -3999,7 +3999,7 @@ bnx2_run_loopback(struct bnx2 *bp, int loopback_mode)
 	udelay(5);
 
 	pci_unmap_single(bp->pdev, map, pkt_size, PCI_DMA_TODEVICE);
-	dev_kfree_skb_irq(skb);
+	dev_kfree_skb(skb);
 
 	if (bp->status_blk->status_tx_quick_consumer_index0 != bp->tx_prod) {
 		goto loopback_test_done;
