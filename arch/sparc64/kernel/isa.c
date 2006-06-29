@@ -75,7 +75,7 @@ static int __init isa_dev_get_irq_using_imap(struct sparc_isa_device *isa_dev,
 					     struct linux_prom_registers *reg)
 {
 	struct linux_prom_ebus_intmap *imap;
-	struct linux_prom_ebus_intmap *imask;
+	struct linux_prom_ebus_intmask *imask;
 	unsigned int hi, lo, irq;
 	int i, len, n_imap;
 
