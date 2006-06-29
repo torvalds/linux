@@ -141,7 +141,7 @@ int can_request_irq(unsigned int irq, unsigned long irqflags)
 {
 	struct irqaction *action;
 
-	if (irq >= NR_IRQS)
+	if (irq >= NR_IRQS || irq_desc[irq].status & IRQ_NOREQUEST)
 		return 0;
 
 	action = irq_desc[irq].action;
@@ -355,6 +355,8 @@ int request_irq(unsigned int irq,
 	if ((irqflags & SA_SHIRQ) && !dev_id)
 		return -EINVAL;
 	if (irq >= NR_IRQS)
+		return -EINVAL;
+	if (irq_desc[irq].status & IRQ_NOREQUEST)
 		return -EINVAL;
 	if (!handler)
 		return -EINVAL;

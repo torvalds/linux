@@ -41,6 +41,7 @@
 #endif
 
 #define IRQ_NOPROBE	512	/* IRQ is not valid for probing */
+#define IRQ_NOREQUEST	1024	/* IRQ cannot be requested */
 /**
  * struct hw_interrupt_type - hardware interrupt type descriptor
  *
