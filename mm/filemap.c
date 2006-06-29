@@ -2125,6 +2125,12 @@ generic_file_buffered_write(struct kiocb *iocb, const struct iovec *iov,
 			break;
 		}
 
+		if (unlikely(bytes == 0)) {
+			status = 0;
+			copied = 0;
+			goto zero_length_segment;
+		}
+
 		status = a_ops->prepare_write(file, page, offset, offset+bytes);
 		if (unlikely(status)) {
 			loff_t isize = i_size_read(inode);
@@ -2154,7 +2160,8 @@ generic_file_buffered_write(struct kiocb *iocb, const struct iovec *iov,
 			page_cache_release(page);
 			continue;
 		}
-		if (likely(copied > 0)) {
+zero_length_segment:
+		if (likely(copied >= 0)) {
 			if (!status)
 				status = copied;
 
