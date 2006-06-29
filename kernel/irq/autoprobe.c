@@ -40,8 +40,15 @@ unsigned long probe_irq_on(void)
 		desc = irq_desc + i;
 
 		spin_lock_irq(&desc->lock);
-		if (!desc->action && !(desc->status & IRQ_NOPROBE))
+		if (!desc->action && !(desc->status & IRQ_NOPROBE)) {
+			/*
+			 * Some chips need to know about probing in
+			 * progress:
+			 */
+			if (desc->chip->set_type)
+				desc->chip->set_type(i, IRQ_TYPE_PROBE);
 			desc->chip->startup(i);
+		}
 		spin_unlock_irq(&desc->lock);
 	}
 

@@ -37,9 +37,9 @@ static void resend_irqs(unsigned long arg)
 		irq = find_first_bit(irqs_resend, NR_IRQS);
 		clear_bit(irq, irqs_resend);
 		desc = irq_desc + irq;
-		spin_lock_irqsave(&desc->lock, flags);
+		local_irq_disable();
 		desc->handle_irq(irq, desc, NULL);
-		spin_unlock_irqrestore(&desc->lock, flags);
+		local_irq_enable();
 	}
 }
 

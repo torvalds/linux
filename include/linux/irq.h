@@ -43,20 +43,36 @@
 #define IRQ_NOPROBE	512	/* IRQ is not valid for probing */
 #define IRQ_NOREQUEST	1024	/* IRQ cannot be requested */
 #define IRQ_NOAUTOEN	2048	/* IRQ will not be enabled on request irq */
+#define IRQ_DELAYED_DISABLE \
+			4096	/* IRQ disable (masking) happens delayed. */
+
+/*
+ * IRQ types, see also include/linux/interrupt.h
+ */
+#define IRQ_TYPE_NONE		0x0000		/* Default, unspecified type */
+#define IRQ_TYPE_EDGE_RISING	0x0001		/* Edge rising type */
+#define IRQ_TYPE_EDGE_FALLING	0x0002		/* Edge falling type */
+#define IRQ_TYPE_EDGE_BOTH (IRQ_TYPE_EDGE_FALLING | IRQ_TYPE_EDGE_RISING)
+#define IRQ_TYPE_LEVEL_HIGH	0x0004		/* Level high type */
+#define IRQ_TYPE_LEVEL_LOW	0x0008		/* Level low type */
+#define IRQ_TYPE_SIMPLE		0x0010		/* Simple type */
+#define IRQ_TYPE_PERCPU		0x0020		/* Per CPU type */
+#define IRQ_TYPE_PROBE		0x0040		/* Probing in progress */
+
+struct proc_dir_entry;
+
 /**
- * struct hw_interrupt_type - hardware interrupt type descriptor
+ * struct irq_chip - hardware interrupt chip descriptor
  *
  * @name:		name for /proc/interrupts
  * @startup:		start up the interrupt (defaults to ->enable if NULL)
  * @shutdown:		shut down the interrupt (defaults to ->disable if NULL)
  * @enable:		enable the interrupt (defaults to chip->unmask if NULL)
  * @disable:		disable the interrupt (defaults to chip->mask if NULL)
- * @handle_irq:		irq flow handler called from the arch IRQ glue code
  * @ack:		start of a new interrupt
  * @mask:		mask an interrupt source
  * @mask_ack:		ack and mask an interrupt source
  * @unmask:		unmask an interrupt source
- * @hold:		same interrupt while the handler is running
  * @end:		end of interrupt
  * @set_affinity:	set the CPU affinity on SMP machines
  * @retrigger:		resend an IRQ to the CPU
@@ -64,33 +80,45 @@
  * @set_wake:		enable/disable power-management wake-on of an IRQ
  *
  * @release:		release function solely used by UML
+ * @typename:		obsoleted by name, kept as migration helper
  */
-struct hw_interrupt_type {
-	const char	*typename;
+struct irq_chip {
+	const char	*name;
 	unsigned int	(*startup)(unsigned int irq);
 	void		(*shutdown)(unsigned int irq);
 	void		(*enable)(unsigned int irq);
 	void		(*disable)(unsigned int irq);
+
 	void		(*ack)(unsigned int irq);
+	void		(*mask)(unsigned int irq);
+	void		(*mask_ack)(unsigned int irq);
+	void		(*unmask)(unsigned int irq);
+
 	void		(*end)(unsigned int irq);
 	void		(*set_affinity)(unsigned int irq, cpumask_t dest);
 	int		(*retrigger)(unsigned int irq);
+	int		(*set_type)(unsigned int irq, unsigned int flow_type);
+	int		(*set_wake)(unsigned int irq, unsigned int on);
 
 	/* Currently used only by UML, might disappear one day.*/
 #ifdef CONFIG_IRQ_RELEASE_METHOD
 	void		(*release)(unsigned int irq, void *dev_id);
 #endif
+	/*
+	 * For compatibility, ->typename is copied into ->name.
+	 * Will disappear.
+	 */
+	const char	*typename;
 };
-
-typedef struct hw_interrupt_type  hw_irq_controller;
-
-struct proc_dir_entry;
 
 /**
  * struct irq_desc - interrupt descriptor
  *
- * @handler:		interrupt type dependent handler functions
- * @handler_data:	data for the type handlers
+ * @handle_irq:		highlevel irq-events handler [if NULL, __do_IRQ()]
+ * @chip:		low level interrupt hardware access
+ * @handler_data:	per-IRQ data for the irq_chip methods
+ * @chip_data:		platform-specific per-chip private data for the chip
+ *			methods, to allow shared chip implementations
  * @action:		the irq action chain
  * @status:		status information
  * @depth:		disable-depth, for nested irq_disable() calls
@@ -98,6 +126,7 @@ struct proc_dir_entry;
  * @irqs_unhandled:	stats field for spurious unhandled interrupts
  * @lock:		locking for SMP
  * @affinity:		IRQ affinity on SMP
+ * @cpu:		cpu index useful for balancing
  * @pending_mask:	pending rebalanced interrupts
  * @move_irq:		need to re-target IRQ destination
  * @dir:		/proc/irq/ procfs entry
@@ -106,16 +135,22 @@ struct proc_dir_entry;
  * Pad this out to 32 bytes for cache and indexing reasons.
  */
 struct irq_desc {
-	hw_irq_controller	*chip;
+	void fastcall		(*handle_irq)(unsigned int irq,
+					      struct irq_desc *desc,
+					      struct pt_regs *regs);
+	struct irq_chip		*chip;
+	void			*handler_data;
 	void			*chip_data;
 	struct irqaction	*action;	/* IRQ action list */
 	unsigned int		status;		/* IRQ status */
+
 	unsigned int		depth;		/* nested irq disables */
 	unsigned int		irq_count;	/* For detecting broken IRQs */
 	unsigned int		irqs_unhandled;
 	spinlock_t		lock;
 #ifdef CONFIG_SMP
 	cpumask_t		affinity;
+	unsigned int		cpu;
 #endif
 #if defined(CONFIG_GENERIC_PENDING_IRQ) || defined(CONFIG_IRQBALANCE)
 	cpumask_t		pending_mask;
@@ -131,12 +166,26 @@ extern struct irq_desc irq_desc[NR_IRQS];
 /*
  * Migration helpers for obsolete names, they will go away:
  */
+#define hw_interrupt_type	irq_chip
+typedef struct irq_chip		hw_irq_controller;
+#define no_irq_type		no_irq_chip
 typedef struct irq_desc		irq_desc_t;
 
 /*
  * Pick up the arch-dependent methods:
  */
 #include <asm/hw_irq.h>
+
+/*
+ * Architectures call this to let the generic IRQ layer
+ * handle an interrupt:
+ */
+static inline void generic_handle_irq(unsigned int irq, struct pt_regs *regs)
+{
+	struct irq_desc *desc = irq_desc + irq;
+
+	desc->handle_irq(irq, desc, regs);
+}
 
 extern int setup_irq(unsigned int irq, struct irqaction *new);
 
@@ -236,27 +285,100 @@ static inline int select_smp_affinity(unsigned int irq)
 #endif
 
 extern int no_irq_affinity;
-extern int noirqdebug_setup(char *str);
 
-extern irqreturn_t handle_IRQ_event(unsigned int irq, struct pt_regs *regs,
-				    struct irqaction *action);
+/* Handle irq action chains: */
+extern int handle_IRQ_event(unsigned int irq, struct pt_regs *regs,
+			    struct irqaction *action);
+
 /*
- * Explicit fastcall, because i386 4KSTACKS calls it from assembly:
+ * Built-in IRQ handlers for various IRQ types,
+ * callable via desc->chip->handle_irq()
+ */
+extern void fastcall
+handle_level_irq(unsigned int irq, struct irq_desc *desc, struct pt_regs *regs);
+extern void fastcall
+handle_fastack_irq(unsigned int irq, struct irq_desc *desc,
+			 struct pt_regs *regs);
+extern void fastcall
+handle_edge_irq(unsigned int irq, struct irq_desc *desc, struct pt_regs *regs);
+extern void fastcall
+handle_simple_irq(unsigned int irq, struct irq_desc *desc,
+		  struct pt_regs *regs);
+extern void fastcall
+handle_percpu_irq(unsigned int irq, struct irq_desc *desc,
+		  struct pt_regs *regs);
+extern void fastcall
+handle_bad_irq(unsigned int irq, struct irq_desc *desc, struct pt_regs *regs);
+
+/*
+ * Get a descriptive string for the highlevel handler, for
+ * /proc/interrupts output:
+ */
+extern const char *
+handle_irq_name(void fastcall (*handle)(unsigned int, struct irq_desc *,
+					struct pt_regs *));
+
+/*
+ * Monolithic do_IRQ implementation.
+ * (is an explicit fastcall, because i386 4KSTACKS calls it from assembly)
  */
 extern fastcall unsigned int __do_IRQ(unsigned int irq, struct pt_regs *regs);
 
+/* Handling of unhandled and spurious interrupts: */
 extern void note_interrupt(unsigned int irq, struct irq_desc *desc,
 			   int action_ret, struct pt_regs *regs);
-extern int can_request_irq(unsigned int irq, unsigned long irqflags);
 
 /* Resending of interrupts :*/
 void check_irq_resend(struct irq_desc *desc, unsigned int irq);
 
+/* Initialize /proc/irq/ */
 extern void init_irq_proc(void);
 
-#endif /* CONFIG_GENERIC_HARDIRQS */
+/* Enable/disable irq debugging output: */
+extern int noirqdebug_setup(char *str);
 
-extern hw_irq_controller no_irq_type;  /* needed in every arch ? */
+/* Checks whether the interrupt can be requested by request_irq(): */
+extern int can_request_irq(unsigned int irq, unsigned long irqflags);
+
+/* Dummy irq-chip implementation: */
+extern struct irq_chip no_irq_chip;
+
+extern void
+set_irq_chip_and_handler(unsigned int irq, struct irq_chip *chip,
+			 void fastcall (*handle)(unsigned int,
+						 struct irq_desc *,
+						 struct pt_regs *));
+extern void
+__set_irq_handler(unsigned int irq,
+		  void fastcall (*handle)(unsigned int, struct irq_desc *,
+					  struct pt_regs *),
+		  int is_chained);
+
+/*
+ * Set a highlevel flow handler for a given IRQ:
+ */
+static inline void
+set_irq_handler(unsigned int irq,
+		void fastcall (*handle)(unsigned int, struct irq_desc *,
+					struct pt_regs *))
+{
+	__set_irq_handler(irq, handle, 0);
+}
+
+/*
+ * Set a highlevel chained flow handler for a given IRQ.
+ * (a chained handler is automatically enabled and set to
+ *  IRQ_NOREQUEST and IRQ_NOPROBE)
+ */
+static inline void
+set_irq_chained_handler(unsigned int irq,
+			void fastcall (*handle)(unsigned int, struct irq_desc *,
+						struct pt_regs *))
+{
+	__set_irq_handler(irq, handle, 1);
+}
+
+#endif /* CONFIG_GENERIC_HARDIRQS */
 
 #endif /* !CONFIG_S390 */
 

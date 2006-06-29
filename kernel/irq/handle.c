@@ -18,6 +18,16 @@
 
 #include "internals.h"
 
+/**
+ * handle_bad_irq - handle spurious and unhandled irqs
+ */
+void fastcall
+handle_bad_irq(unsigned int irq, struct irq_desc *desc, struct pt_regs *regs)
+{
+	kstat_this_cpu.irqs[irq]++;
+	ack_bad_irq(irq);
+}
+
 /*
  * Linux has a controller-independent interrupt architecture.
  * Every controller has a 'controller-template', that is used
