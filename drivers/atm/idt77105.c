@@ -358,7 +358,7 @@ static const struct atmphy_ops idt77105_ops = {
 };
 
 
-int idt77105_init(struct atm_dev *dev)
+int __devinit idt77105_init(struct atm_dev *dev)
 {
 	dev->phy = &idt77105_ops;
 	return 0;
