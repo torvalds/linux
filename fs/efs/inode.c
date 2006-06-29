@@ -21,7 +21,7 @@ static sector_t _efs_bmap(struct address_space *mapping, sector_t block)
 {
 	return generic_block_bmap(mapping,block,efs_get_block);
 }
-static struct address_space_operations efs_aops = {
+static const struct address_space_operations efs_aops = {
 	.readpage = efs_readpage,
 	.sync_page = block_sync_page,
 	.bmap = _efs_bmap

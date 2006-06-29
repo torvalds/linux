@@ -88,7 +88,7 @@ out_free:
  *
  */
 
-spinlock_t dlm_domain_lock = SPIN_LOCK_UNLOCKED;
+DEFINE_SPINLOCK(dlm_domain_lock);
 LIST_HEAD(dlm_domains);
 static DECLARE_WAIT_QUEUE_HEAD(dlm_domain_events);
 

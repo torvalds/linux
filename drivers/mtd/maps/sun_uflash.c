@@ -62,9 +62,10 @@ int uflash_devinit(struct linux_ebus_device *edev, struct device_node *dp)
 		/* Non-CFI userflash device-- once I find one we
 		 * can work on supporting it.
 		 */
-		printk("%s: unsupported device at 0x%lx (%d regs): " \
+		printk("%s: unsupported device at 0x%llx (%d regs): " \
 			"email ebrower@usa.net\n",
-		       dp->full_name, res->start, edev->num_addrs);
+		       dp->full_name, (unsigned long long)res->start,
+		       edev->num_addrs);
 
 		return -ENODEV;
 	}

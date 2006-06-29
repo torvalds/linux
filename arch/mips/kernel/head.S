@@ -96,7 +96,7 @@
 	/* Clear TKSU, leave IXMT */
 	xori	t0, 0x00001800
 	mtc0	t0, CP0_TCSTATUS
-	ehb
+	_ehb
 	/* We need to leave the global IE bit set, but clear EXL...*/
 	mfc0	t0, CP0_STATUS
 	or	t0, ST0_CU0 | ST0_EXL | ST0_ERL | \set | \clr

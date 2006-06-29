@@ -141,13 +141,13 @@ int BSP_set_clock_mmss (unsigned long nowtime)
 void BSP_reset (void)
 {
   local_irq_disable();
-  asm volatile ("
-    moveal #_start, %a0;
-    moveb #0, 0xFFFFF300;
-    moveal 0(%a0), %sp;
-    moveal 4(%a0), %a0;
-    jmp (%a0);
-    ");
+  asm volatile (
+    "moveal #_start, %a0;\n"
+    "moveb #0, 0xFFFFF300;\n"
+    "moveal 0(%a0), %sp;\n"
+    "moveal 4(%a0), %a0;\n"
+    "jmp (%a0);\n"
+    );
 }
 
 unsigned char *scc1_hwaddr;

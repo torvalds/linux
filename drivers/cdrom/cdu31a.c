@@ -161,7 +161,6 @@
 #include <linux/hdreg.h>
 #include <linux/genhd.h>
 #include <linux/ioport.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/init.h>

@@ -1,8 +1,6 @@
 #ifndef _LINUX_VFC_H_
 #define _LINUX_VFC_H_
 
-#include <linux/devfs_fs_kernel.h>
-
 /*
  * The control register for the vfc is at offset 0x4000
  * The first field ram bank is located at offset 0x5000

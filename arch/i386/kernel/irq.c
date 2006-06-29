@@ -53,12 +53,18 @@ static union irq_ctx *softirq_ctx[NR_CPUS] __read_mostly;
  */
 fastcall unsigned int do_IRQ(struct pt_regs *regs)
 {	
-	/* high bits used in ret_from_ code */
-	int irq = regs->orig_eax & 0xff;
+	/* high bit used in ret_from_ code */
+	int irq = ~regs->orig_eax;
 #ifdef CONFIG_4KSTACKS
 	union irq_ctx *curctx, *irqctx;
 	u32 *isp;
 #endif
+
+	if (unlikely((unsigned)irq >= NR_IRQS)) {
+		printk(KERN_EMERG "%s: cannot handle IRQ %d\n",
+					__FUNCTION__, irq);
+		BUG();
+	}
 
 	irq_enter();
 #ifdef CONFIG_DEBUG_STACKOVERFLOW
@@ -76,6 +82,10 @@ fastcall unsigned int do_IRQ(struct pt_regs *regs)
 	}
 #endif
 
+	if (!irq_desc[irq].handle_irq) {
+		__do_IRQ(irq, regs);
+		goto out_exit;
+	}
 #ifdef CONFIG_4KSTACKS
 
 	curctx = (union irq_ctx *) current_thread_info();
@@ -100,8 +110,8 @@ fastcall unsigned int do_IRQ(struct pt_regs *regs)
 		 * softirq checks work in the hardirq context.
 		 */
 		irqctx->tinfo.preempt_count =
-			irqctx->tinfo.preempt_count & ~SOFTIRQ_MASK |
-			curctx->tinfo.preempt_count & SOFTIRQ_MASK;
+			(irqctx->tinfo.preempt_count & ~SOFTIRQ_MASK) |
+			(curctx->tinfo.preempt_count & SOFTIRQ_MASK);
 
 		asm volatile(
 			"       xchgl   %%ebx,%%esp      \n"
@@ -115,6 +125,7 @@ fastcall unsigned int do_IRQ(struct pt_regs *regs)
 #endif
 		__do_IRQ(irq, regs);
 
+out_exit:
 	irq_exit();
 
 	return 1;
@@ -243,7 +254,7 @@ int show_interrupts(struct seq_file *p, void *v)
 		for_each_online_cpu(j)
 			seq_printf(p, "%10u ", kstat_cpu(j).irqs[i]);
 #endif
-		seq_printf(p, " %14s", irq_desc[i].handler->typename);
+		seq_printf(p, " %14s", irq_desc[i].chip->typename);
 		seq_printf(p, "  %s", action->name);
 
 		for (action=action->next; action; action = action->next)
@@ -285,13 +296,13 @@ void fixup_irqs(cpumask_t map)
 		if (irq == 2)
 			continue;
 
-		cpus_and(mask, irq_affinity[irq], map);
+		cpus_and(mask, irq_desc[irq].affinity, map);
 		if (any_online_cpu(mask) == NR_CPUS) {
 			printk("Breaking affinity for irq %i\n", irq);
 			mask = map;
 		}
-		if (irq_desc[irq].handler->set_affinity)
-			irq_desc[irq].handler->set_affinity(irq, mask);
+		if (irq_desc[irq].chip->set_affinity)
+			irq_desc[irq].chip->set_affinity(irq, mask);
 		else if (irq_desc[irq].action && !(warned++))
 			printk("Cannot set affinity for irq %i\n", irq);
 	}

@@ -23,6 +23,22 @@ config MAGIC_SYSRQ
 	  keys are documented in <file:Documentation/sysrq.txt>. Don't say Y
 	  unless you really know what this hack does.
 
+config UNUSED_SYMBOLS
+	bool "Enable unused/obsolete exported symbols"
+	default y if X86
+	help
+	  Unused but exported symbols make the kernel needlessly bigger.  For
+	  that reason most of these unused exports will soon be removed.  This
+	  option is provided temporarily to provide a transition period in case
+	  some external kernel module needs one of these symbols anyway. If you
+	  encounter such a case in your module, consider if you are actually
+	  using the right API.  (rationale: since nobody in the kernel is using
+	  this in a module, there is a pretty good chance it's actually the
+	  wrong interface to use).  If you really need the symbol, please send a
+	  mail to the linux kernel mailing list mentioning the symbol and why
+	  you really need it, and what the merge plan to the mainline kernel for
+	  your module is.
+
 config DEBUG_KERNEL
 	bool "Kernel debugging"
 	help
@@ -106,6 +122,24 @@ config DEBUG_MUTEXES
 	help
 	 This allows mutex semantics violations and mutex related deadlocks
 	 (lockups) to be detected and reported automatically.
+
+config DEBUG_RT_MUTEXES
+	bool "RT Mutex debugging, deadlock detection"
+	depends on DEBUG_KERNEL && RT_MUTEXES
+	help
+	 This allows rt mutex semantics violations and rt mutex related
+	 deadlocks (lockups) to be detected and reported automatically.
+
+config DEBUG_PI_LIST
+	bool
+	default y
+	depends on DEBUG_RT_MUTEXES
+
+config RT_MUTEX_TESTER
+	bool "Built-in scriptable tester for rt-mutexes"
+	depends on DEBUG_KERNEL && RT_MUTEXES
+	help
+	  This option enables a rt-mutex tester.
 
 config DEBUG_SPINLOCK
 	bool "Spinlock debugging"

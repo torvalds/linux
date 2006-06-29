@@ -392,7 +392,7 @@ struct address_space {
 	unsigned int		truncate_count;	/* Cover race condition with truncate */
 	unsigned long		nrpages;	/* number of total pages */
 	pgoff_t			writeback_index;/* writeback starts here */
-	struct address_space_operations *a_ops;	/* methods */
+	const struct address_space_operations *a_ops;	/* methods */
 	unsigned long		flags;		/* error bits/gfp mask */
 	struct backing_dev_info *backing_dev_info; /* device readahead, etc */
 	spinlock_t		private_lock;	/* for use by the address_space */
@@ -1405,7 +1405,7 @@ extern void bd_forget(struct inode *inode);
 extern void bdput(struct block_device *);
 extern struct block_device *open_by_devnum(dev_t, unsigned);
 extern const struct file_operations def_blk_fops;
-extern struct address_space_operations def_blk_aops;
+extern const struct address_space_operations def_blk_aops;
 extern const struct file_operations def_chr_fops;
 extern const struct file_operations bad_sock_fops;
 extern const struct file_operations def_fifo_fops;

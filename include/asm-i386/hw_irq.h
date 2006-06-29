@@ -69,14 +69,4 @@ extern atomic_t irq_mis_count;
 
 #define IO_APIC_IRQ(x) (((x) >= 16) || ((1<<(x)) & io_apic_irqs))
 
-#if defined(CONFIG_X86_IO_APIC)
-static inline void hw_resend_irq(struct hw_interrupt_type *h, unsigned int i)
-{
-	if (IO_APIC_IRQ(i))
-		send_IPI_self(IO_APIC_VECTOR(i));
-}
-#else
-static inline void hw_resend_irq(struct hw_interrupt_type *h, unsigned int i) {}
-#endif
-
 #endif /* _ASM_HW_IRQ_H */

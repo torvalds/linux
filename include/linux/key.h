@@ -177,7 +177,8 @@ struct key {
 /*
  * kernel managed key type definition
  */
-typedef int (*request_key_actor_t)(struct key *key, struct key *authkey, const char *op);
+typedef int (*request_key_actor_t)(struct key *key, struct key *authkey,
+				   const char *op, void *aux);
 
 struct key_type {
 	/* name of the type */
@@ -284,6 +285,11 @@ static inline void key_ref_put(key_ref_t key_ref)
 extern struct key *request_key(struct key_type *type,
 			       const char *description,
 			       const char *callout_info);
+
+extern struct key *request_key_with_auxdata(struct key_type *type,
+					    const char *description,
+					    const char *callout_info,
+					    void *aux);
 
 extern int key_validate(struct key *key);
 

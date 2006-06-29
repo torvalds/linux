@@ -77,7 +77,7 @@ struct node *tipc_node_create(u32 addr)
 		
 	memset(n_ptr, 0, sizeof(*n_ptr));
 	n_ptr->addr = addr;
-	n_ptr->lock =  SPIN_LOCK_UNLOCKED;	
+                spin_lock_init(&n_ptr->lock);
 	INIT_LIST_HEAD(&n_ptr->nsub);
 	n_ptr->owner = c_ptr;
 	tipc_cltr_attach_node(c_ptr, n_ptr);

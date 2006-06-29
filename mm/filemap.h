@@ -88,7 +88,7 @@ filemap_set_next_iovec(const struct iovec **iovp, size_t *basep, size_t bytes)
 	const struct iovec *iov = *iovp;
 	size_t base = *basep;
 
-	while (bytes) {
+	do {
 		int copy = min(bytes, iov->iov_len - base);
 
 		bytes -= copy;
@@ -97,7 +97,7 @@ filemap_set_next_iovec(const struct iovec **iovp, size_t *basep, size_t bytes)
 			iov++;
 			base = 0;
 		}
-	}
+	} while (bytes);
 	*iovp = iov;
 	*basep = base;
 }

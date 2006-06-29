@@ -49,7 +49,6 @@
 #include <asm/iseries/vio.h>
 
 #define VIOCD_DEVICE			"iseries/vcd"
-#define VIOCD_DEVICE_DEVFS		"iseries/vcd"
 
 #define VIOCD_VERS "1.06"
 
@@ -688,8 +687,6 @@ static int viocd_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	gendisk->first_minor = deviceno;
 	strncpy(gendisk->disk_name, c->name,
 			sizeof(gendisk->disk_name));
-	snprintf(gendisk->devfs_name, sizeof(gendisk->devfs_name),
-			VIOCD_DEVICE_DEVFS "%d", deviceno);
 	blk_queue_max_hw_segments(q, 1);
 	blk_queue_max_phys_segments(q, 1);
 	blk_queue_max_sectors(q, 4096 / 512);

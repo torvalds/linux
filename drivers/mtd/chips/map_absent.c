@@ -64,7 +64,8 @@ static struct mtd_info *map_absent_probe(struct map_info *map)
 	mtd->write 	= map_absent_write;
 	mtd->sync 	= map_absent_sync;
 	mtd->flags 	= 0;
-	mtd->erasesize = PAGE_SIZE;
+	mtd->erasesize  = PAGE_SIZE;
+	mtd->writesize  = 1;
 
 	__module_get(THIS_MODULE);
 	return mtd;

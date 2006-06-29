@@ -12,7 +12,6 @@
 #include <linux/slab.h>
 #include <linux/kmod.h>
 #include <linux/major.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/smp_lock.h>
 #include <linux/highmem.h>
 #include <linux/blkdev.h>
@@ -1095,7 +1094,7 @@ static long block_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 	return blkdev_ioctl(file->f_mapping->host, file, cmd, arg);
 }
 
-struct address_space_operations def_blk_aops = {
+const struct address_space_operations def_blk_aops = {
 	.readpage	= blkdev_readpage,
 	.writepage	= blkdev_writepage,
 	.sync_page	= block_sync_page,

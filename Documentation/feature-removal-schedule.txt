@@ -6,17 +6,6 @@ be removed from this file.
 
 ---------------------------
 
-What:	devfs
-When:	July 2005
-Files:	fs/devfs/*, include/linux/devfs_fs*.h and assorted devfs
-	function calls throughout the kernel tree
-Why:	It has been unmaintained for a number of years, has unfixable
-	races, contains a naming policy within the kernel that is
-	against the LSB, and can be replaced by using udev.
-Who:	Greg Kroah-Hartman <greg@kroah.com>
-
----------------------------
-
 What:	RAW driver (CONFIG_RAW_DRIVER)
 When:	December 2005
 Why:	declared obsolete since kernel 2.6.3
@@ -132,16 +121,6 @@ Who:	NeilBrown <neilb@suse.de>
 
 ---------------------------
 
-What:	au1x00_uart driver
-When:	January 2006
-Why:	The 8250 serial driver now has the ability to deal with the differences
-	between the standard 8250 family of UARTs and their slightly strange
-	brother on Alchemy SOCs.  The loss of features is not considered an
-	issue.
-Who:	Ralf Baechle <ralf@linux-mips.org>
-
----------------------------
-
 What:   eepro100 network driver
 When:   January 2007
 Why:    replaced by the e100 driver
@@ -174,6 +153,16 @@ Why:	The ISA interface is faster and should be always available. The I2C
 	probing is also known to cause trouble in at least one case (see
 	bug #5889.)
 Who:	Jean Delvare <khali@linux-fr.org>
+
+---------------------------
+
+What:	Unused EXPORT_SYMBOL/EXPORT_SYMBOL_GPL exports
+	(temporary transition config option provided until then)
+	The transition config option will also be removed at the same time.
+When:	before 2.6.19
+Why:	Unused symbols are both increasing the size of the kernel binary
+	and are often a sign of "wrong API"
+Who:	Arjan van de Ven <arjan@linux.intel.com>
 
 ---------------------------
 
@@ -222,5 +211,49 @@ Why:	The interface no longer has any callers left in the kernel. It
 	This feature removal can be reevaluated if users of the interface
 	cannot cleanly use something else.
 Who:	Nick Piggin <npiggin@suse.de>
+
+---------------------------
+
+What:	Support for the MIPS EV96100 evaluation board
+When:	September 2006
+Why:	Does no longer build since at least November 15, 2003, apparently
+	no userbase left.
+Who:	Ralf Baechle <ralf@linux-mips.org>
+
+---------------------------
+
+What:	Support for the Momentum / PMC-Sierra Jaguar ATX evaluation board
+When:	September 2006
+Why:	Does no longer build since quite some time, and was never popular,
+	due to the platform being replaced by successor models.  Apparently
+	no user base left.  It also is one of the last users of
+	WANT_PAGE_VIRTUAL.
+Who:	Ralf Baechle <ralf@linux-mips.org>
+
+---------------------------
+
+What:	Support for the Momentum Ocelot, Ocelot 3, Ocelot C and Ocelot G
+When:	September 2006
+Why:	Some do no longer build and apparently there is no user base left
+	for these platforms.
+Who:	Ralf Baechle <ralf@linux-mips.org>
+
+---------------------------
+
+What:	Support for MIPS Technologies' Altas and SEAD evaluation board
+When:	September 2006
+Why:	Some do no longer build and apparently there is no user base left
+	for these platforms.  Hardware out of production since several years.
+Who:	Ralf Baechle <ralf@linux-mips.org>
+
+---------------------------
+
+What:	Support for the IT8172-based platforms, ITE 8172G and Globespan IVR
+When:	September 2006
+Why:	Code does no longer build since at least 2.6.0,  apparently there is
+	no user base left for these platforms.  Hardware out of production
+	since several years and hardly a trace of the manufacturer left on
+	the net.
+Who:	Ralf Baechle <ralf@linux-mips.org>
 
 ---------------------------

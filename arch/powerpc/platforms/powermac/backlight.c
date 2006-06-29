@@ -119,7 +119,14 @@ int pmac_backlight_set_legacy_brightness(int brightness)
 		down(&pmac_backlight->sem);
 		props = pmac_backlight->props;
 		props->brightness = brightness *
-			props->max_brightness / OLD_BACKLIGHT_MAX;
+			(props->max_brightness + 1) /
+			(OLD_BACKLIGHT_MAX + 1);
+
+		if (props->brightness > props->max_brightness)
+			props->brightness = props->max_brightness;
+		else if (props->brightness < 0)
+			props->brightness = 0;
+
 		props->update_status(pmac_backlight);
 		up(&pmac_backlight->sem);
 
@@ -140,8 +147,11 @@ int pmac_backlight_get_legacy_brightness()
 
 		down(&pmac_backlight->sem);
 		props = pmac_backlight->props;
+
 		result = props->brightness *
-			OLD_BACKLIGHT_MAX / props->max_brightness;
+			(OLD_BACKLIGHT_MAX + 1) /
+			(props->max_brightness + 1);
+
 		up(&pmac_backlight->sem);
 	}
 	mutex_unlock(&pmac_backlight_mutex);

@@ -94,7 +94,9 @@ exit_kfree:
 	kfree(rtc);
 
 exit_idr:
+	mutex_lock(&idr_lock);
 	idr_remove(&rtc_idr, id);
+	mutex_unlock(&idr_lock);
 
 exit:
 	dev_err(dev, "rtc core: unable to register %s, err = %d\n",

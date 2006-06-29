@@ -63,7 +63,6 @@
 #include <linux/blkdev.h>
 #include <linux/blkpg.h>
 #include <linux/init.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/smp_lock.h>
 #include <linux/swap.h>
 #include <linux/slab.h>
@@ -210,7 +209,7 @@ static int do_lo_send_aops(struct loop_device *lo, struct bio_vec *bvec,
 {
 	struct file *file = lo->lo_backing_file; /* kudos to NFsckingS */
 	struct address_space *mapping = file->f_mapping;
-	struct address_space_operations *aops = mapping->a_ops;
+	const struct address_space_operations *aops = mapping->a_ops;
 	pgoff_t index;
 	unsigned offset, bv_offs;
 	int len, ret;
@@ -784,7 +783,7 @@ static int loop_set_fd(struct loop_device *lo, struct file *lo_file,
 
 	error = -EINVAL;
 	if (S_ISREG(inode->i_mode) || S_ISBLK(inode->i_mode)) {
-		struct address_space_operations *aops = mapping->a_ops;
+		const struct address_space_operations *aops = mapping->a_ops;
 		/*
 		 * If we can't read - sorry. If we only can't write - well,
 		 * it's going to be read-only.
@@ -1277,8 +1276,6 @@ static int __init loop_init(void)
 			goto out_mem3;
 	}
 
-	devfs_mk_dir("loop");
-
 	for (i = 0; i < max_loop; i++) {
 		struct loop_device *lo = &loop_dev[i];
 		struct gendisk *disk = disks[i];
@@ -1296,7 +1293,6 @@ static int __init loop_init(void)
 		disk->first_minor = i;
 		disk->fops = &lo_fops;
 		sprintf(disk->disk_name, "loop%d", i);
-		sprintf(disk->devfs_name, "loop/%d", i);
 		disk->private_data = lo;
 		disk->queue = lo->lo_queue;
 	}
@@ -1310,7 +1306,6 @@ static int __init loop_init(void)
 out_mem4:
 	while (i--)
 		blk_cleanup_queue(loop_dev[i].lo_queue);
-	devfs_remove("loop");
 	i = max_loop;
 out_mem3:
 	while (i--)
@@ -1333,7 +1328,6 @@ static void loop_exit(void)
 		blk_cleanup_queue(loop_dev[i].lo_queue);
 		put_disk(disks[i]);
 	}
-	devfs_remove("loop");
 	if (unregister_blkdev(LOOP_MAJOR, "loop"))
 		printk(KERN_WARNING "loop: cannot unregister blkdev\n");
 

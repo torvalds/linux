@@ -347,13 +347,13 @@ m8xx_init_IRQ(void)
 	int i;
 
 	for (i = SIU_IRQ_OFFSET ; i < SIU_IRQ_OFFSET + NR_SIU_INTS ; i++)
-		irq_desc[i].handler = &ppc8xx_pic;
+		irq_desc[i].chip = &ppc8xx_pic;
 
 	cpm_interrupt_init();
 
 #if defined(CONFIG_PCI)
 	for (i = I8259_IRQ_OFFSET ; i < I8259_IRQ_OFFSET + NR_8259_INTS ; i++)
-		irq_desc[i].handler = &i8259_pic;
+		irq_desc[i].chip = &i8259_pic;
 
 	i8259_pic_irq_offset = I8259_IRQ_OFFSET;
 	i8259_init(0);

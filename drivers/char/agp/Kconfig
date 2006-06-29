@@ -1,6 +1,7 @@
 config AGP
 	tristate "/dev/agpgart (AGP Support)"
 	depends on ALPHA || IA64 || PPC || X86
+	depends on PCI
 	---help---
 	  AGP (Accelerated Graphics Port) is a bus system mainly used to
 	  connect graphics cards to the rest of the system.

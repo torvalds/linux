@@ -30,7 +30,19 @@
 #include <asm/irq_cpu.h>
 #include <asm/gt64120.h>
 
-extern asmlinkage void handle_IRQ(void);
+asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
+{
+	unsigned int pending = read_c0_status() & read_c0_cause();
+
+	if (pending & STATUSF_IP7)
+		do_IRQ(WRPPMC_MIPS_TIMER_IRQ, regs);	/* CPU Compare/Count internal timer */
+	else if (pending & STATUSF_IP6)
+		do_IRQ(WRPPMC_UART16550_IRQ, regs);	/* UART 16550 port */
+	else if (pending & STATUSF_IP3)
+		do_IRQ(WRPPMC_PCI_INTA_IRQ, regs);	/* PCI INT_A */
+	else
+		spurious_interrupt(regs);
+}
 
 /**
  * Initialize GT64120 Interrupt Controller
@@ -50,12 +62,6 @@ void gt64120_init_pic(void)
 
 void __init arch_init_irq(void)
 {
-	/* enable all CPU interrupt bits. */
-	set_c0_status(ST0_IM);	/* IE bit is still 0 */
-
-	/* Install MIPS Interrupt Trap Vector */
-	set_except_vector(0, handle_IRQ);
-
 	/* IRQ 0 - 7 are for MIPS common irq_cpu controller */
 	mips_cpu_irq_init(0);
 

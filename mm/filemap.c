@@ -2069,7 +2069,7 @@ generic_file_buffered_write(struct kiocb *iocb, const struct iovec *iov,
 {
 	struct file *file = iocb->ki_filp;
 	struct address_space * mapping = file->f_mapping;
-	struct address_space_operations *a_ops = mapping->a_ops;
+	const struct address_space_operations *a_ops = mapping->a_ops;
 	struct inode 	*inode = mapping->host;
 	long		status = 0;
 	struct page	*page;
@@ -2095,14 +2095,21 @@ generic_file_buffered_write(struct kiocb *iocb, const struct iovec *iov,
 	do {
 		unsigned long index;
 		unsigned long offset;
-		unsigned long maxlen;
 		size_t copied;
 
 		offset = (pos & (PAGE_CACHE_SIZE -1)); /* Within page */
 		index = pos >> PAGE_CACHE_SHIFT;
 		bytes = PAGE_CACHE_SIZE - offset;
-		if (bytes > count)
-			bytes = count;
+
+		/* Limit the size of the copy to the caller's write size */
+		bytes = min(bytes, count);
+
+		/*
+		 * Limit the size of the copy to that of the current segment,
+		 * because fault_in_pages_readable() doesn't know how to walk
+		 * segments.
+		 */
+		bytes = min(bytes, cur_iov->iov_len - iov_base);
 
 		/*
 		 * Bring in the user page that we will copy from _first_.
@@ -2110,15 +2117,18 @@ generic_file_buffered_write(struct kiocb *iocb, const struct iovec *iov,
 		 * same page as we're writing to, without it being marked
 		 * up-to-date.
 		 */
-		maxlen = cur_iov->iov_len - iov_base;
-		if (maxlen > bytes)
-			maxlen = bytes;
-		fault_in_pages_readable(buf, maxlen);
+		fault_in_pages_readable(buf, bytes);
 
 		page = __grab_cache_page(mapping,index,&cached_page,&lru_pvec);
 		if (!page) {
 			status = -ENOMEM;
 			break;
+		}
+
+		if (unlikely(bytes == 0)) {
+			status = 0;
+			copied = 0;
+			goto zero_length_segment;
 		}
 
 		status = a_ops->prepare_write(file, page, offset, offset+bytes);
@@ -2150,7 +2160,8 @@ generic_file_buffered_write(struct kiocb *iocb, const struct iovec *iov,
 			page_cache_release(page);
 			continue;
 		}
-		if (likely(copied > 0)) {
+zero_length_segment:
+		if (likely(copied >= 0)) {
 			if (!status)
 				status = copied;
 
@@ -2215,7 +2226,7 @@ __generic_file_aio_write_nolock(struct kiocb *iocb, const struct iovec *iov,
 				unsigned long nr_segs, loff_t *ppos)
 {
 	struct file *file = iocb->ki_filp;
-	struct address_space * mapping = file->f_mapping;
+	const struct address_space * mapping = file->f_mapping;
 	size_t ocount;		/* original count */
 	size_t count;		/* after file limit checks */
 	struct inode 	*inode = mapping->host;

@@ -273,9 +273,9 @@ void __init pcibios_fixup_irqs(void)
 }
 
 void pcibios_align_resource(void *data, struct resource *res,
-			    unsigned long size, unsigned long align)
+			    resource_size_t size, resource_size_t align)
 {
-	unsigned long start = res->start;
+	resource_size_t start = res->start;
 
 	if (res->flags & IORESOURCE_IO) {
 		if (start >= 0x10000UL) {

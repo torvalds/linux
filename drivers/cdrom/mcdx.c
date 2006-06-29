@@ -74,7 +74,6 @@ static const char *mcdx_c_version
 #include <linux/major.h>
 #define MAJOR_NR MITSUMI_X_CDROM_MAJOR
 #include <linux/blkdev.h>
-#include <linux/devfs_fs_kernel.h>
 
 #include "mcdx.h"
 

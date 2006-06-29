@@ -30,7 +30,7 @@
 static struct super_operations cramfs_ops;
 static struct inode_operations cramfs_dir_inode_operations;
 static const struct file_operations cramfs_directory_operations;
-static struct address_space_operations cramfs_aops;
+static const struct address_space_operations cramfs_aops;
 
 static DEFINE_MUTEX(read_mutex);
 
@@ -501,7 +501,7 @@ static int cramfs_readpage(struct file *file, struct page * page)
 	return 0;
 }
 
-static struct address_space_operations cramfs_aops = {
+static const struct address_space_operations cramfs_aops = {
 	.readpage = cramfs_readpage
 };
 

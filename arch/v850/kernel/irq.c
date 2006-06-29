@@ -65,10 +65,10 @@ int show_interrupts(struct seq_file *p, void *v)
 			int j;
 			int count = 0;
 			int num = -1;
-			const char *type_name = irq_desc[irq].handler->typename;
+			const char *type_name = irq_desc[irq].chip->typename;
 
 			for (j = 0; j < NR_IRQS; j++)
-				if (irq_desc[j].handler->typename == type_name){
+				if (irq_desc[j].chip->typename == type_name){
 					if (irq == j)
 						num = count;
 					count++;
@@ -117,7 +117,7 @@ init_irq_handlers (int base_irq, int num, int interval,
 		irq_desc[base_irq].status  = IRQ_DISABLED;
 		irq_desc[base_irq].action  = NULL;
 		irq_desc[base_irq].depth   = 1;
-		irq_desc[base_irq].handler = irq_type;
+		irq_desc[base_irq].chip = irq_type;
 		base_irq += interval;
 	}
 }

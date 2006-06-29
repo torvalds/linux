@@ -501,7 +501,7 @@ config SCSI_ATA_PIIX
 	tristate "Intel PIIX/ICH SATA support"
 	depends on SCSI_SATA && PCI
 	help
-	  This option enables support for ICH5 Serial ATA.
+	  This option enables support for ICH5/6/7/8 Serial ATA.
 	  If PATA support was enabled previously, this enables
 	  support for select Intel PIIX/ICH PATA host controllers.
 

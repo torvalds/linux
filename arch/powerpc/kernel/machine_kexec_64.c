@@ -378,11 +378,13 @@ static void __init export_crashk_values(void)
 	of_node_put(node);
 }
 
-void __init kexec_setup(void)
+static int __init kexec_setup(void)
 {
 	export_htab_values();
 	export_crashk_values();
+	return 0;
 }
+__initcall(kexec_setup);
 
 static int __init early_parse_crashk(char *p)
 {

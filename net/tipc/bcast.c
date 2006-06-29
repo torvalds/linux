@@ -117,7 +117,7 @@ struct bclink {
 static struct bcbearer *bcbearer = NULL;
 static struct bclink *bclink = NULL;
 static struct link *bcl = NULL;
-static spinlock_t bc_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(bc_lock);
 
 char tipc_bclink_name[] = "multicast-link";
 
@@ -796,7 +796,7 @@ int tipc_bclink_init(void)
 	memset(bclink, 0, sizeof(struct bclink));
 	INIT_LIST_HEAD(&bcl->waiting_ports);
 	bcl->next_out_no = 1;
-	bclink->node.lock =  SPIN_LOCK_UNLOCKED;        
+	spin_lock_init(&bclink->node.lock);
 	bcl->owner = &bclink->node;
         bcl->max_pkt = MAX_PKT_DEFAULT_MCAST;
 	tipc_link_set_queue_limits(bcl, BCLINK_WIN_DEFAULT);

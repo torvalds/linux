@@ -78,7 +78,7 @@ static loff_t mtd_lseek (struct file *file, loff_t offset, int orig)
 		return -EINVAL;
 	}
 
-	if (offset >= 0 && offset < mtd->size)
+	if (offset >= 0 && offset <= mtd->size)
 		return file->f_pos = offset;
 
 	return -EINVAL;

@@ -74,6 +74,16 @@ config SANDPOINT
 	  Select SANDPOINT if configuring for a Motorola Sandpoint X3
 	  (any flavor).
 
+config MPC7448HPC2
+	bool "Freescale MPC7448HPC2(Taiga)"
+	select TSI108_BRIDGE
+	select DEFAULT_UIMAGE
+	select PPC_UDBG_16550
+	select MPIC
+	help
+	  Select MPC7448HPC2 if configuring for Freescale MPC7448HPC2 (Taiga)
+	  platform
+
 config RADSTONE_PPC7D
 	bool "Radstone Technology PPC7D board"
 	select PPC_I8259
@@ -219,6 +229,11 @@ config MV64X60
 	bool
 	depends on (GT64260 || MV64360)
 	select PPC_INDIRECT_PCI
+	default y
+
+config TSI108_BRIDGE
+	bool
+	depends on MPC7448HPC2
 	default y
 
 menu "Set bridge options"

@@ -199,11 +199,6 @@ static void __init maple_init_early(void)
 {
 	DBG(" -> maple_init_early\n");
 
-	/* Initialize hash table, from now on, we can take hash faults
-	 * and call ioremap
-	 */
-	hpte_init_native();
-
 	/* Setup interrupt mapping options */
 	ppc64_interrupt_controller = IC_OPEN_PIC;
 
@@ -271,6 +266,8 @@ static int __init maple_probe(void)
 	 * part of the cacheable linar mapping
 	 */
 	alloc_dart_table();
+
+	hpte_init_native();
 
 	return 1;
 }

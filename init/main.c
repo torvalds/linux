@@ -15,7 +15,6 @@
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/proc_fs.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/kernel.h>
 #include <linux/syscalls.h>
 #include <linux/string.h>
@@ -48,6 +47,7 @@
 #include <linux/mempolicy.h>
 #include <linux/key.h>
 #include <linux/unwind.h>
+#include <linux/buffer_head.h>
 
 #include <asm/io.h>
 #include <asm/bugs.h>
@@ -80,7 +80,6 @@ extern void mca_init(void);
 extern void sbus_init(void);
 extern void sysctl_init(void);
 extern void signals_init(void);
-extern void buffer_init(void);
 extern void pidhash_init(void);
 extern void pidmap_init(void);
 extern void prio_tree_init(void);

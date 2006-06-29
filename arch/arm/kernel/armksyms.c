@@ -109,11 +109,13 @@ EXPORT_SYMBOL(memchr);
 EXPORT_SYMBOL(__memzero);
 
 	/* user mem (segment) */
-EXPORT_SYMBOL(__arch_copy_from_user);
-EXPORT_SYMBOL(__arch_copy_to_user);
-EXPORT_SYMBOL(__arch_clear_user);
-EXPORT_SYMBOL(__arch_strnlen_user);
-EXPORT_SYMBOL(__arch_strncpy_from_user);
+EXPORT_SYMBOL(__strnlen_user);
+EXPORT_SYMBOL(__strncpy_from_user);
+
+#ifdef CONFIG_MMU
+EXPORT_SYMBOL(__copy_from_user);
+EXPORT_SYMBOL(__copy_to_user);
+EXPORT_SYMBOL(__clear_user);
 
 EXPORT_SYMBOL(__get_user_1);
 EXPORT_SYMBOL(__get_user_2);
@@ -123,6 +125,7 @@ EXPORT_SYMBOL(__put_user_1);
 EXPORT_SYMBOL(__put_user_2);
 EXPORT_SYMBOL(__put_user_4);
 EXPORT_SYMBOL(__put_user_8);
+#endif
 
 	/* crypto hash */
 EXPORT_SYMBOL(sha_transform);

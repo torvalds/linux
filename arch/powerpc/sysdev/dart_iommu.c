@@ -101,8 +101,8 @@ retry:
 	if (l == (1L << limit)) {
 		if (limit < 4) {
 			limit++;
-		        reg = DART_IN(DART_CNTL);
-		        reg &= ~inv_bit;
+			reg = DART_IN(DART_CNTL);
+			reg &= ~inv_bit;
 			DART_OUT(DART_CNTL, reg);
 			goto retry;
 		} else
@@ -111,11 +111,39 @@ retry:
 	}
 }
 
+static inline void dart_tlb_invalidate_one(unsigned long bus_rpn)
+{
+	unsigned int reg;
+	unsigned int l, limit;
+
+	reg = DART_CNTL_U4_ENABLE | DART_CNTL_U4_IONE |
+		(bus_rpn & DART_CNTL_U4_IONE_MASK);
+	DART_OUT(DART_CNTL, reg);
+
+	limit = 0;
+wait_more:
+	l = 0;
+	while ((DART_IN(DART_CNTL) & DART_CNTL_U4_IONE) && l < (1L << limit)) {
+		rmb();
+		l++;
+	}
+
+	if (l == (1L << limit)) {
+		if (limit < 4) {
+			limit++;
+			goto wait_more;
+		} else
+			panic("DART: TLB did not flush after waiting a long "
+			      "time. Buggy U4 ?");
+	}
+}
+
 static void dart_flush(struct iommu_table *tbl)
 {
-	if (dart_dirty)
+	if (dart_dirty) {
 		dart_tlb_invalidate_all();
-	dart_dirty = 0;
+		dart_dirty = 0;
+	}
 }
 
 static void dart_build(struct iommu_table *tbl, long index,
@@ -124,6 +152,7 @@ static void dart_build(struct iommu_table *tbl, long index,
 {
 	unsigned int *dp;
 	unsigned int rpn;
+	long l;
 
 	DBG("dart: build at: %lx, %lx, addr: %x\n", index, npages, uaddr);
 
@@ -135,7 +164,8 @@ static void dart_build(struct iommu_table *tbl, long index,
 	/* On U3, all memory is contigous, so we can move this
 	 * out of the loop.
 	 */
-	while (npages--) {
+	l = npages;
+	while (l--) {
 		rpn = virt_to_abs(uaddr) >> DART_PAGE_SHIFT;
 
 		*(dp++) = DARTMAP_VALID | (rpn & DARTMAP_RPNMASK);
@@ -143,7 +173,14 @@ static void dart_build(struct iommu_table *tbl, long index,
 		uaddr += DART_PAGE_SIZE;
 	}
 
-	dart_dirty = 1;
+	if (dart_is_u4) {
+		rpn = index;
+		mb(); /* make sure all updates have reached memory */
+		while (npages--)
+			dart_tlb_invalidate_one(rpn++);
+	} else {
+		dart_dirty = 1;
+	}
 }
 
 

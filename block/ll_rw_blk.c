@@ -3403,7 +3403,7 @@ static int blk_cpu_notify(struct notifier_block *self, unsigned long action,
 }
 
 
-static struct notifier_block blk_cpu_notifier = {
+static struct notifier_block __devinitdata blk_cpu_notifier = {
 	.notifier_call	= blk_cpu_notify,
 };
 
@@ -3541,9 +3541,7 @@ int __init blk_dev_init(void)
 		INIT_LIST_HEAD(&per_cpu(blk_cpu_done, i));
 
 	open_softirq(BLOCK_SOFTIRQ, blk_done_softirq, NULL);
-#ifdef CONFIG_HOTPLUG_CPU
-	register_cpu_notifier(&blk_cpu_notifier);
-#endif
+	register_hotcpu_notifier(&blk_cpu_notifier);
 
 	blk_max_low_pfn = max_low_pfn;
 	blk_max_pfn = max_pfn;

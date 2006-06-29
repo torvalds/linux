@@ -62,7 +62,7 @@ struct inode_operations jffs2_file_inode_operations =
 	.removexattr =	jffs2_removexattr
 };
 
-struct address_space_operations jffs2_file_address_operations =
+const struct address_space_operations jffs2_file_address_operations =
 {
 	.readpage =	jffs2_readpage,
 	.prepare_write =jffs2_prepare_write,

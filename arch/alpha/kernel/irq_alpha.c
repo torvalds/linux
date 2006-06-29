@@ -233,7 +233,7 @@ void __init
 init_rtc_irq(void)
 {
 	irq_desc[RTC_IRQ].status = IRQ_DISABLED;
-	irq_desc[RTC_IRQ].handler = &rtc_irq_type;
+	irq_desc[RTC_IRQ].chip = &rtc_irq_type;
 	setup_irq(RTC_IRQ, &timer_irqaction);
 }
 

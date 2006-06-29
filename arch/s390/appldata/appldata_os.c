@@ -4,9 +4,9 @@
  * Data gathering module for Linux-VM Monitor Stream, Stage 1.
  * Collects misc. OS related data (CPU utilization, running processes).
  *
- * Copyright (C) 2003 IBM Corporation, IBM Deutschland Entwicklung GmbH.
+ * Copyright (C) 2003,2006 IBM Corporation, IBM Deutschland Entwicklung GmbH.
  *
- * Author: Gerald Schaefer <geraldsc@de.ibm.com>
+ * Author: Gerald Schaefer <gerald.schaefer@de.ibm.com>
  */
 
 #include <linux/config.h>
@@ -44,11 +44,14 @@ struct appldata_os_per_cpu {
 	u32 per_cpu_system;	/* ... spent in kernel mode         */
 	u32 per_cpu_idle;	/* ... spent in idle mode           */
 
-// New in 2.6 -->
+	/* New in 2.6 */
 	u32 per_cpu_irq;	/* ... spent in interrupts          */
 	u32 per_cpu_softirq;	/* ... spent in softirqs            */
 	u32 per_cpu_iowait;	/* ... spent while waiting for I/O  */
-// <-- New in 2.6
+
+	/* New in modification level 01 */
+	u32 per_cpu_steal;	/* ... stolen by hypervisor	    */
+	u32 cpu_id;		/* number of this CPU		    */
 } __attribute__((packed));
 
 struct appldata_os_data {
@@ -68,16 +71,23 @@ struct appldata_os_data {
 	u32 avenrun[3];		/* average nr. of running processes during */
 				/* the last 1, 5 and 15 minutes */
 
-// New in 2.6 -->
+	/* New in 2.6 */
 	u32 nr_iowait;		/* number of blocked threads
 				   (waiting for I/O)               */
-// <-- New in 2.6
 
 	/* per cpu data */
 	struct appldata_os_per_cpu os_cpu[0];
 } __attribute__((packed));
 
 static struct appldata_os_data *appldata_os_data;
+
+static struct appldata_ops ops = {
+	.ctl_nr    = CTL_APPLDATA_OS,
+	.name	   = "os",
+	.record_nr = APPLDATA_RECORD_OS_ID,
+	.owner	   = THIS_MODULE,
+	.mod_lvl   = {0xF0, 0xF1},		/* EBCDIC "01" */
+};
 
 
 static inline void appldata_print_debug(struct appldata_os_data *os_data)
@@ -100,15 +110,17 @@ static inline void appldata_print_debug(struct appldata_os_data *os_data)
 	P_DEBUG("nr_cpus = %u\n", os_data->nr_cpus);
 	for (i = 0; i < os_data->nr_cpus; i++) {
 		P_DEBUG("cpu%u : user = %u, nice = %u, system = %u, "
-			"idle = %u, irq = %u, softirq = %u, iowait = %u\n",
-				i,
+			"idle = %u, irq = %u, softirq = %u, iowait = %u, "
+			"steal = %u\n",
+				os_data->os_cpu[i].cpu_id,
 				os_data->os_cpu[i].per_cpu_user,
 				os_data->os_cpu[i].per_cpu_nice,
 				os_data->os_cpu[i].per_cpu_system,
 				os_data->os_cpu[i].per_cpu_idle,
 				os_data->os_cpu[i].per_cpu_irq,
 				os_data->os_cpu[i].per_cpu_softirq,
-				os_data->os_cpu[i].per_cpu_iowait);
+				os_data->os_cpu[i].per_cpu_iowait,
+				os_data->os_cpu[i].per_cpu_steal);
 	}
 
 	P_DEBUG("sync_count_1 = %u\n", os_data->sync_count_1);
@@ -123,13 +135,12 @@ static inline void appldata_print_debug(struct appldata_os_data *os_data)
  */
 static void appldata_get_os_data(void *data)
 {
-	int i, j;
+	int i, j, rc;
 	struct appldata_os_data *os_data;
+	unsigned int new_size;
 
 	os_data = data;
 	os_data->sync_count_1++;
-
-	os_data->nr_cpus = num_online_cpus();
 
 	os_data->nr_threads = nr_threads;
 	os_data->nr_running = nr_running();
@@ -154,24 +165,50 @@ static void appldata_get_os_data(void *data)
 			cputime_to_jiffies(kstat_cpu(i).cpustat.softirq);
 		os_data->os_cpu[j].per_cpu_iowait =
 			cputime_to_jiffies(kstat_cpu(i).cpustat.iowait);
+		os_data->os_cpu[j].per_cpu_steal =
+			cputime_to_jiffies(kstat_cpu(i).cpustat.steal);
+		os_data->os_cpu[j].cpu_id = i;
 		j++;
 	}
 
+	os_data->nr_cpus = j;
+
+	new_size = sizeof(struct appldata_os_data) +
+		   (os_data->nr_cpus * sizeof(struct appldata_os_per_cpu));
+	if (ops.size != new_size) {
+		if (ops.active) {
+			rc = appldata_diag(APPLDATA_RECORD_OS_ID,
+					   APPLDATA_START_INTERVAL_REC,
+					   (unsigned long) ops.data, new_size,
+					   ops.mod_lvl);
+			if (rc != 0) {
+				P_ERROR("os: START NEW DIAG 0xDC failed, "
+					"return code: %d, new size = %i\n", rc,
+					new_size);
+				P_INFO("os: stopping old record now\n");
+			} else
+				P_INFO("os: new record size = %i\n", new_size);
+
+			rc = appldata_diag(APPLDATA_RECORD_OS_ID,
+					   APPLDATA_STOP_REC,
+					   (unsigned long) ops.data, ops.size,
+					   ops.mod_lvl);
+			if (rc != 0)
+				P_ERROR("os: STOP OLD DIAG 0xDC failed, "
+					"return code: %d, old size = %i\n", rc,
+					ops.size);
+			else
+				P_INFO("os: old record size = %i stopped\n",
+					ops.size);
+		}
+		ops.size = new_size;
+	}
 	os_data->timestamp = get_clock();
 	os_data->sync_count_2++;
 #ifdef APPLDATA_DEBUG
 	appldata_print_debug(os_data);
 #endif
 }
-
-
-static struct appldata_ops ops = {
-	.ctl_nr    = CTL_APPLDATA_OS,
-	.name	   = "os",
-	.record_nr = APPLDATA_RECORD_OS_ID,
-	.callback  = &appldata_get_os_data,
-	.owner     = THIS_MODULE,
-};
 
 
 /*
@@ -181,26 +218,25 @@ static struct appldata_ops ops = {
  */
 static int __init appldata_os_init(void)
 {
-	int rc, size;
+	int rc, max_size;
 
-	size = sizeof(struct appldata_os_data) +
-		(NR_CPUS * sizeof(struct appldata_os_per_cpu));
-	if (size > APPLDATA_MAX_REC_SIZE) {
-		P_ERROR("Size of record = %i, bigger than maximum (%i)!\n",
-			size, APPLDATA_MAX_REC_SIZE);
+	max_size = sizeof(struct appldata_os_data) +
+		   (NR_CPUS * sizeof(struct appldata_os_per_cpu));
+	if (max_size > APPLDATA_MAX_REC_SIZE) {
+		P_ERROR("Max. size of OS record = %i, bigger than maximum "
+			"record size (%i)\n", max_size, APPLDATA_MAX_REC_SIZE);
 		rc = -ENOMEM;
 		goto out;
 	}
-	P_DEBUG("sizeof(os) = %i, sizeof(os_cpu) = %lu\n", size,
+	P_DEBUG("max. sizeof(os) = %i, sizeof(os_cpu) = %lu\n", max_size,
 		sizeof(struct appldata_os_per_cpu));
 
-	appldata_os_data = kmalloc(size, GFP_DMA);
+	appldata_os_data = kzalloc(max_size, GFP_DMA);
 	if (appldata_os_data == NULL) {
 		P_ERROR("No memory for %s!\n", ops.name);
 		rc = -ENOMEM;
 		goto out;
 	}
-	memset(appldata_os_data, 0, size);
 
 	appldata_os_data->per_cpu_size = sizeof(struct appldata_os_per_cpu);
 	appldata_os_data->cpu_offset   = offsetof(struct appldata_os_data,
@@ -208,7 +244,7 @@ static int __init appldata_os_init(void)
 	P_DEBUG("cpu offset = %u\n", appldata_os_data->cpu_offset);
 
 	ops.data = appldata_os_data;
-	ops.size = size;
+	ops.callback  = &appldata_get_os_data;
 	rc = appldata_register_ops(&ops);
 	if (rc != 0) {
 		P_ERROR("Error registering ops, rc = %i\n", rc);

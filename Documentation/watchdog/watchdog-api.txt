@@ -34,22 +34,7 @@ activates as soon as /dev/watchdog is opened and will reboot unless
 the watchdog is pinged within a certain time, this time is called the
 timeout or margin.  The simplest way to ping the watchdog is to write
 some data to the device.  So a very simple watchdog daemon would look
-like this:
-
-#include <stdlib.h>
-#include <fcntl.h>
-
-int main(int argc, const char *argv[]) {
-	int fd=open("/dev/watchdog",O_WRONLY);
-	if (fd==-1) {
-		perror("watchdog");
-		exit(1);
-	}
-	while(1) {
-		write(fd, "\0", 1);
-		sleep(10);
-	}
-}
+like this source file:  see Documentation/watchdog/src/watchdog-simple.c
 
 A more advanced driver could for example check that a HTTP server is
 still responding before doing the write call to ping the watchdog.
@@ -110,7 +95,40 @@ current timeout using the GETTIMEOUT ioctl.
     ioctl(fd, WDIOC_GETTIMEOUT, &timeout);
     printf("The timeout was is %d seconds\n", timeout);
 
-Envinronmental monitoring:
+Pretimeouts:
+
+Some watchdog timers can be set to have a trigger go off before the
+actual time they will reset the system.  This can be done with an NMI,
+interrupt, or other mechanism.  This allows Linux to record useful
+information (like panic information and kernel coredumps) before it
+resets.
+
+    pretimeout = 10;
+    ioctl(fd, WDIOC_SETPRETIMEOUT, &pretimeout);
+
+Note that the pretimeout is the number of seconds before the time
+when the timeout will go off.  It is not the number of seconds until
+the pretimeout.  So, for instance, if you set the timeout to 60 seconds
+and the pretimeout to 10 seconds, the pretimout will go of in 50
+seconds.  Setting a pretimeout to zero disables it.
+
+There is also a get function for getting the pretimeout:
+
+    ioctl(fd, WDIOC_GETPRETIMEOUT, &timeout);
+    printf("The pretimeout was is %d seconds\n", timeout);
+
+Not all watchdog drivers will support a pretimeout.
+
+Get the number of seconds before reboot:
+
+Some watchdog drivers have the ability to report the remaining time
+before the system will reboot. The WDIOC_GETTIMELEFT is the ioctl
+that returns the number of seconds before reboot.
+
+    ioctl(fd, WDIOC_GETTIMELEFT, &timeleft);
+    printf("The timeout was is %d seconds\n", timeleft);
+
+Environmental monitoring:
 
 All watchdog drivers are required return more information about the system,
 some do temperature, fan and power level monitoring, some can tell you
@@ -168,6 +186,10 @@ sense.
 The watchdog saw a keepalive ping since it was last queried.
 
 	WDIOF_SETTIMEOUT	Can set/get the timeout
+
+The watchdog can do pretimeouts.
+
+	WDIOF_PRETIMEOUT	Pretimeout (in seconds), get/set
 
 
 For those drivers that return any bits set in the option field, the

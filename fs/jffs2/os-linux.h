@@ -158,7 +158,7 @@ extern struct inode_operations jffs2_dir_inode_operations;
 /* file.c */
 extern const struct file_operations jffs2_file_operations;
 extern struct inode_operations jffs2_file_inode_operations;
-extern struct address_space_operations jffs2_file_address_operations;
+extern const struct address_space_operations jffs2_file_address_operations;
 int jffs2_fsync(struct file *, struct dentry *, int);
 int jffs2_do_readpage_unlock (struct inode *inode, struct page *pg);
 

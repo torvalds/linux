@@ -2,6 +2,7 @@
  *  linux/arch/arm/mm/proc-arm6,7.S
  *
  *  Copyright (C) 1997-2000 Russell King
+ *  hacked for non-paged-MM by Hyok S. Choi, 2003.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -199,10 +200,12 @@ ENTRY(cpu_arm7_do_idle)
  */
 ENTRY(cpu_arm6_switch_mm)
 ENTRY(cpu_arm7_switch_mm)
+#ifdef CONFIG_MMU
 		mov	r1, #0
 		mcr	p15, 0, r1, c7, c0, 0		@ flush cache
 		mcr	p15, 0, r0, c2, c0, 0		@ update page table ptr
 		mcr	p15, 0, r1, c5, c0, 0		@ flush TLBs
+#endif
 		mov	pc, lr
 
 /*
@@ -214,6 +217,7 @@ ENTRY(cpu_arm7_switch_mm)
 		.align	5
 ENTRY(cpu_arm6_set_pte)
 ENTRY(cpu_arm7_set_pte)
+#ifdef CONFIG_MMU
 		str	r1, [r0], #-2048		@ linux version
 
 		eor	r1, r1, #L_PTE_PRESENT | L_PTE_YOUNG | L_PTE_WRITE | L_PTE_DIRTY
@@ -232,6 +236,7 @@ ENTRY(cpu_arm7_set_pte)
 		movne	r2, #0
 
 		str	r2, [r0]			@ hardware version
+#endif /* CONFIG_MMU */
 		mov	pc, lr
 
 /*
@@ -243,7 +248,9 @@ ENTRY(cpu_arm6_reset)
 ENTRY(cpu_arm7_reset)
 		mov	r1, #0
 		mcr	p15, 0, r1, c7, c0, 0		@ flush cache
+#ifdef CONFIG_MMU
 		mcr	p15, 0, r1, c5, c0, 0		@ flush TLB
+#endif
 		mov	r1, #0x30
 		mcr	p15, 0, r1, c1, c0, 0		@ turn off MMU etc
 		mov	pc, r0
@@ -253,19 +260,27 @@ ENTRY(cpu_arm7_reset)
 		.type	__arm6_setup, #function
 __arm6_setup:	mov	r0, #0
 		mcr	p15, 0, r0, c7, c0		@ flush caches on v3
+#ifdef CONFIG_MMU
 		mcr	p15, 0, r0, c5, c0		@ flush TLBs on v3
 		mov	r0, #0x3d			@ . ..RS BLDP WCAM
 		orr	r0, r0, #0x100			@ . ..01 0011 1101
+#else
+		mov	r0, #0x3c			@ . ..RS BLDP WCA.
+#endif
 		mov	pc, lr
 		.size	__arm6_setup, . - __arm6_setup
 
 		.type	__arm7_setup, #function
 __arm7_setup:	mov	r0, #0
 		mcr	p15, 0, r0, c7, c0		@ flush caches on v3
+#ifdef CONFIG_MMU
 		mcr	p15, 0, r0, c5, c0		@ flush TLBs on v3
 		mcr	p15, 0, r0, c3, c0		@ load domain access register
 		mov	r0, #0x7d			@ . ..RS BLDP WCAM
 		orr	r0, r0, #0x100			@ . ..01 0111 1101
+#else
+		mov	r0, #0x7c			@ . ..RS BLDP WCA.
+#endif
 		mov	pc, lr
 		.size	__arm7_setup, . - __arm7_setup
 

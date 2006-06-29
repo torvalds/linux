@@ -537,7 +537,7 @@ sable_lynx_init_irq(int nr_irqs)
 
 	for (i = 0; i < nr_irqs; ++i) {
 		irq_desc[i].status = IRQ_DISABLED | IRQ_LEVEL;
-		irq_desc[i].handler = &sable_lynx_irq_type;
+		irq_desc[i].chip = &sable_lynx_irq_type;
 	}
 
 	common_init_isa_dma();

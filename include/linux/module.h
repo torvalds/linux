@@ -203,6 +203,15 @@ void *__symbol_get_gpl(const char *symbol);
 #define EXPORT_SYMBOL_GPL_FUTURE(sym)				\
 	__EXPORT_SYMBOL(sym, "_gpl_future")
 
+
+#ifdef CONFIG_UNUSED_SYMBOLS
+#define EXPORT_UNUSED_SYMBOL(sym) __EXPORT_SYMBOL(sym, "_unused")
+#define EXPORT_UNUSED_SYMBOL_GPL(sym) __EXPORT_SYMBOL(sym, "_unused_gpl")
+#else
+#define EXPORT_UNUSED_SYMBOL(sym)
+#define EXPORT_UNUSED_SYMBOL_GPL(sym)
+#endif
+
 #endif
 
 struct module_ref
@@ -260,6 +269,15 @@ struct module
 	const struct kernel_symbol *gpl_syms;
 	unsigned int num_gpl_syms;
 	const unsigned long *gpl_crcs;
+
+	/* unused exported symbols. */
+	const struct kernel_symbol *unused_syms;
+	unsigned int num_unused_syms;
+	const unsigned long *unused_crcs;
+	/* GPL-only, unused exported symbols. */
+	const struct kernel_symbol *unused_gpl_syms;
+	unsigned int num_unused_gpl_syms;
+	const unsigned long *unused_gpl_crcs;
 
 	/* symbols that will be GPL-only in the near future. */
 	const struct kernel_symbol *gpl_future_syms;
@@ -456,6 +474,8 @@ void module_remove_driver(struct device_driver *);
 #define EXPORT_SYMBOL(sym)
 #define EXPORT_SYMBOL_GPL(sym)
 #define EXPORT_SYMBOL_GPL_FUTURE(sym)
+#define EXPORT_UNUSED_SYMBOL(sym)
+#define EXPORT_UNUSED_SYMBOL_GPL(sym)
 
 /* Given an address, look for it in the exception tables. */
 static inline const struct exception_table_entry *

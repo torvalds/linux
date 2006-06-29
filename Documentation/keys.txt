@@ -780,6 +780,17 @@ payload contents" for more information.
     See also Documentation/keys-request-key.txt.
 
 
+(*) To search for a key, passing auxiliary data to the upcaller, call:
+
+	struct key *request_key_with_auxdata(const struct key_type *type,
+					     const char *description,
+					     const char *callout_string,
+					     void *aux);
+
+    This is identical to request_key(), except that the auxiliary data is
+    passed to the key_type->request_key() op if it exists.
+
+
 (*) When it is no longer required, the key should be released using:
 
 	void key_put(struct key *key);
@@ -1029,6 +1040,24 @@ The structure has a number of fields, some of which are mandatory:
      prevent the key's payload changing. It is not necessary to use RCU locking
      when accessing the key's payload. It is safe to sleep in this method, such
      as might happen when the userspace buffer is accessed.
+
+
+ (*) int (*request_key)(struct key *key, struct key *authkey, const char *op,
+			void *aux);
+
+     This method is optional.  If provided, request_key() and
+     request_key_with_auxdata() will invoke this function rather than
+     upcalling to /sbin/request-key to operate upon a key of this type.
+
+     The aux parameter is as passed to request_key_with_auxdata() or is NULL
+     otherwise.  Also passed are the key to be operated upon, the
+     authorisation key for this operation and the operation type (currently
+     only "create").
+
+     This function should return only when the upcall is complete.  Upon return
+     the authorisation key will be revoked, and the target key will be
+     negatively instantiated if it is still uninstantiated.  The error will be
+     returned to the caller of request_key*().
 
 
 ============================

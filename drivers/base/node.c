@@ -11,6 +11,7 @@
 #include <linux/cpumask.h>
 #include <linux/topology.h>
 #include <linux/nodemask.h>
+#include <linux/cpu.h>
 
 static struct sysdev_class node_class = {
 	set_kset_name("node"),
@@ -188,6 +189,66 @@ void unregister_node(struct node *node)
 	sysdev_remove_file(&node->sysdev, &attr_distance);
 
 	sysdev_unregister(&node->sysdev);
+}
+
+struct node node_devices[MAX_NUMNODES];
+
+/*
+ * register cpu under node
+ */
+int register_cpu_under_node(unsigned int cpu, unsigned int nid)
+{
+	if (node_online(nid)) {
+		struct sys_device *obj = get_cpu_sysdev(cpu);
+		if (!obj)
+			return 0;
+		return sysfs_create_link(&node_devices[nid].sysdev.kobj,
+					 &obj->kobj,
+					 kobject_name(&obj->kobj));
+	 }
+
+	return 0;
+}
+
+int unregister_cpu_under_node(unsigned int cpu, unsigned int nid)
+{
+	if (node_online(nid)) {
+		struct sys_device *obj = get_cpu_sysdev(cpu);
+		if (obj)
+			sysfs_remove_link(&node_devices[nid].sysdev.kobj,
+					 kobject_name(&obj->kobj));
+	}
+	return 0;
+}
+
+int register_one_node(int nid)
+{
+	int error = 0;
+	int cpu;
+
+	if (node_online(nid)) {
+		int p_node = parent_node(nid);
+		struct node *parent = NULL;
+
+		if (p_node != nid)
+			parent = &node_devices[p_node];
+
+		error = register_node(&node_devices[nid], nid, parent);
+
+		/* link cpu under this node */
+		for_each_present_cpu(cpu) {
+			if (cpu_to_node(cpu) == nid)
+				register_cpu_under_node(cpu, nid);
+		}
+	}
+
+	return error;
+
+}
+
+void unregister_one_node(int nid)
+{
+	unregister_node(&node_devices[nid]);
 }
 
 static int __init register_node_type(void)

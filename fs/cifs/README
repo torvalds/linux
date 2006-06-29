@@ -443,7 +443,10 @@ A partial list of the supported mount options follows:
 		SFU does).  In the future the bottom 9 bits of the mode
 		mode also will be emulated using queries of the security
 		descriptor (ACL).
-sec		Security mode.  Allowed values are:
+ sign           Must use packet signing (helps avoid unwanted data modification
+		by intermediate systems in the route).  Note that signing
+		does not work with lanman or plaintext authentication.
+ sec            Security mode.  Allowed values are:
 			none	attempt to connection as a null user (no name)
 			krb5    Use Kerberos version 5 authentication
 			krb5i   Use Kerberos authentication and packet signing
@@ -453,6 +456,8 @@ sec		Security mode.  Allowed values are:
 				server requires signing also can be the default) 
 			ntlmv2  Use NTLMv2 password hashing      
 			ntlmv2i Use NTLMv2 password hashing with packet signing
+			lanman  (if configured in kernel config) use older
+				lanman hash
 
 The mount.cifs mount helper also accepts a few mount options before -o
 including:
@@ -485,14 +490,34 @@ PacketSigningEnabled	If set to one, cifs packet signing is enabled
 			it.  If set to two, cifs packet signing is
 			required even if the server considers packet
 			signing optional. (default 1)
+SecurityFlags		Flags which control security negotiation and
+			also packet signing. Authentication (may/must)
+			flags (e.g. for NTLM and/or NTLMv2) may be combined with
+			the signing flags.  Specifying two different password
+			hashing mechanisms (as "must use") on the other hand 
+			does not make much sense. Default flags are 
+				0x07007 
+			(NTLM, NTLMv2 and packet signing allowed).  Maximum 
+			allowable flags if you want to allow mounts to servers
+			using weaker password hashes is 0x37037 (lanman,
+			plaintext, ntlm, ntlmv2, signing allowed):
+ 
+			may use packet signing 				0x00001
+			must use packet signing				0x01001
+			may use NTLM (most common password hash)	0x00002
+			must use NTLM					0x02002
+			may use NTLMv2					0x00004
+			must use NTLMv2					0x04004
+			may use Kerberos security (not implemented yet) 0x00008
+			must use Kerberos (not implemented yet)         0x08008
+			may use lanman (weak) password hash  		0x00010
+			must use lanman password hash			0x10010
+			may use plaintext passwords    			0x00020
+			must use plaintext passwords			0x20020
+			(reserved for future packet encryption)		0x00040
+
 cifsFYI			If set to one, additional debug information is
 			logged to the system error log. (default 0)
-ExtendedSecurity	If set to one, SPNEGO session establishment
-			is allowed which enables more advanced 
-			secure CIFS session establishment (default 0)
-NTLMV2Enabled		If set to one, more secure password hashes
-			are used when the server supports them and
-			when kerberos is not negotiated (default 0)
 traceSMB		If set to one, debug information is logged to the
 			system error log with the start of smb requests
 			and responses (default 0)

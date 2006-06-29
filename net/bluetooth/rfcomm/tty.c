@@ -480,12 +480,8 @@ static void rfcomm_dev_data_ready(struct rfcomm_dlc *dlc, struct sk_buff *skb)
 
 	BT_DBG("dlc %p tty %p len %d", dlc, tty, skb->len);
 
-	if (test_bit(TTY_DONT_FLIP, &tty->flags)) {
-		tty_buffer_request_room(tty, skb->len);
-		tty_insert_flip_string(tty, skb->data, skb->len);
-		tty_flip_buffer_push(tty);
-	} else
-		tty->ldisc.receive_buf(tty, skb->data, NULL, skb->len);
+	tty_insert_flip_string(tty, skb->data, skb->len);
+	tty_flip_buffer_push(tty);
 
 	kfree_skb(skb);
 }
@@ -1025,13 +1021,12 @@ int rfcomm_init_ttys(void)
 
 	rfcomm_tty_driver->owner	= THIS_MODULE;
 	rfcomm_tty_driver->driver_name	= "rfcomm";
-	rfcomm_tty_driver->devfs_name	= "bluetooth/rfcomm/";
 	rfcomm_tty_driver->name		= "rfcomm";
 	rfcomm_tty_driver->major	= RFCOMM_TTY_MAJOR;
 	rfcomm_tty_driver->minor_start	= RFCOMM_TTY_MINOR;
 	rfcomm_tty_driver->type		= TTY_DRIVER_TYPE_SERIAL;
 	rfcomm_tty_driver->subtype	= SERIAL_TYPE_NORMAL;
-	rfcomm_tty_driver->flags	= TTY_DRIVER_REAL_RAW | TTY_DRIVER_NO_DEVFS;
+	rfcomm_tty_driver->flags	= TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;
 	rfcomm_tty_driver->init_termios	= tty_std_termios;
 	rfcomm_tty_driver->init_termios.c_cflag	= B9600 | CS8 | CREAD | HUPCL | CLOCAL;
 	tty_set_operations(rfcomm_tty_driver, &rfcomm_ops);

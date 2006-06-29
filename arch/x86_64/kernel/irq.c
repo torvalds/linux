@@ -79,7 +79,7 @@ int show_interrupts(struct seq_file *p, void *v)
 		for_each_online_cpu(j)
 			seq_printf(p, "%10u ", kstat_cpu(j).irqs[i]);
 #endif
-		seq_printf(p, " %14s", irq_desc[i].handler->typename);
+		seq_printf(p, " %14s", irq_desc[i].chip->typename);
 
 		seq_printf(p, "  %s", action->name);
 		for (action=action->next; action; action = action->next)
@@ -115,8 +115,14 @@ skip:
  */
 asmlinkage unsigned int do_IRQ(struct pt_regs *regs)
 {	
-	/* high bits used in ret_from_ code  */
-	unsigned irq = regs->orig_rax & 0xff;
+	/* high bit used in ret_from_ code  */
+	unsigned irq = ~regs->orig_rax;
+
+	if (unlikely(irq >= NR_IRQS)) {
+		printk(KERN_EMERG "%s: cannot handle IRQ %d\n",
+					__FUNCTION__, irq);
+		BUG();
+	}
 
 	exit_idle();
 	irq_enter();
@@ -140,13 +146,13 @@ void fixup_irqs(cpumask_t map)
 		if (irq == 2)
 			continue;
 
-		cpus_and(mask, irq_affinity[irq], map);
+		cpus_and(mask, irq_desc[irq].affinity, map);
 		if (any_online_cpu(mask) == NR_CPUS) {
 			printk("Breaking affinity for irq %i\n", irq);
 			mask = map;
 		}
-		if (irq_desc[irq].handler->set_affinity)
-			irq_desc[irq].handler->set_affinity(irq, mask);
+		if (irq_desc[irq].chip->set_affinity)
+			irq_desc[irq].chip->set_affinity(irq, mask);
 		else if (irq_desc[irq].action && !(warned++))
 			printk("Cannot set affinity for irq %i\n", irq);
 	}

@@ -546,9 +546,9 @@ static int mmci_probe(struct amba_device *dev, void *id)
 
 	mmc_add_host(mmc);
 
-	printk(KERN_INFO "%s: MMCI rev %x cfg %02x at 0x%08lx irq %d,%d\n",
+	printk(KERN_INFO "%s: MMCI rev %x cfg %02x at 0x%016llx irq %d,%d\n",
 		mmc_hostname(mmc), amba_rev(dev), amba_config(dev),
-		dev->res.start, dev->irq[0], dev->irq[1]);
+		(unsigned long long)dev->res.start, dev->irq[0], dev->irq[1]);
 
 	init_timer(&host->timer);
 	host->timer.data = (unsigned long)host;

@@ -122,6 +122,11 @@ struct mem_size_stats
 	unsigned long private_dirty;
 };
 
+__attribute__((weak)) const char *arch_vma_name(struct vm_area_struct *vma)
+{
+	return NULL;
+}
+
 static int show_map_internal(struct seq_file *m, void *v, struct mem_size_stats *mss)
 {
 	struct proc_maps_private *priv = m->private;
@@ -158,22 +163,23 @@ static int show_map_internal(struct seq_file *m, void *v, struct mem_size_stats 
 		pad_len_spaces(m, len);
 		seq_path(m, file->f_vfsmnt, file->f_dentry, "\n");
 	} else {
-		if (mm) {
-			if (vma->vm_start <= mm->start_brk &&
+		const char *name = arch_vma_name(vma);
+		if (!name) {
+			if (mm) {
+				if (vma->vm_start <= mm->start_brk &&
 						vma->vm_end >= mm->brk) {
-				pad_len_spaces(m, len);
-				seq_puts(m, "[heap]");
-			} else {
-				if (vma->vm_start <= mm->start_stack &&
-					vma->vm_end >= mm->start_stack) {
-
-					pad_len_spaces(m, len);
-					seq_puts(m, "[stack]");
+					name = "[heap]";
+				} else if (vma->vm_start <= mm->start_stack &&
+					   vma->vm_end >= mm->start_stack) {
+					name = "[stack]";
 				}
+			} else {
+				name = "[vdso]";
 			}
-		} else {
+		}
+		if (name) {
 			pad_len_spaces(m, len);
-			seq_puts(m, "[vdso]");
+			seq_puts(m, name);
 		}
 	}
 	seq_putc(m, '\n');

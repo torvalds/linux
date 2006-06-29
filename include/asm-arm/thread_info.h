@@ -59,6 +59,7 @@ struct thread_info {
 	struct cpu_context_save	cpu_context;	/* cpu context */
 	__u8			used_cp[16];	/* thread used copro */
 	unsigned long		tp_value;
+	struct crunch_state	crunchstate;
 	union fp_state		fpstate __attribute__((aligned(8)));
 	union vfp_state		vfpstate;
 	struct restart_block	restart_block;
@@ -100,6 +101,11 @@ extern void free_thread_info(struct thread_info *);
 	((unsigned long)(pc_pointer(task_thread_info(tsk)->cpu_context.pc)))
 #define thread_saved_fp(tsk)	\
 	((unsigned long)(task_thread_info(tsk)->cpu_context.fp))
+
+extern void crunch_task_disable(struct thread_info *);
+extern void crunch_task_copy(struct thread_info *, void *);
+extern void crunch_task_restore(struct thread_info *, void *);
+extern void crunch_task_release(struct thread_info *);
 
 extern void iwmmxt_task_disable(struct thread_info *);
 extern void iwmmxt_task_copy(struct thread_info *, void *);

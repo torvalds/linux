@@ -17,14 +17,15 @@
 #include <linux/miscdevice.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
+#include <linux/platform_device.h>
 #include <linux/types.h>
 #include <linux/watchdog.h>
 #include <asm/bitops.h>
 #include <asm/uaccess.h>
 
 
-#define WDT_DEFAULT_TIME	5	/* 5 seconds */
-#define WDT_MAX_TIME		256	/* 256 seconds */
+#define WDT_DEFAULT_TIME	5	/* seconds */
+#define WDT_MAX_TIME		256	/* seconds */
 
 static int wdt_time = WDT_DEFAULT_TIME;
 static int nowayout = WATCHDOG_NOWAYOUT;
@@ -32,8 +33,10 @@ static int nowayout = WATCHDOG_NOWAYOUT;
 module_param(wdt_time, int, 0);
 MODULE_PARM_DESC(wdt_time, "Watchdog time in seconds. (default="__MODULE_STRING(WDT_DEFAULT_TIME) ")");
 
+#ifdef CONFIG_WATCHDOG_NOWAYOUT
 module_param(nowayout, int, 0);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default=" __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+#endif
 
 
 static unsigned long at91wdt_busy;
@@ -138,7 +141,7 @@ static int at91_wdt_ioctl(struct inode *inode, struct file *file,
 		case WDIOC_SETTIMEOUT:
 			if (get_user(new_value, p))
 				return -EFAULT;
-				
+
 			if (at91_wdt_settimeout(new_value))
 				return -EINVAL;
 
@@ -196,27 +199,84 @@ static struct miscdevice at91wdt_miscdev = {
 	.fops		= &at91wdt_fops,
 };
 
-static int __init at91_wdt_init(void)
+static int __init at91wdt_probe(struct platform_device *pdev)
 {
 	int res;
 
-	/* Check that the heartbeat value is within range; if not reset to the default */
-	if (at91_wdt_settimeout(wdt_time)) {
-		at91_wdt_settimeout(WDT_DEFAULT_TIME);
-		printk(KERN_INFO "at91_wdt: wdt_time value must be 1 <= wdt_time <= 256, using %d\n", wdt_time);
-	}
+	if (at91wdt_miscdev.dev)
+		return -EBUSY;
+	at91wdt_miscdev.dev = &pdev->dev;
 
 	res = misc_register(&at91wdt_miscdev);
 	if (res)
 		return res;
 
-	printk("AT91 Watchdog Timer enabled (%d seconds, nowayout=%d)\n", wdt_time, nowayout);
+	printk("AT91 Watchdog Timer enabled (%d seconds%s)\n", wdt_time, nowayout ? ", nowayout" : "");
 	return 0;
+}
+
+static int __exit at91wdt_remove(struct platform_device *pdev)
+{
+	int res;
+
+	res = misc_deregister(&at91wdt_miscdev);
+	if (!res)
+		at91wdt_miscdev.dev = NULL;
+
+	return res;
+}
+
+static void at91wdt_shutdown(struct platform_device *pdev)
+{
+	at91_wdt_stop();
+}
+
+#ifdef CONFIG_PM
+
+static int at91wdt_suspend(struct platform_device *pdev, pm_message_t message)
+{
+	at91_wdt_stop();
+	return 0;
+}
+
+static int at91wdt_resume(struct platform_device *pdev)
+{
+	if (at91wdt_busy)
+		at91_wdt_start();
+		return 0;
+}
+
+#else
+#define at91wdt_suspend NULL
+#define at91wdt_resume	NULL
+#endif
+
+static struct platform_driver at91wdt_driver = {
+	.probe		= at91wdt_probe,
+	.remove		= __exit_p(at91wdt_remove),
+	.shutdown	= at91wdt_shutdown,
+	.suspend	= at91wdt_suspend,
+	.resume		= at91wdt_resume,
+	.driver		= {
+		.name	= "at91_wdt",
+		.owner	= THIS_MODULE,
+	},
+};
+
+static int __init at91_wdt_init(void)
+{
+	/* Check that the heartbeat value is within range; if not reset to the default */
+	if (at91_wdt_settimeout(wdt_time)) {
+		at91_wdt_settimeout(WDT_DEFAULT_TIME);
+		pr_info("at91_wdt: wdt_time value must be 1 <= wdt_time <= 256, using %d\n", wdt_time);
+	}
+
+	return platform_driver_register(&at91wdt_driver);
 }
 
 static void __exit at91_wdt_exit(void)
 {
-	misc_deregister(&at91wdt_miscdev);
+	platform_driver_unregister(&at91wdt_driver);
 }
 
 module_init(at91_wdt_init);

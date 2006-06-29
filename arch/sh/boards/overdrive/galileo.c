@@ -536,7 +536,7 @@ void __init pcibios_fixup_bus(struct pci_bus *bus)
 }
 
 void pcibios_align_resource(void *data, struct resource *res,
-			    unsigned long size)
+			    resource_size_t size)
 {
 }
 

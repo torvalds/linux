@@ -78,9 +78,9 @@ also known as "System Drives", and Drive Groups are also called "Packs".  Both
 terms are in use in the Mylex documentation; I have chosen to standardize on
 the more generic "Logical Drive" and "Drive Group".
 
-DAC960 RAID disk devices are named in the style of the Device File System
-(DEVFS).  The device corresponding to Logical Drive D on Controller C is
-referred to as /dev/rd/cCdD, and the partitions are called /dev/rd/cCdDp1
+DAC960 RAID disk devices are named in the style of the obsolete Device File
+System (DEVFS).  The device corresponding to Logical Drive D on Controller C
+is referred to as /dev/rd/cCdD, and the partitions are called /dev/rd/cCdDp1
 through /dev/rd/cCdDp7.  For example, partition 3 of Logical Drive 5 on
 Controller 2 is referred to as /dev/rd/c2d5p3.  Note that unlike with SCSI
 disks the device names will not change in the event of a disk drive failure.

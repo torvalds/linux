@@ -31,10 +31,6 @@ void __init wrppmc_timer_setup(struct irqaction *irq)
 {
 	/* Install ISR for timer interrupt */
 	setup_irq(WRPPMC_MIPS_TIMER_IRQ, irq);
-
-	/* to generate the first timer interrupt */
-	write_c0_compare(mips_hpt_frequency/HZ);
-	write_c0_count(0);
 }
 
 /*

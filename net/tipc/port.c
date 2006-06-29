@@ -57,8 +57,8 @@
 static struct sk_buff *msg_queue_head = NULL;
 static struct sk_buff *msg_queue_tail = NULL;
 
-spinlock_t tipc_port_list_lock = SPIN_LOCK_UNLOCKED;
-static spinlock_t queue_lock = SPIN_LOCK_UNLOCKED;
+DEFINE_SPINLOCK(tipc_port_list_lock);
+static DEFINE_SPINLOCK(queue_lock);
 
 static LIST_HEAD(ports);
 static void port_handle_node_down(unsigned long ref);

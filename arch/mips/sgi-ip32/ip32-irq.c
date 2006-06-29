@@ -591,7 +591,7 @@ void __init arch_init_irq(void)
 		irq_desc[irq].status = IRQ_DISABLED;
 		irq_desc[irq].action = 0;
 		irq_desc[irq].depth = 0;
-		irq_desc[irq].handler = controller;
+		irq_desc[irq].chip = controller;
 	}
 	setup_irq(CRIME_MEMERR_IRQ, &memerr_irq);
 	setup_irq(CRIME_CPUERR_IRQ, &cpuerr_irq);

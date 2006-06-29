@@ -3527,8 +3527,6 @@ static int ide_cd_probe(ide_drive_t *drive)
 	drive->driver_data = info;
 
 	g->minors = 1;
-	snprintf(g->devfs_name, sizeof(g->devfs_name),
-			"%s/cd", drive->devfs_name);
 	g->driverfs_dev = &drive->gendev;
 	g->flags = GENHD_FL_CD | GENHD_FL_REMOVABLE;
 	if (ide_cdrom_setup(drive)) {

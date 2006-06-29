@@ -417,7 +417,6 @@ static struct file_operations sq_fops = {
 static struct miscdevice sq_dev = {
 	.minor		= STORE_QUEUE_MINOR,
 	.name		= "sq",
-	.devfs_name	= "cpu/sq",
 	.fops		= &sq_fops,
 };
 

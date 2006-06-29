@@ -683,9 +683,10 @@ static int i2o_iop_systab_set(struct i2o_controller *c)
 			c->mem_alloc = 1;
 			sb->current_mem_size = 1 + res->end - res->start;
 			sb->current_mem_base = res->start;
-			osm_info("%s: allocated %ld bytes of PCI memory at "
-				 "0x%08lX.\n", c->name,
-				 1 + res->end - res->start, res->start);
+			osm_info("%s: allocated %llu bytes of PCI memory at "
+				"0x%016llX.\n", c->name,
+				(unsigned long long)(1 + res->end - res->start),
+				(unsigned long long)res->start);
 		}
 	}
 
@@ -704,9 +705,10 @@ static int i2o_iop_systab_set(struct i2o_controller *c)
 			c->io_alloc = 1;
 			sb->current_io_size = 1 + res->end - res->start;
 			sb->current_mem_base = res->start;
-			osm_info("%s: allocated %ld bytes of PCI I/O at 0x%08lX"
-				 ".\n", c->name, 1 + res->end - res->start,
-				 res->start);
+			osm_info("%s: allocated %llu bytes of PCI I/O at "
+				"0x%016llX.\n", c->name,
+				(unsigned long long)(1 + res->end - res->start),
+				(unsigned long long)res->start);
 		}
 	}
 
@@ -1239,7 +1241,6 @@ EXPORT_SYMBOL(i2o_cntxt_list_remove);
 EXPORT_SYMBOL(i2o_cntxt_list_get_ptr);
 #endif
 EXPORT_SYMBOL(i2o_msg_get_wait);
-EXPORT_SYMBOL(i2o_msg_nop);
 EXPORT_SYMBOL(i2o_find_iop);
 EXPORT_SYMBOL(i2o_iop_find_device);
 EXPORT_SYMBOL(i2o_event_register);

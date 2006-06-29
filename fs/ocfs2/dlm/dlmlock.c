@@ -53,7 +53,7 @@
 #define MLOG_MASK_PREFIX ML_DLM
 #include "cluster/masklog.h"
 
-static spinlock_t dlm_cookie_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(dlm_cookie_lock);
 static u64 dlm_next_cookie = 1;
 
 static enum dlm_status dlm_send_remote_lock_request(struct dlm_ctxt *dlm,

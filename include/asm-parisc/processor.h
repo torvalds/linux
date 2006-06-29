@@ -26,14 +26,12 @@
  * Default implementation of macro that returns current
  * instruction pointer ("program counter").
  */
-
-/* We cannot use MFIA as it was added for PA2.0 - prumpf
-
-   At one point there were no "0f/0b" type local symbols in gas for
-   PA-RISC.  This is no longer true, but this still seems like the
-   nicest way to implement this. */
-
-#define current_text_addr() ({ void *pc; __asm__("\n\tblr 0,%0\n\tnop":"=r" (pc)); pc; })
+#ifdef CONFIG_PA20
+#define current_ia(x)	__asm__("mfia %0" : "=r"(x))
+#else /* mfia added in pa2.0 */
+#define current_ia(x)	__asm__("blr 0,%0\n\tnop" : "=r"(x))
+#endif
+#define current_text_addr() ({ void *pc; current_ia(pc); pc; })
 
 #define TASK_SIZE               (current->thread.task_size)
 #define TASK_UNMAPPED_BASE      (current->thread.map_base)

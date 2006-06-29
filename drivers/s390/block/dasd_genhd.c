@@ -68,8 +68,6 @@ dasd_gendisk_alloc(struct dasd_device *device)
 	}
 	len += sprintf(gdp->disk_name + len, "%c", 'a'+(device->devindex%26));
 
- 	sprintf(gdp->devfs_name, "dasd/%s", device->cdev->dev.bus_id);
-
 	if (device->features & DASD_FEATURE_READONLY)
 		set_disk_ro(gdp, 1);
 	gdp->private_data = device;

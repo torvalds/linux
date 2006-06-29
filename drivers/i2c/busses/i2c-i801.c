@@ -488,7 +488,7 @@ static int __devinit i801_probe(struct pci_dev *dev, const struct pci_device_id 
 		dev_err(&dev->dev, "SMBus base address uninitialized, "
 			"upgrade BIOS\n");
 		err = -ENODEV;
-		goto exit_disable;
+		goto exit;
 	}
 
 	err = pci_request_region(dev, SMBBAR, i801_driver.name);
@@ -496,7 +496,7 @@ static int __devinit i801_probe(struct pci_dev *dev, const struct pci_device_id 
 		dev_err(&dev->dev, "Failed to request SMBus region "
 			"0x%lx-0x%lx\n", i801_smba,
 			pci_resource_end(dev, SMBBAR));
-		goto exit_disable;
+		goto exit;
 	}
 
 	pci_read_config_byte(I801_dev, SMBHSTCFG, &temp);
@@ -520,11 +520,12 @@ static int __devinit i801_probe(struct pci_dev *dev, const struct pci_device_id 
 	err = i2c_add_adapter(&i801_adapter);
 	if (err) {
 		dev_err(&dev->dev, "Failed to add SMBus adapter\n");
-		goto exit_disable;
+		goto exit_release;
 	}
+	return 0;
 
-exit_disable:
-	pci_disable_device(dev);
+exit_release:
+	pci_release_region(dev, SMBBAR);
 exit:
 	return err;
 }
@@ -533,7 +534,10 @@ static void __devexit i801_remove(struct pci_dev *dev)
 {
 	i2c_del_adapter(&i801_adapter);
 	pci_release_region(dev, SMBBAR);
-	pci_disable_device(dev);
+	/*
+	 * do not call pci_disable_device(dev) since it can cause hard hangs on
+	 * some systems during power-off (eg. Fujitsu-Siemens Lifebook E8010)
+	 */
 }
 
 static struct pci_driver i801_driver = {

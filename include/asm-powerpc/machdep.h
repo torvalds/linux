@@ -81,6 +81,8 @@ struct machdep_calls {
 	void		(*tce_free)(struct iommu_table *tbl,
 				    long index,
 				    long npages);
+	unsigned long	(*tce_get)(struct iommu_table *tbl,
+				    long index);
 	void		(*tce_flush)(struct iommu_table *tbl);
 	void		(*iommu_dev_setup)(struct pci_dev *dev);
 	void		(*iommu_bus_setup)(struct pci_bus *bus);

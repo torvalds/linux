@@ -301,7 +301,7 @@ asmlinkage int _sys_sysmips(int cmd, long arg1, int arg2, int arg3)
  *
  * This is really horribly ugly.
  */
-asmlinkage int sys_ipc (uint call, int first, int second,
+asmlinkage int sys_ipc (unsigned int call, int first, int second,
 			unsigned long third, void __user *ptr, long fifth)
 {
 	int version, ret;
@@ -359,18 +359,18 @@ asmlinkage int sys_ipc (uint call, int first, int second,
 	case SHMAT:
 		switch (version) {
 		default: {
-			ulong raddr;
+			unsigned long raddr;
 			ret = do_shmat (first, (char __user *) ptr, second,
 					&raddr);
 			if (ret)
 				return ret;
-			return put_user (raddr, (ulong __user *) third);
+			return put_user (raddr, (unsigned long __user *) third);
 		}
 		case 1:	/* iBCS2 emulator entry point */
 			if (!segment_eq(get_fs(), get_ds()))
 				return -EINVAL;
 			return do_shmat (first, (char __user *) ptr, second,
-					 (ulong *) third);
+					 (unsigned long *) third);
 		}
 	case SHMDT:
 		return sys_shmdt ((char __user *)ptr);

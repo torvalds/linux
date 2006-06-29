@@ -305,7 +305,7 @@ static ssize_t jfs_direct_IO(int rw, struct kiocb *iocb,
 				offset, nr_segs, jfs_get_block, NULL);
 }
 
-struct address_space_operations jfs_aops = {
+const struct address_space_operations jfs_aops = {
 	.readpage	= jfs_readpage,
 	.readpages	= jfs_readpages,
 	.writepage	= jfs_writepage,

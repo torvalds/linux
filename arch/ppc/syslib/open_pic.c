@@ -373,7 +373,7 @@ void __init openpic_init(int offset)
 				OPENPIC_VEC_IPI+i+offset);
 		/* IPIs are per-CPU */
 		irq_desc[OPENPIC_VEC_IPI+i+offset].status |= IRQ_PER_CPU;
-		irq_desc[OPENPIC_VEC_IPI+i+offset].handler = &open_pic_ipi;
+		irq_desc[OPENPIC_VEC_IPI+i+offset].chip = &open_pic_ipi;
 	}
 #endif
 
@@ -408,7 +408,7 @@ void __init openpic_init(int offset)
 
 	/* Init descriptors */
 	for (i = offset; i < NumSources + offset; i++)
-		irq_desc[i].handler = &open_pic;
+		irq_desc[i].chip = &open_pic;
 
 	/* Initialize the spurious interrupt */
 	if (ppc_md.progress) ppc_md.progress("openpic: spurious",0x3bd);
@@ -615,8 +615,8 @@ void __devinit do_openpic_setup_cpu(void)
  	/* let the openpic know we want intrs. default affinity
  	 * is 0xffffffff until changed via /proc
  	 * That's how it's done on x86. If we want it differently, then
- 	 * we should make sure we also change the default values of irq_affinity
- 	 * in irq.c.
+ 	 * we should make sure we also change the default values of
+	 * irq_desc[].affinity in irq.c.
  	 */
  	for (i = 0; i < NumSources; i++)
 		openpic_mapirq(i, msk, CPU_MASK_ALL);

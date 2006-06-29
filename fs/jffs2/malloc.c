@@ -291,6 +291,7 @@ struct jffs2_xattr_datum *jffs2_alloc_xattr_datum(void)
 
 	memset(xd, 0, sizeof(struct jffs2_xattr_datum));
 	xd->class = RAWNODE_CLASS_XATTR_DATUM;
+	xd->node = (void *)xd;
 	INIT_LIST_HEAD(&xd->xindex);
 	return xd;
 }
@@ -309,6 +310,7 @@ struct jffs2_xattr_ref *jffs2_alloc_xattr_ref(void)
 
 	memset(ref, 0, sizeof(struct jffs2_xattr_ref));
 	ref->class = RAWNODE_CLASS_XATTR_REF;
+	ref->node = (void *)ref;
 	return ref;
 }
 

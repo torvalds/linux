@@ -691,10 +691,12 @@ int pci_request_region(struct pci_dev *pdev, int bar, const char *res_name)
 	return 0;
 
 err_out:
-	printk (KERN_WARNING "PCI: Unable to reserve %s region #%d:%lx@%lx for device %s\n",
+	printk (KERN_WARNING "PCI: Unable to reserve %s region #%d:%llx@%llx "
+		"for device %s\n",
 		pci_resource_flags(pdev, bar) & IORESOURCE_IO ? "I/O" : "mem",
 		bar + 1, /* PCI BAR # */
-		pci_resource_len(pdev, bar), pci_resource_start(pdev, bar),
+		(unsigned long long)pci_resource_len(pdev, bar),
+		(unsigned long long)pci_resource_start(pdev, bar),
 		pci_name(pdev));
 	return -EBUSY;
 }

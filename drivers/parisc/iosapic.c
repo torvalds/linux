@@ -619,7 +619,7 @@ iosapic_set_irt_data( struct vector_info *vi, u32 *dp0, u32 *dp1)
 
 static struct vector_info *iosapic_get_vector(unsigned int irq)
 {
-	return irq_desc[irq].handler_data;
+	return irq_desc[irq].chip_data;
 }
 
 static void iosapic_disable_irq(unsigned int irq)

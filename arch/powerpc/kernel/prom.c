@@ -30,6 +30,7 @@
 #include <linux/bitops.h>
 #include <linux/module.h>
 #include <linux/kexec.h>
+#include <linux/debugfs.h>
 
 #include <asm/prom.h>
 #include <asm/rtas.h>
@@ -952,6 +953,7 @@ static struct ibm_pa_feature {
 	/* put this back once we know how to test if firmware does 64k IO */
 	{CPU_FTR_CI_LARGE_PAGE, 0,	1, 2, 0},
 #endif
+	{CPU_FTR_REAL_LE, PPC_FEATURE_TRUE_LE, 5, 0, 0},
 };
 
 static void __init check_cpu_pa_features(unsigned long node)
@@ -1123,24 +1125,6 @@ static int __init early_init_dt_scan_chosen(unsigned long node,
  	if (lprop)
  		tce_alloc_end = *lprop;
 #endif
-
-#ifdef CONFIG_PPC_RTAS
-	/* To help early debugging via the front panel, we retrieve a minimal
-	 * set of RTAS infos now if available
-	 */
-	{
-		u64 *basep, *entryp, *sizep;
-
-		basep = of_get_flat_dt_prop(node, "linux,rtas-base", NULL);
-		entryp = of_get_flat_dt_prop(node, "linux,rtas-entry", NULL);
-		sizep = of_get_flat_dt_prop(node, "linux,rtas-size", NULL);
-		if (basep && entryp && sizep) {
-			rtas.base = *basep;
-			rtas.entry = *entryp;
-			rtas.size = *sizep;
-		}
-	}
-#endif /* CONFIG_PPC_RTAS */
 
 #ifdef CONFIG_KEXEC
        lprop = (u64*)of_get_flat_dt_prop(node, "linux,crashkernel-base", NULL);
@@ -1325,6 +1309,11 @@ void __init early_init_devtree(void *params)
 
 	/* Setup flat device-tree pointer */
 	initial_boot_params = params;
+
+#ifdef CONFIG_PPC_RTAS
+	/* Some machines might need RTAS info for debugging, grab it now. */
+	of_scan_flat_dt(early_init_dt_scan_rtas, NULL);
+#endif
 
 	/* Retrieve various informations from the /chosen node of the
 	 * device-tree, including the platform type, initrd location and
@@ -2148,3 +2137,27 @@ struct device_node *of_get_cpu_node(int cpu, unsigned int *thread)
 	}
 	return NULL;
 }
+
+#ifdef DEBUG
+static struct debugfs_blob_wrapper flat_dt_blob;
+
+static int __init export_flat_device_tree(void)
+{
+	struct dentry *d;
+
+	d = debugfs_create_dir("powerpc", NULL);
+	if (!d)
+		return 1;
+
+	flat_dt_blob.data = initial_boot_params;
+	flat_dt_blob.size = initial_boot_params->totalsize;
+
+	d = debugfs_create_blob("flat-device-tree", S_IFREG | S_IRUSR,
+				d, &flat_dt_blob);
+	if (!d)
+		return 1;
+
+	return 0;
+}
+__initcall(export_flat_device_tree);
+#endif

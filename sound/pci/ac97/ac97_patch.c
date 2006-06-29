@@ -1824,6 +1824,8 @@ static const struct snd_kcontrol_new snd_ac97_ad1888_controls[] = {
 		.get = snd_ac97_ad1888_lohpsel_get,
 		.put = snd_ac97_ad1888_lohpsel_put
 	},
+	AC97_SINGLE("V_REFOUT Enable", AC97_AD_MISC, 2, 1, 1),
+	AC97_SINGLE("High Pass Filter Enable", AC97_AD_TEST2, 12, 1, 1),
 	AC97_SINGLE("Spread Front to Surround and Center/LFE", AC97_AD_MISC, 7, 1, 0),
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,

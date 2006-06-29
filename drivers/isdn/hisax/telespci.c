@@ -311,8 +311,9 @@ setup_telespci(struct IsdnCard *card)
 		}
 		cs->hw.teles0.membase = ioremap(pci_resource_start(dev_tel, 0),
 			PAGE_SIZE);
-		printk(KERN_INFO "Found: Zoran, base-address: 0x%lx, irq: 0x%x\n",
-			pci_resource_start(dev_tel, 0), dev_tel->irq);
+		printk(KERN_INFO "Found: Zoran, base-address: 0x%llx, irq: 0x%x\n",
+			(unsigned long long)pci_resource_start(dev_tel, 0),
+			dev_tel->irq);
 	} else {
 		printk(KERN_WARNING "TelesPCI: No PCI card found\n");
 		return(0);

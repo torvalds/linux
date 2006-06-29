@@ -172,7 +172,7 @@ void __init sbc82xx_init_IRQ(void)
 	
 	/* Set up the interrupt handlers for the i8259 IRQs */
 	for (i = NR_SIU_INTS; i < NR_SIU_INTS + 8; i++) {
-                irq_desc[i].handler = &sbc82xx_i8259_ic;
+                irq_desc[i].chip = &sbc82xx_i8259_ic;
 		irq_desc[i].status |= IRQ_LEVEL;
 	}
 

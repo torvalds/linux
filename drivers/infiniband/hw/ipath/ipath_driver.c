@@ -460,10 +460,10 @@ static int __devinit ipath_init_one(struct pci_dev *pdev,
 	for (j = 0; j < 6; j++) {
 		if (!pdev->resource[j].start)
 			continue;
-		ipath_cdbg(VERBOSE, "BAR %d start %lx, end %lx, len %lx\n",
-			   j, pdev->resource[j].start,
-			   pdev->resource[j].end,
-			   pci_resource_len(pdev, j));
+		ipath_cdbg(VERBOSE, "BAR %d start %llx, end %llx, len %llx\n",
+			   j, (unsigned long long)pdev->resource[j].start,
+			   (unsigned long long)pdev->resource[j].end,
+			   (unsigned long long)pci_resource_len(pdev, j));
 	}
 
 	if (!addr) {

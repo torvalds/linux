@@ -455,10 +455,12 @@ cpumask_t cpu_coregroup_map(int cpu)
 	struct cpuinfo_x86 *c = cpu_data + cpu;
 	/*
 	 * For perf, we return last level cache shared map.
-	 * TBD: when power saving sched policy is added, we will return
-	 *      cpu_core_map when power saving policy is enabled
+	 * And for power savings, we return cpu_core_map
 	 */
-	return c->llc_shared_map;
+	if (sched_mc_power_savings || sched_smt_power_savings)
+		return cpu_core_map[cpu];
+	else
+		return c->llc_shared_map;
 }
 
 /* representing cpus for which sibling maps can be computed */

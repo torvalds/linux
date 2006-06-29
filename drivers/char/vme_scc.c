@@ -147,7 +147,6 @@ static int scc_init_drivers(void)
 	scc_driver->owner = THIS_MODULE;
 	scc_driver->driver_name = "scc";
 	scc_driver->name = "ttyS";
-	scc_driver->devfs_name = "tts/";
 	scc_driver->major = TTY_MAJOR;
 	scc_driver->minor_start = SCC_MINOR_BASE;
 	scc_driver->type = TTY_DRIVER_TYPE_SERIAL;

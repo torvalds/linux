@@ -25,7 +25,6 @@
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/mm.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/mmtimer.h>
 #include <linux/miscdevice.h>
 #include <linux/posix-timers.h>
@@ -694,7 +693,6 @@ static int __init mmtimer_init(void)
 		return -1;
 	}
 
-	strcpy(mmtimer_miscdev.devfs_name, MMTIMER_NAME);
 	if (misc_register(&mmtimer_miscdev)) {
 		printk(KERN_ERR "%s: failed to register device\n",
 		       MMTIMER_NAME);

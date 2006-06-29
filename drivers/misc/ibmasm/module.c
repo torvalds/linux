@@ -85,7 +85,7 @@ static int __devinit ibmasm_init_one(struct pci_dev *pdev, const struct pci_devi
 	}
 	memset(sp, 0, sizeof(struct service_processor));
 
-	sp->lock = SPIN_LOCK_UNLOCKED;
+	spin_lock_init(&sp->lock);
 	INIT_LIST_HEAD(&sp->command_queue);
 
 	pci_set_drvdata(pdev, (void *)sp);

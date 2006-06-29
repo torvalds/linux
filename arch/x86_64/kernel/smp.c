@@ -135,10 +135,10 @@ asmlinkage void smp_invalidate_interrupt(struct pt_regs *regs)
 
 	cpu = smp_processor_id();
 	/*
-	 * orig_rax contains the interrupt vector - 256.
+	 * orig_rax contains the negated interrupt vector.
 	 * Use that to determine where the sender put the data.
 	 */
-	sender = regs->orig_rax + 256 - INVALIDATE_TLB_VECTOR_START;
+	sender = ~regs->orig_rax - INVALIDATE_TLB_VECTOR_START;
 	f = &per_cpu(flush_state, sender);
 
 	if (!cpu_isset(cpu, f->flush_cpumask))

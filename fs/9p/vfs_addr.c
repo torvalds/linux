@@ -103,6 +103,6 @@ UnmapAndUnlock:
 	return retval;
 }
 
-struct address_space_operations v9fs_addr_operations = {
+const struct address_space_operations v9fs_addr_operations = {
       .readpage = v9fs_vfs_readpage,
 };

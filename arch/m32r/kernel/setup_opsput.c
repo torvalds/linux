@@ -302,7 +302,7 @@ void __init init_IRQ(void)
 #if defined(CONFIG_SMC91X)
 	/* INT#0: LAN controller on OPSPUT-LAN (SMC91C111)*/
 	irq_desc[OPSPUT_LAN_IRQ_LAN].status = IRQ_DISABLED;
-	irq_desc[OPSPUT_LAN_IRQ_LAN].handler = &opsput_lanpld_irq_type;
+	irq_desc[OPSPUT_LAN_IRQ_LAN].chip = &opsput_lanpld_irq_type;
 	irq_desc[OPSPUT_LAN_IRQ_LAN].action = 0;
 	irq_desc[OPSPUT_LAN_IRQ_LAN].depth = 1;	/* disable nested irq */
 	lanpld_icu_data[irq2lanpldirq(OPSPUT_LAN_IRQ_LAN)].icucr = PLD_ICUCR_IEN|PLD_ICUCR_ISMOD02;	/* "H" edge sense */
@@ -311,7 +311,7 @@ void __init init_IRQ(void)
 
 	/* MFT2 : system timer */
 	irq_desc[M32R_IRQ_MFT2].status = IRQ_DISABLED;
-	irq_desc[M32R_IRQ_MFT2].handler = &opsput_irq_type;
+	irq_desc[M32R_IRQ_MFT2].chip = &opsput_irq_type;
 	irq_desc[M32R_IRQ_MFT2].action = 0;
 	irq_desc[M32R_IRQ_MFT2].depth = 1;
 	icu_data[M32R_IRQ_MFT2].icucr = M32R_ICUCR_IEN;
@@ -319,7 +319,7 @@ void __init init_IRQ(void)
 
 	/* SIO0 : receive */
 	irq_desc[M32R_IRQ_SIO0_R].status = IRQ_DISABLED;
-	irq_desc[M32R_IRQ_SIO0_R].handler = &opsput_irq_type;
+	irq_desc[M32R_IRQ_SIO0_R].chip = &opsput_irq_type;
 	irq_desc[M32R_IRQ_SIO0_R].action = 0;
 	irq_desc[M32R_IRQ_SIO0_R].depth = 1;
 	icu_data[M32R_IRQ_SIO0_R].icucr = 0;
@@ -327,7 +327,7 @@ void __init init_IRQ(void)
 
 	/* SIO0 : send */
 	irq_desc[M32R_IRQ_SIO0_S].status = IRQ_DISABLED;
-	irq_desc[M32R_IRQ_SIO0_S].handler = &opsput_irq_type;
+	irq_desc[M32R_IRQ_SIO0_S].chip = &opsput_irq_type;
 	irq_desc[M32R_IRQ_SIO0_S].action = 0;
 	irq_desc[M32R_IRQ_SIO0_S].depth = 1;
 	icu_data[M32R_IRQ_SIO0_S].icucr = 0;
@@ -335,7 +335,7 @@ void __init init_IRQ(void)
 
 	/* SIO1 : receive */
 	irq_desc[M32R_IRQ_SIO1_R].status = IRQ_DISABLED;
-	irq_desc[M32R_IRQ_SIO1_R].handler = &opsput_irq_type;
+	irq_desc[M32R_IRQ_SIO1_R].chip = &opsput_irq_type;
 	irq_desc[M32R_IRQ_SIO1_R].action = 0;
 	irq_desc[M32R_IRQ_SIO1_R].depth = 1;
 	icu_data[M32R_IRQ_SIO1_R].icucr = 0;
@@ -343,7 +343,7 @@ void __init init_IRQ(void)
 
 	/* SIO1 : send */
 	irq_desc[M32R_IRQ_SIO1_S].status = IRQ_DISABLED;
-	irq_desc[M32R_IRQ_SIO1_S].handler = &opsput_irq_type;
+	irq_desc[M32R_IRQ_SIO1_S].chip = &opsput_irq_type;
 	irq_desc[M32R_IRQ_SIO1_S].action = 0;
 	irq_desc[M32R_IRQ_SIO1_S].depth = 1;
 	icu_data[M32R_IRQ_SIO1_S].icucr = 0;
@@ -351,7 +351,7 @@ void __init init_IRQ(void)
 
 	/* DMA1 : */
 	irq_desc[M32R_IRQ_DMA1].status = IRQ_DISABLED;
-	irq_desc[M32R_IRQ_DMA1].handler = &opsput_irq_type;
+	irq_desc[M32R_IRQ_DMA1].chip = &opsput_irq_type;
 	irq_desc[M32R_IRQ_DMA1].action = 0;
 	irq_desc[M32R_IRQ_DMA1].depth = 1;
 	icu_data[M32R_IRQ_DMA1].icucr = 0;
@@ -360,7 +360,7 @@ void __init init_IRQ(void)
 #ifdef CONFIG_SERIAL_M32R_PLDSIO
 	/* INT#1: SIO0 Receive on PLD */
 	irq_desc[PLD_IRQ_SIO0_RCV].status = IRQ_DISABLED;
-	irq_desc[PLD_IRQ_SIO0_RCV].handler = &opsput_pld_irq_type;
+	irq_desc[PLD_IRQ_SIO0_RCV].chip = &opsput_pld_irq_type;
 	irq_desc[PLD_IRQ_SIO0_RCV].action = 0;
 	irq_desc[PLD_IRQ_SIO0_RCV].depth = 1;	/* disable nested irq */
 	pld_icu_data[irq2pldirq(PLD_IRQ_SIO0_RCV)].icucr = PLD_ICUCR_IEN|PLD_ICUCR_ISMOD03;
@@ -368,7 +368,7 @@ void __init init_IRQ(void)
 
 	/* INT#1: SIO0 Send on PLD */
 	irq_desc[PLD_IRQ_SIO0_SND].status = IRQ_DISABLED;
-	irq_desc[PLD_IRQ_SIO0_SND].handler = &opsput_pld_irq_type;
+	irq_desc[PLD_IRQ_SIO0_SND].chip = &opsput_pld_irq_type;
 	irq_desc[PLD_IRQ_SIO0_SND].action = 0;
 	irq_desc[PLD_IRQ_SIO0_SND].depth = 1;	/* disable nested irq */
 	pld_icu_data[irq2pldirq(PLD_IRQ_SIO0_SND)].icucr = PLD_ICUCR_IEN|PLD_ICUCR_ISMOD03;
@@ -378,7 +378,7 @@ void __init init_IRQ(void)
 #if defined(CONFIG_M32R_CFC)
 	/* INT#1: CFC IREQ on PLD */
 	irq_desc[PLD_IRQ_CFIREQ].status = IRQ_DISABLED;
-	irq_desc[PLD_IRQ_CFIREQ].handler = &opsput_pld_irq_type;
+	irq_desc[PLD_IRQ_CFIREQ].chip = &opsput_pld_irq_type;
 	irq_desc[PLD_IRQ_CFIREQ].action = 0;
 	irq_desc[PLD_IRQ_CFIREQ].depth = 1;	/* disable nested irq */
 	pld_icu_data[irq2pldirq(PLD_IRQ_CFIREQ)].icucr = PLD_ICUCR_IEN|PLD_ICUCR_ISMOD01;	/* 'L' level sense */
@@ -386,7 +386,7 @@ void __init init_IRQ(void)
 
 	/* INT#1: CFC Insert on PLD */
 	irq_desc[PLD_IRQ_CFC_INSERT].status = IRQ_DISABLED;
-	irq_desc[PLD_IRQ_CFC_INSERT].handler = &opsput_pld_irq_type;
+	irq_desc[PLD_IRQ_CFC_INSERT].chip = &opsput_pld_irq_type;
 	irq_desc[PLD_IRQ_CFC_INSERT].action = 0;
 	irq_desc[PLD_IRQ_CFC_INSERT].depth = 1;	/* disable nested irq */
 	pld_icu_data[irq2pldirq(PLD_IRQ_CFC_INSERT)].icucr = PLD_ICUCR_IEN|PLD_ICUCR_ISMOD00;	/* 'L' edge sense */
@@ -394,7 +394,7 @@ void __init init_IRQ(void)
 
 	/* INT#1: CFC Eject on PLD */
 	irq_desc[PLD_IRQ_CFC_EJECT].status = IRQ_DISABLED;
-	irq_desc[PLD_IRQ_CFC_EJECT].handler = &opsput_pld_irq_type;
+	irq_desc[PLD_IRQ_CFC_EJECT].chip = &opsput_pld_irq_type;
 	irq_desc[PLD_IRQ_CFC_EJECT].action = 0;
 	irq_desc[PLD_IRQ_CFC_EJECT].depth = 1;	/* disable nested irq */
 	pld_icu_data[irq2pldirq(PLD_IRQ_CFC_EJECT)].icucr = PLD_ICUCR_IEN|PLD_ICUCR_ISMOD02;	/* 'H' edge sense */
@@ -420,7 +420,7 @@ void __init init_IRQ(void)
 	outw(USBCR_OTGS, USBCR); 	/* USBCR: non-OTG */
 
     irq_desc[OPSPUT_LCD_IRQ_USB_INT1].status = IRQ_DISABLED;
-    irq_desc[OPSPUT_LCD_IRQ_USB_INT1].handler = &opsput_lcdpld_irq_type;
+    irq_desc[OPSPUT_LCD_IRQ_USB_INT1].chip = &opsput_lcdpld_irq_type;
     irq_desc[OPSPUT_LCD_IRQ_USB_INT1].action = 0;
     irq_desc[OPSPUT_LCD_IRQ_USB_INT1].depth = 1;
     lcdpld_icu_data[irq2lcdpldirq(OPSPUT_LCD_IRQ_USB_INT1)].icucr = PLD_ICUCR_IEN|PLD_ICUCR_ISMOD01;	/* "L" level sense */
@@ -438,7 +438,7 @@ void __init init_IRQ(void)
 	 * INT3# is used for AR
 	 */
 	irq_desc[M32R_IRQ_INT3].status = IRQ_DISABLED;
-	irq_desc[M32R_IRQ_INT3].handler = &opsput_irq_type;
+	irq_desc[M32R_IRQ_INT3].chip = &opsput_irq_type;
 	irq_desc[M32R_IRQ_INT3].action = 0;
 	irq_desc[M32R_IRQ_INT3].depth = 1;
 	icu_data[M32R_IRQ_INT3].icucr = M32R_ICUCR_IEN|M32R_ICUCR_ISMOD10;

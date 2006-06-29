@@ -12,6 +12,9 @@
  *    Copyright (C) 1992, Linus Torvalds
  *
  */
+
+#ifdef __KERNEL__
+
 #include <linux/compiler.h>
 
 /*
@@ -49,19 +52,6 @@
  * of the form "flags |= (1 << bitnr)" are used INTERMIXED
  * with operation of the form "set_bit(bitnr, flags)".
  */
-
-/* set ALIGN_CS to 1 if the SMP safe bit operations should
- * align the address to 4 byte boundary. It seems to work
- * without the alignment. 
- */
-#ifdef __KERNEL__
-#define ALIGN_CS 0
-#else
-#define ALIGN_CS 1
-#ifndef CONFIG_SMP
-#error "bitops won't work without CONFIG_SMP"
-#endif
-#endif
 
 /* bitmap tables from arch/S390/kernel/bitmap.S */
 extern const char _oi_bitmap[];
@@ -121,10 +111,6 @@ static inline void set_bit_cs(unsigned long nr, volatile unsigned long *ptr)
         unsigned long addr, old, new, mask;
 
 	addr = (unsigned long) ptr;
-#if ALIGN_CS == 1
-	nr += (addr & __BITOPS_ALIGN) << 3;    /* add alignment to bit number */
-	addr ^= addr & __BITOPS_ALIGN;	       /* align address to 8 */
-#endif
 	/* calculate address for CS */
 	addr += (nr ^ (nr & (__BITOPS_WORDSIZE - 1))) >> 3;
 	/* make OR mask */
@@ -141,10 +127,6 @@ static inline void clear_bit_cs(unsigned long nr, volatile unsigned long *ptr)
         unsigned long addr, old, new, mask;
 
 	addr = (unsigned long) ptr;
-#if ALIGN_CS == 1
-	nr += (addr & __BITOPS_ALIGN) << 3;    /* add alignment to bit number */
-	addr ^= addr & __BITOPS_ALIGN;	       /* align address to 8 */
-#endif
 	/* calculate address for CS */
 	addr += (nr ^ (nr & (__BITOPS_WORDSIZE - 1))) >> 3;
 	/* make AND mask */
@@ -161,10 +143,6 @@ static inline void change_bit_cs(unsigned long nr, volatile unsigned long *ptr)
         unsigned long addr, old, new, mask;
 
 	addr = (unsigned long) ptr;
-#if ALIGN_CS == 1
-	nr += (addr & __BITOPS_ALIGN) << 3;    /* add alignment to bit number */
-	addr ^= addr & __BITOPS_ALIGN;	       /* align address to 8 */
-#endif
 	/* calculate address for CS */
 	addr += (nr ^ (nr & (__BITOPS_WORDSIZE - 1))) >> 3;
 	/* make XOR mask */
@@ -182,10 +160,6 @@ test_and_set_bit_cs(unsigned long nr, volatile unsigned long *ptr)
         unsigned long addr, old, new, mask;
 
 	addr = (unsigned long) ptr;
-#if ALIGN_CS == 1
-	nr += (addr & __BITOPS_ALIGN) << 3;    /* add alignment to bit number */
-	addr ^= addr & __BITOPS_ALIGN;	       /* align address to 8 */
-#endif
 	/* calculate address for CS */
 	addr += (nr ^ (nr & (__BITOPS_WORDSIZE - 1))) >> 3;
 	/* make OR/test mask */
@@ -205,10 +179,6 @@ test_and_clear_bit_cs(unsigned long nr, volatile unsigned long *ptr)
         unsigned long addr, old, new, mask;
 
 	addr = (unsigned long) ptr;
-#if ALIGN_CS == 1
-	nr += (addr & __BITOPS_ALIGN) << 3;    /* add alignment to bit number */
-	addr ^= addr & __BITOPS_ALIGN;	       /* align address to 8 */
-#endif
 	/* calculate address for CS */
 	addr += (nr ^ (nr & (__BITOPS_WORDSIZE - 1))) >> 3;
 	/* make AND/test mask */
@@ -228,10 +198,6 @@ test_and_change_bit_cs(unsigned long nr, volatile unsigned long *ptr)
         unsigned long addr, old, new, mask;
 
 	addr = (unsigned long) ptr;
-#if ALIGN_CS == 1
-	nr += (addr & __BITOPS_ALIGN) << 3;  /* add alignment to bit number */
-	addr ^= addr & __BITOPS_ALIGN;	     /* align address to 8 */
-#endif
 	/* calculate address for CS */
 	addr += (nr ^ (nr & (__BITOPS_WORDSIZE - 1))) >> 3;
 	/* make XOR/test mask */
@@ -833,8 +799,6 @@ static inline int sched_find_first_bit(unsigned long *b)
 #include <asm-generic/bitops/fls64.h>
 
 #include <asm-generic/bitops/hweight.h>
-
-#ifdef __KERNEL__
 
 /*
  * ATTENTION: intel byte ordering convention for ext2 and minix !!

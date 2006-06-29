@@ -104,6 +104,7 @@ static kmem_cache_t *mm_cachep;
 void free_task(struct task_struct *tsk)
 {
 	free_thread_info(tsk->thread_info);
+	rt_mutex_debug_task_free(tsk);
 	free_task_struct(tsk);
 }
 EXPORT_SYMBOL(free_task);
@@ -913,6 +914,19 @@ asmlinkage long sys_set_tid_address(int __user *tidptr)
 	return current->pid;
 }
 
+static inline void rt_mutex_init_task(struct task_struct *p)
+{
+#ifdef CONFIG_RT_MUTEXES
+	spin_lock_init(&p->pi_lock);
+	plist_head_init(&p->pi_waiters, &p->pi_lock);
+	p->pi_blocked_on = NULL;
+# ifdef CONFIG_DEBUG_RT_MUTEXES
+	spin_lock_init(&p->held_list_lock);
+	INIT_LIST_HEAD(&p->held_list_head);
+# endif
+#endif
+}
+
 /*
  * This creates a new process as a copy of the old one,
  * but does not actually start it yet.
@@ -1034,6 +1048,8 @@ static task_t *copy_process(unsigned long clone_flags,
 	mpol_fix_fork_child_flag(p);
 #endif
 
+	rt_mutex_init_task(p);
+
 #ifdef CONFIG_DEBUG_MUTEXES
 	p->blocked_on = NULL; /* not blocked yet */
 #endif
@@ -1076,6 +1092,9 @@ static task_t *copy_process(unsigned long clone_flags,
 #ifdef CONFIG_COMPAT
 	p->compat_robust_list = NULL;
 #endif
+	INIT_LIST_HEAD(&p->pi_state_list);
+	p->pi_state_cache = NULL;
+
 	/*
 	 * sigaltstack should be cleared when sharing the same VM
 	 */

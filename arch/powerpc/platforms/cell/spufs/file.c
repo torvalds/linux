@@ -204,7 +204,7 @@ static int spufs_cntl_mmap(struct file *file, struct vm_area_struct *vma)
 
 	vma->vm_flags |= VM_RESERVED;
 	vma->vm_page_prot = __pgprot(pgprot_val(vma->vm_page_prot)
-				     | _PAGE_NO_CACHE);
+				     | _PAGE_NO_CACHE | _PAGE_GUARDED);
 
 	vma->vm_ops = &spufs_cntl_mmap_vmops;
 	return 0;
@@ -675,7 +675,7 @@ static int spufs_signal1_mmap(struct file *file, struct vm_area_struct *vma)
 
 	vma->vm_flags |= VM_RESERVED;
 	vma->vm_page_prot = __pgprot(pgprot_val(vma->vm_page_prot)
-				     | _PAGE_NO_CACHE);
+				     | _PAGE_NO_CACHE | _PAGE_GUARDED);
 
 	vma->vm_ops = &spufs_signal1_mmap_vmops;
 	return 0;
@@ -762,7 +762,7 @@ static int spufs_signal2_mmap(struct file *file, struct vm_area_struct *vma)
 	/* FIXME: */
 	vma->vm_flags |= VM_RESERVED;
 	vma->vm_page_prot = __pgprot(pgprot_val(vma->vm_page_prot)
-				     | _PAGE_NO_CACHE);
+				     | _PAGE_NO_CACHE | _PAGE_GUARDED);
 
 	vma->vm_ops = &spufs_signal2_mmap_vmops;
 	return 0;
@@ -850,7 +850,7 @@ static int spufs_mss_mmap(struct file *file, struct vm_area_struct *vma)
 
 	vma->vm_flags |= VM_RESERVED;
 	vma->vm_page_prot = __pgprot(pgprot_val(vma->vm_page_prot)
-				     | _PAGE_NO_CACHE);
+				     | _PAGE_NO_CACHE | _PAGE_GUARDED);
 
 	vma->vm_ops = &spufs_mss_mmap_vmops;
 	return 0;
@@ -899,7 +899,7 @@ static int spufs_mfc_mmap(struct file *file, struct vm_area_struct *vma)
 
 	vma->vm_flags |= VM_RESERVED;
 	vma->vm_page_prot = __pgprot(pgprot_val(vma->vm_page_prot)
-				     | _PAGE_NO_CACHE);
+				     | _PAGE_NO_CACHE | _PAGE_GUARDED);
 
 	vma->vm_ops = &spufs_mfc_mmap_vmops;
 	return 0;

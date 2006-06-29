@@ -38,7 +38,6 @@
 #include <linux/wait.h>
 #include <linux/slab.h>
 #include <linux/ioport.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/major.h>
 #include <linux/delay.h>
 #include <linux/proc_fs.h>
@@ -564,9 +563,6 @@ static int __init oss_init(void)
 	sound_dmap_flag = (dmabuf > 0 ? 1 : 0);
 
 	for (i = 0; i < sizeof (dev_list) / sizeof *dev_list; i++) {
-		devfs_mk_cdev(MKDEV(SOUND_MAJOR, dev_list[i].minor),
-				S_IFCHR | dev_list[i].mode,
-				"sound/%s", dev_list[i].name);
 		class_device_create(sound_class, NULL,
 				    MKDEV(SOUND_MAJOR, dev_list[i].minor),
 				    NULL, "%s", dev_list[i].name);
@@ -574,15 +570,10 @@ static int __init oss_init(void)
 		if (!dev_list[i].num)
 			continue;
 
-		for (j = 1; j < *dev_list[i].num; j++) {
-			devfs_mk_cdev(MKDEV(SOUND_MAJOR,
-						dev_list[i].minor + (j*0x10)),
-					S_IFCHR | dev_list[i].mode,
-					"sound/%s%d", dev_list[i].name, j);
+		for (j = 1; j < *dev_list[i].num; j++)
 			class_device_create(sound_class, NULL,
 					    MKDEV(SOUND_MAJOR, dev_list[i].minor + (j*0x10)),
 					    NULL, "%s%d", dev_list[i].name, j);
-		}
 	}
 
 	if (sound_nblocks >= 1024)
@@ -596,14 +587,11 @@ static void __exit oss_cleanup(void)
 	int i, j;
 
 	for (i = 0; i < sizeof (dev_list) / sizeof *dev_list; i++) {
-		devfs_remove("sound/%s", dev_list[i].name);
 		class_device_destroy(sound_class, MKDEV(SOUND_MAJOR, dev_list[i].minor));
 		if (!dev_list[i].num)
 			continue;
-		for (j = 1; j < *dev_list[i].num; j++) {
-			devfs_remove("sound/%s%d", dev_list[i].name, j);
+		for (j = 1; j < *dev_list[i].num; j++)
 			class_device_destroy(sound_class, MKDEV(SOUND_MAJOR, dev_list[i].minor + (j*0x10)));
-		}
 	}
 	
 	unregister_sound_special(1);

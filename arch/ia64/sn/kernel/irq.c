@@ -27,7 +27,7 @@ static void unregister_intr_pda(struct sn_irq_info *sn_irq_info);
 int sn_force_interrupt_flag = 1;
 extern int sn_ioif_inited;
 struct list_head **sn_irq_lh;
-static spinlock_t sn_irq_info_lock = SPIN_LOCK_UNLOCKED; /* non-IRQ lock */
+static DEFINE_SPINLOCK(sn_irq_info_lock); /* non-IRQ lock */
 
 u64 sn_intr_alloc(nasid_t local_nasid, int local_widget,
 				     struct sn_irq_info *sn_irq_info,
@@ -225,8 +225,8 @@ void sn_irq_init(void)
 	ia64_last_device_vector = IA64_SN2_LAST_DEVICE_VECTOR;
 
 	for (i = 0; i < NR_IRQS; i++) {
-		if (base_desc[i].handler == &no_irq_type) {
-			base_desc[i].handler = &irq_type_sn;
+		if (base_desc[i].chip == &no_irq_type) {
+			base_desc[i].chip = &irq_type_sn;
 		}
 	}
 }

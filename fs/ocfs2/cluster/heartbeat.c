@@ -54,7 +54,7 @@ static DECLARE_RWSEM(o2hb_callback_sem);
  * multiple hb threads are watching multiple regions.  A node is live
  * whenever any of the threads sees activity from the node in its region.
  */
-static spinlock_t o2hb_live_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(o2hb_live_lock);
 static struct list_head o2hb_live_slots[O2NM_MAX_NODES];
 static unsigned long o2hb_live_node_bitmap[BITS_TO_LONGS(O2NM_MAX_NODES)];
 static LIST_HEAD(o2hb_node_events);

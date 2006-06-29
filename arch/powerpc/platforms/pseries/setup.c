@@ -322,11 +322,6 @@ static void __init pSeries_init_early(void)
 	DBG(" -> pSeries_init_early()\n");
 
 	fw_feature_init();
-	
-	if (firmware_has_feature(FW_FEATURE_LPAR))
-		hpte_init_lpar();
-	else
-		hpte_init_native();
 
 	if (firmware_has_feature(FW_FEATURE_LPAR))
 		find_udbg_vterm();
@@ -383,6 +378,11 @@ static int __init pSeries_probe_hypertas(unsigned long node,
 
 	if (of_get_flat_dt_prop(node, "ibm,hypertas-functions", NULL) != NULL)
  		powerpc_firmware_features |= FW_FEATURE_LPAR;
+
+	if (firmware_has_feature(FW_FEATURE_LPAR))
+		hpte_init_lpar();
+	else
+		hpte_init_native();
 
  	return 1;
 }

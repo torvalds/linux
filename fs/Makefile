@@ -66,7 +66,6 @@ obj-$(CONFIG_MSDOS_FS)		+= msdos/
 obj-$(CONFIG_VFAT_FS)		+= vfat/
 obj-$(CONFIG_BFS_FS)		+= bfs/
 obj-$(CONFIG_ISO9660_FS)	+= isofs/
-obj-$(CONFIG_DEVFS_FS)		+= devfs/
 obj-$(CONFIG_HFSPLUS_FS)	+= hfsplus/ # Before hfs to find wrapped HFS+
 obj-$(CONFIG_HFS_FS)		+= hfs/
 obj-$(CONFIG_VXFS_FS)		+= freevxfs/

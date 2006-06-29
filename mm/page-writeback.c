@@ -516,14 +516,14 @@ static void set_ratelimit(void)
 		ratelimit_pages = (4096 * 1024) / PAGE_CACHE_SIZE;
 }
 
-static int
+static int __cpuinit
 ratelimit_handler(struct notifier_block *self, unsigned long u, void *v)
 {
 	set_ratelimit();
 	return 0;
 }
 
-static struct notifier_block ratelimit_nb = {
+static struct notifier_block __cpuinitdata ratelimit_nb = {
 	.notifier_call	= ratelimit_handler,
 	.next		= NULL,
 };

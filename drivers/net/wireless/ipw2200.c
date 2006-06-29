@@ -1229,12 +1229,6 @@ static struct ipw_fw_error *ipw_alloc_error_log(struct ipw_priv *priv)
 	return error;
 }
 
-static void ipw_free_error_log(struct ipw_fw_error *error)
-{
-	if (error)
-		kfree(error);
-}
-
 static ssize_t show_event_log(struct device *d,
 			      struct device_attribute *attr, char *buf)
 {
@@ -1296,10 +1290,9 @@ static ssize_t clear_error(struct device *d,
 			   const char *buf, size_t count)
 {
 	struct ipw_priv *priv = dev_get_drvdata(d);
-	if (priv->error) {
-		ipw_free_error_log(priv->error);
-		priv->error = NULL;
-	}
+
+	kfree(priv->error);
+	priv->error = NULL;
 	return count;
 }
 
@@ -1970,8 +1963,7 @@ static void ipw_irq_tasklet(struct ipw_priv *priv)
 				struct ipw_fw_error *error =
 				    ipw_alloc_error_log(priv);
 				ipw_dump_error_log(priv, error);
-				if (error)
-					ipw_free_error_log(error);
+				kfree(error);
 			}
 #endif
 		} else {
@@ -11693,10 +11685,8 @@ static void ipw_pci_remove(struct pci_dev *pdev)
 		}
 	}
 
-	if (priv->error) {
-		ipw_free_error_log(priv->error);
-		priv->error = NULL;
-	}
+	kfree(priv->error);
+	priv->error = NULL;
 
 #ifdef CONFIG_IPW2200_PROMISCUOUS
 	ipw_prom_free(priv);

@@ -85,7 +85,7 @@ static void end_pint_irq(unsigned int irq)
 void make_pint_irq(unsigned int irq)
 {
 	disable_irq_nosync(irq);
-	irq_desc[irq].handler = &pint_irq_type;
+	irq_desc[irq].chip = &pint_irq_type;
 	disable_pint_irq(irq);
 }
 

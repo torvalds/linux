@@ -44,7 +44,6 @@
 #include <linux/slab.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/stat.h>
 #include <linux/init.h>
 #include <linux/device.h>
@@ -204,7 +203,7 @@ int misc_register(struct miscdevice * misc)
 {
 	struct miscdevice *c;
 	dev_t dev;
-	int err;
+	int err = 0;
 
 	down(&misc_sem);
 	list_for_each_entry(c, &misc_list, list) {
@@ -228,23 +227,12 @@ int misc_register(struct miscdevice * misc)
 
 	if (misc->minor < DYNAMIC_MINORS)
 		misc_minors[misc->minor >> 3] |= 1 << (misc->minor & 7);
-	if (misc->devfs_name[0] == '\0') {
-		snprintf(misc->devfs_name, sizeof(misc->devfs_name),
-				"misc/%s", misc->name);
-	}
 	dev = MKDEV(MISC_MAJOR, misc->minor);
 
 	misc->class = class_device_create(misc_class, NULL, dev, misc->dev,
 					  "%s", misc->name);
 	if (IS_ERR(misc->class)) {
 		err = PTR_ERR(misc->class);
-		goto out;
-	}
-
-	err = devfs_mk_cdev(dev, S_IFCHR|S_IRUSR|S_IWUSR|S_IRGRP, 
-			    misc->devfs_name);
-	if (err) {
-		class_device_destroy(misc_class, dev);
 		goto out;
 	}
 
@@ -278,7 +266,6 @@ int misc_deregister(struct miscdevice * misc)
 	down(&misc_sem);
 	list_del(&misc->list);
 	class_device_destroy(misc_class, MKDEV(MISC_MAJOR, misc->minor));
-	devfs_remove(misc->devfs_name);
 	if (i < DYNAMIC_MINORS && i>0) {
 		misc_minors[i>>3] &= ~(1 << (misc->minor & 7));
 	}

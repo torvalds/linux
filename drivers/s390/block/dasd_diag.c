@@ -1,4 +1,4 @@
-/* 
+/*
  * File...........: linux/drivers/s390/block/dasd_diag.c
  * Author(s)......: Holger Smolinski <Holger.Smolinski@de.ibm.com>
  * Based on.......: linux/drivers/s390/block/mdisk.c
@@ -336,7 +336,7 @@ dasd_diag_check_device(struct dasd_device *device)
 
 	private = (struct dasd_diag_private *) device->private;
 	if (private == NULL) {
-		private = kmalloc(sizeof(struct dasd_diag_private),GFP_KERNEL);
+		private = kzalloc(sizeof(struct dasd_diag_private),GFP_KERNEL);
 		if (private == NULL) {
 			DEV_MESSAGE(KERN_WARNING, device, "%s",
 				"memory allocation failed for private data");
@@ -527,7 +527,7 @@ dasd_diag_build_cp(struct dasd_device * device, struct request *req)
 				   datasize, device);
 	if (IS_ERR(cqr))
 		return cqr;
-	
+
 	dreq = (struct dasd_diag_req *) cqr->data;
 	dreq->block_count = count;
 	dbio = dreq->bio;

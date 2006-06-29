@@ -939,11 +939,35 @@ config MWAVE
 config SCx200_GPIO
 	tristate "NatSemi SCx200 GPIO Support"
 	depends on SCx200
+	select NSC_GPIO
 	help
 	  Give userspace access to the GPIO pins on the National
 	  Semiconductor SCx200 processors.
 
 	  If compiled as a module, it will be called scx200_gpio.
+
+config PC8736x_GPIO
+	tristate "NatSemi PC8736x GPIO Support"
+	depends on X86
+	default SCx200_GPIO	# mostly N
+	select NSC_GPIO		# needed for support routines
+	help
+	  Give userspace access to the GPIO pins on the National
+	  Semiconductor PC-8736x (x=[03456]) SuperIO chip.  The chip
+	  has multiple functional units, inc several managed by
+	  hwmon/pc87360 driver.  Tested with PC-87366
+
+	  If compiled as a module, it will be called pc8736x_gpio.
+
+config NSC_GPIO
+	tristate "NatSemi Base GPIO Support"
+	depends on X86_32
+	# selected by SCx200_GPIO and PC8736x_GPIO
+	# what about 2 selectors differing: m != y
+	help
+	  Common support used (and needed) by scx200_gpio and
+	  pc8736x_gpio drivers.  If those drivers are built as
+	  modules, this one will be too, named nsc_gpio
 
 config CS5535_GPIO
 	tristate "AMD CS5535/CS5536 GPIO (Geode Companion Device)"

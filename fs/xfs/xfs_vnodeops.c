@@ -2603,8 +2603,7 @@ xfs_link(
 	vn_trace_entry(src_vp, __FUNCTION__, (inst_t *)__return_address);
 
 	target_namelen = VNAMELEN(dentry);
-	if (VN_ISDIR(src_vp))
-		return XFS_ERROR(EPERM);
+	ASSERT(!VN_ISDIR(src_vp));
 
 	sip = xfs_vtoi(src_vp);
 	tdp = XFS_BHVTOI(target_dir_bdp);
@@ -2699,9 +2698,8 @@ xfs_link(
 	xfs_trans_log_inode(tp, tdp, XFS_ILOG_CORE);
 
 	error = xfs_bumplink(tp, sip);
-	if (error) {
+	if (error)
 		goto abort_return;
-	}
 
 	/*
 	 * If this is a synchronous mount, make sure that the
@@ -2719,9 +2717,8 @@ xfs_link(
 	}
 
 	error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES, NULL);
-	if (error) {
+	if (error)
 		goto std_return;
-	}
 
 	/* Fall through to std_return with error = 0. */
 std_return:
@@ -2742,6 +2739,8 @@ std_return:
 	xfs_trans_cancel(tp, cancel_flags);
 	goto std_return;
 }
+
+
 /*
  * xfs_mkdir
  *

@@ -78,6 +78,18 @@ config ADB_PMU
 	  this device; you should do so if your machine is one of those
 	  mentioned above.
 
+config ADB_PMU_LED
+	bool "Support for the Power/iBook front LED"
+	depends on ADB_PMU
+	select NEW_LEDS
+	select LEDS_CLASS
+	help
+	  Support the front LED on Power/iBooks as a generic LED that can
+	  be triggered by any of the supported triggers. To get the
+	  behaviour of the old CONFIG_BLK_DEV_IDE_PMAC_BLINK, select this
+	  and the ide-disk LED trigger and configure appropriately through
+	  sysfs.
+
 config PMAC_SMU
 	bool "Support for SMU  based PowerMacs"
 	depends on PPC_PMAC64

@@ -326,16 +326,17 @@
 #define __NR_unshare			(__NR_Linux + 303)
 #define __NR_splice			(__NR_Linux + 304)
 #define __NR_sync_file_range		(__NR_Linux + 305)
+#define __NR_tee			(__NR_Linux + 306)
 
 /*
  * Offset of the last Linux o32 flavoured syscall
  */
-#define __NR_Linux_syscalls		305
+#define __NR_Linux_syscalls		306
 
 #endif /* _MIPS_SIM == _MIPS_SIM_ABI32 */
 
 #define __NR_O32_Linux			4000
-#define __NR_O32_Linux_syscalls		305
+#define __NR_O32_Linux_syscalls		306
 
 #if _MIPS_SIM == _MIPS_SIM_ABI64
 
@@ -608,16 +609,17 @@
 #define __NR_unshare			(__NR_Linux + 262)
 #define __NR_splice			(__NR_Linux + 263)
 #define __NR_sync_file_range		(__NR_Linux + 264)
+#define __NR_tee			(__NR_Linux + 265)
 
 /*
  * Offset of the last Linux 64-bit flavoured syscall
  */
-#define __NR_Linux_syscalls		264
+#define __NR_Linux_syscalls		265
 
 #endif /* _MIPS_SIM == _MIPS_SIM_ABI64 */
 
 #define __NR_64_Linux			5000
-#define __NR_64_Linux_syscalls		264
+#define __NR_64_Linux_syscalls		265
 
 #if _MIPS_SIM == _MIPS_SIM_NABI32
 
@@ -894,16 +896,17 @@
 #define __NR_unshare			(__NR_Linux + 266)
 #define __NR_splice			(__NR_Linux + 267)
 #define __NR_sync_file_range		(__NR_Linux + 268)
+#define __NR_tee			(__NR_Linux + 269)
 
 /*
  * Offset of the last N32 flavoured syscall
  */
-#define __NR_Linux_syscalls		268
+#define __NR_Linux_syscalls		269
 
 #endif /* _MIPS_SIM == _MIPS_SIM_NABI32 */
 
 #define __NR_N32_Linux			6000
-#define __NR_N32_Linux_syscalls		268
+#define __NR_N32_Linux_syscalls		269
 
 #ifdef __KERNEL__
 

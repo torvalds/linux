@@ -461,7 +461,7 @@ void show_code(unsigned int *pc)
 	}
 }
 
-spinlock_t die_lock = SPIN_LOCK_UNLOCKED;
+DEFINE_SPINLOCK(die_lock);
 
 void die(const char * str, struct pt_regs * regs, long err)
 {

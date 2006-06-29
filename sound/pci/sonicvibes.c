@@ -1441,10 +1441,10 @@ static int __devinit snd_sonic_probe(struct pci_dev *pci,
 
 	strcpy(card->driver, "SonicVibes");
 	strcpy(card->shortname, "S3 SonicVibes");
-	sprintf(card->longname, "%s rev %i at 0x%lx, irq %i",
+	sprintf(card->longname, "%s rev %i at 0x%llx, irq %i",
 		card->shortname,
 		sonic->revision,
-		pci_resource_start(pci, 1),
+		(unsigned long long)pci_resource_start(pci, 1),
 		sonic->irq);
 
 	if ((err = snd_sonicvibes_pcm(sonic, 0, NULL)) < 0) {

@@ -167,14 +167,14 @@ void __init mips_cpu_irq_init(int irq_base)
 			irq_desc[i].status = IRQ_DISABLED;
 			irq_desc[i].action = NULL;
 			irq_desc[i].depth = 1;
-			irq_desc[i].handler = &mips_mt_cpu_irq_controller;
+			irq_desc[i].chip = &mips_mt_cpu_irq_controller;
 		}
 
 	for (i = irq_base + 2; i < irq_base + 8; i++) {
 		irq_desc[i].status = IRQ_DISABLED;
 		irq_desc[i].action = NULL;
 		irq_desc[i].depth = 1;
-		irq_desc[i].handler = &mips_cpu_irq_controller;
+		irq_desc[i].chip = &mips_cpu_irq_controller;
 	}
 
 	mips_cpu_irq_base = irq_base;

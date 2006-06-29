@@ -743,8 +743,7 @@ void __exit au1100fb_cleanup(void)
 {
 	driver_unregister(&au1100fb_driver);
 
-	if (drv_info.opt_mode)
-		kfree(drv_info.opt_mode);
+	kfree(drv_info.opt_mode);
 }
 
 module_init(au1100fb_init);

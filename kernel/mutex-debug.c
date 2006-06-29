@@ -16,6 +16,7 @@
 #include <linux/sched.h>
 #include <linux/delay.h>
 #include <linux/module.h>
+#include <linux/poison.h>
 #include <linux/spinlock.h>
 #include <linux/kallsyms.h>
 #include <linux/interrupt.h>
@@ -381,7 +382,7 @@ void debug_mutex_set_owner(struct mutex *lock,
 
 void debug_mutex_init_waiter(struct mutex_waiter *waiter)
 {
-	memset(waiter, 0x11, sizeof(*waiter));
+	memset(waiter, MUTEX_DEBUG_INIT, sizeof(*waiter));
 	waiter->magic = waiter;
 	INIT_LIST_HEAD(&waiter->list);
 }
@@ -397,7 +398,7 @@ void debug_mutex_wake_waiter(struct mutex *lock, struct mutex_waiter *waiter)
 void debug_mutex_free_waiter(struct mutex_waiter *waiter)
 {
 	DEBUG_WARN_ON(!list_empty(&waiter->list));
-	memset(waiter, 0x22, sizeof(*waiter));
+	memset(waiter, MUTEX_DEBUG_FREE, sizeof(*waiter));
 }
 
 void debug_mutex_add_waiter(struct mutex *lock, struct mutex_waiter *waiter,

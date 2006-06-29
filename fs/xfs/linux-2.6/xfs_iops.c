@@ -419,16 +419,15 @@ xfs_vn_link(
 	int		error;
 
 	ip = old_dentry->d_inode;	/* inode being linked to */
-	if (S_ISDIR(ip->i_mode))
-		return -EPERM;
-
 	tdvp = vn_from_inode(dir);
 	vp = vn_from_inode(ip);
 
+	VN_HOLD(vp);
 	error = bhv_vop_link(tdvp, vp, dentry, NULL);
-	if (likely(!error)) {
+	if (unlikely(error)) {
+		VN_RELE(vp);
+	} else {
 		VMODIFY(tdvp);
-		VN_HOLD(vp);
 		xfs_validate_fields(ip, &vattr);
 		d_instantiate(dentry, ip);
 	}

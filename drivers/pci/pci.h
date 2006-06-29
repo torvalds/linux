@@ -6,10 +6,10 @@ extern int pci_create_sysfs_dev_files(struct pci_dev *pdev);
 extern void pci_remove_sysfs_dev_files(struct pci_dev *pdev);
 extern void pci_cleanup_rom(struct pci_dev *dev);
 extern int pci_bus_alloc_resource(struct pci_bus *bus, struct resource *res,
-				  unsigned long size, unsigned long align,
-				  unsigned long min, unsigned int type_mask,
+				  resource_size_t size, resource_size_t align,
+				  resource_size_t min, unsigned int type_mask,
 				  void (*alignf)(void *, struct resource *,
-					  	 unsigned long, unsigned long),
+					      resource_size_t, resource_size_t),
 				  void *alignf_data);
 /* Firmware callbacks */
 extern int (*platform_pci_choose_state)(struct pci_dev *dev, pm_message_t state);

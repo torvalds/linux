@@ -13,11 +13,6 @@ space   := $(empty) $(empty)
 depfile = $(subst $(comma),_,$(@D)/.$(@F).d)
 
 ###
-# basetarget equals the filename of the target with no extension.
-# So 'foo/bar.o' becomes 'bar'
-basetarget = $(basename $(notdir $@))
-
-###
 # Escape single quote for use in echo statements
 escsq = $(subst $(squote),'\$(squote)',$1)
 

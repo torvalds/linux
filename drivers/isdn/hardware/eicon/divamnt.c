@@ -17,7 +17,6 @@
 #include <linux/sched.h>
 #include <linux/smp_lock.h>
 #include <linux/poll.h>
-#include <linux/devfs_fs_kernel.h>
 #include <asm/uaccess.h>
 
 #include "platform.h"
@@ -178,7 +177,6 @@ static struct file_operations divas_maint_fops = {
 
 static void divas_maint_unregister_chrdev(void)
 {
-	devfs_remove(DEVNAME);
 	unregister_chrdev(major, DEVNAME);
 }
 
@@ -190,7 +188,6 @@ static int DIVA_INIT_FUNCTION divas_maint_register_chrdev(void)
 		       DRIVERLNAME);
 		return (0);
 	}
-	devfs_mk_cdev(MKDEV(major, 0), S_IFCHR|S_IRUSR|S_IWUSR, DEVNAME);
 
 	return (1);
 }

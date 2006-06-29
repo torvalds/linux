@@ -435,7 +435,7 @@ static inline void t2_outl(u32 b, unsigned long addr)
 	set_hae(msb); \
 }
 
-static spinlock_t t2_hae_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(t2_hae_lock);
 
 __EXTERN_INLINE u8 t2_readb(const volatile void __iomem *xaddr)
 {

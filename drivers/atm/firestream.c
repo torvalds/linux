@@ -33,6 +33,7 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/pci.h>
+#include <linux/poison.h>
 #include <linux/errno.h>
 #include <linux/atm.h>
 #include <linux/atmdev.h>
@@ -754,7 +755,7 @@ static void process_txdone_queue (struct fs_dev *dev, struct queue *q)
 			fs_kfree_skb (skb);
 
 			fs_dprintk (FS_DEBUG_ALLOC, "Free trans-d: %p\n", td); 
-			memset (td, 0x12, sizeof (struct FS_BPENTRY));
+			memset (td, ATM_POISON_FREE, sizeof(struct FS_BPENTRY));
 			kfree (td);
 			break;
 		default:
@@ -1657,9 +1658,10 @@ static int __devinit fs_init (struct fs_dev *dev)
 	func_enter ();
 	pci_dev = dev->pci_dev;
 
-	printk (KERN_INFO "found a FireStream %d card, base %08lx, irq%d.\n", 
+	printk (KERN_INFO "found a FireStream %d card, base %16llx, irq%d.\n",
 		IS_FS50(dev)?50:155,
-		pci_resource_start(pci_dev, 0), dev->pci_dev->irq);
+		(unsigned long long)pci_resource_start(pci_dev, 0),
+		dev->pci_dev->irq);
 
 	if (fs_debug & FS_DEBUG_INIT)
 		my_hd ((unsigned char *) dev, sizeof (*dev));

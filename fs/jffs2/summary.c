@@ -5,7 +5,7 @@
  *                     Zoltan Sogor <weth@inf.u-szeged.hu>,
  *                     Patrik Kluba <pajko@halom.u-szeged.hu>,
  *                     University of Szeged, Hungary
- *               2005  KaiGai Kohei <kaigai@ak.jp.nec.com>
+ *               2006  KaiGai Kohei <kaigai@ak.jp.nec.com>
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
@@ -310,8 +310,6 @@ int jffs2_sum_add_kvec(struct jffs2_sb_info *c, const struct kvec *invecs,
 #ifdef CONFIG_JFFS2_FS_XATTR
 		case JFFS2_NODETYPE_XATTR: {
 			struct jffs2_sum_xattr_mem *temp;
-			if (je32_to_cpu(node->x.version) == 0xffffffff)
-				return 0;
 			temp = kmalloc(sizeof(struct jffs2_sum_xattr_mem), GFP_KERNEL);
 			if (!temp)
 				goto no_mem;
@@ -327,10 +325,6 @@ int jffs2_sum_add_kvec(struct jffs2_sb_info *c, const struct kvec *invecs,
 		}
 		case JFFS2_NODETYPE_XREF: {
 			struct jffs2_sum_xref_mem *temp;
-
-			if (je32_to_cpu(node->r.ino) == 0xffffffff
-			    && je32_to_cpu(node->r.xid) == 0xffffffff)
-				return 0;
 			temp = kmalloc(sizeof(struct jffs2_sum_xref_mem), GFP_KERNEL);
 			if (!temp)
 				goto no_mem;
@@ -483,22 +477,20 @@ static int jffs2_sum_process_sum_data(struct jffs2_sb_info *c, struct jffs2_eras
 
 				xd = jffs2_setup_xattr_datum(c, je32_to_cpu(spx->xid),
 								je32_to_cpu(spx->version));
-				if (IS_ERR(xd)) {
-					if (PTR_ERR(xd) == -EEXIST) {
-						/* a newer version of xd exists */
-						if ((err = jffs2_scan_dirty_space(c, jeb, je32_to_cpu(spx->totlen))))
-							return err;
-						sp += JFFS2_SUMMARY_XATTR_SIZE;
-						break;
-					}
-					JFFS2_NOTICE("allocation of xattr_datum failed\n");
+				if (IS_ERR(xd))
 					return PTR_ERR(xd);
+				if (xd->version > je32_to_cpu(spx->version)) {
+					/* node is not the newest one */
+					struct jffs2_raw_node_ref *raw
+						= sum_link_node_ref(c, jeb, je32_to_cpu(spx->offset) | REF_UNCHECKED,
+								    PAD(je32_to_cpu(spx->totlen)), NULL);
+					raw->next_in_ino = xd->node->next_in_ino;
+					xd->node->next_in_ino = raw;
+				} else {
+					xd->version = je32_to_cpu(spx->version);
+					sum_link_node_ref(c, jeb, je32_to_cpu(spx->offset) | REF_UNCHECKED,
+							  PAD(je32_to_cpu(spx->totlen)), (void *)xd);
 				}
-
-				xd->node = sum_link_node_ref(c, jeb, je32_to_cpu(spx->offset) | REF_UNCHECKED,
-							     PAD(je32_to_cpu(spx->totlen)), NULL);
-				/* FIXME */ xd->node->next_in_ino = (void *)xd;
-
 				*pseudo_random += je32_to_cpu(spx->xid);
 				sp += JFFS2_SUMMARY_XATTR_SIZE;
 
@@ -519,14 +511,11 @@ static int jffs2_sum_process_sum_data(struct jffs2_sb_info *c, struct jffs2_eras
 					JFFS2_NOTICE("allocation of xattr_datum failed\n");
 					return -ENOMEM;
 				}
-				ref->ino = 0xfffffffe;
-				ref->xid = 0xfffffffd;
 				ref->next = c->xref_temp;
 				c->xref_temp = ref;
 
-				ref->node = sum_link_node_ref(c, jeb, je32_to_cpu(spr->offset) | REF_UNCHECKED,
-							      PAD(sizeof(struct jffs2_raw_xref)), NULL);
-				/* FIXME */ ref->node->next_in_ino = (void *)ref;
+				sum_link_node_ref(c, jeb, je32_to_cpu(spr->offset) | REF_UNCHECKED,
+						  PAD(sizeof(struct jffs2_raw_xref)), (void *)ref);
 
 				*pseudo_random += ref->node->flash_offset;
 				sp += JFFS2_SUMMARY_XREF_SIZE;

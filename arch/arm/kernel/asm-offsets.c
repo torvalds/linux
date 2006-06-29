@@ -60,6 +60,9 @@ int main(void)
 #ifdef CONFIG_IWMMXT
   DEFINE(TI_IWMMXT_STATE,	offsetof(struct thread_info, fpstate.iwmmxt));
 #endif
+#ifdef CONFIG_CRUNCH
+  DEFINE(TI_CRUNCH_STATE,	offsetof(struct thread_info, crunchstate));
+#endif
   BLANK();
   DEFINE(S_R0,			offsetof(struct pt_regs, ARM_r0));
   DEFINE(S_R1,			offsetof(struct pt_regs, ARM_r1));

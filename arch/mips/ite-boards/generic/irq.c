@@ -208,10 +208,10 @@ void __init arch_init_irq(void)
 #endif
 
 	for (i = 0; i <= IT8172_LAST_IRQ; i++) {
-		irq_desc[i].handler = &it8172_irq_type;
+		irq_desc[i].chip = &it8172_irq_type;
 		spin_lock_init(&irq_desc[i].lock);
 	}
-	irq_desc[MIPS_CPU_TIMER_IRQ].handler = &cp0_irq_type;
+	irq_desc[MIPS_CPU_TIMER_IRQ].chip = &cp0_irq_type;
 	set_c0_status(ALLINTS_NOTIMER);
 }
 

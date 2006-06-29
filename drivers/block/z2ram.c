@@ -354,7 +354,6 @@ z2_init(void)
     z2ram_gendisk->first_minor = 0;
     z2ram_gendisk->fops = &z2_fops;
     sprintf(z2ram_gendisk->disk_name, "z2ram");
-    strcpy(z2ram_gendisk->devfs_name, z2ram_gendisk->disk_name);
 
     z2ram_gendisk->queue = z2_queue;
     add_disk(z2ram_gendisk);

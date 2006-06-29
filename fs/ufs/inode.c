@@ -98,7 +98,9 @@ static u64 ufs_frag_map(struct inode *inode, sector_t frag)
 	u64 temp = 0L;
 
 	UFSD(": frag = %llu  depth = %d\n", (unsigned long long)frag, depth);
-	UFSD(": uspi->s_fpbshift = %d ,uspi->s_apbmask = %x, mask=%llx\n",uspi->s_fpbshift,uspi->s_apbmask,mask);
+	UFSD(": uspi->s_fpbshift = %d ,uspi->s_apbmask = %x, mask=%llx\n",
+		uspi->s_fpbshift, uspi->s_apbmask,
+		(unsigned long long)mask);
 
 	if (depth == 0)
 		return 0;
@@ -429,7 +431,7 @@ int ufs_getfrag_block(struct inode *inode, sector_t fragment, struct buffer_head
 	
 	if (!create) {
 		phys64 = ufs_frag_map(inode, fragment);
-		UFSD("phys64 = %llu \n",phys64);
+		UFSD("phys64 = %llu\n", (unsigned long long)phys64);
 		if (phys64)
 			map_bh(bh_result, sb, phys64);
 		return 0;
@@ -574,7 +576,7 @@ static sector_t ufs_bmap(struct address_space *mapping, sector_t block)
 {
 	return generic_block_bmap(mapping,block,ufs_getfrag_block);
 }
-struct address_space_operations ufs_aops = {
+const struct address_space_operations ufs_aops = {
 	.readpage = ufs_readpage,
 	.writepage = ufs_writepage,
 	.sync_page = block_sync_page,
@@ -605,39 +607,12 @@ static void ufs_set_inode_ops(struct inode *inode)
 				   ufs_get_inode_dev(inode->i_sb, UFS_I(inode)));
 }
 
-void ufs_read_inode (struct inode * inode)
+static void ufs1_read_inode(struct inode *inode, struct ufs_inode *ufs_inode)
 {
 	struct ufs_inode_info *ufsi = UFS_I(inode);
-	struct super_block * sb;
-	struct ufs_sb_private_info * uspi;
-	struct ufs_inode * ufs_inode;	
-	struct ufs2_inode *ufs2_inode;
-	struct buffer_head * bh;
+	struct super_block *sb = inode->i_sb;
 	mode_t mode;
 	unsigned i;
-	unsigned flags;
-	
-	UFSD("ENTER, ino %lu\n", inode->i_ino);
-	
-	sb = inode->i_sb;
-	uspi = UFS_SB(sb)->s_uspi;
-	flags = UFS_SB(sb)->s_flags;
-
-	if (inode->i_ino < UFS_ROOTINO || 
-	    inode->i_ino > (uspi->s_ncg * uspi->s_ipg)) {
-		ufs_warning (sb, "ufs_read_inode", "bad inode number (%lu)\n", inode->i_ino);
-		goto bad_inode;
-	}
-	
-	bh = sb_bread(sb, uspi->s_sbbase + ufs_inotofsba(inode->i_ino));
-	if (!bh) {
-		ufs_warning (sb, "ufs_read_inode", "unable to read inode %lu\n", inode->i_ino);
-		goto bad_inode;
-	}
-	if ((flags & UFS_TYPE_MASK) == UFS_TYPE_UFS2)
-		goto ufs2_inode;
-
-	ufs_inode = (struct ufs_inode *) (bh->b_data + sizeof(struct ufs_inode) * ufs_inotofsbo(inode->i_ino));
 
 	/*
 	 * Copy data to the in-core inode.
@@ -661,14 +636,11 @@ void ufs_read_inode (struct inode * inode)
 	inode->i_atime.tv_nsec = 0;
 	inode->i_ctime.tv_nsec = 0;
 	inode->i_blocks = fs32_to_cpu(sb, ufs_inode->ui_blocks);
-	inode->i_blksize = PAGE_SIZE;   /* This is the optimal IO size (for stat) */
-	inode->i_version++;
 	ufsi->i_flags = fs32_to_cpu(sb, ufs_inode->ui_flags);
 	ufsi->i_gen = fs32_to_cpu(sb, ufs_inode->ui_gen);
 	ufsi->i_shadow = fs32_to_cpu(sb, ufs_inode->ui_u3.ui_sun.ui_shadow);
 	ufsi->i_oeftflag = fs32_to_cpu(sb, ufs_inode->ui_u3.ui_sun.ui_oeftflag);
-	ufsi->i_lastfrag = (inode->i_size + uspi->s_fsize - 1) >> uspi->s_fshift;
-	ufsi->i_dir_start_lookup = 0;
+
 	
 	if (S_ISCHR(mode) || S_ISBLK(mode) || inode->i_blocks) {
 		for (i = 0; i < (UFS_NDADDR + UFS_NINDIR); i++)
@@ -677,24 +649,16 @@ void ufs_read_inode (struct inode * inode)
 		for (i = 0; i < (UFS_NDADDR + UFS_NINDIR) * 4; i++)
 			ufsi->i_u1.i_symlink[i] = ufs_inode->ui_u2.ui_symlink[i];
 	}
-	ufsi->i_osync = 0;
+}
 
-	ufs_set_inode_ops(inode);
+static void ufs2_read_inode(struct inode *inode, struct ufs2_inode *ufs2_inode)
+{
+	struct ufs_inode_info *ufsi = UFS_I(inode);
+	struct super_block *sb = inode->i_sb;
+	mode_t mode;
+	unsigned i;
 
-	brelse (bh);
-
-	UFSD("EXIT\n");
-	return;
-
-bad_inode:
-	make_bad_inode(inode);
-	return;
-
-ufs2_inode :
 	UFSD("Reading ufs2 inode, ino %lu\n", inode->i_ino);
-
-	ufs2_inode = (struct ufs2_inode *)(bh->b_data + sizeof(struct ufs2_inode) * ufs_inotofsbo(inode->i_ino));
-
 	/*
 	 * Copy data to the in-core inode.
 	 */
@@ -717,26 +681,64 @@ ufs2_inode :
 	inode->i_atime.tv_nsec = 0;
 	inode->i_ctime.tv_nsec = 0;
 	inode->i_blocks = fs64_to_cpu(sb, ufs2_inode->ui_blocks);
-	inode->i_blksize = PAGE_SIZE; /*This is the optimal IO size(for stat)*/
-
-	inode->i_version++;
 	ufsi->i_flags = fs32_to_cpu(sb, ufs2_inode->ui_flags);
 	ufsi->i_gen = fs32_to_cpu(sb, ufs2_inode->ui_gen);
 	/*
 	ufsi->i_shadow = fs32_to_cpu(sb, ufs_inode->ui_u3.ui_sun.ui_shadow);
 	ufsi->i_oeftflag = fs32_to_cpu(sb, ufs_inode->ui_u3.ui_sun.ui_oeftflag);
 	*/
-	ufsi->i_lastfrag= (inode->i_size + uspi->s_fsize- 1) >> uspi->s_fshift;
 
 	if (S_ISCHR(mode) || S_ISBLK(mode) || inode->i_blocks) {
 		for (i = 0; i < (UFS_NDADDR + UFS_NINDIR); i++)
 			ufsi->i_u1.u2_i_data[i] =
 				ufs2_inode->ui_u2.ui_addr.ui_db[i];
-	}
-	else {
+	} else {
 		for (i = 0; i < (UFS_NDADDR + UFS_NINDIR) * 4; i++)
 			ufsi->i_u1.i_symlink[i] = ufs2_inode->ui_u2.ui_symlink[i];
 	}
+}
+
+void ufs_read_inode(struct inode * inode)
+{
+	struct ufs_inode_info *ufsi = UFS_I(inode);
+	struct super_block * sb;
+	struct ufs_sb_private_info * uspi;
+	struct buffer_head * bh;
+
+	UFSD("ENTER, ino %lu\n", inode->i_ino);
+
+	sb = inode->i_sb;
+	uspi = UFS_SB(sb)->s_uspi;
+
+	if (inode->i_ino < UFS_ROOTINO ||
+	    inode->i_ino > (uspi->s_ncg * uspi->s_ipg)) {
+		ufs_warning(sb, "ufs_read_inode", "bad inode number (%lu)\n",
+			    inode->i_ino);
+		goto bad_inode;
+	}
+
+	bh = sb_bread(sb, uspi->s_sbbase + ufs_inotofsba(inode->i_ino));
+	if (!bh) {
+		ufs_warning(sb, "ufs_read_inode", "unable to read inode %lu\n",
+			    inode->i_ino);
+		goto bad_inode;
+	}
+	if ((UFS_SB(sb)->s_flags & UFS_TYPE_MASK) == UFS_TYPE_UFS2) {
+		struct ufs2_inode *ufs2_inode = (struct ufs2_inode *)bh->b_data;
+
+		ufs2_read_inode(inode,
+				ufs2_inode + ufs_inotofsbo(inode->i_ino));
+	} else {
+		struct ufs_inode *ufs_inode = (struct ufs_inode *)bh->b_data;
+
+		ufs1_read_inode(inode, ufs_inode + ufs_inotofsbo(inode->i_ino));
+	}
+
+	inode->i_blksize = PAGE_SIZE;/*This is the optimal IO size (for stat)*/
+	inode->i_version++;
+	ufsi->i_lastfrag =
+		(inode->i_size + uspi->s_fsize - 1) >> uspi->s_fshift;
+	ufsi->i_dir_start_lookup = 0;
 	ufsi->i_osync = 0;
 
 	ufs_set_inode_ops(inode);
@@ -745,6 +747,9 @@ ufs2_inode :
 
 	UFSD("EXIT\n");
 	return;
+
+bad_inode:
+	make_bad_inode(inode);
 }
 
 static int ufs_update_inode(struct inode * inode, int do_sync)

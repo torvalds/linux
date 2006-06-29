@@ -390,7 +390,7 @@ int __init nfs_init_nfspagecache(void)
 	return 0;
 }
 
-void __exit nfs_destroy_nfspagecache(void)
+void nfs_destroy_nfspagecache(void)
 {
 	if (kmem_cache_destroy(nfs_page_cachep))
 		printk(KERN_INFO "nfs_page: not all structures were freed\n");

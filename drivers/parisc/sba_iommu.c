@@ -316,10 +316,10 @@ static int reserve_sba_gart = 1;
 **
 ** Superdome (in particular, REO) allows only 64-bit CSR accesses.
 */
-#define READ_REG32(addr)	 le32_to_cpu(__raw_readl(addr))
-#define READ_REG64(addr)	 le64_to_cpu(__raw_readq(addr))
-#define WRITE_REG32(val, addr) __raw_writel(cpu_to_le32(val), addr)
-#define WRITE_REG64(val, addr) __raw_writeq(cpu_to_le64(val), addr)
+#define READ_REG32(addr)	readl(addr)
+#define READ_REG64(addr)	readq(addr)
+#define WRITE_REG32(val, addr)	writel((val), (addr))
+#define WRITE_REG64(val, addr)	writeq((val), (addr))
 
 #ifdef CONFIG_64BIT
 #define READ_REG(addr)		READ_REG64(addr)
@@ -1427,7 +1427,7 @@ sba_ioc_init_pluto(struct parisc_device *sba, struct ioc *ioc, int ioc_num)
 	iov_order = get_order(iova_space_size >> (IOVP_SHIFT - PAGE_SHIFT));
 	ioc->pdir_size = (iova_space_size / IOVP_SIZE) * sizeof(u64);
 
-	DBG_INIT("%s() hpa 0x%lx IOV %dMB (%d bits)\n",
+	DBG_INIT("%s() hpa 0x%p IOV %dMB (%d bits)\n",
 		__FUNCTION__, ioc->ioc_hpa, iova_space_size >> 20,
 		iov_order + PAGE_SHIFT);
 
@@ -1764,7 +1764,7 @@ printk("sba_hw_init(): mem_boot 0x%x 0x%x 0x%x 0x%x\n", PAGE0->mem_boot.hpa,
 
 	sba_dev->num_ioc = num_ioc;
 	for (i = 0; i < num_ioc; i++) {
-		unsigned long ioc_hpa = sba_dev->ioc[i].ioc_hpa;
+		void __iomem *ioc_hpa = sba_dev->ioc[i].ioc_hpa;
 		unsigned int j;
 
 		for (j=0; j < sizeof(u64) * ROPES_PER_IOC; j+=sizeof(u64)) {
@@ -1776,7 +1776,8 @@ printk("sba_hw_init(): mem_boot 0x%x 0x%x 0x%x 0x%x\n", PAGE0->mem_boot.hpa,
 			 * Improves netperf UDP_STREAM by ~10% for bcm5701.
 			 */
 			if (IS_PLUTO(sba_dev->iodc)) {
-				unsigned long rope_cfg, cfg_val;
+				void __iomem *rope_cfg;
+				unsigned long cfg_val;
 
 				rope_cfg = ioc_hpa + IOC_ROPE0_CFG + j;
 				cfg_val = READ_REG(rope_cfg);
@@ -1902,7 +1903,7 @@ sba_common_init(struct sba_device *sba_dev)
 	 * (bit #61, big endian), we have to flush and sync every time
 	 * IO-PDIR is changed in Ike/Astro.
 	 */
-	if (boot_cpu_data.pdc.capabilities & PDC_MODEL_IOPDIR_FDC) {
+	if (ioc_needs_fdc) {
 		printk(KERN_INFO MODULE_NAME " FDC/SYNC required.\n");
 	} else {
 		printk(KERN_INFO MODULE_NAME " IOC has cache coherent PDIR.\n");

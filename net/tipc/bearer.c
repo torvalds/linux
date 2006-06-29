@@ -566,7 +566,7 @@ restart:
 		b_ptr->link_req = tipc_disc_init_link_req(b_ptr, &m_ptr->bcast_addr,
 							  bcast_scope, 2);
 	}
-	b_ptr->publ.lock = SPIN_LOCK_UNLOCKED;
+	spin_lock_init(&b_ptr->publ.lock);
 	write_unlock_bh(&tipc_net_lock);
 	info("Enabled bearer <%s>, discovery domain %s, priority %u\n",
 	     name, addr_string_fill(addr_string, bcast_scope), priority);

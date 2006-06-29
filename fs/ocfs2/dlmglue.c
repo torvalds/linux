@@ -242,7 +242,7 @@ static void ocfs2_build_lock_name(enum ocfs2_lock_type type,
 	mlog_exit_void();
 }
 
-static spinlock_t ocfs2_dlm_tracking_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(ocfs2_dlm_tracking_lock);
 
 static void ocfs2_add_lockres_tracking(struct ocfs2_lock_res *res,
 				       struct ocfs2_dlm_debug *dlm_debug)

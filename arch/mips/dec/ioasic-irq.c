@@ -144,13 +144,13 @@ void __init init_ioasic_irqs(int base)
 		irq_desc[i].status = IRQ_DISABLED;
 		irq_desc[i].action = 0;
 		irq_desc[i].depth = 1;
-		irq_desc[i].handler = &ioasic_irq_type;
+		irq_desc[i].chip = &ioasic_irq_type;
 	}
 	for (; i < base + IO_IRQ_LINES; i++) {
 		irq_desc[i].status = IRQ_DISABLED;
 		irq_desc[i].action = 0;
 		irq_desc[i].depth = 1;
-		irq_desc[i].handler = &ioasic_dma_irq_type;
+		irq_desc[i].chip = &ioasic_dma_irq_type;
 	}
 
 	ioasic_irq_base = base;

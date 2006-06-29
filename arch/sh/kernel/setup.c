@@ -402,7 +402,7 @@ static int __init topology_init(void)
 	int cpu_id;
 
 	for_each_possible_cpu(cpu_id)
-		register_cpu(&cpu[cpu_id], cpu_id, NULL);
+		register_cpu(&cpu[cpu_id], cpu_id);
 
 	return 0;
 }

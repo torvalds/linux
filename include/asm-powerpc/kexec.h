@@ -112,9 +112,13 @@ static inline void crash_setup_regs(struct pt_regs *newregs,
 #ifdef __powerpc64__
 extern void kexec_smp_wait(void);	/* get and clear naca physid, wait for
 					  master to copy new code to 0 */
-extern void __init kexec_setup(void);
 extern int crashing_cpu;
 extern void crash_send_ipi(void (*crash_ipi_callback)(struct pt_regs *));
+extern cpumask_t cpus_in_sr;
+static inline int kexec_sr_activated(int cpu)
+{
+	return cpu_isset(cpu,cpus_in_sr);
+}
 #endif /* __powerpc64 __ */
 
 struct kimage;
@@ -124,10 +128,13 @@ extern int default_machine_kexec_prepare(struct kimage *image);
 extern void default_machine_crash_shutdown(struct pt_regs *regs);
 
 extern void machine_kexec_simple(struct kimage *image);
+extern void crash_kexec_secondary(struct pt_regs *regs);
 extern int overlaps_crashkernel(unsigned long start, unsigned long size);
 extern void reserve_crashkernel(void);
 
 #else /* !CONFIG_KEXEC */
+static inline int kexec_sr_activated(int cpu) { return 0; }
+static inline void crash_kexec_secondary(struct pt_regs *regs) { }
 
 static inline int overlaps_crashkernel(unsigned long start, unsigned long size)
 {

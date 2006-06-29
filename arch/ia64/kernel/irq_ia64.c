@@ -249,9 +249,9 @@ register_percpu_irq (ia64_vector vec, struct irqaction *action)
 
 	for (irq = 0; irq < NR_IRQS; ++irq)
 		if (irq_to_vector(irq) == vec) {
-			desc = irq_descp(irq);
+			desc = irq_desc + irq;
 			desc->status |= IRQ_PER_CPU;
-			desc->handler = &irq_type_ia64_lsapic;
+			desc->chip = &irq_type_ia64_lsapic;
 			if (action)
 				setup_irq(irq, action);
 		}

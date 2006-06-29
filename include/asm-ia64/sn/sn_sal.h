@@ -85,6 +85,7 @@
 #define  SN_SAL_GET_PROM_FEATURE_SET		   0x02000065
 #define  SN_SAL_SET_OS_FEATURE_SET		   0x02000066
 #define  SN_SAL_INJECT_ERROR			   0x02000067
+#define  SN_SAL_SET_CPU_NUMBER			   0x02000068
 
 /*
  * Service-specific constants
@@ -1149,5 +1150,14 @@ sn_inject_error(u64 paddr, u64 *data, u64 *ecc)
 				(u64)ecc, 0, 0, 0, 0);
 	local_irq_restore(irq_flags);
 	return ret_stuff.status;
+}
+
+static inline int
+ia64_sn_set_cpu_number(int cpu)
+{
+	struct ia64_sal_retval rv;
+
+	SAL_CALL_NOLOCK(rv, SN_SAL_SET_CPU_NUMBER, cpu, 0, 0, 0, 0, 0, 0);
+	return rv.status;
 }
 #endif /* _ASM_IA64_SN_SN_SAL_H */

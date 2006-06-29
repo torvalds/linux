@@ -2530,7 +2530,6 @@ static boolean DAC960_RegisterBlockDevice(DAC960_Controller_T *Controller)
 	blk_queue_max_sectors(RequestQueue, Controller->MaxBlocksPerCommand);
 	disk->queue = RequestQueue;
 	sprintf(disk->disk_name, "rd/c%dd%d", Controller->ControllerNumber, n);
-	sprintf(disk->devfs_name, "rd/host%d/target%d", Controller->ControllerNumber, n);
 	disk->major = MajorNumber;
 	disk->first_minor = n << DAC960_MaxPartitionsBits;
 	disk->fops = &DAC960_BlockDeviceOperations;

@@ -408,7 +408,9 @@ static const struct hda_codec_preset *find_codec_preset(struct hda_codec *codec)
 			u32 mask = preset->mask;
 			if (! mask)
 				mask = ~0;
-			if (preset->id == (codec->vendor_id & mask))
+			if (preset->id == (codec->vendor_id & mask) &&
+			    (! preset->rev ||
+			     preset->rev == codec->revision_id))
 				return preset;
 		}
 	}

@@ -35,7 +35,7 @@
  */
 
 /* EEH event workqueue setup. */
-static spinlock_t eeh_eventlist_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(eeh_eventlist_lock);
 LIST_HEAD(eeh_eventlist);
 static void eeh_thread_launcher(void *);
 DECLARE_WORK(eeh_event_wq, eeh_thread_launcher, NULL);

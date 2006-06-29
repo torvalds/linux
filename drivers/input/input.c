@@ -998,11 +998,12 @@ void input_unregister_device(struct input_dev *dev)
 	sysfs_remove_group(&dev->cdev.kobj, &input_dev_caps_attr_group);
 	sysfs_remove_group(&dev->cdev.kobj, &input_dev_id_attr_group);
 	sysfs_remove_group(&dev->cdev.kobj, &input_dev_attr_group);
-	class_device_unregister(&dev->cdev);
 
 	mutex_lock(&dev->mutex);
 	dev->name = dev->phys = dev->uniq = NULL;
 	mutex_unlock(&dev->mutex);
+
+	class_device_unregister(&dev->cdev);
 
 	input_wakeup_procfs_readers();
 }

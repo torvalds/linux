@@ -1085,7 +1085,6 @@ static struct console ip22zilog_console = {
 static struct uart_driver ip22zilog_reg = {
 	.owner		= THIS_MODULE,
 	.driver_name	= "serial",
-	.devfs_name	= "tts/",
 	.dev_name	= "ttyS",
 	.major		= TTY_MAJOR,
 	.minor		= 64,

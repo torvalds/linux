@@ -990,6 +990,8 @@ xlog_find_zeroed(
 	xfs_daddr_t     num_scan_bblks;
 	int	        error, log_bbnum = log->l_logBBsize;
 
+	*blk_no = 0;
+
 	/* check totally zeroed log */
 	bp = xlog_get_bp(log, 1);
 	if (!bp)

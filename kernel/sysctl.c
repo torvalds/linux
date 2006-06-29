@@ -133,6 +133,10 @@ extern int acct_parm[];
 extern int no_unaligned_warning;
 #endif
 
+#ifdef CONFIG_RT_MUTEXES
+extern int max_lock_depth;
+#endif
+
 static int parse_table(int __user *, int, void __user *, size_t __user *, void __user *, size_t,
 		       ctl_table *, void **);
 static int proc_doutsstring(ctl_table *table, int write, struct file *filp,
@@ -688,6 +692,17 @@ static ctl_table kern_table[] = {
 		.proc_handler	= &proc_dointvec,
 	},
 #endif
+#ifdef CONFIG_RT_MUTEXES
+	{
+		.ctl_name	= KERN_MAX_LOCK_DEPTH,
+		.procname	= "max_lock_depth",
+		.data		= &max_lock_depth,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
+	},
+#endif
+
 	{ .ctl_name = 0 }
 };
 
@@ -926,6 +941,18 @@ static ctl_table vm_table[] = {
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec_jiffies,
 		.strategy	= &sysctl_jiffies,
+	},
+#endif
+#ifdef CONFIG_X86_32
+	{
+		.ctl_name	= VM_VDSO_ENABLED,
+		.procname	= "vdso_enabled",
+		.data		= &vdso_enabled,
+		.maxlen		= sizeof(vdso_enabled),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
+		.strategy	= &sysctl_intvec,
+		.extra1		= &zero,
 	},
 #endif
 	{ .ctl_name = 0 }

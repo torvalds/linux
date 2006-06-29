@@ -254,5 +254,18 @@ int acpi_get_pxm(acpi_handle h)
 	} while (ACPI_SUCCESS(status));
 	return -1;
 }
-
 EXPORT_SYMBOL(acpi_get_pxm);
+
+int acpi_get_node(acpi_handle *handle)
+{
+	int pxm, node = -1;
+
+	ACPI_FUNCTION_TRACE("acpi_get_node");
+
+	pxm = acpi_get_pxm(handle);
+	if (pxm >= 0)
+		node = acpi_map_pxm_to_node(pxm);
+
+	return_VALUE(node);
+}
+EXPORT_SYMBOL(acpi_get_node);

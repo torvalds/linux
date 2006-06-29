@@ -267,6 +267,8 @@ static int jffs2_set_acl(struct inode *inode, int type, struct posix_acl *acl)
 	}
 
 	rc = do_jffs2_setxattr(inode, xprefix, "", value, size, 0);
+	if (!value && rc == -ENODATA)
+		rc = 0;
 	if (value)
 		kfree(value);
 	if (!rc) {

@@ -459,7 +459,7 @@ err_out:
 
 /* Mapping from our types to the kernel */
 
-static struct address_space_operations romfs_aops = {
+static const struct address_space_operations romfs_aops = {
 	.readpage = romfs_readpage
 };
 

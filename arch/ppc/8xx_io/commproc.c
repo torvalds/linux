@@ -187,7 +187,7 @@ cpm_interrupt_init(void)
          * interrupt vectors
          */
         for ( i = CPM_IRQ_OFFSET ; i < CPM_IRQ_OFFSET + NR_CPM_INTS ; i++ )
-                irq_desc[i].handler = &cpm_pic;
+                irq_desc[i].chip = &cpm_pic;
 
 	/* Set our interrupt handler with the core CPU.	*/
 	if (setup_irq(CPM_INTERRUPT, &cpm_interrupt_irqaction))

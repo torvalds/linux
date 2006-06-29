@@ -521,6 +521,7 @@ static void do_acct_process(struct file *file)
 
 /**
  * acct_init_pacct - initialize a new pacct_struct
+ * @pacct: per-process accounting info struct to initialize
  */
 void acct_init_pacct(struct pacct_struct *pacct)
 {
@@ -576,7 +577,7 @@ void acct_collect(long exitcode, int group_dead)
  *
  * handles process accounting for an exiting task
  */
-void acct_process()
+void acct_process(void)
 {
 	struct file *file = NULL;
 

@@ -367,7 +367,7 @@ void mipsmt_prepare_cpus(void)
 	dvpe();
 	dmt();
 
-	freeIPIq.lock = SPIN_LOCK_UNLOCKED;
+	spin_lock_init(&freeIPIq.lock);
 
 	/*
 	 * We probably don't have as many VPEs as we do SMP "CPUs",
@@ -375,7 +375,7 @@ void mipsmt_prepare_cpus(void)
 	 */
 	for (i=0; i<NR_CPUS; i++) {
 		IPIQ[i].head = IPIQ[i].tail = NULL;
-		IPIQ[i].lock = SPIN_LOCK_UNLOCKED;
+		spin_lock_init(&IPIQ[i].lock);
 		IPIQ[i].depth = 0;
 		ipi_timer_latch[i] = 0;
 	}

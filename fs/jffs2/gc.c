@@ -165,6 +165,7 @@ int jffs2_garbage_collect_pass(struct jffs2_sb_info *c)
 			D1(printk(KERN_DEBUG "Skipping check of ino #%d with nlink zero\n",
 				  ic->ino));
 			spin_unlock(&c->inocache_lock);
+			jffs2_xattr_delete_inode(c, ic);
 			continue;
 		}
 		switch(ic->state) {
@@ -275,13 +276,12 @@ int jffs2_garbage_collect_pass(struct jffs2_sb_info *c)
 	 * We can decide whether this node is inode or xattr by ic->class.     */
 	if (ic->class == RAWNODE_CLASS_XATTR_DATUM
 	    || ic->class == RAWNODE_CLASS_XATTR_REF) {
-		BUG_ON(raw->next_in_ino != (void *)ic);
 		spin_unlock(&c->erase_completion_lock);
 
 		if (ic->class == RAWNODE_CLASS_XATTR_DATUM) {
-			ret = jffs2_garbage_collect_xattr_datum(c, (struct jffs2_xattr_datum *)ic);
+			ret = jffs2_garbage_collect_xattr_datum(c, (struct jffs2_xattr_datum *)ic, raw);
 		} else {
-			ret = jffs2_garbage_collect_xattr_ref(c, (struct jffs2_xattr_ref *)ic);
+			ret = jffs2_garbage_collect_xattr_ref(c, (struct jffs2_xattr_ref *)ic, raw);
 		}
 		goto release_sem;
 	}

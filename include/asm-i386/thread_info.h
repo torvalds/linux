@@ -37,6 +37,7 @@ struct thread_info {
 					 	   0-0xBFFFFFFF for user-thead
 						   0-0xFFFFFFFF for kernel-thread
 						*/
+	void			*sysenter_return;
 	struct restart_block    restart_block;
 
 	unsigned long           previous_esp;   /* ESP of the previous stack in case
@@ -83,16 +84,14 @@ struct thread_info {
 #define init_stack		(init_thread_union.stack)
 
 
+/* how to get the current stack pointer from C */
+register unsigned long current_stack_pointer asm("esp") __attribute_used__;
+
 /* how to get the thread information struct from C */
 static inline struct thread_info *current_thread_info(void)
 {
-	struct thread_info *ti;
-	__asm__("andl %%esp,%0; ":"=r" (ti) : "0" (~(THREAD_SIZE - 1)));
-	return ti;
+	return (struct thread_info *)(current_stack_pointer & ~(THREAD_SIZE - 1));
 }
-
-/* how to get the current stack pointer from C */
-register unsigned long current_stack_pointer asm("esp") __attribute_used__;
 
 /* thread information allocation */
 #ifdef CONFIG_DEBUG_STACK_USAGE

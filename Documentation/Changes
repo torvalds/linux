@@ -181,8 +181,8 @@ Intel IA32 microcode
 --------------------
 
 A driver has been added to allow updating of Intel IA32 microcode,
-accessible as both a devfs regular file and as a normal (misc)
-character device.  If you are not using devfs you may need to:
+accessible as a normal (misc) character device.  If you are not using
+udev you may need to:
 
 mkdir /dev/cpu
 mknod /dev/cpu/microcode c 10 184
@@ -201,7 +201,9 @@ with programs using shared memory.
 udev
 ----
 udev is a userspace application for populating /dev dynamically with
-only entries for devices actually present. udev replaces devfs.
+only entries for devices actually present.  udev replaces the basic
+functionality of devfs, while allowing persistant device naming for
+devices.
 
 FUSE
 ----
@@ -231,17 +233,12 @@ The PPP driver has been restructured to support multilink and to
 enable it to operate over diverse media layers.  If you use PPP,
 upgrade pppd to at least 2.4.0.
 
-If you are not using devfs, you must have the device file /dev/ppp
+If you are not using udev, you must have the device file /dev/ppp
 which can be made by:
 
 mknod /dev/ppp c 108 0
 
 as root.
-
-If you use devfsd and build ppp support as modules, you will need
-the following in your /etc/devfsd.conf file:
-
-LOOKUP	PPP	MODLOAD
 
 Isdn4k-utils
 ------------

@@ -11,6 +11,5 @@
  * Copyright (C) 2000, 2001  Paolo Alberelli
  *
  */
-static __inline__ void hw_resend_irq(struct hw_interrupt_type *h, unsigned int i) { /* Nothing to do */ }
 
 #endif /* __ASM_SH64_HW_IRQ_H */

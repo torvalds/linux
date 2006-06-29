@@ -16,6 +16,10 @@
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
 
+#define check_pgt_cache()		do { } while (0)
+
+#ifdef CONFIG_MMU
+
 #define _PAGE_USER_TABLE	(PMD_TYPE_TABLE | PMD_BIT4 | PMD_DOMAIN(DOMAIN_USER))
 #define _PAGE_KERNEL_TABLE	(PMD_TYPE_TABLE | PMD_BIT4 | PMD_DOMAIN(DOMAIN_KERNEL))
 
@@ -31,8 +35,6 @@ extern void free_pgd_slow(pgd_t *pgd);
 
 #define pgd_alloc(mm)			get_pgd_slow(mm)
 #define pgd_free(pgd)			free_pgd_slow(pgd)
-
-#define check_pgt_cache()		do { } while (0)
 
 /*
  * Allocate one PTE table.
@@ -125,5 +127,7 @@ pmd_populate(struct mm_struct *mm, pmd_t *pmdp, struct page *ptep)
 {
 	__pmd_populate(pmdp, page_to_pfn(ptep) << PAGE_SHIFT | _PAGE_USER_TABLE);
 }
+
+#endif /* CONFIG_MMU */
 
 #endif

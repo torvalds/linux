@@ -314,7 +314,6 @@ void *priv;
 	/* for videodev.c intenal usage -- please don't touch */
 	int users;                     /* video_exclusive_{open|close} ... */
 	struct mutex lock;             /* ... helper function uses these   */
-	char devfs_name[64];           /* devfs */
 	struct class_device class_dev; /* sysfs */
 };
 

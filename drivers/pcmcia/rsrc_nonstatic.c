@@ -72,7 +72,7 @@ static DEFINE_MUTEX(rsrc_mutex);
 ======================================================================*/
 
 static struct resource *
-make_resource(unsigned long b, unsigned long n, int flags, char *name)
+make_resource(resource_size_t b, resource_size_t n, int flags, char *name)
 {
 	struct resource *res = kzalloc(sizeof(*res), GFP_KERNEL);
 
@@ -86,8 +86,8 @@ make_resource(unsigned long b, unsigned long n, int flags, char *name)
 }
 
 static struct resource *
-claim_region(struct pcmcia_socket *s, unsigned long base, unsigned long size,
-	     int type, char *name)
+claim_region(struct pcmcia_socket *s, resource_size_t base,
+		resource_size_t size, int type, char *name)
 {
 	struct resource *res, *parent;
 
@@ -519,10 +519,10 @@ struct pcmcia_align_data {
 
 static void
 pcmcia_common_align(void *align_data, struct resource *res,
-		    unsigned long size, unsigned long align)
+			resource_size_t size, resource_size_t align)
 {
 	struct pcmcia_align_data *data = align_data;
-	unsigned long start;
+	resource_size_t start;
 	/*
 	 * Ensure that we have the correct start address
 	 */
@@ -533,8 +533,8 @@ pcmcia_common_align(void *align_data, struct resource *res,
 }
 
 static void
-pcmcia_align(void *align_data, struct resource *res,
-	     unsigned long size, unsigned long align)
+pcmcia_align(void *align_data, struct resource *res, resource_size_t size,
+		resource_size_t align)
 {
 	struct pcmcia_align_data *data = align_data;
 	struct resource_map *m;
@@ -808,8 +808,10 @@ static int nonstatic_autoadd_resources(struct pcmcia_socket *s)
 		if (res->flags & IORESOURCE_IO) {
 			if (res == &ioport_resource)
 				continue;
-			printk(KERN_INFO "pcmcia: parent PCI bridge I/O window: 0x%lx - 0x%lx\n",
-			       res->start, res->end);
+			printk(KERN_INFO "pcmcia: parent PCI bridge I/O "
+				"window: 0x%llx - 0x%llx\n",
+				(unsigned long long)res->start,
+				(unsigned long long)res->end);
 			if (!adjust_io(s, ADD_MANAGED_RESOURCE, res->start, res->end))
 				done |= IORESOURCE_IO;
 
@@ -818,8 +820,10 @@ static int nonstatic_autoadd_resources(struct pcmcia_socket *s)
 		if (res->flags & IORESOURCE_MEM) {
 			if (res == &iomem_resource)
 				continue;
-			printk(KERN_INFO "pcmcia: parent PCI bridge Memory window: 0x%lx - 0x%lx\n",
-			       res->start, res->end);
+			printk(KERN_INFO "pcmcia: parent PCI bridge Memory "
+				"window: 0x%llx - 0x%llx\n",
+				(unsigned long long)res->start,
+				(unsigned long long)res->end);
 			if (!adjust_memory(s, ADD_MANAGED_RESOURCE, res->start, res->end))
 				done |= IORESOURCE_MEM;
 		}

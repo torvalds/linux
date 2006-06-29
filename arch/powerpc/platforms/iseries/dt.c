@@ -252,6 +252,7 @@ static void __init dt_model(struct iseries_flat_dt *dt)
 {
 	char buf[16] = "IBM,";
 
+	/* N.B. lparcfg.c knows about the "IBM," prefixes ... */
 	/* "IBM," + mfgId[2:3] + systemSerial[1:5] */
 	strne2a(buf + 4, xItExtVpdPanel.mfgID + 2, 2);
 	strne2a(buf + 6, xItExtVpdPanel.systemSerial + 1, 5);
@@ -264,6 +265,7 @@ static void __init dt_model(struct iseries_flat_dt *dt)
 	dt_prop_str(dt, "model", buf);
 
 	dt_prop_str(dt, "compatible", "IBM,iSeries");
+	dt_prop_u32(dt, "ibm,partition-no", HvLpConfig_getLpIndex());
 }
 
 static void __init dt_do_vdevice(struct iseries_flat_dt *dt,

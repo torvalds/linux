@@ -159,13 +159,13 @@ union l2_cache {
 	unsigned val;
 };
 
-static unsigned short assocs[] = {
+static const unsigned short assocs[] = {
 	[1] = 1, [2] = 2, [4] = 4, [6] = 8,
 	[8] = 16,
 	[0xf] = 0xffff // ??
 	};
-static unsigned char levels[] = { 1, 1, 2 };
-static unsigned char types[] = { 1, 2, 3 };
+static const unsigned char levels[] = { 1, 1, 2 };
+static const unsigned char types[] = { 1, 2, 3 };
 
 static void __cpuinit amd_cpuid4(int leaf, union _cpuid4_leaf_eax *eax,
 		       union _cpuid4_leaf_ebx *ebx,
@@ -261,7 +261,7 @@ unsigned int __cpuinit init_intel_cacheinfo(struct cpuinfo_x86 *c)
 	unsigned int new_l1d = 0, new_l1i = 0; /* Cache sizes from cpuid(4) */
 	unsigned int new_l2 = 0, new_l3 = 0, i; /* Cache sizes from cpuid(4) */
 	unsigned int l2_id = 0, l3_id = 0, num_threads_sharing, index_msb;
-#ifdef CONFIG_SMP
+#ifdef CONFIG_X86_HT
 	unsigned int cpu = (c == &boot_cpu_data) ? 0 : (c - cpu_data);
 #endif
 
@@ -383,14 +383,14 @@ unsigned int __cpuinit init_intel_cacheinfo(struct cpuinfo_x86 *c)
 
 	if (new_l2) {
 		l2 = new_l2;
-#ifdef CONFIG_SMP
+#ifdef CONFIG_X86_HT
 		cpu_llc_id[cpu] = l2_id;
 #endif
 	}
 
 	if (new_l3) {
 		l3 = new_l3;
-#ifdef CONFIG_SMP
+#ifdef CONFIG_X86_HT
 		cpu_llc_id[cpu] = l3_id;
 #endif
 	}
@@ -729,7 +729,7 @@ static void __cpuexit cache_remove_dev(struct sys_device * sys_dev)
 	return;
 }
 
-static int cacheinfo_cpu_callback(struct notifier_block *nfb,
+static int __cpuinit cacheinfo_cpu_callback(struct notifier_block *nfb,
 					unsigned long action, void *hcpu)
 {
 	unsigned int cpu = (unsigned long)hcpu;
@@ -747,7 +747,7 @@ static int cacheinfo_cpu_callback(struct notifier_block *nfb,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block cacheinfo_cpu_notifier =
+static struct notifier_block __cpuinitdata cacheinfo_cpu_notifier =
 {
     .notifier_call = cacheinfo_cpu_callback,
 };

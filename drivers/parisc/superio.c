@@ -360,7 +360,7 @@ int superio_fixup_irq(struct pci_dev *pcidev)
 #endif
 
 	for (i = 0; i < 16; i++) {
-		irq_desc[i].handler = &superio_interrupt_type;
+		irq_desc[i].chip = &superio_interrupt_type;
 	}
 
 	/*

@@ -233,7 +233,7 @@ config NR_CPUS
 
 config SCHED_SMT
 	bool "SMT (Hyperthreading) scheduler support"
-	depends on SMP
+	depends on X86_HT
 	help
 	  SMT scheduler support improves the CPU scheduler's decision making
 	  when dealing with Intel Pentium 4 chips with HyperThreading at a
@@ -242,7 +242,7 @@ config SCHED_SMT
 
 config SCHED_MC
 	bool "Multi-core scheduler support"
-	depends on SMP
+	depends on X86_HT
 	default y
 	help
 	  Multi-core scheduler support improves the CPU scheduler's decision
@@ -529,6 +529,7 @@ config X86_PAE
 	bool
 	depends on HIGHMEM64G
 	default y
+	select RESOURCES_64BIT
 
 # Common NUMA Features
 config NUMA
@@ -737,7 +738,7 @@ config KEXEC
 	  but it is independent of the system firmware.   And like a reboot
 	  you can start any kernel with it, not just Linux.
 
-	  The name comes from the similiarity to the exec system call.
+	  The name comes from the similarity to the exec system call.
 
 	  It is an ongoing process to be certain the hardware in a machine
 	  is properly shutdown, so do not be surprised if this code does not
@@ -780,9 +781,23 @@ config HOTPLUG_CPU
 	  enable suspend on SMP systems. CPUs can be controlled through
 	  /sys/devices/system/cpu.
 
+config COMPAT_VDSO
+	bool "Compat VDSO support"
+	default y
+	help
+	  Map the VDSO to the predictable old-style address too.
+	---help---
+	  Say N here if you are running a sufficiently recent glibc
+	  version (2.3.3 or later), to remove the high-mapped
+	  VDSO mapping and to exclusively use the randomized VDSO.
+
+	  If unsure, say Y.
 
 endmenu
 
+config ARCH_ENABLE_MEMORY_HOTPLUG
+	def_bool y
+	depends on HIGHMEM
 
 menu "Power management options (ACPI, APM)"
 	depends on !X86_VOYAGER

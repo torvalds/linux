@@ -44,8 +44,11 @@ static struct {
 	int index;
 	char *name;
 } protocols[] = {
+#ifdef CONFIG_CIFS_WEAK_PW_HASH
+	{LANMAN_PROT, "\2LM1.2X002"},
+#endif /* weak password hashing for legacy clients */
 	{CIFS_PROT, "\2NT LM 0.12"}, 
-	{CIFS_PROT, "\2POSIX 2"},
+	{POSIX_PROT, "\2POSIX 2"},
 	{BAD_PROT, "\2"}
 };
 #else
@@ -53,10 +56,28 @@ static struct {
 	int index;
 	char *name;
 } protocols[] = {
+#ifdef CONFIG_CIFS_WEAK_PW_HASH
+	{LANMAN_PROT, "\2LM1.2X002"},
+#endif /* weak password hashing for legacy clients */
 	{CIFS_PROT, "\2NT LM 0.12"}, 
 	{BAD_PROT, "\2"}
 };
 #endif
+
+/* define the number of elements in the cifs dialect array */
+#ifdef CONFIG_CIFS_POSIX
+#ifdef CONFIG_CIFS_WEAK_PW_HASH
+#define CIFS_NUM_PROT 3
+#else
+#define CIFS_NUM_PROT 2
+#endif /* CIFS_WEAK_PW_HASH */
+#else /* not posix */
+#ifdef CONFIG_CIFS_WEAK_PW_HASH
+#define CIFS_NUM_PROT 2
+#else
+#define CIFS_NUM_PROT 1
+#endif /* CONFIG_CIFS_WEAK_PW_HASH */
+#endif /* CIFS_POSIX */
 
 
 /* Mark as invalid, all open files on tree connections since they
@@ -188,7 +209,6 @@ small_smb_init(int smb_command, int wct, struct cifsTconInfo *tcon,
 	return rc;
 }
 
-#ifdef CONFIG_CIFS_EXPERIMENTAL  
 int
 small_smb_init_no_tc(const int smb_command, const int wct, 
 		     struct cifsSesInfo *ses, void **request_buf)
@@ -214,7 +234,6 @@ small_smb_init_no_tc(const int smb_command, const int wct,
 
 	return rc;
 }
-#endif  /* CONFIG_CIFS_EXPERIMENTAL */
 
 /* If the return code is zero, this function must fill in request_buf pointer */
 static int
@@ -322,7 +341,8 @@ smb_init(int smb_command, int wct, struct cifsTconInfo *tcon,
     /* potential retries of smb operations it turns out we can determine */
     /* from the mid flags when the request buffer can be resent without  */
     /* having to use a second distinct buffer for the response */
-	*response_buf = *request_buf; 
+	if(response_buf)
+		*response_buf = *request_buf; 
 
 	header_assemble((struct smb_hdr *) *request_buf, smb_command, tcon,
 			wct /*wct */ );
@@ -373,8 +393,10 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 	NEGOTIATE_RSP *pSMBr;
 	int rc = 0;
 	int bytes_returned;
+	int i;
 	struct TCP_Server_Info * server;
 	u16 count;
+	unsigned int secFlags;
 
 	if(ses->server)
 		server = ses->server;
@@ -386,101 +408,200 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 		      (void **) &pSMB, (void **) &pSMBr);
 	if (rc)
 		return rc;
+
+	/* if any of auth flags (ie not sign or seal) are overriden use them */
+	if(ses->overrideSecFlg & (~(CIFSSEC_MUST_SIGN | CIFSSEC_MUST_SEAL)))
+		secFlags = ses->overrideSecFlg;
+	else /* if override flags set only sign/seal OR them with global auth */
+		secFlags = extended_security | ses->overrideSecFlg;
+
+	cFYI(1,("secFlags 0x%x",secFlags));
+
 	pSMB->hdr.Mid = GetNextMid(server);
 	pSMB->hdr.Flags2 |= SMBFLG2_UNICODE;
-	if (extended_security)
+	if((secFlags & CIFSSEC_MUST_KRB5) == CIFSSEC_MUST_KRB5)
 		pSMB->hdr.Flags2 |= SMBFLG2_EXT_SEC;
-
-	count = strlen(protocols[0].name) + 1;
-	strncpy(pSMB->DialectsArray, protocols[0].name, 30);	
-    /* null guaranteed to be at end of source and target buffers anyway */
-
+	
+	count = 0;
+	for(i=0;i<CIFS_NUM_PROT;i++) {
+		strncpy(pSMB->DialectsArray+count, protocols[i].name, 16);
+		count += strlen(protocols[i].name) + 1;
+		/* null at end of source and target buffers anyway */
+	}
 	pSMB->hdr.smb_buf_length += count;
 	pSMB->ByteCount = cpu_to_le16(count);
 
 	rc = SendReceive(xid, ses, (struct smb_hdr *) pSMB,
 			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
-	if (rc == 0) {
-		server->secMode = pSMBr->SecurityMode;
-		if((server->secMode & SECMODE_USER) == 0)
-			cFYI(1,("share mode security"));
-		server->secType = NTLM; /* BB override default for
-					   NTLMv2 or kerberos v5 */
-		/* one byte - no need to convert this or EncryptionKeyLen
-		   from little endian */
-		server->maxReq = le16_to_cpu(pSMBr->MaxMpxCount);
-		/* probably no need to store and check maxvcs */
-		server->maxBuf =
-			min(le32_to_cpu(pSMBr->MaxBufferSize),
-			(__u32) CIFSMaxBufSize + MAX_CIFS_HDR_SIZE);
-		server->maxRw = le32_to_cpu(pSMBr->MaxRawSize);
-		cFYI(0, ("Max buf = %d", ses->server->maxBuf));
-		GETU32(ses->server->sessid) = le32_to_cpu(pSMBr->SessionKey);
-		server->capabilities = le32_to_cpu(pSMBr->Capabilities);
-		server->timeZone = le16_to_cpu(pSMBr->ServerTimeZone);	
-        /* BB with UTC do we ever need to be using srvr timezone? */
-		if (pSMBr->EncryptionKeyLength == CIFS_CRYPTO_KEY_SIZE) {
-			memcpy(server->cryptKey, pSMBr->u.EncryptionKey,
-			       CIFS_CRYPTO_KEY_SIZE);
-		} else if ((pSMBr->hdr.Flags2 & SMBFLG2_EXT_SEC)
-			   && (pSMBr->EncryptionKeyLength == 0)) {
-			/* decode security blob */
-		} else
-			rc = -EIO;
+	if (rc != 0) 
+		goto neg_err_exit;
 
-		/* BB might be helpful to save off the domain of server here */
+	cFYI(1,("Dialect: %d", pSMBr->DialectIndex));
+	/* Check wct = 1 error case */
+	if((pSMBr->hdr.WordCount < 13) || (pSMBr->DialectIndex == BAD_PROT)) {
+		/* core returns wct = 1, but we do not ask for core - otherwise
+		small wct just comes when dialect index is -1 indicating we 
+		could not negotiate a common dialect */
+		rc = -EOPNOTSUPP;
+		goto neg_err_exit;
+#ifdef CONFIG_CIFS_WEAK_PW_HASH 
+	} else if((pSMBr->hdr.WordCount == 13)
+			&& (pSMBr->DialectIndex == LANMAN_PROT)) {
+		struct lanman_neg_rsp * rsp = (struct lanman_neg_rsp *)pSMBr;
 
-		if ((pSMBr->hdr.Flags2 & SMBFLG2_EXT_SEC) && 
-			(server->capabilities & CAP_EXTENDED_SECURITY)) {
-			count = pSMBr->ByteCount;
-			if (count < 16)
-				rc = -EIO;
-			else if (count == 16) {
-				server->secType = RawNTLMSSP;
-				if (server->socketUseCount.counter > 1) {
-					if (memcmp
-						(server->server_GUID,
-						pSMBr->u.extended_response.
-						GUID, 16) != 0) {
-						cFYI(1, ("server UID changed"));
-						memcpy(server->
-							server_GUID,
-							pSMBr->u.
-							extended_response.
-							GUID, 16);
-					}
-				} else
-					memcpy(server->server_GUID,
-					       pSMBr->u.extended_response.
-					       GUID, 16);
-			} else {
-				rc = decode_negTokenInit(pSMBr->u.
-							 extended_response.
-							 SecurityBlob,
-							 count - 16,
-							 &server->secType);
-				if(rc == 1) {
-				/* BB Need to fill struct for sessetup here */
-					rc = -EOPNOTSUPP;
-				} else {
-					rc = -EINVAL;
-				}
-			}
-		} else
-			server->capabilities &= ~CAP_EXTENDED_SECURITY;
-		if(sign_CIFS_PDUs == FALSE) {        
-			if(server->secMode & SECMODE_SIGN_REQUIRED)
-				cERROR(1,
-				 ("Server requires /proc/fs/cifs/PacketSigningEnabled"));
-			server->secMode &= ~(SECMODE_SIGN_ENABLED | SECMODE_SIGN_REQUIRED);
-		} else if(sign_CIFS_PDUs == 1) {
-			if((server->secMode & SECMODE_SIGN_REQUIRED) == 0)
-				server->secMode &= ~(SECMODE_SIGN_ENABLED | SECMODE_SIGN_REQUIRED);
+		if((secFlags & CIFSSEC_MAY_LANMAN) || 
+			(secFlags & CIFSSEC_MAY_PLNTXT))
+			server->secType = LANMAN;
+		else {
+			cERROR(1, ("mount failed weak security disabled"
+				   " in /proc/fs/cifs/SecurityFlags"));
+			rc = -EOPNOTSUPP;
+			goto neg_err_exit;
+		}	
+		server->secMode = (__u8)le16_to_cpu(rsp->SecurityMode);
+		server->maxReq = le16_to_cpu(rsp->MaxMpxCount);
+		server->maxBuf = min((__u32)le16_to_cpu(rsp->MaxBufSize),
+				(__u32)CIFSMaxBufSize + MAX_CIFS_HDR_SIZE);
+		GETU32(server->sessid) = le32_to_cpu(rsp->SessionKey);
+		/* even though we do not use raw we might as well set this
+		accurately, in case we ever find a need for it */
+		if((le16_to_cpu(rsp->RawMode) & RAW_ENABLE) == RAW_ENABLE) {
+			server->maxRw = 0xFF00;
+			server->capabilities = CAP_MPX_MODE | CAP_RAW_MODE;
+		} else {
+			server->maxRw = 0;/* we do not need to use raw anyway */
+			server->capabilities = CAP_MPX_MODE;
 		}
-				
+		server->timeZone = le16_to_cpu(rsp->ServerTimeZone);
+
+		/* BB get server time for time conversions and add
+		code to use it and timezone since this is not UTC */	
+
+		if (rsp->EncryptionKeyLength == CIFS_CRYPTO_KEY_SIZE) {
+			memcpy(server->cryptKey, rsp->EncryptionKey,
+				CIFS_CRYPTO_KEY_SIZE);
+		} else if (server->secMode & SECMODE_PW_ENCRYPT) {
+			rc = -EIO; /* need cryptkey unless plain text */
+			goto neg_err_exit;
+		}
+
+		cFYI(1,("LANMAN negotiated"));
+		/* we will not end up setting signing flags - as no signing
+		was in LANMAN and server did not return the flags on */
+		goto signing_check;
+#else /* weak security disabled */
+	} else if(pSMBr->hdr.WordCount == 13) {
+		cERROR(1,("mount failed, cifs module not built "
+			  "with CIFS_WEAK_PW_HASH support"));
+			rc = -EOPNOTSUPP;
+#endif /* WEAK_PW_HASH */
+		goto neg_err_exit;
+	} else if(pSMBr->hdr.WordCount != 17) {
+		/* unknown wct */
+		rc = -EOPNOTSUPP;
+		goto neg_err_exit;
 	}
-	
+	/* else wct == 17 NTLM */
+	server->secMode = pSMBr->SecurityMode;
+	if((server->secMode & SECMODE_USER) == 0)
+		cFYI(1,("share mode security"));
+
+	if((server->secMode & SECMODE_PW_ENCRYPT) == 0)
+#ifdef CONFIG_CIFS_WEAK_PW_HASH
+		if ((secFlags & CIFSSEC_MAY_PLNTXT) == 0)
+#endif /* CIFS_WEAK_PW_HASH */
+			cERROR(1,("Server requests plain text password"
+				  " but client support disabled"));
+
+	if((secFlags & CIFSSEC_MUST_NTLMV2) == CIFSSEC_MUST_NTLMV2)
+		server->secType = NTLMv2;
+	else if(secFlags & CIFSSEC_MAY_NTLM)
+		server->secType = NTLM;
+	else if(secFlags & CIFSSEC_MAY_NTLMV2)
+		server->secType = NTLMv2;
+	/* else krb5 ... any others ... */
+
+	/* one byte, so no need to convert this or EncryptionKeyLen from
+	   little endian */
+	server->maxReq = le16_to_cpu(pSMBr->MaxMpxCount);
+	/* probably no need to store and check maxvcs */
+	server->maxBuf = min(le32_to_cpu(pSMBr->MaxBufferSize),
+			(__u32) CIFSMaxBufSize + MAX_CIFS_HDR_SIZE);
+	server->maxRw = le32_to_cpu(pSMBr->MaxRawSize);
+	cFYI(0, ("Max buf = %d", ses->server->maxBuf));
+	GETU32(ses->server->sessid) = le32_to_cpu(pSMBr->SessionKey);
+	server->capabilities = le32_to_cpu(pSMBr->Capabilities);
+	server->timeZone = le16_to_cpu(pSMBr->ServerTimeZone);	
+	if (pSMBr->EncryptionKeyLength == CIFS_CRYPTO_KEY_SIZE) {
+		memcpy(server->cryptKey, pSMBr->u.EncryptionKey,
+		       CIFS_CRYPTO_KEY_SIZE);
+	} else if ((pSMBr->hdr.Flags2 & SMBFLG2_EXT_SEC)
+			&& (pSMBr->EncryptionKeyLength == 0)) {
+		/* decode security blob */
+	} else if (server->secMode & SECMODE_PW_ENCRYPT) {
+		rc = -EIO; /* no crypt key only if plain text pwd */
+		goto neg_err_exit;
+	}
+
+	/* BB might be helpful to save off the domain of server here */
+
+	if ((pSMBr->hdr.Flags2 & SMBFLG2_EXT_SEC) && 
+		(server->capabilities & CAP_EXTENDED_SECURITY)) {
+		count = pSMBr->ByteCount;
+		if (count < 16)
+			rc = -EIO;
+		else if (count == 16) {
+			server->secType = RawNTLMSSP;
+			if (server->socketUseCount.counter > 1) {
+				if (memcmp(server->server_GUID,
+					   pSMBr->u.extended_response.
+					   GUID, 16) != 0) {
+					cFYI(1, ("server UID changed"));
+					memcpy(server->server_GUID,
+						pSMBr->u.extended_response.GUID,
+						16);
+				}
+			} else
+				memcpy(server->server_GUID,
+				       pSMBr->u.extended_response.GUID, 16);
+		} else {
+			rc = decode_negTokenInit(pSMBr->u.extended_response.
+						 SecurityBlob,
+						 count - 16,
+						 &server->secType);
+			if(rc == 1) {
+			/* BB Need to fill struct for sessetup here */
+				rc = -EOPNOTSUPP;
+			} else {
+				rc = -EINVAL;
+			}
+		}
+	} else
+		server->capabilities &= ~CAP_EXTENDED_SECURITY;
+
+#ifdef CONFIG_CIFS_WEAK_PW_HASH
+signing_check:
+#endif
+	if(sign_CIFS_PDUs == FALSE) {        
+		if(server->secMode & SECMODE_SIGN_REQUIRED)
+			cERROR(1,("Server requires "
+				 "/proc/fs/cifs/PacketSigningEnabled to be on"));
+		server->secMode &= 
+			~(SECMODE_SIGN_ENABLED | SECMODE_SIGN_REQUIRED);
+	} else if(sign_CIFS_PDUs == 1) {
+		if((server->secMode & SECMODE_SIGN_REQUIRED) == 0)
+			server->secMode &= 
+				~(SECMODE_SIGN_ENABLED | SECMODE_SIGN_REQUIRED);
+	} else if(sign_CIFS_PDUs == 2) {
+		if((server->secMode & 
+			(SECMODE_SIGN_ENABLED | SECMODE_SIGN_REQUIRED)) == 0) {
+			cERROR(1,("signing required but server lacks support"));
+		}
+	}
+neg_err_exit:	
 	cifs_buf_release(pSMB);
+
+	cFYI(1,("negprot rc %d",rc));
 	return rc;
 }
 
@@ -2239,7 +2360,7 @@ CIFSSMBQueryReparseLinkInfo(const int xid, struct cifsTconInfo *tcon,
 			}
 			symlinkinfo[buflen] = 0; /* just in case so the caller
 					does not go off the end of the buffer */
-			cFYI(1,("readlink result - %s ",symlinkinfo));
+			cFYI(1,("readlink result - %s",symlinkinfo));
 		}
 	}
 qreparse_out:

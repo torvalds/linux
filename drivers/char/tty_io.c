@@ -102,7 +102,6 @@
 #include <linux/kbd_kern.h>
 #include <linux/vt_kern.h>
 #include <linux/selection.h>
-#include <linux/devfs_fs_kernel.h>
 
 #include <linux/kmod.h>
 
@@ -267,7 +266,6 @@ static struct tty_buffer *tty_buffer_alloc(size_t size)
 	p->used = 0;
 	p->size = size;
 	p->next = NULL;
-	p->active = 0;
 	p->commit = 0;
 	p->read = 0;
 	p->char_buf_ptr = (char *)(p->data);
@@ -327,10 +325,9 @@ int tty_buffer_request_room(struct tty_struct *tty, size_t size)
 	/* OPTIMISATION: We could keep a per tty "zero" sized buffer to
 	   remove this conditional if its worth it. This would be invisible
 	   to the callers */
-	if ((b = tty->buf.tail) != NULL) {
+	if ((b = tty->buf.tail) != NULL)
 		left = b->size - b->used;
-		b->active = 1;
-	} else
+	else
 		left = 0;
 
 	if (left < size) {
@@ -338,12 +335,10 @@ int tty_buffer_request_room(struct tty_struct *tty, size_t size)
 		if ((n = tty_buffer_find(tty, size)) != NULL) {
 			if (b != NULL) {
 				b->next = n;
-				b->active = 0;
 				b->commit = b->used;
 			} else
 				tty->buf.head = n;
 			tty->buf.tail = n;
-			n->active = 1;
 		} else
 			size = left;
 	}
@@ -404,10 +399,8 @@ void tty_schedule_flip(struct tty_struct *tty)
 {
 	unsigned long flags;
 	spin_lock_irqsave(&tty->buf.lock, flags);
-	if (tty->buf.tail != NULL) {
-		tty->buf.tail->active = 0;
+	if (tty->buf.tail != NULL)
 		tty->buf.tail->commit = tty->buf.tail->used;
-	}
 	spin_unlock_irqrestore(&tty->buf.lock, flags);
 	schedule_delayed_work(&tty->buf.work, 1);
 }
@@ -784,11 +777,8 @@ restart:
 	}
 
 	clear_bit(TTY_LDISC, &tty->flags);
-	clear_bit(TTY_DONT_FLIP, &tty->flags);
-	if (o_tty) {
+	if (o_tty)
 		clear_bit(TTY_LDISC, &o_tty->flags);
-		clear_bit(TTY_DONT_FLIP, &o_tty->flags);
-	}
 	spin_unlock_irqrestore(&tty_ldisc_lock, flags);
 
 	/*
@@ -1955,7 +1945,6 @@ static void release_dev(struct file * filp)
 	 * race with the set_ldisc code path.
 	 */
 	clear_bit(TTY_LDISC, &tty->flags);
-	clear_bit(TTY_DONT_FLIP, &tty->flags);
 	cancel_delayed_work(&tty->buf.work);
 
 	/*
@@ -2621,10 +2610,9 @@ int tty_ioctl(struct inode * inode, struct file * file,
 			tty->driver->break_ctl(tty, 0);
 			return 0;
 		case TCSBRK:   /* SVID version: non-zero arg --> no break */
-			/*
-			 * XXX is the above comment correct, or the
-			 * code below correct?  Is this ioctl used at
-			 * all by anyone?
+			/* non-zero arg means wait for all output data
+			 * to be sent (performed above) but don't send break.
+			 * This is used by the tcdrain() termios function.
 			 */
 			if (!arg)
 				return send_break(tty, 250);
@@ -2776,8 +2764,7 @@ static void flush_to_ldisc(void *private_)
 	struct tty_struct *tty = (struct tty_struct *) private_;
 	unsigned long 	flags;
 	struct tty_ldisc *disc;
-	struct tty_buffer *tbuf;
-	int count;
+	struct tty_buffer *tbuf, *head;
 	char *char_buf;
 	unsigned char *flag_buf;
 
@@ -2785,32 +2772,37 @@ static void flush_to_ldisc(void *private_)
 	if (disc == NULL)	/*  !TTY_LDISC */
 		return;
 
-	if (test_bit(TTY_DONT_FLIP, &tty->flags)) {
-		/*
-		 * Do it after the next timer tick:
-		 */
-		schedule_delayed_work(&tty->buf.work, 1);
-		goto out;
-	}
 	spin_lock_irqsave(&tty->buf.lock, flags);
-	while((tbuf = tty->buf.head) != NULL) {
-		while ((count = tbuf->commit - tbuf->read) != 0) {
-			char_buf = tbuf->char_buf_ptr + tbuf->read;
-			flag_buf = tbuf->flag_buf_ptr + tbuf->read;
-			tbuf->read += count;
+	head = tty->buf.head;
+	if (head != NULL) {
+		tty->buf.head = NULL;
+		for (;;) {
+			int count = head->commit - head->read;
+			if (!count) {
+				if (head->next == NULL)
+					break;
+				tbuf = head;
+				head = head->next;
+				tty_buffer_free(tty, tbuf);
+				continue;
+			}
+			if (!tty->receive_room) {
+				schedule_delayed_work(&tty->buf.work, 1);
+				break;
+			}
+			if (count > tty->receive_room)
+				count = tty->receive_room;
+			char_buf = head->char_buf_ptr + head->read;
+			flag_buf = head->flag_buf_ptr + head->read;
+			head->read += count;
 			spin_unlock_irqrestore(&tty->buf.lock, flags);
 			disc->receive_buf(tty, char_buf, flag_buf, count);
 			spin_lock_irqsave(&tty->buf.lock, flags);
 		}
-		if (tbuf->active)
-			break;
-		tty->buf.head = tbuf->next;
-		if (tty->buf.head == NULL)
-			tty->buf.tail = NULL;
-		tty_buffer_free(tty, tbuf);
+		tty->buf.head = head;
 	}
 	spin_unlock_irqrestore(&tty->buf.lock, flags);
-out:
+
 	tty_ldisc_deref(disc);
 }
 
@@ -2903,10 +2895,8 @@ void tty_flip_buffer_push(struct tty_struct *tty)
 {
 	unsigned long flags;
 	spin_lock_irqsave(&tty->buf.lock, flags);
-	if (tty->buf.tail != NULL) {
-		tty->buf.tail->active = 0;
+	if (tty->buf.tail != NULL)
 		tty->buf.tail->commit = tty->buf.tail->used;
-	}
 	spin_unlock_irqrestore(&tty->buf.lock, flags);
 
 	if (tty->low_latency)
@@ -2964,8 +2954,8 @@ static struct class *tty_class;
  * Returns a pointer to the class device (or ERR_PTR(-EFOO) on error).
  *
  * This call is required to be made to register an individual tty device if
- * the tty driver's flags have the TTY_DRIVER_NO_DEVFS bit set.  If that
- * bit is not set, this function should not be called.
+ * the tty driver's flags have the TTY_DRIVER_DYNAMIC_DEV bit set.  If that
+ * bit is not set, this function should not be called by a tty driver.
  */
 struct class_device *tty_register_device(struct tty_driver *driver,
 					 unsigned index, struct device *device)
@@ -2978,9 +2968,6 @@ struct class_device *tty_register_device(struct tty_driver *driver,
 		       " (%d).\n", index);
 		return ERR_PTR(-EINVAL);
 	}
-
-	devfs_mk_cdev(dev, S_IFCHR | S_IRUSR | S_IWUSR,
-			"%s%d", driver->devfs_name, index + driver->name_base);
 
 	if (driver->type == TTY_DRIVER_TYPE_PTY)
 		pty_line_name(driver, index, name);
@@ -3000,7 +2987,6 @@ struct class_device *tty_register_device(struct tty_driver *driver,
  */
 void tty_unregister_device(struct tty_driver *driver, unsigned index)
 {
-	devfs_remove("%s%d", driver->devfs_name, index + driver->name_base);
 	class_device_destroy(tty_class, MKDEV(driver->major, driver->minor_start) + index);
 }
 
@@ -3122,7 +3108,7 @@ int tty_register_driver(struct tty_driver *driver)
 	
 	list_add(&driver->tty_drivers, &tty_drivers);
 	
-	if ( !(driver->flags & TTY_DRIVER_NO_DEVFS) ) {
+	if ( !(driver->flags & TTY_DRIVER_DYNAMIC_DEV) ) {
 		for(i = 0; i < driver->num; i++)
 		    tty_register_device(driver, i, NULL);
 	}
@@ -3165,7 +3151,7 @@ int tty_unregister_driver(struct tty_driver *driver)
 			driver->termios_locked[i] = NULL;
 			kfree(tp);
 		}
-		if (!(driver->flags & TTY_DRIVER_NO_DEVFS))
+		if (!(driver->flags & TTY_DRIVER_DYNAMIC_DEV))
 			tty_unregister_device(driver, i);
 	}
 	p = driver->ttys;
@@ -3241,14 +3227,12 @@ static int __init tty_init(void)
 	if (cdev_add(&tty_cdev, MKDEV(TTYAUX_MAJOR, 0), 1) ||
 	    register_chrdev_region(MKDEV(TTYAUX_MAJOR, 0), 1, "/dev/tty") < 0)
 		panic("Couldn't register /dev/tty driver\n");
-	devfs_mk_cdev(MKDEV(TTYAUX_MAJOR, 0), S_IFCHR|S_IRUGO|S_IWUGO, "tty");
 	class_device_create(tty_class, NULL, MKDEV(TTYAUX_MAJOR, 0), NULL, "tty");
 
 	cdev_init(&console_cdev, &console_fops);
 	if (cdev_add(&console_cdev, MKDEV(TTYAUX_MAJOR, 1), 1) ||
 	    register_chrdev_region(MKDEV(TTYAUX_MAJOR, 1), 1, "/dev/console") < 0)
 		panic("Couldn't register /dev/console driver\n");
-	devfs_mk_cdev(MKDEV(TTYAUX_MAJOR, 1), S_IFCHR|S_IRUSR|S_IWUSR, "console");
 	class_device_create(tty_class, NULL, MKDEV(TTYAUX_MAJOR, 1), NULL, "console");
 
 #ifdef CONFIG_UNIX98_PTYS
@@ -3256,7 +3240,6 @@ static int __init tty_init(void)
 	if (cdev_add(&ptmx_cdev, MKDEV(TTYAUX_MAJOR, 2), 1) ||
 	    register_chrdev_region(MKDEV(TTYAUX_MAJOR, 2), 1, "/dev/ptmx") < 0)
 		panic("Couldn't register /dev/ptmx driver\n");
-	devfs_mk_cdev(MKDEV(TTYAUX_MAJOR, 2), S_IFCHR|S_IRUGO|S_IWUGO, "ptmx");
 	class_device_create(tty_class, NULL, MKDEV(TTYAUX_MAJOR, 2), NULL, "ptmx");
 #endif
 
@@ -3265,7 +3248,6 @@ static int __init tty_init(void)
 	if (cdev_add(&vc0_cdev, MKDEV(TTY_MAJOR, 0), 1) ||
 	    register_chrdev_region(MKDEV(TTY_MAJOR, 0), 1, "/dev/vc/0") < 0)
 		panic("Couldn't register /dev/tty0 driver\n");
-	devfs_mk_cdev(MKDEV(TTY_MAJOR, 0), S_IFCHR|S_IRUSR|S_IWUSR, "vc/0");
 	class_device_create(tty_class, NULL, MKDEV(TTY_MAJOR, 0), NULL, "tty0");
 
 	vty_init();

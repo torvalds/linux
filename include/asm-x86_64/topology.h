@@ -59,6 +59,8 @@ extern int __node_distance(int, int);
 #define topology_core_id(cpu)			(cpu_data[cpu].cpu_core_id)
 #define topology_core_siblings(cpu)		(cpu_core_map[cpu])
 #define topology_thread_siblings(cpu)		(cpu_sibling_map[cpu])
+#define mc_capable()			(boot_cpu_data.x86_max_cores > 1)
+#define smt_capable() 			(smp_num_siblings > 1)
 #endif
 
 #include <asm-generic/topology.h>

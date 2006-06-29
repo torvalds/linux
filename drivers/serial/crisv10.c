@@ -2573,12 +2573,6 @@ static void flush_to_flip_buffer(struct e100_serial *info)
 
 	DFLIP(
 	  if (1) {
-
-		  if (test_bit(TTY_DONT_FLIP, &tty->flags)) {
-			  DEBUG_LOG(info->line, "*** TTY_DONT_FLIP set flip.count %i ***\n", tty->flip.count);
-			  DEBUG_LOG(info->line, "*** recv_cnt %i\n", info->recv_cnt);
-		  } else {
-		  }
 		  DEBUG_LOG(info->line, "*** rxtot %i\n", info->icount.rx);
 		  DEBUG_LOG(info->line, "ldisc %lu\n", tty->ldisc.chars_in_buffer(tty));
 		  DEBUG_LOG(info->line, "room  %lu\n", tty->ldisc.receive_room(tty));
@@ -4884,7 +4878,7 @@ rs_init(void)
 	driver->init_termios = tty_std_termios;
 	driver->init_termios.c_cflag =
 		B115200 | CS8 | CREAD | HUPCL | CLOCAL; /* is normally B9600 default... */
-	driver->flags = TTY_DRIVER_REAL_RAW | TTY_DRIVER_NO_DEVFS;
+	driver->flags = TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;
 	driver->termios = serial_termios;
 	driver->termios_locked = serial_termios_locked;
 

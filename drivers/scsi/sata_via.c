@@ -47,7 +47,7 @@
 #include <asm/io.h>
 
 #define DRV_NAME	"sata_via"
-#define DRV_VERSION	"1.2"
+#define DRV_VERSION	"2.0"
 
 enum board_ids_enum {
 	vt6420,
@@ -335,10 +335,10 @@ static int svia_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 		if ((pci_resource_start(pdev, i) == 0) ||
 		    (pci_resource_len(pdev, i) < bar_sizes[i])) {
 			dev_printk(KERN_ERR, &pdev->dev,
-				   "invalid PCI BAR %u (sz 0x%lx, val 0x%lx)\n",
-				   i,
-			           pci_resource_start(pdev, i),
-			           pci_resource_len(pdev, i));
+				"invalid PCI BAR %u (sz 0x%llx, val 0x%llx)\n",
+				i,
+			        (unsigned long long)pci_resource_start(pdev, i),
+			        (unsigned long long)pci_resource_len(pdev, i));
 			rc = -ENODEV;
 			goto err_out_regions;
 		}

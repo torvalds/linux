@@ -1,9 +1,13 @@
 /*
  * linux/kernel/irq/handle.c
  *
- * Copyright (C) 1992, 1998-2004 Linus Torvalds, Ingo Molnar
+ * Copyright (C) 1992, 1998-2006 Linus Torvalds, Ingo Molnar
+ * Copyright (C) 2005-2006, Thomas Gleixner, Russell King
  *
  * This file contains the core interrupt handling code.
+ *
+ * Detailed information is available in Documentation/DocBook/genericirq
+ *
  */
 
 #include <linux/irq.h>
@@ -14,11 +18,22 @@
 
 #include "internals.h"
 
+/**
+ * handle_bad_irq - handle spurious and unhandled irqs
+ */
+void fastcall
+handle_bad_irq(unsigned int irq, struct irq_desc *desc, struct pt_regs *regs)
+{
+	print_irq_desc(irq, desc);
+	kstat_this_cpu.irqs[irq]++;
+	ack_bad_irq(irq);
+}
+
 /*
  * Linux has a controller-independent interrupt architecture.
  * Every controller has a 'controller-template', that is used
  * by the main code to do the right thing. Each driver-visible
- * interrupt source is transparently wired to the apropriate
+ * interrupt source is transparently wired to the appropriate
  * controller. Thus drivers need not be aware of the
  * interrupt-controller.
  *
@@ -28,41 +43,52 @@
  *
  * Controller mappings for all interrupt sources:
  */
-irq_desc_t irq_desc[NR_IRQS] __cacheline_aligned = {
+struct irq_desc irq_desc[NR_IRQS] __cacheline_aligned = {
 	[0 ... NR_IRQS-1] = {
 		.status = IRQ_DISABLED,
-		.handler = &no_irq_type,
-		.lock = SPIN_LOCK_UNLOCKED
+		.chip = &no_irq_chip,
+		.handle_irq = handle_bad_irq,
+		.depth = 1,
+		.lock = SPIN_LOCK_UNLOCKED,
+#ifdef CONFIG_SMP
+		.affinity = CPU_MASK_ALL
+#endif
 	}
 };
 
 /*
- * Generic 'no controller' code
+ * What should we do if we get a hw irq event on an illegal vector?
+ * Each architecture has to answer this themself.
  */
-static void end_none(unsigned int irq) { }
-static void enable_none(unsigned int irq) { }
-static void disable_none(unsigned int irq) { }
-static void shutdown_none(unsigned int irq) { }
-static unsigned int startup_none(unsigned int irq) { return 0; }
-
-static void ack_none(unsigned int irq)
+static void ack_bad(unsigned int irq)
 {
-	/*
-	 * 'what should we do if we get a hw irq event on an illegal vector'.
-	 * each architecture has to answer this themself.
-	 */
+	print_irq_desc(irq, irq_desc + irq);
 	ack_bad_irq(irq);
 }
 
-struct hw_interrupt_type no_irq_type = {
-	.typename = 	"none",
-	.startup = 	startup_none,
-	.shutdown = 	shutdown_none,
-	.enable = 	enable_none,
-	.disable = 	disable_none,
-	.ack = 		ack_none,
-	.end = 		end_none,
-	.set_affinity = NULL
+/*
+ * NOP functions
+ */
+static void noop(unsigned int irq)
+{
+}
+
+static unsigned int noop_ret(unsigned int irq)
+{
+	return 0;
+}
+
+/*
+ * Generic no controller implementation
+ */
+struct irq_chip no_irq_chip = {
+	.name		= "none",
+	.startup	= noop_ret,
+	.shutdown	= noop,
+	.enable		= noop,
+	.disable	= noop,
+	.ack		= ack_bad,
+	.end		= noop,
 };
 
 /*
@@ -73,11 +99,16 @@ irqreturn_t no_action(int cpl, void *dev_id, struct pt_regs *regs)
 	return IRQ_NONE;
 }
 
-/*
- * Have got an event to handle:
+/**
+ * handle_IRQ_event - irq action chain handler
+ * @irq:	the interrupt number
+ * @regs:	pointer to a register structure
+ * @action:	the interrupt action chain for this irq
+ *
+ * Handles the action chain of an irq event
  */
-fastcall irqreturn_t handle_IRQ_event(unsigned int irq, struct pt_regs *regs,
-				struct irqaction *action)
+irqreturn_t handle_IRQ_event(unsigned int irq, struct pt_regs *regs,
+			     struct irqaction *action)
 {
 	irqreturn_t ret, retval = IRQ_NONE;
 	unsigned int status = 0;
@@ -100,15 +131,22 @@ fastcall irqreturn_t handle_IRQ_event(unsigned int irq, struct pt_regs *regs,
 	return retval;
 }
 
-/*
- * do_IRQ handles all normal device IRQ's (the special
+/**
+ * __do_IRQ - original all in one highlevel IRQ handler
+ * @irq:	the interrupt number
+ * @regs:	pointer to a register structure
+ *
+ * __do_IRQ handles all normal device IRQ's (the special
  * SMP cross-CPU interrupts have their own specific
  * handlers).
+ *
+ * This is the original x86 implementation which is used for every
+ * interrupt type.
  */
 fastcall unsigned int __do_IRQ(unsigned int irq, struct pt_regs *regs)
 {
-	irq_desc_t *desc = irq_desc + irq;
-	struct irqaction * action;
+	struct irq_desc *desc = irq_desc + irq;
+	struct irqaction *action;
 	unsigned int status;
 
 	kstat_this_cpu.irqs[irq]++;
@@ -118,16 +156,16 @@ fastcall unsigned int __do_IRQ(unsigned int irq, struct pt_regs *regs)
 		/*
 		 * No locking required for CPU-local interrupts:
 		 */
-		if (desc->handler->ack)
-			desc->handler->ack(irq);
+		if (desc->chip->ack)
+			desc->chip->ack(irq);
 		action_ret = handle_IRQ_event(irq, regs, desc->action);
-		desc->handler->end(irq);
+		desc->chip->end(irq);
 		return 1;
 	}
 
 	spin_lock(&desc->lock);
-	if (desc->handler->ack)
-		desc->handler->ack(irq);
+	if (desc->chip->ack)
+		desc->chip->ack(irq);
 	/*
 	 * REPLAY is when Linux resends an IRQ that was dropped earlier
 	 * WAITING is used by probe to mark irqs that are being tested
@@ -187,7 +225,7 @@ out:
 	 * The ->end() handler has to deal with interrupts which got
 	 * disabled while the handler was running.
 	 */
-	desc->handler->end(irq);
+	desc->chip->end(irq);
 	spin_unlock(&desc->lock);
 
 	return 1;

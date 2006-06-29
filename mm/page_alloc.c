@@ -446,8 +446,8 @@ static void __free_pages_ok(struct page *page, unsigned int order)
 
 	arch_free_page(page, order);
 	if (!PageHighMem(page))
-		mutex_debug_check_no_locks_freed(page_address(page),
-						 PAGE_SIZE<<order);
+		debug_check_no_locks_freed(page_address(page),
+					   PAGE_SIZE<<order);
 
 	for (i = 0 ; i < (1 << order) ; ++i)
 		reserved += free_pages_check(page + i);
@@ -2009,7 +2009,7 @@ static inline void free_zone_pagesets(int cpu)
 	}
 }
 
-static int pageset_cpuup_callback(struct notifier_block *nfb,
+static int __cpuinit pageset_cpuup_callback(struct notifier_block *nfb,
 		unsigned long action,
 		void *hcpu)
 {
@@ -2031,7 +2031,7 @@ static int pageset_cpuup_callback(struct notifier_block *nfb,
 	return ret;
 }
 
-static struct notifier_block pageset_notifier =
+static struct notifier_block __cpuinitdata pageset_notifier =
 	{ &pageset_cpuup_callback, NULL, 0 };
 
 void __init setup_per_cpu_pageset(void)

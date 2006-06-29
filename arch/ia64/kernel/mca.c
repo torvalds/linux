@@ -1788,7 +1788,7 @@ ia64_mca_late_init(void)
 			cpe_poll_enabled = 0;
 			for (irq = 0; irq < NR_IRQS; ++irq)
 				if (irq_to_vector(irq) == cpe_vector) {
-					desc = irq_descp(irq);
+					desc = irq_desc + irq;
 					desc->status |= IRQ_PER_CPU;
 					setup_irq(irq, &mca_cpe_irqaction);
 					ia64_cpe_irq = irq;

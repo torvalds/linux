@@ -488,6 +488,9 @@ static inline void resource_init(void)
 {
 	int i;
 
+	if (UNCAC_BASE != IO_BASE)
+		return;
+
 	code_resource.start = virt_to_phys(&_text);
 	code_resource.end = virt_to_phys(&_etext) - 1;
 	data_resource.start = virt_to_phys(&_etext);

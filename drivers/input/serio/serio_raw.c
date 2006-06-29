@@ -16,7 +16,6 @@
 #include <linux/init.h>
 #include <linux/major.h>
 #include <linux/device.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/miscdevice.h>
 #include <linux/wait.h>
 #include <linux/mutex.h>

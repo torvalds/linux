@@ -446,7 +446,7 @@ static void __init pmac_pic_probe_oldstyle(void)
 
 	/* Set the handler for the main PIC */
 	for ( i = 0; i < max_real_irqs ; i++ )
-		irq_desc[i].handler = &pmac_pic;
+		irq_desc[i].chip = &pmac_pic;
 
 	/* Get addresses of first controller if we have a node for it */
 	BUG_ON(of_address_to_resource(master, 0, &r));
@@ -493,7 +493,7 @@ static void __init pmac_pic_probe_oldstyle(void)
 	/* Setup handlers for secondary controller and hook cascade irq*/
 	if (slave) {
 		for ( i = max_real_irqs ; i < max_irqs ; i++ )
-			irq_desc[i].handler = &gatwick_pic;
+			irq_desc[i].chip = &gatwick_pic;
 		setup_irq(irq_cascade, &gatwick_cascade_action);
 	}
 	printk(KERN_INFO "irq: System has %d possible interrupts\n", max_irqs);

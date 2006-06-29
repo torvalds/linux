@@ -83,6 +83,12 @@ VM_MASK		= 0x00020000
 #define resume_kernel		restore_nocheck
 #endif
 
+#ifdef CONFIG_VM86
+#define resume_userspace_sig	check_userspace
+#else
+#define resume_userspace_sig	resume_userspace
+#endif
+
 #define SAVE_ALL \
 	cld; \
 	pushl %es; \
@@ -211,6 +217,7 @@ ret_from_exception:
 	preempt_stop
 ret_from_intr:
 	GET_THREAD_INFO(%ebp)
+check_userspace:
 	movl EFLAGS(%esp), %eax		# mix EFLAGS and CS
 	movb CS(%esp), %al
 	testl $(VM_MASK | 3), %eax
@@ -263,7 +270,12 @@ sysenter_past_esp:
 	pushl $(__USER_CS)
 	CFI_ADJUST_CFA_OFFSET 4
 	/*CFI_REL_OFFSET cs, 0*/
-	pushl $SYSENTER_RETURN
+	/*
+	 * Push current_thread_info()->sysenter_return to the stack.
+	 * A tiny bit of offset fixup is necessary - 4*4 means the 4 words
+	 * pushed above; +8 corresponds to copy_thread's esp0 setting.
+	 */
+	pushl (TI_sysenter_return-THREAD_SIZE+8+4*4)(%esp)
 	CFI_ADJUST_CFA_OFFSET 4
 	CFI_REL_OFFSET eip, 0
 
@@ -415,7 +427,7 @@ work_notifysig:				# deal with pending signals and
 					# vm86-space
 	xorl %edx, %edx
 	call do_notify_resume
-	jmp resume_userspace
+	jmp resume_userspace_sig
 
 	ALIGN
 work_notifysig_v86:
@@ -428,7 +440,7 @@ work_notifysig_v86:
 	movl %eax, %esp
 	xorl %edx, %edx
 	call do_notify_resume
-	jmp resume_userspace
+	jmp resume_userspace_sig
 #endif
 
 	# perform syscall exit tracing
@@ -515,7 +527,7 @@ ENTRY(irq_entries_start)
  .if vector
 	CFI_ADJUST_CFA_OFFSET -4
  .endif
-1:	pushl $vector-256
+1:	pushl $~(vector)
 	CFI_ADJUST_CFA_OFFSET 4
 	jmp common_interrupt
 .data
@@ -535,7 +547,7 @@ common_interrupt:
 #define BUILD_INTERRUPT(name, nr)	\
 ENTRY(name)				\
 	RING0_INT_FRAME;		\
-	pushl $nr-256;			\
+	pushl $~(nr);			\
 	CFI_ADJUST_CFA_OFFSET 4;	\
 	SAVE_ALL;			\
 	movl %esp,%eax;			\

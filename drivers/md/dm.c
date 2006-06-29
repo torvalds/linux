@@ -167,7 +167,7 @@ static void local_exit(void)
 	bioset_free(dm_set);
 
 	if (unregister_blkdev(_major, _name) < 0)
-		DMERR("devfs_unregister_blkdev failed");
+		DMERR("unregister_blkdev failed");
 
 	_major = 0;
 

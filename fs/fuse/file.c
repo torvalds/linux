@@ -770,7 +770,7 @@ static const struct file_operations fuse_direct_io_file_operations = {
 	/* no mmap and sendfile */
 };
 
-static struct address_space_operations fuse_file_aops  = {
+static const struct address_space_operations fuse_file_aops  = {
 	.readpage	= fuse_readpage,
 	.prepare_write	= fuse_prepare_write,
 	.commit_write	= fuse_commit_write,

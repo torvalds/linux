@@ -40,7 +40,7 @@ typedef struct xfs_ioend {
 	struct work_struct	io_work;	/* xfsdatad work queue */
 } xfs_ioend_t;
 
-extern struct address_space_operations xfs_address_space_operations;
+extern const struct address_space_operations xfs_address_space_operations;
 extern int xfs_get_blocks(struct inode *, sector_t, struct buffer_head *, int);
 
 #endif /* __XFS_AOPS_H__ */

@@ -124,17 +124,8 @@ asmlinkage void IRQ_NAME(nr); \
 __asm__( \
 "\n.p2align\n" \
 "IRQ" #nr "_interrupt:\n\t" \
-	"push $" #nr "-256 ; " \
+	"push $~(" #nr ") ; " \
 	"jmp common_interrupt");
-
-#if defined(CONFIG_X86_IO_APIC)
-static inline void hw_resend_irq(struct hw_interrupt_type *h, unsigned int i) {
-	if (IO_APIC_IRQ(i))
-		send_IPI_self(IO_APIC_VECTOR(i));
-}
-#else
-static inline void hw_resend_irq(struct hw_interrupt_type *h, unsigned int i) {}
-#endif
 
 #define platform_legacy_irq(irq)	((irq) < 16)
 

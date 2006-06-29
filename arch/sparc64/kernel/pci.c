@@ -357,7 +357,7 @@ void pcibios_update_irq(struct pci_dev *pdev, int irq)
 }
 
 void pcibios_align_resource(void *data, struct resource *res,
-			    unsigned long size, unsigned long align)
+			    resource_size_t size, resource_size_t align)
 {
 }
 

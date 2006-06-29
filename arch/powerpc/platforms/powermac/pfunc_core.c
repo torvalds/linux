@@ -546,7 +546,7 @@ struct pmf_device {
 };
 
 static LIST_HEAD(pmf_devices);
-static spinlock_t pmf_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(pmf_lock);
 static DEFINE_MUTEX(pmf_irq_mutex);
 
 static void pmf_release_device(struct kref *kref)

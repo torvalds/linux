@@ -31,15 +31,15 @@ extern struct svc_version nfs4_callback_version1;
 
 /* pagelist.c */
 extern int __init nfs_init_nfspagecache(void);
-extern void __exit nfs_destroy_nfspagecache(void);
+extern void nfs_destroy_nfspagecache(void);
 extern int __init nfs_init_readpagecache(void);
-extern void __exit nfs_destroy_readpagecache(void);
+extern void nfs_destroy_readpagecache(void);
 extern int __init nfs_init_writepagecache(void);
-extern void __exit nfs_destroy_writepagecache(void);
+extern void nfs_destroy_writepagecache(void);
 
 #ifdef CONFIG_NFS_DIRECTIO
 extern int __init nfs_init_directcache(void);
-extern void __exit nfs_destroy_directcache(void);
+extern void nfs_destroy_directcache(void);
 #else
 #define nfs_init_directcache() (0)
 #define nfs_destroy_directcache() do {} while(0)

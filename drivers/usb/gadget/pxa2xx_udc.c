@@ -60,7 +60,7 @@
 #include <linux/usb_ch9.h>
 #include <linux/usb_gadget.h>
 
-#include <asm/arch/hardware/intel_udc.h>
+#include <asm/arch/udc.h>
 
 
 /*

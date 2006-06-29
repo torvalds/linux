@@ -126,10 +126,6 @@ struct ttusb {
 
 	int revision;
 
-#if 0
-	devfs_handle_t stc_devfs_handle;
-#endif
-
 	struct dvb_frontend* fe;
 };
 
@@ -1746,13 +1742,6 @@ static int ttusb_probe(struct usb_interface *intf, const struct usb_device_id *i
 		return -ENODEV;
 	}
 
-#if 0
-	ttusb->stc_devfs_handle =
-	    devfs_register(ttusb->adapter->devfs_handle, TTUSB_BUDGET_NAME,
-			   DEVFS_FL_DEFAULT, 0, 192,
-			   S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP
-			   | S_IROTH | S_IWOTH, &stc_fops, ttusb);
-#endif
 	usb_set_intfdata(intf, (void *) ttusb);
 
 	frontend_init(ttusb);

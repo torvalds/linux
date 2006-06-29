@@ -658,8 +658,7 @@ static void audit_log_task_context(struct audit_buffer *ab)
 	return;
 
 error_path:
-	if (ctx)
-		kfree(ctx);
+	kfree(ctx);
 	audit_panic("error in audit_log_task_context");
 	return;
 }
@@ -1367,7 +1366,7 @@ int __audit_mq_open(int oflag, mode_t mode, struct mq_attr __user *u_attr)
  * @mqdes: MQ descriptor
  * @msg_len: Message length
  * @msg_prio: Message priority
- * @abs_timeout: Message timeout in absolute time
+ * @u_abs_timeout: Message timeout in absolute time
  *
  * Returns 0 for success or NULL context or < 0 on error.
  */
@@ -1409,8 +1408,8 @@ int __audit_mq_timedsend(mqd_t mqdes, size_t msg_len, unsigned int msg_prio,
  * __audit_mq_timedreceive - record audit data for a POSIX MQ timed receive
  * @mqdes: MQ descriptor
  * @msg_len: Message length
- * @msg_prio: Message priority
- * @abs_timeout: Message timeout in absolute time
+ * @u_msg_prio: Message priority
+ * @u_abs_timeout: Message timeout in absolute time
  *
  * Returns 0 for success or NULL context or < 0 on error.
  */
@@ -1558,7 +1557,6 @@ int __audit_ipc_obj(struct kern_ipc_perm *ipcp)
  * @uid: msgq user id
  * @gid: msgq group id
  * @mode: msgq mode (permissions)
- * @ipcp: in-kernel IPC permissions
  *
  * Returns 0 for success or NULL context or < 0 on error.
  */

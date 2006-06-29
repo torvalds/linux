@@ -120,7 +120,6 @@
 #include <linux/major.h>
 #include <linux/sched.h>
 #include <linux/smp_lock.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/slab.h>
 #include <linux/fcntl.h>
 #include <linux/delay.h>
@@ -807,8 +806,6 @@ static int lp_register(int nr, struct parport *port)
 
 	class_device_create(lp_class, NULL, MKDEV(LP_MAJOR, nr), NULL,
 				"lp%d", nr);
-	devfs_mk_cdev(MKDEV(LP_MAJOR, nr), S_IFCHR | S_IRUGO | S_IWUGO,
-			"printers/%d", nr);
 
 	printk(KERN_INFO "lp%d: using %s (%s).\n", nr, port->name, 
 	       (port->irq == PARPORT_IRQ_NONE)?"polling":"interrupt-driven");
@@ -907,7 +904,6 @@ static int __init lp_init (void)
 		return -EIO;
 	}
 
-	devfs_mk_dir("printers");
 	lp_class = class_create(THIS_MODULE, "printer");
 	if (IS_ERR(lp_class)) {
 		err = PTR_ERR(lp_class);
@@ -933,7 +929,6 @@ static int __init lp_init (void)
 out_class:
 	class_destroy(lp_class);
 out_devfs:
-	devfs_remove("printers");
 	unregister_chrdev(LP_MAJOR, "lp");
 	return err;
 }
@@ -981,10 +976,8 @@ static void lp_cleanup_module (void)
 		if (lp_table[offset].dev == NULL)
 			continue;
 		parport_unregister_device(lp_table[offset].dev);
-		devfs_remove("printers/%d", offset);
 		class_device_destroy(lp_class, MKDEV(LP_MAJOR, offset));
 	}
-	devfs_remove("printers");
 	class_destroy(lp_class);
 }
 

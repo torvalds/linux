@@ -168,11 +168,11 @@ spu_irq_class_0_bottom(struct spu *spu)
 
 	stat &= mask;
 
-	if (stat & 1) /* invalid MFC DMA */
-		__spu_trap_invalid_dma(spu);
-
-	if (stat & 2) /* invalid DMA alignment */
+	if (stat & 1) /* invalid DMA alignment */
 		__spu_trap_dma_align(spu);
+
+	if (stat & 2) /* invalid MFC DMA */
+		__spu_trap_invalid_dma(spu);
 
 	if (stat & 4) /* error on SPU */
 		__spu_trap_error(spu);

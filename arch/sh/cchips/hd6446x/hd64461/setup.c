@@ -154,7 +154,7 @@ int __init setup_hd64461(void)
 	outw(0xffff, HD64461_NIMR);
 
 	for (i = HD64461_IRQBASE; i < HD64461_IRQBASE + 16; i++) {
-		irq_desc[i].handler = &hd64461_irq_type;
+		irq_desc[i].chip = &hd64461_irq_type;
 	}
 
 	setup_irq(CONFIG_HD64461_IRQ, &irq0);

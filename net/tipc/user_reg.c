@@ -67,7 +67,7 @@ struct tipc_user {
 
 static struct tipc_user *users = NULL;
 static u32 next_free_user = MAX_USERID + 1;
-static spinlock_t reg_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(reg_lock);
 
 /**
  * reg_init - create TIPC user registry (but don't activate it)

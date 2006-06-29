@@ -45,7 +45,7 @@
 
 static unsigned long rtc_freq = 1024;
 static struct rtc_time rtc_alarm;
-static spinlock_t sa1100_rtc_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(sa1100_rtc_lock);
 
 static int rtc_update_alarm(struct rtc_time *alrm)
 {

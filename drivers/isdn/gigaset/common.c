@@ -981,7 +981,7 @@ exit:
 EXPORT_SYMBOL_GPL(gigaset_stop);
 
 static LIST_HEAD(drivers);
-static spinlock_t driver_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(driver_lock);
 
 struct cardstate *gigaset_get_cs_by_id(int id)
 {
@@ -1092,14 +1092,12 @@ EXPORT_SYMBOL_GPL(gigaset_freedriver);
  *	minors		Number of minors this driver can handle
  *	procname	Name of the driver
  *	devname		Name of the device files (prefix without minor number)
- *	devfsname	Devfs name of the device files without %d
  * return value:
  *	Pointer to the gigaset_driver structure on success, NULL on failure.
  */
 struct gigaset_driver *gigaset_initdriver(unsigned minor, unsigned minors,
 					  const char *procname,
 					  const char *devname,
-					  const char *devfsname,
 					  const struct gigaset_ops *ops,
 					  struct module *owner)
 {
@@ -1139,7 +1137,7 @@ struct gigaset_driver *gigaset_initdriver(unsigned minor, unsigned minors,
 		drv->cs[i].minor_index = i;
 	}
 
-	gigaset_if_initdriver(drv, procname, devname, devfsname);
+	gigaset_if_initdriver(drv, procname, devname);
 
 	spin_lock_irqsave(&driver_lock, flags);
 	list_add(&drv->list, &drivers);

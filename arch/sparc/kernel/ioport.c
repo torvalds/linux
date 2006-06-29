@@ -208,7 +208,7 @@ _sparc_ioremap(struct resource *res, u32 bus, u32 pa, int sz)
 	pa &= PAGE_MASK;
 	sparc_mapiorange(bus, pa, res->start, res->end - res->start + 1);
 
-	return (void __iomem *) (res->start + offset);
+	return (void __iomem *)(unsigned long)(res->start + offset);
 }
 
 /*
@@ -325,7 +325,7 @@ void *sbus_alloc_consistent(struct sbus_dev *sdev, long len, u32 *dma_addrp)
 		res->name = sdev->prom_name;
 	}
 
-	return (void *)res->start;
+	return (void *)(unsigned long)res->start;
 
 err_noiommu:
 	release_resource(res);
@@ -819,7 +819,9 @@ _sparc_io_get_info(char *buf, char **start, off_t fpos, int length, int *eof,
 		if (p + 32 >= e)	/* Better than nothing */
 			break;
 		if ((nm = r->name) == 0) nm = "???";
-		p += sprintf(p, "%08lx-%08lx: %s\n", r->start, r->end, nm);
+		p += sprintf(p, "%016llx-%016llx: %s\n",
+				(unsigned long long)r->start,
+				(unsigned long long)r->end, nm);
 	}
 
 	return p-buf;

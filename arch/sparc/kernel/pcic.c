@@ -860,7 +860,7 @@ char * __init pcibios_setup(char *str)
 }
 
 void pcibios_align_resource(void *data, struct resource *res,
-			    unsigned long size, unsigned long align)
+			    resource_size_t size, resource_size_t align)
 {
 }
 

@@ -80,7 +80,7 @@ static int invalid_lilo_config;
 /* The ISA boards do window flipping into the same spaces so its only sane
    with a single lock. It's still pretty efficient */
 
-static spinlock_t epca_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(epca_lock);
 
 /* -----------------------------------------------------------------------
 	MAXBOARDS is typically 12, but ISA and EISA cards are restricted to 
@@ -1232,7 +1232,6 @@ static int __init pc_init(void)
 
 	pc_driver->owner = THIS_MODULE;
 	pc_driver->name = "ttyD"; 
-	pc_driver->devfs_name = "tts/D";
 	pc_driver->major = DIGI_MAJOR; 
 	pc_driver->minor_start = 0;
 	pc_driver->type = TTY_DRIVER_TYPE_SERIAL;

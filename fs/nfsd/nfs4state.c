@@ -123,7 +123,7 @@ static void release_stateid(struct nfs4_stateid *stp, int flags);
  */
 
 /* recall_lock protects the del_recall_lru */
-static spinlock_t recall_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(recall_lock);
 static struct list_head del_recall_lru;
 
 static void
