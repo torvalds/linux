@@ -57,8 +57,8 @@
 
 #define DRV_MODULE_NAME		"bnx2"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"1.4.42"
-#define DRV_MODULE_RELDATE	"June 12, 2006"
+#define DRV_MODULE_VERSION	"1.4.43"
+#define DRV_MODULE_RELDATE	"June 28, 2006"
 
 #define RUN_AT(x) (jiffies + (x))
 
@@ -4541,7 +4541,7 @@ bnx2_close(struct net_device *dev)
 	bnx2_netif_stop(bp);
 	del_timer_sync(&bp->timer);
 	if (bp->flags & NO_WOL_FLAG)
-		reset_code = BNX2_DRV_MSG_CODE_UNLOAD;
+		reset_code = BNX2_DRV_MSG_CODE_UNLOAD_LNK_DN;
 	else if (bp->wol)
 		reset_code = BNX2_DRV_MSG_CODE_SUSPEND_WOL;
 	else
@@ -5978,7 +5978,7 @@ bnx2_suspend(struct pci_dev *pdev, pm_message_t state)
 	netif_device_detach(dev);
 	del_timer_sync(&bp->timer);
 	if (bp->flags & NO_WOL_FLAG)
-		reset_code = BNX2_DRV_MSG_CODE_UNLOAD;
+		reset_code = BNX2_DRV_MSG_CODE_UNLOAD_LNK_DN;
 	else if (bp->wol)
 		reset_code = BNX2_DRV_MSG_CODE_SUSPEND_WOL;
 	else
