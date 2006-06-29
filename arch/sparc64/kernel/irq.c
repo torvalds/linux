@@ -414,6 +414,10 @@ void irq_install_pre_handler(int virt_irq,
 	data->pre_handler_arg1 = arg1;
 	data->pre_handler_arg2 = arg2;
 
+	if (desc->chip == &sun4u_irq_ack ||
+	    desc->chip == &sun4v_irq_ack)
+		return;
+
 	desc->chip = (desc->chip == &sun4u_irq ?
 		      &sun4u_irq_ack : &sun4v_irq_ack);
 }
