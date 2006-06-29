@@ -111,12 +111,6 @@ void auxio_set_lte(int on)
 	}
 }
 
-static void __devinit auxio_report_dev(struct device_node *dp)
-{
-	printk(KERN_INFO "AUXIO: Found device at %s\n",
-	       dp->full_name);
-}
-
 static struct of_device_id auxio_match[] = {
 	{
 		.name = "auxio",
@@ -126,67 +120,48 @@ static struct of_device_id auxio_match[] = {
 
 MODULE_DEVICE_TABLE(of, auxio_match);
 
-#ifdef CONFIG_SBUS
-static int __devinit auxio_sbus_probe(struct of_device *dev, const struct of_device_id *match)
+static int __devinit auxio_probe(struct of_device *dev, const struct of_device_id *match)
 {
-	struct sbus_dev *sdev = to_sbus_device(&dev->dev);
+	struct device_node *dp = dev->node;
+	unsigned long size;
 
-	auxio_devtype  = AUXIO_TYPE_SBUS;
-	auxio_register = sbus_ioremap(&sdev->resource[0], 0,
-				      sdev->reg_addrs[0].reg_size,
-				      "auxiliaryIO");
+	if (!strcmp(dp->parent->name, "ebus")) {
+		auxio_devtype = AUXIO_TYPE_EBUS;
+		size = sizeof(u32);
+	} else if (!strcmp(dp->parent->name, "sbus")) {
+		auxio_devtype = AUXIO_TYPE_SBUS;
+		size = 1;
+	} else {
+		printk("auxio: Unknown parent bus type [%s]\n",
+		       dp->parent->name);
+		return -ENODEV;
+	}
+	auxio_register = of_ioremap(&dev->resource[0], 0, size, "auxio");
 	if (!auxio_register)
 		return -ENODEV;
 
-	auxio_report_dev(dev->node);
-	return 0;
-}
+	printk(KERN_INFO "AUXIO: Found device at %s\n",
+	       dp->full_name);
 
-static struct of_platform_driver auxio_sbus_driver = {
-	.name		= "auxio",
-	.match_table	= auxio_match,
-	.probe		= auxio_sbus_probe,
-};
-#endif
-
-#ifdef CONFIG_PCI
-static int __devinit auxio_ebus_probe(struct of_device *dev, const struct of_device_id *match)
-{
-	struct linux_ebus_device *edev = to_ebus_device(&dev->dev);
-
-	auxio_devtype  = AUXIO_TYPE_EBUS;
-	auxio_register = ioremap(edev->resource[0].start, sizeof(u32));
-	if (!auxio_register)
-		return -ENODEV;
-
-	auxio_report_dev(dev->node);
-
-	auxio_set_led(AUXIO_LED_ON);
+	if (auxio_devtype == AUXIO_TYPE_EBUS)
+		auxio_set_led(AUXIO_LED_ON);
 
 	return 0;
 }
 
-static struct of_platform_driver auxio_ebus_driver = {
+static struct of_platform_driver auxio_driver = {
 	.name		= "auxio",
 	.match_table	= auxio_match,
-	.probe		= auxio_ebus_probe,
+	.probe		= auxio_probe,
 };
-#endif
 
-static int __init auxio_probe(void)
+static int __init auxio_init(void)
 {
-#ifdef CONFIG_SBUS
-	of_register_driver(&auxio_sbus_driver, &sbus_bus_type);
-#endif
-#ifdef CONFIG_PCI
-	of_register_driver(&auxio_ebus_driver, &ebus_bus_type);
-#endif
-
-	return 0;
+	return of_register_driver(&auxio_driver, &of_bus_type);
 }
 
 /* Must be after subsys_initcall() so that busses are probed.  Must
  * be before device_initcall() because things like the floppy driver
  * need to use the AUXIO register.
  */
-fs_initcall(auxio_probe);
+fs_initcall(auxio_init);
