@@ -76,8 +76,13 @@ irqreturn_t no_action(int cpl, void *dev_id, struct pt_regs *regs)
 	return IRQ_NONE;
 }
 
-/*
- * Have got an event to handle:
+/**
+ * handle_IRQ_event - irq action chain handler
+ * @irq:	the interrupt number
+ * @regs:	pointer to a register structure
+ * @action:	the interrupt action chain for this irq
+ *
+ * Handles the action chain of an irq event
  */
 irqreturn_t handle_IRQ_event(unsigned int irq, struct pt_regs *regs,
 			     struct irqaction *action)
@@ -103,10 +108,17 @@ irqreturn_t handle_IRQ_event(unsigned int irq, struct pt_regs *regs,
 	return retval;
 }
 
-/*
- * do_IRQ handles all normal device IRQ's (the special
+/**
+ * __do_IRQ - original all in one highlevel IRQ handler
+ * @irq:	the interrupt number
+ * @regs:	pointer to a register structure
+ *
+ * __do_IRQ handles all normal device IRQ's (the special
  * SMP cross-CPU interrupts have their own specific
  * handlers).
+ *
+ * This is the original x86 implementation which is used for every
+ * interrupt type.
  */
 fastcall unsigned int __do_IRQ(unsigned int irq, struct pt_regs *regs)
 {
