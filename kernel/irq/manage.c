@@ -118,15 +118,7 @@ void enable_irq(unsigned int irq)
 		WARN_ON(1);
 		break;
 	case 1: {
-		unsigned int status = desc->status & ~IRQ_DISABLED;
-
-		desc->status = status;
-		if ((status & (IRQ_PENDING | IRQ_REPLAY)) == IRQ_PENDING) {
-			desc->status = status | IRQ_REPLAY;
-			if (desc->chip && desc->chip->retrigger)
-				desc->chip->retrigger(irq);
-		}
-		desc->chip->enable(irq);
+		check_irq_resend(desc, irq);
 		/* fall-through */
 	}
 	default:

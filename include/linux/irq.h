@@ -246,6 +246,9 @@ extern void note_interrupt(unsigned int irq, struct irq_desc *desc,
 			   int action_ret, struct pt_regs *regs);
 extern int can_request_irq(unsigned int irq, unsigned long irqflags);
 
+/* Resending of interrupts :*/
+void check_irq_resend(struct irq_desc *desc, unsigned int irq);
+
 extern void init_irq_proc(void);
 
 #endif /* CONFIG_GENERIC_HARDIRQS */
