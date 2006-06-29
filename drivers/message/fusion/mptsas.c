@@ -337,7 +337,7 @@ mptsas_is_end_device(struct mptsas_devinfo * attached)
 }
 
 /* no mutex */
-void
+static void
 mptsas_port_delete(struct mptsas_portinfo_details * port_details)
 {
 	struct mptsas_portinfo *port_info;
@@ -438,7 +438,7 @@ starget)
  * Updates for new and existing narrow/wide port configuration
  * in the sas_topology
  */
-void
+static void
 mptsas_setup_wide_ports(MPT_ADAPTER *ioc, struct mptsas_portinfo *port_info)
 {
 	struct mptsas_portinfo_details * port_details;
