@@ -3,7 +3,8 @@ menu "Apple Onboard Audio driver"
 
 config SND_AOA
 	tristate "Apple Onboard Audio driver"
-	depends on SOUND && SND_PCM
+	depends on SND
+	select SND_PCM
 	---help---
 	This option enables the new driver for the various
 	Apple Onboard Audio components.

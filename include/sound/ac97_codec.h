@@ -265,6 +265,7 @@
 
 /* specific - Analog Devices */
 #define AC97_AD_TEST		0x5a	/* test register */
+#define AC97_AD_TEST2		0x5c	/* undocumented test register 2 */
 #define AC97_AD_CODEC_CFG	0x70	/* codec configuration */
 #define AC97_AD_JACK_SPDIF	0x72	/* Jack Sense & S/PDIF */
 #define AC97_AD_SERIAL_CFG	0x74	/* Serial Configuration */
