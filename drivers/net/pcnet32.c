@@ -58,18 +58,15 @@ static const char *const version =
  * PCI device identifiers for "new style" Linux PCI Device Drivers
  */
 static struct pci_device_id pcnet32_pci_tbl[] = {
-	{ PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_LANCE_HOME,
-	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{ PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_LANCE,
-	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_LANCE_HOME), },
+	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_LANCE), },
 
 	/*
 	 * Adapters that were sold with IBM's RS/6000 or pSeries hardware have
 	 * the incorrect vendor id.
 	 */
-	{ PCI_VENDOR_ID_TRIDENT, PCI_DEVICE_ID_AMD_LANCE,
-	  PCI_ANY_ID, PCI_ANY_ID,
-	  PCI_CLASS_NETWORK_ETHERNET << 8, 0xffff00, 0},
+	{ PCI_DEVICE(PCI_VENDOR_ID_TRIDENT, PCI_DEVICE_ID_AMD_LANCE),
+	  .class = (PCI_CLASS_NETWORK_ETHERNET << 8), .class_mask = 0xffff00, },
 
 	{ }	/* terminate list */
 };
