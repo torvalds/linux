@@ -1,6 +1,10 @@
 #ifndef S390_DEVICE_H
 #define S390_DEVICE_H
 
+#include <asm/ccwdev.h>
+#include <asm/atomic.h>
+#include <linux/wait.h>
+
 /*
  * states of the device statemachine
  */
@@ -67,6 +71,8 @@ dev_fsm_final_state(struct ccw_device *cdev)
 
 extern struct workqueue_struct *ccw_device_work;
 extern struct workqueue_struct *ccw_device_notify_work;
+extern wait_queue_head_t ccw_device_init_wq;
+extern atomic_t ccw_device_init_count;
 
 void io_subchannel_recog_done(struct ccw_device *cdev);
 
