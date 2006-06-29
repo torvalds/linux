@@ -118,7 +118,7 @@ static struct physmap_flash_data ts72xx_flash_data = {
 
 static struct resource ts72xx_flash_resource = {
 	.start		= TS72XX_NOR_PHYS_BASE,
-	.end		= TS72XX_NOR_PHYS_BASE + 0x01000000,
+	.end		= TS72XX_NOR_PHYS_BASE + 0x00ffffff,
 	.flags		= IORESOURCE_MEM,
 };
 

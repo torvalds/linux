@@ -949,9 +949,10 @@ static int wdog_reboot_handler(struct notifier_block *this,
 			/* Disable the WDT if we are shutting down. */
 			ipmi_watchdog_state = WDOG_TIMEOUT_NONE;
 			panic_halt_ipmi_set_timeout();
-		} else {
+		} else if (ipmi_watchdog_state != WDOG_TIMEOUT_NONE) {
 			/* Set a long timer to let the reboot happens, but
-			   reboot if it hangs. */
+			   reboot if it hangs, but only if the watchdog
+			   timer was already running. */
 			timeout = 120;
 			pretimeout = 0;
 			ipmi_watchdog_state = WDOG_TIMEOUT_RESET;
@@ -973,16 +974,17 @@ static int wdog_panic_handler(struct notifier_block *this,
 {
 	static int panic_event_handled = 0;
 
-	/* On a panic, if we have a panic timeout, make sure that the thing
-	   reboots, even if it hangs during that panic. */
-	if (watchdog_user && !panic_event_handled) {
-		/* Make sure the panic doesn't hang, and make sure we
-		   do this only once. */
+	/* On a panic, if we have a panic timeout, make sure to extend
+	   the watchdog timer to a reasonable value to complete the
+	   panic, if the watchdog timer is running.  Plus the
+	   pretimeout is meaningless at panic time. */
+	if (watchdog_user && !panic_event_handled &&
+	    ipmi_watchdog_state != WDOG_TIMEOUT_NONE) {
+		/* Make sure we do this only once. */
 		panic_event_handled = 1;
 	    
 		timeout = 255;
 		pretimeout = 0;
-		ipmi_watchdog_state = WDOG_TIMEOUT_RESET;
 		panic_halt_ipmi_set_timeout();
 	}
 

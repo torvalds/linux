@@ -210,6 +210,7 @@ spi_new_device(struct spi_master *master, struct spi_board_info *chip)
 	proxy->master = master;
 	proxy->chip_select = chip->chip_select;
 	proxy->max_speed_hz = chip->max_speed_hz;
+	proxy->mode = chip->mode;
 	proxy->irq = chip->irq;
 	proxy->modalias = chip->modalias;
 

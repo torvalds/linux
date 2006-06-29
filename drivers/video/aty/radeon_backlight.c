@@ -40,13 +40,13 @@ static int radeon_bl_get_level_brightness(struct radeon_bl_privdata *pdata,
 
 	mutex_unlock(&info->bl_mutex);
 
-	if (pdata->negative)
-		rlevel = MAX_RADEON_LEVEL - rlevel;
-
 	if (rlevel < 0)
 		rlevel = 0;
 	else if (rlevel > MAX_RADEON_LEVEL)
 		rlevel = MAX_RADEON_LEVEL;
+
+	if (pdata->negative)
+		rlevel = MAX_RADEON_LEVEL - rlevel;
 
 	return rlevel;
 }

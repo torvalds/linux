@@ -57,7 +57,6 @@ struct tty_buffer {
 	unsigned char *flag_buf_ptr;
 	int used;
 	int size;
-	int active;
 	int commit;
 	int read;
 	/* Data points here */
@@ -259,7 +258,6 @@ struct tty_struct {
 #define TTY_DO_WRITE_WAKEUP 	5	/* Call write_wakeup after queuing new */
 #define TTY_PUSH 		6	/* n_tty private */
 #define TTY_CLOSING 		7	/* ->close() in progress */
-#define TTY_DONT_FLIP 		8	/* Defer buffer flip */
 #define TTY_LDISC 		9	/* Line discipline attached */
 #define TTY_HW_COOK_OUT 	14	/* Hardware can do output cooking */
 #define TTY_HW_COOK_IN 		15	/* Hardware can do input cooking */

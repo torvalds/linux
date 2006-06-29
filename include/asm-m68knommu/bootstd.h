@@ -52,7 +52,7 @@ type name(void) \
    __asm__ __volatile__ ("trap #2" \
                          : "=g" (__res) \
                          : "0" (__res) \
-                         : "%d0"); \
+                         ); \
    __bsc_return(type,__res); \
 }
 
@@ -64,7 +64,7 @@ type name(atype a) \
    __asm__ __volatile__ ("trap #2" \
                          : "=g" (__res) \
                          : "0" (__res), "d" (__a) \
-                         : "%d0"); \
+                         ); \
    __bsc_return(type,__res); \
 }
 
@@ -77,7 +77,7 @@ type name(atype a, btype b) \
    __asm__ __volatile__ ("trap #2" \
                          : "=g" (__res) \
                          : "0" (__res), "d" (__a), "d" (__b) \
-                         : "%d0"); \
+                         ); \
    __bsc_return(type,__res); \
 }
 
@@ -92,7 +92,7 @@ type name(atype a, btype b, ctype c) \
                          : "=g" (__res) \
                          : "0" (__res), "d" (__a), "d" (__b), \
                            "d" (__c) \
-                         : "%d0"); \
+                         ); \
    __bsc_return(type,__res); \
 }
 
@@ -108,7 +108,7 @@ type name(atype a, btype b, ctype c, dtype d) \
                          : "=g" (__res) \
                          : "0" (__res), "d" (__a), "d" (__b), \
                            "d" (__c), "d" (__d) \
-                         : "%d0"); \
+                         ); \
    __bsc_return(type,__res); \
 }
 
@@ -125,7 +125,7 @@ type name(atype a, btype b, ctype c, dtype d, etype e) \
                          : "=g" (__res) \
                          : "0" (__res), "d" (__a), "d" (__b), \
                            "d" (__c), "d" (__d), "d" (__e) \
-                         : "%d0"); \
+                         ); \
    __bsc_return(type,__res); \
 }
 

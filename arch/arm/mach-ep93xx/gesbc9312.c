@@ -30,7 +30,7 @@ static struct physmap_flash_data gesbc9312_flash_data = {
 
 static struct resource gesbc9312_flash_resource = {
 	.start		= 0x60000000,
-	.end		= 0x60800000,
+	.end		= 0x607fffff,
 	.flags		= IORESOURCE_MEM,
 };
 

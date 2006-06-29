@@ -26,8 +26,6 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#define TABLE_SIZE	(2 * PTRS_PER_PTE * sizeof(pte_t))
-
 DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
 
 extern pgd_t swapper_pg_dir[PTRS_PER_PGD];

@@ -8,6 +8,7 @@ head-$(CONFIG_DRAGEN2)	= head-de2.o
 
 obj-y			+= entry.o ints.o timers.o
 obj-$(CONFIG_M68328)	+= config.o
+obj-$(CONFIG_ROM)	+= romvec.o
 
 extra-y			:= head.o
 extra-$(CONFIG_M68328)	+= bootlogo.rh head.o

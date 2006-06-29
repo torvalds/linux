@@ -102,7 +102,7 @@ static kmem_cache_t * inode_cachep __read_mostly;
 
 static struct inode *alloc_inode(struct super_block *sb)
 {
-	static struct address_space_operations empty_aops;
+	static const struct address_space_operations empty_aops;
 	static struct inode_operations empty_iops;
 	static const struct file_operations empty_fops;
 	struct inode *inode;

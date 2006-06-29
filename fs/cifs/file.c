@@ -1942,7 +1942,7 @@ static int cifs_prepare_write(struct file *file, struct page *page,
 	return 0;
 }
 
-struct address_space_operations cifs_addr_ops = {
+const struct address_space_operations cifs_addr_ops = {
 	.readpage = cifs_readpage,
 	.readpages = cifs_readpages,
 	.writepage = cifs_writepage,
@@ -1959,7 +1959,7 @@ struct address_space_operations cifs_addr_ops = {
  * contain the header plus one complete page of data.  Otherwise, we need
  * to leave cifs_readpages out of the address space operations.
  */
-struct address_space_operations cifs_addr_ops_smallbuf = {
+const struct address_space_operations cifs_addr_ops_smallbuf = {
 	.readpage = cifs_readpage,
 	.writepage = cifs_writepage,
 	.writepages = cifs_writepages,

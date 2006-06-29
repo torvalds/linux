@@ -38,7 +38,7 @@ struct statfs;
 
 extern struct inode_operations efs_dir_inode_operations;
 extern const struct file_operations efs_dir_operations;
-extern struct address_space_operations efs_symlink_aops;
+extern const struct address_space_operations efs_symlink_aops;
 
 extern void efs_read_inode(struct inode *);
 extern efs_block_t efs_map_block(struct inode *, efs_block_t);

@@ -666,7 +666,7 @@ out:
 	return ret;
 }
 
-struct address_space_operations ocfs2_aops = {
+const struct address_space_operations ocfs2_aops = {
 	.readpage	= ocfs2_readpage,
 	.writepage	= ocfs2_writepage,
 	.prepare_write	= ocfs2_prepare_write,

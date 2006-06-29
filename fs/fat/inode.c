@@ -196,7 +196,7 @@ static sector_t _fat_bmap(struct address_space *mapping, sector_t block)
 	return generic_block_bmap(mapping, block, fat_get_block);
 }
 
-static struct address_space_operations fat_aops = {
+static const struct address_space_operations fat_aops = {
 	.readpage	= fat_readpage,
 	.readpages	= fat_readpages,
 	.writepage	= fat_writepage,

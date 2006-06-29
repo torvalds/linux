@@ -3029,6 +3029,9 @@ static int __init stl_init(void)
 	int i;
 	printk(KERN_INFO "%s: version %s\n", stl_drvtitle, stl_drvversion);
 
+	spin_lock_init(&stallion_lock);
+	spin_lock_init(&brd_lock);
+
 	stl_initbrds();
 
 	stl_serial = alloc_tty_driver(STL_MAXBRDS * STL_MAXPORTS);

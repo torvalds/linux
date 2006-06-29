@@ -932,6 +932,8 @@ v9fs_mux_rpc(struct v9fs_mux_data *m, struct v9fs_fcall *tc,
 					r.rcall || r.err);
 			} while (!r.rcall && !r.err && err==-ERESTARTSYS &&
 				m->trans->status==Connected && !m->err);
+
+			err = -ERESTARTSYS;
 		}
 		sigpending = 1;
 	}

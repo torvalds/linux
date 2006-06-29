@@ -295,15 +295,4 @@
 #define IXP23XX_PCI_CPP_ADDR_BITS	IXP23XX_PCI_CSR(0x0160)
 
 
-#ifndef __ASSEMBLY__
-/*
- * Is system memory on the XSI or CPP bus?
- */
-static inline unsigned ixp23xx_cpp_boot(void)
-{
-	return (*IXP23XX_EXP_CFG0 & IXP23XX_EXP_CFG0_XSI_NOT_PRES);
-}
-#endif
-
-
 #endif

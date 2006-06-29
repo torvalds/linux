@@ -2,6 +2,7 @@
  *  linux/include/asm-arm/memory.h
  *
  *  Copyright (C) 2000-2002 Russell King
+ *  modification for nommu, Hyok S. Choi, 2004
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -26,6 +27,8 @@
 #include <asm/arch/memory.h>
 #include <asm/sizes.h>
 
+#ifdef CONFIG_MMU
+
 #ifndef TASK_SIZE
 /*
  * TASK_SIZE - the maximum size of a user space task.
@@ -46,6 +49,60 @@
 #ifndef PAGE_OFFSET
 #define PAGE_OFFSET		UL(0xc0000000)
 #endif
+
+/*
+ * The module space lives between the addresses given by TASK_SIZE
+ * and PAGE_OFFSET - it must be within 32MB of the kernel text.
+ */
+#define MODULE_END		(PAGE_OFFSET)
+#define MODULE_START		(MODULE_END - 16*1048576)
+
+#if TASK_SIZE > MODULE_START
+#error Top of user space clashes with start of module space
+#endif
+
+/*
+ * The XIP kernel gets mapped at the bottom of the module vm area.
+ * Since we use sections to map it, this macro replaces the physical address
+ * with its virtual address while keeping offset from the base section.
+ */
+#define XIP_VIRT_ADDR(physaddr)  (MODULE_START + ((physaddr) & 0x000fffff))
+
+#else /* CONFIG_MMU */
+
+/*
+ * The limitation of user task size can grow up to the end of free ram region.
+ * It is difficult to define and perhaps will never meet the original meaning
+ * of this define that was meant to.
+ * Fortunately, there is no reference for this in noMMU mode, for now.
+ */
+#ifndef TASK_SIZE
+#define TASK_SIZE		(CONFIG_DRAM_SIZE)
+#endif
+
+#ifndef TASK_UNMAPPED_BASE
+#define TASK_UNMAPPED_BASE	UL(0x00000000)
+#endif
+
+#ifndef PHYS_OFFSET
+#define PHYS_OFFSET 		(CONFIG_DRAM_BASE)
+#endif
+
+#ifndef END_MEM
+#define END_MEM     		(CONFIG_DRAM_BASE + CONFIG_DRAM_SIZE)
+#endif
+
+#ifndef PAGE_OFFSET
+#define PAGE_OFFSET		(PHYS_OFFSET)
+#endif
+
+/*
+ * The module can be at any place in ram in nommu mode.
+ */
+#define MODULE_END		(END_MEM)
+#define MODULE_START		(PHYS_OFFSET)
+
+#endif /* !CONFIG_MMU */
 
 /*
  * Size of DMA-consistent memory region.  Must be multiple of 2M,
@@ -70,24 +127,6 @@
  */
 #define	__phys_to_pfn(paddr)	((paddr) >> PAGE_SHIFT)
 #define	__pfn_to_phys(pfn)	((pfn) << PAGE_SHIFT)
-
-/*
- * The module space lives between the addresses given by TASK_SIZE
- * and PAGE_OFFSET - it must be within 32MB of the kernel text.
- */
-#define MODULE_END	(PAGE_OFFSET)
-#define MODULE_START	(MODULE_END - 16*1048576)
-
-#if TASK_SIZE > MODULE_START
-#error Top of user space clashes with start of module space
-#endif
-
-/*
- * The XIP kernel gets mapped at the bottom of the module vm area.
- * Since we use sections to map it, this macro replaces the physical address
- * with its virtual address while keeping offset from the base section.
- */
-#define XIP_VIRT_ADDR(physaddr)  (MODULE_START + ((physaddr) & 0x000fffff))
 
 #ifndef __ASSEMBLY__
 

@@ -43,5 +43,15 @@ extern struct sys_timer ixp23xx_timer;
 
 #define IXP23XX_UART_XTAL		14745600
 
+#ifndef __ASSEMBLY__
+/*
+ * Is system memory on the XSI or CPP bus?
+ */
+static inline unsigned ixp23xx_cpp_boot(void)
+{
+	return (*IXP23XX_EXP_CFG0 & IXP23XX_EXP_CFG0_XSI_NOT_PRES);
+}
+#endif
+
 
 #endif

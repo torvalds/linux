@@ -123,11 +123,11 @@ static u8 svwks_csb_check (struct pci_dev *dev)
 }
 static int svwks_tune_chipset (ide_drive_t *drive, u8 xferspeed)
 {
-	u8 udma_modes[]		= { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05 };
-	u8 dma_modes[]		= { 0x77, 0x21, 0x20 };
-	u8 pio_modes[]		= { 0x5d, 0x47, 0x34, 0x22, 0x20 };
-	u8 drive_pci[]		= { 0x41, 0x40, 0x43, 0x42 };
-	u8 drive_pci2[]		= { 0x45, 0x44, 0x47, 0x46 };
+	static const u8 udma_modes[]		= { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05 };
+	static const u8 dma_modes[]		= { 0x77, 0x21, 0x20 };
+	static const u8 pio_modes[]		= { 0x5d, 0x47, 0x34, 0x22, 0x20 };
+	static const u8 drive_pci[]		= { 0x41, 0x40, 0x43, 0x42 };
+	static const u8 drive_pci2[]		= { 0x45, 0x44, 0x47, 0x46 };
 
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct pci_dev *dev	= hwif->pci_dev;
@@ -392,16 +392,6 @@ static unsigned int __devinit init_chipset_svwks (struct pci_dev *dev, const cha
 			}
 			outb_p(0x06, 0x0c00);
 			dev->irq = inb_p(0x0c01);
-#if 0
-			printk("%s: device class (0x%04x)\n",
-				name, dev->class);
-			if ((dev->class >> 8) != PCI_CLASS_STORAGE_IDE) {
-				dev->class &= ~0x000F0F00;
-		//		dev->class |= ~0x00000400;
-				dev->class |= ~0x00010100;
-				/**/
-			}
-#endif
 		} else {
 			struct pci_dev * findev = NULL;
 			u8 reg41 = 0;
@@ -452,7 +442,7 @@ static unsigned int __devinit init_chipset_svwks (struct pci_dev *dev, const cha
 		pci_write_config_byte(dev, 0x5A, btr);
 	}
 
-	return (dev->irq) ? dev->irq : 0;
+	return dev->irq;
 }
 
 static unsigned int __devinit ata66_svwks_svwks (ide_hwif_t *hwif)
@@ -500,11 +490,6 @@ static unsigned int __devinit ata66_svwks (ide_hwif_t *hwif)
 {
 	struct pci_dev *dev = hwif->pci_dev;
 
-	/* Per Specified Design by OEM, and ASIC Architect */
-	if ((dev->device == PCI_DEVICE_ID_SERVERWORKS_CSB6IDE) ||
-	    (dev->device == PCI_DEVICE_ID_SERVERWORKS_CSB6IDE2))
-		return 1;
-
 	/* Server Works */
 	if (dev->subsystem_vendor == PCI_VENDOR_ID_SERVERWORKS)
 		return ata66_svwks_svwks (hwif);
@@ -517,10 +502,14 @@ static unsigned int __devinit ata66_svwks (ide_hwif_t *hwif)
 	if (dev->subsystem_vendor == PCI_VENDOR_ID_SUN)
 		return ata66_svwks_cobalt (hwif);
 
+	/* Per Specified Design by OEM, and ASIC Architect */
+	if ((dev->device == PCI_DEVICE_ID_SERVERWORKS_CSB6IDE) ||
+	    (dev->device == PCI_DEVICE_ID_SERVERWORKS_CSB6IDE2))
+		return 1;
+
 	return 0;
 }
 
-#undef CAN_SW_DMA
 static void __devinit init_hwif_svwks (ide_hwif_t *hwif)
 {
 	u8 dma_stat = 0;
@@ -537,9 +526,6 @@ static void __devinit init_hwif_svwks (ide_hwif_t *hwif)
 		hwif->ultra_mask = 0x3f;
 
 	hwif->mwdma_mask = 0x07;
-#ifdef CAN_SW_DMA
-	hwif->swdma_mask = 0x07;
-#endif /* CAN_SW_DMA */
 
 	hwif->autodma = 0;
 
@@ -562,8 +548,6 @@ static void __devinit init_hwif_svwks (ide_hwif_t *hwif)
 	hwif->drives[1].autodma = (dma_stat & 0x40);
 	hwif->drives[0].autotune = (!(dma_stat & 0x20));
 	hwif->drives[1].autotune = (!(dma_stat & 0x40));
-//	hwif->drives[0].autodma = hwif->autodma;
-//	hwif->drives[1].autodma = hwif->autodma;
 }
 
 /*
@@ -593,11 +577,6 @@ static int __devinit init_setup_csb6 (struct pci_dev *dev, ide_pci_device_t *d)
 		if (dev->resource[0].start == 0x01f1)
 			d->bootable = ON_BOARD;
 	}
-#if 0
-	if ((IDE_PCI_DEVID_EQ(d->devid, DEVID_CSB6) &&
-             (!(PCI_FUNC(dev->devfn) & 1)))
-		d->autodma = AUTODMA;
-#endif
 
 	d->channels = ((dev->device == PCI_DEVICE_ID_SERVERWORKS_CSB6IDE ||
 			dev->device == PCI_DEVICE_ID_SERVERWORKS_CSB6IDE2) &&
@@ -671,11 +650,11 @@ static int __devinit svwks_init_one(struct pci_dev *dev, const struct pci_device
 }
 
 static struct pci_device_id svwks_pci_tbl[] = {
-	{ PCI_VENDOR_ID_SERVERWORKS, PCI_DEVICE_ID_SERVERWORKS_OSB4IDE, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{ PCI_VENDOR_ID_SERVERWORKS, PCI_DEVICE_ID_SERVERWORKS_CSB5IDE, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 1},
-	{ PCI_VENDOR_ID_SERVERWORKS, PCI_DEVICE_ID_SERVERWORKS_CSB6IDE, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 2},
-	{ PCI_VENDOR_ID_SERVERWORKS, PCI_DEVICE_ID_SERVERWORKS_CSB6IDE2, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 3},
-	{ PCI_VENDOR_ID_SERVERWORKS, PCI_DEVICE_ID_SERVERWORKS_HT1000IDE, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 4},
+	{ PCI_DEVICE(PCI_VENDOR_ID_SERVERWORKS, PCI_DEVICE_ID_SERVERWORKS_OSB4IDE), 0},
+	{ PCI_DEVICE(PCI_VENDOR_ID_SERVERWORKS, PCI_DEVICE_ID_SERVERWORKS_CSB5IDE), 1},
+	{ PCI_DEVICE(PCI_VENDOR_ID_SERVERWORKS, PCI_DEVICE_ID_SERVERWORKS_CSB6IDE), 2},
+	{ PCI_DEVICE(PCI_VENDOR_ID_SERVERWORKS, PCI_DEVICE_ID_SERVERWORKS_CSB6IDE2), 3},
+	{ PCI_DEVICE(PCI_VENDOR_ID_SERVERWORKS, PCI_DEVICE_ID_SERVERWORKS_HT1000IDE), 4},
 	{ 0, },
 };
 MODULE_DEVICE_TABLE(pci, svwks_pci_tbl);

@@ -101,7 +101,7 @@ static void pty_unthrottle(struct tty_struct * tty)
  *
  * FIXME: Our pty_write method is called with our ldisc lock held but
  * not our partners. We can't just take the other one blindly without
- * risking deadlocks.  There is also the small matter of TTY_DONT_FLIP
+ * risking deadlocks.
  */
 static int pty_write(struct tty_struct * tty, const unsigned char *buf, int count)
 {

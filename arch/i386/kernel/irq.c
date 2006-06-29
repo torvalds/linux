@@ -60,6 +60,12 @@ fastcall unsigned int do_IRQ(struct pt_regs *regs)
 	u32 *isp;
 #endif
 
+	if (unlikely((unsigned)irq >= NR_IRQS)) {
+		printk(KERN_EMERG "%s: cannot handle IRQ %d\n",
+					__FUNCTION__, irq);
+		BUG();
+	}
+
 	irq_enter();
 #ifdef CONFIG_DEBUG_STACKOVERFLOW
 	/* Debugging check for stack overflow: is there less than 1KB free? */

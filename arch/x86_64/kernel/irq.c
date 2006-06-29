@@ -118,6 +118,12 @@ asmlinkage unsigned int do_IRQ(struct pt_regs *regs)
 	/* high bit used in ret_from_ code  */
 	unsigned irq = ~regs->orig_rax;
 
+	if (unlikely(irq >= NR_IRQS)) {
+		printk(KERN_EMERG "%s: cannot handle IRQ %d\n",
+					__FUNCTION__, irq);
+		BUG();
+	}
+
 	exit_idle();
 	irq_enter();
 #ifdef CONFIG_DEBUG_STACKOVERFLOW

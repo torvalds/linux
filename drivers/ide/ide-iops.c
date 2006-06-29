@@ -597,6 +597,10 @@ u8 eighty_ninty_three (ide_drive_t *drive)
 {
 	if(HWIF(drive)->udma_four == 0)
 		return 0;
+
+	/* Check for SATA but only if we are ATA5 or higher */
+	if (drive->id->hw_config == 0 && (drive->id->major_rev_num & 0x7FE0))
+		return 1;
 	if (!(drive->id->hw_config & 0x6000))
 		return 0;
 #ifndef CONFIG_IDEDMA_IVB

@@ -540,6 +540,59 @@ config RAM32BIT
 
 endchoice
 
+comment "ROM configuration"
+
+config ROM
+	bool "Specify ROM linker regions"
+	default n
+	help
+	  Define a ROM region for the linker script. This creates a kernel
+	  that can be stored in flash, with possibly the text, and data
+	  regions being copied out to RAM at startup.
+
+config ROMBASE
+	hex "Address of the base of ROM device"
+	default "0"
+	depends on ROM
+	help
+	  Define the address that the ROM region starts at. Some platforms
+	  use this to set their chip select region accordingly for the boot
+	  device.
+
+config ROMVEC
+	hex "Address of the base of the ROM vectors"
+	default "0"
+	depends on ROM
+	help
+	  This is almost always the same as the base of the ROM. Since on all
+	  68000 type varients the vectors are at the base of the boot device
+	  on system startup.
+
+config ROMVECSIZE
+	hex "Size of ROM vector region (in bytes)"
+	default "0x400"
+	depends on ROM
+	help
+	  Define the size of the vector region in ROM. For most 68000
+	  varients this would be 0x400 bytes in size. Set to 0 if you do
+	  not want a vector region at the start of the ROM.
+
+config ROMSTART
+	hex "Address of the base of system image in ROM"
+	default "0x400"
+	depends on ROM
+	help
+	  Define the start address of the system image in ROM. Commonly this
+	  is strait after the ROM vectors.
+
+config ROMSIZE
+	hex "Size of the ROM device"
+	default "0x100000"
+	depends on ROM
+	help
+	  Size of the ROM device. On some platforms this is used to setup
+	  the chip select that controls the boot ROM device.
+
 choice
 	prompt "Kernel executes from"
 	---help---

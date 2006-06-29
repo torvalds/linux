@@ -312,7 +312,7 @@ eio:
 	return err;
 }
 
-struct address_space_operations zisofs_aops = {
+const struct address_space_operations zisofs_aops = {
 	.readpage = zisofs_readpage,
 	/* No sync_page operation supported? */
 	/* No bmap operation supported */

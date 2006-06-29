@@ -335,7 +335,7 @@ static sector_t minix_bmap(struct address_space *mapping, sector_t block)
 {
 	return generic_block_bmap(mapping,block,minix_get_block);
 }
-static struct address_space_operations minix_aops = {
+static const struct address_space_operations minix_aops = {
 	.readpage = minix_readpage,
 	.writepage = minix_writepage,
 	.sync_page = block_sync_page,

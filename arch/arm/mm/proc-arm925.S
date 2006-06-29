@@ -9,6 +9,8 @@
  *  Update for Linux-2.6 and cache flush improvements
  *  Copyright (C) 2004 Nokia Corporation by Tony Lindgren <tony@atomide.com>
  *
+ *  hacked for non-paged-MM by Hyok S. Choi, 2004.
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
@@ -122,7 +124,9 @@ ENTRY(cpu_arm925_reset)
 	mov	ip, #0
 	mcr	p15, 0, ip, c7, c7, 0		@ invalidate I,D caches
 	mcr	p15, 0, ip, c7, c10, 4		@ drain WB
+#ifdef CONFIG_MMU
 	mcr	p15, 0, ip, c8, c7, 0		@ invalidate I & D TLBs
+#endif
 	mrc	p15, 0, ip, c1, c0, 0		@ ctrl register
 	bic	ip, ip, #0x000f			@ ............wcam
 	bic	ip, ip, #0x1100			@ ...i...s........
@@ -369,6 +373,7 @@ ENTRY(cpu_arm925_dcache_clean_area)
  */
 	.align	5
 ENTRY(cpu_arm925_switch_mm)
+#ifdef CONFIG_MMU
 	mov	ip, #0
 #ifdef CONFIG_CPU_DCACHE_WRITETHROUGH
 	mcr	p15, 0, ip, c7, c6, 0		@ invalidate D cache
@@ -383,6 +388,7 @@ ENTRY(cpu_arm925_switch_mm)
 	mcr	p15, 0, ip, c7, c10, 4		@ drain WB
 	mcr	p15, 0, r0, c2, c0, 0		@ load page table pointer
 	mcr	p15, 0, ip, c8, c7, 0		@ invalidate I & D TLBs
+#endif
 	mov	pc, lr
 
 /*
@@ -392,6 +398,7 @@ ENTRY(cpu_arm925_switch_mm)
  */
 	.align	5
 ENTRY(cpu_arm925_set_pte)
+#ifdef CONFIG_MMU
 	str	r1, [r0], #-2048		@ linux version
 
 	eor	r1, r1, #L_PTE_PRESENT | L_PTE_YOUNG | L_PTE_WRITE | L_PTE_DIRTY
@@ -420,6 +427,7 @@ ENTRY(cpu_arm925_set_pte)
 	mcr	p15, 0, r0, c7, c10, 1		@ clean D entry
 #endif
 	mcr	p15, 0, r0, c7, c10, 4		@ drain WB
+#endif /* CONFIG_MMU */
 	mov	pc, lr
 
 	__INIT
@@ -438,7 +446,9 @@ __arm925_setup:
 	mov	r0, #0
 	mcr	p15, 0, r0, c7, c7		@ invalidate I,D caches on v4
 	mcr	p15, 0, r0, c7, c10, 4		@ drain write buffer on v4
+#ifdef CONFIG_MMU
 	mcr	p15, 0, r0, c8, c7		@ invalidate I,D TLBs on v4
+#endif
 
 #ifdef CONFIG_CPU_DCACHE_WRITETHROUGH
 	mov	r0, #4				@ disable write-back on caches explicitly

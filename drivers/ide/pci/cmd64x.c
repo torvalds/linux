@@ -190,14 +190,6 @@ static int cmd64x_get_info (char *buffer, char **addr, off_t offset, int count)
 #endif	/* defined(DISPLAY_CMD64X_TIMINGS) && defined(CONFIG_PROC_FS) */
 
 /*
- * Registers and masks for easy access by drive index:
- */
-#if 0
-static u8 prefetch_regs[4]  = {CNTRL, CNTRL, ARTTIM23, ARTTIM23};
-static u8 prefetch_masks[4] = {CNTRL_DIS_RA0, CNTRL_DIS_RA1, ARTTIM23_DIS_RA2, ARTTIM23_DIS_RA3};
-#endif
-
-/*
  * This routine writes the prepared setup/active/recovery counts
  * for a drive into the cmd646 chipset registers to active them.
  */
@@ -605,13 +597,6 @@ static unsigned int __devinit init_chipset_cmd64x(struct pci_dev *dev, const cha
 
 	pci_read_config_dword(dev, PCI_CLASS_REVISION, &class_rev);
 	class_rev &= 0xff;
-
-#ifdef __i386__
-	if (dev->resource[PCI_ROM_RESOURCE].start) {
-		pci_write_config_dword(dev, PCI_ROM_ADDRESS, dev->resource[PCI_ROM_RESOURCE].start | PCI_ROM_ADDRESS_ENABLE);
-		printk(KERN_INFO "%s: ROM enabled at 0x%08lx\n", name, dev->resource[PCI_ROM_RESOURCE].start);
-	}
-#endif
 
 	switch(dev->device) {
 		case PCI_DEVICE_ID_CMD_643:

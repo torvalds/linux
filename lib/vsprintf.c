@@ -489,7 +489,7 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 		if (str < end)
 			*str = '\0';
 		else
-			*end = '\0';
+			end[-1] = '\0';
 	}
 	/* the trailing null byte doesn't count towards the total */
 	return str-buf;

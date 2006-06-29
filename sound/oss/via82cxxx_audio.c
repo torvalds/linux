@@ -309,7 +309,7 @@ struct via_info {
 	unsigned sixchannel: 1;	/* 8233/35 with 6 channel support */
 	unsigned volume: 1;
 
-	int locked_rate : 1;
+	unsigned locked_rate : 1;
 	
 	int mixer_vol;		/* 8233/35 volume  - not yet implemented */
 

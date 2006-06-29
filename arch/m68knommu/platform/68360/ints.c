@@ -20,6 +20,7 @@
 
 #include <asm/system.h>
 #include <asm/irq.h>
+#include <asm/irqnode.h>
 #include <asm/traps.h>
 #include <asm/io.h>
 #include <asm/machdep.h>
