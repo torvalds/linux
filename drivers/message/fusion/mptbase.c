@@ -369,20 +369,21 @@ static irqreturn_t
 mpt_interrupt(int irq, void *bus_id, struct pt_regs *r)
 {
 	MPT_ADAPTER *ioc = bus_id;
-	u32 pa;
+	u32 pa = CHIPREG_READ32_dmasync(&ioc->chip->ReplyFifo);
+
+	if (pa == 0xFFFFFFFF)
+		return IRQ_NONE;
 
 	/*
 	 *  Drain the reply FIFO!
 	 */
-	while (1) {
-		pa = CHIPREG_READ32_dmasync(&ioc->chip->ReplyFifo);
-		if (pa == 0xFFFFFFFF)
-			return IRQ_HANDLED;
-		else if (pa & MPI_ADDRESS_REPLY_A_BIT)
+	do {
+		if (pa & MPI_ADDRESS_REPLY_A_BIT)
 			mpt_reply(ioc, pa);
 		else
 			mpt_turbo_reply(ioc, pa);
-	}
+		pa = CHIPREG_READ32_dmasync(&ioc->chip->ReplyFifo);
+	} while (pa != 0xFFFFFFFF);
 
 	return IRQ_HANDLED;
 }
