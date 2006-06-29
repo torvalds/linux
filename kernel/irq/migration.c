@@ -33,7 +33,7 @@ void move_native_irq(int irq)
 	if (unlikely(cpus_empty(pending_irq_cpumask[irq])))
 		return;
 
-	if (!desc->handler->set_affinity)
+	if (!desc->chip->set_affinity)
 		return;
 
 	assert_spin_locked(&desc->lock);
@@ -51,12 +51,12 @@ void move_native_irq(int irq)
 	 */
 	if (likely(!cpus_empty(tmp))) {
 		if (likely(!(desc->status & IRQ_DISABLED)))
-			desc->handler->disable(irq);
+			desc->chip->disable(irq);
 
-		desc->handler->set_affinity(irq,tmp);
+		desc->chip->set_affinity(irq,tmp);
 
 		if (likely(!(desc->status & IRQ_DISABLED)))
-			desc->handler->enable(irq);
+			desc->chip->enable(irq);
 	}
 	cpus_clear(pending_irq_cpumask[irq]);
 }

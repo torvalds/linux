@@ -69,7 +69,7 @@ void disable_irq_nosync(unsigned int irq)
 	spin_lock_irqsave(&desc->lock, flags);
 	if (!desc->depth++) {
 		desc->status |= IRQ_DISABLED;
-		desc->handler->disable(irq);
+		desc->chip->disable(irq);
 	}
 	spin_unlock_irqrestore(&desc->lock, flags);
 }
@@ -131,9 +131,9 @@ void enable_irq(unsigned int irq)
 		desc->status = status;
 		if ((status & (IRQ_PENDING | IRQ_REPLAY)) == IRQ_PENDING) {
 			desc->status = status | IRQ_REPLAY;
-			hw_resend_irq(desc->handler,irq);
+			hw_resend_irq(desc->chip,irq);
 		}
-		desc->handler->enable(irq);
+		desc->chip->enable(irq);
 		/* fall-through */
 	}
 	default:
@@ -178,7 +178,7 @@ int setup_irq(unsigned int irq, struct irqaction * new)
 	if (irq >= NR_IRQS)
 		return -EINVAL;
 
-	if (desc->handler == &no_irq_type)
+	if (desc->chip == &no_irq_type)
 		return -ENOSYS;
 	/*
 	 * Some drivers like serial.c use request_irq() heavily,
@@ -230,10 +230,10 @@ int setup_irq(unsigned int irq, struct irqaction * new)
 		desc->depth = 0;
 		desc->status &= ~(IRQ_DISABLED | IRQ_AUTODETECT |
 				  IRQ_WAITING | IRQ_INPROGRESS);
-		if (desc->handler->startup)
-			desc->handler->startup(irq);
+		if (desc->chip->startup)
+			desc->chip->startup(irq);
 		else
-			desc->handler->enable(irq);
+			desc->chip->enable(irq);
 	}
 	spin_unlock_irqrestore(&desc->lock,flags);
 
@@ -295,16 +295,16 @@ void free_irq(unsigned int irq, void *dev_id)
 
 			/* Currently used only by UML, might disappear one day.*/
 #ifdef CONFIG_IRQ_RELEASE_METHOD
-			if (desc->handler->release)
-				desc->handler->release(irq, dev_id);
+			if (desc->chip->release)
+				desc->chip->release(irq, dev_id);
 #endif
 
 			if (!desc->action) {
 				desc->status |= IRQ_DISABLED;
-				if (desc->handler->shutdown)
-					desc->handler->shutdown(irq);
+				if (desc->chip->shutdown)
+					desc->chip->shutdown(irq);
 				else
-					desc->handler->disable(irq);
+					desc->chip->disable(irq);
 			}
 			spin_unlock_irqrestore(&desc->lock,flags);
 			unregister_handler_proc(irq, action);

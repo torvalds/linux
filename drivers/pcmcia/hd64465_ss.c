@@ -244,8 +244,8 @@ static void hs_map_irq(hs_socket_t *sp, unsigned int irq)
 
     	hs_mapped_irq[irq].sock = sp;
 	/* insert ourselves as the irq controller */
-	hs_mapped_irq[irq].old_handler = irq_desc[irq].handler;
-	irq_desc[irq].handler = &hd64465_ss_irq_type;
+	hs_mapped_irq[irq].old_handler = irq_desc[irq].chip;
+	irq_desc[irq].chip = &hd64465_ss_irq_type;
 }
 
 
@@ -260,7 +260,7 @@ static void hs_unmap_irq(hs_socket_t *sp, unsigned int irq)
 	    return;
 		
 	/* restore the original irq controller */
-	irq_desc[irq].handler = hs_mapped_irq[irq].old_handler;
+	irq_desc[irq].chip = hs_mapped_irq[irq].old_handler;
 }
 
 /*============================================================*/

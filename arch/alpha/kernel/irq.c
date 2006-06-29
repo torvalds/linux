@@ -49,7 +49,7 @@ select_smp_affinity(unsigned int irq)
 	static int last_cpu;
 	int cpu = last_cpu + 1;
 
-	if (!irq_desc[irq].handler->set_affinity || irq_user_affinity[irq])
+	if (!irq_desc[irq].chip->set_affinity || irq_user_affinity[irq])
 		return 1;
 
 	while (!cpu_possible(cpu))
@@ -57,7 +57,7 @@ select_smp_affinity(unsigned int irq)
 	last_cpu = cpu;
 
 	irq_affinity[irq] = cpumask_of_cpu(cpu);
-	irq_desc[irq].handler->set_affinity(irq, cpumask_of_cpu(cpu));
+	irq_desc[irq].chip->set_affinity(irq, cpumask_of_cpu(cpu));
 	return 0;
 }
 #endif /* CONFIG_SMP */
@@ -93,7 +93,7 @@ show_interrupts(struct seq_file *p, void *v)
 		for_each_online_cpu(j)
 			seq_printf(p, "%10u ", kstat_cpu(j).irqs[irq]);
 #endif
-		seq_printf(p, " %14s", irq_desc[irq].handler->typename);
+		seq_printf(p, " %14s", irq_desc[irq].chip->typename);
 		seq_printf(p, "  %c%s",
 			(action->flags & SA_INTERRUPT)?'+':' ',
 			action->name);

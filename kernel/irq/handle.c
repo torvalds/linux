@@ -31,7 +31,7 @@
 irq_desc_t irq_desc[NR_IRQS] __cacheline_aligned = {
 	[0 ... NR_IRQS-1] = {
 		.status = IRQ_DISABLED,
-		.handler = &no_irq_type,
+		.chip = &no_irq_type,
 		.lock = SPIN_LOCK_UNLOCKED
 	}
 };
@@ -118,16 +118,16 @@ fastcall unsigned int __do_IRQ(unsigned int irq, struct pt_regs *regs)
 		/*
 		 * No locking required for CPU-local interrupts:
 		 */
-		if (desc->handler->ack)
-			desc->handler->ack(irq);
+		if (desc->chip->ack)
+			desc->chip->ack(irq);
 		action_ret = handle_IRQ_event(irq, regs, desc->action);
-		desc->handler->end(irq);
+		desc->chip->end(irq);
 		return 1;
 	}
 
 	spin_lock(&desc->lock);
-	if (desc->handler->ack)
-		desc->handler->ack(irq);
+	if (desc->chip->ack)
+		desc->chip->ack(irq);
 	/*
 	 * REPLAY is when Linux resends an IRQ that was dropped earlier
 	 * WAITING is used by probe to mark irqs that are being tested
@@ -187,7 +187,7 @@ out:
 	 * The ->end() handler has to deal with interrupts which got
 	 * disabled while the handler was running.
 	 */
-	desc->handler->end(irq);
+	desc->chip->end(irq);
 	spin_unlock(&desc->lock);
 
 	return 1;

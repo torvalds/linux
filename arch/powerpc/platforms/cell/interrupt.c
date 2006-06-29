@@ -307,7 +307,7 @@ static void iic_request_ipi(int ipi, const char *name)
 	irq = iic_ipi_to_irq(ipi);
 	/* IPIs are marked SA_INTERRUPT as they must run with irqs
 	 * disabled */
-	get_irq_desc(irq)->handler = &iic_pic;
+	get_irq_desc(irq)->chip = &iic_pic;
 	get_irq_desc(irq)->status |= IRQ_PER_CPU;
 	request_irq(irq, iic_ipi_action, SA_INTERRUPT, name, NULL);
 }
@@ -330,7 +330,7 @@ static void iic_setup_spe_handlers(void)
 	for (be=0; be < num_present_cpus() / 2; be++) {
 		for (isrc = 0; isrc < IIC_CLASS_STRIDE * 3; isrc++) {
 			int irq = IIC_NODE_STRIDE * be + IIC_SPE_OFFSET + isrc;
-			get_irq_desc(irq)->handler = &iic_pic;
+			get_irq_desc(irq)->chip = &iic_pic;
 		}
 	}
 }

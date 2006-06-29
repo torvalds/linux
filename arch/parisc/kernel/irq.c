@@ -158,7 +158,7 @@ int show_interrupts(struct seq_file *p, void *v)
 		seq_printf(p, "%10u ", kstat_irqs(i));
 #endif
 
-		seq_printf(p, " %14s", irq_desc[i].handler->typename);
+		seq_printf(p, " %14s", irq_desc[i].chip->typename);
 #ifndef PARISC_IRQ_CR16_COUNTS
 		seq_printf(p, "  %s", action->name);
 
@@ -210,12 +210,12 @@ int cpu_claim_irq(unsigned int irq, struct hw_interrupt_type *type, void *data)
 {
 	if (irq_desc[irq].action)
 		return -EBUSY;
-	if (irq_desc[irq].handler != &cpu_interrupt_type)
+	if (irq_desc[irq].chip != &cpu_interrupt_type)
 		return -EBUSY;
 
 	if (type) {
-		irq_desc[irq].handler = type;
-		irq_desc[irq].handler_data = data;
+		irq_desc[irq].chip = type;
+		irq_desc[irq].chip_data = data;
 		cpu_interrupt_type.enable(irq);
 	}
 	return 0;
@@ -378,7 +378,7 @@ static void claim_cpu_irqs(void)
 {
 	int i;
 	for (i = CPU_IRQ_BASE; i <= CPU_IRQ_MAX; i++) {
-		irq_desc[i].handler = &cpu_interrupt_type;
+		irq_desc[i].chip = &cpu_interrupt_type;
 	}
 
 	irq_desc[TIMER_IRQ].action = &timer_action;

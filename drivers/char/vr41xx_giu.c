@@ -689,9 +689,9 @@ static int __devinit giu_probe(struct platform_device *dev)
 
 	for (i = GIU_IRQ_BASE; i <= GIU_IRQ_LAST; i++) {
 		if (i < GIU_IRQ(GIUINT_HIGH_OFFSET))
-			irq_desc[i].handler = &giuint_low_irq_type;
+			irq_desc[i].chip = &giuint_low_irq_type;
 		else
-			irq_desc[i].handler = &giuint_high_irq_type;
+			irq_desc[i].chip = &giuint_high_irq_type;
 	}
 
 	return cascade_irq(GIUINT_IRQ, giu_get_irq);

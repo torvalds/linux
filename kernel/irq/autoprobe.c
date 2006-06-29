@@ -41,7 +41,7 @@ unsigned long probe_irq_on(void)
 
 		spin_lock_irq(&desc->lock);
 		if (!irq_desc[i].action)
-			irq_desc[i].handler->startup(i);
+			irq_desc[i].chip->startup(i);
 		spin_unlock_irq(&desc->lock);
 	}
 
@@ -59,7 +59,7 @@ unsigned long probe_irq_on(void)
 		spin_lock_irq(&desc->lock);
 		if (!desc->action) {
 			desc->status |= IRQ_AUTODETECT | IRQ_WAITING;
-			if (desc->handler->startup(i))
+			if (desc->chip->startup(i))
 				desc->status |= IRQ_PENDING;
 		}
 		spin_unlock_irq(&desc->lock);
@@ -85,7 +85,7 @@ unsigned long probe_irq_on(void)
 			/* It triggered already - consider it spurious. */
 			if (!(status & IRQ_WAITING)) {
 				desc->status = status & ~IRQ_AUTODETECT;
-				desc->handler->shutdown(i);
+				desc->chip->shutdown(i);
 			} else
 				if (i < 32)
 					val |= 1 << i;
@@ -128,7 +128,7 @@ unsigned int probe_irq_mask(unsigned long val)
 				mask |= 1 << i;
 
 			desc->status = status & ~IRQ_AUTODETECT;
-			desc->handler->shutdown(i);
+			desc->chip->shutdown(i);
 		}
 		spin_unlock_irq(&desc->lock);
 	}
@@ -173,7 +173,7 @@ int probe_irq_off(unsigned long val)
 				nr_irqs++;
 			}
 			desc->status = status & ~IRQ_AUTODETECT;
-			desc->handler->shutdown(i);
+			desc->chip->shutdown(i);
 		}
 		spin_unlock_irq(&desc->lock);
 	}

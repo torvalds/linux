@@ -558,7 +558,7 @@ nextnode:
 	}
 
 	for (i = irq_offset_value(); i < NR_IRQS; ++i)
-		get_irq_desc(i)->handler = &xics_pic;
+		get_irq_desc(i)->chip = &xics_pic;
 
 	xics_setup_cpu();
 
@@ -701,9 +701,9 @@ void xics_migrate_irqs_away(void)
 			continue;
 
 		/* We only need to migrate enabled IRQS */
-		if (desc == NULL || desc->handler == NULL
+		if (desc == NULL || desc->chip == NULL
 		    || desc->action == NULL
-		    || desc->handler->set_affinity == NULL)
+		    || desc->chip->set_affinity == NULL)
 			continue;
 
 		spin_lock_irqsave(&desc->lock, flags);
@@ -728,7 +728,7 @@ void xics_migrate_irqs_away(void)
 		       virq, cpu);
 
 		/* Reset affinity to all cpus */
-		desc->handler->set_affinity(virq, CPU_MASK_ALL);
+		desc->chip->set_affinity(virq, CPU_MASK_ALL);
 		irq_affinity[virq] = CPU_MASK_ALL;
 unlock:
 		spin_unlock_irqrestore(&desc->lock, flags);

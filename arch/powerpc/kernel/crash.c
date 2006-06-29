@@ -193,10 +193,10 @@ void default_machine_crash_shutdown(struct pt_regs *regs)
 		struct irq_desc *desc = irq_descp(irq);
 
 		if (desc->status & IRQ_INPROGRESS)
-			desc->handler->end(irq);
+			desc->chip->end(irq);
 
 		if (!(desc->status & IRQ_DISABLED))
-			desc->handler->disable(irq);
+			desc->chip->disable(irq);
 	}
 
 	if (ppc_md.kexec_cpu_down)

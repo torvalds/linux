@@ -1419,7 +1419,7 @@ smp_intr_init(void)
 	 * This is for later: first 16 correspond to PC IRQs; next 16
 	 * are Primary MC IRQs and final 16 are Secondary MC IRQs */
 	for(i = 0; i < 48; i++)
-		irq_desc[i].handler = &vic_irq_type;
+		irq_desc[i].chip = &vic_irq_type;
 }
 
 /* send a CPI at level cpi to a set of cpus in cpuset (set 1 bit per

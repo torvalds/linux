@@ -81,7 +81,7 @@ static int misrouted_irq(int irq, struct pt_regs *regs)
 		 * IRQ controller clean up too
 		 */
 		if(work)
-			desc->handler->end(i);
+			desc->chip->end(i);
 		spin_unlock(&desc->lock);
 	}
 	/* So the caller can adjust the irq error counts */
@@ -166,7 +166,7 @@ void note_interrupt(unsigned int irq, irq_desc_t *desc, irqreturn_t action_ret,
 		 */
 		printk(KERN_EMERG "Disabling IRQ #%d\n", irq);
 		desc->status |= IRQ_DISABLED;
-		desc->handler->disable(irq);
+		desc->chip->disable(irq);
 	}
 	desc->irqs_unhandled = 0;
 }

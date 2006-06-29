@@ -350,7 +350,7 @@ static int __devinit eisa_probe(struct parisc_device *dev)
 	irq_desc[2].action = &irq2_action;
 	
 	for (i = 0; i < 16; i++) {
-		irq_desc[i].handler = &eisa_interrupt_type;
+		irq_desc[i].chip = &eisa_interrupt_type;
 	}
 	
 	EISA_bus = 1;

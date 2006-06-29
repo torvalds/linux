@@ -660,13 +660,13 @@ register_intr (unsigned int gsi, int vector, unsigned char delivery,
 		irq_type = &irq_type_iosapic_level;
 
 	idesc = irq_descp(vector);
-	if (idesc->handler != irq_type) {
-		if (idesc->handler != &no_irq_type)
+	if (idesc->chip != irq_type) {
+		if (idesc->chip != &no_irq_type)
 			printk(KERN_WARNING
 			       "%s: changing vector %d from %s to %s\n",
 			       __FUNCTION__, vector,
-			       idesc->handler->typename, irq_type->typename);
-		idesc->handler = irq_type;
+			       idesc->chip->typename, irq_type->typename);
+		idesc->chip = irq_type;
 	}
 	return 0;
 }
@@ -903,7 +903,7 @@ iosapic_unregister_intr (unsigned int gsi)
 			BUG_ON(iosapic_intr_info[vector].count);
 
 			/* Clear the interrupt controller descriptor */
-			idesc->handler = &no_irq_type;
+			idesc->chip = &no_irq_type;
 
 			/* Clear the interrupt information */
 			memset(&iosapic_intr_info[vector], 0,

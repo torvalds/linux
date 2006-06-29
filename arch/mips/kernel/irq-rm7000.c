@@ -91,7 +91,7 @@ void __init rm7k_cpu_irq_init(int base)
 		irq_desc[i].status = IRQ_DISABLED;
 		irq_desc[i].action = NULL;
 		irq_desc[i].depth = 1;
-		irq_desc[i].handler = &rm7k_irq_controller;
+		irq_desc[i].chip = &rm7k_irq_controller;
 	}
 
 	irq_base = base;

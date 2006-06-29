@@ -368,7 +368,7 @@ static void __init toshiba_rbtx4927_irq_ioc_init(void)
 		irq_desc[i].status = IRQ_DISABLED;
 		irq_desc[i].action = 0;
 		irq_desc[i].depth = 3;
-		irq_desc[i].handler = &toshiba_rbtx4927_irq_ioc_type;
+		irq_desc[i].chip = &toshiba_rbtx4927_irq_ioc_type;
 	}
 
 	setup_irq(TOSHIBA_RBTX4927_IRQ_NEST_IOC_ON_PIC,
@@ -526,7 +526,7 @@ static void __init toshiba_rbtx4927_irq_isa_init(void)
 		irq_desc[i].action = 0;
 		irq_desc[i].depth =
 		    ((i < TOSHIBA_RBTX4927_IRQ_ISA_MID) ? (4) : (5));
-		irq_desc[i].handler = &toshiba_rbtx4927_irq_isa_type;
+		irq_desc[i].chip = &toshiba_rbtx4927_irq_isa_type;
 	}
 
 	setup_irq(TOSHIBA_RBTX4927_IRQ_NEST_ISA_ON_IOC,
@@ -692,13 +692,13 @@ void toshiba_rbtx4927_irq_dump(char *key)
 	{
 		u32 i, j = 0;
 		for (i = 0; i < NR_IRQS; i++) {
-			if (strcmp(irq_desc[i].handler->typename, "none")
+			if (strcmp(irq_desc[i].chip->typename, "none")
 			    == 0)
 				continue;
 
 			if ((i >= 1)
-			    && (irq_desc[i - 1].handler->typename ==
-				irq_desc[i].handler->typename)) {
+			    && (irq_desc[i - 1].chip->typename ==
+				irq_desc[i].chip->typename)) {
 				j++;
 			} else {
 				j = 0;
@@ -707,12 +707,12 @@ void toshiba_rbtx4927_irq_dump(char *key)
 			    (TOSHIBA_RBTX4927_IRQ_INFO,
 			     "%s irq=0x%02x/%3d s=0x%08x h=0x%08x a=0x%08x ah=0x%08x d=%1d n=%s/%02d\n",
 			     key, i, i, irq_desc[i].status,
-			     (u32) irq_desc[i].handler,
+			     (u32) irq_desc[i].chip,
 			     (u32) irq_desc[i].action,
 			     (u32) (irq_desc[i].action ? irq_desc[i].
 				    action->handler : 0),
 			     irq_desc[i].depth,
-			     irq_desc[i].handler->typename, j);
+			     irq_desc[i].chip->typename, j);
 		}
 	}
 #endif

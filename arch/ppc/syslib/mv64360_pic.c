@@ -119,7 +119,7 @@ mv64360_init_irq(void)
 	/* All interrupts are level interrupts */
 	for (i = mv64360_irq_base; i < (mv64360_irq_base + 96); i++) {
 		irq_desc[i].status |= IRQ_LEVEL;
-		irq_desc[i].handler = &mv64360_pic;
+		irq_desc[i].chip = &mv64360_pic;
 	}
 
 	if (ppc_md.progress)

@@ -143,7 +143,7 @@ ppc4xx_pic_init(void)
 	ppc_md.get_irq = xilinx_pic_get_irq;
 
 	for (i = 0; i < NR_IRQS; ++i) {
-		irq_desc[i].handler = &xilinx_intc;
+		irq_desc[i].chip = &xilinx_intc;
 
 		if (XPAR_INTC_0_KIND_OF_INTR & (0x00000001 << i))
 			irq_desc[i].status &= ~IRQ_LEVEL;

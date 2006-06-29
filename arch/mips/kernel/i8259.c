@@ -120,7 +120,7 @@ int i8259A_irq_pending(unsigned int irq)
 void make_8259A_irq(unsigned int irq)
 {
 	disable_irq_nosync(irq);
-	irq_desc[irq].handler = &i8259A_irq_type;
+	irq_desc[irq].chip = &i8259A_irq_type;
 	enable_irq(irq);
 }
 
@@ -327,7 +327,7 @@ void __init init_i8259_irqs (void)
 		irq_desc[i].status = IRQ_DISABLED;
 		irq_desc[i].action = NULL;
 		irq_desc[i].depth = 1;
-		irq_desc[i].handler = &i8259A_irq_type;
+		irq_desc[i].chip = &i8259A_irq_type;
 	}
 
 	setup_irq(2, &irq2);

@@ -172,7 +172,7 @@ void _board_init_irq(void)
 
 	for (irq_nr = PB1200_INT_BEGIN; irq_nr <= PB1200_INT_END; irq_nr++)
 	{
-		irq_desc[irq_nr].handler = &external_irq_type;
+		irq_desc[irq_nr].chip = &external_irq_type;
 		pb1200_disable_irq(irq_nr);
 	}
 

@@ -242,9 +242,9 @@ void __init iSeries_activate_IRQs()
 	for_each_irq (irq) {
 		irq_desc_t *desc = get_irq_desc(irq);
 
-		if (desc && desc->handler && desc->handler->startup) {
+		if (desc && desc->chip && desc->chip->startup) {
 			spin_lock_irqsave(&desc->lock, flags);
-			desc->handler->startup(irq);
+			desc->chip->startup(irq);
 			spin_unlock_irqrestore(&desc->lock, flags);
 		}
 	}
@@ -324,7 +324,7 @@ int __init iSeries_allocate_IRQ(HvBusNumber bus,
 		+ function;
 	virtirq = virt_irq_create_mapping(realirq);
 
-	irq_desc[virtirq].handler = &iSeries_IRQ_handler;
+	irq_desc[virtirq].chip = &iSeries_IRQ_handler;
 	return virtirq;
 }
 

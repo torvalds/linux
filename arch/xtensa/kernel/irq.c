@@ -100,7 +100,7 @@ int show_interrupts(struct seq_file *p, void *v)
 		for_each_online_cpu(j)
 			seq_printf(p, "%10u ", kstat_cpu(j).irqs[i]);
 #endif
-		seq_printf(p, " %14s", irq_desc[i].handler->typename);
+		seq_printf(p, " %14s", irq_desc[i].chip->typename);
 		seq_printf(p, "  %s", action->name);
 
 		for (action=action->next; action; action = action->next)
@@ -181,7 +181,7 @@ void __init init_IRQ(void)
 	int i;
 
 	for (i=0; i < XTENSA_NR_IRQS; i++)
-		irq_desc[i].handler = &xtensa_irq_type;
+		irq_desc[i].chip = &xtensa_irq_type;
 
 	cached_irq_mask = 0;
 

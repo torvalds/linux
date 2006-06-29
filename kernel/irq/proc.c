@@ -37,7 +37,7 @@ void proc_set_irq_affinity(unsigned int irq, cpumask_t mask_val)
 {
 	set_balance_irq_affinity(irq, mask_val);
 	irq_affinity[irq] = mask_val;
-	irq_desc[irq].handler->set_affinity(irq, mask_val);
+	irq_desc[irq].chip->set_affinity(irq, mask_val);
 }
 #endif
 
@@ -59,7 +59,7 @@ static int irq_affinity_write_proc(struct file *file, const char __user *buffer,
 	unsigned int irq = (int)(long)data, full_count = count, err;
 	cpumask_t new_value, tmp;
 
-	if (!irq_desc[irq].handler->set_affinity || no_irq_affinity)
+	if (!irq_desc[irq].chip->set_affinity || no_irq_affinity)
 		return -EIO;
 
 	err = cpumask_parse(buffer, count, new_value);
@@ -122,7 +122,7 @@ void register_irq_proc(unsigned int irq)
 	char name [MAX_NAMELEN];
 
 	if (!root_irq_dir ||
-		(irq_desc[irq].handler == &no_irq_type) ||
+		(irq_desc[irq].chip == &no_irq_type) ||
 			irq_dir[irq])
 		return;
 

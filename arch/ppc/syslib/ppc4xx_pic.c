@@ -276,7 +276,7 @@ void __init ppc4xx_pic_init(void)
 
 	/* Attach low-level handlers */
 	for (i = 0; i < (NR_UICS << 5); ++i) {
-		irq_desc[i].handler = &__uic[i >> 5].decl;
+		irq_desc[i].chip = &__uic[i >> 5].decl;
 		if (is_level_sensitive(i))
 			irq_desc[i].status |= IRQ_LEVEL;
 	}

@@ -69,8 +69,8 @@ typedef struct hw_interrupt_type  hw_irq_controller;
  * Pad this out to 32 bytes for cache and indexing reasons.
  */
 typedef struct irq_desc {
-	hw_irq_controller *handler;
-	void *handler_data;
+	hw_irq_controller *chip;
+	void *chip_data;
 	struct irqaction *action;	/* IRQ action list */
 	unsigned int status;		/* IRQ status */
 	unsigned int depth;		/* nested irq disables */
