@@ -96,11 +96,15 @@ void time_init_kern(void)
 
 void do_boot_timer_handler(struct sigcontext * sc)
 {
+	unsigned long flags;
 	struct pt_regs regs;
 
 	CHOOSE_MODE((void) (UPT_SC(&regs.regs) = sc),
 		    (void) (regs.regs.skas.is_user = 0));
+
+	write_seqlock_irqsave(&xtime_lock, flags);
 	do_timer(&regs);
+	write_sequnlock_irqrestore(&xtime_lock, flags);
 }
 
 static DEFINE_SPINLOCK(timer_spinlock);
@@ -125,15 +129,17 @@ irqreturn_t um_timer(int irq, void *dev, struct pt_regs *regs)
 	unsigned long long nsecs;
 	unsigned long flags;
 
+	write_seqlock_irqsave(&xtime_lock, flags);
+
 	do_timer(regs);
 
-	write_seqlock_irqsave(&xtime_lock, flags);
 	nsecs = get_time() + local_offset;
 	xtime.tv_sec = nsecs / NSEC_PER_SEC;
 	xtime.tv_nsec = nsecs - xtime.tv_sec * NSEC_PER_SEC;
+
 	write_sequnlock_irqrestore(&xtime_lock, flags);
 
-	return(IRQ_HANDLED);
+	return IRQ_HANDLED;
 }
 
 long um_time(int __user *tloc)
