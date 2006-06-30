@@ -176,7 +176,7 @@ endchoice
 config ACPI_SRAT
 	bool
 	default y
-	depends on NUMA && (X86_SUMMIT || X86_GENERICARCH)
+	depends on ACPI && NUMA && (X86_SUMMIT || X86_GENERICARCH)
 	select ACPI_NUMA
 
 config HAVE_ARCH_PARSE_SRAT
