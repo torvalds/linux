@@ -173,9 +173,15 @@ static inline unsigned long node_page_state(int node,
 #endif
 		zone_page_state(&zones[ZONE_DMA], item);
 }
+
+extern void zone_statistics(struct zonelist *, struct zone *);
+
 #else
+
 #define node_page_state(node, item) global_page_state(item)
-#endif
+#define zone_statistics(_zl,_z) do { } while (0)
+
+#endif /* CONFIG_NUMA */
 
 #define __add_zone_page_state(__z, __i, __d)	\
 		__mod_zone_page_state(__z, __i, __d)
@@ -189,6 +195,8 @@ static inline void zap_zone_vm_stats(struct zone *zone)
 {
 	memset(zone->vm_stat, 0, sizeof(zone->vm_stat));
 }
+
+extern void inc_zone_state(struct zone *, enum zone_stat_item);
 
 #ifdef CONFIG_SMP
 void __mod_zone_page_state(struct zone *, enum zone_stat_item item, int);

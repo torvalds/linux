@@ -709,27 +709,6 @@ void drain_local_pages(void)
 }
 #endif /* CONFIG_PM */
 
-static void zone_statistics(struct zonelist *zonelist, struct zone *z, int cpu)
-{
-#ifdef CONFIG_NUMA
-	pg_data_t *pg = z->zone_pgdat;
-	pg_data_t *orig = zonelist->zones[0]->zone_pgdat;
-	struct per_cpu_pageset *p;
-
-	p = zone_pcp(z, cpu);
-	if (pg == orig) {
-		p->numa_hit++;
-	} else {
-		p->numa_miss++;
-		zone_pcp(zonelist->zones[0], cpu)->numa_foreign++;
-	}
-	if (pg == NODE_DATA(numa_node_id()))
-		p->local_node++;
-	else
-		p->other_node++;
-#endif
-}
-
 /*
  * Free a 0-order page
  */
@@ -827,7 +806,7 @@ again:
 	}
 
 	__mod_page_state_zone(zone, pgalloc, 1 << order);
-	zone_statistics(zonelist, zone, cpu);
+	zone_statistics(zonelist, zone);
 	local_irq_restore(flags);
 	put_cpu();
 

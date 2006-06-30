@@ -185,9 +185,8 @@ EXPORT_SYMBOL(mod_zone_page_state);
  * in between and therefore the atomicity vs. interrupt cannot be exploited
  * in a useful way here.
  */
-void __inc_zone_page_state(struct page *page, enum zone_stat_item item)
+static void __inc_zone_state(struct zone *zone, enum zone_stat_item item)
 {
-	struct zone *zone = page_zone(page);
 	s8 *p = diff_pointer(zone, item);
 
 	(*p)++;
@@ -196,6 +195,11 @@ void __inc_zone_page_state(struct page *page, enum zone_stat_item item)
 		zone_page_state_add(*p, zone, item);
 		*p = 0;
 	}
+}
+
+void __inc_zone_page_state(struct page *page, enum zone_stat_item item)
+{
+	__inc_zone_state(page_zone(page), item);
 }
 EXPORT_SYMBOL(__inc_zone_page_state);
 
@@ -213,22 +217,23 @@ void __dec_zone_page_state(struct page *page, enum zone_stat_item item)
 }
 EXPORT_SYMBOL(__dec_zone_page_state);
 
+void inc_zone_state(struct zone *zone, enum zone_stat_item item)
+{
+	unsigned long flags;
+
+	local_irq_save(flags);
+	__inc_zone_state(zone, item);
+	local_irq_restore(flags);
+}
+
 void inc_zone_page_state(struct page *page, enum zone_stat_item item)
 {
 	unsigned long flags;
 	struct zone *zone;
-	s8 *p;
 
 	zone = page_zone(page);
 	local_irq_save(flags);
-	p = diff_pointer(zone, item);
-
-	(*p)++;
-
-	if (unlikely(*p > STAT_THRESHOLD)) {
-		zone_page_state_add(*p, zone, item);
-		*p = 0;
-	}
+	__inc_zone_state(zone, item);
 	local_irq_restore(flags);
 }
 EXPORT_SYMBOL(inc_zone_page_state);
@@ -295,6 +300,28 @@ void refresh_vm_stats(void)
 }
 EXPORT_SYMBOL(refresh_vm_stats);
 
+#endif
+
+#ifdef CONFIG_NUMA
+/*
+ * zonelist = the list of zones passed to the allocator
+ * z 	    = the zone from which the allocation occurred.
+ *
+ * Must be called with interrupts disabled.
+ */
+void zone_statistics(struct zonelist *zonelist, struct zone *z)
+{
+	if (z->zone_pgdat == zonelist->zones[0]->zone_pgdat) {
+		__inc_zone_state(z, NUMA_HIT);
+	} else {
+		__inc_zone_state(z, NUMA_MISS);
+		__inc_zone_state(zonelist->zones[0], NUMA_FOREIGN);
+	}
+	if (z->zone_pgdat == NODE_DATA(numa_node_id()))
+		__inc_zone_state(z, NUMA_LOCAL);
+	else
+		__inc_zone_state(z, NUMA_OTHER);
+}
 #endif
 
 #ifdef CONFIG_PROC_FS
@@ -368,6 +395,15 @@ static char *vmstat_text[] = {
 	"nr_writeback",
 	"nr_unstable",
 	"nr_bounce",
+
+#ifdef CONFIG_NUMA
+	"numa_hit",
+	"numa_miss",
+	"numa_foreign",
+	"numa_interleave",
+	"numa_local",
+	"numa_other",
+#endif
 
 	/* Event counters */
 	"pgpgin",
@@ -490,21 +526,6 @@ static int zoneinfo_show(struct seq_file *m, void *arg)
 					   pageset->pcp[j].high,
 					   pageset->pcp[j].batch);
 			}
-#ifdef CONFIG_NUMA
-			seq_printf(m,
-				   "\n            numa_hit:       %lu"
-				   "\n            numa_miss:      %lu"
-				   "\n            numa_foreign:   %lu"
-				   "\n            interleave_hit: %lu"
-				   "\n            local_node:     %lu"
-				   "\n            other_node:     %lu",
-				   pageset->numa_hit,
-				   pageset->numa_miss,
-				   pageset->numa_foreign,
-				   pageset->interleave_hit,
-				   pageset->local_node,
-				   pageset->other_node);
-#endif
 		}
 		seq_printf(m,
 			   "\n  all_unreclaimable: %u"
