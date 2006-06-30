@@ -32,9 +32,21 @@ static unsigned int debug_nodma = 0;
 static unsigned int debug_forcedma = 0;
 static unsigned int debug_quirks = 0;
 
+#define SDHCI_QUIRK_CLOCK_BEFORE_RESET			(1<<0)
+
 static const struct pci_device_id pci_ids[] __devinitdata = {
-	/* handle any SD host controller */
-	{PCI_DEVICE_CLASS((PCI_CLASS_SYSTEM_SDHCI << 8), 0xFFFF00)},
+	{
+		.vendor		= PCI_VENDOR_ID_RICOH,
+		.device		= PCI_DEVICE_ID_RICOH_R5C822,
+		.subvendor	= PCI_VENDOR_ID_IBM,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= SDHCI_QUIRK_CLOCK_BEFORE_RESET,
+	},
+
+	{	/* Generic SD host controller */
+		PCI_DEVICE_CLASS((PCI_CLASS_SYSTEM_SDHCI << 8), 0xFFFF00)
+	},
+
 	{ /* end: all zeroes */ },
 };
 
@@ -808,6 +820,19 @@ static void sdhci_tasklet_finish(unsigned long param)
 	if ((mrq->cmd->error != MMC_ERR_NONE) ||
 		(mrq->data && ((mrq->data->error != MMC_ERR_NONE) ||
 		(mrq->data->stop && (mrq->data->stop->error != MMC_ERR_NONE))))) {
+
+		/* Some controllers need this kick or reset won't work here */
+		if (host->chip->quirks & SDHCI_QUIRK_CLOCK_BEFORE_RESET) {
+			unsigned int clock;
+
+			/* This is to force an update */
+			clock = host->clock;
+			host->clock = 0;
+			sdhci_set_clock(host, clock);
+		}
+
+		/* Spec says we should do both at the same time, but Ricoh
+		   controllers do not like that. */
 		sdhci_reset(host, SDHCI_RESET_CMD);
 		sdhci_reset(host, SDHCI_RESET_DATA);
 	}
