@@ -3152,6 +3152,7 @@ static int cm_init_qp_rtr_attr(struct cm_id_private *cm_id_priv,
 		}
 		if (cm_id_priv->alt_av.ah_attr.dlid) {
 			*qp_attr_mask |= IB_QP_ALT_PATH;
+			qp_attr->alt_port_num = cm_id_priv->alt_av.port->port_num;
 			qp_attr->alt_ah_attr = cm_id_priv->alt_av.ah_attr;
 		}
 		ret = 0;
