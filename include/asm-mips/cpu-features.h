@@ -143,12 +143,8 @@
 #define cpu_has_dsp		(cpu_data[0].ases & MIPS_ASE_DSP)
 #endif
 
-#ifdef CONFIG_MIPS_MT
 #ifndef cpu_has_mipsmt
-# define cpu_has_mipsmt		(cpu_data[0].ases & MIPS_ASE_MIPSMT)
-#endif
-#else
-# define cpu_has_mipsmt		0
+#define cpu_has_mipsmt		(cpu_data[0].ases & MIPS_ASE_MIPSMT)
 #endif
 
 #ifdef CONFIG_32BIT
