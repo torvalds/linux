@@ -3195,7 +3195,7 @@ static int tg3_vlan_rx(struct tg3 *tp, struct sk_buff *skb, u16 vlan_tag)
  */
 static int tg3_rx(struct tg3 *tp, int budget)
 {
-	u32 work_mask;
+	u32 work_mask, rx_std_posted = 0;
 	u32 sw_idx = tp->rx_rcb_ptr;
 	u16 hw_idx;
 	int received;
@@ -3222,6 +3222,7 @@ static int tg3_rx(struct tg3 *tp, int budget)
 						  mapping);
 			skb = tp->rx_std_buffers[desc_idx].skb;
 			post_ptr = &tp->rx_std_ptr;
+			rx_std_posted++;
 		} else if (opaque_key == RXD_OPAQUE_RING_JUMBO) {
 			dma_addr = pci_unmap_addr(&tp->rx_jumbo_buffers[desc_idx],
 						  mapping);
@@ -3309,6 +3310,15 @@ static int tg3_rx(struct tg3 *tp, int budget)
 
 next_pkt:
 		(*post_ptr)++;
+
+		if (unlikely(rx_std_posted >= tp->rx_std_max_post)) {
+			u32 idx = *post_ptr % TG3_RX_RING_SIZE;
+
+			tw32_rx_mbox(MAILBOX_RCV_STD_PROD_IDX +
+				     TG3_64BIT_REG_LOW, idx);
+			work_mask &= ~RXD_OPAQUE_RING_STD;
+			rx_std_posted = 0;
+		}
 next_pkt_nopost:
 		sw_idx++;
 		sw_idx %= TG3_RX_RCB_RING_SIZE(tp);
@@ -5981,7 +5991,13 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 	}
 
 	/* Setup replenish threshold. */
-	tw32(RCVBDI_STD_THRESH, tp->rx_pending / 8);
+	val = tp->rx_pending / 8;
+	if (val == 0)
+		val = 1;
+	else if (val > tp->rx_std_max_post)
+		val = tp->rx_std_max_post;
+
+	tw32(RCVBDI_STD_THRESH, val);
 
 	/* Initialize TG3_BDINFO's at:
 	 *  RCVDBDI_STD_BD:	standard eth size rx ring
@@ -10544,6 +10560,16 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5701 &&
 	    (tp->tg3_flags & TG3_FLAG_PCIX_MODE) != 0)
 		tp->rx_offset = 0;
+
+	tp->rx_std_max_post = TG3_RX_RING_SIZE;
+
+	/* Increment the rx prod index on the rx std ring by at most
+	 * 8 for these chips to workaround hw errata.
+	 */
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5750 ||
+	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5752 ||
+	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5755)
+		tp->rx_std_max_post = 8;
 
 	/* By default, disable wake-on-lan.  User can change this
 	 * using ETHTOOL_SWOL.

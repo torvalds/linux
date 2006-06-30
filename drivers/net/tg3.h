@@ -2137,6 +2137,7 @@ struct tg3 {
 	struct tg3_rx_buffer_desc	*rx_std;
 	struct ring_info		*rx_std_buffers;
 	dma_addr_t			rx_std_mapping;
+	u32				rx_std_max_post;
 
 	struct tg3_rx_buffer_desc	*rx_jumbo;
 	struct ring_info		*rx_jumbo_buffers;
