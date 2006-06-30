@@ -257,7 +257,10 @@ static int amd76x_probe1(struct pci_dev *pdev, int dev_idx)
 
 	amd76x_get_error_info(mci, &discard);  /* clear counters */
 
-	if (edac_mc_add_mc(mci)) {
+	/* Here we assume that we will never see multiple instances of this
+	 * type of memory controller.  The ID is therefore hardcoded to 0.
+	 */
+	if (edac_mc_add_mc(mci,0)) {
 		debugf3("%s(): failed edac_mc_add_mc()\n", __func__);
 		goto fail;
 	}

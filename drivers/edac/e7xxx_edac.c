@@ -463,7 +463,10 @@ static int e7xxx_probe1(struct pci_dev *pdev, int dev_idx)
 	/* clear any pending errors, or initial state bits */
 	e7xxx_get_error_info(mci, &discard);
 
-	if (edac_mc_add_mc(mci) != 0) {
+	/* Here we assume that we will never see multiple instances of this
+	 * type of memory controller.  The ID is therefore hardcoded to 0.
+	 */
+	if (edac_mc_add_mc(mci,0)) {
 		debugf3("%s(): failed edac_mc_add_mc()\n", __func__);
 		goto fail;
 	}

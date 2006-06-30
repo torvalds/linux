@@ -1632,47 +1632,46 @@ static struct mem_ctl_info *find_mci_by_dev(struct device *dev)
 	return NULL;
 }
 
-static int add_mc_to_global_list(struct mem_ctl_info *mci)
+/* Return 0 on success, 1 on failure.
+ * Before calling this function, caller must
+ * assign a unique value to mci->mc_idx.
+ */
+static int add_mc_to_global_list (struct mem_ctl_info *mci)
 {
 	struct list_head *item, *insert_before;
 	struct mem_ctl_info *p;
-	int i;
 
-	if (list_empty(&mc_devices)) {
-		mci->mc_idx = 0;
-		insert_before = &mc_devices;
-	} else {
-		if (find_mci_by_dev(mci->dev)) {
-			edac_printk(KERN_WARNING, EDAC_MC,
-				"%s (%s) %s %s already assigned %d\n",
-				mci->dev->bus_id, dev_name(mci->dev),
-				mci->mod_name, mci->ctl_name,
-				mci->mc_idx);
-			return 1;
+	insert_before = &mc_devices;
+
+	if (unlikely((p = find_mci_by_dev(mci->dev)) != NULL))
+		goto fail0;
+
+	list_for_each(item, &mc_devices) {
+		p = list_entry(item, struct mem_ctl_info, link);
+
+		if (p->mc_idx >= mci->mc_idx) {
+			if (unlikely(p->mc_idx == mci->mc_idx))
+				goto fail1;
+
+			insert_before = item;
+			break;
 		}
-
-		insert_before = NULL;
-		i = 0;
-
-		list_for_each(item, &mc_devices) {
-			p = list_entry(item, struct mem_ctl_info, link);
-
-			if (p->mc_idx != i) {
-				insert_before = item;
-				break;
-			}
-
-			i++;
-		}
-
-		mci->mc_idx = i;
-
-		if (insert_before == NULL)
-			insert_before = &mc_devices;
 	}
 
 	list_add_tail_rcu(&mci->link, insert_before);
 	return 0;
+
+fail0:
+	edac_printk(KERN_WARNING, EDAC_MC,
+		    "%s (%s) %s %s already assigned %d\n", p->dev->bus_id,
+		    dev_name(p->dev), p->mod_name, p->ctl_name, p->mc_idx);
+	return 1;
+
+fail1:
+	edac_printk(KERN_WARNING, EDAC_MC,
+		    "bug in low-level driver: attempt to assign\n"
+		    "    duplicate mc_idx %d in %s()\n", p->mc_idx, __func__);
+	return 1;
 }
 
 static void complete_mc_list_del(struct rcu_head *head)
@@ -1696,6 +1695,7 @@ static void del_mc_from_global_list(struct mem_ctl_info *mci)
  * edac_mc_add_mc: Insert the 'mci' structure into the mci global list and
  *                 create sysfs entries associated with mci structure
  * @mci: pointer to the mci structure to be added to the list
+ * @mc_idx: A unique numeric identifier to be assigned to the 'mci' structure.
  *
  * Return:
  *	0	Success
@@ -1703,9 +1703,10 @@ static void del_mc_from_global_list(struct mem_ctl_info *mci)
  */
 
 /* FIXME - should a warning be printed if no error detection? correction? */
-int edac_mc_add_mc(struct mem_ctl_info *mci)
+int edac_mc_add_mc(struct mem_ctl_info *mci, int mc_idx)
 {
 	debugf0("%s()\n", __func__);
+	mci->mc_idx = mc_idx;
 #ifdef CONFIG_EDAC_DEBUG
 	if (edac_debug_level >= 3)
 		edac_mc_dump_mci(mci);
