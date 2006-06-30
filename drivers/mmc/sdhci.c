@@ -270,16 +270,13 @@ static void sdhci_transfer_pio(struct sdhci_host *host)
 
 static void sdhci_prepare_data(struct sdhci_host *host, struct mmc_data *data)
 {
-	u16 mode;
 	u8 count;
 	unsigned target_timeout, current_timeout;
 
 	WARN_ON(host->data);
 
-	if (data == NULL) {
-		writew(0, host->ioaddr + SDHCI_TRANSFER_MODE);
+	if (data == NULL)
 		return;
-	}
 
 	DBG("blksz %04x blks %04x flags %08x\n",
 		data->blksz, data->blocks, data->flags);
@@ -317,19 +314,6 @@ static void sdhci_prepare_data(struct sdhci_host *host, struct mmc_data *data)
 
 	writeb(count, host->ioaddr + SDHCI_TIMEOUT_CONTROL);
 
-	mode = SDHCI_TRNS_BLK_CNT_EN;
-	if (data->blocks > 1)
-		mode |= SDHCI_TRNS_MULTI;
-	if (data->flags & MMC_DATA_READ)
-		mode |= SDHCI_TRNS_READ;
-	if (host->flags & SDHCI_USE_DMA)
-		mode |= SDHCI_TRNS_DMA;
-
-	writew(mode, host->ioaddr + SDHCI_TRANSFER_MODE);
-
-	writew(data->blksz, host->ioaddr + SDHCI_BLOCK_SIZE);
-	writew(data->blocks, host->ioaddr + SDHCI_BLOCK_COUNT);
-
 	if (host->flags & SDHCI_USE_DMA) {
 		int count;
 
@@ -347,6 +331,30 @@ static void sdhci_prepare_data(struct sdhci_host *host, struct mmc_data *data)
 		host->offset = 0;
 		host->remain = host->cur_sg->length;
 	}
+
+	writew(data->blksz, host->ioaddr + SDHCI_BLOCK_SIZE);
+	writew(data->blocks, host->ioaddr + SDHCI_BLOCK_COUNT);
+}
+
+static void sdhci_set_transfer_mode(struct sdhci_host *host,
+	struct mmc_data *data)
+{
+	u16 mode;
+
+	WARN_ON(host->data);
+
+	if (data == NULL)
+		return;
+
+	mode = SDHCI_TRNS_BLK_CNT_EN;
+	if (data->blocks > 1)
+		mode |= SDHCI_TRNS_MULTI;
+	if (data->flags & MMC_DATA_READ)
+		mode |= SDHCI_TRNS_READ;
+	if (host->flags & SDHCI_USE_DMA)
+		mode |= SDHCI_TRNS_DMA;
+
+	writew(mode, host->ioaddr + SDHCI_TRANSFER_MODE);
 }
 
 static void sdhci_finish_data(struct sdhci_host *host)
@@ -446,6 +454,8 @@ static void sdhci_send_command(struct sdhci_host *host, struct mmc_command *cmd)
 	sdhci_prepare_data(host, cmd->data);
 
 	writel(cmd->arg, host->ioaddr + SDHCI_ARGUMENT);
+
+	sdhci_set_transfer_mode(host, cmd->data);
 
 	if ((cmd->flags & MMC_RSP_136) && (cmd->flags & MMC_RSP_BUSY)) {
 		printk(KERN_ERR "%s: Unsupported response type! "
