@@ -49,7 +49,7 @@ struct zone_padding {
 enum zone_stat_item {
 	NR_FILE_MAPPED,	/* mapped into pagetables.
 			   only modified from process context */
-
+	NR_FILE_PAGES,
 	NR_VM_ZONE_STAT_ITEMS };
 
 struct per_cpu_pages {

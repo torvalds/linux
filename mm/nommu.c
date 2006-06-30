@@ -1122,7 +1122,7 @@ int __vm_enough_memory(long pages, int cap_sys_admin)
 	if (sysctl_overcommit_memory == OVERCOMMIT_GUESS) {
 		unsigned long n;
 
-		free = get_page_cache_size();
+		free = global_page_state(NR_FILE_PAGES);
 		free += nr_swap_pages;
 
 		/*

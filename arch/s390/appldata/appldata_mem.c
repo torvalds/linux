@@ -130,7 +130,8 @@ static void appldata_get_mem_data(void *data)
 	mem_data->totalhigh = P2K(val.totalhigh);
 	mem_data->freehigh  = P2K(val.freehigh);
 	mem_data->bufferram = P2K(val.bufferram);
-	mem_data->cached    = P2K(atomic_read(&nr_pagecache) - val.bufferram);
+	mem_data->cached    = P2K(global_page_state(NR_FILE_PAGES)
+				- val.bufferram);
 
 	si_swapinfo(&val);
 	mem_data->totalswap = P2K(val.totalswap);

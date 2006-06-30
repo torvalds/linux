@@ -2124,16 +2124,11 @@ static int page_alloc_cpu_notify(struct notifier_block *self,
 				 unsigned long action, void *hcpu)
 {
 	int cpu = (unsigned long)hcpu;
-	long *count;
 	unsigned long *src, *dest;
 
 	if (action == CPU_DEAD) {
 		int i;
 
-		/* Drain local pagecache count. */
-		count = &per_cpu(nr_pagecache_local, cpu);
-		atomic_add(*count, &nr_pagecache);
-		*count = 0;
 		local_irq_disable();
 		__drain_pages(cpu);
 

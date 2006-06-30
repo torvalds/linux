@@ -20,12 +20,6 @@
  */
 DEFINE_PER_CPU(struct page_state, page_states) = {0};
 
-atomic_t nr_pagecache = ATOMIC_INIT(0);
-EXPORT_SYMBOL(nr_pagecache);
-#ifdef CONFIG_SMP
-DEFINE_PER_CPU(long, nr_pagecache_local) = 0;
-#endif
-
 static void __get_page_state(struct page_state *ret, int nr, cpumask_t *cpumask)
 {
 	unsigned cpu;
@@ -402,6 +396,7 @@ struct seq_operations fragmentation_op = {
 static char *vmstat_text[] = {
 	/* Zoned VM counters */
 	"nr_mapped",
+	"nr_file_pages",
 
 	/* Page state */
 	"nr_dirty",

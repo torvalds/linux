@@ -142,7 +142,8 @@ static int meminfo_read_proc(char *page, char **start, off_t off,
 	allowed = ((totalram_pages - hugetlb_total_pages())
 		* sysctl_overcommit_ratio / 100) + total_swap_pages;
 
-	cached = get_page_cache_size() - total_swapcache_pages - i.bufferram;
+	cached = global_page_state(NR_FILE_PAGES) -
+			total_swapcache_pages - i.bufferram;
 	if (cached < 0)
 		cached = 0;
 
