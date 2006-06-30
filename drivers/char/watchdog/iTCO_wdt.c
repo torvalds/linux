@@ -45,28 +45,29 @@
 /* Module and version information */
 #define DRV_NAME        "iTCO_wdt"
 #define DRV_VERSION     "1.00"
-#define DRV_RELDATE     "21-May-2006"
+#define DRV_RELDATE     "18-Jun-2006"
 #define PFX		DRV_NAME ": "
 
 /* Includes */
-#include <linux/config.h>	/* For CONFIG_WATCHDOG_NOWAYOUT/... */
-#include <linux/module.h>	/* For module specific items */
-#include <linux/moduleparam.h>	/* For new moduleparam's */
-#include <linux/types.h>	/* For standard types (like size_t) */
-#include <linux/errno.h>	/* For the -ENODEV/... values */
-#include <linux/kernel.h>	/* For printk/panic/... */
-#include <linux/miscdevice.h>	/* For MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR) */
-#include <linux/watchdog.h>	/* For the watchdog specific items */
-#include <linux/notifier.h>	/* For notifier support */
-#include <linux/reboot.h>	/* For reboot_notifier stuff */
-#include <linux/init.h>		/* For __init/__exit/... */
-#include <linux/fs.h>		/* For file operations */
-#include <linux/pci.h>		/* For pci functions */
-#include <linux/ioport.h>	/* For io-port access */
-#include <linux/spinlock.h>	/* For spin_lock/spin_unlock/... */
+#include <linux/config.h>		/* For CONFIG_WATCHDOG_NOWAYOUT/... */
+#include <linux/module.h>		/* For module specific items */
+#include <linux/moduleparam.h>		/* For new moduleparam's */
+#include <linux/types.h>		/* For standard types (like size_t) */
+#include <linux/errno.h>		/* For the -ENODEV/... values */
+#include <linux/kernel.h>		/* For printk/panic/... */
+#include <linux/miscdevice.h>		/* For MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR) */
+#include <linux/watchdog.h>		/* For the watchdog specific items */
+#include <linux/notifier.h>		/* For notifier support */
+#include <linux/reboot.h>		/* For reboot_notifier stuff */
+#include <linux/init.h>			/* For __init/__exit/... */
+#include <linux/fs.h>			/* For file operations */
+#include <linux/platform_device.h>	/* For platform_driver framework */
+#include <linux/pci.h>			/* For pci functions */
+#include <linux/ioport.h>		/* For io-port access */
+#include <linux/spinlock.h>		/* For spin_lock/spin_unlock/... */
 
-#include <asm/uaccess.h>	/* For copy_to_user/put_user/... */
-#include <asm/io.h>		/* For inb/outb/... */
+#include <asm/uaccess.h>		/* For copy_to_user/put_user/... */
+#include <asm/io.h>			/* For inb/outb/... */
 
 /* TCO related info */
 enum iTCO_chipsets {
@@ -165,6 +166,8 @@ static struct {				/* this is private data for the iTCO_wdt device */
 	spinlock_t io_lock;		/* the lock for io operations */
 	struct pci_dev *pdev;		/* the PCI-device */
 } iTCO_wdt_private;
+
+static struct platform_device *iTCO_wdt_platform_device;	/* the watchdog platform device */
 
 /* module parameters */
 #define WATCHDOG_HEARTBEAT 30	/* 30 sec default heartbeat */
@@ -538,7 +541,7 @@ static struct notifier_block iTCO_wdt_notifier = {
  *	Init & exit routines
  */
 
-static int __init iTCO_wdt_init(struct pci_dev *pdev, const struct pci_device_id *ent)
+static int iTCO_wdt_init(struct pci_dev *pdev, const struct pci_device_id *ent, struct platform_device *dev)
 {
 	int ret;
 	u32 base_address;
@@ -649,7 +652,7 @@ out:
 	return ret;
 }
 
-static void __exit iTCO_wdt_cleanup(void)
+static void iTCO_wdt_cleanup(void)
 {
 	/* Stop the timer before we leave */
 	if (!nowayout)
@@ -663,7 +666,7 @@ static void __exit iTCO_wdt_cleanup(void)
 		iounmap(iTCO_wdt_private.gcs);
 }
 
-static int __init iTCO_wdt_init_module(void)
+static int iTCO_wdt_probe(struct platform_device *dev)
 {
 	int found = 0;
 	struct pci_dev *pdev = NULL;
@@ -674,7 +677,7 @@ static int __init iTCO_wdt_init_module(void)
 	for_each_pci_dev(pdev) {
 		ent = pci_match_id(iTCO_wdt_pci_tbl, pdev);
 		if (ent) {
-			if (!(iTCO_wdt_init(pdev, ent))) {
+			if (!(iTCO_wdt_init(pdev, ent, dev))) {
 				found++;
 				break;
 			}
@@ -689,11 +692,62 @@ static int __init iTCO_wdt_init_module(void)
 	return 0;
 }
 
-static void __exit iTCO_wdt_cleanup_module(void)
+static int iTCO_wdt_remove(struct platform_device *dev)
 {
 	if (iTCO_wdt_private.ACPIBASE)
 		iTCO_wdt_cleanup();
 
+	return 0;
+}
+
+static void iTCO_wdt_shutdown(struct platform_device *dev)
+{
+	iTCO_wdt_stop();
+}
+
+#define iTCO_wdt_suspend NULL
+#define iTCO_wdt_resume  NULL
+
+static struct platform_driver iTCO_wdt_driver = {
+	.probe          = iTCO_wdt_probe,
+	.remove         = iTCO_wdt_remove,
+	.shutdown       = iTCO_wdt_shutdown,
+	.suspend        = iTCO_wdt_suspend,
+	.resume         = iTCO_wdt_resume,
+	.driver         = {
+		.owner  = THIS_MODULE,
+		.name   = DRV_NAME,
+	},
+};
+
+static int __init iTCO_wdt_init_module(void)
+{
+	int err;
+
+	printk(KERN_INFO PFX "Intel TCO WatchDog Timer Driver v%s (%s)\n",
+		DRV_VERSION, DRV_RELDATE);
+
+	err = platform_driver_register(&iTCO_wdt_driver);
+	if (err)
+		return err;
+
+	iTCO_wdt_platform_device = platform_device_register_simple(DRV_NAME, -1, NULL, 0);
+	if (IS_ERR(iTCO_wdt_platform_device)) {
+		err = PTR_ERR(iTCO_wdt_platform_device);
+		goto unreg_platform_driver;
+	}
+
+	return 0;
+
+unreg_platform_driver:
+	platform_driver_unregister(&iTCO_wdt_driver);
+	return err;
+}
+
+static void __exit iTCO_wdt_cleanup_module(void)
+{
+	platform_device_unregister(iTCO_wdt_platform_device);
+	platform_driver_unregister(&iTCO_wdt_driver);
 	printk(KERN_INFO PFX "Watchdog Module Unloaded.\n");
 }
 
@@ -702,5 +756,6 @@ module_exit(iTCO_wdt_cleanup_module);
 
 MODULE_AUTHOR("Wim Van Sebroeck <wim@iguana.be>");
 MODULE_DESCRIPTION("Intel TCO WatchDog Timer Driver");
+MODULE_VERSION(DRV_VERSION);
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);
