@@ -585,6 +585,10 @@ struct swap_info_struct;
  *	@p contains the task_struct of process.
  *	@ioprio contains the new ioprio value
  *	Return 0 if permission is granted.
+ * @task_getioprio
+ *	Check permission before getting the ioprio value of @p.
+ *	@p contains the task_struct of process.
+ *	Return 0 if permission is granted.
  * @task_setrlimit:
  *	Check permission before setting the resource limits of the current
  *	process for @resource to @new_rlim.  The old resource limit values can
@@ -1227,6 +1231,7 @@ struct security_operations {
 	int (*task_setgroups) (struct group_info *group_info);
 	int (*task_setnice) (struct task_struct * p, int nice);
 	int (*task_setioprio) (struct task_struct * p, int ioprio);
+	int (*task_getioprio) (struct task_struct * p);
 	int (*task_setrlimit) (unsigned int resource, struct rlimit * new_rlim);
 	int (*task_setscheduler) (struct task_struct * p, int policy,
 				  struct sched_param * lp);
@@ -1862,6 +1867,11 @@ static inline int security_task_setnice (struct task_struct *p, int nice)
 static inline int security_task_setioprio (struct task_struct *p, int ioprio)
 {
 	return security_ops->task_setioprio (p, ioprio);
+}
+
+static inline int security_task_getioprio (struct task_struct *p)
+{
+	return security_ops->task_getioprio (p);
 }
 
 static inline int security_task_setrlimit (unsigned int resource,
@@ -2516,6 +2526,11 @@ static inline int security_task_setnice (struct task_struct *p, int nice)
 }
 
 static inline int security_task_setioprio (struct task_struct *p, int ioprio)
+{
+	return 0;
+}
+
+static inline int security_task_getioprio (struct task_struct *p)
 {
 	return 0;
 }
