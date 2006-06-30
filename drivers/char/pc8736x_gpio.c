@@ -319,9 +319,10 @@ static int __init pc8736x_gpio_init(void)
 	return 0;
 
 undo_platform_dev_add:
-	platform_device_put(pdev);
+	platform_device_del(pdev);
 undo_platform_dev_alloc:
-	kfree(pdev);
+	platform_device_put(pdev);
+
 	return rc;
 }
 
