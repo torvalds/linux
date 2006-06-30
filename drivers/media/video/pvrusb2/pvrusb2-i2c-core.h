@@ -75,9 +75,6 @@ unsigned int pvr2_i2c_report(struct pvr2_hdw *,char *buf,unsigned int maxlen);
 	PVR2_I2C_DETAIL_DEBUG |\
 	PVR2_I2C_DETAIL_HANDLER |\
 	PVR2_I2C_DETAIL_CTLMASK)
-unsigned int pvr2_i2c_client_describe(struct pvr2_i2c_client *,
-				      unsigned int detail_mask,
-				      char *buf,unsigned int maxlen);
 
 void pvr2_i2c_probe(struct pvr2_hdw *,struct pvr2_i2c_client *);
 const struct pvr2_i2c_op *pvr2_i2c_get_op(unsigned int idx);

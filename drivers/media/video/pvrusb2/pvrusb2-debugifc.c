@@ -337,8 +337,8 @@ int pvr2_debugifc_print_status(struct pvr2_hdw *hdw,
 }
 
 
-int pvr2_debugifc_do1cmd(struct pvr2_hdw *hdw,const char *buf,
-			 unsigned int count)
+static int pvr2_debugifc_do1cmd(struct pvr2_hdw *hdw,const char *buf,
+				unsigned int count)
 {
 	const char *wptr;
 	unsigned int wlen;

@@ -88,7 +88,7 @@ static struct pvr2_string_table pvr2_client_lists[] = {
 };
 
 static struct pvr2_hdw *unit_pointers[PVR_NUM] = {[ 0 ... PVR_NUM-1 ] = 0};
-DECLARE_MUTEX(pvr2_unit_sem);
+static DECLARE_MUTEX(pvr2_unit_sem);
 
 static int ctlchg = 0;
 static int initusbreset = 1;
@@ -261,6 +261,25 @@ static const char *control_values_subsystem[] = {
 	[PVR2_SUBSYS_B_ENC_RUN] = "enc_run",
 };
 
+static int pvr2_hdw_cmd_usbstream(struct pvr2_hdw *hdw,int runFl);
+static int pvr2_hdw_commit_ctl_internal(struct pvr2_hdw *hdw);
+static int pvr2_hdw_get_eeprom_addr(struct pvr2_hdw *hdw);
+static unsigned int pvr2_hdw_get_signal_status_internal(struct pvr2_hdw *hdw);
+static void pvr2_hdw_internal_find_stdenum(struct pvr2_hdw *hdw);
+static void pvr2_hdw_internal_set_std_avail(struct pvr2_hdw *hdw);
+static void pvr2_hdw_render_useless_unlocked(struct pvr2_hdw *hdw);
+static void pvr2_hdw_subsys_bit_chg_no_lock(struct pvr2_hdw *hdw,
+					    unsigned long msk,
+					    unsigned long val);
+static void pvr2_hdw_subsys_stream_bit_chg_no_lock(struct pvr2_hdw *hdw,
+						   unsigned long msk,
+						   unsigned long val);
+static int pvr2_send_request_ex(struct pvr2_hdw *hdw,
+				unsigned int timeout,int probe_fl,
+				void *write_data,unsigned int write_len,
+				void *read_data,unsigned int read_len);
+static int pvr2_write_u16(struct pvr2_hdw *hdw, u16 data, int res);
+static int pvr2_write_u8(struct pvr2_hdw *hdw, u8 data, int res);
 
 static int ctrl_channelfreq_get(struct pvr2_ctrl *cptr,int *vp)
 {
@@ -834,14 +853,6 @@ unsigned long pvr2_hdw_get_sn(struct pvr2_hdw *hdw)
 }
 
 
-struct pvr2_hdw *pvr2_hdw_find(int unit_number)
-{
-	if (unit_number < 0) return 0;
-	if (unit_number >= PVR_NUM) return 0;
-	return unit_pointers[unit_number];
-}
-
-
 int pvr2_hdw_get_unit_number(struct pvr2_hdw *hdw)
 {
 	return hdw->unit_number;
@@ -915,7 +926,7 @@ static int pvr2_locate_firmware(struct pvr2_hdw *hdw,
  * is not suitable for an usb transaction.
  *
  */
-int pvr2_upload_firmware1(struct pvr2_hdw *hdw)
+static int pvr2_upload_firmware1(struct pvr2_hdw *hdw)
 {
 	const struct firmware *fw_entry = 0;
 	void  *fw_ptr;
@@ -1164,8 +1175,9 @@ int pvr2_upload_firmware2(struct pvr2_hdw *hdw)
   reconfigure and start over.
 
 */
-void pvr2_hdw_subsys_bit_chg_no_lock(struct pvr2_hdw *hdw,
-				     unsigned long msk,unsigned long val)
+static void pvr2_hdw_subsys_bit_chg_no_lock(struct pvr2_hdw *hdw,
+					    unsigned long msk,
+					    unsigned long val)
 {
 	unsigned long nmsk;
 	unsigned long vmsk;
@@ -1316,18 +1328,6 @@ void pvr2_hdw_subsys_bit_chg(struct pvr2_hdw *hdw,
 }
 
 
-void pvr2_hdw_subsys_bit_set(struct pvr2_hdw *hdw,unsigned long msk)
-{
-	pvr2_hdw_subsys_bit_chg(hdw,msk,msk);
-}
-
-
-void pvr2_hdw_subsys_bit_clr(struct pvr2_hdw *hdw,unsigned long msk)
-{
-	pvr2_hdw_subsys_bit_chg(hdw,msk,0);
-}
-
-
 unsigned long pvr2_hdw_subsys_get(struct pvr2_hdw *hdw)
 {
 	return hdw->subsys_enabled_mask;
@@ -1340,9 +1340,9 @@ unsigned long pvr2_hdw_subsys_stream_get(struct pvr2_hdw *hdw)
 }
 
 
-void pvr2_hdw_subsys_stream_bit_chg_no_lock(struct pvr2_hdw *hdw,
-					    unsigned long msk,
-					    unsigned long val)
+static void pvr2_hdw_subsys_stream_bit_chg_no_lock(struct pvr2_hdw *hdw,
+						   unsigned long msk,
+						   unsigned long val)
 {
 	unsigned long val2;
 	msk &= PVR2_SUBSYS_ALL;
@@ -1364,7 +1364,7 @@ void pvr2_hdw_subsys_stream_bit_chg(struct pvr2_hdw *hdw,
 }
 
 
-int pvr2_hdw_set_streaming_no_lock(struct pvr2_hdw *hdw,int enableFl)
+static int pvr2_hdw_set_streaming_no_lock(struct pvr2_hdw *hdw,int enableFl)
 {
 	if ((!enableFl) == !(hdw->flag_streaming_enabled)) return 0;
 	if (enableFl) {
@@ -1398,8 +1398,8 @@ int pvr2_hdw_set_streaming(struct pvr2_hdw *hdw,int enable_flag)
 }
 
 
-int pvr2_hdw_set_stream_type_no_lock(struct pvr2_hdw *hdw,
-				     enum pvr2_config config)
+static int pvr2_hdw_set_stream_type_no_lock(struct pvr2_hdw *hdw,
+					    enum pvr2_config config)
 {
 	unsigned long sm = hdw->subsys_enabled_mask;
 	if (!hdw->flag_ok) return -EIO;
@@ -1926,7 +1926,7 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 
 /* Remove _all_ associations between this driver and the underlying USB
    layer. */
-void pvr2_hdw_remove_usb_stuff(struct pvr2_hdw *hdw)
+static void pvr2_hdw_remove_usb_stuff(struct pvr2_hdw *hdw)
 {
 	if (hdw->flag_disconnected) return;
 	pvr2_trace(PVR2_TRACE_INIT,"pvr2_hdw_remove_usb_stuff: hdw=%p",hdw);
@@ -2016,7 +2016,7 @@ void pvr2_hdw_disconnect(struct pvr2_hdw *hdw)
 
 // Attempt to autoselect an appropriate value for std_enum_cur given
 // whatever is currently in std_mask_cur
-void pvr2_hdw_internal_find_stdenum(struct pvr2_hdw *hdw)
+static void pvr2_hdw_internal_find_stdenum(struct pvr2_hdw *hdw)
 {
 	unsigned int idx;
 	for (idx = 1; idx < hdw->std_enum_cnt; idx++) {
@@ -2031,7 +2031,7 @@ void pvr2_hdw_internal_find_stdenum(struct pvr2_hdw *hdw)
 
 // Calculate correct set of enumerated standards based on currently known
 // set of available standards bits.
-void pvr2_hdw_internal_set_std_avail(struct pvr2_hdw *hdw)
+static void pvr2_hdw_internal_set_std_avail(struct pvr2_hdw *hdw)
 {
 	struct v4l2_standard *newstd;
 	unsigned int std_cnt;
@@ -2180,7 +2180,7 @@ static const char *get_ctrl_typename(enum pvr2_ctl_type tp)
    state(s) back to their previous value before this function was called.
    Thus we can automatically reconfigure affected pieces of the driver as
    controls are changed. */
-int pvr2_hdw_commit_ctl_internal(struct pvr2_hdw *hdw)
+static int pvr2_hdw_commit_ctl_internal(struct pvr2_hdw *hdw)
 {
 	unsigned long saved_subsys_mask = hdw->subsys_enabled_mask;
 	unsigned long stale_subsys_mask = 0;
@@ -2319,14 +2319,6 @@ void pvr2_hdw_poll_trigger_unlocked(struct pvr2_hdw *hdw)
 }
 
 
-void pvr2_hdw_poll_trigger(struct pvr2_hdw *hdw)
-{
-	LOCK_TAKE(hdw->big_lock); do {
-		pvr2_hdw_poll_trigger_unlocked(hdw);
-	} while (0); LOCK_GIVE(hdw->big_lock);
-}
-
-
 /* Return name for this driver instance */
 const char *pvr2_hdw_get_driver_name(struct pvr2_hdw *hdw)
 {
@@ -2335,7 +2327,7 @@ const char *pvr2_hdw_get_driver_name(struct pvr2_hdw *hdw)
 
 
 /* Return bit mask indicating signal status */
-unsigned int pvr2_hdw_get_signal_status_internal(struct pvr2_hdw *hdw)
+static unsigned int pvr2_hdw_get_signal_status_internal(struct pvr2_hdw *hdw)
 {
 	unsigned int msk = 0;
 	switch (hdw->input_val) {
@@ -2517,22 +2509,6 @@ void pvr2_hdw_v4l_store_minor_number(struct pvr2_hdw *hdw,int v)
 }
 
 
-void pvr2_reset_ctl_endpoints(struct pvr2_hdw *hdw)
-{
-	if (!hdw->usb_dev) return;
-	usb_settoggle(hdw->usb_dev, PVR2_CTL_WRITE_ENDPOINT & 0xf,
-		      !(PVR2_CTL_WRITE_ENDPOINT & USB_DIR_IN), 0);
-	usb_settoggle(hdw->usb_dev, PVR2_CTL_READ_ENDPOINT & 0xf,
-		      !(PVR2_CTL_READ_ENDPOINT & USB_DIR_IN), 0);
-	usb_clear_halt(hdw->usb_dev,
-		       usb_rcvbulkpipe(hdw->usb_dev,
-				       PVR2_CTL_READ_ENDPOINT & 0x7f));
-	usb_clear_halt(hdw->usb_dev,
-		       usb_sndbulkpipe(hdw->usb_dev,
-				       PVR2_CTL_WRITE_ENDPOINT & 0x7f));
-}
-
-
 static void pvr2_ctl_write_complete(struct urb *urb, struct pt_regs *regs)
 {
 	struct pvr2_hdw *hdw = urb->context;
@@ -2566,10 +2542,10 @@ static void pvr2_ctl_timeout(unsigned long data)
 }
 
 
-int pvr2_send_request_ex(struct pvr2_hdw *hdw,
-			 unsigned int timeout,int probe_fl,
-			 void *write_data,unsigned int write_len,
-			 void *read_data,unsigned int read_len)
+static int pvr2_send_request_ex(struct pvr2_hdw *hdw,
+				unsigned int timeout,int probe_fl,
+				void *write_data,unsigned int write_len,
+				void *read_data,unsigned int read_len)
 {
 	unsigned int idx;
 	int status = 0;
@@ -2824,7 +2800,7 @@ int pvr2_write_register(struct pvr2_hdw *hdw, u16 reg, u32 data)
 }
 
 
-int pvr2_read_register(struct pvr2_hdw *hdw, u16 reg, u32 *data)
+static int pvr2_read_register(struct pvr2_hdw *hdw, u16 reg, u32 *data)
 {
 	int ret = 0;
 
@@ -2848,7 +2824,7 @@ int pvr2_read_register(struct pvr2_hdw *hdw, u16 reg, u32 *data)
 }
 
 
-int pvr2_write_u16(struct pvr2_hdw *hdw, u16 data, int res)
+static int pvr2_write_u16(struct pvr2_hdw *hdw, u16 data, int res)
 {
 	int ret;
 
@@ -2865,7 +2841,7 @@ int pvr2_write_u16(struct pvr2_hdw *hdw, u16 data, int res)
 }
 
 
-int pvr2_write_u8(struct pvr2_hdw *hdw, u8 data, int res)
+static int pvr2_write_u8(struct pvr2_hdw *hdw, u8 data, int res)
 {
 	int ret;
 
@@ -2881,7 +2857,7 @@ int pvr2_write_u8(struct pvr2_hdw *hdw, u8 data, int res)
 }
 
 
-void pvr2_hdw_render_useless_unlocked(struct pvr2_hdw *hdw)
+static void pvr2_hdw_render_useless_unlocked(struct pvr2_hdw *hdw)
 {
 	if (!hdw->flag_ok) return;
 	pvr2_trace(PVR2_TRACE_INIT,"render_useless");
@@ -2994,7 +2970,7 @@ int pvr2_hdw_cmd_decoder_reset(struct pvr2_hdw *hdw)
 }
 
 
-int pvr2_hdw_cmd_usbstream(struct pvr2_hdw *hdw,int runFl)
+static int pvr2_hdw_cmd_usbstream(struct pvr2_hdw *hdw,int runFl)
 {
 	int status;
 	LOCK_TAKE(hdw->ctl_lock); do {
@@ -3092,7 +3068,7 @@ int pvr2_hdw_gpio_chg_out(struct pvr2_hdw *hdw,u32 msk,u32 val)
 }
 
 
-int pvr2_hdw_get_eeprom_addr(struct pvr2_hdw *hdw)
+static int pvr2_hdw_get_eeprom_addr(struct pvr2_hdw *hdw)
 {
 	int result;
 	LOCK_TAKE(hdw->ctl_lock); do {

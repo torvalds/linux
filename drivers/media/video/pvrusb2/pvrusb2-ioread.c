@@ -251,12 +251,8 @@ int pvr2_ioread_set_enabled(struct pvr2_ioread *cp,int fl)
 	return ret;
 }
 
-int pvr2_ioread_get_enabled(struct pvr2_ioread *cp)
-{
-	return cp->enabled != 0;
-}
 
-int pvr2_ioread_get_buffer(struct pvr2_ioread *cp)
+static int pvr2_ioread_get_buffer(struct pvr2_ioread *cp)
 {
 	int stat;
 
@@ -307,7 +303,7 @@ int pvr2_ioread_get_buffer(struct pvr2_ioread *cp)
 	return !0;
 }
 
-void pvr2_ioread_filter(struct pvr2_ioread *cp)
+static void pvr2_ioread_filter(struct pvr2_ioread *cp)
 {
 	unsigned int idx;
 	if (!cp->enabled) return;

@@ -81,7 +81,7 @@ static int video_nr[PVR_NUM] = {[0 ... PVR_NUM-1] = -1};
 module_param_array(video_nr, int, NULL, 0444);
 MODULE_PARM_DESC(video_nr, "Offset for device's minor");
 
-struct v4l2_capability pvr_capability ={
+static struct v4l2_capability pvr_capability ={
 	.driver         = "pvrusb2",
 	.card           = "Hauppauge WinTV pvr-usb2",
 	.bus_info       = "usb",
@@ -111,7 +111,7 @@ static struct v4l2_tuner pvr_v4l2_tuners[]= {
 	}
 };
 
-struct v4l2_fmtdesc pvr_fmtdesc [] = {
+static struct v4l2_fmtdesc pvr_fmtdesc [] = {
 	{
 		.index          = 0,
 		.type           = V4L2_BUF_TYPE_VIDEO_CAPTURE,
@@ -127,7 +127,7 @@ struct v4l2_fmtdesc pvr_fmtdesc [] = {
 #define PVR_FORMAT_PIX  0
 #define PVR_FORMAT_VBI  1
 
-struct v4l2_format pvr_format [] = {
+static struct v4l2_format pvr_format [] = {
 	[PVR_FORMAT_PIX] = {
 		.type   = V4L2_BUF_TYPE_VIDEO_CAPTURE,
 		.fmt    = {
@@ -724,7 +724,7 @@ static void pvr2_v4l2_destroy_no_lock(struct pvr2_v4l2 *vp)
 }
 
 
-void pvr2_v4l2_internal_check(struct pvr2_channel *chp)
+static void pvr2_v4l2_internal_check(struct pvr2_channel *chp)
 {
 	struct pvr2_v4l2 *vp;
 	vp = container_of(chp,struct pvr2_v4l2,channel);
@@ -734,8 +734,8 @@ void pvr2_v4l2_internal_check(struct pvr2_channel *chp)
 }
 
 
-int pvr2_v4l2_ioctl(struct inode *inode, struct file *file,
-		    unsigned int cmd, unsigned long arg)
+static int pvr2_v4l2_ioctl(struct inode *inode, struct file *file,
+			   unsigned int cmd, unsigned long arg)
 {
 
 /* Temporary hack : use ivtv api until a v4l2 one is available. */
@@ -746,7 +746,7 @@ int pvr2_v4l2_ioctl(struct inode *inode, struct file *file,
 }
 
 
-int pvr2_v4l2_release(struct inode *inode, struct file *file)
+static int pvr2_v4l2_release(struct inode *inode, struct file *file)
 {
 	struct pvr2_v4l2_fh *fhp = file->private_data;
 	struct pvr2_v4l2 *vp = fhp->vhead;
@@ -793,7 +793,7 @@ int pvr2_v4l2_release(struct inode *inode, struct file *file)
 }
 
 
-int pvr2_v4l2_open(struct inode *inode, struct file *file)
+static int pvr2_v4l2_open(struct inode *inode, struct file *file)
 {
 	struct pvr2_v4l2_dev *dip = 0; /* Our own context pointer */
 	struct pvr2_v4l2_fh *fhp;

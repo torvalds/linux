@@ -37,6 +37,10 @@ static unsigned int i2c_scan = 0;
 module_param(i2c_scan, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(i2c_scan,"scan i2c bus at insmod time");
 
+static unsigned int pvr2_i2c_client_describe(struct pvr2_i2c_client *cp,
+					     unsigned int detail,
+					     char *buf,unsigned int maxlen);
+
 static int pvr2_i2c_write(struct pvr2_hdw *hdw, /* Context */
 			  u8 i2c_addr,      /* I2C address we're talking to */
 			  u8 *data,         /* Data to write */
@@ -165,12 +169,12 @@ static int pvr2_i2c_read(struct pvr2_hdw *hdw, /* Context */
 
 /* This is the common low level entry point for doing I2C operations to the
    hardware. */
-int pvr2_i2c_basic_op(struct pvr2_hdw *hdw,
-		      u8 i2c_addr,
-		      u8 *wdata,
-		      u16 wlen,
-		      u8 *rdata,
-		      u16 rlen)
+static int pvr2_i2c_basic_op(struct pvr2_hdw *hdw,
+			     u8 i2c_addr,
+			     u8 *wdata,
+			     u16 wlen,
+			     u8 *rdata,
+			     u16 rlen)
 {
 	if (!rdata) rlen = 0;
 	if (!wdata) wlen = 0;
@@ -705,9 +709,9 @@ int pvr2_i2c_core_check_stale(struct pvr2_hdw *hdw)
 	return (hdw->i2c_pend_types & PVR2_I2C_PEND_ALL) != 0;
 }
 
-unsigned int pvr2_i2c_client_describe(struct pvr2_i2c_client *cp,
-				      unsigned int detail,
-				      char *buf,unsigned int maxlen)
+static unsigned int pvr2_i2c_client_describe(struct pvr2_i2c_client *cp,
+					     unsigned int detail,
+					     char *buf,unsigned int maxlen)
 {
 	unsigned int ccnt,bcnt;
 	int spcfl = 0;
