@@ -254,7 +254,7 @@ static int do_basic_checks(struct ip_conntrack *conntrack,
 	}
 
 	DEBUGP("Basic checks passed\n");
-	return 0;
+	return count == 0;
 }
 
 static int new_state(enum ip_conntrack_dir dir,

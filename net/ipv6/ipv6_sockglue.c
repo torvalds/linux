@@ -57,9 +57,71 @@
 
 DEFINE_SNMP_STAT(struct ipstats_mib, ipv6_statistics) __read_mostly;
 
+static struct sk_buff *ipv6_gso_segment(struct sk_buff *skb, int features)
+{
+	struct sk_buff *segs = ERR_PTR(-EINVAL);
+	struct ipv6hdr *ipv6h;
+	struct inet6_protocol *ops;
+	int proto;
+
+	if (unlikely(!pskb_may_pull(skb, sizeof(*ipv6h))))
+		goto out;
+
+	ipv6h = skb->nh.ipv6h;
+	proto = ipv6h->nexthdr;
+	__skb_pull(skb, sizeof(*ipv6h));
+
+	rcu_read_lock();
+	for (;;) {
+		struct ipv6_opt_hdr *opth;
+		int len;
+
+		if (proto != NEXTHDR_HOP) {
+			ops = rcu_dereference(inet6_protos[proto]);
+
+			if (unlikely(!ops))
+				goto unlock;
+
+			if (!(ops->flags & INET6_PROTO_GSO_EXTHDR))
+				break;
+		}
+
+		if (unlikely(!pskb_may_pull(skb, 8)))
+			goto unlock;
+
+		opth = (void *)skb->data;
+		len = opth->hdrlen * 8 + 8;
+
+		if (unlikely(!pskb_may_pull(skb, len)))
+			goto unlock;
+
+		proto = opth->nexthdr;
+		__skb_pull(skb, len);
+	}
+
+	skb->h.raw = skb->data;
+	if (likely(ops->gso_segment))
+		segs = ops->gso_segment(skb, features);
+
+unlock:
+	rcu_read_unlock();
+
+	if (unlikely(IS_ERR(segs)))
+		goto out;
+
+	for (skb = segs; skb; skb = skb->next) {
+		ipv6h = skb->nh.ipv6h;
+		ipv6h->payload_len = htons(skb->len - skb->mac_len);
+	}
+
+out:
+	return segs;
+}
+
 static struct packet_type ipv6_packet_type = {
 	.type = __constant_htons(ETH_P_IPV6), 
 	.func = ipv6_rcv,
+	.gso_segment = ipv6_gso_segment,
 };
 
 struct ip6_ra_chain *ip6_ra_chain;

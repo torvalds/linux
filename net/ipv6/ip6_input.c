@@ -84,13 +84,8 @@ int ipv6_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt
 	 */
 	IP6CB(skb)->iif = skb->dst ? ((struct rt6_info *)skb->dst)->rt6i_idev->dev->ifindex : dev->ifindex;
 
-	if (skb->len < sizeof(struct ipv6hdr))
+	if (unlikely(!pskb_may_pull(skb, sizeof(*hdr))))
 		goto err;
-
-	if (!pskb_may_pull(skb, sizeof(struct ipv6hdr))) {
-		IP6_INC_STATS_BH(IPSTATS_MIB_INHDRERRORS);
-		goto drop;
-	}
 
 	hdr = skb->nh.ipv6h;
 
