@@ -425,6 +425,7 @@ static int rsc_parse(struct cache_detail *cd,
 	struct rsc rsci, *rscp = NULL;
 	time_t expiry;
 	int status = -EINVAL;
+	struct gss_api_mech *gm = NULL;
 
 	memset(&rsci, 0, sizeof(rsci));
 	/* context handle */
@@ -453,7 +454,6 @@ static int rsc_parse(struct cache_detail *cd,
 		set_bit(CACHE_NEGATIVE, &rsci.h.flags);
 	else {
 		int N, i;
-		struct gss_api_mech *gm;
 
 		/* gid */
 		if (get_int(&mesg, &rsci.cred.cr_gid))
@@ -488,21 +488,17 @@ static int rsc_parse(struct cache_detail *cd,
 		status = -EINVAL;
 		/* mech-specific data: */
 		len = qword_get(&mesg, buf, mlen);
-		if (len < 0) {
-			gss_mech_put(gm);
+		if (len < 0)
 			goto out;
-		}
 		status = gss_import_sec_context(buf, len, gm, &rsci.mechctx);
-		if (status) {
-			gss_mech_put(gm);
+		if (status)
 			goto out;
-		}
-		gss_mech_put(gm);
 	}
 	rsci.h.expiry_time = expiry;
 	rscp = rsc_update(&rsci, rscp);
 	status = 0;
 out:
+	gss_mech_put(gm);
 	rsc_free(&rsci);
 	if (rscp)
 		cache_put(&rscp->h, &rsc_cache);
