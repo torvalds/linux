@@ -602,6 +602,9 @@ static void __init build_device_resources(struct of_device *op,
 	build_res:
 		memset(r, 0, sizeof(*r));
 		if (result != OF_BAD_ADDR) {
+			if (tlb_type == hypervisor)
+				result &= 0x0fffffffffffffffUL;
+
 			r->start = result;
 			r->end = result + size - 1;
 			r->flags = flags;
