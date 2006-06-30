@@ -1517,14 +1517,15 @@ nfsd_link(struct svc_rqst *rqstp, struct svc_fh *ffhp,
 			err = nfserrno(err);
 	}
 
-	fh_unlock(ffhp);
 	dput(dnew);
+out_unlock:
+	fh_unlock(ffhp);
 out:
 	return err;
 
 out_nfserr:
 	err = nfserrno(err);
-	goto out;
+	goto out_unlock;
 }
 
 /*
