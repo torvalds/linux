@@ -4210,7 +4210,7 @@ qla1280_setup(char *s)
 }
 
 
-static int
+static int __init
 qla1280_get_token(char *str)
 {
 	char *sep;
