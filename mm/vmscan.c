@@ -47,8 +47,6 @@ struct scan_control {
 	/* Incremented by the number of inactive pages that were scanned */
 	unsigned long nr_scanned;
 
-	unsigned long nr_mapped;	/* From page_state */
-
 	/* This context's GFP mask */
 	gfp_t gfp_mask;
 
@@ -744,7 +742,8 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
 		 * how much memory
 		 * is mapped.
 		 */
-		mapped_ratio = (sc->nr_mapped * 100) / vm_total_pages;
+		mapped_ratio = (global_page_state(NR_FILE_MAPPED) * 100) /
+					vm_total_pages;
 
 		/*
 		 * Now decide how much we really want to unmap some pages.  The
@@ -990,7 +989,6 @@ unsigned long try_to_free_pages(struct zone **zones, gfp_t gfp_mask)
 	}
 
 	for (priority = DEF_PRIORITY; priority >= 0; priority--) {
-		sc.nr_mapped = global_page_state(NR_FILE_MAPPED);
 		sc.nr_scanned = 0;
 		if (!priority)
 			disable_swap_token();
@@ -1075,8 +1073,6 @@ loop_again:
 	total_scanned = 0;
 	nr_reclaimed = 0;
 	sc.may_writepage = !laptop_mode;
-	sc.nr_mapped = global_page_state(NR_FILE_MAPPED);
-
 	inc_page_state(pageoutrun);
 
 	for (i = 0; i < pgdat->nr_zones; i++) {
@@ -1407,9 +1403,7 @@ unsigned long shrink_all_memory(unsigned long nr_pages)
 		for (prio = DEF_PRIORITY; prio >= 0; prio--) {
 			unsigned long nr_to_scan = nr_pages - ret;
 
-			sc.nr_mapped = global_page_state(NR_FILE_MAPPED);
 			sc.nr_scanned = 0;
-
 			ret += shrink_all_zones(nr_to_scan, prio, pass, &sc);
 			if (ret >= nr_pages)
 				goto out;
@@ -1548,7 +1542,6 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
 	struct scan_control sc = {
 		.may_writepage = !!(zone_reclaim_mode & RECLAIM_WRITE),
 		.may_swap = !!(zone_reclaim_mode & RECLAIM_SWAP),
-		.nr_mapped = global_page_state(NR_FILE_MAPPED),
 		.swap_cluster_max = max_t(unsigned long, nr_pages,
 					SWAP_CLUSTER_MAX),
 		.gfp_mask = gfp_mask,
