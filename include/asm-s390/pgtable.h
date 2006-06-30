@@ -657,13 +657,6 @@ static inline pte_t mk_pte_phys(unsigned long physpage, pgprot_t pgprot)
 	__pte;                                                            \
 })
 
-#define SetPageUptodate(_page) \
-	do {								      \
-		struct page *__page = (_page);				      \
-		if (!test_and_set_bit(PG_uptodate, &__page->flags))	      \
-			page_test_and_clear_dirty(_page);		      \
-	} while (0)
-
 #ifdef __s390x__
 
 #define pfn_pmd(pfn, pgprot)                                              \
