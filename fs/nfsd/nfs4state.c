@@ -1237,8 +1237,15 @@ find_file(struct inode *ino)
 	return NULL;
 }
 
-#define TEST_ACCESS(x) ((x > 0 || x < 4)?1:0)
-#define TEST_DENY(x) ((x >= 0 || x < 5)?1:0)
+static int access_valid(u32 x)
+{
+	return (x > 0 && x < 4);
+}
+
+static int deny_valid(u32 x)
+{
+	return (x >= 0 && x < 5);
+}
 
 static void
 set_access(unsigned int *access, unsigned long bmap) {
@@ -1745,7 +1752,8 @@ nfsd4_process_open2(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nf
 	int status;
 
 	status = nfserr_inval;
-	if (!TEST_ACCESS(open->op_share_access) || !TEST_DENY(open->op_share_deny))
+	if (!access_valid(open->op_share_access)
+			|| !deny_valid(open->op_share_deny))
 		goto out;
 	/*
 	 * Lookup file; if found, lookup stateid and check open request,
@@ -2317,7 +2325,8 @@ nfsd4_open_downgrade(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct n
 			(int)current_fh->fh_dentry->d_name.len,
 			current_fh->fh_dentry->d_name.name);
 
-	if (!TEST_ACCESS(od->od_share_access) || !TEST_DENY(od->od_share_deny))
+	if (!access_valid(od->od_share_access)
+			|| !deny_valid(od->od_share_deny))
 		return nfserr_inval;
 
 	nfs4_lock_state();
