@@ -23,6 +23,8 @@
 #include <linux/slab.h>
 #include "edac_mc.h"
 
+#define R82600_REVISION	" Ver: 2.0.0 " __DATE__
+
 #define r82600_printk(level, fmt, arg...) \
 	edac_printk(level, "r82600", fmt, ##arg)
 
@@ -134,17 +136,20 @@ static unsigned int disable_hardware_scrub = 0;
 static void r82600_get_error_info (struct mem_ctl_info *mci,
 		struct r82600_error_info *info)
 {
-	pci_read_config_dword(mci->pdev, R82600_EAP, &info->eapr);
+	struct pci_dev *pdev;
+
+	pdev = to_pci_dev(mci->dev);
+	pci_read_config_dword(pdev, R82600_EAP, &info->eapr);
 
 	if (info->eapr & BIT(0))
 		/* Clear error to allow next error to be reported [p.62] */
-		pci_write_bits32(mci->pdev, R82600_EAP,
+		pci_write_bits32(pdev, R82600_EAP,
 				((u32) BIT(0) & (u32) BIT(1)),
 				((u32) BIT(0) & (u32) BIT(1)));
 
 	if (info->eapr & BIT(1))
 		/* Clear error to allow next error to be reported [p.62] */
-		pci_write_bits32(mci->pdev, R82600_EAP,
+		pci_write_bits32(pdev, R82600_EAP,
 				((u32) BIT(0) & (u32) BIT(1)),
 				((u32) BIT(0) & (u32) BIT(1)));
 }
@@ -232,7 +237,7 @@ static int r82600_probe1(struct pci_dev *pdev, int dev_idx)
 	}
 
 	debugf0("%s(): mci = %p\n", __func__, mci);
-	mci->pdev = pdev;
+	mci->dev = &pdev->dev;
 	mci->mtype_cap = MEM_FLAG_RDDR | MEM_FLAG_DDR;
 	mci->edac_ctl_cap = EDAC_FLAG_NONE | EDAC_FLAG_EC | EDAC_FLAG_SECDED;
 	/* FIXME try to work out if the chip leads have been used for COM2
@@ -253,7 +258,7 @@ static int r82600_probe1(struct pci_dev *pdev, int dev_idx)
 		mci->edac_cap = EDAC_FLAG_NONE;
 
 	mci->mod_name = EDAC_MOD_STR;
-	mci->mod_ver = "$Revision: 1.1.2.6 $";
+	mci->mod_ver = R82600_REVISION;
 	mci->ctl_name = "R82600";
 	mci->edac_check = r82600_check;
 	mci->ctl_page_to_phys = NULL;
@@ -265,7 +270,7 @@ static int r82600_probe1(struct pci_dev *pdev, int dev_idx)
 		u32 row_base;
 
 		/* find the DRAM Chip Select Base address and mask */
-		pci_read_config_byte(mci->pdev, R82600_DRBA + index, &drbar);
+		pci_read_config_byte(pdev, R82600_DRBA + index, &drbar);
 
 		debugf1("MC%d: %s() Row=%d DRBA = %#0x\n", mci->mc_idx,
 			__func__, index, drbar);
@@ -309,7 +314,7 @@ static int r82600_probe1(struct pci_dev *pdev, int dev_idx)
 	if (disable_hardware_scrub) {
 		debugf3("%s(): Disabling Hardware Scrub (scrub on error)\n",
 			__func__);
-		pci_write_bits32(mci->pdev, R82600_EAP, BIT(31), BIT(31));
+		pci_write_bits32(pdev, R82600_EAP, BIT(31), BIT(31));
 	}
 
 	debugf3("%s(): success\n", __func__);
@@ -338,7 +343,7 @@ static void __devexit r82600_remove_one(struct pci_dev *pdev)
 
 	debugf0("%s()\n", __func__);
 
-	if ((mci = edac_mc_del_mc(pdev)) == NULL)
+	if ((mci = edac_mc_del_mc(&pdev->dev)) == NULL)
 		return;
 
 	edac_mc_free(mci);

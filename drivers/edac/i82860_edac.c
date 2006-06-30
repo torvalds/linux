@@ -17,6 +17,8 @@
 #include <linux/slab.h>
 #include "edac_mc.h"
 
+#define  I82860_REVISION " Ver: 2.0.0 " __DATE__
+
 #define i82860_printk(level, fmt, arg...) \
 	edac_printk(level, "i82860", fmt, ##arg)
 
@@ -63,17 +65,21 @@ static struct pci_dev *mci_pdev = NULL;	/* init dev: in case that AGP code
 static void i82860_get_error_info(struct mem_ctl_info *mci,
 		struct i82860_error_info *info)
 {
+	struct pci_dev *pdev;
+
+	pdev = to_pci_dev(mci->dev);
+
 	/*
 	 * This is a mess because there is no atomic way to read all the
 	 * registers at once and the registers can transition from CE being
 	 * overwritten by UE.
 	 */
-	pci_read_config_word(mci->pdev, I82860_ERRSTS, &info->errsts);
-	pci_read_config_dword(mci->pdev, I82860_EAP, &info->eap);
-	pci_read_config_word(mci->pdev, I82860_DERRCTL_STS, &info->derrsyn);
-	pci_read_config_word(mci->pdev, I82860_ERRSTS, &info->errsts2);
+	pci_read_config_word(pdev, I82860_ERRSTS, &info->errsts);
+	pci_read_config_dword(pdev, I82860_EAP, &info->eap);
+	pci_read_config_word(pdev, I82860_DERRCTL_STS, &info->derrsyn);
+	pci_read_config_word(pdev, I82860_ERRSTS, &info->errsts2);
 
-	pci_write_bits16(mci->pdev, I82860_ERRSTS, 0x0003, 0x0003);
+	pci_write_bits16(pdev, I82860_ERRSTS, 0x0003, 0x0003);
 
 	/*
 	 * If the error is the same for both reads then the first set of reads
@@ -84,8 +90,8 @@ static void i82860_get_error_info(struct mem_ctl_info *mci,
 		return;
 
 	if ((info->errsts ^ info->errsts2) & 0x0003) {
-		pci_read_config_dword(mci->pdev, I82860_EAP, &info->eap);
-		pci_read_config_word(mci->pdev, I82860_DERRCTL_STS,
+		pci_read_config_dword(pdev, I82860_EAP, &info->eap);
+		pci_read_config_word(pdev, I82860_DERRCTL_STS,
 				&info->derrsyn);
 	}
 }
@@ -151,7 +157,7 @@ static int i82860_probe1(struct pci_dev *pdev, int dev_idx)
 		return -ENOMEM;
 
 	debugf3("%s(): init mci\n", __func__);
-	mci->pdev = pdev;
+	mci->dev = &pdev->dev;
 	mci->mtype_cap = MEM_FLAG_DDR;
 
 	mci->edac_ctl_cap = EDAC_FLAG_NONE | EDAC_FLAG_SECDED;
@@ -160,12 +166,12 @@ static int i82860_probe1(struct pci_dev *pdev, int dev_idx)
 	/* adjust FLAGS */
 
 	mci->mod_name = EDAC_MOD_STR;
-	mci->mod_ver = "$Revision: 1.1.2.6 $";
+	mci->mod_ver = I82860_REVISION;
 	mci->ctl_name = i82860_devs[dev_idx].ctl_name;
 	mci->edac_check = i82860_check;
 	mci->ctl_page_to_phys = NULL;
 
-	pci_read_config_word(mci->pdev, I82860_MCHCFG, &mchcfg_ddim);
+	pci_read_config_word(pdev, I82860_MCHCFG, &mchcfg_ddim);
 	mchcfg_ddim = mchcfg_ddim & 0x180;
 
 	/*
@@ -179,7 +185,7 @@ static int i82860_probe1(struct pci_dev *pdev, int dev_idx)
 		u32 cumul_size;
 		struct csrow_info *csrow = &mci->csrows[index];
 
-		pci_read_config_word(mci->pdev, I82860_GBA + index * 2,
+		pci_read_config_word(pdev, I82860_GBA + index * 2,
 				&value);
 
 		cumul_size = (value & I82860_GBA_MASK) <<
@@ -240,7 +246,7 @@ static void __devexit i82860_remove_one(struct pci_dev *pdev)
 
 	debugf0("%s()\n", __func__);
 
-	if ((mci = edac_mc_del_mc(pdev)) == NULL)
+	if ((mci = edac_mc_del_mc(&pdev->dev)) == NULL)
 		return;
 
 	edac_mc_free(mci);

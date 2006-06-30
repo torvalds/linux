@@ -25,6 +25,8 @@
 #include <linux/slab.h>
 #include "edac_mc.h"
 
+#define E752X_REVISION	" Ver: 2.0.0 " __DATE__
+
 static int force_function_unhide;
 
 #define e752x_printk(level, fmt, arg...) \
@@ -819,8 +821,8 @@ static int e752x_probe1(struct pci_dev *pdev, int dev_idx)
 	    EDAC_FLAG_S4ECD4ED;
 	/* FIXME - what if different memory types are in different csrows? */
 	mci->mod_name = EDAC_MOD_STR;
-	mci->mod_ver = "$Revision: 1.5.2.11 $";
-	mci->pdev = pdev;
+	mci->mod_ver = E752X_REVISION;
+	mci->dev = &pdev->dev;
 
 	debugf3("%s(): init pvt\n", __func__);
 	pvt = (struct e752x_pvt *) mci->pvt_info;
@@ -864,7 +866,7 @@ static int e752x_probe1(struct pci_dev *pdev, int dev_idx)
 		struct csrow_info *csrow = &mci->csrows[index];
 
 		mem_dev = (mem_dev == 2);
-		pci_read_config_byte(mci->pdev, E752X_DRB + index, &value);
+		pci_read_config_byte(pdev, E752X_DRB + index, &value);
 		/* convert a 128 or 64 MiB DRB to a page size. */
 		cumul_size = value << (25 + drc_drbg - PAGE_SHIFT);
 		debugf3("%s(): (%d) cumul_size 0x%x\n", __func__, index,
@@ -904,8 +906,7 @@ static int e752x_probe1(struct pci_dev *pdev, int dev_idx)
 		u8 row = 0;
 
 		for (index = 0; index < 8; index += 2) {
-			pci_read_config_byte(mci->pdev, E752X_DRB + index,
-					&value);
+			pci_read_config_byte(pdev, E752X_DRB + index, &value);
 
 			/* test if there is a dimm in this slot */
 			if (value == last) {
@@ -918,7 +919,7 @@ static int e752x_probe1(struct pci_dev *pdev, int dev_idx)
 				last = value;
 				/* test the next value to see if the dimm is
 				   double sided */
-				pci_read_config_byte(mci->pdev,
+				pci_read_config_byte(pdev,
 						E752X_DRB + index + 1,
 						&value);
 				pvt->map[index + 1] = (value == last) ?
@@ -935,18 +936,18 @@ static int e752x_probe1(struct pci_dev *pdev, int dev_idx)
 	}
 
 	/* set the map type.  1 = normal, 0 = reversed */
-	pci_read_config_byte(mci->pdev, E752X_DRM, &stat8);
+	pci_read_config_byte(pdev, E752X_DRM, &stat8);
 	pvt->map_type = ((stat8 & 0x0f) > ((stat8 >> 4) & 0x0f));
 
 	mci->edac_cap |= EDAC_FLAG_NONE;
 	debugf3("%s(): tolm, remapbase, remaplimit\n", __func__);
 
 	/* load the top of low memory, remap base, and remap limit vars */
-	pci_read_config_word(mci->pdev, E752X_TOLM, &pci_data);
+	pci_read_config_word(pdev, E752X_TOLM, &pci_data);
 	pvt->tolm = ((u32) pci_data) << 4;
-	pci_read_config_word(mci->pdev, E752X_REMAPBASE, &pci_data);
+	pci_read_config_word(pdev, E752X_REMAPBASE, &pci_data);
 	pvt->remapbase = ((u32) pci_data) << 14;
-	pci_read_config_word(mci->pdev, E752X_REMAPLIMIT, &pci_data);
+	pci_read_config_word(pdev, E752X_REMAPLIMIT, &pci_data);
 	pvt->remaplimit = ((u32) pci_data) << 14;
 	e752x_printk(KERN_INFO,
 		"tolm = %x, remapbase = %x, remaplimit = %x\n", pvt->tolm,
@@ -1015,7 +1016,7 @@ static void __devexit e752x_remove_one(struct pci_dev *pdev)
 
 	debugf0("%s()\n", __func__);
 
-	if ((mci = edac_mc_del_mc(pdev)) == NULL)
+	if ((mci = edac_mc_del_mc(&pdev->dev)) == NULL)
 		return;
 
 	pvt = (struct e752x_pvt *) mci->pvt_info;

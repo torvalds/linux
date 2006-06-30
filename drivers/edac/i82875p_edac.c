@@ -21,6 +21,8 @@
 #include <linux/slab.h>
 #include "edac_mc.h"
 
+#define I82875P_REVISION	" Ver: 2.0.0 " __DATE__
+
 #define i82875p_printk(level, fmt, arg...) \
 	edac_printk(level, "i82875p", fmt, ##arg)
 
@@ -185,18 +187,22 @@ static int i82875p_registered = 1;
 static void i82875p_get_error_info(struct mem_ctl_info *mci,
 		struct i82875p_error_info *info)
 {
+	struct pci_dev *pdev;
+
+	pdev = to_pci_dev(mci->dev);
+
 	/*
 	 * This is a mess because there is no atomic way to read all the
 	 * registers at once and the registers can transition from CE being
 	 * overwritten by UE.
 	 */
-	pci_read_config_word(mci->pdev, I82875P_ERRSTS, &info->errsts);
-	pci_read_config_dword(mci->pdev, I82875P_EAP, &info->eap);
-	pci_read_config_byte(mci->pdev, I82875P_DES, &info->des);
-	pci_read_config_byte(mci->pdev, I82875P_DERRSYN, &info->derrsyn);
-	pci_read_config_word(mci->pdev, I82875P_ERRSTS, &info->errsts2);
+	pci_read_config_word(pdev, I82875P_ERRSTS, &info->errsts);
+	pci_read_config_dword(pdev, I82875P_EAP, &info->eap);
+	pci_read_config_byte(pdev, I82875P_DES, &info->des);
+	pci_read_config_byte(pdev, I82875P_DERRSYN, &info->derrsyn);
+	pci_read_config_word(pdev, I82875P_ERRSTS, &info->errsts2);
 
-	pci_write_bits16(mci->pdev, I82875P_ERRSTS, 0x0081, 0x0081);
+	pci_write_bits16(pdev, I82875P_ERRSTS, 0x0081, 0x0081);
 
 	/*
 	 * If the error is the same then we can for both reads then
@@ -208,9 +214,9 @@ static void i82875p_get_error_info(struct mem_ctl_info *mci,
 		return;
 
 	if ((info->errsts ^ info->errsts2) & 0x0081) {
-		pci_read_config_dword(mci->pdev, I82875P_EAP, &info->eap);
-		pci_read_config_byte(mci->pdev, I82875P_DES, &info->des);
-		pci_read_config_byte(mci->pdev, I82875P_DERRSYN,
+		pci_read_config_dword(pdev, I82875P_EAP, &info->eap);
+		pci_read_config_byte(pdev, I82875P_DES, &info->des);
+		pci_read_config_byte(pdev, I82875P_DERRSYN,
 				&info->derrsyn);
 	}
 }
@@ -337,14 +343,14 @@ static int i82875p_probe1(struct pci_dev *pdev, int dev_idx)
 	}
 
 	debugf3("%s(): init mci\n", __func__);
-	mci->pdev = pdev;
+	mci->dev = &pdev->dev;
 	mci->mtype_cap = MEM_FLAG_DDR;
 	mci->edac_ctl_cap = EDAC_FLAG_NONE | EDAC_FLAG_SECDED;
 	mci->edac_cap = EDAC_FLAG_UNKNOWN;
 	/* adjust FLAGS */
 
 	mci->mod_name = EDAC_MOD_STR;
-	mci->mod_ver = "$Revision: 1.5.2.11 $";
+	mci->mod_ver = I82875P_REVISION;
 	mci->ctl_name = i82875p_devs[dev_idx].ctl_name;
 	mci->edac_check = i82875p_check;
 	mci->ctl_page_to_phys = NULL;
@@ -437,7 +443,7 @@ static void __devexit i82875p_remove_one(struct pci_dev *pdev)
 
 	debugf0("%s()\n", __func__);
 
-	if ((mci = edac_mc_del_mc(pdev)) == NULL)
+	if ((mci = edac_mc_del_mc(&pdev->dev)) == NULL)
 		return;
 
 	pvt = (struct i82875p_pvt *) mci->pvt_info;

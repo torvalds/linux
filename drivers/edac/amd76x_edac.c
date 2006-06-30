@@ -20,6 +20,9 @@
 #include <linux/slab.h>
 #include "edac_mc.h"
 
+#define AMD76X_REVISION	" Ver: 2.0.0 "  __DATE__
+
+
 #define amd76x_printk(level, fmt, arg...) \
 	edac_printk(level, "amd76x", fmt, ##arg)
 
@@ -102,15 +105,18 @@ static const struct amd76x_dev_info amd76x_devs[] = {
 static void amd76x_get_error_info(struct mem_ctl_info *mci,
 		struct amd76x_error_info *info)
 {
-	pci_read_config_dword(mci->pdev, AMD76X_ECC_MODE_STATUS,
+	struct pci_dev *pdev;
+
+	pdev = to_pci_dev(mci->dev);
+	pci_read_config_dword(pdev, AMD76X_ECC_MODE_STATUS,
 				&info->ecc_mode_status);
 
 	if (info->ecc_mode_status & BIT(8))
-		pci_write_bits32(mci->pdev, AMD76X_ECC_MODE_STATUS,
+		pci_write_bits32(pdev, AMD76X_ECC_MODE_STATUS,
 				(u32) BIT(8), (u32) BIT(8));
 
 	if (info->ecc_mode_status & BIT(9))
-		pci_write_bits32(mci->pdev, AMD76X_ECC_MODE_STATUS,
+		pci_write_bits32(pdev, AMD76X_ECC_MODE_STATUS,
 				(u32) BIT(9), (u32) BIT(9));
 }
 
@@ -211,13 +217,13 @@ static int amd76x_probe1(struct pci_dev *pdev, int dev_idx)
 	}
 
 	debugf0("%s(): mci = %p\n", __func__, mci);
-	mci->pdev = pdev;
+	mci->dev = &pdev->dev;
 	mci->mtype_cap = MEM_FLAG_RDDR;
 	mci->edac_ctl_cap = EDAC_FLAG_NONE | EDAC_FLAG_EC | EDAC_FLAG_SECDED;
 	mci->edac_cap = ems_mode ?
 			(EDAC_FLAG_EC | EDAC_FLAG_SECDED) : EDAC_FLAG_NONE;
 	mci->mod_name = EDAC_MOD_STR;
-	mci->mod_ver = "$Revision: 1.4.2.5 $";
+	mci->mod_ver = AMD76X_REVISION;
 	mci->ctl_name = amd76x_devs[dev_idx].ctl_name;
 	mci->edac_check = amd76x_check;
 	mci->ctl_page_to_phys = NULL;
@@ -230,7 +236,7 @@ static int amd76x_probe1(struct pci_dev *pdev, int dev_idx)
 		u32 dms;
 
 		/* find the DRAM Chip Select Base address and mask */
-		pci_read_config_dword(mci->pdev,
+		pci_read_config_dword(pdev,
 				AMD76X_MEM_BASE_ADDR + (index * 4), &mba);
 
 		if (!(mba & BIT(0)))
@@ -238,8 +244,7 @@ static int amd76x_probe1(struct pci_dev *pdev, int dev_idx)
 
 		mba_base = mba & 0xff800000UL;
 		mba_mask = ((mba & 0xff80) << 16) | 0x7fffffUL;
-		pci_read_config_dword(mci->pdev, AMD76X_DRAM_MODE_STATUS,
-				&dms);
+		pci_read_config_dword(pdev, AMD76X_DRAM_MODE_STATUS, &dms);
 		csrow->first_page = mba_base >> PAGE_SHIFT;
 		csrow->nr_pages = (mba_mask + 1) >> PAGE_SHIFT;
 		csrow->last_page = csrow->first_page + csrow->nr_pages - 1;
@@ -291,7 +296,7 @@ static void __devexit amd76x_remove_one(struct pci_dev *pdev)
 
 	debugf0("%s()\n", __func__);
 
-	if ((mci = edac_mc_del_mc(pdev)) == NULL)
+	if ((mci = edac_mc_del_mc(&pdev->dev)) == NULL)
 		return;
 
 	edac_mc_free(mci);
