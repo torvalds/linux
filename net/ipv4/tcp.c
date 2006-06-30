@@ -2166,12 +2166,18 @@ struct sk_buff *tcp_tso_segment(struct sk_buff *skb, int features)
 	if (!pskb_may_pull(skb, thlen))
 		goto out;
 
-	segs = NULL;
-	if (skb_gso_ok(skb, features | NETIF_F_GSO_ROBUST))
-		goto out;
-
 	oldlen = (u16)~skb->len;
 	__skb_pull(skb, thlen);
+
+	if (skb_gso_ok(skb, features | NETIF_F_GSO_ROBUST)) {
+		/* Packet is from an untrusted source, reset gso_segs. */
+		int mss = skb_shinfo(skb)->gso_size;
+
+		skb_shinfo(skb)->gso_segs = (skb->len + mss - 1) / mss;
+
+		segs = NULL;
+		goto out;
+	}
 
 	segs = skb_segment(skb, features);
 	if (IS_ERR(segs))
