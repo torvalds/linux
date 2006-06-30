@@ -1951,7 +1951,7 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
 
 		/* Had to read the page from swap area: Major fault */
 		ret = VM_FAULT_MAJOR;
-		inc_page_state(pgmajfault);
+		count_vm_event(PGMAJFAULT);
 		grab_swap_token();
 	}
 
@@ -2324,7 +2324,7 @@ int __handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 
 	__set_current_state(TASK_RUNNING);
 
-	inc_page_state(pgfault);
+	count_vm_event(PGFAULT);
 
 	if (unlikely(is_vm_hugetlb_page(vma)))
 		return hugetlb_fault(mm, vma, address, write_access);

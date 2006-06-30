@@ -379,6 +379,15 @@ config SLAB
 	  SLOB is more space efficient but does not scale well and is
 	  more susceptible to fragmentation.
 
+config VM_EVENT_COUNTERS
+	default y
+	bool "Enable VM event counters for /proc/vmstat" if EMBEDDED
+	help
+	  VM event counters are only needed to for event counts to be
+	  shown. They have no function for the kernel itself. This
+	  option allows the disabling of the VM event counters.
+	  /proc/vmstat will only show page counts.
+
 endmenu		# General setup
 
 config TINY_SHMEM

@@ -215,7 +215,7 @@ unsigned long shrink_slab(unsigned long scanned, gfp_t gfp_mask,
 				break;
 			if (shrink_ret < nr_before)
 				ret += nr_before - shrink_ret;
-			mod_page_state(slabs_scanned, this_scan);
+			count_vm_events(SLABS_SCANNED, this_scan);
 			total_scan -= this_scan;
 
 			cond_resched();
@@ -569,7 +569,7 @@ keep:
 	list_splice(&ret_pages, page_list);
 	if (pagevec_count(&freed_pvec))
 		__pagevec_release_nonlru(&freed_pvec);
-	mod_page_state(pgactivate, pgactivate);
+	count_vm_events(PGACTIVATE, pgactivate);
 	return nr_reclaimed;
 }
 
@@ -659,11 +659,11 @@ static unsigned long shrink_inactive_list(unsigned long max_scan,
 		nr_reclaimed += nr_freed;
 		local_irq_disable();
 		if (current_is_kswapd()) {
-			__mod_page_state_zone(zone, pgscan_kswapd, nr_scan);
-			__mod_page_state(kswapd_steal, nr_freed);
+			__count_zone_vm_events(PGSCAN_KSWAPD, zone, nr_scan);
+			__count_vm_events(KSWAPD_STEAL, nr_freed);
 		} else
-			__mod_page_state_zone(zone, pgscan_direct, nr_scan);
-		__mod_page_state_zone(zone, pgsteal, nr_freed);
+			__count_zone_vm_events(PGSCAN_DIRECT, zone, nr_scan);
+		__count_vm_events(PGACTIVATE, nr_freed);
 
 		if (nr_taken == 0)
 			goto done;
@@ -841,11 +841,10 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
 		}
 	}
 	zone->nr_active += pgmoved;
-	spin_unlock(&zone->lru_lock);
 
-	__mod_page_state_zone(zone, pgrefill, pgscanned);
-	__mod_page_state(pgdeactivate, pgdeactivate);
-	local_irq_enable();
+	__count_zone_vm_events(PGREFILL, zone, pgscanned);
+	__count_vm_events(PGDEACTIVATE, pgdeactivate);
+	spin_unlock_irq(&zone->lru_lock);
 
 	pagevec_release(&pvec);
 }
@@ -977,7 +976,7 @@ unsigned long try_to_free_pages(struct zone **zones, gfp_t gfp_mask)
 		.swappiness = vm_swappiness,
 	};
 
-	inc_page_state(allocstall);
+	count_vm_event(ALLOCSTALL);
 
 	for (i = 0; zones[i] != NULL; i++) {
 		struct zone *zone = zones[i];
@@ -1074,7 +1073,7 @@ loop_again:
 	total_scanned = 0;
 	nr_reclaimed = 0;
 	sc.may_writepage = !laptop_mode;
-	inc_page_state(pageoutrun);
+	count_vm_event(PAGEOUTRUN);
 
 	for (i = 0; i < pgdat->nr_zones; i++) {
 		struct zone *zone = pgdat->node_zones + i;

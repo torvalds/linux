@@ -87,7 +87,7 @@ int rotate_reclaimable_page(struct page *page)
 	spin_lock_irqsave(&zone->lru_lock, flags);
 	if (PageLRU(page) && !PageActive(page)) {
 		list_move_tail(&page->lru, &zone->inactive_list);
-		inc_page_state(pgrotated);
+		__count_vm_event(PGROTATED);
 	}
 	if (!test_clear_page_writeback(page))
 		BUG();
@@ -107,7 +107,7 @@ void fastcall activate_page(struct page *page)
 		del_page_from_inactive_list(zone, page);
 		SetPageActive(page);
 		add_page_to_active_list(zone, page);
-		inc_page_state(pgactivate);
+		__count_vm_event(PGACTIVATE);
 	}
 	spin_unlock_irq(&zone->lru_lock);
 }

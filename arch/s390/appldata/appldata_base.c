@@ -766,7 +766,6 @@ unsigned long nr_iowait(void)
 #endif /* MODULE */
 EXPORT_SYMBOL_GPL(si_swapinfo);
 EXPORT_SYMBOL_GPL(nr_threads);
-EXPORT_SYMBOL_GPL(get_full_page_state);
 EXPORT_SYMBOL_GPL(nr_running);
 EXPORT_SYMBOL_GPL(nr_iowait);
 //EXPORT_SYMBOL_GPL(nr_context_switches);

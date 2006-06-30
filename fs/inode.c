@@ -452,15 +452,14 @@ static void prune_icache(int nr_to_scan)
 		nr_pruned++;
 	}
 	inodes_stat.nr_unused -= nr_pruned;
+	if (current_is_kswapd())
+		__count_vm_events(KSWAPD_INODESTEAL, reap);
+	else
+		__count_vm_events(PGINODESTEAL, reap);
 	spin_unlock(&inode_lock);
 
 	dispose_list(&freeable);
 	mutex_unlock(&iprune_mutex);
-
-	if (current_is_kswapd())
-		mod_page_state(kswapd_inodesteal, reap);
-	else
-		mod_page_state(pginodesteal, reap);
 }
 
 /*

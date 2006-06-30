@@ -13,66 +13,6 @@
 #include <linux/mm.h>
 #include <linux/module.h>
 
-/*
- * Accumulate the page_state information across all CPUs.
- * The result is unavoidably approximate - it can change
- * during and after execution of this function.
- */
-DEFINE_PER_CPU(struct page_state, page_states) = {0};
-
-static void __get_page_state(struct page_state *ret, int nr, cpumask_t *cpumask)
-{
-	unsigned cpu;
-
-	memset(ret, 0, nr * sizeof(unsigned long));
-	cpus_and(*cpumask, *cpumask, cpu_online_map);
-
-	for_each_cpu_mask(cpu, *cpumask) {
-		unsigned long *in;
-		unsigned long *out;
-		unsigned off;
-		unsigned next_cpu;
-
-		in = (unsigned long *)&per_cpu(page_states, cpu);
-
-		next_cpu = next_cpu(cpu, *cpumask);
-		if (likely(next_cpu < NR_CPUS))
-			prefetch(&per_cpu(page_states, next_cpu));
-
-		out = (unsigned long *)ret;
-		for (off = 0; off < nr; off++)
-			*out++ += *in++;
-	}
-}
-
-void get_full_page_state(struct page_state *ret)
-{
-	cpumask_t mask = CPU_MASK_ALL;
-
-	__get_page_state(ret, sizeof(*ret) / sizeof(unsigned long), &mask);
-}
-
-void __mod_page_state_offset(unsigned long offset, unsigned long delta)
-{
-	void *ptr;
-
-	ptr = &__get_cpu_var(page_states);
-	*(unsigned long *)(ptr + offset) += delta;
-}
-EXPORT_SYMBOL(__mod_page_state_offset);
-
-void mod_page_state_offset(unsigned long offset, unsigned long delta)
-{
-	unsigned long flags;
-	void *ptr;
-
-	local_irq_save(flags);
-	ptr = &__get_cpu_var(page_states);
-	*(unsigned long *)(ptr + offset) += delta;
-	local_irq_restore(flags);
-}
-EXPORT_SYMBOL(mod_page_state_offset);
-
 void __get_zone_counts(unsigned long *active, unsigned long *inactive,
 			unsigned long *free, struct pglist_data *pgdat)
 {
@@ -105,6 +45,63 @@ void get_zone_counts(unsigned long *active,
 		*free += n;
 	}
 }
+
+#ifdef CONFIG_VM_EVENT_COUNTERS
+DEFINE_PER_CPU(struct vm_event_state, vm_event_states) = {{0}};
+EXPORT_PER_CPU_SYMBOL(vm_event_states);
+
+static void sum_vm_events(unsigned long *ret, cpumask_t *cpumask)
+{
+	int cpu = 0;
+	int i;
+
+	memset(ret, 0, NR_VM_EVENT_ITEMS * sizeof(unsigned long));
+
+	cpu = first_cpu(*cpumask);
+	while (cpu < NR_CPUS) {
+		struct vm_event_state *this = &per_cpu(vm_event_states, cpu);
+
+		cpu = next_cpu(cpu, *cpumask);
+
+		if (cpu < NR_CPUS)
+			prefetch(&per_cpu(vm_event_states, cpu));
+
+
+		for (i = 0; i < NR_VM_EVENT_ITEMS; i++)
+			ret[i] += this->event[i];
+	}
+}
+
+/*
+ * Accumulate the vm event counters across all CPUs.
+ * The result is unavoidably approximate - it can change
+ * during and after execution of this function.
+*/
+void all_vm_events(unsigned long *ret)
+{
+	sum_vm_events(ret, &cpu_online_map);
+}
+
+#ifdef CONFIG_HOTPLUG
+/*
+ * Fold the foreign cpu events into our own.
+ *
+ * This is adding to the events on one processor
+ * but keeps the global counts constant.
+ */
+void vm_events_fold_cpu(int cpu)
+{
+	struct vm_event_state *fold_state = &per_cpu(vm_event_states, cpu);
+	int i;
+
+	for (i = 0; i < NR_VM_EVENT_ITEMS; i++) {
+		count_vm_events(i, fold_state->event[i]);
+		fold_state->event[i] = 0;
+	}
+}
+#endif /* CONFIG_HOTPLUG */
+
+#endif /* CONFIG_VM_EVENT_COUNTERS */
 
 /*
  * Manage combined zone based / global counters
@@ -405,16 +402,16 @@ static char *vmstat_text[] = {
 	"numa_other",
 #endif
 
-	/* Event counters */
+#ifdef CONFIG_VM_EVENT_COUNTERS
 	"pgpgin",
 	"pgpgout",
 	"pswpin",
 	"pswpout",
 
-	"pgalloc_high",
-	"pgalloc_normal",
-	"pgalloc_dma32",
 	"pgalloc_dma",
+	"pgalloc_dma32",
+	"pgalloc_normal",
+	"pgalloc_high",
 
 	"pgfree",
 	"pgactivate",
@@ -423,25 +420,25 @@ static char *vmstat_text[] = {
 	"pgfault",
 	"pgmajfault",
 
-	"pgrefill_high",
-	"pgrefill_normal",
-	"pgrefill_dma32",
 	"pgrefill_dma",
+	"pgrefill_dma32",
+	"pgrefill_normal",
+	"pgrefill_high",
 
-	"pgsteal_high",
-	"pgsteal_normal",
-	"pgsteal_dma32",
 	"pgsteal_dma",
+	"pgsteal_dma32",
+	"pgsteal_normal",
+	"pgsteal_high",
 
-	"pgscan_kswapd_high",
-	"pgscan_kswapd_normal",
-	"pgscan_kswapd_dma32",
 	"pgscan_kswapd_dma",
+	"pgscan_kswapd_dma32",
+	"pgscan_kswapd_normal",
+	"pgscan_kswapd_high",
 
-	"pgscan_direct_high",
-	"pgscan_direct_normal",
-	"pgscan_direct_dma32",
 	"pgscan_direct_dma",
+	"pgscan_direct_dma32",
+	"pgscan_direct_normal",
+	"pgscan_direct_high",
 
 	"pginodesteal",
 	"slabs_scanned",
@@ -451,6 +448,7 @@ static char *vmstat_text[] = {
 	"allocstall",
 
 	"pgrotated",
+#endif
 };
 
 /*
@@ -553,23 +551,32 @@ struct seq_operations zoneinfo_op = {
 static void *vmstat_start(struct seq_file *m, loff_t *pos)
 {
 	unsigned long *v;
-	struct page_state *ps;
+#ifdef CONFIG_VM_EVENT_COUNTERS
+	unsigned long *e;
+#endif
 	int i;
 
 	if (*pos >= ARRAY_SIZE(vmstat_text))
 		return NULL;
 
+#ifdef CONFIG_VM_EVENT_COUNTERS
 	v = kmalloc(NR_VM_ZONE_STAT_ITEMS * sizeof(unsigned long)
-			+ sizeof(*ps), GFP_KERNEL);
+			+ sizeof(struct vm_event_state), GFP_KERNEL);
+#else
+	v = kmalloc(NR_VM_ZONE_STAT_ITEMS * sizeof(unsigned long),
+			GFP_KERNEL);
+#endif
 	m->private = v;
 	if (!v)
 		return ERR_PTR(-ENOMEM);
 	for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++)
 		v[i] = global_page_state(i);
-	ps = (struct page_state *)(v + NR_VM_ZONE_STAT_ITEMS);
-	get_full_page_state(ps);
-	ps->pgpgin /= 2;		/* sectors -> kbytes */
-	ps->pgpgout /= 2;
+#ifdef CONFIG_VM_EVENT_COUNTERS
+	e = v + NR_VM_ZONE_STAT_ITEMS;
+	all_vm_events(e);
+	e[PGPGIN] /= 2;		/* sectors -> kbytes */
+	e[PGPGOUT] /= 2;
+#endif
 	return v + *pos;
 }
 

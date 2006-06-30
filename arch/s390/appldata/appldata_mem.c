@@ -107,21 +107,21 @@ static void appldata_get_mem_data(void *data)
 	 * serialized through the appldata_ops_lock and can use static
 	 */
 	static struct sysinfo val;
-	static struct page_state ps;
+	unsigned long ev[NR_VM_EVENT_ITEMS];
 	struct appldata_mem_data *mem_data;
 
 	mem_data = data;
 	mem_data->sync_count_1++;
 
-	get_full_page_state(&ps);
-	mem_data->pgpgin     = ps.pgpgin >> 1;
-	mem_data->pgpgout    = ps.pgpgout >> 1;
-	mem_data->pswpin     = ps.pswpin;
-	mem_data->pswpout    = ps.pswpout;
-	mem_data->pgalloc    = ps.pgalloc_high + ps.pgalloc_normal +
-			       ps.pgalloc_dma;
-	mem_data->pgfault    = ps.pgfault;
-	mem_data->pgmajfault = ps.pgmajfault;
+	all_vm_events(ev);
+	mem_data->pgpgin     = ev[PGPGIN] >> 1;
+	mem_data->pgpgout    = ev[PGPGOUT] >> 1;
+	mem_data->pswpin     = ev[PSWPIN];
+	mem_data->pswpout    = ev[PSWPOUT];
+	mem_data->pgalloc    = ev[PGALLOC_HIGH] + ev[PGALLOC_NORMAL] +
+			       ev[PGALLOC_DMA];
+	mem_data->pgfault    = ev[PGFAULT];
+	mem_data->pgmajfault = ev[PGMAJFAULT];
 
 	si_meminfo(&val);
 	mem_data->sharedram = val.sharedram;
