@@ -1072,8 +1072,8 @@ out:
 	return ret;
 }
 
-static int
-svcauth_gss_release(struct svc_rqst *rqstp)
+static inline int
+svcauth_gss_wrap_resp_integ(struct svc_rqst *rqstp)
 {
 	struct gss_svc_data *gsd = (struct gss_svc_data *)rqstp->rq_auth_data;
 	struct rpc_gss_wire_cred *gc = &gsd->clcred;
@@ -1083,6 +1083,67 @@ svcauth_gss_release(struct svc_rqst *rqstp)
 	struct kvec *resv;
 	u32 *p;
 	int integ_offset, integ_len;
+	int stat = -EINVAL;
+
+	p = gsd->body_start;
+	gsd->body_start = NULL;
+	/* move accept_stat to right place: */
+	memcpy(p, p + 2, 4);
+	/* don't wrap in failure case: */
+	/* Note: counting on not getting here if call was not even
+	 * accepted! */
+	if (*p != rpc_success) {
+		resbuf->head[0].iov_len -= 2 * 4;
+		goto out;
+	}
+	p++;
+	integ_offset = (u8 *)(p + 1) - (u8 *)resbuf->head[0].iov_base;
+	integ_len = resbuf->len - integ_offset;
+	BUG_ON(integ_len % 4);
+	*p++ = htonl(integ_len);
+	*p++ = htonl(gc->gc_seq);
+	if (xdr_buf_subsegment(resbuf, &integ_buf, integ_offset,
+				integ_len))
+		BUG();
+	if (resbuf->page_len == 0
+			&& resbuf->head[0].iov_len + RPC_MAX_AUTH_SIZE
+			< PAGE_SIZE) {
+		BUG_ON(resbuf->tail[0].iov_len);
+		/* Use head for everything */
+		resv = &resbuf->head[0];
+	} else if (resbuf->tail[0].iov_base == NULL) {
+		if (resbuf->head[0].iov_len + RPC_MAX_AUTH_SIZE > PAGE_SIZE)
+			goto out_err;
+		resbuf->tail[0].iov_base = resbuf->head[0].iov_base
+						+ resbuf->head[0].iov_len;
+		resbuf->tail[0].iov_len = 0;
+		rqstp->rq_restailpage = 0;
+		resv = &resbuf->tail[0];
+	} else {
+		resv = &resbuf->tail[0];
+	}
+	mic.data = (u8 *)resv->iov_base + resv->iov_len + 4;
+	if (gss_get_mic(gsd->rsci->mechctx, &integ_buf, &mic))
+		goto out_err;
+	svc_putu32(resv, htonl(mic.len));
+	memset(mic.data + mic.len, 0,
+			round_up_to_quad(mic.len) - mic.len);
+	resv->iov_len += XDR_QUADLEN(mic.len) << 2;
+	/* not strictly required: */
+	resbuf->len += XDR_QUADLEN(mic.len) << 2;
+	BUG_ON(resv->iov_len > PAGE_SIZE);
+out:
+	stat = 0;
+out_err:
+	return stat;
+}
+
+static int
+svcauth_gss_release(struct svc_rqst *rqstp)
+{
+	struct gss_svc_data *gsd = (struct gss_svc_data *)rqstp->rq_auth_data;
+	struct rpc_gss_wire_cred *gc = &gsd->clcred;
+	struct xdr_buf *resbuf = &rqstp->rq_res;
 	int stat = -EINVAL;
 
 	if (gc->gc_proc != RPC_GSS_PROC_DATA)
@@ -1097,55 +1158,7 @@ svcauth_gss_release(struct svc_rqst *rqstp)
 	case RPC_GSS_SVC_NONE:
 		break;
 	case RPC_GSS_SVC_INTEGRITY:
-		p = gsd->body_start;
-		gsd->body_start = NULL;
-		/* move accept_stat to right place: */
-		memcpy(p, p + 2, 4);
-		/* don't wrap in failure case: */
-		/* Note: counting on not getting here if call was not even
-		 * accepted! */
-		if (*p != rpc_success) {
-			resbuf->head[0].iov_len -= 2 * 4;
-			goto out;
-		}
-		p++;
-		integ_offset = (u8 *)(p + 1) - (u8 *)resbuf->head[0].iov_base;
-		integ_len = resbuf->len - integ_offset;
-		BUG_ON(integ_len % 4);
-		*p++ = htonl(integ_len);
-		*p++ = htonl(gc->gc_seq);
-		if (xdr_buf_subsegment(resbuf, &integ_buf, integ_offset,
-					integ_len))
-			BUG();
-		if (resbuf->page_len == 0
-			&& resbuf->head[0].iov_len + RPC_MAX_AUTH_SIZE
-				< PAGE_SIZE) {
-			BUG_ON(resbuf->tail[0].iov_len);
-			/* Use head for everything */
-			resv = &resbuf->head[0];
-		} else if (resbuf->tail[0].iov_base == NULL) {
-			if (resbuf->head[0].iov_len + RPC_MAX_AUTH_SIZE
-					> PAGE_SIZE)
-				goto out_err;
-			resbuf->tail[0].iov_base =
-				resbuf->head[0].iov_base
-				+ resbuf->head[0].iov_len;
-			resbuf->tail[0].iov_len = 0;
-			rqstp->rq_restailpage = 0;
-			resv = &resbuf->tail[0];
-		} else {
-			resv = &resbuf->tail[0];
-		}
-		mic.data = (u8 *)resv->iov_base + resv->iov_len + 4;
-		if (gss_get_mic(gsd->rsci->mechctx, &integ_buf, &mic))
-			goto out_err;
-		svc_putu32(resv, htonl(mic.len));
-		memset(mic.data + mic.len, 0,
-				round_up_to_quad(mic.len) - mic.len);
-		resv->iov_len += XDR_QUADLEN(mic.len) << 2;
-		/* not strictly required: */
-		resbuf->len += XDR_QUADLEN(mic.len) << 2;
-		BUG_ON(resv->iov_len > PAGE_SIZE);
+		svcauth_gss_wrap_resp_integ(rqstp);
 		break;
 	case RPC_GSS_SVC_PRIVACY:
 	default:
