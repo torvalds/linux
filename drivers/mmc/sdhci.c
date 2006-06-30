@@ -470,9 +470,7 @@ static void sdhci_finish_data(struct sdhci_host *host)
 			"though there were blocks left. Please report this "
 			"to " BUGMAIL ".\n", mmc_hostname(host->mmc));
 		data->error = MMC_ERR_FAILED;
-	}
-
-	if (host->size != 0) {
+	} else if (host->size != 0) {
 		printk(KERN_ERR "%s: %d bytes were left untransferred. "
 			"Please report this to " BUGMAIL ".\n",
 			mmc_hostname(host->mmc), host->size);
