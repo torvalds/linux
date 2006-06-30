@@ -506,6 +506,9 @@ static int dummy_task_getsid (struct task_struct *p)
 	return 0;
 }
 
+static void dummy_task_getsecid (struct task_struct *p, u32 *secid)
+{ }
+
 static int dummy_task_setgroups (struct group_info *group_info)
 {
 	return 0;
@@ -548,7 +551,7 @@ static int dummy_task_wait (struct task_struct *p)
 }
 
 static int dummy_task_kill (struct task_struct *p, struct siginfo *info,
-			    int sig)
+			    int sig, u32 secid)
 {
 	return 0;
 }
@@ -981,6 +984,7 @@ void security_fixup_ops (struct security_operations *ops)
 	set_to_dummy_if_null(ops, task_setpgid);
 	set_to_dummy_if_null(ops, task_getpgid);
 	set_to_dummy_if_null(ops, task_getsid);
+	set_to_dummy_if_null(ops, task_getsecid);
 	set_to_dummy_if_null(ops, task_setgroups);
 	set_to_dummy_if_null(ops, task_setnice);
 	set_to_dummy_if_null(ops, task_setioprio);

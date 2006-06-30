@@ -2644,6 +2644,11 @@ static int selinux_task_getsid(struct task_struct *p)
 	return task_has_perm(current, p, PROCESS__GETSESSION);
 }
 
+static void selinux_task_getsecid(struct task_struct *p, u32 *secid)
+{
+	selinux_get_task_sid(p, secid);
+}
+
 static int selinux_task_setgroups(struct group_info *group_info)
 {
 	/* See the comment for setuid above. */
@@ -2700,12 +2705,14 @@ static int selinux_task_movememory(struct task_struct *p)
 	return task_has_perm(current, p, PROCESS__SETSCHED);
 }
 
-static int selinux_task_kill(struct task_struct *p, struct siginfo *info, int sig)
+static int selinux_task_kill(struct task_struct *p, struct siginfo *info,
+				int sig, u32 secid)
 {
 	u32 perm;
 	int rc;
+	struct task_security_struct *tsec;
 
-	rc = secondary_ops->task_kill(p, info, sig);
+	rc = secondary_ops->task_kill(p, info, sig, secid);
 	if (rc)
 		return rc;
 
@@ -2716,8 +2723,12 @@ static int selinux_task_kill(struct task_struct *p, struct siginfo *info, int si
 		perm = PROCESS__SIGNULL; /* null signal; existence test */
 	else
 		perm = signal_to_av(sig);
-
-	return task_has_perm(current, p, perm);
+	tsec = p->security;
+	if (secid)
+		rc = avc_has_perm(secid, tsec->sid, SECCLASS_PROCESS, perm, NULL);
+	else
+		rc = task_has_perm(current, p, perm);
+	return rc;
 }
 
 static int selinux_task_prctl(int option,
@@ -4434,6 +4445,7 @@ static struct security_operations selinux_ops = {
 	.task_setpgid =			selinux_task_setpgid,
 	.task_getpgid =			selinux_task_getpgid,
 	.task_getsid =		        selinux_task_getsid,
+	.task_getsecid =		selinux_task_getsecid,
 	.task_setgroups =		selinux_task_setgroups,
 	.task_setnice =			selinux_task_setnice,
 	.task_setioprio =		selinux_task_setioprio,
