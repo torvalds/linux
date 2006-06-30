@@ -380,6 +380,10 @@ static struct tuner_params tuner_philips_fq1216me_params[] = {
 		.type   = TUNER_PARAM_TYPE_PAL,
 		.ranges = tuner_lg_pal_ranges,
 		.count  = ARRAY_SIZE(tuner_lg_pal_ranges),
+		.has_tda9887 = 1,
+		.port1_active = 1,
+		.port2_active = 1,
+		.port2_invert_for_secam_lc = 1,
 	},
 };
 
@@ -542,6 +546,14 @@ static struct tuner_params tuner_fm1216me_mk3_params[] = {
 		.ranges = tuner_fm1216me_mk3_pal_ranges,
 		.count  = ARRAY_SIZE(tuner_fm1216me_mk3_pal_ranges),
 		.cb_first_if_lower_freq = 1,
+		.has_tda9887 = 1,
+		.port1_active = 1,
+		.port2_active = 1,
+		.port2_invert_for_secam_lc = 1,
+		.port1_fm_high_sensitivity = 1,
+		.default_top_mid = -2,
+		.default_top_secam_mid = -2,
+		.default_top_secam_high = -2,
 	},
 };
 
@@ -612,6 +624,10 @@ static struct tuner_params tuner_fm1236_mk3_params[] = {
 		.ranges = tuner_fm1236_mk3_ntsc_ranges,
 		.count  = ARRAY_SIZE(tuner_fm1236_mk3_ntsc_ranges),
 		.cb_first_if_lower_freq = 1,
+		.has_tda9887 = 1,
+		.port1_active = 1,
+		.port2_active = 1,
+		.port1_fm_high_sensitivity = 1,
 	},
 };
 
@@ -632,6 +648,8 @@ static struct tuner_params tuner_microtune_4049_fm5_params[] = {
 		.type   = TUNER_PARAM_TYPE_PAL,
 		.ranges = tuner_temic_4009f_5_pal_ranges,
 		.count  = ARRAY_SIZE(tuner_temic_4009f_5_pal_ranges),
+		.has_tda9887 = 1,
+		.port1_invert_for_secam_lc = 1,
 	},
 };
 
@@ -648,6 +666,8 @@ static struct tuner_params tuner_panasonic_vp27_params[] = {
 		.type   = TUNER_PARAM_TYPE_NTSC,
 		.ranges = tuner_panasonic_vp27_ntsc_ranges,
 		.count  = ARRAY_SIZE(tuner_panasonic_vp27_ntsc_ranges),
+		.has_tda9887 = 1,
+		.intercarrier_mode = 1,
 	},
 };
 
@@ -782,6 +802,13 @@ static struct tuner_params tuner_philips_fq1216ame_mk4_params[] = {
 		.type   = TUNER_PARAM_TYPE_PAL,
 		.ranges = tuner_philips_fq12_6a___mk4_pal_ranges,
 		.count  = ARRAY_SIZE(tuner_philips_fq12_6a___mk4_pal_ranges),
+		.has_tda9887 = 1,
+		.port1_active = 1,
+		.port2_invert_for_secam_lc = 1,
+		.default_top_mid = -2,
+		.default_top_secam_low = -2,
+		.default_top_secam_mid = -2,
+		.default_top_secam_high = -2,
 	},
 };
 
@@ -870,6 +897,12 @@ static struct tuner_params tuner_philips_fmd1216me_mk3_params[] = {
 		.type   = TUNER_PARAM_TYPE_PAL,
 		.ranges = tuner_philips_fmd1216me_mk3_pal_ranges,
 		.count  = ARRAY_SIZE(tuner_philips_fmd1216me_mk3_pal_ranges),
+		.has_tda9887 = 1,
+		.port1_active = 1,
+		.port2_active = 1,
+		.port2_fm_high_sensitivity = 1,
+		.port2_invert_for_secam_lc = 1,
+		.port1_set_for_fm_mono = 1,
 	},
 };
 
@@ -1005,6 +1038,7 @@ static struct tuner_params tuner_samsung_tcpn_2121p30a_params[] = {
 		.type   = TUNER_PARAM_TYPE_NTSC,
 		.ranges = tuner_samsung_tcpn_2121p30a_ntsc_ranges,
 		.count  = ARRAY_SIZE(tuner_samsung_tcpn_2121p30a_ntsc_ranges),
+		.has_tda9887 = 1,
 	},
 };
 
@@ -1037,6 +1071,10 @@ static struct tuner_params tuner_samsung_tcpg_6121p30a_params[] = {
 		.type   = TUNER_PARAM_TYPE_PAL,
 		.ranges = tuner_samsung_tcpg_6121p30a_pal_ranges,
 		.count  = ARRAY_SIZE(tuner_samsung_tcpg_6121p30a_pal_ranges),
+		.has_tda9887 = 1,
+		.port1_active = 1,
+		.port2_active = 1,
+		.port2_invert_for_secam_lc = 1,
 	},
 };
 

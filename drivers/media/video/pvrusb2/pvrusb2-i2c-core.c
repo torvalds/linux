@@ -37,6 +37,10 @@ static unsigned int i2c_scan = 0;
 module_param(i2c_scan, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(i2c_scan,"scan i2c bus at insmod time");
 
+static unsigned int pvr2_i2c_client_describe(struct pvr2_i2c_client *cp,
+					     unsigned int detail,
+					     char *buf,unsigned int maxlen);
+
 static int pvr2_i2c_write(struct pvr2_hdw *hdw, /* Context */
 			  u8 i2c_addr,      /* I2C address we're talking to */
 			  u8 *data,         /* Data to write */
@@ -165,12 +169,12 @@ static int pvr2_i2c_read(struct pvr2_hdw *hdw, /* Context */
 
 /* This is the common low level entry point for doing I2C operations to the
    hardware. */
-int pvr2_i2c_basic_op(struct pvr2_hdw *hdw,
-		      u8 i2c_addr,
-		      u8 *wdata,
-		      u16 wlen,
-		      u8 *rdata,
-		      u16 rlen)
+static int pvr2_i2c_basic_op(struct pvr2_hdw *hdw,
+			     u8 i2c_addr,
+			     u8 *wdata,
+			     u16 wlen,
+			     u8 *rdata,
+			     u16 rlen)
 {
 	if (!rdata) rlen = 0;
 	if (!wdata) wlen = 0;
@@ -267,7 +271,7 @@ static int i2c_hack_cx25840(struct pvr2_hdw *hdw,
 			   "WARNING: Disabling further access to the device"
 			   " to prevent other foul-ups.");
 		// This blocks all further communication with the part.
-		hdw->i2c_func[0x44] = 0;
+		hdw->i2c_func[0x44] = NULL;
 		pvr2_hdw_render_useless(hdw);
 		goto fail;
 	}
@@ -294,7 +298,7 @@ static int pvr2_i2c_xfer(struct i2c_adapter *i2c_adap,
 			 int num)
 {
 	int ret = -ENOTSUPP;
-	pvr2_i2c_func funcp = 0;
+	pvr2_i2c_func funcp = NULL;
 	struct pvr2_hdw *hdw = (struct pvr2_hdw *)(i2c_adap->algo_data);
 
 	if (!num) {
@@ -319,7 +323,7 @@ static int pvr2_i2c_xfer(struct i2c_adapter *i2c_adap,
 			u16 tcnt,bcnt,offs;
 			if (!msgs[0].len) {
 				/* Length == 0 read.  This is a probe. */
-				if (funcp(hdw,msgs[0].addr,0,0,0,0)) {
+				if (funcp(hdw,msgs[0].addr,NULL,0,NULL,0)) {
 					ret = -EIO;
 					goto done;
 				}
@@ -336,7 +340,7 @@ static int pvr2_i2c_xfer(struct i2c_adapter *i2c_adap,
 				if (bcnt > sizeof(hdw->cmd_buffer)-1) {
 					bcnt = sizeof(hdw->cmd_buffer)-1;
 				}
-				if (funcp(hdw,msgs[0].addr,0,0,
+				if (funcp(hdw,msgs[0].addr,NULL,0,
 					  msgs[0].buf+offs,bcnt)) {
 					ret = -EIO;
 					goto done;
@@ -350,7 +354,7 @@ static int pvr2_i2c_xfer(struct i2c_adapter *i2c_adap,
 			/* Simple write */
 			ret = 1;
 			if (funcp(hdw,msgs[0].addr,
-				  msgs[0].buf,msgs[0].len,0,0)) {
+				  msgs[0].buf,msgs[0].len,NULL,0)) {
 				ret = -EIO;
 			}
 			goto done;
@@ -705,9 +709,9 @@ int pvr2_i2c_core_check_stale(struct pvr2_hdw *hdw)
 	return (hdw->i2c_pend_types & PVR2_I2C_PEND_ALL) != 0;
 }
 
-unsigned int pvr2_i2c_client_describe(struct pvr2_i2c_client *cp,
-				      unsigned int detail,
-				      char *buf,unsigned int maxlen)
+static unsigned int pvr2_i2c_client_describe(struct pvr2_i2c_client *cp,
+					     unsigned int detail,
+					     char *buf,unsigned int maxlen)
 {
 	unsigned int ccnt,bcnt;
 	int spcfl = 0;
@@ -871,7 +875,7 @@ static void do_i2c_scan(struct pvr2_hdw *hdw)
 	msg[0].addr = 0;
 	msg[0].flags = I2C_M_RD;
 	msg[0].len = 0;
-	msg[0].buf = 0;
+	msg[0].buf = NULL;
 	printk("%s: i2c scan beginning\n",hdw->name);
 	for (i = 0; i < 128; i++) {
 		msg[0].addr = i;

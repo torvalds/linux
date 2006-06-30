@@ -89,7 +89,7 @@ static unsigned int wm8775_describe(struct pvr2_v4l_wm8775 *ctxt,
 
 static void wm8775_detach(struct pvr2_v4l_wm8775 *ctxt)
 {
-	ctxt->client->handler = 0;
+	ctxt->client->handler = NULL;
 	kfree(ctxt);
 }
 

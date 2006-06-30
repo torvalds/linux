@@ -570,7 +570,8 @@ static int dvb_frontend_thread(void *data)
 					dvb_frontend_add_event(fe, s);
 					fepriv->status = s;
 				}
-			}
+			} else
+				dvb_frontend_swzigzag(fe);
 		} else
 			dvb_frontend_swzigzag(fe);
 	}
@@ -975,6 +976,7 @@ static int dvb_frontend_ioctl(struct inode *inode, struct file *file,
 
 	case FE_SET_FRONTEND_TUNE_MODE:
 		fepriv->tune_mode_flags = (unsigned long) parg;
+		err = 0;
 		break;
 	};
 

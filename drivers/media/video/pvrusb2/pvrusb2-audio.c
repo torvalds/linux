@@ -145,8 +145,8 @@ static int get_audio_status(struct pvr2_msp3400_handler *ctxt)
 
 static void pvr2_msp3400_detach(struct pvr2_msp3400_handler *ctxt)
 {
-	ctxt->client->handler = 0;
-	ctxt->hdw->audio_stat = 0;
+	ctxt->client->handler = NULL;
+	ctxt->hdw->audio_stat = NULL;
 	kfree(ctxt);
 }
 

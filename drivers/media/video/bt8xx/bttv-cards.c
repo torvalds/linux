@@ -3548,11 +3548,6 @@ void __devinit bttv_init_card2(struct bttv *btv)
 	/* Hybrid DVB card, DOES have a tda9887 */
 	if (btv->c.type == BTTV_BOARD_DVICO_FUSIONHDTV_5_LITE)
 		tda9887 = 1;
-	if((btv->tuner_type == TUNER_PHILIPS_FM1216ME_MK3) ||
-	   (btv->tuner_type == TUNER_PHILIPS_FM1236_MK3) ||
-	   (btv->tuner_type == TUNER_PHILIPS_FM1256_IH3) ||
-	    tda9887)
-		request_module("tda9887");
 	if (btv->tuner_type != UNSET)
 		request_module("tuner");
 }

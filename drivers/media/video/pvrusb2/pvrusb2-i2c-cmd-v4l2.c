@@ -196,7 +196,7 @@ const struct pvr2_i2c_op pvr2_i2c_op_v4l2_size = {
 static void do_log(struct pvr2_hdw *hdw)
 {
 	pvr2_trace(PVR2_TRACE_CHIPS,"i2c v4l2 do_log()");
-	pvr2_i2c_core_cmd(hdw,VIDIOC_LOG_STATUS,0);
+	pvr2_i2c_core_cmd(hdw,VIDIOC_LOG_STATUS,NULL);
 
 }
 
@@ -217,7 +217,7 @@ const struct pvr2_i2c_op pvr2_i2c_op_v4l2_log = {
 void pvr2_v4l2_cmd_stream(struct pvr2_i2c_client *cp,int fl)
 {
 	pvr2_i2c_client_cmd(cp,
-			    (fl ? VIDIOC_STREAMON : VIDIOC_STREAMOFF),0);
+			    (fl ? VIDIOC_STREAMON : VIDIOC_STREAMOFF),NULL);
 }
 
 
