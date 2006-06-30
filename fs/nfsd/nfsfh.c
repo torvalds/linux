@@ -461,7 +461,7 @@ fh_update(struct svc_fh *fhp)
 	} else {
 		int size;
 		if (fhp->fh_handle.fh_fileid_type != 0)
-			goto out_uptodate;
+			goto out;
 		datap = fhp->fh_handle.fh_auth+
 			fhp->fh_handle.fh_size/4 -1;
 		size = (fhp->fh_maxsize - fhp->fh_handle.fh_size)/4;
@@ -479,10 +479,6 @@ out_bad:
 	goto out;
 out_negative:
 	printk(KERN_ERR "fh_update: %s/%s still negative!\n",
-		dentry->d_parent->d_name.name, dentry->d_name.name);
-	goto out;
-out_uptodate:
-	printk(KERN_ERR "fh_update: %s/%s already up-to-date!\n",
 		dentry->d_parent->d_name.name, dentry->d_name.name);
 	goto out;
 }
