@@ -1132,6 +1132,8 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 		goto release;
 	}
 
+	sdhci_reset(host, SDHCI_RESET_ALL);
+
 	version = readw(host->ioaddr + SDHCI_HOST_VERSION);
 	version = (version & SDHCI_SPEC_VER_MASK) >> SDHCI_SPEC_VER_SHIFT;
 	if (version != 0) {
