@@ -1151,13 +1151,18 @@ static int __devinit sdhci_probe(struct pci_dev *pdev,
 	const struct pci_device_id *ent)
 {
 	int ret, i;
-	u8 slots;
+	u8 slots, rev;
 	struct sdhci_chip *chip;
 
 	BUG_ON(pdev == NULL);
 	BUG_ON(ent == NULL);
 
-	DBG("found at %s\n", pci_name(pdev));
+	pci_read_config_byte(pdev, PCI_CLASS_REVISION, &rev);
+
+	printk(KERN_INFO DRIVER_NAME
+		": SDHCI controller found at %s [%04x:%04x] (rev %x)\n",
+		pci_name(pdev), (int)pdev->vendor, (int)pdev->device,
+		(int)rev);
 
 	ret = pci_read_config_byte(pdev, PCI_SLOT_INFO, &slots);
 	if (ret)
