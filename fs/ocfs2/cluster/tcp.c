@@ -396,8 +396,8 @@ static void o2net_set_nn_state(struct o2net_node *nn,
 	}
 
 	if (was_valid && !valid) {
-		mlog(ML_NOTICE, "no longer connected to " SC_NODEF_FMT "\n",
-		     SC_NODEF_ARGS(old_sc));
+		printk(KERN_INFO "o2net: no longer connected to "
+		       SC_NODEF_FMT "\n", SC_NODEF_ARGS(old_sc));
 		o2net_complete_nodes_nsw(nn);
 	}
 
@@ -409,10 +409,10 @@ static void o2net_set_nn_state(struct o2net_node *nn,
 		 * the only way to start connecting again is to down
 		 * heartbeat and bring it back up. */
 		cancel_delayed_work(&nn->nn_connect_expired);
-		mlog(ML_NOTICE, "%s " SC_NODEF_FMT "\n", 
-		     o2nm_this_node() > sc->sc_node->nd_num ?
-		     	"connected to" : "accepted connection from",
-		     SC_NODEF_ARGS(sc));
+		printk(KERN_INFO "o2net: %s " SC_NODEF_FMT "\n",
+		       o2nm_this_node() > sc->sc_node->nd_num ?
+		       		"connected to" : "accepted connection from",
+		       SC_NODEF_ARGS(sc));
 	}
 
 	/* trigger the connecting worker func as long as we're not valid,
@@ -1280,7 +1280,7 @@ static void o2net_idle_timer(unsigned long data)
 
 	do_gettimeofday(&now);
 
-	mlog(ML_NOTICE, "connection to " SC_NODEF_FMT " has been idle for 10 "
+	printk(KERN_INFO "o2net: connection to " SC_NODEF_FMT " has been idle for 10 "
 	     "seconds, shutting it down.\n", SC_NODEF_ARGS(sc));
 	mlog(ML_NOTICE, "here are some times that might help debug the "
 	     "situation: (tmr %ld.%ld now %ld.%ld dr %ld.%ld adv "

@@ -213,11 +213,9 @@ int ocfs2_find_files_on_disk(const char *name,
 			     struct ocfs2_dir_entry **dirent)
 {
 	int status = -ENOENT;
-	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 
-	mlog_entry("(osb=%p, parent=%llu, name='%.*s', blkno=%p, inode=%p)\n",
-		   osb, (unsigned long long)OCFS2_I(inode)->ip_blkno,
-		   namelen, name, blkno, inode);
+	mlog_entry("(name=%.*s, blkno=%p, inode=%p, dirent_bh=%p, dirent=%p)\n",
+		   namelen, name, blkno, inode, dirent_bh, dirent);
 
 	*dirent_bh = ocfs2_find_entry(name, namelen, inode, dirent);
 	if (!*dirent_bh || !*dirent) {

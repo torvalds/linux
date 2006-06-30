@@ -95,6 +95,9 @@ static void dlm_reco_unlock_ast(void *astdata, enum dlm_status st);
 static void dlm_request_all_locks_worker(struct dlm_work_item *item,
 					 void *data);
 static void dlm_mig_lockres_worker(struct dlm_work_item *item, void *data);
+static int dlm_lockres_master_requery(struct dlm_ctxt *dlm,
+				      struct dlm_lock_resource *res,
+				      u8 *real_master);
 
 static u64 dlm_get_next_mig_cookie(void);
 
@@ -1484,8 +1487,9 @@ leave:
 
 
 
-int dlm_lockres_master_requery(struct dlm_ctxt *dlm,
-			       struct dlm_lock_resource *res, u8 *real_master)
+static int dlm_lockres_master_requery(struct dlm_ctxt *dlm,
+				      struct dlm_lock_resource *res,
+				      u8 *real_master)
 {
 	struct dlm_node_iter iter;
 	int nodenum;

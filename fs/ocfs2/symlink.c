@@ -154,7 +154,7 @@ static void *ocfs2_follow_link(struct dentry *dentry,
 	}
 
 	status = vfs_follow_link(nd, link);
-	if (status)
+	if (status && status != -ENOENT)
 		mlog_errno(status);
 bail:
 	if (page) {
