@@ -1030,7 +1030,14 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 	else /* XXX: Hack to get MMC layer to avoid highmem */
 		pdev->dma_mask = 0;
 
-	host->max_clk = (caps & SDHCI_CLOCK_BASE_MASK) >> SDHCI_CLOCK_BASE_SHIFT;
+	host->max_clk =
+		(caps & SDHCI_CLOCK_BASE_MASK) >> SDHCI_CLOCK_BASE_SHIFT;
+	if (host->max_clk == 0) {
+		printk(KERN_ERR "%s: Hardware doesn't specify base clock "
+			"frequency.\n", host->slot_descr);
+		ret = -ENODEV;
+		goto unmap;
+	}
 	host->max_clk *= 1000000;
 
 	/*
@@ -1078,7 +1085,7 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 	ret = request_irq(host->irq, sdhci_irq, SA_SHIRQ,
 		host->slot_descr, host);
 	if (ret)
-		goto unmap;
+		goto untasklet;
 
 	sdhci_init(host);
 
@@ -1097,10 +1104,10 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 
 	return 0;
 
-unmap:
+untasklet:
 	tasklet_kill(&host->card_tasklet);
 	tasklet_kill(&host->finish_tasklet);
-
+unmap:
 	iounmap(host->ioaddr);
 release:
 	pci_release_region(pdev, host->bar);
