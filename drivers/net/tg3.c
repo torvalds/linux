@@ -3880,6 +3880,40 @@ out_unlock:
 	return NETDEV_TX_OK;
 }
 
+#if TG3_TSO_SUPPORT != 0
+static int tg3_start_xmit_dma_bug(struct sk_buff *, struct net_device *);
+
+/* Use GSO to workaround a rare TSO bug that may be triggered when the
+ * TSO header is greater than 80 bytes.
+ */
+static int tg3_tso_bug(struct tg3 *tp, struct sk_buff *skb)
+{
+	struct sk_buff *segs, *nskb;
+
+	/* Estimate the number of fragments in the worst case */
+	if (unlikely(TX_BUFFS_AVAIL(tp) <= (skb_shinfo(skb)->gso_segs * 3))) {
+		netif_stop_queue(tp->dev);
+		return NETDEV_TX_BUSY;
+	}
+
+	segs = skb_gso_segment(skb, tp->dev->features & ~NETIF_F_TSO);
+	if (unlikely(IS_ERR(segs)))
+		goto tg3_tso_bug_end;
+
+	do {
+		nskb = segs;
+		segs = segs->next;
+		nskb->next = NULL;
+		tg3_start_xmit_dma_bug(nskb, tp->dev);
+	} while (segs);
+
+tg3_tso_bug_end:
+	dev_kfree_skb(skb);
+
+	return NETDEV_TX_OK;
+}
+#endif
+
 /* hard_start_xmit for devices that have the 4G bug and/or 40-bit bug and
  * support TG3_FLG2_HW_TSO_1 or firmware TSO only.
  */
@@ -3916,7 +3950,7 @@ static int tg3_start_xmit_dma_bug(struct sk_buff *skb, struct net_device *dev)
 	mss = 0;
 	if (skb->len > (tp->dev->mtu + ETH_HLEN) &&
 	    (mss = skb_shinfo(skb)->gso_size) != 0) {
-		int tcp_opt_len, ip_tcp_len;
+		int tcp_opt_len, ip_tcp_len, hdr_len;
 
 		if (skb_header_cloned(skb) &&
 		    pskb_expand_head(skb, 0, 0, GFP_ATOMIC)) {
@@ -3927,11 +3961,16 @@ static int tg3_start_xmit_dma_bug(struct sk_buff *skb, struct net_device *dev)
 		tcp_opt_len = ((skb->h.th->doff - 5) * 4);
 		ip_tcp_len = (skb->nh.iph->ihl * 4) + sizeof(struct tcphdr);
 
+		hdr_len = ip_tcp_len + tcp_opt_len;
+		if (unlikely((ETH_HLEN + hdr_len) > 80) &&
+			     (tp->tg3_flags2 & TG3_FLG2_HW_TSO_1_BUG))
+			return (tg3_tso_bug(tp, skb));
+
 		base_flags |= (TXD_FLAG_CPU_PRE_DMA |
 			       TXD_FLAG_CPU_POST_DMA);
 
 		skb->nh.iph->check = 0;
-		skb->nh.iph->tot_len = htons(mss + ip_tcp_len + tcp_opt_len);
+		skb->nh.iph->tot_len = htons(mss + hdr_len);
 		if (tp->tg3_flags2 & TG3_FLG2_HW_TSO) {
 			skb->h.th->check = 0;
 			base_flags &= ~TXD_FLAG_TCPUDP_CSUM;
@@ -10192,8 +10231,14 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 		    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5787) {
 			tp->tg3_flags2 |= TG3_FLG2_HW_TSO_2;
 			tp->tg3_flags2 |= TG3_FLG2_1SHOT_MSI;
-		} else
-			tp->tg3_flags2 |= TG3_FLG2_HW_TSO_1;
+		} else {
+			tp->tg3_flags2 |= TG3_FLG2_HW_TSO_1 |
+					  TG3_FLG2_HW_TSO_1_BUG;
+			if (GET_ASIC_REV(tp->pci_chip_rev_id) ==
+				ASIC_REV_5750 &&
+	     		    tp->pci_chip_rev_id >= CHIPREV_ID_5750_C2)
+				tp->tg3_flags2 &= ~TG3_FLG2_HW_TSO_1_BUG;
+		}
 	}
 
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5705 &&
