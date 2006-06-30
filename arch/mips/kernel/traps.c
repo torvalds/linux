@@ -847,31 +847,29 @@ asmlinkage void do_mt(struct pt_regs *regs)
 {
 	int subcode;
 
-	die_if_kernel("MIPS MT Thread exception in kernel", regs);
-
 	subcode = (read_vpe_c0_vpecontrol() & VPECONTROL_EXCPT)
 			>> VPECONTROL_EXCPT_SHIFT;
 	switch (subcode) {
 	case 0:
-		printk(KERN_ERR "Thread Underflow\n");
+		printk(KERN_DEBUG "Thread Underflow\n");
 		break;
 	case 1:
-		printk(KERN_ERR "Thread Overflow\n");
+		printk(KERN_DEBUG "Thread Overflow\n");
 		break;
 	case 2:
-		printk(KERN_ERR "Invalid YIELD Qualifier\n");
+		printk(KERN_DEBUG "Invalid YIELD Qualifier\n");
 		break;
 	case 3:
-		printk(KERN_ERR "Gating Storage Exception\n");
+		printk(KERN_DEBUG "Gating Storage Exception\n");
 		break;
 	case 4:
-		printk(KERN_ERR "YIELD Scheduler Exception\n");
+		printk(KERN_DEBUG "YIELD Scheduler Exception\n");
 		break;
 	case 5:
-		printk(KERN_ERR "Gating Storage Schedulier Exception\n");
+		printk(KERN_DEBUG "Gating Storage Schedulier Exception\n");
 		break;
 	default:
-		printk(KERN_ERR "*** UNKNOWN THREAD EXCEPTION %d ***\n",
+		printk(KERN_DEBUG "*** UNKNOWN THREAD EXCEPTION %d ***\n",
 			subcode);
 		break;
 	}
