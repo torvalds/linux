@@ -569,6 +569,8 @@ asmlinkage void do_ov(struct pt_regs *regs)
  */
 asmlinkage void do_fpe(struct pt_regs *regs, unsigned long fcr31)
 {
+	die_if_kernel("FP exception in kernel code", regs);
+
 	if (fcr31 & FPU_CSR_UNI_X) {
 		int sig;
 
