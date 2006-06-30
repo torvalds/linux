@@ -125,7 +125,7 @@ struct asus_hotk {
 		L2D,		//L2000D
 		L3C,		//L3800C
 		L3D,		//L3400D
-		L3H,		//L3H, but also L2000E
+		L3H,		//L3H, L2000E, L5D
 		L4R,		//L4500R
 		L5x,		//L5800C 
 		L8L,		//L8400L
@@ -1119,8 +1119,9 @@ static int asus_hotk_get_info(void)
 	hotk->model = END_MODEL;
 	if (strncmp(model->string.pointer, "L3D", 3) == 0)
 		hotk->model = L3D;
-	else if (strncmp(model->string.pointer, "L3H", 3) == 0 ||
-		 strncmp(model->string.pointer, "L2E", 3) == 0)
+	else if (strncmp(model->string.pointer, "L2E", 3) == 0 ||
+		 strncmp(model->string.pointer, "L3H", 3) == 0 ||
+		 strncmp(model->string.pointer, "L5D", 3) == 0)
 		hotk->model = L3H;
 	else if (strncmp(model->string.pointer, "L3", 2) == 0 ||
 		 strncmp(model->string.pointer, "L2B", 3) == 0)
@@ -1191,6 +1192,9 @@ static int asus_hotk_get_info(void)
 		 strncmp(model->string.pointer, "W3N", 3) == 0)
 		hotk->methods->mt_mled = NULL;
 	/* S5N, M5N and W3N have no MLED */
+	else if (strncmp(model->string.pointer, "L5D", 3) == 0)
+		hotk->methods->mt_wled = NULL;
+	/* L5D's WLED is not controlled by ACPI */
 	else if (strncmp(model->string.pointer, "M2N", 3) == 0)
 		hotk->methods->mt_wled = "WLED";
 	/* M2N has a usable WLED */
