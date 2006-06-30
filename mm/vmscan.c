@@ -742,7 +742,8 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
 		 * how much memory
 		 * is mapped.
 		 */
-		mapped_ratio = (global_page_state(NR_FILE_MAPPED) * 100) /
+		mapped_ratio = ((global_page_state(NR_FILE_MAPPED) +
+				global_page_state(NR_ANON_PAGES)) * 100) /
 					vm_total_pages;
 
 		/*

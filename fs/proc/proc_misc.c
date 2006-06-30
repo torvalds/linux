@@ -168,6 +168,7 @@ static int meminfo_read_proc(char *page, char **start, off_t off,
 		"SwapFree:     %8lu kB\n"
 		"Dirty:        %8lu kB\n"
 		"Writeback:    %8lu kB\n"
+		"AnonPages:    %8lu kB\n"
 		"Mapped:       %8lu kB\n"
 		"Slab:         %8lu kB\n"
 		"CommitLimit:  %8lu kB\n"
@@ -191,6 +192,7 @@ static int meminfo_read_proc(char *page, char **start, off_t off,
 		K(i.freeswap),
 		K(ps.nr_dirty),
 		K(ps.nr_writeback),
+		K(global_page_state(NR_ANON_PAGES)),
 		K(global_page_state(NR_FILE_MAPPED)),
 		K(ps.nr_slab),
 		K(allowed),

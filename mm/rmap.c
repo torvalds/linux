@@ -455,7 +455,7 @@ static void __page_set_anon_rmap(struct page *page,
 	 * nr_mapped state can be updated without turning off
 	 * interrupts because it is not modified via interrupt.
 	 */
-	__inc_zone_page_state(page, NR_FILE_MAPPED);
+	__inc_zone_page_state(page, NR_ANON_PAGES);
 }
 
 /**
@@ -531,7 +531,8 @@ void page_remove_rmap(struct page *page)
 		 */
 		if (page_test_and_clear_dirty(page))
 			set_page_dirty(page);
-		__dec_zone_page_state(page, NR_FILE_MAPPED);
+		__dec_zone_page_state(page,
+				PageAnon(page) ? NR_ANON_PAGES : NR_FILE_MAPPED);
 	}
 }
 

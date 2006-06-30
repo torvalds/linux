@@ -395,6 +395,7 @@ struct seq_operations fragmentation_op = {
 
 static char *vmstat_text[] = {
 	/* Zoned VM counters */
+	"nr_anon_pages",
 	"nr_mapped",
 	"nr_file_pages",
 
