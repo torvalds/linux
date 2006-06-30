@@ -494,8 +494,8 @@ static int __devinit i801_probe(struct pci_dev *dev, const struct pci_device_id 
 	err = pci_request_region(dev, SMBBAR, i801_driver.name);
 	if (err) {
 		dev_err(&dev->dev, "Failed to request SMBus region "
-			"0x%lx-0x%lx\n", i801_smba,
-			pci_resource_end(dev, SMBBAR));
+			"0x%lx-0x%Lx\n", i801_smba,
+			(unsigned long long)pci_resource_end(dev, SMBBAR));
 		goto exit;
 	}
 
