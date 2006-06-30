@@ -2215,6 +2215,7 @@ struct sk_buff *tcp_tso_segment(struct sk_buff *skb, int features)
 out:
 	return segs;
 }
+EXPORT_SYMBOL(tcp_tso_segment);
 
 extern void __skb_cb_too_small_for_tcp(int, int);
 extern struct tcp_congestion_ops tcp_reno;

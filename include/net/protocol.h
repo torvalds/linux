@@ -50,11 +50,17 @@ struct inet6_protocol
 			       struct inet6_skb_parm *opt,
 			       int type, int code, int offset,
 			       __u32 info);
+
+	struct sk_buff *(*gso_segment)(struct sk_buff *skb,
+				       int features);
+
 	unsigned int	flags;	/* INET6_PROTO_xxx */
 };
 
 #define INET6_PROTO_NOPOLICY	0x1
 #define INET6_PROTO_FINAL	0x2
+/* This should be set for any extension header which is compatible with GSO. */
+#define INET6_PROTO_GSO_EXTHDR	0x4
 #endif
 
 /* This is used to register socket interfaces for IP protocols.  */
