@@ -1008,6 +1008,27 @@ static struct irq_trans pci_irq_trans_table[] = {
 };
 #endif
 
+static unsigned int sun4v_vdev_irq_build(struct device_node *dp,
+					 unsigned int devino,
+					 void *_data)
+{
+	u32 devhandle = (u32) (unsigned long) _data;
+
+	return sun4v_build_irq(devhandle, devino);
+}
+
+static void sun4v_vdev_irq_trans_init(struct device_node *dp)
+{
+	struct linux_prom64_registers *regs;
+
+	dp->irq_trans = prom_early_alloc(sizeof(struct of_irq_controller));
+	dp->irq_trans->irq_build = sun4v_vdev_irq_build;
+
+	regs = of_get_property(dp, "reg", NULL);
+	dp->irq_trans->data = (void *) (unsigned long)
+		((regs->phys_addr >> 32UL) & 0x0fffffff);
+}
+
 static void irq_trans_init(struct device_node *dp)
 {
 	const char *model;
@@ -1034,6 +1055,8 @@ static void irq_trans_init(struct device_node *dp)
 #endif
 	if (!strcmp(dp->name, "central"))
 		return central_irq_trans_init(dp->child);
+	if (!strcmp(dp->name, "virtual-devices"))
+		return sun4v_vdev_irq_trans_init(dp);
 }
 
 static int is_root_node(const struct device_node *dp)
