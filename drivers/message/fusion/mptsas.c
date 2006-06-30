@@ -1635,8 +1635,10 @@ static int mptsas_probe_one_phy(struct device *dev,
 	if (!mptsas_get_rphy(phy_info) && port && !port->rphy) {
 
 		struct sas_rphy *rphy;
+		struct device *parent;
 		struct sas_identify identify;
 
+		parent = dev->parent->parent;
 		/*
 		 * Let the hotplug_work thread handle processing
 		 * the adding/removing of devices that occur
@@ -1647,6 +1649,27 @@ static int mptsas_probe_one_phy(struct device *dev,
 				goto out;
 
 		mptsas_parse_device_info(&identify, &phy_info->attached);
+		if (scsi_is_host_device(parent)) {
+			struct mptsas_portinfo *port_info;
+			int i;
+
+			mutex_lock(&ioc->sas_topology_mutex);
+			port_info = mptsas_find_portinfo_by_handle(ioc,
+								   ioc->handle);
+			mutex_unlock(&ioc->sas_topology_mutex);
+
+			for (i = 0; i < port_info->num_phys; i++)
+				if (port_info->phy_info[i].identify.sas_address ==
+				    identify.sas_address)
+					goto out;
+
+		} else if (scsi_is_sas_rphy(parent)) {
+			struct sas_rphy *parent_rphy = dev_to_rphy(parent);
+			if (identify.sas_address ==
+			    parent_rphy->identify.sas_address)
+				goto out;
+		}
+
 		switch (identify.device_type) {
 		case SAS_END_DEVICE:
 			rphy = sas_end_device_alloc(port);
@@ -1698,6 +1721,7 @@ mptsas_probe_hba_phys(MPT_ADAPTER *ioc)
 		goto out_free_port_info;
 
 	mutex_lock(&ioc->sas_topology_mutex);
+	ioc->handle = hba->handle;
 	port_info = mptsas_find_portinfo_by_handle(ioc, hba->handle);
 	if (!port_info) {
 		port_info = hba;
