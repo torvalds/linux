@@ -1318,7 +1318,7 @@ void show_free_areas(void)
 		ps.nr_writeback,
 		ps.nr_unstable,
 		nr_free_pages(),
-		ps.nr_slab,
+		global_page_state(NR_SLAB),
 		global_page_state(NR_FILE_MAPPED),
 		ps.nr_page_table_pages);
 
