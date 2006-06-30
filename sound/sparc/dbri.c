@@ -46,7 +46,7 @@
  *
  * I've tried to stick to the following function naming conventions:
  * snd_*	ALSA stuff
- * cs4215_*	CS4215 codec specfic stuff
+ * cs4215_*	CS4215 codec specific stuff
  * dbri_*	DBRI high-level stuff
  * other	DBRI low-level stuff
  */
