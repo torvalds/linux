@@ -116,6 +116,7 @@ struct asus_hotk {
 	enum {
 		A1x = 0,	//A1340D, A1300F
 		A2x,		//A2500H
+		A4G,		//A4700G
 		D1x,		//D1
 		L2D,		//L2000D
 		L3C,		//L3800C
@@ -174,6 +175,16 @@ static struct model_data model_conf[END_MODEL] = {
 	 .brightness_get = "GPLV",
 	 .display_set = "SDSP",
 	 .display_get = "\\INFB"},
+
+	{
+	 .name = "A4G",
+	 .mt_mled = "MLED",
+/* WLED present, but not controlled by ACPI */
+	 .mt_lcd_switch = xxN_PREFIX "_Q10",
+	 .brightness_set = "SPLV",
+	 .brightness_get = "GPLV",
+	 .display_set = "SDSP",
+	 .display_get = "\\ADVG"},
 
 	{
 	 .name = "D1x",
@@ -1109,6 +1120,8 @@ static int asus_hotk_get_info(void)
 		hotk->model = S2x;
 	else if (strncmp(model->string.pointer, "L5", 2) == 0)
 		hotk->model = L5x;
+	else if (strncmp(model->string.pointer, "A4G", 3) == 0)
+		hotk->model = A4G;
 	else if (strncmp(model->string.pointer, "W1N", 3) == 0)
 		hotk->model = W1N;
 
