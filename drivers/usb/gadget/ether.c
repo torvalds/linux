@@ -262,7 +262,7 @@ MODULE_PARM_DESC(host_addr, "Host Ethernet Address");
 #define DEV_CONFIG_CDC
 #endif
 
-#ifdef CONFIG_USB_GADGET_MUSBHDRC
+#ifdef CONFIG_USB_GADGET_MUSB_HDRC
 #define DEV_CONFIG_CDC
 #endif
 
@@ -2564,7 +2564,7 @@ static struct usb_gadget_driver eth_driver = {
 
 	.function	= (char *) driver_desc,
 	.bind		= eth_bind,
-	.unbind		= __exit_p(eth_unbind),
+	.unbind		= eth_unbind,
 
 	.setup		= eth_setup,
 	.disconnect	= eth_disconnect,
