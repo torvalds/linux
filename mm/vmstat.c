@@ -399,12 +399,12 @@ static char *vmstat_text[] = {
 	"nr_mapped",
 	"nr_file_pages",
 	"nr_slab",
+	"nr_page_table_pages",
 
 	/* Page state */
 	"nr_dirty",
 	"nr_writeback",
 	"nr_unstable",
-	"nr_page_table_pages",
 
 	"pgpgin",
 	"pgpgout",

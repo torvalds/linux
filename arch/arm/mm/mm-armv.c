@@ -227,7 +227,7 @@ void free_pgd_slow(pgd_t *pgd)
 
 	pte = pmd_page(*pmd);
 	pmd_clear(pmd);
-	dec_page_state(nr_page_table_pages);
+	dec_zone_page_state(virt_to_page((unsigned long *)pgd), NR_PAGETABLE);
 	pte_lock_deinit(pte);
 	pte_free(pte);
 	pmd_free(pmd);

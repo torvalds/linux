@@ -52,6 +52,7 @@ enum zone_stat_item {
 			   only modified from process context */
 	NR_FILE_PAGES,
 	NR_SLAB,	/* Pages used by slab allocator */
+	NR_PAGETABLE,	/* used for pagetables */
 	NR_VM_ZONE_STAT_ITEMS };
 
 struct per_cpu_pages {
