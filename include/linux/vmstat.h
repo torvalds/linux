@@ -70,12 +70,8 @@ struct page_state {
 };
 
 extern void get_full_page_state(struct page_state *ret);
-extern unsigned long read_page_state_offset(unsigned long offset);
 extern void mod_page_state_offset(unsigned long offset, unsigned long delta);
 extern void __mod_page_state_offset(unsigned long offset, unsigned long delta);
-
-#define read_page_state(member) \
-	read_page_state_offset(offsetof(struct page_state, member))
 
 #define mod_page_state(member, delta)	\
 	mod_page_state_offset(offsetof(struct page_state, member), (delta))
