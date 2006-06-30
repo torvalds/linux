@@ -125,4 +125,6 @@ static inline void smp_send_reschedule(int cpu) { }
 #define put_cpu()		preempt_enable()
 #define put_cpu_no_resched()	preempt_enable_no_resched()
 
+void smp_setup_processor_id(void);
+
 #endif /* __LINUX_SMP_H */

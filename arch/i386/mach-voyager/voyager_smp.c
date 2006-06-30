@@ -1938,3 +1938,9 @@ smp_cpus_done(unsigned int max_cpus)
 {
 	zap_low_mappings();
 }
+
+void __init
+smp_setup_processor_id(void)
+{
+	current_thread_info()->cpu = hard_smp_processor_id();
+}
