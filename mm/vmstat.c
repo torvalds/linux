@@ -381,6 +381,7 @@ static char *vmstat_text[] = {
 	"nr_dirty",
 	"nr_writeback",
 	"nr_unstable",
+	"nr_bounce",
 
 	/* Event counters */
 	"pgpgin",
@@ -428,7 +429,6 @@ static char *vmstat_text[] = {
 	"allocstall",
 
 	"pgrotated",
-	"nr_bounce",
 };
 
 /*

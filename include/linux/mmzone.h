@@ -56,6 +56,7 @@ enum zone_stat_item {
 	NR_FILE_DIRTY,
 	NR_WRITEBACK,
 	NR_UNSTABLE_NFS,	/* NFS unstable pages */
+	NR_BOUNCE,
 	NR_VM_ZONE_STAT_ITEMS };
 
 struct per_cpu_pages {
