@@ -69,7 +69,7 @@ static void tuner_update(struct pvr2_tuner_handler *ctxt)
 
 static void pvr2_tuner_detach(struct pvr2_tuner_handler *ctxt)
 {
-	ctxt->client->handler = 0;
+	ctxt->client->handler = NULL;
 	kfree(ctxt);
 }
 

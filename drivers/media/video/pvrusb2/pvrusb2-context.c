@@ -77,7 +77,7 @@ struct pvr2_context *pvr2_context_create(
 	const struct usb_device_id *devid,
 	void (*setup_func)(struct pvr2_context *))
 {
-	struct pvr2_context *mp = 0;
+	struct pvr2_context *mp = NULL;
 	mp = kmalloc(sizeof(*mp),GFP_KERNEL);
 	if (!mp) goto done;
 	memset(mp,0,sizeof(*mp));
@@ -87,7 +87,7 @@ struct pvr2_context *pvr2_context_create(
 	mp->hdw = pvr2_hdw_create(intf,devid);
 	if (!mp->hdw) {
 		pvr2_context_destroy(mp);
-		mp = 0;
+		mp = NULL;
 		goto done;
 	}
 
@@ -145,7 +145,7 @@ void pvr2_channel_init(struct pvr2_channel *cp,struct pvr2_context *mp)
 {
 	cp->hdw = mp->hdw;
 	cp->mc_head = mp;
-	cp->mc_next = 0;
+	cp->mc_next = NULL;
 	cp->mc_prev = mp->mc_last;
 	if (mp->mc_last) {
 		mp->mc_last->mc_next = cp;
@@ -160,8 +160,8 @@ static void pvr2_channel_disclaim_stream(struct pvr2_channel *cp)
 {
 	if (!cp->stream) return;
 	pvr2_stream_kill(cp->stream->stream);
-	cp->stream->user = 0;
-	cp->stream = 0;
+	cp->stream->user = NULL;
+	cp->stream = NULL;
 }
 
 
@@ -179,7 +179,7 @@ void pvr2_channel_done(struct pvr2_channel *cp)
 	} else {
 		mp->mc_first = cp->mc_next;
 	}
-	cp->hdw = 0;
+	cp->hdw = NULL;
 }
 
 
@@ -212,7 +212,7 @@ struct pvr2_ioread *pvr2_channel_create_mpeg_stream(
 {
 	struct pvr2_ioread *cp;
 	cp = pvr2_ioread_create();
-	if (!cp) return 0;
+	if (!cp) return NULL;
 	pvr2_ioread_setup(cp,sp->stream);
 	pvr2_ioread_set_sync_key(cp,stream_sync_key,sizeof(stream_sync_key));
 	return cp;

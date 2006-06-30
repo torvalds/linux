@@ -54,7 +54,7 @@ module_param_named(debug,pvrusb2_debug,int,S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(debug, "Debug trace mask");
 
 #ifdef CONFIG_VIDEO_PVRUSB2_SYSFS
-static struct pvr2_sysfs_class *class_ptr = 0;
+static struct pvr2_sysfs_class *class_ptr = NULL;
 #endif /* CONFIG_VIDEO_PVRUSB2_SYSFS */
 
 static void pvr_setup_attach(struct pvr2_context *pvr)
@@ -104,10 +104,10 @@ static void pvr_disconnect(struct usb_interface *intf)
 }
 
 static struct usb_driver pvr_driver = {
-	name:           "pvrusb2",
-	id_table:       pvr2_device_table,
-	probe:          pvr_probe,
-	disconnect:     pvr_disconnect
+	.name =         "pvrusb2",
+	.id_table =     pvr2_device_table,
+	.probe =        pvr_probe,
+	.disconnect =   pvr_disconnect
 };
 
 /*

@@ -760,9 +760,9 @@ static int pvr2_v4l2_release(struct inode *inode, struct file *file)
 		hdw = fhp->channel.mc_head->hdw;
 		pvr2_hdw_set_streaming(hdw,0);
 		sp = pvr2_ioread_get_stream(fhp->rhp);
-		if (sp) pvr2_stream_set_callback(sp,0,0);
+		if (sp) pvr2_stream_set_callback(sp,NULL,NULL);
 		pvr2_ioread_destroy(fhp->rhp);
-		fhp->rhp = 0;
+		fhp->rhp = NULL;
 	}
 	v4l2_prio_close(&vp->prio, &fhp->prio);
 	file->private_data = NULL;
@@ -778,9 +778,9 @@ static int pvr2_v4l2_release(struct inode *inode, struct file *file)
 		} else {
 			vp->vfirst = fhp->vnext;
 		}
-		fhp->vnext = 0;
-		fhp->vprev = 0;
-		fhp->vhead = 0;
+		fhp->vnext = NULL;
+		fhp->vprev = NULL;
+		fhp->vhead = NULL;
 		pvr2_channel_done(&fhp->channel);
 		pvr2_trace(PVR2_TRACE_STRUCT,
 			   "Destroying pvr_v4l2_fh id=%p",fhp);
@@ -795,7 +795,7 @@ static int pvr2_v4l2_release(struct inode *inode, struct file *file)
 
 static int pvr2_v4l2_open(struct inode *inode, struct file *file)
 {
-	struct pvr2_v4l2_dev *dip = 0; /* Our own context pointer */
+	struct pvr2_v4l2_dev *dip = NULL; /* Our own context pointer */
 	struct pvr2_v4l2_fh *fhp;
 	struct pvr2_v4l2 *vp;
 	struct pvr2_hdw *hdw;
@@ -853,7 +853,7 @@ static int pvr2_v4l2_open(struct inode *inode, struct file *file)
 	pvr2_context_enter(vp->channel.mc_head); do {
 		pvr2_trace(PVR2_TRACE_STRUCT,"Creating pvr_v4l2_fh id=%p",fhp);
 		pvr2_channel_init(&fhp->channel,vp->channel.mc_head);
-		fhp->vnext = 0;
+		fhp->vnext = NULL;
 		fhp->vprev = vp->vlast;
 		if (vp->vlast) {
 			vp->vlast->vnext = fhp;
@@ -896,7 +896,7 @@ static int pvr2_v4l2_iosetup(struct pvr2_v4l2_fh *fh)
 
 	fh->rhp = pvr2_channel_create_mpeg_stream(fh->dev_info->stream);
 	if (!fh->rhp) {
-		pvr2_channel_claim_stream(&fh->channel,0);
+		pvr2_channel_claim_stream(&fh->channel,NULL);
 		return -ENOMEM;
 	}
 

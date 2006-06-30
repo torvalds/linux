@@ -82,7 +82,7 @@ static unsigned int debugifc_isolate_word(const char *buf,unsigned int count,
 	unsigned int wlen;
 	unsigned int scnt;
 
-	wptr = 0;
+	wptr = NULL;
 	wlen = 0;
 	scnt = debugifc_count_whitespace(buf,count);
 	consume_cnt += scnt; count -= scnt; buf += scnt;
