@@ -414,12 +414,13 @@ acpi_remove_notify_handler(acpi_handle device,
 
 	if ((!device) ||
 	    (!handler) || (handler_type > ACPI_MAX_NOTIFY_HANDLER_TYPE)) {
-		return_ACPI_STATUS(AE_BAD_PARAMETER);
+		status = AE_BAD_PARAMETER;
+		goto exit;
 	}
 
 	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
 	if (ACPI_FAILURE(status)) {
-		return_ACPI_STATUS(status);
+		goto exit;
 	}
 
 	/* Convert and validate the device handle */
@@ -427,7 +428,7 @@ acpi_remove_notify_handler(acpi_handle device,
 	node = acpi_ns_map_handle_to_node(device);
 	if (!node) {
 		status = AE_BAD_PARAMETER;
-		goto unlock_and_exit;
+		goto unlock;
 	}
 
 	/* Root Object */
@@ -441,7 +442,7 @@ acpi_remove_notify_handler(acpi_handle device,
 		    ((handler_type & ACPI_DEVICE_NOTIFY) &&
 		     !acpi_gbl_device_notify.handler)) {
 			status = AE_NOT_EXIST;
-			goto unlock_and_exit;
+			goto unlock;
 		}
 
 		/* Make sure all deferred tasks are completed */
@@ -450,7 +451,7 @@ acpi_remove_notify_handler(acpi_handle device,
 		acpi_os_wait_events_complete(NULL);
 		status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
 		if (ACPI_FAILURE(status)) {
-			return_ACPI_STATUS(status);
+			goto exit;
 		}
 
 		if (handler_type & ACPI_SYSTEM_NOTIFY) {
@@ -473,7 +474,7 @@ acpi_remove_notify_handler(acpi_handle device,
 
 		if (!acpi_ev_is_notify_object(node)) {
 			status = AE_TYPE;
-			goto unlock_and_exit;
+			goto unlock;
 		}
 
 		/* Check for an existing internal object */
@@ -481,7 +482,7 @@ acpi_remove_notify_handler(acpi_handle device,
 		obj_desc = acpi_ns_get_attached_object(node);
 		if (!obj_desc) {
 			status = AE_NOT_EXIST;
-			goto unlock_and_exit;
+			goto unlock;
 		}
 
 		/* Object exists - make sure there's an existing handler */
@@ -491,7 +492,7 @@ acpi_remove_notify_handler(acpi_handle device,
 			if ((!notify_obj) ||
 			    (notify_obj->notify.handler != handler)) {
 				status = AE_BAD_PARAMETER;
-				goto unlock_and_exit;
+				goto unlock;
 			}
 			/* Make sure all deferred tasks are completed */
 
@@ -499,7 +500,7 @@ acpi_remove_notify_handler(acpi_handle device,
 			acpi_os_wait_events_complete(NULL);
 			status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
 			if (ACPI_FAILURE(status)) {
-				return_ACPI_STATUS(status);
+				goto exit;
 			}
 
 			/* Remove the handler */
@@ -512,7 +513,7 @@ acpi_remove_notify_handler(acpi_handle device,
 			if ((!notify_obj) ||
 			    (notify_obj->notify.handler != handler)) {
 				status = AE_BAD_PARAMETER;
-				goto unlock_and_exit;
+				goto unlock;
 			}
 			/* Make sure all deferred tasks are completed */
 
@@ -520,7 +521,7 @@ acpi_remove_notify_handler(acpi_handle device,
 			acpi_os_wait_events_complete(NULL);
 			status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
 			if (ACPI_FAILURE(status)) {
-				return_ACPI_STATUS(status);
+				goto exit;
 			}
 
 			/* Remove the handler */
@@ -529,8 +530,11 @@ acpi_remove_notify_handler(acpi_handle device,
 		}
 	}
 
-      unlock_and_exit:
+unlock:
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
+exit:
+	if (ACPI_FAILURE(status))
+		ACPI_EXCEPTION((AE_INFO, status, "Removing notify handler"));
 	return_ACPI_STATUS(status);
 }
 
@@ -568,12 +572,13 @@ acpi_install_gpe_handler(acpi_handle gpe_device,
 	/* Parameter validation */
 
 	if ((!address) || (type > ACPI_GPE_XRUPT_TYPE_MASK)) {
-		return_ACPI_STATUS(AE_BAD_PARAMETER);
+		status = AE_BAD_PARAMETER;
+		goto exit;
 	}
 
 	status = acpi_ut_acquire_mutex(ACPI_MTX_EVENTS);
 	if (ACPI_FAILURE(status)) {
-		return_ACPI_STATUS(status);
+		goto exit;
 	}
 
 	/* Ensure that we have a valid GPE number */
@@ -581,7 +586,7 @@ acpi_install_gpe_handler(acpi_handle gpe_device,
 	gpe_event_info = acpi_ev_get_gpe_event_info(gpe_device, gpe_number);
 	if (!gpe_event_info) {
 		status = AE_BAD_PARAMETER;
-		goto unlock_and_exit;
+		goto unlock;
 	}
 
 	/* Make sure that there isn't a handler there already */
@@ -589,7 +594,7 @@ acpi_install_gpe_handler(acpi_handle gpe_device,
 	if ((gpe_event_info->flags & ACPI_GPE_DISPATCH_MASK) ==
 	    ACPI_GPE_DISPATCH_HANDLER) {
 		status = AE_ALREADY_EXISTS;
-		goto unlock_and_exit;
+		goto unlock;
 	}
 
 	/* Allocate and init handler object */
@@ -597,7 +602,7 @@ acpi_install_gpe_handler(acpi_handle gpe_device,
 	handler = ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_handler_info));
 	if (!handler) {
 		status = AE_NO_MEMORY;
-		goto unlock_and_exit;
+		goto unlock;
 	}
 
 	handler->address = address;
@@ -608,7 +613,7 @@ acpi_install_gpe_handler(acpi_handle gpe_device,
 
 	status = acpi_ev_disable_gpe(gpe_event_info);
 	if (ACPI_FAILURE(status)) {
-		goto unlock_and_exit;
+		goto unlock;
 	}
 
 	/* Install the handler */
@@ -623,8 +628,12 @@ acpi_install_gpe_handler(acpi_handle gpe_device,
 
 	acpi_os_release_lock(acpi_gbl_gpe_lock, flags);
 
-      unlock_and_exit:
+unlock:
 	(void)acpi_ut_release_mutex(ACPI_MTX_EVENTS);
+exit:
+	if (ACPI_FAILURE(status))
+		ACPI_EXCEPTION((AE_INFO, status,
+				"Installing notify handler failed"));
 	return_ACPI_STATUS(status);
 }
 

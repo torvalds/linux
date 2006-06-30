@@ -175,7 +175,7 @@ acpi_ds_load1_begin_op(struct acpi_walk_state * walk_state,
 		if (status == AE_NOT_FOUND) {
 			/*
 			 * Table disassembly:
-			 * Target of Scope() not found.  Generate an External for it, and
+			 * Target of Scope() not found. Generate an External for it, and
 			 * insert the name into the namespace.
 			 */
 			acpi_dm_add_to_external_list(path, ACPI_TYPE_DEVICE, 0);
@@ -210,16 +210,15 @@ acpi_ds_load1_begin_op(struct acpi_walk_state * walk_state,
 		case ACPI_TYPE_BUFFER:
 
 			/*
-			 * These types we will allow, but we will change the type.  This
+			 * These types we will allow, but we will change the type. This
 			 * enables some existing code of the form:
 			 *
 			 *  Name (DEB, 0)
 			 *  Scope (DEB) { ... }
 			 *
-			 * Note: silently change the type here.  On the second pass, we will report
+			 * Note: silently change the type here. On the second pass, we will report
 			 * a warning
 			 */
-
 			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 					  "Type override - [%4.4s] had invalid type (%s) for Scope operator, changed to (Scope)\n",
 					  path,
@@ -242,7 +241,6 @@ acpi_ds_load1_begin_op(struct acpi_walk_state * walk_state,
 		break;
 
 	default:
-
 		/*
 		 * For all other named opcodes, we will enter the name into
 		 * the namespace.
@@ -259,7 +257,6 @@ acpi_ds_load1_begin_op(struct acpi_walk_state * walk_state,
 		 *       buffer_field, or Package), the name of the object is already
 		 *       in the namespace.
 		 */
-
 		if (walk_state->deferred_node) {
 
 			/* This name is already in the namespace, get the node */
@@ -293,8 +290,8 @@ acpi_ds_load1_begin_op(struct acpi_walk_state * walk_state,
 		}
 
 		/*
-		 * Enter the named type into the internal namespace.  We enter the name
-		 * as we go downward in the parse tree.  Any necessary subobjects that
+		 * Enter the named type into the internal namespace. We enter the name
+		 * as we go downward in the parse tree. Any necessary subobjects that
 		 * involve arguments to the opcode must be created as we go back up the
 		 * parse tree later.
 		 */
@@ -327,12 +324,12 @@ acpi_ds_load1_begin_op(struct acpi_walk_state * walk_state,
 							    (status);
 						}
 					}
+
 					status = AE_OK;
 				}
 			}
 
 			if (ACPI_FAILURE(status)) {
-
 				ACPI_ERROR_NAMESPACE(path, status);
 				return_ACPI_STATUS(status);
 			}
@@ -434,9 +431,13 @@ acpi_status acpi_ds_load1_end_op(struct acpi_walk_state *walk_state)
 			status =
 			    acpi_ex_create_region(op->named.data,
 						  op->named.length,
-						  (acpi_adr_space_type)
-						  ((op->common.value.arg)->
-						   common.value.integer),
+						  (acpi_adr_space_type) ((op->
+									  common.
+									  value.
+									  arg)->
+									 common.
+									 value.
+									 integer),
 						  walk_state);
 			if (ACPI_FAILURE(status)) {
 				return_ACPI_STATUS(status);
@@ -474,7 +475,7 @@ acpi_status acpi_ds_load1_end_op(struct acpi_walk_state *walk_state)
 			 * method_op pkg_length name_string method_flags term_list
 			 *
 			 * Note: We must create the method node/object pair as soon as we
-			 * see the method declaration.  This allows later pass1 parsing
+			 * see the method declaration. This allows later pass1 parsing
 			 * of invocations of the method (need to know the number of
 			 * arguments.)
 			 */
@@ -499,6 +500,7 @@ acpi_status acpi_ds_load1_end_op(struct acpi_walk_state *walk_state)
 								  length,
 								  walk_state);
 				}
+
 				walk_state->operands[0] = NULL;
 				walk_state->num_operands = 0;
 
@@ -570,7 +572,6 @@ acpi_ds_load2_begin_op(struct acpi_walk_state *walk_state,
 #ifdef ACPI_ENABLE_MODULE_LEVEL_CODE
 			if ((walk_state->op_info->class == AML_CLASS_EXECUTE) ||
 			    (walk_state->op_info->class == AML_CLASS_CONTROL)) {
-
 				ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
 						  "Begin/EXEC: %s (fl %8.8X)\n",
 						  walk_state->op_info->name,
@@ -602,7 +603,7 @@ acpi_ds_load2_begin_op(struct acpi_walk_state *walk_state,
 		} else {
 			/* Get name from the op */
 
-			buffer_ptr = (char *)&op->named.name;
+			buffer_ptr = ACPI_CAST_PTR(char, &op->named.name);
 		}
 	} else {
 		/* Get the namestring from the raw AML */
@@ -629,7 +630,6 @@ acpi_ds_load2_begin_op(struct acpi_walk_state *walk_state,
 		break;
 
 	case AML_INT_NAMEPATH_OP:
-
 		/*
 		 * The name_path is an object reference to an existing object.
 		 * Don't enter the name into the namespace, but look it up
@@ -642,7 +642,6 @@ acpi_ds_load2_begin_op(struct acpi_walk_state *walk_state,
 		break;
 
 	case AML_SCOPE_OP:
-
 		/*
 		 * The Path is an object reference to an existing object.
 		 * Don't enter the name into the namespace, but look it up
@@ -664,6 +663,7 @@ acpi_ds_load2_begin_op(struct acpi_walk_state *walk_state,
 #endif
 			return_ACPI_STATUS(status);
 		}
+
 		/*
 		 * We must check to make sure that the target is
 		 * one of the opcodes that actually opens a scope
@@ -683,13 +683,12 @@ acpi_ds_load2_begin_op(struct acpi_walk_state *walk_state,
 		case ACPI_TYPE_BUFFER:
 
 			/*
-			 * These types we will allow, but we will change the type.  This
+			 * These types we will allow, but we will change the type. This
 			 * enables some existing code of the form:
 			 *
 			 *  Name (DEB, 0)
 			 *  Scope (DEB) { ... }
 			 */
-
 			ACPI_WARNING((AE_INFO,
 				      "Type override - [%4.4s] had invalid type (%s) for Scope operator, changed to (Scope)",
 				      buffer_ptr,
@@ -729,14 +728,14 @@ acpi_ds_load2_begin_op(struct acpi_walk_state *walk_state,
 				if (ACPI_FAILURE(status)) {
 					return_ACPI_STATUS(status);
 				}
-
 			}
+
 			return_ACPI_STATUS(AE_OK);
 		}
 
 		/*
-		 * Enter the named type into the internal namespace.  We enter the name
-		 * as we go downward in the parse tree.  Any necessary subobjects that
+		 * Enter the named type into the internal namespace. We enter the name
+		 * as we go downward in the parse tree. Any necessary subobjects that
 		 * involve arguments to the opcode must be created as we go back up the
 		 * parse tree later.
 		 *
@@ -787,7 +786,6 @@ acpi_ds_load2_begin_op(struct acpi_walk_state *walk_state,
 	 * can get it again quickly when this scope is closed
 	 */
 	op->common.node = node;
-
 	return_ACPI_STATUS(status);
 }
 
@@ -922,7 +920,6 @@ acpi_status acpi_ds_load2_end_op(struct acpi_walk_state *walk_state)
 #ifndef ACPI_NO_METHOD_EXECUTION
 
 	case AML_TYPE_CREATE_FIELD:
-
 		/*
 		 * Create the field object, but the field buffer and index must
 		 * be evaluated later during the execution phase
@@ -931,7 +928,6 @@ acpi_status acpi_ds_load2_end_op(struct acpi_walk_state *walk_state)
 		break;
 
 	case AML_TYPE_NAMED_FIELD:
-
 		/*
 		 * If we are executing a method, initialize the field
 		 */
@@ -1051,6 +1047,7 @@ acpi_status acpi_ds_load2_end_op(struct acpi_walk_state *walk_state)
 			 * argument is the space_id. (We must save the address of the
 			 * AML of the address and length operands)
 			 */
+
 			/*
 			 * If we have a valid region, initialize it
 			 * Namespace is NOT locked at this point.
@@ -1080,7 +1077,7 @@ acpi_status acpi_ds_load2_end_op(struct acpi_walk_state *walk_state)
 			 * method_op pkg_length name_string method_flags term_list
 			 *
 			 * Note: We must create the method node/object pair as soon as we
-			 * see the method declaration.  This allows later pass1 parsing
+			 * see the method declaration. This allows later pass1 parsing
 			 * of invocations of the method (need to know the number of
 			 * arguments.)
 			 */

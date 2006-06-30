@@ -60,21 +60,19 @@ int acpi_bus_get_device(acpi_handle handle, struct acpi_device **device)
 {
 	acpi_status status = AE_OK;
 
-	ACPI_FUNCTION_TRACE("acpi_bus_get_device");
 
 	if (!device)
-		return_VALUE(-EINVAL);
+		return -EINVAL;
 
 	/* TBD: Support fixed-feature devices */
 
 	status = acpi_get_data(handle, acpi_bus_data_handler, (void **)device);
 	if (ACPI_FAILURE(status) || !*device) {
-		ACPI_DEBUG_PRINT((ACPI_DB_WARN, "No context for object [%p]\n",
-				  handle));
-		return_VALUE(-ENODEV);
+		ACPI_EXCEPTION((AE_INFO, status, "No context for object [%p]", handle));
+		return -ENODEV;
 	}
 
-	return_VALUE(0);
+	return 0;
 }
 
 EXPORT_SYMBOL(acpi_bus_get_device);
@@ -84,10 +82,9 @@ int acpi_bus_get_status(struct acpi_device *device)
 	acpi_status status = AE_OK;
 	unsigned long sta = 0;
 
-	ACPI_FUNCTION_TRACE("acpi_bus_get_status");
 
 	if (!device)
-		return_VALUE(-EINVAL);
+		return -EINVAL;
 
 	/*
 	 * Evaluate _STA if present.
@@ -96,7 +93,7 @@ int acpi_bus_get_status(struct acpi_device *device)
 		status =
 		    acpi_evaluate_integer(device->handle, "_STA", NULL, &sta);
 		if (ACPI_FAILURE(status))
-			return_VALUE(-ENODEV);
+			return -ENODEV;
 		STRUCT_TO_INT(device->status) = (int)sta;
 	}
 
@@ -120,7 +117,7 @@ int acpi_bus_get_status(struct acpi_device *device)
 			  device->pnp.bus_id,
 			  (u32) STRUCT_TO_INT(device->status)));
 
-	return_VALUE(0);
+	return 0;
 }
 
 EXPORT_SYMBOL(acpi_bus_get_status);
@@ -136,11 +133,10 @@ int acpi_bus_get_power(acpi_handle handle, int *state)
 	struct acpi_device *device = NULL;
 	unsigned long psc = 0;
 
-	ACPI_FUNCTION_TRACE("acpi_bus_get_power");
 
 	result = acpi_bus_get_device(handle, &device);
 	if (result)
-		return_VALUE(result);
+		return result;
 
 	*state = ACPI_STATE_UNKNOWN;
 
@@ -159,12 +155,12 @@ int acpi_bus_get_power(acpi_handle handle, int *state)
 			status = acpi_evaluate_integer(device->handle, "_PSC",
 						       NULL, &psc);
 			if (ACPI_FAILURE(status))
-				return_VALUE(-ENODEV);
+				return -ENODEV;
 			device->power.state = (int)psc;
 		} else if (device->power.flags.power_resources) {
 			result = acpi_power_get_inferred_state(device);
 			if (result)
-				return_VALUE(result);
+				return result;
 		}
 
 		*state = device->power.state;
@@ -173,7 +169,7 @@ int acpi_bus_get_power(acpi_handle handle, int *state)
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Device [%s] power state is D%d\n",
 			  device->pnp.bus_id, device->power.state));
 
-	return_VALUE(0);
+	return 0;
 }
 
 EXPORT_SYMBOL(acpi_bus_get_power);
@@ -185,21 +181,20 @@ int acpi_bus_set_power(acpi_handle handle, int state)
 	struct acpi_device *device = NULL;
 	char object_name[5] = { '_', 'P', 'S', '0' + state, '\0' };
 
-	ACPI_FUNCTION_TRACE("acpi_bus_set_power");
 
 	result = acpi_bus_get_device(handle, &device);
 	if (result)
-		return_VALUE(result);
+		return result;
 
 	if ((state < ACPI_STATE_D0) || (state > ACPI_STATE_D3))
-		return_VALUE(-EINVAL);
+		return -EINVAL;
 
 	/* Make sure this is a valid target state */
 
 	if (!device->flags.power_manageable) {
-		ACPI_DEBUG_PRINT((ACPI_DB_WARN,
-				  "Device is not power manageable\n"));
-		return_VALUE(-ENODEV);
+		printk(KERN_DEBUG "Device `[%s]is not power manageable",
+				device->kobj.name);
+		return -ENODEV;
 	}
 	/*
 	 * Get device's current power state if it's unknown
@@ -211,18 +206,18 @@ int acpi_bus_set_power(acpi_handle handle, int state)
 		if (state == device->power.state) {
 			ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Device is already at D%d\n",
 					  state));
-			return_VALUE(0);
+			return 0;
 		}
 	}
 	if (!device->power.states[state].flags.valid) {
-		ACPI_DEBUG_PRINT((ACPI_DB_WARN, "Device does not support D%d\n",
-				  state));
-		return_VALUE(-ENODEV);
+		printk(KERN_WARNING PREFIX "Device does not support D%d\n", state);
+		return -ENODEV;
 	}
 	if (device->parent && (state < device->parent->power.state)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_WARN,
-				  "Cannot set device to a higher-powered state than parent\n"));
-		return_VALUE(-ENODEV);
+		printk(KERN_WARNING PREFIX
+			      "Cannot set device to a higher-powered"
+			      " state than parent\n");
+		return -ENODEV;
 	}
 
 	/*
@@ -264,15 +259,15 @@ int acpi_bus_set_power(acpi_handle handle, int state)
 
       end:
 	if (result)
-		ACPI_DEBUG_PRINT((ACPI_DB_WARN,
-				  "Error transitioning device [%s] to D%d\n",
-				  device->pnp.bus_id, state));
+		printk(KERN_WARNING PREFIX
+			      "Transitioning device [%s] to D%d\n",
+			      device->pnp.bus_id, state);
 	else
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 				  "Device [%s] transitioned to D%d\n",
 				  device->pnp.bus_id, state));
 
-	return_VALUE(result);
+	return result;
 }
 
 EXPORT_SYMBOL(acpi_bus_set_power);
@@ -293,18 +288,17 @@ int acpi_bus_generate_event(struct acpi_device *device, u8 type, int data)
 	struct acpi_bus_event *event = NULL;
 	unsigned long flags = 0;
 
-	ACPI_FUNCTION_TRACE("acpi_bus_generate_event");
 
 	if (!device)
-		return_VALUE(-EINVAL);
+		return -EINVAL;
 
 	/* drop event on the floor if no one's listening */
 	if (!event_is_open)
-		return_VALUE(0);
+		return 0;
 
 	event = kmalloc(sizeof(struct acpi_bus_event), GFP_ATOMIC);
 	if (!event)
-		return_VALUE(-ENOMEM);
+		return -ENOMEM;
 
 	strcpy(event->device_class, device->pnp.device_class);
 	strcpy(event->bus_id, device->pnp.bus_id);
@@ -317,7 +311,7 @@ int acpi_bus_generate_event(struct acpi_device *device, u8 type, int data)
 
 	wake_up_interruptible(&acpi_bus_event_queue);
 
-	return_VALUE(0);
+	return 0;
 }
 
 EXPORT_SYMBOL(acpi_bus_generate_event);
@@ -329,10 +323,9 @@ int acpi_bus_receive_event(struct acpi_bus_event *event)
 
 	DECLARE_WAITQUEUE(wait, current);
 
-	ACPI_FUNCTION_TRACE("acpi_bus_receive_event");
 
 	if (!event)
-		return_VALUE(-EINVAL);
+		return -EINVAL;
 
 	if (list_empty(&acpi_bus_event_list)) {
 
@@ -346,7 +339,7 @@ int acpi_bus_receive_event(struct acpi_bus_event *event)
 		set_current_state(TASK_RUNNING);
 
 		if (signal_pending(current))
-			return_VALUE(-ERESTARTSYS);
+			return -ERESTARTSYS;
 	}
 
 	spin_lock_irqsave(&acpi_bus_event_lock, flags);
@@ -357,13 +350,13 @@ int acpi_bus_receive_event(struct acpi_bus_event *event)
 	spin_unlock_irqrestore(&acpi_bus_event_lock, flags);
 
 	if (!entry)
-		return_VALUE(-ENODEV);
+		return -ENODEV;
 
 	memcpy(event, entry, sizeof(struct acpi_bus_event));
 
 	kfree(entry);
 
-	return_VALUE(0);
+	return 0;
 }
 
 EXPORT_SYMBOL(acpi_bus_receive_event);
@@ -378,10 +371,9 @@ acpi_bus_check_device(struct acpi_device *device, int *status_changed)
 	acpi_status status = 0;
 	struct acpi_device_status old_status;
 
-	ACPI_FUNCTION_TRACE("acpi_bus_check_device");
 
 	if (!device)
-		return_VALUE(-EINVAL);
+		return -EINVAL;
 
 	if (status_changed)
 		*status_changed = 0;
@@ -398,15 +390,15 @@ acpi_bus_check_device(struct acpi_device *device, int *status_changed)
 			if (status_changed)
 				*status_changed = 1;
 		}
-		return_VALUE(0);
+		return 0;
 	}
 
 	status = acpi_bus_get_status(device);
 	if (ACPI_FAILURE(status))
-		return_VALUE(-ENODEV);
+		return -ENODEV;
 
 	if (STRUCT_TO_INT(old_status) == STRUCT_TO_INT(device->status))
-		return_VALUE(0);
+		return 0;
 
 	if (status_changed)
 		*status_changed = 1;
@@ -422,7 +414,7 @@ acpi_bus_check_device(struct acpi_device *device, int *status_changed)
 		/* TBD: Handle device removal */
 	}
 
-	return_VALUE(0);
+	return 0;
 }
 
 static int acpi_bus_check_scope(struct acpi_device *device)
@@ -430,25 +422,24 @@ static int acpi_bus_check_scope(struct acpi_device *device)
 	int result = 0;
 	int status_changed = 0;
 
-	ACPI_FUNCTION_TRACE("acpi_bus_check_scope");
 
 	if (!device)
-		return_VALUE(-EINVAL);
+		return -EINVAL;
 
 	/* Status Change? */
 	result = acpi_bus_check_device(device, &status_changed);
 	if (result)
-		return_VALUE(result);
+		return result;
 
 	if (!status_changed)
-		return_VALUE(0);
+		return 0;
 
 	/*
 	 * TBD: Enumerate child devices within this device's scope and
 	 *       run acpi_bus_check_device()'s on them.
 	 */
 
-	return_VALUE(0);
+	return 0;
 }
 
 /**
@@ -461,10 +452,9 @@ static void acpi_bus_notify(acpi_handle handle, u32 type, void *data)
 	int result = 0;
 	struct acpi_device *device = NULL;
 
-	ACPI_FUNCTION_TRACE("acpi_bus_notify");
 
 	if (acpi_bus_get_device(handle, &device))
-		return_VOID;
+		return;
 
 	switch (type) {
 
@@ -539,7 +529,7 @@ static void acpi_bus_notify(acpi_handle handle, u32 type, void *data)
 		break;
 	}
 
-	return_VOID;
+	return;
 }
 
 /* --------------------------------------------------------------------------
@@ -553,7 +543,6 @@ static int __init acpi_bus_init_irq(void)
 	struct acpi_object_list arg_list = { 1, &arg };
 	char *message = NULL;
 
-	ACPI_FUNCTION_TRACE("acpi_bus_init_irq");
 
 	/* 
 	 * Let the system know what interrupt model we are using by
@@ -572,7 +561,7 @@ static int __init acpi_bus_init_irq(void)
 		break;
 	default:
 		printk(KERN_WARNING PREFIX "Unknown interrupt routing model\n");
-		return_VALUE(-ENODEV);
+		return -ENODEV;
 	}
 
 	printk(KERN_INFO PREFIX "Using %s for interrupt routing\n", message);
@@ -581,11 +570,11 @@ static int __init acpi_bus_init_irq(void)
 
 	status = acpi_evaluate_object(NULL, "\\_PIC", &arg_list, NULL);
 	if (ACPI_FAILURE(status) && (status != AE_NOT_FOUND)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Error evaluating _PIC\n"));
-		return_VALUE(-ENODEV);
+		ACPI_EXCEPTION((AE_INFO, status, "Evaluating _PIC"));
+		return -ENODEV;
 	}
 
-	return_VALUE(0);
+	return 0;
 }
 
 void __init acpi_early_init(void)
@@ -593,10 +582,9 @@ void __init acpi_early_init(void)
 	acpi_status status = AE_OK;
 	struct acpi_buffer buffer = { sizeof(acpi_fadt), &acpi_fadt };
 
-	ACPI_FUNCTION_TRACE("acpi_early_init");
 
 	if (acpi_disabled)
-		return_VOID;
+		return;
 
 	printk(KERN_INFO PREFIX "Core revision %08x\n", ACPI_CA_VERSION);
 
@@ -656,11 +644,11 @@ void __init acpi_early_init(void)
 		goto error0;
 	}
 
-	return_VOID;
+	return;
 
       error0:
 	disable_acpi();
-	return_VOID;
+	return;
 }
 
 static int __init acpi_bus_init(void)
@@ -669,7 +657,6 @@ static int __init acpi_bus_init(void)
 	acpi_status status = AE_OK;
 	extern acpi_status acpi_os_initialize1(void);
 
-	ACPI_FUNCTION_TRACE("acpi_bus_init");
 
 	status = acpi_os_initialize1();
 
@@ -731,12 +718,12 @@ static int __init acpi_bus_init(void)
 	 */
 	acpi_root_dir = proc_mkdir(ACPI_BUS_FILE_ROOT, NULL);
 
-	return_VALUE(0);
+	return 0;
 
 	/* Mimic structured exception handling */
       error1:
 	acpi_terminate();
-	return_VALUE(-ENODEV);
+	return -ENODEV;
 }
 
 decl_subsys(acpi, NULL, NULL);
@@ -745,11 +732,10 @@ static int __init acpi_init(void)
 {
 	int result = 0;
 
-	ACPI_FUNCTION_TRACE("acpi_init");
 
 	if (acpi_disabled) {
 		printk(KERN_INFO PREFIX "Interpreter disabled.\n");
-		return_VALUE(-ENODEV);
+		return -ENODEV;
 	}
 
 	firmware_register(&acpi_subsys);
@@ -770,7 +756,7 @@ static int __init acpi_init(void)
 	} else
 		disable_acpi();
 
-	return_VALUE(result);
+	return result;
 }
 
 subsys_initcall(acpi_init);
