@@ -2,7 +2,7 @@
  *  asus_acpi.c - Asus Laptop ACPI Extras
  *
  *
- *  Copyright (C) 2002, 2003, 2004 Julien Lerouge, Karol Kozimor
+ *  Copyright (C) 2002-2005 Julien Lerouge, 2003-2006 Karol Kozimor
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -27,10 +27,6 @@
  *  Johann Wiesner - Small compile fixes
  *  John Belmonte  - ACPI code for Toshiba laptop was a good starting point.
  *
- *  TODO:
- *  add Fn key status
- *  Add mode selection on module loading (parameter) -> still necessary?
- *  Complete display switching -- may require dirty hacks or calling _DOS?
  */
 
 #include <linux/kernel.h>
@@ -42,7 +38,7 @@
 #include <acpi/acpi_bus.h>
 #include <asm/uaccess.h>
 
-#define ASUS_ACPI_VERSION "0.29"
+#define ASUS_ACPI_VERSION "0.30"
 
 #define PROC_ASUS       "asus"	//the directory
 #define PROC_MLED       "mled"
@@ -149,17 +145,8 @@ struct asus_hotk {
 
 static struct model_data model_conf[END_MODEL] = {
 	/*
-	 * Those pathnames are relative to the HOTK / ATKD device :
-	 *       - mt_mled
-	 *       - mt_wled
-	 *       - brightness_set
-	 *       - brightness_get
-	 *       - display_set
-	 *       - display_get
-	 *
 	 * TODO I have seen a SWBX and AIBX method on some models, like L1400B,
 	 * it seems to be a kind of switch, but what for ?
-	 *
 	 */
 
 	{
@@ -993,7 +980,7 @@ static int asus_hotk_get_info(void)
 	if (buffer.pointer == NULL)
 		return -EINVAL;
 
-	model = (union acpi_object *) buffer.pointer;
+	model = (union acpi_object *)buffer.pointer;
 	/*
 	 * Samsung P30 has a device with a valid _HID whose INIT does not 
 	 * return anything. It used to be possible to catch this exception,
@@ -1002,7 +989,8 @@ static int asus_hotk_get_info(void)
 	 * identifier but it's still possible to get completely bogus data.
 	 */
 	if (model->type == ACPI_TYPE_STRING) {
-		printk(KERN_NOTICE "  %s model detected, ", model->string.pointer);
+		printk(KERN_NOTICE "  %s model detected, ",
+		       model->string.pointer);
 	} else {
 		if (asus_info &&	/* Samsung P30 */
 		    strncmp(asus_info->oem_table_id, "ODEM", 4) == 0) {
@@ -1016,7 +1004,7 @@ static int asus_hotk_get_info(void)
 			       "the developers with your DSDT\n");
 		}
 		hotk->methods = &model_conf[hotk->model];
-		
+
 		kfree(model);
 
 		return AE_OK;
@@ -1164,8 +1152,7 @@ static int asus_hotk_add(struct acpi_device *device)
 	/* For laptops without GPLV: init the hotk->brightness value */
 	if ((!hotk->methods->brightness_get)
 	    && (!hotk->methods->brightness_status)
-	    && (hotk->methods->brightness_up
-		&& hotk->methods->brightness_down)) {
+	    && (hotk->methods->brightness_up && hotk->methods->brightness_down)) {
 		status =
 		    acpi_evaluate_object(NULL, hotk->methods->brightness_down,
 					 NULL, NULL);
