@@ -270,9 +270,8 @@ static int tcp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 	ipv6_addr_copy(&np->saddr, saddr);
 	inet->rcv_saddr = LOOPBACK4_IPV6;
 
+	sk->sk_gso_type = SKB_GSO_TCPV6;
 	ip6_dst_store(sk, dst, NULL);
-	sk->sk_route_caps = dst->dev->features &
-		~(NETIF_F_IP_CSUM | NETIF_F_TSO);
 
 	icsk->icsk_ext_hdr_len = 0;
 	if (np->opt)
@@ -930,9 +929,8 @@ static struct sock * tcp_v6_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 	 * comment in that function for the gory details. -acme
 	 */
 
+	sk->sk_gso_type = SKB_GSO_TCPV6;
 	ip6_dst_store(newsk, dst, NULL);
-	newsk->sk_route_caps = dst->dev->features &
-		~(NETIF_F_IP_CSUM | NETIF_F_TSO);
 
 	newtcp6sk = (struct tcp6_sock *)newsk;
 	inet_sk(newsk)->pinet6 = &newtcp6sk->inet6;

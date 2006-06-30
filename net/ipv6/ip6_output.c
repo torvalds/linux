@@ -230,7 +230,7 @@ int ip6_xmit(struct sock *sk, struct sk_buff *skb, struct flowi *fl,
 	skb->priority = sk->sk_priority;
 
 	mtu = dst_mtu(dst);
-	if ((skb->len <= mtu) || ipfragok) {
+	if ((skb->len <= mtu) || ipfragok || skb_shinfo(skb)->gso_size) {
 		IP6_INC_STATS(IPSTATS_MIB_OUTREQUESTS);
 		return NF_HOOK(PF_INET6, NF_IP6_LOCAL_OUT, skb, NULL, dst->dev,
 				dst_output);
@@ -835,7 +835,7 @@ static inline int ip6_ufo_append_data(struct sock *sk,
 		/* specify the length of each IP datagram fragment*/
 		skb_shinfo(skb)->gso_size = mtu - fragheaderlen - 
 					    sizeof(struct frag_hdr);
-		skb_shinfo(skb)->gso_type = SKB_GSO_UDPV4;
+		skb_shinfo(skb)->gso_type = SKB_GSO_UDP;
 		ipv6_select_ident(skb, &fhdr);
 		skb_shinfo(skb)->ip6_frag_id = fhdr.identification;
 		__skb_queue_tail(&sk->sk_write_queue, skb);

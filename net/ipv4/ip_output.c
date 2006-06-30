@@ -744,7 +744,7 @@ static inline int ip_ufo_append_data(struct sock *sk,
 	if (!err) {
 		/* specify the length of each IP datagram fragment*/
 		skb_shinfo(skb)->gso_size = mtu - fragheaderlen;
-		skb_shinfo(skb)->gso_type = SKB_GSO_UDPV4;
+		skb_shinfo(skb)->gso_type = SKB_GSO_UDP;
 		__skb_queue_tail(&sk->sk_write_queue, skb);
 
 		return 0;
@@ -1089,7 +1089,7 @@ ssize_t	ip_append_page(struct sock *sk, struct page *page,
 	if ((sk->sk_protocol == IPPROTO_UDP) &&
 	    (rt->u.dst.dev->features & NETIF_F_UFO)) {
 		skb_shinfo(skb)->gso_size = mtu - fragheaderlen;
-		skb_shinfo(skb)->gso_type = SKB_GSO_UDPV4;
+		skb_shinfo(skb)->gso_type = SKB_GSO_UDP;
 	}
 
 
