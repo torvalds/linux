@@ -570,7 +570,8 @@ static int dvb_frontend_thread(void *data)
 					dvb_frontend_add_event(fe, s);
 					fepriv->status = s;
 				}
-			}
+			} else
+				dvb_frontend_swzigzag(fe);
 		} else
 			dvb_frontend_swzigzag(fe);
 	}
