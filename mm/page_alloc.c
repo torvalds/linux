@@ -1315,7 +1315,7 @@ void show_free_areas(void)
 		active,
 		inactive,
 		global_page_state(NR_FILE_DIRTY),
-		ps.nr_writeback,
+		global_page_state(NR_WRITEBACK),
 		ps.nr_unstable,
 		nr_free_pages(),
 		global_page_state(NR_SLAB),
