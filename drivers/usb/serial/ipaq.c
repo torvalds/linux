@@ -651,11 +651,6 @@ static int ipaq_open(struct usb_serial_port *port, struct file *filp)
 		      usb_rcvbulkpipe(serial->dev, port->bulk_in_endpointAddress),
 		      port->read_urb->transfer_buffer, port->read_urb->transfer_buffer_length,
 		      ipaq_read_bulk_callback, port);
-	result = usb_submit_urb(port->read_urb, GFP_KERNEL);
-	if (result) {
-		err("%s - failed submitting read urb, error %d", __FUNCTION__, result);
-		goto error;
-	}
 
 	/*
 	 * Send out control message observed in win98 sniffs. Not sure what
@@ -670,6 +665,11 @@ static int ipaq_open(struct usb_serial_port *port, struct file *filp)
 				usb_sndctrlpipe(serial->dev, 0), 0x22, 0x21,
 				0x1, 0, NULL, 0, 100);
 		if (result == 0) {
+			result = usb_submit_urb(port->read_urb, GFP_KERNEL);
+			if (result) {
+				err("%s - failed submitting read urb, error %d", __FUNCTION__, result);
+				goto error;
+			}
 			return 0;
 		}
 	}
@@ -854,6 +854,7 @@ static void ipaq_write_bulk_callback(struct urb *urb, struct pt_regs *regs)
 	
 	if (urb->status) {
 		dbg("%s - nonzero write bulk status received: %d", __FUNCTION__, urb->status);
+		return;
 	}
 
 	spin_lock_irqsave(&write_list_lock, flags);
