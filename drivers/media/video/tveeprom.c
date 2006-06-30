@@ -219,7 +219,7 @@ hauppauge_tuner[] =
 	{ TUNER_ABSENT,        "Thompson DTT75105"},
 	{ TUNER_ABSENT,        "Conexant_CX24109"},
 	{ TUNER_TCL_2002N,     "TCL M2523_5N_E"},
-	{ TUNER_ABSENT,        "TCL M2523_3DB_E"},
+	{ TUNER_TCL_2002MB,    "TCL M2523_3DB_E"},
 	{ TUNER_ABSENT,        "Philips 8275A"},
 	{ TUNER_ABSENT,        "Microtune MT2060"},
 	{ TUNER_ABSENT,        "Philips FM1236 MK5"},
