@@ -30,6 +30,7 @@
 
 static unsigned int debug_nodma = 0;
 static unsigned int debug_forcedma = 0;
+static unsigned int debug_quirks = 0;
 
 static const struct pci_device_id pci_ids[] __devinitdata = {
 	/* handle any SD host controller */
@@ -1373,6 +1374,10 @@ static int __devinit sdhci_probe(struct pci_dev *pdev,
 	}
 
 	chip->pdev = pdev;
+	chip->quirks = ent->driver_data;
+
+	if (debug_quirks)
+		chip->quirks = debug_quirks;
 
 	chip->num_slots = slots;
 	pci_set_drvdata(pdev, chip);
@@ -1453,6 +1458,7 @@ module_exit(sdhci_drv_exit);
 
 module_param(debug_nodma, uint, 0444);
 module_param(debug_forcedma, uint, 0444);
+module_param(debug_quirks, uint, 0444);
 
 MODULE_AUTHOR("Pierre Ossman <drzeus@drzeus.cx>");
 MODULE_DESCRIPTION("Secure Digital Host Controller Interface driver");
@@ -1461,3 +1467,4 @@ MODULE_LICENSE("GPL");
 
 MODULE_PARM_DESC(debug_nodma, "Forcefully disable DMA transfers. (default 0)");
 MODULE_PARM_DESC(debug_forcedma, "Forcefully enable DMA transfers. (default 0)");
+MODULE_PARM_DESC(debug_quirks, "Force certain quirks.");

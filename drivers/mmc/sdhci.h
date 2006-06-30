@@ -204,6 +204,8 @@ struct sdhci_host {
 struct sdhci_chip {
 	struct pci_dev		*pdev;
 
+	unsigned long		quirks;
+
 	int			num_slots;	/* Slots on controller */
 	struct sdhci_host	*hosts[0];	/* Pointers to hosts */
 };
