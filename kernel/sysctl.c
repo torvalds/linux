@@ -933,15 +933,6 @@ static ctl_table vm_table[] = {
 		.strategy	= &sysctl_intvec,
 		.extra1		= &zero,
 	},
-	{
-		.ctl_name	= VM_ZONE_RECLAIM_INTERVAL,
-		.procname	= "zone_reclaim_interval",
-		.data		= &zone_reclaim_interval,
-		.maxlen		= sizeof(zone_reclaim_interval),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_jiffies,
-		.strategy	= &sysctl_jiffies,
-	},
 #endif
 #ifdef CONFIG_X86_32
 	{

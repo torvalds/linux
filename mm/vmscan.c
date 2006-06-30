@@ -1518,11 +1518,6 @@ int zone_reclaim_mode __read_mostly;
 #define RECLAIM_SLAB (1<<3)	/* Do a global slab shrink if the zone is out of memory */
 
 /*
- * Mininum time between zone reclaim scans
- */
-int zone_reclaim_interval __read_mostly = 30*HZ;
-
-/*
  * Priority for ZONE_RECLAIM. This determines the fraction of pages
  * of a node considered for each zone_reclaim. 4 scans 1/16th of
  * a zone.
@@ -1587,16 +1582,6 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
 
 	p->reclaim_state = NULL;
 	current->flags &= ~(PF_MEMALLOC | PF_SWAPWRITE);
-
-	if (nr_reclaimed == 0) {
-		/*
-		 * We were unable to reclaim enough pages to stay on node.  We
-		 * now allow off node accesses for a certain time period before
-		 * trying again to reclaim pages from the local zone.
-		 */
-		zone->last_unsuccessful_zone_reclaim = jiffies;
-	}
-
 	return nr_reclaimed >= nr_pages;
 }
 
@@ -1606,13 +1591,17 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
 	int node_id;
 
 	/*
-	 * Do not reclaim if there was a recent unsuccessful attempt at zone
-	 * reclaim.  In that case we let allocations go off node for the
-	 * zone_reclaim_interval.  Otherwise we would scan for each off-node
-	 * page allocation.
+	 * Do not reclaim if there are not enough reclaimable pages in this
+	 * zone that would satify this allocations.
+	 *
+	 * All unmapped pagecache pages are reclaimable.
+	 *
+	 * Both counters may be temporarily off a bit so we use
+	 * SWAP_CLUSTER_MAX as the boundary. It may also be good to
+	 * leave a few frequently used unmapped pagecache pages around.
 	 */
-	if (time_before(jiffies,
-		zone->last_unsuccessful_zone_reclaim + zone_reclaim_interval))
+	if (zone_page_state(zone, NR_FILE_PAGES) -
+		zone_page_state(zone, NR_FILE_MAPPED) < SWAP_CLUSTER_MAX)
 			return 0;
 
 	/*
