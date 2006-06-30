@@ -387,7 +387,10 @@ static int com20020_resume(struct pcmcia_device *link)
 }
 
 static struct pcmcia_device_id com20020_ids[] = {
-	PCMCIA_DEVICE_PROD_ID12("Contemporary Control Systems, Inc.", "PCM20 Arcnet Adapter", 0x59991666, 0x95dfffaf),
+	PCMCIA_DEVICE_PROD_ID12("Contemporary Control Systems, Inc.",
+			"PCM20 Arcnet Adapter", 0x59991666, 0x95dfffaf),
+	PCMCIA_DEVICE_PROD_ID12("SoHard AG",
+			"SH ARC PCMCIA", 0xf8991729, 0x69dff0c7),
 	PCMCIA_DEVICE_NULL
 };
 MODULE_DEVICE_TABLE(pcmcia, com20020_ids);

@@ -287,7 +287,10 @@ static int yenta_set_socket(struct pcmcia_socket *sock, socket_state_t *state)
 	struct yenta_socket *socket = container_of(sock, struct yenta_socket, socket);
 	u16 bridge;
 
-	yenta_set_power(socket, state);
+	/* if powering down: do it immediately */
+	if (state->Vcc == 0)
+		yenta_set_power(socket, state);
+
 	socket->io_irq = state->io_irq;
 	bridge = config_readw(socket, CB_BRIDGE_CONTROL) & ~(CB_BRIDGE_CRST | CB_BRIDGE_INTR);
 	if (cb_readl(socket, CB_SOCKET_STATE) & CB_CBCARD) {
@@ -339,6 +342,10 @@ static int yenta_set_socket(struct pcmcia_socket *sock, socket_state_t *state)
 	/* Socket event mask: get card insert/remove events.. */
 	cb_writel(socket, CB_SOCKET_EVENT, -1);
 	cb_writel(socket, CB_SOCKET_MASK, CB_CDMASK);
+
+	/* if powering up: do it as the last step when the socket is configured */
+	if (state->Vcc != 0)
+		yenta_set_power(socket, state);
 	return 0;
 }
 
@@ -998,6 +1005,77 @@ static void yenta_config_init(struct yenta_socket *socket)
 	config_writew(socket, CB_BRIDGE_CONTROL, bridge);
 }
 
+/**
+ * yenta_fixup_parent_bridge - Fix subordinate bus# of the parent bridge
+ * @cardbus_bridge: The PCI bus which the CardBus bridge bridges to
+ *
+ * Checks if devices on the bus which the CardBus bridge bridges to would be
+ * invisible during PCI scans because of a misconfigured subordinate number
+ * of the parent brige - some BIOSes seem to be too lazy to set it right.
+ * Does the fixup carefully by checking how far it can go without conflicts.
+ * See http://bugzilla.kernel.org/show_bug.cgi?id=2944 for more information.
+ */
+static void yenta_fixup_parent_bridge(struct pci_bus *cardbus_bridge)
+{
+	struct list_head *tmp;
+	unsigned char upper_limit;
+ 	/*
+	 * We only check and fix the parent bridge: All systems which need
+	 * this fixup that have been reviewed are laptops and the only bridge
+	 * which needed fixing was the parent bridge of the CardBus bridge:
+	 */
+	struct pci_bus *bridge_to_fix = cardbus_bridge->parent;
+
+	/* Check bus numbers are already set up correctly: */
+	if (bridge_to_fix->subordinate >= cardbus_bridge->subordinate)
+		return; /* The subordinate number is ok, nothing to do */
+
+	if (!bridge_to_fix->parent)
+		return; /* Root bridges are ok */
+
+	/* stay within the limits of the bus range of the parent: */
+	upper_limit = bridge_to_fix->parent->subordinate;
+
+	/* check the bus ranges of all silbling bridges to prevent overlap */
+	list_for_each(tmp, &bridge_to_fix->parent->children) {
+		struct pci_bus * silbling = pci_bus_b(tmp);
+		/*
+		 * If the silbling has a higher secondary bus number
+		 * and it's secondary is equal or smaller than our
+		 * current upper limit, set the new upper limit to
+		 * the bus number below the silbling's range:
+		 */
+		if (silbling->secondary > bridge_to_fix->subordinate
+		    && silbling->secondary <= upper_limit)
+			upper_limit = silbling->secondary - 1;
+	}
+
+	/* Show that the wanted subordinate number is not possible: */
+	if (cardbus_bridge->subordinate > upper_limit)
+		printk(KERN_WARNING "Yenta: Upper limit for fixing this "
+			"bridge's parent bridge: #%02x\n", upper_limit);
+
+	/* If we have room to increase the bridge's subordinate number, */
+	if (bridge_to_fix->subordinate < upper_limit) {
+
+		/* use the highest number of the hidden bus, within limits */
+		unsigned char subordinate_to_assign =
+			min(cardbus_bridge->subordinate, upper_limit);
+
+		printk(KERN_INFO "Yenta: Raising subordinate bus# of parent "
+			"bus (#%02x) from #%02x to #%02x\n",
+			bridge_to_fix->number,
+			bridge_to_fix->subordinate, subordinate_to_assign);
+
+		/* Save the new subordinate in the bus struct of the bridge */
+		bridge_to_fix->subordinate = subordinate_to_assign;
+
+		/* and update the PCI config space with the new subordinate */
+		pci_write_config_byte(bridge_to_fix->self,
+			PCI_SUBORDINATE_BUS, bridge_to_fix->subordinate);
+	}
+}
+
 /*
  * Initialize a cardbus controller. Make sure we have a usable
  * interrupt, and that we can map the cardbus area. Fill in the
@@ -1112,6 +1190,8 @@ static int __devinit yenta_probe (struct pci_dev *dev, const struct pci_device_i
 	yenta_interrogate(socket);
 	yenta_get_socket_capabilities(socket, isa_interrupts);
 	printk(KERN_INFO "Socket status: %08x\n", cb_readl(socket, CB_SOCKET_STATE));
+
+	yenta_fixup_parent_bridge(dev->subordinate);
 
 	/* Register it with the pcmcia layer.. */
 	ret = pcmcia_register_socket(&socket->socket);
@@ -1232,6 +1312,7 @@ static struct pci_device_id yenta_table [] = {
 
 	CB_ID(PCI_VENDOR_ID_TI, PCI_DEVICE_ID_TI_XX21_XX11, TI12XX),
 	CB_ID(PCI_VENDOR_ID_TI, PCI_DEVICE_ID_TI_X515, TI12XX),
+	CB_ID(PCI_VENDOR_ID_TI, PCI_DEVICE_ID_TI_XX12, TI12XX),
 	CB_ID(PCI_VENDOR_ID_TI, PCI_DEVICE_ID_TI_X420, TI12XX),
 	CB_ID(PCI_VENDOR_ID_TI, PCI_DEVICE_ID_TI_X620, TI12XX),
 	CB_ID(PCI_VENDOR_ID_TI, PCI_DEVICE_ID_TI_7410, TI12XX),
