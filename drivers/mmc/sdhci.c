@@ -33,6 +33,7 @@ static unsigned int debug_forcedma = 0;
 static unsigned int debug_quirks = 0;
 
 #define SDHCI_QUIRK_CLOCK_BEFORE_RESET			(1<<0)
+#define SDHCI_QUIRK_FORCE_DMA				(1<<1)
 
 static const struct pci_device_id pci_ids[] __devinitdata = {
 	{
@@ -40,7 +41,24 @@ static const struct pci_device_id pci_ids[] __devinitdata = {
 		.device		= PCI_DEVICE_ID_RICOH_R5C822,
 		.subvendor	= PCI_VENDOR_ID_IBM,
 		.subdevice	= PCI_ANY_ID,
-		.driver_data	= SDHCI_QUIRK_CLOCK_BEFORE_RESET,
+		.driver_data	= SDHCI_QUIRK_CLOCK_BEFORE_RESET |
+				  SDHCI_QUIRK_FORCE_DMA,
+	},
+
+	{
+		.vendor		= PCI_VENDOR_ID_RICOH,
+		.device		= PCI_DEVICE_ID_RICOH_R5C822,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= SDHCI_QUIRK_FORCE_DMA,
+	},
+
+	{
+		.vendor		= PCI_VENDOR_ID_TI,
+		.device		= PCI_DEVICE_ID_TI_XX21_XX11_SD,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= SDHCI_QUIRK_FORCE_DMA,
 	},
 
 	{	/* Generic SD host controller */
@@ -1190,7 +1208,9 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 	else if (debug_forcedma) {
 		DBG("DMA forced on\n");
 		host->flags |= SDHCI_USE_DMA;
-	} else if ((pdev->class & 0x0000FF) != PCI_SDHCI_IFDMA)
+	} else if (chip->quirks & SDHCI_QUIRK_FORCE_DMA)
+		host->flags |= SDHCI_USE_DMA;
+	else if ((pdev->class & 0x0000FF) != PCI_SDHCI_IFDMA)
 		DBG("Controller doesn't have DMA interface\n");
 	else if (!(caps & SDHCI_CAN_DO_DMA))
 		DBG("Controller doesn't have DMA capability\n");
