@@ -466,7 +466,7 @@ static acpi_status is_memory_device(acpi_handle handle)
 
 	info = buffer.pointer;
 	if (!(info->valid & ACPI_VALID_HID)) {
-		acpi_os_free(buffer.pointer);
+		kfree(buffer.pointer);
 		return AE_ERROR;
 	}
 
@@ -475,7 +475,7 @@ static acpi_status is_memory_device(acpi_handle handle)
 	    (strcmp(hardware_id, ACPI_MEMORY_DEVICE_HID)))
 		status = AE_ERROR;
 
-	acpi_os_free(buffer.pointer);
+	kfree(buffer.pointer);
 	return status;
 }
 

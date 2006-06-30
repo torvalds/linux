@@ -216,7 +216,7 @@ static int acpi_processor_get_performance_control(struct acpi_processor *pr)
 	       sizeof(struct acpi_pct_register));
 
       end:
-	acpi_os_free(buffer.pointer);
+	kfree(buffer.pointer);
 
 	return result;
 }
@@ -294,7 +294,7 @@ static int acpi_processor_get_performance_states(struct acpi_processor *pr)
 	}
 
       end:
-	acpi_os_free(buffer.pointer);
+	kfree(buffer.pointer);
 
 	return result;
 }
@@ -592,7 +592,7 @@ static int acpi_processor_get_psd(struct acpi_processor	*pr)
 	}
 
 end:
-	acpi_os_free(buffer.pointer);
+	kfree(buffer.pointer);
 	return result;
 }
 

@@ -1450,7 +1450,7 @@ static int acpi_video_device_enumerate(struct acpi_video_bus *video)
 	video->attached_array = active_device_list;
 	video->attached_count = count;
       out:
-	acpi_os_free(buffer.pointer);
+	kfree(buffer.pointer);
 	return status;
 }
 

@@ -1017,7 +1017,7 @@ static int asus_hotk_get_info(void)
 		}
 		hotk->methods = &model_conf[hotk->model];
 		
-		acpi_os_free(model);
+		kfree(model);
 
 		return AE_OK;
 	}
@@ -1096,7 +1096,7 @@ static int asus_hotk_get_info(void)
 		/* S1300A reports L84F, but L1400B too, account for that */
 	}
 
-	acpi_os_free(model);
+	kfree(model);
 
 	return AE_OK;
 }
@@ -1256,7 +1256,7 @@ static void __exit asus_acpi_exit(void)
 	acpi_bus_unregister_driver(&asus_hotk_driver);
 	remove_proc_entry(PROC_ASUS, acpi_root_dir);
 
-	acpi_os_free(asus_info);
+	kfree(asus_info);
 
 	return;
 }

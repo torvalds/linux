@@ -857,7 +857,7 @@ int acpi_map_lsapic(acpi_handle handle, int *pcpu)
 	obj = buffer.pointer;
 	if (obj->type != ACPI_TYPE_BUFFER ||
 	    obj->buffer.length < sizeof(*lsapic)) {
-		acpi_os_free(buffer.pointer);
+		kfree(buffer.pointer);
 		return -EINVAL;
 	}
 
@@ -865,13 +865,13 @@ int acpi_map_lsapic(acpi_handle handle, int *pcpu)
 
 	if ((lsapic->header.type != ACPI_MADT_LSAPIC) ||
 	    (!lsapic->flags.enabled)) {
-		acpi_os_free(buffer.pointer);
+		kfree(buffer.pointer);
 		return -EINVAL;
 	}
 
 	physid = ((lsapic->id << 8) | (lsapic->eid));
 
-	acpi_os_free(buffer.pointer);
+	kfree(buffer.pointer);
 	buffer.length = ACPI_ALLOCATE_BUFFER;
 	buffer.pointer = NULL;
 
@@ -935,20 +935,20 @@ acpi_map_iosapic(acpi_handle handle, u32 depth, void *context, void **ret)
 	obj = buffer.pointer;
 	if (obj->type != ACPI_TYPE_BUFFER ||
 	    obj->buffer.length < sizeof(*iosapic)) {
-		acpi_os_free(buffer.pointer);
+		kfree(buffer.pointer);
 		return AE_OK;
 	}
 
 	iosapic = (struct acpi_table_iosapic *)obj->buffer.pointer;
 
 	if (iosapic->header.type != ACPI_MADT_IOSAPIC) {
-		acpi_os_free(buffer.pointer);
+		kfree(buffer.pointer);
 		return AE_OK;
 	}
 
 	gsi_base = iosapic->global_irq_base;
 
-	acpi_os_free(buffer.pointer);
+	kfree(buffer.pointer);
 
 	/*
 	 * OK, it's an IOSAPIC MADT entry, look for a _PXM value to tell

@@ -51,7 +51,7 @@ static acpi_status hp_ccsr_locate(acpi_handle obj, u64 *base, u64 *length)
 	memcpy(length, vendor->byte_data + 8, sizeof(*length));
 
   exit:
-	acpi_os_free(buffer.pointer);
+	kfree(buffer.pointer);
 	return status;
 }
 
