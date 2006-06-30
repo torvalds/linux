@@ -1963,7 +1963,7 @@ ssize_t ib_uverbs_create_srq(struct ib_uverbs_file *file,
 	if (!obj)
 		return -ENOMEM;
 
-	init_uobj(&obj->uobject, 0, file->ucontext);
+	init_uobj(&obj->uobject, cmd.user_handle, file->ucontext);
 	down_write(&obj->uobject.mutex);
 
 	pd  = idr_read_pd(cmd.pd_handle, file->ucontext);
