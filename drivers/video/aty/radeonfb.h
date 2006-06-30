@@ -382,7 +382,7 @@ struct radeonfb_info {
 /* Note about this function: we have some rare cases where we must not schedule,
  * this typically happen with our special "wake up early" hook which allows us to
  * wake up the graphic chip (and thus get the console back) before everything else
- * on some machines that support that mecanism. At this point, interrupts are off
+ * on some machines that support that mechanism. At this point, interrupts are off
  * and scheduling is not permitted
  */
 static inline void _radeon_msleep(struct radeonfb_info *rinfo, unsigned long ms)

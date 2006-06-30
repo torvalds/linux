@@ -68,7 +68,7 @@ static unsigned int cur_freq;
 static unsigned int sleep_freq;
 
 /*
- * Different models uses different mecanisms to switch the frequency
+ * Different models uses different mechanisms to switch the frequency
  */
 static int (*set_speed_proc)(int low_speed);
 static unsigned int (*get_speed_proc)(void);

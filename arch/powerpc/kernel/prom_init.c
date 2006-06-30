@@ -988,7 +988,7 @@ static void reserve_mem(u64 base, u64 size)
 }
 
 /*
- * Initialize memory allocation mecanism, parse "memory" nodes and
+ * Initialize memory allocation mechanism, parse "memory" nodes and
  * obtain that way the top of memory and RMO to setup out local allocator
  */
 static void __init prom_init_mem(void)
