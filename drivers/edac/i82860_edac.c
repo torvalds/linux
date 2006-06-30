@@ -133,15 +133,50 @@ static void i82860_check(struct mem_ctl_info *mci)
 	i82860_process_error_info(mci, &info, 1);
 }
 
+static void i82860_init_csrows(struct mem_ctl_info *mci, struct pci_dev *pdev)
+{
+	unsigned long last_cumul_size;
+	u16 mchcfg_ddim;  /* DRAM Data Integrity Mode 0=none, 2=edac */
+	u16 value;
+	u32 cumul_size;
+	struct csrow_info *csrow;
+	int index;
+
+	pci_read_config_word(pdev, I82860_MCHCFG, &mchcfg_ddim);
+	mchcfg_ddim = mchcfg_ddim & 0x180;
+	last_cumul_size = 0;
+
+	/* The group row boundary (GRA) reg values are boundary address
+	 * for each DRAM row with a granularity of 16MB.  GRA regs are
+	 * cumulative; therefore GRA15 will contain the total memory contained
+	 * in all eight rows.
+	 */
+	for (index = 0; index < mci->nr_csrows; index++) {
+		csrow = &mci->csrows[index];
+		pci_read_config_word(pdev, I82860_GBA + index * 2, &value);
+		cumul_size = (value & I82860_GBA_MASK) <<
+		    (I82860_GBA_SHIFT - PAGE_SHIFT);
+		debugf3("%s(): (%d) cumul_size 0x%x\n", __func__, index,
+			cumul_size);
+
+		if (cumul_size == last_cumul_size)
+			continue;	/* not populated */
+
+		csrow->first_page = last_cumul_size;
+		csrow->last_page = cumul_size - 1;
+		csrow->nr_pages = cumul_size - last_cumul_size;
+		last_cumul_size = cumul_size;
+		csrow->grain = 1 << 12;	/* I82860_EAP has 4KiB reolution */
+		csrow->mtype = MEM_RMBS;
+		csrow->dtype = DEV_UNKNOWN;
+		csrow->edac_mode = mchcfg_ddim ? EDAC_SECDED : EDAC_NONE;
+	}
+}
+
 static int i82860_probe1(struct pci_dev *pdev, int dev_idx)
 {
-	int rc = -ENODEV;
-	int index;
-	struct mem_ctl_info *mci = NULL;
-	unsigned long last_cumul_size;
+	struct mem_ctl_info *mci;
 	struct i82860_error_info discard;
-
-	u16 mchcfg_ddim;	/* DRAM Data Integrity Mode 0=none,2=edac */
 
 	/* RDRAM has channels but these don't map onto the abstractions that
 	   edac uses.
@@ -159,53 +194,15 @@ static int i82860_probe1(struct pci_dev *pdev, int dev_idx)
 	debugf3("%s(): init mci\n", __func__);
 	mci->dev = &pdev->dev;
 	mci->mtype_cap = MEM_FLAG_DDR;
-
 	mci->edac_ctl_cap = EDAC_FLAG_NONE | EDAC_FLAG_SECDED;
 	/* I"m not sure about this but I think that all RDRAM is SECDED */
 	mci->edac_cap = EDAC_FLAG_SECDED;
-	/* adjust FLAGS */
-
 	mci->mod_name = EDAC_MOD_STR;
 	mci->mod_ver = I82860_REVISION;
 	mci->ctl_name = i82860_devs[dev_idx].ctl_name;
 	mci->edac_check = i82860_check;
 	mci->ctl_page_to_phys = NULL;
-
-	pci_read_config_word(pdev, I82860_MCHCFG, &mchcfg_ddim);
-	mchcfg_ddim = mchcfg_ddim & 0x180;
-
-	/*
-	 * The group row boundary (GRA) reg values are boundary address
-	 * for each DRAM row with a granularity of 16MB.  GRA regs are
-	 * cumulative; therefore GRA15 will contain the total memory contained
-	 * in all eight rows.
-	 */
-	for (last_cumul_size = index = 0; index < mci->nr_csrows; index++) {
-		u16 value;
-		u32 cumul_size;
-		struct csrow_info *csrow = &mci->csrows[index];
-
-		pci_read_config_word(pdev, I82860_GBA + index * 2,
-				&value);
-
-		cumul_size = (value & I82860_GBA_MASK) <<
-		    (I82860_GBA_SHIFT - PAGE_SHIFT);
-		debugf3("%s(): (%d) cumul_size 0x%x\n", __func__, index,
-			cumul_size);
-
-		if (cumul_size == last_cumul_size)
-			continue;	/* not populated */
-
-		csrow->first_page = last_cumul_size;
-		csrow->last_page = cumul_size - 1;
-		csrow->nr_pages = cumul_size - last_cumul_size;
-		last_cumul_size = cumul_size;
-		csrow->grain = 1 << 12;  /* I82860_EAP has 4KiB reolution */
-		csrow->mtype = MEM_RMBS;
-		csrow->dtype = DEV_UNKNOWN;
-		csrow->edac_mode = mchcfg_ddim ? EDAC_SECDED : EDAC_NONE;
-	}
-
+	i82860_init_csrows(mci, pdev);
 	i82860_get_error_info(mci, &discard);  /* clear counters */
 
 	/* Here we assume that we will never see multiple instances of this
@@ -213,14 +210,17 @@ static int i82860_probe1(struct pci_dev *pdev, int dev_idx)
 	 */
 	if (edac_mc_add_mc(mci,0)) {
 		debugf3("%s(): failed edac_mc_add_mc()\n", __func__);
-		edac_mc_free(mci);
-	} else {
-		/* get this far and it's successful */
-		debugf3("%s(): success\n", __func__);
-		rc = 0;
+		goto fail;
 	}
 
-	return rc;
+	/* get this far and it's successful */
+	debugf3("%s(): success\n", __func__);
+
+	return 0;
+
+fail:
+	edac_mc_free(mci);
+	return -ENODEV;
 }
 
 /* returns count (>= 0), or negative on error */

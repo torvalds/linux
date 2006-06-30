@@ -265,81 +265,147 @@ static void i82875p_check(struct mem_ctl_info *mci)
 extern int pci_proc_attach_device(struct pci_dev *);
 #endif
 
-static int i82875p_probe1(struct pci_dev *pdev, int dev_idx)
+/* Return 0 on success or 1 on failure. */
+static int i82875p_setup_overfl_dev(struct pci_dev *pdev,
+		struct pci_dev **ovrfl_pdev, void __iomem **ovrfl_window)
 {
-	int rc = -ENODEV;
-	int index;
-	struct mem_ctl_info *mci = NULL;
-	struct i82875p_pvt *pvt = NULL;
-	unsigned long last_cumul_size;
-	struct pci_dev *ovrfl_pdev;
-	void __iomem *ovrfl_window = NULL;
-	u32 drc;
-	u32 drc_chan;		/* Number of channels 0=1chan,1=2chan */
-	u32 nr_chans;
-	u32 drc_ddim;		/* DRAM Data Integrity Mode 0=none,2=edac */
-	struct i82875p_error_info discard;
+	struct pci_dev *dev;
+	void __iomem *window;
 
-	debugf0("%s()\n", __func__);
-	ovrfl_pdev = pci_get_device(PCI_VEND_DEV(INTEL, 82875_6), NULL);
+	*ovrfl_pdev = NULL;
+	*ovrfl_window = NULL;
+	dev = pci_get_device(PCI_VEND_DEV(INTEL, 82875_6), NULL);
 
-	if (!ovrfl_pdev) {
-		/*
-		 * Intel tells BIOS developers to hide device 6 which
+	if (dev == NULL) {
+		/* Intel tells BIOS developers to hide device 6 which
 		 * configures the overflow device access containing
 		 * the DRBs - this is where we expose device 6.
 		 * http://www.x86-secret.com/articles/tweak/pat/patsecrets-2.htm
 		 */
 		pci_write_bits8(pdev, 0xf4, 0x2, 0x2);
-		ovrfl_pdev =
-			pci_scan_single_device(pdev->bus, PCI_DEVFN(6, 0));
+		dev = pci_scan_single_device(pdev->bus, PCI_DEVFN(6, 0));
 
-		if (!ovrfl_pdev)
-			return -ENODEV;
+		if (dev == NULL)
+			return 1;
 	}
+
+	*ovrfl_pdev = dev;
 
 #ifdef CONFIG_PROC_FS
-	if (!ovrfl_pdev->procent && pci_proc_attach_device(ovrfl_pdev)) {
-		i82875p_printk(KERN_ERR,
-			"%s(): Failed to attach overflow device\n", __func__);
-		return -ENODEV;
+	if ((dev->procent == NULL) && pci_proc_attach_device(dev)) {
+		i82875p_printk(KERN_ERR, "%s(): Failed to attach overflow "
+			       "device\n", __func__);
+		return 1;
 	}
-#endif
-				/* CONFIG_PROC_FS */
-	if (pci_enable_device(ovrfl_pdev)) {
-		i82875p_printk(KERN_ERR,
-			"%s(): Failed to enable overflow device\n", __func__);
-		return -ENODEV;
+#endif  /* CONFIG_PROC_FS */
+	if (pci_enable_device(dev)) {
+		i82875p_printk(KERN_ERR, "%s(): Failed to enable overflow "
+			       "device\n", __func__);
+		return 1;
 	}
 
-	if (pci_request_regions(ovrfl_pdev, pci_name(ovrfl_pdev))) {
+	if (pci_request_regions(dev, pci_name(dev))) {
 #ifdef CORRECT_BIOS
 		goto fail0;
 #endif
 	}
 
 	/* cache is irrelevant for PCI bus reads/writes */
-	ovrfl_window = ioremap_nocache(pci_resource_start(ovrfl_pdev, 0),
-				pci_resource_len(ovrfl_pdev, 0));
+	window = ioremap_nocache(pci_resource_start(dev, 0),
+				 pci_resource_len(dev, 0));
 
-	if (!ovrfl_window) {
+	if (window == NULL) {
 		i82875p_printk(KERN_ERR, "%s(): Failed to ioremap bar6\n",
-			__func__);
+			       __func__);
 		goto fail1;
 	}
 
-	/* need to find out the number of channels */
-	drc = readl(ovrfl_window + I82875P_DRC);
-	drc_chan = ((drc >> 21) & 0x1);
-	nr_chans = drc_chan + 1;
+	*ovrfl_window = window;
+	return 0;
+
+fail1:
+	pci_release_regions(dev);
+
+#ifdef CORRECT_BIOS
+fail0:
+	pci_disable_device(dev);
+#endif
+	/* NOTE: the ovrfl proc entry and pci_dev are intentionally left */
+	return 1;
+}
+
+
+/* Return 1 if dual channel mode is active.  Else return 0. */
+static inline int dual_channel_active(u32 drc)
+{
+	return (drc >> 21) & 0x1;
+}
+
+
+static void i82875p_init_csrows(struct mem_ctl_info *mci,
+		struct pci_dev *pdev, void __iomem *ovrfl_window, u32 drc)
+{
+	struct csrow_info *csrow;
+	unsigned long last_cumul_size;
+	u8 value;
+	u32 drc_ddim;  /* DRAM Data Integrity Mode 0=none,2=edac */
+	u32 cumul_size;
+	int index;
 
 	drc_ddim = (drc >> 18) & 0x1;
+	last_cumul_size = 0;
+
+	/* The dram row boundary (DRB) reg values are boundary address
+	 * for each DRAM row with a granularity of 32 or 64MB (single/dual
+	 * channel operation).  DRB regs are cumulative; therefore DRB7 will
+	 * contain the total memory contained in all eight rows.
+	 */
+
+	for (index = 0; index < mci->nr_csrows; index++) {
+		csrow = &mci->csrows[index];
+
+		value = readb(ovrfl_window + I82875P_DRB + index);
+		cumul_size = value << (I82875P_DRB_SHIFT - PAGE_SHIFT);
+		debugf3("%s(): (%d) cumul_size 0x%x\n", __func__, index,
+			cumul_size);
+		if (cumul_size == last_cumul_size)
+			continue;	/* not populated */
+
+		csrow->first_page = last_cumul_size;
+		csrow->last_page = cumul_size - 1;
+		csrow->nr_pages = cumul_size - last_cumul_size;
+		last_cumul_size = cumul_size;
+		csrow->grain = 1 << 12;	/* I82875P_EAP has 4KiB reolution */
+		csrow->mtype = MEM_DDR;
+		csrow->dtype = DEV_UNKNOWN;
+		csrow->edac_mode = drc_ddim ? EDAC_SECDED : EDAC_NONE;
+	}
+}
+
+static int i82875p_probe1(struct pci_dev *pdev, int dev_idx)
+{
+	int rc = -ENODEV;
+	struct mem_ctl_info *mci;
+	struct i82875p_pvt *pvt;
+	struct pci_dev *ovrfl_pdev;
+	void __iomem *ovrfl_window;
+	u32 drc;
+	u32 nr_chans;
+	struct i82875p_error_info discard;
+
+	debugf0("%s()\n", __func__);
+	ovrfl_pdev = pci_get_device(PCI_VEND_DEV(INTEL, 82875_6), NULL);
+
+	if (i82875p_setup_overfl_dev(pdev, &ovrfl_pdev, &ovrfl_window))
+		return -ENODEV;
+	drc = readl(ovrfl_window + I82875P_DRC);
+	nr_chans = dual_channel_active(drc) + 1;
 	mci = edac_mc_alloc(sizeof(*pvt), I82875P_NR_CSROWS(nr_chans),
 				nr_chans);
 
 	if (!mci) {
 		rc = -ENOMEM;
-		goto fail2;
+		goto fail0;
 	}
 
 	debugf3("%s(): init mci\n", __func__);
@@ -347,8 +413,6 @@ static int i82875p_probe1(struct pci_dev *pdev, int dev_idx)
 	mci->mtype_cap = MEM_FLAG_DDR;
 	mci->edac_ctl_cap = EDAC_FLAG_NONE | EDAC_FLAG_SECDED;
 	mci->edac_cap = EDAC_FLAG_UNKNOWN;
-	/* adjust FLAGS */
-
 	mci->mod_name = EDAC_MOD_STR;
 	mci->mod_ver = I82875P_REVISION;
 	mci->ctl_name = i82875p_devs[dev_idx].ctl_name;
@@ -358,36 +422,7 @@ static int i82875p_probe1(struct pci_dev *pdev, int dev_idx)
 	pvt = (struct i82875p_pvt *) mci->pvt_info;
 	pvt->ovrfl_pdev = ovrfl_pdev;
 	pvt->ovrfl_window = ovrfl_window;
-
-	/*
-	 * The dram row boundary (DRB) reg values are boundary address
-	 * for each DRAM row with a granularity of 32 or 64MB (single/dual
-	 * channel operation).  DRB regs are cumulative; therefore DRB7 will
-	 * contain the total memory contained in all eight rows.
-	 */
-	for (last_cumul_size = index = 0; index < mci->nr_csrows; index++) {
-		u8 value;
-		u32 cumul_size;
-		struct csrow_info *csrow = &mci->csrows[index];
-
-		value = readb(ovrfl_window + I82875P_DRB + index);
-		cumul_size = value << (I82875P_DRB_SHIFT - PAGE_SHIFT);
-		debugf3("%s(): (%d) cumul_size 0x%x\n", __func__, index,
-			cumul_size);
-
-		if (cumul_size == last_cumul_size)
-			continue;	/* not populated */
-
-		csrow->first_page = last_cumul_size;
-		csrow->last_page = cumul_size - 1;
-		csrow->nr_pages = cumul_size - last_cumul_size;
-		last_cumul_size = cumul_size;
-		csrow->grain = 1 << 12;  /* I82875P_EAP has 4KiB reolution */
-		csrow->mtype = MEM_DDR;
-		csrow->dtype = DEV_UNKNOWN;
-		csrow->edac_mode = drc_ddim ? EDAC_SECDED : EDAC_NONE;
-	}
-
+	i82875p_init_csrows(mci, pdev, ovrfl_window, drc);
 	i82875p_get_error_info(mci, &discard);  /* clear counters */
 
 	/* Here we assume that we will never see multiple instances of this
@@ -395,25 +430,20 @@ static int i82875p_probe1(struct pci_dev *pdev, int dev_idx)
 	 */
 	if (edac_mc_add_mc(mci,0)) {
 		debugf3("%s(): failed edac_mc_add_mc()\n", __func__);
-		goto fail3;
+		goto fail1;
 	}
 
 	/* get this far and it's successful */
 	debugf3("%s(): success\n", __func__);
 	return 0;
 
-fail3:
+fail1:
 	edac_mc_free(mci);
 
-fail2:
+fail0:
 	iounmap(ovrfl_window);
-
-fail1:
 	pci_release_regions(ovrfl_pdev);
 
-#ifdef CORRECT_BIOS
-fail0:
-#endif
 	pci_disable_device(ovrfl_pdev);
 	/* NOTE: the ovrfl proc entry and pci_dev are intentionally left */
 	return rc;

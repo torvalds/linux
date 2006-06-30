@@ -205,25 +205,72 @@ static void r82600_check(struct mem_ctl_info *mci)
 	r82600_process_error_info(mci, &info, 1);
 }
 
+static inline int ecc_enabled(u8 dramcr)
+{
+	return dramcr & BIT(5);
+}
+
+static void r82600_init_csrows(struct mem_ctl_info *mci, struct pci_dev *pdev,
+		u8 dramcr)
+{
+	struct csrow_info *csrow;
+	int index;
+	u8 drbar;  /* SDRAM Row Boundry Address Register */
+	u32 row_high_limit, row_high_limit_last;
+	u32 reg_sdram, ecc_on, row_base;
+
+	ecc_on = ecc_enabled(dramcr);
+	reg_sdram = dramcr & BIT(4);
+	row_high_limit_last = 0;
+
+	for (index = 0; index < mci->nr_csrows; index++) {
+		csrow = &mci->csrows[index];
+
+		/* find the DRAM Chip Select Base address and mask */
+		pci_read_config_byte(pdev, R82600_DRBA + index, &drbar);
+
+		debugf1("%s() Row=%d DRBA = %#0x\n", __func__, index, drbar);
+
+		row_high_limit = ((u32) drbar << 24);
+/*		row_high_limit = ((u32)drbar << 24) | 0xffffffUL; */
+
+		debugf1("%s() Row=%d, Boundry Address=%#0x, Last = %#0x\n",
+			__func__, index, row_high_limit, row_high_limit_last);
+
+		/* Empty row [p.57] */
+		if (row_high_limit == row_high_limit_last)
+			continue;
+
+		row_base = row_high_limit_last;
+
+		csrow->first_page = row_base >> PAGE_SHIFT;
+		csrow->last_page = (row_high_limit >> PAGE_SHIFT) - 1;
+		csrow->nr_pages = csrow->last_page - csrow->first_page + 1;
+		/* Error address is top 19 bits - so granularity is      *
+		 * 14 bits                                               */
+		csrow->grain = 1 << 14;
+		csrow->mtype = reg_sdram ? MEM_RDDR : MEM_DDR;
+		/* FIXME - check that this is unknowable with this chipset */
+		csrow->dtype = DEV_UNKNOWN;
+
+		/* Mode is global on 82600 */
+		csrow->edac_mode = ecc_on ? EDAC_SECDED : EDAC_NONE;
+		row_high_limit_last = row_high_limit;
+	}
+}
+
 static int r82600_probe1(struct pci_dev *pdev, int dev_idx)
 {
-	int rc = -ENODEV;
-	int index;
-	struct mem_ctl_info *mci = NULL;
+	struct mem_ctl_info *mci;
 	u8 dramcr;
-	u32 ecc_on;
-	u32 reg_sdram;
 	u32 eapr;
 	u32 scrub_disabled;
 	u32 sdram_refresh_rate;
-	u32 row_high_limit_last = 0;
 	struct r82600_error_info discard;
 
 	debugf0("%s()\n", __func__);
 	pci_read_config_byte(pdev, R82600_DRAMC, &dramcr);
 	pci_read_config_dword(pdev, R82600_EAP, &eapr);
-	ecc_on = dramcr & BIT(5);
-	reg_sdram = dramcr & BIT(4);
 	scrub_disabled = eapr & BIT(31);
 	sdram_refresh_rate = dramcr & (BIT(0) | BIT(1));
 	debugf2("%s(): sdram refresh rate = %#0x\n", __func__,
@@ -231,10 +278,8 @@ static int r82600_probe1(struct pci_dev *pdev, int dev_idx)
 	debugf2("%s(): DRAMC register = %#0x\n", __func__, dramcr);
 	mci = edac_mc_alloc(0, R82600_NR_CSROWS, R82600_NR_CHANS);
 
-	if (mci == NULL) {
-		rc = -ENOMEM;
-		goto fail;
-	}
+	if (mci == NULL)
+		return -ENOMEM;
 
 	debugf0("%s(): mci = %p\n", __func__, mci);
 	mci->dev = &pdev->dev;
@@ -250,7 +295,7 @@ static int r82600_probe1(struct pci_dev *pdev, int dev_idx)
 	 * is possible.                                               */
 	mci->edac_cap = EDAC_FLAG_NONE | EDAC_FLAG_EC | EDAC_FLAG_SECDED;
 
-	if (ecc_on) {
+	if (ecc_enabled(dramcr)) {
 		if (scrub_disabled)
 			debugf3("%s(): mci = %p - Scrubbing disabled! EAP: "
 				"%#0x\n", __func__, mci, eapr);
@@ -262,46 +307,7 @@ static int r82600_probe1(struct pci_dev *pdev, int dev_idx)
 	mci->ctl_name = "R82600";
 	mci->edac_check = r82600_check;
 	mci->ctl_page_to_phys = NULL;
-
-	for (index = 0; index < mci->nr_csrows; index++) {
-		struct csrow_info *csrow = &mci->csrows[index];
-		u8 drbar;	/* sDram Row Boundry Address Register */
-		u32 row_high_limit;
-		u32 row_base;
-
-		/* find the DRAM Chip Select Base address and mask */
-		pci_read_config_byte(pdev, R82600_DRBA + index, &drbar);
-
-		debugf1("MC%d: %s() Row=%d DRBA = %#0x\n", mci->mc_idx,
-			__func__, index, drbar);
-
-		row_high_limit = ((u32) drbar << 24);
-/*		row_high_limit = ((u32)drbar << 24) | 0xffffffUL; */
-
-		debugf1("MC%d: %s() Row=%d, Boundry Address=%#0x, Last = "
-			"%#0x \n", mci->mc_idx, __func__, index,
-			row_high_limit, row_high_limit_last);
-
-		/* Empty row [p.57] */
-		if (row_high_limit == row_high_limit_last)
-			continue;
-
-		row_base = row_high_limit_last;
-		csrow->first_page = row_base >> PAGE_SHIFT;
-		csrow->last_page = (row_high_limit >> PAGE_SHIFT) - 1;
-		csrow->nr_pages = csrow->last_page - csrow->first_page + 1;
-		/* Error address is top 19 bits - so granularity is      *
-		 * 14 bits                                               */
-		csrow->grain = 1 << 14;
-		csrow->mtype = reg_sdram ? MEM_RDDR : MEM_DDR;
-		/* FIXME - check that this is unknowable with this chipset */
-		csrow->dtype = DEV_UNKNOWN;
-
-		/* Mode is global on 82600 */
-		csrow->edac_mode = ecc_on ? EDAC_SECDED : EDAC_NONE;
-		row_high_limit_last = row_high_limit;
-	}
-
+	r82600_init_csrows(mci, pdev, dramcr);
 	r82600_get_error_info(mci, &discard);  /* clear counters */
 
 	/* Here we assume that we will never see multiple instances of this
@@ -324,10 +330,8 @@ static int r82600_probe1(struct pci_dev *pdev, int dev_idx)
 	return 0;
 
 fail:
-	if (mci)
-		edac_mc_free(mci);
-
-	return rc;
+	edac_mc_free(mci);
+	return -ENODEV;
 }
 
 /* returns count (>= 0), or negative on error */
