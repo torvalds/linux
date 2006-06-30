@@ -21,7 +21,7 @@
 #include "sdhci.h"
 
 #define DRIVER_NAME "sdhci"
-#define DRIVER_VERSION "0.11"
+#define DRIVER_VERSION "0.12"
 
 #define BUGMAIL "<sdhci-devel@list.drzeus.cx>"
 
