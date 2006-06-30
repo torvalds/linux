@@ -20,12 +20,6 @@
 /*#define sys_set_thread_area sys_ni_syscall
 #define sys_get_thread_area sys_ni_syscall*/
 
-/* For __NR_time. The x86-64 name hopefully will change from sys_time64 to
- * sys_time (since the current situation is bogus). I've sent a patch to cleanup
- * this. Remove below the obsoleted line. */
-#define sys_time64 um_time
-#define sys_time um_time
-
 /* On UML we call it this way ("old" means it's not mmap2) */
 #define sys_mmap old_mmap
 /* On x86-64 sys_uname is actually sys_newuname plus a compatibility trick.

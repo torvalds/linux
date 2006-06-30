@@ -142,16 +142,6 @@ irqreturn_t um_timer(int irq, void *dev, struct pt_regs *regs)
 	return IRQ_HANDLED;
 }
 
-long um_time(int __user *tloc)
-{
-	long ret = get_time() / NSEC_PER_SEC;
-
-	if((tloc != NULL) && put_user(ret, tloc))
-		return -EFAULT;
-
-	return ret;
-}
-
 void do_gettimeofday(struct timeval *tv)
 {
 	unsigned long long nsecs = get_time();
@@ -178,18 +168,6 @@ static inline void set_time(unsigned long long nsecs)
 	spin_unlock_irqrestore(&timer_spinlock, flags);
 
 	clock_was_set();
-}
-
-long um_stime(int __user *tptr)
-{
-	int value;
-
-	if (get_user(value, tptr))
-                return -EFAULT;
-
-	set_time((unsigned long long) value * NSEC_PER_SEC);
-
-	return 0;
 }
 
 int do_settimeofday(struct timespec *tv)
