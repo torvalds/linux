@@ -46,6 +46,9 @@ struct zone_padding {
 #define ZONE_PADDING(name)
 #endif
 
+enum zone_stat_item {
+	NR_VM_ZONE_STAT_ITEMS };
+
 struct per_cpu_pages {
 	int count;		/* number of pages in the list */
 	int high;		/* high watermark, emptying needed */
@@ -55,6 +58,10 @@ struct per_cpu_pages {
 
 struct per_cpu_pageset {
 	struct per_cpu_pages pcp[2];	/* 0: hot.  1: cold */
+#ifdef CONFIG_SMP
+	s8 vm_stat_diff[NR_VM_ZONE_STAT_ITEMS];
+#endif
+
 #ifdef CONFIG_NUMA
 	unsigned long numa_hit;		/* allocated in intended node */
 	unsigned long numa_miss;	/* allocated in non intended node */
@@ -165,6 +172,8 @@ struct zone {
 	/* A count of how many reclaimers are scanning this zone */
 	atomic_t		reclaim_in_progress;
 
+	/* Zone statistics */
+	atomic_long_t		vm_stat[NR_VM_ZONE_STAT_ITEMS];
 	/*
 	 * timestamp (in jiffies) of the last zone reclaim that did not
 	 * result in freeing of pages. This is used to avoid repeated scans

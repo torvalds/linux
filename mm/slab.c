@@ -3763,6 +3763,7 @@ next:
 	check_irq_on();
 	mutex_unlock(&cache_chain_mutex);
 	next_reap_node();
+	refresh_cpu_vm_stats(smp_processor_id());
 	/* Set up the next iteration */
 	schedule_delayed_work(&__get_cpu_var(reap_work), REAPTIMEOUT_CPUC);
 }

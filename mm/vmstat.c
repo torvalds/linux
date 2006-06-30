@@ -3,10 +3,15 @@
  *
  *  Manages VM statistics
  *  Copyright (C) 1991, 1992, 1993, 1994  Linus Torvalds
+ *
+ *  zoned VM statistics
+ *  Copyright (C) 2006 Silicon Graphics, Inc.,
+ *		Christoph Lameter <christoph@lameter.com>
  */
 
 #include <linux/config.h>
 #include <linux/mm.h>
+#include <linux/module.h>
 
 /*
  * Accumulate the page_state information across all CPUs.
@@ -143,6 +148,197 @@ void get_zone_counts(unsigned long *active,
 	}
 }
 
+/*
+ * Manage combined zone based / global counters
+ *
+ * vm_stat contains the global counters
+ */
+atomic_long_t vm_stat[NR_VM_ZONE_STAT_ITEMS];
+EXPORT_SYMBOL(vm_stat);
+
+#ifdef CONFIG_SMP
+
+#define STAT_THRESHOLD 32
+
+/*
+ * Determine pointer to currently valid differential byte given a zone and
+ * the item number.
+ *
+ * Preemption must be off
+ */
+static inline s8 *diff_pointer(struct zone *zone, enum zone_stat_item item)
+{
+	return &zone_pcp(zone, smp_processor_id())->vm_stat_diff[item];
+}
+
+/*
+ * For use when we know that interrupts are disabled.
+ */
+void __mod_zone_page_state(struct zone *zone, enum zone_stat_item item,
+				int delta)
+{
+	s8 *p;
+	long x;
+
+	p = diff_pointer(zone, item);
+	x = delta + *p;
+
+	if (unlikely(x > STAT_THRESHOLD || x < -STAT_THRESHOLD)) {
+		zone_page_state_add(x, zone, item);
+		x = 0;
+	}
+
+	*p = x;
+}
+EXPORT_SYMBOL(__mod_zone_page_state);
+
+/*
+ * For an unknown interrupt state
+ */
+void mod_zone_page_state(struct zone *zone, enum zone_stat_item item,
+					int delta)
+{
+	unsigned long flags;
+
+	local_irq_save(flags);
+	__mod_zone_page_state(zone, item, delta);
+	local_irq_restore(flags);
+}
+EXPORT_SYMBOL(mod_zone_page_state);
+
+/*
+ * Optimized increment and decrement functions.
+ *
+ * These are only for a single page and therefore can take a struct page *
+ * argument instead of struct zone *. This allows the inclusion of the code
+ * generated for page_zone(page) into the optimized functions.
+ *
+ * No overflow check is necessary and therefore the differential can be
+ * incremented or decremented in place which may allow the compilers to
+ * generate better code.
+ *
+ * The increment or decrement is known and therefore one boundary check can
+ * be omitted.
+ *
+ * Some processors have inc/dec instructions that are atomic vs an interrupt.
+ * However, the code must first determine the differential location in a zone
+ * based on the processor number and then inc/dec the counter. There is no
+ * guarantee without disabling preemption that the processor will not change
+ * in between and therefore the atomicity vs. interrupt cannot be exploited
+ * in a useful way here.
+ */
+void __inc_zone_page_state(struct page *page, enum zone_stat_item item)
+{
+	struct zone *zone = page_zone(page);
+	s8 *p = diff_pointer(zone, item);
+
+	(*p)++;
+
+	if (unlikely(*p > STAT_THRESHOLD)) {
+		zone_page_state_add(*p, zone, item);
+		*p = 0;
+	}
+}
+EXPORT_SYMBOL(__inc_zone_page_state);
+
+void __dec_zone_page_state(struct page *page, enum zone_stat_item item)
+{
+	struct zone *zone = page_zone(page);
+	s8 *p = diff_pointer(zone, item);
+
+	(*p)--;
+
+	if (unlikely(*p < -STAT_THRESHOLD)) {
+		zone_page_state_add(*p, zone, item);
+		*p = 0;
+	}
+}
+EXPORT_SYMBOL(__dec_zone_page_state);
+
+void inc_zone_page_state(struct page *page, enum zone_stat_item item)
+{
+	unsigned long flags;
+	struct zone *zone;
+	s8 *p;
+
+	zone = page_zone(page);
+	local_irq_save(flags);
+	p = diff_pointer(zone, item);
+
+	(*p)++;
+
+	if (unlikely(*p > STAT_THRESHOLD)) {
+		zone_page_state_add(*p, zone, item);
+		*p = 0;
+	}
+	local_irq_restore(flags);
+}
+EXPORT_SYMBOL(inc_zone_page_state);
+
+void dec_zone_page_state(struct page *page, enum zone_stat_item item)
+{
+	unsigned long flags;
+	struct zone *zone;
+	s8 *p;
+
+	zone = page_zone(page);
+	local_irq_save(flags);
+	p = diff_pointer(zone, item);
+
+	(*p)--;
+
+	if (unlikely(*p < -STAT_THRESHOLD)) {
+		zone_page_state_add(*p, zone, item);
+		*p = 0;
+	}
+	local_irq_restore(flags);
+}
+EXPORT_SYMBOL(dec_zone_page_state);
+
+/*
+ * Update the zone counters for one cpu.
+ */
+void refresh_cpu_vm_stats(int cpu)
+{
+	struct zone *zone;
+	int i;
+	unsigned long flags;
+
+	for_each_zone(zone) {
+		struct per_cpu_pageset *pcp;
+
+		pcp = zone_pcp(zone, cpu);
+
+		for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++)
+			if (pcp->vm_stat_diff[i]) {
+				local_irq_save(flags);
+				zone_page_state_add(pcp->vm_stat_diff[i],
+					zone, i);
+				pcp->vm_stat_diff[i] = 0;
+				local_irq_restore(flags);
+			}
+	}
+}
+
+static void __refresh_cpu_vm_stats(void *dummy)
+{
+	refresh_cpu_vm_stats(smp_processor_id());
+}
+
+/*
+ * Consolidate all counters.
+ *
+ * Note that the result is less inaccurate but still inaccurate
+ * if concurrent processes are allowed to run.
+ */
+void refresh_vm_stats(void)
+{
+	on_each_cpu(__refresh_cpu_vm_stats, NULL, 0, 1);
+}
+EXPORT_SYMBOL(refresh_vm_stats);
+
+#endif
+
 #ifdef CONFIG_PROC_FS
 
 #include <linux/seq_file.h>
@@ -204,6 +400,9 @@ struct seq_operations fragmentation_op = {
 };
 
 static char *vmstat_text[] = {
+	/* Zoned VM counters */
+
+	/* Page state */
 	"nr_dirty",
 	"nr_writeback",
 	"nr_unstable",
@@ -297,6 +496,11 @@ static int zoneinfo_show(struct seq_file *m, void *arg)
 			   zone->nr_scan_active, zone->nr_scan_inactive,
 			   zone->spanned_pages,
 			   zone->present_pages);
+
+		for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++)
+			seq_printf(m, "\n    %-12s %lu", vmstat_text[i],
+					zone_page_state(zone, i));
+
 		seq_printf(m,
 			   "\n        protection: (%lu",
 			   zone->lowmem_reserve[0]);
@@ -368,19 +572,25 @@ struct seq_operations zoneinfo_op = {
 
 static void *vmstat_start(struct seq_file *m, loff_t *pos)
 {
+	unsigned long *v;
 	struct page_state *ps;
+	int i;
 
 	if (*pos >= ARRAY_SIZE(vmstat_text))
 		return NULL;
 
-	ps = kmalloc(sizeof(*ps), GFP_KERNEL);
-	m->private = ps;
-	if (!ps)
+	v = kmalloc(NR_VM_ZONE_STAT_ITEMS * sizeof(unsigned long)
+			+ sizeof(*ps), GFP_KERNEL);
+	m->private = v;
+	if (!v)
 		return ERR_PTR(-ENOMEM);
+	for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++)
+		v[i] = global_page_state(i);
+	ps = (struct page_state *)(v + NR_VM_ZONE_STAT_ITEMS);
 	get_full_page_state(ps);
 	ps->pgpgin /= 2;		/* sectors -> kbytes */
 	ps->pgpgout /= 2;
-	return (unsigned long *)ps + *pos;
+	return v + *pos;
 }
 
 static void *vmstat_next(struct seq_file *m, void *arg, loff_t *pos)

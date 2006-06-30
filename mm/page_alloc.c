@@ -2045,6 +2045,7 @@ static void __meminit free_area_init_core(struct pglist_data *pgdat,
 		zone->nr_scan_inactive = 0;
 		zone->nr_active = 0;
 		zone->nr_inactive = 0;
+		zap_zone_vm_stats(zone);
 		atomic_set(&zone->reclaim_in_progress, 0);
 		if (!size)
 			continue;
@@ -2147,6 +2148,7 @@ static int page_alloc_cpu_notify(struct notifier_block *self,
 		}
 
 		local_irq_enable();
+		refresh_cpu_vm_stats(cpu);
 	}
 	return NOTIFY_OK;
 }

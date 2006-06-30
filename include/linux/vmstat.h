@@ -3,6 +3,9 @@
 
 #include <linux/types.h>
 #include <linux/percpu.h>
+#include <linux/config.h>
+#include <linux/mmzone.h>
+#include <asm/atomic.h>
 
 /*
  * Global page accounting.  One instance per CPU.  Only unsigned longs are
@@ -134,5 +137,129 @@ extern void __mod_page_state_offset(unsigned long offset, unsigned long delta);
 
 DECLARE_PER_CPU(struct page_state, page_states);
 
-#endif /* _LINUX_VMSTAT_H */
+/*
+ * Zone based page accounting with per cpu differentials.
+ */
+extern atomic_long_t vm_stat[NR_VM_ZONE_STAT_ITEMS];
 
+static inline void zone_page_state_add(long x, struct zone *zone,
+				 enum zone_stat_item item)
+{
+	atomic_long_add(x, &zone->vm_stat[item]);
+	atomic_long_add(x, &vm_stat[item]);
+}
+
+static inline unsigned long global_page_state(enum zone_stat_item item)
+{
+	long x = atomic_long_read(&vm_stat[item]);
+#ifdef CONFIG_SMP
+	if (x < 0)
+		x = 0;
+#endif
+	return x;
+}
+
+static inline unsigned long zone_page_state(struct zone *zone,
+					enum zone_stat_item item)
+{
+	long x = atomic_long_read(&zone->vm_stat[item]);
+#ifdef CONFIG_SMP
+	if (x < 0)
+		x = 0;
+#endif
+	return x;
+}
+
+#ifdef CONFIG_NUMA
+/*
+ * Determine the per node value of a stat item. This function
+ * is called frequently in a NUMA machine, so try to be as
+ * frugal as possible.
+ */
+static inline unsigned long node_page_state(int node,
+				 enum zone_stat_item item)
+{
+	struct zone *zones = NODE_DATA(node)->node_zones;
+
+	return
+#ifndef CONFIG_DMA_IS_NORMAL
+#if !defined(CONFIG_DMA_IS_DMA32) && BITS_PER_LONG >= 64
+		zone_page_state(&zones[ZONE_DMA32], item) +
+#endif
+		zone_page_state(&zones[ZONE_NORMAL], item) +
+#endif
+#ifdef CONFIG_HIGHMEM
+		zone_page_state(&zones[ZONE_HIGHMEM], item) +
+#endif
+		zone_page_state(&zones[ZONE_DMA], item);
+}
+#else
+#define node_page_state(node, item) global_page_state(item)
+#endif
+
+#define __add_zone_page_state(__z, __i, __d)	\
+		__mod_zone_page_state(__z, __i, __d)
+#define __sub_zone_page_state(__z, __i, __d)	\
+		__mod_zone_page_state(__z, __i,-(__d))
+
+#define add_zone_page_state(__z, __i, __d) mod_zone_page_state(__z, __i, __d)
+#define sub_zone_page_state(__z, __i, __d) mod_zone_page_state(__z, __i, -(__d))
+
+static inline void zap_zone_vm_stats(struct zone *zone)
+{
+	memset(zone->vm_stat, 0, sizeof(zone->vm_stat));
+}
+
+#ifdef CONFIG_SMP
+void __mod_zone_page_state(struct zone *, enum zone_stat_item item, int);
+void __inc_zone_page_state(struct page *, enum zone_stat_item);
+void __dec_zone_page_state(struct page *, enum zone_stat_item);
+
+void mod_zone_page_state(struct zone *, enum zone_stat_item, int);
+void inc_zone_page_state(struct page *, enum zone_stat_item);
+void dec_zone_page_state(struct page *, enum zone_stat_item);
+
+extern void inc_zone_state(struct zone *, enum zone_stat_item);
+
+void refresh_cpu_vm_stats(int);
+void refresh_vm_stats(void);
+
+#else /* CONFIG_SMP */
+
+/*
+ * We do not maintain differentials in a single processor configuration.
+ * The functions directly modify the zone and global counters.
+ */
+static inline void __mod_zone_page_state(struct zone *zone,
+			enum zone_stat_item item, int delta)
+{
+	zone_page_state_add(delta, zone, item);
+}
+
+static inline void __inc_zone_page_state(struct page *page,
+			enum zone_stat_item item)
+{
+	atomic_long_inc(&page_zone(page)->vm_stat[item]);
+	atomic_long_inc(&vm_stat[item]);
+}
+
+static inline void __dec_zone_page_state(struct page *page,
+			enum zone_stat_item item)
+{
+	atomic_long_dec(&page_zone(page)->vm_stat[item]);
+	atomic_long_dec(&vm_stat[item]);
+}
+
+/*
+ * We only use atomic operations to update counters. So there is no need to
+ * disable interrupts.
+ */
+#define inc_zone_page_state __inc_zone_page_state
+#define dec_zone_page_state __dec_zone_page_state
+#define mod_zone_page_state __mod_zone_page_state
+
+static inline void refresh_cpu_vm_stats(int cpu) { }
+static inline void refresh_vm_stats(void) { }
+#endif
+
+#endif /* _LINUX_VMSTAT_H */
