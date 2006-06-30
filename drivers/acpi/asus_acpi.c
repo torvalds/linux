@@ -126,7 +126,7 @@ struct asus_hotk {
 		L8L,		//L8400L
 		M1A,		//M1300A
 		M2E,		//M2400E, L4400L
-		M6N,		//M6800N
+		M6N,		//M6800N, W3400N
 		M6R,		//M6700R, A3000G
 		P30,		//Samsung P30
 		S1x,		//S1300A, but also L1400B and M2400A (L84F)
@@ -1077,7 +1077,8 @@ static int asus_hotk_get_info(void)
 		hotk->model = L8L;
 	else if (strncmp(model->string.pointer, "L4R", 3) == 0)
 		hotk->model = L4R;
-	else if (strncmp(model->string.pointer, "M6N", 3) == 0)
+	else if (strncmp(model->string.pointer, "M6N", 3) == 0 ||
+		 strncmp(model->string.pointer, "W3N", 3) == 0)
 		hotk->model = M6N;
 	else if (strncmp(model->string.pointer, "M6R", 3) == 0 ||
 		 strncmp(model->string.pointer, "A3G", 3) == 0)
@@ -1130,9 +1131,10 @@ static int asus_hotk_get_info(void)
 		hotk->methods->lcd_status = "\\BLFG";
 	/* A3G is like M6R */
 	else if (strncmp(model->string.pointer, "S5N", 3) == 0 ||
-		 strncmp(model->string.pointer, "M5N", 3) == 0)
+		 strncmp(model->string.pointer, "M5N", 3) == 0 ||
+		 strncmp(model->string.pointer, "W3N", 3) == 0)
 		hotk->methods->mt_mled = NULL;
-	/* S5N and M5N have no MLED */
+	/* S5N, M5N and W3N have no MLED */
 	else if (strncmp(model->string.pointer, "M2N", 3) == 0)
 		hotk->methods->mt_wled = "WLED";
 	/* M2N has a usable WLED */
