@@ -94,12 +94,27 @@ static void sdhci_dumpregs(struct sdhci_host *host)
 
 static void sdhci_reset(struct sdhci_host *host, u8 mask)
 {
+	unsigned long timeout;
+
 	writeb(mask, host->ioaddr + SDHCI_SOFTWARE_RESET);
 
-	if (mask & SDHCI_RESET_ALL) {
+	if (mask & SDHCI_RESET_ALL)
 		host->clock = 0;
 
-		mdelay(50);
+	/* Wait max 100 ms */
+	timeout = 100;
+
+	/* hw clears the bit when it's done */
+	while (readb(host->ioaddr + SDHCI_SOFTWARE_RESET) & mask) {
+		if (timeout == 0) {
+			printk(KERN_ERR "%s: Reset 0x%x never completed. "
+				"Please report this to " BUGMAIL ".\n",
+				mmc_hostname(host->mmc), (int)mask);
+			sdhci_dumpregs(host);
+			return;
+		}
+		timeout--;
+		mdelay(1);
 	}
 }
 
@@ -619,9 +634,7 @@ static void sdhci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	 */
 	if (ios->power_mode == MMC_POWER_OFF) {
 		writel(0, host->ioaddr + SDHCI_SIGNAL_ENABLE);
-		spin_unlock_irqrestore(&host->lock, flags);
 		sdhci_init(host);
-		spin_lock_irqsave(&host->lock, flags);
 	}
 
 	sdhci_set_clock(host, ios->clock);
