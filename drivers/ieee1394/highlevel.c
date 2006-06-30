@@ -17,7 +17,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/slab.h>
 #include <linux/list.h>
 #include <linux/bitops.h>

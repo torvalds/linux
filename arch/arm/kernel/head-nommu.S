@@ -12,7 +12,6 @@
  *    for 32-bit CPUs which has a process ID register(CP15).
  *
  */
-#include <linux/config.h>
 #include <linux/linkage.h>
 #include <linux/init.h>
 

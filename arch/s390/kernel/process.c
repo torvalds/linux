@@ -15,7 +15,6 @@
  * This file handles the architecture-dependent parts of process handling..
  */
 
-#include <linux/config.h>
 #include <linux/compiler.h>
 #include <linux/cpu.h>
 #include <linux/errno.h>

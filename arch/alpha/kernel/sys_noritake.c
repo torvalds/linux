@@ -9,7 +9,6 @@
  * CORELLE (AlphaServer 800), and ALCOR Primo (AlphaStation 600A).
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/mm.h>

@@ -69,7 +69,6 @@
  *				 2000/03 Andi Kleen
  */
  
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/fcntl.h>

@@ -71,7 +71,6 @@
  *	Richard Hirst <richard@sleepie.demon.co.uk>  August 2000
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 
 #include <linux/sched.h>

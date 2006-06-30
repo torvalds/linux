@@ -48,7 +48,6 @@
 #include <linux/skbuff.h>
 #include <linux/slab.h>
 #include <linux/string.h>
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/crc32.h>
 #include <linux/zorro.h>

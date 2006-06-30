@@ -11,7 +11,6 @@
  * modify it under the terms of the GNU General Public License.
  */
 
-#include <linux/config.h>
 #include <linux/linkage.h>
 #include <asm/assembler.h>
 #include <asm/hardware.h>

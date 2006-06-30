@@ -17,7 +17,6 @@
  * Jan 20, 1998        Ben Greear     Initial Version
  *****************************************************************************/
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/stddef.h>	/* offsetof(), etc. */
 #include <linux/errno.h>	/* return codes */

@@ -14,7 +14,6 @@
  *  Note:  there is a StrongARM bug in the STMIA rn, {regs}^ instruction that causes
  *  it to save wrong values...  Be aware!
  */
-#include <linux/config.h>
 
 #include <asm/memory.h>
 #include <asm/glue.h>

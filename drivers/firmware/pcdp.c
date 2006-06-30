@@ -11,7 +11,6 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/config.h>
 #include <linux/acpi.h>
 #include <linux/console.h>
 #include <linux/efi.h>

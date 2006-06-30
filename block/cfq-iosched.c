@@ -6,7 +6,6 @@
  *
  *  Copyright (C) 2003 Jens Axboe <axboe@suse.de>
  */
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/blkdev.h>
 #include <linux/elevator.h>

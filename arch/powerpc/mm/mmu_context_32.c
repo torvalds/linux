@@ -23,7 +23,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/mm.h>
 #include <linux/init.h>
 

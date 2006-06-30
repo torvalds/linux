@@ -11,7 +11,6 @@
  * Copyright (C) 1998  D. Jeff Dionne <jeff@uclinux.org>,
  *
  */
-#include <linux/config.h>
 
 .global _stext
 .global _sbss

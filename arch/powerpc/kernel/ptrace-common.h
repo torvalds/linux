@@ -10,7 +10,6 @@
 #ifndef _PPC64_PTRACE_COMMON_H
 #define _PPC64_PTRACE_COMMON_H
 
-#include <linux/config.h>
 #include <asm/system.h>
 
 /*

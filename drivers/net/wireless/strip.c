@@ -81,7 +81,6 @@ static const char StripVersion[] = "1.3A-STUART.CHESHIRE";
 /************************************************************************/
 /* Header files								*/
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>

@@ -85,7 +85,6 @@
    - Understand why some traffic patterns add a 1s latency...
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/string.h>

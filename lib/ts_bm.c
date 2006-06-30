@@ -35,7 +35,6 @@
  *   matchings spread over multiple fragments, then go BM.
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/types.h>

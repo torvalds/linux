@@ -21,7 +21,6 @@
 
 #undef DEBUG_LOW
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/dma-mapping.h>
 #include <linux/console.h>

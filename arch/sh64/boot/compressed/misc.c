@@ -9,7 +9,6 @@
  * Adapted for SHmedia from sh by Stuart Menefy, May 2002
  */
 
-#include <linux/config.h>
 #include <asm/uaccess.h>
 
 /* cache.c */

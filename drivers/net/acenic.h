@@ -1,7 +1,6 @@
 #ifndef _ACENIC_H_
 #define _ACENIC_H_
 
-#include <linux/config.h>
 
 /*
  * Generate TX index update each time, when TX ring is closed.

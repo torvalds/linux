@@ -17,7 +17,6 @@
  *    sub-devices.
  */
  
-#include <linux/config.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>

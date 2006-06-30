@@ -4,7 +4,6 @@
  * Copyright (C) 2002, Rohit Seth <rohit.seth@intel.com>
  */
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/fs.h>
 #include <linux/mm.h>

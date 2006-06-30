@@ -20,7 +20,6 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/map.h>
 #include <linux/mtd/partitions.h>
-#include <linux/config.h>
 #include <asm/io.h>
 #include <asm/ibm4xx.h>
 #include <platforms/4xx/walnut.h>

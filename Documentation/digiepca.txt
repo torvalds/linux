@@ -2,7 +2,7 @@ NOTE:  This driver is obsolete.  Digi provides a 2.6 driver (dgdm) at
 http://www.digi.com for PCI cards.  They no longer maintain this driver,
 and have no 2.6 driver for ISA cards.
 
-This driver requires a number of user-space tools.  They can be aquired from
+This driver requires a number of user-space tools.  They can be acquired from
 http://www.digi.com, but only works with 2.4 kernels.
 
 

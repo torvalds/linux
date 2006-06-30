@@ -10,7 +10,6 @@
  *
  *  26-bit kernel startup code
  */
-#include <linux/config.h>
 #include <linux/linkage.h>
 #include <asm/mach-types.h>
 

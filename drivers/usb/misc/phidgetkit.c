@@ -13,7 +13,6 @@
  * This is a driver for the USB PhidgetInterfaceKit.
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/init.h>

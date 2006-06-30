@@ -10,7 +10,6 @@
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
-#include <linux/config.h>
 #include <linux/ioport.h>
 #include <linux/smp_lock.h>
 #include <linux/pci.h>

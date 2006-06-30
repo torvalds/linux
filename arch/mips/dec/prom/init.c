@@ -4,7 +4,6 @@
  * Copyright (C) 1998 Harald Koerfgen
  * Copyright (C) 2002, 2004  Maciej W. Rozycki
  */
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/linkage.h>

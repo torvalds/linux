@@ -42,7 +42,6 @@
 #include <linux/netdevice.h>
 #include <linux/workqueue.h>
 #include <linux/pci.h>
-#include <linux/config.h>
 #include <linux/kref.h>
 #include <linux/if_infiniband.h>
 #include <linux/mutex.h>

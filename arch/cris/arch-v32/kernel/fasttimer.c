@@ -120,7 +120,6 @@
 #include <asm/irq.h>
 #include <asm/system.h>
 
-#include <linux/config.h>
 #include <linux/version.h>
 
 #include <asm/arch/hwregs/reg_map.h>

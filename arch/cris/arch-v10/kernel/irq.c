@@ -15,7 +15,6 @@
 #include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/config.h>
 
 #define mask_irq(irq_nr) (*R_VECT_MASK_CLR = 1 << (irq_nr));
 #define unmask_irq(irq_nr) (*R_VECT_MASK_SET = 1 << (irq_nr));

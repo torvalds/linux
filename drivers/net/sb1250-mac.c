@@ -31,7 +31,6 @@
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
 #include <linux/init.h>
-#include <linux/config.h>
 #include <linux/bitops.h>
 #include <asm/processor.h>		/* Processor type for cache alignment. */
 #include <asm/io.h>

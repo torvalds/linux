@@ -24,7 +24,6 @@
  * 21-08-02: Converted to input API, major cleanup. (Vojtech Pavlik)
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/tty.h>

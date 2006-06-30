@@ -5,7 +5,6 @@
  *
  * NFSv4 callback encode/decode procedures
  */
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/sunrpc/svc.h>
 #include <linux/nfs4.h>

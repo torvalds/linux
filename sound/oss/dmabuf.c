@@ -547,7 +547,7 @@ int DMAbuf_activate_recording(int dev, struct dma_buffparms *dmap)
 	}
 	return 0;
 }
-/* aquires lock */
+/* acquires lock */
 int DMAbuf_getrdbuffer(int dev, char **buf, int *len, int dontblock)
 {
 	struct audio_operations *adev = audio_devs[dev];
@@ -821,7 +821,7 @@ static int find_output_space(int dev, char **buf, int *size)
 	*size = len & ~SAMPLE_ROUNDUP;
 	return (*size > 0);
 }
-/* aquires lock  */
+/* acquires lock  */
 int DMAbuf_getwrbuffer(int dev, char **buf, int *size, int dontblock)
 {
 	struct audio_operations *adev = audio_devs[dev];
@@ -855,7 +855,7 @@ int DMAbuf_getwrbuffer(int dev, char **buf, int *size, int dontblock)
 	spin_unlock_irqrestore(&dmap->lock,flags);
 	return 0;
 }
-/* has to aquire dmap->lock */
+/* has to acquire dmap->lock */
 int DMAbuf_move_wrpointer(int dev, int l)
 {
 	struct audio_operations *adev = audio_devs[dev];

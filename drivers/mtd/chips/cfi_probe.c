@@ -4,7 +4,6 @@
    $Id: cfi_probe.c,v 1.86 2005/11/29 14:48:31 gleixner Exp $
 */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>

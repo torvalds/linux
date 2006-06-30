@@ -35,7 +35,6 @@
  *		Matt Domsch	:	nowayout module option
  */
 
-#include <linux/config.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>

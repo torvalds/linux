@@ -5,7 +5,6 @@
  *  Copyright (C) 1999 - 2003, Axis Communications AB
  */
 
-#include <linux/config.h>
 #define ASSEMBLER_MACROS_ONLY
 #include <asm/arch/hwregs/asm/reg_map_asm.h>
 #include <asm/arch/hwregs/asm/gio_defs_asm.h>

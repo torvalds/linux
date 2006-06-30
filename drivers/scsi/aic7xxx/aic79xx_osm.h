@@ -42,7 +42,6 @@
 #ifndef _AIC79XX_LINUX_H_
 #define _AIC79XX_LINUX_H_
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/blkdev.h>
 #include <linux/delay.h>

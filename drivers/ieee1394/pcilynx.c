@@ -30,7 +30,6 @@
  *        Enhancements in async and iso send code
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>

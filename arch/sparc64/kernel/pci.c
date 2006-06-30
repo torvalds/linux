@@ -6,7 +6,6 @@
  * Copyright (C) 1999 Jakub Jelinek   (jj@ultra.linux.cz)
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/string.h>

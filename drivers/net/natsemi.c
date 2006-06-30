@@ -138,7 +138,6 @@
 	* big endian support with CFG:BEM instead of cpu_to_le32
 */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/string.h>

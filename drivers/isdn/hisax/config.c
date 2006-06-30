@@ -17,7 +17,6 @@
 #include <linux/types.h>
 #include <linux/stddef.h>
 #include <linux/timer.h>
-#include <linux/config.h>
 #include <linux/init.h>
 #include "hisax.h"
 #include <linux/module.h>

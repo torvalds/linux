@@ -8,7 +8,6 @@
  * Copyright (c) by Jaroslav Kysela <perex@suse.cz>
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>

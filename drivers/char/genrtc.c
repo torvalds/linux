@@ -43,7 +43,6 @@
 #define RTC_VERSION	"1.07"
 
 #include <linux/module.h>
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/miscdevice.h>
 #include <linux/fcntl.h>

@@ -4,7 +4,6 @@
  * Copyright (c) 2004 Axis Communications AB.
  */
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/init.h>

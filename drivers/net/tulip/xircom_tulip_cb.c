@@ -98,7 +98,6 @@ static int csr0 = 0x00A00000 | 0x4800;
 /* PCI registers */
 #define PCI_POWERMGMT 	0x40
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>

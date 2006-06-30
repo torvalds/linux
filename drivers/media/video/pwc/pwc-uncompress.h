@@ -30,7 +30,6 @@
 #ifndef PWC_UNCOMPRESS_H
 #define PWC_UNCOMPRESS_H
 
-#include <linux/config.h>
 
 #include <media/pwc-ioctl.h>
 

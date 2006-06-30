@@ -59,7 +59,6 @@
 * 
 ***************************************************************************************************/
 
-#include <linux/config.h>
 #include <sound/driver.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>

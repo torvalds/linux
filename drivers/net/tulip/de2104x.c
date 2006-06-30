@@ -31,7 +31,6 @@
 #define DRV_VERSION		"0.7"
 #define DRV_RELDATE		"Mar 17, 2004"
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/netdevice.h>

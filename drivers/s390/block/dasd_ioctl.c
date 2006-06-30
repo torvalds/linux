@@ -9,7 +9,6 @@
  *
  * i/o controls for the dasd driver.
  */
-#include <linux/config.h>
 #include <linux/interrupt.h>
 #include <linux/major.h>
 #include <linux/fs.h>

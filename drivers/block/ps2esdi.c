@@ -29,7 +29,6 @@
 
 #define DEVICE_NAME "PS/2 ESDI"
 
-#include <linux/config.h>
 #include <linux/major.h>
 #include <linux/errno.h>
 #include <linux/wait.h>

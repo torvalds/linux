@@ -13,7 +13,6 @@
  * Each bit of the register is for masking each interrupt.  
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/irq.h>

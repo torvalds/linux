@@ -18,7 +18,6 @@
 #include <linux/pci_ids.h>
 #include <linux/ioport.h>
 #include <linux/module.h>
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/input.h>
 #include <linux/init.h>

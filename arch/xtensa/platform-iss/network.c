@@ -16,7 +16,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/list.h>
 #include <linux/irq.h>
 #include <linux/spinlock.h>

@@ -1,4 +1,3 @@
-#include <linux/config.h>
 #include <asm/ppc_asm.h>
 #include <asm/reg.h>
 

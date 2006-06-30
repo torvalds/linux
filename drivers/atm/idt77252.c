@@ -34,7 +34,6 @@ static char const rcsid[] =
 
 
 #include <linux/module.h>
-#include <linux/config.h>
 #include <linux/pci.h>
 #include <linux/skbuff.h>
 #include <linux/kernel.h>

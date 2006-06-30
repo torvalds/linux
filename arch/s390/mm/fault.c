@@ -10,7 +10,6 @@
  *    Copyright (C) 1995  Linus Torvalds
  */
 
-#include <linux/config.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>

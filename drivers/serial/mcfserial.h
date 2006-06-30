@@ -14,7 +14,6 @@
 #ifndef _MCF_SERIAL_H
 #define _MCF_SERIAL_H
 
-#include <linux/config.h>
 #include <linux/serial.h>
 
 #ifdef __KERNEL__

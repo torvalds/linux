@@ -23,7 +23,6 @@
  *  CS5535 documentation available from AMD
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/ide.h>

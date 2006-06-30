@@ -10,7 +10,6 @@
 
 /* $Id: procfs.c,v 1.1.8.2 2001/07/15 17:08:42 god Exp $ */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/time.h>
 #include <linux/seq_file.h>

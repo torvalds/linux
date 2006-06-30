@@ -28,7 +28,6 @@
 #include <linux/spinlock.h>
 #include <linux/list.h>
 #include <linux/wait.h>
-#include <linux/config.h>
 #include <linux/param.h>
 #include <linux/types.h>
 #include <linux/rwsem.h>

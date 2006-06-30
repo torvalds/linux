@@ -2134,7 +2134,7 @@ typedef struct scsi_qla_host {
 	mempool_t	*srb_mempool;
 
 	/* This spinlock is used to protect "io transactions", you must
-	 * aquire it before doing any IO to the card, eg with RD_REG*() and
+	 * acquire it before doing any IO to the card, eg with RD_REG*() and
 	 * WRT_REG*() for the duration of your entire commandtransaction.
 	 *
 	 * This spinlock is of lower priority than the io request lock.

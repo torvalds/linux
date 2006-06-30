@@ -15,7 +15,6 @@
  *  DEC/2000 -- linux 2.4 support <davidm@snapgear.com>
  */
 
-#include <linux/config.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>

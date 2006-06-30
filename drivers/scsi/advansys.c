@@ -754,7 +754,6 @@
  * --- Linux Include Files
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 
 #if defined(CONFIG_X86) && !defined(CONFIG_ISA)

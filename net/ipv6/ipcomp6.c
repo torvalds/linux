@@ -30,7 +30,6 @@
  *  The decompression of IP datagram MUST be done after the reassembly, 
  *  AH/ESP processing.
  */
-#include <linux/config.h>
 #include <linux/module.h>
 #include <net/ip.h>
 #include <net/xfrm.h>

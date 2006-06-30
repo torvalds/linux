@@ -1,4 +1,3 @@
-#include <linux/config.h>
 #ifdef CONFIG_PPC64
 #include <asm/page.h>
 #define PROVIDE32(x)	PROVIDE(__unused__##x)

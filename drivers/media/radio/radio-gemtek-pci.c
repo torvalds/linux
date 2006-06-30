@@ -37,7 +37,6 @@
  ***************************************************************************
  */
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/list.h>
 #include <linux/module.h>

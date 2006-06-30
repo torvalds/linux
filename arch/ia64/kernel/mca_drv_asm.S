@@ -5,7 +5,6 @@
  * Copyright (C) 2004 FUJITSU LIMITED
  * Copyright (C) Hidetoshi Seto (seto.hidetoshi@jp.fujitsu.com)
  */
-#include <linux/config.h>
 #include <linux/threads.h>
 
 #include <asm/asmmacro.h>

@@ -9,7 +9,6 @@
  * by Thayne Harbaugh of Linux Networx. (http://lnxi.com)
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/pci.h>

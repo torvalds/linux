@@ -36,7 +36,6 @@
  *	 - enables FIQ.
  *  6. Goto 3
  */
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/mman.h>

@@ -14,7 +14,6 @@
  * Louis Hamilton, Red Hat, Inc.
  * hamilton@redhat.com  [MIPS64 modifications]
  */
-#include <linux/config.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <asm/io.h>

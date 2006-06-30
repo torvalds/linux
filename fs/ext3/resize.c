@@ -8,7 +8,6 @@
  * This could probably be made into a module, because it is not often in use.
  */
 
-#include <linux/config.h>
 
 #define EXT3FS_DEBUG
 

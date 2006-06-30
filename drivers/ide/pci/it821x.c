@@ -62,7 +62,6 @@
  *	-	Move to libata once it grows up
  */
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/pci.h>

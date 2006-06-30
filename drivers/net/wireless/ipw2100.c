@@ -134,7 +134,6 @@ that only one external action is invoked at a time.
 */
 
 #include <linux/compiler.h>
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/if_arp.h>
 #include <linux/in6.h>
@@ -5358,7 +5357,7 @@ static int ipw2100_set_key(struct ipw2100_priv *priv,
 		     idx, keylen, len);
 
 	/* NOTE: We don't check cached values in case the firmware was reset
-	 * or some other problem is occuring.  If the user is setting the key,
+	 * or some other problem is occurring.  If the user is setting the key,
 	 * then we push the change */
 
 	wep_key->idx = idx;

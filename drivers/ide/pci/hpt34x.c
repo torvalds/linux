@@ -24,7 +24,6 @@
  * Non-bootable card or HPT343 :: pcicmd == 0x05
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>

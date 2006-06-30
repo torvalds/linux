@@ -5,7 +5,6 @@
  * port exceptions for kernel debugging purposes.
  */
 
-#include <linux/config.h>
 #include <asm/arch/hwregs/intr_vect.h>
 
 	;; Exported functions.

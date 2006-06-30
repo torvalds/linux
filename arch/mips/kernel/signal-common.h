@@ -8,7 +8,6 @@
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
  */
 
-#include <linux/config.h>
 
 static inline int
 setup_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc)

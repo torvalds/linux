@@ -9,7 +9,6 @@
  * This file contains an Overdrive specific LED feature.
  */
 
-#include <linux/config.h>
 #include <asm/system.h>
 #include <asm/io.h>
 #include <asm/overdrive/overdrive.h>

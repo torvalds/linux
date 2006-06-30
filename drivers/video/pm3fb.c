@@ -52,7 +52,6 @@
  *  Wed Feb 21 14:47:06 CET 2001, v 1.0.0: First working version
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>

@@ -4,7 +4,6 @@
  * PCI initialization for the Interface CTP/PCI-SH03 board
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/init.h>

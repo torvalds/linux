@@ -8,7 +8,6 @@
  * Copyright (C) 2002, 2003 David S. Miller (davem@redhat.com)
  */
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/fs.h>
 #include <linux/mm.h>

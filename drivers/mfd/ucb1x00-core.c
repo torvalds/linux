@@ -16,7 +16,6 @@
  *  Note that all locks are private to this file.  Nothing else may
  *  touch them.
  */
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>

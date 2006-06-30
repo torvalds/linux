@@ -39,7 +39,6 @@
  *     is shared with DSRS(DTE) at pin 23.
  */
 
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/signal.h>
 #include <linux/sched.h>

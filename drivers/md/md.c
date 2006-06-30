@@ -33,7 +33,6 @@
 */
 
 #include <linux/module.h>
-#include <linux/config.h>
 #include <linux/kthread.h>
 #include <linux/linkage.h>
 #include <linux/raid/md.h>

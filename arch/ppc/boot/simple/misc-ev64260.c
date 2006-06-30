@@ -10,7 +10,6 @@
  * or implied.
  */
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <asm/reg.h>
 #include <asm/io.h>

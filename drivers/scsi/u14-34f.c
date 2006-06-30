@@ -405,7 +405,6 @@
  *  the driver sets host->wish_block = TRUE for all ISA boards.
  */
 
-#include <linux/config.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
 #include <linux/ioport.h>

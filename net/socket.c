@@ -58,7 +58,6 @@
  *	Based upon Swansea University Computer Society NET3.039
  */
 
-#include <linux/config.h>
 #include <linux/mm.h>
 #include <linux/smp_lock.h>
 #include <linux/socket.h>

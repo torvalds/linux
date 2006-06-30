@@ -9,7 +9,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <asm/io.h>
 
 #define LED_REGISTER 0xa6104d20

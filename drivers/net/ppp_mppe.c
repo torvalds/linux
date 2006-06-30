@@ -43,7 +43,6 @@
  *                    deprecated in 2.6
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/version.h>

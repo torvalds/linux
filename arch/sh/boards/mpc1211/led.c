@@ -6,7 +6,6 @@
  * This file contains Interface MPC-1211 specific LED code.
  */
 
-#include <linux/config.h>
 
 static void mach_led(int position, int value)
 {

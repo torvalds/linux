@@ -50,7 +50,6 @@
  */
 
 #include <linux/linkage.h>
-#include <linux/config.h>
 #include <linux/init.h>
 #include <asm/assembler.h>
 #include <asm/pgtable-hwdef.h>

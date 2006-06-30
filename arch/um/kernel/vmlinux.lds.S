@@ -1,4 +1,3 @@
-#include <linux/config.h>
 /* in case the preprocessor is a 32bit one */
 #undef i386
 #ifdef CONFIG_LD_SCRIPT_STATIC

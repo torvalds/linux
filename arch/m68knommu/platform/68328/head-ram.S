@@ -1,4 +1,3 @@
-#include <linux/config.h>
 
 	.global __main
 	.global __rom_start

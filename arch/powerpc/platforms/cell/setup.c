@@ -14,7 +14,6 @@
  */
 #undef DEBUG
 
-#include <linux/config.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>

@@ -11,7 +11,6 @@
 #ifndef __ASM_IBMSTBX25_H__
 #define __ASM_IBMSTBX25_H__
 
-#include <linux/config.h>
 
 /* serial port defines */
 #define STBx25xx_IO_BASE	((uint)0xe0000000)

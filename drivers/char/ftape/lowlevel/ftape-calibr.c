@@ -24,7 +24,6 @@
  *      functions.
  */
 
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/jiffies.h>
 #include <asm/system.h>

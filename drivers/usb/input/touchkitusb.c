@@ -24,7 +24,6 @@
 
 //#define DEBUG
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/module.h>

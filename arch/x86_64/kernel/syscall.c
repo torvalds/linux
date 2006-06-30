@@ -3,7 +3,6 @@
 #include <linux/linkage.h>
 #include <linux/sys.h>
 #include <linux/cache.h>
-#include <linux/config.h>
 
 #define __NO_STUBS
 

@@ -31,7 +31,6 @@
  *     assumed senders never went idle.
  */
 
-#include <linux/config.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/skbuff.h>

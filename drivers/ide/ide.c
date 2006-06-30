@@ -130,7 +130,6 @@
 
 #define _IDE_C			/* Tell ide.h it's really us */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/string.h>

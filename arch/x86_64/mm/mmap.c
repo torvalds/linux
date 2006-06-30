@@ -1,7 +1,6 @@
 /* Copyright 2005 Andi Kleen, SuSE Labs.
  * Licensed under GPL, v.2
  */
-#include <linux/config.h>
 #include <linux/mm.h>
 #include <linux/sched.h>
 #include <linux/random.h>

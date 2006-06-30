@@ -4,7 +4,6 @@
  * Copyright (C) 1999, 2000, 2001 Nexus Electronics Ltd
  */
 
-#include <linux/config.h>
 
 		/* There are three different ways the kernel can be
 		   booted on a 7500 system: from Angel (loaded in RAM), from

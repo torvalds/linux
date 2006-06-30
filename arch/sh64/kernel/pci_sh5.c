@@ -9,7 +9,6 @@
  * Support functions for the SH5 PCI hardware.
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/rwsem.h>
 #include <linux/smp.h>

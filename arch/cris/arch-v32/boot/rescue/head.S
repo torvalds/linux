@@ -4,7 +4,6 @@
  * RedBoot based RFL instead. Nothing to see here, move along.
  */
 
-#include <linux/config.h>
 #include <asm/arch/hwregs/reg_map_asm.h>
 #include <asm/arch/hwregs/config_defs_asm.h>
 

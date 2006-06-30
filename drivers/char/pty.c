@@ -11,7 +11,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/module.h>	/* For EXPORT_SYMBOL */
 
 #include <linux/errno.h>

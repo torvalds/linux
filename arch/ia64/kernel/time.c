@@ -8,7 +8,6 @@
  * Copyright (C) 1999-2000 VA Linux Systems
  * Copyright (C) 1999-2000 Walt Drummond <drummond@valinux.com>
  */
-#include <linux/config.h>
 
 #include <linux/cpu.h>
 #include <linux/init.h>

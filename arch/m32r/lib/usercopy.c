@@ -6,7 +6,6 @@
  * Copyright 1997 Linus Torvalds
  * Copyright 2001, 2002, 2004 Hirokazu Takata
  */
-#include <linux/config.h>
 #include <linux/prefetch.h>
 #include <linux/string.h>
 #include <linux/thread_info.h>

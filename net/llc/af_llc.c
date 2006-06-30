@@ -20,7 +20,6 @@
  *
  * See the GNU General Public License for more details.
  */
-#include <linux/config.h>
 #include <linux/compiler.h>
 #include <linux/kernel.h>
 #include <linux/module.h>

@@ -15,7 +15,6 @@
 #include <linux/moduleparam.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/serio.h>
 #include <linux/err.h>

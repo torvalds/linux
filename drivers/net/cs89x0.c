@@ -100,7 +100,6 @@
 
 /* Always include 'config.h' first in case the user wants to turn on
    or override something. */
-#include <linux/config.h>
 #include <linux/module.h>
 
 /*

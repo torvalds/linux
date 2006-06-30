@@ -37,7 +37,6 @@
 #ifndef _DCCP_PKT_HIST_
 #define _DCCP_PKT_HIST_
 
-#include <linux/config.h>
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <linux/time.h>

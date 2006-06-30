@@ -14,7 +14,6 @@
  * 14/04/2005 Initial version, colin.king@philips.com
  *
  */
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>
 #include <linux/ptrace.h>

@@ -21,7 +21,6 @@
  * ssthresh after packet loss. The probing phase is as the original Reno.
  */
 
-#include <linux/config.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/skbuff.h>

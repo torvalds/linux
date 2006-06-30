@@ -13,7 +13,6 @@
 #ifndef _ST5481_H_
 #define _ST5481_H_
 
-#include <linux/config.h>
 
 // USB IDs, the Product Id is in the range 0x4810-0x481F
 

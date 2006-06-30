@@ -10,7 +10,6 @@
  *  2 of the License, or (at your option) any later version.
  */
 
-#include <linux/config.h>
 #include <linux/string.h>
 #include <linux/sched.h>
 #include <linux/threads.h>

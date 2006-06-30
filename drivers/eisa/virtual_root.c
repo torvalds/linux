@@ -7,7 +7,6 @@
  * This code is released under the GPL version 2.
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/eisa.h>

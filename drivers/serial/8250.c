@@ -19,7 +19,6 @@
  *  mapbase is the physical address of the IO port.
  *  membase is an 'ioremapped' cookie.
  */
-#include <linux/config.h>
 
 #if defined(CONFIG_SERIAL_8250_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
 #define SUPPORT_SYSRQ

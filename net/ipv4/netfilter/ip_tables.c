@@ -14,7 +14,6 @@
  * 08 Oct 2005 Harald Welte <lafore@netfilter.org>
  * 	- Generalize into "x_tables" layer and "{ip,ip6,arp}_tables"
  */
-#include <linux/config.h>
 #include <linux/cache.h>
 #include <linux/capability.h>
 #include <linux/skbuff.h>

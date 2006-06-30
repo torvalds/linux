@@ -6,7 +6,6 @@
   (C) 2001 Andreas Gruenbacher, <a.gruenbacher@computer.org>
 */
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/xattr.h>
 

@@ -52,7 +52,6 @@
  *					a single port at the same time.
  */
 
-#include <linux/config.h>
 
 #include <linux/types.h>
 #include <linux/fcntl.h>

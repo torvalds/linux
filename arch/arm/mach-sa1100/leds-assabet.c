@@ -9,7 +9,6 @@
  *   - Green - toggles state every 50 timer interrupts
  *   - Red   - on if system is not idle
  */
-#include <linux/config.h>
 #include <linux/init.h>
 
 #include <asm/hardware.h>

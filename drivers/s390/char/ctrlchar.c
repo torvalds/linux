@@ -7,7 +7,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/stddef.h>
 #include <asm/errno.h>
 #include <linux/sysrq.h>

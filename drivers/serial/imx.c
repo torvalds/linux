@@ -25,7 +25,6 @@
  * [29-Mar-2005] Mike Lee
  * Added hardware handshake
  */
-#include <linux/config.h>
 
 #if defined(CONFIG_SERIAL_IMX_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
 #define SUPPORT_SYSRQ

@@ -8,7 +8,6 @@
  * This file will soon be removed in favor of an uinput userspace tool.
  */
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/proc_fs.h>
 #include <linux/sysctl.h>

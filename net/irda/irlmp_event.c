@@ -24,7 +24,6 @@
  *
  ********************************************************************/
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 
 #include <net/irda/irda.h>

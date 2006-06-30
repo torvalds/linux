@@ -7,7 +7,6 @@
  * Copyright (C) 2000, 2001  Ralf Baechle <ralf@gnu.org>
  * swiped from i386, and cloned for MIPS by Geert, polished by Ralf.
  */
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/dma-mapping.h>
 #include <linux/mm.h>

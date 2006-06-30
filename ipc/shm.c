@@ -17,7 +17,6 @@
  * Dustin Kirkland <dustin.kirkland@us.ibm.com>
  */
 
-#include <linux/config.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/hugetlb.h>

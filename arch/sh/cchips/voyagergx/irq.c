@@ -21,7 +21,6 @@
 
 #undef DEBUG
 
-#include <linux/config.h>
 #include <linux/sched.h>
 #include <linux/module.h>
 #include <linux/kernel.h>

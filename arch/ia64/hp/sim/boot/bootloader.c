@@ -11,7 +11,6 @@
  */
 struct task_struct;	/* forward declaration for elf.h */
 
-#include <linux/config.h>
 #include <linux/elf.h>
 #include <linux/init.h>
 #include <linux/kernel.h>

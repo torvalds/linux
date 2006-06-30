@@ -63,7 +63,6 @@
  *		Pasi Sarolahti:		F-RTO for dealing with spurious RTOs
  */
 
-#include <linux/config.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/sysctl.h>

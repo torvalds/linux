@@ -30,7 +30,6 @@
  * option) any later version.
  */
 
-#include <linux/config.h>
 #include <linux/threads.h>
 #include <asm/processor.h>
 #include <asm/page.h>

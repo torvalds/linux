@@ -245,7 +245,6 @@
 /*   to talk to the device */
 /* Thanx to gkh and the rest of the usb dev group for all code I have assimilated :-) */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/init.h>

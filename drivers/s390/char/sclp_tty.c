@@ -8,7 +8,6 @@
  *		 Martin Schwidefsky <schwidefsky@de.ibm.com>
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kmod.h>
 #include <linux/tty.h>

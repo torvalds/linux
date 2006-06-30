@@ -3,7 +3,6 @@
  *
  * Copyright (C) 1995 Andreas Busse
  */
-#include <linux/config.h>
 #include <linux/sys.h>
 
 #include <asm/asm.h>

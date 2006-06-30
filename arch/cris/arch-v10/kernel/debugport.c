@@ -103,7 +103,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/console.h>
 #include <linux/init.h>
 #include <linux/major.h>

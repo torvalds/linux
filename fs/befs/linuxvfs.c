@@ -325,7 +325,7 @@ befs_read_inode(struct inode *inode)
 	if (!bh) {
 		befs_error(sb, "unable to read inode block - "
 			   "inode = %lu", inode->i_ino);
-		goto unaquire_none;
+		goto unacquire_none;
 	}
 
 	raw_inode = (befs_inode *) bh->b_data;
@@ -334,7 +334,7 @@ befs_read_inode(struct inode *inode)
 
 	if (befs_check_inode(sb, raw_inode, inode->i_ino) != BEFS_OK) {
 		befs_error(sb, "Bad inode: %lu", inode->i_ino);
-		goto unaquire_bh;
+		goto unacquire_bh;
 	}
 
 	inode->i_mode = (umode_t) fs32_to_cpu(sb, raw_inode->mode);
@@ -402,17 +402,17 @@ befs_read_inode(struct inode *inode)
 		befs_error(sb, "Inode %lu is not a regular file, "
 			   "directory or symlink. THAT IS WRONG! BeFS has no "
 			   "on disk special files", inode->i_ino);
-		goto unaquire_bh;
+		goto unacquire_bh;
 	}
 
 	brelse(bh);
 	befs_debug(sb, "<--- befs_read_inode()");
 	return;
 
-      unaquire_bh:
+      unacquire_bh:
 	brelse(bh);
 
-      unaquire_none:
+      unacquire_none:
 	make_bad_inode(inode);
 	befs_debug(sb, "<--- befs_read_inode() - Bad inode");
 	return;
@@ -761,14 +761,14 @@ befs_fill_super(struct super_block *sb, void *data, int silent)
 		printk(KERN_ERR
 		       "BeFS(%s): Unable to allocate memory for private "
 		       "portion of superblock. Bailing.\n", sb->s_id);
-		goto unaquire_none;
+		goto unacquire_none;
 	}
 	befs_sb = BEFS_SB(sb);
 	memset(befs_sb, 0, sizeof(befs_sb_info));
 
 	if (!parse_options((char *) data, &befs_sb->mount_opts)) {
 		befs_error(sb, "cannot parse mount options");
-		goto unaquire_priv_sbp;
+		goto unacquire_priv_sbp;
 	}
 
 	befs_debug(sb, "---> befs_fill_super()");
@@ -794,7 +794,7 @@ befs_fill_super(struct super_block *sb, void *data, int silent)
 
 	if (!(bh = sb_bread(sb, sb_block))) {
 		befs_error(sb, "unable to read superblock");
-		goto unaquire_priv_sbp;
+		goto unacquire_priv_sbp;
 	}
 
 	/* account for offset of super block on x86 */
@@ -809,20 +809,20 @@ befs_fill_super(struct super_block *sb, void *data, int silent)
 	}
 
 	if (befs_load_sb(sb, disk_sb) != BEFS_OK)
-		goto unaquire_bh;
+		goto unacquire_bh;
 
 	befs_dump_super_block(sb, disk_sb);
 
 	brelse(bh);
 
 	if (befs_check_sb(sb) != BEFS_OK)
-		goto unaquire_priv_sbp;
+		goto unacquire_priv_sbp;
 
 	if( befs_sb->num_blocks > ~((sector_t)0) ) {
 		befs_error(sb, "blocks count: %Lu "
 			"is larger than the host can use",
 			befs_sb->num_blocks);
-		goto unaquire_priv_sbp;
+		goto unacquire_priv_sbp;
 	}
 
 	/*
@@ -838,7 +838,7 @@ befs_fill_super(struct super_block *sb, void *data, int silent)
 	if (!sb->s_root) {
 		iput(root);
 		befs_error(sb, "get root inode failed");
-		goto unaquire_priv_sbp;
+		goto unacquire_priv_sbp;
 	}
 
 	/* load nls library */
@@ -860,13 +860,13 @@ befs_fill_super(struct super_block *sb, void *data, int silent)
 
 	return 0;
 /*****************/
-      unaquire_bh:
+      unacquire_bh:
 	brelse(bh);
 
-      unaquire_priv_sbp:
+      unacquire_priv_sbp:
 	kfree(sb->s_fs_info);
 
-      unaquire_none:
+      unacquire_none:
 	sb->s_fs_info = NULL;
 	return -EINVAL;
 }
@@ -925,18 +925,18 @@ init_befs_fs(void)
 
 	err = befs_init_inodecache();
 	if (err)
-		goto unaquire_none;
+		goto unacquire_none;
 
 	err = register_filesystem(&befs_fs_type);
 	if (err)
-		goto unaquire_inodecache;
+		goto unacquire_inodecache;
 
 	return 0;
 
-unaquire_inodecache:
+unacquire_inodecache:
 	befs_destroy_inodecache();
 
-unaquire_none:
+unacquire_none:
 	return err;
 }
 

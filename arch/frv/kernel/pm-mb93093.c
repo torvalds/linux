@@ -10,7 +10,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/pm.h>
 #include <linux/sched.h>

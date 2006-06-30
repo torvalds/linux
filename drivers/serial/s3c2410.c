@@ -55,7 +55,6 @@
  * BJD, 04-Nov-2004
 */
 
-#include <linux/config.h>
 
 #if defined(CONFIG_SERIAL_S3C2410_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
 #define SUPPORT_SYSRQ

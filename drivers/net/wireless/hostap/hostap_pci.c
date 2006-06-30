@@ -4,7 +4,6 @@
  * driver patches from Reyk Floeter <reyk@vantronix.net> and
  * Andy Warner <andyw@pobox.com> */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/if.h>

@@ -60,7 +60,6 @@
  */
 
 
-#include <linux/config.h>
 #include "hisax.h"
 #include "isac.h"
 #include "isdnl1.h"

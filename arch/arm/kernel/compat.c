@@ -15,7 +15,6 @@
  *  the kernel for 5 years from now (2001). This will allow boot loaders
  *  to convert to the new struct tag way.
  */
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/string.h>

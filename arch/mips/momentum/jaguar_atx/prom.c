@@ -16,7 +16,6 @@
  *
  * Added changes for SMP - Manish Lachwani (lachwani@pmc-sierra.com)
  */
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/sched.h>

@@ -54,7 +54,6 @@
  **************************************************************************/
 
 
-#include <linux/config.h>
 #include <linux/types.h>
 
 #define ULONG   unsigned long
@@ -193,13 +192,13 @@ typedef struct {
 #define TSC_SEL_ATN_DIRECT_OUT  0x15	/* Select With ATN Sequence     */
 #define TSC_SEL_ATN3_DIRECT_IN  0xB5	/* Select With ATN3 Sequence    */
 #define TSC_SEL_ATN3_DIRECT_OUT 0x35	/* Select With ATN3 Sequence    */
-#define TSC_XF_DMA_OUT_DIRECT   0x06	/* DMA Xfer Infomation out      */
-#define TSC_XF_DMA_IN_DIRECT    0x86	/* DMA Xfer Infomation in       */
+#define TSC_XF_DMA_OUT_DIRECT   0x06	/* DMA Xfer Information out      */
+#define TSC_XF_DMA_IN_DIRECT    0x86	/* DMA Xfer Information in       */
 
-#define TSC_XF_DMA_OUT  0x43	/* DMA Xfer Infomation out              */
-#define TSC_XF_DMA_IN   0xC3	/* DMA Xfer Infomation in               */
-#define TSC_XF_FIFO_OUT 0x03	/* FIFO Xfer Infomation out             */
-#define TSC_XF_FIFO_IN  0x83	/* FIFO Xfer Infomation in              */
+#define TSC_XF_DMA_OUT  0x43	/* DMA Xfer Information out              */
+#define TSC_XF_DMA_IN   0xC3	/* DMA Xfer Information in               */
+#define TSC_XF_FIFO_OUT 0x03	/* FIFO Xfer Information out             */
+#define TSC_XF_FIFO_IN  0x83	/* FIFO Xfer Information in              */
 
 #define TSC_MSG_ACCEPT  0x0F	/* Message Accept                       */
 

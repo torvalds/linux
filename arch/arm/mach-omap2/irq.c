@@ -12,7 +12,6 @@
  */
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/config.h>
 #include <linux/interrupt.h>
 #include <asm/hardware.h>
 #include <asm/mach/irq.h>

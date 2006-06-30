@@ -5,7 +5,6 @@
  *
  * Copyright (C) 2000-2005 Silicon Graphics, Inc. All rights reserved.
  */
-#include <linux/config.h>
 
 #ifdef CONFIG_PROC_FS
 #include <linux/proc_fs.h>

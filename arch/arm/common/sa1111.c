@@ -14,7 +14,6 @@
  * All initialization functions provided here are intended to be called
  * from machine specific code with proper arguments when required.
  */
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>

@@ -39,7 +39,6 @@
 */
 
 #include <linux/init.h>
-#include <linux/config.h>
 #include "hisax.h"
 #include "isac.h"
 #include "ipac.h"

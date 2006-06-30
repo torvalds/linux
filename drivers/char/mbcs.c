@@ -10,7 +10,6 @@
  *	MOATB Core Services driver.
  */
 
-#include <linux/config.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>

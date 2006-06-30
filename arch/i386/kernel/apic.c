@@ -14,7 +14,6 @@
  *	Mikael Pettersson	:	PM converted to driver model.
  */
 
-#include <linux/config.h>
 #include <linux/init.h>
 
 #include <linux/mm.h>

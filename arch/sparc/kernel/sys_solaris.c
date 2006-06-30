@@ -4,7 +4,6 @@
  * Copyright (C) 1996 Miguel de Icaza (miguel@nuclecu.unam.mx)
  */
 
-#include <linux/config.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/string.h>

@@ -2,7 +2,6 @@
  *	Machine specific setup for generic
  */
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <asm/arch_hooks.h>

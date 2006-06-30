@@ -35,7 +35,6 @@
  */
 
 //#define DEBUG /* uncomment if you want debugging info (pr_debug) */
-#include <linux/config.h>
 #include <linux/sched.h>
 #include <linux/fs.h>
 #include <linux/bio.h>

@@ -17,7 +17,6 @@
 #ifndef __MACH_STX_GP3_H
 #define __MACH_STX_GP3_H
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <asm/ppcboot.h>
 

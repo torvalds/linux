@@ -19,7 +19,6 @@
  *	Skip non-WB memory and ignore empty memory ranges.
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/mm.h>

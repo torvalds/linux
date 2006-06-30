@@ -1,7 +1,6 @@
 #ifndef __PCILYNX_H__
 #define __PCILYNX_H__
 
-#include <linux/config.h>
 
 #define PCILYNX_DRIVER_NAME      "pcilynx"
 #define PCILYNX_MAJOR            177

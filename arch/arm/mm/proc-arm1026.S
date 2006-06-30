@@ -15,7 +15,6 @@
  * functions on the ARM1026EJ-S.
  */
 #include <linux/linkage.h>
-#include <linux/config.h>
 #include <linux/init.h>
 #include <asm/assembler.h>
 #include <asm/asm-offsets.h>

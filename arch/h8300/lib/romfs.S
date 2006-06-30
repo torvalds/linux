@@ -1,7 +1,6 @@
 /* romfs move to __ebss */
 
 #include <asm/linkage.h>
-#include <linux/config.h>
 
 #if defined(__H8300H__) 
 	.h8300h

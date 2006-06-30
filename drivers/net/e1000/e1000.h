@@ -34,7 +34,6 @@
 #define _E1000_H_
 
 #include <linux/stddef.h>
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <asm/byteorder.h>

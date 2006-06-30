@@ -9,7 +9,6 @@
 #define EXPORT_SYMTAB_STROPS
 #define PROMLIB_INTERNAL
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/smp.h>

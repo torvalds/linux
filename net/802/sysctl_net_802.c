@@ -10,7 +10,6 @@
  *		2 of the License, or (at your option) any later version.
  */
 
-#include <linux/config.h>
 #include <linux/mm.h>
 #include <linux/if_tr.h>
 #include <linux/sysctl.h>

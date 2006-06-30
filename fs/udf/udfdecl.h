@@ -6,7 +6,6 @@
 #include "osta_udf.h"
 
 #include <linux/fs.h>
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/udf_fs_i.h>
 #include <linux/udf_fs_sb.h>

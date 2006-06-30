@@ -9,7 +9,6 @@
  */
 
 #include <linux/linkage.h>
-#include <linux/config.h>
 #include <asm/semaphore.h>
 
 /*

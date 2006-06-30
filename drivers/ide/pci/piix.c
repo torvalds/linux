@@ -90,7 +90,6 @@
  *	ICH3	errata #18	- Don't use native mode
  */
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/kernel.h>

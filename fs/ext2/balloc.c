@@ -11,7 +11,6 @@
  *        David S. Miller (davem@caip.rutgers.edu), 1995
  */
 
-#include <linux/config.h>
 #include "ext2.h"
 #include <linux/quotaops.h>
 #include <linux/sched.h>

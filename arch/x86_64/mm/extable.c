@@ -2,7 +2,6 @@
  * linux/arch/x86_64/mm/extable.c
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
 #include <linux/init.h>

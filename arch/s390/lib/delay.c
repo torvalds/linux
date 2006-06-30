@@ -11,7 +11,6 @@
  *    Copyright (C) 1997 Martin Mares <mj@atrey.karlin.mff.cuni.cz>
  */
 
-#include <linux/config.h>
 #include <linux/sched.h>
 #include <linux/delay.h>
 

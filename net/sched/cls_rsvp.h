@@ -65,7 +65,6 @@
    Well, as result, despite its simplicity, we get a pretty
    powerful classification engine.  */
 
-#include <linux/config.h>
 
 struct rsvp_head
 {

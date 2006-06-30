@@ -1,5 +1,4 @@
 
-#include <linux/config.h>
 #include <asm/io.h>
 #include <asm/mach-au1x00/au1000.h>
 

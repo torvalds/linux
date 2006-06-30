@@ -7,7 +7,6 @@
 
 #include <linux/mm.h>
 #include <linux/sysctl.h>
-#include <linux/config.h>
 #include <linux/in6.h>
 #include <linux/ipv6.h>
 #include <net/ndisc.h>

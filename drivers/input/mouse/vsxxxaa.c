@@ -81,7 +81,6 @@
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/input.h>
-#include <linux/config.h>
 #include <linux/serio.h>
 #include <linux/init.h>
 

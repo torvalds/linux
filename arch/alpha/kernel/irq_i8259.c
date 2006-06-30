@@ -7,7 +7,6 @@
  * Started hacking from linux-2.3.30pre6/arch/i386/kernel/i8259.c.
  */
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/cache.h>
 #include <linux/sched.h>

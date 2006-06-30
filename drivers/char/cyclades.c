@@ -633,7 +633,6 @@ static char rcsid[] =
 /*
  * Include section 
  */
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/signal.h>

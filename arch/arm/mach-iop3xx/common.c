@@ -12,7 +12,6 @@
  * warranty of any kind, whether express or implied.
  */
 
-#include <linux/config.h>
 #include <linux/delay.h>
 #include <asm/hardware.h>
 

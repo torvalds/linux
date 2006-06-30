@@ -16,7 +16,6 @@
  * 07/30/02 D. Mosberger	Replace sti()/cli() with explicit spinlocks & local irq masking
  */
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/sched.h>

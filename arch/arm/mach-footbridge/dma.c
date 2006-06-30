@@ -10,7 +10,6 @@
  *   17-Mar-1999 RMK	Allow any EBSA285-like architecture to have
  *			ISA DMA controllers.
  */
-#include <linux/config.h>
 #include <linux/init.h>
 
 #include <asm/dma.h>

@@ -38,7 +38,6 @@
  *	The functions in this file will not compile correctly with gcc 2.4.x
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>

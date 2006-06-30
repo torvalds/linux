@@ -9,7 +9,6 @@
  * This file contains ST40STB1 HARP and compatible code.
  */
 
-#include <linux/config.h>
 #include <asm/io.h>
 #include <asm/harp/harp.h>
 

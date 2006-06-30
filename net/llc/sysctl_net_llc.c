@@ -4,7 +4,6 @@
  * Arnaldo Carvalho de Melo <acme@conectiva.com.br>
  */
 
-#include <linux/config.h>
 #include <linux/mm.h>
 #include <linux/init.h>
 #include <linux/sysctl.h>

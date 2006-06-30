@@ -28,7 +28,6 @@
  */
 
 #include <linux/sys.h>
-#include <linux/config.h>
 #include <linux/linkage.h>
 #include <asm/thread_info.h>
 #include <asm/setup.h>

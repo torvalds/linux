@@ -12,7 +12,6 @@
  *  Copyright (C) 2002 Ralf Baechle (ralf@linux-mips.org)
  *  Copyright (C) 2002 David S. Miller (davem@redhat.com)
  */
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>

@@ -39,7 +39,6 @@
 #ifndef _CXGB_COMMON_H_
 #define _CXGB_COMMON_H_
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/types.h>

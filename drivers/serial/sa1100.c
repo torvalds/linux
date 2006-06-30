@@ -24,7 +24,6 @@
  *  $Id: sa1100.c,v 1.50 2002/07/29 14:41:04 rmk Exp $
  *
  */
-#include <linux/config.h>
 
 #if defined(CONFIG_SERIAL_SA1100_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
 #define SUPPORT_SYSRQ

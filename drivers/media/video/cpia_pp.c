@@ -25,7 +25,6 @@
 /* define _CPIA_DEBUG_ for verbose debug output (see cpia.h) */
 /* #define _CPIA_DEBUG_  1 */
 
-#include <linux/config.h>
 
 #include <linux/module.h>
 #include <linux/init.h>

@@ -111,7 +111,6 @@ SuperIO/PS2/Mouse, using INTR via ISA IRQ12 (mouse not currently supported)
 JP7 is not bus master -- do NOT use -- only 4 pci bus master's allowed -- SouthBridge, JP4, JP5, JP6
 */
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/types.h>

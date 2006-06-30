@@ -1,7 +1,6 @@
 #ifndef _I8042_SPARCIO_H
 #define _I8042_SPARCIO_H
 
-#include <linux/config.h>
 #include <asm/io.h>
 #include <asm/oplib.h>
 #include <asm/prom.h>

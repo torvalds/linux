@@ -4,7 +4,6 @@
  * Copyright (C) 1997,1998 Jakub Jelinek (jj@sunsite.mff.cuni.cz)
  */
 
-#include <linux/config.h>
 #include <linux/module.h> 
 #include <linux/types.h>
 #include <linux/smp_lock.h>

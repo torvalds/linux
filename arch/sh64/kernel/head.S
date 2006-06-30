@@ -20,7 +20,6 @@
  *    Add early SCIF console DTLB mapping.
  */
 
-#include <linux/config.h>
 
 #include <asm/page.h>
 #include <asm/mmu_context.h>

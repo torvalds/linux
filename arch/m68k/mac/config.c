@@ -10,7 +10,6 @@
  * Miscellaneous linux stuff
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/mm.h>

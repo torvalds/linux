@@ -8043,8 +8043,8 @@ SiS_SetCHTVReg(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short
       SiS_SetCH700x(SiS_Pr,0x01,0x28);
 
       /* Set video bandwidth
-            High bandwith Luma composite video filter(S0=1)
-            low bandwith Luma S-video filter (S2-1=00)
+            High bandwidth Luma composite video filter(S0=1)
+            low bandwidth Luma S-video filter (S2-1=00)
 	    disable peak filter in S-video channel (S3=0)
 	    high bandwidth Chroma Filter (S5-4=11)
 	    =00110001=0x31

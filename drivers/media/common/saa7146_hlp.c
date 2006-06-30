@@ -158,7 +158,7 @@ static int calculate_h_scale_registers(struct saa7146_dev *dev,
 	}
 
 	/* the horizontal scaling increment controls the UV filter
-	   to reduce the bandwith to improve the display quality,
+	   to reduce the bandwidth to improve the display quality,
 	   so set it ... */
 	if ( xsci == 0x400)
 		pfuv = 0x00;

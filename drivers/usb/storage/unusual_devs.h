@@ -31,7 +31,6 @@
  * the following thing for it to work:
  * The macro UNUSUAL_DEV() must be defined before this file is included
  */
-#include <linux/config.h>
 
 /* If you edit this file, please try to keep it sorted first by VendorID,
  * then by ProductID.

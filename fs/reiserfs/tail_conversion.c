@@ -2,7 +2,6 @@
  * Copyright 1999 Hans Reiser, see reiserfs/README for licensing and copyright details
  */
 
-#include <linux/config.h>
 #include <linux/time.h>
 #include <linux/pagemap.h>
 #include <linux/buffer_head.h>

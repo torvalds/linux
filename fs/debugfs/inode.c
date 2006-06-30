@@ -16,7 +16,6 @@
 /* uncomment to get debug messages from the debug filesystem, ah the irony. */
 /* #define DEBUG */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/mount.h>

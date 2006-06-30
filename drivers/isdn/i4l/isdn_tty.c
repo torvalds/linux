@@ -11,7 +11,6 @@
  */
 #undef ISDN_TTY_STAT_DEBUG
 
-#include <linux/config.h>
 #include <linux/isdn.h>
 #include <linux/delay.h>
 #include "isdn_common.h"

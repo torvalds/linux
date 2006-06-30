@@ -6,7 +6,6 @@
  * Based on cyber_esp.c
  */
 
-#include <linux/config.h>
 
 #if defined(CONFIG_AMIGA) || defined(CONFIG_APUS)
 #define USE_BOTTOM_HALF

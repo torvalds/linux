@@ -30,7 +30,6 @@
  */
 
 
-#include <linux/config.h>
 
 #include <asm/delay.h>
 #include <asm/uaccess.h>

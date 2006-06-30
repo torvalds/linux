@@ -10,7 +10,6 @@
  * Copyright (c) 1999 D. Jeff Dionne <jeff@uclinux.org>
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>

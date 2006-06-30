@@ -1,5 +1,4 @@
 #include <linux/linkage.h>
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/signal.h>
 #include <linux/sched.h>

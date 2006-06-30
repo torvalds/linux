@@ -22,7 +22,6 @@
 #ifndef __HISAX_DEBUG_H__
 #define __HISAX_DEBUG_H__
 
-#include <linux/config.h>
 
 #ifdef CONFIG_HISAX_DEBUG
 

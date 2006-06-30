@@ -9,7 +9,6 @@
  * 04/13/01	D. Mosberger	dropped saving tssd in ar.k1---it's not needed
  * 09/14/01	D. Mosberger	fixed memory management for gdt/tss page
  */
-#include <linux/config.h>
 
 #include <linux/types.h>
 #include <linux/mm.h>

@@ -30,7 +30,6 @@
 /* See README.epca for change history --DAT*/
 
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/types.h>

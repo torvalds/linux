@@ -10,7 +10,6 @@
  *
  * Note: Above list of copyright holders is incomplete...
  */
-#include <linux/config.h>
 
 #include <linux/acpi.h>
 #include <linux/types.h>

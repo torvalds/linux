@@ -12,7 +12,6 @@
  * this behaves the same as the original Reno.
  */
 
-#include <linux/config.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <net/tcp.h>

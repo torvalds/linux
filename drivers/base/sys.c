@@ -12,7 +12,6 @@
  * add themselves as children of the system bus.
  */
 
-#include <linux/config.h>
 #include <linux/sysdev.h>
 #include <linux/err.h>
 #include <linux/module.h>

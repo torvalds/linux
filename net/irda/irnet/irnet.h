@@ -248,7 +248,6 @@
 #include <linux/miscdevice.h>
 #include <linux/poll.h>
 #include <linux/capability.h>
-#include <linux/config.h>
 #include <linux/ctype.h>	/* isspace() */
 #include <asm/uaccess.h>
 #include <linux/init.h>

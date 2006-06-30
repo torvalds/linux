@@ -6,7 +6,6 @@
 #ifndef NET_ATM_RESOURCES_H
 #define NET_ATM_RESOURCES_H
 
-#include <linux/config.h>
 #include <linux/atmdev.h>
 #include <linux/mutex.h>
 

@@ -16,7 +16,6 @@
 #ifndef GIGASET_H
 #define GIGASET_H
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/compiler.h>
 #include <linux/types.h>

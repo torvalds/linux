@@ -10,7 +10,6 @@
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/sysctl.h>
-#include <linux/config.h>
 #include <linux/igmp.h>
 #include <linux/inetdevice.h>
 #include <net/snmp.h>
