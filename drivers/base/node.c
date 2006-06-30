@@ -50,8 +50,6 @@ static ssize_t node_read_meminfo(struct sys_device * dev, char * buf)
 	__get_zone_counts(&active, &inactive, &free, NODE_DATA(nid));
 
 	/* Check for negative values in these approximate counters */
-	if ((long)ps.nr_dirty < 0)
-		ps.nr_dirty = 0;
 	if ((long)ps.nr_writeback < 0)
 		ps.nr_writeback = 0;
 
@@ -81,7 +79,7 @@ static ssize_t node_read_meminfo(struct sys_device * dev, char * buf)
 		       nid, K(i.freehigh),
 		       nid, K(i.totalram - i.totalhigh),
 		       nid, K(i.freeram - i.freehigh),
-		       nid, K(ps.nr_dirty),
+		       nid, K(node_page_state(nid, NR_FILE_DIRTY)),
 		       nid, K(ps.nr_writeback),
 		       nid, K(node_page_state(nid, NR_FILE_PAGES)),
 		       nid, K(node_page_state(nid, NR_FILE_MAPPED)),

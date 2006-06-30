@@ -400,9 +400,9 @@ static char *vmstat_text[] = {
 	"nr_file_pages",
 	"nr_slab",
 	"nr_page_table_pages",
+	"nr_dirty",
 
 	/* Page state */
-	"nr_dirty",
 	"nr_writeback",
 	"nr_unstable",
 

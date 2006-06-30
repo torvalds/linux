@@ -315,6 +315,7 @@ nfs_scan_lock_dirty(struct nfs_inode *nfsi, struct list_head *dst,
 						req->wb_index, NFS_PAGE_TAG_DIRTY);
 				nfs_list_remove_request(req);
 				nfs_list_add_request(req, dst);
+				dec_zone_page_state(req->wb_page, NR_FILE_DIRTY);
 				res++;
 			}
 		}
