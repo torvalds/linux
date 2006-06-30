@@ -22,13 +22,6 @@
  * commented here.
  */
 struct page_state {
-	unsigned long nr_unstable;	/* NFS unstable pages */
-#define GET_PAGE_STATE_LAST nr_unstable
-
-	/*
-	 * The below are zeroed by get_page_state().  Use get_full_page_state()
-	 * to add up all these.
-	 */
 	unsigned long pgpgin;		/* Disk reads */
 	unsigned long pgpgout;		/* Disk writes */
 	unsigned long pswpin;		/* swap reads */
@@ -77,8 +70,6 @@ struct page_state {
 	unsigned long nr_bounce;	/* pages for bounce buffers */
 };
 
-extern void get_page_state(struct page_state *ret);
-extern void get_page_state_node(struct page_state *ret, int node);
 extern void get_full_page_state(struct page_state *ret);
 extern unsigned long read_page_state_offset(unsigned long offset);
 extern void mod_page_state_offset(unsigned long offset, unsigned long delta);

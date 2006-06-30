@@ -1271,7 +1271,6 @@ void si_meminfo_node(struct sysinfo *val, int nid)
  */
 void show_free_areas(void)
 {
-	struct page_state ps;
 	int cpu, temperature;
 	unsigned long active;
 	unsigned long inactive;
@@ -1303,7 +1302,6 @@ void show_free_areas(void)
 		}
 	}
 
-	get_page_state(&ps);
 	get_zone_counts(&active, &inactive, &free);
 
 	printk("Free pages: %11ukB (%ukB HighMem)\n",
@@ -1316,7 +1314,7 @@ void show_free_areas(void)
 		inactive,
 		global_page_state(NR_FILE_DIRTY),
 		global_page_state(NR_WRITEBACK),
-		ps.nr_unstable,
+		global_page_state(NR_UNSTABLE_NFS),
 		nr_free_pages(),
 		global_page_state(NR_SLAB),
 		global_page_state(NR_FILE_MAPPED),

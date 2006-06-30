@@ -525,7 +525,7 @@ nfs_mark_request_commit(struct nfs_page *req)
 	nfs_list_add_request(req, &nfsi->commit);
 	nfsi->ncommit++;
 	spin_unlock(&nfsi->req_lock);
-	inc_page_state(nr_unstable);
+	inc_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
 	mark_inode_dirty(inode);
 }
 #endif
@@ -1393,7 +1393,6 @@ static void nfs_commit_done(struct rpc_task *task, void *calldata)
 {
 	struct nfs_write_data	*data = calldata;
 	struct nfs_page		*req;
-	int res = 0;
 
         dprintk("NFS: %4d nfs_commit_done (status %d)\n",
                                 task->tk_pid, task->tk_status);
@@ -1405,6 +1404,7 @@ static void nfs_commit_done(struct rpc_task *task, void *calldata)
 	while (!list_empty(&data->pages)) {
 		req = nfs_list_entry(data->pages.next);
 		nfs_list_remove_request(req);
+		dec_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
 
 		dprintk("NFS: commit (%s/%Ld %d@%Ld)",
 			req->wb_context->dentry->d_inode->i_sb->s_id,
@@ -1431,9 +1431,7 @@ static void nfs_commit_done(struct rpc_task *task, void *calldata)
 		nfs_mark_request_dirty(req);
 	next:
 		nfs_clear_page_writeback(req);
-		res++;
 	}
-	sub_page_state(nr_unstable,res);
 }
 
 static const struct rpc_call_ops nfs_commit_ops = {
