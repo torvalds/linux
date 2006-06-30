@@ -812,11 +812,10 @@ static int fill_super(struct super_block *sb, void *data, int silent)
 	return error;
 }
 
-static struct super_block *gfs2_get_sb(struct file_system_type *fs_type,
-				       int flags, const char *dev_name,
-				       void *data)
+static int gfs2_get_sb(struct file_system_type *fs_type, int flags,
+		const char *dev_name, void *data, struct vfsmount *mnt)
 {
-	return get_sb_bdev(fs_type, flags, dev_name, data, fill_super);
+	return get_sb_bdev(fs_type, flags, dev_name, data, fill_super, mnt);
 }
 
 static void gfs2_kill_sb(struct super_block *sb)
