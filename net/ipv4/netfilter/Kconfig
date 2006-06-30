@@ -332,7 +332,7 @@ config IP_NF_MATCH_HASHLIMIT
 	help
 	  This option adds a new iptables `hashlimit' match.  
 
-	  As opposed to `limit', this match dynamically crates a hash table
+	  As opposed to `limit', this match dynamically creates a hash table
 	  of limit buckets, based on your selection of source/destination
 	  ip addresses and/or ports.
 

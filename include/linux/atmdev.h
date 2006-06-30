@@ -7,6 +7,7 @@
 #define LINUX_ATMDEV_H
 
 
+#include <linux/device.h>
 #include <linux/atmapi.h>
 #include <linux/atm.h>
 #include <linux/atmioc.h>
@@ -358,6 +359,7 @@ struct atm_dev {
 	struct proc_dir_entry *proc_entry; /* proc entry */
 	char *proc_name;		/* proc entry name */
 #endif
+	struct class_device class_dev;	/* sysfs class device */
 	struct list_head dev_list;	/* linkage */
 };
 
@@ -459,7 +461,7 @@ static inline void atm_dev_put(struct atm_dev *dev)
 		BUG_ON(!test_bit(ATM_DF_REMOVED, &dev->flags));
 		if (dev->ops->dev_close)
 			dev->ops->dev_close(dev);
-		kfree(dev);
+		class_device_put(&dev->class_dev);
 	}
 }
 

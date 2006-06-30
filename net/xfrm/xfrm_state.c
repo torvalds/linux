@@ -1164,8 +1164,6 @@ int xfrm_state_mtu(struct xfrm_state *x, int mtu)
 	return res;
 }
 
-EXPORT_SYMBOL(xfrm_state_mtu);
-
 int xfrm_init_state(struct xfrm_state *x)
 {
 	struct xfrm_state_afinfo *afinfo;

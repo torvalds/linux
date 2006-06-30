@@ -383,7 +383,6 @@ enum sock_flags {
 	SOCK_USE_WRITE_QUEUE, /* whether to call sk->sk_write_space in sock_wfree */
 	SOCK_DBG, /* %SO_DEBUG setting */
 	SOCK_RCVTSTAMP, /* %SO_TIMESTAMP setting */
-	SOCK_NO_LARGESEND, /* whether to sent large segments or not */
 	SOCK_LOCALROUTE, /* route locally only, %SO_DONTROUTE setting */
 	SOCK_QUEUE_SHRUNK, /* write queue has been shrunk recently */
 };
@@ -1033,7 +1032,7 @@ static inline void sk_setup_caps(struct sock *sk, struct dst_entry *dst)
 	if (sk->sk_route_caps & NETIF_F_GSO)
 		sk->sk_route_caps |= NETIF_F_TSO;
 	if (sk->sk_route_caps & NETIF_F_TSO) {
-		if (sock_flag(sk, SOCK_NO_LARGESEND) || dst->header_len)
+		if (dst->header_len)
 			sk->sk_route_caps &= ~NETIF_F_TSO;
 		else 
 			sk->sk_route_caps |= NETIF_F_SG | NETIF_F_HW_CSUM;

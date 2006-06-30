@@ -2044,8 +2044,6 @@ struct sk_buff * tcp_make_synack(struct sock *sk, struct dst_entry *dst,
 	memset(th, 0, sizeof(struct tcphdr));
 	th->syn = 1;
 	th->ack = 1;
-	if (dst->dev->features&NETIF_F_TSO)
-		ireq->ecn_ok = 0;
 	TCP_ECN_make_synack(req, th);
 	th->source = inet_sk(sk)->sport;
 	th->dest = ireq->rmt_port;

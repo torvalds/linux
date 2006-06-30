@@ -229,7 +229,7 @@ static int nfnetlink_rcv_msg(struct sk_buff *skb,
 		 NFNL_SUBSYS_ID(nlh->nlmsg_type),
 		 NFNL_MSG_TYPE(nlh->nlmsg_type));
 
-	if (!cap_raised(NETLINK_CB(skb).eff_cap, CAP_NET_ADMIN)) {
+	if (security_netlink_recv(skb, CAP_NET_ADMIN)) {
 		DEBUGP("missing CAP_NET_ADMIN\n");
 		*errp = -EPERM;
 		return -1;

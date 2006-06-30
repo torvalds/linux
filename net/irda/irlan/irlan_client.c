@@ -173,13 +173,14 @@ void irlan_client_discovery_indication(discinfo_t *discovery,
 	rcu_read_lock();
 	self = irlan_get_any();
 	if (self) {
-		IRDA_ASSERT(self->magic == IRLAN_MAGIC, return;);
+		IRDA_ASSERT(self->magic == IRLAN_MAGIC, goto out;);
 
 		IRDA_DEBUG(1, "%s(), Found instance (%08x)!\n", __FUNCTION__ ,
 		      daddr);
 		
 		irlan_client_wakeup(self, saddr, daddr);
 	}
+IRDA_ASSERT_LABEL(out:)
 	rcu_read_unlock();
 }
 	

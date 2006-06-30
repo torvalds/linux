@@ -28,6 +28,8 @@
 #include <linux/sctp.h>
 #include <linux/string.h>
 #include <linux/seq_file.h>
+#include <linux/spinlock.h>
+#include <linux/interrupt.h>
 
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_conntrack_protocol.h>

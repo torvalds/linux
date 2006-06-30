@@ -2,7 +2,7 @@
  * net/tipc/node.c: TIPC node management routines
  * 
  * Copyright (c) 2000-2006, Ericsson AB
- * Copyright (c) 2005, Wind River Systems
+ * Copyright (c) 2005-2006, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -592,6 +592,7 @@ struct sk_buff *tipc_node_get_nodes(const void *req_tlv_area, int req_tlv_space)
 	struct sk_buff *buf;
 	struct node *n_ptr;
         struct tipc_node_info node_info;
+	u32 payload_size;
 
 	if (!TLV_CHECK(req_tlv_area, req_tlv_space, TIPC_TLV_NET_ADDR))
 		return tipc_cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
@@ -608,8 +609,11 @@ struct sk_buff *tipc_node_get_nodes(const void *req_tlv_area, int req_tlv_space)
 	/* For now, get space for all other nodes 
 	   (will need to modify this when slave nodes are supported */
 
-	buf = tipc_cfg_reply_alloc(TLV_SPACE(sizeof(node_info)) *
-				   (tipc_max_nodes - 1));
+	payload_size = TLV_SPACE(sizeof(node_info)) * (tipc_max_nodes - 1);
+	if (payload_size > 32768u)
+		return tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
+						   " (too many nodes)");
+	buf = tipc_cfg_reply_alloc(payload_size);
 	if (!buf)
 		return NULL;
 
@@ -633,6 +637,7 @@ struct sk_buff *tipc_node_get_links(const void *req_tlv_area, int req_tlv_space)
 	struct sk_buff *buf;
 	struct node *n_ptr;
         struct tipc_link_info link_info;
+	u32 payload_size;
 
 	if (!TLV_CHECK(req_tlv_area, req_tlv_space, TIPC_TLV_NET_ADDR))
 		return tipc_cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
@@ -645,12 +650,15 @@ struct sk_buff *tipc_node_get_links(const void *req_tlv_area, int req_tlv_space)
 
         if (!tipc_nodes)
                 return tipc_cfg_reply_none();
+	
+	/* Get space for all unicast links + multicast link */
 
-	/* For now, get space for 2 links to all other nodes + bcast link 
-	   (will need to modify this when slave nodes are supported */
-
-	buf = tipc_cfg_reply_alloc(TLV_SPACE(sizeof(link_info)) *
-				   (2 * (tipc_max_nodes - 1) + 1));
+	payload_size = TLV_SPACE(sizeof(link_info)) *
+		(tipc_net.zones[tipc_zone(tipc_own_addr)]->links + 1);
+	if (payload_size > 32768u)
+		return tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
+						   " (too many links)");
+	buf = tipc_cfg_reply_alloc(payload_size);
 	if (!buf)
 		return NULL;
 

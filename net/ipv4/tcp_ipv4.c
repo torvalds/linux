@@ -1726,7 +1726,8 @@ static void get_tcp4_sock(struct sock *sp, char *tmpbuf, int i)
 	sprintf(tmpbuf, "%4d: %08X:%04X %08X:%04X %02X %08X:%08X %02X:%08lX "
 			"%08X %5d %8d %lu %d %p %u %u %u %u %d",
 		i, src, srcp, dest, destp, sp->sk_state,
-		tp->write_seq - tp->snd_una, tp->rcv_nxt - tp->copied_seq,
+		tp->write_seq - tp->snd_una,
+		(sp->sk_state == TCP_LISTEN) ? sp->sk_ack_backlog : (tp->rcv_nxt - tp->copied_seq),
 		timer_active,
 		jiffies_to_clock_t(timer_expires - jiffies),
 		icsk->icsk_retransmits,

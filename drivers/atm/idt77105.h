@@ -76,7 +76,7 @@
 #define IDT77105_CTRSEL_RHEC	0x01	/* W, Rx HEC Error Counter */
 
 #ifdef __KERNEL__
-int idt77105_init(struct atm_dev *dev) __init;
+int idt77105_init(struct atm_dev *dev);
 #endif
 
 /*

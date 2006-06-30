@@ -2284,7 +2284,7 @@ static int reset_sar(struct atm_dev *dev)
 }  
 	  
 	  
-static int __init ia_init(struct atm_dev *dev)
+static int __devinit ia_init(struct atm_dev *dev)
 {  
 	IADEV *iadev;  
 	unsigned long real_base;
@@ -2480,7 +2480,7 @@ static void ia_free_rx(IADEV *iadev)
 			  iadev->rx_dle_dma);  
 }
 
-static int __init ia_start(struct atm_dev *dev)
+static int __devinit ia_start(struct atm_dev *dev)
 {  
 	IADEV *iadev;  
 	int error;  
