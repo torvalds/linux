@@ -360,7 +360,7 @@ struct bttv {
 	int mbox_csel;
 
 	/* risc memory management data
-	   - must aquire s_lock before changing these
+	   - must acquire s_lock before changing these
 	   - only the irq handler is supported to touch top + bottom + vcurr */
 	struct btcx_riscmem     main;
 	struct bttv_buffer      *screen;    /* overlay             */

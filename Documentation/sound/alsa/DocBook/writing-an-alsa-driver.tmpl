@@ -3048,7 +3048,7 @@ struct _snd_pcm_runtime {
         </para>
 
         <para>
-          If you aquire a spinlock in the interrupt handler, and the
+          If you acquire a spinlock in the interrupt handler, and the
         lock is used in other pcm callbacks, too, then you have to
         release the lock before calling
         <function>snd_pcm_period_elapsed()</function>, because
