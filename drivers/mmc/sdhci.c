@@ -1073,6 +1073,7 @@ static int sdhci_resume (struct pci_dev *pdev)
 static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 {
 	int ret;
+	unsigned int version;
 	struct sdhci_chip *chip;
 	struct mmc_host *mmc;
 	struct sdhci_host *host;
@@ -1129,6 +1130,16 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 	if (!host->ioaddr) {
 		ret = -ENOMEM;
 		goto release;
+	}
+
+	version = readw(host->ioaddr + SDHCI_HOST_VERSION);
+	version = (version & SDHCI_SPEC_VER_MASK) >> SDHCI_SPEC_VER_SHIFT;
+	if (version != 0) {
+		printk(KERN_ERR "%s: Unknown controller version (%d). "
+			"Cowardly refusing to continue.\n", host->slot_descr,
+			version);
+		ret = -ENODEV;
+		goto unmap;
 	}
 
 	caps = readl(host->ioaddr + SDHCI_CAPABILITIES);
