@@ -128,9 +128,6 @@ static void sdhci_init(struct sdhci_host *host)
 
 	writel(intmask, host->ioaddr + SDHCI_INT_ENABLE);
 	writel(intmask, host->ioaddr + SDHCI_SIGNAL_ENABLE);
-
-	/* This is unknown magic. */
-	writeb(0xE, host->ioaddr + SDHCI_TIMEOUT_CONTROL);
 }
 
 static void sdhci_activate_led(struct sdhci_host *host)
@@ -274,6 +271,8 @@ static void sdhci_transfer_pio(struct sdhci_host *host)
 static void sdhci_prepare_data(struct sdhci_host *host, struct mmc_data *data)
 {
 	u16 mode;
+	u8 count;
+	unsigned target_timeout, current_timeout;
 
 	WARN_ON(host->data);
 
@@ -286,6 +285,37 @@ static void sdhci_prepare_data(struct sdhci_host *host, struct mmc_data *data)
 		data->blksz, data->blocks, data->flags);
 	DBG("tsac %d ms nsac %d clk\n",
 		data->timeout_ns / 1000000, data->timeout_clks);
+
+	/* timeout in us */
+	target_timeout = data->timeout_ns / 1000 +
+		data->timeout_clks / host->clock;
+
+	/*
+	 * Figure out needed cycles.
+	 * We do this in steps in order to fit inside a 32 bit int.
+	 * The first step is the minimum timeout, which will have a
+	 * minimum resolution of 6 bits:
+	 * (1) 2^13*1000 > 2^22,
+	 * (2) host->timeout_clk < 2^16
+	 *     =>
+	 *     (1) / (2) > 2^6
+	 */
+	count = 0;
+	current_timeout = (1 << 13) * 1000 / host->timeout_clk;
+	while (current_timeout < target_timeout) {
+		count++;
+		current_timeout <<= 1;
+		if (count >= 0xF)
+			break;
+	}
+
+	if (count >= 0xF) {
+		printk(KERN_WARNING "%s: Too large timeout requested!\n",
+			mmc_hostname(host->mmc));
+		count = 0xE;
+	}
+
+	writeb(count, host->ioaddr + SDHCI_TIMEOUT_CONTROL);
 
 	mode = SDHCI_TRNS_BLK_CNT_EN;
 	if (data->blocks > 1)
@@ -1095,6 +1125,17 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 		goto unmap;
 	}
 	host->max_clk *= 1000000;
+
+	host->timeout_clk =
+		(caps & SDHCI_TIMEOUT_CLK_MASK) >> SDHCI_TIMEOUT_CLK_SHIFT;
+	if (host->timeout_clk == 0) {
+		printk(KERN_ERR "%s: Hardware doesn't specify timeout clock "
+			"frequency.\n", host->slot_descr);
+		ret = -ENODEV;
+		goto unmap;
+	}
+	if (caps & SDHCI_TIMEOUT_CLK_UNIT)
+		host->timeout_clk *= 1000;
 
 	/*
 	 * Set host parameters.
