@@ -990,7 +990,7 @@ unsigned long try_to_free_pages(struct zone **zones, gfp_t gfp_mask)
 	}
 
 	for (priority = DEF_PRIORITY; priority >= 0; priority--) {
-		sc.nr_mapped = read_page_state(nr_mapped);
+		sc.nr_mapped = global_page_state(NR_FILE_MAPPED);
 		sc.nr_scanned = 0;
 		if (!priority)
 			disable_swap_token();
@@ -1075,7 +1075,7 @@ loop_again:
 	total_scanned = 0;
 	nr_reclaimed = 0;
 	sc.may_writepage = !laptop_mode;
-	sc.nr_mapped = read_page_state(nr_mapped);
+	sc.nr_mapped = global_page_state(NR_FILE_MAPPED);
 
 	inc_page_state(pageoutrun);
 
@@ -1407,7 +1407,7 @@ unsigned long shrink_all_memory(unsigned long nr_pages)
 		for (prio = DEF_PRIORITY; prio >= 0; prio--) {
 			unsigned long nr_to_scan = nr_pages - ret;
 
-			sc.nr_mapped = read_page_state(nr_mapped);
+			sc.nr_mapped = global_page_state(NR_FILE_MAPPED);
 			sc.nr_scanned = 0;
 
 			ret += shrink_all_zones(nr_to_scan, prio, pass, &sc);
@@ -1548,7 +1548,7 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
 	struct scan_control sc = {
 		.may_writepage = !!(zone_reclaim_mode & RECLAIM_WRITE),
 		.may_swap = !!(zone_reclaim_mode & RECLAIM_SWAP),
-		.nr_mapped = read_page_state(nr_mapped),
+		.nr_mapped = global_page_state(NR_FILE_MAPPED),
 		.swap_cluster_max = max_t(unsigned long, nr_pages,
 					SWAP_CLUSTER_MAX),
 		.gfp_mask = gfp_mask,

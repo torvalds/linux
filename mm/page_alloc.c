@@ -1319,7 +1319,7 @@ void show_free_areas(void)
 		ps.nr_unstable,
 		nr_free_pages(),
 		ps.nr_slab,
-		ps.nr_mapped,
+		global_page_state(NR_FILE_MAPPED),
 		ps.nr_page_table_pages);
 
 	for_each_zone(zone) {

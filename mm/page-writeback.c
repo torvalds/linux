@@ -111,7 +111,7 @@ static void get_writeback_state(struct writeback_state *wbs)
 {
 	wbs->nr_dirty = read_page_state(nr_dirty);
 	wbs->nr_unstable = read_page_state(nr_unstable);
-	wbs->nr_mapped = read_page_state(nr_mapped);
+	wbs->nr_mapped = global_page_state(NR_FILE_MAPPED);
 	wbs->nr_writeback = read_page_state(nr_writeback);
 }
 

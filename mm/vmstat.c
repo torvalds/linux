@@ -401,13 +401,13 @@ struct seq_operations fragmentation_op = {
 
 static char *vmstat_text[] = {
 	/* Zoned VM counters */
+	"nr_mapped",
 
 	/* Page state */
 	"nr_dirty",
 	"nr_writeback",
 	"nr_unstable",
 	"nr_page_table_pages",
-	"nr_mapped",
 	"nr_slab",
 
 	"pgpgin",
