@@ -15,7 +15,7 @@ config RTC_CLASS
 	help
 	  Generic RTC class support. If you say yes here, you will
  	  be allowed to plug one or more RTCs to your system. You will
-	  probably want to enable one of more of the interfaces below.
+	  probably want to enable one or more of the interfaces below.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-class.
