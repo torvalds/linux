@@ -699,11 +699,12 @@ static int pccardd(void *__skt)
  */
 void pcmcia_parse_events(struct pcmcia_socket *s, u_int events)
 {
+	unsigned long flags;
 	cs_dbg(s, 4, "parse_events: events %08x\n", events);
 	if (s->thread) {
-		spin_lock(&s->thread_lock);
+		spin_lock_irqsave(&s->thread_lock, flags);
 		s->thread_events |= events;
-		spin_unlock(&s->thread_lock);
+		spin_unlock_irqrestore(&s->thread_lock, flags);
 
 		wake_up(&s->thread_wait);
 	}
