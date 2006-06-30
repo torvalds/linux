@@ -28,6 +28,9 @@
 #define DBG(f, x...) \
 	pr_debug(DRIVER_NAME " [%s()]: " f, __func__,## x)
 
+static unsigned int debug_nodma = 0;
+static unsigned int debug_forcedma = 0;
+
 static const struct pci_device_id pci_ids[] __devinitdata = {
 	/* handle any SD host controller */
 	{PCI_DEVICE_CLASS((PCI_CLASS_SYSTEM_SDHCI << 8), 0xFFFF00)},
@@ -1105,6 +1108,16 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 		return -ENODEV;
 	}
 
+	if ((pdev->class & 0x0000FF) == PCI_SDHCI_IFVENDOR) {
+		printk(KERN_ERR DRIVER_NAME ": Vendor specific interface. Aborting.\n");
+		return -ENODEV;
+	}
+
+	if ((pdev->class & 0x0000FF) > PCI_SDHCI_IFVENDOR) {
+		printk(KERN_ERR DRIVER_NAME ": Unknown interface. Aborting.\n");
+		return -ENODEV;
+	}
+
 	mmc = mmc_alloc_host(sizeof(struct sdhci_host), &pdev->dev);
 	if (!mmc)
 		return -ENOMEM;
@@ -1146,7 +1159,16 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 
 	caps = readl(host->ioaddr + SDHCI_CAPABILITIES);
 
-	if ((caps & SDHCI_CAN_DO_DMA) && ((pdev->class & 0x0000FF) == 0x01))
+	if (debug_nodma)
+		DBG("DMA forced off\n");
+	else if (debug_forcedma) {
+		DBG("DMA forced on\n");
+		host->flags |= SDHCI_USE_DMA;
+	} else if ((pdev->class & 0x0000FF) != PCI_SDHCI_IFDMA)
+		DBG("Controller doesn't have DMA interface\n");
+	else if (!(caps & SDHCI_CAN_DO_DMA))
+		DBG("Controller doesn't have DMA capability\n");
+	else
 		host->flags |= SDHCI_USE_DMA;
 
 	if (host->flags & SDHCI_USE_DMA) {
@@ -1429,7 +1451,13 @@ static void __exit sdhci_drv_exit(void)
 module_init(sdhci_drv_init);
 module_exit(sdhci_drv_exit);
 
+module_param(debug_nodma, uint, 0444);
+module_param(debug_forcedma, uint, 0444);
+
 MODULE_AUTHOR("Pierre Ossman <drzeus@drzeus.cx>");
 MODULE_DESCRIPTION("Secure Digital Host Controller Interface driver");
 MODULE_VERSION(DRIVER_VERSION);
 MODULE_LICENSE("GPL");
+
+MODULE_PARM_DESC(debug_nodma, "Forcefully disable DMA transfers. (default 0)");
+MODULE_PARM_DESC(debug_forcedma, "Forcefully enable DMA transfers. (default 0)");

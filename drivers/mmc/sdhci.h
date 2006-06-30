@@ -12,6 +12,10 @@
  * PCI registers
  */
 
+#define PCI_SDHCI_IFPIO			0x00
+#define PCI_SDHCI_IFDMA			0x01
+#define PCI_SDHCI_IFVENDOR		0x02
+
 #define PCI_SLOT_INFO			0x40	/* 8 bits */
 #define  PCI_SLOT_INFO_SLOTS(x)		((x >> 4) & 7)
 #define  PCI_SLOT_INFO_FIRST_BAR_MASK	0x07
