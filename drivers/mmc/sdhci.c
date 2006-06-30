@@ -371,17 +371,17 @@ static void sdhci_finish_data(struct sdhci_host *host)
 static void sdhci_send_command(struct sdhci_host *host, struct mmc_command *cmd)
 {
 	int flags;
-	u32 present;
-	unsigned long max_jiffies;
+	unsigned long timeout;
 
 	WARN_ON(host->cmd);
 
 	DBG("Sending cmd (%x)\n", cmd->opcode);
 
 	/* Wait max 10 ms */
-	max_jiffies = jiffies + (HZ + 99)/100;
-	do {
-		if (time_after(jiffies, max_jiffies)) {
+	timeout = 10;
+	while (readl(host->ioaddr + SDHCI_PRESENT_STATE) &
+		(SDHCI_CMD_INHIBIT | SDHCI_DATA_INHIBIT)) {
+		if (timeout == 0) {
 			printk(KERN_ERR "%s: Controller never released "
 				"inhibit bits. Please report this to "
 				BUGMAIL ".\n", mmc_hostname(host->mmc));
@@ -390,8 +390,9 @@ static void sdhci_send_command(struct sdhci_host *host, struct mmc_command *cmd)
 			tasklet_schedule(&host->finish_tasklet);
 			return;
 		}
-		present = readl(host->ioaddr + SDHCI_PRESENT_STATE);
-	} while (present & (SDHCI_CMD_INHIBIT | SDHCI_DATA_INHIBIT));
+		timeout--;
+		mdelay(1);
+	}
 
 	mod_timer(&host->timer, jiffies + 10 * HZ);
 
@@ -490,7 +491,7 @@ static void sdhci_set_clock(struct sdhci_host *host, unsigned int clock)
 {
 	int div;
 	u16 clk;
-	unsigned long max_jiffies;
+	unsigned long timeout;
 
 	if (clock == host->clock)
 		return;
@@ -511,17 +512,19 @@ static void sdhci_set_clock(struct sdhci_host *host, unsigned int clock)
 	writew(clk, host->ioaddr + SDHCI_CLOCK_CONTROL);
 
 	/* Wait max 10 ms */
-	max_jiffies = jiffies + (HZ + 99)/100;
-	do {
-		if (time_after(jiffies, max_jiffies)) {
+	timeout = 10;
+	while (!((clk = readw(host->ioaddr + SDHCI_CLOCK_CONTROL))
+		& SDHCI_CLOCK_INT_STABLE)) {
+		if (timeout == 0) {
 			printk(KERN_ERR "%s: Internal clock never stabilised. "
 				"Please report this to " BUGMAIL ".\n",
 				mmc_hostname(host->mmc));
 			sdhci_dumpregs(host);
 			return;
 		}
-		clk = readw(host->ioaddr + SDHCI_CLOCK_CONTROL);
-	} while (!(clk & SDHCI_CLOCK_INT_STABLE));
+		timeout--;
+		mdelay(1);
+	}
 
 	clk |= SDHCI_CLOCK_CARD_EN;
 	writew(clk, host->ioaddr + SDHCI_CLOCK_CONTROL);
