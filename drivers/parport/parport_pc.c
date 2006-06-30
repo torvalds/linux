@@ -42,7 +42,6 @@
  * but rather will start at port->base_hi.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/sched.h>

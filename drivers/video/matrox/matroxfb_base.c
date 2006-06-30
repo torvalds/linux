@@ -99,7 +99,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/version.h>
 
 #define __OLD_VIDIOC_

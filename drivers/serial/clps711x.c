@@ -25,7 +25,6 @@
  *  $Id: clps711x.c,v 1.42 2002/07/28 10:03:28 rmk Exp $
  *
  */
-#include <linux/config.h>
 
 #if defined(CONFIG_SERIAL_CLPS711X_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
 #define SUPPORT_SYSRQ

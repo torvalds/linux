@@ -54,7 +54,6 @@
  * 2002-07-17 - 0.0.5 : simplified d-pad handling
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/slab.h>

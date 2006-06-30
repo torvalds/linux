@@ -4,7 +4,6 @@
  * Modified by Stuart Menefy from arch/sh/vmlinux.lds.S written by Niibe Yutaka
  */
 
-#include <linux/config.h>
 
 #ifdef CONFIG_LITTLE_ENDIAN
 /* OUTPUT_FORMAT("elf32-sh64l-linux", "elf32-sh64l-linux", "elf32-sh64l-linux") */

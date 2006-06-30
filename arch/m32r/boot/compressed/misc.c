@@ -12,7 +12,6 @@
  * 		This is based on arch/sh/boot/compressed/misc.c.
  */
 
-#include <linux/config.h>
 #include <linux/string.h>
 
 /*

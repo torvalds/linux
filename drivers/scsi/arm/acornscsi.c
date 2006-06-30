@@ -129,7 +129,6 @@
 #define STRx(x) STRINGIFY(x)
 #define NO_WRITE_STR STRx(NO_WRITE)
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>

@@ -10,7 +10,6 @@
  * state in 'asm.s'.
  */
 
-#include <linux/config.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/string.h>

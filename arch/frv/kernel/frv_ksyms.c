@@ -7,7 +7,6 @@
 #include <linux/elfcore.h>
 #include <linux/in6.h>
 #include <linux/interrupt.h>
-#include <linux/config.h>
 
 #include <asm/setup.h>
 #include <asm/pgalloc.h>

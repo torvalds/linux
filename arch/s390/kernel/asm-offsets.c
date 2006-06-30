@@ -4,7 +4,6 @@
  * and format the required data.
  */
 
-#include <linux/config.h>
 #include <linux/sched.h>
 
 /* Use marker if you need to separate the values later */

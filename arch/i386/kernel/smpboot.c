@@ -34,7 +34,6 @@
 *		Rusty Russell	:	Hacked into shape for new "hotplug" boot process. */
 
 #include <linux/module.h>
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 

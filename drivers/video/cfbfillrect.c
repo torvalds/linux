@@ -17,7 +17,6 @@
  *  the native cpu endians. I also need to deal with MSB position in the word.
  *
  */
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/string.h>
 #include <linux/fb.h>

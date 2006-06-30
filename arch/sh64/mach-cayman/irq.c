@@ -12,7 +12,6 @@
  * Copyright (C) 2002 Stuart Menefy
  */
 
-#include <linux/config.h>
 #include <asm/irq.h>
 #include <asm/page.h>
 #include <asm/io.h>

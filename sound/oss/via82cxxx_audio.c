@@ -18,7 +18,6 @@
 #define VIA_VERSION	"1.9.1-ac4-2.5"
 
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/fs.h>

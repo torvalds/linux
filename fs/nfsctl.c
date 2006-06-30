@@ -4,7 +4,6 @@
  *	This should eventually move to userland.
  *
  */
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/file.h>
 #include <linux/fs.h>

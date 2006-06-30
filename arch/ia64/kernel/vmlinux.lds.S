@@ -1,4 +1,3 @@
-#include <linux/config.h>
 
 #include <asm/cache.h>
 #include <asm/ptrace.h>

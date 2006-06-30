@@ -9,7 +9,6 @@
  * Machine vector for the Renesas Technology sales RTS7751R2D
  */
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/types.h>
 

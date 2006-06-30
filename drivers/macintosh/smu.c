@@ -19,7 +19,6 @@
  *    the userland interface
  */
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/device.h>

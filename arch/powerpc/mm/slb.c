@@ -16,7 +16,6 @@
 
 #undef DEBUG
 
-#include <linux/config.h>
 #include <asm/pgtable.h>
 #include <asm/mmu.h>
 #include <asm/mmu_context.h>

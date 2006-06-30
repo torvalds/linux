@@ -3,7 +3,6 @@
 /* Written 1995-2000 by Werner Almesberger, EPFL LRC/ICA */
 
 
-#include <linux/config.h>
 #include <linux/net.h>		/* struct socket, struct proto_ops */
 #include <linux/atm.h>		/* ATM stuff */
 #include <linux/atmdev.h>	/* ATM devices */

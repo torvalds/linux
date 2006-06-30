@@ -20,7 +20,6 @@
  *	  structures.
  */
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/ipv6.h>
 #include <linux/in6.h>

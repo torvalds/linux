@@ -7,7 +7,6 @@
  */
 
 #include <linux/blkdev.h>
-#include <linux/config.h>
 #include <linux/ctype.h>
 #include <linux/device-mapper.h>
 #include <linux/fs.h>

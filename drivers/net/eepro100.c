@@ -87,7 +87,6 @@ static int options[] = {-1, -1, -1, -1, -1, -1, -1, -1};
 /* Size of an pre-allocated Rx buffer: <Ethernet MTU> + slack.*/
 #define PKT_BUF_SZ		1536
 
-#include <linux/config.h>
 #include <linux/module.h>
 
 #include <linux/kernel.h>

@@ -10,7 +10,6 @@
  *  published by the Free Software Foundation.
  */
 
-#include <linux/config.h>
 #include <linux/linkage.h>
 
 #ifdef __ARMEB__

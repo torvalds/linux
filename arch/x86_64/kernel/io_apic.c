@@ -25,7 +25,6 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/sched.h>
-#include <linux/config.h>
 #include <linux/smp_lock.h>
 #include <linux/mc146818rtc.h>
 #include <linux/acpi.h>

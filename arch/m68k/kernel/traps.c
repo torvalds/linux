@@ -18,7 +18,6 @@
  * Sets up all exception vectors
  */
 
-#include <linux/config.h>
 #include <linux/sched.h>
 #include <linux/signal.h>
 #include <linux/kernel.h>

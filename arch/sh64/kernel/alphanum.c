@@ -9,7 +9,6 @@
  * Machine-independent functions for handling 8-digit alphanumeric display
  * (e.g. Agilent HDSP-253x)
  */
-#include <linux/config.h>
 #include <linux/stddef.h>
 #include <linux/sched.h>
 

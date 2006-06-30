@@ -54,7 +54,6 @@
 #undef DEBUG_STIFB_REGS		/* debug sti register accesses */
 
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>

@@ -3,7 +3,6 @@
  * Drives the local APIC in "clustered mode".
  */
 #define APIC_DEFINITION 1
-#include <linux/config.h>
 #include <linux/threads.h>
 #include <linux/cpumask.h>
 #include <asm/mpspec.h>

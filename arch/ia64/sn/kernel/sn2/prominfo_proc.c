@@ -8,7 +8,6 @@
  * Module to export the system's Firmware Interface Tables, including
  * PROM revision numbers and banners, in /proc
  */
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/proc_fs.h>

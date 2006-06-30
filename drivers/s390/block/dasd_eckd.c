@@ -9,7 +9,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/stddef.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>

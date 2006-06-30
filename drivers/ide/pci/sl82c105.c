@@ -13,7 +13,6 @@
  *  -- Benjamin Herrenschmidt (01/11/03) benh@kernel.crashing.org
  */
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/kernel.h>

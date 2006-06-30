@@ -224,7 +224,6 @@
  */
 
 #include <linux/utsname.h>
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/major.h>

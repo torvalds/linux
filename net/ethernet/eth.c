@@ -51,7 +51,6 @@
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
 #include <linux/errno.h>
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/if_ether.h>
 #include <net/dst.h>

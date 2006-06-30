@@ -18,7 +18,6 @@
 #include <linux/init.h>
 #include "hisax.h"
 #include "isdnl3.h"
-#include <linux/config.h>
 
 const char *l3_revision = "$Revision: 2.22.2.3 $";
 

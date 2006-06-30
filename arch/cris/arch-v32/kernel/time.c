@@ -6,7 +6,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/timex.h>
 #include <linux/time.h>
 #include <linux/jiffies.h>

@@ -14,7 +14,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/config.h>
 #include <linux/kdev_t.h>
 #include <asm/io.h>
 #include <linux/kernel.h>

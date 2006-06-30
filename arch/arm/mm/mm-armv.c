@@ -9,7 +9,6 @@
  *
  *  Page table sludge for ARM v3 and v4 processor architectures.
  */
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/init.h>

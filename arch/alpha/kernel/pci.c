@@ -12,7 +12,6 @@
  * Nov 2000, Ivan Kokshaysky <ink@jurassic.park.msu.ru>
  *	     PCI-PCI bridges cleanup
  */
-#include <linux/config.h>
 #include <linux/string.h>
 #include <linux/pci.h>
 #include <linux/init.h>

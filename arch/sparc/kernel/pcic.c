@@ -10,7 +10,6 @@
  * CP-1200 by Eric Brower.
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/init.h>

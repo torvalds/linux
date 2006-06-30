@@ -5,7 +5,6 @@
  * Copyright 1997 Andi Kleen <ak@muc.de>
  * Copyright 1997 Linus Torvalds
  */
-#include <linux/config.h>
 #include <linux/mm.h>
 #include <linux/highmem.h>
 #include <linux/blkdev.h>

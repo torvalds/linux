@@ -29,7 +29,6 @@
  * Derived from net/ipv4/netfilter/ip_conntrack_core.c
  */
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/netfilter.h>
 #include <linux/module.h>

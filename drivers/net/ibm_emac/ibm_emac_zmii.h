@@ -19,7 +19,6 @@
 #ifndef _IBM_EMAC_ZMII_H_
 #define _IBM_EMAC_ZMII_H_
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <asm/ocp.h>
 

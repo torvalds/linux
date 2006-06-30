@@ -8,7 +8,6 @@
  * 2/12/02 kchen	Tuned for both Itanium and McKinley
  * 3/08/02 davidm	Some more tweaking
  */
-#include <linux/config.h>
 
 #include <asm/asmmacro.h>
 #include <asm/page.h>

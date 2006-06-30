@@ -17,7 +17,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/rwsem.h>
 #include <linux/sched.h>

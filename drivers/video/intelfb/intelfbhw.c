@@ -19,7 +19,6 @@
 
 /* $DHD: intelfb/intelfbhw.c,v 1.9 2003/06/27 15:06:25 dawes Exp $ */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>

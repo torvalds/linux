@@ -29,7 +29,6 @@
 
 #include <linux/device.h>
 #include <linux/firmware.h>
-#include <linux/config.h>
 #include <linux/moduleparam.h>
 #include <linux/workqueue.h>
 #include <linux/compiler.h>

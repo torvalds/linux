@@ -36,7 +36,6 @@
 
 #define CIRRUSFB_VERSION "2.0-pre2"
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>

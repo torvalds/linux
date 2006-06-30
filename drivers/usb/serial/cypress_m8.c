@@ -48,7 +48,6 @@
 /* Code originates and was built up from ftdi_sio, belkin, pl2303 and others. */
 
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/init.h>

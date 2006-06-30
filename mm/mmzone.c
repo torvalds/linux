@@ -5,7 +5,6 @@
  */
 
 
-#include <linux/config.h>
 #include <linux/stddef.h>
 #include <linux/mmzone.h>
 #include <linux/module.h>

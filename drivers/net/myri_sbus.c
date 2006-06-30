@@ -7,7 +7,6 @@ static char version[] =
         "myri_sbus.c:v2.0 June 23, 2006 David S. Miller (davem@davemloft.net)\n";
 
 #include <linux/module.h>
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/types.h>

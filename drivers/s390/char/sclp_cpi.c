@@ -5,7 +5,6 @@
  * SCLP Control-Program Identification.
  */
 
-#include <linux/config.h>
 #include <linux/version.h>
 #include <linux/kmod.h>
 #include <linux/module.h>

@@ -15,7 +15,6 @@
 #ifndef __MACH_MPC83XX_SYS_H__
 #define __MACH_MPC83XX_SYS_H__
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <syslib/ppc83xx_setup.h>
 #include <asm/ppcboot.h>

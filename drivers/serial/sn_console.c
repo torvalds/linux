@@ -37,7 +37,6 @@
  * http://oss.sgi.com/projects/GenInfo/NoticeExplan
  */
 
-#include <linux/config.h>
 #include <linux/interrupt.h>
 #include <linux/tty.h>
 #include <linux/serial.h>

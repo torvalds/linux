@@ -1,7 +1,6 @@
 #ifndef _SCSI_PRIV_H
 #define _SCSI_PRIV_H
 
-#include <linux/config.h>
 #include <linux/device.h>
 
 struct request_queue;

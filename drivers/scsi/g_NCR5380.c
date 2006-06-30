@@ -91,7 +91,6 @@
 #define AUTOPROBE_IRQ
 #define AUTOSENSE
 
-#include <linux/config.h>
 
 #ifdef CONFIG_SCSI_GENERIC_NCR53C400
 #define NCR53C400_PSEUDO_DMA 1

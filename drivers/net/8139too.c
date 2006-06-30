@@ -93,7 +93,6 @@
 #define DRV_VERSION	"0.9.27"
 
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/compiler.h>

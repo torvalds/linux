@@ -18,7 +18,6 @@
  *  distribution for more details.
  */
 
-#include <linux/config.h>
 #include <linux/cpu.h>
 #include <linux/cpumask.h>
 #include <linux/cpuset.h>

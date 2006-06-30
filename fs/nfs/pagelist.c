@@ -9,7 +9,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/slab.h>
 #include <linux/file.h>
 #include <linux/sunrpc/clnt.h>

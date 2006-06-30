@@ -14,7 +14,6 @@
  * $Id: ceiva.c,v 1.11 2004/09/16 23:27:12 gleixner Exp $
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/ioport.h>

@@ -16,7 +16,6 @@
  *	Vitaly E. Lavrov		RTA_OK arithmetics was wrong.
  */
 
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/types.h>

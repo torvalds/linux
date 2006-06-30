@@ -9,7 +9,6 @@
  * Authors:	Alexey Kuznetsov, <kuznet@ms2.inr.ac.ru>
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <asm/uaccess.h>
 #include <asm/system.h>

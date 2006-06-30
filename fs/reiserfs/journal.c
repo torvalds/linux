@@ -34,7 +34,6 @@
 **		        from within kupdate, it will ignore the immediate flag
 */
 
-#include <linux/config.h>
 #include <asm/uaccess.h>
 #include <asm/system.h>
 

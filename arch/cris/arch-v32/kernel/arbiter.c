@@ -9,7 +9,6 @@
  * Copyright (c) 2004, 2005 Axis Communications AB.
  */
 
-#include <linux/config.h>
 #include <asm/arch/hwregs/reg_map.h>
 #include <asm/arch/hwregs/reg_rdwr.h>
 #include <asm/arch/hwregs/marb_defs.h>

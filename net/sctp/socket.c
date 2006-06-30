@@ -57,7 +57,6 @@
  * be incorporated into the next SCTP release.
  */
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/wait.h>

@@ -8,7 +8,6 @@
 #ifndef __DVB_USB_H__
 #define __DVB_USB_H__
 
-#include <linux/config.h>
 #include <linux/input.h>
 #include <linux/usb.h>
 #include <linux/firmware.h>

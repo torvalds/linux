@@ -7,7 +7,6 @@
  *	run kernels.
  */
 
-#include <linux/config.h>
 #include <asm-generic/vmlinux.lds.h>
 
 #if defined(CONFIG_RAMKERNEL)

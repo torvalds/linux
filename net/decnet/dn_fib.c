@@ -17,7 +17,6 @@
  *                                 this code was copied from it.
  *
  */
-#include <linux/config.h>
 #include <linux/string.h>
 #include <linux/net.h>
 #include <linux/socket.h>

@@ -23,7 +23,6 @@
  *  Version 1.0 -- July, 1999. 
  * 
  */
-#include <linux/config.h>
 
 #define RIO_NBOARDS        4
 #define RIO_PORTSPERBOARD 128

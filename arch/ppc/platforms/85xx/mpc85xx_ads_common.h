@@ -15,7 +15,6 @@
 #ifndef __MACH_MPC85XX_ADS_H__
 #define __MACH_MPC85XX_ADS_H__
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <asm/ppcboot.h>
 

@@ -1,7 +1,6 @@
 /*
  * Copyright (C) 1996 Paul Mackerras.
  */
-#include <linux/config.h>
 #include <linux/string.h>
 #include <asm/machdep.h>
 #include <asm/io.h>

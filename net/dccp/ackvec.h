@@ -11,7 +11,6 @@
  *	published by the Free Software Foundation.
  */
 
-#include <linux/config.h>
 #include <linux/compiler.h>
 #include <linux/list.h>
 #include <linux/time.h>

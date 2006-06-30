@@ -14,7 +14,6 @@
 
 */
 
-#include <linux/config.h>
 
 #define DRV_NAME	"tulip"
 #ifdef CONFIG_TULIP_NAPI

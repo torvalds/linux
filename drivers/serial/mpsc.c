@@ -50,7 +50,6 @@
  * 4) AFAICT, hardware flow control isn't supported by the controller --MAG.
  */
 
-#include <linux/config.h>
 
 #if defined(CONFIG_SERIAL_MPSC_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
 #define SUPPORT_SYSRQ

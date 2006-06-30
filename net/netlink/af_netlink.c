@@ -21,7 +21,6 @@
  * 				   mandatory if CONFIG_NET=y these days
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 
 #include <linux/capability.h>

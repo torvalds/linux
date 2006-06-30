@@ -15,7 +15,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <asm/processor.h>
 #include "ppc_asm.h"
 

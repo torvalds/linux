@@ -27,7 +27,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/initrd.h>
 #include <linux/init.h>

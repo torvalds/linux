@@ -11,7 +11,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/interrupt.h>
 #include <linux/fs.h>
 #include <linux/blkpg.h>

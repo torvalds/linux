@@ -9,7 +9,6 @@
  * any later version.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/pfkeyv2.h>

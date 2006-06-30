@@ -17,7 +17,6 @@
  *  04-16-2001 Lineo Japan,Inc. ...
  */
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/tty.h>

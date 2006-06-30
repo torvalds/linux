@@ -15,7 +15,6 @@
  *	Yasuyuki Kozakai @USAGI	<yasuyuki.kozakai@toshiba.co.jp>
  */
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/ip.h>
 #include <linux/netfilter.h>

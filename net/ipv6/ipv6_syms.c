@@ -1,5 +1,4 @@
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <net/protocol.h>
 #include <net/ipv6.h>

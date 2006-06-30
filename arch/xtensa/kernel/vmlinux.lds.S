@@ -16,7 +16,6 @@
 
 #include <asm-generic/vmlinux.lds.h>
 
-#include <linux/config.h>
 #define _NOCLANGUAGE
 #include <xtensa/config/core.h>
 #include <xtensa/config/system.h>

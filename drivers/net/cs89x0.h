@@ -14,7 +14,6 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
    */
 
-#include <linux/config.h>
 
 #define PP_ChipID 0x0000	/* offset   0h -> Corp -ID              */
 				/* offset   2h -> Model/Product Number  */

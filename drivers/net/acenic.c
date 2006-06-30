@@ -50,7 +50,6 @@
  *   Grant Grundler <grundler@cup.hp.com>: PCI write posting fixes.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/version.h>

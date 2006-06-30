@@ -10,7 +10,6 @@
  *
  */
 
-#include <linux/config.h>
 #ifdef CONFIG_AMIGA
 
 #include <linux/kernel.h>

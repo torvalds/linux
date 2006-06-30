@@ -46,7 +46,6 @@
 #undef	DEBUG		/* messages on error and most fault paths */
 #undef	VERBOSE		/* extra debug messages (success too) */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>

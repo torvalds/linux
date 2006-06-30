@@ -4,7 +4,6 @@
  * Copyright 2001, 2002, 2003 SuSE Labs / Andi Kleen.
  * See setup.c for older changelog.
  */ 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>

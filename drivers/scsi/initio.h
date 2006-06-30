@@ -54,7 +54,6 @@
  **************************************************************************/
 
 
-#include <linux/config.h>
 #include <linux/types.h>
 
 #define ULONG   unsigned long

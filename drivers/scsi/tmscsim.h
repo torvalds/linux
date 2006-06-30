@@ -9,7 +9,6 @@
 #define _TMSCSIM_H
 
 #include <linux/types.h>
-#include <linux/config.h>
 
 #define SCSI_IRQ_NONE 255
 

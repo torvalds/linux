@@ -33,7 +33,6 @@
  *		 for 68040
  */
 
-#include <linux/config.h>
 #include <linux/linkage.h>
 #include <asm/entry.h>
 #include <asm/errno.h>

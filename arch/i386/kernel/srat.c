@@ -23,7 +23,6 @@
  *
  * Send feedback to Pat Gaughen <gone@us.ibm.com>
  */
-#include <linux/config.h>
 #include <linux/mm.h>
 #include <linux/bootmem.h>
 #include <linux/mmzone.h>

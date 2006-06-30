@@ -12,7 +12,6 @@
  */
 
 #include <linux/compiler.h>
-#include <linux/config.h>
 #include <linux/netdevice.h>
 #include <net/addrconf.h>
 #include <net/xfrm.h>

@@ -2,7 +2,6 @@
  * Copyright 2000 by Hans Reiser, licensing governed by reiserfs/README
  */
 
-#include <linux/config.h>
 #include <linux/string.h>
 #include <linux/random.h>
 #include <linux/time.h>

@@ -44,7 +44,6 @@
 #define VERSION "arcnet: v3.93 BETA 2000/04/29 - by Avery Pennarun et al.\n"
 
 #include <linux/module.h>
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/delay.h>
 #include <linux/netdevice.h>

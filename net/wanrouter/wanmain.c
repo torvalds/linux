@@ -42,7 +42,6 @@
 * Jun 02, 1999  Gideon Hack	Updates for Linux 2.0.X and 2.2.X kernels.
 *****************************************************************************/
 
-#include <linux/config.h>
 #include <linux/stddef.h>	/* offsetof(), etc. */
 #include <linux/capability.h>
 #include <linux/errno.h>	/* return codes */

@@ -53,7 +53,6 @@
      Gets the status of the write protect pin, if available.
 */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>

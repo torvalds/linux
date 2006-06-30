@@ -23,7 +23,6 @@ int oktag_from_io(long *addr,long *paddr,long len)
  * is moved to/from the IO register.
  */
 
-#include <linux/config.h>
 
 #ifdef CONFIG_APUS
 

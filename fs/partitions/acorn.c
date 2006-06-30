@@ -12,7 +12,6 @@
  *  every single manufacturer of SCSI and IDE cards created their own
  *  method.
  */
-#include <linux/config.h>
 #include <linux/buffer_head.h>
 #include <linux/adfs_fs.h>
 

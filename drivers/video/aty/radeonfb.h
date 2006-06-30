@@ -1,7 +1,6 @@
 #ifndef __RADEONFB_H__
 #define __RADEONFB_H__
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>

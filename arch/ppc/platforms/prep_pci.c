@@ -6,7 +6,6 @@
  * The motherboard routes/maps will disappear shortly. -- Cort
  */
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/kernel.h>

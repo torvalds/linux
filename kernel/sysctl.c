@@ -18,7 +18,6 @@
  *  Removed it and replaced it with older style, 03/23/00, Bill Wendling
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/swap.h>

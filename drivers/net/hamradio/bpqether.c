@@ -54,7 +54,6 @@
  *	BPQ   004	Joerg(DL1BKE)		Fixed to not lock up on ifconfig.
  */
 
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/types.h>
 #include <linux/socket.h>

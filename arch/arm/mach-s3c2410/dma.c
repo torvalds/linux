@@ -31,7 +31,6 @@
  * possible DMA function
  */
 
-#include <linux/config.h>
 
 #ifdef CONFIG_S3C2410_DMA_DEBUG
 #define DEBUG

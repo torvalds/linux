@@ -1,4 +1,3 @@
-#include <linux/config.h>
 #include <linux/module.h>
 #include <asm/checksum.h>
 #include <asm/desc.h>

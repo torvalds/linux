@@ -134,7 +134,6 @@ that only one external action is invoked at a time.
 */
 
 #include <linux/compiler.h>
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/if_arp.h>
 #include <linux/in6.h>

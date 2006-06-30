@@ -22,7 +22,6 @@
  * Christoph Hellwig : Some cleanup work (2000/03/01)
  */
 
-#include <linux/config.h>
 
 #include "sound_config.h"
 #include <linux/init.h>

@@ -3,7 +3,6 @@
  */
 /* Reiserfs block (de)allocator, bitmap-based. */
 
-#include <linux/config.h>
 #include <linux/time.h>
 #include <linux/reiserfs_fs.h>
 #include <linux/errno.h>

@@ -16,7 +16,6 @@
  * of bit shift manipulations to send and receive packets on the
  * serial bus */
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/completion.h>
 #include <linux/sched.h>

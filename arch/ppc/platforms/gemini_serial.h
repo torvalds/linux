@@ -2,7 +2,6 @@
 #ifndef __ASMPPC_GEMINI_SERIAL_H
 #define __ASMPPC_GEMINI_SERIAL_H
 
-#include <linux/config.h>
 #include <platforms/gemini.h>
 
 #ifdef CONFIG_SERIAL_MANY_PORTS

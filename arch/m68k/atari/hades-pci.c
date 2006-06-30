@@ -4,7 +4,6 @@
  * Written by Wout Klaren.
  */
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <asm/io.h>

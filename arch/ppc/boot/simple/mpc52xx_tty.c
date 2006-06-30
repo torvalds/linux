@@ -9,7 +9,6 @@
  * "as is" without any warranty of any kind, whether express or implied.
  */
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <asm/uaccess.h>
 #include <asm/mpc52xx.h>

@@ -15,7 +15,6 @@
 #ifndef _M32R_SIO_REG_H
 #define _M32R_SIO_REG_H
 
-#include <linux/config.h>
 
 #ifdef CONFIG_SERIAL_M32R_PLDSIO
 

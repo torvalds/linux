@@ -30,7 +30,6 @@
  * Send feedback to <scottm@somanetworks.com>
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>

@@ -8,7 +8,6 @@
  * use COM1 instead of SMC1 as the console port.  This kinda sucks
  * for the rest of the kernel, so here we force the use of SMC1 again.
  */
-#include <linux/config.h>
 #include <linux/types.h>
 #include <asm/uaccess.h>
 #include <asm/mpc8xx.h>

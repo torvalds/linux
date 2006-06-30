@@ -13,7 +13,6 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <linux/config.h>
 #include <linux/platform_device.h>
 
 #include <asm/hardware.h>

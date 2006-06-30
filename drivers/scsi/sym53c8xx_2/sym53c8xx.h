@@ -40,7 +40,6 @@
 #ifndef SYM53C8XX_H
 #define SYM53C8XX_H
 
-#include <linux/config.h>
 
 /*
  *  DMA addressing mode.

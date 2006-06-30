@@ -10,7 +10,6 @@
  * or implied.
  */
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/delay.h>
 #include <linux/pci_ids.h>

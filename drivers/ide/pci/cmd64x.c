@@ -14,7 +14,6 @@
  * Copyright (C) 1999-2002	Andre Hedrick <andre@linux-ide.org>
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/pci.h>

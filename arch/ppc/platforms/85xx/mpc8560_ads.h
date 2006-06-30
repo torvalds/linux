@@ -15,7 +15,6 @@
 #ifndef __MACH_MPC8560ADS_H
 #define __MACH_MPC8560ADS_H
 
-#include <linux/config.h>
 #include <syslib/ppc85xx_setup.h>
 #include <platforms/85xx/mpc85xx_ads_common.h>
 

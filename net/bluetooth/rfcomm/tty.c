@@ -27,7 +27,6 @@
  * $Id: tty.c,v 1.24 2002/10/03 01:54:38 holtmann Exp $
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 
 #include <linux/tty.h>

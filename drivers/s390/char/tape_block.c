@@ -11,7 +11,6 @@
  */
 
 #include <linux/fs.h>
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/blkdev.h>
 #include <linux/interrupt.h>

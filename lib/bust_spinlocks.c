@@ -7,7 +7,6 @@
  * and panic() information from reaching the user.
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/spinlock.h>
 #include <linux/tty.h>

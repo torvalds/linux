@@ -25,7 +25,6 @@
  *     
  ********************************************************************/
 
-#include <linux/config.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/inetdevice.h>

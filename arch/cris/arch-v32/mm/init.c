@@ -6,12 +6,10 @@
  * Authors:   Bjorn Wesen <bjornw@axis.com>
  *            Tobias Anderberg <tobiasa@axis.com>, CRISv32 port.
  */
-#include <linux/config.h>
 #include <linux/mmzone.h>
 #include <linux/init.h>
 #include <linux/bootmem.h>
 #include <linux/mm.h>
-#include <linux/config.h>
 #include <asm/pgtable.h>
 #include <asm/page.h>
 #include <asm/types.h>

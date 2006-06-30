@@ -22,7 +22,6 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include <linux/config.h>
 #include <linux/mm.h>
 #include <linux/bootmem.h>
 #include <linux/mmzone.h>

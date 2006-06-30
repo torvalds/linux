@@ -60,7 +60,6 @@
 #include "mach_time.h"
 
 #include <linux/timex.h>
-#include <linux/config.h>
 
 #include <asm/hpet.h>
 

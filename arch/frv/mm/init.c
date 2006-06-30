@@ -16,7 +16,6 @@
  *    - Copyright (C) 1995  Hamish Macdonald
  */
 
-#include <linux/config.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/pagemap.h>

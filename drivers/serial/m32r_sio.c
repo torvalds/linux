@@ -25,7 +25,6 @@
  *  membase is an 'ioremapped' cookie.  This is compatible with the old
  *  serial.c driver, and is currently the preferred form.
  */
-#include <linux/config.h>
 
 #if defined(CONFIG_SERIAL_M32R_SIO_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
 #define SUPPORT_SYSRQ

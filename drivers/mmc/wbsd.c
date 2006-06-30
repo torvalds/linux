@@ -21,7 +21,6 @@
  * - On APIC systems the FIFO empty interrupt is sometimes lost.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>

@@ -97,7 +97,6 @@
 #define LOCKUP16 0
 #endif
   
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/types.h>

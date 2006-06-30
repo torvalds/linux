@@ -10,7 +10,6 @@
  * 27/03/03 Ian Molton Clean up CONFIG_CPU
  *
  */
-#include <linux/config.h>
 #include <linux/linkage.h>
 #include <asm/assembler.h>
 		.text

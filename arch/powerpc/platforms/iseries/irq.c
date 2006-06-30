@@ -23,7 +23,6 @@
  *   Created, December 13, 2000 by Wayne Holm
  * End Change Activity
  */
-#include <linux/config.h>
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/threads.h>

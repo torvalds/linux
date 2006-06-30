@@ -7,7 +7,6 @@
  */
 
 	.text
-#include <linux/config.h>
 #include <linux/linkage.h>
 #include <asm/addrspace.h>
 #include <asm/page.h>

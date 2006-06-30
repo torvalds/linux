@@ -31,7 +31,6 @@
  * 		ever possible.
  */
 
-#include <linux/config.h>
 #include <linux/delay.h>
 
 #undef SERIAL_PARANOIA_CHECK

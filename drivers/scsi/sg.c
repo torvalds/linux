@@ -28,7 +28,6 @@ static int sg_version_num = 30533;	/* 2 digits for each component */
  *        (otherwise the macros compile to empty statements).
  *
  */
-#include <linux/config.h>
 #include <linux/module.h>
 
 #include <linux/fs.h>

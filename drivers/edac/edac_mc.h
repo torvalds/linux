@@ -18,7 +18,6 @@
 #ifndef _EDAC_MC_H_
 #define _EDAC_MC_H_
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/module.h>

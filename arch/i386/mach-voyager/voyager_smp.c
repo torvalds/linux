@@ -9,7 +9,6 @@
  * This file provides all the same external entries as smp.c but uses
  * the voyager hal to provide the functionality
  */
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/kernel_stat.h>

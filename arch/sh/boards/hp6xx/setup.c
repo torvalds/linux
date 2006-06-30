@@ -9,7 +9,6 @@
  * Setup code for an HP680  (internal peripherials only)
  */
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <asm/io.h>
 #include <asm/hd64461.h>

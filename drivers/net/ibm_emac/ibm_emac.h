@@ -20,7 +20,6 @@
 #ifndef __IBM_EMAC_H_
 #define __IBM_EMAC_H_
 
-#include <linux/config.h>
 #include <linux/types.h>
 
 /* This is a simple check to prevent use of this driver on non-tested SoCs */

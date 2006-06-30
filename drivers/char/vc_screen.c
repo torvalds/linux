@@ -21,7 +21,6 @@
  *	 - making it shorter - scr_readw are macros which expand in PRETTY long code
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/major.h>
 #include <linux/errno.h>

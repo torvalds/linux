@@ -75,7 +75,6 @@
  * Documentation/specialix.txt
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 
 #include <asm/io.h>

@@ -6,7 +6,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <asm/string.h>
 

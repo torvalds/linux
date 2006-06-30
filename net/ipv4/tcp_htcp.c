@@ -6,7 +6,6 @@
  * http://www.hamilton.ie/net/htcp3.pdf
  */
 
-#include <linux/config.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <net/tcp.h>

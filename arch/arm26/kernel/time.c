@@ -18,7 +18,6 @@
  *              "A Kernel Model for Precision Timekeeping" by Dave Mills
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/interrupt.h>

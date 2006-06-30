@@ -1,4 +1,3 @@
-#include <linux/config.h>
 #include <linux/sysdev.h>
 #include <linux/cpu.h>
 #include <linux/smp.h>

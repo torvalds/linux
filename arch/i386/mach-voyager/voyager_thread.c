@@ -14,7 +14,6 @@
  * */
 
 #include <linux/module.h>
-#include <linux/config.h>
 #include <linux/mm.h>
 #include <linux/kernel_stat.h>
 #include <linux/delay.h>

@@ -34,7 +34,6 @@
  * So we use the timer to check the status manually.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>

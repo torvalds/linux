@@ -46,7 +46,6 @@
  *  last change: 2002/11/02               OS: Linux 2.5.45  *
  ************************************************************/
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>

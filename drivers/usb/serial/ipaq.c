@@ -44,7 +44,6 @@
  * 	Thanks to info from Heath Robinson and Arieh Davidoff.
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/init.h>

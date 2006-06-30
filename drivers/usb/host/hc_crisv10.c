@@ -4,7 +4,6 @@
  * Copyright (c) 2002, 2003 Axis Communications AB.
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/ioport.h>

@@ -26,7 +26,6 @@
  *
  * $Id: ad1889.c,v 1.3 2002/10/19 21:31:44 grundler Exp $
  */
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/ioport.h>

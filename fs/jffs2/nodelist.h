@@ -14,7 +14,6 @@
 #ifndef __JFFS2_NODELIST_H__
 #define __JFFS2_NODELIST_H__
 
-#include <linux/config.h>
 #include <linux/fs.h>
 #include <linux/types.h>
 #include <linux/jffs2.h>

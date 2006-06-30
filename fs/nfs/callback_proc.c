@@ -5,7 +5,6 @@
  *
  * NFSv4 callback procedures
  */
-#include <linux/config.h>
 #include <linux/nfs4.h>
 #include <linux/nfs_fs.h>
 #include "nfs4_fs.h"

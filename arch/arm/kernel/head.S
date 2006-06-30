@@ -11,7 +11,6 @@
  *
  *  Kernel startup code for all 32-bit CPUs
  */
-#include <linux/config.h>
 #include <linux/linkage.h>
 #include <linux/init.h>
 

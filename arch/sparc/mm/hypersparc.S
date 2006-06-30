@@ -10,7 +10,6 @@
 #include <asm/asi.h>
 #include <asm/page.h>
 #include <asm/pgtsrmmu.h>
-#include <linux/config.h>
 #include <linux/init.h>
 
 	.text

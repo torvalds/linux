@@ -24,7 +24,6 @@
  *                             devices. All mtu based now.
  */
 
-#include <linux/config.h>
 #include <linux/capability.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>

@@ -21,7 +21,6 @@
  *
  ********************************************************************/
 
-#include <linux/config.h>
 #include <linux/module.h>
  
 #define DRIVER_NAME 		"vlsi_ir"

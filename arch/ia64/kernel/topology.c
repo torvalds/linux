@@ -13,7 +13,6 @@
  *	Populate cpu cache entries in sysfs for cpu cache info
  */
 
-#include <linux/config.h>
 #include <linux/cpu.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>

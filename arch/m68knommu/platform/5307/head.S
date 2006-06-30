@@ -8,7 +8,6 @@
 
 /*****************************************************************************/
 
-#include <linux/config.h>
 #include <linux/sys.h>
 #include <linux/linkage.h>
 #include <asm/asm-offsets.h>

@@ -10,7 +10,6 @@
 
 #include <linux/module.h>
 #include <linux/string.h>
-#include <linux/config.h>
 #include <linux/nls.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>

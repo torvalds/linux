@@ -10,7 +10,6 @@
  *		to allow signals to be sent reliably.
  */
 
-#include <linux/config.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/smp_lock.h>

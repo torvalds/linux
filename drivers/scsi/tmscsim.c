@@ -218,7 +218,6 @@
 #endif
 #define DCBDEBUG1(x) C_NOP
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/signal.h>

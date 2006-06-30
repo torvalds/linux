@@ -7,7 +7,6 @@
  *
  */
 
-#include <linux/config.h>
 
 #include <asm/uaccess.h>
 #include <linux/capability.h>

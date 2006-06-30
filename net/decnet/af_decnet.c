@@ -99,7 +99,6 @@ Version 0.0.6    2.1.110   07-aug-98   Eduardo Marcelo Serrat
                                        dn_bind fixes
 *******************************************************************************/
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/types.h>

@@ -7,7 +7,6 @@
  * is merged with head.S by the linker.
  */
 
-#include <linux/config.h>
 #include <asm/mach-types.h>
 
 #ifndef CONFIG_ARCH_L7200

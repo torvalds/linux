@@ -12,7 +12,6 @@
 #include <linux/time.h>
 #include <linux/proc_fs.h>
 #include <linux/stat.h>
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/bitops.h>

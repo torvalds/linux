@@ -38,7 +38,6 @@
  *		Fix some spin_locks.
  *		Do not call uart_add_one_port for absent ports.
  */
-#include <linux/config.h>
 
 #if defined(CONFIG_SERIAL_TXX9_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
 #define SUPPORT_SYSRQ

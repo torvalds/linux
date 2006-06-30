@@ -15,7 +15,6 @@
  * for more details.
  */
 
-#include <linux/config.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/param.h>

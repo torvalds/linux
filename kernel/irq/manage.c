@@ -7,7 +7,6 @@
  * This file contains driver APIs to the irq subsystem.
  */
 
-#include <linux/config.h>
 #include <linux/irq.h>
 #include <linux/module.h>
 #include <linux/random.h>

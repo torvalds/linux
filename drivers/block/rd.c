@@ -42,7 +42,6 @@
  * and set blk_size for -ENOSPC,     Werner Fink <werner@suse.de>, Apr '99
  */
 
-#include <linux/config.h>
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <asm/atomic.h>

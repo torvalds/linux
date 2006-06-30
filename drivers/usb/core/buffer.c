@@ -5,7 +5,6 @@
  * and should work with all USB controllers, regardles of bus type.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>

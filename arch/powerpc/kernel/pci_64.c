@@ -13,7 +13,6 @@
 
 #undef DEBUG
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>
 #include <linux/string.h>

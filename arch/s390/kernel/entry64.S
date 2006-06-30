@@ -11,7 +11,6 @@
 
 #include <linux/sys.h>
 #include <linux/linkage.h>
-#include <linux/config.h>
 #include <asm/cache.h>
 #include <asm/lowcore.h>
 #include <asm/errno.h>

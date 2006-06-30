@@ -8,7 +8,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/config.h>
 #include <linux/oprofile.h>
 #include <linux/sched.h>
 #include <asm/perfmon.h>

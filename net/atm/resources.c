@@ -8,7 +8,6 @@
  * 	     use the default destruct function initialized by sock_init_data */
 
 
-#include <linux/config.h>
 #include <linux/ctype.h>
 #include <linux/string.h>
 #include <linux/atmdev.h>

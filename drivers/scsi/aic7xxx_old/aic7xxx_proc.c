@@ -29,7 +29,6 @@
  *  $Id: aic7xxx_proc.c,v 4.1 1997/06/97 08:23:42 deang Exp $
  *-M*************************************************************************/
 
-#include <linux/config.h>
 
 #define	BLS	(&aic7xxx_buffer[size])
 #define HDRB \

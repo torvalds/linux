@@ -31,7 +31,6 @@
 **        the coherency design originally worked out. Only PCX-W does.
 */
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/mm.h>

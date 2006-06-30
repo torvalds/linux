@@ -13,7 +13,6 @@
  * 28-06-1998 by Frank Denis : qnx4_free_inode (to be fixed) .
  */
 
-#include <linux/config.h>
 #include <linux/time.h>
 #include <linux/fs.h>
 #include <linux/qnx4_fs.h>

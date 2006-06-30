@@ -19,7 +19,6 @@
  * Naturally it's not a 1:1 relation, but there are similarities.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/ptrace.h>
 #include <linux/irq.h>

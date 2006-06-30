@@ -4,7 +4,6 @@
  * Copyright (C) 2003, Axis Communications AB
  */
 
-#include <linux/config.h>
 
 #define ASSEMBLER_MACROS_ONLY
 

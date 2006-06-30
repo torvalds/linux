@@ -11,7 +11,6 @@
  *	       Dan Morrison, IBM Corporation (dmorriso@cse.buffalo.edu)
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kdev_t.h>

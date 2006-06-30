@@ -10,7 +10,6 @@
  * that is iMac G5 and latest single CPU desktop.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/errno.h>

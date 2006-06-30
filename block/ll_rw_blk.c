@@ -10,7 +10,6 @@
 /*
  * This handles all read/write requests to block devices
  */
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/backing-dev.h>

@@ -6,7 +6,6 @@
  *  Copyright (C) 2002,2003 Andi Kleen <ak@suse.de>
  */
 
-#include <linux/config.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>

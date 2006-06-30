@@ -15,7 +15,6 @@
 #define IMMED #
 #define	DBG_PUTC(x)	moveb IMMED x, 0xfffff907
 
-#include <linux/config.h>
 
 .global _stext
 .global _start

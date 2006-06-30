@@ -12,7 +12,6 @@
  * Code supporting the DP264 (EV6+TSUNAMI).
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/mm.h>

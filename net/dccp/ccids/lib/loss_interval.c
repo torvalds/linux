@@ -11,7 +11,6 @@
  *  (at your option) any later version.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 
 #include "loss_interval.h"

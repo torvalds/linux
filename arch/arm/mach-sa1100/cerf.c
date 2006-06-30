@@ -10,7 +10,6 @@
  * Jan-2004 : Removed io map for flash [FB]
  */
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/tty.h>

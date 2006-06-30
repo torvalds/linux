@@ -32,7 +32,6 @@
 
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/config.h>
 #include <linux/platform_device.h>
 
 #include <pcmcia/cs_types.h>

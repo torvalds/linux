@@ -17,7 +17,6 @@
  *
  * Routines specific to the LASAT boards
  */
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/crc32.h>
 #include <asm/lasat/lasat.h>

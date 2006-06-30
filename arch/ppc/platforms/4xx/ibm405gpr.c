@@ -7,7 +7,6 @@
  * or implied.
  */
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/smp.h>
 #include <linux/threads.h>

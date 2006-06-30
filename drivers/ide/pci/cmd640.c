@@ -103,7 +103,6 @@
 
 //#define CMD640_DUMP_REGS
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>

@@ -23,7 +23,6 @@
  * This file handles the architecture-dependent parts of initialization
  */
 
-#include <linux/config.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/mmzone.h>

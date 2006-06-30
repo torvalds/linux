@@ -6,7 +6,6 @@
  *
  * Copyright (C) 2003, 04 Ralf Baechle (ralf@linux-mips.org)
  */
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/bootmem.h>

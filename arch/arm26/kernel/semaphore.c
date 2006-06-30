@@ -13,7 +13,6 @@
  * published by the Free Software Foundation.
  */
 #include <linux/module.h>
-#include <linux/config.h>
 #include <linux/sched.h>
 #include <linux/errno.h>
 #include <linux/init.h>

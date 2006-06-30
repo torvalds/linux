@@ -25,7 +25,6 @@
  *             deficiencies
  *
  */
-#include <linux/config.h>
 
 #ifdef CONFIG_MMC_DEBUG
 #define DEBUG

@@ -16,7 +16,6 @@
  * Zerocpy NFS support (C) 2002 Hirokazu Takahashi <taka@valinux.co.jp>
  */
 
-#include <linux/config.h>
 #include <linux/string.h>
 #include <linux/time.h>
 #include <linux/errno.h>

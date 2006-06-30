@@ -10,7 +10,6 @@
  *
  */
 #include <linux/module.h>
-#include <linux/config.h>
 #include <linux/proc_fs.h>
 #include <linux/jhash.h>
 #include <linux/bitops.h>

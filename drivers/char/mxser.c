@@ -36,7 +36,6 @@
  */
 
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/autoconf.h>
 #include <linux/errno.h>

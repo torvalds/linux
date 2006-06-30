@@ -66,7 +66,6 @@
  * by default, the selective clear mask is set up to process rx packets.  
  */
 
-#include <linux/config.h>
 
 #include <linux/module.h>
 #include <linux/kernel.h>

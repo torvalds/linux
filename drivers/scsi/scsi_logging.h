@@ -1,7 +1,6 @@
 #ifndef _SCSI_LOGGING_H
 #define _SCSI_LOGGING_H
 
-#include <linux/config.h>
 
 /*
  * This defines the scsi logging feature.  It is a means by which the user

@@ -1,6 +1,5 @@
 /* $Id: lmc_media.c,v 1.13 2000/04/11 05:25:26 asj Exp $ */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/timer.h>

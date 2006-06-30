@@ -38,7 +38,6 @@
  * and drives the real SMI state machine.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <asm/system.h>

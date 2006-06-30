@@ -11,7 +11,6 @@
  * life in portables, and add a 'performance/watt' metric somewhere in /proc
  */
 
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/jiffies.h>
 #include <linux/kernel.h>

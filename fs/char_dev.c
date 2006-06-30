@@ -4,7 +4,6 @@
  *  Copyright (C) 1991, 1992  Linus Torvalds
  */
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/fs.h>
 #include <linux/slab.h>

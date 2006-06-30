@@ -24,7 +24,6 @@
 #ifndef _SIS_H_
 #define _SIS_H_
 
-#include <linux/config.h>
 #include <linux/version.h>
 
 #include "osdef.h"
