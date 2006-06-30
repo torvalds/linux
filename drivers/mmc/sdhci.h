@@ -67,6 +67,10 @@
 #define  SDHCI_CTRL_4BITBUS	0x02
 
 #define SDHCI_POWER_CONTROL	0x29
+#define  SDHCI_POWER_ON		0x01
+#define  SDHCI_POWER_180	0x0A
+#define  SDHCI_POWER_300	0x0C
+#define  SDHCI_POWER_330	0x0E
 
 #define SDHCI_BLOCK_GAP_CONTROL	0x2A
 
@@ -121,9 +125,12 @@
 /* 3E-3F reserved */
 
 #define SDHCI_CAPABILITIES	0x40
-#define  SDHCI_CAN_DO_DMA	0x00400000
 #define  SDHCI_CLOCK_BASE_MASK	0x00003F00
 #define  SDHCI_CLOCK_BASE_SHIFT	8
+#define  SDHCI_CAN_DO_DMA	0x00400000
+#define  SDHCI_CAN_VDD_330	0x01000000
+#define  SDHCI_CAN_VDD_300	0x02000000
+#define  SDHCI_CAN_VDD_180	0x04000000
 
 /* 44-47 reserved for more caps */
 
@@ -151,6 +158,7 @@ struct sdhci_host {
 	unsigned int		max_clk;	/* Max possible freq (MHz) */
 
 	unsigned int		clock;		/* Current clock (MHz) */
+	unsigned short		power;		/* Current voltage */
 
 	struct mmc_request	*mrq;		/* Current request */
 	struct mmc_command	*cmd;		/* Current command */

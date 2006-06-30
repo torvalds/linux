@@ -530,6 +530,46 @@ out:
 	host->clock = clock;
 }
 
+static void sdhci_set_power(struct sdhci_host *host, unsigned short power)
+{
+	u8 pwr;
+
+	if (host->power == power)
+		return;
+
+	writeb(0, host->ioaddr + SDHCI_POWER_CONTROL);
+
+	if (power == (unsigned short)-1)
+		goto out;
+
+	pwr = SDHCI_POWER_ON;
+
+	switch (power) {
+	case MMC_VDD_170:
+	case MMC_VDD_180:
+	case MMC_VDD_190:
+		pwr |= SDHCI_POWER_180;
+		break;
+	case MMC_VDD_290:
+	case MMC_VDD_300:
+	case MMC_VDD_310:
+		pwr |= SDHCI_POWER_300;
+		break;
+	case MMC_VDD_320:
+	case MMC_VDD_330:
+	case MMC_VDD_340:
+		pwr |= SDHCI_POWER_330;
+		break;
+	default:
+		BUG();
+	}
+
+	writeb(pwr, host->ioaddr + SDHCI_POWER_CONTROL);
+
+out:
+	host->power = power;
+}
+
 /*****************************************************************************\
  *                                                                           *
  * MMC callbacks                                                             *
@@ -584,9 +624,9 @@ static void sdhci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	sdhci_set_clock(host, ios->clock);
 
 	if (ios->power_mode == MMC_POWER_OFF)
-		writeb(0, host->ioaddr + SDHCI_POWER_CONTROL);
+		sdhci_set_power(host, -1);
 	else
-		writeb(0xFF, host->ioaddr + SDHCI_POWER_CONTROL);
+		sdhci_set_power(host, ios->vdd);
 
 	ctrl = readb(host->ioaddr + SDHCI_HOST_CONTROL);
 	if (ios->bus_width == MMC_BUS_WIDTH_4)
@@ -1046,8 +1086,22 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 	mmc->ops = &sdhci_ops;
 	mmc->f_min = host->max_clk / 256;
 	mmc->f_max = host->max_clk;
-	mmc->ocr_avail = MMC_VDD_32_33|MMC_VDD_33_34;
 	mmc->caps = MMC_CAP_4_BIT_DATA;
+
+	mmc->ocr_avail = 0;
+	if (caps & SDHCI_CAN_VDD_330)
+		mmc->ocr_avail |= MMC_VDD_32_33|MMC_VDD_33_34;
+	else if (caps & SDHCI_CAN_VDD_300)
+		mmc->ocr_avail |= MMC_VDD_29_30|MMC_VDD_30_31;
+	else if (caps & SDHCI_CAN_VDD_180)
+		mmc->ocr_avail |= MMC_VDD_17_18|MMC_VDD_18_19;
+
+	if (mmc->ocr_avail == 0) {
+		printk(KERN_ERR "%s: Hardware doesn't report any "
+			"support voltages.\n", host->slot_descr);
+		ret = -ENODEV;
+		goto unmap;
+	}
 
 	spin_lock_init(&host->lock);
 
