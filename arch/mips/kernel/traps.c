@@ -978,10 +978,10 @@ void ejtag_exception_handler(struct pt_regs *regs)
 	unsigned long depc, old_epc;
 	unsigned int debug;
 
-	printk("SDBBP EJTAG debug exception - not handled yet, just ignored!\n");
+	printk(KERN_DEBUG "SDBBP EJTAG debug exception - not handled yet, just ignored!\n");
 	depc = read_c0_depc();
 	debug = read_c0_debug();
-	printk("c0_depc = %0*lx, DEBUG = %08x\n", field, depc, debug);
+	printk(KERN_DEBUG "c0_depc = %0*lx, DEBUG = %08x\n", field, depc, debug);
 	if (debug & 0x80000000) {
 		/*
 		 * In branch delay slot.
@@ -999,7 +999,7 @@ void ejtag_exception_handler(struct pt_regs *regs)
 	write_c0_depc(depc);
 
 #if 0
-	printk("\n\n----- Enable EJTAG single stepping ----\n\n");
+	printk(KERN_DEBUG "\n\n----- Enable EJTAG single stepping ----\n\n");
 	write_c0_debug(debug | 0x100);
 #endif
 }
