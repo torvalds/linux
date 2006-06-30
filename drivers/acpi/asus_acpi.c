@@ -45,6 +45,7 @@
 #define PROC_MLED       "mled"
 #define PROC_WLED       "wled"
 #define PROC_TLED       "tled"
+#define PROC_BT         "bluetooth"
 #define PROC_LEDD       "ledd"
 #define PROC_INFO       "info"
 #define PROC_LCD        "lcd"
@@ -65,9 +66,10 @@
 /*
  * Flags for hotk status
  */
-#define MLED_ON     0x01	//is MLED ON ?
-#define WLED_ON     0x02
-#define TLED_ON     0x04
+#define MLED_ON     0x01	//mail LED
+#define WLED_ON     0x02	//wireless LED
+#define TLED_ON     0x04	//touchpad LED
+#define BT_ON       0x08	//internal Bluetooth
 
 MODULE_AUTHOR("Julien Lerouge, Karol Kozimor");
 MODULE_DESCRIPTION(ACPI_HOTK_NAME);
@@ -91,7 +93,9 @@ struct model_data {
 	char *mt_tled;		//method to handle tled_____________R
 	char *tled_status;	//node to handle tled reading_______A
 	char *mt_ledd;		//method to handle LED display______R
-	char *mt_lcd_switch;	//method to turn LCD ON/OFF_________A
+	char *mt_bt_switch;	//method to switch Bluetooth on/off_R
+	char *bt_status;	//no model currently supports this__?
+	char *mt_lcd_switch;	//method to turn LCD on/off_________A
 	char *lcd_status;	//node to read LCD panel state______A
 	char *brightness_up;	//method to set brightness up_______A
 	char *brightness_down;	//guess what ?______________________A
@@ -133,6 +137,7 @@ struct asus_hotk {
 		S1x,		//S1300A, but also L1400B and M2400A (L84F)
 		S2x,		//S200 (J1 reported), Victor MP-XP7210
 		W1N,		//W1000N
+		W5A,		//W5A
 		xxN,		//M2400N, M3700N, M5200N, M6800N, S1300N, S5200N
 		//(Centrino)
 		END_MODEL
@@ -354,6 +359,16 @@ static struct model_data model_conf[END_MODEL] = {
 	 .mt_ledd = "SLCM",
 	 .mt_lcd_switch = xxN_PREFIX "_Q10",
 	 .lcd_status = "\\BKLT",
+	 .brightness_set = "SPLV",
+	 .brightness_get = "GPLV",
+	 .display_set = "SDSP",
+	 .display_get = "\\ADVG"},
+
+	{
+	 .name = "W5A",
+	 .mt_bt_switch = "BLED",
+	 .mt_wled = "WLED",
+	 .mt_lcd_switch = xxN_PREFIX "_Q10",
 	 .brightness_set = "SPLV",
 	 .brightness_get = "GPLV",
 	 .display_set = "SDSP",
@@ -623,6 +638,25 @@ proc_write_wled(struct file *file, const char __user * buffer,
 		unsigned long count, void *data)
 {
 	return write_led(buffer, count, hotk->methods->mt_wled, WLED_ON, 0);
+}
+
+/*
+ * Proc handlers for Bluetooth
+ */
+static int
+proc_read_bluetooth(char *page, char **start, off_t off, int count, int *eof,
+		    void *data)
+{
+	return sprintf(page, "%d\n", read_led(hotk->methods->bt_status, BT_ON));
+}
+
+static int
+proc_write_bluetooth(struct file *file, const char __user * buffer,
+		     unsigned long count, void *data)
+{
+	/* Note: mt_bt_switch controls both internal Bluetooth adapter's 
+	   presence and its LED */
+	return write_led(buffer, count, hotk->methods->mt_bt_switch, BT_ON, 0);
 }
 
 /*
@@ -936,6 +970,11 @@ static int asus_hotk_add_fs(struct acpi_device *device)
 			      mode, device);
 	}
 
+	if (hotk->methods->mt_bt_switch) {
+		asus_proc_add(PROC_BT, &proc_write_bluetooth,
+			      &proc_read_bluetooth, mode, device);
+	}
+
 	/* 
 	 * We need both read node and write method as LCD switch is also accessible
 	 * from keyboard 
@@ -971,6 +1010,8 @@ static int asus_hotk_remove_fs(struct acpi_device *device)
 			remove_proc_entry(PROC_TLED, acpi_device_dir(device));
 		if (hotk->methods->mt_ledd)
 			remove_proc_entry(PROC_LEDD, acpi_device_dir(device));
+		if (hotk->methods->mt_bt_switch)
+			remove_proc_entry(PROC_BT, acpi_device_dir(device));
 		if (hotk->methods->mt_lcd_switch && hotk->methods->lcd_status)
 			remove_proc_entry(PROC_LCD, acpi_device_dir(device));
 		if ((hotk->methods->brightness_up
@@ -1124,6 +1165,8 @@ static int asus_hotk_get_info(void)
 		hotk->model = A4G;
 	else if (strncmp(model->string.pointer, "W1N", 3) == 0)
 		hotk->model = W1N;
+	else if (strncmp(model->string.pointer, "W5A", 3) == 0)
+		hotk->model = W5A;
 
 	if (hotk->model == END_MODEL) {
 		printk("unsupported, trying default values, supply the "
