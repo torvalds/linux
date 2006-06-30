@@ -282,7 +282,6 @@ static char	*stli_brdnames[] = {
 
 /*****************************************************************************/
 
-#ifdef MODULE
 /*
  *	Define some string labels for arguments passed from the module
  *	load line. These allow for easy board definitions, and easy
@@ -380,8 +379,6 @@ module_param_array(board2, charp, NULL, 0);
 MODULE_PARM_DESC(board2, "Board 2 config -> name[,ioaddr[,memaddr]");
 module_param_array(board3, charp, NULL, 0);
 MODULE_PARM_DESC(board3, "Board 3 config -> name[,ioaddr[,memaddr]");
-
-#endif
 
 /*
  *	Set up a default memory address table for EISA board probing.
@@ -643,14 +640,8 @@ static unsigned int	stli_baudrates[] = {
  *	Prototype all functions in this driver!
  */
 
-#ifdef MODULE
-static void	stli_argbrds(void);
 static int	stli_parsebrd(stlconf_t *confp, char **argp);
-
-static unsigned long	stli_atol(char *str);
-#endif
-
-int		stli_init(void);
+static int	stli_init(void);
 static int	stli_open(struct tty_struct *tty, struct file *filp);
 static void	stli_close(struct tty_struct *tty, struct file *filp);
 static int	stli_write(struct tty_struct *tty, const unsigned char *buf, int count);
@@ -785,8 +776,6 @@ static int	stli_timeron;
 /*****************************************************************************/
 
 static struct class *istallion_class;
-
-#ifdef MODULE
 
 /*
  *	Loadable module initialization stuff.
@@ -953,8 +942,6 @@ static int stli_parsebrd(stlconf_t *confp, char **argp)
 		confp->memaddr = stli_atol(argp[2]);
 	return(1);
 }
-
-#endif
 
 /*****************************************************************************/
 
@@ -4694,7 +4681,7 @@ static struct tty_operations stli_ops = {
 
 /*****************************************************************************/
 
-int __init stli_init(void)
+static int __init stli_init(void)
 {
 	int i;
 	printk(KERN_INFO "%s: version %s\n", stli_drvtitle, stli_drvversion);
