@@ -1198,9 +1198,10 @@ static int asus_hotk_get_info(void)
 	else if (strncmp(string, "L5D", 3) == 0)
 		hotk->methods->mt_wled = NULL;
 	/* L5D's WLED is not controlled by ACPI */
-	else if (strncmp(string, "M2N", 3) == 0)
+	else if (strncmp(string, "M2N", 3) == 0 ||
+		 strncmp(string, "S1N", 3) == 0)
 		hotk->methods->mt_wled = "WLED";
-	/* M2N has a usable WLED */
+	/* M2N and S1N have a usable WLED */
 	else if (asus_info) {
 		if (strncmp(asus_info->oem_table_id, "L1", 2) == 0)
 			hotk->methods->mled_status = NULL;
