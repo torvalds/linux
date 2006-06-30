@@ -673,7 +673,10 @@ nfsd_open(struct svc_rqst *rqstp, struct svc_fh *fhp, int type,
 		goto out_nfserr;
 
 	if (access & MAY_WRITE) {
-		flags = O_WRONLY|O_LARGEFILE;
+		if (access & MAY_READ)
+			flags = O_RDWR|O_LARGEFILE;
+		else
+			flags = O_WRONLY|O_LARGEFILE;
 
 		DQUOT_INIT(inode);
 	}

@@ -1790,10 +1790,10 @@ nfsd4_process_open2(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nf
 	} else {
 		/* Stateid was not found, this is a new OPEN */
 		int flags = 0;
+		if (open->op_share_access & NFS4_SHARE_ACCESS_READ)
+			flags |= MAY_READ;
 		if (open->op_share_access & NFS4_SHARE_ACCESS_WRITE)
-			flags = MAY_WRITE;
-		else
-			flags = MAY_READ;
+			flags |= MAY_WRITE;
 		status = nfs4_new_open(rqstp, &stp, dp, current_fh, flags);
 		if (status)
 			goto out;
