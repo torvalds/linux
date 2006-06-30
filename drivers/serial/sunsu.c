@@ -1439,6 +1439,8 @@ static int __devinit su_probe(struct of_device *op, const struct of_device_id *m
 		err = sunsu_kbd_ms_init(up);
 		if (err)
 			goto out_unmap;
+
+		return 0;
 	}
 
 	up->port.flags |= UPF_BOOT_AUTOCONF;
