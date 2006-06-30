@@ -268,7 +268,7 @@ static int pmu_set_cpu_speed(int low_speed)
 
 	/* Make sure the decrementer won't interrupt us */
 	asm volatile("mtdec %0" : : "r" (0x7fffffff));
-	/* Make sure any pending DEC interrupt occuring while we did
+	/* Make sure any pending DEC interrupt occurring while we did
 	 * the above didn't re-enable the DEC */
 	mb();
 	asm volatile("mtdec %0" : : "r" (0x7fffffff));

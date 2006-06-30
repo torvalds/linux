@@ -116,7 +116,7 @@ extern void iwmmxt_task_release(struct thread_info *);
 
 /*
  * We use bit 30 of the preempt_count to indicate that kernel
- * preemption is occuring.  See include/asm-arm/hardirq.h.
+ * preemption is occurring.  See include/asm-arm/hardirq.h.
  */
 #define PREEMPT_ACTIVE	0x40000000
 

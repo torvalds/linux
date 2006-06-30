@@ -397,7 +397,7 @@ static void handle_errors(struct ipath_devdata *dd, ipath_err_t errs)
 		if ((dd->ipath_maskederrs & ~dd->ipath_ignorederrs) &
 		    ~(INFINIPATH_E_RRCVEGRFULL | INFINIPATH_E_RRCVHDRFULL))
 			ipath_dev_err(dd, "Disabling error(s) %llx because "
-				      "occuring too frequently (%s)\n",
+				      "occurring too frequently (%s)\n",
 				      (unsigned long long)
 				      (dd->ipath_maskederrs &
 				       ~dd->ipath_ignorederrs), msg);

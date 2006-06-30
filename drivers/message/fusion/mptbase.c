@@ -5592,7 +5592,7 @@ mpt_HardResetHandler(MPT_ADAPTER *ioc, int sleepFlag)
 
 	/* The SCSI driver needs to adjust timeouts on all current
 	 * commands prior to the diagnostic reset being issued.
-	 * Prevents timeouts occuring during a diagnostic reset...very bad.
+	 * Prevents timeouts occurring during a diagnostic reset...very bad.
 	 * For all other protocol drivers, this is a no-op.
 	 */
 	{

@@ -175,7 +175,7 @@ static void eeh_report_failure(struct pci_dev *dev, void *userdata)
  *
  * pSeries systems will isolate a PCI slot if the PCI-Host
  * bridge detects address or data parity errors, DMA's
- * occuring to wild addresses (which usually happen due to
+ * occurring to wild addresses (which usually happen due to
  * bugs in device drivers or in PCI adapter firmware).
  * Slot isolations also occur if #SERR, #PERR or other misc
  * PCI-related errors are detected.

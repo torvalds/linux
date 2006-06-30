@@ -27,7 +27,7 @@
 #define PV908234 (1 << 1)
   /* CA:AGPDMA write request data mismatch with ABC1CL merge */
 #define PV895469 (1 << 1)
-  /* TIO:CA TLB invalidate of written GART entries possibly not occuring in CA*/
+  /* TIO:CA TLB invalidate of written GART entries possibly not occurring in CA*/
 #define PV910244 (1 << 1)
 
 struct tioca_dmamap{
