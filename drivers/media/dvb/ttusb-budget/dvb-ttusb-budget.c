@@ -43,7 +43,7 @@
     is a bit braindead (no matching channel masks or no matching filter mask),
     we won't support this - yet. it doesn't event support negative filters,
     so the best way is maybe to keep TTUSB_HWSECTIONS undef'd and just
-    parse TS data. USB bandwith will be a problem when having large
+    parse TS data. USB bandwidth will be a problem when having large
     datastreams, especially for dvb-net, but hey, that's not my problem.
 
   TTUSB_DISEQC, TTUSB_TONE:

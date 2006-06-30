@@ -216,7 +216,7 @@ static int lgdt330x_init(struct dvb_frontend* fe)
 		AGC_DELAY0, 0x07,
 		AGC_DELAY2, 0xfe,
 		/* Change the value of IAGCBW[15:8]
-		   of inner AGC loop filter bandwith */
+		   of inner AGC loop filter bandwidth */
 		AGC_LOOP_BANDWIDTH0, 0x08,
 		AGC_LOOP_BANDWIDTH1, 0x9a
 	};
