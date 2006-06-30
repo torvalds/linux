@@ -581,7 +581,6 @@ module_init(alsa_cs8427_module_init)
 module_exit(alsa_cs8427_module_exit)
 
 EXPORT_SYMBOL(snd_cs8427_create);
-EXPORT_SYMBOL(snd_cs8427_reset);
 EXPORT_SYMBOL(snd_cs8427_reg_write);
 EXPORT_SYMBOL(snd_cs8427_iec958_build);
 EXPORT_SYMBOL(snd_cs8427_iec958_active);
