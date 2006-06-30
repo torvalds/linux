@@ -1553,7 +1553,7 @@ nfsd_rename(struct svc_rqst *rqstp, struct svc_fh *ffhp, char *fname, int flen,
 	tdir = tdentry->d_inode;
 
 	err = (rqstp->rq_vers == 2) ? nfserr_acces : nfserr_xdev;
-	if (fdir->i_sb != tdir->i_sb)
+	if (ffhp->fh_export != tfhp->fh_export)
 		goto out;
 
 	err = nfserr_perm;
