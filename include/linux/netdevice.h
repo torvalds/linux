@@ -313,6 +313,7 @@ struct net_device
 
 	/* Segmentation offload features */
 #define NETIF_F_GSO_SHIFT	16
+#define NETIF_F_GSO_MASK	0xffff0000
 #define NETIF_F_TSO		(SKB_GSO_TCPV4 << NETIF_F_GSO_SHIFT)
 #define NETIF_F_UFO		(SKB_GSO_UDPV4 << NETIF_F_GSO_SHIFT)
 #define NETIF_F_GSO_ROBUST	(SKB_GSO_DODGY << NETIF_F_GSO_SHIFT)
@@ -991,11 +992,16 @@ extern void dev_seq_stop(struct seq_file *seq, void *v);
 
 extern void linkwatch_run_queue(void);
 
+static inline int net_gso_ok(int features, int gso_type)
+{
+	int feature = gso_type << NETIF_F_GSO_SHIFT;
+	return (features & feature) == feature;
+}
+
 static inline int skb_gso_ok(struct sk_buff *skb, int features)
 {
-	int feature = skb_shinfo(skb)->gso_size ?
-		      skb_shinfo(skb)->gso_type << NETIF_F_GSO_SHIFT : 0;
-	return (features & feature) == feature;
+	return net_gso_ok(features, skb_shinfo(skb)->gso_size ?
+				    skb_shinfo(skb)->gso_type : 0);
 }
 
 static inline int netif_needs_gso(struct net_device *dev, struct sk_buff *skb)

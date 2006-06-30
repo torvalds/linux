@@ -643,7 +643,7 @@ static inline int select_size(struct sock *sk, struct tcp_sock *tp)
 	int tmp = tp->mss_cache;
 
 	if (sk->sk_route_caps & NETIF_F_SG) {
-		if (sk->sk_route_caps & NETIF_F_TSO)
+		if (sk_can_gso(sk))
 			tmp = 0;
 		else {
 			int pgbreak = SKB_MAX_HEAD(MAX_TCP_HEADER);
