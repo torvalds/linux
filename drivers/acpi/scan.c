@@ -1433,7 +1433,7 @@ static int acpi_device_resume(struct device * dev)
 }
 
 
-struct bus_type acpi_bus_type = {
+static struct bus_type acpi_bus_type = {
 	.name		= "acpi",
 	.suspend	= acpi_device_suspend,
 	.resume		= acpi_device_resume,
