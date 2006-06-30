@@ -2039,9 +2039,10 @@ L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
 NI5010 NETWORK DRIVER
-P:	Jan-Pascal van Best and Andreas Mohr
-M:	Jan-Pascal van Best <jvbest@qv3pluto.leidenuniv.nl>
-M:	Andreas Mohr <100.30936@germany.net>
+P:	Jan-Pascal van Best
+M:	janpascal@vanbest.org
+P:	Andreas Mohr
+M:	andi@lisas.de
 L:	netdev@vger.kernel.org
 S:	Maintained
 
