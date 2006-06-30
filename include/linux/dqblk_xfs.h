@@ -125,14 +125,14 @@ typedef struct fs_disk_quota {
 
 /*
  * fs_quota_stat is the struct returned in Q_XGETQSTAT for a given file system.
- * Provides a centralized way to get meta infomation about the quota subsystem.
+ * Provides a centralized way to get meta information about the quota subsystem.
  * eg. space taken up for user and group quotas, number of dquots currently
  * incore.
  */
 #define FS_QSTAT_VERSION	1	/* fs_quota_stat.qs_version */
 
 /*
- * Some basic infomation about 'quota files'.
+ * Some basic information about 'quota files'.
  */
 typedef struct fs_qfilestat {
 	__u64		qfs_ino;	/* inode number */

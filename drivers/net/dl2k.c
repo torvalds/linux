@@ -390,7 +390,7 @@ parse_eeprom (struct net_device *dev)
 	for (i = 0; i < 6; i++)
 		dev->dev_addr[i] = psrom->mac_addr[i];
 
-	/* Parse Software Infomation Block */
+	/* Parse Software Information Block */
 	i = 0x30;
 	psib = (u8 *) sromdata;
 	do {

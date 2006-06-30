@@ -22,7 +22,7 @@
  ******************************************************************************/
 
 /*
-	Please refer skvpd.txt for infomation how to include this module
+	Please refer skvpd.txt for information how to include this module
  */
 static const char SysKonnectFileId[] =
 	"@(#)$Id: skvpd.c,v 1.37 2003/01/13 10:42:45 rschmidt Exp $ (C) SK";
