@@ -465,6 +465,7 @@ static void sdhci_finish_data(struct sdhci_host *host)
 static void sdhci_send_command(struct sdhci_host *host, struct mmc_command *cmd)
 {
 	int flags;
+	u32 mask;
 	unsigned long timeout;
 
 	WARN_ON(host->cmd);
@@ -473,11 +474,20 @@ static void sdhci_send_command(struct sdhci_host *host, struct mmc_command *cmd)
 
 	/* Wait max 10 ms */
 	timeout = 10;
-	while (readl(host->ioaddr + SDHCI_PRESENT_STATE) &
-		(SDHCI_CMD_INHIBIT | SDHCI_DATA_INHIBIT)) {
+
+	mask = SDHCI_CMD_INHIBIT;
+	if ((cmd->data != NULL) || (cmd->flags & MMC_RSP_BUSY))
+		mask |= SDHCI_DATA_INHIBIT;
+
+	/* We shouldn't wait for data inihibit for stop commands, even
+	   though they might use busy signaling */
+	if (host->mrq->data && (cmd == host->mrq->data->stop))
+		mask &= ~SDHCI_DATA_INHIBIT;
+
+	while (readl(host->ioaddr + SDHCI_PRESENT_STATE) & mask) {
 		if (timeout == 0) {
 			printk(KERN_ERR "%s: Controller never released "
-				"inhibit bits. Please report this to "
+				"inhibit bit(s). Please report this to "
 				BUGMAIL ".\n", mmc_hostname(host->mmc));
 			sdhci_dumpregs(host);
 			cmd->error = MMC_ERR_FAILED;
