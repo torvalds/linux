@@ -837,7 +837,7 @@ nfsd_vfs_read(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 	if (ra && ra->p_set)
 		file->f_ra = ra->p_ra;
 
-	if (file->f_op->sendfile) {
+	if (file->f_op->sendfile && rqstp->rq_sendfile_ok) {
 		svc_pushback_unused_pages(rqstp);
 		err = file->f_op->sendfile(file, &offset, *count,
 						 nfsd_read_actor, rqstp);
