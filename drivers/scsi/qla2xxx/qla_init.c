@@ -39,6 +39,8 @@ static int qla2x00_fabric_dev_login(scsi_qla_host_t *, fc_port_t *,
 
 static int qla2x00_restart_isp(scsi_qla_host_t *);
 
+static int qla2x00_find_new_loop_id(scsi_qla_host_t *ha, fc_port_t *dev);
+
 /****************************************************************************/
 /*                QLogic ISP2x00 Hardware Support Functions.                */
 /****************************************************************************/
@@ -1790,7 +1792,7 @@ qla2x00_rport_del(void *data)
  *
  * Returns a pointer to the allocated fcport, or NULL, if none available.
  */
-fc_port_t *
+static fc_port_t *
 qla2x00_alloc_fcport(scsi_qla_host_t *ha, gfp_t flags)
 {
 	fc_port_t *fcport;
@@ -2586,7 +2588,7 @@ qla2x00_find_all_fabric_devs(scsi_qla_host_t *ha, struct list_head *new_fcports)
  * Context:
  *	Kernel context.
  */
-int
+static int
 qla2x00_find_new_loop_id(scsi_qla_host_t *ha, fc_port_t *dev)
 {
 	int	rval;
@@ -3561,7 +3563,7 @@ qla24xx_nvram_config(scsi_qla_host_t *ha)
 	return (rval);
 }
 
-int
+static int
 qla24xx_load_risc_flash(scsi_qla_host_t *ha, uint32_t *srisc_addr)
 {
 	int	rval;
