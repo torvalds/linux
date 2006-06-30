@@ -210,8 +210,11 @@ int create_tmp_file(unsigned long long len)
 		exit(1);
 	}
 
-        if (lseek64(fd, len, SEEK_SET) < 0) {
- 		perror("os_seek_file");
+	/* Seek to len - 1 because writing a character there will
+	 * increase the file size by one byte, to the desired length.
+	 */
+	if (lseek64(fd, len - 1, SEEK_SET) < 0) {
+		perror("os_seek_file");
 		exit(1);
 	}
 
