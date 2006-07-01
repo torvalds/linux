@@ -115,6 +115,7 @@ static int create_port0_egr(struct ipath_devdata *dd)
 				      "eager TID %u\n", e);
 			while (e != 0)
 				dev_kfree_skb(skbs[--e]);
+			vfree(skbs);
 			ret = -ENOMEM;
 			goto bail;
 		}

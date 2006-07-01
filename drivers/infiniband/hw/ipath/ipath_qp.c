@@ -692,6 +692,7 @@ struct ib_qp *ipath_create_qp(struct ib_pd *ibpd,
 	case IB_QPT_GSI:
 		qp = kmalloc(sizeof(*qp), GFP_KERNEL);
 		if (!qp) {
+			vfree(swq);
 			ret = ERR_PTR(-ENOMEM);
 			goto bail;
 		}
@@ -702,6 +703,7 @@ struct ib_qp *ipath_create_qp(struct ib_pd *ibpd,
 		qp->r_rq.wq = vmalloc(qp->r_rq.size * sz);
 		if (!qp->r_rq.wq) {
 			kfree(qp);
+			vfree(swq);
 			ret = ERR_PTR(-ENOMEM);
 			goto bail;
 		}
