@@ -991,6 +991,7 @@ cleanup_io_leave_insn:
 .Lcritical_end:
                .quad  __critical_end
 
+	       .section .rodata, "a"
 #define SYSCALL(esa,esame,emu)	.long esame
 sys_call_table:
 #include "syscalls.S"
