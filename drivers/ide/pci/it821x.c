@@ -650,6 +650,8 @@ static void __devinit init_hwif_it821x(ide_hwif_t *hwif)
 	}
 	ide_set_hwifdata(hwif, idev);
 
+	hwif->atapi_dma = 1;
+
 	pci_read_config_byte(hwif->pci_dev, 0x50, &conf);
 	if(conf & 1) {
 		idev->smart = 1;
