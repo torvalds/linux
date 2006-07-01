@@ -496,10 +496,8 @@ static int __devinit ipath_init_one(struct pci_dev *pdev,
 		((void __iomem *)dd->ipath_kregbase + len);
 	dd->ipath_physaddr = addr;	/* used for io_remap, etc. */
 	/* for user mmap */
-	dd->ipath_kregvirt = (u64 __iomem *) phys_to_virt(addr);
-	ipath_cdbg(VERBOSE, "mapped io addr %llx to kregbase %p "
-		   "kregvirt %p\n", addr, dd->ipath_kregbase,
-		   dd->ipath_kregvirt);
+	ipath_cdbg(VERBOSE, "mapped io addr %llx to kregbase %p\n",
+		   addr, dd->ipath_kregbase);
 
 	/*
 	 * clear ipath_flags here instead of in ipath_init_chip as it is set
@@ -1809,7 +1807,6 @@ static void cleanup_device(struct ipath_devdata *dd)
 			 * re-init
 			 */
 			dd->ipath_kregbase = NULL;
-			dd->ipath_kregvirt = NULL;
 			dd->ipath_uregbase = 0;
 			dd->ipath_sregbase = 0;
 			dd->ipath_cregbase = 0;

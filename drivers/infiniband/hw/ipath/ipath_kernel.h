@@ -159,11 +159,6 @@ struct ipath_devdata {
 	/* base of memory alloced for ipath_kregbase, for free */
 	u64 *ipath_kregalloc;
 	/*
-	 * version of kregbase that doesn't have high bits set (for 32 bit
-	 * programs, so mmap64 44 bit works)
-	 */
-	u64 __iomem *ipath_kregvirt;
-	/*
 	 * virtual address where port0 rcvhdrqtail updated for this unit.
 	 * only written to by the chip, not the driver.
 	 */
