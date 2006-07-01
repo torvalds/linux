@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2006 QLogic, Inc. All rights reserved.
  * Copyright (c) 2003, 2004, 2005, 2006 PathScale, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -52,7 +53,7 @@ const char *ipath_get_unit_name(int unit)
 
 EXPORT_SYMBOL_GPL(ipath_get_unit_name);
 
-#define DRIVER_LOAD_MSG "PathScale " IPATH_DRV_NAME " loaded: "
+#define DRIVER_LOAD_MSG "QLogic " IPATH_DRV_NAME " loaded: "
 #define PFX IPATH_DRV_NAME ": "
 
 /*
@@ -74,8 +75,8 @@ MODULE_PARM_DESC(debug, "mask for debug prints");
 EXPORT_SYMBOL_GPL(ipath_debug);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("PathScale <support@pathscale.com>");
-MODULE_DESCRIPTION("Pathscale InfiniPath driver");
+MODULE_AUTHOR("QLogic <support@pathscale.com>");
+MODULE_DESCRIPTION("QLogic InfiniPath driver");
 
 const char *ipath_ibcstatus_str[] = {
 	"Disabled",
@@ -452,7 +453,7 @@ static int __devinit ipath_init_one(struct pci_dev *pdev,
 		ipath_init_pe800_funcs(dd);
 		break;
 	default:
-		ipath_dev_err(dd, "Found unknown PathScale deviceid 0x%x, "
+		ipath_dev_err(dd, "Found unknown QLogic deviceid 0x%x, "
 			      "failing\n", ent->device);
 		return -ENODEV;
 	}

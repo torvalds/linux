@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2006 QLogic, Inc. All rights reserved.
  * Copyright (c) 2005, 2006 PathScale, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -56,8 +57,8 @@ module_param_named(debug, ib_ipath_debug, uint, S_IWUSR | S_IRUGO);
 MODULE_PARM_DESC(debug, "Verbs debug mask");
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("PathScale <support@pathscale.com>");
-MODULE_DESCRIPTION("Pathscale InfiniPath driver");
+MODULE_AUTHOR("QLogic <support@pathscale.com>");
+MODULE_DESCRIPTION("QLogic InfiniPath driver");
 
 const int ib_ipath_state_ops[IB_QPS_ERR + 1] = {
 	[IB_QPS_RESET] = 0,

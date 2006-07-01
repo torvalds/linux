@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2006 QLogic, Inc. All rights reserved.
  * Copyright (c) 2003, 2004, 2005, 2006 PathScale, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -44,7 +45,7 @@
 
 /*
  * This file contains all the chip-specific register information and
- * access functions for the PathScale PE800, the PCI-Express chip.
+ * access functions for the QLogic InfiniPath PE800, the PCI-Express chip.
  *
  * This lists the InfiniPath PE800 registers, in the actual chip layout.
  * This structure should never be directly accessed.

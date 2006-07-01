@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2006 QLogic, Inc. All rights reserved.
  * Copyright (c) 2003, 2004, 2005, 2006 PathScale, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -38,7 +39,7 @@
  * to communicate between kernel and user code.
  */
 
-/* This is the IEEE-assigned OUI for PathScale, Inc. */
+/* This is the IEEE-assigned OUI for QLogic, Inc. InfiniPath */
 #define IPATH_SRC_OUI_1 0x00
 #define IPATH_SRC_OUI_2 0x11
 #define IPATH_SRC_OUI_3 0x75
@@ -342,9 +343,9 @@ struct ipath_base_info {
 /*
  * Similarly, this is the kernel version going back to the user.  It's
  * slightly different, in that we want to tell if the driver was built as
- * part of a PathScale release, or from the driver from OpenIB, kernel.org,
+ * part of a QLogic release, or from the driver from OpenIB, kernel.org,
  * or a standard distribution, for support reasons.  The high bit is 0 for
- * non-PathScale, and 1 for PathScale-built/supplied.
+ * non-QLogic, and 1 for QLogic-built/supplied.
  *
  * It's returned by the driver to the user code during initialization in the
  * spi_sw_version field of ipath_base_info, so the user code can in turn
