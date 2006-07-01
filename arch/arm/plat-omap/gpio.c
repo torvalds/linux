@@ -738,7 +738,7 @@ static void gpio_irq_handler(unsigned int irq, struct irqdesc *desc,
 
 	desc->chip->ack(irq);
 
-	bank = (struct gpio_bank *) desc->data;
+	bank = get_irq_data(irq);
 	if (bank->method == METHOD_MPUIO)
 		isr_reg = bank->base + OMAP_MPUIO_GPIO_INT;
 #ifdef CONFIG_ARCH_OMAP15XX
