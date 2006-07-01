@@ -273,7 +273,7 @@ int ipath_multicast_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 	while (1) {
 		if (n == NULL) {
 			spin_unlock_irqrestore(&mcast_lock, flags);
-			ret = 0;
+			ret = -EINVAL;
 			goto bail;
 		}
 
