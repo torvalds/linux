@@ -581,10 +581,6 @@ void ipath_sqerror_qp(struct ipath_qp *qp, struct ib_wc *wc);
 
 void ipath_get_credit(struct ipath_qp *qp, u32 aeth);
 
-void ipath_do_rc_send(unsigned long data);
-
-void ipath_do_uc_send(unsigned long data);
-
 void ipath_cq_enter(struct ipath_cq *cq, struct ib_wc *entry, int sig);
 
 int ipath_rkey_ok(struct ipath_ibdev *dev, struct ipath_sge_state *ss,
@@ -597,7 +593,7 @@ void ipath_copy_sge(struct ipath_sge_state *ss, void *data, u32 length);
 
 void ipath_skip_sge(struct ipath_sge_state *ss, u32 length);
 
-int ipath_post_rc_send(struct ipath_qp *qp, struct ib_send_wr *wr);
+int ipath_post_ruc_send(struct ipath_qp *qp, struct ib_send_wr *wr);
 
 void ipath_uc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 		  int has_grh, void *data, u32 tlen, struct ipath_qp *qp);
@@ -679,7 +675,19 @@ void ipath_insert_rnr_queue(struct ipath_qp *qp);
 
 int ipath_get_rwqe(struct ipath_qp *qp, int wr_id_only);
 
-void ipath_ruc_loopback(struct ipath_qp *sqp, struct ib_wc *wc);
+u32 ipath_make_grh(struct ipath_ibdev *dev, struct ib_grh *hdr,
+		   struct ib_global_route *grh, u32 hwords, u32 nwords);
+
+void ipath_do_ruc_send(unsigned long data);
+
+u32 ipath_make_rc_ack(struct ipath_qp *qp, struct ipath_other_headers *ohdr,
+		      u32 pmtu);
+
+int ipath_make_rc_req(struct ipath_qp *qp, struct ipath_other_headers *ohdr,
+		      u32 pmtu, u32 *bth0p, u32 *bth2p);
+
+int ipath_make_uc_req(struct ipath_qp *qp, struct ipath_other_headers *ohdr,
+		      u32 pmtu, u32 *bth0p, u32 *bth2p);
 
 extern const enum ib_wc_opcode ib_ipath_wc_opcode[];
 

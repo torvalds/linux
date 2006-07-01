@@ -194,7 +194,7 @@ static int ipath_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		switch (qp->ibqp.qp_type) {
 		case IB_QPT_UC:
 		case IB_QPT_RC:
-			err = ipath_post_rc_send(qp, wr);
+			err = ipath_post_ruc_send(qp, wr);
 			break;
 
 		case IB_QPT_SMI:

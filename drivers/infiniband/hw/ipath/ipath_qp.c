@@ -709,9 +709,7 @@ struct ib_qp *ipath_create_qp(struct ib_pd *ibpd,
 		spin_lock_init(&qp->r_rq.lock);
 		atomic_set(&qp->refcount, 0);
 		init_waitqueue_head(&qp->wait);
-		tasklet_init(&qp->s_task,
-			     init_attr->qp_type == IB_QPT_RC ?
-			     ipath_do_rc_send : ipath_do_uc_send,
+		tasklet_init(&qp->s_task, ipath_do_ruc_send,
 			     (unsigned long)qp);
 		INIT_LIST_HEAD(&qp->piowait);
 		INIT_LIST_HEAD(&qp->timerwait);
@@ -896,9 +894,9 @@ void ipath_get_credit(struct ipath_qp *qp, u32 aeth)
 	 * as many packets as we like.  Otherwise, we have to
 	 * honor the credit field.
 	 */
-	if (credit == IPS_AETH_CREDIT_INVAL) {
+	if (credit == IPS_AETH_CREDIT_INVAL)
 		qp->s_lsn = (u32) -1;
-	} else if (qp->s_lsn != (u32) -1) {
+	else if (qp->s_lsn != (u32) -1) {
 		/* Compute new LSN (i.e., MSN + credit) */
 		credit = (aeth + credit_table[credit]) & IPS_MSN_MASK;
 		if (ipath_cmp24(credit, qp->s_lsn) > 0)

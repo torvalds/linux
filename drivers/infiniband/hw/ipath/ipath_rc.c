@@ -73,9 +73,9 @@ static void ipath_init_restart(struct ipath_qp *qp, struct ipath_swqe *wqe)
  * Return bth0 if constructed; otherwise, return 0.
  * Note the QP s_lock must be held.
  */
-static inline u32 ipath_make_rc_ack(struct ipath_qp *qp,
-				    struct ipath_other_headers *ohdr,
-				    u32 pmtu)
+u32 ipath_make_rc_ack(struct ipath_qp *qp,
+		      struct ipath_other_headers *ohdr,
+		      u32 pmtu)
 {
 	struct ipath_sge_state *ss;
 	u32 hwords;
@@ -96,8 +96,7 @@ static inline u32 ipath_make_rc_ack(struct ipath_qp *qp,
 		if (len > pmtu) {
 			len = pmtu;
 			qp->s_ack_state = OP(RDMA_READ_RESPONSE_FIRST);
-		}
-		else
+		} else
 			qp->s_ack_state = OP(RDMA_READ_RESPONSE_ONLY);
 		qp->s_rdma_len -= len;
 		bth0 = qp->s_ack_state << 24;
@@ -177,9 +176,9 @@ static inline u32 ipath_make_rc_ack(struct ipath_qp *qp,
  * Return 1 if constructed; otherwise, return 0.
  * Note the QP s_lock must be held.
  */
-static inline int ipath_make_rc_req(struct ipath_qp *qp,
-				    struct ipath_other_headers *ohdr,
-				    u32 pmtu, u32 *bth0p, u32 *bth2p)
+int ipath_make_rc_req(struct ipath_qp *qp,
+		      struct ipath_other_headers *ohdr,
+		      u32 pmtu, u32 *bth0p, u32 *bth2p)
 {
 	struct ipath_ibdev *dev = to_idev(qp->ibqp.device);
 	struct ipath_sge_state *ss;
@@ -497,160 +496,33 @@ done:
 	return 0;
 }
 
-static inline void ipath_make_rc_grh(struct ipath_qp *qp,
-				     struct ib_global_route *grh,
-				     u32 nwords)
-{
-	struct ipath_ibdev *dev = to_idev(qp->ibqp.device);
-
-	/* GRH header size in 32-bit words. */
-	qp->s_hdrwords += 10;
-	qp->s_hdr.u.l.grh.version_tclass_flow =
-		cpu_to_be32((6 << 28) |
-			    (grh->traffic_class << 20) |
-			    grh->flow_label);
-	qp->s_hdr.u.l.grh.paylen =
-		cpu_to_be16(((qp->s_hdrwords - 12) + nwords +
-			     SIZE_OF_CRC) << 2);
-	/* next_hdr is defined by C8-7 in ch. 8.4.1 */
-	qp->s_hdr.u.l.grh.next_hdr = 0x1B;
-	qp->s_hdr.u.l.grh.hop_limit = grh->hop_limit;
-	/* The SGID is 32-bit aligned. */
-	qp->s_hdr.u.l.grh.sgid.global.subnet_prefix = dev->gid_prefix;
-	qp->s_hdr.u.l.grh.sgid.global.interface_id =
-		ipath_layer_get_guid(dev->dd);
-	qp->s_hdr.u.l.grh.dgid = grh->dgid;
-}
-
 /**
- * ipath_do_rc_send - perform a send on an RC QP
- * @data: contains a pointer to the QP
+ * send_rc_ack - Construct an ACK packet and send it
+ * @qp: a pointer to the QP
  *
- * Process entries in the send work queue until credit or queue is
- * exhausted.  Only allow one CPU to send a packet per QP (tasklet).
- * Otherwise, after we drop the QP s_lock, two threads could send
- * packets out of order.
+ * This is called from ipath_rc_rcv() and only uses the receive
+ * side QP state.
+ * Note that RDMA reads are handled in the send side QP state and tasklet.
  */
-void ipath_do_rc_send(unsigned long data)
-{
-	struct ipath_qp *qp = (struct ipath_qp *)data;
-	struct ipath_ibdev *dev = to_idev(qp->ibqp.device);
-	unsigned long flags;
-	u16 lrh0;
-	u32 nwords;
-	u32 extra_bytes;
-	u32 bth0;
-	u32 bth2;
-	u32 pmtu = ib_mtu_enum_to_int(qp->path_mtu);
-	struct ipath_other_headers *ohdr;
-
-	if (test_and_set_bit(IPATH_S_BUSY, &qp->s_flags))
-		goto bail;
-
-	if (unlikely(qp->remote_ah_attr.dlid ==
-		     ipath_layer_get_lid(dev->dd))) {
-		struct ib_wc wc;
-
-		/*
-		 * Pass in an uninitialized ib_wc to be consistent with
-		 * other places where ipath_ruc_loopback() is called.
-		 */
-		ipath_ruc_loopback(qp, &wc);
-		goto clear;
-	}
-
-	ohdr = &qp->s_hdr.u.oth;
-	if (qp->remote_ah_attr.ah_flags & IB_AH_GRH)
-		ohdr = &qp->s_hdr.u.l.oth;
-
-again:
-	/* Check for a constructed packet to be sent. */
-	if (qp->s_hdrwords != 0) {
-		/*
-		 * If no PIO bufs are available, return.  An interrupt will
-		 * call ipath_ib_piobufavail() when one is available.
-		 */
-		_VERBS_INFO("h %u %p\n", qp->s_hdrwords, &qp->s_hdr);
-		_VERBS_INFO("d %u %p %u %p %u %u %u %u\n", qp->s_cur_size,
-			    qp->s_cur_sge->sg_list,
-			    qp->s_cur_sge->num_sge,
-			    qp->s_cur_sge->sge.vaddr,
-			    qp->s_cur_sge->sge.sge_length,
-			    qp->s_cur_sge->sge.length,
-			    qp->s_cur_sge->sge.m,
-			    qp->s_cur_sge->sge.n);
-		if (ipath_verbs_send(dev->dd, qp->s_hdrwords,
-				     (u32 *) &qp->s_hdr, qp->s_cur_size,
-				     qp->s_cur_sge)) {
-			ipath_no_bufs_available(qp, dev);
-			goto bail;
-		}
-		dev->n_unicast_xmit++;
-		/* Record that we sent the packet and s_hdr is empty. */
-		qp->s_hdrwords = 0;
-	}
-
-	/*
-	 * The lock is needed to synchronize between setting
-	 * qp->s_ack_state, resend timer, and post_send().
-	 */
-	spin_lock_irqsave(&qp->s_lock, flags);
-
-	/* Sending responses has higher priority over sending requests. */
-	if (qp->s_ack_state != OP(ACKNOWLEDGE) &&
-	    (bth0 = ipath_make_rc_ack(qp, ohdr, pmtu)) != 0)
-		bth2 = qp->s_ack_psn++ & IPS_PSN_MASK;
-	else if (!ipath_make_rc_req(qp, ohdr, pmtu, &bth0, &bth2))
-		goto done;
-
-	spin_unlock_irqrestore(&qp->s_lock, flags);
-
-	/* Construct the header. */
-	extra_bytes = (4 - qp->s_cur_size) & 3;
-	nwords = (qp->s_cur_size + extra_bytes) >> 2;
-	lrh0 = IPS_LRH_BTH;
-	if (unlikely(qp->remote_ah_attr.ah_flags & IB_AH_GRH)) {
-		ipath_make_rc_grh(qp, &qp->remote_ah_attr.grh, nwords);
-		lrh0 = IPS_LRH_GRH;
-	}
-	lrh0 |= qp->remote_ah_attr.sl << 4;
-	qp->s_hdr.lrh[0] = cpu_to_be16(lrh0);
-	qp->s_hdr.lrh[1] = cpu_to_be16(qp->remote_ah_attr.dlid);
-	qp->s_hdr.lrh[2] = cpu_to_be16(qp->s_hdrwords + nwords +
-				       SIZE_OF_CRC);
-	qp->s_hdr.lrh[3] = cpu_to_be16(ipath_layer_get_lid(dev->dd));
-	bth0 |= ipath_layer_get_pkey(dev->dd, qp->s_pkey_index);
-	bth0 |= extra_bytes << 20;
-	ohdr->bth[0] = cpu_to_be32(bth0);
-	ohdr->bth[1] = cpu_to_be32(qp->remote_qpn);
-	ohdr->bth[2] = cpu_to_be32(bth2);
-
-	/* Check for more work to do. */
-	goto again;
-
-done:
-	spin_unlock_irqrestore(&qp->s_lock, flags);
-clear:
-	clear_bit(IPATH_S_BUSY, &qp->s_flags);
-bail:
-	return;
-}
-
 static void send_rc_ack(struct ipath_qp *qp)
 {
 	struct ipath_ibdev *dev = to_idev(qp->ibqp.device);
 	u16 lrh0;
 	u32 bth0;
+	u32 hwords;
+	struct ipath_ib_header hdr;
 	struct ipath_other_headers *ohdr;
 
 	/* Construct the header. */
-	ohdr = &qp->s_hdr.u.oth;
+	ohdr = &hdr.u.oth;
 	lrh0 = IPS_LRH_BTH;
 	/* header size in 32-bit words LRH+BTH+AETH = (8+12+4)/4. */
-	qp->s_hdrwords = 6;
+	hwords = 6;
 	if (unlikely(qp->remote_ah_attr.ah_flags & IB_AH_GRH)) {
-		ipath_make_rc_grh(qp, &qp->remote_ah_attr.grh, 0);
-		ohdr = &qp->s_hdr.u.l.oth;
+		hwords += ipath_make_grh(dev, &hdr.u.l.grh,
+					 &qp->remote_ah_attr.grh,
+					 hwords, 0);
+		ohdr = &hdr.u.l.oth;
 		lrh0 = IPS_LRH_GRH;
 	}
 	bth0 = ipath_layer_get_pkey(dev->dd, qp->s_pkey_index);
@@ -658,15 +530,14 @@ static void send_rc_ack(struct ipath_qp *qp)
 	if (qp->s_ack_state >= OP(COMPARE_SWAP)) {
 		bth0 |= IB_OPCODE_ATOMIC_ACKNOWLEDGE << 24;
 		ohdr->u.at.atomic_ack_eth = cpu_to_be64(qp->s_ack_atomic);
-		qp->s_hdrwords += sizeof(ohdr->u.at.atomic_ack_eth) / 4;
-	}
-	else
+		hwords += sizeof(ohdr->u.at.atomic_ack_eth) / 4;
+	} else
 		bth0 |= OP(ACKNOWLEDGE) << 24;
 	lrh0 |= qp->remote_ah_attr.sl << 4;
-	qp->s_hdr.lrh[0] = cpu_to_be16(lrh0);
-	qp->s_hdr.lrh[1] = cpu_to_be16(qp->remote_ah_attr.dlid);
-	qp->s_hdr.lrh[2] = cpu_to_be16(qp->s_hdrwords + SIZE_OF_CRC);
-	qp->s_hdr.lrh[3] = cpu_to_be16(ipath_layer_get_lid(dev->dd));
+	hdr.lrh[0] = cpu_to_be16(lrh0);
+	hdr.lrh[1] = cpu_to_be16(qp->remote_ah_attr.dlid);
+	hdr.lrh[2] = cpu_to_be16(hwords + SIZE_OF_CRC);
+	hdr.lrh[3] = cpu_to_be16(ipath_layer_get_lid(dev->dd));
 	ohdr->bth[0] = cpu_to_be32(bth0);
 	ohdr->bth[1] = cpu_to_be32(qp->remote_qpn);
 	ohdr->bth[2] = cpu_to_be32(qp->s_ack_psn & IPS_PSN_MASK);
@@ -674,8 +545,7 @@ static void send_rc_ack(struct ipath_qp *qp)
 	/*
 	 * If we can send the ACK, clear the ACK state.
 	 */
-	if (ipath_verbs_send(dev->dd, qp->s_hdrwords, (u32 *) &qp->s_hdr,
-			     0, NULL) == 0) {
+	if (ipath_verbs_send(dev->dd, hwords, (u32 *) &hdr, 0, NULL) == 0) {
 		qp->s_ack_state = OP(ACKNOWLEDGE);
 		dev->n_rc_qacks++;
 		dev->n_unicast_xmit++;
@@ -805,7 +675,7 @@ bail:
  * @qp: the QP
  * @psn: the packet sequence number to restart at
  *
- * This is called from ipath_rc_rcv() to process an incoming RC ACK
+ * This is called from ipath_rc_rcv_resp() to process an incoming RC ACK
  * for the given QP.
  * Called at interrupt level with the QP s_lock held.
  */
@@ -1231,18 +1101,12 @@ static inline void ipath_rc_rcv_resp(struct ipath_ibdev *dev,
 		 * ICRC (4).
 		 */
 		if (unlikely(tlen <= (hdrsize + pad + 8))) {
-			/*
-			 * XXX Need to generate an error CQ
-			 * entry.
-			 */
+			/* XXX Need to generate an error CQ entry. */
 			goto ack_done;
 		}
 		tlen -= hdrsize + pad + 8;
 		if (unlikely(tlen != qp->s_len)) {
-			/*
-			 * XXX Need to generate an error CQ
-			 * entry.
-			 */
+			/* XXX Need to generate an error CQ entry. */
 			goto ack_done;
 		}
 		if (!header_in_data)
@@ -1384,7 +1248,7 @@ static inline int ipath_rc_rcv_error(struct ipath_ibdev *dev,
 	case OP(COMPARE_SWAP):
 	case OP(FETCH_ADD):
 		/*
-		 * Check for the PSN of the last atomic operations
+		 * Check for the PSN of the last atomic operation
 		 * performed and resend the result if found.
 		 */
 		if ((psn & IPS_PSN_MASK) != qp->r_atomic_psn) {
@@ -1454,11 +1318,6 @@ void ipath_rc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 		} else
 			psn = be32_to_cpu(ohdr->bth[2]);
 	}
-	/*
-	 * The opcode is in the low byte when its in network order
-	 * (top byte when in host order).
-	 */
-	opcode = be32_to_cpu(ohdr->bth[0]) >> 24;
 
 	/*
 	 * Process responses (ACKs) before anything else.  Note that the
@@ -1466,6 +1325,7 @@ void ipath_rc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 	 * queue rather than the expected receive packet sequence number.
 	 * In other words, this QP is the requester.
 	 */
+	opcode = be32_to_cpu(ohdr->bth[0]) >> 24;
 	if (opcode >= OP(RDMA_READ_RESPONSE_FIRST) &&
 	    opcode <= OP(ATOMIC_ACKNOWLEDGE)) {
 		ipath_rc_rcv_resp(dev, ohdr, data, tlen, qp, opcode, psn,
