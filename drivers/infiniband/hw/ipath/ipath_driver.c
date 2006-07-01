@@ -1656,7 +1656,7 @@ void ipath_shutdown_device(struct ipath_devdata *dd)
 	/* disable IBC */
 	dd->ipath_control &= ~INFINIPATH_C_LINKENABLE;
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_control,
-			 dd->ipath_control);
+			 dd->ipath_control | INFINIPATH_C_FREEZEMODE);
 
 	/*
 	 * clear SerdesEnable and turn the leds off; do this here because
