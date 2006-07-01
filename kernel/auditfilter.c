@@ -279,6 +279,29 @@ static int audit_to_watch(struct audit_krule *krule, char *path, int len,
 	return 0;
 }
 
+static __u32 *classes[AUDIT_SYSCALL_CLASSES];
+
+int __init audit_register_class(int class, unsigned *list)
+{
+	__u32 *p = kzalloc(AUDIT_BITMASK_SIZE * sizeof(__u32), GFP_KERNEL);
+	if (!p)
+		return -ENOMEM;
+	while (*list != ~0U) {
+		unsigned n = *list++;
+		if (n >= AUDIT_BITMASK_SIZE * 32 - AUDIT_SYSCALL_CLASSES) {
+			kfree(p);
+			return -EINVAL;
+		}
+		p[AUDIT_WORD(n)] |= AUDIT_BIT(n);
+	}
+	if (class >= AUDIT_SYSCALL_CLASSES || classes[class]) {
+		kfree(p);
+		return -EINVAL;
+	}
+	classes[class] = p;
+	return 0;
+}
+
 /* Common user-space to kernel rule translation. */
 static inline struct audit_entry *audit_to_entry_common(struct audit_rule *rule)
 {
@@ -321,6 +344,22 @@ static inline struct audit_entry *audit_to_entry_common(struct audit_rule *rule)
 
 	for (i = 0; i < AUDIT_BITMASK_SIZE; i++)
 		entry->rule.mask[i] = rule->mask[i];
+
+	for (i = 0; i < AUDIT_SYSCALL_CLASSES; i++) {
+		int bit = AUDIT_BITMASK_SIZE * 32 - i - 1;
+		__u32 *p = &entry->rule.mask[AUDIT_WORD(bit)];
+		__u32 *class;
+
+		if (!(*p & AUDIT_BIT(bit)))
+			continue;
+		*p &= ~AUDIT_BIT(bit);
+		class = classes[i];
+		if (class) {
+			int j;
+			for (j = 0; j < AUDIT_BITMASK_SIZE; j++)
+				entry->rule.mask[j] |= class[j];
+		}
+	}
 
 	return entry;
 

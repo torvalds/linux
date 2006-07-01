@@ -127,6 +127,12 @@
 #define AUDIT_WORD(nr) ((__u32)((nr)/32))
 #define AUDIT_BIT(nr)  (1 << ((nr) - AUDIT_WORD(nr)*32))
 
+#define AUDIT_SYSCALL_CLASSES 16
+#define AUDIT_CLASS_DIR_WRITE 0
+#define AUDIT_CLASS_DIR_WRITE_32 1
+#define AUDIT_CLASS_CHATTR 2
+#define AUDIT_CLASS_CHATTR_32 3
+
 /* This bitmask is used to validate user input.  It represents all bits that
  * are currently used in an audit field constant understood by the kernel.
  * If you are adding a new #define AUDIT_<whatever>, please ensure that
@@ -307,6 +313,7 @@ struct mqstat;
 #define AUDITSC_SUCCESS 1
 #define AUDITSC_FAILURE 2
 #define AUDITSC_RESULT(x) ( ((long)(x))<0?AUDITSC_FAILURE:AUDITSC_SUCCESS )
+extern int __init audit_register_class(int class, unsigned *list);
 #ifdef CONFIG_AUDITSYSCALL
 /* These are defined in auditsc.c */
 				/* Public API */
