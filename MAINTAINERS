@@ -274,7 +274,7 @@ S:	Maintained
 ALI1563 I2C DRIVER
 P:	Rudolf Marek
 M:	r.marek@sh.cvut.cz
-L:	lm-sensors@lm-sensors.org
+L:	i2c@lm-sensors.org
 S:	Maintained
 
 ALPHA PORT
@@ -1249,7 +1249,7 @@ S:	Maintained
 I2C SUBSYSTEM
 P:	Jean Delvare
 M:	khali@linux-fr.org
-L:	lm-sensors@lm-sensors.org
+L:	i2c@lm-sensors.org
 W:	http://www.lm-sensors.nu/
 T:	quilt kernel.org/pub/linux/kernel/people/gregkh/gregkh-2.6/
 S:	Maintained
@@ -2093,7 +2093,7 @@ S:      Maintained
 OPENCORES I2C BUS DRIVER
 P:	Peter Korsgaard
 M:	jacmet@sunsite.dk
-L:	lm-sensors@lm-sensors.org
+L:	i2c@lm-sensors.org
 S:	Maintained
 
 ORACLE CLUSTER FILESYSTEM 2 (OCFS2)
@@ -3132,7 +3132,7 @@ S:	Maintained
 VIAPRO SMBUS DRIVER
 P:	Jean Delvare
 M:	khali@linux-fr.org
-L:	lm-sensors@lm-sensors.org
+L:	i2c@lm-sensors.org
 S:	Maintained
 
 UCLINUX (AND M68KNOMMU)
