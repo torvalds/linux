@@ -144,11 +144,13 @@ int ipath_layer_want_buffer(struct ipath_devdata *dd);
 int ipath_layer_set_guid(struct ipath_devdata *, __be64 guid);
 __be64 ipath_layer_get_guid(struct ipath_devdata *);
 u32 ipath_layer_get_nguid(struct ipath_devdata *);
-int ipath_layer_query_device(struct ipath_devdata *, u32 * vendor,
-			     u32 * boardrev, u32 * majrev, u32 * minrev);
+u32 ipath_layer_get_majrev(struct ipath_devdata *);
+u32 ipath_layer_get_minrev(struct ipath_devdata *);
+u32 ipath_layer_get_pcirev(struct ipath_devdata *);
 u32 ipath_layer_get_flags(struct ipath_devdata *dd);
 struct device *ipath_layer_get_device(struct ipath_devdata *dd);
 u16 ipath_layer_get_deviceid(struct ipath_devdata *dd);
+u32 ipath_layer_get_vendorid(struct ipath_devdata *);
 u64 ipath_layer_get_lastibcstat(struct ipath_devdata *dd);
 u32 ipath_layer_get_ibmtu(struct ipath_devdata *dd);
 int ipath_layer_enable_timer(struct ipath_devdata *dd);

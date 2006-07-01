@@ -85,7 +85,7 @@ static int recv_subn_get_nodeinfo(struct ib_smp *smp,
 {
 	struct nodeinfo *nip = (struct nodeinfo *)&smp->data;
 	struct ipath_devdata *dd = to_idev(ibdev)->dd;
-	u32 vendor, boardid, majrev, minrev;
+	u32 vendor, majrev, minrev;
 
 	if (smp->attr_mod)
 		smp->status |= IB_SMP_INVALID_FIELD;
@@ -105,9 +105,11 @@ static int recv_subn_get_nodeinfo(struct ib_smp *smp,
 	nip->port_guid = nip->sys_guid;
 	nip->partition_cap = cpu_to_be16(ipath_layer_get_npkeys(dd));
 	nip->device_id = cpu_to_be16(ipath_layer_get_deviceid(dd));
-	ipath_layer_query_device(dd, &vendor, &boardid, &majrev, &minrev);
+	majrev = ipath_layer_get_majrev(dd);
+	minrev = ipath_layer_get_minrev(dd);
 	nip->revision = cpu_to_be32((majrev << 16) | minrev);
 	nip->local_port_num = port;
+	vendor = ipath_layer_get_vendorid(dd);
 	nip->vendor_id[0] = 0;
 	nip->vendor_id[1] = vendor >> 8;
 	nip->vendor_id[2] = vendor;

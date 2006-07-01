@@ -341,18 +341,26 @@ u32 ipath_layer_get_nguid(struct ipath_devdata *dd)
 
 EXPORT_SYMBOL_GPL(ipath_layer_get_nguid);
 
-int ipath_layer_query_device(struct ipath_devdata *dd, u32 * vendor,
-			     u32 * boardrev, u32 * majrev, u32 * minrev)
+u32 ipath_layer_get_majrev(struct ipath_devdata *dd)
 {
-	*vendor = dd->ipath_vendorid;
-	*boardrev = dd->ipath_boardrev;
-	*majrev = dd->ipath_majrev;
-	*minrev = dd->ipath_minrev;
-
-	return 0;
+	return dd->ipath_majrev;
 }
 
-EXPORT_SYMBOL_GPL(ipath_layer_query_device);
+EXPORT_SYMBOL_GPL(ipath_layer_get_majrev);
+
+u32 ipath_layer_get_minrev(struct ipath_devdata *dd)
+{
+	return dd->ipath_minrev;
+}
+
+EXPORT_SYMBOL_GPL(ipath_layer_get_minrev);
+
+u32 ipath_layer_get_pcirev(struct ipath_devdata *dd)
+{
+	return dd->ipath_pcirev;
+}
+
+EXPORT_SYMBOL_GPL(ipath_layer_get_pcirev);
 
 u32 ipath_layer_get_flags(struct ipath_devdata *dd)
 {
@@ -374,6 +382,13 @@ u16 ipath_layer_get_deviceid(struct ipath_devdata *dd)
 }
 
 EXPORT_SYMBOL_GPL(ipath_layer_get_deviceid);
+
+u32 ipath_layer_get_vendorid(struct ipath_devdata *dd)
+{
+	return dd->ipath_vendorid;
+}
+
+EXPORT_SYMBOL_GPL(ipath_layer_get_vendorid);
 
 u64 ipath_layer_get_lastibcstat(struct ipath_devdata *dd)
 {

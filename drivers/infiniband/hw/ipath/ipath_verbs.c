@@ -568,18 +568,15 @@ static int ipath_query_device(struct ib_device *ibdev,
 			      struct ib_device_attr *props)
 {
 	struct ipath_ibdev *dev = to_idev(ibdev);
-	u32 vendor, boardrev, majrev, minrev;
 
 	memset(props, 0, sizeof(*props));
 
 	props->device_cap_flags = IB_DEVICE_BAD_PKEY_CNTR |
 		IB_DEVICE_BAD_QKEY_CNTR | IB_DEVICE_SHUTDOWN_PORT |
 		IB_DEVICE_SYS_IMAGE_GUID;
-	ipath_layer_query_device(dev->dd, &vendor, &boardrev,
-				 &majrev, &minrev);
-	props->vendor_id = vendor;
-	props->vendor_part_id = boardrev;
-	props->hw_ver = boardrev << 16 | majrev << 8 | minrev;
+	props->vendor_id = ipath_layer_get_vendorid(dev->dd);
+	props->vendor_part_id = ipath_layer_get_deviceid(dev->dd);
+	props->hw_ver = ipath_layer_get_pcirev(dev->dd);
 
 	props->sys_image_guid = dev->sys_image_guid;
 
@@ -1121,11 +1118,8 @@ static ssize_t show_rev(struct class_device *cdev, char *buf)
 {
 	struct ipath_ibdev *dev =
 		container_of(cdev, struct ipath_ibdev, ibdev.class_dev);
-	int vendor, boardrev, majrev, minrev;
 
-	ipath_layer_query_device(dev->dd, &vendor, &boardrev,
-				 &majrev, &minrev);
-	return sprintf(buf, "%d.%d\n", majrev, minrev);
+	return sprintf(buf, "%x\n", ipath_layer_get_pcirev(dev->dd));
 }
 
 static ssize_t show_hca(struct class_device *cdev, char *buf)
