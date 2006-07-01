@@ -723,13 +723,8 @@ u64 ipath_read_kreg64_port(const struct ipath_devdata *, ipath_kreg,
  * @port: port number
  *
  * Return the contents of a register that is virtualized to be per port.
- * Prints a debug message and returns -1 on errors (not distinguishable from
- * valid contents at runtime; we may add a separate error variable at some
- * point).
- *
- * This is normally not used by the kernel, but may be for debugging, and
- * has a different implementation than user mode, which is why it's not in
- * _common.h.
+ * Returns -1 on errors (not distinguishable from valid contents at
+ * runtime; we may add a separate error variable at some point).
  */
 static inline u32 ipath_read_ureg32(const struct ipath_devdata *dd,
 				    ipath_ureg regno, int port)

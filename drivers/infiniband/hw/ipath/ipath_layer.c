@@ -885,7 +885,7 @@ static void copy_io(u32 __iomem *piobuf, struct ipath_sge_state *ss,
 /**
  * ipath_verbs_send - send a packet from the verbs layer
  * @dd: the infinipath device
- * @hdrwords: the number of works in the header
+ * @hdrwords: the number of words in the header
  * @hdr: the packet header
  * @len: the length of the packet in bytes
  * @ss: the SGE to send
