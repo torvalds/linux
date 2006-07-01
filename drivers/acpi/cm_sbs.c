@@ -46,7 +46,6 @@ static int lock_battery_dir_cnt = 0;
 
 struct proc_dir_entry *acpi_lock_ac_dir(void)
 {
-	ACPI_FUNCTION_TRACE("acpi_lock_ac_dir");
 
 	down(&cm_sbs_sem);
 	if (!acpi_ac_dir) {
@@ -59,14 +58,13 @@ struct proc_dir_entry *acpi_lock_ac_dir(void)
 				  "Cannot create %s\n", ACPI_AC_CLASS));
 	}
 	up(&cm_sbs_sem);
-	return (acpi_ac_dir);
+	return acpi_ac_dir;
 }
 
 EXPORT_SYMBOL(acpi_lock_ac_dir);
 
 void acpi_unlock_ac_dir(struct proc_dir_entry *acpi_ac_dir_param)
 {
-	ACPI_FUNCTION_TRACE("acpi_unlock_ac_dir");
 
 	down(&cm_sbs_sem);
 	if (acpi_ac_dir_param) {
@@ -83,7 +81,6 @@ EXPORT_SYMBOL(acpi_unlock_ac_dir);
 
 struct proc_dir_entry *acpi_lock_battery_dir(void)
 {
-	ACPI_FUNCTION_TRACE("acpi_lock_battery_dir");
 
 	down(&cm_sbs_sem);
 	if (!acpi_battery_dir) {
@@ -97,14 +94,13 @@ struct proc_dir_entry *acpi_lock_battery_dir(void)
 				  "Cannot create %s\n", ACPI_BATTERY_CLASS));
 	}
 	up(&cm_sbs_sem);
-	return (acpi_battery_dir);
+	return acpi_battery_dir;
 }
 
 EXPORT_SYMBOL(acpi_lock_battery_dir);
 
 void acpi_unlock_battery_dir(struct proc_dir_entry *acpi_battery_dir_param)
 {
-	ACPI_FUNCTION_TRACE("acpi_unlock_battery_dir");
 
 	down(&cm_sbs_sem);
 	if (acpi_battery_dir_param) {
@@ -116,20 +112,20 @@ void acpi_unlock_battery_dir(struct proc_dir_entry *acpi_battery_dir_param)
 		acpi_battery_dir = 0;
 	}
 	up(&cm_sbs_sem);
+	return;
 }
 
 EXPORT_SYMBOL(acpi_unlock_battery_dir);
 
 static int __init acpi_cm_sbs_init(void)
 {
-	ACPI_FUNCTION_TRACE("acpi_cm_sbs_init");
 
 	if (acpi_disabled)
-		return_VALUE(0);
+		return 0;
 
 	init_MUTEX(&cm_sbs_sem);
 
-	return_VALUE(0);
+	return 0;
 }
 
 subsys_initcall(acpi_cm_sbs_init);

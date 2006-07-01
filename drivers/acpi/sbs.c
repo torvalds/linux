@@ -187,8 +187,6 @@ static void acpi_battery_smbus_err_handler(struct acpi_ec_smbus *smbus)
 	char *err_str;
 	int err_number;
 
-	ACPI_FUNCTION_TRACE("acpi_battery_smbus_err_handler");
-
 	data.word = 0;
 
 	result = smbus->adapter.algo->
@@ -239,8 +237,6 @@ acpi_sbs_smbus_read_word(struct acpi_ec_smbus *smbus, int addr, int func,
 	int result = 0;
 	int i;
 
-	ACPI_FUNCTION_TRACE("acpi_sbs_smbus_read_word");
-
 	if (err_handler == NULL) {
 		err_handler = acpi_battery_smbus_err_handler;
 	}
@@ -263,7 +259,7 @@ acpi_sbs_smbus_read_word(struct acpi_ec_smbus *smbus, int addr, int func,
 		}
 	}
 
-	return_VALUE(result);
+	return result;
 }
 
 static int
@@ -274,8 +270,6 @@ acpi_sbs_smbus_read_str(struct acpi_ec_smbus *smbus, int addr, int func,
 	union i2c_smbus_data data;
 	int result = 0;
 	int i;
-
-	ACPI_FUNCTION_TRACE("acpi_sbs_smbus_read_str");
 
 	if (err_handler == NULL) {
 		err_handler = acpi_battery_smbus_err_handler;
@@ -302,7 +296,7 @@ acpi_sbs_smbus_read_str(struct acpi_ec_smbus *smbus, int addr, int func,
 		}
 	}
 
-	return_VALUE(result);
+	return result;
 }
 
 static int
@@ -313,8 +307,6 @@ acpi_sbs_smbus_write_word(struct acpi_ec_smbus *smbus, int addr, int func,
 	union i2c_smbus_data data;
 	int result = 0;
 	int i;
-
-	ACPI_FUNCTION_TRACE("acpi_sbs_smbus_write_word");
 
 	if (err_handler == NULL) {
 		err_handler = acpi_battery_smbus_err_handler;
@@ -339,7 +331,7 @@ acpi_sbs_smbus_write_word(struct acpi_ec_smbus *smbus, int addr, int func,
 		}
 	}
 
-	return_VALUE(result);
+	return result;
 }
 
 /* --------------------------------------------------------------------------
@@ -355,8 +347,6 @@ static int acpi_sbs_generate_event(struct acpi_device *device,
 	char class_saved[20];
 	int result = 0;
 
-	ACPI_FUNCTION_TRACE("acpi_sbs_generate_event");
-
 	strcpy(bid_saved, acpi_device_bid(device));
 	strcpy(class_saved, acpi_device_class(device));
 
@@ -368,7 +358,7 @@ static int acpi_sbs_generate_event(struct acpi_device *device,
 	strcpy(acpi_device_bid(device), bid_saved);
 	strcpy(acpi_device_class(device), class_saved);
 
-	return_VALUE(result);
+	return result;
 }
 
 static int acpi_battery_get_present(struct acpi_battery *battery)
@@ -376,8 +366,6 @@ static int acpi_battery_get_present(struct acpi_battery *battery)
 	s16 state;
 	int result = 0;
 	int is_present = 0;
-
-	ACPI_FUNCTION_TRACE("acpi_battery_get_present");
 
 	result = acpi_sbs_smbus_read_word(battery->sbs->smbus,
 					  ACPI_SBSM_SMBUS_ADDR, 0x01,
@@ -391,7 +379,7 @@ static int acpi_battery_get_present(struct acpi_battery *battery)
 	}
 	battery->battery_present = is_present;
 
-	return_VALUE(result);
+	return result;
 }
 
 static int acpi_battery_is_present(struct acpi_battery *battery)
@@ -410,8 +398,6 @@ static int acpi_battery_select(struct acpi_battery *battery)
 	int result = 0;
 	s16 state;
 	int foo;
-
-	ACPI_FUNCTION_TRACE("acpi_battery_select");
 
 	if (battery->sbs->sbsm_present) {
 
@@ -440,7 +426,7 @@ static int acpi_battery_select(struct acpi_battery *battery)
 	}
 
       end:
-	return_VALUE(result);
+	return result;
 }
 
 static int acpi_sbsm_get_info(struct acpi_sbs *sbs)
@@ -448,8 +434,6 @@ static int acpi_sbsm_get_info(struct acpi_sbs *sbs)
 	struct acpi_ec_smbus *smbus = sbs->smbus;
 	int result = 0;
 	s16 battery_system_info;
-
-	ACPI_FUNCTION_TRACE("acpi_sbsm_get_info");
 
 	result = acpi_sbs_smbus_read_word(smbus, ACPI_SBSM_SMBUS_ADDR, 0x04,
 					  &battery_system_info, NULL);
@@ -463,7 +447,7 @@ static int acpi_sbsm_get_info(struct acpi_sbs *sbs)
 
       end:
 
-	return_VALUE(result);
+	return result;
 }
 
 static int acpi_battery_get_info(struct acpi_battery *battery)
@@ -472,8 +456,6 @@ static int acpi_battery_get_info(struct acpi_battery *battery)
 	int result = 0;
 	s16 battery_mode;
 	s16 specification_info;
-
-	ACPI_FUNCTION_TRACE("acpi_battery_get_info");
 
 	result = acpi_sbs_smbus_read_word(smbus, ACPI_SB_SMBUS_ADDR, 0x03,
 					  &battery_mode,
@@ -583,12 +565,11 @@ static int acpi_battery_get_info(struct acpi_battery *battery)
 	}
 
       end:
-	return_VALUE(result);
+	return result;
 }
 
 static void acpi_update_delay(struct acpi_sbs *sbs)
 {
-	ACPI_FUNCTION_TRACE("acpi_update_delay");
 	if (sbs->zombie) {
 		return;
 	}
@@ -601,8 +582,6 @@ static int acpi_battery_get_state(struct acpi_battery *battery)
 {
 	struct acpi_ec_smbus *smbus = battery->sbs->smbus;
 	int result = 0;
-
-	ACPI_FUNCTION_TRACE("acpi_battery_get_state");
 
 	acpi_update_delay(battery->sbs);
 	result = acpi_sbs_smbus_read_word(smbus, ACPI_SB_SMBUS_ADDR, 0x09,
@@ -667,15 +646,13 @@ static int acpi_battery_get_state(struct acpi_battery *battery)
 	acpi_update_delay(battery->sbs);
 
       end:
-	return_VALUE(result);
+	return result;
 }
 
 static int acpi_battery_get_alarm(struct acpi_battery *battery)
 {
 	struct acpi_ec_smbus *smbus = battery->sbs->smbus;
 	int result = 0;
-
-	ACPI_FUNCTION_TRACE("acpi_battery_get_alarm");
 
 	result = acpi_sbs_smbus_read_word(smbus, ACPI_SB_SMBUS_ADDR, 0x01,
 					  &battery->alarm.remaining_capacity,
@@ -690,7 +667,7 @@ static int acpi_battery_get_alarm(struct acpi_battery *battery)
 
       end:
 
-	return_VALUE(result);
+	return result;
 }
 
 static int acpi_battery_set_alarm(struct acpi_battery *battery,
@@ -700,8 +677,6 @@ static int acpi_battery_set_alarm(struct acpi_battery *battery,
 	int result = 0;
 	s16 battery_mode;
 	int foo;
-
-	ACPI_FUNCTION_TRACE("acpi_battery_set_alarm");
 
 	result = acpi_battery_select(battery);
 	if (result) {
@@ -746,15 +721,13 @@ static int acpi_battery_set_alarm(struct acpi_battery *battery,
 
       end:
 
-	return_VALUE(result);
+	return result;
 }
 
 static int acpi_battery_set_mode(struct acpi_battery *battery)
 {
 	int result = 0;
 	s16 battery_mode;
-
-	ACPI_FUNCTION_TRACE("acpi_battery_set_mode");
 
 	if (capacity_mode == DEF_CAPACITY_UNIT) {
 		goto end;
@@ -793,14 +766,12 @@ static int acpi_battery_set_mode(struct acpi_battery *battery)
 	}
 
       end:
-	return_VALUE(result);
+	return result;
 }
 
 static int acpi_battery_init(struct acpi_battery *battery)
 {
 	int result = 0;
-
-	ACPI_FUNCTION_TRACE("acpi_battery_init");
 
 	result = acpi_battery_select(battery);
 	if (result) {
@@ -838,7 +809,7 @@ static int acpi_battery_init(struct acpi_battery *battery)
 	}
 
       end:
-	return_VALUE(result);
+	return result;
 }
 
 static int acpi_ac_get_present(struct acpi_sbs *sbs)
@@ -846,8 +817,6 @@ static int acpi_ac_get_present(struct acpi_sbs *sbs)
 	struct acpi_ec_smbus *smbus = sbs->smbus;
 	int result = 0;
 	s16 charger_status;
-
-	ACPI_FUNCTION_TRACE("acpi_ac_get_present");
 
 	result = acpi_sbs_smbus_read_word(smbus, ACPI_SBC_SMBUS_ADDR, 0x13,
 					  &charger_status, NULL);
@@ -862,7 +831,7 @@ static int acpi_ac_get_present(struct acpi_sbs *sbs)
 
       end:
 
-	return_VALUE(result);
+	return result;
 }
 
 /* --------------------------------------------------------------------------
@@ -881,14 +850,12 @@ acpi_sbs_generic_add_fs(struct proc_dir_entry **dir,
 {
 	struct proc_dir_entry *entry = NULL;
 
-	ACPI_FUNCTION_TRACE("acpi_sbs_generic_add_fs");
-
 	if (!*dir) {
 		*dir = proc_mkdir(dir_name, parent_dir);
 		if (!*dir) {
 			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
 					  "proc_mkdir() failed\n"));
-			return_VALUE(-ENODEV);
+			return -ENODEV;
 		}
 		(*dir)->owner = THIS_MODULE;
 	}
@@ -932,14 +899,13 @@ acpi_sbs_generic_add_fs(struct proc_dir_entry **dir,
 		}
 	}
 
-	return_VALUE(0);
+	return 0;
 }
 
 static void
 acpi_sbs_generic_remove_fs(struct proc_dir_entry **dir,
 			   struct proc_dir_entry *parent_dir)
 {
-	ACPI_FUNCTION_TRACE("acpi_sbs_generic_remove_fs");
 
 	if (*dir) {
 		remove_proc_entry(ACPI_SBS_FILE_INFO, *dir);
@@ -961,10 +927,8 @@ static int acpi_battery_read_info(struct seq_file *seq, void *offset)
 	int cscale;
 	int result = 0;
 
-	ACPI_FUNCTION_TRACE("acpi_battery_read_info");
-
 	if (battery->sbs->zombie) {
-		return_VALUE(-ENODEV);
+		return -ENODEV;
 	}
 
 	down(&sbs_sem);
@@ -1023,7 +987,7 @@ static int acpi_battery_read_info(struct seq_file *seq, void *offset)
 
 	up(&sbs_sem);
 
-	return_VALUE(result);
+	return result;
 }
 
 static int acpi_battery_info_open_fs(struct inode *inode, struct file *file)
@@ -1038,10 +1002,8 @@ static int acpi_battery_read_state(struct seq_file *seq, void *offset)
 	int cscale;
 	int foo;
 
-	ACPI_FUNCTION_TRACE("acpi_battery_read_state");
-
 	if (battery->sbs->zombie) {
-		return_VALUE(-ENODEV);
+		return -ENODEV;
 	}
 
 	down(&sbs_sem);
@@ -1104,7 +1066,7 @@ static int acpi_battery_read_state(struct seq_file *seq, void *offset)
 
 	up(&sbs_sem);
 
-	return_VALUE(result);
+	return result;
 }
 
 static int acpi_battery_state_open_fs(struct inode *inode, struct file *file)
@@ -1118,10 +1080,8 @@ static int acpi_battery_read_alarm(struct seq_file *seq, void *offset)
 	int result = 0;
 	int cscale;
 
-	ACPI_FUNCTION_TRACE("acpi_battery_read_alarm");
-
 	if (battery->sbs->zombie) {
-		return_VALUE(-ENODEV);
+		return -ENODEV;
 	}
 
 	down(&sbs_sem);
@@ -1158,7 +1118,7 @@ static int acpi_battery_read_alarm(struct seq_file *seq, void *offset)
 
 	up(&sbs_sem);
 
-	return_VALUE(result);
+	return result;
 }
 
 static ssize_t
@@ -1170,10 +1130,8 @@ acpi_battery_write_alarm(struct file *file, const char __user * buffer,
 	char alarm_string[12] = { '\0' };
 	int result, old_alarm, new_alarm;
 
-	ACPI_FUNCTION_TRACE("acpi_battery_write_alarm");
-
 	if (battery->sbs->zombie) {
-		return_VALUE(-ENODEV);
+		return -ENODEV;
 	}
 
 	down(&sbs_sem);
@@ -1217,9 +1175,9 @@ acpi_battery_write_alarm(struct file *file, const char __user * buffer,
 	up(&sbs_sem);
 
 	if (result) {
-		return_VALUE(result);
+		return result;
 	} else {
-		return_VALUE(count);
+		return count;
 	}
 }
 
@@ -1262,10 +1220,8 @@ static int acpi_ac_read_state(struct seq_file *seq, void *offset)
 	struct acpi_sbs *sbs = (struct acpi_sbs *)seq->private;
 	int result;
 
-	ACPI_FUNCTION_TRACE("acpi_ac_read_state");
-
 	if (sbs->zombie) {
-		return_VALUE(-ENODEV);
+		return -ENODEV;
 	}
 
 	down(&sbs_sem);
@@ -1283,7 +1239,7 @@ static int acpi_ac_read_state(struct seq_file *seq, void *offset)
 
 	up(&sbs_sem);
 
-	return_VALUE(0);
+	return 0;
 }
 
 static int acpi_ac_state_open_fs(struct inode *inode, struct file *file)
@@ -1311,8 +1267,6 @@ static int acpi_battery_add(struct acpi_sbs *sbs, int id)
 	int result;
 	char dir_name[32];
 	struct acpi_battery *battery;
-
-	ACPI_FUNCTION_TRACE("acpi_battery_add");
 
 	battery = &sbs->battery[id];
 
@@ -1364,12 +1318,11 @@ static int acpi_battery_add(struct acpi_sbs *sbs, int id)
 	battery->alive = 1;
 
       end:
-	return_VALUE(result);
+	return result;
 }
 
 static void acpi_battery_remove(struct acpi_sbs *sbs, int id)
 {
-	ACPI_FUNCTION_TRACE("acpi_battery_remove");
 
 	if (sbs->battery[id].battery_entry) {
 		acpi_sbs_generic_remove_fs(&(sbs->battery[id].battery_entry),
@@ -1380,8 +1333,6 @@ static void acpi_battery_remove(struct acpi_sbs *sbs, int id)
 static int acpi_ac_add(struct acpi_sbs *sbs)
 {
 	int result;
-
-	ACPI_FUNCTION_TRACE("acpi_ac_add");
 
 	result = acpi_ac_get_present(sbs);
 	if (result) {
@@ -1402,12 +1353,11 @@ static int acpi_ac_add(struct acpi_sbs *sbs)
 
       end:
 
-	return_VALUE(result);
+	return result;
 }
 
 static void acpi_ac_remove(struct acpi_sbs *sbs)
 {
-	ACPI_FUNCTION_TRACE("acpi_ac_remove");
 
 	if (sbs->ac_entry) {
 		acpi_sbs_generic_remove_fs(&sbs->ac_entry, acpi_ac_dir);
@@ -1416,7 +1366,6 @@ static void acpi_ac_remove(struct acpi_sbs *sbs)
 
 static void acpi_sbs_update_queue_run(unsigned long data)
 {
-	ACPI_FUNCTION_TRACE("acpi_sbs_update_queue_run");
 	acpi_os_execute(OSL_GPE_HANDLER, acpi_sbs_update_queue, (void *)data);
 }
 
@@ -1432,8 +1381,6 @@ static int acpi_sbs_update_run(struct acpi_sbs *sbs, int data_type)
 	char dir_name[32];
 	int do_battery_init, do_ac_init;
 	s16 old_remaining_capacity;
-
-	ACPI_FUNCTION_TRACE("acpi_sbs_update_run");
 
 	if (sbs->zombie) {
 		goto end;
@@ -1584,7 +1531,7 @@ static int acpi_sbs_update_run(struct acpi_sbs *sbs, int data_type)
 	}
 
       end:
-	return_VALUE(result);
+	return result;
 }
 
 static void acpi_sbs_update_queue(void *data)
@@ -1592,8 +1539,6 @@ static void acpi_sbs_update_queue(void *data)
 	struct acpi_sbs *sbs = data;
 	unsigned long delay = -1;
 	int result;
-
-	ACPI_FUNCTION_TRACE("acpi_sbs_update_queue");
 
 	if (sbs->zombie) {
 		goto end;
@@ -1631,12 +1576,10 @@ static int acpi_sbs_add(struct acpi_device *device)
 	int id, cnt;
 	acpi_status status = AE_OK;
 
-	ACPI_FUNCTION_TRACE("acpi_sbs_add");
-
 	sbs = kmalloc(sizeof(struct acpi_sbs), GFP_KERNEL);
 	if (!sbs) {
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "kmalloc() failed\n"));
-		return_VALUE(-ENOMEM);
+		return -ENOMEM;
 	}
 	memset(sbs, 0, sizeof(struct acpi_sbs));
 
@@ -1737,7 +1680,7 @@ static int acpi_sbs_add(struct acpi_device *device)
 		}
 	}
 
-	return_VALUE(result);
+	return result;
 }
 
 int acpi_sbs_remove(struct acpi_device *device, int type)
@@ -1745,10 +1688,8 @@ int acpi_sbs_remove(struct acpi_device *device, int type)
 	struct acpi_sbs *sbs = (struct acpi_sbs *)acpi_driver_data(device);
 	int id;
 
-	ACPI_FUNCTION_TRACE("acpi_sbs_remove");
-
 	if (!device || !sbs) {
-		return_VALUE(-EINVAL);
+		return -EINVAL;
 	}
 
 	sbs->zombie = 1;
@@ -1766,14 +1707,12 @@ int acpi_sbs_remove(struct acpi_device *device, int type)
 
 	kfree(sbs);
 
-	return_VALUE(0);
+	return 0;
 }
 
 static int __init acpi_sbs_init(void)
 {
 	int result = 0;
-
-	ACPI_FUNCTION_TRACE("acpi_sbs_init");
 
 	init_MUTEX(&sbs_sem);
 
@@ -1783,36 +1722,35 @@ static int __init acpi_sbs_init(void)
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "acpi_sbs_init: "
 				  "invalid capacity_mode = %d\n",
 				  capacity_mode));
-		return_VALUE(-EINVAL);
+		return -EINVAL;
 	}
 
 	acpi_ac_dir = acpi_lock_ac_dir();
 	if (!acpi_ac_dir) {
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
 				  "acpi_lock_ac_dir() failed\n"));
-		return_VALUE(-ENODEV);
+		return -ENODEV;
 	}
 
 	acpi_battery_dir = acpi_lock_battery_dir();
 	if (!acpi_battery_dir) {
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
 				  "acpi_lock_battery_dir() failed\n"));
-		return_VALUE(-ENODEV);
+		return -ENODEV;
 	}
 
 	result = acpi_bus_register_driver(&acpi_sbs_driver);
 	if (result < 0) {
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
 				  "acpi_bus_register_driver() failed\n"));
-		return_VALUE(-ENODEV);
+		return -ENODEV;
 	}
 
-	return_VALUE(0);
+	return 0;
 }
 
 static void __exit acpi_sbs_exit(void)
 {
-	ACPI_FUNCTION_TRACE("acpi_sbs_exit");
 
 	acpi_bus_unregister_driver(&acpi_sbs_driver);
 
@@ -1821,7 +1759,7 @@ static void __exit acpi_sbs_exit(void)
 	acpi_unlock_battery_dir(acpi_battery_dir);
 	acpi_battery_dir = NULL;
 
-	return_VOID;
+	return;
 }
 
 module_init(acpi_sbs_init);

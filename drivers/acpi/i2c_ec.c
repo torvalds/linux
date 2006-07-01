@@ -115,8 +115,6 @@ static int acpi_ec_smb_read(struct acpi_ec_smbus *smbus, u8 address, u8 * data)
 	u8 val;
 	int err;
 
-	ACPI_FUNCTION_TRACE("acpi_ec_smb_read");
-
 	err = ec_read(smbus->base + address, &val);
 	if (!err) {
 		*data = val;
@@ -128,8 +126,6 @@ static int acpi_ec_smb_read(struct acpi_ec_smbus *smbus, u8 address, u8 * data)
 static int acpi_ec_smb_write(struct acpi_ec_smbus *smbus, u8 address, u8 data)
 {
 	int err;
-
-	ACPI_FUNCTION_TRACE("acpi_ec_smb_write");
 
 	err = ec_write(smbus->base + address, data);
 	return (err);
@@ -143,8 +139,6 @@ acpi_ec_smb_access(struct i2c_adapter *adap, u16 addr, unsigned short flags,
 	struct acpi_ec_smbus *smbus = adap->algo_data;
 	unsigned char protocol, len = 0, pec, temp[2] = { 0, 0 };
 	int i;
-
-	ACPI_FUNCTION_TRACE("acpi_ec_smb_access");
 
 	if (read_write == I2C_SMBUS_READ) {
 		protocol = ACPI_EC_SMB_PRTCL_READ;
@@ -290,7 +284,6 @@ acpi_ec_smb_access(struct i2c_adapter *adap, u16 addr, unsigned short flags,
 
 static u32 acpi_ec_smb_func(struct i2c_adapter *adapter)
 {
-	ACPI_FUNCTION_TRACE("acpi_ec_smb_func");
 
 	return (I2C_FUNC_SMBUS_QUICK | I2C_FUNC_SMBUS_BYTE |
 		I2C_FUNC_SMBUS_BYTE_DATA | I2C_FUNC_SMBUS_WORD_DATA |
@@ -312,22 +305,20 @@ static int acpi_ec_hc_add(struct acpi_device *device)
 	struct acpi_ec_hc *ec_hc;
 	struct acpi_ec_smbus *smbus;
 
-	ACPI_FUNCTION_TRACE("acpi_ec_hc_add");
-
 	if (!device) {
-		return_VALUE(-EINVAL);
+		return -EINVAL;
 	}
 
 	ec_hc = kmalloc(sizeof(struct acpi_ec_hc), GFP_KERNEL);
 	if (!ec_hc) {
-		return_VALUE(-ENOMEM);
+		return -ENOMEM;
 	}
 	memset(ec_hc, 0, sizeof(struct acpi_ec_hc));
 
 	smbus = kmalloc(sizeof(struct acpi_ec_smbus), GFP_KERNEL);
 	if (!smbus) {
 		kfree(ec_hc);
-		return_VALUE(-ENOMEM);
+		return -ENOMEM;
 	}
 	memset(smbus, 0, sizeof(struct acpi_ec_smbus));
 
@@ -341,7 +332,7 @@ static int acpi_ec_hc_add(struct acpi_device *device)
 		ACPI_DEBUG_PRINT((ACPI_DB_WARN, "Error obtaining _EC\n"));
 		kfree(ec_hc->smbus);
 		kfree(smbus);
-		return_VALUE(-EIO);
+		return -EIO;
 	}
 
 	smbus->ec = acpi_driver_data(device->parent);
@@ -357,7 +348,7 @@ static int acpi_ec_hc_add(struct acpi_device *device)
 				  "EC SMBus adapter: Failed to register adapter\n"));
 		kfree(smbus);
 		kfree(ec_hc);
-		return_VALUE(-EIO);
+		return -EIO;
 	}
 
 	ec_hc->smbus = smbus;
@@ -365,17 +356,15 @@ static int acpi_ec_hc_add(struct acpi_device *device)
 	printk(KERN_INFO PREFIX "%s [%s]\n",
 	       acpi_device_name(device), acpi_device_bid(device));
 
-	return_VALUE(AE_OK);
+	return AE_OK;
 }
 
 static int acpi_ec_hc_remove(struct acpi_device *device, int type)
 {
 	struct acpi_ec_hc *ec_hc;
 
-	ACPI_FUNCTION_TRACE("acpi_ec_hc_remove");
-
 	if (!device) {
-		return_VALUE(-EINVAL);
+		return -EINVAL;
 	}
 	ec_hc = acpi_driver_data(device);
 
@@ -383,30 +372,27 @@ static int acpi_ec_hc_remove(struct acpi_device *device, int type)
 	kfree(ec_hc->smbus);
 	kfree(ec_hc);
 
-	return_VALUE(AE_OK);
+	return AE_OK;
 }
 
 static int __init acpi_ec_hc_init(void)
 {
 	int result;
 
-	ACPI_FUNCTION_TRACE("acpi_ec_hc_init");
 	result = acpi_bus_register_driver(&acpi_ec_hc_driver);
 	if (result < 0) {
-		return_VALUE(-ENODEV);
+		return -ENODEV;
 	}
-	return_VALUE(0);
+	return 0;
 }
 
 static void __exit acpi_ec_hc_exit(void)
 {
-	ACPI_FUNCTION_TRACE("acpi_ec_hc_exit");
 	acpi_bus_unregister_driver(&acpi_ec_hc_driver);
 }
 
 struct acpi_ec_hc *acpi_get_ec_hc(struct acpi_device *device)
 {
-	ACPI_FUNCTION_TRACE("acpi_get_ec_hc");
 	return ((struct acpi_ec_hc *)acpi_driver_data(device->parent));
 }
 
