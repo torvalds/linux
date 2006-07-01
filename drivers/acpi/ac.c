@@ -65,7 +65,7 @@ static struct acpi_driver acpi_ac_driver = {
 };
 
 struct acpi_ac {
-	acpi_handle handle;
+	struct acpi_device * device;
 	unsigned long state;
 };
 
@@ -88,7 +88,7 @@ static int acpi_ac_get_state(struct acpi_ac *ac)
 	if (!ac)
 		return -EINVAL;
 
-	status = acpi_evaluate_integer(ac->handle, "_PSR", NULL, &ac->state);
+	status = acpi_evaluate_integer(ac->device->handle, "_PSR", NULL, &ac->state);
 	if (ACPI_FAILURE(status)) {
 		ACPI_EXCEPTION((AE_INFO, status, "Error reading AC Adapter state"));
 		ac->state = ACPI_AC_STATUS_UNKNOWN;
@@ -191,9 +191,7 @@ static void acpi_ac_notify(acpi_handle handle, u32 event, void *data)
 	if (!ac)
 		return;
 
-	if (acpi_bus_get_device(ac->handle, &device))
-		return;
-
+	device = ac->device;
 	switch (event) {
 	case ACPI_AC_NOTIFY_STATUS:
 		acpi_ac_get_state(ac);
@@ -223,7 +221,7 @@ static int acpi_ac_add(struct acpi_device *device)
 		return -ENOMEM;
 	memset(ac, 0, sizeof(struct acpi_ac));
 
-	ac->handle = device->handle;
+	ac->device = device;
 	strcpy(acpi_device_name(device), ACPI_AC_DEVICE_NAME);
 	strcpy(acpi_device_class(device), ACPI_AC_CLASS);
 	acpi_driver_data(device) = ac;
@@ -236,7 +234,7 @@ static int acpi_ac_add(struct acpi_device *device)
 	if (result)
 		goto end;
 
-	status = acpi_install_notify_handler(ac->handle,
+	status = acpi_install_notify_handler(device->handle,
 					     ACPI_DEVICE_NOTIFY, acpi_ac_notify,
 					     ac);
 	if (ACPI_FAILURE(status)) {
@@ -268,7 +266,7 @@ static int acpi_ac_remove(struct acpi_device *device, int type)
 
 	ac = (struct acpi_ac *)acpi_driver_data(device);
 
-	status = acpi_remove_notify_handler(ac->handle,
+	status = acpi_remove_notify_handler(device->handle,
 					    ACPI_DEVICE_NOTIFY, acpi_ac_notify);
 
 	acpi_ac_remove_fs(device);
