@@ -194,6 +194,8 @@ static void acpi_ac_notify(acpi_handle handle, u32 event, void *data)
 	device = ac->device;
 	switch (event) {
 	case ACPI_AC_NOTIFY_STATUS:
+	case ACPI_NOTIFY_BUS_CHECK:
+	case ACPI_NOTIFY_DEVICE_CHECK:
 		acpi_ac_get_state(ac);
 		acpi_bus_generate_event(device, event, (u32) ac->state);
 		break;
@@ -235,7 +237,7 @@ static int acpi_ac_add(struct acpi_device *device)
 		goto end;
 
 	status = acpi_install_notify_handler(device->handle,
-					     ACPI_DEVICE_NOTIFY, acpi_ac_notify,
+					     ACPI_ALL_NOTIFY, acpi_ac_notify,
 					     ac);
 	if (ACPI_FAILURE(status)) {
 		result = -ENODEV;
@@ -267,7 +269,7 @@ static int acpi_ac_remove(struct acpi_device *device, int type)
 	ac = (struct acpi_ac *)acpi_driver_data(device);
 
 	status = acpi_remove_notify_handler(device->handle,
-					    ACPI_DEVICE_NOTIFY, acpi_ac_notify);
+					    ACPI_ALL_NOTIFY, acpi_ac_notify);
 
 	acpi_ac_remove_fs(device);
 

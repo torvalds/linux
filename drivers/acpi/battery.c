@@ -665,6 +665,8 @@ static void acpi_battery_notify(acpi_handle handle, u32 event, void *data)
 	switch (event) {
 	case ACPI_BATTERY_NOTIFY_STATUS:
 	case ACPI_BATTERY_NOTIFY_INFO:
+	case ACPI_NOTIFY_BUS_CHECK:
+	case ACPI_NOTIFY_DEVICE_CHECK:
 		acpi_battery_check(battery);
 		acpi_bus_generate_event(device, event, battery->flags.present);
 		break;
@@ -706,7 +708,7 @@ static int acpi_battery_add(struct acpi_device *device)
 		goto end;
 
 	status = acpi_install_notify_handler(device->handle,
-					     ACPI_DEVICE_NOTIFY,
+					     ACPI_ALL_NOTIFY,
 					     acpi_battery_notify, battery);
 	if (ACPI_FAILURE(status)) {
 		result = -ENODEV;
@@ -738,7 +740,7 @@ static int acpi_battery_remove(struct acpi_device *device, int type)
 	battery = (struct acpi_battery *)acpi_driver_data(device);
 
 	status = acpi_remove_notify_handler(device->handle,
-					    ACPI_DEVICE_NOTIFY,
+					    ACPI_ALL_NOTIFY,
 					    acpi_battery_notify);
 
 	acpi_battery_remove_fs(device);
