@@ -236,7 +236,8 @@ int setup_irq(unsigned int irq, struct irqaction *new)
 
 #if defined(CONFIG_IRQ_PER_CPU) && defined(SA_PERCPU_IRQ)
 		/* All handlers must agree on per-cpuness */
-		if ((old->flags & IRQ_PER_CPU) != (new->flags & IRQ_PER_CPU))
+		if ((old->flags & SA_PERCPU_IRQ) !=
+		    (new->flags & SA_PERCPU_IRQ))
 			goto mismatch;
 #endif
 
