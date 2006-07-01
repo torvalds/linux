@@ -108,7 +108,7 @@ struct acpi_battery_trips {
 };
 
 struct acpi_battery {
-	acpi_handle handle;
+	struct acpi_device * device;
 	struct acpi_battery_flags flags;
 	struct acpi_battery_trips trips;
 	unsigned long alarm;
@@ -138,7 +138,7 @@ acpi_battery_get_info(struct acpi_battery *battery,
 
 	/* Evalute _BIF */
 
-	status = acpi_evaluate_object(battery->handle, "_BIF", NULL, &buffer);
+	status = acpi_evaluate_object(battery->device->handle, "_BIF", NULL, &buffer);
 	if (ACPI_FAILURE(status)) {
 		ACPI_EXCEPTION((AE_INFO, status, "Evaluating _BIF"));
 		return -ENODEV;
@@ -198,7 +198,7 @@ acpi_battery_get_status(struct acpi_battery *battery,
 
 	/* Evalute _BST */
 
-	status = acpi_evaluate_object(battery->handle, "_BST", NULL, &buffer);
+	status = acpi_evaluate_object(battery->device->handle, "_BST", NULL, &buffer);
 	if (ACPI_FAILURE(status)) {
 		ACPI_EXCEPTION((AE_INFO, status, "Evaluating _BST"));
 		return -ENODEV;
@@ -255,7 +255,7 @@ acpi_battery_set_alarm(struct acpi_battery *battery, unsigned long alarm)
 
 	arg0.integer.value = alarm;
 
-	status = acpi_evaluate_object(battery->handle, "_BTP", &arg_list, NULL);
+	status = acpi_evaluate_object(battery->device->handle, "_BTP", &arg_list, NULL);
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
 
@@ -278,9 +278,7 @@ static int acpi_battery_check(struct acpi_battery *battery)
 	if (!battery)
 		return -EINVAL;
 
-	result = acpi_bus_get_device(battery->handle, &device);
-	if (result)
-		return result;
+	device = battery->device;
 
 	result = acpi_bus_get_status(device);
 	if (result)
@@ -305,7 +303,7 @@ static int acpi_battery_check(struct acpi_battery *battery)
 
 		/* See if alarms are supported, and if so, set default */
 
-		status = acpi_get_handle(battery->handle, "_BTP", &handle);
+		status = acpi_get_handle(battery->device->handle, "_BTP", &handle);
 		if (ACPI_SUCCESS(status)) {
 			battery->flags.alarm = 1;
 			acpi_battery_set_alarm(battery, battery->trips.warning);
@@ -662,8 +660,7 @@ static void acpi_battery_notify(acpi_handle handle, u32 event, void *data)
 	if (!battery)
 		return;
 
-	if (acpi_bus_get_device(handle, &device))
-		return;
+	device = battery->device;
 
 	switch (event) {
 	case ACPI_BATTERY_NOTIFY_STATUS:
@@ -695,7 +692,7 @@ static int acpi_battery_add(struct acpi_device *device)
 		return -ENOMEM;
 	memset(battery, 0, sizeof(struct acpi_battery));
 
-	battery->handle = device->handle;
+	battery->device = device;
 	strcpy(acpi_device_name(device), ACPI_BATTERY_DEVICE_NAME);
 	strcpy(acpi_device_class(device), ACPI_BATTERY_CLASS);
 	acpi_driver_data(device) = battery;
@@ -708,7 +705,7 @@ static int acpi_battery_add(struct acpi_device *device)
 	if (result)
 		goto end;
 
-	status = acpi_install_notify_handler(battery->handle,
+	status = acpi_install_notify_handler(device->handle,
 					     ACPI_DEVICE_NOTIFY,
 					     acpi_battery_notify, battery);
 	if (ACPI_FAILURE(status)) {
@@ -740,7 +737,7 @@ static int acpi_battery_remove(struct acpi_device *device, int type)
 
 	battery = (struct acpi_battery *)acpi_driver_data(device);
 
-	status = acpi_remove_notify_handler(battery->handle,
+	status = acpi_remove_notify_handler(device->handle,
 					    ACPI_DEVICE_NOTIFY,
 					    acpi_battery_notify);
 

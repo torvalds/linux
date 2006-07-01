@@ -80,7 +80,7 @@ struct acpi_memory_info {
 };
 
 struct acpi_memory_device {
-	acpi_handle handle;
+	struct acpi_device * device;
 	unsigned int state;	/* State of the memory device */
 	struct list_head res_list;
 };
@@ -129,7 +129,7 @@ acpi_memory_get_device_resources(struct acpi_memory_device *mem_device)
 	struct acpi_memory_info *info, *n;
 
 
-	status = acpi_walk_resources(mem_device->handle, METHOD_NAME__CRS,
+	status = acpi_walk_resources(mem_device->device->handle, METHOD_NAME__CRS,
 				     acpi_memory_get_resource, mem_device);
 	if (ACPI_FAILURE(status)) {
 		list_for_each_entry_safe(info, n, &mem_device->res_list, list)
@@ -192,7 +192,7 @@ static int acpi_memory_check_device(struct acpi_memory_device *mem_device)
 
 
 	/* Get device present/absent information from the _STA */
-	if (ACPI_FAILURE(acpi_evaluate_integer(mem_device->handle, "_STA",
+	if (ACPI_FAILURE(acpi_evaluate_integer(mem_device->device->handle, "_STA",
 					       NULL, &current_status)))
 		return -ENODEV;
 	/*
@@ -222,7 +222,7 @@ static int acpi_memory_enable_device(struct acpi_memory_device *mem_device)
 		return result;
 	}
 
-	node = acpi_get_node(mem_device->handle);
+	node = acpi_get_node(mem_device->device->handle);
 	/*
 	 * Tell the VM there is more memory here...
 	 * Note: Assume that this function returns zero on success
@@ -269,7 +269,7 @@ static int acpi_memory_powerdown_device(struct acpi_memory_device *mem_device)
 	arg_list.pointer = &arg;
 	arg.type = ACPI_TYPE_INTEGER;
 	arg.integer.value = 1;
-	status = acpi_evaluate_object(mem_device->handle,
+	status = acpi_evaluate_object(mem_device->device->handle,
 				      "_EJ0", &arg_list, NULL);
 	/* Return on _EJ0 failure */
 	if (ACPI_FAILURE(status)) {
@@ -278,7 +278,7 @@ static int acpi_memory_powerdown_device(struct acpi_memory_device *mem_device)
 	}
 
 	/* Evalute _STA to check if the device is disabled */
-	status = acpi_evaluate_integer(mem_device->handle, "_STA",
+	status = acpi_evaluate_integer(mem_device->device->handle, "_STA",
 				       NULL, &current_status);
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
@@ -398,7 +398,7 @@ static int acpi_memory_device_add(struct acpi_device *device)
 	memset(mem_device, 0, sizeof(struct acpi_memory_device));
 
 	INIT_LIST_HEAD(&mem_device->res_list);
-	mem_device->handle = device->handle;
+	mem_device->device = device;
 	sprintf(acpi_device_name(device), "%s", ACPI_MEMORY_DEVICE_NAME);
 	sprintf(acpi_device_class(device), "%s", ACPI_MEMORY_DEVICE_CLASS);
 	acpi_driver_data(device) = mem_device;
