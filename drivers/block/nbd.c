@@ -50,9 +50,9 @@
 #define DBG_RX          0x0200
 #define DBG_TX          0x0400
 static unsigned int debugflags;
-static unsigned int nbds_max = 16;
 #endif /* NDEBUG */
 
+static unsigned int nbds_max = 16;
 static struct nbd_device nbd_dev[MAX_NBD];
 
 /*
