@@ -241,12 +241,6 @@ static int __init at91_cf_probe(struct platform_device *pdev)
 	csa = at91_sys_read(AT91_EBI_CSA);
 	at91_sys_write(AT91_EBI_CSA, csa | AT91_EBI_CS4A_SMC_COMPACTFLASH);
 
-	/* force poweron defaults for these pins ... */
-	(void) at91_set_A_periph(AT91_PIN_PC9, 0);	/* A25/CFRNW */
-	(void) at91_set_A_periph(AT91_PIN_PC10, 0);	/* NCS4/CFCS */
-	(void) at91_set_A_periph(AT91_PIN_PC11, 0);	/* NCS5/CFCE1 */
-	(void) at91_set_A_periph(AT91_PIN_PC12, 0);	/* NCS6/CFCE2 */
-
 	/* nWAIT is _not_ a default setting */
 	(void) at91_set_A_periph(AT91_PIN_PC6, 1);	/*  nWAIT */
 
@@ -322,6 +316,7 @@ fail1:
 	if (board->irq_pin)
 		free_irq(board->irq_pin, cf);
 fail0a:
+	device_init_wakeup(&pdev->dev, 0);
 	free_irq(board->det_pin, cf);
 	device_init_wakeup(&pdev->dev, 0);
 fail0:
@@ -360,26 +355,20 @@ static int at91_cf_suspend(struct platform_device *pdev, pm_message_t mesg)
 	struct at91_cf_data	*board = cf->board;
 
 	pcmcia_socket_dev_suspend(&pdev->dev, mesg);
-	if (device_may_wakeup(&pdev->dev))
+	if (device_may_wakeup(&pdev->dev)) {
 		enable_irq_wake(board->det_pin);
-	else {
+		if (board->irq_pin)
+			enable_irq_wake(board->irq_pin);
+	} else {
 		disable_irq_wake(board->det_pin);
-		disable_irq(board->det_pin);
+		if (board->irq_pin)
+			disable_irq_wake(board->irq_pin);
 	}
-	if (board->irq_pin)
-		disable_irq(board->irq_pin);
 	return 0;
 }
 
 static int at91_cf_resume(struct platform_device *pdev)
 {
-	struct at91_cf_socket	*cf = platform_get_drvdata(pdev);
-	struct at91_cf_data	*board = cf->board;
-
-	if (board->irq_pin)
-		enable_irq(board->irq_pin);
-	if (!device_may_wakeup(&pdev->dev))
-		enable_irq(board->det_pin);
 	pcmcia_socket_dev_resume(&pdev->dev);
 	return 0;
 }
