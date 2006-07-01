@@ -141,6 +141,7 @@ static inline void audit_free_rule(struct audit_entry *e)
 			selinux_audit_rule_free(f->se_rule);
 		}
 	kfree(e->rule.fields);
+	kfree(e->rule.filterkey);
 	kfree(e);
 }
 
@@ -278,6 +279,29 @@ static int audit_to_watch(struct audit_krule *krule, char *path, int len,
 	return 0;
 }
 
+static __u32 *classes[AUDIT_SYSCALL_CLASSES];
+
+int __init audit_register_class(int class, unsigned *list)
+{
+	__u32 *p = kzalloc(AUDIT_BITMASK_SIZE * sizeof(__u32), GFP_KERNEL);
+	if (!p)
+		return -ENOMEM;
+	while (*list != ~0U) {
+		unsigned n = *list++;
+		if (n >= AUDIT_BITMASK_SIZE * 32 - AUDIT_SYSCALL_CLASSES) {
+			kfree(p);
+			return -EINVAL;
+		}
+		p[AUDIT_WORD(n)] |= AUDIT_BIT(n);
+	}
+	if (class >= AUDIT_SYSCALL_CLASSES || classes[class]) {
+		kfree(p);
+		return -EINVAL;
+	}
+	classes[class] = p;
+	return 0;
+}
+
 /* Common user-space to kernel rule translation. */
 static inline struct audit_entry *audit_to_entry_common(struct audit_rule *rule)
 {
@@ -320,6 +344,22 @@ static inline struct audit_entry *audit_to_entry_common(struct audit_rule *rule)
 
 	for (i = 0; i < AUDIT_BITMASK_SIZE; i++)
 		entry->rule.mask[i] = rule->mask[i];
+
+	for (i = 0; i < AUDIT_SYSCALL_CLASSES; i++) {
+		int bit = AUDIT_BITMASK_SIZE * 32 - i - 1;
+		__u32 *p = &entry->rule.mask[AUDIT_WORD(bit)];
+		__u32 *class;
+
+		if (!(*p & AUDIT_BIT(bit)))
+			continue;
+		*p &= ~AUDIT_BIT(bit);
+		class = classes[i];
+		if (class) {
+			int j;
+			for (j = 0; j < AUDIT_BITMASK_SIZE; j++)
+				entry->rule.mask[j] |= class[j];
+		}
+	}
 
 	return entry;
 
@@ -469,11 +509,16 @@ static struct audit_entry *audit_data_to_entry(struct audit_rule_data *data,
 		case AUDIT_ARG2:
 		case AUDIT_ARG3:
 			break;
-		case AUDIT_SE_USER:
-		case AUDIT_SE_ROLE:
-		case AUDIT_SE_TYPE:
-		case AUDIT_SE_SEN:
-		case AUDIT_SE_CLR:
+		case AUDIT_SUBJ_USER:
+		case AUDIT_SUBJ_ROLE:
+		case AUDIT_SUBJ_TYPE:
+		case AUDIT_SUBJ_SEN:
+		case AUDIT_SUBJ_CLR:
+		case AUDIT_OBJ_USER:
+		case AUDIT_OBJ_ROLE:
+		case AUDIT_OBJ_TYPE:
+		case AUDIT_OBJ_LEV_LOW:
+		case AUDIT_OBJ_LEV_HIGH:
 			str = audit_unpack_string(&bufp, &remain, f->val);
 			if (IS_ERR(str))
 				goto exit_free;
@@ -510,6 +555,16 @@ static struct audit_entry *audit_data_to_entry(struct audit_rule_data *data,
 			err = audit_to_inode(&entry->rule, f);
 			if (err)
 				goto exit_free;
+			break;
+		case AUDIT_FILTERKEY:
+			err = -EINVAL;
+			if (entry->rule.filterkey || f->val > AUDIT_MAX_KEY_LEN)
+				goto exit_free;
+			str = audit_unpack_string(&bufp, &remain, f->val);
+			if (IS_ERR(str))
+				goto exit_free;
+			entry->rule.buflen += f->val;
+			entry->rule.filterkey = str;
 			break;
 		default:
 			goto exit_free;
@@ -600,17 +655,26 @@ static struct audit_rule_data *audit_krule_to_data(struct audit_krule *krule)
 		data->fields[i] = f->type;
 		data->fieldflags[i] = f->op;
 		switch(f->type) {
-		case AUDIT_SE_USER:
-		case AUDIT_SE_ROLE:
-		case AUDIT_SE_TYPE:
-		case AUDIT_SE_SEN:
-		case AUDIT_SE_CLR:
+		case AUDIT_SUBJ_USER:
+		case AUDIT_SUBJ_ROLE:
+		case AUDIT_SUBJ_TYPE:
+		case AUDIT_SUBJ_SEN:
+		case AUDIT_SUBJ_CLR:
+		case AUDIT_OBJ_USER:
+		case AUDIT_OBJ_ROLE:
+		case AUDIT_OBJ_TYPE:
+		case AUDIT_OBJ_LEV_LOW:
+		case AUDIT_OBJ_LEV_HIGH:
 			data->buflen += data->values[i] =
 				audit_pack_string(&bufp, f->se_str);
 			break;
 		case AUDIT_WATCH:
 			data->buflen += data->values[i] =
 				audit_pack_string(&bufp, krule->watch->path);
+			break;
+		case AUDIT_FILTERKEY:
+			data->buflen += data->values[i] =
+				audit_pack_string(&bufp, krule->filterkey);
 			break;
 		default:
 			data->values[i] = f->val;
@@ -639,16 +703,26 @@ static int audit_compare_rule(struct audit_krule *a, struct audit_krule *b)
 			return 1;
 
 		switch(a->fields[i].type) {
-		case AUDIT_SE_USER:
-		case AUDIT_SE_ROLE:
-		case AUDIT_SE_TYPE:
-		case AUDIT_SE_SEN:
-		case AUDIT_SE_CLR:
+		case AUDIT_SUBJ_USER:
+		case AUDIT_SUBJ_ROLE:
+		case AUDIT_SUBJ_TYPE:
+		case AUDIT_SUBJ_SEN:
+		case AUDIT_SUBJ_CLR:
+		case AUDIT_OBJ_USER:
+		case AUDIT_OBJ_ROLE:
+		case AUDIT_OBJ_TYPE:
+		case AUDIT_OBJ_LEV_LOW:
+		case AUDIT_OBJ_LEV_HIGH:
 			if (strcmp(a->fields[i].se_str, b->fields[i].se_str))
 				return 1;
 			break;
 		case AUDIT_WATCH:
 			if (strcmp(a->watch->path, b->watch->path))
+				return 1;
+			break;
+		case AUDIT_FILTERKEY:
+			/* both filterkeys exist based on above type compare */
+			if (strcmp(a->filterkey, b->filterkey))
 				return 1;
 			break;
 		default:
@@ -730,6 +804,7 @@ static struct audit_entry *audit_dupe_rule(struct audit_krule *old,
 	u32 fcount = old->field_count;
 	struct audit_entry *entry;
 	struct audit_krule *new;
+	char *fk;
 	int i, err = 0;
 
 	entry = audit_init_entry(fcount);
@@ -753,13 +828,25 @@ static struct audit_entry *audit_dupe_rule(struct audit_krule *old,
 	 * the originals will all be freed when the old rule is freed. */
 	for (i = 0; i < fcount; i++) {
 		switch (new->fields[i].type) {
-		case AUDIT_SE_USER:
-		case AUDIT_SE_ROLE:
-		case AUDIT_SE_TYPE:
-		case AUDIT_SE_SEN:
-		case AUDIT_SE_CLR:
+		case AUDIT_SUBJ_USER:
+		case AUDIT_SUBJ_ROLE:
+		case AUDIT_SUBJ_TYPE:
+		case AUDIT_SUBJ_SEN:
+		case AUDIT_SUBJ_CLR:
+		case AUDIT_OBJ_USER:
+		case AUDIT_OBJ_ROLE:
+		case AUDIT_OBJ_TYPE:
+		case AUDIT_OBJ_LEV_LOW:
+		case AUDIT_OBJ_LEV_HIGH:
 			err = audit_dupe_selinux_field(&new->fields[i],
 						       &old->fields[i]);
+			break;
+		case AUDIT_FILTERKEY:
+			fk = kstrdup(old->filterkey, GFP_KERNEL);
+			if (unlikely(!fk))
+				err = -ENOMEM;
+			else
+				new->filterkey = fk;
 		}
 		if (err) {
 			audit_free_rule(entry);
@@ -1245,6 +1332,34 @@ static void audit_list_rules(int pid, int seq, struct sk_buff_head *q)
 		skb_queue_tail(q, skb);
 }
 
+/* Log rule additions and removals */
+static void audit_log_rule_change(uid_t loginuid, u32 sid, char *action,
+				  struct audit_krule *rule, int res)
+{
+	struct audit_buffer *ab;
+
+	ab = audit_log_start(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE);
+	if (!ab)
+		return;
+	audit_log_format(ab, "auid=%u", loginuid);
+	if (sid) {
+		char *ctx = NULL;
+		u32 len;
+		if (selinux_ctxid_to_string(sid, &ctx, &len))
+			audit_log_format(ab, " ssid=%u", sid);
+		else
+			audit_log_format(ab, " subj=%s", ctx);
+		kfree(ctx);
+	}
+	audit_log_format(ab, " %s rule key=", action);
+	if (rule->filterkey)
+		audit_log_untrustedstring(ab, rule->filterkey);
+	else
+		audit_log_format(ab, "(null)");
+	audit_log_format(ab, " list=%d res=%d", rule->listnr, res);
+	audit_log_end(ab);
+}
+
 /**
  * audit_receive_filter - apply all rules to the specified message type
  * @type: audit message type
@@ -1304,24 +1419,7 @@ int audit_receive_filter(int type, int pid, int uid, int seq, void *data,
 
 		err = audit_add_rule(entry,
 				     &audit_filter_list[entry->rule.listnr]);
-
-		if (sid) {
-			char *ctx = NULL;
-			u32 len;
-			if (selinux_ctxid_to_string(sid, &ctx, &len)) {
-				/* Maybe call audit_panic? */
-				audit_log(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE,
-				 "auid=%u ssid=%u add rule to list=%d res=%d",
-				 loginuid, sid, entry->rule.listnr, !err);
-			} else
-				audit_log(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE,
-				 "auid=%u subj=%s add rule to list=%d res=%d",
-				 loginuid, ctx, entry->rule.listnr, !err);
-			kfree(ctx);
-		} else
-			audit_log(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE,
-				"auid=%u add rule to list=%d res=%d",
-				loginuid, entry->rule.listnr, !err);
+		audit_log_rule_change(loginuid, sid, "add", &entry->rule, !err);
 
 		if (err)
 			audit_free_rule(entry);
@@ -1337,24 +1435,8 @@ int audit_receive_filter(int type, int pid, int uid, int seq, void *data,
 
 		err = audit_del_rule(entry,
 				     &audit_filter_list[entry->rule.listnr]);
-
-		if (sid) {
-			char *ctx = NULL;
-			u32 len;
-			if (selinux_ctxid_to_string(sid, &ctx, &len)) {
-				/* Maybe call audit_panic? */
-				audit_log(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE,
-					"auid=%u ssid=%u remove rule from list=%d res=%d",
-					 loginuid, sid, entry->rule.listnr, !err);
-			} else
-				audit_log(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE,
-					"auid=%u subj=%s remove rule from list=%d res=%d",
-					 loginuid, ctx, entry->rule.listnr, !err);
-			kfree(ctx);
-		} else
-			audit_log(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE,
-				"auid=%u remove rule from list=%d res=%d",
-				loginuid, entry->rule.listnr, !err);
+		audit_log_rule_change(loginuid, sid, "remove", &entry->rule,
+				      !err);
 
 		audit_free_rule(entry);
 		break;
@@ -1514,11 +1596,16 @@ static inline int audit_rule_has_selinux(struct audit_krule *rule)
 	for (i = 0; i < rule->field_count; i++) {
 		struct audit_field *f = &rule->fields[i];
 		switch (f->type) {
-		case AUDIT_SE_USER:
-		case AUDIT_SE_ROLE:
-		case AUDIT_SE_TYPE:
-		case AUDIT_SE_SEN:
-		case AUDIT_SE_CLR:
+		case AUDIT_SUBJ_USER:
+		case AUDIT_SUBJ_ROLE:
+		case AUDIT_SUBJ_TYPE:
+		case AUDIT_SUBJ_SEN:
+		case AUDIT_SUBJ_CLR:
+		case AUDIT_OBJ_USER:
+		case AUDIT_OBJ_ROLE:
+		case AUDIT_OBJ_TYPE:
+		case AUDIT_OBJ_LEV_LOW:
+		case AUDIT_OBJ_LEV_HIGH:
 			return 1;
 		}
 	}

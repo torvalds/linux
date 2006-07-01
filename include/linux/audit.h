@@ -122,9 +122,16 @@
 /* Rule structure sizes -- if these change, different AUDIT_ADD and
  * AUDIT_LIST commands must be implemented. */
 #define AUDIT_MAX_FIELDS   64
+#define AUDIT_MAX_KEY_LEN  32
 #define AUDIT_BITMASK_SIZE 64
 #define AUDIT_WORD(nr) ((__u32)((nr)/32))
 #define AUDIT_BIT(nr)  (1 << ((nr) - AUDIT_WORD(nr)*32))
+
+#define AUDIT_SYSCALL_CLASSES 16
+#define AUDIT_CLASS_DIR_WRITE 0
+#define AUDIT_CLASS_DIR_WRITE_32 1
+#define AUDIT_CLASS_CHATTR 2
+#define AUDIT_CLASS_CHATTR_32 3
 
 /* This bitmask is used to validate user input.  It represents all bits that
  * are currently used in an audit field constant understood by the kernel.
@@ -150,12 +157,17 @@
 #define AUDIT_PERS	10
 #define AUDIT_ARCH	11
 #define AUDIT_MSGTYPE	12
-#define AUDIT_SE_USER	13	/* security label user */
-#define AUDIT_SE_ROLE	14	/* security label role */
-#define AUDIT_SE_TYPE	15	/* security label type */
-#define AUDIT_SE_SEN	16	/* security label sensitivity label */
-#define AUDIT_SE_CLR	17	/* security label clearance label */
+#define AUDIT_SUBJ_USER	13	/* security label user */
+#define AUDIT_SUBJ_ROLE	14	/* security label role */
+#define AUDIT_SUBJ_TYPE	15	/* security label type */
+#define AUDIT_SUBJ_SEN	16	/* security label sensitivity label */
+#define AUDIT_SUBJ_CLR	17	/* security label clearance label */
 #define AUDIT_PPID	18
+#define AUDIT_OBJ_USER	19
+#define AUDIT_OBJ_ROLE	20
+#define AUDIT_OBJ_TYPE	21
+#define AUDIT_OBJ_LEV_LOW	22
+#define AUDIT_OBJ_LEV_HIGH	23
 
 				/* These are ONLY useful when checking
 				 * at syscall exit time (AUDIT_AT_EXIT). */
@@ -170,6 +182,8 @@
 #define AUDIT_ARG1      (AUDIT_ARG0+1)
 #define AUDIT_ARG2      (AUDIT_ARG0+2)
 #define AUDIT_ARG3      (AUDIT_ARG0+3)
+
+#define AUDIT_FILTERKEY	210
 
 #define AUDIT_NEGATE			0x80000000
 
@@ -299,6 +313,7 @@ struct mqstat;
 #define AUDITSC_SUCCESS 1
 #define AUDITSC_FAILURE 2
 #define AUDITSC_RESULT(x) ( ((long)(x))<0?AUDITSC_FAILURE:AUDITSC_SUCCESS )
+extern int __init audit_register_class(int class, unsigned *list);
 #ifdef CONFIG_AUDITSYSCALL
 /* These are defined in auditsc.c */
 				/* Public API */
