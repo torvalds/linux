@@ -9,6 +9,7 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
 #include <linux/list.h>
 #include <linux/sched.h>
 #include <linux/init.h>
