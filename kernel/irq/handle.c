@@ -16,6 +16,10 @@
 #include <linux/interrupt.h>
 #include <linux/kernel_stat.h>
 
+#if defined(CONFIG_NO_IDLE_HZ) && defined(CONFIG_ARM)
+#include <asm/dyntick.h>
+#endif
+
 #include "internals.h"
 
 /**
@@ -112,6 +116,15 @@ irqreturn_t handle_IRQ_event(unsigned int irq, struct pt_regs *regs,
 {
 	irqreturn_t ret, retval = IRQ_NONE;
 	unsigned int status = 0;
+
+#if defined(CONFIG_NO_IDLE_HZ) && defined(CONFIG_ARM)
+	if (!(action->flags & SA_TIMER) && system_timer->dyn_tick != NULL) {
+		write_seqlock(&xtime_lock);
+		if (system_timer->dyn_tick->state & DYN_TICK_ENABLED)
+			system_timer->dyn_tick->handler(irq, 0, regs);
+		write_sequnlock(&xtime_lock);
+	}
+#endif
 
 	if (!(action->flags & SA_INTERRUPT))
 		local_irq_enable();
