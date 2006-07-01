@@ -114,7 +114,7 @@ void enable_irq(unsigned int irq)
 	spin_lock_irqsave(&desc->lock, flags);
 	switch (desc->depth) {
 	case 0:
-		printk(KERN_WARNING "Unablanced enable_irq(%d)\n", irq);
+		printk(KERN_WARNING "Unbalanced enable for IRQ %d\n", irq);
 		WARN_ON(1);
 		break;
 	case 1: {
@@ -267,9 +267,10 @@ int setup_irq(unsigned int irq, struct irqaction *new)
 				 * SA_TRIGGER_* but the PIC does not support
 				 * multiple flow-types?
 				 */
-				printk(KERN_WARNING "setup_irq(%d) SA_TRIGGER"
-				       "set. No set_type function available\n",
-				       irq);
+				printk(KERN_WARNING "No SA_TRIGGER set_type "
+				       "function for IRQ %d (%s)\n", irq,
+				       desc->chip ? desc->chip->name :
+				       "unknown");
 		} else
 			compat_irq_chip_set_default_handler(desc);
 
@@ -299,7 +300,7 @@ int setup_irq(unsigned int irq, struct irqaction *new)
 mismatch:
 	spin_unlock_irqrestore(&desc->lock, flags);
 	if (!(new->flags & SA_PROBEIRQ)) {
-		printk(KERN_ERR "%s: irq handler mismatch\n", __FUNCTION__);
+		printk(KERN_ERR "IRQ handler type mismatch for IRQ %d\n", irq);
 		dump_stack();
 	}
 	return -EBUSY;
@@ -366,7 +367,7 @@ void free_irq(unsigned int irq, void *dev_id)
 			kfree(action);
 			return;
 		}
-		printk(KERN_ERR "Trying to free free IRQ%d\n", irq);
+		printk(KERN_ERR "Trying to free already-free IRQ %d\n", irq);
 		spin_unlock_irqrestore(&desc->lock, flags);
 		return;
 	}
