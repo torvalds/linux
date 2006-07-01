@@ -300,9 +300,8 @@ bail:
 
 EXPORT_SYMBOL_GPL(ipath_layer_set_mtu);
 
-int ipath_set_sps_lid(struct ipath_devdata *dd, u32 arg, u8 lmc)
+int ipath_set_lid(struct ipath_devdata *dd, u32 arg, u8 lmc)
 {
-	ipath_stats.sps_lid[dd->ipath_unit] = arg;
 	dd->ipath_lid = arg;
 	dd->ipath_lmc = lmc;
 
@@ -316,7 +315,7 @@ int ipath_set_sps_lid(struct ipath_devdata *dd, u32 arg, u8 lmc)
 	return 0;
 }
 
-EXPORT_SYMBOL_GPL(ipath_set_sps_lid);
+EXPORT_SYMBOL_GPL(ipath_set_lid);
 
 int ipath_layer_set_guid(struct ipath_devdata *dd, __be64 guid)
 {
@@ -632,9 +631,9 @@ int ipath_layer_open(struct ipath_devdata *dd, u32 * pktmax)
 
 	if (*dd->ipath_statusp & IPATH_STATUS_IB_READY)
 		intval |= IPATH_LAYER_INT_IF_UP;
-	if (ipath_stats.sps_lid[dd->ipath_unit])
+	if (dd->ipath_lid)
 		intval |= IPATH_LAYER_INT_LID;
-	if (ipath_stats.sps_mlid[dd->ipath_unit])
+	if (dd->ipath_mlid)
 		intval |= IPATH_LAYER_INT_BCAST;
 	/*
 	 * do this on open, in case low level is already up and

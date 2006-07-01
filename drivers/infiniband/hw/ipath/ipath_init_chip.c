@@ -811,8 +811,6 @@ int ipath_init_chip(struct ipath_devdata *dd, int reinit)
 	/* clear any interrups up to this point (ints still not enabled) */
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_intclear, -1LL);
 
-	ipath_stats.sps_lid[dd->ipath_unit] = dd->ipath_lid;
-
 	/*
 	 * Set up the port 0 (kernel) rcvhdr q and egr TIDs.  If doing
 	 * re-init, the simplest way to handle this is to free

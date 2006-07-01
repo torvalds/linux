@@ -115,11 +115,6 @@ DRIVER_STAT(pkey0, pkeys[0]);
 DRIVER_STAT(pkey1, pkeys[1]);
 DRIVER_STAT(pkey2, pkeys[2]);
 DRIVER_STAT(pkey3, pkeys[3]);
-/* XXX fix the following when dynamic table of devices used */
-DRIVER_STAT(lid0, lid[0]);
-DRIVER_STAT(lid1, lid[1]);
-DRIVER_STAT(lid2, lid[2]);
-DRIVER_STAT(lid3, lid[3]);
 
 DRIVER_STAT(nports, nports);
 DRIVER_STAT(null_intr, nullintr);
@@ -128,11 +123,6 @@ DRIVER_STAT(avg_pkts_call, avgpkts_call);
 DRIVER_STAT(page_locks, pagelocks);
 DRIVER_STAT(page_unlocks, pageunlocks);
 DRIVER_STAT(krdrops, krdrops);
-/* XXX fix the following when dynamic table of devices used */
-DRIVER_STAT(mlid0, mlid[0]);
-DRIVER_STAT(mlid1, mlid[1]);
-DRIVER_STAT(mlid2, mlid[2]);
-DRIVER_STAT(mlid3, mlid[3]);
 
 static struct attribute *driver_stat_attributes[] = {
 	&driver_attr_intrs.attr,
@@ -155,10 +145,6 @@ static struct attribute *driver_stat_attributes[] = {
 	&driver_attr_pkey1.attr,
 	&driver_attr_pkey2.attr,
 	&driver_attr_pkey3.attr,
-	&driver_attr_lid0.attr,
-	&driver_attr_lid1.attr,
-	&driver_attr_lid2.attr,
-	&driver_attr_lid3.attr,
 	&driver_attr_nports.attr,
 	&driver_attr_null_intr.attr,
 	&driver_attr_max_pkts_call.attr,
@@ -166,10 +152,6 @@ static struct attribute *driver_stat_attributes[] = {
 	&driver_attr_page_locks.attr,
 	&driver_attr_page_unlocks.attr,
 	&driver_attr_krdrops.attr,
-	&driver_attr_mlid0.attr,
-	&driver_attr_mlid1.attr,
-	&driver_attr_mlid2.attr,
-	&driver_attr_mlid3.attr,
 	NULL
 };
 
@@ -273,7 +255,7 @@ static ssize_t store_lid(struct device *dev,
 			  size_t count)
 {
 	struct ipath_devdata *dd = dev_get_drvdata(dev);
-	u16 lid;
+	u16 lid = 0;
 	int ret;
 
 	ret = ipath_parse_ushort(buf, &lid);
@@ -285,11 +267,11 @@ static ssize_t store_lid(struct device *dev,
 		goto invalid;
 	}
 
-	ipath_set_sps_lid(dd, lid, 0);
+	ipath_set_lid(dd, lid, 0);
 
 	goto bail;
 invalid:
-	ipath_dev_err(dd, "attempt to set invalid LID\n");
+	ipath_dev_err(dd, "attempt to set invalid LID 0x%x\n", lid);
 bail:
 	return ret;
 }
@@ -320,7 +302,6 @@ static ssize_t store_mlid(struct device *dev,
 	unit = dd->ipath_unit;
 
 	dd->ipath_mlid = mlid;
-	ipath_stats.sps_mlid[unit] = mlid;
 	ipath_layer_intr(dd, IPATH_LAYER_INT_BCAST);
 
 	goto bail;

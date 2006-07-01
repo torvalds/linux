@@ -129,7 +129,7 @@ u16 ipath_layer_get_bcast(struct ipath_devdata *dd);
 u32 ipath_layer_get_cr_errpkey(struct ipath_devdata *dd);
 int ipath_layer_set_linkstate(struct ipath_devdata *dd, u8 state);
 int ipath_layer_set_mtu(struct ipath_devdata *, u16);
-int ipath_set_sps_lid(struct ipath_devdata *, u32, u8);
+int ipath_set_lid(struct ipath_devdata *, u32, u8);
 int ipath_layer_send_hdr(struct ipath_devdata *dd,
 			 struct ether_header *hdr);
 int ipath_verbs_send(struct ipath_devdata *dd, u32 hdrwords,

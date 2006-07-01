@@ -308,7 +308,7 @@ static int recv_subn_set_portinfo(struct ib_smp *smp,
 		/* Must be a valid unicast LID address. */
 		if (lid == 0 || lid >= IPS_MULTICAST_LID_BASE)
 			goto err;
-		ipath_set_sps_lid(dev->dd, lid, pip->mkeyprot_resv_lmc & 7);
+		ipath_set_lid(dev->dd, lid, pip->mkeyprot_resv_lmc & 7);
 		event.event = IB_EVENT_LID_CHANGE;
 		ib_dispatch_event(&event);
 	}

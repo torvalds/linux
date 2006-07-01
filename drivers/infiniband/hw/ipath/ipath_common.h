@@ -122,8 +122,7 @@ struct infinipath_stats {
 	__u64 sps_ports;
 	/* list of pkeys (other than default) accepted (0 means not set) */
 	__u16 sps_pkeys[4];
-	/* lids for up to 4 infinipaths, indexed by infinipath # */
-	__u16 sps_lid[4];
+	__u16 sps_unused16[4]; /* available; maintaining compatible layout */
 	/* number of user ports per chip (not IB ports) */
 	__u32 sps_nports;
 	/* not our interrupt, or already handled */
@@ -141,10 +140,8 @@ struct infinipath_stats {
 	 * packets if ipath not configured, sma/mad, etc.)
 	 */
 	__u64 sps_krdrops;
-	/* mlids for up to 4 infinipaths, indexed by infinipath # */
-	__u16 sps_mlid[4];
 	/* pad for future growth */
-	__u64 __sps_pad[45];
+	__u64 __sps_pad[46];
 };
 
 /*
