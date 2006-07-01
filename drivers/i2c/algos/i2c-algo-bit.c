@@ -544,8 +544,7 @@ int i2c_bit_add_bus(struct i2c_adapter *adap)
 	adap->timeout = 100;	/* default values, should	*/
 	adap->retries = 3;	/* be replaced by defines	*/
 
-	i2c_add_adapter(adap);
-	return 0;
+	return i2c_add_adapter(adap);
 }
 
 
