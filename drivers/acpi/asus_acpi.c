@@ -2,7 +2,7 @@
  *  asus_acpi.c - Asus Laptop ACPI Extras
  *
  *
- *  Copyright (C) 2002, 2003, 2004 Julien Lerouge, Karol Kozimor
+ *  Copyright (C) 2002-2005 Julien Lerouge, 2003-2006 Karol Kozimor
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -26,11 +26,8 @@
  *  Pontus Fuchs   - Helper functions, cleanup
  *  Johann Wiesner - Small compile fixes
  *  John Belmonte  - ACPI code for Toshiba laptop was a good starting point.
+ *  Éric Burghard  - LED display support for W1N
  *
- *  TODO:
- *  add Fn key status
- *  Add mode selection on module loading (parameter) -> still necessary?
- *  Complete display switching -- may require dirty hacks or calling _DOS?
  */
 
 #include <linux/kernel.h>
@@ -42,12 +39,14 @@
 #include <acpi/acpi_bus.h>
 #include <asm/uaccess.h>
 
-#define ASUS_ACPI_VERSION "0.29"
+#define ASUS_ACPI_VERSION "0.30"
 
 #define PROC_ASUS       "asus"	//the directory
 #define PROC_MLED       "mled"
 #define PROC_WLED       "wled"
 #define PROC_TLED       "tled"
+#define PROC_BT         "bluetooth"
+#define PROC_LEDD       "ledd"
 #define PROC_INFO       "info"
 #define PROC_LCD        "lcd"
 #define PROC_BRN        "brn"
@@ -67,9 +66,10 @@
 /*
  * Flags for hotk status
  */
-#define MLED_ON     0x01	//is MLED ON ?
-#define WLED_ON     0x02
-#define TLED_ON     0x04
+#define MLED_ON     0x01	//mail LED
+#define WLED_ON     0x02	//wireless LED
+#define TLED_ON     0x04	//touchpad LED
+#define BT_ON       0x08	//internal Bluetooth
 
 MODULE_AUTHOR("Julien Lerouge, Karol Kozimor");
 MODULE_DESCRIPTION(ACPI_HOTK_NAME);
@@ -92,7 +92,10 @@ struct model_data {
 	char *wled_status;	//node to handle wled reading_______A
 	char *mt_tled;		//method to handle tled_____________R
 	char *tled_status;	//node to handle tled reading_______A
-	char *mt_lcd_switch;	//method to turn LCD ON/OFF_________A
+	char *mt_ledd;		//method to handle LED display______R
+	char *mt_bt_switch;	//method to switch Bluetooth on/off_R
+	char *bt_status;	//no model currently supports this__?
+	char *mt_lcd_switch;	//method to turn LCD on/off_________A
 	char *lcd_status;	//node to read LCD panel state______A
 	char *brightness_up;	//method to set brightness up_______A
 	char *brightness_down;	//guess what ?______________________A
@@ -111,27 +114,31 @@ struct asus_hotk {
 	struct acpi_device *device;	//the device we are in
 	acpi_handle handle;	//the handle of the hotk device
 	char status;		//status of the hotk, for LEDs, ...
+	u32 ledd_status;	//status of the LED display
 	struct model_data *methods;	//methods available on the laptop
 	u8 brightness;		//brightness level
 	enum {
 		A1x = 0,	//A1340D, A1300F
 		A2x,		//A2500H
+		A4G,		//A4700G
 		D1x,		//D1
 		L2D,		//L2000D
 		L3C,		//L3800C
 		L3D,		//L3400D
-		L3H,		//L3H, but also L2000E
+		L3H,		//L3H, L2000E, L5D
 		L4R,		//L4500R
 		L5x,		//L5800C 
 		L8L,		//L8400L
 		M1A,		//M1300A
 		M2E,		//M2400E, L4400L
-		M6N,		//M6800N
-		M6R,		//M6700R
+		M6N,		//M6800N, W3400N
+		M6R,		//M6700R, A3000G
 		P30,		//Samsung P30
 		S1x,		//S1300A, but also L1400B and M2400A (L84F)
 		S2x,		//S200 (J1 reported), Victor MP-XP7210
-		xxN,		//M2400N, M3700N, M5200N, S1300N, S5200N, W1OOON
+		W1N,		//W1000N
+		W5A,		//W5A
+		xxN,		//M2400N, M3700N, M5200N, M6800N, S1300N, S5200N
 		//(Centrino)
 		END_MODEL
 	} model;		//Models currently supported
@@ -149,17 +156,8 @@ struct asus_hotk {
 
 static struct model_data model_conf[END_MODEL] = {
 	/*
-	 * Those pathnames are relative to the HOTK / ATKD device :
-	 *       - mt_mled
-	 *       - mt_wled
-	 *       - brightness_set
-	 *       - brightness_get
-	 *       - display_set
-	 *       - display_get
-	 *
 	 * TODO I have seen a SWBX and AIBX method on some models, like L1400B,
 	 * it seems to be a kind of switch, but what for ?
-	 *
 	 */
 
 	{
@@ -182,6 +180,16 @@ static struct model_data model_conf[END_MODEL] = {
 	 .brightness_get = "GPLV",
 	 .display_set = "SDSP",
 	 .display_get = "\\INFB"},
+
+	{
+	 .name = "A4G",
+	 .mt_mled = "MLED",
+/* WLED present, but not controlled by ACPI */
+	 .mt_lcd_switch = xxN_PREFIX "_Q10",
+	 .brightness_set = "SPLV",
+	 .brightness_get = "GPLV",
+	 .display_set = "SDSP",
+	 .display_get = "\\ADVG"},
 
 	{
 	 .name = "D1x",
@@ -302,7 +310,8 @@ static struct model_data model_conf[END_MODEL] = {
 	 .brightness_set = "SPLV",
 	 .brightness_get = "GPLV",
 	 .display_set = "SDSP",
-	 .display_get = "\\_SB.PCI0.P0P1.VGA.GETD"},
+	 .display_get = "\\SSTE"},
+
 	{
 	 .name = "M6R",
 	 .mt_mled = "MLED",
@@ -312,7 +321,7 @@ static struct model_data model_conf[END_MODEL] = {
 	 .brightness_set = "SPLV",
 	 .brightness_get = "GPLV",
 	 .display_set = "SDSP",
-	 .display_get = "\\SSTE"},
+	 .display_get = "\\_SB.PCI0.P0P1.VGA.GETD"},
 
 	{
 	 .name = "P30",
@@ -343,6 +352,28 @@ static struct model_data model_conf[END_MODEL] = {
 	 .lcd_status = "\\BKLI",
 	 .brightness_up = S2x_PREFIX "_Q0B",
 	 .brightness_down = S2x_PREFIX "_Q0A"},
+
+	{
+	 .name = "W1N",
+	 .mt_mled = "MLED",
+	 .mt_wled = "WLED",
+	 .mt_ledd = "SLCM",
+	 .mt_lcd_switch = xxN_PREFIX "_Q10",
+	 .lcd_status = "\\BKLT",
+	 .brightness_set = "SPLV",
+	 .brightness_get = "GPLV",
+	 .display_set = "SDSP",
+	 .display_get = "\\ADVG"},
+
+	{
+	 .name = "W5A",
+	 .mt_bt_switch = "BLED",
+	 .mt_wled = "WLED",
+	 .mt_lcd_switch = xxN_PREFIX "_Q10",
+	 .brightness_set = "SPLV",
+	 .brightness_get = "GPLV",
+	 .display_set = "SDSP",
+	 .display_get = "\\ADVG"},
 
 	{
 	 .name = "xxN",
@@ -563,6 +594,36 @@ proc_write_mled(struct file *file, const char __user * buffer,
 }
 
 /*
+ * Proc handlers for LED display
+ */
+static int
+proc_read_ledd(char *page, char **start, off_t off, int count, int *eof,
+	       void *data)
+{
+	return sprintf(page, "0x%08x\n", hotk->ledd_status);
+}
+
+static int
+proc_write_ledd(struct file *file, const char __user * buffer,
+		unsigned long count, void *data)
+{
+	int value;
+
+	count = parse_arg(buffer, count, &value);
+	if (count > 0) {
+		if (!write_acpi_int
+		    (hotk->handle, hotk->methods->mt_ledd, value, NULL))
+			printk(KERN_WARNING
+			       "Asus ACPI: LED display write failed\n");
+		else
+			hotk->ledd_status = (u32) value;
+	} else if (count < 0)
+		printk(KERN_WARNING "Asus ACPI: Error reading user input\n");
+
+	return count;
+}
+
+/*
  * Proc handlers for WLED
  */
 static int
@@ -578,6 +639,25 @@ proc_write_wled(struct file *file, const char __user * buffer,
 		unsigned long count, void *data)
 {
 	return write_led(buffer, count, hotk->methods->mt_wled, WLED_ON, 0);
+}
+
+/*
+ * Proc handlers for Bluetooth
+ */
+static int
+proc_read_bluetooth(char *page, char **start, off_t off, int count, int *eof,
+		    void *data)
+{
+	return sprintf(page, "%d\n", read_led(hotk->methods->bt_status, BT_ON));
+}
+
+static int
+proc_write_bluetooth(struct file *file, const char __user * buffer,
+		     unsigned long count, void *data)
+{
+	/* Note: mt_bt_switch controls both internal Bluetooth adapter's 
+	   presence and its LED */
+	return write_led(buffer, count, hotk->methods->mt_bt_switch, BT_ON, 0);
 }
 
 /*
@@ -876,6 +956,11 @@ static int asus_hotk_add_fs(struct acpi_device *device)
 			      mode, device);
 	}
 
+	if (hotk->methods->mt_ledd) {
+		asus_proc_add(PROC_LEDD, &proc_write_ledd, &proc_read_ledd,
+			      mode, device);
+	}
+
 	if (hotk->methods->mt_mled) {
 		asus_proc_add(PROC_MLED, &proc_write_mled, &proc_read_mled,
 			      mode, device);
@@ -884,6 +969,11 @@ static int asus_hotk_add_fs(struct acpi_device *device)
 	if (hotk->methods->mt_tled) {
 		asus_proc_add(PROC_TLED, &proc_write_tled, &proc_read_tled,
 			      mode, device);
+	}
+
+	if (hotk->methods->mt_bt_switch) {
+		asus_proc_add(PROC_BT, &proc_write_bluetooth,
+			      &proc_read_bluetooth, mode, device);
 	}
 
 	/* 
@@ -919,6 +1009,10 @@ static int asus_hotk_remove_fs(struct acpi_device *device)
 			remove_proc_entry(PROC_MLED, acpi_device_dir(device));
 		if (hotk->methods->mt_tled)
 			remove_proc_entry(PROC_TLED, acpi_device_dir(device));
+		if (hotk->methods->mt_ledd)
+			remove_proc_entry(PROC_LEDD, acpi_device_dir(device));
+		if (hotk->methods->mt_bt_switch)
+			remove_proc_entry(PROC_BT, acpi_device_dir(device));
 		if (hotk->methods->mt_lcd_switch && hotk->methods->lcd_status)
 			remove_proc_entry(PROC_LCD, acpi_device_dir(device));
 		if ((hotk->methods->brightness_up
@@ -951,6 +1045,65 @@ static void asus_hotk_notify(acpi_handle handle, u32 event, void *data)
 }
 
 /*
+ * Match the model string to the list of supported models. Return END_MODEL if
+ * no match or model is NULL.
+ */
+static int asus_model_match(char *model)
+{
+	if (model == NULL)
+		return END_MODEL;
+
+	if (strncmp(model, "L3D", 3) == 0)
+		return L3D;
+	else if (strncmp(model, "L2E", 3) == 0 ||
+		 strncmp(model, "L3H", 3) == 0 || strncmp(model, "L5D", 3) == 0)
+		return L3H;
+	else if (strncmp(model, "L3", 2) == 0 || strncmp(model, "L2B", 3) == 0)
+		return L3C;
+	else if (strncmp(model, "L8L", 3) == 0)
+		return L8L;
+	else if (strncmp(model, "L4R", 3) == 0)
+		return L4R;
+	else if (strncmp(model, "M6N", 3) == 0 || strncmp(model, "W3N", 3) == 0)
+		return M6N;
+	else if (strncmp(model, "M6R", 3) == 0 || strncmp(model, "A3G", 3) == 0)
+		return M6R;
+	else if (strncmp(model, "M2N", 3) == 0 ||
+		 strncmp(model, "M3N", 3) == 0 ||
+		 strncmp(model, "M5N", 3) == 0 ||
+		 strncmp(model, "M6N", 3) == 0 ||
+		 strncmp(model, "S1N", 3) == 0 ||
+		 strncmp(model, "S5N", 3) == 0 || strncmp(model, "W1N", 3) == 0)
+		return xxN;
+	else if (strncmp(model, "M1", 2) == 0)
+		return M1A;
+	else if (strncmp(model, "M2", 2) == 0 || strncmp(model, "L4E", 3) == 0)
+		return M2E;
+	else if (strncmp(model, "L2", 2) == 0)
+		return L2D;
+	else if (strncmp(model, "L8", 2) == 0)
+		return S1x;
+	else if (strncmp(model, "D1", 2) == 0)
+		return D1x;
+	else if (strncmp(model, "A1", 2) == 0)
+		return A1x;
+	else if (strncmp(model, "A2", 2) == 0)
+		return A2x;
+	else if (strncmp(model, "J1", 2) == 0)
+		return S2x;
+	else if (strncmp(model, "L5", 2) == 0)
+		return L5x;
+	else if (strncmp(model, "A4G", 3) == 0)
+		return A4G;
+	else if (strncmp(model, "W1N", 3) == 0)
+		return W1N;
+	else if (strncmp(model, "W5A", 3) == 0)
+		return W5A;
+	else
+		return END_MODEL;
+}
+
+/*
  * This function is used to initialize the hotk with right values. In this
  * method, we can make all the detection we want, and modify the hotk struct
  */
@@ -960,6 +1113,7 @@ static int asus_hotk_get_info(void)
 	struct acpi_buffer dsdt = { ACPI_ALLOCATE_BUFFER, NULL };
 	union acpi_object *model = NULL;
 	int bsts_result;
+	char *string = NULL;
 	acpi_status status;
 
 	/*
@@ -989,107 +1143,66 @@ static int asus_hotk_get_info(void)
 		printk(KERN_NOTICE "  BSTS called, 0x%02x returned\n",
 		       bsts_result);
 
-	/* This is unlikely with implicit return */
-	if (buffer.pointer == NULL)
-		return -EINVAL;
-
-	model = (union acpi_object *) buffer.pointer;
 	/*
-	 * Samsung P30 has a device with a valid _HID whose INIT does not 
-	 * return anything. It used to be possible to catch this exception,
-	 * but the implicit return code will now happily confuse the 
-	 * driver. We assume that every ACPI_TYPE_STRING is a valid model
-	 * identifier but it's still possible to get completely bogus data.
+	 * Try to match the object returned by INIT to the specific model.
+	 * Handle every possible object (or the lack of thereof) the DSDT 
+	 * writers might throw at us. When in trouble, we pass NULL to 
+	 * asus_model_match() and try something completely different.
 	 */
-	if (model->type == ACPI_TYPE_STRING) {
-		printk(KERN_NOTICE "  %s model detected, ", model->string.pointer);
-	} else {
-		if (asus_info &&	/* Samsung P30 */
+	if (buffer.pointer) {
+		model = (union acpi_object *)buffer.pointer;
+		switch (model->type) {
+		case ACPI_TYPE_STRING:
+			string = model->string.pointer;
+			break;
+		case ACPI_TYPE_BUFFER:
+			string = model->buffer.pointer;
+			break;
+		default:
+			kfree(model);
+			break;
+		}
+	}
+	hotk->model = asus_model_match(string);
+	if (hotk->model == END_MODEL) {	/* match failed */
+		if (asus_info &&
 		    strncmp(asus_info->oem_table_id, "ODEM", 4) == 0) {
 			hotk->model = P30;
 			printk(KERN_NOTICE
 			       "  Samsung P30 detected, supported\n");
 		} else {
 			hotk->model = M2E;
-			printk(KERN_WARNING "  no string returned by INIT\n");
-			printk(KERN_WARNING "  trying default values, supply "
-			       "the developers with your DSDT\n");
+			printk(KERN_NOTICE "  unsupported model %s, trying "
+			       "default values\n", string);
+			printk(KERN_NOTICE
+			       "  send /proc/acpi/dsdt to the developers\n");
 		}
 		hotk->methods = &model_conf[hotk->model];
-		
-		kfree(model);
-
 		return AE_OK;
 	}
-
-	hotk->model = END_MODEL;
-	if (strncmp(model->string.pointer, "L3D", 3) == 0)
-		hotk->model = L3D;
-	else if (strncmp(model->string.pointer, "L3H", 3) == 0 ||
-		 strncmp(model->string.pointer, "L2E", 3) == 0)
-		hotk->model = L3H;
-	else if (strncmp(model->string.pointer, "L3", 2) == 0 ||
-		 strncmp(model->string.pointer, "L2B", 3) == 0)
-		hotk->model = L3C;
-	else if (strncmp(model->string.pointer, "L8L", 3) == 0)
-		hotk->model = L8L;
-	else if (strncmp(model->string.pointer, "L4R", 3) == 0)
-		hotk->model = L4R;
-	else if (strncmp(model->string.pointer, "M6N", 3) == 0)
-		hotk->model = M6N;
-	else if (strncmp(model->string.pointer, "M6R", 3) == 0)
-		hotk->model = M6R;
-	else if (strncmp(model->string.pointer, "M2N", 3) == 0 ||
-		 strncmp(model->string.pointer, "M3N", 3) == 0 ||
-		 strncmp(model->string.pointer, "M5N", 3) == 0 ||
-		 strncmp(model->string.pointer, "M6N", 3) == 0 ||
-		 strncmp(model->string.pointer, "S1N", 3) == 0 ||
-		 strncmp(model->string.pointer, "S5N", 3) == 0 ||
-		 strncmp(model->string.pointer, "W1N", 3) == 0)
-		hotk->model = xxN;
-	else if (strncmp(model->string.pointer, "M1", 2) == 0)
-		hotk->model = M1A;
-	else if (strncmp(model->string.pointer, "M2", 2) == 0 ||
-		 strncmp(model->string.pointer, "L4E", 3) == 0)
-		hotk->model = M2E;
-	else if (strncmp(model->string.pointer, "L2", 2) == 0)
-		hotk->model = L2D;
-	else if (strncmp(model->string.pointer, "L8", 2) == 0)
-		hotk->model = S1x;
-	else if (strncmp(model->string.pointer, "D1", 2) == 0)
-		hotk->model = D1x;
-	else if (strncmp(model->string.pointer, "A1", 2) == 0)
-		hotk->model = A1x;
-	else if (strncmp(model->string.pointer, "A2", 2) == 0)
-		hotk->model = A2x;
-	else if (strncmp(model->string.pointer, "J1", 2) == 0)
-		hotk->model = S2x;
-	else if (strncmp(model->string.pointer, "L5", 2) == 0)
-		hotk->model = L5x;
-
-	if (hotk->model == END_MODEL) {
-		printk("unsupported, trying default values, supply the "
-		       "developers with your DSDT\n");
-		hotk->model = M2E;
-	} else {
-		printk("supported\n");
-	}
-
 	hotk->methods = &model_conf[hotk->model];
+	printk(KERN_NOTICE "  %s model detected, supported\n", string);
 
 	/* Sort of per-model blacklist */
-	if (strncmp(model->string.pointer, "L2B", 3) == 0)
+	if (strncmp(string, "L2B", 3) == 0)
 		hotk->methods->lcd_status = NULL;
 	/* L2B is similar enough to L3C to use its settings, with this only 
 	   exception */
-	else if (strncmp(model->string.pointer, "S5N", 3) == 0 ||
-		 strncmp(model->string.pointer, "M5N", 3) == 0)
+	else if (strncmp(string, "A3G", 3) == 0)
+		hotk->methods->lcd_status = "\\BLFG";
+	/* A3G is like M6R */
+	else if (strncmp(string, "S5N", 3) == 0 ||
+		 strncmp(string, "M5N", 3) == 0 ||
+		 strncmp(string, "W3N", 3) == 0)
 		hotk->methods->mt_mled = NULL;
-	/* S5N and M5N have no MLED */
-	else if (strncmp(model->string.pointer, "M2N", 3) == 0 ||
-		 strncmp(model->string.pointer, "W1N", 3) == 0)
+	/* S5N, M5N and W3N have no MLED */
+	else if (strncmp(string, "L5D", 3) == 0)
+		hotk->methods->mt_wled = NULL;
+	/* L5D's WLED is not controlled by ACPI */
+	else if (strncmp(string, "M2N", 3) == 0 ||
+		 strncmp(string, "S1N", 3) == 0)
 		hotk->methods->mt_wled = "WLED";
-	/* M2N and W1N have a usable WLED */
+	/* M2N and S1N have a usable WLED */
 	else if (asus_info) {
 		if (strncmp(asus_info->oem_table_id, "L1", 2) == 0)
 			hotk->methods->mled_status = NULL;
@@ -1164,8 +1277,7 @@ static int asus_hotk_add(struct acpi_device *device)
 	/* For laptops without GPLV: init the hotk->brightness value */
 	if ((!hotk->methods->brightness_get)
 	    && (!hotk->methods->brightness_status)
-	    && (hotk->methods->brightness_up
-		&& hotk->methods->brightness_down)) {
+	    && (hotk->methods->brightness_up && hotk->methods->brightness_down)) {
 		status =
 		    acpi_evaluate_object(NULL, hotk->methods->brightness_down,
 					 NULL, NULL);
@@ -1183,6 +1295,9 @@ static int asus_hotk_add(struct acpi_device *device)
 	}
 
 	asus_hotk_found = 1;
+
+	/* LED display is off by default */
+	hotk->ledd_status = 0xFFF;
 
       end:
 	if (result) {
