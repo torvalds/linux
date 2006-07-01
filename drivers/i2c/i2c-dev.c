@@ -37,7 +37,7 @@
 #include <linux/i2c-dev.h>
 #include <asm/uaccess.h>
 
-static struct i2c_client i2cdev_client_template;
+static struct i2c_driver i2cdev_driver;
 
 struct i2c_dev {
 	struct list_head list;
@@ -365,12 +365,13 @@ static int i2cdev_open(struct inode *inode, struct file *file)
 	if (!adap)
 		return -ENODEV;
 
-	client = kmalloc(sizeof(*client), GFP_KERNEL);
+	client = kzalloc(sizeof(*client), GFP_KERNEL);
 	if (!client) {
 		i2c_put_adapter(adap);
 		return -ENOMEM;
 	}
-	memcpy(client, &i2cdev_client_template, sizeof(*client));
+	snprintf(client->name, I2C_NAME_SIZE, "i2c-dev %d", adap->nr);
+	client->driver = &i2cdev_driver;
 
 	/* registered with adapter, passed as client to user */
 	client->adapter = adap;
@@ -457,12 +458,6 @@ static struct i2c_driver i2cdev_driver = {
 	.attach_adapter	= i2cdev_attach_adapter,
 	.detach_adapter	= i2cdev_detach_adapter,
 	.detach_client	= i2cdev_detach_client,
-};
-
-static struct i2c_client i2cdev_client_template = {
-	.name		= "I2C /dev entry",
-	.addr		= -1,
-	.driver		= &i2cdev_driver,
 };
 
 static int __init i2c_dev_init(void)
