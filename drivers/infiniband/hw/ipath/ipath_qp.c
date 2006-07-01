@@ -661,8 +661,10 @@ struct ib_qp *ipath_create_qp(struct ib_pd *ibpd,
 	size_t sz;
 	struct ib_qp *ret;
 
-	if (init_attr->cap.max_send_sge > 255 ||
-	    init_attr->cap.max_recv_sge > 255) {
+	if (init_attr->cap.max_send_sge > ib_ipath_max_sges ||
+	    init_attr->cap.max_recv_sge > ib_ipath_max_sges ||
+	    init_attr->cap.max_send_wr > ib_ipath_max_qp_wrs ||
+	    init_attr->cap.max_recv_wr > ib_ipath_max_qp_wrs) {
 		ret = ERR_PTR(-ENOMEM);
 		goto bail;
 	}

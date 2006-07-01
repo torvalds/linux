@@ -149,6 +149,7 @@ struct ipath_mcast {
 	struct list_head qp_list;
 	wait_queue_head_t wait;
 	atomic_t refcount;
+	int n_attached;
 };
 
 /* Memory region */
@@ -432,6 +433,11 @@ struct ipath_ibdev {
 	__be64 sys_image_guid;	/* in network order */
 	__be64 gid_prefix;	/* in network order */
 	__be64 mkey;
+	u32 n_pds_allocated;	/* number of PDs allocated for device */
+	u32 n_ahs_allocated;	/* number of AHs allocated for device */
+	u32 n_cqs_allocated;	/* number of CQs allocated for device */
+	u32 n_srqs_allocated;	/* number of SRQs allocated for device */
+	u32 n_mcast_grps_allocated; /* number of mcast groups allocated */
 	u64 ipath_sword;	/* total dwords sent (sample result) */
 	u64 ipath_rword;	/* total dwords received (sample result) */
 	u64 ipath_spkts;	/* total packets sent (sample result) */
@@ -696,6 +702,24 @@ extern const u8 ipath_cvt_physportstate[];
 extern const int ib_ipath_state_ops[];
 
 extern unsigned int ib_ipath_lkey_table_size;
+
+extern unsigned int ib_ipath_max_cqes;
+
+extern unsigned int ib_ipath_max_cqs;
+
+extern unsigned int ib_ipath_max_qp_wrs;
+
+extern unsigned int ib_ipath_max_sges;
+
+extern unsigned int ib_ipath_max_mcast_grps;
+
+extern unsigned int ib_ipath_max_mcast_qp_attached;
+
+extern unsigned int ib_ipath_max_srqs;
+
+extern unsigned int ib_ipath_max_srq_sges;
+
+extern unsigned int ib_ipath_max_srq_wrs;
 
 extern const u32 ib_ipath_rnr_table[];
 

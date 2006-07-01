@@ -56,6 +56,59 @@ unsigned int ib_ipath_debug;	/* debug mask */
 module_param_named(debug, ib_ipath_debug, uint, S_IWUSR | S_IRUGO);
 MODULE_PARM_DESC(debug, "Verbs debug mask");
 
+static unsigned int ib_ipath_max_pds = 0xFFFF;
+module_param_named(max_pds, ib_ipath_max_pds, uint, S_IWUSR | S_IRUGO);
+MODULE_PARM_DESC(max_pds,
+		 "Maximum number of protection domains to support");
+
+static unsigned int ib_ipath_max_ahs = 0xFFFF;
+module_param_named(max_ahs, ib_ipath_max_ahs, uint, S_IWUSR | S_IRUGO);
+MODULE_PARM_DESC(max_ahs, "Maximum number of address handles to support");
+
+unsigned int ib_ipath_max_cqes = 0x2FFFF;
+module_param_named(max_cqes, ib_ipath_max_cqes, uint, S_IWUSR | S_IRUGO);
+MODULE_PARM_DESC(max_cqes,
+		 "Maximum number of completion queue entries to support");
+
+unsigned int ib_ipath_max_cqs = 0x1FFFF;
+module_param_named(max_cqs, ib_ipath_max_cqs, uint, S_IWUSR | S_IRUGO);
+MODULE_PARM_DESC(max_cqs, "Maximum number of completion queues to support");
+
+unsigned int ib_ipath_max_qp_wrs = 0x3FFF;
+module_param_named(max_qp_wrs, ib_ipath_max_qp_wrs, uint,
+		   S_IWUSR | S_IRUGO);
+MODULE_PARM_DESC(max_qp_wrs, "Maximum number of QP WRs to support");
+
+unsigned int ib_ipath_max_sges = 0x60;
+module_param_named(max_sges, ib_ipath_max_sges, uint, S_IWUSR | S_IRUGO);
+MODULE_PARM_DESC(max_sges, "Maximum number of SGEs to support");
+
+unsigned int ib_ipath_max_mcast_grps = 16384;
+module_param_named(max_mcast_grps, ib_ipath_max_mcast_grps, uint,
+		   S_IWUSR | S_IRUGO);
+MODULE_PARM_DESC(max_mcast_grps,
+		 "Maximum number of multicast groups to support");
+
+unsigned int ib_ipath_max_mcast_qp_attached = 16;
+module_param_named(max_mcast_qp_attached, ib_ipath_max_mcast_qp_attached,
+		   uint, S_IWUSR | S_IRUGO);
+MODULE_PARM_DESC(max_mcast_qp_attached,
+		 "Maximum number of attached QPs to support");
+
+unsigned int ib_ipath_max_srqs = 1024;
+module_param_named(max_srqs, ib_ipath_max_srqs, uint, S_IWUSR | S_IRUGO);
+MODULE_PARM_DESC(max_srqs, "Maximum number of SRQs to support");
+
+unsigned int ib_ipath_max_srq_sges = 128;
+module_param_named(max_srq_sges, ib_ipath_max_srq_sges,
+		   uint, S_IWUSR | S_IRUGO);
+MODULE_PARM_DESC(max_srq_sges, "Maximum number of SRQ SGEs to support");
+
+unsigned int ib_ipath_max_srq_wrs = 0x1FFFF;
+module_param_named(max_srq_wrs, ib_ipath_max_srq_wrs,
+		   uint, S_IWUSR | S_IRUGO);
+MODULE_PARM_DESC(max_srq_wrs, "Maximum number of SRQ WRs support");
+
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("QLogic <support@pathscale.com>");
 MODULE_DESCRIPTION("QLogic InfiniPath driver");
@@ -581,24 +634,25 @@ static int ipath_query_device(struct ib_device *ibdev,
 	props->sys_image_guid = dev->sys_image_guid;
 
 	props->max_mr_size = ~0ull;
-	props->max_qp = 0xffff;
-	props->max_qp_wr = 0xffff;
-	props->max_sge = 255;
-	props->max_cq = 0xffff;
-	props->max_cqe = 0xffff;
-	props->max_mr = 0xffff;
-	props->max_pd = 0xffff;
+	props->max_qp = dev->qp_table.max;
+	props->max_qp_wr = ib_ipath_max_qp_wrs;
+	props->max_sge = ib_ipath_max_sges;
+	props->max_cq = ib_ipath_max_cqs;
+	props->max_ah = ib_ipath_max_ahs;
+	props->max_cqe = ib_ipath_max_cqes;
+	props->max_mr = dev->lk_table.max;
+	props->max_pd = ib_ipath_max_pds;
 	props->max_qp_rd_atom = 1;
 	props->max_qp_init_rd_atom = 1;
 	/* props->max_res_rd_atom */
-	props->max_srq = 0xffff;
-	props->max_srq_wr = 0xffff;
-	props->max_srq_sge = 255;
+	props->max_srq = ib_ipath_max_srqs;
+	props->max_srq_wr = ib_ipath_max_srq_wrs;
+	props->max_srq_sge = ib_ipath_max_srq_sges;
 	/* props->local_ca_ack_delay */
 	props->atomic_cap = IB_ATOMIC_HCA;
 	props->max_pkeys = ipath_layer_get_npkeys(dev->dd);
-	props->max_mcast_grp = 0xffff;
-	props->max_mcast_qp_attach = 0xffff;
+	props->max_mcast_grp = ib_ipath_max_mcast_grps;
+	props->max_mcast_qp_attach = ib_ipath_max_mcast_qp_attached;
 	props->max_total_mcast_qp_attach = props->max_mcast_qp_attach *
 		props->max_mcast_grp;
 
@@ -741,14 +795,29 @@ static struct ib_pd *ipath_alloc_pd(struct ib_device *ibdev,
 				    struct ib_ucontext *context,
 				    struct ib_udata *udata)
 {
+	struct ipath_ibdev *dev = to_idev(ibdev);
 	struct ipath_pd *pd;
 	struct ib_pd *ret;
+
+	/*
+	 * This is actually totally arbitrary.	Some correctness tests
+	 * assume there's a maximum number of PDs that can be allocated.
+	 * We don't actually have this limit, but we fail the test if
+	 * we allow allocations of more than we report for this value.
+	 */
+
+	if (dev->n_pds_allocated == ib_ipath_max_pds) {
+		ret = ERR_PTR(-ENOMEM);
+		goto bail;
+	}
 
 	pd = kmalloc(sizeof *pd, GFP_KERNEL);
 	if (!pd) {
 		ret = ERR_PTR(-ENOMEM);
 		goto bail;
 	}
+
+	dev->n_pds_allocated++;
 
 	/* ib_alloc_pd() will initialize pd->ibpd. */
 	pd->user = udata != NULL;
@@ -762,6 +831,9 @@ bail:
 static int ipath_dealloc_pd(struct ib_pd *ibpd)
 {
 	struct ipath_pd *pd = to_ipd(ibpd);
+	struct ipath_ibdev *dev = to_idev(ibpd->device);
+
+	dev->n_pds_allocated--;
 
 	kfree(pd);
 
@@ -780,6 +852,12 @@ static struct ib_ah *ipath_create_ah(struct ib_pd *pd,
 {
 	struct ipath_ah *ah;
 	struct ib_ah *ret;
+	struct ipath_ibdev *dev = to_idev(pd->device);
+
+	if (dev->n_ahs_allocated == ib_ipath_max_ahs) {
+		ret = ERR_PTR(-ENOMEM);
+		goto bail;
+	}
 
 	/* A multicast address requires a GRH (see ch. 8.4.1). */
 	if (ah_attr->dlid >= IPS_MULTICAST_LID_BASE &&
@@ -794,7 +872,7 @@ static struct ib_ah *ipath_create_ah(struct ib_pd *pd,
 		goto bail;
 	}
 
-	if (ah_attr->port_num != 1 ||
+	if (ah_attr->port_num < 1 ||
 	    ah_attr->port_num > pd->device->phys_port_cnt) {
 		ret = ERR_PTR(-EINVAL);
 		goto bail;
@@ -805,6 +883,8 @@ static struct ib_ah *ipath_create_ah(struct ib_pd *pd,
 		ret = ERR_PTR(-ENOMEM);
 		goto bail;
 	}
+
+	dev->n_ahs_allocated++;
 
 	/* ib_create_ah() will initialize ah->ibah. */
 	ah->attr = *ah_attr;
@@ -823,7 +903,10 @@ bail:
  */
 static int ipath_destroy_ah(struct ib_ah *ibah)
 {
+	struct ipath_ibdev *dev = to_idev(ibah->device);
 	struct ipath_ah *ah = to_iah(ibah);
+
+	dev->n_ahs_allocated--;
 
 	kfree(ah);
 
