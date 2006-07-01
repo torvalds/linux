@@ -138,17 +138,23 @@ ENTRY(cpu_xscale_proc_fin)
  * to what would be the reset vector.
  *
  * loc: location to jump to for soft reset
+ *
+ * Beware PXA270 erratum E7.
  */
 	.align	5
 ENTRY(cpu_xscale_reset)
 	mov	r1, #PSR_F_BIT|PSR_I_BIT|SVC_MODE
 	msr	cpsr_c, r1			@ reset CPSR
+	mcr	p15, 0, r1, c10, c4, 1		@ unlock I-TLB
+	mcr	p15, 0, r1, c8, c5, 0		@ invalidate I-TLB
 	mrc	p15, 0, r1, c1, c0, 0		@ ctrl register
 	bic	r1, r1, #0x0086			@ ........B....CA.
 	bic	r1, r1, #0x3900			@ ..VIZ..S........
+	sub	pc, pc, #4			@ flush pipeline
+	@ *** cache line aligned ***
 	mcr	p15, 0, r1, c1, c0, 0		@ ctrl register
-	mcr	p15, 0, ip, c7, c7, 0		@ invalidate I,D caches & BTB
 	bic	r1, r1, #0x0001			@ ...............M
+	mcr	p15, 0, ip, c7, c7, 0		@ invalidate I,D caches & BTB
 	mcr	p15, 0, r1, c1, c0, 0		@ ctrl register
 	@ CAUTION: MMU turned off from this point. We count on the pipeline
 	@ already containing those two last instructions to survive.

@@ -448,8 +448,11 @@ __common_mmu_cache_on:
 		mov	r1, #-1
 		mcr	p15, 0, r3, c2, c0, 0	@ load page table pointer
 		mcr	p15, 0, r1, c3, c0, 0	@ load domain access control
-		mcr	p15, 0, r0, c1, c0, 0	@ load control register
-		mov	pc, lr
+		b	1f
+		.align	5			@ cache line aligned
+1:		mcr	p15, 0, r0, c1, c0, 0	@ load control register
+		mrc	p15, 0, r0, c1, c0, 0	@ and read it back to
+		sub	pc, lr, r0, lsr #32	@ properly flush pipeline
 
 /*
  * All code following this line is relocatable.  It is relocated by
