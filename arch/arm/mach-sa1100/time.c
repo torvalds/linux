@@ -11,6 +11,7 @@
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
 #include <linux/timex.h>
 #include <linux/signal.h>
 

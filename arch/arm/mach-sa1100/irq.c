@@ -11,12 +11,13 @@
  */
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/interrupt.h>
+#include <linux/irq.h>
 #include <linux/ioport.h>
 #include <linux/ptrace.h>
 #include <linux/sysdev.h>
 
 #include <asm/hardware.h>
-#include <asm/irq.h>
 #include <asm/mach/irq.h>
 
 #include "generic.h"
