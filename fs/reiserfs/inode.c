@@ -2932,6 +2932,11 @@ int reiserfs_setattr(struct dentry *dentry, struct iattr *attr)
 			}
 			if (error)
 				goto out;
+			/*
+			 * file size is changed, ctime and mtime are
+			 * to be updated
+			 */
+			attr->ia_valid |= (ATTR_MTIME | ATTR_CTIME);
 		}
 	}
 
