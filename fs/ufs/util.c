@@ -233,3 +233,57 @@ ufs_set_inode_dev(struct super_block *sb, struct ufs_inode_info *ufsi, dev_t dev
 	else
 		ufsi->i_u1.i_data[0] = fs32;
 }
+
+/**
+ * ufs_get_locked_page() - locate, pin and lock a pagecache page, if not exist
+ * read it from disk.
+ * @mapping: the address_space to search
+ * @index: the page index
+ *
+ * Locates the desired pagecache page, if not exist we'll read it,
+ * locks it, increments its reference
+ * count and returns its address.
+ *
+ */
+
+struct page *ufs_get_locked_page(struct address_space *mapping,
+				 pgoff_t index)
+{
+	struct page *page;
+
+try_again:
+	page = find_lock_page(mapping, index);
+	if (!page) {
+		page = read_cache_page(mapping, index,
+				       (filler_t*)mapping->a_ops->readpage,
+				       NULL);
+		if (IS_ERR(page)) {
+			printk(KERN_ERR "ufs_change_blocknr: "
+			       "read_cache_page error: ino %lu, index: %lu\n",
+			       mapping->host->i_ino, index);
+			goto out;
+		}
+
+		lock_page(page);
+
+		if (!PageUptodate(page) || PageError(page)) {
+			unlock_page(page);
+			page_cache_release(page);
+
+			printk(KERN_ERR "ufs_change_blocknr: "
+			       "can not read page: ino %lu, index: %lu\n",
+			       mapping->host->i_ino, index);
+
+			page = ERR_PTR(-EIO);
+			goto out;
+		}
+	}
+
+	if (unlikely(!page->mapping || !page_has_buffers(page))) {
+		unlock_page(page);
+		page_cache_release(page);
+		goto try_again;/*we really need these buffers*/
+	}
+out:
+	return page;
+}

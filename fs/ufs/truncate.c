@@ -369,24 +369,97 @@ static int ufs_trunc_tindirect (struct inode * inode)
 	UFSD("EXIT\n");
 	return retry;
 }
-		
-void ufs_truncate (struct inode * inode)
+
+static int ufs_alloc_lastblock(struct inode *inode)
+{
+	int err = 0;
+	struct address_space *mapping = inode->i_mapping;
+	struct ufs_sb_private_info *uspi = UFS_SB(inode->i_sb)->s_uspi;
+	struct ufs_inode_info *ufsi = UFS_I(inode);
+	unsigned lastfrag, i, end;
+	struct page *lastpage;
+	struct buffer_head *bh;
+
+	lastfrag = (i_size_read(inode) + uspi->s_fsize - 1) >> uspi->s_fshift;
+
+	if (!lastfrag) {
+		ufsi->i_lastfrag = 0;
+		goto out;
+	}
+	lastfrag--;
+
+	lastpage = ufs_get_locked_page(mapping, lastfrag >>
+				       (PAGE_CACHE_SHIFT - inode->i_blkbits));
+       if (IS_ERR(lastpage)) {
+               err = -EIO;
+               goto out;
+       }
+
+       end = lastfrag & ((1 << (PAGE_CACHE_SHIFT - inode->i_blkbits)) - 1);
+       bh = page_buffers(lastpage);
+       for (i = 0; i < end; ++i)
+               bh = bh->b_this_page;
+
+       if (!buffer_mapped(bh)) {
+               err = ufs_getfrag_block(inode, lastfrag, bh, 1);
+
+               if (unlikely(err))
+                       goto out_unlock;
+
+               if (buffer_new(bh)) {
+                       clear_buffer_new(bh);
+                       unmap_underlying_metadata(bh->b_bdev,
+						 bh->b_blocknr);
+		       /*
+			* we do not zeroize fragment, because of
+			* if it maped to hole, it already contains zeroes
+			*/
+                       set_buffer_uptodate(bh);
+                       mark_buffer_dirty(bh);
+                       set_page_dirty(lastpage);
+               }
+       }
+out_unlock:
+       ufs_put_locked_page(lastpage);
+out:
+       return err;
+}
+
+int ufs_truncate(struct inode *inode, loff_t old_i_size)
 {
 	struct ufs_inode_info *ufsi = UFS_I(inode);
-	struct super_block * sb;
-	struct ufs_sb_private_info * uspi;
-	int retry;
+	struct super_block *sb = inode->i_sb;
+	struct ufs_sb_private_info *uspi = UFS_SB(sb)->s_uspi;
+	int retry, err = 0;
 	
 	UFSD("ENTER\n");
-	sb = inode->i_sb;
-	uspi = UFS_SB(sb)->s_uspi;
 
-	if (!(S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode) || S_ISLNK(inode->i_mode)))
-		return;
+	if (!(S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode) ||
+	      S_ISLNK(inode->i_mode)))
+		return -EINVAL;
 	if (IS_APPEND(inode) || IS_IMMUTABLE(inode))
-		return;
+		return -EPERM;
 
-	block_truncate_page(inode->i_mapping,	inode->i_size, ufs_getfrag_block);
+	if (inode->i_size > old_i_size) {
+		/*
+		 * if we expand file we should care about
+		 * allocation of block for last byte first of all
+		 */
+		err = ufs_alloc_lastblock(inode);
+
+		if (err) {
+			i_size_write(inode, old_i_size);
+			goto out;
+		}
+		/*
+		 * go away, because of we expand file, and we do not
+		 * need free blocks, and zeroizes page
+		 */
+		lock_kernel();
+		goto almost_end;
+	}
+
+	block_truncate_page(inode->i_mapping, inode->i_size, ufs_getfrag_block);
 
 	lock_kernel();
 	while (1) {
@@ -404,9 +477,58 @@ void ufs_truncate (struct inode * inode)
 		yield();
 	}
 
+	if (inode->i_size < old_i_size) {
+		/*
+		 * now we should have enough space
+		 * to allocate block for last byte
+		 */
+		err = ufs_alloc_lastblock(inode);
+		if (err)
+			/*
+			 * looks like all the same - we have no space,
+			 * but we truncate file already
+			 */
+			inode->i_size = (ufsi->i_lastfrag - 1) * uspi->s_fsize;
+	}
+almost_end:
 	inode->i_mtime = inode->i_ctime = CURRENT_TIME_SEC;
-	ufsi->i_lastfrag = DIRECT_FRAGMENT;
 	unlock_kernel();
 	mark_inode_dirty(inode);
-	UFSD("EXIT\n");
+out:
+	UFSD("EXIT: err %d\n", err);
+	return err;
 }
+
+
+/*
+ * We don't define our `inode->i_op->truncate', and call it here,
+ * because of:
+ * - there is no way to know old size
+ * - there is no way inform user about error, if it happens in `truncate'
+ */
+static int ufs_setattr(struct dentry *dentry, struct iattr *attr)
+{
+	struct inode *inode = dentry->d_inode;
+	unsigned int ia_valid = attr->ia_valid;
+	int error;
+
+	error = inode_change_ok(inode, attr);
+	if (error)
+		return error;
+
+	if (ia_valid & ATTR_SIZE &&
+	    attr->ia_size != i_size_read(inode)) {
+		loff_t old_i_size = inode->i_size;
+		error = vmtruncate(inode, attr->ia_size);
+		if (error)
+			return error;
+		error = ufs_truncate(inode, old_i_size);
+		if (error)
+			return error;
+	}
+	return inode_setattr(inode, attr);
+}
+
+struct inode_operations ufs_file_inode_operations = {
+	.setattr = ufs_setattr,
+};
