@@ -162,8 +162,8 @@ static u64 mmc1_dmamask = 0xffffffff;
 
 static struct resource mmc1_resources[] = {
 	{
-		.start		= IO_ADDRESS(OMAP_MMC1_BASE),
-		.end		= IO_ADDRESS(OMAP_MMC1_BASE) + 0x7f,
+		.start		= OMAP_MMC1_BASE,
+		.end		= OMAP_MMC1_BASE + 0x7f,
 		.flags		= IORESOURCE_MEM,
 	},
 	{
@@ -191,8 +191,8 @@ static u64 mmc2_dmamask = 0xffffffff;
 
 static struct resource mmc2_resources[] = {
 	{
-		.start		= IO_ADDRESS(OMAP_MMC2_BASE),
-		.end		= IO_ADDRESS(OMAP_MMC2_BASE) + 0x7f,
+		.start		= OMAP_MMC2_BASE,
+		.end		= OMAP_MMC2_BASE + 0x7f,
 		.flags		= IORESOURCE_MEM,
 	},
 	{
