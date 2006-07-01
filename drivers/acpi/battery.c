@@ -171,7 +171,7 @@ acpi_battery_get_info(struct acpi_battery *battery,
 	}
 
       end:
-	acpi_os_free(buffer.pointer);
+	kfree(buffer.pointer);
 
 	if (!result)
 		(*bif) = (struct acpi_battery_info *)data.pointer;
@@ -231,7 +231,7 @@ acpi_battery_get_status(struct acpi_battery *battery,
 	}
 
       end:
-	acpi_os_free(buffer.pointer);
+	kfree(buffer.pointer);
 
 	if (!result)
 		(*bst) = (struct acpi_battery_status *)data.pointer;
