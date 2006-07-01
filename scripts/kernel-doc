@@ -1119,7 +1119,10 @@ sub output_function_text(%) {
     my %args = %{$_[0]};
     my ($parameter, $section);
 
-    print "Function:\n\n";
+    print "Name:\n\n";
+    print $args{'function'}." - ".$args{'purpose'}."\n";
+
+    print "\nSynopsis:\n\n";
     my $start=$args{'functiontype'}." ".$args{'function'}." (";
     print $start;
     my $count = 0;
