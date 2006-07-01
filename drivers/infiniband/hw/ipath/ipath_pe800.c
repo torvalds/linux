@@ -533,7 +533,7 @@ static int ipath_pe_boardname(struct ipath_devdata *dd, char *name,
 	if (n)
 		snprintf(name, namelen, "%s", n);
 
-	if (dd->ipath_majrev != 4 || dd->ipath_minrev != 1) {
+	if (dd->ipath_majrev != 4 || !dd->ipath_minrev || dd->ipath_minrev>2) {
 		ipath_dev_err(dd, "Unsupported PE-800 revision %u.%u!\n",
 			      dd->ipath_majrev, dd->ipath_minrev);
 		ret = 1;

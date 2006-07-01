@@ -491,8 +491,11 @@ struct ipath_devdata {
 	u16 ipath_lid;
 	/* list of pkeys programmed; 0 if not set */
 	u16 ipath_pkeys[4];
-	/* ASCII serial number, from flash */
-	u8 ipath_serial[12];
+	/*
+	 * ASCII serial number, from flash, large enough for original
+	 * all digit strings, and longer QLogic serial number format
+	 */
+	u8 ipath_serial[16];
 	/* human readable board version */
 	u8 ipath_boardversion[80];
 	/* chip major rev, from ipath_revision */

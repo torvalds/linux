@@ -476,7 +476,7 @@ struct ipath_sma_pkt
  * Data layout in I2C flash (for GUID, etc.)
  * All fields are little-endian binary unless otherwise stated
  */
-#define IPATH_FLASH_VERSION 1
+#define IPATH_FLASH_VERSION 2
 struct ipath_flash {
 	/* flash layout version (IPATH_FLASH_VERSION) */
 	__u8 if_fversion;
@@ -484,14 +484,14 @@ struct ipath_flash {
 	__u8 if_csum;
 	/*
 	 * valid length (in use, protected by if_csum), including
-	 * if_fversion and if_sum themselves)
+	 * if_fversion and if_csum themselves)
 	 */
 	__u8 if_length;
 	/* the GUID, in network order */
 	__u8 if_guid[8];
 	/* number of GUIDs to use, starting from if_guid */
 	__u8 if_numguid;
-	/* the board serial number, in ASCII */
+	/* the (last 10 characters of) board serial number, in ASCII */
 	char if_serial[12];
 	/* board mfg date (YYYYMMDD ASCII) */
 	char if_mfgdate[8];
@@ -503,8 +503,10 @@ struct ipath_flash {
 	__u8 if_powerhour[2];
 	/* ASCII free-form comment field */
 	char if_comment[32];
-	/* 78 bytes used, min flash size is 128 bytes */
-	__u8 if_future[50];
+	/* Backwards compatible prefix for longer QLogic Serial Numbers */
+	char if_sprefix[4];
+	/* 82 bytes used, min flash size is 128 bytes */
+	__u8 if_future[46];
 };
 
 /*
