@@ -111,6 +111,7 @@ extern void iwmmxt_task_disable(struct thread_info *);
 extern void iwmmxt_task_copy(struct thread_info *, void *);
 extern void iwmmxt_task_restore(struct thread_info *, void *);
 extern void iwmmxt_task_release(struct thread_info *);
+extern void iwmmxt_task_switch(struct thread_info *);
 
 #endif
 
