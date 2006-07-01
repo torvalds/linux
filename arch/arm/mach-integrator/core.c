@@ -13,6 +13,7 @@
 #include <linux/device.h>
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
 #include <linux/sched.h>
 #include <linux/smp.h>
 #include <linux/termios.h>
