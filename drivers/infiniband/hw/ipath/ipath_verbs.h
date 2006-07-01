@@ -307,32 +307,34 @@ struct ipath_qp {
 	u32 s_next_psn;		/* PSN for next request */
 	u32 s_last_psn;		/* last response PSN processed */
 	u32 s_psn;		/* current packet sequence number */
+	u32 s_ack_psn;		/* PSN for RDMA_READ */
 	u32 s_rnr_timeout;	/* number of milliseconds for RNR timeout */
-	u32 s_ack_psn;		/* PSN for next ACK or RDMA_READ */
-	u64 s_ack_atomic;	/* data for atomic ACK */
+	u32 r_ack_psn;		/* PSN for next ACK or atomic ACK */
 	u64 r_wr_id;		/* ID for current receive WQE */
 	u64 r_atomic_data;	/* data for last atomic op */
 	u32 r_atomic_psn;	/* PSN of last atomic op */
 	u32 r_len;		/* total length of r_sge */
 	u32 r_rcv_len;		/* receive data len processed */
 	u32 r_psn;		/* expected rcv packet sequence number */
+	u32 r_msn;		/* message sequence number */
 	u8 state;		/* QP state */
 	u8 s_state;		/* opcode of last packet sent */
 	u8 s_ack_state;		/* opcode of packet to ACK */
 	u8 s_nak_state;		/* non-zero if NAK is pending */
 	u8 r_state;		/* opcode of last packet received */
+	u8 r_ack_state;		/* opcode of packet to ACK */
+	u8 r_nak_state;		/* non-zero if NAK is pending */
+	u8 r_min_rnr_timer;	/* retry timeout value for RNR NAKs */
 	u8 r_reuse_sge;		/* for UC receive errors */
 	u8 r_sge_inx;		/* current index into sg_list */
-	u8 s_max_sge;		/* size of s_wq->sg_list */
 	u8 qp_access_flags;
+	u8 s_max_sge;		/* size of s_wq->sg_list */
 	u8 s_retry_cnt;		/* number of times to retry */
 	u8 s_rnr_retry_cnt;
-	u8 s_min_rnr_timer;
 	u8 s_retry;		/* requester retry counter */
 	u8 s_rnr_retry;		/* requester RNR retry counter */
 	u8 s_pkey_index;	/* PKEY index to use */
 	enum ib_mtu path_mtu;
-	atomic_t msn;		/* message sequence number */
 	u32 remote_qpn;
 	u32 qkey;		/* QKEY for this QP (for UD or RD) */
 	u32 s_size;		/* send work queue size */

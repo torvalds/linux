@@ -333,10 +333,11 @@ static void ipath_reset_qp(struct ipath_qp *qp)
 	qp->remote_qpn = 0;
 	qp->qkey = 0;
 	qp->qp_access_flags = 0;
+	clear_bit(IPATH_S_BUSY, &qp->s_flags);
 	qp->s_hdrwords = 0;
 	qp->s_psn = 0;
 	qp->r_psn = 0;
-	atomic_set(&qp->msn, 0);
+	qp->r_msn = 0;
 	if (qp->ibqp.qp_type == IB_QPT_RC) {
 		qp->s_state = IB_OPCODE_RC_SEND_LAST;
 		qp->r_state = IB_OPCODE_RC_SEND_LAST;
@@ -345,7 +346,8 @@ static void ipath_reset_qp(struct ipath_qp *qp)
 		qp->r_state = IB_OPCODE_UC_SEND_LAST;
 	}
 	qp->s_ack_state = IB_OPCODE_RC_ACKNOWLEDGE;
-	qp->s_nak_state = 0;
+	qp->r_ack_state = IB_OPCODE_RC_ACKNOWLEDGE;
+	qp->r_nak_state = 0;
 	qp->s_rnr_timeout = 0;
 	qp->s_head = 0;
 	qp->s_tail = 0;
@@ -363,10 +365,10 @@ static void ipath_reset_qp(struct ipath_qp *qp)
  * @qp: the QP to put into an error state
  *
  * Flushes both send and receive work queues.
- * QP r_rq.lock and s_lock should be held.
+ * QP s_lock should be held and interrupts disabled.
  */
 
-static void ipath_error_qp(struct ipath_qp *qp)
+void ipath_error_qp(struct ipath_qp *qp)
 {
 	struct ipath_ibdev *dev = to_idev(qp->ibqp.device);
 	struct ib_wc wc;
@@ -409,12 +411,14 @@ static void ipath_error_qp(struct ipath_qp *qp)
 	qp->s_ack_state = IB_OPCODE_RC_ACKNOWLEDGE;
 
 	wc.opcode = IB_WC_RECV;
+	spin_lock(&qp->r_rq.lock);
 	while (qp->r_rq.tail != qp->r_rq.head) {
 		wc.wr_id = get_rwqe_ptr(&qp->r_rq, qp->r_rq.tail)->wr_id;
 		if (++qp->r_rq.tail >= qp->r_rq.size)
 			qp->r_rq.tail = 0;
 		ipath_cq_enter(to_icq(qp->ibqp.recv_cq), &wc, 1);
 	}
+	spin_unlock(&qp->r_rq.lock);
 }
 
 /**
@@ -434,8 +438,7 @@ int ipath_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	unsigned long flags;
 	int ret;
 
-	spin_lock_irqsave(&qp->r_rq.lock, flags);
-	spin_lock(&qp->s_lock);
+	spin_lock_irqsave(&qp->s_lock, flags);
 
 	cur_state = attr_mask & IB_QP_CUR_STATE ?
 		attr->cur_qp_state : qp->state;
@@ -506,31 +509,19 @@ int ipath_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	}
 
 	if (attr_mask & IB_QP_MIN_RNR_TIMER)
-		qp->s_min_rnr_timer = attr->min_rnr_timer;
+		qp->r_min_rnr_timer = attr->min_rnr_timer;
 
 	if (attr_mask & IB_QP_QKEY)
 		qp->qkey = attr->qkey;
 
 	qp->state = new_state;
-	spin_unlock(&qp->s_lock);
-	spin_unlock_irqrestore(&qp->r_rq.lock, flags);
+	spin_unlock_irqrestore(&qp->s_lock, flags);
 
-	/*
-	 * If QP1 changed to the RTS state, try to move to the link to INIT
-	 * even if it was ACTIVE so the SM will reinitialize the SMA's
-	 * state.
-	 */
-	if (qp->ibqp.qp_num == 1 && new_state == IB_QPS_RTS) {
-		struct ipath_ibdev *dev = to_idev(ibqp->device);
-
-		ipath_layer_set_linkstate(dev->dd, IPATH_IB_LINKDOWN);
-	}
 	ret = 0;
 	goto bail;
 
 inval:
-	spin_unlock(&qp->s_lock);
-	spin_unlock_irqrestore(&qp->r_rq.lock, flags);
+	spin_unlock_irqrestore(&qp->s_lock, flags);
 	ret = -EINVAL;
 
 bail:
@@ -564,7 +555,7 @@ int ipath_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	attr->sq_draining = 0;
 	attr->max_rd_atomic = 1;
 	attr->max_dest_rd_atomic = 1;
-	attr->min_rnr_timer = qp->s_min_rnr_timer;
+	attr->min_rnr_timer = qp->r_min_rnr_timer;
 	attr->port_num = 1;
 	attr->timeout = 0;
 	attr->retry_cnt = qp->s_retry_cnt;
@@ -591,16 +582,12 @@ int ipath_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
  * @qp: the queue pair to compute the AETH for
  *
  * Returns the AETH.
- *
- * The QP s_lock should be held.
  */
 __be32 ipath_compute_aeth(struct ipath_qp *qp)
 {
-	u32 aeth = atomic_read(&qp->msn) & IPS_MSN_MASK;
+	u32 aeth = qp->r_msn & IPS_MSN_MASK;
 
-	if (qp->s_nak_state) {
-		aeth |= qp->s_nak_state << IPS_AETH_CREDIT_SHIFT;
-	} else if (qp->ibqp.srq) {
+	if (qp->ibqp.srq) {
 		/*
 		 * Shared receive queues don't generate credits.
 		 * Set the credit field to the invalid value.

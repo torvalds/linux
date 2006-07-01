@@ -241,7 +241,6 @@ void ipath_uc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 	u32 hdrsize;
 	u32 psn;
 	u32 pad;
-	unsigned long flags;
 	struct ib_wc wc;
 	u32 pmtu = ib_mtu_enum_to_int(qp->path_mtu);
 	struct ib_reth *reth;
@@ -278,8 +277,6 @@ void ipath_uc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 
 	wc.imm_data = 0;
 	wc.wc_flags = 0;
-
-	spin_lock_irqsave(&qp->r_rq.lock, flags);
 
 	/* Compare the PSN verses the expected PSN. */
 	if (unlikely(ipath_cmp24(psn, qp->r_psn) != 0)) {
@@ -537,15 +534,11 @@ void ipath_uc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 
 	default:
 		/* Drop packet for unknown opcodes. */
-		spin_unlock_irqrestore(&qp->r_rq.lock, flags);
 		dev->n_pkt_drops++;
-		goto bail;
+		goto done;
 	}
 	qp->r_psn++;
 	qp->r_state = opcode;
 done:
-	spin_unlock_irqrestore(&qp->r_rq.lock, flags);
-
-bail:
 	return;
 }

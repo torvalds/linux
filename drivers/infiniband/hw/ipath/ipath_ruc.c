@@ -113,20 +113,23 @@ void ipath_insert_rnr_queue(struct ipath_qp *qp)
  *
  * Return 0 if no RWQE is available, otherwise return 1.
  *
- * Called at interrupt level with the QP r_rq.lock held.
+ * Can be called from interrupt level.
  */
 int ipath_get_rwqe(struct ipath_qp *qp, int wr_id_only)
 {
+	unsigned long flags;
 	struct ipath_rq *rq;
 	struct ipath_srq *srq;
 	struct ipath_rwqe *wqe;
-	int ret;
+	int ret = 1;
 
 	if (!qp->ibqp.srq) {
 		rq = &qp->r_rq;
+		spin_lock_irqsave(&rq->lock, flags);
+
 		if (unlikely(rq->tail == rq->head)) {
 			ret = 0;
-			goto bail;
+			goto done;
 		}
 		wqe = get_rwqe_ptr(rq, rq->tail);
 		qp->r_wr_id = wqe->wr_id;
@@ -138,17 +141,16 @@ int ipath_get_rwqe(struct ipath_qp *qp, int wr_id_only)
 		}
 		if (++rq->tail >= rq->size)
 			rq->tail = 0;
-		ret = 1;
-		goto bail;
+		goto done;
 	}
 
 	srq = to_isrq(qp->ibqp.srq);
 	rq = &srq->rq;
-	spin_lock(&rq->lock);
+	spin_lock_irqsave(&rq->lock, flags);
+
 	if (unlikely(rq->tail == rq->head)) {
-		spin_unlock(&rq->lock);
 		ret = 0;
-		goto bail;
+		goto done;
 	}
 	wqe = get_rwqe_ptr(rq, rq->tail);
 	qp->r_wr_id = wqe->wr_id;
@@ -170,18 +172,18 @@ int ipath_get_rwqe(struct ipath_qp *qp, int wr_id_only)
 			n = rq->head - rq->tail;
 		if (n < srq->limit) {
 			srq->limit = 0;
-			spin_unlock(&rq->lock);
+			spin_unlock_irqrestore(&rq->lock, flags);
 			ev.device = qp->ibqp.device;
 			ev.element.srq = qp->ibqp.srq;
 			ev.event = IB_EVENT_SRQ_LIMIT_REACHED;
 			srq->ibsrq.event_handler(&ev,
 						 srq->ibsrq.srq_context);
-		} else
-			spin_unlock(&rq->lock);
-	} else
-		spin_unlock(&rq->lock);
-	ret = 1;
+			goto bail;
+		}
+	}
 
+done:
+	spin_unlock_irqrestore(&rq->lock, flags);
 bail:
 	return ret;
 }
@@ -248,10 +250,8 @@ again:
 		wc.imm_data = wqe->wr.imm_data;
 		/* FALLTHROUGH */
 	case IB_WR_SEND:
-		spin_lock_irqsave(&qp->r_rq.lock, flags);
 		if (!ipath_get_rwqe(qp, 0)) {
 		rnr_nak:
-			spin_unlock_irqrestore(&qp->r_rq.lock, flags);
 			/* Handle RNR NAK */
 			if (qp->ibqp.qp_type == IB_QPT_UC)
 				goto send_comp;
@@ -263,20 +263,17 @@ again:
 				sqp->s_rnr_retry--;
 			dev->n_rnr_naks++;
 			sqp->s_rnr_timeout =
-				ib_ipath_rnr_table[sqp->s_min_rnr_timer];
+				ib_ipath_rnr_table[sqp->r_min_rnr_timer];
 			ipath_insert_rnr_queue(sqp);
 			goto done;
 		}
-		spin_unlock_irqrestore(&qp->r_rq.lock, flags);
 		break;
 
 	case IB_WR_RDMA_WRITE_WITH_IMM:
 		wc.wc_flags = IB_WC_WITH_IMM;
 		wc.imm_data = wqe->wr.imm_data;
-		spin_lock_irqsave(&qp->r_rq.lock, flags);
 		if (!ipath_get_rwqe(qp, 1))
 			goto rnr_nak;
-		spin_unlock_irqrestore(&qp->r_rq.lock, flags);
 		/* FALLTHROUGH */
 	case IB_WR_RDMA_WRITE:
 		if (wqe->length == 0)

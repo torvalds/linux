@@ -42,7 +42,7 @@
  * @qp: the QP who's SGE we're restarting
  * @wqe: the work queue to initialize the QP's SGE from
  *
- * The QP s_lock should be held.
+ * The QP s_lock should be held and interrupts disabled.
  */
 static void ipath_init_restart(struct ipath_qp *qp, struct ipath_swqe *wqe)
 {
@@ -77,7 +77,6 @@ u32 ipath_make_rc_ack(struct ipath_qp *qp,
 		      struct ipath_other_headers *ohdr,
 		      u32 pmtu)
 {
-	struct ipath_sge_state *ss;
 	u32 hwords;
 	u32 len;
 	u32 bth0;
@@ -91,7 +90,7 @@ u32 ipath_make_rc_ack(struct ipath_qp *qp,
 	 */
 	switch (qp->s_ack_state) {
 	case OP(RDMA_READ_REQUEST):
-		ss = &qp->s_rdma_sge;
+		qp->s_cur_sge = &qp->s_rdma_sge;
 		len = qp->s_rdma_len;
 		if (len > pmtu) {
 			len = pmtu;
@@ -108,7 +107,7 @@ u32 ipath_make_rc_ack(struct ipath_qp *qp,
 		qp->s_ack_state = OP(RDMA_READ_RESPONSE_MIDDLE);
 		/* FALLTHROUGH */
 	case OP(RDMA_READ_RESPONSE_MIDDLE):
-		ss = &qp->s_rdma_sge;
+		qp->s_cur_sge = &qp->s_rdma_sge;
 		len = qp->s_rdma_len;
 		if (len > pmtu)
 			len = pmtu;
@@ -127,41 +126,50 @@ u32 ipath_make_rc_ack(struct ipath_qp *qp,
 		 * We have to prevent new requests from changing
 		 * the r_sge state while a ipath_verbs_send()
 		 * is in progress.
-		 * Changing r_state allows the receiver
-		 * to continue processing new packets.
-		 * We do it here now instead of above so
-		 * that we are sure the packet was sent before
-		 * changing the state.
 		 */
-		qp->r_state = OP(RDMA_READ_RESPONSE_LAST);
 		qp->s_ack_state = OP(ACKNOWLEDGE);
-		return 0;
+		bth0 = 0;
+		goto bail;
 
 	case OP(COMPARE_SWAP):
 	case OP(FETCH_ADD):
-		ss = NULL;
+		qp->s_cur_sge = NULL;
 		len = 0;
-		qp->r_state = OP(SEND_LAST);
-		qp->s_ack_state = OP(ACKNOWLEDGE);
-		bth0 = IB_OPCODE_ATOMIC_ACKNOWLEDGE << 24;
+		/*
+		 * Set the s_ack_state so the receive interrupt handler
+		 * won't try to send an ACK (out of order) until this one
+		 * is actually sent.
+		 */
+		qp->s_ack_state = OP(RDMA_READ_RESPONSE_LAST);
+		bth0 = OP(ATOMIC_ACKNOWLEDGE) << 24;
 		ohdr->u.at.aeth = ipath_compute_aeth(qp);
-		ohdr->u.at.atomic_ack_eth = cpu_to_be64(qp->s_ack_atomic);
+		ohdr->u.at.atomic_ack_eth = cpu_to_be64(qp->r_atomic_data);
 		hwords += sizeof(ohdr->u.at) / 4;
 		break;
 
 	default:
 		/* Send a regular ACK. */
-		ss = NULL;
+		qp->s_cur_sge = NULL;
 		len = 0;
-		qp->s_ack_state = OP(ACKNOWLEDGE);
-		bth0 = qp->s_ack_state << 24;
-		ohdr->u.aeth = ipath_compute_aeth(qp);
+		/*
+		 * Set the s_ack_state so the receive interrupt handler
+		 * won't try to send an ACK (out of order) until this one
+		 * is actually sent.
+		 */
+		qp->s_ack_state = OP(RDMA_READ_RESPONSE_LAST);
+		bth0 = OP(ACKNOWLEDGE) << 24;
+		if (qp->s_nak_state)
+			ohdr->u.aeth = cpu_to_be32((qp->r_msn & IPS_MSN_MASK) |
+						    (qp->s_nak_state <<
+						     IPS_AETH_CREDIT_SHIFT));
+		else
+			ohdr->u.aeth = ipath_compute_aeth(qp);
 		hwords++;
 	}
 	qp->s_hdrwords = hwords;
-	qp->s_cur_sge = ss;
 	qp->s_cur_size = len;
 
+bail:
 	return bth0;
 }
 
@@ -174,7 +182,7 @@ u32 ipath_make_rc_ack(struct ipath_qp *qp,
  * @bth2p: pointer to the BTH PSN word
  *
  * Return 1 if constructed; otherwise, return 0.
- * Note the QP s_lock must be held.
+ * Note the QP s_lock must be held and interrupts disabled.
  */
 int ipath_make_rc_req(struct ipath_qp *qp,
 		      struct ipath_other_headers *ohdr,
@@ -356,6 +364,11 @@ int ipath_make_rc_req(struct ipath_qp *qp,
 		bth2 |= qp->s_psn++ & IPS_PSN_MASK;
 		if ((int)(qp->s_psn - qp->s_next_psn) > 0)
 			qp->s_next_psn = qp->s_psn;
+		/*
+		 * Put the QP on the pending list so lost ACKs will cause
+		 * a retry.  More than one request can be pending so the
+		 * QP may already be on the dev->pending list.
+		 */
 		spin_lock(&dev->pending_lock);
 		if (list_empty(&qp->timerwait))
 			list_add_tail(&qp->timerwait,
@@ -365,8 +378,8 @@ int ipath_make_rc_req(struct ipath_qp *qp,
 
 	case OP(RDMA_READ_RESPONSE_FIRST):
 		/*
-		 * This case can only happen if a send is restarted.  See
-		 * ipath_restart_rc().
+		 * This case can only happen if a send is restarted.
+		 * See ipath_restart_rc().
 		 */
 		ipath_init_restart(qp, wqe);
 		/* FALLTHROUGH */
@@ -526,11 +539,17 @@ static void send_rc_ack(struct ipath_qp *qp)
 		ohdr = &hdr.u.l.oth;
 		lrh0 = IPS_LRH_GRH;
 	}
+	/* read pkey_index w/o lock (its atomic) */
 	bth0 = ipath_layer_get_pkey(dev->dd, qp->s_pkey_index);
-	ohdr->u.aeth = ipath_compute_aeth(qp);
-	if (qp->s_ack_state >= OP(COMPARE_SWAP)) {
-		bth0 |= IB_OPCODE_ATOMIC_ACKNOWLEDGE << 24;
-		ohdr->u.at.atomic_ack_eth = cpu_to_be64(qp->s_ack_atomic);
+	if (qp->r_nak_state)
+		ohdr->u.aeth = cpu_to_be32((qp->r_msn & IPS_MSN_MASK) |
+					    (qp->r_nak_state <<
+					     IPS_AETH_CREDIT_SHIFT));
+	else
+		ohdr->u.aeth = ipath_compute_aeth(qp);
+	if (qp->r_ack_state >= OP(COMPARE_SWAP)) {
+		bth0 |= OP(ATOMIC_ACKNOWLEDGE) << 24;
+		ohdr->u.at.atomic_ack_eth = cpu_to_be64(qp->r_atomic_data);
 		hwords += sizeof(ohdr->u.at.atomic_ack_eth) / 4;
 	} else
 		bth0 |= OP(ACKNOWLEDGE) << 24;
@@ -541,15 +560,36 @@ static void send_rc_ack(struct ipath_qp *qp)
 	hdr.lrh[3] = cpu_to_be16(ipath_layer_get_lid(dev->dd));
 	ohdr->bth[0] = cpu_to_be32(bth0);
 	ohdr->bth[1] = cpu_to_be32(qp->remote_qpn);
-	ohdr->bth[2] = cpu_to_be32(qp->s_ack_psn & IPS_PSN_MASK);
+	ohdr->bth[2] = cpu_to_be32(qp->r_ack_psn & IPS_PSN_MASK);
 
 	/*
 	 * If we can send the ACK, clear the ACK state.
 	 */
 	if (ipath_verbs_send(dev->dd, hwords, (u32 *) &hdr, 0, NULL) == 0) {
-		qp->s_ack_state = OP(ACKNOWLEDGE);
-		dev->n_rc_qacks++;
+		qp->r_ack_state = OP(ACKNOWLEDGE);
 		dev->n_unicast_xmit++;
+	} else {
+		/*
+		 * We are out of PIO buffers at the moment.
+		 * Pass responsibility for sending the ACK to the
+		 * send tasklet so that when a PIO buffer becomes
+		 * available, the ACK is sent ahead of other outgoing
+		 * packets.
+		 */
+		dev->n_rc_qacks++;
+		spin_lock_irq(&qp->s_lock);
+		/* Don't coalesce if a RDMA read or atomic is pending. */
+		if (qp->s_ack_state == OP(ACKNOWLEDGE) ||
+		    qp->s_ack_state < OP(RDMA_READ_REQUEST)) {
+			qp->s_ack_state = qp->r_ack_state;
+			qp->s_nak_state = qp->r_nak_state;
+			qp->s_ack_psn = qp->r_ack_psn;
+			qp->r_ack_state = OP(ACKNOWLEDGE);
+		}
+		spin_unlock_irq(&qp->s_lock);
+
+		/* Call ipath_do_rc_send() in another thread. */
+		tasklet_hi_schedule(&qp->s_task);
 	}
 }
 
@@ -641,7 +681,7 @@ done:
  * @psn: packet sequence number for the request
  * @wc: the work completion request
  *
- * The QP s_lock should be held.
+ * The QP s_lock should be held and interrupts disabled.
  */
 void ipath_restart_rc(struct ipath_qp *qp, u32 psn, struct ib_wc *wc)
 {
@@ -705,7 +745,7 @@ bail:
  *
  * This is called from ipath_rc_rcv_resp() to process an incoming RC ACK
  * for the given QP.
- * Called at interrupt level with the QP s_lock held.
+ * Called at interrupt level with the QP s_lock held and interrupts disabled.
  * Returns 1 if OK, 0 if current operation should be aborted (NAK).
  */
 static int do_rc_ack(struct ipath_qp *qp, u32 aeth, u32 psn, int opcode)
@@ -1126,18 +1166,16 @@ static inline int ipath_rc_rcv_error(struct ipath_ibdev *dev,
 		 * Don't queue the NAK if a RDMA read, atomic, or
 		 * NAK is pending though.
 		 */
-		spin_lock(&qp->s_lock);
-		if ((qp->s_ack_state >= OP(RDMA_READ_REQUEST) &&
-		     qp->s_ack_state != IB_OPCODE_ACKNOWLEDGE) ||
-		    qp->s_nak_state != 0) {
-			spin_unlock(&qp->s_lock);
+		if (qp->s_ack_state != OP(ACKNOWLEDGE) ||
+		    qp->r_nak_state != 0)
 			goto done;
+		if (qp->r_ack_state < OP(COMPARE_SWAP)) {
+			qp->r_ack_state = OP(SEND_ONLY);
+			qp->r_nak_state = IB_NAK_PSN_ERROR;
+			/* Use the expected PSN. */
+			qp->r_ack_psn = qp->r_psn;
 		}
-		qp->s_ack_state = OP(SEND_ONLY);
-		qp->s_nak_state = IB_NAK_PSN_ERROR;
-		/* Use the expected PSN. */
-		qp->s_ack_psn = qp->r_psn;
-		goto resched;
+		goto send_ack;
 	}
 
 	/*
@@ -1151,33 +1189,29 @@ static inline int ipath_rc_rcv_error(struct ipath_ibdev *dev,
 	 * send the earliest so that RDMA reads can be restarted at
 	 * the requester's expected PSN.
 	 */
-	spin_lock(&qp->s_lock);
-	if (qp->s_ack_state != IB_OPCODE_ACKNOWLEDGE &&
-	    ipath_cmp24(psn, qp->s_ack_psn) >= 0) {
-		if (qp->s_ack_state < IB_OPCODE_RDMA_READ_REQUEST)
-			qp->s_ack_psn = psn;
-		spin_unlock(&qp->s_lock);
-		goto done;
-	}
-	switch (opcode) {
-	case OP(RDMA_READ_REQUEST):
-		/*
-		 * We have to be careful to not change s_rdma_sge
-		 * while ipath_do_rc_send() is using it and not
-		 * holding the s_lock.
-		 */
-		if (qp->s_ack_state != OP(ACKNOWLEDGE) &&
-		    qp->s_ack_state >= IB_OPCODE_RDMA_READ_REQUEST) {
-			spin_unlock(&qp->s_lock);
-			dev->n_rdma_dup_busy++;
-			goto done;
-		}
+	if (opcode == OP(RDMA_READ_REQUEST)) {
 		/* RETH comes after BTH */
 		if (!header_in_data)
 			reth = &ohdr->u.rc.reth;
 		else {
 			reth = (struct ib_reth *)data;
 			data += sizeof(*reth);
+		}
+		/*
+		 * If we receive a duplicate RDMA request, it means the
+		 * requester saw a sequence error and needs to restart
+		 * from an earlier point.  We can abort the current
+		 * RDMA read send in that case.
+		 */
+		spin_lock_irq(&qp->s_lock);
+		if (qp->s_ack_state != OP(ACKNOWLEDGE) &&
+		    (qp->s_hdrwords || ipath_cmp24(psn, qp->s_ack_psn) >= 0)) {
+			/*
+			 * We are already sending earlier requested data.
+			 * Don't abort it to send later out of sequence data.
+			 */
+			spin_unlock_irq(&qp->s_lock);
+			goto done;
 		}
 		qp->s_rdma_len = be32_to_cpu(reth->length);
 		if (qp->s_rdma_len != 0) {
@@ -1192,8 +1226,10 @@ static inline int ipath_rc_rcv_error(struct ipath_ibdev *dev,
 			ok = ipath_rkey_ok(dev, &qp->s_rdma_sge,
 					   qp->s_rdma_len, vaddr, rkey,
 					   IB_ACCESS_REMOTE_READ);
-			if (unlikely(!ok))
+			if (unlikely(!ok)) {
+				spin_unlock_irq(&qp->s_lock);
 				goto done;
+			}
 		} else {
 			qp->s_rdma_sge.sg_list = NULL;
 			qp->s_rdma_sge.num_sge = 0;
@@ -1202,25 +1238,44 @@ static inline int ipath_rc_rcv_error(struct ipath_ibdev *dev,
 			qp->s_rdma_sge.sge.length = 0;
 			qp->s_rdma_sge.sge.sge_length = 0;
 		}
-		break;
+		qp->s_ack_state = opcode;
+		qp->s_ack_psn = psn;
+		spin_unlock_irq(&qp->s_lock);
+		tasklet_hi_schedule(&qp->s_task);
+		goto send_ack;
+	}
 
+	/*
+	 * A pending RDMA read will ACK anything before it so
+	 * ignore earlier duplicate requests.
+	 */
+	if (qp->s_ack_state != OP(ACKNOWLEDGE))
+		goto done;
+
+	/*
+	 * If an ACK is pending, don't replace the pending ACK
+	 * with an earlier one since the later one will ACK the earlier.
+	 * Also, if we already have a pending atomic, send it.
+	 */
+	if (qp->r_ack_state != OP(ACKNOWLEDGE) &&
+	    (ipath_cmp24(psn, qp->r_ack_psn) <= 0 ||
+	     qp->r_ack_state >= OP(COMPARE_SWAP)))
+		goto send_ack;
+	switch (opcode) {
 	case OP(COMPARE_SWAP):
 	case OP(FETCH_ADD):
 		/*
 		 * Check for the PSN of the last atomic operation
 		 * performed and resend the result if found.
 		 */
-		if ((psn & IPS_PSN_MASK) != qp->r_atomic_psn) {
-			spin_unlock(&qp->s_lock);
+		if ((psn & IPS_PSN_MASK) != qp->r_atomic_psn)
 			goto done;
-		}
-		qp->s_ack_atomic = qp->r_atomic_data;
 		break;
 	}
-	qp->s_ack_state = opcode;
-	qp->s_nak_state = 0;
-	qp->s_ack_psn = psn;
-resched:
+	qp->r_ack_state = opcode;
+	qp->r_nak_state = 0;
+	qp->r_ack_psn = psn;
+send_ack:
 	return 0;
 
 done:
@@ -1248,7 +1303,6 @@ void ipath_rc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 	u32 hdrsize;
 	u32 psn;
 	u32 pad;
-	unsigned long flags;
 	struct ib_wc wc;
 	u32 pmtu = ib_mtu_enum_to_int(qp->path_mtu);
 	int diff;
@@ -1289,10 +1343,8 @@ void ipath_rc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 	    opcode <= OP(ATOMIC_ACKNOWLEDGE)) {
 		ipath_rc_rcv_resp(dev, ohdr, data, tlen, qp, opcode, psn,
 				  hdrsize, pmtu, header_in_data);
-		goto bail;
+		goto done;
 	}
-
-	spin_lock_irqsave(&qp->r_rq.lock, flags);
 
 	/* Compute 24 bits worth of difference. */
 	diff = ipath_cmp24(psn, qp->r_psn);
@@ -1300,7 +1352,7 @@ void ipath_rc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 		if (ipath_rc_rcv_error(dev, ohdr, data, qp, opcode,
 				       psn, diff, header_in_data))
 			goto done;
-		goto resched;
+		goto send_ack;
 	}
 
 	/* Check for opcode sequence errors. */
@@ -1312,22 +1364,19 @@ void ipath_rc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 		    opcode == OP(SEND_LAST_WITH_IMMEDIATE))
 			break;
 	nack_inv:
-	/*
-	 * A NAK will ACK earlier sends and RDMA writes.  Don't queue the
-	 * NAK if a RDMA read, atomic, or NAK is pending though.
-	 */
-	spin_lock(&qp->s_lock);
-	if (qp->s_ack_state >= OP(RDMA_READ_REQUEST) &&
-	    qp->s_ack_state != IB_OPCODE_ACKNOWLEDGE) {
-		spin_unlock(&qp->s_lock);
-		goto done;
-	}
-	/* XXX Flush WQEs */
-	qp->state = IB_QPS_ERR;
-	qp->s_ack_state = OP(SEND_ONLY);
-	qp->s_nak_state = IB_NAK_INVALID_REQUEST;
-	qp->s_ack_psn = qp->r_psn;
-	goto resched;
+		/*
+		 * A NAK will ACK earlier sends and RDMA writes.
+		 * Don't queue the NAK if a RDMA read, atomic, or NAK
+		 * is pending though.
+		 */
+		if (qp->r_ack_state >= OP(COMPARE_SWAP))
+			goto send_ack;
+		/* XXX Flush WQEs */
+		qp->state = IB_QPS_ERR;
+		qp->r_ack_state = OP(SEND_ONLY);
+		qp->r_nak_state = IB_NAK_INVALID_REQUEST;
+		qp->r_ack_psn = qp->r_psn;
+		goto send_ack;
 
 	case OP(RDMA_WRITE_FIRST):
 	case OP(RDMA_WRITE_MIDDLE):
@@ -1337,20 +1386,6 @@ void ipath_rc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 			break;
 		goto nack_inv;
 
-	case OP(RDMA_READ_REQUEST):
-	case OP(COMPARE_SWAP):
-	case OP(FETCH_ADD):
-		/*
-		 * Drop all new requests until a response has been sent.  A
-		 * new request then ACKs the RDMA response we sent.  Relaxed
-		 * ordering would allow new requests to be processed but we
-		 * would need to keep a queue of rwqe's for all that are in
-		 * progress.  Note that we can't RNR NAK this request since
-		 * the RDMA READ or atomic response is already queued to be
-		 * sent (unless we implement a response send queue).
-		 */
-		goto done;
-
 	default:
 		if (opcode == OP(SEND_MIDDLE) ||
 		    opcode == OP(SEND_LAST) ||
@@ -1359,6 +1394,11 @@ void ipath_rc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 		    opcode == OP(RDMA_WRITE_LAST) ||
 		    opcode == OP(RDMA_WRITE_LAST_WITH_IMMEDIATE))
 			goto nack_inv;
+		/*
+		 * Note that it is up to the requester to not send a new
+		 * RDMA read or atomic operation before receiving an ACK
+		 * for the previous operation.
+		 */
 		break;
 	}
 
@@ -1375,17 +1415,12 @@ void ipath_rc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 			 * Don't queue the NAK if a RDMA read or atomic
 			 * is pending though.
 			 */
-			spin_lock(&qp->s_lock);
-			if (qp->s_ack_state >=
-			    OP(RDMA_READ_REQUEST) &&
-			    qp->s_ack_state != IB_OPCODE_ACKNOWLEDGE) {
-				spin_unlock(&qp->s_lock);
-				goto done;
-			}
-			qp->s_ack_state = OP(SEND_ONLY);
-			qp->s_nak_state = IB_RNR_NAK | qp->s_min_rnr_timer;
-			qp->s_ack_psn = qp->r_psn;
-			goto resched;
+			if (qp->r_ack_state >= OP(COMPARE_SWAP))
+				goto send_ack;
+			qp->r_ack_state = OP(SEND_ONLY);
+			qp->r_nak_state = IB_RNR_NAK | qp->r_min_rnr_timer;
+			qp->r_ack_psn = qp->r_psn;
+			goto send_ack;
 		}
 		qp->r_rcv_len = 0;
 		/* FALLTHROUGH */
@@ -1442,7 +1477,7 @@ void ipath_rc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 		if (unlikely(wc.byte_len > qp->r_len))
 			goto nack_inv;
 		ipath_copy_sge(&qp->r_sge, data, tlen);
-		atomic_inc(&qp->msn);
+		qp->r_msn++;
 		if (opcode == OP(RDMA_WRITE_LAST) ||
 		    opcode == OP(RDMA_WRITE_ONLY))
 			break;
@@ -1486,29 +1521,8 @@ void ipath_rc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 			ok = ipath_rkey_ok(dev, &qp->r_sge,
 					   qp->r_len, vaddr, rkey,
 					   IB_ACCESS_REMOTE_WRITE);
-			if (unlikely(!ok)) {
-			nack_acc:
-				/*
-				 * A NAK will ACK earlier sends and RDMA
-				 * writes.  Don't queue the NAK if a RDMA
-				 * read, atomic, or NAK is pending though.
-				 */
-				spin_lock(&qp->s_lock);
-				if (qp->s_ack_state >=
-				    OP(RDMA_READ_REQUEST) &&
-				    qp->s_ack_state !=
-				    IB_OPCODE_ACKNOWLEDGE) {
-					spin_unlock(&qp->s_lock);
-					goto done;
-				}
-				/* XXX Flush WQEs */
-				qp->state = IB_QPS_ERR;
-				qp->s_ack_state = OP(RDMA_WRITE_ONLY);
-				qp->s_nak_state =
-					IB_NAK_REMOTE_ACCESS_ERROR;
-				qp->s_ack_psn = qp->r_psn;
-				goto resched;
-			}
+			if (unlikely(!ok))
+				goto nack_acc;
 		} else {
 			qp->r_sge.sg_list = NULL;
 			qp->r_sge.sge.mr = NULL;
@@ -1535,12 +1549,10 @@ void ipath_rc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 			reth = (struct ib_reth *)data;
 			data += sizeof(*reth);
 		}
-		spin_lock(&qp->s_lock);
-		if (qp->s_ack_state != OP(ACKNOWLEDGE) &&
-		    qp->s_ack_state >= IB_OPCODE_RDMA_READ_REQUEST) {
-			spin_unlock(&qp->s_lock);
-			goto done;
-		}
+		if (unlikely(!(qp->qp_access_flags &
+			       IB_ACCESS_REMOTE_READ)))
+			goto nack_acc;
+		spin_lock_irq(&qp->s_lock);
 		qp->s_rdma_len = be32_to_cpu(reth->length);
 		if (qp->s_rdma_len != 0) {
 			u32 rkey = be32_to_cpu(reth->rkey);
@@ -1552,7 +1564,7 @@ void ipath_rc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 					   qp->s_rdma_len, vaddr, rkey,
 					   IB_ACCESS_REMOTE_READ);
 			if (unlikely(!ok)) {
-				spin_unlock(&qp->s_lock);
+				spin_unlock_irq(&qp->s_lock);
 				goto nack_acc;
 			}
 			/*
@@ -1569,21 +1581,25 @@ void ipath_rc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 			qp->s_rdma_sge.sge.length = 0;
 			qp->s_rdma_sge.sge.sge_length = 0;
 		}
-		if (unlikely(!(qp->qp_access_flags &
-			       IB_ACCESS_REMOTE_READ)))
-			goto nack_acc;
 		/*
 		 * We need to increment the MSN here instead of when we
 		 * finish sending the result since a duplicate request would
 		 * increment it more than once.
 		 */
-		atomic_inc(&qp->msn);
+		qp->r_msn++;
+
 		qp->s_ack_state = opcode;
-		qp->s_nak_state = 0;
 		qp->s_ack_psn = psn;
+		spin_unlock_irq(&qp->s_lock);
+
 		qp->r_psn++;
 		qp->r_state = opcode;
-		goto rdmadone;
+		qp->r_nak_state = 0;
+
+		/* Call ipath_do_rc_send() in another thread. */
+		tasklet_hi_schedule(&qp->s_task);
+
+		goto done;
 
 	case OP(COMPARE_SWAP):
 	case OP(FETCH_ADD): {
@@ -1612,7 +1628,7 @@ void ipath_rc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 			goto nack_acc;
 		/* Perform atomic OP and save result. */
 		sdata = be64_to_cpu(ateth->swap_data);
-		spin_lock(&dev->pending_lock);
+		spin_lock_irq(&dev->pending_lock);
 		qp->r_atomic_data = *(u64 *) qp->r_sge.sge.vaddr;
 		if (opcode == OP(FETCH_ADD))
 			*(u64 *) qp->r_sge.sge.vaddr =
@@ -1620,8 +1636,8 @@ void ipath_rc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 		else if (qp->r_atomic_data ==
 			 be64_to_cpu(ateth->compare_data))
 			*(u64 *) qp->r_sge.sge.vaddr = sdata;
-		spin_unlock(&dev->pending_lock);
-		atomic_inc(&qp->msn);
+		spin_unlock_irq(&dev->pending_lock);
+		qp->r_msn++;
 		qp->r_atomic_psn = psn & IPS_PSN_MASK;
 		psn |= 1 << 31;
 		break;
@@ -1633,44 +1649,39 @@ void ipath_rc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 	}
 	qp->r_psn++;
 	qp->r_state = opcode;
+	qp->r_nak_state = 0;
 	/* Send an ACK if requested or required. */
 	if (psn & (1 << 31)) {
 		/*
 		 * Coalesce ACKs unless there is a RDMA READ or
 		 * ATOMIC pending.
 		 */
-		spin_lock(&qp->s_lock);
-		if (qp->s_ack_state == OP(ACKNOWLEDGE) ||
-		    qp->s_ack_state < IB_OPCODE_RDMA_READ_REQUEST) {
-			qp->s_ack_state = opcode;
-			qp->s_nak_state = 0;
-			qp->s_ack_psn = psn;
-			qp->s_ack_atomic = qp->r_atomic_data;
-			goto resched;
+		if (qp->r_ack_state < OP(COMPARE_SWAP)) {
+			qp->r_ack_state = opcode;
+			qp->r_ack_psn = psn;
 		}
-		spin_unlock(&qp->s_lock);
+		goto send_ack;
 	}
-done:
-	spin_unlock_irqrestore(&qp->r_rq.lock, flags);
-	goto bail;
+	goto done;
 
-resched:
+nack_acc:
 	/*
-	 * Try to send ACK right away but not if ipath_do_rc_send() is
-	 * active.
+	 * A NAK will ACK earlier sends and RDMA writes.
+	 * Don't queue the NAK if a RDMA read, atomic, or NAK
+	 * is pending though.
 	 */
-	if (qp->s_hdrwords == 0 &&
-	    (qp->s_ack_state < IB_OPCODE_RDMA_READ_REQUEST ||
-	     qp->s_ack_state >= IB_OPCODE_COMPARE_SWAP))
+	if (qp->r_ack_state < OP(COMPARE_SWAP)) {
+		/* XXX Flush WQEs */
+		qp->state = IB_QPS_ERR;
+		qp->r_ack_state = OP(RDMA_WRITE_ONLY);
+		qp->r_nak_state = IB_NAK_REMOTE_ACCESS_ERROR;
+		qp->r_ack_psn = qp->r_psn;
+	}
+send_ack:
+	/* Send ACK right away unless the send tasklet has a pending ACK. */
+	if (qp->s_ack_state == OP(ACKNOWLEDGE))
 		send_rc_ack(qp);
 
-rdmadone:
-	spin_unlock(&qp->s_lock);
-	spin_unlock_irqrestore(&qp->r_rq.lock, flags);
-
-	/* Call ipath_do_rc_send() in another thread. */
-	tasklet_hi_schedule(&qp->s_task);
-
-bail:
+done:
 	return;
 }
