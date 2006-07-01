@@ -275,6 +275,11 @@ int ipath_post_ud_send(struct ipath_qp *qp, struct ib_send_wr *wr)
 		len += wr->sg_list[i].length;
 		ss.num_sge++;
 	}
+	/* Check for invalid packet size. */
+	if (len > ipath_layer_get_ibmtu(dev->dd)) {
+		ret = -EINVAL;
+		goto bail;
+	}
 	extra_bytes = (4 - len) & 3;
 	nwords = (len + extra_bytes) >> 2;
 
