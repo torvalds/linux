@@ -280,7 +280,7 @@ static ssize_t store_lid(struct device *dev,
 	if (ret < 0)
 		goto invalid;
 
-	if (lid == 0 || lid >= 0xc000) {
+	if (lid == 0 || lid >= IPS_MULTICAST_LID_BASE) {
 		ret = -EINVAL;
 		goto invalid;
 	}
@@ -314,7 +314,7 @@ static ssize_t store_mlid(struct device *dev,
 	int ret;
 
 	ret = ipath_parse_ushort(buf, &mlid);
-	if (ret < 0)
+	if (ret < 0 || mlid < IPS_MULTICAST_LID_BASE)
 		goto invalid;
 
 	unit = dd->ipath_unit;
