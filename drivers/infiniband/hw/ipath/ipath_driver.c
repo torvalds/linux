@@ -425,12 +425,29 @@ static int __devinit ipath_init_one(struct pci_dev *pdev,
 		 */
 		ret = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
 		if (ret) {
-			dev_info(&pdev->dev, "pci_set_dma_mask unit %u "
-				 "fails: %d\n", dd->ipath_unit, ret);
+			dev_info(&pdev->dev,
+				"Unable to set DMA mask for unit %u: %d\n",
+				dd->ipath_unit, ret);
 			goto bail_regions;
 		}
-		else
+		else {
 			ipath_dbg("No 64bit DMA mask, used 32 bit mask\n");
+			ret = pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK);
+			if (ret)
+				dev_info(&pdev->dev,
+					"Unable to set DMA consistent mask "
+					"for unit %u: %d\n",
+					dd->ipath_unit, ret);
+
+		}
+	}
+	else {
+		ret = pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK);
+		if (ret)
+			dev_info(&pdev->dev,
+				"Unable to set DMA consistent mask "
+				"for unit %u: %d\n",
+				dd->ipath_unit, ret);
 	}
 
 	pci_set_master(pdev);
