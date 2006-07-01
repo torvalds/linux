@@ -870,7 +870,7 @@ void ipath_kreceive(struct ipath_devdata *dd)
 	const u32 maxcnt = dd->ipath_rcvhdrcnt * rsize;	/* words */
 	u32 etail = -1, l, hdrqtail;
 	struct ips_message_header *hdr;
-	u32 eflags, i, etype, tlen, pkttot = 0, updegr=0;
+	u32 eflags, i, etype, tlen, pkttot = 0, updegr=0, reloop=0;
 	static u64 totcalls;	/* stats, may eventually remove */
 	char emsg[128];
 
@@ -885,9 +885,11 @@ void ipath_kreceive(struct ipath_devdata *dd)
 		goto bail;
 
 	l = dd->ipath_port0head;
-	if (l == (u32)le64_to_cpu(*dd->ipath_hdrqtailptr))
+	hdrqtail = (u32) le64_to_cpu(*dd->ipath_hdrqtailptr);
+	if (l == hdrqtail)
 		goto done;
 
+reloop:
 	/* read only once at start for performance */
 	hdrqtail = (u32)le64_to_cpu(*dd->ipath_hdrqtailptr);
 
@@ -1011,7 +1013,7 @@ void ipath_kreceive(struct ipath_devdata *dd)
 		 */
 		if (l == hdrqtail || (i && !(i&0xf))) {
 			u64 lval;
-			if (l == hdrqtail) /* want interrupt only on last */
+			if (l == hdrqtail) /* PE-800 interrupt only on last */
 				lval = dd->ipath_rhdrhead_intr_off | l;
 			else
 				lval = l;
@@ -1021,6 +1023,23 @@ void ipath_kreceive(struct ipath_devdata *dd)
 						       etail, 0);
 				updegr = 0;
 			}
+		}
+	}
+
+	if (!dd->ipath_rhdrhead_intr_off && !reloop) {
+		/* HT-400 workaround; we can have a race clearing chip
+		 * interrupt with another interrupt about to be delivered,
+		 * and can clear it before it is delivered on the GPIO
+		 * workaround.  By doing the extra check here for the
+		 * in-memory tail register updating while we were doing
+		 * earlier packets, we "almost" guarantee we have covered
+		 * that case.
+		 */
+		u32 hqtail = (u32)le64_to_cpu(*dd->ipath_hdrqtailptr);
+		if (hqtail != hdrqtail) {
+			hdrqtail = hqtail;
+			reloop = 1; /* loop 1 extra time at most */
+			goto reloop;
 		}
 	}
 

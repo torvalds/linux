@@ -766,7 +766,7 @@ irqreturn_t ipath_intr(int irq, void *data, struct pt_regs *regs)
 	u32 istat, chk0rcv = 0;
 	ipath_err_t estat = 0;
 	irqreturn_t ret;
-	u32 p0bits, oldhead;
+	u32 oldhead, curtail;
 	static unsigned unexpected = 0;
 	static const u32 port0rbits = (1U<<INFINIPATH_I_RCVAVAIL_SHIFT) |
 		 (1U<<INFINIPATH_I_RCVURG_SHIFT);
@@ -809,15 +809,16 @@ irqreturn_t ipath_intr(int irq, void *data, struct pt_regs *regs)
 	 * lose intr for later packets that arrive while we are processing.
 	 */
 	oldhead = dd->ipath_port0head;
-	if (oldhead != (u32) le64_to_cpu(*dd->ipath_hdrqtailptr)) {
+	curtail = (u32)le64_to_cpu(*dd->ipath_hdrqtailptr);
+	if (oldhead != curtail) {
 		if (dd->ipath_flags & IPATH_GPIO_INTR) {
 			ipath_write_kreg(dd, dd->ipath_kregs->kr_gpio_clear,
 					 (u64) (1 << 2));
-			p0bits = port0rbits | INFINIPATH_I_GPIO;
+			istat = port0rbits | INFINIPATH_I_GPIO;
 		}
 		else
-			p0bits = port0rbits;
-		ipath_write_kreg(dd, dd->ipath_kregs->kr_intclear, p0bits);
+			istat = port0rbits;
+		ipath_write_kreg(dd, dd->ipath_kregs->kr_intclear, istat);
 		ipath_kreceive(dd);
 		if (oldhead != dd->ipath_port0head) {
 			ipath_stats.sps_fastrcvint++;
@@ -827,7 +828,6 @@ irqreturn_t ipath_intr(int irq, void *data, struct pt_regs *regs)
 	}
 
 	istat = ipath_read_kreg32(dd, dd->ipath_kregs->kr_intstatus);
-	p0bits = port0rbits;
 
 	if (unlikely(!istat)) {
 		ipath_stats.sps_nullintr++;
@@ -890,19 +890,19 @@ irqreturn_t ipath_intr(int irq, void *data, struct pt_regs *regs)
 		else {
 			/* Clear GPIO status bit 2 */
 			ipath_write_kreg(dd, dd->ipath_kregs->kr_gpio_clear,
-					 (u64) (1 << 2));
-			p0bits |= INFINIPATH_I_GPIO;
+					(u64) (1 << 2));
 			chk0rcv = 1;
 		}
 	}
-	chk0rcv |= istat & p0bits;
+	chk0rcv |= istat & port0rbits;
 
 	/*
-	 * clear the ones we will deal with on this round
-	 * We clear it early, mostly for receive interrupts, so we
-	 * know the chip will have seen this by the time we process
-	 * the queue, and will re-interrupt if necessary.  The processor
-	 * itself won't take the interrupt again until we return.
+	 * Clear the interrupt bits we found set, unless they are receive
+	 * related, in which case we already cleared them above, and don't
+	 * want to clear them again, because we might lose an interrupt.
+	 * Clear it early, so we "know" know the chip will have seen this by
+	 * the time we process the queue, and will re-interrupt if necessary.
+	 * The processor itself won't take the interrupt again until we return.
 	 */
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_intclear, istat);
 
