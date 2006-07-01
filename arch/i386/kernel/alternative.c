@@ -168,6 +168,8 @@ void apply_alternatives(struct alt_instr *start, struct alt_instr *end)
 	}
 }
 
+#ifdef CONFIG_SMP
+
 static void alternatives_smp_save(struct alt_instr *start, struct alt_instr *end)
 {
 	struct alt_instr *a;
@@ -328,6 +330,8 @@ void alternatives_smp_switch(int smp)
 	spin_unlock_irqrestore(&smp_alt, flags);
 }
 
+#endif
+
 void __init alternative_instructions(void)
 {
 	if (no_replacement) {
@@ -349,6 +353,7 @@ void __init alternative_instructions(void)
 	smp_alt_once = 1;
 #endif
 
+#ifdef CONFIG_SMP
 	if (smp_alt_once) {
 		if (1 == num_possible_cpus()) {
 			printk(KERN_INFO "SMP alternatives: switching to UP code\n");
@@ -370,4 +375,5 @@ void __init alternative_instructions(void)
 					    _text, _etext);
 		alternatives_smp_switch(0);
 	}
+#endif
 }
