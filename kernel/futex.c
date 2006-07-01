@@ -1208,7 +1208,7 @@ static int do_futex_lock_pi(u32 __user *uaddr, int detect, int trylock,
 	}
 
 	down_read(&curr->mm->mmap_sem);
-	hb = queue_lock(&q, -1, NULL);
+	spin_lock(q.lock_ptr);
 
 	/*
 	 * Got the lock. We might not be the anticipated owner if we
