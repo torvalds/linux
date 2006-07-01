@@ -1053,32 +1053,32 @@ static inline void ipath_rc_rcv_resp(struct ipath_ibdev *dev,
 			goto ack_done;
 		}
 	rdma_read:
-	if (unlikely(qp->s_state != OP(RDMA_READ_REQUEST)))
-		goto ack_done;
-	if (unlikely(tlen != (hdrsize + pmtu + 4)))
-		goto ack_done;
-	if (unlikely(pmtu >= qp->s_len))
-		goto ack_done;
-	/* We got a response so update the timeout. */
-	if (unlikely(qp->s_last == qp->s_tail ||
-		     get_swqe_ptr(qp, qp->s_last)->wr.opcode !=
-		     IB_WR_RDMA_READ))
-		goto ack_done;
-	spin_lock(&dev->pending_lock);
-	if (qp->s_rnr_timeout == 0 && !list_empty(&qp->timerwait))
-		list_move_tail(&qp->timerwait,
-			       &dev->pending[dev->pending_index]);
-	spin_unlock(&dev->pending_lock);
-	/*
-	 * Update the RDMA receive state but do the copy w/o holding the
-	 * locks and blocking interrupts.  XXX Yet another place that
-	 * affects relaxed RDMA order since we don't want s_sge modified.
-	 */
-	qp->s_len -= pmtu;
-	qp->s_last_psn = psn;
-	spin_unlock_irqrestore(&qp->s_lock, flags);
-	ipath_copy_sge(&qp->s_sge, data, pmtu);
-	goto bail;
+		if (unlikely(qp->s_state != OP(RDMA_READ_REQUEST)))
+			goto ack_done;
+		if (unlikely(tlen != (hdrsize + pmtu + 4)))
+			goto ack_done;
+		if (unlikely(pmtu >= qp->s_len))
+			goto ack_done;
+		/* We got a response so update the timeout. */
+		if (unlikely(qp->s_last == qp->s_tail ||
+			     get_swqe_ptr(qp, qp->s_last)->wr.opcode !=
+			     IB_WR_RDMA_READ))
+			goto ack_done;
+		spin_lock(&dev->pending_lock);
+		if (qp->s_rnr_timeout == 0 && !list_empty(&qp->timerwait))
+			list_move_tail(&qp->timerwait,
+				       &dev->pending[dev->pending_index]);
+		spin_unlock(&dev->pending_lock);
+		/*
+		 * Update the RDMA receive state but do the copy w/o holding the
+		 * locks and blocking interrupts.  XXX Yet another place that
+		 * affects relaxed RDMA order since we don't want s_sge modified.
+		 */
+		qp->s_len -= pmtu;
+		qp->s_last_psn = psn;
+		spin_unlock_irqrestore(&qp->s_lock, flags);
+		ipath_copy_sge(&qp->s_sge, data, pmtu);
+		goto bail;
 
 	case OP(RDMA_READ_RESPONSE_LAST):
 		/* ACKs READ req. */
