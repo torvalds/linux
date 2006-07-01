@@ -695,7 +695,7 @@ static int ipath_query_port(struct ib_device *ibdev,
 		ipath_layer_get_lastibcstat(dev->dd) & 0xf];
 	props->port_cap_flags = dev->port_cap_flags;
 	props->gid_tbl_len = 1;
-	props->max_msg_sz = 4096;
+	props->max_msg_sz = 0x80000000;
 	props->pkey_tbl_len = ipath_layer_get_npkeys(dev->dd);
 	props->bad_pkey_cntr = ipath_layer_get_cr_errpkey(dev->dd) -
 		dev->z_pkey_violations;
