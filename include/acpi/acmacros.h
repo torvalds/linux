@@ -726,7 +726,7 @@
 
 #define ACPI_ALLOCATE(a)            acpi_ut_allocate((acpi_size)(a),_COMPONENT,_acpi_module_name,__LINE__)
 #define ACPI_ALLOCATE_ZEROED(a)     acpi_ut_allocate_zeroed((acpi_size)(a), _COMPONENT,_acpi_module_name,__LINE__)
-#define ACPI_FREE(a)                acpi_os_free(a)
+#define ACPI_FREE(a)                kfree(a)
 #define ACPI_MEM_TRACKING(a)
 
 #else
