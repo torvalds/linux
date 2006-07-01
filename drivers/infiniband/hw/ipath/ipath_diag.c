@@ -67,18 +67,20 @@ static struct file_operations diag_file_ops = {
 	.release = ipath_diag_release
 };
 
-static struct cdev *diag_cdev;
-static struct class_device *diag_class_dev;
-
-int ipath_diag_init(void)
+int ipath_diag_add(struct ipath_devdata *dd)
 {
-	return ipath_cdev_init(IPATH_DIAG_MINOR, "ipath_diag",
-			       &diag_file_ops, &diag_cdev, &diag_class_dev);
+	char name[16];
+
+	snprintf(name, sizeof(name), "ipath_diag%d", dd->ipath_unit);
+
+	return ipath_cdev_init(IPATH_DIAG_MINOR_BASE + dd->ipath_unit, name,
+			       &diag_file_ops, &dd->diag_cdev,
+			       &dd->diag_class_dev);
 }
 
-void ipath_diag_cleanup(void)
+void ipath_diag_remove(struct ipath_devdata *dd)
 {
-	ipath_cdev_cleanup(&diag_cdev, &diag_class_dev);
+	ipath_cdev_cleanup(&dd->diag_cdev, &dd->diag_class_dev);
 }
 
 /**
@@ -102,8 +104,7 @@ static int ipath_read_umem64(struct ipath_devdata *dd, void __user *uaddr,
 	int ret;
 
 	/* not very efficient, but it works for now */
-	if (reg_addr < dd->ipath_kregbase ||
-	    reg_end > dd->ipath_kregend) {
+	if (reg_addr < dd->ipath_kregbase || reg_end > dd->ipath_kregend) {
 		ret = -EINVAL;
 		goto bail;
 	}
@@ -140,8 +141,7 @@ static int ipath_write_umem64(struct ipath_devdata *dd, void __iomem *caddr,
 	int ret;
 
 	/* not very efficient, but it works for now */
-	if (reg_addr < dd->ipath_kregbase ||
-	    reg_end > dd->ipath_kregend) {
+	if (reg_addr < dd->ipath_kregbase || reg_end > dd->ipath_kregend) {
 		ret = -EINVAL;
 		goto bail;
 	}
@@ -240,59 +240,45 @@ bail:
 
 static int ipath_diag_open(struct inode *in, struct file *fp)
 {
+	int unit = iminor(in) - IPATH_DIAG_MINOR_BASE;
 	struct ipath_devdata *dd;
-	int unit = 0; /* XXX this is bogus */
-	unsigned long flags;
 	int ret;
 
-	dd = ipath_lookup(unit);
-
 	mutex_lock(&ipath_mutex);
-	spin_lock_irqsave(&ipath_devs_lock, flags);
 
 	if (ipath_diag_inuse) {
 		ret = -EBUSY;
 		goto bail;
 	}
 
-	list_for_each_entry(dd, &ipath_dev_list, ipath_list) {
-		/*
-		 * we need at least one infinipath device to be present
-		 * (don't use INITTED, because we want to be able to open
-		 * even if device is in freeze mode, which cleared INITTED).
-		 * There is a small amount of risk to this, which is why we
-		 * also verify kregbase is set.
-		 */
+	dd = ipath_lookup(unit);
 
-		if (!(dd->ipath_flags & IPATH_PRESENT) ||
-		    !dd->ipath_kregbase)
-			continue;
-
-		ipath_diag_inuse = 1;
-		diag_set_link = 0;
-		ret = 0;
+	if (dd == NULL || !(dd->ipath_flags & IPATH_PRESENT) ||
+	    !dd->ipath_kregbase) {
+		ret = -ENODEV;
 		goto bail;
 	}
 
-	ret = -ENODEV;
-
-bail:
-	spin_unlock_irqrestore(&ipath_devs_lock, flags);
+	fp->private_data = dd;
+	ipath_diag_inuse = 1;
+	diag_set_link = 0;
+	ret = 0;
 
 	/* Only expose a way to reset the device if we
 	   make it into diag mode. */
-	if (ret == 0)
-		ipath_expose_reset(&dd->pcidev->dev);
+	ipath_expose_reset(&dd->pcidev->dev);
 
+bail:
 	mutex_unlock(&ipath_mutex);
 
 	return ret;
 }
 
-static int ipath_diag_release(struct inode *i, struct file *f)
+static int ipath_diag_release(struct inode *in, struct file *fp)
 {
 	mutex_lock(&ipath_mutex);
 	ipath_diag_inuse = 0;
+	fp->private_data = NULL;
 	mutex_unlock(&ipath_mutex);
 	return 0;
 }
@@ -300,16 +286,9 @@ static int ipath_diag_release(struct inode *i, struct file *f)
 static ssize_t ipath_diag_read(struct file *fp, char __user *data,
 			       size_t count, loff_t *off)
 {
-	int unit = 0; /* XXX provide for reads on other units some day */
-	struct ipath_devdata *dd;
+	struct ipath_devdata *dd = fp->private_data;
 	void __iomem *kreg_base;
 	ssize_t ret;
-
-	dd = ipath_lookup(unit);
-	if (!dd) {
-		ret = -ENODEV;
-		goto bail;
-	}
 
 	kreg_base = dd->ipath_kregbase;
 
@@ -329,23 +308,16 @@ static ssize_t ipath_diag_read(struct file *fp, char __user *data,
 		ret = count;
 	}
 
-bail:
 	return ret;
 }
 
 static ssize_t ipath_diag_write(struct file *fp, const char __user *data,
 				size_t count, loff_t *off)
 {
-	int unit = 0; /* XXX this is bogus */
-	struct ipath_devdata *dd;
+	struct ipath_devdata *dd = fp->private_data;
 	void __iomem *kreg_base;
 	ssize_t ret;
 
-	dd = ipath_lookup(unit);
-	if (!dd) {
-		ret = -ENODEV;
-		goto bail;
-	}
 	kreg_base = dd->ipath_kregbase;
 
 	if (count == 0)
@@ -364,6 +336,5 @@ static ssize_t ipath_diag_write(struct file *fp, const char __user *data,
 		ret = count;
 	}
 
-bail:
 	return ret;
 }

@@ -1443,16 +1443,16 @@ done:
 
 static int ipath_open(struct inode *in, struct file *fp)
 {
-	int ret, minor;
+	int ret, user_minor;
 
 	mutex_lock(&ipath_mutex);
 
-	minor = iminor(in);
+	user_minor = iminor(in) - IPATH_USER_MINOR_BASE;
 	ipath_cdbg(VERBOSE, "open on dev %lx (minor %d)\n",
-		   (long)in->i_rdev, minor);
+		   (long)in->i_rdev, user_minor);
 
-	if (minor)
-		ret = find_free_port(minor - 1, fp);
+	if (user_minor)
+		ret = find_free_port(user_minor - 1, fp);
 	else
 		ret = find_best_unit(fp);
 
@@ -1860,19 +1860,12 @@ int ipath_user_add(struct ipath_devdata *dd)
 				      "error %d\n", -ret);
 			goto bail;
 		}
-		ret = ipath_diag_init();
-		if (ret < 0) {
-			ipath_dev_err(dd, "Unable to set up diag support: "
-				      "error %d\n", -ret);
-			goto bail_sma;
-		}
-
 		ret = init_cdev(0, "ipath", &ipath_file_ops, &wildcard_cdev,
 				&wildcard_class_dev);
 		if (ret < 0) {
 			ipath_dev_err(dd, "Could not create wildcard "
 				      "minor: error %d\n", -ret);
-			goto bail_diag;
+			goto bail_sma;
 		}
 
 		atomic_set(&user_setup, 1);
@@ -1881,31 +1874,28 @@ int ipath_user_add(struct ipath_devdata *dd)
 	snprintf(name, sizeof(name), "ipath%d", dd->ipath_unit);
 
 	ret = init_cdev(dd->ipath_unit + 1, name, &ipath_file_ops,
-			&dd->cdev, &dd->class_dev);
+			&dd->user_cdev, &dd->user_class_dev);
 	if (ret < 0)
 		ipath_dev_err(dd, "Could not create user minor %d, %s\n",
 			      dd->ipath_unit + 1, name);
 
 	goto bail;
 
-bail_diag:
-	ipath_diag_cleanup();
 bail_sma:
 	user_cleanup();
 bail:
 	return ret;
 }
 
-void ipath_user_del(struct ipath_devdata *dd)
+void ipath_user_remove(struct ipath_devdata *dd)
 {
-	cleanup_cdev(&dd->cdev, &dd->class_dev);
+	cleanup_cdev(&dd->user_cdev, &dd->user_class_dev);
 
 	if (atomic_dec_return(&user_count) == 0) {
 		if (atomic_read(&user_setup) == 0)
 			goto bail;
 
 		cleanup_cdev(&wildcard_cdev, &wildcard_class_dev);
-		ipath_diag_cleanup();
 		user_cleanup();
 
 		atomic_set(&user_setup, 0);

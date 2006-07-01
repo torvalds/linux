@@ -355,8 +355,10 @@ struct ipath_devdata {
 	char *ipath_freezemsg;
 	/* pci access data structure */
 	struct pci_dev *pcidev;
-	struct cdev *cdev;
-	struct class_device *class_dev;
+	struct cdev *user_cdev;
+	struct cdev *diag_cdev;
+	struct class_device *user_class_dev;
+	struct class_device *diag_class_dev;
 	/* timer used to prevent stats overflow, error throttling, etc. */
 	struct timer_list ipath_stats_timer;
 	/* check for stale messages in rcv queue */
@@ -538,7 +540,7 @@ extern int __ipath_verbs_piobufavail(struct ipath_devdata *);
 extern int __ipath_verbs_rcv(struct ipath_devdata *, void *, void *, u32);
 
 void ipath_layer_add(struct ipath_devdata *);
-void ipath_layer_del(struct ipath_devdata *);
+void ipath_layer_remove(struct ipath_devdata *);
 
 int ipath_init_chip(struct ipath_devdata *, int);
 int ipath_enable_wc(struct ipath_devdata *dd);
@@ -552,14 +554,14 @@ int ipath_cdev_init(int minor, char *name, struct file_operations *fops,
 void ipath_cdev_cleanup(struct cdev **cdevp,
 			struct class_device **class_devp);
 
-int ipath_diag_init(void);
-void ipath_diag_cleanup(void);
+int ipath_diag_add(struct ipath_devdata *);
+void ipath_diag_remove(struct ipath_devdata *);
 void ipath_diag_bringup_link(struct ipath_devdata *);
 
 extern wait_queue_head_t ipath_sma_state_wait;
 
 int ipath_user_add(struct ipath_devdata *dd);
-void ipath_user_del(struct ipath_devdata *dd);
+void ipath_user_remove(struct ipath_devdata *dd);
 
 struct sk_buff *ipath_alloc_skb(struct ipath_devdata *dd, gfp_t);
 
@@ -843,9 +845,10 @@ extern struct mutex ipath_mutex;
 
 #define IPATH_DRV_NAME		"ipath_core"
 #define IPATH_MAJOR		233
+#define IPATH_USER_MINOR_BASE	0
 #define IPATH_SMA_MINOR		128
-#define IPATH_DIAG_MINOR	129
-#define IPATH_NMINORS		130
+#define IPATH_DIAG_MINOR_BASE	129
+#define IPATH_NMINORS		255
 
 #define ipath_dev_err(dd,fmt,...) \
 	do { \

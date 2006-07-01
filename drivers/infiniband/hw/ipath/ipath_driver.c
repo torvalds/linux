@@ -546,6 +546,7 @@ static int __devinit ipath_init_one(struct pci_dev *pdev,
 	ipath_device_create_group(&pdev->dev, dd);
 	ipathfs_add_device(dd);
 	ipath_user_add(dd);
+	ipath_diag_add(dd);
 	ipath_layer_add(dd);
 
 	goto bail;
@@ -578,8 +579,9 @@ static void __devexit ipath_remove_one(struct pci_dev *pdev)
 		return;
 
 	dd = pci_get_drvdata(pdev);
-	ipath_layer_del(dd);
-	ipath_user_del(dd);
+	ipath_layer_remove(dd);
+	ipath_diag_remove(dd);
+	ipath_user_remove(dd);
 	ipathfs_remove_device(dd);
 	ipath_device_remove_group(&pdev->dev, dd);
 	ipath_cdbg(VERBOSE, "Releasing pci memory regions, dd %p, "

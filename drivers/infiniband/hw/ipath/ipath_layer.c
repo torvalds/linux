@@ -404,7 +404,7 @@ void ipath_layer_add(struct ipath_devdata *dd)
 	mutex_unlock(&ipath_layer_mutex);
 }
 
-void ipath_layer_del(struct ipath_devdata *dd)
+void ipath_layer_remove(struct ipath_devdata *dd)
 {
 	mutex_lock(&ipath_layer_mutex);
 
