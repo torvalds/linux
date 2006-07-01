@@ -460,6 +460,8 @@ static int __devinit ipath_init_one(struct pci_dev *pdev,
 	 * by ipath_setup_htconfig.
 	 */
 	dd->ipath_flags = 0;
+	dd->ipath_lli_counter = 0;
+	dd->ipath_lli_errors = 0;
 
 	if (dd->ipath_f_bus(dd, pdev))
 		ipath_dev_err(dd, "Failed to setup config space; "
@@ -942,6 +944,18 @@ reloop:
 				   "tlen=%x opcode=%x egridx=%x: %s\n",
 				   eflags, l, etype, tlen, bthbytes[0],
 				   ips_get_index((__le32 *) rc), emsg);
+			/* Count local link integrity errors. */
+			if (eflags & (INFINIPATH_RHF_H_ICRCERR |
+				      INFINIPATH_RHF_H_VCRCERR)) {
+				u8 n = (dd->ipath_ibcctrl >>
+					INFINIPATH_IBCC_PHYERRTHRESHOLD_SHIFT) &
+					INFINIPATH_IBCC_PHYERRTHRESHOLD_MASK;
+
+				if (++dd->ipath_lli_counter > n) {
+					dd->ipath_lli_counter = 0;
+					dd->ipath_lli_errors++;
+				}
+			}
 		} else if (etype == RCVHQ_RCV_TYPE_NON_KD) {
 				int ret = __ipath_verbs_rcv(dd, rc + 1,
 							    ebuf, tlen);
@@ -949,6 +963,9 @@ reloop:
 					ipath_cdbg(VERBOSE,
 						   "received IB packet, "
 						   "not SMA (QP=%x)\n", qp);
+				if (dd->ipath_lli_counter)
+					dd->ipath_lli_counter--;
+
 		} else if (etype == RCVHQ_RCV_TYPE_EAGER) {
 			if (qp == IPATH_KD_QP &&
 			    bthbytes[0] == ipath_layer_rcv_opcode &&

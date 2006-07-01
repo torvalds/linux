@@ -55,6 +55,8 @@ struct ipath_layer_counters {
 	u64 port_rcv_data;
 	u64 port_xmit_packets;
 	u64 port_rcv_packets;
+	u32 local_link_integrity_errors;
+	u32 excessive_buffer_overrun_errors;
 };
 
 /*

@@ -507,6 +507,11 @@ struct ipath_devdata {
 	u8 ipath_pci_cacheline;
 	/* LID mask control */
 	u8 ipath_lmc;
+
+	/* local link integrity counter */
+	u32 ipath_lli_counter;
+	/* local link integrity errors */
+	u32 ipath_lli_errors;
 };
 
 extern struct list_head ipath_dev_list;

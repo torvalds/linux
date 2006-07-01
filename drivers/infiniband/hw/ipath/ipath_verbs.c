@@ -981,6 +981,7 @@ static int ipath_verbs_register_sysfs(struct ib_device *dev);
  */
 static void *ipath_register_ib_device(int unit, struct ipath_devdata *dd)
 {
+	struct ipath_layer_counters cntrs;
 	struct ipath_ibdev *idev;
 	struct ib_device *dev;
 	int ret;
@@ -1030,6 +1031,25 @@ static void *ipath_register_ib_device(int unit, struct ipath_devdata *dd)
 	idev->pma_counter_select[3] = IB_PMA_PORT_RCV_PKTS;
 	idev->pma_counter_select[5] = IB_PMA_PORT_XMIT_WAIT;
 	idev->link_width_enabled = 3;	/* 1x or 4x */
+
+	/* Snapshot current HW counters to "clear" them. */
+	ipath_layer_get_counters(dd, &cntrs);
+	idev->z_symbol_error_counter = cntrs.symbol_error_counter;
+	idev->z_link_error_recovery_counter =
+		cntrs.link_error_recovery_counter;
+	idev->z_link_downed_counter = cntrs.link_downed_counter;
+	idev->z_port_rcv_errors = cntrs.port_rcv_errors;
+	idev->z_port_rcv_remphys_errors =
+		cntrs.port_rcv_remphys_errors;
+	idev->z_port_xmit_discards = cntrs.port_xmit_discards;
+	idev->z_port_xmit_data = cntrs.port_xmit_data;
+	idev->z_port_rcv_data = cntrs.port_rcv_data;
+	idev->z_port_xmit_packets = cntrs.port_xmit_packets;
+	idev->z_port_rcv_packets = cntrs.port_rcv_packets;
+	idev->z_local_link_integrity_errors =
+		cntrs.local_link_integrity_errors;
+	idev->z_excessive_buffer_overrun_errors =
+		cntrs.excessive_buffer_overrun_errors;
 
 	/*
 	 * The system image GUID is supposed to be the same for all

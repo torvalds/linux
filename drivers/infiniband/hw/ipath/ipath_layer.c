@@ -1032,19 +1032,22 @@ int ipath_layer_get_counters(struct ipath_devdata *dd,
 		ipath_snap_cntr(dd, dd->ipath_cregs->cr_ibsymbolerrcnt);
 	cntrs->link_error_recovery_counter =
 		ipath_snap_cntr(dd, dd->ipath_cregs->cr_iblinkerrrecovcnt);
+	/*
+	 * The link downed counter counts when the other side downs the
+	 * connection.  We add in the number of times we downed the link
+	 * due to local link integrity errors to compensate.
+	 */
 	cntrs->link_downed_counter =
 		ipath_snap_cntr(dd, dd->ipath_cregs->cr_iblinkdowncnt);
 	cntrs->port_rcv_errors =
 		ipath_snap_cntr(dd, dd->ipath_cregs->cr_rxdroppktcnt) +
 		ipath_snap_cntr(dd, dd->ipath_cregs->cr_rcvovflcnt) +
 		ipath_snap_cntr(dd, dd->ipath_cregs->cr_portovflcnt) +
-		ipath_snap_cntr(dd, dd->ipath_cregs->cr_errrcvflowctrlcnt) +
 		ipath_snap_cntr(dd, dd->ipath_cregs->cr_err_rlencnt) +
 		ipath_snap_cntr(dd, dd->ipath_cregs->cr_invalidrlencnt) +
 		ipath_snap_cntr(dd, dd->ipath_cregs->cr_erricrccnt) +
 		ipath_snap_cntr(dd, dd->ipath_cregs->cr_errvcrccnt) +
 		ipath_snap_cntr(dd, dd->ipath_cregs->cr_errlpcrccnt) +
-		ipath_snap_cntr(dd, dd->ipath_cregs->cr_errlinkcnt) +
 		ipath_snap_cntr(dd, dd->ipath_cregs->cr_badformatcnt);
 	cntrs->port_rcv_remphys_errors =
 		ipath_snap_cntr(dd, dd->ipath_cregs->cr_rcvebpcnt);
@@ -1058,6 +1061,8 @@ int ipath_layer_get_counters(struct ipath_devdata *dd,
 		ipath_snap_cntr(dd, dd->ipath_cregs->cr_pktsendcnt);
 	cntrs->port_rcv_packets =
 		ipath_snap_cntr(dd, dd->ipath_cregs->cr_pktrcvcnt);
+	cntrs->local_link_integrity_errors = dd->ipath_lli_errors;
+	cntrs->excessive_buffer_overrun_errors = 0; /* XXX */
 
 	ret = 0;
 

@@ -460,6 +460,8 @@ struct ipath_ibdev {
 	u64 z_port_xmit_packets;		/* starting count for PMA */
 	u64 z_port_rcv_packets;			/* starting count for PMA */
 	u32 z_pkey_violations;			/* starting count for PMA */
+	u32 z_local_link_integrity_errors;	/* starting count for PMA */
+	u32 z_excessive_buffer_overrun_errors;	/* starting count for PMA */
 	u32 n_rc_resends;
 	u32 n_rc_acks;
 	u32 n_rc_qacks;
@@ -469,6 +471,7 @@ struct ipath_ibdev {
 	u32 n_other_naks;
 	u32 n_timeouts;
 	u32 n_pkt_drops;
+	u32 n_vl15_dropped;
 	u32 n_wqe_errs;
 	u32 n_rdma_dup_busy;
 	u32 n_piowait;

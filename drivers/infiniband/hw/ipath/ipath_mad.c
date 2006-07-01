@@ -613,6 +613,9 @@ struct ib_pma_portcounters {
 #define IB_PMA_SEL_PORT_RCV_ERRORS		__constant_htons(0x0008)
 #define IB_PMA_SEL_PORT_RCV_REMPHYS_ERRORS	__constant_htons(0x0010)
 #define IB_PMA_SEL_PORT_XMIT_DISCARDS		__constant_htons(0x0040)
+#define IB_PMA_SEL_LOCAL_LINK_INTEGRITY_ERRORS	__constant_htons(0x0200)
+#define IB_PMA_SEL_EXCESSIVE_BUFFER_OVERRUNS	__constant_htons(0x0400)
+#define IB_PMA_SEL_PORT_VL15_DROPPED		__constant_htons(0x0800)
 #define IB_PMA_SEL_PORT_XMIT_DATA		__constant_htons(0x1000)
 #define IB_PMA_SEL_PORT_RCV_DATA		__constant_htons(0x2000)
 #define IB_PMA_SEL_PORT_XMIT_PACKETS		__constant_htons(0x4000)
@@ -859,6 +862,10 @@ static int recv_pma_get_portcounters(struct ib_perf *pmp,
 	cntrs.port_rcv_data -= dev->z_port_rcv_data;
 	cntrs.port_xmit_packets -= dev->z_port_xmit_packets;
 	cntrs.port_rcv_packets -= dev->z_port_rcv_packets;
+	cntrs.local_link_integrity_errors -=
+		dev->z_local_link_integrity_errors;
+	cntrs.excessive_buffer_overrun_errors -=
+		dev->z_excessive_buffer_overrun_errors;
 
 	memset(pmp->data, 0, sizeof(pmp->data));
 
@@ -896,6 +903,16 @@ static int recv_pma_get_portcounters(struct ib_perf *pmp,
 	else
 		p->port_xmit_discards =
 			cpu_to_be16((u16)cntrs.port_xmit_discards);
+	if (cntrs.local_link_integrity_errors > 0xFUL)
+		cntrs.local_link_integrity_errors = 0xFUL;
+	if (cntrs.excessive_buffer_overrun_errors > 0xFUL)
+		cntrs.excessive_buffer_overrun_errors = 0xFUL;
+	p->lli_ebor_errors = (cntrs.local_link_integrity_errors << 4) |
+		cntrs.excessive_buffer_overrun_errors;
+	if (dev->n_vl15_dropped > 0xFFFFUL)
+		p->vl15_dropped = __constant_cpu_to_be16(0xFFFF);
+	else
+		p->vl15_dropped = cpu_to_be16((u16)dev->n_vl15_dropped);
 	if (cntrs.port_xmit_data > 0xFFFFFFFFUL)
 		p->port_xmit_data = __constant_cpu_to_be32(0xFFFFFFFF);
 	else
@@ -989,6 +1006,17 @@ static int recv_pma_set_portcounters(struct ib_perf *pmp,
 
 	if (p->counter_select & IB_PMA_SEL_PORT_XMIT_DISCARDS)
 		dev->z_port_xmit_discards = cntrs.port_xmit_discards;
+
+	if (p->counter_select & IB_PMA_SEL_LOCAL_LINK_INTEGRITY_ERRORS)
+		dev->z_local_link_integrity_errors =
+			cntrs.local_link_integrity_errors;
+
+	if (p->counter_select & IB_PMA_SEL_EXCESSIVE_BUFFER_OVERRUNS)
+		dev->z_excessive_buffer_overrun_errors =
+			cntrs.excessive_buffer_overrun_errors;
+
+	if (p->counter_select & IB_PMA_SEL_PORT_VL15_DROPPED)
+		dev->n_vl15_dropped = 0;
 
 	if (p->counter_select & IB_PMA_SEL_PORT_XMIT_DATA)
 		dev->z_port_xmit_data = cntrs.port_xmit_data;
@@ -1275,32 +1303,8 @@ int ipath_process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
 		      struct ib_wc *in_wc, struct ib_grh *in_grh,
 		      struct ib_mad *in_mad, struct ib_mad *out_mad)
 {
-	struct ipath_ibdev *dev = to_idev(ibdev);
 	int ret;
 
-	/*
-	 * Snapshot current HW counters to "clear" them.
-	 * This should be done when the driver is loaded except that for
-	 * some reason we get a zillion errors when brining up the link.
-	 */
-	if (dev->rcv_errors == 0) {
-		struct ipath_layer_counters cntrs;
-
-		ipath_layer_get_counters(to_idev(ibdev)->dd, &cntrs);
-		dev->rcv_errors++;
-		dev->z_symbol_error_counter = cntrs.symbol_error_counter;
-		dev->z_link_error_recovery_counter =
-			cntrs.link_error_recovery_counter;
-		dev->z_link_downed_counter = cntrs.link_downed_counter;
-		dev->z_port_rcv_errors = cntrs.port_rcv_errors + 1;
-		dev->z_port_rcv_remphys_errors =
-			cntrs.port_rcv_remphys_errors;
-		dev->z_port_xmit_discards = cntrs.port_xmit_discards;
-		dev->z_port_xmit_data = cntrs.port_xmit_data;
-		dev->z_port_rcv_data = cntrs.port_rcv_data;
-		dev->z_port_xmit_packets = cntrs.port_xmit_packets;
-		dev->z_port_rcv_packets = cntrs.port_rcv_packets;
-	}
 	switch (in_mad->mad_hdr.mgmt_class) {
 	case IB_MGMT_CLASS_SUBN_DIRECTED_ROUTE:
 	case IB_MGMT_CLASS_SUBN_LID_ROUTED:

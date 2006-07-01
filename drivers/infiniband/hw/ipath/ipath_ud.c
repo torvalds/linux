@@ -560,7 +560,16 @@ void ipath_ud_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 	spin_lock_irqsave(&rq->lock, flags);
 	if (rq->tail == rq->head) {
 		spin_unlock_irqrestore(&rq->lock, flags);
-		dev->n_pkt_drops++;
+		/*
+		 * Count VL15 packets dropped due to no receive buffer.
+		 * Otherwise, count them as buffer overruns since usually,
+		 * the HW will be able to receive packets even if there are
+		 * no QPs with posted receive buffers.
+		 */
+		if (qp->ibqp.qp_num == 0)
+			dev->n_vl15_dropped++;
+		else
+			dev->rcv_errors++;
 		goto bail;
 	}
 	/* Silently drop packets which are too big. */

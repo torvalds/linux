@@ -262,6 +262,7 @@ static void handle_e_ibstatuschanged(struct ipath_devdata *dd,
 				     | IPATH_LINKACTIVE |
 				     IPATH_LINKARMED);
 		*dd->ipath_statusp &= ~IPATH_STATUS_IB_READY;
+		dd->ipath_lli_counter = 0;
 		if (!noprint) {
 			if (((dd->ipath_lastibcstat >>
 			      INFINIPATH_IBCS_LINKSTATE_SHIFT) &
