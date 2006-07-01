@@ -58,17 +58,6 @@ static int __get_user_pages(unsigned long start_page, size_t num_pages,
 	size_t got;
 	int ret;
 
-#if 0
-	/*
-	 * XXX - causes MPI programs to fail, haven't had time to check
-	 * yet
-	 */
-	if (!capable(CAP_IPC_LOCK)) {
-		ret = -EPERM;
-		goto bail;
-	}
-#endif
-
 	lock_limit = current->signal->rlim[RLIMIT_MEMLOCK].rlim_cur >>
 		PAGE_SHIFT;
 
