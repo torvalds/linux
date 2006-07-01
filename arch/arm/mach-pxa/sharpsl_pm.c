@@ -18,11 +18,11 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
 #include <linux/platform_device.h>
 
 #include <asm/hardware.h>
 #include <asm/mach-types.h>
-#include <asm/irq.h>
 #include <asm/apm.h>
 #include <asm/arch/pm.h>
 #include <asm/arch/pxa-regs.h>
