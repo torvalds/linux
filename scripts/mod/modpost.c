@@ -24,7 +24,10 @@ static int all_versions = 0;
 /* If we are modposting external module set to 1 */
 static int external_module = 0;
 /* How a symbol is exported */
-enum export {export_plain, export_gpl, export_gpl_future, export_unknown};
+enum export {
+	export_plain,      export_unused,     export_gpl,
+	export_unused_gpl, export_gpl_future, export_unknown
+};
 
 void fatal(const char *fmt, ...)
 {
@@ -191,7 +194,9 @@ static struct {
 	enum export export;
 } export_list[] = {
 	{ .str = "EXPORT_SYMBOL",            .export = export_plain },
+	{ .str = "EXPORT_UNUSED_SYMBOL",     .export = export_unused },
 	{ .str = "EXPORT_SYMBOL_GPL",        .export = export_gpl },
+	{ .str = "EXPORT_UNUSED_SYMBOL_GPL", .export = export_unused_gpl },
 	{ .str = "EXPORT_SYMBOL_GPL_FUTURE", .export = export_gpl_future },
 	{ .str = "(unknown)",                .export = export_unknown },
 };
@@ -218,8 +223,12 @@ static enum export export_from_sec(struct elf_info *elf, Elf_Section sec)
 {
 	if (sec == elf->export_sec)
 		return export_plain;
+	else if (sec == elf->export_unused_sec)
+		return export_unused;
 	else if (sec == elf->export_gpl_sec)
 		return export_gpl;
+	else if (sec == elf->export_unused_gpl_sec)
+		return export_unused_gpl;
 	else if (sec == elf->export_gpl_future_sec)
 		return export_gpl_future;
 	else
@@ -368,8 +377,12 @@ static void parse_elf(struct elf_info *info, const char *filename)
 			info->modinfo_len = sechdrs[i].sh_size;
 		} else if (strcmp(secname, "__ksymtab") == 0)
 			info->export_sec = i;
+		else if (strcmp(secname, "__ksymtab_unused") == 0)
+			info->export_unused_sec = i;
 		else if (strcmp(secname, "__ksymtab_gpl") == 0)
 			info->export_gpl_sec = i;
+		else if (strcmp(secname, "__ksymtab_unused_gpl") == 0)
+			info->export_unused_gpl_sec = i;
 		else if (strcmp(secname, "__ksymtab_gpl_future") == 0)
 			info->export_gpl_future_sec = i;
 
@@ -1087,38 +1100,64 @@ void buf_write(struct buffer *buf, const char *s, int len)
 	buf->pos += len;
 }
 
-void check_license(struct module *mod)
+static void check_for_gpl_usage(enum export exp, const char *m, const char *s)
+{
+	const char *e = is_vmlinux(m) ?"":".ko";
+
+	switch (exp) {
+	case export_gpl:
+		fatal("modpost: GPL-incompatible module %s%s "
+		      "uses GPL-only symbol '%s'\n", m, e, s);
+		break;
+	case export_unused_gpl:
+		fatal("modpost: GPL-incompatible module %s%s "
+		      "uses GPL-only symbol marked UNUSED '%s'\n", m, e, s);
+		break;
+	case export_gpl_future:
+		warn("modpost: GPL-incompatible module %s%s "
+		      "uses future GPL-only symbol '%s'\n", m, e, s);
+		break;
+	case export_plain:
+	case export_unused:
+	case export_unknown:
+		/* ignore */
+		break;
+	}
+}
+
+static void check_for_unused(enum export exp, const char* m, const char* s)
+{
+	const char *e = is_vmlinux(m) ?"":".ko";
+
+	switch (exp) {
+	case export_unused:
+	case export_unused_gpl:
+		warn("modpost: module %s%s "
+		      "uses symbol '%s' marked UNUSED\n", m, e, s);
+		break;
+	default:
+		/* ignore */
+		break;
+	}
+}
+
+static void check_exports(struct module *mod)
 {
 	struct symbol *s, *exp;
 
 	for (s = mod->unres; s; s = s->next) {
 		const char *basename;
-		if (mod->gpl_compatible == 1) {
-			/* GPL-compatible modules may use all symbols */
-			continue;
-		}
 		exp = find_symbol(s->name);
 		if (!exp || exp->module == mod)
 			continue;
 		basename = strrchr(mod->name, '/');
 		if (basename)
 			basename++;
-		switch (exp->export) {
-			case export_gpl:
-				fatal("modpost: GPL-incompatible module %s "
-				      "uses GPL-only symbol '%s'\n",
-				 basename ? basename : mod->name,
-				exp->name);
-				break;
-			case export_gpl_future:
-				warn("modpost: GPL-incompatible module %s "
-				      "uses future GPL-only symbol '%s'\n",
-				      basename ? basename : mod->name,
-				      exp->name);
-				break;
-			case export_plain: /* ignore */ break;
-			case export_unknown: /* ignore */ break;
-		}
+		else
+			basename = mod->name;
+		if (!mod->gpl_compatible)
+			check_for_gpl_usage(exp->export, basename, exp->name);
+		check_for_unused(exp->export, basename, exp->name);
         }
 }
 
@@ -1399,7 +1438,7 @@ int main(int argc, char **argv)
 	for (mod = modules; mod; mod = mod->next) {
 		if (mod->skip)
 			continue;
-		check_license(mod);
+		check_exports(mod);
 	}
 
 	for (mod = modules; mod; mod = mod->next) {
