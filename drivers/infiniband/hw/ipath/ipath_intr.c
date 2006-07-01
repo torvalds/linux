@@ -383,7 +383,7 @@ static unsigned handle_frequent_errors(struct ipath_devdata *dd,
 	return supp_msgs;
 }
 
-static void handle_errors(struct ipath_devdata *dd, ipath_err_t errs)
+static int handle_errors(struct ipath_devdata *dd, ipath_err_t errs)
 {
 	char msg[512];
 	u64 ignore_this_time = 0;
@@ -480,7 +480,7 @@ static void handle_errors(struct ipath_devdata *dd, ipath_err_t errs)
 			  INFINIPATH_E_IBSTATUSCHANGED);
 	}
 	if (!errs)
-		return;
+		return 0;
 
 	if (!noprint)
 		/*
@@ -604,9 +604,7 @@ static void handle_errors(struct ipath_devdata *dd, ipath_err_t errs)
 		wake_up_interruptible(&ipath_sma_state_wait);
 	}
 
-	if (chkerrpkts)
-		/* process possible error packets in hdrq */
-		ipath_kreceive(dd);
+	return chkerrpkts;
 }
 
 /* this is separate to allow for better optimization of ipath_intr() */
@@ -765,10 +763,10 @@ static void handle_urcv(struct ipath_devdata *dd, u32 istat)
 irqreturn_t ipath_intr(int irq, void *data, struct pt_regs *regs)
 {
 	struct ipath_devdata *dd = data;
-	u32 istat;
+	u32 istat, chk0rcv = 0;
 	ipath_err_t estat = 0;
 	irqreturn_t ret;
-	u32 p0bits;
+	u32 p0bits, oldhead;
 	static unsigned unexpected = 0;
 	static const u32 port0rbits = (1U<<INFINIPATH_I_RCVAVAIL_SHIFT) |
 		 (1U<<INFINIPATH_I_RCVURG_SHIFT);
@@ -810,9 +808,8 @@ irqreturn_t ipath_intr(int irq, void *data, struct pt_regs *regs)
 	 * interrupts.   We clear the interrupts first so that we don't
 	 * lose intr for later packets that arrive while we are processing.
 	 */
-	if (dd->ipath_port0head !=
-		(u32)le64_to_cpu(*dd->ipath_hdrqtailptr)) {
-		u32 oldhead = dd->ipath_port0head;
+	oldhead = dd->ipath_port0head;
+	if (oldhead != (u32) le64_to_cpu(*dd->ipath_hdrqtailptr)) {
 		if (dd->ipath_flags & IPATH_GPIO_INTR) {
 			ipath_write_kreg(dd, dd->ipath_kregs->kr_gpio_clear,
 					 (u64) (1 << 2));
@@ -830,6 +827,8 @@ irqreturn_t ipath_intr(int irq, void *data, struct pt_regs *regs)
 	}
 
 	istat = ipath_read_kreg32(dd, dd->ipath_kregs->kr_intstatus);
+	p0bits = port0rbits;
+
 	if (unlikely(!istat)) {
 		ipath_stats.sps_nullintr++;
 		ret = IRQ_NONE; /* not our interrupt, or already handled */
@@ -867,10 +866,11 @@ irqreturn_t ipath_intr(int irq, void *data, struct pt_regs *regs)
 			ipath_dev_err(dd, "Read of error status failed "
 				      "(all bits set); ignoring\n");
 		else
-			handle_errors(dd, estat);
+			if (handle_errors(dd, estat))
+				/* force calling ipath_kreceive() */
+				chk0rcv = 1;
 	}
 
-	p0bits = port0rbits;
 	if (istat & INFINIPATH_I_GPIO) {
 		/*
 		 * Packets are available in the port 0 rcv queue.
@@ -892,8 +892,10 @@ irqreturn_t ipath_intr(int irq, void *data, struct pt_regs *regs)
 			ipath_write_kreg(dd, dd->ipath_kregs->kr_gpio_clear,
 					 (u64) (1 << 2));
 			p0bits |= INFINIPATH_I_GPIO;
+			chk0rcv = 1;
 		}
 	}
+	chk0rcv |= istat & p0bits;
 
 	/*
 	 * clear the ones we will deal with on this round
@@ -905,18 +907,16 @@ irqreturn_t ipath_intr(int irq, void *data, struct pt_regs *regs)
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_intclear, istat);
 
 	/*
-	 * we check for both transition from empty to non-empty, and urgent
-	 * packets (those with the interrupt bit set in the header), and
-	 * if enabled, the GPIO bit 2 interrupt used for port0 on some
-	 * HT-400 boards.
-	 * Do this before checking for pio buffers available, since
-	 * receives can overflow; piobuf waiters can afford a few
-	 * extra cycles, since they were waiting anyway.
+	 * handle port0 receive  before checking for pio buffers available,
+	 * since receives can overflow; piobuf waiters can afford a few
+	 * extra cycles, since they were waiting anyway, and user's waiting
+	 * for receive are at the bottom.
 	 */
-	if (istat & p0bits) {
+	if (chk0rcv) {
 		ipath_kreceive(dd);
 		istat &= ~port0rbits;
 	}
+
 	if (istat & ((infinipath_i_rcvavail_mask <<
 		      INFINIPATH_I_RCVAVAIL_SHIFT)
 		     | (infinipath_i_rcvurg_mask <<

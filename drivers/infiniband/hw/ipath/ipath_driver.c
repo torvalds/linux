@@ -870,7 +870,7 @@ void ipath_kreceive(struct ipath_devdata *dd)
 	const u32 maxcnt = dd->ipath_rcvhdrcnt * rsize;	/* words */
 	u32 etail = -1, l, hdrqtail;
 	struct ips_message_header *hdr;
-	u32 eflags, i, etype, tlen, pkttot = 0;
+	u32 eflags, i, etype, tlen, pkttot = 0, updegr=0;
 	static u64 totcalls;	/* stats, may eventually remove */
 	char emsg[128];
 
@@ -884,14 +884,14 @@ void ipath_kreceive(struct ipath_devdata *dd)
 	if (test_and_set_bit(0, &dd->ipath_rcv_pending))
 		goto bail;
 
-	if (dd->ipath_port0head ==
-	    (u32)le64_to_cpu(*dd->ipath_hdrqtailptr))
+	l = dd->ipath_port0head;
+	if (l == (u32)le64_to_cpu(*dd->ipath_hdrqtailptr))
 		goto done;
 
 	/* read only once at start for performance */
 	hdrqtail = (u32)le64_to_cpu(*dd->ipath_hdrqtailptr);
 
-	for (i = 0, l = dd->ipath_port0head; l != hdrqtail; i++) {
+	for (i = 0; l != hdrqtail; i++) {
 		u32 qp;
 		u8 *bthbytes;
 
@@ -1002,15 +1002,26 @@ void ipath_kreceive(struct ipath_devdata *dd)
 		l += rsize;
 		if (l >= maxcnt)
 			l = 0;
-		/*
-		 * update for each packet, to help prevent overflows if we
-		 * have lots of packets.
-		 */
-		(void)ipath_write_ureg(dd, ur_rcvhdrhead,
-				       dd->ipath_rhdrhead_intr_off | l, 0);
 		if (etype != RCVHQ_RCV_TYPE_EXPECTED)
-			(void)ipath_write_ureg(dd, ur_rcvegrindexhead,
-					       etail, 0);
+		    updegr = 1;
+		/*
+		 * update head regs on last packet, and every 16 packets.
+		 * Reduce bus traffic, while still trying to prevent
+		 * rcvhdrq overflows, for when the queue is nearly full
+		 */
+		if (l == hdrqtail || (i && !(i&0xf))) {
+			u64 lval;
+			if (l == hdrqtail) /* want interrupt only on last */
+				lval = dd->ipath_rhdrhead_intr_off | l;
+			else
+				lval = l;
+			(void)ipath_write_ureg(dd, ur_rcvhdrhead, lval, 0);
+			if (updegr) {
+				(void)ipath_write_ureg(dd, ur_rcvegrindexhead,
+						       etail, 0);
+				updegr = 0;
+			}
+		}
 	}
 
 	pkttot += i;
