@@ -127,7 +127,7 @@ void __init ixdp2x01_init_irq(void)
 	}
 
 	/* Hook into PCI interrupts */
-	set_irq_chained_handler(IRQ_IXP2000_PCIB, &ixdp2x01_irq_handler);
+	set_irq_chained_handler(IRQ_IXP2000_PCIB, ixdp2x01_irq_handler);
 }
 
 
