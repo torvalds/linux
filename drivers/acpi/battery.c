@@ -59,6 +59,9 @@ ACPI_MODULE_NAME("acpi_battery")
 MODULE_DESCRIPTION(ACPI_BATTERY_DRIVER_NAME);
 MODULE_LICENSE("GPL");
 
+extern struct proc_dir_entry *acpi_lock_battery_dir(void);
+extern void *acpi_unlock_battery_dir(struct proc_dir_entry *acpi_battery_dir);
+
 static int acpi_battery_add(struct acpi_device *device);
 static int acpi_battery_remove(struct acpi_device *device, int type);
 
@@ -750,17 +753,15 @@ static int acpi_battery_remove(struct acpi_device *device, int type)
 
 static int __init acpi_battery_init(void)
 {
-	int result = 0;
+	int result;
 
-
-	acpi_battery_dir = proc_mkdir(ACPI_BATTERY_CLASS, acpi_root_dir);
+	acpi_battery_dir = acpi_lock_battery_dir();
 	if (!acpi_battery_dir)
 		return -ENODEV;
-	acpi_battery_dir->owner = THIS_MODULE;
 
 	result = acpi_bus_register_driver(&acpi_battery_driver);
 	if (result < 0) {
-		remove_proc_entry(ACPI_BATTERY_CLASS, acpi_root_dir);
+		acpi_unlock_battery_dir(acpi_battery_dir);
 		return -ENODEV;
 	}
 
@@ -772,7 +773,7 @@ static void __exit acpi_battery_exit(void)
 
 	acpi_bus_unregister_driver(&acpi_battery_driver);
 
-	remove_proc_entry(ACPI_BATTERY_CLASS, acpi_root_dir);
+	acpi_unlock_battery_dir(acpi_battery_dir);
 
 	return;
 }

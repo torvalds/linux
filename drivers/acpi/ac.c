@@ -50,6 +50,9 @@ ACPI_MODULE_NAME("acpi_ac")
 MODULE_DESCRIPTION(ACPI_AC_DRIVER_NAME);
 MODULE_LICENSE("GPL");
 
+extern struct proc_dir_entry *acpi_lock_ac_dir(void);
+extern void *acpi_unlock_ac_dir(struct proc_dir_entry *acpi_ac_dir);
+
 static int acpi_ac_add(struct acpi_device *device);
 static int acpi_ac_remove(struct acpi_device *device, int type);
 static int acpi_ac_open_fs(struct inode *inode, struct file *file);
@@ -278,17 +281,16 @@ static int acpi_ac_remove(struct acpi_device *device, int type)
 
 static int __init acpi_ac_init(void)
 {
-	int result = 0;
+	int result;
 
 
-	acpi_ac_dir = proc_mkdir(ACPI_AC_CLASS, acpi_root_dir);
+	acpi_ac_dir = acpi_lock_ac_dir();
 	if (!acpi_ac_dir)
 		return -ENODEV;
-	acpi_ac_dir->owner = THIS_MODULE;
 
 	result = acpi_bus_register_driver(&acpi_ac_driver);
 	if (result < 0) {
-		remove_proc_entry(ACPI_AC_CLASS, acpi_root_dir);
+		acpi_unlock_ac_dir(acpi_ac_dir);
 		return -ENODEV;
 	}
 
@@ -300,7 +302,7 @@ static void __exit acpi_ac_exit(void)
 
 	acpi_bus_unregister_driver(&acpi_ac_driver);
 
-	remove_proc_entry(ACPI_AC_CLASS, acpi_root_dir);
+	acpi_unlock_ac_dir(acpi_ac_dir);
 
 	return;
 }
