@@ -33,8 +33,8 @@
 #include <asm/sizes.h>
 
 /*
- * Used by ioremap() and iounmap() code to mark section-mapped I/O regions
- * in vm_struct->flags field.
+ * Used by ioremap() and iounmap() code to mark (super)section-mapped
+ * I/O regions in vm_struct->flags field.
  */
 #define VM_ARM_SECTION_MAPPING	0x80000000
 
@@ -233,6 +233,54 @@ remap_area_sections(unsigned long virt, unsigned long pfn,
 
 	return 0;
 }
+
+static int
+remap_area_supersections(unsigned long virt, unsigned long pfn,
+			 unsigned long size, unsigned long flags)
+{
+	unsigned long prot, addr = virt, end = virt + size;
+	pgd_t *pgd;
+
+	/*
+	 * Remove and free any PTE-based mapping, and
+	 * sync the current kernel mapping.
+	 */
+	unmap_area_sections(virt, size);
+
+	prot = PMD_TYPE_SECT | PMD_SECT_SUPER | PMD_SECT_AP_WRITE |
+			PMD_DOMAIN(DOMAIN_IO) |
+			(flags & (L_PTE_CACHEABLE | L_PTE_BUFFERABLE));
+
+	/*
+	 * ARMv6 and above need XN set to prevent speculative prefetches
+	 * hitting IO.
+	 */
+	if (cpu_architecture() >= CPU_ARCH_ARMv6)
+		prot |= PMD_SECT_XN;
+
+	pgd = pgd_offset_k(virt);
+	do {
+		unsigned long super_pmd_val, i;
+
+		super_pmd_val = __pfn_to_phys(pfn) | prot;
+		super_pmd_val |= ((pfn >> (32 - PAGE_SHIFT)) & 0xf) << 20;
+
+		for (i = 0; i < 8; i++) {
+			pmd_t *pmd = pmd_offset(pgd, addr);
+
+			pmd[0] = __pmd(super_pmd_val);
+			pmd[1] = __pmd(super_pmd_val);
+			flush_pmd_entry(pmd);
+
+			addr += PGDIR_SIZE;
+			pgd++;
+		}
+
+		pfn += SUPERSECTION_SIZE >> PAGE_SHIFT;
+	} while (addr < end);
+
+	return 0;
+}
 #endif
 
 
@@ -255,6 +303,13 @@ __ioremap_pfn(unsigned long pfn, unsigned long offset, size_t size,
 	int err;
 	unsigned long addr;
  	struct vm_struct * area;
+	unsigned int cr = get_cr();
+
+	/*
+	 * High mappings must be supersection aligned
+	 */
+	if (pfn >= 0x100000 && (__pfn_to_phys(pfn) & ~SUPERSECTION_MASK))
+		return NULL;
 
  	area = get_vm_area(size, VM_IOREMAP);
  	if (!area)
@@ -262,7 +317,12 @@ __ioremap_pfn(unsigned long pfn, unsigned long offset, size_t size,
  	addr = (unsigned long)area->addr;
 
 #ifndef CONFIG_SMP
-	if (!((__pfn_to_phys(pfn) | size | addr) & ~PMD_MASK)) {
+	if ((((cpu_architecture() >= CPU_ARCH_ARMv6) && (cr & CR_XP)) ||
+	       cpu_is_xsc3()) &&
+	       !((__pfn_to_phys(pfn) | size | addr) & ~SUPERSECTION_MASK)) {
+		area->flags |= VM_ARM_SECTION_MAPPING;
+		err = remap_area_supersections(addr, pfn, size, flags);
+	} else if (!((__pfn_to_phys(pfn) | size | addr) & ~PMD_MASK)) {
 		area->flags |= VM_ARM_SECTION_MAPPING;
 		err = remap_area_sections(addr, pfn, size, flags);
 	} else
