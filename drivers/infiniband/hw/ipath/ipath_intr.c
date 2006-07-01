@@ -824,7 +824,6 @@ irqreturn_t ipath_intr(int irq, void *data, struct pt_regs *regs)
 			ipath_stats.sps_fastrcvint++;
 			goto done;
 		}
-		istat = ipath_read_kreg32(dd, dd->ipath_kregs->kr_intstatus);
 	}
 
 	istat = ipath_read_kreg32(dd, dd->ipath_kregs->kr_intstatus);

@@ -1573,7 +1573,6 @@ void ipath_init_ht400_funcs(struct ipath_devdata *dd)
 	dd->ipath_f_reset = ipath_setup_ht_reset;
 	dd->ipath_f_get_boardname = ipath_ht_boardname;
 	dd->ipath_f_init_hwerrors = ipath_ht_init_hwerrors;
-	dd->ipath_f_init_hwerrors = ipath_ht_init_hwerrors;
 	dd->ipath_f_early_init = ipath_ht_early_init;
 	dd->ipath_f_handle_hwerrors = ipath_ht_handle_hwerrors;
 	dd->ipath_f_quiet_serdes = ipath_ht_quiet_serdes;

@@ -890,9 +890,6 @@ void ipath_kreceive(struct ipath_devdata *dd)
 		goto done;
 
 reloop:
-	/* read only once at start for performance */
-	hdrqtail = (u32)le64_to_cpu(*dd->ipath_hdrqtailptr);
-
 	for (i = 0; l != hdrqtail; i++) {
 		u32 qp;
 		u8 *bthbytes;
