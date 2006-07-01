@@ -511,9 +511,6 @@ int ipath_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	if (attr_mask & IB_QP_QKEY)
 		qp->qkey = attr->qkey;
 
-	if (attr_mask & IB_QP_PKEY_INDEX)
-		qp->s_pkey_index = attr->pkey_index;
-
 	qp->state = new_state;
 	spin_unlock(&qp->s_lock);
 	spin_unlock_irqrestore(&qp->r_rq.lock, flags);
