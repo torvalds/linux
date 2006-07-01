@@ -198,11 +198,11 @@ __sa1100_setup:
 #ifdef CONFIG_MMU
 	mcr	p15, 0, r0, c8, c7		@ invalidate I,D TLBs on v4
 #endif
+	adr	r5, sa1100_crval
+	ldmia	r5, {r5, r6}
 	mrc	p15, 0, r0, c1, c0		@ get control register v4
-	ldr	r5, sa1100_cr1_clear
 	bic	r0, r0, r5
-	ldr	r5, sa1100_cr1_set
-	orr	r0, r0, r5
+	orr	r0, r0, r6
 	mov	pc, lr
 	.size	__sa1100_setup, . - __sa1100_setup
 
@@ -212,12 +212,9 @@ __sa1100_setup:
 	 * ..11 0001 ..11 1101
 	 * 
 	 */
-	.type	sa1100_cr1_clear, #object
-	.type	sa1100_cr1_set, #object
-sa1100_cr1_clear:
-	.word	0x3f3f
-sa1100_cr1_set:
-	.word	0x313d
+	.type	sa1100_crval, #object
+sa1100_crval:
+	crval	clear=0x00003f3f, mmuset=0x0000313d, ucset=0x00001130
 
 	__INITDATA
 

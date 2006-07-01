@@ -426,22 +426,25 @@ __xsc3_setup:
 	orr	r0, r0, #(1 << 10)		@ enable L2 for LLR cache
 #endif
 	mcr	p15, 0, r0, c1, c0, 1		@ set auxiliary control reg
+
+	adr	r5, xsc3_crval
+	ldmia	r5, {r5, r6}
 	mrc	p15, 0, r0, c1, c0, 0		@ get control register
-	bic	r0, r0, #0x0002			@ .... .... .... ..A.
-	orr	r0, r0, #0x0005			@ .... .... .... .C.M
+	bic	r0, r0, r5			@ .... .... .... ..A.
+	orr	r0, r0, r6			@ .... .... .... .C.M
 #if BTB_ENABLE
-	bic	r0, r0, #0x0200			@ .... ..R. .... ....
-	orr	r0, r0, #0x3900			@ ..VI Z..S .... ....
-#else
-	bic	r0, r0, #0x0a00			@ .... Z.R. .... ....
-	orr	r0, r0, #0x3100			@ ..VI ...S .... ....
+	orr	r0, r0, #0x00000800		@ ..VI Z..S .... ....
 #endif
 #if L2_CACHE_ENABLE
-	orr 	r0, r0, #0x4000000		@ L2 enable
+	orr 	r0, r0, #0x04000000		@ L2 enable
 #endif
 	mov	pc, lr
 
 	.size	__xsc3_setup, . - __xsc3_setup
+
+	.type	xsc3_crval, #object
+xsc3_crval:
+	crval	clear=0x04003b02, mmuset=0x00003105, ucset=0x00001100
 
 	__INITDATA
 
