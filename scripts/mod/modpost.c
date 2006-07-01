@@ -205,6 +205,8 @@ static const char *export_str(enum export ex)
 static enum export export_no(const char * s)
 {
 	int i;
+	if (!s)
+		return export_unknown;
 	for (i = 0; export_list[i].export != export_unknown; i++) {
 		if (strcmp(export_list[i].str, s) == 0)
 			return export_list[i].export;
@@ -1271,7 +1273,7 @@ static void write_if_changed(struct buffer *b, const char *fname)
 }
 
 /* parse Module.symvers file. line format:
- * 0x12345678<tab>symbol<tab>module[<tab>export]
+ * 0x12345678<tab>symbol<tab>module[[<tab>export]<tab>something]
  **/
 static void read_dump(const char *fname, unsigned int kernel)
 {
@@ -1284,7 +1286,7 @@ static void read_dump(const char *fname, unsigned int kernel)
 		return;
 
 	while ((line = get_next_line(&pos, file, size))) {
-		char *symname, *modname, *d, *export;
+		char *symname, *modname, *d, *export, *end;
 		unsigned int crc;
 		struct module *mod;
 		struct symbol *s;
@@ -1297,7 +1299,8 @@ static void read_dump(const char *fname, unsigned int kernel)
 		*modname++ = '\0';
 		if ((export = strchr(modname, '\t')) != NULL)
 			*export++ = '\0';
-
+		if (export && ((end = strchr(export, '\t')) != NULL))
+			*end = '\0';
 		crc = strtoul(line, &d, 16);
 		if (*symname == '\0' || *modname == '\0' || *d != '\0')
 			goto fail;
