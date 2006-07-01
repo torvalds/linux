@@ -685,16 +685,22 @@ struct ib_qp *ipath_create_qp(struct ib_pd *ibpd,
 			ret = ERR_PTR(-ENOMEM);
 			goto bail;
 		}
-		qp->r_rq.size = init_attr->cap.max_recv_wr + 1;
-		sz = sizeof(struct ipath_sge) *
-			init_attr->cap.max_recv_sge +
-			sizeof(struct ipath_rwqe);
-		qp->r_rq.wq = vmalloc(qp->r_rq.size * sz);
-		if (!qp->r_rq.wq) {
-			kfree(qp);
-			vfree(swq);
-			ret = ERR_PTR(-ENOMEM);
-			goto bail;
+		if (init_attr->srq) {
+			qp->r_rq.size = 0;
+			qp->r_rq.max_sge = 0;
+			qp->r_rq.wq = NULL;
+		} else {
+			qp->r_rq.size = init_attr->cap.max_recv_wr + 1;
+			qp->r_rq.max_sge = init_attr->cap.max_recv_sge;
+			sz = (sizeof(struct ipath_sge) * qp->r_rq.max_sge) +
+				sizeof(struct ipath_rwqe);
+			qp->r_rq.wq = vmalloc(qp->r_rq.size * sz);
+			if (!qp->r_rq.wq) {
+				kfree(qp);
+				vfree(swq);
+				ret = ERR_PTR(-ENOMEM);
+				goto bail;
+			}
 		}
 
 		/*
@@ -713,7 +719,6 @@ struct ib_qp *ipath_create_qp(struct ib_pd *ibpd,
 		qp->s_wq = swq;
 		qp->s_size = init_attr->cap.max_send_wr + 1;
 		qp->s_max_sge = init_attr->cap.max_send_sge;
-		qp->r_rq.max_sge = init_attr->cap.max_recv_sge;
 		qp->s_flags = init_attr->sq_sig_type == IB_SIGNAL_REQ_WR ?
 			1 << IPATH_S_SIGNAL_REQ_WR : 0;
 		dev = to_idev(ibpd->device);
