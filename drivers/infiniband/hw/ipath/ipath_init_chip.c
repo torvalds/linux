@@ -647,6 +647,7 @@ int ipath_init_chip(struct ipath_devdata *dd, int reinit)
 	u32 val32, kpiobufs;
 	u64 val;
 	struct ipath_portdata *pd = NULL; /* keep gcc4 happy */
+	gfp_t gfp_flags = GFP_USER | __GFP_COMP;
 
 	ret = init_housekeeping(dd, &pd, reinit);
 	if (ret)
@@ -833,6 +834,22 @@ int ipath_init_chip(struct ipath_devdata *dd, int reinit)
 			      "rcvhdrq and/or egr bufs\n");
 	else
 		enable_chip(dd, pd, reinit);
+
+
+	if (!ret && !reinit) {
+	    /* used when we close a port, for DMA already in flight at close */
+		dd->ipath_dummy_hdrq = dma_alloc_coherent(
+			&dd->pcidev->dev, pd->port_rcvhdrq_size,
+			&dd->ipath_dummy_hdrq_phys,
+			gfp_flags);
+		if (!dd->ipath_dummy_hdrq ) {
+			dev_info(&dd->pcidev->dev,
+				"Couldn't allocate 0x%lx bytes for dummy hdrq\n",
+				pd->port_rcvhdrq_size);
+			/* fallback to just 0'ing */
+			dd->ipath_dummy_hdrq_phys = 0UL;
+		}
+	}
 
 	/*
 	 * cause retrigger of pending interrupts ignored during init,

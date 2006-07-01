@@ -1486,41 +1486,50 @@ static int ipath_close(struct inode *in, struct file *fp)
 	}
 
 	if (dd->ipath_kregbase) {
-		ipath_write_kreg_port(
-			dd, dd->ipath_kregs->kr_rcvhdrtailaddr,
-			port, 0ULL);
-		ipath_write_kreg_port(
-			dd, dd->ipath_kregs->kr_rcvhdraddr,
-			pd->port_port, 0);
+		int i;
+		/* atomically clear receive enable port. */
+		clear_bit(INFINIPATH_R_PORTENABLE_SHIFT + port,
+			  &dd->ipath_rcvctrl);
+		ipath_write_kreg( dd, dd->ipath_kregs->kr_rcvctrl,
+			dd->ipath_rcvctrl);
+		/* and read back from chip to be sure that nothing
+		 * else is in flight when we do the rest */
+		(void)ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
 
 		/* clean up the pkeys for this port user */
 		ipath_clean_part_key(pd, dd);
 
-		if (port < dd->ipath_cfgports) {
-			int i = dd->ipath_pbufsport * (port - 1);
-			ipath_disarm_piobufs(dd, i, dd->ipath_pbufsport);
 
-			/* atomically clear receive enable port. */
-			clear_bit(INFINIPATH_R_PORTENABLE_SHIFT + port,
-				  &dd->ipath_rcvctrl);
-			ipath_write_kreg(
-				dd,
-				dd->ipath_kregs->kr_rcvctrl,
-				dd->ipath_rcvctrl);
+		/*
+		 * be paranoid, and never write 0's to these, just use an
+		 * unused part of the port 0 tail page.  Of course,
+		 * rcvhdraddr points to a large chunk of memory, so this
+		 * could still trash things, but at least it won't trash
+		 * page 0, and by disabling the port, it should stop "soon",
+		 * even if a packet or two is in already in flight after we
+		 * disabled the port.
+		 */
+		ipath_write_kreg_port(dd,
+		        dd->ipath_kregs->kr_rcvhdrtailaddr, port,
+			dd->ipath_dummy_hdrq_phys);
+		ipath_write_kreg_port(dd, dd->ipath_kregs->kr_rcvhdraddr,
+			pd->port_port, dd->ipath_dummy_hdrq_phys);
 
-			if (dd->ipath_pageshadow)
-				unlock_expected_tids(pd);
-			ipath_stats.sps_ports--;
-			ipath_cdbg(PROC, "%s[%u] closed port %u:%u\n",
-				   pd->port_comm, pd->port_pid,
-				   dd->ipath_unit, port);
-		}
+		i = dd->ipath_pbufsport * (port - 1);
+		ipath_disarm_piobufs(dd, i, dd->ipath_pbufsport);
+
+		if (dd->ipath_pageshadow)
+			unlock_expected_tids(pd);
+		ipath_stats.sps_ports--;
+		ipath_cdbg(PROC, "%s[%u] closed port %u:%u\n",
+			   pd->port_comm, pd->port_pid,
+			   dd->ipath_unit, port);
+
+		dd->ipath_f_clear_tids(dd, pd->port_port);
 	}
 
 	pd->port_cnt = 0;
 	pd->port_pid = 0;
-
-	dd->ipath_f_clear_tids(dd, pd->port_port);
 
 	dd->ipath_pd[pd->port_port] = NULL; /* before releasing mutex */
 	mutex_unlock(&ipath_mutex);

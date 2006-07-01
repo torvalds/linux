@@ -352,6 +352,8 @@ struct ipath_devdata {
 	/* check for stale messages in rcv queue */
 	/* only allow one intr at a time. */
 	unsigned long ipath_rcv_pending;
+	void *ipath_dummy_hdrq;	/* used after port close */
+	dma_addr_t ipath_dummy_hdrq_phys;
 
 	/*
 	 * Shadow copies of registers; size indicates read access size.

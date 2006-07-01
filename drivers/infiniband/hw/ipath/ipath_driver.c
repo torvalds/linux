@@ -1824,6 +1824,12 @@ static void cleanup_device(struct ipath_devdata *dd)
 				  dd->ipath_pioavailregs_phys);
 		dd->ipath_pioavailregs_dma = NULL;
 	}
+	if (dd->ipath_dummy_hdrq) {
+		dma_free_coherent(&dd->pcidev->dev,
+			dd->ipath_pd[0]->port_rcvhdrq_size,
+			dd->ipath_dummy_hdrq, dd->ipath_dummy_hdrq_phys);
+		dd->ipath_dummy_hdrq = NULL;
+	}
 
 	if (dd->ipath_pageshadow) {
 		struct page **tmpp = dd->ipath_pageshadow;
