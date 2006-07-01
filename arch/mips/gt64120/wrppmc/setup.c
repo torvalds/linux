@@ -8,7 +8,6 @@
  * Copyright (C) 1996, 1997, 2004 by Ralf Baechle (ralf@linux-mips.org)
  * Copyright (C) 2006, Wind River System Inc. Rongkai.zhan <rongkai.zhan@windriver.com>
  */
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
