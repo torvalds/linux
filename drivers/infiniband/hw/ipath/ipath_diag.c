@@ -115,7 +115,7 @@ static int ipath_read_umem64(struct ipath_devdata *dd, void __user *uaddr,
 			goto bail;
 		}
 		reg_addr++;
-		uaddr++;
+		uaddr += sizeof(u64);
 	}
 	ret = 0;
 bail:
@@ -154,7 +154,7 @@ static int ipath_write_umem64(struct ipath_devdata *dd, void __iomem *caddr,
 		writeq(data, reg_addr);
 
 		reg_addr++;
-		uaddr++;
+		uaddr += sizeof(u64);
 	}
 	ret = 0;
 bail:
@@ -192,7 +192,8 @@ static int ipath_read_umem32(struct ipath_devdata *dd, void __user *uaddr,
 		}
 
 		reg_addr++;
-		uaddr++;
+		uaddr += sizeof(u32);
+
 	}
 	ret = 0;
 bail:
@@ -231,7 +232,7 @@ static int ipath_write_umem32(struct ipath_devdata *dd, void __iomem *caddr,
 		writel(data, reg_addr);
 
 		reg_addr++;
-		uaddr++;
+		uaddr += sizeof(u32);
 	}
 	ret = 0;
 bail:
