@@ -51,6 +51,7 @@
 #include <asm/irq.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/time.h>
+#include <asm/arch/dmtimer.h>
 
 struct sys_timer omap_timer;
 
@@ -117,8 +118,6 @@ static inline void omap_32k_timer_stop(void)
 #define omap_32k_timer_ack_irq()
 
 #elif defined(CONFIG_ARCH_OMAP2)
-
-#include <asm/arch/dmtimer.h>
 
 static struct omap_dm_timer *gptimer;
 
@@ -275,6 +274,7 @@ static __init void omap_init_32k_timer(void)
 	omap_timer.offset  = omap_32k_timer_gettimeoffset;
 	omap_32k_last_tick = omap_32k_sync_timer_read();
 
+#ifdef CONFIG_ARCH_OMAP2
 	/* REVISIT: Check 24xx TIOCP_CFG settings after idle works */
 	if (cpu_is_omap24xx()) {
 		gptimer = omap_dm_timer_request_specific(1);
@@ -286,6 +286,7 @@ static __init void omap_init_32k_timer(void)
 			OMAP_TIMER_INT_CAPTURE | OMAP_TIMER_INT_OVERFLOW |
 			OMAP_TIMER_INT_MATCH);
 	}
+#endif
 
 	omap_32k_timer_start(OMAP_32K_TIMER_TICK_PERIOD);
 }

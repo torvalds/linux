@@ -260,7 +260,7 @@ __u32 omap_dm_timer_modify_idlect_mask(__u32 inputmask)
 	for (i = 0; i < dm_timer_count; i++) {
 		u32 l;
 
-		l = omap_dm_timer_read_reg(&dm_timers[n], OMAP_TIMER_CTRL_REG);
+		l = omap_dm_timer_read_reg(&dm_timers[i], OMAP_TIMER_CTRL_REG);
 		if (l & OMAP_TIMER_CTRL_ST) {
 			if (((omap_readl(MOD_CONF_CTRL_1) >> (i * 2)) & 0x03) == 0)
 				inputmask &= ~(1 << 1);
