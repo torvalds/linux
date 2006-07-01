@@ -630,8 +630,10 @@ static int futex_wake(u32 __user *uaddr, int nr_wake)
 
 	list_for_each_entry_safe(this, next, head, list) {
 		if (match_futex (&this->key, &key)) {
-			if (this->pi_state)
-				return -EINVAL;
+			if (this->pi_state) {
+				ret = -EINVAL;
+				break;
+			}
 			wake_futex(this);
 			if (++ret >= nr_wake)
 				break;
