@@ -131,14 +131,6 @@ static struct pci_driver ipath_driver = {
 	.id_table = ipath_pci_tbl,
 };
 
-/*
- * This is where port 0's rcvhdrtail register is written back; we also
- * want nothing else sharing the cache line, so make it a cache line
- * in size.  Used for all units.
- */
-volatile __le64 *ipath_port0_rcvhdrtail;
-dma_addr_t ipath_port0_rcvhdrtail_dma;
-static int port0_rcvhdrtail_refs;
 
 static inline void read_bars(struct ipath_devdata *dd, struct pci_dev *dev,
 			     u32 *bar0, u32 *bar1)
@@ -268,47 +260,6 @@ int ipath_count_units(int *npresentp, int *nupp, u32 *maxportsp)
 	return nunits;
 }
 
-static int init_port0_rcvhdrtail(struct pci_dev *pdev)
-{
-	int ret;
-
-	mutex_lock(&ipath_mutex);
-
-	if (!ipath_port0_rcvhdrtail) {
-		ipath_port0_rcvhdrtail =
-			dma_alloc_coherent(&pdev->dev,
-					   IPATH_PORT0_RCVHDRTAIL_SIZE,
-					   &ipath_port0_rcvhdrtail_dma,
-					   GFP_KERNEL);
-
-		if (!ipath_port0_rcvhdrtail) {
-			ret = -ENOMEM;
-			goto bail;
-		}
-	}
-	port0_rcvhdrtail_refs++;
-	ret = 0;
-
-bail:
-	mutex_unlock(&ipath_mutex);
-
-	return ret;
-}
-
-static void cleanup_port0_rcvhdrtail(struct pci_dev *pdev)
-{
-	mutex_lock(&ipath_mutex);
-
-	if (!--port0_rcvhdrtail_refs) {
-		dma_free_coherent(&pdev->dev, IPATH_PORT0_RCVHDRTAIL_SIZE,
-				  (void *) ipath_port0_rcvhdrtail,
-				  ipath_port0_rcvhdrtail_dma);
-		ipath_port0_rcvhdrtail = NULL;
-	}
-
-	mutex_unlock(&ipath_mutex);
-}
-
 /*
  * These next two routines are placeholders in case we don't have per-arch
  * code for controlling write combining.  If explicit control of write
@@ -333,20 +284,12 @@ static int __devinit ipath_init_one(struct pci_dev *pdev,
 	u32 bar0 = 0, bar1 = 0;
 	u8 rev;
 
-	ret = init_port0_rcvhdrtail(pdev);
-	if (ret < 0) {
-		printk(KERN_ERR IPATH_DRV_NAME
-		       ": Could not allocate port0_rcvhdrtail: error %d\n",
-		       -ret);
-		goto bail;
-	}
-
 	dd = ipath_alloc_devdata(pdev);
 	if (IS_ERR(dd)) {
 		ret = PTR_ERR(dd);
 		printk(KERN_ERR IPATH_DRV_NAME
 		       ": Could not allocate devdata: error %d\n", -ret);
-		goto bail_rcvhdrtail;
+		goto bail;
 	}
 
 	ipath_cdbg(VERBOSE, "initializing unit #%u\n", dd->ipath_unit);
@@ -574,9 +517,6 @@ bail_disable:
 bail_devdata:
 	ipath_free_devdata(pdev, dd);
 
-bail_rcvhdrtail:
-	cleanup_port0_rcvhdrtail(pdev);
-
 bail:
 	return ret;
 }
@@ -608,7 +548,6 @@ static void __devexit ipath_remove_one(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 
 	ipath_free_devdata(pdev, dd);
-	cleanup_port0_rcvhdrtail(pdev);
 }
 
 /* general driver use */
@@ -1383,26 +1322,20 @@ bail:
  * @dd: the infinipath device
  * @pd: the port data
  *
- * this *must* be physically contiguous memory, and for now,
- * that limits it to what kmalloc can do.
+ * this must be contiguous memory (from an i/o perspective), and must be
+ * DMA'able (which means for some systems, it will go through an IOMMU,
+ * or be forced into a low address range).
  */
 int ipath_create_rcvhdrq(struct ipath_devdata *dd,
 			 struct ipath_portdata *pd)
 {
-	int ret = 0, amt;
+	int ret = 0;
 
-	amt = ALIGN(dd->ipath_rcvhdrcnt * dd->ipath_rcvhdrentsize *
-		    sizeof(u32), PAGE_SIZE);
 	if (!pd->port_rcvhdrq) {
-		/*
-		 * not using REPEAT isn't viable; at 128KB, we can easily
-		 * fail this.  The problem with REPEAT is we can block here
-		 * "forever".  There isn't an inbetween, unfortunately.  We
-		 * could reduce the risk by never freeing the rcvhdrq except
-		 * at unload, but even then, the first time a port is used,
-		 * we could delay for some time...
-		 */
+		dma_addr_t phys_hdrqtail;
 		gfp_t gfp_flags = GFP_USER | __GFP_COMP;
+		int amt = ALIGN(dd->ipath_rcvhdrcnt * dd->ipath_rcvhdrentsize *
+				sizeof(u32), PAGE_SIZE);
 
 		pd->port_rcvhdrq = dma_alloc_coherent(
 			&dd->pcidev->dev, amt, &pd->port_rcvhdrq_phys,
@@ -1415,6 +1348,16 @@ int ipath_create_rcvhdrq(struct ipath_devdata *dd,
 			ret = -ENOMEM;
 			goto bail;
 		}
+		pd->port_rcvhdrtail_kvaddr = dma_alloc_coherent(
+			&dd->pcidev->dev, PAGE_SIZE, &phys_hdrqtail, GFP_KERNEL);
+		if (!pd->port_rcvhdrtail_kvaddr) {
+			ipath_dev_err(dd, "attempt to allocate 1 page "
+				      "for port %u rcvhdrqtailaddr failed\n",
+				      pd->port_port);
+			ret = -ENOMEM;
+			goto bail;
+		}
+		pd->port_rcvhdrqtailaddr_phys = phys_hdrqtail;
 
 		pd->port_rcvhdrq_size = amt;
 
@@ -1424,20 +1367,28 @@ int ipath_create_rcvhdrq(struct ipath_devdata *dd,
 			   (unsigned long) pd->port_rcvhdrq_phys,
 			   (unsigned long) pd->port_rcvhdrq_size,
 			   pd->port_port);
-	} else {
-		/*
-		 * clear for security, sanity, and/or debugging, each
-		 * time we reuse
-		 */
-		memset(pd->port_rcvhdrq, 0, amt);
+
+		ipath_cdbg(VERBOSE, "port %d hdrtailaddr, %llx physical\n",
+			   pd->port_port,
+			   (unsigned long long) phys_hdrqtail);
 	}
+	else
+		ipath_cdbg(VERBOSE, "reuse port %d rcvhdrq @%p %llx phys; "
+			   "hdrtailaddr@%p %llx physical\n",
+			   pd->port_port, pd->port_rcvhdrq,
+			   pd->port_rcvhdrq_phys, pd->port_rcvhdrtail_kvaddr,
+			   (unsigned long long)pd->port_rcvhdrqtailaddr_phys);
+
+	/* clear for security and sanity on each use */
+	memset(pd->port_rcvhdrq, 0, pd->port_rcvhdrq_size);
+	memset((void *)pd->port_rcvhdrtail_kvaddr, 0, PAGE_SIZE);
 
 	/*
 	 * tell chip each time we init it, even if we are re-using previous
-	 * memory (we zero it at process close)
+	 * memory (we zero the register at process close)
 	 */
-	ipath_cdbg(VERBOSE, "writing port %d rcvhdraddr as %lx\n",
-		   pd->port_port, (unsigned long) pd->port_rcvhdrq_phys);
+	ipath_write_kreg_port(dd, dd->ipath_kregs->kr_rcvhdrtailaddr,
+			      pd->port_port, pd->port_rcvhdrqtailaddr_phys);
 	ipath_write_kreg_port(dd, dd->ipath_kregs->kr_rcvhdraddr,
 			      pd->port_port, pd->port_rcvhdrq_phys);
 
@@ -1525,15 +1476,27 @@ void ipath_set_ib_lstate(struct ipath_devdata *dd, int which)
 		[INFINIPATH_IBCC_LINKCMD_ARMED] = "ARMED",
 		[INFINIPATH_IBCC_LINKCMD_ACTIVE] = "ACTIVE"
 	};
+	int linkcmd = (which >> INFINIPATH_IBCC_LINKCMD_SHIFT) &
+			INFINIPATH_IBCC_LINKCMD_MASK;
+
 	ipath_cdbg(SMA, "Trying to move unit %u to %s, current ltstate "
 		   "is %s\n", dd->ipath_unit,
-		   what[(which >> INFINIPATH_IBCC_LINKCMD_SHIFT) &
-			INFINIPATH_IBCC_LINKCMD_MASK],
+		   what[linkcmd],
 		   ipath_ibcstatus_str[
 			   (ipath_read_kreg64
 			    (dd, dd->ipath_kregs->kr_ibcstatus) >>
 			    INFINIPATH_IBCS_LINKTRAININGSTATE_SHIFT) &
 			   INFINIPATH_IBCS_LINKTRAININGSTATE_MASK]);
+	/* flush all queued sends when going to DOWN or INIT, to be sure that
+	 * they don't block SMA and other MAD packets */
+	if (!linkcmd || linkcmd == INFINIPATH_IBCC_LINKCMD_INIT) {
+		ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
+				 INFINIPATH_S_ABORT);
+		ipath_disarm_piobufs(dd, dd->ipath_lastport_piobuf,
+		                    (unsigned)(dd->ipath_piobcnt2k +
+				    dd->ipath_piobcnt4k) -
+				    dd->ipath_lastport_piobuf);
+	}
 
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_ibcctrl,
 			 dd->ipath_ibcctrl | which);
@@ -1681,60 +1644,54 @@ void ipath_shutdown_device(struct ipath_devdata *dd)
 /**
  * ipath_free_pddata - free a port's allocated data
  * @dd: the infinipath device
- * @port: the port
- * @freehdrq: free the port data structure if true
+ * @pd: the portdata structure
  *
- * when closing, free up any allocated data for a port, if the
- * reference count goes to zero
- * Note: this also optionally frees the portdata itself!
- * Any changes here have to be matched up with the reinit case
- * of ipath_init_chip(), which calls this routine on reinit after reset.
+ * free up any allocated data for a port
+ * This should not touch anything that would affect a simultaneous
+ * re-allocation of port data, because it is called after ipath_mutex
+ * is released (and can be called from reinit as well).
+ * It should never change any chip state, or global driver state.
+ * (The only exception to global state is freeing the port0 port0_skbs.)
  */
-void ipath_free_pddata(struct ipath_devdata *dd, u32 port, int freehdrq)
+void ipath_free_pddata(struct ipath_devdata *dd, struct ipath_portdata *pd)
 {
-	struct ipath_portdata *pd = dd->ipath_pd[port];
-
 	if (!pd)
 		return;
-	if (freehdrq)
-		/*
-		 * only clear and free portdata if we are going to also
-		 * release the hdrq, otherwise we leak the hdrq on each
-		 * open/close cycle
-		 */
-		dd->ipath_pd[port] = NULL;
-	if (freehdrq && pd->port_rcvhdrq) {
+
+	if (pd->port_rcvhdrq) {
 		ipath_cdbg(VERBOSE, "free closed port %d rcvhdrq @ %p "
 			   "(size=%lu)\n", pd->port_port, pd->port_rcvhdrq,
 			   (unsigned long) pd->port_rcvhdrq_size);
 		dma_free_coherent(&dd->pcidev->dev, pd->port_rcvhdrq_size,
 				  pd->port_rcvhdrq, pd->port_rcvhdrq_phys);
 		pd->port_rcvhdrq = NULL;
-	}
-	if (port && pd->port_rcvegrbuf) {
-		/* always free this */
-		if (pd->port_rcvegrbuf) {
-			unsigned e;
-
-			for (e = 0; e < pd->port_rcvegrbuf_chunks; e++) {
-				void *base = pd->port_rcvegrbuf[e];
-				size_t size = pd->port_rcvegrbuf_size;
-
-				ipath_cdbg(VERBOSE, "egrbuf free(%p, %lu), "
-					   "chunk %u/%u\n", base,
-					   (unsigned long) size,
-					   e, pd->port_rcvegrbuf_chunks);
-				dma_free_coherent(
-					&dd->pcidev->dev, size, base,
-					pd->port_rcvegrbuf_phys[e]);
-			}
-			vfree(pd->port_rcvegrbuf);
-			pd->port_rcvegrbuf = NULL;
-			vfree(pd->port_rcvegrbuf_phys);
-			pd->port_rcvegrbuf_phys = NULL;
+		if (pd->port_rcvhdrtail_kvaddr) {
+			dma_free_coherent(&dd->pcidev->dev, PAGE_SIZE,
+					 (void *)pd->port_rcvhdrtail_kvaddr,
+					 pd->port_rcvhdrqtailaddr_phys);
+			pd->port_rcvhdrtail_kvaddr = NULL;
 		}
+	}
+	if (pd->port_port && pd->port_rcvegrbuf) {
+		unsigned e;
+
+		for (e = 0; e < pd->port_rcvegrbuf_chunks; e++) {
+			void *base = pd->port_rcvegrbuf[e];
+			size_t size = pd->port_rcvegrbuf_size;
+
+			ipath_cdbg(VERBOSE, "egrbuf free(%p, %lu), "
+				   "chunk %u/%u\n", base,
+				   (unsigned long) size,
+				   e, pd->port_rcvegrbuf_chunks);
+			dma_free_coherent(&dd->pcidev->dev, size,
+				base, pd->port_rcvegrbuf_phys[e]);
+		}
+		vfree(pd->port_rcvegrbuf);
+		pd->port_rcvegrbuf = NULL;
+		vfree(pd->port_rcvegrbuf_phys);
+		pd->port_rcvegrbuf_phys = NULL;
 		pd->port_rcvegrbuf_chunks = 0;
-	} else if (port == 0 && dd->ipath_port0_skbs) {
+	} else if (pd->port_port == 0 && dd->ipath_port0_skbs) {
 		unsigned e;
 		struct sk_buff **skbs = dd->ipath_port0_skbs;
 
@@ -1746,10 +1703,8 @@ void ipath_free_pddata(struct ipath_devdata *dd, u32 port, int freehdrq)
 				dev_kfree_skb(skbs[e]);
 		vfree(skbs);
 	}
-	if (freehdrq) {
-		kfree(pd->port_tid_pg_list);
-		kfree(pd);
-	}
+	kfree(pd->port_tid_pg_list);
+	kfree(pd);
 }
 
 static int __init infinipath_init(void)
@@ -1874,10 +1829,14 @@ static void cleanup_device(struct ipath_devdata *dd)
 
 	/*
 	 * free any resources still in use (usually just kernel ports)
-	 * at unload
+	 * at unload; we do for portcnt, not cfgports, because cfgports
+	 * could have changed while we were loaded.
 	 */
-	for (port = 0; port < dd->ipath_cfgports; port++)
-		ipath_free_pddata(dd, port, 1);
+	for (port = 0; port < dd->ipath_portcnt; port++) {
+		struct ipath_portdata *pd = dd->ipath_pd[port];
+		dd->ipath_pd[port] = NULL;
+		ipath_free_pddata(dd, pd);
+	}
 	kfree(dd->ipath_pd);
 	/*
 	 * debuggability, in case some cleanup path tries to use it

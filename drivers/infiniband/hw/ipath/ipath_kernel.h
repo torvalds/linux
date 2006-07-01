@@ -62,9 +62,7 @@ struct ipath_portdata {
 	/* rcvhdrq base, needs mmap before useful */
 	void *port_rcvhdrq;
 	/* kernel virtual address where hdrqtail is updated */
-	u64 *port_rcvhdrtail_kvaddr;
-	/* page * used for uaddr */
-	struct page *port_rcvhdrtail_pagep;
+	volatile __le64 *port_rcvhdrtail_kvaddr;
 	/*
 	 * temp buffer for expected send setup, allocated at open, instead
 	 * of each setup call
@@ -79,11 +77,7 @@ struct ipath_portdata {
 	dma_addr_t port_rcvegr_phys;
 	/* mmap of hdrq, must fit in 44 bits */
 	dma_addr_t port_rcvhdrq_phys;
-	/*
-	 * the actual user address that we ipath_mlock'ed, so we can
-	 * ipath_munlock it at close
-	 */
-	unsigned long port_rcvhdrtail_uaddr;
+	dma_addr_t port_rcvhdrqtailaddr_phys;
 	/*
 	 * number of opens on this instance (0 or 1; ignoring forks, dup,
 	 * etc. for now)
@@ -515,11 +509,6 @@ struct ipath_devdata {
 	u8 ipath_lmc;
 };
 
-extern volatile __le64 *ipath_port0_rcvhdrtail;
-extern dma_addr_t ipath_port0_rcvhdrtail_dma;
-
-#define IPATH_PORT0_RCVHDRTAIL_SIZE PAGE_SIZE
-
 extern struct list_head ipath_dev_list;
 extern spinlock_t ipath_devs_lock;
 extern struct ipath_devdata *ipath_lookup(int unit);
@@ -579,7 +568,7 @@ void ipath_disarm_piobufs(struct ipath_devdata *, unsigned first,
 			  unsigned cnt);
 
 int ipath_create_rcvhdrq(struct ipath_devdata *, struct ipath_portdata *);
-void ipath_free_pddata(struct ipath_devdata *, u32, int);
+void ipath_free_pddata(struct ipath_devdata *, struct ipath_portdata *);
 
 int ipath_parse_ushort(const char *str, unsigned short *valp);
 

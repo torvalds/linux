@@ -37,6 +37,7 @@
 #include "ips_common.h"
 #include "ipath_layer.h"
 
+/* These are all rcv-related errors which we want to count for stats */
 #define E_SUM_PKTERRS \
 	(INFINIPATH_E_RHDRLEN | INFINIPATH_E_RBADTID | \
 	 INFINIPATH_E_RBADVERSION | INFINIPATH_E_RHDR | \
@@ -45,12 +46,25 @@
 	 INFINIPATH_E_RFORMATERR | INFINIPATH_E_RUNSUPVL | \
 	 INFINIPATH_E_RUNEXPCHAR | INFINIPATH_E_REBP)
 
+/* These are all send-related errors which we want to count for stats */
 #define E_SUM_ERRS \
 	(INFINIPATH_E_SPIOARMLAUNCH | INFINIPATH_E_SUNEXPERRPKTNUM | \
 	 INFINIPATH_E_SDROPPEDDATAPKT | INFINIPATH_E_SDROPPEDSMPPKT | \
 	 INFINIPATH_E_SMAXPKTLEN | INFINIPATH_E_SUNSUPVL | \
 	 INFINIPATH_E_SMINPKTLEN | INFINIPATH_E_SPKTLEN | \
 	 INFINIPATH_E_INVALIDADDR)
+
+/*
+ * these are errors that can occur when the link changes state while
+ * a packet is being sent or received.  This doesn't cover things
+ * like EBP or VCRC that can be the result of a sending having the
+ * link change state, so we receive a "known bad" packet.
+ */
+#define E_SUM_LINK_PKTERRS \
+	(INFINIPATH_E_SDROPPEDDATAPKT | INFINIPATH_E_SDROPPEDSMPPKT | \
+	 INFINIPATH_E_SMINPKTLEN | INFINIPATH_E_SPKTLEN | \
+	 INFINIPATH_E_RSHORTPKTLEN | INFINIPATH_E_RMINPKTLEN | \
+	 INFINIPATH_E_RUNEXPCHAR)
 
 static u64 handle_e_sum_errs(struct ipath_devdata *dd, ipath_err_t errs)
 {
@@ -101,9 +115,7 @@ static u64 handle_e_sum_errs(struct ipath_devdata *dd, ipath_err_t errs)
 		if (ipath_debug & __IPATH_PKTDBG)
 			printk("\n");
 	}
-	if ((errs & (INFINIPATH_E_SDROPPEDDATAPKT |
-		     INFINIPATH_E_SDROPPEDSMPPKT |
-		     INFINIPATH_E_SMINPKTLEN)) &&
+	if ((errs & E_SUM_LINK_PKTERRS) &&
 	    !(dd->ipath_flags & IPATH_LINKACTIVE)) {
 		/*
 		 * This can happen when SMA is trying to bring the link
@@ -112,11 +124,9 @@ static u64 handle_e_sum_errs(struct ipath_devdata *dd, ipath_err_t errs)
 		 * valid.  We don't want to confuse people, so we just
 		 * don't print them, except at debug
 		 */
-		ipath_dbg("Ignoring pktsend errors %llx, because not "
-			  "yet active\n", (unsigned long long) errs);
-		ignore_this_time = INFINIPATH_E_SDROPPEDDATAPKT |
-			INFINIPATH_E_SDROPPEDSMPPKT |
-			INFINIPATH_E_SMINPKTLEN;
+		ipath_dbg("Ignoring packet errors %llx, because link not "
+			  "ACTIVE\n", (unsigned long long) errs);
+		ignore_this_time = errs & E_SUM_LINK_PKTERRS;
 	}
 
 	return ignore_this_time;
@@ -157,7 +167,29 @@ static void handle_e_ibstatuschanged(struct ipath_devdata *dd,
 	 */
 	val = ipath_read_kreg64(dd, dd->ipath_kregs->kr_ibcstatus);
 	lstate = val & IPATH_IBSTATE_MASK;
-	if (lstate == IPATH_IBSTATE_INIT || lstate == IPATH_IBSTATE_ARM ||
+
+	/*
+	 * this is confusing enough when it happens that I want to always put it
+	 * on the console and in the logs.  If it was a requested state change,
+	 * we'll have already cleared the flags, so we won't print this warning
+	 */
+	if ((lstate != IPATH_IBSTATE_ARM && lstate != IPATH_IBSTATE_ACTIVE)
+		&& (dd->ipath_flags & (IPATH_LINKARMED | IPATH_LINKACTIVE))) {
+		dev_info(&dd->pcidev->dev, "Link state changed from %s to %s\n",
+				 (dd->ipath_flags & IPATH_LINKARMED) ? "ARM" : "ACTIVE",
+				 ib_linkstate(lstate));
+		/*
+		 * Flush all queued sends when link went to DOWN or INIT,
+		 * to be sure that they don't block SMA and other MAD packets
+		 */
+		ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
+				 INFINIPATH_S_ABORT);
+		ipath_disarm_piobufs(dd, dd->ipath_lastport_piobuf,
+							(unsigned)(dd->ipath_piobcnt2k +
+					dd->ipath_piobcnt4k) -
+					dd->ipath_lastport_piobuf);
+	}
+	else if (lstate == IPATH_IBSTATE_INIT || lstate == IPATH_IBSTATE_ARM ||
 	    lstate == IPATH_IBSTATE_ACTIVE) {
 		/*
 		 * only print at SMA if there is a change, debug if not
@@ -380,6 +412,19 @@ static void handle_errors(struct ipath_devdata *dd, ipath_err_t errs)
 
 	if (errs & E_SUM_ERRS)
 		ignore_this_time = handle_e_sum_errs(dd, errs);
+	else if ((errs & E_SUM_LINK_PKTERRS) &&
+	    !(dd->ipath_flags & IPATH_LINKACTIVE)) {
+		/*
+		 * This can happen when SMA is trying to bring the link
+		 * up, but the IB link changes state at the "wrong" time.
+		 * The IB logic then complains that the packet isn't
+		 * valid.  We don't want to confuse people, so we just
+		 * don't print them, except at debug
+		 */
+		ipath_dbg("Ignoring packet errors %llx, because link not "
+			  "ACTIVE\n", (unsigned long long) errs);
+		ignore_this_time = errs & E_SUM_LINK_PKTERRS;
+	}
 
 	if (supp_msgs == 250000) {
 		/*

@@ -123,6 +123,7 @@ static int ipath_get_base_info(struct ipath_portdata *pd,
 	 * on to yet another method of dealing with this
 	 */
 	kinfo->spi_rcvhdr_base = (u64) pd->port_rcvhdrq_phys;
+	kinfo->spi_rcvhdr_tailaddr = (u64)pd->port_rcvhdrqtailaddr_phys;
 	kinfo->spi_rcv_egrbufs = (u64) pd->port_rcvegr_phys;
 	kinfo->spi_pioavailaddr = (u64) dd->ipath_pioavailregs_phys;
 	kinfo->spi_status = (u64) kinfo->spi_pioavailaddr +
@@ -785,11 +786,12 @@ static int ipath_create_user_egr(struct ipath_portdata *pd)
 
 bail_rcvegrbuf_phys:
 	for (e = 0; e < pd->port_rcvegrbuf_chunks &&
-		     pd->port_rcvegrbuf[e]; e++)
+		pd->port_rcvegrbuf[e]; e++) {
 		dma_free_coherent(&dd->pcidev->dev, size,
 				  pd->port_rcvegrbuf[e],
 				  pd->port_rcvegrbuf_phys[e]);
 
+	}
 	vfree(pd->port_rcvegrbuf_phys);
 	pd->port_rcvegrbuf_phys = NULL;
 bail_rcvegrbuf:
@@ -804,10 +806,7 @@ static int ipath_do_user_init(struct ipath_portdata *pd,
 {
 	int ret = 0;
 	struct ipath_devdata *dd = pd->port_dd;
-	u64 physaddr, uaddr, off, atmp;
-	struct page *pagep;
 	u32 head32;
-	u64 head;
 
 	/* for now, if major version is different, bail */
 	if ((uinfo->spu_userversion >> 16) != IPATH_USER_SWMAJOR) {
@@ -832,54 +831,6 @@ static int ipath_do_user_init(struct ipath_portdata *pd,
 
 	/* for now we do nothing with rcvhdrcnt: uinfo->spu_rcvhdrcnt */
 
-	/* set up for the rcvhdr Q tail register writeback to user memory */
-	if (!uinfo->spu_rcvhdraddr ||
-	    !access_ok(VERIFY_WRITE, (u64 __user *) (unsigned long)
-		       uinfo->spu_rcvhdraddr, sizeof(u64))) {
-		ipath_dbg("Port %d rcvhdrtail addr %llx not valid\n",
-			  pd->port_port,
-			  (unsigned long long) uinfo->spu_rcvhdraddr);
-		ret = -EINVAL;
-		goto done;
-	}
-
-	off = offset_in_page(uinfo->spu_rcvhdraddr);
-	uaddr = PAGE_MASK & (unsigned long) uinfo->spu_rcvhdraddr;
-	ret = ipath_get_user_pages_nocopy(uaddr, &pagep);
-	if (ret) {
-		dev_info(&dd->pcidev->dev, "Failed to lookup and lock "
-			 "address %llx for rcvhdrtail: errno %d\n",
-			 (unsigned long long) uinfo->spu_rcvhdraddr, -ret);
-		goto done;
-	}
-	ipath_stats.sps_pagelocks++;
-	pd->port_rcvhdrtail_uaddr = uaddr;
-	pd->port_rcvhdrtail_pagep = pagep;
-	pd->port_rcvhdrtail_kvaddr =
-		page_address(pagep);
-	pd->port_rcvhdrtail_kvaddr += off;
-	physaddr = page_to_phys(pagep) + off;
-	ipath_cdbg(VERBOSE, "port %d user addr %llx hdrtailaddr, %llx "
-		   "physical (off=%llx)\n",
-		   pd->port_port,
-		   (unsigned long long) uinfo->spu_rcvhdraddr,
-		   (unsigned long long) physaddr, (unsigned long long) off);
-	ipath_write_kreg_port(dd, dd->ipath_kregs->kr_rcvhdrtailaddr,
-			      pd->port_port, physaddr);
-	atmp = ipath_read_kreg64_port(dd,
-				      dd->ipath_kregs->kr_rcvhdrtailaddr,
-				      pd->port_port);
-	if (physaddr != atmp) {
-		ipath_dev_err(dd,
-			      "Catastrophic software error, "
-			      "RcvHdrTailAddr%u written as %llx, "
-			      "read back as %llx\n", pd->port_port,
-			      (unsigned long long) physaddr,
-			      (unsigned long long) atmp);
-		ret = -EINVAL;
-		goto done;
-	}
-
 	/* for right now, kernel piobufs are at end, so port 1 is at 0 */
 	pd->port_piobufs = dd->ipath_piobufbase +
 		dd->ipath_pbufsport * (pd->port_port -
@@ -898,26 +849,18 @@ static int ipath_do_user_init(struct ipath_portdata *pd,
 		ret = ipath_create_user_egr(pd);
 	if (ret)
 		goto done;
-	/* enable receives now */
-	/* atomically set enable bit for this port */
-	set_bit(INFINIPATH_R_PORTENABLE_SHIFT + pd->port_port,
-		&dd->ipath_rcvctrl);
 
 	/*
-	 * set the head registers for this port to the current values
+	 * set the eager head register for this port to the current values
 	 * of the tail pointers, since we don't know if they were
 	 * updated on last use of the port.
 	 */
-	head32 = ipath_read_ureg32(dd, ur_rcvhdrtail, pd->port_port);
-	head = (u64) head32;
-	ipath_write_ureg(dd, ur_rcvhdrhead, head, pd->port_port);
 	head32 = ipath_read_ureg32(dd, ur_rcvegrindextail, pd->port_port);
 	ipath_write_ureg(dd, ur_rcvegrindexhead, head32, pd->port_port);
 	dd->ipath_lastegrheads[pd->port_port] = -1;
 	dd->ipath_lastrcvhdrqtails[pd->port_port] = -1;
-	ipath_cdbg(VERBOSE, "Wrote port%d head %llx, egrhead %x from "
-		   "tail regs\n", pd->port_port,
-		   (unsigned long long) head, head32);
+	ipath_cdbg(VERBOSE, "Wrote port%d egrhead %x from tail regs\n",
+		pd->port_port, head32);
 	pd->port_tidcursor = 0;	/* start at beginning after open */
 	/*
 	 * now enable the port; the tail registers will be written to memory
@@ -926,13 +869,62 @@ static int ipath_do_user_init(struct ipath_portdata *pd,
 	 * transition from 0 to 1, so clear it first, then set it as part of
 	 * enabling the port.  This will (very briefly) affect any other
 	 * open ports, but it shouldn't be long enough to be an issue.
+	 * We explictly set the in-memory copy to 0 beforehand, so we don't
+	 * have to wait to be sure the DMA update has happened.
 	 */
+	*pd->port_rcvhdrtail_kvaddr = 0ULL;
+	set_bit(INFINIPATH_R_PORTENABLE_SHIFT + pd->port_port,
+		&dd->ipath_rcvctrl);
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_rcvctrl,
 			 dd->ipath_rcvctrl & ~INFINIPATH_R_TAILUPD);
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_rcvctrl,
 			 dd->ipath_rcvctrl);
-
 done:
+	return ret;
+}
+
+
+/* common code for the mappings on dma_alloc_coherent mem */
+static int ipath_mmap_mem(struct vm_area_struct *vma,
+			     struct ipath_portdata *pd, unsigned len,
+			     int write_ok, dma_addr_t addr, char *what)
+{
+	struct ipath_devdata *dd = pd->port_dd;
+	unsigned pfn = (unsigned long)addr >> PAGE_SHIFT;
+	int ret;
+
+	if ((vma->vm_end - vma->vm_start) > len) {
+		dev_info(&dd->pcidev->dev,
+		         "FAIL on %s: len %lx > %x\n", what,
+			 vma->vm_end - vma->vm_start, len);
+		ret = -EFAULT;
+		goto bail;
+	}
+
+	if (!write_ok) {
+		if (vma->vm_flags & VM_WRITE) {
+			dev_info(&dd->pcidev->dev,
+				 "%s must be mapped readonly\n", what);
+			ret = -EPERM;
+			goto bail;
+		}
+
+		/* don't allow them to later change with mprotect */
+		vma->vm_flags &= ~VM_MAYWRITE;
+	}
+
+	ret = remap_pfn_range(vma, vma->vm_start, pfn,
+			      len, vma->vm_page_prot);
+	if (ret)
+		dev_info(&dd->pcidev->dev,
+			 "%s port%u mmap of %lx, %x bytes r%c failed: %d\n",
+			 what, pd->port_port, (unsigned long)addr, len,
+			 write_ok?'w':'o', ret);
+	else
+		ipath_cdbg(VERBOSE, "%s port%u mmaped %lx, %x bytes r%c\n",
+			what, pd->port_port, (unsigned long)addr, len,
+			 write_ok?'w':'o');
+bail:
 	return ret;
 }
 
@@ -942,8 +934,11 @@ static int mmap_ureg(struct vm_area_struct *vma, struct ipath_devdata *dd,
 	unsigned long phys;
 	int ret;
 
-	/* it's the real hardware, so io_remap works */
-
+	/*
+	 * This is real hardware, so use io_remap.  This is the mechanism
+	 * for the user process to update the head registers for their port
+	 * in the chip.
+	 */
 	if ((vma->vm_end - vma->vm_start) > PAGE_SIZE) {
 		dev_info(&dd->pcidev->dev, "FAIL mmap userreg: reqlen "
 			 "%lx > PAGE\n", vma->vm_end - vma->vm_start);
@@ -969,10 +964,11 @@ static int mmap_piobufs(struct vm_area_struct *vma,
 	int ret;
 
 	/*
-	 * When we map the PIO buffers, we want to map them as writeonly, no
-	 * read possible.
+	 * When we map the PIO buffers in the chip, we want to map them as
+	 * writeonly, no read possible.   This prevents access to previous
+	 * process data, and catches users who might try to read the i/o
+	 * space due to a bug.
 	 */
-
 	if ((vma->vm_end - vma->vm_start) >
 	    (dd->ipath_pbufsport * dd->ipath_palign)) {
 		dev_info(&dd->pcidev->dev, "FAIL mmap piobufs: "
@@ -983,11 +979,10 @@ static int mmap_piobufs(struct vm_area_struct *vma,
 	}
 
 	phys = dd->ipath_physaddr + pd->port_piobufs;
+
 	/*
-	 * Do *NOT* mark this as non-cached (PWT bit), or we don't get the
+	 * Don't mark this as non-cached, or we don't get the
 	 * write combining behavior we want on the PIO buffers!
-	 * vma->vm_page_prot =
-	 *        pgprot_noncached(vma->vm_page_prot);
 	 */
 
 	if (vma->vm_flags & VM_READ) {
@@ -999,8 +994,7 @@ static int mmap_piobufs(struct vm_area_struct *vma,
 	}
 
 	/* don't allow them to later change to readable with mprotect */
-
-	vma->vm_flags &= ~VM_MAYWRITE;
+	vma->vm_flags &= ~VM_MAYREAD;
 	vma->vm_flags |= VM_DONTCOPY | VM_DONTEXPAND;
 
 	ret = io_remap_pfn_range(vma, vma->vm_start, phys >> PAGE_SHIFT,
@@ -1019,11 +1013,6 @@ static int mmap_rcvegrbufs(struct vm_area_struct *vma,
 	dma_addr_t *phys;
 	int ret;
 
-	if (!pd->port_rcvegrbuf) {
-		ret = -EFAULT;
-		goto bail;
-	}
-
 	size = pd->port_rcvegrbuf_size;
 	total_size = pd->port_rcvegrbuf_chunks * size;
 	if ((vma->vm_end - vma->vm_start) > total_size) {
@@ -1041,12 +1030,11 @@ static int mmap_rcvegrbufs(struct vm_area_struct *vma,
 		ret = -EPERM;
 		goto bail;
 	}
+	/* don't allow them to later change to writeable with mprotect */
+	vma->vm_flags &= ~VM_MAYWRITE;
 
 	start = vma->vm_start;
 	phys = pd->port_rcvegrbuf_phys;
-
-	/* don't allow them to later change to writeable with mprotect */
-	vma->vm_flags &= ~VM_MAYWRITE;
 
 	for (i = 0; i < pd->port_rcvegrbuf_chunks; i++, start += size) {
 		ret = remap_pfn_range(vma, start, phys[i] >> PAGE_SHIFT,
@@ -1056,78 +1044,6 @@ static int mmap_rcvegrbufs(struct vm_area_struct *vma,
 	}
 	ret = 0;
 
-bail:
-	return ret;
-}
-
-static int mmap_rcvhdrq(struct vm_area_struct *vma,
-			struct ipath_portdata *pd)
-{
-	struct ipath_devdata *dd = pd->port_dd;
-	size_t total_size;
-	int ret;
-
-	/*
-	 * kmalloc'ed memory, physically contiguous; this is from
-	 * spi_rcvhdr_base; we allow user to map read-write so they can
-	 * write hdrq entries to allow protocol code to directly poll
-	 * whether a hdrq entry has been written.
-	 */
-	total_size = ALIGN(dd->ipath_rcvhdrcnt * dd->ipath_rcvhdrentsize *
-			   sizeof(u32), PAGE_SIZE);
-	if ((vma->vm_end - vma->vm_start) > total_size) {
-		dev_info(&dd->pcidev->dev,
-			 "FAIL on rcvhdrq: reqlen %lx > actual %lx\n",
-			 vma->vm_end - vma->vm_start,
-			 (unsigned long) total_size);
-		ret = -EFAULT;
-		goto bail;
-	}
-
-	ret = remap_pfn_range(vma, vma->vm_start,
-			      pd->port_rcvhdrq_phys >> PAGE_SHIFT,
-			      vma->vm_end - vma->vm_start,
-			      vma->vm_page_prot);
-bail:
-	return ret;
-}
-
-static int mmap_pioavailregs(struct vm_area_struct *vma,
-			     struct ipath_portdata *pd)
-{
-	struct ipath_devdata *dd = pd->port_dd;
-	int ret;
-
-	/*
-	 * when we map the PIO bufferavail registers, we want to map them as
-	 * readonly, no write possible.
-	 *
-	 * kmalloc'ed memory, physically contiguous, one page only, readonly
-	 */
-
-	if ((vma->vm_end - vma->vm_start) > PAGE_SIZE) {
-		dev_info(&dd->pcidev->dev, "FAIL on pioavailregs_dma: "
-			 "reqlen %lx > actual %lx\n",
-			 vma->vm_end - vma->vm_start,
-			 (unsigned long) PAGE_SIZE);
-		ret = -EFAULT;
-		goto bail;
-	}
-
-	if (vma->vm_flags & VM_WRITE) {
-		dev_info(&dd->pcidev->dev,
-			 "Can't map pioavailregs as writable (flags=%lx)\n",
-			 vma->vm_flags);
-		ret = -EPERM;
-		goto bail;
-	}
-
-	/* don't allow them to later change with mprotect */
-	vma->vm_flags &= ~VM_MAYWRITE;
-
-	ret = remap_pfn_range(vma, vma->vm_start,
-			      dd->ipath_pioavailregs_phys >> PAGE_SHIFT,
-			      PAGE_SIZE, vma->vm_page_prot);
 bail:
 	return ret;
 }
@@ -1151,6 +1067,7 @@ static int ipath_mmap(struct file *fp, struct vm_area_struct *vma)
 
 	pd = port_fp(fp);
 	dd = pd->port_dd;
+
 	/*
 	 * This is the ipath_do_user_init() code, mapping the shared buffers
 	 * into the user process. The address referred to by vm_pgoff is the
@@ -1160,29 +1077,59 @@ static int ipath_mmap(struct file *fp, struct vm_area_struct *vma)
 	pgaddr = vma->vm_pgoff << PAGE_SHIFT;
 
 	/*
-	 * note that ureg does *NOT* have the kregvirt as part of it, to be
-	 * sure that for 32 bit programs, we don't end up trying to map a >
-	 * 44 address.  Has to match ipath_get_base_info() code that sets
-	 * __spi_uregbase
+	 * Must fit in 40 bits for our hardware; some checked elsewhere,
+	 * but we'll be paranoid.  Check for 0 is mostly in case one of the
+	 * allocations failed, but user called mmap anyway.   We want to catch
+	 * that before it can match.
 	 */
+	if (!pgaddr || pgaddr >= (1ULL<<40))  {
+		ipath_dev_err(dd, "Bad phys addr %llx, start %lx, end %lx\n",
+			(unsigned long long)pgaddr, vma->vm_start, vma->vm_end);
+		return -EINVAL;
+	}
 
+	/* just the offset of the port user registers, not physical addr */
 	ureg = dd->ipath_uregbase + dd->ipath_palign * pd->port_port;
 
-	ipath_cdbg(MM, "pgaddr %llx vm_start=%lx len %lx port %u:%u\n",
+	ipath_cdbg(MM, "ushare: pgaddr %llx vm_start=%lx, vmlen %lx\n",
 		   (unsigned long long) pgaddr, vma->vm_start,
-		   vma->vm_end - vma->vm_start, dd->ipath_unit,
-		   pd->port_port);
+		   vma->vm_end - vma->vm_start);
 
-	if (pgaddr == ureg)
+	if (vma->vm_start & (PAGE_SIZE-1)) {
+		ipath_dev_err(dd,
+			"vm_start not aligned: %lx, end=%lx phys %lx\n",
+			vma->vm_start, vma->vm_end, (unsigned long)pgaddr);
+		ret = -EINVAL;
+	}
+	else if (pgaddr == ureg)
 		ret = mmap_ureg(vma, dd, ureg);
 	else if (pgaddr == pd->port_piobufs)
 		ret = mmap_piobufs(vma, dd, pd);
 	else if (pgaddr == (u64) pd->port_rcvegr_phys)
 		ret = mmap_rcvegrbufs(vma, pd);
-	else if (pgaddr == (u64) pd->port_rcvhdrq_phys)
-		ret = mmap_rcvhdrq(vma, pd);
+	else if (pgaddr == (u64) pd->port_rcvhdrq_phys) {
+		/*
+		 * The rcvhdrq itself; readonly except on HT-400 (so have
+		 * to allow writable mapping), multiple pages, contiguous
+		 * from an i/o perspective.
+		 */
+		unsigned total_size =
+			ALIGN(dd->ipath_rcvhdrcnt * dd->ipath_rcvhdrentsize
+			   * sizeof(u32), PAGE_SIZE);
+		ret = ipath_mmap_mem(vma, pd, total_size, 1,
+				     pd->port_rcvhdrq_phys,
+				     "rcvhdrq");
+	}
+	else if (pgaddr == (u64)pd->port_rcvhdrqtailaddr_phys)
+		/* in-memory copy of rcvhdrq tail register */
+		ret = ipath_mmap_mem(vma, pd, PAGE_SIZE, 0,
+				     pd->port_rcvhdrqtailaddr_phys,
+				     "rcvhdrq tail");
 	else if (pgaddr == dd->ipath_pioavailregs_phys)
-		ret = mmap_pioavailregs(vma, pd);
+		/* in-memory copy of pioavail registers */
+		ret = ipath_mmap_mem(vma, pd, PAGE_SIZE, 0,
+				     dd->ipath_pioavailregs_phys,
+				     "pioavail registers");
 	else
 		ret = -EINVAL;
 
@@ -1539,14 +1486,6 @@ static int ipath_close(struct inode *in, struct file *fp)
 	}
 
 	if (dd->ipath_kregbase) {
-		if (pd->port_rcvhdrtail_uaddr) {
-			pd->port_rcvhdrtail_uaddr = 0;
-			pd->port_rcvhdrtail_kvaddr = NULL;
-			ipath_release_user_pages_on_close(
-				&pd->port_rcvhdrtail_pagep, 1);
-			pd->port_rcvhdrtail_pagep = NULL;
-			ipath_stats.sps_pageunlocks++;
-		}
 		ipath_write_kreg_port(
 			dd, dd->ipath_kregs->kr_rcvhdrtailaddr,
 			port, 0ULL);
@@ -1583,9 +1522,9 @@ static int ipath_close(struct inode *in, struct file *fp)
 
 	dd->ipath_f_clear_tids(dd, pd->port_port);
 
-	ipath_free_pddata(dd, pd->port_port, 0);
-
+	dd->ipath_pd[pd->port_port] = NULL; /* before releasing mutex */
 	mutex_unlock(&ipath_mutex);
+	ipath_free_pddata(dd, pd); /* after releasing the mutex */
 
 	return ret;
 }
@@ -1905,3 +1844,4 @@ void ipath_user_remove(struct ipath_devdata *dd)
 bail:
 	return;
 }
+

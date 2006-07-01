@@ -311,6 +311,9 @@ struct ipath_base_info {
 	__u32 spi_rcv_egrchunksize;
 	/* total size of mmap to cover full rcvegrbuffers */
 	__u32 spi_rcv_egrbuftotlen;
+	__u32 spi_filler_for_align;
+	/* address of readonly memory copy of the rcvhdrq tail register. */
+	__u64 spi_rcvhdr_tailaddr;
 } __attribute__ ((aligned(8)));
 
 
@@ -380,13 +383,7 @@ struct ipath_user_info {
 	 */
 	__u32 spu_rcvhdrsize;
 
-	/*
-	 * cache line aligned (64 byte) user address to
-	 * which the rcvhdrtail register will be written by infinipath
-	 * whenever it changes, so that no chip registers are read in
-	 * the performance path.
-	 */
-	__u64 spu_rcvhdraddr;
+	__u64 spu_unused; /* kept for compatible layout */
 
 	/*
 	 * address of struct base_info to write to

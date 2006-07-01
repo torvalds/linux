@@ -411,17 +411,8 @@ static int init_pioavailregs(struct ipath_devdata *dd)
 	/* and its length */
 	dd->ipath_freezelen = L1_CACHE_BYTES - sizeof(dd->ipath_statusp[0]);
 
-	if (dd->ipath_unit * 64 > (IPATH_PORT0_RCVHDRTAIL_SIZE - 64)) {
-		ipath_dev_err(dd, "unit %u too large for port 0 "
-			      "rcvhdrtail buffer size\n", dd->ipath_unit);
-		ret = -ENODEV;
-	}
-	else
-		ret = 0;
+	ret = 0;
 
-	/* so we can get current tail in ipath_kreceive(), per chip */
-	dd->ipath_hdrqtailptr = &ipath_port0_rcvhdrtail[
-		dd->ipath_unit * (64 / sizeof(*ipath_port0_rcvhdrtail))];
 done:
 	return ret;
 }
@@ -654,7 +645,7 @@ int ipath_init_chip(struct ipath_devdata *dd, int reinit)
 {
 	int ret = 0, i;
 	u32 val32, kpiobufs;
-	u64 val, atmp;
+	u64 val;
 	struct ipath_portdata *pd = NULL; /* keep gcc4 happy */
 
 	ret = init_housekeeping(dd, &pd, reinit);
@@ -777,24 +768,6 @@ int ipath_init_chip(struct ipath_devdata *dd, int reinit)
 		goto done;
 	}
 
-	val = ipath_port0_rcvhdrtail_dma + dd->ipath_unit * 64;
-
-	/* verify that the alignment requirement was met */
-	ipath_write_kreg_port(dd, dd->ipath_kregs->kr_rcvhdrtailaddr,
-			      0, val);
-	atmp = ipath_read_kreg64_port(
-		dd, dd->ipath_kregs->kr_rcvhdrtailaddr, 0);
-	if (val != atmp) {
-		ipath_dev_err(dd, "Catastrophic software error, "
-			      "RcvHdrTailAddr0 written as %llx, "
-			      "read back as %llx from %x\n",
-			      (unsigned long long) val,
-			      (unsigned long long) atmp,
-			      dd->ipath_kregs->kr_rcvhdrtailaddr);
-		ret = -EINVAL;
-		goto done;
-	}
-
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_rcvbthqp, IPATH_KD_QP);
 
 	/*
@@ -845,12 +818,18 @@ int ipath_init_chip(struct ipath_devdata *dd, int reinit)
 	 * re-init, the simplest way to handle this is to free
 	 * existing, and re-allocate.
 	 */
-	if (reinit)
-		ipath_free_pddata(dd, 0, 0);
+	if (reinit) {
+		struct ipath_portdata *pd = dd->ipath_pd[0];
+		dd->ipath_pd[0] = NULL;
+		ipath_free_pddata(dd, pd);
+	}
 	dd->ipath_f_tidtemplate(dd);
 	ret = ipath_create_rcvhdrq(dd, pd);
-	if (!ret)
+	if (!ret) {
+		dd->ipath_hdrqtailptr =
+			(volatile __le64 *)pd->port_rcvhdrtail_kvaddr;
 		ret = create_port0_egr(dd);
+	}
 	if (ret)
 		ipath_dev_err(dd, "failed to allocate port 0 (kernel) "
 			      "rcvhdrq and/or egr bufs\n");
