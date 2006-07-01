@@ -705,6 +705,15 @@ static int ipath_create_user_egr(struct ipath_portdata *pd)
 	unsigned e, egrcnt, alloced, egrperchunk, chunk, egrsize, egroff;
 	size_t size;
 	int ret;
+	gfp_t gfp_flags;
+
+	/*
+	 * GFP_USER, but without GFP_FS, so buffer cache can be
+	 * coalesced (we hope); otherwise, even at order 4,
+	 * heavy filesystem activity makes these fail, and we can
+	 * use compound pages.
+	 */
+	gfp_flags = __GFP_WAIT | __GFP_IO | __GFP_COMP;
 
 	egrcnt = dd->ipath_rcvegrcnt;
 	/* TID number offset for this port */
@@ -721,10 +730,8 @@ static int ipath_create_user_egr(struct ipath_portdata *pd)
 	 * memory pressure (creating large files and then copying them over
 	 * NFS while doing lots of MPI jobs), we hit some allocation
 	 * failures, even though we can sleep...  (2.6.10) Still get
-	 * failures at 64K.  32K is the lowest we can go without waiting
-	 * more memory again.  It seems likely that the coalescing in
-	 * free_pages, etc. still has issues (as it has had previously
-	 * during 2.6.x development).
+	 * failures at 64K.  32K is the lowest we can go without wasting
+	 * additional memory.
 	 */
 	size = 0x8000;
 	alloced = ALIGN(egrsize * egrcnt, size);
@@ -745,12 +752,6 @@ static int ipath_create_user_egr(struct ipath_portdata *pd)
 		goto bail_rcvegrbuf;
 	}
 	for (e = 0; e < pd->port_rcvegrbuf_chunks; e++) {
-		/*
-		 * GFP_USER, but without GFP_FS, so buffer cache can be
-		 * coalesced (we hope); otherwise, even at order 4,
-		 * heavy filesystem activity makes these fail
-		 */
-		gfp_t gfp_flags = __GFP_WAIT | __GFP_IO | __GFP_COMP;
 
 		pd->port_rcvegrbuf[e] = dma_alloc_coherent(
 			&dd->pcidev->dev, size, &pd->port_rcvegrbuf_phys[e],
@@ -1167,9 +1168,10 @@ static int ipath_mmap(struct file *fp, struct vm_area_struct *vma)
 
 	ureg = dd->ipath_uregbase + dd->ipath_palign * pd->port_port;
 
-	ipath_cdbg(MM, "ushare: pgaddr %llx vm_start=%lx, vmlen %lx\n",
+	ipath_cdbg(MM, "pgaddr %llx vm_start=%lx len %lx port %u:%u\n",
 		   (unsigned long long) pgaddr, vma->vm_start,
-		   vma->vm_end - vma->vm_start);
+		   vma->vm_end - vma->vm_start, dd->ipath_unit,
+		   pd->port_port);
 
 	if (pgaddr == ureg)
 		ret = mmap_ureg(vma, dd, ureg);
