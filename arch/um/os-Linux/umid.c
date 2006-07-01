@@ -67,32 +67,53 @@ err:
 	return err;
 }
 
-static int actually_do_remove(char *dir)
+/*
+ * Unlinks the files contained in @dir and then removes @dir.
+ * Doesn't handle directory trees, so it's not like rm -rf, but almost such. We
+ * ignore ENOENT errors for anything (they happen, strangely enough - possibly due
+ * to races between multiple dying UML threads).
+ */
+static int remove_files_and_dir(char *dir)
 {
 	DIR *directory;
 	struct dirent *ent;
 	int len;
 	char file[256];
+	int ret;
 
 	directory = opendir(dir);
-	if(directory == NULL)
-		return -errno;
+	if (directory == NULL) {
+		if (errno != ENOENT)
+			return -errno;
+		else
+			return 0;
+	}
 
-	while((ent = readdir(directory)) != NULL){
-		if(!strcmp(ent->d_name, ".") || !strcmp(ent->d_name, ".."))
+	while ((ent = readdir(directory)) != NULL) {
+		if (!strcmp(ent->d_name, ".") || !strcmp(ent->d_name, ".."))
 			continue;
 		len = strlen(dir) + sizeof("/") + strlen(ent->d_name) + 1;
-		if(len > sizeof(file))
-			return -E2BIG;
+		if (len > sizeof(file)) {
+			ret = -E2BIG;
+			goto out;
+		}
 
 		sprintf(file, "%s/%s", dir, ent->d_name);
-		if(unlink(file) < 0)
-			return -errno;
+		if (unlink(file) < 0 && errno != ENOENT) {
+			ret = -errno;
+			goto out;
+		}
 	}
-	if(rmdir(dir) < 0)
-		return -errno;
 
-	return 0;
+	if (rmdir(dir) < 0 && errno != ENOENT) {
+		ret = -errno;
+		goto out;
+	}
+
+	ret = 0;
+out:
+	closedir(directory);
+	return ret;
 }
 
 /* This says that there isn't already a user of the specified directory even if
@@ -172,9 +193,9 @@ static int umdir_take_if_dead(char *dir)
 	if (is_umdir_used(dir))
 		return -EEXIST;
 
-	ret = actually_do_remove(dir);
+	ret = remove_files_and_dir(dir);
 	if (ret) {
-		printk("is_umdir_used - actually_do_remove failed with "
+		printk("is_umdir_used - remove_files_and_dir failed with "
 		       "err = %d\n", ret);
 	}
 	return ret;
@@ -354,9 +375,9 @@ static void remove_umid_dir(void)
 	char dir[strlen(uml_dir) + UMID_LEN + 1], err;
 
 	sprintf(dir, "%s%s", uml_dir, umid);
-	err = actually_do_remove(dir);
+	err = remove_files_and_dir(dir);
 	if(err)
-		printf("remove_umid_dir - actually_do_remove failed with "
+		printf("remove_umid_dir - remove_files_and_dir failed with "
 		       "err = %d\n", err);
 }
 
