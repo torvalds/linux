@@ -171,14 +171,13 @@ static void ipath_free_devdata(struct pci_dev *pdev,
 		list_del(&dd->ipath_list);
 		spin_unlock_irqrestore(&ipath_devs_lock, flags);
 	}
-	dma_free_coherent(&pdev->dev, sizeof(*dd), dd, dd->ipath_dma_addr);
+	vfree(dd);
 }
 
 static struct ipath_devdata *ipath_alloc_devdata(struct pci_dev *pdev)
 {
 	unsigned long flags;
 	struct ipath_devdata *dd;
-	dma_addr_t dma_addr;
 	int ret;
 
 	if (!idr_pre_get(&unit_table, GFP_KERNEL)) {
@@ -186,15 +185,12 @@ static struct ipath_devdata *ipath_alloc_devdata(struct pci_dev *pdev)
 		goto bail;
 	}
 
-	dd = dma_alloc_coherent(&pdev->dev, sizeof(*dd), &dma_addr,
-				GFP_KERNEL);
-
+	dd = vmalloc(sizeof(*dd));
 	if (!dd) {
 		dd = ERR_PTR(-ENOMEM);
 		goto bail;
 	}
-
-	dd->ipath_dma_addr = dma_addr;
+	memset(dd, 0, sizeof(*dd));
 	dd->ipath_unit = -1;
 
 	spin_lock_irqsave(&ipath_devs_lock, flags);

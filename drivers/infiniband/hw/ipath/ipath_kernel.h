@@ -163,7 +163,6 @@ struct ipath_devdata {
 	 * only written to by the chip, not the driver.
 	 */
 	volatile __le64 *ipath_hdrqtailptr;
-	dma_addr_t ipath_dma_addr;
 	/* ipath_cfgports pointers */
 	struct ipath_portdata **ipath_pd;
 	/* sk_buffs used by port 0 eager receive queue */
