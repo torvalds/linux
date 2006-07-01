@@ -96,6 +96,22 @@ struct irq_chip no_irq_chip = {
 };
 
 /*
+ * Generic dummy implementation which can be used for
+ * real dumb interrupt sources
+ */
+struct irq_chip dummy_irq_chip = {
+	.name		= "dummy",
+	.startup	= noop_ret,
+	.shutdown	= noop,
+	.enable		= noop,
+	.disable	= noop,
+	.ack		= noop,
+	.mask		= noop,
+	.unmask		= noop,
+	.end		= noop,
+};
+
+/*
  * Special, empty irq handler:
  */
 irqreturn_t no_action(int cpl, void *dev_id, struct pt_regs *regs)
