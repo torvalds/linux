@@ -36,7 +36,7 @@
 #include <linux/vmalloc.h>
 
 #include "ipath_kernel.h"
-#include "ips_common.h"
+#include "ipath_common.h"
 
 /*
  * min buffers we want to have per port, after driver
@@ -277,7 +277,7 @@ static int init_chip_first(struct ipath_devdata *dd,
 	pd->port_port = 0;
 	pd->port_cnt = 1;
 	/* The port 0 pkey table is used by the layer interface. */
-	pd->port_pkeys[0] = IPS_DEFAULT_P_KEY;
+	pd->port_pkeys[0] = IPATH_DEFAULT_P_KEY;
 	dd->ipath_rcvtidcnt =
 		ipath_read_kreg32(dd, dd->ipath_kregs->kr_rcvtidcnt);
 	dd->ipath_rcvtidbase =

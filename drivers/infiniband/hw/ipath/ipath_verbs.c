@@ -37,7 +37,7 @@
 
 #include "ipath_kernel.h"
 #include "ipath_verbs.h"
-#include "ips_common.h"
+#include "ipath_common.h"
 
 /* Not static, because we don't want the compiler removing it */
 const char ipath_verbs_version[] = "ipath_verbs " IPATH_IDSTR;
@@ -429,7 +429,7 @@ static void ipath_ib_rcv(void *arg, void *rhdr, void *data, u32 tlen)
 
 	/* Check for a valid destination LID (see ch. 7.11.1). */
 	lid = be16_to_cpu(hdr->lrh[1]);
-	if (lid < IPS_MULTICAST_LID_BASE) {
+	if (lid < IPATH_MULTICAST_LID_BASE) {
 		lid &= ~((1 << (dev->mkeyprot_resv_lmc & 7)) - 1);
 		if (unlikely(lid != ipath_layer_get_lid(dev->dd))) {
 			dev->rcv_errors++;
@@ -439,9 +439,9 @@ static void ipath_ib_rcv(void *arg, void *rhdr, void *data, u32 tlen)
 
 	/* Check for GRH */
 	lnh = be16_to_cpu(hdr->lrh[0]) & 3;
-	if (lnh == IPS_LRH_BTH)
+	if (lnh == IPATH_LRH_BTH)
 		ohdr = &hdr->u.oth;
-	else if (lnh == IPS_LRH_GRH)
+	else if (lnh == IPATH_LRH_GRH)
 		ohdr = &hdr->u.l.oth;
 	else {
 		dev->rcv_errors++;
@@ -453,8 +453,8 @@ static void ipath_ib_rcv(void *arg, void *rhdr, void *data, u32 tlen)
 	dev->opstats[opcode].n_packets++;
 
 	/* Get the destination QP number. */
-	qp_num = be32_to_cpu(ohdr->bth[1]) & IPS_QPN_MASK;
-	if (qp_num == IPS_MULTICAST_QPN) {
+	qp_num = be32_to_cpu(ohdr->bth[1]) & IPATH_QPN_MASK;
+	if (qp_num == IPATH_MULTICAST_QPN) {
 		struct ipath_mcast *mcast;
 		struct ipath_mcast_qp *p;
 
@@ -465,7 +465,7 @@ static void ipath_ib_rcv(void *arg, void *rhdr, void *data, u32 tlen)
 		}
 		dev->n_multicast_rcv++;
 		list_for_each_entry_rcu(p, &mcast->qp_list, list)
-			ipath_qp_rcv(dev, hdr, lnh == IPS_LRH_GRH, data,
+			ipath_qp_rcv(dev, hdr, lnh == IPATH_LRH_GRH, data,
 				     tlen, p->qp);
 		/*
 		 * Notify ipath_multicast_detach() if it is waiting for us
@@ -477,7 +477,7 @@ static void ipath_ib_rcv(void *arg, void *rhdr, void *data, u32 tlen)
 		qp = ipath_lookup_qpn(&dev->qp_table, qp_num);
 		if (qp) {
 			dev->n_unicast_rcv++;
-			ipath_qp_rcv(dev, hdr, lnh == IPS_LRH_GRH, data,
+			ipath_qp_rcv(dev, hdr, lnh == IPATH_LRH_GRH, data,
 				     tlen, qp);
 			/*
 			 * Notify ipath_destroy_qp() if it is waiting
@@ -860,8 +860,8 @@ static struct ib_ah *ipath_create_ah(struct ib_pd *pd,
 	}
 
 	/* A multicast address requires a GRH (see ch. 8.4.1). */
-	if (ah_attr->dlid >= IPS_MULTICAST_LID_BASE &&
-	    ah_attr->dlid != IPS_PERMISSIVE_LID &&
+	if (ah_attr->dlid >= IPATH_MULTICAST_LID_BASE &&
+	    ah_attr->dlid != IPATH_PERMISSIVE_LID &&
 	    !(ah_attr->ah_flags & IB_AH_GRH)) {
 		ret = ERR_PTR(-EINVAL);
 		goto bail;

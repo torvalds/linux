@@ -39,8 +39,8 @@
 #include <asm/pgtable.h>
 
 #include "ipath_kernel.h"
-#include "ips_common.h"
 #include "ipath_layer.h"
+#include "ipath_common.h"
 
 static int ipath_open(struct inode *, struct file *);
 static int ipath_close(struct inode *, struct file *);
@@ -458,7 +458,7 @@ static int ipath_set_part_key(struct ipath_portdata *pd, u16 key)
 	u16 lkey = key & 0x7FFF;
 	int ret;
 
-	if (lkey == (IPS_DEFAULT_P_KEY & 0x7FFF)) {
+	if (lkey == (IPATH_DEFAULT_P_KEY & 0x7FFF)) {
 		/* nothing to do; this key always valid */
 		ret = 0;
 		goto bail;

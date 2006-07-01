@@ -35,7 +35,7 @@
 
 #include "ipath_kernel.h"
 #include "ipath_verbs.h"
-#include "ips_common.h"
+#include "ipath_common.h"
 
 #define IB_SMP_UNSUP_VERSION	__constant_htons(0x0004)
 #define IB_SMP_UNSUP_METHOD	__constant_htons(0x0008)
@@ -306,7 +306,7 @@ static int recv_subn_set_portinfo(struct ib_smp *smp,
 	lid = be16_to_cpu(pip->lid);
 	if (lid != ipath_layer_get_lid(dev->dd)) {
 		/* Must be a valid unicast LID address. */
-		if (lid == 0 || lid >= IPS_MULTICAST_LID_BASE)
+		if (lid == 0 || lid >= IPATH_MULTICAST_LID_BASE)
 			goto err;
 		ipath_set_lid(dev->dd, lid, pip->mkeyprot_resv_lmc & 7);
 		event.event = IB_EVENT_LID_CHANGE;
@@ -316,7 +316,7 @@ static int recv_subn_set_portinfo(struct ib_smp *smp,
 	smlid = be16_to_cpu(pip->sm_lid);
 	if (smlid != dev->sm_lid) {
 		/* Must be a valid unicast LID address. */
-		if (smlid == 0 || smlid >= IPS_MULTICAST_LID_BASE)
+		if (smlid == 0 || smlid >= IPATH_MULTICAST_LID_BASE)
 			goto err;
 		dev->sm_lid = smlid;
 		event.event = IB_EVENT_SM_CHANGE;

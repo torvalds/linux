@@ -41,8 +41,8 @@
 #include <asm/byteorder.h>
 
 #include "ipath_kernel.h"
-#include "ips_common.h"
 #include "ipath_layer.h"
+#include "ipath_common.h"
 
 /* Acquire before ipath_devs_lock. */
 static DEFINE_MUTEX(ipath_layer_mutex);
@@ -622,7 +622,7 @@ int ipath_layer_open(struct ipath_devdata *dd, u32 * pktmax)
 		goto bail;
 	}
 
-	ret = ipath_setrcvhdrsize(dd, NUM_OF_EXTRA_WORDS_IN_HEADER_QUEUE);
+	ret = ipath_setrcvhdrsize(dd, IPATH_HEADER_QUEUE_WORDS);
 
 	if (ret < 0)
 		goto bail;
@@ -1106,10 +1106,10 @@ int ipath_layer_send_hdr(struct ipath_devdata *dd, struct ether_header *hdr)
 		}
 
 	vlsllnh = *((__be16 *) hdr);
-	if (vlsllnh != htons(IPS_LRH_BTH)) {
+	if (vlsllnh != htons(IPATH_LRH_BTH)) {
 		ipath_dbg("Warning: lrh[0] wrong (%x, not %x); "
 			  "not sending\n", be16_to_cpu(vlsllnh),
-			  IPS_LRH_BTH);
+			  IPATH_LRH_BTH);
 		ret = -EINVAL;
 	}
 	if (ret)

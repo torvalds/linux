@@ -32,7 +32,7 @@
  */
 
 #include "ipath_verbs.h"
-#include "ips_common.h"
+#include "ipath_common.h"
 
 /* cut down ridiculously long IB macro names */
 #define OP(x) IB_OPCODE_UC_##x
@@ -213,7 +213,7 @@ int ipath_make_uc_req(struct ipath_qp *qp,
 	qp->s_cur_sge = &qp->s_sge;
 	qp->s_cur_size = len;
 	*bth0p = bth0 | (qp->s_state << 24);
-	*bth2p = qp->s_next_psn++ & IPS_PSN_MASK;
+	*bth2p = qp->s_next_psn++ & IPATH_PSN_MASK;
 	return 1;
 
 done:

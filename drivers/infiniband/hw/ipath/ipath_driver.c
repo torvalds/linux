@@ -39,8 +39,8 @@
 #include <linux/vmalloc.h>
 
 #include "ipath_kernel.h"
-#include "ips_common.h"
 #include "ipath_layer.h"
+#include "ipath_common.h"
 
 static void ipath_update_pio_bufs(struct ipath_devdata *);
 
@@ -823,7 +823,8 @@ static void ipath_rcv_layer(struct ipath_devdata *dd, u32 etail,
 	u8 pad, *bthbytes;
 	struct sk_buff *skb, *nskb;
 
-	if (dd->ipath_port0_skbs && hdr->sub_opcode == OPCODE_ENCAP) {
+	if (dd->ipath_port0_skbs &&
+			hdr->sub_opcode == IPATH_ITH4X_OPCODE_ENCAP) {
 		/*
 		 * Allocate a new sk_buff to replace the one we give
 		 * to the network stack.
@@ -854,7 +855,7 @@ static void ipath_rcv_layer(struct ipath_devdata *dd, u32 etail,
 		/* another ether packet received */
 		ipath_stats.sps_ether_rpkts++;
 	}
-	else if (hdr->sub_opcode == OPCODE_LID_ARP)
+	else if (hdr->sub_opcode == IPATH_ITH4X_OPCODE_LID_ARP)
 		__ipath_layer_rcv_lid(dd, hdr);
 }
 
@@ -871,7 +872,7 @@ void ipath_kreceive(struct ipath_devdata *dd)
 	const u32 rsize = dd->ipath_rcvhdrentsize;	/* words */
 	const u32 maxcnt = dd->ipath_rcvhdrcnt * rsize;	/* words */
 	u32 etail = -1, l, hdrqtail;
-	struct ips_message_header *hdr;
+	struct ipath_message_header *hdr;
 	u32 eflags, i, etype, tlen, pkttot = 0, updegr=0, reloop=0;
 	static u64 totcalls;	/* stats, may eventually remove */
 	char emsg[128];
@@ -897,7 +898,7 @@ reloop:
 		u8 *bthbytes;
 
 		rc = (u64 *) (dd->ipath_pd[0]->port_rcvhdrq + (l << 2));
-		hdr = (struct ips_message_header *)&rc[1];
+		hdr = (struct ipath_message_header *)&rc[1];
 		/*
 		 * could make a network order version of IPATH_KD_QP, and
 		 * do the obvious shift before masking to speed this up.
@@ -905,10 +906,10 @@ reloop:
 		qp = ntohl(hdr->bth[1]) & 0xffffff;
 		bthbytes = (u8 *) hdr->bth;
 
-		eflags = ips_get_hdr_err_flags((__le32 *) rc);
-		etype = ips_get_rcv_type((__le32 *) rc);
+		eflags = ipath_hdrget_err_flags((__le32 *) rc);
+		etype = ipath_hdrget_rcv_type((__le32 *) rc);
 		/* total length */
-		tlen = ips_get_length_in_bytes((__le32 *) rc);
+		tlen = ipath_hdrget_length_in_bytes((__le32 *) rc);
 		ebuf = NULL;
 		if (etype != RCVHQ_RCV_TYPE_EXPECTED) {
 			/*
@@ -918,7 +919,7 @@ reloop:
 			 * set ebuf (so we try to copy data) unless the
 			 * length requires it.
 			 */
-			etail = ips_get_index((__le32 *) rc);
+			etail = ipath_hdrget_index((__le32 *) rc);
 			if (tlen > sizeof(*hdr) ||
 			    etype == RCVHQ_RCV_TYPE_NON_KD)
 				ebuf = ipath_get_egrbuf(dd, etail, 0);
@@ -930,7 +931,7 @@ reloop:
 		 */
 
 		if (etype != RCVHQ_RCV_TYPE_NON_KD && etype !=
-		    RCVHQ_RCV_TYPE_ERROR && ips_get_ipath_ver(
+		    RCVHQ_RCV_TYPE_ERROR && ipath_hdrget_ipath_ver(
 			    hdr->iph.ver_port_tid_offset) !=
 		    IPS_PROTO_VERSION) {
 			ipath_cdbg(PKT, "Bad InfiniPath protocol version "
@@ -943,7 +944,7 @@ reloop:
 			ipath_cdbg(PKT, "RHFerrs %x hdrqtail=%x typ=%u "
 				   "tlen=%x opcode=%x egridx=%x: %s\n",
 				   eflags, l, etype, tlen, bthbytes[0],
-				   ips_get_index((__le32 *) rc), emsg);
+				   ipath_hdrget_index((__le32 *) rc), emsg);
 			/* Count local link integrity errors. */
 			if (eflags & (INFINIPATH_RHF_H_ICRCERR |
 				      INFINIPATH_RHF_H_VCRCERR)) {

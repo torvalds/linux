@@ -44,10 +44,9 @@
 #include <linux/pci.h>
 #include <asm/uaccess.h>
 
-#include "ipath_common.h"
 #include "ipath_kernel.h"
-#include "ips_common.h"
 #include "ipath_layer.h"
+#include "ipath_common.h"
 
 int ipath_diag_inuse;
 static int diag_set_link;

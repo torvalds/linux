@@ -32,7 +32,7 @@
  */
 
 #include "ipath_verbs.h"
-#include "ips_common.h"
+#include "ipath_common.h"
 
 /*
  * Convert the AETH RNR timeout code into the number of milliseconds.
@@ -632,7 +632,7 @@ again:
 	/* Sending responses has higher priority over sending requests. */
 	if (qp->s_ack_state != IB_OPCODE_RC_ACKNOWLEDGE &&
 	    (bth0 = ipath_make_rc_ack(qp, ohdr, pmtu)) != 0)
-		bth2 = qp->s_ack_psn++ & IPS_PSN_MASK;
+		bth2 = qp->s_ack_psn++ & IPATH_PSN_MASK;
 	else if (!((qp->ibqp.qp_type == IB_QPT_RC) ?
 		   ipath_make_rc_req(qp, ohdr, pmtu, &bth0, &bth2) :
 		   ipath_make_uc_req(qp, ohdr, pmtu, &bth0, &bth2))) {
@@ -651,12 +651,12 @@ again:
 	/* Construct the header. */
 	extra_bytes = (4 - qp->s_cur_size) & 3;
 	nwords = (qp->s_cur_size + extra_bytes) >> 2;
-	lrh0 = IPS_LRH_BTH;
+	lrh0 = IPATH_LRH_BTH;
 	if (unlikely(qp->remote_ah_attr.ah_flags & IB_AH_GRH)) {
 		qp->s_hdrwords += ipath_make_grh(dev, &qp->s_hdr.u.l.grh,
 						 &qp->remote_ah_attr.grh,
 						 qp->s_hdrwords, nwords);
-		lrh0 = IPS_LRH_GRH;
+		lrh0 = IPATH_LRH_GRH;
 	}
 	lrh0 |= qp->remote_ah_attr.sl << 4;
 	qp->s_hdr.lrh[0] = cpu_to_be16(lrh0);

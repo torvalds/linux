@@ -34,8 +34,8 @@
 #include <linux/pci.h>
 
 #include "ipath_kernel.h"
-#include "ips_common.h"
 #include "ipath_layer.h"
+#include "ipath_common.h"
 
 /* These are all rcv-related errors which we want to count for stats */
 #define E_SUM_PKTERRS \

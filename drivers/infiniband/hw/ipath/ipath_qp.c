@@ -35,7 +35,7 @@
 #include <linux/vmalloc.h>
 
 #include "ipath_verbs.h"
-#include "ips_common.h"
+#include "ipath_common.h"
 
 #define BITS_PER_PAGE		(PAGE_SIZE*BITS_PER_BYTE)
 #define BITS_PER_PAGE_MASK	(BITS_PER_PAGE-1)
@@ -450,7 +450,7 @@ int ipath_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 
 	if (attr_mask & IB_QP_AV)
 		if (attr->ah_attr.dlid == 0 ||
-		    attr->ah_attr.dlid >= IPS_MULTICAST_LID_BASE)
+		    attr->ah_attr.dlid >= IPATH_MULTICAST_LID_BASE)
 			goto inval;
 
 	if (attr_mask & IB_QP_PKEY_INDEX)
@@ -585,14 +585,14 @@ int ipath_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
  */
 __be32 ipath_compute_aeth(struct ipath_qp *qp)
 {
-	u32 aeth = qp->r_msn & IPS_MSN_MASK;
+	u32 aeth = qp->r_msn & IPATH_MSN_MASK;
 
 	if (qp->ibqp.srq) {
 		/*
 		 * Shared receive queues don't generate credits.
 		 * Set the credit field to the invalid value.
 		 */
-		aeth |= IPS_AETH_CREDIT_INVAL << IPS_AETH_CREDIT_SHIFT;
+		aeth |= IPATH_AETH_CREDIT_INVAL << IPATH_AETH_CREDIT_SHIFT;
 	} else {
 		u32 min, max, x;
 		u32 credits;
@@ -622,7 +622,7 @@ __be32 ipath_compute_aeth(struct ipath_qp *qp)
 			else
 				min = x;
 		}
-		aeth |= x << IPS_AETH_CREDIT_SHIFT;
+		aeth |= x << IPATH_AETH_CREDIT_SHIFT;
 	}
 	return cpu_to_be32(aeth);
 }
@@ -888,18 +888,18 @@ void ipath_sqerror_qp(struct ipath_qp *qp, struct ib_wc *wc)
  */
 void ipath_get_credit(struct ipath_qp *qp, u32 aeth)
 {
-	u32 credit = (aeth >> IPS_AETH_CREDIT_SHIFT) & IPS_AETH_CREDIT_MASK;
+	u32 credit = (aeth >> IPATH_AETH_CREDIT_SHIFT) & IPATH_AETH_CREDIT_MASK;
 
 	/*
 	 * If the credit is invalid, we can send
 	 * as many packets as we like.  Otherwise, we have to
 	 * honor the credit field.
 	 */
-	if (credit == IPS_AETH_CREDIT_INVAL)
+	if (credit == IPATH_AETH_CREDIT_INVAL)
 		qp->s_lsn = (u32) -1;
 	else if (qp->s_lsn != (u32) -1) {
 		/* Compute new LSN (i.e., MSN + credit) */
-		credit = (aeth + credit_table[credit]) & IPS_MSN_MASK;
+		credit = (aeth + credit_table[credit]) & IPATH_MSN_MASK;
 		if (ipath_cmp24(credit, qp->s_lsn) > 0)
 			qp->s_lsn = credit;
 	}

@@ -32,7 +32,7 @@
  */
 
 #include "ipath_verbs.h"
-#include "ips_common.h"
+#include "ipath_common.h"
 
 /* cut down ridiculously long IB macro names */
 #define OP(x) IB_OPCODE_RC_##x
@@ -49,7 +49,7 @@ static void ipath_init_restart(struct ipath_qp *qp, struct ipath_swqe *wqe)
 	struct ipath_ibdev *dev;
 	u32 len;
 
-	len = ((qp->s_psn - wqe->psn) & IPS_PSN_MASK) *
+	len = ((qp->s_psn - wqe->psn) & IPATH_PSN_MASK) *
 		ib_mtu_enum_to_int(qp->path_mtu);
 	qp->s_sge.sge = wqe->sg_list[0];
 	qp->s_sge.sg_list = wqe->sg_list + 1;
@@ -159,9 +159,9 @@ u32 ipath_make_rc_ack(struct ipath_qp *qp,
 		qp->s_ack_state = OP(RDMA_READ_RESPONSE_LAST);
 		bth0 = OP(ACKNOWLEDGE) << 24;
 		if (qp->s_nak_state)
-			ohdr->u.aeth = cpu_to_be32((qp->r_msn & IPS_MSN_MASK) |
+			ohdr->u.aeth = cpu_to_be32((qp->r_msn & IPATH_MSN_MASK) |
 						    (qp->s_nak_state <<
-						     IPS_AETH_CREDIT_SHIFT));
+						     IPATH_AETH_CREDIT_SHIFT));
 		else
 			ohdr->u.aeth = ipath_compute_aeth(qp);
 		hwords++;
@@ -361,7 +361,7 @@ int ipath_make_rc_req(struct ipath_qp *qp,
 			if (qp->s_tail >= qp->s_size)
 				qp->s_tail = 0;
 		}
-		bth2 |= qp->s_psn++ & IPS_PSN_MASK;
+		bth2 |= qp->s_psn++ & IPATH_PSN_MASK;
 		if ((int)(qp->s_psn - qp->s_next_psn) > 0)
 			qp->s_next_psn = qp->s_psn;
 		/*
@@ -387,7 +387,7 @@ int ipath_make_rc_req(struct ipath_qp *qp,
 		qp->s_state = OP(SEND_MIDDLE);
 		/* FALLTHROUGH */
 	case OP(SEND_MIDDLE):
-		bth2 = qp->s_psn++ & IPS_PSN_MASK;
+		bth2 = qp->s_psn++ & IPATH_PSN_MASK;
 		if ((int)(qp->s_psn - qp->s_next_psn) > 0)
 			qp->s_next_psn = qp->s_psn;
 		ss = &qp->s_sge;
@@ -429,7 +429,7 @@ int ipath_make_rc_req(struct ipath_qp *qp,
 		qp->s_state = OP(RDMA_WRITE_MIDDLE);
 		/* FALLTHROUGH */
 	case OP(RDMA_WRITE_MIDDLE):
-		bth2 = qp->s_psn++ & IPS_PSN_MASK;
+		bth2 = qp->s_psn++ & IPATH_PSN_MASK;
 		if ((int)(qp->s_psn - qp->s_next_psn) > 0)
 			qp->s_next_psn = qp->s_psn;
 		ss = &qp->s_sge;
@@ -466,7 +466,7 @@ int ipath_make_rc_req(struct ipath_qp *qp,
 		 * See ipath_restart_rc().
 		 */
 		ipath_init_restart(qp, wqe);
-		len = ((qp->s_psn - wqe->psn) & IPS_PSN_MASK) * pmtu;
+		len = ((qp->s_psn - wqe->psn) & IPATH_PSN_MASK) * pmtu;
 		ohdr->u.rc.reth.vaddr =
 			cpu_to_be64(wqe->wr.wr.rdma.remote_addr + len);
 		ohdr->u.rc.reth.rkey =
@@ -474,7 +474,7 @@ int ipath_make_rc_req(struct ipath_qp *qp,
 		ohdr->u.rc.reth.length = cpu_to_be32(qp->s_len);
 		qp->s_state = OP(RDMA_READ_REQUEST);
 		hwords += sizeof(ohdr->u.rc.reth) / 4;
-		bth2 = qp->s_psn++ & IPS_PSN_MASK;
+		bth2 = qp->s_psn++ & IPATH_PSN_MASK;
 		if ((int)(qp->s_psn - qp->s_next_psn) > 0)
 			qp->s_next_psn = qp->s_psn;
 		ss = NULL;
@@ -529,7 +529,7 @@ static void send_rc_ack(struct ipath_qp *qp)
 
 	/* Construct the header. */
 	ohdr = &hdr.u.oth;
-	lrh0 = IPS_LRH_BTH;
+	lrh0 = IPATH_LRH_BTH;
 	/* header size in 32-bit words LRH+BTH+AETH = (8+12+4)/4. */
 	hwords = 6;
 	if (unlikely(qp->remote_ah_attr.ah_flags & IB_AH_GRH)) {
@@ -537,14 +537,14 @@ static void send_rc_ack(struct ipath_qp *qp)
 					 &qp->remote_ah_attr.grh,
 					 hwords, 0);
 		ohdr = &hdr.u.l.oth;
-		lrh0 = IPS_LRH_GRH;
+		lrh0 = IPATH_LRH_GRH;
 	}
 	/* read pkey_index w/o lock (its atomic) */
 	bth0 = ipath_layer_get_pkey(dev->dd, qp->s_pkey_index);
 	if (qp->r_nak_state)
-		ohdr->u.aeth = cpu_to_be32((qp->r_msn & IPS_MSN_MASK) |
+		ohdr->u.aeth = cpu_to_be32((qp->r_msn & IPATH_MSN_MASK) |
 					    (qp->r_nak_state <<
-					     IPS_AETH_CREDIT_SHIFT));
+					     IPATH_AETH_CREDIT_SHIFT));
 	else
 		ohdr->u.aeth = ipath_compute_aeth(qp);
 	if (qp->r_ack_state >= OP(COMPARE_SWAP)) {
@@ -560,7 +560,7 @@ static void send_rc_ack(struct ipath_qp *qp)
 	hdr.lrh[3] = cpu_to_be16(ipath_layer_get_lid(dev->dd));
 	ohdr->bth[0] = cpu_to_be32(bth0);
 	ohdr->bth[1] = cpu_to_be32(qp->remote_qpn);
-	ohdr->bth[2] = cpu_to_be32(qp->r_ack_psn & IPS_PSN_MASK);
+	ohdr->bth[2] = cpu_to_be32(qp->r_ack_psn & IPATH_PSN_MASK);
 
 	/*
 	 * If we can send the ACK, clear the ACK state.
@@ -890,8 +890,8 @@ static int do_rc_ack(struct ipath_qp *qp, u32 aeth, u32 psn, int opcode)
 		reset_psn(qp, psn);
 
 		qp->s_rnr_timeout =
-			ib_ipath_rnr_table[(aeth >> IPS_AETH_CREDIT_SHIFT) &
-					   IPS_AETH_CREDIT_MASK];
+			ib_ipath_rnr_table[(aeth >> IPATH_AETH_CREDIT_SHIFT) &
+					   IPATH_AETH_CREDIT_MASK];
 		ipath_insert_rnr_queue(qp);
 		goto bail;
 
@@ -899,8 +899,8 @@ static int do_rc_ack(struct ipath_qp *qp, u32 aeth, u32 psn, int opcode)
 		/* The last valid PSN seen is the previous request's. */
 		if (qp->s_last != qp->s_tail)
 			qp->s_last_psn = wqe->psn - 1;
-		switch ((aeth >> IPS_AETH_CREDIT_SHIFT) &
-			IPS_AETH_CREDIT_MASK) {
+		switch ((aeth >> IPATH_AETH_CREDIT_SHIFT) &
+			IPATH_AETH_CREDIT_MASK) {
 		case 0:	/* PSN sequence error */
 			dev->n_seq_naks++;
 			/*
@@ -1268,7 +1268,7 @@ static inline int ipath_rc_rcv_error(struct ipath_ibdev *dev,
 		 * Check for the PSN of the last atomic operation
 		 * performed and resend the result if found.
 		 */
-		if ((psn & IPS_PSN_MASK) != qp->r_atomic_psn)
+		if ((psn & IPATH_PSN_MASK) != qp->r_atomic_psn)
 			goto done;
 		break;
 	}
@@ -1638,7 +1638,7 @@ void ipath_rc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 			*(u64 *) qp->r_sge.sge.vaddr = sdata;
 		spin_unlock_irq(&dev->pending_lock);
 		qp->r_msn++;
-		qp->r_atomic_psn = psn & IPS_PSN_MASK;
+		qp->r_atomic_psn = psn & IPATH_PSN_MASK;
 		psn |= 1 << 31;
 		break;
 	}

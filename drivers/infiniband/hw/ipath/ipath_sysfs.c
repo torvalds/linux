@@ -35,8 +35,8 @@
 #include <linux/pci.h>
 
 #include "ipath_kernel.h"
-#include "ips_common.h"
 #include "ipath_layer.h"
+#include "ipath_common.h"
 
 /**
  * ipath_parse_ushort - parse an unsigned short value in an arbitrary base
@@ -187,7 +187,7 @@ static ssize_t store_lid(struct device *dev,
 	if (ret < 0)
 		goto invalid;
 
-	if (lid == 0 || lid >= IPS_MULTICAST_LID_BASE) {
+	if (lid == 0 || lid >= IPATH_MULTICAST_LID_BASE) {
 		ret = -EINVAL;
 		goto invalid;
 	}
@@ -221,7 +221,7 @@ static ssize_t store_mlid(struct device *dev,
 	int ret;
 
 	ret = ipath_parse_ushort(buf, &mlid);
-	if (ret < 0 || mlid < IPS_MULTICAST_LID_BASE)
+	if (ret < 0 || mlid < IPATH_MULTICAST_LID_BASE)
 		goto invalid;
 
 	unit = dd->ipath_unit;
