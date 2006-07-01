@@ -667,6 +667,14 @@ struct ib_qp *ipath_create_qp(struct ib_pd *ibpd,
 		goto bail;
 	}
 
+	if (init_attr->cap.max_send_sge +
+	    init_attr->cap.max_recv_sge +
+	    init_attr->cap.max_send_wr +
+	    init_attr->cap.max_recv_wr == 0) {
+		ret = ERR_PTR(-EINVAL);
+		goto bail;
+	}
+
 	switch (init_attr->qp_type) {
 	case IB_QPT_UC:
 	case IB_QPT_RC:

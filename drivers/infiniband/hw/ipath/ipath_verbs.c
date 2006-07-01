@@ -792,6 +792,17 @@ static struct ib_ah *ipath_create_ah(struct ib_pd *pd,
 		goto bail;
 	}
 
+	if (ah_attr->dlid == 0) {
+		ret = ERR_PTR(-EINVAL);
+		goto bail;
+	}
+
+	if (ah_attr->port_num != 1 ||
+	    ah_attr->port_num > pd->device->phys_port_cnt) {
+		ret = ERR_PTR(-EINVAL);
+		goto bail;
+	}
+
 	ah = kmalloc(sizeof *ah, GFP_ATOMIC);
 	if (!ah) {
 		ret = ERR_PTR(-ENOMEM);

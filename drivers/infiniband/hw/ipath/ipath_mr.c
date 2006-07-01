@@ -170,6 +170,11 @@ struct ib_mr *ipath_reg_user_mr(struct ib_pd *pd, struct ib_umem *region,
 	int n, m, i;
 	struct ib_mr *ret;
 
+	if (region->length == 0) {
+		ret = ERR_PTR(-EINVAL);
+		goto bail;
+	}
+
 	n = 0;
 	list_for_each_entry(chunk, &region->chunk_list, list)
 		n += chunk->nents;
