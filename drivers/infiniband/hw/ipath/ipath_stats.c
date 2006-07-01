@@ -186,7 +186,6 @@ static void ipath_qcheck(struct ipath_devdata *dd)
 				   dd->ipath_port0head,
 				   (unsigned long long)
 				   ipath_stats.sps_port0pkts);
-			ipath_kreceive(dd);
 		}
 		dd->ipath_lastport0rcv_cnt = ipath_stats.sps_port0pkts;
 	}

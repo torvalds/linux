@@ -888,12 +888,7 @@ void ipath_kreceive(struct ipath_devdata *dd)
 	    (u32)le64_to_cpu(*dd->ipath_hdrqtailptr))
 		goto done;
 
-gotmore:
-	/*
-	 * read only once at start.  If in flood situation, this helps
-	 * performance slightly.  If more arrive while we are processing,
-	 * we'll come back here and do them
-	 */
+	/* read only once at start for performance */
 	hdrqtail = (u32)le64_to_cpu(*dd->ipath_hdrqtailptr);
 
 	for (i = 0, l = dd->ipath_port0head; l != hdrqtail; i++) {
@@ -1021,10 +1016,6 @@ gotmore:
 	pkttot += i;
 
 	dd->ipath_port0head = l;
-
-	if (hdrqtail != (u32)le64_to_cpu(*dd->ipath_hdrqtailptr))
-		/* more arrived while we handled first batch */
-		goto gotmore;
 
 	if (pkttot > ipath_stats.sps_maxpkts_call)
 		ipath_stats.sps_maxpkts_call = pkttot;
