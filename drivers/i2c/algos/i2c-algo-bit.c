@@ -372,7 +372,6 @@ static inline int readbytes(struct i2c_adapter *i2c_adap, struct i2c_msg *msg)
 
 	while (count > 0) {
 		inval = i2c_inb(i2c_adap);
-/*printk("%#02x ",inval); if ( ! (count % 16) ) printk("\n"); */
 		if (inval>=0) {
 			*temp = inval;
 			rdcount++;
