@@ -442,17 +442,17 @@ struct ipath_ibdev {
 	u64 n_unicast_rcv;	/* total unicast packets received */
 	u64 n_multicast_xmit;	/* total multicast packets sent */
 	u64 n_multicast_rcv;	/* total multicast packets received */
-	u64 n_symbol_error_counter;	/* starting count for PMA */
-	u64 n_link_error_recovery_counter;	/* starting count for PMA */
-	u64 n_link_downed_counter;	/* starting count for PMA */
-	u64 n_port_rcv_errors;	/* starting count for PMA */
-	u64 n_port_rcv_remphys_errors;	/* starting count for PMA */
-	u64 n_port_xmit_discards;	/* starting count for PMA */
-	u64 n_port_xmit_data;	/* starting count for PMA */
-	u64 n_port_rcv_data;	/* starting count for PMA */
-	u64 n_port_xmit_packets;	/* starting count for PMA */
-	u64 n_port_rcv_packets;	/* starting count for PMA */
-	u32 n_pkey_violations;	/* starting count for PMA */
+	u64 z_symbol_error_counter;		/* starting count for PMA */
+	u64 z_link_error_recovery_counter;	/* starting count for PMA */
+	u64 z_link_downed_counter;		/* starting count for PMA */
+	u64 z_port_rcv_errors;			/* starting count for PMA */
+	u64 z_port_rcv_remphys_errors;		/* starting count for PMA */
+	u64 z_port_xmit_discards;		/* starting count for PMA */
+	u64 z_port_xmit_data;			/* starting count for PMA */
+	u64 z_port_rcv_data;			/* starting count for PMA */
+	u64 z_port_xmit_packets;		/* starting count for PMA */
+	u64 z_port_rcv_packets;			/* starting count for PMA */
+	u32 z_pkey_violations;			/* starting count for PMA */
 	u32 n_rc_resends;
 	u32 n_rc_acks;
 	u32 n_rc_qacks;

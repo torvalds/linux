@@ -646,7 +646,7 @@ static int ipath_query_port(struct ib_device *ibdev,
 	props->max_msg_sz = 4096;
 	props->pkey_tbl_len = ipath_layer_get_npkeys(dev->dd);
 	props->bad_pkey_cntr = ipath_layer_get_cr_errpkey(dev->dd) -
-		dev->n_pkey_violations;
+		dev->z_pkey_violations;
 	props->qkey_viol_cntr = dev->qkey_violations;
 	props->active_width = IB_WIDTH_4X;
 	/* See rate_show() */
