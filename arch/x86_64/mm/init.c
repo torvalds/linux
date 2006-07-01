@@ -678,16 +678,15 @@ void free_initmem(void)
 
 #ifdef CONFIG_DEBUG_RODATA
 
-extern char __start_rodata, __end_rodata;
 void mark_rodata_ro(void)
 {
-	unsigned long addr = (unsigned long)&__start_rodata;
+	unsigned long addr = (unsigned long)__start_rodata;
 
-	for (; addr < (unsigned long)&__end_rodata; addr += PAGE_SIZE)
+	for (; addr < (unsigned long)__end_rodata; addr += PAGE_SIZE)
 		change_page_attr_addr(addr, 1, PAGE_KERNEL_RO);
 
 	printk ("Write protecting the kernel read-only data: %luk\n",
-			(&__end_rodata - &__start_rodata) >> 10);
+			(__end_rodata - __start_rodata) >> 10);
 
 	/*
 	 * change_page_attr_addr() requires a global_flush_tlb() call after it.
