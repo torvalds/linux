@@ -271,7 +271,7 @@ static void pci_handler(unsigned int irq, struct irqdesc *desc, struct pt_regs *
 	}
 
 	int_desc = irq_desc + irqno;
-	int_desc->handle(irqno, int_desc, regs);
+	desc_handle_irq(irqno, int_desc, regs);
 
 	desc->chip->unmask(irq);
 }
