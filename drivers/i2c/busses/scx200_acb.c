@@ -184,20 +184,20 @@ static void scx200_acb_machine(struct scx200_acb_iface *iface, u8 status)
 		break;
 
 	case state_read:
-		/* Set ACK if receiving the last byte */
-		if (iface->len == 1)
+		/* Set ACK if _next_ byte will be the last one */
+		if (iface->len == 2)
 			outb(inb(ACBCTL1) | ACBCTL1_ACK, ACBCTL1);
 		else
 			outb(inb(ACBCTL1) & ~ACBCTL1_ACK, ACBCTL1);
 
-		*iface->ptr++ = inb(ACBSDA);
-		--iface->len;
-
-		if (iface->len == 0) {
+		if (iface->len == 1) {
 			iface->result = 0;
 			iface->state = state_idle;
 			outb(inb(ACBCTL1) | ACBCTL1_STOP, ACBCTL1);
 		}
+
+		*iface->ptr++ = inb(ACBSDA);
+		--iface->len;
 
 		break;
 
