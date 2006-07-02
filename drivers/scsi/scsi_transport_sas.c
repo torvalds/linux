@@ -41,6 +41,7 @@ struct sas_host_attrs {
 	struct mutex lock;
 	u32 next_target_id;
 	u32 next_expander_id;
+	int next_port_id;
 };
 #define to_sas_host_attrs(host)	((struct sas_host_attrs *)(host)->shost_data)
 
@@ -146,6 +147,7 @@ static int sas_host_setup(struct transport_container *tc, struct device *dev,
 	mutex_init(&sas_host->lock);
 	sas_host->next_target_id = 0;
 	sas_host->next_expander_id = 0;
+	sas_host->next_port_id = 0;
 	return 0;
 }
 
@@ -327,7 +329,7 @@ sas_phy_protocol_attr(identify.target_port_protocols,
 sas_phy_simple_attr(identify.sas_address, sas_address, "0x%016llx\n",
 		unsigned long long);
 sas_phy_simple_attr(identify.phy_identifier, phy_identifier, "%d\n", u8);
-//sas_phy_simple_attr(port_identifier, port_identifier, "%d\n", u8);
+//sas_phy_simple_attr(port_identifier, port_identifier, "%d\n", int);
 sas_phy_linkspeed_attr(negotiated_linkrate);
 sas_phy_linkspeed_attr(minimum_linkrate_hw);
 sas_phy_linkspeed_attr(minimum_linkrate);
@@ -589,6 +591,38 @@ struct sas_port *sas_port_alloc(struct device *parent, int port_id)
 	return port;
 }
 EXPORT_SYMBOL(sas_port_alloc);
+
+/** sas_port_alloc_num - allocate and initialize a SAS port structure
+ *
+ * @parent:	parent device
+ *
+ * Allocates a SAS port structure and a number to go with it.  This
+ * interface is really for adapters where the port number has no
+ * meansing, so the sas class should manage them.  It will be added to
+ * the device tree below the device specified by @parent which must be
+ * either a Scsi_Host or a sas_expander_device.
+ *
+ * Returns %NULL on error
+ */
+struct sas_port *sas_port_alloc_num(struct device *parent)
+{
+	int index;
+	struct Scsi_Host *shost = dev_to_shost(parent);
+	struct sas_host_attrs *sas_host = to_sas_host_attrs(shost);
+
+	/* FIXME: use idr for this eventually */
+	mutex_lock(&sas_host->lock);
+	if (scsi_is_sas_expander_device(parent)) {
+		struct sas_rphy *rphy = dev_to_rphy(parent);
+		struct sas_expander_device *exp = rphy_to_expander_device(rphy);
+
+		index = exp->next_port_id++;
+	} else
+		index = sas_host->next_port_id++;
+	mutex_unlock(&sas_host->lock);
+	return sas_port_alloc(parent, index);
+}
+EXPORT_SYMBOL(sas_port_alloc_num);
 
 /**
  * sas_port_add - add a SAS port to the device hierarchy
