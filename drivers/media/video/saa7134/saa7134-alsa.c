@@ -929,7 +929,7 @@ static int alsa_card_saa7134_create(struct saa7134_dev *dev, int devnum)
 
 
 	err = request_irq(dev->pci->irq, saa7134_alsa_irq,
-				SA_SHIRQ | SA_INTERRUPT, dev->name,
+				IRQF_SHARED | IRQF_DISABLED, dev->name,
 				(void*) &dev->dmasound);
 
 	if (err < 0) {

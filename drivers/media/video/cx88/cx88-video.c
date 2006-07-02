@@ -1915,7 +1915,7 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 
 	/* get irq */
 	err = request_irq(pci_dev->irq, cx8800_irq,
-			  SA_SHIRQ | SA_INTERRUPT, core->name, dev);
+			  IRQF_SHARED | IRQF_DISABLED, core->name, dev);
 	if (err < 0) {
 		printk(KERN_ERR "%s: can't get IRQ %d\n",
 		       core->name,pci_dev->irq);

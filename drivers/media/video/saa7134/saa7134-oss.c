@@ -845,7 +845,7 @@ int saa7134_oss_init1(struct saa7134_dev *dev)
 {
 
 	if ((request_irq(dev->pci->irq, saa7134_oss_irq,
-			 SA_SHIRQ | SA_INTERRUPT, dev->name,
+			 IRQF_SHARED | IRQF_DISABLED, dev->name,
 			(void*) &dev->dmasound)) < 0)
 		return -1;
 

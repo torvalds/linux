@@ -1881,7 +1881,7 @@ static int __devinit meye_probe(struct pci_dev *pcidev,
 
 	meye.mchip_irq = pcidev->irq;
 	if (request_irq(meye.mchip_irq, meye_irq,
-			SA_INTERRUPT | SA_SHIRQ, "meye", meye_irq)) {
+			IRQF_DISABLED | IRQF_SHARED, "meye", meye_irq)) {
 		printk(KERN_ERR "meye: request_irq failed\n");
 		goto outreqirq;
 	}

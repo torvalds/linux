@@ -616,7 +616,7 @@ static int __devinit pluto2_probe(struct pci_dev *pdev,
 
 	pci_set_drvdata(pdev, pluto);
 
-	ret = request_irq(pdev->irq, pluto_irq, SA_SHIRQ, DRIVER_NAME, pluto);
+	ret = request_irq(pdev->irq, pluto_irq, IRQF_SHARED, DRIVER_NAME, pluto);
 	if (ret < 0)
 		goto err_pci_iounmap;
 
