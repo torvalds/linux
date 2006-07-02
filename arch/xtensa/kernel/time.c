@@ -52,7 +52,7 @@ unsigned long long sched_clock(void)
 static irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs);
 static struct irqaction timer_irqaction = {
 	.handler =	timer_interrupt,
-	.flags =	SA_INTERRUPT,
+	.flags =	IRQF_DISABLED,
 	.name =		"timer",
 };
 
