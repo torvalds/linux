@@ -177,7 +177,7 @@ EXPORT_SYMBOL(do_settimeofday);
 static int timer_dev_id;
 static struct irqaction timer_irqaction = {
 	timer_interrupt,
-	SA_INTERRUPT,
+	IRQF_DISABLED,
 	CPU_MASK_NONE,
 	"timer",
 	&timer_dev_id,
