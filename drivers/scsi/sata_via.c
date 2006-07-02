@@ -242,7 +242,7 @@ static struct ata_probe_ent *vt6421_init_probe_ent(struct pci_dev *pdev)
 	probe_ent->port_ops	= &svia_sata_ops;
 	probe_ent->n_ports	= N_PORTS;
 	probe_ent->irq		= pdev->irq;
-	probe_ent->irq_flags	= SA_SHIRQ;
+	probe_ent->irq_flags	= IRQF_SHARED;
 	probe_ent->pio_mask	= 0x1f;
 	probe_ent->mwdma_mask	= 0x07;
 	probe_ent->udma_mask	= 0x7f;

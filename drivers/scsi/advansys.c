@@ -371,7 +371,7 @@
 
      1.5 (8/8/96):
          1. Add support for ABP-940U (PCI Ultra) adapter.
-         2. Add support for IRQ sharing by setting the SA_SHIRQ flag for
+         2. Add support for IRQ sharing by setting the IRQF_SHARED flag for
             request_irq and supplying a dev_id pointer to both request_irq()
             and free_irq().
          3. In AscSearchIOPortAddr11() restore a call to check_region() which
@@ -504,9 +504,9 @@
          3. For v2.1.93 and newer kernels use CONFIG_PCI and new PCI BIOS
             access functions.
          4. Update board serial number printing.
-         5. Try allocating an IRQ both with and without the SA_INTERRUPT
+         5. Try allocating an IRQ both with and without the IRQF_DISABLED
             flag set to allow IRQ sharing with drivers that do not set
-            the SA_INTERRUPT flag. Also display a more descriptive error
+            the IRQF_DISABLED flag. Also display a more descriptive error
             message if request_irq() fails.
          6. Update to latest Asc and Adv Libraries.
 
@@ -5202,19 +5202,19 @@ advansys_detect(struct scsi_host_template *tpnt)
             /* Register IRQ Number. */
             ASC_DBG1(2, "advansys_detect: request_irq() %d\n", shp->irq);
            /*
-            * If request_irq() fails with the SA_INTERRUPT flag set,
-            * then try again without the SA_INTERRUPT flag set. This
+            * If request_irq() fails with the IRQF_DISABLED flag set,
+            * then try again without the IRQF_DISABLED flag set. This
             * allows IRQ sharing to work even with other drivers that
-            * do not set the SA_INTERRUPT flag.
+            * do not set the IRQF_DISABLED flag.
             *
-            * If SA_INTERRUPT is not set, then interrupts are enabled
+            * If IRQF_DISABLED is not set, then interrupts are enabled
             * before the driver interrupt function is called.
             */
             if (((ret = request_irq(shp->irq, advansys_interrupt,
-                            SA_INTERRUPT | (share_irq == TRUE ? SA_SHIRQ : 0),
+                            IRQF_DISABLED | (share_irq == TRUE ? IRQF_SHARED : 0),
                             "advansys", boardp)) != 0) &&
                 ((ret = request_irq(shp->irq, advansys_interrupt,
-                            (share_irq == TRUE ? SA_SHIRQ : 0),
+                            (share_irq == TRUE ? IRQF_SHARED : 0),
                             "advansys", boardp)) != 0))
             {
                 if (ret == -EBUSY) {

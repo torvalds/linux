@@ -192,7 +192,7 @@
         - Don't walk the entire list in qla1280_putq_t() just to directly
 	  grab the pointer to the last element afterwards
     Rev  3.23.5 Beta August 9, 2001, Jes Sorensen
-	- Don't use SA_INTERRUPT, it's use is deprecated for this kinda driver
+	- Don't use IRQF_DISABLED, it's use is deprecated for this kinda driver
     Rev  3.23.4 Beta August 8, 2001, Jes Sorensen
 	- Set dev->max_sectors to 1024
     Rev  3.23.3 Beta August 6, 2001, Jes Sorensen
@@ -4369,7 +4369,7 @@ qla1280_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	/* Disable ISP interrupts. */
 	qla1280_disable_intrs(ha);
 
-	if (request_irq(pdev->irq, qla1280_intr_handler, SA_SHIRQ,
+	if (request_irq(pdev->irq, qla1280_intr_handler, IRQF_SHARED,
 				"qla1280", ha)) {
 		printk("qla1280 : Failed to reserve interrupt %d already "
 		       "in use\n", pdev->irq);

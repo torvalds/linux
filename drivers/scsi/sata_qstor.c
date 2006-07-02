@@ -680,7 +680,7 @@ static int qs_ata_init_one(struct pci_dev *pdev,
 	probe_ent->port_ops	= qs_port_info[board_idx].port_ops;
 
 	probe_ent->irq		= pdev->irq;
-	probe_ent->irq_flags	= SA_SHIRQ;
+	probe_ent->irq_flags	= IRQF_SHARED;
 	probe_ent->mmio_base	= mmio_base;
 	probe_ent->n_ports	= QS_PORTS;
 

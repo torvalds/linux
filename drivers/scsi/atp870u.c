@@ -2751,7 +2751,7 @@ flash_ok_880:
 			goto unregister;
 		}
 
-		if (request_irq(pdev->irq, atp870u_intr_handle, SA_SHIRQ, "atp880i", shpnt)) {
+		if (request_irq(pdev->irq, atp870u_intr_handle, IRQF_SHARED, "atp880i", shpnt)) {
  			printk(KERN_ERR "Unable to allocate IRQ%d for Acard controller.\n", pdev->irq);
 			goto free_tables;
 		}
@@ -2822,7 +2822,7 @@ flash_ok_880:
 #ifdef ED_DBGP		
 	printk("request_irq() shpnt %p hostdata %p\n", shpnt, p);
 #endif	        
-		if (request_irq(pdev->irq, atp870u_intr_handle, SA_SHIRQ, "atp870u", shpnt)) {
+		if (request_irq(pdev->irq, atp870u_intr_handle, IRQF_SHARED, "atp870u", shpnt)) {
 				printk(KERN_ERR "Unable to allocate IRQ for Acard controller.\n");
 			goto free_tables;
 		}
@@ -3004,7 +3004,7 @@ flash_ok_885:
 		if (atp870u_init_tables(shpnt) < 0)
 			goto unregister;
 
-		if (request_irq(pdev->irq, atp870u_intr_handle, SA_SHIRQ, "atp870i", shpnt)) {
+		if (request_irq(pdev->irq, atp870u_intr_handle, IRQF_SHARED, "atp870i", shpnt)) {
 			printk(KERN_ERR "Unable to allocate IRQ%d for Acard controller.\n", pdev->irq);
 			goto free_tables;
 		}

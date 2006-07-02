@@ -94,7 +94,7 @@ static int __devinit dmx3191d_probe_one(struct pci_dev *pdev,
 
 	NCR5380_init(shost, FLAG_NO_PSEUDO_DMA | FLAG_DTC3181E);
 
-	if (request_irq(pdev->irq, NCR5380_intr, SA_SHIRQ,
+	if (request_irq(pdev->irq, NCR5380_intr, IRQF_SHARED,
 				DMX3191D_DRIVER_NAME, shost)) {
 		/*
 		 * Steam powered scsi controllers run without an IRQ anyway

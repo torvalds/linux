@@ -265,7 +265,7 @@ NCR_Q720_probe(struct device *dev)
 	p->irq = irq;
 	p->siops = siops;
 
-	if (request_irq(irq, NCR_Q720_intr, SA_SHIRQ, "NCR_Q720", p)) {
+	if (request_irq(irq, NCR_Q720_intr, IRQF_SHARED, "NCR_Q720", p)) {
 		printk(KERN_ERR "NCR_Q720: request irq %d failed\n", irq);
 		goto out_release;
 	}

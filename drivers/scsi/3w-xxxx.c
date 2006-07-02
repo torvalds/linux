@@ -2397,7 +2397,7 @@ static int __devinit tw_probe(struct pci_dev *pdev, const struct pci_device_id *
 	printk(KERN_WARNING "3w-xxxx: scsi%d: Found a 3ware Storage Controller at 0x%x, IRQ: %d.\n", host->host_no, tw_dev->base_addr, pdev->irq);
 
 	/* Now setup the interrupt handler */
-	retval = request_irq(pdev->irq, tw_interrupt, SA_SHIRQ, "3w-xxxx", tw_dev);
+	retval = request_irq(pdev->irq, tw_interrupt, IRQF_SHARED, "3w-xxxx", tw_dev);
 	if (retval) {
 		printk(KERN_WARNING "3w-xxxx: Error requesting IRQ.");
 		goto out_remove_host;

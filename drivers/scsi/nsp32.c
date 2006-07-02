@@ -2867,7 +2867,7 @@ static int nsp32_detect(struct scsi_host_template *sht)
 	nsp32_do_bus_reset(data);
 
 	ret = request_irq(host->irq, do_nsp32_isr,
-			  SA_SHIRQ | SA_SAMPLE_RANDOM, "nsp32", data);
+			  IRQF_SHARED | IRQF_SAMPLE_RANDOM, "nsp32", data);
 	if (ret < 0) {
 		nsp32_msg(KERN_ERR, "Unable to allocate IRQ for NinjaSCSI32 "
 			  "SCSI PCI controller. Interrupt: %d", host->irq);

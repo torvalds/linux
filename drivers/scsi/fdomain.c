@@ -949,7 +949,7 @@ struct Scsi_Host *__fdomain_16x0_detect(struct scsi_host_template *tpnt )
       /* Register the IRQ with the kernel */
 
       retcode = request_irq( interrupt_level,
-			     do_fdomain_16x0_intr, pdev?SA_SHIRQ:0, "fdomain", shpnt);
+			     do_fdomain_16x0_intr, pdev?IRQF_SHARED:0, "fdomain", shpnt);
 
       if (retcode < 0) {
 	 if (retcode == -EINVAL) {

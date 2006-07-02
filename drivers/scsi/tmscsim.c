@@ -2584,7 +2584,7 @@ static int __devinit dc390_probe_one(struct pci_dev *pdev,
 	/* Reset Pending INT */
 	DC390_read8_(INT_Status, io_port);
 
-	if (request_irq(pdev->irq, do_DC390_Interrupt, SA_SHIRQ,
+	if (request_irq(pdev->irq, do_DC390_Interrupt, IRQF_SHARED,
 				"tmscsim", pACB)) {
 		printk(KERN_ERR "DC390: register IRQ error!\n");
 		goto out_release_region;
