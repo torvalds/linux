@@ -74,7 +74,7 @@ jensen_local_startup(unsigned int irq)
 		 * the IPL from being dropped during handler processing.
 		 */
 		if (irq_desc[irq].action)
-			irq_desc[irq].action->flags |= SA_INTERRUPT;
+			irq_desc[irq].action->flags |= IRQF_DISABLED;
 	return 0;
 }
 
