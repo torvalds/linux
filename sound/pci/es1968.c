@@ -2597,7 +2597,7 @@ static int __devinit snd_es1968_create(struct snd_card *card,
 		return err;
 	}
 	chip->io_port = pci_resource_start(pci, 0);
-	if (request_irq(pci->irq, snd_es1968_interrupt, SA_INTERRUPT|SA_SHIRQ,
+	if (request_irq(pci->irq, snd_es1968_interrupt, IRQF_DISABLED|IRQF_SHARED,
 			"ESS Maestro", (void*)chip)) {
 		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		snd_es1968_free(chip);

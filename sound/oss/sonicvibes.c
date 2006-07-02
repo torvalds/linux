@@ -2632,7 +2632,7 @@ static int __devinit sv_probe(struct pci_dev *pcidev, const struct pci_device_id
 	wrindir(s, SV_CIPCMSR1, ((8000 * 65536 / FULLRATE) >> 8) & 0xff);
 	wrindir(s, SV_CIADCOUTPUT, 0);
 	/* request irq */
-	if ((ret=request_irq(s->irq,sv_interrupt,SA_SHIRQ,"S3 SonicVibes",s))) {
+	if ((ret=request_irq(s->irq,sv_interrupt,IRQF_SHARED,"S3 SonicVibes",s))) {
 		printk(KERN_ERR "sv: irq %u in use\n", s->irq);
 		goto err_irq;
 	}

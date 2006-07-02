@@ -2569,7 +2569,7 @@ static int __init snd_dbri_create(struct snd_card *card,
 		return -EIO;
 	}
 
-	err = request_irq(dbri->irq, snd_dbri_interrupt, SA_SHIRQ,
+	err = request_irq(dbri->irq, snd_dbri_interrupt, IRQF_SHARED,
 			  "DBRI audio", dbri);
 	if (err) {
 		printk(KERN_ERR "DBRI: Can't get irq %d\n", dbri->irq);

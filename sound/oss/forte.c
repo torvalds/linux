@@ -2026,7 +2026,7 @@ forte_probe (struct pci_dev *pci_dev, const struct pci_device_id *pci_id)
 	chip->iobase = pci_resource_start (pci_dev, 0);
 	chip->irq = pci_dev->irq;
 
-	if (request_irq (chip->irq, forte_interrupt, SA_SHIRQ, DRIVER_NAME,
+	if (request_irq (chip->irq, forte_interrupt, IRQF_SHARED, DRIVER_NAME,
 			 chip)) {
 		printk (KERN_WARNING PFX "Unable to reserve IRQ");
 		ret = -EIO;

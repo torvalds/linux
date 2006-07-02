@@ -2392,7 +2392,7 @@ static int __devinit solo1_probe(struct pci_dev *pcidev, const struct pci_device
 		printk(KERN_ERR "solo1: io ports in use\n");
 		goto err_region4;
 	}
-	if ((ret=request_irq(s->irq,solo1_interrupt,SA_SHIRQ,"ESS Solo1",s))) {
+	if ((ret=request_irq(s->irq,solo1_interrupt,IRQF_SHARED,"ESS Solo1",s))) {
 		printk(KERN_ERR "solo1: irq %u in use\n", s->irq);
 		goto err_irq;
 	}

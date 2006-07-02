@@ -153,7 +153,7 @@ static int __init snd_es1688_probe(struct platform_device *pdev)
 		if ((err = snd_mpu401_uart_new(card, 0, MPU401_HW_ES1688,
 					       chip->mpu_port, 0,
 					       xmpu_irq,
-					       SA_INTERRUPT,
+					       IRQF_DISABLED,
 					       NULL)) < 0)
 			goto _err;
 	}

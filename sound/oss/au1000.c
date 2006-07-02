@@ -2015,14 +2015,14 @@ static int __devinit au1000_probe(void)
 	if ((s->dma_dac.dmanr = request_au1000_dma(DMA_ID_AC97C_TX,
 						   "audio DAC",
 						   dac_dma_interrupt,
-						   SA_INTERRUPT, s)) < 0) {
+						   IRQF_DISABLED, s)) < 0) {
 		err("Can't get DAC DMA");
 		goto err_dma1;
 	}
 	if ((s->dma_adc.dmanr = request_au1000_dma(DMA_ID_AC97C_RX,
 						   "audio ADC",
 						   adc_dma_interrupt,
-						   SA_INTERRUPT, s)) < 0) {
+						   IRQF_DISABLED, s)) < 0) {
 		err("Can't get ADC DMA");
 		goto err_dma2;
 	}

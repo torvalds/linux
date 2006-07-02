@@ -1257,7 +1257,7 @@ static int __devinit snd_sonicvibes_create(struct snd_card *card,
 	sonic->midi_port = pci_resource_start(pci, 3);
 	sonic->game_port = pci_resource_start(pci, 4);
 
-	if (request_irq(pci->irq, snd_sonicvibes_interrupt, SA_INTERRUPT|SA_SHIRQ, "S3 SonicVibes", (void *)sonic)) {
+	if (request_irq(pci->irq, snd_sonicvibes_interrupt, IRQF_DISABLED|IRQF_SHARED, "S3 SonicVibes", (void *)sonic)) {
 		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		snd_sonicvibes_free(sonic);
 		return -EBUSY;

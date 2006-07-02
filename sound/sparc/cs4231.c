@@ -2001,7 +2001,7 @@ static int __init snd_cs4231_sbus_create(struct snd_card *card,
 	chip->c_dma.preallocate = sbus_dma_preallocate;
 
 	if (request_irq(sdev->irqs[0], snd_cs4231_sbus_interrupt,
-			SA_SHIRQ, "cs4231", chip)) {
+			IRQF_SHARED, "cs4231", chip)) {
 		snd_printdd("cs4231-%d: Unable to grab SBUS IRQ %d\n",
 			    dev, sdev->irqs[0]);
 		snd_cs4231_sbus_free(chip);

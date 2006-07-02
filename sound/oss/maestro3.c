@@ -2694,7 +2694,7 @@ static int __devinit m3_probe(struct pci_dev *pci_dev, const struct pci_device_i
         }
     }
     
-    if(request_irq(card->irq, m3_interrupt, SA_SHIRQ, card_names[card->card_type], card)) {
+    if(request_irq(card->irq, m3_interrupt, IRQF_SHARED, card_names[card->card_type], card)) {
 
         printk(KERN_ERR PFX "unable to allocate irq %d,\n", card->irq);
 

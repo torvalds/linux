@@ -3545,7 +3545,7 @@ maestro_probe(struct pci_dev *pcidev,const struct pci_device_id *pdid)
 		mixer_push_state(card);
 	}
 	
-	if((ret=request_irq(card->irq, ess_interrupt, SA_SHIRQ, card_names[card_type], card)))
+	if((ret=request_irq(card->irq, ess_interrupt, IRQF_SHARED, card_names[card_type], card)))
 	{
 		printk(KERN_ERR "maestro: unable to allocate irq %d,\n", card->irq);
 		unregister_sound_mixer(card->dev_mixer);

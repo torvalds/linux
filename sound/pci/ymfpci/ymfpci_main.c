@@ -2288,7 +2288,7 @@ int __devinit snd_ymfpci_create(struct snd_card *card,
 		snd_ymfpci_free(chip);
 		return -EBUSY;
 	}
-	if (request_irq(pci->irq, snd_ymfpci_interrupt, SA_INTERRUPT|SA_SHIRQ, "YMFPCI", (void *) chip)) {
+	if (request_irq(pci->irq, snd_ymfpci_interrupt, IRQF_DISABLED|IRQF_SHARED, "YMFPCI", (void *) chip)) {
 		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		snd_ymfpci_free(chip);
 		return -EBUSY;

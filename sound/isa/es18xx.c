@@ -1837,7 +1837,7 @@ static int __devinit snd_es18xx_new_device(struct snd_card *card,
 		return -EBUSY;
 	}
 
-	if (request_irq(irq, snd_es18xx_interrupt, SA_INTERRUPT, "ES18xx", (void *) chip)) {
+	if (request_irq(irq, snd_es18xx_interrupt, IRQF_DISABLED, "ES18xx", (void *) chip)) {
 		snd_es18xx_free(chip);
 		snd_printk(KERN_ERR PFX "unable to grap IRQ %d\n", irq);
 		return -EBUSY;

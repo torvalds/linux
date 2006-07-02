@@ -706,7 +706,7 @@ static int __devinit snd_interwave_probe(struct snd_card *card, int dev)
 	if ((err = snd_gus_initialize(gus)) < 0)
 		return err;
 
-	if (request_irq(xirq, snd_interwave_interrupt, SA_INTERRUPT,
+	if (request_irq(xirq, snd_interwave_interrupt, IRQF_DISABLED,
 			"InterWave", iwcard)) {
 		snd_printk(KERN_ERR PFX "unable to grab IRQ %d\n", xirq);
 		return -EBUSY;

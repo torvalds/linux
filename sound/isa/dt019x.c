@@ -240,7 +240,7 @@ static int __devinit snd_card_dt019x_probe(int dev, struct pnp_card_link *pcard,
 					MPU401_HW_MPU401,
 					mpu_port[dev], 0,
 					mpu_irq[dev],
-					mpu_irq[dev] >= 0 ? SA_INTERRUPT : 0,
+					mpu_irq[dev] >= 0 ? IRQF_DISABLED : 0,
 					NULL) < 0)
 			snd_printk(KERN_ERR PFX "no MPU-401 device at 0x%lx ?\n", mpu_port[dev]);
 	}
