@@ -176,5 +176,5 @@ void __init cia_init_IRQ(struct ciabase *base)
 	/* override auto int and install CIA handler */
 	m68k_setup_irq_controller(&auto_irq_controller, base->handler_irq, 1);
 	m68k_irq_startup(base->handler_irq);
-	request_irq(base->handler_irq, cia_handler, SA_SHIRQ, base->name, base);
+	request_irq(base->handler_irq, cia_handler, IRQF_SHARED, base->name, base);
 }
