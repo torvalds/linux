@@ -761,8 +761,12 @@ static int suspend_device(struct usb_device *udev, pm_message_t msg)
 			udev->state == USB_STATE_SUSPENDED)
 		goto done;
 
-	if (udev->dev.driver == NULL)
+	/* For devices that don't have a driver, we do a standard suspend. */
+	if (udev->dev.driver == NULL) {
+		status = usb_port_suspend(udev);
 		goto done;
+	}
+
 	udriver = to_usb_device_driver(udev->dev.driver);
 	status = udriver->suspend(udev, msg);
 
@@ -782,8 +786,12 @@ static int resume_device(struct usb_device *udev)
 			udev->state != USB_STATE_SUSPENDED)
 		goto done;
 
-	if (udev->dev.driver == NULL)
+	/* Can't resume it if it doesn't have a driver. */
+	if (udev->dev.driver == NULL) {
+		status = -ENOTCONN;
 		goto done;
+	}
+
 	udriver = to_usb_device_driver(udev->dev.driver);
 	status = udriver->resume(udev);
 
@@ -804,7 +812,7 @@ static int suspend_interface(struct usb_interface *intf, pm_message_t msg)
 			!is_active(intf))
 		goto done;
 
-	if (intf->dev.driver == NULL)
+	if (intf->dev.driver == NULL)		/* This can't happen */
 		goto done;
 	driver = to_usb_driver(intf->dev.driver);
 
@@ -838,8 +846,11 @@ static int resume_interface(struct usb_interface *intf)
 			is_active(intf))
 		goto done;
 
-	if (intf->dev.driver == NULL)
+	/* Can't resume it if it doesn't have a driver. */
+	if (intf->dev.driver == NULL) {
+		status = -ENOTCONN;
 		goto done;
+	}
 	driver = to_usb_driver(intf->dev.driver);
 
 	if (driver->resume) {
