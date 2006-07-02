@@ -435,7 +435,7 @@ ergo_inithardware(hysdn_card * card)
 	}
 
 	ergo_stopcard(card);	/* disable interrupts */
-	if (request_irq(card->irq, ergo_interrupt, SA_SHIRQ, "HYSDN", card)) {
+	if (request_irq(card->irq, ergo_interrupt, IRQF_SHARED, "HYSDN", card)) {
 		ergo_releasehardware(card); /* return the acquired hardware */
 		return (-1);
 	}

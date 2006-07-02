@@ -271,7 +271,7 @@ setup_netjet_s(struct IsdnCard *card)
 	setup_isac(cs);
 	cs->cardmsg = &NETjet_S_card_msg;
 	cs->irq_func = &netjet_s_interrupt;
-	cs->irq_flags |= SA_SHIRQ;
+	cs->irq_flags |= IRQF_SHARED;
 	ISACVersion(cs, "NETjet-S:");
 	return (1);
 }

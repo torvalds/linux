@@ -808,7 +808,7 @@ setup_avm_pcipnp(struct IsdnCard *card)
 		printk(KERN_WARNING "FritzPCI: No PCI card found\n");
 		return(0);
 	}
-	cs->irq_flags |= SA_SHIRQ;
+	cs->irq_flags |= IRQF_SHARED;
 #else
 	printk(KERN_WARNING "FritzPCI: NO_PCI_BIOS\n");
 	return (0);

@@ -1732,7 +1732,7 @@ setup_hfcpci(struct IsdnCard *card)
 		cs->BC_Read_Reg = NULL;
 		cs->BC_Write_Reg = NULL;
 		cs->irq_func = &hfcpci_interrupt;
-		cs->irq_flags |= SA_SHIRQ;
+		cs->irq_flags |= IRQF_SHARED;
 		cs->hw.hfcpci.timer.function = (void *) hfcpci_Timer;
 		cs->hw.hfcpci.timer.data = (long) cs;
 		init_timer(&cs->hw.hfcpci.timer);
