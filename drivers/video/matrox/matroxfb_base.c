@@ -233,7 +233,7 @@ int matroxfb_enable_irq(WPMINFO int reenable) {
 
 	if (!test_and_set_bit(0, &ACCESS_FBINFO(irq_flags))) {
 		if (request_irq(ACCESS_FBINFO(pcidev)->irq, matrox_irq,
-				SA_SHIRQ, "matroxfb", MINFO)) {
+				IRQF_SHARED, "matroxfb", MINFO)) {
 			clear_bit(0, &ACCESS_FBINFO(irq_flags));
 			return -EINVAL;
 		}

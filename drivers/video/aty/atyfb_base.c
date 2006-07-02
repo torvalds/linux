@@ -1567,7 +1567,7 @@ static int aty_enable_irq(struct atyfb_par *par, int reenable)
 	u32 int_cntl;
 
 	if (!test_and_set_bit(0, &par->irq_flags)) {
-		if (request_irq(par->irq, aty_irq, SA_SHIRQ, "atyfb", par)) {
+		if (request_irq(par->irq, aty_irq, IRQF_SHARED, "atyfb", par)) {
 			clear_bit(0, &par->irq_flags);
 			return -EINVAL;
 		}

@@ -735,7 +735,7 @@ static int __init s3c2410fb_probe(struct platform_device *pdev)
 
 	dprintk("got LCD region\n");
 
-	ret = request_irq(irq, s3c2410fb_irq, SA_INTERRUPT, pdev->name, info);
+	ret = request_irq(irq, s3c2410fb_irq, IRQF_DISABLED, pdev->name, info);
 	if (ret) {
 		dev_err(&pdev->dev, "cannot get irq %d - err %d\n", irq, ret);
 		ret = -EBUSY;
