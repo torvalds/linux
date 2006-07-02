@@ -47,6 +47,18 @@ config MCA
 	  <file:Documentation/mca.txt> (and especially the web page given
 	  there) before attempting to build an MCA bus kernel.
 
+config GENERIC_HARDIRQS
+	bool
+	default y
+
+config HARDIRQS_SW_RESEND
+	bool
+	default y
+
+config GENERIC_IRQ_PROBE
+	bool
+	default y
+
 config RWSEM_GENERIC_SPINLOCK
 	bool
 	default y

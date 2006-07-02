@@ -347,8 +347,9 @@ extern int noirqdebug_setup(char *str);
 /* Checks whether the interrupt can be requested by request_irq(): */
 extern int can_request_irq(unsigned int irq, unsigned long irqflags);
 
-/* Dummy irq-chip implementation: */
+/* Dummy irq-chip implementations: */
 extern struct irq_chip no_irq_chip;
+extern struct irq_chip dummy_irq_chip;
 
 extern void
 set_irq_chip_and_handler(unsigned int irq, struct irq_chip *chip,

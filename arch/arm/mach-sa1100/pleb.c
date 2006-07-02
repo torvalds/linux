@@ -7,6 +7,7 @@
 #include <linux/tty.h>
 #include <linux/ioport.h>
 #include <linux/platform_device.h>
+#include <linux/irq.h>
 
 #include <linux/mtd/partitions.h>
 

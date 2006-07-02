@@ -12,6 +12,7 @@
 #include <linux/sched.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
 #include <linux/time.h>
 
 #include <asm/hardware.h>

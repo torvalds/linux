@@ -16,6 +16,10 @@
 #include <linux/interrupt.h>
 #include <linux/kernel_stat.h>
 
+#if defined(CONFIG_NO_IDLE_HZ) && defined(CONFIG_ARM)
+#include <asm/dyntick.h>
+#endif
+
 #include "internals.h"
 
 /**
@@ -92,6 +96,22 @@ struct irq_chip no_irq_chip = {
 };
 
 /*
+ * Generic dummy implementation which can be used for
+ * real dumb interrupt sources
+ */
+struct irq_chip dummy_irq_chip = {
+	.name		= "dummy",
+	.startup	= noop_ret,
+	.shutdown	= noop,
+	.enable		= noop,
+	.disable	= noop,
+	.ack		= noop,
+	.mask		= noop,
+	.unmask		= noop,
+	.end		= noop,
+};
+
+/*
  * Special, empty irq handler:
  */
 irqreturn_t no_action(int cpl, void *dev_id, struct pt_regs *regs)
@@ -112,6 +132,15 @@ irqreturn_t handle_IRQ_event(unsigned int irq, struct pt_regs *regs,
 {
 	irqreturn_t ret, retval = IRQ_NONE;
 	unsigned int status = 0;
+
+#if defined(CONFIG_NO_IDLE_HZ) && defined(CONFIG_ARM)
+	if (!(action->flags & SA_TIMER) && system_timer->dyn_tick != NULL) {
+		write_seqlock(&xtime_lock);
+		if (system_timer->dyn_tick->state & DYN_TICK_ENABLED)
+			system_timer->dyn_tick->handler(irq, 0, regs);
+		write_sequnlock(&xtime_lock);
+	}
+#endif
 
 	if (!(action->flags & IRQF_DISABLED))
 		local_irq_enable();

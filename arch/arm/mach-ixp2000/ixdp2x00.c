@@ -167,7 +167,7 @@ void ixdp2x00_init_irq(volatile unsigned long *stat_reg, volatile unsigned long 
 	}
 
 	/* Hook into PCI interrupt */
-	set_irq_chained_handler(IRQ_IXP2000_PCIB, &ixdp2x00_irq_handler);
+	set_irq_chained_handler(IRQ_IXP2000_PCIB, ixdp2x00_irq_handler);
 }
 
 /*************************************************************************

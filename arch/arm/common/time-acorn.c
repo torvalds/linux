@@ -16,6 +16,7 @@
 #include <linux/timex.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
 
 #include <asm/hardware.h>
 #include <asm/io.h>

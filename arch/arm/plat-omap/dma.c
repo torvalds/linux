@@ -24,9 +24,9 @@
 #include <linux/spinlock.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
 
 #include <asm/system.h>
-#include <asm/irq.h>
 #include <asm/hardware.h>
 #include <asm/dma.h>
 #include <asm/io.h>

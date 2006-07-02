@@ -21,18 +21,13 @@
 
 struct irqaction;
 
-extern void disable_irq_nosync(unsigned int);
-extern void disable_irq(unsigned int);
-extern void enable_irq(unsigned int);
-
 /*
- * These correspond with the SA_TRIGGER_* defines, and therefore the
- * IORESOURCE_IRQ_* defines.
+ * Migration helpers
  */
-#define __IRQT_RISEDGE	(1 << 0)
-#define __IRQT_FALEDGE	(1 << 1)
-#define __IRQT_HIGHLVL	(1 << 2)
-#define __IRQT_LOWLVL	(1 << 3)
+#define __IRQT_FALEDGE	IRQ_TYPE_EDGE_FALLING
+#define __IRQT_RISEDGE	IRQ_TYPE_EDGE_RISING
+#define __IRQT_LOWLVL	IRQ_TYPE_LEVEL_LOW
+#define __IRQT_HIGHLVL	IRQ_TYPE_LEVEL_HIGH
 
 #define IRQT_NOEDGE	(0)
 #define IRQT_RISING	(__IRQT_RISEDGE)
@@ -40,12 +35,7 @@ extern void enable_irq(unsigned int);
 #define IRQT_BOTHEDGE	(__IRQT_RISEDGE|__IRQT_FALEDGE)
 #define IRQT_LOW	(__IRQT_LOWLVL)
 #define IRQT_HIGH	(__IRQT_HIGHLVL)
-#define IRQT_PROBE	(1 << 4)
-
-int set_irq_type(unsigned int irq, unsigned int type);
-void disable_irq_wake(unsigned int irq);
-void enable_irq_wake(unsigned int irq);
-int setup_irq(unsigned int, struct irqaction *);
+#define IRQT_PROBE	IRQ_TYPE_PROBE
 
 extern void migrate_irqs(void);
 #endif

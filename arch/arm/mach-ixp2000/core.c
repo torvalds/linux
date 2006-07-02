@@ -19,6 +19,7 @@
 #include <linux/spinlock.h>
 #include <linux/sched.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
 #include <linux/serial.h>
 #include <linux/tty.h>
 #include <linux/bitops.h>
@@ -408,7 +409,7 @@ static void ixp2000_err_irq_handler(unsigned int irq, struct irqdesc *desc,  str
 	for(i = 31; i >= 0; i--) {
 		if(status & (1 << i)) {
 			desc = irq_desc + IRQ_IXP2000_DRAM0_MIN_ERR + i;
-			desc->handle(IRQ_IXP2000_DRAM0_MIN_ERR + i, desc, regs);
+			desc_handle_irq(IRQ_IXP2000_DRAM0_MIN_ERR + i, desc, regs);
 		}
 	}
 }

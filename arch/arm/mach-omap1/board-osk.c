@@ -29,7 +29,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
-#include <linux/interrupt.h>
+#include <linux/irq.h>
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
