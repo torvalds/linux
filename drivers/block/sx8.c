@@ -1676,7 +1676,7 @@ static int carm_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_set_master(pdev);
 
-	rc = request_irq(pdev->irq, carm_interrupt, SA_SHIRQ, DRV_NAME, host);
+	rc = request_irq(pdev->irq, carm_interrupt, IRQF_SHARED, DRV_NAME, host);
 	if (rc) {
 		printk(KERN_ERR DRV_NAME "(%s): irq alloc failure\n",
 		       pci_name(pdev));

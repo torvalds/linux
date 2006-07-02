@@ -1040,7 +1040,7 @@ static int __devinit mm_pci_probe(struct pci_dev *dev, const struct pci_device_i
 	card->win_size = data;
 
 
-	if (request_irq(dev->irq, mm_interrupt, SA_SHIRQ, "pci-umem", card)) {
+	if (request_irq(dev->irq, mm_interrupt, IRQF_SHARED, "pci-umem", card)) {
 		printk(KERN_ERR "MM%d: Unable to allocate IRQ\n", card->card_number);
 		ret = -ENODEV;
 

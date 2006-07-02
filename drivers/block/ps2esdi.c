@@ -340,9 +340,9 @@ static int __init ps2esdi_geninit(void)
 	/* try to grab IRQ, and try to grab a slow IRQ if it fails, so we can
 	   share with the SCSI driver */
 	if (request_irq(PS2ESDI_IRQ, ps2esdi_interrupt_handler,
-		  SA_INTERRUPT | SA_SHIRQ, "PS/2 ESDI", &ps2esdi_gendisk)
+		  IRQF_DISABLED | IRQF_SHARED, "PS/2 ESDI", &ps2esdi_gendisk)
 	    && request_irq(PS2ESDI_IRQ, ps2esdi_interrupt_handler,
-			   SA_SHIRQ, "PS/2 ESDI", &ps2esdi_gendisk)
+			   IRQF_SHARED, "PS/2 ESDI", &ps2esdi_gendisk)
 	    ) {
 		printk("%s: Unable to get IRQ %d\n", DEVICE_NAME, PS2ESDI_IRQ);
 		error = -EBUSY;
