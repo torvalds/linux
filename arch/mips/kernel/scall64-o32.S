@@ -510,4 +510,6 @@ sys_call_table:
 	PTR	sys_splice
 	PTR	sys32_sync_file_range		/* 4305 */
 	PTR	sys_tee
+	PTR	sys_vmsplice
+	PTR	compat_sys_move_pages
 	.size	sys_call_table,.-sys_call_table

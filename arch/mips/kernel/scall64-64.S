@@ -462,3 +462,5 @@ sys_call_table:
 	PTR	sys_splice
 	PTR	sys_sync_file_range
 	PTR	sys_tee				/* 5265 */
+	PTR	sys_vmsplice
+	PTR	sys_move_pages

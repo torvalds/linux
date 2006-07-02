@@ -388,3 +388,5 @@ EXPORT(sysn32_call_table)
 	PTR	sys_splice
 	PTR	sys_sync_file_range
 	PTR	sys_tee
+	PTR	sys_vmsplice			/* 6271 */
+	PTR	sys_move_pages
