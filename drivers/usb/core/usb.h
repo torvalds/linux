@@ -30,10 +30,21 @@ extern void usb_major_cleanup(void);
 extern int usb_host_init(void);
 extern void usb_host_cleanup(void);
 
+#ifdef	CONFIG_PM
+
 extern int usb_suspend_both(struct usb_device *udev, pm_message_t msg);
 extern int usb_resume_both(struct usb_device *udev);
 extern int usb_port_suspend(struct usb_device *dev);
 extern int usb_port_resume(struct usb_device *dev);
+
+#else
+
+#define usb_suspend_both(udev, msg)	0
+#define usb_resume_both(udev)		0
+#define usb_port_suspend(dev)		0
+#define usb_port_resume(dev)		0
+
+#endif
 
 extern struct bus_type usb_bus_type;
 extern struct usb_device_driver usb_generic_driver;
