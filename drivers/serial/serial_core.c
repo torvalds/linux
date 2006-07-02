@@ -691,7 +691,8 @@ static int uart_set_info(struct uart_state *state,
 		    (new_serial.baud_base != port->uartclk / 16) ||
 		    (close_delay != state->close_delay) ||
 		    (closing_wait != state->closing_wait) ||
-		    (new_serial.xmit_fifo_size != port->fifosize) ||
+		    (new_serial.xmit_fifo_size &&
+		     new_serial.xmit_fifo_size != port->fifosize) ||
 		    (((new_flags ^ old_flags) & ~UPF_USR_MASK) != 0))
 			goto exit;
 		port->flags = ((port->flags & ~UPF_USR_MASK) |
@@ -796,7 +797,8 @@ static int uart_set_info(struct uart_state *state,
 	port->custom_divisor   = new_serial.custom_divisor;
 	state->close_delay     = close_delay;
 	state->closing_wait    = closing_wait;
-	port->fifosize         = new_serial.xmit_fifo_size;
+	if (new_serial.xmit_fifo_size)
+		port->fifosize = new_serial.xmit_fifo_size;
 	if (state->info->tty)
 		state->info->tty->low_latency =
 			(port->flags & UPF_LOW_LATENCY) ? 1 : 0;
