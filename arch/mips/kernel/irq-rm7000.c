@@ -71,7 +71,7 @@ static void rm7k_cpu_irq_end(unsigned int irq)
 		unmask_rm7k_irq(irq);
 }
 
-static hw_irq_controller rm7k_irq_controller = {
+static struct irq_chip rm7k_irq_controller = {
 	.typename = "RM7000",
 	.startup = rm7k_cpu_irq_startup,
 	.shutdown = rm7k_cpu_irq_shutdown,

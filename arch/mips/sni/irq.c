@@ -55,7 +55,7 @@ static void end_pciasic_irq(unsigned int irq)
 		enable_pciasic_irq(irq);
 }
 
-static struct hw_interrupt_type pciasic_irq_type = {
+static struct irq_chip pciasic_irq_type = {
 	.typename = "ASIC-PCI",
 	.startup = startup_pciasic_irq,
 	.shutdown = shutdown_pciasic_irq,

@@ -205,7 +205,7 @@ static void end_rt_irq(unsigned int irq)
 {
 }
 
-static struct hw_interrupt_type rt_irq_type = {
+static struct irq_chip rt_irq_type = {
 	.typename	= "SN HUB RT timer",
 	.startup	= startup_rt_irq,
 	.shutdown	= shutdown_rt_irq,

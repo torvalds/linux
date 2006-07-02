@@ -160,7 +160,7 @@ static void end_cpu_irq(unsigned int irq)
 #define shutdown_cpu_irq disable_cpu_irq
 #define mask_and_ack_cpu_irq disable_cpu_irq
 
-static struct hw_interrupt_type ip32_cpu_interrupt = {
+static struct irq_chip ip32_cpu_interrupt = {
 	.typename = "IP32 CPU",
 	.startup = startup_cpu_irq,
 	.shutdown = shutdown_cpu_irq,
@@ -230,7 +230,7 @@ static void end_crime_irq(unsigned int irq)
 
 #define shutdown_crime_irq disable_crime_irq
 
-static struct hw_interrupt_type ip32_crime_interrupt = {
+static struct irq_chip ip32_crime_interrupt = {
 	.typename = "IP32 CRIME",
 	.startup = startup_crime_irq,
 	.shutdown = shutdown_crime_irq,
@@ -289,7 +289,7 @@ static void end_macepci_irq(unsigned int irq)
 #define shutdown_macepci_irq disable_macepci_irq
 #define mask_and_ack_macepci_irq disable_macepci_irq
 
-static struct hw_interrupt_type ip32_macepci_interrupt = {
+static struct irq_chip ip32_macepci_interrupt = {
 	.typename = "IP32 MACE PCI",
 	.startup = startup_macepci_irq,
 	.shutdown = shutdown_macepci_irq,
@@ -419,7 +419,7 @@ static void end_maceisa_irq(unsigned irq)
 
 #define shutdown_maceisa_irq disable_maceisa_irq
 
-static struct hw_interrupt_type ip32_maceisa_interrupt = {
+static struct irq_chip ip32_maceisa_interrupt = {
 	.typename = "IP32 MACE ISA",
 	.startup = startup_maceisa_irq,
 	.shutdown = shutdown_maceisa_irq,
@@ -469,7 +469,7 @@ static void end_mace_irq(unsigned int irq)
 #define shutdown_mace_irq disable_mace_irq
 #define mask_and_ack_mace_irq disable_mace_irq
 
-static struct hw_interrupt_type ip32_mace_interrupt = {
+static struct irq_chip ip32_mace_interrupt = {
 	.typename = "IP32 MACE",
 	.startup = startup_mace_irq,
 	.shutdown = shutdown_mace_irq,
@@ -575,7 +575,7 @@ void __init arch_init_irq(void)
 	mace->perif.ctrl.imask = 0;
 
 	for (irq = 0; irq <= IP32_IRQ_MAX; irq++) {
-		hw_irq_controller *controller;
+		struct irq_chip *controller;
 
 		if (irq == IP32_R4K_TIMER_IRQ)
 			controller = &ip32_cpu_interrupt;

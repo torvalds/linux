@@ -69,7 +69,7 @@ extern char sb1250_duart_present[];
 #endif
 #endif
 
-static struct hw_interrupt_type sb1250_irq_type = {
+static struct irq_chip sb1250_irq_type = {
 	.typename = "SB1250-IMR",
 	.startup = startup_sb1250_irq,
 	.shutdown = shutdown_sb1250_irq,
@@ -120,7 +120,7 @@ static void sb1250_set_affinity(unsigned int irq, cpumask_t mask)
 {
 	int i = 0, old_cpu, cpu, int_on;
 	u64 cur_ints;
-	irq_desc_t *desc = irq_desc + irq;
+	struct irq_desc *desc = irq_desc + irq;
 	unsigned long flags;
 
 	i = first_cpu(mask);
@@ -248,7 +248,7 @@ void __init init_sb1250_irqs(void)
 			irq_desc[i].chip = &sb1250_irq_type;
 			sb1250_irq_owner[i] = 0;
 		} else {
-			irq_desc[i].chip = &no_irq_type;
+			irq_desc[i].chip = &no_irq_chip;
 		}
 	}
 }
@@ -271,7 +271,7 @@ static struct irqaction sb1250_dummy_action = {
 
 int sb1250_steal_irq(int irq)
 {
-	irq_desc_t *desc = irq_desc + irq;
+	struct irq_desc *desc = irq_desc + irq;
 	unsigned long flags;
 	int retval = 0;
 

@@ -345,7 +345,7 @@ static void end_bridge_irq(unsigned int irq)
 		enable_bridge_irq(irq);
 }
 
-static struct hw_interrupt_type bridge_irq_type = {
+static struct irq_chip bridge_irq_type = {
 	.typename	= "bridge",
 	.startup	= startup_bridge_irq,
 	.shutdown	= shutdown_bridge_irq,

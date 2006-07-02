@@ -321,7 +321,7 @@ static inline void vrc4173_giu_init(void)
 
 void vrc4173_enable_piuint(uint16_t mask)
 {
-	irq_desc_t *desc = irq_desc + VRC4173_PIU_IRQ;
+	struct irq_desc *desc = irq_desc + VRC4173_PIU_IRQ;
 	unsigned long flags;
 	uint16_t val;
 
@@ -336,7 +336,7 @@ EXPORT_SYMBOL(vrc4173_enable_piuint);
 
 void vrc4173_disable_piuint(uint16_t mask)
 {
-	irq_desc_t *desc = irq_desc + VRC4173_PIU_IRQ;
+	struct irq_desc *desc = irq_desc + VRC4173_PIU_IRQ;
 	unsigned long flags;
 	uint16_t val;
 
@@ -351,7 +351,7 @@ EXPORT_SYMBOL(vrc4173_disable_piuint);
 
 void vrc4173_enable_aiuint(uint16_t mask)
 {
-	irq_desc_t *desc = irq_desc + VRC4173_AIU_IRQ;
+	struct irq_desc *desc = irq_desc + VRC4173_AIU_IRQ;
 	unsigned long flags;
 	uint16_t val;
 
@@ -366,7 +366,7 @@ EXPORT_SYMBOL(vrc4173_enable_aiuint);
 
 void vrc4173_disable_aiuint(uint16_t mask)
 {
-	irq_desc_t *desc = irq_desc + VRC4173_AIU_IRQ;
+	struct irq_desc *desc = irq_desc + VRC4173_AIU_IRQ;
 	unsigned long flags;
 	uint16_t val;
 
@@ -381,7 +381,7 @@ EXPORT_SYMBOL(vrc4173_disable_aiuint);
 
 void vrc4173_enable_kiuint(uint16_t mask)
 {
-	irq_desc_t *desc = irq_desc + VRC4173_KIU_IRQ;
+	struct irq_desc *desc = irq_desc + VRC4173_KIU_IRQ;
 	unsigned long flags;
 	uint16_t val;
 
@@ -396,7 +396,7 @@ EXPORT_SYMBOL(vrc4173_enable_kiuint);
 
 void vrc4173_disable_kiuint(uint16_t mask)
 {
-	irq_desc_t *desc = irq_desc + VRC4173_KIU_IRQ;
+	struct irq_desc *desc = irq_desc + VRC4173_KIU_IRQ;
 	unsigned long flags;
 	uint16_t val;
 
@@ -442,7 +442,7 @@ static void end_vrc4173_irq(unsigned int irq)
 		enable_vrc4173_irq(irq);
 }
 
-static struct hw_interrupt_type vrc4173_irq_type = {
+static struct irq_chip vrc4173_irq_type = {
 	.typename	= "VRC4173",
 	.startup	= startup_vrc4173_irq,
 	.shutdown	= shutdown_vrc4173_irq,

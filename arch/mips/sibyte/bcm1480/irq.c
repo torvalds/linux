@@ -83,7 +83,7 @@ extern char sb1250_duart_present[];
 #endif
 #endif
 
-static struct hw_interrupt_type bcm1480_irq_type = {
+static struct irq_chip bcm1480_irq_type = {
 	.typename = "BCM1480-IMR",
 	.startup = startup_bcm1480_irq,
 	.shutdown = shutdown_bcm1480_irq,
@@ -140,7 +140,7 @@ static void bcm1480_set_affinity(unsigned int irq, cpumask_t mask)
 {
 	int i = 0, old_cpu, cpu, int_on, k;
 	u64 cur_ints;
-	irq_desc_t *desc = irq_desc + irq;
+	struct irq_desc *desc = irq_desc + irq;
 	unsigned long flags;
 	unsigned int irq_dirty;
 
@@ -278,7 +278,7 @@ void __init init_bcm1480_irqs(void)
 			irq_desc[i].chip = &bcm1480_irq_type;
 			bcm1480_irq_owner[i] = 0;
 		} else {
-			irq_desc[i].chip = &no_irq_type;
+			irq_desc[i].chip = &no_irq_chip;
 		}
 	}
 }
@@ -301,7 +301,7 @@ static struct irqaction bcm1480_dummy_action = {
 
 int bcm1480_steal_irq(int irq)
 {
-	irq_desc_t *desc = irq_desc + irq;
+	struct irq_desc *desc = irq_desc + irq;
 	unsigned long flags;
 	int retval = 0;
 
