@@ -346,7 +346,7 @@ static int hvc_open(struct tty_struct *tty, struct file * filp)
 	spin_unlock_irqrestore(&hp->lock, flags);
 	/* check error, fallback to non-irq */
 	if (irq != NO_IRQ)
-		rc = request_irq(irq, hvc_handle_interrupt, SA_INTERRUPT, "hvc_console", hp);
+		rc = request_irq(irq, hvc_handle_interrupt, IRQF_DISABLED, "hvc_console", hp);
 
 	/*
 	 * If the request_irq() fails and we return an error.  The tty layer

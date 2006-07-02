@@ -1993,7 +1993,7 @@ static int sx_init_board (struct sx_board *board)
 		if(board->irq > 0) {
 			/* fixed irq, probably PCI */
 			if(sx_irqmask & (1 << board->irq)) { /* may we use this irq? */
-				if(request_irq(board->irq, sx_interrupt, SA_SHIRQ | SA_INTERRUPT, "sx", board)) {
+				if(request_irq(board->irq, sx_interrupt, IRQF_SHARED | IRQF_DISABLED, "sx", board)) {
 					printk(KERN_ERR "sx: Cannot allocate irq %d.\n", board->irq);
 					board->irq = 0;
 				}
@@ -2005,7 +2005,7 @@ static int sx_init_board (struct sx_board *board)
 			int irqmask = sx_irqmask & (IS_SX_BOARD(board) ? SX_ISA_IRQ_MASK : SI2_ISA_IRQ_MASK);
 			for(irqnr = 15; irqnr > 0; irqnr--)
 				if(irqmask & (1 << irqnr))
-					if(! request_irq(irqnr, sx_interrupt, SA_SHIRQ | SA_INTERRUPT, "sx", board))
+					if(! request_irq(irqnr, sx_interrupt, IRQF_SHARED | IRQF_DISABLED, "sx", board))
 						break;
 			if(! irqnr)
 				printk(KERN_ERR "sx: Cannot allocate IRQ.\n");

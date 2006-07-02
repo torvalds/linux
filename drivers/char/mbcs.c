@@ -592,7 +592,7 @@ static int mbcs_intr_alloc(struct cx_dev *dev)
 	getdma->intrHostDest = sn_irq->irq_xtalkaddr;
 	getdma->intrVector = sn_irq->irq_irq;
 	if (request_irq(sn_irq->irq_irq,
-			(void *)mbcs_completion_intr_handler, SA_SHIRQ,
+			(void *)mbcs_completion_intr_handler, IRQF_SHARED,
 			"MBCS get intr", (void *)soft)) {
 		tiocx_irq_free(soft->get_sn_irq);
 		return -EAGAIN;
@@ -608,7 +608,7 @@ static int mbcs_intr_alloc(struct cx_dev *dev)
 	putdma->intrHostDest = sn_irq->irq_xtalkaddr;
 	putdma->intrVector = sn_irq->irq_irq;
 	if (request_irq(sn_irq->irq_irq,
-			(void *)mbcs_completion_intr_handler, SA_SHIRQ,
+			(void *)mbcs_completion_intr_handler, IRQF_SHARED,
 			"MBCS put intr", (void *)soft)) {
 		tiocx_irq_free(soft->put_sn_irq);
 		free_irq(soft->get_sn_irq->irq_irq, soft);
@@ -628,7 +628,7 @@ static int mbcs_intr_alloc(struct cx_dev *dev)
 	algo->intrHostDest = sn_irq->irq_xtalkaddr;
 	algo->intrVector = sn_irq->irq_irq;
 	if (request_irq(sn_irq->irq_irq,
-			(void *)mbcs_completion_intr_handler, SA_SHIRQ,
+			(void *)mbcs_completion_intr_handler, IRQF_SHARED,
 			"MBCS algo intr", (void *)soft)) {
 		tiocx_irq_free(soft->algo_sn_irq);
 		free_irq(soft->put_sn_irq->irq_irq, soft);

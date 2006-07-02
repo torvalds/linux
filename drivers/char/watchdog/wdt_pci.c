@@ -617,7 +617,7 @@ static int __devinit wdtpci_init_one (struct pci_dev *dev,
 		goto out_pci;
 	}
 
-	if (request_irq (irq, wdtpci_interrupt, SA_INTERRUPT | SA_SHIRQ,
+	if (request_irq (irq, wdtpci_interrupt, IRQF_DISABLED | IRQF_SHARED,
 			 "wdt_pci", &wdtpci_miscdev)) {
 		printk (KERN_ERR PFX "IRQ %d is not free\n", irq);
 		goto out_reg;

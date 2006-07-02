@@ -395,7 +395,7 @@ static int hpet_ioctl_ieon(struct hpet_dev *devp)
 
 		sprintf(devp->hd_name, "hpet%d", (int)(devp - hpetp->hp_dev));
 		irq_flags = devp->hd_flags & HPET_SHARED_IRQ
-						? SA_SHIRQ : SA_INTERRUPT;
+						? IRQF_SHARED : IRQF_DISABLED;
 		if (request_irq(irq, hpet_interrupt, irq_flags,
 				devp->hd_name, (void *)devp)) {
 			printk(KERN_ERR "hpet: IRQ %d is not free\n", irq);
