@@ -53,4 +53,8 @@ int hpsb_read(struct hpsb_host *host, nodeid_t node, unsigned int generation,
 int hpsb_write(struct hpsb_host *host, nodeid_t node, unsigned int generation,
 	       u64 addr, quadlet_t *buffer, size_t length);
 
+#ifdef HPSB_DEBUG_TLABELS
+extern spinlock_t hpsb_tlabel_lock;
+#endif
+
 #endif /* _IEEE1394_TRANSACTIONS_H */

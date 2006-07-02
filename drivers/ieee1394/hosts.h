@@ -35,7 +35,6 @@ struct hpsb_host {
 	int node_count;      /* number of identified nodes on this bus */
 	int selfid_count;    /* total number of SelfIDs received */
 	int nodes_active;    /* number of nodes with active link layer */
-	u8 speed[ALL_NODES]; /* speed between each node and local node */
 
 	nodeid_t node_id;    /* node ID of this host */
 	nodeid_t irm_id;     /* ID of this bus' isochronous resource manager */
@@ -55,31 +54,29 @@ struct hpsb_host {
 	int reset_retries;
 	quadlet_t *topology_map;
 	u8 *speed_map;
-	struct csr_control csr;
-
-	/* Per node tlabel pool allocation */
-	struct hpsb_tlabel_pool tpool[ALL_NODES];
-
-	struct hpsb_host_driver *driver;
-
-	struct pci_dev *pdev;
 
 	int id;
-
+	struct hpsb_host_driver *driver;
+	struct pci_dev *pdev;
 	struct device device;
 	struct class_device class_dev;
 
 	int update_config_rom;
 	struct work_struct delayed_reset;
-
 	unsigned int config_roms;
 
 	struct list_head addr_space;
 	u64 low_addr_space;	/* upper bound of physical DMA area */
 	u64 middle_addr_space;	/* upper bound of posted write area */
+
+	u8 speed[ALL_NODES];	/* speed between each node and local node */
+
+	/* per node tlabel allocation */
+	u8 next_tl[ALL_NODES];
+	struct { DECLARE_BITMAP(map, 64); } tl_pool[ALL_NODES];
+
+	struct csr_control csr;
 };
-
-
 
 enum devctl_cmd {
 	/* Host is requested to reset its bus and cancel all outstanding async

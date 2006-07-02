@@ -107,7 +107,6 @@ struct node_entry {
 	const char *vendor_oui;
 
 	u32 capabilities;
-	struct hpsb_tlabel_pool *tpool;
 
 	struct device device;
 	struct class_device class_dev;

@@ -2,31 +2,9 @@
 #define _IEEE1394_TYPES_H
 
 #include <linux/kernel.h>
-#include <linux/list.h>
-#include <linux/spinlock.h>
 #include <linux/string.h>
 #include <linux/types.h>
-
 #include <asm/byteorder.h>
-#include <asm/semaphore.h>
-
-/* Transaction Label handling */
-struct hpsb_tlabel_pool {
-	DECLARE_BITMAP(pool, 64);
-	spinlock_t lock;
-	u8 next;
-	u32 allocations;
-	struct semaphore count;
-};
-
-#define HPSB_TPOOL_INIT(_tp)			\
-do {						\
-	bitmap_zero((_tp)->pool, 64);		\
-	spin_lock_init(&(_tp)->lock);		\
-	(_tp)->next = 0;			\
-	(_tp)->allocations = 0;			\
-	sema_init(&(_tp)->count, 63);		\
-} while (0)
 
 typedef u32 quadlet_t;
 typedef u64 octlet_t;
@@ -61,6 +39,7 @@ typedef u16 arm_length_t;
 
 #ifdef CONFIG_IEEE1394_VERBOSEDEBUG
 #define HPSB_VERBOSE(fmt, args...)	HPSB_PRINT(KERN_DEBUG, fmt , ## args)
+#define HPSB_DEBUG_TLABELS
 #else
 #define HPSB_VERBOSE(fmt, args...)
 #endif

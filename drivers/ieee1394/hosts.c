@@ -143,9 +143,6 @@ struct hpsb_host *hpsb_alloc_host(struct hpsb_host_driver *drv, size_t extra,
 	for (i = 2; i < 16; i++)
 		h->csr.gen_timestamp[i] = jiffies - 60 * HZ;
 
-	for (i = 0; i < ARRAY_SIZE(h->tpool); i++)
-		HPSB_TPOOL_INIT(&h->tpool[i]);
-
 	atomic_set(&h->generation, 0);
 
 	INIT_WORK(&h->delayed_reset, delayed_reset_bus, h);

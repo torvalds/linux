@@ -327,34 +327,44 @@ static ssize_t fw_show_ne_bus_options(struct device *dev, struct device_attribut
 static DEVICE_ATTR(bus_options,S_IRUGO,fw_show_ne_bus_options,NULL);
 
 
-/* tlabels_free, tlabels_allocations, tlabels_mask are read non-atomically
- * here, therefore displayed values may be occasionally wrong. */
-static ssize_t fw_show_ne_tlabels_free(struct device *dev, struct device_attribute *attr, char *buf)
+#ifdef HPSB_DEBUG_TLABELS
+static ssize_t fw_show_ne_tlabels_free(struct device *dev,
+				       struct device_attribute *attr, char *buf)
 {
 	struct node_entry *ne = container_of(dev, struct node_entry, device);
-	return sprintf(buf, "%d\n", 64 - bitmap_weight(ne->tpool->pool, 64));
+	unsigned long flags;
+	unsigned long *tp = ne->host->tl_pool[NODEID_TO_NODE(ne->nodeid)].map;
+	int tf;
+
+	spin_lock_irqsave(&hpsb_tlabel_lock, flags);
+	tf = 64 - bitmap_weight(tp, 64);
+	spin_unlock_irqrestore(&hpsb_tlabel_lock, flags);
+
+	return sprintf(buf, "%d\n", tf);
 }
 static DEVICE_ATTR(tlabels_free,S_IRUGO,fw_show_ne_tlabels_free,NULL);
 
 
-static ssize_t fw_show_ne_tlabels_allocations(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t fw_show_ne_tlabels_mask(struct device *dev,
+				       struct device_attribute *attr, char *buf)
 {
 	struct node_entry *ne = container_of(dev, struct node_entry, device);
-	return sprintf(buf, "%u\n", ne->tpool->allocations);
-}
-static DEVICE_ATTR(tlabels_allocations,S_IRUGO,fw_show_ne_tlabels_allocations,NULL);
+	unsigned long flags;
+	unsigned long *tp = ne->host->tl_pool[NODEID_TO_NODE(ne->nodeid)].map;
+	u64 tm;
 
-
-static ssize_t fw_show_ne_tlabels_mask(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	struct node_entry *ne = container_of(dev, struct node_entry, device);
+	spin_lock_irqsave(&hpsb_tlabel_lock, flags);
 #if (BITS_PER_LONG <= 32)
-	return sprintf(buf, "0x%08lx%08lx\n", ne->tpool->pool[0], ne->tpool->pool[1]);
+	tm = ((u64)tp[0] << 32) + tp[1];
 #else
-	return sprintf(buf, "0x%016lx\n", ne->tpool->pool[0]);
+	tm = tp[0];
 #endif
+	spin_unlock_irqrestore(&hpsb_tlabel_lock, flags);
+
+	return sprintf(buf, "0x%016llx\n", tm);
 }
 static DEVICE_ATTR(tlabels_mask, S_IRUGO, fw_show_ne_tlabels_mask, NULL);
+#endif /* HPSB_DEBUG_TLABELS */
 
 
 static ssize_t fw_set_ignore_driver(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
@@ -461,9 +471,10 @@ static struct device_attribute *const fw_ne_attrs[] = {
 	&dev_attr_ne_vendor_id,
 	&dev_attr_ne_nodeid,
 	&dev_attr_bus_options,
+#ifdef HPSB_DEBUG_TLABELS
 	&dev_attr_tlabels_free,
-	&dev_attr_tlabels_allocations,
 	&dev_attr_tlabels_mask,
+#endif
 };
 
 
@@ -781,8 +792,6 @@ static struct node_entry *nodemgr_create_node(octlet_t guid, struct csr1212_csr 
 	ne = kzalloc(sizeof(*ne), GFP_KERNEL);
 	if (!ne)
 		return NULL;
-
-	ne->tpool = &host->tpool[nodeid & NODE_MASK];
 
 	ne->host = host;
 	ne->nodeid = nodeid;
