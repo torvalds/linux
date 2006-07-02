@@ -7,6 +7,7 @@
  * Partial timer rewrite and additional dynamic tick timer support by
  * Tony Lindgen <tony@atomide.com> and
  * Tuukka Tikkanen <tuukka.tikkanen@elektrobit.com>
+ * OMAP Dual-mode timer framework support by Timo Teras
  *
  * MPU timer code based on the older MPU timer code for OMAP
  * Copyright (C) 2000 RidgeRun, Inc.
@@ -49,6 +50,7 @@
 #include <asm/irq.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/time.h>
+#include <asm/arch/dmtimer.h>
 
 struct sys_timer omap_timer;
 
@@ -78,18 +80,6 @@ struct sys_timer omap_timer;
 #define OMAP1_32K_TIMER_TVR		0x00
 #define OMAP1_32K_TIMER_TCR		0x04
 
-/* 24xx specific defines */
-#define OMAP2_GP_TIMER_BASE		0x48028000
-#define CM_CLKSEL_WKUP			0x48008440
-#define GP_TIMER_TIDR			0x00
-#define GP_TIMER_TISR			0x18
-#define GP_TIMER_TIER			0x1c
-#define GP_TIMER_TCLR			0x24
-#define GP_TIMER_TCRR			0x28
-#define GP_TIMER_TLDR			0x2c
-#define GP_TIMER_TTGR			0x30
-#define GP_TIMER_TSICR			0x40
-
 #define OMAP_32K_TICKS_PER_HZ		(32768 / HZ)
 
 /*
@@ -101,23 +91,54 @@ struct sys_timer omap_timer;
 #define JIFFIES_TO_HW_TICKS(nr_jiffies, clock_rate)			\
 				(((nr_jiffies) * (clock_rate)) / HZ)
 
+#if defined(CONFIG_ARCH_OMAP1)
+
 static inline void omap_32k_timer_write(int val, int reg)
 {
-	if (cpu_class_is_omap1())
-		omap_writew(val, OMAP1_32K_TIMER_BASE + reg);
-
-	if (cpu_is_omap24xx())
-		omap_writel(val, OMAP2_GP_TIMER_BASE + reg);
+	omap_writew(val, OMAP1_32K_TIMER_BASE + reg);
 }
 
 static inline unsigned long omap_32k_timer_read(int reg)
 {
-	if (cpu_class_is_omap1())
-		return omap_readl(OMAP1_32K_TIMER_BASE + reg) & 0xffffff;
-
-	if (cpu_is_omap24xx())
-		return omap_readl(OMAP2_GP_TIMER_BASE + reg);
+	return omap_readl(OMAP1_32K_TIMER_BASE + reg) & 0xffffff;
 }
+
+static inline void omap_32k_timer_start(unsigned long load_val)
+{
+	omap_32k_timer_write(load_val, OMAP1_32K_TIMER_TVR);
+	omap_32k_timer_write(0x0f, OMAP1_32K_TIMER_CR);
+}
+
+static inline void omap_32k_timer_stop(void)
+{
+	omap_32k_timer_write(0x0, OMAP1_32K_TIMER_CR);
+}
+
+#define omap_32k_timer_ack_irq()
+
+#elif defined(CONFIG_ARCH_OMAP2)
+
+static struct omap_dm_timer *gptimer;
+
+static inline void omap_32k_timer_start(unsigned long load_val)
+{
+	omap_dm_timer_set_load(gptimer, 1, 0xffffffff - load_val);
+	omap_dm_timer_set_int_enable(gptimer, OMAP_TIMER_INT_OVERFLOW);
+	omap_dm_timer_start(gptimer);
+}
+
+static inline void omap_32k_timer_stop(void)
+{
+	omap_dm_timer_stop(gptimer);
+}
+
+static inline void omap_32k_timer_ack_irq(void)
+{
+	u32 status = omap_dm_timer_read_status(gptimer);
+	omap_dm_timer_write_status(gptimer, status);
+}
+
+#endif
 
 /*
  * The 32KHz synchronized timer is an additional timer on 16xx.
@@ -126,29 +147,6 @@ static inline unsigned long omap_32k_timer_read(int reg)
 static inline unsigned long omap_32k_sync_timer_read(void)
 {
 	return omap_readl(TIMER_32K_SYNCHRONIZED);
-}
-
-static inline void omap_32k_timer_start(unsigned long load_val)
-{
-	if (cpu_class_is_omap1()) {
-		omap_32k_timer_write(load_val, OMAP1_32K_TIMER_TVR);
-		omap_32k_timer_write(0x0f, OMAP1_32K_TIMER_CR);
-	}
-
-	if (cpu_is_omap24xx()) {
-		omap_32k_timer_write(0xffffffff - load_val, GP_TIMER_TCRR);
-		omap_32k_timer_write((1 << 1), GP_TIMER_TIER);
-		omap_32k_timer_write((1 << 1) | 1, GP_TIMER_TCLR);
-	}
-}
-
-static inline void omap_32k_timer_stop(void)
-{
-	if (cpu_class_is_omap1())
-		omap_32k_timer_write(0x0, OMAP1_32K_TIMER_CR);
-
-	if (cpu_is_omap24xx())
-		omap_32k_timer_write(0x0, GP_TIMER_TCLR);
 }
 
 /*
@@ -202,11 +200,7 @@ static irqreturn_t omap_32k_timer_interrupt(int irq, void *dev_id,
 
 	write_seqlock_irqsave(&xtime_lock, flags);
 
-	if (cpu_is_omap24xx()) {
-		u32 status = omap_32k_timer_read(GP_TIMER_TISR);
-		omap_32k_timer_write(status, GP_TIMER_TISR);
-	}
-
+	omap_32k_timer_ack_irq();
 	now = omap_32k_sync_timer_read();
 
 	while ((signed long)(now - omap_32k_last_tick)
@@ -268,9 +262,6 @@ static struct irqaction omap_32k_timer_irq = {
 	.handler	= omap_32k_timer_interrupt,
 };
 
-static struct clk * gpt1_ick;
-static struct clk * gpt1_fck;
-
 static __init void omap_init_32k_timer(void)
 {
 #ifdef CONFIG_NO_IDLE_HZ
@@ -279,32 +270,22 @@ static __init void omap_init_32k_timer(void)
 
 	if (cpu_class_is_omap1())
 		setup_irq(INT_OS_TIMER, &omap_32k_timer_irq);
-	if (cpu_is_omap24xx())
-		setup_irq(37, &omap_32k_timer_irq);
 	omap_timer.offset  = omap_32k_timer_gettimeoffset;
 	omap_32k_last_tick = omap_32k_sync_timer_read();
 
+#ifdef CONFIG_ARCH_OMAP2
 	/* REVISIT: Check 24xx TIOCP_CFG settings after idle works */
 	if (cpu_is_omap24xx()) {
-		omap_32k_timer_write(0, GP_TIMER_TCLR);
-		omap_writel(0, CM_CLKSEL_WKUP);		/* 32KHz clock source */
+		gptimer = omap_dm_timer_request_specific(1);
+		BUG_ON(gptimer == NULL);
 
-		gpt1_ick = clk_get(NULL, "gpt1_ick");
-		if (IS_ERR(gpt1_ick))
-			printk(KERN_ERR "Could not get gpt1_ick\n");
-		else
-			clk_enable(gpt1_ick);
-
-		gpt1_fck = clk_get(NULL, "gpt1_fck");
-		if (IS_ERR(gpt1_fck))
-			printk(KERN_ERR "Could not get gpt1_fck\n");
-		else
-			clk_enable(gpt1_fck);
-
-		mdelay(100);		/* Wait for clocks to stabilize */
-
-		omap_32k_timer_write(0x7, GP_TIMER_TISR);
+		omap_dm_timer_set_source(gptimer, OMAP_TIMER_SRC_32_KHZ);
+		setup_irq(omap_dm_timer_get_irq(gptimer), &omap_32k_timer_irq);
+		omap_dm_timer_set_int_enable(gptimer,
+			OMAP_TIMER_INT_CAPTURE | OMAP_TIMER_INT_OVERFLOW |
+			OMAP_TIMER_INT_MATCH);
 	}
+#endif
 
 	omap_32k_timer_start(OMAP_32K_TIMER_TICK_PERIOD);
 }
@@ -316,6 +297,9 @@ static __init void omap_init_32k_timer(void)
  */
 static void __init omap_timer_init(void)
 {
+#ifdef CONFIG_OMAP_DM_TIMER
+	omap_dm_timer_init();
+#endif
 	omap_init_32k_timer();
 }
 

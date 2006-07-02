@@ -93,7 +93,7 @@ static inline unsigned long long cycles_2_ns(unsigned long long cyc)
  * will break. On P2, the timer count rate is 6.5 MHz after programming PTV
  * with 0. This divides the 13MHz input by 2, and is undocumented.
  */
-#ifdef CONFIG_MACH_OMAP_PERSEUS2
+#if defined(CONFIG_MACH_OMAP_PERSEUS2) || defined(CONFIG_MACH_OMAP_FSAMPLE)
 /* REVISIT: This ifdef construct should be replaced by a query to clock
  * framework to see if timer base frequency is 12.0, 13.0 or 19.2 MHz.
  */

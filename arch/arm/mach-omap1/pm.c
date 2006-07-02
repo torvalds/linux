@@ -1,3 +1,4 @@
+//kernel/linux-omap-fsample/arch/arm/mach-omap1/pm.c#3 - integrate change 4545 (text)
 /*
  * linux/arch/arm/mach-omap1/pm.c
  *
@@ -50,6 +51,7 @@
 #include <asm/mach/irq.h>
 #include <asm/mach-types.h>
 
+#include <asm/arch/cpu.h>
 #include <asm/arch/irqs.h>
 #include <asm/arch/clock.h>
 #include <asm/arch/sram.h>
@@ -326,8 +328,9 @@ void omap_pm_suspend(void)
 	/* stop DSP */
 	omap_writew(omap_readw(ARM_RSTCT1) & ~(1 << DSP_EN), ARM_RSTCT1);
 
-	/* shut down dsp_ck */
-	omap_writew(omap_readw(ARM_CKCTL) & ~(1 << EN_DSPCK), ARM_CKCTL);
+		/* shut down dsp_ck */
+	if (!cpu_is_omap730())
+		omap_writew(omap_readw(ARM_CKCTL) & ~(1 << EN_DSPCK), ARM_CKCTL);
 
 	/* temporarily enabling api_ck to access DSP registers */
 	omap_writew(omap_readw(ARM_IDLECT2) | 1 << EN_APICK, ARM_IDLECT2);

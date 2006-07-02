@@ -104,7 +104,7 @@ static void omap_init_kp(void)
 		omap_cfg_reg(E20_1610_KBR3);
 		omap_cfg_reg(E19_1610_KBR4);
 		omap_cfg_reg(N19_1610_KBR5);
-	} else if (machine_is_omap_perseus2()) {
+	} else if (machine_is_omap_perseus2() || machine_is_omap_fsample()) {
 		omap_cfg_reg(E2_730_KBR0);
 		omap_cfg_reg(J7_730_KBR1);
 		omap_cfg_reg(E1_730_KBR2);
@@ -161,8 +161,8 @@ static u64 mmc1_dmamask = 0xffffffff;
 
 static struct resource mmc1_resources[] = {
 	{
-		.start		= IO_ADDRESS(OMAP_MMC1_BASE),
-		.end		= IO_ADDRESS(OMAP_MMC1_BASE) + 0x7f,
+		.start		= OMAP_MMC1_BASE,
+		.end		= OMAP_MMC1_BASE + 0x7f,
 		.flags		= IORESOURCE_MEM,
 	},
 	{
@@ -190,8 +190,8 @@ static u64 mmc2_dmamask = 0xffffffff;
 
 static struct resource mmc2_resources[] = {
 	{
-		.start		= IO_ADDRESS(OMAP_MMC2_BASE),
-		.end		= IO_ADDRESS(OMAP_MMC2_BASE) + 0x7f,
+		.start		= OMAP_MMC2_BASE,
+		.end		= OMAP_MMC2_BASE + 0x7f,
 		.flags		= IORESOURCE_MEM,
 	},
 	{

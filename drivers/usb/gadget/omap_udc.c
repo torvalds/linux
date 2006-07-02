@@ -772,7 +772,7 @@ static void dma_error(int lch, u16 ch_status, void *data)
 	struct omap_ep	*ep = data;
 
 	/* if ch_status & OMAP_DMA_DROP_IRQ ... */
-	/* if ch_status & OMAP_DMA_TOUT_IRQ ... */
+	/* if ch_status & OMAP1_DMA_TOUT_IRQ ... */
 	ERR("%s dma error, lch %d status %02x\n", ep->ep.name, lch, ch_status);
 
 	/* complete current transfer ... */

@@ -220,7 +220,7 @@ __create_page_tables:
 	teq	r0, r6
 	bne	1b
 
-	ldr	r7, [r10, #PROCINFO_MMUFLAGS]	@ mmuflags
+	ldr	r7, [r10, #PROCINFO_MM_MMUFLAGS] @ mm_mmuflags
 
 	/*
 	 * Create identity mapping for first MB of kernel to
@@ -271,8 +271,7 @@ __create_page_tables:
 #endif
 
 #ifdef CONFIG_DEBUG_LL
-	bic	r7, r7, #0x0c			@ turn off cacheable
-						@ and bufferable bits
+	ldr	r7, [r10, #PROCINFO_IO_MMUFLAGS] @ io_mmuflags
 	/*
 	 * Map in IO space for serial debugging.
 	 * This allows debug messages to be output

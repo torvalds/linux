@@ -15,7 +15,10 @@
  *      SDRAM reads (rev A0, B0, B1)
  *
  * We ignore rev. A0 and B0 devices; I don't think they're worth supporting.
+ *
+ * The SDRAM type can be passed on the command line as cpu_sa1110.sdram=type
  */
+#include <linux/moduleparam.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
@@ -35,6 +38,7 @@
 static struct cpufreq_driver sa1110_driver;
 
 struct sdram_params {
+	const char name[16];
 	u_char  rows;		/* bits				 */
 	u_char  cas_latency;	/* cycles			 */
 	u_char  tck;		/* clock cycle time (ns)	 */
@@ -50,54 +54,53 @@ struct sdram_info {
 	u_int	mdcas[3];
 };
 
-static struct sdram_params tc59sm716_cl2_params __initdata = {
-	.rows			= 12,
-	.tck			= 10,
-	.trcd			= 20,
-	.trp			= 20,
-	.twr			= 10,
-	.refresh		= 64000,
-	.cas_latency		= 2,
-};
-
-static struct sdram_params tc59sm716_cl3_params __initdata = {
-	.rows			= 12,
-	.tck			= 8,
-	.trcd			= 20,
-	.trp			= 20,
-	.twr			= 8,
-	.refresh		= 64000,
-	.cas_latency		= 3,
-};
-
-static struct sdram_params samsung_k4s641632d_tc75 __initdata = {
-	.rows			= 14,
-	.tck			= 9,
-	.trcd			= 27,
-	.trp			= 20,
-	.twr			= 9,
-	.refresh		= 64000,
-	.cas_latency		= 3,
-};
-
-static struct sdram_params samsung_km416s4030ct __initdata = {
-	.rows			= 13,
-	.tck			= 8,
-	.trcd			= 24,	/* 3 CLKs */
-	.trp			= 24,	/* 3 CLKs */
-	.twr			= 16,	/* Trdl: 2 CLKs */
-	.refresh		= 64000,
-	.cas_latency		= 3,
-};
-
-static struct sdram_params wbond_w982516ah75l_cl3_params __initdata = {
-	.rows			= 16,
-	.tck			= 8,
-	.trcd			= 20,
-	.trp			= 20,
-	.twr			= 8,
-	.refresh		= 64000,
-	.cas_latency		= 3,
+static struct sdram_params sdram_tbl[] __initdata = {
+	{	/* Toshiba TC59SM716 CL2 */
+		.name		= "TC59SM716-CL2",
+		.rows		= 12,
+		.tck		= 10,
+		.trcd		= 20,
+		.trp		= 20,
+		.twr		= 10,
+		.refresh	= 64000,
+		.cas_latency	= 2,
+	}, {	/* Toshiba TC59SM716 CL3 */
+		.name		= "TC59SM716-CL3",
+		.rows		= 12,
+		.tck		= 8,
+		.trcd		= 20,
+		.trp		= 20,
+		.twr		= 8,
+		.refresh	= 64000,
+		.cas_latency	= 3,
+	}, {	/* Samsung K4S641632D TC75 */
+		.name		= "K4S641632D",
+		.rows		= 14,
+		.tck		= 9,
+		.trcd		= 27,
+		.trp		= 20,
+		.twr		= 9,
+		.refresh	= 64000,
+		.cas_latency	= 3,
+	}, {	/* Samsung KM416S4030CT */
+		.name		= "KM416S4030CT",
+		.rows		= 13,
+		.tck		= 8,
+		.trcd		= 24,	/* 3 CLKs */
+		.trp		= 24,	/* 3 CLKs */
+		.twr		= 16,	/* Trdl: 2 CLKs */
+		.refresh	= 64000,
+		.cas_latency	= 3,
+	}, {	/* Winbond W982516AH75L CL3 */
+		.name		= "W982516AH75L",
+		.rows		= 16,
+		.tck		= 8,
+		.trcd		= 20,
+		.trp		= 20,
+		.twr		= 8,
+		.refresh	= 64000,
+		.cas_latency	= 3,
+	},
 };
 
 static struct sdram_params sdram_params;
@@ -336,19 +339,36 @@ static struct cpufreq_driver sa1110_driver = {
 	.name		= "sa1110",
 };
 
+static struct sdram_params *sa1110_find_sdram(const char *name)
+{
+	struct sdram_params *sdram;
+
+	for (sdram = sdram_tbl; sdram < sdram_tbl + ARRAY_SIZE(sdram_tbl); sdram++)
+		if (strcmp(name, sdram->name) == 0)
+			return sdram;
+
+	return NULL;
+}
+
+static char sdram_name[16];
+
 static int __init sa1110_clk_init(void)
 {
-	struct sdram_params *sdram = NULL;
+	struct sdram_params *sdram;
+	const char *name = sdram_name;
 
-	if (machine_is_assabet())
-		sdram = &tc59sm716_cl3_params;
+	if (!name[0]) {
+		if (machine_is_assabet())
+			name = "TC59SM716-CL3";
 
-	if (machine_is_pt_system3())
-		sdram = &samsung_k4s641632d_tc75;
+		if (machine_is_pt_system3())
+			name = "K4S641632D";
 
-	if (machine_is_h3100())
-		sdram = &samsung_km416s4030ct;
+		if (machine_is_h3100())
+			name = "KM416S4030CT";
+	}
 
+	sdram = sa1110_find_sdram(name);
 	if (sdram) {
 		printk(KERN_DEBUG "SDRAM: tck: %d trcd: %d trp: %d"
 			" twr: %d refresh: %d cas_latency: %d\n",
@@ -363,4 +383,5 @@ static int __init sa1110_clk_init(void)
 	return 0;
 }
 
+module_param_string(sdram, sdram_name, sizeof(sdram_name), 0);
 arch_initcall(sa1110_clk_init);

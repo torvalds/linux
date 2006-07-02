@@ -403,11 +403,11 @@ __arm926_setup:
 	mcr	p15, 7, r0, c15, c0, 0
 #endif 
 
+	adr	r5, arm926_crval
+	ldmia	r5, {r5, r6}
 	mrc	p15, 0, r0, c1, c0		@ get control register v4
-	ldr	r5, arm926_cr1_clear
 	bic	r0, r0, r5
-	ldr	r5, arm926_cr1_set
-	orr	r0, r0, r5
+	orr	r0, r0, r6
 #ifdef CONFIG_CPU_CACHE_ROUND_ROBIN
 	orr	r0, r0, #0x4000			@ .1.. .... .... ....
 #endif
@@ -420,12 +420,9 @@ __arm926_setup:
 	 * .011 0001 ..11 0101
 	 * 
 	 */
-	.type	arm926_cr1_clear, #object
-	.type	arm926_cr1_set, #object
-arm926_cr1_clear:
-	.word	0x7f3f
-arm926_cr1_set:
-	.word	0x3135
+	.type	arm926_crval, #object
+arm926_crval:
+	crval	clear=0x00007f3f, mmuset=0x00003135, ucset=0x00001134
 
 	__INITDATA
 
@@ -459,22 +456,7 @@ cpu_elf_name:
 
 	.type	cpu_arm926_name, #object
 cpu_arm926_name:
-	.ascii	"ARM926EJ-S"
-#ifndef CONFIG_CPU_ICACHE_DISABLE
-	.ascii	"i"
-#endif
-#ifndef CONFIG_CPU_DCACHE_DISABLE
-	.ascii	"d"
-#ifdef CONFIG_CPU_DCACHE_WRITETHROUGH
-	.ascii	"(wt)"
-#else
-	.ascii	"(wb)"
-#endif
-#ifdef CONFIG_CPU_CACHE_ROUND_ROBIN
-	.ascii	"RR"
-#endif
-#endif
-	.ascii	"\0"
+	.asciz	"ARM926EJ-S"
 	.size	cpu_arm926_name, . - cpu_arm926_name
 
 	.align
@@ -488,6 +470,10 @@ __arm926_proc_info:
 	.long   PMD_TYPE_SECT | \
 		PMD_SECT_BUFFERABLE | \
 		PMD_SECT_CACHEABLE | \
+		PMD_BIT4 | \
+		PMD_SECT_AP_WRITE | \
+		PMD_SECT_AP_READ
+	.long   PMD_TYPE_SECT | \
 		PMD_BIT4 | \
 		PMD_SECT_AP_WRITE | \
 		PMD_SECT_AP_READ
