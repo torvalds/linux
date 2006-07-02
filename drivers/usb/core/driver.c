@@ -751,81 +751,89 @@ EXPORT_SYMBOL_GPL_FUTURE(usb_deregister);
 
 #ifdef CONFIG_PM
 
-static int usb_suspend(struct device *dev, pm_message_t message)
+/* Caller has locked udev */
+static int suspend_device(struct usb_device *udev, pm_message_t msg)
 {
-	struct usb_device		*udev;
 	struct usb_device_driver	*udriver;
-	struct usb_interface		*intf;
-	struct usb_driver		*driver;
-	int				status;
 
-	if (is_usb_device(dev)) {
-		if (dev->driver == NULL)
-			return 0;
-		udev = to_usb_device(dev);
-		udriver = to_usb_device_driver(dev->driver);
-		if (dev->power.power_state.event == message.event)
-			return 0;
-		return udriver->suspend(udev, message);
-	}
+	if (udev->dev.driver == NULL)
+		return 0;
+	udriver = to_usb_device_driver(udev->dev.driver);
+	if (udev->dev.power.power_state.event == msg.event)
+		return 0;
+	return udriver->suspend(udev, msg);
+}
 
-	if (dev->driver == NULL)
+/* Caller has locked udev */
+static int resume_device(struct usb_device *udev)
+{
+	struct usb_device_driver	*udriver;
+
+	if (udev->dev.power.power_state.event == PM_EVENT_ON)
 		return 0;
 
-	intf = to_usb_interface(dev);
-	driver = to_usb_driver(dev->driver);
+	/* mark things as "on" immediately, no matter what errors crop up */
+	udev->dev.power.power_state.event = PM_EVENT_ON;
+
+	if (udev->dev.driver == NULL)
+		return 0;
+	udriver = to_usb_device_driver(udev->dev.driver);
+	if (udev->state == USB_STATE_NOTATTACHED)
+		return 0;
+	return udriver->resume(udev);
+}
+
+/* Caller has locked intf */
+static int suspend_interface(struct usb_interface *intf, pm_message_t msg)
+{
+	struct usb_driver	*driver;
+	int			status;
+
+	if (intf->dev.driver == NULL)
+		return 0;
+
+	driver = to_usb_driver(intf->dev.driver);
 
 	/* with no hardware, USB interfaces only use FREEZE and ON states */
 	if (!is_active(intf))
 		return 0;
 
 	if (driver->suspend && driver->resume) {
-		status = driver->suspend(intf, message);
+		status = driver->suspend(intf, msg);
 		if (status)
-			dev_err(dev, "%s error %d\n", "suspend", status);
+			dev_err(&intf->dev, "%s error %d\n",
+					"suspend", status);
 		else
 			mark_quiesced(intf);
 	} else {
 		// FIXME else if there's no suspend method, disconnect...
-		dev_warn(dev, "no suspend for driver %s?\n", driver->name);
+		dev_warn(&intf->dev, "no suspend for driver %s?\n",
+				driver->name);
 		mark_quiesced(intf);
 		status = 0;
 	}
 	return status;
 }
 
-static int usb_resume(struct device *dev)
+/* Caller has locked intf */
+static int resume_interface(struct usb_interface *intf)
 {
-	struct usb_device		*udev;
-	struct usb_device_driver	*udriver;
-	struct usb_interface		*intf;
-	struct usb_driver		*driver;
-	int				status;
+	struct usb_driver	*driver;
+	struct usb_device	*udev;
+	int			status;
 
-	if (dev->power.power_state.event == PM_EVENT_ON)
+	if (intf->dev.power.power_state.event == PM_EVENT_ON)
 		return 0;
 
 	/* mark things as "on" immediately, no matter what errors crop up */
-	dev->power.power_state.event = PM_EVENT_ON;
+	intf->dev.power.power_state.event = PM_EVENT_ON;
 
-	/* devices resume through their hubs */
-	if (is_usb_device(dev)) {
-		if (dev->driver == NULL)
-			return 0;
-		udev = to_usb_device(dev);
-		udriver = to_usb_device_driver(dev->driver);
-		if (udev->state == USB_STATE_NOTATTACHED)
-			return 0;
-		return udriver->resume(udev);
-	}
-
-	if (dev->driver == NULL) {
-		dev->power.power_state.event = PM_EVENT_FREEZE;
+	if (intf->dev.driver == NULL) {
+		intf->dev.power.power_state.event = PM_EVENT_FREEZE;
 		return 0;
 	}
 
-	intf = to_usb_interface(dev);
-	driver = to_usb_driver(dev->driver);
+	driver = to_usb_driver(intf->dev.driver);
 
 	udev = interface_to_usbdev(intf);
 	if (udev->state == USB_STATE_NOTATTACHED)
@@ -838,12 +846,36 @@ static int usb_resume(struct device *dev)
 	if (driver->resume) {
 		status = driver->resume(intf);
 		if (status) {
-			dev_err(dev, "%s error %d\n", "resume", status);
+			dev_err(&intf->dev, "%s error %d\n",
+					"resume", status);
 			mark_quiesced(intf);
 		}
 	} else
-		dev_warn(dev, "no resume for driver %s?\n", driver->name);
+		dev_warn(&intf->dev, "no resume for driver %s?\n",
+				driver->name);
 	return 0;
+}
+
+static int usb_suspend(struct device *dev, pm_message_t message)
+{
+	int	status;
+
+	if (is_usb_device(dev))
+		status = suspend_device(to_usb_device(dev), message);
+	else
+		status = suspend_interface(to_usb_interface(dev), message);
+	return status;
+}
+
+static int usb_resume(struct device *dev)
+{
+	int	status;
+
+	if (is_usb_device(dev))
+		status = resume_device(to_usb_device(dev));
+	else
+		status = resume_interface(to_usb_interface(dev));
+	return status;
 }
 
 #endif /* CONFIG_PM */
