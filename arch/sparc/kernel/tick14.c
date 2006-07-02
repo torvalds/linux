@@ -74,7 +74,7 @@ void claim_ticker14(irqreturn_t (*handler)(int, void *, struct pt_regs *),
 
 	if (!request_irq(irq_nr,
 			 handler,
-			 (SA_INTERRUPT | SA_STATIC_ALLOC),
+			 (IRQF_DISABLED | SA_STATIC_ALLOC),
 			 "counter14",
 			 NULL)) {
 		install_linux_ticker();

@@ -278,7 +278,7 @@ static void __init sun4m_init_timers(irqreturn_t (*counter_fn)(int, void *, stru
 
 	irq = request_irq(TIMER_IRQ,
 			  counter_fn,
-			  (SA_INTERRUPT | SA_STATIC_ALLOC),
+			  (IRQF_DISABLED | SA_STATIC_ALLOC),
 			  "timer", NULL);
 	if (irq) {
 		prom_printf("time_init: unable to attach IRQ%d\n",TIMER_IRQ);
