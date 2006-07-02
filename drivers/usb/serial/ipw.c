@@ -373,6 +373,8 @@ static void ipw_write_bulk_callback(struct urb *urb, struct pt_regs *regs)
 
 	dbg("%s", __FUNCTION__);
 
+	port->write_urb_busy = 0;
+
 	if (urb->status)
 		dbg("%s - nonzero write bulk status received: %d", __FUNCTION__, urb->status);
 
