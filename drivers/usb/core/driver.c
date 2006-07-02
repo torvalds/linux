@@ -757,11 +757,13 @@ static int suspend_device(struct usb_device *udev, pm_message_t msg)
 	struct usb_device_driver	*udriver;
 	int				status = 0;
 
+	if (udev->state == USB_STATE_NOTATTACHED ||
+			udev->state == USB_STATE_SUSPENDED)
+		goto done;
+
 	if (udev->dev.driver == NULL)
 		goto done;
 	udriver = to_usb_device_driver(udev->dev.driver);
-	if (udev->dev.power.power_state.event == msg.event)
-		goto done;
 	status = udriver->suspend(udev, msg);
 
 done:
@@ -776,14 +778,13 @@ static int resume_device(struct usb_device *udev)
 	struct usb_device_driver	*udriver;
 	int				status = 0;
 
-	if (udev->dev.power.power_state.event == PM_EVENT_ON)
+	if (udev->state == USB_STATE_NOTATTACHED ||
+			udev->state != USB_STATE_SUSPENDED)
 		goto done;
 
 	if (udev->dev.driver == NULL)
 		goto done;
 	udriver = to_usb_device_driver(udev->dev.driver);
-	if (udev->state == USB_STATE_NOTATTACHED)
-		goto done;
 	status = udriver->resume(udev);
 
 done:
@@ -798,14 +799,14 @@ static int suspend_interface(struct usb_interface *intf, pm_message_t msg)
 	struct usb_driver	*driver;
 	int			status = 0;
 
+	/* with no hardware, USB interfaces only use FREEZE and ON states */
+	if (interface_to_usbdev(intf)->state == USB_STATE_NOTATTACHED ||
+			!is_active(intf))
+		goto done;
+
 	if (intf->dev.driver == NULL)
 		goto done;
-
 	driver = to_usb_driver(intf->dev.driver);
-
-	/* with no hardware, USB interfaces only use FREEZE and ON states */
-	if (!is_active(intf))
-		goto done;
 
 	if (driver->suspend && driver->resume) {
 		status = driver->suspend(intf, msg);
@@ -831,25 +832,16 @@ done:
 static int resume_interface(struct usb_interface *intf)
 {
 	struct usb_driver	*driver;
-	struct usb_device	*udev;
 	int			status = 0;
 
-	if (intf->dev.power.power_state.event == PM_EVENT_ON)
+	if (interface_to_usbdev(intf)->state == USB_STATE_NOTATTACHED ||
+			is_active(intf))
 		goto done;
 
 	if (intf->dev.driver == NULL)
 		goto done;
-
 	driver = to_usb_driver(intf->dev.driver);
 
-	udev = interface_to_usbdev(intf);
-	if (udev->state == USB_STATE_NOTATTACHED)
-		goto done;
-
-	/* if driver was suspended, it has a resume method;
-	 * however, sysfs can wrongly mark things as suspended
-	 * (on the "no suspend method" FIXME path above)
-	 */
 	if (driver->resume) {
 		status = driver->resume(intf);
 		if (status)
@@ -903,6 +895,12 @@ int usb_resume_both(struct usb_device *udev)
 	int			status;
 	int			i;
 	struct usb_interface	*intf;
+
+	/* Can't resume if the parent is suspended */
+	if (udev->parent && udev->parent->state == USB_STATE_SUSPENDED) {
+		dev_warn(&udev->dev, "can't resume; parent is suspended\n");
+		return -EHOSTUNREACH;
+	}
 
 	status = resume_device(udev);
 	if (status == 0 && udev->actconfig) {

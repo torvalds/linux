@@ -195,9 +195,6 @@ static int generic_suspend(struct usb_device *udev, pm_message_t msg)
 
 static int generic_resume(struct usb_device *udev)
 {
-	if (udev->state == USB_STATE_NOTATTACHED)
-		return 0;
-
 	return usb_port_resume(udev);
 }
 

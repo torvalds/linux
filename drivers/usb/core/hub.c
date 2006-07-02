@@ -1556,26 +1556,6 @@ static int __usb_port_suspend (struct usb_device *udev, int port1)
 	if (port1 < 0)
 		return port1;
 
-	if (udev->state == USB_STATE_SUSPENDED
-			|| udev->state == USB_STATE_NOTATTACHED) {
-		return 0;
-	}
-
-	/* all interfaces must already be suspended */
-	if (udev->actconfig) {
-		int	i;
-
-		for (i = 0; i < udev->actconfig->desc.bNumInterfaces; i++) {
-			struct usb_interface	*intf;
-
-			intf = udev->actconfig->interface[i];
-			if (is_active(intf)) {
-				dev_dbg(&intf->dev, "nyet suspended\n");
-				return -EBUSY;
-			}
-		}
-	}
-
 	/* we change the device's upstream USB link,
 	 * but root hubs have no upstream USB link.
 	 */
@@ -1614,8 +1594,6 @@ static int __usb_port_suspend (struct usb_device *udev, int port1)
 int usb_port_suspend(struct usb_device *udev)
 {
 #ifdef	CONFIG_USB_SUSPEND
-	if (udev->state == USB_STATE_NOTATTACHED)
-		return -ENODEV;
 	return __usb_port_suspend(udev, udev->portnum);
 #else
 	return 0;
@@ -1761,24 +1739,17 @@ hub_port_resume(struct usb_hub *hub, int port1, struct usb_device *udev)
  */
 int usb_port_resume(struct usb_device *udev)
 {
-	int	status;
-
-	if (udev->state == USB_STATE_NOTATTACHED)
-		return -ENODEV;
+	int	status = 0;
 
 	/* we change the device's upstream USB link,
 	 * but root hubs have no upstream USB link.
 	 */
 	if (udev->parent) {
 #ifdef	CONFIG_USB_SUSPEND
-		if (udev->state == USB_STATE_SUSPENDED) {
-			// NOTE swsusp may bork us, device state being wrong...
-			// NOTE this fails if parent is also suspended...
-			status = hub_port_resume(hdev_to_hub(udev->parent),
-					udev->portnum, udev);
-		} else
+		// NOTE this fails if parent is also suspended...
+		status = hub_port_resume(hdev_to_hub(udev->parent),
+				udev->portnum, udev);
 #endif
-			status = 0;
 	} else
 		status = finish_port_resume(udev);
 	if (status < 0)
@@ -1821,12 +1792,14 @@ static int hub_suspend(struct usb_interface *intf, pm_message_t msg)
 		struct usb_device	*udev;
 
 		udev = hdev->children [port1-1];
-		if (udev && (udev->dev.power.power_state.event
-					== PM_EVENT_ON
+		if (udev && msg.event == PM_EVENT_SUSPEND &&
 #ifdef	CONFIG_USB_SUSPEND
-				|| udev->state != USB_STATE_SUSPENDED
+				udev->state != USB_STATE_SUSPENDED
+#else
+				udev->dev.power.power_state.event
+					== PM_EVENT_ON
 #endif
-				)) {
+				) {
 			dev_dbg(&intf->dev, "port %d nyet suspended\n", port1);
 			return -EBUSY;
 		}
