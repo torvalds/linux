@@ -1253,7 +1253,7 @@ static int __devinit add_card(struct pci_dev *dev,
 
 	sprintf (irq_buf, "%d", dev->irq);
 
-        if (!request_irq(dev->irq, lynx_irq_handler, SA_SHIRQ,
+        if (!request_irq(dev->irq, lynx_irq_handler, IRQF_SHARED,
                          PCILYNX_DRIVER_NAME, lynx)) {
                 PRINT(KERN_INFO, lynx->id, "allocated interrupt %s", irq_buf);
                 lynx->state = have_intr;
