@@ -55,7 +55,4 @@
 #define IDE_SECONDARY_IRQ		I8259_IRQ(15)
 #define I8259_IRQ_LAST			IDE_SECONDARY_IRQ
 
-#define RTC_PORT(x)	(0xaf000100 + (x))
-#define RTC_IO_EXTENT	0x140
-
 #endif /* __NEC_CMBVR4133_H */
