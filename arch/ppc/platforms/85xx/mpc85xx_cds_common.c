@@ -136,7 +136,7 @@ static irqreturn_t cpm2_cascade(int irq, void *dev_id, struct pt_regs *regs)
 
 static struct irqaction cpm2_irqaction = {
 	.handler = cpm2_cascade,
-	.flags = SA_INTERRUPT,
+	.flags = IRQF_DISABLED,
 	.mask = CPU_MASK_NONE,
 	.name = "cpm2_cascade",
 };
