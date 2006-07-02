@@ -35,7 +35,8 @@
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/pci.h>
-#include <linux/signal.h>	/* SA_SHIRQ */
+#include <linux/interrupt.h>
+#include <linux/signal.h>	/* IRQF_SHARED */
 #include "cpci_hotplug.h"
 #include "cpcihp_zt5550.h"
 
@@ -219,7 +220,7 @@ static int zt5550_hc_init_one (struct pci_dev *pdev, const struct pci_device_id 
 	zt5550_hpc.ops = &zt5550_hpc_ops;
 	if(!poll) {
 		zt5550_hpc.irq = hc_dev->irq;
-		zt5550_hpc.irq_flags = SA_SHIRQ;
+		zt5550_hpc.irq_flags = IRQF_SHARED;
 		zt5550_hpc.dev_id = hc_dev;
 
 		zt5550_hpc_ops.enable_irq = zt5550_hc_enable_irq;
