@@ -340,7 +340,7 @@ static int __devinit eisa_probe(struct parisc_device *dev)
 	}
 	pcibios_register_hba(&eisa_dev.hba);
 
-	result = request_irq(dev->irq, eisa_irq, SA_SHIRQ, "EISA", &eisa_dev);
+	result = request_irq(dev->irq, eisa_irq, IRQF_SHARED, "EISA", &eisa_dev);
 	if (result) {
 		printk(KERN_ERR "EISA: request_irq failed!\n");
 		return result;
