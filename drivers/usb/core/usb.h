@@ -59,6 +59,7 @@ static inline int is_active(struct usb_interface *f)
 extern const char *usbcore_name;
 
 /* usbfs stuff */
+extern struct mutex usbfs_mutex;
 extern struct usb_driver usbfs_driver;
 extern struct file_operations usbfs_devices_fops;
 extern struct file_operations usbfs_device_file_operations;

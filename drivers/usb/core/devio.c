@@ -59,6 +59,9 @@
 #define USB_DEVICE_MAX			USB_MAXBUS * 128
 static struct class *usb_device_class;
 
+/* Mutual exclusion for removal, open, and release */
+DEFINE_MUTEX(usbfs_mutex);
+
 struct async {
 	struct list_head asynclist;
 	struct dev_state *ps;
@@ -541,15 +544,13 @@ static int usbdev_open(struct inode *inode, struct file *file)
 	struct dev_state *ps;
 	int ret;
 
-	/* 
-	 * no locking necessary here, as chrdev_open has the kernel lock
-	 * (still acquire the kernel lock for safety)
-	 */
+	/* Protect against simultaneous removal or release */
+	mutex_lock(&usbfs_mutex);
+
 	ret = -ENOMEM;
 	if (!(ps = kmalloc(sizeof(struct dev_state), GFP_KERNEL)))
-		goto out_nolock;
+		goto out;
 
-	lock_kernel();
 	ret = -ENOENT;
 	/* check if we are called from a real node or usbfs */
 	if (imajor(inode) == USB_DEVICE_MAJOR)
@@ -579,9 +580,8 @@ static int usbdev_open(struct inode *inode, struct file *file)
 	list_add_tail(&ps->list, &dev->filelist);
 	file->private_data = ps;
  out:
-	unlock_kernel();
- out_nolock:
-        return ret;
+	mutex_unlock(&usbfs_mutex);
+	return ret;
 }
 
 static int usbdev_release(struct inode *inode, struct file *file)
@@ -591,7 +591,12 @@ static int usbdev_release(struct inode *inode, struct file *file)
 	unsigned int ifnum;
 
 	usb_lock_device(dev);
+
+	/* Protect against simultaneous open */
+	mutex_lock(&usbfs_mutex);
 	list_del_init(&ps->list);
+	mutex_unlock(&usbfs_mutex);
+
 	for (ifnum = 0; ps->ifclaimed && ifnum < 8*sizeof(ps->ifclaimed);
 			ifnum++) {
 		if (test_bit(ifnum, &ps->ifclaimed))
@@ -600,9 +605,8 @@ static int usbdev_release(struct inode *inode, struct file *file)
 	destroy_all_async(ps);
 	usb_unlock_device(dev);
 	usb_put_dev(dev);
-	ps->dev = NULL;
 	kfree(ps);
-        return 0;
+	return 0;
 }
 
 static int proc_control(struct dev_state *ps, void __user *arg)
