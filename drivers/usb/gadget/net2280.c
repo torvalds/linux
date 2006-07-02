@@ -2895,7 +2895,7 @@ static int net2280_probe (struct pci_dev *pdev, const struct pci_device_id *id)
 		goto done;
 	}
 
-	if (request_irq (pdev->irq, net2280_irq, SA_SHIRQ, driver_name, dev)
+	if (request_irq (pdev->irq, net2280_irq, IRQF_SHARED, driver_name, dev)
 			!= 0) {
 		ERROR (dev, "request interrupt %d failed\n", pdev->irq);
 		retval = -EBUSY;

@@ -2521,7 +2521,7 @@ static int __init pxa2xx_udc_probe(struct platform_device *pdev)
 
 	/* irq setup after old hardware state is cleaned up */
 	retval = request_irq(IRQ_USB, pxa2xx_udc_irq,
-			SA_INTERRUPT, driver_name, dev);
+			IRQF_DISABLED, driver_name, dev);
 	if (retval != 0) {
 		printk(KERN_ERR "%s: can't get irq %i, err %d\n",
 			driver_name, IRQ_USB, retval);
@@ -2533,7 +2533,7 @@ static int __init pxa2xx_udc_probe(struct platform_device *pdev)
 	if (machine_is_lubbock()) {
 		retval = request_irq(LUBBOCK_USB_DISC_IRQ,
 				lubbock_vbus_irq,
-				SA_INTERRUPT | SA_SAMPLE_RANDOM,
+				IRQF_DISABLED | IRQF_SAMPLE_RANDOM,
 				driver_name, dev);
 		if (retval != 0) {
 			printk(KERN_ERR "%s: can't get irq %i, err %d\n",
@@ -2544,7 +2544,7 @@ lubbock_fail0:
 		}
 		retval = request_irq(LUBBOCK_USB_IRQ,
 				lubbock_vbus_irq,
-				SA_INTERRUPT | SA_SAMPLE_RANDOM,
+				IRQF_DISABLED | IRQF_SAMPLE_RANDOM,
 				driver_name, dev);
 		if (retval != 0) {
 			printk(KERN_ERR "%s: can't get irq %i, err %d\n",

@@ -1653,13 +1653,13 @@ static int __devinit at91udc_probe(struct platform_device *pdev)
 	pullup(udc, 0);
 
 	/* request UDC and maybe VBUS irqs */
-	if (request_irq(AT91_ID_UDP, at91_udc_irq, SA_INTERRUPT, driver_name, udc)) {
+	if (request_irq(AT91_ID_UDP, at91_udc_irq, IRQF_DISABLED, driver_name, udc)) {
 		DBG("request irq %d failed\n", AT91_ID_UDP);
 		retval = -EBUSY;
 		goto fail1;
 	}
 	if (udc->board.vbus_pin > 0) {
-		if (request_irq(udc->board.vbus_pin, at91_vbus_irq, SA_INTERRUPT, driver_name, udc)) {
+		if (request_irq(udc->board.vbus_pin, at91_vbus_irq, IRQF_DISABLED, driver_name, udc)) {
 			DBG("request vbus irq %d failed\n", udc->board.vbus_pin);
 			free_irq(AT91_ID_UDP, udc);
 			retval = -EBUSY;
