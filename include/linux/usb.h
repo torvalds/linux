@@ -102,6 +102,7 @@ enum usb_interface_condition {
  *	number from the USB core by calling usb_register_dev().
  * @condition: binding state of the interface: not bound, binding
  *	(in probe()), bound to a driver, or unbinding (in disconnect())
+ * @is_active: flag set when the interface is bound and not suspended.
  * @dev: driver model's view of this device
  * @class_dev: driver model's class view of this device.
  *
@@ -142,6 +143,8 @@ struct usb_interface {
 	int minor;			/* minor number this interface is
 					 * bound to */
 	enum usb_interface_condition condition;		/* state of binding */
+	unsigned is_active:1;		/* the interface is not suspended */
+
 	struct device dev;		/* interface specific device info */
 	struct class_device *class_dev;
 };

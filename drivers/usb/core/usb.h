@@ -59,17 +59,17 @@ static inline int is_usb_device_driver(struct device_driver *drv)
 
 static inline void mark_active(struct usb_interface *f)
 {
-	f->dev.power.power_state.event = PM_EVENT_ON;
+	f->is_active = 1;
 }
 
 static inline void mark_quiesced(struct usb_interface *f)
 {
-	f->dev.power.power_state.event = PM_EVENT_FREEZE;
+	f->is_active = 0;
 }
 
 static inline int is_active(struct usb_interface *f)
 {
-	return f->dev.power.power_state.event == PM_EVENT_ON;
+	return f->is_active;
 }
 
 
