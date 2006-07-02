@@ -71,7 +71,7 @@ static int nodemgr_check_speed(struct nodemgr_csr_info *ci, u64 addr,
 	u8 i, *speed, old_speed, good_speed;
 	int ret;
 
-	speed = ci->host->speed + NODEID_TO_NODE(ci->nodeid);
+	speed = &(ci->host->speed[NODEID_TO_NODE(ci->nodeid)]);
 	old_speed = *speed;
 	good_speed = IEEE1394_SPEED_MAX + 1;
 
@@ -1251,6 +1251,7 @@ static void nodemgr_node_scan_one(struct host_info *hi,
 	octlet_t guid;
 	struct csr1212_csr *csr;
 	struct nodemgr_csr_info *ci;
+	u8 *speed;
 
 	ci = kmalloc(sizeof(*ci), GFP_KERNEL);
 	if (!ci)
@@ -1259,8 +1260,12 @@ static void nodemgr_node_scan_one(struct host_info *hi,
 	ci->host = host;
 	ci->nodeid = nodeid;
 	ci->generation = generation;
-	ci->speed_unverified =
-		host->speed[NODEID_TO_NODE(nodeid)] > IEEE1394_SPEED_100;
+
+	/* Prepare for speed probe which occurs when reading the ROM */
+	speed = &(host->speed[NODEID_TO_NODE(nodeid)]);
+	if (*speed > host->csr.lnk_spd)
+		*speed = host->csr.lnk_spd;
+	ci->speed_unverified = *speed > IEEE1394_SPEED_100;
 
 	/* We need to detect when the ConfigROM's generation has changed,
 	 * so we only update the node's info when it needs to be.  */
@@ -1300,8 +1305,6 @@ static void nodemgr_node_scan_one(struct host_info *hi,
 		nodemgr_create_node(guid, csr, hi, nodeid, generation);
 	else
 		nodemgr_update_node(ne, csr, hi, nodeid, generation);
-
-	return;
 }
 
 
