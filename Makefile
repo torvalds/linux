@@ -309,6 +309,9 @@ CPPFLAGS        := -D__KERNEL__ $(LINUXINCLUDE)
 
 CFLAGS          := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
                    -fno-strict-aliasing -fno-common
+# Force gcc to behave correct even for buggy distributions
+CFLAGS          += $(call cc-option, -fno-stack-protector-all \
+                                     -fno-stack-protector)
 AFLAGS          := -D__ASSEMBLY__
 
 # Read KERNELRELEASE from include/config/kernel.release (if it exists)
