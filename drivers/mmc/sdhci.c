@@ -32,9 +32,39 @@ static unsigned int debug_nodma = 0;
 static unsigned int debug_forcedma = 0;
 static unsigned int debug_quirks = 0;
 
+#define SDHCI_QUIRK_CLOCK_BEFORE_RESET			(1<<0)
+#define SDHCI_QUIRK_FORCE_DMA				(1<<1)
+
 static const struct pci_device_id pci_ids[] __devinitdata = {
-	/* handle any SD host controller */
-	{PCI_DEVICE_CLASS((PCI_CLASS_SYSTEM_SDHCI << 8), 0xFFFF00)},
+	{
+		.vendor		= PCI_VENDOR_ID_RICOH,
+		.device		= PCI_DEVICE_ID_RICOH_R5C822,
+		.subvendor	= PCI_VENDOR_ID_IBM,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= SDHCI_QUIRK_CLOCK_BEFORE_RESET |
+				  SDHCI_QUIRK_FORCE_DMA,
+	},
+
+	{
+		.vendor		= PCI_VENDOR_ID_RICOH,
+		.device		= PCI_DEVICE_ID_RICOH_R5C822,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= SDHCI_QUIRK_FORCE_DMA,
+	},
+
+	{
+		.vendor		= PCI_VENDOR_ID_TI,
+		.device		= PCI_DEVICE_ID_TI_XX21_XX11_SD,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= SDHCI_QUIRK_FORCE_DMA,
+	},
+
+	{	/* Generic SD host controller */
+		PCI_DEVICE_CLASS((PCI_CLASS_SYSTEM_SDHCI << 8), 0xFFFF00)
+	},
+
 	{ /* end: all zeroes */ },
 };
 
@@ -440,9 +470,7 @@ static void sdhci_finish_data(struct sdhci_host *host)
 			"though there were blocks left. Please report this "
 			"to " BUGMAIL ".\n", mmc_hostname(host->mmc));
 		data->error = MMC_ERR_FAILED;
-	}
-
-	if (host->size != 0) {
+	} else if (host->size != 0) {
 		printk(KERN_ERR "%s: %d bytes were left untransferred. "
 			"Please report this to " BUGMAIL ".\n",
 			mmc_hostname(host->mmc), host->size);
@@ -808,6 +836,19 @@ static void sdhci_tasklet_finish(unsigned long param)
 	if ((mrq->cmd->error != MMC_ERR_NONE) ||
 		(mrq->data && ((mrq->data->error != MMC_ERR_NONE) ||
 		(mrq->data->stop && (mrq->data->stop->error != MMC_ERR_NONE))))) {
+
+		/* Some controllers need this kick or reset won't work here */
+		if (host->chip->quirks & SDHCI_QUIRK_CLOCK_BEFORE_RESET) {
+			unsigned int clock;
+
+			/* This is to force an update */
+			clock = host->clock;
+			host->clock = 0;
+			sdhci_set_clock(host, clock);
+		}
+
+		/* Spec says we should do both at the same time, but Ricoh
+		   controllers do not like that. */
 		sdhci_reset(host, SDHCI_RESET_CMD);
 		sdhci_reset(host, SDHCI_RESET_DATA);
 	}
@@ -1165,7 +1206,9 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 	else if (debug_forcedma) {
 		DBG("DMA forced on\n");
 		host->flags |= SDHCI_USE_DMA;
-	} else if ((pdev->class & 0x0000FF) != PCI_SDHCI_IFDMA)
+	} else if (chip->quirks & SDHCI_QUIRK_FORCE_DMA)
+		host->flags |= SDHCI_USE_DMA;
+	else if ((pdev->class & 0x0000FF) != PCI_SDHCI_IFDMA)
 		DBG("Controller doesn't have DMA interface\n");
 	else if (!(caps & SDHCI_CAN_DO_DMA))
 		DBG("Controller doesn't have DMA capability\n");
