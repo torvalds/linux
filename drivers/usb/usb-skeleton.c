@@ -1,5 +1,5 @@
 /*
- * USB Skeleton driver - 2.0
+ * USB Skeleton driver - 2.1
  *
  * Copyright (C) 2001-2004 Greg Kroah-Hartman (greg@kroah.com)
  *
@@ -8,8 +8,7 @@
  *	published by the Free Software Foundation, version 2.
  *
  * This driver is based on the 2.6.3 version of drivers/usb/usb-skeleton.c 
- * but has been rewritten to be easy to read and use, as no locks are now
- * needed anymore.
+ * but has been rewritten to be easier to read and use.
  *
  */
 
@@ -21,6 +20,7 @@
 #include <linux/kref.h>
 #include <asm/uaccess.h>
 #include <linux/usb.h>
+#include <linux/mutex.h>
 
 
 /* Define these values to match your devices */
@@ -52,6 +52,7 @@ struct usb_skel {
 	__u8			bulk_in_endpointAddr;	/* the address of the bulk in endpoint */
 	__u8			bulk_out_endpointAddr;	/* the address of the bulk out endpoint */
 	struct kref		kref;
+	struct mutex		io_mutex;		/* synchronize I/O with disconnect */
 };
 #define to_skel_dev(d) container_of(d, struct usb_skel, kref)
 
@@ -119,7 +120,13 @@ static ssize_t skel_read(struct file *file, char *buffer, size_t count, loff_t *
 	int bytes_read;
 
 	dev = (struct usb_skel *)file->private_data;
-	
+
+	mutex_lock(&dev->io_mutex);
+	if (!dev->interface) {		/* disconnect() was called */
+		retval = -ENODEV;
+		goto exit;
+	}
+
 	/* do a blocking bulk read to get data from the device */
 	retval = usb_bulk_msg(dev->udev,
 			      usb_rcvbulkpipe(dev->udev, dev->bulk_in_endpointAddr),
@@ -135,6 +142,8 @@ static ssize_t skel_read(struct file *file, char *buffer, size_t count, loff_t *
 			retval = bytes_read;
 	}
 
+exit:
+	mutex_unlock(&dev->io_mutex);
 	return retval;
 }
 
@@ -179,6 +188,12 @@ static ssize_t skel_write(struct file *file, const char *user_buffer, size_t cou
 		goto exit;
 	}
 
+	mutex_lock(&dev->io_mutex);
+	if (!dev->interface) {		/* disconnect() was called */
+		retval = -ENODEV;
+		goto error;
+	}
+
 	/* create a urb, and a buffer for it, and copy the data to the urb */
 	urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!urb) {
@@ -213,13 +228,18 @@ static ssize_t skel_write(struct file *file, const char *user_buffer, size_t cou
 	/* release our reference to this urb, the USB core will eventually free it entirely */
 	usb_free_urb(urb);
 
-exit:
+	mutex_unlock(&dev->io_mutex);
 	return writesize;
 
 error:
-	usb_buffer_free(dev->udev, writesize, buf, urb->transfer_dma);
-	usb_free_urb(urb);
+	if (urb) {
+		usb_buffer_free(dev->udev, writesize, buf, urb->transfer_dma);
+		usb_free_urb(urb);
+	}
+	mutex_unlock(&dev->io_mutex);
 	up(&dev->limit_sem);
+
+exit:
 	return retval;
 }
 
@@ -258,6 +278,7 @@ static int skel_probe(struct usb_interface *interface, const struct usb_device_i
 	}
 	kref_init(&dev->kref);
 	sema_init(&dev->limit_sem, WRITES_IN_FLIGHT);
+	mutex_init(&dev->io_mutex);
 
 	dev->udev = usb_get_dev(interface_to_usbdev(interface));
 	dev->interface = interface;
@@ -333,6 +354,11 @@ static void skel_disconnect(struct usb_interface *interface)
 
 	/* give back our minor */
 	usb_deregister_dev(interface, &skel_class);
+
+	/* prevent more I/O from starting */
+	mutex_lock(&dev->io_mutex);
+	dev->interface = NULL;
+	mutex_unlock(&dev->io_mutex);
 
 	unlock_kernel();
 
