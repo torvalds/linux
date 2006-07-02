@@ -1148,144 +1148,28 @@ void usb_disconnect(struct usb_device **pdev)
 	 * cleaning up all state associated with the current configuration
 	 * so that the hardware is now fully quiesced.
 	 */
+	dev_dbg (&udev->dev, "unregistering device\n");
 	usb_disable_device(udev, 0);
 
-	usb_notify_remove_device(udev);
+	usb_unlock_device(udev);
 
-	/* Free the device number, remove the /proc/bus/usb entry and
-	 * the sysfs attributes, and delete the parent's children[]
+	/* Unregister the device.  The device driver is responsible
+	 * for removing the device files from usbfs and sysfs and for
+	 * de-configuring the device.
+	 */
+	device_del(&udev->dev);
+
+	/* Free the device number and delete the parent's children[]
 	 * (or root_hub) pointer.
 	 */
-	dev_dbg (&udev->dev, "unregistering device\n");
 	release_address(udev);
-	usb_remove_sysfs_dev_files(udev);
 
 	/* Avoid races with recursively_mark_NOTATTACHED() */
 	spin_lock_irq(&device_state_lock);
 	*pdev = NULL;
 	spin_unlock_irq(&device_state_lock);
 
-	usb_unlock_device(udev);
-
-	device_unregister(&udev->dev);
-}
-
-static inline const char *plural(int n)
-{
-	return (n == 1 ? "" : "s");
-}
-
-static int choose_configuration(struct usb_device *udev)
-{
-	int i;
-	int num_configs;
-	int insufficient_power = 0;
-	struct usb_host_config *c, *best;
-
-	best = NULL;
-	c = udev->config;
-	num_configs = udev->descriptor.bNumConfigurations;
-	for (i = 0; i < num_configs; (i++, c++)) {
-		struct usb_interface_descriptor	*desc = NULL;
-
-		/* It's possible that a config has no interfaces! */
-		if (c->desc.bNumInterfaces > 0)
-			desc = &c->intf_cache[0]->altsetting->desc;
-
-		/*
-		 * HP's USB bus-powered keyboard has only one configuration
-		 * and it claims to be self-powered; other devices may have
-		 * similar errors in their descriptors.  If the next test
-		 * were allowed to execute, such configurations would always
-		 * be rejected and the devices would not work as expected.
-		 * In the meantime, we run the risk of selecting a config
-		 * that requires external power at a time when that power
-		 * isn't available.  It seems to be the lesser of two evils.
-		 *
-		 * Bugzilla #6448 reports a device that appears to crash
-		 * when it receives a GET_DEVICE_STATUS request!  We don't
-		 * have any other way to tell whether a device is self-powered,
-		 * but since we don't use that information anywhere but here,
-		 * the call has been removed.
-		 *
-		 * Maybe the GET_DEVICE_STATUS call and the test below can
-		 * be reinstated when device firmwares become more reliable.
-		 * Don't hold your breath.
-		 */
-#if 0
-		/* Rule out self-powered configs for a bus-powered device */
-		if (bus_powered && (c->desc.bmAttributes &
-					USB_CONFIG_ATT_SELFPOWER))
-			continue;
-#endif
-
-		/*
-		 * The next test may not be as effective as it should be.
-		 * Some hubs have errors in their descriptor, claiming
-		 * to be self-powered when they are really bus-powered.
-		 * We will overestimate the amount of current such hubs
-		 * make available for each port.
-		 *
-		 * This is a fairly benign sort of failure.  It won't
-		 * cause us to reject configurations that we should have
-		 * accepted.
-		 */
-
-		/* Rule out configs that draw too much bus current */
-		if (c->desc.bMaxPower * 2 > udev->bus_mA) {
-			insufficient_power++;
-			continue;
-		}
-
-		/* If the first config's first interface is COMM/2/0xff
-		 * (MSFT RNDIS), rule it out unless Linux has host-side
-		 * RNDIS support. */
-		if (i == 0 && desc
-				&& desc->bInterfaceClass == USB_CLASS_COMM
-				&& desc->bInterfaceSubClass == 2
-				&& desc->bInterfaceProtocol == 0xff) {
-#ifndef CONFIG_USB_NET_RNDIS_HOST
-			continue;
-#else
-			best = c;
-#endif
-		}
-
-		/* From the remaining configs, choose the first one whose
-		 * first interface is for a non-vendor-specific class.
-		 * Reason: Linux is more likely to have a class driver
-		 * than a vendor-specific driver. */
-		else if (udev->descriptor.bDeviceClass !=
-						USB_CLASS_VENDOR_SPEC &&
-				(!desc || desc->bInterfaceClass !=
-						USB_CLASS_VENDOR_SPEC)) {
-			best = c;
-			break;
-		}
-
-		/* If all the remaining configs are vendor-specific,
-		 * choose the first one. */
-		else if (!best)
-			best = c;
-	}
-
-	if (insufficient_power > 0)
-		dev_info(&udev->dev, "rejected %d configuration%s "
-			"due to insufficient available bus power\n",
-			insufficient_power, plural(insufficient_power));
-
-	if (best) {
-		i = best->desc.bConfigurationValue;
-		dev_info(&udev->dev,
-			"configuration #%d chosen from %d choice%s\n",
-			i, num_configs, plural(num_configs));
-	} else {
-		i = -1;
-		dev_warn(&udev->dev,
-			"no configuration chosen from %d choice%s\n",
-			num_configs, plural(num_configs));
-	}
-	return i;
+	put_device(&udev->dev);
 }
 
 #ifdef DEBUG
@@ -1328,7 +1212,6 @@ static inline void show_string(struct usb_device *udev, char *id, char *string)
 int usb_new_device(struct usb_device *udev)
 {
 	int err;
-	int c;
 
 	err = usb_get_configuration(udev);
 	if (err < 0) {
@@ -1418,34 +1301,15 @@ int usb_new_device(struct usb_device *udev)
 	}
 #endif
 
-	/* put device-specific files into sysfs */
+	/* Register the device.  The device driver is responsible
+	 * for adding the device files to usbfs and sysfs and for
+	 * configuring the device.
+	 */
 	err = device_add (&udev->dev);
 	if (err) {
 		dev_err(&udev->dev, "can't device_add, error %d\n", err);
 		goto fail;
 	}
-	usb_create_sysfs_dev_files (udev);
-
-	usb_lock_device(udev);
-
-	/* choose and set the configuration. that registers the interfaces
-	 * with the driver core, and lets usb device drivers bind to them.
-	 */
-	c = choose_configuration(udev);
-	if (c >= 0) {
-		err = usb_set_configuration(udev, c);
-		if (err) {
-			dev_err(&udev->dev, "can't set config #%d, error %d\n",
-					c, err);
-			/* This need not be fatal.  The user can try to
-			 * set other configurations. */
-		}
-	}
-
-	/* USB device state == configured ... usable */
-	usb_notify_add_device(udev);
-
-	usb_unlock_device(udev);
 
 	return 0;
 

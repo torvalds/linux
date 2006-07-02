@@ -530,9 +530,10 @@ static int usb_uevent(struct device *dev, char **envp, int num_envp,
 	/* driver is often null here; dev_dbg() would oops */
 	pr_debug ("usb %s: uevent\n", dev->bus_id);
 
-	if (is_usb_device(dev))
-		return 0;
-	else {
+	if (is_usb_device(dev)) {
+		usb_dev = to_usb_device(dev);
+		alt = NULL;
+	} else {
 		intf = to_usb_interface(dev);
 		usb_dev = interface_to_usbdev(intf);
 		alt = intf->cur_altsetting;
@@ -579,15 +580,17 @@ static int usb_uevent(struct device *dev, char **envp, int num_envp,
 			   usb_dev->descriptor.bDeviceProtocol))
 		return -ENOMEM;
 
-	if (add_uevent_var(envp, num_envp, &i,
+	if (!is_usb_device(dev)) {
+
+		if (add_uevent_var(envp, num_envp, &i,
 			   buffer, buffer_size, &length,
 			   "INTERFACE=%d/%d/%d",
 			   alt->desc.bInterfaceClass,
 			   alt->desc.bInterfaceSubClass,
 			   alt->desc.bInterfaceProtocol))
-		return -ENOMEM;
+			return -ENOMEM;
 
-	if (add_uevent_var(envp, num_envp, &i,
+		if (add_uevent_var(envp, num_envp, &i,
 			   buffer, buffer_size, &length,
 			   "MODALIAS=usb:v%04Xp%04Xd%04Xdc%02Xdsc%02Xdp%02Xic%02Xisc%02Xip%02X",
 			   le16_to_cpu(usb_dev->descriptor.idVendor),
@@ -599,7 +602,8 @@ static int usb_uevent(struct device *dev, char **envp, int num_envp,
 			   alt->desc.bInterfaceClass,
 			   alt->desc.bInterfaceSubClass,
 			   alt->desc.bInterfaceProtocol))
-		return -ENOMEM;
+			return -ENOMEM;
+	}
 
 	envp[i] = NULL;
 
@@ -747,31 +751,22 @@ EXPORT_SYMBOL_GPL_FUTURE(usb_deregister);
 
 #ifdef CONFIG_PM
 
-static int verify_suspended(struct device *dev, void *unused)
+static int usb_suspend(struct device *dev, pm_message_t message)
 {
-	if (dev->driver == NULL)
-		return 0;
-	return (dev->power.power_state.event == PM_EVENT_ON) ? -EBUSY : 0;
-}
+	struct usb_device		*udev;
+	struct usb_device_driver	*udriver;
+	struct usb_interface		*intf;
+	struct usb_driver		*driver;
+	int				status;
 
-static int usb_generic_suspend(struct device *dev, pm_message_t message)
-{
-	struct usb_interface	*intf;
-	struct usb_driver	*driver;
-	int			status;
-
-	/* USB devices enter SUSPEND state through their hubs, but can be
-	 * marked for FREEZE as soon as their children are already idled.
-	 * But those semantics are useless, so we equate the two (sigh).
-	 */
 	if (is_usb_device(dev)) {
+		if (dev->driver == NULL)
+			return 0;
+		udev = to_usb_device(dev);
+		udriver = to_usb_device_driver(dev->driver);
 		if (dev->power.power_state.event == message.event)
 			return 0;
-		/* we need to rule out bogus requests through sysfs */
-		status = device_for_each_child(dev, NULL, verify_suspended);
-		if (status)
-			return status;
- 		return usb_port_suspend(to_usb_device(dev));
+		return udriver->suspend(udev, message);
 	}
 
 	if (dev->driver == NULL)
@@ -799,12 +794,13 @@ static int usb_generic_suspend(struct device *dev, pm_message_t message)
 	return status;
 }
 
-static int usb_generic_resume(struct device *dev)
+static int usb_resume(struct device *dev)
 {
-	struct usb_interface	*intf;
-	struct usb_driver	*driver;
-	struct usb_device	*udev;
-	int			status;
+	struct usb_device		*udev;
+	struct usb_device_driver	*udriver;
+	struct usb_interface		*intf;
+	struct usb_driver		*driver;
+	int				status;
 
 	if (dev->power.power_state.event == PM_EVENT_ON)
 		return 0;
@@ -814,10 +810,13 @@ static int usb_generic_resume(struct device *dev)
 
 	/* devices resume through their hubs */
 	if (is_usb_device(dev)) {
+		if (dev->driver == NULL)
+			return 0;
 		udev = to_usb_device(dev);
+		udriver = to_usb_device_driver(dev->driver);
 		if (udev->state == USB_STATE_NOTATTACHED)
 			return 0;
-		return usb_port_resume(udev);
+		return udriver->resume(udev);
 	}
 
 	if (dev->driver == NULL) {
@@ -854,7 +853,7 @@ struct bus_type usb_bus_type = {
 	.match =	usb_device_match,
 	.uevent =	usb_uevent,
 #ifdef CONFIG_PM
-	.suspend =	usb_generic_suspend,
-	.resume =	usb_generic_resume,
+	.suspend =	usb_suspend,
+	.resume =	usb_resume,
 #endif
 };

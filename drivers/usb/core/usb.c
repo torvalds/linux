@@ -205,7 +205,6 @@ usb_alloc_dev(struct usb_device *parent, struct usb_bus *bus, unsigned port1)
 	device_initialize(&dev->dev);
 	dev->dev.bus = &usb_bus_type;
 	dev->dev.dma_mask = bus->controller->dma_mask;
-	dev->dev.driver = &usb_generic_driver.drvwrap.driver;
 	dev->dev.release = usb_release_dev;
 	dev->state = USB_STATE_ATTACHED;
 
