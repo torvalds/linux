@@ -9,32 +9,6 @@
 #include <linux/spinlock.h>
 
 /*
- * These values of sa_flags are used only by the kernel as part of the
- * irq handling routines.
- *
- * SA_INTERRUPT is also used by the irq handling routines.
- * SA_SHIRQ is for shared interrupt support on PCI and EISA.
- * SA_PROBEIRQ is set by callers when they expect sharing mismatches to occur
- */
-#define SA_SAMPLE_RANDOM	SA_RESTART
-#define SA_SHIRQ		0x04000000
-#define SA_PROBEIRQ		0x08000000
-
-/*
- * As above, these correspond to the IORESOURCE_IRQ_* defines in
- * linux/ioport.h to select the interrupt line behaviour.  When
- * requesting an interrupt without specifying a SA_TRIGGER, the
- * setting should be assumed to be "as already configured", which
- * may be as per machine or firmware initialisation.
- */
-#define SA_TRIGGER_LOW		0x00000008
-#define SA_TRIGGER_HIGH		0x00000004
-#define SA_TRIGGER_FALLING	0x00000002
-#define SA_TRIGGER_RISING	0x00000001
-#define SA_TRIGGER_MASK	(SA_TRIGGER_HIGH|SA_TRIGGER_LOW|\
-				 SA_TRIGGER_RISING|SA_TRIGGER_FALLING)
-
-/*
  * Real Time signals may be queued.
  */
 
