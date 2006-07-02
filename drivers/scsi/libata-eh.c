@@ -190,7 +190,6 @@ enum scsi_eh_timer_return ata_scsi_timed_out(struct scsi_cmnd *cmd)
 void ata_scsi_error(struct Scsi_Host *host)
 {
 	struct ata_port *ap = ata_shost_to_port(host);
-	spinlock_t *ap_lock = ap->lock;
 	int i, repeat_cnt = ATA_EH_MAX_REPEAT;
 	unsigned long flags;
 
@@ -217,7 +216,7 @@ void ata_scsi_error(struct Scsi_Host *host)
 		struct scsi_cmnd *scmd, *tmp;
 		int nr_timedout = 0;
 
-		spin_lock_irqsave(ap_lock, flags);
+		spin_lock_irqsave(ap->lock, flags);
 
 		list_for_each_entry_safe(scmd, tmp, &host->eh_cmd_q, eh_entry) {
 			struct ata_queued_cmd *qc;
@@ -256,15 +255,15 @@ void ata_scsi_error(struct Scsi_Host *host)
 		if (nr_timedout)
 			__ata_port_freeze(ap);
 
-		spin_unlock_irqrestore(ap_lock, flags);
+		spin_unlock_irqrestore(ap->lock, flags);
 	} else
-		spin_unlock_wait(ap_lock);
+		spin_unlock_wait(ap->lock);
 
  repeat:
 	/* invoke error handler */
 	if (ap->ops->error_handler) {
 		/* fetch & clear EH info */
-		spin_lock_irqsave(ap_lock, flags);
+		spin_lock_irqsave(ap->lock, flags);
 
 		memset(&ap->eh_context, 0, sizeof(ap->eh_context));
 		ap->eh_context.i = ap->eh_info;
@@ -273,7 +272,7 @@ void ata_scsi_error(struct Scsi_Host *host)
 		ap->pflags |= ATA_PFLAG_EH_IN_PROGRESS;
 		ap->pflags &= ~ATA_PFLAG_EH_PENDING;
 
-		spin_unlock_irqrestore(ap_lock, flags);
+		spin_unlock_irqrestore(ap->lock, flags);
 
 		/* invoke EH.  if unloading, just finish failed qcs */
 		if (!(ap->pflags & ATA_PFLAG_UNLOADING))
@@ -285,14 +284,14 @@ void ata_scsi_error(struct Scsi_Host *host)
 		 * recovered the port but before this point.  Repeat
 		 * EH in such case.
 		 */
-		spin_lock_irqsave(ap_lock, flags);
+		spin_lock_irqsave(ap->lock, flags);
 
 		if (ap->pflags & ATA_PFLAG_EH_PENDING) {
 			if (--repeat_cnt) {
 				ata_port_printk(ap, KERN_INFO,
 					"EH pending after completion, "
 					"repeating EH (cnt=%d)\n", repeat_cnt);
-				spin_unlock_irqrestore(ap_lock, flags);
+				spin_unlock_irqrestore(ap->lock, flags);
 				goto repeat;
 			}
 			ata_port_printk(ap, KERN_ERR, "EH pending after %d "
@@ -302,14 +301,14 @@ void ata_scsi_error(struct Scsi_Host *host)
 		/* this run is complete, make sure EH info is clear */
 		memset(&ap->eh_info, 0, sizeof(ap->eh_info));
 
-		/* Clear host_eh_scheduled while holding ap_lock such
+		/* Clear host_eh_scheduled while holding ap->lock such
 		 * that if exception occurs after this point but
 		 * before EH completion, SCSI midlayer will
 		 * re-initiate EH.
 		 */
 		host->host_eh_scheduled = 0;
 
-		spin_unlock_irqrestore(ap_lock, flags);
+		spin_unlock_irqrestore(ap->lock, flags);
 	} else {
 		WARN_ON(ata_qc_from_tag(ap, ap->active_tag) == NULL);
 		ap->ops->eng_timeout(ap);
@@ -321,7 +320,7 @@ void ata_scsi_error(struct Scsi_Host *host)
 	scsi_eh_flush_done_q(&ap->eh_done_q);
 
 	/* clean up */
-	spin_lock_irqsave(ap_lock, flags);
+	spin_lock_irqsave(ap->lock, flags);
 
 	if (ap->pflags & ATA_PFLAG_LOADING) {
 		ap->pflags &= ~ATA_PFLAG_LOADING;
@@ -338,7 +337,7 @@ void ata_scsi_error(struct Scsi_Host *host)
 	ap->pflags &= ~ATA_PFLAG_EH_IN_PROGRESS;
 	wake_up_all(&ap->eh_wait_q);
 
-	spin_unlock_irqrestore(ap_lock, flags);
+	spin_unlock_irqrestore(ap->lock, flags);
 
 	DPRINTK("EXIT\n");
 }
