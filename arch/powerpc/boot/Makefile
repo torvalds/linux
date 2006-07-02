@@ -41,6 +41,10 @@ src-boot += $(zlib)
 src-boot := $(addprefix $(obj)/, $(src-boot))
 obj-boot := $(addsuffix .o, $(basename $(src-boot)))
 
+ifeq ($(call cc-option-yn, -fstack-protector),y)
+BOOTCFLAGS	+= -fno-stack-protector
+endif
+
 BOOTCFLAGS	+= -I$(obj) -I$(srctree)/$(obj)
 
 quiet_cmd_copy_zlib = COPY    $@
