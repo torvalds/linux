@@ -33,9 +33,9 @@ extern void usb_host_cleanup(void);
 extern int usb_port_suspend(struct usb_device *dev);
 extern int usb_port_resume(struct usb_device *dev);
 
+extern struct bus_type usb_bus_type;
 extern struct device_driver usb_generic_driver;
 extern int usb_generic_driver_data;
-extern int usb_device_match(struct device *dev, struct device_driver *drv);
 
 /* Interfaces and their "power state" are owned by usbcore */
 

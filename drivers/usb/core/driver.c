@@ -17,7 +17,8 @@
  *
  * NOTE! This is not actually a driver at all, rather this is
  * just a collection of helper routines that implement the
- * generic USB things that the real drivers can use..
+ * matching, probing, releasing, suspending and resuming for
+ * real drivers.
  *
  */
 
@@ -33,38 +34,6 @@ struct usb_dynid {
 	struct list_head node;
 	struct usb_device_id id;
 };
-
-
-static int generic_probe(struct device *dev)
-{
-	return 0;
-}
-static int generic_remove(struct device *dev)
-{
-	struct usb_device *udev = to_usb_device(dev);
-
-	/* if this is only an unbind, not a physical disconnect, then
-	 * unconfigure the device */
-	if (udev->state == USB_STATE_CONFIGURED)
-		usb_set_configuration(udev, 0);
-
-	/* in case the call failed or the device was suspended */
-	if (udev->state >= USB_STATE_CONFIGURED)
-		usb_disable_device(udev, 0);
-	return 0;
-}
-
-struct device_driver usb_generic_driver = {
-	.owner = THIS_MODULE,
-	.name =	"usb",
-	.bus = &usb_bus_type,
-	.probe = generic_probe,
-	.remove = generic_remove,
-};
-
-/* Fun hack to determine if the struct device is a
- * usb device or a usb interface. */
-int usb_generic_driver_data;
 
 #ifdef CONFIG_HOTPLUG
 
@@ -238,6 +207,89 @@ static int usb_unbind_interface(struct device *dev)
 	return 0;
 }
 
+/**
+ * usb_driver_claim_interface - bind a driver to an interface
+ * @driver: the driver to be bound
+ * @iface: the interface to which it will be bound; must be in the
+ *	usb device's active configuration
+ * @priv: driver data associated with that interface
+ *
+ * This is used by usb device drivers that need to claim more than one
+ * interface on a device when probing (audio and acm are current examples).
+ * No device driver should directly modify internal usb_interface or
+ * usb_device structure members.
+ *
+ * Few drivers should need to use this routine, since the most natural
+ * way to bind to an interface is to return the private data from
+ * the driver's probe() method.
+ *
+ * Callers must own the device lock and the driver model's usb_bus_type.subsys
+ * writelock.  So driver probe() entries don't need extra locking,
+ * but other call contexts may need to explicitly claim those locks.
+ */
+int usb_driver_claim_interface(struct usb_driver *driver,
+				struct usb_interface *iface, void* priv)
+{
+	struct device *dev = &iface->dev;
+
+	if (dev->driver)
+		return -EBUSY;
+
+	dev->driver = &driver->driver;
+	usb_set_intfdata(iface, priv);
+	iface->condition = USB_INTERFACE_BOUND;
+	mark_active(iface);
+
+	/* if interface was already added, bind now; else let
+	 * the future device_add() bind it, bypassing probe()
+	 */
+	if (device_is_registered(dev))
+		device_bind_driver(dev);
+
+	return 0;
+}
+EXPORT_SYMBOL(usb_driver_claim_interface);
+
+/**
+ * usb_driver_release_interface - unbind a driver from an interface
+ * @driver: the driver to be unbound
+ * @iface: the interface from which it will be unbound
+ *
+ * This can be used by drivers to release an interface without waiting
+ * for their disconnect() methods to be called.  In typical cases this
+ * also causes the driver disconnect() method to be called.
+ *
+ * This call is synchronous, and may not be used in an interrupt context.
+ * Callers must own the device lock and the driver model's usb_bus_type.subsys
+ * writelock.  So driver disconnect() entries don't need extra locking,
+ * but other call contexts may need to explicitly claim those locks.
+ */
+void usb_driver_release_interface(struct usb_driver *driver,
+					struct usb_interface *iface)
+{
+	struct device *dev = &iface->dev;
+
+	/* this should never happen, don't release something that's not ours */
+	if (!dev->driver || dev->driver != &driver->driver)
+		return;
+
+	/* don't release from within disconnect() */
+	if (iface->condition != USB_INTERFACE_BOUND)
+		return;
+
+	/* don't release if the interface hasn't been added yet */
+	if (device_is_registered(dev)) {
+		iface->condition = USB_INTERFACE_UNBINDING;
+		device_release_driver(dev);
+	}
+
+	dev->driver = NULL;
+	usb_set_intfdata(iface, NULL);
+	iface->condition = USB_INTERFACE_UNBOUND;
+	mark_quiesced(iface);
+}
+EXPORT_SYMBOL(usb_driver_release_interface);
+
 /* returns 0 if no match, 1 if match */
 static int usb_match_one_id(struct usb_interface *interface,
 			    const struct usb_device_id *id)
@@ -402,6 +454,120 @@ int usb_device_match(struct device *dev, struct device_driver *drv)
 	return 0;
 }
 
+#ifdef	CONFIG_HOTPLUG
+
+/*
+ * This sends an uevent to userspace, typically helping to load driver
+ * or other modules, configure the device, and more.  Drivers can provide
+ * a MODULE_DEVICE_TABLE to help with module loading subtasks.
+ *
+ * We're called either from khubd (the typical case) or from root hub
+ * (init, kapmd, modprobe, rmmod, etc), but the agents need to handle
+ * delays in event delivery.  Use sysfs (and DEVPATH) to make sure the
+ * device (and this configuration!) are still present.
+ */
+static int usb_uevent(struct device *dev, char **envp, int num_envp,
+		      char *buffer, int buffer_size)
+{
+	struct usb_interface *intf;
+	struct usb_device *usb_dev;
+	struct usb_host_interface *alt;
+	int i = 0;
+	int length = 0;
+
+	if (!dev)
+		return -ENODEV;
+
+	/* driver is often null here; dev_dbg() would oops */
+	pr_debug ("usb %s: uevent\n", dev->bus_id);
+
+	/* Must check driver_data here, as on remove driver is always NULL */
+	if ((dev->driver == &usb_generic_driver) ||
+	    (dev->driver_data == &usb_generic_driver_data))
+		return 0;
+
+	intf = to_usb_interface(dev);
+	usb_dev = interface_to_usbdev (intf);
+	alt = intf->cur_altsetting;
+
+	if (usb_dev->devnum < 0) {
+		pr_debug ("usb %s: already deleted?\n", dev->bus_id);
+		return -ENODEV;
+	}
+	if (!usb_dev->bus) {
+		pr_debug ("usb %s: bus removed?\n", dev->bus_id);
+		return -ENODEV;
+	}
+
+#ifdef	CONFIG_USB_DEVICEFS
+	/* If this is available, userspace programs can directly read
+	 * all the device descriptors we don't tell them about.  Or
+	 * even act as usermode drivers.
+	 *
+	 * FIXME reduce hardwired intelligence here
+	 */
+	if (add_uevent_var(envp, num_envp, &i,
+			   buffer, buffer_size, &length,
+			   "DEVICE=/proc/bus/usb/%03d/%03d",
+			   usb_dev->bus->busnum, usb_dev->devnum))
+		return -ENOMEM;
+#endif
+
+	/* per-device configurations are common */
+	if (add_uevent_var(envp, num_envp, &i,
+			   buffer, buffer_size, &length,
+			   "PRODUCT=%x/%x/%x",
+			   le16_to_cpu(usb_dev->descriptor.idVendor),
+			   le16_to_cpu(usb_dev->descriptor.idProduct),
+			   le16_to_cpu(usb_dev->descriptor.bcdDevice)))
+		return -ENOMEM;
+
+	/* class-based driver binding models */
+	if (add_uevent_var(envp, num_envp, &i,
+			   buffer, buffer_size, &length,
+			   "TYPE=%d/%d/%d",
+			   usb_dev->descriptor.bDeviceClass,
+			   usb_dev->descriptor.bDeviceSubClass,
+			   usb_dev->descriptor.bDeviceProtocol))
+		return -ENOMEM;
+
+	if (add_uevent_var(envp, num_envp, &i,
+			   buffer, buffer_size, &length,
+			   "INTERFACE=%d/%d/%d",
+			   alt->desc.bInterfaceClass,
+			   alt->desc.bInterfaceSubClass,
+			   alt->desc.bInterfaceProtocol))
+		return -ENOMEM;
+
+	if (add_uevent_var(envp, num_envp, &i,
+			   buffer, buffer_size, &length,
+			   "MODALIAS=usb:v%04Xp%04Xd%04Xdc%02Xdsc%02Xdp%02Xic%02Xisc%02Xip%02X",
+			   le16_to_cpu(usb_dev->descriptor.idVendor),
+			   le16_to_cpu(usb_dev->descriptor.idProduct),
+			   le16_to_cpu(usb_dev->descriptor.bcdDevice),
+			   usb_dev->descriptor.bDeviceClass,
+			   usb_dev->descriptor.bDeviceSubClass,
+			   usb_dev->descriptor.bDeviceProtocol,
+			   alt->desc.bInterfaceClass,
+			   alt->desc.bInterfaceSubClass,
+			   alt->desc.bInterfaceProtocol))
+		return -ENOMEM;
+
+	envp[i] = NULL;
+
+	return 0;
+}
+
+#else
+
+static int usb_uevent(struct device *dev, char **envp,
+			int num_envp, char *buffer, int buffer_size)
+{
+	return -ENODEV;
+}
+
+#endif	/* CONFIG_HOTPLUG */
+
 /**
  * usb_register_driver - register a USB driver
  * @new_driver: USB operations for the driver
@@ -469,3 +635,119 @@ void usb_deregister(struct usb_driver *driver)
 	usbfs_update_special();
 }
 EXPORT_SYMBOL_GPL_FUTURE(usb_deregister);
+
+#ifdef CONFIG_PM
+
+static int verify_suspended(struct device *dev, void *unused)
+{
+	if (dev->driver == NULL)
+		return 0;
+	return (dev->power.power_state.event == PM_EVENT_ON) ? -EBUSY : 0;
+}
+
+static int usb_generic_suspend(struct device *dev, pm_message_t message)
+{
+	struct usb_interface	*intf;
+	struct usb_driver	*driver;
+	int			status;
+
+	/* USB devices enter SUSPEND state through their hubs, but can be
+	 * marked for FREEZE as soon as their children are already idled.
+	 * But those semantics are useless, so we equate the two (sigh).
+	 */
+	if (dev->driver == &usb_generic_driver) {
+		if (dev->power.power_state.event == message.event)
+			return 0;
+		/* we need to rule out bogus requests through sysfs */
+		status = device_for_each_child(dev, NULL, verify_suspended);
+		if (status)
+			return status;
+ 		return usb_port_suspend(to_usb_device(dev));
+	}
+
+	if ((dev->driver == NULL) ||
+	    (dev->driver_data == &usb_generic_driver_data))
+		return 0;
+
+	intf = to_usb_interface(dev);
+	driver = to_usb_driver(dev->driver);
+
+	/* with no hardware, USB interfaces only use FREEZE and ON states */
+	if (!is_active(intf))
+		return 0;
+
+	if (driver->suspend && driver->resume) {
+		status = driver->suspend(intf, message);
+		if (status)
+			dev_err(dev, "%s error %d\n", "suspend", status);
+		else
+			mark_quiesced(intf);
+	} else {
+		// FIXME else if there's no suspend method, disconnect...
+		dev_warn(dev, "no suspend for driver %s?\n", driver->name);
+		mark_quiesced(intf);
+		status = 0;
+	}
+	return status;
+}
+
+static int usb_generic_resume(struct device *dev)
+{
+	struct usb_interface	*intf;
+	struct usb_driver	*driver;
+	struct usb_device	*udev;
+	int			status;
+
+	if (dev->power.power_state.event == PM_EVENT_ON)
+		return 0;
+
+	/* mark things as "on" immediately, no matter what errors crop up */
+	dev->power.power_state.event = PM_EVENT_ON;
+
+	/* devices resume through their hubs */
+	if (dev->driver == &usb_generic_driver) {
+		udev = to_usb_device(dev);
+		if (udev->state == USB_STATE_NOTATTACHED)
+			return 0;
+		return usb_port_resume(udev);
+	}
+
+	if ((dev->driver == NULL) ||
+	    (dev->driver_data == &usb_generic_driver_data)) {
+		dev->power.power_state.event = PM_EVENT_FREEZE;
+		return 0;
+	}
+
+	intf = to_usb_interface(dev);
+	driver = to_usb_driver(dev->driver);
+
+	udev = interface_to_usbdev(intf);
+	if (udev->state == USB_STATE_NOTATTACHED)
+		return 0;
+
+	/* if driver was suspended, it has a resume method;
+	 * however, sysfs can wrongly mark things as suspended
+	 * (on the "no suspend method" FIXME path above)
+	 */
+	if (driver->resume) {
+		status = driver->resume(intf);
+		if (status) {
+			dev_err(dev, "%s error %d\n", "resume", status);
+			mark_quiesced(intf);
+		}
+	} else
+		dev_warn(dev, "no resume for driver %s?\n", driver->name);
+	return 0;
+}
+
+#endif /* CONFIG_PM */
+
+struct bus_type usb_bus_type = {
+	.name =		"usb",
+	.match =	usb_device_match,
+	.uevent =	usb_uevent,
+#ifdef CONFIG_PM
+	.suspend =	usb_generic_suspend,
+	.resume =	usb_generic_resume,
+#endif
+};
