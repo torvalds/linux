@@ -998,32 +998,32 @@ static void tomatillo_register_error_handlers(struct pci_controller_info *p)
 	pbm = pbm_for_ino(p, SCHIZO_UE_INO);
 	op = of_find_device_by_node(pbm->prom_node);
 	if (op)
-		request_irq(op->irqs[1], schizo_ue_intr, SA_SHIRQ,
+		request_irq(op->irqs[1], schizo_ue_intr, IRQF_SHARED,
 			    "TOMATILLO_UE", p);
 
 	pbm = pbm_for_ino(p, SCHIZO_CE_INO);
 	op = of_find_device_by_node(pbm->prom_node);
 	if (op)
-		request_irq(op->irqs[2], schizo_ce_intr, SA_SHIRQ,
+		request_irq(op->irqs[2], schizo_ce_intr, IRQF_SHARED,
 			    "TOMATILLO CE", p);
 
 	pbm = pbm_for_ino(p, SCHIZO_PCIERR_A_INO);
 	op = of_find_device_by_node(pbm->prom_node);
 	if (op)
-		request_irq(op->irqs[0], schizo_pcierr_intr, SA_SHIRQ,
+		request_irq(op->irqs[0], schizo_pcierr_intr, IRQF_SHARED,
 			    "TOMATILLO PCIERR-A", pbm);
 
 
 	pbm = pbm_for_ino(p, SCHIZO_PCIERR_B_INO);
 	op = of_find_device_by_node(pbm->prom_node);
 	if (op)
-		request_irq(op->irqs[0], schizo_pcierr_intr, SA_SHIRQ,
+		request_irq(op->irqs[0], schizo_pcierr_intr, IRQF_SHARED,
 			    "TOMATILLO PCIERR-B", pbm);
 
 	pbm = pbm_for_ino(p, SCHIZO_SERR_INO);
 	op = of_find_device_by_node(pbm->prom_node);
 	if (op)
-		request_irq(op->irqs[3], schizo_safarierr_intr, SA_SHIRQ,
+		request_irq(op->irqs[3], schizo_safarierr_intr, IRQF_SHARED,
 			    "TOMATILLO SERR", p);
 
 	/* Enable UE and CE interrupts for controller. */
@@ -1106,32 +1106,32 @@ static void schizo_register_error_handlers(struct pci_controller_info *p)
 	pbm = pbm_for_ino(p, SCHIZO_UE_INO);
 	op = of_find_device_by_node(pbm->prom_node);
 	if (op)
-		request_irq(op->irqs[1], schizo_ue_intr, SA_SHIRQ,
+		request_irq(op->irqs[1], schizo_ue_intr, IRQF_SHARED,
 			    "SCHIZO_UE", p);
 
 	pbm = pbm_for_ino(p, SCHIZO_CE_INO);
 	op = of_find_device_by_node(pbm->prom_node);
 	if (op)
-		request_irq(op->irqs[2], schizo_ce_intr, SA_SHIRQ,
+		request_irq(op->irqs[2], schizo_ce_intr, IRQF_SHARED,
 			    "SCHIZO CE", p);
 
 	pbm = pbm_for_ino(p, SCHIZO_PCIERR_A_INO);
 	op = of_find_device_by_node(pbm->prom_node);
 	if (op)
-		request_irq(op->irqs[0], schizo_pcierr_intr, SA_SHIRQ,
+		request_irq(op->irqs[0], schizo_pcierr_intr, IRQF_SHARED,
 			    "SCHIZO PCIERR-A", pbm);
 
 
 	pbm = pbm_for_ino(p, SCHIZO_PCIERR_B_INO);
 	op = of_find_device_by_node(pbm->prom_node);
 	if (op)
-		request_irq(op->irqs[0], schizo_pcierr_intr, SA_SHIRQ,
+		request_irq(op->irqs[0], schizo_pcierr_intr, IRQF_SHARED,
 			    "SCHIZO PCIERR-B", pbm);
 
 	pbm = pbm_for_ino(p, SCHIZO_SERR_INO);
 	op = of_find_device_by_node(pbm->prom_node);
 	if (op)
-		request_irq(op->irqs[3], schizo_safarierr_intr, SA_SHIRQ,
+		request_irq(op->irqs[3], schizo_safarierr_intr, IRQF_SHARED,
 			    "SCHIZO SERR", p);
 
 	/* Enable UE and CE interrupts for controller. */
