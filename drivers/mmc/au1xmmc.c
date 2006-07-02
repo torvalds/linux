@@ -886,7 +886,7 @@ static int __devinit au1xmmc_probe(struct platform_device *pdev)
 	int i, ret = 0;
 
 	/* THe interrupt is shared among all controllers */
-	ret = request_irq(AU1100_SD_IRQ, au1xmmc_irq, SA_INTERRUPT, "MMC", 0);
+	ret = request_irq(AU1100_SD_IRQ, au1xmmc_irq, IRQF_DISABLED, "MMC", 0);
 
 	if (ret) {
 		printk(DRIVER_NAME "ERROR: Couldn't get int %d: %d\n",

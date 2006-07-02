@@ -801,9 +801,9 @@ int pcmcia_request_irq(struct pcmcia_device *p_dev, irq_req_t *req)
 	/* Decide what type of interrupt we are registering */
 	type = 0;
 	if (s->functions > 1)		/* All of this ought to be handled higher up */
-		type = SA_SHIRQ;
+		type = IRQF_SHARED;
 	if (req->Attributes & IRQ_TYPE_DYNAMIC_SHARING)
-		type = SA_SHIRQ;
+		type = IRQF_SHARED;
 
 #ifdef CONFIG_PCMCIA_PROBE
 	if (s->irq.AssignedIRQ != 0) {
@@ -845,7 +845,7 @@ int pcmcia_request_irq(struct pcmcia_device *p_dev, irq_req_t *req)
 	if (ret && !s->irq.AssignedIRQ) {
 		if (!s->pci_irq)
 			return ret;
-		type = SA_SHIRQ;
+		type = IRQF_SHARED;
 		irq = s->pci_irq;
 	}
 
@@ -855,7 +855,7 @@ int pcmcia_request_irq(struct pcmcia_device *p_dev, irq_req_t *req)
 	}
 
 	/* Make sure the fact the request type was overridden is passed back */
-	if (type == SA_SHIRQ && !(req->Attributes & IRQ_TYPE_DYNAMIC_SHARING)) {
+	if (type == IRQF_SHARED && !(req->Attributes & IRQ_TYPE_DYNAMIC_SHARING)) {
 		req->Attributes |= IRQ_TYPE_DYNAMIC_SHARING;
 		printk(KERN_WARNING "pcmcia: request for exclusive IRQ could not be fulfilled.\n");
 		printk(KERN_WARNING "pcmcia: the driver needs updating to supported shared IRQ lines.\n");

@@ -761,7 +761,7 @@ static int hs_init_socket(hs_socket_t *sp, int irq, unsigned long mem_base,
 	
 	hd64465_register_irq_demux(sp->irq, hs_irq_demux, sp);
 	
-    	if ((err = request_irq(sp->irq, hs_interrupt, SA_INTERRUPT, MODNAME, sp)) < 0)
+    	if ((err = request_irq(sp->irq, hs_interrupt, IRQF_DISABLED, MODNAME, sp)) < 0)
 	    return err;
     	if (request_mem_region(sp->mem_base, sp->mem_length, MODNAME) == 0) {
     	    sp->mem_base = 0;

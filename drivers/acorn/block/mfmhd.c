@@ -1278,7 +1278,7 @@ static int mfm_do_init(unsigned char irqmask)
 
 	printk("mfm: detected %d hard drive%s\n", mfm_drives,
 				mfm_drives == 1 ? "" : "s");
-	ret = request_irq(mfm_irq, mfm_interrupt_handler, SA_INTERRUPT, "MFM harddisk", NULL);
+	ret = request_irq(mfm_irq, mfm_interrupt_handler, IRQF_DISABLED, "MFM harddisk", NULL);
 	if (ret) {
 		printk("mfm: unable to get IRQ%d\n", mfm_irq);
 		goto out4;

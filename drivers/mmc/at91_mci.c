@@ -850,7 +850,7 @@ static int at91_mci_probe(struct platform_device *pdev)
 	/*
 	 * Allocate the MCI interrupt
 	 */
-	ret = request_irq(AT91_ID_MCI, at91_mci_irq, SA_SHIRQ, DRIVER_NAME, host);
+	ret = request_irq(AT91_ID_MCI, at91_mci_irq, IRQF_SHARED, DRIVER_NAME, host);
 	if (ret) {
 		printk(KERN_ERR "Failed to request MCI interrupt\n");
 		clk_disable(mci_clk);

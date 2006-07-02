@@ -2123,7 +2123,7 @@ fore200e_change_qos(struct atm_vcc* vcc,struct atm_qos* qos, int flags)
 static int __devinit
 fore200e_irq_request(struct fore200e* fore200e)
 {
-    if (request_irq(fore200e->irq, fore200e_interrupt, SA_SHIRQ, fore200e->name, fore200e->atm_dev) < 0) {
+    if (request_irq(fore200e->irq, fore200e_interrupt, IRQF_SHARED, fore200e->name, fore200e->atm_dev) < 0) {
 
 	printk(FORE200E "unable to reserve IRQ %s for device %s\n",
 	       fore200e_irq_itoa(fore200e->irq), fore200e->name);

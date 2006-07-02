@@ -328,7 +328,7 @@ static int i8042_open(struct serio *serio)
 			return 0;
 
 	if (request_irq(port->irq, i8042_interrupt,
-			SA_SHIRQ, "i8042", i8042_request_irq_cookie)) {
+			IRQF_SHARED, "i8042", i8042_request_irq_cookie)) {
 		printk(KERN_ERR "i8042.c: Can't get irq %d for %s, unregistering the port.\n", port->irq, port->name);
 		goto irq_fail;
 	}
@@ -610,7 +610,7 @@ static int __devinit i8042_check_aux(void)
  */
 
 	if (request_irq(i8042_ports[I8042_AUX_PORT_NO].irq, i8042_interrupt,
-			SA_SHIRQ, "i8042", &i8042_check_aux_cookie))
+			IRQF_SHARED, "i8042", &i8042_check_aux_cookie))
                 return -1;
 	free_irq(i8042_ports[I8042_AUX_PORT_NO].irq, &i8042_check_aux_cookie);
 

@@ -345,7 +345,7 @@ static int parport_ax88796_probe(struct platform_device *pdev)
 	if (irq >= 0) {
 		/* request irq */
 		ret = request_irq(irq, parport_ax88796_interrupt,
-				  SA_TRIGGER_FALLING, pdev->name, pp);
+				  IRQF_TRIGGER_FALLING, pdev->name, pp);
 
 		if (ret < 0)
 			goto exit_port;

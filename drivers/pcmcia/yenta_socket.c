@@ -923,7 +923,7 @@ static int yenta_probe_cb_irq(struct yenta_socket *socket)
 
 	socket->probe_status = 0;
 
-	if (request_irq(socket->cb_irq, yenta_probe_handler, SA_SHIRQ, "yenta", socket)) {
+	if (request_irq(socket->cb_irq, yenta_probe_handler, IRQF_SHARED, "yenta", socket)) {
 		printk(KERN_WARNING "Yenta: request_irq() in yenta_probe_cb_irq() failed!\n");
 		return -1;
 	}
@@ -1172,7 +1172,7 @@ static int __devinit yenta_probe (struct pci_dev *dev, const struct pci_device_i
 
 	/* We must finish initialization here */
 
-	if (!socket->cb_irq || request_irq(socket->cb_irq, yenta_interrupt, SA_SHIRQ, "yenta", socket)) {
+	if (!socket->cb_irq || request_irq(socket->cb_irq, yenta_interrupt, IRQF_SHARED, "yenta", socket)) {
 		/* No IRQ or request_irq failed. Poll */
 		socket->cb_irq = 0; /* But zero is a valid IRQ number. */
 		init_timer(&socket->poll_timer);

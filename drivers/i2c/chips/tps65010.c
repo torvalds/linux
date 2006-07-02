@@ -521,14 +521,14 @@ tps65010_probe(struct i2c_adapter *bus, int address, int kind)
 	}
 
 #ifdef	CONFIG_ARM
-	irqflags = SA_SAMPLE_RANDOM | SA_TRIGGER_LOW;
+	irqflags = IRQF_SAMPLE_RANDOM | IRQF_TRIGGER_LOW;
 	if (machine_is_omap_h2()) {
 		tps->model = TPS65010;
 		omap_cfg_reg(W4_GPIO58);
 		tps->irq = OMAP_GPIO_IRQ(58);
 		omap_request_gpio(58);
 		omap_set_gpio_direction(58, 1);
-		irqflags |= SA_TRIGGER_FALLING;
+		irqflags |= IRQF_TRIGGER_FALLING;
 	}
 	if (machine_is_omap_osk()) {
 		tps->model = TPS65010;
@@ -536,7 +536,7 @@ tps65010_probe(struct i2c_adapter *bus, int address, int kind)
 		tps->irq = OMAP_GPIO_IRQ(OMAP_MPUIO(1));
 		omap_request_gpio(OMAP_MPUIO(1));
 		omap_set_gpio_direction(OMAP_MPUIO(1), 1);
-		irqflags |= SA_TRIGGER_FALLING;
+		irqflags |= IRQF_TRIGGER_FALLING;
 	}
 	if (machine_is_omap_h3()) {
 		tps->model = TPS65013;
@@ -544,7 +544,7 @@ tps65010_probe(struct i2c_adapter *bus, int address, int kind)
 		// FIXME set up this board's IRQ ...
 	}
 #else
-	irqflags = SA_SAMPLE_RANDOM;
+	irqflags = IRQF_SAMPLE_RANDOM;
 #endif
 
 	if (tps->irq > 0) {

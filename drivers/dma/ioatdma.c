@@ -739,7 +739,7 @@ static int __devinit ioat_probe(struct pci_dev *pdev,
 		device->msi = 0;
 	}
 #endif
-	err = request_irq(pdev->irq, &ioat_do_interrupt, SA_SHIRQ, "ioat",
+	err = request_irq(pdev->irq, &ioat_do_interrupt, IRQF_SHARED, "ioat",
 		device);
 	if (err)
 		goto err_irq;

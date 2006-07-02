@@ -468,7 +468,7 @@ static int __devinit ipath_init_one(struct pci_dev *pdev,
 			      "continuing anyway\n");
 
 	/*
-	 * set up our interrupt handler; SA_SHIRQ probably not needed,
+	 * set up our interrupt handler; IRQF_SHARED probably not needed,
 	 * since MSI interrupts shouldn't be shared but won't  hurt for now.
 	 * check 0 irq after we return from chip-specific bus setup, since
 	 * that can affect this due to setup
@@ -477,7 +477,7 @@ static int __devinit ipath_init_one(struct pci_dev *pdev,
 		ipath_dev_err(dd, "irq is 0, BIOS error?  Interrupts won't "
 			      "work\n");
 	else {
-		ret = request_irq(pdev->irq, ipath_intr, SA_SHIRQ,
+		ret = request_irq(pdev->irq, ipath_intr, IRQF_SHARED,
 				  IPATH_DRV_NAME, dd);
 		if (ret) {
 			ipath_dev_err(dd, "Couldn't setup irq handler, "

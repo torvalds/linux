@@ -301,7 +301,7 @@ static int wd_open(struct inode *inode, struct file *f)
 	{	
 		if (request_irq(wd_dev.irq, 
 						&wd_interrupt, 
-						SA_SHIRQ,
+						IRQF_SHARED,
 						WD_OBPNAME,
 						(void *)wd_dev.regs)) {
 			printk("%s: Cannot register IRQ %d\n", 

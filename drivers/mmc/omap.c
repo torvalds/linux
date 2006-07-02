@@ -1085,7 +1085,7 @@ static int __init mmc_omap_probe(struct platform_device *pdev)
 
 		omap_set_gpio_direction(host->switch_pin, 1);
 		ret = request_irq(OMAP_GPIO_IRQ(host->switch_pin),
-				  mmc_omap_switch_irq, SA_TRIGGER_RISING, DRIVER_NAME, host);
+				  mmc_omap_switch_irq, IRQF_TRIGGER_RISING, DRIVER_NAME, host);
 		if (ret) {
 			dev_warn(mmc_dev(host->mmc), "Unable to get IRQ for MMC cover switch\n");
 			omap_free_gpio(host->switch_pin);

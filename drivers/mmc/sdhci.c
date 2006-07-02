@@ -1075,7 +1075,7 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 
 	setup_timer(&host->timer, sdhci_timeout_timer, (long)host);
 
-	ret = request_irq(host->irq, sdhci_irq, SA_SHIRQ,
+	ret = request_irq(host->irq, sdhci_irq, IRQF_SHARED,
 		host->slot_descr, host);
 	if (ret)
 		goto unmap;

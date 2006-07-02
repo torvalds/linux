@@ -1527,7 +1527,7 @@ static int __init sony535_init(void)
 	}
 	if (sony535_irq_used > 0) {
 	    if (request_irq(sony535_irq_used, cdu535_interrupt,
-						SA_INTERRUPT, CDU535_HANDLE, NULL)) {
+						IRQF_DISABLED, CDU535_HANDLE, NULL)) {
 			printk("Unable to grab IRQ%d for the " CDU535_MESSAGE_NAME
 					" driver; polling instead.\n", sony535_irq_used);
 			sony535_irq_used = 0;

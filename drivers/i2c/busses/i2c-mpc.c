@@ -318,7 +318,7 @@ static int fsl_i2c_probe(struct platform_device *pdev)
 
 	if (i2c->irq != 0)
 		if ((result = request_irq(i2c->irq, mpc_i2c_isr,
-					  SA_SHIRQ, "i2c-mpc", i2c)) < 0) {
+					  IRQF_SHARED, "i2c-mpc", i2c)) < 0) {
 			printk(KERN_ERR
 			       "i2c-mpc - failed to attach interrupt\n");
 			goto fail_irq;

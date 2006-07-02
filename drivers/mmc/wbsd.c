@@ -1553,7 +1553,7 @@ static int __devinit wbsd_request_irq(struct wbsd_host *host, int irq)
 	 * Allocate interrupt.
 	 */
 
-	ret = request_irq(irq, wbsd_irq, SA_SHIRQ, DRIVER_NAME, host);
+	ret = request_irq(irq, wbsd_irq, IRQF_SHARED, DRIVER_NAME, host);
 	if (ret)
 		return ret;
 

@@ -3141,7 +3141,7 @@ int __init cdu31a_init(void)
 
 	if (cdu31a_irq > 0) {
 		if (request_irq
-		    (cdu31a_irq, cdu31a_interrupt, SA_INTERRUPT,
+		    (cdu31a_irq, cdu31a_interrupt, IRQF_DISABLED,
 		     "cdu31a", NULL)) {
 			printk(KERN_WARNING PFX "Unable to grab IRQ%d for "
 					"the CDU31A driver\n", cdu31a_irq);

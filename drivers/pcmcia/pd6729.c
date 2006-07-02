@@ -689,7 +689,7 @@ static int __devinit pd6729_pci_probe(struct pci_dev *dev,
 	pci_set_drvdata(dev, socket);
 	if (irq_mode == 1) {
 		/* Register the interrupt handler */
-		if ((ret = request_irq(dev->irq, pd6729_interrupt, SA_SHIRQ,
+		if ((ret = request_irq(dev->irq, pd6729_interrupt, IRQF_SHARED,
 							"pd6729", socket))) {
 			printk(KERN_ERR "pd6729: Failed to register irq %d, "
 							"aborting\n", dev->irq);

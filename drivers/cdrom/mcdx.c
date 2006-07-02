@@ -1193,7 +1193,7 @@ static int __init mcdx_init_drive(int drive)
 	}
 
 	xtrace(INIT, "init() subscribe irq and i/o\n");
-	if (request_irq(stuffp->irq, mcdx_intr, SA_INTERRUPT, "mcdx", stuffp)) {
+	if (request_irq(stuffp->irq, mcdx_intr, IRQF_DISABLED, "mcdx", stuffp)) {
 		release_region(stuffp->wreg_data, MCDX_IO_SIZE);
 		xwarn("%s=0x%03x,%d: Init failed. Can't get irq (%d).\n",
 		      MCDX, stuffp->wreg_data, stuffp->irq, stuffp->irq);

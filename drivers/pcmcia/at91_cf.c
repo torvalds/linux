@@ -267,7 +267,7 @@ static int __init at91_cf_probe(struct platform_device *pdev)
 
 	/* must be a GPIO; ergo must trigger on both edges */
 	status = request_irq(board->det_pin, at91_cf_irq,
-			SA_SAMPLE_RANDOM, driver_name, cf);
+			IRQF_SAMPLE_RANDOM, driver_name, cf);
 	if (status < 0)
 		goto fail0;
 	device_init_wakeup(&pdev->dev, 1);
@@ -280,7 +280,7 @@ static int __init at91_cf_probe(struct platform_device *pdev)
 	 */
 	if (board->irq_pin) {
 		status = request_irq(board->irq_pin, at91_cf_irq,
-				SA_SHIRQ, driver_name, cf);
+				IRQF_SHARED, driver_name, cf);
 		if (status < 0)
 			goto fail0a;
 		cf->socket.pci_irq = board->irq_pin;
