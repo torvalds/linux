@@ -51,7 +51,7 @@ struct irq_source {
 struct irq_level {
 	int			usage;
 	int			disable_count;
-	unsigned long		flags;		/* current SA_INTERRUPT and SA_SHIRQ settings */
+	unsigned long		flags;		/* current IRQF_DISABLED and IRQF_SHARED settings */
 	spinlock_t		lock;
 	struct irq_source	*sources;
 };

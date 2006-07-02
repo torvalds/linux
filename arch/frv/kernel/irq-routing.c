@@ -81,7 +81,7 @@ void distribute_irqs(struct irq_group *group, unsigned long irqmask)
 		if (action) {
 			int status = 0;
 
-//			if (!(action->flags & SA_INTERRUPT))
+//			if (!(action->flags & IRQF_DISABLED))
 //				local_irq_enable();
 
 			do {
@@ -90,7 +90,7 @@ void distribute_irqs(struct irq_group *group, unsigned long irqmask)
 				action = action->next;
 			} while (action);
 
-			if (status & SA_SAMPLE_RANDOM)
+			if (status & IRQF_SAMPLE_RANDOM)
 				add_interrupt_randomness(irq);
 			local_irq_disable();
 		}
