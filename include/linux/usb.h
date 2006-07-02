@@ -540,7 +540,17 @@ struct usb_dynids {
 };
 
 /**
- * struct usb_driver - identifies USB driver to usbcore
+ * struct usbdrv_wrap - wrapper for driver-model structure
+ * @driver: The driver-model core driver structure.
+ * @for_devices: Non-zero for device drivers, 0 for interface drivers.
+ */
+struct usbdrv_wrap {
+	struct device_driver driver;
+	int for_devices;
+};
+
+/**
+ * struct usb_driver - identifies USB interface driver to usbcore
  * @name: The driver name should be unique among USB drivers,
  *	and should normally be the same as the module name.
  * @probe: Called to see if the driver is willing to manage a particular
@@ -567,12 +577,12 @@ struct usb_dynids {
  *	or your driver's probe function will never get called.
  * @dynids: used internally to hold the list of dynamically added device
  *	ids for this driver.
- * @driver: the driver model core driver structure.
+ * @drvwrap: Driver-model core structure wrapper.
  * @no_dynamic_id: if set to 1, the USB core will not allow dynamic ids to be
  *	added to this driver by preventing the sysfs file from being created.
  *
- * USB drivers must provide a name, probe() and disconnect() methods,
- * and an id_table.  Other driver fields are optional.
+ * USB interface drivers must provide a name, probe() and disconnect()
+ * methods, and an id_table.  Other driver fields are optional.
  *
  * The id_table is used in hotplugging.  It holds a set of descriptors,
  * and specialized data may be associated with each entry.  That table
@@ -606,10 +616,40 @@ struct usb_driver {
 	const struct usb_device_id *id_table;
 
 	struct usb_dynids dynids;
-	struct device_driver driver;
+	struct usbdrv_wrap drvwrap;
 	unsigned int no_dynamic_id:1;
 };
-#define	to_usb_driver(d) container_of(d, struct usb_driver, driver)
+#define	to_usb_driver(d) container_of(d, struct usb_driver, drvwrap.driver)
+
+/**
+ * struct usb_device_driver - identifies USB device driver to usbcore
+ * @name: The driver name should be unique among USB drivers,
+ *	and should normally be the same as the module name.
+ * @probe: Called to see if the driver is willing to manage a particular
+ *	device.  If it is, probe returns zero and uses dev_set_drvdata()
+ *	to associate driver-specific data with the device.  If unwilling
+ *	to manage the device, return a negative errno value.
+ * @disconnect: Called when the device is no longer accessible, usually
+ *	because it has been (or is being) disconnected or the driver's
+ *	module is being unloaded.
+ * @suspend: Called when the device is going to be suspended by the system.
+ * @resume: Called when the device is being resumed by the system.
+ * @drvwrap: Driver-model core structure wrapper.
+ *
+ * USB drivers must provide all the fields listed above except drvwrap.
+ */
+struct usb_device_driver {
+	const char *name;
+
+	int (*probe) (struct usb_device *udev);
+	void (*disconnect) (struct usb_device *udev);
+
+	int (*suspend) (struct usb_device *udev, pm_message_t message);
+	int (*resume) (struct usb_device *udev);
+	struct usbdrv_wrap drvwrap;
+};
+#define	to_usb_device_driver(d) container_of(d, struct usb_device_driver, \
+		drvwrap.driver)
 
 extern struct bus_type usb_bus_type;
 
@@ -633,12 +673,16 @@ struct usb_class_driver {
  * use these in module_init()/module_exit()
  * and don't forget MODULE_DEVICE_TABLE(usb, ...)
  */
-int usb_register_driver(struct usb_driver *, struct module *);
+extern int usb_register_driver(struct usb_driver *, struct module *);
 static inline int usb_register(struct usb_driver *driver)
 {
 	return usb_register_driver(driver, THIS_MODULE);
 }
 extern void usb_deregister(struct usb_driver *);
+
+extern int usb_register_device_driver(struct usb_device_driver *,
+			struct module *);
+extern void usb_deregister_device_driver(struct usb_device_driver *);
 
 extern int usb_register_dev(struct usb_interface *intf,
 			    struct usb_class_driver *class_driver);

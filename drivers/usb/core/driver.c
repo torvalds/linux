@@ -84,7 +84,7 @@ static int usb_create_newid_file(struct usb_driver *usb_drv)
 		goto exit;
 
 	if (usb_drv->probe != NULL)
-		error = sysfs_create_file(&usb_drv->driver.kobj,
+		error = sysfs_create_file(&usb_drv->drvwrap.driver.kobj,
 					  &driver_attr_new_id.attr);
 exit:
 	return error;
@@ -96,7 +96,7 @@ static void usb_remove_newid_file(struct usb_driver *usb_drv)
 		return;
 
 	if (usb_drv->probe != NULL)
-		sysfs_remove_file(&usb_drv->driver.kobj,
+		sysfs_remove_file(&usb_drv->drvwrap.driver.kobj,
 				  &driver_attr_new_id.attr);
 }
 
@@ -143,18 +143,55 @@ static const struct usb_device_id *usb_match_dynamic_id(struct usb_interface *in
 }
 
 
-/* called from driver core with usb_bus_type.subsys writelock */
+/* called from driver core with dev locked */
+static int usb_probe_device(struct device *dev)
+{
+	struct usb_device_driver *udriver = to_usb_device_driver(dev->driver);
+	struct usb_device *udev;
+	int error = -ENODEV;
+
+	dev_dbg(dev, "%s\n", __FUNCTION__);
+
+	if (!is_usb_device(dev))	/* Sanity check */
+		return error;
+
+	udev = to_usb_device(dev);
+
+	/* FIXME: resume a suspended device */
+	if (udev->state == USB_STATE_SUSPENDED)
+		return -EHOSTUNREACH;
+
+	/* TODO: Add real matching code */
+
+	error = udriver->probe(udev);
+	return error;
+}
+
+/* called from driver core with dev locked */
+static int usb_unbind_device(struct device *dev)
+{
+	struct usb_device_driver *udriver = to_usb_device_driver(dev->driver);
+
+	udriver->disconnect(to_usb_device(dev));
+	return 0;
+}
+
+
+/* called from driver core with dev locked */
 static int usb_probe_interface(struct device *dev)
 {
-	struct usb_interface * intf = to_usb_interface(dev);
-	struct usb_driver * driver = to_usb_driver(dev->driver);
+	struct usb_driver *driver = to_usb_driver(dev->driver);
+	struct usb_interface *intf;
 	const struct usb_device_id *id;
 	int error = -ENODEV;
 
 	dev_dbg(dev, "%s\n", __FUNCTION__);
 
-	if (!driver->probe)
+	if (is_usb_device(dev))		/* Sanity check */
 		return error;
+
+	intf = to_usb_interface(dev);
+
 	/* FIXME we'd much prefer to just resume it ... */
 	if (interface_to_usbdev(intf)->state == USB_STATE_SUSPENDED)
 		return -EHOSTUNREACH;
@@ -182,19 +219,18 @@ static int usb_probe_interface(struct device *dev)
 	return error;
 }
 
-/* called from driver core with usb_bus_type.subsys writelock */
+/* called from driver core with dev locked */
 static int usb_unbind_interface(struct device *dev)
 {
+	struct usb_driver *driver = to_usb_driver(dev->driver);
 	struct usb_interface *intf = to_usb_interface(dev);
-	struct usb_driver *driver = to_usb_driver(intf->dev.driver);
 
 	intf->condition = USB_INTERFACE_UNBINDING;
 
 	/* release all urbs for this interface */
 	usb_disable_interface(interface_to_usbdev(intf), intf);
 
-	if (driver && driver->disconnect)
-		driver->disconnect(intf);
+	driver->disconnect(intf);
 
 	/* reset other interface state */
 	usb_set_interface(interface_to_usbdev(intf),
@@ -235,7 +271,7 @@ int usb_driver_claim_interface(struct usb_driver *driver,
 	if (dev->driver)
 		return -EBUSY;
 
-	dev->driver = &driver->driver;
+	dev->driver = &driver->drvwrap.driver;
 	usb_set_intfdata(iface, priv);
 	iface->condition = USB_INTERFACE_BOUND;
 	mark_active(iface);
@@ -270,7 +306,7 @@ void usb_driver_release_interface(struct usb_driver *driver,
 	struct device *dev = &iface->dev;
 
 	/* this should never happen, don't release something that's not ours */
-	if (!dev->driver || dev->driver != &driver->driver)
+	if (!dev->driver || dev->driver != &driver->drvwrap.driver)
 		return;
 
 	/* don't release from within disconnect() */
@@ -433,24 +469,37 @@ EXPORT_SYMBOL_GPL_FUTURE(usb_match_id);
 
 int usb_device_match(struct device *dev, struct device_driver *drv)
 {
-	struct usb_interface *intf;
-	struct usb_driver *usb_drv;
-	const struct usb_device_id *id;
+	/* devices and interfaces are handled separately */
+	if (is_usb_device(dev)) {
 
-	/* check for generic driver, which we don't match any device with */
-	if (drv == &usb_generic_driver)
-		return 0;
+		/* interface drivers never match devices */
+		if (!is_usb_device_driver(drv))
+			return 0;
 
-	intf = to_usb_interface(dev);
-	usb_drv = to_usb_driver(drv);
-
-	id = usb_match_id(intf, usb_drv->id_table);
-	if (id)
+		/* TODO: Add real matching code */
 		return 1;
 
-	id = usb_match_dynamic_id(intf, usb_drv);
-	if (id)
-		return 1;
+	} else {
+		struct usb_interface *intf;
+		struct usb_driver *usb_drv;
+		const struct usb_device_id *id;
+
+		/* device drivers never match interfaces */
+		if (is_usb_device_driver(drv))
+			return 0;
+
+		intf = to_usb_interface(dev);
+		usb_drv = to_usb_driver(drv);
+
+		id = usb_match_id(intf, usb_drv->id_table);
+		if (id)
+			return 1;
+
+		id = usb_match_dynamic_id(intf, usb_drv);
+		if (id)
+			return 1;
+	}
+
 	return 0;
 }
 
@@ -481,14 +530,13 @@ static int usb_uevent(struct device *dev, char **envp, int num_envp,
 	/* driver is often null here; dev_dbg() would oops */
 	pr_debug ("usb %s: uevent\n", dev->bus_id);
 
-	/* Must check driver_data here, as on remove driver is always NULL */
-	if ((dev->driver == &usb_generic_driver) ||
-	    (dev->driver_data == &usb_generic_driver_data))
+	if (is_usb_device(dev))
 		return 0;
-
-	intf = to_usb_interface(dev);
-	usb_dev = interface_to_usbdev (intf);
-	alt = intf->cur_altsetting;
+	else {
+		intf = to_usb_interface(dev);
+		usb_dev = interface_to_usbdev(intf);
+		alt = intf->cur_altsetting;
+	}
 
 	if (usb_dev->devnum < 0) {
 		pr_debug ("usb %s: already deleted?\n", dev->bus_id);
@@ -569,13 +617,71 @@ static int usb_uevent(struct device *dev, char **envp,
 #endif	/* CONFIG_HOTPLUG */
 
 /**
- * usb_register_driver - register a USB driver
- * @new_driver: USB operations for the driver
+ * usb_register_device_driver - register a USB device (not interface) driver
+ * @new_udriver: USB operations for the device driver
  * @owner: module owner of this driver.
  *
- * Registers a USB driver with the USB core.  The list of unattached
- * interfaces will be rescanned whenever a new driver is added, allowing
- * the new driver to attach to any recognized devices.
+ * Registers a USB device driver with the USB core.  The list of
+ * unattached devices will be rescanned whenever a new driver is
+ * added, allowing the new driver to attach to any recognized devices.
+ * Returns a negative error code on failure and 0 on success.
+ */
+int usb_register_device_driver(struct usb_device_driver *new_udriver,
+		struct module *owner)
+{
+	int retval = 0;
+
+	if (usb_disabled())
+		return -ENODEV;
+
+	new_udriver->drvwrap.for_devices = 1;
+	new_udriver->drvwrap.driver.name = (char *) new_udriver->name;
+	new_udriver->drvwrap.driver.bus = &usb_bus_type;
+	new_udriver->drvwrap.driver.probe = usb_probe_device;
+	new_udriver->drvwrap.driver.remove = usb_unbind_device;
+	new_udriver->drvwrap.driver.owner = owner;
+
+	retval = driver_register(&new_udriver->drvwrap.driver);
+
+	if (!retval) {
+		pr_info("%s: registered new device driver %s\n",
+			usbcore_name, new_udriver->name);
+		usbfs_update_special();
+	} else {
+		printk(KERN_ERR "%s: error %d registering device "
+			"	driver %s\n",
+			usbcore_name, retval, new_udriver->name);
+	}
+
+	return retval;
+}
+EXPORT_SYMBOL_GPL(usb_register_device_driver);
+
+/**
+ * usb_deregister_device_driver - unregister a USB device (not interface) driver
+ * @udriver: USB operations of the device driver to unregister
+ * Context: must be able to sleep
+ *
+ * Unlinks the specified driver from the internal USB driver list.
+ */
+void usb_deregister_device_driver(struct usb_device_driver *udriver)
+{
+	pr_info("%s: deregistering device driver %s\n",
+			usbcore_name, udriver->name);
+
+	driver_unregister(&udriver->drvwrap.driver);
+	usbfs_update_special();
+}
+EXPORT_SYMBOL_GPL(usb_deregister_device_driver);
+
+/**
+ * usb_register_driver - register a USB interface driver
+ * @new_driver: USB operations for the interface driver
+ * @owner: module owner of this driver.
+ *
+ * Registers a USB interface driver with the USB core.  The list of
+ * unattached interfaces will be rescanned whenever a new driver is
+ * added, allowing the new driver to attach to any recognized interfaces.
  * Returns a negative error code on failure and 0 on success.
  *
  * NOTE: if you want your driver to use the USB major number, you must call
@@ -589,23 +695,25 @@ int usb_register_driver(struct usb_driver *new_driver, struct module *owner)
 	if (usb_disabled())
 		return -ENODEV;
 
-	new_driver->driver.name = (char *)new_driver->name;
-	new_driver->driver.bus = &usb_bus_type;
-	new_driver->driver.probe = usb_probe_interface;
-	new_driver->driver.remove = usb_unbind_interface;
-	new_driver->driver.owner = owner;
+	new_driver->drvwrap.for_devices = 0;
+	new_driver->drvwrap.driver.name = (char *) new_driver->name;
+	new_driver->drvwrap.driver.bus = &usb_bus_type;
+	new_driver->drvwrap.driver.probe = usb_probe_interface;
+	new_driver->drvwrap.driver.remove = usb_unbind_interface;
+	new_driver->drvwrap.driver.owner = owner;
 	spin_lock_init(&new_driver->dynids.lock);
 	INIT_LIST_HEAD(&new_driver->dynids.list);
 
-	retval = driver_register(&new_driver->driver);
+	retval = driver_register(&new_driver->drvwrap.driver);
 
 	if (!retval) {
-		pr_info("%s: registered new driver %s\n",
+		pr_info("%s: registered new interface driver %s\n",
 			usbcore_name, new_driver->name);
 		usbfs_update_special();
 		usb_create_newid_file(new_driver);
 	} else {
-		printk(KERN_ERR "%s: error %d registering driver %s\n",
+		printk(KERN_ERR "%s: error %d registering interface "
+			"	driver %s\n",
 			usbcore_name, retval, new_driver->name);
 	}
 
@@ -614,8 +722,8 @@ int usb_register_driver(struct usb_driver *new_driver, struct module *owner)
 EXPORT_SYMBOL_GPL_FUTURE(usb_register_driver);
 
 /**
- * usb_deregister - unregister a USB driver
- * @driver: USB operations of the driver to unregister
+ * usb_deregister - unregister a USB interface driver
+ * @driver: USB operations of the interface driver to unregister
  * Context: must be able to sleep
  *
  * Unlinks the specified driver from the internal USB driver list.
@@ -626,11 +734,12 @@ EXPORT_SYMBOL_GPL_FUTURE(usb_register_driver);
  */
 void usb_deregister(struct usb_driver *driver)
 {
-	pr_info("%s: deregistering driver %s\n", usbcore_name, driver->name);
+	pr_info("%s: deregistering interface driver %s\n",
+			usbcore_name, driver->name);
 
 	usb_remove_newid_file(driver);
 	usb_free_dynids(driver);
-	driver_unregister(&driver->driver);
+	driver_unregister(&driver->drvwrap.driver);
 
 	usbfs_update_special();
 }
@@ -655,7 +764,7 @@ static int usb_generic_suspend(struct device *dev, pm_message_t message)
 	 * marked for FREEZE as soon as their children are already idled.
 	 * But those semantics are useless, so we equate the two (sigh).
 	 */
-	if (dev->driver == &usb_generic_driver) {
+	if (is_usb_device(dev)) {
 		if (dev->power.power_state.event == message.event)
 			return 0;
 		/* we need to rule out bogus requests through sysfs */
@@ -665,8 +774,7 @@ static int usb_generic_suspend(struct device *dev, pm_message_t message)
  		return usb_port_suspend(to_usb_device(dev));
 	}
 
-	if ((dev->driver == NULL) ||
-	    (dev->driver_data == &usb_generic_driver_data))
+	if (dev->driver == NULL)
 		return 0;
 
 	intf = to_usb_interface(dev);
@@ -705,15 +813,14 @@ static int usb_generic_resume(struct device *dev)
 	dev->power.power_state.event = PM_EVENT_ON;
 
 	/* devices resume through their hubs */
-	if (dev->driver == &usb_generic_driver) {
+	if (is_usb_device(dev)) {
 		udev = to_usb_device(dev);
 		if (udev->state == USB_STATE_NOTATTACHED)
 			return 0;
 		return usb_port_resume(udev);
 	}
 
-	if ((dev->driver == NULL) ||
-	    (dev->driver_data == &usb_generic_driver_data)) {
+	if (dev->driver == NULL) {
 		dev->power.power_state.event = PM_EVENT_FREEZE;
 		return 0;
 	}

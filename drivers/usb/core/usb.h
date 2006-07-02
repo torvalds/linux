@@ -34,8 +34,24 @@ extern int usb_port_suspend(struct usb_device *dev);
 extern int usb_port_resume(struct usb_device *dev);
 
 extern struct bus_type usb_bus_type;
-extern struct device_driver usb_generic_driver;
-extern int usb_generic_driver_data;
+extern struct usb_device_driver usb_generic_driver;
+
+/* Here's how we tell apart devices and interfaces.  Luckily there's
+ * no such thing as a platform USB device, so we can steal the use
+ * of the platform_data field. */
+
+static inline int is_usb_device(struct device *dev)
+{
+	return dev->platform_data == &usb_generic_driver;
+}
+
+/* Do the same for device drivers and interface drivers. */
+
+static inline int is_usb_device_driver(struct device_driver *drv)
+{
+	return container_of(drv, struct usbdrv_wrap, driver)->
+			for_devices;
+}
 
 /* Interfaces and their "power state" are owned by usbcore */
 

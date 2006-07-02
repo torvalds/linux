@@ -21,14 +21,12 @@
 #include <linux/usb.h>
 #include "usb.h"
 
-static int generic_probe(struct device *dev)
+static int generic_probe(struct usb_device *udev)
 {
 	return 0;
 }
-static int generic_remove(struct device *dev)
+static void generic_disconnect(struct usb_device *udev)
 {
-	struct usb_device *udev = to_usb_device(dev);
-
 	/* if this is only an unbind, not a physical disconnect, then
 	 * unconfigure the device */
 	if (udev->state == USB_STATE_CONFIGURED)
@@ -37,17 +35,10 @@ static int generic_remove(struct device *dev)
 	/* in case the call failed or the device was suspended */
 	if (udev->state >= USB_STATE_CONFIGURED)
 		usb_disable_device(udev, 0);
-	return 0;
 }
 
-struct device_driver usb_generic_driver = {
-	.owner = THIS_MODULE,
+struct usb_device_driver usb_generic_driver = {
 	.name =	"usb",
-	.bus = &usb_bus_type,
 	.probe = generic_probe,
-	.remove = generic_remove,
+	.disconnect = generic_disconnect,
 };
-
-/* Fun hack to determine if the struct device is a
- * usb device or a usb interface. */
-int usb_generic_driver_data;

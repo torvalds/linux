@@ -123,7 +123,7 @@ static int __find_interface(struct device * dev, void * data)
 	struct usb_interface *intf;
 
 	/* can't look at usb devices, only interfaces */
-	if (dev->driver == &usb_generic_driver)
+	if (is_usb_device(dev))
 		return 0;
 
 	intf = to_usb_interface(dev);
@@ -149,7 +149,8 @@ struct usb_interface *usb_find_interface(struct usb_driver *drv, int minor)
 
 	argb.minor = minor;
 	argb.interface = NULL;
-	driver_for_each_device(&drv->driver, NULL, &argb, __find_interface);
+	driver_for_each_device(&drv->drvwrap.driver, NULL, &argb,
+			__find_interface);
 	return argb.interface;
 }
 
@@ -204,10 +205,12 @@ usb_alloc_dev(struct usb_device *parent, struct usb_bus *bus, unsigned port1)
 	device_initialize(&dev->dev);
 	dev->dev.bus = &usb_bus_type;
 	dev->dev.dma_mask = bus->controller->dma_mask;
-	dev->dev.driver_data = &usb_generic_driver_data;
-	dev->dev.driver = &usb_generic_driver;
+	dev->dev.driver = &usb_generic_driver.drvwrap.driver;
 	dev->dev.release = usb_release_dev;
 	dev->state = USB_STATE_ATTACHED;
+
+	/* This magic assignment distinguishes devices from interfaces */
+	dev->dev.platform_data = &usb_generic_driver;
 
 	INIT_LIST_HEAD(&dev->ep0.urb_list);
 	dev->ep0.desc.bLength = USB_DT_ENDPOINT_SIZE;
@@ -838,7 +841,7 @@ static int __init usb_init(void)
 	retval = usb_hub_init();
 	if (retval)
 		goto hub_init_failed;
-	retval = driver_register(&usb_generic_driver);
+	retval = usb_register_device_driver(&usb_generic_driver, THIS_MODULE);
 	if (!retval)
 		goto out;
 
@@ -868,7 +871,7 @@ static void __exit usb_exit(void)
 	if (nousb)
 		return;
 
-	driver_unregister(&usb_generic_driver);
+	usb_deregister_device_driver(&usb_generic_driver);
 	usb_major_cleanup();
 	usbfs_cleanup();
 	usb_deregister(&usbfs_driver);
