@@ -366,14 +366,14 @@ void do_cpu_irq_mask(struct pt_regs *regs)
 static struct irqaction timer_action = {
 	.handler = timer_interrupt,
 	.name = "timer",
-	.flags = SA_INTERRUPT,
+	.flags = IRQF_DISABLED,
 };
 
 #ifdef CONFIG_SMP
 static struct irqaction ipi_action = {
 	.handler = ipi_interrupt,
 	.name = "IPI",
-	.flags = SA_INTERRUPT,
+	.flags = IRQF_DISABLED,
 };
 #endif
 
