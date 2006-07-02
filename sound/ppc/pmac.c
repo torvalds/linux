@@ -1170,7 +1170,7 @@ int __init snd_pmac_new(struct snd_card *card, struct snd_pmac **chip_return)
 					       chip->rsrc[i].start + 1,
 					       rnames[i]) == NULL) {
 				printk(KERN_ERR "snd: can't request rsrc "
-				       " %d (%s: 0x%016lx:%016lx)\n",
+				       " %d (%s: 0x%016llx:%016llx)\n",
 				       i, rnames[i],
 				       (unsigned long long)chip->rsrc[i].start,
 				       (unsigned long long)chip->rsrc[i].end);
