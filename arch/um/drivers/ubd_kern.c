@@ -874,7 +874,7 @@ int ubd_driver_init(void){
 		return(0);
 	}
 	err = um_request_irq(UBD_IRQ, thread_fd, IRQ_READ, ubd_intr,
-			     SA_INTERRUPT, "ubd", ubd_dev);
+			     IRQF_DISABLED, "ubd", ubd_dev);
 	if(err != 0)
 		printk(KERN_ERR "um_request_irq failed - errno = %d\n", -err);
 	return 0;
