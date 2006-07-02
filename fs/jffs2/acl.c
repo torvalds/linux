@@ -345,10 +345,8 @@ int jffs2_init_acl(struct inode *inode, struct inode *dir)
 	return rc;
 }
 
-void jffs2_clear_acl(struct inode *inode)
+void jffs2_clear_acl(struct jffs2_inode_info *f)
 {
-	struct jffs2_inode_info *f = JFFS2_INODE_INFO(inode);
-
 	if (f->i_acl_access && f->i_acl_access != JFFS2_ACL_NOT_CACHED) {
 		posix_acl_release(f->i_acl_access);
 		f->i_acl_access = JFFS2_ACL_NOT_CACHED;
