@@ -190,7 +190,7 @@ mpc52xx_uart_startup(struct uart_port *port)
 
 	/* Request IRQ */
 	ret = request_irq(port->irq, mpc52xx_uart_int,
-		SA_INTERRUPT | SA_SAMPLE_RANDOM, "mpc52xx_psc_uart", port);
+		IRQF_DISABLED | IRQF_SAMPLE_RANDOM, "mpc52xx_psc_uart", port);
 	if (ret)
 		return ret;
 

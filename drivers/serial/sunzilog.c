@@ -1354,7 +1354,7 @@ static int __devinit zs_probe(struct of_device *dev, const struct of_device_id *
 
 	if (zilog_irq == -1) {
 		zilog_irq = op->irqs[0];
-		err = request_irq(zilog_irq, sunzilog_interrupt, SA_SHIRQ,
+		err = request_irq(zilog_irq, sunzilog_interrupt, IRQF_SHARED,
 				  "zs", sunzilog_irq_chain);
 		if (err) {
 			of_iounmap(rp, sizeof(struct zilog_layout));

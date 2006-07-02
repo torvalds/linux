@@ -648,7 +648,7 @@ static irqreturn_t sn_sal_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 static int sn_sal_connect_interrupt(struct sn_cons_port *port)
 {
 	if (request_irq(SGI_UART_VECTOR, sn_sal_interrupt,
-			SA_INTERRUPT | SA_SHIRQ,
+			IRQF_DISABLED | IRQF_SHARED,
 			"SAL console driver", port) >= 0) {
 		return SGI_UART_VECTOR;
 	}

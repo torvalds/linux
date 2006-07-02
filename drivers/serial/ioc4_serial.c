@@ -2855,7 +2855,7 @@ ioc4_serial_attach_one(struct ioc4_driver_data *idd)
 	control->ic_soft = soft;
 
 	/* Hook up interrupt handler */
-	if (!request_irq(idd->idd_pdev->irq, ioc4_intr, SA_SHIRQ,
+	if (!request_irq(idd->idd_pdev->irq, ioc4_intr, IRQF_SHARED,
 				"sgi-ioc4serial", soft)) {
 		control->ic_irq = idd->idd_pdev->irq;
 	} else {

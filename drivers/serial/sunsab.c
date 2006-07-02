@@ -1027,7 +1027,7 @@ static int __devinit sunsab_init_one(struct uart_sunsab_port *up,
 		int err;
 
 		err = request_irq(up->port.irq, sunsab_interrupt,
-				  SA_SHIRQ, "sab", up);
+				  IRQF_SHARED, "sab", up);
 		if (err) {
 			of_iounmap(up->port.membase,
 				   sizeof(union sab82532_async_regs));

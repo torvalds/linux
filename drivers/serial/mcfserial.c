@@ -1596,7 +1596,7 @@ static void mcfrs_irqinit(struct mcf_serial *info)
 	/* Clear mask, so no surprise interrupts. */
 	uartp[MCFUART_UIMR] = 0;
 
-	if (request_irq(info->irq, mcfrs_interrupt, SA_INTERRUPT,
+	if (request_irq(info->irq, mcfrs_interrupt, IRQF_DISABLED,
 	    "ColdFire UART", NULL)) {
 		printk("MCFRS: Unable to attach ColdFire UART %d interrupt "
 			"vector=%d\n", info->line, info->irq);

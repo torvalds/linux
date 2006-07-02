@@ -1412,7 +1412,7 @@ mpsc_startup(struct uart_port *port)
 
 		/* If irq's are shared, need to set flag */
 		if (mpsc_ports[0].port.irq == mpsc_ports[1].port.irq)
-			flag = SA_SHIRQ;
+			flag = IRQF_SHARED;
 
 		if (request_irq(pi->port.irq, mpsc_sdma_intr, flag,
 				"mpsc-sdma", pi))

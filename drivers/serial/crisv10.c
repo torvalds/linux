@@ -415,7 +415,7 @@
  * Fixed DEF_TX value that caused the serial transmitter pin (txd) to go to 0 when
  * closing the last filehandle, NASTY!.
  * Added break generation, not tested though!
- * Use SA_SHIRQ when request_irq() for ser2 and ser3 (shared with) par0 and par1.
+ * Use IRQF_SHARED when request_irq() for ser2 and ser3 (shared with) par0 and par1.
  * You can't use them at the same time (yet..), but you can hopefully switch
  * between ser2/par0, ser3/par1 with the same kernel config.
  * Replaced some magic constants with defines
@@ -4942,55 +4942,55 @@ rs_init(void)
 	/* Not needed in simulator.  May only complicate stuff. */
 	/* hook the irq's for DMA channel 6 and 7, serial output and input, and some more... */
 
-	if (request_irq(SERIAL_IRQ_NBR, ser_interrupt, SA_SHIRQ | SA_INTERRUPT, "serial ", NULL))
+	if (request_irq(SERIAL_IRQ_NBR, ser_interrupt, IRQF_SHARED | IRQF_DISABLED, "serial ", NULL))
 		panic("irq8");
 
 #ifdef CONFIG_ETRAX_SERIAL_PORT0
 #ifdef CONFIG_ETRAX_SERIAL_PORT0_DMA6_OUT
-	if (request_irq(SER0_DMA_TX_IRQ_NBR, tr_interrupt, SA_INTERRUPT, "serial 0 dma tr", NULL))
+	if (request_irq(SER0_DMA_TX_IRQ_NBR, tr_interrupt, IRQF_DISABLED, "serial 0 dma tr", NULL))
 		panic("irq22");
 #endif
 #ifdef CONFIG_ETRAX_SERIAL_PORT0_DMA7_IN
-	if (request_irq(SER0_DMA_RX_IRQ_NBR, rec_interrupt, SA_INTERRUPT, "serial 0 dma rec", NULL))
+	if (request_irq(SER0_DMA_RX_IRQ_NBR, rec_interrupt, IRQF_DISABLED, "serial 0 dma rec", NULL))
 		panic("irq23");
 #endif
 #endif
 
 #ifdef CONFIG_ETRAX_SERIAL_PORT1
 #ifdef CONFIG_ETRAX_SERIAL_PORT1_DMA8_OUT
-	if (request_irq(SER1_DMA_TX_IRQ_NBR, tr_interrupt, SA_INTERRUPT, "serial 1 dma tr", NULL))
+	if (request_irq(SER1_DMA_TX_IRQ_NBR, tr_interrupt, IRQF_DISABLED, "serial 1 dma tr", NULL))
 		panic("irq24");
 #endif
 #ifdef CONFIG_ETRAX_SERIAL_PORT1_DMA9_IN
-	if (request_irq(SER1_DMA_RX_IRQ_NBR, rec_interrupt, SA_INTERRUPT, "serial 1 dma rec", NULL))
+	if (request_irq(SER1_DMA_RX_IRQ_NBR, rec_interrupt, IRQF_DISABLED, "serial 1 dma rec", NULL))
 		panic("irq25");
 #endif
 #endif
 #ifdef CONFIG_ETRAX_SERIAL_PORT2
 	/* DMA Shared with par0 (and SCSI0 and ATA) */
 #ifdef CONFIG_ETRAX_SERIAL_PORT2_DMA2_OUT
-	if (request_irq(SER2_DMA_TX_IRQ_NBR, tr_interrupt, SA_SHIRQ | SA_INTERRUPT, "serial 2 dma tr", NULL))
+	if (request_irq(SER2_DMA_TX_IRQ_NBR, tr_interrupt, IRQF_SHARED | IRQF_DISABLED, "serial 2 dma tr", NULL))
 		panic("irq18");
 #endif
 #ifdef CONFIG_ETRAX_SERIAL_PORT2_DMA3_IN
-	if (request_irq(SER2_DMA_RX_IRQ_NBR, rec_interrupt, SA_SHIRQ | SA_INTERRUPT, "serial 2 dma rec", NULL))
+	if (request_irq(SER2_DMA_RX_IRQ_NBR, rec_interrupt, IRQF_SHARED | IRQF_DISABLED, "serial 2 dma rec", NULL))
 		panic("irq19");
 #endif
 #endif
 #ifdef CONFIG_ETRAX_SERIAL_PORT3
 	/* DMA Shared with par1 (and SCSI1 and Extern DMA 0) */
 #ifdef CONFIG_ETRAX_SERIAL_PORT3_DMA4_OUT
-	if (request_irq(SER3_DMA_TX_IRQ_NBR, tr_interrupt, SA_SHIRQ | SA_INTERRUPT, "serial 3 dma tr", NULL))
+	if (request_irq(SER3_DMA_TX_IRQ_NBR, tr_interrupt, IRQF_SHARED | IRQF_DISABLED, "serial 3 dma tr", NULL))
 		panic("irq20");
 #endif
 #ifdef CONFIG_ETRAX_SERIAL_PORT3_DMA5_IN
-	if (request_irq(SER3_DMA_RX_IRQ_NBR, rec_interrupt, SA_SHIRQ | SA_INTERRUPT, "serial 3 dma rec", NULL))
+	if (request_irq(SER3_DMA_RX_IRQ_NBR, rec_interrupt, IRQF_SHARED | IRQF_DISABLED, "serial 3 dma rec", NULL))
 		panic("irq21");
 #endif
 #endif
 
 #ifdef CONFIG_ETRAX_SERIAL_FLUSH_DMA_FAST
-	if (request_irq(TIMER1_IRQ_NBR, timeout_interrupt, SA_SHIRQ | SA_INTERRUPT,
+	if (request_irq(TIMER1_IRQ_NBR, timeout_interrupt, IRQF_SHARED | IRQF_DISABLED,
 		       "fast serial dma timeout", NULL)) {
 		printk(KERN_CRIT "err: timer1 irq\n");
 	}

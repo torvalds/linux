@@ -387,7 +387,7 @@ static int at91_startup(struct uart_port *port)
 	/*
 	 * Allocate the IRQ
 	 */
-	retval = request_irq(port->irq, at91_interrupt, SA_SHIRQ, "at91_serial", port);
+	retval = request_irq(port->irq, at91_interrupt, IRQF_SHARED, "at91_serial", port);
 	if (retval) {
 		printk("at91_serial: at91_startup - Can't get irq\n");
 		return retval;

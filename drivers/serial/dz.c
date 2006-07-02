@@ -797,7 +797,7 @@ int __init dz_init(void)
 	restore_flags(flags);
 
 	if (request_irq(dz_ports[0].port.irq, dz_interrupt,
-			SA_INTERRUPT, "DZ", &dz_ports[0]))
+			IRQF_DISABLED, "DZ", &dz_ports[0]))
 		panic("Unable to register DZ interrupt");
 
 	ret = uart_register_driver(&dz_reg);

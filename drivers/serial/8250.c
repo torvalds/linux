@@ -48,7 +48,7 @@
 
 /*
  * Configuration:
- *   share_irqs - whether we pass SA_SHIRQ to request_irq().  This option
+ *   share_irqs - whether we pass IRQF_SHARED to request_irq().  This option
  *                is unsafe when used on edge-triggered interrupts.
  */
 static unsigned int share_irqs = SERIAL8250_SHARE_IRQS;
@@ -1400,7 +1400,7 @@ static void serial_do_unlink(struct irq_info *i, struct uart_8250_port *up)
 static int serial_link_irq_chain(struct uart_8250_port *up)
 {
 	struct irq_info *i = irq_lists + up->port.irq;
-	int ret, irq_flags = up->port.flags & UPF_SHARE_IRQ ? SA_SHIRQ : 0;
+	int ret, irq_flags = up->port.flags & UPF_SHARE_IRQ ? IRQF_SHARED : 0;
 
 	spin_lock_irq(&i->lock);
 
