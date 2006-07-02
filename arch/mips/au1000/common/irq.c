@@ -309,7 +309,7 @@ void startup_match20_interrupt(irqreturn_t (*handler)(int, void *, struct pt_reg
 	 * can avoid it.  --cgray
 	*/
 	action.dev_id = handler;
-	action.flags = SA_INTERRUPT;
+	action.flags = IRQF_DISABLED;
 	cpus_clear(action.mask);
 	action.name = "Au1xxx TOY";
 	action.handler = handler;
