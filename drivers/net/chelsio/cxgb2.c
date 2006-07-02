@@ -218,7 +218,7 @@ static int cxgb_up(struct adapter *adapter)
 
 	t1_interrupts_clear(adapter);
 	if ((err = request_irq(adapter->pdev->irq,
-			       t1_select_intr_handler(adapter), SA_SHIRQ,
+			       t1_select_intr_handler(adapter), IRQF_SHARED,
 			       adapter->name, adapter))) {
 		goto out_err;
 	}

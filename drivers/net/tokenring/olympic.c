@@ -445,7 +445,7 @@ static int olympic_open(struct net_device *dev)
 
 	olympic_init(dev);
 
-	if(request_irq(dev->irq, &olympic_interrupt, SA_SHIRQ , "olympic", dev)) {
+	if(request_irq(dev->irq, &olympic_interrupt, IRQF_SHARED , "olympic", dev)) {
 		return -EAGAIN;
 	}
 

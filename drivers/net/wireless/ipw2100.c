@@ -6229,7 +6229,7 @@ static int ipw2100_pci_init_one(struct pci_dev *pci_dev,
 	ipw2100_queues_initialize(priv);
 
 	err = request_irq(pci_dev->irq,
-			  ipw2100_interrupt, SA_SHIRQ, dev->name, priv);
+			  ipw2100_interrupt, IRQF_SHARED, dev->name, priv);
 	if (err) {
 		printk(KERN_WARNING DRV_NAME
 		       "Error calling request_irq: %d.\n", pci_dev->irq);

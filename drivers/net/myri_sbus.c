@@ -1069,7 +1069,7 @@ static int __init myri_ether_init(struct sbus_dev *sdev)
 	/* Register interrupt handler now. */
 	DET(("Requesting MYRIcom IRQ line.\n"));
 	if (request_irq(dev->irq, &myri_interrupt,
-			SA_SHIRQ, "MyriCOM Ethernet", (void *) dev)) {
+			IRQF_SHARED, "MyriCOM Ethernet", (void *) dev)) {
 		printk("MyriCOM: Cannot register interrupt handler.\n");
 		goto err;
 	}

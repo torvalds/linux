@@ -977,7 +977,7 @@ speedo_open(struct net_device *dev)
 	sp->in_interrupt = 0;
 
 	/* .. we can safely take handler calls during init. */
-	retval = request_irq(dev->irq, &speedo_interrupt, SA_SHIRQ, dev->name, dev);
+	retval = request_irq(dev->irq, &speedo_interrupt, IRQF_SHARED, dev->name, dev);
 	if (retval) {
 		return retval;
 	}

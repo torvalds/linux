@@ -550,7 +550,7 @@ static int prism2_plx_probe(struct pci_dev *pdev,
 
 	pci_set_drvdata(pdev, dev);
 
-	if (request_irq(dev->irq, prism2_interrupt, SA_SHIRQ, dev->name,
+	if (request_irq(dev->irq, prism2_interrupt, IRQF_SHARED, dev->name,
 			dev)) {
 		printk(KERN_WARNING "%s: request_irq failed\n", dev->name);
 		goto fail;

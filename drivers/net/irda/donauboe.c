@@ -1372,7 +1372,7 @@ toshoboe_net_open (struct net_device *dev)
     return 0;
 
   if (request_irq (self->io.irq, toshoboe_interrupt,
-                   SA_SHIRQ | SA_INTERRUPT, dev->name, (void *) self))
+                   IRQF_SHARED | IRQF_DISABLED, dev->name, (void *) self))
     {
       return -EAGAIN;
     }
@@ -1573,7 +1573,7 @@ toshoboe_open (struct pci_dev *pci_dev, const struct pci_device_id *pdid)
   self->io.fir_base = self->base;
   self->io.fir_ext = OBOE_IO_EXTENT;
   self->io.irq = pci_dev->irq;
-  self->io.irqflags = SA_SHIRQ | SA_INTERRUPT;
+  self->io.irqflags = IRQF_SHARED | IRQF_DISABLED;
 
   self->speed = self->io.speed = 9600;
   self->async = 0;

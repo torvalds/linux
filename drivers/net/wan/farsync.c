@@ -2519,7 +2519,7 @@ fst_add_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dbg(DBG_PCI, "kernel mem %p, ctlmem %p\n", card->mem, card->ctlmem);
 
 	/* Register the interrupt handler */
-	if (request_irq(pdev->irq, fst_intr, SA_SHIRQ, FST_DEV_NAME, card)) {
+	if (request_irq(pdev->irq, fst_intr, IRQF_SHARED, FST_DEV_NAME, card)) {
 		printk_err("Unable to register interrupt %d\n", card->irq);
 		pci_release_regions(pdev);
 		pci_disable_device(pdev);

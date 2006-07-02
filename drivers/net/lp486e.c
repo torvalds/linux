@@ -851,7 +851,7 @@ static int i596_open(struct net_device *dev)
 {
 	int i;
 
-	i = request_irq(dev->irq, &i596_interrupt, SA_SHIRQ, dev->name, dev);
+	i = request_irq(dev->irq, &i596_interrupt, IRQF_SHARED, dev->name, dev);
 	if (i) {
 		printk(KERN_ERR "%s: IRQ %d not free\n", dev->name, dev->irq);
 		return i;

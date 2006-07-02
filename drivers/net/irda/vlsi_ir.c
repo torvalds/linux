@@ -1517,7 +1517,7 @@ static int vlsi_open(struct net_device *ndev)
 
 	outb(IRINTR_INT_MASK, ndev->base_addr+VLSI_PIO_IRINTR);
 
-	if (request_irq(ndev->irq, vlsi_interrupt, SA_SHIRQ,
+	if (request_irq(ndev->irq, vlsi_interrupt, IRQF_SHARED,
 			drivername, ndev)) {
 		IRDA_WARNING("%s: couldn't get IRQ: %d\n",
 			     __FUNCTION__, ndev->irq);

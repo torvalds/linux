@@ -11545,7 +11545,7 @@ static int ipw_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	ipw_sw_reset(priv, 1);
 
-	err = request_irq(pdev->irq, ipw_isr, SA_SHIRQ, DRV_NAME, priv);
+	err = request_irq(pdev->irq, ipw_isr, IRQF_SHARED, DRV_NAME, priv);
 	if (err) {
 		IPW_ERROR("Error allocating IRQ %d\n", pdev->irq);
 		goto out_destroy_workqueue;

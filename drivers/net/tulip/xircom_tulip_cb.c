@@ -807,7 +807,7 @@ xircom_open(struct net_device *dev)
 {
 	struct xircom_private *tp = netdev_priv(dev);
 
-	if (request_irq(dev->irq, &xircom_interrupt, SA_SHIRQ, dev->name, dev))
+	if (request_irq(dev->irq, &xircom_interrupt, IRQF_SHARED, dev->name, dev))
 		return -EAGAIN;
 
 	xircom_up(dev);

@@ -120,7 +120,7 @@ static int __devinit com20020pci_probe(struct pci_dev *pdev, const struct pci_de
 		goto out_port;
 	}
 
-	if ((err = com20020_found(dev, SA_SHIRQ)) != 0)
+	if ((err = com20020_found(dev, IRQF_SHARED)) != 0)
 	        goto out_port;
 
 	return 0;

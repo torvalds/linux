@@ -602,7 +602,7 @@ static int yellowfin_open(struct net_device *dev)
 	/* Reset the chip. */
 	iowrite32(0x80000000, ioaddr + DMACtrl);
 
-	i = request_irq(dev->irq, &yellowfin_interrupt, SA_SHIRQ, dev->name, dev);
+	i = request_irq(dev->irq, &yellowfin_interrupt, IRQF_SHARED, dev->name, dev);
 	if (i) return i;
 
 	if (yellowfin_debug > 1)

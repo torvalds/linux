@@ -4260,11 +4260,11 @@ bnx2_open(struct net_device *dev)
 		}
 		else {
 			rc = request_irq(bp->pdev->irq, bnx2_interrupt,
-					SA_SHIRQ, dev->name, dev);
+					IRQF_SHARED, dev->name, dev);
 		}
 	}
 	else {
-		rc = request_irq(bp->pdev->irq, bnx2_interrupt, SA_SHIRQ,
+		rc = request_irq(bp->pdev->irq, bnx2_interrupt, IRQF_SHARED,
 				dev->name, dev);
 	}
 	if (rc) {
@@ -4311,7 +4311,7 @@ bnx2_open(struct net_device *dev)
 
 			if (!rc) {
 				rc = request_irq(bp->pdev->irq, bnx2_interrupt,
-					SA_SHIRQ, dev->name, dev);
+					IRQF_SHARED, dev->name, dev);
 			}
 			if (rc) {
 				bnx2_free_skbs(bp);

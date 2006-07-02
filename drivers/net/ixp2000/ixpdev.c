@@ -235,7 +235,7 @@ static int ixpdev_open(struct net_device *dev)
 
 	if (!nds_open++) {
 		err = request_irq(IRQ_IXP2000_THDA0, ixpdev_interrupt,
-					SA_SHIRQ, "ixp2000_eth", nds);
+					IRQF_SHARED, "ixp2000_eth", nds);
 		if (err) {
 			nds_open--;
 			return err;

@@ -671,7 +671,7 @@ static int fs_request_irq(struct net_device *dev, int irq, const char *name,
 	struct fs_enet_private *fep = netdev_priv(dev);
 
 	(*fep->ops->pre_request_irq)(dev, irq);
-	return request_irq(irq, irqf, SA_SHIRQ, name, dev);
+	return request_irq(irq, irqf, IRQF_SHARED, name, dev);
 }
 
 static void fs_free_irq(struct net_device *dev, int irq)

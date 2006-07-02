@@ -63,7 +63,7 @@ static int orinoco_pci_resume(struct pci_dev *pdev)
 	pci_enable_device(pdev);
 	pci_restore_state(pdev);
 
-	err = request_irq(pdev->irq, orinoco_interrupt, SA_SHIRQ,
+	err = request_irq(pdev->irq, orinoco_interrupt, IRQF_SHARED,
 			  dev->name, dev);
 	if (err) {
 		printk(KERN_ERR "%s: cannot re-allocate IRQ on resume\n",

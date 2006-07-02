@@ -1058,7 +1058,7 @@ static int lmc_open (struct net_device *dev) /*fold00*/
     lmc_softreset (sc);
 
     /* Since we have to use PCI bus, this should work on x86,alpha,ppc */
-    if (request_irq (dev->irq, &lmc_interrupt, SA_SHIRQ, dev->name, dev)){
+    if (request_irq (dev->irq, &lmc_interrupt, IRQF_SHARED, dev->name, dev)){
         printk(KERN_WARNING "%s: could not get irq: %d\n", dev->name, dev->irq);
         lmc_trace(dev, "lmc_open irq failed out");
         return -EAGAIN;

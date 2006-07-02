@@ -755,7 +755,7 @@ static int __devinit wanxl_pci_init_one(struct pci_dev *pdev,
 	       pci_name(pdev), plx_phy, ramsize / 1024, mem_phy, pdev->irq);
 
 	/* Allocate IRQ */
-	if (request_irq(pdev->irq, wanxl_intr, SA_SHIRQ, "wanXL", card)) {
+	if (request_irq(pdev->irq, wanxl_intr, IRQF_SHARED, "wanXL", card)) {
 		printk(KERN_WARNING "wanXL %s: could not allocate IRQ%i.\n",
 		       pci_name(pdev), pdev->irq);
 		wanxl_pci_remove_one(pdev);

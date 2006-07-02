@@ -495,7 +495,7 @@ static int lance_open (struct net_device *dev)
 	ll->rdp = LE_C0_STOP;
 
 	/* Install the Interrupt handler */
-	ret = request_irq(IRQ_AMIGA_PORTS, lance_interrupt, SA_SHIRQ,
+	ret = request_irq(IRQ_AMIGA_PORTS, lance_interrupt, IRQF_SHARED,
 			  dev->name, dev);
 	if (ret) return ret;
 

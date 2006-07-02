@@ -292,7 +292,7 @@
       0.41    21-Mar-96   Don't check for get_hw_addr checksum unless DEC card
                           only <niles@axp745gsfc.nasa.gov>
 			  Fix for multiple PCI cards reported by <jos@xos.nl>
-			  Duh, put the SA_SHIRQ flag into request_interrupt().
+			  Duh, put the IRQF_SHARED flag into request_interrupt().
 			  Fix SMC ethernet address in enet_det[].
 			  Print chip name instead of "UNKNOWN" during boot.
       0.42    26-Apr-96   Fix MII write TA bit error.
@@ -353,7 +353,7 @@
 			   infoblocks.
 			  Added DC21142 and DC21143 functions.
 			  Added byte counters from <phil@tazenda.demon.co.uk>
-			  Added SA_INTERRUPT temporary fix from
+			  Added IRQF_DISABLED temporary fix from
 			   <mjacob@feral.com>.
       0.53   12-Nov-97    Fix the *_probe() to include 'eth??' name during
                            module load: bug reported by
@@ -1319,10 +1319,10 @@ de4x5_open(struct net_device *dev)
     lp->state = OPEN;
     de4x5_dbg_open(dev);
 
-    if (request_irq(dev->irq, (void *)de4x5_interrupt, SA_SHIRQ,
+    if (request_irq(dev->irq, (void *)de4x5_interrupt, IRQF_SHARED,
 		                                     lp->adapter_name, dev)) {
 	printk("de4x5_open(): Requested IRQ%d is busy - attemping FAST/SHARE...", dev->irq);
-	if (request_irq(dev->irq, de4x5_interrupt, SA_INTERRUPT | SA_SHIRQ,
+	if (request_irq(dev->irq, de4x5_interrupt, IRQF_DISABLED | IRQF_SHARED,
 			                             lp->adapter_name, dev)) {
 	    printk("\n              Cannot get IRQ- reconfigure your hardware.\n");
 	    disable_ast(dev);

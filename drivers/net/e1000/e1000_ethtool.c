@@ -871,10 +871,10 @@ e1000_intr_test(struct e1000_adapter *adapter, uint64_t *data)
 	*data = 0;
 
 	/* Hook up test interrupt handler just for this test */
-	if (!request_irq(irq, &e1000_test_intr, SA_PROBEIRQ, netdev->name,
-	                 netdev)) {
+	if (!request_irq(irq, &e1000_test_intr, IRQF_PROBE_SHARED,
+			 netdev->name, netdev)) {
  		shared_int = FALSE;
- 	} else if (request_irq(irq, &e1000_test_intr, SA_SHIRQ,
+ 	} else if (request_irq(irq, &e1000_test_intr, IRQF_SHARED,
 			      netdev->name, netdev)){
 		*data = 1;
 		return -1;

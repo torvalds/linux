@@ -760,7 +760,7 @@ static int corkscrew_open(struct net_device *dev)
 				   vp->product_name, dev)) return -EAGAIN;
 		enable_dma(dev->dma);
 		set_dma_mode(dev->dma, DMA_MODE_CASCADE);
-	} else if (request_irq(dev->irq, &corkscrew_interrupt, SA_SHIRQ,
+	} else if (request_irq(dev->irq, &corkscrew_interrupt, IRQF_SHARED,
 			       vp->product_name, dev)) {
 		return -EAGAIN;
 	}

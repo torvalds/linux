@@ -3761,7 +3761,7 @@ static int s2io_open(struct net_device *dev)
 	/* After proper initialization of H/W, register ISR */
 	if (sp->intr_type == MSI) {
 		err = request_irq((int) sp->pdev->irq, s2io_msi_handle, 
-			SA_SHIRQ, sp->name, dev);
+			IRQF_SHARED, sp->name, dev);
 		if (err) {
 			DBG_PRINT(ERR_DBG, "%s: MSI registration \
 failed\n", dev->name);
@@ -3799,7 +3799,7 @@ failed\n", dev->name, i);
 		}
 	}
 	if (sp->intr_type == INTA) {
-		err = request_irq((int) sp->pdev->irq, s2io_isr, SA_SHIRQ,
+		err = request_irq((int) sp->pdev->irq, s2io_isr, IRQF_SHARED,
 				sp->name, dev);
 		if (err) {
 			DBG_PRINT(ERR_DBG, "%s: ISR registration failed\n",

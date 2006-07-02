@@ -998,7 +998,7 @@ static int pcnet_open(struct net_device *dev)
     link->open++;
 
     set_misc_reg(dev);
-    request_irq(dev->irq, ei_irq_wrapper, SA_SHIRQ, dev_info, dev);
+    request_irq(dev->irq, ei_irq_wrapper, IRQF_SHARED, dev_info, dev);
 
     info->phy_id = info->eth_phy;
     info->link_status = 0x00;

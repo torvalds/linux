@@ -1744,7 +1744,7 @@ spider_net_open(struct net_device *netdev)
 
 	result = -EBUSY;
 	if (request_irq(netdev->irq, spider_net_interrupt,
-			     SA_SHIRQ, netdev->name, netdev))
+			     IRQF_SHARED, netdev->name, netdev))
 		goto register_int_failed;
 
 	spider_net_enable_card(card);

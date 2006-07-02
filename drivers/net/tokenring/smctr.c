@@ -531,7 +531,7 @@ static int __init smctr_chk_mca(struct net_device *dev)
 			dev->irq = 15;
                		break;
 	}
-	if (request_irq(dev->irq, smctr_interrupt, SA_SHIRQ, smctr_name, dev)) {
+	if (request_irq(dev->irq, smctr_interrupt, IRQF_SHARED, smctr_name, dev)) {
 		release_region(dev->base_addr, SMCTR_IO_EXTENT);
 		return -ENODEV;
 	}
@@ -1061,7 +1061,7 @@ static int __init smctr_chk_isa(struct net_device *dev)
                         goto out2;
          }
 
-        if (request_irq(dev->irq, smctr_interrupt, SA_SHIRQ, smctr_name, dev))
+        if (request_irq(dev->irq, smctr_interrupt, IRQF_SHARED, smctr_name, dev))
                 goto out2;
 
         /* Get 58x Rom Base */

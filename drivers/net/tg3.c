@@ -6702,12 +6702,12 @@ static int tg3_request_irq(struct tg3 *tp)
 		fn = tg3_msi;
 		if (tp->tg3_flags2 & TG3_FLG2_1SHOT_MSI)
 			fn = tg3_msi_1shot;
-		flags = SA_SAMPLE_RANDOM;
+		flags = IRQF_SAMPLE_RANDOM;
 	} else {
 		fn = tg3_interrupt;
 		if (tp->tg3_flags & TG3_FLAG_TAGGED_STATUS)
 			fn = tg3_interrupt_tagged;
-		flags = SA_SHIRQ | SA_SAMPLE_RANDOM;
+		flags = IRQF_SHARED | IRQF_SAMPLE_RANDOM;
 	}
 	return (request_irq(tp->pdev->irq, fn, flags, dev->name, dev));
 }
@@ -6726,7 +6726,7 @@ static int tg3_test_interrupt(struct tg3 *tp)
 	free_irq(tp->pdev->irq, dev);
 
 	err = request_irq(tp->pdev->irq, tg3_test_isr,
-			  SA_SHIRQ | SA_SAMPLE_RANDOM, dev->name, dev);
+			  IRQF_SHARED | IRQF_SAMPLE_RANDOM, dev->name, dev);
 	if (err)
 		return err;
 

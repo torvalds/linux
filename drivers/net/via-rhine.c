@@ -1210,7 +1210,7 @@ static int rhine_open(struct net_device *dev)
 	void __iomem *ioaddr = rp->base;
 	int rc;
 
-	rc = request_irq(rp->pdev->irq, &rhine_interrupt, SA_SHIRQ, dev->name,
+	rc = request_irq(rp->pdev->irq, &rhine_interrupt, IRQF_SHARED, dev->name,
 			dev);
 	if (rc)
 		return rc;
@@ -1999,7 +1999,7 @@ static int rhine_resume(struct pci_dev *pdev)
 	if (!netif_running(dev))
 		return 0;
 
-        if (request_irq(dev->irq, rhine_interrupt, SA_SHIRQ, dev->name, dev))
+        if (request_irq(dev->irq, rhine_interrupt, IRQF_SHARED, dev->name, dev))
 		printk(KERN_ERR "via-rhine %s: request_irq failed\n", dev->name);
 
 	ret = pci_set_power_state(pdev, PCI_D0);

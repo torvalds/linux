@@ -713,7 +713,7 @@ static int epic_open(struct net_device *dev)
 	/* Soft reset the chip. */
 	outl(0x4001, ioaddr + GENCTL);
 
-	if ((retval = request_irq(dev->irq, &epic_interrupt, SA_SHIRQ, dev->name, dev)))
+	if ((retval = request_irq(dev->irq, &epic_interrupt, IRQF_SHARED, dev->name, dev)))
 		return retval;
 
 	epic_init_ring(dev);

@@ -4349,7 +4349,7 @@ static int cas_open(struct net_device *dev)
 	 * mapping to expose them
 	 */
 	if (request_irq(cp->pdev->irq, cas_interrupt,
-			SA_SHIRQ, dev->name, (void *) dev)) {
+			IRQF_SHARED, dev->name, (void *) dev)) {
 		printk(KERN_ERR "%s: failed to request irq !\n", 
 		       cp->dev->name);
 		err = -EAGAIN;

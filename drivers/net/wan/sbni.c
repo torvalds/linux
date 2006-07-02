@@ -1192,7 +1192,7 @@ sbni_open( struct net_device  *dev )
 			}
 	}
 
-	if( request_irq(dev->irq, sbni_interrupt, SA_SHIRQ, dev->name, dev) ) {
+	if( request_irq(dev->irq, sbni_interrupt, IRQF_SHARED, dev->name, dev) ) {
 		printk( KERN_ERR "%s: unable to get IRQ %d.\n",
 			dev->name, dev->irq );
 		return  -EAGAIN;

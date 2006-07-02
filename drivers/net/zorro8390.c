@@ -201,7 +201,7 @@ static int __devinit zorro8390_init(struct net_device *dev,
     dev->irq = IRQ_AMIGA_PORTS;
 
     /* Install the Interrupt handler */
-    i = request_irq(IRQ_AMIGA_PORTS, ei_interrupt, SA_SHIRQ, DRV_NAME, dev);
+    i = request_irq(IRQ_AMIGA_PORTS, ei_interrupt, IRQF_SHARED, DRV_NAME, dev);
     if (i) return i;
 
     for(i = 0; i < ETHER_ADDR_LEN; i++) {

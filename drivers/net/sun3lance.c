@@ -341,7 +341,7 @@ static int __init lance_probe( struct net_device *dev)
 
 	REGA(CSR0) = CSR0_STOP; 
 
-	request_irq(LANCE_IRQ, lance_interrupt, SA_INTERRUPT, "SUN3 Lance", dev);
+	request_irq(LANCE_IRQ, lance_interrupt, IRQF_DISABLED, "SUN3 Lance", dev);
 	dev->irq = (unsigned short)LANCE_IRQ;
 
 

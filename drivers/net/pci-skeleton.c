@@ -1075,7 +1075,7 @@ static int netdrv_open (struct net_device *dev)
 
 	DPRINTK ("ENTER\n");
 
-	retval = request_irq (dev->irq, netdrv_interrupt, SA_SHIRQ, dev->name, dev);
+	retval = request_irq (dev->irq, netdrv_interrupt, IRQF_SHARED, dev->name, dev);
 	if (retval) {
 		DPRINTK ("EXIT, returning %d\n", retval);
 		return retval;

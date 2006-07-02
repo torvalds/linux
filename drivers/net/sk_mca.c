@@ -824,7 +824,7 @@ static int skmca_open(struct net_device *dev)
 	/* register resources - only necessary for IRQ */
 	result =
 	    request_irq(priv->realirq, irq_handler,
-			SA_SHIRQ | SA_SAMPLE_RANDOM, "sk_mca", dev);
+			IRQF_SHARED | IRQF_SAMPLE_RANDOM, "sk_mca", dev);
 	if (result != 0) {
 		printk("%s: failed to register irq %d\n", dev->name,
 		       dev->irq);

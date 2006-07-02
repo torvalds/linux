@@ -2848,7 +2848,7 @@ static struct net_device *_init_airo_card( unsigned short irq, int port,
 	reset_card (dev, 1);
 	msleep(400);
 
-	rc = request_irq( dev->irq, airo_interrupt, SA_SHIRQ, dev->name, dev );
+	rc = request_irq( dev->irq, airo_interrupt, IRQF_SHARED, dev->name, dev );
 	if (rc) {
 		airo_print_err(dev->name, "register interrupt %d failed, rc %d",
 				irq, rc);
