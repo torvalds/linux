@@ -1662,9 +1662,6 @@ static int finish_port_resume(struct usb_device *udev)
 			"gone after usb resume? status %d\n",
 			status);
 	else if (udev->actconfig) {
-		unsigned	i;
-		int		(*resume)(struct device *);
-
 		le16_to_cpus(&devstatus);
 		if ((devstatus & (1 << USB_DEVICE_REMOTE_WAKEUP))
 				&& udev->parent) {
@@ -1675,24 +1672,9 @@ static int finish_port_resume(struct usb_device *udev)
 					USB_DEVICE_REMOTE_WAKEUP, 0,
 					NULL, 0,
 					USB_CTRL_SET_TIMEOUT);
-			if (status) {
+			if (status)
 				dev_dbg(&udev->dev, "disable remote "
 					"wakeup, status %d\n", status);
-				status = 0;
-			}
-		}
-
-		/* resume interface drivers; if this is a hub, it
-		 * may have a child resume event to deal with soon
-		 */
-		resume = udev->dev.bus->resume;
-		for (i = 0; i < udev->actconfig->desc.bNumInterfaces; i++) {
-			struct device *dev =
-					&udev->actconfig->interface[i]->dev;
-
-			down(&dev->sem);
-			(void) resume(dev);
-			up(&dev->sem);
 		}
 		status = 0;
 
@@ -1802,15 +1784,7 @@ int usb_port_resume(struct usb_device *udev)
 	} else
 		status = finish_port_resume(udev);
 	if (status < 0)
-		dev_dbg(&udev->dev, "can't resume, status %d\n",
-			status);
-
-	/* rebind drivers that had no suspend() */
-	if (status == 0) {
-		usb_unlock_device(udev);
-		bus_rescan_devices(&usb_bus_type);
-		usb_lock_device(udev);
-	}
+		dev_dbg(&udev->dev, "can't resume, status %d\n", status);
 	return status;
 }
 
@@ -1830,6 +1804,9 @@ static int remote_wakeup(struct usb_device *udev)
 		msleep(10);
 		status = finish_port_resume(udev);
 	}
+
+	if (status == 0)
+		usb_resume_both(udev);
 	usb_unlock_device(udev);
 #endif
 	return status;
@@ -1901,51 +1878,8 @@ static int hub_resume(struct usb_interface *intf)
 		}
 	}
 
+	/* tell khubd to look for changes on this hub */
 	hub_activate(hub);
-
-	/* REVISIT:  this recursion probably shouldn't exist.  Remove
-	 * this code sometime, after retesting with different root and
-	 * external hubs.
-	 */
-#ifdef	CONFIG_USB_SUSPEND
-	{
-	unsigned		port1;
-
-	for (port1 = 1; port1 <= hdev->maxchild; port1++) {
-		struct usb_device	*udev;
-		u16			portstat, portchange;
-
-		udev = hdev->children [port1-1];
-		status = hub_port_status(hub, port1, &portstat, &portchange);
-		if (status == 0) {
-			if (portchange & USB_PORT_STAT_C_SUSPEND) {
-				clear_port_feature(hdev, port1,
-					USB_PORT_FEAT_C_SUSPEND);
-				portchange &= ~USB_PORT_STAT_C_SUSPEND;
-			}
-
-			/* let khubd handle disconnects etc */
-			if (portchange)
-				continue;
-		}
-
-		if (!udev || status < 0)
-			continue;
-		usb_lock_device(udev);
-		if (portstat & USB_PORT_STAT_SUSPEND)
-			status = hub_port_resume(hub, port1, udev);
-		else {
-			status = finish_port_resume(udev);
-			if (status < 0) {
-				dev_dbg(&intf->dev, "resume port %d --> %d\n",
-					port1, status);
-				hub_port_logical_disconnect(hub, port1);
-			}
-		}
-		usb_unlock_device(udev);
-	}
-	}
-#endif
 	return 0;
 }
 
@@ -2602,17 +2536,6 @@ static void hub_events(void)
 		usb_get_intf(intf);
 		spin_unlock_irq(&hub_event_lock);
 
-		/* Is this is a root hub wanting to reactivate the downstream
-		 * ports?  If so, be sure the interface resumes even if its
-		 * stub "device" node was never suspended.
-		 */
-		if (i) {
-			dpm_runtime_resume(&hdev->dev);
-			dpm_runtime_resume(&intf->dev);
-			usb_put_intf(intf);
-			continue;
-		}
-
 		/* Lock the device, then check to see if we were
 		 * disconnected while waiting for the lock to succeed. */
 		if (locktree(hdev) < 0) {
@@ -2628,6 +2551,13 @@ static void hub_events(void)
 			hub_pre_reset(intf);
 			goto loop;
 		}
+
+		/* Is this is a root hub wanting to reactivate the downstream
+		 * ports?  If so, be sure the interface resumes even if its
+		 * stub "device" node was never suspended.
+		 */
+		if (i)
+			usb_resume_both(hdev);
 
 		/* If this is an inactive or suspended hub, do nothing */
 		if (hub->quiescing)

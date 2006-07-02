@@ -30,6 +30,8 @@ extern void usb_major_cleanup(void);
 extern int usb_host_init(void);
 extern void usb_host_cleanup(void);
 
+extern int usb_suspend_both(struct usb_device *udev, pm_message_t msg);
+extern int usb_resume_both(struct usb_device *udev);
 extern int usb_port_suspend(struct usb_device *dev);
 extern int usb_port_resume(struct usb_device *dev);
 

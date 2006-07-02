@@ -783,7 +783,7 @@ static int resume_device(struct usb_device *udev)
 	return udriver->resume(udev);
 }
 
-/* Caller has locked intf */
+/* Caller has locked intf's usb_device */
 static int suspend_interface(struct usb_interface *intf, pm_message_t msg)
 {
 	struct usb_driver	*driver;
@@ -815,7 +815,7 @@ static int suspend_interface(struct usb_interface *intf, pm_message_t msg)
 	return status;
 }
 
-/* Caller has locked intf */
+/* Caller has locked intf's usb_device */
 static int resume_interface(struct usb_interface *intf)
 {
 	struct usb_driver	*driver;
@@ -856,14 +856,59 @@ static int resume_interface(struct usb_interface *intf)
 	return 0;
 }
 
+/* Caller has locked udev */
+int usb_suspend_both(struct usb_device *udev, pm_message_t msg)
+{
+	int			status = 0;
+	int			i = 0;
+	struct usb_interface	*intf;
+
+	if (udev->actconfig) {
+		for (; i < udev->actconfig->desc.bNumInterfaces; i++) {
+			intf = udev->actconfig->interface[i];
+			status = suspend_interface(intf, msg);
+			if (status != 0)
+				break;
+		}
+	}
+	if (status == 0)
+		status = suspend_device(udev, msg);
+
+	/* If the suspend failed, resume interfaces that did get suspended */
+	if (status != 0) {
+		while (--i >= 0) {
+			intf = udev->actconfig->interface[i];
+			resume_interface(intf);
+		}
+	}
+	return status;
+}
+
+/* Caller has locked udev */
+int usb_resume_both(struct usb_device *udev)
+{
+	int			status;
+	int			i;
+	struct usb_interface	*intf;
+
+	status = resume_device(udev);
+	if (status == 0 && udev->actconfig) {
+		for (i = 0; i < udev->actconfig->desc.bNumInterfaces; i++) {
+			intf = udev->actconfig->interface[i];
+			resume_interface(intf);
+		}
+	}
+	return status;
+}
+
 static int usb_suspend(struct device *dev, pm_message_t message)
 {
 	int	status;
 
 	if (is_usb_device(dev))
-		status = suspend_device(to_usb_device(dev), message);
+		status = usb_suspend_both(to_usb_device(dev), message);
 	else
-		status = suspend_interface(to_usb_interface(dev), message);
+		status = 0;
 	return status;
 }
 
@@ -871,10 +916,12 @@ static int usb_resume(struct device *dev)
 {
 	int	status;
 
-	if (is_usb_device(dev))
-		status = resume_device(to_usb_device(dev));
-	else
-		status = resume_interface(to_usb_interface(dev));
+	if (is_usb_device(dev)) {
+		status = usb_resume_both(to_usb_device(dev));
+
+		/* Rebind drivers that had no suspend method? */
+	} else
+		status = 0;
 	return status;
 }
 

@@ -184,22 +184,8 @@ static void generic_disconnect(struct usb_device *udev)
 
 #ifdef	CONFIG_PM
 
-static int verify_suspended(struct device *dev, void *unused)
-{
-	if (dev->driver == NULL)
-		return 0;
-	return (dev->power.power_state.event == PM_EVENT_ON) ? -EBUSY : 0;
-}
-
 static int generic_suspend(struct usb_device *udev, pm_message_t msg)
 {
-	int	status;
-
-	/* rule out bogus requests through sysfs */
-	status = device_for_each_child(&udev->dev, NULL, verify_suspended);
-	if (status)
-		return status;
-
 	/* USB devices enter SUSPEND state through their hubs, but can be
 	 * marked for FREEZE as soon as their children are already idled.
 	 * But those semantics are useless, so we equate the two (sigh).
