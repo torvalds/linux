@@ -1582,9 +1582,10 @@ static int __usb_port_suspend (struct usb_device *udev, int port1)
 	if (udev->parent)
 		status = hub_port_suspend(hdev_to_hub(udev->parent), port1,
 				udev);
-
-	if (status == 0)
-		udev->dev.power.power_state = PMSG_SUSPEND;
+	else {
+		dev_dbg(&udev->dev, "usb suspend\n");
+		usb_set_device_state(udev, USB_STATE_SUSPENDED);
+	}
 	return status;
 }
 
@@ -1617,8 +1618,6 @@ int usb_port_suspend(struct usb_device *udev)
 		return -ENODEV;
 	return __usb_port_suspend(udev, udev->portnum);
 #else
-	/* NOTE:  udev->state unchanged, it's not lying ... */
-	udev->dev.power.power_state = PMSG_SUSPEND;
 	return 0;
 #endif
 }
@@ -1647,7 +1646,6 @@ static int finish_port_resume(struct usb_device *udev)
 	usb_set_device_state(udev, udev->actconfig
 			? USB_STATE_CONFIGURED
 			: USB_STATE_ADDRESS);
-	udev->dev.power.power_state = PMSG_ON;
 
  	/* 10.5.4.5 says be sure devices in the tree are still there.
  	 * For now let's assume the device didn't go crazy on resume,
