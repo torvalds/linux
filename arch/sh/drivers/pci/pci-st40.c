@@ -447,7 +447,7 @@ static int __init pcibios_init(void)
 		     PHYSADDR(memory_end) - PHYSADDR(memory_start));
 
 	if (request_irq(ST40PCI_ERR_IRQ, st40_pci_irq, 
-                        SA_INTERRUPT, "st40pci", NULL)) {
+                        IRQF_DISABLED, "st40pci", NULL)) {
 		printk(KERN_ERR "st40pci: Cannot hook interrupt\n");
 		return -EIO;
 	}

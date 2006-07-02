@@ -56,7 +56,7 @@ static irqreturn_t g2_dma_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 static struct irqaction g2_dma_irq = {
 	.name		= "g2 DMA handler",
 	.handler	= g2_dma_interrupt,
-	.flags		= SA_INTERRUPT,
+	.flags		= IRQF_DISABLED,
 };
 
 static int g2_enable_dma(struct dma_channel *chan)
