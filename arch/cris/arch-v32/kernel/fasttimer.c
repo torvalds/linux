@@ -981,7 +981,7 @@ void fast_timer_init(void)
     proc_register_dynamic(&proc_root, &fasttimer_proc_entry);
 #endif
 #endif /* PROC_FS */
-    if(request_irq(TIMER_INTR_VECT, timer_trig_interrupt, SA_INTERRUPT,
+    if(request_irq(TIMER_INTR_VECT, timer_trig_interrupt, IRQF_DISABLED,
                    "fast timer int", NULL))
     {
       printk("err: timer1 irq\n");
