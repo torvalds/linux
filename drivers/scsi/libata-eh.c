@@ -1346,7 +1346,7 @@ static void ata_eh_autopsy(struct ata_port *ap)
 
 	/* record autopsy result */
 	ehc->i.dev = failed_dev;
-	ehc->i.action = action;
+	ehc->i.action |= action;
 
 	DPRINTK("EXIT\n");
 }
