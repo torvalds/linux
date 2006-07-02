@@ -1014,7 +1014,7 @@ static int usb_generic_suspend(struct device *dev, pm_message_t message)
 		status = device_for_each_child(dev, NULL, verify_suspended);
 		if (status)
 			return status;
- 		return usb_suspend_device (to_usb_device(dev));
+ 		return usb_port_suspend(to_usb_device(dev));
 	}
 
 	if ((dev->driver == NULL) ||
@@ -1061,7 +1061,7 @@ static int usb_generic_resume(struct device *dev)
 		udev = to_usb_device(dev);
 		if (udev->state == USB_STATE_NOTATTACHED)
 			return 0;
-		return usb_resume_device (to_usb_device(dev));
+		return usb_port_resume(udev);
 	}
 
 	if ((dev->driver == NULL) ||
@@ -1208,9 +1208,6 @@ EXPORT_SYMBOL(usb_driver_release_interface);
 EXPORT_SYMBOL(usb_find_interface);
 EXPORT_SYMBOL(usb_ifnum_to_if);
 EXPORT_SYMBOL(usb_altnum_to_altsetting);
-
-EXPORT_SYMBOL(usb_reset_device);
-EXPORT_SYMBOL(usb_reset_composite_device);
 
 EXPORT_SYMBOL(__usb_get_extra_descriptor);
 
