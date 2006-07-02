@@ -6439,7 +6439,7 @@ pfm_flush_pmds(struct task_struct *task, pfm_context_t *ctx)
 
 static struct irqaction perfmon_irqaction = {
 	.handler = pfm_interrupt_handler,
-	.flags   = SA_INTERRUPT,
+	.flags   = IRQF_DISABLED,
 	.name    = "perfmon"
 };
 

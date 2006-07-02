@@ -46,7 +46,7 @@
 
 #define NR_PORTS	1	/* only one port for now */
 
-#define IRQ_T(info) ((info->flags & ASYNC_SHARE_IRQ) ? SA_SHIRQ : SA_INTERRUPT)
+#define IRQ_T(info) ((info->flags & ASYNC_SHARE_IRQ) ? IRQF_SHARED : IRQF_DISABLED)
 
 #define SSC_GETCHAR	21
 
