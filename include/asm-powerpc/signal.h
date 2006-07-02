@@ -63,7 +63,6 @@ typedef struct {
  * SA_FLAGS values:
  *
  * SA_ONSTACK is not currently supported, but will allow sigaltstack(2).
- * SA_INTERRUPT is a no-op, but left due to historical reasons. Use the
  * SA_RESTART flag to get restarting signals (which were the default long ago)
  * SA_NOCLDSTOP flag to turn off SIGCHLD when children stop.
  * SA_RESETHAND clears the handler when the signal is delivered.
@@ -83,7 +82,6 @@ typedef struct {
 
 #define SA_NOMASK	SA_NODEFER
 #define SA_ONESHOT	SA_RESETHAND
-#define SA_INTERRUPT	0x20000000u /* dummy -- ignored */
 
 #define SA_RESTORER	0x04000000U
 
