@@ -326,6 +326,9 @@ static void sdhci_prepare_data(struct sdhci_host *host, struct mmc_data *data)
 	DBG("tsac %d ms nsac %d clk\n",
 		data->timeout_ns / 1000000, data->timeout_clks);
 
+	/* Sanity checks */
+	BUG_ON(data->blksz * data->blocks > 524288);
+
 	/* timeout in us */
 	target_timeout = data->timeout_ns / 1000 +
 		data->timeout_clks / host->clock;
@@ -375,7 +378,9 @@ static void sdhci_prepare_data(struct sdhci_host *host, struct mmc_data *data)
 		host->remain = host->cur_sg->length;
 	}
 
-	writew(data->blksz, host->ioaddr + SDHCI_BLOCK_SIZE);
+	/* We do not handle DMA boundaries, so set it to max (512 KiB) */
+	writew(SDHCI_MAKE_BLKSZ(7, data->blksz),
+		host->ioaddr + SDHCI_BLOCK_SIZE);
 	writew(data->blocks, host->ioaddr + SDHCI_BLOCK_COUNT);
 }
 
@@ -1188,10 +1193,10 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 	mmc->max_phys_segs = 16;
 
 	/*
-	 * Maximum number of sectors in one transfer. Limited by sector
-	 * count register.
+	 * Maximum number of sectors in one transfer. Limited by DMA boundary
+	 * size (512KiB), which means (512 KiB/512=) 1024 entries.
 	 */
-	mmc->max_sectors = 0x3FFF;
+	mmc->max_sectors = 1024;
 
 	/*
 	 * Maximum segment size. Could be one segment with the maximum number
