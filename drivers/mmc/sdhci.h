@@ -131,6 +131,8 @@
 #define  SDHCI_TIMEOUT_CLK_UNIT	0x00000080
 #define  SDHCI_CLOCK_BASE_MASK	0x00003F00
 #define  SDHCI_CLOCK_BASE_SHIFT	8
+#define  SDHCI_MAX_BLOCK_MASK	0x00030000
+#define  SDHCI_MAX_BLOCK_SHIFT  16
 #define  SDHCI_CAN_DO_DMA	0x00400000
 #define  SDHCI_CAN_VDD_330	0x01000000
 #define  SDHCI_CAN_VDD_300	0x02000000
@@ -161,6 +163,7 @@ struct sdhci_host {
 
 	unsigned int		max_clk;	/* Max possible freq (MHz) */
 	unsigned int		timeout_clk;	/* Timeout freq (KHz) */
+	unsigned int		max_block;	/* Max block size (bytes) */
 
 	unsigned int		clock;		/* Current clock (MHz) */
 	unsigned short		power;		/* Current voltage */

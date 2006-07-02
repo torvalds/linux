@@ -328,6 +328,8 @@ static void sdhci_prepare_data(struct sdhci_host *host, struct mmc_data *data)
 
 	/* Sanity checks */
 	BUG_ON(data->blksz * data->blocks > 524288);
+	BUG_ON(data->blksz > host->max_block);
+	BUG_ON(data->blocks > 65535);
 
 	/* timeout in us */
 	target_timeout = data->timeout_ns / 1000 +
@@ -1157,6 +1159,15 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 	}
 	if (caps & SDHCI_TIMEOUT_CLK_UNIT)
 		host->timeout_clk *= 1000;
+
+	host->max_block = (caps & SDHCI_MAX_BLOCK_MASK) >> SDHCI_MAX_BLOCK_SHIFT;
+	if (host->max_block >= 3) {
+		printk(KERN_ERR "%s: Invalid maximum block size.\n",
+			host->slot_descr);
+		ret = -ENODEV;
+		goto unmap;
+	}
+	host->max_block = 512 << host->max_block;
 
 	/*
 	 * Set host parameters.
