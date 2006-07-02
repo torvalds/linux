@@ -920,22 +920,20 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 	 * Next deal with any sectors which we were able to correctly
 	 * handle.
 	 */
-	if (good_bytes > 0) {
-		SCSI_LOG_HLCOMPLETE(1, printk("%ld sectors total, "
-					      "%d bytes done.\n",
-					      req->nr_sectors, good_bytes));
-		SCSI_LOG_HLCOMPLETE(1, printk("use_sg is %d\n", cmd->use_sg));
+	SCSI_LOG_HLCOMPLETE(1, printk("%ld sectors total, "
+				      "%d bytes done.\n",
+				      req->nr_sectors, good_bytes));
+	SCSI_LOG_HLCOMPLETE(1, printk("use_sg is %d\n", cmd->use_sg));
 
-		if (clear_errors)
-			req->errors = 0;
+	if (clear_errors)
+		req->errors = 0;
 
-		/* A number of bytes were successfully read.  If there
-		 * is leftovers and there is some kind of error
-		 * (result != 0), retry the rest.
-		 */
-		if (scsi_end_request(cmd, 1, good_bytes, !!result) == NULL)
-			return;
-	}
+	/* A number of bytes were successfully read.  If there
+	 * are leftovers and there is some kind of error
+	 * (result != 0), retry the rest.
+	 */
+	if (scsi_end_request(cmd, 1, good_bytes, result == 0) == NULL)
+		return;
 
 	/* good_bytes = 0, or (inclusive) there were leftovers and
 	 * result = 0, so scsi_end_request couldn't retry.
