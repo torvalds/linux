@@ -109,7 +109,7 @@ than the 33.33 MHz being in the PCI spec.
 
 If you want to share the IRQ with another device and the driver refuses to
 do so, you might succeed with changing the DC390_IRQ type in tmscsim.c to 
-SA_SHIRQ | SA_INTERRUPT.
+IRQF_SHARED | IRQF_DISABLED.
 
 
 3.Features
