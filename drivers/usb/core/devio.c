@@ -90,9 +90,10 @@ MODULE_PARM_DESC (usbfs_snoop, "true to log all usbfs traffic");
 
 #define	MAX_USBFS_BUFFER_SIZE	16384
 
-static inline int connected (struct usb_device *dev)
+static inline int connected (struct dev_state *ps)
 {
-	return dev->state != USB_STATE_NOTATTACHED;
+	return (!list_empty(&ps->list) &&
+			ps->dev->state != USB_STATE_NOTATTACHED);
 }
 
 static loff_t usbdev_lseek(struct file *file, loff_t offset, int orig)
@@ -130,7 +131,7 @@ static ssize_t usbdev_read(struct file *file, char __user *buf, size_t nbytes, l
 
 	pos = *ppos;
 	usb_lock_device(dev);
-	if (!connected(dev)) {
+	if (!connected(ps)) {
 		ret = -ENODEV;
 		goto err;
 	} else if (pos < 0) {
@@ -1326,7 +1327,7 @@ static int proc_ioctl(struct dev_state *ps, struct usbdevfs_ioctl *ctl)
 		}
 	}
 
-	if (!connected(ps->dev)) {
+	if (!connected(ps)) {
 		kfree(buf);
 		return -ENODEV;
 	}
@@ -1425,7 +1426,7 @@ static int usbdev_ioctl(struct inode *inode, struct file *file, unsigned int cmd
 	if (!(file->f_mode & FMODE_WRITE))
 		return -EPERM;
 	usb_lock_device(dev);
-	if (!connected(dev)) {
+	if (!connected(ps)) {
 		usb_unlock_device(dev);
 		return -ENODEV;
 	}
@@ -1566,7 +1567,7 @@ static unsigned int usbdev_poll(struct file *file, struct poll_table_struct *wai
 	poll_wait(file, &ps->wait, wait);
 	if (file->f_mode & FMODE_WRITE && !list_empty(&ps->async_completed))
 		mask |= POLLOUT | POLLWRNORM;
-	if (!connected(ps->dev))
+	if (!connected(ps))
 		mask |= POLLERR | POLLHUP;
 	return mask;
 }
