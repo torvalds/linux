@@ -8,12 +8,6 @@
  * published by the Free Software Foundation.
  */
 
- /*
-  * Note that PIO transfer is rather crappy atm. The buffer full/empty
-  * interrupts aren't reliable so we currently transfer the entire buffer
-  * directly. Patches to solve the problem are welcome.
-  */
-
 #include <linux/delay.h>
 #include <linux/highmem.h>
 #include <linux/pci.h>
@@ -128,7 +122,7 @@ static void sdhci_init(struct sdhci_host *host)
 		SDHCI_INT_DATA_CRC | SDHCI_INT_DATA_TIMEOUT | SDHCI_INT_INDEX |
 		SDHCI_INT_END_BIT | SDHCI_INT_CRC | SDHCI_INT_TIMEOUT |
 		SDHCI_INT_CARD_REMOVE | SDHCI_INT_CARD_INSERT |
-		SDHCI_INT_BUF_EMPTY | SDHCI_INT_BUF_FULL |
+		SDHCI_INT_DATA_AVAIL | SDHCI_INT_SPACE_AVAIL |
 		SDHCI_INT_DMA_END | SDHCI_INT_DATA_END | SDHCI_INT_RESPONSE;
 
 	writel(intmask, host->ioaddr + SDHCI_INT_ENABLE);
@@ -189,79 +183,46 @@ static inline int sdhci_next_sg(struct sdhci_host* host)
 	return host->num_sg;
 }
 
-static void sdhci_transfer_pio(struct sdhci_host *host)
+static void sdhci_read_block_pio(struct sdhci_host *host)
 {
+	int blksize, chunk_remain;
+	u32 data;
 	char *buffer;
-	u32 mask;
-	int bytes, size;
-	unsigned long max_jiffies;
+	int size;
 
-	BUG_ON(!host->data);
+	DBG("PIO reading\n");
 
-	if (host->num_sg == 0)
-		return;
-
-	bytes = 0;
-	if (host->data->flags & MMC_DATA_READ)
-		mask = SDHCI_DATA_AVAILABLE;
-	else
-		mask = SDHCI_SPACE_AVAILABLE;
+	blksize = host->data->blksz;
+	chunk_remain = 0;
+	data = 0;
 
 	buffer = sdhci_kmap_sg(host) + host->offset;
 
-	/* Transfer shouldn't take more than 5 s */
-	max_jiffies = jiffies + HZ * 5;
-
-	while (host->size > 0) {
-		if (time_after(jiffies, max_jiffies)) {
-			printk(KERN_ERR "%s: PIO transfer stalled. "
-				"Please report this to "
-				BUGMAIL ".\n", mmc_hostname(host->mmc));
-			sdhci_dumpregs(host);
-
-			sdhci_kunmap_sg(host);
-
-			host->data->error = MMC_ERR_FAILED;
-			sdhci_finish_data(host);
-			return;
+	while (blksize) {
+		if (chunk_remain == 0) {
+			data = readl(host->ioaddr + SDHCI_BUFFER);
+			chunk_remain = min(blksize, 4);
 		}
-
-		if (!(readl(host->ioaddr + SDHCI_PRESENT_STATE) & mask))
-			continue;
 
 		size = min(host->size, host->remain);
+		size = min(size, chunk_remain);
 
-		if (size >= 4) {
-			if (host->data->flags & MMC_DATA_READ)
-				*(u32*)buffer = readl(host->ioaddr + SDHCI_BUFFER);
-			else
-				writel(*(u32*)buffer, host->ioaddr + SDHCI_BUFFER);
-			size = 4;
-		} else if (size >= 2) {
-			if (host->data->flags & MMC_DATA_READ)
-				*(u16*)buffer = readw(host->ioaddr + SDHCI_BUFFER);
-			else
-				writew(*(u16*)buffer, host->ioaddr + SDHCI_BUFFER);
-			size = 2;
-		} else {
-			if (host->data->flags & MMC_DATA_READ)
-				*(u8*)buffer = readb(host->ioaddr + SDHCI_BUFFER);
-			else
-				writeb(*(u8*)buffer, host->ioaddr + SDHCI_BUFFER);
-			size = 1;
-		}
-
-		buffer += size;
+		chunk_remain -= size;
+		blksize -= size;
 		host->offset += size;
 		host->remain -= size;
-
-		bytes += size;
 		host->size -= size;
+		while (size) {
+			*buffer = data & 0xFF;
+			buffer++;
+			data >>= 8;
+			size--;
+		}
 
 		if (host->remain == 0) {
 			sdhci_kunmap_sg(host);
 			if (sdhci_next_sg(host) == 0) {
-				DBG("PIO transfer: %d bytes\n", bytes);
+				BUG_ON(blksize != 0);
 				return;
 			}
 			buffer = sdhci_kmap_sg(host);
@@ -269,8 +230,85 @@ static void sdhci_transfer_pio(struct sdhci_host *host)
 	}
 
 	sdhci_kunmap_sg(host);
+}
 
-	DBG("PIO transfer: %d bytes\n", bytes);
+static void sdhci_write_block_pio(struct sdhci_host *host)
+{
+	int blksize, chunk_remain;
+	u32 data;
+	char *buffer;
+	int bytes, size;
+
+	DBG("PIO writing\n");
+
+	blksize = host->data->blksz;
+	chunk_remain = 4;
+	data = 0;
+
+	bytes = 0;
+	buffer = sdhci_kmap_sg(host) + host->offset;
+
+	while (blksize) {
+		size = min(host->size, host->remain);
+		size = min(size, chunk_remain);
+
+		chunk_remain -= size;
+		blksize -= size;
+		host->offset += size;
+		host->remain -= size;
+		host->size -= size;
+		while (size) {
+			data >>= 8;
+			data |= (u32)*buffer << 24;
+			buffer++;
+			size--;
+		}
+
+		if (chunk_remain == 0) {
+			writel(data, host->ioaddr + SDHCI_BUFFER);
+			chunk_remain = min(blksize, 4);
+		}
+
+		if (host->remain == 0) {
+			sdhci_kunmap_sg(host);
+			if (sdhci_next_sg(host) == 0) {
+				BUG_ON(blksize != 0);
+				return;
+			}
+			buffer = sdhci_kmap_sg(host);
+		}
+	}
+
+	sdhci_kunmap_sg(host);
+}
+
+static void sdhci_transfer_pio(struct sdhci_host *host)
+{
+	u32 mask;
+
+	BUG_ON(!host->data);
+
+	if (host->size == 0)
+		return;
+
+	if (host->data->flags & MMC_DATA_READ)
+		mask = SDHCI_DATA_AVAILABLE;
+	else
+		mask = SDHCI_SPACE_AVAILABLE;
+
+	while (readl(host->ioaddr + SDHCI_PRESENT_STATE) & mask) {
+		if (host->data->flags & MMC_DATA_READ)
+			sdhci_read_block_pio(host);
+		else
+			sdhci_write_block_pio(host);
+
+		if (host->size == 0)
+			break;
+
+		BUG_ON(host->num_sg == 0);
+	}
+
+	DBG("PIO transfer complete.\n");
 }
 
 static void sdhci_prepare_data(struct sdhci_host *host, struct mmc_data *data)
@@ -863,7 +901,7 @@ static void sdhci_data_irq(struct sdhci_host *host, u32 intmask)
 	if (host->data->error != MMC_ERR_NONE)
 		sdhci_finish_data(host);
 	else {
-		if (intmask & (SDHCI_INT_BUF_FULL | SDHCI_INT_BUF_EMPTY))
+		if (intmask & (SDHCI_INT_DATA_AVAIL | SDHCI_INT_SPACE_AVAIL))
 			sdhci_transfer_pio(host);
 
 		if (intmask & SDHCI_INT_DATA_END)
