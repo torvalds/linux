@@ -887,6 +887,13 @@ static struct pcmcia_device_id hostap_cs_ids[] = {
 	PCMCIA_DEVICE_PROD_ID123(
 		"U.S. Robotics", "IEEE 802.11b PC-CARD", "Version 01.02",
 		0xc7b8df9d, 0x1700d087, 0x4b74baa0),
+	PCMCIA_DEVICE_PROD_ID123(
+		"Allied Telesyn", "AT-WCL452 Wireless PCMCIA Radio",
+		"Ver. 1.00",
+		0x5cd01705, 0x4271660f, 0x9d08ee12),
+	PCMCIA_DEVICE_PROD_ID123(
+		"corega", "WL PCCL-11", "ISL37300P",
+		0xa21501a, 0x59868926, 0xc9049a39),
 	PCMCIA_DEVICE_NULL
 };
 MODULE_DEVICE_TABLE(pcmcia, hostap_cs_ids);
