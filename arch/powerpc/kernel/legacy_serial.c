@@ -126,6 +126,8 @@ static int __init add_legacy_soc_port(struct device_node *np,
 		return -1;
 
 	addr = of_translate_address(soc_dev, addrp);
+	if (addr == OF_BAD_ADDR)
+		return -1;
 
 	/* Add port, irq will be dealt with later. We passed a translated
 	 * IO port value. It will be fixed up later along with the irq
@@ -140,6 +142,8 @@ static int __init add_legacy_isa_port(struct device_node *np,
 	char *typep;
 	int index = -1;
 	phys_addr_t taddr;
+
+	DBG(" -> add_legacy_isa_port(%s)\n", np->full_name);
 
 	/* Get the ISA port number */
 	reg = (u32 *)get_property(np, "reg", NULL);
@@ -161,9 +165,12 @@ static int __init add_legacy_isa_port(struct device_node *np,
 
 	/* Translate ISA address */
 	taddr = of_translate_address(np, reg);
+	if (taddr == OF_BAD_ADDR)
+		return -1;
 
 	/* Add port, irq will be dealt with later */
-	return add_legacy_port(np, index, UPIO_PORT, reg[1], taddr, NO_IRQ, UPF_BOOT_AUTOCONF);
+	return add_legacy_port(np, index, UPIO_PORT, reg[1], taddr,
+			       NO_IRQ, UPF_BOOT_AUTOCONF);
 
 }
 
@@ -175,6 +182,8 @@ static int __init add_legacy_pci_port(struct device_node *np,
 	u32 *addrp;
 	unsigned int flags;
 	int iotype, index = -1, lindex = 0;
+
+	DBG(" -> add_legacy_pci_port(%s)\n", np->full_name);
 
 	/* We only support ports that have a clock frequency properly
 	 * encoded in the device-tree (that is have an fcode). Anything
@@ -194,6 +203,8 @@ static int __init add_legacy_pci_port(struct device_node *np,
 	/* We only support BAR 0 for now */
 	iotype = (flags & IORESOURCE_MEM) ? UPIO_MEM : UPIO_PORT;
 	addr = of_translate_address(pci_dev, addrp);
+	if (addr == OF_BAD_ADDR)
+		return -1;
 
 	/* Set the IO base to the same as the translated address for MMIO,
 	 * or to the domain local IO base for PIO (it will be fixed up later)
