@@ -5447,6 +5447,7 @@ int ata_device_add(const struct ata_probe_ent *ent)
 		}
 
 		if (ap->ops->error_handler) {
+			struct ata_eh_info *ehi = &ap->eh_info;
 			unsigned long flags;
 
 			ata_port_probe(ap);
@@ -5454,8 +5455,9 @@ int ata_device_add(const struct ata_probe_ent *ent)
 			/* kick EH for boot probing */
 			spin_lock_irqsave(ap->lock, flags);
 
-			ap->eh_info.probe_mask = (1 << ATA_MAX_DEVICES) - 1;
-			ap->eh_info.action |= ATA_EH_SOFTRESET;
+			ehi->probe_mask = (1 << ATA_MAX_DEVICES) - 1;
+			ehi->action |= ATA_EH_SOFTRESET;
+			ehi->flags |= ATA_EHI_NO_AUTOPSY | ATA_EHI_QUIET;
 
 			ap->pflags |= ATA_PFLAG_LOADING;
 			ata_port_schedule_eh(ap);

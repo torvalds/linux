@@ -322,14 +322,13 @@ void ata_scsi_error(struct Scsi_Host *host)
 	/* clean up */
 	spin_lock_irqsave(ap->lock, flags);
 
-	if (ap->pflags & ATA_PFLAG_LOADING) {
+	if (ap->pflags & ATA_PFLAG_LOADING)
 		ap->pflags &= ~ATA_PFLAG_LOADING;
-	} else {
-		if (ap->pflags & ATA_PFLAG_SCSI_HOTPLUG)
-			queue_work(ata_aux_wq, &ap->hotplug_task);
-		if (ap->pflags & ATA_PFLAG_RECOVERED)
-			ata_port_printk(ap, KERN_INFO, "EH complete\n");
-	}
+	else if (ap->pflags & ATA_PFLAG_SCSI_HOTPLUG)
+		queue_work(ata_aux_wq, &ap->hotplug_task);
+
+	if (ap->pflags & ATA_PFLAG_RECOVERED)
+		ata_port_printk(ap, KERN_INFO, "EH complete\n");
 
 	ap->pflags &= ~(ATA_PFLAG_SCSI_HOTPLUG | ATA_PFLAG_RECOVERED);
 
@@ -759,8 +758,12 @@ static void ata_eh_about_to_do(struct ata_port *ap, struct ata_device *dev,
 	unsigned long flags;
 
 	spin_lock_irqsave(ap->lock, flags);
+
 	ata_eh_clear_action(dev, &ap->eh_info, action);
-	ap->pflags |= ATA_PFLAG_RECOVERED;
+
+	if (!(ap->eh_context.i.flags & ATA_EHI_QUIET))
+		ap->pflags |= ATA_PFLAG_RECOVERED;
+
 	spin_unlock_irqrestore(ap->lock, flags);
 }
 
@@ -1274,6 +1277,9 @@ static void ata_eh_autopsy(struct ata_port *ap)
 
 	DPRINTK("ENTER\n");
 
+	if (ehc->i.flags & ATA_EHI_NO_AUTOPSY)
+		return;
+
 	/* obtain and analyze SError */
 	rc = sata_scr_read(ap, SCR_ERROR, &serror);
 	if (rc == 0) {
@@ -1464,7 +1470,7 @@ static int ata_eh_reset(struct ata_port *ap, int classify,
 	struct ata_eh_context *ehc = &ap->eh_context;
 	unsigned int *classes = ehc->classes;
 	int tries = ATA_EH_RESET_TRIES;
-	int verbose = !(ap->pflags & ATA_PFLAG_LOADING);
+	int verbose = !(ehc->i.flags & ATA_EHI_QUIET);
 	unsigned int action;
 	ata_reset_fn_t reset;
 	int i, did_followup_srst, rc;
@@ -1907,11 +1913,8 @@ void ata_do_eh(struct ata_port *ap, ata_prereset_fn_t prereset,
 	       ata_reset_fn_t softreset, ata_reset_fn_t hardreset,
 	       ata_postreset_fn_t postreset)
 {
-	if (!(ap->pflags & ATA_PFLAG_LOADING)) {
-		ata_eh_autopsy(ap);
-		ata_eh_report(ap);
-	}
-
+	ata_eh_autopsy(ap);
+	ata_eh_report(ap);
 	ata_eh_recover(ap, prereset, softreset, hardreset, postreset);
 	ata_eh_finish(ap);
 }
