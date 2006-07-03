@@ -27,64 +27,55 @@ struct rw_semaphore;
 /*
  * lock for reading
  */
-static inline void down_read(struct rw_semaphore *sem)
-{
-	might_sleep();
-	__down_read(sem);
-}
+extern void down_read(struct rw_semaphore *sem);
 
 /*
  * trylock for reading -- returns 1 if successful, 0 if contention
  */
-static inline int down_read_trylock(struct rw_semaphore *sem)
-{
-	int ret;
-	ret = __down_read_trylock(sem);
-	return ret;
-}
+extern int down_read_trylock(struct rw_semaphore *sem);
 
 /*
  * lock for writing
  */
-static inline void down_write(struct rw_semaphore *sem)
-{
-	might_sleep();
-	__down_write(sem);
-}
+extern void down_write(struct rw_semaphore *sem);
 
 /*
  * trylock for writing -- returns 1 if successful, 0 if contention
  */
-static inline int down_write_trylock(struct rw_semaphore *sem)
-{
-	int ret;
-	ret = __down_write_trylock(sem);
-	return ret;
-}
+extern int down_write_trylock(struct rw_semaphore *sem);
 
 /*
  * release a read lock
  */
-static inline void up_read(struct rw_semaphore *sem)
-{
-	__up_read(sem);
-}
+extern void up_read(struct rw_semaphore *sem);
 
 /*
  * release a write lock
  */
-static inline void up_write(struct rw_semaphore *sem)
-{
-	__up_write(sem);
-}
+extern void up_write(struct rw_semaphore *sem);
 
 /*
  * downgrade write lock to read lock
  */
-static inline void downgrade_write(struct rw_semaphore *sem)
-{
-	__downgrade_write(sem);
-}
+extern void downgrade_write(struct rw_semaphore *sem);
+
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+/*
+ * nested locking:
+ */
+extern void down_read_nested(struct rw_semaphore *sem, int subclass);
+extern void down_write_nested(struct rw_semaphore *sem, int subclass);
+/*
+ * Take/release a lock when not the owner will release it:
+ */
+extern void down_read_non_owner(struct rw_semaphore *sem);
+extern void up_read_non_owner(struct rw_semaphore *sem);
+#else
+# define down_read_nested(sem, subclass)		down_read(sem)
+# define down_write_nested(sem, subclass)	down_write(sem)
+# define down_read_non_owner(sem)		down_read(sem)
+# define up_read_non_owner(sem)			up_read(sem)
+#endif
 
 #endif /* __KERNEL__ */
 #endif /* _LINUX_RWSEM_H */

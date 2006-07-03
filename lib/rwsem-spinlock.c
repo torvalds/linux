@@ -20,8 +20,16 @@ struct rwsem_waiter {
 /*
  * initialise the semaphore
  */
-void fastcall init_rwsem(struct rw_semaphore *sem)
+void __init_rwsem(struct rw_semaphore *sem, const char *name,
+		  struct lock_class_key *key)
 {
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+	/*
+	 * Make sure we are not reinitializing a held semaphore:
+	 */
+	debug_check_no_locks_freed((void *)sem, sizeof(*sem));
+	lockdep_init_map(&sem->dep_map, name, key);
+#endif
 	sem->activity = 0;
 	spin_lock_init(&sem->wait_lock);
 	INIT_LIST_HEAD(&sem->wait_list);
@@ -183,7 +191,7 @@ int fastcall __down_read_trylock(struct rw_semaphore *sem)
  * get a write lock on the semaphore
  * - we increment the waiting count anyway to indicate an exclusive lock
  */
-void fastcall __sched __down_write(struct rw_semaphore *sem)
+void fastcall __sched __down_write_nested(struct rw_semaphore *sem, int subclass)
 {
 	struct rwsem_waiter waiter;
 	struct task_struct *tsk;
@@ -221,6 +229,11 @@ void fastcall __sched __down_write(struct rw_semaphore *sem)
 	tsk->state = TASK_RUNNING;
  out:
 	;
+}
+
+void fastcall __sched __down_write(struct rw_semaphore *sem)
+{
+	__down_write_nested(sem, 0);
 }
 
 /*
@@ -292,9 +305,10 @@ void fastcall __downgrade_write(struct rw_semaphore *sem)
 	spin_unlock_irqrestore(&sem->wait_lock, flags);
 }
 
-EXPORT_SYMBOL(init_rwsem);
+EXPORT_SYMBOL(__init_rwsem);
 EXPORT_SYMBOL(__down_read);
 EXPORT_SYMBOL(__down_read_trylock);
+EXPORT_SYMBOL(__down_write_nested);
 EXPORT_SYMBOL(__down_write);
 EXPORT_SYMBOL(__down_write_trylock);
 EXPORT_SYMBOL(__up_read);

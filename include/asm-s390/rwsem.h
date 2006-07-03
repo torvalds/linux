@@ -61,6 +61,9 @@ struct rw_semaphore {
 	signed long		count;
 	spinlock_t		wait_lock;
 	struct list_head	wait_list;
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+	struct lockdep_map	dep_map;
+#endif
 };
 
 #ifndef __s390x__
@@ -80,8 +83,16 @@ struct rw_semaphore {
 /*
  * initialisation
  */
+
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+# define __RWSEM_DEP_MAP_INIT(lockname) , .dep_map = { .name = #lockname }
+#else
+# define __RWSEM_DEP_MAP_INIT(lockname)
+#endif
+
 #define __RWSEM_INITIALIZER(name) \
-{ RWSEM_UNLOCKED_VALUE, SPIN_LOCK_UNLOCKED, LIST_HEAD_INIT((name).wait_list) }
+{ RWSEM_UNLOCKED_VALUE, SPIN_LOCK_UNLOCKED, LIST_HEAD_INIT((name).wait_list) \
+  __RWSEM_DEP_MAP_INIT(name) }
 
 #define DECLARE_RWSEM(name) \
 	struct rw_semaphore name = __RWSEM_INITIALIZER(name)
@@ -92,6 +103,17 @@ static inline void init_rwsem(struct rw_semaphore *sem)
 	spin_lock_init(&sem->wait_lock);
 	INIT_LIST_HEAD(&sem->wait_list);
 }
+
+extern void __init_rwsem(struct rw_semaphore *sem, const char *name,
+			 struct lock_class_key *key);
+
+#define init_rwsem(sem)				\
+do {						\
+	static struct lock_class_key __key;	\
+						\
+	__init_rwsem((sem), #sem, &__key);	\
+} while (0)
+
 
 /*
  * lock for reading
@@ -155,7 +177,7 @@ static inline int __down_read_trylock(struct rw_semaphore *sem)
 /*
  * lock for writing
  */
-static inline void __down_write(struct rw_semaphore *sem)
+static inline void __down_write_nested(struct rw_semaphore *sem, int subclass)
 {
 	signed long old, new, tmp;
 
@@ -179,6 +201,11 @@ static inline void __down_write(struct rw_semaphore *sem)
 		: "cc", "memory" );
 	if (old != 0)
 		rwsem_down_write_failed(sem);
+}
+
+static inline void __down_write(struct rw_semaphore *sem)
+{
+	__down_write_nested(sem, 0);
 }
 
 /*

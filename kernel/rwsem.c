@@ -103,3 +103,45 @@ void downgrade_write(struct rw_semaphore *sem)
 }
 
 EXPORT_SYMBOL(downgrade_write);
+
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+
+void down_read_nested(struct rw_semaphore *sem, int subclass)
+{
+	might_sleep();
+	rwsem_acquire_read(&sem->dep_map, subclass, 0, _RET_IP_);
+
+	__down_read(sem);
+}
+
+EXPORT_SYMBOL(down_read_nested);
+
+void down_read_non_owner(struct rw_semaphore *sem)
+{
+	might_sleep();
+
+	__down_read(sem);
+}
+
+EXPORT_SYMBOL(down_read_non_owner);
+
+void down_write_nested(struct rw_semaphore *sem, int subclass)
+{
+	might_sleep();
+	rwsem_acquire(&sem->dep_map, subclass, 0, _RET_IP_);
+
+	__down_write_nested(sem, subclass);
+}
+
+EXPORT_SYMBOL(down_write_nested);
+
+void up_read_non_owner(struct rw_semaphore *sem)
+{
+	__up_read(sem);
+}
+
+EXPORT_SYMBOL(up_read_non_owner);
+
+#endif
+
+
