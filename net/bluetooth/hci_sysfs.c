@@ -61,11 +61,96 @@ static ssize_t show_inquiry_cache(struct class_device *cdev, char *buf)
 	return n;
 }
 
+static ssize_t show_idle_timeout(struct class_device *cdev, char *buf)
+{
+	struct hci_dev *hdev = class_get_devdata(cdev);
+	return sprintf(buf, "%d\n", hdev->idle_timeout);
+}
+
+static ssize_t store_idle_timeout(struct class_device *cdev, const char *buf, size_t count)
+{
+	struct hci_dev *hdev = class_get_devdata(cdev);
+	char *ptr;
+	__u32 val;
+
+	val = simple_strtoul(buf, &ptr, 10);
+	if (ptr == buf)
+		return -EINVAL;
+
+	if (val != 0 && (val < 500 || val > 3600000))
+		return -EINVAL;
+
+	hdev->idle_timeout = val;
+
+	return count;
+}
+
+static ssize_t show_sniff_max_interval(struct class_device *cdev, char *buf)
+{
+	struct hci_dev *hdev = class_get_devdata(cdev);
+	return sprintf(buf, "%d\n", hdev->sniff_max_interval);
+}
+
+static ssize_t store_sniff_max_interval(struct class_device *cdev, const char *buf, size_t count)
+{
+	struct hci_dev *hdev = class_get_devdata(cdev);
+	char *ptr;
+	__u16 val;
+
+	val = simple_strtoul(buf, &ptr, 10);
+	if (ptr == buf)
+		return -EINVAL;
+
+	if (val < 0x0002 || val > 0xFFFE || val % 2)
+		return -EINVAL;
+
+	if (val < hdev->sniff_min_interval)
+		return -EINVAL;
+
+	hdev->sniff_max_interval = val;
+
+	return count;
+}
+
+static ssize_t show_sniff_min_interval(struct class_device *cdev, char *buf)
+{
+	struct hci_dev *hdev = class_get_devdata(cdev);
+	return sprintf(buf, "%d\n", hdev->sniff_min_interval);
+}
+
+static ssize_t store_sniff_min_interval(struct class_device *cdev, const char *buf, size_t count)
+{
+	struct hci_dev *hdev = class_get_devdata(cdev);
+	char *ptr;
+	__u16 val;
+
+	val = simple_strtoul(buf, &ptr, 10);
+	if (ptr == buf)
+		return -EINVAL;
+
+	if (val < 0x0002 || val > 0xFFFE || val % 2)
+		return -EINVAL;
+
+	if (val > hdev->sniff_max_interval)
+		return -EINVAL;
+
+	hdev->sniff_min_interval = val;
+
+	return count;
+}
+
 static CLASS_DEVICE_ATTR(name, S_IRUGO, show_name, NULL);
 static CLASS_DEVICE_ATTR(type, S_IRUGO, show_type, NULL);
 static CLASS_DEVICE_ATTR(address, S_IRUGO, show_address, NULL);
 static CLASS_DEVICE_ATTR(flags, S_IRUGO, show_flags, NULL);
 static CLASS_DEVICE_ATTR(inquiry_cache, S_IRUGO, show_inquiry_cache, NULL);
+
+static CLASS_DEVICE_ATTR(idle_timeout, S_IRUGO | S_IWUSR,
+				show_idle_timeout, store_idle_timeout);
+static CLASS_DEVICE_ATTR(sniff_max_interval, S_IRUGO | S_IWUSR,
+				show_sniff_max_interval, store_sniff_max_interval);
+static CLASS_DEVICE_ATTR(sniff_min_interval, S_IRUGO | S_IWUSR,
+				show_sniff_min_interval, store_sniff_min_interval);
 
 static struct class_device_attribute *bt_attrs[] = {
 	&class_device_attr_name,
@@ -73,6 +158,9 @@ static struct class_device_attribute *bt_attrs[] = {
 	&class_device_attr_address,
 	&class_device_attr_flags,
 	&class_device_attr_inquiry_cache,
+	&class_device_attr_idle_timeout,
+	&class_device_attr_sniff_max_interval,
+	&class_device_attr_sniff_min_interval,
 	NULL
 };
 

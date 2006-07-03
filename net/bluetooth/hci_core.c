@@ -411,7 +411,7 @@ int hci_inquiry(void __user *arg)
 	}
 	hci_dev_unlock_bh(hdev);
 
-	timeo = ir.length * 2 * HZ;
+	timeo = ir.length * msecs_to_jiffies(2000);
 	if (do_inquiry && (err = hci_request(hdev, hci_inq_req, (unsigned long)&ir, timeo)) < 0)
 		goto done;
 
@@ -479,7 +479,8 @@ int hci_dev_open(__u16 dev)
 		set_bit(HCI_INIT, &hdev->flags);
 
 		//__hci_request(hdev, hci_reset_req, 0, HZ);
-		ret = __hci_request(hdev, hci_init_req, 0, HCI_INIT_TIMEOUT);
+		ret = __hci_request(hdev, hci_init_req, 0,
+					msecs_to_jiffies(HCI_INIT_TIMEOUT));
 
 		clear_bit(HCI_INIT, &hdev->flags);
 	}
@@ -546,7 +547,8 @@ static int hci_dev_do_close(struct hci_dev *hdev)
 	atomic_set(&hdev->cmd_cnt, 1);
 	if (!test_bit(HCI_RAW, &hdev->flags)) {
 		set_bit(HCI_INIT, &hdev->flags);
-		__hci_request(hdev, hci_reset_req, 0, HZ/4);
+		__hci_request(hdev, hci_reset_req, 0,
+					msecs_to_jiffies(250));
 		clear_bit(HCI_INIT, &hdev->flags);
 	}
 
@@ -619,7 +621,8 @@ int hci_dev_reset(__u16 dev)
 	hdev->acl_cnt = 0; hdev->sco_cnt = 0;
 
 	if (!test_bit(HCI_RAW, &hdev->flags))
-		ret = __hci_request(hdev, hci_reset_req, 0, HCI_INIT_TIMEOUT);
+		ret = __hci_request(hdev, hci_reset_req, 0,
+					msecs_to_jiffies(HCI_INIT_TIMEOUT));
 
 done:
 	tasklet_enable(&hdev->tx_task);
@@ -657,7 +660,8 @@ int hci_dev_cmd(unsigned int cmd, void __user *arg)
 
 	switch (cmd) {
 	case HCISETAUTH:
-		err = hci_request(hdev, hci_auth_req, dr.dev_opt, HCI_INIT_TIMEOUT);
+		err = hci_request(hdev, hci_auth_req, dr.dev_opt,
+					msecs_to_jiffies(HCI_INIT_TIMEOUT));
 		break;
 
 	case HCISETENCRYPT:
@@ -668,18 +672,19 @@ int hci_dev_cmd(unsigned int cmd, void __user *arg)
 
 		if (!test_bit(HCI_AUTH, &hdev->flags)) {
 			/* Auth must be enabled first */
-			err = hci_request(hdev, hci_auth_req,
-					dr.dev_opt, HCI_INIT_TIMEOUT);
+			err = hci_request(hdev, hci_auth_req, dr.dev_opt,
+					msecs_to_jiffies(HCI_INIT_TIMEOUT));
 			if (err)
 				break;
 		}
 
-		err = hci_request(hdev, hci_encrypt_req,
-					dr.dev_opt, HCI_INIT_TIMEOUT);
+		err = hci_request(hdev, hci_encrypt_req, dr.dev_opt,
+					msecs_to_jiffies(HCI_INIT_TIMEOUT));
 		break;
 
 	case HCISETSCAN:
-		err = hci_request(hdev, hci_scan_req, dr.dev_opt, HCI_INIT_TIMEOUT);
+		err = hci_request(hdev, hci_scan_req, dr.dev_opt,
+					msecs_to_jiffies(HCI_INIT_TIMEOUT));
 		break;
 
 	case HCISETPTYPE:
@@ -847,6 +852,10 @@ int hci_register_dev(struct hci_dev *hdev)
 	hdev->flags = 0;
 	hdev->pkt_type  = (HCI_DM1 | HCI_DH1 | HCI_HV1);
 	hdev->link_mode = (HCI_LM_ACCEPT);
+
+	hdev->idle_timeout = 0;
+	hdev->sniff_max_interval = 800;
+	hdev->sniff_min_interval = 80;
 
 	tasklet_init(&hdev->cmd_task, hci_cmd_task,(unsigned long) hdev);
 	tasklet_init(&hdev->rx_task, hci_rx_task, (unsigned long) hdev);
@@ -1220,6 +1229,9 @@ static inline void hci_sched_acl(struct hci_dev *hdev)
 	while (hdev->acl_cnt && (conn = hci_low_sent(hdev, ACL_LINK, &quote))) {
 		while (quote-- && (skb = skb_dequeue(&conn->data_q))) {
 			BT_DBG("skb %p len %d", skb, skb->len);
+
+			hci_conn_enter_active_mode(conn);
+
 			hci_send_frame(skb);
 			hdev->acl_last_tx = jiffies;
 
@@ -1297,6 +1309,8 @@ static inline void hci_acldata_packet(struct hci_dev *hdev, struct sk_buff *skb)
 	
 	if (conn) {
 		register struct hci_proto *hp;
+
+		hci_conn_enter_active_mode(conn);
 
 		/* Send to upper protocol */
 		if ((hp = hci_proto[HCI_PROTO_L2CAP]) && hp->recv_acldata) {
