@@ -41,7 +41,6 @@
 #include <linux/spinlock.h>
 #include <linux/completion.h>
 #include <linux/buffer_head.h>
-#include <linux/tty.h>
 #include <linux/sort.h>
 #include <linux/fs.h>
 #include <linux/gfs2_ondisk.h>
@@ -929,25 +928,11 @@ void gfs2_quota_unlock(struct gfs2_inode *ip)
 static int print_message(struct gfs2_quota_data *qd, char *type)
 {
 	struct gfs2_sbd *sdp = qd->qd_gl->gl_sbd;
-	char *line;
-	int len;
 
-	line = kmalloc(MAX_LINE, GFP_KERNEL);
-	if (!line)
-		return -ENOMEM;
-
-	len = snprintf(line, MAX_LINE-1,
-		       "GFS2: fsid=%s: quota %s for %s %u\r\n",
-		       sdp->sd_fsname, type,
-		       (test_bit(QDF_USER, &qd->qd_flags)) ? "user" : "group",
-		       qd->qd_id);
-	line[MAX_LINE-1] = 0;
-
-	if (current->signal) { /* Is this test still required? */
-		tty_write_message(current->signal->tty, line);
-	}
-
-	kfree(line);
+	printk(KERN_INFO "GFS2: fsid=%s: quota %s for %s %u\r\n",
+	       sdp->sd_fsname, type,
+	       (test_bit(QDF_USER, &qd->qd_flags)) ? "user" : "group",
+	       qd->qd_id);
 
 	return 0;
 }
