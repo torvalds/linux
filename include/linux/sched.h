@@ -886,6 +886,13 @@ struct task_struct {
 	int hardirq_context;
 	int softirq_context;
 #endif
+#ifdef CONFIG_LOCKDEP
+# define MAX_LOCK_DEPTH 30UL
+	u64 curr_chain_key;
+	int lockdep_depth;
+	struct held_lock held_locks[MAX_LOCK_DEPTH];
+	unsigned int lockdep_recursion;
+#endif
 
 /* journalling filesystem info */
 	void *journal_info;

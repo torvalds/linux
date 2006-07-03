@@ -4,6 +4,7 @@
 #include <linux/file.h>
 #include <linux/rcupdate.h>
 #include <linux/irqflags.h>
+#include <linux/lockdep.h>
 
 #define INIT_FDTABLE \
 {							\
@@ -126,6 +127,7 @@ extern struct group_info init_groups;
 	.fs_excl	= ATOMIC_INIT(0),				\
 	.pi_lock	= SPIN_LOCK_UNLOCKED,				\
 	INIT_TRACE_IRQFLAGS						\
+	INIT_LOCKDEP							\
 }
 
 

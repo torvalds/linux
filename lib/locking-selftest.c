@@ -15,6 +15,7 @@
 #include <linux/sched.h>
 #include <linux/delay.h>
 #include <linux/module.h>
+#include <linux/lockdep.h>
 #include <linux/spinlock.h>
 #include <linux/kallsyms.h>
 #include <linux/interrupt.h>
@@ -888,9 +889,6 @@ GENERATE_PERMUTATIONS_3_EVENTS(irq_read_recursion_soft)
 
 #include "locking-selftest-softirq.h"
 // GENERATE_PERMUTATIONS_3_EVENTS(irq_read_recursion2_soft)
-
-#define lockdep_reset()
-#define lockdep_reset_lock(x)
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 # define I_SPINLOCK(x)	lockdep_reset_lock(&lock_##x.dep_map)

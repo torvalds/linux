@@ -48,6 +48,7 @@
 #include <linux/unwind.h>
 #include <linux/buffer_head.h>
 #include <linux/debug_locks.h>
+#include <linux/lockdep.h>
 
 #include <asm/io.h>
 #include <asm/bugs.h>
@@ -457,6 +458,15 @@ asmlinkage void __init start_kernel(void)
 
 	smp_setup_processor_id();
 
+	/*
+	 * Need to run as early as possible, to initialize the
+	 * lockdep hash:
+	 */
+	lockdep_init();
+
+	local_irq_disable();
+	early_boot_irqs_off();
+
 /*
  * Interrupts are still disabled. Do necessary setups, then
  * enable them
@@ -502,6 +512,7 @@ asmlinkage void __init start_kernel(void)
 	profile_init();
 	if (!irqs_disabled())
 		printk("start_kernel(): bug: interrupts were enabled early\n");
+	early_boot_irqs_on();
 	local_irq_enable();
 
 	/*
@@ -512,6 +523,9 @@ asmlinkage void __init start_kernel(void)
 	console_init();
 	if (panic_later)
 		panic(panic_later, panic_param);
+
+	lockdep_info();
+
 	/*
 	 * Need to run this when irqs are enabled, because it wants
 	 * to self-test [hard/soft]-irqs on/off lock inversion bugs
