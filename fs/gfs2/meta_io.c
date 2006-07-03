@@ -159,7 +159,7 @@ static int gfs2_aspace_releasepage(struct page *page, gfp_t gfp_mask)
 	return try_to_free_buffers(page);
 }
 
-static struct address_space_operations aspace_aops = {
+static const struct address_space_operations aspace_aops = {
 	.writepage = gfs2_aspace_writepage,
 	.releasepage = gfs2_aspace_releasepage,
 };

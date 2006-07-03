@@ -655,7 +655,7 @@ static ssize_t gfs2_direct_IO(int rw, struct kiocb *iocb,
 				    DIO_OWN_LOCKING);
 }
 
-struct address_space_operations gfs2_file_aops = {
+const struct address_space_operations gfs2_file_aops = {
 	.writepage = gfs2_writepage,
 	.readpage = gfs2_readpage,
 	.readpages = gfs2_readpages,
