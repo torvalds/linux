@@ -3,7 +3,7 @@
 #
 
 menu "Acorn-specific block devices"
-	depends on ARCH_ACORN
+	depends on ARCH_ARC || ARCH_A5K
 
 config BLK_DEV_FD1772
 	tristate "Old Archimedes floppy (1772) support"

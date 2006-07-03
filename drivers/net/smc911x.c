@@ -2081,7 +2081,7 @@ static int __init smc911x_probe(struct net_device *dev, unsigned long ioaddr)
 	lp->ctl_rspeed = 100;
 
 	/* Grab the IRQ */
-	retval = request_irq(dev->irq, &smc911x_interrupt, SA_SHIRQ, dev->name, dev);
+	retval = request_irq(dev->irq, &smc911x_interrupt, IRQF_SHARED, dev->name, dev);
 	if (retval)
 		goto err_out;
 

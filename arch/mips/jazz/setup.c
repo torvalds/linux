@@ -8,7 +8,6 @@
  * Copyright (C) 1996, 1997, 1998, 2001 by Ralf Baechle
  * Copyright (C) 2001 MIPS Technologies, Inc.
  */
-#include <linux/config.h>
 #include <linux/eisa.h>
 #include <linux/hdreg.h>
 #include <linux/init.h>

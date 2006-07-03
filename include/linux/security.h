@@ -67,7 +67,7 @@ struct xfrm_state;
 struct xfrm_user_sec_ctx;
 
 extern int cap_netlink_send(struct sock *sk, struct sk_buff *skb);
-extern int cap_netlink_recv(struct sk_buff *skb);
+extern int cap_netlink_recv(struct sk_buff *skb, int cap);
 
 /*
  * Values used in the task_security_ops calls
@@ -567,6 +567,9 @@ struct swap_info_struct;
  *	@p.
  *	@p contains the task_struct for the process.
  *	Return 0 if permission is granted.
+ * @task_getsecid:
+ *	Retrieve the security identifier of the process @p.
+ *	@p contains the task_struct for the process and place is into @secid.
  * @task_setgroups:
  *	Check permission before setting the supplementary group set of the
  *	current process.
@@ -581,6 +584,10 @@ struct swap_info_struct;
  *	Check permission before setting the ioprio value of @p to @ioprio.
  *	@p contains the task_struct of process.
  *	@ioprio contains the new ioprio value
+ *	Return 0 if permission is granted.
+ * @task_getioprio
+ *	Check permission before getting the ioprio value of @p.
+ *	@p contains the task_struct of process.
  *	Return 0 if permission is granted.
  * @task_setrlimit:
  *	Check permission before setting the resource limits of the current
@@ -615,6 +622,7 @@ struct swap_info_struct;
  *	@p contains the task_struct for process.
  *	@info contains the signal information.
  *	@sig contains the signal value.
+ *	@secid contains the sid of the process where the signal originated
  *	Return 0 if permission is granted.
  * @task_wait:
  *	Check permission before allowing a process to reap a child process @p
@@ -656,6 +664,7 @@ struct swap_info_struct;
  *	Check permission before processing the received netlink message in
  *	@skb.
  *	@skb contains the sk_buff structure for the netlink message.
+ *	@cap indicates the capability required
  *	Return 0 if permission is granted.
  *
  * Security hooks for Unix domain networking.
@@ -1218,16 +1227,18 @@ struct security_operations {
 	int (*task_setpgid) (struct task_struct * p, pid_t pgid);
 	int (*task_getpgid) (struct task_struct * p);
 	int (*task_getsid) (struct task_struct * p);
+	void (*task_getsecid) (struct task_struct * p, u32 * secid);
 	int (*task_setgroups) (struct group_info *group_info);
 	int (*task_setnice) (struct task_struct * p, int nice);
 	int (*task_setioprio) (struct task_struct * p, int ioprio);
+	int (*task_getioprio) (struct task_struct * p);
 	int (*task_setrlimit) (unsigned int resource, struct rlimit * new_rlim);
 	int (*task_setscheduler) (struct task_struct * p, int policy,
 				  struct sched_param * lp);
 	int (*task_getscheduler) (struct task_struct * p);
 	int (*task_movememory) (struct task_struct * p);
 	int (*task_kill) (struct task_struct * p,
-			  struct siginfo * info, int sig);
+			  struct siginfo * info, int sig, u32 secid);
 	int (*task_wait) (struct task_struct * p);
 	int (*task_prctl) (int option, unsigned long arg2,
 			   unsigned long arg3, unsigned long arg4,
@@ -1266,7 +1277,7 @@ struct security_operations {
 			  struct sembuf * sops, unsigned nsops, int alter);
 
 	int (*netlink_send) (struct sock * sk, struct sk_buff * skb);
-	int (*netlink_recv) (struct sk_buff * skb);
+	int (*netlink_recv) (struct sk_buff * skb, int cap);
 
 	/* allow module stacking */
 	int (*register_security) (const char *name,
@@ -1838,6 +1849,11 @@ static inline int security_task_getsid (struct task_struct *p)
 	return security_ops->task_getsid (p);
 }
 
+static inline void security_task_getsecid (struct task_struct *p, u32 *secid)
+{
+	security_ops->task_getsecid (p, secid);
+}
+
 static inline int security_task_setgroups (struct group_info *group_info)
 {
 	return security_ops->task_setgroups (group_info);
@@ -1851,6 +1867,11 @@ static inline int security_task_setnice (struct task_struct *p, int nice)
 static inline int security_task_setioprio (struct task_struct *p, int ioprio)
 {
 	return security_ops->task_setioprio (p, ioprio);
+}
+
+static inline int security_task_getioprio (struct task_struct *p)
+{
+	return security_ops->task_getioprio (p);
 }
 
 static inline int security_task_setrlimit (unsigned int resource,
@@ -1877,9 +1898,10 @@ static inline int security_task_movememory (struct task_struct *p)
 }
 
 static inline int security_task_kill (struct task_struct *p,
-				      struct siginfo *info, int sig)
+				      struct siginfo *info, int sig,
+				      u32 secid)
 {
-	return security_ops->task_kill (p, info, sig);
+	return security_ops->task_kill (p, info, sig, secid);
 }
 
 static inline int security_task_wait (struct task_struct *p)
@@ -2032,9 +2054,9 @@ static inline int security_netlink_send(struct sock *sk, struct sk_buff * skb)
 	return security_ops->netlink_send(sk, skb);
 }
 
-static inline int security_netlink_recv(struct sk_buff * skb)
+static inline int security_netlink_recv(struct sk_buff * skb, int cap)
 {
-	return security_ops->netlink_recv(skb);
+	return security_ops->netlink_recv(skb, cap);
 }
 
 /* prototypes */
@@ -2490,6 +2512,9 @@ static inline int security_task_getsid (struct task_struct *p)
 	return 0;
 }
 
+static inline void security_task_getsecid (struct task_struct *p, u32 *secid)
+{ }
+
 static inline int security_task_setgroups (struct group_info *group_info)
 {
 	return 0;
@@ -2501,6 +2526,11 @@ static inline int security_task_setnice (struct task_struct *p, int nice)
 }
 
 static inline int security_task_setioprio (struct task_struct *p, int ioprio)
+{
+	return 0;
+}
+
+static inline int security_task_getioprio (struct task_struct *p)
 {
 	return 0;
 }
@@ -2529,7 +2559,8 @@ static inline int security_task_movememory (struct task_struct *p)
 }
 
 static inline int security_task_kill (struct task_struct *p,
-				      struct siginfo *info, int sig)
+				      struct siginfo *info, int sig,
+				      u32 secid)
 {
 	return 0;
 }
@@ -2670,9 +2701,9 @@ static inline int security_netlink_send (struct sock *sk, struct sk_buff *skb)
 	return cap_netlink_send (sk, skb);
 }
 
-static inline int security_netlink_recv (struct sk_buff *skb)
+static inline int security_netlink_recv (struct sk_buff *skb, int cap)
 {
-	return cap_netlink_recv (skb);
+	return cap_netlink_recv (skb, cap);
 }
 
 static inline struct dentry *securityfs_create_dir(const char *name,

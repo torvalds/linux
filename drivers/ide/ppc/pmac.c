@@ -22,7 +22,6 @@
  * big table
  * 
  */
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
@@ -419,107 +418,6 @@ static void pmac_ide_selectproc(ide_drive_t *drive);
 static void pmac_ide_kauai_selectproc(ide_drive_t *drive);
 
 #endif /* CONFIG_BLK_DEV_IDEDMA_PMAC */
-
-/*
- * Below is the code for blinking the laptop LED along with hard
- * disk activity.
- */
-
-#ifdef CONFIG_BLK_DEV_IDE_PMAC_BLINK
-
-/* Set to 50ms minimum led-on time (also used to limit frequency
- * of requests sent to the PMU
- */
-#define PMU_HD_BLINK_TIME	(HZ/50)
-
-static struct adb_request pmu_blink_on, pmu_blink_off;
-static spinlock_t pmu_blink_lock;
-static unsigned long pmu_blink_stoptime;
-static int pmu_blink_ledstate;
-static struct timer_list pmu_blink_timer;
-static int pmu_ide_blink_enabled;
-
-
-static void
-pmu_hd_blink_timeout(unsigned long data)
-{
-	unsigned long flags;
-	
-	spin_lock_irqsave(&pmu_blink_lock, flags);
-
-	/* We may have been triggered again in a racy way, check
-	 * that we really want to switch it off
-	 */
-	if (time_after(pmu_blink_stoptime, jiffies))
-		goto done;
-
-	/* Previous req. not complete, try 100ms more */
-	if (pmu_blink_off.complete == 0)
-		mod_timer(&pmu_blink_timer, jiffies + PMU_HD_BLINK_TIME);
-	else if (pmu_blink_ledstate) {
-		pmu_request(&pmu_blink_off, NULL, 4, 0xee, 4, 0, 0);
-		pmu_blink_ledstate = 0;
-	}
-done:
-	spin_unlock_irqrestore(&pmu_blink_lock, flags);
-}
-
-static void
-pmu_hd_kick_blink(void *data, int rw)
-{
-	unsigned long flags;
-	
-	pmu_blink_stoptime = jiffies + PMU_HD_BLINK_TIME;
-	wmb();
-	mod_timer(&pmu_blink_timer, pmu_blink_stoptime);
-	/* Fast path when LED is already ON */
-	if (pmu_blink_ledstate == 1)
-		return;
-	spin_lock_irqsave(&pmu_blink_lock, flags);
-	if (pmu_blink_on.complete && !pmu_blink_ledstate) {
-		pmu_request(&pmu_blink_on, NULL, 4, 0xee, 4, 0, 1);
-		pmu_blink_ledstate = 1;
-	}
-	spin_unlock_irqrestore(&pmu_blink_lock, flags);
-}
-
-static int
-pmu_hd_blink_init(void)
-{
-	struct device_node *dt;
-	const char *model;
-
-	/* Currently, I only enable this feature on KeyLargo based laptops,
-	 * older laptops may support it (at least heathrow/paddington) but
-	 * I don't feel like loading those venerable old machines with so
-	 * much additional interrupt & PMU activity...
-	 */
-	if (pmu_get_model() != PMU_KEYLARGO_BASED)
-		return 0;
-	
-	dt = of_find_node_by_path("/");
-	if (dt == NULL)
-		return 0;
-	model = (const char *)get_property(dt, "model", NULL);
-	if (model == NULL)
-		return 0;
-	if (strncmp(model, "PowerBook", strlen("PowerBook")) != 0 &&
-	    strncmp(model, "iBook", strlen("iBook")) != 0) {
-		of_node_put(dt);
-	    	return 0;
-	}
-	of_node_put(dt);
-
-	pmu_blink_on.complete = 1;
-	pmu_blink_off.complete = 1;
-	spin_lock_init(&pmu_blink_lock);
-	init_timer(&pmu_blink_timer);
-	pmu_blink_timer.function = pmu_hd_blink_timeout;
-
-	return 1;
-}
-
-#endif /* CONFIG_BLK_DEV_IDE_PMAC_BLINK */
 
 /*
  * N.B. this can't be an initfunc, because the media-bay task can
@@ -1192,23 +1090,6 @@ pmac_ide_do_suspend(ide_hwif_t *hwif)
 	pmif->timings[0] = 0;
 	pmif->timings[1] = 0;
 	
-#ifdef CONFIG_BLK_DEV_IDE_PMAC_BLINK
-	/* Note: This code will be called for every hwif, thus we'll
-	 * try several time to stop the LED blinker timer,  but that
-	 * should be harmless
-	 */
-	if (pmu_ide_blink_enabled) {
-		unsigned long flags;
-
-		/* Make sure we don't hit the PMU blink */
-		spin_lock_irqsave(&pmu_blink_lock, flags);
-		if (pmu_blink_ledstate)
-			del_timer(&pmu_blink_timer);
-		pmu_blink_ledstate = 0;
-		spin_unlock_irqrestore(&pmu_blink_lock, flags);
-	}
-#endif /* CONFIG_BLK_DEV_IDE_PMAC_BLINK */
-
 	disable_irq(pmif->irq);
 
 	/* The media bay will handle itself just fine */
@@ -1375,13 +1256,6 @@ pmac_ide_setup_device(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif)
 	else
 		hwif->selectproc = pmac_ide_selectproc;
 	hwif->speedproc = pmac_ide_tune_chipset;
-
-#ifdef CONFIG_BLK_DEV_IDE_PMAC_BLINK
-	pmu_ide_blink_enabled = pmu_hd_blink_init();
-
-	if (pmu_ide_blink_enabled)
-		hwif->led_act = pmu_hd_kick_blink;
-#endif
 
 	printk(KERN_INFO "ide%d: Found Apple %s controller, bus ID %d%s, irq %d\n",
 	       hwif->index, model_name[pmif->kind], pmif->aapl_bus_id,

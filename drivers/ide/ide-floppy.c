@@ -82,7 +82,6 @@
 
 #define IDEFLOPPY_VERSION "0.99.newide"
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/string.h>
@@ -2176,7 +2175,6 @@ static int ide_floppy_probe(ide_drive_t *drive)
 
 	g->minors = 1 << PARTN_BITS;
 	g->driverfs_dev = &drive->gendev;
-	strcpy(g->devfs_name, drive->devfs_name);
 	g->flags = drive->removable ? GENHD_FL_REMOVABLE : 0;
 	g->fops = &idefloppy_ops;
 	drive->attach = 1;

@@ -7,7 +7,6 @@
  * 2001-05-06	Complete rewrite,  Christoph Hellwig (hch@infradead.org)
  */
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/kmod.h>

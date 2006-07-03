@@ -16,7 +16,6 @@
 #ifndef GIGASET_H
 #define GIGASET_H
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/compiler.h>
 #include <linux/types.h>
@@ -769,7 +768,6 @@ void gigaset_block_channels(struct cardstate *cs);
 struct gigaset_driver *gigaset_initdriver(unsigned minor, unsigned minors,
 					  const char *procname,
 					  const char *devname,
-					  const char *devfsname,
 					  const struct gigaset_ops *ops,
 					  struct module *owner);
 
@@ -892,7 +890,7 @@ int gigaset_fill_inbuf(struct inbuf_t *inbuf, const unsigned char *src,
 
 /* initialize interface */
 void gigaset_if_initdriver(struct gigaset_driver *drv, const char *procname,
-			   const char *devname, const char *devfsname);
+			   const char *devname);
 /* release interface */
 void gigaset_if_freedriver(struct gigaset_driver *drv);
 /* add minor */

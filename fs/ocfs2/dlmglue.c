@@ -2071,8 +2071,7 @@ int ocfs2_dlm_init(struct ocfs2_super *osb)
 	}
 
 	/* launch vote thread */
-	osb->vote_task = kthread_run(ocfs2_vote_thread, osb, "ocfs2vote-%d",
-				     osb->osb_id);
+	osb->vote_task = kthread_run(ocfs2_vote_thread, osb, "ocfs2vote");
 	if (IS_ERR(osb->vote_task)) {
 		status = PTR_ERR(osb->vote_task);
 		osb->vote_task = NULL;

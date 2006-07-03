@@ -17,7 +17,6 @@
 #include <asm/io.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/map.h>
-#include <linux/config.h>
 #include <linux/mtd/partitions.h>
 
 #include <asm/immap_cpm2.h>

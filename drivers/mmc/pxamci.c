@@ -16,7 +16,6 @@
  *	1 and 3 byte data transfers not supported
  *	max block length up to 1023
  */
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/ioport.h>

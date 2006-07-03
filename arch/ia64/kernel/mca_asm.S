@@ -19,7 +19,6 @@
 // 12/08/05 Keith Owens <kaos@sgi.com>
 //		   Use per cpu MCA/INIT stacks for all data.
 //
-#include <linux/config.h>
 #include <linux/threads.h>
 
 #include <asm/asmmacro.h>

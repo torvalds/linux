@@ -1233,7 +1233,7 @@ int __devinit snd_emu10k1_create(struct snd_card *card,
 	}
 	emu->port = pci_resource_start(pci, 0);
 
-	if (request_irq(pci->irq, snd_emu10k1_interrupt, SA_INTERRUPT|SA_SHIRQ, "EMU10K1", (void *)emu)) {
+	if (request_irq(pci->irq, snd_emu10k1_interrupt, IRQF_DISABLED|IRQF_SHARED, "EMU10K1", (void *)emu)) {
 		err = -EBUSY;
 		goto error;
 	}

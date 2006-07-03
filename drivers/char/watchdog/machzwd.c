@@ -28,7 +28,6 @@
  *      Added nowayout module option to override CONFIG_WATCHDOG_NOWAYOUT
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/types.h>

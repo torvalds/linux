@@ -33,7 +33,6 @@
 
 //#define BONDING_DEBUG 1
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/sched.h>

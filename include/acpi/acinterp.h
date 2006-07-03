@@ -287,7 +287,10 @@ acpi_ex_system_wait_event(union acpi_operand_object *time,
 
 acpi_status acpi_ex_system_reset_event(union acpi_operand_object *obj_desc);
 
-acpi_status acpi_ex_system_wait_semaphore(acpi_handle semaphore, u16 timeout);
+acpi_status
+acpi_ex_system_wait_semaphore(acpi_semaphore semaphore, u16 timeout);
+
+acpi_status acpi_ex_system_wait_mutex(acpi_mutex mutex, u16 timeout);
 
 /*
  * exoparg1 - ACPI AML execution, 1 operand

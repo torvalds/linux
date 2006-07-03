@@ -292,7 +292,7 @@ static int __init snd_gusmax_probe(struct platform_device *pdev)
 		goto _err;
 	}
 
-	if (request_irq(xirq, snd_gusmax_interrupt, SA_INTERRUPT, "GUS MAX", (void *)maxcard)) {
+	if (request_irq(xirq, snd_gusmax_interrupt, IRQF_DISABLED, "GUS MAX", (void *)maxcard)) {
 		snd_printk(KERN_ERR PFX "unable to grab IRQ %d\n", xirq);
 		err = -EBUSY;
 		goto _err;

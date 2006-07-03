@@ -17,7 +17,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
@@ -588,12 +587,11 @@ static int __init gs_module_init(void)
 	gs_tty_driver->owner = THIS_MODULE;
 	gs_tty_driver->driver_name = GS_SHORT_NAME;
 	gs_tty_driver->name = "ttygs";
-	gs_tty_driver->devfs_name = "usb/ttygs/";
 	gs_tty_driver->major = GS_MAJOR;
 	gs_tty_driver->minor_start = GS_MINOR_START;
 	gs_tty_driver->type = TTY_DRIVER_TYPE_SERIAL;
 	gs_tty_driver->subtype = SERIAL_TYPE_NORMAL;
-	gs_tty_driver->flags = TTY_DRIVER_REAL_RAW | TTY_DRIVER_NO_DEVFS;
+	gs_tty_driver->flags = TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;
 	gs_tty_driver->init_termios = tty_std_termios;
 	gs_tty_driver->init_termios.c_cflag = B9600 | CS8 | CREAD | HUPCL | CLOCAL;
 	tty_set_operations(gs_tty_driver, &gs_tty_ops);

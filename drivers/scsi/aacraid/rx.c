@@ -453,7 +453,7 @@ int aac_rx_init(struct aac_dev *dev)
 		}
 		msleep(1);
 	}
-	if (request_irq(dev->scsi_host_ptr->irq, aac_rx_intr, SA_SHIRQ|SA_INTERRUPT, "aacraid", (void *)dev)<0) 
+	if (request_irq(dev->scsi_host_ptr->irq, aac_rx_intr, IRQF_SHARED|IRQF_DISABLED, "aacraid", (void *)dev)<0)
 	{
 		printk(KERN_ERR "%s%d: Interrupt unavailable.\n", name, instance);
 		goto error_iounmap;

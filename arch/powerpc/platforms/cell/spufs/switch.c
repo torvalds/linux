@@ -32,7 +32,6 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
@@ -464,7 +463,8 @@ static inline void wait_purge_complete(struct spu_state *csa, struct spu *spu)
 	 *     Poll MFC_CNTL[Ps] until value '11' is read
 	 *     (purge complete).
 	 */
-	POLL_WHILE_FALSE(in_be64(&priv2->mfc_control_RW) &
+	POLL_WHILE_FALSE((in_be64(&priv2->mfc_control_RW) &
+			 MFC_CNTL_PURGE_DMA_STATUS_MASK) ==
 			 MFC_CNTL_PURGE_DMA_COMPLETE);
 }
 
@@ -1028,7 +1028,8 @@ static inline void wait_suspend_mfc_complete(struct spu_state *csa,
 	 * Restore, Step 47.
 	 *     Poll MFC_CNTL[Ss] until 11 is returned.
 	 */
-	POLL_WHILE_FALSE(in_be64(&priv2->mfc_control_RW) &
+	POLL_WHILE_FALSE((in_be64(&priv2->mfc_control_RW) &
+			 MFC_CNTL_SUSPEND_DMA_STATUS_MASK) ==
 			 MFC_CNTL_SUSPEND_COMPLETE);
 }
 

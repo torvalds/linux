@@ -79,7 +79,6 @@
 #include <linux/mm.h>
 #include <linux/console.h>
 #include <linux/init.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/vt_kern.h>
 #include <linux/selection.h>
 #include <linux/tiocl.h>
@@ -87,7 +86,6 @@
 #include <linux/consolemap.h>
 #include <linux/timer.h>
 #include <linux/interrupt.h>
-#include <linux/config.h>
 #include <linux/workqueue.h>
 #include <linux/bootmem.h>
 #include <linux/pm.h>
@@ -2663,7 +2661,6 @@ int __init vty_init(void)
 	if (!console_driver)
 		panic("Couldn't allocate console driver\n");
 	console_driver->owner = THIS_MODULE;
-	console_driver->devfs_name = "vc/";
 	console_driver->name = "tty";
 	console_driver->name_base = 1;
 	console_driver->major = TTY_MAJOR;

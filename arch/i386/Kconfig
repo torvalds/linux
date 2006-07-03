@@ -176,7 +176,7 @@ endchoice
 config ACPI_SRAT
 	bool
 	default y
-	depends on NUMA && (X86_SUMMIT || X86_GENERICARCH)
+	depends on ACPI && NUMA && (X86_SUMMIT || X86_GENERICARCH)
 	select ACPI_NUMA
 
 config HAVE_ARCH_PARSE_SRAT
@@ -529,6 +529,7 @@ config X86_PAE
 	bool
 	depends on HIGHMEM64G
 	default y
+	select RESOURCES_64BIT
 
 # Common NUMA Features
 config NUMA
@@ -737,7 +738,7 @@ config KEXEC
 	  but it is independent of the system firmware.   And like a reboot
 	  you can start any kernel with it, not just Linux.
 
-	  The name comes from the similiarity to the exec system call.
+	  The name comes from the similarity to the exec system call.
 
 	  It is an ongoing process to be certain the hardware in a machine
 	  is properly shutdown, so do not be surprised if this code does not
@@ -794,6 +795,9 @@ config COMPAT_VDSO
 
 endmenu
 
+config ARCH_ENABLE_MEMORY_HOTPLUG
+	def_bool y
+	depends on HIGHMEM
 
 menu "Power management options (ACPI, APM)"
 	depends on !X86_VOYAGER

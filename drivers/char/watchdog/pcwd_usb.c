@@ -24,7 +24,6 @@
  *	http://www.berkprod.com/ or http://www.pcwatchdog.com/
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/init.h>

@@ -9,7 +9,6 @@
  * This file contains Solution Engine specific LED code.
  */
 
-#include <linux/config.h>
 #include <asm/se/se.h>
 
 static void mach_led(int position, int value)

@@ -1,4 +1,3 @@
-#include <linux/config.h>
 	
 	.global _start
 	.global _stext

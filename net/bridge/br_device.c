@@ -184,6 +184,6 @@ void br_dev_setup(struct net_device *dev)
 	dev->set_mac_address = br_set_mac_address;
 	dev->priv_flags = IFF_EBRIDGE;
 
- 	dev->features = NETIF_F_SG | NETIF_F_FRAGLIST
- 		| NETIF_F_HIGHDMA | NETIF_F_TSO | NETIF_F_NO_CSUM;
+ 	dev->features = NETIF_F_SG | NETIF_F_FRAGLIST | NETIF_F_HIGHDMA |
+ 			NETIF_F_TSO | NETIF_F_NO_CSUM | NETIF_F_GSO_ROBUST;
 }

@@ -70,6 +70,11 @@ config DMA_IS_DMA32
 	bool
 	default y
 
+config DMA_IS_NORMAL
+	bool
+	depends on IA64_SGI_SN2
+	default y
+
 choice
 	prompt "System type"
 	default IA64_GENERIC
@@ -270,6 +275,9 @@ config HOTPLUG_CPU
 	  Say Y here to experiment with turning CPUs off and on.  CPUs
 	  can be controlled through /sys/devices/system/cpu/cpu#.
 	  Say N if you want to disable CPU hotplug.
+
+config ARCH_ENABLE_MEMORY_HOTPLUG
+	def_bool y
 
 config SCHED_SMT
 	bool "SMT scheduler support"
@@ -487,6 +495,10 @@ config GENERIC_IRQ_PROBE
 config GENERIC_PENDING_IRQ
 	bool
 	depends on GENERIC_HARDIRQS && SMP
+	default y
+
+config IRQ_PER_CPU
+	bool
 	default y
 
 source "arch/ia64/hp/sim/Kconfig"

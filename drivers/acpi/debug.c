@@ -155,13 +155,12 @@ acpi_system_write_debug(struct file *file,
 {
 	char debug_string[12] = { '\0' };
 
-	ACPI_FUNCTION_TRACE("acpi_system_write_debug");
 
 	if (count > sizeof(debug_string) - 1)
-		return_VALUE(-EINVAL);
+		return -EINVAL;
 
 	if (copy_from_user(debug_string, buffer, count))
-		return_VALUE(-EFAULT);
+		return -EFAULT;
 
 	debug_string[count] = '\0';
 
@@ -173,10 +172,10 @@ acpi_system_write_debug(struct file *file,
 		acpi_dbg_level = simple_strtoul(debug_string, NULL, 0);
 		break;
 	default:
-		return_VALUE(-EINVAL);
+		return -EINVAL;
 	}
 
-	return_VALUE(count);
+	return count;
 }
 
 static int __init acpi_debug_init(void)
@@ -185,10 +184,9 @@ static int __init acpi_debug_init(void)
 	int error = 0;
 	char *name;
 
-	ACPI_FUNCTION_TRACE("acpi_debug_init");
 
 	if (acpi_disabled)
-		return_VALUE(0);
+		return 0;
 
 	/* 'debug_layer' [R/W] */
 	name = ACPI_SYSTEM_FILE_DEBUG_LAYER;
@@ -213,15 +211,12 @@ static int __init acpi_debug_init(void)
 		goto Error;
 
       Done:
-	return_VALUE(error);
+	return error;
 
       Error:
-	ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-			  "Unable to create '%s' proc fs entry\n", name));
-
 	remove_proc_entry(ACPI_SYSTEM_FILE_DEBUG_LEVEL, acpi_root_dir);
 	remove_proc_entry(ACPI_SYSTEM_FILE_DEBUG_LAYER, acpi_root_dir);
-	error = -EFAULT;
+	error = -ENODEV;
 	goto Done;
 }
 

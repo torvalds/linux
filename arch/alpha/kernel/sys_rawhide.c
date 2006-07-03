@@ -180,7 +180,7 @@ rawhide_init_irq(void)
 
 	for (i = 16; i < 128; ++i) {
 		irq_desc[i].status = IRQ_DISABLED | IRQ_LEVEL;
-		irq_desc[i].handler = &rawhide_irq_type;
+		irq_desc[i].chip = &rawhide_irq_type;
 	}
 
 	init_i8259a_irqs();

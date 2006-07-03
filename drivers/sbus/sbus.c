@@ -5,7 +5,6 @@
 
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/pci.h>
 

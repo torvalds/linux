@@ -4,12 +4,11 @@
  * Data gathering module for Linux-VM Monitor Stream, Stage 1.
  * Collects data related to memory management.
  *
- * Copyright (C) 2003 IBM Corporation, IBM Deutschland Entwicklung GmbH.
+ * Copyright (C) 2003,2006 IBM Corporation, IBM Deutschland Entwicklung GmbH.
  *
- * Author: Gerald Schaefer <geraldsc@de.ibm.com>
+ * Author: Gerald Schaefer <gerald.schaefer@de.ibm.com>
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -107,21 +106,21 @@ static void appldata_get_mem_data(void *data)
 	 * serialized through the appldata_ops_lock and can use static
 	 */
 	static struct sysinfo val;
-	static struct page_state ps;
+	unsigned long ev[NR_VM_EVENT_ITEMS];
 	struct appldata_mem_data *mem_data;
 
 	mem_data = data;
 	mem_data->sync_count_1++;
 
-	get_full_page_state(&ps);
-	mem_data->pgpgin     = ps.pgpgin >> 1;
-	mem_data->pgpgout    = ps.pgpgout >> 1;
-	mem_data->pswpin     = ps.pswpin;
-	mem_data->pswpout    = ps.pswpout;
-	mem_data->pgalloc    = ps.pgalloc_high + ps.pgalloc_normal +
-			       ps.pgalloc_dma;
-	mem_data->pgfault    = ps.pgfault;
-	mem_data->pgmajfault = ps.pgmajfault;
+	all_vm_events(ev);
+	mem_data->pgpgin     = ev[PGPGIN] >> 1;
+	mem_data->pgpgout    = ev[PGPGOUT] >> 1;
+	mem_data->pswpin     = ev[PSWPIN];
+	mem_data->pswpout    = ev[PSWPOUT];
+	mem_data->pgalloc    = ev[PGALLOC_HIGH] + ev[PGALLOC_NORMAL] +
+			       ev[PGALLOC_DMA];
+	mem_data->pgfault    = ev[PGFAULT];
+	mem_data->pgmajfault = ev[PGMAJFAULT];
 
 	si_meminfo(&val);
 	mem_data->sharedram = val.sharedram;
@@ -130,7 +129,8 @@ static void appldata_get_mem_data(void *data)
 	mem_data->totalhigh = P2K(val.totalhigh);
 	mem_data->freehigh  = P2K(val.freehigh);
 	mem_data->bufferram = P2K(val.bufferram);
-	mem_data->cached    = P2K(atomic_read(&nr_pagecache) - val.bufferram);
+	mem_data->cached    = P2K(global_page_state(NR_FILE_PAGES)
+				- val.bufferram);
 
 	si_swapinfo(&val);
 	mem_data->totalswap = P2K(val.totalswap);
@@ -152,6 +152,7 @@ static struct appldata_ops ops = {
 	.callback  = &appldata_get_mem_data,
 	.data      = &appldata_mem_data,
 	.owner     = THIS_MODULE,
+	.mod_lvl   = {0xF0, 0xF0},		/* EBCDIC "00" */
 };
 
 

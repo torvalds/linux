@@ -33,7 +33,6 @@
  * */
 
 #include <linux/module.h>
-#include <linux/config.h>
 #include <linux/kdev_t.h>
 #include <asm/io.h>
 #include <linux/kernel.h>
@@ -1120,7 +1119,7 @@ static int __init rio_init(void)
 	for (i = 0; i < p->RIONumHosts; i++) {
 		hp = &p->RIOHosts[i];
 		if (hp->Ivec) {
-			int mode = SA_SHIRQ;
+			int mode = IRQF_SHARED;
 			if (hp->Ivec & 0x8000) {
 				mode = 0;
 				hp->Ivec &= 0x7fff;

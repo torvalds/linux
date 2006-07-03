@@ -1421,7 +1421,7 @@ static int b44_open(struct net_device *dev)
 
 	b44_check_phy(bp);
 
-	err = request_irq(dev->irq, b44_interrupt, SA_SHIRQ, dev->name, dev);
+	err = request_irq(dev->irq, b44_interrupt, IRQF_SHARED, dev->name, dev);
 	if (unlikely(err < 0)) {
 		b44_chip_reset(bp);
 		b44_free_rings(bp);
@@ -2322,7 +2322,7 @@ static int b44_resume(struct pci_dev *pdev)
 	if (!netif_running(dev))
 		return 0;
 
-	if (request_irq(dev->irq, b44_interrupt, SA_SHIRQ, dev->name, dev))
+	if (request_irq(dev->irq, b44_interrupt, IRQF_SHARED, dev->name, dev))
 		printk(KERN_ERR PFX "%s: request_irq failed\n", dev->name);
 
 	spin_lock_irq(&bp->lock);

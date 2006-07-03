@@ -6,6 +6,7 @@ config SPU_FS
 	default m
 	depends on PPC_CELL
 	select SPU_BASE
+	select MEMORY_HOTPLUG
 	help
 	  The SPU file system is used to access Synergistic Processing
 	  Units on machines implementing the Broadband Processor
@@ -18,7 +19,6 @@ config SPU_BASE
 config SPUFS_MMAP
 	bool
 	depends on SPU_FS && SPARSEMEM
-	select MEMORY_HOTPLUG
 	default y
 
 config CBE_RAS

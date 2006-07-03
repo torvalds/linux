@@ -4350,7 +4350,7 @@ static int __init gdth_detect(Scsi_Host_Template *shtp)
                 printk("Configuring GDT-ISA HA at BIOS 0x%05X IRQ %u DRQ %u\n",
                        isa_bios,ha->irq,ha->drq);
 
-                if (request_irq(ha->irq,gdth_interrupt,SA_INTERRUPT,"gdth",ha)) {
+                if (request_irq(ha->irq,gdth_interrupt,IRQF_DISABLED,"gdth",ha)) {
                     printk("GDT-ISA: Unable to allocate IRQ\n");
                     scsi_unregister(shp);
                     continue;
@@ -4476,7 +4476,7 @@ static int __init gdth_detect(Scsi_Host_Template *shtp)
                 printk("Configuring GDT-EISA HA at Slot %d IRQ %u\n",
                        eisa_slot>>12,ha->irq);
 
-                if (request_irq(ha->irq,gdth_interrupt,SA_INTERRUPT,"gdth",ha)) {
+                if (request_irq(ha->irq,gdth_interrupt,IRQF_DISABLED,"gdth",ha)) {
                     printk("GDT-EISA: Unable to allocate IRQ\n");
                     scsi_unregister(shp);
                     continue;
@@ -4603,7 +4603,7 @@ static int __init gdth_detect(Scsi_Host_Template *shtp)
                pcistr[ctr].bus,PCI_SLOT(pcistr[ctr].device_fn),ha->irq);
 
         if (request_irq(ha->irq, gdth_interrupt,
-                        SA_INTERRUPT|SA_SHIRQ, "gdth", ha))
+                        IRQF_DISABLED|IRQF_SHARED, "gdth", ha))
         {
             printk("GDT-PCI: Unable to allocate IRQ\n");
             scsi_unregister(shp);

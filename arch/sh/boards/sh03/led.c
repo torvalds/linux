@@ -6,7 +6,6 @@
  * This file contains Interface CTP/PCI-SH03 specific LED code.
  */
 
-#include <linux/config.h>
 #include <linux/sched.h>
 
 /* Cycle the LED's in the clasic Knightrider/Sun pattern */

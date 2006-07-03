@@ -40,7 +40,6 @@
 */
 #define DOC_SINGLE_DRIVER
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <asm/errno.h>

@@ -52,13 +52,12 @@ static acpi_status acpi_reserve_io_ranges(struct acpi_resource *res, void *data)
 {
 	struct resource *requested_res = NULL;
 
-	ACPI_FUNCTION_TRACE("acpi_reserve_io_ranges");
 
 	if (res->type == ACPI_RESOURCE_TYPE_IO) {
 		struct acpi_resource_io *io_res = &res->data.io;
 
 		if (io_res->minimum != io_res->maximum)
-			return_VALUE(AE_OK);
+			return AE_OK;
 		if (IS_RESERVED_ADDR
 		    (io_res->minimum, io_res->address_length)) {
 			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
@@ -92,7 +91,7 @@ static acpi_status acpi_reserve_io_ranges(struct acpi_resource *res, void *data)
 
 	if (requested_res)
 		requested_res->flags &= ~IORESOURCE_BUSY;
-	return_VALUE(AE_OK);
+	return AE_OK;
 }
 
 static int acpi_motherboard_add(struct acpi_device *device)

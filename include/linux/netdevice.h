@@ -313,8 +313,12 @@ struct net_device
 
 	/* Segmentation offload features */
 #define NETIF_F_GSO_SHIFT	16
+#define NETIF_F_GSO_MASK	0xffff0000
 #define NETIF_F_TSO		(SKB_GSO_TCPV4 << NETIF_F_GSO_SHIFT)
-#define NETIF_F_UFO		(SKB_GSO_UDPV4 << NETIF_F_GSO_SHIFT)
+#define NETIF_F_UFO		(SKB_GSO_UDP << NETIF_F_GSO_SHIFT)
+#define NETIF_F_GSO_ROBUST	(SKB_GSO_DODGY << NETIF_F_GSO_SHIFT)
+#define NETIF_F_TSO_ECN		(SKB_GSO_TCP_ECN << NETIF_F_GSO_SHIFT)
+#define NETIF_F_TSO6		(SKB_GSO_TCPV6 << NETIF_F_GSO_SHIFT)
 
 #define NETIF_F_GEN_CSUM	(NETIF_F_NO_CSUM | NETIF_F_HW_CSUM)
 #define NETIF_F_ALL_CSUM	(NETIF_F_IP_CSUM | NETIF_F_GEN_CSUM)
@@ -543,7 +547,8 @@ struct packet_type {
 					 struct net_device *,
 					 struct packet_type *,
 					 struct net_device *);
-	struct sk_buff		*(*gso_segment)(struct sk_buff *skb, int sg);
+	struct sk_buff		*(*gso_segment)(struct sk_buff *skb,
+						int features);
 	void			*af_packet_priv;
 	struct list_head	list;
 };
@@ -968,7 +973,7 @@ extern int		netdev_max_backlog;
 extern int		weight_p;
 extern int		netdev_set_master(struct net_device *dev, struct net_device *master);
 extern int skb_checksum_help(struct sk_buff *skb, int inward);
-extern struct sk_buff *skb_gso_segment(struct sk_buff *skb, int sg);
+extern struct sk_buff *skb_gso_segment(struct sk_buff *skb, int features);
 #ifdef CONFIG_BUG
 extern void netdev_rx_csum_fault(struct net_device *dev);
 #else
@@ -988,11 +993,21 @@ extern void dev_seq_stop(struct seq_file *seq, void *v);
 
 extern void linkwatch_run_queue(void);
 
+static inline int net_gso_ok(int features, int gso_type)
+{
+	int feature = gso_type << NETIF_F_GSO_SHIFT;
+	return (features & feature) == feature;
+}
+
+static inline int skb_gso_ok(struct sk_buff *skb, int features)
+{
+	return net_gso_ok(features, skb_shinfo(skb)->gso_size ?
+				    skb_shinfo(skb)->gso_type : 0);
+}
+
 static inline int netif_needs_gso(struct net_device *dev, struct sk_buff *skb)
 {
-	int feature = skb_shinfo(skb)->gso_type << NETIF_F_GSO_SHIFT;
-	return skb_shinfo(skb)->gso_size &&
-	       (dev->features & feature) != feature;
+	return !skb_gso_ok(skb, dev->features);
 }
 
 #endif /* __KERNEL__ */

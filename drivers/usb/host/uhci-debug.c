@@ -9,7 +9,6 @@
  * (C) Copyright 1999-2001 Johannes Erdfelt
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/debugfs.h>
 #include <linux/smp_lock.h>

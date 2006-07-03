@@ -25,7 +25,6 @@
  *  membase is an 'ioremapped' cookie.  This is compatible with the old
  *  serial.c driver, and is currently the preferred form.
  */
-#include <linux/config.h>
 
 #if defined(CONFIG_SERIAL_M32R_SIO_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
 #define SUPPORT_SYSRQ
@@ -543,7 +542,7 @@ static void serial_do_unlink(struct irq_info *i, struct uart_sio_port *up)
 static int serial_link_irq_chain(struct uart_sio_port *up)
 {
 	struct irq_info *i = irq_lists + up->port.irq;
-	int ret, irq_flags = up->port.flags & UPF_SHARE_IRQ ? SA_SHIRQ : 0;
+	int ret, irq_flags = up->port.flags & UPF_SHARE_IRQ ? IRQF_SHARED : 0;
 
 	spin_lock_irq(&i->lock);
 
@@ -1131,7 +1130,6 @@ console_initcall(m32r_sio_console_init);
 static struct uart_driver m32r_sio_reg = {
 	.owner			= THIS_MODULE,
 	.driver_name		= "sio",
-	.devfs_name		= "tts/",
 	.dev_name		= "ttyS",
 	.major			= TTY_MAJOR,
 	.minor			= 64,

@@ -25,7 +25,6 @@
  *      exports to its high level clients
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 
 #include <linux/ftape.h>

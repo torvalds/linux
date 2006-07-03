@@ -5177,7 +5177,7 @@ static int __devinit cs46xx_probe(struct pci_dev *pci_dev,
 		card->ba1.name.reg == 0)
 		goto fail2;
 		
-	if (request_irq(card->irq, &cs_interrupt, SA_SHIRQ, "cs46xx", card)) {
+	if (request_irq(card->irq, &cs_interrupt, IRQF_SHARED, "cs46xx", card)) {
 		printk(KERN_ERR "cs46xx: unable to allocate irq %d\n", card->irq);
 		goto fail2;
 	}

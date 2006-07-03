@@ -12,7 +12,6 @@
 
 /* This code assumes that the data cache has been disabled (L1, L2, L3). */
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/serial_reg.h>
 #include <asm/serial.h>

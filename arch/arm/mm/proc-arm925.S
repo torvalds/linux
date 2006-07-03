@@ -50,7 +50,6 @@
  */
 
 #include <linux/linkage.h>
-#include <linux/config.h>
 #include <linux/init.h>
 #include <asm/assembler.h>
 #include <asm/pgtable-hwdef.h>
@@ -455,11 +454,10 @@ __arm925_setup:
 	mcr	p15, 7, r0, c15, c0, 0
 #endif
 
+	adr	r5, {r5, r6}
 	mrc	p15, 0, r0, c1, c0		@ get control register v4
-	ldr	r5, arm925_cr1_clear
 	bic	r0, r0, r5
-	ldr	r5, arm925_cr1_set
-	orr	r0, r0, r5
+	orr	r0, r0, r6
 #ifdef CONFIG_CPU_CACHE_ROUND_ROBIN
 	orr	r0, r0, #0x4000			@ .1.. .... .... ....
 #endif
@@ -472,12 +470,9 @@ __arm925_setup:
 	 * .011 0001 ..11 1101
 	 * 
 	 */
-	.type	arm925_cr1_clear, #object
-	.type	arm925_cr1_set, #object
-arm925_cr1_clear:
-	.word	0x7f3f
-arm925_cr1_set:
-	.word	0x313d
+	.type	arm925_crval, #object
+arm925_crval:
+	crval	clear=0x00007f3f, mmuset=0x0000313d, ucset=0x00001130
 
 	__INITDATA
 
@@ -511,22 +506,7 @@ cpu_elf_name:
 
 	.type	cpu_arm925_name, #object
 cpu_arm925_name:
-	.ascii	"ARM925T"
-#ifndef CONFIG_CPU_ICACHE_DISABLE
-	.ascii	"i"
-#endif
-#ifndef CONFIG_CPU_DCACHE_DISABLE
-	.ascii	"d"
-#ifdef CONFIG_CPU_DCACHE_WRITETHROUGH
-	.ascii	"(wt)"
-#else
-	.ascii	"(wb)"
-#endif
-#ifdef CONFIG_CPU_CACHE_ROUND_ROBIN
-	.ascii	"RR"
-#endif
-#endif
-	.ascii	"\0"
+	.asciz	"ARM925T"
 	.size	cpu_arm925_name, . - cpu_arm925_name
 
 	.align
@@ -537,6 +517,10 @@ cpu_arm925_name:
 __arm925_proc_info:
 	.long	0x54029250
 	.long	0xfffffff0
+	.long   PMD_TYPE_SECT | \
+		PMD_BIT4 | \
+		PMD_SECT_AP_WRITE | \
+		PMD_SECT_AP_READ
 	.long   PMD_TYPE_SECT | \
 		PMD_BIT4 | \
 		PMD_SECT_AP_WRITE | \
@@ -556,6 +540,10 @@ __arm925_proc_info:
 __arm915_proc_info:
 	.long	0x54029150
 	.long	0xfffffff0
+	.long   PMD_TYPE_SECT | \
+		PMD_BIT4 | \
+		PMD_SECT_AP_WRITE | \
+		PMD_SECT_AP_READ
 	.long   PMD_TYPE_SECT | \
 		PMD_BIT4 | \
 		PMD_SECT_AP_WRITE | \

@@ -125,11 +125,24 @@ asmlinkage long sys_ioprio_set(int which, int who, int ioprio)
 	return ret;
 }
 
+static int get_task_ioprio(struct task_struct *p)
+{
+	int ret;
+
+	ret = security_task_getioprio(p);
+	if (ret)
+		goto out;
+	ret = p->ioprio;
+out:
+	return ret;
+}
+
 asmlinkage long sys_ioprio_get(int which, int who)
 {
 	struct task_struct *g, *p;
 	struct user_struct *user;
 	int ret = -ESRCH;
+	int tmpio;
 
 	read_lock_irq(&tasklist_lock);
 	switch (which) {
@@ -139,16 +152,19 @@ asmlinkage long sys_ioprio_get(int which, int who)
 			else
 				p = find_task_by_pid(who);
 			if (p)
-				ret = p->ioprio;
+				ret = get_task_ioprio(p);
 			break;
 		case IOPRIO_WHO_PGRP:
 			if (!who)
 				who = process_group(current);
 			do_each_task_pid(who, PIDTYPE_PGID, p) {
+				tmpio = get_task_ioprio(p);
+				if (tmpio < 0)
+					continue;
 				if (ret == -ESRCH)
-					ret = p->ioprio;
+					ret = tmpio;
 				else
-					ret = ioprio_best(ret, p->ioprio);
+					ret = ioprio_best(ret, tmpio);
 			} while_each_task_pid(who, PIDTYPE_PGID, p);
 			break;
 		case IOPRIO_WHO_USER:
@@ -163,10 +179,13 @@ asmlinkage long sys_ioprio_get(int which, int who)
 			do_each_thread(g, p) {
 				if (p->uid != user->uid)
 					continue;
+				tmpio = get_task_ioprio(p);
+				if (tmpio < 0)
+					continue;
 				if (ret == -ESRCH)
-					ret = p->ioprio;
+					ret = tmpio;
 				else
-					ret = ioprio_best(ret, p->ioprio);
+					ret = ioprio_best(ret, tmpio);
 			} while_each_thread(g, p);
 
 			if (who)

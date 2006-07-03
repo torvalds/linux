@@ -12,7 +12,6 @@
  * See the GNU General Public License for more details.
  */
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/proc_fs.h>

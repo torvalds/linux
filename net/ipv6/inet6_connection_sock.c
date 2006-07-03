@@ -13,7 +13,6 @@
  *             2 of the License, or(at your option) any later version.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/in6.h>
 #include <linux/ipv6.h>
@@ -187,8 +186,6 @@ int inet6_csk_xmit(struct sk_buff *skb, int ipfragok)
 		}
 
 		ip6_dst_store(sk, dst, NULL);
-		sk->sk_route_caps = dst->dev->features &
-			~(NETIF_F_IP_CSUM | NETIF_F_TSO);
 	}
 
 	skb->dst = dst_clone(dst);

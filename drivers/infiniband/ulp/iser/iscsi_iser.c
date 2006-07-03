@@ -54,7 +54,6 @@
 #include <linux/blkdev.h>
 #include <linux/init.h>
 #include <linux/ioctl.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/cdev.h>
 #include <linux/in.h>
 #include <linux/net.h>

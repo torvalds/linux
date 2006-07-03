@@ -43,7 +43,6 @@
  * 2000-08-06: Convert to new helper API (Harald Welte).
  *
  */
-#include <linux/config.h>
 #include <linux/in.h>
 #include <linux/module.h>
 #include <linux/types.h>

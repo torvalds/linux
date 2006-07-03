@@ -121,7 +121,7 @@ static int jsm_probe_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	rc = request_irq(brd->irq, brd->bd_ops->intr,
-			SA_INTERRUPT|SA_SHIRQ, "JSM", brd);
+			IRQF_DISABLED|IRQF_SHARED, "JSM", brd);
 	if (rc) {
 		printk(KERN_WARNING "Failed to hook IRQ %d\n",brd->irq);
 		goto out_iounmap;

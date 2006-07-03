@@ -20,7 +20,6 @@
 #ifndef __IBM_EMAC_CORE_H_
 #define __IBM_EMAC_CORE_H_
 
-#include <linux/config.h>
 #include <linux/netdevice.h>
 #include <linux/dma-mapping.h>
 #include <asm/ocp.h>

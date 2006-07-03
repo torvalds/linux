@@ -659,7 +659,7 @@ int snd_es1688_create(struct snd_card *card,
 		snd_es1688_free(chip);
 		return -EBUSY;
 	}
-	if (request_irq(irq, snd_es1688_interrupt, SA_INTERRUPT, "ES1688", (void *) chip)) {
+	if (request_irq(irq, snd_es1688_interrupt, IRQF_DISABLED, "ES1688", (void *) chip)) {
 		snd_printk(KERN_ERR "es1688: can't grab IRQ %d\n", irq);
 		snd_es1688_free(chip);
 		return -EBUSY;

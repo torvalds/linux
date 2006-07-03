@@ -22,7 +22,6 @@
  *
  * Lasat specific setup.
  */
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/pci.h>

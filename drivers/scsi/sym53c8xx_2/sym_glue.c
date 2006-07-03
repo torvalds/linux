@@ -1547,7 +1547,7 @@ static struct Scsi_Host * __devinit sym_attach(struct scsi_host_template *tpnt,
 	 *  If we synchonize the C code with SCRIPTS on interrupt, 
 	 *  we do not want to share the INTR line at all.
 	 */
-	if (request_irq(pdev->irq, sym53c8xx_intr, SA_SHIRQ, NAME53C8XX, np)) {
+	if (request_irq(pdev->irq, sym53c8xx_intr, IRQF_SHARED, NAME53C8XX, np)) {
 		printf_err("%s: request irq %d failure\n",
 			sym_name(np), pdev->irq);
 		goto attach_failed;

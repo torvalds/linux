@@ -93,7 +93,7 @@ static char * critical_overtemp_path = "/sbin/critical_overtemp";
  * 0. This appear to be safe enough for this first version
  * of the driver, though I would accept any clean patch
  * doing a better use of the device-tree without turning the
- * while i2c registration mecanism into a racy mess
+ * while i2c registration mechanism into a racy mess
  *
  * Note: Xserve changed this. We have some bits on the K2 bus,
  * which I arbitrarily set to 0x200. Ultimately, we really want

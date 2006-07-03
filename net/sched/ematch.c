@@ -81,7 +81,6 @@
  *      open up a beer to watch the compilation going.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>

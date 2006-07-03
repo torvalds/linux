@@ -13,7 +13,6 @@
  * This file handles the architecture-dependent parts of process handling..
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/sched.h>

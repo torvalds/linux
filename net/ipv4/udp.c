@@ -91,7 +91,6 @@
 #include <linux/errno.h>
 #include <linux/timer.h>
 #include <linux/mm.h>
-#include <linux/config.h>
 #include <linux/inet.h>
 #include <linux/ipv6.h>
 #include <linux/netdevice.h>

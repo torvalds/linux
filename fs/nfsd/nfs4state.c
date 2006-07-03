@@ -1237,8 +1237,15 @@ find_file(struct inode *ino)
 	return NULL;
 }
 
-#define TEST_ACCESS(x) ((x > 0 || x < 4)?1:0)
-#define TEST_DENY(x) ((x >= 0 || x < 5)?1:0)
+static int access_valid(u32 x)
+{
+	return (x > 0 && x < 4);
+}
+
+static int deny_valid(u32 x)
+{
+	return (x >= 0 && x < 5);
+}
 
 static void
 set_access(unsigned int *access, unsigned long bmap) {
@@ -1745,7 +1752,8 @@ nfsd4_process_open2(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nf
 	int status;
 
 	status = nfserr_inval;
-	if (!TEST_ACCESS(open->op_share_access) || !TEST_DENY(open->op_share_deny))
+	if (!access_valid(open->op_share_access)
+			|| !deny_valid(open->op_share_deny))
 		goto out;
 	/*
 	 * Lookup file; if found, lookup stateid and check open request,
@@ -1782,10 +1790,10 @@ nfsd4_process_open2(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nf
 	} else {
 		/* Stateid was not found, this is a new OPEN */
 		int flags = 0;
+		if (open->op_share_access & NFS4_SHARE_ACCESS_READ)
+			flags |= MAY_READ;
 		if (open->op_share_access & NFS4_SHARE_ACCESS_WRITE)
-			flags = MAY_WRITE;
-		else
-			flags = MAY_READ;
+			flags |= MAY_WRITE;
 		status = nfs4_new_open(rqstp, &stp, dp, current_fh, flags);
 		if (status)
 			goto out;
@@ -2070,16 +2078,12 @@ nfs4_preprocess_stateid_op(struct svc_fh *current_fh, stateid_t *stateid, int fl
 	if (!stateid->si_fileid) { /* delegation stateid */
 		if(!(dp = find_delegation_stateid(ino, stateid))) {
 			dprintk("NFSD: delegation stateid not found\n");
-			if (nfs4_in_grace())
-				status = nfserr_grace;
 			goto out;
 		}
 		stidp = &dp->dl_stateid;
 	} else { /* open or lock stateid */
 		if (!(stp = find_stateid(stateid, flags))) {
 			dprintk("NFSD: open or lock stateid not found\n");
-			if (nfs4_in_grace())
-				status = nfserr_grace;
 			goto out;
 		}
 		if ((flags & CHECK_FH) && nfs4_check_fh(current_fh, stp))
@@ -2252,8 +2256,9 @@ nfsd4_open_confirm(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfs
 			(int)current_fh->fh_dentry->d_name.len,
 			current_fh->fh_dentry->d_name.name);
 
-	if ((status = fh_verify(rqstp, current_fh, S_IFREG, 0)))
-		goto out;
+	status = fh_verify(rqstp, current_fh, S_IFREG, 0);
+	if (status)
+		return status;
 
 	nfs4_lock_state();
 
@@ -2320,7 +2325,8 @@ nfsd4_open_downgrade(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct n
 			(int)current_fh->fh_dentry->d_name.len,
 			current_fh->fh_dentry->d_name.name);
 
-	if (!TEST_ACCESS(od->od_share_access) || !TEST_DENY(od->od_share_deny))
+	if (!access_valid(od->od_share_access)
+			|| !deny_valid(od->od_share_deny))
 		return nfserr_inval;
 
 	nfs4_lock_state();

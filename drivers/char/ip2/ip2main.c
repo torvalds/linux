@@ -82,7 +82,6 @@
 /************/
 /* Includes */
 /************/
-#include <linux/config.h>
 
 #include <linux/ctype.h>
 #include <linux/string.h>
@@ -91,7 +90,6 @@
 #include <linux/module.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/timer.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
@@ -414,9 +412,7 @@ cleanup_module(void)
 			/* free io addresses and Tibet */
 			release_region( ip2config.addr[i], 8 );
 			class_device_destroy(ip2_class, MKDEV(IP2_IPL_MAJOR, 4 * i));
-			devfs_remove("ip2/ipl%d", i);
 			class_device_destroy(ip2_class, MKDEV(IP2_IPL_MAJOR, 4 * i + 1));
-			devfs_remove("ip2/stat%d", i);
 		}
 		/* Disable and remove interrupt handler. */
 		if ( (ip2config.irq[i] > 0) && have_requested_irq(ip2config.irq[i]) ) {	
@@ -425,7 +421,6 @@ cleanup_module(void)
 		}
 	}
 	class_destroy(ip2_class);
-	devfs_remove("ip2");
 	if ( ( err = tty_unregister_driver ( ip2_tty_driver ) ) ) {
 		printk(KERN_ERR "IP2: failed to unregister tty driver (%d)\n", err);
 	}
@@ -496,8 +491,8 @@ static struct tty_operations ip2_ops = {
 /* initialisation of the devices and driver structures, and registers itself  */
 /* with the relevant kernel modules.                                          */
 /******************************************************************************/
-/* SA_INTERRUPT- if set blocks all interrupts else only this line */
-/* SA_SHIRQ    - for shared irq PCI or maybe EISA only */
+/* IRQF_DISABLED - if set blocks all interrupts else only this line */
+/* IRQF_SHARED    - for shared irq PCI or maybe EISA only */
 /* SA_RANDOM   - can be source for cert. random number generators */
 #define IP2_SA_FLAGS	0
 
@@ -675,7 +670,6 @@ ip2_loadmain(int *iop, int *irqp, unsigned char *firmware, int firmsize)
 
 	ip2_tty_driver->owner		    = THIS_MODULE;
 	ip2_tty_driver->name                 = "ttyF";
-	ip2_tty_driver->devfs_name	    = "tts/F";
 	ip2_tty_driver->driver_name          = pcDriver_name;
 	ip2_tty_driver->major                = IP2_TTY_MAJOR;
 	ip2_tty_driver->minor_start          = 0;
@@ -683,7 +677,7 @@ ip2_loadmain(int *iop, int *irqp, unsigned char *firmware, int firmsize)
 	ip2_tty_driver->subtype              = SERIAL_TYPE_NORMAL;
 	ip2_tty_driver->init_termios         = tty_std_termios;
 	ip2_tty_driver->init_termios.c_cflag = B9600|CS8|CREAD|HUPCL|CLOCAL;
-	ip2_tty_driver->flags                = TTY_DRIVER_REAL_RAW | TTY_DRIVER_NO_DEVFS;
+	ip2_tty_driver->flags                = TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;
 	tty_set_operations(ip2_tty_driver, &ip2_ops);
 
 	ip2trace (ITRC_NO_PORT, ITRC_INIT, 3, 0 );
@@ -724,26 +718,9 @@ ip2_loadmain(int *iop, int *irqp, unsigned char *firmware, int firmsize)
 				class_device_create(ip2_class, NULL,
 						MKDEV(IP2_IPL_MAJOR, 4 * i),
 						NULL, "ipl%d", i);
-				err = devfs_mk_cdev(MKDEV(IP2_IPL_MAJOR, 4 * i),
-						S_IRUSR | S_IWUSR | S_IRGRP | S_IFCHR,
-						"ip2/ipl%d", i);
-				if (err) {
-					class_device_destroy(ip2_class,
-						MKDEV(IP2_IPL_MAJOR, 4 * i));
-					goto out_class;
-				}
-
 				class_device_create(ip2_class, NULL,
 						MKDEV(IP2_IPL_MAJOR, 4 * i + 1),
 						NULL, "stat%d", i);
-				err = devfs_mk_cdev(MKDEV(IP2_IPL_MAJOR, 4 * i + 1),
-						S_IRUSR | S_IWUSR | S_IRGRP | S_IFCHR,
-						"ip2/stat%d", i);
-				if (err) {
-					class_device_destroy(ip2_class,
-						MKDEV(IP2_IPL_MAJOR, 4 * i + 1));
-					goto out_class;
-				}
 
 			    for ( box = 0; box < ABS_MAX_BOXES; ++box )
 			    {
@@ -776,7 +753,7 @@ retry:
 				if (have_requested_irq(ip2config.irq[i]))
 					continue;
 				rc = request_irq( ip2config.irq[i], ip2_interrupt,
-					IP2_SA_FLAGS | (ip2config.type[i] == PCI ? SA_SHIRQ : 0),
+					IP2_SA_FLAGS | (ip2config.type[i] == PCI ? IRQF_SHARED : 0),
 					pcName, (void *)&pcName);
 				if (rc) {
 					printk(KERN_ERR "IP2: an request_irq failed: error %d\n",rc);

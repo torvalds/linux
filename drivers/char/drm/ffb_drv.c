@@ -4,7 +4,6 @@
  * Copyright (C) 2000 David S. Miller (davem@redhat.com)
  */
 
-#include <linux/config.h>
 #include "ffb.h"
 #include "drmP.h"
 

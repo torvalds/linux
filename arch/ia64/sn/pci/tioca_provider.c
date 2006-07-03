@@ -646,7 +646,7 @@ tioca_bus_fixup(struct pcibus_bussoft *prom_bussoft, struct pci_controller *cont
 
 	if (request_irq(SGI_TIOCA_ERROR,
 			tioca_error_intr_handler,
-			SA_SHIRQ, "TIOCA error", (void *)tioca_common))
+			IRQF_SHARED, "TIOCA error", (void *)tioca_common))
 		printk(KERN_WARNING
 		       "%s:  Unable to get irq %d.  "
 		       "Error interrupts won't be routed for TIOCA bus %d\n",

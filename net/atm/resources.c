@@ -8,7 +8,6 @@
  * 	     use the default destruct function initialized by sock_init_data */
 
 
-#include <linux/config.h>
 #include <linux/ctype.h>
 #include <linux/string.h>
 #include <linux/atmdev.h>
@@ -114,14 +113,27 @@ struct atm_dev *atm_dev_register(const char *type, const struct atmdev_ops *ops,
 		printk(KERN_ERR "atm_dev_register: "
 		       "atm_proc_dev_register failed for dev %s\n",
 		       type);
-		mutex_unlock(&atm_dev_mutex);
-		kfree(dev);
-		return NULL;
+		goto out_fail;
 	}
-	list_add_tail(&dev->dev_list, &atm_devs);
-	mutex_unlock(&atm_dev_mutex);
 
+	if (atm_register_sysfs(dev) < 0) {
+		printk(KERN_ERR "atm_dev_register: "
+		       "atm_register_sysfs failed for dev %s\n",
+		       type);
+		atm_proc_dev_deregister(dev);
+		goto out_fail;
+	}
+
+	list_add_tail(&dev->dev_list, &atm_devs);
+
+out:
+	mutex_unlock(&atm_dev_mutex);
 	return dev;
+
+out_fail:
+	kfree(dev);
+	dev = NULL;
+	goto out;
 }
 
 
@@ -140,6 +152,7 @@ void atm_dev_deregister(struct atm_dev *dev)
 	mutex_unlock(&atm_dev_mutex);
 
 	atm_dev_release_vccs(dev);
+	atm_unregister_sysfs(dev);
 	atm_proc_dev_deregister(dev);
 
 	atm_dev_put(dev);

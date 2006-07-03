@@ -7,8 +7,6 @@
 #define sys_vm86old sys_ni_syscall
 #define sys_vm86 sys_ni_syscall
 
-#define sys_stime um_stime
-#define sys_time um_time
 #define old_mmap old_mmap_i386
 
 #include "../../i386/kernel/syscall_table.S"

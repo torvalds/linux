@@ -5,7 +5,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <asm/processor.h>
 
 static void putc(char c);

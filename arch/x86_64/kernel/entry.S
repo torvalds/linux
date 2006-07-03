@@ -28,7 +28,6 @@
  */
 
 #define ASSEMBLY 1
-#include <linux/config.h>
 #include <linux/linkage.h>
 #include <asm/segment.h>
 #include <asm/smp.h>

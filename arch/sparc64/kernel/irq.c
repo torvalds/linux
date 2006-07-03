@@ -6,7 +6,6 @@
  * Copyright (C) 1998  Jakub Jelinek    (jj@ultra.linux.cz)
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/ptrace.h>
@@ -151,7 +150,7 @@ int show_interrupts(struct seq_file *p, void *v)
 		for_each_online_cpu(j)
 			seq_printf(p, "%10u ", kstat_cpu(j).irqs[i]);
 #endif
-		seq_printf(p, " %9s", irq_desc[i].handler->typename);
+		seq_printf(p, " %9s", irq_desc[i].chip->typename);
 		seq_printf(p, "  %s", action->name);
 
 		for (action=action->next; action; action = action->next)
@@ -224,7 +223,7 @@ static inline struct ino_bucket *virt_irq_to_bucket(unsigned int virt_irq)
 #ifdef CONFIG_SMP
 static int irq_choose_cpu(unsigned int virt_irq)
 {
-	cpumask_t mask = irq_affinity[virt_irq];
+	cpumask_t mask = irq_desc[virt_irq].affinity;
 	int cpuid;
 
 	if (cpus_equal(mask, CPU_MASK_ALL)) {
@@ -414,8 +413,12 @@ void irq_install_pre_handler(int virt_irq,
 	data->pre_handler_arg1 = arg1;
 	data->pre_handler_arg2 = arg2;
 
-	desc->handler = (desc->handler == &sun4u_irq ?
-			 &sun4u_irq_ack : &sun4v_irq_ack);
+	if (desc->chip == &sun4u_irq_ack ||
+	    desc->chip == &sun4v_irq_ack)
+		return;
+
+	desc->chip = (desc->chip == &sun4u_irq ?
+		      &sun4u_irq_ack : &sun4v_irq_ack);
 }
 
 unsigned int build_irq(int inofixup, unsigned long iclr, unsigned long imap)
@@ -431,7 +434,7 @@ unsigned int build_irq(int inofixup, unsigned long iclr, unsigned long imap)
 	bucket = &ivector_table[ino];
 	if (!bucket->virt_irq) {
 		bucket->virt_irq = virt_irq_alloc(__irq(bucket));
-		irq_desc[bucket->virt_irq].handler = &sun4u_irq;
+		irq_desc[bucket->virt_irq].chip = &sun4u_irq;
 	}
 
 	desc = irq_desc + bucket->virt_irq;
@@ -465,7 +468,7 @@ unsigned int sun4v_build_irq(u32 devhandle, unsigned int devino)
 	bucket = &ivector_table[sysino];
 	if (!bucket->virt_irq) {
 		bucket->virt_irq = virt_irq_alloc(__irq(bucket));
-		irq_desc[bucket->virt_irq].handler = &sun4v_irq;
+		irq_desc[bucket->virt_irq].chip = &sun4v_irq;
 	}
 
 	desc = irq_desc + bucket->virt_irq;

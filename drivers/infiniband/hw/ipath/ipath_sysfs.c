@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2006 QLogic, Inc. All rights reserved.
  * Copyright (c) 2006 PathScale, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -34,8 +35,8 @@
 #include <linux/pci.h>
 
 #include "ipath_kernel.h"
-#include "ips_common.h"
 #include "ipath_layer.h"
+#include "ipath_common.h"
 
 /**
  * ipath_parse_ushort - parse an unsigned short value in an arbitrary base
@@ -83,99 +84,6 @@ static ssize_t show_num_units(struct device_driver *dev, char *buf)
 	return scnprintf(buf, PAGE_SIZE, "%d\n",
 			 ipath_count_units(NULL, NULL, NULL));
 }
-
-#define DRIVER_STAT(name, attr) \
-	static ssize_t show_stat_##name(struct device_driver *dev, \
-					char *buf) \
-	{ \
-		return scnprintf( \
-			buf, PAGE_SIZE, "%llu\n", \
-			(unsigned long long) ipath_stats.sps_ ##attr); \
-	} \
-	static DRIVER_ATTR(name, S_IRUGO, show_stat_##name, NULL)
-
-DRIVER_STAT(intrs, ints);
-DRIVER_STAT(err_intrs, errints);
-DRIVER_STAT(errs, errs);
-DRIVER_STAT(pkt_errs, pkterrs);
-DRIVER_STAT(crc_errs, crcerrs);
-DRIVER_STAT(hw_errs, hwerrs);
-DRIVER_STAT(ib_link, iblink);
-DRIVER_STAT(port0_pkts, port0pkts);
-DRIVER_STAT(ether_spkts, ether_spkts);
-DRIVER_STAT(ether_rpkts, ether_rpkts);
-DRIVER_STAT(sma_spkts, sma_spkts);
-DRIVER_STAT(sma_rpkts, sma_rpkts);
-DRIVER_STAT(hdrq_full, hdrqfull);
-DRIVER_STAT(etid_full, etidfull);
-DRIVER_STAT(no_piobufs, nopiobufs);
-DRIVER_STAT(ports, ports);
-DRIVER_STAT(pkey0, pkeys[0]);
-DRIVER_STAT(pkey1, pkeys[1]);
-DRIVER_STAT(pkey2, pkeys[2]);
-DRIVER_STAT(pkey3, pkeys[3]);
-/* XXX fix the following when dynamic table of devices used */
-DRIVER_STAT(lid0, lid[0]);
-DRIVER_STAT(lid1, lid[1]);
-DRIVER_STAT(lid2, lid[2]);
-DRIVER_STAT(lid3, lid[3]);
-
-DRIVER_STAT(nports, nports);
-DRIVER_STAT(null_intr, nullintr);
-DRIVER_STAT(max_pkts_call, maxpkts_call);
-DRIVER_STAT(avg_pkts_call, avgpkts_call);
-DRIVER_STAT(page_locks, pagelocks);
-DRIVER_STAT(page_unlocks, pageunlocks);
-DRIVER_STAT(krdrops, krdrops);
-/* XXX fix the following when dynamic table of devices used */
-DRIVER_STAT(mlid0, mlid[0]);
-DRIVER_STAT(mlid1, mlid[1]);
-DRIVER_STAT(mlid2, mlid[2]);
-DRIVER_STAT(mlid3, mlid[3]);
-
-static struct attribute *driver_stat_attributes[] = {
-	&driver_attr_intrs.attr,
-	&driver_attr_err_intrs.attr,
-	&driver_attr_errs.attr,
-	&driver_attr_pkt_errs.attr,
-	&driver_attr_crc_errs.attr,
-	&driver_attr_hw_errs.attr,
-	&driver_attr_ib_link.attr,
-	&driver_attr_port0_pkts.attr,
-	&driver_attr_ether_spkts.attr,
-	&driver_attr_ether_rpkts.attr,
-	&driver_attr_sma_spkts.attr,
-	&driver_attr_sma_rpkts.attr,
-	&driver_attr_hdrq_full.attr,
-	&driver_attr_etid_full.attr,
-	&driver_attr_no_piobufs.attr,
-	&driver_attr_ports.attr,
-	&driver_attr_pkey0.attr,
-	&driver_attr_pkey1.attr,
-	&driver_attr_pkey2.attr,
-	&driver_attr_pkey3.attr,
-	&driver_attr_lid0.attr,
-	&driver_attr_lid1.attr,
-	&driver_attr_lid2.attr,
-	&driver_attr_lid3.attr,
-	&driver_attr_nports.attr,
-	&driver_attr_null_intr.attr,
-	&driver_attr_max_pkts_call.attr,
-	&driver_attr_avg_pkts_call.attr,
-	&driver_attr_page_locks.attr,
-	&driver_attr_page_unlocks.attr,
-	&driver_attr_krdrops.attr,
-	&driver_attr_mlid0.attr,
-	&driver_attr_mlid1.attr,
-	&driver_attr_mlid2.attr,
-	&driver_attr_mlid3.attr,
-	NULL
-};
-
-static struct attribute_group driver_stat_attr_group = {
-	.name = "stats",
-	.attrs = driver_stat_attributes
-};
 
 static ssize_t show_status(struct device *dev,
 			   struct device_attribute *attr,
@@ -272,23 +180,23 @@ static ssize_t store_lid(struct device *dev,
 			  size_t count)
 {
 	struct ipath_devdata *dd = dev_get_drvdata(dev);
-	u16 lid;
+	u16 lid = 0;
 	int ret;
 
 	ret = ipath_parse_ushort(buf, &lid);
 	if (ret < 0)
 		goto invalid;
 
-	if (lid == 0 || lid >= 0xc000) {
+	if (lid == 0 || lid >= IPATH_MULTICAST_LID_BASE) {
 		ret = -EINVAL;
 		goto invalid;
 	}
 
-	ipath_set_sps_lid(dd, lid, 0);
+	ipath_set_lid(dd, lid, 0);
 
 	goto bail;
 invalid:
-	ipath_dev_err(dd, "attempt to set invalid LID\n");
+	ipath_dev_err(dd, "attempt to set invalid LID 0x%x\n", lid);
 bail:
 	return ret;
 }
@@ -313,13 +221,12 @@ static ssize_t store_mlid(struct device *dev,
 	int ret;
 
 	ret = ipath_parse_ushort(buf, &mlid);
-	if (ret < 0)
+	if (ret < 0 || mlid < IPATH_MULTICAST_LID_BASE)
 		goto invalid;
 
 	unit = dd->ipath_unit;
 
 	dd->ipath_mlid = mlid;
-	ipath_stats.sps_mlid[unit] = mlid;
 	ipath_layer_intr(dd, IPATH_LAYER_INT_BCAST);
 
 	goto bail;
@@ -734,20 +641,12 @@ int ipath_driver_create_group(struct device_driver *drv)
 	int ret;
 
 	ret = sysfs_create_group(&drv->kobj, &driver_attr_group);
-	if (ret)
-		goto bail;
 
-	ret = sysfs_create_group(&drv->kobj, &driver_stat_attr_group);
-	if (ret)
-		sysfs_remove_group(&drv->kobj, &driver_attr_group);
-
-bail:
 	return ret;
 }
 
 void ipath_driver_remove_group(struct device_driver *drv)
 {
-	sysfs_remove_group(&drv->kobj, &driver_stat_attr_group);
 	sysfs_remove_group(&drv->kobj, &driver_attr_group);
 }
 

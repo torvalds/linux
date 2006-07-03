@@ -8,7 +8,6 @@
  * Copyright (C) 2001, 2002, 2003, 2004  Maciej W. Rozycki
  */
 
-#include <linux/config.h>
 
 #include <linux/errno.h>
 #include <linux/sched.h>

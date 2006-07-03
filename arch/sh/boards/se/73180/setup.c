@@ -9,7 +9,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <asm/machvec.h>
 #include <asm/machvec_init.h>

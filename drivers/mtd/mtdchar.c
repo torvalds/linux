@@ -5,7 +5,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/device.h>
 #include <linux/fs.h>
 #include <linux/init.h>

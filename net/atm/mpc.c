@@ -25,7 +25,6 @@
 #include <linux/atmlec.h>
 #include <linux/atmmpc.h>
 /* Modular too */
-#include <linux/config.h>
 #include <linux/module.h>
 
 #include "lec.h"

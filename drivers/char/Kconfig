@@ -961,6 +961,7 @@ config PC8736x_GPIO
 
 config NSC_GPIO
 	tristate "NatSemi Base GPIO Support"
+	depends on X86_32
 	# selected by SCx200_GPIO and PC8736x_GPIO
 	# what about 2 selectors differing: m != y
 	help

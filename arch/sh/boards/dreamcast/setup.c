@@ -70,7 +70,7 @@ int __init platform_setup(void)
 
 	/* Assign all virtual IRQs to the System ASIC int. handler */
 	for (i = HW_EVENT_IRQ_BASE; i < HW_EVENT_IRQ_MAX; i++)
-		irq_desc[i].handler = &systemasic_int;
+		irq_desc[i].chip = &systemasic_int;
 
 	board_time_init = aica_time_init;
 

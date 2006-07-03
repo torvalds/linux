@@ -34,7 +34,6 @@
  * Move to syfs
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/init.h>

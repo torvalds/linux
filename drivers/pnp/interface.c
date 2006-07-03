@@ -264,7 +264,7 @@ static ssize_t pnp_show_current_resources(struct device *dmdev, struct device_at
 			if (pnp_port_flags(dev, i) & IORESOURCE_DISABLED)
 				pnp_printf(buffer," disabled\n");
 			else
-				pnp_printf(buffer," 0x%lx-0x%lx\n",
+				pnp_printf(buffer," 0x%llx-0x%llx\n",
 						pnp_port_start(dev, i),
 						pnp_port_end(dev, i));
 		}
@@ -275,7 +275,7 @@ static ssize_t pnp_show_current_resources(struct device *dmdev, struct device_at
 			if (pnp_mem_flags(dev, i) & IORESOURCE_DISABLED)
 				pnp_printf(buffer," disabled\n");
 			else
-				pnp_printf(buffer," 0x%lx-0x%lx\n",
+				pnp_printf(buffer," 0x%llx-0x%llx\n",
 						pnp_mem_start(dev, i),
 						pnp_mem_end(dev, i));
 		}
@@ -286,7 +286,7 @@ static ssize_t pnp_show_current_resources(struct device *dmdev, struct device_at
 			if (pnp_irq_flags(dev, i) & IORESOURCE_DISABLED)
 				pnp_printf(buffer," disabled\n");
 			else
-				pnp_printf(buffer," %ld\n",
+				pnp_printf(buffer," %lld\n",
 						pnp_irq(dev, i));
 		}
 	}
@@ -296,7 +296,7 @@ static ssize_t pnp_show_current_resources(struct device *dmdev, struct device_at
 			if (pnp_dma_flags(dev, i) & IORESOURCE_DISABLED)
 				pnp_printf(buffer," disabled\n");
 			else
-				pnp_printf(buffer," %ld\n",
+				pnp_printf(buffer," %lld\n",
 						pnp_dma(dev, i));
 		}
 	}

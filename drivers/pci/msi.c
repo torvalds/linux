@@ -10,7 +10,6 @@
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
-#include <linux/config.h>
 #include <linux/ioport.h>
 #include <linux/smp_lock.h>
 #include <linux/pci.h>
@@ -429,12 +428,12 @@ static void irq_handler_init(int cap_id, int pos, int mask)
 
 	spin_lock_irqsave(&irq_desc[pos].lock, flags);
 	if (cap_id == PCI_CAP_ID_MSIX)
-		irq_desc[pos].handler = &msix_irq_type;
+		irq_desc[pos].chip = &msix_irq_type;
 	else {
 		if (!mask)
-			irq_desc[pos].handler = &msi_irq_wo_maskbit_type;
+			irq_desc[pos].chip = &msi_irq_wo_maskbit_type;
 		else
-			irq_desc[pos].handler = &msi_irq_w_maskbit_type;
+			irq_desc[pos].chip = &msi_irq_w_maskbit_type;
 	}
 	spin_unlock_irqrestore(&irq_desc[pos].lock, flags);
 }

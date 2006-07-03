@@ -1596,7 +1596,7 @@ static void mcfrs_irqinit(struct mcf_serial *info)
 	/* Clear mask, so no surprise interrupts. */
 	uartp[MCFUART_UIMR] = 0;
 
-	if (request_irq(info->irq, mcfrs_interrupt, SA_INTERRUPT,
+	if (request_irq(info->irq, mcfrs_interrupt, IRQF_DISABLED,
 	    "ColdFire UART", NULL)) {
 		printk("MCFRS: Unable to attach ColdFire UART %d interrupt "
 			"vector=%d\n", info->line, info->irq);
@@ -1713,7 +1713,6 @@ mcfrs_init(void)
 	/* Initialize the tty_driver structure */
 	mcfrs_serial_driver->owner = THIS_MODULE;
 	mcfrs_serial_driver->name = "ttyS";
-	mcfrs_serial_driver->devfs_name = "ttys/";
 	mcfrs_serial_driver->driver_name = "serial";
 	mcfrs_serial_driver->major = TTY_MAJOR;
 	mcfrs_serial_driver->minor_start = 64;

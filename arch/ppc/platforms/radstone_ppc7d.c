@@ -18,7 +18,6 @@
  * SCSI / VGA.
  */
 
-#include <linux/config.h>
 #include <linux/stddef.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -1311,7 +1310,7 @@ static void ppc7d_init2(void)
 
 	/* Hook up i8259 interrupt which is connected to GPP28 */
 	request_irq(mv64360_irq_base + MV64x60_IRQ_GPP28, ppc7d_i8259_intr,
-		    SA_INTERRUPT, "I8259 (GPP28) interrupt", (void *)0);
+		    IRQF_DISABLED, "I8259 (GPP28) interrupt", (void *)0);
 
 	/* Configure MPP16 as watchdog NMI, MPP17 as watchdog WDE */
 	spin_lock_irqsave(&mv64x60_lock, flags);

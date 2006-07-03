@@ -15,7 +15,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/linkage.h>
@@ -276,10 +275,10 @@ void __init init_bcm1480_irqs(void)
 		irq_desc[i].action = 0;
 		irq_desc[i].depth = 1;
 		if (i < BCM1480_NR_IRQS) {
-			irq_desc[i].handler = &bcm1480_irq_type;
+			irq_desc[i].chip = &bcm1480_irq_type;
 			bcm1480_irq_owner[i] = 0;
 		} else {
-			irq_desc[i].handler = &no_irq_type;
+			irq_desc[i].chip = &no_irq_type;
 		}
 	}
 }

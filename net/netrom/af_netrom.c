@@ -8,7 +8,6 @@
  * Copyright Alan Cox GW4PTS (alan@lxorguk.ukuu.org.uk)
  * Copyright Darryl Miles G7LED (dlm@g7led.demon.co.uk)
  */
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/capability.h>

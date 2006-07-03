@@ -133,16 +133,13 @@ struct sigstack {
  * usage of signal stacks by using the (now obsolete) sa_restorer field in
  * the sigaction structure as a stack pointer. This is now possible due to
  * the changes in signal handling. LBT 010493.
- * SA_INTERRUPT is a no-op, but left due to historical reasons. Use the
  * SA_RESTART flag to get restarting signals (which were the default long ago)
- * SA_SHIRQ flag is for shared interrupt support on PCI and EISA.
  */
 #define SA_NOCLDSTOP	_SV_IGNCHILD
 #define SA_STACK	_SV_SSTACK
 #define SA_ONSTACK	_SV_SSTACK
 #define SA_RESTART	_SV_INTR
 #define SA_ONESHOT	_SV_RESET
-#define SA_INTERRUPT	0x10u
 #define SA_NOMASK	0x20u
 #define SA_NOCLDWAIT    0x100u
 #define SA_SIGINFO      0x200u

@@ -17,7 +17,6 @@
 #undef DEBUG_IRQ
 #undef DEBUG_LOW
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -379,14 +378,14 @@ static inline u32 mpic_physmask(u32 cpumask)
 /* Get the mpic structure from the IPI number */
 static inline struct mpic * mpic_from_ipi(unsigned int ipi)
 {
-	return container_of(irq_desc[ipi].handler, struct mpic, hc_ipi);
+	return container_of(irq_desc[ipi].chip, struct mpic, hc_ipi);
 }
 #endif
 
 /* Get the mpic structure from the irq number */
 static inline struct mpic * mpic_from_irq(unsigned int irq)
 {
-	return container_of(irq_desc[irq].handler, struct mpic, hc_irq);
+	return container_of(irq_desc[irq].chip, struct mpic, hc_irq);
 }
 
 /* Send an EOI */
@@ -541,7 +540,7 @@ static void mpic_end_ipi(unsigned int irq)
 	 * IPIs are marked IRQ_PER_CPU. This has the side effect of
 	 * preventing the IRQ_PENDING/IRQ_INPROGRESS logic from
 	 * applying to them. We EOI them late to avoid re-entering.
-	 * We mark IPI's with SA_INTERRUPT as they must run with
+	 * We mark IPI's with IRQF_DISABLED as they must run with
 	 * irqs disabled.
 	 */
 	mpic_eoi(mpic);
@@ -752,7 +751,7 @@ void __init mpic_init(struct mpic *mpic)
 		if (!(mpic->flags & MPIC_PRIMARY))
 			continue;
 		irq_desc[mpic->ipi_offset+i].status |= IRQ_PER_CPU;
-		irq_desc[mpic->ipi_offset+i].handler = &mpic->hc_ipi;
+		irq_desc[mpic->ipi_offset+i].chip = &mpic->hc_ipi;
 #endif /* CONFIG_SMP */
 	}
 
@@ -813,7 +812,7 @@ void __init mpic_init(struct mpic *mpic)
 		/* init linux descriptors */
 		if (i < mpic->irq_count) {
 			irq_desc[mpic->irq_offset+i].status = level ? IRQ_LEVEL : 0;
-			irq_desc[mpic->irq_offset+i].handler = &mpic->hc_irq;
+			irq_desc[mpic->irq_offset+i].chip = &mpic->hc_irq;
 		}
 	}
 	
@@ -906,7 +905,7 @@ void mpic_setup_this_cpu(void)
  	/* let the mpic know we want intrs. default affinity is 0xffffffff
 	 * until changed via /proc. That's how it's done on x86. If we want
 	 * it differently, then we should make sure we also change the default
-	 * values of irq_affinity in irq.c.
+	 * values of irq_desc[].affinity in irq.c.
  	 */
 	if (distribute_irqs) {
 	 	for (i = 0; i < mpic->num_sources ; i++)
@@ -1028,14 +1027,17 @@ void mpic_request_ipis(void)
 	
 	printk("requesting IPIs ... \n");
 
-	/* IPIs are marked SA_INTERRUPT as they must run with irqs disabled */
-	request_irq(mpic->ipi_offset+0, mpic_ipi_action, SA_INTERRUPT,
+	/*
+	 * IPIs are marked IRQF_DISABLED as they must run with irqs
+	 * disabled
+	 */
+	request_irq(mpic->ipi_offset+0, mpic_ipi_action, IRQF_DISABLED,
 		    "IPI0 (call function)", mpic);
-	request_irq(mpic->ipi_offset+1, mpic_ipi_action, SA_INTERRUPT,
+	request_irq(mpic->ipi_offset+1, mpic_ipi_action, IRQF_DISABLED,
 		   "IPI1 (reschedule)", mpic);
-	request_irq(mpic->ipi_offset+2, mpic_ipi_action, SA_INTERRUPT,
+	request_irq(mpic->ipi_offset+2, mpic_ipi_action, IRQF_DISABLED,
 		   "IPI2 (unused)", mpic);
-	request_irq(mpic->ipi_offset+3, mpic_ipi_action, SA_INTERRUPT,
+	request_irq(mpic->ipi_offset+3, mpic_ipi_action, IRQF_DISABLED,
 		   "IPI3 (debugger break)", mpic);
 
 	printk("IPIs requested... \n");

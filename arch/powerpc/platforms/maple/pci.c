@@ -376,9 +376,10 @@ static void __init maple_fixup_phb_resources(void)
 		unsigned long offset = (unsigned long)hose->io_base_virt - pci_io_base;
 		hose->io_resource.start += offset;
 		hose->io_resource.end += offset;
-		printk(KERN_INFO "PCI Host %d, io start: %lx; io end: %lx\n",
+		printk(KERN_INFO "PCI Host %d, io start: %llx; io end: %llx\n",
 		       hose->global_number,
-		       hose->io_resource.start, hose->io_resource.end);
+		       (unsigned long long)hose->io_resource.start,
+		       (unsigned long long)hose->io_resource.end);
 	}
 }
 

@@ -24,7 +24,6 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include <linux/config.h>
 #include <linux/in.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -3342,7 +3341,7 @@ static int __devinit skge_probe(struct pci_dev *pdev,
 		goto err_out_free_hw;
 	}
 
-	err = request_irq(pdev->irq, skge_intr, SA_SHIRQ, DRV_NAME, hw);
+	err = request_irq(pdev->irq, skge_intr, IRQF_SHARED, DRV_NAME, hw);
 	if (err) {
 		printk(KERN_ERR PFX "%s: cannot assign irq %d\n",
 		       pci_name(pdev), pdev->irq);
@@ -3354,8 +3353,8 @@ static int __devinit skge_probe(struct pci_dev *pdev,
 	if (err)
 		goto err_out_free_irq;
 
-	printk(KERN_INFO PFX DRV_VERSION " addr 0x%lx irq %d chip %s rev %d\n",
-	       pci_resource_start(pdev, 0), pdev->irq,
+	printk(KERN_INFO PFX DRV_VERSION " addr 0x%llx irq %d chip %s rev %d\n",
+	       (unsigned long long)pci_resource_start(pdev, 0), pdev->irq,
 	       skge_board_name(hw), hw->chip_rev);
 
 	if ((dev = skge_devinit(hw, 0, using_dac)) == NULL)

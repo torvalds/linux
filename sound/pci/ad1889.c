@@ -947,7 +947,7 @@ snd_ad1889_create(struct snd_card *card,
 	spin_lock_init(&chip->lock);	/* only now can we call ad1889_free */
 
 	if (request_irq(pci->irq, snd_ad1889_interrupt,
-			SA_INTERRUPT|SA_SHIRQ, card->driver, (void*)chip)) {
+			IRQF_DISABLED|IRQF_SHARED, card->driver, (void*)chip)) {
 		printk(KERN_ERR PFX "cannot obtain IRQ %d\n", pci->irq);
 		snd_ad1889_free(chip);
 		return -EBUSY;

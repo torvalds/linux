@@ -39,7 +39,6 @@ Boston, MA 02111-1307, USA.  */
 #include <linux/linkage.h>
 #include <asm/assembler.h>
 #include <asm/hardware.h>
-#include <linux/config.h>
 
 #define RET	movs
 #define RETc(x)	mov##x##s

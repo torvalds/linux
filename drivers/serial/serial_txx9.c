@@ -38,7 +38,6 @@
  *		Fix some spin_locks.
  *		Do not call uart_add_one_port for absent ports.
  */
-#include <linux/config.h>
 
 #if defined(CONFIG_SERIAL_TXX9_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
 #define SUPPORT_SYSRQ
@@ -69,12 +68,10 @@ static char *serial_name = "TX39/49 Serial driver";
 #if !defined(CONFIG_SERIAL_TXX9_STDSERIAL)
 /* "ttyS" is used for standard serial driver */
 #define TXX9_TTY_NAME "ttyTX"
-#define TXX9_TTY_DEVFS_NAME "tttx/"
 #define TXX9_TTY_MINOR_START	(64 + 64)	/* ttyTX0(128), ttyTX1(129) */
 #else
 /* acts like standard serial driver */
 #define TXX9_TTY_NAME "ttyS"
-#define TXX9_TTY_DEVFS_NAME "tts/"
 #define TXX9_TTY_MINOR_START	64
 #endif
 #define TXX9_TTY_MAJOR	TTY_MAJOR
@@ -498,7 +495,7 @@ static int serial_txx9_startup(struct uart_port *port)
 	sio_out(up, TXX9_SIDISR, 0);
 
 	retval = request_irq(up->port.irq, serial_txx9_interrupt,
-			     SA_SHIRQ, "serial_txx9", up);
+			     IRQF_SHARED, "serial_txx9", up);
 	if (retval)
 		return retval;
 
@@ -971,7 +968,6 @@ console_initcall(serial_txx9_console_init);
 static struct uart_driver serial_txx9_reg = {
 	.owner			= THIS_MODULE,
 	.driver_name		= "serial_txx9",
-	.devfs_name		= TXX9_TTY_DEVFS_NAME,
 	.dev_name		= TXX9_TTY_NAME,
 	.major			= TXX9_TTY_MAJOR,
 	.minor			= TXX9_TTY_MINOR_START,

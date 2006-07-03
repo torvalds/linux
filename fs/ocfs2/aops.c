@@ -558,15 +558,8 @@ static int ocfs2_direct_IO_get_blocks(struct inode *inode, sector_t iblock,
 	u64 vbo_max; /* file offset, max_blocks from iblock */
 	u64 p_blkno;
 	int contig_blocks;
-	unsigned char blocksize_bits;
+	unsigned char blocksize_bits = inode->i_sb->s_blocksize_bits;
 	unsigned long max_blocks = bh_result->b_size >> inode->i_blkbits;
-
-	if (!inode || !bh_result) {
-		mlog(ML_ERROR, "inode or bh_result is null\n");
-		return -EIO;
-	}
-
-	blocksize_bits = inode->i_sb->s_blocksize_bits;
 
 	/* This function won't even be called if the request isn't all
 	 * nicely aligned and of the right size, so there's no need

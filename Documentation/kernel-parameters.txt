@@ -35,7 +35,6 @@ parameter is applicable:
 	APM	Advanced Power Management support is enabled.
 	AX25	Appropriate AX.25 support is enabled.
 	CD	Appropriate CD support is enabled.
-	DEVFS	devfs support is enabled.
 	DRM	Direct Rendering Management support is enabled.
 	EDD	BIOS Enhanced Disk Drive Services (EDD) is enabled
 	EFI	EFI Partitioning (GPT) is enabled
@@ -439,9 +438,6 @@ running once the system is up.
 	decnet=		[HW,NET]
 			Format: <area>[,<node>]
 			See also Documentation/networking/decnet.txt.
-
-	devfs=		[DEVFS]
-			See Documentation/filesystems/devfs/boot-options.
 
 	dhash_entries=	[KNL]
 			Set number of hash buckets for dentry cache.
@@ -1689,9 +1685,14 @@ running once the system is up.
 			decrease the size and leave more room for directly
 			mapped kernel RAM.
 
-	vmhalt=		[KNL,S390]
+	vmhalt=		[KNL,S390] Perform z/VM CP command after system halt.
+			Format: <command>
 
-	vmpoff=		[KNL,S390]
+	vmpanic=	[KNL,S390] Perform z/VM CP command after kernel panic.
+			Format: <command>
+
+	vmpoff=		[KNL,S390] Perform z/VM CP command after power off.
+			Format: <command>
 
 	waveartist=	[HW,OSS]
 			Format: <io>,<irq>,<dma>,<dma2>

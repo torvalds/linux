@@ -41,6 +41,8 @@
 #include <asm/procinfo.h>
 #include <asm/ptrace.h>
 
+#include "proc-macros.S"
+
 /*
  * Function: arm720_proc_init (void)
  *	   : arm720_proc_fin (void)
@@ -169,11 +171,11 @@ __arm720_setup:
 #ifdef CONFIG_MMU
 	mcr	p15, 0, r0, c8, c7, 0		@ flush TLB (v4)
 #endif
+	adr	r5, arm720_crval
+	ldmia	r5, {r5, r6}
 	mrc	p15, 0, r0, c1, c0		@ get control register
-	ldr	r5, arm720_cr1_clear
 	bic	r0, r0, r5
-	ldr	r5, arm720_cr1_set
-	orr	r0, r0, r5
+	orr	r0, r0, r6
 	mov	pc, lr				@ __ret (head.S)
 	.size	__arm720_setup, . - __arm720_setup
 
@@ -183,12 +185,9 @@ __arm720_setup:
 	 * ..1. 1001 ..11 1101
 	 * 
 	 */
-	.type	arm720_cr1_clear, #object
-	.type	arm720_cr1_set, #object
-arm720_cr1_clear:
-	.word	0x2f3f
-arm720_cr1_set:
-	.word	0x213d
+	.type	arm720_crval, #object
+arm720_crval:
+	crval	clear=0x00002f3f, mmuset=0x0000213d, ucset=0x00000130
 
 		__INITDATA
 
@@ -246,6 +245,10 @@ __arm710_proc_info:
 			PMD_BIT4 | \
 			PMD_SECT_AP_WRITE | \
 			PMD_SECT_AP_READ
+		.long   PMD_TYPE_SECT | \
+			PMD_BIT4 | \
+			PMD_SECT_AP_WRITE | \
+			PMD_SECT_AP_READ
 		b	__arm710_setup				@ cpu_flush
 		.long	cpu_arch_name				@ arch_name
 		.long	cpu_elf_name				@ elf_name
@@ -264,6 +267,10 @@ __arm720_proc_info:
 		.long   PMD_TYPE_SECT | \
 			PMD_SECT_BUFFERABLE | \
 			PMD_SECT_CACHEABLE | \
+			PMD_BIT4 | \
+			PMD_SECT_AP_WRITE | \
+			PMD_SECT_AP_READ
+		.long   PMD_TYPE_SECT | \
 			PMD_BIT4 | \
 			PMD_SECT_AP_WRITE | \
 			PMD_SECT_AP_READ

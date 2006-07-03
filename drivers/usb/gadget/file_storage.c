@@ -221,7 +221,6 @@
 #undef VERBOSE
 #undef DUMP_MSGS
 
-#include <linux/config.h>
 
 #include <asm/system.h>
 #include <asm/uaccess.h>

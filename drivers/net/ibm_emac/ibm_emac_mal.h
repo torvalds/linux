@@ -19,7 +19,6 @@
 #ifndef __IBM_EMAC_MAL_H_
 #define __IBM_EMAC_MAL_H_
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/netdevice.h>

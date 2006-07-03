@@ -30,7 +30,6 @@
 #define IOC3_NAME	"ioc3-eth"
 #define IOC3_VERSION	"2.6.3-3"
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/kernel.h>
@@ -1064,7 +1063,7 @@ static int ioc3_open(struct net_device *dev)
 {
 	struct ioc3_private *ip = netdev_priv(dev);
 
-	if (request_irq(dev->irq, ioc3_interrupt, SA_SHIRQ, ioc3_str, dev)) {
+	if (request_irq(dev->irq, ioc3_interrupt, IRQF_SHARED, ioc3_str, dev)) {
 		printk(KERN_ERR "%s: Can't get irq %d\n", dev->name, dev->irq);
 
 		return -EAGAIN;

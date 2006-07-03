@@ -52,11 +52,11 @@ extern void uart_irq_init(void);
 extern void cpci_irq_init(void);
 
 static struct irqaction cascade_fpga = {
-	no_action, SA_INTERRUPT, CPU_MASK_NONE, "cascade via FPGA", NULL, NULL
+	no_action, IRQF_DISABLED, CPU_MASK_NONE, "cascade via FPGA", NULL, NULL
 };
 
 static struct irqaction cascade_mv64340 = {
-	no_action, SA_INTERRUPT, CPU_MASK_NONE, "cascade via MV64340", NULL, NULL
+	no_action, IRQF_DISABLED, CPU_MASK_NONE, "cascade via MV64340", NULL, NULL
 };
 
 extern void ll_uart_irq(struct pt_regs *regs);

@@ -38,7 +38,6 @@
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
 #include <linux/timex.h>
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
@@ -120,8 +119,8 @@ int show_interrupts(struct seq_file *p, void *v)
 #else
 		seq_printf(p, "%10u ", kstat_irqs(i));
 #endif /* CONFIG_SMP */
-		if (desc->handler)
-			seq_printf(p, " %s ", desc->handler->typename);
+		if (desc->chip)
+			seq_printf(p, " %s ", desc->chip->typename);
 		else
 			seq_puts(p, "  None      ");
 		seq_printf(p, "%s", (desc->status & IRQ_LEVEL) ? "Level " : "Edge  ");
@@ -164,13 +163,13 @@ void fixup_irqs(cpumask_t map)
 		if (irq_desc[irq].status & IRQ_PER_CPU)
 			continue;
 
-		cpus_and(mask, irq_affinity[irq], map);
+		cpus_and(mask, irq_desc[irq].affinity, map);
 		if (any_online_cpu(mask) == NR_CPUS) {
 			printk("Breaking affinity for irq %i\n", irq);
 			mask = map;
 		}
-		if (irq_desc[irq].handler->set_affinity)
-			irq_desc[irq].handler->set_affinity(irq, mask);
+		if (irq_desc[irq].chip->set_affinity)
+			irq_desc[irq].chip->set_affinity(irq, mask);
 		else if (irq_desc[irq].action && !(warned++))
 			printk("Cannot set affinity for irq %i\n", irq);
 	}

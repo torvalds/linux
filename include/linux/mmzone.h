@@ -46,6 +46,27 @@ struct zone_padding {
 #define ZONE_PADDING(name)
 #endif
 
+enum zone_stat_item {
+	NR_ANON_PAGES,	/* Mapped anonymous pages */
+	NR_FILE_MAPPED,	/* pagecache pages mapped into pagetables.
+			   only modified from process context */
+	NR_FILE_PAGES,
+	NR_SLAB,	/* Pages used by slab allocator */
+	NR_PAGETABLE,	/* used for pagetables */
+	NR_FILE_DIRTY,
+	NR_WRITEBACK,
+	NR_UNSTABLE_NFS,	/* NFS unstable pages */
+	NR_BOUNCE,
+#ifdef CONFIG_NUMA
+	NUMA_HIT,		/* allocated in intended node */
+	NUMA_MISS,		/* allocated in non intended node */
+	NUMA_FOREIGN,		/* was intended here, hit elsewhere */
+	NUMA_INTERLEAVE_HIT,	/* interleaver preferred this zone */
+	NUMA_LOCAL,		/* allocation from local node */
+	NUMA_OTHER,		/* allocation from other node */
+#endif
+	NR_VM_ZONE_STAT_ITEMS };
+
 struct per_cpu_pages {
 	int count;		/* number of pages in the list */
 	int high;		/* high watermark, emptying needed */
@@ -55,13 +76,8 @@ struct per_cpu_pages {
 
 struct per_cpu_pageset {
 	struct per_cpu_pages pcp[2];	/* 0: hot.  1: cold */
-#ifdef CONFIG_NUMA
-	unsigned long numa_hit;		/* allocated in intended node */
-	unsigned long numa_miss;	/* allocated in non intended node */
-	unsigned long numa_foreign;	/* was intended here, hit elsewhere */
-	unsigned long interleave_hit; 	/* interleaver prefered this zone */
-	unsigned long local_node;	/* allocation from local node */
-	unsigned long other_node;	/* allocation from other node */
+#ifdef CONFIG_SMP
+	s8 vm_stat_diff[NR_VM_ZONE_STAT_ITEMS];
 #endif
 } ____cacheline_aligned_in_smp;
 
@@ -165,12 +181,8 @@ struct zone {
 	/* A count of how many reclaimers are scanning this zone */
 	atomic_t		reclaim_in_progress;
 
-	/*
-	 * timestamp (in jiffies) of the last zone reclaim that did not
-	 * result in freeing of pages. This is used to avoid repeated scans
-	 * if all memory in the zone is in use.
-	 */
-	unsigned long		last_unsuccessful_zone_reclaim;
+	/* Zone statistics */
+	atomic_long_t		vm_stat[NR_VM_ZONE_STAT_ITEMS];
 
 	/*
 	 * prev_priority holds the scanning priority for this zone.  It is

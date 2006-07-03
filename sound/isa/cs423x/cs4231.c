@@ -122,7 +122,7 @@ static int __init snd_cs4231_probe(struct platform_device *pdev)
 		if (snd_mpu401_uart_new(card, 0, MPU401_HW_CS4232,
 					mpu_port[dev], 0,
 					mpu_irq[dev],
-					mpu_irq[dev] >= 0 ? SA_INTERRUPT : 0,
+					mpu_irq[dev] >= 0 ? IRQF_DISABLED : 0,
 					NULL) < 0)
 			printk(KERN_WARNING "cs4231: MPU401 not detected\n");
 	}

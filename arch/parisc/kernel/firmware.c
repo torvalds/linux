@@ -11,7 +11,7 @@
  * Copyright 1999 The Puffin Group, (Alex deVries, David Kennedy)
  * Copyright 2003 Grant Grundler <grundler parisc-linux org>
  * Copyright 2003,2004 Ryan Bradetich <rbrad@parisc-linux.org>
- * Copyright 2004 Thibaut VARENE <varenet@parisc-linux.org>
+ * Copyright 2004,2006 Thibaut VARENE <varenet@parisc-linux.org>
  *
  *    This program is free software; you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -252,10 +252,8 @@ int pdc_pat_chassis_send_log(unsigned long state, unsigned long data)
 #endif
 
 /**
- * pdc_chassis_disp - Updates display
+ * pdc_chassis_disp - Updates chassis code
  * @retval: -1 on error, 0 on success
- *
- * Works on old PDC only (E class, others?)
  */
 int pdc_chassis_disp(unsigned long disp)
 {
@@ -263,6 +261,22 @@ int pdc_chassis_disp(unsigned long disp)
 
 	spin_lock_irq(&pdc_lock);
 	retval = mem_pdc_call(PDC_CHASSIS, PDC_CHASSIS_DISP, disp);
+	spin_unlock_irq(&pdc_lock);
+
+	return retval;
+}
+
+/**
+ * pdc_chassis_warn - Fetches chassis warnings
+ * @retval: -1 on error, 0 on success
+ */
+int pdc_chassis_warn(unsigned long *warn)
+{
+	int retval = 0;
+
+	spin_lock_irq(&pdc_lock);
+	retval = mem_pdc_call(PDC_CHASSIS, PDC_CHASSIS_WARN, __pa(pdc_result));
+	*warn = pdc_result[0];
 	spin_unlock_irq(&pdc_lock);
 
 	return retval;
@@ -393,7 +407,9 @@ int pdc_model_info(struct pdc_model *model)
  * pdc_model_sysmodel - Get the system model name.
  * @name: A char array of at least 81 characters.
  *
- * Get system model name from PDC ROM (e.g. 9000/715 or 9000/778/B160L)
+ * Get system model name from PDC ROM (e.g. 9000/715 or 9000/778/B160L).
+ * Using OS_ID_HPUX will return the equivalent of the 'modelname' command
+ * on HP/UX.
  */
 int pdc_model_sysmodel(char *name)
 {
@@ -496,6 +512,26 @@ int pdc_cache_info(struct pdc_cache_info *cache_info)
         spin_unlock_irq(&pdc_lock);
 
         return retval;
+}
+
+/**
+ * pdc_spaceid_bits - Return whether Space ID hashing is turned on.
+ * @space_bits: Should be 0, if not, bad mojo!
+ *
+ * Returns information about Space ID hashing.
+ */
+int pdc_spaceid_bits(unsigned long *space_bits)
+{
+	int retval;
+
+	spin_lock_irq(&pdc_lock);
+	pdc_result[0] = 0;
+	retval = mem_pdc_call(PDC_CACHE, PDC_CACHE_RET_SPID, __pa(pdc_result), 0);
+	convert_to_wide(pdc_result);
+	*space_bits = pdc_result[0];
+	spin_unlock_irq(&pdc_lock);
+
+	return retval;
 }
 
 #ifndef CONFIG_PA20

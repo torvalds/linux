@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2006 QLogic, Inc. All rights reserved.
  * Copyright (c) 2006 PathScale, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -31,7 +32,6 @@
  */
 
 #include <linux/version.h>
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/mount.h>

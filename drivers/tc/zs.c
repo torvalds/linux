@@ -39,7 +39,6 @@
  *     is shared with DSRS(DTE) at pin 23.
  */
 
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
@@ -1745,7 +1744,6 @@ int __init zs_init(void)
 	/* Not all of this is exactly right for us. */
 
 	serial_driver->owner = THIS_MODULE;
-	serial_driver->devfs_name = "tts/";
 	serial_driver->name = "ttyS";
 	serial_driver->major = TTY_MAJOR;
 	serial_driver->minor_start = 64;
@@ -1754,7 +1752,7 @@ int __init zs_init(void)
 	serial_driver->init_termios = tty_std_termios;
 	serial_driver->init_termios.c_cflag =
 		B9600 | CS8 | CREAD | HUPCL | CLOCAL;
-	serial_driver->flags = TTY_DRIVER_REAL_RAW | TTY_DRIVER_NO_DEVFS;
+	serial_driver->flags = TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;
 	tty_set_operations(serial_driver, &serial_ops);
 
 	if (tty_register_driver(serial_driver))
@@ -1793,7 +1791,7 @@ int __init zs_init(void)
 		zs_soft[channel].clk_divisor = 16;
 		zs_soft[channel].zs_baud = get_zsbaud(&zs_soft[channel]);
 
-		if (request_irq(zs_soft[channel].irq, rs_interrupt, SA_SHIRQ,
+		if (request_irq(zs_soft[channel].irq, rs_interrupt, IRQF_SHARED,
 				"scc", &zs_soft[channel]))
 			printk(KERN_ERR "decserial: can't get irq %d\n",
 			       zs_soft[channel].irq);

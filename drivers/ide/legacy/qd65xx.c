@@ -28,7 +28,6 @@
 #undef REALLY_SLOW_IO		/* most systems can safely undef this */
 
 #include <linux/module.h>
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>

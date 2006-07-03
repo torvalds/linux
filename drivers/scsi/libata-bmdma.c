@@ -32,7 +32,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>
 #include <linux/libata.h>
@@ -854,7 +853,7 @@ ata_pci_init_native_mode(struct pci_dev *pdev, struct ata_port_info **port, int 
 		return NULL;
 
 	probe_ent->irq = pdev->irq;
-	probe_ent->irq_flags = SA_SHIRQ;
+	probe_ent->irq_flags = IRQF_SHARED;
 	probe_ent->private_data = port[0]->private_data;
 
 	if (ports & ATA_PORT_PRIMARY) {

@@ -12,7 +12,6 @@
  *	published by the Free Software Foundation.
  */
 
-#include <linux/config.h>
 #include <linux/dccp.h>
 #include <net/snmp.h>
 #include <net/sock.h>

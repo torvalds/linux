@@ -14,7 +14,6 @@
 #include <linux/mtd/map.h>
 #include <linux/mtd/cfi.h>
 #include <linux/mtd/flashchip.h>
-#include <linux/config.h>
 #include <linux/pci.h>
 #include <linux/pci_ids.h>
 #include <linux/list.h>
@@ -177,9 +176,10 @@ static int __devinit ichxrom_init_one (struct pci_dev *pdev,
 		window->rsrc.parent = NULL;
 		printk(KERN_DEBUG MOD_NAME
 			": %s(): Unable to register resource"
-			" 0x%.08lx-0x%.08lx - kernel bug?\n",
+			" 0x%.16llx-0x%.16llx - kernel bug?\n",
 			__func__,
-			window->rsrc.start, window->rsrc.end);
+			(unsigned long long)window->rsrc.start,
+			(unsigned long long)window->rsrc.end);
 	}
 
 	/* Map the firmware hub into my address space. */

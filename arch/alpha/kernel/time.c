@@ -27,7 +27,6 @@
  * 2003-06-03	R. Scott Bailey <scott.bailey@eds.com>
  *	Tighten sanity in time_init from 1% (10,000 PPM) to 250 PPM
  */
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/sched.h>

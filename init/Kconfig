@@ -54,8 +54,8 @@ config LOCK_KERNEL
 
 config INIT_ENV_ARG_LIMIT
 	int
-	default 32 if !USERMODE
-	default 128 if USERMODE
+	default 32 if !UML
+	default 128 if UML
 	help
 	  Maximum of each of the number of arguments and environment
 	  variables passed to init from the kernel command line.
@@ -378,6 +378,15 @@ config SLAB
 	  kmalloc support with the drastically simpler SLOB allocator.
 	  SLOB is more space efficient but does not scale well and is
 	  more susceptible to fragmentation.
+
+config VM_EVENT_COUNTERS
+	default y
+	bool "Enable VM event counters for /proc/vmstat" if EMBEDDED
+	help
+	  VM event counters are only needed to for event counts to be
+	  shown. They have no function for the kernel itself. This
+	  option allows the disabling of the VM event counters.
+	  /proc/vmstat will only show page counts.
 
 endmenu		# General setup
 

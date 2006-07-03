@@ -31,7 +31,6 @@
  * the OS/400 partition.  The format of the messages is defined in
  * iseries/vio.h
  */
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -43,7 +42,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/fs.h>
 #include <linux/cdev.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/major.h>
 #include <linux/completion.h>
 #include <linux/proc_fs.h>
@@ -246,7 +244,6 @@ static struct device *tape_device[VIOTAPE_MAX_TAPE];
  */
 static struct {
 	unsigned char	cur_part;
-	int		dev_handle;
 	unsigned char	part_stat_rwi[MAX_PARTITIONS];
 } state[VIOTAPE_MAX_TAPE];
 
@@ -959,12 +956,7 @@ static int viotape_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 			"iseries!vt%d", i);
 	class_device_create(tape_class, NULL, MKDEV(VIOTAPE_MAJOR, i | 0x80),
 			NULL, "iseries!nvt%d", i);
-	devfs_mk_cdev(MKDEV(VIOTAPE_MAJOR, i), S_IFCHR | S_IRUSR | S_IWUSR,
-			"iseries/vt%d", i);
-	devfs_mk_cdev(MKDEV(VIOTAPE_MAJOR, i | 0x80),
-			S_IFCHR | S_IRUSR | S_IWUSR, "iseries/nvt%d", i);
 	sprintf(tapename, "iseries/vt%d", i);
-	state[i].dev_handle = devfs_register_tape(tapename);
 	printk(VIOTAPE_KERN_INFO "tape %s is iSeries "
 			"resource %10.10s type %4.4s, model %3.3s\n",
 			tapename, viotape_unitinfo[i].rsrcname,
@@ -976,9 +968,6 @@ static int viotape_remove(struct vio_dev *vdev)
 {
 	int i = vdev->unit_address;
 
-	devfs_remove("iseries/nvt%d", i);
-	devfs_remove("iseries/vt%d", i);
-	devfs_unregister_tape(state[i].dev_handle);
 	class_device_destroy(tape_class, MKDEV(VIOTAPE_MAJOR, i | 0x80));
 	class_device_destroy(tape_class, MKDEV(VIOTAPE_MAJOR, i));
 	return 0;

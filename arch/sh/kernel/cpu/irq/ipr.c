@@ -15,7 +15,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <linux/module.h>
@@ -115,7 +114,7 @@ void make_ipr_irq(unsigned int irq, unsigned int addr, int pos, int priority)
 	ipr_data[irq].shift = pos*4; /* POSition (0-3) x 4 means shift */
 	ipr_data[irq].priority = priority;
 
-	irq_desc[irq].handler = &ipr_irq_type;
+	irq_desc[irq].chip = &ipr_irq_type;
 	disable_ipr_irq(irq);
 }
 

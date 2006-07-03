@@ -13,7 +13,6 @@
 #ifndef NCR53C9X_H
 #define NCR53C9X_H
 
-#include <linux/config.h>
 #include <linux/interrupt.h>
 
 /* djweis for mac driver */

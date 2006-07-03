@@ -11,7 +11,6 @@
  */
 
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include "hisax.h"
 #include "isac.h"
@@ -336,7 +335,7 @@ setup_bkm_a4t(struct IsdnCard *card)
 	cs->BC_Send_Data = &jade_fill_fifo;
 	cs->cardmsg = &BKM_card_msg;
 	cs->irq_func = &bkm_interrupt;
-	cs->irq_flags |= SA_SHIRQ;
+	cs->irq_flags |= IRQF_SHARED;
 	ISACVersion(cs, "Telekom A4T:");
 	/* Jade version */
 	JadeVersion(cs, "Telekom A4T:");

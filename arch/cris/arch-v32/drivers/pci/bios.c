@@ -43,10 +43,10 @@ int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
 
 void
 pcibios_align_resource(void *data, struct resource *res,
-		       unsigned long size, unsigned long align)
+		       resource_size_t size, resource_size_t align)
 {
 	if (res->flags & IORESOURCE_IO) {
-		unsigned long start = res->start;
+		resource_size_t start = res->start;
 
 		if (start & 0x300) {
 			start = (start + 0x3ff) & ~0x3ff;

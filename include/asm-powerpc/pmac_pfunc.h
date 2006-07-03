@@ -205,7 +205,7 @@ extern void pmf_do_irq(struct pmf_function *func);
  *
  * The args array contains as many arguments as is required by the function,
  * this is dependent on the function you are calling, unfortunately Apple
- * mecanism provides no way to encode that so you have to get it right at
+ * mechanism provides no way to encode that so you have to get it right at
  * the call site. Some functions require no args, in which case, you can
  * pass NULL.
  *

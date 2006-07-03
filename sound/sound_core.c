@@ -34,7 +34,6 @@
  *	locking at some point in 2.3.x.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -44,7 +43,6 @@
 #include <linux/sound.h>
 #include <linux/major.h>
 #include <linux/kmod.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/device.h>
 
 #define SOUND_STEP 16
@@ -172,8 +170,6 @@ static int sound_insert_unit(struct sound_unit **list, const struct file_operati
 	else
 		sprintf(s->name, "sound/%s%d", name, r / SOUND_STEP);
 
-	devfs_mk_cdev(MKDEV(SOUND_MAJOR, s->unit_minor),
-			S_IFCHR | mode, s->name);
 	class_device_create(sound_class, NULL, MKDEV(SOUND_MAJOR, s->unit_minor),
 			    dev, s->name+6);
 	return r;
@@ -197,7 +193,6 @@ static void sound_remove_unit(struct sound_unit **list, int unit)
 	p = __sound_remove_unit(list, unit);
 	spin_unlock(&sound_loader_lock);
 	if (p) {
-		devfs_remove(p->name);
 		class_device_destroy(sound_class, MKDEV(SOUND_MAJOR, p->unit_minor));
 		kfree(p);
 	}
@@ -570,7 +565,6 @@ static void __exit cleanup_soundcore(void)
 	/* We have nothing to really do here - we know the lists must be
 	   empty */
 	unregister_chrdev(SOUND_MAJOR, "sound");
-	devfs_remove("sound");
 	class_destroy(sound_class);
 }
 
@@ -580,7 +574,6 @@ static int __init init_soundcore(void)
 		printk(KERN_ERR "soundcore: sound device already in use.\n");
 		return -EBUSY;
 	}
-	devfs_mk_dir ("sound");
 	sound_class = class_create(THIS_MODULE, "sound");
 	if (IS_ERR(sound_class))
 		return PTR_ERR(sound_class);

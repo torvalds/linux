@@ -1,5 +1,4 @@
 #include <linux/linkage.h>
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
@@ -235,7 +234,7 @@ void make_8259A_irq(unsigned int irq)
 {
 	disable_irq_nosync(irq);
 	io_apic_irqs &= ~(1<<irq);
-	irq_desc[irq].handler = &i8259A_irq_type;
+	irq_desc[irq].chip = &i8259A_irq_type;
 	enable_irq(irq);
 }
 
@@ -468,12 +467,12 @@ void __init init_ISA_irqs (void)
 			/*
 			 * 16 old-style INTA-cycle interrupts:
 			 */
-			irq_desc[i].handler = &i8259A_irq_type;
+			irq_desc[i].chip = &i8259A_irq_type;
 		} else {
 			/*
 			 * 'high' PCI IRQs filled in on demand
 			 */
-			irq_desc[i].handler = &no_irq_type;
+			irq_desc[i].chip = &no_irq_type;
 		}
 	}
 }

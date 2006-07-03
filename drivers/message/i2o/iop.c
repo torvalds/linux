@@ -683,9 +683,10 @@ static int i2o_iop_systab_set(struct i2o_controller *c)
 			c->mem_alloc = 1;
 			sb->current_mem_size = 1 + res->end - res->start;
 			sb->current_mem_base = res->start;
-			osm_info("%s: allocated %ld bytes of PCI memory at "
-				 "0x%08lX.\n", c->name,
-				 1 + res->end - res->start, res->start);
+			osm_info("%s: allocated %llu bytes of PCI memory at "
+				"0x%016llX.\n", c->name,
+				(unsigned long long)(1 + res->end - res->start),
+				(unsigned long long)res->start);
 		}
 	}
 
@@ -704,9 +705,10 @@ static int i2o_iop_systab_set(struct i2o_controller *c)
 			c->io_alloc = 1;
 			sb->current_io_size = 1 + res->end - res->start;
 			sb->current_mem_base = res->start;
-			osm_info("%s: allocated %ld bytes of PCI I/O at 0x%08lX"
-				 ".\n", c->name, 1 + res->end - res->start,
-				 res->start);
+			osm_info("%s: allocated %llu bytes of PCI I/O at "
+				"0x%016llX.\n", c->name,
+				(unsigned long long)(1 + res->end - res->start),
+				(unsigned long long)res->start);
 		}
 	}
 

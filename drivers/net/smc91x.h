@@ -207,7 +207,7 @@ SMC_outw(u16 val, void __iomem *ioaddr, int reg)
 		   machine_is_omap_h2() \
 		|| machine_is_omap_h3() \
 		|| (machine_is_omap_innovator() && !cpu_is_omap1510()) \
-	) ? SA_TRIGGER_FALLING : SA_TRIGGER_RISING)
+	) ? IRQF_TRIGGER_FALLING : IRQF_TRIGGER_RISING)
 
 
 #elif	defined(CONFIG_SH_SH4202_MICRODEV)
@@ -540,7 +540,7 @@ smc_pxa_dma_irq(int dma, void *dummy, struct pt_regs *regs)
 #endif
 
 #ifndef	SMC_IRQ_FLAGS
-#define	SMC_IRQ_FLAGS		SA_TRIGGER_RISING
+#define	SMC_IRQ_FLAGS		IRQF_TRIGGER_RISING
 #endif
 
 #ifndef SMC_INTERRUPT_PREAMBLE

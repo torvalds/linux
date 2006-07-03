@@ -12,7 +12,6 @@
  * 30-06-1998 by Frank Denis : first step to write inodes.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/string.h>

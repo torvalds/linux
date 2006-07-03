@@ -32,7 +32,6 @@
 #include <linux/types.h>
 #include <linux/stddef.h>
 #include <linux/timer.h>
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/kernel_stat.h>

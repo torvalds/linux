@@ -15,7 +15,6 @@
  *	TGUI acceleration	
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/fb.h>
 #include <linux/init.h>

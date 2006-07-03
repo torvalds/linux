@@ -126,9 +126,10 @@ static int __init scx200_gpio_init(void)
 undo_chrdev_region:
 	unregister_chrdev_region(dev, num_pins);
 undo_platform_device_add:
-	platform_device_put(pdev);
+	platform_device_del(pdev);
 undo_malloc:
-	kfree(pdev);
+	platform_device_put(pdev);
+
 	return rc;
 }
 
@@ -136,7 +137,6 @@ static void __exit scx200_gpio_cleanup(void)
 {
 	kfree(scx200_devices);
 	unregister_chrdev_region(MKDEV(major, 0), num_pins);
-	platform_device_put(pdev);
 	platform_device_unregister(pdev);
 	/* kfree(pdev); */
 }

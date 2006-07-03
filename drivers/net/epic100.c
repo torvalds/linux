@@ -114,7 +114,6 @@ static int rx_copybreak;
 #define TX_FIFO_THRESH 256
 #define RX_FIFO_THRESH 1		/* 0-3, 0==32, 64,96, or 3==128 bytes  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
@@ -714,7 +713,7 @@ static int epic_open(struct net_device *dev)
 	/* Soft reset the chip. */
 	outl(0x4001, ioaddr + GENCTL);
 
-	if ((retval = request_irq(dev->irq, &epic_interrupt, SA_SHIRQ, dev->name, dev)))
+	if ((retval = request_irq(dev->irq, &epic_interrupt, IRQF_SHARED, dev->name, dev)))
 		return retval;
 
 	epic_init_ring(dev);

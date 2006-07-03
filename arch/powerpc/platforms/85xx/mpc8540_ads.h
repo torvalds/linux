@@ -17,7 +17,6 @@
 #ifndef __MACH_MPC8540ADS_H__
 #define __MACH_MPC8540ADS_H__
 
-#include <linux/config.h>
 #include <linux/initrd.h>
 
 #define BOARD_CCSRBAR		((uint)0xe0000000)

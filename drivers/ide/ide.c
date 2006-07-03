@@ -130,7 +130,6 @@
 
 #define _IDE_C			/* Tell ide.h it's really us */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/string.h>
@@ -147,7 +146,6 @@
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/ide.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/completion.h>
 #include <linux/reboot.h>
 #include <linux/cdrom.h>
@@ -592,13 +590,8 @@ void ide_unregister(unsigned int index)
 		goto abort;
 	for (unit = 0; unit < MAX_DRIVES; ++unit) {
 		drive = &hwif->drives[unit];
-		if (!drive->present) {
-			if (drive->devfs_name[0] != '\0') {
-				devfs_remove(drive->devfs_name);
-				drive->devfs_name[0] = '\0';
-			}
+		if (!drive->present)
 			continue;
-		}
 		spin_unlock_irq(&ide_lock);
 		device_unregister(&drive->gendev);
 		wait_for_completion(&drive->gendev_rel_comp);
@@ -1996,7 +1989,6 @@ EXPORT_SYMBOL_GPL(ide_bus_type);
 static int __init ide_init(void)
 {
 	printk(KERN_INFO "Uniform Multi-Platform E-IDE driver " REVISION "\n");
-	devfs_mk_dir("ide");
 	system_bus_speed = ide_system_bus_speed();
 
 	bus_register(&ide_bus_type);
@@ -2074,7 +2066,6 @@ void cleanup_module (void)
 #ifdef CONFIG_PROC_FS
 	proc_ide_destroy();
 #endif
-	devfs_remove("ide");
 
 	bus_unregister(&ide_bus_type);
 }

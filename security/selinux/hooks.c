@@ -18,7 +18,6 @@
  *      as published by the Free Software Foundation.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -69,6 +68,7 @@
 #include <linux/sysctl.h>
 #include <linux/audit.h>
 #include <linux/string.h>
+#include <linux/selinux.h>
 
 #include "avc.h"
 #include "objsec.h"
@@ -2643,6 +2643,11 @@ static int selinux_task_getsid(struct task_struct *p)
 	return task_has_perm(current, p, PROCESS__GETSESSION);
 }
 
+static void selinux_task_getsecid(struct task_struct *p, u32 *secid)
+{
+	selinux_get_task_sid(p, secid);
+}
+
 static int selinux_task_setgroups(struct group_info *group_info)
 {
 	/* See the comment for setuid above. */
@@ -2663,6 +2668,11 @@ static int selinux_task_setnice(struct task_struct *p, int nice)
 static int selinux_task_setioprio(struct task_struct *p, int ioprio)
 {
 	return task_has_perm(current, p, PROCESS__SETSCHED);
+}
+
+static int selinux_task_getioprio(struct task_struct *p)
+{
+	return task_has_perm(current, p, PROCESS__GETSCHED);
 }
 
 static int selinux_task_setrlimit(unsigned int resource, struct rlimit *new_rlim)
@@ -2699,12 +2709,14 @@ static int selinux_task_movememory(struct task_struct *p)
 	return task_has_perm(current, p, PROCESS__SETSCHED);
 }
 
-static int selinux_task_kill(struct task_struct *p, struct siginfo *info, int sig)
+static int selinux_task_kill(struct task_struct *p, struct siginfo *info,
+				int sig, u32 secid)
 {
 	u32 perm;
 	int rc;
+	struct task_security_struct *tsec;
 
-	rc = secondary_ops->task_kill(p, info, sig);
+	rc = secondary_ops->task_kill(p, info, sig, secid);
 	if (rc)
 		return rc;
 
@@ -2715,8 +2727,12 @@ static int selinux_task_kill(struct task_struct *p, struct siginfo *info, int si
 		perm = PROCESS__SIGNULL; /* null signal; existence test */
 	else
 		perm = signal_to_av(sig);
-
-	return task_has_perm(current, p, perm);
+	tsec = p->security;
+	if (secid)
+		rc = avc_has_perm(secid, tsec->sid, SECCLASS_PROCESS, perm, NULL);
+	else
+		rc = task_has_perm(current, p, perm);
+	return rc;
 }
 
 static int selinux_task_prctl(int option,
@@ -3420,7 +3436,13 @@ out:
 static int selinux_socket_getpeersec_dgram(struct sk_buff *skb, char **secdata, u32 *seclen)
 {
 	int err = 0;
-	u32 peer_sid = selinux_socket_getpeer_dgram(skb);
+	u32 peer_sid;
+
+	if (skb->sk->sk_family == PF_UNIX)
+		selinux_get_inode_sid(SOCK_INODE(skb->sk->sk_socket),
+				      &peer_sid);
+	else
+		peer_sid = selinux_socket_getpeer_dgram(skb);
 
 	if (peer_sid == SECSID_NULL)
 		return -EINVAL;
@@ -3431,8 +3453,6 @@ static int selinux_socket_getpeersec_dgram(struct sk_buff *skb, char **secdata, 
 
 	return 0;
 }
-
-
 
 static int selinux_sk_alloc_security(struct sock *sk, int family, gfp_t priority)
 {
@@ -3641,20 +3661,11 @@ static unsigned int selinux_ipv6_postroute_last(unsigned int hooknum,
 
 static int selinux_netlink_send(struct sock *sk, struct sk_buff *skb)
 {
-	struct task_security_struct *tsec;
-	struct av_decision avd;
 	int err;
 
 	err = secondary_ops->netlink_send(sk, skb);
 	if (err)
 		return err;
-
-	tsec = current->security;
-
-	avd.allowed = 0;
-	avc_has_perm_noaudit(tsec->sid, tsec->sid,
-				SECCLASS_CAPABILITY, ~0, &avd);
-	cap_mask(NETLINK_CB(skb).eff_cap, avd.allowed);
 
 	if (policydb_loaded_version >= POLICYDB_VERSION_NLCLASS)
 		err = selinux_nlmsg_perm(sk, skb);
@@ -3662,11 +3673,20 @@ static int selinux_netlink_send(struct sock *sk, struct sk_buff *skb)
 	return err;
 }
 
-static int selinux_netlink_recv(struct sk_buff *skb)
+static int selinux_netlink_recv(struct sk_buff *skb, int capability)
 {
-	if (!cap_raised(NETLINK_CB(skb).eff_cap, CAP_NET_ADMIN))
-		return -EPERM;
-	return 0;
+	int err;
+	struct avc_audit_data ad;
+
+	err = secondary_ops->netlink_recv(skb, capability);
+	if (err)
+		return err;
+
+	AVC_AUDIT_DATA_INIT(&ad, CAP);
+	ad.u.cap = capability;
+
+	return avc_has_perm(NETLINK_CB(skb).sid, NETLINK_CB(skb).sid,
+	                    SECCLASS_CAPABILITY, CAP_TO_MASK(capability), &ad);
 }
 
 static int ipc_alloc_security(struct task_struct *task,
@@ -4429,9 +4449,11 @@ static struct security_operations selinux_ops = {
 	.task_setpgid =			selinux_task_setpgid,
 	.task_getpgid =			selinux_task_getpgid,
 	.task_getsid =		        selinux_task_getsid,
+	.task_getsecid =		selinux_task_getsecid,
 	.task_setgroups =		selinux_task_setgroups,
 	.task_setnice =			selinux_task_setnice,
 	.task_setioprio =		selinux_task_setioprio,
+	.task_getioprio =		selinux_task_getioprio,
 	.task_setrlimit =		selinux_task_setrlimit,
 	.task_setscheduler =		selinux_task_setscheduler,
 	.task_getscheduler =		selinux_task_getscheduler,

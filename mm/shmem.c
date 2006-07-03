@@ -23,10 +23,8 @@
  * which makes it a completely usable filesystem.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/fs.h>
 #include <linux/mm.h>
 #include <linux/mman.h>
@@ -1046,12 +1044,12 @@ repeat:
 		swappage = lookup_swap_cache(swap);
 		if (!swappage) {
 			shmem_swp_unmap(entry);
-			spin_unlock(&info->lock);
 			/* here we actually do the io */
 			if (type && *type == VM_FAULT_MINOR) {
-				inc_page_state(pgmajfault);
+				__count_vm_event(PGMAJFAULT);
 				*type = VM_FAULT_MAJOR;
 			}
+			spin_unlock(&info->lock);
 			swappage = shmem_swapin(info, swap, idx);
 			if (!swappage) {
 				spin_lock(&info->lock);
@@ -2252,9 +2250,7 @@ static int __init init_tmpfs(void)
 		printk(KERN_ERR "Could not register tmpfs\n");
 		goto out2;
 	}
-#ifdef CONFIG_TMPFS
-	devfs_mk_dir("shm");
-#endif
+
 	shm_mnt = vfs_kern_mount(&tmpfs_fs_type, MS_NOUSER,
 				tmpfs_fs_type.name, NULL);
 	if (IS_ERR(shm_mnt)) {

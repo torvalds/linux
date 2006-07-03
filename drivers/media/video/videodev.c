@@ -37,7 +37,6 @@
 #include <linux/init.h>
 #include <linux/kmod.h>
 #include <linux/slab.h>
-#include <linux/devfs_fs_kernel.h>
 #include <asm/uaccess.h>
 #include <asm/system.h>
 
@@ -1563,10 +1562,6 @@ int video_register_device(struct video_device *vfd, int type, int nr)
 	video_device[i]=vfd;
 	vfd->minor=i;
 	mutex_unlock(&videodev_lock);
-
-	sprintf(vfd->devfs_name, "v4l/%s%d", name_base, i - base);
-	devfs_mk_cdev(MKDEV(VIDEO_MAJOR, vfd->minor),
-			S_IFCHR | S_IRUSR | S_IWUSR, vfd->devfs_name);
 	mutex_init(&vfd->lock);
 
 	/* sysfs class */
@@ -1575,7 +1570,7 @@ int video_register_device(struct video_device *vfd, int type, int nr)
 		vfd->class_dev.dev = vfd->dev;
 	vfd->class_dev.class       = &video_class;
 	vfd->class_dev.devt        = MKDEV(VIDEO_MAJOR, vfd->minor);
-	strlcpy(vfd->class_dev.class_id, vfd->devfs_name + 4, BUS_ID_SIZE);
+	sprintf(vfd->class_dev.class_id, "%s%d", name_base, i - base);
 	class_device_register(&vfd->class_dev);
 	class_device_create_file(&vfd->class_dev,
 				&class_device_attr_name);
@@ -1604,7 +1599,6 @@ void video_unregister_device(struct video_device *vfd)
 	if(video_device[vfd->minor]!=vfd)
 		panic("videodev: bad unregister");
 
-	devfs_remove(vfd->devfs_name);
 	video_device[vfd->minor]=NULL;
 	class_device_unregister(&vfd->class_dev);
 	mutex_unlock(&videodev_lock);

@@ -14,7 +14,6 @@
  * 08 Oct 2005 Harald Welte <lafore@netfilter.org>
  * 	- Generalize into "x_tables" layer and "{ip,ip6,arp}_tables"
  */
-#include <linux/config.h>
 #include <linux/cache.h>
 #include <linux/capability.h>
 #include <linux/skbuff.h>
@@ -2113,7 +2112,8 @@ int ipt_register_table(struct xt_table *table, const struct ipt_replace *repl)
 		return ret;
 	}
 
-	if (xt_register_table(table, &bootstrap, newinfo) != 0) {
+	ret = xt_register_table(table, &bootstrap, newinfo);
+	if (ret != 0) {
 		xt_free_table_info(newinfo);
 		return ret;
 	}

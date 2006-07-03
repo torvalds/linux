@@ -10,7 +10,6 @@
 
 #include <linux/bitmap.h>
 #include <linux/kernel.h>
-#include <linux/config.h>
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <linux/smp_lock.h>

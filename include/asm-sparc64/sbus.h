@@ -80,7 +80,6 @@ struct sbus_bus {
 	int num_sbus_ranges;
 
 	int portid;
-	void *starfire_cookie;
 };
 #define to_sbus(d) container_of(d, struct sbus_bus, ofdev.dev)
 

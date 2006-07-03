@@ -146,7 +146,7 @@ int __init blz2060_esp_detect(struct scsi_host_template *tpnt)
 		esp->esp_command_dvma = virt_to_bus((void *)cmd_buffer);
 
 		esp->irq = IRQ_AMIGA_PORTS;
-		request_irq(IRQ_AMIGA_PORTS, esp_intr, SA_SHIRQ,
+		request_irq(IRQ_AMIGA_PORTS, esp_intr, IRQF_SHARED,
 			    "Blizzard 2060 SCSI", esp->ehost);
 
 		/* Figure out our scsi ID on the bus */

@@ -1726,7 +1726,7 @@ static int rtl8169_open(struct net_device *dev)
 	rtl8169_set_rxbufsize(tp, dev);
 
 	retval =
-	    request_irq(dev->irq, rtl8169_interrupt, SA_SHIRQ, dev->name, dev);
+	    request_irq(dev->irq, rtl8169_interrupt, IRQF_SHARED, dev->name, dev);
 	if (retval < 0)
 		goto out;
 

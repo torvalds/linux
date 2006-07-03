@@ -309,6 +309,13 @@ struct kmem_list3 __initdata initkmem_list3[NUM_INIT_LISTS];
 #define	SIZE_AC 1
 #define	SIZE_L3 (1 + MAX_NUMNODES)
 
+static int drain_freelist(struct kmem_cache *cache,
+			struct kmem_list3 *l3, int tofree);
+static void free_block(struct kmem_cache *cachep, void **objpp, int len,
+			int node);
+static void enable_cpucache(struct kmem_cache *cachep);
+static void cache_reap(void *unused);
+
 /*
  * This function must be completely optimized away if a constant is passed to
  * it.  Mostly the same as what is in linux/slab.h except it returns an index.
@@ -456,7 +463,7 @@ struct kmem_cache {
 #define	STATS_DEC_ACTIVE(x)	((x)->num_active--)
 #define	STATS_INC_ALLOCED(x)	((x)->num_allocations++)
 #define	STATS_INC_GROWN(x)	((x)->grown++)
-#define	STATS_INC_REAPED(x)	((x)->reaped++)
+#define	STATS_ADD_REAPED(x,y)	((x)->reaped += (y))
 #define	STATS_SET_HIGH(x)						\
 	do {								\
 		if ((x)->num_active > (x)->high_mark)			\
@@ -480,7 +487,7 @@ struct kmem_cache {
 #define	STATS_DEC_ACTIVE(x)	do { } while (0)
 #define	STATS_INC_ALLOCED(x)	do { } while (0)
 #define	STATS_INC_GROWN(x)	do { } while (0)
-#define	STATS_INC_REAPED(x)	do { } while (0)
+#define	STATS_ADD_REAPED(x,y)	do { } while (0)
 #define	STATS_SET_HIGH(x)	do { } while (0)
 #define	STATS_INC_ERR(x)	do { } while (0)
 #define	STATS_INC_NODEALLOCS(x)	do { } while (0)
@@ -699,12 +706,6 @@ int slab_is_available(void)
 }
 
 static DEFINE_PER_CPU(struct work_struct, reap_work);
-
-static void free_block(struct kmem_cache *cachep, void **objpp, int len,
-			int node);
-static void enable_cpucache(struct kmem_cache *cachep);
-static void cache_reap(void *unused);
-static int __node_shrink(struct kmem_cache *cachep, int node);
 
 static inline struct array_cache *cpu_cache_get(struct kmem_cache *cachep)
 {
@@ -1241,10 +1242,7 @@ free_array_cache:
 			l3 = cachep->nodelists[node];
 			if (!l3)
 				continue;
-			spin_lock_irq(&l3->list_lock);
-			/* free slabs belonging to this node */
-			__node_shrink(cachep, node);
-			spin_unlock_irq(&l3->list_lock);
+			drain_freelist(cachep, l3, l3->free_objects);
 		}
 		mutex_unlock(&cache_chain_mutex);
 		break;
@@ -1507,7 +1505,7 @@ static void *kmem_getpages(struct kmem_cache *cachep, gfp_t flags, int nodeid)
 	nr_pages = (1 << cachep->gfporder);
 	if (cachep->flags & SLAB_RECLAIM_ACCOUNT)
 		atomic_add(nr_pages, &slab_reclaim_pages);
-	add_page_state(nr_slab, nr_pages);
+	add_zone_page_state(page_zone(page), NR_SLAB, nr_pages);
 	for (i = 0; i < nr_pages; i++)
 		__SetPageSlab(page + i);
 	return page_address(page);
@@ -1522,12 +1520,12 @@ static void kmem_freepages(struct kmem_cache *cachep, void *addr)
 	struct page *page = virt_to_page(addr);
 	const unsigned long nr_freed = i;
 
+	sub_zone_page_state(page_zone(page), NR_SLAB, nr_freed);
 	while (i--) {
 		BUG_ON(!PageSlab(page));
 		__ClearPageSlab(page);
 		page++;
 	}
-	sub_page_state(nr_slab, nr_freed);
 	if (current->reclaim_state)
 		current->reclaim_state->reclaimed_slab += nr_freed;
 	free_pages((unsigned long)addr, cachep->gfporder);
@@ -2248,32 +2246,45 @@ static void drain_cpu_caches(struct kmem_cache *cachep)
 	}
 }
 
-static int __node_shrink(struct kmem_cache *cachep, int node)
+/*
+ * Remove slabs from the list of free slabs.
+ * Specify the number of slabs to drain in tofree.
+ *
+ * Returns the actual number of slabs released.
+ */
+static int drain_freelist(struct kmem_cache *cache,
+			struct kmem_list3 *l3, int tofree)
 {
+	struct list_head *p;
+	int nr_freed;
 	struct slab *slabp;
-	struct kmem_list3 *l3 = cachep->nodelists[node];
-	int ret;
 
-	for (;;) {
-		struct list_head *p;
+	nr_freed = 0;
+	while (nr_freed < tofree && !list_empty(&l3->slabs_free)) {
 
+		spin_lock_irq(&l3->list_lock);
 		p = l3->slabs_free.prev;
-		if (p == &l3->slabs_free)
-			break;
+		if (p == &l3->slabs_free) {
+			spin_unlock_irq(&l3->list_lock);
+			goto out;
+		}
 
-		slabp = list_entry(l3->slabs_free.prev, struct slab, list);
+		slabp = list_entry(p, struct slab, list);
 #if DEBUG
 		BUG_ON(slabp->inuse);
 #endif
 		list_del(&slabp->list);
-
-		l3->free_objects -= cachep->num;
+		/*
+		 * Safe to drop the lock. The slab is no longer linked
+		 * to the cache.
+		 */
+		l3->free_objects -= cache->num;
 		spin_unlock_irq(&l3->list_lock);
-		slab_destroy(cachep, slabp);
-		spin_lock_irq(&l3->list_lock);
+		slab_destroy(cache, slabp);
+		nr_freed++;
 	}
-	ret = !list_empty(&l3->slabs_full) || !list_empty(&l3->slabs_partial);
-	return ret;
+out:
+	return nr_freed;
 }
 
 static int __cache_shrink(struct kmem_cache *cachep)
@@ -2286,11 +2297,13 @@ static int __cache_shrink(struct kmem_cache *cachep)
 	check_irq_on();
 	for_each_online_node(i) {
 		l3 = cachep->nodelists[i];
-		if (l3) {
-			spin_lock_irq(&l3->list_lock);
-			ret += __node_shrink(cachep, i);
-			spin_unlock_irq(&l3->list_lock);
-		}
+		if (!l3)
+			continue;
+
+		drain_freelist(cachep, l3, l3->free_objects);
+
+		ret += !list_empty(&l3->slabs_full) ||
+			!list_empty(&l3->slabs_partial);
 	}
 	return (ret ? 1 : 0);
 }
@@ -3694,10 +3707,6 @@ static void cache_reap(void *unused)
 	}
 
 	list_for_each_entry(searchp, &cache_chain, next) {
-		struct list_head *p;
-		int tofree;
-		struct slab *slabp;
-
 		check_irq_on();
 
 		/*
@@ -3722,47 +3731,22 @@ static void cache_reap(void *unused)
 
 		drain_array(searchp, l3, l3->shared, 0, node);
 
-		if (l3->free_touched) {
+		if (l3->free_touched)
 			l3->free_touched = 0;
-			goto next;
+		else {
+			int freed;
+
+			freed = drain_freelist(searchp, l3, (l3->free_limit +
+				5 * searchp->num - 1) / (5 * searchp->num));
+			STATS_ADD_REAPED(searchp, freed);
 		}
-
-		tofree = (l3->free_limit + 5 * searchp->num - 1) /
-				(5 * searchp->num);
-		do {
-			/*
-			 * Do not lock if there are no free blocks.
-			 */
-			if (list_empty(&l3->slabs_free))
-				break;
-
-			spin_lock_irq(&l3->list_lock);
-			p = l3->slabs_free.next;
-			if (p == &(l3->slabs_free)) {
-				spin_unlock_irq(&l3->list_lock);
-				break;
-			}
-
-			slabp = list_entry(p, struct slab, list);
-			BUG_ON(slabp->inuse);
-			list_del(&slabp->list);
-			STATS_INC_REAPED(searchp);
-
-			/*
-			 * Safe to drop the lock. The slab is no longer linked
-			 * to the cache. searchp cannot disappear, we hold
-			 * cache_chain_lock
-			 */
-			l3->free_objects -= searchp->num;
-			spin_unlock_irq(&l3->list_lock);
-			slab_destroy(searchp, slabp);
-		} while (--tofree > 0);
 next:
 		cond_resched();
 	}
 	check_irq_on();
 	mutex_unlock(&cache_chain_mutex);
 	next_reap_node();
+	refresh_cpu_vm_stats(smp_processor_id());
 	/* Set up the next iteration */
 	schedule_delayed_work(&__get_cpu_var(reap_work), REAPTIMEOUT_CPUC);
 }

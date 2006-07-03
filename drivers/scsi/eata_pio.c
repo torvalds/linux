@@ -46,7 +46,6 @@
  *  last change: 2002/11/02               OS: Linux 2.5.45  *
  ************************************************************/
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
@@ -732,7 +731,7 @@ static int register_pio_HBA(long base, struct get_conf *gc)
 		return 0;
 
 	if (!reg_IRQ[gc->IRQ]) {	/* Interrupt already registered ? */
-		if (!request_irq(gc->IRQ, do_eata_pio_int_handler, SA_INTERRUPT, "EATA-PIO", sh)) {
+		if (!request_irq(gc->IRQ, do_eata_pio_int_handler, IRQF_DISABLED, "EATA-PIO", sh)) {
 			reg_IRQ[gc->IRQ]++;
 			if (!gc->IRQ_TR)
 				reg_IRQL[gc->IRQ] = 1;	/* IRQ is edge triggered */
@@ -966,7 +965,7 @@ static int eata_pio_detect(struct scsi_host_template *tpnt)
 
 	for (i = 0; i <= MAXIRQ; i++)
 		if (reg_IRQ[i])
-			request_irq(i, do_eata_pio_int_handler, SA_INTERRUPT, "EATA-PIO", NULL);
+			request_irq(i, do_eata_pio_int_handler, IRQF_DISABLED, "EATA-PIO", NULL);
 
 	HBA_ptr = first_HBA;
 

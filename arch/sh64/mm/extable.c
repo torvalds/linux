@@ -10,7 +10,6 @@
  *
  * Cloned from the 2.5 SH version..
  */
-#include <linux/config.h>
 #include <linux/rwsem.h>
 #include <linux/module.h>
 #include <asm/uaccess.h>

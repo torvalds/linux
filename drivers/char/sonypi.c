@@ -33,7 +33,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/input.h>
 #include <linux/pci.h>
@@ -1283,7 +1282,7 @@ static int __devinit sonypi_setup_irq(struct sonypi_device *dev,
 	while (irq_list->irq) {
 
 		if (!request_irq(irq_list->irq, sonypi_irq,
-				 SA_SHIRQ, "sonypi", sonypi_irq)) {
+				 IRQF_SHARED, "sonypi", sonypi_irq)) {
 			dev->irq = irq_list->irq;
 			dev->bits = irq_list->bits;
 			return 0;

@@ -23,7 +23,6 @@
  * This file handles the architecture-dependent parts of initialization
  */
 
-#include <linux/config.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/mmzone.h>
@@ -1314,8 +1313,10 @@ legacy_init_iomem_resources(struct resource *code_resource, struct resource *dat
 	probe_roms();
 	for (i = 0; i < e820.nr_map; i++) {
 		struct resource *res;
+#ifndef CONFIG_RESOURCES_64BIT
 		if (e820.map[i].addr + e820.map[i].size > 0x100000000ULL)
 			continue;
+#endif
 		res = kzalloc(sizeof(struct resource), GFP_ATOMIC);
 		switch (e820.map[i].type) {
 		case E820_RAM:	res->name = "System RAM"; break;

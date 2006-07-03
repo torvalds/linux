@@ -7,7 +7,6 @@
  * Copyright (C) 2001 MIPS Technologies, Inc.
  * Copyright (C) 2004 Thiemo Seufer
  */
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <asm/asm.h>
 #include <asm/asmmacro.h>
@@ -647,6 +646,7 @@ einval:	li	v0, -EINVAL
 	sys	sys_unshare		1
 	sys	sys_splice		4
 	sys	sys_sync_file_range	7	/* 4305 */
+	sys	sys_tee			4
 	.endm
 
 	/* We pre-compute the number of _instruction_ bytes needed to

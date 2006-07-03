@@ -4346,7 +4346,7 @@ static int __devinit cs4281_probe(struct pci_dev *pcidev,
 	s->pcidev = pcidev;
 	s->irq = pcidev->irq;
 	if (request_irq
-	    (s->irq, cs4281_interrupt, SA_SHIRQ, "Crystal CS4281", s)) {
+	    (s->irq, cs4281_interrupt, IRQF_SHARED, "Crystal CS4281", s)) {
 		CS_DBGOUT(CS_INIT | CS_ERROR, 1,
 			  printk(KERN_ERR "cs4281: irq %u in use\n", s->irq));
 		goto err_irq;

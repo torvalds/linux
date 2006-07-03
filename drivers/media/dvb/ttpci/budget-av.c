@@ -1141,6 +1141,15 @@ static void frontend_init(struct budget_av *budget_av)
 		break;
 
 	case SUBID_DVBC_KNC1:
+		budget_av->reinitialise_demod = 1;
+		fe = tda10021_attach(&philips_cu1216_config,
+				     &budget_av->budget.i2c_adap,
+				     read_pwm(budget_av));
+		if (fe) {
+			fe->ops.tuner_ops.set_params = philips_cu1216_tuner_set_params;
+		}
+		break;
+
 	case SUBID_DVBC_KNC1_PLUS:
 	case SUBID_DVBC_CINERGY1200:
 		budget_av->reinitialise_demod = 1;
@@ -1293,11 +1302,7 @@ static int budget_av_attach(struct saa7146_dev *dev, struct saa7146_pci_extensio
 
 	budget_av->budget.dvb_adapter.priv = budget_av;
 	frontend_init(budget_av);
-
-	if (!budget_av->has_saa7113) {
-		ciintf_init(budget_av);
-	}
-
+	ciintf_init(budget_av);
 	return 0;
 }
 

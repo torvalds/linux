@@ -10,7 +10,6 @@
 /*
  * This handles all read/write requests to block devices
  */
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/backing-dev.h>
@@ -3117,9 +3116,9 @@ void submit_bio(int rw, struct bio *bio)
 	BIO_BUG_ON(!bio->bi_io_vec);
 	bio->bi_rw |= rw;
 	if (rw & WRITE)
-		mod_page_state(pgpgout, count);
+		count_vm_events(PGPGOUT, count);
 	else
-		mod_page_state(pgpgin, count);
+		count_vm_events(PGPGIN, count);
 
 	if (unlikely(block_dump)) {
 		char b[BDEVNAME_SIZE];

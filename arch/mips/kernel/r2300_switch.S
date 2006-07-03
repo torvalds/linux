@@ -10,7 +10,6 @@
  * Further modifications to make this work:
  * Copyright (c) 1998-2000 Harald Koerfgen
  */
-#include <linux/config.h>
 #include <asm/asm.h>
 #include <asm/cachectl.h>
 #include <asm/fpregdef.h>

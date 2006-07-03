@@ -27,7 +27,6 @@
  *
  */
 
-#include <linux/config.h>
 
 #if defined(CONFIG_SERIAL_LH7A40X_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
 #define SUPPORT_SYSRQ

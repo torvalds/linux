@@ -54,7 +54,7 @@ struct starfire_irqinfo {
 static struct starfire_irqinfo *sflist = NULL;
 
 /* Beam me up Scott(McNeil)y... */
-void *starfire_hookup(int upaid)
+void starfire_hookup(int upaid)
 {
 	struct starfire_irqinfo *p;
 	unsigned long treg_base, hwmid, i;
@@ -81,8 +81,6 @@ void *starfire_hookup(int upaid)
 	p->upaid = upaid;
 	p->next = sflist;
 	sflist = p;
-
-	return (void *) p;
 }
 
 unsigned int starfire_translate(unsigned long imap,

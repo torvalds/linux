@@ -27,7 +27,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/initrd.h>
 #include <linux/init.h>
@@ -303,6 +302,8 @@ extern void eisa_init(void);
 
 static int __init parisc_init(void)
 {
+	u32 osid = (OS_ID_LINUX << 16);
+
 	parisc_proc_mkdir();
 	parisc_init_resources();
 	do_device_inventory();                  /* probe for hardware */
@@ -311,6 +312,9 @@ static int __init parisc_init(void)
 	
 	/* set up a new led state on systems shipped LED State panel */
 	pdc_chassis_send_status(PDC_CHASSIS_DIRECT_BSTART);
+
+	/* tell PDC we're Linux. Nevermind failure. */
+	pdc_stable_write(0x40, &osid, sizeof(osid));
 	
 	processor_init();
 	printk(KERN_INFO "CPU(s): %d x %s at %d.%06d MHz\n",

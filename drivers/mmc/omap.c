@@ -11,7 +11,6 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
@@ -61,6 +60,7 @@ struct mmc_omap_host {
 	unsigned char		id; /* 16xx chips have 2 MMC blocks */
 	struct clk *		iclk;
 	struct clk *		fclk;
+	struct resource		*res;
 	void __iomem		*base;
 	int			irq;
 	unsigned char		bus_mode;
@@ -340,8 +340,6 @@ static void
 mmc_omap_xfer_data(struct mmc_omap_host *host, int write)
 {
 	int n;
-	void __iomem *reg;
-	u16 *p;
 
 	if (host->buffer_bytes_left == 0) {
 		host->sg_idx++;
@@ -658,12 +656,12 @@ static void mmc_omap_dma_cb(int lch, u16 ch_status, void *data)
 	struct mmc_data *mmcdat = host->data;
 
 	if (unlikely(host->dma_ch < 0)) {
-		dev_err(mmc_dev(host->mmc), "DMA callback while DMA not
-				enabled\n");
+		dev_err(mmc_dev(host->mmc),
+			"DMA callback while DMA not enabled\n");
 		return;
 	}
 	/* FIXME: We really should do something to _handle_ the errors */
-	if (ch_status & OMAP_DMA_TOUT_IRQ) {
+	if (ch_status & OMAP1_DMA_TOUT_IRQ) {
 		dev_err(mmc_dev(host->mmc),"DMA timeout\n");
 		return;
 	}
@@ -973,20 +971,20 @@ static int __init mmc_omap_probe(struct platform_device *pdev)
 	struct omap_mmc_conf *minfo = pdev->dev.platform_data;
 	struct mmc_host *mmc;
 	struct mmc_omap_host *host = NULL;
+	struct resource *r;
 	int ret = 0;
+	int irq;
 	
-	if (platform_get_resource(pdev, IORESOURCE_MEM, 0) ||
-			platform_get_irq(pdev, IORESOURCE_IRQ, 0)) {
-		dev_err(&pdev->dev, "mmc_omap_probe: invalid resource type\n");
-		return -ENODEV;
-	}
+	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	irq = platform_get_irq(pdev, 0);
+	if (!r || irq < 0)
+		return -ENXIO;
 
-	if (!request_mem_region(pdev->resource[0].start,
+	r = request_mem_region(pdev->resource[0].start,
 				pdev->resource[0].end - pdev->resource[0].start + 1,
-				pdev->name)) {
-		dev_dbg(&pdev->dev, "request_mem_region failed\n");
+			       pdev->name);
+	if (!r)
 		return -EBUSY;
-	}
 
 	mmc = mmc_alloc_host(sizeof(struct mmc_omap_host), &pdev->dev);
 	if (!mmc) {
@@ -1003,6 +1001,8 @@ static int __init mmc_omap_probe(struct platform_device *pdev)
 	host->dma_timer.data = (unsigned long) host;
 
 	host->id = pdev->id;
+	host->res = r;
+	host->irq = irq;
 
 	if (cpu_is_omap24xx()) {
 		host->iclk = clk_get(&pdev->dev, "mmc_ick");
@@ -1032,13 +1032,9 @@ static int __init mmc_omap_probe(struct platform_device *pdev)
 	host->dma_ch = -1;
 
 	host->irq = pdev->resource[1].start;
-	host->base = ioremap(pdev->res.start, SZ_4K);
-	if (!host->base) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	host->base = (void __iomem*)IO_ADDRESS(r->start);
 
-	 if (minfo->wire4)
+	if (minfo->wire4)
 		 mmc->caps |= MMC_CAP_4_BIT_DATA;
 
 	mmc->ops = &mmc_omap_ops;
@@ -1057,8 +1053,8 @@ static int __init mmc_omap_probe(struct platform_device *pdev)
 
 	if (host->power_pin >= 0) {
 		if ((ret = omap_request_gpio(host->power_pin)) != 0) {
-			dev_err(mmc_dev(host->mmc), "Unable to get GPIO
-					pin for MMC power\n");
+			dev_err(mmc_dev(host->mmc),
+				"Unable to get GPIO pin for MMC power\n");
 			goto out;
 		}
 		omap_set_gpio_direction(host->power_pin, 0);
@@ -1086,7 +1082,7 @@ static int __init mmc_omap_probe(struct platform_device *pdev)
 
 		omap_set_gpio_direction(host->switch_pin, 1);
 		ret = request_irq(OMAP_GPIO_IRQ(host->switch_pin),
-				  mmc_omap_switch_irq, SA_TRIGGER_RISING, DRIVER_NAME, host);
+				  mmc_omap_switch_irq, IRQF_TRIGGER_RISING, DRIVER_NAME, host);
 		if (ret) {
 			dev_warn(mmc_dev(host->mmc), "Unable to get IRQ for MMC cover switch\n");
 			omap_free_gpio(host->switch_pin);
@@ -1100,7 +1096,7 @@ static int __init mmc_omap_probe(struct platform_device *pdev)
 				device_remove_file(&pdev->dev, &dev_attr_cover_switch);
 		}
 		if (ret) {
-			dev_wan(mmc_dev(host->mmc), "Unable to create sysfs attributes\n");
+			dev_warn(mmc_dev(host->mmc), "Unable to create sysfs attributes\n");
 			free_irq(OMAP_GPIO_IRQ(host->switch_pin), host);
 			omap_free_gpio(host->switch_pin);
 			host->switch_pin = -1;

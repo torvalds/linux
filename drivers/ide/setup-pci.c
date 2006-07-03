@@ -18,7 +18,6 @@
  *  configuration of all PCI IDE interfaces present in a system.  
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>

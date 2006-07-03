@@ -149,12 +149,7 @@ struct cm4000_dev {
 #define	ZERO_DEV(dev)  						\
 	memset(&dev->atr_csum,0,				\
 		sizeof(struct cm4000_dev) - 			\
-		/*link*/ sizeof(struct pcmcia_device *) - 	\
-		/*node*/ sizeof(dev_node_t) - 			\
-		/*atr*/ MAX_ATR*sizeof(char) - 			\
-		/*rbuf*/ 512*sizeof(char) - 			\
-		/*sbuf*/ 512*sizeof(char) - 			\
-		/*queue*/ 4*sizeof(wait_queue_head_t))
+		offsetof(struct cm4000_dev, atr_csum))
 
 static struct pcmcia_device *dev_table[CM4000_MAX_DEV];
 static struct class *cmm_class;

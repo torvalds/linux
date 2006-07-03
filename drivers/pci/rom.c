@@ -6,7 +6,6 @@
  *
  * PCI ROM access routines
  */
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
@@ -80,8 +79,8 @@ void __iomem *pci_map_rom(struct pci_dev *pdev, size_t *size)
 	} else {
 		if (res->flags & IORESOURCE_ROM_COPY) {
 			*size = pci_resource_len(pdev, PCI_ROM_RESOURCE);
-			return (void __iomem *)pci_resource_start(pdev,
-							     PCI_ROM_RESOURCE);
+			return (void __iomem *)(unsigned long)
+				pci_resource_start(pdev, PCI_ROM_RESOURCE);
 		} else {
 			/* assign the ROM an address if it doesn't have one */
 			if (res->parent == NULL &&
@@ -170,11 +169,11 @@ void __iomem *pci_map_rom_copy(struct pci_dev *pdev, size_t *size)
 		return rom;
 
 	res->end = res->start + *size;
-	memcpy_fromio((void*)res->start, rom, *size);
+	memcpy_fromio((void*)(unsigned long)res->start, rom, *size);
 	pci_unmap_rom(pdev, rom);
 	res->flags |= IORESOURCE_ROM_COPY;
 
-	return (void __iomem *)res->start;
+	return (void __iomem *)(unsigned long)res->start;
 }
 
 /**
@@ -227,7 +226,7 @@ void pci_cleanup_rom(struct pci_dev *pdev)
 {
 	struct resource *res = &pdev->resource[PCI_ROM_RESOURCE];
 	if (res->flags & IORESOURCE_ROM_COPY) {
-		kfree((void*)res->start);
+		kfree((void*)(unsigned long)res->start);
 		res->flags &= ~IORESOURCE_ROM_COPY;
 		res->start = 0;
 		res->end = 0;

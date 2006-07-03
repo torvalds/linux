@@ -43,7 +43,6 @@
  * a struct file opened for write. Fixed. 2/6/2000, AV.
  */
 
-#include <linux/config.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/acct.h>

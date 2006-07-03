@@ -7,7 +7,6 @@
  * the kernel global pointer and jump to the kernel entry-point.
  */
 
-#include <linux/config.h>
 #include <asm/system.h>
 #include <asm/asm-offsets.h>
 

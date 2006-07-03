@@ -19,7 +19,6 @@
 #include <linux/a.out.h>
 #include <linux/tty.h>
 #include <linux/delay.h>
-#include <linux/config.h>
 #include <linux/fs.h>
 #include <linux/seq_file.h>
 #include <linux/syscalls.h>
@@ -496,7 +495,7 @@ static int __init topology_init(void)
 		if (!p)
 			err = -ENOMEM;
 		else
-			register_cpu(p, i, NULL);
+			register_cpu(p, i);
 	}
 
 	return err;

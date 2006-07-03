@@ -20,7 +20,6 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include <linux/config.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/module.h>
@@ -305,11 +304,11 @@ static void iic_request_ipi(int ipi, const char *name)
 	int irq;
 
 	irq = iic_ipi_to_irq(ipi);
-	/* IPIs are marked SA_INTERRUPT as they must run with irqs
+	/* IPIs are marked IRQF_DISABLED as they must run with irqs
 	 * disabled */
-	get_irq_desc(irq)->handler = &iic_pic;
+	get_irq_desc(irq)->chip = &iic_pic;
 	get_irq_desc(irq)->status |= IRQ_PER_CPU;
-	request_irq(irq, iic_ipi_action, SA_INTERRUPT, name, NULL);
+	request_irq(irq, iic_ipi_action, IRQF_DISABLED, name, NULL);
 }
 
 void iic_request_IPIs(void)
@@ -330,7 +329,7 @@ static void iic_setup_spe_handlers(void)
 	for (be=0; be < num_present_cpus() / 2; be++) {
 		for (isrc = 0; isrc < IIC_CLASS_STRIDE * 3; isrc++) {
 			int irq = IIC_NODE_STRIDE * be + IIC_SPE_OFFSET + isrc;
-			get_irq_desc(irq)->handler = &iic_pic;
+			get_irq_desc(irq)->chip = &iic_pic;
 		}
 	}
 }

@@ -11,7 +11,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/poll.h>
@@ -338,6 +337,16 @@ isdn_command(isdn_ctrl *cmd)
 {
 	if (cmd->driver == -1) {
 		printk(KERN_WARNING "isdn_command command(%x) driver -1\n", cmd->command);
+		return(1);
+	}
+	if (!dev->drv[cmd->driver]) {
+		printk(KERN_WARNING "isdn_command command(%x) dev->drv[%d] NULL\n",
+			cmd->command, cmd->driver);
+		return(1);
+	}
+	if (!dev->drv[cmd->driver]->interface) {
+		printk(KERN_WARNING "isdn_command command(%x) dev->drv[%d]->interface NULL\n",
+			cmd->command, cmd->driver);
 		return(1);
 	}
 	if (cmd->command == ISDN_CMD_SETL2) {
@@ -1903,6 +1912,11 @@ isdn_free_channel(int di, int ch, int usage)
 {
 	int i;
 
+	if ((di < 0) || (ch < 0)) {
+		printk(KERN_WARNING "%s: called with invalid drv(%d) or channel(%d)\n",
+			__FUNCTION__, di, ch);
+		return;
+	}
 	for (i = 0; i < ISDN_MAX_CHANNELS; i++)
 		if (((!usage) || ((dev->usage[i] & ISDN_USAGE_MASK) == usage)) &&
 		    (dev->drvmap[i] == di) &&
@@ -1918,7 +1932,8 @@ isdn_free_channel(int di, int ch, int usage)
 			dev->v110[i] = NULL;
 // 20.10.99 JIM, try to reinitialize v110 !
 			isdn_info_update();
-			skb_queue_purge(&dev->drv[di]->rpqueue[ch]);
+			if (dev->drv[di])
+				skb_queue_purge(&dev->drv[di]->rpqueue[ch]);
 		}
 }
 

@@ -171,7 +171,7 @@ void cpm2_init_IRQ(void)
 	/* Enable chaining to OpenPIC, and make everything level
 	 */
 	for (i = 0; i < NR_CPM_INTS; i++) {
-		irq_desc[i+CPM_IRQ_OFFSET].handler = &cpm2_pic;
+		irq_desc[i+CPM_IRQ_OFFSET].chip = &cpm2_pic;
 		irq_desc[i+CPM_IRQ_OFFSET].status |= IRQ_LEVEL;
 	}
 }

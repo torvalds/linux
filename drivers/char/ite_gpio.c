@@ -397,7 +397,7 @@ int __init ite_gpio_init(void)
 		init_waitqueue_head(&ite_gpio_wait[i]);
 	}
 
-	if (request_irq(ite_gpio_irq, ite_gpio_irq_handler, SA_SHIRQ, "gpio", 0) < 0) {
+	if (request_irq(ite_gpio_irq, ite_gpio_irq_handler, IRQF_SHARED, "gpio", 0) < 0) {
 		misc_deregister(&ite_gpio_miscdev);
 		release_region(ite_gpio_base, 0x1c);
 		return 0;

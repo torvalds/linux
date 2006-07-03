@@ -22,7 +22,6 @@
  *  with this program; if not, write  to the Free Software Foundation, Inc.,
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/irq.h>
@@ -172,7 +171,7 @@ void _board_init_irq(void)
 
 	for (irq_nr = PB1200_INT_BEGIN; irq_nr <= PB1200_INT_END; irq_nr++)
 	{
-		irq_desc[irq_nr].handler = &external_irq_type;
+		irq_desc[irq_nr].chip = &external_irq_type;
 		pb1200_disable_irq(irq_nr);
 	}
 

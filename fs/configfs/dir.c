@@ -211,7 +211,7 @@ static void remove_dir(struct dentry * d)
 	struct configfs_dirent * sd;
 
 	sd = d->d_fsdata;
- 	list_del_init(&sd->s_sibling);
+	list_del_init(&sd->s_sibling);
 	configfs_put(sd);
 	if (d->d_inode)
 		simple_rmdir(parent->d_inode,d);
@@ -330,7 +330,7 @@ static int configfs_detach_prep(struct dentry *dentry)
 
 			ret = configfs_detach_prep(sd->s_dentry);
 			if (!ret)
-			       	continue;
+				continue;
 		} else
 			ret = -ENOTEMPTY;
 
@@ -931,7 +931,7 @@ int configfs_rename_dir(struct config_item * item, const char *new_name)
 
 	new_dentry = lookup_one_len(new_name, parent, strlen(new_name));
 	if (!IS_ERR(new_dentry)) {
-  		if (!new_dentry->d_inode) {
+		if (!new_dentry->d_inode) {
 			error = config_item_set_name(item, "%s", new_name);
 			if (!error) {
 				d_add(new_dentry, NULL);

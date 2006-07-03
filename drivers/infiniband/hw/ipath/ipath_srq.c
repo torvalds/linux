@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2006 QLogic, Inc. All rights reserved.
  * Copyright (c) 2005, 2006 PathScale, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -125,11 +126,23 @@ struct ib_srq *ipath_create_srq(struct ib_pd *ibpd,
 				struct ib_srq_init_attr *srq_init_attr,
 				struct ib_udata *udata)
 {
+	struct ipath_ibdev *dev = to_idev(ibpd->device);
 	struct ipath_srq *srq;
 	u32 sz;
 	struct ib_srq *ret;
 
-	if (srq_init_attr->attr.max_sge < 1) {
+	if (dev->n_srqs_allocated == ib_ipath_max_srqs) {
+		ret = ERR_PTR(-ENOMEM);
+		goto bail;
+	}
+
+	if (srq_init_attr->attr.max_wr == 0) {
+		ret = ERR_PTR(-EINVAL);
+		goto bail;
+	}
+
+	if ((srq_init_attr->attr.max_sge > ib_ipath_max_srq_sges) ||
+	    (srq_init_attr->attr.max_wr > ib_ipath_max_srq_wrs)) {
 		ret = ERR_PTR(-EINVAL);
 		goto bail;
 	}
@@ -164,6 +177,8 @@ struct ib_srq *ipath_create_srq(struct ib_pd *ibpd,
 
 	ret = &srq->ibsrq;
 
+	dev->n_srqs_allocated++;
+
 bail:
 	return ret;
 }
@@ -181,24 +196,26 @@ int ipath_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
 	unsigned long flags;
 	int ret;
 
-	if (attr_mask & IB_SRQ_LIMIT) {
-		spin_lock_irqsave(&srq->rq.lock, flags);
-		srq->limit = attr->srq_limit;
-		spin_unlock_irqrestore(&srq->rq.lock, flags);
-	}
-	if (attr_mask & IB_SRQ_MAX_WR) {
-		u32 size = attr->max_wr + 1;
-		struct ipath_rwqe *wq, *p;
-		u32 n;
-		u32 sz;
-
-		if (attr->max_sge < srq->rq.max_sge) {
+	if (attr_mask & IB_SRQ_MAX_WR)
+		if ((attr->max_wr > ib_ipath_max_srq_wrs) ||
+		    (attr->max_sge > srq->rq.max_sge)) {
 			ret = -EINVAL;
 			goto bail;
 		}
 
+	if (attr_mask & IB_SRQ_LIMIT)
+		if (attr->srq_limit >= srq->rq.size) {
+			ret = -EINVAL;
+			goto bail;
+		}
+
+	if (attr_mask & IB_SRQ_MAX_WR) {
+		struct ipath_rwqe *wq, *p;
+		u32 sz, size, n;
+
 		sz = sizeof(struct ipath_rwqe) +
 			attr->max_sge * sizeof(struct ipath_sge);
+		size = attr->max_wr + 1;
 		wq = vmalloc(size * sz);
 		if (!wq) {
 			ret = -ENOMEM;
@@ -242,6 +259,11 @@ int ipath_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
 		spin_unlock_irqrestore(&srq->rq.lock, flags);
 	}
 
+	if (attr_mask & IB_SRQ_LIMIT) {
+		spin_lock_irqsave(&srq->rq.lock, flags);
+		srq->limit = attr->srq_limit;
+		spin_unlock_irqrestore(&srq->rq.lock, flags);
+	}
 	ret = 0;
 
 bail:
@@ -265,7 +287,9 @@ int ipath_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr)
 int ipath_destroy_srq(struct ib_srq *ibsrq)
 {
 	struct ipath_srq *srq = to_isrq(ibsrq);
+	struct ipath_ibdev *dev = to_idev(ibsrq->device);
 
+	dev->n_srqs_allocated--;
 	vfree(srq->rq.wq);
 	kfree(srq);
 

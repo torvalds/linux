@@ -10,11 +10,9 @@
 
 #include <asm/pbm.h>
 #include <asm/prom.h>
+#include <asm/of_device.h>
 
 #include "pci_impl.h"
-
-/* Pass "pci=irq_verbose" on the kernel command line to enable this.  */
-int pci_irq_verbose;
 
 /* Fix self device of BUS and hook it into BUS->self.
  * The pci_scan_bus does not do this for the host bridge.
@@ -169,6 +167,7 @@ static void __init pdev_cookie_fillin(struct pci_pbm_info *pbm,
 	}
 	pcp->pbm = pbm;
 	pcp->prom_node = dp;
+	pcp->op = of_find_device_by_node(dp);
 	memcpy(pcp->prom_regs, pregs,
 	       nregs * sizeof(struct linux_prom_pci_registers));
 	pcp->num_prom_regs = nregs;
@@ -549,296 +548,18 @@ void __init pci_assign_unassigned(struct pci_pbm_info *pbm,
 		pci_assign_unassigned(pbm, bus);
 }
 
-static inline unsigned int pci_slot_swivel(struct pci_pbm_info *pbm,
-					   struct pci_dev *toplevel_pdev,
-					   struct pci_dev *pdev,
-					   unsigned int interrupt)
-{
-	unsigned int ret;
-
-	if (unlikely(interrupt < 1 || interrupt > 4)) {
-		printk("%s: Device %s interrupt value of %u is strange.\n",
-		       pbm->name, pci_name(pdev), interrupt);
-		return interrupt;
-	}
-
-	ret = ((interrupt - 1 + (PCI_SLOT(pdev->devfn) & 3)) & 3) + 1;
-
-	if (pci_irq_verbose)
-		printk("%s: %s IRQ Swivel %s [%x:%x] -> [%x]\n",
-		       pbm->name, pci_name(toplevel_pdev), pci_name(pdev),
-		       interrupt, PCI_SLOT(pdev->devfn), ret);
-
-	return ret;
-}
-
-static inline unsigned int pci_apply_intmap(struct pci_pbm_info *pbm,
-					    struct pci_dev *toplevel_pdev,
-					    struct pci_dev *pbus,
-					    struct pci_dev *pdev,
-					    unsigned int interrupt,
-					    struct device_node **cnode)
-{
-	struct linux_prom_pci_intmap *imap;
-	struct linux_prom_pci_intmask *imask;
-	struct pcidev_cookie *pbus_pcp = pbus->sysdata;
-	struct pcidev_cookie *pdev_pcp = pdev->sysdata;
-	struct linux_prom_pci_registers *pregs = pdev_pcp->prom_regs;
-	struct property *prop;
-	int plen, num_imap, i;
-	unsigned int hi, mid, lo, irq, orig_interrupt;
-
-	*cnode = pbus_pcp->prom_node;
-
-	prop = of_find_property(pbus_pcp->prom_node, "interrupt-map", &plen);
-	if (!prop ||
-	    (plen % sizeof(struct linux_prom_pci_intmap)) != 0) {
-		printk("%s: Device %s interrupt-map has bad len %d\n",
-		       pbm->name, pci_name(pbus), plen);
-		goto no_intmap;
-	}
-	imap = prop->value;
-	num_imap = plen / sizeof(struct linux_prom_pci_intmap);
-
-	prop = of_find_property(pbus_pcp->prom_node, "interrupt-map-mask", &plen);
-	if (!prop ||
-	    (plen % sizeof(struct linux_prom_pci_intmask)) != 0) {
-		printk("%s: Device %s interrupt-map-mask has bad len %d\n",
-		       pbm->name, pci_name(pbus), plen);
-		goto no_intmap;
-	}
-	imask = prop->value;
-
-	orig_interrupt = interrupt;
-
-	hi   = pregs->phys_hi & imask->phys_hi;
-	mid  = pregs->phys_mid & imask->phys_mid;
-	lo   = pregs->phys_lo & imask->phys_lo;
-	irq  = interrupt & imask->interrupt;
-
-	for (i = 0; i < num_imap; i++) {
-		if (imap[i].phys_hi  == hi   &&
-		    imap[i].phys_mid == mid  &&
-		    imap[i].phys_lo  == lo   &&
-		    imap[i].interrupt == irq) {
-			*cnode = of_find_node_by_phandle(imap[i].cnode);
-			interrupt = imap[i].cinterrupt;
-		}
-	}
-
-	if (pci_irq_verbose)
-		printk("%s: %s MAP BUS %s DEV %s [%x] -> [%x]\n",
-		       pbm->name, pci_name(toplevel_pdev),
-		       pci_name(pbus), pci_name(pdev),
-		       orig_interrupt, interrupt);
-
-no_intmap:
-	return interrupt;
-}
-
-/* For each PCI bus on the way to the root:
- * 1) If it has an interrupt-map property, apply it.
- * 2) Else, swivel the interrupt number based upon the PCI device number.
- *
- * Return the "IRQ controller" node.  If this is the PBM's device node,
- * all interrupt translations are complete, else we should use that node's
- * "reg" property to apply the PBM's "interrupt-{map,mask}" to the interrupt.
- */
-static struct device_node * __init
-pci_intmap_match_to_root(struct pci_pbm_info *pbm,
-			 struct pci_dev *pdev,
-			 unsigned int *interrupt)
-{
-	struct pci_dev *toplevel_pdev = pdev;
-	struct pcidev_cookie *toplevel_pcp = toplevel_pdev->sysdata;
-	struct device_node *cnode = toplevel_pcp->prom_node;
-
-	while (pdev->bus->number != pbm->pci_first_busno) {
-		struct pci_dev *pbus = pdev->bus->self;
-		struct pcidev_cookie *pcp = pbus->sysdata;
-		struct property *prop;
-
-		prop = of_find_property(pcp->prom_node, "interrupt-map", NULL);
-		if (!prop) {
-			*interrupt = pci_slot_swivel(pbm, toplevel_pdev,
-						     pdev, *interrupt);
-			cnode = pcp->prom_node;
-		} else {
-			*interrupt = pci_apply_intmap(pbm, toplevel_pdev,
-						      pbus, pdev,
-						      *interrupt, &cnode);
-
-			while (pcp->prom_node != cnode &&
-			       pbus->bus->number != pbm->pci_first_busno) {
-				pbus = pbus->bus->self;
-				pcp = pbus->sysdata;
-			}
-		}
-		pdev = pbus;
-
-		if (cnode == pbm->prom_node)
-			break;
-	}
-
-	return cnode;
-}
-
-static int __init pci_intmap_match(struct pci_dev *pdev, unsigned int *interrupt)
-{
-	struct pcidev_cookie *dev_pcp = pdev->sysdata;
-	struct pci_pbm_info *pbm = dev_pcp->pbm;
-	struct linux_prom_pci_registers *reg;
-	struct device_node *cnode;
-	struct property *prop;
-	unsigned int hi, mid, lo, irq;
-	int i, plen;
-
-	cnode = pci_intmap_match_to_root(pbm, pdev, interrupt);
-	if (cnode == pbm->prom_node)
-		goto success;
-
-	prop = of_find_property(cnode, "reg", &plen);
-	if (!prop ||
-	    (plen % sizeof(struct linux_prom_pci_registers)) != 0) {
-		printk("%s: OBP node %s reg property has bad len %d\n",
-		       pbm->name, cnode->full_name, plen);
-		goto fail;
-	}
-	reg = prop->value;
-
-	hi   = reg[0].phys_hi & pbm->pbm_intmask->phys_hi;
-	mid  = reg[0].phys_mid & pbm->pbm_intmask->phys_mid;
-	lo   = reg[0].phys_lo & pbm->pbm_intmask->phys_lo;
-	irq  = *interrupt & pbm->pbm_intmask->interrupt;
-
-	for (i = 0; i < pbm->num_pbm_intmap; i++) {
-		struct linux_prom_pci_intmap *intmap;
-
-		intmap = &pbm->pbm_intmap[i];
-
-		if (intmap->phys_hi  == hi  &&
-		    intmap->phys_mid == mid &&
-		    intmap->phys_lo  == lo  &&
-		    intmap->interrupt == irq) {
-			*interrupt = intmap->cinterrupt;
-			goto success;
-		}
-	}
-
-fail:
-	return 0;
-
-success:
-	if (pci_irq_verbose)
-		printk("%s: Routing bus[%2x] slot[%2x] to INO[%02x]\n",
-		       pbm->name,
-		       pdev->bus->number, PCI_SLOT(pdev->devfn),
-		       *interrupt);
-	return 1;
-}
-
 static void __init pdev_fixup_irq(struct pci_dev *pdev)
 {
 	struct pcidev_cookie *pcp = pdev->sysdata;
-	struct pci_pbm_info *pbm = pcp->pbm;
-	struct pci_controller_info *p = pbm->parent;
-	unsigned int portid = pbm->portid;
-	unsigned int prom_irq;
-	struct device_node *dp = pcp->prom_node;
-	struct property *prop;
+	struct of_device *op = pcp->op;
 
-	/* If this is an empty EBUS device, sometimes OBP fails to
-	 * give it a valid fully specified interrupts property.
-	 * The EBUS hooked up to SunHME on PCI I/O boards of
-	 * Ex000 systems is one such case.
-	 *
-	 * The interrupt is not important so just ignore it.
-	 */
-	if (pdev->vendor == PCI_VENDOR_ID_SUN &&
-	    pdev->device == PCI_DEVICE_ID_SUN_EBUS &&
-	    !dp->child) {
-		pdev->irq = 0;
+	if (op->irqs[0] == 0xffffffff) {
+		pdev->irq = PCI_IRQ_NONE;
 		return;
 	}
 
-	prop = of_find_property(dp, "interrupts", NULL);
-	if (!prop) {
-		pdev->irq = 0;
-		return;
-	}
-	prom_irq = *(unsigned int *) prop->value;
+	pdev->irq = op->irqs[0];
 
-	if (tlb_type != hypervisor) {
-		/* Fully specified already? */
-		if (((prom_irq & PCI_IRQ_IGN) >> 6) == portid) {
-			pdev->irq = p->irq_build(pbm, pdev, prom_irq);
-			goto have_irq;
-		}
-
-		/* An onboard device? (bit 5 set) */
-		if ((prom_irq & PCI_IRQ_INO) & 0x20) {
-			pdev->irq = p->irq_build(pbm, pdev, (portid << 6 | prom_irq));
-			goto have_irq;
-		}
-	}
-
-	/* Can we find a matching entry in the interrupt-map? */
-	if (pci_intmap_match(pdev, &prom_irq)) {
-		pdev->irq = p->irq_build(pbm, pdev, (portid << 6) | prom_irq);
-		goto have_irq;
-	}
-
-	/* Ok, we have to do it the hard way. */
-	{
-		unsigned int bus, slot, line;
-
-		bus = (pbm == &pbm->parent->pbm_B) ? (1 << 4) : 0;
-
-		/* If we have a legal interrupt property, use it as
-		 * the IRQ line.
-		 */
-		if (prom_irq > 0 && prom_irq < 5) {
-			line = ((prom_irq - 1) & 3);
-		} else {
-			u8 pci_irq_line;
-
-			/* Else just directly consult PCI config space. */
-			pci_read_config_byte(pdev, PCI_INTERRUPT_PIN, &pci_irq_line);
-			line = ((pci_irq_line - 1) & 3);
-		}
-
-		/* Now figure out the slot.
-		 *
-		 * Basically, device number zero on the top-level bus is
-		 * always the PCI host controller.  Slot 0 is then device 1.
-		 * PBM A supports two external slots (0 and 1), and PBM B
-		 * supports 4 external slots (0, 1, 2, and 3).  On-board PCI
-		 * devices are wired to device numbers outside of these
-		 * ranges. -DaveM
- 		 */
-		if (pdev->bus->number == pbm->pci_first_busno) {
-			slot = PCI_SLOT(pdev->devfn) - pbm->pci_first_slot;
-		} else {
-			struct pci_dev *bus_dev;
-
-			/* Underneath a bridge, use slot number of parent
-			 * bridge which is closest to the PBM.
-			 */
-			bus_dev = pdev->bus->self;
-			while (bus_dev->bus &&
-			       bus_dev->bus->number != pbm->pci_first_busno)
-				bus_dev = bus_dev->bus->self;
-
-			slot = PCI_SLOT(bus_dev->devfn) - pbm->pci_first_slot;
-		}
-		slot = slot << 2;
-
-		pdev->irq = p->irq_build(pbm, pdev,
-					 ((portid << 6) & PCI_IRQ_IGN) |
-					 (bus | slot | line));
-	}
-
-have_irq:
 	pci_write_config_byte(pdev, PCI_INTERRUPT_LINE,
 			      pdev->irq & PCI_IRQ_INO);
 }

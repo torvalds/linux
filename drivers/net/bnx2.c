@@ -9,7 +9,6 @@
  * Written by: Michael Chan  (mchan@broadcom.com)
  */
 
-#include <linux/config.h>
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -57,8 +56,8 @@
 
 #define DRV_MODULE_NAME		"bnx2"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"1.4.42"
-#define DRV_MODULE_RELDATE	"June 12, 2006"
+#define DRV_MODULE_VERSION	"1.4.43"
+#define DRV_MODULE_RELDATE	"June 28, 2006"
 
 #define RUN_AT(x) (jiffies + (x))
 
@@ -1676,7 +1675,7 @@ bnx2_tx_int(struct bnx2 *bp)
 
 		tx_free_bd += last + 1;
 
-		dev_kfree_skb_irq(skb);
+		dev_kfree_skb(skb);
 
 		hw_cons = bp->hw_tx_cons =
 			sblk->status_tx_quick_consumer_index0;
@@ -1824,7 +1823,7 @@ reuse_rx:
 		if ((len > (bp->dev->mtu + ETH_HLEN)) &&
 			(ntohs(skb->protocol) != 0x8100)) {
 
-			dev_kfree_skb_irq(skb);
+			dev_kfree_skb(skb);
 			goto next_rx;
 
 		}
@@ -3643,7 +3642,7 @@ bnx2_free_tx_skbs(struct bnx2 *bp)
 				skb_shinfo(skb)->frags[j].size,
 				PCI_DMA_TODEVICE);
 		}
-		dev_kfree_skb_any(skb);
+		dev_kfree_skb(skb);
 		i += j + 1;
 	}
 
@@ -3669,7 +3668,7 @@ bnx2_free_rx_skbs(struct bnx2 *bp)
 
 		rx_buf->skb = NULL;
 
-		dev_kfree_skb_any(skb);
+		dev_kfree_skb(skb);
 	}
 }
 
@@ -3999,7 +3998,7 @@ bnx2_run_loopback(struct bnx2 *bp, int loopback_mode)
 	udelay(5);
 
 	pci_unmap_single(bp->pdev, map, pkt_size, PCI_DMA_TODEVICE);
-	dev_kfree_skb_irq(skb);
+	dev_kfree_skb(skb);
 
 	if (bp->status_blk->status_tx_quick_consumer_index0 != bp->tx_prod) {
 		goto loopback_test_done;
@@ -4261,11 +4260,11 @@ bnx2_open(struct net_device *dev)
 		}
 		else {
 			rc = request_irq(bp->pdev->irq, bnx2_interrupt,
-					SA_SHIRQ, dev->name, dev);
+					IRQF_SHARED, dev->name, dev);
 		}
 	}
 	else {
-		rc = request_irq(bp->pdev->irq, bnx2_interrupt, SA_SHIRQ,
+		rc = request_irq(bp->pdev->irq, bnx2_interrupt, IRQF_SHARED,
 				dev->name, dev);
 	}
 	if (rc) {
@@ -4312,7 +4311,7 @@ bnx2_open(struct net_device *dev)
 
 			if (!rc) {
 				rc = request_irq(bp->pdev->irq, bnx2_interrupt,
-					SA_SHIRQ, dev->name, dev);
+					IRQF_SHARED, dev->name, dev);
 			}
 			if (rc) {
 				bnx2_free_skbs(bp);
@@ -4541,7 +4540,7 @@ bnx2_close(struct net_device *dev)
 	bnx2_netif_stop(bp);
 	del_timer_sync(&bp->timer);
 	if (bp->flags & NO_WOL_FLAG)
-		reset_code = BNX2_DRV_MSG_CODE_UNLOAD;
+		reset_code = BNX2_DRV_MSG_CODE_UNLOAD_LNK_DN;
 	else if (bp->wol)
 		reset_code = BNX2_DRV_MSG_CODE_SUSPEND_WOL;
 	else
@@ -5128,6 +5127,16 @@ bnx2_set_rx_csum(struct net_device *dev, u32 data)
 	return 0;
 }
 
+static int
+bnx2_set_tso(struct net_device *dev, u32 data)
+{
+	if (data)
+		dev->features |= NETIF_F_TSO | NETIF_F_TSO_ECN;
+	else
+		dev->features &= ~(NETIF_F_TSO | NETIF_F_TSO_ECN);
+	return 0;
+}
+
 #define BNX2_NUM_STATS 46
 
 static struct {
@@ -5445,7 +5454,7 @@ static struct ethtool_ops bnx2_ethtool_ops = {
 	.set_sg			= ethtool_op_set_sg,
 #ifdef BCM_TSO
 	.get_tso		= ethtool_op_get_tso,
-	.set_tso		= ethtool_op_set_tso,
+	.set_tso		= bnx2_set_tso,
 #endif
 	.self_test_count	= bnx2_self_test_count,
 	.self_test		= bnx2_self_test,
@@ -5926,7 +5935,7 @@ bnx2_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
 #endif
 #ifdef BCM_TSO
-	dev->features |= NETIF_F_TSO;
+	dev->features |= NETIF_F_TSO | NETIF_F_TSO_ECN;
 #endif
 
 	netif_carrier_off(bp->dev);
@@ -5968,7 +5977,7 @@ bnx2_suspend(struct pci_dev *pdev, pm_message_t state)
 	netif_device_detach(dev);
 	del_timer_sync(&bp->timer);
 	if (bp->flags & NO_WOL_FLAG)
-		reset_code = BNX2_DRV_MSG_CODE_UNLOAD;
+		reset_code = BNX2_DRV_MSG_CODE_UNLOAD_LNK_DN;
 	else if (bp->wol)
 		reset_code = BNX2_DRV_MSG_CODE_SUSPEND_WOL;
 	else

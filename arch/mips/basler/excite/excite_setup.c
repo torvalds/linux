@@ -254,7 +254,7 @@ static int __init excite_platform_init(void)
 	return 0;
 }
 
-void __init plat_setup(void)
+void __init plat_mem_setup(void)
 {
 	volatile u32 * const boot_ocd_base = (u32 *) 0xbf7fc000;
 

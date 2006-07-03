@@ -899,7 +899,7 @@ static int hvcs_enable_device(struct hvcs_struct *hvcsd, uint32_t unit_address,
 	 * the conn was registered and now.
 	 */
 	if (!(rc = request_irq(irq, &hvcs_handle_interrupt,
-				SA_INTERRUPT, "ibmhvcs", hvcsd))) {
+				IRQF_DISABLED, "ibmhvcs", hvcsd))) {
 		/*
 		 * It is possible the vty-server was removed after the irq was
 		 * requested but before we have time to enable interrupts.
@@ -1363,7 +1363,6 @@ static int __init hvcs_module_init(void)
 
 	hvcs_tty_driver->driver_name = hvcs_driver_name;
 	hvcs_tty_driver->name = hvcs_device_node;
-	hvcs_tty_driver->devfs_name = hvcs_device_node;
 
 	/*
 	 * We'll let the system assign us a major number, indicated by leaving

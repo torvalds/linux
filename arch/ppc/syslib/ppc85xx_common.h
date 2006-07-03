@@ -14,7 +14,6 @@
 #ifndef __PPC_SYSLIB_PPC85XX_COMMON_H
 #define __PPC_SYSLIB_PPC85XX_COMMON_H
 
-#include <linux/config.h>
 #include <linux/init.h>
 
 /* Provide access to ccsrbar for any modules, etc */

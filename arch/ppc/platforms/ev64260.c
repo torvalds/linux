@@ -20,7 +20,6 @@
  * Note: The 750CXe and 7450 are not stable with a 125MHz or 133MHz TCLK/SYSCLK.
  * 	At 100MHz, they are solid.
  */
-#include <linux/config.h>
 
 #include <linux/delay.h>
 #include <linux/pci.h>

@@ -10,7 +10,6 @@
  *  2000-06-20  Pentium III FXSR, SSE support by Gareth Hughes
  */
 
-#include <linux/config.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/smp.h>

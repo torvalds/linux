@@ -32,7 +32,6 @@ this code that are retained.
 #ifndef __SOFTFLOAT_H__
 #define __SOFTFLOAT_H__
 
-#include <linux/config.h>
 
 /*
 -------------------------------------------------------------------------------

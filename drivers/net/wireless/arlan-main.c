@@ -5,7 +5,6 @@
  * This module provides support for the Arlan 655 card made by Aironet
  */
 
-#include <linux/config.h>
 #include "arlan.h"
 
 #if BITS_PER_LONG != 32

@@ -10,7 +10,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -44,7 +43,9 @@ again:
 		return err;
 
 	if (index > MAX_CONTEXT) {
+		spin_lock(&mmu_context_lock);
 		idr_remove(&mmu_context_idr, index);
+		spin_unlock(&mmu_context_lock);
 		return -ENOMEM;
 	}
 

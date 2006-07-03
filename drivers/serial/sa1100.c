@@ -24,7 +24,6 @@
  *  $Id: sa1100.c,v 1.50 2002/07/29 14:41:04 rmk Exp $
  *
  */
-#include <linux/config.h>
 
 #if defined(CONFIG_SERIAL_SA1100_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
 #define SUPPORT_SYSRQ
@@ -816,7 +815,6 @@ static struct uart_driver sa1100_reg = {
 	.owner			= THIS_MODULE,
 	.driver_name		= "ttySA",
 	.dev_name		= "ttySA",
-	.devfs_name		= "ttySA",
 	.major			= SERIAL_SA1100_MAJOR,
 	.minor			= MINOR_START,
 	.nr			= NR_PORTS,

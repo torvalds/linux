@@ -196,7 +196,6 @@
 #include <linux/module.h>
 
 #include <linux/stat.h>
-#include <linux/config.h>
 
 #include <linux/spinlock.h>
 #include <linux/init.h>
@@ -7008,7 +7007,7 @@ ips_register_scsi(int index)
 	memcpy(ha, oldha, sizeof (ips_ha_t));
 	free_irq(oldha->irq, oldha);
 	/* Install the interrupt handler with the new ha */
-	if (request_irq(ha->irq, do_ipsintr, SA_SHIRQ, ips_name, ha)) {
+	if (request_irq(ha->irq, do_ipsintr, IRQF_SHARED, ips_name, ha)) {
 		IPS_PRINTK(KERN_WARNING, ha->pcidev,
 			   "Unable to install interrupt handler\n");
 		scsi_host_put(sh);
@@ -7420,7 +7419,7 @@ ips_init_phase2(int index)
 	}
 
 	/* Install the interrupt handler */
-	if (request_irq(ha->irq, do_ipsintr, SA_SHIRQ, ips_name, ha)) {
+	if (request_irq(ha->irq, do_ipsintr, IRQF_SHARED, ips_name, ha)) {
 		IPS_PRINTK(KERN_WARNING, ha->pcidev,
 			   "Unable to install interrupt handler\n");
 		return ips_abort_init(ha, index);

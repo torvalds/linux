@@ -50,7 +50,6 @@
  *   Grant Grundler <grundler@cup.hp.com>: PCI write posting fixes.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/version.h>
@@ -1195,7 +1194,7 @@ static int __devinit ace_init(struct net_device *dev)
 		goto init_error;
 	}
 
-	ecode = request_irq(pdev->irq, ace_interrupt, SA_SHIRQ,
+	ecode = request_irq(pdev->irq, ace_interrupt, IRQF_SHARED,
 			    DRV_NAME, dev);
 	if (ecode) {
 		printk(KERN_WARNING "%s: Requested IRQ %d is busy\n",

@@ -25,11 +25,6 @@
 typedef u32 phandle;
 typedef u32 ihandle;
 
-struct interrupt_info {
-	int	line;
-	int	sense;		/* +ve/-ve logic, edge or level, etc. */
-};
-
 struct property {
 	char	*name;
 	int	length;
@@ -43,9 +38,6 @@ struct device_node {
 	char	*name;
 	char	*type;
 	phandle	node;
-	phandle linux_phandle;
-	int	n_intrs;
-	struct	interrupt_info *intrs;
 	char	*path_component_name;
 	char	*full_name;
 
@@ -68,6 +60,8 @@ struct device_node {
 
 #define OF_IS_DYNAMIC(x) test_bit(OF_DYNAMIC, &x->_flags)
 #define OF_MARK_DYNAMIC(x) set_bit(OF_DYNAMIC, &x->_flags)
+
+#define OF_BAD_ADDR	((u64)-1)
 
 static inline void set_node_proc_entry(struct device_node *dn, struct proc_dir_entry *de)
 {
@@ -101,6 +95,8 @@ extern int of_set_property(struct device_node *node, const char *name, void *val
 extern int of_getintprop_default(struct device_node *np,
 				 const char *name,
 				 int def);
+extern int of_n_addr_cells(struct device_node *np);
+extern int of_n_size_cells(struct device_node *np);
 
 extern void prom_build_devicetree(void);
 

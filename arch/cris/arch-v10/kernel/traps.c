@@ -11,7 +11,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/ptrace.h>
 #include <asm/uaccess.h>
 #include <asm/arch/sv_addr_ag.h>

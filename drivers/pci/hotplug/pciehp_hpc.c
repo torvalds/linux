@@ -1398,8 +1398,9 @@ int pcie_init(struct controller * ctrl, struct pcie_device *dev)
 
 	for ( rc = 0; rc < DEVICE_COUNT_RESOURCE; rc++)
 		if (pci_resource_len(pdev, rc) > 0)
-			dbg("pci resource[%d] start=0x%lx(len=0x%lx)\n", rc,
-				pci_resource_start(pdev, rc), pci_resource_len(pdev, rc));
+			dbg("pci resource[%d] start=0x%llx(len=0x%llx)\n", rc,
+			    (unsigned long long)pci_resource_start(pdev, rc),
+			    (unsigned long long)pci_resource_len(pdev, rc));
 
 	info("HPC vendor_id %x device_id %x ss_vid %x ss_did %x\n", pdev->vendor, pdev->device, 
 		pdev->subsystem_vendor, pdev->subsystem_device);
@@ -1457,7 +1458,7 @@ int pcie_init(struct controller * ctrl, struct pcie_device *dev)
 		start_int_poll_timer( php_ctlr, 10 );   /* start with 10 second delay */
 	} else {
 		/* Installs the interrupt handler */
-		rc = request_irq(php_ctlr->irq, pcie_isr, SA_SHIRQ, MY_NAME, (void *) ctrl);
+		rc = request_irq(php_ctlr->irq, pcie_isr, IRQF_SHARED, MY_NAME, (void *) ctrl);
 		dbg("%s: request_irq %d for hpc%d (returns %d)\n", __FUNCTION__, php_ctlr->irq, ctlr_seq_num, rc);
 		if (rc) {
 			err("Can't get irq %d for the hotplug controller\n", php_ctlr->irq);

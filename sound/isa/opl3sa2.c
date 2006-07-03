@@ -683,7 +683,7 @@ static int __devinit snd_opl3sa2_probe(struct snd_card *card, int dev)
 		chip->single_dma = 1;
 	if ((err = snd_opl3sa2_detect(chip)) < 0)
 		return err;
-	if (request_irq(xirq, snd_opl3sa2_interrupt, SA_INTERRUPT, "OPL3-SA2", chip)) {
+	if (request_irq(xirq, snd_opl3sa2_interrupt, IRQF_DISABLED, "OPL3-SA2", chip)) {
 		snd_printk(KERN_ERR PFX "can't grab IRQ %d\n", xirq);
 		return -ENODEV;
 	}

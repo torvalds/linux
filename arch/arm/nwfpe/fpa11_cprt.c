@@ -20,7 +20,6 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
-#include <linux/config.h>
 #include "fpa11.h"
 #include "fpopcode.h"
 #include "fpa11.inl"

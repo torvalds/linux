@@ -290,7 +290,7 @@ out:
 static int ultra32_open(struct net_device *dev)
 {
 	int ioaddr = dev->base_addr - ULTRA32_NIC_OFFSET; /* ASIC addr */
-	int irq_flags = (inb(ioaddr + ULTRA32_CFG5) & 0x08) ? 0 : SA_SHIRQ;
+	int irq_flags = (inb(ioaddr + ULTRA32_CFG5) & 0x08) ? 0 : IRQF_SHARED;
 	int retval;
 
 	retval = request_irq(dev->irq, ei_interrupt, irq_flags, dev->name, dev);

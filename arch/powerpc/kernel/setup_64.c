@@ -12,7 +12,6 @@
 
 #undef DEBUG
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/string.h>
 #include <linux/sched.h>
@@ -149,6 +148,13 @@ early_param("smt-enabled", early_smt_enabled);
 #define check_smt_enabled()
 #endif /* CONFIG_SMP */
 
+/* Put the paca pointer into r13 and SPRG3 */
+void __init setup_paca(int cpu)
+{
+	local_paca = &paca[cpu];
+	mtspr(SPRN_SPRG3, local_paca);
+}
+
 /*
  * Early initialization entry point. This is called by head.S
  * with MMU translation disabled. We rely on the "feature" of
@@ -170,6 +176,9 @@ early_param("smt-enabled", early_smt_enabled);
 
 void __init early_setup(unsigned long dt_ptr)
 {
+	/* Assume we're on cpu 0 for now. Don't write to the paca yet! */
+	setup_paca(0);
+
 	/* Enable early debugging if any specified (see udbg.h) */
 	udbg_early_init();
 
@@ -183,7 +192,7 @@ void __init early_setup(unsigned long dt_ptr)
 	early_init_devtree(__va(dt_ptr));
 
 	/* Now we know the logical id of our boot cpu, setup the paca. */
-	setup_boot_paca();
+	setup_paca(boot_cpuid);
 
 	/* Fix up paca fields required for the boot cpu */
 	get_paca()->cpu_start = 1;
@@ -350,19 +359,11 @@ void __init setup_system(void)
 	 */
 	unflatten_device_tree();
 
-#ifdef CONFIG_KEXEC
-	kexec_setup();	/* requires unflattened device tree. */
-#endif
-
 	/*
 	 * Fill the ppc64_caches & systemcfg structures with informations
 	 * retrieved from the device-tree. Need to be called before
 	 * finish_device_tree() since the later requires some of the
-	 * informations filled up here to properly parse the interrupt
-	 * tree.
-	 * It also sets up the cache line sizes which allows to call
-	 * routines like flush_icache_range (used by the hash init
-	 * later on).
+	 * informations filled up here to properly parse the interrupt tree.
 	 */
 	initialize_cache_info();
 

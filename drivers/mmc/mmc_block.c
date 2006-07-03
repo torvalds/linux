@@ -27,7 +27,6 @@
 #include <linux/hdreg.h>
 #include <linux/kdev_t.h>
 #include <linux/blkdev.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/mutex.h>
 
 #include <linux/mmc/card.h>
@@ -409,7 +408,6 @@ static struct mmc_blk_data *mmc_blk_alloc(struct mmc_card *card)
 	 */
 
 	sprintf(md->disk->disk_name, "mmcblk%d", devidx);
-	sprintf(md->disk->devfs_name, "mmc/blk%d", devidx);
 
 	blk_queue_hardsect_size(md->queue.queue, 1 << md->block_bits);
 
@@ -555,7 +553,6 @@ static int __init mmc_blk_init(void)
 	if (major == 0)
 		major = res;
 
-	devfs_mk_dir("mmc");
 	return mmc_register_driver(&mmc_driver);
 
  out:
@@ -565,7 +562,6 @@ static int __init mmc_blk_init(void)
 static void __exit mmc_blk_exit(void)
 {
 	mmc_unregister_driver(&mmc_driver);
-	devfs_remove("mmc");
 	unregister_blkdev(major, "mmc");
 }
 

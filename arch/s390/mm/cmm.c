@@ -8,7 +8,6 @@
  *  Collaborative memory management interface.
  */
 
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/fs.h>
 #include <linux/init.h>

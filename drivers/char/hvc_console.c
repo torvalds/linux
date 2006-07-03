@@ -22,7 +22,6 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
-#include <linux/config.h>
 #include <linux/console.h>
 #include <linux/cpumask.h>
 #include <linux/init.h>
@@ -347,7 +346,7 @@ static int hvc_open(struct tty_struct *tty, struct file * filp)
 	spin_unlock_irqrestore(&hp->lock, flags);
 	/* check error, fallback to non-irq */
 	if (irq != NO_IRQ)
-		rc = request_irq(irq, hvc_handle_interrupt, SA_INTERRUPT, "hvc_console", hp);
+		rc = request_irq(irq, hvc_handle_interrupt, IRQF_DISABLED, "hvc_console", hp);
 
 	/*
 	 * If the request_irq() fails and we return an error.  The tty layer
@@ -820,7 +819,6 @@ int __init hvc_init(void)
 		return -ENOMEM;
 
 	drv->owner = THIS_MODULE;
-	drv->devfs_name = "hvc/";
 	drv->driver_name = "hvc";
 	drv->name = "hvc";
 	drv->major = HVC_MAJOR;

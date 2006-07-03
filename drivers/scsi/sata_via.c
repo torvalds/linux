@@ -242,7 +242,7 @@ static struct ata_probe_ent *vt6421_init_probe_ent(struct pci_dev *pdev)
 	probe_ent->port_ops	= &svia_sata_ops;
 	probe_ent->n_ports	= N_PORTS;
 	probe_ent->irq		= pdev->irq;
-	probe_ent->irq_flags	= SA_SHIRQ;
+	probe_ent->irq_flags	= IRQF_SHARED;
 	probe_ent->pio_mask	= 0x1f;
 	probe_ent->mwdma_mask	= 0x07;
 	probe_ent->udma_mask	= 0x7f;
@@ -335,10 +335,10 @@ static int svia_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 		if ((pci_resource_start(pdev, i) == 0) ||
 		    (pci_resource_len(pdev, i) < bar_sizes[i])) {
 			dev_printk(KERN_ERR, &pdev->dev,
-				   "invalid PCI BAR %u (sz 0x%lx, val 0x%lx)\n",
-				   i,
-			           pci_resource_start(pdev, i),
-			           pci_resource_len(pdev, i));
+				"invalid PCI BAR %u (sz 0x%llx, val 0x%llx)\n",
+				i,
+			        (unsigned long long)pci_resource_start(pdev, i),
+			        (unsigned long long)pci_resource_len(pdev, i));
 			rc = -ENODEV;
 			goto err_out_regions;
 		}

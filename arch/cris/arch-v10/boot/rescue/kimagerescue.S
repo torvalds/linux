@@ -6,7 +6,6 @@
  * 4004000 and after a timeout jump to it.
  */
 
-#include <linux/config.h>
 #define ASSEMBLER_MACROS_ONLY
 #include <asm/sv_addr_ag.h>
 

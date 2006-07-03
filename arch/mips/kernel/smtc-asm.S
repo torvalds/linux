@@ -52,12 +52,12 @@ FEXPORT(__smtc_ipi_vector)
 	.set	noat
 	/* Disable thread scheduling to make Status update atomic */
 	DMT	27					# dmt	k1
-	ehb
+	_ehb
 	/* Set EXL */
 	mfc0	k0,CP0_STATUS
 	ori	k0,k0,ST0_EXL
 	mtc0	k0,CP0_STATUS
-	ehb
+	_ehb
 	/* Thread scheduling now inhibited by EXL. Restore TE state. */
 	andi	k1,k1,VPECONTROL_TE
 	beqz	k1,1f
@@ -82,7 +82,7 @@ FEXPORT(__smtc_ipi_vector)
 	li	k1,ST0_CU0
 	or	k1,k1,k0
 	mtc0	k1,CP0_STATUS
-	ehb
+	_ehb
 	get_saved_sp
 	/* Interrupting TC will have pre-set values in slots in the new frame */
 2:	subu	k1,k1,PT_SIZE
@@ -90,7 +90,7 @@ FEXPORT(__smtc_ipi_vector)
 	lw	k0,PT_TCSTATUS(k1)
 	/* Write it to TCStatus to restore CU/KSU/IXMT state */
 	mtc0	k0,$2,1
-	ehb
+	_ehb
 	lw	k0,PT_EPC(k1)
 	mtc0	k0,CP0_EPC
 	/* Save all will redundantly recompute the SP, but use it for now */
@@ -116,7 +116,7 @@ LEAF(self_ipi)
 	mfc0	t0,CP0_TCSTATUS
 	ori	t1,t0,TCSTATUS_IXMT
 	mtc0	t1,CP0_TCSTATUS
-	ehb
+	_ehb
 	/* We know we're in kernel mode, so prepare stack frame */
 	subu	t1,sp,PT_SIZE
 	sw	ra,PT_EPC(t1)

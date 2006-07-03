@@ -504,7 +504,7 @@ static void pvr2_sysfs_add_control(struct pvr2_sysfs *sfp,int ctl_id)
 	cip->cptr = cptr;
 
 	cip->chptr = sfp;
-	cip->item_next = 0;
+	cip->item_next = NULL;
 	if (sfp->item_last) {
 		sfp->item_last->item_next = cip;
 	} else {
@@ -625,7 +625,7 @@ static void pvr2_sysfs_tear_down_debugifc(struct pvr2_sysfs *sfp)
 				 &sfp->debugifc->attr_debuginfo);
 	class_device_remove_file(sfp->class_dev,&sfp->debugifc->attr_debugcmd);
 	kfree(sfp->debugifc);
-	sfp->debugifc = 0;
+	sfp->debugifc = NULL;
 }
 #endif /* CONFIG_VIDEO_PVRUSB2_DEBUGIFC */
 
@@ -678,9 +678,9 @@ static void class_dev_destroy(struct pvr2_sysfs *sfp)
 	class_device_remove_file(sfp->class_dev,&sfp->attr_v4l_minor_number);
 	class_device_remove_file(sfp->class_dev,&sfp->attr_unit_number);
 	pvr2_sysfs_trace("Destroying class_dev id=%p",sfp->class_dev);
-	sfp->class_dev->class_data = 0;
+	sfp->class_dev->class_data = NULL;
 	class_device_unregister(sfp->class_dev);
-	sfp->class_dev = 0;
+	sfp->class_dev = NULL;
 }
 
 
@@ -739,13 +739,13 @@ static void class_dev_create(struct pvr2_sysfs *sfp,
 	sfp->attr_v4l_minor_number.attr.name = "v4l_minor_number";
 	sfp->attr_v4l_minor_number.attr.mode = S_IRUGO;
 	sfp->attr_v4l_minor_number.show = v4l_minor_number_show;
-	sfp->attr_v4l_minor_number.store = 0;
+	sfp->attr_v4l_minor_number.store = NULL;
 	class_device_create_file(sfp->class_dev,&sfp->attr_v4l_minor_number);
 	sfp->attr_unit_number.attr.owner = THIS_MODULE;
 	sfp->attr_unit_number.attr.name = "unit_number";
 	sfp->attr_unit_number.attr.mode = S_IRUGO;
 	sfp->attr_unit_number.show = unit_number_show;
-	sfp->attr_unit_number.store = 0;
+	sfp->attr_unit_number.store = NULL;
 	class_device_create_file(sfp->class_dev,&sfp->attr_unit_number);
 
 	pvr2_sysfs_add_controls(sfp);
@@ -806,7 +806,7 @@ struct pvr2_sysfs_class *pvr2_sysfs_class_create(void)
 		pvr2_sysfs_trace(
 			"Registration failed for pvr2_sysfs_class id=%p",clp);
 		kfree(clp);
-		clp = 0;
+		clp = NULL;
 	}
 	return clp;
 }

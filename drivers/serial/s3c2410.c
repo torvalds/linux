@@ -55,7 +55,6 @@
  * BJD, 04-Nov-2004
 */
 
-#include <linux/config.h>
 
 #if defined(CONFIG_SERIAL_S3C2410_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
 #define SUPPORT_SYSRQ
@@ -149,7 +148,6 @@ s3c24xx_serial_dbg(const char *fmt, ...)
 /* UART name and device definitions */
 
 #define S3C24XX_SERIAL_NAME	"ttySAC"
-#define S3C24XX_SERIAL_DEVFS    "tts/"
 #define S3C24XX_SERIAL_MAJOR	204
 #define S3C24XX_SERIAL_MINOR	64
 
@@ -952,7 +950,6 @@ static struct uart_driver s3c24xx_uart_drv = {
 	.nr		= 3,
 	.cons		= S3C24XX_SERIAL_CONSOLE,
 	.driver_name	= S3C24XX_SERIAL_NAME,
-	.devfs_name	= S3C24XX_SERIAL_DEVFS,
 	.major		= S3C24XX_SERIAL_MAJOR,
 	.minor		= S3C24XX_SERIAL_MINOR,
 };

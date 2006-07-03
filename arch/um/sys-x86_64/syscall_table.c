@@ -4,7 +4,6 @@
 #include <linux/linkage.h>
 #include <linux/sys.h>
 #include <linux/cache.h>
-#include <linux/config.h>
 
 #define __NO_STUBS
 
@@ -19,12 +18,6 @@
  * is needed only for the ia32 compatibility. */
 /*#define sys_set_thread_area sys_ni_syscall
 #define sys_get_thread_area sys_ni_syscall*/
-
-/* For __NR_time. The x86-64 name hopefully will change from sys_time64 to
- * sys_time (since the current situation is bogus). I've sent a patch to cleanup
- * this. Remove below the obsoleted line. */
-#define sys_time64 um_time
-#define sys_time um_time
 
 /* On UML we call it this way ("old" means it's not mmap2) */
 #define sys_mmap old_mmap

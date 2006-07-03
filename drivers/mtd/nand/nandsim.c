@@ -25,7 +25,6 @@
  * $Id: nandsim.c,v 1.8 2005/03/19 15:33:56 dedekind Exp $
  */
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/module.h>

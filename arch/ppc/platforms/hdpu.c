@@ -12,7 +12,6 @@
  * option) any later version.
  */
 
-#include <linux/config.h>
 
 #include <linux/pci.h>
 #include <linux/delay.h>
@@ -838,7 +837,7 @@ static void smp_hdpu_setup_cpu(int cpu_nr)
 		mv64x60_write(&bh, MV64360_CPU0_DOORBELL_CLR, 0xff);
 		mv64x60_write(&bh, MV64360_CPU0_DOORBELL_MASK, 0xff);
 		request_irq(60, hdpu_smp_cpu0_int_handler,
-			    SA_INTERRUPT, hdpu_smp0, 0);
+			    IRQF_DISABLED, hdpu_smp0, 0);
 	}
 
 	if (cpu_nr == 1) {
@@ -858,7 +857,7 @@ static void smp_hdpu_setup_cpu(int cpu_nr)
 		mv64x60_write(&bh, MV64360_CPU1_DOORBELL_CLR, 0x0);
 		mv64x60_write(&bh, MV64360_CPU1_DOORBELL_MASK, 0xff);
 		request_irq(28, hdpu_smp_cpu1_int_handler,
-			    SA_INTERRUPT, hdpu_smp1, 0);
+			    IRQF_DISABLED, hdpu_smp1, 0);
 	}
 
 }

@@ -9,7 +9,6 @@
 #ifndef _LINUX_NFS_FS_H
 #define _LINUX_NFS_FS_H
 
-#include <linux/config.h>
 #include <linux/in.h>
 #include <linux/mm.h>
 #include <linux/pagemap.h>

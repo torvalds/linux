@@ -54,7 +54,7 @@ netx_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 static struct irqaction netx_timer_irq = {
 	.name           = "NetX Timer Tick",
-	.flags          = SA_INTERRUPT | SA_TIMER,
+	.flags          = IRQF_DISABLED | IRQF_TIMER,
 	.handler        = netx_timer_interrupt,
 };
 

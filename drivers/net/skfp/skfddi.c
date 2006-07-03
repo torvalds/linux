@@ -497,7 +497,7 @@ static int skfp_open(struct net_device *dev)
 
 	PRINTK(KERN_INFO "entering skfp_open\n");
 	/* Register IRQ - support shared interrupts by passing device ptr */
-	err = request_irq(dev->irq, (void *) skfp_interrupt, SA_SHIRQ,
+	err = request_irq(dev->irq, (void *) skfp_interrupt, IRQF_SHARED,
 			  dev->name, dev);
 	if (err)
 		return err;

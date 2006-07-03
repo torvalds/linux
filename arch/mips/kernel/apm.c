@@ -260,7 +260,7 @@ static unsigned int apm_poll(struct file *fp, poll_table * wait)
  *   has acknowledge does the actual suspend happen.
  */
 static int
-apm_ioctl(struct inode * inode, struct file *filp, u_int cmd, u_long arg)
+apm_ioctl(struct inode * inode, struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct apm_user *as = filp->private_data;
 	unsigned long flags;

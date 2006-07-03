@@ -2905,7 +2905,7 @@ static int __devinit es1371_probe(struct pci_dev *pcidev, const struct pci_devic
 		res = -EBUSY;
 		goto err_region;
 	}
-	if ((res=request_irq(s->irq, es1371_interrupt, SA_SHIRQ, "es1371",s))) {
+	if ((res=request_irq(s->irq, es1371_interrupt, IRQF_SHARED, "es1371",s))) {
 		printk(KERN_ERR PFX "irq %u in use\n", s->irq);
 		goto err_irq;
 	}

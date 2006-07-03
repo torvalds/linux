@@ -94,6 +94,7 @@ MODULE_ALIAS("sound-layout-82");
 MODULE_ALIAS("sound-layout-84");
 MODULE_ALIAS("sound-layout-86");
 MODULE_ALIAS("sound-layout-92");
+MODULE_ALIAS("sound-layout-96");
 
 /* onyx with all but microphone connected */
 static struct codec_connection onyx_connections_nomic[] = {
@@ -381,6 +382,13 @@ static struct layout layouts[] = {
 		.connections = toonie_connections,
 	  },
 	},
+	{
+	  .layout_id = 96,
+	  .codecs[0] = {
+	  	.name = "onyx",
+	  	.connections = onyx_connections_noheadphones,
+	  },
+	},
 	/* unknown, untested, but this comes from Apple */
 	{ .layout_id = 41,
 	  .codecs[0] = {
@@ -476,12 +484,6 @@ static struct layout layouts[] = {
 	  .codecs[0] = {
 		.name = "onyx",
 		/* but it has an external mic?? how to select? */
-		.connections = onyx_connections_noheadphones,
-	  },
-	},
-	{ .layout_id = 96,
-	  .codecs[0] = {
-		.name = "onyx",
 		.connections = onyx_connections_noheadphones,
 	  },
 	},

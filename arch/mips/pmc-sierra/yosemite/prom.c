@@ -8,7 +8,6 @@
  * Author: Manish Lachwani (lachwani@pmc-sierra.com)
  * Copyright (C) 2004 Ralf Baechle
  */
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/mm.h>

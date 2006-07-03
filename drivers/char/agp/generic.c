@@ -27,7 +27,6 @@
  * TODO:
  * - Allocate more than order 0 pages to avoid too much linear map splitting.
  */
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/init.h>

@@ -31,7 +31,6 @@
  * 		ever possible.
  */
 
-#include <linux/config.h>
 #include <linux/delay.h>
 
 #undef SERIAL_PARANOIA_CHECK
@@ -2052,7 +2051,7 @@ static int __init rs_init(void)
 
 	/* set ISRs, and then disable the rx interrupts */
 	request_irq(IRQ_AMIGA_TBE, ser_tx_int, 0, "serial TX", state);
-	request_irq(IRQ_AMIGA_RBF, ser_rx_int, SA_INTERRUPT, "serial RX", state);
+	request_irq(IRQ_AMIGA_RBF, ser_rx_int, IRQF_DISABLED, "serial RX", state);
 
 	/* turn off Rx and Tx interrupts */
 	custom.intena = IF_RBF | IF_TBE;

@@ -20,8 +20,8 @@
 
 #include <asm/hypervisor.h>
 #include <asm/spitfire.h>
-#include <asm/vdev.h>
-#include <asm/oplib.h>
+#include <asm/prom.h>
+#include <asm/of_device.h>
 #include <asm/irq.h>
 
 #if defined(CONFIG_MAGIC_SYSRQ)
@@ -353,7 +353,6 @@ static struct uart_ops sunhv_pops = {
 static struct uart_driver sunhv_reg = {
 	.owner			= THIS_MODULE,
 	.driver_name		= "serial",
-	.devfs_name		= "tts/",
 	.dev_name		= "ttyS",
 	.major			= TTY_MAJOR,
 };
@@ -408,144 +407,120 @@ static inline struct console *SUNHV_CONSOLE(void)
 	return &sunhv_console;
 }
 
-static int __init hv_console_compatible(char *buf, int len)
-{
-	while (len) {
-		int this_len;
-
-		if (!strcmp(buf, "qcn"))
-			return 1;
-
-		this_len = strlen(buf) + 1;
-
-		buf += this_len;
-		len -= this_len;
-	}
-
-	return 0;
-}
-
-static unsigned int __init get_interrupt(void)
-{
-	struct device_node *dev_node;
-
-	dev_node = sun4v_vdev_root->child;
-	while (dev_node != NULL) {
-		struct property *prop;
-
-		if (strcmp(dev_node->name, "console"))
-			goto next_sibling;
-
-		prop = of_find_property(dev_node, "compatible", NULL);
-		if (!prop)
-			goto next_sibling;
-
-		if (hv_console_compatible(prop->value, prop->length))
-			break;
-
-	next_sibling:
-		dev_node = dev_node->sibling;
-	}
-	if (!dev_node)
-		return 0;
-
-	/* Ok, the this is the OBP node for the sun4v hypervisor
-	 * console device.  Decode the interrupt.
-	 */
-	return sun4v_vdev_device_interrupt(dev_node);
-}
-
-static int __init sunhv_init(void)
+static int __devinit hv_probe(struct of_device *op, const struct of_device_id *match)
 {
 	struct uart_port *port;
-	int ret;
+	int err;
 
-	if (tlb_type != hypervisor)
+	if (op->irqs[0] == 0xffffffff)
 		return -ENODEV;
 
-	port = kmalloc(sizeof(struct uart_port), GFP_KERNEL);
+	port = kzalloc(sizeof(struct uart_port), GFP_KERNEL);
 	if (unlikely(!port))
 		return -ENOMEM;
 
-	memset(port, 0, sizeof(struct uart_port));
+	sunhv_port = port;
 
 	port->line = 0;
 	port->ops = &sunhv_pops;
 	port->type = PORT_SUNHV;
 	port->uartclk = ( 29491200 / 16 ); /* arbitrary */
 
-	/* Set this just to make uart_configure_port() happy.  */
 	port->membase = (unsigned char __iomem *) __pa(port);
 
-	port->irq = get_interrupt();
-	if (!port->irq) {
-		kfree(port);
-		return -ENODEV;
-	}
+	port->irq = op->irqs[0];
+
+	port->dev = &op->dev;
 
 	sunhv_reg.minor = sunserial_current_minor;
 	sunhv_reg.nr = 1;
 
-	ret = uart_register_driver(&sunhv_reg);
-	if (ret < 0) {
-		printk(KERN_ERR "SUNHV: uart_register_driver() failed %d\n",
-		       ret);
-		kfree(port);
-
-		return ret;
-	}
+	err = uart_register_driver(&sunhv_reg);
+	if (err)
+		goto out_free_port;
 
 	sunhv_reg.tty_driver->name_base = sunhv_reg.minor - 64;
 	sunserial_current_minor += 1;
 
 	sunhv_reg.cons = SUNHV_CONSOLE();
 
-	sunhv_port = port;
+	err = uart_add_one_port(&sunhv_reg, port);
+	if (err)
+		goto out_unregister_driver;
 
-	ret = uart_add_one_port(&sunhv_reg, port);
-	if (ret < 0) {
-		printk(KERN_ERR "SUNHV: uart_add_one_port() failed %d\n", ret);
-		sunserial_current_minor -= 1;
-		uart_unregister_driver(&sunhv_reg);
-		kfree(port);
-		sunhv_port = NULL;
-		return -ENODEV;
-	}
+	err = request_irq(port->irq, sunhv_interrupt, 0, "hvcons", port);
+	if (err)
+		goto out_remove_port;
 
-	if (request_irq(port->irq, sunhv_interrupt,
-			SA_SHIRQ, "serial(sunhv)", port)) {
-		printk(KERN_ERR "sunhv: Cannot register IRQ\n");
-		uart_remove_one_port(&sunhv_reg, port);
-		sunserial_current_minor -= 1;
-		uart_unregister_driver(&sunhv_reg);
-		kfree(port);
-		sunhv_port = NULL;
-		return -ENODEV;
-	}
+	dev_set_drvdata(&op->dev, port);
 
 	return 0;
+
+out_remove_port:
+	uart_remove_one_port(&sunhv_reg, port);
+
+out_unregister_driver:
+	sunserial_current_minor -= 1;
+	uart_unregister_driver(&sunhv_reg);
+
+out_free_port:
+	kfree(port);
+	sunhv_port = NULL;
+	return err;
 }
 
-static void __exit sunhv_exit(void)
+static int __devexit hv_remove(struct of_device *dev)
 {
-	struct uart_port *port = sunhv_port;
-
-	BUG_ON(!port);
+	struct uart_port *port = dev_get_drvdata(&dev->dev);
 
 	free_irq(port->irq, port);
 
 	uart_remove_one_port(&sunhv_reg, port);
-	sunserial_current_minor -= 1;
 
+	sunserial_current_minor -= 1;
 	uart_unregister_driver(&sunhv_reg);
 
-	kfree(sunhv_port);
+	kfree(port);
 	sunhv_port = NULL;
+
+	dev_set_drvdata(&dev->dev, NULL);
+
+	return 0;
+}
+
+static struct of_device_id hv_match[] = {
+	{
+		.name = "console",
+		.compatible = "qcn",
+	},
+	{},
+};
+MODULE_DEVICE_TABLE(of, hv_match);
+
+static struct of_platform_driver hv_driver = {
+	.name		= "hv",
+	.match_table	= hv_match,
+	.probe		= hv_probe,
+	.remove		= __devexit_p(hv_remove),
+};
+
+static int __init sunhv_init(void)
+{
+	if (tlb_type != hypervisor)
+		return -ENODEV;
+
+	return of_register_driver(&hv_driver, &of_bus_type);
+}
+
+static void __exit sunhv_exit(void)
+{
+	of_unregister_driver(&hv_driver);
 }
 
 module_init(sunhv_init);
 module_exit(sunhv_exit);
 
 MODULE_AUTHOR("David S. Miller");
-MODULE_DESCRIPTION("SUN4V Hypervisor console driver")
+MODULE_DESCRIPTION("SUN4V Hypervisor console driver");
+MODULE_VERSION("2.0");
 MODULE_LICENSE("GPL");

@@ -103,7 +103,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/console.h>
 #include <linux/init.h>
 #include <linux/major.h>
@@ -541,7 +540,7 @@ init_dummy_console(void)
 	dummy_driver.init_termios = tty_std_termios;
 	dummy_driver.init_termios.c_cflag =
 		B115200 | CS8 | CREAD | HUPCL | CLOCAL; /* is normally B9600 default... */
-	dummy_driver.flags = TTY_DRIVER_REAL_RAW | TTY_DRIVER_NO_DEVFS;
+	dummy_driver.flags = TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;
 
 	dummy_driver.open = dummy_open;
 	dummy_driver.close = dummy_close;

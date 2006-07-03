@@ -8,7 +8,6 @@
  */
 
 #include <linux/capability.h>
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -33,9 +32,9 @@ int cap_netlink_send(struct sock *sk, struct sk_buff *skb)
 
 EXPORT_SYMBOL(cap_netlink_send);
 
-int cap_netlink_recv(struct sk_buff *skb)
+int cap_netlink_recv(struct sk_buff *skb, int cap)
 {
-	if (!cap_raised(NETLINK_CB(skb).eff_cap, CAP_NET_ADMIN))
+	if (!cap_raised(NETLINK_CB(skb).eff_cap, cap))
 		return -EPERM;
 	return 0;
 }

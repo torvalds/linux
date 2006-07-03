@@ -14,7 +14,6 @@
 
 */
 
-#include <linux/config.h>
 
 #define DRV_NAME	"tulip"
 #ifdef CONFIG_TULIP_NAPI
@@ -490,7 +489,7 @@ tulip_open(struct net_device *dev)
 {
 	int retval;
 
-	if ((retval = request_irq(dev->irq, &tulip_interrupt, SA_SHIRQ, dev->name, dev)))
+	if ((retval = request_irq(dev->irq, &tulip_interrupt, IRQF_SHARED, dev->name, dev)))
 		return retval;
 
 	tulip_init_ring (dev);
@@ -1350,10 +1349,10 @@ static int __devinit tulip_init_one (struct pci_dev *pdev,
 	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 	if (pci_resource_len (pdev, 0) < tulip_tbl[chip_idx].io_size) {
-		printk (KERN_ERR PFX "%s: I/O region (0x%lx@0x%lx) too small, "
+		printk (KERN_ERR PFX "%s: I/O region (0x%llx@0x%llx) too small, "
 			"aborting\n", pci_name(pdev),
-			pci_resource_len (pdev, 0),
-			pci_resource_start (pdev, 0));
+			(unsigned long long)pci_resource_len (pdev, 0),
+			(unsigned long long)pci_resource_start (pdev, 0));
 		goto err_out_free_netdev;
 	}
 
@@ -1771,7 +1770,7 @@ static int tulip_resume(struct pci_dev *pdev)
 
 	pci_enable_device(pdev);
 
-	if ((retval = request_irq(dev->irq, &tulip_interrupt, SA_SHIRQ, dev->name, dev))) {
+	if ((retval = request_irq(dev->irq, &tulip_interrupt, IRQF_SHARED, dev->name, dev))) {
 		printk (KERN_ERR "tulip: request_irq failed in resume\n");
 		return retval;
 	}

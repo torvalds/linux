@@ -12,7 +12,6 @@
  *  'linux/arch/arm/lib/traps.S'.  Mostly a debugging aid, but will probably
  *  kill the offending process.
  */
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/signal.h>
 #include <linux/spinlock.h>

@@ -1541,7 +1541,7 @@ static int pcnet32_open(struct net_device *dev)
 	unsigned long flags;
 
 	if (request_irq(dev->irq, &pcnet32_interrupt,
-			lp->shared_irq ? SA_SHIRQ : 0, dev->name,
+			lp->shared_irq ? IRQF_SHARED : 0, dev->name,
 			(void *)dev)) {
 		return -EAGAIN;
 	}

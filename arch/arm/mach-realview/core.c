@@ -18,7 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
@@ -537,7 +536,7 @@ static irqreturn_t realview_timer_interrupt(int irq, void *dev_id, struct pt_reg
 
 static struct irqaction realview_timer_irq = {
 	.name		= "RealView Timer Tick",
-	.flags		= SA_INTERRUPT | SA_TIMER,
+	.flags		= IRQF_DISABLED | IRQF_TIMER,
 	.handler	= realview_timer_interrupt,
 };
 

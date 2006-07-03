@@ -426,7 +426,7 @@ e1000_up(struct e1000_adapter *adapter)
 	}
 #endif
 	if ((err = request_irq(adapter->pdev->irq, &e1000_intr,
-		              SA_SHIRQ | SA_SAMPLE_RANDOM,
+		              IRQF_SHARED | IRQF_SAMPLE_RANDOM,
 		              netdev->name, netdev))) {
 		DPRINTK(PROBE, ERR,
 		    "Unable to allocate interrupt Error: %d\n", err);

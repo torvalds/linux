@@ -15,7 +15,7 @@ config RTC_CLASS
 	help
 	  Generic RTC class support. If you say yes here, you will
  	  be allowed to plug one or more RTCs to your system. You will
-	  probably want to enable one of more of the interfaces below.
+	  probably want to enable one or more of the interfaces below.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-class.
@@ -181,6 +181,22 @@ config RTC_DRV_RS5C372
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-rs5c372.
+
+config RTC_DRV_S3C
+	tristate "Samsung S3C series SoC RTC"
+	depends on RTC_CLASS && ARCH_S3C2410
+	help
+	  RTC (Realtime Clock) driver for the clock inbuilt into the
+	  Samsung S3C24XX series of SoCs. This can provide periodic
+	  interrupt rates from 1Hz to 64Hz for user programs, and
+	  wakeup from Alarm.
+
+	  The driver currently supports the common features on all the
+	  S3C24XX range, such as the S3C2410, S3C2412, S3C2413, S3C2440
+	  and S3C2442.
+
+	  This driver can also be build as a module. If so, the module
+	  will be called rtc-s3c.
 
 config RTC_DRV_M48T86
 	tristate "ST M48T86/Dallas DS12887"

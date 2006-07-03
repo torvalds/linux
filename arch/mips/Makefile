@@ -374,6 +374,7 @@ core-$(CONFIG_PMC_YOSEMITE)	+= arch/mips/pmc-sierra/yosemite/
 cflags-$(CONFIG_PMC_YOSEMITE)	+= -Iinclude/asm-mips/mach-yosemite
 load-$(CONFIG_PMC_YOSEMITE)	+= 0xffffffff80100000
 
+#
 # Qemu simulating MIPS32 4Kc
 #
 core-$(CONFIG_QEMU)		+= arch/mips/qemu/

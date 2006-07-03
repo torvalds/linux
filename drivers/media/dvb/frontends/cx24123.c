@@ -670,10 +670,10 @@ static int cx24123_set_voltage(struct dvb_frontend* fe, fe_sec_voltage_t voltage
 	switch (voltage) {
 	case SEC_VOLTAGE_13:
 		dprintk("%s: setting voltage 13V\n", __FUNCTION__);
-		return cx24123_writereg(state, 0x29, val | 0x80);
+		return cx24123_writereg(state, 0x29, val & 0x7f);
 	case SEC_VOLTAGE_18:
 		dprintk("%s: setting voltage 18V\n", __FUNCTION__);
-		return cx24123_writereg(state, 0x29, val & 0x7f);
+		return cx24123_writereg(state, 0x29, val | 0x80);
 	default:
 		return -EINVAL;
 	};

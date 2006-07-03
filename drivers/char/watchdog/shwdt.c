@@ -17,7 +17,6 @@
  *     Added expect close support, made emulated timeout runtime changeable
  *     general cleanups, add some ioctls
  */
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>

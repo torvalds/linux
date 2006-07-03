@@ -943,7 +943,7 @@ static int TLan_Open( struct net_device *dev )
 	int		err;
 	
 	priv->tlanRev = TLan_DioRead8( dev->base_addr, TLAN_DEF_REVISION );
-	err = request_irq( dev->irq, TLan_HandleInterrupt, SA_SHIRQ, TLanSignature, dev );
+	err = request_irq( dev->irq, TLan_HandleInterrupt, IRQF_SHARED, TLanSignature, dev );
 	
 	if ( err ) {
 		printk(KERN_ERR "TLAN:  Cannot open %s because IRQ %d is already in use.\n", dev->name, dev->irq );

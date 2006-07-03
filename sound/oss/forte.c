@@ -2026,7 +2026,7 @@ forte_probe (struct pci_dev *pci_dev, const struct pci_device_id *pci_id)
 	chip->iobase = pci_resource_start (pci_dev, 0);
 	chip->irq = pci_dev->irq;
 
-	if (request_irq (chip->irq, forte_interrupt, SA_SHIRQ, DRIVER_NAME,
+	if (request_irq (chip->irq, forte_interrupt, IRQF_SHARED, DRIVER_NAME,
 			 chip)) {
 		printk (KERN_WARNING PFX "Unable to reserve IRQ");
 		ret = -EIO;
@@ -2035,8 +2035,9 @@ forte_probe (struct pci_dev *pci_dev, const struct pci_device_id *pci_id)
 	
 	pci_set_drvdata (pci_dev, chip);
 
-	printk (KERN_INFO PFX "FM801 chip found at 0x%04lX-0x%04lX IRQ %u\n", 
-		chip->iobase, pci_resource_end (pci_dev, 0), chip->irq);
+	printk (KERN_INFO PFX "FM801 chip found at 0x%04lX-0x%16llX IRQ %u\n",
+		chip->iobase, (unsigned long long)pci_resource_end (pci_dev, 0),
+		chip->irq);
 
 	/* Power it up */
 	if ((ret = forte_chip_init (chip)) == 0)

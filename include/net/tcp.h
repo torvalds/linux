@@ -751,7 +751,7 @@ static inline int tcp_is_cwnd_limited(const struct sock *sk, u32 in_flight)
 	if (in_flight >= tp->snd_cwnd)
 		return 1;
 
-	if (!(sk->sk_route_caps & NETIF_F_TSO))
+	if (!sk_can_gso(sk))
 		return 0;
 
 	left = tp->snd_cwnd - in_flight;
@@ -1086,7 +1086,7 @@ extern struct request_sock_ops tcp_request_sock_ops;
 
 extern int tcp_v4_destroy_sock(struct sock *sk);
 
-extern struct sk_buff *tcp_tso_segment(struct sk_buff *skb, int sg);
+extern struct sk_buff *tcp_tso_segment(struct sk_buff *skb, int features);
 
 #ifdef CONFIG_PROC_FS
 extern int  tcp4_proc_init(void);

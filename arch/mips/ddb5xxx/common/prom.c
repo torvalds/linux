@@ -7,7 +7,6 @@
  * Free Software Foundation;  either version 2 of the  License, or (at your
  * option) any later version.
  */
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/sched.h>
@@ -21,8 +20,6 @@
 const char *get_system_type(void)
 {
 	switch (mips_machtype) {
-	case MACH_NEC_DDB5074:		return "NEC DDB Vrc-5074";
-	case MACH_NEC_DDB5476:		return "NEC DDB Vrc-5476";
 	case MACH_NEC_DDB5477:		return "NEC DDB Vrc-5477";
 	case MACH_NEC_ROCKHOPPER:	return "NEC Rockhopper";
 	case MACH_NEC_ROCKHOPPERII:     return "NEC RockhopperII";

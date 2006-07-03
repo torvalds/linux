@@ -47,8 +47,6 @@ struct scan_control {
 	/* Incremented by the number of inactive pages that were scanned */
 	unsigned long nr_scanned;
 
-	unsigned long nr_mapped;	/* From page_state */
-
 	/* This context's GFP mask */
 	gfp_t gfp_mask;
 
@@ -217,7 +215,7 @@ unsigned long shrink_slab(unsigned long scanned, gfp_t gfp_mask,
 				break;
 			if (shrink_ret < nr_before)
 				ret += nr_before - shrink_ret;
-			mod_page_state(slabs_scanned, this_scan);
+			count_vm_events(SLABS_SCANNED, this_scan);
 			total_scan -= this_scan;
 
 			cond_resched();
@@ -571,7 +569,7 @@ keep:
 	list_splice(&ret_pages, page_list);
 	if (pagevec_count(&freed_pvec))
 		__pagevec_release_nonlru(&freed_pvec);
-	mod_page_state(pgactivate, pgactivate);
+	count_vm_events(PGACTIVATE, pgactivate);
 	return nr_reclaimed;
 }
 
@@ -661,11 +659,11 @@ static unsigned long shrink_inactive_list(unsigned long max_scan,
 		nr_reclaimed += nr_freed;
 		local_irq_disable();
 		if (current_is_kswapd()) {
-			__mod_page_state_zone(zone, pgscan_kswapd, nr_scan);
-			__mod_page_state(kswapd_steal, nr_freed);
+			__count_zone_vm_events(PGSCAN_KSWAPD, zone, nr_scan);
+			__count_vm_events(KSWAPD_STEAL, nr_freed);
 		} else
-			__mod_page_state_zone(zone, pgscan_direct, nr_scan);
-		__mod_page_state_zone(zone, pgsteal, nr_freed);
+			__count_zone_vm_events(PGSCAN_DIRECT, zone, nr_scan);
+		__count_vm_events(PGACTIVATE, nr_freed);
 
 		if (nr_taken == 0)
 			goto done;
@@ -744,7 +742,9 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
 		 * how much memory
 		 * is mapped.
 		 */
-		mapped_ratio = (sc->nr_mapped * 100) / vm_total_pages;
+		mapped_ratio = ((global_page_state(NR_FILE_MAPPED) +
+				global_page_state(NR_ANON_PAGES)) * 100) /
+					vm_total_pages;
 
 		/*
 		 * Now decide how much we really want to unmap some pages.  The
@@ -841,11 +841,10 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
 		}
 	}
 	zone->nr_active += pgmoved;
-	spin_unlock(&zone->lru_lock);
 
-	__mod_page_state_zone(zone, pgrefill, pgscanned);
-	__mod_page_state(pgdeactivate, pgdeactivate);
-	local_irq_enable();
+	__count_zone_vm_events(PGREFILL, zone, pgscanned);
+	__count_vm_events(PGDEACTIVATE, pgdeactivate);
+	spin_unlock_irq(&zone->lru_lock);
 
 	pagevec_release(&pvec);
 }
@@ -977,7 +976,7 @@ unsigned long try_to_free_pages(struct zone **zones, gfp_t gfp_mask)
 		.swappiness = vm_swappiness,
 	};
 
-	inc_page_state(allocstall);
+	count_vm_event(ALLOCSTALL);
 
 	for (i = 0; zones[i] != NULL; i++) {
 		struct zone *zone = zones[i];
@@ -990,7 +989,6 @@ unsigned long try_to_free_pages(struct zone **zones, gfp_t gfp_mask)
 	}
 
 	for (priority = DEF_PRIORITY; priority >= 0; priority--) {
-		sc.nr_mapped = read_page_state(nr_mapped);
 		sc.nr_scanned = 0;
 		if (!priority)
 			disable_swap_token();
@@ -1075,9 +1073,7 @@ loop_again:
 	total_scanned = 0;
 	nr_reclaimed = 0;
 	sc.may_writepage = !laptop_mode;
-	sc.nr_mapped = read_page_state(nr_mapped);
-
-	inc_page_state(pageoutrun);
+	count_vm_event(PAGEOUTRUN);
 
 	for (i = 0; i < pgdat->nr_zones; i++) {
 		struct zone *zone = pgdat->node_zones + i;
@@ -1365,7 +1361,7 @@ unsigned long shrink_all_memory(unsigned long nr_pages)
 	for_each_zone(zone)
 		lru_pages += zone->nr_active + zone->nr_inactive;
 
-	nr_slab = read_page_state(nr_slab);
+	nr_slab = global_page_state(NR_SLAB);
 	/* If slab caches are huge, it's better to hit them first */
 	while (nr_slab >= lru_pages) {
 		reclaim_state.reclaimed_slab = 0;
@@ -1407,9 +1403,7 @@ unsigned long shrink_all_memory(unsigned long nr_pages)
 		for (prio = DEF_PRIORITY; prio >= 0; prio--) {
 			unsigned long nr_to_scan = nr_pages - ret;
 
-			sc.nr_mapped = read_page_state(nr_mapped);
 			sc.nr_scanned = 0;
-
 			ret += shrink_all_zones(nr_to_scan, prio, pass, &sc);
 			if (ret >= nr_pages)
 				goto out;
@@ -1523,11 +1517,6 @@ int zone_reclaim_mode __read_mostly;
 #define RECLAIM_SLAB (1<<3)	/* Do a global slab shrink if the zone is out of memory */
 
 /*
- * Mininum time between zone reclaim scans
- */
-int zone_reclaim_interval __read_mostly = 30*HZ;
-
-/*
  * Priority for ZONE_RECLAIM. This determines the fraction of pages
  * of a node considered for each zone_reclaim. 4 scans 1/16th of
  * a zone.
@@ -1548,7 +1537,6 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
 	struct scan_control sc = {
 		.may_writepage = !!(zone_reclaim_mode & RECLAIM_WRITE),
 		.may_swap = !!(zone_reclaim_mode & RECLAIM_SWAP),
-		.nr_mapped = read_page_state(nr_mapped),
 		.swap_cluster_max = max_t(unsigned long, nr_pages,
 					SWAP_CLUSTER_MAX),
 		.gfp_mask = gfp_mask,
@@ -1593,16 +1581,6 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
 
 	p->reclaim_state = NULL;
 	current->flags &= ~(PF_MEMALLOC | PF_SWAPWRITE);
-
-	if (nr_reclaimed == 0) {
-		/*
-		 * We were unable to reclaim enough pages to stay on node.  We
-		 * now allow off node accesses for a certain time period before
-		 * trying again to reclaim pages from the local zone.
-		 */
-		zone->last_unsuccessful_zone_reclaim = jiffies;
-	}
-
 	return nr_reclaimed >= nr_pages;
 }
 
@@ -1612,13 +1590,17 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
 	int node_id;
 
 	/*
-	 * Do not reclaim if there was a recent unsuccessful attempt at zone
-	 * reclaim.  In that case we let allocations go off node for the
-	 * zone_reclaim_interval.  Otherwise we would scan for each off-node
-	 * page allocation.
+	 * Do not reclaim if there are not enough reclaimable pages in this
+	 * zone that would satify this allocations.
+	 *
+	 * All unmapped pagecache pages are reclaimable.
+	 *
+	 * Both counters may be temporarily off a bit so we use
+	 * SWAP_CLUSTER_MAX as the boundary. It may also be good to
+	 * leave a few frequently used unmapped pagecache pages around.
 	 */
-	if (time_before(jiffies,
-		zone->last_unsuccessful_zone_reclaim + zone_reclaim_interval))
+	if (zone_page_state(zone, NR_FILE_PAGES) -
+		zone_page_state(zone, NR_FILE_MAPPED) < SWAP_CLUSTER_MAX)
 			return 0;
 
 	/*

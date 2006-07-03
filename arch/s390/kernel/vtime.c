@@ -7,7 +7,6 @@
  *    Author(s): Jan Glauber <jan.glauber@de.ibm.com>
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/time.h>

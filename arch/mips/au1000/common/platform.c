@@ -7,7 +7,6 @@
  * License version 2.  This program is licensed "as is" without any
  * warranty of any kind, whether express or implied.
  */
-#include <linux/config.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
 #include <linux/kernel.h>

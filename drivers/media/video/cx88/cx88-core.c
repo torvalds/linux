@@ -1031,8 +1031,8 @@ static int get_ressources(struct cx88_core *core, struct pci_dev *pci)
 			       pci_resource_len(pci,0),
 			       core->name))
 		return 0;
-	printk(KERN_ERR "%s: can't get MMIO memory @ 0x%lx\n",
-	       core->name,pci_resource_start(pci,0));
+	printk(KERN_ERR "%s: can't get MMIO memory @ 0x%llx\n",
+	       core->name,(unsigned long long)pci_resource_start(pci,0));
 	return -EBUSY;
 }
 

@@ -1154,7 +1154,6 @@ static int __init hvsi_init(void)
 		return -ENOMEM;
 
 	hvsi_driver->owner = THIS_MODULE;
-	hvsi_driver->devfs_name = "hvsi/";
 	hvsi_driver->driver_name = "hvsi";
 	hvsi_driver->name = "hvsi";
 	hvsi_driver->major = HVSI_MAJOR;
@@ -1169,7 +1168,7 @@ static int __init hvsi_init(void)
 		struct hvsi_struct *hp = &hvsi_ports[i];
 		int ret = 1;
 
-		ret = request_irq(hp->virq, hvsi_interrupt, SA_INTERRUPT, "hvsi", hp);
+		ret = request_irq(hp->virq, hvsi_interrupt, IRQF_DISABLED, "hvsi", hp);
 		if (ret)
 			printk(KERN_ERR "HVSI: couldn't reserve irq 0x%x (error %i)\n",
 				hp->virq, ret);

@@ -928,7 +928,7 @@ static int __devinit snd_emu10k1x_create(struct snd_card *card,
 	}
 
 	if (request_irq(pci->irq, snd_emu10k1x_interrupt,
-			SA_INTERRUPT|SA_SHIRQ, "EMU10K1X",
+			IRQF_DISABLED|IRQF_SHARED, "EMU10K1X",
 			(void *)chip)) {
 		snd_printk(KERN_ERR "emu10k1x: cannot grab irq %d\n", pci->irq);
 		snd_emu10k1x_free(chip);

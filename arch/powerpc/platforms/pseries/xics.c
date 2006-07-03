@@ -8,7 +8,6 @@
  *  as published by the Free Software Foundation; either version
  *  2 of the License, or (at your option) any later version.
  */
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/threads.h>
 #include <linux/kernel.h>
@@ -60,7 +59,7 @@ static struct radix_tree_root irq_map = RADIX_TREE_INIT(GFP_ATOMIC);
 
 /*
  * Mark IPIs as higher priority so we can take them inside interrupts that
- * arent marked SA_INTERRUPT
+ * arent marked IRQF_DISABLED
  */
 #define IPI_PRIORITY		4
 
@@ -238,7 +237,7 @@ static int get_irq_server(unsigned int irq)
 {
 	unsigned int server;
 	/* For the moment only implement delivery to all cpus or one cpu */
-	cpumask_t cpumask = irq_affinity[irq];
+	cpumask_t cpumask = irq_desc[irq].affinity;
 	cpumask_t tmp = CPU_MASK_NONE;
 
 	if (!distribute_irqs)
@@ -558,7 +557,7 @@ nextnode:
 	}
 
 	for (i = irq_offset_value(); i < NR_IRQS; ++i)
-		get_irq_desc(i)->handler = &xics_pic;
+		get_irq_desc(i)->chip = &xics_pic;
 
 	xics_setup_cpu();
 
@@ -587,9 +586,12 @@ void xics_request_IPIs(void)
 {
 	virt_irq_to_real_map[XICS_IPI] = XICS_IPI;
 
-	/* IPIs are marked SA_INTERRUPT as they must run with irqs disabled */
-	request_irq(irq_offset_up(XICS_IPI), xics_ipi_action, SA_INTERRUPT,
-		    "IPI", NULL);
+	/*
+	 * IPIs are marked IRQF_DISABLED as they must run with irqs
+	 * disabled
+	 */
+	request_irq(irq_offset_up(XICS_IPI), xics_ipi_action,
+		    IRQF_DISABLED, "IPI", NULL);
 	get_irq_desc(irq_offset_up(XICS_IPI))->status |= IRQ_PER_CPU;
 }
 #endif
@@ -701,9 +703,9 @@ void xics_migrate_irqs_away(void)
 			continue;
 
 		/* We only need to migrate enabled IRQS */
-		if (desc == NULL || desc->handler == NULL
+		if (desc == NULL || desc->chip == NULL
 		    || desc->action == NULL
-		    || desc->handler->set_affinity == NULL)
+		    || desc->chip->set_affinity == NULL)
 			continue;
 
 		spin_lock_irqsave(&desc->lock, flags);
@@ -728,8 +730,8 @@ void xics_migrate_irqs_away(void)
 		       virq, cpu);
 
 		/* Reset affinity to all cpus */
-		desc->handler->set_affinity(virq, CPU_MASK_ALL);
-		irq_affinity[virq] = CPU_MASK_ALL;
+		desc->chip->set_affinity(virq, CPU_MASK_ALL);
+		irq_desc[irq].affinity = CPU_MASK_ALL;
 unlock:
 		spin_unlock_irqrestore(&desc->lock, flags);
 	}

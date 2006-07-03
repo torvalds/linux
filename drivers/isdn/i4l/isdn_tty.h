@@ -10,7 +10,6 @@
  *
  */
 
-#include <linux/config.h>
 
 #define DLE 0x10
 #define ETX 0x03

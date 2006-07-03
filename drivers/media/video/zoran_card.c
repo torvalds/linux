@@ -29,7 +29,6 @@
 
 #include <linux/delay.h>
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -1381,7 +1380,7 @@ find_zr36057 (void)
 
 		result = request_irq(zr->pci_dev->irq,
 				     zoran_irq,
-				     SA_SHIRQ | SA_INTERRUPT,
+				     IRQF_SHARED | IRQF_DISABLED,
 				     ZR_DEVNAME(zr),
 				     (void *) zr);
 		if (result < 0) {

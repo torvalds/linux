@@ -29,7 +29,6 @@
  * $Id: netdev.c,v 1.8 2002/08/04 21:23:58 maxk Exp $
  */ 
 
-#include <linux/config.h>
 #include <linux/module.h>
 
 #include <linux/socket.h>

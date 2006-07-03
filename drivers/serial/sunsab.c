@@ -1,7 +1,7 @@
 /* sunsab.c: ASYNC Driver for the SIEMENS SAB82532 DUSCC.
  *
  * Copyright (C) 1997  Eddie C. Dost  (ecd@skynet.be)
- * Copyright (C) 2002  David S. Miller (davem@redhat.com)
+ * Copyright (C) 2002, 2006  David S. Miller (davem@davemloft.net)
  *
  * Rewrote buffer handling to use CIRC(Circular Buffer) macros.
  *   Maxim Krasnyanskiy <maxk@qualcomm.com>
@@ -12,10 +12,9 @@
  *   Theodore Ts'o <tytso@mit.edu>, 2001-Oct-12
  *
  * Ported to new 2.5.x UART layer.
- *   David S. Miller <davem@redhat.com>
+ *   David S. Miller <davem@davemloft.net>
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
@@ -37,8 +36,8 @@
 
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/oplib.h>
-#include <asm/ebus.h>
+#include <asm/prom.h>
+#include <asm/of_device.h>
 
 #if defined(CONFIG_SERIAL_SUNZILOG_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
 #define SUPPORT_SYSRQ
@@ -851,7 +850,6 @@ static struct uart_ops sunsab_pops = {
 static struct uart_driver sunsab_reg = {
 	.owner			= THIS_MODULE,
 	.driver_name		= "serial",
-	.devfs_name		= "tts/",
 	.dev_name		= "ttyS",
 	.major			= TTY_MAJOR,
 };
@@ -977,198 +975,187 @@ static inline struct console *SUNSAB_CONSOLE(void)
 #define sunsab_console_init()	do { } while (0)
 #endif
 
-static void __init for_each_sab_edev(void (*callback)(struct linux_ebus_device *, void *), void *arg)
+static int __devinit sunsab_init_one(struct uart_sunsab_port *up,
+				     struct of_device *op,
+				     unsigned long offset,
+				     int line)
 {
-	struct linux_ebus *ebus;
-	struct linux_ebus_device *edev = NULL;
+	up->port.line = line;
+	up->port.dev = &op->dev;
 
-	for_each_ebus(ebus) {
-		for_each_ebusdev(edev, ebus) {
-			if (!strcmp(edev->prom_node->name, "se")) {
-				callback(edev, arg);
-				continue;
-			} else if (!strcmp(edev->prom_node->name, "serial")) {
-				char *compat;
-				int clen;
+	up->port.mapbase = op->resource[0].start + offset;
+	up->port.membase = of_ioremap(&op->resource[0], offset,
+				      sizeof(union sab82532_async_regs),
+				      "sab");
+	if (!up->port.membase)
+		return -ENOMEM;
+	up->regs = (union sab82532_async_regs __iomem *) up->port.membase;
 
-				/* On RIO this can be an SE, check it.  We could
-				 * just check ebus->is_rio, but this is more portable.
-				 */
-				compat = of_get_property(edev->prom_node,
-							 "compatible", &clen);
-				if (compat && clen > 0) {
-					if (strncmp(compat, "sab82532", 8) == 0) {
-						callback(edev, arg);
-						continue;
-					}
-				}
-			}
+	up->port.irq = op->irqs[0];
+
+	up->port.fifosize = SAB82532_XMIT_FIFO_SIZE;
+	up->port.iotype = UPIO_MEM;
+
+	writeb(SAB82532_IPC_IC_ACT_LOW, &up->regs->w.ipc);
+
+	up->port.ops = &sunsab_pops;
+	up->port.type = PORT_SUNSAB;
+	up->port.uartclk = SAB_BASE_BAUD;
+
+	up->type = readb(&up->regs->r.vstr) & 0x0f;
+	writeb(~((1 << 1) | (1 << 2) | (1 << 4)), &up->regs->w.pcr);
+	writeb(0xff, &up->regs->w.pim);
+	if ((up->port.line & 0x1) == 0) {
+		up->pvr_dsr_bit = (1 << 0);
+		up->pvr_dtr_bit = (1 << 1);
+	} else {
+		up->pvr_dsr_bit = (1 << 3);
+		up->pvr_dtr_bit = (1 << 2);
+	}
+	up->cached_pvr = (1 << 1) | (1 << 2) | (1 << 4);
+	writeb(up->cached_pvr, &up->regs->w.pvr);
+	up->cached_mode = readb(&up->regs->rw.mode);
+	up->cached_mode |= SAB82532_MODE_FRTS;
+	writeb(up->cached_mode, &up->regs->rw.mode);
+	up->cached_mode |= SAB82532_MODE_RTS;
+	writeb(up->cached_mode, &up->regs->rw.mode);
+
+	up->tec_timeout = SAB82532_MAX_TEC_TIMEOUT;
+	up->cec_timeout = SAB82532_MAX_CEC_TIMEOUT;
+
+	if (!(up->port.line & 0x01)) {
+		int err;
+
+		err = request_irq(up->port.irq, sunsab_interrupt,
+				  IRQF_SHARED, "sab", up);
+		if (err) {
+			of_iounmap(up->port.membase,
+				   sizeof(union sab82532_async_regs));
+			return err;
 		}
 	}
-}
 
-static void __init sab_count_callback(struct linux_ebus_device *edev, void *arg)
-{
-	int *count_p = arg;
-
-	(*count_p)++;
-}
-
-static void __init sab_attach_callback(struct linux_ebus_device *edev, void *arg)
-{
-	int *instance_p = arg;
-	struct uart_sunsab_port *up;
-	unsigned long regs, offset;
-	int i;
-
-	/* Note: ports are located in reverse order */
-	regs = edev->resource[0].start;
-	offset = sizeof(union sab82532_async_regs);
-	for (i = 0; i < 2; i++) {
-		up = &sunsab_ports[(*instance_p * 2) + 1 - i];
-
-		memset(up, 0, sizeof(*up));
-		up->regs = ioremap(regs + offset, sizeof(union sab82532_async_regs));
-		up->port.irq = edev->irqs[0];
-		up->port.fifosize = SAB82532_XMIT_FIFO_SIZE;
-		up->port.mapbase = (unsigned long)up->regs;
-		up->port.iotype = UPIO_MEM;
-
-		writeb(SAB82532_IPC_IC_ACT_LOW, &up->regs->w.ipc);
-
-		offset -= sizeof(union sab82532_async_regs);
-	}
-	
-	(*instance_p)++;
-}
-
-static int __init probe_for_sabs(void)
-{
-	int this_sab = 0;
-
-	/* Find device instances.  */
-	for_each_sab_edev(&sab_count_callback, &this_sab);
-	if (!this_sab)
-		return -ENODEV;
-
-	/* Allocate tables.  */
-	sunsab_ports = kmalloc(sizeof(struct uart_sunsab_port) * this_sab * 2,
-			       GFP_KERNEL);
-	if (!sunsab_ports)
-		return -ENOMEM;
-
-	num_channels = this_sab * 2;
-
-	this_sab = 0;
-	for_each_sab_edev(&sab_attach_callback, &this_sab);
 	return 0;
 }
 
-static void __init sunsab_init_hw(void)
+static int __devinit sab_probe(struct of_device *op, const struct of_device_id *match)
 {
-	int i;
+	static int inst;
+	struct uart_sunsab_port *up;
+	int err;
 
-	for (i = 0; i < num_channels; i++) {
-		struct uart_sunsab_port *up = &sunsab_ports[i];
+	up = &sunsab_ports[inst * 2];
 
-		up->port.line = i;
-		up->port.ops = &sunsab_pops;
-		up->port.type = PORT_SUNSAB;
-		up->port.uartclk = SAB_BASE_BAUD;
+	err = sunsab_init_one(&up[0], op,
+			      sizeof(union sab82532_async_regs),
+			      (inst * 2) + 0);
+	if (err)
+		return err;
 
-		up->type = readb(&up->regs->r.vstr) & 0x0f;
-		writeb(~((1 << 1) | (1 << 2) | (1 << 4)), &up->regs->w.pcr);
-		writeb(0xff, &up->regs->w.pim);
-		if (up->port.line == 0) {
-			up->pvr_dsr_bit = (1 << 0);
-			up->pvr_dtr_bit = (1 << 1);
-		} else {
-			up->pvr_dsr_bit = (1 << 3);
-			up->pvr_dtr_bit = (1 << 2);
-		}
-		up->cached_pvr = (1 << 1) | (1 << 2) | (1 << 4);
-		writeb(up->cached_pvr, &up->regs->w.pvr);
-		up->cached_mode = readb(&up->regs->rw.mode);
-		up->cached_mode |= SAB82532_MODE_FRTS;
-		writeb(up->cached_mode, &up->regs->rw.mode);
-		up->cached_mode |= SAB82532_MODE_RTS;
-		writeb(up->cached_mode, &up->regs->rw.mode);
-
-		up->tec_timeout = SAB82532_MAX_TEC_TIMEOUT;
-		up->cec_timeout = SAB82532_MAX_CEC_TIMEOUT;
-
-		if (!(up->port.line & 0x01)) {
-			if (request_irq(up->port.irq, sunsab_interrupt,
-			                SA_SHIRQ, "serial(sab82532)", up)) {
-				printk("sunsab%d: can't get IRQ %x\n",
-				       i, up->port.irq);
-				continue;
-			}
-		}
+	err = sunsab_init_one(&up[0], op, 0,
+			      (inst * 2) + 1);
+	if (err) {
+		of_iounmap(up[0].port.membase,
+			   sizeof(union sab82532_async_regs));
+		free_irq(up[0].port.irq, &up[0]);
+		return err;
 	}
+
+	uart_add_one_port(&sunsab_reg, &up[0].port);
+	uart_add_one_port(&sunsab_reg, &up[1].port);
+
+	dev_set_drvdata(&op->dev, &up[0]);
+
+	inst++;
+
+	return 0;
 }
+
+static void __devexit sab_remove_one(struct uart_sunsab_port *up)
+{
+	uart_remove_one_port(&sunsab_reg, &up->port);
+	if (!(up->port.line & 1))
+		free_irq(up->port.irq, up);
+	of_iounmap(up->port.membase,
+		   sizeof(union sab82532_async_regs));
+}
+
+static int __devexit sab_remove(struct of_device *op)
+{
+	struct uart_sunsab_port *up = dev_get_drvdata(&op->dev);
+
+	sab_remove_one(&up[0]);
+	sab_remove_one(&up[1]);
+
+	dev_set_drvdata(&op->dev, NULL);
+
+	return 0;
+}
+
+static struct of_device_id sab_match[] = {
+	{
+		.name = "se",
+	},
+	{
+		.name = "serial",
+		.compatible = "sab82532",
+	},
+	{},
+};
+MODULE_DEVICE_TABLE(of, sab_match);
+
+static struct of_platform_driver sab_driver = {
+	.name		= "sab",
+	.match_table	= sab_match,
+	.probe		= sab_probe,
+	.remove		= __devexit_p(sab_remove),
+};
 
 static int __init sunsab_init(void)
 {
-	int ret = probe_for_sabs();
-	int i;
+	struct device_node *dp;
+	int err;
 
-	if (ret < 0)
-		return ret;
+	num_channels = 0;
+	for_each_node_by_name(dp, "su")
+		num_channels += 2;
+	for_each_node_by_name(dp, "serial") {
+		if (of_device_is_compatible(dp, "sab82532"))
+			num_channels += 2;
+	}
 
-	sunsab_init_hw();
+	if (num_channels) {
+		sunsab_ports = kzalloc(sizeof(struct uart_sunsab_port) *
+				       num_channels, GFP_KERNEL);
+		if (!sunsab_ports)
+			return -ENOMEM;
 
-	sunsab_reg.minor = sunserial_current_minor;
-	sunsab_reg.nr = num_channels;
+		sunsab_reg.minor = sunserial_current_minor;
+		sunsab_reg.nr = num_channels;
 
-	ret = uart_register_driver(&sunsab_reg);
-	if (ret < 0) {
-		int i;
+		err = uart_register_driver(&sunsab_reg);
+		if (err) {
+			kfree(sunsab_ports);
+			sunsab_ports = NULL;
 
-		for (i = 0; i < num_channels; i++) {
-			struct uart_sunsab_port *up = &sunsab_ports[i];
-
-			if (!(up->port.line & 0x01))
-				free_irq(up->port.irq, up);
-			iounmap(up->regs);
+			return err;
 		}
-		kfree(sunsab_ports);
-		sunsab_ports = NULL;
 
-		return ret;
+		sunsab_reg.tty_driver->name_base = sunsab_reg.minor - 64;
+		sunsab_reg.cons = SUNSAB_CONSOLE();
+		sunserial_current_minor += num_channels;
 	}
 
-	sunsab_reg.tty_driver->name_base = sunsab_reg.minor - 64;
-
-	sunsab_reg.cons = SUNSAB_CONSOLE();
-
-	sunserial_current_minor += num_channels;
-	
-	for (i = 0; i < num_channels; i++) {
-		struct uart_sunsab_port *up = &sunsab_ports[i];
-
-		uart_add_one_port(&sunsab_reg, &up->port);
-	}
-
-	return 0;
+	return of_register_driver(&sab_driver, &of_bus_type);
 }
 
 static void __exit sunsab_exit(void)
 {
-	int i;
-
-	for (i = 0; i < num_channels; i++) {
-		struct uart_sunsab_port *up = &sunsab_ports[i];
-
-		uart_remove_one_port(&sunsab_reg, &up->port);
-
-		if (!(up->port.line & 0x01))
-			free_irq(up->port.irq, up);
-		iounmap(up->regs);
+	of_unregister_driver(&sab_driver);
+	if (num_channels) {
+		sunserial_current_minor -= num_channels;
+		uart_unregister_driver(&sunsab_reg);
 	}
-
-	sunserial_current_minor -= num_channels;
-	uart_unregister_driver(&sunsab_reg);
 
 	kfree(sunsab_ports);
 	sunsab_ports = NULL;

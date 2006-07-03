@@ -25,7 +25,6 @@
  * [29-Mar-2005] Mike Lee
  * Added hardware handshake
  */
-#include <linux/config.h>
 
 #if defined(CONFIG_SERIAL_IMX_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
 #define SUPPORT_SYSRQ
@@ -405,7 +404,7 @@ static int imx_startup(struct uart_port *port)
 	if (retval) goto error_out2;
 
 	retval = request_irq(sport->rtsirq, imx_rtsint,
-			     SA_TRIGGER_FALLING | SA_TRIGGER_RISING,
+			     IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING,
 			     DRIVER_NAME, sport);
 	if (retval) goto error_out3;
 
@@ -888,7 +887,6 @@ static struct uart_driver imx_reg = {
 	.owner          = THIS_MODULE,
 	.driver_name    = DRIVER_NAME,
 	.dev_name       = "ttySMX",
-	.devfs_name	= "ttsmx/",
 	.major          = SERIAL_IMX_MAJOR,
 	.minor          = MINOR_START,
 	.nr             = ARRAY_SIZE(imx_ports),

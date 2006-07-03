@@ -3159,7 +3159,7 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
 	/* make sure the board interrupts are off */
 	hba[i]->access.set_intr_mask(hba[i], CCISS_INTR_OFF);
 	if (request_irq(hba[i]->intr[SIMPLE_MODE_INT], do_cciss_intr,
-			SA_INTERRUPT | SA_SHIRQ, hba[i]->devname, hba[i])) {
+			IRQF_DISABLED | IRQF_SHARED, hba[i]->devname, hba[i])) {
 		printk(KERN_ERR "cciss: Unable to get irq %d for %s\n",
 		       hba[i]->intr[SIMPLE_MODE_INT], hba[i]->devname);
 		goto clean2;
@@ -3248,7 +3248,6 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
 
 		q->queuedata = hba[i];
 		sprintf(disk->disk_name, "cciss/c%dd%d", i, j);
-		sprintf(disk->devfs_name, "cciss/host%d/target%d", i, j);
 		disk->major = hba[i]->major;
 		disk->first_minor = j << NWD_SHIFT;
 		disk->fops = &cciss_fops;

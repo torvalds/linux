@@ -18,7 +18,6 @@
  *  distribution for more details.
  */
 
-#include <linux/config.h>
 #include <linux/cpu.h>
 #include <linux/cpumask.h>
 #include <linux/cpuset.h>
@@ -1064,7 +1063,7 @@ static int update_flag(cpuset_flagbits_t bit, struct cpuset *cs, char *buf)
 }
 
 /*
- * Frequency meter - How fast is some event occuring?
+ * Frequency meter - How fast is some event occurring?
  *
  * These routines manage a digitally filtered, constant time based,
  * event frequency meter.  There are four routines:

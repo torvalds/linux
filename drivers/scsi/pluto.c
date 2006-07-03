@@ -13,7 +13,6 @@
 #include <linux/proc_fs.h>
 #include <linux/stat.h>
 #include <linux/init.h>
-#include <linux/config.h>
 #ifdef CONFIG_KMOD
 #include <linux/kmod.h>
 #endif

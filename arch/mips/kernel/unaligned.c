@@ -72,7 +72,6 @@
  *       A store crossing a page boundary might be executed only partially.
  *       Undo the partial store in this case.
  */
-#include <linux/config.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/signal.h>

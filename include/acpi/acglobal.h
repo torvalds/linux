@@ -181,12 +181,32 @@ ACPI_EXTERN u8 acpi_gbl_integer_nybble_width;
 extern struct acpi_table_list acpi_gbl_table_lists[ACPI_TABLE_ID_MAX + 1];
 extern struct acpi_table_support acpi_gbl_table_data[ACPI_TABLE_ID_MAX + 1];
 
+/*****************************************************************************
+ *
+ * Mutual exlusion within ACPICA subsystem
+ *
+ ****************************************************************************/
+
 /*
  * Predefined mutex objects.  This array contains the
  * actual OS mutex handles, indexed by the local ACPI_MUTEX_HANDLEs.
  * (The table maps local handles to the real OS handles)
  */
 ACPI_EXTERN struct acpi_mutex_info acpi_gbl_mutex_info[ACPI_NUM_MUTEX];
+
+/*
+ * Global lock semaphore works in conjunction with the actual HW global lock
+ */
+ACPI_EXTERN acpi_semaphore acpi_gbl_global_lock_semaphore;
+
+/*
+ * Spinlocks are used for interfaces that can be possibly called at
+ * interrupt level
+ */
+ACPI_EXTERN spinlock_t _acpi_gbl_gpe_lock;	/* For GPE data structs and registers */
+ACPI_EXTERN spinlock_t _acpi_gbl_hardware_lock;	/* For ACPI H/W except GPE registers */
+#define acpi_gbl_gpe_lock	&_acpi_gbl_gpe_lock
+#define acpi_gbl_hardware_lock	&_acpi_gbl_hardware_lock
 
 /*****************************************************************************
  *
@@ -217,7 +237,6 @@ ACPI_EXTERN struct acpi_object_notify_handler acpi_gbl_system_notify;
 ACPI_EXTERN acpi_exception_handler acpi_gbl_exception_handler;
 ACPI_EXTERN acpi_init_handler acpi_gbl_init_handler;
 ACPI_EXTERN struct acpi_walk_state *acpi_gbl_breakpoint_walk;
-ACPI_EXTERN acpi_handle acpi_gbl_global_lock_semaphore;
 
 /* Misc */
 
@@ -314,11 +333,6 @@ ACPI_EXTERN struct acpi_fixed_event_handler
 ACPI_EXTERN struct acpi_gpe_xrupt_info *acpi_gbl_gpe_xrupt_list_head;
 ACPI_EXTERN struct acpi_gpe_block_info
     *acpi_gbl_gpe_fadt_blocks[ACPI_MAX_GPE_BLOCKS];
-
-/* Spinlocks */
-
-ACPI_EXTERN acpi_handle acpi_gbl_gpe_lock;
-ACPI_EXTERN acpi_handle acpi_gbl_hardware_lock;
 
 /*****************************************************************************
  *

@@ -163,14 +163,22 @@ extern int rcu_needs_cpu(int cpu);
  *
  * It is illegal to block while in an RCU read-side critical section.
  */
-#define rcu_read_lock()		preempt_disable()
+#define rcu_read_lock() \
+	do { \
+		preempt_disable(); \
+		__acquire(RCU); \
+	} while(0)
 
 /**
  * rcu_read_unlock - marks the end of an RCU read-side critical section.
  *
  * See rcu_read_lock() for more information.
  */
-#define rcu_read_unlock()	preempt_enable()
+#define rcu_read_unlock() \
+	do { \
+		__release(RCU); \
+		preempt_enable(); \
+	} while(0)
 
 /*
  * So where is rcu_write_lock()?  It does not exist, as there is no
@@ -193,14 +201,22 @@ extern int rcu_needs_cpu(int cpu);
  * can use just rcu_read_lock().
  *
  */
-#define rcu_read_lock_bh()	local_bh_disable()
+#define rcu_read_lock_bh() \
+	do { \
+		local_bh_disable(); \
+		__acquire(RCU_BH); \
+	} while(0)
 
 /*
  * rcu_read_unlock_bh - marks the end of a softirq-only RCU critical section
  *
  * See rcu_read_lock_bh() for more information.
  */
-#define rcu_read_unlock_bh()	local_bh_enable()
+#define rcu_read_unlock_bh() \
+	do { \
+		__release(RCU_BH); \
+		local_bh_enable(); \
+	} while(0)
 
 /**
  * rcu_dereference - fetch an RCU-protected pointer in an

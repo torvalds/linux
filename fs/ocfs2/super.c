@@ -68,13 +68,6 @@
 
 #include "buffer_head_io.h"
 
-/*
- * Globals
- */
-static spinlock_t ocfs2_globals_lock = SPIN_LOCK_UNLOCKED;
-
-static u32 osb_id;             /* Keeps track of next available OSB Id */
-
 static kmem_cache_t *ocfs2_inode_cachep = NULL;
 
 kmem_cache_t *ocfs2_lock_cache = NULL;
@@ -642,10 +635,9 @@ static int ocfs2_fill_super(struct super_block *sb, void *data, int silent)
 
 	ocfs2_complete_mount_recovery(osb);
 
-	printk("ocfs2: Mounting device (%u,%u) on (node %d, slot %d) with %s "
-	       "data mode.\n",
-	       MAJOR(sb->s_dev), MINOR(sb->s_dev), osb->node_num,
-	       osb->slot_num,
+	printk(KERN_INFO "ocfs2: Mounting device (%s) on (node %d, slot %d) "
+	       "with %s data mode.\n",
+	       osb->dev_str, osb->node_num, osb->slot_num,
 	       osb->s_mount_opt & OCFS2_MOUNT_DATA_WRITEBACK ? "writeback" :
 	       "ordered");
 
@@ -799,10 +791,6 @@ static int __init ocfs2_init(void)
 		status = -ENOMEM;
 		goto leave;
 	}
-
-	spin_lock(&ocfs2_globals_lock);
-	osb_id = 0;
-	spin_unlock(&ocfs2_globals_lock);
 
 	ocfs2_debugfs_root = debugfs_create_dir("ocfs2", NULL);
 	if (!ocfs2_debugfs_root) {
@@ -1020,7 +1008,7 @@ static int ocfs2_fill_local_node_info(struct ocfs2_super *osb)
 		goto bail;
 	}
 
-	mlog(ML_NOTICE, "I am node %d\n", osb->node_num);
+	mlog(0, "I am node %d\n", osb->node_num);
 
 	status = 0;
 bail:
@@ -1191,8 +1179,8 @@ static void ocfs2_dismount_volume(struct super_block *sb, int mnt_err)
 
 	atomic_set(&osb->vol_state, VOLUME_DISMOUNTED);
 
-	printk("ocfs2: Unmounting device (%u,%u) on (node %d)\n",
-	       MAJOR(osb->sb->s_dev), MINOR(osb->sb->s_dev), osb->node_num);
+	printk(KERN_INFO "ocfs2: Unmounting device (%s) on (node %d)\n",
+	       osb->dev_str, osb->node_num);
 
 	ocfs2_delete_osb(osb);
 	kfree(osb);
@@ -1211,8 +1199,6 @@ static int ocfs2_setup_osb_uuid(struct ocfs2_super *osb, const unsigned char *uu
 	osb->uuid_str = kcalloc(1, OCFS2_VOL_UUID_LEN * 2 + 1, GFP_KERNEL);
 	if (osb->uuid_str == NULL)
 		return -ENOMEM;
-
-	memcpy(osb->uuid, uuid, OCFS2_VOL_UUID_LEN);
 
 	for (i = 0, ptr = osb->uuid_str; i < OCFS2_VOL_UUID_LEN; i++) {
 		/* print with null */
@@ -1311,13 +1297,6 @@ static int ocfs2_initialize_super(struct super_block *sb,
 		goto bail;
 	}
 
-	osb->uuid = kmalloc(OCFS2_VOL_UUID_LEN, GFP_KERNEL);
-	if (!osb->uuid) {
-		mlog(ML_ERROR, "unable to alloc uuid\n");
-		status = -ENOMEM;
-		goto bail;
-	}
-
 	di = (struct ocfs2_dinode *)bh->b_data;
 
 	osb->max_slots = le16_to_cpu(di->id2.i_super.s_max_slots);
@@ -1327,7 +1306,7 @@ static int ocfs2_initialize_super(struct super_block *sb,
 		status = -EINVAL;
 		goto bail;
 	}
-	mlog(ML_NOTICE, "max_slots for this device: %u\n", osb->max_slots);
+	mlog(0, "max_slots for this device: %u\n", osb->max_slots);
 
 	init_waitqueue_head(&osb->osb_wipe_event);
 	osb->osb_orphan_wipes = kcalloc(osb->max_slots,
@@ -1418,7 +1397,7 @@ static int ocfs2_initialize_super(struct super_block *sb,
 		goto bail;
 	}
 
-	memcpy(&uuid_net_key, &osb->uuid[i], sizeof(osb->net_key));
+	memcpy(&uuid_net_key, di->id2.i_super.s_uuid, sizeof(uuid_net_key));
 	osb->net_key = le32_to_cpu(uuid_net_key);
 
 	strncpy(osb->vol_label, di->id2.i_super.s_label, 63);
@@ -1483,18 +1462,6 @@ static int ocfs2_initialize_super(struct super_block *sb,
 		mlog_errno(status);
 		goto bail;
 	}
-
-	/*  Link this osb onto the global linked list of all osb structures. */
-	/*  The Global Link List is mainted for the whole driver . */
-	spin_lock(&ocfs2_globals_lock);
-	osb->osb_id = osb_id;
-	if (osb_id < OCFS2_MAX_OSB_ID)
-		osb_id++;
-	else {
-		mlog(ML_ERROR, "Too many volumes mounted\n");
-		status = -ENOMEM;
-	}
-	spin_unlock(&ocfs2_globals_lock);
 
 bail:
 	mlog_exit(status);

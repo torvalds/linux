@@ -29,7 +29,6 @@
  *    Gareth Hughes <gareth@valinux.com>
  */
 
-#include <linux/config.h>
 #include "drmP.h"
 #include "drm.h"
 #include "r128_drm.h"

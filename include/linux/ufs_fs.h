@@ -993,7 +993,7 @@ extern void ufs_panic (struct super_block *, const char *, const char *, ...) __
 extern struct inode_operations ufs_fast_symlink_inode_operations;
 
 /* truncate.c */
-extern void ufs_truncate (struct inode *);
+extern int ufs_truncate (struct inode *, loff_t);
 
 static inline struct ufs_sb_info *UFS_SB(struct super_block *sb)
 {

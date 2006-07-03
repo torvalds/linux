@@ -9,7 +9,6 @@
  * option) any later version.
  */
 
-#include <linux/config.h>
 #include <linux/stddef.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -79,9 +78,10 @@ int __init add_bridge(struct device_node *dev)
 		mpc85xx_pci2_busno = hose->first_busno;
 	}
 
-	printk(KERN_INFO "Found MPC85xx PCI host bridge at 0x%08lx. "
+	printk(KERN_INFO "Found MPC85xx PCI host bridge at 0x%016llx. "
 	       "Firmware bus number: %d->%d\n",
-		rsrc.start, hose->first_busno, hose->last_busno);
+		(unsigned long long)rsrc.start, hose->first_busno,
+		hose->last_busno);
 
 	DBG(" ->Hose at 0x%p, cfg_addr=0x%p,cfg_data=0x%p\n",
 		hose, hose->cfg_addr, hose->cfg_data);

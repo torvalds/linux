@@ -171,7 +171,15 @@ enum {
 
 enum {
 	SKB_GSO_TCPV4 = 1 << 0,
-	SKB_GSO_UDPV4 = 1 << 1,
+	SKB_GSO_UDP = 1 << 1,
+
+	/* This indicates the skb is from an untrusted source. */
+	SKB_GSO_DODGY = 1 << 2,
+
+	/* This indicates the tcp segment has CWR set. */
+	SKB_GSO_TCP_ECN = 1 << 3,
+
+	SKB_GSO_TCPV6 = 1 << 4,
 };
 
 /** 
@@ -1298,8 +1306,7 @@ extern void	       skb_copy_and_csum_dev(const struct sk_buff *skb, u8 *to);
 extern void	       skb_split(struct sk_buff *skb,
 				 struct sk_buff *skb1, const u32 len);
 
-extern void	       skb_release_data(struct sk_buff *skb);
-extern struct sk_buff *skb_segment(struct sk_buff *skb, int sg);
+extern struct sk_buff *skb_segment(struct sk_buff *skb, int features);
 
 static inline void *skb_header_pointer(const struct sk_buff *skb, int offset,
 				       int len, void *buffer)

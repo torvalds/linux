@@ -44,7 +44,6 @@
  * - replace bottom half handler with task queue handler
  */
 
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
@@ -2235,7 +2234,6 @@ scrn[1] = '\0';
     /* Initialize the tty_driver structure */
     
     cy_serial_driver->owner = THIS_MODULE;
-    cy_serial_driver->devfs_name = "tts/";
     cy_serial_driver->name = "ttyS";
     cy_serial_driver->major = TTY_MAJOR;
     cy_serial_driver->minor_start = 64;

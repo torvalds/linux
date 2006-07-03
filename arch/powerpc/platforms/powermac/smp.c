@@ -21,7 +21,6 @@
  *  as published by the Free Software Foundation; either version
  *  2 of the License, or (at your option) any later version.
  */
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/smp.h>
@@ -378,7 +377,7 @@ static void __init psurge_dual_sync_tb(int cpu_nr)
 
 static struct irqaction psurge_irqaction = {
 	.handler = psurge_primary_intr,
-	.flags = SA_INTERRUPT,
+	.flags = IRQF_DISABLED,
 	.mask = CPU_MASK_NONE,
 	.name = "primary IPI",
 };

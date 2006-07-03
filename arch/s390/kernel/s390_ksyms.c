@@ -3,7 +3,6 @@
  *
  *  S390 version
  */
-#include <linux/config.h>
 #include <linux/highuid.h>
 #include <linux/module.h>
 #include <linux/mm.h>
@@ -46,8 +45,6 @@ EXPORT_SYMBOL(__down_interruptible);
  */
 extern int dump_fpu (struct pt_regs * regs, s390_fp_regs *fpregs);
 EXPORT_SYMBOL(dump_fpu);
-EXPORT_SYMBOL(overflowuid);
-EXPORT_SYMBOL(overflowgid);
 EXPORT_SYMBOL(empty_zero_page);
 
 /*

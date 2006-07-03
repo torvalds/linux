@@ -438,7 +438,7 @@ static struct pci_device_id ioc4_id_table[] = {
 	{0}
 };
 
-static struct pci_driver __devinitdata ioc4_driver = {
+static struct pci_driver ioc4_driver = {
 	.name = "IOC4",
 	.id_table = ioc4_id_table,
 	.probe = ioc4_probe,

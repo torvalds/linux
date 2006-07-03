@@ -11,7 +11,6 @@
  * as published by the Free Software Foundation; either version
  * 2 of the License, or (at your option) any later version.
  */
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/ptrace.h>
@@ -597,8 +596,6 @@ static inline void cpu_probe_mips(struct cpuinfo_mips *c)
 		break;
 	case PRID_IMP_25KF:
 		c->cputype = CPU_25KF;
-		/* Probe for L2 cache */
-		c->scache.flags &= ~MIPS_CACHE_NOT_PRESENT;
 		break;
 	case PRID_IMP_34K:
 		c->cputype = CPU_34K;

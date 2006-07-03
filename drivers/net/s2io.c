@@ -44,7 +44,6 @@
  *     aggregated as a single large packet
  ************************************************************************/
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/errno.h>
@@ -3762,7 +3761,7 @@ static int s2io_open(struct net_device *dev)
 	/* After proper initialization of H/W, register ISR */
 	if (sp->intr_type == MSI) {
 		err = request_irq((int) sp->pdev->irq, s2io_msi_handle, 
-			SA_SHIRQ, sp->name, dev);
+			IRQF_SHARED, sp->name, dev);
 		if (err) {
 			DBG_PRINT(ERR_DBG, "%s: MSI registration \
 failed\n", dev->name);
@@ -3800,7 +3799,7 @@ failed\n", dev->name, i);
 		}
 	}
 	if (sp->intr_type == INTA) {
-		err = request_irq((int) sp->pdev->irq, s2io_isr, SA_SHIRQ,
+		err = request_irq((int) sp->pdev->irq, s2io_isr, IRQF_SHARED,
 				sp->name, dev);
 		if (err) {
 			DBG_PRINT(ERR_DBG, "%s: ISR registration failed\n",
@@ -3960,7 +3959,7 @@ static int s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 	txdp->Control_2 = 0;
 #ifdef NETIF_F_TSO
 	mss = skb_shinfo(skb)->gso_size;
-	if (skb_shinfo(skb)->gso_type == SKB_GSO_TCPV4) {
+	if (skb_shinfo(skb)->gso_type & (SKB_GSO_TCPV4 | SKB_GSO_TCPV6)) {
 		txdp->Control_1 |= TXD_TCP_LSO_EN;
 		txdp->Control_1 |= TXD_TCP_LSO_MSS(mss);
 	}
@@ -3980,7 +3979,7 @@ static int s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	frg_len = skb->len - skb->data_len;
-	if (skb_shinfo(skb)->gso_type == SKB_GSO_UDPV4) {
+	if (skb_shinfo(skb)->gso_type == SKB_GSO_UDP) {
 		int ufo_size;
 
 		ufo_size = skb_shinfo(skb)->gso_size;
@@ -4009,7 +4008,7 @@ static int s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 	txdp->Host_Control = (unsigned long) skb;
 	txdp->Control_1 |= TXD_BUFFER0_SIZE(frg_len);
 
-	if (skb_shinfo(skb)->gso_type == SKB_GSO_UDPV4)
+	if (skb_shinfo(skb)->gso_type == SKB_GSO_UDP)
 		txdp->Control_1 |= TXD_UFO_EN;
 
 	frg_cnt = skb_shinfo(skb)->nr_frags;
@@ -4024,12 +4023,12 @@ static int s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 		    (sp->pdev, frag->page, frag->page_offset,
 		     frag->size, PCI_DMA_TODEVICE);
 		txdp->Control_1 = TXD_BUFFER0_SIZE(frag->size);
-		if (skb_shinfo(skb)->gso_type == SKB_GSO_UDPV4)
+		if (skb_shinfo(skb)->gso_type == SKB_GSO_UDP)
 			txdp->Control_1 |= TXD_UFO_EN;
 	}
 	txdp->Control_1 |= TXD_GATHER_CODE_LAST;
 
-	if (skb_shinfo(skb)->gso_type == SKB_GSO_UDPV4)
+	if (skb_shinfo(skb)->gso_type == SKB_GSO_UDP)
 		frg_cnt++; /* as Txd0 was used for inband header */
 
 	tx_fifo = mac_control->tx_FIFO_start[queue];
@@ -4043,7 +4042,7 @@ static int s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (mss)
 		val64 |= TX_FIFO_SPECIAL_FUNC;
 #endif
-	if (skb_shinfo(skb)->gso_type == SKB_GSO_UDPV4)
+	if (skb_shinfo(skb)->gso_type == SKB_GSO_UDP)
 		val64 |= TX_FIFO_SPECIAL_FUNC;
 	writeq(val64, &tx_fifo->List_Control);
 
@@ -7020,6 +7019,9 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 		dev->features |= NETIF_F_HIGHDMA;
 #ifdef NETIF_F_TSO
 	dev->features |= NETIF_F_TSO;
+#endif
+#ifdef NETIF_F_TSO6
+	dev->features |= NETIF_F_TSO6;
 #endif
 	if (sp->device_type & XFRAME_II_DEVICE) {
 		dev->features |= NETIF_F_UFO;

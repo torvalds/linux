@@ -34,7 +34,6 @@
 #include <linux/bootmem.h>
 #include <asm/addrspace.h>
 #include <asm/bootinfo.h>
-#include <linux/config.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
 

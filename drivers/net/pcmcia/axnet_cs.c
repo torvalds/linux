@@ -535,7 +535,7 @@ static int axnet_open(struct net_device *dev)
 
     link->open++;
 
-    request_irq(dev->irq, ei_irq_wrapper, SA_SHIRQ, "axnet_cs", dev);
+    request_irq(dev->irq, ei_irq_wrapper, IRQF_SHARED, "axnet_cs", dev);
 
     info->link_status = 0x00;
     init_timer(&info->watchdog);

@@ -10,12 +10,13 @@
  */
 
 #include <linux/errno.h>
+#include <linux/interrupt.h>
+#include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/module.h>
 
 #include <asm/io.h>
-#include <asm/mach/irq.h>
 #include <asm/hardware.h>
 #include <asm/arch/gpio.h>
 
@@ -340,7 +341,7 @@ static void gpio_irq_handler(unsigned irq, struct irqdesc *desc, struct pt_regs 
 	void __iomem	*pio;
 	u32		isr;
 
-	pio = desc->base;
+	pio = get_irq_chip_data(irq);
 
 	/* temporarily mask (level sensitive) parent IRQ */
 	desc->chip->ack(irq);
@@ -350,12 +351,12 @@ static void gpio_irq_handler(unsigned irq, struct irqdesc *desc, struct pt_regs 
 		if (!isr)
 			break;
 
-		pin = (unsigned) desc->data;
+		pin = (unsigned) get_irq_data(irq);
 		gpio = &irq_desc[pin];
 
 		while (isr) {
 			if (isr & 1) {
-				if (unlikely(gpio->disable_depth)) {
+				if (unlikely(gpio->depth)) {
 					/*
 					 * The core ARM interrupt handler lazily disables IRQs so
 					 * another IRQ must be generated before it actually gets
@@ -364,7 +365,7 @@ static void gpio_irq_handler(unsigned irq, struct irqdesc *desc, struct pt_regs 
 					gpio_irq_mask(pin);
 				}
 				else
-					gpio->handle(pin, gpio, regs);
+					desc_handle_irq(pin, gpio, regs);
 			}
 			pin++;
 			gpio++;

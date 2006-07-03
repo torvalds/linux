@@ -156,6 +156,6 @@ void __init arch_init_irq(void)
 		irq_desc[i].status	= IRQ_DISABLED;
 		irq_desc[i].action	= 0;
 		irq_desc[i].depth	= 1;
-		irq_desc[i].handler	= &lasat_irq_type;
+		irq_desc[i].chip	= &lasat_irq_type;
 	}
 }

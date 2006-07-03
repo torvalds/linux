@@ -11,7 +11,6 @@
  * NO WARRANTY
  */
 
-#include <linux/config.h>
 #include <linux/time.h>
 #include <linux/bitops.h>
 #include <linux/reiserfs_fs.h>

@@ -747,7 +747,7 @@ static int __devinit snd_bt87x_create(struct snd_card *card,
 	snd_bt87x_writel(chip, REG_INT_MASK, 0);
 	snd_bt87x_writel(chip, REG_INT_STAT, MY_INTERRUPTS);
 
-	if (request_irq(pci->irq, snd_bt87x_interrupt, SA_INTERRUPT | SA_SHIRQ,
+	if (request_irq(pci->irq, snd_bt87x_interrupt, IRQF_DISABLED | IRQF_SHARED,
 			"Bt87x audio", chip)) {
 		snd_bt87x_free(chip);
 		snd_printk(KERN_ERR "cannot grab irq\n");
@@ -888,8 +888,9 @@ static int __devinit snd_bt87x_probe(struct pci_dev *pci,
 
 	strcpy(card->driver, "Bt87x");
 	sprintf(card->shortname, "Brooktree Bt%x", pci->device);
-	sprintf(card->longname, "%s at %#lx, irq %i",
-		card->shortname, pci_resource_start(pci, 0), chip->irq);
+	sprintf(card->longname, "%s at %#llx, irq %i",
+		card->shortname, (unsigned long long)pci_resource_start(pci, 0),
+		chip->irq);
 	strcpy(card->mixername, "Bt87x");
 
 	err = snd_card_register(card);

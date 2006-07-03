@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2006 QLogic, Inc. All rights reserved.
  * Copyright (c) 2005, 2006 PathScale, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -148,6 +149,7 @@ struct ipath_mcast {
 	struct list_head qp_list;
 	wait_queue_head_t wait;
 	atomic_t refcount;
+	int n_attached;
 };
 
 /* Memory region */
@@ -305,32 +307,34 @@ struct ipath_qp {
 	u32 s_next_psn;		/* PSN for next request */
 	u32 s_last_psn;		/* last response PSN processed */
 	u32 s_psn;		/* current packet sequence number */
+	u32 s_ack_psn;		/* PSN for RDMA_READ */
 	u32 s_rnr_timeout;	/* number of milliseconds for RNR timeout */
-	u32 s_ack_psn;		/* PSN for next ACK or RDMA_READ */
-	u64 s_ack_atomic;	/* data for atomic ACK */
+	u32 r_ack_psn;		/* PSN for next ACK or atomic ACK */
 	u64 r_wr_id;		/* ID for current receive WQE */
 	u64 r_atomic_data;	/* data for last atomic op */
 	u32 r_atomic_psn;	/* PSN of last atomic op */
 	u32 r_len;		/* total length of r_sge */
 	u32 r_rcv_len;		/* receive data len processed */
 	u32 r_psn;		/* expected rcv packet sequence number */
+	u32 r_msn;		/* message sequence number */
 	u8 state;		/* QP state */
 	u8 s_state;		/* opcode of last packet sent */
 	u8 s_ack_state;		/* opcode of packet to ACK */
 	u8 s_nak_state;		/* non-zero if NAK is pending */
 	u8 r_state;		/* opcode of last packet received */
+	u8 r_ack_state;		/* opcode of packet to ACK */
+	u8 r_nak_state;		/* non-zero if NAK is pending */
+	u8 r_min_rnr_timer;	/* retry timeout value for RNR NAKs */
 	u8 r_reuse_sge;		/* for UC receive errors */
 	u8 r_sge_inx;		/* current index into sg_list */
-	u8 s_max_sge;		/* size of s_wq->sg_list */
 	u8 qp_access_flags;
+	u8 s_max_sge;		/* size of s_wq->sg_list */
 	u8 s_retry_cnt;		/* number of times to retry */
 	u8 s_rnr_retry_cnt;
-	u8 s_min_rnr_timer;
 	u8 s_retry;		/* requester retry counter */
 	u8 s_rnr_retry;		/* requester RNR retry counter */
 	u8 s_pkey_index;	/* PKEY index to use */
 	enum ib_mtu path_mtu;
-	atomic_t msn;		/* message sequence number */
 	u32 remote_qpn;
 	u32 qkey;		/* QKEY for this QP (for UD or RD) */
 	u32 s_size;		/* send work queue size */
@@ -431,6 +435,11 @@ struct ipath_ibdev {
 	__be64 sys_image_guid;	/* in network order */
 	__be64 gid_prefix;	/* in network order */
 	__be64 mkey;
+	u32 n_pds_allocated;	/* number of PDs allocated for device */
+	u32 n_ahs_allocated;	/* number of AHs allocated for device */
+	u32 n_cqs_allocated;	/* number of CQs allocated for device */
+	u32 n_srqs_allocated;	/* number of SRQs allocated for device */
+	u32 n_mcast_grps_allocated; /* number of mcast groups allocated */
 	u64 ipath_sword;	/* total dwords sent (sample result) */
 	u64 ipath_rword;	/* total dwords received (sample result) */
 	u64 ipath_spkts;	/* total packets sent (sample result) */
@@ -442,17 +451,19 @@ struct ipath_ibdev {
 	u64 n_unicast_rcv;	/* total unicast packets received */
 	u64 n_multicast_xmit;	/* total multicast packets sent */
 	u64 n_multicast_rcv;	/* total multicast packets received */
-	u64 n_symbol_error_counter;	/* starting count for PMA */
-	u64 n_link_error_recovery_counter;	/* starting count for PMA */
-	u64 n_link_downed_counter;	/* starting count for PMA */
-	u64 n_port_rcv_errors;	/* starting count for PMA */
-	u64 n_port_rcv_remphys_errors;	/* starting count for PMA */
-	u64 n_port_xmit_discards;	/* starting count for PMA */
-	u64 n_port_xmit_data;	/* starting count for PMA */
-	u64 n_port_rcv_data;	/* starting count for PMA */
-	u64 n_port_xmit_packets;	/* starting count for PMA */
-	u64 n_port_rcv_packets;	/* starting count for PMA */
-	u32 n_pkey_violations;	/* starting count for PMA */
+	u64 z_symbol_error_counter;		/* starting count for PMA */
+	u64 z_link_error_recovery_counter;	/* starting count for PMA */
+	u64 z_link_downed_counter;		/* starting count for PMA */
+	u64 z_port_rcv_errors;			/* starting count for PMA */
+	u64 z_port_rcv_remphys_errors;		/* starting count for PMA */
+	u64 z_port_xmit_discards;		/* starting count for PMA */
+	u64 z_port_xmit_data;			/* starting count for PMA */
+	u64 z_port_rcv_data;			/* starting count for PMA */
+	u64 z_port_xmit_packets;		/* starting count for PMA */
+	u64 z_port_rcv_packets;			/* starting count for PMA */
+	u32 z_pkey_violations;			/* starting count for PMA */
+	u32 z_local_link_integrity_errors;	/* starting count for PMA */
+	u32 z_excessive_buffer_overrun_errors;	/* starting count for PMA */
 	u32 n_rc_resends;
 	u32 n_rc_acks;
 	u32 n_rc_qacks;
@@ -462,6 +473,7 @@ struct ipath_ibdev {
 	u32 n_other_naks;
 	u32 n_timeouts;
 	u32 n_pkt_drops;
+	u32 n_vl15_dropped;
 	u32 n_wqe_errs;
 	u32 n_rdma_dup_busy;
 	u32 n_piowait;
@@ -580,10 +592,6 @@ void ipath_sqerror_qp(struct ipath_qp *qp, struct ib_wc *wc);
 
 void ipath_get_credit(struct ipath_qp *qp, u32 aeth);
 
-void ipath_do_rc_send(unsigned long data);
-
-void ipath_do_uc_send(unsigned long data);
-
 void ipath_cq_enter(struct ipath_cq *cq, struct ib_wc *entry, int sig);
 
 int ipath_rkey_ok(struct ipath_ibdev *dev, struct ipath_sge_state *ss,
@@ -596,7 +604,7 @@ void ipath_copy_sge(struct ipath_sge_state *ss, void *data, u32 length);
 
 void ipath_skip_sge(struct ipath_sge_state *ss, u32 length);
 
-int ipath_post_rc_send(struct ipath_qp *qp, struct ib_send_wr *wr);
+int ipath_post_ruc_send(struct ipath_qp *qp, struct ib_send_wr *wr);
 
 void ipath_uc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 		  int has_grh, void *data, u32 tlen, struct ipath_qp *qp);
@@ -678,7 +686,19 @@ void ipath_insert_rnr_queue(struct ipath_qp *qp);
 
 int ipath_get_rwqe(struct ipath_qp *qp, int wr_id_only);
 
-void ipath_ruc_loopback(struct ipath_qp *sqp, struct ib_wc *wc);
+u32 ipath_make_grh(struct ipath_ibdev *dev, struct ib_grh *hdr,
+		   struct ib_global_route *grh, u32 hwords, u32 nwords);
+
+void ipath_do_ruc_send(unsigned long data);
+
+u32 ipath_make_rc_ack(struct ipath_qp *qp, struct ipath_other_headers *ohdr,
+		      u32 pmtu);
+
+int ipath_make_rc_req(struct ipath_qp *qp, struct ipath_other_headers *ohdr,
+		      u32 pmtu, u32 *bth0p, u32 *bth2p);
+
+int ipath_make_uc_req(struct ipath_qp *qp, struct ipath_other_headers *ohdr,
+		      u32 pmtu, u32 *bth0p, u32 *bth2p);
 
 extern const enum ib_wc_opcode ib_ipath_wc_opcode[];
 
@@ -687,6 +707,24 @@ extern const u8 ipath_cvt_physportstate[];
 extern const int ib_ipath_state_ops[];
 
 extern unsigned int ib_ipath_lkey_table_size;
+
+extern unsigned int ib_ipath_max_cqes;
+
+extern unsigned int ib_ipath_max_cqs;
+
+extern unsigned int ib_ipath_max_qp_wrs;
+
+extern unsigned int ib_ipath_max_sges;
+
+extern unsigned int ib_ipath_max_mcast_grps;
+
+extern unsigned int ib_ipath_max_mcast_qp_attached;
+
+extern unsigned int ib_ipath_max_srqs;
+
+extern unsigned int ib_ipath_max_srq_sges;
+
+extern unsigned int ib_ipath_max_srq_wrs;
 
 extern const u32 ib_ipath_rnr_table[];
 

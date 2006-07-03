@@ -10,7 +10,6 @@
  * of the GNU Public License, incorporated herein by reference.
  */
 
-#include <linux/config.h>
 #include <linux/fs.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>

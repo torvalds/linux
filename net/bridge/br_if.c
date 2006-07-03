@@ -392,7 +392,8 @@ void br_features_recompute(struct net_bridge *br)
 		features &= feature;
 	}
 
-	br->dev->features = features | checksum | NETIF_F_LLTX;
+	br->dev->features = features | checksum | NETIF_F_LLTX |
+			    NETIF_F_GSO_ROBUST;
 }
 
 /* called with RTNL */

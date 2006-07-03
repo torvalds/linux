@@ -21,7 +21,6 @@
 #undef DEBUG
 #undef DEBUG_LOW
 
-#include <linux/config.h>
 #include <linux/spinlock.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
@@ -167,34 +166,12 @@ int htab_bolt_mapping(unsigned long vstart, unsigned long vend,
 		hash = hpt_hash(va, shift);
 		hpteg = ((hash & htab_hash_mask) * HPTES_PER_GROUP);
 
-		/* The crap below can be cleaned once ppd_md.probe() can
-		 * set up the hash callbacks, thus we can just used the
-		 * normal insert callback here.
-		 */
-#ifdef CONFIG_PPC_ISERIES
-		if (machine_is(iseries))
-			ret = iSeries_hpte_insert(hpteg, va,
-						  paddr,
-						  tmp_mode,
-						  HPTE_V_BOLTED,
-						  psize);
-		else
-#endif
-#ifdef CONFIG_PPC_PSERIES
-		if (machine_is(pseries) && firmware_has_feature(FW_FEATURE_LPAR))
-			ret = pSeries_lpar_hpte_insert(hpteg, va,
-						       paddr,
-						       tmp_mode,
-						       HPTE_V_BOLTED,
-						       psize);
-		else
-#endif
-#ifdef CONFIG_PPC_MULTIPLATFORM
-			ret = native_hpte_insert(hpteg, va,
-						 paddr,
-						 tmp_mode, HPTE_V_BOLTED,
-						 psize);
-#endif
+		DBG("htab_bolt_mapping: calling %p\n", ppc_md.hpte_insert);
+
+		BUG_ON(!ppc_md.hpte_insert);
+		ret = ppc_md.hpte_insert(hpteg, va, paddr,
+				tmp_mode, HPTE_V_BOLTED, psize);
+
 		if (ret < 0)
 			break;
 	}
@@ -413,6 +390,41 @@ void create_section_mapping(unsigned long start, unsigned long end)
 }
 #endif /* CONFIG_MEMORY_HOTPLUG */
 
+static inline void make_bl(unsigned int *insn_addr, void *func)
+{
+	unsigned long funcp = *((unsigned long *)func);
+	int offset = funcp - (unsigned long)insn_addr;
+
+	*insn_addr = (unsigned int)(0x48000001 | (offset & 0x03fffffc));
+	flush_icache_range((unsigned long)insn_addr, 4+
+			   (unsigned long)insn_addr);
+}
+
+static void __init htab_finish_init(void)
+{
+	extern unsigned int *htab_call_hpte_insert1;
+	extern unsigned int *htab_call_hpte_insert2;
+	extern unsigned int *htab_call_hpte_remove;
+	extern unsigned int *htab_call_hpte_updatepp;
+
+#ifdef CONFIG_PPC_64K_PAGES
+	extern unsigned int *ht64_call_hpte_insert1;
+	extern unsigned int *ht64_call_hpte_insert2;
+	extern unsigned int *ht64_call_hpte_remove;
+	extern unsigned int *ht64_call_hpte_updatepp;
+
+	make_bl(ht64_call_hpte_insert1, ppc_md.hpte_insert);
+	make_bl(ht64_call_hpte_insert2, ppc_md.hpte_insert);
+	make_bl(ht64_call_hpte_remove, ppc_md.hpte_remove);
+	make_bl(ht64_call_hpte_updatepp, ppc_md.hpte_updatepp);
+#endif /* CONFIG_PPC_64K_PAGES */
+
+	make_bl(htab_call_hpte_insert1, ppc_md.hpte_insert);
+	make_bl(htab_call_hpte_insert2, ppc_md.hpte_insert);
+	make_bl(htab_call_hpte_remove, ppc_md.hpte_remove);
+	make_bl(htab_call_hpte_updatepp, ppc_md.hpte_updatepp);
+}
+
 void __init htab_initialize(void)
 {
 	unsigned long table;
@@ -524,6 +536,8 @@ void __init htab_initialize(void)
 					 __pa(tce_alloc_start), mode_rw,
 					 mmu_linear_psize));
 	}
+
+	htab_finish_init();
 
 	DBG(" <- htab_initialize()\n");
 }
@@ -787,16 +801,6 @@ void flush_hash_range(unsigned long number, int local)
 	}
 }
 
-static inline void make_bl(unsigned int *insn_addr, void *func)
-{
-	unsigned long funcp = *((unsigned long *)func);
-	int offset = funcp - (unsigned long)insn_addr;
-
-	*insn_addr = (unsigned int)(0x48000001 | (offset & 0x03fffffc));
-	flush_icache_range((unsigned long)insn_addr, 4+
-			   (unsigned long)insn_addr);
-}
-
 /*
  * low_hash_fault is called when we the low level hash code failed
  * to instert a PTE due to an hypervisor error
@@ -814,29 +818,4 @@ void low_hash_fault(struct pt_regs *regs, unsigned long address)
 		return;
 	}
 	bad_page_fault(regs, address, SIGBUS);
-}
-
-void __init htab_finish_init(void)
-{
-	extern unsigned int *htab_call_hpte_insert1;
-	extern unsigned int *htab_call_hpte_insert2;
-	extern unsigned int *htab_call_hpte_remove;
-	extern unsigned int *htab_call_hpte_updatepp;
-
-#ifdef CONFIG_PPC_64K_PAGES
-	extern unsigned int *ht64_call_hpte_insert1;
-	extern unsigned int *ht64_call_hpte_insert2;
-	extern unsigned int *ht64_call_hpte_remove;
-	extern unsigned int *ht64_call_hpte_updatepp;
-
-	make_bl(ht64_call_hpte_insert1, ppc_md.hpte_insert);
-	make_bl(ht64_call_hpte_insert2, ppc_md.hpte_insert);
-	make_bl(ht64_call_hpte_remove, ppc_md.hpte_remove);
-	make_bl(ht64_call_hpte_updatepp, ppc_md.hpte_updatepp);
-#endif /* CONFIG_PPC_64K_PAGES */
-
-	make_bl(htab_call_hpte_insert1, ppc_md.hpte_insert);
-	make_bl(htab_call_hpte_insert2, ppc_md.hpte_insert);
-	make_bl(htab_call_hpte_remove, ppc_md.hpte_remove);
-	make_bl(htab_call_hpte_updatepp, ppc_md.hpte_updatepp);
 }

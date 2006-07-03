@@ -1382,7 +1382,7 @@ static int __init snd_miro_probe(struct platform_device *devptr)
 		rmidi = NULL;
 	else
 		if ((error = snd_mpu401_uart_new(card, 0, MPU401_HW_MPU401,
-				miro->mpu_port, 0, miro->mpu_irq, SA_INTERRUPT,
+				miro->mpu_port, 0, miro->mpu_irq, IRQF_DISABLED,
 				&rmidi)))
 			snd_printk(KERN_WARNING "no MPU-401 device at 0x%lx?\n", miro->mpu_port);
 

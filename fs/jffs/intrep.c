@@ -55,7 +55,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/jffs.h>

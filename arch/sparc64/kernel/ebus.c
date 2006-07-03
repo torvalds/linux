@@ -5,7 +5,6 @@
  * Copyright (C) 1999  David S. Miller (davem@redhat.com)
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -20,6 +19,8 @@
 #include <asm/pbm.h>
 #include <asm/ebus.h>
 #include <asm/oplib.h>
+#include <asm/prom.h>
+#include <asm/of_device.h>
 #include <asm/bpp.h>
 #include <asm/irq.h>
 
@@ -139,7 +140,7 @@ int ebus_dma_irq_enable(struct ebus_dma_info *p, int on)
 
 	if (on) {
 		if (p->flags & EBUS_DMA_FLAG_USE_EBDMA_HANDLER) {
-			if (request_irq(p->irq, ebus_dma_irq, SA_SHIRQ, p->name, p))
+			if (request_irq(p->irq, ebus_dma_irq, IRQF_SHARED, p->name, p))
 				return -EBUSY;
 		}
 
@@ -279,45 +280,12 @@ static inline void *ebus_alloc(size_t size)
 	return mem;
 }
 
-int __init ebus_intmap_match(struct linux_ebus *ebus,
-			     struct linux_prom_registers *reg,
-			     int *interrupt)
+static void __init fill_ebus_child(struct device_node *dp,
+				   struct linux_ebus_child *dev,
+				   int non_standard_regs)
 {
-	struct linux_prom_ebus_intmap *imap;
-	struct linux_prom_ebus_intmask *imask;
-	unsigned int hi, lo, irq;
-	int i, len, n_imap;
-
-	imap = of_get_property(ebus->prom_node, "interrupt-map", &len);
-	if (!imap)
-		return 0;
-	n_imap = len / sizeof(imap[0]);
-
-	imask = of_get_property(ebus->prom_node, "interrupt-map-mask", NULL);
-	if (!imask)
-		return 0;
-
-	hi = reg->which_io & imask->phys_hi;
-	lo = reg->phys_addr & imask->phys_lo;
-	irq = *interrupt & imask->interrupt;
-	for (i = 0; i < n_imap; i++) {
-		if ((imap[i].phys_hi == hi) &&
-		    (imap[i].phys_lo == lo) &&
-		    (imap[i].interrupt == irq)) {
-			*interrupt = imap[i].cinterrupt;
-			return 0;
-		}
-	}
-	return -1;
-}
-
-void __init fill_ebus_child(struct device_node *dp,
-			    struct linux_prom_registers *preg,
-			    struct linux_ebus_child *dev,
-			    int non_standard_regs)
-{
+	struct of_device *op;
 	int *regs;
-	int *irqs;
 	int i, len;
 
 	dev->prom_node = dp;
@@ -354,12 +322,16 @@ void __init fill_ebus_child(struct device_node *dp,
 		}
 	}
 
-	for (i = 0; i < PROMINTR_MAX; i++)
-		dev->irqs[i] = PCI_IRQ_NONE;
-
-	irqs = of_get_property(dp, "interrupts", &len);
-	if (!irqs) {
+	op = of_find_device_by_node(dp);
+	if (!op) {
 		dev->num_irqs = 0;
+	} else {
+		dev->num_irqs = op->num_irqs;
+		for (i = 0; i < dev->num_irqs; i++)
+			dev->irqs[i] = op->irqs[i];
+	}
+
+	if (!dev->num_irqs) {
 		/*
 		 * Oh, well, some PROMs don't export interrupts
 		 * property to children of EBus devices...
@@ -375,23 +347,6 @@ void __init fill_ebus_child(struct device_node *dp,
 				dev->irqs[0] = dev->parent->irqs[1];
 			}
 		}
-	} else {
-		dev->num_irqs = len / sizeof(irqs[0]);
-		for (i = 0; i < dev->num_irqs; i++) {
-			struct pci_pbm_info *pbm = dev->bus->parent;
-			struct pci_controller_info *p = pbm->parent;
-
-			if (ebus_intmap_match(dev->bus, preg, &irqs[i]) != -1) {
-				dev->irqs[i] = p->irq_build(pbm,
-							    dev->bus->self,
-							    irqs[i]);
-			} else {
-				/* If we get a bogus interrupt property, just
-				 * record the raw value instead of punting.
-				 */
-				dev->irqs[i] = irqs[i];
-			}
-		}
 	}
 }
 
@@ -403,72 +358,32 @@ static int __init child_regs_nonstandard(struct linux_ebus_device *dev)
 	return 0;
 }
 
-void __init fill_ebus_device(struct device_node *dp, struct linux_ebus_device *dev)
+static void __init fill_ebus_device(struct device_node *dp, struct linux_ebus_device *dev)
 {
-	struct linux_prom_registers *regs;
 	struct linux_ebus_child *child;
-	int *irqs;
-	int i, n, len;
+	struct of_device *op;
+	int i, len;
 
 	dev->prom_node = dp;
 
 	printk(" [%s", dp->name);
 
-	regs = of_get_property(dp, "reg", &len);
-	if (!regs) {
+	op = of_find_device_by_node(dp);
+	if (!op) {
 		dev->num_addrs = 0;
-		goto probe_interrupts;
-	}
-
-	if (len % sizeof(struct linux_prom_registers)) {
-		prom_printf("UGH: proplen for %s was %d, need multiple of %d\n",
-			    dev->prom_node->name, len,
-			    (int)sizeof(struct linux_prom_registers));
-		prom_halt();
-	}
-	dev->num_addrs = len / sizeof(struct linux_prom_registers);
-
-	for (i = 0; i < dev->num_addrs; i++) {
-		/* XXX Learn how to interpret ebus ranges... -DaveM */
-		if (regs[i].which_io >= 0x10)
-			n = (regs[i].which_io - 0x10) >> 2;
-		else
-			n = regs[i].which_io;
-
-		dev->resource[i].start  = dev->bus->self->resource[n].start;
-		dev->resource[i].start += (unsigned long)regs[i].phys_addr;
-		dev->resource[i].end    =
-			(dev->resource[i].start + (unsigned long)regs[i].reg_size - 1UL);
-		dev->resource[i].flags  = IORESOURCE_MEM;
-		dev->resource[i].name   = dev->prom_node->name;
-		request_resource(&dev->bus->self->resource[n],
-				 &dev->resource[i]);
-	}
-
-probe_interrupts:
-	for (i = 0; i < PROMINTR_MAX; i++)
-		dev->irqs[i] = PCI_IRQ_NONE;
-
-	irqs = of_get_property(dp, "interrupts", &len);
-	if (!irqs) {
 		dev->num_irqs = 0;
 	} else {
-		dev->num_irqs = len / sizeof(irqs[0]);
-		for (i = 0; i < dev->num_irqs; i++) {
-			struct pci_pbm_info *pbm = dev->bus->parent;
-			struct pci_controller_info *p = pbm->parent;
+		(void) of_get_property(dp, "reg", &len);
+		dev->num_addrs = len / sizeof(struct linux_prom_registers);
 
-			if (ebus_intmap_match(dev->bus, &regs[0], &irqs[i]) != -1) {
-				dev->irqs[i] = p->irq_build(pbm,
-							    dev->bus->self,
-							    irqs[i]);
-			} else {
-				/* If we get a bogus interrupt property, just
-				 * record the raw value instead of punting.
-				 */
-				dev->irqs[i] = irqs[i];
-			}
-		}
+		for (i = 0; i < dev->num_addrs; i++)
+			memcpy(&dev->resource[i],
+			       &op->resource[i],
+			       sizeof(struct resource));
+
+		dev->num_irqs = op->num_irqs;
+		for (i = 0; i < dev->num_irqs; i++)
+			dev->irqs[i] = op->irqs[i];
 	}
 
 	dev->ofdev.node = dp;
@@ -490,7 +405,7 @@ probe_interrupts:
 		child->next = NULL;
 		child->parent = dev;
 		child->bus = dev->bus;
-		fill_ebus_child(dp, regs, child,
+		fill_ebus_child(dp, child,
 				child_regs_nonstandard(dev));
 
 		while ((dp = dp->sibling) != NULL) {
@@ -500,7 +415,7 @@ probe_interrupts:
 			child->next = NULL;
 			child->parent = dev;
 			child->bus = dev->bus;
-			fill_ebus_child(dp, regs, child,
+			fill_ebus_child(dp, child,
 					child_regs_nonstandard(dev));
 		}
 	}

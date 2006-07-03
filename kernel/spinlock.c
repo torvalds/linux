@@ -9,7 +9,6 @@
  * SMP and the DEBUG_SPINLOCK cases. (UP-nondebug inlines them)
  */
 
-#include <linux/config.h>
 #include <linux/linkage.h>
 #include <linux/preempt.h>
 #include <linux/spinlock.h>

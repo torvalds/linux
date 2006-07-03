@@ -80,6 +80,7 @@ struct dev_state {
 	uid_t disc_uid, disc_euid;
 	void __user *disccontext;
 	unsigned long ifclaimed;
+	u32 secid;
 };
 
 /* internal notify stuff */

@@ -9,7 +9,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
@@ -39,7 +38,6 @@
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/moduleparam.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/isdn/capiutil.h>
 #include <linux/isdn/capicmd.h>
 #if defined(CONFIG_ISDN_CAPI_CAPIFS) || defined(CONFIG_ISDN_CAPI_CAPIFS_MODULE)
@@ -1337,7 +1335,6 @@ static int capinc_tty_init(void)
 
 	drv->owner = THIS_MODULE;
 	drv->driver_name = "capi_nc";
-	drv->devfs_name = "capi/";
 	drv->name = "capi";
 	drv->major = capi_ttymajor;
 	drv->minor_start = 0;
@@ -1516,8 +1513,6 @@ static int __init capi_init(void)
 	}
 
 	class_device_create(capi_class, NULL, MKDEV(capi_major, 0), NULL, "capi");
-	devfs_mk_cdev(MKDEV(capi_major, 0), S_IFCHR | S_IRUSR | S_IWUSR,
-			"isdn/capi20");
 
 #ifdef CONFIG_ISDN_CAPI_MIDDLEWARE
 	if (capinc_tty_init() < 0) {
@@ -1552,7 +1547,6 @@ static void __exit capi_exit(void)
 	class_device_destroy(capi_class, MKDEV(capi_major, 0));
 	class_destroy(capi_class);
 	unregister_chrdev(capi_major, "capi20");
-	devfs_remove("isdn/capi20");
 
 #ifdef CONFIG_ISDN_CAPI_MIDDLEWARE
 	capinc_tty_exit();

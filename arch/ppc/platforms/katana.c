@@ -16,7 +16,6 @@
  * Supports the Artesyn 750i, 752i, and 3750.  The 752i is virtually identical
  * to the 750i except that it has an mv64460 bridge.
  */
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>
 #include <linux/kdev_t.h>

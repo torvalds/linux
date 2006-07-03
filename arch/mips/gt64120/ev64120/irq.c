@@ -138,7 +138,7 @@ void __init arch_init_irq(void)
 	/*  Let's initialize our IRQ descriptors  */
 	for (i = 0; i < NR_IRQS; i++) {
 		irq_desc[i].status = 0;
-		irq_desc[i].handler = &no_irq_type;
+		irq_desc[i].chip = &no_irq_type;
 		irq_desc[i].action = NULL;
 		irq_desc[i].depth = 0;
 		spin_lock_init(&irq_desc[i].lock);

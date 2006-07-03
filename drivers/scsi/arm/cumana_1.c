@@ -277,7 +277,7 @@ cumanascsi1_probe(struct expansion_card *ec, const struct ecard_id *id)
         ((struct NCR5380_hostdata *)host->hostdata)->ctrl = 0;
         outb(0x00, host->io_port - 577);
 
-	ret = request_irq(host->irq, cumanascsi_intr, SA_INTERRUPT,
+	ret = request_irq(host->irq, cumanascsi_intr, IRQF_DISABLED,
 			  "CumanaSCSI-1", host);
 	if (ret) {
 		printk("scsi%d: IRQ%d not free: %d\n",

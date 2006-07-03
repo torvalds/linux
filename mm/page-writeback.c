@@ -99,22 +99,6 @@ EXPORT_SYMBOL(laptop_mode);
 
 static void background_writeout(unsigned long _min_pages);
 
-struct writeback_state
-{
-	unsigned long nr_dirty;
-	unsigned long nr_unstable;
-	unsigned long nr_mapped;
-	unsigned long nr_writeback;
-};
-
-static void get_writeback_state(struct writeback_state *wbs)
-{
-	wbs->nr_dirty = read_page_state(nr_dirty);
-	wbs->nr_unstable = read_page_state(nr_unstable);
-	wbs->nr_mapped = read_page_state(nr_mapped);
-	wbs->nr_writeback = read_page_state(nr_writeback);
-}
-
 /*
  * Work out the current dirty-memory clamping and background writeout
  * thresholds.
@@ -133,8 +117,8 @@ static void get_writeback_state(struct writeback_state *wbs)
  * clamping level.
  */
 static void
-get_dirty_limits(struct writeback_state *wbs, long *pbackground, long *pdirty,
-		struct address_space *mapping)
+get_dirty_limits(long *pbackground, long *pdirty,
+					struct address_space *mapping)
 {
 	int background_ratio;		/* Percentages */
 	int dirty_ratio;
@@ -143,8 +127,6 @@ get_dirty_limits(struct writeback_state *wbs, long *pbackground, long *pdirty,
 	long dirty;
 	unsigned long available_memory = total_pages;
 	struct task_struct *tsk;
-
-	get_writeback_state(wbs);
 
 #ifdef CONFIG_HIGHMEM
 	/*
@@ -156,7 +138,9 @@ get_dirty_limits(struct writeback_state *wbs, long *pbackground, long *pdirty,
 #endif
 
 
-	unmapped_ratio = 100 - (wbs->nr_mapped * 100) / total_pages;
+	unmapped_ratio = 100 - ((global_page_state(NR_FILE_MAPPED) +
+				global_page_state(NR_ANON_PAGES)) * 100) /
+					total_pages;
 
 	dirty_ratio = vm_dirty_ratio;
 	if (dirty_ratio > unmapped_ratio / 2)
@@ -189,7 +173,6 @@ get_dirty_limits(struct writeback_state *wbs, long *pbackground, long *pdirty,
  */
 static void balance_dirty_pages(struct address_space *mapping)
 {
-	struct writeback_state wbs;
 	long nr_reclaimable;
 	long background_thresh;
 	long dirty_thresh;
@@ -207,11 +190,12 @@ static void balance_dirty_pages(struct address_space *mapping)
 			.range_cyclic	= 1,
 		};
 
-		get_dirty_limits(&wbs, &background_thresh,
-					&dirty_thresh, mapping);
-		nr_reclaimable = wbs.nr_dirty + wbs.nr_unstable;
-		if (nr_reclaimable + wbs.nr_writeback <= dirty_thresh)
-			break;
+		get_dirty_limits(&background_thresh, &dirty_thresh, mapping);
+		nr_reclaimable = global_page_state(NR_FILE_DIRTY) +
+					global_page_state(NR_UNSTABLE_NFS);
+		if (nr_reclaimable + global_page_state(NR_WRITEBACK) <=
+			dirty_thresh)
+				break;
 
 		if (!dirty_exceeded)
 			dirty_exceeded = 1;
@@ -224,11 +208,14 @@ static void balance_dirty_pages(struct address_space *mapping)
 		 */
 		if (nr_reclaimable) {
 			writeback_inodes(&wbc);
-			get_dirty_limits(&wbs, &background_thresh,
-					&dirty_thresh, mapping);
-			nr_reclaimable = wbs.nr_dirty + wbs.nr_unstable;
-			if (nr_reclaimable + wbs.nr_writeback <= dirty_thresh)
-				break;
+			get_dirty_limits(&background_thresh,
+					 	&dirty_thresh, mapping);
+			nr_reclaimable = global_page_state(NR_FILE_DIRTY) +
+					global_page_state(NR_UNSTABLE_NFS);
+			if (nr_reclaimable +
+				global_page_state(NR_WRITEBACK)
+					<= dirty_thresh)
+						break;
 			pages_written += write_chunk - wbc.nr_to_write;
 			if (pages_written >= write_chunk)
 				break;		/* We've done our duty */
@@ -236,8 +223,9 @@ static void balance_dirty_pages(struct address_space *mapping)
 		blk_congestion_wait(WRITE, HZ/10);
 	}
 
-	if (nr_reclaimable + wbs.nr_writeback <= dirty_thresh && dirty_exceeded)
-		dirty_exceeded = 0;
+	if (nr_reclaimable + global_page_state(NR_WRITEBACK)
+		<= dirty_thresh && dirty_exceeded)
+			dirty_exceeded = 0;
 
 	if (writeback_in_progress(bdi))
 		return;		/* pdflush is already working this queue */
@@ -299,12 +287,11 @@ EXPORT_SYMBOL(balance_dirty_pages_ratelimited_nr);
 
 void throttle_vm_writeout(void)
 {
-	struct writeback_state wbs;
 	long background_thresh;
 	long dirty_thresh;
 
         for ( ; ; ) {
-		get_dirty_limits(&wbs, &background_thresh, &dirty_thresh, NULL);
+		get_dirty_limits(&background_thresh, &dirty_thresh, NULL);
 
                 /*
                  * Boost the allowable dirty threshold a bit for page
@@ -312,8 +299,9 @@ void throttle_vm_writeout(void)
                  */
                 dirty_thresh += dirty_thresh / 10;      /* wheeee... */
 
-                if (wbs.nr_unstable + wbs.nr_writeback <= dirty_thresh)
-                        break;
+                if (global_page_state(NR_UNSTABLE_NFS) +
+			global_page_state(NR_WRITEBACK) <= dirty_thresh)
+                        	break;
                 blk_congestion_wait(WRITE, HZ/10);
         }
 }
@@ -336,12 +324,12 @@ static void background_writeout(unsigned long _min_pages)
 	};
 
 	for ( ; ; ) {
-		struct writeback_state wbs;
 		long background_thresh;
 		long dirty_thresh;
 
-		get_dirty_limits(&wbs, &background_thresh, &dirty_thresh, NULL);
-		if (wbs.nr_dirty + wbs.nr_unstable < background_thresh
+		get_dirty_limits(&background_thresh, &dirty_thresh, NULL);
+		if (global_page_state(NR_FILE_DIRTY) +
+			global_page_state(NR_UNSTABLE_NFS) < background_thresh
 				&& min_pages <= 0)
 			break;
 		wbc.encountered_congestion = 0;
@@ -365,12 +353,9 @@ static void background_writeout(unsigned long _min_pages)
  */
 int wakeup_pdflush(long nr_pages)
 {
-	if (nr_pages == 0) {
-		struct writeback_state wbs;
-
-		get_writeback_state(&wbs);
-		nr_pages = wbs.nr_dirty + wbs.nr_unstable;
-	}
+	if (nr_pages == 0)
+		nr_pages = global_page_state(NR_FILE_DIRTY) +
+				global_page_state(NR_UNSTABLE_NFS);
 	return pdflush_operation(background_writeout, nr_pages);
 }
 
@@ -401,7 +386,6 @@ static void wb_kupdate(unsigned long arg)
 	unsigned long start_jif;
 	unsigned long next_jif;
 	long nr_to_write;
-	struct writeback_state wbs;
 	struct writeback_control wbc = {
 		.bdi		= NULL,
 		.sync_mode	= WB_SYNC_NONE,
@@ -414,11 +398,11 @@ static void wb_kupdate(unsigned long arg)
 
 	sync_supers();
 
-	get_writeback_state(&wbs);
 	oldest_jif = jiffies - dirty_expire_interval;
 	start_jif = jiffies;
 	next_jif = start_jif + dirty_writeback_interval;
-	nr_to_write = wbs.nr_dirty + wbs.nr_unstable +
+	nr_to_write = global_page_state(NR_FILE_DIRTY) +
+			global_page_state(NR_UNSTABLE_NFS) +
 			(inodes_stat.nr_inodes - inodes_stat.nr_unused);
 	while (nr_to_write > 0) {
 		wbc.encountered_congestion = 0;
@@ -640,7 +624,8 @@ int __set_page_dirty_nobuffers(struct page *page)
 			if (mapping2) { /* Race with truncate? */
 				BUG_ON(mapping2 != mapping);
 				if (mapping_cap_account_dirty(mapping))
-					inc_page_state(nr_dirty);
+					__inc_zone_page_state(page,
+								NR_FILE_DIRTY);
 				radix_tree_tag_set(&mapping->page_tree,
 					page_index(page), PAGECACHE_TAG_DIRTY);
 			}
@@ -727,9 +712,9 @@ int test_clear_page_dirty(struct page *page)
 			radix_tree_tag_clear(&mapping->page_tree,
 						page_index(page),
 						PAGECACHE_TAG_DIRTY);
-			write_unlock_irqrestore(&mapping->tree_lock, flags);
 			if (mapping_cap_account_dirty(mapping))
-				dec_page_state(nr_dirty);
+				__dec_zone_page_state(page, NR_FILE_DIRTY);
+			write_unlock_irqrestore(&mapping->tree_lock, flags);
 			return 1;
 		}
 		write_unlock_irqrestore(&mapping->tree_lock, flags);
@@ -760,7 +745,7 @@ int clear_page_dirty_for_io(struct page *page)
 	if (mapping) {
 		if (TestClearPageDirty(page)) {
 			if (mapping_cap_account_dirty(mapping))
-				dec_page_state(nr_dirty);
+				dec_zone_page_state(page, NR_FILE_DIRTY);
 			return 1;
 		}
 		return 0;

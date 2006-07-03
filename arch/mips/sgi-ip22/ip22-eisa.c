@@ -19,7 +19,6 @@
  * - Fix more bugs.
  */
 
-#include <linux/config.h>
 #include <linux/eisa.h>
 #include <linux/types.h>
 #include <linux/init.h>
@@ -279,9 +278,9 @@ int __init ip22_eisa_init(void)
 		irq_desc[i].action = 0;
 		irq_desc[i].depth = 1;
 		if (i < (SGINT_EISA + 8))
-			irq_desc[i].handler = &ip22_eisa1_irq_type;
+			irq_desc[i].chip = &ip22_eisa1_irq_type;
 		else
-			irq_desc[i].handler = &ip22_eisa2_irq_type;
+			irq_desc[i].chip = &ip22_eisa2_irq_type;
 	}
 
 	/* Cannot use request_irq because of kmalloc not being ready at such

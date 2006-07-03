@@ -19,7 +19,6 @@
  */
 
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/highmem.h>
@@ -2827,7 +2826,6 @@ static inline sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *ski
 	struct stripe_head *sh;
 	int pd_idx;
 	int raid_disks = conf->raid_disks;
-	int data_disks = raid_disks - conf->max_degraded;
 	sector_t max_sector = mddev->size << 1;
 	int sync_blocks;
 	int still_degraded = 0;

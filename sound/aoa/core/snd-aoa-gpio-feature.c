@@ -207,6 +207,17 @@ static void ftr_handle_notify(void *data)
 	mutex_unlock(&notif->mutex);
 }
 
+static void gpio_enable_dual_edge(int gpio)
+{
+	int v;
+
+	if (gpio == -1)
+		return;
+	v = pmac_call_feature(PMAC_FTR_READ_GPIO, NULL, gpio, 0);
+	v |= 0x80; /* enable dual edge */
+	pmac_call_feature(PMAC_FTR_WRITE_GPIO, NULL, gpio, v);
+}
+
 static void ftr_gpio_init(struct gpio_runtime *rt)
 {
 	get_gpio("headphone-mute", NULL,
@@ -233,6 +244,10 @@ static void ftr_gpio_init(struct gpio_runtime *rt)
 	linein_detect_node = get_gpio("linein-detect", "line-input-detect",
 				      &linein_detect_gpio,
 				      &linein_detect_gpio_activestate);
+
+	gpio_enable_dual_edge(headphone_detect_gpio);
+	gpio_enable_dual_edge(lineout_detect_gpio);
+	gpio_enable_dual_edge(linein_detect_gpio);
 
 	get_irq(headphone_detect_node, &headphone_detect_irq);
 	get_irq(lineout_detect_node, &lineout_detect_irq);

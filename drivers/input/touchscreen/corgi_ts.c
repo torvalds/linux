@@ -17,7 +17,7 @@
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-//#include <asm/irq.h>
+#include <linux/irq.h>
 
 #include <asm/arch/sharpsl.h>
 #include <asm/arch/hardware.h>
@@ -318,7 +318,7 @@ static int __init corgits_probe(struct platform_device *pdev)
 	corgi_ssp_ads7846_putget((5u << ADSCTRL_ADR_SH) | ADSCTRL_STS);
 	mdelay(5);
 
-	if (request_irq(corgi_ts->irq_gpio, ts_interrupt, SA_INTERRUPT, "ts", corgi_ts)) {
+	if (request_irq(corgi_ts->irq_gpio, ts_interrupt, IRQF_DISABLED, "ts", corgi_ts)) {
 		err = -EBUSY;
 		goto fail;
 	}

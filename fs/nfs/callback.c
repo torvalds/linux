@@ -6,7 +6,6 @@
  * NFSv4 callback handling
  */
 
-#include <linux/config.h>
 #include <linux/completion.h>
 #include <linux/ip.h>
 #include <linux/module.h>

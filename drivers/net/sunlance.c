@@ -71,7 +71,6 @@
 
 static char lancestr[] = "LANCE";
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -931,7 +930,7 @@ static int lance_open(struct net_device *dev)
 
 	STOP_LANCE(lp);
 
-	if (request_irq(dev->irq, &lance_interrupt, SA_SHIRQ,
+	if (request_irq(dev->irq, &lance_interrupt, IRQF_SHARED,
 			lancestr, (void *) dev)) {
 		printk(KERN_ERR "Lance: Can't get irq %d\n", dev->irq);
 		return -EAGAIN;

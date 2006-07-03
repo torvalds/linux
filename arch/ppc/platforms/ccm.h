@@ -7,7 +7,6 @@
 #ifndef __MACH_CCM_H
 #define __MACH_CCM_H
 
-#include <linux/config.h>
 
 #include <asm/ppcboot.h>
 

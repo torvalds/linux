@@ -377,7 +377,7 @@ static int __init attach_one_i2c(struct linux_ebus_device *edev, int index)
 	bp->waiting = 0;
 	init_waitqueue_head(&bp->wq);
 	if (request_irq(edev->irqs[0], bbc_i2c_interrupt,
-			SA_SHIRQ, "bbc_i2c", bp))
+			IRQF_SHARED, "bbc_i2c", bp))
 		goto fail;
 
 	bp->index = index;

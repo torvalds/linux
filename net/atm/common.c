@@ -3,7 +3,6 @@
 /* Written 1995-2000 by Werner Almesberger, EPFL LRC/ICA */
 
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kmod.h>
 #include <linux/net.h>		/* struct socket, struct proto_ops */
@@ -791,8 +790,14 @@ static int __init atm_init(void)
 		printk(KERN_ERR "atm_proc_init() failed with %d\n",error);
 		goto out_atmsvc_exit;
 	}
+        if ((error = atm_sysfs_init()) < 0) {
+		printk(KERN_ERR "atm_sysfs_init() failed with %d\n",error);
+		goto out_atmproc_exit;
+	}
 out:
 	return error;
+out_atmproc_exit:
+	atm_proc_exit();
 out_atmsvc_exit:
 	atmsvc_exit();
 out_atmpvc_exit:
@@ -805,6 +810,7 @@ out_unregister_vcc_proto:
 static void __exit atm_exit(void)
 {
 	atm_proc_exit();
+	atm_sysfs_exit();
 	atmsvc_exit();
 	atmpvc_exit();
 	proto_unregister(&vcc_proto);

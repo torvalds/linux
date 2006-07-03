@@ -15,7 +15,6 @@
  * 1997-09-10	Updated NTP code according to technical memorandum Jan '96
  *		"A Kernel Model for Precision Timekeeping" by Dave Mills
  */
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/sched.h>
@@ -42,6 +41,7 @@
 #include <asm/sun4paddr.h>
 #include <asm/page.h>
 #include <asm/pcic.h>
+#include <asm/of_device.h>
 
 extern unsigned long wall_jiffies;
 
@@ -273,83 +273,31 @@ static __inline__ void sun4_clock_probe(void)
 #endif
 }
 
-/* Probe for the mostek real time clock chip. */
-static __inline__ void clock_probe(void)
+static int __devinit clock_probe(struct of_device *op, const struct of_device_id *match)
 {
-	struct linux_prom_registers clk_reg[2];
-	char model[128];
-	register int node, cpuunit, bootbus;
-	struct resource r;
+	struct device_node *dp = op->node;
+	char *model = of_get_property(dp, "model", NULL);
 
-	cpuunit = bootbus = 0;
-	memset(&r, 0, sizeof(r));
+	if (!model)
+		return -ENODEV;
 
-	/* Determine the correct starting PROM node for the probe. */
-	node = prom_getchild(prom_root_node);
-	switch (sparc_cpu_model) {
-	case sun4c:
-		break;
-	case sun4m:
-		node = prom_getchild(prom_searchsiblings(node, "obio"));
-		break;
-	case sun4d:
-		node = prom_getchild(bootbus = prom_searchsiblings(prom_getchild(cpuunit = prom_searchsiblings(node, "cpu-unit")), "bootbus"));
-		break;
-	default:
-		prom_printf("CLOCK: Unsupported architecture!\n");
-		prom_halt();
-	}
-
-	/* Find the PROM node describing the real time clock. */
-	sp_clock_typ = MSTK_INVALID;
-	node = prom_searchsiblings(node,"eeprom");
-	if (!node) {
-		prom_printf("CLOCK: No clock found!\n");
-		prom_halt();
-	}
-
-	/* Get the model name and setup everything up. */
-	model[0] = '\0';
-	prom_getstring(node, "model", model, sizeof(model));
-	if (strcmp(model, "mk48t02") == 0) {
+	if (!strcmp(model, "mk48t02")) {
 		sp_clock_typ = MSTK48T02;
-		if (prom_getproperty(node, "reg", (char *) clk_reg, sizeof(clk_reg)) == -1) {
-			prom_printf("clock_probe: FAILED!\n");
-			prom_halt();
-		}
-		if (sparc_cpu_model == sun4d)
-			prom_apply_generic_ranges (bootbus, cpuunit, clk_reg, 1);
-		else
-			prom_apply_obio_ranges(clk_reg, 1);
+
 		/* Map the clock register io area read-only */
-		r.flags = clk_reg[0].which_io;
-		r.start = clk_reg[0].phys_addr;
-		mstk48t02_regs = sbus_ioremap(&r, 0,
-		    sizeof(struct mostek48t02), "mk48t02");
+		mstk48t02_regs = of_ioremap(&op->resource[0], 0,
+					    sizeof(struct mostek48t02),
+					    "mk48t02");
 		mstk48t08_regs = NULL;  /* To catch weirdness */
-	} else if (strcmp(model, "mk48t08") == 0) {
+	} else if (!strcmp(model, "mk48t08")) {
 		sp_clock_typ = MSTK48T08;
-		if(prom_getproperty(node, "reg", (char *) clk_reg,
-				    sizeof(clk_reg)) == -1) {
-			prom_printf("clock_probe: FAILED!\n");
-			prom_halt();
-		}
-		if (sparc_cpu_model == sun4d)
-			prom_apply_generic_ranges (bootbus, cpuunit, clk_reg, 1);
-		else
-			prom_apply_obio_ranges(clk_reg, 1);
-		/* Map the clock register io area read-only */
-		/* XXX r/o attribute is somewhere in r.flags */
-		r.flags = clk_reg[0].which_io;
-		r.start = clk_reg[0].phys_addr;
-		mstk48t08_regs = sbus_ioremap(&r, 0,
-		    sizeof(struct mostek48t08), "mk48t08");
+		mstk48t08_regs = of_ioremap(&op->resource[0], 0,
+					    sizeof(struct mostek48t08),
+					    "mk48t08");
 
 		mstk48t02_regs = &mstk48t08_regs->regs;
-	} else {
-		prom_printf("CLOCK: Unknown model name '%s'\n",model);
-		prom_halt();
-	}
+	} else
+		return -ENODEV;
 
 	/* Report a low battery voltage condition. */
 	if (has_low_battery())
@@ -358,6 +306,28 @@ static __inline__ void clock_probe(void)
 	/* Kick start the clock if it is completely stopped. */
 	if (mostek_read(mstk48t02_regs + MOSTEK_SEC) & MSTK_STOP)
 		kick_start_clock();
+
+	return 0;
+}
+
+static struct of_device_id clock_match[] = {
+	{
+		.name = "eeprom",
+	},
+	{},
+};
+
+static struct of_platform_driver clock_driver = {
+	.name		= "clock",
+	.match_table	= clock_match,
+	.probe		= clock_probe,
+};
+
+
+/* Probe for the mostek real time clock chip. */
+static void clock_init(void)
+{
+	of_register_driver(&clock_driver, &of_bus_type);
 }
 
 void __init sbus_time_init(void)
@@ -376,7 +346,7 @@ void __init sbus_time_init(void)
 	if (ARCH_SUN4)
 		sun4_clock_probe();
 	else
-		clock_probe();
+		clock_init();
 
 	sparc_init_timers(timer_interrupt);
 	

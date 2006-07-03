@@ -15,7 +15,6 @@
  *	notice is accompanying it.
  */
 
-#include <linux/config.h>
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -69,8 +68,8 @@
 
 #define DRV_MODULE_NAME		"tg3"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"3.60"
-#define DRV_MODULE_RELDATE	"June 17, 2006"
+#define DRV_MODULE_VERSION	"3.61"
+#define DRV_MODULE_RELDATE	"June 29, 2006"
 
 #define TG3_DEF_MAC_MODE	0
 #define TG3_DEF_RX_MODE		0
@@ -3195,7 +3194,7 @@ static int tg3_vlan_rx(struct tg3 *tp, struct sk_buff *skb, u16 vlan_tag)
  */
 static int tg3_rx(struct tg3 *tp, int budget)
 {
-	u32 work_mask;
+	u32 work_mask, rx_std_posted = 0;
 	u32 sw_idx = tp->rx_rcb_ptr;
 	u16 hw_idx;
 	int received;
@@ -3222,6 +3221,7 @@ static int tg3_rx(struct tg3 *tp, int budget)
 						  mapping);
 			skb = tp->rx_std_buffers[desc_idx].skb;
 			post_ptr = &tp->rx_std_ptr;
+			rx_std_posted++;
 		} else if (opaque_key == RXD_OPAQUE_RING_JUMBO) {
 			dma_addr = pci_unmap_addr(&tp->rx_jumbo_buffers[desc_idx],
 						  mapping);
@@ -3309,6 +3309,15 @@ static int tg3_rx(struct tg3 *tp, int budget)
 
 next_pkt:
 		(*post_ptr)++;
+
+		if (unlikely(rx_std_posted >= tp->rx_std_max_post)) {
+			u32 idx = *post_ptr % TG3_RX_RING_SIZE;
+
+			tw32_rx_mbox(MAILBOX_RCV_STD_PROD_IDX +
+				     TG3_64BIT_REG_LOW, idx);
+			work_mask &= ~RXD_OPAQUE_RING_STD;
+			rx_std_posted = 0;
+		}
 next_pkt_nopost:
 		sw_idx++;
 		sw_idx %= TG3_RX_RCB_RING_SIZE(tp);
@@ -3870,6 +3879,40 @@ out_unlock:
 	return NETDEV_TX_OK;
 }
 
+#if TG3_TSO_SUPPORT != 0
+static int tg3_start_xmit_dma_bug(struct sk_buff *, struct net_device *);
+
+/* Use GSO to workaround a rare TSO bug that may be triggered when the
+ * TSO header is greater than 80 bytes.
+ */
+static int tg3_tso_bug(struct tg3 *tp, struct sk_buff *skb)
+{
+	struct sk_buff *segs, *nskb;
+
+	/* Estimate the number of fragments in the worst case */
+	if (unlikely(TX_BUFFS_AVAIL(tp) <= (skb_shinfo(skb)->gso_segs * 3))) {
+		netif_stop_queue(tp->dev);
+		return NETDEV_TX_BUSY;
+	}
+
+	segs = skb_gso_segment(skb, tp->dev->features & ~NETIF_F_TSO);
+	if (unlikely(IS_ERR(segs)))
+		goto tg3_tso_bug_end;
+
+	do {
+		nskb = segs;
+		segs = segs->next;
+		nskb->next = NULL;
+		tg3_start_xmit_dma_bug(nskb, tp->dev);
+	} while (segs);
+
+tg3_tso_bug_end:
+	dev_kfree_skb(skb);
+
+	return NETDEV_TX_OK;
+}
+#endif
+
 /* hard_start_xmit for devices that have the 4G bug and/or 40-bit bug and
  * support TG3_FLG2_HW_TSO_1 or firmware TSO only.
  */
@@ -3906,7 +3949,7 @@ static int tg3_start_xmit_dma_bug(struct sk_buff *skb, struct net_device *dev)
 	mss = 0;
 	if (skb->len > (tp->dev->mtu + ETH_HLEN) &&
 	    (mss = skb_shinfo(skb)->gso_size) != 0) {
-		int tcp_opt_len, ip_tcp_len;
+		int tcp_opt_len, ip_tcp_len, hdr_len;
 
 		if (skb_header_cloned(skb) &&
 		    pskb_expand_head(skb, 0, 0, GFP_ATOMIC)) {
@@ -3917,11 +3960,16 @@ static int tg3_start_xmit_dma_bug(struct sk_buff *skb, struct net_device *dev)
 		tcp_opt_len = ((skb->h.th->doff - 5) * 4);
 		ip_tcp_len = (skb->nh.iph->ihl * 4) + sizeof(struct tcphdr);
 
+		hdr_len = ip_tcp_len + tcp_opt_len;
+		if (unlikely((ETH_HLEN + hdr_len) > 80) &&
+			     (tp->tg3_flags2 & TG3_FLG2_HW_TSO_1_BUG))
+			return (tg3_tso_bug(tp, skb));
+
 		base_flags |= (TXD_FLAG_CPU_PRE_DMA |
 			       TXD_FLAG_CPU_POST_DMA);
 
 		skb->nh.iph->check = 0;
-		skb->nh.iph->tot_len = htons(mss + ip_tcp_len + tcp_opt_len);
+		skb->nh.iph->tot_len = htons(mss + hdr_len);
 		if (tp->tg3_flags2 & TG3_FLG2_HW_TSO) {
 			skb->h.th->check = 0;
 			base_flags &= ~TXD_FLAG_TCPUDP_CSUM;
@@ -5981,7 +6029,13 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 	}
 
 	/* Setup replenish threshold. */
-	tw32(RCVBDI_STD_THRESH, tp->rx_pending / 8);
+	val = tp->rx_pending / 8;
+	if (val == 0)
+		val = 1;
+	else if (val > tp->rx_std_max_post)
+		val = tp->rx_std_max_post;
+
+	tw32(RCVBDI_STD_THRESH, val);
 
 	/* Initialize TG3_BDINFO's at:
 	 *  RCVDBDI_STD_BD:	standard eth size rx ring
@@ -6141,8 +6195,12 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 #endif
 
 	/* Receive/send statistics. */
-	if ((rdmac_mode & RDMAC_MODE_FIFO_SIZE_128) &&
-	    (tp->tg3_flags2 & TG3_FLG2_TSO_CAPABLE)) {
+	if (tp->tg3_flags2 & TG3_FLG2_5750_PLUS) {
+		val = tr32(RCVLPC_STATS_ENABLE);
+		val &= ~RCVLPC_STATSENAB_DACK_FIX;
+		tw32(RCVLPC_STATS_ENABLE, val);
+	} else if ((rdmac_mode & RDMAC_MODE_FIFO_SIZE_128) &&
+		   (tp->tg3_flags2 & TG3_FLG2_TSO_CAPABLE)) {
 		val = tr32(RCVLPC_STATS_ENABLE);
 		val &= ~RCVLPC_STATSENAB_LNGBRST_RFIX;
 		tw32(RCVLPC_STATS_ENABLE, val);
@@ -6644,12 +6702,12 @@ static int tg3_request_irq(struct tg3 *tp)
 		fn = tg3_msi;
 		if (tp->tg3_flags2 & TG3_FLG2_1SHOT_MSI)
 			fn = tg3_msi_1shot;
-		flags = SA_SAMPLE_RANDOM;
+		flags = IRQF_SAMPLE_RANDOM;
 	} else {
 		fn = tg3_interrupt;
 		if (tp->tg3_flags & TG3_FLAG_TAGGED_STATUS)
 			fn = tg3_interrupt_tagged;
-		flags = SA_SHIRQ | SA_SAMPLE_RANDOM;
+		flags = IRQF_SHARED | IRQF_SAMPLE_RANDOM;
 	}
 	return (request_irq(tp->pdev->irq, fn, flags, dev->name, dev));
 }
@@ -6668,7 +6726,7 @@ static int tg3_test_interrupt(struct tg3 *tp)
 	free_irq(tp->pdev->irq, dev);
 
 	err = request_irq(tp->pdev->irq, tg3_test_isr,
-			  SA_SHIRQ | SA_SAMPLE_RANDOM, dev->name, dev);
+			  IRQF_SHARED | IRQF_SAMPLE_RANDOM, dev->name, dev);
 	if (err)
 		return err;
 
@@ -8738,6 +8796,9 @@ static void tg3_vlan_rx_register(struct net_device *dev, struct vlan_group *grp)
 {
 	struct tg3 *tp = netdev_priv(dev);
 
+	if (netif_running(dev))
+		tg3_netif_stop(tp);
+
 	tg3_full_lock(tp, 0);
 
 	tp->vlgrp = grp;
@@ -8746,16 +8807,25 @@ static void tg3_vlan_rx_register(struct net_device *dev, struct vlan_group *grp)
 	__tg3_set_rx_mode(dev);
 
 	tg3_full_unlock(tp);
+
+	if (netif_running(dev))
+		tg3_netif_start(tp);
 }
 
 static void tg3_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 {
 	struct tg3 *tp = netdev_priv(dev);
 
+	if (netif_running(dev))
+		tg3_netif_stop(tp);
+
 	tg3_full_lock(tp, 0);
 	if (tp->vlgrp)
 		tp->vlgrp->vlan_devices[vid] = NULL;
 	tg3_full_unlock(tp);
+
+	if (netif_running(dev))
+		tg3_netif_start(tp);
 }
 #endif
 
@@ -10160,8 +10230,14 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 		    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5787) {
 			tp->tg3_flags2 |= TG3_FLG2_HW_TSO_2;
 			tp->tg3_flags2 |= TG3_FLG2_1SHOT_MSI;
-		} else
-			tp->tg3_flags2 |= TG3_FLG2_HW_TSO_1;
+		} else {
+			tp->tg3_flags2 |= TG3_FLG2_HW_TSO_1 |
+					  TG3_FLG2_HW_TSO_1_BUG;
+			if (GET_ASIC_REV(tp->pci_chip_rev_id) ==
+				ASIC_REV_5750 &&
+	     		    tp->pci_chip_rev_id >= CHIPREV_ID_5750_C2)
+				tp->tg3_flags2 &= ~TG3_FLG2_HW_TSO_1_BUG;
+		}
 	}
 
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5705 &&
@@ -10532,6 +10608,16 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5701 &&
 	    (tp->tg3_flags & TG3_FLAG_PCIX_MODE) != 0)
 		tp->rx_offset = 0;
+
+	tp->rx_std_max_post = TG3_RX_RING_SIZE;
+
+	/* Increment the rx prod index on the rx std ring by at most
+	 * 8 for these chips to workaround hw errata.
+	 */
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5750 ||
+	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5752 ||
+	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5755)
+		tp->rx_std_max_post = 8;
 
 	/* By default, disable wake-on-lan.  User can change this
 	 * using ETHTOOL_SWOL.

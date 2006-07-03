@@ -26,7 +26,6 @@
 
 #include <linux/init.h>
 #include <linux/list.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/device.h>
 
 #include <asm/mmu.h>

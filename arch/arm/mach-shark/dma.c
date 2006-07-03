@@ -8,7 +8,6 @@
  *  Copyright (C) 1998 Phil Blundell
  */
 
-#include <linux/config.h>
 #include <linux/init.h>
 
 #include <asm/dma.h>

@@ -12,7 +12,6 @@
  */
 
 #include <linux/capability.h>
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/fs.h>

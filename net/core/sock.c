@@ -92,7 +92,6 @@
  */
 
 #include <linux/capability.h>
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/types.h>
 #include <linux/socket.h>
@@ -565,6 +564,13 @@ set_rcvbuf:
 			ret = -ENONET;
 			break;
 
+		case SO_PASSSEC:
+			if (valbool)
+				set_bit(SOCK_PASSSEC, &sock->flags);
+			else
+				clear_bit(SOCK_PASSSEC, &sock->flags);
+			break;
+
 		/* We implement the SO_SNDLOWAT etc to
 		   not be settable (1003.1g 5.3) */
 		default:
@@ -721,6 +727,10 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 		 */
 		case SO_ACCEPTCONN:
 			v.val = sk->sk_state == TCP_LISTEN;
+			break;
+
+		case SO_PASSSEC:
+			v.val = test_bit(SOCK_PASSSEC, &sock->flags) ? 1 : 0;
 			break;
 
 		case SO_PEERSEC:

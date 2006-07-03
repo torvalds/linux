@@ -63,7 +63,7 @@ int __init platform_setup(void)
 		str[i] = ctrl_readb(EC3104_BASE + i);
 
 	for (i = EC3104_IRQBASE; i < EC3104_IRQBASE + 32; i++)
-		irq_desc[i].handler = &ec3104_int;
+		irq_desc[i].chip = &ec3104_int;
 
 	printk("initializing EC3104 \"%.8s\" at %08x, IRQ %d, IRQ base %d\n",
 	       str, EC3104_BASE, EC3104_IRQ, EC3104_IRQBASE);

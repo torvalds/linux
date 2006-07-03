@@ -36,7 +36,6 @@ extern int sysctl_legacy_va_layout;
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/processor.h>
-#include <asm/atomic.h>
 
 #define nth_page(page,n) pfn_to_page(page_to_pfn((page)) + (n))
 
@@ -514,6 +513,11 @@ static inline void set_page_links(struct page *page, unsigned long zone,
 	set_page_node(page, node);
 	set_page_section(page, pfn_to_section_nr(pfn));
 }
+
+/*
+ * Some inline functions in vmstat.h depend on page_zone()
+ */
+#include <linux/vmstat.h>
 
 #ifndef CONFIG_DISCONTIGMEM
 /* The array of struct pages - for discontigmem use pgdat->lmem_map */

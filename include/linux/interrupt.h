@@ -14,6 +14,55 @@
 #include <asm/ptrace.h>
 #include <asm/system.h>
 
+/*
+ * These correspond to the IORESOURCE_IRQ_* defines in
+ * linux/ioport.h to select the interrupt line behaviour.  When
+ * requesting an interrupt without specifying a IRQF_TRIGGER, the
+ * setting should be assumed to be "as already configured", which
+ * may be as per machine or firmware initialisation.
+ */
+#define IRQF_TRIGGER_NONE	0x00000000
+#define IRQF_TRIGGER_RISING	0x00000001
+#define IRQF_TRIGGER_FALLING	0x00000002
+#define IRQF_TRIGGER_HIGH	0x00000004
+#define IRQF_TRIGGER_LOW	0x00000008
+#define IRQF_TRIGGER_MASK	(IRQF_TRIGGER_HIGH | IRQF_TRIGGER_LOW | \
+				 IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING)
+#define IRQF_TRIGGER_PROBE	0x00000010
+
+/*
+ * These flags used only by the kernel as part of the
+ * irq handling routines.
+ *
+ * IRQF_DISABLED - keep irqs disabled when calling the action handler
+ * IRQF_SAMPLE_RANDOM - irq is used to feed the random generator
+ * IRQF_SHARED - allow sharing the irq among several devices
+ * IRQF_PROBE_SHARED - set by callers when they expect sharing mismatches to occur
+ * IRQF_TIMER - Flag to mark this interrupt as timer interrupt
+ */
+#define IRQF_DISABLED		0x00000020
+#define IRQF_SAMPLE_RANDOM	0x00000040
+#define IRQF_SHARED		0x00000080
+#define IRQF_PROBE_SHARED	0x00000100
+#define IRQF_TIMER		0x00000200
+#define IRQF_PERCPU		0x00000400
+
+/*
+ * Migration helpers. Scheduled for removal in 1/2007
+ * Do not use for new code !
+ */
+#define SA_INTERRUPT		IRQF_DISABLED
+#define SA_SAMPLE_RANDOM	IRQF_SAMPLE_RANDOM
+#define SA_SHIRQ		IRQF_SHARED
+#define SA_PROBEIRQ		IRQF_PROBE_SHARED
+#define SA_PERCPU		IRQF_PERCPU
+
+#define SA_TRIGGER_LOW		IRQF_TRIGGER_LOW
+#define SA_TRIGGER_HIGH		IRQF_TRIGGER_HIGH
+#define SA_TRIGGER_FALLING	IRQF_TRIGGER_FALLING
+#define SA_TRIGGER_RISING	IRQF_TRIGGER_RISING
+#define SA_TRIGGER_MASK		IRQF_TRIGGER_MASK
+
 struct irqaction {
 	irqreturn_t (*handler)(int, void *, struct pt_regs *);
 	unsigned long flags;
@@ -36,6 +85,20 @@ extern void free_irq(unsigned int, void *);
 extern void disable_irq_nosync(unsigned int irq);
 extern void disable_irq(unsigned int irq);
 extern void enable_irq(unsigned int irq);
+
+/* IRQ wakeup (PM) control: */
+extern int set_irq_wake(unsigned int irq, unsigned int on);
+
+static inline int enable_irq_wake(unsigned int irq)
+{
+	return set_irq_wake(irq, 1);
+}
+
+static inline int disable_irq_wake(unsigned int irq)
+{
+	return set_irq_wake(irq, 0);
+}
+
 #endif
 
 #ifndef __ARCH_SET_SOFTIRQ_PENDING

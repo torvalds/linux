@@ -20,6 +20,7 @@
 #include <linux/smp.h>
 #include <linux/smp_lock.h>
 #include <linux/bitops.h>
+#include <linux/kallsyms.h>
 #include <asm/fpumacro.h>
 
 /* #define DEBUG_MNA */
@@ -291,7 +292,8 @@ asmlinkage void kernel_unaligned_trap(struct pt_regs *regs, unsigned int insn)
 	if (count < 5) {
 		last_time = jiffies;
 		count++;
-		printk("Kernel unaligned access at TPC[%lx]\n", regs->tpc);
+		printk("Kernel unaligned access at TPC[%lx] ", regs->tpc);
+		print_symbol("%s\n", regs->tpc);
 	}
 
 	if (!ok_for_kernel(insn) || dir == both) {

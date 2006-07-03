@@ -258,7 +258,7 @@ struct pkt_info {
 	struct sk_buff *return_info;	/* User resource return information */
 };
 
-/* Ethernet port specific infomation */
+/* Ethernet port specific information */
 
 struct mv643xx_mib_counters {
 	u64 good_octets_received;

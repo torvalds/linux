@@ -17,7 +17,6 @@
  *
  * Putting things on the screen/serial line using YAMONs facilities.
  */
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/serial_reg.h>

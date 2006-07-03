@@ -322,10 +322,8 @@ int snd_seq_delete_all_ports(struct snd_seq_client *client)
 	mutex_lock(&client->ports_mutex);
 	write_lock_irqsave(&client->ports_lock, flags);
 	if (! list_empty(&client->ports_list_head)) {
-		__list_add(&deleted_list,
-			   client->ports_list_head.prev,
-			   client->ports_list_head.next);
-		INIT_LIST_HEAD(&client->ports_list_head);
+		list_add(&deleted_list, &client->ports_list_head);
+		list_del_init(&client->ports_list_head);
 	} else {
 		INIT_LIST_HEAD(&deleted_list);
 	}

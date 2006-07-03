@@ -29,7 +29,6 @@
  *  with this program; if not, write  to the Free Software Foundation, Inc.,
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/pm.h>
 #include <linux/pm_legacy.h>
@@ -80,17 +79,17 @@ static DEFINE_SPINLOCK(pm_lock);
  * We only have to save/restore registers that aren't otherwise
  * done as part of a driver pm_* function.
  */
-static uint	sleep_aux_pll_cntrl;
-static uint	sleep_cpu_pll_cntrl;
-static uint	sleep_pin_function;
-static uint	sleep_uart0_inten;
-static uint	sleep_uart0_fifoctl;
-static uint	sleep_uart0_linectl;
-static uint	sleep_uart0_clkdiv;
-static uint	sleep_uart0_enable;
-static uint	sleep_usbhost_enable;
-static uint	sleep_usbdev_enable;
-static uint	sleep_static_memctlr[4][3];
+static unsigned int	sleep_aux_pll_cntrl;
+static unsigned int	sleep_cpu_pll_cntrl;
+static unsigned int	sleep_pin_function;
+static unsigned int	sleep_uart0_inten;
+static unsigned int	sleep_uart0_fifoctl;
+static unsigned int	sleep_uart0_linectl;
+static unsigned int	sleep_uart0_clkdiv;
+static unsigned int	sleep_uart0_enable;
+static unsigned int	sleep_usbhost_enable;
+static unsigned int	sleep_usbdev_enable;
+static unsigned int	sleep_static_memctlr[4][3];
 
 /* Define this to cause the value you write to /proc/sys/pm/sleep to
  * set the TOY timer for the amount of time you want to sleep.

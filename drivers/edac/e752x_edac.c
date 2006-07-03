@@ -17,13 +17,15 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/pci_ids.h>
 #include <linux/slab.h>
 #include "edac_mc.h"
+
+#define E752X_REVISION	" Ver: 2.0.1 " __DATE__
+#define EDAC_MOD_STR	"e752x_edac"
 
 static int force_function_unhide;
 
@@ -763,122 +765,54 @@ static void e752x_check(struct mem_ctl_info *mci)
 	e752x_process_error_info(mci, &info, 1);
 }
 
-static int e752x_probe1(struct pci_dev *pdev, int dev_idx)
+/* Return 1 if dual channel mode is active.  Else return 0. */
+static inline int dual_channel_active(u16 ddrcsr)
 {
-	int rc = -ENODEV;
-	int index;
-	u16 pci_data;
-	u8 stat8;
-	struct mem_ctl_info *mci = NULL;
-	struct e752x_pvt *pvt = NULL;
-	u16 ddrcsr;
-	u32 drc;
-	int drc_chan;	/* Number of channels 0=1chan,1=2chan */
-	int drc_drbg;	/* DRB granularity 0=64mb, 1=128mb */
-	int drc_ddim;	/* DRAM Data Integrity Mode 0=none,2=edac */
-	u32 dra;
+	return (((ddrcsr >> 12) & 3) == 3);
+}
+
+static void e752x_init_csrows(struct mem_ctl_info *mci, struct pci_dev *pdev,
+		u16 ddrcsr)
+{
+	struct csrow_info *csrow;
 	unsigned long last_cumul_size;
-	struct pci_dev *dev = NULL;
-	struct e752x_error_info discard;
+	int index, mem_dev, drc_chan;
+	int drc_drbg;  /* DRB granularity 0=64mb, 1=128mb */
+	int drc_ddim;  /* DRAM Data Integrity Mode 0=none, 2=edac */
+	u8 value;
+	u32 dra, drc, cumul_size;
 
-	debugf0("%s(): mci\n", __func__);
-	debugf0("Starting Probe1\n");
-
-	/* check to see if device 0 function 1 is enabled; if it isn't, we
-	 * assume the BIOS has reserved it for a reason and is expecting
-	 * exclusive access, we take care not to violate that assumption and
-	 * fail the probe. */
-	pci_read_config_byte(pdev, E752X_DEVPRES1, &stat8);
-	if (!force_function_unhide && !(stat8 & (1 << 5))) {
-		printk(KERN_INFO "Contact your BIOS vendor to see if the "
-			"E752x error registers can be safely un-hidden\n");
-		goto fail;
-	}
-	stat8 |= (1 << 5);
-	pci_write_config_byte(pdev, E752X_DEVPRES1, stat8);
-
-	/* need to find out the number of channels */
+	pci_read_config_dword(pdev, E752X_DRA, &dra);
 	pci_read_config_dword(pdev, E752X_DRC, &drc);
-	pci_read_config_word(pdev, E752X_DDRCSR, &ddrcsr);
-	/* FIXME: should check >>12 or 0xf, true for all? */
-	/* Dual channel = 1, Single channel = 0 */
-	drc_chan = (((ddrcsr >> 12) & 3) == 3);
-	drc_drbg = drc_chan + 1;	/* 128 in dual mode, 64 in single */
+	drc_chan = dual_channel_active(ddrcsr);
+	drc_drbg = drc_chan + 1;  /* 128 in dual mode, 64 in single */
 	drc_ddim = (drc >> 20) & 0x3;
 
-	mci = edac_mc_alloc(sizeof(*pvt), E752X_NR_CSROWS, drc_chan + 1);
-
-	if (mci == NULL) {
-		rc = -ENOMEM;
-		goto fail;
-	}
-
-	debugf3("%s(): init mci\n", __func__);
-	mci->mtype_cap = MEM_FLAG_RDDR;
-	mci->edac_ctl_cap = EDAC_FLAG_NONE | EDAC_FLAG_SECDED |
-	    EDAC_FLAG_S4ECD4ED;
-	/* FIXME - what if different memory types are in different csrows? */
-	mci->mod_name = EDAC_MOD_STR;
-	mci->mod_ver = "$Revision: 1.5.2.11 $";
-	mci->pdev = pdev;
-
-	debugf3("%s(): init pvt\n", __func__);
-	pvt = (struct e752x_pvt *) mci->pvt_info;
-	pvt->dev_info = &e752x_devs[dev_idx];
-	pvt->bridge_ck = pci_get_device(PCI_VENDOR_ID_INTEL,
-					pvt->dev_info->err_dev,
-					pvt->bridge_ck);
-
-	if (pvt->bridge_ck == NULL)
-		pvt->bridge_ck = pci_scan_single_device(pdev->bus,
-					PCI_DEVFN(0, 1));
-
-	if (pvt->bridge_ck == NULL) {
-		e752x_printk(KERN_ERR, "error reporting device not found:"
-			"vendor %x device 0x%x (broken BIOS?)\n",
-			PCI_VENDOR_ID_INTEL, e752x_devs[dev_idx].err_dev);
-		goto fail;
-	}
-
-	pvt->mc_symmetric = ((ddrcsr & 0x10) != 0);
-	debugf3("%s(): more mci init\n", __func__);
-	mci->ctl_name = pvt->dev_info->ctl_name;
-	mci->edac_check = e752x_check;
-	mci->ctl_page_to_phys = ctl_page_to_phys;
-
-	/* find out the device types */
-	pci_read_config_dword(pdev, E752X_DRA, &dra);
-
-	/*
-	 * The dram row boundary (DRB) reg values are boundary address for
+	/* The dram row boundary (DRB) reg values are boundary address for
 	 * each DRAM row with a granularity of 64 or 128MB (single/dual
 	 * channel operation).  DRB regs are cumulative; therefore DRB7 will
 	 * contain the total memory contained in all eight rows.
 	 */
 	for (last_cumul_size = index = 0; index < mci->nr_csrows; index++) {
-		u8 value;
-		u32 cumul_size;
-
 		/* mem_dev 0=x8, 1=x4 */
-		int mem_dev = (dra >> (index * 4 + 2)) & 0x3;
-		struct csrow_info *csrow = &mci->csrows[index];
+		mem_dev = (dra >> (index * 4 + 2)) & 0x3;
+		csrow = &mci->csrows[index];
 
 		mem_dev = (mem_dev == 2);
-		pci_read_config_byte(mci->pdev, E752X_DRB + index, &value);
+		pci_read_config_byte(pdev, E752X_DRB + index, &value);
 		/* convert a 128 or 64 MiB DRB to a page size. */
 		cumul_size = value << (25 + drc_drbg - PAGE_SHIFT);
 		debugf3("%s(): (%d) cumul_size 0x%x\n", __func__, index,
 			cumul_size);
-
 		if (cumul_size == last_cumul_size)
-			continue; /* not populated */
+			continue;	/* not populated */
 
 		csrow->first_page = last_cumul_size;
 		csrow->last_page = cumul_size - 1;
 		csrow->nr_pages = cumul_size - last_cumul_size;
 		last_cumul_size = cumul_size;
-		csrow->grain = 1 << 12;  /* 4KiB - resolution of CELOG */
-		csrow->mtype = MEM_RDDR;  /* only one type supported */
+		csrow->grain = 1 << 12;	/* 4KiB - resolution of CELOG */
+		csrow->mtype = MEM_RDDR;	/* only one type supported */
 		csrow->dtype = mem_dev ? DEV_X4 : DEV_X8;
 
 		/*
@@ -896,72 +830,90 @@ static int e752x_probe1(struct pci_dev *pdev, int dev_idx)
 		} else
 			csrow->edac_mode = EDAC_NONE;
 	}
+}
 
-	/* Fill in the memory map table */
-	{
-		u8 value;
-		u8 last = 0;
-		u8 row = 0;
+static void e752x_init_mem_map_table(struct pci_dev *pdev,
+		struct e752x_pvt *pvt)
+{
+	int index;
+	u8 value, last, row, stat8;
 
-		for (index = 0; index < 8; index += 2) {
-			pci_read_config_byte(mci->pdev, E752X_DRB + index,
-					&value);
+	last = 0;
+	row = 0;
 
-			/* test if there is a dimm in this slot */
-			if (value == last) {
-				/* no dimm in the slot, so flag it as empty */
-				pvt->map[index] = 0xff;
-				pvt->map[index + 1] = 0xff;
-			} else { /* there is a dimm in the slot */
-				pvt->map[index] = row;
-				row++;
-				last = value;
-				/* test the next value to see if the dimm is
-				   double sided */
-				pci_read_config_byte(mci->pdev,
-						E752X_DRB + index + 1,
-						&value);
-				pvt->map[index + 1] = (value == last) ?
-					0xff :	/* the dimm is single sided,
-						 * so flag as empty
-						 */
-					row;	/* this is a double sided dimm
-						 * to save the next row #
-						 */
-				row++;
-				last = value;
-			}
+	for (index = 0; index < 8; index += 2) {
+		pci_read_config_byte(pdev, E752X_DRB + index, &value);
+		/* test if there is a dimm in this slot */
+		if (value == last) {
+			/* no dimm in the slot, so flag it as empty */
+			pvt->map[index] = 0xff;
+			pvt->map[index + 1] = 0xff;
+		} else {        /* there is a dimm in the slot */
+			pvt->map[index] = row;
+			row++;
+			last = value;
+			/* test the next value to see if the dimm is double
+			 * sided
+			 */
+			pci_read_config_byte(pdev, E752X_DRB + index + 1,
+					     &value);
+			pvt->map[index + 1] = (value == last) ?
+			    0xff :      /* the dimm is single sided,
+					   so flag as empty */
+			    row;        /* this is a double sided dimm
+					   to save the next row # */
+			row++;
+			last = value;
 		}
 	}
 
 	/* set the map type.  1 = normal, 0 = reversed */
-	pci_read_config_byte(mci->pdev, E752X_DRM, &stat8);
+	pci_read_config_byte(pdev, E752X_DRM, &stat8);
 	pvt->map_type = ((stat8 & 0x0f) > ((stat8 >> 4) & 0x0f));
+}
 
-	mci->edac_cap |= EDAC_FLAG_NONE;
-	debugf3("%s(): tolm, remapbase, remaplimit\n", __func__);
+/* Return 0 on success or 1 on failure. */
+static int e752x_get_devs(struct pci_dev *pdev, int dev_idx,
+		struct e752x_pvt *pvt)
+{
+	struct pci_dev *dev;
 
-	/* load the top of low memory, remap base, and remap limit vars */
-	pci_read_config_word(mci->pdev, E752X_TOLM, &pci_data);
-	pvt->tolm = ((u32) pci_data) << 4;
-	pci_read_config_word(mci->pdev, E752X_REMAPBASE, &pci_data);
-	pvt->remapbase = ((u32) pci_data) << 14;
-	pci_read_config_word(mci->pdev, E752X_REMAPLIMIT, &pci_data);
-	pvt->remaplimit = ((u32) pci_data) << 14;
-	e752x_printk(KERN_INFO,
-		"tolm = %x, remapbase = %x, remaplimit = %x\n", pvt->tolm,
-		pvt->remapbase, pvt->remaplimit);
+	pvt->bridge_ck = pci_get_device(PCI_VENDOR_ID_INTEL,
+					pvt->dev_info->err_dev,
+					pvt->bridge_ck);
 
-	if (edac_mc_add_mc(mci)) {
-		debugf3("%s(): failed edac_mc_add_mc()\n", __func__);
-		goto fail;
+	if (pvt->bridge_ck == NULL)
+		pvt->bridge_ck = pci_scan_single_device(pdev->bus,
+							PCI_DEVFN(0, 1));
+
+	if (pvt->bridge_ck == NULL) {
+		e752x_printk(KERN_ERR, "error reporting device not found:"
+		       "vendor %x device 0x%x (broken BIOS?)\n",
+		       PCI_VENDOR_ID_INTEL, e752x_devs[dev_idx].err_dev);
+		return 1;
 	}
 
 	dev = pci_get_device(PCI_VENDOR_ID_INTEL, e752x_devs[dev_idx].ctl_dev,
-			NULL);
+			     NULL);
+
+	if (dev == NULL)
+		goto fail;
+
 	pvt->dev_d0f0 = dev;
-	/* find the error reporting device and clear errors */
-	dev = pvt->dev_d0f1 = pci_dev_get(pvt->bridge_ck);
+	pvt->dev_d0f1 = pci_dev_get(pvt->bridge_ck);
+
+	return 0;
+
+fail:
+	pci_dev_put(pvt->bridge_ck);
+	return 1;
+}
+
+static void e752x_init_error_reporting_regs(struct e752x_pvt *pvt)
+{
+	struct pci_dev *dev;
+
+	dev = pvt->dev_d0f1;
 	/* Turn off error disable & SMI in case the BIOS turned it on */
 	pci_write_config_byte(dev, E752X_HI_ERRMASK, 0x00);
 	pci_write_config_byte(dev, E752X_HI_SMICMD, 0x00);
@@ -971,7 +923,99 @@ static int e752x_probe1(struct pci_dev *pdev, int dev_idx)
 	pci_write_config_byte(dev, E752X_BUF_SMICMD, 0x00);
 	pci_write_config_byte(dev, E752X_DRAM_ERRMASK, 0x00);
 	pci_write_config_byte(dev, E752X_DRAM_SMICMD, 0x00);
+}
 
+static int e752x_probe1(struct pci_dev *pdev, int dev_idx)
+{
+	u16 pci_data;
+	u8 stat8;
+	struct mem_ctl_info *mci;
+	struct e752x_pvt *pvt;
+	u16 ddrcsr;
+	int drc_chan;	/* Number of channels 0=1chan,1=2chan */
+	struct e752x_error_info discard;
+
+	debugf0("%s(): mci\n", __func__);
+	debugf0("Starting Probe1\n");
+
+	/* check to see if device 0 function 1 is enabled; if it isn't, we
+	 * assume the BIOS has reserved it for a reason and is expecting
+	 * exclusive access, we take care not to violate that assumption and
+	 * fail the probe. */
+	pci_read_config_byte(pdev, E752X_DEVPRES1, &stat8);
+	if (!force_function_unhide && !(stat8 & (1 << 5))) {
+		printk(KERN_INFO "Contact your BIOS vendor to see if the "
+			"E752x error registers can be safely un-hidden\n");
+		return -ENOMEM;
+	}
+	stat8 |= (1 << 5);
+	pci_write_config_byte(pdev, E752X_DEVPRES1, stat8);
+
+	pci_read_config_word(pdev, E752X_DDRCSR, &ddrcsr);
+	/* FIXME: should check >>12 or 0xf, true for all? */
+	/* Dual channel = 1, Single channel = 0 */
+	drc_chan = dual_channel_active(ddrcsr);
+
+	mci = edac_mc_alloc(sizeof(*pvt), E752X_NR_CSROWS, drc_chan + 1);
+
+	if (mci == NULL) {
+		return -ENOMEM;
+	}
+
+	debugf3("%s(): init mci\n", __func__);
+	mci->mtype_cap = MEM_FLAG_RDDR;
+	mci->edac_ctl_cap = EDAC_FLAG_NONE | EDAC_FLAG_SECDED |
+	    EDAC_FLAG_S4ECD4ED;
+	/* FIXME - what if different memory types are in different csrows? */
+	mci->mod_name = EDAC_MOD_STR;
+	mci->mod_ver = E752X_REVISION;
+	mci->dev = &pdev->dev;
+
+	debugf3("%s(): init pvt\n", __func__);
+	pvt = (struct e752x_pvt *) mci->pvt_info;
+	pvt->dev_info = &e752x_devs[dev_idx];
+	pvt->mc_symmetric = ((ddrcsr & 0x10) != 0);
+
+	if (e752x_get_devs(pdev, dev_idx, pvt)) {
+		edac_mc_free(mci);
+		return -ENODEV;
+	}
+
+	debugf3("%s(): more mci init\n", __func__);
+	mci->ctl_name = pvt->dev_info->ctl_name;
+	mci->edac_check = e752x_check;
+	mci->ctl_page_to_phys = ctl_page_to_phys;
+
+	e752x_init_csrows(mci, pdev, ddrcsr);
+	e752x_init_mem_map_table(pdev, pvt);
+
+	/* set the map type.  1 = normal, 0 = reversed */
+	pci_read_config_byte(pdev, E752X_DRM, &stat8);
+	pvt->map_type = ((stat8 & 0x0f) > ((stat8 >> 4) & 0x0f));
+
+	mci->edac_cap |= EDAC_FLAG_NONE;
+	debugf3("%s(): tolm, remapbase, remaplimit\n", __func__);
+
+	/* load the top of low memory, remap base, and remap limit vars */
+	pci_read_config_word(pdev, E752X_TOLM, &pci_data);
+	pvt->tolm = ((u32) pci_data) << 4;
+	pci_read_config_word(pdev, E752X_REMAPBASE, &pci_data);
+	pvt->remapbase = ((u32) pci_data) << 14;
+	pci_read_config_word(pdev, E752X_REMAPLIMIT, &pci_data);
+	pvt->remaplimit = ((u32) pci_data) << 14;
+	e752x_printk(KERN_INFO,
+		"tolm = %x, remapbase = %x, remaplimit = %x\n", pvt->tolm,
+		pvt->remapbase, pvt->remaplimit);
+
+	/* Here we assume that we will never see multiple instances of this
+	 * type of memory controller.  The ID is therefore hardcoded to 0.
+	 */
+	if (edac_mc_add_mc(mci,0)) {
+		debugf3("%s(): failed edac_mc_add_mc()\n", __func__);
+		goto fail;
+	}
+
+	e752x_init_error_reporting_regs(pvt);
 	e752x_get_error_info(mci, &discard); /* clear other MCH errors */
 
 	/* get this far and it's successful */
@@ -979,20 +1023,12 @@ static int e752x_probe1(struct pci_dev *pdev, int dev_idx)
 	return 0;
 
 fail:
-	if (mci) {
-		if (pvt->dev_d0f0)
-			pci_dev_put(pvt->dev_d0f0);
+	pci_dev_put(pvt->dev_d0f0);
+	pci_dev_put(pvt->dev_d0f1);
+	pci_dev_put(pvt->bridge_ck);
+	edac_mc_free(mci);
 
-		if (pvt->dev_d0f1)
-			pci_dev_put(pvt->dev_d0f1);
-
-		if (pvt->bridge_ck)
-			pci_dev_put(pvt->bridge_ck);
-
-		edac_mc_free(mci);
-	}
-
-	return rc;
+	return -ENODEV;
 }
 
 /* returns count (>= 0), or negative on error */
@@ -1015,7 +1051,7 @@ static void __devexit e752x_remove_one(struct pci_dev *pdev)
 
 	debugf0("%s()\n", __func__);
 
-	if ((mci = edac_mc_del_mc(pdev)) == NULL)
+	if ((mci = edac_mc_del_mc(&pdev->dev)) == NULL)
 		return;
 
 	pvt = (struct e752x_pvt *) mci->pvt_info;

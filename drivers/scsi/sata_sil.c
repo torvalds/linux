@@ -608,7 +608,7 @@ static int sil_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	probe_ent->mwdma_mask = sil_port_info[ent->driver_data].mwdma_mask;
 	probe_ent->udma_mask = sil_port_info[ent->driver_data].udma_mask;
        	probe_ent->irq = pdev->irq;
-       	probe_ent->irq_flags = SA_SHIRQ;
+       	probe_ent->irq_flags = IRQF_SHARED;
 	probe_ent->host_flags = sil_port_info[ent->driver_data].host_flags;
 
 	mmio_base = pci_iomap(pdev, 5, 0);

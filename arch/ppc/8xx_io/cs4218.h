@@ -13,7 +13,6 @@
 #define _cs4218_h_
 
 #include <linux/types.h>
-#include <linux/config.h>
 
 #define SND_NDEVS	256	/* Number of supported devices */
 #define SND_DEV_CTL	0	/* Control port /dev/mixer */

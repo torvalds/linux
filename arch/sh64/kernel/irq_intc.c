@@ -15,7 +15,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <linux/kernel.h>
@@ -178,7 +177,7 @@ static void end_intc_irq(unsigned int irq)
 void make_intc_irq(unsigned int irq)
 {
 	disable_irq_nosync(irq);
-	irq_desc[irq].handler = &intc_irq_type;
+	irq_desc[irq].chip = &intc_irq_type;
 	disable_intc_irq(irq);
 }
 
@@ -208,7 +207,7 @@ void __init init_IRQ(void)
 	/* Set default: per-line enable/disable, priority driven ack/eoi */
 	for (i = 0; i < NR_INTC_IRQS; i++) {
 		if (platform_int_priority[i] != NO_PRIORITY) {
-			irq_desc[i].handler = &intc_irq_type;
+			irq_desc[i].chip = &intc_irq_type;
 		}
 	}
 

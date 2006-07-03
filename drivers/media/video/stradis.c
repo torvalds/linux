@@ -1983,7 +1983,7 @@ static int __devinit configure_saa7146(struct pci_dev *pdev, int num)
 	memcpy(&saa->video_dev, &saa_template, sizeof(saa_template));
 	saawrite(0, SAA7146_IER);	/* turn off all interrupts */
 
-	retval = request_irq(saa->irq, saa7146_irq, SA_SHIRQ | SA_INTERRUPT,
+	retval = request_irq(saa->irq, saa7146_irq, IRQF_SHARED | IRQF_DISABLED,
 		"stradis", saa);
 	if (retval == -EINVAL)
 		dev_err(&pdev->dev, "%d: Bad irq number or handler\n", num);

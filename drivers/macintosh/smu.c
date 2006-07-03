@@ -19,7 +19,6 @@
  *    the userland interface
  */
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/device.h>
@@ -556,7 +555,7 @@ static int smu_late_init(void)
 
 	if (smu->db_irq != NO_IRQ) {
 		if (request_irq(smu->db_irq, smu_db_intr,
-				SA_SHIRQ, "SMU doorbell", smu) < 0) {
+				IRQF_SHARED, "SMU doorbell", smu) < 0) {
 			printk(KERN_WARNING "SMU: can't "
 			       "request interrupt %d\n",
 			       smu->db_irq);
@@ -566,7 +565,7 @@ static int smu_late_init(void)
 
 	if (smu->msg_irq != NO_IRQ) {
 		if (request_irq(smu->msg_irq, smu_msg_intr,
-				SA_SHIRQ, "SMU message", smu) < 0) {
+				IRQF_SHARED, "SMU message", smu) < 0) {
 			printk(KERN_WARNING "SMU: can't "
 			       "request interrupt %d\n",
 			       smu->msg_irq);

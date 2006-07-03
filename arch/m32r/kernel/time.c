@@ -17,7 +17,6 @@
 
 #undef  DEBUG_TIMER
 
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -238,7 +237,7 @@ irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	return IRQ_HANDLED;
 }
 
-struct irqaction irq0 = { timer_interrupt, SA_INTERRUPT, CPU_MASK_NONE,
+struct irqaction irq0 = { timer_interrupt, IRQF_DISABLED, CPU_MASK_NONE,
 			  "MFT2", NULL, NULL };
 
 void __init time_init(void)

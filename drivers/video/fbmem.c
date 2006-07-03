@@ -11,7 +11,6 @@
  * for more details.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 
 #include <linux/compat.h>
@@ -32,7 +31,6 @@
 #ifdef CONFIG_KMOD
 #include <linux/kmod.h>
 #endif
-#include <linux/devfs_fs_kernel.h>
 #include <linux/err.h>
 #include <linux/device.h>
 #include <linux/efi.h>
@@ -1331,8 +1329,6 @@ register_framebuffer(struct fb_info *fb_info)
 	fb_add_videomode(&mode, &fb_info->modelist);
 	registered_fb[i] = fb_info;
 
-	devfs_mk_cdev(MKDEV(FB_MAJOR, i),
-			S_IFCHR | S_IRUGO | S_IWUGO, "fb/%d", i);
 	event.info = fb_info;
 	blocking_notifier_call_chain(&fb_notifier_list,
 			    FB_EVENT_FB_REGISTERED, &event);
@@ -1359,7 +1355,6 @@ unregister_framebuffer(struct fb_info *fb_info)
 	i = fb_info->node;
 	if (!registered_fb[i])
 		return -EINVAL;
-	devfs_remove("fb/%d", i);
 
 	if (fb_info->pixmap.addr &&
 	    (fb_info->pixmap.flags & FB_PIXMAP_DEFAULT))
@@ -1432,7 +1427,6 @@ fbmem_init(void)
 {
 	create_proc_read_entry("fb", 0, NULL, fbmem_read_proc, NULL);
 
-	devfs_mk_dir("fb");
 	if (register_chrdev(FB_MAJOR,"fb",&fb_fops))
 		printk("unable to get major %d for fb devs\n", FB_MAJOR);
 

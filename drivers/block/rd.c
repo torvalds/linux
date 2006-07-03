@@ -42,7 +42,6 @@
  * and set blk_size for -ENOSPC,     Werner Fink <werner@suse.de>, Apr '99
  */
 
-#include <linux/config.h>
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <asm/atomic.h>
@@ -50,7 +49,6 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/pagemap.h>
 #include <linux/blkdev.h>
 #include <linux/genhd.h>
@@ -412,7 +410,6 @@ static void __exit rd_cleanup(void)
 		put_disk(rd_disks[i]);
 		blk_cleanup_queue(rd_queue[i]);
 	}
-	devfs_remove("rd");
 	unregister_blkdev(RAMDISK_MAJOR, "ramdisk");
 }
 
@@ -442,8 +439,6 @@ static int __init rd_init(void)
 		goto out;
 	}
 
-	devfs_mk_dir("rd");
-
 	for (i = 0; i < CONFIG_BLK_DEV_RAM_COUNT; i++) {
 		struct gendisk *disk = rd_disks[i];
 
@@ -461,7 +456,6 @@ static int __init rd_init(void)
 		disk->queue = rd_queue[i];
 		disk->flags |= GENHD_FL_SUPPRESS_PARTITION_INFO;
 		sprintf(disk->disk_name, "ram%d", i);
-		sprintf(disk->devfs_name, "rd/%d", i);
 		set_capacity(disk, rd_size * 2);
 		add_disk(rd_disks[i]);
 	}

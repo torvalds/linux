@@ -158,7 +158,7 @@ int pvr2_ctrl_get_mask(struct pvr2_ctrl *cptr)
 /* Retrieve the control's name */
 const char *pvr2_ctrl_get_name(struct pvr2_ctrl *cptr)
 {
-	if (!cptr) return 0;
+	if (!cptr) return NULL;
 	return cptr->info->name;
 }
 
@@ -166,7 +166,7 @@ const char *pvr2_ctrl_get_name(struct pvr2_ctrl *cptr)
 /* Retrieve the control's desc */
 const char *pvr2_ctrl_get_desc(struct pvr2_ctrl *cptr)
 {
-	if (!cptr) return 0;
+	if (!cptr) return NULL;
 	return cptr->info->desc;
 }
 
@@ -488,7 +488,7 @@ int pvr2_ctrl_sym_to_value(struct pvr2_ctrl *cptr,
 
 	LOCK_TAKE(cptr->hdw->big_lock); do {
 		if (cptr->info->type == pvr2_ctl_int) {
-			ret = parse_token(ptr,len,valptr,0,0);
+			ret = parse_token(ptr,len,valptr,NULL,0);
 			if ((ret >= 0) &&
 			    ((*valptr < cptr->info->def.type_int.min_value) ||
 			     (*valptr > cptr->info->def.type_int.max_value))) {

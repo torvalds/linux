@@ -44,7 +44,6 @@
 #define DRIVER_NAME "orinoco_pci"
 #define PFX DRIVER_NAME ": "
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -154,7 +153,7 @@ static int orinoco_pci_init_one(struct pci_dev *pdev,
 
 	hermes_struct_init(&priv->hw, hermes_io, HERMES_32BIT_REGSPACING);
 
-	err = request_irq(pdev->irq, orinoco_interrupt, SA_SHIRQ,
+	err = request_irq(pdev->irq, orinoco_interrupt, IRQF_SHARED,
 			  dev->name, dev);
 	if (err) {
 		printk(KERN_ERR PFX "Cannot allocate IRQ %d\n", pdev->irq);

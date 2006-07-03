@@ -29,7 +29,6 @@
  *
  ********************************************************************/
 
-#include <linux/config.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/skbuff.h>

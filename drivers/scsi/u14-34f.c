@@ -405,7 +405,6 @@
  *  the driver sets host->wish_block = TRUE for all ISA boards.
  */
 
-#include <linux/config.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
 #include <linux/ioport.h>
@@ -873,7 +872,7 @@ static int port_detect \
 
    /* Board detected, allocate its IRQ */
    if (request_irq(irq, do_interrupt_handler,
-             SA_INTERRUPT | ((subversion == ESA) ? SA_SHIRQ : 0),
+             IRQF_DISABLED | ((subversion == ESA) ? IRQF_SHARED : 0),
              driver_name, (void *) &sha[j])) {
       printk("%s: unable to allocate IRQ %u, detaching.\n", name, irq);
       goto freelock;

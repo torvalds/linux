@@ -46,33 +46,29 @@ void prom_putchar(char c)
 	uart->iu_thr = c;
 }
 
-char __init prom_getchar(void)
+static void ioc3_console_write(struct console *con, const char *s, unsigned n)
 {
-	return 0;
+	while (n-- && *s) {
+		if (*s == '\n')
+			prom_putchar('\r');
+		prom_putchar(*s);
+		s++;
+	}
 }
 
-static void inline ioc3_console_probe(void)
-{
-	struct uart_port up;
-
-	/*
-	 * Register to interrupt zero because we share the interrupt with
-	 * the serial driver which we don't properly support yet.
-	 */
-	memset(&up, 0, sizeof(up));
-	up.membase	= (unsigned char *) console_uart();
-	up.irq		= 0;
-	up.uartclk	= IOC3_CLK;
-	up.regshift	= 0;
-	up.iotype	= UPIO_MEM;
-	up.flags	= IOC3_FLAGS;
-	up.line		= 0;
-
-	if (early_serial_setup(&up))
-		printk(KERN_ERR "Early serial init of port 0 failed\n");
-}
+static struct console ioc3_console = {
+	.name	= "ioc3",
+	.write	= ioc3_console_write,
+	.flags	= CON_PRINTBUFFER | CON_BOOT,
+	.index	= -1
+};
 
 __init void ip27_setup_console(void)
 {
-	ioc3_console_probe();
+	register_console(&ioc3_console);
+}
+
+void __init disable_early_printk(void)
+{
+	unregister_console(&ioc3_console);
 }

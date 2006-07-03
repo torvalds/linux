@@ -1268,7 +1268,7 @@ static int fdc_grab_irq_and_dma(void)
 		/*  Get fast interrupt handler.
 		 */
 		if (request_irq(fdc.irq, ftape_interrupt,
-				SA_INTERRUPT, "ft", ftape_id)) {
+				IRQF_DISABLED, "ft", ftape_id)) {
 			TRACE_ABORT(-EIO, ft_t_bug,
 				    "Unable to grab IRQ%d for ftape driver",
 				    fdc.irq);

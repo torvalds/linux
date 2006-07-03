@@ -19,7 +19,6 @@
  * 	http://www.hpl.hp.com/research/linux/perfmon
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
@@ -6165,7 +6164,7 @@ pfm_load_regs (struct task_struct *task)
 		/*
 		 * will replay the PMU interrupt
 		 */
-		if (need_irq_resend) hw_resend_irq(NULL, IA64_PERFMON_VECTOR);
+		if (need_irq_resend) ia64_resend_irq(IA64_PERFMON_VECTOR);
 
 		pfm_stats[smp_processor_id()].pfm_replay_ovfl_intr_count++;
 	}
@@ -6305,7 +6304,7 @@ pfm_load_regs (struct task_struct *task)
 		/*
 		 * will replay the PMU interrupt
 		 */
-		if (need_irq_resend) hw_resend_irq(NULL, IA64_PERFMON_VECTOR);
+		if (need_irq_resend) ia64_resend_irq(IA64_PERFMON_VECTOR);
 
 		pfm_stats[smp_processor_id()].pfm_replay_ovfl_intr_count++;
 	}
@@ -6440,7 +6439,7 @@ pfm_flush_pmds(struct task_struct *task, pfm_context_t *ctx)
 
 static struct irqaction perfmon_irqaction = {
 	.handler = pfm_interrupt_handler,
-	.flags   = SA_INTERRUPT,
+	.flags   = IRQF_DISABLED,
 	.name    = "perfmon"
 };
 

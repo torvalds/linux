@@ -16,6 +16,7 @@
 #include <asm/page.h>
 #include <asm/oplib.h>
 #include <asm/prom.h>
+#include <asm/of_device.h>
 #include <asm/iommu.h>
 
 /* The abstraction used here is that there are PCI controllers,
@@ -209,7 +210,6 @@ struct pci_controller_info {
 
 	/* Operations which are controller specific. */
 	void (*scan_bus)(struct pci_controller_info *);
-	unsigned int (*irq_build)(struct pci_pbm_info *, struct pci_dev *, unsigned int);
 	void (*base_address_update)(struct pci_dev *, int);
 	void (*resource_adjust)(struct pci_dev *, struct resource *, struct resource *);
 
@@ -217,8 +217,6 @@ struct pci_controller_info {
 	struct pci_ops			*pci_ops;
 	unsigned int			pci_first_busno;
 	unsigned int			pci_last_busno;
-
-	void				*starfire_cookie;
 };
 
 /* PCI devices which are not bridges have this placed in their pci_dev
@@ -228,6 +226,7 @@ struct pci_controller_info {
 struct pcidev_cookie {
 	struct pci_pbm_info		*pbm;
 	struct device_node		*prom_node;
+	struct of_device		*op;
 	struct linux_prom_pci_registers	prom_regs[PROMREG_MAX];
 	int num_prom_regs;
 	struct linux_prom_pci_registers prom_assignments[PROMREG_MAX];

@@ -266,6 +266,10 @@ acpi_ex_load_table_op(struct acpi_walk_state *walk_state,
 		}
 	}
 
+	ACPI_INFO((AE_INFO,
+		   "Dynamic OEM Table Load - [%4.4s] OemId [%6.6s] OemTableId [%8.8s]",
+		   table->signature, table->oem_id, table->oem_table_id));
+
 	*return_desc = ddb_handle;
 	return_ACPI_STATUS(status);
 }
@@ -445,6 +449,10 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 
 		return_ACPI_STATUS(status);
 	}
+
+	ACPI_INFO((AE_INFO,
+		   "Dynamic SSDT Load - OemId [%6.6s] OemTableId [%8.8s]",
+		   table_ptr->oem_id, table_ptr->oem_table_id));
 
       cleanup:
 	if (ACPI_FAILURE(status)) {

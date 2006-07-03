@@ -390,7 +390,7 @@ parse_eeprom (struct net_device *dev)
 	for (i = 0; i < 6; i++)
 		dev->dev_addr[i] = psrom->mac_addr[i];
 
-	/* Parse Software Infomation Block */
+	/* Parse Software Information Block */
 	i = 0x30;
 	psib = (u8 *) sromdata;
 	do {
@@ -440,7 +440,7 @@ rio_open (struct net_device *dev)
 	int i;
 	u16 macctrl;
 	
-	i = request_irq (dev->irq, &rio_interrupt, SA_SHIRQ, dev->name, dev);
+	i = request_irq (dev->irq, &rio_interrupt, IRQF_SHARED, dev->name, dev);
 	if (i)
 		return i;
 	

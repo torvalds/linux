@@ -36,7 +36,6 @@
 /* Header files ***************************************************************/
 
 #include <linux/module.h>
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/skbuff.h>
 #include <linux/atmdev.h>
@@ -626,7 +625,7 @@ static int __devinit ns_init_card(int i, struct pci_dev *pcidev)
    if (mac[i] == NULL)
       nicstar_init_eprom(card->membase);
 
-   if (request_irq(pcidev->irq, &ns_irq_handler, SA_INTERRUPT | SA_SHIRQ, "nicstar", card) != 0)
+   if (request_irq(pcidev->irq, &ns_irq_handler, IRQF_DISABLED | IRQF_SHARED, "nicstar", card) != 0)
    {
       printk("nicstar%d: can't allocate IRQ %d.\n", i, pcidev->irq);
       error = 9;

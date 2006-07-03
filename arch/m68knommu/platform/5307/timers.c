@@ -8,7 +8,6 @@
 
 /***************************************************************************/
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/param.h>
@@ -62,7 +61,7 @@ void coldfire_timer_init(irqreturn_t (*handler)(int, void *, struct pt_regs *))
 	__raw_writew(MCFTIMER_TMR_ENORI | MCFTIMER_TMR_CLK16 |
 		MCFTIMER_TMR_RESTART | MCFTIMER_TMR_ENABLE, TA(MCFTIMER_TMR));
 
-	request_irq(mcf_timervector, handler, SA_INTERRUPT, "timer", NULL);
+	request_irq(mcf_timervector, handler, IRQF_DISABLED, "timer", NULL);
 	mcf_settimericr(1, mcf_timerlevel);
 
 #ifdef CONFIG_HIGHPROFILE
@@ -126,7 +125,7 @@ void coldfire_profile_init(void)
 		MCFTIMER_TMR_RESTART | MCFTIMER_TMR_ENABLE, PA(MCFTIMER_TMR));
 
 	request_irq(mcf_profilevector, coldfire_profile_tick,
-		(SA_INTERRUPT | IRQ_FLG_FAST), "profile timer", NULL);
+		(IRQF_DISABLED | IRQ_FLG_FAST), "profile timer", NULL);
 	mcf_settimericr(2, 7);
 }
 

@@ -15,7 +15,6 @@
 #undef DEBUG
 
 #include <linux/capability.h>
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/mman.h>
@@ -506,6 +505,9 @@ static int dummy_task_getsid (struct task_struct *p)
 	return 0;
 }
 
+static void dummy_task_getsecid (struct task_struct *p, u32 *secid)
+{ }
+
 static int dummy_task_setgroups (struct group_info *group_info)
 {
 	return 0;
@@ -517,6 +519,11 @@ static int dummy_task_setnice (struct task_struct *p, int nice)
 }
 
 static int dummy_task_setioprio (struct task_struct *p, int ioprio)
+{
+	return 0;
+}
+
+static int dummy_task_getioprio (struct task_struct *p)
 {
 	return 0;
 }
@@ -548,7 +555,7 @@ static int dummy_task_wait (struct task_struct *p)
 }
 
 static int dummy_task_kill (struct task_struct *p, struct siginfo *info,
-			    int sig)
+			    int sig, u32 secid)
 {
 	return 0;
 }
@@ -675,9 +682,9 @@ static int dummy_netlink_send (struct sock *sk, struct sk_buff *skb)
 	return 0;
 }
 
-static int dummy_netlink_recv (struct sk_buff *skb)
+static int dummy_netlink_recv (struct sk_buff *skb, int cap)
 {
-	if (!cap_raised (NETLINK_CB (skb).eff_cap, CAP_NET_ADMIN))
+	if (!cap_raised (NETLINK_CB (skb).eff_cap, cap))
 		return -EPERM;
 	return 0;
 }
@@ -981,9 +988,11 @@ void security_fixup_ops (struct security_operations *ops)
 	set_to_dummy_if_null(ops, task_setpgid);
 	set_to_dummy_if_null(ops, task_getpgid);
 	set_to_dummy_if_null(ops, task_getsid);
+	set_to_dummy_if_null(ops, task_getsecid);
 	set_to_dummy_if_null(ops, task_setgroups);
 	set_to_dummy_if_null(ops, task_setnice);
 	set_to_dummy_if_null(ops, task_setioprio);
+	set_to_dummy_if_null(ops, task_getioprio);
 	set_to_dummy_if_null(ops, task_setrlimit);
 	set_to_dummy_if_null(ops, task_setscheduler);
 	set_to_dummy_if_null(ops, task_getscheduler);

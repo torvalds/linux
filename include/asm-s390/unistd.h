@@ -394,11 +394,9 @@
 
 #ifdef __KERNEL__
 
-/* user-visible error numbers are in the range -1 - -122: see <asm-s390/errno.h> */
-
 #define __syscall_return(type, res)			     \
 do {							     \
-	if ((unsigned long)(res) >= (unsigned long)(-125)) { \
+	if ((unsigned long)(res) >= (unsigned long)(-4095)) {\
 		errno = -(res);				     \
 		res = -1;				     \
 	}						     \

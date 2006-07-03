@@ -22,7 +22,6 @@
  * Reset the MIPS boards.
  *
  */
-#include <linux/config.h>
 #include <linux/pm.h>
 
 #include <asm/io.h>

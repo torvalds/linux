@@ -8,7 +8,6 @@
  * Copyright (C) 1996, 97, 98, 99, 2000, 01, 03, 04, 05 by Ralf Baechle
  * Copyright (C) 1999, 2000, 01 Silicon Graphics, Inc.
  */
-#include <linux/config.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <asm/checksum.h>

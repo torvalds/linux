@@ -67,8 +67,8 @@ struct pt_regs;
 
 /*
  * various flags for request_irq() - the Amiga now uses the standard
- * mechanism like all other architectures - SA_INTERRUPT and SA_SHIRQ
- * are your friends.
+ * mechanism like all other architectures - IRQF_DISABLED and
+ * IRQF_SHARED are your friends.
  */
 #ifndef MACH_AMIGA_ONLY
 #define IRQ_FLG_LOCK	(0x0001)	/* handler is not replaceable	*/

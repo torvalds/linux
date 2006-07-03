@@ -8,7 +8,6 @@
  * Copyright (C) 1999 Walt Drummond <drummond@valinux.com>
  * Copyright (C) 1999 Vijay Chander <vijay@engr.sgi.com>
  */
-#include <linux/config.h>
 
 #include <linux/init.h>
 #include <linux/delay.h>

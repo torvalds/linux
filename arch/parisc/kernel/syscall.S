@@ -29,18 +29,6 @@
 	.level		1.1
 #endif
 
-#ifndef CONFIG_64BIT
-	.macro fixup_branch,lbl
-	b	    \lbl
-	.endm
-#else
-	.macro fixup_branch,lbl
-	ldil	    L%\lbl, %r1
-	ldo	    R%\lbl(%r1), %r1
-	bv,n        %r0(%r1)
-	.endm
-#endif
-
 	.text
 
 	.import syscall_exit,code
@@ -541,7 +529,7 @@ cas_nocontend:
 # endif
 /* ENABLE_LWS_DEBUG */
 
-	ldcw	0(%sr2,%r20), %r28			/* Try to acquire the lock */
+	LDCW	0(%sr2,%r20), %r28			/* Try to acquire the lock */
 	cmpb,<>,n	%r0, %r28, cas_action		/* Did we get it? */
 cas_wouldblock:
 	ldo	2(%r0), %r28				/* 2nd case */

@@ -1371,7 +1371,7 @@ static int __devinit snd_fm801_create(struct snd_card *card,
 		return err;
 	}
 	chip->port = pci_resource_start(pci, 0);
-	if (request_irq(pci->irq, snd_fm801_interrupt, SA_INTERRUPT|SA_SHIRQ,
+	if (request_irq(pci->irq, snd_fm801_interrupt, IRQF_DISABLED|IRQF_SHARED,
 			"FM801", chip)) {
 		snd_printk(KERN_ERR "unable to grab IRQ %d\n", chip->irq);
 		snd_fm801_free(chip);

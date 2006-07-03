@@ -28,7 +28,6 @@ Currently, these files are in /proc/sys/vm:
 - block_dump
 - drop-caches
 - zone_reclaim_mode
-- zone_reclaim_interval
 - panic_on_oom
 
 ==============================================================
@@ -166,18 +165,6 @@ It may be advisable to allow slab reclaim if the system makes heavy
 use of files and builds up large slab caches. However, the slab
 shrink operation is global, may take a long time and free slabs
 in all nodes of the system.
-
-================================================================
-
-zone_reclaim_interval:
-
-The time allowed for off node allocations after zone reclaim
-has failed to reclaim enough pages to allow a local allocation.
-
-Time is set in seconds and set by default to 30 seconds.
-
-Reduce the interval if undesired off node allocations occur. However, too
-frequent scans will have a negative impact onoff node allocation performance.
 
 =============================================================
 

@@ -925,23 +925,21 @@ S:	Maintained
 
 EDAC-CORE
 P:	Doug Thompson
-M:	norsk5@xmission.com, dthompson@linuxnetworx.com
-P:	Dave Peterson
-M:	dsp@llnl.gov, dave_peterson@pobox.com
+M:	norsk5@xmission.com
 L:	bluesmoke-devel@lists.sourceforge.net
 W:	bluesmoke.sourceforge.net
-S:	Maintained
+S:	Supported
 
 EDAC-E752X
-P:	Dave Peterson
-M:	dsp@llnl.gov, dave_peterson@pobox.com
+P:	Mark Gross
+M:	mark.gross@intel.com
 L:	bluesmoke-devel@lists.sourceforge.net
 W:	bluesmoke.sourceforge.net
 S:	Maintained
 
 EDAC-E7XXX
-P:	Dave Peterson
-M:	dsp@llnl.gov, dave_peterson@pobox.com
+P:	Doug Thompson
+M:	norsk5@xmission.com
 L:	bluesmoke-devel@lists.sourceforge.net
 W:	bluesmoke.sourceforge.net
 S:	Maintained
@@ -2555,13 +2553,6 @@ SIS USB2VGA DRIVER
 P:	Thomas Winischhofer
 M:	thomas@winischhofer.net
 W:	http://www.winischhofer.at/linuxsisusbvga.shtml
-S:	Maintained
-
-SMB FILESYSTEM
-P:	Urban Widmark
-M:	urban@teststation.com
-W:	http://samba.org/
-L:	samba@samba.org
 S:	Maintained
 
 SMC91x ETHERNET DRIVER

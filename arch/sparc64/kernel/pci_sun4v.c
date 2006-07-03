@@ -843,15 +843,6 @@ static void pci_sun4v_scan_bus(struct pci_controller_info *p)
 	/* XXX register error interrupt handlers XXX */
 }
 
-static unsigned int pci_sun4v_irq_build(struct pci_pbm_info *pbm,
-					struct pci_dev *pdev,
-					unsigned int devino)
-{
-	u32 devhandle = pbm->devhandle;
-
-	return sun4v_build_irq(devhandle, devino);
-}
-
 static void pci_sun4v_base_address_update(struct pci_dev *pdev, int resource)
 {
 	struct pcidev_cookie *pcp = pdev->sysdata;
@@ -1200,7 +1191,6 @@ void sun4v_pci_init(struct device_node *dp, char *model_name)
 	p->pbms_same_domain = 0;
 
 	p->scan_bus = pci_sun4v_scan_bus;
-	p->irq_build = pci_sun4v_irq_build;
 	p->base_address_update = pci_sun4v_base_address_update;
 	p->resource_adjust = pci_sun4v_resource_adjust;
 	p->pci_ops = &pci_sun4v_ops;

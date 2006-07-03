@@ -24,7 +24,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/config.h>
 
 #include <linux/types.h>
 #include <linux/errno.h>
@@ -251,7 +250,9 @@ static int msr_class_device_create(int i)
 	return err;
 }
 
-static int msr_class_cpu_callback(struct notifier_block *nfb, unsigned long action, void *hcpu)
+#ifdef CONFIG_HOTPLUG_CPU
+static int msr_class_cpu_callback(struct notifier_block *nfb,
+				unsigned long action, void *hcpu)
 {
 	unsigned int cpu = (unsigned long)hcpu;
 
@@ -270,6 +271,7 @@ static struct notifier_block __cpuinitdata msr_class_cpu_notifier =
 {
 	.notifier_call = msr_class_cpu_callback,
 };
+#endif
 
 static int __init msr_init(void)
 {
@@ -292,7 +294,7 @@ static int __init msr_init(void)
 		if (err != 0)
 			goto out_class;
 	}
-	register_cpu_notifier(&msr_class_cpu_notifier);
+	register_hotcpu_notifier(&msr_class_cpu_notifier);
 
 	err = 0;
 	goto out;
@@ -315,7 +317,7 @@ static void __exit msr_exit(void)
 		class_device_destroy(msr_class, MKDEV(MSR_MAJOR, cpu));
 	class_destroy(msr_class);
 	unregister_chrdev(MSR_MAJOR, "cpu/msr");
-	unregister_cpu_notifier(&msr_class_cpu_notifier);
+	unregister_hotcpu_notifier(&msr_class_cpu_notifier);
 }
 
 module_init(msr_init);

@@ -181,6 +181,9 @@ extern int rtas_set_rtc_time(struct rtc_time *rtc_time);
 extern unsigned int rtas_busy_delay_time(int status);
 extern unsigned int rtas_busy_delay(int status);
 
+extern int early_init_dt_scan_rtas(unsigned long node,
+		const char *uname, int depth, void *data);
+
 extern void pSeries_log_error(char *buf, unsigned int err_type, int fatal);
 
 /* Error types logged.  */

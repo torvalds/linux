@@ -3,7 +3,6 @@
  */
 
 #include <asm-generic/vmlinux.lds.h>
-#include <linux/config.h>
 
 #ifndef CONFIG_64BIT
 OUTPUT_FORMAT("elf32-s390", "elf32-s390", "elf32-s390")

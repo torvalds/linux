@@ -65,7 +65,7 @@ static int pvr2_encoder_write_words(struct pvr2_hdw *hdw,
 		}
 		ret = pvr2_send_request(hdw,
 					hdw->cmd_buffer,1+(chunkCnt*7),
-					0,0);
+					NULL,0);
 		if (ret) return ret;
 		data += chunkCnt;
 		dlen -= chunkCnt;
@@ -322,7 +322,7 @@ int pvr2_encoder_configure(struct pvr2_hdw *hdw)
 	}
 
 	ret = cx2341x_update(hdw,pvr2_encoder_cmd,
-			     (hdw->enc_cur_valid ? &hdw->enc_cur_state : 0),
+			     (hdw->enc_cur_valid ? &hdw->enc_cur_state : NULL),
 			     &hdw->enc_ctl_state);
 	if (ret) {
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,

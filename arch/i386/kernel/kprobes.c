@@ -28,7 +28,6 @@
  *		<prasanna@in.ibm.com> added function-return probes.
  */
 
-#include <linux/config.h>
 #include <linux/kprobes.h>
 #include <linux/ptrace.h>
 #include <linux/preempt.h>

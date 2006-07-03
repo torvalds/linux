@@ -23,7 +23,6 @@
  * Include the main OSS Lite header file. It include all the os, OSS Lite, etc
  * headers needed by this source.
  */
-#include <linux/config.h>
 #include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/init.h>

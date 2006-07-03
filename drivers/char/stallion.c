@@ -26,7 +26,6 @@
 
 /*****************************************************************************/
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
@@ -40,7 +39,6 @@
 #include <linux/ioport.h>
 #include <linux/init.h>
 #include <linux/smp_lock.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/device.h>
 #include <linux/delay.h>
 
@@ -757,11 +755,8 @@ static void __exit stallion_module_exit(void)
 			"errno=%d\n", -i);
 		return;
 	}
-	for (i = 0; i < 4; i++) {
-		devfs_remove("staliomem/%d", i);
+	for (i = 0; i < 4; i++)
 		class_device_destroy(stallion_class, MKDEV(STL_SIOMEMMAJOR, i));
-	}
-	devfs_remove("staliomem");
 	if ((i = unregister_chrdev(STL_SIOMEMMAJOR, "staliomem")))
 		printk("STALLION: failed to un-register serial memory device, "
 			"errno=%d\n", -i);
@@ -2307,7 +2302,7 @@ static inline int stl_initeio(stlbrd_t *brdp)
 	brdp->nrpanels = 1;
 	brdp->state |= BRD_FOUND;
 	brdp->hwid = status;
-	if (request_irq(brdp->irq, stl_intr, SA_SHIRQ, name, brdp) != 0) {
+	if (request_irq(brdp->irq, stl_intr, IRQF_SHARED, name, brdp) != 0) {
 		printk("STALLION: failed to register interrupt "
 		    "routine for %s irq=%d\n", name, brdp->irq);
 		rc = -ENODEV;
@@ -2517,7 +2512,7 @@ static inline int stl_initech(stlbrd_t *brdp)
 		outb((brdp->ioctrlval | ECH_BRDDISABLE), brdp->ioctrl);
 
 	brdp->state |= BRD_FOUND;
-	if (request_irq(brdp->irq, stl_intr, SA_SHIRQ, name, brdp) != 0) {
+	if (request_irq(brdp->irq, stl_intr, IRQF_SHARED, name, brdp) != 0) {
 		printk("STALLION: failed to register interrupt "
 		    "routine for %s irq=%d\n", name, brdp->irq);
 		i = -ENODEV;
@@ -3044,22 +3039,16 @@ static int __init stl_init(void)
  */
 	if (register_chrdev(STL_SIOMEMMAJOR, "staliomem", &stl_fsiomem))
 		printk("STALLION: failed to register serial board device\n");
-	devfs_mk_dir("staliomem");
 
 	stallion_class = class_create(THIS_MODULE, "staliomem");
-	for (i = 0; i < 4; i++) {
-		devfs_mk_cdev(MKDEV(STL_SIOMEMMAJOR, i),
-				S_IFCHR|S_IRUSR|S_IWUSR,
-				"staliomem/%d", i);
+	for (i = 0; i < 4; i++)
 		class_device_create(stallion_class, NULL,
 				    MKDEV(STL_SIOMEMMAJOR, i), NULL,
 				    "staliomem%d", i);
-	}
 
 	stl_serial->owner = THIS_MODULE;
 	stl_serial->driver_name = stl_drvname;
 	stl_serial->name = "ttyE";
-	stl_serial->devfs_name = "tts/E";
 	stl_serial->major = STL_SERIALMAJOR;
 	stl_serial->minor_start = 0;
 	stl_serial->type = TTY_DRIVER_TYPE_SERIAL;

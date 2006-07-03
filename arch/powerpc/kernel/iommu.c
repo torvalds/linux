@@ -23,7 +23,6 @@
  */
 
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/slab.h>
@@ -38,6 +37,7 @@
 #include <asm/iommu.h>
 #include <asm/pci-bridge.h>
 #include <asm/machdep.h>
+#include <asm/kdump.h>
 
 #define DBG(...)
 
@@ -440,8 +440,37 @@ struct iommu_table *iommu_init_table(struct iommu_table *tbl, int nid)
 	tbl->it_largehint = tbl->it_halfpoint;
 	spin_lock_init(&tbl->it_lock);
 
+#ifdef CONFIG_CRASH_DUMP
+	if (ppc_md.tce_get) {
+		unsigned long index, tceval;
+		unsigned long tcecount = 0;
+
+		/*
+		 * Reserve the existing mappings left by the first kernel.
+		 */
+		for (index = 0; index < tbl->it_size; index++) {
+			tceval = ppc_md.tce_get(tbl, index + tbl->it_offset);
+			/*
+			 * Freed TCE entry contains 0x7fffffffffffffff on JS20
+			 */
+			if (tceval && (tceval != 0x7fffffffffffffffUL)) {
+				__set_bit(index, tbl->it_map);
+				tcecount++;
+			}
+		}
+		if ((tbl->it_size - tcecount) < KDUMP_MIN_TCE_ENTRIES) {
+			printk(KERN_WARNING "TCE table is full; ");
+			printk(KERN_WARNING "freeing %d entries for the kdump boot\n",
+				KDUMP_MIN_TCE_ENTRIES);
+			for (index = tbl->it_size - KDUMP_MIN_TCE_ENTRIES;
+				index < tbl->it_size; index++)
+				__clear_bit(index, tbl->it_map);
+		}
+	}
+#else
 	/* Clear the hardware table in case firmware left allocations in it */
 	ppc_md.tce_free(tbl, tbl->it_offset, tbl->it_size);
+#endif
 
 	if (!welcomed) {
 		printk(KERN_INFO "IOMMU table initialized, virtual merging %s\n",

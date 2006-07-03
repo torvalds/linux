@@ -47,7 +47,6 @@
  *	Marcus Meissner		Added ISA PnP support.
  */
 
-#include <linux/config.h>
 #include <linux/pnp.h>
 #include <linux/module.h>
 #include <linux/init.h>

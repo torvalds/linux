@@ -82,12 +82,9 @@ acpi_status acpi_ut_mutex_initialize(void)
 
 	/* Create the spinlocks for use at interrupt level */
 
-	status = acpi_os_create_lock(&acpi_gbl_gpe_lock);
-	if (ACPI_FAILURE(status)) {
-		return_ACPI_STATUS(status);
-	}
+	spin_lock_init(acpi_gbl_gpe_lock);
+	spin_lock_init(acpi_gbl_hardware_lock);
 
-	status = acpi_os_create_lock(&acpi_gbl_hardware_lock);
 	return_ACPI_STATUS(status);
 }
 
@@ -146,9 +143,8 @@ static acpi_status acpi_ut_create_mutex(acpi_mutex_handle mutex_id)
 	}
 
 	if (!acpi_gbl_mutex_info[mutex_id].mutex) {
-		status = acpi_os_create_semaphore(1, 1,
-						  &acpi_gbl_mutex_info
-						  [mutex_id].mutex);
+		status =
+		    acpi_os_create_mutex(&acpi_gbl_mutex_info[mutex_id].mutex);
 		acpi_gbl_mutex_info[mutex_id].thread_id =
 		    ACPI_MUTEX_NOT_ACQUIRED;
 		acpi_gbl_mutex_info[mutex_id].use_count = 0;
@@ -171,7 +167,6 @@ static acpi_status acpi_ut_create_mutex(acpi_mutex_handle mutex_id)
 
 static acpi_status acpi_ut_delete_mutex(acpi_mutex_handle mutex_id)
 {
-	acpi_status status;
 
 	ACPI_FUNCTION_TRACE_U32(ut_delete_mutex, mutex_id);
 
@@ -179,12 +174,12 @@ static acpi_status acpi_ut_delete_mutex(acpi_mutex_handle mutex_id)
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
-	status = acpi_os_delete_semaphore(acpi_gbl_mutex_info[mutex_id].mutex);
+	acpi_os_delete_mutex(acpi_gbl_mutex_info[mutex_id].mutex);
 
 	acpi_gbl_mutex_info[mutex_id].mutex = NULL;
 	acpi_gbl_mutex_info[mutex_id].thread_id = ACPI_MUTEX_NOT_ACQUIRED;
 
-	return_ACPI_STATUS(status);
+	return_ACPI_STATUS(AE_OK);
 }
 
 /*******************************************************************************
@@ -251,8 +246,8 @@ acpi_status acpi_ut_acquire_mutex(acpi_mutex_handle mutex_id)
 			  "Thread %X attempting to acquire Mutex [%s]\n",
 			  this_thread_id, acpi_ut_get_mutex_name(mutex_id)));
 
-	status = acpi_os_wait_semaphore(acpi_gbl_mutex_info[mutex_id].mutex,
-					1, ACPI_WAIT_FOREVER);
+	status = acpi_os_acquire_mutex(acpi_gbl_mutex_info[mutex_id].mutex,
+				       ACPI_WAIT_FOREVER);
 	if (ACPI_SUCCESS(status)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_MUTEX,
 				  "Thread %X acquired Mutex [%s]\n",
@@ -284,7 +279,6 @@ acpi_status acpi_ut_acquire_mutex(acpi_mutex_handle mutex_id)
 
 acpi_status acpi_ut_release_mutex(acpi_mutex_handle mutex_id)
 {
-	acpi_status status;
 	acpi_thread_id this_thread_id;
 
 	ACPI_FUNCTION_NAME(ut_release_mutex);
@@ -340,19 +334,6 @@ acpi_status acpi_ut_release_mutex(acpi_mutex_handle mutex_id)
 
 	acpi_gbl_mutex_info[mutex_id].thread_id = ACPI_MUTEX_NOT_ACQUIRED;
 
-	status =
-	    acpi_os_signal_semaphore(acpi_gbl_mutex_info[mutex_id].mutex, 1);
-
-	if (ACPI_FAILURE(status)) {
-		ACPI_EXCEPTION((AE_INFO, status,
-				"Thread %X could not release Mutex [%X]",
-				this_thread_id, mutex_id));
-	} else {
-		ACPI_DEBUG_PRINT((ACPI_DB_MUTEX,
-				  "Thread %X released Mutex [%s]\n",
-				  this_thread_id,
-				  acpi_ut_get_mutex_name(mutex_id)));
-	}
-
-	return (status);
+	acpi_os_release_mutex(acpi_gbl_mutex_info[mutex_id].mutex);
+	return (AE_OK);
 }

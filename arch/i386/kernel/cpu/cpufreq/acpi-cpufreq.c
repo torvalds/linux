@@ -24,7 +24,6 @@
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -418,8 +417,14 @@ acpi_cpufreq_cpu_init (
 		goto err_free;
 
 	perf = data->acpi_data;
-	policy->cpus = perf->shared_cpu_map;
 	policy->shared_type = perf->shared_type;
+	/*
+	 * Will let policy->cpus know about dependency only when software 
+	 * coordination is required.
+	 */
+	if (policy->shared_type == CPUFREQ_SHARED_TYPE_ALL ||
+	    policy->shared_type == CPUFREQ_SHARED_TYPE_ANY)
+		policy->cpus = perf->shared_cpu_map;
 
 	if (cpu_has(c, X86_FEATURE_CONSTANT_TSC)) {
 		acpi_cpufreq_driver.flags |= CPUFREQ_CONST_LOOPS;

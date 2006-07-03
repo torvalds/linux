@@ -13,7 +13,6 @@
 
 #undef DEBUG
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>
 #include <linux/string.h>
@@ -138,11 +137,11 @@ EXPORT_SYMBOL(pcibios_bus_to_resource);
  * which might have be mirrored at 0x0100-0x03ff..
  */
 void pcibios_align_resource(void *data, struct resource *res,
-			    unsigned long size, unsigned long align)
+			    resource_size_t size, resource_size_t align)
 {
 	struct pci_dev *dev = data;
 	struct pci_controller *hose = pci_bus_to_host(dev->bus);
-	unsigned long start = res->start;
+	resource_size_t start = res->start;
 	unsigned long alignto;
 
 	if (res->flags & IORESOURCE_IO) {

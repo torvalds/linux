@@ -25,7 +25,6 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/sched.h>
-#include <linux/config.h>
 #include <linux/smp_lock.h>
 #include <linux/mc146818rtc.h>
 #include <linux/acpi.h>
@@ -876,15 +875,17 @@ static struct hw_interrupt_type ioapic_edge_type;
 #define IOAPIC_EDGE	0
 #define IOAPIC_LEVEL	1
 
-static inline void ioapic_register_intr(int irq, int vector, unsigned long trigger)
+static void ioapic_register_intr(int irq, int vector, unsigned long trigger)
 {
-	unsigned idx = use_pci_vector() && !platform_legacy_irq(irq) ? vector : irq;
+	unsigned idx;
+
+	idx = use_pci_vector() && !platform_legacy_irq(irq) ? vector : irq;
 
 	if ((trigger == IOAPIC_AUTO && IO_APIC_irq_trigger(irq)) ||
 			trigger == IOAPIC_LEVEL)
-		irq_desc[idx].handler = &ioapic_level_type;
+		irq_desc[idx].chip = &ioapic_level_type;
 	else
-		irq_desc[idx].handler = &ioapic_edge_type;
+		irq_desc[idx].chip = &ioapic_edge_type;
 	set_intr_gate(vector, interrupt[idx]);
 }
 
@@ -986,7 +987,7 @@ static void __init setup_ExtINT_IRQ0_pin(unsigned int apic, unsigned int pin, in
 	 * The timer IRQ doesn't have to know that behind the
 	 * scene we have a 8259A-master in AEOI mode ...
 	 */
-	irq_desc[0].handler = &ioapic_edge_type;
+	irq_desc[0].chip = &ioapic_edge_type;
 
 	/*
 	 * Add it to the IO-APIC irq-routing table:
@@ -1616,6 +1617,13 @@ static void set_ioapic_affinity_vector (unsigned int vector,
 #endif // CONFIG_SMP
 #endif // CONFIG_PCI_MSI
 
+static int ioapic_retrigger(unsigned int irq)
+{
+	send_IPI_self(IO_APIC_VECTOR(irq));
+
+	return 1;
+}
+
 /*
  * Level and edge triggered IO-APIC interrupts need different handling,
  * so we use two separate IRQ descriptors. Edge triggered IRQs can be
@@ -1636,6 +1644,7 @@ static struct hw_interrupt_type ioapic_edge_type __read_mostly = {
 #ifdef CONFIG_SMP
 	.set_affinity = set_ioapic_affinity,
 #endif
+	.retrigger	= ioapic_retrigger,
 };
 
 static struct hw_interrupt_type ioapic_level_type __read_mostly = {
@@ -1649,6 +1658,7 @@ static struct hw_interrupt_type ioapic_level_type __read_mostly = {
 #ifdef CONFIG_SMP
 	.set_affinity = set_ioapic_affinity,
 #endif
+	.retrigger	= ioapic_retrigger,
 };
 
 static inline void init_IO_APIC_traps(void)
@@ -1683,7 +1693,7 @@ static inline void init_IO_APIC_traps(void)
 				make_8259A_irq(irq);
 			else
 				/* Strange. Oh, well.. */
-				irq_desc[irq].handler = &no_irq_type;
+				irq_desc[irq].chip = &no_irq_type;
 		}
 	}
 }
@@ -1900,7 +1910,7 @@ static inline void check_timer(void)
 	apic_printk(APIC_VERBOSE, KERN_INFO "...trying to set up timer as Virtual Wire IRQ...");
 
 	disable_8259A_irq(0);
-	irq_desc[0].handler = &lapic_irq_type;
+	irq_desc[0].chip = &lapic_irq_type;
 	apic_write(APIC_LVT0, APIC_DM_FIXED | vector);	/* Fixed mode */
 	enable_8259A_irq(0);
 

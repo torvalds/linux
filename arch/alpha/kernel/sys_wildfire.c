@@ -199,14 +199,14 @@ wildfire_init_irq_per_pca(int qbbno, int pcano)
 		if (i == 2)
 			continue;
 		irq_desc[i+irq_bias].status = IRQ_DISABLED | IRQ_LEVEL;
-		irq_desc[i+irq_bias].handler = &wildfire_irq_type;
+		irq_desc[i+irq_bias].chip = &wildfire_irq_type;
 	}
 
 	irq_desc[36+irq_bias].status = IRQ_DISABLED | IRQ_LEVEL;
-	irq_desc[36+irq_bias].handler = &wildfire_irq_type;
+	irq_desc[36+irq_bias].chip = &wildfire_irq_type;
 	for (i = 40; i < 64; ++i) {
 		irq_desc[i+irq_bias].status = IRQ_DISABLED | IRQ_LEVEL;
-		irq_desc[i+irq_bias].handler = &wildfire_irq_type;
+		irq_desc[i+irq_bias].chip = &wildfire_irq_type;
 	}
 
 	setup_irq(32+irq_bias, &isa_enable);	

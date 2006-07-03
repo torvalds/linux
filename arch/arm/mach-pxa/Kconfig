@@ -35,6 +35,10 @@ config PXA_SHARPSL
 	  SL-C3000 (Spitz), SL-C3100 (Borzoi) or SL-C6000x (Tosa)
 	  handheld computer.
 
+config MACH_TRIZEPS4
+	bool "Keith und Koep Trizeps4 DIMM-Module"
+	select PXA27x
+
 endchoice
 
 if PXA_SHARPSL
@@ -50,6 +54,21 @@ config PXA_SHARPSL_27x
 	bool "Sharp PXA270 models (SL-Cxx00)"
 	select PXA27x
 	select IWMMXT
+
+endchoice
+
+endif
+
+if MACH_TRIZEPS4
+
+choice
+	prompt "Select base board for Trizeps 4 module"
+
+config MACH_TRIZEPS4_CONXS
+	bool "ConXS Eval Board"
+
+config MACH_TRIZEPS4_ANY
+	bool "another Board"
 
 endchoice
 

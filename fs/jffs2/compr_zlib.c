@@ -15,7 +15,6 @@
 #error "The userspace support got too messy and was removed. Update your mkfs.jffs2"
 #endif
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/slab.h>

@@ -707,7 +707,7 @@ static int pf_detect(void)
 			if (pi_init(pf->pi, 0, conf[D_PRT], conf[D_MOD],
 				    conf[D_UNI], conf[D_PRO], conf[D_DLY],
 				    pf_scratch, PI_PF, verbose, pf->name)) {
-				if (!pf_probe(pf) && pf->disk) {
+				if (pf->disk && !pf_probe(pf)) {
 					pf->present = 1;
 					k++;
 				} else

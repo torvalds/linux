@@ -1065,7 +1065,7 @@ static void __init sysio_register_error_handlers(struct sbus_bus *sbus)
 
 	irq = sbus_build_irq(sbus, SYSIO_UE_INO);
 	if (request_irq(irq, sysio_ue_handler,
-			SA_SHIRQ, "SYSIO UE", sbus) < 0) {
+			IRQF_SHARED, "SYSIO UE", sbus) < 0) {
 		prom_printf("SYSIO[%x]: Cannot register UE interrupt.\n",
 			    sbus->portid);
 		prom_halt();
@@ -1073,7 +1073,7 @@ static void __init sysio_register_error_handlers(struct sbus_bus *sbus)
 
 	irq = sbus_build_irq(sbus, SYSIO_CE_INO);
 	if (request_irq(irq, sysio_ce_handler,
-			SA_SHIRQ, "SYSIO CE", sbus) < 0) {
+			IRQF_SHARED, "SYSIO CE", sbus) < 0) {
 		prom_printf("SYSIO[%x]: Cannot register CE interrupt.\n",
 			    sbus->portid);
 		prom_halt();
@@ -1081,7 +1081,7 @@ static void __init sysio_register_error_handlers(struct sbus_bus *sbus)
 
 	irq = sbus_build_irq(sbus, SYSIO_SBUSERR_INO);
 	if (request_irq(irq, sysio_sbus_error_handler,
-			SA_SHIRQ, "SYSIO SBUS Error", sbus) < 0) {
+			IRQF_SHARED, "SYSIO SBUS Error", sbus) < 0) {
 		prom_printf("SYSIO[%x]: Cannot register SBUS Error interrupt.\n",
 			    sbus->portid);
 		prom_halt();
@@ -1221,9 +1221,7 @@ static void __init sbus_iommu_init(int __node, struct sbus_bus *sbus)
 
 	/* Now some Xfire specific grot... */
 	if (this_is_starfire)
-		sbus->starfire_cookie = starfire_hookup(sbus->portid);
-	else
-		sbus->starfire_cookie = NULL;
+		starfire_hookup(sbus->portid);
 
 	sysio_register_error_handlers(sbus);
 }
@@ -1269,8 +1267,6 @@ int __init sbus_arch_preinit(void)
 void __init sbus_arch_postinit(void)
 {
 	extern void firetruck_init(void);
-	extern void clock_probe(void);
 
 	firetruck_init();
-	clock_probe();
 }

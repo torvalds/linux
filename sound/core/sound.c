@@ -32,7 +32,6 @@
 #include <sound/control.h>
 #include <sound/initval.h>
 #include <linux/kmod.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/mutex.h>
 
 #define SNDRV_OS_MINORS 256
@@ -42,7 +41,6 @@ int snd_major;
 EXPORT_SYMBOL(snd_major);
 
 static int cards_limit = 1;
-static int device_mode = S_IFCHR | S_IRUGO | S_IWUGO;
 
 MODULE_AUTHOR("Jaroslav Kysela <perex@suse.cz>");
 MODULE_DESCRIPTION("Advanced Linux Sound Architecture driver for soundcards.");
@@ -51,10 +49,6 @@ module_param(major, int, 0444);
 MODULE_PARM_DESC(major, "Major # for sound driver.");
 module_param(cards_limit, int, 0444);
 MODULE_PARM_DESC(cards_limit, "Count of auto-loadable soundcards.");
-#ifdef CONFIG_DEVFS_FS
-module_param(device_mode, int, 0444);
-MODULE_PARM_DESC(device_mode, "Device file permission mask for devfs.");
-#endif
 MODULE_ALIAS_CHARDEV_MAJOR(CONFIG_SND_MAJOR);
 
 /* this one holds the actual max. card number currently available.
@@ -273,8 +267,6 @@ int snd_register_device(int type, struct snd_card *card, int dev,
 		return minor;
 	}
 	snd_minors[minor] = preg;
-	if (type != SNDRV_DEVICE_TYPE_CONTROL || preg->card >= cards_limit)
-		devfs_mk_cdev(MKDEV(major, minor), S_IFCHR | device_mode, "snd/%s", name);
 	if (card)
 		device = card->dev;
 	class_device_create(sound_class, NULL, MKDEV(major, minor), device, "%s", name);
@@ -314,9 +306,6 @@ int snd_unregister_device(int type, struct snd_card *card, int dev)
 		return -EINVAL;
 	}
 
-	if (mptr->type != SNDRV_DEVICE_TYPE_CONTROL ||
-	    mptr->card >= cards_limit)			/* created in sound.c */
-		devfs_remove("snd/%s", mptr->name);
 	class_device_destroy(sound_class, MKDEV(major, minor));
 
 	snd_minors[minor] = NULL;
@@ -411,24 +400,17 @@ int __exit snd_minor_info_done(void)
 
 static int __init alsa_sound_init(void)
 {
-	short controlnum;
-
 	snd_major = major;
 	snd_ecards_limit = cards_limit;
-	devfs_mk_dir("snd");
 	if (register_chrdev(major, "alsa", &snd_fops)) {
 		snd_printk(KERN_ERR "unable to register native major device number %d\n", major);
-		devfs_remove("snd");
 		return -EIO;
 	}
 	if (snd_info_init() < 0) {
 		unregister_chrdev(major, "alsa");
-		devfs_remove("snd");
 		return -ENOMEM;
 	}
 	snd_info_minor_register();
-	for (controlnum = 0; controlnum < cards_limit; controlnum++)
-		devfs_mk_cdev(MKDEV(major, controlnum<<5), S_IFCHR | device_mode, "snd/controlC%d", controlnum);
 #ifndef MODULE
 	printk(KERN_INFO "Advanced Linux Sound Architecture Driver Version " CONFIG_SND_VERSION CONFIG_SND_DATE ".\n");
 #endif
@@ -437,16 +419,10 @@ static int __init alsa_sound_init(void)
 
 static void __exit alsa_sound_exit(void)
 {
-	short controlnum;
-
-	for (controlnum = 0; controlnum < cards_limit; controlnum++)
-		devfs_remove("snd/controlC%d", controlnum);
-
 	snd_info_minor_unregister();
 	snd_info_done();
 	if (unregister_chrdev(major, "alsa") != 0)
 		snd_printk(KERN_ERR "unable to unregister major device number %d\n", major);
-	devfs_remove("snd");
 }
 
 module_init(alsa_sound_init)

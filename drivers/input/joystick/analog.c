@@ -28,7 +28,6 @@
  * Vojtech Pavlik, Simunkova 1594, Prague 8, 182 00 Czech Republic
  */
 
-#include <linux/config.h>
 #include <linux/delay.h>
 #include <linux/kernel.h>
 #include <linux/module.h>

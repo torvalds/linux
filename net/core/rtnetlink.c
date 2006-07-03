@@ -16,7 +16,6 @@
  *	Vitaly E. Lavrov		RTA_OK arithmetics was wrong.
  */
 
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/types.h>
@@ -663,7 +662,7 @@ rtnetlink_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh, int *errp)
 	sz_idx = type>>2;
 	kind = type&3;
 
-	if (kind != 2 && security_netlink_recv(skb)) {
+	if (kind != 2 && security_netlink_recv(skb, CAP_NET_ADMIN)) {
 		*errp = -EPERM;
 		return -1;
 	}

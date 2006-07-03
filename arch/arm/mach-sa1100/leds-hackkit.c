@@ -9,7 +9,6 @@
  * The HackKit has two leds (GPIO 22/23). The red led (gpio 22) is used
  * as cpu led, the green one is used as timer led.
  */
-#include <linux/config.h>
 #include <linux/init.h>
 
 #include <asm/hardware.h>

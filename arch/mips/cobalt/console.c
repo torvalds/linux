@@ -2,7 +2,6 @@
  * (C) P. Horton 2006
  */
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/console.h>

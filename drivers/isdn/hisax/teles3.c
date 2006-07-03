@@ -369,6 +369,7 @@ setup_teles3(struct IsdnCard *card)
 			       cs->hw.teles3.hscx[1] + 96);
 			return (0);
 		}
+		cs->irq_flags |= IRQF_SHARED; /* cardbus can share */
 	} else {
 		if (cs->hw.teles3.cfg_reg) {
 			if (cs->typ == ISDN_CTYPE_COMPAQ_ISA) {

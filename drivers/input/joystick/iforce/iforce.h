@@ -35,7 +35,6 @@
 #include <linux/spinlock.h>
 #include <linux/usb.h>
 #include <linux/serio.h>
-#include <linux/config.h>
 #include <linux/circ_buf.h>
 #include <linux/mutex.h>
 

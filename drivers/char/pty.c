@@ -11,7 +11,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/module.h>	/* For EXPORT_SYMBOL */
 
 #include <linux/errno.h>
@@ -24,7 +23,6 @@
 #include <linux/major.h>
 #include <linux/mm.h>
 #include <linux/init.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/sysctl.h>
 
 #include <asm/uaccess.h>
@@ -265,7 +263,6 @@ static void __init legacy_pty_init(void)
 	pty_driver->owner = THIS_MODULE;
 	pty_driver->driver_name = "pty_master";
 	pty_driver->name = "pty";
-	pty_driver->devfs_name = "pty/m";
 	pty_driver->major = PTY_MASTER_MAJOR;
 	pty_driver->minor_start = 0;
 	pty_driver->type = TTY_DRIVER_TYPE_PTY;
@@ -283,7 +280,6 @@ static void __init legacy_pty_init(void)
 	pty_slave_driver->owner = THIS_MODULE;
 	pty_slave_driver->driver_name = "pty_slave";
 	pty_slave_driver->name = "ttyp";
-	pty_slave_driver->devfs_name = "pty/s";
 	pty_slave_driver->major = PTY_SLAVE_MAJOR;
 	pty_slave_driver->minor_start = 0;
 	pty_slave_driver->type = TTY_DRIVER_TYPE_PTY;
@@ -351,7 +347,6 @@ static int pty_unix98_ioctl(struct tty_struct *tty, struct file *file,
 
 static void __init unix98_pty_init(void)
 {
-	devfs_mk_dir("pts");
 	ptm_driver = alloc_tty_driver(NR_UNIX98_PTY_MAX);
 	if (!ptm_driver)
 		panic("Couldn't allocate Unix98 ptm driver");
@@ -372,7 +367,7 @@ static void __init unix98_pty_init(void)
 	ptm_driver->init_termios.c_cflag = B38400 | CS8 | CREAD;
 	ptm_driver->init_termios.c_lflag = 0;
 	ptm_driver->flags = TTY_DRIVER_RESET_TERMIOS | TTY_DRIVER_REAL_RAW |
-		TTY_DRIVER_NO_DEVFS | TTY_DRIVER_DEVPTS_MEM;
+		TTY_DRIVER_DYNAMIC_DEV | TTY_DRIVER_DEVPTS_MEM;
 	ptm_driver->other = pts_driver;
 	tty_set_operations(ptm_driver, &pty_ops);
 	ptm_driver->ioctl = pty_unix98_ioctl;
@@ -387,7 +382,7 @@ static void __init unix98_pty_init(void)
 	pts_driver->init_termios = tty_std_termios;
 	pts_driver->init_termios.c_cflag = B38400 | CS8 | CREAD;
 	pts_driver->flags = TTY_DRIVER_RESET_TERMIOS | TTY_DRIVER_REAL_RAW |
-		TTY_DRIVER_NO_DEVFS | TTY_DRIVER_DEVPTS_MEM;
+		TTY_DRIVER_DYNAMIC_DEV | TTY_DRIVER_DEVPTS_MEM;
 	pts_driver->other = ptm_driver;
 	tty_set_operations(pts_driver, &pty_ops);
 	

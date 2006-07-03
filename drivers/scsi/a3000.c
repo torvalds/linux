@@ -190,7 +190,7 @@ int __init a3000_detect(struct scsi_host_template *tpnt)
     regs.SASR = &(DMA(a3000_host)->SASR);
     regs.SCMD = &(DMA(a3000_host)->SCMD);
     wd33c93_init(a3000_host, regs, dma_setup, dma_stop, WD33C93_FS_12_15);
-    if (request_irq(IRQ_AMIGA_PORTS, a3000_intr, SA_SHIRQ, "A3000 SCSI",
+    if (request_irq(IRQ_AMIGA_PORTS, a3000_intr, IRQF_SHARED, "A3000 SCSI",
 		    a3000_intr))
         goto fail_irq;
     DMA(a3000_host)->CNTR = CNTR_PDMD | CNTR_INTEN;

@@ -10,7 +10,6 @@
  * option) any later version.
  */
 
-#include <linux/config.h>
 #include <linux/stddef.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -34,8 +33,8 @@ extern unsigned long __secondary_hold_acknowledge;
 static void __init
 smp_86xx_release_core(int nr)
 {
-	void *mcm_vaddr;
-	unsigned long vaddr, pcr;
+	__be32 __iomem *mcm_vaddr;
+	unsigned long pcr;
 
 	if (nr < 0 || nr >= NR_CPUS)
 		return;
@@ -45,10 +44,9 @@ smp_86xx_release_core(int nr)
 	 */
 	mcm_vaddr = ioremap(get_immrbase() + MPC86xx_MCM_OFFSET,
 			    MPC86xx_MCM_SIZE);
-	vaddr = (unsigned long)mcm_vaddr +  MCM_PORT_CONFIG_OFFSET;
-	pcr = in_be32((volatile unsigned *)vaddr);
+	pcr = in_be32(mcm_vaddr + (MCM_PORT_CONFIG_OFFSET >> 2));
 	pcr |= 1 << (nr + 24);
-	out_be32((volatile unsigned *)vaddr, pcr);
+	out_be32(mcm_vaddr + (MCM_PORT_CONFIG_OFFSET >> 2), pcr);
 }
 
 

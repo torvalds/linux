@@ -9,7 +9,6 @@
  * Bases on the IPR irq system
  */
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/irq.h>
 
@@ -150,7 +149,7 @@ static void enable_od_irq(unsigned int irq)
 static void __init make_od_irq(unsigned int irq)
 {
 	disable_irq_nosync(irq);
-	irq_desc[irq].handler = &od_irq_type;
+	irq_desc[irq].chip = &od_irq_type;
 	disable_od_irq(irq);
 }
 

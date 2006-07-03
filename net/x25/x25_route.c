@@ -17,7 +17,6 @@
  *	X.25 001	Jonathan Naylor	Started coding.
  */
 
-#include <linux/config.h>
 #include <linux/if_arp.h>
 #include <linux/init.h>
 #include <net/x25.h>

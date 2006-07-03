@@ -164,10 +164,6 @@ int init_vfc_device(struct sbus_dev *sdev,struct vfc_dev *dev, int instance)
 		return -EINVAL;
 	if (init_vfc_hw(dev))
 		return -EIO;
-
-	devfs_mk_cdev(MKDEV(VFC_MAJOR, instance),
-			S_IFCHR | S_IRUSR | S_IWUSR,
-			"vfc/%d", instance);
 	return 0;
 }
 
@@ -677,7 +673,6 @@ static int vfc_probe(void)
 		kfree(vfc_dev_lst);
 		return -EIO;
 	}
-	devfs_mk_dir("vfc");
 	instance = 0;
 	for_all_sbusdev(sdev, sbus) {
 		if (strcmp(sdev->prom_name, "vfc") == 0) {
@@ -717,7 +712,6 @@ static void deinit_vfc_device(struct vfc_dev *dev)
 {
 	if(dev == NULL)
 		return;
-	devfs_remove("vfc/%d", dev->instance);
 	sbus_iounmap(dev->regs, sizeof(struct vfc_regs));
 	kfree(dev);
 }
@@ -731,7 +725,6 @@ void cleanup_module(void)
 	for (devp = vfc_dev_lst; *devp; devp++)
 		deinit_vfc_device(*devp);
 
-	devfs_remove("vfc");
 	kfree(vfc_dev_lst);
 	return;
 }

@@ -26,7 +26,6 @@
  *   however while in strict mode the average runtime can be better.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/string.h>

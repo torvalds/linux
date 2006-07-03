@@ -6,7 +6,6 @@
  *  for more details.
  */
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
@@ -373,7 +372,7 @@ void __init openpic_init(int offset)
 				OPENPIC_VEC_IPI+i+offset);
 		/* IPIs are per-CPU */
 		irq_desc[OPENPIC_VEC_IPI+i+offset].status |= IRQ_PER_CPU;
-		irq_desc[OPENPIC_VEC_IPI+i+offset].handler = &open_pic_ipi;
+		irq_desc[OPENPIC_VEC_IPI+i+offset].chip = &open_pic_ipi;
 	}
 #endif
 
@@ -408,7 +407,7 @@ void __init openpic_init(int offset)
 
 	/* Init descriptors */
 	for (i = offset; i < NumSources + offset; i++)
-		irq_desc[i].handler = &open_pic;
+		irq_desc[i].chip = &open_pic;
 
 	/* Initialize the spurious interrupt */
 	if (ppc_md.progress) ppc_md.progress("openpic: spurious",0x3bd);
@@ -576,18 +575,21 @@ void openpic_request_IPIs(void)
 	if (OpenPIC == NULL)
 		return;
 
-	/* IPIs are marked SA_INTERRUPT as they must run with irqs disabled */
+	/*
+ 	 * IPIs are marked IRQF_DISABLED as they must run with irqs
+	 * disabled
+	 */
 	request_irq(OPENPIC_VEC_IPI+open_pic_irq_offset,
-		    openpic_ipi_action, SA_INTERRUPT,
+		    openpic_ipi_action, IRQF_DISABLED,
 		    "IPI0 (call function)", NULL);
 	request_irq(OPENPIC_VEC_IPI+open_pic_irq_offset+1,
-		    openpic_ipi_action, SA_INTERRUPT,
+		    openpic_ipi_action, IRQF_DISABLED,
 		    "IPI1 (reschedule)", NULL);
 	request_irq(OPENPIC_VEC_IPI+open_pic_irq_offset+2,
-		    openpic_ipi_action, SA_INTERRUPT,
+		    openpic_ipi_action, IRQF_DISABLED,
 		    "IPI2 (invalidate tlb)", NULL);
 	request_irq(OPENPIC_VEC_IPI+open_pic_irq_offset+3,
-		    openpic_ipi_action, SA_INTERRUPT,
+		    openpic_ipi_action, IRQF_DISABLED,
 		    "IPI3 (xmon break)", NULL);
 
 	for ( i = 0; i < OPENPIC_NUM_IPI ; i++ )
@@ -615,8 +617,8 @@ void __devinit do_openpic_setup_cpu(void)
  	/* let the openpic know we want intrs. default affinity
  	 * is 0xffffffff until changed via /proc
  	 * That's how it's done on x86. If we want it differently, then
- 	 * we should make sure we also change the default values of irq_affinity
- 	 * in irq.c.
+ 	 * we should make sure we also change the default values of
+	 * irq_desc[].affinity in irq.c.
  	 */
  	for (i = 0; i < NumSources; i++)
 		openpic_mapirq(i, msk, CPU_MASK_ALL);
@@ -692,7 +694,7 @@ openpic_init_nmi_irq(u_int irq)
 
 static struct irqaction openpic_cascade_irqaction = {
 	.handler = no_action,
-	.flags = SA_INTERRUPT,
+	.flags = IRQF_DISABLED,
 	.mask = CPU_MASK_NONE,
 };
 

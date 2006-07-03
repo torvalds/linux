@@ -119,7 +119,6 @@ Code	Seq#	Include File		Comments
 'c'	00-7F	linux/comstats.h	conflict!
 'c'	00-7F	linux/coda.h		conflict!
 'd'	00-FF	linux/char/drm/drm/h	conflict!
-'d'	00-1F	linux/devfs_fs.h	conflict!
 'd'	00-DF	linux/video_decoder.h	conflict!
 'd'	F0-FF	linux/digi1.h
 'e'	all	linux/digi1.h		conflict!

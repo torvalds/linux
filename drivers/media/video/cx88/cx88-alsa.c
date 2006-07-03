@@ -700,7 +700,7 @@ static int __devinit snd_cx88_create(struct snd_card *card,
 
 	/* get irq */
 	err = request_irq(chip->pci->irq, cx8801_irq,
-			  SA_SHIRQ | SA_INTERRUPT, chip->core->name, chip);
+			  IRQF_SHARED | IRQF_DISABLED, chip->core->name, chip);
 	if (err < 0) {
 		dprintk(0, "%s: can't get IRQ %d\n",
 		       chip->core->name, chip->pci->irq);
@@ -712,9 +712,9 @@ static int __devinit snd_cx88_create(struct snd_card *card,
 	pci_read_config_byte(pci, PCI_LATENCY_TIMER,  &chip->pci_lat);
 
 	dprintk(1,"ALSA %s/%i: found at %s, rev: %d, irq: %d, "
-	       "latency: %d, mmio: 0x%lx\n", core->name, devno,
+	       "latency: %d, mmio: 0x%llx\n", core->name, devno,
 	       pci_name(pci), chip->pci_rev, pci->irq,
-	       chip->pci_lat,pci_resource_start(pci,0));
+	       chip->pci_lat,(unsigned long long)pci_resource_start(pci,0));
 
 	chip->irq = pci->irq;
 	synchronize_irq(chip->irq);
@@ -766,8 +766,8 @@ static int __devinit cx88_audio_initdev(struct pci_dev *pci,
 
 	strcpy (card->driver, "CX88x");
 	sprintf(card->shortname, "Conexant CX%x", pci->device);
-	sprintf(card->longname, "%s at %#lx",
-		card->shortname, pci_resource_start(pci, 0));
+	sprintf(card->longname, "%s at %#llx",
+		card->shortname,(unsigned long long)pci_resource_start(pci, 0));
 	strcpy (card->mixername, "CX88");
 
 	dprintk (0, "%s/%i: ALSA support for cx2388x boards\n",

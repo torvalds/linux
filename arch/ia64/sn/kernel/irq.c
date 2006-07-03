@@ -225,8 +225,8 @@ void sn_irq_init(void)
 	ia64_last_device_vector = IA64_SN2_LAST_DEVICE_VECTOR;
 
 	for (i = 0; i < NR_IRQS; i++) {
-		if (base_desc[i].handler == &no_irq_type) {
-			base_desc[i].handler = &irq_type_sn;
+		if (base_desc[i].chip == &no_irq_type) {
+			base_desc[i].chip = &irq_type_sn;
 		}
 	}
 }

@@ -8,7 +8,6 @@
  *		 Cornelia Huck (cornelia.huck@de.ibm.com)
  *		 Martin Schwidefsky (schwidefsky@de.ibm.com)
  */
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/spinlock.h>
@@ -133,8 +132,8 @@ struct css_driver io_subchannel_driver = {
 
 struct workqueue_struct *ccw_device_work;
 struct workqueue_struct *ccw_device_notify_work;
-static wait_queue_head_t ccw_device_init_wq;
-static atomic_t ccw_device_init_count;
+wait_queue_head_t ccw_device_init_wq;
+atomic_t ccw_device_init_count;
 
 static int __init
 init_ccw_bus_type (void)

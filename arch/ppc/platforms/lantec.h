@@ -7,7 +7,6 @@
 #ifndef __MACH_LANTEC_H
 #define __MACH_LANTEC_H
 
-#include <linux/config.h>
 
 #include <asm/ppcboot.h>
 

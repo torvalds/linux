@@ -17,9 +17,9 @@
  *
  */
 
-#include <linux/module.h>
-#include <linux/reboot.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
+#include <linux/module.h>
 #include <linux/reboot.h>
 
 #include <asm/mach-types.h>
@@ -42,7 +42,7 @@ static int __init nas100d_power_init(void)
 	set_irq_type(NAS100D_RB_IRQ, IRQT_LOW);
 
 	if (request_irq(NAS100D_RB_IRQ, &nas100d_reset_handler,
-		SA_INTERRUPT, "NAS100D reset button", NULL) < 0) {
+		IRQF_DISABLED, "NAS100D reset button", NULL) < 0) {
 
 		printk(KERN_DEBUG "Reset Button IRQ %d not available\n",
 			NAS100D_RB_IRQ);

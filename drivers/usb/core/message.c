@@ -2,7 +2,6 @@
  * message.c - synchronous message handling
  */
 
-#include <linux/config.h>
 #include <linux/pci.h>	/* for scatterlist macros */
 #include <linux/usb.h>
 #include <linux/module.h>

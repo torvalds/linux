@@ -16,7 +16,6 @@
 
 #undef DEBUG
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/threads.h>
 #include <linux/smp.h>
@@ -81,8 +80,6 @@ static void iSeries_pci_final_fixup(void) { }
 #endif
 
 extern int rd_size;		/* Defined in drivers/block/rd.c */
-extern unsigned long embedded_sysmap_start;
-extern unsigned long embedded_sysmap_end;
 
 extern unsigned long iSeries_recal_tb;
 extern unsigned long iSeries_recal_titan;
@@ -319,11 +316,6 @@ static void __init iSeries_init_early(void)
 
 	iSeries_recal_tb = get_tb();
 	iSeries_recal_titan = HvCallXm_loadTod();
-
-	/*
-	 * Initialize the hash table management pointers
-	 */
-	hpte_init_iSeries();
 
 	/*
 	 * Initialize the DMA/TCE management
@@ -563,16 +555,6 @@ static void __init iSeries_fixup_klimit(void)
 	if (naca.xRamDisk)
 		klimit = KERNELBASE + (u64)naca.xRamDisk +
 			(naca.xRamDiskSize * HW_PAGE_SIZE);
-	else {
-		/*
-		 * No ram disk was included - check and see if there
-		 * was an embedded system map.  Change klimit to take
-		 * into account any embedded system map
-		 */
-		if (embedded_sysmap_end)
-			klimit = KERNELBASE + ((embedded_sysmap_end + 4095) &
-					0xfffffffffffff000);
-	}
 }
 
 static int __init iSeries_src_init(void)
@@ -682,6 +664,8 @@ static int __init iseries_probe(void)
 	 * sources (the irq number is passed in a u8).
 	 */
 	virt_irq_max = 255;
+
+	hpte_init_iSeries();
 
 	return 1;
 }

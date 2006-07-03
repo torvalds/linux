@@ -1837,7 +1837,7 @@ static int __devinit snd_es18xx_new_device(struct snd_card *card,
 		return -EBUSY;
 	}
 
-	if (request_irq(irq, snd_es18xx_interrupt, SA_INTERRUPT, "ES18xx", (void *) chip)) {
+	if (request_irq(irq, snd_es18xx_interrupt, IRQF_DISABLED, "ES18xx", (void *) chip)) {
 		snd_es18xx_free(chip);
 		snd_printk(KERN_ERR PFX "unable to grap IRQ %d\n", irq);
 		return -EBUSY;
@@ -2088,7 +2088,8 @@ static int __devinit snd_audiodrive_pnp(int dev, struct snd_audiodrive *acard,
 		kfree(cfg);
 		return -EAGAIN;
 	}
-	snd_printdd("pnp: port=0x%lx\n", pnp_port_start(acard->devc, 0));
+	snd_printdd("pnp: port=0x%llx\n",
+			(unsigned long long)pnp_port_start(acard->devc, 0));
 	/* PnP initialization */
 	pdev = acard->dev;
 	pnp_init_resource_table(cfg);

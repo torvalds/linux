@@ -994,7 +994,7 @@ static int __devinit rme96xx_probe(struct pci_dev *pcidev, const struct pci_devi
 
 	if (pci_enable_device(pcidev))
 		goto err_irq;
-	if (request_irq(s->irq, rme96xx_interrupt, SA_SHIRQ, "rme96xx", s)) {
+	if (request_irq(s->irq, rme96xx_interrupt, IRQF_SHARED, "rme96xx", s)) {
 		printk(KERN_ERR RME_MESS" irq %u in use\n", s->irq);
 		goto err_irq;
 	}

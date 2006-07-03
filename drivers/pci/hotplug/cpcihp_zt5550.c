@@ -30,13 +30,13 @@
  * Send feedback to <scottm@somanetworks.com>
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/pci.h>
-#include <linux/signal.h>	/* SA_SHIRQ */
+#include <linux/interrupt.h>
+#include <linux/signal.h>	/* IRQF_SHARED */
 #include "cpci_hotplug.h"
 #include "cpcihp_zt5550.h"
 
@@ -95,8 +95,8 @@ static int zt5550_hc_config(struct pci_dev *pdev)
 
 	hc_dev = pdev;
 	dbg("hc_dev = %p", hc_dev);
-	dbg("pci resource start %lx", pci_resource_start(hc_dev, 1));
-	dbg("pci resource len %lx", pci_resource_len(hc_dev, 1));
+	dbg("pci resource start %llx", (unsigned long long)pci_resource_start(hc_dev, 1));
+	dbg("pci resource len %llx", (unsigned long long)pci_resource_len(hc_dev, 1));
 
 	if(!request_mem_region(pci_resource_start(hc_dev, 1),
 				pci_resource_len(hc_dev, 1), MY_NAME)) {
@@ -108,8 +108,9 @@ static int zt5550_hc_config(struct pci_dev *pdev)
 	hc_registers =
 	    ioremap(pci_resource_start(hc_dev, 1), pci_resource_len(hc_dev, 1));
 	if(!hc_registers) {
-		err("cannot remap MMIO region %lx @ %lx",
-		    pci_resource_len(hc_dev, 1), pci_resource_start(hc_dev, 1));
+		err("cannot remap MMIO region %llx @ %llx",
+			(unsigned long long)pci_resource_len(hc_dev, 1),
+			(unsigned long long)pci_resource_start(hc_dev, 1));
 		ret = -ENODEV;
 		goto exit_release_region;
 	}
@@ -219,7 +220,7 @@ static int zt5550_hc_init_one (struct pci_dev *pdev, const struct pci_device_id 
 	zt5550_hpc.ops = &zt5550_hpc_ops;
 	if(!poll) {
 		zt5550_hpc.irq = hc_dev->irq;
-		zt5550_hpc.irq_flags = SA_SHIRQ;
+		zt5550_hpc.irq_flags = IRQF_SHARED;
 		zt5550_hpc.dev_id = hc_dev;
 
 		zt5550_hpc_ops.enable_irq = zt5550_hc_enable_irq;

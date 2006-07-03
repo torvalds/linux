@@ -167,7 +167,7 @@ static struct resource pic_edgectrl_iores = {
 
 static struct irqaction i8259_irqaction = {
 	.handler = no_action,
-	.flags = SA_INTERRUPT,
+	.flags = IRQF_DISABLED,
 	.mask = CPU_MASK_NONE,
 	.name = "82c59 secondary cascade",
 };
@@ -208,7 +208,7 @@ void __init i8259_init(unsigned long intack_addr, int offset)
 	spin_unlock_irqrestore(&i8259_lock, flags);
 
 	for (i = 0; i < NUM_ISA_INTERRUPTS; ++i)
-		irq_desc[offset + i].handler = &i8259_pic;
+		irq_desc[offset + i].chip = &i8259_pic;
 
 	/* reserve our resources */
 	setup_irq(offset + 2, &i8259_irqaction);

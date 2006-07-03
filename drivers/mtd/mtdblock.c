@@ -7,7 +7,6 @@
  * (C) 1999-2003 David Woodhouse <dwmw2@infradead.org>
  */
 
-#include <linux/config.h>
 #include <linux/fs.h>
 #include <linux/init.h>
 #include <linux/kernel.h>

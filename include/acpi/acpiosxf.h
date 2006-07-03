@@ -96,25 +96,47 @@ acpi_os_table_override(struct acpi_table_header *existing_table,
 		       struct acpi_table_header **new_table);
 
 /*
- * Synchronization primitives
+ * Spinlock primitives
+ */
+acpi_status acpi_os_create_lock(acpi_spinlock * out_handle);
+
+void acpi_os_delete_lock(acpi_spinlock handle);
+
+acpi_cpu_flags acpi_os_acquire_lock(acpi_spinlock handle);
+
+void acpi_os_release_lock(acpi_spinlock handle, acpi_cpu_flags flags);
+
+/*
+ * Semaphore primitives
  */
 acpi_status
 acpi_os_create_semaphore(u32 max_units,
-			 u32 initial_units, acpi_handle * out_handle);
+			 u32 initial_units, acpi_semaphore * out_handle);
 
-acpi_status acpi_os_delete_semaphore(acpi_handle handle);
+acpi_status acpi_os_delete_semaphore(acpi_semaphore handle);
 
-acpi_status acpi_os_wait_semaphore(acpi_handle handle, u32 units, u16 timeout);
+acpi_status
+acpi_os_wait_semaphore(acpi_semaphore handle, u32 units, u16 timeout);
 
-acpi_status acpi_os_signal_semaphore(acpi_handle handle, u32 units);
+acpi_status acpi_os_signal_semaphore(acpi_semaphore handle, u32 units);
 
-acpi_status acpi_os_create_lock(acpi_handle * out_handle);
+/*
+ * Mutex primitives
+ */
+acpi_status acpi_os_create_mutex(acpi_mutex * out_handle);
 
-void acpi_os_delete_lock(acpi_handle handle);
+void acpi_os_delete_mutex(acpi_mutex handle);
 
-acpi_cpu_flags acpi_os_acquire_lock(acpi_handle handle);
+acpi_status acpi_os_acquire_mutex(acpi_mutex handle, u16 timeout);
 
-void acpi_os_release_lock(acpi_handle handle, acpi_cpu_flags flags);
+void acpi_os_release_mutex(acpi_mutex handle);
+
+/* Temporary macros for Mutex* interfaces, map to existing semaphore xfaces */
+
+#define acpi_os_create_mutex(out_handle)    acpi_os_create_semaphore (1, 1, out_handle)
+#define acpi_os_delete_mutex(handle)        (void) acpi_os_delete_semaphore (handle)
+#define acpi_os_acquire_mutex(handle,time)  acpi_os_wait_semaphore (handle, 1, time)
+#define acpi_os_release_mutex(handle)       (void) acpi_os_signal_semaphore (handle, 1)
 
 /*
  * Memory allocation and mapping

@@ -7,7 +7,6 @@
  *                           Hitoshi Yamamoto, Mamoru Sakugawa
  */
 
-#include <linux/config.h>
 #include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -85,7 +84,7 @@ void __init init_IRQ(void)
 #ifdef CONFIG_NE2000
 	/* INT3 : LAN controller (RTL8019AS) */
 	irq_desc[M32R_IRQ_INT3].status = IRQ_DISABLED;
-	irq_desc[M32R_IRQ_INT3].handler = &oaks32r_irq_type;
+	irq_desc[M32R_IRQ_INT3].chip = &oaks32r_irq_type;
 	irq_desc[M32R_IRQ_INT3].action = 0;
 	irq_desc[M32R_IRQ_INT3].depth = 1;
 	icu_data[M32R_IRQ_INT3].icucr = M32R_ICUCR_IEN|M32R_ICUCR_ISMOD10;
@@ -94,7 +93,7 @@ void __init init_IRQ(void)
 
 	/* MFT2 : system timer */
 	irq_desc[M32R_IRQ_MFT2].status = IRQ_DISABLED;
-	irq_desc[M32R_IRQ_MFT2].handler = &oaks32r_irq_type;
+	irq_desc[M32R_IRQ_MFT2].chip = &oaks32r_irq_type;
 	irq_desc[M32R_IRQ_MFT2].action = 0;
 	irq_desc[M32R_IRQ_MFT2].depth = 1;
 	icu_data[M32R_IRQ_MFT2].icucr = M32R_ICUCR_IEN;
@@ -103,7 +102,7 @@ void __init init_IRQ(void)
 #ifdef CONFIG_SERIAL_M32R_SIO
 	/* SIO0_R : uart receive data */
 	irq_desc[M32R_IRQ_SIO0_R].status = IRQ_DISABLED;
-	irq_desc[M32R_IRQ_SIO0_R].handler = &oaks32r_irq_type;
+	irq_desc[M32R_IRQ_SIO0_R].chip = &oaks32r_irq_type;
 	irq_desc[M32R_IRQ_SIO0_R].action = 0;
 	irq_desc[M32R_IRQ_SIO0_R].depth = 1;
 	icu_data[M32R_IRQ_SIO0_R].icucr = 0;
@@ -111,7 +110,7 @@ void __init init_IRQ(void)
 
 	/* SIO0_S : uart send data */
 	irq_desc[M32R_IRQ_SIO0_S].status = IRQ_DISABLED;
-	irq_desc[M32R_IRQ_SIO0_S].handler = &oaks32r_irq_type;
+	irq_desc[M32R_IRQ_SIO0_S].chip = &oaks32r_irq_type;
 	irq_desc[M32R_IRQ_SIO0_S].action = 0;
 	irq_desc[M32R_IRQ_SIO0_S].depth = 1;
 	icu_data[M32R_IRQ_SIO0_S].icucr = 0;
@@ -119,7 +118,7 @@ void __init init_IRQ(void)
 
 	/* SIO1_R : uart receive data */
 	irq_desc[M32R_IRQ_SIO1_R].status = IRQ_DISABLED;
-	irq_desc[M32R_IRQ_SIO1_R].handler = &oaks32r_irq_type;
+	irq_desc[M32R_IRQ_SIO1_R].chip = &oaks32r_irq_type;
 	irq_desc[M32R_IRQ_SIO1_R].action = 0;
 	irq_desc[M32R_IRQ_SIO1_R].depth = 1;
 	icu_data[M32R_IRQ_SIO1_R].icucr = 0;
@@ -127,7 +126,7 @@ void __init init_IRQ(void)
 
 	/* SIO1_S : uart send data */
 	irq_desc[M32R_IRQ_SIO1_S].status = IRQ_DISABLED;
-	irq_desc[M32R_IRQ_SIO1_S].handler = &oaks32r_irq_type;
+	irq_desc[M32R_IRQ_SIO1_S].chip = &oaks32r_irq_type;
 	irq_desc[M32R_IRQ_SIO1_S].action = 0;
 	irq_desc[M32R_IRQ_SIO1_S].depth = 1;
 	icu_data[M32R_IRQ_SIO1_S].icucr = 0;

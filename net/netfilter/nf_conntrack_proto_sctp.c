@@ -28,6 +28,8 @@
 #include <linux/sctp.h>
 #include <linux/string.h>
 #include <linux/seq_file.h>
+#include <linux/spinlock.h>
+#include <linux/interrupt.h>
 
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_conntrack_protocol.h>
@@ -259,7 +261,7 @@ static int do_basic_checks(struct nf_conn *conntrack,
 	}
 
 	DEBUGP("Basic checks passed\n");
-	return 0;
+	return count == 0;
 }
 
 static int new_state(enum ip_conntrack_dir dir,

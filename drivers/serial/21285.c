@@ -7,7 +7,6 @@
  *
  *  $Id: 21285.c,v 1.37 2002/07/28 10:03:27 rmk Exp $
  */
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/tty.h>
 #include <linux/ioport.h>
@@ -479,7 +478,6 @@ static struct uart_driver serial21285_reg = {
 	.owner			= THIS_MODULE,
 	.driver_name		= "ttyFB",
 	.dev_name		= "ttyFB",
-	.devfs_name             = "ttyFB",
 	.major			= SERIAL_21285_MAJOR,
 	.minor			= SERIAL_21285_MINOR,
 	.nr			= 1,

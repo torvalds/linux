@@ -9,7 +9,6 @@
  *	the Free Software Foundation, version 2.
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/pagemap.h>
 #include <linux/slab.h>

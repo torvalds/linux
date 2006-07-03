@@ -19,7 +19,6 @@
 #define __XFS_LINUX__
 
 #include <linux/types.h>
-#include <linux/config.h>
 
 /*
  * Some types are conditional depending on the target system.

@@ -2220,7 +2220,7 @@ static int gem_do_start(struct net_device *dev)
 	spin_unlock_irqrestore(&gp->lock, flags);
 
 	if (request_irq(gp->pdev->irq, gem_interrupt,
-				   SA_SHIRQ, dev->name, (void *)dev)) {
+				   IRQF_SHARED, dev->name, (void *)dev)) {
 		printk(KERN_ERR "%s: failed to request irq !\n", gp->dev->name);
 
 		spin_lock_irqsave(&gp->lock, flags);

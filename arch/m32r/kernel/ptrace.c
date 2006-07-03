@@ -14,7 +14,6 @@
  *   Copyright (C) 2000 Russell King
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/mm.h>

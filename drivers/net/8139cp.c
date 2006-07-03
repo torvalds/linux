@@ -52,7 +52,6 @@
 #define DRV_RELDATE		"Mar 22, 2004"
 
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
@@ -1204,7 +1203,7 @@ static int cp_open (struct net_device *dev)
 
 	cp_init_hw(cp);
 
-	rc = request_irq(dev->irq, cp_interrupt, SA_SHIRQ, dev->name, dev);
+	rc = request_irq(dev->irq, cp_interrupt, IRQF_SHARED, dev->name, dev);
 	if (rc)
 		goto err_out_hw;
 
@@ -1823,7 +1822,7 @@ static int cp_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct cp_private *cp;
 	int rc;
 	void __iomem *regs;
-	long pciaddr;
+	resource_size_t pciaddr;
 	unsigned int addr_len, i, pci_using_dac;
 	u8 pci_rev;
 
@@ -1883,8 +1882,8 @@ static int cp_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 	if (pci_resource_len(pdev, 1) < CP_REGS_SIZE) {
 		rc = -EIO;
-		printk(KERN_ERR PFX "MMIO resource (%lx) too small on pci dev %s\n",
-		       pci_resource_len(pdev, 1), pci_name(pdev));
+		printk(KERN_ERR PFX "MMIO resource (%llx) too small on pci dev %s\n",
+		       (unsigned long long)pci_resource_len(pdev, 1), pci_name(pdev));
 		goto err_out_res;
 	}
 
@@ -1916,8 +1915,9 @@ static int cp_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	regs = ioremap(pciaddr, CP_REGS_SIZE);
 	if (!regs) {
 		rc = -EIO;
-		printk(KERN_ERR PFX "Cannot map PCI MMIO (%lx@%lx) on pci dev %s\n",
-		       pci_resource_len(pdev, 1), pciaddr, pci_name(pdev));
+		printk(KERN_ERR PFX "Cannot map PCI MMIO (%llx@%llx) on pci dev %s\n",
+			(unsigned long long)pci_resource_len(pdev, 1),
+			(unsigned long long)pciaddr, pci_name(pdev));
 		goto err_out_res;
 	}
 	dev->base_addr = (unsigned long) regs;

@@ -105,7 +105,7 @@ scdrv_open(struct inode *inode, struct file *file)
 
 	/* hook this subchannel up to the system controller interrupt */
 	rv = request_irq(SGI_UART_VECTOR, scdrv_interrupt,
-			 SA_SHIRQ | SA_INTERRUPT,
+			 IRQF_SHARED | IRQF_DISABLED,
 			 SYSCTL_BASENAME, sd);
 	if (rv) {
 		ia64_sn_irtr_close(sd->sd_nasid, sd->sd_subch);

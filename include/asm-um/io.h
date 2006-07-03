@@ -45,8 +45,13 @@ static inline void writel(unsigned int b, volatile void __iomem *addr)
 {
 	*(volatile unsigned int __force *) addr = b;
 }
+static inline void writeq(unsigned int b, volatile void __iomem *addr)
+{
+	*(volatile unsigned long long __force *) addr = b;
+}
 #define __raw_writeb writeb
 #define __raw_writew writew
 #define __raw_writel writel
+#define __raw_writeq writeq
 
 #endif

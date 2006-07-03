@@ -5,7 +5,6 @@
  *  Swap reorganised 29.12.95, Stephen Tweedie
  */
 
-#include <linux/config.h>
 #include <linux/mm.h>
 #include <linux/hugetlb.h>
 #include <linux/mman.h>

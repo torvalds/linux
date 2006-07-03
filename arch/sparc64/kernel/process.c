@@ -12,7 +12,6 @@
 
 #include <stdarg.h>
 
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/sched.h>
@@ -26,7 +25,6 @@
 #include <linux/slab.h>
 #include <linux/user.h>
 #include <linux/a.out.h>
-#include <linux/config.h>
 #include <linux/reboot.h>
 #include <linux/delay.h>
 #include <linux/compat.h>

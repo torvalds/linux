@@ -11,7 +11,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include "hisax.h"
 #include "isac.h"
@@ -593,7 +592,7 @@ setup_gazelpci(struct IsdnCardState *cs)
 	cs->hw.gazel.hscxfifo[0] = cs->hw.gazel.hscx[0];
 	cs->hw.gazel.hscxfifo[1] = cs->hw.gazel.hscx[1];
 	cs->irq = pci_irq;
-	cs->irq_flags |= SA_SHIRQ;
+	cs->irq_flags |= IRQF_SHARED;
 
 	switch (seekcard) {
 		case PCI_DEVICE_ID_PLX_R685:

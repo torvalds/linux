@@ -280,7 +280,10 @@ svc_process(struct svc_serv *serv, struct svc_rqst *rqstp)
 	rqstp->rq_res.page_base = 0;
 	rqstp->rq_res.page_len = 0;
 	rqstp->rq_res.buflen = PAGE_SIZE;
+	rqstp->rq_res.tail[0].iov_base = NULL;
 	rqstp->rq_res.tail[0].iov_len = 0;
+	/* Will be turned off only in gss privacy case: */
+	rqstp->rq_sendfile_ok = 1;
 	/* tcp needs a space for the record length... */
 	if (rqstp->rq_prot == IPPROTO_TCP)
 		svc_putu32(resv, 0);

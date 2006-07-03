@@ -217,48 +217,6 @@ failed:
 	return;
 }
 
-static struct page *ufs_get_locked_page(struct address_space *mapping,
-				  unsigned long index)
-{
-	struct page *page;
-
-try_again:
-	page = find_lock_page(mapping, index);
-	if (!page) {
-		page = read_cache_page(mapping, index,
-				       (filler_t*)mapping->a_ops->readpage,
-				       NULL);
-		if (IS_ERR(page)) {
-			printk(KERN_ERR "ufs_change_blocknr: "
-			       "read_cache_page error: ino %lu, index: %lu\n",
-			       mapping->host->i_ino, index);
-			goto out;
-		}
-
-		lock_page(page);
-
-		if (!PageUptodate(page) || PageError(page)) {
-			unlock_page(page);
-			page_cache_release(page);
-
-			printk(KERN_ERR "ufs_change_blocknr: "
-			       "can not read page: ino %lu, index: %lu\n",
-			       mapping->host->i_ino, index);
-
-			page = ERR_PTR(-EIO);
-			goto out;
-		}
-	}
-
-	if (unlikely(!page->mapping || !page_has_buffers(page))) {
-		unlock_page(page);
-		page_cache_release(page);
-		goto try_again;/*we really need these buffers*/
-	}
-out:
-	return page;
-}
-
 /*
  * Modify inode page cache in such way:
  * have - blocks with b_blocknr equal to oldb...oldb+count-1
@@ -311,10 +269,8 @@ static void ufs_change_blocknr(struct inode *inode, unsigned int baseblk,
 
 		set_page_dirty(page);
 
-		if (likely(cur_index != index)) {
-			unlock_page(page);
-			page_cache_release(page);
-		}
+		if (likely(cur_index != index))
+			ufs_put_locked_page(page);
  	}
 	UFSD("EXIT\n");
 }

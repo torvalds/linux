@@ -19,7 +19,6 @@
  *  Re-organised Feb 1998 Russell King
  */
 
-#include <linux/config.h>
 
 #include "check.h"
 #include "msdos.h"

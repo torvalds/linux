@@ -5,7 +5,6 @@
  * 				Thomas Graf <tgraf@suug.ch>
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -320,7 +319,7 @@ static int genl_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh,
 		goto errout;
 	}
 
-	if ((ops->flags & GENL_ADMIN_PERM) && security_netlink_recv(skb)) {
+	if ((ops->flags & GENL_ADMIN_PERM) && security_netlink_recv(skb, CAP_NET_ADMIN)) {
 		err = -EPERM;
 		goto errout;
 	}

@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2006 QLogic, Inc. All rights reserved.
  * Copyright (c) 2003, 2004, 2005, 2006 PathScale, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -38,7 +39,8 @@
  * to communicate between kernel and user code.
  */
 
-/* This is the IEEE-assigned OUI for PathScale, Inc. */
+
+/* This is the IEEE-assigned OUI for QLogic Inc. InfiniPath */
 #define IPATH_SRC_OUI_1 0x00
 #define IPATH_SRC_OUI_2 0x11
 #define IPATH_SRC_OUI_3 0x75
@@ -96,8 +98,8 @@ struct infinipath_stats {
 	__u64 sps_hwerrs;
 	/* number of times IB link changed state unexpectedly */
 	__u64 sps_iblink;
-	/* no longer used; left for compatibility */
-	__u64 sps_unused3;
+	/* kernel receive interrupts that didn't read intstat */
+	__u64 sps_fastrcvint;
 	/* number of kernel (port0) packets received */
 	__u64 sps_port0pkts;
 	/* number of "ethernet" packets sent by driver */
@@ -121,8 +123,7 @@ struct infinipath_stats {
 	__u64 sps_ports;
 	/* list of pkeys (other than default) accepted (0 means not set) */
 	__u16 sps_pkeys[4];
-	/* lids for up to 4 infinipaths, indexed by infinipath # */
-	__u16 sps_lid[4];
+	__u16 sps_unused16[4]; /* available; maintaining compatible layout */
 	/* number of user ports per chip (not IB ports) */
 	__u32 sps_nports;
 	/* not our interrupt, or already handled */
@@ -140,10 +141,8 @@ struct infinipath_stats {
 	 * packets if ipath not configured, sma/mad, etc.)
 	 */
 	__u64 sps_krdrops;
-	/* mlids for up to 4 infinipaths, indexed by infinipath # */
-	__u16 sps_mlid[4];
 	/* pad for future growth */
-	__u64 __sps_pad[45];
+	__u64 __sps_pad[46];
 };
 
 /*
@@ -310,6 +309,9 @@ struct ipath_base_info {
 	__u32 spi_rcv_egrchunksize;
 	/* total size of mmap to cover full rcvegrbuffers */
 	__u32 spi_rcv_egrbuftotlen;
+	__u32 spi_filler_for_align;
+	/* address of readonly memory copy of the rcvhdrq tail register. */
+	__u64 spi_rcvhdr_tailaddr;
 } __attribute__ ((aligned(8)));
 
 
@@ -342,9 +344,9 @@ struct ipath_base_info {
 /*
  * Similarly, this is the kernel version going back to the user.  It's
  * slightly different, in that we want to tell if the driver was built as
- * part of a PathScale release, or from the driver from OpenIB, kernel.org,
- * or a standard distribution, for support reasons.  The high bit is 0 for
- * non-PathScale, and 1 for PathScale-built/supplied.
+ * part of a QLogic release, or from the driver from openfabrics.org,
+ * kernel.org, or a standard distribution, for support reasons.
+ * The high bit is 0 for non-QLogic and 1 for QLogic-built/supplied.
  *
  * It's returned by the driver to the user code during initialization in the
  * spi_sw_version field of ipath_base_info, so the user code can in turn
@@ -379,13 +381,7 @@ struct ipath_user_info {
 	 */
 	__u32 spu_rcvhdrsize;
 
-	/*
-	 * cache line aligned (64 byte) user address to
-	 * which the rcvhdrtail register will be written by infinipath
-	 * whenever it changes, so that no chip registers are read in
-	 * the performance path.
-	 */
-	__u64 spu_rcvhdraddr;
+	__u64 spu_unused; /* kept for compatible layout */
 
 	/*
 	 * address of struct base_info to write to
@@ -481,7 +477,7 @@ struct ipath_sma_pkt
  * Data layout in I2C flash (for GUID, etc.)
  * All fields are little-endian binary unless otherwise stated
  */
-#define IPATH_FLASH_VERSION 1
+#define IPATH_FLASH_VERSION 2
 struct ipath_flash {
 	/* flash layout version (IPATH_FLASH_VERSION) */
 	__u8 if_fversion;
@@ -489,14 +485,14 @@ struct ipath_flash {
 	__u8 if_csum;
 	/*
 	 * valid length (in use, protected by if_csum), including
-	 * if_fversion and if_sum themselves)
+	 * if_fversion and if_csum themselves)
 	 */
 	__u8 if_length;
 	/* the GUID, in network order */
 	__u8 if_guid[8];
 	/* number of GUIDs to use, starting from if_guid */
 	__u8 if_numguid;
-	/* the board serial number, in ASCII */
+	/* the (last 10 characters of) board serial number, in ASCII */
 	char if_serial[12];
 	/* board mfg date (YYYYMMDD ASCII) */
 	char if_mfgdate[8];
@@ -508,8 +504,10 @@ struct ipath_flash {
 	__u8 if_powerhour[2];
 	/* ASCII free-form comment field */
 	char if_comment[32];
-	/* 78 bytes used, min flash size is 128 bytes */
-	__u8 if_future[50];
+	/* Backwards compatible prefix for longer QLogic Serial Numbers */
+	char if_sprefix[4];
+	/* 82 bytes used, min flash size is 128 bytes */
+	__u8 if_future[46];
 };
 
 /*
@@ -603,14 +601,118 @@ struct infinipath_counters {
 #define INFINIPATH_KPF_INTR 0x1
 
 /* SendPIO per-buffer control */
-#define INFINIPATH_SP_LENGTHP1_MASK 0x3FF
-#define INFINIPATH_SP_LENGTHP1_SHIFT 0
-#define INFINIPATH_SP_INTR    0x80000000
-#define INFINIPATH_SP_TEST    0x40000000
-#define INFINIPATH_SP_TESTEBP 0x20000000
+#define INFINIPATH_SP_TEST    0x40
+#define INFINIPATH_SP_TESTEBP 0x20
 
 /* SendPIOAvail bits */
 #define INFINIPATH_SENDPIOAVAIL_BUSY_SHIFT 1
 #define INFINIPATH_SENDPIOAVAIL_CHECK_SHIFT 0
+
+/* infinipath header format */
+struct ipath_header {
+	/*
+	 * Version - 4 bits, Port - 4 bits, TID - 10 bits and Offset -
+	 * 14 bits before ECO change ~28 Dec 03.  After that, Vers 4,
+	 * Port 3, TID 11, offset 14.
+	 */
+	__le32 ver_port_tid_offset;
+	__le16 chksum;
+	__le16 pkt_flags;
+};
+
+/* infinipath user message header format.
+ * This structure contains the first 4 fields common to all protocols
+ * that employ infinipath.
+ */
+struct ipath_message_header {
+	__be16 lrh[4];
+	__be32 bth[3];
+	/* fields below this point are in host byte order */
+	struct ipath_header iph;
+	__u8 sub_opcode;
+};
+
+/* infinipath ethernet header format */
+struct ether_header {
+	__be16 lrh[4];
+	__be32 bth[3];
+	struct ipath_header iph;
+	__u8 sub_opcode;
+	__u8 cmd;
+	__be16 lid;
+	__u16 mac[3];
+	__u8 frag_num;
+	__u8 seq_num;
+	__le32 len;
+	/* MUST be of word size due to PIO write requirements */
+	__le32 csum;
+	__le16 csum_offset;
+	__le16 flags;
+	__u16 first_2_bytes;
+	__u8 unused[2];		/* currently unused */
+};
+
+
+/* IB - LRH header consts */
+#define IPATH_LRH_GRH 0x0003	/* 1. word of IB LRH - next header: GRH */
+#define IPATH_LRH_BTH 0x0002	/* 1. word of IB LRH - next header: BTH */
+
+/* misc. */
+#define SIZE_OF_CRC 1
+
+#define IPATH_DEFAULT_P_KEY 0xFFFF
+#define IPATH_PERMISSIVE_LID 0xFFFF
+#define IPATH_AETH_CREDIT_SHIFT 24
+#define IPATH_AETH_CREDIT_MASK 0x1F
+#define IPATH_AETH_CREDIT_INVAL 0x1F
+#define IPATH_PSN_MASK 0xFFFFFF
+#define IPATH_MSN_MASK 0xFFFFFF
+#define IPATH_QPN_MASK 0xFFFFFF
+#define IPATH_MULTICAST_LID_BASE 0xC000
+#define IPATH_MULTICAST_QPN 0xFFFFFF
+
+/* Receive Header Queue: receive type (from infinipath) */
+#define RCVHQ_RCV_TYPE_EXPECTED  0
+#define RCVHQ_RCV_TYPE_EAGER     1
+#define RCVHQ_RCV_TYPE_NON_KD    2
+#define RCVHQ_RCV_TYPE_ERROR     3
+
+
+/* sub OpCodes - ith4x  */
+#define IPATH_ITH4X_OPCODE_ENCAP 0x81
+#define IPATH_ITH4X_OPCODE_LID_ARP 0x82
+
+#define IPATH_HEADER_QUEUE_WORDS 9
+
+/* functions for extracting fields from rcvhdrq entries for the driver.
+ */
+static inline __u32 ipath_hdrget_err_flags(const __le32 * rbuf)
+{
+	return __le32_to_cpu(rbuf[1]);
+}
+
+static inline __u32 ipath_hdrget_rcv_type(const __le32 * rbuf)
+{
+	return (__le32_to_cpu(rbuf[0]) >> INFINIPATH_RHF_RCVTYPE_SHIFT)
+	    & INFINIPATH_RHF_RCVTYPE_MASK;
+}
+
+static inline __u32 ipath_hdrget_length_in_bytes(const __le32 * rbuf)
+{
+	return ((__le32_to_cpu(rbuf[0]) >> INFINIPATH_RHF_LENGTH_SHIFT)
+		& INFINIPATH_RHF_LENGTH_MASK) << 2;
+}
+
+static inline __u32 ipath_hdrget_index(const __le32 * rbuf)
+{
+	return (__le32_to_cpu(rbuf[0]) >> INFINIPATH_RHF_EGRINDEX_SHIFT)
+	    & INFINIPATH_RHF_EGRINDEX_MASK;
+}
+
+static inline __u32 ipath_hdrget_ipath_ver(__le32 hdrword)
+{
+	return (__le32_to_cpu(hdrword) >> INFINIPATH_I_VERS_SHIFT)
+	    & INFINIPATH_I_VERS_MASK;
+}
 
 #endif				/* _IPATH_COMMON_H */

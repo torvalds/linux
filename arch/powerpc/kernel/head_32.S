@@ -22,7 +22,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <asm/reg.h>
 #include <asm/page.h>
 #include <asm/mmu.h>

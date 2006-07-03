@@ -7,7 +7,6 @@
  * Additions for SPC-3 T10/1416-D Rev 21 22 Sept 2004, D. Gilbert 20041025
  */
 
-#include <linux/config.h>
 #include <linux/blkdev.h>
 #include <linux/module.h>
 #include <linux/kernel.h>

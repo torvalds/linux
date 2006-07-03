@@ -197,7 +197,7 @@ snd_vortex_create(struct snd_card *card, struct pci_dev *pci, vortex_t ** rchip)
 	}
 
 	if ((err = request_irq(pci->irq, vortex_interrupt,
-	                       SA_INTERRUPT | SA_SHIRQ, CARD_NAME_SHORT,
+	                       IRQF_DISABLED | IRQF_SHARED, CARD_NAME_SHORT,
 	                       chip)) != 0) {
 		printk(KERN_ERR "cannot grab irq\n");
 		goto irq_out;

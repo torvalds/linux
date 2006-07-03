@@ -8,7 +8,6 @@
  * Copyright (C) 2000 Harald Koerfgen
  * Copyright (C) 2002, 2003, 2005 Ilya A. Volynets
  */
-#include <linux/config.h>
 #include <linux/console.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>

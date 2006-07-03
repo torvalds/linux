@@ -179,7 +179,7 @@ static int mipsnet_open(struct net_device *dev)
 	pr_debug("%s: mipsnet_open\n", dev->name);
 
 	err = request_irq(dev->irq, &mipsnet_interrupt,
-			  SA_SHIRQ, dev->name, (void *) dev);
+			  IRQF_SHARED, dev->name, (void *) dev);
 
 	if (err) {
 		pr_debug("%s: %s(): can't get irq %d\n",

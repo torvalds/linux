@@ -11,7 +11,6 @@
  * Written by Miles Bader <miles@gnu.org>
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/bootmem.h>
@@ -264,7 +263,7 @@ static unsigned cb_pic_startup_irq (unsigned irq)
 
 	if (cb_pic_active_irqs == 0) {
 		rval = request_irq (IRQ_CB_PIC, cb_pic_handle_irq,
-				    SA_INTERRUPT, "cb_pic_handler", 0);
+				    IRQF_DISABLED, "cb_pic_handler", 0);
 		if (rval != 0)
 			return rval;
 	}

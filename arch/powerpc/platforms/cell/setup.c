@@ -14,7 +14,6 @@
  */
 #undef DEBUG
 
-#include <linux/config.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -125,8 +124,6 @@ static void __init cell_init_early(void)
 {
 	DBG(" -> cell_init_early()\n");
 
-	hpte_init_native();
-
 	cell_init_iommu();
 
 	ppc64_interrupt_controller = IC_CELL_PIC;
@@ -139,11 +136,17 @@ static int __init cell_probe(void)
 {
 	unsigned long root = of_get_flat_dt_root();
 
-	if (of_flat_dt_is_compatible(root, "IBM,CBEA") ||
-	    of_flat_dt_is_compatible(root, "IBM,CPBW-1.0"))
-		return 1;
+	if (!of_flat_dt_is_compatible(root, "IBM,CBEA") &&
+	    !of_flat_dt_is_compatible(root, "IBM,CPBW-1.0"))
+		return 0;
 
-	return 0;
+#ifdef CONFIG_UDBG_RTAS_CONSOLE
+	udbg_init_rtas_console();
+#endif
+
+	hpte_init_native();
+
+	return 1;
 }
 
 /*

@@ -4,10 +4,12 @@
 
 #include <linux/device.h>
 #include <linux/mod_devicetable.h>
+#include <asm/openprom.h>
 #include <asm/prom.h>
 
 extern struct bus_type ebus_bus_type;
 extern struct bus_type sbus_bus_type;
+extern struct bus_type of_bus_type;
 
 /*
  * The of_device is a kind of "base class" that is a superset of
@@ -16,10 +18,24 @@ extern struct bus_type sbus_bus_type;
  */
 struct of_device
 {
-	struct device_node	*node;		/* OF device node */
-	struct device		dev;		/* Generic device interface */
+	struct device_node		*node;
+	struct device			dev;
+	struct resource			resource[PROMREG_MAX];
+	unsigned int			irqs[PROMINTR_MAX];
+	int				num_irqs;
+
+	void				*sysdata;
+
+	int				slot;
+	int				portid;
+	int				clock_freq;
 };
 #define	to_of_device(d) container_of(d, struct of_device, dev)
+
+extern void __iomem *of_ioremap(struct resource *res, unsigned long offset, unsigned long size, char *name);
+extern void of_iounmap(void __iomem *base, unsigned long size);
+
+extern struct of_device *of_find_device_by_node(struct device_node *);
 
 extern const struct of_device_id *of_match_device(
 	const struct of_device_id *matches, const struct of_device *dev);

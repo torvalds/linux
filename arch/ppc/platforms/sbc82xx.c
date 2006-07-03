@@ -13,7 +13,6 @@
  * option) any later version.
  */
 
-#include <linux/config.h>
 #include <linux/stddef.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
@@ -146,7 +145,7 @@ static irqreturn_t sbc82xx_i8259_demux(int irq, void *dev_id, struct pt_regs *re
 
 static struct irqaction sbc82xx_i8259_irqaction = {
 	.handler = sbc82xx_i8259_demux,
-	.flags = SA_INTERRUPT,
+	.flags = IRQF_DISABLED,
 	.mask = CPU_MASK_NONE,
 	.name = "i8259 demux",
 };
@@ -172,7 +171,7 @@ void __init sbc82xx_init_IRQ(void)
 	
 	/* Set up the interrupt handlers for the i8259 IRQs */
 	for (i = NR_SIU_INTS; i < NR_SIU_INTS + 8; i++) {
-                irq_desc[i].handler = &sbc82xx_i8259_ic;
+                irq_desc[i].chip = &sbc82xx_i8259_ic;
 		irq_desc[i].status |= IRQ_LEVEL;
 	}
 

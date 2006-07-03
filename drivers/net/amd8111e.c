@@ -69,7 +69,6 @@ Revision History:
 */
 
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -1377,7 +1376,7 @@ static int amd8111e_open(struct net_device * dev )
 {
 	struct amd8111e_priv *lp = netdev_priv(dev);
 
-	if(dev->irq ==0 || request_irq(dev->irq, amd8111e_interrupt, SA_SHIRQ,
+	if(dev->irq ==0 || request_irq(dev->irq, amd8111e_interrupt, IRQF_SHARED,
 					 dev->name, dev)) 
 		return -EAGAIN;
 

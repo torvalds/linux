@@ -74,7 +74,7 @@ jensen_local_startup(unsigned int irq)
 		 * the IPL from being dropped during handler processing.
 		 */
 		if (irq_desc[irq].action)
-			irq_desc[irq].action->flags |= SA_INTERRUPT;
+			irq_desc[irq].action->flags |= IRQF_DISABLED;
 	return 0;
 }
 
@@ -206,11 +206,11 @@ jensen_init_irq(void)
 {
 	init_i8259a_irqs();
 
-	irq_desc[1].handler = &jensen_local_irq_type;
-	irq_desc[4].handler = &jensen_local_irq_type;
-	irq_desc[3].handler = &jensen_local_irq_type;
-	irq_desc[7].handler = &jensen_local_irq_type;
-	irq_desc[9].handler = &jensen_local_irq_type;
+	irq_desc[1].chip = &jensen_local_irq_type;
+	irq_desc[4].chip = &jensen_local_irq_type;
+	irq_desc[3].chip = &jensen_local_irq_type;
+	irq_desc[7].chip = &jensen_local_irq_type;
+	irq_desc[9].chip = &jensen_local_irq_type;
 
 	common_init_isa_dma();
 }

@@ -232,7 +232,6 @@
 
 #include <linux/module.h>
 
-#include <linux/config.h>
 
 #include <linux/types.h>
 #include <asm/setup.h>
@@ -1071,7 +1070,7 @@ NCR53c7x0_init (struct Scsi_Host *host) {
 
     NCR53c7x0_driver_init (host);
 
-    if (request_irq(host->irq, NCR53c7x0_intr, SA_SHIRQ, "53c7xx", host))
+    if (request_irq(host->irq, NCR53c7x0_intr, IRQF_SHARED, "53c7xx", host))
     {
 	printk("scsi%d : IRQ%d not free, detaching\n",
 		host->host_no, host->irq);
@@ -4233,7 +4232,7 @@ restart:
  * Purpose : handle NCR53c7x0 interrupts for all NCR devices sharing
  *	the same IRQ line.  
  * 
- * Inputs : Since we're using the SA_INTERRUPT interrupt handler
+ * Inputs : Since we're using the IRQF_DISABLED interrupt handler
  *	semantics, irq indicates the interrupt which invoked 
  *	this handler.  
  *

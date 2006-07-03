@@ -424,7 +424,6 @@
 
 #define IDETAPE_VERSION "1.19"
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/string.h>
@@ -435,7 +434,6 @@
 #include <linux/interrupt.h>
 #include <linux/jiffies.h>
 #include <linux/major.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/errno.h>
 #include <linux/genhd.h>
 #include <linux/slab.h>
@@ -4726,9 +4724,6 @@ static void ide_tape_release(struct kref *kref)
 			MKDEV(IDETAPE_MAJOR, tape->minor));
 	class_device_destroy(idetape_sysfs_class,
 			MKDEV(IDETAPE_MAJOR, tape->minor + 128));
-	devfs_remove("%s/mt", drive->devfs_name);
-	devfs_remove("%s/mtn", drive->devfs_name);
-	devfs_unregister_tape(g->number);
 	idetape_devs[tape->minor] = NULL;
 	g->private_data = NULL;
 	put_disk(g);
@@ -4902,14 +4897,6 @@ static int ide_tape_probe(ide_drive_t *drive)
 	class_device_create(idetape_sysfs_class, NULL,
 			MKDEV(IDETAPE_MAJOR, minor + 128), &drive->gendev, "n%s", tape->name);
 
-	devfs_mk_cdev(MKDEV(HWIF(drive)->major, minor),
-			S_IFCHR | S_IRUGO | S_IWUGO,
-			"%s/mt", drive->devfs_name);
-	devfs_mk_cdev(MKDEV(HWIF(drive)->major, minor + 128),
-			S_IFCHR | S_IRUGO | S_IWUGO,
-			"%s/mtn", drive->devfs_name);
-
-	g->number = devfs_register_tape(drive->devfs_name);
 	g->fops = &idetape_block_ops;
 	ide_register_region(g);
 

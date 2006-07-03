@@ -36,7 +36,6 @@
 #ifndef _DCCP_CCID3_H_
 #define _DCCP_CCID3_H_
 
-#include <linux/config.h>
 #include <linux/list.h>
 #include <linux/time.h>
 #include <linux/types.h>

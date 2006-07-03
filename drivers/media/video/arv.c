@@ -18,9 +18,7 @@
  * 2003-09-01:	Support w3cam by Takeo Takahashi
  */
 
-#include <linux/config.h>
 #include <linux/init.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/errno.h>

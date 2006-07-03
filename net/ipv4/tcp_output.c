@@ -510,8 +510,7 @@ static void tcp_queue_skb(struct sock *sk, struct sk_buff *skb)
 
 static void tcp_set_skb_tso_segs(struct sock *sk, struct sk_buff *skb, unsigned int mss_now)
 {
-	if (skb->len <= mss_now ||
-	    !(sk->sk_route_caps & NETIF_F_TSO)) {
+	if (skb->len <= mss_now || !sk_can_gso(sk)) {
 		/* Avoid the costly divide in the normal
 		 * non-TSO case.
 		 */
@@ -525,7 +524,7 @@ static void tcp_set_skb_tso_segs(struct sock *sk, struct sk_buff *skb, unsigned 
 		factor /= mss_now;
 		skb_shinfo(skb)->gso_segs = factor;
 		skb_shinfo(skb)->gso_size = mss_now;
-		skb_shinfo(skb)->gso_type = SKB_GSO_TCPV4;
+		skb_shinfo(skb)->gso_type = sk->sk_gso_type;
 	}
 }
 
@@ -824,9 +823,7 @@ unsigned int tcp_current_mss(struct sock *sk, int large_allowed)
 
 	mss_now = tp->mss_cache;
 
-	if (large_allowed &&
-	    (sk->sk_route_caps & NETIF_F_TSO) &&
-	    !tp->urg_mode)
+	if (large_allowed && sk_can_gso(sk) && !tp->urg_mode)
 		doing_tso = 1;
 
 	if (dst) {
@@ -2044,8 +2041,6 @@ struct sk_buff * tcp_make_synack(struct sock *sk, struct dst_entry *dst,
 	memset(th, 0, sizeof(struct tcphdr));
 	th->syn = 1;
 	th->ack = 1;
-	if (dst->dev->features&NETIF_F_TSO)
-		ireq->ecn_ok = 0;
 	TCP_ECN_make_synack(req, th);
 	th->source = inet_sk(sk)->sport;
 	th->dest = ireq->rmt_port;

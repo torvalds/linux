@@ -8,7 +8,6 @@
  * Copyright (C) 1992 Linus Torvalds
  * Copyright (C) 1994 - 2000 Ralf Baechle
  */
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/init.h>
@@ -95,7 +94,7 @@ int show_interrupts(struct seq_file *p, void *v)
 		for_each_online_cpu(j)
 			seq_printf(p, "%10u ", kstat_cpu(j).irqs[i]);
 #endif
-		seq_printf(p, " %14s", irq_desc[i].handler->typename);
+		seq_printf(p, " %14s", irq_desc[i].chip->typename);
 		seq_printf(p, "  %s", action->name);
 
 		for (action=action->next; action; action = action->next)
@@ -137,7 +136,7 @@ void __init init_IRQ(void)
 		irq_desc[i].status  = IRQ_DISABLED;
 		irq_desc[i].action  = NULL;
 		irq_desc[i].depth   = 1;
-		irq_desc[i].handler = &no_irq_type;
+		irq_desc[i].chip = &no_irq_type;
 		spin_lock_init(&irq_desc[i].lock);
 #ifdef CONFIG_MIPS_MT_SMTC
 		irq_hwmask[i] = 0;

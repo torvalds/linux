@@ -324,7 +324,7 @@ out:
 	return rc;
 }
 
-/* Try to reaquire byte range locks that were released when session */
+/* Try to reacquire byte range locks that were released when session */
 /* to server was lost */
 static int cifs_relock_file(struct cifsFileInfo *cifsFile)
 {

@@ -1027,7 +1027,7 @@ tioce_bus_fixup(struct pcibus_bussoft *prom_bussoft, struct pci_controller *cont
 
 	if (request_irq(SGI_PCIASIC_ERROR,
 			tioce_error_intr_handler,
-			SA_SHIRQ, "TIOCE error", (void *)tioce_common))
+			IRQF_SHARED, "TIOCE error", (void *)tioce_common))
 		printk(KERN_WARNING
 		       "%s:  Unable to get irq %d.  "
 		       "Error interrupts won't be routed for "

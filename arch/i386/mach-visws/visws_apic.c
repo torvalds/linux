@@ -16,7 +16,6 @@
  *  25/11/2002 - Updated for 2.5 by Andrey Panin <pazke@orbita1.ru>
  */
 
-#include <linux/config.h>
 #include <linux/kernel_stat.h>
 #include <linux/interrupt.h>
 #include <linux/smp_lock.h>
@@ -278,22 +277,22 @@ void init_VISWS_APIC_irqs(void)
 		irq_desc[i].depth = 1;
 
 		if (i == 0) {
-			irq_desc[i].handler = &cobalt_irq_type;
+			irq_desc[i].chip = &cobalt_irq_type;
 		}
 		else if (i == CO_IRQ_IDE0) {
-			irq_desc[i].handler = &cobalt_irq_type;
+			irq_desc[i].chip = &cobalt_irq_type;
 		}
 		else if (i == CO_IRQ_IDE1) {
-			irq_desc[i].handler = &cobalt_irq_type;
+			irq_desc[i].chip = &cobalt_irq_type;
 		}
 		else if (i == CO_IRQ_8259) {
-			irq_desc[i].handler = &piix4_master_irq_type;
+			irq_desc[i].chip = &piix4_master_irq_type;
 		}
 		else if (i < CO_IRQ_APIC0) {
-			irq_desc[i].handler = &piix4_virtual_irq_type;
+			irq_desc[i].chip = &piix4_virtual_irq_type;
 		}
 		else if (IS_CO_APIC(i)) {
-			irq_desc[i].handler = &cobalt_irq_type;
+			irq_desc[i].chip = &cobalt_irq_type;
 		}
 	}
 

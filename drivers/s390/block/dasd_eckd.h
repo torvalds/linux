@@ -1,7 +1,7 @@
-/* 
+/*
  * File...........: linux/drivers/s390/block/dasd_eckd.h
  * Author(s)......: Holger Smolinski <Holger.Smolinski@de.ibm.com>
- *                  Horst Hummel <Horst.Hummel@de.ibm.com> 
+ *		    Horst Hummel <Horst.Hummel@de.ibm.com>
  * Bugreports.to..: <Linux390@de.ibm.com>
  * (C) IBM Corporation, IBM Deutschland Entwicklung GmbH, 1999,2000
  *
@@ -41,9 +41,10 @@
 #define DASD_ECKD_CCW_RESERVE		 0xB4
 
 /*
- *Perform Subsystem Function / Sub-Orders
+ * Perform Subsystem Function / Sub-Orders
  */
-#define PSF_ORDER_PRSSD			 0x18
+#define PSF_ORDER_PRSSD 0x18
+#define PSF_ORDER_SSC	0x1D
 
 /*****************************************************************************
  * SECTION: Type Definitions
@@ -155,7 +156,7 @@ struct dasd_eckd_characteristics {
 		unsigned char reserved2:4;
 		unsigned char reserved3:8;
 		unsigned char defect_wr:1;
-		unsigned char XRC_supported:1; 
+		unsigned char XRC_supported:1;
 		unsigned char reserved4:1;
 		unsigned char striping:1;
 		unsigned char reserved5:4;
@@ -343,7 +344,7 @@ struct dasd_eckd_path {
 };
 
 /*
- * Perform Subsystem Function - Prepare for Read Subsystem Data	 
+ * Perform Subsystem Function - Prepare for Read Subsystem Data
  */
 struct dasd_psf_prssd_data {
 	unsigned char order;
@@ -352,5 +353,16 @@ struct dasd_psf_prssd_data {
 	unsigned char suborder;
 	unsigned char varies[9];
 } __attribute__ ((packed));
+
+/*
+ * Perform Subsystem Function - Set Subsystem Characteristics
+ */
+struct dasd_psf_ssc_data {
+	unsigned char order;
+	unsigned char flags;
+	unsigned char cu_type[4];
+	unsigned char suborder;
+	unsigned char reserved[59];
+} __attribute__((packed));
 
 #endif				/* DASD_ECKD_H */

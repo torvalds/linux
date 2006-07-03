@@ -22,7 +22,7 @@
  *
  * 07/08/99: rewamp of the interrupt handling - we now have two types of
  *           interrupts, normal and fast handlers, fast handlers being
- *           marked with SA_INTERRUPT and runs with all other interrupts
+ *           marked with IRQF_DISABLED and runs with all other interrupts
  *           disabled. Normal interrupts disable their own source but
  *           run with all other interrupt sources enabled.
  *           PORTS and EXTER interrupts are always shared even if the

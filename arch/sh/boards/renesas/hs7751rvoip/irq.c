@@ -10,7 +10,6 @@
  * Lineo uSolutions, Inc. 2003.
  */
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <asm/io.h>
@@ -86,7 +85,7 @@ static struct hw_interrupt_type hs7751rvoip_irq_type = {
 static void make_hs7751rvoip_irq(unsigned int irq)
 {
 	disable_irq_nosync(irq);
-	irq_desc[irq].handler = &hs7751rvoip_irq_type;
+	irq_desc[irq].chip = &hs7751rvoip_irq_type;
 	disable_hs7751rvoip_irq(irq);
 }
 

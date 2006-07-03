@@ -115,7 +115,6 @@ static struct file_operations rds_fops = {
 static struct miscdevice rds_miscdev = {
 	.minor		= MISC_DYNAMIC_MINOR,
 	.name		= "radiotext",
-	.devfs_name	= "v4l/rds/radiotext",
 	.fops		= &rds_fops,
 };
 

@@ -16,7 +16,6 @@
  * Copyright (C) 2004, 05 Ralf Baechle DL5RB <ralf@linux-mips.org>
  * Copyright (C) 2004, 05 Thomas Osterried DL9SAU <thomas@x-berg.in-berlin.de>
  */
-#include <linux/config.h>
 #include <linux/module.h>
 #include <asm/system.h>
 #include <linux/bitops.h>

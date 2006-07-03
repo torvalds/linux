@@ -2,7 +2,6 @@
  * ld script to make SuperH Linux kernel
  * Written by Niibe Yutaka
  */
-#include <linux/config.h>
 #include <asm-generic/vmlinux.lds.h>
 
 #ifdef CONFIG_CPU_LITTLE_ENDIAN

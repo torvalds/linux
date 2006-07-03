@@ -55,7 +55,6 @@
 
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/skbuff.h>
@@ -1008,7 +1007,7 @@ he_init_irq(struct he_dev *he_dev)
 	he_writel(he_dev, 0x0, GRP_54_MAP);
 	he_writel(he_dev, 0x0, GRP_76_MAP);
 
-	if (request_irq(he_dev->pci_dev->irq, he_irq_handler, SA_INTERRUPT|SA_SHIRQ, DEV_LABEL, he_dev)) {
+	if (request_irq(he_dev->pci_dev->irq, he_irq_handler, IRQF_DISABLED|IRQF_SHARED, DEV_LABEL, he_dev)) {
 		hprintk("irq %d already in use\n", he_dev->pci_dev->irq);
 		return -EINVAL;
 	}   
@@ -1018,7 +1017,7 @@ he_init_irq(struct he_dev *he_dev)
 	return 0;
 }
 
-static int __init
+static int __devinit
 he_start(struct atm_dev *dev)
 {
 	struct he_dev *he_dev;

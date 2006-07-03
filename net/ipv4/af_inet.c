@@ -1097,7 +1097,7 @@ int inet_sk_rebuild_header(struct sock *sk)
 
 EXPORT_SYMBOL(inet_sk_rebuild_header);
 
-static struct sk_buff *inet_gso_segment(struct sk_buff *skb, int sg)
+static struct sk_buff *inet_gso_segment(struct sk_buff *skb, int features)
 {
 	struct sk_buff *segs = ERR_PTR(-EINVAL);
 	struct iphdr *iph;
@@ -1126,10 +1126,10 @@ static struct sk_buff *inet_gso_segment(struct sk_buff *skb, int sg)
 	rcu_read_lock();
 	ops = rcu_dereference(inet_protos[proto]);
 	if (ops && ops->gso_segment)
-		segs = ops->gso_segment(skb, sg);
+		segs = ops->gso_segment(skb, features);
 	rcu_read_unlock();
 
-	if (IS_ERR(segs))
+	if (!segs || unlikely(IS_ERR(segs)))
 		goto out;
 
 	skb = segs;

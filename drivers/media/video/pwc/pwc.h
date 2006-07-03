@@ -25,7 +25,6 @@
 #ifndef PWC_H
 #define PWC_H
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/usb.h>
 #include <linux/spinlock.h>

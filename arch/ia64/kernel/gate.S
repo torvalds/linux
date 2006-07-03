@@ -6,7 +6,6 @@
  * 	David Mosberger-Tang <davidm@hpl.hp.com>
  */
 
-#include <linux/config.h>
 
 #include <asm/asmmacro.h>
 #include <asm/errno.h>

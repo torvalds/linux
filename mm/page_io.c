@@ -101,7 +101,7 @@ int swap_writepage(struct page *page, struct writeback_control *wbc)
 	}
 	if (wbc->sync_mode == WB_SYNC_ALL)
 		rw |= (1 << BIO_RW_SYNC);
-	inc_page_state(pswpout);
+	count_vm_event(PSWPOUT);
 	set_page_writeback(page);
 	unlock_page(page);
 	submit_bio(rw, bio);
@@ -123,7 +123,7 @@ int swap_readpage(struct file *file, struct page *page)
 		ret = -ENOMEM;
 		goto out;
 	}
-	inc_page_state(pswpin);
+	count_vm_event(PSWPIN);
 	submit_bio(READ, bio);
 out:
 	return ret;

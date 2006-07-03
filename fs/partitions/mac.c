@@ -6,7 +6,6 @@
  *  Re-organised Feb 1998 Russell King
  */
 
-#include <linux/config.h>
 #include <linux/ctype.h>
 #include "check.h"
 #include "mac.h"

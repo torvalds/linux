@@ -224,7 +224,8 @@ EXPORT_SYMBOL(gss_service_to_auth_domain_name);
 void
 gss_mech_put(struct gss_api_mech * gm)
 {
-	module_put(gm->gm_owner);
+	if (gm)
+		module_put(gm->gm_owner);
 }
 
 EXPORT_SYMBOL(gss_mech_put);
@@ -307,8 +308,7 @@ gss_delete_sec_context(struct gss_ctx	**context_handle)
 		(*context_handle)->mech_type->gm_ops
 			->gss_delete_sec_context((*context_handle)
 							->internal_ctx_id);
-	if ((*context_handle)->mech_type)
-		gss_mech_put((*context_handle)->mech_type);
+	gss_mech_put((*context_handle)->mech_type);
 	kfree(*context_handle);
 	*context_handle=NULL;
 	return GSS_S_COMPLETE;

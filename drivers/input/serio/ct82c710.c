@@ -31,7 +31,6 @@
 #include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/ioport.h>
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/serio.h>
@@ -189,7 +188,7 @@ static int __devinit ct82c710_probe(struct platform_device *dev)
 	strlcpy(ct82c710_port->name, "C&T 82c710 mouse port",
 		sizeof(ct82c710_port->name));
 	snprintf(ct82c710_port->phys, sizeof(ct82c710_port->phys),
-		 "isa%04lx/serio0", CT82C710_DATA);
+		 "isa%16llx/serio0", (unsigned long long)CT82C710_DATA);
 
 	serio_register_port(ct82c710_port);
 
@@ -241,8 +240,8 @@ static int __init ct82c710_init(void)
 
 	serio_register_port(ct82c710_port);
 
-	printk(KERN_INFO "serio: C&T 82c710 mouse port at %#lx irq %d\n",
-		CT82C710_DATA, CT82C710_IRQ);
+	printk(KERN_INFO "serio: C&T 82c710 mouse port at %#llx irq %d\n",
+		(unsigned long long)CT82C710_DATA, CT82C710_IRQ);
 
 	return 0;
 

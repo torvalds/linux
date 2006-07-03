@@ -9,7 +9,6 @@
  * STMicroelectronics ST40STB1 HARP and compatible support.
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <asm/io.h>

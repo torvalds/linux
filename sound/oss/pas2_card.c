@@ -4,7 +4,6 @@
  * Detection routine for the Pro Audio Spectrum cards.
  */
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>

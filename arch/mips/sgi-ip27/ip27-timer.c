@@ -217,7 +217,7 @@ static struct hw_interrupt_type rt_irq_type = {
 
 static struct irqaction rt_irqaction = {
 	.handler	= ip27_rt_timer_interrupt,
-	.flags		= SA_INTERRUPT,
+	.flags		= IRQF_DISABLED,
 	.mask		= CPU_MASK_NONE,
 	.name		= "timer"
 };

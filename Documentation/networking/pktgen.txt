@@ -74,7 +74,7 @@ Examples:
  pgset "pkt_size 9014"   sets packet size to 9014
  pgset "frags 5"         packet will consist of 5 fragments
  pgset "count 200000"    sets number of packets to send, set to zero
-                         for continious sends untill explicitl stopped.
+                         for continuous sends until explicitly stopped.
 
  pgset "delay 5000"      adds delay to hard_start_xmit(). nanoseconds
 

@@ -380,7 +380,6 @@ struct fb_cursor {
 #include <linux/tty.h>
 #include <linux/device.h>
 #include <linux/workqueue.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/notifier.h>
 #include <linux/list.h>
 #include <asm/io.h>
@@ -558,7 +557,7 @@ struct fb_pixmap {
  * Frame buffer operations
  *
  * LOCKING NOTE: those functions must _ALL_ be called with the console
- * semaphore held, this is the only suitable locking mecanism we have
+ * semaphore held, this is the only suitable locking mechanism we have
  * in 2.6. Some may be called at interrupt time at this point though.
  */
 

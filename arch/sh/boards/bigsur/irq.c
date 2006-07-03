@@ -20,7 +20,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/sched.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -253,7 +252,7 @@ static void make_bigsur_l1isr(unsigned int irq) {
         /* sanity check first */
         if(irq >= BIGSUR_IRQ_LOW && irq < BIGSUR_IRQ_HIGH) {
                 /* save the handler in the main description table */
-                irq_desc[irq].handler = &bigsur_l1irq_type;
+                irq_desc[irq].chip = &bigsur_l1irq_type;
                 irq_desc[irq].status = IRQ_DISABLED;
                 irq_desc[irq].action = 0;
                 irq_desc[irq].depth = 1;
@@ -270,7 +269,7 @@ static void make_bigsur_l2isr(unsigned int irq) {
         /* sanity check first */
         if(irq >= BIGSUR_2NDLVL_IRQ_LOW && irq < BIGSUR_2NDLVL_IRQ_HIGH) {
                 /* save the handler in the main description table */
-                irq_desc[irq].handler = &bigsur_l2irq_type;
+                irq_desc[irq].chip = &bigsur_l2irq_type;
                 irq_desc[irq].status = IRQ_DISABLED;
                 irq_desc[irq].action = 0;
                 irq_desc[irq].depth = 1;

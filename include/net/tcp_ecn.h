@@ -31,10 +31,9 @@ static inline void TCP_ECN_send_syn(struct sock *sk, struct tcp_sock *tp,
 				    struct sk_buff *skb)
 {
 	tp->ecn_flags = 0;
-	if (sysctl_tcp_ecn && !(sk->sk_route_caps & NETIF_F_TSO)) {
+	if (sysctl_tcp_ecn) {
 		TCP_SKB_CB(skb)->flags |= TCPCB_FLAG_ECE|TCPCB_FLAG_CWR;
 		tp->ecn_flags = TCP_ECN_OK;
-		sock_set_flag(sk, SOCK_NO_LARGESEND);
 	}
 }
 
@@ -56,6 +55,7 @@ static inline void TCP_ECN_send(struct sock *sk, struct tcp_sock *tp,
 			if (tp->ecn_flags&TCP_ECN_QUEUE_CWR) {
 				tp->ecn_flags &= ~TCP_ECN_QUEUE_CWR;
 				skb->h.th->cwr = 1;
+				skb_shinfo(skb)->gso_type |= SKB_GSO_TCP_ECN;
 			}
 		} else {
 			/* ACK or retransmitted segment: clear ECT|CE */

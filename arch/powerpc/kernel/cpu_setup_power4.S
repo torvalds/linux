@@ -9,7 +9,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <asm/processor.h>
 #include <asm/page.h>
 #include <asm/cputable.h>
@@ -125,7 +124,12 @@ _GLOBAL(__save_cpu_setup)
 	cmpwi	r0,0x44
 	bne	2f
 
-1:	/* Save HID0,1,4 and 5 */
+1:	/* skip if not running in HV mode */
+	mfmsr	r0
+	rldicl.	r0,r0,4,63
+	beq	2f
+
+	/* Save HID0,1,4 and 5 */
 	mfspr	r3,SPRN_HID0
 	std	r3,CS_HID0(r5)
 	mfspr	r3,SPRN_HID1
@@ -159,7 +163,12 @@ _GLOBAL(__restore_cpu_setup)
 	cmpwi	r0,0x44
 	bnelr
 
-1:	/* Before accessing memory, we make sure rm_ci is clear */
+1:	/* skip if not running in HV mode */
+	mfmsr	r0
+	rldicl.	r0,r0,4,63
+	beqlr
+
+	/* Before accessing memory, we make sure rm_ci is clear */
 	li	r0,0
 	mfspr	r3,SPRN_HID4
 	rldimi	r3,r0,40,23	/* clear bit 23 (rm_ci) */

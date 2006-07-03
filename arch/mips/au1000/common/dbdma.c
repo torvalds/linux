@@ -30,7 +30,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
@@ -290,7 +289,7 @@ au1xxx_dbdma_chan_alloc(u32 srcid, u32 destid,
 				/* If kmalloc fails, it is caught below same
 				 * as a channel not available.
 				 */
-				ctp = kmalloc(sizeof(chan_tab_t), GFP_KERNEL);
+				ctp = kmalloc(sizeof(chan_tab_t), GFP_ATOMIC);
 				chan_tab_ptr[i] = ctp;
 				break;
 			}
@@ -730,6 +729,8 @@ au1xxx_dbdma_get_dest(u32 chanid, void **buf, int *nbytes)
 	return rv;
 }
 
+EXPORT_SYMBOL_GPL(au1xxx_dbdma_get_dest);
+
 void
 au1xxx_dbdma_stop(u32 chanid)
 {
@@ -821,6 +822,8 @@ au1xxx_get_dma_residue(u32 chanid)
 	return rv;
 }
 
+EXPORT_SYMBOL_GPL(au1xxx_get_dma_residue);
+
 void
 au1xxx_dbdma_chan_free(u32 chanid)
 {
@@ -889,7 +892,7 @@ static void au1xxx_dbdma_init(void)
 	#error Unknown Au1x00 SOC
 #endif
 
-	if (request_irq(irq_nr, dbdma_interrupt, SA_INTERRUPT,
+	if (request_irq(irq_nr, dbdma_interrupt, IRQF_DISABLED,
 			"Au1xxx dbdma", (void *)dbdma_gptr))
 		printk("Can't get 1550 dbdma irq");
 }

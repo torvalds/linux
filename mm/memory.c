@@ -126,7 +126,7 @@ static void free_pte_range(struct mmu_gather *tlb, pmd_t *pmd)
 	pmd_clear(pmd);
 	pte_lock_deinit(page);
 	pte_free_tlb(tlb, page);
-	dec_page_state(nr_page_table_pages);
+	dec_zone_page_state(page, NR_PAGETABLE);
 	tlb->mm->nr_ptes--;
 }
 
@@ -311,7 +311,7 @@ int __pte_alloc(struct mm_struct *mm, pmd_t *pmd, unsigned long address)
 		pte_free(new);
 	} else {
 		mm->nr_ptes++;
-		inc_page_state(nr_page_table_pages);
+		inc_zone_page_state(new, NR_PAGETABLE);
 		pmd_populate(mm, pmd, new);
 	}
 	spin_unlock(&mm->page_table_lock);
@@ -1951,7 +1951,7 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
 
 		/* Had to read the page from swap area: Major fault */
 		ret = VM_FAULT_MAJOR;
-		inc_page_state(pgmajfault);
+		count_vm_event(PGMAJFAULT);
 		grab_swap_token();
 	}
 
@@ -2324,7 +2324,7 @@ int __handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 
 	__set_current_state(TASK_RUNNING);
 
-	inc_page_state(pgfault);
+	count_vm_event(PGFAULT);
 
 	if (unlikely(is_vm_hugetlb_page(vma)))
 		return hugetlb_fault(mm, vma, address, write_access);

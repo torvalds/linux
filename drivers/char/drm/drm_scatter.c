@@ -31,7 +31,6 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#include <linux/config.h>
 #include <linux/vmalloc.h>
 #include "drmP.h"
 

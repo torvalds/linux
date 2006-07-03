@@ -80,8 +80,15 @@ static struct omap_uart_config ams_delta_uart_config __initdata = {
 	.enabled_uarts = 1,
 };
 
+static struct omap_usb_config ams_delta_usb_config __initdata = {
+	.register_host	= 1,
+	.hmc_mode	= 16,
+	.pins[0]	= 2,
+};
+
 static struct omap_board_config_kernel ams_delta_config[] = {
 	{ OMAP_TAG_UART,	&ams_delta_uart_config },
+	{ OMAP_TAG_USB,		&ams_delta_usb_config },
 };
 
 static struct platform_device ams_delta_led_device = {

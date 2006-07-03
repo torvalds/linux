@@ -570,9 +570,9 @@ SK_BOOL	DualNet;
 	spin_unlock_irqrestore(&pAC->SlowPathLock, Flags);
 
 	if (pAC->GIni.GIMacsFound == 2) {
-		 Ret = request_irq(dev->irq, SkGeIsr, SA_SHIRQ, "sk98lin", dev);
+		 Ret = request_irq(dev->irq, SkGeIsr, IRQF_SHARED, "sk98lin", dev);
 	} else if (pAC->GIni.GIMacsFound == 1) {
-		Ret = request_irq(dev->irq, SkGeIsrOnePort, SA_SHIRQ,
+		Ret = request_irq(dev->irq, SkGeIsrOnePort, IRQF_SHARED,
 			"sk98lin", dev);
 	} else {
 		printk(KERN_WARNING "sk98lin: Illegal number of ports: %d\n",
@@ -5073,9 +5073,9 @@ static int skge_resume(struct pci_dev *pdev)
 	pci_enable_device(pdev);
 	pci_set_master(pdev);
 	if (pAC->GIni.GIMacsFound == 2)
-		ret = request_irq(dev->irq, SkGeIsr, SA_SHIRQ, "sk98lin", dev);
+		ret = request_irq(dev->irq, SkGeIsr, IRQF_SHARED, "sk98lin", dev);
 	else
-		ret = request_irq(dev->irq, SkGeIsrOnePort, SA_SHIRQ, "sk98lin", dev);
+		ret = request_irq(dev->irq, SkGeIsrOnePort, IRQF_SHARED, "sk98lin", dev);
 	if (ret) {
 		printk(KERN_WARNING "sk98lin: unable to acquire IRQ %d\n", dev->irq);
 		pAC->AllocFlag &= ~SK_ALLOC_IRQ;

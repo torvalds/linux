@@ -10,7 +10,6 @@
  *  register accesses
  */
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
@@ -290,7 +289,7 @@ void __init openpic2_init(int offset)
 
 	/* Init descriptors */
 	for (i = offset; i < NumSources + offset; i++)
-		irq_desc[i].handler = &open_pic2;
+		irq_desc[i].chip = &open_pic2;
 
 	/* Initialize the spurious interrupt */
 	if (ppc_md.progress) ppc_md.progress("openpic2: spurious",0x3bd);

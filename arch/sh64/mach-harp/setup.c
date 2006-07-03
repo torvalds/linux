@@ -20,7 +20,6 @@
 
 #include <linux/stddef.h>
 #include <linux/init.h>
-#include <linux/config.h>
 #include <linux/mm.h>
 #include <linux/bootmem.h>
 #include <linux/delay.h>

@@ -25,7 +25,6 @@
 #include "linux/blkdev.h"
 #include "linux/hdreg.h"
 #include "linux/init.h"
-#include "linux/devfs_fs_kernel.h"
 #include "linux/cdrom.h"
 #include "linux/proc_fs.h"
 #include "linux/ctype.h"
@@ -628,7 +627,6 @@ static int ubd_new_disk(int major, u64 size, int unit,
 			
 {
 	struct gendisk *disk;
-	char from[sizeof("ubd/nnnnn\0")], to[sizeof("discnnnnn/disc\0")];
 	int err;
 
 	disk = alloc_disk(1 << UBD_SHIFT);
@@ -639,20 +637,10 @@ static int ubd_new_disk(int major, u64 size, int unit,
 	disk->first_minor = unit << UBD_SHIFT;
 	disk->fops = &ubd_blops;
 	set_capacity(disk, size / 512);
-	if(major == MAJOR_NR){
+	if(major == MAJOR_NR)
 		sprintf(disk->disk_name, "ubd%c", 'a' + unit);
-		sprintf(disk->devfs_name, "ubd/disc%d", unit);
-		sprintf(from, "ubd/%d", unit);
-		sprintf(to, "disc%d/disc", unit);
-		err = devfs_mk_symlink(from, to);
-		if(err)
-			printk("ubd_new_disk failed to make link from %s to "
-			       "%s, error = %d\n", from, to, err);
-	}
-	else {
+	else
 		sprintf(disk->disk_name, "ubd_fake%d", unit);
-		sprintf(disk->devfs_name, "ubd_fake/disc%d", unit);
-	}
 
 	/* sysfs register (not for ide fake devices) */
 	if (major == MAJOR_NR) {
@@ -841,7 +829,6 @@ int ubd_init(void)
 {
         int i;
 
-	devfs_mk_dir("ubd");
 	if (register_blkdev(MAJOR_NR, "ubd"))
 		return -1;
 
@@ -855,7 +842,6 @@ int ubd_init(void)
 		char name[sizeof("ubd_nnn\0")];
 
 		snprintf(name, sizeof(name), "ubd_%d", fake_major);
-		devfs_mk_dir(name);
 		if (register_blkdev(fake_major, "ubd"))
 			return -1;
 	}
@@ -888,7 +874,7 @@ int ubd_driver_init(void){
 		return(0);
 	}
 	err = um_request_irq(UBD_IRQ, thread_fd, IRQ_READ, ubd_intr,
-			     SA_INTERRUPT, "ubd", ubd_dev);
+			     IRQF_DISABLED, "ubd", ubd_dev);
 	if(err != 0)
 		printk(KERN_ERR "um_request_irq failed - errno = %d\n", -err);
 	return 0;

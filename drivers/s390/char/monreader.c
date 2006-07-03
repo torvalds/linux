@@ -586,7 +586,6 @@ static struct file_operations mon_fops = {
 
 static struct miscdevice mon_dev = {
 	.name       = "monreader",
-	.devfs_name = "monreader",
 	.fops       = &mon_fops,
 	.minor      = MISC_DYNAMIC_MINOR,
 };

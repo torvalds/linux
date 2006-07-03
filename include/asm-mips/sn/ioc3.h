@@ -5,6 +5,8 @@
 #ifndef _IOC3_H
 #define _IOC3_H
 
+#include <linux/types.h>
+
 /* SUPERIO uart register map */
 typedef volatile struct ioc3_uartregs {
 	union {

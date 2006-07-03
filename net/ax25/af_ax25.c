@@ -13,7 +13,6 @@
  * Copyright (C) Hans Alblas PE1AYX (hans@esrac.ele.tue.nl)
  * Copyright (C) Frederic Rible F1OAT (frible@teaser.fr)
  */
-#include <linux/config.h>
 #include <linux/capability.h>
 #include <linux/module.h>
 #include <linux/errno.h>

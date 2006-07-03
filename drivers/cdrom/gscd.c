@@ -955,7 +955,6 @@ static int __init gscd_init(void)
 	gscd_disk->first_minor = 0;
 	gscd_disk->fops = &gscd_fops;
 	sprintf(gscd_disk->disk_name, "gscd");
-	sprintf(gscd_disk->devfs_name, "gscd");
 
 	if (register_blkdev(MAJOR_NR, "gscd")) {
 		ret = -EIO;

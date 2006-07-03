@@ -134,11 +134,18 @@ config PPC_EARLY_DEBUG_G5
 	help
 	  Select this to enable early debugging for Apple G5 machines.
 
-config PPC_EARLY_DEBUG_RTAS
+config PPC_EARLY_DEBUG_RTAS_PANEL
 	bool "RTAS Panel"
 	depends on PPC_RTAS
 	help
 	  Select this to enable early debugging via the RTAS panel.
+
+config PPC_EARLY_DEBUG_RTAS_CONSOLE
+	bool "RTAS Console"
+	depends on PPC_RTAS
+	select UDBG_RTAS_CONSOLE
+	help
+	  Select this to enable early debugging via the RTAS console.
 
 config PPC_EARLY_DEBUG_MAPLE
 	bool "Maple real mode"

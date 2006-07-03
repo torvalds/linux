@@ -17,7 +17,6 @@
  * 10/23/2001	S.Eranian	updated pal_perf_mon_info bug fixes
  * 03/24/2004	Ashok Raj	updated to work with CPU Hotplug
  */
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/init.h>

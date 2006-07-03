@@ -105,6 +105,6 @@ static void shutdown_imask_irq(unsigned int irq)
 void make_imask_irq(unsigned int irq)
 {
 	disable_irq_nosync(irq);
-	irq_desc[irq].handler = &imask_irq_type;
+	irq_desc[irq].chip = &imask_irq_type;
 	enable_irq(irq);
 }

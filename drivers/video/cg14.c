@@ -1,6 +1,6 @@
 /* cg14.c: CGFOURTEEN frame buffer driver
  *
- * Copyright (C) 2003 David S. Miller (davem@redhat.com)
+ * Copyright (C) 2003, 2006 David S. Miller (davem@davemloft.net)
  * Copyright (C) 1996,1998 Jakub Jelinek (jj@ultra.linux.cz)
  * Copyright (C) 1995 Miguel de Icaza (miguel@nuclecu.unam.mx)
  *
@@ -18,8 +18,8 @@
 #include <linux/mm.h>
 
 #include <asm/io.h>
-#include <asm/sbus.h>
-#include <asm/oplib.h>
+#include <asm/prom.h>
+#include <asm/of_device.h>
 #include <asm/fbio.h>
 
 #include "sbuslib.h"
@@ -99,73 +99,73 @@ static struct fb_ops cg14_ops = {
 #define CG14_MCR_PIXMODE_32		3
 
 struct cg14_regs{
-	volatile u8 mcr;	/* Master Control Reg */
-	volatile u8 ppr;	/* Packed Pixel Reg */
-	volatile u8 tms[2];	/* Test Mode Status Regs */
-	volatile u8 msr;	/* Master Status Reg */
-	volatile u8 fsr;	/* Fault Status Reg */
-	volatile u8 rev;	/* Revision & Impl */
-	volatile u8 ccr;	/* Clock Control Reg */
-	volatile u32 tmr;	/* Test Mode Read Back */
-	volatile u8 mod;	/* Monitor Operation Data Reg */
-	volatile u8 acr;	/* Aux Control */
+	u8 mcr;	/* Master Control Reg */
+	u8 ppr;	/* Packed Pixel Reg */
+	u8 tms[2];	/* Test Mode Status Regs */
+	u8 msr;	/* Master Status Reg */
+	u8 fsr;	/* Fault Status Reg */
+	u8 rev;	/* Revision & Impl */
+	u8 ccr;	/* Clock Control Reg */
+	u32 tmr;	/* Test Mode Read Back */
+	u8 mod;	/* Monitor Operation Data Reg */
+	u8 acr;	/* Aux Control */
 	u8 xxx0[6];
-	volatile u16 hct;	/* Hor Counter */
-	volatile u16 vct;	/* Vert Counter */
-	volatile u16 hbs;	/* Hor Blank Start */
-	volatile u16 hbc;	/* Hor Blank Clear */
-	volatile u16 hss;	/* Hor Sync Start */
-	volatile u16 hsc;	/* Hor Sync Clear */
-	volatile u16 csc;	/* Composite Sync Clear */
-	volatile u16 vbs;	/* Vert Blank Start */
-	volatile u16 vbc;	/* Vert Blank Clear */
-	volatile u16 vss;	/* Vert Sync Start */
-	volatile u16 vsc;	/* Vert Sync Clear */
-	volatile u16 xcs;
-	volatile u16 xcc;
-	volatile u16 fsa;	/* Fault Status Address */
-	volatile u16 adr;	/* Address Registers */
+	u16 hct;	/* Hor Counter */
+	u16 vct;	/* Vert Counter */
+	u16 hbs;	/* Hor Blank Start */
+	u16 hbc;	/* Hor Blank Clear */
+	u16 hss;	/* Hor Sync Start */
+	u16 hsc;	/* Hor Sync Clear */
+	u16 csc;	/* Composite Sync Clear */
+	u16 vbs;	/* Vert Blank Start */
+	u16 vbc;	/* Vert Blank Clear */
+	u16 vss;	/* Vert Sync Start */
+	u16 vsc;	/* Vert Sync Clear */
+	u16 xcs;
+	u16 xcc;
+	u16 fsa;	/* Fault Status Address */
+	u16 adr;	/* Address Registers */
 	u8 xxx1[0xce];
-	volatile u8 pcg[0x100]; /* Pixel Clock Generator */
-	volatile u32 vbr;	/* Frame Base Row */
-	volatile u32 vmcr;	/* VBC Master Control */
-	volatile u32 vcr;	/* VBC refresh */
-	volatile u32 vca;	/* VBC Config */
+	u8 pcg[0x100]; /* Pixel Clock Generator */
+	u32 vbr;	/* Frame Base Row */
+	u32 vmcr;	/* VBC Master Control */
+	u32 vcr;	/* VBC refresh */
+	u32 vca;	/* VBC Config */
 };
 
 #define CG14_CCR_ENABLE	0x04
 #define CG14_CCR_SELECT 0x02	/* HW/Full screen */
 
 struct cg14_cursor {
-	volatile u32 cpl0[32];	/* Enable plane 0 */
-	volatile u32 cpl1[32];  /* Color selection plane */
-	volatile u8 ccr;	/* Cursor Control Reg */
+	u32 cpl0[32];	/* Enable plane 0 */
+	u32 cpl1[32];  /* Color selection plane */
+	u8 ccr;	/* Cursor Control Reg */
 	u8 xxx0[3];
-	volatile u16 cursx;	/* Cursor x,y position */
-	volatile u16 cursy;	/* Cursor x,y position */
-	volatile u32 color0;
-	volatile u32 color1;
+	u16 cursx;	/* Cursor x,y position */
+	u16 cursy;	/* Cursor x,y position */
+	u32 color0;
+	u32 color1;
 	u32 xxx1[0x1bc];
-	volatile u32 cpl0i[32];	/* Enable plane 0 autoinc */
-	volatile u32 cpl1i[32]; /* Color selection autoinc */
+	u32 cpl0i[32];	/* Enable plane 0 autoinc */
+	u32 cpl1i[32]; /* Color selection autoinc */
 };
 
 struct cg14_dac {
-	volatile u8 addr;	/* Address Register */
+	u8 addr;	/* Address Register */
 	u8 xxx0[255];
-	volatile u8 glut;	/* Gamma table */
+	u8 glut;	/* Gamma table */
 	u8 xxx1[255];
-	volatile u8 select;	/* Register Select */
+	u8 select;	/* Register Select */
 	u8 xxx2[255];
-	volatile u8 mode;	/* Mode Register */
+	u8 mode;	/* Mode Register */
 };
 
 struct cg14_xlut{
-	volatile u8 x_xlut [256];
-	volatile u8 x_xlutd [256];
+	u8 x_xlut [256];
+	u8 x_xlutd [256];
 	u8 xxx0[0x600];
-	volatile u8 x_xlut_inc [256];
-	volatile u8 x_xlutd_inc [256];
+	u8 x_xlut_inc [256];
+	u8 x_xlutd_inc [256];
 };
 
 /* Color look up table (clut) */
@@ -204,7 +204,6 @@ struct cg14_par {
 
 	int			mode;
 	int			ramsize;
-	struct sbus_dev		*sdev;
 };
 
 static void __cg14_reset(struct cg14_par *par)
@@ -355,14 +354,9 @@ static int cg14_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
  *  Initialisation
  */
 
-static void cg14_init_fix(struct fb_info *info, int linebytes)
+static void cg14_init_fix(struct fb_info *info, int linebytes, struct device_node *dp)
 {
-	struct cg14_par *par = (struct cg14_par *)info->par;
-	const char *name;
-
-	name = "cgfourteen";
-	if (par->sdev)
-		name = par->sdev->prom_name;
+	const char *name = dp->name;
 
 	strlcpy(info->fix.id, name, sizeof(info->fix.id));
 
@@ -456,98 +450,81 @@ static struct sbus_mmap_map __cg14_mmap_map[CG14_MMAP_ENTRIES] __initdata = {
 struct all_info {
 	struct fb_info info;
 	struct cg14_par par;
-	struct list_head list;
 };
-static LIST_HEAD(cg14_list);
 
-static void cg14_init_one(struct sbus_dev *sdev, int node, int parent_node)
+static void cg14_unmap_regs(struct all_info *all)
 {
+	if (all->par.regs)
+		of_iounmap(all->par.regs, sizeof(struct cg14_regs));
+	if (all->par.clut)
+		of_iounmap(all->par.clut, sizeof(struct cg14_clut));
+	if (all->par.cursor)
+		of_iounmap(all->par.cursor, sizeof(struct cg14_cursor));
+	if (all->info.screen_base)
+		of_iounmap(all->info.screen_base, all->par.fbsize);
+}
+
+static int __devinit cg14_init_one(struct of_device *op)
+{
+	struct device_node *dp = op->node;
 	struct all_info *all;
-	unsigned long phys, rphys;
-	u32 bases[6];
-	int is_8mb, linebytes, i;
+	int is_8mb, linebytes, i, err;
 
-	if (!sdev) {
-		if (prom_getproperty(node, "address",
-				     (char *) &bases[0], sizeof(bases)) <= 0
-		    || !bases[0]) {
-			printk(KERN_ERR "cg14: Device is not mapped.\n");
-			return;
-		}
-		if (__get_iospace(bases[0]) != __get_iospace(bases[1])) {
-			printk(KERN_ERR "cg14: I/O spaces don't match.\n");
-			return;
-		}
-	}
-
-	all = kmalloc(sizeof(*all), GFP_KERNEL);
-	if (!all) {
-		printk(KERN_ERR "cg14: Cannot allocate memory.\n");
-		return;
-	}
-	memset(all, 0, sizeof(*all));
-
-	INIT_LIST_HEAD(&all->list);
+	all = kzalloc(sizeof(*all), GFP_KERNEL);
+	if (!all)
+		return -ENOMEM;
 
 	spin_lock_init(&all->par.lock);
 
-	sbusfb_fill_var(&all->info.var, node, 8);
+	sbusfb_fill_var(&all->info.var, dp->node, 8);
 	all->info.var.red.length = 8;
 	all->info.var.green.length = 8;
 	all->info.var.blue.length = 8;
 
-	linebytes = prom_getintdefault(node, "linebytes",
-				       all->info.var.xres);
+	linebytes = of_getintprop_default(dp, "linebytes",
+					  all->info.var.xres);
 	all->par.fbsize = PAGE_ALIGN(linebytes * all->info.var.yres);
 
-	all->par.sdev = sdev;
-	if (sdev) {
-		rphys = sdev->reg_addrs[0].phys_addr;
-		all->par.physbase = phys = sdev->reg_addrs[1].phys_addr;
-		all->par.iospace = sdev->reg_addrs[0].which_io;
-
-		all->par.regs = sbus_ioremap(&sdev->resource[0], 0,
-				     sizeof(struct cg14_regs),
-				     "cg14 regs");
-		all->par.clut = sbus_ioremap(&sdev->resource[0], CG14_CLUT1,
-				     sizeof(struct cg14_clut),
-				     "cg14 clut");
-		all->par.cursor = sbus_ioremap(&sdev->resource[0], CG14_CURSORREGS,
-				     sizeof(struct cg14_cursor),
-				     "cg14 cursor");
-		all->info.screen_base = sbus_ioremap(&sdev->resource[1], 0,
-				     all->par.fbsize, "cg14 ram");
+	if (!strcmp(dp->parent->name, "sbus") ||
+	    !strcmp(dp->parent->name, "sbi")) {
+		all->par.physbase = op->resource[0].start;
+		all->par.iospace = op->resource[0].flags & IORESOURCE_BITS;
 	} else {
-		rphys = __get_phys(bases[0]);
-		all->par.physbase = phys = __get_phys(bases[1]);
-		all->par.iospace = __get_iospace(bases[0]);
-		all->par.regs = (struct cg14_regs __iomem *)(unsigned long)bases[0];
-		all->par.clut = (struct cg14_clut __iomem *)((unsigned long)bases[0] +
-						     CG14_CLUT1);
-		all->par.cursor =
-			(struct cg14_cursor __iomem *)((unsigned long)bases[0] +
-					       CG14_CURSORREGS);
-
-		all->info.screen_base = (char __iomem *)(unsigned long)bases[1];
+		all->par.physbase = op->resource[1].start;
+		all->par.iospace = op->resource[0].flags & IORESOURCE_BITS;
 	}
 
-	prom_getproperty(node, "reg", (char *) &bases[0], sizeof(bases));
-	is_8mb = (bases[5] == 0x800000);
+	all->par.regs = of_ioremap(&op->resource[0], 0,
+				   sizeof(struct cg14_regs), "cg14 regs");
+	all->par.clut = of_ioremap(&op->resource[0], CG14_CLUT1,
+				   sizeof(struct cg14_clut), "cg14 clut");
+	all->par.cursor = of_ioremap(&op->resource[0], CG14_CURSORREGS,
+				   sizeof(struct cg14_cursor), "cg14 cursor");
 
-	if (sizeof(all->par.mmap_map) != sizeof(__cg14_mmap_map)) {
-		extern void __cg14_mmap_sized_wrongly(void);
+	all->info.screen_base = of_ioremap(&op->resource[1], 0,
+					   all->par.fbsize, "cg14 ram");
 
-		__cg14_mmap_sized_wrongly();
-	}
+	if (!all->par.regs || !all->par.clut || !all->par.cursor ||
+	    !all->info.screen_base)
+		cg14_unmap_regs(all);
+
+	is_8mb = (((op->resource[1].end - op->resource[1].start) + 1) ==
+		  (8 * 1024 * 1024));
+
+	BUILD_BUG_ON(sizeof(all->par.mmap_map) != sizeof(__cg14_mmap_map));
 		
-	memcpy(&all->par.mmap_map, &__cg14_mmap_map, sizeof(all->par.mmap_map));
+	memcpy(&all->par.mmap_map, &__cg14_mmap_map,
+	       sizeof(all->par.mmap_map));
+
 	for (i = 0; i < CG14_MMAP_ENTRIES; i++) {
 		struct sbus_mmap_map *map = &all->par.mmap_map[i];
 
 		if (!map->size)
 			break;
 		if (map->poff & 0x80000000)
-			map->poff = (map->poff & 0x7fffffff) + rphys - phys;
+			map->poff = (map->poff & 0x7fffffff) +
+				(op->resource[0].start -
+				 op->resource[1].start);
 		if (is_8mb &&
 		    map->size >= 0x100000 &&
 		    map->size <= 0x400000)
@@ -564,84 +541,87 @@ static void cg14_init_one(struct sbus_dev *sdev, int node, int parent_node)
 	__cg14_reset(&all->par);
 
 	if (fb_alloc_cmap(&all->info.cmap, 256, 0)) {
-		printk(KERN_ERR "cg14: Could not allocate color map.\n");
+		cg14_unmap_regs(all);
 		kfree(all);
-		return;
+		return -ENOMEM;
 	}
 	fb_set_cmap(&all->info.cmap, &all->info);
 
-	cg14_init_fix(&all->info, linebytes);
+	cg14_init_fix(&all->info, linebytes, dp);
 
-	if (register_framebuffer(&all->info) < 0) {
-		printk(KERN_ERR "cg14: Could not register framebuffer.\n");
+	err = register_framebuffer(&all->info);
+	if (err < 0) {
 		fb_dealloc_cmap(&all->info.cmap);
+		cg14_unmap_regs(all);
 		kfree(all);
-		return;
+		return err;
 	}
 
-	list_add(&all->list, &cg14_list);
+	dev_set_drvdata(&op->dev, all);
 
-	printk("cg14: cgfourteen at %lx:%lx, %dMB\n",
-	       all->par.iospace, all->par.physbase, all->par.ramsize >> 20);
+	printk("%s: cgfourteen at %lx:%lx, %dMB\n",
+	       dp->full_name,
+	       all->par.iospace, all->par.physbase,
+	       all->par.ramsize >> 20);
 
+	return 0;
 }
+
+static int __devinit cg14_probe(struct of_device *dev, const struct of_device_id *match)
+{
+	struct of_device *op = to_of_device(&dev->dev);
+
+	return cg14_init_one(op);
+}
+
+static int __devexit cg14_remove(struct of_device *dev)
+{
+	struct all_info *all = dev_get_drvdata(&dev->dev);
+
+	unregister_framebuffer(&all->info);
+	fb_dealloc_cmap(&all->info.cmap);
+
+	cg14_unmap_regs(all);
+
+	kfree(all);
+
+	dev_set_drvdata(&dev->dev, NULL);
+
+	return 0;
+}
+
+static struct of_device_id cg14_match[] = {
+	{
+		.name = "cgfourteen",
+	},
+	{},
+};
+MODULE_DEVICE_TABLE(of, cg14_match);
+
+static struct of_platform_driver cg14_driver = {
+	.name		= "cg14",
+	.match_table	= cg14_match,
+	.probe		= cg14_probe,
+	.remove		= __devexit_p(cg14_remove),
+};
 
 int __init cg14_init(void)
 {
-	struct sbus_bus *sbus;
-	struct sbus_dev *sdev;
-
 	if (fb_get_options("cg14fb", NULL))
 		return -ENODEV;
 
-#ifdef CONFIG_SPARC32
-	{
-		int root, node;
-
-		root = prom_getchild(prom_root_node);
-		root = prom_searchsiblings(root, "obio");
-		if (root) {
-			node = prom_searchsiblings(prom_getchild(root),
-						   "cgfourteen");
-			if (node)
-				cg14_init_one(NULL, node, root);
-		}
-	}
-#endif
-	for_all_sbusdev(sdev, sbus) {
-		if (!strcmp(sdev->prom_name, "cgfourteen"))
-			cg14_init_one(sdev, sdev->prom_node, sbus->prom_node);
-	}
-
-	return 0;
+	return of_register_driver(&cg14_driver, &of_bus_type);
 }
 
 void __exit cg14_exit(void)
 {
-	struct list_head *pos, *tmp;
-
-	list_for_each_safe(pos, tmp, &cg14_list) {
-		struct all_info *all = list_entry(pos, typeof(*all), list);
-
-		unregister_framebuffer(&all->info);
-		fb_dealloc_cmap(&all->info.cmap);
-		kfree(all);
-	}
-}
-
-int __init
-cg14_setup(char *arg)
-{
-	/* No cmdline options yet... */
-	return 0;
+	of_unregister_driver(&cg14_driver);
 }
 
 module_init(cg14_init);
-
-#ifdef MODULE
 module_exit(cg14_exit);
-#endif
 
 MODULE_DESCRIPTION("framebuffer driver for CGfourteen chipsets");
-MODULE_AUTHOR("David S. Miller <davem@redhat.com>");
+MODULE_AUTHOR("David S. Miller <davem@davemloft.net>");
+MODULE_VERSION("2.0");
 MODULE_LICENSE("GPL");

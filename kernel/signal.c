@@ -10,7 +10,6 @@
  *		to allow signals to be sent reliably.
  */
 
-#include <linux/config.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/smp_lock.h>
@@ -584,7 +583,7 @@ static int check_kill_permission(int sig, struct siginfo *info,
 	    && !capable(CAP_KILL))
 		return error;
 
-	error = security_task_kill(t, info, sig);
+	error = security_task_kill(t, info, sig, 0);
 	if (!error)
 		audit_signal_info(sig, t); /* Let audit system see the signal */
 	return error;
@@ -1107,7 +1106,7 @@ kill_proc_info(int sig, struct siginfo *info, pid_t pid)
 
 /* like kill_proc_info(), but doesn't use uid/euid of "current" */
 int kill_proc_info_as_uid(int sig, struct siginfo *info, pid_t pid,
-		      uid_t uid, uid_t euid)
+		      uid_t uid, uid_t euid, u32 secid)
 {
 	int ret = -EINVAL;
 	struct task_struct *p;
@@ -1127,6 +1126,9 @@ int kill_proc_info_as_uid(int sig, struct siginfo *info, pid_t pid,
 		ret = -EPERM;
 		goto out_unlock;
 	}
+	ret = security_task_kill(p, info, sig, secid);
+	if (ret)
+		goto out_unlock;
 	if (sig && p->sighand) {
 		unsigned long flags;
 		spin_lock_irqsave(&p->sighand->siglock, flags);

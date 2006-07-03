@@ -34,8 +34,8 @@ struct rtc_time {
  * alarm API.
  */
 struct rtc_wkalrm {
-	unsigned char enabled;	/* 0 = alarm disable, 1 = alarm disabled */
-	unsigned char pending;  /* 0 = alarm pending, 1 = alarm not pending */
+	unsigned char enabled;	/* 0 = alarm disabled, 1 = alarm enabled */
+	unsigned char pending;  /* 0 = alarm not pending, 1 = alarm pending */
 	struct rtc_time time;	/* time the alarm is set to */
 };
 

@@ -327,6 +327,51 @@ static struct cx88_ctrl cx8800_ctls[] = {
 };
 static const int CX8800_CTLS = ARRAY_SIZE(cx8800_ctls);
 
+const u32 cx88_user_ctrls[] = {
+	V4L2_CID_USER_CLASS,
+	V4L2_CID_BRIGHTNESS,
+	V4L2_CID_CONTRAST,
+	V4L2_CID_SATURATION,
+	V4L2_CID_HUE,
+	V4L2_CID_AUDIO_VOLUME,
+	V4L2_CID_AUDIO_BALANCE,
+	V4L2_CID_AUDIO_MUTE,
+	0
+};
+EXPORT_SYMBOL(cx88_user_ctrls);
+
+static const u32 *ctrl_classes[] = {
+	cx88_user_ctrls,
+	NULL
+};
+
+int cx8800_ctrl_query(struct v4l2_queryctrl *qctrl)
+{
+	int i;
+
+	if (qctrl->id < V4L2_CID_BASE ||
+	    qctrl->id >= V4L2_CID_LASTP1)
+		return -EINVAL;
+	for (i = 0; i < CX8800_CTLS; i++)
+		if (cx8800_ctls[i].v.id == qctrl->id)
+			break;
+	if (i == CX8800_CTLS) {
+		*qctrl = no_ctl;
+		return 0;
+	}
+	*qctrl = cx8800_ctls[i].v;
+	return 0;
+}
+EXPORT_SYMBOL(cx8800_ctrl_query);
+
+static int cx88_queryctrl(struct v4l2_queryctrl *qctrl)
+{
+	qctrl->id = v4l2_ctrl_next(ctrl_classes, qctrl->id);
+	if (qctrl->id == 0)
+		return -EINVAL;
+	return cx8800_ctrl_query(qctrl);
+}
+
 /* ------------------------------------------------------------------- */
 /* resource management                                                 */
 
@@ -1362,20 +1407,8 @@ int cx88_do_ioctl(struct inode *inode, struct file *file, int radio,
 	case VIDIOC_QUERYCTRL:
 	{
 		struct v4l2_queryctrl *c = arg;
-		int i;
 
-		if (c->id <  V4L2_CID_BASE ||
-		    c->id >= V4L2_CID_LASTP1)
-			return -EINVAL;
-		for (i = 0; i < CX8800_CTLS; i++)
-			if (cx8800_ctls[i].v.id == c->id)
-				break;
-		if (i == CX8800_CTLS) {
-			*c = no_ctl;
-			return 0;
-		}
-		*c = cx8800_ctls[i].v;
-		return 0;
+		return cx88_queryctrl(c);
 	}
 	case VIDIOC_G_CTRL:
 		return get_control(core,arg);
@@ -1847,9 +1880,9 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 	pci_read_config_byte(pci_dev, PCI_CLASS_REVISION, &dev->pci_rev);
 	pci_read_config_byte(pci_dev, PCI_LATENCY_TIMER,  &dev->pci_lat);
 	printk(KERN_INFO "%s/0: found at %s, rev: %d, irq: %d, "
-	       "latency: %d, mmio: 0x%lx\n", core->name,
+	       "latency: %d, mmio: 0x%llx\n", core->name,
 	       pci_name(pci_dev), dev->pci_rev, pci_dev->irq,
-	       dev->pci_lat,pci_resource_start(pci_dev,0));
+	       dev->pci_lat,(unsigned long long)pci_resource_start(pci_dev,0));
 
 	pci_set_master(pci_dev);
 	if (!pci_dma_supported(pci_dev,0xffffffff)) {
@@ -1882,7 +1915,7 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 
 	/* get irq */
 	err = request_irq(pci_dev->irq, cx8800_irq,
-			  SA_SHIRQ | SA_INTERRUPT, core->name, dev);
+			  IRQF_SHARED | IRQF_DISABLED, core->name, dev);
 	if (err < 0) {
 		printk(KERN_ERR "%s: can't get IRQ %d\n",
 		       core->name,pci_dev->irq);
@@ -1893,8 +1926,6 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 	/* load and configure helper modules */
 	if (TUNER_ABSENT != core->tuner_type)
 		request_module("tuner");
-	if (core->tda9887_conf)
-		request_module("tda9887");
 
 	/* register v4l devices */
 	dev->video_dev = cx88_vdev_init(core,dev->pci,

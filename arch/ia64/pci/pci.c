@@ -10,7 +10,6 @@
  *
  * Note: Above list of copyright holders is incomplete...
  */
-#include <linux/config.h>
 
 #include <linux/acpi.h>
 #include <linux/types.h>
@@ -568,7 +567,7 @@ pcibios_disable_device (struct pci_dev *dev)
 
 void
 pcibios_align_resource (void *data, struct resource *res,
-		        unsigned long size, unsigned long align)
+		        resource_size_t size, resource_size_t align)
 {
 }
 

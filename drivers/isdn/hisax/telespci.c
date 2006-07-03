@@ -13,7 +13,6 @@
  */
 
 #include <linux/init.h>
-#include <linux/config.h>
 #include "hisax.h"
 #include "isac.h"
 #include "hscx.h"
@@ -311,8 +310,9 @@ setup_telespci(struct IsdnCard *card)
 		}
 		cs->hw.teles0.membase = ioremap(pci_resource_start(dev_tel, 0),
 			PAGE_SIZE);
-		printk(KERN_INFO "Found: Zoran, base-address: 0x%lx, irq: 0x%x\n",
-			pci_resource_start(dev_tel, 0), dev_tel->irq);
+		printk(KERN_INFO "Found: Zoran, base-address: 0x%llx, irq: 0x%x\n",
+			(unsigned long long)pci_resource_start(dev_tel, 0),
+			dev_tel->irq);
 	} else {
 		printk(KERN_WARNING "TelesPCI: No PCI card found\n");
 		return(0);
@@ -347,7 +347,7 @@ setup_telespci(struct IsdnCard *card)
 	cs->BC_Send_Data = &hscx_fill_fifo;
 	cs->cardmsg = &TelesPCI_card_msg;
 	cs->irq_func = &telespci_interrupt;
-	cs->irq_flags |= SA_SHIRQ;
+	cs->irq_flags |= IRQF_SHARED;
 	ISACVersion(cs, "TelesPCI:");
 	if (HscxVersion(cs, "TelesPCI:")) {
 		printk(KERN_WARNING

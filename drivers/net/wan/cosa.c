@@ -79,13 +79,11 @@
 
 /* ---------- Headers, macros, data structures ---------- */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/poll.h>
 #include <linux/fs.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/errno.h>
@@ -393,7 +391,6 @@ static int __init cosa_init(void)
 		err = -ENODEV;
 		goto out;
 	}
-	devfs_mk_dir("cosa");
 	cosa_class = class_create(THIS_MODULE, "cosa");
 	if (IS_ERR(cosa_class)) {
 		err = PTR_ERR(cosa_class);
@@ -402,13 +399,6 @@ static int __init cosa_init(void)
 	for (i=0; i<nr_cards; i++) {
 		class_device_create(cosa_class, NULL, MKDEV(cosa_major, i),
 				NULL, "cosa%d", i);
-		err = devfs_mk_cdev(MKDEV(cosa_major, i),
-				S_IFCHR|S_IRUSR|S_IWUSR,
-				"cosa/%d", i);
-		if (err) {
-			class_device_destroy(cosa_class, MKDEV(cosa_major, i));
-			goto out_chrdev;		
-		}
 	}
 	err = 0;
 	goto out;
@@ -426,12 +416,9 @@ static void __exit cosa_exit(void)
 	int i;
 	printk(KERN_INFO "Unloading the cosa module\n");
 
-	for (i=0; i<nr_cards; i++) {
+	for (i=0; i<nr_cards; i++)
 		class_device_destroy(cosa_class, MKDEV(cosa_major, i));
-		devfs_remove("cosa/%d", i);
-	}
 	class_destroy(cosa_class);
-	devfs_remove("cosa");
 	for (cosa=cosa_cards; nr_cards--; cosa++) {
 		/* Clean up the per-channel data */
 		for (i=0; i<cosa->nchannels; i++) {

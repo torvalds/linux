@@ -22,7 +22,6 @@
 #ifndef __FPMODULE_H__
 #define __FPMODULE_H__
 
-#include <linux/config.h>
 
 #define REG_ORIG_R0	16
 #define REG_CPSR	15

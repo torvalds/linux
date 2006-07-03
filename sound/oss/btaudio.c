@@ -966,7 +966,7 @@ static int __devinit btaudio_probe(struct pci_dev *pci_dev,
         btwrite(~0U, REG_INT_STAT);
 	pci_set_master(pci_dev);
 
-	if ((rc = request_irq(bta->irq, btaudio_irq, SA_SHIRQ|SA_INTERRUPT,
+	if ((rc = request_irq(bta->irq, btaudio_irq, IRQF_SHARED|IRQF_DISABLED,
 			      "btaudio",(void *)bta)) < 0) {
 		printk(KERN_WARNING
 		       "btaudio: can't request irq (rc=%d)\n",rc);

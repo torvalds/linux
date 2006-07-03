@@ -11,7 +11,6 @@
 #include <linux/mm.h>
 #include <linux/blkdev.h>
 #include <linux/sched.h>
-#include <linux/config.h>
 #include <linux/zorro.h>
 #include <linux/stat.h>
 

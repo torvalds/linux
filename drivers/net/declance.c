@@ -42,7 +42,6 @@
  *              bits. macro
  */
 
-#include <linux/config.h>
 #include <linux/crc32.h>
 #include <linux/delay.h>
 #include <linux/errno.h>

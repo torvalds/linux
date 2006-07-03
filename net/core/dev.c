@@ -76,7 +76,6 @@
 #include <asm/system.h>
 #include <linux/bitops.h>
 #include <linux/capability.h>
-#include <linux/config.h>
 #include <linux/cpu.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
@@ -1190,11 +1189,14 @@ out:
 /**
  *	skb_gso_segment - Perform segmentation on skb.
  *	@skb: buffer to segment
- *	@sg: whether scatter-gather is supported on the target.
+ *	@features: features for the output path (see dev->features)
  *
  *	This function segments the given skb and returns a list of segments.
+ *
+ *	It may return NULL if the skb requires no segmentation.  This is
+ *	only possible when GSO is used for verifying header integrity.
  */
-struct sk_buff *skb_gso_segment(struct sk_buff *skb, int sg)
+struct sk_buff *skb_gso_segment(struct sk_buff *skb, int features)
 {
 	struct sk_buff *segs = ERR_PTR(-EPROTONOSUPPORT);
 	struct packet_type *ptype;
@@ -1210,11 +1212,13 @@ struct sk_buff *skb_gso_segment(struct sk_buff *skb, int sg)
 	rcu_read_lock();
 	list_for_each_entry_rcu(ptype, &ptype_base[ntohs(type) & 15], list) {
 		if (ptype->type == type && !ptype->dev && ptype->gso_segment) {
-			segs = ptype->gso_segment(skb, sg);
+			segs = ptype->gso_segment(skb, features);
 			break;
 		}
 	}
 	rcu_read_unlock();
+
+	__skb_push(skb, skb->data - skb->mac.raw);
 
 	return segs;
 }
@@ -1234,7 +1238,6 @@ void netdev_rx_csum_fault(struct net_device *dev)
 EXPORT_SYMBOL(netdev_rx_csum_fault);
 #endif
 
-#ifdef CONFIG_HIGHMEM
 /* Actually, we should eliminate this check as soon as we know, that:
  * 1. IOMMU is present and allows to map all the memory.
  * 2. No high memory really exists on this machine.
@@ -1242,6 +1245,7 @@ EXPORT_SYMBOL(netdev_rx_csum_fault);
 
 static inline int illegal_highdma(struct net_device *dev, struct sk_buff *skb)
 {
+#ifdef CONFIG_HIGHMEM
 	int i;
 
 	if (dev->features & NETIF_F_HIGHDMA)
@@ -1251,11 +1255,9 @@ static inline int illegal_highdma(struct net_device *dev, struct sk_buff *skb)
 		if (PageHighMem(skb_shinfo(skb)->frags[i].page))
 			return 1;
 
+#endif
 	return 0;
 }
-#else
-#define illegal_highdma(dev, skb)	(0)
-#endif
 
 struct dev_gso_cb {
 	void (*destructor)(struct sk_buff *skb);
@@ -1291,9 +1293,15 @@ static int dev_gso_segment(struct sk_buff *skb)
 {
 	struct net_device *dev = skb->dev;
 	struct sk_buff *segs;
+	int features = dev->features & ~(illegal_highdma(dev, skb) ?
+					 NETIF_F_SG : 0);
 
-	segs = skb_gso_segment(skb, dev->features & NETIF_F_SG &&
-				    !illegal_highdma(dev, skb));
+	segs = skb_gso_segment(skb, features);
+
+	/* Verifying header integrity only. */
+	if (!segs)
+		return 0;
+
 	if (unlikely(IS_ERR(segs)))
 		return PTR_ERR(segs);
 
@@ -1310,13 +1318,17 @@ int dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		if (netdev_nit)
 			dev_queue_xmit_nit(skb, dev);
 
-		if (!netif_needs_gso(dev, skb))
-			return dev->hard_start_xmit(skb, dev);
+		if (netif_needs_gso(dev, skb)) {
+			if (unlikely(dev_gso_segment(skb)))
+				goto out_kfree_skb;
+			if (skb->next)
+				goto gso;
+		}
 
-		if (unlikely(dev_gso_segment(skb)))
-			goto out_kfree_skb;
+		return dev->hard_start_xmit(skb, dev);
 	}
 
+gso:
 	do {
 		struct sk_buff *nskb = skb->next;
 		int rc;

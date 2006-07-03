@@ -9,7 +9,6 @@
  * Jonathan Short.
  */
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/irq.h>
 
@@ -105,7 +104,7 @@ static void end_systemh_irq(unsigned int irq)
 void make_systemh_irq(unsigned int irq)
 {
 	disable_irq_nosync(irq);
-	irq_desc[irq].handler = &systemh_irq_type;
+	irq_desc[irq].chip = &systemh_irq_type;
 	disable_systemh_irq(irq);
 }
 

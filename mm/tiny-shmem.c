@@ -12,7 +12,6 @@
 
 #include <linux/fs.h>
 #include <linux/init.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/vfs.h>
 #include <linux/mount.h>
 #include <linux/file.h>
@@ -33,9 +32,6 @@ static int __init init_tmpfs(void)
 {
 	BUG_ON(register_filesystem(&tmpfs_fs_type) != 0);
 
-#ifdef CONFIG_TMPFS
-	devfs_mk_dir("shm");
-#endif
 	shm_mnt = kern_mount(&tmpfs_fs_type);
 	BUG_ON(IS_ERR(shm_mnt));
 

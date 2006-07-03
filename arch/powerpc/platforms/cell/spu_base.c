@@ -168,11 +168,11 @@ spu_irq_class_0_bottom(struct spu *spu)
 
 	stat &= mask;
 
-	if (stat & 1) /* invalid MFC DMA */
-		__spu_trap_invalid_dma(spu);
-
-	if (stat & 2) /* invalid DMA alignment */
+	if (stat & 1) /* invalid DMA alignment */
 		__spu_trap_dma_align(spu);
+
+	if (stat & 2) /* invalid MFC DMA */
+		__spu_trap_invalid_dma(spu);
 
 	if (stat & 4) /* error on SPU */
 		__spu_trap_error(spu);
@@ -274,19 +274,19 @@ spu_request_irqs(struct spu *spu)
 
 	snprintf(spu->irq_c0, sizeof (spu->irq_c0), "spe%02d.0", spu->number);
 	ret = request_irq(irq_base + spu->isrc,
-		 spu_irq_class_0, SA_INTERRUPT, spu->irq_c0, spu);
+		 spu_irq_class_0, IRQF_DISABLED, spu->irq_c0, spu);
 	if (ret)
 		goto out;
 
 	snprintf(spu->irq_c1, sizeof (spu->irq_c1), "spe%02d.1", spu->number);
 	ret = request_irq(irq_base + IIC_CLASS_STRIDE + spu->isrc,
-		 spu_irq_class_1, SA_INTERRUPT, spu->irq_c1, spu);
+		 spu_irq_class_1, IRQF_DISABLED, spu->irq_c1, spu);
 	if (ret)
 		goto out1;
 
 	snprintf(spu->irq_c2, sizeof (spu->irq_c2), "spe%02d.2", spu->number);
 	ret = request_irq(irq_base + 2*IIC_CLASS_STRIDE + spu->isrc,
-		 spu_irq_class_2, SA_INTERRUPT, spu->irq_c2, spu);
+		 spu_irq_class_2, IRQF_DISABLED, spu->irq_c2, spu);
 	if (ret)
 		goto out2;
 	goto out;

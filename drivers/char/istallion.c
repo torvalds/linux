@@ -26,7 +26,6 @@
 
 /*****************************************************************************/
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
@@ -39,7 +38,6 @@
 #include <linux/ioport.h>
 #include <linux/delay.h>
 #include <linux/init.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/device.h>
 #include <linux/wait.h>
 #include <linux/eisa.h>
@@ -283,7 +281,6 @@ static char	*stli_brdnames[] = {
 
 /*****************************************************************************/
 
-#ifdef MODULE
 /*
  *	Define some string labels for arguments passed from the module
  *	load line. These allow for easy board definitions, and easy
@@ -381,8 +378,6 @@ module_param_array(board2, charp, NULL, 0);
 MODULE_PARM_DESC(board2, "Board 2 config -> name[,ioaddr[,memaddr]");
 module_param_array(board3, charp, NULL, 0);
 MODULE_PARM_DESC(board3, "Board 3 config -> name[,ioaddr[,memaddr]");
-
-#endif
 
 /*
  *	Set up a default memory address table for EISA board probing.
@@ -644,14 +639,8 @@ static unsigned int	stli_baudrates[] = {
  *	Prototype all functions in this driver!
  */
 
-#ifdef MODULE
-static void	stli_argbrds(void);
 static int	stli_parsebrd(stlconf_t *confp, char **argp);
-
-static unsigned long	stli_atol(char *str);
-#endif
-
-int		stli_init(void);
+static int	stli_init(void);
 static int	stli_open(struct tty_struct *tty, struct file *filp);
 static void	stli_close(struct tty_struct *tty, struct file *filp);
 static int	stli_write(struct tty_struct *tty, const unsigned char *buf, int count);
@@ -787,8 +776,6 @@ static int	stli_timeron;
 
 static struct class *istallion_class;
 
-#ifdef MODULE
-
 /*
  *	Loadable module initialization stuff.
  */
@@ -826,11 +813,8 @@ static void __exit istallion_module_exit(void)
 		return;
 	}
 	put_tty_driver(stli_serial);
-	for (i = 0; i < 4; i++) {
-		devfs_remove("staliomem/%d", i);
+	for (i = 0; i < 4; i++)
 		class_device_destroy(istallion_class, MKDEV(STL_SIOMEMMAJOR, i));
-	}
-	devfs_remove("staliomem");
 	class_destroy(istallion_class);
 	if ((i = unregister_chrdev(STL_SIOMEMMAJOR, "staliomem")))
 		printk("STALLION: failed to un-register serial memory device, "
@@ -957,8 +941,6 @@ static int stli_parsebrd(stlconf_t *confp, char **argp)
 		confp->memaddr = stli_atol(argp[2]);
 	return(1);
 }
-
-#endif
 
 /*****************************************************************************/
 
@@ -4698,7 +4680,7 @@ static struct tty_operations stli_ops = {
 
 /*****************************************************************************/
 
-int __init stli_init(void)
+static int __init stli_init(void)
 {
 	int i;
 	printk(KERN_INFO "%s: version %s\n", stli_drvtitle, stli_drvversion);
@@ -4728,16 +4710,11 @@ int __init stli_init(void)
 		printk(KERN_ERR "STALLION: failed to register serial memory "
 				"device\n");
 
-	devfs_mk_dir("staliomem");
 	istallion_class = class_create(THIS_MODULE, "staliomem");
-	for (i = 0; i < 4; i++) {
-		devfs_mk_cdev(MKDEV(STL_SIOMEMMAJOR, i),
-			       S_IFCHR | S_IRUSR | S_IWUSR,
-			       "staliomem/%d", i);
+	for (i = 0; i < 4; i++)
 		class_device_create(istallion_class, NULL,
 				MKDEV(STL_SIOMEMMAJOR, i),
 				NULL, "staliomem%d", i);
-	}
 
 /*
  *	Set up the tty driver structure and register us as a driver.

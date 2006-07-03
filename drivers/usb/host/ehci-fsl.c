@@ -121,7 +121,7 @@ int usb_hcd_fsl_probe(const struct hc_driver *driver,
 	temp = in_le32(hcd->regs + 0x1a8);
 	out_le32(hcd->regs + 0x1a8, temp | 0x3);
 
-	retval = usb_add_hcd(hcd, irq, SA_SHIRQ);
+	retval = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (retval != 0)
 		goto err4;
 	return retval;

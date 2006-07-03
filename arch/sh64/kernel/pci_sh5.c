@@ -9,7 +9,6 @@
  * Support functions for the SH5 PCI hardware.
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/rwsem.h>
 #include <linux/smp.h>
@@ -474,13 +473,13 @@ static void __init pcibios_size_bridges(void)
 static int __init pcibios_init(void)
 {
         if (request_irq(IRQ_ERR, pcish5_err_irq,
-                        SA_INTERRUPT, "PCI Error",NULL) < 0) {
+                        IRQF_DISABLED, "PCI Error",NULL) < 0) {
                 printk(KERN_ERR "PCISH5: Cannot hook PCI_PERR interrupt\n");
                 return -EINVAL;
         }
 
         if (request_irq(IRQ_SERR, pcish5_serr_irq,
-                        SA_INTERRUPT, "PCI SERR interrupt", NULL) < 0) {
+                        IRQF_DISABLED, "PCI SERR interrupt", NULL) < 0) {
                 printk(KERN_ERR "PCISH5: Cannot hook PCI_SERR interrupt\n");
                 return -EINVAL;
         }

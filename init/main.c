@@ -11,11 +11,9 @@
 
 #define __KERNEL_SYSCALLS__
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/proc_fs.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/kernel.h>
 #include <linux/syscalls.h>
 #include <linux/string.h>
@@ -447,10 +445,17 @@ static void __init boot_cpu_init(void)
 	cpu_set(cpu, cpu_possible_map);
 }
 
+void __init __attribute__((weak)) smp_setup_processor_id(void)
+{
+}
+
 asmlinkage void __init start_kernel(void)
 {
 	char * command_line;
 	extern struct kernel_param __start___param[], __stop___param[];
+
+	smp_setup_processor_id();
+
 /*
  * Interrupts are still disabled. Do necessary setups, then
  * enable them

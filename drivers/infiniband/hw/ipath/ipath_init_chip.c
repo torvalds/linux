@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2006 QLogic, Inc. All rights reserved.
  * Copyright (c) 2003, 2004, 2005, 2006 PathScale, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -35,7 +36,7 @@
 #include <linux/vmalloc.h>
 
 #include "ipath_kernel.h"
-#include "ips_common.h"
+#include "ipath_common.h"
 
 /*
  * min buffers we want to have per port, after driver
@@ -114,6 +115,7 @@ static int create_port0_egr(struct ipath_devdata *dd)
 				      "eager TID %u\n", e);
 			while (e != 0)
 				dev_kfree_skb(skbs[--e]);
+			vfree(skbs);
 			ret = -ENOMEM;
 			goto bail;
 		}
@@ -275,7 +277,7 @@ static int init_chip_first(struct ipath_devdata *dd,
 	pd->port_port = 0;
 	pd->port_cnt = 1;
 	/* The port 0 pkey table is used by the layer interface. */
-	pd->port_pkeys[0] = IPS_DEFAULT_P_KEY;
+	pd->port_pkeys[0] = IPATH_DEFAULT_P_KEY;
 	dd->ipath_rcvtidcnt =
 		ipath_read_kreg32(dd, dd->ipath_kregs->kr_rcvtidcnt);
 	dd->ipath_rcvtidbase =
@@ -409,17 +411,8 @@ static int init_pioavailregs(struct ipath_devdata *dd)
 	/* and its length */
 	dd->ipath_freezelen = L1_CACHE_BYTES - sizeof(dd->ipath_statusp[0]);
 
-	if (dd->ipath_unit * 64 > (IPATH_PORT0_RCVHDRTAIL_SIZE - 64)) {
-		ipath_dev_err(dd, "unit %u too large for port 0 "
-			      "rcvhdrtail buffer size\n", dd->ipath_unit);
-		ret = -ENODEV;
-	}
-	else
-		ret = 0;
+	ret = 0;
 
-	/* so we can get current tail in ipath_kreceive(), per chip */
-	dd->ipath_hdrqtailptr = &ipath_port0_rcvhdrtail[
-		dd->ipath_unit * (64 / sizeof(*ipath_port0_rcvhdrtail))];
 done:
 	return ret;
 }
@@ -652,8 +645,9 @@ int ipath_init_chip(struct ipath_devdata *dd, int reinit)
 {
 	int ret = 0, i;
 	u32 val32, kpiobufs;
-	u64 val, atmp;
+	u64 val;
 	struct ipath_portdata *pd = NULL; /* keep gcc4 happy */
+	gfp_t gfp_flags = GFP_USER | __GFP_COMP;
 
 	ret = init_housekeeping(dd, &pd, reinit);
 	if (ret)
@@ -775,24 +769,6 @@ int ipath_init_chip(struct ipath_devdata *dd, int reinit)
 		goto done;
 	}
 
-	val = ipath_port0_rcvhdrtail_dma + dd->ipath_unit * 64;
-
-	/* verify that the alignment requirement was met */
-	ipath_write_kreg_port(dd, dd->ipath_kregs->kr_rcvhdrtailaddr,
-			      0, val);
-	atmp = ipath_read_kreg64_port(
-		dd, dd->ipath_kregs->kr_rcvhdrtailaddr, 0);
-	if (val != atmp) {
-		ipath_dev_err(dd, "Catastrophic software error, "
-			      "RcvHdrTailAddr0 written as %llx, "
-			      "read back as %llx from %x\n",
-			      (unsigned long long) val,
-			      (unsigned long long) atmp,
-			      dd->ipath_kregs->kr_rcvhdrtailaddr);
-		ret = -EINVAL;
-		goto done;
-	}
-
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_rcvbthqp, IPATH_KD_QP);
 
 	/*
@@ -836,24 +812,44 @@ int ipath_init_chip(struct ipath_devdata *dd, int reinit)
 	/* clear any interrups up to this point (ints still not enabled) */
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_intclear, -1LL);
 
-	ipath_stats.sps_lid[dd->ipath_unit] = dd->ipath_lid;
-
 	/*
 	 * Set up the port 0 (kernel) rcvhdr q and egr TIDs.  If doing
 	 * re-init, the simplest way to handle this is to free
 	 * existing, and re-allocate.
 	 */
-	if (reinit)
-		ipath_free_pddata(dd, 0, 0);
+	if (reinit) {
+		struct ipath_portdata *pd = dd->ipath_pd[0];
+		dd->ipath_pd[0] = NULL;
+		ipath_free_pddata(dd, pd);
+	}
 	dd->ipath_f_tidtemplate(dd);
 	ret = ipath_create_rcvhdrq(dd, pd);
-	if (!ret)
+	if (!ret) {
+		dd->ipath_hdrqtailptr =
+			(volatile __le64 *)pd->port_rcvhdrtail_kvaddr;
 		ret = create_port0_egr(dd);
+	}
 	if (ret)
 		ipath_dev_err(dd, "failed to allocate port 0 (kernel) "
 			      "rcvhdrq and/or egr bufs\n");
 	else
 		enable_chip(dd, pd, reinit);
+
+
+	if (!ret && !reinit) {
+	    /* used when we close a port, for DMA already in flight at close */
+		dd->ipath_dummy_hdrq = dma_alloc_coherent(
+			&dd->pcidev->dev, pd->port_rcvhdrq_size,
+			&dd->ipath_dummy_hdrq_phys,
+			gfp_flags);
+		if (!dd->ipath_dummy_hdrq ) {
+			dev_info(&dd->pcidev->dev,
+				"Couldn't allocate 0x%lx bytes for dummy hdrq\n",
+				pd->port_rcvhdrq_size);
+			/* fallback to just 0'ing */
+			dd->ipath_dummy_hdrq_phys = 0UL;
+		}
+	}
 
 	/*
 	 * cause retrigger of pending interrupts ignored during init,

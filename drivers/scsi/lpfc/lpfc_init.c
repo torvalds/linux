@@ -1620,7 +1620,7 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 	if (error)
 		goto out_remove_host;
 
-	error =	request_irq(phba->pcidev->irq, lpfc_intr_handler, SA_SHIRQ,
+	error =	request_irq(phba->pcidev->irq, lpfc_intr_handler, IRQF_SHARED,
 							LPFC_DRIVER_NAME, phba);
 	if (error) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,

@@ -121,7 +121,7 @@ static const struct std_name *find_std_name(const struct std_name *arrPtr,
 		if (strlen(p->name) != bufSize) continue;
 		if (!memcmp(bufPtr,p->name,bufSize)) return p;
 	}
-	return 0;
+	return NULL;
 }
 
 
@@ -289,7 +289,7 @@ static struct v4l2_standard *match_std(v4l2_std_id id)
 			return generic_standards + idx;
 		}
 	}
-	return 0;
+	return NULL;
 }
 
 static int pvr2_std_fill(struct v4l2_standard *std,v4l2_std_id id)
@@ -364,7 +364,7 @@ struct v4l2_standard *pvr2_std_create_enum(unsigned int *countptr,
 
 	pvr2_trace(PVR2_TRACE_INIT,"Setting up %u unique standard(s)",
 		   std_cnt);
-	if (!std_cnt) return 0; // paranoia
+	if (!std_cnt) return NULL; // paranoia
 
 	stddefs = kmalloc(sizeof(struct v4l2_standard) * std_cnt,
 			  GFP_KERNEL);

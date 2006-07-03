@@ -10,7 +10,6 @@
  */
 
 #include <stdarg.h>
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/sched.h>
 #include <linux/console.h>
@@ -34,9 +33,12 @@ void __init udbg_early_init(void)
 #elif defined(CONFIG_PPC_EARLY_DEBUG_G5)
 	/* For use on Apple G5 machines */
 	udbg_init_pmac_realmode();
-#elif defined(CONFIG_PPC_EARLY_DEBUG_RTAS)
+#elif defined(CONFIG_PPC_EARLY_DEBUG_RTAS_PANEL)
 	/* RTAS panel debug */
-	udbg_init_rtas();
+	udbg_init_rtas_panel();
+#elif defined(CONFIG_PPC_EARLY_DEBUG_RTAS_CONSOLE)
+	/* RTAS console debug */
+	udbg_init_rtas_console();
 #elif defined(CONFIG_PPC_EARLY_DEBUG_MAPLE)
 	/* Maple real mode debug */
 	udbg_init_maple_realmode();

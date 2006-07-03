@@ -7,7 +7,6 @@
 #ifndef __MACH_LWMON_H
 #define __MACH_LWMON_H
 
-#include <linux/config.h>
 
 #include <asm/ppcboot.h>
 

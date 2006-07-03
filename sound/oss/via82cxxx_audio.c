@@ -18,7 +18,6 @@
 #define VIA_VERSION	"1.9.1-ac4-2.5"
 
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/fs.h>
@@ -2014,7 +2013,7 @@ static int via_interrupt_init (struct via_info *card)
 			tmp8 |= VIA_CR48_FM_TRAP_TO_NMI;
 			pci_write_config_byte (card->pdev, VIA_FM_NMI_CTRL, tmp8);
 		}
-		if (request_irq (card->pdev->irq, via_interrupt, SA_SHIRQ, VIA_MODULE_NAME, card)) {
+		if (request_irq (card->pdev->irq, via_interrupt, IRQF_SHARED, VIA_MODULE_NAME, card)) {
 			printk (KERN_ERR PFX "unable to obtain IRQ %d, aborting\n",
 				card->pdev->irq);
 			DPRINTK ("EXIT, returning -EBUSY\n");
@@ -2023,7 +2022,7 @@ static int via_interrupt_init (struct via_info *card)
 	}
 	else 
 	{
-		if (request_irq (card->pdev->irq, via_new_interrupt, SA_SHIRQ, VIA_MODULE_NAME, card)) {
+		if (request_irq (card->pdev->irq, via_new_interrupt, IRQF_SHARED, VIA_MODULE_NAME, card)) {
 			printk (KERN_ERR PFX "unable to obtain IRQ %d, aborting\n",
 				card->pdev->irq);
 			DPRINTK ("EXIT, returning -EBUSY\n");

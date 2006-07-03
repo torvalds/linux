@@ -22,7 +22,6 @@
  *    Remove support for ancient toolchains.
  */
 
-#include <linux/config.h>
 #include <asm/page.h>
 #include <asm/cache.h>
 #include <asm/processor.h>

@@ -12,7 +12,6 @@
 
 /***************************************************************************/
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/param.h>
@@ -49,7 +48,7 @@ void coldfire_pit_init(irqreturn_t (*handler)(int, void *, struct pt_regs *))
 	volatile unsigned char *icrp;
 	volatile unsigned long *imrp;
 
-	request_irq(MCFINT_VECBASE + MCFINT_PIT1, handler, SA_INTERRUPT,
+	request_irq(MCFINT_VECBASE + MCFINT_PIT1, handler, IRQF_DISABLED,
 		"ColdFire Timer", NULL);
 
 	icrp = (volatile unsigned char *) (MCF_IPSBAR + MCFICM_INTC0 +

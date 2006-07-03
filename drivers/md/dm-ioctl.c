@@ -13,7 +13,6 @@
 #include <linux/init.h>
 #include <linux/wait.h>
 #include <linux/slab.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/dm-ioctl.h>
 #include <linux/hdreg.h>
 
@@ -68,14 +67,12 @@ static int dm_hash_init(void)
 {
 	init_buckets(_name_buckets);
 	init_buckets(_uuid_buckets);
-	devfs_mk_dir(DM_DIR);
 	return 0;
 }
 
 static void dm_hash_exit(void)
 {
 	dm_hash_remove_all(0);
-	devfs_remove(DM_DIR);
 }
 
 /*-----------------------------------------------------------------
@@ -172,25 +169,6 @@ static void free_cell(struct hash_cell *hc)
 }
 
 /*
- * devfs stuff.
- */
-static int register_with_devfs(struct hash_cell *hc)
-{
-	struct gendisk *disk = dm_disk(hc->md);
-
-	devfs_mk_bdev(MKDEV(disk->major, disk->first_minor),
-		      S_IFBLK | S_IRUSR | S_IWUSR | S_IRGRP,
-		      DM_DIR "/%s", hc->name);
-	return 0;
-}
-
-static int unregister_with_devfs(struct hash_cell *hc)
-{
-	devfs_remove(DM_DIR"/%s", hc->name);
-	return 0;
-}
-
-/*
  * The kdev_t and uuid of a device can never change once it is
  * initially inserted.
  */
@@ -226,7 +204,6 @@ static int dm_hash_insert(const char *name, const char *uuid, struct mapped_devi
 		}
 		list_add(&cell->uuid_list, _uuid_buckets + hash_str(uuid));
 	}
-	register_with_devfs(cell);
 	dm_get(md);
 	dm_set_mdptr(md, cell);
 	up_write(&_hash_lock);
@@ -246,7 +223,6 @@ static void __hash_remove(struct hash_cell *hc)
 	/* remove from the dev hash */
 	list_del(&hc->uuid_list);
 	list_del(&hc->name_list);
-	unregister_with_devfs(hc);
 	dm_set_mdptr(hc->md, NULL);
 
 	table = dm_get_table(hc->md);
@@ -342,15 +318,10 @@ static int dm_hash_rename(const char *old, const char *new)
 	/*
 	 * rename and move the name cell.
 	 */
-	unregister_with_devfs(hc);
-
 	list_del(&hc->name_list);
 	old_name = hc->name;
 	hc->name = new_name;
 	list_add(&hc->name_list, _name_buckets + hash_str(new_name));
-
-	/* rename the device node in devfs */
-	register_with_devfs(hc);
 
 	/*
 	 * Wake up any dm event waiters.
@@ -1501,7 +1472,6 @@ static struct file_operations _ctl_fops = {
 static struct miscdevice _dm_misc = {
 	.minor 		= MISC_DYNAMIC_MINOR,
 	.name  		= DM_NAME,
-	.devfs_name 	= "mapper/control",
 	.fops  		= &_ctl_fops
 };
 

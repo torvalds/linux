@@ -1541,7 +1541,7 @@ static int qla2x00_probe_one(struct pci_dev *pdev)
 	host->transportt = qla2xxx_transport_template;
 
 	ret = request_irq(pdev->irq, ha->isp_ops.intr_handler,
-	    SA_INTERRUPT|SA_SHIRQ, QLA2XXX_DRIVER_NAME, ha);
+	    IRQF_DISABLED|IRQF_SHARED, QLA2XXX_DRIVER_NAME, ha);
 	if (ret) {
 		qla_printk(KERN_WARNING, ha,
 		    "Failed to reserve interrupt %d already in use.\n",

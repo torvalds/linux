@@ -225,7 +225,7 @@ Generic flavors of pci_request_region() are request_mem_region()
 Use these for address resources that are not described by "normal" PCI
 interfaces (e.g. BAR).
 
-   All interrupt handlers should be registered with SA_SHIRQ and use the devid
+   All interrupt handlers should be registered with IRQF_SHARED and use the devid
 to map IRQs to devices (remember that all PCI interrupts are shared).
 
 

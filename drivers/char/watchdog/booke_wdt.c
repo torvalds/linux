@@ -14,7 +14,6 @@
  * option) any later version.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/miscdevice.h>

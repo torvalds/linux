@@ -22,7 +22,6 @@
  *                 was usable/enabled ?)
  */
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/serio.h>
@@ -371,7 +370,7 @@ static int __init gscps2_probe(struct parisc_device *dev)
 	serio->dev.parent	= &dev->dev;
 
 	ret = -EBUSY;
-	if (request_irq(dev->irq, gscps2_interrupt, SA_SHIRQ, ps2port->port->name, ps2port))
+	if (request_irq(dev->irq, gscps2_interrupt, IRQF_SHARED, ps2port->port->name, ps2port))
 		goto fail_miserably;
 
 	if (ps2port->id != GSC_ID_KEYBOARD && ps2port->id != GSC_ID_MOUSE) {

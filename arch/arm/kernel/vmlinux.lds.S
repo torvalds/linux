@@ -4,7 +4,6 @@
  */
 
 #include <asm-generic/vmlinux.lds.h>
-#include <linux/config.h>
 #include <asm/thread_info.h>
 #include <asm/memory.h>
 	

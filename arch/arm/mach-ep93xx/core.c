@@ -13,7 +13,6 @@
  * your option) any later version.
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/spinlock.h>
@@ -117,7 +116,7 @@ static int ep93xx_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 static struct irqaction ep93xx_timer_irq = {
 	.name		= "ep93xx timer",
-	.flags		= SA_INTERRUPT | SA_TIMER,
+	.flags		= IRQF_DISABLED | IRQF_TIMER,
 	.handler	= ep93xx_timer_interrupt,
 };
 

@@ -883,7 +883,7 @@ static int startup(struct esp_struct * info)
 	 * Allocate the IRQ
 	 */
 
-	retval = request_irq(info->irq, rs_interrupt_single, SA_SHIRQ,
+	retval = request_irq(info->irq, rs_interrupt_single, IRQF_SHARED,
 			     "esp serial", info);
 
 	if (retval) {
@@ -2449,7 +2449,6 @@ static int __init espserial_init(void)
 	
 	esp_driver->owner = THIS_MODULE;
 	esp_driver->name = "ttyP";
-	esp_driver->devfs_name = "tts/P";
 	esp_driver->major = ESP_IN_MAJOR;
 	esp_driver->minor_start = 0;
 	esp_driver->type = TTY_DRIVER_TYPE_SERIAL;

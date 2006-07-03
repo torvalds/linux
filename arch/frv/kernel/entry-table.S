@@ -11,7 +11,6 @@
  */
 
 #include <linux/sys.h>
-#include <linux/config.h>
 #include <linux/linkage.h>
 #include <asm/spr-regs.h>
 

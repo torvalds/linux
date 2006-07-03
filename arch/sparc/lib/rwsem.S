@@ -4,7 +4,6 @@
  * Copyright (C) 1999 Jakub Jelinek (jakub@redhat.com)
  */
 
-#include <linux/config.h>
 #include <asm/ptrace.h>
 #include <asm/psr.h>
 

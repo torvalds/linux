@@ -115,7 +115,7 @@ void __init pre_setup_arch_hook()
 
 static struct irqaction irq0 = {
 	.handler =	timer_interrupt,
-	.flags =	SA_INTERRUPT,
+	.flags =	IRQF_DISABLED,
 	.name =		"timer",
 };
 
@@ -140,8 +140,8 @@ void __init time_init_hook(void)
 
 #define MB (1024 * 1024)
 
-static unsigned long sgivwfb_mem_phys;
-static unsigned long sgivwfb_mem_size;
+unsigned long sgivwfb_mem_phys;
+unsigned long sgivwfb_mem_size;
 
 long long mem_size __initdata = 0;
 
@@ -177,8 +177,4 @@ char * __init machine_specific_memory_setup(void)
 	add_memory_region(sgivwfb_mem_phys, sgivwfb_mem_size, E820_RESERVED);
 
 	return "PROM";
-
-	/* Remove gcc warnings */
-	(void) sanitize_e820_map(NULL, NULL);
-	(void) copy_e820_map(NULL, 0);
 }

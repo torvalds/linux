@@ -7,6 +7,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/irq.h>
 #include <linux/device.h>
 
 #include <asm/types.h>

@@ -121,7 +121,6 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/errno.h>
-#include <linux/config.h>
 
 #include <linux/net.h>
 #include <linux/socket.h>

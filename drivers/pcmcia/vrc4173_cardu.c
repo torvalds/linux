@@ -500,7 +500,7 @@ static int __devinit vrc4173_cardu_probe(struct pci_dev *dev,
 		return -ENOMEM;
 	}
 
-	if (request_irq(dev->irq, cardu_interrupt, SA_SHIRQ, socket->name, socket) < 0) {
+	if (request_irq(dev->irq, cardu_interrupt, IRQF_SHARED, socket->name, socket) < 0) {
 		pcmcia_unregister_socket(socket->pcmcia_socket);
 		socket->pcmcia_socket = NULL;
 		iounmap(socket->base);
