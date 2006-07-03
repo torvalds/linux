@@ -10,6 +10,10 @@
 #include <linux/wait.h>
 #include <linux/hash.h>
 
+struct lock_class_key waitqueue_lock_key;
+
+EXPORT_SYMBOL(waitqueue_lock_key);
+
 void fastcall add_wait_queue(wait_queue_head_t *q, wait_queue_t *wait)
 {
 	unsigned long flags;
