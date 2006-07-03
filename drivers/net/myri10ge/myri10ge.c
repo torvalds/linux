@@ -2196,8 +2196,6 @@ static int myri10ge_change_mtu(struct net_device *dev, int new_mtu)
  * any other device, except if forced with myri10ge_ecrc_enable > 1.
  */
 
-#define PCI_DEVICE_ID_NVIDIA_NFORCE_CK804_PCIE	0x005d
-
 static void myri10ge_enable_ecrc(struct myri10ge_priv *mgp)
 {
 	struct pci_dev *bridge = mgp->pdev->bus->self;
