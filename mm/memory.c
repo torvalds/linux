@@ -503,7 +503,7 @@ again:
 		return -ENOMEM;
 	src_pte = pte_offset_map_nested(src_pmd, addr);
 	src_ptl = pte_lockptr(src_mm, src_pmd);
-	spin_lock(src_ptl);
+	spin_lock_nested(src_ptl, SINGLE_DEPTH_NESTING);
 
 	do {
 		/*
