@@ -369,6 +369,7 @@ void __iounmap(void __iomem *addr)
 
 	addr = (void __iomem *)(PAGE_MASK & (unsigned long)addr);
 
+#ifndef CONFIG_SMP
 	/*
 	 * If this is a section based mapping we need to handle it
 	 * specially as the VM subysystem does not know how to handle
@@ -390,6 +391,7 @@ void __iounmap(void __iomem *addr)
 		}
 	}
 	write_unlock(&vmlist_lock);
+#endif
 
 	if (!section_mapping)
 		vunmap(addr);
