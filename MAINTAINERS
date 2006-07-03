@@ -2300,6 +2300,14 @@ M:	promise@pnd-pc.demon.co.uk
 W:	http://www.pnd-pc.demon.co.uk/promise/
 S:	Maintained
 
+PVRUSB2 VIDEO4LINUX DRIVER
+P:	Mike Isely
+M:	isely@pobox.com
+L:	pvrusb2@isely.net
+L:	video4linux-list@redhat.com
+W:	http://www.isely.net/pvrusb2/
+S:	Maintained
+
 PXA2xx SUPPORT
 P:	Nicolas Pitre
 M:	nico@cam.org
