@@ -14,6 +14,7 @@
 
 #define __per_cpu_offset(cpu) (paca[cpu].data_offset)
 #define __my_cpu_offset() get_paca()->data_offset
+#define per_cpu_offset(x) (__per_cpu_offset(x))
 
 /* Separate out the type, so (int[3], foo) works. */
 #define DEFINE_PER_CPU(type, name) \
