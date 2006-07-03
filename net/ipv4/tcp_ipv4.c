@@ -90,7 +90,7 @@ static struct socket *tcp_socket;
 void tcp_v4_send_check(struct sock *sk, int len, struct sk_buff *skb);
 
 struct inet_hashinfo __cacheline_aligned tcp_hashinfo = {
-	.lhash_lock	= RW_LOCK_UNLOCKED,
+	.lhash_lock	= __RW_LOCK_UNLOCKED(tcp_hashinfo.lhash_lock),
 	.lhash_users	= ATOMIC_INIT(0),
 	.lhash_wait	= __WAIT_QUEUE_HEAD_INITIALIZER(tcp_hashinfo.lhash_wait),
 };

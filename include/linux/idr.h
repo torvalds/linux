@@ -66,7 +66,7 @@ struct idr {
 	.id_free	= NULL,					\
 	.layers 	= 0,					\
 	.id_free_cnt	= 0,					\
-	.lock		= SPIN_LOCK_UNLOCKED,			\
+	.lock		= __SPIN_LOCK_UNLOCKED(name.lock),	\
 }
 #define DEFINE_IDR(name)	struct idr name = IDR_INIT(name)
 
