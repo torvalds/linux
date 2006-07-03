@@ -57,10 +57,11 @@ do {						\
 #define print_fn_descriptor_symbol(fmt, addr) print_symbol(fmt, addr)
 #endif
 
-#define print_symbol(fmt, addr)			\
-do {						\
-	__check_printsym_format(fmt, "");	\
-	__print_symbol(fmt, addr);		\
-} while(0)
+static inline void print_symbol(const char *fmt, unsigned long addr)
+{
+	__check_printsym_format(fmt, "");
+	__print_symbol(fmt, (unsigned long)
+		       __builtin_extract_return_addr((void *)addr));
+}
 
 #endif /*_LINUX_KALLSYMS_H*/
