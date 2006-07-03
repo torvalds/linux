@@ -14,8 +14,6 @@
 #define NR_IRQS		256
 #define NR_IRQ_VECTORS	NR_IRQS
 
-#define IRQF_PERCPU	0x02000000
-
 static __inline__ int
 irq_canonicalize (int irq)
 {
