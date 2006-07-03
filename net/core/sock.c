@@ -129,6 +129,18 @@
 #include <net/tcp.h>
 #endif
 
+/*
+ * Each address family might have different locking rules, so we have
+ * one slock key per address family:
+ */
+struct lock_class_key af_family_keys[AF_MAX];
+
+/*
+ * sk_callback_lock locking rules are per-address-family,
+ * so split the lock classes by using a per-AF key:
+ */
+static struct lock_class_key af_callback_keys[AF_MAX];
+
 /* Take into consideration the size of the struct sk_buff overhead in the
  * determination of these values, since that is non-constant across
  * platforms.  This makes socket queueing behavior and performance
@@ -848,6 +860,8 @@ struct sock *sk_clone(const struct sock *sk, const gfp_t priority)
 
 		rwlock_init(&newsk->sk_dst_lock);
 		rwlock_init(&newsk->sk_callback_lock);
+		lockdep_set_class(&newsk->sk_callback_lock,
+				   af_callback_keys + newsk->sk_family);
 
 		newsk->sk_dst_cache	= NULL;
 		newsk->sk_wmem_queued	= 0;
@@ -1422,6 +1436,8 @@ void sock_init_data(struct socket *sock, struct sock *sk)
 
 	rwlock_init(&sk->sk_dst_lock);
 	rwlock_init(&sk->sk_callback_lock);
+	lockdep_set_class(&sk->sk_callback_lock,
+			   af_callback_keys + sk->sk_family);
 
 	sk->sk_state_change	=	sock_def_wakeup;
 	sk->sk_data_ready	=	sock_def_readable;

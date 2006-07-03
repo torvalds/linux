@@ -80,8 +80,12 @@ typedef struct {
 	wait_queue_head_t	wq;
 } socket_lock_t;
 
+extern struct lock_class_key af_family_keys[AF_MAX];
+
 #define sock_lock_init(__sk) \
 do {	spin_lock_init(&((__sk)->sk_lock.slock)); \
+	lockdep_set_class(&(__sk)->sk_lock.slock, \
+			  af_family_keys + (__sk)->sk_family); \
 	(__sk)->sk_lock.owner = NULL; \
 	init_waitqueue_head(&((__sk)->sk_lock.wq)); \
 } while(0)
