@@ -91,4 +91,9 @@ extern struct csr1212_bus_ops csr_bus_ops;
 int init_csr(void);
 void cleanup_csr(void);
 
+/* hpsb_update_config_rom() is deprecated */
+struct hpsb_host;
+int hpsb_update_config_rom(struct hpsb_host *host, const quadlet_t *new_rom,
+			   size_t size, unsigned char rom_version);
+
 #endif /* _IEEE1394_CSR_H */

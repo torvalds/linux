@@ -205,13 +205,6 @@ struct hpsb_host *hpsb_alloc_host(struct hpsb_host_driver *drv, size_t extra,
 int hpsb_add_host(struct hpsb_host *host);
 void hpsb_remove_host(struct hpsb_host *h);
 
-/* The following 2 functions are deprecated and will be removed when the
- * raw1394/libraw1394 update is complete. */
-int hpsb_update_config_rom(struct hpsb_host *host,
-      const quadlet_t *new_rom, size_t size, unsigned char rom_version);
-int hpsb_get_config_rom(struct hpsb_host *host, quadlet_t *buffer,
-      size_t buffersize, size_t *rom_size, unsigned char *rom_version);
-
 /* Updates the configuration rom image of a host.  rom_version must be the
  * current version, otherwise it will fail with return value -1. If this
  * host does not support config-rom-update, it will return -EINVAL.
