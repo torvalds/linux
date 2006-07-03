@@ -2146,7 +2146,7 @@ int ata_set_mode(struct ata_port *ap, struct ata_device **r_failed_dev)
 		 * return error code and failing device on failure.
 		 */
 		for (i = 0; i < ATA_MAX_DEVICES; i++) {
-			if (ata_dev_enabled(&ap->device[i])) {
+			if (ata_dev_ready(&ap->device[i])) {
 				ap->ops->set_mode(ap);
 				break;
 			}
@@ -2212,7 +2212,8 @@ int ata_set_mode(struct ata_port *ap, struct ata_device **r_failed_dev)
 	for (i = 0; i < ATA_MAX_DEVICES; i++) {
 		dev = &ap->device[i];
 
-		if (!ata_dev_enabled(dev))
+		/* don't udpate suspended devices' xfer mode */
+		if (!ata_dev_ready(dev))
 			continue;
 
 		rc = ata_dev_set_mode(dev);

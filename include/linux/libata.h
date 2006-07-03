@@ -131,6 +131,7 @@ enum {
 	ATA_DFLAG_CFG_MASK	= (1 << 8) - 1,
 
 	ATA_DFLAG_PIO		= (1 << 8), /* device currently in PIO mode */
+	ATA_DFLAG_SUSPENDED	= (1 << 9), /* device suspended */
 	ATA_DFLAG_INIT_MASK	= (1 << 16) - 1,
 
 	ATA_DFLAG_DETACH	= (1 << 16),
@@ -253,9 +254,13 @@ enum {
 	ATA_EH_REVALIDATE	= (1 << 0),
 	ATA_EH_SOFTRESET	= (1 << 1),
 	ATA_EH_HARDRESET	= (1 << 2),
+	ATA_EH_SUSPEND		= (1 << 3),
+	ATA_EH_RESUME		= (1 << 4),
+	ATA_EH_PM_FREEZE	= (1 << 5),
 
 	ATA_EH_RESET_MASK	= ATA_EH_SOFTRESET | ATA_EH_HARDRESET,
-	ATA_EH_PERDEV_MASK	= ATA_EH_REVALIDATE,
+	ATA_EH_PERDEV_MASK	= ATA_EH_REVALIDATE | ATA_EH_SUSPEND |
+				  ATA_EH_RESUME | ATA_EH_PM_FREEZE,
 
 	/* ata_eh_info->flags */
 	ATA_EHI_HOTPLUGGED	= (1 << 0),  /* could have been hotplugged */
@@ -942,6 +947,11 @@ static inline unsigned int ata_dev_disabled(const struct ata_device *dev)
 static inline unsigned int ata_dev_absent(const struct ata_device *dev)
 {
 	return ata_class_absent(dev->class);
+}
+
+static inline unsigned int ata_dev_ready(const struct ata_device *dev)
+{
+	return ata_dev_enabled(dev) && !(dev->flags & ATA_DFLAG_SUSPENDED);
 }
 
 /*
