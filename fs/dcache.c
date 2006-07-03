@@ -1339,10 +1339,10 @@ void d_move(struct dentry * dentry, struct dentry * target)
 	 */
 	if (target < dentry) {
 		spin_lock(&target->d_lock);
-		spin_lock(&dentry->d_lock);
+		spin_lock_nested(&dentry->d_lock, DENTRY_D_LOCK_NESTED);
 	} else {
 		spin_lock(&dentry->d_lock);
-		spin_lock(&target->d_lock);
+		spin_lock_nested(&target->d_lock, DENTRY_D_LOCK_NESTED);
 	}
 
 	/* Move the dentry to the target hash queue, if on different bucket */
