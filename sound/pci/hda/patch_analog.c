@@ -1545,6 +1545,9 @@ enum {
 /* reivision id to check workarounds */
 #define AD1988A_REV2		0x100200
 
+#define is_rev2(codec) \
+	((codec)->vendor_id == 0x11d41988 && \
+	 (codec)->revision_id == AD1988A_REV2)
 
 /*
  * mixers
@@ -2195,7 +2198,7 @@ static inline hda_nid_t ad1988_idx_to_dac(struct hda_codec *codec, int idx)
 		/* A     B     C     D     E     F     G     H */
 		0x04, 0x05, 0x0a, 0x04, 0x06, 0x05, 0x0a, 0x06
 	};
-	if (codec->revision_id == AD1988A_REV2)
+	if (is_rev2(codec))
 		return idx_to_dac_rev2[idx];
 	else
 		return idx_to_dac[idx];
@@ -2564,7 +2567,7 @@ static int patch_ad1988(struct hda_codec *codec)
 	mutex_init(&spec->amp_mutex);
 	codec->spec = spec;
 
-	if (codec->revision_id == AD1988A_REV2)
+	if (is_rev2(codec))
 		snd_printk(KERN_INFO "patch_analog: AD1988A rev.2 is detected, enable workarounds\n");
 
 	board_config = snd_hda_check_board_config(codec, ad1988_cfg_tbl);
@@ -2590,13 +2593,13 @@ static int patch_ad1988(struct hda_codec *codec)
 	case AD1988_6STACK_DIG:
 		spec->multiout.max_channels = 8;
 		spec->multiout.num_dacs = 4;
-		if (codec->revision_id == AD1988A_REV2)
+		if (is_rev2(codec))
 			spec->multiout.dac_nids = ad1988_6stack_dac_nids_rev2;
 		else
 			spec->multiout.dac_nids = ad1988_6stack_dac_nids;
 		spec->input_mux = &ad1988_6stack_capture_source;
 		spec->num_mixers = 2;
-		if (codec->revision_id == AD1988A_REV2)
+		if (is_rev2(codec))
 			spec->mixers[0] = ad1988_6stack_mixers1_rev2;
 		else
 			spec->mixers[0] = ad1988_6stack_mixers1;
@@ -2612,7 +2615,7 @@ static int patch_ad1988(struct hda_codec *codec)
 	case AD1988_3STACK_DIG:
 		spec->multiout.max_channels = 6;
 		spec->multiout.num_dacs = 3;
-		if (codec->revision_id == AD1988A_REV2)
+		if (is_rev2(codec))
 			spec->multiout.dac_nids = ad1988_3stack_dac_nids_rev2;
 		else
 			spec->multiout.dac_nids = ad1988_3stack_dac_nids;
@@ -2620,7 +2623,7 @@ static int patch_ad1988(struct hda_codec *codec)
 		spec->channel_mode = ad1988_3stack_modes;
 		spec->num_channel_mode = ARRAY_SIZE(ad1988_3stack_modes);
 		spec->num_mixers = 2;
-		if (codec->revision_id == AD1988A_REV2)
+		if (is_rev2(codec))
 			spec->mixers[0] = ad1988_3stack_mixers1_rev2;
 		else
 			spec->mixers[0] = ad1988_3stack_mixers1;
