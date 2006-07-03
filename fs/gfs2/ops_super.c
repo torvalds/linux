@@ -202,8 +202,9 @@ static void gfs2_unlockfs(struct super_block *sb)
  * Returns: 0 on success or error code
  */
 
-static int gfs2_statfs(struct super_block *sb, struct kstatfs *buf)
+static int gfs2_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
+	struct super_block *sb = dentry->d_inode->i_sb;
 	struct gfs2_sbd *sdp = sb->s_fs_info;
 	struct gfs2_statfs_change sc;
 	int error;
