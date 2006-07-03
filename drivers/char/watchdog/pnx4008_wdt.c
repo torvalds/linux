@@ -77,11 +77,7 @@
 
 #define WDOG_COUNTER_RATE 13000000	/*the counter clock is 13 MHz fixed */
 
-#ifdef CONFIG_WATCHDOG_NOWAYOUT
-static int nowayout = 1;
-#else
-static int nowayout = 0;
-#endif
+static int nowayout = WATCHDOG_NOWAYOUT;
 static int heartbeat = DEFAULT_HEARTBEAT;
 
 static unsigned long wdt_status;
