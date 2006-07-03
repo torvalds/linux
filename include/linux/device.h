@@ -294,8 +294,6 @@ extern void class_device_initialize(struct class_device *);
 extern int __must_check class_device_add(struct class_device *);
 extern void class_device_del(struct class_device *);
 
-extern int class_device_rename(struct class_device *, char *);
-
 extern struct class_device * class_device_get(struct class_device *);
 extern void class_device_put(struct class_device *);
 

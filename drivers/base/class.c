@@ -840,48 +840,6 @@ void class_device_destroy(struct class *cls, dev_t devt)
 		class_device_unregister(class_dev);
 }
 
-int class_device_rename(struct class_device *class_dev, char *new_name)
-{
-	int error = 0;
-	char *old_class_name = NULL, *new_class_name = NULL;
-
-	class_dev = class_device_get(class_dev);
-	if (!class_dev)
-		return -EINVAL;
-
-	pr_debug("CLASS: renaming '%s' to '%s'\n", class_dev->class_id,
-		 new_name);
-
-#ifdef CONFIG_SYSFS_DEPRECATED
-	if (class_dev->dev)
-		old_class_name = make_class_name(class_dev->class->name,
-						 &class_dev->kobj);
-#endif
-
-	strlcpy(class_dev->class_id, new_name, KOBJ_NAME_LEN);
-
-	error = kobject_rename(&class_dev->kobj, new_name);
-
-#ifdef CONFIG_SYSFS_DEPRECATED
-	if (class_dev->dev) {
-		new_class_name = make_class_name(class_dev->class->name,
-						 &class_dev->kobj);
-		if (new_class_name)
-			sysfs_create_link(&class_dev->dev->kobj,
-					  &class_dev->kobj, new_class_name);
-		if (old_class_name)
-			sysfs_remove_link(&class_dev->dev->kobj,
-						old_class_name);
-	}
-#endif
-	class_device_put(class_dev);
-
-	kfree(old_class_name);
-	kfree(new_class_name);
-
-	return error;
-}
-
 struct class_device * class_device_get(struct class_device *class_dev)
 {
 	if (class_dev)
