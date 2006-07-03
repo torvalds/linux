@@ -308,6 +308,13 @@ static inline void finish_lock_switch(runqueue_t *rq, task_t *prev)
 	/* this is a valid case when another task releases the spinlock */
 	rq->lock.owner = current;
 #endif
+	/*
+	 * If we are tracking spinlock dependencies then we have to
+	 * fix up the runqueue lock - which gets 'carried over' from
+	 * prev into current:
+	 */
+	spin_acquire(&rq->lock.dep_map, 0, 0, _THIS_IP_);
+
 	spin_unlock_irq(&rq->lock);
 }
 
@@ -1778,6 +1785,7 @@ task_t * context_switch(runqueue_t *rq, task_t *prev, task_t *next)
 		WARN_ON(rq->prev_mm);
 		rq->prev_mm = oldmm;
 	}
+	spin_release(&rq->lock.dep_map, 1, _THIS_IP_);
 
 	/* Here we just switch the register state and the stack. */
 	switch_to(prev, next, prev);
@@ -4384,6 +4392,7 @@ asmlinkage long sys_sched_yield(void)
 	 * no need to preempt or enable interrupts:
 	 */
 	__release(rq->lock);
+	spin_release(&rq->lock.dep_map, 1, _THIS_IP_);
 	_raw_spin_unlock(&rq->lock);
 	preempt_enable_no_resched();
 
@@ -4447,6 +4456,7 @@ int cond_resched_lock(spinlock_t *lock)
 		spin_lock(lock);
 	}
 	if (need_resched() && __resched_legal()) {
+		spin_release(&lock->dep_map, 1, _THIS_IP_);
 		_raw_spin_unlock(lock);
 		preempt_enable_no_resched();
 		__cond_resched();

@@ -12,6 +12,42 @@
 #include <linux/delay.h>
 #include <linux/module.h>
 
+void __spin_lock_init(spinlock_t *lock, const char *name,
+		      struct lock_class_key *key)
+{
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+	/*
+	 * Make sure we are not reinitializing a held lock:
+	 */
+	debug_check_no_locks_freed((void *)lock, sizeof(*lock));
+	lockdep_init_map(&lock->dep_map, name, key);
+#endif
+	lock->raw_lock = (raw_spinlock_t)__RAW_SPIN_LOCK_UNLOCKED;
+	lock->magic = SPINLOCK_MAGIC;
+	lock->owner = SPINLOCK_OWNER_INIT;
+	lock->owner_cpu = -1;
+}
+
+EXPORT_SYMBOL(__spin_lock_init);
+
+void __rwlock_init(rwlock_t *lock, const char *name,
+		   struct lock_class_key *key)
+{
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+	/*
+	 * Make sure we are not reinitializing a held lock:
+	 */
+	debug_check_no_locks_freed((void *)lock, sizeof(*lock));
+	lockdep_init_map(&lock->dep_map, name, key);
+#endif
+	lock->raw_lock = (raw_rwlock_t) __RAW_RW_LOCK_UNLOCKED;
+	lock->magic = RWLOCK_MAGIC;
+	lock->owner = SPINLOCK_OWNER_INIT;
+	lock->owner_cpu = -1;
+}
+
+EXPORT_SYMBOL(__rwlock_init);
+
 static void spin_bug(spinlock_t *lock, const char *msg)
 {
 	struct task_struct *owner = NULL;
