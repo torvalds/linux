@@ -248,7 +248,7 @@ GENERATE_TESTCASE(AA_rsem)
 
 /*
  * Special-case for read-locking, they are
- * allowed to recurse on the same lock instance:
+ * allowed to recurse on the same lock class:
  */
 static void rlock_AA1(void)
 {
@@ -259,7 +259,7 @@ static void rlock_AA1(void)
 static void rlock_AA1B(void)
 {
 	RL(X1);
-	RL(X2); // this one should fail
+	RL(X2); // this one should NOT fail
 }
 
 static void rsem_AA1(void)
@@ -1132,7 +1132,7 @@ void locking_selftest(void)
 	init_shared_classes();
 	debug_locks_silent = !debug_locks_verbose;
 
-	DO_TESTCASE_6("A-A deadlock", AA);
+	DO_TESTCASE_6R("A-A deadlock", AA);
 	DO_TESTCASE_6R("A-B-B-A deadlock", ABBA);
 	DO_TESTCASE_6R("A-B-B-C-C-A deadlock", ABBCCA);
 	DO_TESTCASE_6R("A-B-C-A-B-C deadlock", ABCABC);
@@ -1153,7 +1153,7 @@ void locking_selftest(void)
 
 	print_testname("recursive read-lock #2");
 	printk("             |");
-	dotest(rlock_AA1B, FAILURE, LOCKTYPE_RWLOCK);
+	dotest(rlock_AA1B, SUCCESS, LOCKTYPE_RWLOCK);
 	printk("             |");
 	dotest(rsem_AA1B, FAILURE, LOCKTYPE_RWSEM);
 	printk("\n");

@@ -843,10 +843,9 @@ check_deadlock(struct task_struct *curr, struct held_lock *next,
 			continue;
 		/*
 		 * Allow read-after-read recursion of the same
-		 * lock instance (i.e. read_lock(lock)+read_lock(lock)):
+		 * lock class (i.e. read_lock(lock)+read_lock(lock)):
 		 */
-		if ((read == 2) && prev->read &&
-				(prev->instance == next_instance))
+		if ((read == 2) && prev->read)
 			return 2;
 		return print_deadlock_bug(curr, prev, next);
 	}
