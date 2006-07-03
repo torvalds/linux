@@ -61,9 +61,9 @@
 #include "libata.h"
 
 /* debounce timing parameters in msecs { interval, duration, timeout } */
-const unsigned long sata_deb_timing_boot[]		= {   5,  100, 2000 };
-const unsigned long sata_deb_timing_eh[]		= {  25,  500, 2000 };
-const unsigned long sata_deb_timing_before_fsrst[]	= { 100, 2000, 5000 };
+const unsigned long sata_deb_timing_normal[]		= {   5,  100, 2000 };
+const unsigned long sata_deb_timing_hotplug[]		= {  25,  500, 2000 };
+const unsigned long sata_deb_timing_long[]		= { 100, 2000, 5000 };
 
 static unsigned int ata_dev_init_params(struct ata_device *dev,
 					u16 heads, u16 sectors);
@@ -2588,7 +2588,7 @@ static void ata_wait_spinup(struct ata_port *ap)
 
 	/* first, debounce phy if SATA */
 	if (ap->cbl == ATA_CBL_SATA) {
-		rc = sata_phy_debounce(ap, sata_deb_timing_eh);
+		rc = sata_phy_debounce(ap, sata_deb_timing_hotplug);
 
 		/* if debounced successfully and offline, no need to wait */
 		if ((rc == 0 || rc == -EOPNOTSUPP) && ata_port_offline(ap))
@@ -2624,7 +2624,7 @@ static void ata_wait_spinup(struct ata_port *ap)
 int ata_std_prereset(struct ata_port *ap)
 {
 	struct ata_eh_context *ehc = &ap->eh_context;
-	const unsigned long *timing;
+	const unsigned long *timing = sata_ehc_deb_timing(ehc);
 	int rc;
 
 	/* handle link resume & hotplug spinup */
@@ -2642,11 +2642,6 @@ int ata_std_prereset(struct ata_port *ap)
 
 	/* if SATA, resume phy */
 	if (ap->cbl == ATA_CBL_SATA) {
-		if (ap->pflags & ATA_PFLAG_LOADING)
-			timing = sata_deb_timing_boot;
-		else
-			timing = sata_deb_timing_eh;
-
 		rc = sata_phy_resume(ap, timing);
 		if (rc && rc != -EOPNOTSUPP) {
 			/* phy resume failed */
@@ -2734,6 +2729,8 @@ int ata_std_softreset(struct ata_port *ap, unsigned int *classes)
  */
 int sata_std_hardreset(struct ata_port *ap, unsigned int *class)
 {
+	struct ata_eh_context *ehc = &ap->eh_context;
+	const unsigned long *timing = sata_ehc_deb_timing(ehc);
 	u32 scontrol;
 	int rc;
 
@@ -2771,7 +2768,7 @@ int sata_std_hardreset(struct ata_port *ap, unsigned int *class)
 	msleep(1);
 
 	/* bring phy back */
-	sata_phy_resume(ap, sata_deb_timing_eh);
+	sata_phy_resume(ap, timing);
 
 	/* TODO: phy layer with polling, timeouts, etc. */
 	if (ata_port_offline(ap)) {
@@ -5852,9 +5849,9 @@ u32 ata_wait_register(void __iomem *reg, u32 mask, u32 val,
  * Do not depend on ABI/API stability.
  */
 
-EXPORT_SYMBOL_GPL(sata_deb_timing_boot);
-EXPORT_SYMBOL_GPL(sata_deb_timing_eh);
-EXPORT_SYMBOL_GPL(sata_deb_timing_before_fsrst);
+EXPORT_SYMBOL_GPL(sata_deb_timing_normal);
+EXPORT_SYMBOL_GPL(sata_deb_timing_hotplug);
+EXPORT_SYMBOL_GPL(sata_deb_timing_long);
 EXPORT_SYMBOL_GPL(ata_std_bios_param);
 EXPORT_SYMBOL_GPL(ata_std_ports);
 EXPORT_SYMBOL_GPL(ata_device_add);
