@@ -234,7 +234,7 @@ int setup_irq(unsigned int irq, struct irqaction *new)
 		    ((old->flags ^ new->flags) & IRQF_TRIGGER_MASK))
 			goto mismatch;
 
-#if defined(CONFIG_IRQ_PER_CPU) && defined(IRQF_PERCPU)
+#if defined(CONFIG_IRQ_PER_CPU)
 		/* All handlers must agree on per-cpuness */
 		if ((old->flags & IRQF_PERCPU) !=
 		    (new->flags & IRQF_PERCPU))
@@ -250,7 +250,7 @@ int setup_irq(unsigned int irq, struct irqaction *new)
 	}
 
 	*p = new;
-#if defined(CONFIG_IRQ_PER_CPU) && defined(IRQF_PERCPU)
+#if defined(CONFIG_IRQ_PER_CPU)
 	if (new->flags & IRQF_PERCPU)
 		desc->status |= IRQ_PER_CPU;
 #endif
