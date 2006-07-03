@@ -84,6 +84,8 @@ static debug_info_t *qeth_dbf_qerr = NULL;
 
 DEFINE_PER_CPU(char[256], qeth_dbf_txt_buf);
 
+static struct lock_class_key qdio_out_skb_queue_key;
+
 /**
  * some more definitions and declarations
  */
@@ -3229,6 +3231,9 @@ qeth_alloc_qdio_buffers(struct qeth_card *card)
 				&card->qdio.out_qs[i]->qdio_bufs[j];
 			skb_queue_head_init(&card->qdio.out_qs[i]->bufs[j].
 					    skb_list);
+			lockdep_set_class(
+				&card->qdio.out_qs[i]->bufs[j].skb_list.lock,
+				&qdio_out_skb_queue_key);
 			INIT_LIST_HEAD(&card->qdio.out_qs[i]->bufs[j].ctx_list);
 		}
 	}
@@ -5272,6 +5277,7 @@ qeth_free_vlan_buffer(struct qeth_card *card, struct qeth_qdio_out_buffer *buf,
 	struct sk_buff_head tmp_list;
 
 	skb_queue_head_init(&tmp_list);
+	lockdep_set_class(&tmp_list.lock, &qdio_out_skb_queue_key);
 	for(i = 0; i < QETH_MAX_BUFFER_ELEMENTS(card); ++i){
 		while ((skb = skb_dequeue(&buf->skb_list))){
 			if (vlan_tx_tag_present(skb) &&
