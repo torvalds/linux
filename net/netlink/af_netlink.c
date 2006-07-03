@@ -156,7 +156,7 @@ static void netlink_sock_destruct(struct sock *sk)
 
 static void netlink_table_grab(void)
 {
-	write_lock_bh(&nl_table_lock);
+	write_lock_irq(&nl_table_lock);
 
 	if (atomic_read(&nl_table_users)) {
 		DECLARE_WAITQUEUE(wait, current);
@@ -166,9 +166,9 @@ static void netlink_table_grab(void)
 			set_current_state(TASK_UNINTERRUPTIBLE);
 			if (atomic_read(&nl_table_users) == 0)
 				break;
-			write_unlock_bh(&nl_table_lock);
+			write_unlock_irq(&nl_table_lock);
 			schedule();
-			write_lock_bh(&nl_table_lock);
+			write_lock_irq(&nl_table_lock);
 		}
 
 		__set_current_state(TASK_RUNNING);
@@ -178,7 +178,7 @@ static void netlink_table_grab(void)
 
 static __inline__ void netlink_table_ungrab(void)
 {
-	write_unlock_bh(&nl_table_lock);
+	write_unlock_irq(&nl_table_lock);
 	wake_up(&nl_table_wait);
 }
 
