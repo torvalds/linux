@@ -28,6 +28,7 @@ Currently, these files are in /proc/sys/vm:
 - block_dump
 - drop-caches
 - zone_reclaim_mode
+- min_unmapped_ratio
 - panic_on_oom
 
 ==============================================================
@@ -165,6 +166,19 @@ It may be advisable to allow slab reclaim if the system makes heavy
 use of files and builds up large slab caches. However, the slab
 shrink operation is global, may take a long time and free slabs
 in all nodes of the system.
+
+=============================================================
+
+min_unmapped_ratio:
+
+This is available only on NUMA kernels.
+
+A percentage of the file backed pages in each zone.  Zone reclaim will only
+occur if more than this percentage of pages are file backed and unmapped.
+This is to insure that a minimal amount of local pages is still available for
+file I/O even if the node is overallocated.
+
+The default is 1 percent.
 
 =============================================================
 
