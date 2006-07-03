@@ -775,6 +775,8 @@ static int __cpuinit do_boot_cpu(int cpu, int apicid)
 	};
 	DECLARE_WORK(work, do_fork_idle, &c_idle);
 
+	lockdep_set_class(&c_idle.done.wait.lock, &waitqueue_lock_key);
+
 	/* allocate memory for gdts of secondary cpus. Hotplug is considered */
 	if (!cpu_gdt_descr[cpu].address &&
 		!(cpu_gdt_descr[cpu].address = get_zeroed_page(GFP_KERNEL))) {
