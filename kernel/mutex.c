@@ -39,13 +39,14 @@
  *
  * It is not allowed to initialize an already locked mutex.
  */
-__always_inline void fastcall __mutex_init(struct mutex *lock, const char *name)
+void
+__mutex_init(struct mutex *lock, const char *name, struct lock_class_key *key)
 {
 	atomic_set(&lock->count, 1);
 	spin_lock_init(&lock->wait_lock);
 	INIT_LIST_HEAD(&lock->wait_list);
 
-	debug_mutex_init(lock, name);
+	debug_mutex_init(lock, name, key);
 }
 
 EXPORT_SYMBOL(__mutex_init);
@@ -131,6 +132,7 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass)
 	spin_lock_mutex(&lock->wait_lock, flags);
 
 	debug_mutex_lock_common(lock, &waiter);
+	mutex_acquire(&lock->dep_map, subclass, 0, _RET_IP_);
 	debug_mutex_add_waiter(lock, &waiter, task->thread_info);
 
 	/* add waiting tasks to the end of the waitqueue (FIFO): */
@@ -158,6 +160,7 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass)
 		if (unlikely(state == TASK_INTERRUPTIBLE &&
 						signal_pending(task))) {
 			mutex_remove_waiter(lock, &waiter, task->thread_info);
+			mutex_release(&lock->dep_map, 1, _RET_IP_);
 			spin_unlock_mutex(&lock->wait_lock, flags);
 
 			debug_mutex_free_waiter(&waiter);
@@ -194,16 +197,28 @@ __mutex_lock_slowpath(atomic_t *lock_count)
 	__mutex_lock_common(lock, TASK_UNINTERRUPTIBLE, 0);
 }
 
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+void __sched
+mutex_lock_nested(struct mutex *lock, unsigned int subclass)
+{
+	might_sleep();
+	__mutex_lock_common(lock, TASK_UNINTERRUPTIBLE, subclass);
+}
+
+EXPORT_SYMBOL_GPL(mutex_lock_nested);
+#endif
+
 /*
  * Release the lock, slowpath:
  */
 static fastcall inline void
-__mutex_unlock_common_slowpath(atomic_t *lock_count)
+__mutex_unlock_common_slowpath(atomic_t *lock_count, int nested)
 {
 	struct mutex *lock = container_of(lock_count, struct mutex, count);
 	unsigned long flags;
 
 	spin_lock_mutex(&lock->wait_lock, flags);
+	mutex_release(&lock->dep_map, nested, _RET_IP_);
 	debug_mutex_unlock(lock);
 
 	/*
@@ -236,7 +251,7 @@ __mutex_unlock_common_slowpath(atomic_t *lock_count)
 static fastcall noinline void
 __mutex_unlock_slowpath(atomic_t *lock_count)
 {
-	__mutex_unlock_common_slowpath(lock_count);
+	__mutex_unlock_common_slowpath(lock_count, 1);
 }
 
 /*
@@ -287,9 +302,10 @@ static inline int __mutex_trylock_slowpath(atomic_t *lock_count)
 	spin_lock_mutex(&lock->wait_lock, flags);
 
 	prev = atomic_xchg(&lock->count, -1);
-	if (likely(prev == 1))
+	if (likely(prev == 1)) {
 		debug_mutex_set_owner(lock, current_thread_info());
-
+		mutex_acquire(&lock->dep_map, 0, 1, _RET_IP_);
+	}
 	/* Set it back to 0 if there are no waiters: */
 	if (likely(list_empty(&lock->wait_list)))
 		atomic_set(&lock->count, 0);

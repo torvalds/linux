@@ -13,6 +13,7 @@
 #include <linux/list.h>
 #include <linux/spinlock_types.h>
 #include <linux/linkage.h>
+#include <linux/lockdep.h>
 
 #include <asm/atomic.h>
 
@@ -53,6 +54,9 @@ struct mutex {
 	const char 		*name;
 	void			*magic;
 #endif
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+	struct lockdep_map	dep_map;
+#endif
 };
 
 /*
@@ -72,20 +76,34 @@ struct mutex_waiter {
 # include <linux/mutex-debug.h>
 #else
 # define __DEBUG_MUTEX_INITIALIZER(lockname)
-# define mutex_init(mutex)			__mutex_init(mutex, NULL)
+# define mutex_init(mutex) \
+do {							\
+	static struct lock_class_key __key;		\
+							\
+	__mutex_init((mutex), #mutex, &__key);		\
+} while (0)
 # define mutex_destroy(mutex)				do { } while (0)
+#endif
+
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+# define __DEP_MAP_MUTEX_INITIALIZER(lockname) \
+		, .dep_map = { .name = #lockname }
+#else
+# define __DEP_MAP_MUTEX_INITIALIZER(lockname)
 #endif
 
 #define __MUTEX_INITIALIZER(lockname) \
 		{ .count = ATOMIC_INIT(1) \
 		, .wait_lock = SPIN_LOCK_UNLOCKED \
 		, .wait_list = LIST_HEAD_INIT(lockname.wait_list) \
-		__DEBUG_MUTEX_INITIALIZER(lockname) }
+		__DEBUG_MUTEX_INITIALIZER(lockname) \
+		__DEP_MAP_MUTEX_INITIALIZER(lockname) }
 
 #define DEFINE_MUTEX(mutexname) \
 	struct mutex mutexname = __MUTEX_INITIALIZER(mutexname)
 
-extern void fastcall __mutex_init(struct mutex *lock, const char *name);
+extern void __mutex_init(struct mutex *lock, const char *name,
+			 struct lock_class_key *key);
 
 /***
  * mutex_is_locked - is the mutex locked
@@ -104,6 +122,13 @@ static inline int fastcall mutex_is_locked(struct mutex *lock)
  */
 extern void fastcall mutex_lock(struct mutex *lock);
 extern int fastcall mutex_lock_interruptible(struct mutex *lock);
+
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+extern void mutex_lock_nested(struct mutex *lock, unsigned int subclass);
+#else
+# define mutex_lock_nested(lock, subclass) mutex_lock(lock)
+#endif
+
 /*
  * NOTE: mutex_trylock() follows the spin_trylock() convention,
  *       not the down_trylock() convention!
