@@ -5009,88 +5009,6 @@ int ata_flush_cache(struct ata_device *dev)
 	return 0;
 }
 
-static int ata_standby_drive(struct ata_device *dev)
-{
-	unsigned int err_mask;
-
-	err_mask = ata_do_simple_cmd(dev, ATA_CMD_STANDBYNOW1);
-	if (err_mask) {
-		ata_dev_printk(dev, KERN_ERR, "failed to standby drive "
-			       "(err_mask=0x%x)\n", err_mask);
-		return -EIO;
-	}
-
-	return 0;
-}
-
-static int ata_start_drive(struct ata_device *dev)
-{
-	unsigned int err_mask;
-
-	err_mask = ata_do_simple_cmd(dev, ATA_CMD_IDLEIMMEDIATE);
-	if (err_mask) {
-		ata_dev_printk(dev, KERN_ERR, "failed to start drive "
-			       "(err_mask=0x%x)\n", err_mask);
-		return -EIO;
-	}
-
-	return 0;
-}
-
-/**
- *	ata_device_resume - wakeup a previously suspended devices
- *	@dev: the device to resume
- *
- *	Kick the drive back into action, by sending it an idle immediate
- *	command and making sure its transfer mode matches between drive
- *	and host.
- *
- */
-int ata_device_resume(struct ata_device *dev)
-{
-	struct ata_port *ap = dev->ap;
-
-	if (ap->pflags & ATA_PFLAG_SUSPENDED) {
-		struct ata_device *failed_dev;
-
-		ata_busy_sleep(ap, ATA_TMOUT_BOOT_QUICK, ATA_TMOUT_BOOT);
-		ata_busy_wait(ap, ATA_BUSY | ATA_DRQ, 200000);
-
-		ap->pflags &= ~ATA_PFLAG_SUSPENDED;
-		while (ata_set_mode(ap, &failed_dev))
-			ata_dev_disable(failed_dev);
-	}
-	if (!ata_dev_enabled(dev))
-		return 0;
-	if (dev->class == ATA_DEV_ATA)
-		ata_start_drive(dev);
-
-	return 0;
-}
-
-/**
- *	ata_device_suspend - prepare a device for suspend
- *	@dev: the device to suspend
- *	@state: target power management state
- *
- *	Flush the cache on the drive, if appropriate, then issue a
- *	standbynow command.
- */
-int ata_device_suspend(struct ata_device *dev, pm_message_t state)
-{
-	struct ata_port *ap = dev->ap;
-
-	if (!ata_dev_enabled(dev))
-		return 0;
-	if (dev->class == ATA_DEV_ATA)
-		ata_flush_cache(dev);
-
-	if (state.event != PM_EVENT_FREEZE)
-		ata_standby_drive(dev);
-	ap->pflags |= ATA_PFLAG_SUSPENDED;
-	return 0;
-}
-
 /**
  *	ata_port_start - Set port up for dma.
  *	@ap: Port to initialize
@@ -5946,8 +5864,6 @@ EXPORT_SYMBOL_GPL(ata_pci_default_filter);
 EXPORT_SYMBOL_GPL(ata_pci_clear_simplex);
 #endif /* CONFIG_PCI */
 
-EXPORT_SYMBOL_GPL(ata_device_suspend);
-EXPORT_SYMBOL_GPL(ata_device_resume);
 EXPORT_SYMBOL_GPL(ata_scsi_device_suspend);
 EXPORT_SYMBOL_GPL(ata_scsi_device_resume);
 

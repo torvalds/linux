@@ -397,20 +397,129 @@ void ata_dump_status(unsigned id, struct ata_taskfile *tf)
 	}
 }
 
-int ata_scsi_device_resume(struct scsi_device *sdev)
-{
-	struct ata_port *ap = ata_shost_to_port(sdev->host);
-	struct ata_device *dev = __ata_scsi_find_dev(ap, sdev);
-
-	return ata_device_resume(dev);
-}
-
+/**
+ *	ata_scsi_device_suspend - suspend ATA device associated with sdev
+ *	@sdev: the SCSI device to suspend
+ *	@state: target power management state
+ *
+ *	Request suspend EH action on the ATA device associated with
+ *	@sdev and wait for the operation to complete.
+ *
+ *	LOCKING:
+ *	Kernel thread context (may sleep).
+ *
+ *	RETURNS:
+ *	0 on success, -errno otherwise.
+ */
 int ata_scsi_device_suspend(struct scsi_device *sdev, pm_message_t state)
 {
 	struct ata_port *ap = ata_shost_to_port(sdev->host);
-	struct ata_device *dev = __ata_scsi_find_dev(ap, sdev);
+	struct ata_device *dev = ata_scsi_find_dev(ap, sdev);
+	unsigned long flags;
+	unsigned int action;
+	int rc = 0;
 
-	return ata_device_suspend(dev, state);
+	if (!dev)
+		goto out;
+
+	spin_lock_irqsave(ap->lock, flags);
+
+	/* wait for the previous resume to complete */
+	while (dev->flags & ATA_DFLAG_SUSPENDED) {
+		spin_unlock_irqrestore(ap->lock, flags);
+		ata_port_wait_eh(ap);
+		spin_lock_irqsave(ap->lock, flags);
+	}
+
+	/* if @sdev is already detached, nothing to do */
+	if (sdev->sdev_state == SDEV_OFFLINE ||
+	    sdev->sdev_state == SDEV_CANCEL || sdev->sdev_state == SDEV_DEL)
+		goto out_unlock;
+
+	/* request suspend */
+	action = ATA_EH_SUSPEND;
+	if (state.event != PM_EVENT_SUSPEND)
+		action |= ATA_EH_PM_FREEZE;
+	ap->eh_info.dev_action[dev->devno] |= action;
+	ap->eh_info.flags |= ATA_EHI_QUIET;
+	ata_port_schedule_eh(ap);
+
+	spin_unlock_irqrestore(ap->lock, flags);
+
+	/* wait for EH to do the job */
+	ata_port_wait_eh(ap);
+
+	spin_lock_irqsave(ap->lock, flags);
+
+	/* If @sdev is still attached but the associated ATA device
+	 * isn't suspended, the operation failed.
+	 */
+	if (sdev->sdev_state != SDEV_OFFLINE &&
+	    sdev->sdev_state != SDEV_CANCEL && sdev->sdev_state != SDEV_DEL &&
+	    !(dev->flags & ATA_DFLAG_SUSPENDED))
+		rc = -EIO;
+
+ out_unlock:
+	spin_unlock_irqrestore(ap->lock, flags);
+ out:
+	if (rc == 0)
+		sdev->sdev_gendev.power.power_state = state;
+	return rc;
+}
+
+/**
+ *	ata_scsi_device_resume - resume ATA device associated with sdev
+ *	@sdev: the SCSI device to resume
+ *
+ *	Request resume EH action on the ATA device associated with
+ *	@sdev and return immediately.  This enables parallel
+ *	wakeup/spinup of devices.
+ *
+ *	LOCKING:
+ *	Kernel thread context (may sleep).
+ *
+ *	RETURNS:
+ *	0.
+ */
+int ata_scsi_device_resume(struct scsi_device *sdev)
+{
+	struct ata_port *ap = ata_shost_to_port(sdev->host);
+	struct ata_device *dev = ata_scsi_find_dev(ap, sdev);
+	struct ata_eh_info *ehi = &ap->eh_info;
+	unsigned long flags;
+	unsigned int action;
+
+	if (!dev)
+		goto out;
+
+	spin_lock_irqsave(ap->lock, flags);
+
+	/* if @sdev is already detached, nothing to do */
+	if (sdev->sdev_state == SDEV_OFFLINE ||
+	    sdev->sdev_state == SDEV_CANCEL || sdev->sdev_state == SDEV_DEL)
+		goto out_unlock;
+
+	/* request resume */
+	action = ATA_EH_RESUME;
+	if (sdev->sdev_gendev.power.power_state.event == PM_EVENT_SUSPEND)
+		__ata_ehi_hotplugged(ehi);
+	else
+		action |= ATA_EH_PM_FREEZE | ATA_EH_SOFTRESET;
+	ehi->dev_action[dev->devno] |= action;
+
+	/* We don't want autopsy and verbose EH messages.  Disable
+	 * those if we're the only device on this link.
+	 */
+	if (ata_port_max_devices(ap) == 1)
+		ehi->flags |= ATA_EHI_NO_AUTOPSY | ATA_EHI_QUIET;
+
+	ata_port_schedule_eh(ap);
+
+ out_unlock:
+	spin_unlock_irqrestore(ap->lock, flags);
+ out:
+	sdev->sdev_gendev.power.power_state = PMSG_ON;
+	return 0;
 }
 
 /**
