@@ -16,17 +16,6 @@ struct rwsem_waiter {
 #define RWSEM_WAITING_FOR_WRITE	0x00000002
 };
 
-#if RWSEM_DEBUG
-#undef rwsemtrace
-void rwsemtrace(struct rw_semaphore *sem, const char *str)
-{
-	printk("sem=%p\n", sem);
-	printk("(sem)=%08lx\n", sem->count);
-	if (sem->debug)
-		printk("[%d] %s({%08lx})\n", current->pid, str, sem->count);
-}
-#endif
-
 /*
  * handle the lock release when processes blocked on it that can now run
  * - if we come here from up_xxxx(), then:
@@ -44,8 +33,6 @@ __rwsem_do_wake(struct rw_semaphore *sem, int downgrading)
 	struct task_struct *tsk;
 	struct list_head *next;
 	signed long oldcount, woken, loop;
-
-	rwsemtrace(sem, "Entering __rwsem_do_wake");
 
 	if (downgrading)
 		goto dont_wake_writers;
@@ -127,7 +114,6 @@ __rwsem_do_wake(struct rw_semaphore *sem, int downgrading)
 	next->prev = &sem->wait_list;
 
  out:
-	rwsemtrace(sem, "Leaving __rwsem_do_wake");
 	return sem;
 
 	/* undo the change to count, but check for a transition 1->0 */
@@ -186,13 +172,9 @@ rwsem_down_read_failed(struct rw_semaphore *sem)
 {
 	struct rwsem_waiter waiter;
 
-	rwsemtrace(sem, "Entering rwsem_down_read_failed");
-
 	waiter.flags = RWSEM_WAITING_FOR_READ;
 	rwsem_down_failed_common(sem, &waiter,
 				RWSEM_WAITING_BIAS - RWSEM_ACTIVE_BIAS);
-
-	rwsemtrace(sem, "Leaving rwsem_down_read_failed");
 	return sem;
 }
 
@@ -204,12 +186,9 @@ rwsem_down_write_failed(struct rw_semaphore *sem)
 {
 	struct rwsem_waiter waiter;
 
-	rwsemtrace(sem, "Entering rwsem_down_write_failed");
-
 	waiter.flags = RWSEM_WAITING_FOR_WRITE;
 	rwsem_down_failed_common(sem, &waiter, -RWSEM_ACTIVE_BIAS);
 
-	rwsemtrace(sem, "Leaving rwsem_down_write_failed");
 	return sem;
 }
 
@@ -221,8 +200,6 @@ struct rw_semaphore fastcall *rwsem_wake(struct rw_semaphore *sem)
 {
 	unsigned long flags;
 
-	rwsemtrace(sem, "Entering rwsem_wake");
-
 	spin_lock_irqsave(&sem->wait_lock, flags);
 
 	/* do nothing if list empty */
@@ -230,8 +207,6 @@ struct rw_semaphore fastcall *rwsem_wake(struct rw_semaphore *sem)
 		sem = __rwsem_do_wake(sem, 0);
 
 	spin_unlock_irqrestore(&sem->wait_lock, flags);
-
-	rwsemtrace(sem, "Leaving rwsem_wake");
 
 	return sem;
 }
@@ -245,8 +220,6 @@ struct rw_semaphore fastcall *rwsem_downgrade_wake(struct rw_semaphore *sem)
 {
 	unsigned long flags;
 
-	rwsemtrace(sem, "Entering rwsem_downgrade_wake");
-
 	spin_lock_irqsave(&sem->wait_lock, flags);
 
 	/* do nothing if list empty */
@@ -255,7 +228,6 @@ struct rw_semaphore fastcall *rwsem_downgrade_wake(struct rw_semaphore *sem)
 
 	spin_unlock_irqrestore(&sem->wait_lock, flags);
 
-	rwsemtrace(sem, "Leaving rwsem_downgrade_wake");
 	return sem;
 }
 
@@ -263,6 +235,3 @@ EXPORT_SYMBOL(rwsem_down_read_failed);
 EXPORT_SYMBOL(rwsem_down_write_failed);
 EXPORT_SYMBOL(rwsem_wake);
 EXPORT_SYMBOL(rwsem_downgrade_wake);
-#if RWSEM_DEBUG
-EXPORT_SYMBOL(rwsemtrace);
-#endif

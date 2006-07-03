@@ -17,16 +17,6 @@ struct rwsem_waiter {
 #define RWSEM_WAITING_FOR_WRITE	0x00000002
 };
 
-#if RWSEM_DEBUG
-void rwsemtrace(struct rw_semaphore *sem, const char *str)
-{
-	if (sem->debug)
-		printk("[%d] %s({%d,%d})\n",
-		       current->pid, str, sem->activity,
-		       list_empty(&sem->wait_list) ? 0 : 1);
-}
-#endif
-
 /*
  * initialise the semaphore
  */
@@ -35,9 +25,6 @@ void fastcall init_rwsem(struct rw_semaphore *sem)
 	sem->activity = 0;
 	spin_lock_init(&sem->wait_lock);
 	INIT_LIST_HEAD(&sem->wait_list);
-#if RWSEM_DEBUG
-	sem->debug = 0;
-#endif
 }
 
 /*
@@ -55,8 +42,6 @@ __rwsem_do_wake(struct rw_semaphore *sem, int wakewrite)
 	struct rwsem_waiter *waiter;
 	struct task_struct *tsk;
 	int woken;
-
-	rwsemtrace(sem, "Entering __rwsem_do_wake");
 
 	waiter = list_entry(sem->wait_list.next, struct rwsem_waiter, list);
 
@@ -104,7 +89,6 @@ __rwsem_do_wake(struct rw_semaphore *sem, int wakewrite)
 	sem->activity += woken;
 
  out:
-	rwsemtrace(sem, "Leaving __rwsem_do_wake");
 	return sem;
 }
 
@@ -138,8 +122,6 @@ void fastcall __sched __down_read(struct rw_semaphore *sem)
 	struct rwsem_waiter waiter;
 	struct task_struct *tsk;
 
-	rwsemtrace(sem, "Entering __down_read");
-
 	spin_lock_irq(&sem->wait_lock);
 
 	if (sem->activity >= 0 && list_empty(&sem->wait_list)) {
@@ -171,9 +153,8 @@ void fastcall __sched __down_read(struct rw_semaphore *sem)
 	}
 
 	tsk->state = TASK_RUNNING;
-
  out:
-	rwsemtrace(sem, "Leaving __down_read");
+	;
 }
 
 /*
@@ -184,7 +165,6 @@ int fastcall __down_read_trylock(struct rw_semaphore *sem)
 	unsigned long flags;
 	int ret = 0;
 
-	rwsemtrace(sem, "Entering __down_read_trylock");
 
 	spin_lock_irqsave(&sem->wait_lock, flags);
 
@@ -196,7 +176,6 @@ int fastcall __down_read_trylock(struct rw_semaphore *sem)
 
 	spin_unlock_irqrestore(&sem->wait_lock, flags);
 
-	rwsemtrace(sem, "Leaving __down_read_trylock");
 	return ret;
 }
 
@@ -208,8 +187,6 @@ void fastcall __sched __down_write(struct rw_semaphore *sem)
 {
 	struct rwsem_waiter waiter;
 	struct task_struct *tsk;
-
-	rwsemtrace(sem, "Entering __down_write");
 
 	spin_lock_irq(&sem->wait_lock);
 
@@ -242,9 +219,8 @@ void fastcall __sched __down_write(struct rw_semaphore *sem)
 	}
 
 	tsk->state = TASK_RUNNING;
-
  out:
-	rwsemtrace(sem, "Leaving __down_write");
+	;
 }
 
 /*
@@ -254,8 +230,6 @@ int fastcall __down_write_trylock(struct rw_semaphore *sem)
 {
 	unsigned long flags;
 	int ret = 0;
-
-	rwsemtrace(sem, "Entering __down_write_trylock");
 
 	spin_lock_irqsave(&sem->wait_lock, flags);
 
@@ -267,7 +241,6 @@ int fastcall __down_write_trylock(struct rw_semaphore *sem)
 
 	spin_unlock_irqrestore(&sem->wait_lock, flags);
 
-	rwsemtrace(sem, "Leaving __down_write_trylock");
 	return ret;
 }
 
@@ -278,16 +251,12 @@ void fastcall __up_read(struct rw_semaphore *sem)
 {
 	unsigned long flags;
 
-	rwsemtrace(sem, "Entering __up_read");
-
 	spin_lock_irqsave(&sem->wait_lock, flags);
 
 	if (--sem->activity == 0 && !list_empty(&sem->wait_list))
 		sem = __rwsem_wake_one_writer(sem);
 
 	spin_unlock_irqrestore(&sem->wait_lock, flags);
-
-	rwsemtrace(sem, "Leaving __up_read");
 }
 
 /*
@@ -297,8 +266,6 @@ void fastcall __up_write(struct rw_semaphore *sem)
 {
 	unsigned long flags;
 
-	rwsemtrace(sem, "Entering __up_write");
-
 	spin_lock_irqsave(&sem->wait_lock, flags);
 
 	sem->activity = 0;
@@ -306,8 +273,6 @@ void fastcall __up_write(struct rw_semaphore *sem)
 		sem = __rwsem_do_wake(sem, 1);
 
 	spin_unlock_irqrestore(&sem->wait_lock, flags);
-
-	rwsemtrace(sem, "Leaving __up_write");
 }
 
 /*
@@ -318,8 +283,6 @@ void fastcall __downgrade_write(struct rw_semaphore *sem)
 {
 	unsigned long flags;
 
-	rwsemtrace(sem, "Entering __downgrade_write");
-
 	spin_lock_irqsave(&sem->wait_lock, flags);
 
 	sem->activity = 1;
@@ -327,8 +290,6 @@ void fastcall __downgrade_write(struct rw_semaphore *sem)
 		sem = __rwsem_do_wake(sem, 0);
 
 	spin_unlock_irqrestore(&sem->wait_lock, flags);
-
-	rwsemtrace(sem, "Leaving __downgrade_write");
 }
 
 EXPORT_SYMBOL(init_rwsem);
@@ -339,6 +300,3 @@ EXPORT_SYMBOL(__down_write_trylock);
 EXPORT_SYMBOL(__up_read);
 EXPORT_SYMBOL(__up_write);
 EXPORT_SYMBOL(__downgrade_write);
-#if RWSEM_DEBUG
-EXPORT_SYMBOL(rwsemtrace);
-#endif
