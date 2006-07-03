@@ -383,6 +383,7 @@ void
 sclp_sync_wait(void)
 {
 	unsigned long psw_mask;
+	unsigned long flags;
 	unsigned long cr0, cr0_sync;
 	u64 timeout;
 
@@ -395,9 +396,11 @@ sclp_sync_wait(void)
 			  sclp_tod_from_jiffies(sclp_request_timer.expires -
 						jiffies);
 	}
+	local_irq_save(flags);
 	/* Prevent bottom half from executing once we force interrupts open */
 	local_bh_disable();
 	/* Enable service-signal interruption, disable timer interrupts */
+	trace_hardirqs_on();
 	__ctl_store(cr0, 0, 0);
 	cr0_sync = cr0;
 	cr0_sync |= 0x00000200;
@@ -415,11 +418,10 @@ sclp_sync_wait(void)
 		barrier();
 		cpu_relax();
 	}
-	/* Restore interrupt settings */
-	asm volatile ("SSM 0(%0)"
-		      : : "a" (&psw_mask) : "memory");
+	local_irq_disable();
 	__ctl_load(cr0, 0, 0);
-	__local_bh_enable();
+	_local_bh_enable();
+	local_irq_restore(flags);
 }
 
 EXPORT_SYMBOL(sclp_sync_wait);

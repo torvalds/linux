@@ -97,7 +97,7 @@ asmlinkage void do_softirq(void)
 
 	account_system_vtime(current);
 
-	__local_bh_enable();
+	_local_bh_enable();
 
 	local_irq_restore(flags);
 }
