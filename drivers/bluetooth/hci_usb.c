@@ -129,6 +129,9 @@ static struct usb_device_id blacklist_ids[] = {
 	/* CSR BlueCore Bluetooth Sniffer */
 	{ USB_DEVICE(0x0a12, 0x0002), .driver_info = HCI_SNIFFER },
 
+	/* Frontline ComProbe Bluetooth Sniffer */
+	{ USB_DEVICE(0x16d3, 0x0002), .driver_info = HCI_SNIFFER },
+
 	{ }	/* Terminating entry */
 };
 
