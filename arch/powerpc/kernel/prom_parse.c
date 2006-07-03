@@ -38,14 +38,6 @@ static void of_dump_addr(const char *s, u32 *addr, int na)
 static void of_dump_addr(const char *s, u32 *addr, int na) { }
 #endif
 
-/* Read a big address */
-static inline u64 of_read_addr(u32 *cell, int size)
-{
-	u64 r = 0;
-	while (size--)
-		r = (r << 32) | *(cell++);
-	return r;
-}
 
 /* Callbacks for bus specific translators */
 struct of_bus {
@@ -77,9 +69,9 @@ static u64 of_bus_default_map(u32 *addr, u32 *range, int na, int ns, int pna)
 {
 	u64 cp, s, da;
 
-	cp = of_read_addr(range, na);
-	s  = of_read_addr(range + na + pna, ns);
-	da = of_read_addr(addr, na);
+	cp = of_read_number(range, na);
+	s  = of_read_number(range + na + pna, ns);
+	da = of_read_number(addr, na);
 
 	DBG("OF: default map, cp="PRu64", s="PRu64", da="PRu64"\n",
 	    cp, s, da);
@@ -91,7 +83,7 @@ static u64 of_bus_default_map(u32 *addr, u32 *range, int na, int ns, int pna)
 
 static int of_bus_default_translate(u32 *addr, u64 offset, int na)
 {
-	u64 a = of_read_addr(addr, na);
+	u64 a = of_read_number(addr, na);
 	memset(addr, 0, na * 4);
 	a += offset;
 	if (na > 1)
@@ -135,9 +127,9 @@ static u64 of_bus_pci_map(u32 *addr, u32 *range, int na, int ns, int pna)
 		return OF_BAD_ADDR;
 
 	/* Read address values, skipping high cell */
-	cp = of_read_addr(range + 1, na - 1);
-	s  = of_read_addr(range + na + pna, ns);
-	da = of_read_addr(addr + 1, na - 1);
+	cp = of_read_number(range + 1, na - 1);
+	s  = of_read_number(range + na + pna, ns);
+	da = of_read_number(addr + 1, na - 1);
 
 	DBG("OF: PCI map, cp="PRu64", s="PRu64", da="PRu64"\n", cp, s, da);
 
@@ -195,9 +187,9 @@ static u64 of_bus_isa_map(u32 *addr, u32 *range, int na, int ns, int pna)
 		return OF_BAD_ADDR;
 
 	/* Read address values, skipping high cell */
-	cp = of_read_addr(range + 1, na - 1);
-	s  = of_read_addr(range + na + pna, ns);
-	da = of_read_addr(addr + 1, na - 1);
+	cp = of_read_number(range + 1, na - 1);
+	s  = of_read_number(range + na + pna, ns);
+	da = of_read_number(addr + 1, na - 1);
 
 	DBG("OF: ISA map, cp="PRu64", s="PRu64", da="PRu64"\n", cp, s, da);
 
@@ -295,7 +287,7 @@ static int of_translate_one(struct device_node *parent, struct of_bus *bus,
 	 */
 	ranges = (u32 *)get_property(parent, "ranges", &rlen);
 	if (ranges == NULL || rlen == 0) {
-		offset = of_read_addr(addr, na);
+		offset = of_read_number(addr, na);
 		memset(addr, 0, pna * 4);
 		DBG("OF: no ranges, 1:1 translation\n");
 		goto finish;
@@ -378,7 +370,7 @@ u64 of_translate_address(struct device_node *dev, u32 *in_addr)
 		/* If root, we have finished */
 		if (parent == NULL) {
 			DBG("OF: reached root node\n");
-			result = of_read_addr(addr, na);
+			result = of_read_number(addr, na);
 			break;
 		}
 
@@ -442,7 +434,7 @@ u32 *of_get_address(struct device_node *dev, int index, u64 *size,
 	for (i = 0; psize >= onesize; psize -= onesize, prop += onesize, i++)
 		if (i == index) {
 			if (size)
-				*size = of_read_addr(prop + na, ns);
+				*size = of_read_number(prop + na, ns);
 			if (flags)
 				*flags = bus->get_flags(prop);
 			return prop;
@@ -484,7 +476,7 @@ u32 *of_get_pci_address(struct device_node *dev, int bar_no, u64 *size,
 	for (i = 0; psize >= onesize; psize -= onesize, prop += onesize, i++)
 		if ((prop[0] & 0xff) == ((bar_no * 4) + PCI_BASE_ADDRESS_0)) {
 			if (size)
-				*size = of_read_addr(prop + na, ns);
+				*size = of_read_number(prop + na, ns);
 			if (flags)
 				*flags = bus->get_flags(prop);
 			return prop;
@@ -565,11 +557,414 @@ void of_parse_dma_window(struct device_node *dn, unsigned char *dma_window_prop,
 		prop = get_property(dn, "#address-cells", NULL);
 
 	cells = prop ? *(u32 *)prop : prom_n_addr_cells(dn);
-	*phys = of_read_addr(dma_window, cells);
+	*phys = of_read_number(dma_window, cells);
 
 	dma_window += cells;
 
 	prop = get_property(dn, "ibm,#dma-size-cells", NULL);
 	cells = prop ? *(u32 *)prop : prom_n_size_cells(dn);
-	*size = of_read_addr(dma_window, cells);
+	*size = of_read_number(dma_window, cells);
 }
+
+/*
+ * Interrupt remapper
+ */
+
+static unsigned int of_irq_workarounds;
+static struct device_node *of_irq_dflt_pic;
+
+static struct device_node *of_irq_find_parent(struct device_node *child)
+{
+	struct device_node *p;
+	phandle *parp;
+
+	if (!of_node_get(child))
+		return NULL;
+
+	do {
+		parp = (phandle *)get_property(child, "interrupt-parent", NULL);
+		if (parp == NULL)
+			p = of_get_parent(child);
+		else {
+			if (of_irq_workarounds & OF_IMAP_NO_PHANDLE)
+				p = of_node_get(of_irq_dflt_pic);
+			else
+				p = of_find_node_by_phandle(*parp);
+		}
+		of_node_put(child);
+		child = p;
+	} while (p && get_property(p, "#interrupt-cells", NULL) == NULL);
+
+	return p;
+}
+
+static u8 of_irq_pci_swizzle(u8 slot, u8 pin)
+{
+	return (((pin - 1) + slot) % 4) + 1;
+}
+
+/* This doesn't need to be called if you don't have any special workaround
+ * flags to pass
+ */
+void of_irq_map_init(unsigned int flags)
+{
+	of_irq_workarounds = flags;
+
+	/* OldWorld, don't bother looking at other things */
+	if (flags & OF_IMAP_OLDWORLD_MAC)
+		return;
+
+	/* If we don't have phandles, let's try to locate a default interrupt
+	 * controller (happens when booting with BootX). We do a first match
+	 * here, hopefully, that only ever happens on machines with one
+	 * controller.
+	 */
+	if (flags & OF_IMAP_NO_PHANDLE) {
+		struct device_node *np;
+
+		for(np = NULL; (np = of_find_all_nodes(np)) != NULL;) {
+			if (get_property(np, "interrupt-controller", NULL)
+			    == NULL)
+				continue;
+			/* Skip /chosen/interrupt-controller */
+			if (strcmp(np->name, "chosen") == 0)
+				continue;
+			/* It seems like at least one person on this planet wants
+			 * to use BootX on a machine with an AppleKiwi controller
+			 * which happens to pretend to be an interrupt
+			 * controller too.
+			 */
+			if (strcmp(np->name, "AppleKiwi") == 0)
+				continue;
+			/* I think we found one ! */
+			of_irq_dflt_pic = np;
+			break;
+		}
+	}
+
+}
+
+int of_irq_map_raw(struct device_node *parent, u32 *intspec, u32 *addr,
+		   struct of_irq *out_irq)
+{
+	struct device_node *ipar, *tnode, *old = NULL, *newpar = NULL;
+	u32 *tmp, *imap, *imask;
+	u32 intsize = 1, addrsize, newintsize = 0, newaddrsize = 0;
+	int imaplen, match, i;
+
+	ipar = of_node_get(parent);
+
+	/* First get the #interrupt-cells property of the current cursor
+	 * that tells us how to interpret the passed-in intspec. If there
+	 * is none, we are nice and just walk up the tree
+	 */
+	do {
+		tmp = (u32 *)get_property(ipar, "#interrupt-cells", NULL);
+		if (tmp != NULL) {
+			intsize = *tmp;
+			break;
+		}
+		tnode = ipar;
+		ipar = of_irq_find_parent(ipar);
+		of_node_put(tnode);
+	} while (ipar);
+	if (ipar == NULL) {
+		DBG(" -> no parent found !\n");
+		goto fail;
+	}
+
+	DBG("of_irq_map_raw: ipar=%s, size=%d\n", ipar->full_name, intsize);
+
+	/* Look for this #address-cells. We have to implement the old linux
+	 * trick of looking for the parent here as some device-trees rely on it
+	 */
+	old = of_node_get(ipar);
+	do {
+		tmp = (u32 *)get_property(old, "#address-cells", NULL);
+		tnode = of_get_parent(old);
+		of_node_put(old);
+		old = tnode;
+	} while(old && tmp == NULL);
+	of_node_put(old);
+	old = NULL;
+	addrsize = (tmp == NULL) ? 2 : *tmp;
+
+	DBG(" -> addrsize=%d\n", addrsize);
+
+	/* Now start the actual "proper" walk of the interrupt tree */
+	while (ipar != NULL) {
+		/* Now check if cursor is an interrupt-controller and if it is
+		 * then we are done
+		 */
+		if (get_property(ipar, "interrupt-controller", NULL) != NULL) {
+			DBG(" -> got it !\n");
+			memcpy(out_irq->specifier, intspec,
+			       intsize * sizeof(u32));
+			out_irq->size = intsize;
+			out_irq->controller = ipar;
+			of_node_put(old);
+			return 0;
+		}
+
+		/* Now look for an interrupt-map */
+		imap = (u32 *)get_property(ipar, "interrupt-map", &imaplen);
+		/* No interrupt map, check for an interrupt parent */
+		if (imap == NULL) {
+			DBG(" -> no map, getting parent\n");
+			newpar = of_irq_find_parent(ipar);
+			goto skiplevel;
+		}
+		imaplen /= sizeof(u32);
+
+		/* Look for a mask */
+		imask = (u32 *)get_property(ipar, "interrupt-map-mask", NULL);
+
+		/* If we were passed no "reg" property and we attempt to parse
+		 * an interrupt-map, then #address-cells must be 0.
+		 * Fail if it's not.
+		 */
+		if (addr == NULL && addrsize != 0) {
+			DBG(" -> no reg passed in when needed !\n");
+			goto fail;
+		}
+
+		/* Parse interrupt-map */
+		match = 0;
+		while (imaplen > (addrsize + intsize + 1) && !match) {
+			/* Compare specifiers */
+			match = 1;
+			for (i = 0; i < addrsize && match; ++i) {
+				u32 mask = imask ? imask[i] : 0xffffffffu;
+				match = ((addr[i] ^ imap[i]) & mask) == 0;
+			}
+			for (; i < (addrsize + intsize) && match; ++i) {
+				u32 mask = imask ? imask[i] : 0xffffffffu;
+				match =
+				   ((intspec[i-addrsize] ^ imap[i]) & mask) == 0;
+			}
+			imap += addrsize + intsize;
+			imaplen -= addrsize + intsize;
+
+			DBG(" -> match=%d (imaplen=%d)\n", match, imaplen);
+
+			/* Get the interrupt parent */
+			if (of_irq_workarounds & OF_IMAP_NO_PHANDLE)
+				newpar = of_node_get(of_irq_dflt_pic);
+			else
+				newpar = of_find_node_by_phandle((phandle)*imap);
+			imap++;
+			--imaplen;
+
+			/* Check if not found */
+			if (newpar == NULL) {
+				DBG(" -> imap parent not found !\n");
+				goto fail;
+			}
+
+			/* Get #interrupt-cells and #address-cells of new
+			 * parent
+			 */
+			tmp = (u32 *)get_property(newpar, "#interrupt-cells",
+						  NULL);
+			if (tmp == NULL) {
+				DBG(" -> parent lacks #interrupt-cells !\n");
+				goto fail;
+			}
+			newintsize = *tmp;
+			tmp = (u32 *)get_property(newpar, "#address-cells",
+						  NULL);
+			newaddrsize = (tmp == NULL) ? 0 : *tmp;
+
+			DBG(" -> newintsize=%d, newaddrsize=%d\n",
+			    newintsize, newaddrsize);
+
+			/* Check for malformed properties */
+			if (imaplen < (newaddrsize + newintsize))
+				goto fail;
+
+			imap += newaddrsize + newintsize;
+			imaplen -= newaddrsize + newintsize;
+
+			DBG(" -> imaplen=%d\n", imaplen);
+		}
+		if (!match)
+			goto fail;
+
+		of_node_put(old);
+		old = of_node_get(newpar);
+		addrsize = newaddrsize;
+		intsize = newintsize;
+		intspec = imap - intsize;
+		addr = intspec - addrsize;
+
+	skiplevel:
+		/* Iterate again with new parent */
+		DBG(" -> new parent: %s\n", newpar ? newpar->full_name : "<>");
+		of_node_put(ipar);
+		ipar = newpar;
+		newpar = NULL;
+	}
+ fail:
+	of_node_put(ipar);
+	of_node_put(old);
+	of_node_put(newpar);
+
+	return -EINVAL;
+}
+EXPORT_SYMBOL_GPL(of_irq_map_raw);
+
+#if defined(CONFIG_PPC_PMAC) && defined(CONFIG_PPC32)
+static int of_irq_map_oldworld(struct device_node *device, int index,
+			       struct of_irq *out_irq)
+{
+	u32 *ints;
+	int intlen;
+
+	/*
+	 * Old machines just have a list of interrupt numbers
+	 * and no interrupt-controller nodes.
+	 */
+	ints = (u32 *) get_property(device, "AAPL,interrupts", &intlen);
+	if (ints == NULL)
+		return -EINVAL;
+	intlen /= sizeof(u32);
+
+	if (index >= intlen)
+		return -EINVAL;
+
+	out_irq->controller = NULL;
+	out_irq->specifier[0] = ints[index];
+	out_irq->size = 1;
+
+	return 0;
+}
+#else /* defined(CONFIG_PPC_PMAC) && defined(CONFIG_PPC32) */
+static int of_irq_map_oldworld(struct device_node *device, int index,
+			       struct of_irq *out_irq)
+{
+	return -EINVAL;
+}
+#endif /* !(defined(CONFIG_PPC_PMAC) && defined(CONFIG_PPC32)) */
+
+int of_irq_map_one(struct device_node *device, int index, struct of_irq *out_irq)
+{
+	struct device_node *p;
+	u32 *intspec, *tmp, intsize, intlen, *addr;
+	int res;
+
+	DBG("of_irq_map_one: dev=%s, index=%d\n", device->full_name, index);
+
+	/* OldWorld mac stuff is "special", handle out of line */
+	if (of_irq_workarounds & OF_IMAP_OLDWORLD_MAC)
+		return of_irq_map_oldworld(device, index, out_irq);
+
+	/* Get the interrupts property */
+	intspec = (u32 *)get_property(device, "interrupts", &intlen);
+	if (intspec == NULL)
+		return -EINVAL;
+	intlen /= sizeof(u32);
+
+	/* Get the reg property (if any) */
+	addr = (u32 *)get_property(device, "reg", NULL);
+
+	/* Look for the interrupt parent. */
+	p = of_irq_find_parent(device);
+	if (p == NULL)
+		return -EINVAL;
+
+	/* Get size of interrupt specifier */
+	tmp = (u32 *)get_property(p, "#interrupt-cells", NULL);
+	if (tmp == NULL) {
+		of_node_put(p);
+		return -EINVAL;
+	}
+	intsize = *tmp;
+
+	/* Check index */
+	if (index * intsize >= intlen)
+		return -EINVAL;
+
+	/* Get new specifier and map it */
+	res = of_irq_map_raw(p, intspec + index * intsize, addr, out_irq);
+	of_node_put(p);
+	return res;
+}
+EXPORT_SYMBOL_GPL(of_irq_map_one);
+
+int of_irq_map_pci(struct pci_dev *pdev, struct of_irq *out_irq)
+{
+	struct device_node *dn, *ppnode;
+	struct pci_dev *ppdev;
+	u32 lspec;
+	u32 laddr[3];
+	u8 pin;
+	int rc;
+
+	/* Check if we have a device node, if yes, fallback to standard OF
+	 * parsing
+	 */
+	dn = pci_device_to_OF_node(pdev);
+	if (dn)
+		return of_irq_map_one(dn, 0, out_irq);
+
+	/* Ok, we don't, time to have fun. Let's start by building up an
+	 * interrupt spec.  we assume #interrupt-cells is 1, which is standard
+	 * for PCI. If you do different, then don't use that routine.
+	 */
+	rc = pci_read_config_byte(pdev, PCI_INTERRUPT_PIN, &pin);
+	if (rc != 0)
+		return rc;
+	/* No pin, exit */
+	if (pin == 0)
+		return -ENODEV;
+
+	/* Now we walk up the PCI tree */
+	lspec = pin;
+	for (;;) {
+		/* Get the pci_dev of our parent */
+		ppdev = pdev->bus->self;
+
+		/* Ouch, it's a host bridge... */
+		if (ppdev == NULL) {
+#ifdef CONFIG_PPC64
+			ppnode = pci_bus_to_OF_node(pdev->bus);
+#else
+			struct pci_controller *host;
+			host = pci_bus_to_host(pdev->bus);
+			ppnode = host ? host->arch_data : NULL;
+#endif
+			/* No node for host bridge ? give up */
+			if (ppnode == NULL)
+				return -EINVAL;
+		} else
+			/* We found a P2P bridge, check if it has a node */
+			ppnode = pci_device_to_OF_node(ppdev);
+
+		/* Ok, we have found a parent with a device-node, hand over to
+		 * the OF parsing code.
+		 * We build a unit address from the linux device to be used for
+		 * resolution. Note that we use the linux bus number which may
+		 * not match your firmware bus numbering.
+		 * Fortunately, in most cases, interrupt-map-mask doesn't include
+		 * the bus number as part of the matching.
+		 * You should still be careful about that though if you intend
+		 * to rely on this function (you ship  a firmware that doesn't
+		 * create device nodes for all PCI devices).
+		 */
+		if (ppnode)
+			break;
+
+		/* We can only get here if we hit a P2P bridge with no node,
+		 * let's do standard swizzling and try again
+		 */
+		lspec = of_irq_pci_swizzle(PCI_SLOT(pdev->devfn), lspec);
+		pdev = ppdev;
+	}
+
+	laddr[0] = (pdev->bus->number << 16)
+		| (pdev->devfn << 8);
+	laddr[1]  = laddr[2] = 0;
+	return of_irq_map_raw(ppnode, &lspec, laddr, out_irq);
+}
+EXPORT_SYMBOL_GPL(of_irq_map_pci);
+
