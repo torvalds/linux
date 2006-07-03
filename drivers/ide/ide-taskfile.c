@@ -222,7 +222,7 @@ ide_startstop_t task_no_data_intr (ide_drive_t *drive)
 	ide_hwif_t *hwif	= HWIF(drive);
 	u8 stat;
 
-	local_irq_enable();
+	local_irq_enable_in_hardirq();
 	if (!OK_STAT(stat = hwif->INB(IDE_STATUS_REG),READY_STAT,BAD_STAT)) {
 		return ide_error(drive, "task_no_data_intr", stat);
 		/* calls ide_end_drive_cmd */
