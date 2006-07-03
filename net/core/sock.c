@@ -133,7 +133,42 @@
  * Each address family might have different locking rules, so we have
  * one slock key per address family:
  */
-struct lock_class_key af_family_keys[AF_MAX];
+static struct lock_class_key af_family_keys[AF_MAX];
+static struct lock_class_key af_family_slock_keys[AF_MAX];
+
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+/*
+ * Make lock validator output more readable. (we pre-construct these
+ * strings build-time, so that runtime initialization of socket
+ * locks is fast):
+ */
+static const char *af_family_key_strings[AF_MAX+1] = {
+  "sk_lock-AF_UNSPEC", "sk_lock-AF_UNIX"     , "sk_lock-AF_INET"     ,
+  "sk_lock-AF_AX25"  , "sk_lock-AF_IPX"      , "sk_lock-AF_APPLETALK",
+  "sk_lock-AF_NETROM", "sk_lock-AF_BRIDGE"   , "sk_lock-AF_ATMPVC"   ,
+  "sk_lock-AF_X25"   , "sk_lock-AF_INET6"    , "sk_lock-AF_ROSE"     ,
+  "sk_lock-AF_DECnet", "sk_lock-AF_NETBEUI"  , "sk_lock-AF_SECURITY" ,
+  "sk_lock-AF_KEY"   , "sk_lock-AF_NETLINK"  , "sk_lock-AF_PACKET"   ,
+  "sk_lock-AF_ASH"   , "sk_lock-AF_ECONET"   , "sk_lock-AF_ATMSVC"   ,
+  "sk_lock-21"       , "sk_lock-AF_SNA"      , "sk_lock-AF_IRDA"     ,
+  "sk_lock-AF_PPPOX" , "sk_lock-AF_WANPIPE"  , "sk_lock-AF_LLC"      ,
+  "sk_lock-27"       , "sk_lock-28"          , "sk_lock-29"          ,
+  "sk_lock-AF_TIPC"  , "sk_lock-AF_BLUETOOTH", "sk_lock-AF_MAX"
+};
+static const char *af_family_slock_key_strings[AF_MAX+1] = {
+  "slock-AF_UNSPEC", "slock-AF_UNIX"     , "slock-AF_INET"     ,
+  "slock-AF_AX25"  , "slock-AF_IPX"      , "slock-AF_APPLETALK",
+  "slock-AF_NETROM", "slock-AF_BRIDGE"   , "slock-AF_ATMPVC"   ,
+  "slock-AF_X25"   , "slock-AF_INET6"    , "slock-AF_ROSE"     ,
+  "slock-AF_DECnet", "slock-AF_NETBEUI"  , "slock-AF_SECURITY" ,
+  "slock-AF_KEY"   , "slock-AF_NETLINK"  , "slock-AF_PACKET"   ,
+  "slock-AF_ASH"   , "slock-AF_ECONET"   , "slock-AF_ATMSVC"   ,
+  "slock-21"       , "slock-AF_SNA"      , "slock-AF_IRDA"     ,
+  "slock-AF_PPPOX" , "slock-AF_WANPIPE"  , "slock-AF_LLC"      ,
+  "slock-27"       , "slock-28"          , "slock-29"          ,
+  "slock-AF_TIPC"  , "slock-AF_BLUETOOTH", "slock-AF_MAX"
+};
+#endif
 
 /*
  * sk_callback_lock locking rules are per-address-family,
@@ -249,9 +284,16 @@ int sk_receive_skb(struct sock *sk, struct sk_buff *skb)
 	skb->dev = NULL;
 
 	bh_lock_sock(sk);
-	if (!sock_owned_by_user(sk))
+	if (!sock_owned_by_user(sk)) {
+		/*
+		 * trylock + unlock semantics:
+		 */
+		mutex_acquire(&sk->sk_lock.dep_map, 0, 1, _RET_IP_);
+
 		rc = sk->sk_backlog_rcv(sk, skb);
-	else
+
+		mutex_release(&sk->sk_lock.dep_map, 1, _RET_IP_);
+	} else
 		sk_add_backlog(sk, skb);
 	bh_unlock_sock(sk);
 out:
@@ -759,6 +801,33 @@ lenout:
   	if (put_user(len, optlen))
   		return -EFAULT;
   	return 0;
+}
+
+/*
+ * Initialize an sk_lock.
+ *
+ * (We also register the sk_lock with the lock validator.)
+ */
+static void inline sock_lock_init(struct sock *sk)
+{
+	spin_lock_init(&sk->sk_lock.slock);
+	sk->sk_lock.owner = NULL;
+	init_waitqueue_head(&sk->sk_lock.wq);
+	/*
+	 * Make sure we are not reinitializing a held lock:
+	 */
+	debug_check_no_locks_freed((void *)&sk->sk_lock, sizeof(sk->sk_lock));
+
+	/*
+	 * Mark both the sk_lock and the sk_lock.slock as a
+	 * per-address-family lock class:
+	 */
+	lockdep_set_class_and_name(&sk->sk_lock.slock,
+				   af_family_slock_keys + sk->sk_family,
+				   af_family_slock_key_strings[sk->sk_family]);
+	lockdep_init_map(&sk->sk_lock.dep_map,
+			 af_family_key_strings[sk->sk_family],
+			 af_family_keys + sk->sk_family);
 }
 
 /**
@@ -1465,24 +1534,34 @@ void sock_init_data(struct socket *sock, struct sock *sk)
 void fastcall lock_sock(struct sock *sk)
 {
 	might_sleep();
-	spin_lock_bh(&(sk->sk_lock.slock));
+	spin_lock_bh(&sk->sk_lock.slock);
 	if (sk->sk_lock.owner)
 		__lock_sock(sk);
 	sk->sk_lock.owner = (void *)1;
-	spin_unlock_bh(&(sk->sk_lock.slock));
+	spin_unlock(&sk->sk_lock.slock);
+	/*
+	 * The sk_lock has mutex_lock() semantics here:
+	 */
+	mutex_acquire(&sk->sk_lock.dep_map, 0, 0, _RET_IP_);
+	local_bh_enable();
 }
 
 EXPORT_SYMBOL(lock_sock);
 
 void fastcall release_sock(struct sock *sk)
 {
-	spin_lock_bh(&(sk->sk_lock.slock));
+	/*
+	 * The sk_lock has mutex_unlock() semantics:
+	 */
+	mutex_release(&sk->sk_lock.dep_map, 1, _RET_IP_);
+
+	spin_lock_bh(&sk->sk_lock.slock);
 	if (sk->sk_backlog.tail)
 		__release_sock(sk);
 	sk->sk_lock.owner = NULL;
-        if (waitqueue_active(&(sk->sk_lock.wq)))
-		wake_up(&(sk->sk_lock.wq));
-	spin_unlock_bh(&(sk->sk_lock.slock));
+	if (waitqueue_active(&sk->sk_lock.wq))
+		wake_up(&sk->sk_lock.wq);
+	spin_unlock_bh(&sk->sk_lock.slock);
 }
 EXPORT_SYMBOL(release_sock);
 

@@ -44,6 +44,7 @@
 #include <linux/timer.h>
 #include <linux/cache.h>
 #include <linux/module.h>
+#include <linux/lockdep.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>	/* struct sk_buff */
 #include <linux/security.h>
@@ -78,17 +79,16 @@ typedef struct {
 	spinlock_t		slock;
 	struct sock_iocb	*owner;
 	wait_queue_head_t	wq;
+	/*
+	 * We express the mutex-alike socket_lock semantics
+	 * to the lock validator by explicitly managing
+	 * the slock as a lock variant (in addition to
+	 * the slock itself):
+	 */
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+	struct lockdep_map dep_map;
+#endif
 } socket_lock_t;
-
-extern struct lock_class_key af_family_keys[AF_MAX];
-
-#define sock_lock_init(__sk) \
-do {	spin_lock_init(&((__sk)->sk_lock.slock)); \
-	lockdep_set_class(&(__sk)->sk_lock.slock, \
-			  af_family_keys + (__sk)->sk_family); \
-	(__sk)->sk_lock.owner = NULL; \
-	init_waitqueue_head(&((__sk)->sk_lock.wq)); \
-} while(0)
 
 struct sock;
 struct proto;
