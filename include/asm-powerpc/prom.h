@@ -64,11 +64,6 @@ struct boot_param_header
 typedef u32 phandle;
 typedef u32 ihandle;
 
-struct interrupt_info {
-	int	line;
-	int	sense;		/* +ve/-ve logic, edge or level, etc. */
-};
-
 struct property {
 	char	*name;
 	int	length;
@@ -81,8 +76,6 @@ struct device_node {
 	char	*type;
 	phandle	node;
 	phandle linux_phandle;
-	int	n_intrs;
-	struct	interrupt_info *intrs;
 	char	*full_name;
 
 	struct	property *properties;
@@ -167,8 +160,8 @@ extern void unflatten_device_tree(void);
 extern void early_init_devtree(void *);
 extern int device_is_compatible(struct device_node *device, const char *);
 extern int machine_is_compatible(const char *compat);
-extern unsigned char *get_property(struct device_node *node, const char *name,
-				   int *lenp);
+extern void *get_property(struct device_node *node, const char *name,
+		int *lenp);
 extern void print_properties(struct device_node *node);
 extern int prom_n_addr_cells(struct device_node* np);
 extern int prom_n_size_cells(struct device_node* np);
@@ -203,6 +196,15 @@ extern int release_OF_resource(struct device_node* node, int index);
  * OF address retreival & translation
  */
 
+
+/* Helper to read a big number */
+static inline u64 of_read_number(u32 *cell, int size)
+{
+	u64 r = 0;
+	while (size--)
+		r = (r << 32) | *(cell++);
+	return r;
+}
 
 /* Translate an OF address block into a CPU physical address
  */
@@ -239,6 +241,84 @@ extern void kdump_move_device_tree(void);
 
 /* CPU OF node matching */
 struct device_node *of_get_cpu_node(int cpu, unsigned int *thread);
+
+
+/*
+ * OF interrupt mapping
+ */
+
+/* This structure is returned when an interrupt is mapped. The controller
+ * field needs to be put() after use
+ */
+
+#define OF_MAX_IRQ_SPEC		 4 /* We handle specifiers of at most 4 cells */
+
+struct of_irq {
+	struct device_node *controller;	/* Interrupt controller node */
+	u32 size;			/* Specifier size */
+	u32 specifier[OF_MAX_IRQ_SPEC];	/* Specifier copy */
+};
+
+/***
+ * of_irq_map_init - Initialize the irq remapper
+ * @flags:	flags defining workarounds to enable
+ *
+ * Some machines have bugs in the device-tree which require certain workarounds
+ * to be applied. Call this before any interrupt mapping attempts to enable
+ * those workarounds.
+ */
+#define OF_IMAP_OLDWORLD_MAC	0x00000001
+#define OF_IMAP_NO_PHANDLE	0x00000002
+
+extern void of_irq_map_init(unsigned int flags);
+
+/***
+ * of_irq_map_raw - Low level interrupt tree parsing
+ * @parent:	the device interrupt parent
+ * @intspec:	interrupt specifier ("interrupts" property of the device)
+ * @addr:	address specifier (start of "reg" property of the device)
+ * @out_irq:	structure of_irq filled by this function
+ *
+ * Returns 0 on success and a negative number on error
+ *
+ * This function is a low-level interrupt tree walking function. It
+ * can be used to do a partial walk with synthetized reg and interrupts
+ * properties, for example when resolving PCI interrupts when no device
+ * node exist for the parent.
+ *
+ */
+
+extern int of_irq_map_raw(struct device_node *parent, u32 *intspec, u32 *addr,
+			  struct of_irq *out_irq);
+
+
+/***
+ * of_irq_map_one - Resolve an interrupt for a device
+ * @device:	the device whose interrupt is to be resolved
+ * @index:     	index of the interrupt to resolve
+ * @out_irq:	structure of_irq filled by this function
+ *
+ * This function resolves an interrupt, walking the tree, for a given
+ * device-tree node. It's the high level pendant to of_irq_map_raw().
+ * It also implements the workarounds for OldWolrd Macs.
+ */
+extern int of_irq_map_one(struct device_node *device, int index,
+			  struct of_irq *out_irq);
+
+/***
+ * of_irq_map_pci - Resolve the interrupt for a PCI device
+ * @pdev:	the device whose interrupt is to be resolved
+ * @out_irq:	structure of_irq filled by this function
+ *
+ * This function resolves the PCI interrupt for a given PCI device. If a
+ * device-node exists for a given pci_dev, it will use normal OF tree
+ * walking. If not, it will implement standard swizzling and walk up the
+ * PCI tree until an device-node is found, at which point it will finish
+ * resolving using the OF tree walking.
+ */
+struct pci_dev;
+extern int of_irq_map_pci(struct pci_dev *pdev, struct of_irq *out_irq);
+
 
 #endif /* __KERNEL__ */
 #endif /* _POWERPC_PROM_H */

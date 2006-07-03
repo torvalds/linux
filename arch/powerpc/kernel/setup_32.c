@@ -51,7 +51,6 @@
 
 extern void bootx_init(unsigned long r4, unsigned long phys);
 
-boot_infos_t *boot_infos;
 struct ide_machdep_calls ppc_ide_md;
 
 int boot_cpuid;
@@ -240,7 +239,6 @@ void __init setup_arch(char **cmdline_p)
 		ppc_md.init_early();
 
 	find_legacy_serial_ports();
-	finish_device_tree();
 
 	smp_setup_cpu_maps();
 

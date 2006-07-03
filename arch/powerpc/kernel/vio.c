@@ -218,7 +218,6 @@ struct vio_dev * __devinit vio_register_device_node(struct device_node *of_node)
 {
 	struct vio_dev *viodev;
 	unsigned int *unit_address;
-	unsigned int *irq_p;
 
 	/* we need the 'device_type' property, in order to match with drivers */
 	if (of_node->type == NULL) {
@@ -243,16 +242,7 @@ struct vio_dev * __devinit vio_register_device_node(struct device_node *of_node)
 
 	viodev->dev.platform_data = of_node_get(of_node);
 
-	viodev->irq = NO_IRQ;
-	irq_p = (unsigned int *)get_property(of_node, "interrupts", NULL);
-	if (irq_p) {
-		int virq = virt_irq_create_mapping(*irq_p);
-		if (virq == NO_IRQ) {
-			printk(KERN_ERR "Unable to allocate interrupt "
-			       "number for %s\n", of_node->full_name);
-		} else
-			viodev->irq = irq_offset_up(virq);
-	}
+	viodev->irq = irq_of_parse_and_map(of_node, 0);
 
 	snprintf(viodev->dev.bus_id, BUS_ID_SIZE, "%x", *unit_address);
 	viodev->name = of_node->name;

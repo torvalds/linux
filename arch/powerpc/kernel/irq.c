@@ -29,6 +29,8 @@
  * to reduce code space and undefined function references.
  */
 
+#undef DEBUG
+
 #include <linux/module.h>
 #include <linux/threads.h>
 #include <linux/kernel_stat.h>
@@ -46,7 +48,10 @@
 #include <linux/cpumask.h>
 #include <linux/profile.h>
 #include <linux/bitops.h>
-#include <linux/pci.h>
+#include <linux/list.h>
+#include <linux/radix-tree.h>
+#include <linux/mutex.h>
+#include <linux/bootmem.h>
 
 #include <asm/uaccess.h>
 #include <asm/system.h>
@@ -57,39 +62,38 @@
 #include <asm/prom.h>
 #include <asm/ptrace.h>
 #include <asm/machdep.h>
+#include <asm/udbg.h>
 #ifdef CONFIG_PPC_ISERIES
 #include <asm/paca.h>
 #endif
 
 int __irq_offset_value;
-#ifdef CONFIG_PPC32
-EXPORT_SYMBOL(__irq_offset_value);
-#endif
-
 static int ppc_spurious_interrupts;
 
 #ifdef CONFIG_PPC32
-#define NR_MASK_WORDS	((NR_IRQS + 31) / 32)
-
-unsigned long ppc_cached_irq_mask[NR_MASK_WORDS];
+EXPORT_SYMBOL(__irq_offset_value);
 atomic_t ppc_n_lost_interrupts;
+
+#ifndef CONFIG_PPC_MERGE
+#define NR_MASK_WORDS	((NR_IRQS + 31) / 32)
+unsigned long ppc_cached_irq_mask[NR_MASK_WORDS];
+#endif
 
 #ifdef CONFIG_TAU_INT
 extern int tau_initialized;
 extern int tau_interrupts(int);
 #endif
+#endif /* CONFIG_PPC32 */
 
 #if defined(CONFIG_SMP) && !defined(CONFIG_PPC_MERGE)
 extern atomic_t ipi_recv;
 extern atomic_t ipi_sent;
 #endif
-#endif /* CONFIG_PPC32 */
 
 #ifdef CONFIG_PPC64
 EXPORT_SYMBOL(irq_desc);
 
 int distribute_irqs = 1;
-u64 ppc64_interrupt_controller;
 #endif /* CONFIG_PPC64 */
 
 int show_interrupts(struct seq_file *p, void *v)
@@ -182,7 +186,7 @@ void fixup_irqs(cpumask_t map)
 
 void do_IRQ(struct pt_regs *regs)
 {
-	int irq;
+	unsigned int irq;
 #ifdef CONFIG_IRQSTACKS
 	struct thread_info *curtp, *irqtp;
 #endif
@@ -213,22 +217,26 @@ void do_IRQ(struct pt_regs *regs)
 	 */
 	irq = ppc_md.get_irq(regs);
 
-	if (irq >= 0) {
+	if (irq != NO_IRQ && irq != NO_IRQ_IGNORE) {
 #ifdef CONFIG_IRQSTACKS
 		/* Switch to the irq stack to handle this */
 		curtp = current_thread_info();
 		irqtp = hardirq_ctx[smp_processor_id()];
 		if (curtp != irqtp) {
+			struct irq_desc *desc = irq_desc + irq;
+			void *handler = desc->handle_irq;
+			if (handler == NULL)
+				handler = &__do_IRQ;
 			irqtp->task = curtp->task;
 			irqtp->flags = 0;
-			call___do_IRQ(irq, regs, irqtp);
+			call_handle_irq(irq, desc, regs, irqtp, handler);
 			irqtp->task = NULL;
 			if (irqtp->flags)
 				set_bits(irqtp->flags, &curtp->flags);
 		} else
 #endif
-			__do_IRQ(irq, regs);
-	} else if (irq != -2)
+			generic_handle_irq(irq, regs);
+	} else if (irq != NO_IRQ_IGNORE)
 		/* That's not SMP safe ... but who cares ? */
 		ppc_spurious_interrupts++;
 
@@ -245,138 +253,12 @@ void do_IRQ(struct pt_regs *regs)
 
 void __init init_IRQ(void)
 {
-#ifdef CONFIG_PPC64
-	static int once = 0;
-
-	if (once)
-		return;
-
-	once++;
-
-#endif
 	ppc_md.init_IRQ();
 #ifdef CONFIG_PPC64
 	irq_ctx_init();
 #endif
 }
 
-#ifdef CONFIG_PPC64
-/*
- * Virtual IRQ mapping code, used on systems with XICS interrupt controllers.
- */
-
-#define UNDEFINED_IRQ 0xffffffff
-unsigned int virt_irq_to_real_map[NR_IRQS];
-
-/*
- * Don't use virtual irqs 0, 1, 2 for devices.
- * The pcnet32 driver considers interrupt numbers < 2 to be invalid,
- * and 2 is the XICS IPI interrupt.
- * We limit virtual irqs to __irq_offet_value less than virt_irq_max so
- * that when we offset them we don't end up with an interrupt
- * number >= virt_irq_max.
- */
-#define MIN_VIRT_IRQ	3
-
-unsigned int virt_irq_max;
-static unsigned int max_virt_irq;
-static unsigned int nr_virt_irqs;
-
-void
-virt_irq_init(void)
-{
-	int i;
-
-	if ((virt_irq_max == 0) || (virt_irq_max > (NR_IRQS - 1)))
-		virt_irq_max = NR_IRQS - 1;
-	max_virt_irq = virt_irq_max - __irq_offset_value;
-	nr_virt_irqs = max_virt_irq - MIN_VIRT_IRQ + 1;
-
-	for (i = 0; i < NR_IRQS; i++)
-		virt_irq_to_real_map[i] = UNDEFINED_IRQ;
-}
-
-/* Create a mapping for a real_irq if it doesn't already exist.
- * Return the virtual irq as a convenience.
- */
-int virt_irq_create_mapping(unsigned int real_irq)
-{
-	unsigned int virq, first_virq;
-	static int warned;
-
-	if (ppc64_interrupt_controller == IC_OPEN_PIC)
-		return real_irq;	/* no mapping for openpic (for now) */
-
-	if (ppc64_interrupt_controller == IC_CELL_PIC)
-		return real_irq;	/* no mapping for iic either */
-
-	/* don't map interrupts < MIN_VIRT_IRQ */
-	if (real_irq < MIN_VIRT_IRQ) {
-		virt_irq_to_real_map[real_irq] = real_irq;
-		return real_irq;
-	}
-
-	/* map to a number between MIN_VIRT_IRQ and max_virt_irq */
-	virq = real_irq;
-	if (virq > max_virt_irq)
-		virq = (virq % nr_virt_irqs) + MIN_VIRT_IRQ;
-
-	/* search for this number or a free slot */
-	first_virq = virq;
-	while (virt_irq_to_real_map[virq] != UNDEFINED_IRQ) {
-		if (virt_irq_to_real_map[virq] == real_irq)
-			return virq;
-		if (++virq > max_virt_irq)
-			virq = MIN_VIRT_IRQ;
-		if (virq == first_virq)
-			goto nospace;	/* oops, no free slots */
-	}
-
-	virt_irq_to_real_map[virq] = real_irq;
-	return virq;
-
- nospace:
-	if (!warned) {
-		printk(KERN_CRIT "Interrupt table is full\n");
-		printk(KERN_CRIT "Increase virt_irq_max (currently %d) "
-		       "in your kernel sources and rebuild.\n", virt_irq_max);
-		warned = 1;
-	}
-	return NO_IRQ;
-}
-
-/*
- * In most cases will get a hit on the very first slot checked in the
- * virt_irq_to_real_map.  Only when there are a large number of
- * IRQs will this be expensive.
- */
-unsigned int real_irq_to_virt_slowpath(unsigned int real_irq)
-{
-	unsigned int virq;
-	unsigned int first_virq;
-
-	virq = real_irq;
-
-	if (virq > max_virt_irq)
-		virq = (virq % nr_virt_irqs) + MIN_VIRT_IRQ;
-
-	first_virq = virq;
-
-	do {
-		if (virt_irq_to_real_map[virq] == real_irq)
-			return virq;
-
-		virq++;
-
-		if (virq >= max_virt_irq)
-			virq = 0;
-
-	} while (first_virq != virq);
-
-	return NO_IRQ;
-
-}
-#endif /* CONFIG_PPC64 */
 
 #ifdef CONFIG_IRQSTACKS
 struct thread_info *softirq_ctx[NR_CPUS] __read_mostly;
@@ -430,6 +312,503 @@ void do_softirq(void)
 	local_irq_restore(flags);
 }
 EXPORT_SYMBOL(do_softirq);
+
+
+/*
+ * IRQ controller and virtual interrupts
+ */
+
+#ifdef CONFIG_PPC_MERGE
+
+static LIST_HEAD(irq_hosts);
+static spinlock_t irq_big_lock = SPIN_LOCK_UNLOCKED;
+
+struct irq_map_entry irq_map[NR_IRQS];
+static unsigned int irq_virq_count = NR_IRQS;
+static struct irq_host *irq_default_host;
+
+struct irq_host *irq_alloc_host(unsigned int revmap_type,
+				unsigned int revmap_arg,
+				struct irq_host_ops *ops,
+				irq_hw_number_t inval_irq)
+{
+	struct irq_host *host;
+	unsigned int size = sizeof(struct irq_host);
+	unsigned int i;
+	unsigned int *rmap;
+	unsigned long flags;
+
+	/* Allocate structure and revmap table if using linear mapping */
+	if (revmap_type == IRQ_HOST_MAP_LINEAR)
+		size += revmap_arg * sizeof(unsigned int);
+	if (mem_init_done)
+		host = kzalloc(size, GFP_KERNEL);
+	else {
+		host = alloc_bootmem(size);
+		if (host)
+			memset(host, 0, size);
+	}
+	if (host == NULL)
+		return NULL;
+
+	/* Fill structure */
+	host->revmap_type = revmap_type;
+	host->inval_irq = inval_irq;
+	host->ops = ops;
+
+	spin_lock_irqsave(&irq_big_lock, flags);
+
+	/* If it's a legacy controller, check for duplicates and
+	 * mark it as allocated (we use irq 0 host pointer for that
+	 */
+	if (revmap_type == IRQ_HOST_MAP_LEGACY) {
+		if (irq_map[0].host != NULL) {
+			spin_unlock_irqrestore(&irq_big_lock, flags);
+			/* If we are early boot, we can't free the structure,
+			 * too bad...
+			 * this will be fixed once slab is made available early
+			 * instead of the current cruft
+			 */
+			if (mem_init_done)
+				kfree(host);
+			return NULL;
+		}
+		irq_map[0].host = host;
+	}
+
+	list_add(&host->link, &irq_hosts);
+	spin_unlock_irqrestore(&irq_big_lock, flags);
+
+	/* Additional setups per revmap type */
+	switch(revmap_type) {
+	case IRQ_HOST_MAP_LEGACY:
+		/* 0 is always the invalid number for legacy */
+		host->inval_irq = 0;
+		/* setup us as the host for all legacy interrupts */
+		for (i = 1; i < NUM_ISA_INTERRUPTS; i++) {
+			irq_map[i].hwirq = 0;
+			smp_wmb();
+			irq_map[i].host = host;
+			smp_wmb();
+
+			/* Clear some flags */
+			get_irq_desc(i)->status
+				&= ~(IRQ_NOREQUEST | IRQ_LEVEL);
+
+			/* Legacy flags are left to default at this point,
+			 * one can then use irq_create_mapping() to
+			 * explicitely change them
+			 */
+			ops->map(host, i, i, 0);
+		}
+		break;
+	case IRQ_HOST_MAP_LINEAR:
+		rmap = (unsigned int *)(host + 1);
+		for (i = 0; i < revmap_arg; i++)
+			rmap[i] = IRQ_NONE;
+		host->revmap_data.linear.size = revmap_arg;
+		smp_wmb();
+		host->revmap_data.linear.revmap = rmap;
+		break;
+	default:
+		break;
+	}
+
+	pr_debug("irq: Allocated host of type %d @0x%p\n", revmap_type, host);
+
+	return host;
+}
+
+struct irq_host *irq_find_host(struct device_node *node)
+{
+	struct irq_host *h, *found = NULL;
+	unsigned long flags;
+
+	/* We might want to match the legacy controller last since
+	 * it might potentially be set to match all interrupts in
+	 * the absence of a device node. This isn't a problem so far
+	 * yet though...
+	 */
+	spin_lock_irqsave(&irq_big_lock, flags);
+	list_for_each_entry(h, &irq_hosts, link)
+		if (h->ops->match == NULL || h->ops->match(h, node)) {
+			found = h;
+			break;
+		}
+	spin_unlock_irqrestore(&irq_big_lock, flags);
+	return found;
+}
+EXPORT_SYMBOL_GPL(irq_find_host);
+
+void irq_set_default_host(struct irq_host *host)
+{
+	pr_debug("irq: Default host set to @0x%p\n", host);
+
+	irq_default_host = host;
+}
+
+void irq_set_virq_count(unsigned int count)
+{
+	pr_debug("irq: Trying to set virq count to %d\n", count);
+
+	BUG_ON(count < NUM_ISA_INTERRUPTS);
+	if (count < NR_IRQS)
+		irq_virq_count = count;
+}
+
+unsigned int irq_create_mapping(struct irq_host *host,
+				irq_hw_number_t hwirq,
+				unsigned int flags)
+{
+	unsigned int virq, hint;
+
+	pr_debug("irq: irq_create_mapping(0x%p, 0x%lx, 0x%x)\n",
+		 host, hwirq, flags);
+
+	/* Look for default host if nececssary */
+	if (host == NULL)
+		host = irq_default_host;
+	if (host == NULL) {
+		printk(KERN_WARNING "irq_create_mapping called for"
+		       " NULL host, hwirq=%lx\n", hwirq);
+		WARN_ON(1);
+		return NO_IRQ;
+	}
+	pr_debug("irq: -> using host @%p\n", host);
+
+	/* Check if mapping already exist, if it does, call
+	 * host->ops->map() to update the flags
+	 */
+	virq = irq_find_mapping(host, hwirq);
+	if (virq != IRQ_NONE) {
+		pr_debug("irq: -> existing mapping on virq %d\n", virq);
+		host->ops->map(host, virq, hwirq, flags);
+		return virq;
+	}
+
+	/* Get a virtual interrupt number */
+	if (host->revmap_type == IRQ_HOST_MAP_LEGACY) {
+		/* Handle legacy */
+		virq = (unsigned int)hwirq;
+		if (virq == 0 || virq >= NUM_ISA_INTERRUPTS)
+			return NO_IRQ;
+		return virq;
+	} else {
+		/* Allocate a virtual interrupt number */
+		hint = hwirq % irq_virq_count;
+		virq = irq_alloc_virt(host, 1, hint);
+		if (virq == NO_IRQ) {
+			pr_debug("irq: -> virq allocation failed\n");
+			return NO_IRQ;
+		}
+	}
+	pr_debug("irq: -> obtained virq %d\n", virq);
+
+	/* Clear some flags */
+	get_irq_desc(virq)->status &= ~(IRQ_NOREQUEST | IRQ_LEVEL);
+
+	/* map it */
+	if (host->ops->map(host, virq, hwirq, flags)) {
+		pr_debug("irq: -> mapping failed, freeing\n");
+		irq_free_virt(virq, 1);
+		return NO_IRQ;
+	}
+	smp_wmb();
+	irq_map[virq].hwirq = hwirq;
+	smp_mb();
+	return virq;
+}
+EXPORT_SYMBOL_GPL(irq_create_mapping);
+
+extern unsigned int irq_create_of_mapping(struct device_node *controller,
+					  u32 *intspec, unsigned int intsize)
+{
+	struct irq_host *host;
+	irq_hw_number_t hwirq;
+	unsigned int flags = IRQ_TYPE_NONE;
+
+	if (controller == NULL)
+		host = irq_default_host;
+	else
+		host = irq_find_host(controller);
+	if (host == NULL)
+		return NO_IRQ;
+
+	/* If host has no translation, then we assume interrupt line */
+	if (host->ops->xlate == NULL)
+		hwirq = intspec[0];
+	else {
+		if (host->ops->xlate(host, controller, intspec, intsize,
+				     &hwirq, &flags))
+			return NO_IRQ;
+	}
+
+	return irq_create_mapping(host, hwirq, flags);
+}
+EXPORT_SYMBOL_GPL(irq_create_of_mapping);
+
+unsigned int irq_of_parse_and_map(struct device_node *dev, int index)
+{
+	struct of_irq oirq;
+
+	if (of_irq_map_one(dev, index, &oirq))
+		return NO_IRQ;
+
+	return irq_create_of_mapping(oirq.controller, oirq.specifier,
+				     oirq.size);
+}
+EXPORT_SYMBOL_GPL(irq_of_parse_and_map);
+
+void irq_dispose_mapping(unsigned int virq)
+{
+	struct irq_host *host = irq_map[virq].host;
+	irq_hw_number_t hwirq;
+	unsigned long flags;
+
+	WARN_ON (host == NULL);
+	if (host == NULL)
+		return;
+
+	/* Never unmap legacy interrupts */
+	if (host->revmap_type == IRQ_HOST_MAP_LEGACY)
+		return;
+
+	/* remove chip and handler */
+	set_irq_chip_and_handler(virq, NULL, NULL);
+
+	/* Make sure it's completed */
+	synchronize_irq(virq);
+
+	/* Tell the PIC about it */
+	if (host->ops->unmap)
+		host->ops->unmap(host, virq);
+	smp_mb();
+
+	/* Clear reverse map */
+	hwirq = irq_map[virq].hwirq;
+	switch(host->revmap_type) {
+	case IRQ_HOST_MAP_LINEAR:
+		if (hwirq < host->revmap_data.linear.size)
+			host->revmap_data.linear.revmap[hwirq] = IRQ_NONE;
+		break;
+	case IRQ_HOST_MAP_TREE:
+		/* Check if radix tree allocated yet */
+		if (host->revmap_data.tree.gfp_mask == 0)
+			break;
+		/* XXX radix tree not safe ! remove lock whem it becomes safe
+		 * and use some RCU sync to make sure everything is ok before we
+		 * can re-use that map entry
+		 */
+		spin_lock_irqsave(&irq_big_lock, flags);
+		radix_tree_delete(&host->revmap_data.tree, hwirq);
+		spin_unlock_irqrestore(&irq_big_lock, flags);
+		break;
+	}
+
+	/* Destroy map */
+	smp_mb();
+	irq_map[virq].hwirq = host->inval_irq;
+
+	/* Set some flags */
+	get_irq_desc(virq)->status |= IRQ_NOREQUEST;
+
+	/* Free it */
+	irq_free_virt(virq, 1);
+}
+EXPORT_SYMBOL_GPL(irq_dispose_mapping);
+
+unsigned int irq_find_mapping(struct irq_host *host,
+			      irq_hw_number_t hwirq)
+{
+	unsigned int i;
+	unsigned int hint = hwirq % irq_virq_count;
+
+	/* Look for default host if nececssary */
+	if (host == NULL)
+		host = irq_default_host;
+	if (host == NULL)
+		return NO_IRQ;
+
+	/* legacy -> bail early */
+	if (host->revmap_type == IRQ_HOST_MAP_LEGACY)
+		return hwirq;
+
+	/* Slow path does a linear search of the map */
+	if (hint < NUM_ISA_INTERRUPTS)
+		hint = NUM_ISA_INTERRUPTS;
+	i = hint;
+	do  {
+		if (irq_map[i].host == host &&
+		    irq_map[i].hwirq == hwirq)
+			return i;
+		i++;
+		if (i >= irq_virq_count)
+			i = NUM_ISA_INTERRUPTS;
+	} while(i != hint);
+	return NO_IRQ;
+}
+EXPORT_SYMBOL_GPL(irq_find_mapping);
+
+
+unsigned int irq_radix_revmap(struct irq_host *host,
+			      irq_hw_number_t hwirq)
+{
+	struct radix_tree_root *tree;
+	struct irq_map_entry *ptr;
+	unsigned int virq;
+	unsigned long flags;
+
+	WARN_ON(host->revmap_type != IRQ_HOST_MAP_TREE);
+
+	/* Check if the radix tree exist yet. We test the value of
+	 * the gfp_mask for that. Sneaky but saves another int in the
+	 * structure. If not, we fallback to slow mode
+	 */
+	tree = &host->revmap_data.tree;
+	if (tree->gfp_mask == 0)
+		return irq_find_mapping(host, hwirq);
+
+	/* XXX Current radix trees are NOT SMP safe !!! Remove that lock
+	 * when that is fixed (when Nick's patch gets in
+	 */
+	spin_lock_irqsave(&irq_big_lock, flags);
+
+	/* Now try to resolve */
+	ptr = radix_tree_lookup(tree, hwirq);
+	/* Found it, return */
+	if (ptr) {
+		virq = ptr - irq_map;
+		goto bail;
+	}
+
+	/* If not there, try to insert it */
+	virq = irq_find_mapping(host, hwirq);
+	if (virq != NO_IRQ)
+		radix_tree_insert(tree, virq, &irq_map[virq]);
+ bail:
+	spin_unlock_irqrestore(&irq_big_lock, flags);
+	return virq;
+}
+
+unsigned int irq_linear_revmap(struct irq_host *host,
+			       irq_hw_number_t hwirq)
+{
+	unsigned int *revmap;
+
+	WARN_ON(host->revmap_type != IRQ_HOST_MAP_LINEAR);
+
+	/* Check revmap bounds */
+	if (unlikely(hwirq >= host->revmap_data.linear.size))
+		return irq_find_mapping(host, hwirq);
+
+	/* Check if revmap was allocated */
+	revmap = host->revmap_data.linear.revmap;
+	if (unlikely(revmap == NULL))
+		return irq_find_mapping(host, hwirq);
+
+	/* Fill up revmap with slow path if no mapping found */
+	if (unlikely(revmap[hwirq] == NO_IRQ))
+		revmap[hwirq] = irq_find_mapping(host, hwirq);
+
+	return revmap[hwirq];
+}
+
+unsigned int irq_alloc_virt(struct irq_host *host,
+			    unsigned int count,
+			    unsigned int hint)
+{
+	unsigned long flags;
+	unsigned int i, j, found = NO_IRQ;
+	unsigned int limit = irq_virq_count - count;
+
+	if (count == 0 || count > (irq_virq_count - NUM_ISA_INTERRUPTS))
+		return NO_IRQ;
+
+	spin_lock_irqsave(&irq_big_lock, flags);
+
+	/* Use hint for 1 interrupt if any */
+	if (count == 1 && hint >= NUM_ISA_INTERRUPTS &&
+	    hint < irq_virq_count && irq_map[hint].host == NULL) {
+		found = hint;
+		goto hint_found;
+	}
+
+	/* Look for count consecutive numbers in the allocatable
+	 * (non-legacy) space
+	 */
+	for (i = NUM_ISA_INTERRUPTS; i <= limit; ) {
+		for (j = i; j < (i + count); j++)
+			if (irq_map[j].host != NULL) {
+				i = j + 1;
+				continue;
+			}
+		found = i;
+		break;
+	}
+	if (found == NO_IRQ) {
+		spin_unlock_irqrestore(&irq_big_lock, flags);
+		return NO_IRQ;
+	}
+ hint_found:
+	for (i = found; i < (found + count); i++) {
+		irq_map[i].hwirq = host->inval_irq;
+		smp_wmb();
+		irq_map[i].host = host;
+	}
+	spin_unlock_irqrestore(&irq_big_lock, flags);
+	return found;
+}
+
+void irq_free_virt(unsigned int virq, unsigned int count)
+{
+	unsigned long flags;
+	unsigned int i;
+
+	WARN_ON (virq < NUM_ISA_INTERRUPTS);
+	WARN_ON (count == 0 || (virq + count) > irq_virq_count);
+
+	spin_lock_irqsave(&irq_big_lock, flags);
+	for (i = virq; i < (virq + count); i++) {
+		struct irq_host *host;
+
+		if (i < NUM_ISA_INTERRUPTS ||
+		    (virq + count) > irq_virq_count)
+			continue;
+
+		host = irq_map[i].host;
+		irq_map[i].hwirq = host->inval_irq;
+		smp_wmb();
+		irq_map[i].host = NULL;
+	}
+	spin_unlock_irqrestore(&irq_big_lock, flags);
+}
+
+void irq_early_init(void)
+{
+	unsigned int i;
+
+	for (i = 0; i < NR_IRQS; i++)
+		get_irq_desc(i)->status |= IRQ_NOREQUEST;
+}
+
+/* We need to create the radix trees late */
+static int irq_late_init(void)
+{
+	struct irq_host *h;
+	unsigned long flags;
+
+	spin_lock_irqsave(&irq_big_lock, flags);
+	list_for_each_entry(h, &irq_hosts, link) {
+		if (h->revmap_type == IRQ_HOST_MAP_TREE)
+			INIT_RADIX_TREE(&h->revmap_data.tree, GFP_ATOMIC);
+	}
+	spin_unlock_irqrestore(&irq_big_lock, flags);
+
+	return 0;
+}
+arch_initcall(irq_late_init);
+
+#endif /* CONFIG_PPC_MERGE */
 
 #ifdef CONFIG_PCI_MSI
 int pci_enable_msi(struct pci_dev * pdev)

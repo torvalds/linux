@@ -59,7 +59,7 @@ void rtas_indicator_progress(char *, unsigned short);
 int _chrp_type;
 EXPORT_SYMBOL(_chrp_type);
 
-struct mpic *chrp_mpic;
+static struct mpic *chrp_mpic;
 
 /* Used for doing CHRP event-scans */
 DEFINE_PER_CPU(struct timer_list, heartbeat_timer);
@@ -315,24 +315,32 @@ chrp_event_scan(unsigned long unused)
 		  jiffies + event_scan_interval);
 }
 
+static void chrp_8259_cascade(unsigned int irq, struct irq_desc *desc,
+			      struct pt_regs *regs)
+{
+	unsigned int cascade_irq = i8259_irq(regs);
+	if (cascade_irq != NO_IRQ)
+		generic_handle_irq(cascade_irq, regs);
+	desc->chip->eoi(irq);
+}
+
 /*
  * Finds the open-pic node and sets up the mpic driver.
  */
 static void __init chrp_find_openpic(void)
 {
 	struct device_node *np, *root;
-	int len, i, j, irq_count;
+	int len, i, j;
 	int isu_size, idu_size;
 	unsigned int *iranges, *opprop = NULL;
 	int oplen = 0;
 	unsigned long opaddr;
 	int na = 1;
-	unsigned char init_senses[NR_IRQS - NUM_8259_INTERRUPTS];
 
-	np = find_type_devices("open-pic");
+	np = of_find_node_by_type(NULL, "open-pic");
 	if (np == NULL)
 		return;
-	root = find_path_device("/");
+	root = of_find_node_by_path("/");
 	if (root) {
 		opprop = (unsigned int *) get_property
 			(root, "platform-open-pic", &oplen);
@@ -343,18 +351,14 @@ static void __init chrp_find_openpic(void)
 		oplen /= na * sizeof(unsigned int);
 	} else {
 		struct resource r;
-		if (of_address_to_resource(np, 0, &r))
-			return;
+		if (of_address_to_resource(np, 0, &r)) {
+			goto bail;
+		}
 		opaddr = r.start;
 		oplen = 0;
 	}
 
 	printk(KERN_INFO "OpenPIC at %lx\n", opaddr);
-
-	irq_count = NR_IRQS - NUM_ISA_INTERRUPTS - 4; /* leave room for IPIs */
-	prom_get_irq_senses(init_senses, NUM_ISA_INTERRUPTS, NR_IRQS - 4);
-	/* i8259 cascade is always positive level */
-	init_senses[0] = IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE;
 
 	iranges = (unsigned int *) get_property(np, "interrupt-ranges", &len);
 	if (iranges == NULL)
@@ -382,15 +386,12 @@ static void __init chrp_find_openpic(void)
 	if (len > 1)
 		isu_size = iranges[3];
 
-	chrp_mpic = mpic_alloc(opaddr, MPIC_PRIMARY,
-			       isu_size, NUM_ISA_INTERRUPTS, irq_count,
-			       NR_IRQS - 4, init_senses, irq_count,
-			       " MPIC    ");
+	chrp_mpic = mpic_alloc(np, opaddr, MPIC_PRIMARY,
+			       isu_size, 0, " MPIC    ");
 	if (chrp_mpic == NULL) {
 		printk(KERN_ERR "Failed to allocate MPIC structure\n");
-		return;
+		goto bail;
 	}
-
 	j = na - 1;
 	for (i = 1; i < len; ++i) {
 		iranges += 2;
@@ -402,7 +403,10 @@ static void __init chrp_find_openpic(void)
 	}
 
 	mpic_init(chrp_mpic);
-	mpic_setup_cascade(NUM_ISA_INTERRUPTS, i8259_irq_cascade, NULL);
+	ppc_md.get_irq = mpic_get_irq;
+ bail:
+	of_node_put(root);
+	of_node_put(np);
 }
 
 #if defined(CONFIG_VT) && defined(CONFIG_INPUT_ADBHID) && defined(XMON)
@@ -413,14 +417,34 @@ static struct irqaction xmon_irqaction = {
 };
 #endif
 
-void __init chrp_init_IRQ(void)
+static void __init chrp_find_8259(void)
 {
-	struct device_node *np;
+	struct device_node *np, *pic = NULL;
 	unsigned long chrp_int_ack = 0;
-#if defined(CONFIG_VT) && defined(CONFIG_INPUT_ADBHID) && defined(XMON)
-	struct device_node *kbd;
-#endif
+	unsigned int cascade_irq;
 
+	/* Look for cascade */
+	for_each_node_by_type(np, "interrupt-controller")
+		if (device_is_compatible(np, "chrp,iic")) {
+			pic = np;
+			break;
+		}
+	/* Ok, 8259 wasn't found. We need to handle the case where
+	 * we have a pegasos that claims to be chrp but doesn't have
+	 * a proper interrupt tree
+	 */
+	if (pic == NULL && chrp_mpic != NULL) {
+		printk(KERN_ERR "i8259: Not found in device-tree"
+		       " assuming no legacy interrupts\n");
+		return;
+	}
+
+	/* Look for intack. In a perfect world, we would look for it on
+	 * the ISA bus that holds the 8259 but heh... Works that way. If
+	 * we ever see a problem, we can try to re-use the pSeries code here.
+	 * Also, Pegasos-type platforms don't have a proper node to start
+	 * from anyway
+	 */
 	for (np = find_devices("pci"); np != NULL; np = np->next) {
 		unsigned int *addrp = (unsigned int *)
 			get_property(np, "8259-interrupt-acknowledge", NULL);
@@ -431,11 +455,29 @@ void __init chrp_init_IRQ(void)
 		break;
 	}
 	if (np == NULL)
-		printk(KERN_ERR "Cannot find PCI interrupt acknowledge address\n");
+		printk(KERN_WARNING "Cannot find PCI interrupt acknowledge"
+		       " address, polling\n");
 
+	i8259_init(pic, chrp_int_ack);
+	if (ppc_md.get_irq == NULL)
+		ppc_md.get_irq = i8259_irq;
+	if (chrp_mpic != NULL) {
+		cascade_irq = irq_of_parse_and_map(pic, 0);
+		if (cascade_irq == NO_IRQ)
+			printk(KERN_ERR "i8259: failed to map cascade irq\n");
+		else
+			set_irq_chained_handler(cascade_irq,
+						chrp_8259_cascade);
+	}
+}
+
+void __init chrp_init_IRQ(void)
+{
+#if defined(CONFIG_VT) && defined(CONFIG_INPUT_ADBHID) && defined(XMON)
+	struct device_node *kbd;
+#endif
 	chrp_find_openpic();
-
-	i8259_init(chrp_int_ack, 0);
+	chrp_find_8259();
 
 	if (_chrp_type == _CHRP_Pegasos)
 		ppc_md.get_irq        = i8259_irq;
@@ -520,10 +562,6 @@ static int __init chrp_probe(void)
 	DMA_MODE_READ = 0x44;
 	DMA_MODE_WRITE = 0x48;
 	isa_io_base = CHRP_ISA_IO_BASE;		/* default value */
-	ppc_do_canonicalize_irqs = 1;
-
-	/* Assume we have an 8259... */
-	__irq_offset_value = NUM_ISA_INTERRUPTS;
 
 	return 1;
 }
@@ -535,7 +573,6 @@ define_machine(chrp) {
 	.init			= chrp_init2,
 	.show_cpuinfo		= chrp_show_cpuinfo,
 	.init_IRQ		= chrp_init_IRQ,
-	.get_irq		= mpic_get_irq,
 	.pcibios_fixup		= chrp_pcibios_fixup,
 	.restart		= rtas_restart,
 	.power_off		= rtas_power_off,

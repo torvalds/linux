@@ -114,9 +114,6 @@
 #define MPIC_VEC_TIMER_1	248
 #define MPIC_VEC_TIMER_0	247
 
-/* Type definition of the cascade handler */
-typedef int (*mpic_cascade_t)(struct pt_regs *regs, void *data);
-
 #ifdef CONFIG_MPIC_BROKEN_U3
 /* Fixup table entry */
 struct mpic_irq_fixup
@@ -132,10 +129,19 @@ struct mpic_irq_fixup
 /* The instance data of a given MPIC */
 struct mpic
 {
+	/* The device node of the interrupt controller */
+	struct device_node	*of_node;
+
+	/* The remapper for this MPIC */
+	struct irq_host		*irqhost;
+
 	/* The "linux" controller struct */
-	hw_irq_controller	hc_irq;
+	struct irq_chip		hc_irq;
+#ifdef CONFIG_MPIC_BROKEN_U3
+	struct irq_chip		hc_ht_irq;
+#endif
 #ifdef CONFIG_SMP
-	hw_irq_controller	hc_ipi;
+	struct irq_chip		hc_ipi;
 #endif
 	const char		*name;
 	/* Flags */
@@ -144,20 +150,12 @@ struct mpic
 	unsigned int		isu_size;
 	unsigned int		isu_shift;
 	unsigned int		isu_mask;
-	/* Offset of irq vector numbers */
-	unsigned int		irq_offset;	
 	unsigned int		irq_count;
-	/* Offset of ipi vector numbers */
-	unsigned int		ipi_offset;
 	/* Number of sources */
 	unsigned int		num_sources;
 	/* Number of CPUs */
 	unsigned int		num_cpus;
-	/* cascade handler */
-	mpic_cascade_t		cascade;
-	void			*cascade_data;
-	unsigned int		cascade_vec;
-	/* senses array */
+	/* default senses array */
 	unsigned char		*senses;
 	unsigned int		senses_count;
 
@@ -213,14 +211,11 @@ struct mpic
  * The values in the array start at the first source of the MPIC,
  * that is senses[0] correspond to linux irq "irq_offset".
  */
-extern struct mpic *mpic_alloc(unsigned long phys_addr,
+extern struct mpic *mpic_alloc(struct device_node *node,
+			       unsigned long phys_addr,
 			       unsigned int flags,
 			       unsigned int isu_size,
-			       unsigned int irq_offset,
 			       unsigned int irq_count,
-			       unsigned int ipi_offset,
-			       unsigned char *senses,
-			       unsigned int senses_num,
 			       const char *name);
 
 /* Assign ISUs, to call before mpic_init()
@@ -232,21 +227,26 @@ extern struct mpic *mpic_alloc(unsigned long phys_addr,
 extern void mpic_assign_isu(struct mpic *mpic, unsigned int isu_num,
 			    unsigned long phys_addr);
 
+/* Set default sense codes
+ *
+ * @mpic:	controller
+ * @senses:	array of sense codes
+ * @count:	size of above array
+ *
+ * Optionally provide an array (indexed on hardware interrupt numbers
+ * for this MPIC) of default sense codes for the chip. Those are linux
+ * sense codes IRQ_TYPE_*
+ *
+ * The driver gets ownership of the pointer, don't dispose of it or
+ * anything like that. __init only.
+ */
+extern void mpic_set_default_senses(struct mpic *mpic, u8 *senses, int count);
+
+
 /* Initialize the controller. After this has been called, none of the above
  * should be called again for this mpic
  */
 extern void mpic_init(struct mpic *mpic);
-
-/* Setup a cascade. Currently, only one cascade is supported this
- * way, though you can always do a normal request_irq() and add
- * other cascades this way. You should call this _after_ having
- * added all the ISUs
- *
- * @irq_no:	"linux" irq number of the cascade (that is offset'ed vector)
- * @handler:	cascade handler function
- */
-extern void mpic_setup_cascade(unsigned int irq_no, mpic_cascade_t hanlder,
-			       void *data);
 
 /*
  * All of the following functions must only be used after the
@@ -284,18 +284,15 @@ extern void mpic_send_ipi(unsigned int ipi_no, unsigned int cpu_mask);
 void smp_mpic_message_pass(int target, int msg);
 
 /* Fetch interrupt from a given mpic */
-extern int mpic_get_one_irq(struct mpic *mpic, struct pt_regs *regs);
+extern unsigned int mpic_get_one_irq(struct mpic *mpic, struct pt_regs *regs);
 /* This one gets to the primary mpic */
-extern int mpic_get_irq(struct pt_regs *regs);
+extern unsigned int mpic_get_irq(struct pt_regs *regs);
 
 /* Set the EPIC clock ratio */
 void mpic_set_clk_ratio(struct mpic *mpic, u32 clock_ratio);
 
 /* Enable/Disable EPIC serial interrupt mode */
 void mpic_set_serial_int(struct mpic *mpic, int enable);
-
-/* global mpic for pSeries */
-extern struct mpic *pSeries_mpic;
 
 #endif /* __KERNEL__ */
 #endif	/* _ASM_POWERPC_MPIC_H */
