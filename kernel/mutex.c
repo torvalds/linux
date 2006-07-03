@@ -313,7 +313,7 @@ static inline int __mutex_trylock_slowpath(atomic_t *lock_count)
  * This function must not be used in interrupt context. The
  * mutex must be released by the same task that acquired it.
  */
-int fastcall mutex_trylock(struct mutex *lock)
+int fastcall __sched mutex_trylock(struct mutex *lock)
 {
 	return __mutex_fastpath_trylock(&lock->count,
 					__mutex_trylock_slowpath);
