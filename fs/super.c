@@ -72,6 +72,7 @@ static struct super_block *alloc_super(struct file_system_type *type)
 		INIT_LIST_HEAD(&s->s_inodes);
 		init_rwsem(&s->s_umount);
 		mutex_init(&s->s_lock);
+		lockdep_set_class(&s->s_umount, &type->s_umount_key);
 		/*
 		 * The locking rules for s_lock are up to the
 		 * filesystem. For example ext3fs has different
