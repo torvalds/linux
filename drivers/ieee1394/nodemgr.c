@@ -28,7 +28,7 @@
 #include "nodemgr.h"
 
 static int ignore_drivers;
-module_param(ignore_drivers, int, 0444);
+module_param(ignore_drivers, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(ignore_drivers, "Disable automatic probing for drivers.");
 
 struct nodemgr_csr_info {
