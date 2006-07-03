@@ -739,6 +739,7 @@ static int bluecard_open(bluecard_info_t *info)
 
 	hdev->type = HCI_PCCARD;
 	hdev->driver_data = info;
+	SET_HCIDEV_DEV(hdev, &info->p_dev->dev);
 
 	hdev->open     = bluecard_hci_open;
 	hdev->close    = bluecard_hci_close;

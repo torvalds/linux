@@ -3,6 +3,8 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 
+#include <linux/platform_device.h>
+
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
 
@@ -197,8 +199,13 @@ struct class bt_class = {
 	.uevent		= bt_uevent,
 #endif
 };
-
 EXPORT_SYMBOL_GPL(bt_class);
+
+static struct bus_type bt_bus = {
+	.name	= "bluetooth",
+};
+
+static struct platform_device *bt_platform;
 
 int hci_register_sysfs(struct hci_dev *hdev)
 {
@@ -210,6 +217,11 @@ int hci_register_sysfs(struct hci_dev *hdev)
 
 	cdev->class = &bt_class;
 	class_set_devdata(cdev, hdev);
+
+	if (!cdev->dev)
+		cdev->dev = &bt_platform->dev;
+
+	hdev->dev = cdev->dev;
 
 	strlcpy(cdev->class_id, hdev->name, BUS_ID_SIZE);
 	err = class_device_register(cdev);
@@ -233,10 +245,33 @@ void hci_unregister_sysfs(struct hci_dev *hdev)
 
 int __init bt_sysfs_init(void)
 {
-	return class_register(&bt_class);
+	int err;
+
+	bt_platform = platform_device_register_simple("bluetooth", -1, NULL, 0);
+	if (IS_ERR(bt_platform))
+		return PTR_ERR(bt_platform);
+
+	err = bus_register(&bt_bus);
+	if (err < 0) {
+		platform_device_unregister(bt_platform);
+		return err;
+	}
+
+	err = class_register(&bt_class);
+	if (err < 0) {
+		bus_unregister(&bt_bus);
+		platform_device_unregister(bt_platform);
+		return err;
+	}
+
+	return 0;
 }
 
 void __exit bt_sysfs_cleanup(void)
 {
 	class_unregister(&bt_class);
+
+	bus_unregister(&bt_bus);
+
+	platform_device_unregister(bt_platform);
 }

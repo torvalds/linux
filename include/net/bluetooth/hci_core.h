@@ -124,6 +124,7 @@ struct hci_dev {
 
 	atomic_t 		promisc;
 
+	struct device		*dev;
 	struct class_device	class_dev;
 
 	struct module 		*owner;
