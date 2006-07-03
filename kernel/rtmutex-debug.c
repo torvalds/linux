@@ -96,7 +96,7 @@ void deadlock_trace_off(void)
 	rt_trace_on = 0;
 }
 
-static void printk_task(task_t *p)
+static void printk_task(struct task_struct *p)
 {
 	if (p)
 		printk("%16s:%5d [%p, %3d]", p->comm, p->pid, p, p->prio);
@@ -231,7 +231,8 @@ void debug_rt_mutex_init(struct rt_mutex *lock, const char *name)
 	lock->name = name;
 }
 
-void rt_mutex_deadlock_account_lock(struct rt_mutex *lock, task_t *task)
+void
+rt_mutex_deadlock_account_lock(struct rt_mutex *lock, struct task_struct *task)
 {
 }
 

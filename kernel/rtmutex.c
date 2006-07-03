@@ -157,7 +157,7 @@ int max_lock_depth = 1024;
  * Decreases task's usage by one - may thus free the task.
  * Returns 0 or -EDEADLK.
  */
-static int rt_mutex_adjust_prio_chain(task_t *task,
+static int rt_mutex_adjust_prio_chain(struct task_struct *task,
 				      int deadlock_detect,
 				      struct rt_mutex *orig_lock,
 				      struct rt_mutex_waiter *orig_waiter,
@@ -282,6 +282,7 @@ static int rt_mutex_adjust_prio_chain(task_t *task,
 	spin_unlock_irqrestore(&task->pi_lock, flags);
  out_put_task:
 	put_task_struct(task);
+
 	return ret;
 }
 
@@ -403,10 +404,10 @@ static int task_blocks_on_rt_mutex(struct rt_mutex *lock,
 				   struct rt_mutex_waiter *waiter,
 				   int detect_deadlock)
 {
+	struct task_struct *owner = rt_mutex_owner(lock);
 	struct rt_mutex_waiter *top_waiter = waiter;
-	task_t *owner = rt_mutex_owner(lock);
-	int boost = 0, res;
 	unsigned long flags;
+	int boost = 0, res;
 
 	spin_lock_irqsave(&current->pi_lock, flags);
 	__rt_mutex_adjust_prio(current);
@@ -527,9 +528,9 @@ static void remove_waiter(struct rt_mutex *lock,
 			  struct rt_mutex_waiter *waiter)
 {
 	int first = (waiter == rt_mutex_top_waiter(lock));
-	int boost = 0;
-	task_t *owner = rt_mutex_owner(lock);
+	struct task_struct *owner = rt_mutex_owner(lock);
 	unsigned long flags;
+	int boost = 0;
 
 	spin_lock_irqsave(&current->pi_lock, flags);
 	plist_del(&waiter->list_entry, &lock->wait_list);

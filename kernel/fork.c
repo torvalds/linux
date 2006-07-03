@@ -933,13 +933,13 @@ static inline void rt_mutex_init_task(struct task_struct *p)
  * parts of the process environment (as per the clone
  * flags). The actual kick-off is left to the caller.
  */
-static task_t *copy_process(unsigned long clone_flags,
-				 unsigned long stack_start,
-				 struct pt_regs *regs,
-				 unsigned long stack_size,
-				 int __user *parent_tidptr,
-				 int __user *child_tidptr,
-				 int pid)
+static struct task_struct *copy_process(unsigned long clone_flags,
+					unsigned long stack_start,
+					struct pt_regs *regs,
+					unsigned long stack_size,
+					int __user *parent_tidptr,
+					int __user *child_tidptr,
+					int pid)
 {
 	int retval;
 	struct task_struct *p = NULL;
@@ -1294,9 +1294,9 @@ struct pt_regs * __devinit __attribute__((weak)) idle_regs(struct pt_regs *regs)
 	return regs;
 }
 
-task_t * __devinit fork_idle(int cpu)
+struct task_struct * __devinit fork_idle(int cpu)
 {
-	task_t *task;
+	struct task_struct *task;
 	struct pt_regs regs;
 
 	task = copy_process(CLONE_VM, 0, idle_regs(&regs), 0, NULL, NULL, 0);

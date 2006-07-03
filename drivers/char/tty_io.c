@@ -2336,7 +2336,7 @@ static int fionbio(struct file *file, int __user *p)
 
 static int tiocsctty(struct tty_struct *tty, int arg)
 {
-	task_t *p;
+	struct task_struct *p;
 
 	if (current->signal->leader &&
 	    (current->signal->session == tty->session))

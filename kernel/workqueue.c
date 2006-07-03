@@ -51,7 +51,7 @@ struct cpu_workqueue_struct {
 	wait_queue_head_t work_done;
 
 	struct workqueue_struct *wq;
-	task_t *thread;
+	struct task_struct *thread;
 
 	int run_depth;		/* Detect run_workqueue() recursion depth */
 } ____cacheline_aligned;

@@ -1368,7 +1368,7 @@ asmlinkage long sys_getegid(void)
 
 static void process_timeout(unsigned long __data)
 {
-	wake_up_process((task_t *)__data);
+	wake_up_process((struct task_struct *)__data);
 }
 
 /**

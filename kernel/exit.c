@@ -134,8 +134,8 @@ static void delayed_put_task_struct(struct rcu_head *rhp)
 
 void release_task(struct task_struct * p)
 {
+	struct task_struct *leader;
 	int zap_leader;
-	task_t *leader;
 repeat:
 	atomic_dec(&p->user->processes);
 	write_lock_irq(&tasklist_lock);
@@ -209,7 +209,7 @@ out:
  *
  * "I ask you, have you ever known what it is to be an orphan?"
  */
-static int will_become_orphaned_pgrp(int pgrp, task_t *ignored_task)
+static int will_become_orphaned_pgrp(int pgrp, struct task_struct *ignored_task)
 {
 	struct task_struct *p;
 	int ret = 1;
@@ -582,7 +582,8 @@ static void exit_mm(struct task_struct * tsk)
 	mmput(mm);
 }
 
-static inline void choose_new_parent(task_t *p, task_t *reaper)
+static inline void
+choose_new_parent(struct task_struct *p, struct task_struct *reaper)
 {
 	/*
 	 * Make sure we're not reparenting to ourselves and that
@@ -592,7 +593,8 @@ static inline void choose_new_parent(task_t *p, task_t *reaper)
 	p->real_parent = reaper;
 }
 
-static void reparent_thread(task_t *p, task_t *father, int traced)
+static void
+reparent_thread(struct task_struct *p, struct task_struct *father, int traced)
 {
 	/* We don't want people slaying init.  */
 	if (p->exit_signal != -1)
@@ -656,8 +658,8 @@ static void reparent_thread(task_t *p, task_t *father, int traced)
  * group, and if no such member exists, give it to
  * the global child reaper process (ie "init")
  */
-static void forget_original_parent(struct task_struct * father,
-					  struct list_head *to_release)
+static void
+forget_original_parent(struct task_struct *father, struct list_head *to_release)
 {
 	struct task_struct *p, *reaper = father;
 	struct list_head *_p, *_n;
@@ -680,7 +682,7 @@ static void forget_original_parent(struct task_struct * father,
 	 */
 	list_for_each_safe(_p, _n, &father->children) {
 		int ptrace;
-		p = list_entry(_p,struct task_struct,sibling);
+		p = list_entry(_p, struct task_struct, sibling);
 
 		ptrace = p->ptrace;
 
@@ -709,7 +711,7 @@ static void forget_original_parent(struct task_struct * father,
 			list_add(&p->ptrace_list, to_release);
 	}
 	list_for_each_safe(_p, _n, &father->ptrace_children) {
-		p = list_entry(_p,struct task_struct,ptrace_list);
+		p = list_entry(_p, struct task_struct, ptrace_list);
 		choose_new_parent(p, reaper);
 		reparent_thread(p, father, 1);
 	}
@@ -829,7 +831,7 @@ static void exit_notify(struct task_struct *tsk)
 
 	list_for_each_safe(_p, _n, &ptrace_dead) {
 		list_del_init(_p);
-		t = list_entry(_p,struct task_struct,ptrace_list);
+		t = list_entry(_p, struct task_struct, ptrace_list);
 		release_task(t);
 	}
 
@@ -1010,7 +1012,7 @@ asmlinkage void sys_exit_group(int error_code)
 	do_group_exit((error_code & 0xff) << 8);
 }
 
-static int eligible_child(pid_t pid, int options, task_t *p)
+static int eligible_child(pid_t pid, int options, struct task_struct *p)
 {
 	if (pid > 0) {
 		if (p->pid != pid)
@@ -1051,12 +1053,13 @@ static int eligible_child(pid_t pid, int options, task_t *p)
 	return 1;
 }
 
-static int wait_noreap_copyout(task_t *p, pid_t pid, uid_t uid,
+static int wait_noreap_copyout(struct task_struct *p, pid_t pid, uid_t uid,
 			       int why, int status,
 			       struct siginfo __user *infop,
 			       struct rusage __user *rusagep)
 {
 	int retval = rusagep ? getrusage(p, RUSAGE_BOTH, rusagep) : 0;
+
 	put_task_struct(p);
 	if (!retval)
 		retval = put_user(SIGCHLD, &infop->si_signo);
@@ -1081,7 +1084,7 @@ static int wait_noreap_copyout(task_t *p, pid_t pid, uid_t uid,
  * the lock and this task is uninteresting.  If we return nonzero, we have
  * released the lock and the system call should return.
  */
-static int wait_task_zombie(task_t *p, int noreap,
+static int wait_task_zombie(struct task_struct *p, int noreap,
 			    struct siginfo __user *infop,
 			    int __user *stat_addr, struct rusage __user *ru)
 {
@@ -1243,8 +1246,8 @@ static int wait_task_zombie(task_t *p, int noreap,
  * the lock and this task is uninteresting.  If we return nonzero, we have
  * released the lock and the system call should return.
  */
-static int wait_task_stopped(task_t *p, int delayed_group_leader, int noreap,
-			     struct siginfo __user *infop,
+static int wait_task_stopped(struct task_struct *p, int delayed_group_leader,
+			     int noreap, struct siginfo __user *infop,
 			     int __user *stat_addr, struct rusage __user *ru)
 {
 	int retval, exit_code;
@@ -1358,7 +1361,7 @@ bail_ref:
  * the lock and this task is uninteresting.  If we return nonzero, we have
  * released the lock and the system call should return.
  */
-static int wait_task_continued(task_t *p, int noreap,
+static int wait_task_continued(struct task_struct *p, int noreap,
 			       struct siginfo __user *infop,
 			       int __user *stat_addr, struct rusage __user *ru)
 {
@@ -1444,7 +1447,7 @@ repeat:
 		int ret;
 
 		list_for_each(_p,&tsk->children) {
-			p = list_entry(_p,struct task_struct,sibling);
+			p = list_entry(_p, struct task_struct, sibling);
 
 			ret = eligible_child(pid, options, p);
 			if (!ret)
