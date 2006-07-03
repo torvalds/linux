@@ -270,6 +270,12 @@ static inline int lockdep_internal(void)
 struct lock_class_key { };
 #endif /* !LOCKDEP */
 
+#if defined(CONFIG_TRACE_IRQFLAGS) && defined(CONFIG_GENERIC_HARDIRQS)
+extern void early_init_irq_lock_class(void);
+#else
+# define early_init_irq_lock_class()		do { } while (0)
+#endif
+
 #ifdef CONFIG_TRACE_IRQFLAGS
 extern void early_boot_irqs_off(void);
 extern void early_boot_irqs_on(void);
