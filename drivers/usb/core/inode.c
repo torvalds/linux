@@ -200,7 +200,7 @@ static void update_sb(struct super_block *sb)
 	if (!root)
 		return;
 
-	mutex_lock(&root->d_inode->i_mutex);
+	mutex_lock_nested(&root->d_inode->i_mutex, I_MUTEX_PARENT);
 
 	list_for_each_entry(bus, &root->d_subdirs, d_u.d_child) {
 		if (bus->d_inode) {

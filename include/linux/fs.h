@@ -543,6 +543,25 @@ struct inode {
 };
 
 /*
+ * inode->i_mutex nesting subclasses for the lock validator:
+ *
+ * 0: the object of the current VFS operation
+ * 1: parent
+ * 2: child/target
+ * 3: quota file
+ *
+ * The locking order between these classes is
+ * parent -> child -> normal -> quota
+ */
+enum inode_i_mutex_lock_class
+{
+	I_MUTEX_NORMAL,
+	I_MUTEX_PARENT,
+	I_MUTEX_CHILD,
+	I_MUTEX_QUOTA
+};
+
+/*
  * NOTE: in a 32bit arch with a preemptable kernel and
  * an UP compile the i_size_read/write must be atomic
  * with respect to the local cpu (unlike with preempt disabled),
