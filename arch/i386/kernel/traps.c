@@ -115,28 +115,13 @@ static inline int valid_stack_ptr(struct thread_info *tinfo, void *p)
 }
 
 /*
- * Print CONFIG_STACK_BACKTRACE_COLS address/symbol entries per line.
+ * Print one address/symbol entries per line.
  */
-static inline int print_addr_and_symbol(unsigned long addr, char *log_lvl,
-					int printed)
+static inline void print_addr_and_symbol(unsigned long addr, char *log_lvl)
 {
-	if (!printed)
-		printk(log_lvl);
-
-#if CONFIG_STACK_BACKTRACE_COLS == 1
 	printk(" [<%08lx>] ", addr);
-#else
-	printk(" <%08lx> ", addr);
-#endif
-	print_symbol("%s", addr);
 
-	printed = (printed + 1) % CONFIG_STACK_BACKTRACE_COLS;
-	if (printed)
-		printk(" ");
-	else
-		printk("\n");
-
-	return printed;
+	print_symbol("%s\n", addr);
 }
 
 static inline unsigned long print_context_stack(struct thread_info *tinfo,
@@ -144,12 +129,11 @@ static inline unsigned long print_context_stack(struct thread_info *tinfo,
 				char *log_lvl)
 {
 	unsigned long addr;
-	int printed = 0; /* nr of entries already printed on current line */
 
 #ifdef	CONFIG_FRAME_POINTER
 	while (valid_stack_ptr(tinfo, (void *)ebp)) {
 		addr = *(unsigned long *)(ebp + 4);
-		printed = print_addr_and_symbol(addr, log_lvl, printed);
+		print_addr_and_symbol(addr, log_lvl);
 		/*
 		 * break out of recursive entries (such as
 		 * end_of_stack_stop_unwind_function):
@@ -162,28 +146,23 @@ static inline unsigned long print_context_stack(struct thread_info *tinfo,
 	while (valid_stack_ptr(tinfo, stack)) {
 		addr = *stack++;
 		if (__kernel_text_address(addr))
-			printed = print_addr_and_symbol(addr, log_lvl, printed);
+			print_addr_and_symbol(addr, log_lvl);
 	}
 #endif
-	if (printed)
-		printk("\n");
-
 	return ebp;
 }
 
-static asmlinkage int show_trace_unwind(struct unwind_frame_info *info, void *log_lvl)
+static asmlinkage int
+show_trace_unwind(struct unwind_frame_info *info, void *log_lvl)
 {
 	int n = 0;
-	int printed = 0; /* nr of entries already printed on current line */
 
 	while (unwind(info) == 0 && UNW_PC(info)) {
-		++n;
-		printed = print_addr_and_symbol(UNW_PC(info), log_lvl, printed);
+		n++;
+		print_addr_and_symbol(UNW_PC(info), log_lvl);
 		if (arch_unw_user_mode(info))
 			break;
 	}
-	if (printed)
-		printk("\n");
 	return n;
 }
 
