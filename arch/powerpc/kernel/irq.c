@@ -424,13 +424,8 @@ void do_softirq(void)
 
 	local_irq_save(flags);
 
-	if (local_softirq_pending()) {
-		account_system_vtime(current);
-		local_bh_disable();
+	if (local_softirq_pending())
 		do_softirq_onstack();
-		account_system_vtime(current);
-		_local_bh_enable();
-	}
 
 	local_irq_restore(flags);
 }

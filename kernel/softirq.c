@@ -193,6 +193,8 @@ asmlinkage void __do_softirq(void)
 	int cpu;
 
 	pending = local_softirq_pending();
+	account_system_vtime(current);
+
 	__local_bh_disable((unsigned long)__builtin_return_address(0));
 	trace_softirq_enter();
 
@@ -224,6 +226,8 @@ restart:
 		wakeup_softirqd();
 
 	trace_softirq_exit();
+
+	account_system_vtime(current);
 	_local_bh_enable();
 }
 
