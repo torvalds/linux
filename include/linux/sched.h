@@ -871,6 +871,21 @@ struct task_struct {
 	/* mutex deadlock detection */
 	struct mutex_waiter *blocked_on;
 #endif
+#ifdef CONFIG_TRACE_IRQFLAGS
+	unsigned int irq_events;
+	int hardirqs_enabled;
+	unsigned long hardirq_enable_ip;
+	unsigned int hardirq_enable_event;
+	unsigned long hardirq_disable_ip;
+	unsigned int hardirq_disable_event;
+	int softirqs_enabled;
+	unsigned long softirq_disable_ip;
+	unsigned int softirq_disable_event;
+	unsigned long softirq_enable_ip;
+	unsigned int softirq_enable_event;
+	int hardirq_context;
+	int softirq_context;
+#endif
 
 /* journalling filesystem info */
 	void *journal_info;

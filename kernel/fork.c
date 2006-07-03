@@ -968,6 +968,10 @@ static task_t *copy_process(unsigned long clone_flags,
 	if (!p)
 		goto fork_out;
 
+#ifdef CONFIG_TRACE_IRQFLAGS
+	DEBUG_LOCKS_WARN_ON(!p->hardirqs_enabled);
+	DEBUG_LOCKS_WARN_ON(!p->softirqs_enabled);
+#endif
 	retval = -EAGAIN;
 	if (atomic_read(&p->user->processes) >=
 			p->signal->rlim[RLIMIT_NPROC].rlim_cur) {
@@ -1041,6 +1045,21 @@ static task_t *copy_process(unsigned long clone_flags,
  		goto bad_fork_cleanup_cpuset;
  	}
 	mpol_fix_fork_child_flag(p);
+#endif
+#ifdef CONFIG_TRACE_IRQFLAGS
+	p->irq_events = 0;
+	p->hardirqs_enabled = 0;
+	p->hardirq_enable_ip = 0;
+	p->hardirq_enable_event = 0;
+	p->hardirq_disable_ip = _THIS_IP_;
+	p->hardirq_disable_event = 0;
+	p->softirqs_enabled = 1;
+	p->softirq_enable_ip = _THIS_IP_;
+	p->softirq_enable_event = 0;
+	p->softirq_disable_ip = 0;
+	p->softirq_disable_event = 0;
+	p->hardirq_context = 0;
+	p->softirq_context = 0;
 #endif
 
 	rt_mutex_init_task(p);

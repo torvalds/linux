@@ -86,9 +86,6 @@ extern void synchronize_irq(unsigned int irq);
 # define synchronize_irq(irq)	barrier()
 #endif
 
-#define nmi_enter()		irq_enter()
-#define nmi_exit()		sub_preempt_count(HARDIRQ_OFFSET)
-
 struct task_struct;
 
 #ifndef CONFIG_VIRT_CPU_ACCOUNTING
@@ -97,12 +94,35 @@ static inline void account_system_vtime(struct task_struct *tsk)
 }
 #endif
 
+/*
+ * It is safe to do non-atomic ops on ->hardirq_context,
+ * because NMI handlers may not preempt and the ops are
+ * always balanced, so the interrupted value of ->hardirq_context
+ * will always be restored.
+ */
 #define irq_enter()					\
 	do {						\
 		account_system_vtime(current);		\
 		add_preempt_count(HARDIRQ_OFFSET);	\
+		trace_hardirq_enter();			\
 	} while (0)
 
+/*
+ * Exit irq context without processing softirqs:
+ */
+#define __irq_exit()					\
+	do {						\
+		trace_hardirq_exit();			\
+		account_system_vtime(current);		\
+		sub_preempt_count(HARDIRQ_OFFSET);	\
+	} while (0)
+
+/*
+ * Exit irq context and process softirqs if needed:
+ */
 extern void irq_exit(void);
+
+#define nmi_enter()		irq_enter()
+#define nmi_exit()		__irq_exit()
 
 #endif /* LINUX_HARDIRQ_H */
