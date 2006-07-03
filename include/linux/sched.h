@@ -865,10 +865,6 @@ struct task_struct {
 	struct plist_head pi_waiters;
 	/* Deadlock detection and priority inheritance handling */
 	struct rt_mutex_waiter *pi_blocked_on;
-# ifdef CONFIG_DEBUG_RT_MUTEXES
-	spinlock_t held_list_lock;
-	struct list_head held_list_head;
-# endif
 #endif
 
 #ifdef CONFIG_DEBUG_MUTEXES

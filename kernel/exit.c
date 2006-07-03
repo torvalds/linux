@@ -933,10 +933,9 @@ fastcall NORET_TYPE void do_exit(long code)
 	if (unlikely(current->pi_state_cache))
 		kfree(current->pi_state_cache);
 	/*
-	 * If DEBUG_MUTEXES is on, make sure we are holding no locks:
+	 * Make sure we are holding no locks:
 	 */
-	mutex_debug_check_no_locks_held(tsk);
-	rt_mutex_debug_check_no_locks_held(tsk);
+	debug_check_no_locks_held(tsk);
 
 	if (tsk->io_context)
 		exit_io_context();

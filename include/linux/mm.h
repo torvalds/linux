@@ -14,6 +14,7 @@
 #include <linux/prio_tree.h>
 #include <linux/fs.h>
 #include <linux/mutex.h>
+#include <linux/debug_locks.h>
 
 struct mempolicy;
 struct anon_vma;
@@ -1033,13 +1034,6 @@ static inline void vm_stat_account(struct mm_struct *mm,
 {
 }
 #endif /* CONFIG_PROC_FS */
-
-static inline void
-debug_check_no_locks_freed(const void *from, unsigned long len)
-{
-	mutex_debug_check_no_locks_freed(from, len);
-	rt_mutex_debug_check_no_locks_freed(from, len);
-}
 
 #ifndef CONFIG_DEBUG_PAGEALLOC
 static inline void

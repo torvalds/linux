@@ -20,52 +20,19 @@
 #include <linux/spinlock.h>
 #include <linux/kallsyms.h>
 #include <linux/interrupt.h>
+#include <linux/debug_locks.h>
 
 #include "mutex-debug.h"
 
 /*
- * We need a global lock when we walk through the multi-process
- * lock tree. Only used in the deadlock-debugging case.
- */
-DEFINE_SPINLOCK(debug_mutex_lock);
-
-/*
- * All locks held by all tasks, in a single global list:
- */
-LIST_HEAD(debug_mutex_held_locks);
-
-/*
- * In the debug case we carry the caller's instruction pointer into
- * other functions, but we dont want the function argument overhead
- * in the nondebug case - hence these macros:
- */
-#define __IP_DECL__		, unsigned long ip
-#define __IP__			, ip
-#define __RET_IP__		, (unsigned long)__builtin_return_address(0)
-
-/*
- * "mutex debugging enabled" flag. We turn it off when we detect
- * the first problem because we dont want to recurse back
- * into the tracing code when doing error printk or
- * executing a BUG():
- */
-int debug_mutex_on = 1;
-
-/*
  * Must be called with lock->wait_lock held.
  */
-void debug_mutex_set_owner(struct mutex *lock,
-			   struct thread_info *new_owner __IP_DECL__)
+void debug_mutex_set_owner(struct mutex *lock, struct thread_info *new_owner)
 {
 	lock->owner = new_owner;
-	DEBUG_LOCKS_WARN_ON(!list_empty(&lock->held_list));
-	if (debug_mutex_on) {
-		list_add_tail(&lock->held_list, &debug_mutex_held_locks);
-		lock->acquire_ip = ip;
-	}
 }
 
-void debug_mutex_init_waiter(struct mutex_waiter *waiter)
+void debug_mutex_lock_common(struct mutex *lock, struct mutex_waiter *waiter)
 {
 	memset(waiter, MUTEX_DEBUG_INIT, sizeof(*waiter));
 	waiter->magic = waiter;
@@ -87,9 +54,10 @@ void debug_mutex_free_waiter(struct mutex_waiter *waiter)
 }
 
 void debug_mutex_add_waiter(struct mutex *lock, struct mutex_waiter *waiter,
-			    struct thread_info *ti __IP_DECL__)
+			    struct thread_info *ti)
 {
 	SMP_DEBUG_LOCKS_WARN_ON(!spin_is_locked(&lock->wait_lock));
+
 	/* Mark the current thread as blocked on the lock: */
 	ti->task->blocked_on = waiter;
 	waiter->lock = lock;
@@ -109,13 +77,10 @@ void mutex_remove_waiter(struct mutex *lock, struct mutex_waiter *waiter,
 
 void debug_mutex_unlock(struct mutex *lock)
 {
+	DEBUG_LOCKS_WARN_ON(lock->owner != current_thread_info());
 	DEBUG_LOCKS_WARN_ON(lock->magic != lock);
 	DEBUG_LOCKS_WARN_ON(!lock->wait_list.prev && !lock->wait_list.next);
 	DEBUG_LOCKS_WARN_ON(lock->owner != current_thread_info());
-	if (debug_mutex_on) {
-		DEBUG_LOCKS_WARN_ON(list_empty(&lock->held_list));
-		list_del_init(&lock->held_list);
-	}
 }
 
 void debug_mutex_init(struct mutex *lock, const char *name)
@@ -123,10 +88,8 @@ void debug_mutex_init(struct mutex *lock, const char *name)
 	/*
 	 * Make sure we are not reinitializing a held lock:
 	 */
-	mutex_debug_check_no_locks_freed((void *)lock, sizeof(*lock));
+	debug_check_no_locks_freed((void *)lock, sizeof(*lock));
 	lock->owner = NULL;
-	INIT_LIST_HEAD(&lock->held_list);
-	lock->name = name;
 	lock->magic = lock;
 }
 

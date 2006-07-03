@@ -47,6 +47,7 @@
 #include <linux/key.h>
 #include <linux/unwind.h>
 #include <linux/buffer_head.h>
+#include <linux/debug_locks.h>
 
 #include <asm/io.h>
 #include <asm/bugs.h>
@@ -511,6 +512,13 @@ asmlinkage void __init start_kernel(void)
 	console_init();
 	if (panic_later)
 		panic(panic_later, panic_param);
+	/*
+	 * Need to run this when irqs are enabled, because it wants
+	 * to self-test [hard/soft]-irqs on/off lock inversion bugs
+	 * too:
+	 */
+	locking_selftest();
+
 #ifdef CONFIG_BLK_DEV_INITRD
 	if (initrd_start && !initrd_below_start_ok &&
 			initrd_start < min_low_pfn << PAGE_SHIFT) {

@@ -919,10 +919,6 @@ static inline void rt_mutex_init_task(struct task_struct *p)
 	spin_lock_init(&p->pi_lock);
 	plist_head_init(&p->pi_waiters, &p->pi_lock);
 	p->pi_blocked_on = NULL;
-# ifdef CONFIG_DEBUG_RT_MUTEXES
-	spin_lock_init(&p->held_list_lock);
-	INIT_LIST_HEAD(&p->held_list_head);
-# endif
 #endif
 }
 

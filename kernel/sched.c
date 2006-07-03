@@ -30,6 +30,7 @@
 #include <linux/capability.h>
 #include <linux/completion.h>
 #include <linux/kernel_stat.h>
+#include <linux/debug_locks.h>
 #include <linux/security.h>
 #include <linux/notifier.h>
 #include <linux/profile.h>
@@ -3142,12 +3143,13 @@ void fastcall add_preempt_count(int val)
 	/*
 	 * Underflow?
 	 */
-	BUG_ON((preempt_count() < 0));
+	if (DEBUG_LOCKS_WARN_ON((preempt_count() < 0)))
+		return;
 	preempt_count() += val;
 	/*
 	 * Spinlock count overflowing soon?
 	 */
-	BUG_ON((preempt_count() & PREEMPT_MASK) >= PREEMPT_MASK-10);
+	DEBUG_LOCKS_WARN_ON((preempt_count() & PREEMPT_MASK) >= PREEMPT_MASK-10);
 }
 EXPORT_SYMBOL(add_preempt_count);
 
@@ -3156,11 +3158,15 @@ void fastcall sub_preempt_count(int val)
 	/*
 	 * Underflow?
 	 */
-	BUG_ON(val > preempt_count());
+	if (DEBUG_LOCKS_WARN_ON(val > preempt_count()))
+		return;
 	/*
 	 * Is the spinlock portion underflowing?
 	 */
-	BUG_ON((val < PREEMPT_MASK) && !(preempt_count() & PREEMPT_MASK));
+	if (DEBUG_LOCKS_WARN_ON((val < PREEMPT_MASK) &&
+			!(preempt_count() & PREEMPT_MASK)))
+		return;
+
 	preempt_count() -= val;
 }
 EXPORT_SYMBOL(sub_preempt_count);
@@ -4690,7 +4696,7 @@ void show_state(void)
 	} while_each_thread(g, p);
 
 	read_unlock(&tasklist_lock);
-	mutex_debug_show_all_locks();
+	debug_show_all_locks();
 }
 
 /**

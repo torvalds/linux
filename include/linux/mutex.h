@@ -50,8 +50,6 @@ struct mutex {
 	struct list_head	wait_list;
 #ifdef CONFIG_DEBUG_MUTEXES
 	struct thread_info	*owner;
-	struct list_head	held_list;
-	unsigned long		acquire_ip;
 	const char 		*name;
 	void			*magic;
 #endif
@@ -76,10 +74,6 @@ struct mutex_waiter {
 # define __DEBUG_MUTEX_INITIALIZER(lockname)
 # define mutex_init(mutex)			__mutex_init(mutex, NULL)
 # define mutex_destroy(mutex)				do { } while (0)
-# define mutex_debug_show_all_locks()			do { } while (0)
-# define mutex_debug_show_held_locks(p)			do { } while (0)
-# define mutex_debug_check_no_locks_held(task)		do { } while (0)
-# define mutex_debug_check_no_locks_freed(from, len)	do { } while (0)
 #endif
 
 #define __MUTEX_INITIALIZER(lockname) \
