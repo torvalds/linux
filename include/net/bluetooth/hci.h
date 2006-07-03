@@ -54,7 +54,8 @@
 /* HCI device quirks */
 enum {
 	HCI_QUIRK_RESET_ON_INIT,
-	HCI_QUIRK_RAW_DEVICE
+	HCI_QUIRK_RAW_DEVICE,
+	HCI_QUIRK_FIXUP_BUFFER_SIZE
 };
 
 /* HCI device flags */

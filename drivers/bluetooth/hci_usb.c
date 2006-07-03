@@ -122,6 +122,9 @@ static struct usb_device_id blacklist_ids[] = {
 	/* RTX Telecom based adapter with buggy SCO support */
 	{ USB_DEVICE(0x0400, 0x0807), .driver_info = HCI_BROKEN_ISOC },
 
+	/* Belkin F8T012 */
+	{ USB_DEVICE(0x050d, 0x0012), .driver_info = HCI_WRONG_SCO_MTU },
+
 	/* Digianswer devices */
 	{ USB_DEVICE(0x08fd, 0x0001), .driver_info = HCI_DIGIANSWER },
 	{ USB_DEVICE(0x08fd, 0x0002), .driver_info = HCI_IGNORE },
@@ -986,6 +989,9 @@ static int hci_usb_probe(struct usb_interface *intf, const struct usb_device_id 
 
 	if (reset || id->driver_info & HCI_RESET)
 		set_bit(HCI_QUIRK_RESET_ON_INIT, &hdev->quirks);
+
+	if (id->driver_info & HCI_WRONG_SCO_MTU)
+		set_bit(HCI_QUIRK_FIXUP_BUFFER_SIZE, &hdev->quirks);
 
 	if (id->driver_info & HCI_SNIFFER) {
 		if (le16_to_cpu(udev->descriptor.bcdDevice) > 0x997)

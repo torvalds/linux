@@ -319,9 +319,17 @@ static void hci_cc_info_param(struct hci_dev *hdev, __u16 ocf, struct sk_buff *s
 		}
 
 		hdev->acl_mtu  = __le16_to_cpu(bs->acl_mtu);
-		hdev->sco_mtu  = bs->sco_mtu ? bs->sco_mtu : 64;
-		hdev->acl_pkts = hdev->acl_cnt = __le16_to_cpu(bs->acl_max_pkt);
-		hdev->sco_pkts = hdev->sco_cnt = __le16_to_cpu(bs->sco_max_pkt);
+		hdev->sco_mtu  = bs->sco_mtu;
+		hdev->acl_pkts = __le16_to_cpu(bs->acl_max_pkt);
+		hdev->sco_pkts = __le16_to_cpu(bs->sco_max_pkt);
+
+		if (test_bit(HCI_QUIRK_FIXUP_BUFFER_SIZE, &hdev->quirks)) {
+			hdev->sco_mtu  = 64;
+			hdev->sco_pkts = 8;
+		}
+
+		hdev->acl_cnt = hdev->acl_pkts;
+		hdev->sco_cnt = hdev->sco_pkts;
 
 		BT_DBG("%s mtu: acl %d, sco %d max_pkt: acl %d, sco %d", hdev->name,
 			hdev->acl_mtu, hdev->sco_mtu, hdev->acl_pkts, hdev->sco_pkts);
