@@ -65,11 +65,6 @@ typedef u16 arm_length_t;
 #define HPSB_VERBOSE(fmt, args...)
 #endif
 
-#define HPSB_PANIC(fmt, args...) panic("ieee1394: " fmt "\n" , ## args)
-
-#define HPSB_TRACE() HPSB_PRINT(KERN_INFO, "TRACE - %s, %s(), line %d", __FILE__, __FUNCTION__, __LINE__)
-
-
 #ifdef __BIG_ENDIAN
 
 static inline void *memcpy_le32(u32 *dest, const u32 *__src, size_t count)

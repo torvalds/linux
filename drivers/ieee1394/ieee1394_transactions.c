@@ -14,6 +14,7 @@
 #include <linux/smp_lock.h>
 #include <linux/interrupt.h>
 
+#include <asm/bug.h>
 #include <asm/errno.h>
 
 #include "ieee1394.h"
@@ -214,7 +215,7 @@ int hpsb_packet_success(struct hpsb_packet *packet)
 				 packet->node_id);
 			return -EAGAIN;
 		}
-		HPSB_PANIC("reached unreachable code 1 in %s", __FUNCTION__);
+		BUG();
 
 	case ACK_BUSY_X:
 	case ACK_BUSY_A:
@@ -261,8 +262,7 @@ int hpsb_packet_success(struct hpsb_packet *packet)
 			 packet->ack_code, packet->node_id, packet->tcode);
 		return -EAGAIN;
 	}
-
-	HPSB_PANIC("reached unreachable code 2 in %s", __FUNCTION__);
+	BUG();
 }
 
 struct hpsb_packet *hpsb_make_readpacket(struct hpsb_host *host, nodeid_t node,
