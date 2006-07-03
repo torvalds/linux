@@ -193,7 +193,10 @@ static inline int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
 
 	down_write(&oldmm->mmap_sem);
 	flush_cache_mm(oldmm);
-	down_write(&mm->mmap_sem);
+	/*
+	 * Not linked in yet - no deadlock potential:
+	 */
+	down_write_nested(&mm->mmap_sem, SINGLE_DEPTH_NESTING);
 
 	mm->locked_vm = 0;
 	mm->mmap = NULL;
