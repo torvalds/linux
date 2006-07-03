@@ -112,7 +112,7 @@ enum devctl_cmd {
 
 enum isoctl_cmd {
 	/* rawiso API - see iso.h for the meanings of these commands
-	   (they correspond exactly to the hpsb_iso_* API functions)
+	 * (they correspond exactly to the hpsb_iso_* API functions)
 	 * INIT = allocate resources
 	 * START = begin transmission/reception
 	 * STOP = halt transmission/reception
@@ -160,7 +160,8 @@ struct hpsb_host_driver {
 	/* The hardware driver may optionally support a function that is used
 	 * to set the hardware ConfigROM if the hardware supports handling
 	 * reads to the ConfigROM on its own. */
-	void (*set_hw_config_rom) (struct hpsb_host *host, quadlet_t *config_rom);
+	void (*set_hw_config_rom)(struct hpsb_host *host,
+				  quadlet_t *config_rom);
 
 	/* This function shall implement packet transmission based on
 	 * packet->type.  It shall CRC both parts of the packet (unless
@@ -170,20 +171,21 @@ struct hpsb_host_driver {
 	 * called.  Return 0 on success, negative errno on failure.
 	 * NOTE: The function must be callable in interrupt context.
 	 */
-	int (*transmit_packet) (struct hpsb_host *host,
-				struct hpsb_packet *packet);
+	int (*transmit_packet)(struct hpsb_host *host,
+			       struct hpsb_packet *packet);
 
 	/* This function requests miscellanous services from the driver, see
 	 * above for command codes and expected actions.  Return -1 for unknown
 	 * command, though that should never happen.
 	 */
-	int (*devctl) (struct hpsb_host *host, enum devctl_cmd command, int arg);
+	int (*devctl)(struct hpsb_host *host, enum devctl_cmd command, int arg);
 
 	 /* ISO transmission/reception functions. Return 0 on success, -1
 	  * (or -EXXX errno code) on failure. If the low-level driver does not
 	  * support the new ISO API, set isoctl to NULL.
 	  */
-	int (*isoctl) (struct hpsb_iso *iso, enum isoctl_cmd command, unsigned long arg);
+	int (*isoctl)(struct hpsb_iso *iso, enum isoctl_cmd command,
+		      unsigned long arg);
 
 	/* This function is mainly to redirect local CSR reads/locks to the iso
 	 * management registers (bus manager id, bandwidth available, channels
@@ -195,7 +197,6 @@ struct hpsb_host_driver {
 	quadlet_t (*hw_csr_reg) (struct hpsb_host *host, int reg,
 				 quadlet_t data, quadlet_t compare);
 };
-
 
 struct hpsb_host *hpsb_alloc_host(struct hpsb_host_driver *drv, size_t extra,
 				  struct device *dev);

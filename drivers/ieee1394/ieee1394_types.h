@@ -31,7 +31,6 @@ do {						\
 	sema_init(&(_tp)->count, 63);		\
 } while (0)
 
-
 typedef u32 quadlet_t;
 typedef u64 octlet_t;
 typedef u16 nodeid_t;
@@ -54,16 +53,17 @@ typedef u16 arm_length_t;
 #define NODE_BUS_ARGS(__host, __nodeid)	\
 	__host->id, NODEID_TO_NODE(__nodeid), NODEID_TO_BUS(__nodeid)
 
-#define HPSB_PRINT(level, fmt, args...) printk(level "ieee1394: " fmt "\n" , ## args)
+#define HPSB_PRINT(level, fmt, args...) \
+	printk(level "ieee1394: " fmt "\n" , ## args)
 
-#define HPSB_DEBUG(fmt, args...) HPSB_PRINT(KERN_DEBUG, fmt , ## args)
-#define HPSB_INFO(fmt, args...) HPSB_PRINT(KERN_INFO, fmt , ## args)
-#define HPSB_NOTICE(fmt, args...) HPSB_PRINT(KERN_NOTICE, fmt , ## args)
-#define HPSB_WARN(fmt, args...) HPSB_PRINT(KERN_WARNING, fmt , ## args)
-#define HPSB_ERR(fmt, args...) HPSB_PRINT(KERN_ERR, fmt , ## args)
+#define HPSB_DEBUG(fmt, args...)	HPSB_PRINT(KERN_DEBUG, fmt , ## args)
+#define HPSB_INFO(fmt, args...)		HPSB_PRINT(KERN_INFO, fmt , ## args)
+#define HPSB_NOTICE(fmt, args...)	HPSB_PRINT(KERN_NOTICE, fmt , ## args)
+#define HPSB_WARN(fmt, args...)		HPSB_PRINT(KERN_WARNING, fmt , ## args)
+#define HPSB_ERR(fmt, args...)		HPSB_PRINT(KERN_ERR, fmt , ## args)
 
 #ifdef CONFIG_IEEE1394_VERBOSEDEBUG
-#define HPSB_VERBOSE(fmt, args...) HPSB_PRINT(KERN_DEBUG, fmt , ## args)
+#define HPSB_VERBOSE(fmt, args...)	HPSB_PRINT(KERN_DEBUG, fmt , ## args)
 #else
 #define HPSB_VERBOSE(fmt, args...)
 #endif
@@ -77,23 +77,20 @@ typedef u16 arm_length_t;
 
 static inline void *memcpy_le32(u32 *dest, const u32 *__src, size_t count)
 {
-        void *tmp = dest;
+	void *tmp = dest;
 	u32 *src = (u32 *)__src;
 
-        count /= 4;
-
-        while (count--) {
-                *dest++ = swab32p(src++);
-        }
-
-        return tmp;
+	count /= 4;
+	while (count--)
+		*dest++ = swab32p(src++);
+	return tmp;
 }
 
 #else
 
 static __inline__ void *memcpy_le32(u32 *dest, const u32 *src, size_t count)
 {
-        return memcpy(dest, src, count);
+	return memcpy(dest, src, count);
 }
 
 #endif /* __BIG_ENDIAN */
