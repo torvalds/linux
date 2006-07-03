@@ -850,7 +850,8 @@ static void gpio_irq_handler(unsigned int irq, struct irqdesc *desc,
 			/* Don't run the handler if it's already running
 			 * or was disabled lazely.
 			 */
-			if (unlikely((d->disable_depth || d->running))) {
+			if (unlikely((d->depth ||
+				      (d->status & IRQ_INPROGRESS)))) {
 				irq_mask = 1 <<
 					(gpio_irq - bank->virtual_irq_start);
 				/* The unmasking will be done by
@@ -859,22 +860,22 @@ static void gpio_irq_handler(unsigned int irq, struct irqdesc *desc,
 				 * it's already running.
 				 */
 				_enable_gpio_irqbank(bank, irq_mask, 0);
-				if (!d->disable_depth) {
+				if (!d->depth) {
 					/* Level triggered interrupts
 					 * won't ever be reentered
 					 */
 					BUG_ON(level_mask & irq_mask);
-					d->pending = 1;
+					d->status |= IRQ_PENDING;
 				}
 				continue;
 			}
-			d->running = 1;
+
 			desc_handle_irq(gpio_irq, d, regs);
-			d->running = 0;
-			if (unlikely(d->pending && !d->disable_depth)) {
+
+			if (unlikely((d->status & IRQ_PENDING) && !d->depth)) {
 				irq_mask = 1 <<
 					(gpio_irq - bank->virtual_irq_start);
-				d->pending = 0;
+				d->status &= ~IRQ_PENDING;
 				_enable_gpio_irqbank(bank, irq_mask, 1);
 				retrigger |= irq_mask;
 			}
