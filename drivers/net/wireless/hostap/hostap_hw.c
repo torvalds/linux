@@ -3095,6 +3095,14 @@ static void prism2_clear_set_tim_queue(local_info_t *local)
 }
 
 
+/*
+ * HostAP uses two layers of net devices, where the inner
+ * layer gets called all the time from the outer layer.
+ * This is a natural nesting, which needs a split lock type.
+ */
+static struct lock_class_key hostap_netdev_xmit_lock_key;
+
+
 static struct net_device *
 prism2_init_local_data(struct prism2_helper_functions *funcs, int card_idx,
 		       struct device *sdev)
@@ -3259,6 +3267,8 @@ while (0)
 	SET_NETDEV_DEV(dev, sdev);
 	if (ret >= 0)
 		ret = register_netdevice(dev);
+
+	lockdep_set_class(&dev->_xmit_lock, &hostap_netdev_xmit_lock_key);
 	rtnl_unlock();
 	if (ret < 0) {
 		printk(KERN_WARNING "%s: register netdevice failed!\n",
