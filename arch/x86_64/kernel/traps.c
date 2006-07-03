@@ -152,10 +152,22 @@ static unsigned long *in_exception_stack(unsigned cpu, unsigned long stack,
 	};
 	unsigned k;
 
+	/*
+	 * Iterate over all exception stacks, and figure out whether
+	 * 'stack' is in one of them:
+	 */
 	for (k = 0; k < N_EXCEPTION_STACKS; k++) {
 		unsigned long end;
 
+		/*
+		 * set 'end' to the end of the exception stack.
+		 */
 		switch (k + 1) {
+		/*
+		 * TODO: this block is not needed i think, because
+		 * setup64.c:cpu_init() sets up t->ist[DEBUG_STACK]
+		 * properly too.
+		 */
 #if DEBUG_STKSZ > EXCEPTION_STKSZ
 		case DEBUG_STACK:
 			end = cpu_pda(cpu)->debugstack + DEBUG_STKSZ;
@@ -165,19 +177,43 @@ static unsigned long *in_exception_stack(unsigned cpu, unsigned long stack,
 			end = per_cpu(init_tss, cpu).ist[k];
 			break;
 		}
+		/*
+		 * Is 'stack' above this exception frame's end?
+		 * If yes then skip to the next frame.
+		 */
 		if (stack >= end)
 			continue;
+		/*
+		 * Is 'stack' above this exception frame's start address?
+		 * If yes then we found the right frame.
+		 */
 		if (stack >= end - EXCEPTION_STKSZ) {
+			/*
+			 * Make sure we only iterate through an exception
+			 * stack once. If it comes up for the second time
+			 * then there's something wrong going on - just
+			 * break out and return NULL:
+			 */
 			if (*usedp & (1U << k))
 				break;
 			*usedp |= 1U << k;
 			*idp = ids[k];
 			return (unsigned long *)end;
 		}
+		/*
+		 * If this is a debug stack, and if it has a larger size than
+		 * the usual exception stacks, then 'stack' might still
+		 * be within the lower portion of the debug stack:
+		 */
 #if DEBUG_STKSZ > EXCEPTION_STKSZ
 		if (k == DEBUG_STACK - 1 && stack >= end - DEBUG_STKSZ) {
 			unsigned j = N_EXCEPTION_STACKS - 1;
 
+			/*
+			 * Black magic. A large debug stack is composed of
+			 * multiple exception stack entries, which we
+			 * iterate through now. Dont look:
+			 */
 			do {
 				++j;
 				end -= EXCEPTION_STKSZ;
@@ -247,6 +283,11 @@ void show_trace(struct task_struct *tsk, struct pt_regs *regs, unsigned long * s
 		}
 	}
 
+	/*
+	 * Print function call entries within a stack. 'cond' is the
+	 * "end of stackframe" condition, that the 'stack++'
+	 * iteration will eventually trigger.
+	 */
 #define HANDLE_STACK(cond) \
 	do while (cond) { \
 		unsigned long addr = *stack++; \
@@ -263,7 +304,12 @@ void show_trace(struct task_struct *tsk, struct pt_regs *regs, unsigned long * s
 		} \
 	} while (0)
 
-	for( ; ; ) {
+	/*
+	 * Print function call entries in all stacks, starting at the
+	 * current stack address. If the stacks consist of nested
+	 * exceptions
+	 */
+	for ( ; ; ) {
 		const char *id;
 		unsigned long *estack_end;
 		estack_end = in_exception_stack(cpu, (unsigned long)stack,
@@ -273,6 +319,11 @@ void show_trace(struct task_struct *tsk, struct pt_regs *regs, unsigned long * s
 			printk(" <%s>", id);
 			HANDLE_STACK (stack < estack_end);
 			printk(" <EOE>");
+			/*
+			 * We link to the next stack via the
+			 * second-to-last pointer (index -2 to end) in the
+			 * exception stack:
+			 */
 			stack = (unsigned long *) estack_end[-2];
 			continue;
 		}
@@ -284,6 +335,11 @@ void show_trace(struct task_struct *tsk, struct pt_regs *regs, unsigned long * s
 			if (stack >= irqstack && stack < irqstack_end) {
 				printk(" <IRQ>");
 				HANDLE_STACK (stack < irqstack_end);
+				/*
+				 * We link to the next stack (which would be
+				 * the process stack normally) the last
+				 * pointer (index -1 to end) in the IRQ stack:
+				 */
 				stack = (unsigned long *) (irqstack_end[-1]);
 				irqstack_end = NULL;
 				printk(" <EOI>");
@@ -293,6 +349,9 @@ void show_trace(struct task_struct *tsk, struct pt_regs *regs, unsigned long * s
 		break;
 	}
 
+	/*
+	 * This prints the process stack:
+	 */
 	HANDLE_STACK (((long) stack & (THREAD_SIZE-1)) != 0);
 #undef HANDLE_STACK
 
