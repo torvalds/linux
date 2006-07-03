@@ -2598,8 +2598,9 @@ static const int TCODE_SIZE[16] = {20, 0, 16, -1, 16, 20, 20, 0,
  * Determine the length of a packet in the buffer
  * Optimization suggested by Pascal Drolet <pascal.drolet@informission.ca>
  */
-static __inline__ int packet_length(struct dma_rcv_ctx *d, int idx, quadlet_t *buf_ptr,
-			 int offset, unsigned char tcode, int noswap)
+static inline int packet_length(struct dma_rcv_ctx *d, int idx,
+				quadlet_t *buf_ptr, int offset,
+				unsigned char tcode, int noswap)
 {
 	int length = -1;
 

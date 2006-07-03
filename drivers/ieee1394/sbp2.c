@@ -356,7 +356,7 @@ static const struct {
 /*
  * Converts a buffer from be32 to cpu byte ordering. Length is in bytes.
  */
-static __inline__ void sbp2util_be32_to_cpu_buffer(void *buffer, int length)
+static inline void sbp2util_be32_to_cpu_buffer(void *buffer, int length)
 {
 	u32 *temp = buffer;
 
@@ -369,7 +369,7 @@ static __inline__ void sbp2util_be32_to_cpu_buffer(void *buffer, int length)
 /*
  * Converts a buffer from cpu to be32 byte ordering. Length is in bytes.
  */
-static __inline__ void sbp2util_cpu_to_be32_buffer(void *buffer, int length)
+static inline void sbp2util_cpu_to_be32_buffer(void *buffer, int length)
 {
 	u32 *temp = buffer;
 

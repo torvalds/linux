@@ -75,7 +75,7 @@ typedef u16 arm_length_t;
 
 #ifdef __BIG_ENDIAN
 
-static __inline__ void *memcpy_le32(u32 *dest, const u32 *__src, size_t count)
+static inline void *memcpy_le32(u32 *dest, const u32 *__src, size_t count)
 {
         void *tmp = dest;
 	u32 *src = (u32 *)__src;
