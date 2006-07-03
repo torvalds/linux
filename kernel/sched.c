@@ -266,6 +266,7 @@ struct runqueue {
 	unsigned long ttwu_cnt;
 	unsigned long ttwu_local;
 #endif
+	struct lock_class_key rq_lock_key;
 };
 
 static DEFINE_PER_CPU(struct runqueue, runqueues);
@@ -6656,6 +6657,7 @@ void __init sched_init(void)
 
 		rq = cpu_rq(i);
 		spin_lock_init(&rq->lock);
+		lockdep_set_class(&rq->lock, &rq->rq_lock_key);
 		rq->nr_running = 0;
 		rq->active = rq->arrays;
 		rq->expired = rq->arrays + 1;
