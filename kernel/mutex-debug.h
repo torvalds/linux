@@ -103,17 +103,9 @@ do {							\
 	}						\
 } while (0)
 
-# define DEBUG_BUG_ON(c)				\
-do {							\
-	if (unlikely(c))				\
-		DEBUG_BUG();				\
-} while (0)
-
 #ifdef CONFIG_SMP
 # define SMP_DEBUG_LOCKS_WARN_ON(c)			DEBUG_LOCKS_WARN_ON(c)
-# define SMP_DEBUG_BUG_ON(c)				DEBUG_BUG_ON(c)
 #else
 # define SMP_DEBUG_LOCKS_WARN_ON(c)			do { } while (0)
-# define SMP_DEBUG_BUG_ON(c)				do { } while (0)
 #endif
 
