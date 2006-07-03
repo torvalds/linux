@@ -64,4 +64,18 @@ static inline void print_symbol(const char *fmt, unsigned long addr)
 		       __builtin_extract_return_addr((void *)addr));
 }
 
+#ifndef CONFIG_64BIT
+#define print_ip_sym(ip)		\
+do {					\
+	printk("[<%08lx>]", ip);	\
+	print_symbol(" %s\n", ip);	\
+} while(0)
+#else
+#define print_ip_sym(ip)		\
+do {					\
+	printk("[<%016lx>]", ip);	\
+	print_symbol(" %s\n", ip);	\
+} while(0)
+#endif
+
 #endif /*_LINUX_KALLSYMS_H*/
