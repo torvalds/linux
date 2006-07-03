@@ -53,7 +53,7 @@ DEFINE_SPINLOCK(sb_lock);
  *	Allocates and initializes a new &struct super_block.  alloc_super()
  *	returns a pointer new superblock or %NULL if allocation had failed.
  */
-static struct super_block *alloc_super(void)
+static struct super_block *alloc_super(struct file_system_type *type)
 {
 	struct super_block *s = kzalloc(sizeof(struct super_block),  GFP_USER);
 	static struct super_operations default_op;
@@ -72,6 +72,12 @@ static struct super_block *alloc_super(void)
 		INIT_LIST_HEAD(&s->s_inodes);
 		init_rwsem(&s->s_umount);
 		mutex_init(&s->s_lock);
+		/*
+		 * The locking rules for s_lock are up to the
+		 * filesystem. For example ext3fs has different
+		 * lock ordering than usbfs:
+		 */
+		lockdep_set_class(&s->s_lock, &type->s_lock_key);
 		down_write(&s->s_umount);
 		s->s_count = S_BIAS;
 		atomic_set(&s->s_active, 1);
@@ -295,7 +301,7 @@ retry:
 	}
 	if (!s) {
 		spin_unlock(&sb_lock);
-		s = alloc_super();
+		s = alloc_super(type);
 		if (!s)
 			return ERR_PTR(-ENOMEM);
 		goto retry;

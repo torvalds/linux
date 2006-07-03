@@ -1295,6 +1295,7 @@ struct file_system_type {
 	struct module *owner;
 	struct file_system_type * next;
 	struct list_head fs_supers;
+	struct lock_class_key s_lock_key;
 };
 
 extern int get_sb_bdev(struct file_system_type *fs_type,
