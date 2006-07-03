@@ -49,6 +49,12 @@
  */
 static DEFINE_MUTEX(port_mutex);
 
+/*
+ * lockdep: port->lock is initialized in two places, but we
+ *          want only one lock-class:
+ */
+static struct lock_class_key port_lock_key;
+
 #define HIGH_BITS_OFFSET	((sizeof(long)-sizeof(int))*8)
 
 #define uart_users(state)	((state)->count + ((state)->info ? (state)->info->blocked_open : 0))
@@ -1865,6 +1871,7 @@ uart_set_options(struct uart_port *port, struct console *co,
 	 * early.
 	 */
 	spin_lock_init(&port->lock);
+	lockdep_set_class(&port->lock, &port_lock_key);
 
 	memset(&termios, 0, sizeof(struct termios));
 
@@ -2247,8 +2254,10 @@ int uart_add_one_port(struct uart_driver *drv, struct uart_port *port)
 	 * If this port is a console, then the spinlock is already
 	 * initialised.
 	 */
-	if (!(uart_console(port) && (port->cons->flags & CON_ENABLED)))
+	if (!(uart_console(port) && (port->cons->flags & CON_ENABLED))) {
 		spin_lock_init(&port->lock);
+		lockdep_set_class(&port->lock, &port_lock_key);
+	}
 
 	uart_configure_port(drv, state, port);
 
