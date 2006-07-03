@@ -188,7 +188,6 @@ struct myri10ge_priv {
 	int vendor_specific_offset;
 	u32 devctl;
 	u16 msi_flags;
-	u32 pm_state[16];
 	u32 read_dma;
 	u32 write_dma;
 	u32 read_write_dma;
