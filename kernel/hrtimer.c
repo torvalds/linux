@@ -782,8 +782,10 @@ static void __devinit init_hrtimers_cpu(int cpu)
 	struct hrtimer_base *base = per_cpu(hrtimer_bases, cpu);
 	int i;
 
-	for (i = 0; i < MAX_HRTIMER_BASES; i++, base++)
+	for (i = 0; i < MAX_HRTIMER_BASES; i++, base++) {
 		spin_lock_init(&base->lock);
+		lockdep_set_class(&base->lock, &base->lock_key);
+	}
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
