@@ -80,6 +80,23 @@ extern int request_irq(unsigned int,
 		       unsigned long, const char *, void *);
 extern void free_irq(unsigned int, void *);
 
+/*
+ * On lockdep we dont want to enable hardirqs in hardirq
+ * context. Use local_irq_enable_in_hardirq() to annotate
+ * kernel code that has to do this nevertheless (pretty much
+ * the only valid case is for old/broken hardware that is
+ * insanely slow).
+ *
+ * NOTE: in theory this might break fragile code that relies
+ * on hardirq delivery - in practice we dont seem to have such
+ * places left. So the only effect should be slightly increased
+ * irqs-off latencies.
+ */
+#ifdef CONFIG_LOCKDEP
+# define local_irq_enable_in_hardirq()	do { } while (0)
+#else
+# define local_irq_enable_in_hardirq()	local_irq_enable()
+#endif
 
 #ifdef CONFIG_GENERIC_HARDIRQS
 extern void disable_irq_nosync(unsigned int irq);
