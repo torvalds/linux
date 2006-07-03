@@ -31,6 +31,11 @@
 	"jmp 1b\n" \
 	"3:\n\t"
 
+/*
+ * NOTE: there's an irqs-on section here, which normally would have to be
+ * irq-traced, but on CONFIG_TRACE_IRQFLAGS we never use
+ * __raw_spin_lock_string_flags().
+ */
 #define __raw_spin_lock_string_flags \
 	"\n1:\t" \
 	"lock ; decb %0\n\t" \
