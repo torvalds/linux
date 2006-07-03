@@ -1559,6 +1559,13 @@ asmlinkage long sys_sysinfo(struct sysinfo __user *info)
 	return 0;
 }
 
+/*
+ * lockdep: we want to track each per-CPU base as a separate lock-class,
+ * but timer-bases are kmalloc()-ed, so we need to attach separate
+ * keys to them:
+ */
+static struct lock_class_key base_lock_keys[NR_CPUS];
+
 static int __devinit init_timers_cpu(int cpu)
 {
 	int j;
@@ -1594,6 +1601,8 @@ static int __devinit init_timers_cpu(int cpu)
 	}
 
 	spin_lock_init(&base->lock);
+	lockdep_set_class(&base->lock, base_lock_keys + cpu);
+
 	for (j = 0; j < TVN_SIZE; j++) {
 		INIT_LIST_HEAD(base->tv5.vec + j);
 		INIT_LIST_HEAD(base->tv4.vec + j);
