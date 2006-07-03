@@ -47,6 +47,8 @@
 
 static void __ata_port_freeze(struct ata_port *ap);
 static void ata_eh_finish(struct ata_port *ap);
+static void ata_eh_handle_port_suspend(struct ata_port *ap);
+static void ata_eh_handle_port_resume(struct ata_port *ap);
 
 static void ata_ering_record(struct ata_ering *ering, int is_io,
 			     unsigned int err_mask)
@@ -262,6 +264,9 @@ void ata_scsi_error(struct Scsi_Host *host)
  repeat:
 	/* invoke error handler */
 	if (ap->ops->error_handler) {
+		/* process port resume request */
+		ata_eh_handle_port_resume(ap);
+
 		/* fetch & clear EH info */
 		spin_lock_irqsave(ap->lock, flags);
 
@@ -274,11 +279,14 @@ void ata_scsi_error(struct Scsi_Host *host)
 
 		spin_unlock_irqrestore(ap->lock, flags);
 
-		/* invoke EH.  if unloading, just finish failed qcs */
-		if (!(ap->pflags & ATA_PFLAG_UNLOADING))
+		/* invoke EH, skip if unloading or suspended */
+		if (!(ap->pflags & (ATA_PFLAG_UNLOADING | ATA_PFLAG_SUSPENDED)))
 			ap->ops->error_handler(ap);
 		else
 			ata_eh_finish(ap);
+
+		/* process port suspend request */
+		ata_eh_handle_port_suspend(ap);
 
 		/* Exception might have happend after ->error_handler
 		 * recovered the port but before this point.  Repeat
@@ -2100,4 +2108,120 @@ void ata_do_eh(struct ata_port *ap, ata_prereset_fn_t prereset,
 	ata_eh_report(ap);
 	ata_eh_recover(ap, prereset, softreset, hardreset, postreset);
 	ata_eh_finish(ap);
+}
+
+/**
+ *	ata_eh_handle_port_suspend - perform port suspend operation
+ *	@ap: port to suspend
+ *
+ *	Suspend @ap.
+ *
+ *	LOCKING:
+ *	Kernel thread context (may sleep).
+ */
+static void ata_eh_handle_port_suspend(struct ata_port *ap)
+{
+	unsigned long flags;
+	int rc = 0;
+
+	/* are we suspending? */
+	spin_lock_irqsave(ap->lock, flags);
+	if (!(ap->pflags & ATA_PFLAG_PM_PENDING) ||
+	    ap->pm_mesg.event == PM_EVENT_ON) {
+		spin_unlock_irqrestore(ap->lock, flags);
+		return;
+	}
+	spin_unlock_irqrestore(ap->lock, flags);
+
+	WARN_ON(ap->pflags & ATA_PFLAG_SUSPENDED);
+
+	/* suspend */
+	ata_eh_freeze_port(ap);
+
+	if (ap->ops->port_suspend)
+		rc = ap->ops->port_suspend(ap, ap->pm_mesg);
+
+	/* report result */
+	spin_lock_irqsave(ap->lock, flags);
+
+	ap->pflags &= ~ATA_PFLAG_PM_PENDING;
+	if (rc == 0)
+		ap->pflags |= ATA_PFLAG_SUSPENDED;
+	else
+		ata_port_schedule_eh(ap);
+
+	if (ap->pm_result) {
+		*ap->pm_result = rc;
+		ap->pm_result = NULL;
+	}
+
+	spin_unlock_irqrestore(ap->lock, flags);
+
+	return;
+}
+
+/**
+ *	ata_eh_handle_port_resume - perform port resume operation
+ *	@ap: port to resume
+ *
+ *	Resume @ap.
+ *
+ *	This function also waits upto one second until all devices
+ *	hanging off this port requests resume EH action.  This is to
+ *	prevent invoking EH and thus reset multiple times on resume.
+ *
+ *	On DPM resume, where some of devices might not be resumed
+ *	together, this may delay port resume upto one second, but such
+ *	DPM resumes are rare and 1 sec delay isn't too bad.
+ *
+ *	LOCKING:
+ *	Kernel thread context (may sleep).
+ */
+static void ata_eh_handle_port_resume(struct ata_port *ap)
+{
+	unsigned long timeout;
+	unsigned long flags;
+	int i, rc = 0;
+
+	/* are we resuming? */
+	spin_lock_irqsave(ap->lock, flags);
+	if (!(ap->pflags & ATA_PFLAG_PM_PENDING) ||
+	    ap->pm_mesg.event != PM_EVENT_ON) {
+		spin_unlock_irqrestore(ap->lock, flags);
+		return;
+	}
+	spin_unlock_irqrestore(ap->lock, flags);
+
+	/* spurious? */
+	if (!(ap->pflags & ATA_PFLAG_SUSPENDED))
+		goto done;
+
+	if (ap->ops->port_resume)
+		rc = ap->ops->port_resume(ap);
+
+	/* give devices time to request EH */
+	timeout = jiffies + HZ; /* 1s max */
+	while (1) {
+		for (i = 0; i < ATA_MAX_DEVICES; i++) {
+			struct ata_device *dev = &ap->device[i];
+			unsigned int action = ata_eh_dev_action(dev);
+
+			if ((dev->flags & ATA_DFLAG_SUSPENDED) &&
+			    !(action & ATA_EH_RESUME))
+				break;
+		}
+
+		if (i == ATA_MAX_DEVICES || time_after(jiffies, timeout))
+			break;
+		msleep(10);
+	}
+
+ done:
+	spin_lock_irqsave(ap->lock, flags);
+	ap->pflags &= ~(ATA_PFLAG_PM_PENDING | ATA_PFLAG_SUSPENDED);
+	if (ap->pm_result) {
+		*ap->pm_result = rc;
+		ap->pm_result = NULL;
+	}
+	spin_unlock_irqrestore(ap->lock, flags);
 }
