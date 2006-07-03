@@ -843,7 +843,7 @@ extern void ata_do_eh(struct ata_port *ap, ata_prereset_fn_t prereset,
 	(ehi)->desc_len = 0; \
 } while (0)
 
-static inline void ata_ehi_hotplugged(struct ata_eh_info *ehi)
+static inline void __ata_ehi_hotplugged(struct ata_eh_info *ehi)
 {
 	if (ehi->flags & ATA_EHI_HOTPLUGGED)
 		return;
@@ -851,9 +851,14 @@ static inline void ata_ehi_hotplugged(struct ata_eh_info *ehi)
 	ehi->flags |= ATA_EHI_HOTPLUGGED | ATA_EHI_RESUME_LINK;
 	ehi->hotplug_timestamp = jiffies;
 
-	ehi->err_mask |= AC_ERR_ATA_BUS;
 	ehi->action |= ATA_EH_SOFTRESET;
 	ehi->probe_mask |= (1 << ATA_MAX_DEVICES) - 1;
+}
+
+static inline void ata_ehi_hotplugged(struct ata_eh_info *ehi)
+{
+	__ata_ehi_hotplugged(ehi);
+	ehi->err_mask |= AC_ERR_ATA_BUS;
 }
 
 /*
