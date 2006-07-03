@@ -378,6 +378,8 @@ s390_do_machine_check(struct pt_regs *regs)
 	struct mcck_struct *mcck;
 	int umode;
 
+	lockdep_off();
+
 	mci = (struct mci *) &S390_lowcore.mcck_interruption_code;
 	mcck = &__get_cpu_var(cpu_mcck);
 	umode = user_mode(regs);
@@ -482,6 +484,7 @@ s390_do_machine_check(struct pt_regs *regs)
 		mcck->warning = 1;
 		set_thread_flag(TIF_MCCK_PENDING);
 	}
+	lockdep_on();
 }
 
 /*
