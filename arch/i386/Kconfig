@@ -18,6 +18,10 @@ config GENERIC_TIME
 	bool
 	default y
 
+config LOCKDEP_SUPPORT
+	bool
+	default y
+
 config STACKTRACE_SUPPORT
 	bool
 	default y
