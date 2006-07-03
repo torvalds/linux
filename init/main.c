@@ -496,8 +496,8 @@ asmlinkage void __init start_kernel(void)
 	init_timers();
 	hrtimers_init();
 	softirq_init();
-	time_init();
 	timekeeping_init();
+	time_init();
 
 	/*
 	 * HACK ALERT! This is early. We're enabling the console before
@@ -508,6 +508,8 @@ asmlinkage void __init start_kernel(void)
 	if (panic_later)
 		panic(panic_later, panic_param);
 	profile_init();
+	if (!irqs_disabled())
+		printk("start_kernel(): bug: interrupts were enabled early\n");
 	local_irq_enable();
 #ifdef CONFIG_BLK_DEV_INITRD
 	if (initrd_start && !initrd_below_start_ok &&
