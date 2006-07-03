@@ -74,7 +74,7 @@ static void decode_irq_flags(int flag, int *triggering, int *polarity)
 
 static void
 pnpacpi_parse_allocated_irqresource(struct pnp_resource_table *res, u32 gsi,
-	int triggering, int polarity)
+	int triggering, int polarity, int shareable)
 {
 	int i = 0;
 	int irq;
@@ -94,6 +94,9 @@ pnpacpi_parse_allocated_irqresource(struct pnp_resource_table *res, u32 gsi,
 		res->irq_resource[i].flags |= IORESOURCE_DISABLED;
 		return;
 	}
+
+	if (shareable)
+		res->irq_resource[i].flags |= IORESOURCE_IRQ_SHAREABLE;
 
 	res->irq_resource[i].start = irq;
 	res->irq_resource[i].end = irq;
@@ -194,7 +197,8 @@ static acpi_status pnpacpi_allocated_resource(struct acpi_resource *res,
 			pnpacpi_parse_allocated_irqresource(res_table,
 				res->data.irq.interrupts[i],
 				res->data.irq.triggering,
-				res->data.irq.polarity);
+				res->data.irq.polarity,
+				res->data.irq.sharable);
 		}
 		break;
 
@@ -255,7 +259,8 @@ static acpi_status pnpacpi_allocated_resource(struct acpi_resource *res,
 			pnpacpi_parse_allocated_irqresource(res_table,
 				res->data.extended_irq.interrupts[i],
 				res->data.extended_irq.triggering,
-				res->data.extended_irq.polarity);
+				res->data.extended_irq.polarity,
+				res->data.extended_irq.sharable);
 		}
 		break;
 
