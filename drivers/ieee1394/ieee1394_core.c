@@ -355,10 +355,12 @@ static void build_speed_map(struct hpsb_host *host, int nodecount)
 		}
 	}
 
+#if SELFID_SPEED_UNKNOWN != IEEE1394_SPEED_MAX
 	/* assume maximum speed for 1394b PHYs, nodemgr will correct it */
 	for (n = 0; n < nodecount; n++)
-		if (speedcap[n] == 3)
+		if (speedcap[n] == SELFID_SPEED_UNKNOWN)
 			speedcap[n] = IEEE1394_SPEED_MAX;
+#endif
 }
 
 

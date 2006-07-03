@@ -77,6 +77,8 @@ extern const char *hpsb_speedto_str[];
 #define SELFID_PORT_NCONN        0x1
 #define SELFID_PORT_NONE         0x0
 
+#define SELFID_SPEED_UNKNOWN		0x3	/* 1394b PHY */
+
 #define PHYPACKET_LINKON			0x40000000
 #define PHYPACKET_PHYCONFIG_R			0x00800000
 #define PHYPACKET_PHYCONFIG_T			0x00400000
