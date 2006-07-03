@@ -224,7 +224,7 @@ static int ixp2000_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 static struct irqaction ixp2000_timer_irq = {
 	.name		= "IXP2000 Timer Tick",
-	.flags		= SA_INTERRUPT | SA_TIMER,
+	.flags		= IRQF_DISABLED | IRQF_TIMER,
 	.handler	= ixp2000_timer_interrupt,
 };
 

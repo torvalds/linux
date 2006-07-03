@@ -82,7 +82,6 @@ typedef unsigned long sigset_t;
  *			is running in 26-bit.
  * SA_ONSTACK		allows alternate signal stacks (see sigaltstack(2)).
  * SA_RESTART		flag to get restarting signals (which were the default long ago)
- * SA_INTERRUPT		is a no-op, but left due to historical reasons. Use the
  * SA_NODEFER		prevents the current signal from being masked in the handler.
  * SA_RESETHAND		clears the handler when the signal is delivered.
  *
@@ -101,7 +100,6 @@ typedef unsigned long sigset_t;
 
 #define SA_NOMASK	SA_NODEFER
 #define SA_ONESHOT	SA_RESETHAND
-#define SA_INTERRUPT	0x20000000 /* dummy -- ignored */
 
 
 /* 
@@ -112,10 +110,6 @@ typedef unsigned long sigset_t;
 
 #define MINSIGSTKSZ	2048
 #define SIGSTKSZ	8192
-
-#ifdef __KERNEL__
-#define SA_TIMER		0x40000000
-#endif
 
 #include <asm-generic/signal.h>
 

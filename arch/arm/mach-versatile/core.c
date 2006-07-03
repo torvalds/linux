@@ -869,7 +869,7 @@ static irqreturn_t versatile_timer_interrupt(int irq, void *dev_id, struct pt_re
 
 static struct irqaction versatile_timer_irq = {
 	.name		= "Versatile Timer Tick",
-	.flags		= SA_INTERRUPT | SA_TIMER,
+	.flags		= IRQF_DISABLED | IRQF_TIMER,
 	.handler	= versatile_timer_interrupt,
 };
 

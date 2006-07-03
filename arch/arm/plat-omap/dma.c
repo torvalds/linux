@@ -939,7 +939,7 @@ static irqreturn_t omap2_dma_irq_handler(int irq, void *dev_id,
 static struct irqaction omap24xx_dma_irq = {
 	.name = "DMA",
 	.handler = omap2_dma_irq_handler,
-	.flags = SA_INTERRUPT
+	.flags = IRQF_DISABLED
 };
 
 #else

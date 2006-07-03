@@ -85,7 +85,7 @@ static irqreturn_t at91rm9200_timer_interrupt(int irq, void *dev_id, struct pt_r
 
 static struct irqaction at91rm9200_timer_irq = {
 	.name		= "at91_tick",
-	.flags		= SA_SHIRQ | SA_INTERRUPT | SA_TIMER,
+	.flags		= IRQF_SHARED | IRQF_DISABLED | IRQF_TIMER,
 	.handler	= at91rm9200_timer_interrupt
 };
 

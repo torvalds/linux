@@ -718,7 +718,7 @@ int s3c2410_dma_request(unsigned int channel, s3c2410_dma_client_t *client,
 		pr_debug("dma%d: %s : requesting irq %d\n",
 			 channel, __FUNCTION__, chan->irq);
 
-		err = request_irq(chan->irq, s3c2410_dma_irq, SA_INTERRUPT,
+		err = request_irq(chan->irq, s3c2410_dma_irq, IRQF_DISABLED,
 				  client->name, (void *)chan);
 
 		if (err) {

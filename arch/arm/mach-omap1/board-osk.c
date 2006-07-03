@@ -357,7 +357,7 @@ static void __init osk_mistral_init(void)
 		 */
 		ret = request_irq(OMAP_GPIO_IRQ(OMAP_MPUIO(2)),
 				&osk_mistral_wake_interrupt,
-				SA_SHIRQ, "mistral_wakeup",
+				IRQF_SHARED, "mistral_wakeup",
 				&osk_mistral_wake_interrupt);
 		if (ret != 0) {
 			omap_free_gpio(OMAP_MPUIO(2));

@@ -363,7 +363,7 @@ ixp23xx_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 static struct irqaction ixp23xx_timer_irq = {
 	.name		= "IXP23xx Timer Tick",
 	.handler	= ixp23xx_timer_interrupt,
-	.flags		= SA_INTERRUPT | SA_TIMER,
+	.flags		= IRQF_DISABLED | IRQF_TIMER,
 };
 
 void __init ixp23xx_init_timer(void)

@@ -258,7 +258,7 @@ static struct dyn_tick_timer omap_dyn_tick_timer = {
 
 static struct irqaction omap_32k_timer_irq = {
 	.name		= "32KHz timer",
-	.flags		= SA_INTERRUPT | SA_TIMER,
+	.flags		= IRQF_DISABLED | IRQF_TIMER,
 	.handler	= omap_32k_timer_interrupt,
 };
 

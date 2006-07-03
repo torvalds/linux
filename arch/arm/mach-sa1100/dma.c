@@ -124,7 +124,7 @@ int sa1100_request_dma (dma_device_t device, const char *device_id,
 
 	i = dma - dma_chan;
 	regs = (dma_regs_t *)&DDAR(i);
-	err = request_irq(IRQ_DMA0 + i, dma_irq_handler, SA_INTERRUPT,
+	err = request_irq(IRQ_DMA0 + i, dma_irq_handler, IRQF_DISABLED,
 			  device_id, regs);
 	if (err) {
 		printk(KERN_ERR

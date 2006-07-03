@@ -45,12 +45,12 @@ static void collie_charger_init(void)
 	}
 
 	/* Register interrupt handler. */
-	if ((err = request_irq(COLLIE_IRQ_GPIO_AC_IN, sharpsl_ac_isr, SA_INTERRUPT,
+	if ((err = request_irq(COLLIE_IRQ_GPIO_AC_IN, sharpsl_ac_isr, IRQF_DISABLED,
 			       "ACIN", sharpsl_ac_isr))) {
 		printk("Could not get irq %d.\n", COLLIE_IRQ_GPIO_AC_IN);
 		return;
 	}
-	if ((err = request_irq(COLLIE_IRQ_GPIO_CO, sharpsl_chrg_full_isr, SA_INTERRUPT,
+	if ((err = request_irq(COLLIE_IRQ_GPIO_CO, sharpsl_chrg_full_isr, IRQF_DISABLED,
 			       "CO", sharpsl_chrg_full_isr))) {
 		free_irq(COLLIE_IRQ_GPIO_AC_IN, sharpsl_ac_isr);
 		printk("Could not get irq %d.\n", COLLIE_IRQ_GPIO_CO);
