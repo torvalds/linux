@@ -183,8 +183,8 @@ __mutex_lock_common(struct mutex *lock, long state __IP_DECL__)
 
 	debug_mutex_free_waiter(&waiter);
 
-	DEBUG_WARN_ON(list_empty(&lock->held_list));
-	DEBUG_WARN_ON(lock->owner != task->thread_info);
+	DEBUG_LOCKS_WARN_ON(list_empty(&lock->held_list));
+	DEBUG_LOCKS_WARN_ON(lock->owner != task->thread_info);
 
 	return 0;
 }
@@ -206,7 +206,7 @@ __mutex_unlock_slowpath(atomic_t *lock_count __IP_DECL__)
 	struct mutex *lock = container_of(lock_count, struct mutex, count);
 	unsigned long flags;
 
-	DEBUG_WARN_ON(lock->owner != current_thread_info());
+	DEBUG_LOCKS_WARN_ON(lock->owner != current_thread_info());
 
 	spin_lock_mutex(&lock->wait_lock, flags);
 

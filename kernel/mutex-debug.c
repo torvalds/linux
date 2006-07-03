@@ -373,7 +373,7 @@ void debug_mutex_set_owner(struct mutex *lock,
 			   struct thread_info *new_owner __IP_DECL__)
 {
 	lock->owner = new_owner;
-	DEBUG_WARN_ON(!list_empty(&lock->held_list));
+	DEBUG_LOCKS_WARN_ON(!list_empty(&lock->held_list));
 	if (debug_mutex_on) {
 		list_add_tail(&lock->held_list, &debug_mutex_held_locks);
 		lock->acquire_ip = ip;
@@ -389,22 +389,22 @@ void debug_mutex_init_waiter(struct mutex_waiter *waiter)
 
 void debug_mutex_wake_waiter(struct mutex *lock, struct mutex_waiter *waiter)
 {
-	SMP_DEBUG_WARN_ON(!spin_is_locked(&lock->wait_lock));
-	DEBUG_WARN_ON(list_empty(&lock->wait_list));
-	DEBUG_WARN_ON(waiter->magic != waiter);
-	DEBUG_WARN_ON(list_empty(&waiter->list));
+	SMP_DEBUG_LOCKS_WARN_ON(!spin_is_locked(&lock->wait_lock));
+	DEBUG_LOCKS_WARN_ON(list_empty(&lock->wait_list));
+	DEBUG_LOCKS_WARN_ON(waiter->magic != waiter);
+	DEBUG_LOCKS_WARN_ON(list_empty(&waiter->list));
 }
 
 void debug_mutex_free_waiter(struct mutex_waiter *waiter)
 {
-	DEBUG_WARN_ON(!list_empty(&waiter->list));
+	DEBUG_LOCKS_WARN_ON(!list_empty(&waiter->list));
 	memset(waiter, MUTEX_DEBUG_FREE, sizeof(*waiter));
 }
 
 void debug_mutex_add_waiter(struct mutex *lock, struct mutex_waiter *waiter,
 			    struct thread_info *ti __IP_DECL__)
 {
-	SMP_DEBUG_WARN_ON(!spin_is_locked(&lock->wait_lock));
+	SMP_DEBUG_LOCKS_WARN_ON(!spin_is_locked(&lock->wait_lock));
 	check_deadlock(lock, 0, ti, ip);
 	/* Mark the current thread as blocked on the lock: */
 	ti->task->blocked_on = waiter;
@@ -414,9 +414,9 @@ void debug_mutex_add_waiter(struct mutex *lock, struct mutex_waiter *waiter,
 void mutex_remove_waiter(struct mutex *lock, struct mutex_waiter *waiter,
 			 struct thread_info *ti)
 {
-	DEBUG_WARN_ON(list_empty(&waiter->list));
-	DEBUG_WARN_ON(waiter->task != ti->task);
-	DEBUG_WARN_ON(ti->task->blocked_on != waiter);
+	DEBUG_LOCKS_WARN_ON(list_empty(&waiter->list));
+	DEBUG_LOCKS_WARN_ON(waiter->task != ti->task);
+	DEBUG_LOCKS_WARN_ON(ti->task->blocked_on != waiter);
 	ti->task->blocked_on = NULL;
 
 	list_del_init(&waiter->list);
@@ -425,11 +425,11 @@ void mutex_remove_waiter(struct mutex *lock, struct mutex_waiter *waiter,
 
 void debug_mutex_unlock(struct mutex *lock)
 {
-	DEBUG_WARN_ON(lock->magic != lock);
-	DEBUG_WARN_ON(!lock->wait_list.prev && !lock->wait_list.next);
-	DEBUG_WARN_ON(lock->owner != current_thread_info());
+	DEBUG_LOCKS_WARN_ON(lock->magic != lock);
+	DEBUG_LOCKS_WARN_ON(!lock->wait_list.prev && !lock->wait_list.next);
+	DEBUG_LOCKS_WARN_ON(lock->owner != current_thread_info());
 	if (debug_mutex_on) {
-		DEBUG_WARN_ON(list_empty(&lock->held_list));
+		DEBUG_LOCKS_WARN_ON(list_empty(&lock->held_list));
 		list_del_init(&lock->held_list);
 	}
 }
@@ -456,7 +456,7 @@ void debug_mutex_init(struct mutex *lock, const char *name)
  */
 void fastcall mutex_destroy(struct mutex *lock)
 {
-	DEBUG_WARN_ON(mutex_is_locked(lock));
+	DEBUG_LOCKS_WARN_ON(mutex_is_locked(lock));
 	lock->magic = NULL;
 }
 

@@ -65,10 +65,10 @@ extern void debug_mutex_init(struct mutex *lock, const char *name);
 	do {						\
 		struct mutex *l = container_of(lock, struct mutex, wait_lock); \
 							\
-		DEBUG_WARN_ON(in_interrupt());		\
+		DEBUG_LOCKS_WARN_ON(in_interrupt());	\
 		debug_spin_lock_save(&debug_mutex_lock, flags); \
 		spin_lock(lock);			\
-		DEBUG_WARN_ON(l->magic != l);		\
+		DEBUG_LOCKS_WARN_ON(l->magic != l);	\
 	} while (0)
 
 #define spin_unlock_mutex(lock, flags)			\
@@ -95,7 +95,7 @@ do {							\
 	}						\
 } while (0)
 
-#define DEBUG_WARN_ON(c)				\
+#define DEBUG_LOCKS_WARN_ON(c)				\
 do {							\
 	if (unlikely(c && debug_mutex_on)) {		\
 		DEBUG_OFF();				\
@@ -110,10 +110,10 @@ do {							\
 } while (0)
 
 #ifdef CONFIG_SMP
-# define SMP_DEBUG_WARN_ON(c)			DEBUG_WARN_ON(c)
-# define SMP_DEBUG_BUG_ON(c)			DEBUG_BUG_ON(c)
+# define SMP_DEBUG_LOCKS_WARN_ON(c)			DEBUG_LOCKS_WARN_ON(c)
+# define SMP_DEBUG_BUG_ON(c)				DEBUG_BUG_ON(c)
 #else
-# define SMP_DEBUG_WARN_ON(c)			do { } while (0)
-# define SMP_DEBUG_BUG_ON(c)			do { } while (0)
+# define SMP_DEBUG_LOCKS_WARN_ON(c)			do { } while (0)
+# define SMP_DEBUG_BUG_ON(c)				do { } while (0)
 #endif
 

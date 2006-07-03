@@ -16,7 +16,7 @@
 #define mutex_remove_waiter(lock, waiter, ti) \
 		__list_del((waiter)->list.prev, (waiter)->list.next)
 
-#define DEBUG_WARN_ON(c)				do { } while (0)
+#define DEBUG_LOCKS_WARN_ON(c)				do { } while (0)
 #define debug_mutex_set_owner(lock, new_owner)		do { } while (0)
 #define debug_mutex_clear_owner(lock)			do { } while (0)
 #define debug_mutex_init_waiter(waiter)			do { } while (0)
