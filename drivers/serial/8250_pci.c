@@ -134,7 +134,7 @@ afavlab_setup(struct serial_private *priv, struct pciserial_board *board,
  * and Keystone have one Diva chip with 3 UARTs.  Some later machines have
  * one Diva chip, but it has been expanded to 5 UARTs.
  */
-static int __devinit pci_hp_diva_init(struct pci_dev *dev)
+static int pci_hp_diva_init(struct pci_dev *dev)
 {
 	int rc = 0;
 
@@ -194,7 +194,7 @@ pci_hp_diva_setup(struct serial_private *priv, struct pciserial_board *board,
 /*
  * Added for EKF Intel i960 serial boards
  */
-static int __devinit pci_inteli960ni_init(struct pci_dev *dev)
+static int pci_inteli960ni_init(struct pci_dev *dev)
 {
 	unsigned long oldval;
 
@@ -216,7 +216,7 @@ static int __devinit pci_inteli960ni_init(struct pci_dev *dev)
  * seems to be mainly needed on card using the PLX which also use I/O
  * mapped memory.
  */
-static int __devinit pci_plx9050_init(struct pci_dev *dev)
+static int pci_plx9050_init(struct pci_dev *dev)
 {
 	u8 irq_config;
 	void __iomem *p;
@@ -314,7 +314,7 @@ sbs_setup(struct serial_private *priv, struct pciserial_board *board,
 /* global control register offset for SBS PMC-OctalPro */
 #define OCT_REG_CR_OFF		0x500
 
-static int __devinit sbs_init(struct pci_dev *dev)
+static int sbs_init(struct pci_dev *dev)
 {
 	u8 __iomem *p;
 
@@ -493,7 +493,7 @@ static const struct timedia_struct {
 	{ 0, NULL }
 };
 
-static int __devinit pci_timedia_init(struct pci_dev *dev)
+static int pci_timedia_init(struct pci_dev *dev)
 {
 	unsigned short *ids;
 	int i, j;
@@ -566,13 +566,13 @@ titan_400l_800l_setup(struct serial_private *priv,
 	return setup_port(priv, port, bar, offset, board->reg_shift);
 }
 
-static int __devinit pci_xircom_init(struct pci_dev *dev)
+static int pci_xircom_init(struct pci_dev *dev)
 {
 	msleep(100);
 	return 0;
 }
 
-static int __devinit pci_netmos_init(struct pci_dev *dev)
+static int pci_netmos_init(struct pci_dev *dev)
 {
 	/* subdevice 0x00PS means <P> parallel, <S> serial */
 	unsigned int num_serial = dev->subsystem_device & 0xf;
@@ -622,7 +622,7 @@ pci_default_setup(struct serial_private *priv, struct pciserial_board *board,
  */
 static struct pci_serial_quirk pci_serial_quirks[] = {
 	/*
-	 * AFAVLAB cards.
+	 * AFAVLAB cards - these may be called via parport_serial
 	 *  It is not clear whether this applies to all products.
 	 */
 	{
@@ -754,7 +754,7 @@ static struct pci_serial_quirk pci_serial_quirks[] = {
 		.exit		= __devexit_p(sbs_exit),
 	},
 	/*
-	 * SIIG cards.
+	 * SIIG cards - these may be called via parport_serial
 	 */
 	{
 		.vendor		= PCI_VENDOR_ID_SIIG,
@@ -811,7 +811,7 @@ static struct pci_serial_quirk pci_serial_quirks[] = {
 		.setup		= pci_default_setup,
 	},
 	/*
-	 * Netmos cards
+	 * Netmos cards - these may be called via parport_serial
 	 */
 	{
 		.vendor		= PCI_VENDOR_ID_NETMOS,
