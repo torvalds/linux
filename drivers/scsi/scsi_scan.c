@@ -809,6 +809,7 @@ static int scsi_add_lun(struct scsi_device *sdev, char *inq_result, int *bflags)
 
 static inline void scsi_destroy_sdev(struct scsi_device *sdev)
 {
+	scsi_device_set_state(sdev, SDEV_DEL);
 	if (sdev->host->hostt->slave_destroy)
 		sdev->host->hostt->slave_destroy(sdev);
 	transport_destroy_device(&sdev->sdev_gendev);

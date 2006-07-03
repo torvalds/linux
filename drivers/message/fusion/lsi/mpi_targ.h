@@ -6,7 +6,7 @@
  *          Title:  MPI Target mode messages and structures
  *  Creation Date:  June 22, 2000
  *
- *    mpi_targ.h Version:  01.05.05
+ *    mpi_targ.h Version:  01.05.06
  *
  *  Version History
  *  ---------------
@@ -54,6 +54,7 @@
  *  02-22-05  01.05.03  Changed a comment.
  *  03-11-05  01.05.04  Removed TargetAssistExtended Request.
  *  06-24-05  01.05.05  Added TargetAssistExtended structures and defines.
+ *  03-27-06  01.05.06  Added a comment.
  *  --------------------------------------------------------------------------
  */
 
@@ -351,7 +352,7 @@ typedef struct _MSG_TARGET_ASSIST_REQUEST
 #define TARGET_ASSIST_FLAGS_CONFIRMED               (0x08)
 #define TARGET_ASSIST_FLAGS_REPOST_CMD_BUFFER       (0x80)
 
-
+/* Standard Target Mode Reply message */
 typedef struct _MSG_TARGET_ERROR_REPLY
 {
     U16                     Reserved;                   /* 00h */

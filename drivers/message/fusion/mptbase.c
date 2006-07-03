@@ -368,20 +368,21 @@ static irqreturn_t
 mpt_interrupt(int irq, void *bus_id, struct pt_regs *r)
 {
 	MPT_ADAPTER *ioc = bus_id;
-	u32 pa;
+	u32 pa = CHIPREG_READ32_dmasync(&ioc->chip->ReplyFifo);
+
+	if (pa == 0xFFFFFFFF)
+		return IRQ_NONE;
 
 	/*
 	 *  Drain the reply FIFO!
 	 */
-	while (1) {
-		pa = CHIPREG_READ32_dmasync(&ioc->chip->ReplyFifo);
-		if (pa == 0xFFFFFFFF)
-			return IRQ_HANDLED;
-		else if (pa & MPI_ADDRESS_REPLY_A_BIT)
+	do {
+		if (pa & MPI_ADDRESS_REPLY_A_BIT)
 			mpt_reply(ioc, pa);
 		else
 			mpt_turbo_reply(ioc, pa);
-	}
+		pa = CHIPREG_READ32_dmasync(&ioc->chip->ReplyFifo);
+	} while (pa != 0xFFFFFFFF);
 
 	return IRQ_HANDLED;
 }
@@ -1219,31 +1220,25 @@ mpt_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 	port = psize = 0;
 	for (ii=0; ii < DEVICE_COUNT_RESOURCE; ii++) {
 		if (pci_resource_flags(pdev, ii) & PCI_BASE_ADDRESS_SPACE_IO) {
+			if (psize)
+				continue;
 			/* Get I/O space! */
 			port = pci_resource_start(pdev, ii);
 			psize = pci_resource_len(pdev,ii);
 		} else {
+			if (msize)
+				continue;
 			/* Get memmap */
 			mem_phys = pci_resource_start(pdev, ii);
 			msize = pci_resource_len(pdev,ii);
-			break;
 		}
 	}
 	ioc->mem_size = msize;
 
-	if (ii == DEVICE_COUNT_RESOURCE) {
-		printk(KERN_ERR MYNAM ": ERROR - MPT adapter has no memory regions defined!\n");
-		kfree(ioc);
-		return -EINVAL;
-	}
-
-	dinitprintk((KERN_INFO MYNAM ": MPT adapter @ %lx, msize=%dd bytes\n", mem_phys, msize));
-	dinitprintk((KERN_INFO MYNAM ": (port i/o @ %lx, psize=%dd bytes)\n", port, psize));
-
 	mem = NULL;
 	/* Get logical ptr for PciMem0 space */
 	/*mem = ioremap(mem_phys, msize);*/
-	mem = ioremap(mem_phys, 0x100);
+	mem = ioremap(mem_phys, msize);
 	if (mem == NULL) {
 		printk(KERN_ERR MYNAM ": ERROR - Unable to map adapter memory!\n");
 		kfree(ioc);
@@ -1343,11 +1338,6 @@ mpt_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 		ioc->bus_type = SAS;
 		ioc->errata_flag_1064 = 1;
 	}
-	else if (pdev->device == MPI_MANUFACTPAGE_DEVID_SAS1066) {
-		ioc->prod_name = "LSISAS1066";
-		ioc->bus_type = SAS;
-		ioc->errata_flag_1064 = 1;
-	}
 	else if (pdev->device == MPI_MANUFACTPAGE_DEVID_SAS1068) {
 		ioc->prod_name = "LSISAS1068";
 		ioc->bus_type = SAS;
@@ -1357,12 +1347,12 @@ mpt_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 		ioc->prod_name = "LSISAS1064E";
 		ioc->bus_type = SAS;
 	}
-	else if (pdev->device == MPI_MANUFACTPAGE_DEVID_SAS1066E) {
-		ioc->prod_name = "LSISAS1066E";
-		ioc->bus_type = SAS;
-	}
 	else if (pdev->device == MPI_MANUFACTPAGE_DEVID_SAS1068E) {
 		ioc->prod_name = "LSISAS1068E";
+		ioc->bus_type = SAS;
+	}
+	else if (pdev->device == MPI_MANUFACTPAGE_DEVID_SAS1078) {
+		ioc->prod_name = "LSISAS1078";
 		ioc->bus_type = SAS;
 	}
 
@@ -3183,6 +3173,37 @@ mpt_diag_reset(MPT_ADAPTER *ioc, int ignore, int sleepFlag)
 #ifdef MPT_DEBUG
 	u32 diag1val = 0;
 #endif
+
+	if (ioc->pcidev->device == MPI_MANUFACTPAGE_DEVID_SAS1078) {
+		drsprintk((MYIOC_s_WARN_FMT "%s: Doorbell=%p; 1078 reset "
+			"address=%p\n",  ioc->name, __FUNCTION__,
+			&ioc->chip->Doorbell, &ioc->chip->Reset_1078));
+		CHIPREG_WRITE32(&ioc->chip->Reset_1078, 0x07);
+		if (sleepFlag == CAN_SLEEP)
+			msleep(1);
+		else
+			mdelay(1);
+
+		for (count = 0; count < 60; count ++) {
+			doorbell = CHIPREG_READ32(&ioc->chip->Doorbell);
+			doorbell &= MPI_IOC_STATE_MASK;
+
+			drsprintk((MYIOC_s_INFO_FMT
+				"looking for READY STATE: doorbell=%x"
+			        " count=%d\n",
+				ioc->name, doorbell, count));
+			if (doorbell == MPI_IOC_STATE_READY) {
+				return 0;
+			}
+
+			/* wait 1 sec */
+			if (sleepFlag == CAN_SLEEP)
+				msleep(1000);
+			else
+				mdelay(1000);
+		}
+		return -1;
+	}
 
 	/* Clear any existing interrupts */
 	CHIPREG_WRITE32(&ioc->chip->IntStatus, 0);
