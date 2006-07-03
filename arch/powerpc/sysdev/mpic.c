@@ -100,8 +100,8 @@ static inline u32 _mpic_cpu_read(struct mpic *mpic, unsigned int reg)
 
 	if (mpic->flags & MPIC_PRIMARY)
 		cpu = hard_smp_processor_id();
-
-	return _mpic_read(mpic->flags & MPIC_BIG_ENDIAN, mpic->cpuregs[cpu], reg);
+	return _mpic_read(mpic->flags & MPIC_BIG_ENDIAN,
+			  mpic->cpuregs[cpu], reg);
 }
 
 static inline void _mpic_cpu_write(struct mpic *mpic, unsigned int reg, u32 value)
@@ -378,14 +378,14 @@ static inline u32 mpic_physmask(u32 cpumask)
 /* Get the mpic structure from the IPI number */
 static inline struct mpic * mpic_from_ipi(unsigned int ipi)
 {
-	return container_of(irq_desc[ipi].chip, struct mpic, hc_ipi);
+	return irq_desc[ipi].chip_data;
 }
 #endif
 
 /* Get the mpic structure from the irq number */
 static inline struct mpic * mpic_from_irq(unsigned int irq)
 {
-	return container_of(irq_desc[irq].chip, struct mpic, hc_irq);
+	return irq_desc[irq].chip_data;
 }
 
 /* Send an EOI */
@@ -410,7 +410,7 @@ static irqreturn_t mpic_ipi_action(int irq, void *dev_id, struct pt_regs *regs)
  */
 
 
-static void mpic_enable_irq(unsigned int irq)
+static void mpic_unmask_irq(unsigned int irq)
 {
 	unsigned int loops = 100000;
 	struct mpic *mpic = mpic_from_irq(irq);
@@ -429,35 +429,9 @@ static void mpic_enable_irq(unsigned int irq)
 			break;
 		}
 	} while(mpic_irq_read(src, MPIC_IRQ_VECTOR_PRI) & MPIC_VECPRI_MASK);	
-
-#ifdef CONFIG_MPIC_BROKEN_U3
-	if (mpic->flags & MPIC_BROKEN_U3) {
-		unsigned int src = irq - mpic->irq_offset;
-		if (mpic_is_ht_interrupt(mpic, src) &&
-		    (irq_desc[irq].status & IRQ_LEVEL))
-			mpic_ht_end_irq(mpic, src);
-	}
-#endif /* CONFIG_MPIC_BROKEN_U3 */
 }
 
-static unsigned int mpic_startup_irq(unsigned int irq)
-{
-#ifdef CONFIG_MPIC_BROKEN_U3
-	struct mpic *mpic = mpic_from_irq(irq);
-	unsigned int src = irq - mpic->irq_offset;
-#endif /* CONFIG_MPIC_BROKEN_U3 */
-
-	mpic_enable_irq(irq);
-
-#ifdef CONFIG_MPIC_BROKEN_U3
-	if (mpic_is_ht_interrupt(mpic, src))
-		mpic_startup_ht_interrupt(mpic, src, irq_desc[irq].status);
-#endif /* CONFIG_MPIC_BROKEN_U3 */
-
-	return 0;
-}
-
-static void mpic_disable_irq(unsigned int irq)
+static void mpic_mask_irq(unsigned int irq)
 {
 	unsigned int loops = 100000;
 	struct mpic *mpic = mpic_from_irq(irq);
@@ -478,20 +452,6 @@ static void mpic_disable_irq(unsigned int irq)
 	} while(!(mpic_irq_read(src, MPIC_IRQ_VECTOR_PRI) & MPIC_VECPRI_MASK));
 }
 
-static void mpic_shutdown_irq(unsigned int irq)
-{
-#ifdef CONFIG_MPIC_BROKEN_U3
-	struct mpic *mpic = mpic_from_irq(irq);
-	unsigned int src = irq - mpic->irq_offset;
-
-	if (mpic_is_ht_interrupt(mpic, src))
-		mpic_shutdown_ht_interrupt(mpic, src, irq_desc[irq].status);
-
-#endif /* CONFIG_MPIC_BROKEN_U3 */
-
-	mpic_disable_irq(irq);
-}
-
 static void mpic_end_irq(unsigned int irq)
 {
 	struct mpic *mpic = mpic_from_irq(irq);
@@ -504,21 +464,65 @@ static void mpic_end_irq(unsigned int irq)
 	 * latched another edge interrupt coming in anyway
 	 */
 
-#ifdef CONFIG_MPIC_BROKEN_U3
-	if (mpic->flags & MPIC_BROKEN_U3) {
-		unsigned int src = irq - mpic->irq_offset;
-		if (mpic_is_ht_interrupt(mpic, src) &&
-		    (irq_desc[irq].status & IRQ_LEVEL))
-			mpic_ht_end_irq(mpic, src);
-	}
-#endif /* CONFIG_MPIC_BROKEN_U3 */
-
 	mpic_eoi(mpic);
 }
 
+#ifdef CONFIG_MPIC_BROKEN_U3
+
+static void mpic_unmask_ht_irq(unsigned int irq)
+{
+	struct mpic *mpic = mpic_from_irq(irq);
+	unsigned int src = irq - mpic->irq_offset;
+
+	mpic_unmask_irq(irq);
+
+	if (irq_desc[irq].status & IRQ_LEVEL)
+		mpic_ht_end_irq(mpic, src);
+}
+
+static unsigned int mpic_startup_ht_irq(unsigned int irq)
+{
+	struct mpic *mpic = mpic_from_irq(irq);
+	unsigned int src = irq - mpic->irq_offset;
+
+	mpic_unmask_irq(irq);
+	mpic_startup_ht_interrupt(mpic, src, irq_desc[irq].status);
+
+	return 0;
+}
+
+static void mpic_shutdown_ht_irq(unsigned int irq)
+{
+	struct mpic *mpic = mpic_from_irq(irq);
+	unsigned int src = irq - mpic->irq_offset;
+
+	mpic_shutdown_ht_interrupt(mpic, src, irq_desc[irq].status);
+	mpic_mask_irq(irq);
+}
+
+static void mpic_end_ht_irq(unsigned int irq)
+{
+	struct mpic *mpic = mpic_from_irq(irq);
+	unsigned int src = irq - mpic->irq_offset;
+
+#ifdef DEBUG_IRQ
+	DBG("%s: end_irq: %d\n", mpic->name, irq);
+#endif
+	/* We always EOI on end_irq() even for edge interrupts since that
+	 * should only lower the priority, the MPIC should have properly
+	 * latched another edge interrupt coming in anyway
+	 */
+
+	if (irq_desc[irq].status & IRQ_LEVEL)
+		mpic_ht_end_irq(mpic, src);
+	mpic_eoi(mpic);
+}
+
+#endif /* CONFIG_MPIC_BROKEN_U3 */
+
 #ifdef CONFIG_SMP
 
-static void mpic_enable_ipi(unsigned int irq)
+static void mpic_unmask_ipi(unsigned int irq)
 {
 	struct mpic *mpic = mpic_from_ipi(irq);
 	unsigned int src = irq - mpic->ipi_offset;
@@ -527,7 +531,7 @@ static void mpic_enable_ipi(unsigned int irq)
 	mpic_ipi_write(src, mpic_ipi_read(src) & ~MPIC_VECPRI_MASK);
 }
 
-static void mpic_disable_ipi(unsigned int irq)
+static void mpic_mask_ipi(unsigned int irq)
 {
 	/* NEVER disable an IPI... that's just plain wrong! */
 }
@@ -560,6 +564,30 @@ static void mpic_set_affinity(unsigned int irq, cpumask_t cpumask)
 		       mpic_physmask(cpus_addr(tmp)[0]));	
 }
 
+static struct irq_chip mpic_irq_chip = {
+	.mask	= mpic_mask_irq,
+	.unmask	= mpic_unmask_irq,
+	.eoi	= mpic_end_irq,
+};
+
+#ifdef CONFIG_SMP
+static struct irq_chip mpic_ipi_chip = {
+	.mask	= mpic_mask_ipi,
+	.unmask	= mpic_unmask_ipi,
+	.eoi	= mpic_end_ipi,
+};
+#endif /* CONFIG_SMP */
+
+#ifdef CONFIG_MPIC_BROKEN_U3
+static struct irq_chip mpic_irq_ht_chip = {
+	.startup	= mpic_startup_ht_irq,
+	.shutdown	= mpic_shutdown_ht_irq,
+	.mask		= mpic_mask_irq,
+	.unmask		= mpic_unmask_ht_irq,
+	.eoi		= mpic_end_ht_irq,
+};
+#endif /* CONFIG_MPIC_BROKEN_U3 */
+
 
 /*
  * Exported functions
@@ -589,19 +617,19 @@ struct mpic * __init mpic_alloc(unsigned long phys_addr,
 	memset(mpic, 0, sizeof(struct mpic));
 	mpic->name = name;
 
+	mpic->hc_irq = mpic_irq_chip;
 	mpic->hc_irq.typename = name;
-	mpic->hc_irq.startup = mpic_startup_irq;
-	mpic->hc_irq.shutdown = mpic_shutdown_irq;
-	mpic->hc_irq.enable = mpic_enable_irq;
-	mpic->hc_irq.disable = mpic_disable_irq;
-	mpic->hc_irq.end = mpic_end_irq;
 	if (flags & MPIC_PRIMARY)
 		mpic->hc_irq.set_affinity = mpic_set_affinity;
+#ifdef CONFIG_MPIC_BROKEN_U3
+	mpic->hc_ht_irq = mpic_irq_ht_chip;
+	mpic->hc_ht_irq.typename = name;
+	if (flags & MPIC_PRIMARY)
+		mpic->hc_ht_irq.set_affinity = mpic_set_affinity;
+#endif /* CONFIG_MPIC_BROKEN_U3 */
 #ifdef CONFIG_SMP
 	mpic->hc_ipi.typename = name;
-	mpic->hc_ipi.enable = mpic_enable_ipi;
-	mpic->hc_ipi.disable = mpic_disable_ipi;
-	mpic->hc_ipi.end = mpic_end_ipi;
+	mpic->hc_ipi = mpic_ipi_chip;
 #endif /* CONFIG_SMP */
 
 	mpic->flags = flags;
@@ -697,28 +725,6 @@ void __init mpic_assign_isu(struct mpic *mpic, unsigned int isu_num,
 		mpic->num_sources = isu_first + mpic->isu_size;
 }
 
-void __init mpic_setup_cascade(unsigned int irq, mpic_cascade_t handler,
-			       void *data)
-{
-	struct mpic *mpic = mpic_find(irq, NULL);
-	unsigned long flags;
-
-	/* Synchronization here is a bit dodgy, so don't try to replace cascade
-	 * interrupts on the fly too often ... but normally it's set up at boot.
-	 */
-	spin_lock_irqsave(&mpic_lock, flags);
-	if (mpic->cascade)	       
-		mpic_disable_irq(mpic->cascade_vec + mpic->irq_offset);
-	mpic->cascade = NULL;
-	wmb();
-	mpic->cascade_vec = irq - mpic->irq_offset;
-	mpic->cascade_data = data;
-	wmb();
-	mpic->cascade = handler;
-	mpic_enable_irq(irq);
-	spin_unlock_irqrestore(&mpic_lock, flags);
-}
-
 void __init mpic_init(struct mpic *mpic)
 {
 	int i;
@@ -750,8 +756,10 @@ void __init mpic_init(struct mpic *mpic)
 #ifdef CONFIG_SMP
 		if (!(mpic->flags & MPIC_PRIMARY))
 			continue;
-		irq_desc[mpic->ipi_offset+i].status |= IRQ_PER_CPU;
-		irq_desc[mpic->ipi_offset+i].chip = &mpic->hc_ipi;
+		set_irq_chip_data(mpic->ipi_offset+i, mpic);
+		set_irq_chip_and_handler(mpic->ipi_offset+i,
+					 &mpic->hc_ipi,
+					 handle_percpu_irq);
 #endif /* CONFIG_SMP */
 	}
 
@@ -763,7 +771,7 @@ void __init mpic_init(struct mpic *mpic)
 	/* Do the HT PIC fixups on U3 broken mpic */
 	DBG("MPIC flags: %x\n", mpic->flags);
 	if ((mpic->flags & MPIC_BROKEN_U3) && (mpic->flags & MPIC_PRIMARY))
-		mpic_scan_ht_pics(mpic);
+ 		mpic_scan_ht_pics(mpic);
 #endif /* CONFIG_MPIC_BROKEN_U3 */
 
 	for (i = 0; i < mpic->num_sources; i++) {
@@ -811,8 +819,17 @@ void __init mpic_init(struct mpic *mpic)
 
 		/* init linux descriptors */
 		if (i < mpic->irq_count) {
-			irq_desc[mpic->irq_offset+i].status = level ? IRQ_LEVEL : 0;
-			irq_desc[mpic->irq_offset+i].chip = &mpic->hc_irq;
+			struct irq_chip *chip = &mpic->hc_irq;
+
+			irq_desc[mpic->irq_offset+i].status |=
+				level ? IRQ_LEVEL : 0;
+#ifdef CONFIG_MPIC_BROKEN_U3
+			if (mpic_is_ht_interrupt(mpic, i))
+				chip = &mpic->hc_ht_irq;
+#endif /* CONFIG_MPIC_BROKEN_U3 */
+			set_irq_chip_data(mpic->irq_offset+i, mpic);
+			set_irq_chip_and_handler(mpic->irq_offset+i, chip,
+						 handle_fasteoi_irq);
 		}
 	}
 	
@@ -986,14 +1003,6 @@ int mpic_get_one_irq(struct mpic *mpic, struct pt_regs *regs)
 #ifdef DEBUG_LOW
 	DBG("%s: get_one_irq(): %d\n", mpic->name, irq);
 #endif
-	if (mpic->cascade && irq == mpic->cascade_vec) {
-#ifdef DEBUG_LOW
-		DBG("%s: cascading ...\n", mpic->name);
-#endif
-		irq = mpic->cascade(regs, mpic->cascade_data);
-		mpic_eoi(mpic);
-		return irq;
-	}
 	if (unlikely(irq == MPIC_VEC_SPURRIOUS))
 		return -1;
 	if (irq < MPIC_VEC_IPI_0) {

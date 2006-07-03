@@ -114,9 +114,6 @@
 #define MPIC_VEC_TIMER_1	248
 #define MPIC_VEC_TIMER_0	247
 
-/* Type definition of the cascade handler */
-typedef int (*mpic_cascade_t)(struct pt_regs *regs, void *data);
-
 #ifdef CONFIG_MPIC_BROKEN_U3
 /* Fixup table entry */
 struct mpic_irq_fixup
@@ -133,9 +130,12 @@ struct mpic_irq_fixup
 struct mpic
 {
 	/* The "linux" controller struct */
-	hw_irq_controller	hc_irq;
+	struct irq_chip		hc_irq;
+#ifdef CONFIG_MPIC_BROKEN_U3
+	struct irq_chip		hc_ht_irq;
+#endif
 #ifdef CONFIG_SMP
-	hw_irq_controller	hc_ipi;
+	struct irq_chip		hc_ipi;
 #endif
 	const char		*name;
 	/* Flags */
@@ -153,10 +153,6 @@ struct mpic
 	unsigned int		num_sources;
 	/* Number of CPUs */
 	unsigned int		num_cpus;
-	/* cascade handler */
-	mpic_cascade_t		cascade;
-	void			*cascade_data;
-	unsigned int		cascade_vec;
 	/* senses array */
 	unsigned char		*senses;
 	unsigned int		senses_count;
@@ -236,17 +232,6 @@ extern void mpic_assign_isu(struct mpic *mpic, unsigned int isu_num,
  * should be called again for this mpic
  */
 extern void mpic_init(struct mpic *mpic);
-
-/* Setup a cascade. Currently, only one cascade is supported this
- * way, though you can always do a normal request_irq() and add
- * other cascades this way. You should call this _after_ having
- * added all the ISUs
- *
- * @irq_no:	"linux" irq number of the cascade (that is offset'ed vector)
- * @handler:	cascade handler function
- */
-extern void mpic_setup_cascade(unsigned int irq_no, mpic_cascade_t hanlder,
-			       void *data);
 
 /*
  * All of the following functions must only be used after the

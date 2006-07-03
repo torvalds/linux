@@ -38,6 +38,7 @@
 
 enum {
 	IIC_EXT_OFFSET   = 0x00, /* Start of south bridge IRQs */
+	IIC_EXT_CASCADE  = 0x20, /* There is no interrupt 32 on spider */
 	IIC_NUM_EXT      = 0x40, /* Number of south bridge IRQs */
 	IIC_SPE_OFFSET   = 0x40, /* Start of SPE interrupts */
 	IIC_CLASS_STRIDE = 0x10, /* SPE IRQs per class    */
@@ -51,13 +52,10 @@ extern int  iic_get_irq(struct pt_regs *regs);
 extern void iic_cause_IPI(int cpu, int mesg);
 extern void iic_request_IPIs(void);
 extern void iic_setup_cpu(void);
-extern void iic_local_enable(void);
-extern void iic_local_disable(void);
 
 extern u8 iic_get_target_id(int cpu);
 
 extern void spider_init_IRQ(void);
-extern int spider_get_irq(int node);
 
 #endif
 #endif /* ASM_CELL_PIC_H */

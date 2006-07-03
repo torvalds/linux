@@ -37,64 +37,51 @@
 struct iic {
 	struct cbe_iic_thread_regs __iomem *regs;
 	u8 target_id;
+	u8 eoi_stack[16];
+	int eoi_ptr;
 };
 
 static DEFINE_PER_CPU(struct iic, iic);
 
-void iic_local_enable(void)
+static void iic_mask(unsigned int irq)
+{
+}
+
+static void iic_unmask(unsigned int irq)
+{
+}
+
+static void iic_eoi(unsigned int irq)
 {
 	struct iic *iic = &__get_cpu_var(iic);
-	u64 tmp;
-
-	/*
-	 * There seems to be a bug that is present in DD2.x CPUs
-	 * and still only partially fixed in DD3.1.
-	 * This bug causes a value written to the priority register
-	 * not to make it there, resulting in a system hang unless we
-	 * write it again.
-	 * Masking with 0xf0 is done because the Cell BE does not
-	 * implement the lower four bits of the interrupt priority,
-	 * they always read back as zeroes, although future CPUs
-	 * might implement different bits.
-	 */
-	do {
-		out_be64(&iic->regs->prio, 0xff);
-		tmp = in_be64(&iic->regs->prio);
-	} while ((tmp & 0xf0) != 0xf0);
+	out_be64(&iic->regs->prio, iic->eoi_stack[--iic->eoi_ptr]);
+	BUG_ON(iic->eoi_ptr < 0);
 }
 
-void iic_local_disable(void)
-{
-	out_be64(&__get_cpu_var(iic).regs->prio, 0x0);
-}
-
-static unsigned int iic_startup(unsigned int irq)
-{
-	return 0;
-}
-
-static void iic_enable(unsigned int irq)
-{
-	iic_local_enable();
-}
-
-static void iic_disable(unsigned int irq)
-{
-}
-
-static void iic_end(unsigned int irq)
-{
-	iic_local_enable();
-}
-
-static struct hw_interrupt_type iic_pic = {
+static struct irq_chip iic_chip = {
 	.typename = " CELL-IIC ",
-	.startup = iic_startup,
-	.enable = iic_enable,
-	.disable = iic_disable,
-	.end = iic_end,
+	.mask = iic_mask,
+	.unmask = iic_unmask,
+	.eoi = iic_eoi,
 };
 
+/* XXX All of this has to be reworked completely. We need to assign a real
+ * interrupt numbers to the external interrupts and remove all the hard coded
+ * interrupt maps (rely on the device-tree whenever possible).
+ *
+ * Basically, my scheme is to define the "pendings" bits to be the HW interrupt
+ * number (ignoring the data and flags here). That means we can sort-of split
+ * external sources based on priority, and we can use request_irq() on pretty
+ * much anything.
+ *
+ * For spider or axon, they have their own interrupt space. spider will just have
+ * local "hardward" interrupts 0...xx * node stride. The node stride is not
+ * necessary (separate interrupt chips will have separate HW number space), but
+ * will allow to be compatible with existing device-trees.
+ *
+ * All of thise little world will get a standard remapping scheme to map those HW
+ * numbers into the linux flat irq number space.
+*/
 static int iic_external_get_irq(struct cbe_iic_pending_bits pending)
 {
 	int irq;
@@ -118,9 +105,10 @@ static int iic_external_get_irq(struct cbe_iic_pending_bits pending)
 		 */
 		if (pending.class != 2)
 			break;
-		irq = IIC_EXT_OFFSET
-			+ spider_get_irq(node)
-			+ node * IIC_NODE_STRIDE;
+		/* TODO: We might want to silently ignore cascade interrupts
+		 * when no cascade handler exist yet
+		 */
+		irq = IIC_EXT_CASCADE + node * IIC_NODE_STRIDE;
 		break;
 	case 0x01 ... 0x04:
 	case 0x07 ... 0x0a:
@@ -152,6 +140,8 @@ int iic_get_irq(struct pt_regs *regs)
 	iic = &__get_cpu_var(iic);
 	*(unsigned long *) &pending = 
 		in_be64((unsigned long __iomem *) &iic->regs->pending_destr);
+	iic->eoi_stack[++iic->eoi_ptr] = pending.prio;
+	BUG_ON(iic->eoi_ptr > 15);
 
 	irq = -1;
 	if (pending.flags & CBE_IIC_IRQ_VALID) {
@@ -172,7 +162,7 @@ int iic_get_irq(struct pt_regs *regs)
 
 /* hardcoded part to be compatible with older firmware */
 
-static int setup_iic_hardcoded(void)
+static int __init setup_iic_hardcoded(void)
 {
 	struct device_node *np;
 	int nodeid, cpu;
@@ -207,12 +197,13 @@ static int setup_iic_hardcoded(void)
 		printk(KERN_INFO "IIC for CPU %d at %lx\n", cpu, regs);
 		iic->regs = ioremap(regs, sizeof(struct cbe_iic_thread_regs));
 		iic->target_id = (nodeid << 4) + ((cpu & 1) ? 0xf : 0xe);
+		iic->eoi_stack[0] = 0xff;
 	}
 
 	return 0;
 }
 
-static int setup_iic(void)
+static int __init setup_iic(void)
 {
 	struct device_node *dn;
 	unsigned long *regs;
@@ -248,11 +239,14 @@ static int setup_iic(void)
  		iic = &per_cpu(iic, np[0]);
  		iic->regs = ioremap(regs[0], sizeof(struct cbe_iic_thread_regs));
 		iic->target_id = ((np[0] & 2) << 3) + ((np[0] & 1) ? 0xf : 0xe);
+		iic->eoi_stack[0] = 0xff;
  		printk("IIC for CPU %d at %lx mapped to %p\n", np[0], regs[0], iic->regs);
 
  		iic = &per_cpu(iic, np[1]);
  		iic->regs = ioremap(regs[2], sizeof(struct cbe_iic_thread_regs));
 		iic->target_id = ((np[1] & 2) << 3) + ((np[1] & 1) ? 0xf : 0xe);
+		iic->eoi_stack[0] = 0xff;
+
  		printk("IIC for CPU %d at %lx mapped to %p\n", np[1], regs[2], iic->regs);
 
 		found++;
@@ -304,10 +298,10 @@ static void iic_request_ipi(int ipi, const char *name)
 	int irq;
 
 	irq = iic_ipi_to_irq(ipi);
+
 	/* IPIs are marked IRQF_DISABLED as they must run with irqs
 	 * disabled */
-	get_irq_desc(irq)->chip = &iic_pic;
-	get_irq_desc(irq)->status |= IRQ_PER_CPU;
+ 	set_irq_chip_and_handler(irq, &iic_chip, handle_percpu_irq);
 	request_irq(irq, iic_ipi_action, IRQF_DISABLED, name, NULL);
 }
 
@@ -321,20 +315,26 @@ void iic_request_IPIs(void)
 }
 #endif /* CONFIG_SMP */
 
-static void iic_setup_spe_handlers(void)
+static void __init iic_setup_builtin_handlers(void)
 {
 	int be, isrc;
 
-	/* Assume two threads per BE are present */
+	/* XXX FIXME: Assume two threads per BE are present */
 	for (be=0; be < num_present_cpus() / 2; be++) {
+		int irq;
+
+		/* setup SPE chip and handlers */
 		for (isrc = 0; isrc < IIC_CLASS_STRIDE * 3; isrc++) {
-			int irq = IIC_NODE_STRIDE * be + IIC_SPE_OFFSET + isrc;
-			get_irq_desc(irq)->chip = &iic_pic;
+			irq = IIC_NODE_STRIDE * be + IIC_SPE_OFFSET + isrc;
+			set_irq_chip_and_handler(irq, &iic_chip, handle_fasteoi_irq);
 		}
+		/* setup cascade chip */
+		irq = IIC_EXT_CASCADE + be * IIC_NODE_STRIDE;
+		set_irq_chip_and_handler(irq, &iic_chip, handle_fasteoi_irq);
 	}
 }
 
-void iic_init_IRQ(void)
+void __init iic_init_IRQ(void)
 {
 	int cpu, irq_offset;
 	struct iic *iic;
@@ -348,5 +348,6 @@ void iic_init_IRQ(void)
 		if (iic->regs)
 			out_be64(&iic->regs->prio, 0xff);
 	}
-	iic_setup_spe_handlers();
+	iic_setup_builtin_handlers();
+
 }

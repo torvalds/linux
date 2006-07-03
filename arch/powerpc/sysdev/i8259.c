@@ -69,11 +69,6 @@ int i8259_irq(struct pt_regs *regs)
 	return irq + i8259_pic_irq_offset;
 }
 
-int i8259_irq_cascade(struct pt_regs *regs, void *unused)
-{
-	return i8259_irq(regs);
-}
-
 static void i8259_mask_and_ack_irq(unsigned int irq_nr)
 {
 	unsigned long flags;
@@ -129,19 +124,11 @@ static void i8259_unmask_irq(unsigned int irq_nr)
 	spin_unlock_irqrestore(&i8259_lock, flags);
 }
 
-static void i8259_end_irq(unsigned int irq)
-{
-	if (!(irq_desc[irq].status & (IRQ_DISABLED|IRQ_INPROGRESS))
-	    && irq_desc[irq].action)
-		i8259_unmask_irq(irq);
-}
-
-struct hw_interrupt_type i8259_pic = {
-	.typename = " i8259    ",
-	.enable = i8259_unmask_irq,
-	.disable = i8259_mask_irq,
-	.ack = i8259_mask_and_ack_irq,
-	.end = i8259_end_irq,
+static struct irq_chip i8259_pic = {
+	.typename	= " i8259    ",
+	.mask		= i8259_mask_irq,
+	.unmask		= i8259_unmask_irq,
+	.mask_ack	= i8259_mask_and_ack_irq,
 };
 
 static struct resource pic1_iores = {
@@ -207,8 +194,11 @@ void __init i8259_init(unsigned long intack_addr, int offset)
 
 	spin_unlock_irqrestore(&i8259_lock, flags);
 
-	for (i = 0; i < NUM_ISA_INTERRUPTS; ++i)
-		irq_desc[offset + i].chip = &i8259_pic;
+	for (i = 0; i < NUM_ISA_INTERRUPTS; ++i) {
+		set_irq_chip_and_handler(offset + i, &i8259_pic,
+					 handle_level_irq);
+		irq_desc[offset + i].status |= IRQ_LEVEL;
+	}
 
 	/* reserve our resources */
 	setup_irq(offset + 2, &i8259_irqaction);

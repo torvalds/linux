@@ -62,28 +62,27 @@
 #endif
 
 int __irq_offset_value;
-#ifdef CONFIG_PPC32
-EXPORT_SYMBOL(__irq_offset_value);
-#endif
-
 static int ppc_spurious_interrupts;
 
 #ifdef CONFIG_PPC32
-#define NR_MASK_WORDS	((NR_IRQS + 31) / 32)
-
-unsigned long ppc_cached_irq_mask[NR_MASK_WORDS];
+EXPORT_SYMBOL(__irq_offset_value);
 atomic_t ppc_n_lost_interrupts;
+
+#ifndef CONFIG_PPC_MERGE
+#define NR_MASK_WORDS	((NR_IRQS + 31) / 32)
+unsigned long ppc_cached_irq_mask[NR_MASK_WORDS];
+#endif
 
 #ifdef CONFIG_TAU_INT
 extern int tau_initialized;
 extern int tau_interrupts(int);
 #endif
+#endif /* CONFIG_PPC32 */
 
 #if defined(CONFIG_SMP) && !defined(CONFIG_PPC_MERGE)
 extern atomic_t ipi_recv;
 extern atomic_t ipi_sent;
 #endif
-#endif /* CONFIG_PPC32 */
 
 #ifdef CONFIG_PPC64
 EXPORT_SYMBOL(irq_desc);
@@ -219,15 +218,19 @@ void do_IRQ(struct pt_regs *regs)
 		curtp = current_thread_info();
 		irqtp = hardirq_ctx[smp_processor_id()];
 		if (curtp != irqtp) {
+			struct irq_desc *desc = irq_desc + irq;
+			void *handler = desc->handle_irq;
+			if (handler == NULL)
+				handler = &__do_IRQ;
 			irqtp->task = curtp->task;
 			irqtp->flags = 0;
-			call___do_IRQ(irq, regs, irqtp);
+			call_handle_irq(irq, desc, regs, irqtp, handler);
 			irqtp->task = NULL;
 			if (irqtp->flags)
 				set_bits(irqtp->flags, &curtp->flags);
 		} else
 #endif
-			__do_IRQ(irq, regs);
+			generic_handle_irq(irq, regs);
 	} else if (irq != -2)
 		/* That's not SMP safe ... but who cares ? */
 		ppc_spurious_interrupts++;
@@ -245,15 +248,6 @@ void do_IRQ(struct pt_regs *regs)
 
 void __init init_IRQ(void)
 {
-#ifdef CONFIG_PPC64
-	static int once = 0;
-
-	if (once)
-		return;
-
-	once++;
-
-#endif
 	ppc_md.init_IRQ();
 #ifdef CONFIG_PPC64
 	irq_ctx_init();

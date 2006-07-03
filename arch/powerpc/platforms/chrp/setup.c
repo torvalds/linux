@@ -315,6 +315,21 @@ chrp_event_scan(unsigned long unused)
 		  jiffies + event_scan_interval);
 }
 
+void chrp_8259_cascade(unsigned int irq, struct irq_desc *desc,
+			struct pt_regs *regs)
+{
+	unsigned int max = 100;
+
+	while(max--) {
+		int irq = i8259_irq(regs);
+		if (max == 99)
+			desc->chip->eoi(irq);
+		if (irq < 0)
+			break;
+		generic_handle_irq(irq, regs);
+	};
+}
+
 /*
  * Finds the open-pic node and sets up the mpic driver.
  */
@@ -402,7 +417,7 @@ static void __init chrp_find_openpic(void)
 	}
 
 	mpic_init(chrp_mpic);
-	mpic_setup_cascade(NUM_ISA_INTERRUPTS, i8259_irq_cascade, NULL);
+	set_irq_chained_handler(NUM_ISA_INTERRUPTS, chrp_8259_cascade);
 }
 
 #if defined(CONFIG_VT) && defined(CONFIG_INPUT_ADBHID) && defined(XMON)

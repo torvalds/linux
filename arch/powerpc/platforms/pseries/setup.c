@@ -118,6 +118,21 @@ static void __init fwnmi_init(void)
 		fwnmi_active = 1;
 }
 
+void pSeries_8259_cascade(unsigned int irq, struct irq_desc *desc,
+			  struct pt_regs *regs)
+{
+	unsigned int max = 100;
+
+	while(max--) {
+		int cascade_irq = i8259_irq(regs);
+		if (max == 99)
+			desc->chip->eoi(irq);
+		if (cascade_irq < 0)
+			break;
+		generic_handle_irq(cascade_irq, regs);
+	};
+}
+
 static void __init pSeries_init_mpic(void)
 {
         unsigned int *addrp;
@@ -140,7 +155,7 @@ static void __init pSeries_init_mpic(void)
 	i8259_init(intack, 0);
 
 	/* Hook cascade to mpic */
-	mpic_setup_cascade(NUM_ISA_INTERRUPTS, i8259_irq_cascade, NULL);
+	set_irq_chained_handler(NUM_ISA_INTERRUPTS, pSeries_8259_cascade);
 }
 
 static void __init pSeries_setup_mpic(void)
@@ -201,10 +216,8 @@ static void __init pSeries_setup_arch(void)
 		/* Allocate the mpic now, so that find_and_init_phbs() can
 		 * fill the ISUs */
 		pSeries_setup_mpic();
-	} else {
+	} else
 		ppc_md.init_IRQ       = xics_init_IRQ;
-		ppc_md.get_irq        = xics_get_irq;
-	}
 
 #ifdef CONFIG_SMP
 	smp_init_pSeries();
@@ -291,10 +304,7 @@ static void pSeries_mach_cpu_die(void)
 {
 	local_irq_disable();
 	idle_task_exit();
-	/* Some hardware requires clearing the CPPR, while other hardware does not
-	 * it is safe either way
-	 */
-	pSeriesLP_cppr_info(0, 0);
+	xics_teardown_cpu(0);
 	rtas_stop_self();
 	/* Should never get here... */
 	BUG();

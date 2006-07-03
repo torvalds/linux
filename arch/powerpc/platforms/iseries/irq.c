@@ -297,13 +297,13 @@ static void iseries_end_IRQ(unsigned int irq)
 		(REAL_IRQ_TO_IDSEL(rirq) << 4) + REAL_IRQ_TO_FUNC(rirq));
 }
 
-static hw_irq_controller iSeries_IRQ_handler = {
-	.typename = "iSeries irq controller",
-	.startup = iseries_startup_IRQ,
-	.shutdown = iseries_shutdown_IRQ,
-	.enable = iseries_enable_IRQ,
-	.disable = iseries_disable_IRQ,
-	.end = iseries_end_IRQ
+static struct irq_chip iseries_pic = {
+	.typename	= "iSeries irq controller",
+	.startup	= iseries_startup_IRQ,
+	.shutdown	= iseries_shutdown_IRQ,
+	.unmask		= iseries_enable_IRQ,
+	.mask		= iseries_disable_IRQ,
+	.eoi		= iseries_end_IRQ
 };
 
 /*
@@ -322,8 +322,7 @@ int __init iSeries_allocate_IRQ(HvBusNumber bus,
 	realirq = (((((sub_bus << 8) + (bus - 1)) << 3) + (idsel - 1)) << 3)
 		+ function;
 	virtirq = virt_irq_create_mapping(realirq);
-
-	irq_desc[virtirq].chip = &iSeries_IRQ_handler;
+	set_irq_chip_and_handler(virtirq, &iseries_pic, handle_fasteoi_irq);
 	return virtirq;
 }
 
