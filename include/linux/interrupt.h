@@ -86,6 +86,41 @@ extern void disable_irq_nosync(unsigned int irq);
 extern void disable_irq(unsigned int irq);
 extern void enable_irq(unsigned int irq);
 
+/*
+ * Special lockdep variants of irq disabling/enabling.
+ * These should be used for locking constructs that
+ * know that a particular irq context which is disabled,
+ * and which is the only irq-context user of a lock,
+ * that it's safe to take the lock in the irq-disabled
+ * section without disabling hardirqs.
+ *
+ * On !CONFIG_LOCKDEP they are equivalent to the normal
+ * irq disable/enable methods.
+ */
+static inline void disable_irq_nosync_lockdep(unsigned int irq)
+{
+	disable_irq_nosync(irq);
+#ifdef CONFIG_LOCKDEP
+	local_irq_disable();
+#endif
+}
+
+static inline void disable_irq_lockdep(unsigned int irq)
+{
+	disable_irq(irq);
+#ifdef CONFIG_LOCKDEP
+	local_irq_disable();
+#endif
+}
+
+static inline void enable_irq_lockdep(unsigned int irq)
+{
+#ifdef CONFIG_LOCKDEP
+	local_irq_enable();
+#endif
+	enable_irq(irq);
+}
+
 /* IRQ wakeup (PM) control: */
 extern int set_irq_wake(unsigned int irq, unsigned int on);
 
@@ -99,7 +134,19 @@ static inline int disable_irq_wake(unsigned int irq)
 	return set_irq_wake(irq, 0);
 }
 
-#endif
+#else /* !CONFIG_GENERIC_HARDIRQS */
+/*
+ * NOTE: non-genirq architectures, if they want to support the lock
+ * validator need to define the methods below in their asm/irq.h
+ * files, under an #ifdef CONFIG_LOCKDEP section.
+ */
+# ifndef CONFIG_LOCKDEP
+#  define disable_irq_nosync_lockdep(irq)	disable_irq_nosync(irq)
+#  define disable_irq_lockdep(irq)		disable_irq(irq)
+#  define enable_irq_lockdep(irq)		enable_irq(irq)
+# endif
+
+#endif /* CONFIG_GENERIC_HARDIRQS */
 
 #ifndef __ARCH_SET_SOFTIRQ_PENDING
 #define set_softirq_pending(x) (local_softirq_pending() = (x))
