@@ -2627,13 +2627,14 @@ int ata_std_prereset(struct ata_port *ap)
 	const unsigned long *timing;
 	int rc;
 
-	/* hotplug? */
-	if (ehc->i.flags & ATA_EHI_HOTPLUGGED) {
-		if (ap->flags & ATA_FLAG_HRST_TO_RESUME)
-			ehc->i.action |= ATA_EH_HARDRESET;
-		if (ap->flags & ATA_FLAG_SKIP_D2H_BSY)
-			ata_wait_spinup(ap);
-	}
+	/* handle link resume & hotplug spinup */
+	if ((ehc->i.flags & ATA_EHI_RESUME_LINK) &&
+	    (ap->flags & ATA_FLAG_HRST_TO_RESUME))
+		ehc->i.action |= ATA_EH_HARDRESET;
+
+	if ((ehc->i.flags & ATA_EHI_HOTPLUGGED) &&
+	    (ap->flags & ATA_FLAG_SKIP_D2H_BSY))
+		ata_wait_spinup(ap);
 
 	/* if we're about to do hardreset, nothing more to do */
 	if (ehc->i.action & ATA_EH_HARDRESET)

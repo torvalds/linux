@@ -259,6 +259,7 @@ enum {
 
 	/* ata_eh_info->flags */
 	ATA_EHI_HOTPLUGGED	= (1 << 0),  /* could have been hotplugged */
+	ATA_EHI_RESUME_LINK	= (1 << 1),  /* need to resume link */
 
 	ATA_EHI_DID_RESET	= (1 << 16), /* already reset this port */
 
@@ -836,7 +837,7 @@ static inline void ata_ehi_hotplugged(struct ata_eh_info *ehi)
 	if (ehi->flags & ATA_EHI_HOTPLUGGED)
 		return;
 
-	ehi->flags |= ATA_EHI_HOTPLUGGED;
+	ehi->flags |= ATA_EHI_HOTPLUGGED | ATA_EHI_RESUME_LINK;
 	ehi->hotplug_timestamp = jiffies;
 
 	ehi->err_mask |= AC_ERR_ATA_BUS;
